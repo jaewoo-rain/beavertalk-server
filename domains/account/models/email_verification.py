@@ -1,7 +1,7 @@
 """email_verification (이메일 인증 코드) — account 도메인.
 
-회원가입(`purpose="signup"`)과 비밀번호 재설정(`purpose="pwreset"`)에서 공용으로 쓰는
-4자리 코드 저장소. 코드는 bcrypt 해시로 보관하고, (email, purpose) 당 1행만 유지한다
+비밀번호 재설정(`purpose="pwreset"`)에서 쓰는 4자리 코드 저장소.
+코드는 bcrypt 해시로 보관하고, (email, purpose) 당 1행만 유지한다
 (재발송 시 갱신). 시도 횟수·만료·인증완료 시각을 함께 관리한다.
 
 JWT 토큰이 아니라 **서버 DB**에 두는 이유: JWT 본문은 디코드가 가능해 4자리(1만 개)는
@@ -19,7 +19,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from db.base import Base, TimestampMixin
 
 # purpose 값
-PURPOSE_SIGNUP = "signup"
 PURPOSE_PWRESET = "pwreset"
 
 
@@ -34,7 +33,7 @@ class EmailVerification(Base, TimestampMixin):
         BigInteger, Identity(), primary_key=True
     )
     email: Mapped[str] = mapped_column(Text, index=True, comment="대상 이메일")
-    purpose: Mapped[str] = mapped_column(Text, comment="signup | pwreset")
+    purpose: Mapped[str] = mapped_column(Text, comment="pwreset")
     code_hash: Mapped[str] = mapped_column(Text, comment="코드 bcrypt 해시")
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), comment="코드 만료 시각"

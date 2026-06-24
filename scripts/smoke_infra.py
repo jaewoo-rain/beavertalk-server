@@ -11,8 +11,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.config import settings  # noqa: E402
-from db.engine import engine  # noqa: E402
-from db.session import SessionLocal, get_db  # noqa: E402
+from db.engine import build_engine  # noqa: E402
+from db.session import build_session_factory, get_db  # noqa: E402
+
+engine = build_engine(settings)
+session_factory = build_session_factory(engine)
 
 print("ENV =", settings.ENV)
 print("POOL set =", bool(settings.DATABASE_URL_POOL))
@@ -20,5 +23,5 @@ print("POOL set =", bool(settings.DATABASE_URL_POOL))
 print("DIRECT(폴백) set =", bool(settings.direct_url))
 print("engine dialect =", engine.dialect.name)
 print("pool class =", type(engine.pool).__name__)
-print("SessionLocal ready =", SessionLocal is not None and get_db is not None)
+print("session factory ready =", session_factory is not None and get_db is not None)
 print("OK: 인프라 import/설정 로드 성공 (실제 DB 연결은 수행하지 않음)")

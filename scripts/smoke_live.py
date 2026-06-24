@@ -1,7 +1,7 @@
 """실제 Supabase 로 가입/로그인/조회 라이브 검증. 끝나면 테스트 회원 삭제.
 
 실행: python scripts/smoke_live.py
-(이메일 인증 코드는 "1234" 고정 + 실제 메일 발송 차단으로 자동화한다.)
+(가입은 이메일 인증 없이 즉시 완료된다.)
 """
 
 import sys
@@ -13,12 +13,6 @@ from fastapi.testclient import TestClient
 
 import main  # 실제 get_db(=Supabase) 사용, 오버라이드 안 함
 
-# 라이브 자동화: 인증 코드 고정 + 실제 메일 발송 차단(모킹)
-import domains.account.service.email_verification_service as _evs  # noqa: E402
-
-_evs.generate_code = lambda: "1234"
-_evs.send_email = lambda *a, **k: None
-
 client = TestClient(main.app)
 EMAIL = "livetest@beavertalk.io"
 
@@ -29,11 +23,7 @@ if r.status_code == 200:
     client.delete("/api/v1/members/me", headers={"Authorization": f"Bearer {tok}"})
     print("정리: 기존 테스트 회원 삭제")
 
-# 1) 이메일 인증 → 가입(이메일+비밀번호만, 캐릭터는 기본 자동 지정)
-assert client.post("/api/v1/auth/email/send-code", json={"email": EMAIL}).status_code == 200
-assert client.post(
-    "/api/v1/auth/email/verify-code", json={"email": EMAIL, "code": "1234"}
-).status_code == 200
+# 1) 가입(이메일+비밀번호만, 인증 없음, 캐릭터는 기본 자동 지정)
 r = client.post("/api/v1/auth/signup", json={"email": EMAIL, "password": "pw"})
 assert r.status_code == 201, r.text
 me = r.json()

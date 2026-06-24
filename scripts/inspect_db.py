@@ -10,9 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import inspect, text
 
-from db.engine import engine
+from core.config import settings
+from db.engine import build_engine
 from db.registry import Base
 
+engine = build_engine(settings)
 insp = inspect(engine)
 existing = sorted(insp.get_table_names(schema="public"))
 model_tables = sorted(Base.metadata.tables.keys())

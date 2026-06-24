@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 class MemberCreate(BaseModel):
     """회원 생성 입력 — 이메일 + 비밀번호만. (이름·학습이유·언어는 온보딩에서)
 
-    가입 전 이메일 인증(코드)이 완료돼 있어야 한다.
+    이메일 인증 없이 즉시 가입한다.
     """
 
     email: EmailStr
@@ -29,19 +29,6 @@ class OnboardingIn(BaseModel):
     name: Optional[str] = None
     reasons: Optional[list[str]] = None  # 학습 이유 코드(다중선택)
     language: Optional[str] = None
-
-
-class EmailSendCode(BaseModel):
-    """이메일 인증 코드 발송 요청."""
-
-    email: EmailStr
-
-
-class EmailVerifyCode(BaseModel):
-    """이메일 인증 코드 확인."""
-
-    email: EmailStr
-    code: str
 
 
 class EmailAvailable(BaseModel):

@@ -1,9 +1,9 @@
 """EmailVerificationService — 이메일 인증 코드 발급/검증/소비.
 
-회원가입(signup)·비밀번호 재설정(pwreset)이 공용으로 쓴다.
+비밀번호 재설정(pwreset)에서 사용한다.
 - 발급: 4자리 코드 생성 → bcrypt 해시 저장(평문 미보관) → 메일 발송. (email, purpose) 당 1행.
 - 검증: 만료/시도제한/코드일치 확인. 성공 시 verified_at 기록(틀리면 attempts++).
-- 소비: 인증 완료(verified) 행을 삭제(=1회용). 회원가입 완료 시 호출.
+- 소비: 인증 완료(verified) 행을 삭제(=1회용). 재설정 확정 시 호출.
 
 코드 생성([generate_code])은 모듈 함수로 분리 — 테스트에서 monkeypatch 해 결정적으로 만든다.
 """
@@ -21,7 +21,6 @@ from core.email import send_email
 from core.security import hash_password, verify_password
 from domains.account.models.email_verification import (
     PURPOSE_PWRESET,
-    PURPOSE_SIGNUP,
     EmailVerification,
 )
 from domains.account.repository.email_verification_repository import (
@@ -52,12 +51,6 @@ class EmailVerificationService:
         return datetime.now(timezone.utc)
 
     # ── 발급 ──
-    def send_signup_code(self, email: str) -> None:
-        """회원가입용 코드 발송. 이미 가입된 이메일이면 409."""
-        if self.member_repo.get_by_email(email) is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "이미 가입된 이메일입니다.")
-        self._issue(email, PURPOSE_SIGNUP, "[BeaverTalk] 이메일 인증 코드")
-
     def send_reset_code(self, email: str) -> None:
         """비밀번호 재설정용 코드 발송(존재 여부 비노출 — 항상 조용히 처리).
 

@@ -13,7 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select
 
 import db.registry  # noqa: F401  (전 모델 등록 → 관계 해석)
-from db.session import SessionLocal
+from core.config import settings
+from db.engine import build_engine
+from db.session import build_session_factory
 from domains.commerce.models.character import Character
 
 
@@ -44,7 +46,9 @@ def seed_characters(db) -> None:
 
 
 def main() -> None:
-    db = SessionLocal()
+    engine = build_engine(settings)
+    session_factory = build_session_factory(engine)
+    db = session_factory()
     try:
         seed_characters(db)
         db.commit()

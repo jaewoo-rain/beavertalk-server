@@ -47,22 +47,6 @@ def override_get_db():
 main.app.dependency_overrides[get_db] = override_get_db
 client = TestClient(main.app)
 
-# 테스트 한정: 인증 코드는 "1234" 고정 + 실제 메일 발송 차단(모킹).
-import domains.account.service.email_verification_service as _evs  # noqa: E402
-
-_evs.generate_code = lambda: "1234"
-_evs.send_email = lambda *a, **k: None
-
-
-def verify_email(email: str) -> None:
-    """회원가입 전 이메일 인증(코드 발송 → 확인) 처리."""
-    r = client.post("/api/v1/auth/email/send-code", json={"email": email})
-    assert r.status_code == 200, r.text
-    r = client.post(
-        "/api/v1/auth/email/verify-code", json={"email": email, "code": "1234"}
-    )
-    assert r.status_code == 200, r.text
-
 # 2) FK 충족용 시드(speak_country, character)
 with TestingSessionLocal() as db:
     sc = SpeakCountry(first_country="USA", first_percent=80)
@@ -72,20 +56,12 @@ with TestingSessionLocal() as db:
     sc_id, ch_id = sc.speak_country_id, ch.character_id
 print(f"seed: speak_country_id={sc_id}, character_id={ch_id}")
 
-# 2-1) 이메일 인증 없이 가입 시도 → 400
-r_noverify = client.post("/api/v1/auth/signup", json={
-    "email": "test@beavertalk.io", "password": "hunter2",
-})
-assert r_noverify.status_code == 400, r_noverify.text
-print("인증 없이 가입 차단 400 OK")
-
-# 2-2) 가입 전 이메일 사용가능 → available True
+# 2-1) 가입 전 이메일 사용가능 → available True
 r = client.get("/api/v1/auth/email/available", params={"email": "test@beavertalk.io"})
 assert r.status_code == 200 and r.json()["available"] is True
 print("이메일 사용가능 확인 OK")
 
-# 3) 이메일 인증 → 회원가입(이메일 + 비밀번호만)
-verify_email("test@beavertalk.io")
+# 3) 회원가입(이메일 + 비밀번호만, 인증 없음)
 r = client.post("/api/v1/auth/signup", json={
     "email": "test@beavertalk.io", "password": "hunter2",
 })
@@ -102,15 +78,16 @@ r = client.get("/api/v1/auth/email/available", params={"email": "test@beavertalk
 assert r.status_code == 200 and r.json()["available"] is False
 print("가입 후 중복확인 False OK")
 
-# 3-2) 이미 가입 이메일 send-code → 409
-r_dup_code = client.post("/api/v1/auth/email/send-code", json={"email": "test@beavertalk.io"})
-assert r_dup_code.status_code == 409, r_dup_code.text
-print("이미 가입 이메일 send-code 409 OK")
+# 3-2) 이미 가입 이메일로 재가입 → 409
+r_dup = client.post("/api/v1/auth/signup", json={
+    "email": "test@beavertalk.io", "password": "hunter2",
+})
+assert r_dup.status_code == 409, r_dup.text
+print("이미 가입 이메일 재가입 409 OK")
 
 # 3-3) character_id 없이 가입 → 첫(무료) 캐릭터가 기본 대표 + 자동 보유
 from domains.commerce.models.member_character import MemberCharacter as _MC  # noqa: E402
 
-verify_email("default@beavertalk.io")
 r = client.post("/api/v1/auth/signup", json={"email": "default@beavertalk.io", "password": "pw"})
 assert r.status_code == 201, r.text
 md = r.json()

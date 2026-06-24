@@ -11,7 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text  # noqa: E402
 
-from db.engine import engine  # noqa: E402
+from core.config import settings  # noqa: E402
+from db.engine import build_engine  # noqa: E402
+
+engine = build_engine(settings)
 
 with engine.connect() as conn:
     ver = conn.execute(text("select version()")).scalar()

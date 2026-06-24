@@ -3,7 +3,7 @@
 외국인 학습자를 위한 한국어 회화 학습 앱의 백엔드 API.
 **FastAPI + SQLAlchemy 2.0(sync) + Supabase(PostgreSQL)**, 자체 JWT 인증.
 
-> 설계 상세는 [API_DESIGN.md](API_DESIGN.md) · 데이터 모델/엔드포인트 요약은 [API.md](API.md) 참고.
+> API 명세는 서버 실행 후 Swagger UI(`/docs`)에서 확인하세요. (회원가입은 이메일 인증 없이 이메일+비밀번호로 즉시 완료됩니다.)
 
 ---
 

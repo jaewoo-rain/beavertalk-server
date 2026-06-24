@@ -58,13 +58,10 @@ print(f"소셜 재로그인 → 동일 회원(member_id={me1['member_id']}) OK")
 # ── 비밀번호 재설정 (4자리 코드) ──
 RESET_EMAIL = "reset@bt.io"
 
-# 3) 이메일 인증 → 회원가입
-assert client.post("/api/v1/auth/email/send-code", json={"email": RESET_EMAIL}).status_code == 200
-assert client.post("/api/v1/auth/email/verify-code",
-                   json={"email": RESET_EMAIL, "code": "1234"}).status_code == 200
+# 3) 회원가입(인증 없음)
 assert client.post("/api/v1/auth/signup",
                    json={"email": RESET_EMAIL, "password": "oldpw"}).status_code == 201
-print("가입(이메일 인증 포함) OK")
+print("가입 OK")
 
 # 4) 재설정 요청(이메일 존재) → 200, 없는 이메일도 동일 응답(추측 방지)
 r = client.post("/api/v1/auth/password-reset/request", json={"email": RESET_EMAIL})

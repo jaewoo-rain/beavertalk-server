@@ -17,10 +17,7 @@ from sqlalchemy.orm import Session
 
 from core.security import hash_password, verify_password
 from core.social import SocialAuthError, verify_social_token
-from domains.account.models.email_verification import (
-    PURPOSE_PWRESET,
-    PURPOSE_SIGNUP,
-)
+from domains.account.models.email_verification import PURPOSE_PWRESET
 from domains.account.models.member import Member
 from domains.account.models.member_reason import ALLOWED_REASONS, MemberReason
 from domains.account.repository.member_repository import MemberRepository
@@ -85,14 +82,6 @@ class MemberService:
         # 이메일 중복 검사 (DB UNIQUE 제약과 별개로 친절한 메시지 제공)
         if self.repo.get_by_email(data.email) is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, "이미 가입된 이메일입니다.")
-
-        # 이메일 인증(코드) 완료 필수 — 인증 행을 소비(1회용).
-        if not EmailVerificationService(self.db).consume_verified(
-            data.email, PURPOSE_SIGNUP
-        ):
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "이메일 인증이 필요합니다."
-            )
 
         # 가입은 이메일 + 비밀번호만. 이름·학습이유·언어는 온보딩에서 채운다.
         # 대표 캐릭터는 서버가 기본(첫 무료) 캐릭터로 자동 지정 + 보유 처리.

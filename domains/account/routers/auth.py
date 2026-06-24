@@ -13,20 +13,14 @@ from pydantic import EmailStr
 
 from core.deps import DbSession
 from core.security import create_access_token
-from domains.account.models.email_verification import PURPOSE_SIGNUP
 from domains.account.schemas.member import (
     EmailAvailable,
-    EmailSendCode,
-    EmailVerifyCode,
     MemberCreate,
     MemberRead,
     PasswordResetConfirm,
     PasswordResetRequest,
     SocialLoginRequest,
     Token,
-)
-from domains.account.service.email_verification_service import (
-    EmailVerificationService,
 )
 from domains.account.service.member_service import MemberService
 
@@ -39,23 +33,9 @@ def email_available(email: EmailStr, db: DbSession) -> EmailAvailable:
     return EmailAvailable(available=not MemberService(db).email_taken(email))
 
 
-@router.post("/email/send-code")
-def send_signup_code(data: EmailSendCode, db: DbSession) -> dict[str, str]:
-    """회원가입 이메일 인증 코드 발송. 이미 가입된 이메일이면 409."""
-    EmailVerificationService(db).send_signup_code(data.email)
-    return {"message": "인증 코드를 이메일로 보냈습니다."}
-
-
-@router.post("/email/verify-code")
-def verify_signup_code(data: EmailVerifyCode, db: DbSession) -> dict[str, str]:
-    """회원가입 이메일 인증 코드 확인. 성공해야 가입 가능."""
-    EmailVerificationService(db).verify_code(data.email, PURPOSE_SIGNUP, data.code)
-    return {"message": "이메일이 인증되었습니다."}
-
-
 @router.post("/signup", response_model=MemberRead, status_code=status.HTTP_201_CREATED)
 def signup(data: MemberCreate, db: DbSession) -> MemberRead:
-    """이메일 회원가입. (speak_country_id·character_id 는 사전 존재 전제 — FK)"""
+    """이메일 회원가입 — 이메일 + 비밀번호만으로 즉시 가입(이메일 인증 없음)."""
     return MemberService(db).create(data)
 
 
