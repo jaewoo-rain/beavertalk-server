@@ -143,17 +143,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(alarm_router, prefix=API_PREFIX)
     app.include_router(learning_router, prefix=API_PREFIX)
 
-    # ── (dev 전용) 단일 HTML API 테스트 콘솔 ──
+    # ── (dev 전용) 통화 데모 콘솔 ──
     # 운영(prod)에는 노출하지 않는다. 같은 오리진으로 서빙하므로 CORS 불필요.
     if settings.ENV != "prod":
-
-        @app.get("/__console", include_in_schema=False)
-        def api_console() -> FileResponse:
-            """브라우저로 API를 손테스트하는 단일 HTML 콘솔."""
-            return FileResponse(
-                Path(__file__).parent / "scripts" / "console.html",
-                media_type="text/html",
-            )
 
         @app.get("/__calldemo", include_in_schema=False)
         def call_demo() -> FileResponse:
@@ -230,42 +222,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 history=None,
             )
             return {"setup": setup, "system_instruction": system_instruction}
-
-        # ── [dev] DB 어드민 (로그인 필요) ──
-        @app.get("/__admin", include_in_schema=False)
-        def admin_page() -> FileResponse:
-            """전체 DB 를 한눈에 보고 관리하는 어드민 HTML."""
-            return FileResponse(
-                Path(__file__).parent / "scripts" / "admin.html",
-                media_type="text/html",
-            )
-
-        @app.get("/__dev/db/meta", include_in_schema=False)
-        def admin_meta(member: CurrentMember, db: DbSession):  # type: ignore[no-untyped-def]
-            from core import dev_admin
-            return dev_admin.meta(db)
-
-        @app.get("/__dev/db/rows", include_in_schema=False)
-        def admin_rows(  # type: ignore[no-untyped-def]
-            member: CurrentMember, db: DbSession,
-            table: str, limit: int = 50, offset: int = 0,
-        ):
-            from core import dev_admin
-            return dev_admin.rows(db, table, min(max(limit, 1), 500), max(offset, 0))
-
-        @app.post("/__dev/db/delete", include_in_schema=False)
-        def admin_delete(member: CurrentMember, db: DbSession, body: dict):  # type: ignore[no-untyped-def]
-            from core import dev_admin
-            n = dev_admin.delete_row(db, body.get("table"), body.get("pk") or {})
-            return {"deleted": n}
-
-        @app.post("/__dev/db/update", include_in_schema=False)
-        def admin_update(member: CurrentMember, db: DbSession, body: dict):  # type: ignore[no-untyped-def]
-            from core import dev_admin
-            n = dev_admin.update_row(
-                db, body.get("table"), body.get("pk") or {}, body.get("changes") or {}
-            )
-            return {"updated": n}
 
     return app
 
