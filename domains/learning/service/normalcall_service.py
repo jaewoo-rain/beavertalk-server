@@ -21,7 +21,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core import gemini_analysis, storage, tts
-from core.audio import OUTPUT_SAMPLE_RATE, INPUT_SAMPLE_RATE, pcm16_to_wav
+from core.audio import (
+    INPUT_SAMPLE_RATE,
+    OUTPUT_SAMPLE_RATE,
+    pcm16_to_mp3,
+    pcm16_to_wav,
+)
 from core.config import Settings, settings
 from core.gemini_live import DEFAULT_VOICE
 from core.persona_prompt import _LOCALE_LABEL
@@ -121,11 +126,18 @@ def save_segments(db: Session, call_id: int, segments: list[dict], member_id: in
         key = None
         if pcm:
             sr = INPUT_SAMPLE_RATE if seg["role"] == "user" else OUTPUT_SAMPLE_RATE
-            wav = pcm16_to_wav(bytes(pcm), sample_rate=sr)
-            path = f"calls/{member_id}/{call_id}/{seg['turn_index']:04d}_{seg['role']}.wav"
-            key = storage.upload(
-                settings.SUPABASE_BUCKET_RECORDINGS, path, wav, "audio/wav"
-            )
+            base = f"calls/{member_id}/{call_id}/{seg['turn_index']:04d}_{seg['role']}"
+            # 표준 MP3 로 저장(어디서든 재생). ffmpeg 없으면 WAV 로 폴백.
+            mp3 = pcm16_to_mp3(bytes(pcm), sample_rate=sr)
+            if mp3 is not None:
+                key = storage.upload(
+                    settings.SUPABASE_BUCKET_RECORDINGS, base + ".mp3", mp3, "audio/mpeg"
+                )
+            else:
+                wav = pcm16_to_wav(bytes(pcm), sample_rate=sr)
+                key = storage.upload(
+                    settings.SUPABASE_BUCKET_RECORDINGS, base + ".wav", wav, "audio/wav"
+                )
         db.add(
             CallRawData(
                 call_id=call_id,

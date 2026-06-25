@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from core import storage
+from core.config import settings
 from core.speechsuper import assess_pronunciation
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.review import Review
@@ -20,14 +22,27 @@ class ReviewService:
         self.repo = ReviewRepository(db)
         self.sentence_repo = SentenceRepository(db)
 
-    def add_review(self, member_id: int, sentence_id: int, data: ReviewCreate) -> ReviewFeedback:
-        """녹음 제출 → 발음 채점(SpeechSuper 스텁) → 저장 → 피드백 반환."""
+    def add_review(
+        self,
+        member_id: int,
+        sentence_id: int,
+        data: ReviewCreate,
+        audio_override: str | None = None,
+    ) -> ReviewFeedback:
+        """녹음 제출 → 발음 채점(SpeechSuper) → 저장 → 피드백 반환.
+
+        audio_override 가 주어지면 채점은 그 경로/URL 로 하고(스토리지 미사용 폴백 등),
+        DB 에는 data.voice_url(보통 object key, 폴백이면 None)을 저장한다.
+        """
         sentence = self._get_owned_sentence(member_id, sentence_id)
-        feedback = assess_pronunciation(sentence.korean_sentence, data.voice_url)
+        # voice_url 이 Storage object key 면 채점용으로 signed URL 을 만들어 SpeechSuper 가
+        # 가져오게 하고, DB 에는 key 를 그대로 저장한다(스토리지 규약: key 보관 + URL 즉석조립).
+        audio_ref = audio_override or self._audio_for_scoring(data.voice_url)
+        feedback = assess_pronunciation(sentence.korean_sentence, audio_ref)
         review = Review(
             sentence_id=sentence_id,
             record_time=data.record_time,
-            voice_url=data.voice_url,
+            voice_url=data.voice_url,  # object key(또는 폴백 경로)
             feedback=feedback,
         )
         self.repo.add(review)
@@ -37,6 +52,16 @@ class ReviewService:
         self.db.commit()
         self.db.refresh(review)
         return self._to_feedback(review, sentence)
+
+    @staticmethod
+    def _audio_for_scoring(voice_url: str | None) -> str | None:
+        """저장된 object key 면 signed URL 로 변환(채점 fetch용). 아니면 원본(URL/로컬 경로)."""
+        if not voice_url:
+            return None
+        return (
+            storage.signed_url(settings.SUPABASE_BUCKET_RECORDINGS, voice_url)
+            or voice_url
+        )
 
     def _apply_evaluation(self, sentence: Sentence, feedback: dict) -> None:
         """채점 결과의 평가 점수를 발화의 Evaluation 행에 반영(없으면 생성)."""

@@ -170,24 +170,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             sentence_id: int = Form(...),
             audio: UploadFile = File(...),
         ):
-            """[dev] 브라우저 녹음(raw)을 임시파일로 저장 → 발음채점 → 피드백 반환.
+            """[dev] 브라우저 녹음(WAV) → MP3 인코딩 → Supabase voice-recordings 업로드.
 
-            정식 add_review 는 voice_url(서버가 가져올 위치)을 받으므로, 데모용으로
-            업로드 바이트를 임시 wav 로 떨궈 그 경로를 voice_url 로 넘긴다.
+            저장은 MP3(어디서든 재생), 채점은 무손실 원본 WAV(임시파일)로 한다.
+            ffmpeg 없으면 WAV 로 저장 폴백, 스토리지 비활성이면 key=None(채점만).
             """
             import os
             import tempfile
+            import uuid
 
+            from core import audio as audio_mod
+            from core import storage
             from domains.learning.schemas.review import ReviewCreate
             from domains.learning.service.review_service import ReviewService
 
-            data = await audio.read()
+            data = await audio.read()  # 브라우저가 보낸 WAV
+            # 저장용: MP3 인코딩(실패하면 WAV 그대로).
+            mp3 = audio_mod.wav_to_mp3(data)
+            payload, ext, ctype = (
+                (mp3, "mp3", "audio/mpeg") if mp3 else (data, "wav", "audio/wav")
+            )
+            key = f"reviews/{member.member_id}/{sentence_id}/{uuid.uuid4().hex}.{ext}"
+            stored = storage.upload(
+                settings.SUPABASE_BUCKET_RECORDINGS, key, payload, ctype
+            )
+            # 채점은 항상 무손실 원본 WAV 로(임시파일). 저장 key 는 stored(또는 None).
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
                 f.write(data)
                 tmp_path = f.name
             try:
                 return ReviewService(db).add_review(
-                    member.member_id, sentence_id, ReviewCreate(voice_url=tmp_path)
+                    member.member_id, sentence_id,
+                    ReviewCreate(voice_url=stored or None),
+                    audio_override=tmp_path,
                 )
             finally:
                 with contextlib.suppress(OSError):
