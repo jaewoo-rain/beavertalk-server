@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeaverTalk · DB 어드민 (dev)</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6; --pri:#00FFB2; --bad:#FF7070; --warn:#FFA938; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:13px/1.45 -apple-system,Segoe UI,Pretendard,sans-serif; }
+  header { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:var(--panel); position:sticky; top:0; z-index:5; }
+  header h1 { font-size:15px; margin:0; }
+  input,select { background:#0b0d11; border:1px solid var(--line); color:var(--txt); border-radius:6px; padding:6px 8px; font-size:13px; }
+  button { background:var(--pri); color:#08110d; border:0; border-radius:6px; padding:6px 10px; font-weight:700; cursor:pointer; font-size:12px; }
+  button.sec { background:#2a2e38; color:var(--txt); } button.danger { background:var(--bad); color:#2a0a0a; }
+  .layout { display:flex; height:calc(100vh - 53px); }
+  .side { width:230px; border-right:1px solid var(--line); overflow:auto; background:var(--panel); flex:none; }
+  .titem { padding:8px 12px; cursor:pointer; border-bottom:1px solid #20242d; display:flex; justify-content:space-between; }
+  .titem:hover { background:#1f232c; } .titem.on { background:#10241e; color:var(--pri); }
+  .cnt { color:var(--sub); font-size:11px; }
+  .main { flex:1; overflow:auto; padding:12px; }
+  .muted { color:var(--sub); }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th,td { border:1px solid var(--line); padding:4px 7px; text-align:left; white-space:nowrap; max-width:320px; overflow:hidden; text-overflow:ellipsis; vertical-align:top; }
+  th { background:#1c2029; position:sticky; top:0; }
+  td.pk { color:var(--pri); } .acts { display:flex; gap:4px; }
+  tr:hover td { background:#161a22; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  td input { width:100%; min-width:90px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🗄️ DB 어드민 <span class="muted" style="font-size:11px">(dev 전용)</span></h1>
+  <span class="muted">API</span><input id="apibase" style="width:180px" />
+  <input id="email" value="test@naver.com" style="width:150px" />
+  <input id="pw" value="11111111" type="password" style="width:100px" />
+  <button id="login">로그인</button>
+  <span id="who" class="muted"></span>
+</header>
+<div class="layout">
+  <div class="side" id="side"><div class="muted" style="padding:12px">로그인하세요</div></div>
+  <div class="main" id="main"><div class="muted">왼쪽에서 테이블을 선택하세요.</div></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let token=null, meta=[], cur=null, offset=0, limit=50, curData=null;
+
+$('#apibase').value = location.pathname.indexOf('__admin')>=0 ? location.origin : 'http://localhost:8000';
+const base = () => $('#apibase').value.replace(/\/+$/,'');
+function api(path, opts={}) {
+  opts.headers = Object.assign({Authorization:`Bearer ${token}`}, opts.headers||{});
+  return fetch(base()+path, opts);
+}
+
+$('#login').onclick = async () => {
+  const body=new URLSearchParams({username:$('#email').value,password:$('#pw').value});
+  const r=await fetch(base()+'/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+  if(!r.ok){ $('#who').textContent='로그인 실패 '+r.status; return; }
+  token=(await r.json()).access_token;
+  const me=await (await api('/api/v1/members/me')).json();
+  $('#who').innerHTML=`✅ ${me.email}`;
+  loadMeta();
+};
+
+async function loadMeta() {
+  meta = await (await api('/__dev/db/meta')).json();
+  const side=$('#side'); side.innerHTML='';
+  for(const t of meta){
+    const el=document.createElement('div'); el.className='titem'; el.dataset.name=t.name;
+    el.innerHTML=`<span>${t.name}</span><span class="cnt">${t.count}</span>`;
+    el.onclick=()=>selectTable(t.name);
+    side.appendChild(el);
+  }
+}
+
+function selectTable(name){
+  cur=name; offset=0;
+  document.querySelectorAll('.titem').forEach(e=>e.classList.toggle('on', e.dataset.name===name));
+  loadRows();
+}
+
+async function loadRows(){
+  const r=await api(`/__dev/db/rows?table=${encodeURIComponent(cur)}&limit=${limit}&offset=${offset}`);
+  if(!r.ok){ $('#main').innerHTML='<div class="muted">조회 실패: '+r.status+'</div>'; return; }
+  curData=await r.json(); render();
+}
+
+function render(){
+  const {rows,total,columns,pk}=curData;
+  const pkSet=new Set(pk);
+  let html=`<div class="bar"><b>${cur}</b> <span class="muted">${total}행 · ${offset+1}–${Math.min(offset+limit,total)}</span>
+    <button class="sec" onclick="page(-1)">◀ 이전</button><button class="sec" onclick="page(1)">다음 ▶</button>
+    <button class="sec" onclick="loadRows()">새로고침</button></div>`;
+  html+='<table><thead><tr>';
+  for(const c of columns) html+=`<th>${c}${pkSet.has(c)?' 🔑':''}</th>`;
+  html+='<th>작업</th></tr></thead><tbody>';
+  rows.forEach((row,i)=>{
+    html+=`<tr data-i="${i}">`;
+    for(const c of columns){
+      const v=row[c]; const disp = v===null?'<span class="muted">null</span>' : (typeof v==='object'?esc(JSON.stringify(v)):esc(String(v)));
+      html+=`<td class="${pkSet.has(c)?'pk':''}" data-col="${c}" title="${typeof v==='object'?esc(JSON.stringify(v)):esc(String(v??''))}">${disp}</td>`;
+    }
+    html+=`<td class="acts"><button class="sec" onclick="editRow(${i})">수정</button><button class="danger" onclick="delRow(${i})">삭제</button></td></tr>`;
+  });
+  html+='</tbody></table>';
+  $('#main').innerHTML=html;
+}
+function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function page(d){ const t=curData.total; const no=offset+d*limit; if(no>=0&&no<t){offset=no;loadRows();} }
+
+function pkOf(row){ const o={}; for(const k of curData.pk) o[k]=row[k]; return o; }
+
+function editRow(i){
+  const tr=$(`tr[data-i="${i}"]`); const row=curData.rows[i]; const pkSet=new Set(curData.pk);
+  tr.querySelectorAll('td[data-col]').forEach(td=>{
+    const c=td.dataset.col, v=row[c];
+    if(pkSet.has(c) || typeof v==='object') return;          // PK·객체(JSON/bytes)는 수정 불가
+    td.innerHTML=`<input value="${v===null?'':esc(String(v))}" />`;
+  });
+  const acts=tr.querySelector('.acts');
+  acts.innerHTML=`<button onclick="saveRow(${i})">저장</button><button class="sec" onclick="render()">취소</button>`;
+}
+
+async function saveRow(i){
+  const tr=$(`tr[data-i="${i}"]`); const row=curData.rows[i]; const changes={};
+  tr.querySelectorAll('td[data-col] input').forEach(inp=>{ changes[inp.closest('td').dataset.col]=inp.value; });
+  const r=await api('/__dev/db/update',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({table:cur, pk:pkOf(row), changes})});
+  if(!r.ok){ alert('수정 실패: '+r.status+' '+(await r.text())); return; }
+  loadRows();
+}
+
+async function delRow(i){
+  const row=curData.rows[i];
+  if(!confirm(`삭제할까요? ${cur} ${JSON.stringify(pkOf(row))}`)) return;
+  const r=await api('/__dev/db/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({table:cur, pk:pkOf(row)})});
+  if(!r.ok){ alert('삭제 실패: '+r.status+' '+(await r.text())); return; }
+  loadMeta(); loadRows();
+}
+</script>
+</body>
+</html>

@@ -193,6 +193,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 with contextlib.suppress(OSError):
                     os.unlink(tmp_path)
 
+        # ── [dev] DB 어드민 (로그인 필요) ──
+        @app.get("/__admin", include_in_schema=False)
+        def admin_page() -> FileResponse:
+            """전체 DB 를 한눈에 보고 관리하는 어드민 HTML."""
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "admin.html",
+                media_type="text/html",
+            )
+
+        @app.get("/__dev/db/meta", include_in_schema=False)
+        def admin_meta(member: CurrentMember, db: DbSession):  # type: ignore[no-untyped-def]
+            from core import dev_admin
+            return dev_admin.meta(db)
+
+        @app.get("/__dev/db/rows", include_in_schema=False)
+        def admin_rows(  # type: ignore[no-untyped-def]
+            member: CurrentMember, db: DbSession,
+            table: str, limit: int = 50, offset: int = 0,
+        ):
+            from core import dev_admin
+            return dev_admin.rows(db, table, min(max(limit, 1), 500), max(offset, 0))
+
+        @app.post("/__dev/db/delete", include_in_schema=False)
+        def admin_delete(member: CurrentMember, db: DbSession, body: dict):  # type: ignore[no-untyped-def]
+            from core import dev_admin
+            n = dev_admin.delete_row(db, body.get("table"), body.get("pk") or {})
+            return {"deleted": n}
+
+        @app.post("/__dev/db/update", include_in_schema=False)
+        def admin_update(member: CurrentMember, db: DbSession, body: dict):  # type: ignore[no-untyped-def]
+            from core import dev_admin
+            n = dev_admin.update_row(
+                db, body.get("table"), body.get("pk") or {}, body.get("changes") or {}
+            )
+            return {"updated": n}
+
     return app
 
 
