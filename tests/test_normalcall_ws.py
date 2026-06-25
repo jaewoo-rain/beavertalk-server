@@ -32,12 +32,28 @@ from domains.learning.models.level import Level
 from domains.learning.models.sentence import Sentence
 
 from core.config import settings as app_settings
-from core.security import create_access_token
+from core.supabase_auth import AuthUser
 
+import core.deps as deps
 import domains.learning.service.normalcall_service as svc
 import domains.learning.realtime.call_session as cs
+import domains.learning.realtime.ws_router as ws_router
 from domains.learning.realtime.call_session import run_call
 from core.gemini_live import LiveEvent
+
+
+# 인증: Supabase 토큰 검증을 모킹 — Bearer 토큰 문자열 == auth uuid 로 취급.
+# (빈 토큰/"bad" → None = 인증 실패)
+def _fake_verify(token):
+    if token and token.startswith("auth-"):  # 유효 테스트 토큰 = "auth-*"
+        return AuthUser(uid=token, email=f"{token}@test.io")
+    return None  # 빈 토큰/위조("not-a-jwt" 등) → 인증 실패
+
+
+@pytest.fixture(autouse=True)
+def _auth(monkeypatch):
+    monkeypatch.setattr(ws_router, "verify_token", _fake_verify)
+    monkeypatch.setattr(deps, "verify_token", _fake_verify)
 
 
 # --------------------------------------------------------------------------- #
@@ -70,14 +86,15 @@ def seeded(session_factory):
         db.add(ch)
         db.add(Level(level_no=1, profile="초급 학습자"))
         db.flush()
-        member = Member(language="en", korean_level=1, onboarding_completed=True)
+        member = Member(language="en", korean_level=1, onboarding_completed=True,
+                        auth_user_id="auth-member")
         db.add(member)
         db.flush()
         # 흥미는 member_reason(온보딩 학습이유)에서 온다 → travel → "여행"
         db.add(MemberReason(member_id=member.member_id, reason="travel"))
         db.commit()
         return {"member_id": member.member_id, "character_id": ch.character_id,
-                "voice": voice.name}
+                "voice": voice.name, "auth": "auth-member"}
     finally:
         db.close()
 
@@ -241,7 +258,7 @@ def test_ws_accepts_valid_token_then_handles_call(session_factory, seeded, monke
     monkeypatch.setattr(wr, "run_call", _run_call_with_fake)
 
     app = _build_app(session_factory)
-    token = create_access_token(seeded["member_id"])
+    token = seeded["auth"]
     client = TestClient(app)
     received: list[dict] = []
     with client.websocket_connect(f"/api/v1/calls/stream?token={token}") as ws:
@@ -419,28 +436,25 @@ def test_status_endpoint_unknown_for_other_member(session_factory, seeded):
         call = Call(member_id=seeded["member_id"],
                     character_id=seeded["character_id"], status="done")
         db.add(call)
-        # 타 회원도 한 명 생성
-        other = Member(language="en", korean_level=1, onboarding_completed=True)
+        # 타 회원도 한 명 생성(다른 auth uuid)
+        other = Member(language="en", korean_level=1, onboarding_completed=True,
+                       auth_user_id="auth-other")
         db.add(other)
         db.commit()
         call_id = call.call_id
-        owner_id = seeded["member_id"]
-        other_id = other.member_id
     finally:
         db.close()
 
     app = _build_app(session_factory)
     client = TestClient(app)
 
-    owner_token = create_access_token(owner_id)
     r1 = client.get(f"/api/v1/calls/{call_id}/status",
-                    headers={"Authorization": f"Bearer {owner_token}"})
+                    headers={"Authorization": "Bearer auth-member"})
     assert r1.status_code == 200
     assert r1.json()["status"] == "done"
 
-    other_token = create_access_token(other_id)
     r2 = client.get(f"/api/v1/calls/{call_id}/status",
-                    headers={"Authorization": f"Bearer {other_token}"})
+                    headers={"Authorization": "Bearer auth-other"})
     assert r2.status_code == 200
     assert r2.json()["status"] == "unknown"
 

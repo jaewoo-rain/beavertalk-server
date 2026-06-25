@@ -33,11 +33,9 @@ class MemberRepository:
         stmt = select(Member).where(Member.email == email)
         return self.db.scalar(stmt)
 
-    def get_by_social(self, login_method: str, unique_value: str) -> Optional[Member]:
-        stmt = select(Member).where(
-            Member.login_method == login_method,
-            Member.unique_value == unique_value,
-        )
+    def get_by_auth(self, auth_user_id: str) -> Optional[Member]:
+        """Supabase auth.users.id(UUID) 로 member 조회."""
+        stmt = select(Member).where(Member.auth_user_id == auth_user_id)
         return self.db.scalar(stmt)
 
     def list(self, limit: int = 50, offset: int = 0) -> Sequence[Member]:

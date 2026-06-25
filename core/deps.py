@@ -10,16 +10,16 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Optional
 
-import jwt
 from fastapi import Depends, HTTPException, Query, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from core.security import decode_token, oauth2_scheme
+from core.supabase_auth import verify_token
 from db.session import get_db
 from domains.account.models.member import Member
-from domains.account.repository.member_repository import MemberRepository
+from domains.account.service.member_service import MemberService
 
 _CREDENTIALS_EXC = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -27,28 +27,25 @@ _CREDENTIALS_EXC = HTTPException(
     headers={"WWW-Authenticate": "Bearer"},
 )
 
+# Authorization: Bearer <Supabase access token>
+_bearer = HTTPBearer(auto_error=False)
+
 
 def get_current_member(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    creds: Annotated[Optional[HTTPAuthorizationCredentials], Depends(_bearer)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Member:
-    """Authorization: Bearer <jwt> → Member. 실패 시 401."""
-    try:
-        payload = decode_token(token)
-        # access 토큰만 인증에 허용(비밀번호 재설정 토큰 등 다른 용도 토큰 거부)
-        if payload.get("purpose") != "access":
-            raise _CREDENTIALS_EXC
-        subject = payload.get("sub")
-        if subject is None:
-            raise _CREDENTIALS_EXC
-        member_id = int(subject)
-    except (jwt.PyJWTError, ValueError):
-        raise _CREDENTIALS_EXC
+    """Supabase access token(Bearer) 검증 → member(없으면 자동 생성). 실패 시 401.
 
-    member = MemberRepository(db).get(member_id)
-    if member is None:
+    인증 자체는 Supabase Auth 가 담당하고, 우리는 토큰을 검증해 auth uuid 로 member 를
+    찾거나(find) 처음이면 만든다(provision).
+    """
+    if creds is None or not creds.credentials:
         raise _CREDENTIALS_EXC
-    return member
+    auth_user = verify_token(creds.credentials)
+    if auth_user is None:
+        raise _CREDENTIALS_EXC
+    return MemberService(db).find_or_create_by_auth(auth_user.uid, auth_user.email)
 
 
 # 라우터에서 `member: CurrentMember` 로 간결하게 주입

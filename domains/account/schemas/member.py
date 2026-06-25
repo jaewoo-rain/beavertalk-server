@@ -9,32 +9,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 # ── 요청 DTO ──
-class MemberCreate(BaseModel):
-    """회원 생성 입력 — 이메일 + 비밀번호만. (이름·학습이유·언어는 온보딩에서)
-
-    이메일 인증 없이 즉시 가입한다.
-    """
-
-    email: EmailStr
-    password: str
-
-
 class OnboardingIn(BaseModel):
-    """온보딩 입력 — 이름 + 학습이유 + 언어. (회원가입 직후 별도 단계)"""
+    """온보딩 입력 — 이름 + 학습이유 + 언어. (가입 직후 별도 단계)"""
 
     name: Optional[str] = None
     reasons: Optional[list[str]] = None  # 학습 이유 코드(다중선택)
     language: Optional[str] = None
-
-
-class EmailAvailable(BaseModel):
-    """이메일 사용 가능 여부 응답."""
-
-    available: bool
 
 
 class MemberUpdate(BaseModel):
@@ -43,32 +27,6 @@ class MemberUpdate(BaseModel):
     language: Optional[str] = None
     character_id: Optional[int] = None
     is_auto_payment: Optional[bool] = None
-
-
-class Token(BaseModel):
-    """로그인 응답 — JWT 액세스 토큰."""
-
-    access_token: str
-    token_type: str = "bearer"
-
-
-class SocialLoginRequest(BaseModel):
-    """소셜 로그인 — 프론트가 provider 와 검증용 토큰을 보낸다."""
-
-    login_method: str          # google / apple / kakao ...
-    token: str                 # provider ID 토큰(서버가 검증)
-
-
-class PasswordResetRequest(BaseModel):
-    email: EmailStr
-
-
-class PasswordResetConfirm(BaseModel):
-    """재설정 확정 — 메일로 받은 4자리 코드 + 새 비밀번호."""
-
-    email: EmailStr
-    code: str
-    new_password: str
 
 
 class SpeakCountryOut(BaseModel):
@@ -108,7 +66,6 @@ class MemberRead(BaseModel):
     email: Optional[str]
     name: Optional[str]
     language: Optional[str]
-    login_method: Optional[str]
     is_auto_payment: Optional[bool]
     speak_country_id: Optional[int]
     character_id: Optional[int]

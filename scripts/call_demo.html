@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>BeaverTalk · 통화→복습 발음평가 데모</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root { --bg:#121217; --card:#181A20; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
           --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF7070; }
@@ -42,9 +43,13 @@
   <div class="card">
     <div class="step">STEP 1 · 로그인</div>
     <div class="row" style="margin-top:8px">
-      <span class="muted">API 서버</span><input id="apibase" style="width:200px" />
+      <span class="muted">API 서버</span><input id="apibase" style="width:190px" />
+      <span class="muted">Supabase URL</span><input id="supaurl" style="width:230px" placeholder="https://....supabase.co" />
     </div>
-    <div class="muted" style="margin:4px 0 8px">Live Server(5500) 등 다른 포트로 열었으면 백엔드 주소를 여기 넣으세요(예: http://localhost:8000).</div>
+    <div class="row" style="margin:6px 0">
+      <span class="muted">Supabase anon key</span><input id="supakey" style="width:330px" placeholder="sb_publishable_... 또는 eyJ...(anon)" />
+    </div>
+    <div class="muted" style="margin:0 0 8px">로그인은 <b>Supabase Auth</b>로 합니다. anon/publishable 키 필요(공개키, 안전).</div>
     <div class="row">
       <input id="email" value="test@naver.com" style="width:180px" />
       <input id="pw" value="11111111" type="password" style="width:120px" />
@@ -83,6 +88,8 @@ let token = null, callId = null;
 
 // 백엔드가 직접 서빙(/__calldemo)했으면 같은 오리진, 아니면(Live Server 등) localhost:8000.
 $('#apibase').value = location.pathname.indexOf('__calldemo') >= 0 ? location.origin : 'http://localhost:8000';
+$('#supaurl').value = 'https://ppllscbfdvebsmdatpnc.supabase.co';
+$('#supakey').value = 'sb_publishable_aCuUS0Bn4GpETaNgv-U-gQ_aucT8ZDS';  // 공개키(안전)
 const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
 function wsBase() {
   const u = new URL(apiBase());
@@ -96,13 +103,20 @@ function api(path, opts={}) {
 function tlog(html, cls='') { const d=$('#tlog'); d.innerHTML += `<div class="${cls}">${html}</div>`; d.scrollTop=d.scrollHeight; }
 
 /* ---------- STEP 1 로그인 ---------- */
+let sb = null;
 $('#loginBtn').onclick = async () => {
-  const body = new URLSearchParams({ username:$('#email').value, password:$('#pw').value });
-  const r = await fetch(apiBase() + '/api/v1/auth/login', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
-  if (!r.ok) { $('#who').textContent = '로그인 실패: '+r.status; return; }
-  token = (await r.json()).access_token;
-  const me = await (await api('/api/v1/members/me')).json();
-  $('#who').innerHTML = `✅ member_id=${me.member_id} (${me.email})`;
+  const url = $('#supaurl').value.trim(), key = $('#supakey').value.trim();
+  if (!url || !key) { $('#who').textContent = 'Supabase URL/anon key 를 넣으세요'; return; }
+  try {
+    sb = sb || supabase.createClient(url, key);
+    const { data, error } = await sb.auth.signInWithPassword({ email:$('#email').value, password:$('#pw').value });
+    if (error) { $('#who').textContent = '로그인 실패: ' + error.message; return; }
+    token = data.session.access_token;               // Supabase access token → 우리 API Bearer
+  } catch (e) { $('#who').textContent = 'Supabase 오류: ' + e; return; }
+  const meR = await api('/api/v1/members/me');
+  if (!meR.ok) { $('#who').textContent = '/me 실패: ' + meR.status; return; }
+  const me = await meR.json();
+  $('#who').innerHTML = `✅ member_id=${me.member_id} (${me.email||''})`;
   $('#callBtn').disabled = false;
 };
 
