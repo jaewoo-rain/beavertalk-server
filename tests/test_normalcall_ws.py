@@ -23,6 +23,7 @@ from sqlalchemy.pool import StaticPool
 # --- DB 시드용 모델 + 레지스트리(전 모델 등록 보장) ---
 from db.registry import Base  # noqa: F401  (전 모델 import 부수효과)
 from domains.account.models.member import Member
+from domains.account.models.member_reason import MemberReason
 from domains.commerce.models.character import Character
 from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
@@ -69,9 +70,11 @@ def seeded(session_factory):
         db.add(ch)
         db.add(Level(level_no=1, profile="초급 학습자"))
         db.flush()
-        member = Member(language="en", korean_level=1, interests="여행, 음식",
-                        onboarding_completed=True)
+        member = Member(language="en", korean_level=1, onboarding_completed=True)
         db.add(member)
+        db.flush()
+        # 흥미는 member_reason(온보딩 학습이유)에서 온다 → travel → "여행"
+        db.add(MemberReason(member_id=member.member_id, reason="travel"))
         db.commit()
         return {"member_id": member.member_id, "character_id": ch.character_id,
                 "voice": voice.name}

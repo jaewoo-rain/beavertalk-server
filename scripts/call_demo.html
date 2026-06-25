@@ -62,13 +62,17 @@
       <button id="hangBtn" class="sec" disabled>통화 종료</button>
       <span class="status"><span id="cdot" class="dot"></span><span id="cstat">대기</span></span>
     </div>
+    <details id="promptbox" style="margin:8px 0"><summary class="muted">🧩 통화 시작 시 프롬프트 구성 (펼치기)</summary>
+      <div id="pcontent" class="muted" style="margin-top:6px">통화를 시작하면 표시됩니다.</div>
+    </details>
     <div id="tlog" class="log"></div>
   </div>
 
   <!-- STEP 3 분석 결과 -->
   <div class="card">
-    <div class="step">STEP 3 · 통화에서 뽑아낸 복습 문장</div>
+    <div class="step">STEP 3 · 통화 평가 + 뽑아낸 복습 문장</div>
     <div id="ana" class="muted" style="margin-top:8px">통화가 끝나면 자동 분석됩니다…</div>
+    <div id="rating"></div>
     <div id="sents"></div>
   </div>
 </div>
@@ -118,8 +122,34 @@ let ws, actx, mic, proc, gain0, playT=0, curSpeaker=null;
 $('#callBtn').onclick = startCall;
 $('#hangBtn').onclick = () => { if (ws && ws.readyState===1) ws.close(); };
 
+/* ---------- 프롬프트 구성 미리보기 ---------- */
+async function showPrompt(cid) {
+  const box = $('#pcontent');
+  box.innerHTML = '불러오는 중…';
+  try {
+    const r = await api(`/__dev/call-prompt?character_id=${cid}`);
+    if (!r.ok) { box.innerHTML = `프롬프트 조회 실패: ${r.status}`; return; }
+    const d = await r.json(), s = d.setup;
+    box.innerHTML =
+      `<div style="font-size:12px;line-height:1.7;margin-bottom:6px">
+        <b>구성요소</b><br>
+        · 역할(role): <span class="b">${esc(s.role||'(기본)')}</span><br>
+        · 성격(personality): <span class="b">${esc(s.personality||'(기본)')}</span><br>
+        · 추가규칙(rules): ${esc(s.rules||'(없음)')}<br>
+        · 레벨(level_profile): ${esc(s.level_profile||'(없음)')}<br>
+        · 모국어(locale): <span class="u">${esc(s.locale)}</span><br>
+        · 흥미(member_reason→흥미): <span class="u">${esc((s.interests||[]).join(', ')||'(없음)')}</span><br>
+        · 음성(voice): ${esc(s.voice)}
+      </div>
+      <div style="font-size:12px;margin:4px 0"><b>최종 system_instruction</b> (서버→Gemini)</div>
+      <pre style="white-space:pre-wrap;background:#0e0f13;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:340px;overflow:auto;font-size:11.5px;color:#cfd3da">${esc(d.system_instruction)}</pre>`;
+    $('#promptbox').open = true;
+  } catch (e) { box.innerHTML = '오류: ' + e; }
+}
+
 async function startCall() {
   $('#tlog').innerHTML=''; $('#sents').innerHTML=''; $('#ana').textContent='통화 진행 중…'; callId=null;
+  showPrompt(+$('#cid').value||1);
   try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} }); }
   catch(e){ alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
   actx = new (window.AudioContext||window.webkitAudioContext)();
@@ -181,7 +211,26 @@ async function afterCall() {
   }
   const res = await (await api(`/api/v1/calls/${callId}/result`)).json();
   $('#ana').innerHTML = `요약: ${res.summary||'(없음)'} · 문장 ${res.sentences.length}개`;
+  renderRating();
   renderSentences(res.sentences);
+}
+
+/* ---------- 통화 평가(rating 1~3) ---------- */
+function renderRating() {
+  const box = $('#rating');
+  box.innerHTML = `<div style="margin:10px 0"><b>이번 통화 어땠어요?</b>
+    <button class="rate sec" data-r="1">😕 별로</button>
+    <button class="rate sec" data-r="2">🙂 보통</button>
+    <button class="rate sec" data-r="3">😄 좋음</button>
+    <span class="rmsg muted" style="margin-left:8px"></span></div>`;
+  box.querySelectorAll('.rate').forEach(b => b.onclick = async () => {
+    const r = await api(`/api/v1/calls/${callId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ rating: +b.dataset.r }),
+    });
+    box.querySelectorAll('.rate').forEach(x => x.style.opacity = x===b ? '1' : '.4');
+    box.querySelector('.rmsg').textContent = r.ok ? `✅ ${b.dataset.r}점 저장됨` : `실패 ${r.status}`;
+  });
 }
 
 function renderSentences(sentences) {

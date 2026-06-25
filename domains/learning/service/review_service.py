@@ -41,7 +41,6 @@ class ReviewService:
         feedback = assess_pronunciation(sentence.korean_sentence, audio_ref)
         review = Review(
             sentence_id=sentence_id,
-            record_time=data.record_time,
             voice_url=data.voice_url,  # object key(또는 폴백 경로)
             feedback=feedback,
         )

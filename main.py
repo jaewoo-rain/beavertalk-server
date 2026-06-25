@@ -208,6 +208,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 with contextlib.suppress(OSError):
                     os.unlink(tmp_path)
 
+        @app.get("/__dev/call-prompt", include_in_schema=False)
+        def dev_call_prompt(  # type: ignore[no-untyped-def]
+            member: CurrentMember, db: DbSession, character_id: int
+        ):
+            """[dev] 통화 시작 시 서버가 조립하는 system_instruction + 구성요소 미리보기.
+
+            call_session.run_call 과 동일하게 load_call_setup → build_system_instruction.
+            """
+            from core.persona_prompt import build_system_instruction
+            from domains.learning.service import normalcall_service as nsvc
+
+            setup = nsvc.load_call_setup(db, member.member_id, character_id)
+            system_instruction = build_system_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                rules=setup["rules"],
+                level_profile=setup["level_profile"],
+                locale=setup["locale"],
+                interests=setup["interests"],
+                history=None,
+            )
+            return {"setup": setup, "system_instruction": system_instruction}
+
         # ── [dev] DB 어드민 (로그인 필요) ──
         @app.get("/__admin", include_in_schema=False)
         def admin_page() -> FileResponse:

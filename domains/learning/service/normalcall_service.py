@@ -31,6 +31,7 @@ from core.config import Settings, settings
 from core.gemini_live import DEFAULT_VOICE
 from core.persona_prompt import _LOCALE_LABEL
 from domains.account.models.member import Member
+from domains.account.models.member_reason import REASON_LABELS
 from domains.commerce.models.character import Character
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
@@ -74,8 +75,9 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
     """
     member = db.get(Member, member_id)
     locale = (member.language if member and member.language else "en")
+    # 흥미·소재 = 온보딩 학습이유(member_reason) 를 사람이 읽을 한국어 라벨로.
     interests = (
-        [s.strip() for s in (member.interests or "").split(",") if s.strip()]
+        [REASON_LABELS.get(r.reason, r.reason) for r in member.reasons]
         if member else []
     )
     level_no = member.korean_level if (member and member.korean_level) else 1
