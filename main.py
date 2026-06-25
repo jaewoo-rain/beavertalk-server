@@ -12,8 +12,10 @@
 from __future__ import annotations
 
 import contextlib
+import logging
+import pathlib
 from pathlib import Path
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
@@ -31,14 +33,59 @@ from domains.learning.routers import router as learning_router
 
 API_PREFIX = "/api/v1"
 
+logger = logging.getLogger(__name__)
+
+
+def _create_genai_client(settings: Settings) -> Any | None:
+    """normalcall 용 genai.Client 를 생성한다(실패 시 None — 통화만 비활성, 앱은 정상).
+
+    USE_VERTEX=True 면 서비스계정 키(설정 경로 → 프로젝트 루트 gcp_key.json 폴백)로
+    Vertex 클라이언트를, 아니면 GEMINI_API_KEY 로 AI Studio 클라이언트를 만든다.
+    google-genai 미설치·키 부재·인증 실패 등 어떤 사유로도 None 을 반환한다(graceful).
+    """
+    try:
+        from google import genai
+
+        if settings.USE_VERTEX:
+            from google.oauth2 import service_account
+
+            key_path = settings.GOOGLE_APPLICATION_CREDENTIALS
+            if not key_path or not pathlib.Path(key_path).is_file():
+                local = pathlib.Path(__file__).resolve().parent / "gcp_key.json"
+                key_path = str(local) if local.is_file() else None
+            if not key_path:
+                logger.warning("normalcall: Vertex 키 없음 → genai 비활성(통화 불가).")
+                return None
+            creds = service_account.Credentials.from_service_account_file(
+                key_path, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            logger.info(
+                "normalcall: Vertex genai 클라이언트 생성 project=%s location=%s model=%s",
+                settings.GCP_PROJECT, settings.GCP_LOCATION, settings.GEMINI_LIVE_MODEL,
+            )
+            return genai.Client(
+                vertexai=True,
+                project=settings.GCP_PROJECT,
+                location=settings.GCP_LOCATION,
+                credentials=creds,
+            )
+        if not settings.GEMINI_API_KEY:
+            logger.warning("normalcall: GEMINI_API_KEY 없음 → genai 비활성(통화 불가).")
+            return None
+        return genai.Client(api_key=settings.GEMINI_API_KEY)
+    except Exception as exc:  # noqa: BLE001 - 미설치/인증/임의 예외 graceful
+        logger.warning("normalcall: genai 클라이언트 생성 실패 → 비활성: %s", exc)
+        return None
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """앱 수명 동안 공유 자원(엔진/세션 팩토리)을 준비하고 종료 시 정리한다."""
+    """앱 수명 동안 공유 자원(엔진/세션 팩토리/genai)을 준비하고 종료 시 정리한다."""
     settings: Settings = app.state.settings
     engine = build_engine(settings)
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
+    app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
     try:
         yield
     finally:

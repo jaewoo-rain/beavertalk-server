@@ -78,3 +78,4 @@ desktop.ini
 # ──────────────────────────────────────────────
 .claude/
 .mcp.json
+gcp_key.json

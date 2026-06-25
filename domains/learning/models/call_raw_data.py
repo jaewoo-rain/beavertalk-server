@@ -20,6 +20,8 @@ class CallRawData(Base, TimestampMixin):
     call_id: Mapped[int] = mapped_column(
         ForeignKey("call.call_id", ondelete="CASCADE"), index=True, comment="통화",
     )
+    role: Mapped[Optional[str]] = mapped_column(Text, comment="화자(user/beaver)")
+    turn_index: Mapped[Optional[int]] = mapped_column(Integer, comment="턴 순서(0부터)")
     content: Mapped[Optional[str]] = mapped_column(Text, comment="음성 데이터 전사")
     voice_url: Mapped[Optional[str]] = mapped_column(Text, comment="보이스 데이터 저장 위치")
     total_time: Mapped[Optional[int]] = mapped_column(Integer, comment="음성 시간(초)")

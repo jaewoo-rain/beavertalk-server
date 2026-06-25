@@ -2,11 +2,13 @@
 
 from fastapi import APIRouter
 
+from domains.learning.realtime.ws_router import router as realtime_router
 from domains.learning.routers.call import router as call_router
 from domains.learning.routers.sentence import router as sentence_router
 
 router = APIRouter()
 router.include_router(call_router)
 router.include_router(sentence_router)
+router.include_router(realtime_router)  # WS /calls/stream + GET /calls/{id}/status
 
 __all__ = ["router"]

@@ -14,6 +14,7 @@ from domains.account.models.speak_country import SpeakCountry  # noqa: F401
 
 # commerce
 from domains.commerce.models.character import Character  # noqa: F401
+from domains.commerce.models.voice import Voice  # noqa: F401
 from domains.commerce.models.member_character import MemberCharacter  # noqa: F401
 from domains.commerce.models.discount_event import DiscountEvent  # noqa: F401
 from domains.commerce.models.payment import Payment  # noqa: F401
@@ -25,6 +26,7 @@ from domains.learning.models.call_raw_data import CallRawData  # noqa: F401
 from domains.learning.models.sentence import Sentence  # noqa: F401
 from domains.learning.models.evaluation import Evaluation  # noqa: F401
 from domains.learning.models.review import Review  # noqa: F401
+from domains.learning.models.level import Level  # noqa: F401
 
 # alarm
 from domains.alarm.models.alarm import Alarm  # noqa: F401

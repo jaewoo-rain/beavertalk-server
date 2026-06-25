@@ -1,0 +1,33 @@
+# 가상환경 / 캐시
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# VCS / 에디터 / 도구
+.git/
+.gitignore
+.vscode/
+.idea/
+.claude/
+.mcp.json
+
+# 비밀값 / 로컬 설정 (절대 이미지에 넣지 않음)
+.env
+.env.*
+
+# 런타임에 불필요
+front/
+docs/
+tests/
+*.md
+
+# 대용량 생성물
+api-docs.html
+openapi.json
+BeaverTalk.vuerd.json
+
+gcp_key.json
