@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.speechsuper import assess_pronunciation
+from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.review import Review
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository.review_repository import ReviewRepository
@@ -30,9 +31,25 @@ class ReviewService:
             feedback=feedback,
         )
         self.repo.add(review)
+        # 발화의 공식 평가(Evaluation 1:1)도 '마지막 시도' 점수로 덮어쓴다.
+        # → Sentence.evaluation / 통화 평균(CallResult.average)에 반영됨.
+        self._apply_evaluation(sentence, feedback)
         self.db.commit()
         self.db.refresh(review)
         return self._to_feedback(review, sentence)
+
+    def _apply_evaluation(self, sentence: Sentence, feedback: dict) -> None:
+        """채점 결과의 평가 점수를 발화의 Evaluation 행에 반영(없으면 생성)."""
+        score = (feedback or {}).get("evaluation") or {}
+        ev = sentence.evaluation
+        if ev is None:
+            ev = Evaluation(sentence_id=sentence.sentence_id)
+            self.db.add(ev)
+            sentence.evaluation = ev
+        ev.total_score = score.get("total_score")
+        ev.pronunciation = score.get("pronunciation")
+        ev.fluency = score.get("fluency")
+        ev.rhythm = score.get("rhythm")
 
     def get_feedback(self, member_id: int, review_id: int) -> ReviewFeedback:
         review = self.repo.get(review_id)
