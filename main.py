@@ -17,13 +17,14 @@ import pathlib
 from pathlib import Path
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from core.config import Settings
 from core.config import settings as default_settings
+from core.deps import CurrentMember, DbSession
 from db.engine import build_engine
 from db.session import build_session_factory
 from domains.account.routers import router as account_router
@@ -153,6 +154,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 Path(__file__).parent / "scripts" / "console.html",
                 media_type="text/html",
             )
+
+        @app.get("/__calldemo", include_in_schema=False)
+        def call_demo() -> FileResponse:
+            """통화→문장추출→복습 발음평가 전 과정 데모 HTML."""
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "call_demo.html",
+                media_type="text/html",
+            )
+
+        @app.post("/__dev/pron-eval", include_in_schema=False)
+        async def dev_pron_eval(  # type: ignore[no-untyped-def]
+            member: CurrentMember,
+            db: DbSession,
+            sentence_id: int = Form(...),
+            audio: UploadFile = File(...),
+        ):
+            """[dev] 브라우저 녹음(raw)을 임시파일로 저장 → 발음채점 → 피드백 반환.
+
+            정식 add_review 는 voice_url(서버가 가져올 위치)을 받으므로, 데모용으로
+            업로드 바이트를 임시 wav 로 떨궈 그 경로를 voice_url 로 넘긴다.
+            """
+            import os
+            import tempfile
+
+            from domains.learning.schemas.review import ReviewCreate
+            from domains.learning.service.review_service import ReviewService
+
+            data = await audio.read()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+                f.write(data)
+                tmp_path = f.name
+            try:
+                return ReviewService(db).add_review(
+                    member.member_id, sentence_id, ReviewCreate(voice_url=tmp_path)
+                )
+            finally:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp_path)
 
     return app
 
