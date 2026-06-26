@@ -39,9 +39,9 @@ from domains.learning.realtime.protocol import (
 
 logger = logging.getLogger(__name__)
 
-# ⚠️ 테스트값(원래 운영: DURATION=300, ABSOLUTE=330). 통화 길이 늘릴 때 함께 상향.
-CALL_DURATION_S = 60.0          # 첫 발화부터 이 시간 경과 → 종료 시드 주입
-ABSOLUTE_CALL_TIMEOUT_S = 90.0  # 어떤 이유로든 이 상한 넘으면 강제 종료
+# 통화 길이: 기본 5분 경과 시 종료 시드(정상 작별 시작), 10분 절대 백스톱(강제 종료). 1분마다 중간 저장.
+CALL_DURATION_S = 300.0          # 첫 발화부터 이 시간 경과(5분) → 종료 시드 주입(정상 작별)
+ABSOLUTE_CALL_TIMEOUT_S = 600.0  # 이 상한(10분) 넘으면 강제 종료(백스톱)
 SEED_TO_HANGUP_S = 12.0         # 종료 시드 후 정상 종료 안 되면 강제 종료까지
 PLAYBACK_DONE_WAIT_S = 2.0      # call_ended 후 playback_done ack 대기 상한
 FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 주기(1분)
@@ -169,7 +169,7 @@ async def run_call(
         locale=locale,
         interests=setup["interests"],
         name=setup["name"],
-        history=None,
+        history=setup["history"],
     )
 
     # 3) 통화 행 생성.

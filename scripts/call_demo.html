@@ -66,6 +66,7 @@
       <button id="callBtn" disabled>📞 통화 시작</button>
       <button id="hangBtn" class="sec" disabled>통화 종료</button>
       <span class="status"><span id="cdot" class="dot"></span><span id="cstat">대기</span></span>
+      <span id="ctime" class="muted"></span>
     </div>
     <details id="promptbox" style="margin:8px 0"><summary class="muted">🧩 통화 시작 시 프롬프트 구성 (펼치기)</summary>
       <div id="pcontent" class="muted" style="margin-top:6px">통화를 시작하면 표시됩니다.</div>
@@ -132,6 +133,29 @@ function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.len
 
 /* ---------- STEP 2 통화 (WebSocket) ---------- */
 let ws, actx, mic, proc, gain0, playT=0, curSpeaker=null;
+let callGen=0, cdTimer=null, cdLeft=0;
+const CALL_DURATION_S = 300;  // 서버 CALL_DURATION_S(5분)와 동일. 서버 바뀌면 같이 수정.
+
+function startCountdown() {
+  if (cdTimer) return;                 // 첫 AI 음성에서 1회만 시작
+  cdLeft = CALL_DURATION_S;
+  $('#ctime').textContent = `· 남은 시간 ~${cdLeft}s`;
+  cdTimer = setInterval(() => {
+    cdLeft--;
+    $('#ctime').textContent = cdLeft > 0 ? `· 남은 시간 ~${cdLeft}s` : '· 곧 종료…';
+    if (cdLeft <= 0) stopCountdown();
+  }, 1000);
+}
+function stopCountdown() { if (cdTimer) { clearInterval(cdTimer); cdTimer=null; } }
+
+// 서버는 call_ended 후 playback_done ack 을 기다렸다 소켓을 닫는다(미전송 시 꼬리 잘림).
+// 스케줄된 오디오가 다 재생될 때쯤 ack 을 보낸다(서버 대기 상한 2s 안쪽).
+function sendPlaybackDoneWhenDrained() {
+  const remainMs = actx ? Math.max(0, (playT - actx.currentTime) * 1000) : 0;
+  setTimeout(() => {
+    if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ type:'playback_done' })); } catch {} }
+  }, Math.min(remainMs, 1800));
+}
 
 $('#callBtn').onclick = startCall;
 $('#hangBtn').onclick = () => { if (ws && ws.readyState===1) ws.close(); };
@@ -162,7 +186,11 @@ async function showPrompt(cid) {
 }
 
 async function startCall() {
-  $('#tlog').innerHTML=''; $('#sents').innerHTML=''; $('#ana').textContent='통화 진행 중…'; callId=null;
+  const myGen = ++callGen;                       // 이전 통화의 폴링/콜백 무효화
+  stopCountdown(); $('#ctime').textContent='';
+  if (actx) { try { await actx.close(); } catch {} actx=null; }  // 이전 AudioContext 해제(재시작 가능)
+  playT=0; curSpeaker=null; callId=null;
+  $('#tlog').innerHTML=''; $('#sents').innerHTML=''; $('#rating').innerHTML=''; $('#ana').textContent='통화 진행 중…';
   showPrompt(+$('#cid').value||1);
   try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} }); }
   catch(e){ alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
@@ -187,7 +215,7 @@ async function startCall() {
     ws.send(toPCM16(ds).buffer);
   };
   ws.onmessage = onMsg;
-  ws.onclose = () => { $('#cdot').className='dot'; $('#cstat').textContent='종료'; cleanupCall(); afterCall(); };
+  ws.onclose = () => { $('#cdot').className='dot'; $('#cstat').textContent='종료'; stopCountdown(); cleanupCall(); afterCall(myGen); };
   ws.onerror = () => { tlog('⚠️ WS 오류','err'); };
 }
 
@@ -199,19 +227,20 @@ function playPCM24k(buf) {
   const now=actx.currentTime; if (playT<now) playT=now; n.start(playT); playT+=ab.duration;
 }
 function onMsg(ev) {
-  if (ev.data instanceof ArrayBuffer) { playPCM24k(ev.data); return; }
+  if (ev.data instanceof ArrayBuffer) { startCountdown(); playPCM24k(ev.data); return; }
   let m; try { m=JSON.parse(ev.data); } catch { return; }
   if (m.type==='output_transcript') { if(curSpeaker!=='b'){tlog('🦫 비버:','b');curSpeaker='b';} appendLast(m.text,'b'); }
   else if (m.type==='input_transcript') { if(curSpeaker!=='u'){tlog('👤 나:','u');curSpeaker='u';} appendLast(m.text,'u'); }
   else if (m.type==='turn_end') { curSpeaker=null; }
-  else if (m.type==='call_ended') { callId=m.call_id; tlog('📴 통화 종료 (call_id='+callId+')'); }
+  else if (m.type==='call_ended') { callId=m.call_id; tlog('📴 통화 종료 (call_id='+callId+')'); stopCountdown(); $('#ctime').textContent=''; sendPlaybackDoneWhenDrained(); }
   else if (m.type==='error') { tlog('error: '+m.message,'err'); }
 }
 function appendLast(t,cls){ const d=$('#tlog'); const last=d.lastElementChild; if(last) last.innerHTML += ' '+t; }
 function cleanupCall(){ try{proc&&proc.disconnect();}catch{} if(proc)proc.onaudioprocess=null; if(mic)mic.getTracks().forEach(t=>t.stop()); $('#callBtn').disabled=false; $('#hangBtn').disabled=true; }
 
 /* ---------- STEP 3 분석 폴링 + 결과 ---------- */
-async function afterCall() {
+async function afterCall(myGen) {
+  if (myGen !== callGen) return;  // 새 통화가 시작됐으면 이전 폴링 중단
   if (!callId) {  // 일찍 끊겨 call_id 못 받았으면 최신 통화로 폴백
     try { const list = await (await api('/api/v1/calls?limit=1')).json(); if (list[0]) callId=list[0].call_id; } catch {}
   }
@@ -219,10 +248,12 @@ async function afterCall() {
   $('#ana').textContent='분석 중… (Gemini 가 통화에서 표현을 추출합니다)';
   for (let i=0;i<40;i++) {
     await new Promise(r=>setTimeout(r,1500));
+    if (myGen !== callGen) return;  // 재시작되면 중단
     let st; try { st = (await (await api(`/api/v1/calls/${callId}/status`)).json()).status; } catch { continue; }
     $('#ana').textContent = `분석 상태: ${st}`;
     if (st==='done' || st==='failed') break;
   }
+  if (myGen !== callGen) return;
   const res = await (await api(`/api/v1/calls/${callId}/result`)).json();
   $('#ana').innerHTML = `요약: ${res.summary||'(없음)'} · 문장 ${res.sentences.length}개`;
   renderRating();

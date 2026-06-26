@@ -213,7 +213,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 locale=setup["locale"],
                 interests=setup["interests"],
                 name=setup["name"],
-                history=None,
+                history=setup["history"],
             )
             return {"setup": setup, "system_instruction": system_instruction}
 

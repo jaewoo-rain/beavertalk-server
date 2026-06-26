@@ -70,7 +70,7 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
     Returns:
-        {role, personality, rules, voice, level_profile, locale, interests, name}.
+        {role, personality, rules, voice, level_profile, locale, interests, name, history}.
         ORM 객체가 아니라 평범한 값만 담아 async 컨텍스트로 안전히 넘긴다.
     """
     member = db.get(Member, member_id)
@@ -92,6 +92,8 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
     rules = ch.rules if ch else None
     voice = (ch.voice.name if (ch and ch.voice and ch.voice.name) else DEFAULT_VOICE)
 
+    history = _load_history(db, member_id) if member else None
+
     return {
         "role": role,
         "personality": personality,
@@ -101,7 +103,37 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
         "locale": locale,
         "interests": interests,
         "name": name,
+        "history": history,
     }
+
+
+def _load_history(db: Session, member_id: int) -> dict | None:
+    """최근 학습 이력(프롬프트 주입용): 최근 통화 요약 + 최근 배운 한국어 표현.
+
+    {"summaries": [...최대 5], "expressions": [...최대 30, 중복 제거]} 또는 None(이력 없음).
+    persona_prompt._history_block 이 이 형태를 기대한다.
+    """
+    summaries = [
+        s.strip()
+        for s in db.scalars(
+            select(Call.summary)
+            .where(Call.member_id == member_id, Call.summary.is_not(None))
+            .order_by(Call.call_date.desc())
+            .limit(5)
+        ).all()
+        if s and s.strip()
+    ]
+    expr_rows = db.scalars(
+        select(Sentence.korean_sentence)
+        .join(Call, Sentence.call_id == Call.call_id)
+        .where(Call.member_id == member_id, Sentence.korean_sentence.is_not(None))
+        .order_by(Sentence.sentence_id.desc())
+        .limit(30)
+    ).all()
+    expressions = list(dict.fromkeys(e.strip() for e in expr_rows if e and e.strip()))
+    if not summaries and not expressions:
+        return None
+    return {"summaries": summaries, "expressions": expressions}
 
 
 def create_call(db: Session, member_id: int, character_id: int) -> int:
