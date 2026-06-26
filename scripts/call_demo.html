@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeaverTalk · 통화→복습 발음평가 데모</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --bg:#121217; --card:#181A20; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
+          --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF7070; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,Segoe UI,Pretendard,sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:20px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .muted { color:var(--sub); font-size:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .step { font-size:12px; color:var(--pri); font-weight:700; letter-spacing:.4px; }
+  input { background:#0e0f13; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:8px 10px; }
+  button { background:var(--pri); color:#08110d; border:0; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer; }
+  button.sec { background:#2a2e38; color:var(--txt); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .log { background:#0e0f13; border:1px solid var(--line); border-radius:8px; padding:10px; height:170px; overflow:auto; font-size:13px; }
+  .b { color:#7fe0c2; } .u { color:#ffd479; }
+  .sent { border:1px solid var(--line); border-radius:10px; padding:12px; margin:8px 0; }
+  .ko { font-size:18px; font-weight:700; } .na { color:var(--sub); font-size:13px; margin-top:2px; }
+  .scores { font-size:22px; font-weight:800; letter-spacing:1px; margin:8px 0; }
+  .tot { font-size:12px; color:var(--sub); }
+  .pill { display:inline-block; padding:1px 6px; border-radius:6px; font-size:11px; margin-left:6px; }
+  .ok { color:var(--good); } .warning { color:var(--warn); } .err { color:var(--bad); }
+  .status { font-size:12px; }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--good); } .dot.rec { background:var(--bad); animation:bl 1s infinite; }
+  @keyframes bl { 50%{opacity:.3;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🦫 BeaverTalk — 통화 → 문장추출 → 복습 발음평가</h1>
+  <div class="muted">실제 백엔드(Supabase · Gemini Live · SpeechSuper)에 붙는 데모. ⚠️ 마이크는 <b>localhost</b> 또는 https 에서만 동작합니다.</div>
+
+  <!-- STEP 1 로그인 -->
+  <div class="card">
+    <div class="step">STEP 1 · 로그인</div>
+    <div class="row" style="margin-top:8px">
+      <span class="muted">API 서버</span><input id="apibase" style="width:190px" />
+      <span class="muted">Supabase URL</span><input id="supaurl" style="width:230px" placeholder="https://....supabase.co" />
+    </div>
+    <div class="row" style="margin:6px 0">
+      <span class="muted">Supabase anon key</span><input id="supakey" style="width:330px" placeholder="sb_publishable_... 또는 eyJ...(anon)" />
+    </div>
+    <div class="muted" style="margin:0 0 8px">로그인은 <b>Supabase Auth</b>로 합니다. anon/publishable 키 필요(공개키, 안전).</div>
+    <div class="row">
+      <input id="email" value="test@naver.com" style="width:180px" />
+      <input id="pw" value="11111111" type="password" style="width:120px" />
+      <span class="muted">캐릭터ID</span><input id="cid" value="1" style="width:50px" />
+      <button id="loginBtn">로그인</button>
+      <span id="who" class="status muted"></span>
+    </div>
+  </div>
+
+  <!-- STEP 2 통화 -->
+  <div class="card">
+    <div class="step">STEP 2 · 통화 (말해보세요 · 약 60초 후 자동 종료)</div>
+    <div class="row" style="margin:8px 0">
+      <button id="callBtn" disabled>📞 통화 시작</button>
+      <button id="hangBtn" class="sec" disabled>통화 종료</button>
+      <span class="status"><span id="cdot" class="dot"></span><span id="cstat">대기</span></span>
+      <span id="ctime" class="muted"></span>
+    </div>
+    <details id="promptbox" style="margin:8px 0"><summary class="muted">🧩 통화 시작 시 프롬프트 구성 (펼치기)</summary>
+      <div id="pcontent" class="muted" style="margin-top:6px">통화를 시작하면 표시됩니다.</div>
+    </details>
+    <div id="tlog" class="log"></div>
+  </div>
+
+  <!-- STEP 3 분석 결과 -->
+  <div class="card">
+    <div class="step">STEP 3 · 통화 평가 + 뽑아낸 복습 문장</div>
+    <div id="ana" class="muted" style="margin-top:8px">통화가 끝나면 자동 분석됩니다…</div>
+    <div id="rating"></div>
+    <div id="sents"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let token = null, callId = null;
+
+// 백엔드가 직접 서빙(/__calldemo)했으면 같은 오리진, 아니면(Live Server 등) localhost:8000.
+$('#apibase').value = location.pathname.indexOf('__calldemo') >= 0 ? location.origin : 'http://localhost:8000';
+$('#supaurl').value = 'https://ppllscbfdvebsmdatpnc.supabase.co';
+$('#supakey').value = 'sb_publishable_aCuUS0Bn4GpETaNgv-U-gQ_aucT8ZDS';  // 공개키(안전)
+const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
+function wsBase() {
+  const u = new URL(apiBase());
+  return (u.protocol === 'https:' ? 'wss' : 'ws') + '://' + u.host;
+}
+
+function api(path, opts={}) {
+  opts.headers = Object.assign({ Authorization: `Bearer ${token}` }, opts.headers||{});
+  return fetch(apiBase() + path, opts);
+}
+function tlog(html, cls='') { const d=$('#tlog'); d.innerHTML += `<div class="${cls}">${html}</div>`; d.scrollTop=d.scrollHeight; }
+
+/* ---------- STEP 1 로그인 ---------- */
+let sb = null;
+$('#loginBtn').onclick = async () => {
+  const url = $('#supaurl').value.trim(), key = $('#supakey').value.trim();
+  if (!url || !key) { $('#who').textContent = 'Supabase URL/anon key 를 넣으세요'; return; }
+  try {
+    sb = sb || supabase.createClient(url, key);
+    const { data, error } = await sb.auth.signInWithPassword({ email:$('#email').value, password:$('#pw').value });
+    if (error) { $('#who').textContent = '로그인 실패: ' + error.message; return; }
+    token = data.session.access_token;               // Supabase access token → 우리 API Bearer
+  } catch (e) { $('#who').textContent = 'Supabase 오류: ' + e; return; }
+  const meR = await api('/api/v1/members/me');
+  if (!meR.ok) { $('#who').textContent = '/me 실패: ' + meR.status; return; }
+  const me = await meR.json();
+  $('#who').innerHTML = `✅ member_id=${me.member_id} (${me.email||''})`;
+  $('#callBtn').disabled = false;
+};
+
+/* ---------- 오디오 유틸 ---------- */
+function downsample(f32, inRate, outRate) {
+  if (outRate === inRate) return f32;
+  const ratio = inRate/outRate, n = Math.round(f32.length/ratio), out = new Float32Array(n);
+  let pos = 0;
+  for (let i=0;i<n;i++){ const next=Math.round((i+1)*ratio); let s=0,c=0; for(let j=pos;j<next&&j<f32.length;j++){s+=f32[j];c++;} out[i]=c?s/c:0; pos=next; }
+  return out;
+}
+function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.length;i++){let s=Math.max(-1,Math.min(1,f32[i]));o[i]=s<0?s*0x8000:s*0x7FFF;} return o; }
+
+/* ---------- STEP 2 통화 (WebSocket) ---------- */
+let ws, actx, mic, proc, gain0, playT=0, curSpeaker=null;
+let callGen=0, cdTimer=null, cdLeft=0;
+const CALL_DURATION_S = 300;  // 서버 CALL_DURATION_S(5분)와 동일. 서버 바뀌면 같이 수정.
+
+function startCountdown() {
+  if (cdTimer) return;                 // 첫 AI 음성에서 1회만 시작
+  cdLeft = CALL_DURATION_S;
+  $('#ctime').textContent = `· 남은 시간 ~${cdLeft}s`;
+  cdTimer = setInterval(() => {
+    cdLeft--;
+    $('#ctime').textContent = cdLeft > 0 ? `· 남은 시간 ~${cdLeft}s` : '· 곧 종료…';
+    if (cdLeft <= 0) stopCountdown();
+  }, 1000);
+}
+function stopCountdown() { if (cdTimer) { clearInterval(cdTimer); cdTimer=null; } }
+
+// 서버는 call_ended 후 playback_done ack 을 기다렸다 소켓을 닫는다(미전송 시 꼬리 잘림).
+// 스케줄된 오디오가 다 재생될 때쯤 ack 을 보낸다(서버 대기 상한 2s 안쪽).
+function sendPlaybackDoneWhenDrained() {
+  const remainMs = actx ? Math.max(0, (playT - actx.currentTime) * 1000) : 0;
+  setTimeout(() => {
+    if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ type:'playback_done' })); } catch {} }
+  }, Math.min(remainMs, 1800));
+}
+
+$('#callBtn').onclick = startCall;
+$('#hangBtn').onclick = () => { if (ws && ws.readyState===1) ws.close(); };
+
+/* ---------- 프롬프트 구성 미리보기 ---------- */
+async function showPrompt(cid) {
+  const box = $('#pcontent');
+  box.innerHTML = '불러오는 중…';
+  try {
+    const r = await api(`/__dev/call-prompt?character_id=${cid}`);
+    if (!r.ok) { box.innerHTML = `프롬프트 조회 실패: ${r.status}`; return; }
+    const d = await r.json(), s = d.setup;
+    box.innerHTML =
+      `<div style="font-size:12px;line-height:1.7;margin-bottom:6px">
+        <b>구성요소</b><br>
+        · 역할(role): <span class="b">${esc(s.role||'(기본)')}</span><br>
+        · 성격(personality): <span class="b">${esc(s.personality||'(기본)')}</span><br>
+        · 추가규칙(rules): ${esc(s.rules||'(없음)')}<br>
+        · 레벨(level_profile): ${esc(s.level_profile||'(없음)')}<br>
+        · 모국어(locale): <span class="u">${esc(s.locale)}</span><br>
+        · 흥미(member_reason→흥미): <span class="u">${esc((s.interests||[]).join(', ')||'(없음)')}</span><br>
+        · 음성(voice): ${esc(s.voice)}
+      </div>
+      <div style="font-size:12px;margin:4px 0"><b>최종 system_instruction</b> (서버→Gemini)</div>
+      <pre style="white-space:pre-wrap;background:#0e0f13;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:340px;overflow:auto;font-size:11.5px;color:#cfd3da">${esc(d.system_instruction)}</pre>`;
+    $('#promptbox').open = true;
+  } catch (e) { box.innerHTML = '오류: ' + e; }
+}
+
+async function startCall() {
+  const myGen = ++callGen;                       // 이전 통화의 폴링/콜백 무효화
+  stopCountdown(); $('#ctime').textContent='';
+  if (actx) { try { await actx.close(); } catch {} actx=null; }  // 이전 AudioContext 해제(재시작 가능)
+  playT=0; curSpeaker=null; callId=null;
+  $('#tlog').innerHTML=''; $('#sents').innerHTML=''; $('#rating').innerHTML=''; $('#ana').textContent='통화 진행 중…';
+  showPrompt(+$('#cid').value||1);
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} }); }
+  catch(e){ alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  const src = actx.createMediaStreamSource(mic);
+  proc = actx.createScriptProcessor(4096,1,1);
+  gain0 = actx.createGain(); gain0.gain.value = 0;          // 피드백 방지(마이크 모니터 음소거)
+  src.connect(proc); proc.connect(gain0); gain0.connect(actx.destination);
+
+  ws = new WebSocket(`${wsBase()}/api/v1/calls/stream?token=${token}`);
+  ws.binaryType='arraybuffer';
+  $('#cdot').className='dot'; $('#cstat').textContent='연결 중…';
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type:'start', character_id:+$('#cid').value||1 }));
+    $('#cdot').className='dot on'; $('#cstat').textContent='통화 중';
+    $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
+  };
+  proc.onaudioprocess = (e) => {
+    if (!ws || ws.readyState!==1) return;
+    const ds = downsample(e.inputBuffer.getChannelData(0), actx.sampleRate, 16000);
+    ws.send(toPCM16(ds).buffer);
+  };
+  ws.onmessage = onMsg;
+  ws.onclose = () => { $('#cdot').className='dot'; $('#cstat').textContent='종료'; stopCountdown(); cleanupCall(); afterCall(myGen); };
+  ws.onerror = () => { tlog('⚠️ WS 오류','err'); };
+}
+
+function playPCM24k(buf) {
+  const i16=new Int16Array(buf), f32=new Float32Array(i16.length);
+  for (let i=0;i<i16.length;i++) f32[i]=i16[i]/0x8000;
+  const ab=actx.createBuffer(1,f32.length,24000); ab.getChannelData(0).set(f32);
+  const n=actx.createBufferSource(); n.buffer=ab; n.connect(actx.destination);
+  const now=actx.currentTime; if (playT<now) playT=now; n.start(playT); playT+=ab.duration;
+}
+function onMsg(ev) {
+  if (ev.data instanceof ArrayBuffer) { startCountdown(); playPCM24k(ev.data); return; }
+  let m; try { m=JSON.parse(ev.data); } catch { return; }
+  if (m.type==='output_transcript') { if(curSpeaker!=='b'){tlog('🦫 비버:','b');curSpeaker='b';} appendLast(m.text,'b'); }
+  else if (m.type==='input_transcript') { if(curSpeaker!=='u'){tlog('👤 나:','u');curSpeaker='u';} appendLast(m.text,'u'); }
+  else if (m.type==='turn_end') { curSpeaker=null; }
+  else if (m.type==='call_ended') { callId=m.call_id; tlog('📴 통화 종료 (call_id='+callId+')'); stopCountdown(); $('#ctime').textContent=''; sendPlaybackDoneWhenDrained(); }
+  else if (m.type==='error') { tlog('error: '+m.message,'err'); }
+}
+function appendLast(t,cls){ const d=$('#tlog'); const last=d.lastElementChild; if(last) last.innerHTML += ' '+t; }
+function cleanupCall(){ try{proc&&proc.disconnect();}catch{} if(proc)proc.onaudioprocess=null; if(mic)mic.getTracks().forEach(t=>t.stop()); $('#callBtn').disabled=false; $('#hangBtn').disabled=true; }
+
+/* ---------- STEP 3 분석 폴링 + 결과 ---------- */
+async function afterCall(myGen) {
+  if (myGen !== callGen) return;  // 새 통화가 시작됐으면 이전 폴링 중단
+  if (!callId) {  // 일찍 끊겨 call_id 못 받았으면 최신 통화로 폴백
+    try { const list = await (await api('/api/v1/calls?limit=1')).json(); if (list[0]) callId=list[0].call_id; } catch {}
+  }
+  if (!callId) { $('#ana').textContent='통화 id 를 찾지 못했어요.'; return; }
+  $('#ana').textContent='분석 중… (Gemini 가 통화에서 표현을 추출합니다)';
+  for (let i=0;i<40;i++) {
+    await new Promise(r=>setTimeout(r,1500));
+    if (myGen !== callGen) return;  // 재시작되면 중단
+    let st; try { st = (await (await api(`/api/v1/calls/${callId}/status`)).json()).status; } catch { continue; }
+    $('#ana').textContent = `분석 상태: ${st}`;
+    if (st==='done' || st==='failed') break;
+  }
+  if (myGen !== callGen) return;
+  const res = await (await api(`/api/v1/calls/${callId}/result`)).json();
+  $('#ana').innerHTML = `요약: ${res.summary||'(없음)'} · 문장 ${res.sentences.length}개`;
+  renderRating();
+  renderSentences(res.sentences);
+}
+
+/* ---------- 통화 평가(rating 1~3) ---------- */
+function renderRating() {
+  const box = $('#rating');
+  box.innerHTML = `<div style="margin:10px 0"><b>이번 통화 어땠어요?</b>
+    <button class="rate sec" data-r="1">😕 별로</button>
+    <button class="rate sec" data-r="2">🙂 보통</button>
+    <button class="rate sec" data-r="3">😄 좋음</button>
+    <span class="rmsg muted" style="margin-left:8px"></span></div>`;
+  box.querySelectorAll('.rate').forEach(b => b.onclick = async () => {
+    const r = await api(`/api/v1/calls/${callId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ rating: +b.dataset.r }),
+    });
+    box.querySelectorAll('.rate').forEach(x => x.style.opacity = x===b ? '1' : '.4');
+    box.querySelector('.rmsg').textContent = r.ok ? `✅ ${b.dataset.r}점 저장됨` : `실패 ${r.status}`;
+  });
+}
+
+function renderSentences(sentences) {
+  const box=$('#sents'); box.innerHTML='';
+  if (!sentences.length) { box.innerHTML='<div class="muted">추출된 표현이 없어요(짧은 통화면 그럴 수 있어요).</div>'; return; }
+  for (const s of sentences) {
+    const el=document.createElement('div'); el.className='sent';
+    el.innerHTML = `<div class="ko">${s.korean_sentence||''}</div><div class="na">${s.native_sentence||''}</div>
+      <div class="row" style="margin-top:8px">
+        <button class="play sec" data-id="${s.sentence_id}">🔊 들어보기</button>
+        <button class="rec" data-id="${s.sentence_id}">🎤 발음 연습</button>
+        <span class="status"><span class="dot"></span><span class="rs">대기</span></span>
+      </div>
+      <div class="result"></div>`;
+    box.appendChild(el);
+    wirePlay(el, s.sentence_id, s.voice_url);
+    wireRecord(el, s.sentence_id);
+  }
+}
+
+/* ---------- 모범 발음(문장 TTS) 듣기 ---------- */
+// voice_url 있으면 즉시 재생, 없으면 POST /sentences/{id}/tts 로 즉석 합성 후 재생.
+function wirePlay(el, sentenceId, voiceUrl) {
+  const btn = el.querySelector('.play');
+  let url = (voiceUrl && /^https?:/.test(voiceUrl)) ? voiceUrl : null;
+  let audio = null, busy = false;
+  btn.onclick = async () => {
+    if (busy) return;
+    const orig = btn.textContent;
+    if (!url) {                              // 오디오 없음 → 서버에 즉석 생성 요청
+      busy = true; btn.disabled = true; btn.textContent = '⏳ 생성 중…';
+      try {
+        const r = await api(`/api/v1/sentences/${sentenceId}/tts`, { method:'POST' });
+        if (!r.ok) { flash(btn, orig, '실패 '+r.status); return; }
+        url = (await r.json()).voice_url;
+      } catch (e) { flash(btn, orig, '오류'); return; }
+      finally { busy = false; btn.disabled = false; btn.textContent = orig; }
+    }
+    if (!url || !/^https?:/.test(url)) { flash(btn, orig, '재생불가'); return; }
+    try { audio = audio || new Audio(); audio.src = url; await audio.play(); }
+    catch (e) { flash(btn, orig, '재생오류'); }
+  };
+}
+function flash(btn, orig, msg) { btn.disabled=false; btn.textContent=msg; setTimeout(()=>{btn.textContent=orig;}, 1500); }
+
+/* ---------- 발음 녹음 → 평가 ---------- */
+function wireRecord(el, sentenceId) {
+  const btn=el.querySelector('.rec'), dot=el.querySelector('.dot'), rs=el.querySelector('.rs'), out=el.querySelector('.result');
+  let recording=false, rctx, rmic, rproc, bufs=[], rrate;
+  btn.onclick = async () => {
+    if (!recording) {
+      try { rmic = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}}); } catch(e){ alert('마이크 권한 필요: '+e); return; }
+      rctx = new (window.AudioContext||window.webkitAudioContext)(); rrate=rctx.sampleRate; bufs=[];
+      const src=rctx.createMediaStreamSource(rmic); rproc=rctx.createScriptProcessor(4096,1,1);
+      const g=rctx.createGain(); g.gain.value=0;
+      rproc.onaudioprocess=(e)=>bufs.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      src.connect(rproc); rproc.connect(g); g.connect(rctx.destination);
+      recording=true; btn.textContent='⏹ 녹음 정지'; dot.className='dot rec'; rs.textContent='녹음 중… 또박또박 말해보세요';
+    } else {
+      recording=false; btn.textContent='🎤 발음 연습'; dot.className='dot'; rs.textContent='평가 중…';
+      try{rproc.disconnect();}catch{} rmic.getTracks().forEach(t=>t.stop());
+      let len=bufs.reduce((a,b)=>a+b.length,0); const all=new Float32Array(len); let o=0; for(const b of bufs){all.set(b,o);o+=b.length;}
+      rctx.close();
+      const wav = encodeWav(toPCM16(downsample(all,rrate,16000)), 16000);
+      const fd=new FormData(); fd.append('sentence_id', sentenceId); fd.append('audio', wav, 'rec.wav');
+      const r = await api('/__dev/pron-eval', { method:'POST', body:fd });
+      if (!r.ok) { rs.textContent='평가 실패: '+r.status; return; }
+      rs.textContent='완료'; renderFeedback(await r.json(), out);
+    }
+  };
+}
+function encodeWav(i16, rate) {
+  const ab=new ArrayBuffer(44+i16.length*2), v=new DataView(ab);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF'); v.setUint32(4,36+i16.length*2,true); w(8,'WAVE'); w(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  w(36,'data'); v.setUint32(40,i16.length*2,true);
+  let off=44; for(let i=0;i<i16.length;i++){v.setInt16(off,i16[i],true);off+=2;}
+  return new Blob([v],{type:'audio/wav'});
+}
+function gradeClass(g){ return g==='상'?'ok':g==='중'?'warning':'err'; }
+function renderFeedback(fb, out) {
+  const chars = (fb.char_scores||[]).map(c=>`<span class="${gradeClass(c.grade)}" title="${c.score}점·${c.grade}">${c.char}</span>`).join('');
+  const e = fb.evaluation||{};
+  out.innerHTML = `<div class="scores">${chars}</div>
+    <div class="tot">총점 ${e.total_score} · 발음 ${e.pronunciation} · 유창성 ${e.fluency} · 리듬 ${e.rhythm}
+    <span class="pill ok">상≥85</span><span class="pill warning">중≥70</span><span class="pill err">하</span></div>`;
+}
+</script>
+</body>
+</html>

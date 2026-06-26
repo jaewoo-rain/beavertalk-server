@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Index, Integer, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Index, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimestampMixin
@@ -34,6 +34,13 @@ class Call(Base, TimestampMixin):
     total_time: Mapped[Optional[int]] = mapped_column(Integer, comment="총 통화 시간(초)")
     summary: Mapped[Optional[str]] = mapped_column(Text, comment="대화 내용 한 줄 요약")
     rating: Mapped[Optional[int]] = mapped_column(Integer, comment="만족도(1~3점)")
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'ongoing'"),
+        comment="분석 상태(ongoing/analyzing/done/failed)",
+    )
+    mode: Mapped[Optional[str]] = mapped_column(
+        Text, comment="감지된 통화 모드(conversation/study/unknown)",
+    )
 
     member: Mapped["Member"] = relationship(back_populates="calls")
     character: Mapped["Character"] = relationship(lazy="select")  # 단방향(필요 시 쿼리에서 joinedload)

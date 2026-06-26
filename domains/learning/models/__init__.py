@@ -3,5 +3,6 @@ from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.sentence import Sentence
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.review import Review
+from domains.learning.models.level import Level
 
-__all__ = ["Call", "CallRawData", "Sentence", "Evaluation", "Review"]
+__all__ = ["Call", "CallRawData", "Sentence", "Evaluation", "Review", "Level"]

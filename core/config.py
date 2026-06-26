@@ -61,6 +61,23 @@ class Settings(BaseSettings):
     # 여러 개면 콤마로 구분해 넣는다. 미설정이면 google 검증은 500(서버 설정 오류).
     GOOGLE_CLIENT_ID: str | None = None
 
+    # ── normalcall (Gemini Live 음성통화 + 통화후 분석 + TTS + Storage) ──
+    # 미설정이면 어댑터들이 graceful 폴백(통화 불가/분석 스킵/스텁). 앱은 그대로 뜬다.
+    GEMINI_API_KEY: str | None = None              # AI Studio (USE_VERTEX=false 일 때)
+    USE_VERTEX: bool = False                        # True 면 Vertex AI 사용
+    GCP_PROJECT: str | None = None                 # Vertex 프로젝트 ID
+    GCP_LOCATION: str = "us-central1"              # Vertex 리전
+    GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
+    GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
+    JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
+    TTS_MODEL: str = "gemini-2.5-flash-tts"        # 표현 TTS(Vertex Gemini-TTS, ⚠ AI Studio 의 -preview-tts 아님)
+
+    # Supabase Storage (통화 원본/표현 TTS/연습 녹음 업로드). 미설정이면 voice_url=None.
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_KEY: str | None = None
+    SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # public: 캐릭터·TTS
+    SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # private: 통화·연습 녹음
+
     @property
     def google_client_ids(self) -> set[str]:
         """허용 audience 집합 (콤마 구분 파싱)."""

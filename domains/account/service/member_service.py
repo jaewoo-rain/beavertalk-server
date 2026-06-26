@@ -15,20 +15,13 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.security import hash_password, verify_password
-from core.social import SocialAuthError, verify_social_token
-from domains.account.models.email_verification import PURPOSE_PWRESET
 from domains.account.models.member import Member
 from domains.account.models.member_reason import ALLOWED_REASONS, MemberReason
 from domains.account.repository.member_repository import MemberRepository
 from domains.account.schemas.member import (
-    MemberCreate,
     MemberUpdate,
     MyPageOut,
     SpeakCountryOut,
-)
-from domains.account.service.email_verification_service import (
-    EmailVerificationService,
 )
 from domains.commerce.models.character import Character
 from domains.commerce.models.member_character import MemberCharacter
@@ -78,24 +71,31 @@ class MemberService:
         )
         return self.db.scalar(stmt) is not None
 
-    def create(self, data: MemberCreate) -> Member:
-        # 이메일 중복 검사 (DB UNIQUE 제약과 별개로 친절한 메시지 제공)
-        if self.repo.get_by_email(data.email) is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "이미 가입된 이메일입니다.")
+    def find_or_create_by_auth(
+        self, auth_user_id: str, email: Optional[str]
+    ) -> Member:
+        """Supabase auth user(uuid)로 member 를 찾고, 없으면 자동 프로비저닝.
 
-        # 가입은 이메일 + 비밀번호만. 이름·학습이유·언어는 온보딩에서 채운다.
-        # 대표 캐릭터는 서버가 기본(첫 무료) 캐릭터로 자동 지정 + 보유 처리.
+        인증은 Supabase 가 끝낸 뒤(토큰 검증 완료) 호출된다. 신규면 기본(첫 무료)
+        캐릭터를 지정·보유시키고 onboarding_completed=False 로 만든다.
+        """
+        member = self.repo.get_by_auth(auth_user_id)
+        if member is not None:
+            if email and member.email != email:  # 이메일 변경 동기화
+                member.email = email
+                self.db.commit()
+            return member
+
         character_id, owned = self._resolve_default_character(None)
-
         member = Member(
-            email=data.email,
-            password=hash_password(data.password),  # 평문 저장 금지
+            auth_user_id=auth_user_id,
+            email=email,
             character_id=character_id,
             owned_characters=owned,
         )
         self.repo.add(member)
-        self.db.commit()       # ← 트랜잭션 커밋 (명시적)
-        self.db.refresh(member)  # DB 가 채운 PK·타임스탬프 반영
+        self.db.commit()
+        self.db.refresh(member)
         return member
 
     def onboarding(
@@ -161,61 +161,6 @@ class MemberService:
             if code not in seen:
                 seen.append(code)
         return seen
-
-    def email_taken(self, email: str) -> bool:
-        """이메일이 이미 가입에 사용됐는지(중복확인 API 용)."""
-        return self.repo.get_by_email(email) is not None
-
-    def social_login(self, login_method: str, token: str) -> Member:
-        """소셜 토큰 검증 → 기존 회원이면 로그인, 없으면 가입(find-or-create)."""
-        try:
-            identity = verify_social_token(login_method, token)
-        except SocialAuthError as exc:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
-        member = self.repo.get_by_social(identity.login_method, identity.unique_value)
-        if member is not None:
-            return member
-        member = Member(
-            login_method=identity.login_method,
-            unique_value=identity.unique_value,
-            email=identity.email,   # 없으면 None (소셜은 이메일 없을 수 있음)
-            password=None,          # 소셜 전용 계정은 비번 없음
-        )
-        self.repo.add(member)
-        self.db.commit()
-        self.db.refresh(member)
-        return member
-
-    def request_password_reset(self, email: str) -> None:
-        """재설정 4자리 코드 발송. 회원 존재 여부는 노출하지 않는다(항상 성공처럼)."""
-        EmailVerificationService(self.db).send_reset_code(email)
-        # 회원이 없거나 소셜 전용이어도 동일 응답 → 이메일 존재 여부 추측 방지
-
-    def confirm_password_reset(self, email: str, code: str, new_password: str) -> None:
-        """메일로 받은 코드 검증 → 새 비밀번호로 교체 → 인증 행 소비."""
-        verifier = EmailVerificationService(self.db)
-        verifier.verify_code(email, PURPOSE_PWRESET, code)  # 실패 시 400
-
-        member = self.repo.get_by_email(email)
-        if member is None or member.password is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "유효하지 않은 요청입니다.")
-        member.password = hash_password(new_password)
-        verifier.consume_verified(email, PURPOSE_PWRESET)  # 1회용 소비
-        self.db.commit()
-
-    def authenticate(self, email: str, password: str) -> Member:
-        """이메일+비밀번호 검증. 실패 시 401 (어느 쪽이 틀렸는지 노출 안 함)."""
-        member = self.repo.get_by_email(email)
-        if (
-            member is None
-            or member.password is None
-            or not verify_password(password, member.password)
-        ):
-            raise HTTPException(
-                status.HTTP_401_UNAUTHORIZED,
-                "이메일 또는 비밀번호가 올바르지 않습니다.",
-            )
-        return member
 
     def update(self, member_id: int, data: MemberUpdate) -> Member:
         member = self.get(member_id)

@@ -30,6 +30,9 @@ class Sentence(Base, TimestampMixin):
     korean_sentence: Mapped[Optional[str]] = mapped_column(Text, comment="한국어 문장")
     native_sentence: Mapped[Optional[str]] = mapped_column(Text, comment="모국어 문장")
     locale: Mapped[Optional[str]] = mapped_column(Text, comment="언어")
+    source_type: Mapped[Optional[str]] = mapped_column(
+        Text, comment="표현 출처(asked/corrected/drilled)",
+    )
     voice_url: Mapped[Optional[str]] = mapped_column(Text, comment="보이스 데이터 저장 위치")
     is_bookmarked: Mapped[Optional[bool]] = mapped_column(Boolean, comment="북마크 여부")
     deleted_at: Mapped[Optional[datetime]] = mapped_column(

@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ReviewCreate(BaseModel):
-    record_time: Optional[datetime] = None
     voice_url: Optional[str] = None  # 사용자 녹음 저장 위치(채점 대상)
 
 
@@ -18,7 +17,6 @@ class ReviewOut(BaseModel):
 
     review_id: int
     sentence_id: int
-    record_time: Optional[datetime]
     voice_url: Optional[str]
     created_at: datetime
 

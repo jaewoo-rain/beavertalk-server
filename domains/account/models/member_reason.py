@@ -22,6 +22,16 @@ ALLOWED_REASONS: frozenset[str] = frozenset(
     {"travel", "career", "exam", "daily", "friends", "brain"}
 )
 
+# 통화 프롬프트의 "흥미·소재" 로 넣을 때 쓰는 사람이 읽을 라벨(한국어).
+REASON_LABELS: dict[str, str] = {
+    "travel": "여행",
+    "career": "커리어·일",
+    "exam": "시험 준비",
+    "daily": "일상 생활",
+    "friends": "친구·사람들",
+    "brain": "자기계발",
+}
+
 
 class MemberReason(Base, TimestampMixin):
     __tablename__ = "member_reason"

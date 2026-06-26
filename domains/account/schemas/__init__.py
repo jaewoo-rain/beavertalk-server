@@ -1,23 +1,15 @@
 from domains.account.schemas.member import (
-    MemberCreate,
     MemberRead,
     MemberUpdate,
     MyPageOut,
-    PasswordResetConfirm,
-    PasswordResetRequest,
-    SocialLoginRequest,
+    OnboardingIn,
     SpeakCountryOut,
-    Token,
 )
 
 __all__ = [
-    "MemberCreate",
     "MemberRead",
     "MemberUpdate",
-    "Token",
     "MyPageOut",
+    "OnboardingIn",
     "SpeakCountryOut",
-    "SocialLoginRequest",
-    "PasswordResetRequest",
-    "PasswordResetConfirm",
 ]

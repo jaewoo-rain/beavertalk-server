@@ -31,6 +31,6 @@ class ReviewRepository:
         stmt = (
             select(Review)
             .where(Review.sentence_id == sentence_id)
-            .order_by(Review.record_time.desc().nullslast(), Review.review_id.desc())
+            .order_by(Review.created_at.desc(), Review.review_id.desc())
         )
         return self.db.scalars(stmt).all()
