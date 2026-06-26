@@ -34,6 +34,26 @@ from domains.learning.routers import router as learning_router
 
 API_PREFIX = "/api/v1"
 
+
+def _configure_logging() -> None:
+    """통화(normalcall) 로그만 stdout 에 노출(전역 INFO 는 건드리지 않음).
+
+    파이썬 루트 로거는 기본 WARNING 이라 앱 모듈의 logger.info 가 버려진다(Cloud Run 이
+    숨기는 게 아님 — 파이썬 기본값). 전역을 통째로 INFO 로 올리는 대신, normalcall 실시간
+    패키지 로거에만 INFO StreamHandler 를 달아 통화 전사(👤/🦫)·genai 흐름만 보이게 한다.
+    propagate=False 로 루트로 전파하지 않아 다른 로그 노이즈/비용 증가가 없다.
+    """
+    handler = logging.StreamHandler()  # stdout → Cloud Logging
+    handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    nc = logging.getLogger("domains.learning.realtime")  # 통화 WS/세션 패키지
+    nc.handlers.clear()
+    nc.addHandler(handler)
+    nc.setLevel(logging.INFO)
+    nc.propagate = False
+
+
+_configure_logging()
+
 logger = logging.getLogger(__name__)
 
 
@@ -162,43 +182,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             sentence_id: int = Form(...),
             audio: UploadFile = File(...),
         ):
-            """[dev] 브라우저 녹음(WAV) → MP3 인코딩 → Supabase voice-recordings 업로드.
+            """[dev] 브라우저 녹음(WAV) → 채점. 프로덕션 로직(add_review_from_audio) 재사용.
 
-            저장은 MP3(어디서든 재생), 채점은 무손실 원본 WAV(임시파일)로 한다.
-            ffmpeg 없으면 WAV 로 저장 폴백, 스토리지 비활성이면 key=None(채점만).
+            실제 클라이언트는 `POST /api/v1/sentences/{id}/reviews/audio` 를 쓴다.
             """
-            import os
-            import tempfile
-            import uuid
-
-            from core import audio as audio_mod
-            from core import storage
-            from domains.learning.schemas.review import ReviewCreate
             from domains.learning.service.review_service import ReviewService
 
-            data = await audio.read()  # 브라우저가 보낸 WAV
-            # 저장용: MP3 인코딩(실패하면 WAV 그대로).
-            mp3 = audio_mod.wav_to_mp3(data)
-            payload, ext, ctype = (
-                (mp3, "mp3", "audio/mpeg") if mp3 else (data, "wav", "audio/wav")
+            raw = await audio.read()
+            return ReviewService(db).add_review_from_audio(
+                member.member_id, sentence_id, raw, audio.content_type
             )
-            key = f"reviews/{member.member_id}/{sentence_id}/{uuid.uuid4().hex}.{ext}"
-            stored = storage.upload(
-                settings.SUPABASE_BUCKET_RECORDINGS, key, payload, ctype
-            )
-            # 채점은 항상 무손실 원본 WAV 로(임시파일). 저장 key 는 stored(또는 None).
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-                f.write(data)
-                tmp_path = f.name
-            try:
-                return ReviewService(db).add_review(
-                    member.member_id, sentence_id,
-                    ReviewCreate(voice_url=stored or None),
-                    audio_override=tmp_path,
-                )
-            finally:
-                with contextlib.suppress(OSError):
-                    os.unlink(tmp_path)
 
         @app.get("/__dev/call-prompt", include_in_schema=False)
         def dev_call_prompt(  # type: ignore[no-untyped-def]

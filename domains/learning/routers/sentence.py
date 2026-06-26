@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, File, UploadFile, status
 
 from core.deps import CurrentMember, DbSession
 from domains.learning.schemas.call import SentenceOut
@@ -42,6 +42,28 @@ def add_review(
 ) -> ReviewFeedback:
     """녹음 제출 → 발음 채점 → 글자별 상/중/하 + 평가 점수 반환."""
     return ReviewService(db).add_review(member.member_id, sentence_id, data)
+
+
+@router.post(
+    "/sentences/{sentence_id}/reviews/audio",
+    response_model=ReviewFeedback,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_review_audio(
+    sentence_id: int,
+    member: CurrentMember,
+    db: DbSession,
+    audio: UploadFile = File(...),
+) -> ReviewFeedback:
+    """녹음 파일 업로드(multipart) → MP3 저장 + 무손실 채점 → 글자별 상/중/하 + 점수.
+
+    클라이언트가 스토리지 선업로드 없이 녹음(WAV 권장)을 그대로 보내면 서버가
+    저장·변환·채점까지 처리한다(JSON `POST .../reviews` 는 키 기반 경로로 별도 유지).
+    """
+    raw = await audio.read()
+    return ReviewService(db).add_review_from_audio(
+        member.member_id, sentence_id, raw, audio.content_type
+    )
 
 
 @router.get("/sentences/{sentence_id}/reviews", response_model=list[ReviewOut])

@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
+import os
+import tempfile
+import uuid
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from core import audio as audio_mod
 from core import storage
 from core.config import settings
 from core.speechsuper import assess_pronunciation
@@ -51,6 +57,40 @@ class ReviewService:
         self.db.commit()
         self.db.refresh(review)
         return self._to_feedback(review, sentence)
+
+    def add_review_from_audio(
+        self,
+        member_id: int,
+        sentence_id: int,
+        raw: bytes,
+        content_type: str | None = None,
+    ) -> ReviewFeedback:
+        """업로드된 녹음 바이트로 복습 채점 (멀티파트 엔드포인트 공용 로직).
+
+        저장은 MP3(어디서든 재생; ffmpeg 없으면 원본 폴백), 채점은 무손실 원본(임시파일).
+        클라이언트는 보통 WAV(pcm16 16k mono)를 보낸다. 스토리지 비활성이면 key=None(채점만).
+        """
+        # 저장용: MP3 인코딩(ffmpeg 자동 포맷감지). 실패하면 원본 그대로.
+        mp3 = audio_mod.wav_to_mp3(raw)
+        payload, ext, ctype = (
+            (mp3, "mp3", "audio/mpeg") if mp3 else (raw, "wav", "audio/wav")
+        )
+        key = f"reviews/{member_id}/{sentence_id}/{uuid.uuid4().hex}.{ext}"
+        stored = storage.upload(settings.SUPABASE_BUCKET_RECORDINGS, key, payload, ctype)
+        # 채점은 항상 무손실 원본으로(임시 .wav). DB 에는 stored(또는 None) 저장.
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+            f.write(raw)
+            tmp_path = f.name
+        try:
+            return self.add_review(
+                member_id,
+                sentence_id,
+                ReviewCreate(voice_url=stored or None),
+                audio_override=tmp_path,
+            )
+        finally:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
 
     @staticmethod
     def _audio_for_scoring(voice_url: str | None) -> str | None:

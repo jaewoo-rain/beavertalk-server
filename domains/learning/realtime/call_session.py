@@ -413,6 +413,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         await _send_json(client_ws, ServerInputTranscript(text=text))
         if text:
             state.cur_user_text.append(text)
+            logger.info("normalcall 👤 user: %s", text)
 
     elif event.kind == "out_tr":
         if state.turn_id is None:
@@ -423,6 +424,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=state.turn_id))
         if text:
             state.cur_beaver_text.append(text)
+            logger.info("normalcall 🦫 beaver: %s", text)
 
     elif event.kind == "turn_end":
         turn_id = state.turn_id or _new_turn_id()
