@@ -254,14 +254,41 @@ function renderSentences(sentences) {
     const el=document.createElement('div'); el.className='sent';
     el.innerHTML = `<div class="ko">${s.korean_sentence||''}</div><div class="na">${s.native_sentence||''}</div>
       <div class="row" style="margin-top:8px">
+        <button class="play sec" data-id="${s.sentence_id}">🔊 들어보기</button>
         <button class="rec" data-id="${s.sentence_id}">🎤 발음 연습</button>
         <span class="status"><span class="dot"></span><span class="rs">대기</span></span>
       </div>
       <div class="result"></div>`;
     box.appendChild(el);
+    wirePlay(el, s.sentence_id, s.voice_url);
     wireRecord(el, s.sentence_id);
   }
 }
+
+/* ---------- 모범 발음(문장 TTS) 듣기 ---------- */
+// voice_url 있으면 즉시 재생, 없으면 POST /sentences/{id}/tts 로 즉석 합성 후 재생.
+function wirePlay(el, sentenceId, voiceUrl) {
+  const btn = el.querySelector('.play');
+  let url = (voiceUrl && /^https?:/.test(voiceUrl)) ? voiceUrl : null;
+  let audio = null, busy = false;
+  btn.onclick = async () => {
+    if (busy) return;
+    const orig = btn.textContent;
+    if (!url) {                              // 오디오 없음 → 서버에 즉석 생성 요청
+      busy = true; btn.disabled = true; btn.textContent = '⏳ 생성 중…';
+      try {
+        const r = await api(`/api/v1/sentences/${sentenceId}/tts`, { method:'POST' });
+        if (!r.ok) { flash(btn, orig, '실패 '+r.status); return; }
+        url = (await r.json()).voice_url;
+      } catch (e) { flash(btn, orig, '오류'); return; }
+      finally { busy = false; btn.disabled = false; btn.textContent = orig; }
+    }
+    if (!url || !/^https?:/.test(url)) { flash(btn, orig, '재생불가'); return; }
+    try { audio = audio || new Audio(); audio.src = url; await audio.play(); }
+    catch (e) { flash(btn, orig, '재생오류'); }
+  };
+}
+function flash(btn, orig, msg) { btn.disabled=false; btn.textContent=msg; setTimeout(()=>{btn.textContent=orig;}, 1500); }
 
 /* ---------- 발음 녹음 → 평가 ---------- */
 function wireRecord(el, sentenceId) {
