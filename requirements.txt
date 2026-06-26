@@ -10,9 +10,7 @@ bcrypt>=4.0
 pyjwt[crypto]>=2.8
 python-multipart>=0.0.9
 httpx>=0.27
-# normalcall: Gemini Live(실시간 음성) + 분석(generateContent). websockets 를 끌어온다.
+# normalcall: Gemini Live(실시간 음성) + 분석(generateContent) + 표현 TTS(Gemini-TTS). websockets 를 끌어온다.
 google-genai>=1.0
-# normalcall: 표현 TTS(Chirp 3 HD). 미설치/비활성이면 graceful None 폴백.
-google-cloud-texttospeech>=2.16
 # normalcall: Supabase Storage(통화 원본/TTS/연습 녹음) 업로드. 미설정이면 voice_url=None.
 supabase>=2.0

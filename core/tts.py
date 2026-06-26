@@ -1,101 +1,86 @@
-"""표현 TTS 합성 — Google Cloud Text-to-Speech(Chirp 3 HD, 한국어) graceful 어댑터.
+"""표현 TTS 합성 — Vertex AI Gemini-TTS(gemini-2.5-flash-tts, 한국어) graceful 어댑터.
 
-통화후 분석이 배운 표현마다 호출해 한국어 MP3 를 만든다. import 실패·인증 실패·
-API 비활성·임의 예외를 모두 흡수해 None 을 반환한다(speechsuper.py 와 동일 규율) —
+통화후 분석이 배운 표현마다 호출해 한국어 오디오를 만든다. 이미 떠 있는 Vertex
+genai 클라이언트(app.state.genai_client)를 그대로 재사용한다 — 별도 Cloud
+Text-to-Speech API 활성화가 필요 없다(aiplatform 권한만으로 동작). import/인증/
+비활성/임의 예외를 모두 흡수해 None 을 반환한다(speechsuper.py 와 동일 규율) —
 TTS 가 안 돼도 분석 흐름(추출/번역/요약/저장)은 죽지 않는다.
 
-인증: Vertex 와 동일한 서비스계정. settings.GOOGLE_APPLICATION_CREDENTIALS →
-프로젝트 루트 gcp_key.json → ADC 순으로 자동 폴백.
+출력: gemini-tts 는 헤더 없는 raw PCM s16le/24kHz/mono 를 준다. ffmpeg 가 있으면
+MP3 로, 없으면 WAV 로 감싸 (audio_bytes, content_type) 을 돌려준다. 호출부는
+content_type 으로 업로드 확장자를 정한다.
 """
 
 from __future__ import annotations
 
 import logging
-import pathlib
 from typing import Any
 
+from core import audio as audio_mod
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Chirp 3 HD 한국어 음성명. Cloud TTS 활성화 후 실제 음성ID 검증 필요(실패 시 None 이라 안전).
-_VOICE_NAME = "ko-KR-Chirp3-HD-Charon"
+# gemini-tts 출력 샘플레이트(고정). prebuilt 음성명(ko 지원).
+_TTS_SAMPLE_RATE = 24_000
+_VOICE_NAME = "Charon"
 _LANGUAGE_CODE = "ko-KR"
 
-_client: "Any | None" = None
-_client_ready = False
 
+async def synthesize_korean(text: str, client: "Any | None") -> tuple[bytes, str] | None:
+    """한국어 텍스트를 Vertex Gemini-TTS 로 합성 → (audio_bytes, content_type) 또는 None.
 
-def _resolve_credentials_path() -> str | None:
-    """서비스계정 키 경로 해석: 설정값 → 프로젝트 루트 gcp_key.json → None(ADC)."""
-    import os
-
-    cfg = settings.GOOGLE_APPLICATION_CREDENTIALS
-    if cfg and pathlib.Path(cfg).is_file():
-        return cfg
-    env_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if env_path and pathlib.Path(env_path).is_file():
-        return env_path
-    local = pathlib.Path(__file__).resolve().parents[1] / "gcp_key.json"
-    if local.is_file():
-        return str(local)
-    return None
-
-
-def _get_client() -> "Any | None":
-    """Cloud TextToSpeech 클라이언트를 lazy 생성(없으면 None, 1회 경고)."""
-    global _client, _client_ready
-    if _client_ready:
-        return _client
-
-    _client_ready = True
-    try:
-        from google.cloud import texttospeech
-        from google.oauth2 import service_account
-
-        key_path = _resolve_credentials_path()
-        if key_path:
-            creds = service_account.Credentials.from_service_account_file(key_path)
-            _client = texttospeech.TextToSpeechClient(credentials=creds)
-        else:
-            _client = texttospeech.TextToSpeechClient()  # ADC
-        logger.info("tts: Cloud TTS 클라이언트 초기화 완료.")
-    except Exception as exc:  # noqa: BLE001 - 미설치/인증/임의 예외 graceful
-        logger.warning("tts: Cloud TTS 비활성(분석은 정상 진행) — %s", exc)
-        _client = None
-    return _client
-
-
-def synthesize_korean(text: str) -> bytes | None:
-    """한국어 텍스트를 Chirp 3 HD 로 합성해 MP3 bytes 반환(graceful None).
-
-    입력이 비었거나 TTS 비활성/실패면 None — 호출부는 None 이면 TTS 를 건너뛴다.
+    client 는 lifespan 이 만든 genai.Client(Vertex). None 이거나 비어있는 입력/합성
+    실패면 None — 호출부는 None 이면 TTS 를 건너뛴다. MP3(ffmpeg 가능 시) 우선,
+    아니면 WAV 로 폴백한다.
     """
-    if not text or not text.strip():
-        return None
-
-    client = _get_client()
-    if client is None:
+    if not text or not text.strip() or client is None:
         return None
 
     try:
-        from google.cloud import texttospeech
+        from google.genai import types
 
-        response = client.synthesize_speech(
-            input=texttospeech.SynthesisInput(text=text.strip()),
-            voice=texttospeech.VoiceSelectionParams(
-                language_code=_LANGUAGE_CODE, name=_VOICE_NAME
-            ),
-            audio_config=texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3
+        resp = await client.aio.models.generate_content(
+            model=settings.TTS_MODEL,
+            contents=text.strip(),
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                    language_code=_LANGUAGE_CODE,
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name=_VOICE_NAME
+                        ),
+                    ),
+                ),
             ),
         )
-        audio = response.audio_content
-        if not audio:
+        pcm = _extract_pcm(resp)
+        if not pcm:
             logger.warning("tts: 합성 결과 비어있음 → None.")
             return None
-        logger.info("tts: 합성 성공(%d bytes).", len(audio))
-        return audio
-    except Exception as exc:  # noqa: BLE001 - 인증/비활성/음성명 오류 graceful
+
+        mp3 = audio_mod.pcm16_to_mp3(pcm, sample_rate=_TTS_SAMPLE_RATE)
+        if mp3:
+            logger.info("tts: 합성 성공 MP3(%d bytes).", len(mp3))
+            return mp3, "audio/mpeg"
+
+        wav = audio_mod.pcm16_to_wav(pcm, sample_rate=_TTS_SAMPLE_RATE)
+        logger.info("tts: 합성 성공 WAV(ffmpeg 없음 → 폴백, %d bytes).", len(wav))
+        return wav, "audio/wav"
+    except Exception as exc:  # noqa: BLE001 - 인증/비활성/임의 예외 graceful
         logger.warning("tts: 합성 실패(무시, None) — %s", exc)
         return None
+
+
+def _extract_pcm(resp: "Any") -> bytes | None:
+    """genai 응답에서 첫 audio inline_data 바이트(raw PCM)를 추출(graceful None)."""
+    try:
+        for part in resp.candidates[0].content.parts:
+            inline = getattr(part, "inline_data", None)
+            data = getattr(inline, "data", None) if inline else None
+            if data:
+                return data
+    except Exception:  # noqa: BLE001 - 응답 구조 예외 graceful
+        return None
+    return None

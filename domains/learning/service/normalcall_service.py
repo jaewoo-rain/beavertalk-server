@@ -70,11 +70,12 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
     Returns:
-        {role, personality, rules, voice, level_profile, locale, interests}.
+        {role, personality, rules, voice, level_profile, locale, interests, name}.
         ORM 객체가 아니라 평범한 값만 담아 async 컨텍스트로 안전히 넘긴다.
     """
     member = db.get(Member, member_id)
     locale = (member.language if member and member.language else "en")
+    name = (member.name if member and member.name else None)
     # 흥미·소재 = 온보딩 학습이유(member_reason) 를 사람이 읽을 한국어 라벨로.
     interests = (
         [REASON_LABELS.get(r.reason, r.reason) for r in member.reasons]
@@ -99,6 +100,7 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
         "level_profile": level_profile,
         "locale": locale,
         "interests": interests,
+        "name": name,
     }
 
 
@@ -322,14 +324,17 @@ async def analyze_call(
             result.detected_mode, len(pending), call_id,
         )
 
-        # 표현별 TTS 합성 → public 버킷 업로드 → Sentence.voice_url(재생 URL).
+        # 표현별 TTS 합성(Vertex Gemini-TTS, genai client 재사용) → public 버킷 업로드
+        # → Sentence.voice_url(재생 URL). synthesize_korean 은 (bytes, content_type)|None.
         for sentence_id, korean in pending:
-            audio = tts.synthesize_korean(korean)  # None 가능(스텁/비활성)
-            if not audio:
+            synthesized = await tts.synthesize_korean(korean, client)  # None 가능(비활성/실패)
+            if not synthesized:
                 continue
-            path = f"tts/{call_id}/{sentence_id}.mp3"
+            audio, content_type = synthesized
+            ext = "mp3" if content_type == "audio/mpeg" else "wav"
+            path = f"tts/{call_id}/{sentence_id}.{ext}"
             key = storage.upload(
-                settings_obj.SUPABASE_BUCKET_SAMPLES, path, audio, "audio/mpeg"
+                settings_obj.SUPABASE_BUCKET_SAMPLES, path, audio, content_type
             )
             url = storage.public_url(settings_obj.SUPABASE_BUCKET_SAMPLES, key) if key else None
             if url:

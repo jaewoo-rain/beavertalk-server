@@ -168,6 +168,7 @@ async def run_call(
         level_profile=setup["level_profile"],
         locale=locale,
         interests=setup["interests"],
+        name=setup["name"],
         history=None,
     )
 

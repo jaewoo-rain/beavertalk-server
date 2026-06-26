@@ -10,9 +10,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -48,9 +48,18 @@ def get_current_member(
     return MemberService(db).find_or_create_by_auth(auth_user.uid, auth_user.email)
 
 
+def get_genai_client(request: Request) -> Any | None:
+    """lifespan 이 만든 공유 genai 클라이언트(app.state.genai_client)를 주입한다.
+
+    Vertex 미구성/생성 실패 시 None — 핸들러가 None 을 503 으로 매핑한다.
+    """
+    return getattr(request.app.state, "genai_client", None)
+
+
 # 라우터에서 `member: CurrentMember` 로 간결하게 주입
 CurrentMember = Annotated[Member, Depends(get_current_member)]
 DbSession = Annotated[Session, Depends(get_db)]
+GenaiClient = Annotated[Any, Depends(get_genai_client)]
 
 
 class PageParams:

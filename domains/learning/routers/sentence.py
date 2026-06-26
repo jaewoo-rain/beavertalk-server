@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, UploadFile, status
 
-from core.deps import CurrentMember, DbSession
+from core.deps import CurrentMember, DbSession, GenaiClient
 from domains.learning.schemas.call import SentenceOut
 from domains.learning.schemas.review import ReviewCreate, ReviewFeedback, ReviewOut
-from domains.learning.schemas.sentence import SentenceBookmarkUpdate
+from domains.learning.schemas.sentence import SentenceBookmarkUpdate, SentenceTtsOut
 from domains.learning.service.review_service import ReviewService
 from domains.learning.service.sentence_service import SentenceService
 
@@ -30,6 +30,18 @@ def my_bookmarks(member: CurrentMember, db: DbSession) -> list[SentenceOut]:
 def delete_sentence(sentence_id: int, member: CurrentMember, db: DbSession) -> None:
     """문장 소프트 삭제(행 보존, 읽기에서 제외)."""
     SentenceService(db).soft_delete(member.member_id, sentence_id)
+
+
+@router.post("/sentences/{sentence_id}/tts", response_model=SentenceTtsOut)
+async def synthesize_sentence_tts(
+    sentence_id: int, member: CurrentMember, db: DbSession, client: GenaiClient
+) -> SentenceTtsOut:
+    """문장 단건 온디맨드 TTS — voice_url 없을 때 즉석 합성→저장→URL 반환(idempotent).
+
+    이미 voice_url 이 있으면 재합성 없이 그대로 반환한다. 합성 불가(TTS 비활성/실패/
+    업로드 실패) 시 503, 한국어 문장이 비어있으면 422, 타인/없는 문장이면 404.
+    """
+    return await SentenceService(db).synthesize_tts(member.member_id, sentence_id, client)
 
 
 @router.post(

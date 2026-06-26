@@ -104,7 +104,11 @@ def _mock_external(monkeypatch):
     """Storage/TTS/Gemini 분석을 결정적 스텁으로 — 네트워크 0."""
     monkeypatch.setattr(svc.storage, "upload", lambda *a, **k: "stub-key")
     monkeypatch.setattr(svc.storage, "public_url", lambda *a, **k: "https://stub/url.mp3")
-    monkeypatch.setattr(svc.tts, "synthesize_korean", lambda *_a, **_k: None)
+
+    async def _fake_tts(*_a, **_k):
+        return None
+
+    monkeypatch.setattr(svc.tts, "synthesize_korean", _fake_tts)
 
     async def _fake_generate(*_a, **_k):
         return svc.CallAnalysis(
