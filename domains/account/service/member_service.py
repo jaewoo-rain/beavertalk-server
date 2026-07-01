@@ -15,6 +15,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from core.supabase_auth import delete_auth_user
 from domains.account.models.member import Member
 from domains.account.models.member_reason import ALLOWED_REASONS, MemberReason
 from domains.account.repository.member_repository import MemberRepository
@@ -172,6 +173,18 @@ class MemberService:
         return member
 
     def delete(self, member_id: int) -> None:
+        """회원 탈퇴 — Supabase auth 사용자 + 로컬 member 를 함께 삭제.
+
+        인증 주체(auth.users)를 먼저 지운다. 로컬 member 만 지우면 남은 access token
+        으로 다음 요청이 오는 순간 find_or_create_by_auth 가 member 를 재생성해 계정이
+        부활한다. auth 삭제가 실패하면(미설정·네트워크·권한) 탈퇴 자체를 실패로 처리해
+        로컬만 지워지는(=부활 가능한) 불일치 상태를 막는다.
+        """
         member = self.get(member_id)
+        if member.auth_user_id and not delete_auth_user(member.auth_user_id):
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "인증 서버에서 계정을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.",
+            )
         self.repo.delete(member)
         self.db.commit()

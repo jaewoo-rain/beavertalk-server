@@ -42,3 +42,25 @@ def verify_token(token: str) -> Optional[AuthUser]:
     except Exception as exc:  # noqa: BLE001 - 토큰 무효/네트워크 등 모두 인증 실패로
         logger.info("supabase_auth: 토큰 검증 실패: %s", exc)
         return None
+
+
+def delete_auth_user(uid: str) -> bool:
+    """Supabase auth.users 사용자 삭제(Admin API). 성공 True, 실패/미설정 False.
+
+    회원 탈퇴 시 로컬 member 행과 함께 인증 주체(auth.users)를 지워야 한다. 이걸
+    안 지우면 남은 토큰으로 요청 시 find_or_create_by_auth 가 member 를 재생성해
+    계정이 부활한다. service_role 클라이언트만 admin API 를 호출할 수 있다.
+    """
+    if not uid:
+        return False
+    client = storage._get_client()  # SUPABASE_URL + SERVICE_KEY 로 만든 클라이언트
+    if client is None:
+        logger.warning("supabase_auth: Supabase 클라이언트 없음(설정 확인) → auth 사용자 삭제 불가")
+        return False
+    try:
+        client.auth.admin.delete_user(uid)
+        logger.info("supabase_auth: auth 사용자 삭제 완료 uid=%s", uid)
+        return True
+    except Exception as exc:  # noqa: BLE001 - 네트워크/권한/이미삭제 등 모두 실패로
+        logger.warning("supabase_auth: auth 사용자 삭제 실패 uid=%s — %s", uid, exc)
+        return False
