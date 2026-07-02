@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    DateTime,
     ForeignKey,
     Identity,
     Integer,
@@ -56,6 +58,12 @@ class Member(Base, TimestampMixin):
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false"),
         comment="온보딩(이름·학습이유·언어) 완료 여부",
+    )
+
+    # 소프트 삭제(회원 탈퇴). 값이 있으면 탈퇴한 회원 — 학습·구독 등 데이터는 보존하고
+    # 재식별 키(email·auth_user_id)만 NULL 로 끊어 같은 이메일 재가입을 허용한다.
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), index=True, comment="탈퇴 시각(소프트 삭제, NULL=활성)",
     )
 
     # ── normalcall 학습 프로파일 (통화 프롬프트 주입용) ──

@@ -251,7 +251,7 @@ def _analysis_instruction(locale: str) -> str:
         "- korean 에는 반드시 '올바른 최종 한국어'만 넣는다(어색한 발화·오류형 금지).\n"
         "- translation 은 각 표현을 " + label + " 로 번역.\n"
         "- 위 3종에 해당하는 학습 포인트가 없으면 expressions 는 빈 배열([]).\n"
-        "- summary 는 통화 내용을 " + label + " 로 한 문장 요약.\n"
+        "- summary 는 통화 내용을 " + label + " 로 반드시 짧은 한 문장 요약. ex:강아지 산택과 음악 취향\n"
         "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
         "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다."
     )

@@ -39,7 +39,13 @@ class MemberRepository:
         return self.db.scalar(stmt)
 
     def list(self, limit: int = 50, offset: int = 0) -> Sequence[Member]:
-        stmt = select(Member).order_by(Member.member_id).limit(limit).offset(offset)
+        stmt = (
+            select(Member)
+            .where(Member.deleted_at.is_(None))  # 탈퇴(소프트 삭제) 회원 제외
+            .order_by(Member.member_id)
+            .limit(limit)
+            .offset(offset)
+        )
         return self.db.scalars(stmt).all()
 
     def add(self, member: Member) -> Member:

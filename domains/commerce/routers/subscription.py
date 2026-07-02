@@ -15,11 +15,13 @@ router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 def start_subscription(
     data: SubscribeCreate, member: CurrentMember, db: DbSession
 ) -> SubscriptionOut:
+    """구독 시작 — 결제 후 구독을 활성화(기간·금액 저장)한다."""
     return SubscriptionService(db).start(member.member_id, data)
 
 
 @router.get("", response_model=list[SubscriptionOut])
 def list_subscriptions(member: CurrentMember, db: DbSession) -> list[SubscriptionOut]:
+    """내 구독 목록(활성/만료 포함)."""
     return SubscriptionService(db).list(member.member_id)
 
 
@@ -27,4 +29,5 @@ def list_subscriptions(member: CurrentMember, db: DbSession) -> list[Subscriptio
 def cancel_subscription(
     subscribe_id: int, member: CurrentMember, db: DbSession
 ) -> SubscriptionOut:
+    """구독 취소(해지) — 해당 구독을 비활성화한다."""
     return SubscriptionService(db).cancel(member.member_id, subscribe_id)

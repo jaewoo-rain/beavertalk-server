@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BeaverTalk 서버 — 전체 아키텍처</title>
+<style>
+  :root { --bg:#0f1720; --panel:#16212e; --ink:#e6edf3; --muted:#8b98a5; --accent:#4dd0e1; --border:#243447; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Malgun Gothic",sans-serif;
+         background:var(--bg); color:var(--ink); line-height:1.6; }
+  header { padding:28px 32px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
+  header h1 { margin:0 0 4px; font-size:20px; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  nav button { background:var(--panel); color:var(--ink); border:1px solid var(--border); border-radius:8px;
+               padding:7px 13px; font-size:13px; cursor:pointer; transition:.15s; }
+  nav button:hover { border-color:var(--accent); }
+  nav button.active { background:var(--accent); color:#08131a; border-color:var(--accent); font-weight:600; }
+  main { padding:24px 32px 80px; max-width:1200px; margin:0 auto; }
+  section { display:none; }
+  section.active { display:block; animation:fade .25s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  section h2 { font-size:17px; border-left:3px solid var(--accent); padding-left:10px; }
+  section p.desc { color:var(--muted); font-size:13px; margin-top:-4px; }
+  .diagram { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; overflow:hidden; position:relative; }
+  .diagram .hint { position:absolute; top:10px; right:14px; font-size:11px; color:var(--muted); pointer-events:none; z-index:5; }
+  .mermaid svg { width:100% !important; height:74vh !important; max-width:none !important; cursor:grab; }
+  .mermaid svg:active { cursor:grabbing; }
+  .legend { font-size:12px; color:var(--muted); margin-top:12px; }
+  .legend code { background:#0c141d; padding:1px 6px; border-radius:4px; color:var(--accent); }
+  footer { color:var(--muted); font-size:12px; text-align:center; padding:20px; border-top:1px solid var(--border); }
+  .mermaid { display:block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🦫 BeaverTalk 서버 — 전체 아키텍처</h1>
+  <p>FastAPI · 도메인 계층형(Router → Service → Repository → Model) · 외부 Supabase/Gemini/SpeechSuper 연동</p>
+  <nav id="nav"></nav>
+</header>
+
+<main>
+  <!-- 1. 시스템 아키텍처 -->
+  <section data-tab="시스템">
+    <h2>1. 시스템 아키텍처 (전체 조감)</h2>
+    <p class="desc">클라이언트 → FastAPI 앱 → 도메인 계층 → DB, 그리고 외부 서비스 연동.</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+    client["📱 Flutter 앱 / 브라우저"]
+
+    subgraph app["FastAPI 앱  (main.py · /api/v1)"]
+      mw["CORS · 표준 에러 핸들러 · lifespan(engine/genai)"]
+      deps["core/deps · get_current_member (Bearer 인증)"]
+      subgraph domains["도메인 라우터"]
+        acc["account<br/>회원/온보딩/탈퇴"]
+        com["commerce<br/>캐릭터/구독/결제"]
+        alm["alarm<br/>알람/스케줄"]
+        lrn["learning<br/>통화/문장/복습 + 실시간 WS"]
+      end
+    end
+
+    subgraph data["데이터 계층"]
+      svc["Service (트랜잭션 경계·비즈니스 규칙)"]
+      repo["Repository (순수 DB 접근)"]
+      orm["SQLAlchemy ORM Models"]
+    end
+
+    db[("🗄️ Supabase Postgres<br/>(6543 풀러 / 5432 마이그레이션)")]
+
+    subgraph ext["외부 서비스"]
+      sauth["Supabase Auth<br/>(토큰검증·계정삭제)"]
+      sstore["Supabase Storage<br/>(음성 업로드)"]
+      glive["Gemini Live<br/>(실시간 통화)"]
+      gan["Gemini<br/>(대화분석·TTS)"]
+      ss["SpeechSuper<br/>(발음 채점)"]
+    end
+
+    client -->|HTTPS / WSS + Bearer| app
+    deps --> sauth
+    domains --> svc --> repo --> orm --> db
+    lrn -.실시간.-> glive
+    lrn -.분석/TTS.-> gan
+    lrn -.발음.-> ss
+    svc -.음성저장.-> sstore
+
+    classDef ec fill:#1b2a1b,stroke:#3d6b3d,color:#cfe;
+    classDef dbc fill:#2a1b2a,stroke:#6b3d6b,color:#fce;
+    class sauth,sstore,glive,gan,ss ec;
+    class db dbc;
+</pre>
+    </div>
+    <p class="legend">실선 = 요청 경로, 점선 = 외부 서비스 호출. 외부 연동은 모두 <b>graceful</b>(미설정 시 해당 기능만 비활성, 앱은 정상).</p>
+  </section>
+
+  <!-- 2. 도메인 계층 -->
+  <section data-tab="도메인 계층">
+    <h2>2. 도메인 계층 구조 (4-Layer)</h2>
+    <p class="desc">각 도메인은 Router → Service → Repository → Model 로 동일하게 나뉜다. (Spring 의 Controller/Service/Repository/Entity)</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    subgraph L["요청 처리 계층"]
+      direction TB
+      R["Router<br/>(엔드포인트·DTO 검증)"]
+      S["Service<br/>(@Transactional · db.commit)"]
+      Rep["Repository<br/>(select/insert, commit 안 함)"]
+      M["Model<br/>(ORM 엔티티)"]
+      R --> S --> Rep --> M
+    end
+
+    subgraph D["도메인별 대표 리소스"]
+      direction TB
+      d1["account : member · member_reason · speak_country"]
+      d2["commerce : character · voice · member_character · subscribe · payment · discount_event"]
+      d3["alarm : alarm · schedule"]
+      d4["learning : call · call_raw_data · sentence · evaluation · review · level"]
+    end
+
+    M -.-> D
+</pre>
+    </div>
+    <p class="legend">
+      규율: <code>Service</code> 만 <code>db.commit()</code> 호출(트랜잭션 경계). <code>Repository</code> 는 commit 하지 않음.
+      DTO 는 <code>schemas/</code> 의 Pydantic 모델.
+    </p>
+  </section>
+
+  <!-- 3. 인증 흐름 -->
+  <section data-tab="인증 흐름">
+    <h2>3. 인증 흐름 (Supabase Auth 위임)</h2>
+    <p class="desc">로그인/비번은 Supabase 가 담당. 앱은 access token 을 검증하고 auth UUID 로 member 를 찾거나 자동 생성.</p>
+    <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as 📱 클라이언트
+    participant A as FastAPI (deps)
+    participant SA as Supabase Auth
+    participant MS as MemberService
+    participant DB as Postgres
+
+    C->>A: 요청 + Authorization: Bearer &lt;token&gt;
+    A->>SA: verify_token(token)
+    SA-->>A: AuthUser(uid, email)  또는  None→401
+    A->>MS: find_or_create_by_auth(uid, email)
+    MS->>DB: SELECT member WHERE auth_user_id = uid
+    alt 기존 회원
+        DB-->>MS: member
+    else 신규
+        MS->>DB: INSERT member (기본 캐릭터 지급, onboarding=false)
+    end
+    MS-->>A: member (CurrentMember 주입)
+    A-->>C: 200 (핸들러 실행)
+
+    Note over C,DB: 탈퇴 = Supabase auth 삭제 + member 소프트삭제<br/>(deleted_at 기록, email·auth_user_id NULL → 재가입 허용)
+</pre>
+    </div>
+    <p class="legend">참고: <code>core/supabase_auth.py</code>, <code>core/deps.py</code>, <code>domains/account/service/member_service.py</code></p>
+  </section>
+
+  <!-- 4. 실시간 통화 흐름 -->
+  <section data-tab="실시간 통화">
+    <h2>4. 실시간 통화 → 분석 → 복습 (normalcall)</h2>
+    <p class="desc">WebSocket 으로 Gemini Live 와 실시간 통화 → 종료 후 대화 분석으로 문장 추출 → 발음 채점.</p>
+    <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as 📱 클라이언트
+    participant WS as ws_router / call_session
+    participant GL as Gemini Live
+    participant ST as Supabase Storage
+    participant AN as Gemini 분석
+    participant SS as SpeechSuper
+    participant DB as Postgres
+
+    C->>WS: WS /api/v1/calls/stream (오디오 스트림)
+    WS->>GL: 실시간 오디오 릴레이 (system_instruction 주입)
+    GL-->>WS: AI 음성 응답 스트림
+    WS-->>C: AI 음성 재생
+    WS->>ST: 통화 원본 음성 업로드(voice_url)
+    WS->>DB: call / call_raw_data 저장 (status=analyzing)
+
+    Note over WS,AN: 통화 종료
+    WS->>AN: 대화 전사 분석
+    AN-->>WS: 문장(sentence) 추출 + 요약
+    WS->>DB: sentence 저장, call.status=done
+
+    C->>SS: 문장 따라 말하기(녹음) → 채점 요청
+    SS-->>DB: review(feedback: 점수·글자별 상/중/하) 저장
+</pre>
+    </div>
+    <p class="legend">참고: <code>domains/learning/realtime/</code>, <code>core/gemini_live.py</code>, <code>core/gemini_analysis.py</code>, <code>core/speechsuper.py</code></p>
+  </section>
+
+  <!-- 5. ERD -->
+  <section data-tab="ERD">
+    <h2>5. 데이터베이스 ERD (엔티티 관계도)</h2>
+    <p class="desc">소프트 삭제(deleted_at): member · sentence. 삭제 정책은 관계 위에 표기.</p>
+    <div class="diagram">
+<pre class="mermaid">
+erDiagram
+    speak_country ||--o{ member          : "억양(SET NULL)"
+    member        ||--o{ member_reason   : "학습이유(CASCADE)"
+    voice     ||--o{ character           : "음성(SET NULL)"
+    character ||--o{ discount_event      : "할인(CASCADE)"
+    member    ||--o{ member_character    : "보유(CASCADE)"
+    character ||--o{ member_character    : "보유됨(RESTRICT)"
+    character ||--o{ member              : "대표캐릭터(SET NULL)"
+    member    ||--o{ subscribe           : "구독(CASCADE)"
+    member    ||--o{ payment             : "결제(CASCADE)"
+    member    ||--o{ alarm               : "알람(CASCADE)"
+    character ||--o{ alarm               : "알람캐릭터(RESTRICT)"
+    alarm     ||--o{ schedule            : "반복요일(CASCADE)"
+    member    ||--o{ call                : "통화(CASCADE)"
+    character ||--o{ call                : "통화상대(RESTRICT)"
+    call      ||--o{ call_raw_data       : "원본턴(CASCADE)"
+    call      ||--o{ sentence            : "발화(CASCADE)"
+    sentence  ||--|| evaluation          : "평가1:1(CASCADE)"
+    sentence  ||--o{ review              : "복습(CASCADE)"
+
+
+    member {
+        bigint member_id PK "NN"
+        text auth_user_id UK "null · uq · idx · Supabase UUID"
+        bigint speak_country_id FK "null · idx"
+        bigint character_id FK "null · idx · 대표캐릭터"
+        text name "null"
+        text language "null"
+        text email UK "null · uq · 탈퇴시 NULL"
+        bool is_auto_payment "null"
+        bool onboarding_completed "NN · def"
+        datetime deleted_at "null · idx · 소프트삭제"
+        int korean_level "null · →level.level_no"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    member_reason {
+        bigint member_reason_id PK "NN"
+        bigint member_id FK "NN · uq(member_id,reason) · idx"
+        text reason "NN · uq(member_id,reason)"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    speak_country {
+        bigint speak_country_id PK "NN"
+        text first_country "null"
+        text second_country "null"
+        text third_country "null"
+        int first_percent "null"
+        int second_percent "null"
+        int third_percent "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    character {
+        bigint character_id PK "NN"
+        bigint voice_id FK "null · idx"
+        text role "null"
+        text personality "null"
+        text rules "null"
+        text voice_url "null"
+        numeric price "NN"
+        text name "NN"
+        text description "null"
+        text image_url "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    voice {
+        bigint voice_id PK "NN"
+        text name UK "NN · uq"
+        text description "null"
+        text gender "null"
+        text sample_url "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    member_character {
+        bigint member_id PK,FK "NN"
+        bigint character_id PK,FK "NN · idx"
+        numeric purchase_price "null"
+        datetime purchase_date "null"
+    }
+    discount_event {
+        bigint discount_event_id PK "NN"
+        bigint character_id FK "NN · idx"
+        numeric discount_price "null"
+        datetime start_time "null"
+        datetime end_time "null"
+        bool activate "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    subscribe {
+        bigint subscribe_id PK "NN"
+        bigint member_id FK "NN · idx"
+        datetime start_date "null"
+        datetime end_date "null"
+        numeric price "null"
+        bool is_activate "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    payment {
+        bigint payment_id PK "NN"
+        bigint member_id FK "NN · idx"
+        datetime payment_date "null"
+        numeric price "null"
+        text description "null"
+        text category "null · idx"
+        text card_info "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    alarm {
+        bigint alarm_id PK "NN"
+        bigint member_id FK "NN · idx"
+        bigint character_id FK "NN · idx"
+        datetime time "null"
+        bool is_activate "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    schedule {
+        bigint schedule_id PK "NN"
+        bigint alarm_id FK "NN · idx"
+        text day_of_week "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    call {
+        bigint call_id PK "NN"
+        bigint member_id FK "NN · idx"
+        bigint character_id FK "NN · idx"
+        datetime call_date "null · idx"
+        int total_time "null"
+        text summary "null"
+        int rating "null"
+        text status "NN · def"
+        text mode "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    call_raw_data {
+        bigint call_raw_data_id PK "NN"
+        bigint call_id FK "NN · idx"
+        text role "null"
+        int turn_index "null"
+        text content "null"
+        text voice_url "null"
+        int total_time "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    sentence {
+        bigint sentence_id PK "NN"
+        bigint call_id FK "NN · idx"
+        text korean_sentence "null"
+        text native_sentence "null"
+        text locale "null"
+        text source_type "null"
+        text voice_url "null"
+        bool is_bookmarked "null"
+        datetime deleted_at "null · idx · 소프트삭제"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    evaluation {
+        bigint evaluation_id PK "NN"
+        bigint sentence_id FK,UK "NN · uq"
+        int total_score "null"
+        int pronunciation "null"
+        int fluency "null"
+        int rhythm "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    review {
+        bigint review_id PK "NN"
+        bigint sentence_id FK "NN · idx"
+        text voice_url "null"
+        json feedback "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+    level {
+        bigint level_id PK "NN"
+        int level_no UK "NN · uq"
+        text band "null"
+        text grade "null"
+        text stage_name "null"
+        text textbook "null"
+        int grammar_count "null"
+        int vocab_count "null"
+        text grammar_scope "null"
+        text vocab_sample "null"
+        text profile "null"
+        datetime created_at "NN · def=now()"
+        datetime updated_at "NN · def=now() · onupd"
+    }
+</pre>
+    </div>
+    <p class="legend">
+      표기 — <code>PK</code> 기본키 · <code>FK</code> 외래키 · <code>UK</code> 유니크키 |
+      주석 — <code>NN</code> NOT NULL · <code>null</code> nullable · <code>uq</code> 유니크 · <code>idx</code> 인덱스 · <code>def</code> 기본값.
+      <code>level</code> ↔ <code>member.korean_level</code> 는 FK 없는 논리 참조. 상세는 <b>docs/ERD.md</b> 참고.
+    </p>
+  </section>
+
+  <!-- 6. 엔드포인트 맵 -->
+  <section data-tab="API 맵">
+    <h2>6. REST / WebSocket 엔드포인트 맵</h2>
+    <p class="desc">모든 REST 는 <code>/api/v1</code> 접두사 + Bearer 인증. (실제 소스 라우터 기준)</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    root["/api/v1"]
+    root --> mem["members"]
+    root --> chr["characters / 구매"]
+    root --> sub["subscriptions"]
+    root --> pay["payments"]
+    root --> alr["alarms"]
+    root --> cal["calls"]
+    root --> snt["sentences / reviews"]
+
+    mem --> m1["GET /me · PATCH /me"]
+    mem --> m2["POST /me/onboarding"]
+    mem --> m3["GET /me/profile"]
+    mem --> m4["DELETE /me (소프트삭제)"]
+
+    chr --> c1["GET /characters · /{id}"]
+    chr --> c2["POST 구매 · GET /members/me/characters"]
+
+    sub --> s1["POST · GET · POST /{id}/cancel"]
+    pay --> p1["GET (결제내역 페이지)"]
+
+    alr --> a1["CRUD · activate/deactivate"]
+
+    cal --> l1["POST · GET · GET /{id}"]
+    cal --> l2["GET /{id}/result · /raw · PATCH · DELETE"]
+    cal --> l3["WS /calls/stream · GET /calls/{id}/status"]
+
+    snt --> t1["PATCH /{id}/bookmark · GET /members/me/bookmarks"]
+    snt --> t2["POST /{id}/tts · /{id}/reviews/audio"]
+    snt --> t3["GET /{id}/reviews · /reviews/{id}/feedback"]
+</pre>
+    </div>
+  </section>
+</main>
+
+<footer>Mermaid.js 로 렌더됨 · 소스: beavertalk-server · 이 파일을 브라우저로 열면 그림이 그려집니다.</footer>
+
+<!-- 줌·팬(확대/이동) 라이브러리 — module 실행 전에 로드되도록 먼저 둔다 -->
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  // startOnLoad:false — 숨겨진(display:none) 탭은 Mermaid 가 크기를 못 재서 렌더가 깨진다.
+  // 탭이 화면에 보이는 순간에만 그 섹션을 그리는 lazy 렌더링을 쓴다.
+  mermaid.initialize({ startOnLoad:false, theme:"dark", securityLevel:"loose",
+    themeVariables:{ fontFamily:"Segoe UI, Malgun Gothic, sans-serif", primaryColor:"#16212e",
+      primaryTextColor:"#e6edf3", lineColor:"#4dd0e1", primaryBorderColor:"#243447" } });
+
+  // 보이는 섹션 안의 아직 안 그린 다이어그램만 렌더(중복 렌더 방지: data-processed).
+  async function renderVisible(sec) {
+    const nodes = [...sec.querySelectorAll(".mermaid:not([data-processed])")];
+    if (nodes.length) await mermaid.run({ nodes });
+    enablePanZoom(sec);  // 렌더된 SVG 에 확대/이동 부착
+  }
+
+  // 각 SVG 에 휠 확대 + 드래그 이동 + 컨트롤 버튼(줌인/아웃/리셋) 부착.
+  function enablePanZoom(sec) {
+    if (!window.svgPanZoom) return;  // 라이브러리 로드 실패 시 정적 표시로 폴백
+    sec.querySelectorAll(".mermaid[data-processed] svg").forEach(svg => {
+      if (svg.dataset.panzoom) return;  // 중복 부착 방지
+      svg.dataset.panzoom = "1";
+      svg.removeAttribute("height");     // CSS 의 74vh 고정 높이가 먹도록
+      const box = svg.closest(".diagram");
+      if (box && !box.querySelector(".hint")) {
+        const h = document.createElement("div");
+        h.className = "hint"; h.textContent = "🖱 휠=확대 · 드래그=이동 · 우하단 버튼=줌/리셋";
+        box.appendChild(h);
+      }
+      window.svgPanZoom(svg, {
+        zoomEnabled:true, panEnabled:true, controlIconsEnabled:true,
+        fit:true, center:true, minZoom:0.3, maxZoom:20, zoomScaleSensitivity:0.3,
+      });
+    });
+  }
+
+  // 탭 네비게이션
+  const sections = [...document.querySelectorAll("section")];
+  const nav = document.getElementById("nav");
+  sections.forEach((sec, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = sec.dataset.tab;
+    btn.onclick = () => {
+      sections.forEach(s => s.classList.remove("active"));
+      [...nav.children].forEach(b => b.classList.remove("active"));
+      sec.classList.add("active"); btn.classList.add("active");
+      renderVisible(sec);            // 이 탭을 처음 열면 그 시점에 렌더
+    };
+    nav.appendChild(btn);
+    if (i === 0) { sec.classList.add("active"); btn.classList.add("active"); }
+  });
+
+  renderVisible(sections[0]);        // 첫 탭은 로드 직후 렌더
+
+</script>
+</body>
+</html>

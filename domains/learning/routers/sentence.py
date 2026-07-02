@@ -18,11 +18,13 @@ router = APIRouter(tags=["sentences"])
 def set_bookmark(
     sentence_id: int, data: SentenceBookmarkUpdate, member: CurrentMember, db: DbSession
 ) -> SentenceOut:
+    """문장 북마크 설정/해제(is_bookmarked)."""
     return SentenceService(db).set_bookmark(member.member_id, sentence_id, data.is_bookmarked)
 
 
 @router.get("/members/me/bookmarks", response_model=list[SentenceOut])
 def my_bookmarks(member: CurrentMember, db: DbSession) -> list[SentenceOut]:
+    """내가 북마크한 문장 모음(삭제된 문장 제외)."""
     return SentenceService(db).list_bookmarks(member.member_id)
 
 
@@ -80,6 +82,7 @@ async def add_review_audio(
 
 @router.get("/sentences/{sentence_id}/reviews", response_model=list[ReviewOut])
 def list_reviews(sentence_id: int, member: CurrentMember, db: DbSession) -> list[ReviewOut]:
+    """문장의 복습(발음 채점) 기록 목록."""
     return ReviewService(db).list_reviews(member.member_id, sentence_id)
 
 

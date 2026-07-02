@@ -48,4 +48,4 @@ class MemberReason(Base, TimestampMixin):
     )
     reason: Mapped[str] = mapped_column(Text, comment="학습 이유 코드")
 
-    member: Mapped["Member"] = relationship(back_populates="reasons")
+    member: Mapped["Member"] = relationship(back_populates="reasons") # ORM이 FK를 따라가 자동으로 객체를 로드해주는 "가상 속성"
