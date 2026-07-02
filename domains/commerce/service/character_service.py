@@ -64,6 +64,7 @@ class CharacterService:
             is_owned=owned,
             description=c.description,
             voice_url=c.voice_url,
+            tags=c.tags or [],
             active_discount=DiscountOut.model_validate(discount) if discount else None,
         )
 
@@ -74,6 +75,9 @@ class CharacterService:
                 character_id=mc.character_id,
                 name=mc.character.name,
                 image_url=mc.character.image_url,
+                description=mc.character.description,
+                voice_url=mc.character.voice_url,
+                tags=mc.character.tags or [],
                 purchase_price=mc.purchase_price,
                 purchase_date=mc.purchase_date,
             )
@@ -104,6 +108,9 @@ class CharacterService:
             character_id=c.character_id,
             name=c.name,
             image_url=c.image_url,
+            description=c.description,
+            voice_url=c.voice_url,
+            tags=c.tags or [],
             price=c.price,
             effective_price=self.effective_price(c),
             is_owned=owned,

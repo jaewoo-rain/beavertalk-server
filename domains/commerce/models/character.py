@@ -9,7 +9,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import BigInteger, ForeignKey, Identity, Numeric, Text
+from sqlalchemy import JSON, BigInteger, ForeignKey, Identity, Numeric, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimestampMixin
@@ -36,6 +36,9 @@ class Character(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(Text, comment="캐릭터 이름")
     description: Mapped[Optional[str]] = mapped_column(Text, comment="세부 설명")
     image_url: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 이미지")
+    tags: Mapped[Optional[list[str]]] = mapped_column(
+        JSON, comment="음색/특성 태그 배열(예: Warm, Calm, Soft)"
+    )
 
     voice: Mapped[Optional["Voice"]] = relationship(
         back_populates="characters", lazy="select",
