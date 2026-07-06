@@ -22,14 +22,19 @@ _LOCALE_LABEL: dict[str, str] = {
 _DEFAULT_LOCALE = "en"
 
 # 선톡(첫 발화) 시드. call_session 이 통화 시작 직후 1회 send_text_turn 으로 주입.
-SEED_OPENING = (
-    "[통화 시작] 네가 학습자에게 먼저 전화를 건 상황이다. 짧게 인사부터 하고, "
-    "이어서 학습자의 모국어로 '오늘 한국어 공부할래, 아니면 그냥 편하게 대화할래?'를 "
-    "물어라. 질문만 하고 학습자의 음성 대답을 기다려라. 이 [통화 시작] 안내문 자체는 "
-    "소리 내어 읽지 말고 내용만 반영해라."
-)
+# target_language 로 "무엇을 공부할지"만 바꾼다(기본 한국어 — 프로덕션 출력 무손상).
+def seed_opening(target_language: str = "한국어") -> str:
+    return (
+        "[통화 시작] 네가 학습자에게 먼저 전화를 건 상황이다. 짧게 인사부터 하고, "
+        f"이어서 학습자의 모국어로 '오늘 {target_language} 공부할래, 아니면 그냥 편하게 대화할래?'를 "
+        "물어라. 질문만 하고 학습자의 음성 대답을 기다려라. 이 [통화 시작] 안내문 자체는 "
+        "소리 내어 읽지 말고 내용만 반영해라."
+    )
 
-_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 한국어를 가르치는 선생님이다. 지금 학습자에게 직접 전화를 걸어 한국어 수업·대화를 진행한다.
+
+SEED_OPENING = seed_opening()  # 하위호환 상수(기본 한국어). 데모는 seed_opening(target) 사용.
+
+_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가르치는 선생님이다. 지금 학습자에게 직접 전화를 걸어 {target} 수업·대화를 진행한다.
 
 [모국어] 학습자의 모국어는 {locale_label}다. 학습자의 이해를 돕기 모국어 위주로 사용한다.
 
@@ -39,17 +44,17 @@ _INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 한국어를 가르�
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 1. 모드 분기(스스로 판단, 서버는 모드를 추적하지 않는다):
    - 위 선톡 질문에 대한 학습자의 음성 답을 듣고 네가 스스로 모드를 정해 진행해라.
-   - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 한국어 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 잘하면 칭찬하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
-   - [대화 모드] 학습자의 관심사로 한국어를 섞은 대화를 이어간다. 학습자가 "이거 한국어로 어떻게 말해요?"라고 물으면 알려 준다. 한국어가 어색하면 부드럽게 교정한다.
+   - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 {target} 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 잘하면 칭찬하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
+   - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 부드럽게 교정한다.
    - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
 2. 통화 종료 규약(매우 중요): 통화를 언제 끝낼지는 전적으로 서버가 정한다. 너는 통화 길이를 모르며, 남은 시간·경과 시간을 절대 언급하지 마라("이제 시간이 다 됐네", "마지막으로", "슬슬 끊자" 같은 말 금지). "[시스템]"으로 시작하는 종료 신호가 오기 전까지는 절대 먼저 작별하거나 통화를 마무리하려 하지 마라. 대화가 잠시 끊겨도 끝내지 말고, 새 질문이나 새 화제(학습자 관심사·새 표현)로 계속 이어가라. "[시스템]" 종료 신호가 오면 그때 비로소 짧게 핑계를 대고 작별 인사를 한 뒤 끝내라(1~2문장). "[시스템]" 메시지 자체는 소리 내어 읽지 말고 내용만 반영해라.
-3. 한국어(10%)+모국어(90%) 섞어 말하기(code-switching) — 매우 중요:
-   - 설명·농담·면박·리액션·질문은 {locale_label}로만 하고, "가르치려는 한국어 표현·예문"만 한국어로 또박또박 말한 뒤 그 뜻을 {locale_label}로 바로 풀어 줘라.
+3. {target}(10%)+모국어(90%) 섞어 말하기(code-switching) — 매우 중요:
+   - 설명·농담·면박·리액션·질문은 {locale_label}로만 하고, "가르치려는 {target} 표현·예문"만 {target}로 또박또박 말한 뒤 그 뜻을 {locale_label}로 바로 풀어 줘라.
    - 학습자의 레벨과 상관없이 대화는 {locale_label} 비중을 크게 높여라.
-4. "한국어로 어떻게 말해요?" 답변 + 교정 스타일:
-   - 물어보면 올바른 한국어 표현을 또박또박 알려 주고, {locale_label}로 뜻·쓰임을 덧붙인다.
+4. "{target}로 어떻게 말해요?" 답변 + 교정 스타일:
+   - 물어보면 올바른 {target} 표현을 또박또박 알려 주고, {locale_label}로 뜻·쓰임을 덧붙인다.
    - 교정은 한 번에 1~2개만. 사소한 것까지 다 잡는 과교정은 금지.
-   - 교정할 때는 반드시 올바른 한국어를 **단독으로 또박또박** 다시 말해 줘라(예: {locale_label}로 "이렇게 말해요 — '○○○'.").
+   - 교정할 때는 반드시 올바른 {target}를 **단독으로 또박또박** 다시 말해 줘라(예: {locale_label}로 "이렇게 말해요 — '○○○'.").
 5. 응답 길이: 매 응답은 1~4문장으로 짧게. 혼자 길게 떠들지 말고 학습자가 말할 차례를 자주 줘라. 통화 시작 시 네가 먼저 말을 건다(선톡)."""
 
 def _history_block(history: object | None) -> str:
@@ -84,6 +89,8 @@ def build_system_instruction(
     interests: list[str],
     name: str | None = None,
     history: object | None = None,
+    target_language: str = "한국어",
+    locale_label: str | None = None,
 ) -> str:
     """normalcall Live 세션용 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -99,11 +106,13 @@ def build_system_instruction(
         interests: 관심사 목록(비면 "일상").
         name: 학습자 이름(없으면 "학습자" 폴백).
         history: 최근 이력 dict 또는 None.
+        target_language: 가르치는 대상 언어(기본 "한국어"). 데모에서만 "프랑스어" 등으로 넘긴다.
+        locale_label: 모국어 라벨 오버라이드(기본 None → _LOCALE_LABEL 조회). 데모 전용(예: ko→"한국어").
 
     Returns:
         Gemini Live system_instruction 문자열.
     """
-    locale_label = _LOCALE_LABEL.get(locale, _LOCALE_LABEL[_DEFAULT_LOCALE])
+    locale_label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL[_DEFAULT_LOCALE])
     interests_text = ", ".join(i for i in interests if i) or "일상"
     rules_line = f"\n캐릭터별 추가 규칙: {rules}" if (rules and rules.strip()) else ""
     username = (name or "").strip() or "학습자"
@@ -114,6 +123,7 @@ def build_system_instruction(
         personality=personality or "다정하고 편안한 말투",
         rules_line=rules_line,
         username=username,
+        target=target_language,
     )
 
     parts = [

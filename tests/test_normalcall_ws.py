@@ -134,8 +134,9 @@ class FakeWebSocket:
     send_text/send_bytes: 송신 기록. close(): client_state 갱신.
     """
 
-    def __init__(self, incoming: list[dict]):
+    def __init__(self, incoming: list[dict], hang: bool = False):
         self._incoming = list(incoming)
+        self._hang = hang  # True 면 incoming 소진 후 disconnect 대신 영원히 대기(소강 재현)
         self.sent_text: list[str] = []
         self.sent_bytes: list[bytes] = []
         self.closed = False
@@ -148,6 +149,8 @@ class FakeWebSocket:
     async def receive(self) -> dict:
         if self._incoming:
             return self._incoming.pop(0)
+        if self._hang:  # 클라 발화 없는 소강 구간 재현 — 취소될 때까지 대기
+            await asyncio.Event().wait()
         return {"type": "websocket.disconnect"}
 
     async def send_text(self, text: str) -> None:
@@ -329,6 +332,73 @@ async def test_run_call_persists_segments_and_status(session_factory, seeded):
     # 가짜 Live 에 선톡 시드가 전송됐는지(send_text_turn) 확인
     assert holder["session"].sent_text_turns  # SEED_OPENING 주입됨
     assert holder["voice"] == seeded["voice"]  # 캐릭터 voice 가 반영됨
+
+
+@pytest.mark.asyncio
+async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkeypatch):
+    """RC1 회귀: 5분 경과가 소강(idle) 구간에 떨어져도 종료 시드가 주입되고 정상 작별 종료.
+
+    수정 전엔 시드 주입이 펌프의 turn_end 에만 걸려 있어, 첫 턴 후 비버가 idle 이면 turn_end 가
+    안 와서 시드가 영영 안 나가고 무음 백스톱으로 뚝 끊겼다. 이제 워처가 idle 을 감지해 직접 주입한다.
+    """
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소(빠른 테스트)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+
+    class IdleThenClose:
+        """첫 턴 후 idle → 종료 시드([시스템]) 수신 시에만 작별 턴 → 종료."""
+
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self._closed = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if text.startswith("[시스템]"):  # 종료 시드 수신 → 작별 턴 방출 허용
+                self._closed.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            await self._closed.wait()          # idle(소강) — 종료 시드가 올 때까지 대기
+            yield LiveEvent(kind="out_tr", text="잘 가요")
+            yield LiveEvent(kind="audio", audio=b"\x22\x22")  # 작별 오디오
+            yield LiveEvent(kind="turn_end")
+
+    import contextlib as _cl
+    holder: dict = {}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        s = IdleThenClose()
+        holder["s"] = s
+        yield s
+
+    # 클라는 start 만 보내고 이후 침묵(hang=True) — 종료를 서버(시드 경로)가 주도해야 한다.
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    await _wait_analysis_tasks()
+
+    sess = holder["s"]
+    # 소강에도 종료 시드가 주입됐다(워처가 직접) — 작별 없는 무음 종료 방지.
+    assert any(t.startswith("[시스템]") for t in sess.sent_text_turns), \
+        "소강 구간에서 종료 시드가 주입되지 않음(RC1 회귀)"
+    # 작별 오디오가 클라로 forward 됐다(작별 절단 아님).
+    assert b"\x22\x22" in ws.sent_bytes, "작별 오디오가 클라에 전달되지 않음"
+    # 정상 종료 통지(call_ended)가 나갔다.
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
 
 
 @pytest.mark.asyncio

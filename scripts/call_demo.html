@@ -39,29 +39,32 @@
   <h1>🦫 BeaverTalk — 통화 → 문장추출 → 복습 발음평가</h1>
   <div class="muted">실제 백엔드(Supabase · Gemini Live · SpeechSuper)에 붙는 데모. ⚠️ 마이크는 <b>localhost</b> 또는 https 에서만 동작합니다.</div>
 
-  <!-- STEP 1 로그인 -->
-  <div class="card">
-    <div class="step">STEP 1 · 로그인</div>
-    <div class="row" style="margin-top:8px">
-      <span class="muted">API 서버</span><input id="apibase" style="width:190px" />
-      <span class="muted">Supabase URL</span><input id="supaurl" style="width:230px" placeholder="https://....supabase.co" />
-    </div>
-    <div class="row" style="margin:6px 0">
-      <span class="muted">Supabase anon key</span><input id="supakey" style="width:330px" placeholder="sb_publishable_... 또는 eyJ...(anon)" />
-    </div>
-    <div class="muted" style="margin:0 0 8px">로그인은 <b>Supabase Auth</b>로 합니다. anon/publishable 키 필요(공개키, 안전).</div>
-    <div class="row">
-      <input id="email" value="test@naver.com" style="width:180px" />
-      <input id="pw" value="11111111" type="password" style="width:120px" />
-      <span class="muted">캐릭터ID</span><input id="cid" value="1" style="width:50px" />
-      <button id="loginBtn">로그인</button>
-      <span id="who" class="status muted"></span>
-    </div>
+  <!-- STEP 1 로그인 (데모: 자동 로그인 — 화면에 노출하지 않음) -->
+  <div class="card" style="display:none">
+    <input id="apibase" />
+    <input id="supaurl" />
+    <input id="supakey" />
+    <input id="email" value="test@naver.com" />
+    <input id="pw" value="11111111" type="password" />
+    <button id="loginBtn">로그인</button>
   </div>
 
   <!-- STEP 2 통화 -->
   <div class="card">
-    <div class="step">STEP 2 · 통화 (말해보세요 · 약 60초 후 자동 종료)</div>
+    <div class="step">STEP 1 · 통화 설정 (말해보세요 · 약 5분 후 자동 종료)</div>
+    <div class="row" style="margin:8px 0">
+      <span class="muted">캐릭터 ID</span><input id="cid" value="1" style="width:50px" />
+      <span class="muted">배우는 언어</span>
+      <select id="tlang" style="background:#0e0f13;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+        <option value="프랑스어">프랑스어</option>
+        <option value="영어">영어</option>
+        <option value="일본어">일본어</option>
+        <option value="중국어">중국어</option>
+        <option value="스페인어">스페인어</option>
+        <option value="한국어">한국어</option>
+      </select>
+      <span id="who" class="status muted"></span>
+    </div>
     <div class="row" style="margin:8px 0">
       <button id="callBtn" disabled>📞 통화 시작</button>
       <button id="hangBtn" class="sec" disabled>통화 종료</button>
@@ -76,7 +79,7 @@
 
   <!-- STEP 3 분석 결과 -->
   <div class="card">
-    <div class="step">STEP 3 · 통화 평가 + 뽑아낸 복습 문장</div>
+    <div class="step">STEP 2 · 뽑아낸 문장</div>
     <div id="ana" class="muted" style="margin-top:8px">통화가 끝나면 자동 분석됩니다…</div>
     <div id="rating"></div>
     <div id="sents"></div>
@@ -116,8 +119,8 @@ $('#loginBtn').onclick = async () => {
   } catch (e) { $('#who').textContent = 'Supabase 오류: ' + e; return; }
   const meR = await api('/api/v1/members/me');
   if (!meR.ok) { $('#who').textContent = '/me 실패: ' + meR.status; return; }
-  const me = await meR.json();
-  $('#who').innerHTML = `✅ member_id=${me.member_id} (${me.email||''})`;
+  await meR.json();
+  $('#who').textContent = '✅ 준비됨';
   $('#callBtn').disabled = false;
 };
 
@@ -165,7 +168,7 @@ async function showPrompt(cid) {
   const box = $('#pcontent');
   box.innerHTML = '불러오는 중…';
   try {
-    const r = await api(`/__dev/call-prompt?character_id=${cid}`);
+    const r = await api(`/__dev/call-prompt?character_id=${cid}&target_language=${encodeURIComponent($('#tlang').value)}&locale=ko`);
     if (!r.ok) { box.innerHTML = `프롬프트 조회 실패: ${r.status}`; return; }
     const d = await r.json(), s = d.setup;
     box.innerHTML =
@@ -205,7 +208,8 @@ async function startCall() {
   $('#cdot').className='dot'; $('#cstat').textContent='연결 중…';
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type:'start', character_id:+$('#cid').value||1 }));
+    ws.send(JSON.stringify({ type:'start', character_id:+$('#cid').value||1,
+                             target_language: $('#tlang').value, locale: 'ko' }));
     $('#cdot').className='dot on'; $('#cstat').textContent='통화 중';
     $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
   };
@@ -286,13 +290,9 @@ function renderSentences(sentences) {
     el.innerHTML = `<div class="ko">${s.korean_sentence||''}</div><div class="na">${s.native_sentence||''}</div>
       <div class="row" style="margin-top:8px">
         <button class="play sec" data-id="${s.sentence_id}">🔊 들어보기</button>
-        <button class="rec" data-id="${s.sentence_id}">🎤 발음 연습</button>
-        <span class="status"><span class="dot"></span><span class="rs">대기</span></span>
-      </div>
-      <div class="result"></div>`;
+      </div>`;
     box.appendChild(el);
     wirePlay(el, s.sentence_id, s.voice_url);
-    wireRecord(el, s.sentence_id);
   }
 }
 
@@ -365,6 +365,9 @@ function renderFeedback(fb, out) {
     <div class="tot">총점 ${e.total_score} · 발음 ${e.pronunciation} · 유창성 ${e.fluency} · 리듬 ${e.rhythm}
     <span class="pill ok">상≥85</span><span class="pill warning">중≥70</span><span class="pill err">하</span></div>`;
 }
+
+/* ---------- 데모: 페이지 로드 시 자동 로그인(로그인 UI 는 숨김) ---------- */
+$('#loginBtn').onclick();
 </script>
 </body>
 </html>

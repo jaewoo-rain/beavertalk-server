@@ -23,7 +23,7 @@ from sqlalchemy.orm import sessionmaker
 
 from core.config import Settings
 from core.gemini_live import DEFAULT_VOICE, LiveEvent, LiveSessionProtocol, open_session
-from core.persona_prompt import SEED_OPENING, build_system_instruction
+from core.persona_prompt import build_system_instruction, seed_opening
 from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import (
     ServerCallEnded,
@@ -42,10 +42,13 @@ logger = logging.getLogger(__name__)
 # 통화 길이: 기본 5분 경과 시 종료 시드(정상 작별 시작), 10분 절대 백스톱(강제 종료). 1분마다 중간 저장.
 CALL_DURATION_S = 300.0          # 첫 발화부터 이 시간 경과(5분) → 종료 시드 주입(정상 작별)
 ABSOLUTE_CALL_TIMEOUT_S = 600.0  # 이 상한(10분) 넘으면 강제 종료(백스톱)
-SEED_TO_HANGUP_S = 12.0         # 종료 시드 후 정상 종료 안 되면 강제 종료까지
-PLAYBACK_DONE_WAIT_S = 2.0      # call_ended 후 playback_done ack 대기 상한
+SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
+PLAYBACK_DONE_WAIT_S = 4.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유)
 FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 주기(1분)
 DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(비비, 기본 무료)
+DEFAULT_TARGET_LANGUAGE = "한국어"    # 교육 대상 언어 기본값(프로덕션 — 오버라이드 없으면 이 값)
+# 데모 전용 모국어 라벨 확장(전역 _LOCALE_LABEL 은 안 건드림 → prod 는 ko→영어 폴백 유지).
+_DEMO_LOCALE_EXTRA = {"ko": "한국어"}
 
 _CLOSE_SEED = (
     "[시스템] 통화 시간이 다 됐다. 자연스럽게 핑계를 대고 따뜻하게 작별 인사 후 끝내라. 1~2문장."
@@ -63,6 +66,19 @@ def _new_turn_id() -> str:
 
 async def _send_json(ws, message: ServerMessage) -> None:
     await ws.send_text(server_adapter.dump_json(message).decode("utf-8"))
+
+
+def _resolve_target_language(settings: Settings, override: Optional[str]) -> tuple[str, bool]:
+    """교육 대상 언어 결정 → (target_language, is_demo).
+
+    prod 이거나 오버라이드가 없으면 항상 한국어(비데모). non-prod 에서 오버라이드가 오면
+    그 언어로 데모 진행. prod 에서 오버라이드가 오면 무시하고 warning(오남용/버그 탐지).
+    """
+    if settings.ENV == "prod" or not override:
+        if settings.ENV == "prod" and override:
+            logger.warning("normalcall: prod 에서 target_language 오버라이드 무시(%s)", override)
+        return DEFAULT_TARGET_LANGUAGE, False
+    return override.strip(), True
 
 
 class _CallState:
@@ -150,9 +166,9 @@ async def run_call(
     # 기본값을 함수 정의 시점에 바인딩하지 않고 호출 시점에 해석 → 테스트에서
     # `open_session` 을 monkeypatch 하면 그대로 반영된다(운영은 실제 open_session).
     factory = live_session_factory or open_session
-    # 1) 첫 start → character_id / locale override.
+    # 1) 첫 start → character_id / locale / target_language override.
     try:
-        character_id, locale_override = await _read_initial_start(client_ws)
+        character_id, locale_override, target_override = await _read_initial_start(client_ws)
     except _ClientDisconnect:
         logger.info("normalcall: start 수신 전 클라 종료")
         return
@@ -161,15 +177,23 @@ async def run_call(
     setup = await svc.run_db(db_session_factory, lambda db: svc.load_call_setup(db, member_id, character_id))
     locale = locale_override or setup["locale"]
 
+    # 교육 대상 언어(데모 전용 오버라이드; prod 는 한국어 고정). 데모면 레벨 프로파일을 비우고
+    # 모국어 라벨을 데모용(ko→"한국어")으로. 전역 _LOCALE_LABEL 은 안 건드려 prod 무손상.
+    target_language, is_demo_target = _resolve_target_language(settings, target_override)
+    locale_label_override = _DEMO_LOCALE_EXTRA.get(locale) if is_demo_target else None
+    level_profile = "" if is_demo_target else setup["level_profile"]
+
     system_instruction = build_system_instruction(
         role=setup["role"],
         personality=setup["personality"],
         rules=setup["rules"],
-        level_profile=setup["level_profile"],
+        level_profile=level_profile,
         locale=locale,
         interests=setup["interests"],
         name=setup["name"],
         history=setup["history"],
+        target_language=target_language,
+        locale_label=locale_label_override,
     )
 
     # 3) 통화 행 생성.
@@ -190,6 +214,7 @@ async def run_call(
                 state=state,
                 system_instruction=system_instruction,
                 voice=setup["voice"] or DEFAULT_VOICE,
+                seed_text=seed_opening(target_language),
                 settings=settings,
                 client=client,
                 live_session_factory=factory,
@@ -209,14 +234,23 @@ async def run_call(
         _flush_user_segment(state)
         _flush_beaver_segment(state)
         await _persist_remaining(db_session_factory, state, call_id, member_id)
-        _trigger_analysis(call_id, client, settings, db_session_factory, locale)
+        _trigger_analysis(
+            call_id, client, settings, db_session_factory, locale,
+            target_language=target_language, locale_label=locale_label_override,
+        )
         await _finish_call(client_ws, state, call_id)
 
 
-def _trigger_analysis(call_id, client, settings, db_session_factory, locale) -> None:
+def _trigger_analysis(
+    call_id, client, settings, db_session_factory, locale,
+    *, target_language: str = DEFAULT_TARGET_LANGUAGE, locale_label: str | None = None,
+) -> None:
     """통화후 분석을 백그라운드 task 로 띄운다(non-blocking, GC 방지 보관)."""
     task = asyncio.create_task(
-        svc.analyze_call(call_id, client, settings, db_session_factory, locale=locale),
+        svc.analyze_call(
+            call_id, client, settings, db_session_factory,
+            locale=locale, target_language=target_language, locale_label=locale_label,
+        ),
         name=f"normalcall-analysis-{call_id}",
     )
     _analysis_tasks.add(task)
@@ -261,6 +295,7 @@ async def _run_session(
     state: _CallState,
     system_instruction: str,
     voice: str,
+    seed_text: str,
     settings: Settings,
     client: genai.Client,
     live_session_factory: SessionFactory,
@@ -276,11 +311,11 @@ async def _run_session(
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(_pump_client_to_gemini(client_ws, session, state), name="nc-client->gemini")
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
-                tg.create_task(_watch_call_clock(state), name="nc-clock")
+                tg.create_task(_watch_call_clock(state, session), name="nc-clock")
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
-                await session.send_text_turn(SEED_OPENING)  # 선톡 트리거
+                await session.send_text_turn(seed_text)  # 선톡 트리거
         except* _CallFinished:
             raise _CallFinished()
         except* _ClientDisconnect:
@@ -305,8 +340,8 @@ async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, m
             logger.warning("normalcall: 점진 flush 실패(무시): %s", exc)
 
 
-async def _read_initial_start(client_ws) -> tuple[int, str | None]:
-    """첫 start 에서 character_id / locale override 확보. 없으면 기본 캐릭터로 폴백."""
+async def _read_initial_start(client_ws) -> tuple[int, str | None, str | None]:
+    """첫 start 에서 character_id / locale / target_language override 확보. 없으면 폴백."""
     from starlette.websockets import WebSocketDisconnect
 
     try:
@@ -322,10 +357,14 @@ async def _read_initial_start(client_ws) -> tuple[int, str | None]:
                 with contextlib.suppress(Exception):
                     cm = client_adapter.validate_python(json.loads(text))
                     if cm.type == "start":
-                        return int(getattr(cm, "character_id", DEFAULT_CHARACTER_ID)), getattr(cm, "locale", None)
+                        return (
+                            int(getattr(cm, "character_id", DEFAULT_CHARACTER_ID)),
+                            getattr(cm, "locale", None),
+                            getattr(cm, "target_language", None),
+                        )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc
-    return DEFAULT_CHARACTER_ID, None
+    return DEFAULT_CHARACTER_ID, None, None
 
 
 # --------------------------------------------------------------------------- #
@@ -386,11 +425,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             if state.close_seed_sent:
                 logger.info("normalcall: 종료 시드 응답 종료 → 종료 절차")
                 raise _CallFinished()
-            if state.should_close:
-                state.close_seed_sent = True
-                state.seed_sent_ts = asyncio.get_running_loop().time()
-                await session.send_text_turn(_CLOSE_SEED)
-                logger.info("normalcall: 경과 → 종료 시드 주입")
+            if state.should_close:  # 비버 발화중 경로: 이 턴 끝에서 주입(턴 안 자름)
+                await _inject_close_seed(session, state)
 
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
@@ -435,11 +471,31 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
     return turn_started
 
 
+async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) -> None:
+    """종료 시드를 정확히 1회만 주입한다(펌프·워처 공용, 단일 소유권 가드).
+
+    단일 스레드 asyncio 라 await 전에 close_seed_sent 를 선점하면 펌프/워처가 동시에
+    주입해도 한 번만 나간다. 비버 발화중이면 펌프가 turn_end 에서, 소강(idle)이면 워처가
+    직접 호출한다. send_client_content 는 idle 세션에 넣으면 즉시 작별 턴을 만든다(비interrupt).
+    """
+    if state.close_seed_sent:
+        return
+    state.close_seed_sent = True  # await 전에 선점 → 이중 주입 방지
+    state.seed_sent_ts = asyncio.get_running_loop().time()
+    await session.send_text_turn(_CLOSE_SEED)
+    logger.info("normalcall: 종료 시드 주입")
+
+
 # --------------------------------------------------------------------------- #
 # 통화 시계 워처 + 종료
 # --------------------------------------------------------------------------- #
-async def _watch_call_clock(state: _CallState) -> None:
-    """경과 감시: should_close 플래그만 세우고(주입은 펌프 turn_end), 하드 백스톱 강제종료."""
+async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> None:
+    """경과 감시: CALL_DURATION_S 경과 → should_close, 이후 종료 시드 주입을 보장하고 하드 백스톱.
+
+    ⭐ RC1(소강 스타베이션) 방지: 5분 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서
+    시드를 주입하지만, 소강(idle, turn_id None) 구간이면 turn_end 가 오지 않아 시드가 영영
+    안 나간다. 그래서 워처가 idle 을 감지하면 직접 주입한다(작별 없는 무음 종료 방지).
+    """
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
@@ -448,9 +504,14 @@ async def _watch_call_clock(state: _CallState) -> None:
     state.should_close = True
     logger.info("normalcall: %.0fs 경과 → 종료 플래그", CALL_DURATION_S)
 
+    # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.
     seed_wait_deadline = loop.time() + SEED_TO_HANGUP_S
     while not state.close_seed_sent and loop.time() < seed_wait_deadline:
+        if state.turn_id is None:  # 비버 idle(소강) → 워처가 직접 주입
+            await _inject_close_seed(session, state)
+            break
         await asyncio.sleep(0.2)
+
     base = state.seed_sent_ts if state.seed_sent_ts is not None else loop.time()
     while loop.time() - base < SEED_TO_HANGUP_S:
         await asyncio.sleep(0.2)
