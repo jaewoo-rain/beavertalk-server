@@ -70,7 +70,7 @@ class Member(Base, TimestampMixin):
     # ── normalcall 학습 프로파일 (통화 프롬프트 주입용) ──
     # 흥미는 member_reason(온보딩 학습이유)에서 가져온다(별도 interests 컬럼 제거).
     korean_level: Mapped[Optional[int]] = mapped_column(
-        Integer, comment="한국어 레벨(1~12 → level.level_no)",
+        Integer, comment="한국어 레벨(1~13 → level.level_no, 1=생존 회화)",
     )
 
     # ── 부모(M:1) — 모두 lazy. 필요한 화면에서 쿼리에 joinedload 로 명시 fetch ──
