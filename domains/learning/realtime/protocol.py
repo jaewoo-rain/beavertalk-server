@@ -22,11 +22,14 @@ class ClientStart(BaseModel):
     Attributes:
         character_id: 통화할 캐릭터(페르소나) id.
         locale: (선택) 모국어 override. 없으면 member.language 사용.
+        target_language: (선택) 가르치는 대상 언어 override. 데모 전용 — prod 에서는
+            서버(run_call)가 무시하고 항상 "한국어". 없으면 None → 한국어.
     """
 
     type: Literal["start"] = "start"
     character_id: int
     locale: str | None = None
+    target_language: str | None = None
 
 
 class ClientPlaybackDone(BaseModel):

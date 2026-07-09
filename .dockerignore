@@ -31,3 +31,7 @@ openapi.json
 BeaverTalk.vuerd.json
 
 gcp_key.json
+
+# FCM/서비스계정 키 (절대 이미지에 넣지 않음)
+*fcm*.json
+*service-account*.json

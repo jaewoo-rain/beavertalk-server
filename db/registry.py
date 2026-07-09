@@ -31,4 +31,8 @@ from domains.learning.models.level import Level  # noqa: F401
 from domains.alarm.models.alarm import Alarm  # noqa: F401
 from domains.alarm.models.schedule import Schedule  # noqa: F401
 
+# push
+from domains.push.models.device_token import DeviceToken  # noqa: F401
+from domains.push.models.push_dispatch_log import PushDispatchLog  # noqa: F401
+
 __all__ = ["Base"]

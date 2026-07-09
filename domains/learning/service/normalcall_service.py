@@ -235,23 +235,28 @@ class CallAnalysis(BaseModel):
     expressions: list[LearnedExpression]
 
 
-def _analysis_instruction(locale: str) -> str:
-    """통화후 분석용 시스템 지시문(한국어). locale 로 번역/요약 언어를 지정."""
-    label = _LOCALE_LABEL.get(locale, _LOCALE_LABEL["en"])
+def _analysis_instruction(
+    locale: str, target_language: str = "한국어", locale_label: str | None = None
+) -> str:
+    """통화후 분석용 시스템 지시문(한국어). locale/locale_label 로 번역·요약 언어를,
+    target_language 로 교육 대상 언어를 지정(기본 한국어 — 프로덕션 출력 무손상)."""
+    label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL["en"])
     return (
-        "너는 한국어 학습자와 AI 선생님(BEAVER)의 한국어 통화 전사를 분석하는 도구다.\n"
+        f"너는 {target_language} 학습자와 AI 선생님(BEAVER)의 {target_language} 통화 전사를 분석하는 도구다.\n"
         "전사에서 학습자가 '배운 표현'을 뽑고, 각 표현을 학습자 모국어로 번역하고, "
         "통화 한 줄 요약과 통화 모드를 함께 JSON 으로만 출력하라.\n"
         "[배운 표현의 3가지 종류]\n"
-        "- asked: 학습자가 '○○를 한국어로 어떻게 말해요?' 처럼 물어서 비버가 알려준 표현.\n"
-        "- corrected: 학습자가 어색하게 말한 것을 비버가 자연스러운 한국어로 고쳐준 표현. "
+        f"- asked: 학습자가 '○○를 {target_language}로 어떻게 말해요?' 처럼 물어서 비버가 알려준 표현.\n"
+        f"- corrected: 학습자가 어색하게 말한 것을 비버가 자연스러운 {target_language}로 고쳐준 표현. "
         "이때 learner_attempt 에 학습자의 원래(어색한) 발화를 넣는다.\n"
         "- drilled: 공부 모드에서 비버가 가르치고 학습자가 따라 말한 표현.\n"
         "[규칙]\n"
-        "- korean 에는 반드시 '올바른 최종 한국어'만 넣는다(어색한 발화·오류형 금지).\n"
+        f"- korean 에는 반드시 '올바른 최종 {target_language}'만 넣는다(어색한 발화·오류형 금지).\n"
         "- translation 은 각 표현을 " + label + " 로 번역.\n"
         "- 위 3종에 해당하는 학습 포인트가 없으면 expressions 는 빈 배열([]).\n"
-        "- summary 는 통화 내용을 " + label + " 로 반드시 짧은 한 문장 요약. ex:강아지 산택과 음악 취향\n"
+        "- summary 는 통화의 핵심 소재를 " + label + " 로 아주 짧게 요약한다. "
+        "완결된 문장이 아니라 주제를 나타내는 명사구로, 주어·서술어 없이 2~4어절 이내. "
+        "ex) 강아지 산책과 음악 취향 / 주말 여행 계획 / 좋아하는 한국 음식\n"
         "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
         "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다."
     )
@@ -323,6 +328,8 @@ async def analyze_call(
     session_factory: sessionmaker,
     *,
     locale: str,
+    target_language: str = "한국어",
+    locale_label: str | None = None,
 ) -> None:
     """통화 전사를 분석해 표현·요약을 저장하고 표현별 TTS 를 합성한다(전체 graceful).
 
@@ -339,7 +346,7 @@ async def analyze_call(
         result = await gemini_analysis.generate_structured(
             client,
             settings_obj.JUDGE_MODEL,
-            system_instruction=_analysis_instruction(locale),
+            system_instruction=_analysis_instruction(locale, target_language, locale_label),
             prompt=f"[통화 전사]\n{dialog.strip()}",
             schema=CallAnalysis,
         )

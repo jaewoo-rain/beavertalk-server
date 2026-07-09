@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from domains.commerce.models.payment import Payment
     from domains.commerce.models.subscribe import Subscribe
     from domains.learning.models.call import Call
+    from domains.push.models.device_token import DeviceToken
 
 
 class Member(Base, TimestampMixin):
@@ -100,4 +101,7 @@ class Member(Base, TimestampMixin):
     owned_characters: Mapped[list["MemberCharacter"]] = relationship(
         back_populates="member", cascade="all, delete-orphan",
         passive_deletes=True, lazy="selectin",
+    )
+    device_tokens: Mapped[list["DeviceToken"]] = relationship(
+        back_populates="member", cascade="all, delete-orphan", passive_deletes=True,
     )

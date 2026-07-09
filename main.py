@@ -31,6 +31,7 @@ from domains.account.routers import router as account_router
 from domains.alarm.routers import router as alarm_router
 from domains.commerce.routers import router as commerce_router
 from domains.learning.routers import router as learning_router
+from domains.push.routers import router as push_router
 
 API_PREFIX = "/api/v1"
 
@@ -45,11 +46,12 @@ def _configure_logging() -> None:
     """
     handler = logging.StreamHandler()  # stdout → Cloud Logging
     handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
-    nc = logging.getLogger("domains.learning.realtime")  # 통화 WS/세션 패키지
-    nc.handlers.clear()
-    nc.addHandler(handler)
-    nc.setLevel(logging.INFO)
-    nc.propagate = False
+    for name in ("domains.learning.realtime", "domains.push"):  # 통화 WS/세션 + 예약전화 발송
+        lg = logging.getLogger(name)
+        lg.handlers.clear()
+        lg.addHandler(handler)
+        lg.setLevel(logging.INFO)
+        lg.propagate = False
 
 
 _configure_logging()
@@ -107,6 +109,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
+    from core import fcm
+
+    fcm.warmup()  # 예약전화 FCM 워밍업(실패해도 무시 — 발송만 비활성)
     try:
         yield
     finally:
@@ -162,6 +167,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(commerce_router, prefix=API_PREFIX)
     app.include_router(alarm_router, prefix=API_PREFIX)
     app.include_router(learning_router, prefix=API_PREFIX)
+    app.include_router(push_router, prefix=API_PREFIX)
 
     # ── (dev 전용) 통화 데모 콘솔 ──
     # 운영(prod)에는 노출하지 않는다. 같은 오리진으로 서빙하므로 CORS 불필요.
@@ -195,27 +201,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         @app.get("/__dev/call-prompt", include_in_schema=False)
         def dev_call_prompt(  # type: ignore[no-untyped-def]
-            member: CurrentMember, db: DbSession, character_id: int
+            member: CurrentMember,
+            db: DbSession,
+            character_id: int,
+            target_language: str = "한국어",
+            locale: str | None = None,
         ):
             """[dev] 통화 시작 시 서버가 조립하는 system_instruction + 구성요소 미리보기.
 
             call_session.run_call 과 동일하게 load_call_setup → build_system_instruction.
+            target_language/locale 로 데모(프랑스어 등) 프롬프트도 미리 볼 수 있다(데모 게이트와 동일:
+            대상 언어가 한국어가 아니면 level_profile 을 비우고 ko→"한국어" 라벨을 적용).
             """
             from core.persona_prompt import build_system_instruction
             from domains.learning.service import normalcall_service as nsvc
 
             setup = nsvc.load_call_setup(db, member.member_id, character_id)
+            loc = locale or setup["locale"]
+            is_demo = target_language != "한국어"
+            locale_label = {"ko": "한국어"}.get(loc) if is_demo else None
+            level_profile = "" if is_demo else setup["level_profile"]
             system_instruction = build_system_instruction(
                 role=setup["role"],
                 personality=setup["personality"],
                 rules=setup["rules"],
-                level_profile=setup["level_profile"],
-                locale=setup["locale"],
+                level_profile=level_profile,
+                locale=loc,
                 interests=setup["interests"],
                 name=setup["name"],
                 history=setup["history"],
+                target_language=target_language,
+                locale_label=locale_label,
             )
-            return {"setup": setup, "system_instruction": system_instruction}
+            return {
+                "setup": {**setup, "target_language": target_language, "locale": loc},
+                "system_instruction": system_instruction,
+            }
 
     return app
 

@@ -78,6 +78,15 @@ class Settings(BaseSettings):
     SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # public: 캐릭터·TTS
     SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # private: 통화·연습 녹음
 
+    # ── 예약전화 FCM 발송 ──
+    # 서비스계정 미설정이면 core.fcm 이 graceful 비활성(등록/삭제 API 는 정상, 발송만 스킵).
+    # JSON(문자열) 우선, 없으면 FILE(경로) 사용. 내부 디스패처는 시크릿 헤더로만 트리거.
+    FIREBASE_PROJECT_ID: str | None = None
+    FCM_SERVICE_ACCOUNT_FILE: str | None = None
+    FCM_SERVICE_ACCOUNT_JSON: str | None = None
+    INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
+    INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)
+
     @property
     def google_client_ids(self) -> set[str]:
         """허용 audience 집합 (콤마 구분 파싱)."""
