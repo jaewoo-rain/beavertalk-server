@@ -3,6 +3,8 @@
 > 작성: 2026-07-09 12:31 (CEO 오케스트레이션 — product-designer / fastapi-architect / korean-linguist /
 > prompt-persona-engineer / flutter-integration-engineer / mastery-system-engineer / db-architect 합동 설계)
 > 상태: **사장님 승인 완료, 구현 착수 대기.** 이 문서가 /build 의 단일 기준이다.
+> 동반 문서: **`20260709_1346_level-system-detailed-mechanics.md`** — 각 부품의 구현 직전 수준
+> 동작 명세(선별 쿼리·검증 게이트 순서·상태 전이·판정 의사코드·파라미터 총괄표). 구현 시 필독.
 
 ---
 
@@ -21,6 +23,11 @@
 | D9 | '명02'→'병02' 교정 | 증거 확정(병01 존재·병02 부재·길잡이말 "병에 담다") — 오버라이드로 교정 진행 |
 | D10 | ~~프론트 레벨 캐시~~ | **D11로 대체** — 서버 자동 라우팅 채택으로 프론트 캐시·게이트 자체가 불필요해짐 |
 | D11 | **레벨테스트 진입 = 서버 자동** | 클라 무수정: start 수신 시 서버가 `korean_level is null` 이면 레벨테스트로 자동 진행(WS 핸들러가 어차피 member를 읽으므로 추가 비용 0). `ClientStart.call_type`은 선택 필드로 유지(미래 재측정용 명시 요청 통로). "시험 아님" 안내는 인터스티셜 대신 비버가 통화 첫마디로 |
+| D12 | **승급 게이트 = 문법 전용** | 어휘를 승급 계산에서 제외(2026-07-09 사장님 결정): G1=문법 배움 90%, G2=문법 잘씀 55~60%(L1은 청크 기준). 근거: 문법이 이미 승급 페이스의 지배 변수(공부 모드 통화당 신규 문법 1개 = ~30통화)라 어휘 게이트는 실효 없이 복잡도만 추가. 어휘는 교습·체크판 추적·복습·grandfathering 전부 유지, is_core는 "가르치는 순서" 우선순위로만 사용 |
+| D13 | **커리큘럼 최종본 = CEFR 12단계** | `level/04.CEFR 12단계 통합/`(문장 10,639행)이 최종 데이터(2026-07-09): 어휘→단계 배분 확정(cefr_v1, 매칭 100%), 어휘별 예문 확보(LLM 예문 생성 취소 — 다국어 뜻 번역만 잔존), 문법 인벤토리 동기화(손상 4건 제거·신규 4건 추가, 총 459 유지). 플로우 무변경 — 데이터 계층만 교체 |
+| D14 | **잘씀 = 성공 산출 3회 이상 명시** | 점수식에 더해 (유도+자발) 성공 ≥3회를 명시 조건으로 추가(2026-07-09 사장님 결정). 따라말하기(E1)는 횟수 미산입. 기존 조건(2통화·2일 분산, 자발 1회 포함, 최근 증거≠F) 유지. D12(문법 전용 게이트)로 문법 판정의 비중이 커진 데 대한 엄격화 |
+| D16 | **동적 힌트 = 질문별 예시 답변** (P2.5) | 사용자가 막히면 힌트 상자에 비버 질문에 대한 예시 답변 3줄(한국어/로마자/모국어) 표시(2026-07-09 사장님 지시). 생성은 통화 중 서버 사이드카 LLM 1콜(비버에게 시키지 않음 — 소리 내어 말해버림). **오염 방지**: 힌트 열람 시 클라가 기존 통화 WS로 `hint_used` 신호(별도 REST 불요) → 그 턴 증거를 따라말하기(E1) 수준으로 강등 — 힌트 보고 읽은 발화가 "자발"로 안 잡힘. 상세: §7 및 mechanics ⑬ |
+| D15 | **체류 게이트(G3) 폐지 + 유효통화 컬럼 제거** | "충실한 통화 N회·N일" 게이트 폐지(2026-07-09 사장님 결정). 근거: G1(배움 90%)·G2(잘씀)를 채우려면 통화 수는 자연 충족 — 이중 규제였다. 전용 컬럼 call.is_valid_call/user_turn_count/user_char_count 도 함께 제거(Rev5), 통화 수 파생값(G4 창·브리지·버벅임·승급 멘트)은 **증거통화**(item_evidence 에 행이 있는 distinct call)로 계산(관통 원칙 2 — 파생). G5(승급 후 잠금)는 연쇄 승급 방지 안전핀으로 **일수 조건만** 유지(통화 수 조건 삭제). level.grammar_count/vocab_count/grammar_scope/vocab_sample 도 런타임 사용처 0(learning_item 이 단일 소스)이라 동반 제거 |
 
 **미결(구현 중 확인)**: 레벨테스트 스킵 허용 여부(디폴트: 허용+홈 배너 회수), 어휘 급내 2분할 정밀 기준(vocab_split_v2), LLM 생성 대상 언어 목록.
 
@@ -86,13 +93,13 @@ scripts/seed.py                      # seed_levels(13) + seed_learning_items 추
 - `member_item_progress`(체크판, 희소 — 행 부재=미학습): status + 카운터 4(repeat/prompted/spontaneous/miss) + score + provenance(observed/placement/**fast_track**) + fast_track_confirmed_at + 시각들 + first/last_call_id. UNIQUE(member_id,item_id).
 - `item_evidence`(append-only 감사 로그): grade_raw/grade_final/learner_quote/verified/turn_index/normalized_text_hash. **P0에서도 못 뺌**(튜닝·리플레이 재계산의 원본).
 - `member_level_history`: from/to_level, reason(placement/gate_promotion/remeasure_up/down/manual), **trigger_call_id UNIQUE(멱등 키)**, gate_snapshot JSONB. member.level_entered_at 컬럼 금지(최신 행 파생).
-- `call` 확장: call_type(normal/level_test), assessed_level, assessment_note, is_valid_call, user_turn_count, user_char_count.
+- `call` 확장: call_type(normal/level_test), assessed_level, assessment_note. ~~is_valid_call, user_turn_count, user_char_count~~ — D15 로 제거(Rev5), 통화 수 파생값은 증거통화(item_evidence distinct call) 계산.
 - `jamo`: 테이블 없음(정적 자산).
 
 ### 3.4 마이그레이션 순서 (⚠ 순서 고정)
 1. **Rev1 `level_13_shift`** (수동, 파괴적 — 실행 전 prod 백업 + 사장님 확인, R6): level_no +100/−99 2단 shift(1~12→2~13) + member.korean_level +1. downgrade는 RuntimeError 차단. **레벨테스트 기능보다 먼저 배포**(판정이 처음부터 1~13).
 2. **Rev2** learning_item 등 신규 테이블(autogenerate → 검토 체크리스트: JSONB·partial index·server_default·CHECK·비PK FK).
-3. `seed_levels`(13행, 신 데이터로 profile/grammar_scope/vocab_sample 재산출) → `seed_learning_items`.
+3. `seed_levels`(13행 — D15 이후 텍스트 자산만: profile·band·grade·stage_name·textbook) → `seed_learning_items`.
 4. 커밋 단위: 모델+Rev1+Rev2+curriculum_v2 JSON+seed 확장 = 같은 커밋(R2). generated/*.json 은 후속 커밋 허용(결손 시 NULL graceful).
 - ⚠ `normalcall_service.py:84` 기본 레벨 폴백: shift 후 1=생존. **미설정 회원 기본은 2(Basic A)로 변경**(생존 레벨은 완전 초보 전용 — 레벨테스트가 배정).
 
@@ -133,15 +140,15 @@ scripts/seed.py                      # seed_levels(13) + seed_learning_items 추
 ### 5.3 레벨업 게이트
 - G1 커버리지: 문법+core 어휘 INTRODUCED+ — 초급 90% / 중급 85% / 고급 80%
 - G2 숙달: MASTERED(확정분만) — 초급 55% / 중급 50% / 고급 45%
-- G3 체류: 유효통화(USER 턴 8+·200자+·**증거≥1건**) — L1 6회/4일, 초급 10회/7일, 중급 12회/10일, 고급 15회/14일
-- G4 품질: 최근 5 유효통화 F비율 < 30/25/20%(분모<10이면 pass)
-- G5 잠금: 승급 후 3~10일·3~7통화(밴드별)
+- ~~G3 체류~~ — **D15 로 폐지**(G1/G2 와 이중 규제 — 배움·잘씀을 채우면 통화 수는 자연 충족)
+- G4 품질: 최근 5 **증거통화**(item_evidence 에 행이 있는 distinct call, 최신순) F비율 < 30/25/20%(분모<10이면 pass)
+- G5 잠금: 승급 후 3~10일(밴드별 — D15 로 **일수만**, 통화 수 조건 삭제)
 - 판정: 통화 분석 커밋 직후 `evaluate_level_up`(member FOR UPDATE + trigger_call_id UNIQUE + 항상 +1 = 멱등 3중). 승급 시 korean_level+1 + history 행 + gate_snapshot. **강등 없음** — 승급 후 부진(신규 F≥50% 3연속)이면 콘텐츠만 "이전 레벨 복습 70%" 소프트 브리지.
 - 정체 탈출: 30통화/45일 초과 && G1 충족 && G2 미충족 → 15통화마다 G2 −5%p(하한 45/35%) + 승급 프로브 콜(미숙달 하위 10개 강제 편성, 7/10 성공 시 면제 승급).
 - 튜닝 불가 항목(게이밍 방어의 심장): k=2·서로 다른 통화 조건. 튜닝 레버 순서: 대화 증거 수율(5→6) → G2 −5%p → core −20.
 
 ### 5.4 승급 통지 (D3)
-- UI 없음. 승급 후 첫 통화(=history 최신 행 이후 유효통화 0회) 프롬프트에 1줄 주입:
+- UI 없음. 승급 후 첫 통화(=history 최신 행 이후 증거통화 0회) 프롬프트에 1줄 주입:
   `[승급 알림] 학습자가 최근 실력이 늘어 오늘부터 조금 더 어려운 내용을 다룬다. 통화 초반에 {locale_label}로 "저번에 정말 잘했으니까 오늘은 조금 어려운 것도 해볼까?"처럼 자연스럽게 한 번만 언급하고, 레벨·점수·단계 같은 단어는 쓰지 마라.`
 
 ---
@@ -166,6 +173,15 @@ scripts/seed.py                      # seed_levels(13) + seed_learning_items 추
 - 프롬프트 보강: "가르칠 표현은 표기 그대로 말하라(변형 금지)" — 매칭 신뢰도. L1은 모드 질문 생략(공부 고정).
 - 로마자: L1 기본 ON(시각 위계 3순위·회색), L2 기본 OFF, L3+ 토글 제거. RR 표기 서버 데이터 고정.
 - 카드 수: L1 본편 4(청크 3+어휘 1) 시작, 실측 튜닝. 적용 범위는 "데이터 조건"(teaching_plan 유무) — 클라는 레벨 모름(D2 정합).
+
+### 동적 힌트 v2 — 질문별 예시 답변 (D16, 2026-07-09 사장님 지시)
+- 비버 질문이 끝날 때(turn_end)마다 서버가 **사이드카 LLM 1콜**(flash, 구조화 출력)로 예시 답변 생성
+  → WS `hint`{turn_id, korean, roman, native} push → 힌트 상자에 3줄 표시(예: "화장실에 가요 / hwajangsire gayo / I'm going to the bathroom").
+- 입력 = 비버의 직전 질문 + 레벨 프로파일(그 사람이 아는 범위의 표현으로) + 모국어. 로마자는 서버 RR 규칙 변환 우선.
+- Live 모델에게 시키지 않는 이유: 만든 걸 소리 내어 말해버림(화면 전용 데이터 통로 없음). barge-in off 라 turn_end 후 0.5~1.5s 생성이 사용자 "생각하는 틈"과 정합.
+- ⛔ 격리: 2펌프 경로 밖 fire-and-forget 태스크(강참조) — 실패 시 힌트만 미표시(R5), 통화 무영향.
+- 체크판 정합: 힌트 열람 후 발화는 자발(E3) 아님 — `hint_used` 신호로 해당 턴 증거를 모방(E1) 수준 강등(정적 카드 힌트와 동일 규칙).
+- 비용: 힌트당 ~$0.0005, 통화당 10~15개 ≈ 1센트 미만. 적용 범위: L1·레벨테스트 우선, 전 통화 확장은 플래그로.
 
 ---
 
@@ -193,6 +209,15 @@ protocol(call_type 선택 필드) → persona_prompt(leveltest 함수+스냅샷 
 
 ### P2. 체크판 + 레벨업
 progress/evidence/history 테이블 → 검출 병합(CallAnalysis+detections+검증 게이트) → 선별 쿼리(공부 10/대화 유도) → build_system_instruction 개편(블록 2종+승급 알림 1줄) → evaluate_level_up → 테스트(골든셋 전사 10~20건 포함)
+
+### P2.6. 결과 페이지 체감 속도 — ✅ 구현 완료 (2026-07-09, 사장님 지시)
+통화 결과 화면의 핵심(요약 + 공부한 문장 한국어 재생)이 **바로** 나와야 한다. 분석 파이프라인 재정렬:
+1. **전사(텍스트) 선저장** — 통화 종료 시 오디오 MP3 변환·업로드(~9s)와 분리, 전사 행 먼저 커밋 → 분석 즉시 시작(오디오 업로드는 병렬)
+2. **요약+표현 저장 즉시 status=done** — 결과 페이지 폴링이 여기서 풀림(현재는 TTS·체크판까지 대기)
+3. **문장 TTS는 done 이후 백그라운드** — 재생 시점에 voice_url 없으면 기존 온디맨드 합성(`POST /sentences/{id}/tts`)이 이미 폴백으로 동작
+4. **체크판·승급 판정도 done 이후 같은 백그라운드 태스크에서 계속** — 사용자 노출과 무관(D2)하므로 결과 표시를 막지 않게. 단 "증거→상태→승급 단일 commit" 원자성은 유지(done 커밋과 분리 — status 는 이미 done 이므로 부분 실패해도 결과 화면 무손상, 체크판만 재시도 대상)
+- 기대 효과: 통화 종료 → 결과 표시까지 현행 ~18s+TTS×N → **LLM 1콜(~7s) 수준**으로 단축
+- 구현(2026-07-09): `save_segments(upload_audio=False)` 전사 선커밋 + `upload_segment_audio` 후행 병렬 업로드(call_session finally, 분석 태스크 먼저 생성) / `_save_analysis` 에 status=done 합류(단일 커밋) → TTS 루프 → 체크판(`_apply_call_mastery` 단일 commit 유지) 순 후행, done 이후 실패는 status 무변경. 테스트 140 통과(신규 3: done 선커밋·체크판 실패 격리·세그먼트 분리). mechanics ⑤ 갱신.
 
 ### P2.5. L1 카드 UI
 teaching_plan/hint_used 프로토콜 → Flutter 카드 패널·힌트 → 저장
