@@ -181,6 +181,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 media_type="text/html",
             )
 
+        @app.post("/__dev/level-reset", include_in_schema=False)
+        def dev_level_reset(member: CurrentMember, db: DbSession) -> dict:
+            """[dev] 레벨 관련 상태 완전 초기화 — 재테스트용 백지화.
+
+            korean_level=NULL + 체크판(progress)/증거(evidence)/승급 이력(history) 삭제.
+            call 행(통화·판정 이력)은 보존한다(감사 기록 — 라우팅에 영향 없음).
+            """
+            from sqlalchemy import delete
+
+            from domains.learning.models.item_evidence import ItemEvidence
+            from domains.learning.models.member_item_progress import MemberItemProgress
+            from domains.learning.models.member_level_history import MemberLevelHistory
+
+            mid = member.member_id
+            ev = db.execute(delete(ItemEvidence).where(ItemEvidence.member_id == mid)).rowcount
+            pg = db.execute(
+                delete(MemberItemProgress).where(MemberItemProgress.member_id == mid)
+            ).rowcount
+            hi = db.execute(
+                delete(MemberLevelHistory).where(MemberLevelHistory.member_id == mid)
+            ).rowcount
+            member.korean_level = None
+            db.commit()
+            return {"korean_level": None, "deleted": {"evidence": ev, "progress": pg, "history": hi}}
+
+        @app.get("/__levelcalldemo", include_in_schema=False)
+        def level_call_demo() -> FileResponse:
+            """레벨테스트 통화 데모 HTML — 판정·저장까지 실동작(레벨을 실제로 덮어씀).
+
+            call_demo 와 달리 target_language 를 보내지 않아 데모 게이트에 안 걸리고,
+            '재측정 강제' 체크 시 call_type=level_test 명시(비프로드 전용 통로)로 반복 테스트 가능.
+            """
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "level_call_demo.html",
+                media_type="text/html",
+            )
+
         @app.post("/__dev/pron-eval", include_in_schema=False)
         async def dev_pron_eval(  # type: ignore[no-untyped-def]
             member: CurrentMember,

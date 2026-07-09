@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeaverTalk · 레벨테스트 통화 데모</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --bg:#121217; --card:#181A20; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
+          --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF7070; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,Segoe UI,Pretendard,sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:20px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .muted { color:var(--sub); font-size:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .step { font-size:12px; color:var(--pri); font-weight:700; letter-spacing:.4px; }
+  input, select { background:#0e0f13; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:8px 10px; }
+  button { background:var(--pri); color:#08110d; border:0; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer; }
+  button.sec { background:#2a2e38; color:var(--txt); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .log { background:#0e0f13; border:1px solid var(--line); border-radius:8px; padding:10px; height:200px; overflow:auto; font-size:13px; }
+  .b { color:#7fe0c2; } .u { color:#ffd479; }
+  .ok { color:var(--good); } .err { color:var(--bad); }
+  .status { font-size:12px; }
+  .lvl { font-size:34px; font-weight:800; letter-spacing:1px; margin:6px 0; color:var(--pri); }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🦫 BeaverTalk — 레벨테스트 통화 데모</h1>
+  <div class="muted">첫 통화(레벨 측정)를 브라우저로 체험. 비버가 대화하듯 실력을 떠보고, 끝나면 레벨(1~13)이 판정·저장됩니다.
+    ⚠️ 이 데모는 <b>테스트 계정의 레벨을 실제로 저장/덮어씀</b>. 마이크는 localhost/https 에서만 동작.</div>
+
+  <!-- 접속 설정 (숨김) -->
+  <div style="display:none">
+    <input id="apibase" />
+    <input id="supaurl" />
+    <input id="supakey" />
+  </div>
+
+  <!-- STEP 0 로그인 — 테스트하는 사람마다 다른 계정으로 -->
+  <div class="card">
+    <div class="step">STEP 0 · 로그인 (누구 계정으로 테스트할지)</div>
+    <div class="row" style="margin:8px 0">
+      <input id="email" placeholder="이메일" value="test@naver.com" style="width:220px" />
+      <input id="pw" placeholder="비밀번호" value="11111111" type="password" style="width:140px" />
+      <button id="loginBtn">로그인</button>
+      <button id="signupBtn" class="sec" title="새 계정 생성 후 자동 로그인 — 레벨 없음 상태라 자동 판단 경로 테스트에 최적">신규 가입+로그인</button>
+    </div>
+    <div id="who2" class="muted"></div>
+  </div>
+
+  <!-- 통화 -->
+  <div class="card">
+    <div class="step">STEP 1 · 레벨테스트 통화 (편하게 대답하세요 · 약 5분 후 자동 종료)</div>
+    <div class="row" style="margin:8px 0">
+      <span class="muted">캐릭터 ID</span><input id="cid" value="1" style="width:50px" />
+      <span class="muted">모국어(안내 언어)</span>
+      <select id="loc">
+        <option value="en">영어(en)</option>
+        <option value="ja">일본어(ja)</option>
+        <option value="zh">중국어(zh)</option>
+        <option value="es">스페인어(es)</option>
+      </select>
+      <label class="muted" title="끄면 앱과 동일한 자동 판단(레벨 없으면 테스트, 있으면 일반 통화). 켜면 레벨이 있어도 강제 재측정(non-prod 전용).">
+        <input type="checkbox" id="force" checked /> 재측정 강제
+      </label>
+      <span id="who" class="status muted"></span>
+    </div>
+    <div class="row" style="margin:8px 0">
+      <button id="callBtn" disabled>📞 레벨테스트 시작</button>
+      <button id="hangBtn" class="sec" disabled>통화 종료</button>
+      <button id="resetBtn" class="sec" disabled title="이 계정의 레벨·체크판·증거·승급 이력을 전부 지워 백지 상태로">🗑 레벨 초기화</button>
+      <span class="status"><span id="cdot" class="dot"></span><span id="cstat">대기</span></span>
+      <span id="ctime" class="muted"></span>
+    </div>
+    <div class="muted" id="mylvl" style="margin:4px 0"></div>
+    <div id="tlog" class="log"></div>
+    <!-- D16 동적 힌트 상자: hint 수신 → 접힌 상태, 열면 3줄 공개 + hint_used 전송 -->
+    <div id="hintbox" style="display:none; margin-top:8px; border:1px dashed var(--warn); border-radius:8px; padding:10px"></div>
+  </div>
+
+  <!-- 판정 결과 -->
+  <div class="card">
+    <div class="step">STEP 2 · 레벨 판정 결과</div>
+    <div id="ana" class="muted" style="margin-top:8px">통화가 끝나면 자동 판정됩니다…</div>
+    <div id="lvlbox"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let token = null, callId = null;
+
+$('#apibase').value = location.pathname.indexOf('__levelcalldemo') >= 0 ? location.origin : 'http://localhost:8000';
+$('#supaurl').value = 'https://ppllscbfdvebsmdatpnc.supabase.co';
+$('#supakey').value = 'sb_publishable_aCuUS0Bn4GpETaNgv-U-gQ_aucT8ZDS';  // 공개키(안전)
+const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
+function wsBase() {
+  const u = new URL(apiBase());
+  return (u.protocol === 'https:' ? 'wss' : 'ws') + '://' + u.host;
+}
+function api(path, opts={}) {
+  opts.headers = Object.assign({ Authorization: `Bearer ${token}` }, opts.headers||{});
+  return fetch(apiBase() + path, opts);
+}
+function tlog(html, cls='') { const d=$('#tlog'); d.innerHTML += `<div class="${cls}">${html}</div>`; d.scrollTop=d.scrollHeight; }
+
+/* ---------- 로그인 + 현재 레벨 표시 ---------- */
+let sb = null;
+async function refreshMyLevel() {
+  try {
+    const me = await (await api('/api/v1/members/me')).json();
+    $('#mylvl').textContent = '현재 저장된 레벨: ' + (me.korean_level ?? '(없음 — 첫 측정)');
+    return me.korean_level;
+  } catch { return null; }
+}
+async function doLogin() {
+  $('#who2').textContent = '로그인 중…';
+  try {
+    sb = sb || supabase.createClient($('#supaurl').value.trim(), $('#supakey').value.trim());
+    const { data, error } = await sb.auth.signInWithPassword({ email:$('#email').value.trim(), password:$('#pw').value });
+    if (error) { $('#who2').textContent = '❌ 로그인 실패: ' + error.message; return false; }
+    token = data.session.access_token;
+  } catch (e) { $('#who2').textContent = '❌ Supabase 오류: ' + e; return false; }
+  const lvl = await refreshMyLevel();
+  $('#who2').textContent = `✅ ${$('#email').value.trim()} 로 로그인됨`;
+  $('#who').textContent = '✅ 준비됨';
+  $('#callBtn').disabled = false;
+  $('#resetBtn').disabled = false;
+  return true;
+}
+$('#resetBtn').onclick = async () => {
+  if (!confirm('이 계정의 레벨·체크판·증거·승급 이력을 전부 지웁니다. 계속할까요?')) return;
+  const r = await api('/__dev/level-reset', { method:'POST' });
+  if (!r.ok) { $('#mylvl').textContent = '초기화 실패: ' + r.status; return; }
+  const d = await r.json();
+  $('#lvlbox').innerHTML = ''; $('#ana').textContent = '통화가 끝나면 자동 판정됩니다…';
+  await refreshMyLevel();
+  $('#mylvl').textContent += ` — 🗑 초기화 완료(증거 ${d.deleted.evidence}·체크판 ${d.deleted.progress}·이력 ${d.deleted.history} 삭제)`;
+};
+$('#loginBtn').onclick = doLogin;
+$('#signupBtn').onclick = async () => {
+  $('#who2').textContent = '가입 중…';
+  try {
+    sb = sb || supabase.createClient($('#supaurl').value.trim(), $('#supakey').value.trim());
+    const { error } = await sb.auth.signUp({ email:$('#email').value.trim(), password:$('#pw').value });
+    if (error && !/already/i.test(error.message)) { $('#who2').textContent = '❌ 가입 실패: ' + error.message; return; }
+    if (error) $('#who2').textContent = '이미 있는 계정 — 로그인 시도…';
+  } catch (e) { $('#who2').textContent = '❌ 가입 오류: ' + e; return; }
+  await doLogin();  // member 행은 첫 API/통화 호출 때 서버가 find-or-create
+};
+
+/* ---------- 오디오 유틸 (call_demo 와 동일) ---------- */
+function downsample(f32, inRate, outRate) {
+  if (outRate === inRate) return f32;
+  const ratio = inRate/outRate, n = Math.round(f32.length/ratio), out = new Float32Array(n);
+  let pos = 0;
+  for (let i=0;i<n;i++){ const next=Math.round((i+1)*ratio); let s=0,c=0; for(let j=pos;j<next&&j<f32.length;j++){s+=f32[j];c++;} out[i]=c?s/c:0; pos=next; }
+  return out;
+}
+function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.length;i++){let s=Math.max(-1,Math.min(1,f32[i]));o[i]=s<0?s*0x8000:s*0x7FFF;} return o; }
+
+/* ---------- 통화 (WebSocket) ---------- */
+let ws, actx, mic, proc, gain0, playT=0, curSpeaker=null;
+let callGen=0, cdTimer=null, cdLeft=0;
+const CALL_DURATION_S = 300;  // 서버 CALL_DURATION_S(5분)와 동일.
+
+function startCountdown() {
+  if (cdTimer) return;
+  cdLeft = CALL_DURATION_S;
+  $('#ctime').textContent = `· 남은 시간 ~${cdLeft}s`;
+  cdTimer = setInterval(() => {
+    cdLeft--;
+    $('#ctime').textContent = cdLeft > 0 ? `· 남은 시간 ~${cdLeft}s` : '· 곧 종료…';
+    if (cdLeft <= 0) stopCountdown();
+  }, 1000);
+}
+function stopCountdown() { if (cdTimer) { clearInterval(cdTimer); cdTimer=null; } }
+
+function sendPlaybackDoneWhenDrained() {
+  const remainMs = actx ? Math.max(0, (playT - actx.currentTime) * 1000) : 0;
+  setTimeout(() => {
+    if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ type:'playback_done' })); } catch {} }
+  }, Math.min(remainMs, 1800));
+}
+
+$('#callBtn').onclick = startCall;
+$('#hangBtn').onclick = () => { if (ws && ws.readyState===1) ws.close(); };
+
+async function startCall() {
+  const myGen = ++callGen;
+  stopCountdown(); $('#ctime').textContent='';
+  if (actx) { try { await actx.close(); } catch {} actx=null; }
+  playT=0; curSpeaker=null; callId=null; hideHint();
+  $('#tlog').innerHTML=''; $('#lvlbox').innerHTML=''; $('#ana').textContent='레벨테스트 통화 진행 중…';
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} }); }
+  catch(e){ alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  const src = actx.createMediaStreamSource(mic);
+  proc = actx.createScriptProcessor(4096,1,1);
+  gain0 = actx.createGain(); gain0.gain.value = 0;
+  src.connect(proc); proc.connect(gain0); gain0.connect(actx.destination);
+
+  ws = new WebSocket(`${wsBase()}/api/v1/calls/stream?token=${token}`);
+  ws.binaryType='arraybuffer';
+  $('#cdot').className='dot'; $('#cstat').textContent='연결 중…';
+
+  ws.onopen = () => {
+    // 핵심: target_language 는 절대 보내지 않는다(보내면 '언어 데모'로 분류돼 레벨테스트 차단).
+    // call_type 은 선택: 미전송 = 앱과 동일한 서버 자동 판단(레벨 없으면 테스트) /
+    //                    'level_test' 명시 = 레벨이 있어도 강제 재측정(non-prod 전용 통로).
+    const msg = { type:'start', character_id:+$('#cid').value||1, locale: $('#loc').value };
+    if ($('#force').checked) msg.call_type = 'level_test';
+    ws.send(JSON.stringify(msg));
+    $('#cdot').className='dot on'; $('#cstat').textContent=$('#force').checked ? '레벨테스트 중(강제)' : '통화 중(서버 자동 판단)';
+    $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
+  };
+  proc.onaudioprocess = (e) => {
+    if (!ws || ws.readyState!==1) return;
+    const ds = downsample(e.inputBuffer.getChannelData(0), actx.sampleRate, 16000);
+    ws.send(toPCM16(ds).buffer);
+  };
+  ws.onmessage = onMsg;
+  ws.onclose = () => { $('#cdot').className='dot'; $('#cstat').textContent='종료'; stopCountdown(); cleanupCall(); afterCall(myGen); };
+  ws.onerror = () => { tlog('⚠️ WS 오류','err'); };
+}
+
+function playPCM24k(buf) {
+  const i16=new Int16Array(buf), f32=new Float32Array(i16.length);
+  for (let i=0;i<i16.length;i++) f32[i]=i16[i]/0x8000;
+  const ab=actx.createBuffer(1,f32.length,24000); ab.getChannelData(0).set(f32);
+  const n=actx.createBufferSource(); n.buffer=ab; n.connect(actx.destination);
+  const now=actx.currentTime; if (playT<now) playT=now; n.start(playT); playT+=ab.duration;
+}
+function onMsg(ev) {
+  if (ev.data instanceof ArrayBuffer) { startCountdown(); playPCM24k(ev.data); return; }
+  let m; try { m=JSON.parse(ev.data); } catch { return; }
+  if (m.type==='output_transcript') { if(curSpeaker!=='b'){tlog('🦫 비버:','b');curSpeaker='b';} appendLast(m.text,'b'); }
+  else if (m.type==='input_transcript') { if(curSpeaker!=='u'){tlog('👤 나:','u');curSpeaker='u';} appendLast(m.text,'u'); }
+  else if (m.type==='turn_end') { curSpeaker=null; }
+  else if (m.type==='hint') { showHint(m); }
+  else if (m.type==='call_ended') { callId=m.call_id; tlog('📴 통화 종료 (call_id='+callId+')'); stopCountdown(); $('#ctime').textContent=''; hideHint(); sendPlaybackDoneWhenDrained(); }
+  else if (m.type==='error') { tlog('error: '+m.message,'err'); }
+}
+
+/* ---------- D16 동적 힌트 상자 ---------- */
+/* 새 힌트가 오면 상자를 접힌 상태로 교체. "힌트 보기"를 누른 순간에만 3줄을 공개하고
+   hint_used(turn_id)를 서버로 보낸다 — 열람한 턴의 판정이 E1(모방)로 강등된다. */
+let curHint = null;
+function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+function hideHint(){ curHint=null; const b=$('#hintbox'); b.style.display='none'; b.innerHTML=''; }
+function showHint(m) {
+  curHint = m;
+  const box = $('#hintbox');
+  box.style.display = 'block';
+  box.innerHTML = '<button id="hintBtn" class="sec">💡 힌트 보기 (예시 답변)</button>';
+  $('#hintBtn').onclick = () => {
+    if (!curHint) return;
+    box.innerHTML =
+      `<div style="font-weight:700">${esc(curHint.korean)}</div>` +
+      `<div class="muted">${esc(curHint.roman||'')}</div>` +
+      `<div class="muted">${esc(curHint.native)}</div>`;
+    // 연 순간 1회 전송(ack 불요 — 유실되면 사용자에게 유리한 쪽 오차)
+    if (ws && ws.readyState===1) { try { ws.send(JSON.stringify({ type:'hint_used', turn_id: curHint.turn_id })); } catch {} }
+  };
+}
+function appendLast(t,cls){ const d=$('#tlog'); const last=d.lastElementChild; if(last) last.innerHTML += ' '+t; }
+function cleanupCall(){ try{proc&&proc.disconnect();}catch{} if(proc)proc.onaudioprocess=null; if(mic)mic.getTracks().forEach(t=>t.stop()); $('#callBtn').disabled=false; $('#hangBtn').disabled=true; }
+
+/* ---------- 판정 폴링 + 결과 ---------- */
+async function afterCall(myGen) {
+  if (myGen !== callGen) return;
+  if (!callId) {
+    try { const list = await (await api('/api/v1/calls?limit=1')).json(); if (list[0]) callId=list[0].call_id; } catch {}
+  }
+  if (!callId) { $('#ana').textContent='통화 id 를 찾지 못했어요.'; return; }
+  $('#ana').textContent='판정 중… (Gemini 가 전사를 분석해 레벨을 매깁니다)';
+  let last = null;
+  for (let i=0;i<40;i++) {
+    await new Promise(r=>setTimeout(r,1500));
+    if (myGen !== callGen) return;
+    try { last = await (await api(`/api/v1/calls/${callId}/status`)).json(); } catch { continue; }
+    $('#ana').textContent = `판정 상태: ${last.status} (call_type=${last.call_type||'?'})`;
+    if (last.status==='done' || last.status==='failed') break;
+  }
+  if (myGen !== callGen || !last) return;
+  const lvl = last.assessed_level;
+  if (last.call_type !== 'level_test') {
+    // 일반 통화(체크판 가동) — 레벨테스트 결과 틀로 해석하면 안 됨.
+    $('#ana').innerHTML = `<span class="ok">일반 통화 분석 완료</span> — call_id ${callId} (체크판·승급 판정 반영됨)`;
+    $('#lvlbox').innerHTML = `<div class="muted">레벨이 바뀌었는지 아래 "현재 저장된 레벨"을 확인하세요(승급 시 자동 +1).</div>`;
+  } else if (last.status==='done' && lvl) {
+    $('#ana').innerHTML = `<span class="ok">판정 완료</span> — call_id ${callId}`;
+    $('#lvlbox').innerHTML = `<div class="lvl">레벨 ${lvl} / 13</div>
+      <div class="muted">member.korean_level 에 저장됨 — 다음 일반 통화부터 이 레벨의 커리큘럼이 적용됩니다.
+      (실서비스에선 사용자에게 숫자를 보여주지 않습니다 — 이 화면은 개발 확인용)</div>`;
+  } else if (last.status==='done') {
+    $('#lvlbox').innerHTML = `<div class="muted">판정 스킵 — 발화가 너무 적었어요(레벨 미저장). 다시 통화하면 재측정됩니다.</div>`;
+  } else {
+    $('#lvlbox').innerHTML = `<div class="err">판정 실패(status=${last.status}) — 레벨 미저장. 다시 시도해 보세요.</div>`;
+  }
+  await refreshMyLevel();
+}
+
+/* 자동 로그인 없음 — 테스터가 STEP 0 에서 계정을 선택해 직접 로그인한다. */
+</script>
+</body>
+</html>
