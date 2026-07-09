@@ -481,6 +481,153 @@ async def test_analyze_call_empty_dialog_done_no_sentence(session_factory, seede
 
 
 # --------------------------------------------------------------------------- #
+# (c2) P2.6 — 결과 페이지 체감 속도: done 선커밋 + 후행 단계 실패 격리
+# --------------------------------------------------------------------------- #
+def _seed_call_with_dialog(session_factory, seeded) -> int:
+    """analyzing 통화 + 전사 2행(user/beaver) 시드 — analyze_call 입력 공용."""
+    db = session_factory()
+    try:
+        call = Call(member_id=seeded["member_id"],
+                    character_id=seeded["character_id"], status="analyzing")
+        db.add(call)
+        db.flush()
+        db.add(CallRawData(call_id=call.call_id, role="user", turn_index=0,
+                           content="안녕"))
+        db.add(CallRawData(call_id=call.call_id, role="beaver", turn_index=1,
+                           content="안녕하세요"))
+        db.commit()
+        return call.call_id
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_status_done_before_tts_completes(session_factory, seeded, monkeypatch):
+    """P2.6 (a): TTS 가 느리거나 실패해도 _save_analysis 커밋 직후 status=done +
+    Sentence 존재 — 결과 페이지가 TTS×N 을 기다리지 않는다."""
+    call_id = _seed_call_with_dialog(session_factory, seeded)
+
+    tts_started = asyncio.Event()
+    tts_release = asyncio.Event()
+
+    async def _slow_failing_tts(*_a, **_k):  # 느림(게이트) + 최종 실패까지 겸검증
+        tts_started.set()
+        await tts_release.wait()
+        raise RuntimeError("tts down")
+
+    monkeypatch.setattr(svc.tts, "synthesize_korean", _slow_failing_tts)
+
+    task = asyncio.create_task(
+        svc.analyze_call(call_id, object(), app_settings, session_factory, locale="en")
+    )
+    await asyncio.wait_for(tts_started.wait(), timeout=5.0)
+
+    # TTS 진행중(미완) 시점 — 이미 done 커밋 + Sentence 사용 가능(voice_url 만 미정).
+    db = session_factory()
+    try:
+        assert db.get(Call, call_id).status == "done", "TTS 완료 전에 done 이어야 함(P2.6)"
+        sents = db.query(Sentence).filter(Sentence.call_id == call_id).all()
+        assert len(sents) == 1
+        assert sents[0].voice_url is None  # 온디맨드 합성 폴백 대상
+    finally:
+        db.close()
+
+    tts_release.set()
+    await asyncio.wait_for(task, timeout=5.0)
+
+    # TTS 실패(done 이후)는 status 를 되돌리지 않는다.
+    db = session_factory()
+    try:
+        assert db.get(Call, call_id).status == "done"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_post_done_mastery_failure_keeps_done(session_factory, seeded,
+                                                    monkeypatch, caplog):
+    """P2.6 (b): done 이후 체크판 단계 예외 → status=done 유지 + 경고 로그(무손상)."""
+    import logging as _logging
+
+    call_id = _seed_call_with_dialog(session_factory, seeded)
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("mastery boom")
+
+    monkeypatch.setattr(svc, "_apply_call_mastery", _boom)
+
+    with caplog.at_level(_logging.WARNING):
+        await svc.analyze_call(
+            call_id, object(), app_settings, session_factory,
+            locale="en", member_id=seeded["member_id"],
+        )
+
+    db = session_factory()
+    try:
+        call = db.get(Call, call_id)
+        assert call.status == "done", "done 이후 체크판 실패가 status 를 되돌림(P2.6 위반)"
+        assert call.summary == "짧은 통화 요약"  # 결과 화면 데이터 무손상
+    finally:
+        db.close()
+    assert any("체크판" in r.getMessage() for r in caplog.records), "체크판 실패 로그 부재"
+
+
+def test_save_segments_deferred_audio_then_upload(session_factory, seeded):
+    """P2.6 세그먼트 분리: upload_audio=False 는 텍스트 행만 커밋(voice_url None) +
+    pending 반환 → upload_segment_audio 실행 시 voice_url 이 채워진다."""
+    db = session_factory()
+    try:
+        call = Call(member_id=seeded["member_id"],
+                    character_id=seeded["character_id"], status="ongoing")
+        db.add(call)
+        db.commit()
+        call_id = call.call_id
+    finally:
+        db.close()
+
+    segs = [
+        {"turn_index": 0, "role": "user", "text": "안녕", "pcm": b"\x00\x00"},
+        {"turn_index": 1, "role": "beaver", "text": "안녕하세요", "pcm": b""},
+    ]
+    db = session_factory()
+    try:
+        pending = svc.save_segments(db, call_id, segs, seeded["member_id"],
+                                    upload_audio=False)
+    finally:
+        db.close()
+
+    # 텍스트 행은 즉시 커밋, 오디오는 전부 미업로드(voice_url None).
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData).order_by(CallRawData.turn_index).all()
+        assert len(rows) == 2
+        assert rows[0].content == "안녕"
+        assert all(r.voice_url is None for r in rows)
+    finally:
+        db.close()
+    # pending 은 pcm 있는 행만(빈 pcm 제외).
+    assert len(pending) == 1
+    assert pending[0]["role"] == "user" and pending[0]["turn_index"] == 0
+    assert pending[0]["call_raw_data_id"] == rows[0].call_raw_data_id
+
+    # 후행 업로드 → 해당 행 voice_url 만 채워짐(storage 스텁 key).
+    db = session_factory()
+    try:
+        n = svc.upload_segment_audio(db, call_id, seeded["member_id"], pending)
+        assert n == 1
+    finally:
+        db.close()
+
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData).order_by(CallRawData.turn_index).all()
+        assert rows[0].voice_url == "stub-key"
+        assert rows[1].voice_url is None  # pcm 없던 행은 그대로
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
 # (d) get_status 소유자 가드 + load_call_setup / save_segments 단위
 # --------------------------------------------------------------------------- #
 def test_get_status_owner_guard(session_factory, seeded):

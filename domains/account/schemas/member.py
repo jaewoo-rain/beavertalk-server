@@ -69,6 +69,7 @@ class MemberRead(BaseModel):
     is_auto_payment: Optional[bool]
     speak_country_id: Optional[int]
     character_id: Optional[int]
+    korean_level: Optional[int] = None  # 한국어 레벨(1~13). None=레벨테스트 미실시
     onboarding_completed: bool
     reasons: list[str] = []
     created_at: datetime

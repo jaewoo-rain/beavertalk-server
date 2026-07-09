@@ -78,6 +78,12 @@ async def ws_call_stream(websocket: WebSocket) -> None:
 
 @router.get("/calls/{call_id}/status")
 def get_call_status(call_id: int, member: CurrentMember, db: DbSession) -> dict:
-    """통화 분석 진행상태(ongoing/analyzing/done/failed). 없거나 타인 통화면 unknown."""
-    status = svc.get_status(db, call_id, member.member_id)
-    return {"call_id": call_id, "status": status or "unknown"}
+    """통화 분석 진행상태(ongoing/analyzing/done/failed) + 콜타입/판정 레벨.
+
+    없거나 타인 통화면 status="unknown"(기존 하위호환) + 나머지 None.
+    call_type="level_test" && status="done" 이면 assessed_level 이 판정 결과(1~13).
+    """
+    detail = svc.get_status_detail(db, call_id, member.member_id)
+    if detail is None:
+        return {"call_id": call_id, "status": "unknown", "call_type": None, "assessed_level": None}
+    return {"call_id": call_id, **detail}

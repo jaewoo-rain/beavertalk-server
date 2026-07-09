@@ -1,7 +1,7 @@
 """모델 레지스트리 — 전 도메인 모델을 import 해 Base.metadata 에 등록.
 
 Alembic env.py 와 create_all 검증이 이 모듈 하나만 import 하면
-14개 테이블을 모두 인식한다. (도메인이 늘면 여기 import 한 줄만 추가)
+모든 테이블을 인식한다. (도메인이 늘면 여기 import 한 줄만 추가)
 """
 
 from db.base import Base
@@ -26,6 +26,10 @@ from domains.learning.models.sentence import Sentence  # noqa: F401
 from domains.learning.models.evaluation import Evaluation  # noqa: F401
 from domains.learning.models.review import Review  # noqa: F401
 from domains.learning.models.level import Level  # noqa: F401
+from domains.learning.models.learning_item import LearningItem  # noqa: F401
+from domains.learning.models.member_item_progress import MemberItemProgress  # noqa: F401
+from domains.learning.models.item_evidence import ItemEvidence  # noqa: F401
+from domains.learning.models.member_level_history import MemberLevelHistory  # noqa: F401
 
 # alarm
 from domains.alarm.models.alarm import Alarm  # noqa: F401

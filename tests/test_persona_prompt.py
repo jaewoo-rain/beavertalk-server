@@ -1,0 +1,458 @@
+"""core/persona_prompt 대본 조립 결정적 테스트 (외부 의존 0, DB/LLM 없음).
+
+1) 스냅샷(회귀 0 증명): _RULE_CLOSE_PROTOCOL 상수 추출 리팩토링 전의
+   _INVARIANTS_TEMPLATE 원문과 조립 로직을 이 파일에 그대로 동결(_ORIG_*)해 두고,
+   리팩토링 후 build_system_instruction 출력이 바이트 동일함을 증명한다.
+   (작업트리 미커밋 상태라 git 에서 원본을 꺼낼 수 없어, 리팩토링 착수 전에 캡처했다.)
+2) 레벨테스트 대본(build_leveltest_instruction / seed_leveltest_opening /
+   CLOSE_SEED_LEVELTEST) 형식 검증: 종료 규약 공유, 교정 금지, 프로빙 사다리,
+   레벨 프로파일 부재, locale 라벨, 시드 형식.
+"""
+
+from __future__ import annotations
+
+import core.persona_prompt as pp
+from core.persona_prompt import (
+    CLOSE_SEED_LEVELTEST,
+    build_leveltest_instruction,
+    build_system_instruction,
+    seed_leveltest_opening,
+)
+
+# --------------------------------------------------------------------------- #
+# 동결된 원본 (리팩토링 전 core/persona_prompt.py 에서 그대로 복사 — 수정 금지)
+# --------------------------------------------------------------------------- #
+
+_ORIG_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가르치는 선생님이다. 지금 학습자에게 직접 전화를 걸어 {target} 수업·대화를 진행한다.
+
+[모국어] 학습자의 모국어는 {locale_label}다. 학습자의 이해를 돕기 모국어 위주로 사용한다.
+
+[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}{rules_line}
+이 캐릭터 톤을 통화 내내 일관되게 유지하되, 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
+
+[불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
+1. 모드 분기(스스로 판단, 서버는 모드를 추적하지 않는다):
+   - 위 선톡 질문에 대한 학습자의 음성 답을 듣고 네가 스스로 모드를 정해 진행해라.
+   - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 {target} 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 잘하면 칭찬하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
+   - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 부드럽게 교정한다.
+   - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
+2. 통화 종료 규약(매우 중요): 통화를 언제 끝낼지는 전적으로 서버가 정한다. 너는 통화 길이를 모르며, 남은 시간·경과 시간을 절대 언급하지 마라("이제 시간이 다 됐네", "마지막으로", "슬슬 끊자" 같은 말 금지). "[시스템]"으로 시작하는 종료 신호가 오기 전까지는 절대 먼저 작별하거나 통화를 마무리하려 하지 마라. 대화가 잠시 끊겨도 끝내지 말고, 새 질문이나 새 화제(학습자 관심사·새 표현)로 계속 이어가라. "[시스템]" 종료 신호가 오면 그때 비로소 짧게 핑계를 대고 작별 인사를 한 뒤 끝내라(1~2문장). "[시스템]" 메시지 자체는 소리 내어 읽지 말고 내용만 반영해라.
+3. {target}(10%)+모국어(90%) 섞어 말하기(code-switching) — 매우 중요:
+   - 설명·농담·면박·리액션·질문은 {locale_label}로만 하고, "가르치려는 {target} 표현·예문"만 {target}로 또박또박 말한 뒤 그 뜻을 {locale_label}로 바로 풀어 줘라.
+   - 학습자의 레벨과 상관없이 대화는 {locale_label} 비중을 크게 높여라.
+4. "{target}로 어떻게 말해요?" 답변 + 교정 스타일:
+   - 물어보면 올바른 {target} 표현을 또박또박 알려 주고, {locale_label}로 뜻·쓰임을 덧붙인다.
+   - 교정은 한 번에 1~2개만. 사소한 것까지 다 잡는 과교정은 금지.
+   - 교정할 때는 반드시 올바른 {target}를 **단독으로 또박또박** 다시 말해 줘라(예: {locale_label}로 "이렇게 말해요 — '○○○'.").
+5. 응답 길이: 매 응답은 1~4문장으로 짧게. 혼자 길게 떠들지 말고 학습자가 말할 차례를 자주 줘라. 통화 시작 시 네가 먼저 말을 건다(선톡)."""
+
+# 원본 _LOCALE_LABEL 중 테스트가 쓰는 항목만 동결(폴백 포함).
+_ORIG_LABEL = {"en": "영어(English)", "ja": "일본어(日本語)"}
+
+
+def _orig_history_block(history):
+    """리팩토링 전 _history_block 로직 동결 복사."""
+    if not isinstance(history, dict):
+        return ""
+    summaries = [s for s in (history.get("summaries") or []) if s][:5]
+    expressions = [e for e in (history.get("expressions") or []) if e][:30]
+    if not summaries and not expressions:
+        return ""
+    lines = [
+        "\n[최근 학습 이력 — 참고]",
+        "아래는 이 학습자가 최근에 한 통화·배운 표현이다. 이미 배운 건 반복하지 말고 확장해 줘라(가끔 가벼운 복습은 OK).",
+    ]
+    if summaries:
+        lines.append("- 최근 통화 요약: " + " / ".join(summaries))
+    if expressions:
+        lines.append("- 이미 배운 표현: " + ", ".join(expressions))
+    return "\n".join(lines)
+
+
+def _orig_build(*, role, personality, rules, level_profile, locale, interests,
+                name=None, history=None, target_language="한국어", locale_label=None):
+    """리팩토링 전 build_system_instruction 조립 로직 동결 복사."""
+    locale_label = locale_label or _ORIG_LABEL.get(locale, _ORIG_LABEL["en"])
+    interests_text = ", ".join(i for i in interests if i) or "일상"
+    rules_line = f"\n캐릭터별 추가 규칙: {rules}" if (rules and rules.strip()) else ""
+    username = (name or "").strip() or "학습자"
+    invariants = _ORIG_INVARIANTS_TEMPLATE.format(
+        locale_label=locale_label,
+        role=role or "친근한 한국어 대화 파트너",
+        personality=personality or "다정하고 편안한 말투",
+        rules_line=rules_line,
+        username=username,
+        target=target_language,
+    )
+    parts = [
+        invariants,
+        f"\n[학습자 수준]\n{level_profile}",
+        f"\n[학습자 흥미·소재] {interests_text}",
+    ]
+    hb = _orig_history_block(history)
+    if hb:
+        parts.append(hb)
+    return "\n".join(parts)
+
+
+# --------------------------------------------------------------------------- #
+# 1) 스냅샷: 리팩토링 후 출력 == 리팩토링 전 출력 (바이트 동일)
+# --------------------------------------------------------------------------- #
+
+_SNAPSHOT_CASES = [
+    # (설명, kwargs)
+    (
+        "en + rules + history",
+        dict(
+            role="장난기 많은 비버 선생님",
+            personality="유쾌하고 텐션 높은 말투",
+            rules="가끔 아재개그를 친다.",
+            level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
+            locale="en",
+            interests=["K-pop", "요리"],
+            name="Alex",
+            history={
+                "summaries": ["주말 계획을 이야기함", "음식 주문 표현을 배움"],
+                "expressions": ["주세요", "얼마예요?"],
+            },
+        ),
+    ),
+    (
+        "ja + rules 없음 + history 없음",
+        dict(
+            role="차분한 라디오 DJ",
+            personality="느긋하고 부드러운 말투",
+            rules=None,
+            level_profile="레벨 1: 인사말 수준.",
+            locale="ja",
+            interests=[],
+            name=None,
+            history=None,
+        ),
+    ),
+    (
+        "en + 공백 rules + 빈 history(블록 생략 경로)",
+        dict(
+            role="",
+            personality="",
+            rules="   ",
+            level_profile="레벨 7: 경험을 서술한다.",
+            locale="en",
+            interests=["여행", "", "축구"],
+            name="  ",
+            history={"summaries": [], "expressions": []},
+        ),
+    ),
+]
+
+
+def test_build_system_instruction_snapshot_byte_identical():
+    """_RULE_CLOSE_PROTOCOL 추출 리팩토링이 기존 출력을 1바이트도 바꾸지 않았다."""
+    for desc, kwargs in _SNAPSHOT_CASES:
+        assert build_system_instruction(**kwargs) == _orig_build(**kwargs), desc
+
+
+def test_invariants_template_byte_identical_to_frozen_original():
+    """템플릿 자체도 동결 원본과 동일(상수 추출은 재배치일 뿐 문구 무변경)."""
+    assert pp._INVARIANTS_TEMPLATE == _ORIG_INVARIANTS_TEMPLATE
+
+
+def test_close_protocol_constant_matches_original_paragraph():
+    """추출된 상수 == 원본 규칙 2 문단(번호 제외) — 문구 리라이트 없음."""
+    orig_rule2 = next(
+        line for line in _ORIG_INVARIANTS_TEMPLATE.splitlines()
+        if line.startswith("2. 통화 종료 규약")
+    )
+    assert "2. " + pp._RULE_CLOSE_PROTOCOL == orig_rule2
+
+
+# --------------------------------------------------------------------------- #
+# 2) 레벨테스트 대본
+# --------------------------------------------------------------------------- #
+
+_LT_KWARGS = dict(
+    role="장난기 많은 비버 선생님",
+    personality="유쾌하고 텐션 높은 말투",
+    rules="가끔 아재개그를 친다.",
+    locale="en",
+    interests=["K-pop", "요리"],
+    name="Alex",
+)
+
+
+def test_leveltest_shares_close_protocol_verbatim():
+    """종료 규약 문단이 일반 통화 대본과 '동일 문자열'로 포함된다."""
+    normal = build_system_instruction(
+        level_profile="레벨 3", history=None, **_LT_KWARGS
+    )
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    assert pp._RULE_CLOSE_PROTOCOL in normal
+    assert pp._RULE_CLOSE_PROTOCOL in lt
+    assert '"[시스템]"으로 시작하는 종료 신호가 오기 전까지는' in lt
+
+
+def test_leveltest_no_correction_and_no_level_disclosure():
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    assert "교정 금지" in lt
+    assert "절대 고쳐 주지 마라" in lt
+    assert "레벨·점수·등급을 절대 입 밖에 내지 마라" in lt
+    assert "시험이 아니다" in lt
+
+
+def test_leveltest_default_probe_plan_and_custom_injection():
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    # 기본 4계단 사다리
+    assert "1계단(입문)" in lt and "4계단(고급)" in lt
+    assert "어제 뭐 했어요?" in lt
+    # 커스텀 주입 시 기본 사다리 대체
+    custom = build_leveltest_instruction(**{**_LT_KWARGS, "probe_plan": "CUSTOM_PROBE_123"})
+    assert "CUSTOM_PROBE_123" in custom
+    assert "1계단(입문)" not in custom
+    # 상승·하강·침묵 규칙은 커스텀 여부와 무관하게 항상 포함
+    for text in (lt, custom):
+        assert "무리 없이 2번" in text
+        assert "침묵하면" in text
+
+
+def test_leveltest_has_no_level_profile_or_history_slots():
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    assert "[학습자 수준]" not in lt
+    assert "[최근 학습 이력" not in lt
+
+
+def test_leveltest_locale_label_and_persona_slots():
+    lt_en = build_leveltest_instruction(**_LT_KWARGS)
+    assert "영어(English)" in lt_en
+    assert '"장난기 많은 비버 선생님"' in lt_en
+    assert "캐릭터별 추가 규칙: 가끔 아재개그를 친다." in lt_en
+    assert "대화상대의 이름은 Alex" in lt_en
+    assert "K-pop, 요리" in lt_en
+    lt_ja = build_leveltest_instruction(**{**_LT_KWARGS, "locale": "ja"})
+    assert "일본어(日本語)" in lt_ja
+    # 미지원 locale → 영어 폴백 (기존 빌더와 동일 규칙)
+    lt_xx = build_leveltest_instruction(**{**_LT_KWARGS, "locale": "xx"})
+    assert "영어(English)" in lt_xx
+
+
+def test_leveltest_seeds_format():
+    opening = seed_leveltest_opening()
+    assert opening.startswith("[통화 시작]")
+    assert "시험이 아니" in opening
+    assert "소리 내어 읽지" in opening
+    assert "한국어" in opening
+    assert "프랑스어" in seed_leveltest_opening("프랑스어")
+
+    assert CLOSE_SEED_LEVELTEST.startswith("[시스템]")
+    assert "레벨·점수는 절대 말하지 마라" in CLOSE_SEED_LEVELTEST
+
+
+def test_normal_seed_opening_unchanged():
+    """기존 선톡 시드 회귀 방지(레벨테스트 시드 추가가 기존 시드를 건드리지 않음)."""
+    assert pp.SEED_OPENING == pp.seed_opening()
+    assert "오늘 한국어 공부할래" in pp.SEED_OPENING
+
+
+# --------------------------------------------------------------------------- #
+# 3) P2-b 체크판 통화 블록 (공부/대화/최근 소재/승급 알림)
+#    설계: docs/20260709_1346_level-system-detailed-mechanics.md ②③④⑧.
+# --------------------------------------------------------------------------- #
+
+import core.curriculum_hints as ch  # noqa: E402
+
+_BASE_KWARGS = dict(
+    role="장난기 많은 비버 선생님",
+    personality="유쾌하고 텐션 높은 말투",
+    rules=None,
+    level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
+    locale="en",
+    interests=["K-pop", "요리"],
+    name="Alex",
+)
+
+_STUDY_ITEMS = [
+    {"slot": "main", "kind": "review", "obj": "V-았어요/었어요",
+     "ex": "어제 영화를 봤어요.", "des": None},
+    {"slot": "main", "kind": "grammar", "obj": "V-(으)ㄹ 거예요",
+     "ex": "주말에 여행을 갈 거예요.", "des": "미래 계획을 말할 때"},
+    {"slot": "main", "kind": "vocab", "obj": "여행", "ex": None, "des": None},
+    {"slot": "reserve", "kind": "vocab", "obj": "계획", "ex": None, "des": None},
+]
+
+_STUDY_ITEMS_L1 = [
+    {"slot": "main", "kind": "chunk", "obj": "얼마예요?",
+     "ex": "이거 얼마예요?", "des": None},
+    {"slot": "main", "kind": "vocab", "obj": "물", "ex": None, "des": None},
+    {"slot": "reserve", "kind": "vocab", "obj": "밥", "ex": None, "des": None},
+]
+
+_KNOWN_ITEMS = {
+    "grammar": ["N은/는 N이에요/예요", "V-아요/어요"],
+    "targets": [
+        {"obj": "주세요", "ex": "물 주세요.", "hint": "카페에서 주문하는 상황"},
+        {"obj": "얼마예요?", "ex": None, "hint": None},
+    ],
+}
+
+
+def test_new_args_all_none_is_byte_identical_to_legacy():
+    """신 인자 기본값(None/False) 명시 호출 == 종전 조립 — 하위호환 증명."""
+    for desc, kwargs in _SNAPSHOT_CASES:
+        got = build_system_instruction(
+            study_items=None, known_items=None, recent_topics=None,
+            promotion_notice=False, **kwargs,
+        )
+        assert got == _orig_build(**kwargs), desc
+
+
+def test_rule1_default_bullets_are_substring_of_template():
+    """규칙 1 교체가 의존하는 replace 대상이 템플릿 원문에 실제로 존재한다."""
+    assert pp._RULE1_MODE_DEFAULT in pp._INVARIANTS_TEMPLATE
+
+
+def test_study_block_render_and_rule1_swap():
+    out = build_system_instruction(study_items=_STUDY_ITEMS, **_BASE_KWARGS)
+    # 블록 헤더(상호배제) + 본편/예비 구분
+    assert "[오늘의 공부 항목 — 공부 모드일 때만 따르라. 대화 모드에서는 이 블록을 무시하라]" in out
+    assert "본편:" in out
+    assert '예비(본편을 전부 끝냈는데 아직 "[시스템]" 종료 신호가 오지 않았을 때만 이어서 진행):' in out
+    # 항목 줄 렌더(유형라벨/예문/참고/예문 폴백) — 번호는 본편→예비 연속
+    assert '1. (복습) V-았어요/었어요 — 예문: "어제 영화를 봤어요."' in out
+    assert '2. (문법) V-(으)ㄹ 거예요 — 예문: "주말에 여행을 갈 거예요." — 참고: 미래 계획을 말할 때' in out
+    assert "3. (단어) 여행 — 예문은 네가 즉석에서 만들라" in out
+    assert "4. (단어) 계획 — 예문은 네가 즉석에서 만들라" in out
+    # 진행 규칙 핵심 문구
+    assert "이 목록의 존재·남은 개수·진행률을 학습자에게 절대 발설하지 마라" in out
+    assert "다 못 끝내도 괜찮다. 서두르지 마라" in out
+    assert "절대 먼저 작별하지 마라" in out
+    assert "최대 2번까지만 다시 시도해라" in out
+    # 일반(비 L1) 절차 — 문법 5단계 존재, 왕초보 변형 아님
+    assert "유형별 절차:" in out
+    assert "⑤ 틀리면 한두 곳만 교정" in out
+    assert "왕초보" not in out
+    # 규칙 1 교체판 적용(기본판 불릿은 사라짐)
+    rule1_default = pp._RULE1_MODE_DEFAULT.format(target="한국어")
+    rule1_swap = pp._RULE1_MODE_CHECKBOARD.format(target="한국어")
+    assert rule1_swap in out and rule1_default not in out
+
+
+def test_study_block_l1_variant_when_chunk_without_grammar():
+    out = build_system_instruction(study_items=_STUDY_ITEMS_L1, **_BASE_KWARGS)
+    assert "이 학습자는 한국어 왕초보다" in out
+    assert "유형별 절차(왕초보):" in out
+    assert "문법 용어(조사·어미·활용·시제 같은 말)를 절대" in out
+    assert "1. (통문장) 얼마예요?" in out
+    # 일반판 문법 5단계 절차는 없어야 한다
+    assert "⑤ 틀리면 한두 곳만 교정" not in out
+
+
+def test_known_block_render_and_grammar_join():
+    out = build_system_instruction(known_items=_KNOWN_ITEMS, **_BASE_KWARGS)
+    assert "[대화 모드 가이드 — 대화 모드일 때만 따르라. 공부 모드에서는 이 블록을 무시하라]" in out
+    assert "학습자가 이미 아는 한국어 문법: N은/는 N이에요/예요 · V-아요/어요" in out
+    assert '1. "주세요" — 예문: "물 주세요." — 유도 상황: 카페에서 주문하는 상황' in out
+    assert '2. "얼마예요?"' in out
+    # 유도 규칙
+    assert "은근히 해라" in out
+    assert "표현당 시도는 최대 2회" in out
+    assert "마지막 수단으로 통화 전체에서 1회만" in out
+    assert "하나도 못 꺼내도 실패가 아니다" in out
+    # 규칙 1 교체판(대화 블록만으로도 교체)
+    assert pp._RULE1_MODE_CHECKBOARD.format(target="한국어") in out
+
+
+def test_known_block_empty_grammar_fallback_phrase():
+    out = build_system_instruction(
+        known_items={"grammar": [], "targets": _KNOWN_ITEMS["targets"]}, **_BASE_KWARGS,
+    )
+    assert "현재 레벨 프로파일을 그 범위로 삼아라" in out
+    assert "학습자가 이미 아는 한국어 문법:" not in out
+
+
+def test_no_blocks_keeps_rule1_default_even_with_topics_and_promotion():
+    """recent_topics/promotion 만으로는 규칙 1 을 갈지 않는다(블록 전용 트리거)."""
+    out = build_system_instruction(
+        recent_topics=["주말 계획"], promotion_notice=True, **_BASE_KWARGS,
+    )
+    assert pp._RULE1_MODE_DEFAULT.format(target="한국어") in out
+    assert "[오늘의 공부 항목" not in out and "[대화 모드 가이드" not in out
+
+
+def test_recent_topics_line():
+    out = build_system_instruction(recent_topics=["주말 계획", "음식 주문"], **_BASE_KWARGS)
+    assert "[최근 통화 소재] 주말 계획 / 음식 주문 — 이 화제들을 그대로 반복하지 말고" in out
+
+
+def test_promotion_notice_is_single_last_line():
+    out = build_system_instruction(promotion_notice=True, **_BASE_KWARGS)
+    assert out.splitlines()[-1] == (
+        '[승급 알림] 학습자가 최근 실력이 늘어 오늘부터 조금 더 어려운 내용을 다룬다. '
+        '통화 초반에 영어(English)로 "저번에 정말 잘했으니까 오늘은 조금 어려운 것도 '
+        '해볼까?"처럼 자연스럽게 한 번만 언급하라. 레벨·점수·단계 같은 단어는 쓰지 마라.'
+    )
+    assert out.count("[승급 알림]") == 1
+
+
+_HISTORY = {
+    "summaries": ["주말 계획을 이야기함"],
+    "expressions": ["주세요", "얼마예요?"],
+}
+
+
+def test_history_expressions_suppressed_when_known_items():
+    """known_items 제공 시 history.expressions 미주입(이중 주입 방지) — summaries 는 유지."""
+    out = build_system_instruction(known_items=_KNOWN_ITEMS, history=_HISTORY, **_BASE_KWARGS)
+    assert "- 이미 배운 표현:" not in out
+    assert "- 최근 통화 요약: 주말 계획을 이야기함" in out
+
+
+def test_history_summaries_suppressed_when_recent_topics():
+    out = build_system_instruction(
+        recent_topics=["음식 주문"], history=_HISTORY, **_BASE_KWARGS,
+    )
+    assert "- 최근 통화 요약:" not in out
+    assert "- 이미 배운 표현: 주세요, 얼마예요?" in out
+
+
+def test_history_fully_ignored_when_both_known_and_topics():
+    out = build_system_instruction(
+        known_items=_KNOWN_ITEMS, recent_topics=["음식 주문"],
+        history=_HISTORY, **_BASE_KWARGS,
+    )
+    assert "[최근 학습 이력" not in out
+
+
+# --------------------------------------------------------------------------- #
+# 4) curriculum_hints — freetalking 문법↔미션 인덱스
+# --------------------------------------------------------------------------- #
+
+
+def test_hint_for_matches_freetalking_mission():
+    """실자산 매칭: 1과 Grammer1 → Misson1 원문(철자 Misson 흡수 확인)."""
+    assert ch.hint_for("N은/는 N이에요/예요", None) == (
+        "처음 만난 친구에게 자신의 국적을 소개해 보세요."
+    )
+
+
+def test_hint_for_normalizes_whitespace():
+    assert ch.hint_for(" N은/는  N이에요/예요 ", None) == (
+        "처음 만난 친구에게 자신의 국적을 소개해 보세요."
+    )
+
+
+def test_hint_for_fallback_template():
+    unmatched = "존재하지 않는 문법 XYZ"
+    assert ch.hint_for(unmatched, "커피를 마셔요.") == (
+        "학습자의 관심사 속에서 '커피를 마셔요.'처럼 말하게 될 만한 순간을 만들어라"
+    )
+    # ex 없으면 obj 로 폴백
+    assert ch.hint_for(unmatched, None) == (
+        f"학습자의 관심사 속에서 '{unmatched}'처럼 말하게 될 만한 순간을 만들어라"
+    )
+
+
+def test_hint_for_missing_asset_is_graceful(monkeypatch, tmp_path):
+    """자산 부재 → 빈 인덱스 → 폴백만(R5 graceful — 예외 없음)."""
+    monkeypatch.setattr(ch, "_FREETALKING_JSON", tmp_path / "no_such.json")
+    monkeypatch.setattr(ch, "_index", None)  # lazy 캐시 리셋(종료 시 원복)
+    out = ch.hint_for("N은/는 N이에요/예요", "저는 학생이에요.")
+    assert out == "학습자의 관심사 속에서 '저는 학생이에요.'처럼 말하게 될 만한 순간을 만들어라"

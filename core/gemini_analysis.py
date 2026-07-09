@@ -30,6 +30,7 @@ async def generate_structured(
     prompt: str,
     schema: Type[T],
     temperature: float = 0.2,
+    thinking_budget: int | None = None,
 ) -> T | None:
     """generateContent(response_schema=schema) 1콜로 구조화 출력을 받아 파싱한다.
 
@@ -40,12 +41,19 @@ async def generate_structured(
         prompt: 사용자 콘텐츠(예: 전사).
         schema: 출력 Pydantic 모델 타입.
         temperature: 생성 온도(기본 0.2).
+        thinking_budget: 추론 토큰 예산. None(기본)이면 config 에 아예 넣지 않아
+            종전 호출과 동일(모델 기본값). 0 이면 추론 비활성 — 통화중 힌트
+            사이드카(D16)처럼 지연이 중요한 단발 콜용.
 
     Returns:
         파싱된 schema 인스턴스, 또는 빈 입력/호출/파싱 실패 시 None.
     """
     if not prompt or not prompt.strip():
         return None
+
+    config_kwargs: dict = {}
+    if thinking_budget is not None:
+        config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
 
     try:
         response = await client.aio.models.generate_content(
@@ -56,6 +64,7 @@ async def generate_structured(
                 response_mime_type="application/json",
                 response_schema=schema,
                 temperature=temperature,
+                **config_kwargs,
             ),
         )
     except Exception as exc:  # noqa: BLE001 - 호출 실패 graceful

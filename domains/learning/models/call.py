@@ -41,6 +41,18 @@ class Call(Base, TimestampMixin):
     mode: Mapped[Optional[str]] = mapped_column(
         Text, comment="감지된 통화 모드(conversation/study/unknown)",
     )
+    call_type: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'normal'"),
+        comment="통화 종류(normal/level_test)",
+    )
+    assessed_level: Mapped[Optional[int]] = mapped_column(
+        Integer, comment="레벨테스트 판정 결과(1~13, level_test 전용)",
+    )
+    assessment_note: Mapped[Optional[str]] = mapped_column(
+        Text, comment="판정 근거(모델 reasoning — 감사·디버깅용)",
+    )
+    # (D15) 유효통화 컬럼 3종(is_valid_call/user_turn_count/user_char_count)은 폐지 —
+    # 통화 수 파생값은 item_evidence 의 "증거통화"(distinct call)로 계산한다.
 
     member: Mapped["Member"] = relationship(back_populates="calls")
     character: Mapped["Character"] = relationship(lazy="select")  # 단방향(필요 시 쿼리에서 joinedload)
