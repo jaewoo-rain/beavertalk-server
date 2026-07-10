@@ -71,7 +71,7 @@ _INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가르치
 [모국어] 학습자의 모국어는 {locale_label}다. 학습자의 이해를 돕기 모국어 위주로 사용한다.
 
 [페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}{rules_line}
-이 캐릭터 톤을 통화 내내 일관되게 유지하되, 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
+이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 1. 모드 분기(스스로 판단, 서버는 모드를 추적하지 않는다):
@@ -491,6 +491,22 @@ def seed_leveltest_opening(target_language: str = "한국어") -> str:
         f"(예: 학습자가 '미국이요'라고 하면 너는 '美国! Oh nice, so what brings you to {target_language}?'처럼 "
         f"리액션은 모국어로 하고 '미국'을 따라 읽지 않는다. 학습자가 '취미는 영화예요'라고 하면 "
         f"'A movie person! 어떤 영화 좋아해요?'처럼 리액션은 모국어로, 과제 질문만 {target_language}로 한다.)"
+    )
+
+
+def build_reground_reminder(role: str, personality: str, rules: str | None) -> str:
+    """통화 중간 1회 재접지 리마인더 — DB 캐릭터 3필드(role·personality·rules)만 되박는다.
+
+    긴 통화에서 맨 앞 페르소나가 밀려나 캐릭터가 밋밋해지는 걸 중간에 한 번 되살린다.
+    ⚠ 단발 전용 — 반복 주입은 모델이 '[시스템]' 지문을 낭독하게 만든다(실측 call 164).
+    종료·무음 시드와 동일한 낭독 방지 앵커를 맨 앞에 둔다.
+    """
+    parts = [p.strip() for p in (role, personality, rules) if p and p.strip()]
+    body = " / ".join(parts) if parts else "네 캐릭터"
+    return (
+        "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
+        f"잊지 마라 — 너의 캐릭터를 처음처럼 강하게 유지해라: {body} "
+        "지금부터 이 말투·태도를 다시 확실히 살려라(언어 배분은 그대로 — 톤 살린다고 목표어를 더 쓰지 마라)."
     )
 
 

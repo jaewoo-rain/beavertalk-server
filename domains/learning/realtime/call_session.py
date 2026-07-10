@@ -33,6 +33,7 @@ from core.persona_prompt import (
     _LOCALE_LABEL,
     CLOSE_SEED_LEVELTEST,
     build_leveltest_instruction,
+    build_reground_reminder,
     build_system_instruction,
     seed_leveltest_opening,
     seed_opening,
@@ -70,6 +71,9 @@ FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 �
 IDLE_NUDGE1_S = 15.0  # 1단: 비버 발화 종료 후 무음 15s → 새 화제로 가볍게 이어가라(작별 금지)
 IDLE_NUDGE2_S = 10.0  # 2단: 1단 넛지 후 재무음 10s → 모국어로 "거기 있어?" 확인
 IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 직접 주입(우아한 종료)
+# 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터(DB 3필드)를 딱 1회 조용히 되박아
+# 누적 드리프트 완화. 반복 주입 금지(모델이 '[시스템]' 낭독 — 실측 call 164) → 1회뿐.
+REGROUND_AT_FRACTION = 0.5
 DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(BABA, 기본 무료)
 DEFAULT_TARGET_LANGUAGE = "한국어"    # 교육 대상 언어 기본값(프로덕션 — 오버라이드 없으면 이 값)
 # 데모 전용 모국어 라벨 확장(전역 _LOCALE_LABEL 은 안 건드림 → prod 는 ko→영어 폴백 유지).
@@ -156,6 +160,7 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
+        "reground_reminder",
     )
 
     def __init__(self) -> None:
@@ -198,6 +203,8 @@ class _CallState:
         # 통화 길이(초). 기본 CALL_DURATION_S. 데모/dev 는 start.duration_min 으로 3~15분
         # override(run_call 에서 세팅). _watch_call_clock 이 모듈 상수 대신 이 값을 본다.
         self.call_duration_s: float = CALL_DURATION_S
+        # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
+        self.reground_reminder: Optional[str] = None
 
 
 class _ClientDisconnect(Exception):
@@ -309,6 +316,7 @@ async def run_call(
         call_type = "level_test" if setup["needs_level_test"] else "normal"
 
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
+    reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
     if call_type == "level_test":
         # 레벨테스트 대본 — 레벨/이력 슬롯 없는 전용 셋업(회원당 사실상 1회라 재조회 비용 수용).
         lt_setup = await svc.run_db(
@@ -350,6 +358,8 @@ async def run_call(
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
+        # 단발 재접지 리마인더(일반 통화만): DB 캐릭터 3필드를 중간에 1회 되박아 드리프트 완화.
+        reground_reminder = build_reground_reminder(setup["role"], setup["personality"], setup["rules"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
@@ -362,6 +372,7 @@ async def run_call(
     state = _CallState()
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.call_duration_s = _resolve_call_duration(settings, duration_override)
+    state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
     if call_type == "level_test":
         state.close_seed = CLOSE_SEED_LEVELTEST  # 종료 시드 문자열만 교체(주입 파이프 불변)
 
@@ -578,6 +589,7 @@ async def _run_session(
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
                 tg.create_task(_watch_call_clock(state, session), name="nc-clock")
                 tg.create_task(_watch_idle(session, state), name="nc-idle")
+                tg.create_task(_reground_once(session, state), name="nc-reground")
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
@@ -1027,6 +1039,40 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
         return False
     await session.send_text_turn(seed)
     return True
+
+
+async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
+    """통화 중간에 캐릭터(DB 3필드)를 딱 1회 조용히 되박는다(단발 재접지 — 사장님 요청).
+
+    누적 드리프트(후반에 캐릭터가 밋밋해짐) 완화용. 통화 길이의 REGROUND_AT_FRACTION
+    시점에 idle(비버 미발화·무음 넛지 없음)일 때 send_reground(turn_complete=False)로 1회만.
+    ⚠ 반복 금지 — 반복 주입은 모델이 '[시스템]' 지문을 낭독하게 만든다(실측 call 164).
+    비활성(reground_reminder None = 레벨테스트 등)이면 즉시 종료. 종료 우선(should_close).
+    """
+    if not state.reground_reminder:
+        return
+    loop = asyncio.get_running_loop()
+    while state.call_start_ts is None:
+        await asyncio.sleep(0.2)
+    fire_at = state.call_start_ts + state.call_duration_s * REGROUND_AT_FRACTION
+    while True:
+        await asyncio.sleep(0.2)
+        if state.should_close:  # 종료 우선 — 재접지 취소
+            return
+        if loop.time() < fire_at:
+            continue
+        # 주입 시점 도래: 비버 idle & 무음 넛지 진행중 아닐 때만(발화·넛지 흐름 안 흐리게).
+        if state.turn_id is not None or state.silence_stage > 0:
+            continue
+        # R5: 재접지는 비핵심 — 실패해도 통화를 죽이지 않는다(TaskGroup 전파 차단, 힌트와 동일).
+        try:
+            await session.send_reground(state.reground_reminder)
+            logger.info("normalcall: 캐릭터 재접지 1회 주입(통화 중간, 단발)")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향
+            logger.warning("normalcall: 재접지 주입 실패(무시 — 통화 계속): %s", exc)
+        return  # ⛔ 딱 한 번(성공·실패 무관)
 
 
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:

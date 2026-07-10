@@ -548,6 +548,63 @@ def test_resolve_call_duration_clamps_and_defaults():
 
 
 @pytest.mark.asyncio
+async def test_reground_once_midcall(session_factory, seeded, monkeypatch):
+    """단발 재접지: 일반 통화 중간에 캐릭터 리마인더가 send_reground(조용히)로 딱 1회 주입.
+
+    turn_complete=False 경로(send_reground)로만 나가고, 종료/무음 시드(send_text_turn)와
+    분리. 리마인더에 DB 캐릭터 3필드 되박기 문구가 들어간다. 반복 아님(정확히 1회)."""
+    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)  # fire_at ≈ 통화 시작 직후
+
+    class RegroundFake:
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self.regrounds: list[str] = []
+            self._got = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+
+        async def send_reground(self, text: str) -> None:
+            self.regrounds.append(text)
+            self._got.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            await self._got.wait()  # 단발 재접지 1회 주입될 때까지
+
+    import contextlib as _cl
+    holder: dict = {}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        s = RegroundFake()
+        holder["s"] = s
+        yield s
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    await _wait_analysis_tasks()
+
+    sess = holder["s"]
+    assert len(sess.regrounds) == 1, "단발 재접지가 정확히 1회가 아님"
+    assert "잊지 마라" in sess.regrounds[0], "재접지 문구가 캐릭터 리마인더가 아님"
+    assert not any(r in sess.sent_text_turns for r in sess.regrounds), "재접지가 send_text_turn 로 샜다"
+
+
+@pytest.mark.asyncio
 async def test_go_away_triggers_graceful_close(session_factory, seeded, monkeypatch):
     """A3 GoAway: events() 가 go_away 이벤트를 내면 idle 에서 즉시 종료 시드 주입 →
     정상 작별 종료(연결 뚝 끊기 전 선제 마무리)."""

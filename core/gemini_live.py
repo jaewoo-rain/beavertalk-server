@@ -49,6 +49,7 @@ class LiveSessionProtocol(Protocol):
 
     async def send_audio(self, pcm16_16k: bytes) -> None: ...
     async def send_text_turn(self, text: str) -> None: ...
+    async def send_reground(self, text: str) -> None: ...
     def events(self) -> AsyncIterator[LiveEvent]: ...
 
 
@@ -121,6 +122,17 @@ class GeminiLiveSession:
         await self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
             turn_complete=True,
+        )
+
+    async def send_reground(self, text: str) -> None:
+        """조용한 재접지: 리마인더를 컨텍스트에만 추가(turn_complete=False — 즉시 응답 안 만듦).
+
+        통화 중 1회만 주입해 캐릭터를 되살린다(단발 — 반복 주입은 모델이 '[시스템]' 지문을
+        낭독하게 만들어 금지, 실측 call 164). 다음 학습자 발화 직전에 캐릭터가 되살아난다.
+        """
+        await self._session.send_client_content(
+            turns=types.Content(role="user", parts=[types.Part(text=text)]),
+            turn_complete=False,
         )
 
     async def events(self) -> AsyncIterator[LiveEvent]:
