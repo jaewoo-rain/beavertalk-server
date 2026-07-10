@@ -14,7 +14,7 @@
 domains/<도메인>/{ models, schemas, repository, service, routers }
   account/   회원·인증(Supabase find-or-create, soft delete)
   commerce/  캐릭터·음색(voice)·결제·구독·할인
-  learning/  통화(call)·발화(sentence)·평가·복습(review)·레벨 + realtime/(WS 통화)
+  learning/  통화(call)·발화(sentence)·평가·복습(review)·레벨·체크판(learning_item·mastery) + realtime/(WS 통화)
   alarm/     알람·반복요일
 ```
 - **레이어 의존 방향**: `routers → service → repository → models`. routers 는 repository 를 **직접 호출하지 않는다**.
@@ -31,16 +31,27 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 
 ### normalcall 실시간 (⛔ 불변식)
 `domains/learning/realtime/` (`ws_router` → `call_session` → `core/gemini_live`).
-- **2펌프 + TaskGroup**: 클라→Gemini, Gemini→클라 동시 펌프. `asyncio.timeout` 절대 백스톱(10분). **barge-in off**(비버 발화중 마이크 미전송).
-- Gemini Live 네이티브 오디오. **context window compression(sliding window)** 없으면 ~2분에 세션이 닫힘 — 5분+ 통화의 핵심.
-- 시계: 5분(`CALL_DURATION_S`) 경과 → 종료 시드 주입(정상 작별), 10분 절대 백스톱, 1분마다 점진 flush(크래시 내성).
+- **2펌프 + TaskGroup**: 클라→Gemini, Gemini→클라 동시 펌프. `asyncio.timeout` 절대 백스톱(540s/9분 — 연결 ~10분 선점). **barge-in off**(비버 발화중 마이크 미전송).
+- Gemini Live 네이티브 오디오. 세션 한계(압축 無): **오디오 15분 / 연결 자체 ~10분**(S2). **context window compression(sliding window)** 은 세션을 무제한으로 늘리고 오래된 오디오 토큰을 밀어내 **드리프트 완화·장기 통화 대비** — 5분 통화도 이 압축 위에서 돈다.
+- 시계: 5분(`CALL_DURATION_S`) 경과 → 종료 시드 주입(정상 작별), 540s 절대 백스톱, 무음 3단 넛지(in_tr 부재로 감지 → 재개→확인→종료 합류), GoAway 예고 시 조기 종료, 1분마다 점진 flush(크래시 내성).
 - 오디오: 입력 PCM16/16k, 출력 PCM24k. WS **바이너리=오디오, 텍스트=JSON 제어**(discriminated union, `protocol.py`).
 - **graceful degradation**: `genai_client` None 이면 통화만 비활성, 앱은 정상 기동. 외부 연동(발음/이메일/소셜/Storage)도 키 없으면 스텁·폴백.
 
 ### 프롬프트 규율
 - `core/persona_prompt.build_system_instruction` : **LLM 생성 0, 순수 문자열 조립**. 불변식 템플릿 + 캐릭터(role/personality/rules) + 레벨 프로파일 + 흥미 + 이력.
-- code-switching: **한국어 10% + 모국어 90%**. 통화 종료 시점은 서버만 결정("[시스템]" 종료 시드 전엔 비버가 먼저 작별 금지).
+- code-switching: 일반 통화는 **한국어 10% + 모국어 90%**. ⚠ **레벨테스트 콜은 이 규칙을 뒤집는다**(안내·리액션=모국어, 측정 질문=한국어). 통화 종료 시점은 서버만 결정("[시스템]" 종료 시드 전엔 비버가 먼저 작별 금지).
 - `core/*.py` 어댑터는 도메인/DB 를 모른다. system_instruction·voice 는 realtime 이 조립해 넘긴다.
+- 통화 유형 2종(같은 엔진 + 대본만 교체): `build_system_instruction`(일반) / `build_leveltest_instruction`(레벨테스트). 공부/대화 블록·승급 알림·힌트는 신 인자 None 이면 출력 바이트 동일(하위호환).
+
+### 레벨 시스템 (2026-07 신규 — 상세는 docs 3부작)
+외국인 학습자에게 **레벨테스트 → 체크판 → 자동 레벨업**을 서버가 자동으로 돌린다. 사용자에겐 레벨·점수를 **비노출**(D2).
+- **레벨 13단계**: L1 생존회화(청크 46) + L2~13 = CEFR A1~C4. `member.korean_level`(1~13). 커리큘럼 마스터 `learning_item`(문법 459 + 어휘 10,636 + 청크 46 ≈ 1.1만 행).
+- **체크판 3테이블**: `member_item_progress`(희소 — 행 부재=미학습), `item_evidence`(append-only 감사 로그 — **상태·승급의 원본, UPDATE 금지**), `member_level_history`(승급 이력·멱등 키).
+- **관통 원칙 3**: ①AI는 증인 코드가 심판(LLM 판정은 인용 검증 통과해야 데이터) ②증거가 원본·나머지는 파생 계산(별도 플래그 금지) ③선별은 SQL·AI엔 골라서 떠먹임(벡터DB 불필요).
+- **서비스**: `domains/learning/service/mastery_service.py`(증거·상태전이·fast-track·evaluate_level_up·grandfathering) + `repository/mastery_repository.py`(선별·게이트 집계 순수 SELECT). 통화 시작 선별·주입 + 통화후 검출·레벨업은 `normalcall_service.py`.
+- **마이그레이션 Rev1~5**: 13레벨 shift(파괴적·prod 백업 필요) → learning_item → call 판정 컬럼 → 체크판 3테이블 → D15 컬럼 정리. dev DB 는 적용 완료.
+- **결정 D1~D16**: docs 마스터 플랜 §0. 핵심 — 승급=문법 전용(D12), 잘씀=성공 3회(D14), 체류 게이트 폐지(D15), 동적 힌트(D16).
+- **문서 3부작**: `docs/20260709_1231_*-master-plan.md`(결정·플로우) / `_1346_*-detailed-mechanics.md`(동작 명세 ①~⑬) / `_1621_*-overview-for-stakeholders.md`(대외 소개). 구현 요약은 `docs/plans/2026-07-09-level-system-build.md`.
 
 ## 작업 규칙 (RULES)
 
@@ -53,8 +64,15 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - **R7. CEO 오케스트레이터 전권.** `/beavertalk-dev`(CEO 스킬)가 분해·소집·통합·검증·기록을 총괄한다.
 
 ## 테스트 / 검증
+- **파이썬은 반드시 conda env**: `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q` (base 파이썬엔 의존성 없음). 한글 출력이 콘솔에서 깨지면 스크립트가 **UTF-8 파일로 쓰게 하고 Read** 로 확인.
 - `pytest` (tests/). `scripts/smoke_*.py` 는 **실행 중 서버에 실제 요청**하는 수동 점검(파이테스트 아님).
-- API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 통화 데모 `/__calldemo`.
+- API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 데모: `/__calldemo`(언어 데모 — 레벨 무관) · `/__levelcalldemo`(레벨테스트·힌트 체험).
+
+## 운영 (dev — 상세는 docs/plans/2026-07-09-level-system-build.md 배포 노트)
+- **Cloud Run 서비스**: `beavertalk-app-test-api`(구코드) / `beavertalk-app-demo-api`(레벨 시스템 신코드). 프로젝트 `bt-dev-web-01`, 리전 `asia-northeast3`, **둘 다 같은 dev Supabase DB**(마이그레이션·시드 적용됨).
+- **배포**: `scripts/deploy_demo.sh [태그]` — `builds submit --tag`(멀티매니페스트 회피) → 그 이미지로 deploy → 헬스체크. `--source` 직접 배포는 "Container import failed" 로 실패.
+- **`.gcloudignore` 는 `.dockerignore` 와 별개 유지**(gitignore 변경이 빌드 업로드를 오염시키지 않게). `.gitignore` 에 `scripts/` 넣지 말 것.
+- **dev 도구**: `scripts/dev_levelup_seed.py <이메일>`(승급 직전 시딩), `scripts/dev_inspect_call.py <call_id>`(전사·문장·증거·레벨 덤프), `POST /__dev/level-reset`(레벨 백지화).
 
 ## 팀 / 오케스트레이션
 CEO 스킬 `.claude/skills/beavertalk-dev/`. 전문 에이전트는 `.claude/agents/`. 새 반복 역할은 일회성 프롬프트가 아니라 에이전트/스킬로 **영속화**한다.

@@ -401,6 +401,246 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
 
 
+def test_absolute_backstop_is_540s():
+    """A3: 연결 ~10분 한계를 선점하도록 절대 백스톱이 540s(9분)로 하향됐다."""
+    assert cs.ABSOLUTE_CALL_TIMEOUT_S == 540.0
+
+
+@pytest.mark.asyncio
+async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkeypatch):
+    """A2 무음 3단 넛지: in_tr 이 오지 않는 idle 이 지속되면 1단→2단 넛지 주입 후
+    3단에서 should_close → 종료 시드 경로 합류로 우아하게 종료(뚝 끊김 없음).
+
+    무음 = in_tr 부재로만 감지. FakeLiveSession 이 첫 턴 후 idle 을 유지하고, 종료 시드
+    ([시스템] 통화 시간) 수신 시에만 작별 턴을 방출 → 정상 종료를 서버 무음 경로가 주도.
+    """
+    # 넛지/종료 타이머를 짧게 — 1단 0.2s, 2단 +0.2s, 3단 +0.2s.
+    monkeypatch.setattr(cs, "IDLE_NUDGE1_S", 0.2)
+    monkeypatch.setattr(cs, "IDLE_NUDGE2_S", 0.2)
+    monkeypatch.setattr(cs, "IDLE_CLOSE_S", 0.2)
+    # 5분 시계는 무음보다 훨씬 뒤에 오도록 크게(무음 경로가 먼저 종료를 주도).
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 100.0)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+
+    class IdleForever:
+        """첫 턴 후 in_tr 없이 idle 유지 → 종료 시드([시스템] 통화 시간) 수신 시 작별."""
+
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self._close = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if "통화 시간이 다 됐다" in text:  # 종료 시드(넛지 아님) → 작별 허용
+                self._close.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            # 이후 idle — in_tr 없음. 무음 워처가 1단/2단 넛지 후 3단에서 should_close.
+            await self._close.wait()
+            yield LiveEvent(kind="out_tr", text="잘 가요")
+            yield LiveEvent(kind="audio", audio=b"\x33\x33")
+            yield LiveEvent(kind="turn_end")
+
+    import contextlib as _cl
+    holder: dict = {}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        s = IdleForever()
+        holder["s"] = s
+        yield s
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    await _wait_analysis_tasks()
+
+    sess = holder["s"]
+    # 1단·2단 넛지가 순서대로 주입됐다(in_tr 부재 감지).
+    assert any("가볍게 새 화제" in t for t in sess.sent_text_turns), "1단 넛지 미주입"
+    assert any("거기 있어" in t for t in sess.sent_text_turns), "2단 넛지 미주입"
+    # 3단 → should_close → 종료 시드 주입 → 정상 작별.
+    assert any("통화 시간이 다 됐다" in t for t in sess.sent_text_turns), \
+        "3단 후 종료 시드 미주입"
+    assert b"\x33\x33" in ws.sent_bytes, "작별 오디오 미전달(뚝 끊김)"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+@pytest.mark.asyncio
+async def test_idle_nudge_reset_on_user_activity(session_factory, seeded, monkeypatch):
+    """A2: 넛지 후 학습자 발화(in_tr) 재개 시 silence_stage 가 0 으로 리셋된다."""
+    state = cs._CallState()
+
+    class _WS:
+        async def send_text(self, text): ...
+        async def send_bytes(self, data): ...
+
+    state.turn_id = None
+    state.silence_stage = 2
+    # in_tr 이벤트가 활동 타임스탬프 갱신 + stage 리셋을 유발.
+    await cs._forward_event(_WS(), LiveEvent(kind="in_tr", text="네"), state)
+    assert state.silence_stage == 0
+    assert state.last_activity_ts is not None
+
+
+@pytest.mark.asyncio
+async def test_inject_nudge_gated_when_busy_or_closing():
+    """A2 하드닝(시니어 Q1): _inject_nudge 는 종료중/발화중이면 주입하지 않고 False 를
+    돌려준다. 호출부가 이 반환값으로 silence_stage 전진을 게이팅하므로, '단계는 올랐는데
+    넛지는 유실'되는 상태-행동 불일치가 원천 차단된다."""
+
+    class _RecordSession:
+        def __init__(self):
+            self.sent_text_turns: list[str] = []
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+
+    # 발화중(turn_id 있음) → 주입 안 함, False.
+    busy = cs._CallState()
+    busy.turn_id = "t1"
+    sess = _RecordSession()
+    assert await cs._inject_nudge(sess, busy, cs._NUDGE_SEED_1) is False
+    assert sess.sent_text_turns == []
+
+    # 종료중(should_close) → 주입 안 함, False.
+    closing = cs._CallState()
+    closing.turn_id = None
+    closing.should_close = True
+    sess2 = _RecordSession()
+    assert await cs._inject_nudge(sess2, closing, cs._NUDGE_SEED_1) is False
+    assert sess2.sent_text_turns == []
+
+    # idle & 정상 → 주입, True.
+    idle = cs._CallState()
+    idle.turn_id = None
+    sess3 = _RecordSession()
+    assert await cs._inject_nudge(sess3, idle, cs._NUDGE_SEED_1) is True
+    assert sess3.sent_text_turns == [cs._NUDGE_SEED_1]
+
+
+def test_resolve_call_duration_clamps_and_defaults():
+    """통화 길이 override(데모/dev): 3~15분 클램프, prod 무시(기본값), None 기본값."""
+    from types import SimpleNamespace
+    dev = SimpleNamespace(ENV="dev")
+    prod = SimpleNamespace(ENV="prod")
+    base = cs.CALL_DURATION_S
+    assert cs._resolve_call_duration(dev, None) == base       # 미지정 → 기본
+    assert cs._resolve_call_duration(dev, 3) == 180.0         # 하한
+    assert cs._resolve_call_duration(dev, 15) == 900.0        # 상한
+    assert cs._resolve_call_duration(dev, 1) == 180.0         # < 3 → 3분 클램프
+    assert cs._resolve_call_duration(dev, 99) == 900.0        # > 15 → 15분 클램프
+    assert cs._resolve_call_duration(prod, 10) == base        # prod → override 무시
+
+
+@pytest.mark.asyncio
+async def test_go_away_triggers_graceful_close(session_factory, seeded, monkeypatch):
+    """A3 GoAway: events() 가 go_away 이벤트를 내면 idle 에서 즉시 종료 시드 주입 →
+    정상 작별 종료(연결 뚝 끊기 전 선제 마무리)."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+
+    class GoAwayThenBye:
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self._close = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if text.startswith("[시스템]"):
+                self._close.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")
+            yield LiveEvent(kind="turn_end")   # idle 로 전환(turn_id None)
+            yield LiveEvent(kind="go_away", time_left="10s")
+            await self._close.wait()           # 종료 시드 주입 대기
+            yield LiveEvent(kind="out_tr", text="잘 가요")
+            yield LiveEvent(kind="audio", audio=b"\x44\x44")
+            yield LiveEvent(kind="turn_end")
+
+    import contextlib as _cl
+    holder: dict = {}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        s = GoAwayThenBye()
+        holder["s"] = s
+        yield s
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    await _wait_analysis_tasks()
+
+    sess = holder["s"]
+    assert any(t.startswith("[시스템]") for t in sess.sent_text_turns), \
+        "GoAway 후 종료 시드 미주입"
+    assert b"\x44\x44" in ws.sent_bytes, "작별 오디오 미전달"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+@pytest.mark.asyncio
+async def test_go_away_event_normalized(monkeypatch):
+    """A3: core.gemini_live.events() 가 response.go_away 를 LiveEvent(kind=go_away)로
+    정규화하고 time_left 를 담는다(SDK 필드는 getattr 방어)."""
+    from core.gemini_live import GeminiLiveSession
+
+    class _GoAway:
+        time_left = "12s"
+
+    class _Resp:
+        data = None
+        server_content = None
+        go_away = _GoAway()
+
+    class _Raw:
+        def __init__(self):
+            self._sent = 0
+
+        def receive(self):
+            # receive() 는 매 턴 async iterator 를 반환(coroutine 아님).
+            # 첫 턴엔 go_away 1건, 다음 턴엔 0건(수신종료 → 루프 종료).
+            first = self._sent == 0
+            self._sent = 1
+
+            async def _gen():
+                if first:
+                    yield _Resp()
+
+            return _gen()
+
+    sess = GeminiLiveSession(_Raw())
+    kinds = []
+    async for ev in sess.events():
+        kinds.append((ev.kind, ev.time_left))
+    assert ("go_away", "12s") in kinds
+
+
 @pytest.mark.asyncio
 async def test_run_call_disconnect_before_start_is_graceful(session_factory, seeded):
     """start 수신 전 클라가 끊으면 통화 생성 없이 조용히 종료(no Call 행)."""

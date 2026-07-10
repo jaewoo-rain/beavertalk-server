@@ -703,7 +703,7 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         result = await cs._read_initial_start(ws)
 
-    assert result == (7, None, None, None)
+    assert result == (7, None, None, None, None)
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)
 

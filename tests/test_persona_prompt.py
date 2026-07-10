@@ -193,10 +193,20 @@ def test_leveltest_shares_close_protocol_verbatim():
 
 def test_leveltest_no_correction_and_no_level_disclosure():
     lt = build_leveltest_instruction(**_LT_KWARGS)
+    # 개념 유지: 측정 중 교정 안 함(문구는 "이번 통화에선 교정 금지"로 확장).
     assert "교정 금지" in lt
-    assert "절대 고쳐 주지 마라" in lt
+    assert "절대 고쳐 주거나 지적하지 마라" in lt
     assert "레벨·점수·등급을 절대 입 밖에 내지 마라" in lt
     assert "시험이 아니다" in lt
+
+
+def test_leveltest_suppresses_character_for_measurement():
+    """레벨테스트는 캐릭터를 눌러 부드럽게 측정한다(원복 결정 — 톤 보존이 한국어 과다를
+    유발해 되돌림). 캐릭터는 일반 통화에서 살린다."""
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    assert "표본 수집" in lt                       # 측정 목적(캐릭터보다 우선)
+    assert "그대로 받아 주고 칭찬만 해라" in lt      # 젠틀 측정 톤
+    assert "캐릭터를 눌러도 된다" in lt              # 불변 규칙이 캐릭터 우선
 
 
 def test_leveltest_default_probe_plan_and_custom_injection():
@@ -238,12 +248,43 @@ def test_leveltest_seeds_format():
     opening = seed_leveltest_opening()
     assert opening.startswith("[통화 시작]")
     assert "시험이 아니" in opening
-    assert "소리 내어 읽지" in opening
+    # A1: 안내문 낭독 금지 지시를 맨 앞에 강하게 명시(강화 문구).
+    assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in opening
     assert "한국어" in opening
     assert "프랑스어" in seed_leveltest_opening("프랑스어")
 
+    # A1: 종료 시드에도 동일 강화 문구가 맨 앞에.
     assert CLOSE_SEED_LEVELTEST.startswith("[시스템]")
+    assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in CLOSE_SEED_LEVELTEST
     assert "레벨·점수는 절대 말하지 마라" in CLOSE_SEED_LEVELTEST
+
+
+def test_leveltest_opening_seed_has_echo_ban_fewshot():
+    """A5(초반 안정화): 선톡 시드가 첫 턴부터 '한국어로 답해도 리액션은 모국어로,
+    학습자의 한국어를 따라 말하지 않는다'는 올바른 few-shot 예시를 박아 초기 락인을 예방."""
+    opening = seed_leveltest_opening()
+    # 에코 금지 지시(리액션은 모국어, 학습자 단어 따라 말하지 않음)
+    assert "리액션·맞장구는 반드시" in opening
+    assert "따라 말하지 마라" in opening
+    # 구체 few-shot 예시(락인 예방 앵커)
+    assert "미국이요" in opening
+    assert "美国! Oh nice" in opening
+    # target_language 치환이 예시에도 적용된다(f-string 버그 회귀 방지)
+    fr = seed_leveltest_opening("프랑스어")
+    assert "과제 질문만 프랑스어로 한다" in fr
+    assert "{target_language}" not in fr
+
+
+def test_leveltest_echo_ban_is_separate_emphasized_rule():
+    """A5: 규칙 1 의 '따라 말하지 마라'(에코 금지)가 5지시 뭉치에서 분리돼
+    별도의 강조된 최상위 규칙(★)으로 부각된다."""
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    # 규칙 1 이 에코 금지 전용으로 승격되고 ★로 강조됨.
+    assert "1. ★ 에코 금지(제일 중요, 첫 턴부터):" in lt
+    assert "학습자가 말한 한국어 단어·문장을 절대 따라 말하거나 반복하지 마라" in lt
+    # 교정 안 함은 뒤로 밀려 규칙 3 이 되고, 종료 규약/응답 길이는 4·5.
+    assert "3. 교정 금지:" in lt
+    assert "5. 응답 길이:" in lt
 
 
 def test_normal_seed_opening_unchanged():

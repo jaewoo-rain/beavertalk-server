@@ -39,6 +39,7 @@ import domains.learning.realtime.call_session as cs
 import domains.learning.service.normalcall_service as svc
 from domains.learning.realtime.call_session import HintOut, run_call
 from domains.learning.realtime.protocol import (
+    HintExample,
     ServerHint,
     ServerTeachingPlan,
     TeachingItem,
@@ -180,11 +181,15 @@ def test_protocol_teaching_plan_roundtrip():
 
 
 def test_protocol_hint_roundtrip():
-    hint = ServerHint(turn_id="t9", korean="화장실에 가요",
-                      roman="hwajangsire gayo", native="I'm going to the bathroom")
+    hint = ServerHint(turn_id="t9", examples=[
+        HintExample(korean="화장실에 가요", roman="hwajangsire gayo", native="I'm going to the bathroom"),
+        HintExample(korean="화장실 어디예요?", roman="hwajangsil eodiyeyo?", native="Where is the bathroom?"),
+        HintExample(korean="잠깐 나갔다 올게요", roman="jamkkan nagatda olgeyo", native="I'll step out for a moment"),
+    ])
     back = server_adapter.validate_json(server_adapter.dump_json(hint))
     assert back.type == "hint" and back.turn_id == "t9"
-    assert back.korean == "화장실에 가요" and back.roman == "hwajangsire gayo"
+    assert len(back.examples) == 3
+    assert back.examples[0].korean == "화장실에 가요" and back.examples[0].roman == "hwajangsire gayo"
 
 
 # --------------------------------------------------------------------------- #
@@ -332,8 +337,13 @@ async def test_hint_task_created_cancelled_and_pushed(session_factory, seeded, m
             except asyncio.CancelledError:
                 q1_cancelled.set()
                 raise
-        return HintOut(korean="화장실에 가요", roman="hwajangsire gayo",
-                       native="I'm going to the bathroom")
+        return HintOut(examples=[
+            HintExample(korean="화장실에 가요", roman="hwajangsire gayo",
+                        native="I'm going to the bathroom"),
+            HintExample(korean="화장실 어디예요?", roman="hwajangsil eodiyeyo?",
+                        native="Where is the bathroom?"),
+            HintExample(korean="잠깐만요", roman="jamkkanmanyo", native="One moment"),
+        ])
 
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _hint_generate)
 
@@ -393,7 +403,8 @@ async def test_hint_task_created_cancelled_and_pushed(session_factory, seeded, m
     # 질문2 힌트가 해당 턴 id 로 push 됐다.
     msgs = [json.loads(t) for t in ws.sent_text]
     hints = [m for m in msgs if m.get("type") == "hint"]
-    assert len(hints) == 1 and hints[0]["korean"] == "화장실에 가요"
+    assert len(hints) == 1 and len(hints[0]["examples"]) == 3
+    assert hints[0]["examples"][0]["korean"] == "화장실에 가요"
     turn_ends = [m["turn_id"] for m in msgs if m.get("type") == "turn_end"]
     assert len(turn_ends) >= 2 and hints[0]["turn_id"] == turn_ends[1]
 
@@ -402,8 +413,11 @@ async def test_hint_task_created_cancelled_and_pushed(session_factory, seeded, m
 
 
 @pytest.mark.asyncio
-async def test_no_hint_task_for_non_question_or_level2(session_factory, seeded, monkeypatch):
-    """평서 턴('?' 없음)은 힌트 미생성 / 레벨 2+ normal 통화는 사이드카 자체 비활성."""
+async def test_no_hint_task_for_non_question_turn(session_factory, seeded, monkeypatch):
+    """평서 턴('?' 없음)은 힌트 미생성(질문 턴만 힌트 생성).
+
+    ※ 힌트는 이제 전 통화(레벨테스트·일반, 레벨 무관)에서 활성 — 사장님 결정으로 레벨
+    게이팅 폐지. 따라서 '레벨2는 힌트 비활성' 검증은 제거(더 이상 그런 규칙 없음)."""
     calls: list[str] = []
 
     async def _spy_generate(client, model, *, system_instruction, prompt, schema,
@@ -443,33 +457,3 @@ async def test_no_hint_task_for_non_question_or_level2(session_factory, seeded, 
     await _wait_analysis_tasks()
     assert calls == [], "평서 턴에 힌트 태스크가 생성됨"
     assert not any(m.get("type") == "hint" for m in map(json.loads, ws.sent_text))
-
-    # (b) 레벨 2 회원: normal 통화에서 사이드카 비활성(질문 턴이어도 미생성)
-    db = session_factory()
-    try:
-        db.add(Level(level_no=2, profile="초급 A"))
-        member2 = Member(language="en", korean_level=2, onboarding_completed=True,
-                         auth_user_id="auth-member-2")
-        db.add(member2)
-        db.commit()
-        member2_id = member2.member_id
-    finally:
-        db.close()
-
-    class Question(Statement):
-        async def events(self):
-            yield LiveEvent(kind="out_tr", text="주말에 뭐 했어요?")
-            yield LiveEvent(kind="turn_end")
-
-    @_cl.asynccontextmanager
-    async def factory2(client, settings, *, system_instruction, voice):
-        yield Question()
-
-    ws2 = FakeWebSocket([
-        {"type": "websocket.receive",
-         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
-    ], hang=True)
-    await run_call(ws2, app_settings, object(), session_factory,
-                   member_id=member2_id, live_session_factory=factory2)
-    await _wait_analysis_tasks()
-    assert calls == [], "레벨 2 normal 통화에서 힌트 태스크가 생성됨(enable_hints 위반)"

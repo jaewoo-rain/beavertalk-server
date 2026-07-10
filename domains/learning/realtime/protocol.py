@@ -32,6 +32,8 @@ class ClientStart(BaseModel):
         call_type: (선택) 통화 종류. None(기본)이면 서버가 판단한다(D11 자동 라우팅:
             member.korean_level 미확정 → level_test). 명시하면 그 값이 우선 —
             미래 레벨 재측정 요청 통로(기존 클라는 이 필드를 안 보내므로 무영향).
+        duration_min: (선택) 통화 길이(분) override. **데모/dev 전용** — prod 에서는
+            서버가 무시하고 기본값을 쓴다. 서버가 3~15분으로 클램프. 없으면 기본값.
     """
 
     type: Literal["start"] = "start"
@@ -39,6 +41,7 @@ class ClientStart(BaseModel):
     locale: str | None = None
     target_language: str | None = None
     call_type: Literal["normal", "level_test"] | None = None
+    duration_min: int | None = None
 
 
 class ClientPlaybackDone(BaseModel):
@@ -146,18 +149,25 @@ class ServerTeachingPlan(BaseModel):
     items: list[TeachingItem]
 
 
+class HintExample(BaseModel):
+    """예시 답변 1개(한국어 문장 + 로마자 + 모국어 뜻)."""
+
+    korean: str
+    roman: str | None = None
+    native: str
+
+
 class ServerHint(BaseModel):
-    """비버 질문에 대한 예시 답변 힌트(D16 — 서버 사이드카 LLM 생성, 3줄).
+    """비버 질문에 대한 예시 답변 힌트(D16 — 서버 사이드카 LLM 생성, 예시 3개).
 
     turn_id = 질문한 비버 턴의 id. 클라는 접힌 힌트 상자로 표시하고, 열람 시
-    hint_used(turn_id)를 되보낸다(증거 E1 강등 재료).
+    hint_used(turn_id)를 되보낸다(증거 E1 강등 재료). examples 는 난이도·표현이 조금씩
+    다른 예시 답변 3개(학습자가 골라 참고).
     """
 
     type: Literal["hint"] = "hint"
     turn_id: str
-    korean: str
-    roman: str | None = None
-    native: str
+    examples: list[HintExample]
 
 
 ServerMessage = Annotated[
