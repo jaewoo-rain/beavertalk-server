@@ -27,9 +27,23 @@
   .lvl { font-size:34px; font-weight:800; letter-spacing:1px; margin:6px 0; color:var(--pri); }
   .dot { width:8px; height:8px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
   .dot.on { background:var(--good); }
+  /* 전체화면 로딩 오버레이(레벨 판정 중) */
+  #loadOverlay { position:fixed; inset:0; background:rgba(8,10,14,.85); display:none;
+    align-items:center; justify-content:center; flex-direction:column; z-index:1000; backdrop-filter:blur(2px); }
+  #loadOverlay.on { display:flex; }
+  .spinner { width:56px; height:56px; border:5px solid #2a2e38; border-top-color:var(--pri);
+    border-radius:50%; animation:spin 0.9s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #loadOverlay .lmsg { color:var(--txt); margin-top:18px; font-size:15px; font-weight:600; }
+  #loadOverlay .lsub { color:var(--sub); margin-top:6px; font-size:12px; }
 </style>
 </head>
 <body>
+<div id="loadOverlay">
+  <div class="spinner"></div>
+  <div class="lmsg">🦫 레벨 판정 중…</div>
+  <div class="lsub">통화 내용을 분석하고 있어요. 잠시만 기다려 주세요.</div>
+</div>
 <div class="wrap">
   <h1>🦫 BeaverTalk — 레벨테스트 통화 데모</h1>
   <div class="muted">첫 통화(레벨 측정)를 브라우저로 체험. 비버가 대화하듯 실력을 떠보고, 끝나면 레벨(1~13)이 판정·저장됩니다.
@@ -56,7 +70,7 @@
 
   <!-- 통화 -->
   <div class="card">
-    <div class="step">STEP 1 · 레벨테스트 통화 (편하게 대답하세요 · 약 5분 후 자동 종료)</div>
+    <div class="step">STEP 1 · 레벨테스트 통화 (편하게 대답하세요 · 선택한 시간 후 자동 종료)</div>
     <div class="row" style="margin:8px 0">
       <span class="muted">캐릭터 ID</span><input id="cid" value="1" style="width:50px" />
       <span class="muted">모국어(안내 언어)</span>
@@ -69,10 +83,17 @@
       <label class="muted" title="끄면 앱과 동일한 자동 판단(레벨 없으면 테스트, 있으면 일반 통화). 켜면 레벨이 있어도 강제 재측정(non-prod 전용).">
         <input type="checkbox" id="force" checked /> 재측정 강제
       </label>
+      <span class="muted" title="데모/dev 전용 — 3~15분에서 선택. 10분 초과는 Gemini 연결 한계로 일찍 끝날 수 있음.">통화 길이</span>
+      <select id="dur">
+        <option value="3">3분</option>
+        <option value="5">5분</option>
+        <option value="10">10분</option>
+        <option value="15">15분</option>
+      </select>
       <span id="who" class="status muted"></span>
     </div>
     <div class="row" style="margin:8px 0">
-      <button id="callBtn" disabled>📞 레벨테스트 시작</button>
+      <button id="callBtn" disabled>📞 통화 시작</button>
       <button id="hangBtn" class="sec" disabled>통화 종료</button>
       <button id="resetBtn" class="sec" disabled title="이 계정의 레벨·체크판·증거·승급 이력을 전부 지워 백지 상태로">🗑 레벨 초기화</button>
       <span class="status"><span id="cdot" class="dot"></span><span id="cstat">대기</span></span>
@@ -86,9 +107,10 @@
 
   <!-- 판정 결과 -->
   <div class="card">
-    <div class="step">STEP 2 · 레벨 판정 결과</div>
+    <div class="step">STEP 2 · 레벨 판정 결과 + 복습 문장</div>
     <div id="ana" class="muted" style="margin-top:8px">통화가 끝나면 자동 판정됩니다…</div>
     <div id="lvlbox"></div>
+    <div id="sentbox"></div>
   </div>
 </div>
 
@@ -139,7 +161,7 @@ $('#resetBtn').onclick = async () => {
   const r = await api('/__dev/level-reset', { method:'POST' });
   if (!r.ok) { $('#mylvl').textContent = '초기화 실패: ' + r.status; return; }
   const d = await r.json();
-  $('#lvlbox').innerHTML = ''; $('#ana').textContent = '통화가 끝나면 자동 판정됩니다…';
+  $('#lvlbox').innerHTML = ''; $('#sentbox').innerHTML = ''; $('#ana').textContent = '통화가 끝나면 자동 판정됩니다…';
   await refreshMyLevel();
   $('#mylvl').textContent += ` — 🗑 초기화 완료(증거 ${d.deleted.evidence}·체크판 ${d.deleted.progress}·이력 ${d.deleted.history} 삭제)`;
 };
@@ -168,11 +190,11 @@ function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.len
 /* ---------- 통화 (WebSocket) ---------- */
 let ws, actx, mic, proc, gain0, playT=0, curSpeaker=null;
 let callGen=0, cdTimer=null, cdLeft=0;
-const CALL_DURATION_S = 300;  // 서버 CALL_DURATION_S(5분)와 동일.
+let callDurationS = 180;  // 통화 시작 시 선택한 길이(초)로 세팅 — 서버와 동일하게 카운트다운.
 
 function startCountdown() {
   if (cdTimer) return;
-  cdLeft = CALL_DURATION_S;
+  cdLeft = callDurationS;
   $('#ctime').textContent = `· 남은 시간 ~${cdLeft}s`;
   cdTimer = setInterval(() => {
     cdLeft--;
@@ -197,7 +219,7 @@ async function startCall() {
   stopCountdown(); $('#ctime').textContent='';
   if (actx) { try { await actx.close(); } catch {} actx=null; }
   playT=0; curSpeaker=null; callId=null; hideHint();
-  $('#tlog').innerHTML=''; $('#lvlbox').innerHTML=''; $('#ana').textContent='레벨테스트 통화 진행 중…';
+  $('#tlog').innerHTML=''; $('#lvlbox').innerHTML=''; $('#sentbox').innerHTML=''; $('#loadOverlay').classList.remove('on'); $('#ana').textContent='레벨테스트 통화 진행 중…';
   try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} }); }
   catch(e){ alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
   actx = new (window.AudioContext||window.webkitAudioContext)();
@@ -214,7 +236,9 @@ async function startCall() {
     // 핵심: target_language 는 절대 보내지 않는다(보내면 '언어 데모'로 분류돼 레벨테스트 차단).
     // call_type 은 선택: 미전송 = 앱과 동일한 서버 자동 판단(레벨 없으면 테스트) /
     //                    'level_test' 명시 = 레벨이 있어도 강제 재측정(non-prod 전용 통로).
-    const msg = { type:'start', character_id:+$('#cid').value||1, locale: $('#loc').value };
+    const durMin = +$('#dur').value || 3;
+    callDurationS = durMin * 60;  // 카운트다운을 선택 길이에 맞춤(서버가 3~15분 클램프).
+    const msg = { type:'start', character_id:+$('#cid').value||1, locale: $('#loc').value, duration_min: durMin };
     if ($('#force').checked) msg.call_type = 'level_test';
     ws.send(JSON.stringify(msg));
     $('#cdot').className='dot on'; $('#cstat').textContent=$('#force').checked ? '레벨테스트 중(강제)' : '통화 중(서버 자동 판단)';
@@ -261,10 +285,13 @@ function showHint(m) {
   box.innerHTML = '<button id="hintBtn" class="sec">💡 힌트 보기 (예시 답변)</button>';
   $('#hintBtn').onclick = () => {
     if (!curHint) return;
-    box.innerHTML =
-      `<div style="font-weight:700">${esc(curHint.korean)}</div>` +
-      `<div class="muted">${esc(curHint.roman||'')}</div>` +
-      `<div class="muted">${esc(curHint.native)}</div>`;
+    const ex = curHint.examples || [];
+    box.innerHTML = ex.map((e, i) =>
+      `<div style="margin:6px 0; padding:6px 8px; border-left:2px solid var(--warn)">` +
+      `<div style="font-weight:700">${i+1}. ${esc(e.korean)}</div>` +
+      `<div class="muted">${esc(e.roman||'')}</div>` +
+      `<div class="muted">${esc(e.native)}</div></div>`
+    ).join('') || '<div class="muted">힌트 없음</div>';
     // 연 순간 1회 전송(ack 불요 — 유실되면 사용자에게 유리한 쪽 오차)
     if (ws && ws.readyState===1) { try { ws.send(JSON.stringify({ type:'hint_used', turn_id: curHint.turn_id })); } catch {} }
   };
@@ -280,14 +307,16 @@ async function afterCall(myGen) {
   }
   if (!callId) { $('#ana').textContent='통화 id 를 찾지 못했어요.'; return; }
   $('#ana').textContent='판정 중… (Gemini 가 전사를 분석해 레벨을 매깁니다)';
+  $('#loadOverlay').classList.add('on');  // 전체화면 로딩 — 판정 끝날 때까지
   let last = null;
   for (let i=0;i<40;i++) {
     await new Promise(r=>setTimeout(r,1500));
-    if (myGen !== callGen) return;
+    if (myGen !== callGen) { $('#loadOverlay').classList.remove('on'); return; }
     try { last = await (await api(`/api/v1/calls/${callId}/status`)).json(); } catch { continue; }
     $('#ana').textContent = `판정 상태: ${last.status} (call_type=${last.call_type||'?'})`;
     if (last.status==='done' || last.status==='failed') break;
   }
+  $('#loadOverlay').classList.remove('on');  // 판정 끝 → 오버레이 해제(결과 표시 전)
   if (myGen !== callGen || !last) return;
   const lvl = last.assessed_level;
   if (last.call_type !== 'level_test') {
@@ -304,7 +333,29 @@ async function afterCall(myGen) {
   } else {
     $('#lvlbox').innerHTML = `<div class="err">판정 실패(status=${last.status}) — 레벨 미저장. 다시 시도해 보세요.</div>`;
   }
+  await showSentences(callId);
   await refreshMyLevel();
+}
+
+/* 통화후 추출된 복습 문장(korean/native) 표시 — GET /calls/{id}/result */
+async function showSentences(cid) {
+  try {
+    const r = await api(`/api/v1/calls/${cid}/result`);
+    if (!r.ok) return;
+    const res = await r.json();
+    const sents = res.sentences || [];
+    if (!sents.length) {
+      $('#sentbox').innerHTML = '<div class="muted" style="margin-top:10px">📚 복습 문장이 아직 없어요(이번 통화에서 추출된 문장 없음).</div>';
+      return;
+    }
+    $('#sentbox').innerHTML =
+      `<div style="margin-top:12px; font-weight:700">📚 복습 문장 (${sents.length}개)</div>` +
+      sents.map(s =>
+        `<div style="margin:6px 0; padding:8px; border:1px solid var(--line); border-radius:8px">` +
+        `<div style="font-weight:600">${esc(s.korean_sentence||'')}</div>` +
+        `<div class="muted">${esc(s.native_sentence||'')}</div></div>`
+      ).join('');
+  } catch {}
 }
 
 /* 자동 로그인 없음 — 테스터가 STEP 0 에서 계정을 선택해 직접 로그인한다. */
