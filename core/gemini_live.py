@@ -1,7 +1,8 @@
 """Gemini Live 세션 래퍼 (normalcall 실시간 음성통화) — 외부 어댑터.
 
 beavertalk 서버의 검증된 live.py 를 이 프로젝트로 포팅. Vertex native-audio +
-컨텍스트 윈도우 압축(5분+ 통화 유지의 핵심) + 입출력 전사 + 단일 prebuilt voice.
+컨텍스트 윈도우 압축(세션 한계: 오디오 15분/연결 ~10분 — 압축은 드리프트 완화·장기
+통화 대비, S2) + 입출력 전사 + 단일 prebuilt voice.
 도메인/DB/프롬프트를 모른다(speechsuper.py 와 동일한 어댑터 규율). system_instruction
 과 voice 는 호출부(realtime)가 조립해 넘긴다.
 
@@ -28,7 +29,7 @@ DEFAULT_VOICE = "Fenrir"
 # native-audio 모델은 temperature=0 에서 반복·로봇처럼 되므로 0 을 쓰지 않는다.
 LIVE_TEMPERATURE = 0.6
 
-LiveEventKind = Literal["audio", "in_tr", "out_tr", "interrupted", "turn_end"]
+LiveEventKind = Literal["audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away"]
 
 
 @dataclass(slots=True)
@@ -39,6 +40,7 @@ class LiveEvent:
     audio: Optional[bytes] = None      # kind=="audio": 출력 PCM24k
     text: Optional[str] = None         # kind in {in_tr,out_tr}: 전사
     is_final: bool = False             # 입력 전사 확정 여부
+    time_left: Optional[str] = None    # kind=="go_away": 서버 종료 예고 timeLeft(있으면)
 
 
 @runtime_checkable
@@ -47,6 +49,7 @@ class LiveSessionProtocol(Protocol):
 
     async def send_audio(self, pcm16_16k: bytes) -> None: ...
     async def send_text_turn(self, text: str) -> None: ...
+    async def send_reground(self, text: str) -> None: ...
     def events(self) -> AsyncIterator[LiveEvent]: ...
 
 
@@ -70,10 +73,13 @@ def build_live_config(
             )
         ),
         temperature=LIVE_TEMPERATURE,
-        # ⭐ 5분+ 통화 유지의 핵심: 오디오는 토큰 소모가 커 압축 없이는 ~2분 만에
-        # 컨텍스트 한계로 서버가 세션을 닫는다. 슬라이딩 윈도우로 길게 유지.
+        # ⭐ 세션 한계(압축 無): 오디오 15분 / 연결 자체 ~10분(S2). 압축은 세션을
+        # 무제한으로 늘리는 동시에, 오래된 오디오 토큰을 밀어내 5분 통화의 드리프트를
+        # 완화하는 역할이다. 블랙박스 기본값 대신 명시값을 박는다: trigger_tokens 에서
+        # 압축이 발동해 target_tokens 만큼 유지(gemini-live 권고값, 실측 튜닝 대상).
         context_window_compression=types.ContextWindowCompressionConfig(
-            sliding_window=types.SlidingWindow(),
+            trigger_tokens=16000,
+            sliding_window=types.SlidingWindow(target_tokens=12000),
         ),
         safety_settings=[
             types.SafetySetting(
@@ -118,6 +124,17 @@ class GeminiLiveSession:
             turn_complete=True,
         )
 
+    async def send_reground(self, text: str) -> None:
+        """조용한 재접지: 리마인더를 컨텍스트에만 추가(turn_complete=False — 즉시 응답 안 만듦).
+
+        통화 중 1회만 주입해 캐릭터를 되살린다(단발 — 반복 주입은 모델이 '[시스템]' 지문을
+        낭독하게 만들어 금지, 실측 call 164). 다음 학습자 발화 직전에 캐릭터가 되살아난다.
+        """
+        await self._session.send_client_content(
+            turns=types.Content(role="user", parts=[types.Part(text=text)]),
+            turn_complete=False,
+        )
+
     async def events(self) -> AsyncIterator[LiveEvent]:
         """SDK 응답 스트림을 LiveEvent 로 정규화해 yield.
 
@@ -132,6 +149,16 @@ class GeminiLiveSession:
                 data = getattr(response, "data", None)
                 if data:
                     yield LiveEvent(kind="audio", audio=data)
+
+                # GoAway: 서버가 곧 연결을 닫겠다는 예고(연결 ~10분 한계, S2). server_content 와
+                # 무관한 최상위 필드라 None-가드보다 먼저 본다. SDK 필드명은 방어적으로(getattr) —
+                # timeLeft 로 우아한 마무리를 유도. 종료 시드 파이프로 합류.
+                go_away = getattr(response, "go_away", None)
+                if go_away is not None:
+                    yield LiveEvent(
+                        kind="go_away",
+                        time_left=getattr(go_away, "time_left", None),
+                    )
 
                 server_content = getattr(response, "server_content", None)
                 if server_content is None:

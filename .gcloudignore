@@ -1,0 +1,37 @@
+# 가상환경 / 캐시
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# VCS / 에디터 / 도구
+.git/
+.gitignore
+.vscode/
+.idea/
+.claude/
+.mcp.json
+
+# 비밀값 / 로컬 설정 (절대 이미지에 넣지 않음)
+.env
+.env.*
+
+# 런타임에 불필요
+front/
+docs/
+tests/
+*.md
+
+# 대용량 생성물
+api-docs.html
+openapi.json
+BeaverTalk.vuerd.json
+
+gcp_key.json
+
+# FCM/서비스계정 키 (절대 이미지에 넣지 않음)
+*fcm*.json
+*service-account*.json# (Cloud Build 업로드 제외 — .dockerignore 와 동일 유지. .gitignore 와 분리해 gitignore 변경이 빌드를 깨지 않게)

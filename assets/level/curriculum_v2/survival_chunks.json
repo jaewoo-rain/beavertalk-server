@@ -1,0 +1,374 @@
+{
+  "level_no": 1,
+  "count": 46,
+  "items": [
+    {
+      "no": 1,
+      "category": "인사",
+      "ko": "안녕하세요?",
+      "roman": "annyeonghaseyo?",
+      "meaning_en": "Hello.",
+      "situation": "만능 인사·통화 시작"
+    },
+    {
+      "no": 2,
+      "category": "인사",
+      "ko": "만나서 반갑습니다",
+      "roman": "mannaseo bangapseumnida",
+      "meaning_en": "Nice to meet you.",
+      "situation": "첫 만남"
+    },
+    {
+      "no": 3,
+      "category": "인사",
+      "ko": "잘 지냈어요?",
+      "roman": "jal jinaesseoyo?",
+      "meaning_en": "How have you been?",
+      "situation": "아는 사이 재회"
+    },
+    {
+      "no": 4,
+      "category": "인사",
+      "ko": "안녕히 가세요",
+      "roman": "annyeonghi gaseyo",
+      "meaning_en": "Goodbye (to one leaving).",
+      "situation": "상대가 떠날 때"
+    },
+    {
+      "no": 5,
+      "category": "인사",
+      "ko": "안녕히 계세요",
+      "roman": "annyeonghi gyeseyo",
+      "meaning_en": "Goodbye (I'm leaving).",
+      "situation": "내가 떠날 때"
+    },
+    {
+      "no": 6,
+      "category": "인사",
+      "ko": "또 봐요",
+      "roman": "tto bwayo",
+      "meaning_en": "See you again.",
+      "situation": "가벼운 작별"
+    },
+    {
+      "no": 7,
+      "category": "인사",
+      "ko": "좋은 하루 보내세요",
+      "roman": "joeun haru bonaeseyo",
+      "meaning_en": "Have a good day.",
+      "situation": "작별 덧붙임"
+    },
+    {
+      "no": 8,
+      "category": "인사",
+      "ko": "어서 오세요",
+      "roman": "eoseo oseyo",
+      "meaning_en": "Welcome.",
+      "situation": "가게·식당에서 듣기"
+    },
+    {
+      "no": 9,
+      "category": "감사·사과",
+      "ko": "감사합니다",
+      "roman": "gamsahamnida",
+      "meaning_en": "Thank you.",
+      "situation": "격식 감사"
+    },
+    {
+      "no": 10,
+      "category": "감사·사과",
+      "ko": "고마워요",
+      "roman": "gomawoyo",
+      "meaning_en": "Thanks.",
+      "situation": "친근한 감사"
+    },
+    {
+      "no": 11,
+      "category": "감사·사과",
+      "ko": "아니에요",
+      "roman": "anieyo",
+      "meaning_en": "Not at all.",
+      "situation": "감사·사과 응답"
+    },
+    {
+      "no": 12,
+      "category": "감사·사과",
+      "ko": "죄송합니다",
+      "roman": "joesonghamnida",
+      "meaning_en": "I'm sorry.",
+      "situation": "격식 사과"
+    },
+    {
+      "no": 13,
+      "category": "감사·사과",
+      "ko": "미안해요",
+      "roman": "mianhaeyo",
+      "meaning_en": "Sorry.",
+      "situation": "가벼운 사과"
+    },
+    {
+      "no": 14,
+      "category": "감사·사과",
+      "ko": "괜찮아요",
+      "roman": "gwaenchanayo",
+      "meaning_en": "It's okay.",
+      "situation": "사과 응답·사양·안부 답"
+    },
+    {
+      "no": 15,
+      "category": "긍정·부정·반응",
+      "ko": "네",
+      "roman": "ne",
+      "meaning_en": "Yes.·I see.",
+      "situation": "긍정+맞장구"
+    },
+    {
+      "no": 16,
+      "category": "긍정·부정·반응",
+      "ko": "아니요",
+      "roman": "aniyo",
+      "meaning_en": "No.",
+      "situation": "부정"
+    },
+    {
+      "no": 17,
+      "category": "긍정·부정·반응",
+      "ko": "좋아요",
+      "roman": "joayo",
+      "meaning_en": "Good!",
+      "situation": "승낙·호감"
+    },
+    {
+      "no": 18,
+      "category": "긍정·부정·반응",
+      "ko": "맞아요",
+      "roman": "majayo",
+      "meaning_en": "That's right.",
+      "situation": "동의"
+    },
+    {
+      "no": 19,
+      "category": "긍정·부정·반응",
+      "ko": "알겠어요",
+      "roman": "algesseoyo",
+      "meaning_en": "Got it.",
+      "situation": "이해 확인"
+    },
+    {
+      "no": 20,
+      "category": "긍정·부정·반응",
+      "ko": "몰라요",
+      "roman": "mollayo",
+      "meaning_en": "I don't know.",
+      "situation": "모를 때"
+    },
+    {
+      "no": 21,
+      "category": "긍정·부정·반응",
+      "ko": "진짜요?",
+      "roman": "jinjjayo?",
+      "meaning_en": "Really?",
+      "situation": "놀람"
+    },
+    {
+      "no": 22,
+      "category": "긍정·부정·반응",
+      "ko": "맛있어요",
+      "roman": "masisseoyo",
+      "meaning_en": "It's delicious.",
+      "situation": "음식 리액션"
+    },
+    {
+      "no": 23,
+      "category": "자기소개",
+      "ko": "저는 ◯◯이에요",
+      "roman": "jeoneun OOieyo",
+      "meaning_en": "I'm ◯◯.",
+      "situation": "이름 말하기(슬롯)"
+    },
+    {
+      "no": 24,
+      "category": "자기소개",
+      "ko": "저는 ◯◯ 사람이에요",
+      "roman": "jeoneun OO saramieyo",
+      "meaning_en": "I'm from ◯◯.",
+      "situation": "국적(슬롯)"
+    },
+    {
+      "no": 25,
+      "category": "자기소개",
+      "ko": "이름이 뭐예요?",
+      "roman": "ireumi mwoyeyo?",
+      "meaning_en": "What's your name?",
+      "situation": "상대 이름 묻기"
+    },
+    {
+      "no": 26,
+      "category": "자기소개",
+      "ko": "처음 뵙겠습니다",
+      "roman": "cheoeum boepgesseumnida",
+      "meaning_en": "How do you do.",
+      "situation": "격식 첫인사"
+    },
+    {
+      "no": 27,
+      "category": "자기소개",
+      "ko": "잘 부탁드립니다",
+      "roman": "jal butakdeurimnida",
+      "meaning_en": "Please take good care of me.",
+      "situation": "첫 만남 마무리"
+    },
+    {
+      "no": 28,
+      "category": "생존 요청",
+      "ko": "이거 주세요",
+      "roman": "igeo juseyo",
+      "meaning_en": "This one, please.",
+      "situation": "주문"
+    },
+    {
+      "no": 29,
+      "category": "생존 요청",
+      "ko": "얼마예요?",
+      "roman": "eolmayeyo?",
+      "meaning_en": "How much is it?",
+      "situation": "가격"
+    },
+    {
+      "no": 30,
+      "category": "생존 요청",
+      "ko": "화장실이 어디예요?",
+      "roman": "hwajangsiri eodiyeyo?",
+      "meaning_en": "Where is the bathroom?",
+      "situation": "장소"
+    },
+    {
+      "no": 31,
+      "category": "생존 요청",
+      "ko": "도와주세요",
+      "roman": "dowajuseyo",
+      "meaning_en": "Please help me.",
+      "situation": "긴급"
+    },
+    {
+      "no": 32,
+      "category": "생존 요청",
+      "ko": "여기요!",
+      "roman": "yeogiyo!",
+      "meaning_en": "Excuse me!",
+      "situation": "점원 부르기"
+    },
+    {
+      "no": 33,
+      "category": "생존 요청",
+      "ko": "잠시만요",
+      "roman": "jamsimanyo",
+      "meaning_en": "Just a moment.",
+      "situation": "시간 벌기"
+    },
+    {
+      "no": 34,
+      "category": "생존 요청",
+      "ko": "배고파요",
+      "roman": "baegopayo",
+      "meaning_en": "I'm hungry.",
+      "situation": "상태"
+    },
+    {
+      "no": 35,
+      "category": "생존 요청",
+      "ko": "물 주세요",
+      "roman": "mul juseyo",
+      "meaning_en": "Water, please.",
+      "situation": "식당"
+    },
+    {
+      "no": 36,
+      "category": "학습자 전략",
+      "ko": "다시 말해 주세요",
+      "roman": "dasi malhae juseyo",
+      "meaning_en": "Please say that again.",
+      "situation": "못 알아들음"
+    },
+    {
+      "no": 37,
+      "category": "학습자 전략",
+      "ko": "천천히 말해 주세요",
+      "roman": "cheoncheonhi malhae juseyo",
+      "meaning_en": "Please speak slowly.",
+      "situation": "속도 조절"
+    },
+    {
+      "no": 38,
+      "category": "학습자 전략",
+      "ko": "잘 못 들었어요",
+      "roman": "jal mot deureosseoyo",
+      "meaning_en": "I didn't catch that.",
+      "situation": "청취 실패"
+    },
+    {
+      "no": 39,
+      "category": "학습자 전략",
+      "ko": "뭐라고요?",
+      "roman": "mworagoyo?",
+      "meaning_en": "What did you say?",
+      "situation": "되묻기"
+    },
+    {
+      "no": 40,
+      "category": "학습자 전략",
+      "ko": "◯◯이/가 뭐예요?",
+      "roman": "OOi-ga mwoyeyo?",
+      "meaning_en": "What is ◯◯?",
+      "situation": "단어 뜻(슬롯)"
+    },
+    {
+      "no": 41,
+      "category": "학습자 전략",
+      "ko": "한국어로 어떻게 말해요?",
+      "roman": "hangugeoro eotteoke malhaeyo?",
+      "meaning_en": "How do you say it in Korean?",
+      "situation": "표현 묻기"
+    },
+    {
+      "no": 42,
+      "category": "학습자 전략",
+      "ko": "이해 못 했어요",
+      "roman": "ihae mot haesseoyo",
+      "meaning_en": "I didn't understand.",
+      "situation": "이해 실패"
+    },
+    {
+      "no": 43,
+      "category": "숫자",
+      "ko": "하나·둘·셋·넷·다섯",
+      "roman": "hana dul set net daseot",
+      "meaning_en": "1–5 (native)",
+      "situation": "개수"
+    },
+    {
+      "no": 44,
+      "category": "숫자",
+      "ko": "여섯·일곱·여덟·아홉·열",
+      "roman": "yeoseot ilgop yeodeol ahop yeol",
+      "meaning_en": "6–10 (native)",
+      "situation": "개수"
+    },
+    {
+      "no": 45,
+      "category": "숫자",
+      "ko": "일·이·삼·사·오·육·칠·팔·구·십",
+      "roman": "il i sam sa o yuk chil pal gu sip",
+      "meaning_en": "1–10 (Sino)",
+      "situation": "가격·번호"
+    },
+    {
+      "no": 46,
+      "category": "숫자",
+      "ko": "한 개 주세요·두 개 주세요",
+      "roman": "han gae juseyo·du gae juseyo",
+      "meaning_en": "One·Two, please.",
+      "situation": "수사+단위 실전"
+    }
+  ]
+}
