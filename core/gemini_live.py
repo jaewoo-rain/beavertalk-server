@@ -124,15 +124,19 @@ class GeminiLiveSession:
             turn_complete=True,
         )
 
-    async def send_reground(self, text: str) -> None:
-        """조용한 재접지: 리마인더를 컨텍스트에만 추가(turn_complete=False — 즉시 응답 안 만듦).
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        """재접지: 캐릭터 리마인더를 user 텍스트로 주입한다.
 
-        통화 중 1회만 주입해 캐릭터를 되살린다(단발 — 반복 주입은 모델이 '[시스템]' 지문을
-        낭독하게 만들어 금지, 실측 call 164). 다음 학습자 발화 직전에 캐릭터가 되살아난다.
+        turn_complete 의미(두 재접지 모드가 갈린다):
+        - True(legacy_idle): 완결 턴 → 비버가 즉시 캐릭터답게 응답(별도 턴 → 이중 발화).
+        - False(on_user_turn): 미완결 텍스트를 **진행 중 유저 발화 턴에 얹어** 유저 발화가
+          완결하게 한다 → 비버가 [유저발화+리마인더]에 한 번만 응답(이중발화·잔류 제거 목표).
+          ⚠ 오디오 VAD 턴 + client_content 병합은 Gemini 공식 보장 아님(미정의) → 실측 검증 필요.
+          반드시 종료 구간 밖(should_close/close_seed_sent 아님)에서만 호출(늦은 얹기=작별 오염).
         """
         await self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
-            turn_complete=False,
+            turn_complete=turn_complete,
         )
 
     async def events(self) -> AsyncIterator[LiveEvent]:

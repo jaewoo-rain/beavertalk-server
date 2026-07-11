@@ -205,10 +205,11 @@ function startCountdown() {
 function stopCountdown() { if (cdTimer) { clearInterval(cdTimer); cdTimer=null; } }
 
 function sendPlaybackDoneWhenDrained() {
+  // 작별 오디오(~3-4초)가 다 재생될 때까지 기다렸다 ack — 캡 6초(과거 1.8초는 작별 꼬리가 잘림).
   const remainMs = actx ? Math.max(0, (playT - actx.currentTime) * 1000) : 0;
   setTimeout(() => {
     if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ type:'playback_done' })); } catch {} }
-  }, Math.min(remainMs, 1800));
+  }, Math.min(remainMs, 6000));
 }
 
 $('#callBtn').onclick = startCall;

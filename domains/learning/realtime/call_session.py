@@ -63,17 +63,27 @@ CALL_DURATION_S = 300.0          # 기본 통화 길이(5분). 레벨 데모는 
 # 우아하게 마무리하도록 540s(9분)로 하향. 정상 5분 통화는 이 상한에 닿지 않아 무영향.
 ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백스톱, 연결 ~10분 선점)
 SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
-PLAYBACK_DONE_WAIT_S = 4.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유)
+PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
+#                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
 FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 주기(1분)
 # 무음 3단 넛지(A2): 클라 마이크는 상시 스트리밍이라 무음을 오디오 부재로 못 잰다 —
 # 무음 = 마지막 활동(학습자 in_tr / 비버 turn_end / 넛지) 이후 경과. 비버 idle(turn_id None)일 때만
 # 카운트하고, 각 단계는 "직전 활동 이후" 신선한 무음을 잰다(비버 발화 직후 넛지 폭발 방지).
-IDLE_NUDGE1_S = 15.0  # 1단: 비버 발화 종료 후 무음 15s → 새 화제로 가볍게 이어가라(작별 금지)
+IDLE_NUDGE1_S = 60.0  # 1단: 비버 발화 종료 후 무음 60s → 새 화제로 가볍게 이어가라(작별 금지). 학습자가 한국어 문장을 떠올리는 시간을 넉넉히 준다(짧으면 생각 중에 넛지가 끼어듦)
 IDLE_NUDGE2_S = 10.0  # 2단: 1단 넛지 후 재무음 10s → 모국어로 "거기 있어?" 확인
 IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 직접 주입(우아한 종료)
-# 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터(DB 3필드)를 딱 1회 조용히 되박아
-# 누적 드리프트 완화. 반복 주입 금지(모델이 '[시스템]' 낭독 — 실측 call 164) → 1회뿐.
+# 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
+# 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
+#   "on_user_turn" — 신방식: arm 후 유저 발화 시작(첫 in_tr) 시 그 턴에 얹기(turn_complete=False).
+#                    비버가 [유저발화+리마인더]에 1회 응답 → 이중발화·종료오염 제거 목표.
+#                    ⚠ 오디오 턴+텍스트 병합은 Gemini 미보장 → 실측 검증 대상(T7).
+#   "legacy_idle"  — 구방식: duration/2 idle 에 send_reground(turn_complete=True) 별도 응답(이중발화).
+#   "off"          — 재접지 전면 비활성 = 하드닝만(가장 안전한 폴백).
+REGROUND_MODE = "on_user_turn"
+# on_user_turn 얹기 시점: "first"(유저 발화 초입, 권장) / "final"(is_final 직후 — 병합이 초입서
+# 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
+REGROUND_ATTACH_AT = "first"
 DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(BABA, 기본 무료)
 DEFAULT_TARGET_LANGUAGE = "한국어"    # 교육 대상 언어 기본값(프로덕션 — 오버라이드 없으면 이 값)
 # 데모 전용 모국어 라벨 확장(전역 _LOCALE_LABEL 은 안 건드림 → prod 는 ko→영어 폴백 유지).
@@ -153,14 +163,15 @@ class _CallState:
     """두 펌프가 공유하는 통화 상태(세그먼트 누적 + 시계 + 종료 플래그)."""
 
     __slots__ = (
-        "turn_id", "call_start_ts", "should_close", "close_seed_sent", "seed_sent_ts",
+        "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
+        "seed_sent_ts",
         "playback_done_event", "segments", "persisted_count",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
-        "reground_reminder",
+        "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
     )
 
     def __init__(self) -> None:
@@ -171,6 +182,9 @@ class _CallState:
         self.call_start_ts: Optional[float] = None
         self.should_close = False
         self.close_seed_sent = False
+        # 종료 시드 후 비버가 '실제로 작별 턴을 시작'했는지. 빈 turn_end(이전 활동 잔여)로
+        # 작별 전에 조기 종료되는 버그 방지 — 이 플래그가 서야만 turn_end 로 종료한다.
+        self.close_reply_started = False
         self.seed_sent_ts: Optional[float] = None
         self.playback_done_event = asyncio.Event()
         self.segments: list[dict] = []
@@ -205,6 +219,13 @@ class _CallState:
         self.call_duration_s: float = CALL_DURATION_S
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
+        # 재접지 상태기계(on_user_turn):
+        #   reground_pending: arm 됨(fire_at 도달) — 다음 유저 발화 시작 시 얹는다.
+        #   reground_injected: 이미 얹음(단일 소유권 가드, 통화당 1회).
+        #   user_turn_open: 지금 유저 발화 턴이 열려 있나(첫 in_tr True → 비버 응답 시작 시 False).
+        self.reground_pending: bool = False
+        self.reground_injected: bool = False
+        self.user_turn_open: bool = False
 
 
 class _ClientDisconnect(Exception):
@@ -358,8 +379,9 @@ async def run_call(
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
-        # 단발 재접지 리마인더(일반 통화만): DB 캐릭터 3필드를 중간에 1회 되박아 드리프트 완화.
-        reground_reminder = build_reground_reminder(setup["role"], setup["personality"], setup["rules"])
+        # 단발 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"): DB 캐릭터 3필드를 중간에 1회 되박음.
+        if REGROUND_MODE != "off":
+            reground_reminder = build_reground_reminder(setup["role"], setup["personality"], setup["rules"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
@@ -860,21 +882,54 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 await _inject_close_seed(session, state)
             continue
 
+        # 재접지 얹기(on_user_turn): "첫 in_tr"(유저 발화 시작) 판별은 _forward_event 가
+        # user_turn_open 을 True 로 바꾸기 전에 해야 한다.
+        in_tr_first = event.kind == "in_tr" and not state.user_turn_open
+
         turn_started = await _forward_event(client_ws, event, state)
 
         if turn_started:
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
+            state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
                 state.call_start_ts = asyncio.get_running_loop().time()
                 logger.info("normalcall: 통화 시계 시작(첫 turn_start)")
+            if state.close_seed_sent:
+                # 종료 시드 후 비버가 실제 작별 턴을 시작했다 — 이 턴 끝에서만 종료.
+                state.close_reply_started = True
+
+        # ── 재접지 "유저 발화 턴에 얹기"(on_user_turn) ──
+        # arm 됐고(reground_pending) 아직 안 얹었으면, 유저 발화 턴에 리마인더를 turn_complete=False
+        # 로 얹어 비버가 [유저발화+리마인더]에 1회 응답하게 한다(이중발화·잔류 제거 목표).
+        # ⛔ 가드①(핵심 안전): should_close/close_seed_sent 면 절대 안 얹음 — 종료 근처 늦은
+        #    in_tr 이 작별 턴을 오염(174/178 재발)하는 것을 원천 차단. ②1회만(reground_injected).
+        if (REGROUND_MODE == "on_user_turn" and event.kind == "in_tr"
+                and state.reground_pending and not state.reground_injected
+                and not state.should_close and not state.close_seed_sent):
+            attach_now = in_tr_first if REGROUND_ATTACH_AT == "first" else bool(event.is_final)
+            if attach_now:
+                state.reground_injected = True   # await 전 선점(단일 소유권)
+                state.reground_pending = False
+                try:
+                    await session.send_reground(state.reground_reminder, turn_complete=False)
+                    logger.info("normalcall: 재접지 얹기(유저 발화 턴, at=%s, tc=False)", REGROUND_ATTACH_AT)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
+                    logger.warning("normalcall: 재접지 얹기 실패(무시): %s", exc)
 
         if event.kind == "turn_end":
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
             _flush_beaver_segment(state)
             if state.close_seed_sent:
-                logger.info("normalcall: 종료 시드 응답 종료 → 종료 절차")
-                raise _CallFinished()
-            if state.should_close:  # 비버 발화중 경로: 이 턴 끝에서 주입(턴 안 자름)
+                # ⭐ 작별 턴이 실제로 시작됐을 때만 종료. 그 전(빈 turn_end — 이전 활동 잔여)
+                # 이면 무시하고 작별을 기다린다(조기 종료로 작별 인사 잘림 방지). 작별이 끝내
+                # 안 오면 _watch_call_clock 의 SEED_TO_HANGUP_S 백스톱이 강제 종료(무한대기 X).
+                if state.close_reply_started:
+                    logger.info("normalcall: 작별 발화 종료 → 종료 절차")
+                    raise _CallFinished()
+                logger.info("normalcall: 종료 시드 후 빈 turn_end — 작별 발화 대기(조기종료 방지)")
+            elif state.should_close:  # 비버 발화중 경로: 이 턴 끝에서 주입(턴 안 자름)
                 await _inject_close_seed(session, state)
 
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
@@ -899,6 +954,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         # A2: 입력 전사 = 학습자 활동 → 무음 시계 리셋 + 넛지 단계 원복(발화 재개).
         state.last_activity_ts = asyncio.get_running_loop().time()
         state.silence_stage = 0  # 발화 재개 → 넛지 단계 리셋
+        state.user_turn_open = True  # 유저 발화 턴 열림(비버 turn_start 시 flush 에서 False)
         await _send_json(client_ws, ServerInputTranscript(text=text))
         if text:
             state.cur_user_text.append(text)
@@ -961,9 +1017,14 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
     logger.info("normalcall: %.0fs 경과 → 종료 플래그", state.call_duration_s)
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.
+    # ⭐ 종료 레이스(call 197): 유저가 5분 직전 마지막에 말하면 "유저 발화 끝~비버 응답 시작"
+    #   빈틈에도 turn_id 는 None 이라, 여기서 시드를 주입하면 비버의 유저 응답이 작별로 둔갑한다
+    #   (close_reply_started 오설정 → 작별 없이 종료). user_turn_open 이면 워처는 양보하고,
+    #   비버가 유저에게 먼저 응답(turn_started 로 user_turn_open=False)한 뒤 그 turn_end 에서
+    #   펌프(_pump ...932 elif should_close)가 깨끗한 idle 에 시드를 주입 → 비버가 시드에 진짜 작별.
     seed_wait_deadline = loop.time() + SEED_TO_HANGUP_S
     while not state.close_seed_sent and loop.time() < seed_wait_deadline:
-        if state.turn_id is None:  # 비버 idle(소강) → 워처가 직접 주입
+        if state.turn_id is None and not state.user_turn_open:  # 비버 idle & 유저 응답 대기 없음
             await _inject_close_seed(session, state)
             break
         await asyncio.sleep(0.2)
@@ -1042,37 +1103,50 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
 
 
 async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
-    """통화 중간에 캐릭터(DB 3필드)를 딱 1회 조용히 되박는다(단발 재접지 — 사장님 요청).
+    """통화 중간(길이의 REGROUND_AT_FRACTION 지점)에 캐릭터를 딱 1회 되박는다(누적 드리프트 완화).
 
-    누적 드리프트(후반에 캐릭터가 밋밋해짐) 완화용. 통화 길이의 REGROUND_AT_FRACTION
-    시점에 idle(비버 미발화·무음 넛지 없음)일 때 send_reground(turn_complete=False)로 1회만.
-    ⚠ 반복 금지 — 반복 주입은 모델이 '[시스템]' 지문을 낭독하게 만든다(실측 call 164).
-    비활성(reground_reminder None = 레벨테스트 등)이면 즉시 종료. 종료 우선(should_close).
+    REGROUND_MODE 로 방식이 갈린다:
+      - "off": 아무것도 안 함(하드닝만 — 폴백).
+      - "legacy_idle": fire_at 에 비버 idle & 무음 넛지 없음이면 send_reground(turn_complete=True).
+                       비버가 별도 응답(이중발화). 회귀 대비 보존.
+      - "on_user_turn": fire_at 에 **arm 만**(reground_pending=True). 실제 얹기는 펌프가 다음 유저
+                        발화 턴에서 수행(turn_complete=False). 이 태스크는 send_reground 를 호출하지
+                        않는다 → 시각 판정(태스크)과 얹기 실행(펌프) 관심사 분리.
+    비활성(reground_reminder None = 레벨테스트 등)이면 즉시 종료. 종료 우선(should_close → arm 취소).
     """
-    if not state.reground_reminder:
+    if REGROUND_MODE == "off" or not state.reground_reminder:
         return
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
     fire_at = state.call_start_ts + state.call_duration_s * REGROUND_AT_FRACTION
+    while loop.time() < fire_at:
+        if state.should_close:  # 종료 우선 — arm 취소
+            return
+        await asyncio.sleep(0.2)
+    if state.should_close:
+        return
+
+    if REGROUND_MODE == "on_user_turn":
+        state.reground_pending = True  # 주입은 펌프가(유저 발화 턴에 얹기), 여기선 arm 만
+        logger.info("normalcall: 재접지 arm(다음 유저 발화 턴에 얹음)")
+        return
+
+    # legacy_idle: 즉시 주입(비버 idle & 무음 넛지 없음일 때만), turn_complete=True.
     while True:
         await asyncio.sleep(0.2)
-        if state.should_close:  # 종료 우선 — 재접지 취소
+        if state.should_close:
             return
-        if loop.time() < fire_at:
-            continue
-        # 주입 시점 도래: 비버 idle & 무음 넛지 진행중 아닐 때만(발화·넛지 흐름 안 흐리게).
         if state.turn_id is not None or state.silence_stage > 0:
             continue
-        # R5: 재접지는 비핵심 — 실패해도 통화를 죽이지 않는다(TaskGroup 전파 차단, 힌트와 동일).
         try:
-            await session.send_reground(state.reground_reminder)
-            logger.info("normalcall: 캐릭터 재접지 1회 주입(통화 중간, 단발)")
+            await session.send_reground(state.reground_reminder, turn_complete=True)
+            logger.info("normalcall: 캐릭터 재접지 1회 주입(legacy_idle, tc=True)")
         except asyncio.CancelledError:
             raise
-        except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향
-            logger.warning("normalcall: 재접지 주입 실패(무시 — 통화 계속): %s", exc)
-        return  # ⛔ 딱 한 번(성공·실패 무관)
+        except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
+            logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
+        return
 
 
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:

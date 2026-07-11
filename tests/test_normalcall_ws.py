@@ -401,6 +401,89 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
 
 
+@pytest.mark.asyncio
+async def test_close_seed_deferred_until_user_reply(session_factory, seeded, monkeypatch):
+    """종료 레이스 회귀(call 197): 5분 직전에 유저가 말하면 비버의 '유저 응답'이 작별로
+    둔갑하지 않고, 비버가 종료 시드에 '진짜 작별'을 한 뒤 종료한다.
+
+    수정 전 결함: 워처가 '유저 발화 끝~비버 응답 시작' 빈틈(turn_id None·user_turn_open True)에
+    시드를 주입 → 비버의 유저 응답 턴이 close_reply_started 로 오설정 → 작별 없이 즉시 종료.
+    수정 후: user_turn_open 이면 워처가 양보 → 비버가 유저에 먼저 응답하고, 그 turn_end 에서
+    펌프(should_close 경로)가 깨끗한 idle 에 시드 주입 → 비버가 시드에 작별.
+    """
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
+
+    class UserSpeaksThenClose:
+        """오프닝 후 유저가 말하고(=user_turn_open), 그 사이 5분 경과. 비버가 유저에 응답 →
+        그 뒤에야 시드가 오고, 시드에 진짜 작별 턴을 방출한다."""
+
+        def __init__(self):
+            self.sent_text_turns: list[str] = []
+            self._seeded = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            pass
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if text.startswith("[시스템]"):  # 종료 시드 수신 → 작별 턴 허용
+                self._seeded.set()
+
+        async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+            pass
+
+        async def events(self):
+            # 오프닝 비버 턴(여기서 통화 시계 시작)
+            yield LiveEvent(kind="out_tr", text="안녕하세요")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            # 유저가 5분 직전 말함 → user_turn_open=True
+            yield LiveEvent(kind="in_tr", text="네", is_final=True)
+            # 이 사이 0.3초(=5분)가 지나 종료 플래그가 뜬다. 워처는 유저 응답 대기 중이라
+            # 시드를 넣으면 안 된다(수정 전엔 여기서 넣어 다음 턴이 작별로 둔갑).
+            await asyncio.sleep(0.6)
+            # 비버가 '유저'에 응답(작별 아님) — 수정 전엔 이 턴이 작별로 오인돼 종료됨
+            yield LiveEvent(kind="out_tr", text="그렇군요")
+            yield LiveEvent(kind="audio", audio=b"\x11\x11")   # 유저 응답 오디오
+            yield LiveEvent(kind="turn_end")
+            # 이제(깨끗한 idle) 펌프가 시드 주입 → 진짜 작별 방출
+            await self._seeded.wait()
+            yield LiveEvent(kind="out_tr", text="잘 가요")
+            yield LiveEvent(kind="audio", audio=b"\x33\x33")   # 작별 오디오 마커
+            yield LiveEvent(kind="turn_end")
+
+    import contextlib as _cl
+    holder: dict = {}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        s = UserSpeaksThenClose()
+        holder["s"] = s
+        yield s
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    await _wait_analysis_tasks()
+
+    sess = holder["s"]
+    # 종료 시드는 주입됐다(정상 종료).
+    assert any(t.startswith("[시스템]") for t in sess.sent_text_turns), "종료 시드 미주입"
+    # 비버의 '유저 응답' 오디오가 전달됐다(정상 대화).
+    assert b"\x11\x11" in ws.sent_bytes, "비버의 유저 응답이 전달되지 않음"
+    # ⭐ 핵심: 진짜 작별 오디오가 전달됐다 — 유저 응답이 작별로 둔갑해 잘리지 않았다(레이스 회귀).
+    assert b"\x33\x33" in ws.sent_bytes, "진짜 작별 발화가 잘림(종료 레이스 회귀 — call 197)"
+
+
 def test_absolute_backstop_is_540s():
     """A3: 연결 ~10분 한계를 선점하도록 절대 백스톱이 540s(9분)로 하향됐다."""
     assert cs.ABSOLUTE_CALL_TIMEOUT_S == 540.0
@@ -547,61 +630,107 @@ def test_resolve_call_duration_clamps_and_defaults():
     assert cs._resolve_call_duration(prod, 10) == base        # prod → override 무시
 
 
-@pytest.mark.asyncio
-async def test_reground_once_midcall(session_factory, seeded, monkeypatch):
-    """단발 재접지: 일반 통화 중간에 캐릭터 리마인더가 send_reground(조용히)로 딱 1회 주입.
+class _RegroundFake:
+    """on_user_turn 재접지 검증용 가짜 세션 — send_reground(turn_complete) 기록."""
 
-    turn_complete=False 경로(send_reground)로만 나가고, 종료/무음 시드(send_text_turn)와
-    분리. 리마인더에 DB 캐릭터 3필드 되박기 문구가 들어간다. 반복 아님(정확히 1회)."""
-    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)  # fire_at ≈ 통화 시작 직후
+    def __init__(self, script):
+        self._script = script  # events() 가 yield 할 LiveEvent 리스트 or 콜백
+        self.sent_audio: list[bytes] = []
+        self.sent_text_turns: list[str] = []
+        self.regrounds: list[tuple[str, bool]] = []  # (text, turn_complete)
+        self.injected = asyncio.Event()
 
-    class RegroundFake:
-        def __init__(self):
-            self.sent_audio: list[bytes] = []
-            self.sent_text_turns: list[str] = []
-            self.regrounds: list[str] = []
-            self._got = asyncio.Event()
+    async def send_audio(self, pcm16_16k: bytes) -> None:
+        self.sent_audio.append(pcm16_16k)
 
-        async def send_audio(self, pcm16_16k: bytes) -> None:
-            self.sent_audio.append(pcm16_16k)
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
 
-        async def send_text_turn(self, text: str) -> None:
-            self.sent_text_turns.append(text)
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        self.regrounds.append((text, turn_complete))
+        self.injected.set()
 
-        async def send_reground(self, text: str) -> None:
-            self.regrounds.append(text)
-            self._got.set()
+    async def events(self):
+        for item in self._script:
+            if callable(item):
+                await item(self)
+            else:
+                yield item
 
-        async def events(self):
-            yield LiveEvent(kind="out_tr", text="안녕")
-            yield LiveEvent(kind="audio", audio=b"\x00\x00")
-            yield LiveEvent(kind="turn_end")
-            await self._got.wait()  # 단발 재접지 1회 주입될 때까지
 
+async def _run_with_fake(fake, session_factory, seeded):
     import contextlib as _cl
-    holder: dict = {}
+    holder = {"s": fake}
 
     @_cl.asynccontextmanager
     async def factory(client, settings, *, system_instruction, voice):
-        s = RegroundFake()
-        holder["s"] = s
-        yield s
+        yield fake
 
     ws = FakeWebSocket(
         [{"type": "websocket.receive",
           "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
         hang=True,
     )
-    await run_call(
-        ws, app_settings, object(), session_factory,
-        member_id=seeded["member_id"], live_session_factory=factory,
-    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
     await _wait_analysis_tasks()
+    return ws
 
-    sess = holder["s"]
-    assert len(sess.regrounds) == 1, "단발 재접지가 정확히 1회가 아님"
-    assert "잊지 마라" in sess.regrounds[0], "재접지 문구가 캐릭터 리마인더가 아님"
-    assert not any(r in sess.sent_text_turns for r in sess.regrounds), "재접지가 send_text_turn 로 샜다"
+
+@pytest.mark.asyncio
+async def test_reground_on_user_turn_attaches_once(session_factory, seeded, monkeypatch):
+    """on_user_turn: arm 후 유저 발화 시작(첫 in_tr)에 리마인더가 turn_complete=False 로 딱 1회
+    얹힌다. 같은 턴 두 번째 in_tr 은 재주입 없음. send_text_turn(종료/무음)와 분리."""
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    monkeypatch.setattr(cs, "REGROUND_ATTACH_AT", "first")
+    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)  # fire_at ≈ 통화 시작 직후
+
+    async def wait_arm(f):
+        await asyncio.sleep(0.5)  # _reground_once 가 arm(reground_pending) 할 시간
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="안녕"),   # 비버 오프닝 → call_start_ts 세팅
+        LiveEvent(kind="turn_end"),
+        wait_arm,
+        LiveEvent(kind="in_tr", text="네", is_final=False),      # 첫 in_tr → 얹기
+        LiveEvent(kind="in_tr", text=" 좋아요", is_final=True),   # 같은 턴 → 재주입 없음
+        lambda f: f.injected.wait(),
+    ])
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert len(fake.regrounds) == 1, "재접지 얹기가 정확히 1회가 아님"
+    text, tc = fake.regrounds[0]
+    assert tc is False, "on_user_turn 은 turn_complete=False 여야 함(유저 턴에 얹기)"
+    assert "캐릭터답게 한마디" in text, "재접지 문구가 행동 지시 리마인더가 아님"
+    assert not any(text == t for t in fake.sent_text_turns), "재접지가 send_text_turn 로 샜다"
+
+
+@pytest.mark.asyncio
+async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch):
+    """핵심 안전(가드①): 종료 시드(close_seed_sent) 이후 늦은 유저 in_tr 에는 재접지를 얹지
+    않는다 — 작별 턴 오염(174/178 재발) 방지."""
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 곧 종료(_watch_call_clock)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    close_seen = asyncio.Event()
+
+    class Fake(_RegroundFake):
+        async def send_text_turn(self, text):
+            await _RegroundFake.send_text_turn(self, text)
+            if "통화 시간이 다 됐다" in text:  # 종료 시드 주입됨
+                close_seen.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")   # call_start_ts 세팅
+            yield LiveEvent(kind="turn_end")
+            await close_seen.wait()                        # should_close + close_seed_sent 이후
+            yield LiveEvent(kind="in_tr", text="어 나 갈게")  # 늦은 유저 발화 → 재접지 금지
+            yield LiveEvent(kind="out_tr", text="Bye!")    # 작별
+            yield LiveEvent(kind="turn_end")
+
+    fake = Fake([])  # script 미사용(events override)
+    await _run_with_fake(fake, session_factory, seeded)
+    assert fake.regrounds == [], "종료 구간에서 재접지가 얹혔다(가드① 위반 — 작별 오염 위험)"
 
 
 @pytest.mark.asyncio
