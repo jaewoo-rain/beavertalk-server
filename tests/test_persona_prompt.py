@@ -5,8 +5,10 @@
    리팩토링 후 build_system_instruction 출력이 바이트 동일함을 증명한다.
    (작업트리 미커밋 상태라 git 에서 원본을 꺼낼 수 없어, 리팩토링 착수 전에 캡처했다.)
 2) 레벨테스트 대본(build_leveltest_instruction / seed_leveltest_opening /
-   CLOSE_SEED_LEVELTEST) 형식 검증: 종료 규약 공유, 교정 금지, 프로빙 사다리,
-   레벨 프로파일 부재, locale 라벨, 시드 형식.
+   CLOSE_SEED_LEVELTEST) 형식 검증(2026-07 비버 자율 진행/OPI):
+   종료 규약 공유, 자율 진행 방식(난이도 사다리·상승·스스로 끝내지 않음)·답 직후
+   [반응+질문] 한 턴 규칙, 옛 서버 주입 시드·천장 함수 부재, 레벨 프로파일 부재,
+   locale 라벨, 무인자 선톡 시드 형식.
 """
 
 from __future__ import annotations
@@ -191,37 +193,67 @@ def test_leveltest_shares_close_protocol_verbatim():
     assert '"[시스템]"으로 시작하는 종료 신호가 오기 전까지는' in lt
 
 
-def test_leveltest_no_correction_and_no_level_disclosure():
+def test_leveltest_self_driven_progress_and_reaction_rules():
+    """비버 자율 진행/OPI(2026-07): 비버가 스스로 이끌고, 답 직후 [반응+질문]을 한 턴에."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 개념 유지: 측정 중 교정 안 함(문구는 "이번 통화에선 교정 금지"로 확장).
-    assert "교정 금지" in lt
-    assert "절대 고쳐 주거나 지적하지 마라" in lt
+    # [진행 방식 — 네가 스스로 이끈다] — 질문·반응·다음질문 전부 비버가 만든다.
+    assert "[진행 방식 — 네가 스스로 이끈다]" in lt
+    assert "질문·반응·다음질문 전부 네가 만든다(서버가 주지 않는다)." in lt
+    assert "다음 질문은 반드시 한 단계 위로 올려라(제자리걸음 금지)" in lt
+    assert "절대 스스로 끝내지 마라" in lt
+    assert "한 번에 한 단계씩만 올려라(건너뛰기 금지)" in lt
+    # [난이도 사다리] — 1~6단 상승.
+    assert "[난이도 사다리 — 위로 갈수록 어렵다]" in lt
+    assert "1단: 기초 — 현재형" in lt
+    assert "6단: 의견 —" in lt
+    # [막히면 — 인내심] — 발판 2번, 되묻기는 실패 아님, 비버가 끝내지 않음.
+    assert "[막히면 — 인내심]" in lt
+    assert "최대 2번까지 발판을 대 준다" in lt
+    # [학습자가 답한 직후] — 반응+질문을 '한 번의 발화'로, 정답 여부 누출 금지.
+    assert "[학습자가 답한 직후 — 매우 중요]" in lt
+    assert "이 둘을 반드시 '한 번의 발화'로 붙여서 말해라" in lt
+    assert "반응만 하고 멈추지 마라" in lt
+    assert "정답 여부를 절대 티내지 마라(잘했는지 못했는지 누출 금지)" in lt
+    # 목적 블록·레벨 비노출 유지.
     assert "레벨·점수·등급을 절대 입 밖에 내지 마라" in lt
-    assert "시험이 아니다" in lt
+    assert "곧장 질문으로 들어가라" in lt
+    # 옛 서버 주도 주입 흔적 제거.
+    assert '모든 질문은 서버가 "[다음]"으로 준다' not in lt
+    assert "[다음]" not in lt
 
 
-def test_leveltest_suppresses_character_for_measurement():
-    """레벨테스트는 캐릭터를 눌러 부드럽게 측정한다(원복 결정 — 톤 보존이 한국어 과다를
-    유발해 되돌림). 캐릭터는 일반 통화에서 살린다."""
+def test_leveltest_omits_character_persona_uses_examiner_line():
+    """레벨테스트는 '순수 배치 테스트' 관점 — 캐릭터 페르소나를 대본에 주입하지 않고
+    고정 '시험관' 한 줄로 대체한다(캐릭터 톤 누출·한국어 과다(call 163) 방지).
+    role/personality/rules 는 시그니처 호환용으로만 받는다(주입 0)."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    assert "표본 수집" in lt                       # 측정 목적(캐릭터보다 우선)
-    assert "그대로 받아 주고 칭찬만 해라" in lt      # 젠틀 측정 톤
-    assert "캐릭터를 눌러도 된다" in lt              # 불변 규칙이 캐릭터 우선
+    # 고정 시험관 라인 + 측정 우선
+    assert "[시험관]" in lt
+    assert "따뜻하고 차분한 시험관" in lt
+    assert "표본 수집" in lt                       # 측정 목적
+    # 캐릭터 3필드(_LT_KWARGS)는 어디에도 주입되지 않는다
+    assert "장난기 많은 비버 선생님" not in lt
+    assert "유쾌하고 텐션 높은 말투" not in lt
+    assert "캐릭터별 추가 규칙" not in lt
 
 
-def test_leveltest_default_probe_plan_and_custom_injection():
+def test_leveltest_has_no_old_probe_plan_and_keeps_language_rule():
+    """비버 자율 진행/OPI(2026-07): 옛 서버 주입식 프로빙 플랜 블록(계단 번호·probe_plan)이
+    사라지고(자율 난이도 사다리로 대체), 질문=모국어·답=한국어 언어 규칙은 유지된다.
+    build_leveltest_instruction 은 probe_plan 인자를 더는 받지 않는다."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 기본 4계단 사다리
-    assert "1계단(입문)" in lt and "4계단(고급)" in lt
-    assert "어제 뭐 했어요?" in lt
-    # 커스텀 주입 시 기본 사다리 대체
-    custom = build_leveltest_instruction(**{**_LT_KWARGS, "probe_plan": "CUSTOM_PROBE_123"})
-    assert "CUSTOM_PROBE_123" in custom
-    assert "1계단(입문)" not in custom
-    # 상승·하강·침묵 규칙은 커스텀 여부와 무관하게 항상 포함
-    for text in (lt, custom):
-        assert "무리 없이 2번" in text
-        assert "침묵하면" in text
+    # 옛 프로빙 플랜 흔적 제거(자율 진행의 난이도 '사다리'와는 별개 — 계단 번호 어법은 폐기)
+    assert "[단계 상승 프로빙 — 질문 사다리]" not in lt
+    assert "0계단" not in lt
+    assert "5계단" not in lt
+    assert "추상 논증" not in lt
+    # 질문=모국어, 대답=목표어 유도(측정은 학습자의 목표어 발화)
+    assert "재는 건 오직 학습자의 한국어 발화다" in lt
+    assert '"한국어로 말해 볼래요?"' in lt
+    # probe_plan 인자는 폐기됨(넘기면 TypeError).
+    import pytest as _pytest
+    with _pytest.raises(TypeError):
+        build_leveltest_instruction(**{**_LT_KWARGS, "probe_plan": "X"})
 
 
 def test_leveltest_has_no_level_profile_or_history_slots():
@@ -230,11 +262,10 @@ def test_leveltest_has_no_level_profile_or_history_slots():
     assert "[최근 학습 이력" not in lt
 
 
-def test_leveltest_locale_label_and_persona_slots():
+def test_leveltest_locale_label_and_name_interests():
     lt_en = build_leveltest_instruction(**_LT_KWARGS)
     assert "영어(English)" in lt_en
-    assert '"장난기 많은 비버 선생님"' in lt_en
-    assert "캐릭터별 추가 규칙: 가끔 아재개그를 친다." in lt_en
+    # 캐릭터는 미주입, 이름·흥미는 여전히 주입된다.
     assert "대화상대의 이름은 Alex" in lt_en
     assert "K-pop, 요리" in lt_en
     lt_ja = build_leveltest_instruction(**{**_LT_KWARGS, "locale": "ja"})
@@ -245,18 +276,27 @@ def test_leveltest_locale_label_and_persona_slots():
 
 
 def test_leveltest_seeds_format():
+    # 비버 자율 진행/OPI: 선톡 시드는 무인자(node0 질문 인자 폐기).
     opening = seed_leveltest_opening()
     assert opening.startswith("[통화 시작]")
-    assert "시험이 아니" in opening
+    # T4(오프닝 극단축): 인사 한 마디 + 바로 질문, 안심·설명 멘트 금지.
+    assert "가벼운 인사 한 마디 + 바로 질문" in opening
+    assert "안심·설명 멘트는 한마디도 넣지 마라" in opening
     # A1: 안내문 낭독 금지 지시를 맨 앞에 강하게 명시(강화 문구).
     assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in opening
+    # 자율 진행: 첫 질문을 '네가 스스로' 만든다(서버 주입 시드 폐기).
+    assert "네가 스스로 아주 쉬운 첫 질문(이름·사는 곳·오늘 한 일" in opening
+    assert "첫 질문:" not in opening  # 서버가 박아 주던 질문 줄 폐기
     assert "한국어" in opening
-    assert "프랑스어" in seed_leveltest_opening("프랑스어")
+    fr = seed_leveltest_opening("프랑스어")
+    assert "프랑스어" in fr
 
-    # A1: 종료 시드에도 동일 강화 문구가 맨 앞에.
+    # 종료 시드(OPI 개정): 시험 냄새 제거·낭독 금지·판정 여부 누출 금지·자연스러운 마무리.
     assert CLOSE_SEED_LEVELTEST.startswith("[시스템]")
-    assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in CLOSE_SEED_LEVELTEST
-    assert "레벨·점수는 절대 말하지 마라" in CLOSE_SEED_LEVELTEST
+    assert "(낭독 금지.)" in CLOSE_SEED_LEVELTEST
+    assert "어려운 질문을 하던 중이었어도 아무렇지 " in CLOSE_SEED_LEVELTEST
+    assert "'테스트/평가/결과/점수/레벨'은 " in CLOSE_SEED_LEVELTEST
+    assert "잘했는지 못했는지도 티내지 마라" in CLOSE_SEED_LEVELTEST
 
 
 def test_leveltest_opening_seed_has_echo_ban_fewshot():
@@ -271,7 +311,7 @@ def test_leveltest_opening_seed_has_echo_ban_fewshot():
     assert "美国! Oh nice" in opening
     # target_language 치환이 예시에도 적용된다(f-string 버그 회귀 방지)
     fr = seed_leveltest_opening("프랑스어")
-    assert "과제 질문만 프랑스어로 한다" in fr
+    assert "대답만 프랑스어로 하도록 이끈다" in fr
     assert "{target_language}" not in fr
 
 
@@ -282,9 +322,27 @@ def test_leveltest_echo_ban_is_separate_emphasized_rule():
     # 규칙 1 이 에코 금지 전용으로 승격되고 ★로 강조됨.
     assert "1. ★ 에코 금지(제일 중요, 첫 턴부터):" in lt
     assert "학습자가 말한 한국어 단어·문장을 절대 따라 말하거나 반복하지 마라" in lt
-    # 교정 안 함은 뒤로 밀려 규칙 3 이 되고, 종료 규약/응답 길이는 4·5.
-    assert "3. 교정 금지:" in lt
-    assert "5. 응답 길이:" in lt
+    # 서버 주도 개정: 규칙 3=종료 규약, 4=응답 길이(재요청 강제 규칙 삭제).
+    assert "3. " + pp._RULE_CLOSE_PROTOCOL in lt
+    assert "4. 응답 길이:" in lt
+    assert "5. 응답 길이:" not in lt
+
+
+def test_leveltest_no_ceiling_function_block():
+    """서버 주도(2026-07): 비버는 종료 함수가 없다 — 천장 신호 블록·함수명이 사라진다.
+    통화를 언제 끝낼지는 전부 서버가 정한다(종료 규약)."""
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    assert "[천장 신호" not in lt
+    assert "leveltest_ceiling_reached" not in lt
+    assert "천장" not in lt
+    # 종료 규약(비버 먼저 작별 절대 금지)은 여전히 공유된다.
+    assert pp._RULE_CLOSE_PROTOCOL in lt
+
+
+def test_leveltest_question_seed_symbol_removed():
+    """비버 자율 진행/OPI(2026-07): 서버 주입 시드 함수는 완전히 폐기됐다.
+    call_session 은 더는 이 심볼을 호출하지 않는다(주입 기계 제거)."""
+    assert not hasattr(pp, "build_leveltest_question_seed")
 
 
 def test_normal_seed_opening_unchanged():

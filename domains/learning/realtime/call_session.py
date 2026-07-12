@@ -28,7 +28,12 @@ from sqlalchemy.orm import sessionmaker
 
 from core import gemini_analysis
 from core.config import Settings
-from core.gemini_live import DEFAULT_VOICE, LiveEvent, LiveSessionProtocol, open_session
+from core.gemini_live import (
+    DEFAULT_VOICE,
+    LiveEvent,
+    LiveSessionProtocol,
+    open_session,
+)
 from core.persona_prompt import (
     _LOCALE_LABEL,
     CLOSE_SEED_LEVELTEST,
@@ -59,6 +64,9 @@ logger = logging.getLogger(__name__)
 
 # 통화 길이: 기본 5분 경과 시 종료 시드(정상 작별 시작), 백스톱(강제 종료). 1분마다 중간 저장.
 CALL_DURATION_S = 300.0          # 기본 통화 길이(5분). 레벨 데모는 start.duration_min 으로 3~15분 override
+# 레벨테스트(Phase 1): 인-콜 판정·주입 없이 비버 자율 진행. 종료는 3분 하드캡(이 시계) 또는
+# 무음 3단/GoAway 가 종료 파이프로 우아하게 몬다(R5 안전망 — 서버는 통화중 질문을 주입하지 않음).
+LEVELTEST_MAX_S = 180.0          # 레벨테스트 하드캡(3분) — call_duration_s 의 base
 # 연결 자체 한계 ~10분(S2)을 선점: 서버가 GoAway/연결종료로 뚝 끊기 전에 우리가 먼저
 # 우아하게 마무리하도록 540s(9분)로 하향. 정상 5분 통화는 이 상한에 닿지 않아 무영향.
 ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백스톱, 연결 ~10분 선점)
@@ -72,6 +80,11 @@ FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 �
 IDLE_NUDGE1_S = 60.0  # 1단: 비버 발화 종료 후 무음 60s → 새 화제로 가볍게 이어가라(작별 금지). 학습자가 한국어 문장을 떠올리는 시간을 넉넉히 준다(짧으면 생각 중에 넛지가 끼어듦)
 IDLE_NUDGE2_S = 10.0  # 2단: 1단 넛지 후 재무음 10s → 모국어로 "거기 있어?" 확인
 IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 직접 주입(우아한 종료)
+# 레벨테스트(fast-probe) 무음 캐던스: 3분 안에 여러 계단을 재야 해 일반보다 짧게. 값은
+# run_call 이 call_type 에 따라 state.idle_* 에 꽂는다(일반은 위 상수 그대로 — 바이트 무변경).
+LEVELTEST_IDLE_NUDGE1_S = 25.0  # 1단: 무음 25s → 방금 질문을 더 쉽게/선택지로 다시(작별 금지)
+LEVELTEST_IDLE_NUDGE2_S = 8.0   # 2단: +8s → 모국어 확인
+LEVELTEST_IDLE_CLOSE_S = 10.0   # 3단: +10s → 종료 시드 주입
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
@@ -104,6 +117,13 @@ _NUDGE_SEED_1 = (
 _NUDGE_SEED_2 = (
     "[시스템] 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 모국어로 "
     "'거기 있어? 잘 들려?'를 한 번만 부드럽게 물어라."
+)
+# 레벨테스트 1단 넛지: 일반과 달리 '새 화제로 이어가라' 대신 **방금 질문을 다시 묻는다** —
+# 작별하지 말고 방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며 모국어로 다시 묻게 한다.
+_NUDGE_SEED_1_LEVELTEST = (
+    "[시스템] 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
+    "방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며(예/아니오 또는 둘 중 고르기) "
+    "모국어로 딱 한 번만 다시 물어라."
 )
 
 SessionFactory = Callable[..., AsyncContextManager[LiveSessionProtocol]]
@@ -138,17 +158,26 @@ DEMO_DURATION_MIN_MINUTES = 3
 DEMO_DURATION_MAX_MINUTES = 15
 
 
-def _resolve_call_duration(settings: Settings, duration_min: Optional[int]) -> float:
+def _resolve_call_duration(
+    settings: Settings, duration_min: Optional[int], base: Optional[float] = None
+) -> float:
     """통화 길이(초) 결정. 데모/dev 에서만 클라가 3~15분 override 가능. prod 는 무시(기본값).
 
-    duration_min 없음 → 모듈 기본값(CALL_DURATION_S). prod 에서 override 오면 무시+warning
+    duration_min 없음 → base(콜타입 기본값). prod 에서 override 오면 무시+warning
     (실서비스는 통화 길이를 클라가 못 정한다 — 오남용/버그 방지). non-prod 는 3~15분 클램프.
+
+    base: 콜타입별 기본 통화 길이. None(미지정)이면 일반 통화 기본값 CALL_DURATION_S 를
+    **런타임에** 읽는다(테스트 monkeypatch 반영 — 리터럴 기본값으로 박으면 def-time 에
+    고정돼 monkeypatch 가 안 먹는다). 레벨테스트는 base=LEVELTEST_MAX_S 로 3분 캡을 준다.
+    하위호환: base 미지정 → 일반 경로 반환 바이트 동일.
     """
+    if base is None:
+        base = CALL_DURATION_S
     if duration_min is None:
-        return CALL_DURATION_S
+        return base
     if settings.ENV == "prod":
         logger.warning("normalcall: prod 에서 duration_min 오버라이드 무시(%s분)", duration_min)
-        return CALL_DURATION_S
+        return base
     clamped = max(DEMO_DURATION_MIN_MINUTES, min(DEMO_DURATION_MAX_MINUTES, int(duration_min)))
     return float(clamped * 60)
 
@@ -171,6 +200,7 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
+        "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
     )
 
@@ -217,6 +247,12 @@ class _CallState:
         # 통화 길이(초). 기본 CALL_DURATION_S. 데모/dev 는 start.duration_min 으로 3~15분
         # override(run_call 에서 세팅). _watch_call_clock 이 모듈 상수 대신 이 값을 본다.
         self.call_duration_s: float = CALL_DURATION_S
+        # 무음 3단 캐던스 + 1단 넛지 시드(콜타입별 — run_call 이 꽂는다). 기본은 일반 통화 값.
+        # _watch_idle 은 모듈 상수 대신 이 필드를 본다(레벨테스트만 짧은 캐던스로 override).
+        self.idle_nudge1_s: float = IDLE_NUDGE1_S
+        self.idle_nudge2_s: float = IDLE_NUDGE2_S
+        self.idle_close_s: float = IDLE_CLOSE_S
+        self.nudge_seed_1: str = _NUDGE_SEED_1
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
         # 재접지 상태기계(on_user_turn):
@@ -353,6 +389,8 @@ async def run_call(
             target_language=target_language,
             locale_label=locale_label_override,
         )
+        # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
+        # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
         seed_text = seed_leveltest_opening(target_language)
         voice = lt_setup["voice"]
     else:
@@ -393,10 +431,29 @@ async def run_call(
 
     state = _CallState()
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
-    state.call_duration_s = _resolve_call_duration(settings, duration_override)
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
+    # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
+    # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
+    live_tools = None
     if call_type == "level_test":
+        # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
+        # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
+        # 넛지는 이 한 값(state.call_duration_s)으로 흡수한다(무수정).
+        state.call_duration_s = _resolve_call_duration(
+            settings, duration_override, base=LEVELTEST_MAX_S
+        )
         state.close_seed = CLOSE_SEED_LEVELTEST  # 종료 시드 문자열만 교체(주입 파이프 불변)
+        # T3: 무음 캐던스 단축 + 1단 넛지 내용 전환(질문 재출제 유지).
+        state.idle_nudge1_s = LEVELTEST_IDLE_NUDGE1_S
+        state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
+        state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
+        state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
+    else:
+        state.call_duration_s = _resolve_call_duration(settings, duration_override)
+        state.idle_nudge1_s = IDLE_NUDGE1_S
+        state.idle_nudge2_s = IDLE_NUDGE2_S
+        state.idle_close_s = IDLE_CLOSE_S
+        state.nudge_seed_1 = _NUDGE_SEED_1
 
     # P2.5(D16) 동적 힌트 사이드카 활성 조건: 모든 통화(레벨테스트·일반, 레벨 무관)에 힌트 제공.
     # 데모(비한국어 target)만 제외 — 한국어 힌트가 무의미하므로(R5). 상세는 mechanics ⑬.
@@ -449,6 +506,7 @@ async def run_call(
                 db_session_factory=db_session_factory,
                 call_id=call_id,
                 member_id=member_id,
+                tools=live_tools,
             )
     except TimeoutError:
         logger.warning("normalcall 통화 상한(%.0fs) 초과 — 강제 종료", ABSOLUTE_CALL_TIMEOUT_S)
@@ -600,11 +658,18 @@ async def _run_session(
     db_session_factory: sessionmaker,
     call_id: int,
     member_id: int,
+    tools: Optional[list] = None,
 ) -> None:
-    """Live 세션 + 2펌프 + 시계워처 + 점진 flush 를 동시에 실행(타임아웃 안쪽)."""
-    async with live_session_factory(
-        client, settings, system_instruction=system_instruction, voice=voice
-    ) as session:
+    """Live 세션 + 2펌프 + 시계워처 + 점진 flush 를 동시에 실행(타임아웃 안쪽).
+
+    tools: function-call 선언(현재 모든 콜타입 None — Phase 1 은 in-band tool 미사용). None 이면
+    factory 에 아예 넘기지 않아 기존 세션 팩토리 시그니처(system_instruction/voice)와 바이트 동일
+    (테스트의 가짜 팩토리도 무손상). 값이 있을 때만 tools= 를 흘려 open_session 이 config 에 주입.
+    """
+    factory_kwargs = {"system_instruction": system_instruction, "voice": voice}
+    if tools is not None:
+        factory_kwargs["tools"] = tools
+    async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(_pump_client_to_gemini(client_ws, session, state), name="nc-client->gemini")
@@ -1012,9 +1077,13 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
     while loop.time() - state.call_start_ts < state.call_duration_s:
+        # T2: 조기종료(tool 신호/GoAway/무음3단)가 캡 이전에 should_close 를 세우면 즉시
+        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지(최대 절대백스톱) 매달린다.
+        if state.should_close:
+            break
         await asyncio.sleep(0.2)
     state.should_close = True
-    logger.info("normalcall: %.0fs 경과 → 종료 플래그", state.call_duration_s)
+    logger.info("normalcall: %.0fs 경과/조기신호 → 종료 플래그", state.call_duration_s)
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.
     # ⭐ 종료 레이스(call 197): 유저가 5분 직전 마지막에 말하면 "유저 발화 끝~비버 응답 시작"
@@ -1071,18 +1140,20 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
         idle = loop.time() - (state.last_activity_ts or state.call_start_ts)
 
         # 단계는 실제 주입 성공 시에만 전진(시니어 리뷰 Q1 하드닝 — 상태-행동 일치).
-        if state.silence_stage == 0 and idle >= IDLE_NUDGE1_S:
-            if await _inject_nudge(session, state, _NUDGE_SEED_1):
+        # 임계·1단 시드는 콜타입별(state.idle_*/nudge_seed_1). 일반은 60/10/12 + 새 화제,
+        # 레벨테스트는 25/8/10 + '같은 계단 재측정' 넛지(run_call 이 꽂음). 2·3단 시드는 공통.
+        if state.silence_stage == 0 and idle >= state.idle_nudge1_s:
+            if await _inject_nudge(session, state, state.nudge_seed_1):
                 state.silence_stage = 1
                 state.last_activity_ts = loop.time()
-                logger.info("normalcall: 무음 1단(%.0fs) → 새 화제 넛지 주입", IDLE_NUDGE1_S)
-        elif state.silence_stage == 1 and idle >= IDLE_NUDGE2_S:
+                logger.info("normalcall: 무음 1단(%.0fs) → 넛지 주입", state.idle_nudge1_s)
+        elif state.silence_stage == 1 and idle >= state.idle_nudge2_s:
             if await _inject_nudge(session, state, _NUDGE_SEED_2):
                 state.silence_stage = 2
                 state.last_activity_ts = loop.time()
-                logger.info("normalcall: 무음 2단(+%.0fs) → 확인 넛지 주입", IDLE_NUDGE2_S)
-        elif state.silence_stage == 2 and idle >= IDLE_CLOSE_S:
-            logger.info("normalcall: 무음 3단(+%.0fs) → 작별 시드 직접 주입·종료", IDLE_CLOSE_S)
+                logger.info("normalcall: 무음 2단(+%.0fs) → 확인 넛지 주입", state.idle_nudge2_s)
+        elif state.silence_stage == 2 and idle >= state.idle_close_s:
+            logger.info("normalcall: 무음 3단(+%.0fs) → 작별 시드 직접 주입·종료", state.idle_close_s)
             state.should_close = True
             await _inject_close_seed(session, state)  # 비버 idle → 직접 주입(go_away 와 동일)
             return

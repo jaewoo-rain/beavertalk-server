@@ -1055,6 +1055,24 @@ class LevelAssessment(BaseModel):
     )
 
 
+class LeveltestVerdict(BaseModel):
+    """레벨테스트 한 답변의 사이드카 O/X 판정 출력(단일 문항 채점).
+
+    heard_grammar 는 판정 근거가 된 학습자의 실제 한국어 구절을 그대로 인용한다
+    (추측·재작성 금지). 관통원칙3: pass 는 이 인용이 실제 발화에 실재해야만
+    데이터로 인정된다(환각 방어 — 호출부에서 부분 문자열로 교차 검증).
+    """
+
+    result: Literal["pass", "fail", "unclear", "no_attempt"] = Field(
+        description="pass=목표 문법 실재 / fail=답을 시도했으나 목표 미충족 / "
+        "unclear=애매·부분정답 / no_attempt=아직 진짜 답을 시도 안 함(머뭇·필러·인사만)"
+    )
+    heard_grammar: str = Field(
+        default="",
+        description="판정 근거로 들린 학습자의 실제 한국어 구절(원문 인용, 없으면 빈 문자열)",
+    )
+
+
 # 밴드 → 앱 레벨(1~13) 범위. 레벨 1(생존 회화)은 밴드 밖 특수 배정.
 _BAND_RANGE: dict[str, tuple[int, int]] = {
     "beginner": (2, 5),
@@ -1114,11 +1132,32 @@ def _leveltest_instruction(
         "- 전사는 음성인식(ASR) 결과라 철자·띄어쓰기가 왜곡될 수 있다. 철자·맞춤법을 기준으로 "
         "삼지 말고, 사용한 문법의 폭(문형 다양성)·어휘 등급·응답 길이·질문에 맞게 대응했는지를 "
         "기준으로 삼아라.\n"
+        "[계단별 목표 자질 — 이 자질이 실제로 나와야 그 계단을 '통과'로 본다]\n"
+        "- 0계단(생존·현재): 현재 '-아요/어요'와 조사(을/를·에·에서)로 현재 상태·행동을 한 문장("
+        "예: '저는 서울에 살아요', '커피를 좋아해요'). 이것도 없으면 생존(레벨 1).\n"
+        "- 1계단(과거 서술): '-았/었-' 과거형 + 목적격 조사('을/를')로 한 사건을 서술(예: '어제 김치찌개를 먹었어요').\n"
+        "- 2계단(계획과 이유): 미래 '-(으)ㄹ 거예요' 등에 이유절('-아서/어서', '-(으)니까', '왜냐하면 ~')을 붙임"
+        "(경험 '-(으)ㄴ 적 있다'·비교 'N보다'가 함께 나오면 이 밴드 상단).\n"
+        "- 3계단(전언과 이야기): 간접화법('-다고/-냐고/-(으)라고 하다', 축약 '-대(요)')로 남의 말을 옮김.\n"
+        "- 4계단(대조·추측 복문): 대조·추측 복문('-(으)ㄴ 반면', '-나 보다', 'N에 의하면')으로 두 가지를 견줘 근거와 함께 말함.\n"
+        "- 5계단(의견과 논증): 문어·논리 연결('-기 때문에', '-(으)므로', 'N에 따르면')로 추상 주제에 의견+근거를 논리적으로.\n"
+        "[증거 가중 — 비대칭 채점]\n"
+        "- 자발 성공(비버가 문형을 깔아 주지 않았는데 학습자가 스스로 그 자질을 만들어 냄) = 강한 양성. "
+        "그 계단 이상을 천장으로 인정할 근거가 된다.\n"
+        "- 유도 성공(비버가 예시·선택지로 떠먹여 준 뒤에야 성립) = 약한 양성. 상위 레벨로 밀지 말고, "
+        "통째로 외운 청크가 아닌지 교차확인(아래)을 통과해야만 근거로 쓴다.\n"
+        "- 유도 실패(떠먹여 줘도 못 만듦) = 강한 음성. 그 자질은 미획득으로 보고, 경계에서는 한 밴드 "
+        "낮춰 보수적으로 배치한다.\n"
+        "- 암기 청크 위양성 배제: 같은 문형이 서로 다른 어휘·상황 2개에서 성립해야 '안다'고 인정한다. "
+        "한 번만, 그것도 정형 표현으로 나온 것은 근거로 치지 마라.\n"
         "[판정 절차 — 반드시 이 순서대로]\n"
         "① evidence: 학습자(USER)의 한국어 발화 원문을 최대 5개 인용해 모은다(수정·번역 금지).\n"
         "② band: 아래 [레벨 기준표]에 비추어 밴드를 먼저 정한다 — beginner(레벨 2~5) / "
         "intermediate(레벨 6~9) / advanced(레벨 10~13).\n"
-        "③ level_in_band: 밴드 안에서 단계 1~4 를 정한다.\n"
+        "③ level_in_band: 밴드 안에서 단계 1~4 를 정하되 밴드 하단 기본배치에서 출발한다 — "
+        "beginner 는 기본 level_no 3(=level_in_band 2), intermediate 는 기본 6(=level_in_band 1), "
+        "advanced 는 기본 10(=level_in_band 1). 이 기본값에서 위로 올리는 것은 그 밴드의 '상위 계단 "
+        "목표 자질'을 자발 성공으로 관찰했을 때만이다. 경계에서 망설여지면 올리지 말고 낮은 쪽에 둔다.\n"
         "④ level_no 계산: beginner=1+level_in_band(→2~5), intermediate=5+level_in_band(→6~9), "
         "advanced=9+level_in_band(→10~13). 단, 한국어 발화가 있긴 하나 전부 인사 수준 미만이거나 "
         "사실상 모국어뿐이면 level_no=1(생존 회화)로 한다.\n"
@@ -1126,6 +1165,8 @@ def _leveltest_instruction(
         "[표본 규칙]\n"
         "- 학습자의 한국어 발화가 2턴 이하면 sample_quality 를 sparse(빈약) 또는 none(전무)으로 "
         "하고, band=unknown, level_in_band=null, level_no=null 로 둔다.\n"
+        "- 채점 가능한(scorable) 한국어 발화가 2개 미만이면 어떤 경우에도 밴드를 올리지 말고 "
+        "생존~레벨 2 바닥으로 본다.\n"
         "[출력 필드 규칙]\n"
         "- summary: 통화의 핵심 소재를 " + label + " 로 요약. 완결 문장이 아니라 명사구 2~4어절.\n"
         "- feedback_for_learner: 학습자에게 보여줄 따뜻한 격려 1~2문장(" + label + "). "
@@ -1292,3 +1333,94 @@ async def analyze_level_test_call(
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
         except Exception:  # noqa: BLE001
             pass
+
+
+# ── 사이드카 O/X 판정기(레벨테스트 통화중, 문항 단위) ────────────────────────
+# 통화후 전사 1콜(analyze_level_test_call)과 달리, 사다리 엔진이 한 문항의 답변
+# 하나를 즉시 pass/fail/unclear 로 채점받아 다음 노드를 고르게 하는 실시간 사이드카.
+
+_LEVELTEST_JUDGE_INSTRUCTION = (
+    "너는 한국어 문법 채점자다. 아래 학습자 발화가 '목표 문법'을 실제로 산출했는지 "
+    "판정하라.\n"
+    "이 테스트는 '이 학습자가 이 단계 수준 이상을 할 수 있나'를 재는 것이다. 딱 그 형태만 "
+    "고집하지 말고 관대하게 판정하라.\n"
+    "규칙:\n"
+    "- ★ pass(관대하게): 학습자가 문법적으로 온전한 한국어 문장을 만들었고, 그것이 목표 문법 "
+    "수준 '이상'이면 pass. 목표 형태소가 그대로 있으면 당연히 pass. 목표와 시제·구조가 정확히 "
+    "일치하지 않아도, 목표보다 더 높거나 복잡한 문법(예: 현재를 물었는데 과거·복문·존댓말로 "
+    "답함)으로 온전한 문장을 만들었으면 pass — 더 어려운 걸 해내면 이 단계는 당연히 통과다. "
+    "(예: 목표가 현재형 문장인데 '나는 어제 쉬었어'라고 과거로 답 → pass. 목표가 과거인데 "
+    "'-(으)ㄴ 적 있어요' 경험으로 답 → pass.)\n"
+    "- ★ no_attempt: 학습자가 아직 진짜 답을 시도하지 않았으면 result=no_attempt(실패 아님, "
+    "절대 fail 로 처리 말 것). 머뭇·필러('음','어','uhm','잠깐만'), 인사만('안녕하세요'), "
+    "되묻기('네?','뭐라고요?','여보세요?'), 질문과 무관한 한두 마디, 말이 끊긴 미완성.\n"
+    "- fail: 학습자가 온전한 문장을 만들지 못하고 단어·조각만 나열했거나, 만든 문장이 목표 "
+    "수준에 명백히 못 미칠 때만(예: 과거 서술을 물었는데 현재 단문 하나도 못 만듦). 즉 "
+    "'온전한 문장을 시도했으나 이 단계 수준에 못 미침'일 때만 fail — 유효한 문장을 fail 하지 마라.\n"
+    "- unclear: 문장은 시도했는데 판단이 곤란하거나 반쪽인 경우.\n"
+    "- 발음·조사의 사소한 오류는 감점하지 않는다.\n"
+    "- heard_grammar 에는 판정 근거가 된 학습자의 실제 구절을 원문 그대로 인용하라"
+    "(추측·재작성 금지, 근거가 없으면 빈 문자열).\n"
+    "출력은 반드시 주어진 JSON 스키마를 따른다."
+)
+
+
+async def judge_leveltest_answer(
+    client: genai.Client,
+    *,
+    target_desc: str,
+    answer_text: str,
+) -> str:
+    """레벨테스트 한 답변을 목표 문법 기준으로 pass/fail/unclear 판정(사이드카 1콜).
+
+    통화중 사다리 엔진이 문항마다 호출한다. 어떤 실패든(client 부재·빈 입력·LLM
+    실패·환각) "unclear" 로 흡수해 엔진이 교차확인/강제전진으로 처리하게 한다(R5).
+
+    Args:
+        client: lifespan 이 만든 genai.Client(없으면 통화 자체가 비활성이나 방어).
+        target_desc: 이 문항이 재는 목표 문법 기준(사다리 노드 제공, 한국어).
+        answer_text: 학습자가 방금 한 발화(한국어, in_tr 전사).
+
+    Returns:
+        "pass" | "fail" | "unclear" (문자열). 판정 불능·환각은 항상 "unclear".
+    """
+    # graceful 가드(R5): client 없음 / 빈 발화 / 빈 목표 → 판정 불능.
+    if client is None or not answer_text or not answer_text.strip():
+        return "unclear"
+    if not target_desc or not target_desc.strip():
+        return "unclear"
+
+    try:
+        verdict = await gemini_analysis.generate_structured(
+            client,
+            settings.JUDGE_MODEL,
+            system_instruction=_LEVELTEST_JUDGE_INSTRUCTION,
+            prompt=(
+                f"[목표 문법]\n{target_desc.strip()}\n\n"
+                f"[학습자 발화]\n{answer_text.strip()}"
+            ),
+            schema=LeveltestVerdict,
+            temperature=0.0,
+            thinking_budget=0,  # 통화중 실시간 사이드카 — 지연 최소화(추론 비활성).
+        )
+    except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
+        logger.warning("leveltest judge: 판정 예외(무시) → unclear: %s", exc)
+        return "unclear"
+
+    if verdict is None:
+        return "unclear"
+
+    # ★ 인용 검증(관통원칙3): pass 인데 근거 구절이 실제 발화에 없으면 환각 →
+    # unclear 로 강등. 순수 파이썬 부분 문자열 매칭(LLM 없이 검증 가능).
+    if verdict.result == "pass":
+        heard = (verdict.heard_grammar or "").strip()
+        if not heard or heard not in answer_text:
+            logger.info(
+                "leveltest judge: pass 인용 미검증(heard=%r) → unclear 강등", heard
+            )
+            return "unclear"
+        return "pass"
+
+    if verdict.result in ("fail", "no_attempt"):
+        return verdict.result
+    return "unclear"
