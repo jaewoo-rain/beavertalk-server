@@ -7,8 +7,9 @@
       prod 재측정(korean_level 보유) 명시 level_test → normal.
     - analyze_level_test_call: 판정 성공 단일 커밋 저장 / 빈 전사 스킵 / LLM 실패 /
       모순 출력(unknown+sufficient) failed / member 소실 failed(부분 저장 없음).
-    - _clamp_assessed_level: band-level_no 불일치 재계산, unknown→1, sparse+low 하향,
-      unknown+sufficient→None, sufficient+band 명시+level_no=1→재계산.
+    - _place_from_band: 4버킷 고정매핑(survival→1/beginner→2/intermediate→3/advanced→6),
+      sparse 캡(min(level,2)), unknown+sufficient→None(모순), unknown|none→1.
+    - _citation_coverage: 어절 토큰 부분일치 비율(0.0~1.0) — 인용검증 순수함수.
     - _user_char_total: 유니코드 letter/digit 만 계수(기호·이모지 제외).
     - get_status_detail 소유자 가드 + status 엔드포인트 응답 계약(call_type/assessed_level).
     - MemberRead.korean_level 직렬화(None/값).
@@ -255,8 +256,6 @@ def _assessment(**kw) -> svc.LevelAssessment:
         evidence=["안녕하세요 저는 학생이에요"],
         reasoning="초급 문형(현재형·조사)을 안정적으로 사용",
         band="beginner",
-        level_in_band=2,
-        level_no=3,
         confidence="high",
         sample_quality="sufficient",
         summary="자기소개와 취미",
@@ -448,7 +447,8 @@ async def test_level_assessment_success_saves_level_and_meta(
         user_lines=["안녕하세요 저는 미국에서 온 학생이에요",
                     "한국어 공부가 정말 재미있어요"],
     )
-    result = _assessment(band="beginner", level_in_band=2, level_no=3,
+    # band=beginner + sufficient → 고정매핑 레벨 2(_BUCKET_LEVEL["beginner"]).
+    result = _assessment(band="beginner",
                          confidence="high", sample_quality="sufficient")
     mock = AsyncMock(return_value=result)
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)
@@ -464,8 +464,8 @@ async def test_level_assessment_success_saves_level_and_meta(
         member = db.get(Member, seeded["member_none"])
         call = db.get(Call, call_id)
         # 레벨 배정 + 판정 메타 + done 이 함께 반영됨(단일 커밋 결과).
-        assert member.korean_level == 3
-        assert call.assessed_level == 3
+        assert member.korean_level == svc._BUCKET_LEVEL["beginner"] == 2
+        assert call.assessed_level == 2
         assert call.assessment_note == result.reasoning
         assert call.summary == result.summary
         assert call.status == "done"
@@ -474,62 +474,77 @@ async def test_level_assessment_success_saves_level_and_meta(
 
 
 # --------------------------------------------------------------------------- #
-# (5) _clamp_assessed_level 단위 — AI는 증인, 코드가 심판
+# (5) _place_from_band 단위 — AI는 증인(밴드만), 코드가 심판(레벨 숫자 고정매핑)
 # --------------------------------------------------------------------------- #
-def test_clamp_recomputes_when_band_level_mismatch():
-    """band=intermediate 인데 level_no=2(범위 밖) → 밴드 기준 재계산(6~9)."""
-    r = _assessment(band="intermediate", level_in_band=2, level_no=2)
-    level = svc._clamp_assessed_level(r)
-    assert 6 <= level <= 9
-    assert level == 7  # lo(6) + level_in_band(2) - 1
-
-    # level_in_band 도 불능이면 밴드 중앙값−1(=7)로.
-    r2 = _assessment(band="intermediate", level_in_band=None, level_no=99)
-    assert svc._clamp_assessed_level(r2) == 7
-
-
-def test_clamp_unknown_band_with_speech_returns_one():
-    """band=unknown(발화는 20자+ 존재 전제) → 생존 회화 1."""
-    r = _assessment(band="unknown", level_in_band=None, level_no=None,
-                    confidence="low", sample_quality="sparse")
-    assert svc._clamp_assessed_level(r) == 1
-    # sample_quality=none 도 동일하게 1.
-    r2 = _assessment(band="beginner", level_in_band=2, level_no=3,
-                     sample_quality="none")
-    assert svc._clamp_assessed_level(r2) == 1
+def test_place_from_band_bucket_mapping():
+    """4버킷 고정매핑(sufficient 표본): survival→1 / beginner→2 / intermediate→3 / advanced→6."""
+    assert svc._place_from_band(
+        _assessment(band="survival", sample_quality="sufficient")) == 1
+    assert svc._place_from_band(
+        _assessment(band="beginner", sample_quality="sufficient")) == 2
+    assert svc._place_from_band(
+        _assessment(band="intermediate", sample_quality="sufficient")) == 3
+    assert svc._place_from_band(
+        _assessment(band="advanced", sample_quality="sufficient")) == 6
+    # 매핑 상수 자체도 계약대로인지 고정.
+    assert svc._BUCKET_LEVEL == {
+        "survival": 1, "beginner": 2, "intermediate": 3, "advanced": 6
+    }
 
 
-def test_clamp_sparse_low_confidence_downgrades_one_level():
-    """표본 빈약(sparse) + 저신뢰(low) → 1단계 하향(하한 1)."""
-    r = _assessment(band="beginner", level_in_band=2, level_no=3,
-                    confidence="low", sample_quality="sparse")
-    assert svc._clamp_assessed_level(r) == 2
-    # 밴드 최하단(2)에서 하향해도 하한 1 아래로는 안 내려간다.
-    r2 = _assessment(band="beginner", level_in_band=1, level_no=2,
-                     confidence="low", sample_quality="sparse")
-    assert svc._clamp_assessed_level(r2) == 1
+def test_place_from_band_sparse_caps_at_two():
+    """sparse 표본 → 중급+ 과배치 금지: min(level, 2)."""
+    # advanced(6) 도 sparse 면 2 로 캡.
+    assert svc._place_from_band(
+        _assessment(band="advanced", sample_quality="sparse")) == 2
+    # intermediate(3) → 2.
+    assert svc._place_from_band(
+        _assessment(band="intermediate", sample_quality="sparse")) == 2
+    # beginner(2) 는 이미 2 이하 → 그대로 2.
+    assert svc._place_from_band(
+        _assessment(band="beginner", sample_quality="sparse")) == 2
+    # survival(1) 은 이미 1 → 그대로 1.
+    assert svc._place_from_band(
+        _assessment(band="survival", sample_quality="sparse")) == 1
 
 
-def test_clamp_unknown_with_sufficient_sample_returns_none():
-    """F3(a): 표본이 sufficient 인데 band=unknown = 모순 출력 → None(판정 신뢰 불가)."""
-    r = _assessment(band="unknown", level_in_band=None, level_no=None,
-                    confidence="low", sample_quality="sufficient")
-    assert svc._clamp_assessed_level(r) is None
+def test_place_from_band_unknown_with_sufficient_returns_none():
+    """모순 출력: 표본 sufficient 인데 band=unknown → None(판정 신뢰 불가·미저장)."""
+    assert svc._place_from_band(
+        _assessment(band="unknown", confidence="low",
+                    sample_quality="sufficient")) is None
 
 
-def test_clamp_level_one_with_sufficient_band_recomputes():
-    """F3(b): sufficient + band 명시인데 level_no=1 → 생존 판정 대신 밴드 재계산."""
-    r = _assessment(band="beginner", level_in_band=2, level_no=1,
-                    confidence="high", sample_quality="sufficient")
-    assert svc._clamp_assessed_level(r) == 3  # lo(2) + level_in_band(2) - 1
-    # level_in_band 도 불능이면 밴드 중앙값−1(beginner → 3).
-    r2 = _assessment(band="beginner", level_in_band=None, level_no=1,
-                     sample_quality="sufficient")
-    assert svc._clamp_assessed_level(r2) == 3
-    # 표본이 sufficient 가 아니면(sparse) 명시적 생존 판정 1 을 존중한다.
-    r3 = _assessment(band="beginner", level_in_band=1, level_no=1,
-                     confidence="medium", sample_quality="sparse")
-    assert svc._clamp_assessed_level(r3) == 1
+def test_place_from_band_unknown_or_none_returns_one():
+    """band=unknown(sufficient 아님) 또는 sample_quality=none → 생존 회화 1."""
+    # unknown + sparse → 1.
+    assert svc._place_from_band(
+        _assessment(band="unknown", confidence="low",
+                    sample_quality="sparse")) == 1
+    # unknown + none → 1.
+    assert svc._place_from_band(
+        _assessment(band="unknown", sample_quality="none")) == 1
+    # 밴드는 명시됐어도 sample_quality=none 이면 1(모국어뿐 전제).
+    assert svc._place_from_band(
+        _assessment(band="advanced", sample_quality="none")) == 1
+    assert svc._place_from_band(
+        _assessment(band="beginner", sample_quality="none")) == 1
+
+
+# --------------------------------------------------------------------------- #
+# (5.5) _citation_coverage 단위 — 인용검증 순수함수(어절 토큰 부분일치 비율)
+# --------------------------------------------------------------------------- #
+def test_citation_coverage_full_and_partial_and_absent():
+    """0.0~1.0: 완전 실재=1.0 / ASR 드리프트 부분겹침=비율 / 통째 부재=0.0 / 빈문자열=0.0."""
+    # 두 어절 모두 answer 에 부분문자열로 존재 → 1.0.
+    assert svc._citation_coverage("김치를 좋아해요", "저는 김치를 좋아해요") == 1.0
+    # ASR 드리프트: '김치를'은 있으나 '좋아해요'는 '좋아 해요'로 갈라져 부재 → 1/2.
+    assert svc._citation_coverage("김치를 좋아해요", "저는 김치 좋아 해요") == 0.5
+    # 어느 토큰도 answer 에 없음 → 0.0.
+    assert svc._citation_coverage("완전히 다른 말", "김치를 먹어요") == 0.0
+    # 빈 heard / 빈 answer → 0.0.
+    assert svc._citation_coverage("", "김치를 먹어요") == 0.0
+    assert svc._citation_coverage("김치를 좋아해요", "") == 0.0
 
 
 def test_user_char_total_counts_letters_and_digits_only():
@@ -637,7 +652,7 @@ async def test_contradictory_llm_output_marks_failed(
         user_lines=["안녕하세요 저는 미국에서 온 학생이에요",
                     "한국어 공부가 정말 재미있어요"],
     )
-    result = _assessment(band="unknown", level_in_band=None, level_no=None,
+    result = _assessment(band="unknown",
                          confidence="low", sample_quality="sufficient")
     mock = AsyncMock(return_value=result)
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)

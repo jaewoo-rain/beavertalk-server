@@ -82,9 +82,20 @@ IDLE_NUDGE2_S = 10.0  # 2단: 1단 넛지 후 재무음 10s → 모국어로 "�
 IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 직접 주입(우아한 종료)
 # 레벨테스트(fast-probe) 무음 캐던스: 3분 안에 여러 계단을 재야 해 일반보다 짧게. 값은
 # run_call 이 call_type 에 따라 state.idle_* 에 꽂는다(일반은 위 상수 그대로 — 바이트 무변경).
-LEVELTEST_IDLE_NUDGE1_S = 25.0  # 1단: 무음 25s → 방금 질문을 더 쉽게/선택지로 다시(작별 금지)
+LEVELTEST_IDLE_NUDGE1_S = 60.0  # 1단: 무음 60s(일반과 동일) → 방금 질문을 더 쉽게/선택지로 다시(작별 금지). 학습자가 긴 답변을 깊게 생각하는 시간을 넉넉히(25s는 생각 중에 넛지가 끼어들었음)
 LEVELTEST_IDLE_NUDGE2_S = 8.0   # 2단: +8s → 모국어 확인
 LEVELTEST_IDLE_CLOSE_S = 10.0   # 3단: +10s → 종료 시드 주입
+# ── 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 ──
+# 서버가 매 유저 답변을 사이드카로 조용히 밴드 분류(0 survival~3 advanced)만 하고, 관측된
+# 최고 밴드(obs_max, 단조증가)가 천장에 닿으면 종료 시드를 주입한다. ★ 질문은 절대 주입하지
+# 않는다(관측은 대화를 구동하지 않음 — should_close 만 세우고 기존 종료 파이프에 합류).
+# 천장 조건(순수 함수 _band_ceiling_reached): 시간 플로어 & 최소 관측수 충족 후
+#   obs_max==3(최상위 도달) 또는 plateau_count>=PLATEAU_N(더 못 올라감) 또는 obs_count>=MAX.
+LEVELTEST_BAND_TIME_FLOOR_S = 45.0  # 천장 판정 시간 플로어(경과 최소 — 초반 표본 1~2건으로 조기종료 방지)
+LEVELTEST_BAND_MIN_ANSWERS = 4      # 천장 판정 전 최소 관측 답변 수(표본 하한)
+LEVELTEST_BAND_PLATEAU_N = 3        # 밴드 상승 없이 정체가 이만큼 누적되면 천장(더 못 올라감)
+LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(무한 관측 방지 — 이 수 넘으면 천장)
+LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 비화자/완전초보: None 포함 전체 답변이 이만큼인데 obs_max<=survival 이면 빨리 종료(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
@@ -202,6 +213,8 @@ class _CallState:
         "last_activity_ts", "silence_stage", "call_duration_s",
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
+        "band_observe", "band_client", "band_awaiting", "obs_count", "obs_max", "total_answers",
+        "plateau_count", "last_beaver_question", "band_tasks",
     )
 
     def __init__(self) -> None:
@@ -262,6 +275,23 @@ class _CallState:
         self.reground_pending: bool = False
         self.reground_injected: bool = False
         self.user_turn_open: bool = False
+        # ── 레벨테스트 Phase 2: 조용한 밴드 관측(무주입) ──
+        # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
+        # band_client: classify_leveltest_band 에 넘길 genai.Client(사이드카가 참조).
+        # band_awaiting: 관측 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 관측).
+        # obs_count: 관측 성공(band 값) 누계. obs_max: 관측된 최고 밴드(단조증가, -1=아직 없음).
+        # plateau_count: 최고 밴드 갱신 없이 정체된 관측 연속 수(천장 판정 재료).
+        # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(관측 사이드카의 prior_question 문맥).
+        # band_tasks: 관측 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
+        self.band_observe: bool = False
+        self.band_client = None
+        self.band_awaiting: bool = False
+        self.obs_count: int = 0
+        self.total_answers: int = 0  # None 포함 전체 답변 시도(비화자 조기종료 판정)
+        self.obs_max: int = -1
+        self.plateau_count: int = 0
+        self.last_beaver_question: str = ""
+        self.band_tasks: set[asyncio.Task] = set()
 
 
 class _ClientDisconnect(Exception):
@@ -290,6 +320,10 @@ def _flush_beaver_segment(state: _CallState) -> None:
         return
     text = "".join(state.cur_beaver_text).strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
+    # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
+    # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
+    if state.band_observe and text:
+        state.last_beaver_question = text
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
@@ -448,6 +482,10 @@ async def run_call(
         state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
         state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
         state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
+        # Phase 2: 조용한 밴드 관측 활성 — 매 유저 답변을 사이드카로 밴드 분류만 하고(질문 주입 0)
+        # 천장(obs_max) 도달 시 종료 시드만 주입한다. band_client = 분류 사이드카가 쓸 genai.Client.
+        state.band_observe = True
+        state.band_client = client
     else:
         state.call_duration_s = _resolve_call_duration(settings, duration_override)
         state.idle_nudge1_s = IDLE_NUDGE1_S
@@ -514,11 +552,20 @@ async def run_call(
         logger.info("normalcall 클라 연결 종료")
     except _CallFinished:
         logger.info("normalcall 통화 정상 종료")
+        if state.band_observe:
+            logger.info(
+                "normalcall: 레벨테스트 밴드 관측 종료 obs_max=%d obs_count=%d plateau=%d "
+                "(통화후 판정관이 전사로 최종 확정 — bracket 힌트 전달은 TODO)",
+                state.obs_max, state.obs_count, state.plateau_count,
+            )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         logger.exception("normalcall 브리지 오류: %s", exc)
     finally:
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
         for t in list(state.hint_tasks):
+            t.cancel()
+        # Phase 2: 미완 밴드 관측 사이드카 전량 취소(통화 종료 후 뒤늦은 관측·종료 시도 방지).
+        for t in list(state.band_tasks):
             t.cancel()
         _flush_user_segment(state)
         _flush_beaver_segment(state)
@@ -890,6 +937,118 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
 
 
 # --------------------------------------------------------------------------- #
+# 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 (질문 주입 0)
+# --------------------------------------------------------------------------- #
+def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
+    """관측된 최고 밴드(obs_max)가 '천장'에 닿았는지 판정(순수 함수 — 부작용 0, 테스트 용이).
+
+    시간 플로어(초반 표본으로 조기종료 방지) & 최소 관측수 충족 후 셋 중 하나면 천장:
+      - obs_max >= 3        : advanced(최상위) 도달 — 더 잴 상단이 없다.
+      - plateau_count >= N  : 최고 밴드가 갱신 안 된 정체 누적 — 더 못 올라간다(상한 확정).
+      - obs_count >= MAX    : 관측 답변 안전 상한 — 무한 관측 방지.
+    """
+    if elapsed < LEVELTEST_BAND_TIME_FLOOR_S:
+        return False
+    # 비화자/완전초보: 여러 번 시도했는데 한국어 산출이 survival(0) 이하뿐 → 빨리 종료.
+    # (한국어를 아예 못 하는 사람은 band=None 만 나와 obs_count 가 안 늘어 영영 안 끊기던 역설 차단.)
+    if state.total_answers >= LEVELTEST_BAND_NONSPEAKER_MAX and state.obs_max <= 0:
+        return True
+    if state.obs_count < LEVELTEST_BAND_MIN_ANSWERS:
+        return False
+    return (
+        state.obs_max >= 3
+        or state.plateau_count >= LEVELTEST_BAND_PLATEAU_N
+        or state.obs_count >= LEVELTEST_BAND_MAX_ANSWERS
+    )
+
+
+def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None:
+    """유저 답변 1건을 조용히 밴드 관측하는 사이드카를 띄운다(무주입 — should_close 만).
+
+    ⛔ 격리(R4/R5): 2펌프 경로의 추가 비용은 create_task 1회뿐. 분류 LLM 콜은 백그라운드
+    사이드카에서 일어나며, 느리거나 실패해도 통화 무영향(관측 1건 누락일 뿐 — 3분캡/무음이
+    백스톱). ★ 질문 주입 코드 없음: 사이드카는 천장 도달 시 종료 시드만 주입한다.
+    band_awaiting 1회 가드로 동시 1건만(진행중이면 이 답변은 관측 스킵 — 다음 답변에 재개).
+    호출 시점은 _flush_user_segment **이전**이어야 한다(cur_user_text 가 비워지기 전 캡처).
+    """
+    if not state.band_observe or state.band_awaiting or state.should_close:
+        return  # 종료 진행중이면 관측 불필요(m4: LLM 콜 낭비 방지)
+    answer = "".join(state.cur_user_text).strip()
+    if not answer:
+        return  # 무발화 턴(오프닝 등) — 관측 대상 아님
+    state.band_awaiting = True  # create_task 전 선점(동시 1건 가드)
+    task = asyncio.create_task(
+        _band_observe_sidecar(session, state, answer, state.last_beaver_question),
+        name="normalcall-band-observe",
+    )
+    state.band_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
+    task.add_done_callback(state.band_tasks.discard)
+
+
+async def _band_observe_sidecar(
+    session: LiveSessionProtocol, state: _CallState, answer: str, prior_question: str
+) -> None:
+    """답변 1건 밴드 분류 → obs_max/plateau 추적 → 천장이면 종료 시드 주입(백그라운드, R5).
+
+    band None(무응답/판정불가) = 무변경(넛지·캡이 처리). band 값이면 obs_count++,
+    obs_max 갱신 시 plateau=0, 아니면 plateau++. 천장(_band_ceiling_reached) 도달 시
+    should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접 주입한다
+    (발화중/유저턴 열림이면 주입 안 함 — 펌프가 다음 깨끗한 turn_end 에서 주입 + 시계워처
+    백스톱). ★ 질문 주입 없음 — should_close/종료 시드만. 예외·CancelledError 처리는 힌트
+    사이드카와 동일(취소는 재전파, 그 외는 흡수 → band None 취급).
+    """
+    try:
+        band = await svc.classify_leveltest_band(
+            state.band_client, answer_text=answer, prior_question=prior_question,
+        )
+    except asyncio.CancelledError:
+        raise  # 취소(통화 종료)는 정상 경로 — 재전파
+    except Exception as exc:  # noqa: BLE001 - 관측 실패는 관측 1건 누락일 뿐 통화 무영향
+        logger.warning("normalcall: 밴드 관측 실패(무시 — 관측 1건 누락): %s", exc)
+        band = None
+    finally:
+        state.band_awaiting = False  # in-flight 해제 → 다음 답변 관측 허용
+
+    # total_answers 는 None(비화자·판정불가) 포함 전체 시도 — 비화자 조기종료 판정용.
+    state.total_answers += 1
+    if band is not None:
+        state.obs_count += 1
+        if band > state.obs_max:
+            state.obs_max = band
+            state.plateau_count = 0
+        else:
+            state.plateau_count += 1
+
+    loop = asyncio.get_running_loop()
+    elapsed = (
+        loop.time() - state.call_start_ts if state.call_start_ts is not None else 0.0
+    )
+    reached = _band_ceiling_reached(state, elapsed)
+    logger.info(
+        "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s",
+        band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached,
+    )
+    if not reached:
+        return
+    # 천장 도달 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
+    if state.should_close or state.close_seed_sent:
+        return
+    state.should_close = True
+    logger.info("normalcall: 밴드 천장 도달(obs_max=%d) → 종료 플래그", state.obs_max)
+    # 종료 레이스 가드(시계워처와 동일): 비버 idle & 유저 응답 대기 없음이면 직접 주입,
+    # 아니면 펌프 turn_end(should_close 경로)/시계워처 백스톱이 주입한다. ★ 질문 주입 아님.
+    # M1(시니어): 세션 종료 레이스에 종료 시드 send_text_turn 이 던지면 미회수 태스크 예외로
+    # 새어 "exception never retrieved" 로그가 남으므로 여기서 흡수(취소는 재전파).
+    if state.turn_id is None and not state.user_turn_open:
+        try:
+            await _inject_close_seed(session, state)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 종료중 주입 실패는 백스톱이 마무리(R5)
+            logger.warning("normalcall: 밴드 천장 종료 시드 주입 실패(무시): %s", exc)
+
+
+# --------------------------------------------------------------------------- #
 # 펌프: 클라 → Gemini
 # --------------------------------------------------------------------------- #
 async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
@@ -954,6 +1113,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         turn_started = await _forward_event(client_ws, event, state)
 
         if turn_started:
+            # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
+            # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
+            _spawn_band_observe(session, state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
