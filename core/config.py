@@ -72,11 +72,15 @@ class Settings(BaseSettings):
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
     TTS_MODEL: str = "gemini-2.5-flash-tts"        # 표현 TTS(Vertex Gemini-TTS, ⚠ AI Studio 의 -preview-tts 아님)
 
-    # Supabase Storage (통화 원본/표현 TTS/연습 녹음 업로드). 미설정이면 voice_url=None.
+    # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_KEY: str | None = None
-    SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # public: 캐릭터·TTS
-    SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # private: 통화·연습 녹음
+    # 오디오 저장(통화 원본/표현 TTS/연습 녹음) = GCS 단일 비공개 버킷. 미설정/자격증명 부재면
+    # voice_url=None(graceful). 아래 두 상수는 이제 버킷명이 아니라 **버킷 내 폴더 prefix**.
+    GCS_AUDIO_BUCKET: str = "beavertalk-app-audio"       # bt-dev-web-01, asia-northeast3, 비공개
+    GCS_SIGNED_URL_PUBLIC_TTL: int = 604800              # public_url 대체 signed URL 만료(7일)
+    SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # prefix: 캐릭터·TTS(장기 서명)
+    SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # prefix: 통화·연습 녹음(단기 서명)
 
     # ── 예약전화 FCM 발송 ──
     # 서비스계정 미설정이면 core.fcm 이 graceful 비활성(등록/삭제 API 는 정상, 발송만 스킵).

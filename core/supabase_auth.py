@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from core import storage  # service_role 클라이언트 재사용
+from core import supabase_client  # service_role 클라이언트 재사용
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def verify_token(token: str) -> Optional[AuthUser]:
     """Supabase access token 검증 → AuthUser. 실패/미설정 시 None."""
     if not token:
         return None
-    client = storage._get_client()  # SUPABASE_URL + SERVICE_KEY 로 만든 클라이언트
+    client = supabase_client.get_client()  # SUPABASE_URL + SERVICE_KEY 로 만든 클라이언트
     if client is None:
         logger.warning("supabase_auth: Supabase 클라이언트 없음(설정 확인) → 인증 불가")
         return None
@@ -53,7 +53,7 @@ def delete_auth_user(uid: str) -> bool:
     """
     if not uid:
         return False
-    client = storage._get_client()  # SUPABASE_URL + SERVICE_KEY 로 만든 클라이언트
+    client = supabase_client.get_client()  # SUPABASE_URL + SERVICE_KEY 로 만든 클라이언트
     if client is None:
         logger.warning("supabase_auth: Supabase 클라이언트 없음(설정 확인) → auth 사용자 삭제 불가")
         return False
