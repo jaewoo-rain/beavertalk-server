@@ -166,6 +166,9 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
         "needs_level_test": needs_level_test,
         # P2.5(D16): 동적 힌트 발동 조건(normal && level 1) 판정 재료 — 원값 그대로.
         "korean_level": korean_level,
+        # 언어 정책 밴드(한국어 위주 전환) — level_no(미확정 폴백 2=beginner)로 4밴드 분류.
+        # persona 는 이 라벨 문자열만 받아 규칙 3 언어 정책을 고른다(어댑터 순수성).
+        "lang_band": mastery_repository.band_of(level_no),
         **materials,
         "recent_topics": recent_topics,
     }

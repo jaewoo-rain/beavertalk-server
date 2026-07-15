@@ -269,6 +269,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 history=setup["history"],
                 target_language=target_language,
                 locale_label=locale_label,
+                lang_band=setup.get("lang_band", "beginner"),
             )
             return {
                 "setup": {**setup, "target_language": target_language, "locale": loc},

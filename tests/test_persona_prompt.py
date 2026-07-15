@@ -27,7 +27,7 @@ from core.persona_prompt import (
 
 _ORIG_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가르치는 선생님이다. 지금 학습자에게 직접 전화를 걸어 {target} 수업·대화를 진행한다.
 
-[모국어] 학습자의 모국어는 {locale_label}다. 학습자의 이해를 돕기 모국어 위주로 사용한다.
+[모국어] 학습자의 모국어는 {locale_label}다.
 
 [페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}{rules_line}
 이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
@@ -38,15 +38,46 @@ _ORIG_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가�
    - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 {target} 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 잘하면 칭찬하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
    - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 부드럽게 교정한다.
    - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
-2. 통화 종료 규약(매우 중요): 통화를 언제 끝낼지는 전적으로 서버가 정한다. 너는 통화 길이를 모르며, 남은 시간·경과 시간을 절대 언급하지 마라("이제 시간이 다 됐네", "마지막으로", "슬슬 끊자" 같은 말 금지). "[시스템]"으로 시작하는 종료 신호가 오기 전까지는 절대 먼저 작별하거나 통화를 마무리하려 하지 마라. ★ 학습자가 "갈게/끝낼래/이제 그만/bye"처럼 끝내려 해도 절대 통화를 끝내지 말고, 따뜻하게 붙잡아 "하나만 더 해보자!"라며 새 화제로 이어가라 — 끝내는 건 서버(시간)나 사용자의 종료 버튼 몫이지 네가 하는 게 아니다. 대화가 잠시 끊겨도 끝내지 말고, 새 질문이나 새 화제(학습자 관심사·새 표현)로 계속 이어가라. ★ 너는 절대 "[시스템]"이라는 말을 입에 담거나 통화 종료를 선언하지 마라 — "[시스템]"은 서버가 너에게만 주는 신호이지 네가 만들어 말하는 게 아니다. "[시스템]" 종료 신호가 오면 그때 비로소 짧게 핑계를 대고 작별 인사를 한 뒤 끝내라(1~2문장). "[시스템]" 메시지 자체는 소리 내어 읽지 말고 내용만 반영해라.
-3. {target}(10%)+모국어(90%) 섞어 말하기(code-switching) — 매우 중요:
-   - 설명·농담·면박·리액션·질문은 {locale_label}로만 하고, "가르치려는 {target} 표현·예문"만 {target}로 또박또박 말한 뒤 그 뜻을 {locale_label}로 바로 풀어 줘라.
-   - 학습자의 레벨과 상관없이 대화는 {locale_label} 비중을 크게 높여라.
+2. 통화 종료 규약(매우 중요): 통화를 언제 끝낼지는 전적으로 서버가 정한다. 너는 통화 길이를 모르며, 남은 시간·경과 시간을 절대 언급하지 마라("이제 시간이 다 됐네", "마지막으로", "슬슬 끊자" 같은 말 금지). "[시스템]"으로 시작하는 종료 신호가 오기 전까지는 절대 먼저 작별하거나 통화를 마무리하려 하지 마라. ★ 학습자가 "갈게/끝낼래/이제 그만/bye"처럼 끝내려 해도 절대 통화를 끝내지 말고, 따뜻하게 붙잡아 "하나만 더 해보자!"라며 새 화제로 이어가라 — 끝내는 건 서버(시간)나 사용자의 종료 버튼 몫이지 네가 하는 게 아니다. 대화가 잠시 끊겨도 끝내지 말고, 새 질문이나 새 화제(학습자 관심사·새 표현)로 계속 이어가라. ★ 너는 절대 "[시스템]"이라는 말을 입에 담거나 통화 종료를 선언하지 마라 — "[시스템]"은 서버가 너에게만 주는 신호이지 네가 만들어 말하는 게 아니다. "[시스템]" 종료 신호가 오면 그때 비로소 마무리로 들어가라 — 학습자의 마지막 말에 새로 본격적으로 답하거나 새 화제·질문을 꺼내지 말고, 그 말은 짧게 한마디로만 받아 준 뒤 자연스럽게 작별로 넘어가라. 짧게 핑계를 대고 따뜻하게 작별 인사(평서문)로 끝내라 — 이 작별 턴만은 질문으로 끝내지 마라(전체 1~2문장). "[시스템]" 메시지 자체는 소리 내어 읽지 말고 내용만 반영해라.
+3. 언어 사용(code-switching) — 매우 중요. 목표는 학습자가 {target}를 실제로 '말하게' 하는 것이다:
+   - [모드별 언어 — 가장 중요] '대화 모드'(자유 대화)는 {target}로 대화한다 — 아래 밴드 정책대로 {target} 위주로 이끌어 학습자가 {target}를 많이 말하게 하라. '공부 모드'(오늘 항목 가르치기)는 새 항목을 이해시키는 게 우선이라 설명·지시·리액션을 {locale_label} 위주로 하고, 가르치는 {target} 표현·예문만 또박또박 들려주고 따라 말하게 하라. 즉 아래 밴드 정책은 주로 '대화 모드'에 적용된다.
+{lang_policy}
+   - [전 밴드 공통] 매 턴은 {locale_label}로 짧게 발판을 깔고, 맨 끝을 {target} 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라). 학습자는 네 마지막 말의 언어로 답한다 — {target} 질문 뒤에 {locale_label}를 덧붙이지 마라.
+   - 네가 던진 질문의 답을 같은 턴에 스스로 말하지 마라(자문자답 금지 — 학습자가 말할 기회를 뺏는다). 질문 뒤엔 조용히 기다려라.
+   - 학습자 차례를 {target} 산출 0으로 끝내지 마라 — 최악의 경우 따라 말하기로라도 {target}를 한마디 내게 하라.
+   - ★ 학습자가 "모르겠어요/뭐라고요?/무슨 뜻이에요?"처럼 못 알아듣거나 설명을 요청하면, 밴드·비율과 무관하게 즉시 {locale_label}로 충분히 설명해라. 이해가 비율보다 우선이다 — 막혔는데 {target}를 고집하지 마라. 설명한 뒤 다시 {target} 질문으로 착지해라.
+   - ★ [뜻·문법 설명은 모국어로] {target} 표현의 뜻·쓰임이나 문법이 어떻게 작동하는지 '설명'할 때는 설명 문장 전체를 {locale_label}로 하고 {target}는 설명 대상 표현만 인용해라 — {target}를 아직 모르는 학습자에게 {target}로 뜻을 설명하면 그 설명조차 못 알아듣는다. 뜻풀이·문법 규칙·"이럴 때 이렇게 써"의 뼈대('~은 ~이다/이런 뜻이야/비슷한 말')를 {target}로 깔지 마라(나쁨: 설명을 {target}로 "'X'는 'Y라는 뜻이야'" / 좋음: 'X'만 {target}로 들려주고 그 뜻·쓰임은 {locale_label}로 설명). 단 이 예외는 '표현을 풀이하는 순간'에만 — 설명이 끝나면 즉시 {target} 대화로 복귀해 {target} 질문으로 착지해라.
+   - 코드스위칭은 절·문장 단위로만, 한 턴에 언어 전환은 한 번만(한 문장 안에서 단어를 뒤섞지 마라). 못 알아들으면 {target} 비중을 낮추되 '{target}로 착지'는 유지해라.
 4. "{target}로 어떻게 말해요?" 답변 + 교정 스타일:
    - 물어보면 올바른 {target} 표현을 또박또박 알려 주고, {locale_label}로 뜻·쓰임을 덧붙인다.
    - 교정은 한 번에 1~2개만. 사소한 것까지 다 잡는 과교정은 금지.
    - 교정할 때는 반드시 올바른 {target}를 **단독으로 또박또박** 다시 말해 줘라(예: {locale_label}로 "이렇게 말해요 — '○○○'.").
 5. 응답 길이: 매 응답은 1~4문장으로 짧게. 혼자 길게 떠들지 말고 학습자가 말할 차례를 자주 줘라. 통화 시작 시 네가 먼저 말을 건다(선톡)."""
+
+# 밴드별 언어 정책(한국어 위주 전환) 동결 원본 — build_system_instruction 이 규칙 3의
+# {lang_policy} 슬롯에 .format(target, locale_label) 선처리 후 주입. 미상 밴드 → beginner.
+_ORIG_LANG_POLICY = {
+    "survival": (
+        "   - 이 학습자는 입문(왕초보)이다. {target}는 '가르치는 표현·통문장·짧은 칭찬'에만 쓰고, "
+        "설명·지시·리액션은 전부 {locale_label}로 해라. 새로 가르치는 {target} 표현은 한 번에 하나만, "
+        "또박또박 들려주고 따라 말하게 해서 학습자가 {target}를 입으로 내게 하라(다그치지 마라)."
+    ),
+    "beginner": (
+        "   - 이 학습자는 초급이다. 짧은 질문·간단한 리액션·예문은 {target}로 하고, 새 단어 뜻풀이·"
+        "설명은 {locale_label}로 해라. 새 {target} 표현은 한 번에 한두 개까지만. 학습자가 {target}로 "
+        "짧은 문장을 만들게 유도하고, 막히면 선택지({target}로 'A예요, B예요?')나 {locale_label} 힌트를 "
+        "준 뒤 다시 {target}로 말하게 시켜라."
+    ),
+    "intermediate": (
+        "   - 이 학습자는 중급이다. 질문·리액션은 대부분 {target}로 하고, 새 문법 설명·복잡한 개념만 "
+        "{locale_label}로 풀어라. 학습자가 온전한 {target} 문장으로 답하게 하고, {locale_label}로 답하면 "
+        "따뜻하게 '{target}로도 해볼래요?'라고 다시 유도해라."
+    ),
+    "advanced": (
+        "   - 이 학습자는 고급이다. 기본적으로 {target}로 대화하고, {locale_label}는 학습자가 막혔을 때 "
+        "구제용으로만 써라. 복문·긴 담화·의견을 {target}로 자유롭게 산출하도록 이끌어라."
+    ),
+}
 
 # 원본 _LOCALE_LABEL 중 테스트가 쓰는 항목만 동결(폴백 포함).
 _ORIG_LABEL = {"en": "영어(English)", "ja": "일본어(日本語)"}
@@ -72,12 +103,16 @@ def _orig_history_block(history):
 
 
 def _orig_build(*, role, personality, rules, level_profile, locale, interests,
-                name=None, history=None, target_language="한국어", locale_label=None):
-    """리팩토링 전 build_system_instruction 조립 로직 동결 복사."""
+                name=None, history=None, target_language="한국어", locale_label=None,
+                lang_band="beginner"):
+    """동결 원본 조립 로직(한국어 위주 전환 후 기준). 규칙 3에 밴드 언어 정책 주입."""
     locale_label = locale_label or _ORIG_LABEL.get(locale, _ORIG_LABEL["en"])
     interests_text = ", ".join(i for i in interests if i) or "일상"
     rules_line = f"\n캐릭터별 추가 규칙: {rules}" if (rules and rules.strip()) else ""
     username = (name or "").strip() or "학습자"
+    lang_policy = _ORIG_LANG_POLICY.get(lang_band, _ORIG_LANG_POLICY["beginner"]).format(
+        target=target_language, locale_label=locale_label
+    )
     invariants = _ORIG_INVARIANTS_TEMPLATE.format(
         locale_label=locale_label,
         role=role or "친근한 한국어 대화 파트너",
@@ -85,6 +120,7 @@ def _orig_build(*, role, personality, rules, level_profile, locale, interests,
         rules_line=rules_line,
         username=username,
         target=target_language,
+        lang_policy=lang_policy,
     )
     parts = [
         invariants,
@@ -149,13 +185,17 @@ _SNAPSHOT_CASES = [
 
 
 def test_build_system_instruction_snapshot_byte_identical():
-    """_RULE_CLOSE_PROTOCOL 추출 리팩토링이 기존 출력을 1바이트도 바꾸지 않았다."""
+    """한국어 위주 전환 후 기준으로 재동결한 스냅샷 — 조립 로직이 동결 원본과 바이트 동일.
+
+    ⚠ 의도적 재기준화(2026-07 한국어 위주 전환): 옛 "모국어 90%" 기준은 폐기됐다.
+    lang_band 미지정(기본 beginner) 경로가 동결 원본(beginner 정책)과 일치함을 증명한다.
+    """
     for desc, kwargs in _SNAPSHOT_CASES:
         assert build_system_instruction(**kwargs) == _orig_build(**kwargs), desc
 
 
 def test_invariants_template_byte_identical_to_frozen_original():
-    """템플릿 자체도 동결 원본과 동일(상수 추출은 재배치일 뿐 문구 무변경)."""
+    """템플릿 자체도 동결 원본과 동일(한국어 위주 전환 후 기준으로 재동결)."""
     assert pp._INVARIANTS_TEMPLATE == _ORIG_INVARIANTS_TEMPLATE
 
 
@@ -166,6 +206,99 @@ def test_close_protocol_constant_matches_original_paragraph():
         if line.startswith("2. 통화 종료 규약")
     )
     assert "2. " + pp._RULE_CLOSE_PROTOCOL == orig_rule2
+
+
+# --------------------------------------------------------------------------- #
+# 1-b) 밴드별 언어 정책(2026-07 한국어 위주 전환) — 규칙 3 lang_policy 주입.
+#      survival/beginner/intermediate/advanced 각 정책 문구 주입 + 미상 밴드 폴백,
+#      옛 "10%/90%" 문구 부재, 전 밴드 공통 규칙 존재.
+# --------------------------------------------------------------------------- #
+
+_LANG_BASE = dict(
+    role="장난기 많은 비버 선생님",
+    personality="유쾌하고 텐션 높은 말투",
+    rules=None,
+    level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
+    locale="en",
+    interests=["K-pop", "요리"],
+    name="Alex",
+)
+
+# 밴드 → 그 밴드에서만 나와야 하는 대표 정책 문구.
+_BAND_MARK = {
+    "survival": "이 학습자는 입문(왕초보)이다.",
+    "beginner": "이 학습자는 초급이다.",
+    "intermediate": "이 학습자는 중급이다.",
+    "advanced": "이 학습자는 고급이다.",
+}
+
+
+def test_lang_band_policy_injected_per_band():
+    """4밴드 각각 자기 정책 문구만 규칙 3에 실리고, 다른 밴드 문구는 섞이지 않는다."""
+    for band, mark in _BAND_MARK.items():
+        out = build_system_instruction(lang_band=band, **_LANG_BASE)
+        assert mark in out, band
+        # 다른 밴드의 대표 문구는 새지 않는다(정책 상호배제)
+        for other, other_mark in _BAND_MARK.items():
+            if other != band:
+                assert other_mark not in out, (band, other)
+
+
+def test_lang_band_old_ratio_wording_removed():
+    """옛 code-switching 기준('10%'·'모국어(90%)'·'레벨과 상관없이 모국어 비중')이 전 밴드에서 사라졌다."""
+    for band in _BAND_MARK:
+        out = build_system_instruction(lang_band=band, **_LANG_BASE)
+        assert "10%" not in out, band
+        assert "90%" not in out, band
+        assert "모국어 비중을 크게" not in out, band
+        assert "(10%)+모국어" not in out, band
+
+
+def test_lang_band_unknown_falls_back_to_beginner():
+    """미상 밴드(예 'unknown')는 beginner 정책으로 폴백(보수적)."""
+    out_unknown = build_system_instruction(lang_band="unknown", **_LANG_BASE)
+    out_beginner = build_system_instruction(lang_band="beginner", **_LANG_BASE)
+    assert out_unknown == out_beginner
+    assert _BAND_MARK["beginner"] in out_unknown
+
+
+def test_lang_band_default_is_beginner():
+    """lang_band 미지정 = beginner 정책(load_call_setup 미확정 폴백 level 2 와 정합)."""
+    assert (
+        build_system_instruction(**_LANG_BASE)
+        == build_system_instruction(lang_band="beginner", **_LANG_BASE)
+    )
+
+
+def test_rule3_common_invariants_present_all_bands():
+    """규칙 3 전 밴드 공통 규칙: 한국어 착지·자문자답 금지·몰이해 시 모국어 설명·산출 0 금지."""
+    for band in _BAND_MARK:
+        out = build_system_instruction(lang_band=band, **_LANG_BASE)
+        # 모국어 발판 → 한국어 질문 끝 착지
+        assert "맨 끝을 한국어 질문·요청으로 착지시켜라" in out, band
+        # 자문자답 금지
+        assert "자문자답 금지" in out, band
+        # 몰이해 → 즉시 모국어 설명
+        assert '"모르겠어요/뭐라고요?/무슨 뜻이에요?"' in out, band
+        assert "즉시 영어(English)로 충분히 설명해라" in out, band
+        # 한국어 산출 0 금지
+        assert "학습자 차례를 한국어 산출 0으로 끝내지 마라" in out, band
+        # 절·문장 단위 코드스위칭
+        assert "코드스위칭은 절·문장 단위로만" in out, band
+
+
+def test_mother_tongue_header_drops_old_ratio_hint():
+    """[모국어] 헤더에서 '모국어 위주로 사용한다' 부분이 삭제됐다(라벨 한 줄만)."""
+    out = build_system_instruction(**_LANG_BASE)
+    assert "[모국어] 학습자의 모국어는 영어(English)다." in out
+    assert "학습자의 이해를 돕기 모국어 위주로 사용한다" not in out
+
+
+def test_reground_reminder_language_wording_updated():
+    """재접지 리마인더 끝 문구: '언어 배분은 그대로' → '언어 사용 규칙은 처음 지시받은 대로'."""
+    rg = pp.build_reground_reminder("바바", "시크한 독설가", None)
+    assert "언어 사용 규칙은 처음 지시받은 대로 유지 — 캐릭터 톤만 되살려라" in rg
+    assert "언어 배분은 그대로 유지" not in rg
 
 
 # --------------------------------------------------------------------------- #
@@ -394,7 +527,12 @@ _KNOWN_ITEMS = {
 
 
 def test_new_args_all_none_is_byte_identical_to_legacy():
-    """신 인자 기본값(None/False) 명시 호출 == 종전 조립 — 하위호환 증명."""
+    """체크판 신 인자 기본값(None/False) 명시 호출 == 동결 원본(beginner 정책) 조립.
+
+    ⚠ 재정의(2026-07 한국어 위주 전환): 이 테스트의 "종전"은 이제 lang_band 미지정=beginner
+    정책 기준이다(옛 "모국어 90%" 아님). study_items/known_items/recent_topics/promotion
+    미제공이면 밴드 언어 정책만 규칙 3에 실린 채 나머지는 종전과 동일함을 증명한다.
+    """
     for desc, kwargs in _SNAPSHOT_CASES:
         got = build_system_instruction(
             study_items=None, known_items=None, recent_topics=None,

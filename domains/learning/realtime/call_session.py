@@ -116,7 +116,9 @@ _DEMO_LOCALE_EXTRA = {"ko": "한국어"}
 # normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.CLOSE_SEED_LEVELTEST(대본 소유자).
 _CLOSE_SEED = (
     "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
-    "통화 시간이 다 됐다. 자연스럽게 핑계를 대고 따뜻하게 작별 인사 후 끝내라. 1~2문장."
+    "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
+    "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'며 따뜻하게 작별해라. "
+    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장."
 )
 
 # 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
@@ -448,6 +450,7 @@ async def run_call(
             known_items=setup.get("known_items") if inject_materials else None,
             recent_topics=setup.get("recent_topics") if inject_materials else None,
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
+            lang_band=setup.get("lang_band", "beginner"),
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
