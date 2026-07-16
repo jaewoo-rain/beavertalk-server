@@ -10,6 +10,7 @@ from db.base import Base
 from domains.account.models.member import Member  # noqa: F401
 from domains.account.models.member_reason import MemberReason  # noqa: F401
 from domains.account.models.speak_country import SpeakCountry  # noqa: F401
+from domains.account.models.nationality_prediction import NationalityPrediction  # noqa: F401
 
 # commerce
 from domains.commerce.models.character import Character  # noqa: F401

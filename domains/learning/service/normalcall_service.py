@@ -585,6 +585,12 @@ class _CallAnalysisBase(BaseModel):
     summary: str
     detected_mode: Literal["study", "chat", "mixed"]
     expressions: list[LearnedExpression]
+    # 요구1: 통화 전체를 돌아본 비버 선생님의 격려 한마디(학습자 모국어 1문장). 후보 0/有
+    # 양경로 공통이라 부모에 둔다. 파싱 누락 시 default "" → _save_analysis 가 None 저장.
+    feedback: str = Field(
+        default="",
+        description="통화 전체를 돌아본 격려 코칭 한마디(학습자 모국어 1문장)",
+    )
 
 
 class CallAnalysis(_CallAnalysisBase):
@@ -619,6 +625,10 @@ def _analysis_instruction(
         "완결된 문장이 아니라 주제를 나타내는 명사구로, 주어·서술어 없이 2~4어절 이내. "
         "ex) 강아지 산책과 음악 취향 / 주말 여행 계획 / 좋아하는 한국 음식\n"
         "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
+        "- feedback 은 통화 '전체'를 돌아보며 학습자를 다독이는 격려 코칭을 " + label + " 로 "
+        "딱 1문장 쓴다(비버 선생님이 직접 건네는 따뜻한 말투, 과장·오글거림 금지). "
+        "통화의 구체적인 순간 하나를 짧게 언급하되, 점수·레벨·숫자·'틀렸다'는 절대 쓰지 않는다. "
+        "통화가 아주 짧거나 발화가 적어도 참여 자체를 격려하는 1문장을 반드시 쓴다(빈 문자열 금지).\n"
         "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다."
     )
 
@@ -869,6 +879,8 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     if call is not None:
         call.summary = result.summary
         call.mode = result.detected_mode
+        # 요구1: 격려 한마디 저장(같은 커밋). 파싱 누락·데모·빈통화 폴백은 자연 None.
+        call.feedback = getattr(result, "feedback", "") or None
         call.status = "done"  # P2.6 — 결과 화면 즉시 해제(요약·표현과 같은 커밋)
 
     pending: list[tuple[int, str]] = []

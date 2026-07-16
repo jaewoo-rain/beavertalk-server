@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     SPEECH_SUPER_SECRET_KEY: str | None = None
     SPEECH_SUPER_CORETYPE: str = "sent.eval.kr"  # 한국어 문장 평가
 
+    # ── 국적 분류 (외부 오디오 국적 추론 API) ──
+    # 미설정이면 core.nationality 가 조용히 비활성(None 반환) — 통화·분석 무영향(R5).
+    NATIONALITY_API_URL: str | None = None      # 예: http://<tailscale-host>:<port>
+    NATIONALITY_API_TOP_K: int = 3              # predict?top_k= (상위 후보 수)
+    NATIONALITY_API_TIMEOUT_S: float = 20.0     # httpx read/write 타임아웃(초)
+    NATIONALITY_MIN_SPEECH_S: float = 10.0      # 이 길이 미만 user 발화는 호출 스킵(호출측 게이트)
+
     # ── 이메일 발송 (Resend) ──
     # 둘 다 있어야 실제 발송. 하나라도 없으면 core.email 이 콘솔 출력으로 폴백한다.
     RESEND_API_KEY: str | None = None

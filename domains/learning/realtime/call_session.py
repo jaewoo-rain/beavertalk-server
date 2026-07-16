@@ -22,12 +22,14 @@ import logging
 import uuid
 from typing import AsyncContextManager, Callable, Optional
 
+from fastapi.concurrency import run_in_threadpool
 from google import genai
 from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
 from core import gemini_analysis
-from core.config import Settings
+from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
+from core.config import Settings, settings as _settings
 from core.gemini_live import (
     DEFAULT_VOICE,
     LiveEvent,
@@ -584,6 +586,12 @@ async def run_call(
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
+        # 요구5: 국적 추론 훅(fire-and-forget) — user 턴 in-memory PCM 을 넘긴다. 통화 루프
+        # 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
+        _trigger_nationality(
+            db_session_factory, call_id, member_id,
+            user_pcm=[s["pcm"] for s in state.segments if s["role"] == "user" and s.get("pcm")],
+        )
         await _finish_call(client_ws, state, call_id)
 
 
@@ -718,6 +726,58 @@ def _trigger_audio_upload(
             )
 
     task = asyncio.create_task(_upload(), name=f"normalcall-audio-upload-{call_id}")
+    _analysis_tasks.add(task)
+    task.add_done_callback(_on_analysis_done)
+
+
+def _trigger_nationality(
+    db_session_factory, call_id: int, member_id: int, user_pcm: list[bytes]
+) -> None:
+    """user 턴 음성으로 국적을 추론해 프로필을 갱신하는 훅을 백그라운드 task 로 띄운다(요구5).
+
+    _trigger_audio_upload 와 100% 동일 패턴(GC 방지 강참조 + done 콜백). 예외는 전량
+    흡수 — 국적 추론 실패는 통화·분석에 무손상(R5). 매 통화(레벨테스트 포함)에서 돈다.
+
+    파이프라인: user PCM concat → 총 발화 길이 게이트(NATIONALITY_MIN_SPEECH_S 미만 skip)
+    → WAV 변환 → predict_nationality(외부 API, threadpool 격리) → predictions 가 있으면
+    nationality_service.record_and_recompute(이력 적재 + 최근5 평균 재계산, account 도메인 소유).
+    """
+    if not user_pcm:
+        return
+
+    async def _run() -> None:
+        try:
+            pcm = b"".join(user_pcm)
+            total_s = len(pcm) / (INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)
+            if total_s < _settings.NATIONALITY_MIN_SPEECH_S:
+                logger.debug(
+                    "normalcall: 국적 추론 skip(발화 %.1fs < %.1fs) call_id=%s",
+                    total_s, _settings.NATIONALITY_MIN_SPEECH_S, call_id,
+                )
+                return
+            wav = pcm16_to_wav(pcm, sample_rate=INPUT_SAMPLE_RATE)
+            # 지연 import — realtime → account 서비스 순환 회피(호출 시점에만 해석).
+            from core.nationality import predict_nationality
+            from domains.account.service import nationality_service
+
+            predictions = await run_in_threadpool(predict_nationality, wav, "wav")
+            if not predictions:
+                logger.debug("normalcall: 국적 추론 결과 없음(skip) call_id=%s", call_id)
+                return
+            await svc.run_db(
+                db_session_factory,
+                lambda db: nationality_service.record_and_recompute(
+                    db, member_id, call_id, predictions
+                ),
+            )
+            logger.info("normalcall: 국적 추론·갱신 완료 call_id=%s member=%s", call_id, member_id)
+        except Exception as exc:  # noqa: BLE001 - 국적 추론 실패는 통화·분석 무손상(R5)
+            logger.warning(
+                "normalcall: 국적 추론 실패(무시 — 통화·분석 무손상) call_id=%s: %s",
+                call_id, exc,
+            )
+
+    task = asyncio.create_task(_run(), name=f"normalcall-nationality-{call_id}")
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
 

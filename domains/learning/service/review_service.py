@@ -49,11 +49,14 @@ class ReviewService:
             sentence_id=sentence_id,
             voice_url=data.voice_url,  # object key(또는 폴백 경로)
             feedback=feedback,
+            counted=data.apply_score,  # 공식점수 산입 여부(연습 모드=False)
         )
         self.repo.add(review)
-        # 발화의 공식 평가(Evaluation 1:1)도 '마지막 시도' 점수로 덮어쓴다.
-        # → Sentence.evaluation / 통화 평균(CallResult.average)에 반영됨.
-        self._apply_evaluation(sentence, feedback)
+        # apply_score=True 일 때만 발화의 공식 평가(Evaluation 1:1)를 '마지막 시도'
+        # 점수로 덮어쓴다 → Sentence.evaluation / 통화 평균(CallResult.average)에 반영.
+        # apply_score=False(연습 모드)면 이력·voice_url·feedback 은 저장하되 공식점수는 불변.
+        if data.apply_score:
+            self._apply_evaluation(sentence, feedback)
         self.db.commit()
         self.db.refresh(review)
         return self._to_feedback(review, sentence)
@@ -64,6 +67,7 @@ class ReviewService:
         sentence_id: int,
         raw: bytes,
         content_type: str | None = None,
+        apply_score: bool = True,
     ) -> ReviewFeedback:
         """업로드된 녹음 바이트로 복습 채점 (멀티파트 엔드포인트 공용 로직).
 
@@ -85,7 +89,7 @@ class ReviewService:
             return self.add_review(
                 member_id,
                 sentence_id,
-                ReviewCreate(voice_url=stored or None),
+                ReviewCreate(voice_url=stored or None, apply_score=apply_score),
                 audio_override=tmp_path,
             )
         finally:

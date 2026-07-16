@@ -103,6 +103,7 @@ class CallService:
         return CallResult(
             call_id=call.call_id,
             summary=call.summary,
+            feedback=call.feedback,  # 요구1: 격려 한마디(/result 만 노출)
             rating=call.rating,
             average=average,
             sentences=[CallResultSentence.model_validate(s) for s in active],

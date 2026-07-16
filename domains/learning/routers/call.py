@@ -14,7 +14,12 @@ from domains.learning.schemas.call import (
     CallSummary,
     RawDataOut,
 )
+from domains.learning.schemas.pronunciation import (
+    PronHistoryItem,
+    PronunciationReport,
+)
 from domains.learning.service import normalcall_service as svc
+from domains.learning.service import pronunciation_service as pron_svc
 from domains.learning.service.call_service import CallService
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -32,6 +37,50 @@ def list_calls(
 ) -> list[CallSummary]:
     """내 통화 목록(최신순) — 요약·평점·상태, 페이지네이션."""
     return CallService(db).list_calls(member.member_id, page.limit, page.offset)
+
+
+@router.get("/pronunciation-history", response_model=list[PronHistoryItem])
+def get_pronunciation_history(
+    member: CurrentMember, db: DbSession
+) -> list[PronHistoryItem]:
+    """최근5 통화(normal·done)의 발음 추이 — [날짜, 활성 문장수, counted 문장 평균 점수].
+
+    정적 경로라 `/{call_id}` 보다 먼저 선언한다(call_id 는 int 라 실제 충돌은 없으나
+    라우트 순서로 의도를 명확히 한다). LLM 없이 얇게 — service→repository 집계만.
+    """
+    return pron_svc.get_pronunciation_history(db, member.member_id)
+
+
+@router.get("/{call_id}/pronunciation", response_model=PronunciationReport)
+async def get_pronunciation_report(
+    call_id: int, request: Request, member: CurrentMember
+) -> PronunciationReport:
+    """통화별 발음 상세 — 문장별 점수 + 소리(alpha)별 집계 + 국가 맞춤 코칭 한마디.
+
+    코칭 한마디는 counted 복습 수 기반 캐시(pron_feedback_n)로 재사용하고, 미스일 때만
+    최저 자모로 PronunciationTip LLM 을 1콜 돈다. 자모가 없으면 comment=None(LLM 스킵),
+    genai client 미준비/LLM 실패면 기존 캐시(또는 None)로 graceful 폴백.
+
+    ⚠️ async — LLM 호출·백그라운드 캐시 저장이 이벤트 루프를 필요로 한다. DB 는
+    svc.run_db(threadpool)로 오프로드한다. 없거나 타인 통화면 404.
+    """
+    client = getattr(request.app.state, "genai_client", None)
+    settings = getattr(request.app.state, "settings", None)
+    session_factory = getattr(request.app.state, "session_factory", None)
+    if settings is None or session_factory is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "발음 서비스가 준비되지 않았습니다."
+        )
+    report = await pron_svc.get_pronunciation_report(
+        call_id=call_id,
+        member_id=member.member_id,
+        session_factory=session_factory,
+        client=client,
+        settings=settings,
+    )
+    if report is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "통화를 찾을 수 없습니다.")
+    return report
 
 
 @router.get("/{call_id}", response_model=CallDetail)
