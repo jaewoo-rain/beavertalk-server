@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from core.deps import CurrentMember, DbSession, PageParams
+from domains.learning.realtime.call_session import trigger_reanalysis
 from domains.learning.schemas.call import (
     CallCreate,
     CallDetail,
@@ -13,6 +14,7 @@ from domains.learning.schemas.call import (
     CallSummary,
     RawDataOut,
 )
+from domains.learning.service import normalcall_service as svc
 from domains.learning.service.call_service import CallService
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -62,3 +64,40 @@ def update_rating(
 def delete_call(call_id: int, member: CurrentMember, db: DbSession) -> None:
     """통화 삭제 — 연관 문장·원본·평가가 CASCADE 로 함께 삭제된다."""
     CallService(db).delete_call(member.member_id, call_id)
+
+
+@router.post("/{call_id}/reanalyze")
+async def reanalyze_call(call_id: int, request: Request, member: CurrentMember) -> dict:
+    """실패(status='failed')한 통화의 통화후 분석을 다시 돌린다(수동 재시도).
+
+    전사(call_raw_data)는 실패해도 보존되므로 재료로 재분석하며, 증거 재적립 멱등 가드가
+    중복을 막는다. status 를 'analyzing' 으로 되돌리고 백그라운드 분석을 띄운 뒤 즉시 반환
+    (프론트는 기존 /status 폴링으로 done 을 기다린다). 'failed' 가 아니면 409, 타인/없는
+    통화면 404, 분석 스택 미준비면 503.
+
+    ⚠️ async 엔드포인트 — asyncio.create_task(백그라운드 분석)는 이벤트루프가 필요하다.
+    DB 는 svc.run_db(threadpool)로 오프로드해 루프를 막지 않는다.
+    """
+    client = getattr(request.app.state, "genai_client", None)
+    settings = getattr(request.app.state, "settings", None)
+    session_factory = getattr(request.app.state, "session_factory", None)
+    if client is None or settings is None or session_factory is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "분석 서비스가 준비되지 않았습니다."
+        )
+    result = await svc.run_db(
+        session_factory, lambda db: svc.prepare_reanalysis(db, call_id, member.member_id)
+    )
+    if result is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "통화를 찾을 수 없습니다.")
+    if not result["eligible"]:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"재분석 대상이 아닙니다(현재 상태: {result['status']}). "
+            "'failed' 통화만 재분석할 수 있습니다.",
+        )
+    trigger_reanalysis(
+        settings, client, session_factory, result["locale"],
+        call_id=call_id, call_type=result["call_type"], member_id=member.member_id,
+    )
+    return {"call_id": call_id, "status": "analyzing"}

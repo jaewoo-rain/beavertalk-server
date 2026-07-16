@@ -519,6 +519,37 @@ def get_status_detail(db: Session, call_id: int, member_id: int) -> dict | None:
     }
 
 
+def prepare_reanalysis(db: Session, call_id: int, member_id: int) -> dict | None:
+    """실패한 통화의 재분석을 준비한다(수동 재시도, A). 소유자 확인 + 상태 게이트 + status 리셋.
+
+    'failed' 통화만 재분석 대상이다(done 은 이미 완료, ongoing/analyzing 은 진행 중).
+    전사(call_raw_data)는 실패해도 보존되므로 재료는 그대로 있고, 증거 재적립 멱등 가드
+    (_apply_call_mastery)가 중복을 막아 재실행이 안전하다.
+
+    Returns:
+        None                                : 없거나 타인 통화(404).
+        {"eligible": False, "status": <현재>} : 재분석 불가 상태(409).
+        {"eligible": True, "status": "analyzing", "call_type", "locale", "member_id"}:
+            status 를 'analyzing' 으로 되돌리고 커밋(R3) — 호출부가 백그라운드 분석을 띄운다.
+    """
+    call = db.get(Call, call_id)
+    if call is None or call.member_id != member_id:
+        return None
+    if call.status != "failed":
+        return {"eligible": False, "status": call.status}
+    member = db.get(Member, member_id)
+    locale = member.language if member and member.language else "en"
+    call.status = "analyzing"
+    db.commit()
+    return {
+        "eligible": True,
+        "status": "analyzing",
+        "call_type": call.call_type,
+        "locale": locale,
+        "member_id": member_id,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # 통화후 분석 (비동기 — gemini 호출 + DB 는 run_db)
 # --------------------------------------------------------------------------- #

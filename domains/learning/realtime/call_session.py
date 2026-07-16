@@ -621,6 +621,33 @@ def _trigger_analysis(
     task.add_done_callback(_on_analysis_done)
 
 
+def trigger_reanalysis(
+    settings: Settings,
+    client,
+    db_session_factory,
+    locale: str,
+    *,
+    call_id: int,
+    call_type: str,
+    member_id: int,
+) -> None:
+    """수동 재분석(A) — 실패한 통화의 통화후 분석을 다시 백그라운드로 띄운다.
+
+    라우터(POST /calls/{id}/reanalyze)가 status 를 'analyzing' 으로 되돌린 뒤 호출한다.
+    통화 시작 때의 in-memory 컨텍스트(candidates·힌트 마커)는 이미 사라졌으므로 None 폴백
+    (analyze_call 이 기본 후보로 대체). target_language 는 서버 기본(비데모)으로 고정 —
+    재분석은 이 배포의 대상 언어 루브릭으로 돈다. 증거 중복은 멱등 가드가 막는다.
+
+    ⚠️ 이벤트루프 위에서 호출해야 한다(asyncio.create_task) — async 엔드포인트에서만.
+    """
+    _trigger_analysis(
+        call_id, client, settings, db_session_factory, locale,
+        target_language=DEFAULT_TARGET_LANGUAGE, locale_label=None,
+        call_type=call_type, member_id=member_id,
+        candidates=None, hinted_from_turn_index=None,
+    )
+
+
 def _on_analysis_done(task: asyncio.Task) -> None:
     _analysis_tasks.discard(task)
     if task.cancelled():
