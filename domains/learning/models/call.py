@@ -30,6 +30,12 @@ class Call(Base, TimestampMixin):
     character_id: Mapped[int] = mapped_column(
         ForeignKey("character.character_id", ondelete="RESTRICT"), index=True, comment="캐릭터",
     )
+    # (멀티랭귀지) 이 통화의 학습 대상 언어 — member_language_level·커리큘럼 선별·
+    # 증거/이력 집계 스코프를 전부 결정. 기존 통화는 server_default 'ko'.
+    target_language: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'ko'"),
+        comment="이 통화의 학습 대상 언어(ISO 639-1)",
+    )
     call_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), comment="전화 날짜")
     total_time: Mapped[Optional[int]] = mapped_column(Integer, comment="총 통화 시간(초)")
     summary: Mapped[Optional[str]] = mapped_column(Text, comment="대화 내용 한 줄 요약")

@@ -5,18 +5,23 @@
 created_at 파생값이다. 유효통화 수·체류일(G3)·승급 잠금(G5)·브리지 믹스·승급 멘트
 전부 이 행 기준으로 계산한다.
 
+- (멀티랭귀지) language(ISO 639-1) = 이력축. member-only 집계(진입 시각·승급 잠금)는
+  반드시 language 로 필터해야 ja 통화가 ko 진입시각을 오염시키지 않는다(리스크 1).
+  기존 이력은 전부 'ko' 로 백필. 인덱스 (member_id, language, created_at).
 - reason CHECK: placement(레벨테스트 배정) / gate_promotion(게이트 자동 승급) /
   remeasure_up·remeasure_down(재측정) / manual(운영 수동) — 마스터성 필드라 CHECK 유지.
 - trigger_call_id UNIQUE(uq_mlh_trigger_call) = evaluate_level_up 멱등 키:
   같은 통화 분석이 재실행돼도 승급 1회만. NULL 다중 허용은 Postgres UNIQUE 기본
-  (manual/placement 등 통화 없는 변경 다수 공존 가능).
+  (manual/placement 등 통화 없는 변경 다수 공존 가능). 통화 1건은 정확히 1개 언어라
+  멱등키는 언어축 추가 불필요.
 - gate_snapshot: 승급 판정 당시 게이트 집계(JSON 문자열 — 프로젝트 TEXT-JSON 컨벤션,
   sqlite 테스트 호환. 감사·튜닝용).
 - created_at 단독(TimestampMixin 미사용) — 이력 행은 불변, updated_at 무의미.
 - 강등 없음: to_level < from_level 은 remeasure_down/manual 만 가능(앱 계층 보장).
 
 설계: docs/20260709_1231_level-system-master-plan.md §3.3 / §5.3,
-      docs/20260709_1346_level-system-detailed-mechanics.md ⑦~⑨.
+      docs/20260709_1346_level-system-detailed-mechanics.md ⑦~⑨,
+      docs/plans/2026-07-20-multi-language-platform.md §3 T1.
 """
 
 from __future__ import annotations
@@ -49,14 +54,17 @@ class MemberLevelHistory(Base):
             name="ck_mlh_reason",
         ),
         UniqueConstraint("trigger_call_id", name="uq_mlh_trigger_call"),
-        # 회원별 이력 최신순 조회(현재 레벨 진입 시각 파생 — desc 정렬은 쿼리에서)
-        Index("ix_mlh_member_created", "member_id", "created_at"),
+        # 회원×언어별 이력 최신순 조회(현재 레벨 진입 시각 파생 — desc 정렬은 쿼리에서)
+        Index("ix_mlh_member_created", "member_id", "language", "created_at"),
     )
 
     history_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     member_id: Mapped[int] = mapped_column(
         ForeignKey("member.member_id", ondelete="CASCADE", name="fk_mlh_member"),
         comment="회원",
+    )
+    language: Mapped[str] = mapped_column(
+        Text, comment="학습 대상 언어(ISO 639-1)",
     )
 
     from_level: Mapped[Optional[int]] = mapped_column(

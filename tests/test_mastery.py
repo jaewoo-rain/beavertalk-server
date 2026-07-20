@@ -67,17 +67,19 @@ def session_factory():
 
 def _chunk(no: int, ko: str) -> LearningItem:
     return LearningItem(kind="chunk", source_key=f"c:{no:02d}:{ko}", band=1,
-                        level_no=1, assign_rule="chunk_v1", surface=ko, seq_no=no)
+                        language="ko", level_no=1, assign_rule="chunk_v1",
+                        surface=ko, seq_no=no)
 
 
 def _grammar(key: str, surface: str, *, level: int = 2, seq: int = 1) -> LearningItem:
     return LearningItem(kind="grammar", source_key=f"g:basic_a:{key}", band=1,
-                        level_no=level, assign_rule="textbook_v1", surface=surface,
-                        textbook_code="basic_a", seq_no=seq)
+                        language="ko", level_no=level, assign_rule="textbook_v1",
+                        surface=surface, textbook_code="basic_a", seq_no=seq)
 
 
 def _vocab(key: str, surface: str, *, level: int = 2, core: bool = True) -> LearningItem:
-    return LearningItem(kind="vocab", source_key=f"v:{key}", band=1, level_no=level,
+    return LearningItem(kind="vocab", source_key=f"v:{key}", band=1,
+                        language="ko", level_no=level,
                         assign_rule="vocab_split_v1", surface=surface,
                         topik_grade=1, is_core=core)
 
@@ -96,7 +98,8 @@ def env(session_factory):
     ch = Character(name="비비", role="선생님", personality="다정",
                    voice_id=voice.voice_id, price=0)
     db.add(ch)
-    db.add_all([Level(level_no=1, profile="생존"), Level(level_no=2, profile="초급A")])
+    db.add_all([Level(language="ko", level_no=1, profile="생존"),
+                Level(language="ko", level_no=2, profile="초급A")])
     member = Member(language="en", korean_level=1, onboarding_completed=True,
                     auth_user_id="auth-m1", created_at=NOW - timedelta(days=10))
     db.add(member)

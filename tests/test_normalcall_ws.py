@@ -84,7 +84,7 @@ def seeded(session_factory):
         ch = Character(name="비비", role="친근한 선생님", personality="다정함",
                        voice_id=voice.voice_id, price=0)
         db.add(ch)
-        db.add(Level(level_no=1, profile="초급 학습자"))
+        db.add(Level(language="ko", level_no=1, profile="초급 학습자"))
         db.flush()
         member = Member(language="en", korean_level=1, onboarding_completed=True,
                         auth_user_id="auth-member")

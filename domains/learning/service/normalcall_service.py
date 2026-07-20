@@ -854,9 +854,15 @@ def _apply_call_mastery(
         db, call_id, member_id, detections, candidates, dialog_rows,
         hinted_from_turn_index=hinted_from_turn_index,
     )
-    evidence_summary = mastery_service.apply_evidence(db, member_id, call_id, verified)
+    _call = db.get(Call, call_id)
+    call_language = _call.target_language if _call is not None else "ko"
+    evidence_summary = mastery_service.apply_evidence(
+        db, member_id, call_id, verified, language=call_language,
+    )
 
-    levelup = mastery_service.evaluate_level_up(db, member_id, trigger_call_id=call_id)
+    levelup = mastery_service.evaluate_level_up(
+        db, member_id, trigger_call_id=call_id, language=call_language,
+    )
     db.commit()
     return {
         "verified": len(verified),
@@ -1288,7 +1294,8 @@ def _save_level_assessment(
     # grandfathering(P2, mechanics ⑩): ≤k−2 → MASTERED(placement) / k−1 → INTRODUCED /
     # ≥k → UNSEEN(행 없음) + history(reason='placement') — 레벨 배정과 같은 커밋에 합류.
     mastery_service.apply_grandfathering(
-        db, member_id, level_no, trigger_call_id=call_id, from_level=prior_level
+        db, member_id, level_no, trigger_call_id=call_id, from_level=prior_level,
+        language=call.target_language,
     )
     db.commit()
     return True

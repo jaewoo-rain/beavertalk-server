@@ -153,7 +153,8 @@ class VerifiedEvidence:
 # 증거 반영 + 상태 전이 (mechanics ⑤ 5~6단계 + ⑥)
 # --------------------------------------------------------------------------- #
 def apply_evidence(
-    db: Session, member_id: int, call_id: int, verified: list[VerifiedEvidence]
+    db: Session, member_id: int, call_id: int, verified: list[VerifiedEvidence],
+    language: str = "ko",
 ) -> dict:
     """검증된 증거를 item_evidence 에 append 하고 체크판(progress)을 갱신한다.
 
@@ -205,7 +206,7 @@ def apply_evidence(
             if introduced_new >= INTRODUCED_CAP_PER_CALL:
                 # 상한 초과: 행 없이 증거만 append(실반영 0) — 다음 통화 순환에서 재포착.
                 for ev in evs:
-                    db.add(_evidence_row(member_id, item_id, call_id, ev, 0.0, now))
+                    db.add(_evidence_row(member_id, item_id, call_id, ev, 0.0, now, language=language))
                     summary["evidence"] += 1
                 continue
             prog = MemberItemProgress(
@@ -245,7 +246,7 @@ def apply_evidence(
                 prog.miss_count = (prog.miss_count or 0) + 1
             if ev.grade_final in ("E2", "E3"):
                 prog.last_used_at = now
-            db.add(_evidence_row(member_id, item_id, call_id, ev, applied, now))
+            db.add(_evidence_row(member_id, item_id, call_id, ev, applied, now, language=language))
             summary["evidence"] += 1
         prog.last_seen_at = now
         prog.last_call_id = call_id
@@ -325,11 +326,11 @@ def apply_evidence(
 
 def _evidence_row(
     member_id: int, item_id: int, call_id: int,
-    ev: VerifiedEvidence, score_delta: float, now: datetime,
+    ev: VerifiedEvidence, score_delta: float, now: datetime, language: str = "ko",
 ) -> ItemEvidence:
     """검증된 증거 1건 → ItemEvidence(append-only). created_at 을 명시해 판정 결정성 확보."""
     return ItemEvidence(
-        member_id=member_id, item_id=item_id, call_id=call_id,
+        member_id=member_id, language=language, item_id=item_id, call_id=call_id,
         turn_index=ev.turn_index,
         grade_raw=ev.grade_raw, grade_final=ev.grade_final,
         learner_quote=ev.quote, verified=True,
@@ -413,7 +414,7 @@ def _mastered_conditions_met(
 # --------------------------------------------------------------------------- #
 # 레벨업 판정 (mechanics ⑦ — 멱등 3중)
 # --------------------------------------------------------------------------- #
-def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict:
+def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, language: str = "ko") -> dict:
     """통화 분석 커밋 흐름에서 호출되는 레벨업 게이트 판정(commit 은 호출부).
 
     승급은 문법(+L1 청크) 전용 — D12: G1/G2 분모(list_gate_items)에 어휘가 없다.
@@ -524,6 +525,7 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict
     db.add(
         MemberLevelHistory(
             member_id=member_id,
+            language=language,
             from_level=k,
             to_level=k + 1,
             reason="gate_promotion",
@@ -549,6 +551,7 @@ def apply_grandfathering(
     *,
     trigger_call_id: Optional[int] = None,
     from_level: Optional[int] = None,
+    language: str = "ko",
 ) -> dict:
     """레벨 k 배정 시 하위 레벨 항목을 placement 로 선반영한다(commit 은 호출부).
 
@@ -608,6 +611,7 @@ def apply_grandfathering(
     db.add(
         MemberLevelHistory(
             member_id=member_id,
+            language=language,
             from_level=from_level,
             to_level=level_no,
             reason="placement",

@@ -5,6 +5,11 @@
 파생값 — 판정 규칙(점수 Δ·전이 조건)이 바뀌면 이 로그를 리플레이해 체크판 전체를
 재계산할 수 있어야 한다. 행 수정·삭제는 그 재계산 가능성을 파괴한다.
 
+- (멀티랭귀지) language(ISO 639-1) = 증거축. item_id 로 언어가 파생되긴 하나,
+  member-only 집계(get_latest_history·증거통화 수 등)에서 조인 없이 언어 격리하려면
+  증거 행에 language 를 박아야 한다(리스크 1 — 집계 오염 방지). learning_item.language
+  와 항상 일치(앱 계층 보장). 기존 증거는 전부 'ko' 로 백필.
+  인덱스 (member_id, language, call_id) — 언어별 증거통화 distinct 집계 커버.
 - grade_raw: LLM 원판정(E1/E2/E3/F). grade_final: 서버 검증 게이트 후 최종 등급
   (E0/E1/E2/E3/F — E3→E1 앵무새 강등 등 반영). CHECK 없음 — call.status 컨벤션.
 - verified: 서버 검증 게이트(인용 존재·에코·중복) 통과 여부.
@@ -16,7 +21,8 @@
 - ix_evidence_member_item: 회원×항목 증거 시계열 조회(상태 전이 판정·리플레이) 커버.
 
 설계: docs/20260709_1231_level-system-master-plan.md §3.3 / §5.2,
-      docs/20260709_1346_level-system-detailed-mechanics.md ⑤~⑥.
+      docs/20260709_1346_level-system-detailed-mechanics.md ⑤~⑥,
+      docs/plans/2026-07-20-multi-language-platform.md §3 T1.
 """
 
 from __future__ import annotations
@@ -47,12 +53,17 @@ class ItemEvidence(Base):
     __table_args__ = (
         # 회원×항목 증거 시계열(상태 전이 판정·리플레이 재계산)
         Index("ix_evidence_member_item", "member_id", "item_id", "created_at"),
+        # (멀티랭귀지) 회원×언어별 증거통화 distinct 집계(member-only 오염 방지)
+        Index("ix_evidence_member_lang_call", "member_id", "language", "call_id"),
     )
 
     evidence_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     member_id: Mapped[int] = mapped_column(
         ForeignKey("member.member_id", ondelete="CASCADE", name="fk_evidence_member"),
         comment="회원",
+    )
+    language: Mapped[str] = mapped_column(
+        Text, comment="학습 대상 언어(ISO 639-1 — learning_item.language 와 일치)",
     )
     item_id: Mapped[int] = mapped_column(
         ForeignKey("learning_item.item_id", ondelete="CASCADE", name="fk_evidence_item"),
