@@ -27,6 +27,10 @@ class Settings(BaseSettings):
 
     ENV: str = "dev"
 
+    # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
+    # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).
+    DEFAULT_TARGET_LANGUAGE: str = "ko"
+
     @property
     def direct_url(self) -> str:
         """마이그레이션용 URL. 미설정이면 런타임 URL 로 폴백."""

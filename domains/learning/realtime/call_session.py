@@ -57,6 +57,12 @@ from sqlalchemy.orm import sessionmaker
 from core import gemini_analysis
 from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
 from core.config import Settings, settings as _settings
+from core.languages import (
+    DEFAULT_LANGUAGE,
+    LanguageSpec,
+    SUPPORTED_LANGUAGES,
+    resolve_language,
+)
 from core.gemini_live import (
     DEFAULT_VOICE,
     LiveEvent,
@@ -138,9 +144,9 @@ REGROUND_MODE = "on_user_turn"
 # 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
 REGROUND_ATTACH_AT = "first"
 DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(BABA, 기본 무료)
-DEFAULT_TARGET_LANGUAGE = "한국어"    # 교육 대상 언어 기본값(프로덕션 — 오버라이드 없으면 이 값)
-# 데모 전용 모국어 라벨 확장(전역 _LOCALE_LABEL 은 안 건드림 → prod 는 ko→영어 폴백 유지).
-_DEMO_LOCALE_EXTRA = {"ko": "한국어"}
+# 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
+# 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
+_DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 
 # normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.CLOSE_SEED_LEVELTEST(대본 소유자).
 _CLOSE_SEED = (
@@ -187,17 +193,23 @@ async def _send_json(ws, message: ServerMessage) -> None:
     await ws.send_text(server_adapter.dump_json(message).decode("utf-8"))
 
 
-def _resolve_target_language(settings: Settings, override: Optional[str]) -> tuple[str, bool]:
-    """교육 대상 언어 결정 → (target_language, is_demo).
+def _resolve_target_language(settings: Settings, override: Optional[str]) -> LanguageSpec:
+    """교육 대상 언어 결정 → LanguageSpec(멀티랭귀지).
 
-    prod 이거나 오버라이드가 없으면 항상 한국어(비데모). non-prod 에서 오버라이드가 오면
-    그 언어로 데모 진행. prod 에서 오버라이드가 오면 무시하고 warning(오남용/버그 탐지).
+    is_demo 개념 폐지: prod/dev 구분 없이 지원 언어면 그대로 간다. override(언어코드,
+    _read_initial_start 가 resolve 한 값)가 없거나 미지원이면 settings.DEFAULT_TARGET_LANGUAGE
+    로 폴백(warning). 언어별 동작(회화 전용/레벨테스트/힌트)은 spec.has_curriculum·leveltest 가
+    결정 — 하류 분기는 코드가 아니라 이 레지스트리 한 행을 본다.
     """
-    if settings.ENV == "prod" or not override:
-        if settings.ENV == "prod" and override:
-            logger.warning("normalcall: prod 에서 target_language 오버라이드 무시(%s)", override)
-        return DEFAULT_TARGET_LANGUAGE, False
-    return override.strip(), True
+    spec = resolve_language(override) if override else None
+    if spec is None:
+        if override:
+            logger.warning(
+                "normalcall: 미지원 target_language(%s) → 기본(%s) 폴백",
+                override, settings.DEFAULT_TARGET_LANGUAGE,
+            )
+        spec = resolve_language(settings.DEFAULT_TARGET_LANGUAGE) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
+    return spec
 
 
 # 데모/dev 통화 길이 override 범위(분). 사장님 요청: 레벨 데모에서 3~15분 선택.
@@ -408,23 +420,25 @@ async def run_call(
     setup = await svc.run_db(db_session_factory, lambda db: svc.load_call_setup(db, member_id, character_id))
     locale = locale_override or setup["locale"]
 
-    # 교육 대상 언어(데모 전용 오버라이드; prod 는 한국어 고정). 데모면 레벨 프로파일을 비우고
-    # 모국어 라벨을 데모용(ko→"한국어")으로. 전역 _LOCALE_LABEL 은 안 건드려 prod 무손상.
-    target_language, is_demo_target = _resolve_target_language(settings, target_override)
-    locale_label_override = _DEMO_LOCALE_EXTRA.get(locale) if is_demo_target else None
+    # 교육 대상 언어(멀티랭귀지) → LanguageSpec. is_demo 폐지: 언어별 동작은 spec 한 행이
+    # 결정한다. spec.label 을 페르소나 대상 언어로, 모국어 라벨은 _LOCALE_LABEL 기본을 쓴다
+    # (locale="ko" 도 이제 "한국어"로 해석 — 데모용 override hack 제거). ko 는 label=="한국어"·
+    # has_curriculum·leveltest 라 기존 한국어 통화 경로·프롬프트 바이트 불변.
+    spec = _resolve_target_language(settings, target_override)
+    target_language = spec.label
 
     # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 2건은 normal 로 강등 ② 서버 자동.
-    #   강등 a) 데모(target_language 오버라이드): 비한국어 전사를 한국어 루브릭으로
-    #          판정하면 korean_level 이 무의미한 값으로 오염 → 명시여도 level_test 금지.
+    #   강등 a) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
+    #          그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
     #   강등 b) prod && korean_level 보유자의 명시 재측정: 재측정은 미지원(후속 기능) —
     #          non-prod 는 개발 테스트 편의로 현행 허용.
-    # 자동: 데모는 진입 금지(normal 고정), 그 외 korean_level 미확정 → level_test.
+    # 자동: 레벨테스트 지원 언어(spec.leveltest) + 레벨 미확정일 때만 level_test.
     if call_type_override is not None:
         call_type = call_type_override
-        if call_type == "level_test" and is_demo_target:
+        if call_type == "level_test" and not spec.leveltest:
             logger.warning(
-                "normalcall: 데모 통화(target_language=%s)에서 call_type=level_test 명시 "
-                "→ normal 강등(한국어 루브릭 판정 오염 방지) member=%s", target_language, member_id,
+                "normalcall: 레벨테스트 미지원 언어(target=%s) 통화에서 call_type=level_test 명시 "
+                "→ normal 강등(루브릭·대본 부재 판정 오염 방지) member=%s", spec.code, member_id,
             )
             call_type = "normal"
         elif (
@@ -437,10 +451,8 @@ async def run_call(
                 "→ normal 강등(재측정은 미지원 — 후속 기능) member=%s", member_id,
             )
             call_type = "normal"
-    elif is_demo_target:
-        call_type = "normal"
     else:
-        call_type = "level_test" if setup["needs_level_test"] else "normal"
+        call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "normal"
 
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
@@ -457,18 +469,16 @@ async def run_call(
             interests=lt_setup["interests"],
             name=lt_setup["name"],
             target_language=target_language,
-            locale_label=locale_label_override,
         )
         # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
         # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
         seed_text = seed_leveltest_opening(target_language)
         voice = lt_setup["voice"]
     else:
-        level_profile = "" if is_demo_target else setup["level_profile"]
-        # P2-c2 체크판 재료(공부 10/대화 가이드/최근 소재/승급 멘트) — setup 이 선별해
-        # 온 값을 그대로 꽂는다(전부 None/False 면 종전 프롬프트와 바이트 동일).
-        # 데모(비한국어)는 한국어 커리큘럼이 무의미하므로 미주입.
-        inject_materials = not is_demo_target
+        # 커리큘럼 없는 언어(spec.has_curriculum=False, 회화 전용)는 레벨 프로파일·체크판
+        # 재료를 주입하지 않는다(무의미). ko 는 has_curriculum=True 라 기존 경로 그대로.
+        inject_materials = spec.has_curriculum
+        level_profile = setup["level_profile"] if inject_materials else ""
         system_instruction = build_system_instruction(
             role=setup["role"],
             personality=setup["personality"],
@@ -479,7 +489,6 @@ async def run_call(
             name=setup["name"],
             history=setup["history"],
             target_language=target_language,
-            locale_label=locale_label_override,
             study_items=setup.get("study_items") if inject_materials else None,
             known_items=setup.get("known_items") if inject_materials else None,
             recent_topics=setup.get("recent_topics") if inject_materials else None,
@@ -495,9 +504,12 @@ async def run_call(
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
 
-    # 3) 통화 행 생성(call_type 기록).
+    # 3) 통화 행 생성(call_type + target_language 코드 기록).
     call_id = await svc.run_db(
-        db_session_factory, lambda db: svc.create_call(db, member_id, character_id, call_type)
+        db_session_factory,
+        lambda db: svc.create_call(
+            db, member_id, character_id, call_type, target_language=spec.code
+        ),
     )
 
     state = _CallState()
@@ -530,13 +542,12 @@ async def run_call(
         state.idle_close_s = IDLE_CLOSE_S
         state.nudge_seed_1 = _NUDGE_SEED_1
 
-    # P2.5(D16) 동적 힌트 사이드카 활성 조건: 모든 통화(레벨테스트·일반, 레벨 무관)에 힌트 제공.
-    # 데모(비한국어 target)만 제외 — 한국어 힌트가 무의미하므로(R5). 상세는 mechanics ⑬.
-    # (구: 레벨테스트 또는 normal 레벨1만 → 사장님 결정으로 전 통화 확대. 비용: 비버 턴마다
-    #  힌트 생성 LLM 호출이 늘지만 논블로킹 사이드카라 지연 은닉.)
-    enable_hints = not is_demo_target
+    # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
+    # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
+    # 프롬프트가 그 언어 커리큘럼에 맞춰져 있지 않아 무의미(R5). 상세는 mechanics ⑬.
+    enable_hints = spec.has_curriculum
     if enable_hints:
-        label = locale_label_override or _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
+        label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
         # 레벨테스트는 레벨을 모르는 상태 — 프로파일 대신 최저 난이도 요약으로 폴백.
         profile = setup["level_profile"] if call_type == "normal" else ""
         state.hint_ctx = {
@@ -619,7 +630,7 @@ async def run_call(
         # 분석 태스크를 먼저 생성(분석 우선 착수) → 오디오 업로드는 병렬 후행.
         _trigger_analysis(
             call_id, client, settings, db_session_factory, locale,
-            target_language=target_language, locale_label=locale_label_override,
+            target_language=target_language, locale_label=None,
             call_type=call_type, member_id=member_id,
             candidates=setup.get("candidates") if call_type == "normal" else None,
             # D16: 힌트 열람 마커(in-memory) — 크래시 유실 시 과크레딧 1회 허용.
@@ -637,7 +648,7 @@ async def run_call(
 
 def _trigger_analysis(
     call_id, client, settings, db_session_factory, locale,
-    *, target_language: str = DEFAULT_TARGET_LANGUAGE, locale_label: str | None = None,
+    *, target_language: str = _DEFAULT_TARGET_LABEL, locale_label: str | None = None,
     call_type: str = "normal", member_id: int | None = None,
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
@@ -683,14 +694,30 @@ def trigger_reanalysis(
 
     라우터(POST /calls/{id}/reanalyze)가 status 를 'analyzing' 으로 되돌린 뒤 호출한다.
     통화 시작 때의 in-memory 컨텍스트(candidates·힌트 마커)는 이미 사라졌으므로 None 폴백
-    (analyze_call 이 기본 후보로 대체). target_language 는 서버 기본(비데모)으로 고정 —
-    재분석은 이 배포의 대상 언어 루브릭으로 돈다. 증거 중복은 멱등 가드가 막는다.
+    (analyze_call 이 기본 후보로 대체). 대상 언어는 **call.target_language**(그 통화가 학습한
+    언어코드)를 읽어 그 언어 루브릭으로 재실행한다(하드코딩 기본 금지 — 멀티랭귀지). 조회
+    실패 시에만 기본 언어로 폴백. 증거 중복은 멱등 가드가 막는다.
 
     ⚠️ 이벤트루프 위에서 호출해야 한다(asyncio.create_task) — async 엔드포인트에서만.
+    call.target_language 조회는 단건 PK get(짧고 드문 수동 엔드포인트)이라 동기 세션으로 읽는다.
     """
+    from domains.learning.models.call import Call  # 지연 import(모델↔realtime 순환 회피)
+
+    code = DEFAULT_LANGUAGE
+    try:
+        with db_session_factory() as db:
+            call = db.get(Call, call_id)
+            if call is not None and call.target_language:
+                code = call.target_language
+    except Exception as exc:  # noqa: BLE001 - 조회 실패는 기본 언어로 폴백(재분석은 계속)
+        logger.warning(
+            "normalcall: 재분석 target_language 조회 실패 → 기본(%s) 폴백 call_id=%s: %s",
+            DEFAULT_LANGUAGE, call_id, exc,
+        )
+    spec = resolve_language(code) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
     _trigger_analysis(
         call_id, client, settings, db_session_factory, locale,
-        target_language=DEFAULT_TARGET_LANGUAGE, locale_label=None,
+        target_language=spec.label, locale_label=None,
         call_type=call_type, member_id=member_id,
         candidates=None, hinted_from_turn_index=None,
     )
@@ -918,8 +945,11 @@ async def _read_initial_start(
 ) -> tuple[int, str | None, str | None, str | None, int | None]:
     """첫 start 에서 character_id / locale / target_language / call_type / duration_min 확보.
 
-    call_type None = 서버 판단(D11 자동 라우팅), "normal"/"level_test" = 클라 명시(우선).
-    duration_min None = 서버 기본 통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
+    target_language 는 **언어코드**로 해석한다(멀티랭귀지): resolve_language 로 정규화해
+    지원 코드/구 데모 라벨("프랑스어")은 canonical code("fr")로, 미지원/부재는 원문 그대로
+    통과시킨다(_resolve_target_language 가 최종 경고+DEFAULT 폴백). call_type None = 서버 판단
+    (D11 자동 라우팅), "normal"/"level_test" = 클라 명시(우선). duration_min None = 서버 기본
+    통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
     """
     from starlette.websockets import WebSocketDisconnect
 
@@ -946,10 +976,15 @@ async def _read_initial_start(
                         )
                     continue
                 if cm.type == "start":
+                    raw_target = getattr(cm, "target_language", None)
+                    # 언어코드로 정규화(지원 코드/구 라벨 → canonical code). 미지원은 원문 유지
+                    # → _resolve_target_language 가 경고+DEFAULT 폴백.
+                    spec = resolve_language(raw_target)
+                    target_code = spec.code if spec is not None else raw_target
                     return (
                         int(getattr(cm, "character_id", DEFAULT_CHARACTER_ID)),
                         getattr(cm, "locale", None),
-                        getattr(cm, "target_language", None),
+                        target_code,
                         getattr(cm, "call_type", None),
                         getattr(cm, "duration_min", None),
                     )

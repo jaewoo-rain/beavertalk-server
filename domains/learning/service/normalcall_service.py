@@ -349,11 +349,14 @@ def _load_study_materials(db: Session, member_id: int, level_no: int, locale: st
 
 
 def create_call(
-    db: Session, member_id: int, character_id: int, call_type: str = "normal"
+    db: Session, member_id: int, character_id: int, call_type: str = "normal",
+    *, target_language: str = "ko",
 ) -> int:
     """통화 행을 생성하고(status=ongoing) call_id 를 반환한다.
 
     call_type: "normal"(기본) | "level_test" — 콜타입 라우팅 결과(call_session 결정).
+    target_language: 이 통화의 학습 대상 언어코드(멀티랭귀지, 기본 'ko') — 커리큘럼 선별·
+        증거/이력 집계 스코프. call_session 이 resolve 한 LanguageSpec.code 를 넘긴다.
     """
     call = Call(
         member_id=member_id,
@@ -361,6 +364,7 @@ def create_call(
         call_date=datetime.now(timezone.utc),
         status="ongoing",
         call_type=call_type,
+        target_language=target_language,
     )
     db.add(call)
     db.commit()

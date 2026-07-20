@@ -362,15 +362,15 @@ async def test_explicit_call_type_forces_level_test(session_factory, seeded, mon
 async def test_demo_explicit_level_test_demoted_to_normal(
     session_factory, seeded, monkeypatch, caplog
 ):
-    """F1: 데모(target_language 오버라이드) + 명시 call_type=level_test → normal 강등.
+    """F1: 레벨테스트 미지원 언어(회화 전용) + 명시 call_type=level_test → normal 강등.
 
-    비한국어 전사를 한국어 루브릭으로 판정하면 korean_level 이 오염되므로
-    데모 통화에서는 명시 level_test 도 normal 로 강등 + warning."""
+    멀티랭귀지: is_demo 폐지 후, spec.leveltest=False 언어(예: ja — 루브릭·대본 미시드)는
+    명시 level_test 도 그 언어 판정이 무의미하므로 normal 로 강등 + warning."""
     monkeypatch.setattr(app_settings, "ENV", "dev")
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         holder = await _run_one_call(
             session_factory, seeded["member_none"], seeded["character_id"],
-            call_type="level_test", target_language="스페인어",
+            call_type="level_test", target_language="ja",
         )
 
     instr = holder["system_instruction"]

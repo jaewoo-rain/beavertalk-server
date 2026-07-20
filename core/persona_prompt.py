@@ -30,8 +30,10 @@ Optional 슬롯 4개(study_items/known_items/recent_topics/promotion_notice)를 
 
 from __future__ import annotations
 
-# locale → 모국어 한국어 라벨.
+# locale → 모국어 한국어 라벨. (멀티랭귀지) ko = 한국어 모국어 학습자(예: 한국인이
+# 일본어를 배우는 도그푸딩) 정식화. 기존 통화의 locale 은 en/zh/… 라 이 키는 무영향.
 _LOCALE_LABEL: dict[str, str] = {
+    "ko": "한국어",
     "en": "영어(English)", "zh": "중국어(中文)", "ja": "일본어(日本語)",
     "vi": "베트남어(Tiếng Việt)", "th": "태국어(ภาษาไทย)", "id": "인도네시아어(Bahasa Indonesia)",
     "mn": "몽골어(Монгол хэл)", "uz": "우즈베크어(Oʻzbek)", "ru": "러시아어(Русский)",
