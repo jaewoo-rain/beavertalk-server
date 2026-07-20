@@ -36,6 +36,22 @@ from domains.learning.models.level import Level
 _ASSETS = Path(__file__).resolve().parent.parent / "assets" / "level"
 _CURRICULUM = _ASSETS / "curriculum_v2"
 
+# (멀티랭귀지) 언어별 소스 경로 레지스트리 — seed_levels/seed_learning_items 가 참조.
+# profiles: level 테이블 시드 소스 / curriculum: learning_item 3종(grammar/vocab/survival) 디렉터리.
+# 새 언어 = 여기 1행 추가(parse_<lang>.py 가 같은 스키마로 산출).
+_LANG_SOURCES: dict[str, dict[str, Path]] = {
+    "ko": {"profiles": _ASSETS / "level_profiles_13.json", "curriculum": _CURRICULUM},
+    "ja": {"profiles": _ASSETS / "level_profiles_ja.json", "curriculum": _ASSETS / "curriculum_v2_ja"},
+}
+
+
+def _lang_source(language: str, kind: str) -> Path:
+    """언어별 소스 경로. 미등록 언어면 즉시 에러(시드 소스 부재)."""
+    src = _LANG_SOURCES.get(language)
+    if src is None:
+        raise SystemExit(f"시드 소스 미등록 언어: {language!r} (parse_<lang>.py 산출 + _LANG_SOURCES 등록 필요)")
+    return src[kind]
+
 # Gemini Live 프리빌트 보이스 30종 (이름, 음색 특성). 출처: ai.google.dev speech-generation.
 VOICES = [
     ("Zephyr", "밝은(Bright)"), ("Puck", "경쾌한(Upbeat)"), ("Charon", "정보전달형(Informative)"),
@@ -72,8 +88,9 @@ def seed_levels(db, language: str = "ko") -> None:
 
     level_no 는 언어별로만 유일 — Rev1(12→13 shift) 적용 후 재실행하면
     기존 2~13 행은 갱신, 1(생존 회화)은 신규 삽입된다.
+    소스는 언어별(_LANG_SOURCES) — ko=level_profiles_13.json, ja=level_profiles_ja.json 등.
     """
-    src = _ASSETS / "level_profiles_13.json"
+    src = _lang_source(language, "profiles")
     data = json.loads(src.read_text(encoding="utf-8"))
     for e in data["levels"]:
         row = db.scalar(
@@ -133,6 +150,7 @@ def _grammar_fields(e: dict) -> dict:
         level_no=e["level_no"],
         assign_rule=e["assign_rule"],
         surface=e["surface"],
+        reading=e.get("reading"),  # (멀티랭귀지) 표음 표기 — 한국어 None, 일본어 가나 등
         homograph_refs=None,
         pos_primary=None,
         pos_list=None,
@@ -170,6 +188,7 @@ def _vocab_fields(e: dict) -> dict:
         level_no=e["level_no"],
         assign_rule=e["assign_rule"],
         surface=e["surface"],
+        reading=e.get("reading"),  # (멀티랭귀지) 표음 표기 — 한국어 None, 일본어 가나 등
         homograph_refs=e.get("homograph_refs"),
         pos_primary=e.get("pos_primary"),
         pos_list=_json_or_none(e.get("pos_list")),
@@ -211,6 +230,7 @@ def _chunk_fields(e: dict) -> dict:
         level_no=1,
         assign_rule="survival_v1",
         surface=e["ko"],
+        reading=e.get("reading"),  # (멀티랭귀지) 표음 표기 — 한국어 None, 일본어 가나 등
         homograph_refs=None,
         pos_primary=None,
         pos_list=None,
@@ -242,9 +262,14 @@ def seed_learning_items(db, language: str = "ko") -> None:
     같은 언어 안에서 source_key 로 dict 조인하고 1000행 단위 flush. commit 은 main() 에서 1회.
     level FK 때문에 같은 language 의 seed_levels 이후에 실행해야 한다.
     """
-    grammar = json.loads((_CURRICULUM / "grammar.json").read_text(encoding="utf-8"))["items"]
-    vocab = json.loads((_CURRICULUM / "vocab.json").read_text(encoding="utf-8"))["items"]
-    chunks = json.loads((_CURRICULUM / "survival_chunks.json").read_text(encoding="utf-8"))["items"]
+    cdir = _lang_source(language, "curriculum")
+    grammar = json.loads((cdir / "grammar.json").read_text(encoding="utf-8"))["items"]
+    vocab = json.loads((cdir / "vocab.json").read_text(encoding="utf-8"))["items"]
+    # 생존청크(level 1)는 언어별 선택 — 아직 저작 전(T5)이면 파일 부재 → 빈 리스트.
+    chunk_path = cdir / "survival_chunks.json"
+    chunks = (
+        json.loads(chunk_path.read_text(encoding="utf-8"))["items"] if chunk_path.exists() else []
+    )
 
     rows = (
         [_grammar_fields(e) for e in grammar]
@@ -296,16 +321,33 @@ def seed_learning_items(db, language: str = "ko") -> None:
             print("        삭제하려면: python scripts/seed.py --prune")
 
 
+def _arg_language() -> str | None:
+    """`--language ja` → 'ja'. 없으면 None(=한국어 풀 시드)."""
+    if "--language" in sys.argv:
+        i = sys.argv.index("--language")
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1].strip().lower()
+        raise SystemExit("--language 뒤에 언어코드가 필요합니다 (예: --language ja)")
+    return None
+
+
 def main() -> None:
     engine = build_engine(settings)
     engine.echo = False  # 시드는 1.1만 행 — SQL 에코가 소음·저속 (앱 엔진 설정은 무변경)
     session_factory = build_session_factory(engine)
     db = session_factory()
+    lang = _arg_language()
     try:
-        seed_voices(db)   # 캐릭터가 voice 를 참조하므로 먼저
-        seed_levels(db)
-        seed_characters(db)
-        seed_learning_items(db)  # level FK 참조 → seed_levels 뒤
+        if lang and lang != "ko":
+            # (멀티랭귀지) 특정 언어의 커리큘럼만 적재 — voices/characters 는 언어 무관(생략).
+            print(f"[언어={lang}] 레벨·learning_item 만 시드 (voices/characters 는 언어 무관)")
+            seed_levels(db, lang)
+            seed_learning_items(db, lang)  # level FK 참조 → seed_levels 뒤
+        else:
+            seed_voices(db)   # 캐릭터가 voice 를 참조하므로 먼저
+            seed_levels(db)
+            seed_characters(db)
+            seed_learning_items(db)  # level FK 참조 → seed_levels 뒤
         db.commit()
         print("시드 완료 ✅")
     finally:

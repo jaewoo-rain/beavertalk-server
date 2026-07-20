@@ -1,0 +1,110 @@
+{
+  "_comment": "일본어 레벨 프로파일 골격(T4b 생성). profile 본문·생존청크는 T5 저작 대상. level_no 축은 한국어와 동일(1=생존, 2~13=A1~C4).",
+  "language": "ja",
+  "levels": [
+    {
+      "level_no": 1,
+      "band": "생존",
+      "grade": null,
+      "stage_name": "생존 회화",
+      "textbook": null,
+      "profile": "(T5 저작 예정) 일본어 생존 표현 — 인사·숫자·정형 표현 46청크."
+    },
+    {
+      "level_no": 2,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A1",
+      "textbook": "JP-A1",
+      "profile": "(T5 저작 예정) 일본어 CEFR A1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 3,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A2",
+      "textbook": "JP-A2",
+      "profile": "(T5 저작 예정) 일본어 CEFR A2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 4,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A3",
+      "textbook": "JP-A3",
+      "profile": "(T5 저작 예정) 일본어 CEFR A3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 5,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A4",
+      "textbook": "JP-A4",
+      "profile": "(T5 저작 예정) 일본어 CEFR A4 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 6,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B1",
+      "textbook": "JP-B1",
+      "profile": "(T5 저작 예정) 일본어 CEFR B1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 7,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B2",
+      "textbook": "JP-B2",
+      "profile": "(T5 저작 예정) 일본어 CEFR B2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 8,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B3",
+      "textbook": "JP-B3",
+      "profile": "(T5 저작 예정) 일본어 CEFR B3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 9,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B4",
+      "textbook": "JP-B4",
+      "profile": "(T5 저작 예정) 일본어 CEFR B4 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 10,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C1",
+      "textbook": "JP-C1",
+      "profile": "(T5 저작 예정) 일본어 CEFR C1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 11,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C2",
+      "textbook": "JP-C2",
+      "profile": "(T5 저작 예정) 일본어 CEFR C2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 12,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C3",
+      "textbook": "JP-C3",
+      "profile": "(T5 저작 예정) 일본어 CEFR C3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 13,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C4",
+      "textbook": "JP-C4",
+      "profile": "(T5 저작 예정) 일본어 CEFR C4 레벨 발화 프로파일."
+    }
+  ]
+}
