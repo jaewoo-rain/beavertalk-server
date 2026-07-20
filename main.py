@@ -14,13 +14,16 @@ from __future__ import annotations
 import contextlib
 import logging
 import pathlib
+import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.exceptions import HTTPException as FastAPIHTTPException
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from core.config import Settings
 from core.config import settings as default_settings
@@ -119,20 +122,72 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 async def http_exception_handler(
-    request: Request, exc: FastAPIHTTPException
+    request: Request, exc: StarletteHTTPException
 ) -> JSONResponse:
     """HTTPException → 표준 에러 바디로 통일.
 
     raise HTTPException(409, "이미 가입된 이메일입니다.") 처럼 문자열만 줘도
     {"detail": {"code": "HTTP_409", "message": "..."}} 로 감싼다.
     이미 dict(detail) 를 준 경우는 그대로 통과.
+
+    ⚠️ Starlette 의 HTTPException(FastAPI HTTPException 의 부모)으로 등록한다 — 그래야
+    우리가 raise 한 것뿐 아니라 프레임워크가 내부에서 던지는 것(없는 라우트 404, 405 등)까지
+    한 포맷으로 잡힌다(공식 권장). FastAPI HTTPException 은 이것의 하위라 함께 잡힌다.
     """
     detail = exc.detail
     if isinstance(detail, dict):
         body = {"detail": detail}
     else:
         body = {"detail": {"code": f"HTTP_{exc.status_code}", "message": str(detail)}}
-    return JSONResponse(status_code=exc.status_code, content=body, headers=exc.headers)
+    return JSONResponse(
+        status_code=exc.status_code, content=body, headers=getattr(exc, "headers", None)
+    )
+
+
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """요청 검증 실패(422) → HTTPException 과 같은 표준 바디로 통일.
+
+    FastAPI 기본 422 는 {"detail": [필드에러...]} 라 위 HTTPException 포맷과 모양이 달라
+    클라가 두 형태를 따로 다뤄야 한다. 여기서 {"detail": {"code","message"}} 로 감싸 통일하고,
+    필드별 상세는 errors 로 함께 준다(프론트가 어느 필드가 틀렸는지 쓸 수 있게).
+    """
+    errors = jsonable_encoder(exc.errors())
+    first = errors[0] if errors else {}
+    loc = ".".join(str(p) for p in first.get("loc", []) if p != "body")
+    msg = first.get("msg", "요청 값이 올바르지 않습니다.")
+    message = f"{loc}: {msg}" if loc else msg
+    return JSONResponse(
+        status_code=422,
+        content={"detail": {"code": "VALIDATION_ERROR", "message": message, "errors": errors}},
+    )
+
+
+async def unhandled_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """어디서도 못 잡은 예외 → 500(최후의 그물). 추적 ID 만 클라에 주고 상세는 서버 로그로.
+
+    왜: 예상 못 한 버그의 스택트레이스·내부 메시지를 그대로 응답에 실으면 민감정보가 샌다.
+    그래서 클라엔 짧은 안내 + error_ref_id(랜덤 ID)만 주고, 서버 로그에 같은 ID로 전체 예외를
+    남긴다 — 사용자가 ID 를 알려주면 로그에서 바로 그 사건을 찾는다(장애 추적).
+    HTTPException·검증에러는 각자 핸들러가 먼저 잡으니, 여기는 '진짜 예기치 못한' 것만 온다.
+    """
+    ref = uuid.uuid4().hex
+    logger.exception(
+        "unhandled exception ref=%s %s %s", ref, request.method, request.url.path
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": {
+                "code": "INTERNAL_ERROR",
+                "message": "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+                "error_ref_id": ref,
+            }
+        },
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -155,7 +210,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.add_exception_handler(FastAPIHTTPException, http_exception_handler)
+    # 예외 핸들러 3종(구체 → 일반 순서로 이해하면 됨 — Starlette 는 예외 타입 MRO 로 매칭).
+    #   ① HTTPException(우리가 raise 한 것 + 프레임워크 내부 것) → 표준 바디
+    #   ② 요청 검증 실패(422) → 같은 표준 바디로 통일
+    #   ③ 그 외 모든 미처리 예외 → 500 + 추적 ID(최후의 그물)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, unhandled_exception_handler)
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:
