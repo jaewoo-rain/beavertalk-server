@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, File, UploadFile, status
+from fastapi import APIRouter, File, Form, UploadFile, status
 
 from core.deps import CurrentMember, DbSession, GenaiClient
 from domains.learning.schemas.call import SentenceOut
@@ -68,15 +68,17 @@ async def add_review_audio(
     member: CurrentMember,
     db: DbSession,
     audio: UploadFile = File(...),
+    apply_score: bool = Form(True),
 ) -> ReviewFeedback:
     """녹음 파일 업로드(multipart) → MP3 저장 + 무손실 채점 → 글자별 상/중/하 + 점수.
 
     클라이언트가 스토리지 선업로드 없이 녹음(WAV 권장)을 그대로 보내면 서버가
     저장·변환·채점까지 처리한다(JSON `POST .../reviews` 는 키 기반 경로로 별도 유지).
+    apply_score=False 면 연습 모드 — 이력·음성·채점은 반환하되 문장 공식점수는 불변.
     """
     raw = await audio.read()
     return ReviewService(db).add_review_from_audio(
-        member.member_id, sentence_id, raw, audio.content_type
+        member.member_id, sentence_id, raw, audio.content_type, apply_score
     )
 
 

@@ -22,7 +22,10 @@ echo "[1/3] 빌드: ${TAG}"
 gcloud builds submit --region "$REGION" --project "$PROJECT" --tag "$IMG" --quiet
 
 echo "[2/3] 배포"
-gcloud run deploy "$SERVICE" --image "$IMG" --region "$REGION" --project "$PROJECT" --quiet
+# --timeout=3600: Cloud Run 요청 타임아웃(기본 300s=5분)은 WS 통화에도 걸려 5분 통화가
+#   작별 직전 소켓째 끊긴다(실측 call 195: 298s 문장 중간 절단). 통화 WS 는 하나의 긴 요청이므로
+#   상한을 최대(3600s=60분)로 올려 서버 시계(종료 시드·작별)가 온전히 돌게 한다.
+gcloud run deploy "$SERVICE" --image "$IMG" --region "$REGION" --project "$PROJECT" --timeout=3600 --quiet
 
 echo "[3/3] 헬스체크"
 printf 'health:%s  ' "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/health")"

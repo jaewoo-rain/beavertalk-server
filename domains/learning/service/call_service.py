@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date as _date, datetime, time as _time, timedelta, timezone
 from typing import Sequence
 
 from fastapi import HTTPException, status
@@ -34,6 +34,10 @@ from domains.learning.schemas.call import (
 def _avg(values: list) -> float | None:
     nums = [v for v in values if v is not None]
     return round(sum(nums) / len(nums), 1) if nums else None
+
+
+# '오늘 통화함' 유효 통화 최소 길이(초). 통화가 이만큼 이상이면 그 날 통화한 것으로 친다.
+DAILY_MIN_CALL_S = 10
 
 
 class CallService:
@@ -103,10 +107,38 @@ class CallService:
         return CallResult(
             call_id=call.call_id,
             summary=call.summary,
+            feedback=call.feedback,  # 요구1: 격려 한마디(/result 만 노출)
             rating=call.rating,
             average=average,
             sentences=[CallResultSentence.model_validate(s) for s in active],
         )
+
+    def daily_status(self, member_id: int, local_date: str, tz_offset_min: int) -> dict:
+        """'오늘 통화함' 파생 체크 — member 컬럼/일일 초기화 없이 call 에서 계산.
+
+        Args:
+            local_date: 클라이언트 로컬 날짜 "YYYY-MM-DD"(사용자가 '오늘'이라 여기는 날).
+            tz_offset_min: 클라이언트 UTC 오프셋(분, 동쪽 +). KST=540. 로컬 하루 경계를 UTC 로 환산.
+
+        유효 통화 = 그 로컬 하루 안에 시작 + total_time>=DAILY_MIN_CALL_S + status in(done,analyzing).
+        외국인 사용자 타임존이 제각각이라 경계를 서버가 고정하지 않고 클라 로컬 날짜/오프셋으로 받는다.
+        """
+        try:
+            d = _date.fromisoformat(local_date)
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "date 는 YYYY-MM-DD 형식이어야 합니다."
+            )
+        if not -14 * 60 <= tz_offset_min <= 14 * 60:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "tz_offset 은 분 단위(-840~840)여야 합니다."
+            )
+        offset = timedelta(minutes=tz_offset_min)
+        # 로컬 자정(naive) - offset = 그 순간의 UTC. 예) KST(+540) 07-17 00:00 → UTC 07-16 15:00.
+        start_utc = (datetime.combine(d, _time.min) - offset).replace(tzinfo=timezone.utc)
+        end_utc = start_utc + timedelta(days=1)
+        called = self.repo.has_call_in_window(member_id, start_utc, end_utc, DAILY_MIN_CALL_S)
+        return {"date": local_date, "called_today": called}
 
     def get_raw(self, member_id: int, call_id: int) -> list[RawDataOut]:
         call = self.repo.get_with_raw(call_id)

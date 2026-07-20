@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     SPEECH_SUPER_SECRET_KEY: str | None = None
     SPEECH_SUPER_CORETYPE: str = "sent.eval.kr"  # 한국어 문장 평가
 
+    # ── 국적 분류 (외부 오디오 국적 추론 API) ──
+    # 미설정이면 core.nationality 가 조용히 비활성(None 반환) — 통화·분석 무영향(R5).
+    NATIONALITY_API_URL: str | None = None      # 예: http://<tailscale-host>:<port>
+    NATIONALITY_API_TOP_K: int = 3              # predict?top_k= (상위 후보 수)
+    NATIONALITY_API_TIMEOUT_S: float = 20.0     # httpx read/write 타임아웃(초)
+    NATIONALITY_MIN_SPEECH_S: float = 10.0      # 이 길이 미만 user 발화는 호출 스킵(호출측 게이트)
+
     # ── 이메일 발송 (Resend) ──
     # 둘 다 있어야 실제 발송. 하나라도 없으면 core.email 이 콘솔 출력으로 폴백한다.
     RESEND_API_KEY: str | None = None
@@ -72,11 +79,15 @@ class Settings(BaseSettings):
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
     TTS_MODEL: str = "gemini-2.5-flash-tts"        # 표현 TTS(Vertex Gemini-TTS, ⚠ AI Studio 의 -preview-tts 아님)
 
-    # Supabase Storage (통화 원본/표현 TTS/연습 녹음 업로드). 미설정이면 voice_url=None.
+    # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_KEY: str | None = None
-    SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # public: 캐릭터·TTS
-    SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # private: 통화·연습 녹음
+    # 오디오 저장(통화 원본/표현 TTS/연습 녹음) = GCS 단일 비공개 버킷. 미설정/자격증명 부재면
+    # voice_url=None(graceful). 아래 두 상수는 이제 버킷명이 아니라 **버킷 내 폴더 prefix**.
+    GCS_AUDIO_BUCKET: str = "beavertalk-app-audio"       # bt-dev-web-01, asia-northeast3, 비공개
+    GCS_SIGNED_URL_PUBLIC_TTL: int = 604800              # public_url 대체 signed URL 만료(7일)
+    SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # prefix: 캐릭터·TTS(장기 서명)
+    SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # prefix: 통화·연습 녹음(단기 서명)
 
     # ── 예약전화 FCM 발송 ──
     # 서비스계정 미설정이면 core.fcm 이 graceful 비활성(등록/삭제 API 는 정상, 발송만 스킵).

@@ -129,6 +129,8 @@ class CallResult(BaseModel):
 
     call_id: int
     summary: Optional[str]
+    # 요구1: 통화 전체를 돌아본 비버 선생님의 격려 한마디(모국어 1문장). 데모·빈통화·구버전 None.
+    feedback: Optional[str] = None
     rating: Optional[int]
     average: ScoreAverage
     sentences: list[CallResultSentence]
