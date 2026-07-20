@@ -1,5 +1,32 @@
 """normalcall 단일 양방향 브리지 — 5분 한국어 통화 본체(async 오케스트레이션).
 
+────────────────────────────────────────────────────────────────────────────
+🧒 12살에게 큰 그림부터: 이 파일이 하는 일은 "전화 교환수"다.
+  한쪽 끝엔 학습자(휴대폰 앱 = 클라이언트, 이하 '클라'), 다른 쪽 끝엔 비버 선생님을
+  연기하는 AI(구글 Gemini Live). 이 파일은 두 사람 사이에 앉아서 목소리를 실시간으로
+  주고받게 이어준다. 그리고 5분이 지나면 "이제 시간 됐어요~" 하고 통화를 예쁘게 끊는다.
+
+  왜 '실시간'이 어렵나? 전화는 내가 말하는 소리(클라→Gemini)와 상대가 말하는 소리
+  (Gemini→클라)가 **동시에** 흘러야 자연스럽다. 한쪽씩 번갈아 하면 무전기처럼 뚝뚝
+  끊긴다. 그래서 두 방향을 각각 쉬지 않고 퍼 나르는 '펌프(pump)' 2개를 **동시에** 돌린다.
+  (펌프 = 물을 계속 퍼내는 기계처럼, 한 방향의 소리를 계속 받아서 반대편으로 밀어주는
+   무한루프 코루틴.) 이게 이 파일의 심장인 '2펌프' 구조다.
+
+  왜 TaskGroup? TaskGroup = "여러 일을 동시에 시키되, 하나라도 실패하면 나머지도
+  깔끔히 멈추는 묶음". 펌프 하나가 죽었는데 다른 펌프만 계속 돌면 '반쪽짜리 좀비 통화'가
+  된다(내 목소리는 가는데 상대 목소리는 안 오는 식). TaskGroup이 하나 죽으면 나머지를
+  자동 취소해서 이런 어정쩡한 상태를 원천 차단한다.
+
+  왜 절대 백스톱(asyncio.timeout)? Gemini 연결 자체가 ~10분쯤 되면 저쪽에서 먼저 뚝
+  끊어버린다(우리가 통제 못 하는 종료 — 그러면 뒤처리를 우리가 못 챙긴다). 그래서 그 전에
+  **우리가 먼저** 딱 끊어서 정리 순서를 우리 손에 쥔다. 이게 '절대 백스톱'(최후의 안전장치).
+
+  왜 barge-in off? '바지인(barge-in)' = 상대가 말하는 도중에 끼어들어 말을 끊는 것. 비버가
+  말하는 동안 마이크를 열어두면 AI가 자기 목소리·주변 잡음을 듣고 헷갈려서 말이 엉키거나
+  끊긴다. 그래서 비버가 말할 땐 학습자 마이크 입력을 아예 안 보낸다(barge-in off). 트레이드
+  오프: 진짜로 끼어들어 말 끊기는 못 한다. 하지만 학습앱이라 오히려 이게 더 안정적이고 안전.
+────────────────────────────────────────────────────────────────────────────
+
 beavertalk 의 검증된 bridge.py(2펌프 + 시계워처 + asyncio.timeout 절대 백스톱 +
 TaskGroup + barge-in off)를 이 프로젝트로 포팅. 차이:
     - DB 는 동기 SQLAlchemy → normalcall_service 를 run_db(스레드풀+짧은세션)로 호출.
@@ -144,6 +171,11 @@ _NUDGE_SEED_1_LEVELTEST = (
 SessionFactory = Callable[..., AsyncContextManager[LiveSessionProtocol]]
 
 # 통화후 분석 task 강참조 보관소(GC 방지).
+# 🧒 왜 이 집합이 필요한가: asyncio.create_task 로 백그라운드 작업을 띄우면, 파이썬은
+#   그 작업을 아무도 '붙잡고' 있지 않으면(어떤 변수도 가리키지 않으면) 도중에 쓰레기라고
+#   여기고 없애버릴 수 있다(가비지 컬렉션=GC). 그러면 통화후 분석이 조용히 중간에 사라진다.
+#   그래서 이 집합(set)에 task 를 넣어 **강하게 붙잡아** 끝까지 살아있게 한다. 작업이 끝나면
+#   done 콜백(_on_analysis_done)이 집합에서 빼내 메모리 누수도 막는다(붙잡되, 끝나면 놓는다).
 _analysis_tasks: set[asyncio.Task] = set()
 
 
@@ -566,6 +598,14 @@ async def run_call(
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         logger.exception("normalcall 브리지 오류: %s", exc)
     finally:
+        # 🧒 왜 finally(통화후 파이프라인)인가: 통화는 여러 방식으로 끝난다 — 정상 작별
+        #   (_CallFinished), 학습자가 앱을 꺼서 끊김(_ClientDisconnect), 시간 초과 강제 종료
+        #   (TimeoutError), 예상 못 한 오류(Exception). 이 뒤처리(전사 저장·분석·오디오 업로드·
+        #   국적 추론)는 **어떤 경로로 끝나든 딱 한 곳에서** 보장돼야 한다. try/except 마다
+        #   중복으로 적으면 하나만 빠뜨려도 통화 기록이 유실된다. finally 는 위에서 무슨 일이
+        #   있었든 반드시 실행되므로, 뒤처리를 여기 한 곳에 모아 '절대 빠지지 않게' 만든다.
+        #   무거운 작업(분석·업로드·국적 추론)은 전부 fire-and-forget(띄워만 놓고 안 기다림)로
+        #   백그라운드에 넘겨, 학습자 쪽 소켓을 붙잡지 않고 빠르게 통화를 마무리한다.
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
         for t in list(state.hint_tasks):
             t.cancel()
@@ -738,6 +778,19 @@ def _trigger_nationality(
     _trigger_audio_upload 와 100% 동일 패턴(GC 방지 강참조 + done 콜백). 예외는 전량
     흡수 — 국적 추론 실패는 통화·분석에 무손상(R5). 매 통화(레벨테스트 포함)에서 돈다.
 
+    🧒 왜 GCS(클라우드 저장소)에서 오디오를 도로 내려받지 않고, 통화 중 메모리에 쌓아둔
+      user PCM(원음 조각들)을 바로 쓰나? 이유 셋:
+      1) 레이스 회피: 오디오 업로드는 백그라운드에서 늦게(수 초 뒤) 끝난다. 국적 추론이
+         "업로드가 다 됐겠지" 하고 내려받으면 아직 안 올라간 파일을 못 찾을 수 있다. 메모리에
+         이미 들고 있는 원음을 쓰면 그 '기다림·순서 맞추기'가 아예 필요 없다.
+      2) 원본 무손실: 저장용 오디오는 MP3 같은 압축을 거치며 음질이 살짝 깎인다. 국적을
+         목소리로 추론하는 API 엔 원본(손실 없는 PCM)이 더 정확하다.
+      3) 공짜 데이터: 어차피 통화 내내 학습자 목소리를 state.segments 에 모아뒀으니, 그걸
+         그대로 이어붙이면 추가 다운로드 비용 0.
+    🧒 왜 10초(NATIONALITY_MIN_SPEECH_S) 미만이면 건너뛰나: 말이 너무 짧으면 국적 추론
+      모델이 "말한 게 없음(no_speech)"이라 판단해 쓸모없는 결과를 준다. 헛돈·헛시간을 아끼려
+      아주 짧은 통화는 아예 안 보낸다.
+
     파이프라인: user PCM concat → 총 발화 길이 게이트(NATIONALITY_MIN_SPEECH_S 미만 skip)
     → WAV 변환 → predict_nationality(외부 API, threadpool 격리) → predictions 가 있으면
     nationality_service.record_and_recompute(이력 적재 + 최근5 평균 재계산, account 도메인 소유).
@@ -808,6 +861,18 @@ async def _run_session(
         factory_kwargs["tools"] = tools
     async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
+            # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
+            #   예외로 죽으면 나머지를 자동 취소한다 → 반쪽짜리 좀비 통화가 절대 안 생긴다.
+            #   일꾼 6명이 하나의 공유 메모장(state, _CallState)을 함께 보며 협력한다:
+            #     ① 펌프 클라→Gemini : 학습자 마이크 소리를 받아 AI 로 밀어준다(barge-in off 적용).
+            #     ② 펌프 Gemini→클라 : AI 목소리·자막을 받아 학습자에게 밀어준다(턴 상태기계).
+            #     ③ 시계워처         : 5분 되면 "이제 끝낼 시간" 신호(should_close)를 세우고,
+            #                          정상 작별이 안 되면 최후에 강제 종료(백스톱).
+            #     ④ 무음워처         : 학습자가 오래 조용하면 3단계로 부드럽게 대응(넛지→확인→종료).
+            #     ⑤ 재접지          : 통화 중간에 캐릭터를 딱 1회 되박아 AI 가 성격을 잊는 것 완화.
+            #     ⑥ 점진 flush      : 1분마다 대화를 DB 에 조금씩 저장(도중에 죽어도 기록이 남게).
+            #   ⚠ 왜 펌프를 '동시에' 2개? 전화는 양방향이 동시에 흘러야 자연스럽다(맨 위 큰 그림).
+            #     하나의 루프로 "받고→보내고→받고→보내고" 번갈아 하면 무전기처럼 끊긴다.
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(_pump_client_to_gemini(client_ws, session, state), name="nc-client->gemini")
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
@@ -817,7 +882,13 @@ async def _run_session(
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
+                # 선톡 트리거: AI 에게 먼저 오프닝 한마디를 던져 "네가 먼저 인사하며 시작해"라고
+                # 시동을 건다. 이걸 안 하면 둘 다 서로 말하기만 기다려 통화가 조용히 멈춘다.
                 await session.send_text_turn(seed_text)  # 선톡 트리거
+        # 🧒 except* 는 TaskGroup 전용 문법(ExceptionGroup 해체). 펌프 중 하나가 우리가 정한
+        #   '정상 종료 신호'로 죽으면, TaskGroup 은 그걸 여러 예외를 담는 봉투(그룹)로 감싸서
+        #   던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=클라가
+        #   끊음)만 골라 홑겹 예외로 다시 던진다 → run_call 의 except 가 사람이 읽기 쉽게 처리.
         except* _CallFinished:
             raise _CallFinished()
         except* _ClientDisconnect:
@@ -1142,7 +1213,19 @@ async def _band_observe_sidecar(
 # 펌프: 클라 → Gemini
 # --------------------------------------------------------------------------- #
 async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
-    """클라 → Gemini. barge-in off: 비버 발화중이면 마이크 미전송. forward 먼저 후 누적."""
+    """클라 → Gemini. barge-in off: 비버 발화중이면 마이크 미전송. forward 먼저 후 누적.
+
+    🧒 이 펌프는 '학습자 → AI' 한 방향만 담당하는 무한루프다. 소켓에서 프레임을 하나씩 받아
+      종류를 구분한다: **바이너리(bytes) = 목소리(PCM 오디오)**, **텍스트 = JSON 제어 신호**
+      (ping/playback_done/hint_used). 이 '바이너리=소리, 텍스트=명령' 규약이 protocol.py 다.
+
+    🧒 barge-in off 의 핵심 한 줄이 바로 아래 `state.turn_id is None` 조건이다. turn_id 가
+      값이 있으면 = "지금 비버가 말하는 중". 그때는 학습자 마이크 오디오를 **AI 로 안 보낸다**
+      (조건이 거짓이라 send_audio 를 건너뜀). 왜? 비버 목소리가 학습자 스피커로 나가는데
+      마이크가 그 소리를 다시 주워 AI 로 되돌리면, AI 가 제 목소리를 듣고 헷갈려 말이 끊기거나
+      엉킨다(에코·자기간섭). 비버가 말을 마쳐 turn_id 가 None 이 되면 그때부터 다시 마이크를
+      흘려보낸다. 대가: 학습자가 진짜로 끼어들어 말을 끊는 건 불가. 학습앱이라 이게 더 안전.
+    """
     from starlette.websockets import WebSocketDisconnect
 
     try:
@@ -1151,9 +1234,10 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
             if message.get("type") == "websocket.disconnect":
                 raise _ClientDisconnect()
             data = message.get("bytes")
+            # 오디오 프레임 & 비버 idle(turn_id None)일 때만 AI 로 전달 = barge-in off 의 관문.
             if data and state.turn_id is None:
                 await session.send_audio(data)
-                state.cur_user_pcm.extend(data)
+                state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
                 continue
             text = message.get("text")
             if text is not None:
@@ -1181,7 +1265,21 @@ async def _handle_client_control(client_ws, text: str, state: _CallState) -> Non
 # 펌프: Gemini → 클라
 # --------------------------------------------------------------------------- #
 async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
-    """Gemini → 클라(상태기계). 턴 경계에서 세그먼트 확정 + 5분 종료 로직."""
+    """Gemini → 클라(상태기계). 턴 경계에서 세그먼트 확정 + 5분 종료 로직.
+
+    🧒 이 펌프는 'AI → 학습자' 한 방향을 담당하며, 동시에 통화의 '심판' 역할도 한다. AI 가
+      쏟아내는 이벤트(오디오 조각 / 자막 / 턴 종료 / GoAway 예고)를 하나씩 받아 학습자에게
+      forward 하면서, 대화의 '턴(turn)' 상태를 관리한다. 턴 = "지금 누가 말할 차례인가".
+      비버가 말하기 시작하면 turn_id 를 켜고(=발화중), 말을 마치면(turn_end) turn_id 를 끈다.
+      이 turn_id 하나가 barge-in off(위 펌프의 관문)와 무음 판정·종료 타이밍을 전부 좌우한다.
+
+    🧒 종료 규약(왜 이렇게 조심스럽게 끊나): 통화를 언제 끝낼지는 **AI 가 아니라 서버 시계**가
+      정한다(프롬프트가 비버에게 통화 길이를 안 알려줘서, 비버 혼자 멋대로 작별 못 함). 끝낼
+      때가 되면 시계워처가 should_close 를 세우고, "[시스템] …" 종료 시드(작별 대본)를 별도
+      완결 턴으로 주입한다. 단, **비버가 조용하고(idle) 유저 턴도 닫힌 깨끗한 순간에만** 넣는다
+      — 말 도중에 끼워넣으면 하던 말이 잘리거나 학습자 응답이 작별로 둔갑하기 때문. 그래서
+      아래에서 turn_end(발화가 끝난 깨끗한 경계)마다 종료 여부를 판단한다.
+    """
     event_count = 0
     async for event in session.events():
         event_count += 1
@@ -1254,7 +1352,18 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
 
 
 async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool:
-    """단일 LiveEvent 를 즉시 forward 하며 진행중 세그먼트에 누적. 새 턴이면 True."""
+    """단일 LiveEvent 를 즉시 forward 하며 진행중 세그먼트에 누적. 새 턴이면 True.
+
+    🧒 왜 '즉시 forward'가 중요한가: 전화에서 상대 목소리가 0.5초라도 늦게 오면 뚝뚝 끊겨
+      들린다. 그래서 오디오 조각이 오면 **먼저 학습자에게 send_bytes 로 밀어주고**(반응성
+      최우선), 그 다음에 나중 저장·분석용으로 메모리 버퍼에 복사한다. 순서를 반대로 해서
+      "저장 먼저, 전송 나중"으로 하면 매 조각마다 아주 살짝 지연이 쌓여 끊김으로 들린다.
+
+    🧒 '턴 시작' 감지: 오디오나 자막(out_tr)의 **첫 이벤트**가 왔는데 turn_id 가 아직 없으면,
+      "비버가 지금 막 말을 시작했다"는 뜻이다. 그 순간 turn_id 를 새로 켜고 클라에 turn_start
+      를 보내며 True(=새 턴 시작)를 돌려준다. 호출부는 이 True 로 '직전 학습자 발화 확정'과
+      '통화 시계 시작' 같은 턴 경계 처리를 한다.
+    """
     turn_started = False
 
     if event.kind == "audio":
@@ -1263,7 +1372,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
         if event.audio:
-            await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선)
+            await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
     elif event.kind == "in_tr":
@@ -1303,6 +1412,12 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
 async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) -> None:
     """종료 시드를 정확히 1회만 주입한다(펌프·워처 공용, 단일 소유권 가드).
 
+    🧒 왜 '딱 1회' 가드가 필요한가: 종료 시드(작별 대본)를 넣을 수 있는 후보가 둘이다 —
+      펌프(비버가 말을 마친 turn_end 에서)와 시계워처(비버가 조용할 때 직접). 둘이 동시에
+      "지금이야!" 하고 넣으면 비버가 작별을 두 번 하는 사고가 난다. 그래서 실제로 보내기 전
+      (await 전)에 close_seed_sent 깃발을 먼저 꽂아, 다른 쪽이 들어와도 '이미 보냄'을 보고
+      돌아가게 한다. asyncio 는 한 번에 한 줄만 실행(단일 스레드)이라 이 '먼저 깃발 꽂기'만으로
+      경합이 안전하게 막힌다(락 불필요). '단일 소유권 가드' = 이 일의 주인은 딱 한 명이 되게.
     단일 스레드 asyncio 라 await 전에 close_seed_sent 를 선점하면 펌프/워처가 동시에
     주입해도 한 번만 나간다. 비버 발화중이면 펌프가 turn_end 에서, 소강(idle)이면 워처가
     직접 호출한다. send_client_content 는 idle 세션에 넣으면 즉시 작별 턴을 만든다(비interrupt).
@@ -1359,6 +1474,13 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
 
 async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
     """무음 3단 넛지(A2). 학습자 무음 → 비버가 얼지 않게 재개시키고, 끝내 무응답이면 우아히 종료.
+
+    🧒 왜 '3단계'로 나눠 부드럽게 대응하나: 학습자가 잠깐 조용하다고 바로 전화를 끊으면
+      매정하다(생각 중일 수도, 한국어 문장을 떠올리는 중일 수도 있다). 그래서 사람이 하듯
+      단계적으로 배려한다 — ① 오래 조용하면 비버가 가볍게 새 화제로 말을 이어가고("넛지"),
+      ② 그래도 계속 조용하면 모국어로 "거기 있어? 잘 들려?" 확인, ③ 그래도 응답이 없으면
+      그제서야 작별 시드를 넣어 우아하게 통화를 끝낸다. 넛지 = "얼어붙은 대화를 살짝 찔러
+      다시 흐르게 하는 부드러운 자극".
 
     핵심 제약: 클라 마이크는 상시 스트리밍이라 오디오 프레임 부재로 무음을 못 잰다. 무음은
     last_activity_ts(학습자 in_tr · 비버 turn_end · 넛지 주입 시각) 이후 경과로만 잰다.
@@ -1428,6 +1550,15 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
 async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
     """통화 중간(길이의 REGROUND_AT_FRACTION 지점)에 캐릭터를 딱 1회 되박는다(누적 드리프트 완화).
 
+    🧒 왜 '재접지(re-grounding)'가 필요한가: AI 는 대화가 길어질수록 처음에 준 캐릭터 설정
+      (선생님 역할·성격·규칙)을 조금씩 잊고 톤이 흐려진다(이걸 '드리프트'라 한다 — 배가 닻줄이
+      느슨해져 원래 자리에서 슬슬 밀려나듯). 그래서 통화 중간쯤(기본 50% 지점)에 캐릭터를
+      한 번 살짝 다시 심어 톤을 되살린다.
+    🧒 왜 캐릭터 3필드(역할/성격/규칙)만 넣고, 처음 준 전체 프롬프트를 통째로 다시 안 넣나:
+      전체 프롬프트는 아주 길어서(레벨·이력·학습재료까지) 다시 넣으면 무겁고, AI 가 그걸
+      '새 지시'로 오해해 갑자기 이상하게 다시 인사하거나 같은 말을 두 번 하는(이중발화) 사고가
+      난다. 그래서 톤을 되살리는 데 꼭 필요한 최소한(성격 3필드)만 가볍게 되박는다.
+
     REGROUND_MODE 로 방식이 갈린다:
       - "off": 아무것도 안 함(하드닝만 — 폴백).
       - "legacy_idle": fire_at 에 비버 idle & 무음 넛지 없음이면 send_reground(turn_complete=True).
@@ -1473,7 +1604,17 @@ async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> Non
 
 
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:
-    """call_ended 송신 → playback_done ack 대기 → WS close(전부 graceful)."""
+    """call_ended 송신 → playback_done ack 대기 → WS close(전부 graceful).
+
+    🧒 왜 곧바로 소켓을 안 닫고 기다리나: 비버의 작별 인사 오디오가 방금 학습자 쪽으로
+      마지막까지 흘러갔는데, 서버가 소켓을 즉시 끊으면 아직 스피커에서 재생 중이던 작별
+      인사 꼬리가 뚝 잘린다. 그래서 ① "통화 끝났어요(call_ended)"를 알린 뒤, ② 클라가
+      "작별 오디오 다 재생했어요"라고 보내는 신호(playback_done ack)를 잠깐 기다리고,
+      ③ 그제서야 소켓을 닫는다. ack 가 끝내 안 와도 무한정 기다리진 않고 PLAYBACK_DONE_WAIT_S
+      만큼만 기다리다 닫는다(상대가 이미 끊었을 수도 있으니). 'graceful' = 갑자기 끊지 않고
+      상대가 마무리할 틈을 주며 예의 바르게 닫는 것. 매 단계 client_state 를 확인해 이미
+      닫힌 소켓에 또 쓰다가 에러 나는 것도 막는다.
+    """
     from starlette.websockets import WebSocketState
 
     with contextlib.suppress(Exception):

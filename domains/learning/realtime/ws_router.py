@@ -34,19 +34,37 @@ _WS_CLOSE_POLICY_VIOLATION = 1008
 
 @router.websocket("/calls/stream")
 async def ws_call_stream(websocket: WebSocket) -> None:
-    """노멀콜 음성 브리지 WebSocket 핸들러."""
+    """노멀콜 음성 브리지 WebSocket 핸들러.
+
+    🧒 이 함수는 통화의 '입구 문지기'다. run_call(실제 통화)에 들어가기 전에 세 가지를 한다:
+      ① 신분 확인(인증), ② 서버 준비물 챙기기(genai_client/settings/DB), ③ 통화 본체 위임.
+
+    🧒 왜 토큰을 '쿼리스트링(?token=...)'으로 받나: 일반 REST API 는 HTTP 헤더(Authorization)
+      에 토큰을 담고 FastAPI 의 Depends 로 자동 검증한다. 그런데 브라우저·앱의 WebSocket 연결은
+      표준상 요청 헤더를 자유롭게 못 붙인다. 그래서 WS 에선 헤더 대신 주소 뒤 ?token= 로
+      토큰을 실어 보내고, 여기서 직접 verify_token 으로 검증한다(Depends 를 못 쓰는 이유).
+
+    🧒 왜 app.state 에서 꺼내 쓰나: genai_client(구글 Live 클라)나 DB 세션 공장은 서버가
+      켜질 때(lifespan) 딱 한 번 만들어 app.state 라는 '전역 사물함'에 넣어둔다. 통화가 올
+      때마다 새로 만들면 느리고 낭비라, 여기선 사물함에서 이미 만들어둔 걸 꺼내 재사용한다.
+    """
     token = websocket.query_params.get("token") or ""
     client = getattr(websocket.app.state, "genai_client", None)
     settings: Settings | None = getattr(websocket.app.state, "settings", None)
     session_factory = getattr(websocket.app.state, "session_factory", None)
 
     # 인증: Supabase 토큰 검증(네트워크 → threadpool).
+    # 🧒 verify_token 은 네트워크를 타는 '동기(기다리는)' 함수라, 그냥 부르면 이벤트 루프
+    #   전체가 멈춘다(다른 통화도 같이 멈춤). run_in_threadpool 로 별도 스레드에 던져 실행하는
+    #   동안 루프는 다른 일을 계속한다. 검증 실패(토큰 없음·가짜)거나 서버 준비물(DB)이 없으면,
+    #   accept 하지 않고 1008(정책 위반) 코드로 바로 닫는다 — 인증 안 된 소켓은 열지도 않는다.
     auth_user = await run_in_threadpool(verify_token, token) if token else None
     if auth_user is None or session_factory is None:
         with contextlib.suppress(Exception):
             await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
         return
 
+    # accept = 서버가 WS 연결을 정식 수락(악수 완료). 인증을 통과한 뒤에야 문을 연다.
     await websocket.accept()
 
     if client is None or settings is None:
@@ -67,10 +85,15 @@ async def ws_call_stream(websocket: WebSocket) -> None:
     )
 
     try:
+        # 여기서부터 통화 본체(call_session.run_call)로 완전히 위임한다. 라우터는 문지기까지만.
         await run_call(websocket, settings, client, session_factory, member_id=member_id)
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
+        # 🧒 최종 방어선: run_call 안에서 어떤 예상 못 한 오류가 터져도 서버 전체가 흔들리지
+        #   않게, 여기서 다 붙잡아 로그만 남기고 소켓을 정리한다(이 통화만 실패, 서버는 계속).
         logger.exception("ws_call_stream 처리 중 예외: %s", exc)
     finally:
+        # 소켓이 아직 안 닫혔으면 닫는다(정상/예외 어느 경로든 소켓 누수 방지). 이미 끊긴 소켓에
+        # close 하면 에러가 나므로 상태를 먼저 확인하고, 그래도 나는 예외는 조용히 삼킨다.
         if websocket.client_state != WebSocketState.DISCONNECTED:
             with contextlib.suppress(Exception):
                 await websocket.close()
