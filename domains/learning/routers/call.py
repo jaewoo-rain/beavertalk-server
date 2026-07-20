@@ -51,6 +51,20 @@ def get_pronunciation_history(
     return pron_svc.get_pronunciation_history(db, member.member_id)
 
 
+@router.get("/daily-status")
+def get_daily_status(
+    date: str, member: CurrentMember, db: DbSession, tz_offset: int = 0
+) -> dict:
+    """'오늘 통화함' 파생 체크(저장 컬럼·일일 초기화 없음 — call 에서 계산).
+
+    - date: 클라이언트 로컬 날짜 "YYYY-MM-DD"(사용자가 '오늘'이라 여기는 날, 필수).
+    - tz_offset: 클라이언트 UTC 오프셋(분, 동쪽 +). KST=540. 미지정 시 0(UTC).
+    유효 = 그 로컬 하루 안 10초+ 통화(done/analyzing). 응답 {date, called_today}.
+    정적 경로라 `/{call_id}` 보다 먼저 선언(라우트 순서로 의도 명확화).
+    """
+    return CallService(db).daily_status(member.member_id, date, tz_offset)
+
+
 @router.get("/{call_id}/pronunciation", response_model=PronunciationReport)
 async def get_pronunciation_report(
     call_id: int, request: Request, member: CurrentMember
