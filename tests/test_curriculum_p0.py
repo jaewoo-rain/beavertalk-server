@@ -26,7 +26,6 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import Integer, create_engine, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -347,19 +346,17 @@ def seeded_db():
     db.close()
 
 
-@pytest.mark.xfail(
-    reason="T1(멀티랭귀지 스키마)로 level/learning_item.language 가 NOT NULL 이 됐으나 "
-    "프로덕션 scripts/seed.py 는 아직 language 를 채우지 않는다(seed 일반화는 후속 T4). "
-    "seed 가 language='ko' 를 넣도록 일반화되면 이 xfail 은 XPASS 로 뒤집혀 알림 → 제거.",
-    raises=IntegrityError,
-    strict=False,
-)
 def test_seed_first_run_counts(seeded_db):
-    """1회차: level 13행(1~13, L1 grade='A0') · learning_item 11,141행(kind 별)."""
+    """1회차: level 13행(1~13, L1 grade='A0') · learning_item 11,141행(kind 별).
+
+    (멀티랭귀지) seed 는 language='ko' 를 채운다 — 전건 ko(language 컬럼만 추가).
+    """
     db, first = seeded_db["db"], seeded_db["first"]
     assert first["level_rows"] == 13
     level_nos = sorted(n for (n,) in db.query(Level.level_no).all())
     assert level_nos == list(range(1, 14))
+    # 전 레벨 language='ko'
+    assert {lang for (lang,) in db.query(Level.language).distinct().all()} == {"ko"}
     l1 = db.scalar(select(Level).where(Level.level_no == 1))
     assert l1.grade == "A0", f"L1 grade={l1.grade} (생존 회화는 'A0' 이어야 함)"
 
@@ -367,14 +364,10 @@ def test_seed_first_run_counts(seeded_db):
     assert first["kind_counts"] == {
         "grammar": GRAMMAR_COUNT, "vocab": VOCAB_COUNT, "chunk": CHUNK_COUNT,
     }
+    # 전 learning_item language='ko'
+    assert {lang for (lang,) in db.query(LearningItem.language).distinct().all()} == {"ko"}
 
 
-@pytest.mark.xfail(
-    reason="T1 로 language 가 NOT NULL 이 됐으나 프로덕션 seed.py 는 아직 미대응(후속 T4). "
-    "seed 일반화 후 XPASS 로 뒤집혀 알림 → 제거.",
-    raises=IntegrityError,
-    strict=False,
-)
 def test_seed_is_idempotent(seeded_db):
     """2회차 실행 후 행수·kind 분포 불변(멱등 upsert)."""
     assert seeded_db["second"] == seeded_db["first"], (
@@ -382,12 +375,6 @@ def test_seed_is_idempotent(seeded_db):
     )
 
 
-@pytest.mark.xfail(
-    reason="T1 로 language 가 NOT NULL 이 됐으나 프로덕션 seed.py 는 아직 미대응(후속 T4). "
-    "seed 일반화 후 XPASS 로 뒤집혀 알림 → 제거.",
-    raises=IntegrityError,
-    strict=False,
-)
 def test_seed_fk_smoke_level_no(seeded_db):
     """FK 스모크: learning_item.level_no 전건이 level.level_no 에 존재."""
     db = seeded_db["db"]

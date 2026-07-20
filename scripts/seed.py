@@ -10,6 +10,10 @@
     3) character    : 캐릭터 4종 (role/personality/rules + voice 매핑)
     4) learning_item: 커리큘럼 마스터 — 문법 459 + 어휘 10,636 + 생존 청크 46
                       (assets/level/curriculum_v2/{grammar,vocab,survival_chunks}.json)
+
+(멀티랭귀지) level/learning_item 시드는 language 인자로 일반화됐다(기본 'ko').
+기본값 'ko' 로 호출하면 기존 한국어 데이터와 동일하며 language 컬럼만 추가된다.
+다른 언어 적재는 T4b 가 별도 소스로 seed_levels/seed_learning_items 를 호출한다.
 """
 
 import json
@@ -59,16 +63,24 @@ def seed_voices(db) -> None:
     print(f"voices 시드 확인 ({len(VOICES)}종)")
 
 
-def seed_levels(db) -> None:
-    """한국어 13단계 레벨 프로파일 upsert (assets/level/level_profiles_13.json).
+def seed_levels(db, language: str = "ko") -> None:
+    """13단계 레벨 프로파일 upsert (기본 한국어 — assets/level/level_profiles_13.json).
 
-    level_no 자연키 upsert — Rev1(12→13 shift) 적용 후 재실행하면
+    (멀티랭귀지) (language, level_no) 자연키 upsert — uq_level_lang_no 조인.
+    각 행에 language 를 세팅한다(기본 'ko' → 기존 한국어 데이터와 동일, language 컬럼만 추가).
+    T4b 가 다른 언어로 호출하면 그 언어의 프로파일이 별도로 적재된다.
+
+    level_no 는 언어별로만 유일 — Rev1(12→13 shift) 적용 후 재실행하면
     기존 2~13 행은 갱신, 1(생존 회화)은 신규 삽입된다.
     """
     src = _ASSETS / "level_profiles_13.json"
     data = json.loads(src.read_text(encoding="utf-8"))
     for e in data["levels"]:
-        row = db.scalar(select(Level).where(Level.level_no == e["level_no"]))
+        row = db.scalar(
+            select(Level).where(
+                Level.language == language, Level.level_no == e["level_no"]
+            )
+        )
         # D15: grammar_count/vocab_count/grammar_scope/vocab_sample 폐지 —
         # 레벨별 문법·어휘의 단일 소스는 learning_item(잉여 캐시 제거).
         fields = dict(
@@ -82,9 +94,9 @@ def seed_levels(db) -> None:
             for k, v in fields.items():
                 setattr(row, k, v)
         else:
-            db.add(Level(level_no=e["level_no"], **fields))
+            db.add(Level(language=language, level_no=e["level_no"], **fields))
     db.flush()
-    print(f"levels 시드 확인 ({len(data['levels'])}단계)")
+    print(f"levels 시드 확인 ({language}, {len(data['levels'])}단계)")
 
 
 def seed_characters(db) -> None:
@@ -219,13 +231,16 @@ def _chunk_fields(e: dict) -> dict:
     )
 
 
-def seed_learning_items(db) -> None:
-    """커리큘럼 마스터(learning_item) upsert — source_key 자연키.
+def seed_learning_items(db, language: str = "ko") -> None:
+    """커리큘럼 마스터(learning_item) upsert — (language, source_key) 자연키.
 
     문법 459 + 어휘 10,636 + 생존 청크 46 = 11,141행.
-    기존 시드 패턴(SELECT-then-update)을 따르되 규모가 커서 source_key 전건을
-    한 번에 선로딩해 dict 조인하고, 1000행 단위 flush. commit 은 main() 에서 1회.
-    level FK(level_no) 때문에 seed_levels 이후에 실행해야 한다.
+    (멀티랭귀지) 각 행에 language 를 세팅한다(기본 'ko' → 기존 한국어 데이터와 동일,
+    language 컬럼만 추가). reading 은 한국어엔 불필요해 NULL(모델 기본). 복합
+    FK(language, level_no)→level 은 seed_levels 가 같은 language 로 먼저 적재해 충족.
+    upsert 조인은 uq_learning_item_lang_source_key(language, source_key) —
+    같은 언어 안에서 source_key 로 dict 조인하고 1000행 단위 flush. commit 은 main() 에서 1회.
+    level FK 때문에 같은 language 의 seed_levels 이후에 실행해야 한다.
     """
     grammar = json.loads((_CURRICULUM / "grammar.json").read_text(encoding="utf-8"))["items"]
     vocab = json.loads((_CURRICULUM / "vocab.json").read_text(encoding="utf-8"))["items"]
@@ -236,8 +251,14 @@ def seed_learning_items(db) -> None:
         + [_vocab_fields(e) for e in vocab]
         + [_chunk_fields(e) for e in chunks]
     )
+    for fields in rows:
+        fields["language"] = language  # 언어축 — 기본 'ko'(기존 데이터 동일)
 
-    existing = {r.source_key: r for r in db.scalars(select(LearningItem))}
+    # (멀티랭귀지) 조인·stale 판정은 같은 언어 스코프 안에서 — 언어축 격리
+    existing = {
+        r.source_key: r
+        for r in db.scalars(select(LearningItem).where(LearningItem.language == language))
+    }
     inserted = updated = 0
     for i, fields in enumerate(rows, start=1):
         row = existing.get(fields["source_key"])
@@ -252,11 +273,11 @@ def seed_learning_items(db) -> None:
             db.flush()
     db.flush()
     print(
-        f"learning_items 시드 확인 (문법 {len(grammar)} + 어휘 {len(vocab)}"
+        f"learning_items 시드 확인 ({language}, 문법 {len(grammar)} + 어휘 {len(vocab)}"
         f" + 청크 {len(chunks)} = {len(rows)}건 / 신규 {inserted}, 갱신 {updated})"
     )
 
-    # ── stale 행 리포트: DB 에는 있으나 이번 소스(JSON 3종)에 없는 source_key ──
+    # ── stale 행 리포트: DB(이 언어)에는 있으나 이번 소스(JSON 3종)에 없는 source_key ──
     # 자동 삭제는 하지 않는다(리네이밍/재배분 사고 가시화가 목적).
     # `python scripts/seed.py --prune` 일 때만 삭제 — 현재 learning_item 을 참조하는
     # progress 류 FK 가 없어 삭제가 안전하다(참조 테이블이 생기면 이 전제 재검토).
