@@ -434,11 +434,14 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     if mastery_repository.get_history_by_trigger(db, trigger_call_id) is not None:
         return {"result": "skipped", "reason": "already_evaluated"}
 
-    # ① 경합 방지
+    # ① 경합 방지 — member 행 잠금(직렬화 + created_at 폴백 원천).
+    #    레벨 출처는 member_language_level(ko dual-read 폴백) — get_language_level_for_update.
     member = mastery_repository.get_member_for_update(db, member_id)
-    if member is None or member.korean_level is None:
+    if member is None:
         return {"result": "skipped", "reason": "no_member_or_level"}
-    k = member.korean_level
+    k = mastery_repository.get_language_level_for_update(db, member_id, language)
+    if k is None:
+        return {"result": "skipped", "reason": "no_member_or_level"}
     if k >= MAX_LEVEL:
         return {"result": "skipped", "reason": "max_level"}
 
@@ -446,7 +449,7 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
 
     # fast-track 14일 무F → 자동 확정(lazy — evaluate 시점에 일괄 판정·기록)
     auto_confirmed = 0
-    for prog in mastery_repository.list_unconfirmed_fast_track(db, member_id):
+    for prog in mastery_repository.list_unconfirmed_fast_track(db, member_id, language):
         mastered_at = _as_utc(prog.mastered_at)
         if mastered_at is None or (now - mastered_at).days < FAST_TRACK_AUTO_CONFIRM_DAYS:
             continue
@@ -459,7 +462,7 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     params = GATE_PARAMS[k]
 
     # 집계 — 전부 현재 레벨 k 항목 한정. 분모는 문법(+L1 청크)만 — 어휘 제외(D12).
-    gate_items = mastery_repository.list_gate_items(db, k)
+    gate_items = mastery_repository.list_gate_items(db, k, language)
     denom = len(gate_items)
     if denom == 0:
         # 커리큘럼 미시드 방어 — 게이트 대상이 없으면 승급 불가(데이터 준비 후 재개)
@@ -476,15 +479,19 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     )
 
     # 레벨 진입 시각: history 최신 행, 없으면 placement 폴백 = 가입(created_at)
-    latest = mastery_repository.get_latest_history(db, member_id)
+    latest = mastery_repository.get_latest_history(db, member_id, language)
     entry_at = _as_utc(latest.created_at if latest else member.created_at) or now
     entry_reason = latest.reason if latest else None
     days_in_level = (now - entry_at).days
 
     # G4 — 최근 5 증거통화(D15: 증거가 있는 distinct call)의 F비율
     #      (현재 레벨 항목 한정, 분모 <10 이면 pass)
-    recent_ids = mastery_repository.list_recent_evidence_call_ids(db, member_id, limit=5)
-    f_count, ev_total = mastery_repository.evidence_grade_counts(db, member_id, recent_ids, k)
+    recent_ids = mastery_repository.list_recent_evidence_call_ids(
+        db, member_id, limit=5, language=language
+    )
+    f_count, ev_total = mastery_repository.evidence_grade_counts(
+        db, member_id, recent_ids, k, language
+    )
     f_ratio = (f_count / ev_total) if ev_total else 0.0
 
     g1_ratio = introduced_plus / denom
@@ -520,8 +527,9 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     if not (g1_pass and g2_pass and g4_pass and g5_pass):
         return {"result": "stay", "snapshot": snapshot}
 
-    # ② 항상 +1 — 단일 트랜잭션(호출부 commit)에 레벨 + history 합류
-    member.korean_level = k + 1
+    # ② 항상 +1 — 단일 트랜잭션(호출부 commit)에 레벨 + history 합류.
+    #    레벨 기록은 member_language_level upsert(ko 는 member.korean_level 도 dual-write).
+    mastery_repository.upsert_language_level(db, member_id, language, k + 1)
     db.add(
         MemberLevelHistory(
             member_id=member_id,
@@ -575,7 +583,7 @@ def apply_grandfathering(
     created_mastered = 0
     if level_no >= 3:  # k-2 >= 1 일 때만 대상 존재
         for item_id in mastery_repository.list_grandfather_item_ids(
-            db, max_level=level_no - 2
+            db, max_level=level_no - 2, language=language
         ):
             if item_id in existing:
                 continue
@@ -593,7 +601,7 @@ def apply_grandfathering(
     created_introduced = 0
     if level_no >= 2:  # k-1 >= 1
         for item_id in mastery_repository.list_grandfather_item_ids(
-            db, exact_level=level_no - 1
+            db, exact_level=level_no - 1, language=language
         ):
             if item_id in existing:
                 continue

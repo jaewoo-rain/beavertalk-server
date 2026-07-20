@@ -415,17 +415,21 @@ async def run_call(
         logger.info("normalcall: start 수신 전 클라 종료")
         return
 
-    # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
-    #    needs_level_test(= korean_level 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
-    setup = await svc.run_db(db_session_factory, lambda db: svc.load_call_setup(db, member_id, character_id))
-    locale = locale_override or setup["locale"]
-
     # 교육 대상 언어(멀티랭귀지) → LanguageSpec. is_demo 폐지: 언어별 동작은 spec 한 행이
     # 결정한다. spec.label 을 페르소나 대상 언어로, 모국어 라벨은 _LOCALE_LABEL 기본을 쓴다
     # (locale="ko" 도 이제 "한국어"로 해석 — 데모용 override hack 제거). ko 는 label=="한국어"·
     # has_curriculum·leveltest 라 기존 한국어 통화 경로·프롬프트 바이트 불변.
+    # (멀티랭귀지) 레벨/커리큘럼 선별·needs_level_test 가 언어 스코프라 load_call_setup 전에 해석.
     spec = _resolve_target_language(settings, target_override)
     target_language = spec.label
+
+    # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
+    #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
+    setup = await svc.run_db(
+        db_session_factory,
+        lambda db: svc.load_call_setup(db, member_id, character_id, spec.code),
+    )
+    locale = locale_override or setup["locale"]
 
     # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 2건은 normal 로 강등 ② 서버 자동.
     #   강등 a) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):

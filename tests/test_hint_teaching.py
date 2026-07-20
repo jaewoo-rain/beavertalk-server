@@ -271,8 +271,8 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
     """normal 통화 + study_items 있으면 start 직후 teaching_plan 1회 push(핫패스 밖)."""
     real_setup = svc.load_call_setup
 
-    def _setup_with_items(db, member_id, character_id):
-        out = real_setup(db, member_id, character_id)
+    def _setup_with_items(db, member_id, character_id, language="ko"):
+        out = real_setup(db, member_id, character_id, language)
         out["study_items"] = [
             {"slot": "main", "kind": "chunk", "obj": "안녕하세요?", "ex": None,
              "des": "Hello.", "item_id": 77, "roman": "annyeonghaseyo?"},

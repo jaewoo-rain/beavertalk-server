@@ -72,12 +72,17 @@ async def run_db(session_factory: sessionmaker, fn: Callable[[Session], T]) -> T
 # --------------------------------------------------------------------------- #
 # 통화 준비/저장 (동기 DB)
 # --------------------------------------------------------------------------- #
-def _load_member_character(db: Session, member_id: int, character_id: int) -> dict:
+def _load_member_character(
+    db: Session, member_id: int, character_id: int, language: str = "ko"
+) -> dict:
     """회원+캐릭터 공용 조회(일반/레벨테스트 셋업의 공통 분모) — 평범한 값만 반환.
+
+    (멀티랭귀지) korean_level 은 member_language_level[language](ko 는 member.korean_level
+    dual-read 폴백) — 언어별 현재 레벨/콜드스타트를 반영한다.
 
     Returns:
         {role, personality, rules, voice, locale, interests, name,
-         korean_level(내부용), member_found(내부용)}.
+         korean_level(내부용 — 언어별), member_found(내부용)}.
     """
     member = db.get(Member, member_id)
     locale = (member.language if member and member.language else "en")
@@ -102,12 +107,14 @@ def _load_member_character(db: Session, member_id: int, character_id: int) -> di
         "locale": locale,
         "interests": interests,
         "name": name,
-        "korean_level": (member.korean_level if member else None),
+        "korean_level": mastery_repository.get_language_level(db, member_id, language),
         "member_found": member is not None,
     }
 
 
-def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
+def load_call_setup(
+    db: Session, member_id: int, character_id: int, language: str = "ko"
+) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
     Returns:
@@ -127,17 +134,21 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
     learning_item 미시드·쿼리 결과 0·korean_level 미확정(레벨테스트 예정)이면 각 키
     None(promotion 은 False) — persona 블록 미주입으로 기존 프롬프트와 동일(R5).
     """
-    base = _load_member_character(db, member_id, character_id)
+    base = _load_member_character(db, member_id, character_id, language)
     korean_level = base.pop("korean_level")
     member_found = base.pop("member_found")
 
     # 레벨 미확정 → 레벨테스트 자동 라우팅 신호(D11). 아래 폴백 레벨 2 는 명시
     # call_type="normal" 등으로 일반 통화가 강행될 때만 실제 사용된다.
+    # (멀티랭귀지) korean_level 은 이미 language 스코프 — needs_level_test 도 언어별.
     needs_level_test = korean_level is None
     # 레벨 미설정 폴백 = 2(Basic A). 1 은 생존 회화 — 레벨테스트가 배정하는 전용 레벨.
     level_no = korean_level if korean_level else 2
 
-    level = db.scalar(select(Level).where(Level.level_no == level_no))
+    # (멀티랭귀지) level 은 (language, level_no) 로 유일 — language 필터 필수(무필터면 다중 행).
+    level = db.scalar(
+        select(Level).where(Level.language == language, Level.level_no == level_no)
+    )
     level_profile = (level.profile if level else "") or ""
 
     history = _load_history(db, member_id) if member_found else None
@@ -146,7 +157,9 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
     materials = _EMPTY_MATERIALS
     if member_found and korean_level is not None:
         try:
-            materials = _load_study_materials(db, member_id, level_no, base["locale"])
+            materials = _load_study_materials(
+                db, member_id, level_no, base["locale"], language
+            )
         except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행
             logger.exception(
                 "normalcall 재료 선별 실패(무시 — 기존 프롬프트 폴백) member=%s", member_id
@@ -168,7 +181,7 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
         "korean_level": korean_level,
         # 언어 정책 밴드(한국어 위주 전환) — level_no(미확정 폴백 2=beginner)로 4밴드 분류.
         # persona 는 이 라벨 문자열만 받아 규칙 3 언어 정책을 고른다(어댑터 순수성).
-        "lang_band": mastery_repository.band_of(level_no),
+        "lang_band": mastery_repository.band_of(level_no, language),
         **materials,
         "recent_topics": recent_topics,
     }
@@ -290,20 +303,25 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
     }
 
 
-def _load_study_materials(db: Session, member_id: int, level_no: int, locale: str) -> dict:
+def _load_study_materials(
+    db: Session, member_id: int, level_no: int, locale: str, language: str = "ko"
+) -> dict:
     """체크판 통화 재료를 1회에 선별한다(mechanics ① 3-b~e — 통화 중 DB 접근 0).
 
     공부 10(②, 브리지/버벅임 비중 ⑨ 반영) + 대화 가이드(③ 아는 문법≤40+유도 5)
     + 승급 멘트 여부(⑧) + 검출 후보 ≤30(⑤ — 주입 injected=True + 기본 후보 병합).
     learning_item 미시드/결과 0 이면 해당 키 None(R5 — persona 블록 미주입).
+    (멀티랭귀지) 선별·집계를 전부 language 로 스코프(대상 언어 커리큘럼만).
     """
-    # 커리큘럼 미시드 방어 — 항목이 하나도 없으면 전부 기존 동작(쿼리 1회로 조기 종료).
-    if db.scalar(select(LearningItem.item_id).limit(1)) is None:
+    # 커리큘럼 미시드 방어 — 대상 언어 항목이 하나도 없으면 전부 기존 동작(쿼리 1회 조기 종료).
+    if db.scalar(
+        select(LearningItem.item_id).where(LearningItem.language == language).limit(1)
+    ) is None:
         return _EMPTY_MATERIALS
 
     # ⑨ 복습 비중 → 복습 슬롯 수(브리지·버벅임 시 확대).
-    ratio = mastery_repository.bridge_or_struggle_ratio(db, member_id)
-    band = mastery_repository.band_of(level_no)
+    ratio = mastery_repository.bridge_or_struggle_ratio(db, member_id, language)
+    band = mastery_repository.band_of(level_no, language)
     review_slots = (
         _REVIEW_SLOTS_BRIDGE if ratio >= mastery_repository.BRIDGE_REVIEW_RATIO
         else _REVIEW_SLOTS_BY_BAND[band]
@@ -311,13 +329,14 @@ def _load_study_materials(db: Session, member_id: int, level_no: int, locale: st
 
     # ② 공부 로드 10 (본편 5 + 예비 5)
     picked = mastery_repository.pick_study_items(
-        db, member_id, level_no, review_slots=review_slots, bridge_prev_ratio=ratio
+        db, member_id, level_no, review_slots=review_slots, bridge_prev_ratio=ratio,
+        language=language,
     )
     study_items = [_study_item_dto(e, locale) for e in picked] or None
 
     # ③ 대화 모드 가이드 — 아는 문법 soft 범위 + 유도 표현(freetalking 미션 힌트)
-    grammar = mastery_repository.known_grammar(db, member_id)
-    target_items = mastery_repository.pick_chat_targets(db, member_id, level_no)
+    grammar = mastery_repository.known_grammar(db, member_id, language)
+    target_items = mastery_repository.pick_chat_targets(db, member_id, level_no, language)
     targets = []
     for it in target_items:
         ex = mastery_repository.first_example(it)
@@ -333,7 +352,7 @@ def _load_study_materials(db: Session, member_id: int, level_no: int, locale: st
     for it in target_items:
         injected.setdefault(it.item_id, it)
     candidates = [mastery_repository.to_candidate(i, injected=True) for i in injected.values()]
-    for c in mastery_repository.load_default_candidates(db, member_id):
+    for c in mastery_repository.load_default_candidates(db, member_id, language=language):
         if len(candidates) >= mastery_repository.CANDIDATE_CAP:
             break
         if c["item_id"] not in injected:
@@ -343,7 +362,7 @@ def _load_study_materials(db: Session, member_id: int, level_no: int, locale: st
     return {
         "study_items": study_items,
         "known_items": known_items,
-        "promotion_notice": mastery_repository.promotion_pending(db, member_id),  # ⑧
+        "promotion_notice": mastery_repository.promotion_pending(db, member_id, language),  # ⑧
         "candidates": candidates or None,
     }
 
@@ -1289,8 +1308,12 @@ def _save_level_assessment(
     call = db.get(Call, call_id)
     if member is None or call is None:
         return False
-    prior_level = member.korean_level  # 최초 배정이면 None(placement from_level)
-    member.korean_level = level_no
+    # (멀티랭귀지) 레벨 배정 대상 언어 = 이 통화의 target_language(기본 ko).
+    language = call.target_language or "ko"
+    # 이전 레벨(placement from_level) — 언어별. 최초 배정이면 None.
+    prior_level = mastery_repository.get_language_level(db, member_id, language)
+    # 레벨 기록은 member_language_level upsert(ko 는 member.korean_level 도 dual-write).
+    mastery_repository.upsert_language_level(db, member_id, language, level_no)
     call.assessed_level = level_no
     call.assessment_note = result.reasoning
     call.summary = result.summary
@@ -1299,7 +1322,7 @@ def _save_level_assessment(
     # ≥k → UNSEEN(행 없음) + history(reason='placement') — 레벨 배정과 같은 커밋에 합류.
     mastery_service.apply_grandfathering(
         db, member_id, level_no, trigger_call_id=call_id, from_level=prior_level,
-        language=call.target_language,
+        language=language,
     )
     db.commit()
     return True

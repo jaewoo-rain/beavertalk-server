@@ -27,6 +27,7 @@ from domains.account.models.member import Member
 from domains.learning.models.item_evidence import ItemEvidence
 from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.member_item_progress import MemberItemProgress
+from domains.learning.models.member_language_level import MemberLanguageLevel
 from domains.learning.models.member_level_history import MemberLevelHistory
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,88 @@ GRAMMAR_GATE_CAP = 45
 DEFAULT_PRACTICING_CANDIDATES = 18
 DEFAULT_INTRODUCED_CANDIDATES = 12
 CANDIDATE_CAP = 30
+
+
+# --------------------------------------------------------------------------- #
+# 레벨 출처 접근자 (멀티랭귀지 — member.korean_level → member_language_level 전환)
+# --------------------------------------------------------------------------- #
+# member.korean_level(단일 스칼라)을 member_language_level(언어별 1행)로 일반화한다.
+# ko 는 두 소스를 dual-read/write 로 정합 유지 — 기존 한국어 회원은 mll 행 없이
+# korean_level 만 있으므로 폴백 경로가 바이트 불변을 보장한다(하위호환).
+def get_language_level(
+    db: Session, member_id: int, language: str = "ko"
+) -> Optional[int]:
+    """회원×언어의 현재 레벨 — member_language_level 행 우선, ko 는 korean_level 폴백.
+
+    - mll 행이 있으면 그 level_no(NULL=콜드스타트)가 진실(폴백하지 않는다).
+    - 행 자체가 없을 때만 ko 한정으로 member.korean_level 을 폴백 조회한다(하위호환).
+    - 그 외 언어는 행 부재 = None(콜드스타트 → 언어별 레벨테스트 필요).
+    """
+    row = db.scalar(
+        select(MemberLanguageLevel).where(
+            MemberLanguageLevel.member_id == member_id,
+            MemberLanguageLevel.language == language,
+        )
+    )
+    if row is not None:
+        return row.level_no
+    if language == "ko":
+        member = db.get(Member, member_id)
+        return member.korean_level if member is not None else None
+    return None
+
+
+def get_language_level_for_update(
+    db: Session, member_id: int, language: str = "ko"
+) -> Optional[int]:
+    """get_language_level 의 FOR UPDATE 판 — 레벨업 동시 판정 경합 방지(sqlite no-op).
+
+    mll 행이 있으면 그 행을, 없으면(ko 폴백) member 행을 잠근다. 값 해석은 동일.
+    """
+    row = db.scalar(
+        select(MemberLanguageLevel)
+        .where(
+            MemberLanguageLevel.member_id == member_id,
+            MemberLanguageLevel.language == language,
+        )
+        .with_for_update()
+    )
+    if row is not None:
+        return row.level_no
+    if language == "ko":
+        member = db.scalar(
+            select(Member).where(Member.member_id == member_id).with_for_update()
+        )
+        return member.korean_level if member is not None else None
+    return None
+
+
+def upsert_language_level(
+    db: Session, member_id: int, language: str, level_no: int
+) -> None:
+    """회원×언어의 현재 레벨을 기록한다(commit 은 호출부 — R3).
+
+    member_language_level 행을 upsert 하고, ko 는 member.korean_level 도 함께 갱신한다
+    (dual-write 폴백 — 기존 korean_level 읽기 지점과 정합 유지, 하위호환).
+    """
+    row = db.scalar(
+        select(MemberLanguageLevel).where(
+            MemberLanguageLevel.member_id == member_id,
+            MemberLanguageLevel.language == language,
+        )
+    )
+    if row is None:
+        db.add(
+            MemberLanguageLevel(
+                member_id=member_id, language=language, level_no=level_no
+            )
+        )
+    else:
+        row.level_no = level_no
+    if language == "ko":
+        member = db.get(Member, member_id)
+        if member is not None:
+            member.korean_level = level_no
 
 
 # --------------------------------------------------------------------------- #
@@ -86,12 +169,14 @@ def load_default_candidates(
     practicing_limit: int = DEFAULT_PRACTICING_CANDIDATES,
     introduced_limit: int = DEFAULT_INTRODUCED_CANDIDATES,
     cap: int = CANDIDATE_CAP,
+    language: str = "ko",
 ) -> list[dict]:
     """검출 후보 기본 구성 — practicing 오래된 순 18 + introduced 최신 12 (상한 30).
 
     c2(프롬프트 주입) 전이므로 "오늘 주입 ~12" 자리를 introduced 최신분으로 채운다.
     c2 가 주입 항목을 analyze_call 의 candidates 인자로 넘기기 시작하면 이 함수는
     폴백(미전달 시)으로만 쓰인다. injected 는 전부 False(미주입 취급 — fast-track ④).
+    (멀티랭귀지) learning_item.language 로 대상 언어 후보만 선별.
     """
     # 주력: practicing 을 last_used_at 오래된 순(미사용 NULL 최우선)으로 — 가장 위태로운 순.
     practicing = db.scalars(
@@ -100,6 +185,7 @@ def load_default_candidates(
         .where(
             MemberItemProgress.member_id == member_id,
             MemberItemProgress.status == "practicing",
+            LearningItem.language == language,
         )
         .order_by(
             MemberItemProgress.last_used_at.asc().nulls_first(),
@@ -117,6 +203,7 @@ def load_default_candidates(
             .where(
                 MemberItemProgress.member_id == member_id,
                 MemberItemProgress.status == "introduced",
+                LearningItem.language == language,
             )
             .order_by(
                 MemberItemProgress.last_seen_at.desc(),
@@ -163,29 +250,43 @@ _STRUGGLE_WINDOW = 3                # 최근 3 증거통화 연속 버벅임
 _STRUGGLE_F_RATIO = 0.5
 
 
-def band_of(level_no: int) -> str:
-    """레벨(1~13)→밴드 — mastery_service._band_of 와 동일 경계.
+# (멀티랭귀지) 언어별 밴드 경계 룩업 — [(상한 level_no, 밴드명)] 오름차순, 초과분=advanced.
+# 지금은 ko 만 실값(현재값 그대로), 나머지 언어는 ko 경계를 재사용한다(_BAND_BOUNDARIES.get
+# 폴백). 새 언어가 다른 경계를 쓰려면 여기 1행만 추가하면 된다(코드 분기 없음).
+_BAND_BOUNDARIES: dict[str, tuple[tuple[int, str], ...]] = {
+    "ko": ((1, "survival"), (5, "beginner"), (9, "intermediate")),
+}
+_DEFAULT_BAND_KEY = "ko"
+
+
+def band_of(level_no: int, language: str = "ko") -> str:
+    """레벨(1~13)→밴드 — mastery_service._band_of 와 동일 경계(ko).
 
     (repository→service 역임포트가 순환이라 여기 중복 정의 — 경계 변경 시 양쪽 동시 수정.)
+    (멀티랭귀지) 언어별 경계는 _BAND_BOUNDARIES — 미등록 언어는 ko 경계 재사용.
     """
-    if level_no <= 1:
-        return "survival"
-    if level_no <= 5:
-        return "beginner"
-    if level_no <= 9:
-        return "intermediate"
+    boundaries = _BAND_BOUNDARIES.get(language, _BAND_BOUNDARIES[_DEFAULT_BAND_KEY])
+    for ceil_no, name in boundaries:
+        if level_no <= ceil_no:
+            return name
     return "advanced"
 
 
-def _sel3_cooldown_item_ids(db: Session, member_id: int) -> set[int]:
+def _sel3_cooldown_item_ids(
+    db: Session, member_id: int, language: str = "ko"
+) -> set[int]:
     """SEL3 쿨다운 대상 — 최근 2통화(증거 기준)에서 성공(E1+)했고 F 없는 항목.
 
     F 가 있으면 "즉시 재출제"라 제외하지 않는다(성공-F 차집합).
+    (멀티랭귀지) member-only 집계 — item_evidence.language 로 대상 언어만 필터(오염 차단).
     """
     recent_calls = list(
         db.scalars(
             select(ItemEvidence.call_id)
-            .where(ItemEvidence.member_id == member_id)
+            .where(
+                ItemEvidence.member_id == member_id,
+                ItemEvidence.language == language,
+            )
             .group_by(ItemEvidence.call_id)
             .order_by(ItemEvidence.call_id.desc())
             .limit(SEL3_COOLDOWN_CALLS)
@@ -196,6 +297,7 @@ def _sel3_cooldown_item_ids(db: Session, member_id: int) -> set[int]:
     rows = db.execute(
         select(ItemEvidence.item_id, ItemEvidence.grade_final).where(
             ItemEvidence.member_id == member_id,
+            ItemEvidence.language == language,
             ItemEvidence.call_id.in_(recent_calls),
         )
     ).all()
@@ -212,6 +314,7 @@ def _pick_new_items(
     limit: int,
     *,
     exclude_ids: set[int],
+    language: str = "ko",
 ) -> list[LearningItem]:
     """신규 풀 선별 — 미학습(행 없음) + 미소화 이월(introduced)만, SEL2 제외.
 
@@ -239,6 +342,7 @@ def _pick_new_items(
             and_(prog.item_id == LearningItem.item_id, prog.member_id == member_id),
         )
         .where(
+            LearningItem.language == language,
             LearningItem.level_no == level_no,
             LearningItem.kind == kind,
             or_(
@@ -266,12 +370,14 @@ def _pick_new_items(
 
 
 def _pick_review_items(
-    db: Session, member_id: int, level_no: int, *, limit: int, prefer_previous: bool
+    db: Session, member_id: int, level_no: int, *, limit: int, prefer_previous: bool,
+    language: str = "ko",
 ) -> list[LearningItem]:
     """복습 선별 — practicing && level_no<=내레벨, last_used_at 오래된 순.
 
     감쇠점수 정렬은 P3 — P0 정책은 "감쇠 없이 오래된 순". 브리지/버벅임
     (prefer_previous=True)이면 이전 레벨(level_no<k) 항목을 먼저 채운다(⑨ 비중 확대).
+    (멀티랭귀지) learning_item.language 로 대상 언어 항목만.
     """
     if limit <= 0:
         return []
@@ -289,6 +395,7 @@ def _pick_review_items(
                 .where(
                     MemberItemProgress.member_id == member_id,
                     MemberItemProgress.status == "practicing",
+                    LearningItem.language == language,
                     level_cond,
                 )
                 .order_by(
@@ -312,6 +419,7 @@ def pick_study_items(
     *,
     review_slots: int,
     bridge_prev_ratio: float,
+    language: str = "ko",
 ) -> list[dict]:
     """공부 모드 로드 10(본편 5+예비 5)을 선별한다(mechanics ② — 순수 SELECT).
 
@@ -327,24 +435,27 @@ def pick_study_items(
           "item": LearningItem}] — 본편(복습→[L1 청크|문법]→어휘)→예비 순서. 시드/진행
         데이터가 부족하면 짧아지거나 빈 리스트(호출부가 None 처리 — R5).
     """
-    band = band_of(level_no)
-    cooldown = _sel3_cooldown_item_ids(db, member_id)
+    band = band_of(level_no, language)
+    cooldown = _sel3_cooldown_item_ids(db, member_id, language)
 
     reviews = _pick_review_items(
         db, member_id, level_no,
         limit=review_slots, prefer_previous=bridge_prev_ratio >= 0.5,
+        language=language,
     )
     out: list[dict] = [{"slot": "main", "study_kind": "review", "item": i} for i in reviews]
 
     if band == "survival":
         chunks = _pick_new_items(
-            db, member_id, level_no, "chunk", _SURVIVAL_CHUNKS, exclude_ids=cooldown
+            db, member_id, level_no, "chunk", _SURVIVAL_CHUNKS,
+            exclude_ids=cooldown, language=language,
         )
         out += [{"slot": "main", "study_kind": "chunk", "item": i} for i in chunks]
     else:
         # 신규 문법 정확히 1개(2개 금지 — 항목당 75~90초).
         grammars = _pick_new_items(
-            db, member_id, level_no, "grammar", 1, exclude_ids=cooldown
+            db, member_id, level_no, "grammar", 1,
+            exclude_ids=cooldown, language=language,
         )
         out += [{"slot": "main", "study_kind": "grammar", "item": i} for i in grammars]
 
@@ -357,7 +468,7 @@ def pick_study_items(
 
     vocabs = _pick_new_items(
         db, member_id, level_no, "vocab",
-        vocab_want + STUDY_RESERVE_TOTAL, exclude_ids=cooldown,
+        vocab_want + STUDY_RESERVE_TOTAL, exclude_ids=cooldown, language=language,
     )
     out += [{"slot": "main", "study_kind": "vocab", "item": i} for i in vocabs[:vocab_want]]
     out += [
@@ -367,12 +478,14 @@ def pick_study_items(
     return out
 
 
-def pick_chat_targets(db: Session, member_id: int, level_no: int) -> list[LearningItem]:
+def pick_chat_targets(
+    db: Session, member_id: int, level_no: int, language: str = "ko"
+) -> list[LearningItem]:
     """대화 모드 유도 표현 ≤5 를 선별한다(mechanics ③ — 순수 SELECT).
 
     3개 = practicing 중 last_used_at 오래된 순(주력 복습) / 1개 = mastered 최고령
     (리텐션 불시 점검) / 1개 = 최근 7일 introduced(갓 배운 것 굳히기). 부족분은
-    practicing 으로 보충. 전부 level_no<=내레벨 한정.
+    practicing 으로 보충. 전부 level_no<=내레벨 한정. (멀티랭귀지) language 필터.
     """
     def base(status_cond):
         return (
@@ -380,6 +493,7 @@ def pick_chat_targets(db: Session, member_id: int, level_no: int) -> list[Learni
             .join(MemberItemProgress, MemberItemProgress.item_id == LearningItem.item_id)
             .where(
                 MemberItemProgress.member_id == member_id,
+                LearningItem.language == language,
                 LearningItem.level_no <= level_no,
                 status_cond,
             )
@@ -434,14 +548,18 @@ def pick_chat_targets(db: Session, member_id: int, level_no: int) -> list[Learni
     return out
 
 
-def known_grammar(db: Session, member_id: int) -> list[str]:
-    """아는 문법 표기 ≤40(mechanics ③ soft 범위) — practicing/mastered, 최신 레벨 우선."""
+def known_grammar(db: Session, member_id: int, language: str = "ko") -> list[str]:
+    """아는 문법 표기 ≤40(mechanics ③ soft 범위) — practicing/mastered, 최신 레벨 우선.
+
+    (멀티랭귀지) learning_item.language 로 대상 언어 문법만.
+    """
     rows = db.scalars(
         select(LearningItem.surface)
         .join(MemberItemProgress, MemberItemProgress.item_id == LearningItem.item_id)
         .where(
             MemberItemProgress.member_id == member_id,
             MemberItemProgress.status.in_(("practicing", "mastered")),
+            LearningItem.language == language,
             LearningItem.kind == "grammar",
         )
         .order_by(
@@ -454,25 +572,32 @@ def known_grammar(db: Session, member_id: int) -> list[str]:
     return list(dict.fromkeys(s for s in rows if s))
 
 
-def bridge_or_struggle_ratio(db: Session, member_id: int) -> float:
+def bridge_or_struggle_ratio(
+    db: Session, member_id: int, language: str = "ko"
+) -> float:
     """복습 비중을 파생 계산한다(mechanics ⑨ — 별도 필드 없음, 통화당 1회).
 
     1) 레벨 진입(history 최신 행, 없으면 가입) 후 증거통화 <3 → 0.7(무조건 브리지)
     2) 진입 5통화 이내 && 최근 3 증거통화가 전부 현재 레벨 버벅임
        (F비율>=0.5 || E2+ 성공 0) → 0.7(소프트 강등 믹스)
     3) 그 외 → 0.3(정상 믹스). 회복(F<0.3 통화 2연속)은 2의 "3연속" 파탄으로 자연 충족.
+    (멀티랭귀지) 레벨·history·증거통화·버벅임 집계를 전부 language 로 스코프.
     """
     member = db.get(Member, member_id)
-    if member is None or member.korean_level is None:
+    if member is None:
         return NORMAL_REVIEW_RATIO
-    k = member.korean_level
-    latest = get_latest_history(db, member_id)
+    k = get_language_level(db, member_id, language)
+    if k is None:
+        return NORMAL_REVIEW_RATIO
+    latest = get_latest_history(db, member_id, language)
     entry_at = latest.created_at if latest is not None else member.created_at
-    evidence_calls = count_evidence_calls_since(db, member_id, entry_at)
+    evidence_calls = count_evidence_calls_since(db, member_id, entry_at, language)
     if evidence_calls < _BRIDGE_ENTRY_EVIDENCE_CALLS:
         return BRIDGE_REVIEW_RATIO
     if evidence_calls <= _STRUGGLE_ENTRY_EVIDENCE_CALLS:
-        recent_ids = list_recent_evidence_call_ids(db, member_id, limit=_STRUGGLE_WINDOW)
+        recent_ids = list_recent_evidence_call_ids(
+            db, member_id, limit=_STRUGGLE_WINDOW, language=language
+        )
         if len(recent_ids) == _STRUGGLE_WINDOW:
             per_call: dict[int, dict[str, int]] = {cid: {} for cid in recent_ids}
             rows = db.execute(
@@ -480,6 +605,7 @@ def bridge_or_struggle_ratio(db: Session, member_id: int) -> float:
                 .join(LearningItem, LearningItem.item_id == ItemEvidence.item_id)
                 .where(
                     ItemEvidence.member_id == member_id,
+                    ItemEvidence.language == language,
                     ItemEvidence.call_id.in_(recent_ids),
                     LearningItem.level_no == k,
                 )
@@ -499,12 +625,15 @@ def bridge_or_struggle_ratio(db: Session, member_id: int) -> float:
     return NORMAL_REVIEW_RATIO
 
 
-def promotion_pending(db: Session, member_id: int) -> bool:
-    """승급 멘트 여부(mechanics ⑧) — 최신 history 가 gate_promotion && 이후 증거통화 0."""
-    latest = get_latest_history(db, member_id)
+def promotion_pending(db: Session, member_id: int, language: str = "ko") -> bool:
+    """승급 멘트 여부(mechanics ⑧) — 최신 history 가 gate_promotion && 이후 증거통화 0.
+
+    (멀티랭귀지) history·증거통화 집계를 language 로 스코프.
+    """
+    latest = get_latest_history(db, member_id, language)
     if latest is None or latest.reason != "gate_promotion":
         return False
-    return count_evidence_calls_since(db, member_id, latest.created_at) == 0
+    return count_evidence_calls_since(db, member_id, latest.created_at, language) == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -543,14 +672,23 @@ def list_evidence_for_items(
     )
 
 
-def list_unconfirmed_fast_track(db: Session, member_id: int) -> Sequence[MemberItemProgress]:
-    """fast-track 미확정(mastered && provenance=fast_track && confirmed_at NULL) 행 전부."""
+def list_unconfirmed_fast_track(
+    db: Session, member_id: int, language: str = "ko"
+) -> Sequence[MemberItemProgress]:
+    """fast-track 미확정(mastered && provenance=fast_track && confirmed_at NULL) 행 전부.
+
+    (멀티랭귀지) member_item_progress 엔 language 컬럼이 없어 learning_item 조인으로
+    대상 언어만 필터한다(member-only 오염 차단 — 다른 언어 fast-track 미확정 제외).
+    """
     return db.scalars(
-        select(MemberItemProgress).where(
+        select(MemberItemProgress)
+        .join(LearningItem, LearningItem.item_id == MemberItemProgress.item_id)
+        .where(
             MemberItemProgress.member_id == member_id,
             MemberItemProgress.status == "mastered",
             MemberItemProgress.provenance == "fast_track",
             MemberItemProgress.fast_track_confirmed_at.is_(None),
+            LearningItem.language == language,
         )
     ).all()
 
@@ -572,22 +710,30 @@ def has_f_evidence_since(
 # --------------------------------------------------------------------------- #
 # 레벨업 게이트 집계 (⑦)
 # --------------------------------------------------------------------------- #
-def list_gate_items(db: Session, level_no: int) -> list[tuple[int, str]]:
+def list_gate_items(
+    db: Session, level_no: int, language: str = "ko"
+) -> list[tuple[int, str]]:
     """레벨 k 의 게이트 대상 항목 [(item_id, kind)] — G1/G2 분모.
 
     승급은 문법(+L1 청크) 전용 — D12(마스터 플랜 결정 로그): 어휘는 게이트 미산입
     (추적·복습·grandfathering·is_core 우선순위는 전부 유지, 판정만 제외).
     grammar 는 단원 순서(seq_no) 상위 min(수, 45)만(초과분 '선택 문법' 제외 — 기존 상한),
     chunk 는 전부(L1 특례 — L1 은 문법 0이라 청크가 게이트 기준).
+    (멀티랭귀지) learning_item.language 로 대상 언어 게이트만.
     """
     grammar_ids = db.scalars(
         select(LearningItem.item_id)
-        .where(LearningItem.level_no == level_no, LearningItem.kind == "grammar")
+        .where(
+            LearningItem.language == language,
+            LearningItem.level_no == level_no,
+            LearningItem.kind == "grammar",
+        )
         .order_by(LearningItem.seq_no.asc().nulls_last(), LearningItem.item_id.asc())
         .limit(GRAMMAR_GATE_CAP)
     ).all()
     chunk_ids = db.scalars(
         select(LearningItem.item_id).where(
+            LearningItem.language == language,
             LearningItem.level_no == level_no,
             LearningItem.kind == "chunk",
         )
@@ -618,40 +764,59 @@ def get_history_by_trigger(db: Session, trigger_call_id: int) -> Optional[Member
     )
 
 
-def get_latest_history(db: Session, member_id: int) -> Optional[MemberLevelHistory]:
-    """회원 최신 레벨 이력 — created_at 이 "현재 레벨 진입 시각"의 단일 소스."""
+def get_latest_history(
+    db: Session, member_id: int, language: str = "ko"
+) -> Optional[MemberLevelHistory]:
+    """회원×언어 최신 레벨 이력 — created_at 이 "현재 레벨 진입 시각"의 단일 소스.
+
+    ⚠(멀티랭귀지) member-only 집계의 진입시각 원천 — language 필터가 빠지면 ja 통화가
+    ko 진입시각을 오염시킨다(리스크 1, 치명). member_level_history.language 로 스코프.
+    """
     return db.scalar(
         select(MemberLevelHistory)
-        .where(MemberLevelHistory.member_id == member_id)
+        .where(
+            MemberLevelHistory.member_id == member_id,
+            MemberLevelHistory.language == language,
+        )
         .order_by(MemberLevelHistory.created_at.desc(), MemberLevelHistory.history_id.desc())
         .limit(1)
     )
 
 
-def count_evidence_calls_since(db: Session, member_id: int, since: Optional[datetime]) -> int:
+def count_evidence_calls_since(
+    db: Session, member_id: int, since: Optional[datetime], language: str = "ko"
+) -> int:
     """since 이후 증거통화 수 — item_evidence 에 행이 있는 distinct call (D15 파생).
 
     브리지(진입 후 <3)·promotion_pending(승급 후 0) 판정 재료. call 컬럼 캐시 없이
-    증거 로그에서 직접 계산한다(관통 원칙 2). ix_evidence_member_item(member_id 선두)로 커버.
+    증거 로그에서 직접 계산한다(관통 원칙 2). ix_evidence_member_lang_call 로 커버.
+    (멀티랭귀지) member-only 집계 — item_evidence.language 필터(오염 차단).
     """
     stmt = select(func.count(func.distinct(ItemEvidence.call_id))).where(
-        ItemEvidence.member_id == member_id
+        ItemEvidence.member_id == member_id,
+        ItemEvidence.language == language,
     )
     if since is not None:
         stmt = stmt.where(ItemEvidence.created_at > since)
     return int(db.scalar(stmt) or 0)
 
 
-def list_recent_evidence_call_ids(db: Session, member_id: int, limit: int = 5) -> list[int]:
+def list_recent_evidence_call_ids(
+    db: Session, member_id: int, limit: int = 5, language: str = "ko"
+) -> list[int]:
     """최근 증거통화 call_id 목록(최신순) — G4(F비율)·버벅임 감지의 창(D15).
 
     call_id 는 단조 증가라 call_id DESC 가 곧 최신순(같은 흐름의 _sel3_cooldown_item_ids
     와 동일 기준 — 통화 시각 컬럼 조인 불요).
+    (멀티랭귀지) member-only 집계 — item_evidence.language 필터(오염 차단).
     """
     return list(
         db.scalars(
             select(ItemEvidence.call_id)
-            .where(ItemEvidence.member_id == member_id)
+            .where(
+                ItemEvidence.member_id == member_id,
+                ItemEvidence.language == language,
+            )
             .group_by(ItemEvidence.call_id)
             .order_by(ItemEvidence.call_id.desc())
             .limit(limit)
@@ -660,9 +825,13 @@ def list_recent_evidence_call_ids(db: Session, member_id: int, limit: int = 5) -
 
 
 def evidence_grade_counts(
-    db: Session, member_id: int, call_ids: Sequence[int], level_no: int
+    db: Session, member_id: int, call_ids: Sequence[int], level_no: int,
+    language: str = "ko",
 ) -> tuple[int, int]:
-    """지정 통화들의 (F 증거 수, 전체 증거 수) — 현재 레벨 항목 한정(G4)."""
+    """지정 통화들의 (F 증거 수, 전체 증거 수) — 현재 레벨 항목 한정(G4).
+
+    (멀티랭귀지) item_evidence.language 로 대상 언어 증거만(오염 차단).
+    """
     if not call_ids:
         return (0, 0)
     rows = db.execute(
@@ -670,6 +839,7 @@ def evidence_grade_counts(
         .join(LearningItem, LearningItem.item_id == ItemEvidence.item_id)
         .where(
             ItemEvidence.member_id == member_id,
+            ItemEvidence.language == language,
             ItemEvidence.call_id.in_(list(call_ids)),
             LearningItem.level_no == level_no,
         )
@@ -695,20 +865,22 @@ def existing_progress_item_ids(db: Session, member_id: int) -> set[int]:
 
 
 def list_grandfather_item_ids(
-    db: Session, *, max_level: Optional[int] = None, exact_level: Optional[int] = None
+    db: Session, *, max_level: Optional[int] = None, exact_level: Optional[int] = None,
+    language: str = "ko",
 ) -> list[int]:
     """grandfathering 대상 item_id — grammar 전체 + chunk + core 어휘(is_core).
 
     D12 이후에도 core 어휘를 계속 포함한다(게이트 판정이 아니라 복습·재교육 방지 목적 —
     무변경). non-core 어휘(노출 풀)는 제외: 행 부재=UNSEEN 이 기본이므로 레벨당 수천 행
     insert(placement 행 폭발)를 피한다. grammar 는 45 초과 '선택 문법'도 포함 —
-    재교육 방지(대화 재활용 풀 잔류) 목적.
+    재교육 방지(대화 재활용 풀 잔류) 목적. (멀티랭귀지) learning_item.language 필터.
     """
     stmt = select(LearningItem.item_id).where(
+        LearningItem.language == language,
         or_(
             LearningItem.kind.in_(("grammar", "chunk")),
             and_(LearningItem.kind == "vocab", LearningItem.is_core.is_(True)),
-        )
+        ),
     )
     if max_level is not None:
         stmt = stmt.where(LearningItem.level_no <= max_level)
