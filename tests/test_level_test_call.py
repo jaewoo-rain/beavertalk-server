@@ -43,6 +43,7 @@ from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.level import Level
 
 from core.config import settings as app_settings
+from core.languages import LanguageSpec, SUPPORTED_LANGUAGES
 from core.supabase_auth import AuthUser
 
 import core.deps as deps
@@ -364,14 +365,18 @@ async def test_demo_explicit_level_test_demoted_to_normal(
 ):
     """F1: 레벨테스트 미지원 언어(회화 전용) + 명시 call_type=level_test → normal 강등.
 
-    멀티랭귀지: is_demo 폐지 후, spec.leveltest=False 언어(예: fr — 아직 콘텐츠 미저작,
-    회화 전용)는 명시 level_test 도 그 언어 판정이 무의미하므로 normal 로 강등 + warning.
-    (ko/ja/en 은 시드·저작 완료되어 leveltest=True 로 전환됨 — 강등 대상 아님.)"""
+    멀티랭귀지: spec.leveltest=False 언어(콘텐츠 미저작·회화 전용)는 명시 level_test 도 그
+    언어 판정이 무의미하므로 normal 로 강등 + warning. 현재 지원 6개 언어는 모두 저작 완료라
+    leveltest=True 이므로, **미저작 회화 전용 언어를 임시로 주입**해 강등 로직을 검증한다."""
     monkeypatch.setattr(app_settings, "ENV", "dev")
+    # 아직 콘텐츠 미저작인 회화 전용 언어(leveltest=False)를 임시 주입 — 강등 대상.
+    monkeypatch.setitem(
+        SUPPORTED_LANGUAGES, "vi", LanguageSpec("vi", "베트남어", 12, False, False)
+    )
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         holder = await _run_one_call(
             session_factory, seeded["member_none"], seeded["character_id"],
-            call_type="level_test", target_language="fr",
+            call_type="level_test", target_language="vi",
         )
 
     instr = holder["system_instruction"]

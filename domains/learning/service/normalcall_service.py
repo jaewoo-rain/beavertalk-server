@@ -1222,10 +1222,63 @@ _BUCKET_DEFINITIONS_EN = (
     "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
 )
 
+# 중국어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 중국어(양사·了·보어·문장 완성도).
+_BUCKET_DEFINITIONS_CN = (
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
+    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(因为/如果/虽然...으로 절을 엮음)·"
+    "다양한 보어·把/被 구문·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
+    "- intermediate(중급): 주어+술어+목적어의 '온전한 문장'을 양사(量词)·완료 '了'·기본 보어와 함께 만든다"
+    "(예: '我昨天去了学校', '我喜欢喝咖啡'). 다만 아직 긴 복문·복잡한 보어까지는 아니다.\n"
+    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 양사·'了' 없는 전보식"
+    "(예: '我去学校', '我高兴'). 여러 단어를 뱉어도 양사·완료·보어를 갖춘 온전한 문장을 완성하지 못하면 초급이다.\n"
+    "- survival(입문): 인사·정형청크(你好·谢谢·多少钱)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
+    "★ 핵심 변별 — (초급↔중급) 양사·'了'·기본 보어를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
+    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
+    "★ 발음(성조)·양사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
+    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+)
+
+# 프랑스어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 프랑스어(성수일치·동사활용·시제).
+_BUCKET_DEFINITIONS_FR = (
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
+    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(parce que/si/que/관계절)·"
+    "다양한 시제(passé composé/imparfait/subjonctif)·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
+    "- intermediate(중급): 주어+동사+보어의 '온전한 문장'을 성수일치·활용된 동사와 함께 만든다"
+    "(예: 'J'ai mangé une pomme', 'Elle aime le café'). 다만 아직 긴 복문·다양한 시제까지는 아니다.\n"
+    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 활용·성수일치 없는 전보식"
+    "(예: 'Je aller école', 'moi content'). 여러 단어를 뱉어도 활용된 동사·성수일치를 갖춘 온전한 문장을 "
+    "완성하지 못하면 초급이다.\n"
+    "- survival(입문): 인사·정형청크(Bonjour·Merci·Combien)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
+    "★ 핵심 변별 — (초급↔중급) 성수일치·활용된 동사를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
+    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
+    "★ 발음·성수일치 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
+    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+)
+
+# 베트남어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 베트남어(시제표지·분류사·어순).
+_BUCKET_DEFINITIONS_VI = (
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
+    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(vì...nên/nếu...thì/mà)·"
+    "다양한 시제표지·복잡 구조·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
+    "- intermediate(중급): 주어+동사+목적어의 '온전한 문장'을 시제표지(đã/đang/sẽ)·분류사와 함께 만든다"
+    "(예: 'Hôm qua tôi đã ăn cơm', 'Tôi thích cà phê'). 다만 아직 긴 복문·복잡 구조까지는 아니다.\n"
+    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 시제표지·분류사 없는 전보식"
+    "(예: 'Tôi đi trường', 'tôi vui'). 여러 단어를 뱉어도 시제표지·분류사를 갖춘 온전한 문장을 "
+    "완성하지 못하면 초급이다.\n"
+    "- survival(입문): 인사·정형청크(Xin chào·Cảm ơn·Bao nhiêu tiền)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
+    "★ 핵심 변별 — (초급↔중급) 시제표지·분류사를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
+    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
+    "★ 발음(성조)·표지 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
+    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+)
+
 _BUCKET_DEFINITIONS_BY_LANG: dict[str, str] = {
     "ko": _BUCKET_DEFINITIONS_KO,
     "ja": _BUCKET_DEFINITIONS_JA,
     "en": _BUCKET_DEFINITIONS_EN,
+    "zh": _BUCKET_DEFINITIONS_CN,
+    "fr": _BUCKET_DEFINITIONS_FR,
+    "vi": _BUCKET_DEFINITIONS_VI,
 }
 
 
@@ -1307,6 +1360,51 @@ _DEFAULT_LEVELTEST_RUBRIC_EN = """레벨 1 (A0, 생존 회화): 정형 표현(He
 레벨 12 (고급 C, advanced 3 / C3): 관용 표현·미묘한 강조·문어적 수사. 원어민 서면 수준.
 레벨 13 (고급 C, advanced 4 / C4): 수사·완곡·반어·레지스터 자유자재. 문학·전문 담화 수준."""
 
+# 중국어 루브릭 — 표준 중국어(HSK/CEFR) 레벨별 1줄 요약.
+_DEFAULT_LEVELTEST_RUBRIC_CN = """레벨 1 (A0, 생존 회화): 정형 표현(你好·谢谢·多少钱)과 숫자만. 배운 문장 그대로가 발화의 전부.
+레벨 2 (초급 A, beginner 1 / A1): '是'·'有'·대명사·양사(量词)·숫자·'吗?' 의문. 주어+술어+목적어 짧은 단문.
+레벨 3 (초급 A, beginner 2 / A2): '了' 완료·능원동사(想/要/会/能)·비교 '比'·'因为...所以'·정도부사.
+레벨 4 (초급 A, beginner 3 / A3): 동사중첩·'过' 경험·동량사/시량사·형용사중첩. 진행·경험 구분.
+레벨 5 (초급 A, beginner 4 / A4): 결과보어·추향보어(来/去)·'又...又...'·'(在)...以前/以后'.
+레벨 6 (중급 B, intermediate 1 / B1): '被' 피동·离合词·양사중첩·접사(第-/老-/小-). 施事·受事 명확.
+레벨 7 (중급 B, intermediate 2 / B2): 가능보어·'越...越...'·'一...也/都+不/没'·정도보어.
+레벨 8 (중급 B, intermediate 3 / B3): 차용양사·'(自)...以来'·'在...方面/上/下'. 관용 표현 혼용.
+레벨 9 (중급 B, intermediate 4 / B4): 让步复句·반문구·이중부정 강조·'连...也/都...' 강조.
+레벨 10 (고급 C, advanced 1 / C1): '从...来看'·'到...为止'·'拿...来说'·'在...看来'. 추상 주제를 길게.
+레벨 11 (고급 C, advanced 2 / C2): 유사접사(超-/-化/-式)·'为了...而...'·'非...不可' 강조. 논설 수준.
+레벨 12 (고급 C, advanced 3 / C3): '所谓...就是...'·'无非...而已'·'以...为...'. 원어민 서면 수준.
+레벨 13 (고급 C, advanced 4 / C4): '话又说回来'·'X了又Y' 등 구어·문어 수사 자유자재. 문학·전문 담화 수준."""
+
+# 프랑스어 루브릭 — 표준 프랑스어 CEFR 레벨별 1줄 요약.
+_DEFAULT_LEVELTEST_RUBRIC_FR = """레벨 1 (A0, 생존 회화): 정형 표현(Bonjour·Merci·Combien)과 숫자만. 배운 문장 그대로가 발화의 전부.
+레벨 2 (초급 A, beginner 1 / A1): être/avoir·관사(le/la/un/une)·-er 동사 현재형·형용사 성수일치·소유형용사. 짧은 단문.
+레벨 3 (초급 A, beginner 2 / A2): passé composé·futur proche(aller+inf)·부정(ne...pas)·비교(plus...que).
+레벨 4 (초급 A, beginner 3 / A3): imparfait·목적격 대명사(COD/COI)·재귀동사. 과거 묘사·구분.
+레벨 5 (초급 A, beginner 4 / A4): futur simple·1형 가정(si+présent)·관계대명사(qui/que)·부분관사.
+레벨 6 (중급 B, intermediate 1 / B1): subjonctif présent·conditionnel présent·관계대명사(dont/où)·passé composé vs imparfait.
+레벨 7 (중급 B, intermediate 2 / B2): subjonctif 완전·plus-que-parfait·수동태·2형 가정(si+imparfait)·gérondif.
+레벨 8 (중급 B, intermediate 3 / B3): conditionnel passé·subjonctif passé·3형 가정·복잡 관계절.
+레벨 9 (중급 B, intermediate 4 / B4): mise en relief(c'est...que)·도치 의문·고급 수동·담화 연결.
+레벨 10 (고급 C, advanced 1 / C1): connecteurs logiques·subjonctif 뉘앙스·participe présent. 추상 담화를 길게.
+레벨 11 (고급 C, advanced 2 / C2): 명사화·완곡·격식체·복잡 종속. 논설 수준.
+레벨 12 (고급 C, advanced 3 / C3): passé simple(문어)·관용 표현·미묘한 강조. 원어민 서면 수준.
+레벨 13 (고급 C, advanced 4 / C4): 수사·완곡·반어·레지스터 자유자재. 문학·전문 담화 수준."""
+
+# 베트남어 루브릭 — 표준 베트남어 레벨별 1줄 요약.
+_DEFAULT_LEVELTEST_RUBRIC_VI = """레벨 1 (A0, 생존 회화): 정형 표현(Xin chào·Cảm ơn·Bao nhiêu tiền)과 숫자만. 배운 문장 그대로가 발화의 전부.
+레벨 2 (초급 A, beginner 1 / A1): 'là'·'có'·인칭대명사·분류사·숫자·'có...không?' 의문·cũng/đều. 짧은 단문.
+레벨 3 (초급 A, beginner 2 / A2): 'đã...chưa?' 완료·시간 의문·'à/chứ' 의문. 어제 한 일을 시간과 함께.
+레벨 4 (초급 A, beginner 3 / A3): 'muốn/định'·비교 'bằng'·복수(những/các)·'ai cũng'. 요청·비교.
+레벨 5 (초급 A, beginner 4 / A4): 'sắp'·'vừa...vừa'·'vì...nên'·'hình như...thì phải'. 계획·이유.
+레벨 6 (중급 B, intermediate 1 / B1): 'được'(가능/피동)·'tự...lấy'·어기조사(nhỉ/nhé)·'hóa ra'.
+레벨 7 (중급 B, intermediate 2 / B2): 중첩(sáng sáng)·'nói chung/riêng'·'một mặt...mặt khác'. 관용 혼용.
+레벨 8 (중급 B, intermediate 3 / B3): 'trừ/kể cả'·'sự+동사' 명사화·복잡 의문. 추상 전개.
+레벨 9 (중급 B, intermediate 4 / B4): 'quả là'·'huống chi'·중첩 강조. 강조·추론.
+레벨 10 (고급 C, advanced 1 / C1): 'kẻ...người...'·부정확 수량 표현·격식 구조. 추상 주제를 길게.
+레벨 11 (고급 C, advanced 2 / C2): 'biết đâu đấy'·'liệu+'·담화 표지. 논설 수준.
+레벨 12 (고급 C, advanced 3 / C3): 복잡 구문·동사 변별(mời/nhờ/khuyên). 원어민 서면 수준.
+레벨 13 (고급 C, advanced 4 / C4): 'Cứ+동사+đi'·'dù sao...cũng' 등 구어·문어 수사 자유자재. 문학·전문 담화 수준."""
+
 
 def _load_leveltest_rubric(target_language: str = "한국어") -> str:
     """루브릭 텍스트 로드 — 대상 언어별. 한국어는 파일(assets/level/leveltest_rubric.md)→상수,
@@ -1316,6 +1414,12 @@ def _load_leveltest_rubric(target_language: str = "한국어") -> str:
         return _DEFAULT_LEVELTEST_RUBRIC_JA
     if code == "en":
         return _DEFAULT_LEVELTEST_RUBRIC_EN
+    if code == "zh":
+        return _DEFAULT_LEVELTEST_RUBRIC_CN
+    if code == "fr":
+        return _DEFAULT_LEVELTEST_RUBRIC_FR
+    if code == "vi":
+        return _DEFAULT_LEVELTEST_RUBRIC_VI
     try:
         if _LEVELTEST_RUBRIC_PATH.is_file():
             text = _LEVELTEST_RUBRIC_PATH.read_text(encoding="utf-8").strip()

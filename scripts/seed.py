@@ -43,7 +43,7 @@ _LANG_SOURCES: dict[str, dict[str, Path]] = {
     "ko": {"profiles": _ASSETS / "level_profiles_13.json", "curriculum": _CURRICULUM},
     "ja": {"profiles": _ASSETS / "level_profiles_ja.json", "curriculum": _ASSETS / "curriculum_v2_ja"},
     # 다른 언어(parse_lang.py 산출) — 프로파일 본문·생존청크는 T5 저작 후 채운다.
-    "cn": {"profiles": _ASSETS / "level_profiles_cn.json", "curriculum": _ASSETS / "curriculum_v2_cn"},
+    "zh": {"profiles": _ASSETS / "level_profiles_zh.json", "curriculum": _ASSETS / "curriculum_v2_zh"},
     "en": {"profiles": _ASSETS / "level_profiles_en.json", "curriculum": _ASSETS / "curriculum_v2_en"},
     "fr": {"profiles": _ASSETS / "level_profiles_fr.json", "curriculum": _ASSETS / "curriculum_v2_fr"},
     "vi": {"profiles": _ASSETS / "level_profiles_vi.json", "curriculum": _ASSETS / "curriculum_v2_vi"},

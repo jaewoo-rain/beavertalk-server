@@ -1,5 +1,5 @@
 {
-  "_comment": "베트남어 레벨 프로파일 골격(parse_lang 생성). 본문·생존청크는 T5 저작.",
+  "_comment": "베트남어 레벨 프로파일(저작본, parse_lang). level_no 축 한국어와 동일(1=생존, 2~13=A1~C4).",
   "language": "vi",
   "levels": [
     {
@@ -8,103 +8,103 @@
       "grade": null,
       "stage_name": "생존 회화",
       "textbook": null,
-      "profile": "(T5 저작 예정) 베트남어 생존 표현 — 인사·숫자·정형표현."
+      "profile": "인사·숫자·자기소개·정형 표현 46개를 통째로 익히는 생존 단계. 문법 없이 'Xin chào', 'Cảm ơn', 'Bao nhiêu tiền?' 같은 덩어리 표현을 상황별로 말한다."
     },
     {
       "level_no": 2,
       "band": "초급",
       "grade": "A",
-      "stage_name": "CEFR A1",
+      "stage_name": "초급 1 (A1)",
       "textbook": "VI-A1",
-      "profile": "(T5 저작 예정) 베트남어 CEFR A1 레벨 발화 프로파일."
+      "profile": "가장 기초. 'là(be)' 판단문·'có' 존재, 인칭대명사, 분류사(classifier), 숫자, 'có...không?' 의문, 'cũng/đều'. 주어+동사+목적어 짧은 단문. 시제 표지는 아직."
     },
     {
       "level_no": 3,
       "band": "초급",
       "grade": "A",
-      "stage_name": "CEFR A2",
+      "stage_name": "초급 2 (A2)",
       "textbook": "VI-A2",
-      "profile": "(T5 저작 예정) 베트남어 CEFR A2 레벨 발화 프로파일."
+      "profile": "완료·시간. 'đã...chưa?' 완료, 시간 의문(thứ mấy/bao lâu), 'à/chứ' 의문. 어제 한 일을 시간과 함께 말한다."
     },
     {
       "level_no": 4,
       "band": "초급",
       "grade": "A",
-      "stage_name": "CEFR A3",
+      "stage_name": "초급 3 (A3)",
       "textbook": "VI-A3",
-      "profile": "(T5 저작 예정) 베트남어 CEFR A3 레벨 발화 프로파일."
+      "profile": "의도·비교. 'muốn/định' 원함·의도, 'bằng' 비교, 복수(những/các), 'ai cũng'(누구나). 일상 요청·비교를 말한다."
     },
     {
       "level_no": 5,
       "band": "초급",
       "grade": "A",
-      "stage_name": "CEFR A4",
+      "stage_name": "초급 4 (A4)",
       "textbook": "VI-A4",
-      "profile": "(T5 저작 예정) 베트남어 CEFR A4 레벨 발화 프로파일."
+      "profile": "미래·이유. 'sắp'(막), 'vừa...vừa', 'vì...nên'(때문에), 'hình như...thì phải'(추측). 계획·이유를 표현한다."
     },
     {
       "level_no": 6,
       "band": "중급",
       "grade": "B",
-      "stage_name": "CEFR B1",
+      "stage_name": "중급 1 (B1)",
       "textbook": "VI-B1",
-      "profile": "(T5 저작 예정) 베트남어 CEFR B1 레벨 발화 프로파일."
+      "profile": "피동·강조. 'được'(가능/피동), 'tự...lấy'(스스로), 어기조사(nhỉ/nhé), 'hóa ra'(알고 보니). 施事·강조를 명확히 한다."
     },
     {
       "level_no": 7,
       "band": "중급",
       "grade": "B",
-      "stage_name": "CEFR B2",
+      "stage_name": "중급 2 (B2)",
       "textbook": "VI-B2",
-      "profile": "(T5 저작 예정) 베트남어 CEFR B2 레벨 발화 프로파일."
+      "profile": "중첩·관용. 중첩(sáng sáng), 'nói chung/riêng', 'một mặt...mặt khác'. 관용 표현 혼용."
     },
     {
       "level_no": 8,
       "band": "중급",
       "grade": "B",
-      "stage_name": "CEFR B3",
+      "stage_name": "중급 3 (B3)",
       "textbook": "VI-B3",
-      "profile": "(T5 저작 예정) 베트남어 CEFR B3 레벨 발화 프로파일."
+      "profile": "명사화·복잡 의문. 'trừ/kể cả', 'sự+동사' 명사화, 복잡 의문(Sao mà...thế). 추상 전개."
     },
     {
       "level_no": 9,
       "band": "중급",
       "grade": "B",
-      "stage_name": "CEFR B4",
+      "stage_name": "중급 4 (B4)",
       "textbook": "VI-B4",
-      "profile": "(T5 저작 예정) 베트남어 CEFR B4 레벨 발화 프로파일."
+      "profile": "강조·양보. 'quả là'(정말), 'huống chi'(하물며), 중첩 강조(nhà nhà). 강조·추론을 자유롭게."
     },
     {
       "level_no": 10,
       "band": "고급",
       "grade": "C",
-      "stage_name": "CEFR C1",
+      "stage_name": "고급 1 (C1)",
       "textbook": "VI-C1",
-      "profile": "(T5 저작 예정) 베트남어 CEFR C1 레벨 발화 프로파일."
+      "profile": "문어·격식. 'kẻ...người...', 부정확 수량 표현, 격식 구조. 추상 주제를 길게."
     },
     {
       "level_no": 11,
       "band": "고급",
       "grade": "C",
-      "stage_name": "CEFR C2",
+      "stage_name": "고급 2 (C2)",
       "textbook": "VI-C2",
-      "profile": "(T5 저작 예정) 베트남어 CEFR C2 레벨 발화 프로파일."
+      "profile": "관용·수사. 'biết đâu đấy', 'liệu+', 담화 표지(nói tóm lại). 논설 수준."
     },
     {
       "level_no": 12,
       "band": "고급",
       "grade": "C",
-      "stage_name": "CEFR C3",
+      "stage_name": "고급 3 (C3)",
       "textbook": "VI-C3",
-      "profile": "(T5 저작 예정) 베트남어 CEFR C3 레벨 발화 프로파일."
+      "profile": "고급 관용. 복잡 구문(A còn...nữa là B), 동사 변별(mời/nhờ/khuyên). 원어민 서면 수준."
     },
     {
       "level_no": 13,
       "band": "고급",
       "grade": "C",
-      "stage_name": "CEFR C4",
+      "stage_name": "고급 4 (C4)",
       "textbook": "VI-C4",
-      "profile": "(T5 저작 예정) 베트남어 CEFR C4 레벨 발화 프로파일."
+      "profile": "최상급 — 원어민급. 'Cứ+동사+đi', 'dù sao...cũng' 등 구어·문어 수사 자유자재. 완성된 베트남어."
     }
   ]
 }

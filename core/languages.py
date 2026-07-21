@@ -39,9 +39,9 @@ SUPPORTED_LANGUAGES: dict[str, LanguageSpec] = {
     "ko": LanguageSpec("ko", "한국어", 13, True, True),
     "en": LanguageSpec("en", "영어", 13, True, True),
     "ja": LanguageSpec("ja", "일본어", 13, True, True),
-    "zh": LanguageSpec("zh", "중국어", 12, False, False),
-    "fr": LanguageSpec("fr", "프랑스어", 12, False, False),
-    "vi": LanguageSpec("vi", "베트남어", 12, False, False),
+    "zh": LanguageSpec("zh", "중국어", 13, True, True),
+    "fr": LanguageSpec("fr", "프랑스어", 13, True, True),
+    "vi": LanguageSpec("vi", "베트남어", 13, True, True),
 }
 
 # 대상 언어 기본값(오버라이드/미지원 시 폴백). settings.DEFAULT_TARGET_LANGUAGE 와 같은 값.
