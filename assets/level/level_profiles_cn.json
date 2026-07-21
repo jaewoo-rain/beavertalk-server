@@ -1,0 +1,110 @@
+{
+  "_comment": "중국어 레벨 프로파일 골격(parse_lang 생성). 본문·생존청크는 T5 저작.",
+  "language": "cn",
+  "levels": [
+    {
+      "level_no": 1,
+      "band": "생존",
+      "grade": null,
+      "stage_name": "생존 회화",
+      "textbook": null,
+      "profile": "(T5 저작 예정) 중국어 생존 표현 — 인사·숫자·정형표현."
+    },
+    {
+      "level_no": 2,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A1",
+      "textbook": "CN-A1",
+      "profile": "(T5 저작 예정) 중국어 CEFR A1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 3,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A2",
+      "textbook": "CN-A2",
+      "profile": "(T5 저작 예정) 중국어 CEFR A2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 4,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A3",
+      "textbook": "CN-A3",
+      "profile": "(T5 저작 예정) 중국어 CEFR A3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 5,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A4",
+      "textbook": "CN-A4",
+      "profile": "(T5 저작 예정) 중국어 CEFR A4 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 6,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B1",
+      "textbook": "CN-B1",
+      "profile": "(T5 저작 예정) 중국어 CEFR B1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 7,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B2",
+      "textbook": "CN-B2",
+      "profile": "(T5 저작 예정) 중국어 CEFR B2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 8,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B3",
+      "textbook": "CN-B3",
+      "profile": "(T5 저작 예정) 중국어 CEFR B3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 9,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B4",
+      "textbook": "CN-B4",
+      "profile": "(T5 저작 예정) 중국어 CEFR B4 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 10,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C1",
+      "textbook": "CN-C1",
+      "profile": "(T5 저작 예정) 중국어 CEFR C1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 11,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C2",
+      "textbook": "CN-C2",
+      "profile": "(T5 저작 예정) 중국어 CEFR C2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 12,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C3",
+      "textbook": "CN-C3",
+      "profile": "(T5 저작 예정) 중국어 CEFR C3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 13,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C4",
+      "textbook": "CN-C4",
+      "profile": "(T5 저작 예정) 중국어 CEFR C4 레벨 발화 프로파일."
+    }
+  ]
+}

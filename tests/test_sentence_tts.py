@@ -114,7 +114,7 @@ def mock_tts_ok(monkeypatch):
     async def _fake_tts(*_a, **_k):
         return (b"\x00\x01" * 16, "audio/mpeg")
 
-    monkeypatch.setattr(ssvc.tts, "synthesize_korean", _fake_tts)
+    monkeypatch.setattr(ssvc.tts, "synthesize", _fake_tts)
     monkeypatch.setattr(ssvc.storage, "upload", lambda *a, **k: "tts/1/1.mp3")
     monkeypatch.setattr(
         ssvc.storage, "public_url", lambda *a, **k: "https://stub/tts.mp3"
@@ -161,7 +161,7 @@ def test_tts_idempotent_returns_existing_without_resynth(
     async def _boom(*_a, **_k):
         raise AssertionError("재합성하면 안 됨")
 
-    monkeypatch.setattr(ssvc.tts, "synthesize_korean", _boom)
+    monkeypatch.setattr(ssvc.tts, "synthesize", _boom)
 
     app = _build_app(session_factory)
     client = TestClient(app)
@@ -179,18 +179,11 @@ def test_tts_empty_korean_returns_422(session_factory, seeded, mock_tts_ok):
     assert r.status_code == 422
 
 
-def test_tts_no_genai_client_returns_503(session_factory, seeded, mock_tts_ok):
-    app = _build_app(session_factory, genai_client=None)
-    client = TestClient(app)
-    r = client.post(f"/api/v1/sentences/{seeded['s1']}/tts", headers=_hdr())
-    assert r.status_code == 503
-
-
 def test_tts_synthesis_failure_returns_503(session_factory, seeded, monkeypatch):
     async def _fail(*_a, **_k):
         return None
 
-    monkeypatch.setattr(ssvc.tts, "synthesize_korean", _fail)
+    monkeypatch.setattr(ssvc.tts, "synthesize", _fail)
     app = _build_app(session_factory)
     client = TestClient(app)
     r = client.post(f"/api/v1/sentences/{seeded['s1']}/tts", headers=_hdr())
@@ -201,7 +194,7 @@ def test_tts_upload_failure_returns_503(session_factory, seeded, monkeypatch):
     async def _ok(*_a, **_k):
         return (b"\x00\x01", "audio/mpeg")
 
-    monkeypatch.setattr(ssvc.tts, "synthesize_korean", _ok)
+    monkeypatch.setattr(ssvc.tts, "synthesize", _ok)
     monkeypatch.setattr(ssvc.storage, "upload", lambda *a, **k: None)
     monkeypatch.setattr(ssvc.storage, "public_url", lambda *a, **k: None)
     app = _build_app(session_factory)

@@ -1,0 +1,110 @@
+{
+  "_comment": "프랑스어 레벨 프로파일 골격(parse_lang 생성). 본문·생존청크는 T5 저작.",
+  "language": "fr",
+  "levels": [
+    {
+      "level_no": 1,
+      "band": "생존",
+      "grade": null,
+      "stage_name": "생존 회화",
+      "textbook": null,
+      "profile": "(T5 저작 예정) 프랑스어 생존 표현 — 인사·숫자·정형표현."
+    },
+    {
+      "level_no": 2,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A1",
+      "textbook": "FR-A1",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR A1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 3,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A2",
+      "textbook": "FR-A2",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR A2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 4,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A3",
+      "textbook": "FR-A3",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR A3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 5,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "CEFR A4",
+      "textbook": "FR-A4",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR A4 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 6,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B1",
+      "textbook": "FR-B1",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR B1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 7,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B2",
+      "textbook": "FR-B2",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR B2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 8,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B3",
+      "textbook": "FR-B3",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR B3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 9,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "CEFR B4",
+      "textbook": "FR-B4",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR B4 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 10,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C1",
+      "textbook": "FR-C1",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR C1 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 11,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C2",
+      "textbook": "FR-C2",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR C2 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 12,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C3",
+      "textbook": "FR-C3",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR C3 레벨 발화 프로파일."
+    },
+    {
+      "level_no": 13,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "CEFR C4",
+      "textbook": "FR-C4",
+      "profile": "(T5 저작 예정) 프랑스어 CEFR C4 레벨 발화 프로파일."
+    }
+  ]
+}

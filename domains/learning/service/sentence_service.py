@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from core import storage, tts
 from core.config import settings
+from domains.learning.models.call import Call
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository.sentence_repository import SentenceRepository
 from domains.learning.schemas.call import EvaluationOut, SentenceOut
@@ -62,16 +63,13 @@ class SentenceService:
             )
 
         call_id = sentence.call_id
+        # (멀티랭귀지) 이 통화의 학습 대상 언어로 합성 — 없으면 ko 폴백.
+        call = self.db.get(Call, call_id)
+        language = (getattr(call, "target_language", None) or "ko")
 
-        # 3) genai 미구성이면 합성 불가 → 503.
-        if client is None:
-            raise HTTPException(
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                "오디오를 생성할 수 없습니다(TTS 비활성).",
-            )
-
-        # 4) Vertex Gemini-TTS 합성(await) — DB 세션 밖에서.
-        synthesized = await tts.synthesize_korean(korean, client)
+        # 3) Cloud TTS 합성(await) — DB 세션 밖에서. 비활성/실패면 None → 아래 503.
+        #    (client 인자는 하위호환용 — Cloud TTS 는 자체 키를 쓰므로 사용 안 함.)
+        synthesized = await tts.synthesize(korean, language)
         if not synthesized:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,

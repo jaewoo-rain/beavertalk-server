@@ -79,8 +79,18 @@
     <div class="step">STEP 1 · 레벨테스트 통화 (편하게 대답하세요 · 선택한 시간 후 자동 종료)</div>
     <div class="row" style="margin:8px 0">
       <span class="muted">캐릭터 ID</span><input id="cid" value="1" style="width:50px" />
+      <span class="muted">학습 언어(target)</span>
+      <select id="tgt" title="배울 언어. ja=일본어 도그푸딩(레벨테스트·체크판·레벨업 정식 가동). 회화전용은 레벨 시스템 없이 대화만.">
+        <option value="ja">일본어(ja) · 도그푸딩</option>
+        <option value="ko">한국어(ko)</option>
+        <option value="en">영어(en) · 회화전용</option>
+        <option value="zh">중국어(zh) · 회화전용</option>
+        <option value="fr">프랑스어(fr) · 회화전용</option>
+        <option value="vi">베트남어(vi) · 회화전용</option>
+      </select>
       <span class="muted">모국어(안내 언어)</span>
-      <select id="loc">
+      <select id="loc" title="안내·리액션 언어(학습자 L1). 일본어를 배우는 한국인 도그푸딩이면 ko.">
+        <option value="ko">한국어(ko)</option>
         <option value="en">영어(en)</option>
         <option value="ja">일본어(ja)</option>
         <option value="zh">중국어(zh)</option>
@@ -146,8 +156,10 @@ const $ = s => document.querySelector(s);
 let token = null, callId = null;
 
 $('#apibase').value = location.pathname.indexOf('__levelcalldemo') >= 0 ? location.origin : 'http://localhost:8000';
-$('#supaurl').value = 'https://ppllscbfdvebsmdatpnc.supabase.co';
-$('#supakey').value = 'sb_publishable_aCuUS0Bn4GpETaNgv-U-gQ_aucT8ZDS';  // 공개키(안전)
+// (멀티랭귀지 도그푸딩 브랜치) 인증 = 새 Supabase 프로젝트(wbxyhgkmhfbjvqmxlgrh). 도그푸딩 서버가
+// 이 프로젝트로 토큰을 검증하므로 로그인/가입도 이 프로젝트로. 공개(anon) 키라 노출 안전.
+$('#supaurl').value = 'https://wbxyhgkmhfbjvqmxlgrh.supabase.co';
+$('#supakey').value = 'sb_publishable_gvBEWUsp2gHSPW1bKBnORA_D8OpMO9z';  // 공개키(안전)
 const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
 function wsBase() {
   const u = new URL(apiBase());
@@ -261,12 +273,15 @@ async function startCall() {
   $('#cdot').className='dot'; $('#cstat').textContent='연결 중…';
 
   ws.onopen = () => {
-    // 핵심: target_language 는 절대 보내지 않는다(보내면 '언어 데모'로 분류돼 레벨테스트 차단).
-    // call_type 은 선택: 미전송 = 앱과 동일한 서버 자동 판단(레벨 없으면 테스트) /
+    // (멀티랭귀지) target_language 를 보낸다 — 지원 언어(ja 등 has_curriculum·leveltest=True)면
+    // 그 언어의 정식 코스로 잡혀 레벨테스트→체크판→레벨업이 동작한다(옛 '언어 데모 차단'은 폐지).
+    // 회화전용 언어(en/zh/fr/vi)를 고르면 레벨테스트 없이 대화만 — 서버가 자동 처리.
+    // call_type 은 선택: 미전송 = 서버 자동 판단(그 언어 레벨 없으면 테스트) /
     //                    'level_test' 명시 = 레벨이 있어도 강제 재측정(non-prod 전용 통로).
     const durMin = +$('#dur').value || 3;
     callDurationS = durMin * 60;  // 카운트다운을 선택 길이에 맞춤(서버가 3~15분 클램프).
-    const msg = { type:'start', character_id:+$('#cid').value||1, locale: $('#loc').value, duration_min: durMin };
+    const msg = { type:'start', character_id:+$('#cid').value||1, locale: $('#loc').value,
+                  duration_min: durMin, target_language: $('#tgt').value };
     if ($('#force').checked) msg.call_type = 'level_test';
     ws.send(JSON.stringify(msg));
     $('#cdot').className='dot on'; $('#cstat').textContent=$('#force').checked ? '레벨테스트 중(강제)' : '통화 중(서버 자동 판단)';

@@ -269,9 +269,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         @app.get("/__levelcalldemo", include_in_schema=False)
         def level_call_demo() -> FileResponse:
-            """레벨테스트 통화 데모 HTML — 판정·저장까지 실동작(레벨을 실제로 덮어씀).
+            """레벨테스트·멀티랭귀지 통화 데모 HTML — 판정·저장까지 실동작(레벨을 실제로 덮어씀).
 
-            call_demo 와 달리 target_language 를 보내지 않아 데모 게이트에 안 걸리고,
+            (멀티랭귀지) 학습 언어(target) 드롭다운으로 target_language 코드(ja 등)를 보낸다 —
+            지원 언어면 그 언어의 정식 코스(레벨테스트→체크판→레벨업)로 잡힌다.
             '재측정 강제' 체크 시 call_type=level_test 명시(비프로드 전용 통로)로 반복 테스트 가능.
             """
             return FileResponse(

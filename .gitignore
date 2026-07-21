@@ -83,8 +83,10 @@ level/05.다른 언어 CEFR/
 # 위 원천에서 파생한 커리큘럼 어휘·문법(예문·문법구조가 まるごと/JPF '★재배포 금지' 승계).
 #   parse_jp.py 로 재생성 가능 + 도그푸딩 DB에 이미 시드됨 → git 제외(사장님 결정, 2026-07-21).
 #   level_profiles_ja.json(직접 저작 placeholder)·survival_chunks(T5 저작)는 추적 대상.
-assets/level/curriculum_v2_ja/grammar.json
-assets/level/curriculum_v2_ja/vocab.json
+#   ja/cn/en/fr/vi 전 언어 파생본 — curriculum_v2_<lang>/ (한국어 curriculum_v2/ 는 제외·추적).
+#   survival_chunks.json(직접 저작)·level_profiles_*.json(직접 저작)은 추적한다.
+assets/level/curriculum_v2_*/grammar.json
+assets/level/curriculum_v2_*/vocab.json
 
 # ──────────────────────────────────────────────
 # 도구 / 설정 (로컬 전용)
@@ -92,5 +94,6 @@ assets/level/curriculum_v2_ja/vocab.json
 .claude/
 .mcp.json
 gcp_key.json
+tts_key.json
 
 fcm_sa.json

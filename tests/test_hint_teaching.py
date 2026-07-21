@@ -100,7 +100,7 @@ def _mock_external(monkeypatch):
     async def _fake_tts(*_a, **_k):
         return None
 
-    monkeypatch.setattr(svc.tts, "synthesize_korean", _fake_tts)
+    monkeypatch.setattr(svc.tts, "synthesize", _fake_tts)
 
     async def _fake_generate(*_a, **_k):
         return None

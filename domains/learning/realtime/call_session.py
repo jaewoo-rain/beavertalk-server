@@ -153,7 +153,9 @@ _CLOSE_SEED = (
     "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
     "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
     "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'며 따뜻하게 작별해라. "
-    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장."
+    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
+    "★ 절대 '[시스템]'·'통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 친구끼리 "
+    "헤어지듯 평범한 작별 인사만 해라(예: '오늘 재밌었어, 다음에 또 보자!')."
 )
 
 # 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
@@ -262,7 +264,7 @@ class _CallState:
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "band_observe", "band_client", "band_awaiting", "obs_count", "obs_max", "total_answers",
-        "plateau_count", "last_beaver_question", "band_tasks",
+        "plateau_count", "last_beaver_question", "band_tasks", "band_target_language",
     )
 
     def __init__(self) -> None:
@@ -334,6 +336,8 @@ class _CallState:
         self.band_observe: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
+        # (멀티랭귀지) 라이브 밴드 분류기가 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
+        self.band_target_language: str = _DEFAULT_TARGET_LABEL
         self.obs_count: int = 0
         self.total_answers: int = 0  # None 포함 전체 답변 시도(비화자 조기종료 판정)
         self.obs_max: int = -1
@@ -539,6 +543,7 @@ async def run_call(
         # 천장(obs_max) 도달 시 종료 시드만 주입한다. band_client = 분류 사이드카가 쓸 genai.Client.
         state.band_observe = True
         state.band_client = client
+        state.band_target_language = target_language  # (멀티랭귀지) 분류기 대상 언어
     else:
         state.call_duration_s = _resolve_call_duration(settings, duration_override)
         state.idle_nudge1_s = IDLE_NUDGE1_S
@@ -557,7 +562,7 @@ async def run_call(
         state.hint_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            "instruction": _hint_instruction(profile, label),
+            "instruction": _hint_instruction(profile, label, target_language),
         }
 
     logger.info(
@@ -1031,16 +1036,29 @@ _HINT_PROFILE_FALLBACK = "아주 쉬운 기초 한국어(짧은 정형 표현과
 _HINT_PROFILE_MAX_CHARS = 400  # 레벨 프로파일 요약 상한 — 사이드카 입력 비대 방지
 
 
-def _hint_instruction(level_profile: str, locale_label: str) -> str:
-    """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0)."""
+def _hint_instruction(
+    level_profile: str, locale_label: str, target_language: str = "한국어"
+) -> str:
+    """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
+
+    (멀티랭귀지) target_language 로 예시 답변 언어를 지정한다(기본 한국어 — 기존 출력 무손상).
+    korean 필드는 스키마·클라 호환상 이름을 유지하되 **내용은 대상 언어**다(일본어 통화면
+    일본어 문장). roman 문구는 한국어만 RR 표기법을 명시(바이트 동일), 그 외는 일반 로마자.
+    """
     profile = (level_profile or "").strip()[:_HINT_PROFILE_MAX_CHARS] or _HINT_PROFILE_FALLBACK
+    t = target_language
+    roman_clause = (
+        "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
+        if t == "한국어"
+        else "roman 은 korean 의 발음을 로마자(라틴 문자)로 표기, "
+    )
     return (
-        "너는 한국어 학습 힌트 생성기다. 선생님의 질문에 학습자가 할 만한 "
+        f"너는 {t} 학습 힌트 생성기다. 선생님의 질문에 학습자가 할 만한 "
         "자연스러운 예시 답변을 examples 배열에 정확히 3개 만들어라(서로 조금씩 다른 답 — "
         "예: 짧은 답/조금 더 긴 답/다른 소재). 각 예시는 korean·roman·native 를 갖는다. "
-        f"korean 은 다음 수준({profile}) 범위의 쉬운 한국어 1문장, "
-        "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
-        f"native 는 {locale_label}로 옮긴 뜻."
+        f"korean 은 다음 수준({profile}) 범위의 쉬운 {t} 1문장, "
+        + roman_clause
+        + f"native 는 {locale_label}로 옮긴 뜻."
     )
 
 
@@ -1200,6 +1218,7 @@ async def _band_observe_sidecar(
     try:
         band = await svc.classify_leveltest_band(
             state.band_client, answer_text=answer, prior_question=prior_question,
+            target_language=state.band_target_language,
         )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로 — 재전파

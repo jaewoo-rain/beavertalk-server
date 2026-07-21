@@ -1,0 +1,110 @@
+{
+  "_comment": "영어 레벨 프로파일(저작본, parse_lang). level_no 축 한국어와 동일(1=생존, 2~13=A1~C4).",
+  "language": "en",
+  "levels": [
+    {
+      "level_no": 1,
+      "band": "생존",
+      "grade": null,
+      "stage_name": "생존 회화",
+      "textbook": null,
+      "profile": "인사·숫자·자기소개·정형 표현 46개를 통째로 익히는 생존 단계. 문법 없이 'Hello', 'Thank you', 'Excuse me', 'How much is it?' 같은 덩어리 표현을 상황별로 말한다."
+    },
+    {
+      "level_no": 2,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 1 (A1)",
+      "textbook": "EN-A1",
+      "profile": "가장 기초. be동사('I am...', 'This is...'), 관사(a/an/the), 대명사, 현재형('I like...', 'I have...'), 복수형까지. 주어+동사+목적어 짧은 단문으로 말한다. 과거·미래는 아직."
+    },
+    {
+      "level_no": 3,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 2 (A2)",
+      "textbook": "EN-A2",
+      "profile": "과거·미래 시작. 과거형(규칙 -ed·불규칙 'went/had'), be going to 미래, can/can't, 비교급('-er', 'more'), there is/are. 어제 한 일·간단한 계획을 말한다."
+    },
+    {
+      "level_no": 4,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 3 (A3)",
+      "textbook": "EN-A3",
+      "profile": "진행·완료 도입. 현재진행('I'm -ing'), 현재완료(경험 'Have you ever...'), have to/should, 빈도부사. 지금 하는 일·경험을 시제로 구분한다."
+    },
+    {
+      "level_no": 5,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 4 (A4)",
+      "textbook": "EN-A4",
+      "profile": "미래·조건 기초. will 미래, 1형 조건문('If..., will...'), 현재완료 vs 과거, 최상급, 동명사/부정사('want to', 'enjoy -ing'). 일상 대부분을 시제 구분해 말한다."
+    },
+    {
+      "level_no": 6,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 1 (B1)",
+      "textbook": "EN-B1",
+      "profile": "완료진행·수동·관계절. 현재완료진행, 과거진행, 2형 조건문('If I were...'), 관계대명사(who/which/that), 수동태(현재·과거), 간접화법 도입. 문장이 길어지고 시제가 다양해진다."
+    },
+    {
+      "level_no": 7,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 2 (B2)",
+      "textbook": "EN-B2",
+      "profile": "가정·완료·양태. 3형 조건문, 과거완료, 전 시제 수동태, 추측 조동사(must/might/can't be), 비제한 관계절, 간접화법 완성. 복문·가정·추론을 자유롭게 구사한다."
+    },
+    {
+      "level_no": 8,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 3 (B3)",
+      "textbook": "EN-B3",
+      "profile": "혼합 가정·사역. 혼합 조건문, wish/if only, 사역(have/get something done), 분사구문, 고급 조동사. 복잡한 가정·뉘앙스를 표현한다."
+    },
+    {
+      "level_no": 9,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 4 (B4)",
+      "textbook": "EN-B4",
+      "profile": "도치·강조 도입. 기본 도치, 분열문(It/What cleft), 미래완료/진행, 고급 수동, 가정법. 강조·격식을 조절해 말한다."
+    },
+    {
+      "level_no": 10,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 1 (C1)",
+      "textbook": "EN-C1",
+      "profile": "고급 도치·담화. 부정어 도치('Never have I...'), 담화 표지, 미묘한 양태, 생략, 전치(fronting). 추상·전문 주제를 논리적으로 길게 전개한다."
+    },
+    {
+      "level_no": 11,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 2 (C2)",
+      "textbook": "EN-C2",
+      "profile": "격식·수사. 복합 분열문, 고급 도치, 완곡·hedging, 명사화, 격식체. 뉴스·논설 수준의 정교한 영어."
+    },
+    {
+      "level_no": 12,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 3 (C3)",
+      "textbook": "EN-C3",
+      "profile": "관용·정교. 관용 표현, 미묘한 강조, 문어적 수사. 원어민 서면 수준."
+    },
+    {
+      "level_no": 13,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 4 (C4)",
+      "textbook": "EN-C4",
+      "profile": "최상급 — 원어민급. 수사·완곡·반어·레지스터를 자유자재로. 문학·전문 담화 수준의 완성된 영어."
+    }
+  ]
+}

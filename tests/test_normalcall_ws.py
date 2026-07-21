@@ -108,7 +108,7 @@ def _mock_external(monkeypatch):
     async def _fake_tts(*_a, **_k):
         return None
 
-    monkeypatch.setattr(svc.tts, "synthesize_korean", _fake_tts)
+    monkeypatch.setattr(svc.tts, "synthesize", _fake_tts)
 
     async def _fake_generate(*_a, **_k):
         return svc.CallAnalysis(
@@ -941,7 +941,7 @@ async def test_status_done_before_tts_completes(session_factory, seeded, monkeyp
         await tts_release.wait()
         raise RuntimeError("tts down")
 
-    monkeypatch.setattr(svc.tts, "synthesize_korean", _slow_failing_tts)
+    monkeypatch.setattr(svc.tts, "synthesize", _slow_failing_tts)
 
     task = asyncio.create_task(
         svc.analyze_call(call_id, object(), app_settings, session_factory, locale="en")
@@ -1484,7 +1484,7 @@ def _fake_band(seq):
     """
     rec: dict = {"n": 0, "args": []}
 
-    async def _f(client, *, answer_text, prior_question=None):
+    async def _f(client, *, answer_text, prior_question=None, target_language="한국어"):
         rec["n"] += 1
         rec["args"].append((answer_text, prior_question))
         if seq == "raise":

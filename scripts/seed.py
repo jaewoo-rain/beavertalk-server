@@ -42,6 +42,11 @@ _CURRICULUM = _ASSETS / "curriculum_v2"
 _LANG_SOURCES: dict[str, dict[str, Path]] = {
     "ko": {"profiles": _ASSETS / "level_profiles_13.json", "curriculum": _CURRICULUM},
     "ja": {"profiles": _ASSETS / "level_profiles_ja.json", "curriculum": _ASSETS / "curriculum_v2_ja"},
+    # 다른 언어(parse_lang.py 산출) — 프로파일 본문·생존청크는 T5 저작 후 채운다.
+    "cn": {"profiles": _ASSETS / "level_profiles_cn.json", "curriculum": _ASSETS / "curriculum_v2_cn"},
+    "en": {"profiles": _ASSETS / "level_profiles_en.json", "curriculum": _ASSETS / "curriculum_v2_en"},
+    "fr": {"profiles": _ASSETS / "level_profiles_fr.json", "curriculum": _ASSETS / "curriculum_v2_fr"},
+    "vi": {"profiles": _ASSETS / "level_profiles_vi.json", "curriculum": _ASSETS / "curriculum_v2_vi"},
 }
 
 
@@ -214,22 +219,27 @@ def _chunk_fields(e: dict) -> dict:
 
     L1 생존 청크(정형 표현 통째 학습). band=1(생존도 초급 밴드),
     교재/TOPIK 좌표 없음(NULL). 전 청크 게이트 대상(is_core=True).
-    meanings 에 "roman"(RR 로마자, 소스에 이미 존재)을 함께 싣는다 —
+    meanings 에 "roman"(RR 로마자/로마자, 소스에 이미 존재)을 함께 싣는다 —
     P2.5 teaching_plan 카드의 roman 줄 재료(normalcall_service._study_roman).
+    (멀티랭귀지) surface 는 신 키 'surface' 우선, 없으면 구 한국어 키 'ko' 폴백.
+    학습자 모국어 뜻(meaning_ko)이 있으면 meanings["ko"] 로 함께 싣는다(일본어 등 — ko 는 surface 자체가 한국어라 불필요).
     """
+    surface = e.get("surface") or e["ko"]
     meanings = {"en": e["meaning_en"]}
     if e.get("roman"):
         meanings["roman"] = e["roman"]
+    if e.get("meaning_ko"):
+        meanings["ko"] = e["meaning_ko"]
     return dict(
         kind="chunk",
-        source_key=f"c:{e['no']:02d}:{e['ko']}",
+        source_key=f"c:{e['no']:02d}:{surface}",
         band=1,
         topik_grade=None,
         textbook_code=None,
         seq_no=e["no"],
         level_no=1,
         assign_rule="survival_v1",
-        surface=e["ko"],
+        surface=surface,
         reading=e.get("reading"),  # (멀티랭귀지) 표음 표기 — 한국어 None, 일본어 가나 등
         homograph_refs=None,
         pos_primary=None,

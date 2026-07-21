@@ -14,7 +14,10 @@ _DEV_JWT_SECRET = "dev-secret-change-me-please-32bytes-minimum-0123456789"
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # .env → .env.local 순서로 로드(뒤가 우선). .env.local(gitignore)이 있으면 그 값이
+        # .env 를 오버라이드한다 — 로컬에서 도그푸딩 DB/Supabase 등으로 갈아끼울 때 사용.
+        # 파일이 없으면 조용히 건너뛴다(없어도 무해).
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -81,7 +84,10 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
     GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
-    TTS_MODEL: str = "gemini-2.5-flash-tts"        # 표현 TTS(Vertex Gemini-TTS, ⚠ AI Studio 의 -preview-tts 아님)
+    TTS_MODEL: str = "gemini-2.5-flash-tts"        # (구) 표현 TTS 모델 — 현재 미사용(Cloud TTS 로 이전)
+    # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
+    # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
+    TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)
 
     # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None

@@ -1,0 +1,467 @@
+{
+  "level_no": 1,
+  "count": 46,
+  "language": "ja",
+  "items": [
+    {
+      "no": 1,
+      "category": "인사",
+      "surface": "こんにちは",
+      "reading": "こんにちは",
+      "roman": "konnichiwa",
+      "meaning_en": "Hello.",
+      "meaning_ko": "안녕하세요(낮)",
+      "situation": "만능 낮인사·통화 시작"
+    },
+    {
+      "no": 2,
+      "category": "인사",
+      "surface": "おはようございます",
+      "reading": "おはようございます",
+      "roman": "ohayō gozaimasu",
+      "meaning_en": "Good morning.",
+      "meaning_ko": "안녕하세요(아침)",
+      "situation": "아침 인사"
+    },
+    {
+      "no": 3,
+      "category": "인사",
+      "surface": "こんばんは",
+      "reading": "こんばんは",
+      "roman": "konbanwa",
+      "meaning_en": "Good evening.",
+      "meaning_ko": "안녕하세요(저녁)",
+      "situation": "저녁 인사"
+    },
+    {
+      "no": 4,
+      "category": "인사",
+      "surface": "さようなら",
+      "reading": "さようなら",
+      "roman": "sayōnara",
+      "meaning_en": "Goodbye.",
+      "meaning_ko": "안녕히 가세요",
+      "situation": "헤어질 때"
+    },
+    {
+      "no": 5,
+      "category": "인사",
+      "surface": "またね",
+      "reading": "またね",
+      "roman": "mata ne",
+      "meaning_en": "See you.",
+      "meaning_ko": "또 봐요",
+      "situation": "가벼운 작별"
+    },
+    {
+      "no": 6,
+      "category": "인사",
+      "surface": "お元気ですか",
+      "reading": "おげんきですか",
+      "roman": "ogenki desu ka",
+      "meaning_en": "How are you?",
+      "meaning_ko": "잘 지냈어요?",
+      "situation": "안부 묻기"
+    },
+    {
+      "no": 7,
+      "category": "인사",
+      "surface": "いってきます",
+      "reading": "いってきます",
+      "roman": "ittekimasu",
+      "meaning_en": "I'm off.",
+      "meaning_ko": "다녀오겠습니다",
+      "situation": "나갈 때"
+    },
+    {
+      "no": 8,
+      "category": "인사",
+      "surface": "いらっしゃいませ",
+      "reading": "いらっしゃいませ",
+      "roman": "irasshaimase",
+      "meaning_en": "Welcome.",
+      "meaning_ko": "어서 오세요",
+      "situation": "가게에서 듣기"
+    },
+    {
+      "no": 9,
+      "category": "감사·사과",
+      "surface": "ありがとうございます",
+      "reading": "ありがとうございます",
+      "roman": "arigatō gozaimasu",
+      "meaning_en": "Thank you.",
+      "meaning_ko": "감사합니다",
+      "situation": "격식 감사"
+    },
+    {
+      "no": 10,
+      "category": "감사·사과",
+      "surface": "どうも",
+      "reading": "どうも",
+      "roman": "dōmo",
+      "meaning_en": "Thanks.",
+      "meaning_ko": "고마워요",
+      "situation": "가벼운 감사"
+    },
+    {
+      "no": 11,
+      "category": "감사·사과",
+      "surface": "どういたしまして",
+      "reading": "どういたしまして",
+      "roman": "dō itashimashite",
+      "meaning_en": "You're welcome.",
+      "meaning_ko": "천만에요",
+      "situation": "감사 응답"
+    },
+    {
+      "no": 12,
+      "category": "감사·사과",
+      "surface": "すみません",
+      "reading": "すみません",
+      "roman": "sumimasen",
+      "meaning_en": "Sorry./Excuse me.",
+      "meaning_ko": "죄송합니다·저기요",
+      "situation": "사과·말 걸기"
+    },
+    {
+      "no": 13,
+      "category": "감사·사과",
+      "surface": "ごめんなさい",
+      "reading": "ごめんなさい",
+      "roman": "gomen nasai",
+      "meaning_en": "I'm sorry.",
+      "meaning_ko": "미안해요",
+      "situation": "가벼운 사과"
+    },
+    {
+      "no": 14,
+      "category": "감사·사과",
+      "surface": "大丈夫です",
+      "reading": "だいじょうぶです",
+      "roman": "daijōbu desu",
+      "meaning_en": "It's okay.",
+      "meaning_ko": "괜찮아요",
+      "situation": "사과 응답·사양"
+    },
+    {
+      "no": 15,
+      "category": "긍정·부정·반응",
+      "surface": "はい",
+      "reading": "はい",
+      "roman": "hai",
+      "meaning_en": "Yes.",
+      "meaning_ko": "네",
+      "situation": "긍정"
+    },
+    {
+      "no": 16,
+      "category": "긍정·부정·반응",
+      "surface": "いいえ",
+      "reading": "いいえ",
+      "roman": "iie",
+      "meaning_en": "No.",
+      "meaning_ko": "아니요",
+      "situation": "부정"
+    },
+    {
+      "no": 17,
+      "category": "긍정·부정·반응",
+      "surface": "いいですね",
+      "reading": "いいですね",
+      "roman": "ii desu ne",
+      "meaning_en": "Sounds good.",
+      "meaning_ko": "좋아요",
+      "situation": "승낙·호감"
+    },
+    {
+      "no": 18,
+      "category": "긍정·부정·반응",
+      "surface": "そうです",
+      "reading": "そうです",
+      "roman": "sō desu",
+      "meaning_en": "That's right.",
+      "meaning_ko": "맞아요",
+      "situation": "동의"
+    },
+    {
+      "no": 19,
+      "category": "긍정·부정·반응",
+      "surface": "わかりました",
+      "reading": "わかりました",
+      "roman": "wakarimashita",
+      "meaning_en": "Got it.",
+      "meaning_ko": "알겠어요",
+      "situation": "이해 확인"
+    },
+    {
+      "no": 20,
+      "category": "긍정·부정·반응",
+      "surface": "わかりません",
+      "reading": "わかりません",
+      "roman": "wakarimasen",
+      "meaning_en": "I don't know.",
+      "meaning_ko": "몰라요",
+      "situation": "모를 때"
+    },
+    {
+      "no": 21,
+      "category": "긍정·부정·반응",
+      "surface": "本当ですか",
+      "reading": "ほんとうですか",
+      "roman": "hontō desu ka",
+      "meaning_en": "Really?",
+      "meaning_ko": "진짜요?",
+      "situation": "놀람"
+    },
+    {
+      "no": 22,
+      "category": "긍정·부정·반응",
+      "surface": "おいしいです",
+      "reading": "おいしいです",
+      "roman": "oishii desu",
+      "meaning_en": "It's delicious.",
+      "meaning_ko": "맛있어요",
+      "situation": "음식 리액션"
+    },
+    {
+      "no": 23,
+      "category": "자기소개",
+      "surface": "◯◯です",
+      "reading": "◯◯です",
+      "roman": "◯◯ desu",
+      "meaning_en": "I'm ◯◯.",
+      "meaning_ko": "저는 ◯◯이에요",
+      "situation": "이름 말하기(슬롯)"
+    },
+    {
+      "no": 24,
+      "category": "자기소개",
+      "surface": "◯◯から来ました",
+      "reading": "◯◯からきました",
+      "roman": "◯◯ kara kimashita",
+      "meaning_en": "I'm from ◯◯.",
+      "meaning_ko": "◯◯에서 왔어요",
+      "situation": "출신(슬롯)"
+    },
+    {
+      "no": 25,
+      "category": "자기소개",
+      "surface": "お名前は何ですか",
+      "reading": "おなまえはなんですか",
+      "roman": "onamae wa nan desu ka",
+      "meaning_en": "What's your name?",
+      "meaning_ko": "이름이 뭐예요?",
+      "situation": "상대 이름 묻기"
+    },
+    {
+      "no": 26,
+      "category": "자기소개",
+      "surface": "はじめまして",
+      "reading": "はじめまして",
+      "roman": "hajimemashite",
+      "meaning_en": "How do you do.",
+      "meaning_ko": "처음 뵙겠습니다",
+      "situation": "격식 첫인사"
+    },
+    {
+      "no": 27,
+      "category": "자기소개",
+      "surface": "よろしくお願いします",
+      "reading": "よろしくおねがいします",
+      "roman": "yoroshiku onegai shimasu",
+      "meaning_en": "Nice to meet you.",
+      "meaning_ko": "잘 부탁드립니다",
+      "situation": "첫 만남 마무리"
+    },
+    {
+      "no": 28,
+      "category": "생존 요청",
+      "surface": "これをください",
+      "reading": "これをください",
+      "roman": "kore o kudasai",
+      "meaning_en": "This one, please.",
+      "meaning_ko": "이거 주세요",
+      "situation": "주문"
+    },
+    {
+      "no": 29,
+      "category": "생존 요청",
+      "surface": "いくらですか",
+      "reading": "いくらですか",
+      "roman": "ikura desu ka",
+      "meaning_en": "How much is it?",
+      "meaning_ko": "얼마예요?",
+      "situation": "가격"
+    },
+    {
+      "no": 30,
+      "category": "생존 요청",
+      "surface": "トイレはどこですか",
+      "reading": "トイレはどこですか",
+      "roman": "toire wa doko desu ka",
+      "meaning_en": "Where is the toilet?",
+      "meaning_ko": "화장실이 어디예요?",
+      "situation": "장소"
+    },
+    {
+      "no": 31,
+      "category": "생존 요청",
+      "surface": "助けてください",
+      "reading": "たすけてください",
+      "roman": "tasukete kudasai",
+      "meaning_en": "Please help me.",
+      "meaning_ko": "도와주세요",
+      "situation": "긴급"
+    },
+    {
+      "no": 32,
+      "category": "생존 요청",
+      "surface": "お会計お願いします",
+      "reading": "おかいけいおねがいします",
+      "roman": "okaikei onegai shimasu",
+      "meaning_en": "Check, please.",
+      "meaning_ko": "계산해 주세요",
+      "situation": "식당 계산"
+    },
+    {
+      "no": 33,
+      "category": "생존 요청",
+      "surface": "ちょっと待ってください",
+      "reading": "ちょっとまってください",
+      "roman": "chotto matte kudasai",
+      "meaning_en": "Just a moment.",
+      "meaning_ko": "잠시만요",
+      "situation": "시간 벌기"
+    },
+    {
+      "no": 34,
+      "category": "생존 요청",
+      "surface": "お腹がすきました",
+      "reading": "おなかがすきました",
+      "roman": "onaka ga sukimashita",
+      "meaning_en": "I'm hungry.",
+      "meaning_ko": "배고파요",
+      "situation": "상태"
+    },
+    {
+      "no": 35,
+      "category": "생존 요청",
+      "surface": "お水をください",
+      "reading": "おみずをください",
+      "roman": "omizu o kudasai",
+      "meaning_en": "Water, please.",
+      "meaning_ko": "물 주세요",
+      "situation": "식당"
+    },
+    {
+      "no": 36,
+      "category": "학습자 전략",
+      "surface": "もう一度お願いします",
+      "reading": "もういちどおねがいします",
+      "roman": "mō ichido onegai shimasu",
+      "meaning_en": "Once more, please.",
+      "meaning_ko": "다시 말해 주세요",
+      "situation": "못 알아들음"
+    },
+    {
+      "no": 37,
+      "category": "학습자 전략",
+      "surface": "ゆっくり話してください",
+      "reading": "ゆっくりはなしてください",
+      "roman": "yukkuri hanashite kudasai",
+      "meaning_en": "Please speak slowly.",
+      "meaning_ko": "천천히 말해 주세요",
+      "situation": "속도 조절"
+    },
+    {
+      "no": 38,
+      "category": "학습자 전략",
+      "surface": "よく聞こえませんでした",
+      "reading": "よくきこえませんでした",
+      "roman": "yoku kikoemasen deshita",
+      "meaning_en": "I couldn't hear well.",
+      "meaning_ko": "잘 못 들었어요",
+      "situation": "청취 실패"
+    },
+    {
+      "no": 39,
+      "category": "학습자 전략",
+      "surface": "何と言いましたか",
+      "reading": "なんといいましたか",
+      "roman": "nan to iimashita ka",
+      "meaning_en": "What did you say?",
+      "meaning_ko": "뭐라고요?",
+      "situation": "되묻기"
+    },
+    {
+      "no": 40,
+      "category": "학습자 전략",
+      "surface": "◯◯は何ですか",
+      "reading": "◯◯はなんですか",
+      "roman": "◯◯ wa nan desu ka",
+      "meaning_en": "What is ◯◯?",
+      "meaning_ko": "◯◯이 뭐예요?",
+      "situation": "단어 뜻(슬롯)"
+    },
+    {
+      "no": 41,
+      "category": "학습자 전략",
+      "surface": "日本語で何と言いますか",
+      "reading": "にほんごでなんといいますか",
+      "roman": "nihongo de nan to iimasu ka",
+      "meaning_en": "How do you say it in Japanese?",
+      "meaning_ko": "일본어로 어떻게 말해요?",
+      "situation": "표현 묻기"
+    },
+    {
+      "no": 42,
+      "category": "학습자 전략",
+      "surface": "わかりませんでした",
+      "reading": "わかりませんでした",
+      "roman": "wakarimasen deshita",
+      "meaning_en": "I didn't understand.",
+      "meaning_ko": "이해 못 했어요",
+      "situation": "이해 실패"
+    },
+    {
+      "no": 43,
+      "category": "숫자",
+      "surface": "一・二・三・四・五",
+      "reading": "いち・に・さん・し・ご",
+      "roman": "ichi ni san shi go",
+      "meaning_en": "1–5",
+      "meaning_ko": "일~오",
+      "situation": "숫자 세기(음독)"
+    },
+    {
+      "no": 44,
+      "category": "숫자",
+      "surface": "六・七・八・九・十",
+      "reading": "ろく・しち・はち・きゅう・じゅう",
+      "roman": "roku shichi hachi kyū jū",
+      "meaning_en": "6–10",
+      "meaning_ko": "육~십",
+      "situation": "숫자 세기(음독)"
+    },
+    {
+      "no": 45,
+      "category": "숫자",
+      "surface": "一つ・二つ・三つ",
+      "reading": "ひとつ・ふたつ・みっつ",
+      "roman": "hitotsu futatsu mittsu",
+      "meaning_en": "one, two, three (things)",
+      "meaning_ko": "한 개·두 개·세 개",
+      "situation": "개수(훈독)"
+    },
+    {
+      "no": 46,
+      "category": "숫자",
+      "surface": "一つください",
+      "reading": "ひとつください",
+      "roman": "hitotsu kudasai",
+      "meaning_en": "One, please.",
+      "meaning_ko": "한 개 주세요",
+      "situation": "수량 실전"
+    }
+  ]
+}

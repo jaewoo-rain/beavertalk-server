@@ -18,3 +18,4 @@ google-cloud-storage>=2.16
 supabase>=2.0
 # 예약전화: FCM data-only 발송(firebase-admin). 서비스계정 미설정이면 발송만 비활성.
 firebase-admin>=6.5,<7
+google-cloud-texttospeech>=2.16

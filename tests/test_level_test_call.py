@@ -130,7 +130,7 @@ def _mock_external(monkeypatch):
     async def _fake_tts(*_a, **_k):
         return None
 
-    monkeypatch.setattr(svc.tts, "synthesize_korean", _fake_tts)
+    monkeypatch.setattr(svc.tts, "synthesize", _fake_tts)
 
     # 기본 분석 스텁(normal 콜 경로용). 레벨테스트 판정 테스트는 각자 재모킹한다.
     async def _fake_generate(*_a, **_k):
@@ -364,13 +364,14 @@ async def test_demo_explicit_level_test_demoted_to_normal(
 ):
     """F1: 레벨테스트 미지원 언어(회화 전용) + 명시 call_type=level_test → normal 강등.
 
-    멀티랭귀지: is_demo 폐지 후, spec.leveltest=False 언어(예: ja — 루브릭·대본 미시드)는
-    명시 level_test 도 그 언어 판정이 무의미하므로 normal 로 강등 + warning."""
+    멀티랭귀지: is_demo 폐지 후, spec.leveltest=False 언어(예: fr — 아직 콘텐츠 미저작,
+    회화 전용)는 명시 level_test 도 그 언어 판정이 무의미하므로 normal 로 강등 + warning.
+    (ko/ja/en 은 시드·저작 완료되어 leveltest=True 로 전환됨 — 강등 대상 아님.)"""
     monkeypatch.setattr(app_settings, "ENV", "dev")
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         holder = await _run_one_call(
             session_factory, seeded["member_none"], seeded["character_id"],
-            call_type="level_test", target_language="ja",
+            call_type="level_test", target_language="fr",
         )
 
     instr = holder["system_instruction"]
@@ -384,6 +385,33 @@ async def test_demo_explicit_level_test_demoted_to_normal(
     finally:
         db.close()
     assert any("강등" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_ja_level_test_active_uses_japanese_ladder(
+    session_factory, seeded, monkeypatch
+):
+    """멀티랭귀지: ja(leveltest=True, T4b/T5 시드·저작 완료)는 신규 학습자 첫 통화가
+    레벨테스트로 진입하고, 난이도 사다리에 **일본어 문법 앵커**가 주입된다(강등 아님)."""
+    monkeypatch.setattr(app_settings, "ENV", "dev")
+    holder = await _run_one_call(
+        session_factory, seeded["member_none"], seeded["character_id"],
+        call_type="level_test", target_language="ja",
+    )
+
+    instr = holder["system_instruction"]
+    assert "[진행 방식 — 네가 스스로 이끈다]" in instr        # 레벨테스트 대본
+    assert "「〜ました／〜でした」" in instr                    # 일본어 사다리 앵커
+    assert "-았/었-" not in instr                             # 한국어 앵커 누출 없음
+
+    db = session_factory()
+    try:
+        calls = db.query(Call).all()
+        assert len(calls) == 1
+        assert calls[0].call_type == "level_test"            # 강등 안 됨
+        assert calls[0].target_language == "ja"
+    finally:
+        db.close()
 
 
 @pytest.mark.asyncio
