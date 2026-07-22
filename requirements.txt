@@ -20,6 +20,8 @@ google-cloud-storage>=2.16
 # 발음 챌린지 서버 STT: Speech-to-Text 스트리밍(같은 GCP SA 재사용). STT_FAKE/키부재면 미사용.
 google-cloud-speech>=2.27
 # 인증 주체(Supabase GoTrue) 토큰 검증용 클라이언트. Storage 는 GCS 로 이전됨.
-supabase>=2.0
+# 신형 시크릿 키(sb_secret_…) 지원 버전으로 하한 고정(로컬 검증 2.31). 머지 후 deps 재해석
+# 으로 구버전이 깔려 create_client 가 sb_secret_ 를 거부하는 드리프트를 방지.
+supabase>=2.31,<3
 # 예약전화: FCM data-only 발송(firebase-admin). 서비스계정 미설정이면 발송만 비활성.
 firebase-admin>=6.5,<7
