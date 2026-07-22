@@ -177,8 +177,11 @@ def test_stub_generates_mock_phonemes():
     phonemes = out["phonemes"]
     assert isinstance(phonemes, list) and len(phonemes) > 0
     assert all("alpha" in p and "pronunciation" in p for p in phonemes)
-    # "안" → ㅇ·ㅏ·ㄴ 처럼 자모가 실제로 분해된다.
-    assert {"ㅏ", "ㄴ"} <= {p["alpha"] for p in phonemes}
+    # alpha 는 라벨링됨: "안"→받침 ㄴ, "세"→ㅅ/ㅆ 구분.
+    alphas = {p["alpha"] for p in phonemes}
+    assert "받침 ㄴ" in alphas
+    assert "ㅅ/ㅆ 구분" in alphas
+    assert all(any(k in a for k in ("받침", "초성", "모음", "구분")) for a in alphas)
 
 
 def test_call_failure_falls_back(monkeypatch):

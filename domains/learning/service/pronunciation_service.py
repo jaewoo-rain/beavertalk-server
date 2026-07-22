@@ -120,22 +120,18 @@ def _tip_prompts(alpha: str, country: Optional[str], language: Optional[str]) ->
     """
     lang_label = _LOCALE_LABEL.get(language or "", language or "영어(English)")
     system = (
-        "너는 한국어 발음을 따뜻하게 코칭하는 선생님이다. 학습자가 특정 소리를 어려워하는 "
-        f"이유를 학습자의 모국어({lang_label})로 딱 1문장만 설명한다. 규칙: "
-        "① 점수·수치·급을 언급하지 마라. ② 교정 지시('이렇게 발음해라')를 하지 마라. "
-        "③ 누구나 그럴 수 있다고 안심시키는 격려 톤으로. ④ 반드시 모국어로, 1문장으로. "
+        "너는 한국어 발음을 따뜻하게 코칭하는 선생님이다. 학습자가 특정 소리를 어려워할 때 "
+        f"건네는 짧은 격려를 학습자의 모국어({lang_label})로 쓴다. 규칙: "
+        "① 아주 짧고 간결하게 — 딱 한 문장, 길게 늘어놓지 마라. "
+        "② 점수·수치·급 언급 금지. ③ 교정 지시('이렇게 발음해라') 금지. "
+        "④ '누구나 어려워한다·잘하고 있다'는 안심·격려 톤. ⑤ 반드시 모국어로. "
         "출력은 JSON(explanation)만."
     )
-    if country:
-        prompt = (
-            f"{country} 화자가 한국어 자모 '{alpha}' 발음을 왜 어려워하는지, "
-            f"{lang_label}로 따뜻하게 1문장으로 설명해줘."
-        )
-    else:
-        prompt = (
-            f"많은 학습자가 한국어 자모 '{alpha}' 발음을 왜 어려워하는지, "
-            f"{lang_label}로 따뜻하게 1문장으로 설명해줘."
-        )
+    who = f"{country} 화자" if country else "많은 학습자"
+    prompt = (
+        f"{who}가 한국어 '{alpha}' 소리를 어려워한다. {lang_label}로 아주 짧게 "
+        "한 문장 격려만 해줘(설명·교정 말고)."
+    )
     return system, prompt
 
 
