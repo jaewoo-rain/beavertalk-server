@@ -1151,3 +1151,577 @@ def test_save_segments_writes_rows_with_voice_url(session_factory, seeded):
         assert rows[0].content == "안녕"
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# (e) 레벨테스트(Phase 1 — 비버 자율 진행 · 서버 무주입)
+#
+# 사다리·판정 사이드카·주입 기계·_watch_tree·tree 필드는 전부 삭제됐다. 서버는 통화
+# 중 질문을 주입하지 않는다 — 비버가 system_instruction 만으로 자유 진행하고, 통화 중
+# 서버가 세션에 넣는 텍스트 턴은 선톡 시드 + 무음 넛지 + 종료 시드 3곳뿐이다.
+# 종료는 3분 하드캡(LEVELTEST_MAX_S) 또는 무음 3단(25/8/10) → CLOSE_SEED_LEVELTEST.
+#
+# 공용 러너 _run_call_with 는 call_type override 로 level_test / normal 을 같은 엔진으로
+# 구동하고, factory 가 받은 kwargs(=tools 전달 여부)를 holder 에 기록한다. 판정 사이드카가
+# 없으므로 judge monkeypatch 는 불필요하다.
+# --------------------------------------------------------------------------- #
+def _start_incoming(seeded, call_type=None):
+    payload = {"type": "start", "character_id": seeded["character_id"]}
+    if call_type is not None:
+        payload["call_type"] = call_type
+    return {"type": "websocket.receive", "text": json.dumps(payload)}
+
+
+async def _run_call_with(session, seeded, session_factory, *, call_type=None):
+    """가짜 세션 하나로 run_call 을 끝까지 돌리고 (ws, holder) 반환.
+
+    holder["kwargs"] 에는 factory 가 받은 키워드(=tools 전달 여부)가 담긴다.
+    클라는 start 만 보내고 침묵(hang=True) — 종료는 서버(캡/신호/무음)가 주도.
+    """
+    import contextlib as _cl
+
+    holder: dict = {"s": session}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        holder["kwargs"] = kwargs
+        holder["system_instruction"] = kwargs.get("system_instruction")
+        yield session
+
+    ws = FakeWebSocket([_start_incoming(seeded, call_type)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    await _wait_analysis_tasks()
+    return ws, holder
+
+
+from core.persona_prompt import CLOSE_SEED_LEVELTEST
+
+
+# --- 부트스트랩 + 무주입: 오프닝은 '[통화 시작]' 선톡 시드, 서버 질문 주입 0 ------- #
+@pytest.mark.asyncio
+async def test_leveltest_opening_seed_bootstraps_without_injection(session_factory, seeded):
+    """Phase 1: 레벨테스트 선톡 시드(sent_text_turns[0])는 '[통화 시작]' 오프닝이고,
+    서버는 통화 중 질문을 주입하지 않는다(sent_text_turns 에 '[다음]' 0건).
+    비버가 첫 질문을 system_instruction 만으로 스스로 시작한다(사다리 부트스트랩 없음)."""
+    sess = FakeLiveSession()  # 오프닝 한 턴 후 스트림 종료(자연 종료)
+    ws, holder = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    turns = holder["s"].sent_text_turns
+    assert turns and turns[0].startswith("[통화 시작]"), "레벨테스트 오프닝 선톡 시드가 아님"
+    assert "가벼운 인사 한 마디 + 바로 질문" in turns[0], "레벨테스트 오프닝 문구 아님"
+    assert not any(t.startswith("[다음]") for t in turns), \
+        "서버가 질문을 주입했다('[다음]' 시드 — 무주입 위반)"
+
+
+# --- 무주입: 유저가 여러 번 답해도 서버는 '[다음]' 질문을 0건 주입한다 ----------- #
+@pytest.mark.asyncio
+async def test_leveltest_no_injection_across_multiple_answers(session_factory, seeded):
+    """Phase 1 AC(무주입·이중발화 방지): 가짜 세션이 in_tr(유저 답)을 여러 턴 방출해도
+    서버는 '[다음]' 질문을 0건 주입한다. 통화 중 서버가 세션에 넣는 텍스트 턴은 질문
+    마커('[다음]')가 없는 선톡 시드([통화 시작])뿐이다(자연 종료 — 넛지·종료 시드 미발동)."""
+
+    class MultiAnswer(FakeLiveSession):
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="이름이 뭐예요?")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            for i in range(4):
+                yield LiveEvent(kind="in_tr", text=f"저는 학생이에요 {i}", is_final=True)
+                yield LiveEvent(kind="out_tr", text="좋아요, 사는 곳은요?")
+                yield LiveEvent(kind="audio", audio=b"\x00\x00")
+                yield LiveEvent(kind="turn_end")
+            # 스트림 종료 → 자연 종료(_CallFinished). 서버가 주입한 텍스트는 선톡 시드뿐.
+
+    sess = MultiAnswer()
+    ws, holder = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    turns = holder["s"].sent_text_turns
+    assert not any(t.startswith("[다음]") for t in turns), \
+        "유저가 여러 번 답했는데 서버가 질문을 주입했다(무주입 위반)"
+    # 마커 미노출 근사: 서버가 주입하는 문자열엔 질문 마커가 없다(선톡 시드만).
+    assert turns == [t for t in turns if t.startswith("[통화 시작]")], \
+        "통화 중 서버 텍스트 턴이 선톡 시드가 아님(주입 누수)"
+
+
+# --- 3분캡: 유저 무응답/자유대화에도 캡이 종료를 몬다(종료 시드=CLOSE_SEED_LEVELTEST) - #
+@pytest.mark.asyncio
+async def test_leveltest_no_answer_closes_at_cap(session_factory, seeded, monkeypatch):
+    """Phase 1 3분캡: 유저 무응답이어도 레벨테스트 하드캡(LEVELTEST_MAX_S)이 시계로
+    종료를 몬다 — 종료 시드(CLOSE_SEED_LEVELTEST: '오늘 대화는 여기까지')·작별·call_ended.
+    서버는 통화 중 질문을 주입하지 않는다('[다음]' 0건)."""
+    monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 0.3)   # 3분 캡 → 0.3s 로 축소
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+
+    class IdleUntilCap:
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self._close = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if "오늘 대화는 여기까지" in text:
+                self._close.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕하세요")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            await self._close.wait()               # 캡이 종료 시드 주입할 때까지 idle
+            yield LiveEvent(kind="out_tr", text="결과는 곧 알려줄게요")
+            yield LiveEvent(kind="audio", audio=b"\x77\x77")
+            yield LiveEvent(kind="turn_end")
+
+    sess = IdleUntilCap()
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
+        "서버가 질문을 주입했다(무주입 위반)"
+    assert any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), \
+        "캡 종료 시드(CLOSE_SEED_LEVELTEST) 미주입"
+    assert b"\x77\x77" in ws.sent_bytes, "작별 오디오 미전달(뚝 끊김)"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+# --- 무음 캐던스 단축 + 새 종료 시드 문구 ------------------------------------- #
+@pytest.mark.asyncio
+async def test_leveltest_idle_cadence_uses_shortened_seeds(session_factory, seeded, monkeypatch):
+    """T3(갱신): 레벨테스트 무음 3단은 단축 캐던스(25/8/10 → 축소) + 레벨테스트 1단 시드
+    (순화된 신 문구 '방금 한 질문을 더 쉽게 바꾸거나 선택지를')를 쓴다. 일반 1단 시드는
+    나오면 안 되고, 3단 종료 시드는 CLOSE_SEED_LEVELTEST('오늘 대화는 여기까지')다."""
+    monkeypatch.setattr(cs, "LEVELTEST_IDLE_NUDGE1_S", 0.2)
+    monkeypatch.setattr(cs, "LEVELTEST_IDLE_NUDGE2_S", 0.2)
+    monkeypatch.setattr(cs, "LEVELTEST_IDLE_CLOSE_S", 0.2)
+    monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡은 무음 경로보다 뒤(무음이 종료 주도)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+
+    class LevelIdleForever:
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self._close = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if "오늘 대화는 여기까지" in text:  # 레벨테스트 종료 시드(넛지 아님) → 작별
+                self._close.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕하세요")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            await self._close.wait()               # 3단 → 종료 시드 후 작별
+            yield LiveEvent(kind="out_tr", text="결과는 곧")
+            yield LiveEvent(kind="audio", audio=b"\x88\x88")
+            yield LiveEvent(kind="turn_end")
+
+    sess = LevelIdleForever()
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    # 1단: 레벨테스트 전용 시드(순화된 신 문구 — 방금 질문을 더 쉽게/선택지로 다시).
+    assert any("방금 한 질문을 더 쉽게 바꾸거나 선택지를" in t for t in sess.sent_text_turns), \
+        "레벨테스트 1단 넛지 미주입(신 문구 아님)"
+    # 실제 상수와 동치인지 확인(테스트-구현 문구 드리프트 방지).
+    assert any(t == cs._NUDGE_SEED_1_LEVELTEST for t in sess.sent_text_turns), \
+        "1단 넛지가 _NUDGE_SEED_1_LEVELTEST 상수와 불일치"
+    # 일반 통화 1단 시드가 새면 안 된다(회귀).
+    assert not any("가볍게 새 화제로 한 문장만" in t for t in sess.sent_text_turns), \
+        "레벨테스트에 일반 1단 넛지가 샜다"
+    # 2단: 공통 확인 넛지.
+    assert any("거기 있어" in t for t in sess.sent_text_turns), "2단 확인 넛지 미주입"
+    # 3단: 레벨테스트 종료 시드 → 작별(새 문구).
+    assert any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), "3단 종료 시드 미주입"
+    assert b"\x88\x88" in ws.sent_bytes, "작별 오디오 미전달"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+# --- tools 분기(갱신): 레벨테스트도 tools 미전달(tools=None) + 레벨테스트만 tree 활성 --- #
+@pytest.mark.asyncio
+async def test_tools_not_passed_for_either_call_type(session_factory, seeded, monkeypatch):
+    """Phase 1: 레벨테스트도 in-band tool 을 안 쓴다 — 두 콜타입 모두 factory 에 tools 키가
+    흐르지 않는다(하위호환 시그니처 유지)."""
+    lt_sess = FakeLiveSession()
+    _, lt_holder = await _run_call_with(
+        lt_sess, seeded, session_factory, call_type="level_test"
+    )
+    assert "tools" not in lt_holder["kwargs"], "레벨테스트 factory 에 tools 키가 흘렀다(사이드카 설계 위반)"
+    assert "system_instruction" in lt_holder["kwargs"] and "voice" in lt_holder["kwargs"]
+
+    n_sess = FakeLiveSession()
+    _, n_holder = await _run_call_with(
+        n_sess, seeded, session_factory, call_type="normal"
+    )
+    assert "tools" not in n_holder["kwargs"], "일반 통화 factory 에 tools 키가 흘렀다(회귀)"
+    assert "system_instruction" in n_holder["kwargs"] and "voice" in n_holder["kwargs"]
+
+
+# --- 일반 통화 무영향: tree=None 경로에서 판정/주입 0 --------------------------- #
+@pytest.mark.asyncio
+async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypatch):
+    """일반 통화는 레벨테스트 경로와 무관 — 서버가 '[다음]' 질문을 주입하지 않고,
+    일반 종료 시드('통화 시간이 다 됐다')로 정상 종료(레벨테스트 종료 시드 누수 없음)."""
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
+
+    class NormalIdleClose:
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self._close = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if text.startswith("[시스템]"):
+                self._close.set()
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            # 유저가 말해도 일반 통화는 판정 사이드카를 발사하지 않는다(tree=None).
+            yield LiveEvent(kind="in_tr", text="저는 서울에 살아요", is_final=True)
+            yield LiveEvent(kind="out_tr", text="그렇군요")
+            yield LiveEvent(kind="audio", audio=b"\x11\x11")
+            yield LiveEvent(kind="turn_end")
+            await self._close.wait()
+            yield LiveEvent(kind="out_tr", text="잘 가요")
+            yield LiveEvent(kind="audio", audio=b"\x99\x99")
+            yield LiveEvent(kind="turn_end")
+
+    sess = NormalIdleClose()
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="normal")
+
+    assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
+        "일반 통화에 사다리 질문('[다음]')이 주입됨(회귀)"
+    # 일반 종료 시드 사용 — 레벨테스트 시드 아님.
+    assert any("통화 시간이 다 됐다" in t for t in sess.sent_text_turns), "일반 종료 시드 미주입"
+    assert not any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), \
+        "일반 통화에 레벨테스트 종료 시드가 샜다"
+    assert b"\x99\x99" in ws.sent_bytes, "작별 오디오 미전달"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+@pytest.mark.asyncio
+async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monkeypatch):
+    """T-회귀: 일반 통화는 tool-use 무관 — send_tool_response 미호출, 일반 종료 시드
+    ('통화 시간이 다 됐다') + 정상 작별. 레벨테스트 시드는 나오면 안 된다."""
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
+
+    class NormalIdleClose:
+        def __init__(self):
+            self.sent_audio: list[bytes] = []
+            self.sent_text_turns: list[str] = []
+            self.tool_acks: list[tuple] = []
+            self._close = asyncio.Event()
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.sent_audio.append(pcm16_16k)
+
+        async def send_text_turn(self, text: str) -> None:
+            self.sent_text_turns.append(text)
+            if text.startswith("[시스템]"):
+                self._close.set()
+
+        async def send_tool_response(self, fn_id, fn_name) -> None:
+            self.tool_acks.append((fn_id, fn_name))
+
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="안녕")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            await self._close.wait()
+            yield LiveEvent(kind="out_tr", text="잘 가요")
+            yield LiveEvent(kind="audio", audio=b"\x99\x99")
+            yield LiveEvent(kind="turn_end")
+
+    sess = NormalIdleClose()
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="normal")
+
+    assert sess.tool_acks == [], "일반 통화에서 tool ack 발생(회귀)"
+    # 일반 종료 시드 사용 — 레벨테스트 시드 아님.
+    assert any("통화 시간이 다 됐다" in t for t in sess.sent_text_turns), "일반 종료 시드 미주입"
+    assert not any("실력 파악이 끝났다" in t for t in sess.sent_text_turns), \
+        "일반 통화에 레벨테스트 종료 시드가 샜다"
+    assert b"\x99\x99" in ws.sent_bytes, "작별 오디오 미전달"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+# --------------------------------------------------------------------------- #
+# (f) 레벨테스트 Phase 2 — 조용한 밴드 관측 + 조기종료 (질문 주입 0)
+#
+# 유저 답변마다 사이드카 svc.classify_leveltest_band(answer_text, prior_question) 가
+# 밴드(0 survival~3 advanced, None=판정불가)를 조용히 관측한다. 서버는 obs_max/plateau
+# 를 추적해 천장(_band_ceiling_reached)에 닿으면 종료 시드(CLOSE_SEED_LEVELTEST)만
+# 주입한다 — ★ 질문 주입 없음('[다음]' 0건). 백스톱은 3분캡·무음3단.
+#
+# 모킹: cs.svc.classify_leveltest_band 를 스크립트된 밴드 시퀀스로 교체 + 천장 게이트
+# 상수(TIME_FLOOR/MIN_ANSWERS)를 monkeypatch 로 축소해 결정적으로 천장을 만든다.
+# _CLOSE_MARK 는 CLOSE_SEED_LEVELTEST('오늘 대화는 여기까지')로 종료 시드를 식별한다.
+# --------------------------------------------------------------------------- #
+_CLOSE_MARK = "오늘 대화는 여기까지"  # CLOSE_SEED_LEVELTEST 마커(넛지·[다음] 아님)
+
+
+def _fake_band(seq):
+    """classify_leveltest_band 가짜 — 호출마다 seq 의 다음 값 반환(소진 후 마지막 반복).
+
+    seq: int|None(항상 그 값) 또는 list[int|None](순차, 소진되면 마지막 유지) 또는
+         "raise"(항상 예외 — 백스톱 검증). 반환: (async fake, 호출 기록 dict).
+    """
+    rec: dict = {"n": 0, "args": []}
+
+    async def _f(client, *, answer_text, prior_question=None):
+        rec["n"] += 1
+        rec["args"].append((answer_text, prior_question))
+        if seq == "raise":
+            raise RuntimeError("band classify down")
+        if isinstance(seq, list):
+            return seq[min(rec["n"] - 1, len(seq) - 1)]
+        return seq
+
+    return _f, rec
+
+
+class BandDriver:
+    """레벨테스트 밴드 관측 구동용 가짜 Live 세션.
+
+    오프닝 비버 질문 → (유저 답 → 비버 후속 질문) 반복. 매 비버 후속 턴 시작에서
+    직전 유저 답변이 관측 사이드카로 발사된다(_spawn_band_observe). 종료 시드
+    (CLOSE_SEED_LEVELTEST) 감지 시 작별 턴(FAREWELL 오디오) 후 종료.
+
+    idle_until_close=False: n_answers 소진 후 종료 시드가 안 왔으면 스트림 자연 종료
+      (관측이 천장을 못 쳤다 = 조기종료 없음 — hang 없이 빠르게 끝나 검증 가능).
+    idle_until_close=True: 소진 후 종료 시드(캡/무음 백스톱)를 기다렸다 작별(백스톱 검증).
+    """
+
+    FAREWELL = b"\x55\x55"
+
+    def __init__(self, n_answers: int = 8, answer: str = "저는 서울에 살아요",
+                 idle_until_close: bool = False):
+        self.sent_audio: list[bytes] = []
+        self.sent_text_turns: list[str] = []
+        self._n = n_answers
+        self._answer = answer
+        self._idle_until_close = idle_until_close
+        self._close = asyncio.Event()
+
+    async def send_audio(self, pcm16_16k: bytes) -> None:
+        self.sent_audio.append(pcm16_16k)
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+        if _CLOSE_MARK in text:  # 레벨테스트 종료 시드 주입됨(넛지·[다음] 아님)
+            self._close.set()
+
+    async def events(self):
+        yield LiveEvent(kind="out_tr", text="이름이 뭐예요?")
+        yield LiveEvent(kind="audio", audio=b"\x00\x00")
+        yield LiveEvent(kind="turn_end")
+        for i in range(self._n):
+            if self._close.is_set():
+                break
+            yield LiveEvent(kind="in_tr", text=f"{self._answer} {i}", is_final=True)
+            yield LiveEvent(kind="out_tr", text="그리고 또요?")   # 후속 턴 시작 → 직전 답 관측
+            yield LiveEvent(kind="audio", audio=b"\x00\x00")
+            yield LiveEvent(kind="turn_end")
+            # 관측 사이드카(논블로킹)가 스케줄돼 obs/천장/종료 시드 주입을 마칠 여유.
+            for _ in range(5):
+                if self._close.is_set():
+                    break
+                await asyncio.sleep(0.01)
+        if self._idle_until_close and not self._close.is_set():
+            try:
+                await asyncio.wait_for(self._close.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                return
+        if not self._close.is_set():
+            return  # 천장 미도달 → 스트림 자연 종료(_CallFinished) — 작별 없음
+        yield LiveEvent(kind="out_tr", text="결과는 곧 알려줄게요")
+        yield LiveEvent(kind="audio", audio=self.FAREWELL)
+        yield LiveEvent(kind="turn_end")
+
+
+# --- 1. advanced 즉시 천장 종료 --------------------------------------------- #
+@pytest.mark.asyncio
+async def test_band_advanced_reaches_ceiling_and_closes(session_factory, seeded, monkeypatch):
+    """관측 band=3(advanced) → obs_max=3 → 천장 → should_close → 종료 시드
+    (CLOSE_SEED_LEVELTEST)·작별·call_ended. 게이트 축소(MIN=1·FLOOR=0)로 첫 관측에서 천장.
+    3분캡(LEVELTEST_MAX_S 기본 180s) 전에 밴드가 종료를 몬다(캡이면 hang → 여기선 즉시 종료)."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_MIN_ANSWERS", 1)
+    fake, rec = _fake_band(3)
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=8)
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 1, "관측 사이드카가 한 번도 호출되지 않음"
+    assert rec["args"][0][0].startswith("저는 서울에 살아요"), "관측에 유저 답변이 캡처되지 않음"
+    assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "advanced 천장 도달했는데 종료 시드(CLOSE_SEED_LEVELTEST) 미주입"
+    assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
+        "관측이 질문을 주입했다('[다음]' — 무주입 위반)"
+    assert BandDriver.FAREWELL in ws.sent_bytes, "작별 오디오 미전달(뚝 끊김)"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+# --- 2. plateau 종료 -------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_band_plateau_reaches_ceiling_and_closes(session_factory, seeded, monkeypatch):
+    """관측 band=1 고정(상승 없음) → plateau_count>=PLATEAU_N(3) & obs_count>=MIN(4) →
+    천장 → 종료 시드·작별·call_ended. advanced 없이도 '더 못 올라감'으로 조기종료한다."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    # MIN_ANSWERS=4·PLATEAU_N=3 기본값 사용(정체 4관측: obs_max=1 후 plateau 3).
+    fake, rec = _fake_band(1)
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=8)
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 4, f"정체 천장 판정에 필요한 관측(>=4)이 안 쌓임: {rec['n']}"
+    assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "plateau 천장 도달했는데 종료 시드 미주입"
+    assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
+        "관측이 질문을 주입했다('[다음]' — 무주입 위반)"
+    assert BandDriver.FAREWELL in ws.sent_bytes, "작별 오디오 미전달"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+# --- 3. band None 무변경(조기종료 없음) ------------------------------------- #
+@pytest.mark.asyncio
+async def test_band_none_never_reaches_ceiling(session_factory, seeded, monkeypatch):
+    """classify=None(무응답/판정불가) 반복 → obs_count 안 늘어 obs 천장 절대 안 침(게이트를
+    MIN=1·FLOOR=0 으로 최대한 열어도). 비화자 조기종료(NONSPEAKER_MAX)는 도달불가로 막아
+    obs 경로만 순수 검증. 밴드발 조기종료 없음 → 종료 시드 미주입, 스트림 자연 종료."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_MIN_ANSWERS", 1)
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_NONSPEAKER_MAX", 99)  # 비화자 경로 무력화(obs 경로만 검증)
+    monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡은 멀리(밴드 무발동을 순수 검증)
+    fake, rec = _fake_band(None)
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=5, idle_until_close=False)
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 1, "관측이 발사되지 않음(None 이어도 사이드카는 돌아야 함)"
+    assert not any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "band None 인데 밴드 천장으로 종료 시드가 주입됨(조기종료 오발동)"
+    assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
+        "관측이 질문을 주입했다('[다음]')"
+
+
+# --- 3b. 비화자 조기종료: None(한국어 산출 없음) 여러 번 → 빨리 종료 시드 ------ #
+@pytest.mark.asyncio
+async def test_band_nonspeaker_early_closes(session_factory, seeded, monkeypatch):
+    """완전 비화자(한국어를 못 해 classify 가 매번 None)라도 NONSPEAKER_MAX 만큼 시도하면
+    (FLOOR 경과 후) 비화자 천장으로 조기종료 시드를 주입한다 — 한국어 못 하는 사람이 3분캡
+    까지 붙잡히던 역설(call 253, 127s) 차단. obs_count 는 0 이지만 total_answers 로 종료."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_NONSPEAKER_MAX", 4)  # 4회 시도면 종료
+    monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡은 멀리(비화자 경로만 검증)
+    fake, rec = _fake_band(None)
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=8, idle_until_close=False)
+    await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 4, f"비화자 관측이 NONSPEAKER_MAX 만큼 안 돎(n={rec['n']})"
+    assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "비화자(None 반복)인데 조기종료 시드 미주입 — 완전초보 빨리 종료 실패"
+    assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
+        "비화자 종료 경로가 질문을 주입했다('[다음]' — 무주입 위반)"
+
+
+# --- 4. 무주입 유지(회귀): 관측 여러 번에도 '[다음]' 0건 --------------------- #
+@pytest.mark.asyncio
+async def test_band_observe_never_injects_questions(session_factory, seeded, monkeypatch):
+    """★ 관측만·무주입 불변식: 관측이 여러 번 돌고 천장으로 종료돼도 서버가 세션에 넣는
+    텍스트 턴은 선톡 시드([통화 시작]) + 종료 시드(CLOSE_SEED_LEVELTEST)뿐 — 질문 마커
+    '[다음]' 0건. 관측은 should_close/종료 시드만 세우고 질문을 절대 주입하지 않는다."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    fake, rec = _fake_band([1, 2, 2, 3])  # 상승하다 3에서 천장
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=8)
+    await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    turns = sess.sent_text_turns
+    assert not any(t.startswith("[다음]") for t in turns), \
+        "관측 도중 서버가 질문을 주입했다('[다음]' — 무주입 위반)"
+    # 서버 주입 텍스트는 선톡 시드 or 종료 시드뿐(넛지는 미발동 — 무음 없음).
+    for t in turns:
+        assert t.startswith("[통화 시작]") or _CLOSE_MARK in t, \
+            f"예상 밖 서버 텍스트 턴 주입(주입 누수): {t[:40]}"
+    assert any(_CLOSE_MARK in t for t in turns), "천장 도달 종료 시드 미주입"
+
+
+# --- 5. 시간 플로어: FLOOR 미달이면 band=3 여도 조기종료 안 함 --------------- #
+@pytest.mark.asyncio
+async def test_band_time_floor_blocks_early_close(session_factory, seeded, monkeypatch):
+    """천장 시간 플로어 게이트: FLOOR 를 도달불가(9999s)로 두면 band=3 이 쌓여도(MIN=1)
+    _band_ceiling_reached 가 elapsed<FLOOR 로 False → 밴드발 종료 시드 없음. 초반 소수
+    표본으로 조기종료하지 않음을 보장(종료는 캡/무음이 담당)."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 9999.0)  # 도달 불가
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_MIN_ANSWERS", 1)
+    monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡도 멀리(플로어 게이트만 검증)
+    fake, rec = _fake_band(3)
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=5, idle_until_close=False)
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 1, "관측이 발사되지 않음"
+    assert not any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "시간 플로어 미달인데 밴드 천장으로 조기종료됨(플로어 게이트 무력화)"
+
+
+# --- 6. 백스톱: 관측 사이드카 예외여도 3분캡이 종료를 몬다 ------------------- #
+@pytest.mark.asyncio
+async def test_band_sidecar_failure_falls_back_to_cap(session_factory, seeded, monkeypatch):
+    """R5 백스톱: classify_leveltest_band 가 매번 예외여도 사이드카가 흡수(관측 1건 누락)
+    → 통화 무영향. 밴드는 종료를 못 몰지만 3분캡(LEVELTEST_MAX_S)이 종료 시드·작별로
+    우아하게 종료한다. 관측 실패가 통화를 죽이지 않음을 보장."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_MIN_ANSWERS", 1)
+    monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 0.3)   # 3분 캡 → 0.3s
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    fake, rec = _fake_band("raise")
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=8, idle_until_close=True)
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 1, "관측이 발사되지 않음(예외라도 사이드카는 돌아야 함)"
+    assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "관측 실패 시 캡 종료 시드가 주입되지 않음(백스톱 실패)"
+    assert BandDriver.FAREWELL in ws.sent_bytes, "작별 오디오 미전달(뚝 끊김)"
+    assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
+
+
+# --- 7. 일반 통화 무영향: band_observe=False → classify 미호출 -------------- #
+@pytest.mark.asyncio
+async def test_normal_call_never_observes_band(session_factory, seeded, monkeypatch):
+    """일반 통화(band_observe=False)는 밴드 관측 경로를 전혀 밟지 않는다 — 유저가 여러 번
+    답해도 classify_leveltest_band 는 0회 호출. 레벨테스트 전용 관측이 일반 통화로 새지
+    않음을 보장(격리 회귀)."""
+    fake, rec = _fake_band(3)
+    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+
+    sess = BandDriver(n_answers=4, idle_until_close=False)
+    await _run_call_with(sess, seeded, session_factory, call_type="normal")
+
+    assert rec["n"] == 0, f"일반 통화에서 밴드 관측이 호출됨(격리 위반): {rec['n']}회"

@@ -1,5 +1,18 @@
 """normalcall WebSocket 텍스트(JSON) 제어 프로토콜 모델.
 
+🧒 이 파일은 클라(휴대폰 앱)와 서버가 통화 중 주고받는 '말의 규칙(프로토콜)'을 정한다.
+  한 소켓으로 두 종류가 흐른다: **바이너리 프레임 = 목소리(오디오)**, **텍스트 프레임 = 명령
+  (JSON)**. 소리와 명령을 프레임 종류로 딱 갈라서, 서버는 받은 프레임이 bytes 면 오디오,
+  text 면 제어 신호로 즉시 구분한다(섞이지 않는다).
+
+🧒 왜 'discriminated union(구별 유니온)'인가: 텍스트 명령은 종류가 여러 개다 — 클라가 보내는
+  start(시작)·ping(살아있니?)·playback_done(재생 끝)·hint_used, 서버가 보내는 turn_start·
+  자막·turn_end·call_ended 등. 이걸 그냥 "아무 JSON"으로 받으면 어떤 종류인지 매번 손으로
+  뒤져야 하고 오타·빠진 필드를 놓친다. 대신 모든 메시지에 `type` 이라는 이름표를 하나 붙이고
+  (예: {"type":"ping", ...}), pydantic 이 그 이름표를 보고 **자동으로 알맞은 모델로 검증·변환**
+  하게 한다. 이름표가 곧 '분별자(discriminator)'. 새 명령을 추가할 땐 여기 유니온에 모델을
+  더하고 어댑터를 갱신하면, 클라(Flutter)와의 계약이 한곳에서 안전하게 관리된다.
+
 바이너리 프레임 = raw PCM 오디오(클라→서버 16k, 서버→클라 24k). 텍스트 프레임 = 아래 JSON.
 클라→서버: start, playback_done, ping, hint_used / 서버→클라: turn_start,
 output_transcript, input_transcript, turn_end, call_ended, error, pong,

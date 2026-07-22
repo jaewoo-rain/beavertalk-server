@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import JSON, BigInteger, ForeignKey, Identity, Text
+from sqlalchemy import JSON, BigInteger, Boolean, ForeignKey, Identity, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimestampMixin
@@ -23,6 +23,10 @@ class Review(Base, TimestampMixin):
     voice_url: Mapped[Optional[str]] = mapped_column(Text, comment="보이스 데이터 저장 위치")
     feedback: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JSON, comment="채점 결과(평가 점수 + 글자별 상/중/하)"
+    )
+    counted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true"),
+        comment="이 리뷰가 문장 공식점수(Evaluation)·소리집계에 산입되는가",
     )
 
     sentence: Mapped["Sentence"] = relationship(back_populates="reviews")

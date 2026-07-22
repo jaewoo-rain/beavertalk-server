@@ -33,6 +33,15 @@ class Call(Base, TimestampMixin):
     call_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), comment="전화 날짜")
     total_time: Mapped[Optional[int]] = mapped_column(Integer, comment="총 통화 시간(초)")
     summary: Mapped[Optional[str]] = mapped_column(Text, comment="대화 내용 한 줄 요약")
+    feedback: Mapped[Optional[str]] = mapped_column(
+        Text, comment="통화 코칭 한 문장(통화후 분석 생성)",
+    )
+    pron_feedback: Mapped[Optional[str]] = mapped_column(
+        Text, comment="발음 LLM 한마디 캐시",
+    )
+    pron_feedback_n: Mapped[Optional[int]] = mapped_column(
+        Integer, comment="발음 한마디 캐시 무효화키(생성 시점 counted 복습 수)",
+    )
     rating: Mapped[Optional[int]] = mapped_column(Integer, comment="만족도(1~3점)")
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'ongoing'"),

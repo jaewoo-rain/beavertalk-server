@@ -1,5 +1,32 @@
 """normalcall 단일 양방향 브리지 — 5분 한국어 통화 본체(async 오케스트레이션).
 
+────────────────────────────────────────────────────────────────────────────
+🧒 12살에게 큰 그림부터: 이 파일이 하는 일은 "전화 교환수"다.
+  한쪽 끝엔 학습자(휴대폰 앱 = 클라이언트, 이하 '클라'), 다른 쪽 끝엔 비버 선생님을
+  연기하는 AI(구글 Gemini Live). 이 파일은 두 사람 사이에 앉아서 목소리를 실시간으로
+  주고받게 이어준다. 그리고 5분이 지나면 "이제 시간 됐어요~" 하고 통화를 예쁘게 끊는다.
+
+  왜 '실시간'이 어렵나? 전화는 내가 말하는 소리(클라→Gemini)와 상대가 말하는 소리
+  (Gemini→클라)가 **동시에** 흘러야 자연스럽다. 한쪽씩 번갈아 하면 무전기처럼 뚝뚝
+  끊긴다. 그래서 두 방향을 각각 쉬지 않고 퍼 나르는 '펌프(pump)' 2개를 **동시에** 돌린다.
+  (펌프 = 물을 계속 퍼내는 기계처럼, 한 방향의 소리를 계속 받아서 반대편으로 밀어주는
+   무한루프 코루틴.) 이게 이 파일의 심장인 '2펌프' 구조다.
+
+  왜 TaskGroup? TaskGroup = "여러 일을 동시에 시키되, 하나라도 실패하면 나머지도
+  깔끔히 멈추는 묶음". 펌프 하나가 죽었는데 다른 펌프만 계속 돌면 '반쪽짜리 좀비 통화'가
+  된다(내 목소리는 가는데 상대 목소리는 안 오는 식). TaskGroup이 하나 죽으면 나머지를
+  자동 취소해서 이런 어정쩡한 상태를 원천 차단한다.
+
+  왜 절대 백스톱(asyncio.timeout)? Gemini 연결 자체가 ~10분쯤 되면 저쪽에서 먼저 뚝
+  끊어버린다(우리가 통제 못 하는 종료 — 그러면 뒤처리를 우리가 못 챙긴다). 그래서 그 전에
+  **우리가 먼저** 딱 끊어서 정리 순서를 우리 손에 쥔다. 이게 '절대 백스톱'(최후의 안전장치).
+
+  왜 barge-in off? '바지인(barge-in)' = 상대가 말하는 도중에 끼어들어 말을 끊는 것. 비버가
+  말하는 동안 마이크를 열어두면 AI가 자기 목소리·주변 잡음을 듣고 헷갈려서 말이 엉키거나
+  끊긴다. 그래서 비버가 말할 땐 학습자 마이크 입력을 아예 안 보낸다(barge-in off). 트레이드
+  오프: 진짜로 끼어들어 말 끊기는 못 한다. 하지만 학습앱이라 오히려 이게 더 안정적이고 안전.
+────────────────────────────────────────────────────────────────────────────
+
 beavertalk 의 검증된 bridge.py(2펌프 + 시계워처 + asyncio.timeout 절대 백스톱 +
 TaskGroup + barge-in off)를 이 프로젝트로 포팅. 차이:
     - DB 는 동기 SQLAlchemy → normalcall_service 를 run_db(스레드풀+짧은세션)로 호출.
@@ -22,13 +49,20 @@ import logging
 import uuid
 from typing import AsyncContextManager, Callable, Optional
 
+from fastapi.concurrency import run_in_threadpool
 from google import genai
 from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
 from core import gemini_analysis
-from core.config import Settings
-from core.gemini_live import DEFAULT_VOICE, LiveEvent, LiveSessionProtocol, open_session
+from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
+from core.config import Settings, settings as _settings
+from core.gemini_live import (
+    DEFAULT_VOICE,
+    LiveEvent,
+    LiveSessionProtocol,
+    open_session,
+)
 from core.persona_prompt import (
     _LOCALE_LABEL,
     CLOSE_SEED_LEVELTEST,
@@ -59,6 +93,9 @@ logger = logging.getLogger(__name__)
 
 # 통화 길이: 기본 5분 경과 시 종료 시드(정상 작별 시작), 백스톱(강제 종료). 1분마다 중간 저장.
 CALL_DURATION_S = 300.0          # 기본 통화 길이(5분). 레벨 데모는 start.duration_min 으로 3~15분 override
+# 레벨테스트(Phase 1): 인-콜 판정·주입 없이 비버 자율 진행. 종료는 3분 하드캡(이 시계) 또는
+# 무음 3단/GoAway 가 종료 파이프로 우아하게 몬다(R5 안전망 — 서버는 통화중 질문을 주입하지 않음).
+LEVELTEST_MAX_S = 180.0          # 레벨테스트 하드캡(3분) — call_duration_s 의 base
 # 연결 자체 한계 ~10분(S2)을 선점: 서버가 GoAway/연결종료로 뚝 끊기 전에 우리가 먼저
 # 우아하게 마무리하도록 540s(9분)로 하향. 정상 5분 통화는 이 상한에 닿지 않아 무영향.
 ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백스톱, 연결 ~10분 선점)
@@ -72,6 +109,22 @@ FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 �
 IDLE_NUDGE1_S = 60.0  # 1단: 비버 발화 종료 후 무음 60s → 새 화제로 가볍게 이어가라(작별 금지). 학습자가 한국어 문장을 떠올리는 시간을 넉넉히 준다(짧으면 생각 중에 넛지가 끼어듦)
 IDLE_NUDGE2_S = 10.0  # 2단: 1단 넛지 후 재무음 10s → 모국어로 "거기 있어?" 확인
 IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 직접 주입(우아한 종료)
+# 레벨테스트(fast-probe) 무음 캐던스: 3분 안에 여러 계단을 재야 해 일반보다 짧게. 값은
+# run_call 이 call_type 에 따라 state.idle_* 에 꽂는다(일반은 위 상수 그대로 — 바이트 무변경).
+LEVELTEST_IDLE_NUDGE1_S = 60.0  # 1단: 무음 60s(일반과 동일) → 방금 질문을 더 쉽게/선택지로 다시(작별 금지). 학습자가 긴 답변을 깊게 생각하는 시간을 넉넉히(25s는 생각 중에 넛지가 끼어들었음)
+LEVELTEST_IDLE_NUDGE2_S = 8.0   # 2단: +8s → 모국어 확인
+LEVELTEST_IDLE_CLOSE_S = 10.0   # 3단: +10s → 종료 시드 주입
+# ── 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 ──
+# 서버가 매 유저 답변을 사이드카로 조용히 밴드 분류(0 survival~3 advanced)만 하고, 관측된
+# 최고 밴드(obs_max, 단조증가)가 천장에 닿으면 종료 시드를 주입한다. ★ 질문은 절대 주입하지
+# 않는다(관측은 대화를 구동하지 않음 — should_close 만 세우고 기존 종료 파이프에 합류).
+# 천장 조건(순수 함수 _band_ceiling_reached): 시간 플로어 & 최소 관측수 충족 후
+#   obs_max==3(최상위 도달) 또는 plateau_count>=PLATEAU_N(더 못 올라감) 또는 obs_count>=MAX.
+LEVELTEST_BAND_TIME_FLOOR_S = 45.0  # 천장 판정 시간 플로어(경과 최소 — 초반 표본 1~2건으로 조기종료 방지)
+LEVELTEST_BAND_MIN_ANSWERS = 4      # 천장 판정 전 최소 관측 답변 수(표본 하한)
+LEVELTEST_BAND_PLATEAU_N = 3        # 밴드 상승 없이 정체가 이만큼 누적되면 천장(더 못 올라감)
+LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(무한 관측 방지 — 이 수 넘으면 천장)
+LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 비화자/완전초보: None 포함 전체 답변이 이만큼인데 obs_max<=survival 이면 빨리 종료(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
@@ -92,7 +145,9 @@ _DEMO_LOCALE_EXTRA = {"ko": "한국어"}
 # normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.CLOSE_SEED_LEVELTEST(대본 소유자).
 _CLOSE_SEED = (
     "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
-    "통화 시간이 다 됐다. 자연스럽게 핑계를 대고 따뜻하게 작별 인사 후 끝내라. 1~2문장."
+    "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
+    "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'며 따뜻하게 작별해라. "
+    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장."
 )
 
 # 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
@@ -105,10 +160,22 @@ _NUDGE_SEED_2 = (
     "[시스템] 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 모국어로 "
     "'거기 있어? 잘 들려?'를 한 번만 부드럽게 물어라."
 )
+# 레벨테스트 1단 넛지: 일반과 달리 '새 화제로 이어가라' 대신 **방금 질문을 다시 묻는다** —
+# 작별하지 말고 방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며 모국어로 다시 묻게 한다.
+_NUDGE_SEED_1_LEVELTEST = (
+    "[시스템] 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
+    "방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며(예/아니오 또는 둘 중 고르기) "
+    "모국어로 딱 한 번만 다시 물어라."
+)
 
 SessionFactory = Callable[..., AsyncContextManager[LiveSessionProtocol]]
 
 # 통화후 분석 task 강참조 보관소(GC 방지).
+# 🧒 왜 이 집합이 필요한가: asyncio.create_task 로 백그라운드 작업을 띄우면, 파이썬은
+#   그 작업을 아무도 '붙잡고' 있지 않으면(어떤 변수도 가리키지 않으면) 도중에 쓰레기라고
+#   여기고 없애버릴 수 있다(가비지 컬렉션=GC). 그러면 통화후 분석이 조용히 중간에 사라진다.
+#   그래서 이 집합(set)에 task 를 넣어 **강하게 붙잡아** 끝까지 살아있게 한다. 작업이 끝나면
+#   done 콜백(_on_analysis_done)이 집합에서 빼내 메모리 누수도 막는다(붙잡되, 끝나면 놓는다).
 _analysis_tasks: set[asyncio.Task] = set()
 
 
@@ -138,17 +205,26 @@ DEMO_DURATION_MIN_MINUTES = 3
 DEMO_DURATION_MAX_MINUTES = 15
 
 
-def _resolve_call_duration(settings: Settings, duration_min: Optional[int]) -> float:
+def _resolve_call_duration(
+    settings: Settings, duration_min: Optional[int], base: Optional[float] = None
+) -> float:
     """통화 길이(초) 결정. 데모/dev 에서만 클라가 3~15분 override 가능. prod 는 무시(기본값).
 
-    duration_min 없음 → 모듈 기본값(CALL_DURATION_S). prod 에서 override 오면 무시+warning
+    duration_min 없음 → base(콜타입 기본값). prod 에서 override 오면 무시+warning
     (실서비스는 통화 길이를 클라가 못 정한다 — 오남용/버그 방지). non-prod 는 3~15분 클램프.
+
+    base: 콜타입별 기본 통화 길이. None(미지정)이면 일반 통화 기본값 CALL_DURATION_S 를
+    **런타임에** 읽는다(테스트 monkeypatch 반영 — 리터럴 기본값으로 박으면 def-time 에
+    고정돼 monkeypatch 가 안 먹는다). 레벨테스트는 base=LEVELTEST_MAX_S 로 3분 캡을 준다.
+    하위호환: base 미지정 → 일반 경로 반환 바이트 동일.
     """
+    if base is None:
+        base = CALL_DURATION_S
     if duration_min is None:
-        return CALL_DURATION_S
+        return base
     if settings.ENV == "prod":
         logger.warning("normalcall: prod 에서 duration_min 오버라이드 무시(%s분)", duration_min)
-        return CALL_DURATION_S
+        return base
     clamped = max(DEMO_DURATION_MIN_MINUTES, min(DEMO_DURATION_MAX_MINUTES, int(duration_min)))
     return float(clamped * 60)
 
@@ -171,7 +247,10 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
+        "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
+        "band_observe", "band_client", "band_awaiting", "obs_count", "obs_max", "total_answers",
+        "plateau_count", "last_beaver_question", "band_tasks",
     )
 
     def __init__(self) -> None:
@@ -217,6 +296,12 @@ class _CallState:
         # 통화 길이(초). 기본 CALL_DURATION_S. 데모/dev 는 start.duration_min 으로 3~15분
         # override(run_call 에서 세팅). _watch_call_clock 이 모듈 상수 대신 이 값을 본다.
         self.call_duration_s: float = CALL_DURATION_S
+        # 무음 3단 캐던스 + 1단 넛지 시드(콜타입별 — run_call 이 꽂는다). 기본은 일반 통화 값.
+        # _watch_idle 은 모듈 상수 대신 이 필드를 본다(레벨테스트만 짧은 캐던스로 override).
+        self.idle_nudge1_s: float = IDLE_NUDGE1_S
+        self.idle_nudge2_s: float = IDLE_NUDGE2_S
+        self.idle_close_s: float = IDLE_CLOSE_S
+        self.nudge_seed_1: str = _NUDGE_SEED_1
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
         # 재접지 상태기계(on_user_turn):
@@ -226,6 +311,23 @@ class _CallState:
         self.reground_pending: bool = False
         self.reground_injected: bool = False
         self.user_turn_open: bool = False
+        # ── 레벨테스트 Phase 2: 조용한 밴드 관측(무주입) ──
+        # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
+        # band_client: classify_leveltest_band 에 넘길 genai.Client(사이드카가 참조).
+        # band_awaiting: 관측 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 관측).
+        # obs_count: 관측 성공(band 값) 누계. obs_max: 관측된 최고 밴드(단조증가, -1=아직 없음).
+        # plateau_count: 최고 밴드 갱신 없이 정체된 관측 연속 수(천장 판정 재료).
+        # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(관측 사이드카의 prior_question 문맥).
+        # band_tasks: 관측 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
+        self.band_observe: bool = False
+        self.band_client = None
+        self.band_awaiting: bool = False
+        self.obs_count: int = 0
+        self.total_answers: int = 0  # None 포함 전체 답변 시도(비화자 조기종료 판정)
+        self.obs_max: int = -1
+        self.plateau_count: int = 0
+        self.last_beaver_question: str = ""
+        self.band_tasks: set[asyncio.Task] = set()
 
 
 class _ClientDisconnect(Exception):
@@ -254,6 +356,10 @@ def _flush_beaver_segment(state: _CallState) -> None:
         return
     text = "".join(state.cur_beaver_text).strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
+    # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
+    # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
+    if state.band_observe and text:
+        state.last_beaver_question = text
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
@@ -353,6 +459,8 @@ async def run_call(
             target_language=target_language,
             locale_label=locale_label_override,
         )
+        # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
+        # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
         seed_text = seed_leveltest_opening(target_language)
         voice = lt_setup["voice"]
     else:
@@ -376,6 +484,7 @@ async def run_call(
             known_items=setup.get("known_items") if inject_materials else None,
             recent_topics=setup.get("recent_topics") if inject_materials else None,
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
+            lang_band=setup.get("lang_band", "beginner"),
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
@@ -393,10 +502,33 @@ async def run_call(
 
     state = _CallState()
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
-    state.call_duration_s = _resolve_call_duration(settings, duration_override)
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
+    # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
+    # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
+    live_tools = None
     if call_type == "level_test":
+        # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
+        # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
+        # 넛지는 이 한 값(state.call_duration_s)으로 흡수한다(무수정).
+        state.call_duration_s = _resolve_call_duration(
+            settings, duration_override, base=LEVELTEST_MAX_S
+        )
         state.close_seed = CLOSE_SEED_LEVELTEST  # 종료 시드 문자열만 교체(주입 파이프 불변)
+        # T3: 무음 캐던스 단축 + 1단 넛지 내용 전환(질문 재출제 유지).
+        state.idle_nudge1_s = LEVELTEST_IDLE_NUDGE1_S
+        state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
+        state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
+        state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
+        # Phase 2: 조용한 밴드 관측 활성 — 매 유저 답변을 사이드카로 밴드 분류만 하고(질문 주입 0)
+        # 천장(obs_max) 도달 시 종료 시드만 주입한다. band_client = 분류 사이드카가 쓸 genai.Client.
+        state.band_observe = True
+        state.band_client = client
+    else:
+        state.call_duration_s = _resolve_call_duration(settings, duration_override)
+        state.idle_nudge1_s = IDLE_NUDGE1_S
+        state.idle_nudge2_s = IDLE_NUDGE2_S
+        state.idle_close_s = IDLE_CLOSE_S
+        state.nudge_seed_1 = _NUDGE_SEED_1
 
     # P2.5(D16) 동적 힌트 사이드카 활성 조건: 모든 통화(레벨테스트·일반, 레벨 무관)에 힌트 제공.
     # 데모(비한국어 target)만 제외 — 한국어 힌트가 무의미하므로(R5). 상세는 mechanics ⑬.
@@ -449,6 +581,7 @@ async def run_call(
                 db_session_factory=db_session_factory,
                 call_id=call_id,
                 member_id=member_id,
+                tools=live_tools,
             )
     except TimeoutError:
         logger.warning("normalcall 통화 상한(%.0fs) 초과 — 강제 종료", ABSOLUTE_CALL_TIMEOUT_S)
@@ -456,11 +589,28 @@ async def run_call(
         logger.info("normalcall 클라 연결 종료")
     except _CallFinished:
         logger.info("normalcall 통화 정상 종료")
+        if state.band_observe:
+            logger.info(
+                "normalcall: 레벨테스트 밴드 관측 종료 obs_max=%d obs_count=%d plateau=%d "
+                "(통화후 판정관이 전사로 최종 확정 — bracket 힌트 전달은 TODO)",
+                state.obs_max, state.obs_count, state.plateau_count,
+            )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         logger.exception("normalcall 브리지 오류: %s", exc)
     finally:
+        # 🧒 왜 finally(통화후 파이프라인)인가: 통화는 여러 방식으로 끝난다 — 정상 작별
+        #   (_CallFinished), 학습자가 앱을 꺼서 끊김(_ClientDisconnect), 시간 초과 강제 종료
+        #   (TimeoutError), 예상 못 한 오류(Exception). 이 뒤처리(전사 저장·분석·오디오 업로드·
+        #   국적 추론)는 **어떤 경로로 끝나든 딱 한 곳에서** 보장돼야 한다. try/except 마다
+        #   중복으로 적으면 하나만 빠뜨려도 통화 기록이 유실된다. finally 는 위에서 무슨 일이
+        #   있었든 반드시 실행되므로, 뒤처리를 여기 한 곳에 모아 '절대 빠지지 않게' 만든다.
+        #   무거운 작업(분석·업로드·국적 추론)은 전부 fire-and-forget(띄워만 놓고 안 기다림)로
+        #   백그라운드에 넘겨, 학습자 쪽 소켓을 붙잡지 않고 빠르게 통화를 마무리한다.
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
         for t in list(state.hint_tasks):
+            t.cancel()
+        # Phase 2: 미완 밴드 관측 사이드카 전량 취소(통화 종료 후 뒤늦은 관측·종료 시도 방지).
+        for t in list(state.band_tasks):
             t.cancel()
         _flush_user_segment(state)
         _flush_beaver_segment(state)
@@ -476,6 +626,12 @@ async def run_call(
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
+        # 요구5: 국적 추론 훅(fire-and-forget) — user 턴 in-memory PCM 을 넘긴다. 통화 루프
+        # 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
+        _trigger_nationality(
+            db_session_factory, call_id, member_id,
+            user_pcm=[s["pcm"] for s in state.segments if s["role"] == "user" and s.get("pcm")],
+        )
         await _finish_call(client_ws, state, call_id)
 
 
@@ -511,6 +667,33 @@ def _trigger_analysis(
     task = asyncio.create_task(coro, name=f"normalcall-analysis-{call_id}")
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
+
+
+def trigger_reanalysis(
+    settings: Settings,
+    client,
+    db_session_factory,
+    locale: str,
+    *,
+    call_id: int,
+    call_type: str,
+    member_id: int,
+) -> None:
+    """수동 재분석(A) — 실패한 통화의 통화후 분석을 다시 백그라운드로 띄운다.
+
+    라우터(POST /calls/{id}/reanalyze)가 status 를 'analyzing' 으로 되돌린 뒤 호출한다.
+    통화 시작 때의 in-memory 컨텍스트(candidates·힌트 마커)는 이미 사라졌으므로 None 폴백
+    (analyze_call 이 기본 후보로 대체). target_language 는 서버 기본(비데모)으로 고정 —
+    재분석은 이 배포의 대상 언어 루브릭으로 돈다. 증거 중복은 멱등 가드가 막는다.
+
+    ⚠️ 이벤트루프 위에서 호출해야 한다(asyncio.create_task) — async 엔드포인트에서만.
+    """
+    _trigger_analysis(
+        call_id, client, settings, db_session_factory, locale,
+        target_language=DEFAULT_TARGET_LANGUAGE, locale_label=None,
+        call_type=call_type, member_id=member_id,
+        candidates=None, hinted_from_turn_index=None,
+    )
 
 
 def _on_analysis_done(task: asyncio.Task) -> None:
@@ -587,6 +770,71 @@ def _trigger_audio_upload(
     task.add_done_callback(_on_analysis_done)
 
 
+def _trigger_nationality(
+    db_session_factory, call_id: int, member_id: int, user_pcm: list[bytes]
+) -> None:
+    """user 턴 음성으로 국적을 추론해 프로필을 갱신하는 훅을 백그라운드 task 로 띄운다(요구5).
+
+    _trigger_audio_upload 와 100% 동일 패턴(GC 방지 강참조 + done 콜백). 예외는 전량
+    흡수 — 국적 추론 실패는 통화·분석에 무손상(R5). 매 통화(레벨테스트 포함)에서 돈다.
+
+    🧒 왜 GCS(클라우드 저장소)에서 오디오를 도로 내려받지 않고, 통화 중 메모리에 쌓아둔
+      user PCM(원음 조각들)을 바로 쓰나? 이유 셋:
+      1) 레이스 회피: 오디오 업로드는 백그라운드에서 늦게(수 초 뒤) 끝난다. 국적 추론이
+         "업로드가 다 됐겠지" 하고 내려받으면 아직 안 올라간 파일을 못 찾을 수 있다. 메모리에
+         이미 들고 있는 원음을 쓰면 그 '기다림·순서 맞추기'가 아예 필요 없다.
+      2) 원본 무손실: 저장용 오디오는 MP3 같은 압축을 거치며 음질이 살짝 깎인다. 국적을
+         목소리로 추론하는 API 엔 원본(손실 없는 PCM)이 더 정확하다.
+      3) 공짜 데이터: 어차피 통화 내내 학습자 목소리를 state.segments 에 모아뒀으니, 그걸
+         그대로 이어붙이면 추가 다운로드 비용 0.
+    🧒 왜 10초(NATIONALITY_MIN_SPEECH_S) 미만이면 건너뛰나: 말이 너무 짧으면 국적 추론
+      모델이 "말한 게 없음(no_speech)"이라 판단해 쓸모없는 결과를 준다. 헛돈·헛시간을 아끼려
+      아주 짧은 통화는 아예 안 보낸다.
+
+    파이프라인: user PCM concat → 총 발화 길이 게이트(NATIONALITY_MIN_SPEECH_S 미만 skip)
+    → WAV 변환 → predict_nationality(외부 API, threadpool 격리) → predictions 가 있으면
+    nationality_service.record_and_recompute(이력 적재 + 최근5 평균 재계산, account 도메인 소유).
+    """
+    if not user_pcm:
+        return
+
+    async def _run() -> None:
+        try:
+            pcm = b"".join(user_pcm)
+            total_s = len(pcm) / (INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)
+            if total_s < _settings.NATIONALITY_MIN_SPEECH_S:
+                logger.debug(
+                    "normalcall: 국적 추론 skip(발화 %.1fs < %.1fs) call_id=%s",
+                    total_s, _settings.NATIONALITY_MIN_SPEECH_S, call_id,
+                )
+                return
+            wav = pcm16_to_wav(pcm, sample_rate=INPUT_SAMPLE_RATE)
+            # 지연 import — realtime → account 서비스 순환 회피(호출 시점에만 해석).
+            from core.nationality import predict_nationality
+            from domains.account.service import nationality_service
+
+            predictions = await run_in_threadpool(predict_nationality, wav, "wav")
+            if not predictions:
+                logger.debug("normalcall: 국적 추론 결과 없음(skip) call_id=%s", call_id)
+                return
+            await svc.run_db(
+                db_session_factory,
+                lambda db: nationality_service.record_and_recompute(
+                    db, member_id, call_id, predictions
+                ),
+            )
+            logger.info("normalcall: 국적 추론·갱신 완료 call_id=%s member=%s", call_id, member_id)
+        except Exception as exc:  # noqa: BLE001 - 국적 추론 실패는 통화·분석 무손상(R5)
+            logger.warning(
+                "normalcall: 국적 추론 실패(무시 — 통화·분석 무손상) call_id=%s: %s",
+                call_id, exc,
+            )
+
+    task = asyncio.create_task(_run(), name=f"normalcall-nationality-{call_id}")
+    _analysis_tasks.add(task)
+    task.add_done_callback(_on_analysis_done)
+
+
 async def _run_session(
     client_ws,
     *,
@@ -600,12 +848,31 @@ async def _run_session(
     db_session_factory: sessionmaker,
     call_id: int,
     member_id: int,
+    tools: Optional[list] = None,
 ) -> None:
-    """Live 세션 + 2펌프 + 시계워처 + 점진 flush 를 동시에 실행(타임아웃 안쪽)."""
-    async with live_session_factory(
-        client, settings, system_instruction=system_instruction, voice=voice
-    ) as session:
+    """Live 세션 + 2펌프 + 시계워처 + 점진 flush 를 동시에 실행(타임아웃 안쪽).
+
+    tools: function-call 선언(현재 모든 콜타입 None — Phase 1 은 in-band tool 미사용). None 이면
+    factory 에 아예 넘기지 않아 기존 세션 팩토리 시그니처(system_instruction/voice)와 바이트 동일
+    (테스트의 가짜 팩토리도 무손상). 값이 있을 때만 tools= 를 흘려 open_session 이 config 에 주입.
+    """
+    factory_kwargs = {"system_instruction": system_instruction, "voice": voice}
+    if tools is not None:
+        factory_kwargs["tools"] = tools
+    async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
+            # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
+            #   예외로 죽으면 나머지를 자동 취소한다 → 반쪽짜리 좀비 통화가 절대 안 생긴다.
+            #   일꾼 6명이 하나의 공유 메모장(state, _CallState)을 함께 보며 협력한다:
+            #     ① 펌프 클라→Gemini : 학습자 마이크 소리를 받아 AI 로 밀어준다(barge-in off 적용).
+            #     ② 펌프 Gemini→클라 : AI 목소리·자막을 받아 학습자에게 밀어준다(턴 상태기계).
+            #     ③ 시계워처         : 5분 되면 "이제 끝낼 시간" 신호(should_close)를 세우고,
+            #                          정상 작별이 안 되면 최후에 강제 종료(백스톱).
+            #     ④ 무음워처         : 학습자가 오래 조용하면 3단계로 부드럽게 대응(넛지→확인→종료).
+            #     ⑤ 재접지          : 통화 중간에 캐릭터를 딱 1회 되박아 AI 가 성격을 잊는 것 완화.
+            #     ⑥ 점진 flush      : 1분마다 대화를 DB 에 조금씩 저장(도중에 죽어도 기록이 남게).
+            #   ⚠ 왜 펌프를 '동시에' 2개? 전화는 양방향이 동시에 흘러야 자연스럽다(맨 위 큰 그림).
+            #     하나의 루프로 "받고→보내고→받고→보내고" 번갈아 하면 무전기처럼 끊긴다.
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(_pump_client_to_gemini(client_ws, session, state), name="nc-client->gemini")
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
@@ -615,7 +882,13 @@ async def _run_session(
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
+                # 선톡 트리거: AI 에게 먼저 오프닝 한마디를 던져 "네가 먼저 인사하며 시작해"라고
+                # 시동을 건다. 이걸 안 하면 둘 다 서로 말하기만 기다려 통화가 조용히 멈춘다.
                 await session.send_text_turn(seed_text)  # 선톡 트리거
+        # 🧒 except* 는 TaskGroup 전용 문법(ExceptionGroup 해체). 펌프 중 하나가 우리가 정한
+        #   '정상 종료 신호'로 죽으면, TaskGroup 은 그걸 여러 예외를 담는 봉투(그룹)로 감싸서
+        #   던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=클라가
+        #   끊음)만 골라 홑겹 예외로 다시 던진다 → run_call 의 except 가 사람이 읽기 쉽게 처리.
         except* _CallFinished:
             raise _CallFinished()
         except* _ClientDisconnect:
@@ -825,10 +1098,134 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
 
 
 # --------------------------------------------------------------------------- #
+# 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 (질문 주입 0)
+# --------------------------------------------------------------------------- #
+def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
+    """관측된 최고 밴드(obs_max)가 '천장'에 닿았는지 판정(순수 함수 — 부작용 0, 테스트 용이).
+
+    시간 플로어(초반 표본으로 조기종료 방지) & 최소 관측수 충족 후 셋 중 하나면 천장:
+      - obs_max >= 3        : advanced(최상위) 도달 — 더 잴 상단이 없다.
+      - plateau_count >= N  : 최고 밴드가 갱신 안 된 정체 누적 — 더 못 올라간다(상한 확정).
+      - obs_count >= MAX    : 관측 답변 안전 상한 — 무한 관측 방지.
+    """
+    if elapsed < LEVELTEST_BAND_TIME_FLOOR_S:
+        return False
+    # 비화자/완전초보: 여러 번 시도했는데 한국어 산출이 survival(0) 이하뿐 → 빨리 종료.
+    # (한국어를 아예 못 하는 사람은 band=None 만 나와 obs_count 가 안 늘어 영영 안 끊기던 역설 차단.)
+    if state.total_answers >= LEVELTEST_BAND_NONSPEAKER_MAX and state.obs_max <= 0:
+        return True
+    if state.obs_count < LEVELTEST_BAND_MIN_ANSWERS:
+        return False
+    return (
+        state.obs_max >= 3
+        or state.plateau_count >= LEVELTEST_BAND_PLATEAU_N
+        or state.obs_count >= LEVELTEST_BAND_MAX_ANSWERS
+    )
+
+
+def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None:
+    """유저 답변 1건을 조용히 밴드 관측하는 사이드카를 띄운다(무주입 — should_close 만).
+
+    ⛔ 격리(R4/R5): 2펌프 경로의 추가 비용은 create_task 1회뿐. 분류 LLM 콜은 백그라운드
+    사이드카에서 일어나며, 느리거나 실패해도 통화 무영향(관측 1건 누락일 뿐 — 3분캡/무음이
+    백스톱). ★ 질문 주입 코드 없음: 사이드카는 천장 도달 시 종료 시드만 주입한다.
+    band_awaiting 1회 가드로 동시 1건만(진행중이면 이 답변은 관측 스킵 — 다음 답변에 재개).
+    호출 시점은 _flush_user_segment **이전**이어야 한다(cur_user_text 가 비워지기 전 캡처).
+    """
+    if not state.band_observe or state.band_awaiting or state.should_close:
+        return  # 종료 진행중이면 관측 불필요(m4: LLM 콜 낭비 방지)
+    answer = "".join(state.cur_user_text).strip()
+    if not answer:
+        return  # 무발화 턴(오프닝 등) — 관측 대상 아님
+    state.band_awaiting = True  # create_task 전 선점(동시 1건 가드)
+    task = asyncio.create_task(
+        _band_observe_sidecar(session, state, answer, state.last_beaver_question),
+        name="normalcall-band-observe",
+    )
+    state.band_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
+    task.add_done_callback(state.band_tasks.discard)
+
+
+async def _band_observe_sidecar(
+    session: LiveSessionProtocol, state: _CallState, answer: str, prior_question: str
+) -> None:
+    """답변 1건 밴드 분류 → obs_max/plateau 추적 → 천장이면 종료 시드 주입(백그라운드, R5).
+
+    band None(무응답/판정불가) = 무변경(넛지·캡이 처리). band 값이면 obs_count++,
+    obs_max 갱신 시 plateau=0, 아니면 plateau++. 천장(_band_ceiling_reached) 도달 시
+    should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접 주입한다
+    (발화중/유저턴 열림이면 주입 안 함 — 펌프가 다음 깨끗한 turn_end 에서 주입 + 시계워처
+    백스톱). ★ 질문 주입 없음 — should_close/종료 시드만. 예외·CancelledError 처리는 힌트
+    사이드카와 동일(취소는 재전파, 그 외는 흡수 → band None 취급).
+    """
+    try:
+        band = await svc.classify_leveltest_band(
+            state.band_client, answer_text=answer, prior_question=prior_question,
+        )
+    except asyncio.CancelledError:
+        raise  # 취소(통화 종료)는 정상 경로 — 재전파
+    except Exception as exc:  # noqa: BLE001 - 관측 실패는 관측 1건 누락일 뿐 통화 무영향
+        logger.warning("normalcall: 밴드 관측 실패(무시 — 관측 1건 누락): %s", exc)
+        band = None
+    finally:
+        state.band_awaiting = False  # in-flight 해제 → 다음 답변 관측 허용
+
+    # total_answers 는 None(비화자·판정불가) 포함 전체 시도 — 비화자 조기종료 판정용.
+    state.total_answers += 1
+    if band is not None:
+        state.obs_count += 1
+        if band > state.obs_max:
+            state.obs_max = band
+            state.plateau_count = 0
+        else:
+            state.plateau_count += 1
+
+    loop = asyncio.get_running_loop()
+    elapsed = (
+        loop.time() - state.call_start_ts if state.call_start_ts is not None else 0.0
+    )
+    reached = _band_ceiling_reached(state, elapsed)
+    logger.info(
+        "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s",
+        band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached,
+    )
+    if not reached:
+        return
+    # 천장 도달 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
+    if state.should_close or state.close_seed_sent:
+        return
+    state.should_close = True
+    logger.info("normalcall: 밴드 천장 도달(obs_max=%d) → 종료 플래그", state.obs_max)
+    # 종료 레이스 가드(시계워처와 동일): 비버 idle & 유저 응답 대기 없음이면 직접 주입,
+    # 아니면 펌프 turn_end(should_close 경로)/시계워처 백스톱이 주입한다. ★ 질문 주입 아님.
+    # M1(시니어): 세션 종료 레이스에 종료 시드 send_text_turn 이 던지면 미회수 태스크 예외로
+    # 새어 "exception never retrieved" 로그가 남으므로 여기서 흡수(취소는 재전파).
+    if state.turn_id is None and not state.user_turn_open:
+        try:
+            await _inject_close_seed(session, state)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 종료중 주입 실패는 백스톱이 마무리(R5)
+            logger.warning("normalcall: 밴드 천장 종료 시드 주입 실패(무시): %s", exc)
+
+
+# --------------------------------------------------------------------------- #
 # 펌프: 클라 → Gemini
 # --------------------------------------------------------------------------- #
 async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
-    """클라 → Gemini. barge-in off: 비버 발화중이면 마이크 미전송. forward 먼저 후 누적."""
+    """클라 → Gemini. barge-in off: 비버 발화중이면 마이크 미전송. forward 먼저 후 누적.
+
+    🧒 이 펌프는 '학습자 → AI' 한 방향만 담당하는 무한루프다. 소켓에서 프레임을 하나씩 받아
+      종류를 구분한다: **바이너리(bytes) = 목소리(PCM 오디오)**, **텍스트 = JSON 제어 신호**
+      (ping/playback_done/hint_used). 이 '바이너리=소리, 텍스트=명령' 규약이 protocol.py 다.
+
+    🧒 barge-in off 의 핵심 한 줄이 바로 아래 `state.turn_id is None` 조건이다. turn_id 가
+      값이 있으면 = "지금 비버가 말하는 중". 그때는 학습자 마이크 오디오를 **AI 로 안 보낸다**
+      (조건이 거짓이라 send_audio 를 건너뜀). 왜? 비버 목소리가 학습자 스피커로 나가는데
+      마이크가 그 소리를 다시 주워 AI 로 되돌리면, AI 가 제 목소리를 듣고 헷갈려 말이 끊기거나
+      엉킨다(에코·자기간섭). 비버가 말을 마쳐 turn_id 가 None 이 되면 그때부터 다시 마이크를
+      흘려보낸다. 대가: 학습자가 진짜로 끼어들어 말을 끊는 건 불가. 학습앱이라 이게 더 안전.
+    """
     from starlette.websockets import WebSocketDisconnect
 
     try:
@@ -837,9 +1234,10 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
             if message.get("type") == "websocket.disconnect":
                 raise _ClientDisconnect()
             data = message.get("bytes")
+            # 오디오 프레임 & 비버 idle(turn_id None)일 때만 AI 로 전달 = barge-in off 의 관문.
             if data and state.turn_id is None:
                 await session.send_audio(data)
-                state.cur_user_pcm.extend(data)
+                state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
                 continue
             text = message.get("text")
             if text is not None:
@@ -867,7 +1265,21 @@ async def _handle_client_control(client_ws, text: str, state: _CallState) -> Non
 # 펌프: Gemini → 클라
 # --------------------------------------------------------------------------- #
 async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
-    """Gemini → 클라(상태기계). 턴 경계에서 세그먼트 확정 + 5분 종료 로직."""
+    """Gemini → 클라(상태기계). 턴 경계에서 세그먼트 확정 + 5분 종료 로직.
+
+    🧒 이 펌프는 'AI → 학습자' 한 방향을 담당하며, 동시에 통화의 '심판' 역할도 한다. AI 가
+      쏟아내는 이벤트(오디오 조각 / 자막 / 턴 종료 / GoAway 예고)를 하나씩 받아 학습자에게
+      forward 하면서, 대화의 '턴(turn)' 상태를 관리한다. 턴 = "지금 누가 말할 차례인가".
+      비버가 말하기 시작하면 turn_id 를 켜고(=발화중), 말을 마치면(turn_end) turn_id 를 끈다.
+      이 turn_id 하나가 barge-in off(위 펌프의 관문)와 무음 판정·종료 타이밍을 전부 좌우한다.
+
+    🧒 종료 규약(왜 이렇게 조심스럽게 끊나): 통화를 언제 끝낼지는 **AI 가 아니라 서버 시계**가
+      정한다(프롬프트가 비버에게 통화 길이를 안 알려줘서, 비버 혼자 멋대로 작별 못 함). 끝낼
+      때가 되면 시계워처가 should_close 를 세우고, "[시스템] …" 종료 시드(작별 대본)를 별도
+      완결 턴으로 주입한다. 단, **비버가 조용하고(idle) 유저 턴도 닫힌 깨끗한 순간에만** 넣는다
+      — 말 도중에 끼워넣으면 하던 말이 잘리거나 학습자 응답이 작별로 둔갑하기 때문. 그래서
+      아래에서 turn_end(발화가 끝난 깨끗한 경계)마다 종료 여부를 판단한다.
+    """
     event_count = 0
     async for event in session.events():
         event_count += 1
@@ -889,6 +1301,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         turn_started = await _forward_event(client_ws, event, state)
 
         if turn_started:
+            # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
+            # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
+            _spawn_band_observe(session, state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
@@ -937,7 +1352,18 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
 
 
 async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool:
-    """단일 LiveEvent 를 즉시 forward 하며 진행중 세그먼트에 누적. 새 턴이면 True."""
+    """단일 LiveEvent 를 즉시 forward 하며 진행중 세그먼트에 누적. 새 턴이면 True.
+
+    🧒 왜 '즉시 forward'가 중요한가: 전화에서 상대 목소리가 0.5초라도 늦게 오면 뚝뚝 끊겨
+      들린다. 그래서 오디오 조각이 오면 **먼저 학습자에게 send_bytes 로 밀어주고**(반응성
+      최우선), 그 다음에 나중 저장·분석용으로 메모리 버퍼에 복사한다. 순서를 반대로 해서
+      "저장 먼저, 전송 나중"으로 하면 매 조각마다 아주 살짝 지연이 쌓여 끊김으로 들린다.
+
+    🧒 '턴 시작' 감지: 오디오나 자막(out_tr)의 **첫 이벤트**가 왔는데 turn_id 가 아직 없으면,
+      "비버가 지금 막 말을 시작했다"는 뜻이다. 그 순간 turn_id 를 새로 켜고 클라에 turn_start
+      를 보내며 True(=새 턴 시작)를 돌려준다. 호출부는 이 True 로 '직전 학습자 발화 확정'과
+      '통화 시계 시작' 같은 턴 경계 처리를 한다.
+    """
     turn_started = False
 
     if event.kind == "audio":
@@ -946,7 +1372,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
         if event.audio:
-            await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선)
+            await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
     elif event.kind == "in_tr":
@@ -986,6 +1412,12 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
 async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) -> None:
     """종료 시드를 정확히 1회만 주입한다(펌프·워처 공용, 단일 소유권 가드).
 
+    🧒 왜 '딱 1회' 가드가 필요한가: 종료 시드(작별 대본)를 넣을 수 있는 후보가 둘이다 —
+      펌프(비버가 말을 마친 turn_end 에서)와 시계워처(비버가 조용할 때 직접). 둘이 동시에
+      "지금이야!" 하고 넣으면 비버가 작별을 두 번 하는 사고가 난다. 그래서 실제로 보내기 전
+      (await 전)에 close_seed_sent 깃발을 먼저 꽂아, 다른 쪽이 들어와도 '이미 보냄'을 보고
+      돌아가게 한다. asyncio 는 한 번에 한 줄만 실행(단일 스레드)이라 이 '먼저 깃발 꽂기'만으로
+      경합이 안전하게 막힌다(락 불필요). '단일 소유권 가드' = 이 일의 주인은 딱 한 명이 되게.
     단일 스레드 asyncio 라 await 전에 close_seed_sent 를 선점하면 펌프/워처가 동시에
     주입해도 한 번만 나간다. 비버 발화중이면 펌프가 turn_end 에서, 소강(idle)이면 워처가
     직접 호출한다. send_client_content 는 idle 세션에 넣으면 즉시 작별 턴을 만든다(비interrupt).
@@ -1012,9 +1444,13 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
     while loop.time() - state.call_start_ts < state.call_duration_s:
+        # T2: 조기종료(tool 신호/GoAway/무음3단)가 캡 이전에 should_close 를 세우면 즉시
+        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지(최대 절대백스톱) 매달린다.
+        if state.should_close:
+            break
         await asyncio.sleep(0.2)
     state.should_close = True
-    logger.info("normalcall: %.0fs 경과 → 종료 플래그", state.call_duration_s)
+    logger.info("normalcall: %.0fs 경과/조기신호 → 종료 플래그", state.call_duration_s)
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.
     # ⭐ 종료 레이스(call 197): 유저가 5분 직전 마지막에 말하면 "유저 발화 끝~비버 응답 시작"
@@ -1038,6 +1474,13 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
 
 async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
     """무음 3단 넛지(A2). 학습자 무음 → 비버가 얼지 않게 재개시키고, 끝내 무응답이면 우아히 종료.
+
+    🧒 왜 '3단계'로 나눠 부드럽게 대응하나: 학습자가 잠깐 조용하다고 바로 전화를 끊으면
+      매정하다(생각 중일 수도, 한국어 문장을 떠올리는 중일 수도 있다). 그래서 사람이 하듯
+      단계적으로 배려한다 — ① 오래 조용하면 비버가 가볍게 새 화제로 말을 이어가고("넛지"),
+      ② 그래도 계속 조용하면 모국어로 "거기 있어? 잘 들려?" 확인, ③ 그래도 응답이 없으면
+      그제서야 작별 시드를 넣어 우아하게 통화를 끝낸다. 넛지 = "얼어붙은 대화를 살짝 찔러
+      다시 흐르게 하는 부드러운 자극".
 
     핵심 제약: 클라 마이크는 상시 스트리밍이라 오디오 프레임 부재로 무음을 못 잰다. 무음은
     last_activity_ts(학습자 in_tr · 비버 turn_end · 넛지 주입 시각) 이후 경과로만 잰다.
@@ -1071,18 +1514,20 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
         idle = loop.time() - (state.last_activity_ts or state.call_start_ts)
 
         # 단계는 실제 주입 성공 시에만 전진(시니어 리뷰 Q1 하드닝 — 상태-행동 일치).
-        if state.silence_stage == 0 and idle >= IDLE_NUDGE1_S:
-            if await _inject_nudge(session, state, _NUDGE_SEED_1):
+        # 임계·1단 시드는 콜타입별(state.idle_*/nudge_seed_1). 일반은 60/10/12 + 새 화제,
+        # 레벨테스트는 25/8/10 + '같은 계단 재측정' 넛지(run_call 이 꽂음). 2·3단 시드는 공통.
+        if state.silence_stage == 0 and idle >= state.idle_nudge1_s:
+            if await _inject_nudge(session, state, state.nudge_seed_1):
                 state.silence_stage = 1
                 state.last_activity_ts = loop.time()
-                logger.info("normalcall: 무음 1단(%.0fs) → 새 화제 넛지 주입", IDLE_NUDGE1_S)
-        elif state.silence_stage == 1 and idle >= IDLE_NUDGE2_S:
+                logger.info("normalcall: 무음 1단(%.0fs) → 넛지 주입", state.idle_nudge1_s)
+        elif state.silence_stage == 1 and idle >= state.idle_nudge2_s:
             if await _inject_nudge(session, state, _NUDGE_SEED_2):
                 state.silence_stage = 2
                 state.last_activity_ts = loop.time()
-                logger.info("normalcall: 무음 2단(+%.0fs) → 확인 넛지 주입", IDLE_NUDGE2_S)
-        elif state.silence_stage == 2 and idle >= IDLE_CLOSE_S:
-            logger.info("normalcall: 무음 3단(+%.0fs) → 작별 시드 직접 주입·종료", IDLE_CLOSE_S)
+                logger.info("normalcall: 무음 2단(+%.0fs) → 확인 넛지 주입", state.idle_nudge2_s)
+        elif state.silence_stage == 2 and idle >= state.idle_close_s:
+            logger.info("normalcall: 무음 3단(+%.0fs) → 작별 시드 직접 주입·종료", state.idle_close_s)
             state.should_close = True
             await _inject_close_seed(session, state)  # 비버 idle → 직접 주입(go_away 와 동일)
             return
@@ -1104,6 +1549,15 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
 
 async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
     """통화 중간(길이의 REGROUND_AT_FRACTION 지점)에 캐릭터를 딱 1회 되박는다(누적 드리프트 완화).
+
+    🧒 왜 '재접지(re-grounding)'가 필요한가: AI 는 대화가 길어질수록 처음에 준 캐릭터 설정
+      (선생님 역할·성격·규칙)을 조금씩 잊고 톤이 흐려진다(이걸 '드리프트'라 한다 — 배가 닻줄이
+      느슨해져 원래 자리에서 슬슬 밀려나듯). 그래서 통화 중간쯤(기본 50% 지점)에 캐릭터를
+      한 번 살짝 다시 심어 톤을 되살린다.
+    🧒 왜 캐릭터 3필드(역할/성격/규칙)만 넣고, 처음 준 전체 프롬프트를 통째로 다시 안 넣나:
+      전체 프롬프트는 아주 길어서(레벨·이력·학습재료까지) 다시 넣으면 무겁고, AI 가 그걸
+      '새 지시'로 오해해 갑자기 이상하게 다시 인사하거나 같은 말을 두 번 하는(이중발화) 사고가
+      난다. 그래서 톤을 되살리는 데 꼭 필요한 최소한(성격 3필드)만 가볍게 되박는다.
 
     REGROUND_MODE 로 방식이 갈린다:
       - "off": 아무것도 안 함(하드닝만 — 폴백).
@@ -1150,7 +1604,17 @@ async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> Non
 
 
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:
-    """call_ended 송신 → playback_done ack 대기 → WS close(전부 graceful)."""
+    """call_ended 송신 → playback_done ack 대기 → WS close(전부 graceful).
+
+    🧒 왜 곧바로 소켓을 안 닫고 기다리나: 비버의 작별 인사 오디오가 방금 학습자 쪽으로
+      마지막까지 흘러갔는데, 서버가 소켓을 즉시 끊으면 아직 스피커에서 재생 중이던 작별
+      인사 꼬리가 뚝 잘린다. 그래서 ① "통화 끝났어요(call_ended)"를 알린 뒤, ② 클라가
+      "작별 오디오 다 재생했어요"라고 보내는 신호(playback_done ack)를 잠깐 기다리고,
+      ③ 그제서야 소켓을 닫는다. ack 가 끝내 안 와도 무한정 기다리진 않고 PLAYBACK_DONE_WAIT_S
+      만큼만 기다리다 닫는다(상대가 이미 끊었을 수도 있으니). 'graceful' = 갑자기 끊지 않고
+      상대가 마무리할 틈을 주며 예의 바르게 닫는 것. 매 단계 client_state 를 확인해 이미
+      닫힌 소켓에 또 쓰다가 에러 나는 것도 막는다.
+    """
     from starlette.websockets import WebSocketState
 
     with contextlib.suppress(Exception):

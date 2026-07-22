@@ -24,6 +24,12 @@
   .b { color:#7fe0c2; } .u { color:#ffd479; }
   .ok { color:var(--good); } .err { color:var(--bad); }
   .status { font-size:12px; }
+  table { width:100%; border-collapse:collapse; margin-top:6px; font-size:13px; }
+  table td { padding:4px 6px; border-bottom:1px solid var(--line); }
+  table tr.hd td { color:var(--sub); font-weight:700; border-bottom:1px solid var(--line); }
+  .tip { border-left:3px solid var(--pri); padding:6px 10px; background:#0e0f13; border-radius:6px; }
+  .tip.warn { border-left-color:var(--warn); }
+  .expr { margin:8px 0; padding:10px; border:1px solid var(--line); border-radius:8px; }
   .lvl { font-size:34px; font-weight:800; letter-spacing:1px; margin:6px 0; color:var(--pri); }
   .dot { width:8px; height:8px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
   .dot.on { background:var(--good); }
@@ -105,12 +111,33 @@
     <div id="hintbox" style="display:none; margin-top:8px; border:1px dashed var(--warn); border-radius:8px; padding:10px"></div>
   </div>
 
-  <!-- 판정 결과 -->
+  <!-- 판정/분석 결과 -->
   <div class="card">
-    <div class="step">STEP 2 · 레벨 판정 결과 + 복습 문장</div>
+    <div class="step">STEP 2 · 분석 결과 (레벨 · 요약 · Baba의 한마디)</div>
     <div id="ana" class="muted" style="margin-top:8px">통화가 끝나면 자동 판정됩니다…</div>
     <div id="lvlbox"></div>
-    <div id="sentbox"></div>
+    <div id="summarybox" style="margin-top:10px"></div>
+    <div id="feedbackbox" style="margin-top:8px"></div>
+  </div>
+
+  <!-- 새로 배운 표현 + 발음 연습 -->
+  <div class="card">
+    <div class="step">STEP 3 · 새로 배운 표현 (💾 저장연습 = 점수반영 · 🎤 그냥연습 = 미반영)</div>
+    <div class="muted" style="margin:6px 0">표현을 소리 내 읽고 버튼을 눌러 녹음→다시 눌러 채점. 저장연습은 공식점수·소리집계 반영, 그냥연습은 이력만.</div>
+    <div id="exprbox"><div class="muted">일반 통화(새 표현 추출) 후 표시됩니다.</div></div>
+  </div>
+
+  <!-- 발음 결과 -->
+  <div class="card">
+    <div class="step">STEP 4 · 발음 결과 (소리별 정확도 · 문장 결과 · 최근 5세션)</div>
+    <div class="row" style="margin:6px 0">
+      <button id="pronBtn" class="sec" disabled>📊 발음 결과 보기 (연습 후)</button>
+      <span class="muted">저장연습으로 채점한 소리들이 집계됩니다.</span>
+    </div>
+    <div id="pronComment" style="margin:8px 0"></div>
+    <div id="soundsbox"></div>
+    <div id="sentresbox"></div>
+    <div id="histbox"></div>
   </div>
 </div>
 
@@ -161,7 +188,7 @@ $('#resetBtn').onclick = async () => {
   const r = await api('/__dev/level-reset', { method:'POST' });
   if (!r.ok) { $('#mylvl').textContent = '초기화 실패: ' + r.status; return; }
   const d = await r.json();
-  $('#lvlbox').innerHTML = ''; $('#sentbox').innerHTML = ''; $('#ana').textContent = '통화가 끝나면 자동 판정됩니다…';
+  clearResults(); $('#ana').textContent = '통화가 끝나면 자동 판정됩니다…';
   await refreshMyLevel();
   $('#mylvl').textContent += ` — 🗑 초기화 완료(증거 ${d.deleted.evidence}·체크판 ${d.deleted.progress}·이력 ${d.deleted.history} 삭제)`;
 };
@@ -220,7 +247,7 @@ async function startCall() {
   stopCountdown(); $('#ctime').textContent='';
   if (actx) { try { await actx.close(); } catch {} actx=null; }
   playT=0; curSpeaker=null; callId=null; hideHint();
-  $('#tlog').innerHTML=''; $('#lvlbox').innerHTML=''; $('#sentbox').innerHTML=''; $('#loadOverlay').classList.remove('on'); $('#ana').textContent='레벨테스트 통화 진행 중…';
+  $('#tlog').innerHTML=''; clearResults(); $('#loadOverlay').classList.remove('on'); $('#ana').textContent='레벨테스트 통화 진행 중…';
   try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} }); }
   catch(e){ alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
   actx = new (window.AudioContext||window.webkitAudioContext)();
@@ -334,29 +361,136 @@ async function afterCall(myGen) {
   } else {
     $('#lvlbox').innerHTML = `<div class="err">판정 실패(status=${last.status}) — 레벨 미저장. 다시 시도해 보세요.</div>`;
   }
-  await showSentences(callId);
+  await showResult(callId);
   await refreshMyLevel();
 }
 
-/* 통화후 추출된 복습 문장(korean/native) 표시 — GET /calls/{id}/result */
-async function showSentences(cid) {
-  try {
-    const r = await api(`/api/v1/calls/${cid}/result`);
-    if (!r.ok) return;
-    const res = await r.json();
-    const sents = res.sentences || [];
-    if (!sents.length) {
-      $('#sentbox').innerHTML = '<div class="muted" style="margin-top:10px">📚 복습 문장이 아직 없어요(이번 통화에서 추출된 문장 없음).</div>';
-      return;
-    }
-    $('#sentbox').innerHTML =
-      `<div style="margin-top:12px; font-weight:700">📚 복습 문장 (${sents.length}개)</div>` +
-      sents.map(s =>
-        `<div style="margin:6px 0; padding:8px; border:1px solid var(--line); border-radius:8px">` +
-        `<div style="font-weight:600">${esc(s.korean_sentence||'')}</div>` +
-        `<div class="muted">${esc(s.native_sentence||'')}</div></div>`
-      ).join('');
-  } catch {}
+function clearResults() {
+  ['#lvlbox','#summarybox','#feedbackbox','#exprbox','#soundsbox','#sentresbox','#histbox','#pronComment']
+    .forEach(s => { const el=$(s); if (el) el.innerHTML=''; });
+  $('#exprbox').innerHTML = '<div class="muted">일반 통화(새 표현 추출) 후 표시됩니다.</div>';
+  $('#pronBtn').disabled = true;
+  recBtn = null;
+}
+
+/* 통화후 결과 — 요약 + Baba의 한마디 + 새로 배운 표현(연습 버튼) — GET /calls/{id}/result */
+async function showResult(cid) {
+  let res;
+  try { const r = await api(`/api/v1/calls/${cid}/result`); if (!r.ok) return; res = await r.json(); }
+  catch { return; }
+  $('#summarybox').innerHTML = res.summary ? `<div class="muted">📝 요약</div><div>${esc(res.summary)}</div>` : '';
+  $('#feedbackbox').innerHTML = res.feedback
+    ? `<div class="tip"><div class="muted">🦫 Baba의 한마디</div><div>${esc(res.feedback)}</div></div>` : '';
+  const sents = res.sentences || [];
+  if (!sents.length) {
+    $('#exprbox').innerHTML = '<div class="muted">이번 통화에서 추출된 새 표현이 없어요(레벨테스트거나 표현 없음). "Baba의 한마디·표현·발음"은 일반 통화에서 나옵니다.</div>';
+    return;
+  }
+  $('#exprbox').innerHTML = sents.map(s => {
+    const sid = s.sentence_id;
+    return `<div class="expr">
+      <div style="font-weight:600">${esc(s.korean_sentence||'')}</div>
+      <div class="muted">${esc(s.native_sentence||'')}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="rev" data-sid="${sid}" data-apply="1">💾 저장연습</button>
+        <button class="rev sec" data-sid="${sid}" data-apply="0">🎤 그냥연습</button>
+        <span class="muted" id="rout-${sid}"></span>
+      </div></div>`;
+  }).join('');
+  document.querySelectorAll('.rev').forEach(b => {
+    b.onclick = () => recordAndScore(+b.dataset.sid, b.dataset.apply==='1', b);
+  });
+  $('#pronBtn').disabled = false;
+}
+
+/* ---------- 발음 복습 녹음(WAV) → 실제 /reviews/audio?apply_score ---------- */
+function encodeWAV(pcm16, rate) {
+  const buf = new ArrayBuffer(44 + pcm16.length*2), v = new DataView(buf);
+  const w = (o,s) => { for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4,36+pcm16.length*2,true); w(8,'WAVE'); w(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  w(36,'data'); v.setUint32(40,pcm16.length*2,true);
+  for (let i=0;i<pcm16.length;i++) v.setInt16(44+i*2, pcm16[i], true);
+  return new Blob([buf], {type:'audio/wav'});
+}
+let recCtx=null, recProc=null, recMic=null, recChunks=[], recBtn=null;
+async function recStart() {
+  recMic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1,echoCancellation:true,noiseSuppression:true} });
+  recCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const src = recCtx.createMediaStreamSource(recMic);
+  recProc = recCtx.createScriptProcessor(4096,1,1);
+  const g = recCtx.createGain(); g.gain.value = 0;
+  recChunks = [];
+  recProc.onaudioprocess = (e) => { recChunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+  src.connect(recProc); recProc.connect(g); g.connect(recCtx.destination);
+}
+function recStop() {
+  try { recProc.disconnect(); } catch {} if (recProc) recProc.onaudioprocess=null;
+  if (recMic) recMic.getTracks().forEach(t=>t.stop());
+  const rate = recCtx.sampleRate;
+  let len = recChunks.reduce((a,c)=>a+c.length,0), all = new Float32Array(len), o=0;
+  for (const c of recChunks) { all.set(c,o); o+=c.length; }
+  try { recCtx.close(); } catch {}
+  return encodeWAV(toPCM16(downsample(all, rate, 16000)), 16000);
+}
+async function recordAndScore(sid, applyScore, btn) {
+  const out = $(`#rout-${sid}`);
+  const label = applyScore ? '💾 저장연습' : '🎤 그냥연습';
+  if (recBtn === btn) {                        // 두 번째 클릭 = 정지 + 채점
+    recBtn = null; btn.textContent = label;
+    const wav = recStop();
+    out.innerHTML = '<span class="muted">채점 중…</span>';
+    try {
+      const fd = new FormData();
+      fd.append('audio', wav, 'rec.wav');
+      fd.append('apply_score', applyScore ? 'true' : 'false');
+      const r = await api(`/api/v1/sentences/${sid}/reviews/audio`, { method:'POST', body:fd });
+      if (!r.ok) { out.innerHTML = `<span class="err">실패 ${r.status}</span>`; return; }
+      const f = await r.json(), e = f.evaluation || {};
+      out.innerHTML = `<b class="ok">총 ${e.total_score??'-'}</b> · 발음 ${e.pronunciation??'-'} · 유창 ${e.fluency??'-'} · 리듬 ${e.rhythm??'-'} <span class="muted">(${applyScore?'저장됨':'연습만'})</span>`;
+    } catch (err) { out.innerHTML = `<span class="err">오류</span>`; }
+    return;
+  }
+  if (recBtn) { alert('진행 중인 녹음을 먼저 정지하세요.'); return; }
+  try { await recStart(); }
+  catch (e) { out.innerHTML = `<span class="err">마이크 권한 필요</span>`; return; }
+  recBtn = btn; btn.textContent = '⏺ 정지 & 채점';
+  out.innerHTML = '<span class="u">🎤 녹음 중… 문장 읽고 다시 누르기</span>';
+}
+
+/* ---------- 발음 결과: 소리별 정확도 · 문장 결과 · 최근 5세션 ---------- */
+$('#pronBtn').onclick = async () => { if (callId) { await showPronReport(callId); await showHistory(); } };
+async function showPronReport(cid) {
+  const cm=$('#pronComment'), box=$('#soundsbox'), sb=$('#sentresbox');
+  cm.innerHTML = '<span class="muted">불러오는 중…</span>'; box.innerHTML=''; sb.innerHTML='';
+  let d;
+  try { const r = await api(`/api/v1/calls/${cid}/pronunciation`); if (!r.ok) { cm.innerHTML=`<span class="err">실패 ${r.status}</span>`; return; } d = await r.json(); }
+  catch { cm.innerHTML='<span class="err">오류</span>'; return; }
+  cm.innerHTML = d.comment
+    ? `<div class="tip warn"><div class="muted">🦫 발음 코치 (${esc(d.country||'국가 미상')})</div><div>${esc(d.comment)}</div></div>`
+    : '<div class="muted">아직 소리 데이터가 없어요 — 💾 저장연습으로 채점해야 소리별 정확도가 쌓여요.</div>';
+  const sounds = d.sounds || [];
+  box.innerHTML = sounds.length
+    ? `<div style="margin-top:10px;font-weight:700">🔤 소리별 정확도</div><table><tr class="hd"><td>소리</td><td>시도</td><td>통과</td><td>정확도</td><td>평균</td></tr>` +
+      sounds.map(s => { const acc = s.attempts ? Math.round(s.passes/s.attempts*100) : 0;
+        return `<tr><td style="font-weight:700">${esc(s.alpha)}</td><td>${s.attempts}</td><td>${s.passes}</td><td class="${acc>=80?'ok':'err'}">${acc}%</td><td>${s.pronunciation_avg}</td></tr>`; }).join('') + `</table>`
+    : '';
+  const ss = d.sentences || [];
+  sb.innerHTML = ss.length
+    ? `<div style="margin-top:12px;font-weight:700">📄 문장 결과</div><table><tr class="hd"><td>문장</td><td>발음</td><td>유창</td><td>리듬</td><td>총점</td></tr>` +
+      ss.map(s => `<tr><td>${esc(s.korean_sentence||'')}</td><td>${s.pronunciation??'-'}</td><td>${s.fluency??'-'}</td><td>${s.rhythm??'-'}</td><td>${s.total_score??'-'}</td></tr>`).join('') + `</table>`
+    : '';
+}
+async function showHistory() {
+  const h = $('#histbox'); h.innerHTML = '<div class="muted" style="margin-top:10px">최근 세션 불러오는 중…</div>';
+  let list;
+  try { const r = await api(`/api/v1/calls/pronunciation-history`); if (!r.ok) { h.innerHTML=''; return; } list = await r.json(); }
+  catch { h.innerHTML=''; return; }
+  h.innerHTML = list.length
+    ? `<div style="margin-top:12px;font-weight:700">📅 최근 5세션</div><table><tr class="hd"><td>날짜</td><td>문장수</td><td>발음점수</td></tr>` +
+      list.map(x => `<tr><td>${(x.call_date||'').slice(0,10)}</td><td>${x.sentence_count}</td><td>${x.score??'-'}</td></tr>`).join('') + `</table>`
+    : '<div class="muted" style="margin-top:10px">최근 세션 없음</div>';
 }
 
 /* 자동 로그인 없음 — 테스터가 STEP 0 에서 계정을 선택해 직접 로그인한다. */

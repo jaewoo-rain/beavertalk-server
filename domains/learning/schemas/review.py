@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 class ReviewCreate(BaseModel):
     voice_url: Optional[str] = None  # 사용자 녹음 저장 위치(채점 대상)
+    apply_score: bool = True  # False = 문장 공식점수(Evaluation) 미갱신(이력·채점만); 기본 True=하위호환
 
 
 class ReviewOut(BaseModel):

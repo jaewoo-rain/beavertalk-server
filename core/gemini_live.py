@@ -29,7 +29,26 @@ DEFAULT_VOICE = "Fenrir"
 # native-audio 모델은 temperature=0 에서 반복·로봇처럼 되므로 0 을 쓰지 않는다.
 LIVE_TEMPERATURE = 0.6
 
-LiveEventKind = Literal["audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away"]
+# 레벨테스트 조기종료용 function-call 선언(인자 없음).
+# native-audio 에선 out_tr sentinel 이 낭독돼 못 쓰므로 tool-call 로 천장 신호를 받는다.
+# NON_BLOCKING: 서버는 응답을 기다리지 않고 대화를 이어간다 → 호출 자체가 발화를 끊지
+# 않는다. 실제 종료는 call_session 소비측이 tool_call 이벤트를 감지해 종료 파이프에 합류
+# 시켜 수행한다(이 어댑터는 "호출 가능"만 선언, "언제 호출"은 프롬프트가 지시 — 어댑터 규율).
+# behavior/Behavior 경로는 google-genai types 로 검증됨(types.Behavior.NON_BLOCKING,
+# FunctionDeclaration.behavior 필드).
+LEVELTEST_DONE_TOOL = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="leveltest_ceiling_reached",
+            description="레벨 천장이 확정되어 측정 표본이 충분할 때 호출. 인자 없음.",
+            behavior=types.Behavior.NON_BLOCKING,
+        )
+    ]
+)
+
+LiveEventKind = Literal[
+    "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call"
+]
 
 
 @dataclass(slots=True)
@@ -41,6 +60,8 @@ class LiveEvent:
     text: Optional[str] = None         # kind in {in_tr,out_tr}: 전사
     is_final: bool = False             # 입력 전사 확정 여부
     time_left: Optional[str] = None    # kind=="go_away": 서버 종료 예고 timeLeft(있으면)
+    fn_name: Optional[str] = None      # kind=="tool_call": 호출된 function 이름
+    fn_id: Optional[str] = None        # kind=="tool_call": function_call id(send_tool_response 매칭용)
 
 
 @runtime_checkable
@@ -50,20 +71,29 @@ class LiveSessionProtocol(Protocol):
     async def send_audio(self, pcm16_16k: bytes) -> None: ...
     async def send_text_turn(self, text: str) -> None: ...
     async def send_reground(self, text: str) -> None: ...
+    async def send_tool_response(self, fn_id: Optional[str], fn_name: Optional[str]) -> None: ...
     def events(self) -> AsyncIterator[LiveEvent]: ...
 
 
 def build_live_config(
-    *, system_instruction: str, voice: str = DEFAULT_VOICE
+    *,
+    system_instruction: str,
+    voice: str = DEFAULT_VOICE,
+    tools: Optional[list[types.Tool]] = None,
 ) -> types.LiveConnectConfig:
     """normalcall 용 LiveConnectConfig 구성.
 
     오디오 출력 + 입출력 전사 + 단일 prebuilt voice + 컨텍스트 압축(슬라이딩 윈도우).
     safety_settings 는 거친 페르소나(트래시토커) 면박·욕설 허용을 위해 HARASSMENT 만
     완화하고 혐오·성·위험은 엄격 유지한다. realtime_input_config 는 넣지 않는다(무음 버그).
+
+    tools: 기본 None → 일반 통화 config 는 바이트 동일(하위호환). 레벨테스트 조기종료
+    같은 function-call 이 필요할 때만 [LEVELTEST_DONE_TOOL] 등을 넘긴다. LiveConnectConfig.tools
+    의 pydantic 기본값도 None 이라 None 전달 시 미전달과 동일 직렬화(회귀 무영향).
     """
     return types.LiveConnectConfig(
         response_modalities=["AUDIO"],
+        tools=tools,
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         system_instruction=system_instruction,
@@ -139,6 +169,29 @@ class GeminiLiveSession:
             turn_complete=turn_complete,
         )
 
+    async def send_tool_response(
+        self, fn_id: Optional[str], fn_name: Optional[str]
+    ) -> None:
+        """NON_BLOCKING function-call 에 대한 형식적 응답을 되돌린다.
+
+        레벨테스트 조기종료 tool(leveltest_ceiling_reached) 처럼 서버 판단만 필요하고
+        결과 payload 가 없는 호출에 쓴다. scheduling=SILENT 로 이 응답이 추가 발화를
+        유발하지 않게 한다(맥락에만 반영, 생성 트리거·인터럽트 없음) — 종료 파이프는
+        call_session 이 별도로 몰아간다. id 는 수신한 function_call.id 와 매칭.
+        SDK: session.send_tool_response(function_responses=[FunctionResponse(...)]),
+        FunctionResponse.scheduling=types.FunctionResponseScheduling.SILENT (검증됨).
+        """
+        await self._session.send_tool_response(
+            function_responses=[
+                types.FunctionResponse(
+                    id=fn_id,
+                    name=fn_name,
+                    response={"result": "ok"},
+                    scheduling=types.FunctionResponseScheduling.SILENT,
+                )
+            ]
+        )
+
     async def events(self) -> AsyncIterator[LiveEvent]:
         """SDK 응답 스트림을 LiveEvent 로 정규화해 yield.
 
@@ -163,6 +216,19 @@ class GeminiLiveSession:
                         kind="go_away",
                         time_left=getattr(go_away, "time_left", None),
                     )
+
+                # tool_call: 모델의 function-call 요청(server_content 와 무관한 최상위
+                # 필드 → go_away 처럼 None-가드보다 먼저). 레벨테스트 조기종료 신호가
+                # 여기로 온다. function_calls 마다 정규화해 방출 — 소비측(call_session)이
+                # fn_name 으로 분기하고 send_tool_response(fn_id, fn_name) 로 응답한다.
+                tool_call = getattr(response, "tool_call", None)
+                if tool_call is not None:
+                    for fc in getattr(tool_call, "function_calls", None) or []:
+                        yield LiveEvent(
+                            kind="tool_call",
+                            fn_name=getattr(fc, "name", None),
+                            fn_id=getattr(fc, "id", None),
+                        )
 
                 server_content = getattr(response, "server_content", None)
                 if server_content is None:
@@ -197,13 +263,17 @@ async def open_session(
     *,
     system_instruction: str,
     voice: str = DEFAULT_VOICE,
+    tools: Optional[list[types.Tool]] = None,
 ) -> AsyncIterator[GeminiLiveSession]:
     """normalcall Gemini Live 세션을 열고 래퍼를 yield 하는 async 컨텍스트 매니저.
 
     클라이언트 WS 수명 동안 단일 세션 유지(멀티턴 히스토리 보존). config 는
     build_live_config 가 구성, system_instruction/voice 는 호출부(realtime)가 조립.
+    tools 기본 None → 일반 통화 무영향. 레벨테스트만 [LEVELTEST_DONE_TOOL] 을 넘긴다.
     """
-    config = build_live_config(system_instruction=system_instruction, voice=voice)
+    config = build_live_config(
+        system_instruction=system_instruction, voice=voice, tools=tools
+    )
     logger.info("normalcall Live 연결 시도: model=%s voice=%s", settings.GEMINI_LIVE_MODEL, voice)
     async with client.aio.live.connect(
         model=settings.GEMINI_LIVE_MODEL,

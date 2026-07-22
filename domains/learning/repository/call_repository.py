@@ -46,6 +46,23 @@ class CallRepository:
         )
         return self.db.scalars(stmt).all()
 
+    def has_call_in_window(
+        self, member_id: int, start_utc, end_utc, min_seconds: int
+    ) -> bool:
+        """[start_utc, end_utc) 안에 min_seconds 초 이상 유효 통화가 있는지(EXISTS).
+
+        유효 = total_time>=min_seconds AND status in(done, analyzing)(ongoing/failed 제외).
+        '오늘 통화함' 파생용 — member 컬럼/일일 초기화 없이 call 에서 계산.
+        """
+        inner = select(Call.call_id).where(
+            Call.member_id == member_id,
+            Call.call_date >= start_utc,
+            Call.call_date < end_utc,
+            Call.total_time >= min_seconds,
+            Call.status.in_(("done", "analyzing")),
+        )
+        return bool(self.db.scalar(select(inner.exists())))
+
     def add(self, call: Call) -> Call:
         self.db.add(call)
         return call

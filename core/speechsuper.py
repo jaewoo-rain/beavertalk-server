@@ -75,7 +75,8 @@ def assess_pronunciation(ref_text: Optional[str], audio_url: Optional[str] = Non
     Returns:
         {
           "evaluation": {total_score, pronunciation, fluency, rhythm},  # 0~100 int
-          "char_scores": [{char, score, grade}, ...]                    # 공백 제외, ref_text 글자순
+          "char_scores": [{char, score, grade}, ...],                   # 공백 제외, ref_text 글자순
+          "phonemes": [{phoneme, alpha, pronunciation}, ...]            # 자모별 0~100(없으면 [])
         }
 
     Note:
@@ -269,7 +270,47 @@ def _map_result(ref_text: Optional[str], result: dict[str, Any]) -> dict:
         "rhythm": rhythm,
     }
     char_scores = _map_char_scores(ref_text, result, overall)
-    return {"evaluation": evaluation, "char_scores": char_scores}
+    phonemes = _extract_phonemes(result)
+    return {"evaluation": evaluation, "char_scores": char_scores, "phonemes": phonemes}
+
+
+def _extract_phonemes(result: dict[str, Any]) -> list[dict]:
+    """words[].phonemes[] 에서 자모별 발음 정확도를 추출(방어적).
+
+    실측 확인(coreType=sent.eval.kr): 각 word(글자)는 `phonemes[]` 를 가질 수 있고,
+    항목은 `{"span": {...}, "phoneme": "L", "alpha": "ㄹ", "pronunciation": 0}` 형태다.
+    예: "안"→[ㅏ97, ㄴ100], "녕"→[ㄹ0, ㅕ1, ㅇ0]. 자모(alpha)별 0~100 발음 점수.
+
+    - words 없음 / phonemes 없음(readType 4 등) / 타입 이상 → 해당 항목 스킵(빈 [] 가능).
+    - phoneme/alpha 둘 다 있는 항목만 채택. pronunciation 은 _to_int 로 0~100 정규화.
+    KeyError 를 던지지 않는다.
+    """
+    out: list[dict] = []
+    words = result.get("words")
+    if not isinstance(words, list):
+        return out
+    for w in words:
+        if not isinstance(w, dict):
+            continue
+        phonemes = w.get("phonemes")
+        if not isinstance(phonemes, list):
+            continue  # phonemes 없는 word(readType 4 등) 스킵
+        for p in phonemes:
+            if not isinstance(p, dict):
+                continue
+            phoneme = p.get("phoneme")
+            alpha = p.get("alpha")
+            # phoneme/alpha 가 없거나 빈 문자열이면 스킵
+            if not phoneme or not alpha:
+                continue
+            out.append(
+                {
+                    "phoneme": str(phoneme),
+                    "alpha": str(alpha),
+                    "pronunciation": _to_int(p.get("pronunciation")),
+                }
+            )
+    return out
 
 
 def _extract_word_scores(result: dict[str, Any]) -> list[tuple[str, int]]:
@@ -352,4 +393,5 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
             "rhythm": max(0, avg - 3),
         },
         "char_scores": char_scores,
+        "phonemes": [],
     }

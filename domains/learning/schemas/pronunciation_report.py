@@ -3,11 +3,10 @@
 Flutter `lib/screens/home/learning_summary.dart` 의 `LearningSummary` 를 그대로 맞춘다.
 JSON 키는 기존 DTO 컨벤션(snake_case). 클라가 이 모양으로 파싱한다.
 
-현 단계(음소 채점 모델 미구현):
-    - phonemes / hardest_sound / hardest_evidence / l1_interference = **목**(고정 픽스처).
-    - sentences / sessions / passed·total / 문장 점수 = **실데이터**(통화·평가 집계),
-      평가 점수가 없으면 결정적 목값으로 폴백(폰 연동 테스트가 항상 화면을 그리게).
-설계 논의: docs/plans (발음 리포트) — LearningSummary 계약.
+데이터는 전부 실집계 — pronunciation_report_service.build_learning_summary 가 main 의
+pronunciation_service(문장별 점수·자모별 소리 집계·국가 맞춤 코칭 comment·국적) + 발음
+이력을 받아 이 형태로 가공한다(통과수·평균·가장 어려웠던 소리·소리별 정확도 2+2 선별·
+세션 delta). 클래스명이 main 의 PronunciationReport 와 겹치지 않게 LearningSummaryOut.
 """
 
 from __future__ import annotations
@@ -44,8 +43,13 @@ class SessionPointOut(BaseModel):
     delta: int | None = None  # 직전 세션 대비 변화(가장 오래된 것은 null → "—")
 
 
-class PronunciationReport(BaseModel):
-    """복습 종료 후 발음 리포트 전체(= Flutter LearningSummary)."""
+class LearningSummaryOut(BaseModel):
+    """복습 종료 후 발음 리포트 전체(= Flutter LearningSummary).
+
+    main 의 발음/국적 기능(pronunciation_service)이 낸 실데이터를 이 형태로 가공한다
+    (pronunciation_report_service.build_learning_summary). 클래스명이 main 의
+    PronunciationReport 와 겹치지 않도록 LearningSummaryOut 로 둔다.
+    """
 
     passed: int
     total: int

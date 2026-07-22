@@ -15,7 +15,9 @@ google-genai>=1.0
 # normalcall: 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD). Vertex(빌린 프로젝트)는
 # Cloud TTS 를 못 켜므로 우리 소유 프로젝트 서비스계정 키(tts_key.json)로 직접 호출.
 google-cloud-texttospeech>=2.16
-# normalcall: Supabase Storage(통화 원본/TTS/연습 녹음) 업로드. 미설정이면 voice_url=None.
+# 오디오 저장: GCS 단일 비공개 버킷(통화 원본/TTS/연습 녹음). 미설정/자격증명 부재면 voice_url=None.
+google-cloud-storage>=2.16
+# 인증 주체(Supabase GoTrue) 토큰 검증용 클라이언트. Storage 는 GCS 로 이전됨.
 supabase>=2.0
 # 예약전화: FCM data-only 발송(firebase-admin). 서비스계정 미설정이면 발송만 비활성.
 firebase-admin>=6.5,<7

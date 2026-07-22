@@ -14,7 +14,7 @@ import core.speechsuper as ss
 
 def _assert_contract(out: dict) -> None:
     """반환 계약(키/타입) 검증."""
-    assert set(out.keys()) == {"evaluation", "char_scores"}
+    assert set(out.keys()) == {"evaluation", "char_scores", "phonemes"}
     ev = out["evaluation"]
     assert set(ev.keys()) == {"total_score", "pronunciation", "fluency", "rhythm"}
     for v in ev.values():
@@ -23,6 +23,13 @@ def _assert_contract(out: dict) -> None:
         assert set(cs.keys()) == {"char", "score", "grade"}
         assert isinstance(cs["score"], int)
         assert cs["grade"] in ("상", "중", "하")
+    # phonemes 키는 항상 존재(리스트), 각 항목은 phoneme/alpha/pronunciation
+    assert isinstance(out["phonemes"], list)
+    for p in out["phonemes"]:
+        assert set(p.keys()) == {"phoneme", "alpha", "pronunciation"}
+        assert isinstance(p["phoneme"], str)
+        assert isinstance(p["alpha"], str)
+        assert isinstance(p["pronunciation"], int)
 
 
 def test_fallback_no_audio_url():
@@ -91,6 +98,82 @@ def test_map_result_no_words_uses_overall():
     out = ss._map_result("가나다", {"overall": 80})
     for c in out["char_scores"]:
         assert 78 <= c["score"] <= 82
+
+
+def test_map_result_extracts_phonemes():
+    """words[].phonemes[] 에서 자모별 발음 점수를 추출한다("안녕하세요" 실측 구조)."""
+    result = {
+        "overall": 60,
+        "words": [
+            {
+                "word": "안",
+                "scores": {"overall": 97},
+                "phonemes": [
+                    {"span": {"start": 0, "end": 1}, "phoneme": "A", "alpha": "ㅏ", "pronunciation": 97},
+                    {"span": {"start": 1, "end": 2}, "phoneme": "N", "alpha": "ㄴ", "pronunciation": 100},
+                ],
+            },
+            {
+                "word": "녕",
+                "scores": {"overall": 0},
+                "phonemes": [
+                    {"phoneme": "L", "alpha": "ㄹ", "pronunciation": 0},
+                    {"phoneme": "EO", "alpha": "ㅕ", "pronunciation": 1},
+                    {"phoneme": "NG", "alpha": "ㅇ", "pronunciation": 0},
+                ],
+            },
+        ],
+    }
+    out = ss._map_result("안녕", result)
+    _assert_contract(out)
+    phs = out["phonemes"]
+    assert [p["alpha"] for p in phs] == ["ㅏ", "ㄴ", "ㄹ", "ㅕ", "ㅇ"]
+    assert [p["pronunciation"] for p in phs] == [97, 100, 0, 1, 0]
+    assert phs[0] == {"phoneme": "A", "alpha": "ㅏ", "pronunciation": 97}
+
+
+def test_map_result_skips_words_without_phonemes():
+    """phonemes 없는 word(readType 4 등)는 스킵하고, 있는 것만 모은다."""
+    result = {
+        "overall": 80,
+        "words": [
+            {"word": "가", "scores": {"overall": 80}},  # phonemes 없음 → 스킵
+            {
+                "word": "나",
+                "scores": {"overall": 90},
+                "phonemes": [{"phoneme": "N", "alpha": "ㄴ", "pronunciation": 88}],
+            },
+        ],
+    }
+    out = ss._map_result("가나", result)
+    assert [p["alpha"] for p in out["phonemes"]] == ["ㄴ"]
+
+
+def test_map_result_phonemes_defensive():
+    """words 없음/타입 이상/필드 결손이어도 KeyError 없이 빈 리스트로 처리."""
+    # words 자체 없음
+    assert ss._map_result("가", {"overall": 70})["phonemes"] == []
+    # phonemes 항목 타입/필드 이상 → 유효한 것만
+    result = {
+        "overall": 70,
+        "words": [
+            {"word": "가", "phonemes": "not-a-list"},  # 타입 이상 → 스킵
+            {"word": "나", "phonemes": [
+                "bad-item",                                   # dict 아님 → 스킵
+                {"phoneme": "", "alpha": "ㄴ", "pronunciation": 5},  # phoneme 빈값 → 스킵
+                {"phoneme": "A", "pronunciation": 5},                # alpha 없음 → 스킵
+                {"phoneme": "N", "alpha": "ㄴ", "pronunciation": "88"},  # 문자열 점수 → 정규화
+            ]},
+        ],
+    }
+    phs = ss._map_result("가나", result)["phonemes"]
+    assert phs == [{"phoneme": "N", "alpha": "ㄴ", "pronunciation": 88}]
+
+
+def test_stub_has_empty_phonemes():
+    """스텁 폴백도 phonemes 키를 항상 포함(빈 리스트)."""
+    out = ss.assess_pronunciation("안녕하세요", None)
+    assert out["phonemes"] == []
 
 
 def test_call_failure_falls_back(monkeypatch):

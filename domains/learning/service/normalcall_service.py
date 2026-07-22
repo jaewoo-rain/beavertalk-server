@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Literal, Optional, TypeVar
@@ -165,6 +166,9 @@ def load_call_setup(db: Session, member_id: int, character_id: int) -> dict:
         "needs_level_test": needs_level_test,
         # P2.5(D16): 동적 힌트 발동 조건(normal && level 1) 판정 재료 — 원값 그대로.
         "korean_level": korean_level,
+        # 언어 정책 밴드(한국어 위주 전환) — level_no(미확정 폴백 2=beginner)로 4밴드 분류.
+        # persona 는 이 라벨 문자열만 받아 규칙 3 언어 정책을 고른다(어댑터 순수성).
+        "lang_band": mastery_repository.band_of(level_no),
         **materials,
         "recent_topics": recent_topics,
     }
@@ -515,6 +519,37 @@ def get_status_detail(db: Session, call_id: int, member_id: int) -> dict | None:
     }
 
 
+def prepare_reanalysis(db: Session, call_id: int, member_id: int) -> dict | None:
+    """실패한 통화의 재분석을 준비한다(수동 재시도, A). 소유자 확인 + 상태 게이트 + status 리셋.
+
+    'failed' 통화만 재분석 대상이다(done 은 이미 완료, ongoing/analyzing 은 진행 중).
+    전사(call_raw_data)는 실패해도 보존되므로 재료는 그대로 있고, 증거 재적립 멱등 가드
+    (_apply_call_mastery)가 중복을 막아 재실행이 안전하다.
+
+    Returns:
+        None                                : 없거나 타인 통화(404).
+        {"eligible": False, "status": <현재>} : 재분석 불가 상태(409).
+        {"eligible": True, "status": "analyzing", "call_type", "locale", "member_id"}:
+            status 를 'analyzing' 으로 되돌리고 커밋(R3) — 호출부가 백그라운드 분석을 띄운다.
+    """
+    call = db.get(Call, call_id)
+    if call is None or call.member_id != member_id:
+        return None
+    if call.status != "failed":
+        return {"eligible": False, "status": call.status}
+    member = db.get(Member, member_id)
+    locale = member.language if member and member.language else "en"
+    call.status = "analyzing"
+    db.commit()
+    return {
+        "eligible": True,
+        "status": "analyzing",
+        "call_type": call.call_type,
+        "locale": locale,
+        "member_id": member_id,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # 통화후 분석 (비동기 — gemini 호출 + DB 는 run_db)
 # --------------------------------------------------------------------------- #
@@ -550,6 +585,12 @@ class _CallAnalysisBase(BaseModel):
     summary: str
     detected_mode: Literal["study", "chat", "mixed"]
     expressions: list[LearnedExpression]
+    # 요구1: 통화 전체를 돌아본 비버 선생님의 격려 한마디(학습자 모국어 1문장). 후보 0/有
+    # 양경로 공통이라 부모에 둔다. 파싱 누락 시 default "" → _save_analysis 가 None 저장.
+    feedback: str = Field(
+        default="",
+        description="통화 전체를 돌아본 격려 코칭 한마디(학습자 모국어 1문장)",
+    )
 
 
 class CallAnalysis(_CallAnalysisBase):
@@ -584,6 +625,10 @@ def _analysis_instruction(
         "완결된 문장이 아니라 주제를 나타내는 명사구로, 주어·서술어 없이 2~4어절 이내. "
         "ex) 강아지 산책과 음악 취향 / 주말 여행 계획 / 좋아하는 한국 음식\n"
         "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
+        "- feedback 은 통화 '전체'를 돌아보며 학습자를 다독이는 격려 코칭을 " + label + " 로 "
+        "딱 1문장 쓴다(비버 선생님이 직접 건네는 따뜻한 말투, 과장·오글거림 금지). "
+        "통화의 구체적인 순간 하나를 짧게 언급하되, 점수·레벨·숫자·'틀렸다'는 절대 쓰지 않는다. "
+        "통화가 아주 짧거나 발화가 적어도 참여 자체를 격려하는 1문장을 반드시 쓴다(빈 문자열 금지).\n"
         "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다."
     )
 
@@ -834,6 +879,8 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     if call is not None:
         call.summary = result.summary
         call.mode = result.detected_mode
+        # 요구1: 격려 한마디 저장(같은 커밋). 파싱 누락·데모·빈통화 폴백은 자연 None.
+        call.feedback = getattr(result, "feedback", "") or None
         call.status = "done"  # P2.6 — 결과 화면 즉시 해제(요약·표현과 같은 커밋)
 
     pending: list[tuple[int, str]] = []
@@ -1034,27 +1081,22 @@ async def analyze_call(
 # 레벨테스트 통화후 판정 (P1 — docs/20260709_1346 ⑩)
 # --------------------------------------------------------------------------- #
 class LevelAssessment(BaseModel):
-    """레벨테스트 판정 1콜의 전체 출력.
+    """레벨테스트 판정 1콜의 전체 출력(4버킷 — 행동 관찰).
 
     ⚠ 필드 순서 = 생성 순서(구조화 출력 내 CoT 강제): 인용 → 추론 → 밴드 →
-    밴드 내 단계 → 최종 레벨 → 신뢰도 → 표본질 → 요약 → 학습자 피드백.
-    수치 제약(level_in_band 1~4, level_no 1~13)은 pydantic 하드 제약으로 걸지
-    않는다 — 위반 시 파싱 전체가 죽는 것보다 서버 클램프가 안전(judge 지시문+
-    description 으로 유도, _clamp_assessed_level 이 강제).
+    신뢰도 → 표본질 → 요약 → 학습자 피드백.
+    LLM 은 4버킷 밴드(survival/beginner/intermediate/advanced/unknown)만 판정하고,
+    최종 앱 레벨(1~13) 숫자는 서버가 소유한다(AI 는 증인, 코드가 심판 — 관통 원칙 1).
+    band → level_no 배정은 _place_from_band(_BUCKET_LEVEL 룩업)이 확정한다.
     """
 
     evidence: list[str] = Field(
         description="학습자(USER)의 한국어 발화 원문 인용, 최대 5개(수정·번역 금지)"
     )
     reasoning: str = Field(description="인용을 근거로 한 판정 추론(한국어)")
-    band: Literal["beginner", "intermediate", "advanced", "unknown"] = Field(
-        description="밴드 — beginner=레벨2~5 / intermediate=6~9 / advanced=10~13 / unknown=표본 부족"
-    )
-    level_in_band: int | None = Field(
-        default=None, description="밴드 내 단계 1~4 (band=unknown 이면 null)"
-    )
-    level_no: int | None = Field(
-        default=None, description="최종 앱 레벨 1~13 (1=생존 회화, band=unknown 이면 null)"
+    band: Literal["survival", "beginner", "intermediate", "advanced", "unknown"] = Field(
+        description="4버킷 밴드(행동 관찰) — survival=입문(인사·청크만) / beginner=초급(단어+구문) / "
+        "intermediate=중급(온전한 문장) / advanced=고급(어법 정확+긴 담화) / unknown=표본 부족"
     )
     confidence: Literal["high", "medium", "low"] = Field(description="판정 신뢰도")
     sample_quality: Literal["sufficient", "sparse", "none"] = Field(
@@ -1066,11 +1108,54 @@ class LevelAssessment(BaseModel):
     )
 
 
-# 밴드 → 앱 레벨(1~13) 범위. 레벨 1(생존 회화)은 밴드 밖 특수 배정.
-_BAND_RANGE: dict[str, tuple[int, int]] = {
-    "beginner": (2, 5),
-    "intermediate": (6, 9),
-    "advanced": (10, 13),
+class LeveltestVerdict(BaseModel):
+    """레벨테스트 한 답변의 사이드카 O/X 판정 출력(단일 문항 채점).
+
+    heard_grammar 는 판정 근거가 된 학습자의 실제 한국어 구절을 그대로 인용한다
+    (추측·재작성 금지). 관통원칙3: pass 는 이 인용이 실제 발화에 실재해야만
+    데이터로 인정된다(환각 방어 — 호출부에서 부분 문자열로 교차 검증).
+    """
+
+    result: Literal["pass", "fail", "unclear", "no_attempt"] = Field(
+        description="pass=목표 문법 실재 / fail=답을 시도했으나 목표 미충족 / "
+        "unclear=애매·부분정답 / no_attempt=아직 진짜 답을 시도 안 함(머뭇·필러·인사만)"
+    )
+    heard_grammar: str = Field(
+        default="",
+        description="판정 근거로 들린 학습자의 실제 한국어 구절(원문 인용, 없으면 빈 문자열)",
+    )
+
+
+# ── 레벨테스트 4버킷(행동 관찰) — 라이브 분류기·통화후 판정관 공유 정의 ──────────
+# 이름표(초급/중급)가 아니라 '관찰 가능한 발화 행동'으로 밴드를 읽는다. survival/beginner/
+# intermediate/advanced 서수(0..3)는 그대로 재사용하되 의미를 아래 행동정의로 고정한다.
+# 이 정의를 _leveltest_instruction(통화후)·_BAND_CLASSIFY_INSTRUCTION(통화중)이 공유해
+# 두 판정기가 같은 잣대로 밴드를 읽게 한다(정의 불일치가 저평가·정합 버그의 원인이었음).
+_BUCKET_DEFINITIONS = (
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
+    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(연결어미로 절을 엮음)·"
+    "다양한 화법·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
+    "- intermediate(중급): 조사(을/를·에·에서)와 제대로 활용된 종결어미(-아요/어요·-았/었어요·-(으)ㄹ 거예요)를 "
+    "갖춘 '온전한 문장'을 만든다(예: '김치를 좋아해요', '저는 자전거를 타요'). 다만 아직 긴 복문·다양한 화법까지는 아니다.\n"
+    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 조사·활용 없는 전보식·사전형 "
+    "나열(예: '김치 좋다', '자전거 좋다', '나는 김치다', 단어 나열). 여러 단어를 뱉어도 조사+활용된 종결어미로 "
+    "온전한 문장을 완성하지 못하면 초급이다.\n"
+    "- survival(입문): 인사·정형청크(안녕하세요·감사합니다·이거 주세요)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
+    "★ 핵심 변별 — (초급↔중급) 조사·활용된 종결어미를 갖춘 문법적 문장을 만드는가. 단어 슬롯 채우기('N 좋다')는 "
+    "여러 개여도 초급이다. (중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
+    "★ 발음·조사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
+    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 유창한 긴 담화를 '표지가 정확히 일치하지 않는다'는 "
+    "이유로 깎지 마라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+)
+
+# 버킷 → 최종 앱 레벨(1~13). 각 버킷이 '확실히 할 수 있는' 밴드 바닥에 보수 배정 —
+# 과배치(강등 불가 → plateau) 방지, 부족분은 체크판 자동 레벨업이 단조 상승으로 회복한다.
+# advanced=6 은 실제 L6~13 을 다 담는 넓은 버킷(향후 프로브로 세분화 여지 — TODO).
+_BUCKET_LEVEL: dict[str, int] = {
+    "survival": 1,      # 입문 — 인사·청크만
+    "beginner": 2,      # 초급 — 단어+구문
+    "intermediate": 3,  # 중급 — 온전한 문장
+    "advanced": 6,      # 고급 — 어법 정확 + 긴 담화
 }
 
 # 판정 스킵 하한: USER 한국어+모국어 발화 총합(공백 제외)이 이 미만이면 LLM 콜 없이 skip.
@@ -1125,58 +1210,55 @@ def _leveltest_instruction(
         "- 전사는 음성인식(ASR) 결과라 철자·띄어쓰기가 왜곡될 수 있다. 철자·맞춤법을 기준으로 "
         "삼지 말고, 사용한 문법의 폭(문형 다양성)·어휘 등급·응답 길이·질문에 맞게 대응했는지를 "
         "기준으로 삼아라.\n"
+        + _BUCKET_DEFINITIONS + "\n"
+        "[증거 가중 — 비대칭 채점]\n"
+        "- 자발 성공(비버가 문형을 깔아 주지 않았는데 학습자가 스스로 그 자질을 만들어 냄) = 강한 양성. "
+        "그 수준을 밴드로 인정할 근거가 된다.\n"
+        "- 유도 성공(비버가 예시·선택지로 떠먹여 준 뒤에야 성립) = 약한 양성. 통째로 외운 청크가 아닌지 "
+        "교차확인(아래)을 통과해야만 근거로 쓴다.\n"
+        "- 암기 청크 위양성 배제: 같은 문형이 서로 다른 어휘·상황 2개에서 성립해야 '안다'고 인정한다. "
+        "한 번만, 그것도 정형 표현으로 나온 것은 근거로 치지 마라.\n"
+        "- 유도 실패는 그 '자질'을 근거에서 뺄 뿐이다. 이미 학습자가 자발적으로 보여준 상위 자질을 "
+        "무효화하거나 밴드를 낮추지 마라.\n"
         "[판정 절차 — 반드시 이 순서대로]\n"
         "① evidence: 학습자(USER)의 한국어 발화 원문을 최대 5개 인용해 모은다(수정·번역 금지).\n"
-        "② band: 아래 [레벨 기준표]에 비추어 밴드를 먼저 정한다 — beginner(레벨 2~5) / "
-        "intermediate(레벨 6~9) / advanced(레벨 10~13).\n"
-        "③ level_in_band: 밴드 안에서 단계 1~4 를 정한다.\n"
-        "④ level_no 계산: beginner=1+level_in_band(→2~5), intermediate=5+level_in_band(→6~9), "
-        "advanced=9+level_in_band(→10~13). 단, 한국어 발화가 있긴 하나 전부 인사 수준 미만이거나 "
-        "사실상 모국어뿐이면 level_no=1(생존 회화)로 한다.\n"
-        "⑤ 두 레벨 사이에서 망설여지면 항상 낮은 쪽을 골라라.\n"
+        "② band: 위 [밴드 기준]에 비추어 4버킷(survival/beginner/intermediate/advanced) 중 하나를 고른다. "
+        "학습자가 '실제로 산출한 가장 높은' 수준으로 정하라 — 짧게 답했어도 조사·활용을 갖춘 온전한 문장이면 최소 "
+        "중급, 복문·긴 담화면 고급이다. 관찰된 상위 자질을 '경계에서 망설여진다'는 이유로 낮추지 마라.\n"
         "[표본 규칙]\n"
-        "- 학습자의 한국어 발화가 2턴 이하면 sample_quality 를 sparse(빈약) 또는 none(전무)으로 "
-        "하고, band=unknown, level_in_band=null, level_no=null 로 둔다.\n"
+        "- 채점 가능한(scorable) 한국어 발화가 2턴 이하면 sample_quality 를 sparse(빈약), 사실상 없으면 "
+        "none(전무)으로 표시하고 confidence 를 낮춘다.\n"
+        "- 발화가 딱 1개뿐이라도, 그 1개가 자발적인 온전한 문장·복문·추상 전개면 밴드는 관찰된 복잡도를 "
+        "존중한다(바닥으로 깎지 마라). 다만 sample_quality=sparse 로 표시해 서버가 보수 처리하게 둔다.\n"
+        "- 한국어 발화가 사실상 없고 모국어뿐이면 band=unknown 으로 둔다(서버가 생존 레벨로 배정).\n"
         "[출력 필드 규칙]\n"
         "- summary: 통화의 핵심 소재를 " + label + " 로 요약. 완결 문장이 아니라 명사구 2~4어절.\n"
         "- feedback_for_learner: 학습자에게 보여줄 따뜻한 격려 1~2문장(" + label + "). "
         "레벨·점수·등급 같은 숫자는 절대 쓰지 마라.\n"
-        "[레벨 기준표]\n" + rubric
+        "[레벨 기준표 — 각 밴드가 담는 커리큘럼 단계 이해용 참고(밴드 결정은 위 관찰 기준으로 한다)]\n" + rubric
     )
 
 
-def _clamp_assessed_level(result: LevelAssessment) -> int | None:
-    """LLM 판정을 서버 규칙으로 클램프해 최종 level_no(1~13)를 확정한다.
+def _place_from_band(result: LevelAssessment) -> int | None:
+    """4버킷 밴드를 최종 앱 레벨(1~13)로 배정한다 — 순수 딕셔너리 룩업(코드가 심판).
 
-    AI는 증인, 코드가 심판(관통 원칙 1) — band-level_no 정합을 코드가 강제한다.
-    이 함수는 발화 표본이 20자 이상 존재한 뒤에만 호출된다(none=모국어뿐 전제).
+    AI는 증인(밴드만 판정), 코드가 심판(레벨 숫자 확정 — 관통 원칙 1). 각 버킷은
+    '확실히 할 수 있는' 밴드 바닥(_BUCKET_LEVEL)에 보수 배정하고, 부족분은 자동 레벨업이
+    단조 상승으로 회복한다(과배치=강등 불가 plateau 방지). 이 함수는 발화 표본이 20자
+    이상일 때만 호출된다(none=모국어뿐 전제).
     None 반환 = LLM 모순 출력(판정 신뢰 불가) — 호출부가 status=failed·미저장 처리.
     """
     # 모순: 표본이 충분(sufficient)한데 밴드를 못 정했다(unknown) — 판정 신뢰 불가.
     if result.band == "unknown" and result.sample_quality == "sufficient":
         return None
-    # 특수: 밴드 미상/표본 전무 — 발화(20자+)는 있었으니 사실상 모국어만 → 생존 1.
+    # 밴드 미상 / 표본 전무 — 발화(20자+)는 있었으니 사실상 모국어만 → 생존 1.
     if result.band == "unknown" or result.sample_quality == "none":
         return 1
-    # 명시적 생존 판정(한국어 발화가 전부 인사 수준 미만)은 표본이 sufficient 가 아닐
-    # 때만 존중. sufficient + 밴드 명시인데 1 이면 모순 → 아래 밴드 재계산 경로로.
-    if result.level_no == 1 and result.sample_quality != "sufficient":
-        return 1
-
-    lo, hi = _BAND_RANGE[result.band]
-    level = result.level_no
-    if level is None or not (lo <= level <= hi):
-        # band-level_no 불일치 → band 기준 재계산(밴드 시작 + 단계 - 1).
-        if result.level_in_band is not None and 1 <= result.level_in_band <= 4:
-            level = lo + result.level_in_band - 1
-        else:
-            # 그래도 불능 → 밴드 중앙값−1(망설여지면 낮게): 3 / 7 / 11.
-            level = (lo + hi) // 2
-
-    # 표본 빈약 + 저신뢰 → 1단계 하향(하한 1). "애매하면 항상 낮게".
-    if result.sample_quality == "sparse" and result.confidence == "low":
-        level -= 1
-    return max(1, min(13, level))
+    level = _BUCKET_LEVEL[result.band]
+    # 표본 빈약(sparse)이면 중급 이상 배치 금지 — 1~2건 표본으로 과배치하지 않는다(보수).
+    if result.sample_quality == "sparse":
+        level = min(level, 2)
+    return level
 
 
 def _user_char_total(dialog: str) -> int:
@@ -1269,7 +1351,7 @@ async def analyze_level_test_call(
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
             return
 
-        level_no = _clamp_assessed_level(result)
+        level_no = _place_from_band(result)
         if level_no is None:
             # LLM 모순 출력(예: sufficient 인데 band=unknown) — 판정 신뢰 불가 → 미저장.
             logger.warning(
@@ -1279,10 +1361,9 @@ async def analyze_level_test_call(
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
             return
         logger.info(
-            "leveltest 판정: band=%s level_in_band=%s level_no(LLM)=%s → 확정 %d "
-            "(confidence=%s sample=%s) call_id=%s member=%s",
-            result.band, result.level_in_band, result.level_no, level_no,
-            result.confidence, result.sample_quality, call_id, member_id,
+            "leveltest 판정: band=%s → 레벨 %d 배정 (confidence=%s sample=%s) call_id=%s member=%s",
+            result.band, level_no, result.confidence, result.sample_quality,
+            call_id, member_id,
         )
         saved = await run_db(
             session_factory,
@@ -1303,3 +1384,230 @@ async def analyze_level_test_call(
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
         except Exception:  # noqa: BLE001
             pass
+
+
+# ── 사이드카 O/X 판정기(레벨테스트 통화중, 문항 단위) ────────────────────────
+# 통화후 전사 1콜(analyze_level_test_call)과 달리, 사다리 엔진이 한 문항의 답변
+# 하나를 즉시 pass/fail/unclear 로 채점받아 다음 노드를 고르게 하는 실시간 사이드카.
+
+_LEVELTEST_JUDGE_INSTRUCTION = (
+    "너는 한국어 문법 채점자다. 아래 학습자 발화가 '목표 문법'을 실제로 산출했는지 "
+    "판정하라.\n"
+    "이 테스트는 '이 학습자가 이 단계 수준 이상을 할 수 있나'를 재는 것이다. 딱 그 형태만 "
+    "고집하지 말고 관대하게 판정하라.\n"
+    "규칙:\n"
+    "- ★ pass(관대하게): 학습자가 문법적으로 온전한 한국어 문장을 만들었고, 그것이 목표 문법 "
+    "수준 '이상'이면 pass. 목표 형태소가 그대로 있으면 당연히 pass. 목표와 시제·구조가 정확히 "
+    "일치하지 않아도, 목표보다 더 높거나 복잡한 문법(예: 현재를 물었는데 과거·복문·존댓말로 "
+    "답함)으로 온전한 문장을 만들었으면 pass — 더 어려운 걸 해내면 이 단계는 당연히 통과다. "
+    "(예: 목표가 현재형 문장인데 '나는 어제 쉬었어'라고 과거로 답 → pass. 목표가 과거인데 "
+    "'-(으)ㄴ 적 있어요' 경험으로 답 → pass.)\n"
+    "- ★ no_attempt: 학습자가 아직 진짜 답을 시도하지 않았으면 result=no_attempt(실패 아님, "
+    "절대 fail 로 처리 말 것). 머뭇·필러('음','어','uhm','잠깐만'), 인사만('안녕하세요'), "
+    "되묻기('네?','뭐라고요?','여보세요?'), 질문과 무관한 한두 마디, 말이 끊긴 미완성.\n"
+    "- fail: 학습자가 온전한 문장을 만들지 못하고 단어·조각만 나열했거나, 만든 문장이 목표 "
+    "수준에 명백히 못 미칠 때만(예: 과거 서술을 물었는데 현재 단문 하나도 못 만듦). 즉 "
+    "'온전한 문장을 시도했으나 이 단계 수준에 못 미침'일 때만 fail — 유효한 문장을 fail 하지 마라.\n"
+    "- unclear: 문장은 시도했는데 판단이 곤란하거나 반쪽인 경우.\n"
+    "- 발음·조사의 사소한 오류는 감점하지 않는다.\n"
+    "- heard_grammar 에는 판정 근거가 된 학습자의 실제 구절을 원문 그대로 인용하라"
+    "(추측·재작성 금지, 근거가 없으면 빈 문자열).\n"
+    "출력은 반드시 주어진 JSON 스키마를 따른다."
+)
+
+
+async def judge_leveltest_answer(
+    client: genai.Client,
+    *,
+    target_desc: str,
+    answer_text: str,
+) -> str:
+    """레벨테스트 한 답변을 목표 문법 기준으로 pass/fail/unclear 판정(사이드카 1콜).
+
+    통화중 사다리 엔진이 문항마다 호출한다. 어떤 실패든(client 부재·빈 입력·LLM
+    실패·환각) "unclear" 로 흡수해 엔진이 교차확인/강제전진으로 처리하게 한다(R5).
+
+    Args:
+        client: lifespan 이 만든 genai.Client(없으면 통화 자체가 비활성이나 방어).
+        target_desc: 이 문항이 재는 목표 문법 기준(사다리 노드 제공, 한국어).
+        answer_text: 학습자가 방금 한 발화(한국어, in_tr 전사).
+
+    Returns:
+        "pass" | "fail" | "unclear" (문자열). 판정 불능·환각은 항상 "unclear".
+    """
+    # graceful 가드(R5): client 없음 / 빈 발화 / 빈 목표 → 판정 불능.
+    if client is None or not answer_text or not answer_text.strip():
+        return "unclear"
+    if not target_desc or not target_desc.strip():
+        return "unclear"
+
+    try:
+        verdict = await gemini_analysis.generate_structured(
+            client,
+            settings.JUDGE_MODEL,
+            system_instruction=_LEVELTEST_JUDGE_INSTRUCTION,
+            prompt=(
+                f"[목표 문법]\n{target_desc.strip()}\n\n"
+                f"[학습자 발화]\n{answer_text.strip()}"
+            ),
+            schema=LeveltestVerdict,
+            temperature=0.0,
+            thinking_budget=0,  # 통화중 실시간 사이드카 — 지연 최소화(추론 비활성).
+        )
+    except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
+        logger.warning("leveltest judge: 판정 예외(무시) → unclear: %s", exc)
+        return "unclear"
+
+    if verdict is None:
+        return "unclear"
+
+    # ★ 인용 검증(관통원칙3): pass 인데 근거 구절이 실제 발화에 없으면 환각 →
+    # unclear 로 강등. 순수 파이썬 부분 문자열 매칭(LLM 없이 검증 가능).
+    # (의도적으로 엄격: 여기 O/X 판정은 단일 노드 통과/실패라 오탐 대가가 작다. 반면
+    #  classify_leveltest_band 는 밴드 천장을 좌우해 저평가 대가가 크므로 _citation_coverage
+    #  로 완화한다 — 두 강도 차이는 의도된 것.)
+    if verdict.result == "pass":
+        heard = (verdict.heard_grammar or "").strip()
+        if not heard or heard not in answer_text:
+            logger.info(
+                "leveltest judge: pass 인용 미검증(heard=%r) → unclear 강등", heard
+            )
+            return "unclear"
+        return "pass"
+
+    if verdict.result in ("fail", "no_attempt"):
+        return verdict.result
+    return "unclear"
+
+
+# ── 밴드 분류 사이드카 (레벨테스트 Phase 2) ─────────────────────────────────
+# judge_leveltest_answer 가 "이 노드 문법을 산출했나(O/X)"를 재는 것과 달리,
+# 이 사이드카는 학습자 답 1개가 '보여준 최고 문법 밴드'를 노드 무관하게 절대 분류한다.
+# (노드 매칭 방식은 call 246 강등 오판의 원인 — 목표보다 높은 문법으로 답해도
+#  노드 미스매치면 실패로 샜다. 밴드 분류는 학습자가 실제로 도달한 천장을 읽는다.)
+
+_BAND_CLASSIFY_INSTRUCTION = (
+    "너는 한국어 학습자의 답변 한 개를 보고 그 답변이 보여준 '최고' 밴드를 판정하는 판독기다. "
+    "비버(선생님)가 무엇을 물었는지와 무관하게, 학습자 발화 자체에 실재하는 언어로만 판정하라. "
+    "[직전 비버 질문]은 문맥 파악용일 뿐 — 비버의 문장을 학습자 실력으로 세지 마라.\n"
+    + _BUCKET_DEFINITIONS + "\n"
+    "- no_attempt: 머뭇·필러('음','어'), 인사만, 되묻기('네?','뭐라고요?'), 질문과 무관한 "
+    "한두 마디, 말이 끊긴 미완성.\n"
+    "[인용 규칙]\n"
+    "- ★ heard_grammar 에는 밴드 근거가 된 학습자의 실제 구절을 전사에 나타난 '그대로'"
+    "(오탈자·띄어쓰기 포함) 복사하라. 교정·정규화·번역·재작성 금지. 근거가 없으면 빈 문자열.\n"
+    "[출력 순서 — 반드시 이 순서로 생각하라]\n"
+    "① heard_grammar: 밴드 근거가 된 실제 구절 인용 → ② decisive_feature: 밴드를 정한 "
+    "결정 자질 라벨 → ③ observed_band: 밴드 → ④ spontaneity: 자발성.\n"
+    "출력은 반드시 주어진 JSON 스키마를 따른다."
+)
+
+
+class LeveltestBandRead(BaseModel):
+    """레벨테스트 답 1개의 '보여준 최고 문법 밴드' 판독 출력(사이드카 단발 콜).
+
+    필드 순서 = 생성 순서(CoT): 인용 → 결정자질 → 밴드 → 자발성. heard_grammar 는
+    밴드 근거가 된 학습자의 실제 구절을 그대로 인용한다(추측·재작성 금지). 관통원칙3:
+    observed_band 가 intermediate 이상인데 이 인용이 실제 발화에 실재하지 않으면
+    호출부에서 한 밴드 강등한다(환각 방어).
+    """
+
+    heard_grammar: str = ""  # 밴드 근거가 된 학습자 실제 구절 인용(없으면 "")
+    decisive_feature: str = ""  # 밴드를 정한 결정 자질 라벨(예: "간접화법 -다고 하다")
+    observed_band: Literal[
+        "no_attempt", "survival", "beginner", "intermediate", "advanced"
+    ]
+    spontaneity: Literal["spontaneous", "elicited", "echo"] = "spontaneous"
+
+
+# 밴드 → 서수(0..3). no_attempt 는 여기 없음(→ None 반환). 인용검증 강등의 기준선.
+_BAND_ORDINAL: dict[str, int] = {
+    "survival": 0,
+    "beginner": 1,
+    "intermediate": 2,
+    "advanced": 3,
+}
+
+
+def _citation_coverage(heard: str, answer: str) -> float:
+    """heard_grammar 인용이 실제 답변에 얼마나 실재하는지(0.0~1.0) — ASR 왜곡에 강건한 근거 검증.
+
+    공백·문장부호를 제거해 정규화한 뒤, heard 의 어절 토큰 중 정규화된 answer 안에 부분
+    문자열로 나타나는 비율을 센다. 0.0 = 인용이 통째로 부재(환각). 순수 파이썬(LLM 없이).
+    """
+    def _norm(s: str) -> str:
+        return re.sub(r"[\s\W_]+", "", s)
+
+    a = _norm(answer)
+    tokens = [t for t in heard.split() if _norm(t)]
+    if not a or not tokens:
+        return 0.0
+    hit = sum(1 for t in tokens if _norm(t) in a)
+    return hit / len(tokens)
+
+
+async def classify_leveltest_band(
+    client: genai.Client,
+    *,
+    answer_text: str,
+    prior_question: str | None = None,
+) -> int | None:
+    """학습자 답 1개의 '보여준 최고 문법 밴드'를 절대 분류한다(사이드카 1콜).
+
+    노드 매칭이 아니라 학습자 발화 자체가 도달한 문법 천장을 읽는다 — 목표보다
+    높은 문법으로 답해도 그 상위 밴드로 인정(call 246 강등 오판 방지).
+
+    Args:
+        client: lifespan 이 만든 genai.Client(없으면 통화 자체가 비활성이나 방어).
+        answer_text: 학습자가 방금 한 발화(한국어, in_tr 전사).
+        prior_question: 직전 비버 질문(문맥용, 선택). 실력 근거로 쓰지 않는다.
+
+    Returns:
+        None = no_attempt/판정 불가(머뭇·필러·실패·환각·호출실패) /
+        0..3 = survival/beginner/intermediate/advanced.
+    """
+    # graceful 가드(R5): client 없음 / 빈 발화 → 판정 불능.
+    if client is None or not answer_text or not answer_text.strip():
+        return None
+
+    context = ""
+    if prior_question and prior_question.strip():
+        context = f"[직전 비버 질문]\n{prior_question.strip()}\n\n"
+
+    try:
+        read = await gemini_analysis.generate_structured(
+            client,
+            settings.JUDGE_MODEL,
+            system_instruction=_BAND_CLASSIFY_INSTRUCTION,
+            prompt=f"{context}[학습자 발화]\n{answer_text.strip()}",
+            schema=LeveltestBandRead,
+            temperature=0.0,
+            thinking_budget=0,  # 통화중 실시간 사이드카 — 지연 최소화(추론 비활성).
+        )
+    except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
+        logger.warning("leveltest band: 분류 예외(무시) → None: %s", exc)
+        return None
+
+    if read is None:
+        return None
+
+    # no_attempt / 판정불가 → None(엔진이 재시도·강제전진으로 처리).
+    ordinal = _BAND_ORDINAL.get(read.observed_band)
+    if ordinal is None:
+        return None
+
+    # ★ 인용 검증(관통원칙3): intermediate(2) 이상인데 근거 구절이 실제 발화에 '통째로'
+    # 부재하면(coverage 0) 환각 → 한 밴드 강등. 엄격 부분문자열이 아니라 어절 토큰 겹침으로
+    # 판정한다 — ASR(음성인식) 전사 왜곡·조사/띄어쓰기 드리프트로 인용이 바이트 단위로 정확히
+    # 일치하지 않아도, 일부라도 겹치면 신뢰한다(과잉 강등=저평가 방지).
+    if ordinal >= _BAND_ORDINAL["intermediate"]:
+        heard = (read.heard_grammar or "").strip()
+        if _citation_coverage(heard, answer_text) == 0.0:
+            logger.info(
+                "leveltest band: %s 인용 미검증(heard=%r, coverage=0) → 한 밴드 강등",
+                read.observed_band,
+                heard,
+            )
+            ordinal -= 1
+
+    return ordinal
