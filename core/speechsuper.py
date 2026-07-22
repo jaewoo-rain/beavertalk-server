@@ -437,15 +437,24 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
         for c in chars
     ]
     avg = round(sum(c["score"] for c in char_scores) / len(char_scores)) if char_scores else 0
-    phonemes = [
-        {
-            "phoneme": "",
-            "alpha": sound_label(j, pos),
-            "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56),
-        }
-        for i, c in enumerate(chars)
-        for (j, pos) in _jamos(c)
-    ]
+    # 한국어는 자모(받침/구분/초성 라벨)로, 비한글(일본어·중국어 등 다국어)은 글자 자체를
+    # 소리 단위로 목 생성 — 다국어 통화에서 소리별 정확도·코칭이 빈 채로 안 나오게(로딩 방지).
+    phonemes: list[dict] = []
+    for i, c in enumerate(chars):
+        jamos = _jamos(c)
+        if jamos:
+            for j, pos in jamos:
+                phonemes.append({
+                    "phoneme": "",
+                    "alpha": sound_label(j, pos),
+                    "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56),
+                })
+        elif not c.isascii():  # 비한글 표의/음절 문자(일본어·중국어 등) — 글자를 소리 단위로
+            phonemes.append({
+                "phoneme": "",
+                "alpha": c,
+                "pronunciation": 45 + ((ord(c) * 5 + i * 7) % 56),
+            })
     return {
         "evaluation": {
             "total_score": avg,
