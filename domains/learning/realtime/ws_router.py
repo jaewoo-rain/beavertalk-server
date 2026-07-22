@@ -24,6 +24,7 @@ from core.supabase_auth import verify_token
 from domains.account.service.member_service import MemberService
 from domains.learning.realtime.call_session import run_call
 from domains.learning.realtime.protocol import ServerError, server_adapter
+from domains.learning.realtime.stt_session import run_pron_stt
 from domains.learning.service import normalcall_service as svc
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,36 @@ async def ws_call_stream(websocket: WebSocket) -> None:
     finally:
         # 소켓이 아직 안 닫혔으면 닫는다(정상/예외 어느 경로든 소켓 누수 방지). 이미 끊긴 소켓에
         # close 하면 에러가 나므로 상태를 먼저 확인하고, 그래도 나는 예외는 조용히 삼킨다.
+        if websocket.client_state != WebSocketState.DISCONNECTED:
+            with contextlib.suppress(Exception):
+                await websocket.close()
+
+
+@router.websocket("/pron/stt/ws")
+async def ws_pron_stt(websocket: WebSocket) -> None:
+    """발음 챌린지 서버 STT WebSocket — 마이크 PCM(LINEAR16) → Google Speech 스트리밍 전사.
+
+    계약(웹 발음챌린지와 동일):
+      client→server: 첫 {"type":"config","words":[...],"sampleRate":N} → 바이너리 PCM → 선택 {"type":"stop"}
+      server→client: {"type":"ready"|"partial"|"final"|"error", ...}
+
+    인증(D1): 토큰이 오면 검증(유효할 때만 수락), 없으면 허용한다 — 발음챌린지는 저민감
+      (본인 음성 전사, DB 무기록). 과금 남용이 우려되면 토큰 필수로 좁힐 수 있다.
+    """
+    token = websocket.query_params.get("token") or ""
+    if token:
+        auth_user = await run_in_threadpool(verify_token, token)
+        if auth_user is None:
+            with contextlib.suppress(Exception):
+                await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
+            return
+
+    await websocket.accept()
+    try:
+        await run_pron_stt(websocket)
+    except Exception as exc:  # noqa: BLE001 - 최종 방어선(이 세션만 실패, 서버는 계속)
+        logger.exception("ws_pron_stt 처리 중 예외: %s", exc)
+    finally:
         if websocket.client_state != WebSocketState.DISCONNECTED:
             with contextlib.suppress(Exception):
                 await websocket.close()

@@ -18,7 +18,9 @@ from domains.learning.schemas.pronunciation import (
     PronHistoryItem,
     PronunciationReport,
 )
+from domains.learning.schemas.pronunciation_report import LearningSummaryOut
 from domains.learning.service import normalcall_service as svc
+from domains.learning.service import pronunciation_report_service as report_svc
 from domains.learning.service import pronunciation_service as pron_svc
 from domains.learning.service.call_service import CallService
 
@@ -107,6 +109,35 @@ def get_call(call_id: int, member: CurrentMember, db: DbSession) -> CallDetail:
 def get_call_result(call_id: int, member: CurrentMember, db: DbSession) -> CallResult:
     """통화 종료 후 결과 화면 — 평가 평균 + 문장 전체."""
     return CallService(db).get_call_result(member.member_id, call_id)
+
+
+@router.get("/{call_id}/pronunciation-report", response_model=LearningSummaryOut)
+async def get_learning_summary_report(
+    call_id: int, request: Request, member: CurrentMember
+) -> LearningSummaryOut:
+    """복습 종료 후 발음 리포트(Flutter LearningSummary) — 통과·문장별·소리별·최근 세션.
+
+    pronunciation_service 의 실데이터(국적·자모별 집계·국가 맞춤 코칭 comment)를 받아
+    LearningSummary 형태(통과수·평균·가장 어려웠던 소리·소리별 정확도 2+2 선별·세션 delta)로
+    가공한다. 소리·국적·코칭은 전부 실데이터. 통화 없으면 404, 서비스 미준비면 503.
+
+    ⚠️ async — pronunciation_service 가 LLM·백그라운드 캐시로 이벤트 루프를 쓴다. DB 는
+    run_db(threadpool)로 오프로드한다.
+    """
+    client = getattr(request.app.state, "genai_client", None)
+    settings = getattr(request.app.state, "settings", None)
+    session_factory = getattr(request.app.state, "session_factory", None)
+    if settings is None or session_factory is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "발음 서비스가 준비되지 않았습니다."
+        )
+    return await report_svc.build_learning_summary(
+        member.member_id,
+        call_id,
+        session_factory=session_factory,
+        client=client,
+        settings=settings,
+    )
 
 
 @router.get("/{call_id}/raw", response_model=list[RawDataOut])

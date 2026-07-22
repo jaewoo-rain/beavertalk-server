@@ -63,13 +63,22 @@ class SentenceService:
             )
 
         call_id = sentence.call_id
-        # (멀티랭귀지) 이 통화의 학습 대상 언어로 합성 — 없으면 ko 폴백.
-        call = self.db.get(Call, call_id)
+        # (멀티랭귀지 + 캐릭터 음색) 이 통화의 학습 대상 언어로, 통화 캐릭터 목소리로 합성.
+        # 언어·음색 두 축 — 없으면 ko / 언어 기본 음성으로 폴백.
+        call = sentence.call or self.db.get(Call, call_id)
         language = (getattr(call, "target_language", None) or "ko")
+        char = call.character if call else None
+        char_voice = char.voice.name if (char and char.voice and char.voice.name) else None
 
-        # 3) Cloud TTS 합성(await) — DB 세션 밖에서. 비활성/실패면 None → 아래 503.
-        #    (client 인자는 하위호환용 — Cloud TTS 는 자체 키를 쓰므로 사용 안 함.)
-        synthesized = await tts.synthesize(korean, language)
+        # 3) genai 미구성이면 합성 불가 → 503.
+        if client is None:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "오디오를 생성할 수 없습니다(TTS 비활성).",
+            )
+
+        # 4) Cloud TTS 합성(await) — DB 세션 밖에서(대상 언어 Chirp3-HD, 캐릭터 음색).
+        synthesized = await tts.synthesize(korean, language, voice=char_voice)
         if not synthesized:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,

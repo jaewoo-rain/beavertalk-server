@@ -374,10 +374,62 @@ def _map_char_scores(
 # ──────────────────────────────────────────────────────────────────────────
 # 폴백 스텁 (기존 결정적 로직 보존)
 # ──────────────────────────────────────────────────────────────────────────
+# 한글 음절 → 자모 분해용 테이블(초성 19 / 중성 21 / 종성 28, 0=받침없음).
+_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+_JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"
+_JONG = " ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"
+
+# 소리 라벨용 혼동쌍 — "ㅓ" 대신 "ㅓ/ㅗ 구분"처럼 학습자에게 의미있게 보여준다.
+# (AI 가 초성/중성/종성 을 주면 sound_label 로 그대로 라벨링 재사용 가능.)
+_VOWEL_PAIRS = {"ㅓ": "ㅓ/ㅗ", "ㅗ": "ㅓ/ㅗ", "ㅐ": "ㅐ/ㅔ", "ㅔ": "ㅐ/ㅔ", "ㅡ": "ㅡ/ㅜ", "ㅜ": "ㅡ/ㅜ"}
+_ONSET_PAIRS = {
+    "ㄱ": "ㄱ/ㄲ/ㅋ", "ㄲ": "ㄱ/ㄲ/ㅋ", "ㅋ": "ㄱ/ㄲ/ㅋ",
+    "ㄷ": "ㄷ/ㄸ/ㅌ", "ㄸ": "ㄷ/ㄸ/ㅌ", "ㅌ": "ㄷ/ㄸ/ㅌ",
+    "ㅂ": "ㅂ/ㅃ/ㅍ", "ㅃ": "ㅂ/ㅃ/ㅍ", "ㅍ": "ㅂ/ㅃ/ㅍ",
+    "ㅈ": "ㅈ/ㅉ/ㅊ", "ㅉ": "ㅈ/ㅉ/ㅊ", "ㅊ": "ㅈ/ㅉ/ㅊ",
+    "ㅅ": "ㅅ/ㅆ", "ㅆ": "ㅅ/ㅆ",
+}
+
+
+def sound_label(alpha: str, position: str) -> str:
+    """자모 + 위치(초성/중성/종성) → 학습자용 소리 라벨.
+
+    종성 → "받침 X", 중성 → 혼동쌍이면 "ㅓ/ㅗ 구분" 아니면 "모음 X",
+    초성 → 혼동쌍이면 "ㅅ/ㅆ 구분" 아니면 "초성 X".
+    AI(초성/중성/종성 제공) 데이터에도 그대로 재사용한다.
+    """
+    if position == "종성":
+        return f"받침 {alpha}"
+    if position == "중성":
+        pair = _VOWEL_PAIRS.get(alpha)
+        return f"{pair} 구분" if pair else f"모음 {alpha}"
+    pair = _ONSET_PAIRS.get(alpha)
+    return f"{pair} 구분" if pair else f"초성 {alpha}"
+
+
+def _jamos(ch: str) -> list[tuple[str, str]]:
+    """한글 음절 → [(자모, 위치)]. 초성 ㅇ(무음)은 제외. 한글 아니면 []."""
+    o = ord(ch)
+    if not (0xAC00 <= o <= 0xD7A3):
+        return []
+    s = o - 0xAC00
+    cho, jung, jong = _CHO[s // 588], _JUNG[(s % 588) // 28], _JONG[s % 28]
+    out: list[tuple[str, str]] = []
+    if cho != "ㅇ":  # 초성 ㅇ 은 소리 없음(무음)
+        out.append((cho, "초성"))
+    out.append((jung, "중성"))
+    if jong != " ":
+        out.append((jong, "종성"))
+    return out
+
+
 def _stub_assess(ref_text: Optional[str]) -> dict:
     """[STUB 폴백] 외부 호출 없이 결정적 채점 결과 생성.
 
     SpeechSuper 호출이 불가/실패할 때 사용. 반환 계약은 assess_pronunciation 과 동일.
+    자모(phonemes)까지 목으로 만들어 소리별 정확도 리포트가 빈 채로 나오지 않게 한다 —
+    alpha 는 sound_label 로 "받침 ㄹ"·"ㅓ/ㅗ 구분"·"초성 ㄱ" 처럼 라벨링하고, 출현 위치마다
+    점수를 달리해(pass 기준 80) 같은 소리도 혼합 정확도(예: 3/7=43%)가 나온다.
     """
     chars = [c for c in (ref_text or "") if not c.isspace()]
     char_scores = [
@@ -385,6 +437,15 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
         for c in chars
     ]
     avg = round(sum(c["score"] for c in char_scores) / len(char_scores)) if char_scores else 0
+    phonemes = [
+        {
+            "phoneme": "",
+            "alpha": sound_label(j, pos),
+            "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56),
+        }
+        for i, c in enumerate(chars)
+        for (j, pos) in _jamos(c)
+    ]
     return {
         "evaluation": {
             "total_score": avg,
@@ -393,5 +454,5 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
             "rhythm": max(0, avg - 3),
         },
         "char_scores": char_scores,
-        "phonemes": [],
+        "phonemes": phonemes,
     }
