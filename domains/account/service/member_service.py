@@ -13,6 +13,7 @@ from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.supabase_auth import delete_auth_user
@@ -95,7 +96,19 @@ class MemberService:
             owned_characters=owned,
         )
         self.repo.add(member)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            # 동시 첫 로그인 레이스: 앱 시작 시 여러 요청이 동시에 이 회원을 만들려다
+            # 하나만 성공하고 나머지는 auth_user_id/email 유니크 제약에 걸린다(구 코드는 500).
+            # 롤백 후 먼저 만들어진 회원을 재조회해 돌려준다(멱등·레이스 세이프).
+            self.db.rollback()
+            existing = self.repo.get_by_auth(auth_user_id)
+            if existing is None and email:
+                existing = self.repo.get_by_email(email)
+            if existing is None:
+                raise  # 레이스가 아닌 진짜 무결성 오류 — 삼키지 않는다.
+            return existing
         self.db.refresh(member)
         return member
 
