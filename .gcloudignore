@@ -25,12 +25,16 @@ docs/
 tests/
 *.md
 
+# 로컬 커리큘럼 소스 원본(빌드에 불필요 — 2.4GB)
+level/
+
 # 대용량 생성물
 api-docs.html
 openapi.json
 BeaverTalk.vuerd.json
 
 gcp_key.json
+tts_key.json
 
 # FCM/서비스계정 키 (절대 이미지에 넣지 않음)
 *fcm*.json

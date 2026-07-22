@@ -129,7 +129,7 @@ def _mock_external(monkeypatch):
     async def _fake_tts(*_a, **_k):
         return None
 
-    monkeypatch.setattr(svc.tts, "synthesize_korean", _fake_tts)
+    monkeypatch.setattr(svc.tts, "synthesize", _fake_tts)
 
     # 기본 분석 스텁(normal 콜 경로용). 레벨테스트 판정 테스트는 각자 재모킹한다.
     async def _fake_generate(*_a, **_k):

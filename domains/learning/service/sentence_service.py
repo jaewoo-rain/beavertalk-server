@@ -62,6 +62,9 @@ class SentenceService:
             )
 
         call_id = sentence.call_id
+        # 통화 캐릭터의 voice — 표현 오디오를 같은 목소리로(세션 열린 동안 읽어 둠).
+        char = sentence.call.character if sentence.call else None
+        char_voice = char.voice.name if (char and char.voice and char.voice.name) else None
 
         # 3) genai 미구성이면 합성 불가 → 503.
         if client is None:
@@ -70,8 +73,8 @@ class SentenceService:
                 "오디오를 생성할 수 없습니다(TTS 비활성).",
             )
 
-        # 4) Vertex Gemini-TTS 합성(await) — DB 세션 밖에서.
-        synthesized = await tts.synthesize_korean(korean, client)
+        # 4) Cloud TTS 합성(await) — DB 세션 밖에서(한국어 Chirp3-HD, 캐릭터 음색).
+        synthesized = await tts.synthesize(korean, voice=char_voice)
         if not synthesized:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,

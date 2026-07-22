@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from core.deps import CurrentMember, DbSession, PageParams
+from core.deps import CurrentMember, DbSession, GenaiClient, PageParams
 from domains.learning.schemas.call import (
     CallCreate,
     CallDetail,
@@ -13,7 +13,11 @@ from domains.learning.schemas.call import (
     CallSummary,
     RawDataOut,
 )
+from domains.learning.schemas.pronunciation_report import PronunciationReport
 from domains.learning.service.call_service import CallService
+from domains.learning.service.pronunciation_report_service import (
+    PronunciationReportService,
+)
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
@@ -42,6 +46,21 @@ def get_call(call_id: int, member: CurrentMember, db: DbSession) -> CallDetail:
 def get_call_result(call_id: int, member: CurrentMember, db: DbSession) -> CallResult:
     """통화 종료 후 결과 화면 — 평가 평균 + 문장 전체."""
     return CallService(db).get_call_result(member.member_id, call_id)
+
+
+@router.get("/{call_id}/pronunciation-report", response_model=PronunciationReport)
+async def get_pronunciation_report(
+    call_id: int, member: CurrentMember, db: DbSession, client: GenaiClient
+) -> PronunciationReport:
+    """복습 종료 후 발음 리포트(Flutter LearningSummary) — 통과·문장별·소리별·최근 세션.
+
+    문장별·세션·통과는 실데이터(평가 없으면 결정적 목값 폴백). 소리별 정확도·가장 어려웠던
+    소리는 아직 목(음소 채점 모델 미구현)이나, L1 간섭 피드백은 LLM 으로 학습자 모국어에
+    맞춰 생성한다(genai 미구성/실패 시 목 폴백).
+    """
+    return await PronunciationReportService(db).get_report(
+        member.member_id, call_id, client=client, native_locale=member.language
+    )
 
 
 @router.get("/{call_id}/raw", response_model=list[RawDataOut])

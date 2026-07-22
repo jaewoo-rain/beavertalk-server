@@ -868,6 +868,15 @@ def _set_sentence_tts(db: Session, sentence_id: int, url: str) -> None:
     db.commit()
 
 
+def _voice_for_call(db: Session, call_id: int) -> str | None:
+    """통화 캐릭터의 Gemini Live voice 이름(표현 TTS 를 같은 목소리로 내기 위함)."""
+    call = db.get(Call, call_id)
+    if call is None:
+        return None
+    ch = db.get(Character, call.character_id)
+    return ch.voice.name if (ch and ch.voice and ch.voice.name) else None
+
+
 async def analyze_call(
     call_id: int,
     client: genai.Client,
@@ -964,12 +973,14 @@ async def analyze_call(
     # 결과 화면은 이미 열렸고, TTS 는 온디맨드 합성(POST /sentences/{id}/tts)이 폴백.
     # ------------------------------------------------------------------ #
     try:
-        # 표현별 TTS 합성(Vertex Gemini-TTS, genai client 재사용) → public 버킷 업로드
-        # → Sentence.voice_url(재생 URL). synthesize_korean 은 (bytes, content_type)|None.
+        # 표현별 TTS 합성(Cloud TTS, 한국어 Chirp3-HD) → public 버킷 업로드
+        # → Sentence.voice_url(재생 URL). synthesize 는 (bytes, content_type)|None.
+        # 통화 캐릭터의 voice 로 합성 → 표현 오디오가 방금 통화한 목소리와 같다.
         # 문장 단위 graceful — 한 문장 실패가 나머지 문장·체크판을 막지 않는다.
+        call_voice = await run_db(session_factory, lambda db: _voice_for_call(db, call_id))
         for sentence_id, korean in pending:
             try:
-                synthesized = await tts.synthesize_korean(korean, client)  # None 가능(비활성/실패)
+                synthesized = await tts.synthesize(korean, voice=call_voice)  # None 가능(비활성/실패)
                 if not synthesized:
                     continue
                 audio, content_type = synthesized

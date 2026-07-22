@@ -70,7 +70,9 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
     GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
-    TTS_MODEL: str = "gemini-2.5-flash-tts"        # 표현 TTS(Vertex Gemini-TTS, ⚠ AI Studio 의 -preview-tts 아님)
+    # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD). Vertex(빌린 프로젝트)는 Cloud TTS 를
+    # 못 켜므로, 우리 소유 프로젝트(bt-dev-web-01) 서비스계정 키로 직접 호출한다.
+    TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)
 
     # Supabase Storage (통화 원본/표현 TTS/연습 녹음 업로드). 미설정이면 voice_url=None.
     SUPABASE_URL: str | None = None

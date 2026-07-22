@@ -79,5 +79,6 @@ desktop.ini
 .claude/
 .mcp.json
 gcp_key.json
+tts_key.json          # Cloud TTS 서비스계정 키(bt-dev-web-01)
 
 fcm_sa.json
