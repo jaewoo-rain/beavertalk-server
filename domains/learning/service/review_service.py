@@ -41,10 +41,12 @@ class ReviewService:
         DB 에는 data.voice_url(보통 object key, 폴백이면 None)을 저장한다.
         """
         sentence = self._get_owned_sentence(member_id, sentence_id)
+        # 통화 대상 언어(ko/ja/…) — 한국어만 실채점, 나머지는 목(스텁). 없으면 ko.
+        language = (getattr(sentence.call, "target_language", None) or "ko") if sentence.call else "ko"
         # voice_url 이 Storage object key 면 채점용으로 signed URL 을 만들어 SpeechSuper 가
         # 가져오게 하고, DB 에는 key 를 그대로 저장한다(스토리지 규약: key 보관 + URL 즉석조립).
         audio_ref = audio_override or self._audio_for_scoring(data.voice_url)
-        feedback = assess_pronunciation(sentence.korean_sentence, audio_ref)
+        feedback = assess_pronunciation(sentence.korean_sentence, audio_ref, language=language)
         review = Review(
             sentence_id=sentence_id,
             voice_url=data.voice_url,  # object key(또는 폴백 경로)
