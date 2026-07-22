@@ -374,10 +374,31 @@ def _map_char_scores(
 # ──────────────────────────────────────────────────────────────────────────
 # 폴백 스텁 (기존 결정적 로직 보존)
 # ──────────────────────────────────────────────────────────────────────────
+# 한글 음절 → 자모 분해용 테이블(초성 19 / 중성 21 / 종성 28, 0=받침없음).
+_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+_JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"
+_JONG = " ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"
+
+
+def _jamos(ch: str) -> list[str]:
+    """한글 음절 1글자 → 자모 리스트(초성·중성·[종성]). 한글 아니면 []."""
+    o = ord(ch)
+    if not (0xAC00 <= o <= 0xD7A3):
+        return []
+    s = o - 0xAC00
+    out = [_CHO[s // 588], _JUNG[(s % 588) // 28]]
+    jong = _JONG[s % 28]
+    if jong != " ":
+        out.append(jong)
+    return out
+
+
 def _stub_assess(ref_text: Optional[str]) -> dict:
     """[STUB 폴백] 외부 호출 없이 결정적 채점 결과 생성.
 
     SpeechSuper 호출이 불가/실패할 때 사용. 반환 계약은 assess_pronunciation 과 동일.
+    자모(phonemes)까지 목으로 만들어 소리별 정확도 리포트가 빈 채로 나오지 않게 한다 —
+    출현 위치마다 점수를 달리해(pass 기준 80) 같은 자모도 혼합 정확도(예: 3/7=43%)가 나온다.
     """
     chars = [c for c in (ref_text or "") if not c.isspace()]
     char_scores = [
@@ -385,6 +406,11 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
         for c in chars
     ]
     avg = round(sum(c["score"] for c in char_scores) / len(char_scores)) if char_scores else 0
+    phonemes = [
+        {"phoneme": "", "alpha": j, "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56)}
+        for i, c in enumerate(chars)
+        for j in _jamos(c)
+    ]
     return {
         "evaluation": {
             "total_score": avg,
@@ -393,5 +419,5 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
             "rhythm": max(0, avg - 3),
         },
         "char_scores": char_scores,
-        "phonemes": [],
+        "phonemes": phonemes,
     }

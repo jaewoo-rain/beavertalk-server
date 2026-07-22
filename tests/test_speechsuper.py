@@ -170,10 +170,15 @@ def test_map_result_phonemes_defensive():
     assert phs == [{"phoneme": "N", "alpha": "ㄴ", "pronunciation": 88}]
 
 
-def test_stub_has_empty_phonemes():
-    """스텁 폴백도 phonemes 키를 항상 포함(빈 리스트)."""
+def test_stub_generates_mock_phonemes():
+    """스텁 폴백도 자모(phonemes)를 목으로 생성 — 소리별 정확도 리포트가 빈 채로
+    나오지 않게. 각 항목은 {alpha, pronunciation} 을 갖고, 한글이면 자모가 나온다."""
     out = ss.assess_pronunciation("안녕하세요", None)
-    assert out["phonemes"] == []
+    phonemes = out["phonemes"]
+    assert isinstance(phonemes, list) and len(phonemes) > 0
+    assert all("alpha" in p and "pronunciation" in p for p in phonemes)
+    # "안" → ㅇ·ㅏ·ㄴ 처럼 자모가 실제로 분해된다.
+    assert {"ㅏ", "ㄴ"} <= {p["alpha"] for p in phonemes}
 
 
 def test_call_failure_falls_back(monkeypatch):
