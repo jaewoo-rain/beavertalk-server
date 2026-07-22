@@ -108,16 +108,15 @@ async def ws_pron_stt(websocket: WebSocket) -> None:
       client→server: 첫 {"type":"config","words":[...],"sampleRate":N} → 바이너리 PCM → 선택 {"type":"stop"}
       server→client: {"type":"ready"|"partial"|"final"|"error", ...}
 
-    인증(D1): 토큰이 오면 검증(유효할 때만 수락), 없으면 허용한다 — 발음챌린지는 저민감
-      (본인 음성 전사, DB 무기록). 과금 남용이 우려되면 토큰 필수로 좁힐 수 있다.
+    인증(D1): Supabase 액세스 토큰(?token=) **필수** — normalcall WS 와 동일 규약.
+      STT 는 과금이 있어 인증된 사용자만 허용한다. 토큰 없음/무효면 1008 로 즉시 닫는다.
     """
     token = websocket.query_params.get("token") or ""
-    if token:
-        auth_user = await run_in_threadpool(verify_token, token)
-        if auth_user is None:
-            with contextlib.suppress(Exception):
-                await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
-            return
+    auth_user = await run_in_threadpool(verify_token, token) if token else None
+    if auth_user is None:
+        with contextlib.suppress(Exception):
+            await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
+        return
 
     await websocket.accept()
     try:
