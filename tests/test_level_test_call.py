@@ -300,8 +300,8 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
 
     instr = holder["system_instruction"]
     # 레벨테스트 대본(비버 자율 진행/OPI): 진행 방식·시험관 블록 포함, 일반 대본의 [학습자 수준] 없음.
-    assert "[진행 방식 — 네가 스스로 이끈다]" in instr
-    assert "표본 수집" in instr
+    assert "[진행 — 네가 이끈다]" in instr
+    assert "실력만 담백하게 파악한다" in instr
     assert "[학습자 수준]" not in instr
     # 레벨테스트 선톡 시드가 주입됐다(무인자 — 비버가 첫 질문을 스스로 시작).
     assert holder["session"].sent_text_turns
@@ -326,7 +326,7 @@ async def test_member_with_level_routes_to_normal(session_factory, seeded):
     instr = holder["system_instruction"]
     assert "[학습자 수준]" in instr
     assert "초급 A 레벨3 학습자" in instr  # level_no=3 프로파일이 주입됨
-    assert "[진행 방식 — 네가 스스로 이끈다]" not in instr
+    assert "[진행 — 네가 이끈다]" not in instr
 
     db = session_factory()
     try:
@@ -347,7 +347,7 @@ async def test_explicit_call_type_forces_level_test(session_factory, seeded, mon
     )
 
     instr = holder["system_instruction"]
-    assert "[진행 방식 — 네가 스스로 이끈다]" in instr
+    assert "[진행 — 네가 이끈다]" in instr
     assert "[학습자 수준]" not in instr
 
     db = session_factory()
@@ -380,7 +380,7 @@ async def test_demo_explicit_level_test_demoted_to_normal(
         )
 
     instr = holder["system_instruction"]
-    assert "[진행 방식 — 네가 스스로 이끈다]" not in instr  # 레벨테스트 대본 아님
+    assert "[진행 — 네가 이끈다]" not in instr  # 레벨테스트 대본 아님
 
     db = session_factory()
     try:
@@ -405,7 +405,7 @@ async def test_ja_level_test_active_uses_japanese_ladder(
     )
 
     instr = holder["system_instruction"]
-    assert "[진행 방식 — 네가 스스로 이끈다]" in instr        # 레벨테스트 대본
+    assert "[진행 — 네가 이끈다]" in instr        # 레벨테스트 대본
     assert "「〜ました／〜でした」" in instr                    # 일본어 사다리 앵커
     assert "-았/었-" not in instr                             # 한국어 앵커 누출 없음
 
@@ -434,7 +434,7 @@ async def test_prod_remeasure_explicit_level_test_demoted_to_normal(
 
     instr = holder["system_instruction"]
     assert "[학습자 수준]" in instr  # 일반 대본(레벨 5 프로파일 주입)
-    assert "[진행 방식 — 네가 스스로 이끈다]" not in instr
+    assert "[진행 — 네가 이끈다]" not in instr
 
     db = session_factory()
     try:
@@ -457,7 +457,7 @@ async def test_prod_explicit_level_test_allowed_when_level_unset(
         call_type="level_test",
     )
 
-    assert "[진행 방식 — 네가 스스로 이끈다]" in holder["system_instruction"]
+    assert "[진행 — 네가 이끈다]" in holder["system_instruction"]
 
     db = session_factory()
     try:
