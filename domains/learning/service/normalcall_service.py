@@ -1895,3 +1895,62 @@ async def classify_leveltest_band(
             ordinal -= 1
 
     return ordinal
+
+
+class LeveltestEndRead(BaseModel):
+    """레벨테스트 종료 판정(전체 맥락 사이드카) 출력."""
+
+    should_end: bool = False  # 지금 통화를 마쳐도 되는가(충분히 파악됨 or 더 못 올라감)
+    reason: str = ""          # 판단 근거(로깅용)
+
+
+def _leveltest_end_instruction(target_language: str = "한국어") -> str:
+    """레벨테스트 종료 판정관 지시문 — 전체 대화 맥락으로 '지금 끝내도 되나'를 판정."""
+    t = target_language
+    return (
+        f"너는 {t} 레벨테스트 통화를 지켜보는 종료 판정관이다. 지금까지의 '전체 대화'를 보고 "
+        f"이 통화를 지금 마쳐도 되는지(should_end) 판정하라. 다음 중 하나가 확실하면 should_end=true:\n"
+        f"① 학습자의 {t} 실력 상한이 충분히 드러났다 — 더 어려운 질문에도 일관된 수준이라 더 재도 그대로다.\n"
+        f"② 학습자가 여러 번 시도했는데도 {t}를 거의/전혀 못 낸다(모국어로만 답하거나 계속 막힘) — "
+        f"더 붙잡아도 새로 얻을 게 없다.\n"
+        f"★ 보수적으로 판정하라: 아직 몇 번 안 물었거나 학습자가 더 보여줄 여지가 있으면 should_end=false. "
+        f"짧은 답 한두 개만 보고 성급히 끝내지 마라 — 확실할 때만 true.\n"
+        "출력은 반드시 주어진 JSON 스키마를 따른다."
+    )
+
+
+async def classify_leveltest_should_end(
+    client: genai.Client,
+    *,
+    transcript: list[str],
+    obs_max: int,
+    target_language: str = "한국어",
+) -> bool:
+    """전체 대화 맥락으로 레벨테스트를 지금 마쳐도 되는지 판정(사이드카 1콜).
+
+    사장님 아이디어: 매 답변마다 전체 전사를 작은 LLM에 넣어 종료 여부 판정 — 카운터(plateau)
+    보다 유연하게 '못하는 사람'을 조기 종료. 실패/불확실/client 없음 → False(안전: 안 끝냄).
+    """
+    if client is None or not transcript:
+        return False
+    convo = "\n".join(transcript[-30:])  # 최근 30턴만(컨텍스트 과대·비용 방지)
+    try:
+        read = await gemini_analysis.generate_structured(
+            client,
+            settings.JUDGE_MODEL,
+            system_instruction=_leveltest_end_instruction(target_language),
+            prompt=(
+                f"[관측된 최고 밴드] {obs_max} (0=입문 ~ 3=고급, -1=아직 없음)\n"
+                f"[전체 대화]\n{convo}"
+            ),
+            schema=LeveltestEndRead,
+            temperature=0.0,
+            thinking_budget=0,  # 실시간 사이드카 — 지연 최소화.
+        )
+    except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
+        logger.warning("leveltest end judge: 예외(무시) → False: %s", exc)
+        return False
+    if read is not None and read.should_end:
+        logger.info("leveltest end judge: should_end=True (%s)", (read.reason or "")[:80])
+        return True
+    return False

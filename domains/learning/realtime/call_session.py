@@ -131,6 +131,10 @@ LEVELTEST_BAND_MIN_ANSWERS = 4      # 천장 판정 전 최소 관측 답변 수
 LEVELTEST_BAND_PLATEAU_N = 3        # 밴드 상승 없이 정체가 이만큼 누적되면 천장(더 못 올라감)
 LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(무한 관측 방지 — 이 수 넘으면 천장)
 LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 비화자/완전초보: None 포함 전체 답변이 이만큼인데 obs_max<=survival 이면 빨리 종료(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
+# 종료 판정 사이드카(C): 매 답변 관측 때 전체 전사를 LLM에 넣어 "지금 끝내도 되나" 판정 —
+# 카운터(천장/plateau)보다 유연하게 '못하는 사람'을 조기 종료. 시간 플로어·최소 답변 충족 후에만
+# 물어보고, 판정관은 보수적으로(확실할 때만 종료). 천장 판정은 안전망으로 함께 유지.
+LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # 종료 판정관에 물어보기 시작하는 최소 답변 수(성급한 종료 방지)
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
@@ -265,6 +269,7 @@ class _CallState:
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "band_observe", "band_client", "band_awaiting", "obs_count", "obs_max", "total_answers",
         "plateau_count", "last_beaver_question", "band_tasks", "band_target_language",
+        "leveltest_transcript",
     )
 
     def __init__(self) -> None:
@@ -344,6 +349,8 @@ class _CallState:
         self.plateau_count: int = 0
         self.last_beaver_question: str = ""
         self.band_tasks: set[asyncio.Task] = set()
+        # 종료 판정 사이드카(C)용 전체 전사 누적 — "Q: … / A: …" 턴별. 종료 판정관이 맥락으로 읽는다.
+        self.leveltest_transcript: list[str] = []
 
 
 class _ClientDisconnect(Exception):
@@ -1238,6 +1245,11 @@ async def _band_observe_sidecar(
         else:
             state.plateau_count += 1
 
+    # 종료 판정관(C)용 전사 누적 — 맥락용(인용 아님)이라 원문 그대로 Q/A.
+    state.leveltest_transcript.append(
+        f"Q: {(prior_question or '').strip()}\nA: {answer.strip()}"
+    )
+
     loop = asyncio.get_running_loop()
     elapsed = (
         loop.time() - state.call_start_ts if state.call_start_ts is not None else 0.0
@@ -1247,6 +1259,29 @@ async def _band_observe_sidecar(
         "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s",
         band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached,
     )
+    # C(종료 판정 사이드카): 천장 미도달이어도 '전체 대화 맥락'으로 지금 끝내도 되나 물어본다.
+    #   플로어(시간 45s·최소 3답변) 충족 시에만, 판정관은 보수적(확실할 때만). 카운터 천장보다
+    #   유연하게 '못하는 사람'을 조기 종료(사장님 아이디어). 실패/불확실은 안 끝냄(안전).
+    if (
+        not reached
+        and not state.should_close
+        and not state.close_seed_sent
+        and elapsed >= LEVELTEST_BAND_TIME_FLOOR_S
+        and state.total_answers >= LEVELTEST_END_JUDGE_MIN_ANSWERS
+    ):
+        try:
+            if await svc.classify_leveltest_should_end(
+                state.band_client,
+                transcript=state.leveltest_transcript,
+                obs_max=state.obs_max,
+                target_language=state.band_target_language,
+            ):
+                reached = True
+                logger.info("normalcall: 종료 판정 사이드카 → 종료(맥락 기반 조기종료)")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 판정 실패는 통화 무영향(안 끝냄)
+            logger.warning("normalcall: 종료 판정 사이드카 실패(무시): %s", exc)
     if not reached:
         return
     # 천장 도달 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
