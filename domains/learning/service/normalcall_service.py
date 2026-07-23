@@ -1758,6 +1758,12 @@ def _band_classify_instruction(target_language: str = "한국어") -> str:
         f"너는 {t} 학습자의 답변 한 개를 보고 그 답변이 보여준 '최고' 밴드를 판정하는 판독기다. "
         "비버(선생님)가 무엇을 물었는지와 무관하게, 학습자 발화 자체에 실재하는 언어로만 판정하라. "
         "[직전 비버 질문]은 문맥 파악용일 뿐 — 비버의 문장을 학습자 실력으로 세지 마라.\n"
+        f"[★ 언어 게이트 — 밴드 재기 전에 먼저 판정하라] 이 답변이 실제로 {t}인가? 학습자가 {t}가 "
+        f"아니라 자기 모국어나 다른 언어로 답했으면 answer_in_target=false 로 하고, 아무리 유창·복잡해도 "
+        f"observed_band=no_attempt 다 — 오직 {t} 발화만이 밴드 근거다. ★ {t}와 학습자 모국어가 어순·"
+        f"조사 구조가 비슷해도(예: 한국어↔일본어는 둘 다 조사+정중종결+어순이 닮음), {t}의 어휘·문법 "
+        f"표지가 실제로 있어야만 {t}로 인정한다. 다른 언어 어휘로 이뤄진 문장은 문장이 길고 복잡해도 "
+        f"answer_in_target=false 이고 no_attempt 다(모국어 유창함을 {t} 실력으로 오독 금지).\n"
         + _bucket_definitions(t) + "\n"
         "- no_attempt: 머뭇·필러('음','어'), 인사만, 되묻기('네?','뭐라고요?'), 질문과 무관한 "
         "한두 마디, 말이 끊긴 미완성.\n"
@@ -1765,8 +1771,9 @@ def _band_classify_instruction(target_language: str = "한국어") -> str:
         "- ★ heard_grammar 에는 밴드 근거가 된 학습자의 실제 구절을 전사에 나타난 '그대로'"
         "(오탈자·띄어쓰기 포함) 복사하라. 교정·정규화·번역·재작성 금지. 근거가 없으면 빈 문자열.\n"
         "[출력 순서 — 반드시 이 순서로 생각하라]\n"
-        "① heard_grammar: 밴드 근거가 된 실제 구절 인용 → ② decisive_feature: 밴드를 정한 "
-        "결정 자질 라벨 → ③ observed_band: 밴드 → ④ spontaneity: 자발성.\n"
+        f"① answer_in_target: 이 답변이 {t}인가(아니면 이하 전부 no_attempt/빈값) → ② heard_grammar: "
+        "밴드 근거가 된 실제 구절 인용 → ③ decisive_feature: 밴드를 정한 결정 자질 라벨 → "
+        "④ observed_band: 밴드 → ⑤ spontaneity: 자발성.\n"
         "출력은 반드시 주어진 JSON 스키마를 따른다."
     )
 
@@ -1774,13 +1781,15 @@ def _band_classify_instruction(target_language: str = "한국어") -> str:
 class LeveltestBandRead(BaseModel):
     """레벨테스트 답 1개의 '보여준 최고 문법 밴드' 판독 출력(사이드카 단발 콜).
 
-    필드 순서 = 생성 순서(CoT): 인용 → 결정자질 → 밴드 → 자발성. heard_grammar 는
-    밴드 근거가 된 학습자의 실제 구절을 그대로 인용한다(추측·재작성 금지). 관통원칙3:
-    observed_band 가 intermediate 이상인데 이 인용이 실제 발화에 실재하지 않으면
-    호출부에서 한 밴드 강등한다(환각 방어).
+    필드 순서 = 생성 순서(CoT): 언어게이트 → 인용 → 결정자질 → 밴드 → 자발성. 먼저 답변이
+    실제 대상 언어인지 판정하고(answer_in_target), 아니면 호출부가 밴드를 무효화한다(닮은 언어
+    모국어 누수 차단). heard_grammar 는 밴드 근거가 된 학습자의 실제 구절을 그대로 인용한다
+    (추측·재작성 금지). 관통원칙3: observed_band 가 intermediate 이상인데 이 인용이 실제 발화에
+    실재하지 않으면 호출부에서 한 밴드 강등한다(환각 방어).
     """
 
-    heard_grammar: str = ""  # 밴드 근거가 된 학습자 실제 구절 인용(없으면 "")
+    answer_in_target: bool = True  # ① 이 답변이 실제 대상 언어인가(모국어·타 언어면 False → 밴드 무효)
+    heard_grammar: str = ""  # ② 밴드 근거가 된 학습자 실제 구절 인용(없으면 "")
     decisive_feature: str = ""  # 밴드를 정한 결정 자질 라벨(예: "간접화법 -다고 하다")
     observed_band: Literal[
         "no_attempt", "survival", "beginner", "intermediate", "advanced"
@@ -1858,6 +1867,12 @@ async def classify_leveltest_band(
         return None
 
     if read is None:
+        return None
+
+    # ★ 언어 게이트(관통원칙1: 코드가 심판) — 답변이 대상 언어가 아니면 밴드 무효(None).
+    #   닮은 언어(한↔일)에서 유창한 모국어 답변이 높은 밴드로 새는 것을 원천 차단.
+    if not read.answer_in_target:
+        logger.info("leveltest band: 대상 언어 아님(answer_in_target=False) → None")
         return None
 
     # no_attempt / 판정불가 → None(엔진이 재시도·강제전진으로 처리).
