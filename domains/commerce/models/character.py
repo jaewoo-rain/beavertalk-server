@@ -35,6 +35,8 @@ class Character(Base, TimestampMixin):
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), comment="가격(달러)")
     name: Mapped[str] = mapped_column(Text, comment="캐릭터 이름")
     description: Mapped[Optional[str]] = mapped_column(Text, comment="세부 설명")
+    story: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 스토리/서사(배경 이야기)")
+    gender: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 성별 느낌(male/female)")
     image_url: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 이미지")
     tags: Mapped[Optional[list[str]]] = mapped_column(
         JSON, comment="음색/특성 태그 배열(예: Warm, Calm, Soft)"
