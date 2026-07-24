@@ -98,3 +98,5 @@ gcp_key.json
 tts_key.json
 
 fcm_sa.json
+# QA 테스트 오디오 산출물(대용량·로컬 전용)
+qa_audio/

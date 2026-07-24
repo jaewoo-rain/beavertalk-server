@@ -1211,7 +1211,7 @@ async def test_leveltest_opening_seed_bootstraps_without_injection(session_facto
 
     turns = holder["s"].sent_text_turns
     assert turns and turns[0].startswith("[통화 시작]"), "레벨테스트 오프닝 선톡 시드가 아님"
-    assert "가벼운 인사 한 마디 + 바로 질문" in turns[0], "레벨테스트 오프닝 문구 아님"
+    assert "인사부터 되는지 본다" in turns[0], "레벨테스트 오프닝 문구 아님"
     assert not any(t.startswith("[다음]") for t in turns), \
         "서버가 질문을 주입했다('[다음]' 시드 — 무주입 위반)"
 
@@ -1464,34 +1464,37 @@ async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monke
 # --------------------------------------------------------------------------- #
 # (f) 레벨테스트 Phase 2 — 조용한 밴드 관측 + 조기종료 (질문 주입 0)
 #
-# 유저 답변마다 사이드카 svc.classify_leveltest_band(answer_text, prior_question) 가
-# 밴드(0 survival~3 advanced, None=판정불가)를 조용히 관측한다. 서버는 obs_max/plateau
+# 유저 답변마다 사이드카 svc.judge_leveltest_turn(transcript, latest_answer, ...) 가
+# (밴드 서수 0 chunk~6 adv|None, should_end) 를 조용히 관측한다. 서버는 obs_max/plateau
 # 를 추적해 천장(_band_ceiling_reached)에 닿으면 종료 시드(CLOSE_SEED_LEVELTEST)만
 # 주입한다 — ★ 질문 주입 없음('[다음]' 0건). 백스톱은 3분캡·무음3단.
 #
-# 모킹: cs.svc.classify_leveltest_band 를 스크립트된 밴드 시퀀스로 교체 + 천장 게이트
+# 모킹: cs.svc.judge_leveltest_turn 을 스크립트된 밴드 시퀀스로 교체 + 천장 게이트
 # 상수(TIME_FLOOR/MIN_ANSWERS)를 monkeypatch 로 축소해 결정적으로 천장을 만든다.
 # _CLOSE_MARK 는 CLOSE_SEED_LEVELTEST('오늘 대화는 여기까지')로 종료 시드를 식별한다.
 # --------------------------------------------------------------------------- #
 _CLOSE_MARK = "오늘 대화는 여기까지"  # CLOSE_SEED_LEVELTEST 마커(넛지·[다음] 아님)
 
 
-def _fake_band(seq):
-    """classify_leveltest_band 가짜 — 호출마다 seq 의 다음 값 반환(소진 후 마지막 반복).
+def _fake_band(seq, end_after=None):
+    """judge_leveltest_turn 가짜 — 호출마다 (밴드, should_end) 반환(밴드는 seq 순차).
 
     seq: int|None(항상 그 값) 또는 list[int|None](순차, 소진되면 마지막 유지) 또는
-         "raise"(항상 예외 — 백스톱 검증). 반환: (async fake, 호출 기록 dict).
+         "raise"(항상 예외 — 백스톱 검증).
+    end_after: None(should_end 항상 False — 카운터 천장 경로만 검증) 또는 int(그 관측번호부터
+         should_end=True — 판정관 맥락 종료 경로 검증). 반환: (async fake, 기록 dict).
     """
     rec: dict = {"n": 0, "args": []}
 
-    async def _f(client, *, answer_text, prior_question=None, target_language="한국어"):
+    async def _f(client, *, transcript=None, latest_answer, prior_question=None,
+                 obs_max=-1, target_language="한국어"):
         rec["n"] += 1
-        rec["args"].append((answer_text, prior_question))
+        rec["args"].append((latest_answer, prior_question))
         if seq == "raise":
-            raise RuntimeError("band classify down")
-        if isinstance(seq, list):
-            return seq[min(rec["n"] - 1, len(seq) - 1)]
-        return seq
+            raise RuntimeError("turn judge down")
+        band = seq[min(rec["n"] - 1, len(seq) - 1)] if isinstance(seq, list) else seq
+        should_end = end_after is not None and rec["n"] >= end_after
+        return band, should_end
 
     return _f, rec
 
@@ -1555,16 +1558,17 @@ class BandDriver:
         yield LiveEvent(kind="turn_end")
 
 
-# --- 1. advanced 즉시 천장 종료 --------------------------------------------- #
+# --- 1. adv(최상위) 즉시 천장 종료 ------------------------------------------ #
 @pytest.mark.asyncio
 async def test_band_advanced_reaches_ceiling_and_closes(session_factory, seeded, monkeypatch):
-    """관측 band=3(advanced) → obs_max=3 → 천장 → should_close → 종료 시드
-    (CLOSE_SEED_LEVELTEST)·작별·call_ended. 게이트 축소(MIN=1·FLOOR=0)로 첫 관측에서 천장.
-    3분캡(LEVELTEST_MAX_S 기본 180s) 전에 밴드가 종료를 몬다(캡이면 hang → 여기선 즉시 종료)."""
+    """관측 band 서수=6(adv 최상위) → obs_max=6 → 천장(call_session obs_max>=6) → should_close →
+    종료 시드(CLOSE_SEED_LEVELTEST)·작별·call_ended. 게이트 축소(MIN=1·FLOOR=0)로 첫 관측에서 천장.
+    3분캡(LEVELTEST_MAX_S 기본 180s) 전에 밴드가 종료를 몬다(캡이면 hang → 여기선 즉시 종료).
+    ⚠ 7밴드 이식: 옛 서수 3(advanced)이 이제 a3(L4)라, 최상위 천장 검증은 서수 6(adv)로 먹인다."""
     monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
     monkeypatch.setattr(cs, "LEVELTEST_BAND_MIN_ANSWERS", 1)
-    fake, rec = _fake_band(3)
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    fake, rec = _fake_band(6)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=8)
     ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
@@ -1572,31 +1576,49 @@ async def test_band_advanced_reaches_ceiling_and_closes(session_factory, seeded,
     assert rec["n"] >= 1, "관측 사이드카가 한 번도 호출되지 않음"
     assert rec["args"][0][0].startswith("저는 서울에 살아요"), "관측에 유저 답변이 캡처되지 않음"
     assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
-        "advanced 천장 도달했는데 종료 시드(CLOSE_SEED_LEVELTEST) 미주입"
+        "adv(최상위) 천장 도달했는데 종료 시드(CLOSE_SEED_LEVELTEST) 미주입"
     assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
         "관측이 질문을 주입했다('[다음]' — 무주입 위반)"
     assert BandDriver.FAREWELL in ws.sent_bytes, "작별 오디오 미전달(뚝 끊김)"
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
 
 
-# --- 2. plateau 종료 -------------------------------------------------------- #
+# --- 2. should_end 종료 (Phase 2: plateau 종료 대체) ------------------------ #
 @pytest.mark.asyncio
-async def test_band_plateau_reaches_ceiling_and_closes(session_factory, seeded, monkeypatch):
-    """관측 band=1 고정(상승 없음) → plateau_count>=PLATEAU_N(3) & obs_count>=MIN(4) →
-    천장 → 종료 시드·작별·call_ended. advanced 없이도 '더 못 올라감'으로 조기종료한다."""
+async def test_band_should_end_closes(session_factory, seeded, monkeypatch):
+    """관측 band=1 고정(상승 없음)인데 판정관이 should_end=True(맥락상 실력 상한 드러남/못함) →
+    천장(obs_max) 미도달이어도 조기종료. ⚠ Phase 2: 기계적 plateau 종료를 제거하고, '더 못
+    올라감' 판정을 판정관 should_end(escalate-fail)에 맡긴다."""
     monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
-    # MIN_ANSWERS=4·PLATEAU_N=3 기본값 사용(정체 4관측: obs_max=1 후 plateau 3).
-    fake, rec = _fake_band(1)
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    # 4번째 관측부터 should_end=True (END_JUDGE_MIN=3 충족 후). obs_max=1 이라 카운터 천장은 안 침.
+    fake, rec = _fake_band(1, end_after=4)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=8)
     ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
 
-    assert rec["n"] >= 4, f"정체 천장 판정에 필요한 관측(>=4)이 안 쌓임: {rec['n']}"
+    assert rec["n"] >= 4, f"should_end 종료에 필요한 관측(>=4)이 안 쌓임: {rec['n']}"
     assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
-        "plateau 천장 도달했는데 종료 시드 미주입"
+        "should_end 도달했는데 종료 시드 미주입"
     assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
         "관측이 질문을 주입했다('[다음]' — 무주입 위반)"
+
+
+# --- 2b. obs_count 안전 상한 종료(카운터 천장의 유일 잔존 경로) -------------- #
+@pytest.mark.asyncio
+async def test_band_obs_count_cap_closes(session_factory, seeded, monkeypatch):
+    """band=1 고정 + should_end 계속 False 여도, 관측이 MAX(10)까지 쌓이면 obs_count 안전
+    상한으로 종료(무한 관측 방지). plateau 제거 후 남은 유일한 카운터 천장 경로."""
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    fake, rec = _fake_band(1)  # should_end 항상 False
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
+
+    sess = BandDriver(n_answers=13)  # MAX(10) 넘게 답변 제공
+    ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
+
+    assert rec["n"] >= 10, f"obs_count 안전상한(MAX=10) 도달 전 종료됨: {rec['n']}"
+    assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
+        "obs_count 안전상한 도달했는데 종료 시드 미주입"
     assert BandDriver.FAREWELL in ws.sent_bytes, "작별 오디오 미전달"
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
 
@@ -1612,7 +1634,7 @@ async def test_band_none_never_reaches_ceiling(session_factory, seeded, monkeypa
     monkeypatch.setattr(cs, "LEVELTEST_BAND_NONSPEAKER_MAX", 99)  # 비화자 경로 무력화(obs 경로만 검증)
     monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡은 멀리(밴드 무발동을 순수 검증)
     fake, rec = _fake_band(None)
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=5, idle_until_close=False)
     ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
@@ -1634,7 +1656,7 @@ async def test_band_nonspeaker_early_closes(session_factory, seeded, monkeypatch
     monkeypatch.setattr(cs, "LEVELTEST_BAND_NONSPEAKER_MAX", 4)  # 4회 시도면 종료
     monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡은 멀리(비화자 경로만 검증)
     fake, rec = _fake_band(None)
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=8, idle_until_close=False)
     await _run_call_with(sess, seeded, session_factory, call_type="level_test")
@@ -1653,8 +1675,8 @@ async def test_band_observe_never_injects_questions(session_factory, seeded, mon
     텍스트 턴은 선톡 시드([통화 시작]) + 종료 시드(CLOSE_SEED_LEVELTEST)뿐 — 질문 마커
     '[다음]' 0건. 관측은 should_close/종료 시드만 세우고 질문을 절대 주입하지 않는다."""
     monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
-    fake, rec = _fake_band([1, 2, 2, 3])  # 상승하다 3에서 천장
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    fake, rec = _fake_band([1, 2, 3], end_after=4)  # 상승 후 판정관 should_end 로 종료
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=8)
     await _run_call_with(sess, seeded, session_factory, call_type="level_test")
@@ -1669,17 +1691,17 @@ async def test_band_observe_never_injects_questions(session_factory, seeded, mon
     assert any(_CLOSE_MARK in t for t in turns), "천장 도달 종료 시드 미주입"
 
 
-# --- 5. 시간 플로어: FLOOR 미달이면 band=3 여도 조기종료 안 함 --------------- #
+# --- 5. 시간 플로어: FLOOR 미달이면 band=6(최상위)여도 조기종료 안 함 --------- #
 @pytest.mark.asyncio
 async def test_band_time_floor_blocks_early_close(session_factory, seeded, monkeypatch):
-    """천장 시간 플로어 게이트: FLOOR 를 도달불가(9999s)로 두면 band=3 이 쌓여도(MIN=1)
+    """천장 시간 플로어 게이트: FLOOR 를 도달불가(9999s)로 두면 band=6(최상위)이 쌓여도(MIN=1)
     _band_ceiling_reached 가 elapsed<FLOOR 로 False → 밴드발 종료 시드 없음. 초반 소수
     표본으로 조기종료하지 않음을 보장(종료는 캡/무음이 담당)."""
     monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 9999.0)  # 도달 불가
     monkeypatch.setattr(cs, "LEVELTEST_BAND_MIN_ANSWERS", 1)
     monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 100.0)  # 캡도 멀리(플로어 게이트만 검증)
-    fake, rec = _fake_band(3)
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    fake, rec = _fake_band(6)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=5, idle_until_close=False)
     ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
@@ -1692,7 +1714,7 @@ async def test_band_time_floor_blocks_early_close(session_factory, seeded, monke
 # --- 6. 백스톱: 관측 사이드카 예외여도 3분캡이 종료를 몬다 ------------------- #
 @pytest.mark.asyncio
 async def test_band_sidecar_failure_falls_back_to_cap(session_factory, seeded, monkeypatch):
-    """R5 백스톱: classify_leveltest_band 가 매번 예외여도 사이드카가 흡수(관측 1건 누락)
+    """R5 백스톱: judge_leveltest_turn 이 매번 예외여도 사이드카가 흡수(관측 1건 누락)
     → 통화 무영향. 밴드는 종료를 못 몰지만 3분캡(LEVELTEST_MAX_S)이 종료 시드·작별로
     우아하게 종료한다. 관측 실패가 통화를 죽이지 않음을 보장."""
     monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
@@ -1700,7 +1722,7 @@ async def test_band_sidecar_failure_falls_back_to_cap(session_factory, seeded, m
     monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 0.3)   # 3분 캡 → 0.3s
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     fake, rec = _fake_band("raise")
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=8, idle_until_close=True)
     ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
@@ -1716,10 +1738,10 @@ async def test_band_sidecar_failure_falls_back_to_cap(session_factory, seeded, m
 @pytest.mark.asyncio
 async def test_normal_call_never_observes_band(session_factory, seeded, monkeypatch):
     """일반 통화(band_observe=False)는 밴드 관측 경로를 전혀 밟지 않는다 — 유저가 여러 번
-    답해도 classify_leveltest_band 는 0회 호출. 레벨테스트 전용 관측이 일반 통화로 새지
+    답해도 judge_leveltest_turn 은 0회 호출. 레벨테스트 전용 관측이 일반 통화로 새지
     않음을 보장(격리 회귀)."""
     fake, rec = _fake_band(3)
-    monkeypatch.setattr(cs.svc, "classify_leveltest_band", fake)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
 
     sess = BandDriver(n_answers=4, idle_until_close=False)
     await _run_call_with(sess, seeded, session_factory, call_type="normal")

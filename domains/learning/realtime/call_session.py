@@ -332,7 +332,7 @@ class _CallState:
         self.user_turn_open: bool = False
         # ── 레벨테스트 Phase 2: 조용한 밴드 관측(무주입) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
-        # band_client: classify_leveltest_band 에 넘길 genai.Client(사이드카가 참조).
+        # band_client: judge_leveltest_turn 에 넘길 genai.Client(사이드카가 참조).
         # band_awaiting: 관측 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 관측).
         # obs_count: 관측 성공(band 값) 누계. obs_max: 관측된 최고 밴드(단조증가, -1=아직 없음).
         # plateau_count: 최고 밴드 갱신 없이 정체된 관측 연속 수(천장 판정 재료).
@@ -1167,10 +1167,15 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
 def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
     """관측된 최고 밴드(obs_max)가 '천장'에 닿았는지 판정(순수 함수 — 부작용 0, 테스트 용이).
 
-    시간 플로어(초반 표본으로 조기종료 방지) & 최소 관측수 충족 후 셋 중 하나면 천장:
-      - obs_max >= 3        : advanced(최상위) 도달 — 더 잴 상단이 없다.
-      - plateau_count >= N  : 최고 밴드가 갱신 안 된 정체 누적 — 더 못 올라간다(상한 확정).
+    시간 플로어(초반 표본으로 조기종료 방지) & 최소 관측수 충족 후 둘 중 하나면 천장:
+      - obs_max >= 6        : adv(최상위 밴드) 도달 — 더 잴 상단이 없다. (7밴드: chunk0~adv6)
       - obs_count >= MAX    : 관측 답변 안전 상한 — 무한 관측 방지.
+    ⚠ Phase 2(OPI 종료 통일): plateau_count(밴드 정체) 종료를 **제거**했다. OPI 유도는 초반 rung
+      (인사·이름·사는곳·어제)이 원래 다 같은 밴드(a1)라, plateau가 climb 도중 오발동해 mid/adv
+      학습자를 하위 레벨에서 조기절단했다(시뮬로 확인). '학습자가 실력 꼭대기에 닿았다'는 판단은
+      기계적 정체가 아니라 판정관의 should_end(맥락 기반 escalate-fail)에 맡긴다(호출부에서 OR).
+      이 함수는 이제 절대 상한(adv 도달)·안전 상한(관측수)·비화자 조기만 담당한다.
+    ⚠ 서수 의미 전환(7밴드 이식): 옛 '>= 3'(advanced 최상위)을 '>= 6'(adv 최상위)으로 교체.
     """
     if elapsed < LEVELTEST_BAND_TIME_FLOOR_S:
         return False
@@ -1181,8 +1186,7 @@ def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
     if state.obs_count < LEVELTEST_BAND_MIN_ANSWERS:
         return False
     return (
-        state.obs_max >= 3
-        or state.plateau_count >= LEVELTEST_BAND_PLATEAU_N
+        state.obs_max >= 6
         or state.obs_count >= LEVELTEST_BAND_MAX_ANSWERS
     )
 
@@ -1222,16 +1226,22 @@ async def _band_observe_sidecar(
     백스톱). ★ 질문 주입 없음 — should_close/종료 시드만. 예외·CancelledError 처리는 힌트
     사이드카와 동일(취소는 재전파, 그 외는 흡수 → band None 취급).
     """
+    # 통합 판정관(밴드+종료 1콜): 최신 발화 밴드 + 전체 대화 맥락 종료 여부를 함께 받는다.
+    should_end = False
     try:
-        band = await svc.classify_leveltest_band(
-            state.band_client, answer_text=answer, prior_question=prior_question,
+        band, should_end = await svc.judge_leveltest_turn(
+            state.band_client,
+            transcript=state.leveltest_transcript,
+            latest_answer=answer,
+            prior_question=prior_question,
+            obs_max=state.obs_max,
             target_language=state.band_target_language,
         )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로 — 재전파
     except Exception as exc:  # noqa: BLE001 - 관측 실패는 관측 1건 누락일 뿐 통화 무영향
         logger.warning("normalcall: 밴드 관측 실패(무시 — 관측 1건 누락): %s", exc)
-        band = None
+        band, should_end = None, False
     finally:
         state.band_awaiting = False  # in-flight 해제 → 다음 답변 관측 허용
 
@@ -1245,7 +1255,7 @@ async def _band_observe_sidecar(
         else:
             state.plateau_count += 1
 
-    # 종료 판정관(C)용 전사 누적 — 맥락용(인용 아님)이라 원문 그대로 Q/A.
+    # 통합 판정관에 넘길 전사 누적(다음 턴 맥락) — 원문 그대로 Q/A(인용 아님).
     state.leveltest_transcript.append(
         f"Q: {(prior_question or '').strip()}\nA: {answer.strip()}"
     )
@@ -1256,32 +1266,23 @@ async def _band_observe_sidecar(
     )
     reached = _band_ceiling_reached(state, elapsed)
     logger.info(
-        "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s",
-        band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached,
+        "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s should_end=%s",
+        band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached, should_end,
     )
-    # C(종료 판정 사이드카): 천장 미도달이어도 '전체 대화 맥락'으로 지금 끝내도 되나 물어본다.
-    #   플로어(시간 45s·최소 3답변) 충족 시에만, 판정관은 보수적(확실할 때만). 카운터 천장보다
-    #   유연하게 '못하는 사람'을 조기 종료(사장님 아이디어). 실패/불확실은 안 끝냄(안전).
+    # 종료 판정(통합 판정관 B): 카운터 천장 미도달이어도 '전체 대화 맥락'상 지금 끝내도 된다고
+    #   판단됐으면 종료. 플로어(시간 45s·최소 3답변) 충족 시에만 반영 — 판정관은 보수적(확실할
+    #   때만). 카운터 천장보다 유연하게 '못하는 사람'을 조기 종료(사장님 아이디어). 실패/불확실은
+    #   안 끝냄(안전 — judge_leveltest_turn 이 False 반환).
     if (
         not reached
+        and should_end
         and not state.should_close
         and not state.close_seed_sent
         and elapsed >= LEVELTEST_BAND_TIME_FLOOR_S
         and state.total_answers >= LEVELTEST_END_JUDGE_MIN_ANSWERS
     ):
-        try:
-            if await svc.classify_leveltest_should_end(
-                state.band_client,
-                transcript=state.leveltest_transcript,
-                obs_max=state.obs_max,
-                target_language=state.band_target_language,
-            ):
-                reached = True
-                logger.info("normalcall: 종료 판정 사이드카 → 종료(맥락 기반 조기종료)")
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - 판정 실패는 통화 무영향(안 끝냄)
-            logger.warning("normalcall: 종료 판정 사이드카 실패(무시): %s", exc)
+        reached = True
+        logger.info("normalcall: 통합 판정관 should_end → 종료(맥락 기반 조기종료)")
     if not reached:
         return
     # 천장 도달 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.

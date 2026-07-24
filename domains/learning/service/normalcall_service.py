@@ -1132,22 +1132,28 @@ async def analyze_call(
 # 레벨테스트 통화후 판정 (P1 — docs/20260709_1346 ⑩)
 # --------------------------------------------------------------------------- #
 class LevelAssessment(BaseModel):
-    """레벨테스트 판정 1콜의 전체 출력(4버킷 — 행동 관찰).
+    """레벨테스트 판정 1콜의 전체 출력(7밴드 — 마커 기반).
 
-    ⚠ 필드 순서 = 생성 순서(구조화 출력 내 CoT 강제): 인용 → 추론 → 밴드 →
+    ⚠ 필드 순서 = 생성 순서(구조화 출력 내 CoT 강제): 인용 → 추론 → 변주게이트 → 밴드 →
     신뢰도 → 표본질 → 요약 → 학습자 피드백.
-    LLM 은 4버킷 밴드(survival/beginner/intermediate/advanced/unknown)만 판정하고,
+    LLM 은 7밴드(chunk/a1/a2/a3/a4/mid/adv/unknown)만 판정하고,
     최종 앱 레벨(1~13) 숫자는 서버가 소유한다(AI 는 증인, 코드가 심판 — 관통 원칙 1).
-    band → level_no 배정은 _place_from_band(_BUCKET_LEVEL 룩업)이 확정한다.
+    band → level_no 배정은 _place_from_band(_BUCKET_LEVEL 룩업 + 변주 게이트)이 확정한다.
     """
 
     evidence: list[str] = Field(
         description="학습자(USER)의 한국어 발화 원문 인용, 최대 5개(수정·번역 금지)"
     )
     reasoning: str = Field(description="인용을 근거로 한 판정 추론(한국어)")
-    band: Literal["survival", "beginner", "intermediate", "advanced", "unknown"] = Field(
-        description="4버킷 밴드(행동 관찰) — survival=입문(인사·청크만) / beginner=초급(단어+구문) / "
-        "intermediate=중급(온전한 문장) / advanced=고급(어법 정확+긴 담화) / unknown=표본 부족"
+    distinct_structures: int = Field(
+        default=0,
+        description="학습자가 서로 다른 문법 구조를 몇 개 productive하게 산출했나(변주 게이트). "
+        "같은 문장 반복이나 인상적 문장 하나만 외워 말하고 나머지는 못 하면 ≤1 — 서버가 레벨을 낮게 캡한다.",
+    )
+    band: Literal["chunk", "a1", "a2", "a3", "a4", "mid", "adv", "unknown"] = Field(
+        description="7밴드(마커 기반) — chunk=A0(정형표현·단어) / a1=A1(조사+현재/과거 활용 단문) / "
+        "a2=A2(이유·미래·희망·조건) / a3=A3(명사인용·추측·비교·관형) / a4=A4(경험·허락·변화·반말) / "
+        "mid=B중급(동사간접화법·피동) / adv=C고급(격식·논증·추상) / unknown=표본 부족"
     )
     confidence: Literal["high", "medium", "low"] = Field(description="판정 신뢰도")
     sample_quality: Literal["sufficient", "sparse", "none"] = Field(
@@ -1177,113 +1183,114 @@ class LeveltestVerdict(BaseModel):
     )
 
 
-# ── 레벨테스트 4버킷(행동 관찰) — 라이브 분류기·통화후 판정관 공유 정의 ──────────
-# 이름표(초급/중급)가 아니라 '관찰 가능한 발화 행동'으로 밴드를 읽는다. survival/beginner/
-# intermediate/advanced 서수(0..3)는 그대로 재사용하되 의미를 아래 행동정의로 고정한다.
-# 이 정의를 _leveltest_instruction(통화후)·_band_classify_instruction(통화중)이 공유해
-# 두 판정기가 같은 잣대로 밴드를 읽게 한다(정의 불일치가 저평가·정합 버그의 원인이었음).
+# ── 레벨테스트 7밴드(마커 기반) — 라이브 분류기·통화후 판정관 공유 정의 ──────────
+# OPI 재설계(2026-07-24): 4버킷(survival/beginner/intermediate/advanced)을 커리큘럼 문법
+# 마커에 맞춘 7밴드(chunk/a1/a2/a3/a4/mid/adv)로 확장한다. 각 밴드는 '바로 위 밴드 마커의
+# 부재'로 상한이 정의된다(마커 체크리스트). 골든 전사·유도 시뮬로 검증된 KO 기준(sim_elicit
+# JUDGE)을 이식. 이 정의를 _leveltest_instruction(통화후)·_leveltest_turn_instruction(통화중)이
+# 공유해 두 판정기가 같은 마커 잣대를 쓰게 한다(정의 불일치가 저평가·정합 버그의 원인이었음).
 # (멀티랭귀지) 버킷 정의는 언어별 — 문법 마커·예시가 대상 언어로 갈린다. 판정 근거는 대상
 # 언어 발화만이므로, 대상 언어에 맞는 정의를 써야 학습자 모국어를 실력으로 오독하지 않는다.
+# KO 만 정밀 검증됨 — JA/EN/CN/FR/VI 는 같은 7밴드 구조로 확장(언어별 마커 검증 필요).
 _BUCKET_DEFINITIONS_KO = (
-    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
-    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(연결어미로 절을 엮음)·"
-    "다양한 화법·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
-    "- intermediate(중급): 조사(을/를·에·에서)와 제대로 활용된 종결어미(-아요/어요·-았/었어요·-(으)ㄹ 거예요)를 "
-    "갖춘 '온전한 문장'을 만든다(예: '김치를 좋아해요', '저는 자전거를 타요'). 다만 아직 긴 복문·다양한 화법까지는 아니다.\n"
-    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 조사·활용 없는 전보식·사전형 "
-    "나열(예: '김치 좋다', '자전거 좋다', '나는 김치다', 단어 나열). 여러 단어를 뱉어도 조사+활용된 종결어미로 "
-    "온전한 문장을 완성하지 못하면 초급이다.\n"
-    "- survival(입문): 인사·정형청크(안녕하세요·감사합니다·이거 주세요)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
-    "★ 핵심 변별 — (초급↔중급) 조사·활용된 종결어미를 갖춘 문법적 문장을 만드는가. 단어 슬롯 채우기('N 좋다')는 "
-    "여러 개여도 초급이다. (중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
-    "★ 발음·조사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
-    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 유창한 긴 담화를 '표지가 정확히 일치하지 않는다'는 "
-    "이유로 깎지 마라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 문법 마커로 읽어라. "
+    "각 밴드는 '바로 위 밴드 마커의 부재'로 상한이 정해진다]\n"
+    "- chunk(L1): 정형표현(안녕하세요·감사합니다·이거 주세요)·숫자·이름·단어, 또는 조사·활용 없는 전보식 "
+    "나열('저 서울','김치 좋다'). 새 문장 생성 없음.\n"
+    "- a1(L2): 조사(을/를·이/가·에·에서)+현재/과거 활용 종결(-아요/어요·-았/었어요·N이에요)로 기초 단문. "
+    "고/지만/안까지. (A2 마커 없음)\n"
+    "- a2(L3): +이유 -아서·미래 -(으)ㄹ 거예요·희망 -고 싶다·조건 -(으)면·진행 -고 있다·능력 -(으)ㄹ 수 있다·"
+    "현재관형 -은/-는 N.\n"
+    "- a3(L4): +명사인용 N(이)라고 하다·추측 -(으)ㄴ/는 것 같다/-겠-·이유 -(으)니까·비교 -보다·과거/미래 관형 "
+    "-(으)ㄴ N·-(으)ㄹ N·명사화 -는 것·배경 -는데·나열 -거나/-다가.\n"
+    "- a4(L5): +경험 -(으)ㄴ 적 있다·허락 -아도 되다·변화 -게 되다/-아지다·순서 -기 전에·의도 -(으)ㄹ까 하다·"
+    "반말 -다.\n"
+    "- mid(L6): 동사 간접화법 -다고/-냐고/-자고 하다·전언체 -대(요)·피동 -이/히/리/기-·-느라고/-자마자/-더니·"
+    "목적 -기 위해·사동 -게 하다.\n"
+    "- adv(L10): 격식·문어체·논증·인용확장·-(으)ㅁ에도 불구하고 등 C급, 추상/사회 주제를 길고 논리적으로.\n"
+    "★ 간접화법 형태 구분: 명사인용 N(이)라고 하다=a3 / 동사인용 -다고/-냐고/-자고 하다=mid.\n"
+    "★ 발음·조사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문법 마커의 폭과 복잡도'로 판정.\n"
+    "★ 학습자가 자발적으로 산출한 '가장 높은' 마커로 밴드를 정한다. 짧게 답해도 상위 마커가 있으면 그 밴드로 읽어라."
 )
 
-# 일본어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 일본어(は/が/を 조사, です·ます·ました 종결).
+# 일본어 버킷 정의(7밴드 확장 — 언어별 검증 필요) — 한국어와 같은 마커 잣대, 마커·예시만 일본어.
 _BUCKET_DEFINITIONS_JA = (
-    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
-    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(から·ので·たら·ても 등으로 절을 엮음)·"
-    "다양한 화법·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
-    "- intermediate(중급): 조사(は・が・を・に・で)와 제대로 활용된 종결(です・ます・でした・ました・〜たいです)을 "
-    "갖춘 '온전한 문장'을 만든다(예: 'キムチが好きです', '私は自転車に乗ります'). 다만 아직 긴 복문·다양한 화법까지는 아니다.\n"
-    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 조사·활용 없는 전보식·사전형 "
-    "나열(예: 'キムチ 好き', '自転車 好き', 단어 나열). 여러 단어를 뱉어도 조사+활용된 종결로 온전한 문장을 "
-    "완성하지 못하면 초급이다.\n"
-    "- survival(입문): 인사·정형청크(こんにちは·ありがとうございます·これをください)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
-    "★ 핵심 변별 — (초급↔중급) 조사·활용된 종결(です/ます 등)을 갖춘 문법적 문장을 만드는가. 단어 슬롯 채우기('N 好き')는 "
-    "여러 개여도 초급이다. (중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
-    "★ 발음·조사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
-    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 유창한 긴 담화를 '표지가 정확히 일치하지 않는다'는 "
-    "이유로 깎지 마라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 문법 마커로 읽어라. "
+    "각 밴드는 '바로 위 밴드 마커의 부재'로 상한이 정해진다]\n"
+    "- chunk(L1): 정형표현(こんにちは·ありがとうございます·これをください)·숫자·이름·단어, 또는 조사·활용 없는 "
+    "전보식 나열('キムチ 好き','自転車 好き'). 새 문장 생성 없음.\n"
+    "- a1(L2): 「〜は〜です」명사문·조사(は・も・を・の)·「〜が好き」·「〜を〜ます」로 기초 단문. (A2 마커 없음)\n"
+    "- a2(L3): +존재 〜がある/いる·이동 〜に行く·권유 〜ませんか/ましょう·이유 〜から·형용사 수식·희망 〜が欲しい.\n"
+    "- a3(L4): +진행 〜ている·과거 〜でした/ました·시간 〜とき·변화 〜になる/くなる·명사화 〜こと.\n"
+    "- a4(L5): +희망 〜たい·시도 〜てみる·방향 〜ていく/くる·정중 의뢰 〜てくださいませんか·비교 〜と〜とどちらが.\n"
+    "- mid(L6): 인용 〜という/〜と言っていました·이유 〜ので·조건 〜なら·금지 〜てはいけない·〜てから·양태 〜そうだ·수동 〜(ら)れる.\n"
+    "- adv(L10): 격식·문어체·구어 〜っていうか·완곡 〜ないこともない/〜に違いない·격식 접속(〜にあたって 등) C급, 추상 주제를 길고 논리적으로.\n"
+    "★ 발음·조사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문법 마커의 폭과 복잡도'로 판정.\n"
+    "★ 학습자가 자발적으로 산출한 '가장 높은' 마커로 밴드를 정한다. 짧게 답해도 상위 마커가 있으면 그 밴드로 읽어라."
 )
 
-# 영어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 영어(관사·시제·문장 완성도).
+# 영어 버킷 정의(7밴드 확장 — 언어별 검증 필요) — 한국어와 같은 마커 잣대, 마커·예시만 영어.
 _BUCKET_DEFINITIONS_EN = (
-    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
-    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(because·if·that·관계절로 절을 엮음)·"
-    "다양한 시제·화법·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
-    "- intermediate(중급): 주어+동사+목적어의 '온전한 문장'을 관사·올바른 시제(현재/과거/미래)와 함께 만든다"
-    "(예: 'I went to school yesterday', 'She likes coffee'). 다만 아직 긴 복문·다양한 화법까지는 아니다.\n"
-    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 시제·관사 없는 전보식"
-    "(예: 'I go school', 'me happy', 'yesterday I go'). 여러 단어를 뱉어도 관사·시제를 갖춘 온전한 문장을 "
-    "완성하지 못하면 초급이다.\n"
-    "- survival(입문): 인사·정형청크(Hello·Thank you·Excuse me)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
-    "★ 핵심 변별 — (초급↔중급) 관사·시제를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
-    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
-    "★ 발음·문법 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
-    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 문법 마커로 읽어라. "
+    "각 밴드는 '바로 위 밴드 마커의 부재'로 상한이 정해진다]\n"
+    "- chunk(L1): 정형표현(Hello·Thank you·Excuse me)·숫자·이름·단어, 또는 관사·시제 없는 전보식 나열"
+    "('I go school','me happy'). 새 문장 생성 없음.\n"
+    "- a1(L2): be동사·관사(a/an/the)·현재형(I like...)·복수로 주어+동사+목적어 짧은 단문. (A2 마커 없음)\n"
+    "- a2(L3): +과거형(-ed·went)·be going to 미래·can/can't·비교급(-er/more)·there is/are.\n"
+    "- a3(L4): +현재진행·현재완료 경험(have been/done)·have to/should·빈도부사.\n"
+    "- a4(L5): +will 미래·1형 조건문(if+present)·최상급·동명사/부정사(to/-ing).\n"
+    "- mid(L6): 2형 조건문(if+past)·관계대명사(who/which/that)·수동태·간접화법(reported speech)·과거진행·현재완료진행.\n"
+    "- adv(L10): 부정어 도치·담화표지·미묘한 양태·명사화·격식체 C급, 추상/사회 주제를 길고 논리적으로.\n"
+    "★ 발음·문법 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자·맞춤법이 아니라 '문법 마커의 폭과 복잡도'로 판정.\n"
+    "★ 학습자가 자발적으로 산출한 '가장 높은' 마커로 밴드를 정한다. 짧게 답해도 상위 마커가 있으면 그 밴드로 읽어라."
 )
 
-# 중국어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 중국어(양사·了·보어·문장 완성도).
+# 중국어 버킷 정의(7밴드 확장 — 언어별 검증 필요) — 한국어와 같은 마커 잣대, 마커·예시만 중국어.
 _BUCKET_DEFINITIONS_CN = (
-    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
-    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(因为/如果/虽然...으로 절을 엮음)·"
-    "다양한 보어·把/被 구문·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
-    "- intermediate(중급): 주어+술어+목적어의 '온전한 문장'을 양사(量词)·완료 '了'·기본 보어와 함께 만든다"
-    "(예: '我昨天去了学校', '我喜欢喝咖啡'). 다만 아직 긴 복문·복잡한 보어까지는 아니다.\n"
-    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 양사·'了' 없는 전보식"
-    "(예: '我去学校', '我高兴'). 여러 단어를 뱉어도 양사·완료·보어를 갖춘 온전한 문장을 완성하지 못하면 초급이다.\n"
-    "- survival(입문): 인사·정형청크(你好·谢谢·多少钱)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
-    "★ 핵심 변별 — (초급↔중급) 양사·'了'·기본 보어를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
-    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
-    "★ 발음(성조)·양사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
-    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 문법 마커로 읽어라. "
+    "각 밴드는 '바로 위 밴드 마커의 부재'로 상한이 정해진다]\n"
+    "- chunk(L1): 정형표현(你好·谢谢·多少钱)·숫자·이름·단어, 또는 양사·'了' 없는 전보식 나열"
+    "('我去学校','我高兴'). 새 문장 생성 없음.\n"
+    "- a1(L2): '是'·'有'·대명사·양사(量词)·숫자·'吗?' 의문으로 주어+술어+목적어 짧은 단문. (A2 마커 없음)\n"
+    "- a2(L3): +'了' 완료·능원동사(想/要/会/能)·비교 '比'·'因为...所以'·정도부사.\n"
+    "- a3(L4): +동사중첩·'过' 경험·동량사/시량사·형용사중첩.\n"
+    "- a4(L5): +결과보어·추향보어(来/去)·'又...又...'·'...以前/以后'.\n"
+    "- mid(L6): '被' 피동·离合词·가능보어·정도보어·간접인용('他说...')·접사(第-/老-).\n"
+    "- adv(L10): 격식 접속('从...来看'·'在...看来'·'到...为止')·문어체 C급, 추상/사회 주제를 길고 논리적으로.\n"
+    "★ 발음(성조)·양사 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문법 마커의 폭과 복잡도'로 판정.\n"
+    "★ 학습자가 자발적으로 산출한 '가장 높은' 마커로 밴드를 정한다. 짧게 답해도 상위 마커가 있으면 그 밴드로 읽어라."
 )
 
-# 프랑스어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 프랑스어(성수일치·동사활용·시제).
+# 프랑스어 버킷 정의(7밴드 확장 — 언어별 검증 필요) — 한국어와 같은 마커 잣대, 마커·예시만 프랑스어.
 _BUCKET_DEFINITIONS_FR = (
-    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
-    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(parce que/si/que/관계절)·"
-    "다양한 시제(passé composé/imparfait/subjonctif)·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
-    "- intermediate(중급): 주어+동사+보어의 '온전한 문장'을 성수일치·활용된 동사와 함께 만든다"
-    "(예: 'J'ai mangé une pomme', 'Elle aime le café'). 다만 아직 긴 복문·다양한 시제까지는 아니다.\n"
-    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 활용·성수일치 없는 전보식"
-    "(예: 'Je aller école', 'moi content'). 여러 단어를 뱉어도 활용된 동사·성수일치를 갖춘 온전한 문장을 "
-    "완성하지 못하면 초급이다.\n"
-    "- survival(입문): 인사·정형청크(Bonjour·Merci·Combien)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
-    "★ 핵심 변별 — (초급↔중급) 성수일치·활용된 동사를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
-    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
-    "★ 발음·성수일치 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
-    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 문법 마커로 읽어라. "
+    "각 밴드는 '바로 위 밴드 마커의 부재'로 상한이 정해진다]\n"
+    "- chunk(L1): 정형표현(Bonjour·Merci·Combien)·숫자·이름·단어, 또는 활용·성수일치 없는 전보식 나열"
+    "('Je aller école','moi content'). 새 문장 생성 없음.\n"
+    "- a1(L2): être/avoir·관사(le/la/un/une)·-er 동사 현재형·형용사 성수일치·소유형용사로 짧은 단문. (A2 마커 없음)\n"
+    "- a2(L3): +passé composé·futur proche(aller+inf)·부정(ne...pas)·비교(plus...que).\n"
+    "- a3(L4): +imparfait·목적격 대명사(COD/COI)·재귀동사.\n"
+    "- a4(L5): +futur simple·1형 가정(si+présent)·관계대명사(qui/que)·부분관사(du/de la).\n"
+    "- mid(L6): subjonctif présent·conditionnel présent·관계대명사(dont/où)·discours indirect(간접화법)·수동태.\n"
+    "- adv(L10): connecteurs logiques·subjonctif 뉘앙스·명사화·격식체 C급, 추상/사회 주제를 길고 논리적으로.\n"
+    "★ 발음·성수일치 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문법 마커의 폭과 복잡도'로 판정.\n"
+    "★ 학습자가 자발적으로 산출한 '가장 높은' 마커로 밴드를 정한다. 짧게 답해도 상위 마커가 있으면 그 밴드로 읽어라."
 )
 
-# 베트남어 버킷 정의 — 한국어와 같은 행동 잣대, 마커·예시만 베트남어(시제표지·분류사·어순).
+# 베트남어 버킷 정의(7밴드 확장 — 언어별 검증 필요) — 한국어와 같은 마커 잣대, 마커·예시만 베트남어.
 _BUCKET_DEFINITIONS_VI = (
-    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 관찰 행동으로 읽어라]\n"
-    "- advanced(고급): 어법이 대체로 정확하고 여러 문장을 길게 이어 말한다. 복문(vì...nên/nếu...thì/mà)·"
-    "다양한 시제표지·복잡 구조·추상/전문 주제 전개가 보이면 고급이다. 유창할수록 확실한 고급.\n"
-    "- intermediate(중급): 주어+동사+목적어의 '온전한 문장'을 시제표지(đã/đang/sẽ)·분류사와 함께 만든다"
-    "(예: 'Hôm qua tôi đã ăn cơm', 'Tôi thích cà phê'). 다만 아직 긴 복문·복잡 구조까지는 아니다.\n"
-    "- beginner(초급): 단어와 짧은 구를 이어 붙이지만 문법적 문장을 못 만든다 — 시제표지·분류사 없는 전보식"
-    "(예: 'Tôi đi trường', 'tôi vui'). 여러 단어를 뱉어도 시제표지·분류사를 갖춘 온전한 문장을 "
-    "완성하지 못하면 초급이다.\n"
-    "- survival(입문): 인사·정형청크(Xin chào·Cảm ơn·Bao nhiêu tiền)·숫자·단어 하나 수준만. 내용어를 거의 못 낸다.\n"
-    "★ 핵심 변별 — (초급↔중급) 시제표지·분류사를 갖춘 문법 문장을 만드는가. 단어 나열은 여러 개여도 초급이다. "
-    "(중급↔고급) 여러 문장을 복문으로 길게 이어 유창하게 말하는가.\n"
-    "★ 발음(성조)·표지 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문장을 만드는 능력과 복잡도'로 판정.\n"
-    "★ 짧게 답해도 복문·추상 전개가 있으면 상급으로 읽어라. 학습자가 자발적으로 산출한 '가장 높은' 자질로 밴드를 정한다."
+    "[밴드 기준 — 학습자가 '실제로 보여준 최고 수준'으로 판정한다. 이름표가 아니라 아래 문법 마커로 읽어라. "
+    "각 밴드는 '바로 위 밴드 마커의 부재'로 상한이 정해진다]\n"
+    "- chunk(L1): 정형표현(Xin chào·Cảm ơn·Bao nhiêu tiền)·숫자·이름·단어, 또는 시제표지·분류사 없는 전보식 "
+    "나열('Tôi đi trường','tôi vui'). 새 문장 생성 없음.\n"
+    "- a1(L2): 'là'·'có'·인칭대명사·분류사·숫자·'có...không?' 의문·cũng/đều로 짧은 단문. (A2 마커 없음)\n"
+    "- a2(L3): +'đã' 과거·'đã...chưa?' 완료·시간 의문·'à/chứ' 의문.\n"
+    "- a3(L4): +'muốn/định'·비교 'bằng'·복수(những/các)·'ai cũng'.\n"
+    "- a4(L5): +'sắp'·'vừa...vừa'·'vì...nên'·'hình như...thì phải'.\n"
+    "- mid(L6): 'được'(가능/피동)·간접화법 'nói rằng'·'tự...lấy'·어기조사(nhỉ/nhé)·'hóa ra'.\n"
+    "- adv(L10): 격식 구조·담화표지·'kẻ...người...'·부정확 수량 표현 C급, 추상/사회 주제를 길고 논리적으로.\n"
+    "★ 발음(성조)·표지 실수·ASR(음성인식) 왜곡은 감점하지 마라. 철자가 아니라 '문법 마커의 폭과 복잡도'로 판정.\n"
+    "★ 학습자가 자발적으로 산출한 '가장 높은' 마커로 밴드를 정한다. 짧게 답해도 상위 마커가 있으면 그 밴드로 읽어라."
 )
 
 _BUCKET_DEFINITIONS_BY_LANG: dict[str, str] = {
@@ -1305,17 +1312,21 @@ def _lang_code(target_language: str) -> str:
 
 
 def _bucket_definitions(target_language: str) -> str:
-    """대상 언어의 4버킷 행동 정의. 미등록 언어는 한국어 정의로 폴백."""
+    """대상 언어의 7밴드 마커 정의. 미등록 언어는 한국어 정의로 폴백."""
     return _BUCKET_DEFINITIONS_BY_LANG.get(_lang_code(target_language), _BUCKET_DEFINITIONS_KO)
 
-# 버킷 → 최종 앱 레벨(1~13). 각 버킷이 '확실히 할 수 있는' 밴드 바닥에 보수 배정 —
-# 과배치(강등 불가 → plateau) 방지, 부족분은 체크판 자동 레벨업이 단조 상승으로 회복한다.
-# advanced=6 은 실제 L6~13 을 다 담는 넓은 버킷(향후 프로브로 세분화 여지 — TODO).
+# 7밴드 → 최종 앱 레벨(1~13). 초급은 촘촘히(chunk~a4 = L1~5), 중급·고급은 각 1칸 coarse
+# (mid=L6·adv=L10 — 자동 레벨업이 내부를 채운다). 각 밴드가 '확실히 할 수 있는' 바닥에 보수
+# 배정 — 과배치(강등 불가 → plateau) 방지, 부족분은 체크판 자동 레벨업이 단조 상승으로 회복.
+# (sim_elicit.py BAND 와 동일: chunk1/a1_2/a2_3/a3_4/a4_5/mid_6/adv_10)
 _BUCKET_LEVEL: dict[str, int] = {
-    "survival": 1,      # 입문 — 인사·청크만
-    "beginner": 2,      # 초급 — 단어+구문
-    "intermediate": 3,  # 중급 — 온전한 문장
-    "advanced": 6,      # 고급 — 어법 정확 + 긴 담화
+    "chunk": 1,   # A0 생존 — 정형표현·단어·전보식
+    "a1": 2,      # A1 초급1 — 조사+현재/과거 활용 단문
+    "a2": 3,      # A2~A4 초급 상단 — 이유·미래·희망·조건 + 명사인용·추측·경험·허락 (넓은 레벨: a3/a4 흡수)
+    "a3": 3,      # ⚠ 넓은 레벨(1,2,3,6,10): a3(A3)를 L3에 흡수 — 유도난이도↑·사용자 적음. 판정관은 마커 탐지만.
+    "a4": 3,      # ⚠ 넓은 레벨: a4(A4)도 L3에 흡수. 초급 상단 정밀도는 자동 레벨업이 회복.
+    "mid": 6,     # B 중급 — 동사간접화법·피동 (coarse)
+    "adv": 10,    # C 고급 — 격식·논증·추상 (coarse)
 }
 
 # 판정 스킵 하한: USER 한국어+모국어 발화 총합(공백 제외)이 이 미만이면 LLM 콜 없이 skip.
@@ -1468,20 +1479,24 @@ def _leveltest_instruction(
         "삼지 말고, 사용한 문법의 폭(문형 다양성)·어휘 등급·응답 길이·질문에 맞게 대응했는지를 "
         "기준으로 삼아라.\n"
         + _bucket_definitions(t) + "\n"
+        "[변주 게이트 — 매우 중요] distinct_structures: 학습자가 '서로 다른' 문법 구조를 몇 개 자발적으로 "
+        "산출했는가. 같은 문장 반복이나, 인상적인 문장 '하나'만 외워 말하고 나머지는 못 하면 ≤1 이다 — 이땐 "
+        "그 문장이 아무리 복잡해도 암기지 실력이 아니므로 서버가 밴드를 낮게 캡한다(암기 하나 ≠ 실력).\n"
         "[증거 가중 — 비대칭 채점]\n"
-        "- 자발 성공(비버가 문형을 깔아 주지 않았는데 학습자가 스스로 그 자질을 만들어 냄) = 강한 양성. "
+        "- 자발 성공(비버가 문형을 깔아 주지 않았는데 학습자가 스스로 그 마커를 만들어 냄) = 강한 양성. "
         "그 수준을 밴드로 인정할 근거가 된다.\n"
         "- 유도 성공(비버가 예시·선택지로 떠먹여 준 뒤에야 성립) = 약한 양성. 통째로 외운 청크가 아닌지 "
         "교차확인(아래)을 통과해야만 근거로 쓴다.\n"
         "- 암기 청크 위양성 배제: 같은 문형이 서로 다른 어휘·상황 2개에서 성립해야 '안다'고 인정한다. "
         "한 번만, 그것도 정형 표현으로 나온 것은 근거로 치지 마라.\n"
-        "- 유도 실패는 그 '자질'을 근거에서 뺄 뿐이다. 이미 학습자가 자발적으로 보여준 상위 자질을 "
+        "- 유도 실패는 그 '마커'를 근거에서 뺄 뿐이다. 이미 학습자가 자발적으로 보여준 상위 마커를 "
         "무효화하거나 밴드를 낮추지 마라.\n"
         "[판정 절차 — 반드시 이 순서대로]\n"
         f"① evidence: 학습자(USER)의 {t} 발화 원문을 최대 5개 인용해 모은다(수정·번역 금지).\n"
-        "② band: 위 [밴드 기준]에 비추어 4버킷(survival/beginner/intermediate/advanced) 중 하나를 고른다. "
-        "학습자가 '실제로 산출한 가장 높은' 수준으로 정하라 — 짧게 답했어도 조사·활용을 갖춘 온전한 문장이면 최소 "
-        "중급, 복문·긴 담화면 고급이다. 관찰된 상위 자질을 '경계에서 망설여진다'는 이유로 낮추지 마라.\n"
+        "② distinct_structures: 서로 다른 문법 구조를 몇 개 productive하게 냈는지 센다(변주 게이트).\n"
+        "③ band: 위 [밴드 기준]의 마커 체크리스트에 비추어 7밴드(chunk/a1/a2/a3/a4/mid/adv) 중 하나를 고른다. "
+        "학습자가 '실제로 산출한 가장 높은' 마커로 정하라 — 짧게 답했어도 그 밴드 마커가 실재하면 그 밴드다. "
+        "관찰된 상위 마커를 '경계에서 망설여진다'는 이유로 낮추지 마라.\n"
         "[표본 규칙]\n"
         f"- 채점 가능한(scorable) {t} 발화가 2턴 이하면 sample_quality 를 sparse(빈약), 사실상 없으면 "
         "none(전무)으로 표시하고 confidence 를 낮춘다.\n"
@@ -1497,10 +1512,10 @@ def _leveltest_instruction(
 
 
 def _place_from_band(result: LevelAssessment) -> int | None:
-    """4버킷 밴드를 최종 앱 레벨(1~13)로 배정한다 — 순수 딕셔너리 룩업(코드가 심판).
+    """7밴드를 최종 앱 레벨(1~13)로 배정한다 — 순수 딕셔너리 룩업 + 변주 게이트(코드가 심판).
 
-    AI는 증인(밴드만 판정), 코드가 심판(레벨 숫자 확정 — 관통 원칙 1). 각 버킷은
-    '확실히 할 수 있는' 밴드 바닥(_BUCKET_LEVEL)에 보수 배정하고, 부족분은 자동 레벨업이
+    AI는 증인(밴드만 판정), 코드가 심판(레벨 숫자 확정 — 관통 원칙 1). 각 밴드는
+    '확실히 할 수 있는' 바닥(_BUCKET_LEVEL)에 보수 배정하고, 부족분은 자동 레벨업이
     단조 상승으로 회복한다(과배치=강등 불가 plateau 방지). 이 함수는 발화 표본이 20자
     이상일 때만 호출된다(none=모국어뿐 전제).
     None 반환 = LLM 모순 출력(판정 신뢰 불가) — 호출부가 status=failed·미저장 처리.
@@ -1512,6 +1527,10 @@ def _place_from_band(result: LevelAssessment) -> int | None:
     if result.band == "unknown" or result.sample_quality == "none":
         return 1
     level = _BUCKET_LEVEL[result.band]
+    # 변주 게이트(sim_elicit.py to_level): 서로 다른 구조가 ≤1이면 아무리 밴드가 높아도
+    # 암기/반복이므로 min(level, 2)로 캡(게이밍 방지 — 반복충·암기긴문장충 → L2).
+    if result.distinct_structures <= 1:
+        level = min(level, 2)
     # 표본 빈약(sparse)이면 중급 이상 배치 금지 — 1~2건 표본으로 과배치하지 않는다(보수).
     if result.sample_quality == "sparse":
         level = min(level, 2)
@@ -1728,7 +1747,7 @@ async def judge_leveltest_answer(
     # ★ 인용 검증(관통원칙3): pass 인데 근거 구절이 실제 발화에 없으면 환각 →
     # unclear 로 강등. 순수 파이썬 부분 문자열 매칭(LLM 없이 검증 가능).
     # (의도적으로 엄격: 여기 O/X 판정은 단일 노드 통과/실패라 오탐 대가가 작다. 반면
-    #  classify_leveltest_band 는 밴드 천장을 좌우해 저평가 대가가 크므로 _citation_coverage
+    #  judge_leveltest_turn 은 밴드 천장을 좌우해 저평가 대가가 크므로 _citation_coverage
     #  로 완화한다 — 두 강도 차이는 의도된 것.)
     if verdict.result == "pass":
         heard = (verdict.heard_grammar or "").strip()
@@ -1750,15 +1769,22 @@ async def judge_leveltest_answer(
 # (노드 매칭 방식은 call 246 강등 오판의 원인 — 목표보다 높은 문법으로 답해도
 #  노드 미스매치면 실패로 샜다. 밴드 분류는 학습자가 실제로 도달한 천장을 읽는다.)
 
-def _band_classify_instruction(target_language: str = "한국어") -> str:
-    """라이브 밴드 분류기 지시문. (멀티랭귀지) 대상 언어의 버킷 정의로 판정 —
-    기본 한국어(프로덕션 무손상). 대상 언어를 명시해야 학습자 모국어를 실력으로 오독하지 않는다."""
+def _leveltest_turn_instruction(target_language: str = "한국어") -> str:
+    """레벨테스트 '통합 판정관' 지시문 — 매 턴 (A)최신 발화의 밴드 + (B)전체 대화로 종료
+    여부를 한 번에 판정한다(옛 밴드 판정관+종료 판정관 통합, LLM 콜 턴당 1회).
+
+    (멀티랭귀지) 대상 언어의 버킷 정의로 판정 — 기본 한국어(프로덕션 무손상). 대상 언어를
+    명시해야 학습자 모국어를 실력으로 오독하지 않는다."""
     t = target_language
     return (
-        f"너는 {t} 학습자의 답변 한 개를 보고 그 답변이 보여준 '최고' 밴드를 판정하는 판독기다. "
-        "비버(선생님)가 무엇을 물었는지와 무관하게, 학습자 발화 자체에 실재하는 언어로만 판정하라. "
-        "[직전 비버 질문]은 문맥 파악용일 뿐 — 비버의 문장을 학습자 실력으로 세지 마라.\n"
-        f"[★ 언어 게이트 — 밴드 재기 전에 먼저 판정하라] 이 답변이 실제로 {t}인가? 학습자가 {t}가 "
+        f"너는 {t} 레벨테스트 통화를 지켜보는 판정관이다. 매 턴 두 가지를 동시에 판정한다:\n"
+        f"(A) [학습자 최신 발화]가 보여준 '최고' 밴드 — 오직 최신 발화만 근거.\n"
+        f"(B) [전체 대화]로 볼 때 이 통화를 지금 마쳐도 되는가(should_end).\n"
+        "\n"
+        "=== (A) 밴드 판정 — 오직 [학습자 최신 발화]만 근거로 ===\n"
+        "[직전 비버 질문]·[전체 대화]는 문맥일 뿐 — 비버의 문장이나 이전 답변을 최신 발화의 "
+        "실력으로 세지 마라.\n"
+        f"[★ 언어 게이트 — 밴드 재기 전에 먼저 판정하라] 최신 발화가 실제로 {t}인가? 학습자가 {t}가 "
         f"아니라 자기 모국어나 다른 언어로 답했으면 answer_in_target=false 로 하고, 아무리 유창·복잡해도 "
         f"observed_band=no_attempt 다 — 오직 {t} 발화만이 밴드 근거다. ★ {t}와 학습자 모국어가 어순·"
         f"조사 구조가 비슷해도(예: 한국어↔일본어는 둘 다 조사+정중종결+어순이 닮음), {t}의 어휘·문법 "
@@ -1767,42 +1793,65 @@ def _band_classify_instruction(target_language: str = "한국어") -> str:
         + _bucket_definitions(t) + "\n"
         "- no_attempt: 머뭇·필러('음','어'), 인사만, 되묻기('네?','뭐라고요?'), 질문과 무관한 "
         "한두 마디, 말이 끊긴 미완성.\n"
+        "[변주 게이트] distinct_structures: 최신 발화에서 서로 다른 문법 구조를 몇 개 productive하게 "
+        "냈나. 같은 문장 반복이나 인상적 문장 하나만 외워 말하면 ≤1 — 이땐 아무리 복잡해도 실력이 아니라 "
+        "암기이므로 서버가 밴드를 낮게 캡한다(암기 하나 ≠ 실력).\n"
         "[인용 규칙]\n"
-        "- ★ heard_grammar 에는 밴드 근거가 된 학습자의 실제 구절을 전사에 나타난 '그대로'"
+        "- ★ heard_grammar 에는 밴드 근거가 된 [학습자 최신 발화]의 실제 구절을 전사에 나타난 '그대로'"
         "(오탈자·띄어쓰기 포함) 복사하라. 교정·정규화·번역·재작성 금지. 근거가 없으면 빈 문자열.\n"
+        "\n"
+        "=== (B) 종료 판정 — [전체 대화]를 근거로 ===\n"
+        "다음 중 하나가 확실하면 should_end=true:\n"
+        f"① 학습자의 {t} 실력 상한이 충분히 드러났다 — 더 어려운 질문에도 일관된 수준이라 더 재도 그대로다.\n"
+        f"② 학습자가 여러 번 시도했는데도 {t}를 거의/전혀 못 낸다(모국어로만 답하거나 계속 막힘) — "
+        "더 붙잡아도 새로 얻을 게 없다.\n"
+        "★ 보수적으로 판정하라: 아직 몇 번 안 물었거나 학습자가 더 보여줄 여지가 있으면 should_end=false. "
+        "짧은 답 한두 개만 보고 성급히 끝내지 마라 — 확실할 때만 true.\n"
+        "\n"
         "[출력 순서 — 반드시 이 순서로 생각하라]\n"
-        f"① answer_in_target: 이 답변이 {t}인가(아니면 이하 전부 no_attempt/빈값) → ② heard_grammar: "
-        "밴드 근거가 된 실제 구절 인용 → ③ decisive_feature: 밴드를 정한 결정 자질 라벨 → "
-        "④ observed_band: 밴드 → ⑤ spontaneity: 자발성.\n"
+        f"① answer_in_target: 최신 발화가 {t}인가(아니면 밴드는 no_attempt/빈값) → ② heard_grammar: "
+        "밴드 근거가 된 실제 구절 인용 → ③ decisive_feature: 밴드를 정한 결정 마커 라벨 → "
+        "④ distinct_structures: 서로 다른 문법 구조 개수(변주 게이트) → ⑤ observed_band: 밴드 → "
+        "⑥ spontaneity: 자발성 → ⑦ should_end: 전체 대화 기반 종료 여부 → ⑧ end_reason: 종료 근거.\n"
         "출력은 반드시 주어진 JSON 스키마를 따른다."
     )
 
 
-class LeveltestBandRead(BaseModel):
-    """레벨테스트 답 1개의 '보여준 최고 문법 밴드' 판독 출력(사이드카 단발 콜).
+class LeveltestTurnRead(BaseModel):
+    """레벨테스트 매 턴 '통합 판정' 출력(밴드 + 종료, 사이드카 1콜).
 
-    필드 순서 = 생성 순서(CoT): 언어게이트 → 인용 → 결정자질 → 밴드 → 자발성. 먼저 답변이
-    실제 대상 언어인지 판정하고(answer_in_target), 아니면 호출부가 밴드를 무효화한다(닮은 언어
-    모국어 누수 차단). heard_grammar 는 밴드 근거가 된 학습자의 실제 구절을 그대로 인용한다
-    (추측·재작성 금지). 관통원칙3: observed_band 가 intermediate 이상인데 이 인용이 실제 발화에
-    실재하지 않으면 호출부에서 한 밴드 강등한다(환각 방어).
+    필드 순서 = 생성 순서(CoT): 언어게이트 → 인용 → 결정마커 → 변주게이트 → 밴드 → 자발성 →
+    종료여부 → 종료근거. (A) 밴드는 오직 [최신 발화] 근거 — 먼저 답변이 실제 대상 언어인지 판정
+    하고 (answer_in_target), 아니면 호출부가 밴드를 무효화한다(닮은 언어 모국어 누수 차단).
+    heard_grammar 는 밴드 근거가 된 학습자의 실제 구절을 그대로 인용한다(추측·재작성 금지);
+    관통원칙3: observed_band 가 a2(중급 상당) 이상인데 이 인용이 실제 발화에 실재하지 않으면
+    호출부에서 한 밴드 강등한다(환각 방어). distinct_structures ≤1 이면 호출부가 밴드를 낮게
+    캡한다(변주 게이트 — 암기/반복 방지). (B) should_end 는 [전체 대화] 근거이며 호출부가
+    플로어 게이트를 통과할 때만 최종 반영한다.
     """
 
-    answer_in_target: bool = True  # ① 이 답변이 실제 대상 언어인가(모국어·타 언어면 False → 밴드 무효)
-    heard_grammar: str = ""  # ② 밴드 근거가 된 학습자 실제 구절 인용(없으면 "")
-    decisive_feature: str = ""  # 밴드를 정한 결정 자질 라벨(예: "간접화법 -다고 하다")
+    answer_in_target: bool = True  # ① 최신 발화가 실제 대상 언어인가(모국어·타 언어면 False → 밴드 무효)
+    heard_grammar: str = ""  # ② 밴드 근거가 된 최신 발화의 실제 구절 인용(없으면 "")
+    decisive_feature: str = ""  # ③ 밴드를 정한 결정 마커 라벨(예: "동사간접화법 -다고 하다")
+    distinct_structures: int = 0  # ④ 서로 다른 문법 구조 개수(변주 게이트: ≤1이면 밴드 낮게 캡)
     observed_band: Literal[
-        "no_attempt", "survival", "beginner", "intermediate", "advanced"
+        "no_attempt", "chunk", "a1", "a2", "a3", "a4", "mid", "adv"
     ]
     spontaneity: Literal["spontaneous", "elicited", "echo"] = "spontaneous"
+    should_end: bool = False  # ⑦ 전체 대화상 지금 마쳐도 되는가
+    end_reason: str = ""  # ⑧ 종료 판단 근거(로깅용)
 
 
-# 밴드 → 서수(0..3). no_attempt 는 여기 없음(→ None 반환). 인용검증 강등의 기준선.
+# 밴드 → 서수(0..6). no_attempt/unknown 은 여기 없음(→ None 반환). 인용검증 강등의 기준선.
+# (sim_elicit.py BAND 서수 순서와 일치 — chunk가 최하, adv가 최상)
 _BAND_ORDINAL: dict[str, int] = {
-    "survival": 0,
-    "beginner": 1,
-    "intermediate": 2,
-    "advanced": 3,
+    "chunk": 0,
+    "a1": 1,
+    "a2": 2,
+    "a3": 3,
+    "a4": 4,
+    "mid": 5,
+    "adv": 6,
 }
 
 
@@ -1823,70 +1872,89 @@ def _citation_coverage(heard: str, answer: str) -> float:
     return hit / len(tokens)
 
 
-async def classify_leveltest_band(
+async def judge_leveltest_turn(
     client: genai.Client,
     *,
-    answer_text: str,
+    transcript: list[str],
+    latest_answer: str,
     prior_question: str | None = None,
+    obs_max: int = -1,
     target_language: str = "한국어",
-) -> int | None:
-    """학습자 답 1개의 '보여준 최고 문법 밴드'를 절대 분류한다(사이드카 1콜).
+) -> tuple[int | None, bool]:
+    """매 턴 '통합 판정'(사이드카 1콜): (A) 최신 발화의 밴드 + (B) 전체 대화로 종료 여부.
 
-    노드 매칭이 아니라 학습자 발화 자체가 도달한 문법 천장을 읽는다 — 목표보다
-    높은 문법으로 답해도 그 상위 밴드로 인정(call 246 강등 오판 방지).
+    옛 밴드 판정관(단발)+종료 판정관(전체맥락)을 하나로 합쳐 LLM 콜을 턴당 1회로 줄였다.
+    (A) 밴드는 오직 latest_answer 근거(언어게이트·인용검증 그대로 — 노드 매칭이 아니라 발화가
+    도달한 문법 천장을 읽어, 목표보다 높은 문법으로 답해도 상위 밴드로 인정). (B) should_end 는
+    transcript(전체 대화) 맥락 근거 — 카운터(plateau)보다 유연하게 '못하는 사람'을 조기 종료.
 
     Args:
         client: lifespan 이 만든 genai.Client(없으면 통화 자체가 비활성이나 방어).
-        answer_text: 학습자가 방금 한 발화(한국어, in_tr 전사).
+        transcript: 지금까지 누적된 Q/A 전사(이번 최신 발화 이전까지 — 맥락용).
+        latest_answer: 학습자가 방금 한 발화(대상 언어, in_tr 전사). 밴드 판정 대상.
         prior_question: 직전 비버 질문(문맥용, 선택). 실력 근거로 쓰지 않는다.
+        obs_max: 지금까지 관측된 최고 밴드(-1=아직 없음) — 종료 판정 참고용 힌트.
 
     Returns:
-        None = no_attempt/판정 불가(머뭇·필러·실패·환각·호출실패) /
-        0..3 = survival/beginner/intermediate/advanced.
+        (band, should_end).
+        band: None = no_attempt/판정 불가(머뭇·필러·실패·환각·호출실패·대상언어 아님) /
+              0..6 = chunk/a1/a2/a3/a4/mid/adv.
+        should_end: 전체 대화상 지금 마쳐도 되는가(호출부가 플로어 게이트로 최종 반영).
     """
     # graceful 가드(R5): client 없음 / 빈 발화 → 판정 불능.
-    if client is None or not answer_text or not answer_text.strip():
-        return None
+    if client is None or not latest_answer or not latest_answer.strip():
+        return None, False
 
-    context = ""
+    convo = "\n".join(transcript[-30:])  # 최근 30턴만(컨텍스트 과대·비용 방지)
+    ctx = f"[전체 대화]\n{convo}\n\n" if convo else ""
+    q = ""
     if prior_question and prior_question.strip():
-        context = f"[직전 비버 질문]\n{prior_question.strip()}\n\n"
+        q = f"[직전 비버 질문]\n{prior_question.strip()}\n\n"
 
     try:
         read = await gemini_analysis.generate_structured(
             client,
             settings.JUDGE_MODEL,
-            system_instruction=_band_classify_instruction(target_language),
-            prompt=f"{context}[학습자 발화]\n{answer_text.strip()}",
-            schema=LeveltestBandRead,
+            system_instruction=_leveltest_turn_instruction(target_language),
+            prompt=(
+                f"{ctx}"
+                f"[관측된 최고 밴드] {obs_max} (0=chunk ~ 6=adv, -1=아직 없음)\n\n"
+                f"{q}[학습자 최신 발화]\n{latest_answer.strip()}"
+            ),
+            schema=LeveltestTurnRead,
             temperature=0.0,
             thinking_budget=0,  # 통화중 실시간 사이드카 — 지연 최소화(추론 비활성).
         )
     except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
-        logger.warning("leveltest band: 분류 예외(무시) → None: %s", exc)
-        return None
+        logger.warning("leveltest turn judge: 예외(무시) → (None, False): %s", exc)
+        return None, False
 
     if read is None:
-        return None
+        return None, False
 
+    should_end = bool(read.should_end)
+    if should_end:
+        logger.info("leveltest turn judge: should_end=True (%s)", (read.end_reason or "")[:80])
+
+    # ── (A) 밴드 산출 ──
     # ★ 언어 게이트(관통원칙1: 코드가 심판) — 답변이 대상 언어가 아니면 밴드 무효(None).
     #   닮은 언어(한↔일)에서 유창한 모국어 답변이 높은 밴드로 새는 것을 원천 차단.
     if not read.answer_in_target:
         logger.info("leveltest band: 대상 언어 아님(answer_in_target=False) → None")
-        return None
+        return None, should_end
 
     # no_attempt / 판정불가 → None(엔진이 재시도·강제전진으로 처리).
     ordinal = _BAND_ORDINAL.get(read.observed_band)
     if ordinal is None:
-        return None
+        return None, should_end
 
-    # ★ 인용 검증(관통원칙3): intermediate(2) 이상인데 근거 구절이 실제 발화에 '통째로'
+    # ★ 인용 검증(관통원칙3): a2(중급 상당·서수 2) 이상인데 근거 구절이 실제 발화에 '통째로'
     # 부재하면(coverage 0) 환각 → 한 밴드 강등. 엄격 부분문자열이 아니라 어절 토큰 겹침으로
     # 판정한다 — ASR(음성인식) 전사 왜곡·조사/띄어쓰기 드리프트로 인용이 바이트 단위로 정확히
     # 일치하지 않아도, 일부라도 겹치면 신뢰한다(과잉 강등=저평가 방지).
-    if ordinal >= _BAND_ORDINAL["intermediate"]:
+    if ordinal >= _BAND_ORDINAL["a2"]:
         heard = (read.heard_grammar or "").strip()
-        if _citation_coverage(heard, answer_text) == 0.0:
+        if _citation_coverage(heard, latest_answer) == 0.0:
             logger.info(
                 "leveltest band: %s 인용 미검증(heard=%r, coverage=0) → 한 밴드 강등",
                 read.observed_band,
@@ -1894,63 +1962,13 @@ async def classify_leveltest_band(
             )
             ordinal -= 1
 
-    return ordinal
-
-
-class LeveltestEndRead(BaseModel):
-    """레벨테스트 종료 판정(전체 맥락 사이드카) 출력."""
-
-    should_end: bool = False  # 지금 통화를 마쳐도 되는가(충분히 파악됨 or 더 못 올라감)
-    reason: str = ""          # 판단 근거(로깅용)
-
-
-def _leveltest_end_instruction(target_language: str = "한국어") -> str:
-    """레벨테스트 종료 판정관 지시문 — 전체 대화 맥락으로 '지금 끝내도 되나'를 판정."""
-    t = target_language
-    return (
-        f"너는 {t} 레벨테스트 통화를 지켜보는 종료 판정관이다. 지금까지의 '전체 대화'를 보고 "
-        f"이 통화를 지금 마쳐도 되는지(should_end) 판정하라. 다음 중 하나가 확실하면 should_end=true:\n"
-        f"① 학습자의 {t} 실력 상한이 충분히 드러났다 — 더 어려운 질문에도 일관된 수준이라 더 재도 그대로다.\n"
-        f"② 학습자가 여러 번 시도했는데도 {t}를 거의/전혀 못 낸다(모국어로만 답하거나 계속 막힘) — "
-        f"더 붙잡아도 새로 얻을 게 없다.\n"
-        f"★ 보수적으로 판정하라: 아직 몇 번 안 물었거나 학습자가 더 보여줄 여지가 있으면 should_end=false. "
-        f"짧은 답 한두 개만 보고 성급히 끝내지 마라 — 확실할 때만 true.\n"
-        "출력은 반드시 주어진 JSON 스키마를 따른다."
-    )
-
-
-async def classify_leveltest_should_end(
-    client: genai.Client,
-    *,
-    transcript: list[str],
-    obs_max: int,
-    target_language: str = "한국어",
-) -> bool:
-    """전체 대화 맥락으로 레벨테스트를 지금 마쳐도 되는지 판정(사이드카 1콜).
-
-    사장님 아이디어: 매 답변마다 전체 전사를 작은 LLM에 넣어 종료 여부 판정 — 카운터(plateau)
-    보다 유연하게 '못하는 사람'을 조기 종료. 실패/불확실/client 없음 → False(안전: 안 끝냄).
-    """
-    if client is None or not transcript:
-        return False
-    convo = "\n".join(transcript[-30:])  # 최근 30턴만(컨텍스트 과대·비용 방지)
-    try:
-        read = await gemini_analysis.generate_structured(
-            client,
-            settings.JUDGE_MODEL,
-            system_instruction=_leveltest_end_instruction(target_language),
-            prompt=(
-                f"[관측된 최고 밴드] {obs_max} (0=입문 ~ 3=고급, -1=아직 없음)\n"
-                f"[전체 대화]\n{convo}"
-            ),
-            schema=LeveltestEndRead,
-            temperature=0.0,
-            thinking_budget=0,  # 실시간 사이드카 — 지연 최소화.
+    # ★ 변주 게이트(sim_elicit.py to_level): 서로 다른 구조가 ≤1이면 암기/반복 — 아무리 높은
+    # 밴드여도 서수를 a1(1)로 캡(레벨 2 상당). 반복충·암기긴문장충이 상위 밴드로 새는 것 차단.
+    if read.distinct_structures <= 1 and ordinal > _BAND_ORDINAL["a1"]:
+        logger.info(
+            "leveltest band: 변주 게이트(distinct_structures=%d) → 밴드 %s 를 a1로 캡",
+            read.distinct_structures, read.observed_band,
         )
-    except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
-        logger.warning("leveltest end judge: 예외(무시) → False: %s", exc)
-        return False
-    if read is not None and read.should_end:
-        logger.info("leveltest end judge: should_end=True (%s)", (read.reason or "")[:80])
-        return True
-    return False
+        ordinal = _BAND_ORDINAL["a1"]
+
+    return ordinal, should_end

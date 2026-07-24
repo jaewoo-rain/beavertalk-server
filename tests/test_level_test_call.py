@@ -7,8 +7,8 @@
       prod 재측정(korean_level 보유) 명시 level_test → normal.
     - analyze_level_test_call: 판정 성공 단일 커밋 저장 / 빈 전사 스킵 / LLM 실패 /
       모순 출력(unknown+sufficient) failed / member 소실 failed(부분 저장 없음).
-    - _place_from_band: 4버킷 고정매핑(survival→1/beginner→2/intermediate→3/advanced→6),
-      sparse 캡(min(level,2)), unknown+sufficient→None(모순), unknown|none→1.
+    - _place_from_band: 넓은 레벨 매핑(chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10 — a3·a4 L3 흡수),
+      sparse 캡·변주 게이트(distinct_structures<=1) min(level,2), unknown+sufficient→None(모순), unknown|none→1.
     - _citation_coverage: 어절 토큰 부분일치 비율(0.0~1.0) — 인용검증 순수함수.
     - _user_char_total: 유니코드 letter/digit 만 계수(기호·이모지 제외).
     - get_status_detail 소유자 가드 + status 엔드포인트 응답 계약(call_type/assessed_level).
@@ -256,7 +256,8 @@ def _assessment(**kw) -> svc.LevelAssessment:
     base = dict(
         evidence=["안녕하세요 저는 학생이에요"],
         reasoning="초급 문형(현재형·조사)을 안정적으로 사용",
-        band="beginner",
+        distinct_structures=3,  # 변주 충분 기본값(게이트 미발동) — 게이트 테스트에서만 <=1로 오버라이드
+        band="a1",
         confidence="high",
         sample_quality="sufficient",
         summary="자기소개와 취미",
@@ -305,7 +306,7 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
     assert "[학습자 수준]" not in instr
     # 레벨테스트 선톡 시드가 주입됐다(무인자 — 비버가 첫 질문을 스스로 시작).
     assert holder["session"].sent_text_turns
-    assert "가벼운 인사 한 마디 + 바로 질문" in holder["session"].sent_text_turns[0]
+    assert "인사부터 되는지 본다" in holder["session"].sent_text_turns[0]
 
     db = session_factory()
     try:
@@ -480,8 +481,8 @@ async def test_level_assessment_success_saves_level_and_meta(
         user_lines=["안녕하세요 저는 미국에서 온 학생이에요",
                     "한국어 공부가 정말 재미있어요"],
     )
-    # band=beginner + sufficient → 고정매핑 레벨 2(_BUCKET_LEVEL["beginner"]).
-    result = _assessment(band="beginner",
+    # band=a1 + sufficient → 고정매핑 레벨 2(_BUCKET_LEVEL["a1"]).
+    result = _assessment(band="a1",
                          confidence="high", sample_quality="sufficient")
     mock = AsyncMock(return_value=result)
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)
@@ -497,7 +498,7 @@ async def test_level_assessment_success_saves_level_and_meta(
         member = db.get(Member, seeded["member_none"])
         call = db.get(Call, call_id)
         # 레벨 배정 + 판정 메타 + done 이 함께 반영됨(단일 커밋 결과).
-        assert member.korean_level == svc._BUCKET_LEVEL["beginner"] == 2
+        assert member.korean_level == svc._BUCKET_LEVEL["a1"] == 2
         assert call.assessed_level == 2
         assert call.assessment_note == result.reasoning
         assert call.summary == result.summary
@@ -510,35 +511,55 @@ async def test_level_assessment_success_saves_level_and_meta(
 # (5) _place_from_band 단위 — AI는 증인(밴드만), 코드가 심판(레벨 숫자 고정매핑)
 # --------------------------------------------------------------------------- #
 def test_place_from_band_bucket_mapping():
-    """4버킷 고정매핑(sufficient 표본): survival→1 / beginner→2 / intermediate→3 / advanced→6."""
+    """넓은 레벨 매핑(sufficient·변주 충분): chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10.
+    ⚠ 넓은 레벨(1,2,3,6,10): a3·a4를 L3에 흡수(초급 상단 정밀도는 자동 레벨업이 회복)."""
     assert svc._place_from_band(
-        _assessment(band="survival", sample_quality="sufficient")) == 1
+        _assessment(band="chunk", sample_quality="sufficient")) == 1
     assert svc._place_from_band(
-        _assessment(band="beginner", sample_quality="sufficient")) == 2
+        _assessment(band="a1", sample_quality="sufficient")) == 2
     assert svc._place_from_band(
-        _assessment(band="intermediate", sample_quality="sufficient")) == 3
+        _assessment(band="a2", sample_quality="sufficient")) == 3
     assert svc._place_from_band(
-        _assessment(band="advanced", sample_quality="sufficient")) == 6
+        _assessment(band="a3", sample_quality="sufficient")) == 3
+    assert svc._place_from_band(
+        _assessment(band="a4", sample_quality="sufficient")) == 3
+    assert svc._place_from_band(
+        _assessment(band="mid", sample_quality="sufficient")) == 6
+    assert svc._place_from_band(
+        _assessment(band="adv", sample_quality="sufficient")) == 10
     # 매핑 상수 자체도 계약대로인지 고정.
     assert svc._BUCKET_LEVEL == {
-        "survival": 1, "beginner": 2, "intermediate": 3, "advanced": 6
+        "chunk": 1, "a1": 2, "a2": 3, "a3": 3, "a4": 3, "mid": 6, "adv": 10
     }
 
 
 def test_place_from_band_sparse_caps_at_two():
     """sparse 표본 → 중급+ 과배치 금지: min(level, 2)."""
-    # advanced(6) 도 sparse 면 2 로 캡.
+    # adv(10) 도 sparse 면 2 로 캡.
     assert svc._place_from_band(
-        _assessment(band="advanced", sample_quality="sparse")) == 2
-    # intermediate(3) → 2.
+        _assessment(band="adv", sample_quality="sparse")) == 2
+    # a2(3) → 2.
     assert svc._place_from_band(
-        _assessment(band="intermediate", sample_quality="sparse")) == 2
-    # beginner(2) 는 이미 2 이하 → 그대로 2.
+        _assessment(band="a2", sample_quality="sparse")) == 2
+    # a1(2) 는 이미 2 이하 → 그대로 2.
     assert svc._place_from_band(
-        _assessment(band="beginner", sample_quality="sparse")) == 2
-    # survival(1) 은 이미 1 → 그대로 1.
+        _assessment(band="a1", sample_quality="sparse")) == 2
+    # chunk(1) 은 이미 1 → 그대로 1.
     assert svc._place_from_band(
-        _assessment(band="survival", sample_quality="sparse")) == 1
+        _assessment(band="chunk", sample_quality="sparse")) == 1
+
+
+def test_place_from_band_variation_gate_caps_at_two():
+    """변주 게이트: distinct_structures<=1 이면 밴드가 높아도 min(level,2)로 캡(암기/반복 방지)."""
+    # adv(10) 인데 서로 다른 구조 1개뿐 → 암기 → 2.
+    assert svc._place_from_band(
+        _assessment(band="adv", sample_quality="sufficient", distinct_structures=1)) == 2
+    # mid(6) 인데 0개 → 2.
+    assert svc._place_from_band(
+        _assessment(band="mid", sample_quality="sufficient", distinct_structures=0)) == 2
+    # 변주 충분(>=2)이면 캡 없음(넓은 레벨: a3→3).
+    assert svc._place_from_band(
+        _assessment(band="a3", sample_quality="sufficient", distinct_structures=2)) == 3
 
 
 def test_place_from_band_unknown_with_sufficient_returns_none():
@@ -559,9 +580,9 @@ def test_place_from_band_unknown_or_none_returns_one():
         _assessment(band="unknown", sample_quality="none")) == 1
     # 밴드는 명시됐어도 sample_quality=none 이면 1(모국어뿐 전제).
     assert svc._place_from_band(
-        _assessment(band="advanced", sample_quality="none")) == 1
+        _assessment(band="adv", sample_quality="none")) == 1
     assert svc._place_from_band(
-        _assessment(band="beginner", sample_quality="none")) == 1
+        _assessment(band="a1", sample_quality="none")) == 1
 
 
 # --------------------------------------------------------------------------- #

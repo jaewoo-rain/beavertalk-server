@@ -342,10 +342,14 @@ def test_leveltest_self_driven_progress_and_reaction_rules():
     assert "3번 이상 머물지 마라" in lt
     # 스스로 끝내지 않음(끝내는 건 서버).
     assert "스스로 끝내지 말고" in lt
-    # [난이도 사다리] — 1~6단 상승(사다리 문자열 불변).
-    assert "[난이도 사다리 — 위로 갈수록 어렵다]" in lt
-    assert "1단: 기초 — 현재형" in lt
-    assert "6단: 의견 —" in lt
+    # [유도 질문 사다리] — 0단(인사·정형표현) → 1~4단 상승(넓은 레벨: L2→L3→L6→L10, a3/a4는 L3 흡수).
+    assert "[유도 질문 사다리 — 위로 갈수록 어렵다. 각 단계는 그 레벨 문법을 끌어내는 질문이다]" in lt
+    assert "0단(맨 아래): 인사·정형표현" in lt
+    assert "1단(L2): 이름·사는 곳·어제 한 일을 물어" in lt
+    assert "4단(L10): 어떤 주제에 대한 의견과 그 근거를 길게" in lt
+    # OPI escalation: 유도해도 그 문법을 못 내면 거기가 실력 꼭대기(종료는 서버 전담).
+    assert "거기가 그 학습자의 실력 꼭대기이니" in lt
+    assert "각 단계는 그 레벨 문법을 '끌어내는 질문'이다" in lt
     # [막히면] — 발판 2번, 되묻기는 실패 아님.
     assert "[막히면]" in lt
     assert "최대 2번 발판" in lt
@@ -353,8 +357,12 @@ def test_leveltest_self_driven_progress_and_reaction_rules():
     assert "반응과 다음 질문은 반드시 '한 번의 발화'로" in lt
     assert "반응만 하고 멈추면 어색한 침묵" in lt
     assert "정답 여부를 절대 티내지 마라" in lt
-    # 레벨 비노출 유지.
-    assert '레벨·점수·"시험/평가" 언급 금지' in lt
+    # 레벨 비노출 유지("시험/평가" 금지 미세지시는 제거 — 담백함 우선).
+    assert "레벨·점수 언급 금지" in lt
+    assert '"시험/평가" 언급 금지' not in lt
+    # 순수 시험관: 틀려도 고쳐주지/정답 불러주지 마라(교정·반복 드릴 금지).
+    assert "정답을 불러주거나 고쳐주지 마라" in lt
+    assert "너는 가르치지 않고 재기만 한다" in lt
     # 옛 서버 주도 주입 흔적 제거.
     assert '모든 질문은 서버가 "[다음]"으로 준다' not in lt
     assert "[다음]" not in lt
@@ -418,13 +426,13 @@ def test_leveltest_seeds_format():
     # 비버 자율 진행/OPI: 선톡 시드는 무인자(node0 질문 인자 폐기).
     opening = seed_leveltest_opening()
     assert opening.startswith("[통화 시작]")
-    # T4(오프닝 극단축): 인사 한 마디 + 바로 질문, 안심·설명 멘트 금지.
-    assert "가벼운 인사 한 마디 + 바로 질문" in opening
-    assert "안심·설명 멘트는 한마디도 넣지 마라" in opening
+    # 0단 인사부터: 첫 질문은 '인사할 수 있어요?'(자기소개보다 먼저). 안심·설명 멘트 미세지시는 제거.
+    assert "인사부터 되는지 본다" in opening
+    assert "안심·설명 멘트는 한마디도 넣지 마라" not in opening
     # A1: 안내문 낭독 금지 지시를 맨 앞에 강하게 명시(강화 문구).
     assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in opening
-    # 자율 진행: 첫 질문을 '네가 스스로' 만든다(서버 주입 시드 폐기).
-    assert "네가 스스로 아주 쉬운 첫 질문(이름·사는 곳·오늘 한 일" in opening
+    # 첫 질문 = 대상 언어로 인사 정형표현(서버 주입 질문 줄 폐기).
+    assert "인사할 수 있어요?" in opening
     assert "첫 질문:" not in opening  # 서버가 박아 주던 질문 줄 폐기
     assert "한국어" in opening
     fr = seed_leveltest_opening("프랑스어")
@@ -445,9 +453,9 @@ def test_leveltest_opening_seed_has_echo_ban_fewshot():
     # 에코 금지 지시(리액션은 모국어, 학습자 단어 따라 말하지 않음)
     assert "리액션·맞장구는 반드시" in opening
     assert "따라 말하지 마라" in opening
-    # 구체 few-shot 예시(락인 예방 앵커)
-    assert "미국이요" in opening
-    assert "美国! Oh nice" in opening
+    # 구체 few-shot 예시(락인 예방 앵커 — 0단 인사 예시)
+    assert "안녕하세요" in opening
+    assert "完璧! Nice" in opening
     # target_language 치환이 예시에도 적용된다(f-string 버그 회귀 방지)
     fr = seed_leveltest_opening("프랑스어")
     assert "대답만 프랑스어로 하도록 이끈다" in fr
