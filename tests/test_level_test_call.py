@@ -9,7 +9,6 @@
       모순 출력(unknown+sufficient) failed / member 소실 failed(부분 저장 없음).
     - _place_from_band: 넓은 레벨 매핑(chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10 — a3·a4 L3 흡수),
       sparse 캡·변주 게이트(distinct_structures<=1) min(level,2), unknown+sufficient→None(모순), unknown|none→1.
-    - _citation_coverage: 어절 토큰 부분일치 비율(0.0~1.0) — 인용검증 순수함수.
     - _user_char_total: 유니코드 letter/digit 만 계수(기호·이모지 제외).
     - get_status_detail 소유자 가드 + status 엔드포인트 응답 계약(call_type/assessed_level).
     - MemberRead.korean_level 직렬화(None/값).
@@ -583,22 +582,6 @@ def test_place_from_band_unknown_or_none_returns_one():
         _assessment(band="adv", sample_quality="none")) == 1
     assert svc._place_from_band(
         _assessment(band="a1", sample_quality="none")) == 1
-
-
-# --------------------------------------------------------------------------- #
-# (5.5) _citation_coverage 단위 — 인용검증 순수함수(어절 토큰 부분일치 비율)
-# --------------------------------------------------------------------------- #
-def test_citation_coverage_full_and_partial_and_absent():
-    """0.0~1.0: 완전 실재=1.0 / ASR 드리프트 부분겹침=비율 / 통째 부재=0.0 / 빈문자열=0.0."""
-    # 두 어절 모두 answer 에 부분문자열로 존재 → 1.0.
-    assert svc._citation_coverage("김치를 좋아해요", "저는 김치를 좋아해요") == 1.0
-    # ASR 드리프트: '김치를'은 있으나 '좋아해요'는 '좋아 해요'로 갈라져 부재 → 1/2.
-    assert svc._citation_coverage("김치를 좋아해요", "저는 김치 좋아 해요") == 0.5
-    # 어느 토큰도 answer 에 없음 → 0.0.
-    assert svc._citation_coverage("완전히 다른 말", "김치를 먹어요") == 0.0
-    # 빈 heard / 빈 answer → 0.0.
-    assert svc._citation_coverage("", "김치를 먹어요") == 0.0
-    assert svc._citation_coverage("김치를 좋아해요", "") == 0.0
 
 
 def test_user_char_total_counts_letters_and_digits_only():

@@ -120,21 +120,18 @@ IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 �
 LEVELTEST_IDLE_NUDGE1_S = 60.0  # 1단: 무음 60s(일반과 동일) → 방금 질문을 더 쉽게/선택지로 다시(작별 금지). 학습자가 긴 답변을 깊게 생각하는 시간을 넉넉히(25s는 생각 중에 넛지가 끼어들었음)
 LEVELTEST_IDLE_NUDGE2_S = 8.0   # 2단: +8s → 모국어 확인
 LEVELTEST_IDLE_CLOSE_S = 10.0   # 3단: +10s → 종료 시드 주입
-# ── 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 ──
-# 서버가 매 유저 답변을 사이드카로 조용히 밴드 분류(0 survival~3 advanced)만 하고, 관측된
-# 최고 밴드(obs_max, 단조증가)가 천장에 닿으면 종료 시드를 주입한다. ★ 질문은 절대 주입하지
-# 않는다(관측은 대화를 구동하지 않음 — should_close 만 세우고 기존 종료 파이프에 합류).
-# 천장 조건(순수 함수 _band_ceiling_reached): 시간 플로어 & 최소 관측수 충족 후
-#   obs_max==3(최상위 도달) 또는 plateau_count>=PLATEAU_N(더 못 올라감) 또는 obs_count>=MAX.
-LEVELTEST_BAND_TIME_FLOOR_S = 45.0  # 천장 판정 시간 플로어(경과 최소 — 초반 표본 1~2건으로 조기종료 방지)
-LEVELTEST_BAND_MIN_ANSWERS = 4      # 천장 판정 전 최소 관측 답변 수(표본 하한)
-LEVELTEST_BAND_PLATEAU_N = 3        # 밴드 상승 없이 정체가 이만큼 누적되면 천장(더 못 올라감)
-LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(무한 관측 방지 — 이 수 넘으면 천장)
-LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 비화자/완전초보: None 포함 전체 답변이 이만큼인데 obs_max<=survival 이면 빨리 종료(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
-# 종료 판정 사이드카(C): 매 답변 관측 때 전체 전사를 LLM에 넣어 "지금 끝내도 되나" 판정 —
-# 카운터(천장/plateau)보다 유연하게 '못하는 사람'을 조기 종료. 시간 플로어·최소 답변 충족 후에만
-# 물어보고, 판정관은 보수적으로(확실할 때만 종료). 천장 판정은 안전망으로 함께 유지.
-LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # 종료 판정관에 물어보기 시작하는 최소 답변 수(성급한 종료 방지)
+# ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 질문 주입 0) ──
+# 서버가 매 유저 답변을 사이드카로 조용히 판정(answer_in_target·should_end)하고, 종료 트리거가
+# 서면 종료 시드만 주입한다. ★ 질문은 절대 주입하지 않는다(should_close 만 세우고 기존 종료
+# 파이프에 합류). 최종 레벨은 통화후 판정관(전사 전체)이 정한다 — 사이드카는 종료 트리거 전용.
+# 종료 트리거 3종: ① should_end(판정관 등반실패) ② 비화자 결정론 컷(answer_in_target=False 연속)
+#   ③ 하드 턴캡(total_answers >= MAX_ANSWERS — 무한 관측 방지).
+LEVELTEST_BAND_TIME_FLOOR_S = 45.0  # 조기종료 시간 플로어(경과 최소 — should_end/비화자컷에 적용, 초반 표본 조기종료 방지)
+LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(하드 턴캡 — 이 수 넘으면 종료)
+LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 대상 언어 산출 실패(answer_in_target=False)가 이만큼 연속이면 비화자 결정론 컷(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
+# 종료 판정 사이드카(C): 매 답변마다 전체 전사를 LLM에 넣어 "지금 끝내도 되나(should_end)" 판정 —
+# 등반 실패(정체·막힘)를 맥락으로 조기 종료. 시간 플로어·최소 답변 충족 후에만 반영.
+LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 시작하는 최소 답변 수(성급한 종료 방지)
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
@@ -267,8 +264,8 @@ class _CallState:
         "last_activity_ts", "silence_stage", "call_duration_s",
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
-        "band_observe", "band_client", "band_awaiting", "obs_count", "obs_max", "total_answers",
-        "plateau_count", "last_beaver_question", "band_tasks", "band_target_language",
+        "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
+        "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
     )
 
@@ -330,23 +327,22 @@ class _CallState:
         self.reground_pending: bool = False
         self.reground_injected: bool = False
         self.user_turn_open: bool = False
-        # ── 레벨테스트 Phase 2: 조용한 밴드 관측(무주입) ──
+        # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
         # band_client: judge_leveltest_turn 에 넘길 genai.Client(사이드카가 참조).
-        # band_awaiting: 관측 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 관측).
-        # obs_count: 관측 성공(band 값) 누계. obs_max: 관측된 최고 밴드(단조증가, -1=아직 없음).
-        # plateau_count: 최고 밴드 갱신 없이 정체된 관측 연속 수(천장 판정 재료).
-        # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(관측 사이드카의 prior_question 문맥).
-        # band_tasks: 관측 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
+        # band_awaiting: 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 판정).
+        # total_answers: 관측된 전체 답변 시도 수(하드 턴캡 재료 + 판정관 조기종료 게이트).
+        # nonspeaker_streak: 대상 언어 산출 실패(answer_in_target=False) 연속 수 —
+        #   NONSPEAKER_MAX 도달 시 비화자 결정론 컷(한국어 못 하는 사람이 오래 붙잡히는 역설 방지).
+        # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(사이드카의 prior_question 문맥).
+        # band_tasks: 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
         self.band_observe: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
-        # (멀티랭귀지) 라이브 밴드 분류기가 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
+        # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
         self.band_target_language: str = _DEFAULT_TARGET_LABEL
-        self.obs_count: int = 0
-        self.total_answers: int = 0  # None 포함 전체 답변 시도(비화자 조기종료 판정)
-        self.obs_max: int = -1
-        self.plateau_count: int = 0
+        self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
+        self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
         self.band_tasks: set[asyncio.Task] = set()
         # 종료 판정 사이드카(C)용 전체 전사 누적 — "Q: … / A: …" 턴별. 종료 판정관이 맥락으로 읽는다.
@@ -544,11 +540,11 @@ async def run_call(
         state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
         state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
         state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
-        # Phase 2: 조용한 밴드 관측 활성 — 매 유저 답변을 사이드카로 밴드 분류만 하고(질문 주입 0)
-        # 천장(obs_max) 도달 시 종료 시드만 주입한다. band_client = 분류 사이드카가 쓸 genai.Client.
+        # Phase 2: 종료 판정 사이드카 활성 — 매 유저 답변을 사이드카로 종료 판정만 하고(질문 주입 0)
+        # 종료 트리거가 서면 종료 시드만 주입한다. band_client = 판정 사이드카가 쓸 genai.Client.
         state.band_observe = True
         state.band_client = client
-        state.band_target_language = target_language  # (멀티랭귀지) 분류기 대상 언어
+        state.band_target_language = target_language  # (멀티랭귀지) 판정관 대상 언어
     else:
         state.call_duration_s = _resolve_call_duration(settings, duration_override)
         state.idle_nudge1_s = IDLE_NUDGE1_S
@@ -616,9 +612,9 @@ async def run_call(
         logger.info("normalcall 통화 정상 종료")
         if state.band_observe:
             logger.info(
-                "normalcall: 레벨테스트 밴드 관측 종료 obs_max=%d obs_count=%d plateau=%d "
-                "(통화후 판정관이 전사로 최종 확정 — bracket 힌트 전달은 TODO)",
-                state.obs_max, state.obs_count, state.plateau_count,
+                "normalcall: 레벨테스트 종료판정 사이드카 종료 total_answers=%d nonspeaker_streak=%d "
+                "(통화후 판정관이 전사로 최종 확정)",
+                state.total_answers, state.nonspeaker_streak,
             )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         logger.exception("normalcall 브리지 오류: %s", exc)
@@ -1163,30 +1159,14 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
 # 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 (질문 주입 0)
 # --------------------------------------------------------------------------- #
 def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
-    """관측된 최고 밴드(obs_max)가 '천장'에 닿았는지 판정(순수 함수 — 부작용 0, 테스트 용이).
+    """하드 턴캡: 관측된 전체 답변 수가 안전 상한(MAX_ANSWERS)에 닿았는지(순수 함수 — 부작용 0).
 
-    시간 플로어(초반 표본으로 조기종료 방지) & 최소 관측수 충족 후 둘 중 하나면 천장:
-      - obs_max >= 6        : adv(최상위 밴드) 도달 — 더 잴 상단이 없다. (7밴드: chunk0~adv6)
-      - obs_count >= MAX    : 관측 답변 안전 상한 — 무한 관측 방지.
-    ⚠ Phase 2(OPI 종료 통일): plateau_count(밴드 정체) 종료를 **제거**했다. OPI 유도는 초반 rung
-      (인사·이름·사는곳·어제)이 원래 다 같은 밴드(a1)라, plateau가 climb 도중 오발동해 mid/adv
-      학습자를 하위 레벨에서 조기절단했다(시뮬로 확인). '학습자가 실력 꼭대기에 닿았다'는 판단은
-      기계적 정체가 아니라 판정관의 should_end(맥락 기반 escalate-fail)에 맡긴다(호출부에서 OR).
-      이 함수는 이제 절대 상한(adv 도달)·안전 상한(관측수)·비화자 조기만 담당한다.
-    ⚠ 서수 의미 전환(7밴드 이식): 옛 '>= 3'(advanced 최상위)을 '>= 6'(adv 최상위)으로 교체.
+    종료 판정 전용 refactor(Phase 2): 밴드 천장(obs_max)·plateau·비화자(obs_max<=0) 판정을
+    제거했다. '등반 실패' 감지는 판정관 should_end(맥락)와 비화자 결정론 컷(nonspeaker_streak)이
+    맡고, 이 함수는 오직 무한 관측을 막는 하드 턴캡만 담당한다. elapsed 는 호출부 시그니처
+    호환용(현 구현은 미사용 — 턴캡은 시간 무관).
     """
-    if elapsed < LEVELTEST_BAND_TIME_FLOOR_S:
-        return False
-    # 비화자/완전초보: 여러 번 시도했는데 한국어 산출이 survival(0) 이하뿐 → 빨리 종료.
-    # (한국어를 아예 못 하는 사람은 band=None 만 나와 obs_count 가 안 늘어 영영 안 끊기던 역설 차단.)
-    if state.total_answers >= LEVELTEST_BAND_NONSPEAKER_MAX and state.obs_max <= 0:
-        return True
-    if state.obs_count < LEVELTEST_BAND_MIN_ANSWERS:
-        return False
-    return (
-        state.obs_max >= 6
-        or state.obs_count >= LEVELTEST_BAND_MAX_ANSWERS
-    )
+    return state.total_answers >= LEVELTEST_BAND_MAX_ANSWERS
 
 
 def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None:
@@ -1215,45 +1195,43 @@ def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None
 async def _band_observe_sidecar(
     session: LiveSessionProtocol, state: _CallState, answer: str, prior_question: str
 ) -> None:
-    """답변 1건 밴드 분류 → obs_max/plateau 추적 → 천장이면 종료 시드 주입(백그라운드, R5).
+    """답변 1건 종료 판정 → 종료 트리거면 종료 시드 주입(백그라운드, R5).
 
-    band None(무응답/판정불가) = 무변경(넛지·캡이 처리). band 값이면 obs_count++,
-    obs_max 갱신 시 plateau=0, 아니면 plateau++. 천장(_band_ceiling_reached) 도달 시
-    should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접 주입한다
-    (발화중/유저턴 열림이면 주입 안 함 — 펌프가 다음 깨끗한 turn_end 에서 주입 + 시계워처
-    백스톱). ★ 질문 주입 없음 — should_close/종료 시드만. 예외·CancelledError 처리는 힌트
-    사이드카와 동일(취소는 재전파, 그 외는 흡수 → band None 취급).
+    judge_leveltest_turn 이 (answer_in_target, should_end) 를 준다(밴드 정밀분류 없음 — 최종
+    레벨은 통화후 판정관 몫). 세 종료 트리거 중 하나면 종료:
+      ① should_end(판정관 등반실패 감지) — 시간 플로어 & 최소 답변(END_JUDGE_MIN) 충족 시.
+      ② 비화자 결정론 컷 — answer_in_target=False 연속 NONSPEAKER_MAX — 시간 플로어 충족 시.
+      ③ 하드 턴캡(_band_ceiling_reached) — total_answers >= MAX_ANSWERS(무한 관측 방지).
+    어느 트리거든 should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접
+    주입한다(발화중/유저턴 열림이면 펌프의 다음 깨끗한 turn_end + 시계워처 백스톱이 주입).
+    ★ 질문 주입 없음. 예외·CancelledError 처리는 힌트 사이드카와 동일(취소 재전파, 그 외 흡수).
     """
-    # 통합 판정관(밴드+종료 1콜): 최신 발화 밴드 + 전체 대화 맥락 종료 여부를 함께 받는다.
+    answer_in_target = False
     should_end = False
     try:
-        band, should_end = await svc.judge_leveltest_turn(
+        answer_in_target, should_end = await svc.judge_leveltest_turn(
             state.band_client,
             transcript=state.leveltest_transcript,
             latest_answer=answer,
             prior_question=prior_question,
-            obs_max=state.obs_max,
             target_language=state.band_target_language,
         )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로 — 재전파
-    except Exception as exc:  # noqa: BLE001 - 관측 실패는 관측 1건 누락일 뿐 통화 무영향
-        logger.warning("normalcall: 밴드 관측 실패(무시 — 관측 1건 누락): %s", exc)
-        band, should_end = None, False
+    except Exception as exc:  # noqa: BLE001 - 판정 실패는 1건 누락일 뿐 통화 무영향
+        logger.warning("normalcall: 종료 판정 사이드카 실패(무시 — 1건 누락): %s", exc)
+        answer_in_target, should_end = False, False
     finally:
-        state.band_awaiting = False  # in-flight 해제 → 다음 답변 관측 허용
+        state.band_awaiting = False  # in-flight 해제 → 다음 답변 판정 허용
 
-    # total_answers 는 None(비화자·판정불가) 포함 전체 시도 — 비화자 조기종료 판정용.
     state.total_answers += 1
-    if band is not None:
-        state.obs_count += 1
-        if band > state.obs_max:
-            state.obs_max = band
-            state.plateau_count = 0
-        else:
-            state.plateau_count += 1
+    # 비화자 스트릭: 대상 언어 산출 실패면 누적, 성공이면 리셋(연속 실패만 컷 재료).
+    if answer_in_target:
+        state.nonspeaker_streak = 0
+    else:
+        state.nonspeaker_streak += 1
 
-    # 통합 판정관에 넘길 전사 누적(다음 턴 맥락) — 원문 그대로 Q/A(인용 아님).
+    # 판정관에 넘길 전사 누적(다음 턴 맥락) — 원문 그대로 Q/A(인용 아님).
     state.leveltest_transcript.append(
         f"Q: {(prior_question or '').strip()}\nA: {answer.strip()}"
     )
@@ -1262,32 +1240,32 @@ async def _band_observe_sidecar(
     elapsed = (
         loop.time() - state.call_start_ts if state.call_start_ts is not None else 0.0
     )
-    reached = _band_ceiling_reached(state, elapsed)
-    logger.info(
-        "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s should_end=%s",
-        band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached, should_end,
-    )
-    # 종료 판정(통합 판정관 B): 카운터 천장 미도달이어도 '전체 대화 맥락'상 지금 끝내도 된다고
-    #   판단됐으면 종료. 플로어(시간 45s·최소 3답변) 충족 시에만 반영 — 판정관은 보수적(확실할
-    #   때만). 카운터 천장보다 유연하게 '못하는 사람'을 조기 종료(사장님 아이디어). 실패/불확실은
-    #   안 끝냄(안전 — judge_leveltest_turn 이 False 반환).
-    if (
-        not reached
-        and should_end
-        and not state.should_close
-        and not state.close_seed_sent
-        and elapsed >= LEVELTEST_BAND_TIME_FLOOR_S
+    floor_ok = elapsed >= LEVELTEST_BAND_TIME_FLOOR_S
+    # ① 하드 턴캡(시간 무관 — 무한 관측 방지). ② 비화자 결정론 컷(연속 실패). ③ 판정관 should_end.
+    hard_cap = _band_ceiling_reached(state, elapsed)
+    nonspeaker_cut = floor_ok and state.nonspeaker_streak >= LEVELTEST_BAND_NONSPEAKER_MAX
+    judge_end = (
+        should_end
+        and floor_ok
         and state.total_answers >= LEVELTEST_END_JUDGE_MIN_ANSWERS
-    ):
-        reached = True
-        logger.info("normalcall: 통합 판정관 should_end → 종료(맥락 기반 조기종료)")
+    )
+    reached = hard_cap or nonspeaker_cut or judge_end
+    logger.info(
+        "normalcall: 종료판정 answer_in_target=%s should_end=%s total=%d nonspeaker_streak=%d "
+        "elapsed=%.0fs 턴캡=%s 비화자컷=%s 판정종료=%s",
+        answer_in_target, should_end, state.total_answers, state.nonspeaker_streak,
+        elapsed, hard_cap, nonspeaker_cut, judge_end,
+    )
     if not reached:
         return
-    # 천장 도달 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
+    # 종료 트리거 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
     if state.should_close or state.close_seed_sent:
         return
     state.should_close = True
-    logger.info("normalcall: 밴드 천장 도달(obs_max=%d) → 종료 플래그", state.obs_max)
+    logger.info(
+        "normalcall: 레벨테스트 종료 트리거(턴캡=%s 비화자컷=%s 판정종료=%s) → 종료 플래그",
+        hard_cap, nonspeaker_cut, judge_end,
+    )
     # 종료 레이스 가드(시계워처와 동일): 비버 idle & 유저 응답 대기 없음이면 직접 주입,
     # 아니면 펌프 turn_end(should_close 경로)/시계워처 백스톱이 주입한다. ★ 질문 주입 아님.
     # M1(시니어): 세션 종료 레이스에 종료 시드 send_text_turn 이 던지면 미회수 태스크 예외로

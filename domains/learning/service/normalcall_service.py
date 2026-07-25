@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Literal, Optional, TypeVar
@@ -1743,10 +1742,8 @@ async def judge_leveltest_answer(
         return "unclear"
 
     # ★ 인용 검증(관통원칙3): pass 인데 근거 구절이 실제 발화에 없으면 환각 →
-    # unclear 로 강등. 순수 파이썬 부분 문자열 매칭(LLM 없이 검증 가능).
-    # (의도적으로 엄격: 여기 O/X 판정은 단일 노드 통과/실패라 오탐 대가가 작다. 반면
-    #  judge_leveltest_turn 은 밴드 천장을 좌우해 저평가 대가가 크므로 _citation_coverage
-    #  로 완화한다 — 두 강도 차이는 의도된 것.)
+    # unclear 로 강등. 순수 파이썬 부분 문자열 매칭(LLM 없이 검증 가능). 여기 O/X 판정은
+    # 단일 노드 통과/실패라 오탐 대가가 작아 엄격 부분문자열로 검증한다.
     if verdict.result == "pass":
         heard = (verdict.heard_grammar or "").strip()
         if not heard or heard not in answer_text:
@@ -1761,113 +1758,49 @@ async def judge_leveltest_answer(
     return "unclear"
 
 
-# ── 밴드 분류 사이드카 (레벨테스트 Phase 2) ─────────────────────────────────
-# judge_leveltest_answer 가 "이 노드 문법을 산출했나(O/X)"를 재는 것과 달리,
-# 이 사이드카는 학습자 답 1개가 '보여준 최고 문법 밴드'를 노드 무관하게 절대 분류한다.
-# (노드 매칭 방식은 call 246 강등 오판의 원인 — 목표보다 높은 문법으로 답해도
-#  노드 미스매치면 실패로 샜다. 밴드 분류는 학습자가 실제로 도달한 천장을 읽는다.)
+# ── 종료 판정 사이드카 (레벨테스트 Phase 2 — '끝낼까 말까' 전용) ─────────────
+# 최종 레벨은 통화후 판정관(analyze_level_test_call, 전사 전체)이 정한다. 통화중 밴드 판정은
+# 그와 독립·중복이라 제거했다. 이 사이드카는 오직 종료 트리거만 본다: 답변이 실제 대상 언어인가
+# (비화자 결정론 컷) + 등반 실패(정체·막힘)로 지금 끝낼까(should_end, 전체 맥락 근거).
 
 def _leveltest_turn_instruction(target_language: str = "한국어") -> str:
-    """레벨테스트 '통합 판정관' 지시문 — 매 턴 (A)최신 발화의 밴드 + (B)전체 대화로 종료
-    여부를 한 번에 판정한다(옛 밴드 판정관+종료 판정관 통합, LLM 콜 턴당 1회).
+    """레벨테스트 '종료 판정 전용' 지시문 — 매 턴 (1)답변이 대상 언어인가 + (2)지금 끝낼까만
+    판정한다(밴드 정밀분류는 통화후 판정관 몫 — 여기선 '끝낼까 말까'만).
 
-    (멀티랭귀지) 대상 언어의 버킷 정의로 판정 — 기본 한국어(프로덕션 무손상). 대상 언어를
-    명시해야 학습자 모국어를 실력으로 오독하지 않는다."""
+    (멀티랭귀지) 대상 언어를 명시해 학습자 모국어를 실력으로 오독하지 않게 한다(기본 한국어)."""
     t = target_language
     return (
-        f"너는 {t} 레벨테스트 통화를 지켜보는 판정관이다. 매 턴 두 가지를 동시에 판정한다:\n"
-        f"(A) [학습자 최신 발화]가 보여준 '최고' 밴드 — 오직 최신 발화만 근거.\n"
-        f"(B) [전체 대화]로 볼 때 이 통화를 지금 마쳐도 되는가(should_end).\n"
+        f"너는 {t} 레벨테스트 통화를 지켜보며 두 가지만 판단한다:\n"
+        f"(1) answer_in_target: [학습자 최신 발화]가 실제 {t}인가? 학습자 모국어나 다른 언어면 "
+        f"false({t} 어휘·문법 표지가 실제로 있어야 true — 어순만 닮은 건 불충분). 인사·머뭇·"
+        "\"몰라요\"만이면 false.\n"
+        "(2) should_end: 지금 통화를 끝내야 하나?\n"
         "\n"
-        "=== (A) 밴드 판정 — 오직 [학습자 최신 발화]만 근거로 ===\n"
-        "[직전 비버 질문]·[전체 대화]는 문맥일 뿐 — 비버의 문장이나 이전 답변을 최신 발화의 "
-        "실력으로 세지 마라.\n"
-        f"[★ 언어 게이트 — 밴드 재기 전에 먼저 판정하라] 최신 발화가 실제로 {t}인가? 학습자가 {t}가 "
-        f"아니라 자기 모국어나 다른 언어로 답했으면 answer_in_target=false 로 하고, 아무리 유창·복잡해도 "
-        f"observed_band=no_attempt 다 — 오직 {t} 발화만이 밴드 근거다. ★ {t}와 학습자 모국어가 어순·"
-        f"조사 구조가 비슷해도(예: 한국어↔일본어는 둘 다 조사+정중종결+어순이 닮음), {t}의 어휘·문법 "
-        f"표지가 실제로 있어야만 {t}로 인정한다. 다른 언어 어휘로 이뤄진 문장은 문장이 길고 복잡해도 "
-        f"answer_in_target=false 이고 no_attempt 다(모국어 유창함을 {t} 실력으로 오독 금지).\n"
-        + _bucket_definitions(t) + "\n"
-        "- no_attempt: 머뭇·필러('음','어'), 인사만, 되묻기('네?','뭐라고요?'), 질문과 무관한 "
-        "한두 마디, 말이 끊긴 미완성.\n"
-        "[변주 게이트] distinct_structures: 최신 발화에서 서로 다른 문법 구조를 몇 개 productive하게 "
-        "냈나. 같은 문장 반복이나 인상적 문장 하나만 외워 말하면 ≤1 — 이땐 아무리 복잡해도 실력이 아니라 "
-        "암기이므로 서버가 밴드를 낮게 캡한다(암기 하나 ≠ 실력).\n"
-        "[인용 규칙]\n"
-        "- ★ heard_grammar 에는 밴드 근거가 된 [학습자 최신 발화]의 실제 구절을 전사에 나타난 '그대로'"
-        "(오탈자·띄어쓰기 포함) 복사하라. 교정·정규화·번역·재작성 금지. 근거가 없으면 빈 문자열.\n"
-        "\n"
-        "=== (B) 종료 판정 — [전체 대화]를 근거로 ===\n"
-        "다음 중 하나가 확실하면 should_end=true:\n"
-        f"① 학습자의 {t} 실력 상한이 충분히 드러났다 — 더 어려운 질문에도 일관된 수준이라 더 재도 그대로다.\n"
-        f"② 학습자가 여러 번 시도했는데도 {t}를 거의/전혀 못 낸다(모국어로만 답하거나 계속 막힘) — "
-        "더 붙잡아도 새로 얻을 게 없다.\n"
-        "★ 보수적으로 판정하라: 아직 몇 번 안 물었거나 학습자가 더 보여줄 여지가 있으면 should_end=false. "
-        "짧은 답 한두 개만 보고 성급히 끝내지 마라 — 확실할 때만 true.\n"
-        "\n"
-        "[출력 순서 — 반드시 이 순서로 생각하라]\n"
-        f"① answer_in_target: 최신 발화가 {t}인가(아니면 밴드는 no_attempt/빈값) → ② heard_grammar: "
-        "밴드 근거가 된 실제 구절 인용 → ③ decisive_feature: 밴드를 정한 결정 마커 라벨 → "
-        "④ distinct_structures: 서로 다른 문법 구조 개수(변주 게이트) → ⑤ observed_band: 밴드 → "
-        "⑥ spontaneity: 자발성 → ⑦ should_end: 전체 대화 기반 종료 여부 → ⑧ end_reason: 종료 근거.\n"
-        "출력은 반드시 주어진 JSON 스키마를 따른다."
+        "이건 '올라가는' 시험 — 비버가 매 턴 더 어렵게 묻는다. 학습자 천장이 드러나면 끝낸다. "
+        "[전체 대화]의 최근 2~3턴 흐름으로 판단하라:\n"
+        "■ should_end=true — 최근 2~3턴에 하나라도 뚜렷하면:\n"
+        " ① 정체(천장): 비버가 더 어렵게 밀었는데 답이 더 복잡해지지 않는다(같은 수준 반복 / "
+        "더 쉬운 답 / 더 어려운 질문엔 못 답). → 더 재도 그대로.\n"
+        f" ② 막힘: 최근 여러 턴 {t}를 거의 못 낸다(영어로 도망·\"몰라요\"·머뭇 반복). → 더 얻을 것 없음.\n"
+        "■ should_end=false:\n"
+        " ③ 직전 턴에 '더 어려운' 걸 새로 해냈다 → 아직 오르는 중, 계속.\n"
+        " ④ 대화가 아직 짧아 흐름이 안 보인다.\n"
+        "★ 정체/막힘이 2~3턴 뚜렷하면 미루지 마라. 계속 새 수준을 보이면 성급히 끝내지 마라.\n"
+        "출력은 주어진 JSON 스키마: answer_in_target(bool), should_end(bool), end_reason(근거 한 줄)."
     )
 
 
 class LeveltestTurnRead(BaseModel):
-    """레벨테스트 매 턴 '통합 판정' 출력(밴드 + 종료, 사이드카 1콜).
+    """레벨테스트 종료 판정 전용 사이드카 출력(밴드 정밀분류 없음 — '끝낼까 말까'만).
 
-    필드 순서 = 생성 순서(CoT): 언어게이트 → 인용 → 결정마커 → 변주게이트 → 밴드 → 자발성 →
-    종료여부 → 종료근거. (A) 밴드는 오직 [최신 발화] 근거 — 먼저 답변이 실제 대상 언어인지 판정
-    하고 (answer_in_target), 아니면 호출부가 밴드를 무효화한다(닮은 언어 모국어 누수 차단).
-    heard_grammar 는 밴드 근거가 된 학습자의 실제 구절을 그대로 인용한다(추측·재작성 금지);
-    관통원칙3: observed_band 가 a2(중급 상당) 이상인데 이 인용이 실제 발화에 실재하지 않으면
-    호출부에서 한 밴드 강등한다(환각 방어). distinct_structures ≤1 이면 호출부가 밴드를 낮게
-    캡한다(변주 게이트 — 암기/반복 방지). (B) should_end 는 [전체 대화] 근거이며 호출부가
-    플로어 게이트를 통과할 때만 최종 반영한다.
+    answer_in_target: 최신 발화가 실제 대상 언어인가(모국어·타 언어·머뭇·인사면 False).
+    should_end: 등반 실패(정체·막힘)로 지금 통화를 끝내야 하는가. 호출부가 게이트를 통과할 때만
+    최종 반영한다. 최종 레벨은 통화후 판정관(전사 전체)이 정한다 — 이 사이드카는 종료 트리거 전용.
     """
 
-    answer_in_target: bool = True  # ① 최신 발화가 실제 대상 언어인가(모국어·타 언어면 False → 밴드 무효)
-    heard_grammar: str = ""  # ② 밴드 근거가 된 최신 발화의 실제 구절 인용(없으면 "")
-    decisive_feature: str = ""  # ③ 밴드를 정한 결정 마커 라벨(예: "동사간접화법 -다고 하다")
-    distinct_structures: int = 0  # ④ 서로 다른 문법 구조 개수(변주 게이트: ≤1이면 밴드 낮게 캡)
-    observed_band: Literal[
-        "no_attempt", "chunk", "a1", "a2", "a3", "a4", "mid", "adv"
-    ]
-    spontaneity: Literal["spontaneous", "elicited", "echo"] = "spontaneous"
-    should_end: bool = False  # ⑦ 전체 대화상 지금 마쳐도 되는가
-    end_reason: str = ""  # ⑧ 종료 판단 근거(로깅용)
-
-
-# 밴드 → 서수(0..6). no_attempt/unknown 은 여기 없음(→ None 반환). 인용검증 강등의 기준선.
-# (sim_elicit.py BAND 서수 순서와 일치 — chunk가 최하, adv가 최상)
-_BAND_ORDINAL: dict[str, int] = {
-    "chunk": 0,
-    "a1": 1,
-    "a2": 2,
-    "a3": 3,
-    "a4": 4,
-    "mid": 5,
-    "adv": 6,
-}
-
-
-def _citation_coverage(heard: str, answer: str) -> float:
-    """heard_grammar 인용이 실제 답변에 얼마나 실재하는지(0.0~1.0) — ASR 왜곡에 강건한 근거 검증.
-
-    공백·문장부호를 제거해 정규화한 뒤, heard 의 어절 토큰 중 정규화된 answer 안에 부분
-    문자열로 나타나는 비율을 센다. 0.0 = 인용이 통째로 부재(환각). 순수 파이썬(LLM 없이).
-    """
-    def _norm(s: str) -> str:
-        return re.sub(r"[\s\W_]+", "", s)
-
-    a = _norm(answer)
-    tokens = [t for t in heard.split() if _norm(t)]
-    if not a or not tokens:
-        return 0.0
-    hit = sum(1 for t in tokens if _norm(t) in a)
-    return hit / len(tokens)
+    answer_in_target: bool = False  # 최신 발화가 실제 대상 언어인가(모국어·타 언어·머뭇·인사면 False)
+    should_end: bool = False  # 등반 실패(정체·막힘)로 지금 마쳐야 하나
+    end_reason: str = ""  # 종료 판단 근거(로깅용)
 
 
 async def judge_leveltest_turn(
@@ -1876,32 +1809,29 @@ async def judge_leveltest_turn(
     transcript: list[str],
     latest_answer: str,
     prior_question: str | None = None,
-    obs_max: int = -1,
     target_language: str = "한국어",
-) -> tuple[int | None, bool]:
-    """매 턴 '통합 판정'(사이드카 1콜): (A) 최신 발화의 밴드 + (B) 전체 대화로 종료 여부.
+) -> tuple[bool, bool]:
+    """종료 판정 전용 사이드카(1콜): (answer_in_target, should_end).
 
-    옛 밴드 판정관(단발)+종료 판정관(전체맥락)을 하나로 합쳐 LLM 콜을 턴당 1회로 줄였다.
-    (A) 밴드는 오직 latest_answer 근거(언어게이트·인용검증 그대로 — 노드 매칭이 아니라 발화가
-    도달한 문법 천장을 읽어, 목표보다 높은 문법으로 답해도 상위 밴드로 인정). (B) should_end 는
-    transcript(전체 대화) 맥락 근거 — 카운터(plateau)보다 유연하게 '못하는 사람'을 조기 종료.
+    밴드 정밀분류를 뺀다 — 최종 레벨은 통화후 판정관(analyze_level_test_call, 전사 전체)이
+    정하므로 통화중 밴드 판정은 중복이었다. 이 사이드카는 오직 '끝낼까 말까'만 본다:
+    (1) 최신 발화가 실제 대상 언어인지(비화자 결정론 컷 재료), (2) 등반 실패(정체·막힘)로
+    지금 끝내야 하는지(transcript 전체 맥락 근거).
 
     Args:
         client: lifespan 이 만든 genai.Client(없으면 통화 자체가 비활성이나 방어).
         transcript: 지금까지 누적된 Q/A 전사(이번 최신 발화 이전까지 — 맥락용).
-        latest_answer: 학습자가 방금 한 발화(대상 언어, in_tr 전사). 밴드 판정 대상.
-        prior_question: 직전 비버 질문(문맥용, 선택). 실력 근거로 쓰지 않는다.
-        obs_max: 지금까지 관측된 최고 밴드(-1=아직 없음) — 종료 판정 참고용 힌트.
+        latest_answer: 학습자가 방금 한 발화(대상 언어, in_tr 전사).
+        prior_question: 직전 비버 질문(문맥용, 선택).
 
     Returns:
-        (band, should_end).
-        band: None = no_attempt/판정 불가(머뭇·필러·실패·환각·호출실패·대상언어 아님) /
-              0..6 = chunk/a1/a2/a3/a4/mid/adv.
+        (answer_in_target, should_end).
+        answer_in_target: 최신 발화가 실제 대상 언어인가(모국어·타 언어·머뭇·인사·실패면 False).
         should_end: 전체 대화상 지금 마쳐도 되는가(호출부가 플로어 게이트로 최종 반영).
     """
-    # graceful 가드(R5): client 없음 / 빈 발화 → 판정 불능.
+    # graceful 가드(R5): client 없음 / 빈 발화 → 판정 불능(비화자로 취급, 종료 안 함).
     if client is None or not latest_answer or not latest_answer.strip():
-        return None, False
+        return False, False
 
     convo = "\n".join(transcript[-30:])  # 최근 30턴만(컨텍스트 과대·비용 방지)
     ctx = f"[전체 대화]\n{convo}\n\n" if convo else ""
@@ -1916,7 +1846,6 @@ async def judge_leveltest_turn(
             system_instruction=_leveltest_turn_instruction(target_language),
             prompt=(
                 f"{ctx}"
-                f"[관측된 최고 밴드] {obs_max} (0=chunk ~ 6=adv, -1=아직 없음)\n\n"
                 f"{q}[학습자 최신 발화]\n{latest_answer.strip()}"
             ),
             schema=LeveltestTurnRead,
@@ -1924,49 +1853,14 @@ async def judge_leveltest_turn(
             thinking_budget=0,  # 통화중 실시간 사이드카 — 지연 최소화(추론 비활성).
         )
     except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)
-        logger.warning("leveltest turn judge: 예외(무시) → (None, False): %s", exc)
-        return None, False
+        logger.warning("leveltest turn judge: 예외(무시) → (False, False): %s", exc)
+        return False, False
 
     if read is None:
-        return None, False
+        return False, False
 
+    answer_in_target = bool(read.answer_in_target)
     should_end = bool(read.should_end)
     if should_end:
         logger.info("leveltest turn judge: should_end=True (%s)", (read.end_reason or "")[:80])
-
-    # ── (A) 밴드 산출 ──
-    # ★ 언어 게이트(관통원칙1: 코드가 심판) — 답변이 대상 언어가 아니면 밴드 무효(None).
-    #   닮은 언어(한↔일)에서 유창한 모국어 답변이 높은 밴드로 새는 것을 원천 차단.
-    if not read.answer_in_target:
-        logger.info("leveltest band: 대상 언어 아님(answer_in_target=False) → None")
-        return None, should_end
-
-    # no_attempt / 판정불가 → None(엔진이 재시도·강제전진으로 처리).
-    ordinal = _BAND_ORDINAL.get(read.observed_band)
-    if ordinal is None:
-        return None, should_end
-
-    # ★ 인용 검증(관통원칙3): a2(중급 상당·서수 2) 이상인데 근거 구절이 실제 발화에 '통째로'
-    # 부재하면(coverage 0) 환각 → 한 밴드 강등. 엄격 부분문자열이 아니라 어절 토큰 겹침으로
-    # 판정한다 — ASR(음성인식) 전사 왜곡·조사/띄어쓰기 드리프트로 인용이 바이트 단위로 정확히
-    # 일치하지 않아도, 일부라도 겹치면 신뢰한다(과잉 강등=저평가 방지).
-    if ordinal >= _BAND_ORDINAL["a2"]:
-        heard = (read.heard_grammar or "").strip()
-        if _citation_coverage(heard, latest_answer) == 0.0:
-            logger.info(
-                "leveltest band: %s 인용 미검증(heard=%r, coverage=0) → 한 밴드 강등",
-                read.observed_band,
-                heard,
-            )
-            ordinal -= 1
-
-    # ★ 변주 게이트(sim_elicit.py to_level): 서로 다른 구조가 ≤1이면 암기/반복 — 아무리 높은
-    # 밴드여도 서수를 a1(1)로 캡(레벨 2 상당). 반복충·암기긴문장충이 상위 밴드로 새는 것 차단.
-    if read.distinct_structures <= 1 and ordinal > _BAND_ORDINAL["a1"]:
-        logger.info(
-            "leveltest band: 변주 게이트(distinct_structures=%d) → 밴드 %s 를 a1로 캡",
-            read.distinct_structures, read.observed_band,
-        )
-        ordinal = _BAND_ORDINAL["a1"]
-
-    return ordinal, should_end
+    return answer_in_target, should_end
