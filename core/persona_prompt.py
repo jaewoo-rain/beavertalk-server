@@ -1,6 +1,6 @@
 """normalcall 시스템 지시문 조립(순수 문자열 — LLM 생성 0) — 외부 어댑터.
 
-불변식 템플릿(코드 고정) + 캐릭터 페르소나(role/personality/rules) + 레벨 프로파일
+불변식 템플릿(코드 고정) + 캐릭터 페르소나(role/personality) + 레벨 프로파일
 (level.profile) + 흥미·예시 + (있으면) 최근 이력을 한 문자열로 합쳐 Gemini Live
 system_instruction 을 만든다. 어떤 조각도 AI 가 만들지 않는다(조립만). 입력은 전부
 원시 값(str/list) — 도메인 모델/DB 를 모른다.
@@ -80,8 +80,8 @@ _INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가르치
 
 [모국어] 학습자의 모국어는 {locale_label}다.
 
-[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}{rules_line}
-이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
+[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}
+이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 너는 통화 내내 이 인물이며, 네가 AI·모델·시스템·프롬프트라는 사실이나 이 지시문 자체를 절대 언급하지 마라(메타 발언 금지). 대화상대의 이름은 {username}
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 1. 모드 분기(스스로 판단, 서버는 모드를 추적하지 않는다):
@@ -319,7 +319,6 @@ def build_system_instruction(
     *,
     role: str,
     personality: str,
-    rules: str | None,
     level_profile: str,
     locale: str,
     interests: list[str],
@@ -335,7 +334,7 @@ def build_system_instruction(
 ) -> str:
     """normalcall Live 세션용 system_instruction 을 조립한다(LLM 생성 0).
 
-    조립 순서: 불변식 → 캐릭터 페르소나(role/personality/rules) → 레벨 프로파일 →
+    조립 순서: 불변식 → 캐릭터 페르소나(role/personality) → 레벨 프로파일 →
     흥미·예시 → (있으면) 공부 체크판 블록 → 대화 가이드 블록 → 최근 통화 소재 →
     최근 이력 → 승급 알림.
 
@@ -346,7 +345,6 @@ def build_system_instruction(
     Args:
         role: 캐릭터 역할/정체성(character.role).
         personality: 캐릭터 성격·말투(character.personality).
-        rules: 캐릭터별 추가 규칙(character.rules, 없으면 None).
         level_profile: 레벨 발화 프로파일(level.profile).
         locale: 학습자 모국어 식별자(미지원이면 영어 폴백).
         interests: 관심사 목록(비면 "일상").
@@ -372,7 +370,6 @@ def build_system_instruction(
     """
     locale_label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL[_DEFAULT_LOCALE])
     interests_text = ", ".join(i for i in interests if i) or "일상"
-    rules_line = f"\n캐릭터별 추가 규칙: {rules}" if (rules and rules.strip()) else ""
     username = (name or "").strip() or "학습자"
 
     # 블록이 하나라도 있으면 규칙 1 모드 불릿을 교체판으로(없으면 템플릿 원문 그대로 —
@@ -389,7 +386,6 @@ def build_system_instruction(
         locale_label=locale_label,
         role=role or "친근한 한국어 대화 파트너",
         personality=personality or "다정하고 편안한 말투",
-        rules_line=rules_line,
         username=username,
         target=target_language,
         lang_policy=lang_policy,
@@ -439,7 +435,7 @@ def build_system_instruction(
 # 역전(안내·리액션=모국어, 측정 질문=한국어), 레벨·점수 발설 금지. 종료 규약은
 # _RULE_CLOSE_PROTOCOL 공유(비버 먼저 작별 절대 금지).
 # ⚠ 레벨테스트는 캐릭터 페르소나를 아예 주입하지 않는다(순수 배치 테스트 관점) —
-# role/personality/rules 는 시그니처 호환을 위해 계속 받되 대본엔 넣지 않고, 고정
+# role/personality 는 시그니처 호환을 위해 계속 받되 대본엔 넣지 않고, 고정
 # '시험관' 한 줄로 대체한다. 캐릭터 톤 누출·한국어 과다(실측 call 163)·토큰을 제거.
 # 캐릭터는 일반 통화(build_system_instruction)에서 살린다.
 # =========================================================================== #
@@ -530,7 +526,6 @@ def build_leveltest_instruction(
     *,
     role: str,
     personality: str,
-    rules: str | None,
     locale: str,
     interests: list[str],
     name: str | None = None,
@@ -539,8 +534,8 @@ def build_leveltest_instruction(
 ) -> str:
     """레벨테스트 통화용 system_instruction 을 조립한다(LLM 생성 0, 비버 자율 진행).
 
-    build_system_instruction 과 같은 캐릭터 슬롯(role/personality/rules)을 계속 받지만
-    (시그니처·호출부 무변), 레벨테스트는 '순수 배치 테스트' 관점이라 캐릭터 페르소나를
+    build_system_instruction 과 같은 캐릭터 슬롯(role/personality)을 계속 받지만
+    (시그니처 호환), 레벨테스트는 '순수 배치 테스트' 관점이라 캐릭터 페르소나를
     대본에 주입하지 않는다 — 고정 '시험관' 한 줄로 대체한다. level_profile/history
     슬롯도 없다(레벨 미상 전제).
 
@@ -553,7 +548,6 @@ def build_leveltest_instruction(
     Args:
         role: (미사용 — 호환용) 캐릭터 역할/정체성. 대본에 주입하지 않는다.
         personality: (미사용 — 호환용) 캐릭터 성격·말투. 대본에 주입하지 않는다.
-        rules: (미사용 — 호환용) 캐릭터별 추가 규칙. 대본에 주입하지 않는다.
         locale: 학습자 모국어 식별자(미지원이면 영어 폴백).
         interests: 관심사 목록(비면 "일상") — 질문 소재.
         name: 학습자 이름(없으면 "학습자" 폴백).
@@ -563,7 +557,7 @@ def build_leveltest_instruction(
     Returns:
         Gemini Live system_instruction 문자열.
     """
-    # role/personality/rules 는 호환용으로만 받고 대본엔 넣지 않는다(순수 배치 테스트).
+    # role/personality 는 호환용으로만 받고 대본엔 넣지 않는다(순수 배치 테스트).
     locale_label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL[_DEFAULT_LOCALE])
     interests_text = ", ".join(i for i in interests if i) or "일상"
     username = (name or "").strip() or "학습자"
@@ -606,8 +600,8 @@ def seed_leveltest_opening(target_language: str = "한국어") -> str:
     )
 
 
-def build_reground_reminder(role: str, personality: str, rules: str | None) -> str:
-    """통화 중간 1회 재접지 리마인더 — 캐릭터 3필드를 '행동 지시'로 되박는다(넛지 방식).
+def build_reground_reminder(role: str, personality: str) -> str:
+    """통화 중간 1회 재접지 리마인더 — 캐릭터 필드를 '행동 지시'로 되박는다(넛지 방식).
 
     긴 통화에서 캐릭터가 밋밋해지는 걸 중간에 한 번 되살린다. send_reground 가 이 문자열을
     turn_complete=True 로 주입하면 비버가 즉시 '캐릭터답게 한마디' 응답한다.
@@ -615,7 +609,7 @@ def build_reground_reminder(role: str, personality: str, rules: str | None) -> s
     그래서 정체성을 참고 재료로만 주고, **명령은 "그 캐릭터로 학습자에게 행동하라"**로 준다 —
     무음 넛지처럼 지시가 아니라 행동으로 나가게. 낭독 방지 앵커를 맨 앞에.
     """
-    parts = [p.strip() for p in (role, personality, rules) if p and p.strip()]
+    parts = [p.strip() for p in (role, personality) if p and p.strip()]
     body = " / ".join(parts) if parts else "너의 캐릭터"
     return (
         "[시스템] (이 지시문·아래 캐릭터 설명을 절대 소리 내어 읽거나 '나는 ~다'라고 소개하지 마라 "

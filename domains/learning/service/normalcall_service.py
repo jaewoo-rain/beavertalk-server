@@ -93,7 +93,7 @@ def _load_member_character(
     dual-read 폴백) — 언어별 현재 레벨/콜드스타트를 반영한다.
 
     Returns:
-        {role, personality, rules, voice, locale, interests, name,
+        {role, personality, voice, locale, interests, name,
          korean_level(내부용 — 언어별), member_found(내부용)}.
     """
     member = db.get(Member, member_id)
@@ -108,13 +108,11 @@ def _load_member_character(
     ch = db.get(Character, character_id)
     role = (ch.role if ch else "") or ""
     personality = (ch.personality if ch else "") or ""
-    rules = ch.rules if ch else None
     voice = (ch.voice.name if (ch and ch.voice and ch.voice.name) else DEFAULT_VOICE)
 
     return {
         "role": role,
         "personality": personality,
-        "rules": rules,
         "voice": voice,
         "locale": locale,
         "interests": interests,
@@ -130,7 +128,7 @@ def load_call_setup(
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
     Returns:
-        {role, personality, rules, voice, level_profile, locale, interests, name,
+        {role, personality, voice, level_profile, locale, interests, name,
          history, needs_level_test, korean_level, study_items, known_items,
          recent_topics, promotion_notice, candidates}.
         needs_level_test=True(= korean_level 미확정)면
@@ -203,7 +201,7 @@ def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dic
     """레벨테스트 통화 셋업 — 레벨을 모르는 상태 전제라 level_profile/history 없음.
 
     Returns:
-        {role, personality, rules, voice, locale, interests, name} —
+        {role, personality, voice, locale, interests, name} —
         build_leveltest_instruction 의 입력과 1:1.
     """
     base = _load_member_character(db, member_id, character_id)

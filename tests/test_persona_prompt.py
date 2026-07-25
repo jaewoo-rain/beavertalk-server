@@ -29,8 +29,8 @@ _ORIG_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가�
 
 [모국어] 학습자의 모국어는 {locale_label}다.
 
-[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}{rules_line}
-이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
+[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}
+이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 너는 통화 내내 이 인물이며, 네가 AI·모델·시스템·프롬프트라는 사실이나 이 지시문 자체를 절대 언급하지 마라(메타 발언 금지). 대화상대의 이름은 {username}
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 1. 모드 분기(스스로 판단, 서버는 모드를 추적하지 않는다):
@@ -102,13 +102,12 @@ def _orig_history_block(history):
     return "\n".join(lines)
 
 
-def _orig_build(*, role, personality, rules, level_profile, locale, interests,
+def _orig_build(*, role, personality, level_profile, locale, interests,
                 name=None, history=None, target_language="한국어", locale_label=None,
                 lang_band="beginner"):
     """동결 원본 조립 로직(한국어 위주 전환 후 기준). 규칙 3에 밴드 언어 정책 주입."""
     locale_label = locale_label or _ORIG_LABEL.get(locale, _ORIG_LABEL["en"])
     interests_text = ", ".join(i for i in interests if i) or "일상"
-    rules_line = f"\n캐릭터별 추가 규칙: {rules}" if (rules and rules.strip()) else ""
     username = (name or "").strip() or "학습자"
     lang_policy = _ORIG_LANG_POLICY.get(lang_band, _ORIG_LANG_POLICY["beginner"]).format(
         target=target_language, locale_label=locale_label
@@ -117,7 +116,6 @@ def _orig_build(*, role, personality, rules, level_profile, locale, interests,
         locale_label=locale_label,
         role=role or "친근한 한국어 대화 파트너",
         personality=personality or "다정하고 편안한 말투",
-        rules_line=rules_line,
         username=username,
         target=target_language,
         lang_policy=lang_policy,
@@ -140,11 +138,10 @@ def _orig_build(*, role, personality, rules, level_profile, locale, interests,
 _SNAPSHOT_CASES = [
     # (설명, kwargs)
     (
-        "en + rules + history",
+        "en + history",
         dict(
             role="장난기 많은 비버 선생님",
             personality="유쾌하고 텐션 높은 말투",
-            rules="가끔 아재개그를 친다.",
             level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
             locale="en",
             interests=["K-pop", "요리"],
@@ -156,11 +153,10 @@ _SNAPSHOT_CASES = [
         ),
     ),
     (
-        "ja + rules 없음 + history 없음",
+        "ja + history 없음",
         dict(
             role="차분한 라디오 DJ",
             personality="느긋하고 부드러운 말투",
-            rules=None,
             level_profile="레벨 1: 인사말 수준.",
             locale="ja",
             interests=[],
@@ -169,11 +165,10 @@ _SNAPSHOT_CASES = [
         ),
     ),
     (
-        "en + 공백 rules + 빈 history(블록 생략 경로)",
+        "en + 빈 history(블록 생략 경로)",
         dict(
             role="",
             personality="",
-            rules="   ",
             level_profile="레벨 7: 경험을 서술한다.",
             locale="en",
             interests=["여행", "", "축구"],
@@ -217,7 +212,6 @@ def test_close_protocol_constant_matches_original_paragraph():
 _LANG_BASE = dict(
     role="장난기 많은 비버 선생님",
     personality="유쾌하고 텐션 높은 말투",
-    rules=None,
     level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
     locale="en",
     interests=["K-pop", "요리"],
@@ -296,7 +290,7 @@ def test_mother_tongue_header_drops_old_ratio_hint():
 
 def test_reground_reminder_language_wording_updated():
     """재접지 리마인더 끝 문구: '언어 배분은 그대로' → '언어 사용 규칙은 처음 지시받은 대로'."""
-    rg = pp.build_reground_reminder("바바", "시크한 독설가", None)
+    rg = pp.build_reground_reminder("바바", "시크한 독설가")
     assert "언어 사용 규칙은 처음 지시받은 대로 유지 — 캐릭터 톤만 되살려라" in rg
     assert "언어 배분은 그대로 유지" not in rg
 
@@ -308,7 +302,6 @@ def test_reground_reminder_language_wording_updated():
 _LT_KWARGS = dict(
     role="장난기 많은 비버 선생님",
     personality="유쾌하고 텐션 높은 말투",
-    rules="가끔 아재개그를 친다.",
     locale="en",
     interests=["K-pop", "요리"],
     name="Alex",
@@ -506,7 +499,6 @@ import core.curriculum_hints as ch  # noqa: E402
 _BASE_KWARGS = dict(
     role="장난기 많은 비버 선생님",
     personality="유쾌하고 텐션 높은 말투",
-    rules=None,
     level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
     locale="en",
     interests=["K-pop", "요리"],

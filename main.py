@@ -323,7 +323,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             system_instruction = build_system_instruction(
                 role=setup["role"],
                 personality=setup["personality"],
-                rules=setup["rules"],
                 level_profile=level_profile,
                 locale=loc,
                 interests=setup["interests"],

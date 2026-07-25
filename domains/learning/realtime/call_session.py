@@ -479,7 +479,6 @@ async def run_call(
         system_instruction = build_leveltest_instruction(
             role=lt_setup["role"],
             personality=lt_setup["personality"],
-            rules=lt_setup["rules"],
             locale=locale,
             interests=lt_setup["interests"],
             name=lt_setup["name"],
@@ -497,7 +496,6 @@ async def run_call(
         system_instruction = build_system_instruction(
             role=setup["role"],
             personality=setup["personality"],
-            rules=setup["rules"],
             level_profile=level_profile,
             locale=locale,
             interests=setup["interests"],
@@ -514,7 +512,7 @@ async def run_call(
         voice = setup["voice"]
         # 단발 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"): DB 캐릭터 3필드를 중간에 1회 되박음.
         if REGROUND_MODE != "off":
-            reground_reminder = build_reground_reminder(setup["role"], setup["personality"], setup["rules"])
+            reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
