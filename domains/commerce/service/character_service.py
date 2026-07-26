@@ -63,6 +63,8 @@ class CharacterService:
             effective_price=discount.discount_price if discount else c.price,
             is_owned=owned,
             description=c.description,
+            story=c.story,
+            gender=c.gender,
             voice_url=c.voice_url,
             tags=c.tags or [],
             active_discount=DiscountOut.model_validate(discount) if discount else None,

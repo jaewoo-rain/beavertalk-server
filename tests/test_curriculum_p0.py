@@ -347,11 +347,16 @@ def seeded_db():
 
 
 def test_seed_first_run_counts(seeded_db):
-    """1회차: level 13행(1~13, L1 grade='A0') · learning_item 11,141행(kind 별)."""
+    """1회차: level 13행(1~13, L1 grade='A0') · learning_item 11,141행(kind 별).
+
+    (멀티랭귀지) seed 는 language='ko' 를 채운다 — 전건 ko(language 컬럼만 추가).
+    """
     db, first = seeded_db["db"], seeded_db["first"]
     assert first["level_rows"] == 13
     level_nos = sorted(n for (n,) in db.query(Level.level_no).all())
     assert level_nos == list(range(1, 14))
+    # 전 레벨 language='ko'
+    assert {lang for (lang,) in db.query(Level.language).distinct().all()} == {"ko"}
     l1 = db.scalar(select(Level).where(Level.level_no == 1))
     assert l1.grade == "A0", f"L1 grade={l1.grade} (생존 회화는 'A0' 이어야 함)"
 
@@ -359,6 +364,8 @@ def test_seed_first_run_counts(seeded_db):
     assert first["kind_counts"] == {
         "grammar": GRAMMAR_COUNT, "vocab": VOCAB_COUNT, "chunk": CHUNK_COUNT,
     }
+    # 전 learning_item language='ko'
+    assert {lang for (lang,) in db.query(LearningItem.language).distinct().all()} == {"ko"}
 
 
 def test_seed_is_idempotent(seeded_db):
@@ -394,8 +401,8 @@ def test_load_call_setup_fallback_level_2():
         ch = Character(name="비비", role="선생님", personality="다정함",
                        voice_id=voice.voice_id, price=0)
         db.add(ch)
-        db.add(Level(level_no=1, grade="A0", profile="생존 회화 프로파일"))
-        db.add(Level(level_no=2, grade="A", profile="Basic A 프로파일"))
+        db.add(Level(language="ko", level_no=1, grade="A0", profile="생존 회화 프로파일"))
+        db.add(Level(language="ko", level_no=2, grade="A", profile="Basic A 프로파일"))
         member = Member(language="en", korean_level=None,
                         onboarding_completed=True, auth_user_id="auth-fallback")
         db.add(member)

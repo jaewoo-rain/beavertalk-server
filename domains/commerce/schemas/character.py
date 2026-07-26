@@ -36,8 +36,10 @@ class CharacterSummary(BaseModel):
 
 
 class CharacterDetail(CharacterSummary):
-    """상세용 — 요약 필드 + 활성 할인 정보."""
+    """상세용 — 요약 필드 + 배경 이야기 + 활성 할인 정보."""
 
+    story: Optional[str] = None  # 캐릭터 배경 이야기/서사(상세 전용, 목록 카드엔 미노출)
+    gender: Optional[str] = None  # 캐릭터 성별 느낌(male/female, 상세 전용)
     active_discount: Optional[DiscountOut]
 
 

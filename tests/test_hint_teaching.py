@@ -76,7 +76,7 @@ def seeded(session_factory):
         ch = Character(name="비비", role="친근한 선생님", personality="다정함",
                        voice_id=voice.voice_id, price=0)
         db.add(ch)
-        db.add(Level(level_no=1, profile="생존 회화 프로파일"))
+        db.add(Level(language="ko", level_no=1, profile="생존 회화 프로파일"))
         member = Member(language="en", korean_level=1, onboarding_completed=True,
                         auth_user_id="auth-member")
         db.add(member)
@@ -241,7 +241,8 @@ def test_verify_detections_no_hint_keeps_grades():
 # (3) teaching_plan 매핑 — chunk roman 포함 + run_call push
 # --------------------------------------------------------------------------- #
 def test_study_item_dto_carries_item_id_and_chunk_roman():
-    item = LearningItem(kind="chunk", source_key="c:01:안녕하세요?", band=1, level_no=1,
+    item = LearningItem(kind="chunk", source_key="c:01:안녕하세요?", band=1,
+                        language="ko", level_no=1,
                         assign_rule="survival_v1", surface="안녕하세요?",
                         meanings='{"en": "Hello.", "roman": "annyeonghaseyo?"}')
     item.item_id = 77  # db 없이 PK 수동 지정(매핑 단위 테스트)
@@ -270,8 +271,8 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
     """normal 통화 + study_items 있으면 start 직후 teaching_plan 1회 push(핫패스 밖)."""
     real_setup = svc.load_call_setup
 
-    def _setup_with_items(db, member_id, character_id):
-        out = real_setup(db, member_id, character_id)
+    def _setup_with_items(db, member_id, character_id, language="ko"):
+        out = real_setup(db, member_id, character_id, language)
         out["study_items"] = [
             {"slot": "main", "kind": "chunk", "obj": "안녕하세요?", "ex": None,
              "des": "Hello.", "item_id": 77, "roman": "annyeonghaseyo?"},

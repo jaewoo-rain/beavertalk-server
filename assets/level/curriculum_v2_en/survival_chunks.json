@@ -1,0 +1,467 @@
+{
+  "level_no": 1,
+  "count": 46,
+  "language": "en",
+  "items": [
+    {
+      "no": 1,
+      "category": "인사",
+      "surface": "Hello.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Hello.",
+      "meaning_ko": "안녕하세요",
+      "situation": "만능 인사·통화 시작"
+    },
+    {
+      "no": 2,
+      "category": "인사",
+      "surface": "Hi, nice to meet you.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Nice to meet you.",
+      "meaning_ko": "안녕, 만나서 반가워요",
+      "situation": "첫 만남"
+    },
+    {
+      "no": 3,
+      "category": "인사",
+      "surface": "How are you?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "How are you?",
+      "meaning_ko": "잘 지내요?",
+      "situation": "안부 묻기"
+    },
+    {
+      "no": 4,
+      "category": "인사",
+      "surface": "Good morning.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Good morning.",
+      "meaning_ko": "좋은 아침이에요",
+      "situation": "아침 인사"
+    },
+    {
+      "no": 5,
+      "category": "인사",
+      "surface": "Goodbye.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Goodbye.",
+      "meaning_ko": "안녕히 가세요",
+      "situation": "헤어질 때"
+    },
+    {
+      "no": 6,
+      "category": "인사",
+      "surface": "See you later!",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "See you later.",
+      "meaning_ko": "또 봐요",
+      "situation": "가벼운 작별"
+    },
+    {
+      "no": 7,
+      "category": "인사",
+      "surface": "Have a nice day.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Have a nice day.",
+      "meaning_ko": "좋은 하루 보내세요",
+      "situation": "작별 덧붙임"
+    },
+    {
+      "no": 8,
+      "category": "인사",
+      "surface": "Welcome!",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Welcome.",
+      "meaning_ko": "어서 오세요",
+      "situation": "맞이할 때"
+    },
+    {
+      "no": 9,
+      "category": "감사·사과",
+      "surface": "Thank you.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Thank you.",
+      "meaning_ko": "감사합니다",
+      "situation": "감사"
+    },
+    {
+      "no": 10,
+      "category": "감사·사과",
+      "surface": "Thanks a lot.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Thanks a lot.",
+      "meaning_ko": "정말 고마워요",
+      "situation": "강한 감사"
+    },
+    {
+      "no": 11,
+      "category": "감사·사과",
+      "surface": "You're welcome.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "You're welcome.",
+      "meaning_ko": "천만에요",
+      "situation": "감사 응답"
+    },
+    {
+      "no": 12,
+      "category": "감사·사과",
+      "surface": "I'm sorry.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I'm sorry.",
+      "meaning_ko": "죄송합니다",
+      "situation": "사과"
+    },
+    {
+      "no": 13,
+      "category": "감사·사과",
+      "surface": "Excuse me.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Excuse me.",
+      "meaning_ko": "실례합니다",
+      "situation": "말 걸기·사과"
+    },
+    {
+      "no": 14,
+      "category": "감사·사과",
+      "surface": "That's okay.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "That's okay.",
+      "meaning_ko": "괜찮아요",
+      "situation": "사과 응답·사양"
+    },
+    {
+      "no": 15,
+      "category": "긍정·부정·반응",
+      "surface": "Yes.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Yes.",
+      "meaning_ko": "네",
+      "situation": "긍정"
+    },
+    {
+      "no": 16,
+      "category": "긍정·부정·반응",
+      "surface": "No.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "No.",
+      "meaning_ko": "아니요",
+      "situation": "부정"
+    },
+    {
+      "no": 17,
+      "category": "긍정·부정·반응",
+      "surface": "Sounds good.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Sounds good.",
+      "meaning_ko": "좋아요",
+      "situation": "승낙"
+    },
+    {
+      "no": 18,
+      "category": "긍정·부정·반응",
+      "surface": "That's right.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "That's right.",
+      "meaning_ko": "맞아요",
+      "situation": "동의"
+    },
+    {
+      "no": 19,
+      "category": "긍정·부정·반응",
+      "surface": "I got it.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I got it.",
+      "meaning_ko": "알겠어요",
+      "situation": "이해 확인"
+    },
+    {
+      "no": 20,
+      "category": "긍정·부정·반응",
+      "surface": "I don't know.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I don't know.",
+      "meaning_ko": "몰라요",
+      "situation": "모를 때"
+    },
+    {
+      "no": 21,
+      "category": "긍정·부정·반응",
+      "surface": "Really?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Really?",
+      "meaning_ko": "진짜요?",
+      "situation": "놀람"
+    },
+    {
+      "no": 22,
+      "category": "긍정·부정·반응",
+      "surface": "It's delicious.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "It's delicious.",
+      "meaning_ko": "맛있어요",
+      "situation": "음식 리액션"
+    },
+    {
+      "no": 23,
+      "category": "자기소개",
+      "surface": "I'm ◯◯.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I'm ◯◯.",
+      "meaning_ko": "저는 ◯◯이에요",
+      "situation": "이름(슬롯)"
+    },
+    {
+      "no": 24,
+      "category": "자기소개",
+      "surface": "I'm from ◯◯.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I'm from ◯◯.",
+      "meaning_ko": "◯◯에서 왔어요",
+      "situation": "출신(슬롯)"
+    },
+    {
+      "no": 25,
+      "category": "자기소개",
+      "surface": "What's your name?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "What's your name?",
+      "meaning_ko": "이름이 뭐예요?",
+      "situation": "상대 이름 묻기"
+    },
+    {
+      "no": 26,
+      "category": "자기소개",
+      "surface": "How do you do.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "How do you do.",
+      "meaning_ko": "처음 뵙겠습니다",
+      "situation": "격식 첫인사"
+    },
+    {
+      "no": 27,
+      "category": "자기소개",
+      "surface": "Nice to meet you.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Nice to meet you.",
+      "meaning_ko": "잘 부탁해요",
+      "situation": "첫 만남 마무리"
+    },
+    {
+      "no": 28,
+      "category": "생존 요청",
+      "surface": "This one, please.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "This one, please.",
+      "meaning_ko": "이거 주세요",
+      "situation": "주문"
+    },
+    {
+      "no": 29,
+      "category": "생존 요청",
+      "surface": "How much is it?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "How much is it?",
+      "meaning_ko": "얼마예요?",
+      "situation": "가격"
+    },
+    {
+      "no": 30,
+      "category": "생존 요청",
+      "surface": "Where is the bathroom?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Where is the bathroom?",
+      "meaning_ko": "화장실이 어디예요?",
+      "situation": "장소"
+    },
+    {
+      "no": 31,
+      "category": "생존 요청",
+      "surface": "Please help me.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Please help me.",
+      "meaning_ko": "도와주세요",
+      "situation": "긴급"
+    },
+    {
+      "no": 32,
+      "category": "생존 요청",
+      "surface": "Excuse me! (calling)",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Excuse me!",
+      "meaning_ko": "여기요!",
+      "situation": "점원 부르기"
+    },
+    {
+      "no": 33,
+      "category": "생존 요청",
+      "surface": "Just a moment.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Just a moment.",
+      "meaning_ko": "잠시만요",
+      "situation": "시간 벌기"
+    },
+    {
+      "no": 34,
+      "category": "생존 요청",
+      "surface": "I'm hungry.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I'm hungry.",
+      "meaning_ko": "배고파요",
+      "situation": "상태"
+    },
+    {
+      "no": 35,
+      "category": "생존 요청",
+      "surface": "Water, please.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Water, please.",
+      "meaning_ko": "물 주세요",
+      "situation": "식당"
+    },
+    {
+      "no": 36,
+      "category": "학습자 전략",
+      "surface": "Could you say that again?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Say that again, please.",
+      "meaning_ko": "다시 말해 주세요",
+      "situation": "못 알아들음"
+    },
+    {
+      "no": 37,
+      "category": "학습자 전략",
+      "surface": "Please speak slowly.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "Please speak slowly.",
+      "meaning_ko": "천천히 말해 주세요",
+      "situation": "속도 조절"
+    },
+    {
+      "no": 38,
+      "category": "학습자 전략",
+      "surface": "I didn't catch that.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I didn't catch that.",
+      "meaning_ko": "잘 못 들었어요",
+      "situation": "청취 실패"
+    },
+    {
+      "no": 39,
+      "category": "학습자 전략",
+      "surface": "What did you say?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "What did you say?",
+      "meaning_ko": "뭐라고요?",
+      "situation": "되묻기"
+    },
+    {
+      "no": 40,
+      "category": "학습자 전략",
+      "surface": "What does ◯◯ mean?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "What does ◯◯ mean?",
+      "meaning_ko": "◯◯이 무슨 뜻이에요?",
+      "situation": "단어 뜻(슬롯)"
+    },
+    {
+      "no": 41,
+      "category": "학습자 전략",
+      "surface": "How do you say it in English?",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "How do you say it in English?",
+      "meaning_ko": "영어로 어떻게 말해요?",
+      "situation": "표현 묻기"
+    },
+    {
+      "no": 42,
+      "category": "학습자 전략",
+      "surface": "I don't understand.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "I don't understand.",
+      "meaning_ko": "이해 못 했어요",
+      "situation": "이해 실패"
+    },
+    {
+      "no": 43,
+      "category": "숫자",
+      "surface": "one, two, three, four, five",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "1–5",
+      "meaning_ko": "일~오",
+      "situation": "숫자 세기"
+    },
+    {
+      "no": 44,
+      "category": "숫자",
+      "surface": "six, seven, eight, nine, ten",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "6–10",
+      "meaning_ko": "육~십",
+      "situation": "숫자 세기"
+    },
+    {
+      "no": 45,
+      "category": "숫자",
+      "surface": "first, second, third",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "1st, 2nd, 3rd",
+      "meaning_ko": "첫째·둘째·셋째",
+      "situation": "서수"
+    },
+    {
+      "no": 46,
+      "category": "숫자",
+      "surface": "One, please.",
+      "reading": null,
+      "roman": null,
+      "meaning_en": "One, please.",
+      "meaning_ko": "하나 주세요",
+      "situation": "수량 실전"
+    }
+  ]
+}

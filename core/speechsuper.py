@@ -65,7 +65,9 @@ def _grade(score: int) -> str:
     return "하"
 
 
-def assess_pronunciation(ref_text: Optional[str], audio_url: Optional[str] = None) -> dict:
+def assess_pronunciation(
+    ref_text: Optional[str], audio_url: Optional[str] = None, *, language: str = "ko"
+) -> dict:
     """기준 문장(ref_text)에 대한 발음 채점 결과.
 
     Args:
@@ -85,6 +87,12 @@ def assess_pronunciation(ref_text: Optional[str], audio_url: Optional[str] = Non
     """
     # 오디오가 없으면 외부 호출 불가 → 스텁
     if not audio_url:
+        return _stub_assess(ref_text)
+
+    # 언어 게이트: 한국어(ko)만 실제 SpeechSuper(coreType=sent.eval.kr) 채점. 다른 언어는
+    # 실채점 미지원 → 목(스텁) 데이터로. (지금은 SpeechSuper 키도 없어 한국어도 스텁 = 전부 목.
+    # 나중에 키를 붙이면 한국어만 자동으로 실채점, 나머지 언어는 계속 목.)
+    if (language or "ko").strip().lower() != "ko":
         return _stub_assess(ref_text)
 
     app_key = settings.SPEECH_SUPER_APP_KEY
@@ -437,15 +445,24 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
         for c in chars
     ]
     avg = round(sum(c["score"] for c in char_scores) / len(char_scores)) if char_scores else 0
-    phonemes = [
-        {
-            "phoneme": "",
-            "alpha": sound_label(j, pos),
-            "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56),
-        }
-        for i, c in enumerate(chars)
-        for (j, pos) in _jamos(c)
-    ]
+    # 한국어는 자모(받침/구분/초성 라벨)로, 비한글(일본어·중국어 등 다국어)은 글자 자체를
+    # 소리 단위로 목 생성 — 다국어 통화에서 소리별 정확도·코칭이 빈 채로 안 나오게(로딩 방지).
+    phonemes: list[dict] = []
+    for i, c in enumerate(chars):
+        jamos = _jamos(c)
+        if jamos:
+            for j, pos in jamos:
+                phonemes.append({
+                    "phoneme": "",
+                    "alpha": sound_label(j, pos),
+                    "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56),
+                })
+        elif not c.isascii():  # 비한글 표의/음절 문자(일본어·중국어 등) — 글자를 소리 단위로
+            phonemes.append({
+                "phoneme": "",
+                "alpha": c,
+                "pronunciation": 45 + ((ord(c) * 5 + i * 7) % 56),
+            })
     return {
         "evaluation": {
             "total_score": avg,

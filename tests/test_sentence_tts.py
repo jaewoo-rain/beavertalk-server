@@ -179,13 +179,6 @@ def test_tts_empty_korean_returns_422(session_factory, seeded, mock_tts_ok):
     assert r.status_code == 422
 
 
-def test_tts_no_genai_client_returns_503(session_factory, seeded, mock_tts_ok):
-    app = _build_app(session_factory, genai_client=None)
-    client = TestClient(app)
-    r = client.post(f"/api/v1/sentences/{seeded['s1']}/tts", headers=_hdr())
-    assert r.status_code == 503
-
-
 def test_tts_synthesis_failure_returns_503(session_factory, seeded, monkeypatch):
     async def _fail(*_a, **_k):
         return None

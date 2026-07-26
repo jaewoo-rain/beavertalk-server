@@ -57,6 +57,12 @@ from sqlalchemy.orm import sessionmaker
 from core import gemini_analysis
 from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
 from core.config import Settings, settings as _settings
+from core.languages import (
+    DEFAULT_LANGUAGE,
+    LanguageSpec,
+    SUPPORTED_LANGUAGES,
+    resolve_language,
+)
 from core.gemini_live import (
     DEFAULT_VOICE,
     LiveEvent,
@@ -114,17 +120,18 @@ IDLE_CLOSE_S = 12.0   # 3단: 2단 넛지 후 재무음 12s → 작별 시드 �
 LEVELTEST_IDLE_NUDGE1_S = 60.0  # 1단: 무음 60s(일반과 동일) → 방금 질문을 더 쉽게/선택지로 다시(작별 금지). 학습자가 긴 답변을 깊게 생각하는 시간을 넉넉히(25s는 생각 중에 넛지가 끼어들었음)
 LEVELTEST_IDLE_NUDGE2_S = 8.0   # 2단: +8s → 모국어 확인
 LEVELTEST_IDLE_CLOSE_S = 10.0   # 3단: +10s → 종료 시드 주입
-# ── 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 ──
-# 서버가 매 유저 답변을 사이드카로 조용히 밴드 분류(0 survival~3 advanced)만 하고, 관측된
-# 최고 밴드(obs_max, 단조증가)가 천장에 닿으면 종료 시드를 주입한다. ★ 질문은 절대 주입하지
-# 않는다(관측은 대화를 구동하지 않음 — should_close 만 세우고 기존 종료 파이프에 합류).
-# 천장 조건(순수 함수 _band_ceiling_reached): 시간 플로어 & 최소 관측수 충족 후
-#   obs_max==3(최상위 도달) 또는 plateau_count>=PLATEAU_N(더 못 올라감) 또는 obs_count>=MAX.
-LEVELTEST_BAND_TIME_FLOOR_S = 45.0  # 천장 판정 시간 플로어(경과 최소 — 초반 표본 1~2건으로 조기종료 방지)
-LEVELTEST_BAND_MIN_ANSWERS = 4      # 천장 판정 전 최소 관측 답변 수(표본 하한)
-LEVELTEST_BAND_PLATEAU_N = 3        # 밴드 상승 없이 정체가 이만큼 누적되면 천장(더 못 올라감)
-LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(무한 관측 방지 — 이 수 넘으면 천장)
-LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 비화자/완전초보: None 포함 전체 답변이 이만큼인데 obs_max<=survival 이면 빨리 종료(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
+# ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 질문 주입 0) ──
+# 서버가 매 유저 답변을 사이드카로 조용히 판정(answer_in_target·should_end)하고, 종료 트리거가
+# 서면 종료 시드만 주입한다. ★ 질문은 절대 주입하지 않는다(should_close 만 세우고 기존 종료
+# 파이프에 합류). 최종 레벨은 통화후 판정관(전사 전체)이 정한다 — 사이드카는 종료 트리거 전용.
+# 종료 트리거 3종: ① should_end(판정관 등반실패) ② 비화자 결정론 컷(answer_in_target=False 연속)
+#   ③ 하드 턴캡(total_answers >= MAX_ANSWERS — 무한 관측 방지).
+LEVELTEST_BAND_TIME_FLOOR_S = 45.0  # 조기종료 시간 플로어(경과 최소 — should_end/비화자컷에 적용, 초반 표본 조기종료 방지)
+LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(하드 턴캡 — 이 수 넘으면 종료)
+LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 대상 언어 산출 실패(answer_in_target=False)가 이만큼 연속이면 비화자 결정론 컷(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
+# 종료 판정 사이드카(C): 매 답변마다 전체 전사를 LLM에 넣어 "지금 끝내도 되나(should_end)" 판정 —
+# 등반 실패(정체·막힘)를 맥락으로 조기 종료. 시간 플로어·최소 답변 충족 후에만 반영.
+LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 시작하는 최소 답변 수(성급한 종료 방지)
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
@@ -138,16 +145,18 @@ REGROUND_MODE = "on_user_turn"
 # 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
 REGROUND_ATTACH_AT = "first"
 DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(BABA, 기본 무료)
-DEFAULT_TARGET_LANGUAGE = "한국어"    # 교육 대상 언어 기본값(프로덕션 — 오버라이드 없으면 이 값)
-# 데모 전용 모국어 라벨 확장(전역 _LOCALE_LABEL 은 안 건드림 → prod 는 ko→영어 폴백 유지).
-_DEMO_LOCALE_EXTRA = {"ko": "한국어"}
+# 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
+# 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
+_DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 
 # normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.CLOSE_SEED_LEVELTEST(대본 소유자).
 _CLOSE_SEED = (
     "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
     "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
     "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'며 따뜻하게 작별해라. "
-    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장."
+    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
+    "★ 절대 '[시스템]'·'통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 친구끼리 "
+    "헤어지듯 평범한 작별 인사만 해라(예: '오늘 재밌었어, 다음에 또 보자!')."
 )
 
 # 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
@@ -187,17 +196,23 @@ async def _send_json(ws, message: ServerMessage) -> None:
     await ws.send_text(server_adapter.dump_json(message).decode("utf-8"))
 
 
-def _resolve_target_language(settings: Settings, override: Optional[str]) -> tuple[str, bool]:
-    """교육 대상 언어 결정 → (target_language, is_demo).
+def _resolve_target_language(settings: Settings, override: Optional[str]) -> LanguageSpec:
+    """교육 대상 언어 결정 → LanguageSpec(멀티랭귀지).
 
-    prod 이거나 오버라이드가 없으면 항상 한국어(비데모). non-prod 에서 오버라이드가 오면
-    그 언어로 데모 진행. prod 에서 오버라이드가 오면 무시하고 warning(오남용/버그 탐지).
+    is_demo 개념 폐지: prod/dev 구분 없이 지원 언어면 그대로 간다. override(언어코드,
+    _read_initial_start 가 resolve 한 값)가 없거나 미지원이면 settings.DEFAULT_TARGET_LANGUAGE
+    로 폴백(warning). 언어별 동작(회화 전용/레벨테스트/힌트)은 spec.has_curriculum·leveltest 가
+    결정 — 하류 분기는 코드가 아니라 이 레지스트리 한 행을 본다.
     """
-    if settings.ENV == "prod" or not override:
-        if settings.ENV == "prod" and override:
-            logger.warning("normalcall: prod 에서 target_language 오버라이드 무시(%s)", override)
-        return DEFAULT_TARGET_LANGUAGE, False
-    return override.strip(), True
+    spec = resolve_language(override) if override else None
+    if spec is None:
+        if override:
+            logger.warning(
+                "normalcall: 미지원 target_language(%s) → 기본(%s) 폴백",
+                override, settings.DEFAULT_TARGET_LANGUAGE,
+            )
+        spec = resolve_language(settings.DEFAULT_TARGET_LANGUAGE) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
+    return spec
 
 
 # 데모/dev 통화 길이 override 범위(분). 사장님 요청: 레벨 데모에서 3~15분 선택.
@@ -249,8 +264,9 @@ class _CallState:
         "last_activity_ts", "silence_stage", "call_duration_s",
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
-        "band_observe", "band_client", "band_awaiting", "obs_count", "obs_max", "total_answers",
-        "plateau_count", "last_beaver_question", "band_tasks",
+        "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
+        "last_beaver_question", "band_tasks", "band_target_language",
+        "leveltest_transcript",
     )
 
     def __init__(self) -> None:
@@ -311,23 +327,26 @@ class _CallState:
         self.reground_pending: bool = False
         self.reground_injected: bool = False
         self.user_turn_open: bool = False
-        # ── 레벨테스트 Phase 2: 조용한 밴드 관측(무주입) ──
+        # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
-        # band_client: classify_leveltest_band 에 넘길 genai.Client(사이드카가 참조).
-        # band_awaiting: 관측 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 관측).
-        # obs_count: 관측 성공(band 값) 누계. obs_max: 관측된 최고 밴드(단조증가, -1=아직 없음).
-        # plateau_count: 최고 밴드 갱신 없이 정체된 관측 연속 수(천장 판정 재료).
-        # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(관측 사이드카의 prior_question 문맥).
-        # band_tasks: 관측 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
+        # band_client: judge_leveltest_turn 에 넘길 genai.Client(사이드카가 참조).
+        # band_awaiting: 사이드카 in-flight 가드(동시 1건만 — 다음 답변은 완료 후 판정).
+        # total_answers: 관측된 전체 답변 시도 수(하드 턴캡 재료 + 판정관 조기종료 게이트).
+        # nonspeaker_streak: 대상 언어 산출 실패(answer_in_target=False) 연속 수 —
+        #   NONSPEAKER_MAX 도달 시 비화자 결정론 컷(한국어 못 하는 사람이 오래 붙잡히는 역설 방지).
+        # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(사이드카의 prior_question 문맥).
+        # band_tasks: 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
         self.band_observe: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
-        self.obs_count: int = 0
-        self.total_answers: int = 0  # None 포함 전체 답변 시도(비화자 조기종료 판정)
-        self.obs_max: int = -1
-        self.plateau_count: int = 0
+        # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
+        self.band_target_language: str = _DEFAULT_TARGET_LABEL
+        self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
+        self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
         self.band_tasks: set[asyncio.Task] = set()
+        # 종료 판정 사이드카(C)용 전체 전사 누적 — "Q: … / A: …" 턴별. 종료 판정관이 맥락으로 읽는다.
+        self.leveltest_transcript: list[str] = []
 
 
 class _ClientDisconnect(Exception):
@@ -403,28 +422,34 @@ async def run_call(
         logger.info("normalcall: start 수신 전 클라 종료")
         return
 
+    # 교육 대상 언어(멀티랭귀지) → LanguageSpec. is_demo 폐지: 언어별 동작은 spec 한 행이
+    # 결정한다. spec.label 을 페르소나 대상 언어로, 모국어 라벨은 _LOCALE_LABEL 기본을 쓴다
+    # (locale="ko" 도 이제 "한국어"로 해석 — 데모용 override hack 제거). ko 는 label=="한국어"·
+    # has_curriculum·leveltest 라 기존 한국어 통화 경로·프롬프트 바이트 불변.
+    # (멀티랭귀지) 레벨/커리큘럼 선별·needs_level_test 가 언어 스코프라 load_call_setup 전에 해석.
+    spec = _resolve_target_language(settings, target_override)
+    target_language = spec.label
+
     # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
-    #    needs_level_test(= korean_level 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
-    setup = await svc.run_db(db_session_factory, lambda db: svc.load_call_setup(db, member_id, character_id))
+    #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
+    setup = await svc.run_db(
+        db_session_factory,
+        lambda db: svc.load_call_setup(db, member_id, character_id, spec.code),
+    )
     locale = locale_override or setup["locale"]
 
-    # 교육 대상 언어(데모 전용 오버라이드; prod 는 한국어 고정). 데모면 레벨 프로파일을 비우고
-    # 모국어 라벨을 데모용(ko→"한국어")으로. 전역 _LOCALE_LABEL 은 안 건드려 prod 무손상.
-    target_language, is_demo_target = _resolve_target_language(settings, target_override)
-    locale_label_override = _DEMO_LOCALE_EXTRA.get(locale) if is_demo_target else None
-
     # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 2건은 normal 로 강등 ② 서버 자동.
-    #   강등 a) 데모(target_language 오버라이드): 비한국어 전사를 한국어 루브릭으로
-    #          판정하면 korean_level 이 무의미한 값으로 오염 → 명시여도 level_test 금지.
+    #   강등 a) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
+    #          그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
     #   강등 b) prod && korean_level 보유자의 명시 재측정: 재측정은 미지원(후속 기능) —
     #          non-prod 는 개발 테스트 편의로 현행 허용.
-    # 자동: 데모는 진입 금지(normal 고정), 그 외 korean_level 미확정 → level_test.
+    # 자동: 레벨테스트 지원 언어(spec.leveltest) + 레벨 미확정일 때만 level_test.
     if call_type_override is not None:
         call_type = call_type_override
-        if call_type == "level_test" and is_demo_target:
+        if call_type == "level_test" and not spec.leveltest:
             logger.warning(
-                "normalcall: 데모 통화(target_language=%s)에서 call_type=level_test 명시 "
-                "→ normal 강등(한국어 루브릭 판정 오염 방지) member=%s", target_language, member_id,
+                "normalcall: 레벨테스트 미지원 언어(target=%s) 통화에서 call_type=level_test 명시 "
+                "→ normal 강등(루브릭·대본 부재 판정 오염 방지) member=%s", spec.code, member_id,
             )
             call_type = "normal"
         elif (
@@ -437,10 +462,8 @@ async def run_call(
                 "→ normal 강등(재측정은 미지원 — 후속 기능) member=%s", member_id,
             )
             call_type = "normal"
-    elif is_demo_target:
-        call_type = "normal"
     else:
-        call_type = "level_test" if setup["needs_level_test"] else "normal"
+        call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "normal"
 
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
@@ -452,34 +475,29 @@ async def run_call(
         system_instruction = build_leveltest_instruction(
             role=lt_setup["role"],
             personality=lt_setup["personality"],
-            rules=lt_setup["rules"],
             locale=locale,
             interests=lt_setup["interests"],
             name=lt_setup["name"],
             target_language=target_language,
-            locale_label=locale_label_override,
         )
         # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
         # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
         seed_text = seed_leveltest_opening(target_language)
         voice = lt_setup["voice"]
     else:
-        level_profile = "" if is_demo_target else setup["level_profile"]
-        # P2-c2 체크판 재료(공부 10/대화 가이드/최근 소재/승급 멘트) — setup 이 선별해
-        # 온 값을 그대로 꽂는다(전부 None/False 면 종전 프롬프트와 바이트 동일).
-        # 데모(비한국어)는 한국어 커리큘럼이 무의미하므로 미주입.
-        inject_materials = not is_demo_target
+        # 커리큘럼 없는 언어(spec.has_curriculum=False, 회화 전용)는 레벨 프로파일·체크판
+        # 재료를 주입하지 않는다(무의미). ko 는 has_curriculum=True 라 기존 경로 그대로.
+        inject_materials = spec.has_curriculum
+        level_profile = setup["level_profile"] if inject_materials else ""
         system_instruction = build_system_instruction(
             role=setup["role"],
             personality=setup["personality"],
-            rules=setup["rules"],
             level_profile=level_profile,
             locale=locale,
             interests=setup["interests"],
             name=setup["name"],
             history=setup["history"],
             target_language=target_language,
-            locale_label=locale_label_override,
             study_items=setup.get("study_items") if inject_materials else None,
             known_items=setup.get("known_items") if inject_materials else None,
             recent_topics=setup.get("recent_topics") if inject_materials else None,
@@ -490,14 +508,17 @@ async def run_call(
         voice = setup["voice"]
         # 단발 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"): DB 캐릭터 3필드를 중간에 1회 되박음.
         if REGROUND_MODE != "off":
-            reground_reminder = build_reground_reminder(setup["role"], setup["personality"], setup["rules"])
+            reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
 
-    # 3) 통화 행 생성(call_type 기록).
+    # 3) 통화 행 생성(call_type + target_language 코드 기록).
     call_id = await svc.run_db(
-        db_session_factory, lambda db: svc.create_call(db, member_id, character_id, call_type)
+        db_session_factory,
+        lambda db: svc.create_call(
+            db, member_id, character_id, call_type, target_language=spec.code
+        ),
     )
 
     state = _CallState()
@@ -519,10 +540,11 @@ async def run_call(
         state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
         state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
         state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
-        # Phase 2: 조용한 밴드 관측 활성 — 매 유저 답변을 사이드카로 밴드 분류만 하고(질문 주입 0)
-        # 천장(obs_max) 도달 시 종료 시드만 주입한다. band_client = 분류 사이드카가 쓸 genai.Client.
+        # Phase 2: 종료 판정 사이드카 활성 — 매 유저 답변을 사이드카로 종료 판정만 하고(질문 주입 0)
+        # 종료 트리거가 서면 종료 시드만 주입한다. band_client = 판정 사이드카가 쓸 genai.Client.
         state.band_observe = True
         state.band_client = client
+        state.band_target_language = target_language  # (멀티랭귀지) 판정관 대상 언어
     else:
         state.call_duration_s = _resolve_call_duration(settings, duration_override)
         state.idle_nudge1_s = IDLE_NUDGE1_S
@@ -530,19 +552,18 @@ async def run_call(
         state.idle_close_s = IDLE_CLOSE_S
         state.nudge_seed_1 = _NUDGE_SEED_1
 
-    # P2.5(D16) 동적 힌트 사이드카 활성 조건: 모든 통화(레벨테스트·일반, 레벨 무관)에 힌트 제공.
-    # 데모(비한국어 target)만 제외 — 한국어 힌트가 무의미하므로(R5). 상세는 mechanics ⑬.
-    # (구: 레벨테스트 또는 normal 레벨1만 → 사장님 결정으로 전 통화 확대. 비용: 비버 턴마다
-    #  힌트 생성 LLM 호출이 늘지만 논블로킹 사이드카라 지연 은닉.)
-    enable_hints = not is_demo_target
+    # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
+    # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
+    # 프롬프트가 그 언어 커리큘럼에 맞춰져 있지 않아 무의미(R5). 상세는 mechanics ⑬.
+    enable_hints = spec.has_curriculum
     if enable_hints:
-        label = locale_label_override or _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
+        label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
         # 레벨테스트는 레벨을 모르는 상태 — 프로파일 대신 최저 난이도 요약으로 폴백.
         profile = setup["level_profile"] if call_type == "normal" else ""
         state.hint_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            "instruction": _hint_instruction(profile, label),
+            "instruction": _hint_instruction(profile, label, target_language),
         }
 
     logger.info(
@@ -591,9 +612,9 @@ async def run_call(
         logger.info("normalcall 통화 정상 종료")
         if state.band_observe:
             logger.info(
-                "normalcall: 레벨테스트 밴드 관측 종료 obs_max=%d obs_count=%d plateau=%d "
-                "(통화후 판정관이 전사로 최종 확정 — bracket 힌트 전달은 TODO)",
-                state.obs_max, state.obs_count, state.plateau_count,
+                "normalcall: 레벨테스트 종료판정 사이드카 종료 total_answers=%d nonspeaker_streak=%d "
+                "(통화후 판정관이 전사로 최종 확정)",
+                state.total_answers, state.nonspeaker_streak,
             )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         logger.exception("normalcall 브리지 오류: %s", exc)
@@ -619,7 +640,7 @@ async def run_call(
         # 분석 태스크를 먼저 생성(분석 우선 착수) → 오디오 업로드는 병렬 후행.
         _trigger_analysis(
             call_id, client, settings, db_session_factory, locale,
-            target_language=target_language, locale_label=locale_label_override,
+            target_language=target_language, locale_label=None,
             call_type=call_type, member_id=member_id,
             candidates=setup.get("candidates") if call_type == "normal" else None,
             # D16: 힌트 열람 마커(in-memory) — 크래시 유실 시 과크레딧 1회 허용.
@@ -637,7 +658,7 @@ async def run_call(
 
 def _trigger_analysis(
     call_id, client, settings, db_session_factory, locale,
-    *, target_language: str = DEFAULT_TARGET_LANGUAGE, locale_label: str | None = None,
+    *, target_language: str = _DEFAULT_TARGET_LABEL, locale_label: str | None = None,
     call_type: str = "normal", member_id: int | None = None,
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
@@ -683,14 +704,30 @@ def trigger_reanalysis(
 
     라우터(POST /calls/{id}/reanalyze)가 status 를 'analyzing' 으로 되돌린 뒤 호출한다.
     통화 시작 때의 in-memory 컨텍스트(candidates·힌트 마커)는 이미 사라졌으므로 None 폴백
-    (analyze_call 이 기본 후보로 대체). target_language 는 서버 기본(비데모)으로 고정 —
-    재분석은 이 배포의 대상 언어 루브릭으로 돈다. 증거 중복은 멱등 가드가 막는다.
+    (analyze_call 이 기본 후보로 대체). 대상 언어는 **call.target_language**(그 통화가 학습한
+    언어코드)를 읽어 그 언어 루브릭으로 재실행한다(하드코딩 기본 금지 — 멀티랭귀지). 조회
+    실패 시에만 기본 언어로 폴백. 증거 중복은 멱등 가드가 막는다.
 
     ⚠️ 이벤트루프 위에서 호출해야 한다(asyncio.create_task) — async 엔드포인트에서만.
+    call.target_language 조회는 단건 PK get(짧고 드문 수동 엔드포인트)이라 동기 세션으로 읽는다.
     """
+    from domains.learning.models.call import Call  # 지연 import(모델↔realtime 순환 회피)
+
+    code = DEFAULT_LANGUAGE
+    try:
+        with db_session_factory() as db:
+            call = db.get(Call, call_id)
+            if call is not None and call.target_language:
+                code = call.target_language
+    except Exception as exc:  # noqa: BLE001 - 조회 실패는 기본 언어로 폴백(재분석은 계속)
+        logger.warning(
+            "normalcall: 재분석 target_language 조회 실패 → 기본(%s) 폴백 call_id=%s: %s",
+            DEFAULT_LANGUAGE, call_id, exc,
+        )
+    spec = resolve_language(code) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
     _trigger_analysis(
         call_id, client, settings, db_session_factory, locale,
-        target_language=DEFAULT_TARGET_LANGUAGE, locale_label=None,
+        target_language=spec.label, locale_label=None,
         call_type=call_type, member_id=member_id,
         candidates=None, hinted_from_turn_index=None,
     )
@@ -918,8 +955,11 @@ async def _read_initial_start(
 ) -> tuple[int, str | None, str | None, str | None, int | None]:
     """첫 start 에서 character_id / locale / target_language / call_type / duration_min 확보.
 
-    call_type None = 서버 판단(D11 자동 라우팅), "normal"/"level_test" = 클라 명시(우선).
-    duration_min None = 서버 기본 통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
+    target_language 는 **언어코드**로 해석한다(멀티랭귀지): resolve_language 로 정규화해
+    지원 코드/구 데모 라벨("프랑스어")은 canonical code("fr")로, 미지원/부재는 원문 그대로
+    통과시킨다(_resolve_target_language 가 최종 경고+DEFAULT 폴백). call_type None = 서버 판단
+    (D11 자동 라우팅), "normal"/"level_test" = 클라 명시(우선). duration_min None = 서버 기본
+    통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
     """
     from starlette.websockets import WebSocketDisconnect
 
@@ -946,10 +986,15 @@ async def _read_initial_start(
                         )
                     continue
                 if cm.type == "start":
+                    raw_target = getattr(cm, "target_language", None)
+                    # 언어코드로 정규화(지원 코드/구 라벨 → canonical code). 미지원은 원문 유지
+                    # → _resolve_target_language 가 경고+DEFAULT 폴백.
+                    spec = resolve_language(raw_target)
+                    target_code = spec.code if spec is not None else raw_target
                     return (
                         int(getattr(cm, "character_id", DEFAULT_CHARACTER_ID)),
                         getattr(cm, "locale", None),
-                        getattr(cm, "target_language", None),
+                        target_code,
                         getattr(cm, "call_type", None),
                         getattr(cm, "duration_min", None),
                     )
@@ -992,16 +1037,29 @@ _HINT_PROFILE_FALLBACK = "아주 쉬운 기초 한국어(짧은 정형 표현과
 _HINT_PROFILE_MAX_CHARS = 400  # 레벨 프로파일 요약 상한 — 사이드카 입력 비대 방지
 
 
-def _hint_instruction(level_profile: str, locale_label: str) -> str:
-    """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0)."""
+def _hint_instruction(
+    level_profile: str, locale_label: str, target_language: str = "한국어"
+) -> str:
+    """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
+
+    (멀티랭귀지) target_language 로 예시 답변 언어를 지정한다(기본 한국어 — 기존 출력 무손상).
+    korean 필드는 스키마·클라 호환상 이름을 유지하되 **내용은 대상 언어**다(일본어 통화면
+    일본어 문장). roman 문구는 한국어만 RR 표기법을 명시(바이트 동일), 그 외는 일반 로마자.
+    """
     profile = (level_profile or "").strip()[:_HINT_PROFILE_MAX_CHARS] or _HINT_PROFILE_FALLBACK
+    t = target_language
+    roman_clause = (
+        "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
+        if t == "한국어"
+        else "roman 은 korean 의 발음을 로마자(라틴 문자)로 표기, "
+    )
     return (
-        "너는 한국어 학습 힌트 생성기다. 선생님의 질문에 학습자가 할 만한 "
+        f"너는 {t} 학습 힌트 생성기다. 선생님의 질문에 학습자가 할 만한 "
         "자연스러운 예시 답변을 examples 배열에 정확히 3개 만들어라(서로 조금씩 다른 답 — "
         "예: 짧은 답/조금 더 긴 답/다른 소재). 각 예시는 korean·roman·native 를 갖는다. "
-        f"korean 은 다음 수준({profile}) 범위의 쉬운 한국어 1문장, "
-        "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
-        f"native 는 {locale_label}로 옮긴 뜻."
+        f"korean 은 다음 수준({profile}) 범위의 쉬운 {t} 1문장, "
+        + roman_clause
+        + f"native 는 {locale_label}로 옮긴 뜻."
     )
 
 
@@ -1101,26 +1159,14 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
 # 레벨테스트 Phase 2: 조용한 밴드 관측 → 서버 천장검출 조기종료 (질문 주입 0)
 # --------------------------------------------------------------------------- #
 def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
-    """관측된 최고 밴드(obs_max)가 '천장'에 닿았는지 판정(순수 함수 — 부작용 0, 테스트 용이).
+    """하드 턴캡: 관측된 전체 답변 수가 안전 상한(MAX_ANSWERS)에 닿았는지(순수 함수 — 부작용 0).
 
-    시간 플로어(초반 표본으로 조기종료 방지) & 최소 관측수 충족 후 셋 중 하나면 천장:
-      - obs_max >= 3        : advanced(최상위) 도달 — 더 잴 상단이 없다.
-      - plateau_count >= N  : 최고 밴드가 갱신 안 된 정체 누적 — 더 못 올라간다(상한 확정).
-      - obs_count >= MAX    : 관측 답변 안전 상한 — 무한 관측 방지.
+    종료 판정 전용 refactor(Phase 2): 밴드 천장(obs_max)·plateau·비화자(obs_max<=0) 판정을
+    제거했다. '등반 실패' 감지는 판정관 should_end(맥락)와 비화자 결정론 컷(nonspeaker_streak)이
+    맡고, 이 함수는 오직 무한 관측을 막는 하드 턴캡만 담당한다. elapsed 는 호출부 시그니처
+    호환용(현 구현은 미사용 — 턴캡은 시간 무관).
     """
-    if elapsed < LEVELTEST_BAND_TIME_FLOOR_S:
-        return False
-    # 비화자/완전초보: 여러 번 시도했는데 한국어 산출이 survival(0) 이하뿐 → 빨리 종료.
-    # (한국어를 아예 못 하는 사람은 band=None 만 나와 obs_count 가 안 늘어 영영 안 끊기던 역설 차단.)
-    if state.total_answers >= LEVELTEST_BAND_NONSPEAKER_MAX and state.obs_max <= 0:
-        return True
-    if state.obs_count < LEVELTEST_BAND_MIN_ANSWERS:
-        return False
-    return (
-        state.obs_max >= 3
-        or state.plateau_count >= LEVELTEST_BAND_PLATEAU_N
-        or state.obs_count >= LEVELTEST_BAND_MAX_ANSWERS
-    )
+    return state.total_answers >= LEVELTEST_BAND_MAX_ANSWERS
 
 
 def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None:
@@ -1149,53 +1195,77 @@ def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None
 async def _band_observe_sidecar(
     session: LiveSessionProtocol, state: _CallState, answer: str, prior_question: str
 ) -> None:
-    """답변 1건 밴드 분류 → obs_max/plateau 추적 → 천장이면 종료 시드 주입(백그라운드, R5).
+    """답변 1건 종료 판정 → 종료 트리거면 종료 시드 주입(백그라운드, R5).
 
-    band None(무응답/판정불가) = 무변경(넛지·캡이 처리). band 값이면 obs_count++,
-    obs_max 갱신 시 plateau=0, 아니면 plateau++. 천장(_band_ceiling_reached) 도달 시
-    should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접 주입한다
-    (발화중/유저턴 열림이면 주입 안 함 — 펌프가 다음 깨끗한 turn_end 에서 주입 + 시계워처
-    백스톱). ★ 질문 주입 없음 — should_close/종료 시드만. 예외·CancelledError 처리는 힌트
-    사이드카와 동일(취소는 재전파, 그 외는 흡수 → band None 취급).
+    judge_leveltest_turn 이 (answer_in_target, should_end) 를 준다(밴드 정밀분류 없음 — 최종
+    레벨은 통화후 판정관 몫). 세 종료 트리거 중 하나면 종료:
+      ① should_end(판정관 등반실패 감지) — 시간 플로어 & 최소 답변(END_JUDGE_MIN) 충족 시.
+      ② 비화자 결정론 컷 — answer_in_target=False 연속 NONSPEAKER_MAX — 시간 플로어 충족 시.
+      ③ 하드 턴캡(_band_ceiling_reached) — total_answers >= MAX_ANSWERS(무한 관측 방지).
+    어느 트리거든 should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접
+    주입한다(발화중/유저턴 열림이면 펌프의 다음 깨끗한 turn_end + 시계워처 백스톱이 주입).
+    ★ 질문 주입 없음. 예외·CancelledError 처리는 힌트 사이드카와 동일(취소 재전파, 그 외 흡수).
     """
+    answer_in_target = False
+    should_end = False
     try:
-        band = await svc.classify_leveltest_band(
-            state.band_client, answer_text=answer, prior_question=prior_question,
+        answer_in_target, should_end = await svc.judge_leveltest_turn(
+            state.band_client,
+            transcript=state.leveltest_transcript,
+            latest_answer=answer,
+            prior_question=prior_question,
+            target_language=state.band_target_language,
         )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로 — 재전파
-    except Exception as exc:  # noqa: BLE001 - 관측 실패는 관측 1건 누락일 뿐 통화 무영향
-        logger.warning("normalcall: 밴드 관측 실패(무시 — 관측 1건 누락): %s", exc)
-        band = None
+    except Exception as exc:  # noqa: BLE001 - 판정 실패는 1건 누락일 뿐 통화 무영향
+        logger.warning("normalcall: 종료 판정 사이드카 실패(무시 — 1건 누락): %s", exc)
+        answer_in_target, should_end = False, False
     finally:
-        state.band_awaiting = False  # in-flight 해제 → 다음 답변 관측 허용
+        state.band_awaiting = False  # in-flight 해제 → 다음 답변 판정 허용
 
-    # total_answers 는 None(비화자·판정불가) 포함 전체 시도 — 비화자 조기종료 판정용.
     state.total_answers += 1
-    if band is not None:
-        state.obs_count += 1
-        if band > state.obs_max:
-            state.obs_max = band
-            state.plateau_count = 0
-        else:
-            state.plateau_count += 1
+    # 비화자 스트릭: 대상 언어 산출 실패면 누적, 성공이면 리셋(연속 실패만 컷 재료).
+    if answer_in_target:
+        state.nonspeaker_streak = 0
+    else:
+        state.nonspeaker_streak += 1
+
+    # 판정관에 넘길 전사 누적(다음 턴 맥락) — 원문 그대로 Q/A(인용 아님).
+    state.leveltest_transcript.append(
+        f"Q: {(prior_question or '').strip()}\nA: {answer.strip()}"
+    )
 
     loop = asyncio.get_running_loop()
     elapsed = (
         loop.time() - state.call_start_ts if state.call_start_ts is not None else 0.0
     )
-    reached = _band_ceiling_reached(state, elapsed)
+    floor_ok = elapsed >= LEVELTEST_BAND_TIME_FLOOR_S
+    # ① 하드 턴캡(시간 무관 — 무한 관측 방지). ② 비화자 결정론 컷(연속 실패). ③ 판정관 should_end.
+    hard_cap = _band_ceiling_reached(state, elapsed)
+    nonspeaker_cut = floor_ok and state.nonspeaker_streak >= LEVELTEST_BAND_NONSPEAKER_MAX
+    judge_end = (
+        should_end
+        and floor_ok
+        and state.total_answers >= LEVELTEST_END_JUDGE_MIN_ANSWERS
+    )
+    reached = hard_cap or nonspeaker_cut or judge_end
     logger.info(
-        "normalcall: 밴드 관측 band=%s obs_max=%d obs_count=%d total=%d plateau=%d elapsed=%.0fs 천장=%s",
-        band, state.obs_max, state.obs_count, state.total_answers, state.plateau_count, elapsed, reached,
+        "normalcall: 종료판정 answer_in_target=%s should_end=%s total=%d nonspeaker_streak=%d "
+        "elapsed=%.0fs 턴캡=%s 비화자컷=%s 판정종료=%s",
+        answer_in_target, should_end, state.total_answers, state.nonspeaker_streak,
+        elapsed, hard_cap, nonspeaker_cut, judge_end,
     )
     if not reached:
         return
-    # 천장 도달 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
+    # 종료 트리거 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
     if state.should_close or state.close_seed_sent:
         return
     state.should_close = True
-    logger.info("normalcall: 밴드 천장 도달(obs_max=%d) → 종료 플래그", state.obs_max)
+    logger.info(
+        "normalcall: 레벨테스트 종료 트리거(턴캡=%s 비화자컷=%s 판정종료=%s) → 종료 플래그",
+        hard_cap, nonspeaker_cut, judge_end,
+    )
     # 종료 레이스 가드(시계워처와 동일): 비버 idle & 유저 응답 대기 없음이면 직접 주입,
     # 아니면 펌프 turn_end(should_close 경로)/시계워처 백스톱이 주입한다. ★ 질문 주입 아님.
     # M1(시니어): 세션 종료 레이스에 종료 시드 send_text_turn 이 던지면 미회수 태스크 예외로

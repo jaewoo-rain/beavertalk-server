@@ -1,0 +1,467 @@
+{
+  "level_no": 1,
+  "count": 46,
+  "language": "zh",
+  "items": [
+    {
+      "no": 1,
+      "category": "인사",
+      "surface": "你好。",
+      "reading": "nǐ hǎo",
+      "roman": "nǐ hǎo",
+      "meaning_en": "Hello.",
+      "meaning_ko": "안녕하세요",
+      "situation": "만능 인사·통화 시작"
+    },
+    {
+      "no": 2,
+      "category": "인사",
+      "surface": "很高兴认识你。",
+      "reading": "hěn gāoxìng rènshi nǐ",
+      "roman": "hěn gāoxìng rènshi nǐ",
+      "meaning_en": "Nice to meet you.",
+      "meaning_ko": "만나서 반가워요",
+      "situation": "첫 만남"
+    },
+    {
+      "no": 3,
+      "category": "인사",
+      "surface": "你好吗？",
+      "reading": "nǐ hǎo ma",
+      "roman": "nǐ hǎo ma",
+      "meaning_en": "How are you?",
+      "meaning_ko": "잘 지내요?",
+      "situation": "안부 묻기"
+    },
+    {
+      "no": 4,
+      "category": "인사",
+      "surface": "早上好。",
+      "reading": "zǎoshang hǎo",
+      "roman": "zǎoshang hǎo",
+      "meaning_en": "Good morning.",
+      "meaning_ko": "좋은 아침이에요",
+      "situation": "아침 인사"
+    },
+    {
+      "no": 5,
+      "category": "인사",
+      "surface": "再见。",
+      "reading": "zàijiàn",
+      "roman": "zàijiàn",
+      "meaning_en": "Goodbye.",
+      "meaning_ko": "안녕히 가세요",
+      "situation": "헤어질 때"
+    },
+    {
+      "no": 6,
+      "category": "인사",
+      "surface": "回头见！",
+      "reading": "huítóu jiàn",
+      "roman": "huítóu jiàn",
+      "meaning_en": "See you later.",
+      "meaning_ko": "또 봐요",
+      "situation": "가벼운 작별"
+    },
+    {
+      "no": 7,
+      "category": "인사",
+      "surface": "祝你今天愉快。",
+      "reading": "zhù nǐ jīntiān yúkuài",
+      "roman": "zhù nǐ jīntiān yúkuài",
+      "meaning_en": "Have a nice day.",
+      "meaning_ko": "좋은 하루 보내세요",
+      "situation": "작별 덧붙임"
+    },
+    {
+      "no": 8,
+      "category": "인사",
+      "surface": "欢迎光临！",
+      "reading": "huānyíng guānglín",
+      "roman": "huānyíng guānglín",
+      "meaning_en": "Welcome.",
+      "meaning_ko": "어서 오세요",
+      "situation": "가게에서 듣기"
+    },
+    {
+      "no": 9,
+      "category": "감사·사과",
+      "surface": "谢谢。",
+      "reading": "xièxie",
+      "roman": "xièxie",
+      "meaning_en": "Thank you.",
+      "meaning_ko": "감사합니다",
+      "situation": "감사"
+    },
+    {
+      "no": 10,
+      "category": "감사·사과",
+      "surface": "非常感谢。",
+      "reading": "fēicháng gǎnxiè",
+      "roman": "fēicháng gǎnxiè",
+      "meaning_en": "Thanks a lot.",
+      "meaning_ko": "정말 고마워요",
+      "situation": "강한 감사"
+    },
+    {
+      "no": 11,
+      "category": "감사·사과",
+      "surface": "不客气。",
+      "reading": "bú kèqi",
+      "roman": "bú kèqi",
+      "meaning_en": "You're welcome.",
+      "meaning_ko": "천만에요",
+      "situation": "감사 응답"
+    },
+    {
+      "no": 12,
+      "category": "감사·사과",
+      "surface": "对不起。",
+      "reading": "duìbuqǐ",
+      "roman": "duìbuqǐ",
+      "meaning_en": "I'm sorry.",
+      "meaning_ko": "죄송합니다",
+      "situation": "사과"
+    },
+    {
+      "no": 13,
+      "category": "감사·사과",
+      "surface": "不好意思。",
+      "reading": "bù hǎoyìsi",
+      "roman": "bù hǎoyìsi",
+      "meaning_en": "Excuse me.",
+      "meaning_ko": "실례합니다",
+      "situation": "말 걸기·사과"
+    },
+    {
+      "no": 14,
+      "category": "감사·사과",
+      "surface": "没关系。",
+      "reading": "méi guānxi",
+      "roman": "méi guānxi",
+      "meaning_en": "That's okay.",
+      "meaning_ko": "괜찮아요",
+      "situation": "사과 응답"
+    },
+    {
+      "no": 15,
+      "category": "긍정·부정·반응",
+      "surface": "是的。",
+      "reading": "shì de",
+      "roman": "shì de",
+      "meaning_en": "Yes.",
+      "meaning_ko": "네",
+      "situation": "긍정"
+    },
+    {
+      "no": 16,
+      "category": "긍정·부정·반응",
+      "surface": "不是。",
+      "reading": "bú shì",
+      "roman": "bú shì",
+      "meaning_en": "No.",
+      "meaning_ko": "아니요",
+      "situation": "부정"
+    },
+    {
+      "no": 17,
+      "category": "긍정·부정·반응",
+      "surface": "好的。",
+      "reading": "hǎo de",
+      "roman": "hǎo de",
+      "meaning_en": "Sounds good.",
+      "meaning_ko": "좋아요",
+      "situation": "승낙"
+    },
+    {
+      "no": 18,
+      "category": "긍정·부정·반응",
+      "surface": "对。",
+      "reading": "duì",
+      "roman": "duì",
+      "meaning_en": "That's right.",
+      "meaning_ko": "맞아요",
+      "situation": "동의"
+    },
+    {
+      "no": 19,
+      "category": "긍정·부정·반응",
+      "surface": "我知道了。",
+      "reading": "wǒ zhīdào le",
+      "roman": "wǒ zhīdào le",
+      "meaning_en": "I got it.",
+      "meaning_ko": "알겠어요",
+      "situation": "이해 확인"
+    },
+    {
+      "no": 20,
+      "category": "긍정·부정·반응",
+      "surface": "我不知道。",
+      "reading": "wǒ bù zhīdào",
+      "roman": "wǒ bù zhīdào",
+      "meaning_en": "I don't know.",
+      "meaning_ko": "몰라요",
+      "situation": "모를 때"
+    },
+    {
+      "no": 21,
+      "category": "긍정·부정·반응",
+      "surface": "真的吗？",
+      "reading": "zhēn de ma",
+      "roman": "zhēn de ma",
+      "meaning_en": "Really?",
+      "meaning_ko": "진짜요?",
+      "situation": "놀람"
+    },
+    {
+      "no": 22,
+      "category": "긍정·부정·반응",
+      "surface": "很好吃。",
+      "reading": "hěn hǎochī",
+      "roman": "hěn hǎochī",
+      "meaning_en": "It's delicious.",
+      "meaning_ko": "맛있어요",
+      "situation": "음식 리액션"
+    },
+    {
+      "no": 23,
+      "category": "자기소개",
+      "surface": "我叫◯◯。",
+      "reading": "wǒ jiào ◯◯",
+      "roman": "wǒ jiào ◯◯",
+      "meaning_en": "I'm ◯◯.",
+      "meaning_ko": "저는 ◯◯이에요",
+      "situation": "이름(슬롯)"
+    },
+    {
+      "no": 24,
+      "category": "자기소개",
+      "surface": "我是◯◯人。",
+      "reading": "wǒ shì ◯◯ rén",
+      "roman": "wǒ shì ◯◯ rén",
+      "meaning_en": "I'm from ◯◯.",
+      "meaning_ko": "◯◯에서 왔어요",
+      "situation": "출신(슬롯)"
+    },
+    {
+      "no": 25,
+      "category": "자기소개",
+      "surface": "你叫什么名字？",
+      "reading": "nǐ jiào shénme míngzi",
+      "roman": "nǐ jiào shénme míngzi",
+      "meaning_en": "What's your name?",
+      "meaning_ko": "이름이 뭐예요?",
+      "situation": "상대 이름 묻기"
+    },
+    {
+      "no": 26,
+      "category": "자기소개",
+      "surface": "初次见面。",
+      "reading": "chūcì jiànmiàn",
+      "roman": "chūcì jiànmiàn",
+      "meaning_en": "How do you do.",
+      "meaning_ko": "처음 뵙겠습니다",
+      "situation": "격식 첫인사"
+    },
+    {
+      "no": 27,
+      "category": "자기소개",
+      "surface": "请多关照。",
+      "reading": "qǐng duō guānzhào",
+      "roman": "qǐng duō guānzhào",
+      "meaning_en": "Nice to meet you.",
+      "meaning_ko": "잘 부탁해요",
+      "situation": "첫 만남 마무리"
+    },
+    {
+      "no": 28,
+      "category": "생존 요청",
+      "surface": "请给我这个。",
+      "reading": "qǐng gěi wǒ zhège",
+      "roman": "qǐng gěi wǒ zhège",
+      "meaning_en": "This one, please.",
+      "meaning_ko": "이거 주세요",
+      "situation": "주문"
+    },
+    {
+      "no": 29,
+      "category": "생존 요청",
+      "surface": "多少钱？",
+      "reading": "duōshao qián",
+      "roman": "duōshao qián",
+      "meaning_en": "How much is it?",
+      "meaning_ko": "얼마예요?",
+      "situation": "가격"
+    },
+    {
+      "no": 30,
+      "category": "생존 요청",
+      "surface": "洗手间在哪儿？",
+      "reading": "xǐshǒujiān zài nǎr",
+      "roman": "xǐshǒujiān zài nǎr",
+      "meaning_en": "Where is the bathroom?",
+      "meaning_ko": "화장실이 어디예요?",
+      "situation": "장소"
+    },
+    {
+      "no": 31,
+      "category": "생존 요청",
+      "surface": "请帮帮我。",
+      "reading": "qǐng bāngbang wǒ",
+      "roman": "qǐng bāngbang wǒ",
+      "meaning_en": "Please help me.",
+      "meaning_ko": "도와주세요",
+      "situation": "긴급"
+    },
+    {
+      "no": 32,
+      "category": "생존 요청",
+      "surface": "服务员！",
+      "reading": "fúwùyuán",
+      "roman": "fúwùyuán",
+      "meaning_en": "Excuse me! (calling)",
+      "meaning_ko": "여기요!",
+      "situation": "점원 부르기"
+    },
+    {
+      "no": 33,
+      "category": "생존 요청",
+      "surface": "请稍等。",
+      "reading": "qǐng shāoděng",
+      "roman": "qǐng shāoděng",
+      "meaning_en": "Just a moment.",
+      "meaning_ko": "잠시만요",
+      "situation": "시간 벌기"
+    },
+    {
+      "no": 34,
+      "category": "생존 요청",
+      "surface": "我饿了。",
+      "reading": "wǒ è le",
+      "roman": "wǒ è le",
+      "meaning_en": "I'm hungry.",
+      "meaning_ko": "배고파요",
+      "situation": "상태"
+    },
+    {
+      "no": 35,
+      "category": "생존 요청",
+      "surface": "请给我水。",
+      "reading": "qǐng gěi wǒ shuǐ",
+      "roman": "qǐng gěi wǒ shuǐ",
+      "meaning_en": "Water, please.",
+      "meaning_ko": "물 주세요",
+      "situation": "식당"
+    },
+    {
+      "no": 36,
+      "category": "학습자 전략",
+      "surface": "请再说一遍。",
+      "reading": "qǐng zài shuō yí biàn",
+      "roman": "qǐng zài shuō yí biàn",
+      "meaning_en": "Say that again, please.",
+      "meaning_ko": "다시 말해 주세요",
+      "situation": "못 알아들음"
+    },
+    {
+      "no": 37,
+      "category": "학습자 전략",
+      "surface": "请说慢一点。",
+      "reading": "qǐng shuō màn yìdiǎn",
+      "roman": "qǐng shuō màn yìdiǎn",
+      "meaning_en": "Please speak slowly.",
+      "meaning_ko": "천천히 말해 주세요",
+      "situation": "속도 조절"
+    },
+    {
+      "no": 38,
+      "category": "학습자 전략",
+      "surface": "我没听清楚。",
+      "reading": "wǒ méi tīng qīngchu",
+      "roman": "wǒ méi tīng qīngchu",
+      "meaning_en": "I didn't catch that.",
+      "meaning_ko": "잘 못 들었어요",
+      "situation": "청취 실패"
+    },
+    {
+      "no": 39,
+      "category": "학습자 전략",
+      "surface": "你说什么？",
+      "reading": "nǐ shuō shénme",
+      "roman": "nǐ shuō shénme",
+      "meaning_en": "What did you say?",
+      "meaning_ko": "뭐라고요?",
+      "situation": "되묻기"
+    },
+    {
+      "no": 40,
+      "category": "학습자 전략",
+      "surface": "◯◯是什么意思？",
+      "reading": "◯◯ shì shénme yìsi",
+      "roman": "◯◯ shì shénme yìsi",
+      "meaning_en": "What does ◯◯ mean?",
+      "meaning_ko": "◯◯이 무슨 뜻이에요?",
+      "situation": "단어 뜻(슬롯)"
+    },
+    {
+      "no": 41,
+      "category": "학습자 전략",
+      "surface": "用中文怎么说？",
+      "reading": "yòng zhōngwén zěnme shuō",
+      "roman": "yòng zhōngwén zěnme shuō",
+      "meaning_en": "How do you say it in Chinese?",
+      "meaning_ko": "중국어로 어떻게 말해요?",
+      "situation": "표현 묻기"
+    },
+    {
+      "no": 42,
+      "category": "학습자 전략",
+      "surface": "我不明白。",
+      "reading": "wǒ bù míngbai",
+      "roman": "wǒ bù míngbai",
+      "meaning_en": "I don't understand.",
+      "meaning_ko": "이해 못 했어요",
+      "situation": "이해 실패"
+    },
+    {
+      "no": 43,
+      "category": "숫자",
+      "surface": "一、二、三、四、五",
+      "reading": "yī èr sān sì wǔ",
+      "roman": "yī èr sān sì wǔ",
+      "meaning_en": "1–5",
+      "meaning_ko": "일~오",
+      "situation": "숫자 세기"
+    },
+    {
+      "no": 44,
+      "category": "숫자",
+      "surface": "六、七、八、九、十",
+      "reading": "liù qī bā jiǔ shí",
+      "roman": "liù qī bā jiǔ shí",
+      "meaning_en": "6–10",
+      "meaning_ko": "육~십",
+      "situation": "숫자 세기"
+    },
+    {
+      "no": 45,
+      "category": "숫자",
+      "surface": "一百、一千",
+      "reading": "yìbǎi, yìqiān",
+      "roman": "yìbǎi, yìqiān",
+      "meaning_en": "100, 1000",
+      "meaning_ko": "백·천",
+      "situation": "큰 수"
+    },
+    {
+      "no": 46,
+      "category": "숫자",
+      "surface": "请给我一个。",
+      "reading": "qǐng gěi wǒ yí ge",
+      "roman": "qǐng gěi wǒ yí ge",
+      "meaning_en": "One, please.",
+      "meaning_ko": "하나 주세요",
+      "situation": "수량 실전"
+    }
+  ]
+}

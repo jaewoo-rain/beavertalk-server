@@ -40,8 +40,10 @@ class ClientStart(BaseModel):
     Attributes:
         character_id: 통화할 캐릭터(페르소나) id.
         locale: (선택) 모국어 override. 없으면 member.language 사용.
-        target_language: (선택) 가르치는 대상 언어 override. 데모 전용 — prod 에서는
-            서버(run_call)가 무시하고 항상 "한국어". 없으면 None → 한국어.
+        target_language: (선택) 가르치는 대상 언어 **코드**(ISO 639-1: ko/en/ja/zh/fr/vi).
+            서버가 core.languages.resolve_language 로 해석하고, 미지원/부재면
+            settings.DEFAULT_TARGET_LANGUAGE("ko")로 폴백. 전환기 한정으로 구 데모의
+            한국어 라벨("프랑스어" 등)도 코드로 역해석한다(하위호환). 없으면 None → ko.
         call_type: (선택) 통화 종류. None(기본)이면 서버가 판단한다(D11 자동 라우팅:
             member.korean_level 미확정 → level_test). 명시하면 그 값이 우선 —
             미래 레벨 재측정 요청 통로(기존 클라는 이 필드를 안 보내므로 무영향).

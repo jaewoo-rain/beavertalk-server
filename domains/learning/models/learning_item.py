@@ -5,6 +5,10 @@
 canonical 좌표(band/topik_grade/textbook_code/seq_no)와 파생 배정(level_no + assign_rule)을
 병기한다 — 배분 규칙이 바뀌면 level_no 를 UPDATE 재계산만 하면 된다.
 
+- (멀티랭귀지) language(ISO 639-1) = 커리큘럼 언어축. 모든 유일성·FK·인덱스가 언어 프리픽스.
+  기존 한국어 데이터는 전부 'ko' 로 백필된다(바이트 불변). source_key 는 언어별로만 유일
+  (uq_learning_item_lang_source_key) — 언어 접두 없이도 언어축이 격리한다.
+- reading : 읽기/발음표기(일본어 かな·중국어 병음·베트남어 성조부호 등, 언어별 선택). ko 는 NULL.
 - kind='chunk' : L1 생존 청크(정형 표현 통째 학습, 체크판 게이트 대상).
   교재/TOPIK 좌표가 없으므로 textbook_code·topik_grade 는 NULL — 조건부 CHECK 2종은
   kind 별 조건이라 chunk 에 무해. band=1(생존도 초급 밴드로 묶음), level_no=1 고정.
@@ -16,7 +20,8 @@ canonical 좌표(band/topik_grade/textbook_code/seq_no)와 파생 배정(level_n
 - 자모(40행)는 이 테이블에 넣지 않는다(정적 자산 — assets/level/curriculum_v2/jamo.json).
 
 설계: docs/20260709_1231_level-system-master-plan.md §3.3~3.4,
-      docs/20260709_1346_level-system-detailed-mechanics.md.
+      docs/20260709_1346_level-system-detailed-mechanics.md,
+      docs/plans/2026-07-20-multi-language-platform.md §3 T1.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
-    ForeignKey,
+    ForeignKeyConstraint,
     Identity,
     Index,
     Integer,
@@ -44,7 +49,8 @@ from db.base import Base, TimestampMixin
 class LearningItem(Base, TimestampMixin):
     __tablename__ = "learning_item"
     __table_args__ = (
-        UniqueConstraint("source_key", name="uq_learning_item_source_key"),
+        # (멀티랭귀지) source_key 는 언어별로만 유일 — 언어축 격리
+        UniqueConstraint("language", "source_key", name="uq_learning_item_lang_source_key"),
         CheckConstraint(
             "kind IN ('grammar', 'vocab', 'chunk')",
             name="ck_learning_item_kind",
@@ -58,13 +64,26 @@ class LearningItem(Base, TimestampMixin):
             "kind != 'vocab' OR topik_grade IS NOT NULL",
             name="ck_learning_item_vocab_grade",
         ),
-        # 통화 재료 선별(레벨×종류×단원 순서) — partial index 는 sqlite 미지원이라 일반 인덱스
-        Index("ix_learning_item_level_kind", "level_no", "kind", "seq_no"),
-        # 어휘 재배분(assign_rule 변경 시 TOPIK 등급 기준 재계산)
-        Index("ix_learning_item_vocab_grade", "topik_grade", "seq_no"),
+        # (멀티랭귀지) 배정 레벨은 언어별 레벨 마스터를 가리킨다 — 복합 FK.
+        # 양단 타입 동일(language Text + level_no Integer), 대상은 level.uq_level_lang_no.
+        ForeignKeyConstraint(
+            ["language", "level_no"],
+            ["level.language", "level.level_no"],
+            ondelete="RESTRICT",
+            name="fk_learning_item_level",
+        ),
+        # 통화 재료 선별(언어×레벨×종류×단원 순서) — partial index 는 sqlite 미지원이라 일반 인덱스
+        Index("ix_learning_item_level_kind", "language", "level_no", "kind", "seq_no"),
+        # 어휘 재배분(언어별 assign_rule 변경 시 TOPIK 등급 기준 재계산)
+        Index("ix_learning_item_vocab_grade", "language", "topik_grade", "seq_no"),
     )
 
     item_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+
+    # ── 언어축 (멀티랭귀지 — 커리큘럼 스코프) ──
+    language: Mapped[str] = mapped_column(
+        Text, comment="커리큘럼 언어(ISO 639-1)",
+    )
 
     # ── 항목 식별 ──
     kind: Mapped[str] = mapped_column(Text, comment="항목 종류(grammar/vocab/chunk)")
@@ -89,11 +108,8 @@ class LearningItem(Base, TimestampMixin):
 
     # ── 파생 배정 (assign_rule 버전으로 재계산 가능) ──
     level_no: Mapped[int] = mapped_column(
-        Integer,  # level.level_no(Integer)와 타입 통일 — FK 양단 동일 타입
-        ForeignKey(
-            "level.level_no", ondelete="RESTRICT", name="fk_learning_item_level_no",
-        ),
-        comment="배정 레벨(1~13 → level.level_no)",
+        Integer,  # level.level_no(Integer)와 타입 통일 — 복합 FK (language,level_no)
+        comment="배정 레벨(1~13 → level.level_no, 언어별)",
     )
     assign_rule: Mapped[str] = mapped_column(
         Text, comment="배정 규칙 버전(textbook_v1/vocab_split_v1 …)",
@@ -101,6 +117,9 @@ class LearningItem(Base, TimestampMixin):
 
     # ── 표기 ──
     surface: Mapped[str] = mapped_column(Text, comment="표면형(전사 판정 대상 표기)")
+    reading: Mapped[Optional[str]] = mapped_column(
+        Text, comment="읽기/발음표기(일본어 かな·중국어 병음 등, 언어별 선택)",
+    )
     homograph_refs: Mapped[Optional[str]] = mapped_column(
         Text, comment="동형이의어 원표기 참조(병합 전 '사01/사02' 류 보존)",
     )

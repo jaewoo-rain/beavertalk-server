@@ -74,6 +74,21 @@ Thumbs.db
 desktop.ini
 
 # ──────────────────────────────────────────────
+# 멀티랭귀지 커리큘럼 원천 데이터 (거대·라이선스 사내한정)
+#   en_corpus_indexed.jsonl(1.9GB) 등 → git 제외. 시드는 로컬/데이터스토어에서 읽는다.
+#   한국어 커리큘럼(level/00~04)은 소형이라 계속 추적.
+# ──────────────────────────────────────────────
+level/05.다른 언어 CEFR/
+
+# 위 원천에서 파생한 커리큘럼 어휘·문법(예문·문법구조가 まるごと/JPF '★재배포 금지' 승계).
+#   parse_jp.py 로 재생성 가능 + 도그푸딩 DB에 이미 시드됨 → git 제외(사장님 결정, 2026-07-21).
+#   level_profiles_ja.json(직접 저작 placeholder)·survival_chunks(T5 저작)는 추적 대상.
+#   ja/cn/en/fr/vi 전 언어 파생본 — curriculum_v2_<lang>/ (한국어 curriculum_v2/ 는 제외·추적).
+#   survival_chunks.json(직접 저작)·level_profiles_*.json(직접 저작)은 추적한다.
+assets/level/curriculum_v2_*/grammar.json
+assets/level/curriculum_v2_*/vocab.json
+
+# ──────────────────────────────────────────────
 # 도구 / 설정 (로컬 전용)
 # ──────────────────────────────────────────────
 .claude/
@@ -83,3 +98,8 @@ gcp_key.json
 tts_key.json
 
 fcm_sa.json
+# APNs VoIP 개인키(.p8) — 절대 커밋 금지
+*.p8
+AuthKey_*.p8
+# QA 테스트 오디오 산출물(대용량·로컬 전용)
+qa_audio/

@@ -1,6 +1,6 @@
 """character (캐릭터/페르소나) — commerce 도메인. 마스터 데이터.
 
-캐릭터 = 통화 상대 페르소나. 역할(role)·성격(personality)·추가규칙(rules)으로
+캐릭터 = 통화 상대 페르소나. 역할(role)·성격(personality)으로
 프롬프트를 구성하고, 실시간 통화 음성은 voice(Gemini Live 프리빌트 보이스)를 참조한다.
 """
 
@@ -30,11 +30,12 @@ class Character(Base, TimestampMixin):
     )
     role: Mapped[Optional[str]] = mapped_column(Text, comment="역할/정체성")
     personality: Mapped[Optional[str]] = mapped_column(Text, comment="성격·말투·톤")
-    rules: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터별 추가 규칙/금기")
     voice_url: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 프리뷰 샘플 음성 URL")
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), comment="가격(달러)")
     name: Mapped[str] = mapped_column(Text, comment="캐릭터 이름")
     description: Mapped[Optional[str]] = mapped_column(Text, comment="세부 설명")
+    story: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 스토리/서사(배경 이야기)")
+    gender: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 성별 느낌(male/female)")
     image_url: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 이미지")
     tags: Mapped[Optional[list[str]]] = mapped_column(
         JSON, comment="음색/특성 태그 배열(예: Warm, Calm, Soft)"

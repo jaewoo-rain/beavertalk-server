@@ -31,6 +31,7 @@ from domains.learning.models.learning_item import LearningItem  # noqa: F401
 from domains.learning.models.member_item_progress import MemberItemProgress  # noqa: F401
 from domains.learning.models.item_evidence import ItemEvidence  # noqa: F401
 from domains.learning.models.member_level_history import MemberLevelHistory  # noqa: F401
+from domains.learning.models.member_language_level import MemberLanguageLevel  # noqa: F401
 
 # alarm
 from domains.alarm.models.alarm import Alarm  # noqa: F401

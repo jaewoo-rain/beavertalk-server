@@ -10,6 +10,7 @@ bcrypt>=4.0
 pyjwt[crypto]>=2.8
 python-multipart>=0.0.9
 httpx>=0.27
+h2>=4          # httpx HTTP/2 (APNs VoIP 발송 — core/apns.py)
 # normalcall: Gemini Live(실시간 음성) + 분석(generateContent) + 표현 TTS(Gemini-TTS). websockets 를 끌어온다.
 google-genai>=1.0
 # normalcall: 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD). Vertex(빌린 프로젝트)는

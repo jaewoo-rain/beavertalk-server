@@ -1,7 +1,12 @@
 # 실행 계획: 통화 코어 통합(feat/call-v2) → 통화 고도화(드리프트 재접지·종료 타이밍·페이즈 통화)
 
 - **작성일**: 2026-07-22
-- **상태**: 계획 확정 · 미구현
+- **상태**: **Phase 0(통합) 완료** · Phase 1~4(고도화) 미착수
+- **Phase 0 결과(2026-07-22)**: feat/call-v2 = multilang + cloud-tts 머지 완료. TTS 언어·음색 결합,
+  STT(토큰 필수·Supabase)·발음리포트·SpeechSuper·국적 인입, 다국어 언어스코프 무손상.
+  **전체 265 테스트 그린**(R4 normalcall 불변식·persona ko 바이트동일·어댑터 폴백). alembic 단일
+  head(f10b3c05cf8e). 시니어 리뷰 blocker(B1 .gitignore 시크릿) 수정. Speech-to-Text API 활성화 +
+  SA roles/speech.client 부여(bt-dev-web-01). **미배포·미푸시**(배포는 f10b 마이그레이션 적용 선행 확인 필요).
 - **브랜치**: `feat/call-v2` (feat/multi-language 토대 + feat/cloud-tts 얹기)
 - **관련 파일**: core/persona_prompt.py, core/tts.py, core/stt.py, domains/learning/realtime/{call_session,ws_router,protocol}.py, domains/learning/service/normalcall_service.py, domains/learning/repository/mastery_repository.py, domains/learning/service/mastery_service.py, domains/learning/models/{call,member_language_level,item_evidence,member_level_history,learning_item,level}.py, alembic/versions/{71a272903bb6,f10b3c05cf8e}.py, tests/*
 - **전문가 패널**: db-architect · fastapi-architect · conversation-design-architect · prompt-persona-engineer · mastery-system-engineer · test-engineer

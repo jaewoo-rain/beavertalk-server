@@ -33,6 +33,12 @@ api-docs.html
 openapi.json
 BeaverTalk.vuerd.json
 
+# 멀티랭귀지 커리큘럼 원천(최상위 level/ — 1.9GB, 런타임 불필요·DB에서 읽음). /level/ 는
+#   루트 앵커라 런타임 루브릭이 있는 assets/level/ 는 유지된다.
+/level/
+# 파생 커리큘럼 JSON(まるごと '재배포 금지' 승계·런타임 불필요 — 이미지에 넣지 않음).
+assets/level/curriculum_v2_ja/
+
 gcp_key.json
 tts_key.json
 

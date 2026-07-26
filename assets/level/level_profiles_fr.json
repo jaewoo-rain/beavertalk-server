@@ -1,0 +1,110 @@
+{
+  "_comment": "프랑스어 레벨 프로파일(저작본, parse_lang). level_no 축 한국어와 동일(1=생존, 2~13=A1~C4).",
+  "language": "fr",
+  "levels": [
+    {
+      "level_no": 1,
+      "band": "생존",
+      "grade": null,
+      "stage_name": "생존 회화",
+      "textbook": null,
+      "profile": "인사·숫자·자기소개·정형 표현 46개를 통째로 익히는 생존 단계. 문법 없이 'Bonjour', 'Merci', 'Combien ça coûte?' 같은 덩어리 표현을 상황별로 말한다."
+    },
+    {
+      "level_no": 2,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 1 (A1)",
+      "textbook": "FR-A1",
+      "profile": "가장 기초. être/avoir ('Je suis...', 'J'ai...'), 관사(le/la/un/une), -er 동사 현재형, 형용사 성수일치, 소유형용사(mon/ma/mes). 주어+동사+보어 짧은 단문. 과거·복잡한 시제는 아직."
+    },
+    {
+      "level_no": 3,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 2 (A2)",
+      "textbook": "FR-A2",
+      "profile": "과거·근접미래. passé composé ('J'ai mangé'), futur proche (aller+inf), 부정 (ne...pas), 비교 (plus...que). 어제 한 일·계획을 말한다."
+    },
+    {
+      "level_no": 4,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 3 (A3)",
+      "textbook": "FR-A3",
+      "profile": "반과거·대명사. imparfait, 목적격 대명사(COD/COI: le/la/lui), 재귀동사(se laver). 과거를 묘사·구분한다."
+    },
+    {
+      "level_no": 5,
+      "band": "초급",
+      "grade": "A",
+      "stage_name": "초급 4 (A4)",
+      "textbook": "FR-A4",
+      "profile": "단순미래·조건 기초. futur simple, 1형 가정 (si+présent), 관계대명사(qui/que), 부분관사(du/de la). 일상 대부분을 시제로 표현한다."
+    },
+    {
+      "level_no": 6,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 1 (B1)",
+      "textbook": "FR-B1",
+      "profile": "접속법·조건법 도입. subjonctif présent(il faut que), conditionnel présent, 관계대명사(dont/où), passé composé vs imparfait 구분. 문장이 길어진다."
+    },
+    {
+      "level_no": 7,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 2 (B2)",
+      "textbook": "FR-B2",
+      "profile": "접속법·가정 완성. subjonctif 완전, plus-que-parfait, 수동태, 2형 가정 (si+imparfait), gérondif(en -ant). 복문·가정을 자유롭게 구사한다."
+    },
+    {
+      "level_no": 8,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 3 (B3)",
+      "textbook": "FR-B3",
+      "profile": "조건 과거·복잡 시제. conditionnel passé, subjonctif passé, 3형 가정, 복잡 관계절. 뉘앙스·후회를 표현한다."
+    },
+    {
+      "level_no": 9,
+      "band": "중급",
+      "grade": "B",
+      "stage_name": "중급 4 (B4)",
+      "textbook": "FR-B4",
+      "profile": "격식·강조. mise en relief (c'est...que), 도치 의문, 고급 수동, 담화 연결. 격식·강조를 조절."
+    },
+    {
+      "level_no": 10,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 1 (C1)",
+      "textbook": "FR-C1",
+      "profile": "문어·논리. connecteurs logiques, subjonctif 뉘앙스, participe présent. 추상 담화를 길게."
+    },
+    {
+      "level_no": 11,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 2 (C2)",
+      "textbook": "FR-C2",
+      "profile": "격식·수사. 명사화, 완곡, 격식체, 복잡 종속. 논설 수준의 정교한 프랑스어."
+    },
+    {
+      "level_no": 12,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 3 (C3)",
+      "textbook": "FR-C3",
+      "profile": "고급 관용·문어. passé simple(문어 시제), 관용 표현, 미묘한 강조. 원어민 서면 수준."
+    },
+    {
+      "level_no": 13,
+      "band": "고급",
+      "grade": "C",
+      "stage_name": "고급 4 (C4)",
+      "textbook": "FR-C4",
+      "profile": "최상급 — 원어민급. 수사·완곡·반어·레지스터 자유자재. 문학·전문 담화 수준의 완성된 프랑스어."
+    }
+  ]
+}

@@ -153,7 +153,8 @@ class VerifiedEvidence:
 # 증거 반영 + 상태 전이 (mechanics ⑤ 5~6단계 + ⑥)
 # --------------------------------------------------------------------------- #
 def apply_evidence(
-    db: Session, member_id: int, call_id: int, verified: list[VerifiedEvidence]
+    db: Session, member_id: int, call_id: int, verified: list[VerifiedEvidence],
+    language: str = "ko",
 ) -> dict:
     """검증된 증거를 item_evidence 에 append 하고 체크판(progress)을 갱신한다.
 
@@ -205,7 +206,7 @@ def apply_evidence(
             if introduced_new >= INTRODUCED_CAP_PER_CALL:
                 # 상한 초과: 행 없이 증거만 append(실반영 0) — 다음 통화 순환에서 재포착.
                 for ev in evs:
-                    db.add(_evidence_row(member_id, item_id, call_id, ev, 0.0, now))
+                    db.add(_evidence_row(member_id, item_id, call_id, ev, 0.0, now, language=language))
                     summary["evidence"] += 1
                 continue
             prog = MemberItemProgress(
@@ -245,7 +246,7 @@ def apply_evidence(
                 prog.miss_count = (prog.miss_count or 0) + 1
             if ev.grade_final in ("E2", "E3"):
                 prog.last_used_at = now
-            db.add(_evidence_row(member_id, item_id, call_id, ev, applied, now))
+            db.add(_evidence_row(member_id, item_id, call_id, ev, applied, now, language=language))
             summary["evidence"] += 1
         prog.last_seen_at = now
         prog.last_call_id = call_id
@@ -325,11 +326,11 @@ def apply_evidence(
 
 def _evidence_row(
     member_id: int, item_id: int, call_id: int,
-    ev: VerifiedEvidence, score_delta: float, now: datetime,
+    ev: VerifiedEvidence, score_delta: float, now: datetime, language: str = "ko",
 ) -> ItemEvidence:
     """검증된 증거 1건 → ItemEvidence(append-only). created_at 을 명시해 판정 결정성 확보."""
     return ItemEvidence(
-        member_id=member_id, item_id=item_id, call_id=call_id,
+        member_id=member_id, language=language, item_id=item_id, call_id=call_id,
         turn_index=ev.turn_index,
         grade_raw=ev.grade_raw, grade_final=ev.grade_final,
         learner_quote=ev.quote, verified=True,
@@ -413,7 +414,7 @@ def _mastered_conditions_met(
 # --------------------------------------------------------------------------- #
 # 레벨업 판정 (mechanics ⑦ — 멱등 3중)
 # --------------------------------------------------------------------------- #
-def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict:
+def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, language: str = "ko") -> dict:
     """통화 분석 커밋 흐름에서 호출되는 레벨업 게이트 판정(commit 은 호출부).
 
     승급은 문법(+L1 청크) 전용 — D12: G1/G2 분모(list_gate_items)에 어휘가 없다.
@@ -433,11 +434,14 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict
     if mastery_repository.get_history_by_trigger(db, trigger_call_id) is not None:
         return {"result": "skipped", "reason": "already_evaluated"}
 
-    # ① 경합 방지
+    # ① 경합 방지 — member 행 잠금(직렬화 + created_at 폴백 원천).
+    #    레벨 출처는 member_language_level(ko dual-read 폴백) — get_language_level_for_update.
     member = mastery_repository.get_member_for_update(db, member_id)
-    if member is None or member.korean_level is None:
+    if member is None:
         return {"result": "skipped", "reason": "no_member_or_level"}
-    k = member.korean_level
+    k = mastery_repository.get_language_level_for_update(db, member_id, language)
+    if k is None:
+        return {"result": "skipped", "reason": "no_member_or_level"}
     if k >= MAX_LEVEL:
         return {"result": "skipped", "reason": "max_level"}
 
@@ -445,7 +449,7 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict
 
     # fast-track 14일 무F → 자동 확정(lazy — evaluate 시점에 일괄 판정·기록)
     auto_confirmed = 0
-    for prog in mastery_repository.list_unconfirmed_fast_track(db, member_id):
+    for prog in mastery_repository.list_unconfirmed_fast_track(db, member_id, language):
         mastered_at = _as_utc(prog.mastered_at)
         if mastered_at is None or (now - mastered_at).days < FAST_TRACK_AUTO_CONFIRM_DAYS:
             continue
@@ -458,7 +462,7 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict
     params = GATE_PARAMS[k]
 
     # 집계 — 전부 현재 레벨 k 항목 한정. 분모는 문법(+L1 청크)만 — 어휘 제외(D12).
-    gate_items = mastery_repository.list_gate_items(db, k)
+    gate_items = mastery_repository.list_gate_items(db, k, language)
     denom = len(gate_items)
     if denom == 0:
         # 커리큘럼 미시드 방어 — 게이트 대상이 없으면 승급 불가(데이터 준비 후 재개)
@@ -475,15 +479,19 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict
     )
 
     # 레벨 진입 시각: history 최신 행, 없으면 placement 폴백 = 가입(created_at)
-    latest = mastery_repository.get_latest_history(db, member_id)
+    latest = mastery_repository.get_latest_history(db, member_id, language)
     entry_at = _as_utc(latest.created_at if latest else member.created_at) or now
     entry_reason = latest.reason if latest else None
     days_in_level = (now - entry_at).days
 
     # G4 — 최근 5 증거통화(D15: 증거가 있는 distinct call)의 F비율
     #      (현재 레벨 항목 한정, 분모 <10 이면 pass)
-    recent_ids = mastery_repository.list_recent_evidence_call_ids(db, member_id, limit=5)
-    f_count, ev_total = mastery_repository.evidence_grade_counts(db, member_id, recent_ids, k)
+    recent_ids = mastery_repository.list_recent_evidence_call_ids(
+        db, member_id, limit=5, language=language
+    )
+    f_count, ev_total = mastery_repository.evidence_grade_counts(
+        db, member_id, recent_ids, k, language
+    )
     f_ratio = (f_count / ev_total) if ev_total else 0.0
 
     g1_ratio = introduced_plus / denom
@@ -519,11 +527,13 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int) -> dict
     if not (g1_pass and g2_pass and g4_pass and g5_pass):
         return {"result": "stay", "snapshot": snapshot}
 
-    # ② 항상 +1 — 단일 트랜잭션(호출부 commit)에 레벨 + history 합류
-    member.korean_level = k + 1
+    # ② 항상 +1 — 단일 트랜잭션(호출부 commit)에 레벨 + history 합류.
+    #    레벨 기록은 member_language_level upsert(ko 는 member.korean_level 도 dual-write).
+    mastery_repository.upsert_language_level(db, member_id, language, k + 1)
     db.add(
         MemberLevelHistory(
             member_id=member_id,
+            language=language,
             from_level=k,
             to_level=k + 1,
             reason="gate_promotion",
@@ -549,6 +559,7 @@ def apply_grandfathering(
     *,
     trigger_call_id: Optional[int] = None,
     from_level: Optional[int] = None,
+    language: str = "ko",
 ) -> dict:
     """레벨 k 배정 시 하위 레벨 항목을 placement 로 선반영한다(commit 은 호출부).
 
@@ -572,7 +583,7 @@ def apply_grandfathering(
     created_mastered = 0
     if level_no >= 3:  # k-2 >= 1 일 때만 대상 존재
         for item_id in mastery_repository.list_grandfather_item_ids(
-            db, max_level=level_no - 2
+            db, max_level=level_no - 2, language=language
         ):
             if item_id in existing:
                 continue
@@ -590,7 +601,7 @@ def apply_grandfathering(
     created_introduced = 0
     if level_no >= 2:  # k-1 >= 1
         for item_id in mastery_repository.list_grandfather_item_ids(
-            db, exact_level=level_no - 1
+            db, exact_level=level_no - 1, language=language
         ):
             if item_id in existing:
                 continue
@@ -608,6 +619,7 @@ def apply_grandfathering(
     db.add(
         MemberLevelHistory(
             member_id=member_id,
+            language=language,
             from_level=from_level,
             to_level=level_no,
             reason="placement",

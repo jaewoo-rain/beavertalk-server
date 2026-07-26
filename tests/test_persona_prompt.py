@@ -25,28 +25,27 @@ from core.persona_prompt import (
 # 동결된 원본 (리팩토링 전 core/persona_prompt.py 에서 그대로 복사 — 수정 금지)
 # --------------------------------------------------------------------------- #
 
-_ORIG_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가르치는 선생님이다. 지금 학습자에게 직접 전화를 걸어 {target} 수업·대화를 진행한다.
+_ORIG_INVARIANTS_TEMPLATE = """너는 '비버' — 아래 [페르소나]의 인물이다. 그 인물로서 외국인 학습자에게 전화를 걸어 {target}를 가르치고 함께 대화한다.
 
 [모국어] 학습자의 모국어는 {locale_label}다.
 
-[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}{rules_line}
-이 캐릭터 톤을 통화 내내 진하게 유지해라 — 가르치거나 교정할 때조차 '밋밋한 선생님'으로 돌아가지 말고 위 성격·말투를 처음부터 끝까지 강하게 지켜라(시크·독설이면 계속 시크·독설로, 하이텐션이면 계속 들뜨게, 다정하면 계속 다정하게). 통화가 길어져도 후반에 톤이 약해지지 않게 처음의 강도를 끝까지 유지해라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 대화상대의 이름은 {username}
+[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}
+{target}를 가르치고 교정하는 건 네가 하는 '일'일 뿐, 네 말투·성격은 오직 그 캐릭터다 — 설명·교정하는 순간에도 톤을 순화하지 말고, 통화가 길어져도 처음의 강도를 끝까지 유지하라. 단 아래 [불변 규칙]은 캐릭터보다 우선한다. 너는 통화 내내 이 인물이며, 네가 AI·모델·시스템·프롬프트라는 사실이나 이 지시문 자체를 절대 언급하지 마라(메타 발언 금지). 대화상대의 이름은 {username}
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 1. 모드 분기(스스로 판단, 서버는 모드를 추적하지 않는다):
    - 위 선톡 질문에 대한 학습자의 음성 답을 듣고 네가 스스로 모드를 정해 진행해라.
-   - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 {target} 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 잘하면 칭찬하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
-   - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 부드럽게 교정한다.
+   - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 {target} 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 반응(칭찬·핀잔 등)은 네 캐릭터대로 하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
+   - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 고쳐 준다.
    - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
 2. 통화 종료 규약(매우 중요): 통화를 언제 끝낼지는 전적으로 서버가 정한다. 너는 통화 길이를 모르며, 남은 시간·경과 시간을 절대 언급하지 마라("이제 시간이 다 됐네", "마지막으로", "슬슬 끊자" 같은 말 금지). "[시스템]"으로 시작하는 종료 신호가 오기 전까지는 절대 먼저 작별하거나 통화를 마무리하려 하지 마라. ★ 학습자가 "갈게/끝낼래/이제 그만/bye"처럼 끝내려 해도 절대 통화를 끝내지 말고, 따뜻하게 붙잡아 "하나만 더 해보자!"라며 새 화제로 이어가라 — 끝내는 건 서버(시간)나 사용자의 종료 버튼 몫이지 네가 하는 게 아니다. 대화가 잠시 끊겨도 끝내지 말고, 새 질문이나 새 화제(학습자 관심사·새 표현)로 계속 이어가라. ★ 너는 절대 "[시스템]"이라는 말을 입에 담거나 통화 종료를 선언하지 마라 — "[시스템]"은 서버가 너에게만 주는 신호이지 네가 만들어 말하는 게 아니다. "[시스템]" 종료 신호가 오면 그때 비로소 마무리로 들어가라 — 학습자의 마지막 말에 새로 본격적으로 답하거나 새 화제·질문을 꺼내지 말고, 그 말은 짧게 한마디로만 받아 준 뒤 자연스럽게 작별로 넘어가라. 짧게 핑계를 대고 따뜻하게 작별 인사(평서문)로 끝내라 — 이 작별 턴만은 질문으로 끝내지 마라(전체 1~2문장). "[시스템]" 메시지 자체는 소리 내어 읽지 말고 내용만 반영해라.
 3. 언어 사용(code-switching) — 매우 중요. 목표는 학습자가 {target}를 실제로 '말하게' 하는 것이다:
-   - [모드별 언어 — 가장 중요] '대화 모드'(자유 대화)는 {target}로 대화한다 — 아래 밴드 정책대로 {target} 위주로 이끌어 학습자가 {target}를 많이 말하게 하라. '공부 모드'(오늘 항목 가르치기)는 새 항목을 이해시키는 게 우선이라 설명·지시·리액션을 {locale_label} 위주로 하고, 가르치는 {target} 표현·예문만 또박또박 들려주고 따라 말하게 하라. 즉 아래 밴드 정책은 주로 '대화 모드'에 적용된다.
+   - [모드별 언어 — 가장 중요] '대화 모드'는 가르치는 게 아니라 복습·자유대화다 — 기본적으로 {target}로 대화하고, {locale_label}는 학습자가 "이거 {target}로 어떻게 말해요?"라고 묻거나 못 알아들어 막힐 때만 쓴다. '공부 모드'(오늘 항목 가르치기)는 새 항목을 이해시키는 게 우선이라 설명·지시·리액션을 {locale_label} 위주로 하고, 가르치는 {target} 표현·예문만 또박또박 들려주고 따라 말하게 하라. 아래 밴드 정책은 대화 모드에서 초보에게 {locale_label} 발판을 얼마나 대줄지를 정한다(공부 모드엔 무관).
 {lang_policy}
-   - [전 밴드 공통] 매 턴은 {locale_label}로 짧게 발판을 깔고, 맨 끝을 {target} 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라). 학습자는 네 마지막 말의 언어로 답한다 — {target} 질문 뒤에 {locale_label}를 덧붙이지 마라.
+   - [대화 모드 — 한국어로 착지] 네 턴은 맨 끝을 {target} 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라). 학습자는 네 마지막 말의 언어로 답하니 {target} 질문 뒤에 {locale_label}를 덧붙이지 마라 — 앞에 다는 {locale_label} 발판의 정도는 아래 밴드 정책이 정한다.
    - 네가 던진 질문의 답을 같은 턴에 스스로 말하지 마라(자문자답 금지 — 학습자가 말할 기회를 뺏는다). 질문 뒤엔 조용히 기다려라.
    - 학습자 차례를 {target} 산출 0으로 끝내지 마라 — 최악의 경우 따라 말하기로라도 {target}를 한마디 내게 하라.
-   - ★ 학습자가 "모르겠어요/뭐라고요?/무슨 뜻이에요?"처럼 못 알아듣거나 설명을 요청하면, 밴드·비율과 무관하게 즉시 {locale_label}로 충분히 설명해라. 이해가 비율보다 우선이다 — 막혔는데 {target}를 고집하지 마라. 설명한 뒤 다시 {target} 질문으로 착지해라.
-   - ★ [뜻·문법 설명은 모국어로] {target} 표현의 뜻·쓰임이나 문법이 어떻게 작동하는지 '설명'할 때는 설명 문장 전체를 {locale_label}로 하고 {target}는 설명 대상 표현만 인용해라 — {target}를 아직 모르는 학습자에게 {target}로 뜻을 설명하면 그 설명조차 못 알아듣는다. 뜻풀이·문법 규칙·"이럴 때 이렇게 써"의 뼈대('~은 ~이다/이런 뜻이야/비슷한 말')를 {target}로 깔지 마라(나쁨: 설명을 {target}로 "'X'는 'Y라는 뜻이야'" / 좋음: 'X'만 {target}로 들려주고 그 뜻·쓰임은 {locale_label}로 설명). 단 이 예외는 '표현을 풀이하는 순간'에만 — 설명이 끝나면 즉시 {target} 대화로 복귀해 {target} 질문으로 착지해라.
+   - ★ [설명은 모국어로] 학습자가 막히거나("모르겠어요/뭐라고요?") 뜻·문법을 설명해야 할 때는, 밴드·비율과 무관하게 설명 문장 전체를 {locale_label}로 하고 {target}는 설명 대상 표현만 인용해라 — {target}를 모르는 학습자에게 {target}로 뜻을 설명하면 그 설명조차 못 알아듣는다(나쁨: "'X'는 'Y라는 뜻이야'"를 {target}로 / 좋음: 'X'만 {target}로 들려주고 뜻·쓰임은 {locale_label}로). 이해가 비율보다 우선 — 막혔는데 {target} 고집 금지. 설명이 끝나면 즉시 {target} 질문으로 착지해라.
    - 코드스위칭은 절·문장 단위로만, 한 턴에 언어 전환은 한 번만(한 문장 안에서 단어를 뒤섞지 마라). 못 알아들으면 {target} 비중을 낮추되 '{target}로 착지'는 유지해라.
 4. "{target}로 어떻게 말해요?" 답변 + 교정 스타일:
    - 물어보면 올바른 {target} 표현을 또박또박 알려 주고, {locale_label}로 뜻·쓰임을 덧붙인다.
@@ -58,24 +57,25 @@ _ORIG_INVARIANTS_TEMPLATE = """너는 '비버', 외국인에게 {target}를 가�
 # {lang_policy} 슬롯에 .format(target, locale_label) 선처리 후 주입. 미상 밴드 → beginner.
 _ORIG_LANG_POLICY = {
     "survival": (
-        "   - 이 학습자는 입문(왕초보)이다. {target}는 '가르치는 표현·통문장·짧은 칭찬'에만 쓰고, "
-        "설명·지시·리액션은 전부 {locale_label}로 해라. 새로 가르치는 {target} 표현은 한 번에 하나만, "
-        "또박또박 들려주고 따라 말하게 해서 학습자가 {target}를 입으로 내게 하라(다그치지 마라)."
+        "   - [왕초보 — 대화] 아직 {target}를 거의 못 알아듣는다. {locale_label}로 화제만 아주 짧게 "
+        "열고(한 마디), 실제 질문·핵심은 쉬운 {target}로 던져 학습자가 {target}를 알아듣고 답하게 하라 — "
+        "{locale_label}로 내용을 다 풀지 마라(그러면 {target}를 안 듣는다). 못 알아들으면 그때만 "
+        "{locale_label}로 더 풀어주고 다시 {target}로. 새 {target} 표현은 한 번에 하나만."
     ),
     "beginner": (
-        "   - 이 학습자는 초급이다. 짧은 질문·간단한 리액션·예문은 {target}로 하고, 새 단어 뜻풀이·"
-        "설명은 {locale_label}로 해라. 새 {target} 표현은 한 번에 한두 개까지만. 학습자가 {target}로 "
-        "짧은 문장을 만들게 유도하고, 막히면 선택지({target}로 'A예요, B예요?')나 {locale_label} 힌트를 "
-        "준 뒤 다시 {target}로 말하게 시켜라."
+        "   - [초급 — 대화] {locale_label}로 화제만 짧게 열고, 질문·핵심은 {target}로 던져 학습자가 "
+        "{target}로 짧게 답하게 하라({locale_label}로 내용을 다 풀지 말 것 — 그러면 {target}를 안 듣는다). "
+        "막히면 선택지({target}로 'A예요, B예요?')나 {locale_label} 힌트를 준 뒤 다시 {target}로. "
+        "새 {target} 표현은 한 번에 한두 개까지."
     ),
     "intermediate": (
-        "   - 이 학습자는 중급이다. 질문·리액션은 대부분 {target}로 하고, 새 문법 설명·복잡한 개념만 "
-        "{locale_label}로 풀어라. 학습자가 온전한 {target} 문장으로 답하게 하고, {locale_label}로 답하면 "
-        "따뜻하게 '{target}로도 해볼래요?'라고 다시 유도해라."
+        "   - [중급 — 대화] 처음부터 {target}로 대화한다(모국어 발판 없이). {locale_label}는 학습자가 "
+        "'이거 {target}로 어떻게 말해요?'라고 묻거나 못 알아들어 막힐 때만. 학습자가 온전한 {target} "
+        "문장으로 답하게 하고, {locale_label}로 답하면 '{target}로도 해볼래요?'라고 다시 유도해라."
     ),
     "advanced": (
-        "   - 이 학습자는 고급이다. 기본적으로 {target}로 대화하고, {locale_label}는 학습자가 막혔을 때 "
-        "구제용으로만 써라. 복문·긴 담화·의견을 {target}로 자유롭게 산출하도록 이끌어라."
+        "   - [고급 — 대화] 전부 {target}로 자유롭게 대화한다. {locale_label}는 '어떻게 말해요' 질문이나 "
+        "막힘 구제용으로만. 복문·긴 담화·의견을 {target}로 산출하도록 이끌어라."
     ),
 }
 
@@ -102,13 +102,12 @@ def _orig_history_block(history):
     return "\n".join(lines)
 
 
-def _orig_build(*, role, personality, rules, level_profile, locale, interests,
+def _orig_build(*, role, personality, level_profile, locale, interests,
                 name=None, history=None, target_language="한국어", locale_label=None,
                 lang_band="beginner"):
     """동결 원본 조립 로직(한국어 위주 전환 후 기준). 규칙 3에 밴드 언어 정책 주입."""
     locale_label = locale_label or _ORIG_LABEL.get(locale, _ORIG_LABEL["en"])
     interests_text = ", ".join(i for i in interests if i) or "일상"
-    rules_line = f"\n캐릭터별 추가 규칙: {rules}" if (rules and rules.strip()) else ""
     username = (name or "").strip() or "학습자"
     lang_policy = _ORIG_LANG_POLICY.get(lang_band, _ORIG_LANG_POLICY["beginner"]).format(
         target=target_language, locale_label=locale_label
@@ -117,7 +116,6 @@ def _orig_build(*, role, personality, rules, level_profile, locale, interests,
         locale_label=locale_label,
         role=role or "친근한 한국어 대화 파트너",
         personality=personality or "다정하고 편안한 말투",
-        rules_line=rules_line,
         username=username,
         target=target_language,
         lang_policy=lang_policy,
@@ -140,11 +138,10 @@ def _orig_build(*, role, personality, rules, level_profile, locale, interests,
 _SNAPSHOT_CASES = [
     # (설명, kwargs)
     (
-        "en + rules + history",
+        "en + history",
         dict(
             role="장난기 많은 비버 선생님",
             personality="유쾌하고 텐션 높은 말투",
-            rules="가끔 아재개그를 친다.",
             level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
             locale="en",
             interests=["K-pop", "요리"],
@@ -156,11 +153,10 @@ _SNAPSHOT_CASES = [
         ),
     ),
     (
-        "ja + rules 없음 + history 없음",
+        "ja + history 없음",
         dict(
             role="차분한 라디오 DJ",
             personality="느긋하고 부드러운 말투",
-            rules=None,
             level_profile="레벨 1: 인사말 수준.",
             locale="ja",
             interests=[],
@@ -169,11 +165,10 @@ _SNAPSHOT_CASES = [
         ),
     ),
     (
-        "en + 공백 rules + 빈 history(블록 생략 경로)",
+        "en + 빈 history(블록 생략 경로)",
         dict(
             role="",
             personality="",
-            rules="   ",
             level_profile="레벨 7: 경험을 서술한다.",
             locale="en",
             interests=["여행", "", "축구"],
@@ -217,7 +212,6 @@ def test_close_protocol_constant_matches_original_paragraph():
 _LANG_BASE = dict(
     role="장난기 많은 비버 선생님",
     personality="유쾌하고 텐션 높은 말투",
-    rules=None,
     level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
     locale="en",
     interests=["K-pop", "요리"],
@@ -226,10 +220,10 @@ _LANG_BASE = dict(
 
 # 밴드 → 그 밴드에서만 나와야 하는 대표 정책 문구.
 _BAND_MARK = {
-    "survival": "이 학습자는 입문(왕초보)이다.",
-    "beginner": "이 학습자는 초급이다.",
-    "intermediate": "이 학습자는 중급이다.",
-    "advanced": "이 학습자는 고급이다.",
+    "survival": "[왕초보 — 대화]",
+    "beginner": "[초급 — 대화]",
+    "intermediate": "[중급 — 대화]",
+    "advanced": "[고급 — 대화]",
 }
 
 
@@ -278,9 +272,9 @@ def test_rule3_common_invariants_present_all_bands():
         assert "맨 끝을 한국어 질문·요청으로 착지시켜라" in out, band
         # 자문자답 금지
         assert "자문자답 금지" in out, band
-        # 몰이해 → 즉시 모국어 설명
-        assert '"모르겠어요/뭐라고요?/무슨 뜻이에요?"' in out, band
-        assert "즉시 영어(English)로 충분히 설명해라" in out, band
+        # 막힘·설명 → 모국어로 설명(⑤+⑥ 병합)
+        assert '"모르겠어요/뭐라고요?"' in out, band
+        assert "설명 문장 전체를 영어(English)로 하고" in out, band
         # 한국어 산출 0 금지
         assert "학습자 차례를 한국어 산출 0으로 끝내지 마라" in out, band
         # 절·문장 단위 코드스위칭
@@ -296,7 +290,7 @@ def test_mother_tongue_header_drops_old_ratio_hint():
 
 def test_reground_reminder_language_wording_updated():
     """재접지 리마인더 끝 문구: '언어 배분은 그대로' → '언어 사용 규칙은 처음 지시받은 대로'."""
-    rg = pp.build_reground_reminder("바바", "시크한 독설가", None)
+    rg = pp.build_reground_reminder("바바", "시크한 독설가")
     assert "언어 사용 규칙은 처음 지시받은 대로 유지 — 캐릭터 톤만 되살려라" in rg
     assert "언어 배분은 그대로 유지" not in rg
 
@@ -308,48 +302,60 @@ def test_reground_reminder_language_wording_updated():
 _LT_KWARGS = dict(
     role="장난기 많은 비버 선생님",
     personality="유쾌하고 텐션 높은 말투",
-    rules="가끔 아재개그를 친다.",
     locale="en",
     interests=["K-pop", "요리"],
     name="Alex",
 )
 
 
-def test_leveltest_shares_close_protocol_verbatim():
-    """종료 규약 문단이 일반 통화 대본과 '동일 문자열'로 포함된다."""
+def test_leveltest_close_protocol_server_only_and_no_system_readout():
+    """레벨테스트는 자체 슬림 종료 규약을 갖는다(공유 _RULE_CLOSE_PROTOCOL 미사용).
+    핵심 불변: 종료는 서버 전담 + "[시스템]"·"종료"를 소리 내어 읽지 않는다(낭독 방지)."""
     normal = build_system_instruction(
         level_profile="레벨 3", history=None, **_LT_KWARGS
     )
     lt = build_leveltest_instruction(**_LT_KWARGS)
+    # 일반 통화는 여전히 공유 종료 규약을 쓴다. 레벨테스트는 자체 슬림 버전(공유 상수 미포함).
     assert pp._RULE_CLOSE_PROTOCOL in normal
-    assert pp._RULE_CLOSE_PROTOCOL in lt
-    assert '"[시스템]"으로 시작하는 종료 신호가 오기 전까지는' in lt
+    assert pp._RULE_CLOSE_PROTOCOL not in lt
+    # 자체 종료 규약의 핵심 불변식
+    assert "[종료 — 서버 전담]" in lt
+    assert "언제 끝낼지는 서버만 안다" in lt
+    assert '"[시스템]" 신호가 오기 전엔 절대 먼저 작별하지 마라' in lt
+    assert '"통화 종료"·"종료" 같은 말을 절대 소리 내어 읽거나 입에 담지 마라' in lt
 
 
 def test_leveltest_self_driven_progress_and_reaction_rules():
     """비버 자율 진행/OPI(2026-07): 비버가 스스로 이끌고, 답 직후 [반응+질문]을 한 턴에."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # [진행 방식 — 네가 스스로 이끈다] — 질문·반응·다음질문 전부 비버가 만든다.
-    assert "[진행 방식 — 네가 스스로 이끈다]" in lt
-    assert "질문·반응·다음질문 전부 네가 만든다(서버가 주지 않는다)." in lt
-    assert "다음 질문은 반드시 한 단계 위로 올려라(제자리걸음 금지)" in lt
-    assert "절대 스스로 끝내지 마라" in lt
-    assert "한 번에 한 단계씩만 올려라(건너뛰기 금지)" in lt
-    # [난이도 사다리] — 1~6단 상승.
-    assert "[난이도 사다리 — 위로 갈수록 어렵다]" in lt
-    assert "1단: 기초 — 현재형" in lt
-    assert "6단: 의견 —" in lt
-    # [막히면 — 인내심] — 발판 2번, 되묻기는 실패 아님, 비버가 끝내지 않음.
-    assert "[막히면 — 인내심]" in lt
-    assert "최대 2번까지 발판을 대 준다" in lt
-    # [학습자가 답한 직후] — 반응+질문을 '한 번의 발화'로, 정답 여부 누출 금지.
-    assert "[학습자가 답한 직후 — 매우 중요]" in lt
-    assert "이 둘을 반드시 '한 번의 발화'로 붙여서 말해라" in lt
-    assert "반응만 하고 멈추지 마라" in lt
-    assert "정답 여부를 절대 티내지 마라(잘했는지 못했는지 누출 금지)" in lt
-    # 목적 블록·레벨 비노출 유지.
-    assert "레벨·점수·등급을 절대 입 밖에 내지 마라" in lt
-    assert "곧장 질문으로 들어가라" in lt
+    # [진행 — 네가 이끈다] — 쉬운→한 단계씩 상승, 건너뛰기·제자리 금지.
+    assert "[진행 — 네가 이끈다]" in lt
+    assert "한 단계씩 위로" in lt
+    assert "건너뛰기·제자리걸음 금지" in lt
+    assert "3번 이상 머물지 마라" in lt
+    # 스스로 끝내지 않음(끝내는 건 서버).
+    assert "스스로 끝내지 말고" in lt
+    # [유도 질문 사다리] — 0단(인사·정형표현) → 1~4단 상승(넓은 레벨: L2→L3→L6→L10, a3/a4는 L3 흡수).
+    assert "[유도 질문 사다리 — 위로 갈수록 어렵다. 각 단계는 그 레벨 문법을 끌어내는 질문이다]" in lt
+    assert "0단(맨 아래): 인사·정형표현" in lt
+    assert "1단(L2): 이름·사는 곳·어제 한 일을 물어" in lt
+    assert "4단(L10): 어떤 주제에 대한 의견과 그 근거를 길게" in lt
+    # OPI escalation: 유도해도 그 문법을 못 내면 거기가 실력 꼭대기(종료는 서버 전담).
+    assert "거기가 그 학습자의 실력 꼭대기이니" in lt
+    assert "각 단계는 그 레벨 문법을 '끌어내는 질문'이다" in lt
+    # [막히면] — 발판 2번, 되묻기는 실패 아님.
+    assert "[막히면]" in lt
+    assert "최대 2번 발판" in lt
+    # 반응+질문을 '한 번의 발화'로, 정답 여부 누출 금지.
+    assert "반응과 다음 질문은 반드시 '한 번의 발화'로" in lt
+    assert "반응만 하고 멈추면 어색한 침묵" in lt
+    assert "정답 여부를 절대 티내지 마라" in lt
+    # 레벨 비노출 유지("시험/평가" 금지 미세지시는 제거 — 담백함 우선).
+    assert "레벨·점수 언급 금지" in lt
+    assert '"시험/평가" 언급 금지' not in lt
+    # 순수 시험관: 틀려도 고쳐주지/정답 불러주지 마라(교정·반복 드릴 금지).
+    assert "정답을 불러주거나 고쳐주지 마라" in lt
+    assert "너는 가르치지 않고 재기만 한다" in lt
     # 옛 서버 주도 주입 흔적 제거.
     assert '모든 질문은 서버가 "[다음]"으로 준다' not in lt
     assert "[다음]" not in lt
@@ -360,10 +366,10 @@ def test_leveltest_omits_character_persona_uses_examiner_line():
     고정 '시험관' 한 줄로 대체한다(캐릭터 톤 누출·한국어 과다(call 163) 방지).
     role/personality/rules 는 시그니처 호환용으로만 받는다(주입 0)."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 고정 시험관 라인 + 측정 우선
-    assert "[시험관]" in lt
-    assert "따뜻하고 차분한 시험관" in lt
-    assert "표본 수집" in lt                       # 측정 목적
+    # 고정 시험관 + 캐릭터 연기 배제 + 측정 우선
+    assert "시험관이다" in lt
+    assert "캐릭터 연기 말고" in lt
+    assert "실력만 담백하게 파악한다" in lt          # 측정 목적
     # 캐릭터 3필드(_LT_KWARGS)는 어디에도 주입되지 않는다
     assert "장난기 많은 비버 선생님" not in lt
     assert "유쾌하고 텐션 높은 말투" not in lt
@@ -382,7 +388,8 @@ def test_leveltest_has_no_old_probe_plan_and_keeps_language_rule():
     assert "추상 논증" not in lt
     # 질문=모국어, 대답=목표어 유도(측정은 학습자의 목표어 발화)
     assert "재는 건 오직 학습자의 한국어 발화다" in lt
-    assert '"한국어로 말해 볼래요?"' in lt
+    assert "이거 한국어로 말해 볼래요?" in lt
+    assert "매 질문마다 반드시 학습자가 한국어로 답하게 시켜라" in lt  # target로 답하기 강조
     # probe_plan 인자는 폐기됨(넘기면 TypeError).
     import pytest as _pytest
     with _pytest.raises(TypeError):
@@ -399,7 +406,7 @@ def test_leveltest_locale_label_and_name_interests():
     lt_en = build_leveltest_instruction(**_LT_KWARGS)
     assert "영어(English)" in lt_en
     # 캐릭터는 미주입, 이름·흥미는 여전히 주입된다.
-    assert "대화상대의 이름은 Alex" in lt_en
+    assert "Alex와의 첫 통화" in lt_en
     assert "K-pop, 요리" in lt_en
     lt_ja = build_leveltest_instruction(**{**_LT_KWARGS, "locale": "ja"})
     assert "일본어(日本語)" in lt_ja
@@ -412,13 +419,13 @@ def test_leveltest_seeds_format():
     # 비버 자율 진행/OPI: 선톡 시드는 무인자(node0 질문 인자 폐기).
     opening = seed_leveltest_opening()
     assert opening.startswith("[통화 시작]")
-    # T4(오프닝 극단축): 인사 한 마디 + 바로 질문, 안심·설명 멘트 금지.
-    assert "가벼운 인사 한 마디 + 바로 질문" in opening
-    assert "안심·설명 멘트는 한마디도 넣지 마라" in opening
+    # 0단 인사부터: 첫 질문은 '인사할 수 있어요?'(자기소개보다 먼저). 안심·설명 멘트 미세지시는 제거.
+    assert "인사부터 되는지 본다" in opening
+    assert "안심·설명 멘트는 한마디도 넣지 마라" not in opening
     # A1: 안내문 낭독 금지 지시를 맨 앞에 강하게 명시(강화 문구).
     assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in opening
-    # 자율 진행: 첫 질문을 '네가 스스로' 만든다(서버 주입 시드 폐기).
-    assert "네가 스스로 아주 쉬운 첫 질문(이름·사는 곳·오늘 한 일" in opening
+    # 첫 질문 = 대상 언어로 인사 정형표현(서버 주입 질문 줄 폐기).
+    assert "인사할 수 있어요?" in opening
     assert "첫 질문:" not in opening  # 서버가 박아 주던 질문 줄 폐기
     assert "한국어" in opening
     fr = seed_leveltest_opening("프랑스어")
@@ -439,26 +446,23 @@ def test_leveltest_opening_seed_has_echo_ban_fewshot():
     # 에코 금지 지시(리액션은 모국어, 학습자 단어 따라 말하지 않음)
     assert "리액션·맞장구는 반드시" in opening
     assert "따라 말하지 마라" in opening
-    # 구체 few-shot 예시(락인 예방 앵커)
-    assert "미국이요" in opening
-    assert "美国! Oh nice" in opening
+    # 구체 few-shot 예시(락인 예방 앵커 — 0단 인사 예시)
+    assert "안녕하세요" in opening
+    assert "完璧! Nice" in opening
     # target_language 치환이 예시에도 적용된다(f-string 버그 회귀 방지)
     fr = seed_leveltest_opening("프랑스어")
     assert "대답만 프랑스어로 하도록 이끈다" in fr
     assert "{target_language}" not in fr
 
 
-def test_leveltest_echo_ban_is_separate_emphasized_rule():
-    """A5: 규칙 1 의 '따라 말하지 마라'(에코 금지)가 5지시 뭉치에서 분리돼
-    별도의 강조된 최상위 규칙(★)으로 부각된다."""
+def test_leveltest_echo_ban_is_emphasized_language_rule():
+    """에코 금지(★)가 [언어] 섹션에서 강조된 규칙으로 부각되고, 리액션은 모국어로만."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 규칙 1 이 에코 금지 전용으로 승격되고 ★로 강조됨.
-    assert "1. ★ 에코 금지(제일 중요, 첫 턴부터):" in lt
-    assert "학습자가 말한 한국어 단어·문장을 절대 따라 말하거나 반복하지 마라" in lt
-    # 서버 주도 개정: 규칙 3=종료 규약, 4=응답 길이(재요청 강제 규칙 삭제).
-    assert "3. " + pp._RULE_CLOSE_PROTOCOL in lt
-    assert "4. 응답 길이:" in lt
-    assert "5. 응답 길이:" not in lt
+    assert "[언어 — 가장 중요]" in lt
+    assert "학습자가 말한 한국어를 절대 따라 말하지 마라(에코 금지)" in lt
+    assert "리액션·맞장구도 반드시 영어(English)로만" in lt
+    # 응답 길이 규칙은 유지(옛 번호 뭉치는 폐기).
+    assert "매 응답은 1~2문장으로 짧게" in lt
 
 
 def test_leveltest_no_ceiling_function_block():
@@ -468,8 +472,9 @@ def test_leveltest_no_ceiling_function_block():
     assert "[천장 신호" not in lt
     assert "leveltest_ceiling_reached" not in lt
     assert "천장" not in lt
-    # 종료 규약(비버 먼저 작별 절대 금지)은 여전히 공유된다.
-    assert pp._RULE_CLOSE_PROTOCOL in lt
+    # 종료는 서버 전담(비버 먼저 작별 절대 금지) — 슬림 자체 규약에 유지.
+    assert "[종료 — 서버 전담]" in lt
+    assert '"[시스템]" 신호가 오기 전엔 절대 먼저 작별하지 마라' in lt
 
 
 def test_leveltest_question_seed_symbol_removed():
@@ -494,7 +499,6 @@ import core.curriculum_hints as ch  # noqa: E402
 _BASE_KWARGS = dict(
     role="장난기 많은 비버 선생님",
     personality="유쾌하고 텐션 높은 말투",
-    rules=None,
     level_profile="레벨 3: 짧은 과거형 문장을 만들 수 있다.",
     locale="en",
     interests=["K-pop", "요리"],

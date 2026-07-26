@@ -77,14 +77,14 @@ def env(session_factory):
     ch = Character(name="비비", role="친근한 선생님", personality="다정함",
                    voice_id=voice.voice_id, price=0)
     db.add(ch)
-    db.add(Level(level_no=1, profile="생존 회화 프로파일"))
-    db.add(Level(level_no=2, profile="초급 A 프로파일"))
+    db.add(Level(language="ko", level_no=1, profile="생존 회화 프로파일"))
+    db.add(Level(language="ko", level_no=2, profile="초급 A 프로파일"))
     db.flush()
 
     items: dict[str, LearningItem] = {}
 
     def add_item(key, **kw):
-        it = LearningItem(source_key=key, assign_rule="test_v1", **kw)
+        it = LearningItem(source_key=key, language="ko", assign_rule="test_v1", **kw)
         db.add(it)
         db.flush()
         items[key] = it
@@ -124,8 +124,9 @@ def env(session_factory):
     db.flush()
 
     # B: 진입 10일 전 placement + 통화 3(아래에서 통화마다 증거 1+ 적립 → 증거통화 3)
-    db.add(MemberLevelHistory(member_id=mB.member_id, from_level=None, to_level=2,
-                              reason="placement", created_at=NOW - timedelta(days=10)))
+    db.add(MemberLevelHistory(member_id=mB.member_id, language="ko", from_level=None,
+                              to_level=2, reason="placement",
+                              created_at=NOW - timedelta(days=10)))
     calls = []
     for d in (3, 2, 1):
         c = Call(member_id=mB.member_id, character_id=ch.character_id,
@@ -158,7 +159,8 @@ def env(session_factory):
          last_used_at=NOW - timedelta(days=2), first_seen_at=NOW - timedelta(days=2))
 
     def ev(member, key, call, grade):
-        db.add(ItemEvidence(member_id=member.member_id, item_id=items[key].item_id,
+        db.add(ItemEvidence(member_id=member.member_id, language="ko",
+                            item_id=items[key].item_id,
                             call_id=call.call_id, grade_raw=grade, grade_final=grade,
                             verified=True, created_at=call.call_date))
 
@@ -172,8 +174,9 @@ def env(session_factory):
     ev(mB, "w1", last_call, "E2")   # 현재 레벨 E2+ → 버벅임 3연속 파탄(정상 믹스)
 
     # C: 승급 직후(gate_promotion 최신, 이후 증거통화 0)
-    db.add(MemberLevelHistory(member_id=mC.member_id, from_level=1, to_level=2,
-                              reason="gate_promotion", created_at=NOW - timedelta(days=1)))
+    db.add(MemberLevelHistory(member_id=mC.member_id, language="ko", from_level=1,
+                              to_level=2, reason="gate_promotion",
+                              created_at=NOW - timedelta(days=1)))
     db.commit()
 
     yield {"db": db, "items": items, "ch": ch, "mA": mA, "mB": mB, "mC": mC}
@@ -209,7 +212,8 @@ def test_promotion_pending_true_then_false_after_evidence_call(env):
              call_date=NOW, status="done")
     db.add(c)
     db.flush()
-    db.add(ItemEvidence(member_id=mC.member_id, item_id=env["items"]["w1"].item_id,
+    db.add(ItemEvidence(member_id=mC.member_id, language="ko",
+                        item_id=env["items"]["w1"].item_id,
                         call_id=c.call_id, grade_raw="E1", grade_final="E1",
                         verified=True, created_at=NOW))
     db.commit()
@@ -379,7 +383,7 @@ def test_load_call_setup_without_learning_items_returns_none(session_factory):
         ch = Character(name="비비", role="선생님", personality="다정",
                        voice_id=voice.voice_id, price=0)
         db.add(ch)
-        db.add(Level(level_no=2, profile="초급 A 프로파일"))
+        db.add(Level(language="ko", level_no=2, profile="초급 A 프로파일"))
         member = Member(language="en", korean_level=2, onboarding_completed=True,
                         auth_user_id="auth-empty")
         db.add(member)

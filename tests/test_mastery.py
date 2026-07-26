@@ -67,17 +67,19 @@ def session_factory():
 
 def _chunk(no: int, ko: str) -> LearningItem:
     return LearningItem(kind="chunk", source_key=f"c:{no:02d}:{ko}", band=1,
-                        level_no=1, assign_rule="chunk_v1", surface=ko, seq_no=no)
+                        language="ko", level_no=1, assign_rule="chunk_v1",
+                        surface=ko, seq_no=no)
 
 
 def _grammar(key: str, surface: str, *, level: int = 2, seq: int = 1) -> LearningItem:
     return LearningItem(kind="grammar", source_key=f"g:basic_a:{key}", band=1,
-                        level_no=level, assign_rule="textbook_v1", surface=surface,
-                        textbook_code="basic_a", seq_no=seq)
+                        language="ko", level_no=level, assign_rule="textbook_v1",
+                        surface=surface, textbook_code="basic_a", seq_no=seq)
 
 
 def _vocab(key: str, surface: str, *, level: int = 2, core: bool = True) -> LearningItem:
-    return LearningItem(kind="vocab", source_key=f"v:{key}", band=1, level_no=level,
+    return LearningItem(kind="vocab", source_key=f"v:{key}", band=1,
+                        language="ko", level_no=level,
                         assign_rule="vocab_split_v1", surface=surface,
                         topik_grade=1, is_core=core)
 
@@ -96,7 +98,8 @@ def env(session_factory):
     ch = Character(name="비비", role="선생님", personality="다정",
                    voice_id=voice.voice_id, price=0)
     db.add(ch)
-    db.add_all([Level(level_no=1, profile="생존"), Level(level_no=2, profile="초급A")])
+    db.add_all([Level(language="ko", level_no=1, profile="생존"),
+                Level(language="ko", level_no=2, profile="초급A")])
     member = Member(language="en", korean_level=1, onboarding_completed=True,
                     auth_user_id="auth-m1", created_at=NOW - timedelta(days=10))
     db.add(member)
@@ -600,3 +603,112 @@ def test_grandfathering_placement_rows_and_history(env):
     # placement history 의 trigger_call 덕에 같은 통화 evaluate 는 멱등 스킵
     r3 = mastery_service.evaluate_level_up(db, m3.member_id, trigger_call_id=lt_call.call_id)
     assert r3 == {"result": "skipped", "reason": "already_evaluated"}, r3
+
+
+# --------------------------------------------------------------------------- #
+# (7) 멀티랭귀지 — member-only 집계·선별·레벨 출처 언어 격리 (T3 리스크 1)
+# --------------------------------------------------------------------------- #
+def test_language_isolation_member_only_aggregates(env):
+    """ko/ja 동시 학습 시 증거·이력·레벨·선별이 language 로 안 섞인다(오염 차단).
+
+    특히 get_latest_history(진입시각)·증거통화 집계가 무필터면 최신 ja 를 잡아 ko 를
+    오염시키는 치명 케이스를 언어별 필터가 막는지 검증한다.
+    """
+    db, mid = env["db"], env["member"].member_id
+
+    # ja 레벨 마스터 + ja 학습 항목(문법 1) 시드
+    db.add_all([Level(language="ja", level_no=1, profile="ja survival"),
+                Level(language="ja", level_no=2, profile="ja beginner")])
+    ja_g = LearningItem(kind="grammar", source_key="g:ja:xx", band=1,
+                        language="ja", level_no=2, assign_rule="textbook_v1",
+                        surface="ja문법", textbook_code="basic_a", seq_no=1)
+    db.add(ja_g)
+    db.flush()
+
+    # ── member-only 이력: ko(먼저) + ja(나중) — 무필터면 최신 ja 가 잡힌다 ──
+    db.add_all([
+        MemberLevelHistory(member_id=mid, language="ko", from_level=None,
+                           to_level=1, reason="placement",
+                           created_at=NOW - timedelta(days=5)),
+        MemberLevelHistory(member_id=mid, language="ja", from_level=None,
+                           to_level=2, reason="placement",
+                           created_at=NOW - timedelta(days=1)),
+    ])
+    db.flush()
+    assert mastery_repository.get_latest_history(db, mid, "ko").language == "ko"
+    assert mastery_repository.get_latest_history(db, mid, "ja").language == "ja"
+
+    # ── member-only 증거통화: ko 2통화 + ja 1통화 ──
+    ko_c1 = _new_call(env, target_language="ko")
+    ko_c2 = _new_call(env, target_language="ko")
+    ja_c = _new_call(env, target_language="ja")
+    for c, lang, item in ((ko_c1, "ko", env["g1"]), (ko_c2, "ko", env["g1"]),
+                          (ja_c, "ja", ja_g)):
+        db.add(ItemEvidence(member_id=mid, language=lang, item_id=item.item_id,
+                            call_id=c.call_id, grade_raw="E2", grade_final="E2",
+                            verified=True, score_delta=1.0, created_at=NOW))
+    db.commit()
+
+    assert mastery_repository.count_evidence_calls_since(db, mid, None, "ko") == 2
+    assert mastery_repository.count_evidence_calls_since(db, mid, None, "ja") == 1
+    assert set(mastery_repository.list_recent_evidence_call_ids(db, mid, language="ja")) \
+        == {ja_c.call_id}
+
+    # ── 레벨 출처: ko 폴백(korean_level=1) vs ja 콜드스타트(mll·korean_level 부재=None) ──
+    assert mastery_repository.get_language_level(db, mid, "ko") == 1
+    assert mastery_repository.get_language_level(db, mid, "ja") is None
+
+    # ── 선별: learning_item.language 로 후보 격리 ──
+    for item in (env["g1"], ja_g):
+        db.add(MemberItemProgress(
+            member_id=mid, item_id=item.item_id, status="practicing",
+            score=2.0, provenance="observed",
+            repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
+            first_seen_at=NOW, last_seen_at=NOW))
+    db.commit()
+    ja_cands = {c["item_id"]
+                for c in mastery_repository.load_default_candidates(db, mid, language="ja")}
+    ko_cands = {c["item_id"]
+                for c in mastery_repository.load_default_candidates(db, mid, language="ko")}
+    assert ja_cands == {ja_g.item_id}
+    assert env["g1"].item_id in ko_cands and ja_g.item_id not in ko_cands
+
+
+def test_language_scoped_levelup_writes_member_language_level(env):
+    """ja 레벨업 판정은 member_language_level[ja] 만 쓰고 ko(korean_level)를 안 건드린다."""
+    db = env["db"]
+    # ja 레벨 1 회원 — mll 로 ja=1 배정, ko 는 미학습(korean_level None)
+    m = Member(language="en", korean_level=None, onboarding_completed=True,
+               auth_user_id="auth-ja1", created_at=NOW - timedelta(days=10))
+    db.add(m)
+    db.add_all([Level(language="ja", level_no=1, profile="ja survival"),
+                Level(language="ja", level_no=2, profile="ja beginner")])
+    db.flush()
+    mastery_repository.upsert_language_level(db, m.member_id, "ja", 1)
+    db.commit()
+    # ja 게이트 대상(청크 1개)만 있고 이미 mastered → 승급 1→2
+    ja_ck = LearningItem(kind="chunk", source_key="c:ja:01", band=1,
+                         language="ja", level_no=1, assign_rule="chunk_v1",
+                         surface="ja청크", seq_no=1)
+    db.add(ja_ck)
+    db.flush()
+    db.add(MemberItemProgress(
+        member_id=m.member_id, item_id=ja_ck.item_id, status="mastered",
+        score=4.0, provenance="observed",
+        repeat_count=0, prompted_count=1, spontaneous_count=2, miss_count=0,
+        first_seen_at=NOW - timedelta(days=9), last_seen_at=NOW,
+        mastered_at=NOW - timedelta(days=1)))
+    ja_call = _new_call(env, status="done", target_language="ja")
+    ja_call.member_id = m.member_id
+    db.flush()
+
+    r = mastery_service.evaluate_level_up(
+        db, m.member_id, trigger_call_id=ja_call.call_id, language="ja"
+    )
+    db.commit()
+    assert r["result"] == "promoted" and r["to_level"] == 2, r
+    # ja 레벨만 2로 상승, ko(korean_level)는 여전히 None(dual-write 는 ko 만)
+    assert mastery_repository.get_language_level(db, m.member_id, "ja") == 2
+    assert db.get(Member, m.member_id).korean_level is None
+    hist = mastery_repository.get_latest_history(db, m.member_id, "ja")
+    assert hist.reason == "gate_promotion" and hist.language == "ja"

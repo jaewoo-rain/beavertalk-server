@@ -14,7 +14,10 @@ _DEV_JWT_SECRET = "dev-secret-change-me-please-32bytes-minimum-0123456789"
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # .env → .env.local 순서로 로드(뒤가 우선). .env.local(gitignore)이 있으면 그 값이
+        # .env 를 오버라이드한다 — 로컬에서 도그푸딩 DB/Supabase 등으로 갈아끼울 때 사용.
+        # 파일이 없으면 조용히 건너뛴다(없어도 무해).
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -26,6 +29,10 @@ class Settings(BaseSettings):
     DATABASE_URL_DIRECT: str | None = None
 
     ENV: str = "dev"
+
+    # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
+    # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).
+    DEFAULT_TARGET_LANGUAGE: str = "ko"
 
     @property
     def direct_url(self) -> str:
@@ -77,8 +84,8 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
     GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
-    # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD). Vertex(빌린 프로젝트)는 Cloud TTS 를
-    # 못 켜므로, 우리 소유 프로젝트(bt-dev-web-01) 서비스계정 키로 직접 호출한다.
+    # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
+    # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
     TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)
 
     # ── 발음 챌린지 서버 STT (Google Cloud Speech-to-Text 스트리밍) ──
@@ -107,6 +114,17 @@ class Settings(BaseSettings):
     FCM_SERVICE_ACCOUNT_JSON: str | None = None
     INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
     INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)
+
+    # ── 예약전화 APNs VoIP 발송 (iOS) ──
+    # 미설정이면 core.apns 가 graceful 비활성(등록/삭제·android 발송 정상, iOS 발송만 스킵).
+    # 개인키는 PRIVATE_KEY(.p8 내용, Secret Manager) 우선, 없으면 PRIVATE_KEY_FILE(.p8 경로, 로컬).
+    # FCM_SERVICE_ACCOUNT_JSON/_FILE 과 동일한 '내용 우선·파일 폴백' 규율.
+    APNS_KEY_ID: str | None = None
+    APNS_TEAM_ID: str | None = None              # 예: CTV7Z5BXL8
+    APNS_BUNDLE_ID: str = "im.beavertalk.beavertalk"
+    APNS_PRIVATE_KEY: str | None = None          # .p8 내용(Secret Manager 주입)
+    APNS_PRIVATE_KEY_FILE: str | None = None     # .p8 경로(로컬 폴백 — fcm 패턴 미러)
+    APNS_USE_SANDBOX: bool = False               # TestFlight/App Store = False(프로덕션)
 
     @property
     def google_client_ids(self) -> set[str]:

@@ -7,9 +7,8 @@
       prod 재측정(korean_level 보유) 명시 level_test → normal.
     - analyze_level_test_call: 판정 성공 단일 커밋 저장 / 빈 전사 스킵 / LLM 실패 /
       모순 출력(unknown+sufficient) failed / member 소실 failed(부분 저장 없음).
-    - _place_from_band: 4버킷 고정매핑(survival→1/beginner→2/intermediate→3/advanced→6),
-      sparse 캡(min(level,2)), unknown+sufficient→None(모순), unknown|none→1.
-    - _citation_coverage: 어절 토큰 부분일치 비율(0.0~1.0) — 인용검증 순수함수.
+    - _place_from_band: 넓은 레벨 매핑(chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10 — a3·a4 L3 흡수),
+      sparse 캡·변주 게이트(distinct_structures<=1) min(level,2), unknown+sufficient→None(모순), unknown|none→1.
     - _user_char_total: 유니코드 letter/digit 만 계수(기호·이모지 제외).
     - get_status_detail 소유자 가드 + status 엔드포인트 응답 계약(call_type/assessed_level).
     - MemberRead.korean_level 직렬화(None/값).
@@ -43,6 +42,7 @@ from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.level import Level
 
 from core.config import settings as app_settings
+from core.languages import LanguageSpec, SUPPORTED_LANGUAGES
 from core.supabase_auth import AuthUser
 
 import core.deps as deps
@@ -94,10 +94,10 @@ def seeded(session_factory):
         ch = Character(name="비비", role="친근한 선생님", personality="다정함",
                        voice_id=voice.voice_id, price=0)
         db.add(ch)
-        db.add(Level(level_no=1, profile="생존 회화"))
-        db.add(Level(level_no=2, profile="초급 A 학습자"))
-        db.add(Level(level_no=3, profile="초급 A 레벨3 학습자"))
-        db.add(Level(level_no=5, profile="초급 A 레벨5 학습자"))
+        db.add(Level(language="ko", level_no=1, profile="생존 회화"))
+        db.add(Level(language="ko", level_no=2, profile="초급 A 학습자"))
+        db.add(Level(language="ko", level_no=3, profile="초급 A 레벨3 학습자"))
+        db.add(Level(language="ko", level_no=5, profile="초급 A 레벨5 학습자"))
         db.flush()
 
         m_none = Member(language="en", korean_level=None, onboarding_completed=True,
@@ -255,7 +255,8 @@ def _assessment(**kw) -> svc.LevelAssessment:
     base = dict(
         evidence=["안녕하세요 저는 학생이에요"],
         reasoning="초급 문형(현재형·조사)을 안정적으로 사용",
-        band="beginner",
+        distinct_structures=3,  # 변주 충분 기본값(게이트 미발동) — 게이트 테스트에서만 <=1로 오버라이드
+        band="a1",
         confidence="high",
         sample_quality="sufficient",
         summary="자기소개와 취미",
@@ -299,12 +300,12 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
 
     instr = holder["system_instruction"]
     # 레벨테스트 대본(비버 자율 진행/OPI): 진행 방식·시험관 블록 포함, 일반 대본의 [학습자 수준] 없음.
-    assert "[진행 방식 — 네가 스스로 이끈다]" in instr
-    assert "표본 수집" in instr
+    assert "[진행 — 네가 이끈다]" in instr
+    assert "실력만 담백하게 파악한다" in instr
     assert "[학습자 수준]" not in instr
     # 레벨테스트 선톡 시드가 주입됐다(무인자 — 비버가 첫 질문을 스스로 시작).
     assert holder["session"].sent_text_turns
-    assert "가벼운 인사 한 마디 + 바로 질문" in holder["session"].sent_text_turns[0]
+    assert "인사부터 되는지 본다" in holder["session"].sent_text_turns[0]
 
     db = session_factory()
     try:
@@ -325,7 +326,7 @@ async def test_member_with_level_routes_to_normal(session_factory, seeded):
     instr = holder["system_instruction"]
     assert "[학습자 수준]" in instr
     assert "초급 A 레벨3 학습자" in instr  # level_no=3 프로파일이 주입됨
-    assert "[진행 방식 — 네가 스스로 이끈다]" not in instr
+    assert "[진행 — 네가 이끈다]" not in instr
 
     db = session_factory()
     try:
@@ -346,7 +347,7 @@ async def test_explicit_call_type_forces_level_test(session_factory, seeded, mon
     )
 
     instr = holder["system_instruction"]
-    assert "[진행 방식 — 네가 스스로 이끈다]" in instr
+    assert "[진행 — 네가 이끈다]" in instr
     assert "[학습자 수준]" not in instr
 
     db = session_factory()
@@ -362,19 +363,24 @@ async def test_explicit_call_type_forces_level_test(session_factory, seeded, mon
 async def test_demo_explicit_level_test_demoted_to_normal(
     session_factory, seeded, monkeypatch, caplog
 ):
-    """F1: 데모(target_language 오버라이드) + 명시 call_type=level_test → normal 강등.
+    """F1: 레벨테스트 미지원 언어(회화 전용) + 명시 call_type=level_test → normal 강등.
 
-    비한국어 전사를 한국어 루브릭으로 판정하면 korean_level 이 오염되므로
-    데모 통화에서는 명시 level_test 도 normal 로 강등 + warning."""
+    멀티랭귀지: spec.leveltest=False 언어(콘텐츠 미저작·회화 전용)는 명시 level_test 도 그
+    언어 판정이 무의미하므로 normal 로 강등 + warning. 현재 지원 6개 언어는 모두 저작 완료라
+    leveltest=True 이므로, **미저작 회화 전용 언어를 임시로 주입**해 강등 로직을 검증한다."""
     monkeypatch.setattr(app_settings, "ENV", "dev")
+    # 아직 콘텐츠 미저작인 회화 전용 언어(leveltest=False)를 임시 주입 — 강등 대상.
+    monkeypatch.setitem(
+        SUPPORTED_LANGUAGES, "vi", LanguageSpec("vi", "베트남어", 12, False, False)
+    )
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         holder = await _run_one_call(
             session_factory, seeded["member_none"], seeded["character_id"],
-            call_type="level_test", target_language="스페인어",
+            call_type="level_test", target_language="vi",
         )
 
     instr = holder["system_instruction"]
-    assert "[진행 방식 — 네가 스스로 이끈다]" not in instr  # 레벨테스트 대본 아님
+    assert "[진행 — 네가 이끈다]" not in instr  # 레벨테스트 대본 아님
 
     db = session_factory()
     try:
@@ -384,6 +390,33 @@ async def test_demo_explicit_level_test_demoted_to_normal(
     finally:
         db.close()
     assert any("강등" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_ja_level_test_active_uses_japanese_ladder(
+    session_factory, seeded, monkeypatch
+):
+    """멀티랭귀지: ja(leveltest=True, T4b/T5 시드·저작 완료)는 신규 학습자 첫 통화가
+    레벨테스트로 진입하고, 난이도 사다리에 **일본어 문법 앵커**가 주입된다(강등 아님)."""
+    monkeypatch.setattr(app_settings, "ENV", "dev")
+    holder = await _run_one_call(
+        session_factory, seeded["member_none"], seeded["character_id"],
+        call_type="level_test", target_language="ja",
+    )
+
+    instr = holder["system_instruction"]
+    assert "[진행 — 네가 이끈다]" in instr        # 레벨테스트 대본
+    assert "「〜ました／〜でした」" in instr                    # 일본어 사다리 앵커
+    assert "-았/었-" not in instr                             # 한국어 앵커 누출 없음
+
+    db = session_factory()
+    try:
+        calls = db.query(Call).all()
+        assert len(calls) == 1
+        assert calls[0].call_type == "level_test"            # 강등 안 됨
+        assert calls[0].target_language == "ja"
+    finally:
+        db.close()
 
 
 @pytest.mark.asyncio
@@ -401,7 +434,7 @@ async def test_prod_remeasure_explicit_level_test_demoted_to_normal(
 
     instr = holder["system_instruction"]
     assert "[학습자 수준]" in instr  # 일반 대본(레벨 5 프로파일 주입)
-    assert "[진행 방식 — 네가 스스로 이끈다]" not in instr
+    assert "[진행 — 네가 이끈다]" not in instr
 
     db = session_factory()
     try:
@@ -424,7 +457,7 @@ async def test_prod_explicit_level_test_allowed_when_level_unset(
         call_type="level_test",
     )
 
-    assert "[진행 방식 — 네가 스스로 이끈다]" in holder["system_instruction"]
+    assert "[진행 — 네가 이끈다]" in holder["system_instruction"]
 
     db = session_factory()
     try:
@@ -447,8 +480,8 @@ async def test_level_assessment_success_saves_level_and_meta(
         user_lines=["안녕하세요 저는 미국에서 온 학생이에요",
                     "한국어 공부가 정말 재미있어요"],
     )
-    # band=beginner + sufficient → 고정매핑 레벨 2(_BUCKET_LEVEL["beginner"]).
-    result = _assessment(band="beginner",
+    # band=a1 + sufficient → 고정매핑 레벨 2(_BUCKET_LEVEL["a1"]).
+    result = _assessment(band="a1",
                          confidence="high", sample_quality="sufficient")
     mock = AsyncMock(return_value=result)
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)
@@ -464,7 +497,7 @@ async def test_level_assessment_success_saves_level_and_meta(
         member = db.get(Member, seeded["member_none"])
         call = db.get(Call, call_id)
         # 레벨 배정 + 판정 메타 + done 이 함께 반영됨(단일 커밋 결과).
-        assert member.korean_level == svc._BUCKET_LEVEL["beginner"] == 2
+        assert member.korean_level == svc._BUCKET_LEVEL["a1"] == 2
         assert call.assessed_level == 2
         assert call.assessment_note == result.reasoning
         assert call.summary == result.summary
@@ -477,35 +510,55 @@ async def test_level_assessment_success_saves_level_and_meta(
 # (5) _place_from_band 단위 — AI는 증인(밴드만), 코드가 심판(레벨 숫자 고정매핑)
 # --------------------------------------------------------------------------- #
 def test_place_from_band_bucket_mapping():
-    """4버킷 고정매핑(sufficient 표본): survival→1 / beginner→2 / intermediate→3 / advanced→6."""
+    """넓은 레벨 매핑(sufficient·변주 충분): chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10.
+    ⚠ 넓은 레벨(1,2,3,6,10): a3·a4를 L3에 흡수(초급 상단 정밀도는 자동 레벨업이 회복)."""
     assert svc._place_from_band(
-        _assessment(band="survival", sample_quality="sufficient")) == 1
+        _assessment(band="chunk", sample_quality="sufficient")) == 1
     assert svc._place_from_band(
-        _assessment(band="beginner", sample_quality="sufficient")) == 2
+        _assessment(band="a1", sample_quality="sufficient")) == 2
     assert svc._place_from_band(
-        _assessment(band="intermediate", sample_quality="sufficient")) == 3
+        _assessment(band="a2", sample_quality="sufficient")) == 3
     assert svc._place_from_band(
-        _assessment(band="advanced", sample_quality="sufficient")) == 6
+        _assessment(band="a3", sample_quality="sufficient")) == 3
+    assert svc._place_from_band(
+        _assessment(band="a4", sample_quality="sufficient")) == 3
+    assert svc._place_from_band(
+        _assessment(band="mid", sample_quality="sufficient")) == 6
+    assert svc._place_from_band(
+        _assessment(band="adv", sample_quality="sufficient")) == 10
     # 매핑 상수 자체도 계약대로인지 고정.
     assert svc._BUCKET_LEVEL == {
-        "survival": 1, "beginner": 2, "intermediate": 3, "advanced": 6
+        "chunk": 1, "a1": 2, "a2": 3, "a3": 3, "a4": 3, "mid": 6, "adv": 10
     }
 
 
 def test_place_from_band_sparse_caps_at_two():
     """sparse 표본 → 중급+ 과배치 금지: min(level, 2)."""
-    # advanced(6) 도 sparse 면 2 로 캡.
+    # adv(10) 도 sparse 면 2 로 캡.
     assert svc._place_from_band(
-        _assessment(band="advanced", sample_quality="sparse")) == 2
-    # intermediate(3) → 2.
+        _assessment(band="adv", sample_quality="sparse")) == 2
+    # a2(3) → 2.
     assert svc._place_from_band(
-        _assessment(band="intermediate", sample_quality="sparse")) == 2
-    # beginner(2) 는 이미 2 이하 → 그대로 2.
+        _assessment(band="a2", sample_quality="sparse")) == 2
+    # a1(2) 는 이미 2 이하 → 그대로 2.
     assert svc._place_from_band(
-        _assessment(band="beginner", sample_quality="sparse")) == 2
-    # survival(1) 은 이미 1 → 그대로 1.
+        _assessment(band="a1", sample_quality="sparse")) == 2
+    # chunk(1) 은 이미 1 → 그대로 1.
     assert svc._place_from_band(
-        _assessment(band="survival", sample_quality="sparse")) == 1
+        _assessment(band="chunk", sample_quality="sparse")) == 1
+
+
+def test_place_from_band_variation_gate_caps_at_two():
+    """변주 게이트: distinct_structures<=1 이면 밴드가 높아도 min(level,2)로 캡(암기/반복 방지)."""
+    # adv(10) 인데 서로 다른 구조 1개뿐 → 암기 → 2.
+    assert svc._place_from_band(
+        _assessment(band="adv", sample_quality="sufficient", distinct_structures=1)) == 2
+    # mid(6) 인데 0개 → 2.
+    assert svc._place_from_band(
+        _assessment(band="mid", sample_quality="sufficient", distinct_structures=0)) == 2
+    # 변주 충분(>=2)이면 캡 없음(넓은 레벨: a3→3).
+    assert svc._place_from_band(
+        _assessment(band="a3", sample_quality="sufficient", distinct_structures=2)) == 3
 
 
 def test_place_from_band_unknown_with_sufficient_returns_none():
@@ -526,25 +579,9 @@ def test_place_from_band_unknown_or_none_returns_one():
         _assessment(band="unknown", sample_quality="none")) == 1
     # 밴드는 명시됐어도 sample_quality=none 이면 1(모국어뿐 전제).
     assert svc._place_from_band(
-        _assessment(band="advanced", sample_quality="none")) == 1
+        _assessment(band="adv", sample_quality="none")) == 1
     assert svc._place_from_band(
-        _assessment(band="beginner", sample_quality="none")) == 1
-
-
-# --------------------------------------------------------------------------- #
-# (5.5) _citation_coverage 단위 — 인용검증 순수함수(어절 토큰 부분일치 비율)
-# --------------------------------------------------------------------------- #
-def test_citation_coverage_full_and_partial_and_absent():
-    """0.0~1.0: 완전 실재=1.0 / ASR 드리프트 부분겹침=비율 / 통째 부재=0.0 / 빈문자열=0.0."""
-    # 두 어절 모두 answer 에 부분문자열로 존재 → 1.0.
-    assert svc._citation_coverage("김치를 좋아해요", "저는 김치를 좋아해요") == 1.0
-    # ASR 드리프트: '김치를'은 있으나 '좋아해요'는 '좋아 해요'로 갈라져 부재 → 1/2.
-    assert svc._citation_coverage("김치를 좋아해요", "저는 김치 좋아 해요") == 0.5
-    # 어느 토큰도 answer 에 없음 → 0.0.
-    assert svc._citation_coverage("완전히 다른 말", "김치를 먹어요") == 0.0
-    # 빈 heard / 빈 answer → 0.0.
-    assert svc._citation_coverage("", "김치를 먹어요") == 0.0
-    assert svc._citation_coverage("김치를 좋아해요", "") == 0.0
+        _assessment(band="a1", sample_quality="none")) == 1
 
 
 def test_user_char_total_counts_letters_and_digits_only():

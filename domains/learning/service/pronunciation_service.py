@@ -145,6 +145,23 @@ def _save_pron_cache(db: Session, call_id: int, comment: str, n: int) -> None:
     db.commit()
 
 
+def _mock_comment(sounds: list[SoundAggregate]) -> Optional[str]:
+    """비한국어 통화용 결정적 목 코칭(LLM 미호출). 최저 소리 정확도 밴드로 한마디.
+
+    실채점·실코칭은 한국어 전용이라, 다른 언어는 LLM 을 부르지 않고 그럴듯한 목 코칭을 준다
+    (빈 채로 로딩되지 않게). 학습자 모국어=한국어(도그푸딩) 가정의 한국어 문구.
+    """
+    if not sounds:
+        return None
+    worst = min(sounds, key=lambda s: s.pronunciation_avg)
+    avg = worst.pronunciation_avg
+    if avg >= 80:
+        return "발음이 아주 또렷해요! 이 느낌 그대로 이어가 봐요."
+    if avg >= 60:
+        return "전반적으로 좋아요. 조금만 더 또박또박 소리 내면 완벽해요!"
+    return "천천히, 소리 하나하나 또렷하게 연습해 봐요. 금방 늘어요!"
+
+
 async def _resolve_comment(
     *,
     call_id: int,
@@ -154,19 +171,23 @@ async def _resolve_comment(
     cached_n: Optional[int],
     country: Optional[str],
     language: Optional[str],
+    target_language: Optional[str],
     session_factory: sessionmaker,
     client: Optional[genai.Client],
     settings: Settings,
 ) -> Optional[str]:
-    """코칭 한마디 결정 — 자모없음/캐시적중/LLM/폴백 분기.
+    """코칭 한마디 결정 — 언어게이트/자모없음/캐시적중/LLM/폴백 분기.
 
     - 자모 없음(sounds 빈): comment=None, LLM 스킵.
+    - **비한국어 통화(target_language!='ko')**: LLM 미호출, 결정적 목 코칭(_mock_comment).
     - 캐시 적중(pron_feedback_n == 현재 counted 수): 기존 pron_feedback 재사용.
-    - 그 외: 최저 pronunciation_avg alpha 1개로 PronunciationTip LLM 호출 → 성공 시 캐시 저장.
+    - 그 외(한국어): 최저 pronunciation_avg alpha 1개로 PronunciationTip LLM 호출 → 성공 시 캐시.
     - client None / LLM 실패: 기존 캐시(또는 None)로 graceful 폴백.
     """
     if not sounds:
         return None
+    if (target_language or "ko").strip().lower() != "ko":
+        return _mock_comment(sounds)  # 비한국어: LLM 미호출, 목 코칭
     if cached_n is not None and cached_n == counted_n:
         return cached_comment
     if client is None:
@@ -203,6 +224,7 @@ class _PronGathered:
         sounds: list[SoundAggregate],
         country: Optional[str],
         language: Optional[str],
+        target_language: Optional[str],
         counted_n: int,
         cached_comment: Optional[str],
         cached_n: Optional[int],
@@ -211,6 +233,7 @@ class _PronGathered:
         self.sounds = sounds
         self.country = country
         self.language = language
+        self.target_language = target_language
         self.counted_n = counted_n
         self.cached_comment = cached_comment
         self.cached_n = cached_n
@@ -229,6 +252,7 @@ def _gather(db: Session, call_id: int, member_id: int) -> Optional[_PronGathered
         sounds=aggregate_sounds(last_reviews),
         country=repo.get_first_country(member_id),
         language=repo.get_member_language(member_id),
+        target_language=call.target_language,
         counted_n=repo.count_counted_reviews(call_id),
         cached_comment=call.pron_feedback,
         cached_n=call.pron_feedback_n,
@@ -260,6 +284,7 @@ async def get_pronunciation_report(
         cached_n=gathered.cached_n,
         country=gathered.country,
         language=gathered.language,
+        target_language=gathered.target_language,
         session_factory=session_factory,
         client=client,
         settings=settings,
