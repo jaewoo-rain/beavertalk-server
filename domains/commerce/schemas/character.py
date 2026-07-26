@@ -28,7 +28,7 @@ class CharacterSummary(BaseModel):
     name: str
     image_url: Optional[str]
     description: Optional[str]  # 카드 설명
-    story: Optional[str] = None  # 캐릭터 배경 이야기/서사(목록·상세 공통 — 카드 미리보기용)
+    background_story: Optional[str] = None  # 캐릭터 배경 이야기/서사(목록·상세 공통 — 카드 미리보기용)
     voice_url: Optional[str]   # 미리듣기 샘플 음성 URL
     tags: list[str] = []       # 음색/특성 태그(칩) — 없으면 빈 배열
     price: Decimal
@@ -50,7 +50,7 @@ class OwnedCharacterOut(BaseModel):
     name: str
     image_url: Optional[str]
     description: Optional[str]  # 시트 설명(보유 캐릭터도 표시)
-    story: Optional[str] = None  # 캐릭터 배경 이야기/서사
+    background_story: Optional[str] = None  # 캐릭터 배경 이야기/서사
     voice_url: Optional[str]   # 미리듣기 샘플 음성 URL
     tags: list[str] = []  # 음색/특성 태그(칩)
     purchase_price: Optional[Decimal]
