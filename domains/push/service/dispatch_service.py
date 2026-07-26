@@ -16,7 +16,7 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from core import fcm
+from core import apns, fcm
 from core.config import settings
 from domains.alarm.models.alarm import Alarm
 from domains.push.models.device_token import DeviceToken
@@ -89,12 +89,11 @@ class DispatchService:
         return res.rowcount == 1
 
     def _ring(self, alarm: Alarm) -> int:
-        """알람 주인의 android_fcm 유효 토큰들에 착신 푸시. 폐기 토큰은 is_valid=False."""
+        """알람 주인의 유효 토큰에 착신 푸시(android=FCM, ios=APNs VoIP). 폐기 토큰은 is_valid=False."""
         tokens = (
             self.db.execute(
                 select(DeviceToken).where(
                     DeviceToken.member_id == alarm.member_id,
-                    DeviceToken.platform == "android_fcm",
                     DeviceToken.is_valid.is_(True),
                 )
             )
@@ -103,26 +102,45 @@ class DispatchService:
         )
         if not tokens:
             return 0
+        android = [t for t in tokens if t.platform == "android_fcm"]
+        ios = [t for t in tokens if t.platform == "ios_voip"]
         call_id = str(uuid.uuid4())
         char = alarm.character
-        result = fcm.send_incoming_call(
-            tokens=[t.token for t in tokens],
-            call_id=call_id,
-            character_id=alarm.character_id,
-            name=char.name if char else "비버 튜터",
-            image_url=char.image_url if char else None,
-        )
-        if result.dead_tokens:
-            dead = set(result.dead_tokens)
+        name = char.name if char else "비버 튜터"
+        image = char.image_url if char else None
+        sent = 0
+        dead: list = []
+        if android:
+            r = fcm.send_incoming_call(
+                tokens=[t.token for t in android],
+                call_id=call_id,
+                character_id=alarm.character_id,
+                name=name,
+                image_url=image,
+            )
+            sent += r.sent
+            dead += r.dead_tokens
+        if ios:
+            r = apns.send_incoming_call_voip(
+                tokens=[t.token for t in ios],
+                call_id=call_id,
+                character_id=alarm.character_id,
+                name=name,
+                image_url=image,
+            )
+            sent += r.sent
+            dead += r.dead_tokens
+        if dead:
+            ds = set(dead)
             for t in tokens:
-                if t.token in dead:
+                if t.token in ds:
                     t.is_valid = False
             self.db.commit()
         else:
             # 폐기 토큰이 없으면 위 SELECT 로 자동 시작된 트랜잭션을 닫아준다.
             # (pgbouncer transaction 풀링에서 'idle in transaction' 커넥션 점유 방지)
             self.db.rollback()
-        return result.sent
+        return sent
 
     def _purge(self) -> None:
         """2일 지난 멱등 로그 정리(테이블 무한 성장 방지).

@@ -98,5 +98,8 @@ gcp_key.json
 tts_key.json
 
 fcm_sa.json
+# APNs VoIP 개인키(.p8) — 절대 커밋 금지
+*.p8
+AuthKey_*.p8
 # QA 테스트 오디오 산출물(대용량·로컬 전용)
 qa_audio/

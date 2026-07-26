@@ -115,6 +115,17 @@ class Settings(BaseSettings):
     INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
     INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)
 
+    # ── 예약전화 APNs VoIP 발송 (iOS) ──
+    # 미설정이면 core.apns 가 graceful 비활성(등록/삭제·android 발송 정상, iOS 발송만 스킵).
+    # 개인키는 PRIVATE_KEY(.p8 내용, Secret Manager) 우선, 없으면 PRIVATE_KEY_FILE(.p8 경로, 로컬).
+    # FCM_SERVICE_ACCOUNT_JSON/_FILE 과 동일한 '내용 우선·파일 폴백' 규율.
+    APNS_KEY_ID: str | None = None
+    APNS_TEAM_ID: str | None = None              # 예: CTV7Z5BXL8
+    APNS_BUNDLE_ID: str = "im.beavertalk.beavertalk"
+    APNS_PRIVATE_KEY: str | None = None          # .p8 내용(Secret Manager 주입)
+    APNS_PRIVATE_KEY_FILE: str | None = None     # .p8 경로(로컬 폴백 — fcm 패턴 미러)
+    APNS_USE_SANDBOX: bool = False               # TestFlight/App Store = False(프로덕션)
+
     @property
     def google_client_ids(self) -> set[str]:
         """허용 audience 집합 (콤마 구분 파싱)."""
