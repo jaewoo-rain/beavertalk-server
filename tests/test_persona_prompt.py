@@ -566,9 +566,9 @@ def test_study_block_render_and_rule1_swap():
     assert "다 못 끝내도 괜찮다. 서두르지 마라" in out
     assert "절대 먼저 작별하지 마라" in out
     assert "최대 2번까지만 다시 시도해라" in out
-    # 일반(비 L1) 절차 — 문법 5단계 존재, 왕초보 변형 아님
+    # 일반(비 L1) 절차 — 문법 절차 존재(교정은 규칙4로 위임), 왕초보 변형 아님
     assert "유형별 절차:" in out
-    assert "⑤ 틀리면 한두 곳만 교정" in out
+    assert "만들게 한다(교정은 불변 규칙 4대로)" in out
     assert "왕초보" not in out
     # 규칙 1 교체판 적용(기본판 불릿은 사라짐)
     rule1_default = pp._RULE1_MODE_DEFAULT.format(target="한국어")
@@ -582,8 +582,8 @@ def test_study_block_l1_variant_when_chunk_without_grammar():
     assert "유형별 절차(왕초보):" in out
     assert "문법 용어(조사·어미·활용·시제 같은 말)를 절대" in out
     assert "1. (통문장) 얼마예요?" in out
-    # 일반판 문법 5단계 절차는 없어야 한다
-    assert "⑤ 틀리면 한두 곳만 교정" not in out
+    # 일반판 문법 절차는 없어야 한다(왕초보는 문법 절차 자체가 없음)
+    assert "만들게 한다(교정은 불변 규칙 4대로)" not in out
 
 
 def test_known_block_render_and_grammar_join():
@@ -627,8 +627,8 @@ def test_promotion_notice_is_single_last_line():
     out = build_system_instruction(promotion_notice=True, **_BASE_KWARGS)
     assert out.splitlines()[-1] == (
         '[승급 알림] 학습자가 최근 실력이 늘어 오늘부터 조금 더 어려운 내용을 다룬다. '
-        '통화 초반에 영어(English)로 "저번에 정말 잘했으니까 오늘은 조금 어려운 것도 '
-        '해볼까?"처럼 자연스럽게 한 번만 언급하라. 레벨·점수·단계 같은 단어는 쓰지 마라.'
+        "통화 초반에 영어(English)로 '요즘 잘하니까 오늘은 좀 더 어려운 걸 해보자'는 취지를 "
+        '네 캐릭터 말투로 한 번만 자연스럽게 언급하라. 레벨·점수·단계 같은 단어는 쓰지 마라.'
     )
     assert out.count("[승급 알림]") == 1
 

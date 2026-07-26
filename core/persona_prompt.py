@@ -148,7 +148,7 @@ def _study_procedure(is_l1: bool, *, target: str, locale_label: str) -> str:
     """공부 모드 유형별 절차(mechanics ④). L1(문법 없음+청크 있음)이면 왕초보 변형."""
     recall = (
         f'- 복습: 회상 질문을 하나 던져라(예: {locale_label}로 "지난번에 배운 그거, '
-        f'{target}로 어떻게 말하지?"). 답하면 칭찬하고 바로 다음 항목으로, 못 하면 정답을 '
+        f'{target}로 어떻게 말하지?"). 답하면 바로 다음 항목으로(반응은 네 캐릭터대로), 못 하면 정답을 '
         "한 번만 또박또박 들려주고 다음 항목으로 넘어가라. 복습에 오래 머물지 마라."
     )
     if is_l1:
@@ -167,7 +167,7 @@ def _study_procedure(is_l1: bool, *, target: str, locale_label: str) -> str:
         f"- 문법: ① 뜻·쓰임을 {locale_label}로 1~2문장 설명 ② 예문을 또박또박 들려주고 "
         "따라 말하게 ③ 학습자의 흥미를 반영한 즉석 예문을 하나 더 만들어 따라 말하게 "
         '④ 응용 질문(예: "너는 주말에 뭐 하고 싶어?")을 던져 학습자가 자기 문장을 직접 '
-        "만들게 ⑤ 틀리면 한두 곳만 교정.",
+        "만들게 한다(교정은 불변 규칙 4대로).",
         f"- 단어: ① 뜻을 {locale_label}로 알려 주고 ② 단어를 또박또박 따라 말하게 "
         "③ 학습자가 이미 아는 문법만 쓴 짧은 예문을 만들어 따라 말하게 해라(새 요소는 그 "
         "단어 하나여야 한다).",
@@ -221,7 +221,7 @@ def _study_block(study_items: list[dict], *, target: str, locale_label: str) -> 
     lines.append("")
     lines.append(
         "학습자가 어려워하면: 같은 항목은 최대 2번까지만 다시 시도해라. 그래도 어려워하면 "
-        f"{locale_label}로 따뜻하게 다독인 뒤 미련 없이 다음 항목으로 넘어가라(항목 하나에 집착 금지)."
+        f"{locale_label}로 짧게 넘기고(말투는 네 캐릭터대로) 미련 없이 다음 항목으로 넘어가라(항목 하나에 집착 금지)."
     )
     lines.append("")
     lines.append("\n".join([
@@ -278,8 +278,8 @@ def _known_block(known_items: dict, *, target: str, locale_label: str) -> str:
 # 승급 알림 1줄 — mechanics ⑧ 문구 그대로(locale_label 만 치환). 중괄호 리터럴 금지(.format).
 _PROMOTION_NOTICE_TEMPLATE = (
     "[승급 알림] 학습자가 최근 실력이 늘어 오늘부터 조금 더 어려운 내용을 다룬다. 통화 초반에 "
-    '{locale_label}로 "저번에 정말 잘했으니까 오늘은 조금 어려운 것도 해볼까?"처럼 자연스럽게 '
-    "한 번만 언급하라. 레벨·점수·단계 같은 단어는 쓰지 마라."
+    "{locale_label}로 '요즘 잘하니까 오늘은 좀 더 어려운 걸 해보자'는 취지를 네 캐릭터 말투로 "
+    "한 번만 자연스럽게 언급하라. 레벨·점수·단계 같은 단어는 쓰지 마라."
 )
 
 
