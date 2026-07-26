@@ -153,10 +153,11 @@ _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 _CLOSE_SEED = (
     "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
     "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
-    "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'며 따뜻하게 작별해라. "
+    "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'는 취지로 작별해라 "
+    "— 작별 말투는 네 캐릭터 그대로(억지로 따뜻하게·공손하게 만들지 마라). "
     "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
-    "★ 절대 '[시스템]'·'통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 친구끼리 "
-    "헤어지듯 평범한 작별 인사만 해라(예: '오늘 재밌었어, 다음에 또 보자!')."
+    "★ 절대 '[시스템]'·'통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 사람처럼 "
+    "평범하게 작별해라(로봇 같은 종료 멘트 금지)."
 )
 
 # 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
@@ -558,12 +559,10 @@ async def run_call(
     enable_hints = spec.has_curriculum
     if enable_hints:
         label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
-        # 레벨테스트는 레벨을 모르는 상태 — 프로파일 대신 최저 난이도 요약으로 폴백.
-        profile = setup["level_profile"] if call_type == "normal" else ""
         state.hint_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            "instruction": _hint_instruction(profile, label, target_language),
+            "instruction": _hint_instruction(label, target_language),
         }
 
     logger.info(
@@ -1032,21 +1031,14 @@ def _teaching_plan_items(study_items: list[dict]) -> list[TeachingItem]:
     return items
 
 
-# 레벨테스트 통화용 힌트 난이도 폴백 — 레벨을 모르는 상태라 최저 난이도로 안전하게.
-_HINT_PROFILE_FALLBACK = "아주 쉬운 기초 한국어(짧은 정형 표현과 5~10음절 단문)"
-_HINT_PROFILE_MAX_CHARS = 400  # 레벨 프로파일 요약 상한 — 사이드카 입력 비대 방지
-
-
-def _hint_instruction(
-    level_profile: str, locale_label: str, target_language: str = "한국어"
-) -> str:
+def _hint_instruction(locale_label: str, target_language: str = "한국어") -> str:
     """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
 
     (멀티랭귀지) target_language 로 예시 답변 언어를 지정한다(기본 한국어 — 기존 출력 무손상).
     korean 필드는 스키마·클라 호환상 이름을 유지하되 **내용은 대상 언어**다(일본어 통화면
-    일본어 문장). roman 문구는 한국어만 RR 표기법을 명시(바이트 동일), 그 외는 일반 로마자.
+    일본어 문장). roman 문구는 한국어만 RR 표기법을 명시, 그 외는 일반 로마자.
+    레벨 프로파일은 주입하지 않는다 — 힌트는 어차피 '짧고 쉬운 구어체 1문장'이라 레벨 무관.
     """
-    profile = (level_profile or "").strip()[:_HINT_PROFILE_MAX_CHARS] or _HINT_PROFILE_FALLBACK
     t = target_language
     roman_clause = (
         "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
@@ -1054,10 +1046,11 @@ def _hint_instruction(
         else "roman 은 korean 의 발음을 로마자(라틴 문자)로 표기, "
     )
     return (
-        f"너는 {t} 학습 힌트 생성기다. 선생님의 질문에 학습자가 할 만한 "
-        "자연스러운 예시 답변을 examples 배열에 정확히 3개 만들어라(서로 조금씩 다른 답 — "
-        "예: 짧은 답/조금 더 긴 답/다른 소재). 각 예시는 korean·roman·native 를 갖는다. "
-        f"korean 은 다음 수준({profile}) 범위의 쉬운 {t} 1문장, "
+        f"너는 {t} 학습 힌트 생성기다. 방금 선생님이 던진 질문(입력)에 학습자가 1인칭으로 "
+        "답할 수 있는 자연스러운 예시 답변을 examples 배열에 정확히 3개 만들어라. 세 개는 "
+        "서로 다른 내용·소재의 답이되, 전부 말로 바로 따라 할 수 있는 짧고 쉬운 구어체여야 "
+        "한다. 각 예시는 korean·roman·native 를 갖는다. "
+        f"korean 은 질문에 실제로 맞는 쉬운 {t} 1문장, "
         + roman_clause
         + f"native 는 {locale_label}로 옮긴 뜻."
     )
