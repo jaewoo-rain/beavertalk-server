@@ -24,7 +24,8 @@ class OnboardingIn(BaseModel):
 class MemberUpdate(BaseModel):
     """회원 수정 입력(부분 수정). 모두 선택값."""
 
-    language: Optional[str] = None
+    language: Optional[str] = None  # 모국어. "ko-KR" 같은 BCP-47 도 서버가 "ko" 로 정규화
+    target_language: Optional[str] = None  # 학습 대상 언어(ISO 639-1) — 마이페이지 피커
     character_id: Optional[int] = None
     is_auto_payment: Optional[bool] = None
 
@@ -50,6 +51,7 @@ class MyPageOut(BaseModel):
     email: Optional[str]
     name: Optional[str]
     language: Optional[str]
+    target_language: Optional[str] = None  # 학습 대상 언어 — 마이페이지가 이 값을 표시한다
     is_subscribed: bool
     onboarding_completed: bool
     speak_country: Optional[SpeakCountryOut]
@@ -66,6 +68,7 @@ class MemberRead(BaseModel):
     email: Optional[str]
     name: Optional[str]
     language: Optional[str]
+    target_language: Optional[str] = None  # 학습 대상 언어(통화 target_language 의 단일 소스)
     is_auto_payment: Optional[bool]
     speak_country_id: Optional[int]
     character_id: Optional[int]

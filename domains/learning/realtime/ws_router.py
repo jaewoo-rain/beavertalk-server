@@ -79,15 +79,24 @@ async def ws_call_stream(websocket: WebSocket) -> None:
             await websocket.close()
         return
 
-    # auth uuid → member find-or-create → member_id (DB 는 threadpool).
-    member_id = await svc.run_db(
+    # auth uuid → member find-or-create → (member_id, 학습 대상 언어) (DB 는 threadpool).
+    # target_language 를 여기서 같이 꺼내는 이유: run_call 은 언어를 **load_call_setup 보다
+    # 먼저** 알아야 하는데(setup 조회 자체가 언어 스코프), 그러자고 DB 를 한 번 더 타면
+    # 첫 발화가 그만큼 늦는다. 이미 Member 를 로드하는 이 자리에서 한 번에 가져온다.
+    member_id, member_target_language = await svc.run_db(
         session_factory,
-        lambda db: MemberService(db).find_or_create_by_auth(auth_user.uid, auth_user.email).member_id,
+        lambda db: (
+            lambda m: (m.member_id, m.target_language)
+        )(MemberService(db).find_or_create_by_auth(auth_user.uid, auth_user.email)),
     )
 
     try:
         # 여기서부터 통화 본체(call_session.run_call)로 완전히 위임한다. 라우터는 문지기까지만.
-        await run_call(websocket, settings, client, session_factory, member_id=member_id)
+        await run_call(
+            websocket, settings, client, session_factory,
+            member_id=member_id,
+            member_target_language=member_target_language,
+        )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         # 🧒 최종 방어선: run_call 안에서 어떤 예상 못 한 오류가 터져도 서버 전체가 흔들리지
         #   않게, 여기서 다 붙잡아 로그만 남기고 소켓을 정리한다(이 통화만 실패, 서버는 계속).

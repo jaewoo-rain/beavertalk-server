@@ -40,10 +40,11 @@ class ClientStart(BaseModel):
     Attributes:
         character_id: 통화할 캐릭터(페르소나) id.
         locale: (선택) 모국어 override. 없으면 member.language 사용.
-        target_language: (선택) 가르치는 대상 언어 **코드**(ISO 639-1: ko/en/ja/zh/fr/vi).
-            서버가 core.languages.resolve_language 로 해석하고, 미지원/부재면
-            settings.DEFAULT_TARGET_LANGUAGE("ko")로 폴백. 전환기 한정으로 구 데모의
-            한국어 라벨("프랑스어" 등)도 코드로 역해석한다(하위호환). 없으면 None → ko.
+        target_language: ⛔ **폐기 — 서버가 무시한다.** 학습 대상 언어의 단일 소스는
+            DB(member.target_language)이고, 바꾸는 통로는 PATCH /members/me 뿐이다.
+            필드를 지우지 않는 이유: 이미 배포된 앱이 계속 보내는데 제거하면 pydantic
+            검증에서 422 가 나 통화가 아예 안 열린다. 받되 쓰지 않는다.
+            근거: docs/20260728_0125_학습언어-DB-단일소스화와-모국어-정규화.md
         call_type: (선택) 통화 종류. None(기본)이면 서버가 판단한다(D11 자동 라우팅:
             member.korean_level 미확정 → level_test). 명시하면 그 값이 우선 —
             미래 레벨 재측정 요청 통로(기존 클라는 이 필드를 안 보내므로 무영향).

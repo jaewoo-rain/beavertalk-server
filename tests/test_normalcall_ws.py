@@ -345,7 +345,7 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleThenClose:
-        """첫 턴 후 idle → 종료 시드([시스템]) 수신 시에만 작별 턴 → 종료."""
+        """첫 턴 후 idle → 종료 시드([통화종료:난수]) 수신 시에만 작별 턴 → 종료."""
 
         def __init__(self):
             self.sent_audio: list[bytes] = []
@@ -357,7 +357,7 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if text.startswith("[시스템]"):  # 종료 시드 수신 → 작별 턴 방출 허용
+            if text.startswith("[통화종료"):  # 종료 시드 수신 → 작별 턴 방출 허용
                 self._closed.set()
 
         async def events(self):
@@ -393,7 +393,7 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
 
     sess = holder["s"]
     # 소강에도 종료 시드가 주입됐다(워처가 직접) — 작별 없는 무음 종료 방지.
-    assert any(t.startswith("[시스템]") for t in sess.sent_text_turns), \
+    assert any(t.startswith("[통화종료") for t in sess.sent_text_turns), \
         "소강 구간에서 종료 시드가 주입되지 않음(RC1 회귀)"
     # 작별 오디오가 클라로 forward 됐다(작별 절단 아님).
     assert b"\x22\x22" in ws.sent_bytes, "작별 오디오가 클라에 전달되지 않음"
@@ -428,7 +428,7 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if text.startswith("[시스템]"):  # 종료 시드 수신 → 작별 턴 허용
+            if text.startswith("[통화종료"):  # 종료 시드 수신 → 작별 턴 허용
                 self._seeded.set()
 
         async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
@@ -477,7 +477,7 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
 
     sess = holder["s"]
     # 종료 시드는 주입됐다(정상 종료).
-    assert any(t.startswith("[시스템]") for t in sess.sent_text_turns), "종료 시드 미주입"
+    assert any(t.startswith("[통화종료") for t in sess.sent_text_turns), "종료 시드 미주입"
     # 비버의 '유저 응답' 오디오가 전달됐다(정상 대화).
     assert b"\x11\x11" in ws.sent_bytes, "비버의 유저 응답이 전달되지 않음"
     # ⭐ 핵심: 진짜 작별 오디오가 전달됐다 — 유저 응답이 작별로 둔갑해 잘리지 않았다(레이스 회귀).
@@ -495,7 +495,7 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     3단에서 should_close → 종료 시드 경로 합류로 우아하게 종료(뚝 끊김 없음).
 
     무음 = in_tr 부재로만 감지. FakeLiveSession 이 첫 턴 후 idle 을 유지하고, 종료 시드
-    ([시스템] 통화 시간) 수신 시에만 작별 턴을 방출 → 정상 종료를 서버 무음 경로가 주도.
+    ([통화종료:난수] 통화 시간) 수신 시에만 작별 턴을 방출 → 정상 종료를 서버 무음 경로가 주도.
     """
     # 넛지/종료 타이머를 짧게 — 1단 0.2s, 2단 +0.2s, 3단 +0.2s.
     monkeypatch.setattr(cs, "IDLE_NUDGE1_S", 0.2)
@@ -506,7 +506,7 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleForever:
-        """첫 턴 후 in_tr 없이 idle 유지 → 종료 시드([시스템] 통화 시간) 수신 시 작별."""
+        """첫 턴 후 in_tr 없이 idle 유지 → 종료 시드([통화종료:난수] 통화 시간) 수신 시 작별."""
 
         def __init__(self):
             self.sent_audio: list[bytes] = []
@@ -750,7 +750,7 @@ async def test_go_away_triggers_graceful_close(session_factory, seeded, monkeypa
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if text.startswith("[시스템]"):
+            if text.startswith("[통화종료"):
                 self._close.set()
 
         async def events(self):
@@ -784,7 +784,7 @@ async def test_go_away_triggers_graceful_close(session_factory, seeded, monkeypa
     await _wait_analysis_tasks()
 
     sess = holder["s"]
-    assert any(t.startswith("[시스템]") for t in sess.sent_text_turns), \
+    assert any(t.startswith("[통화종료") for t in sess.sent_text_turns), \
         "GoAway 후 종료 시드 미주입"
     assert b"\x44\x44" in ws.sent_bytes, "작별 오디오 미전달"
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
@@ -1165,14 +1165,17 @@ def test_save_segments_writes_rows_with_voice_url(session_factory, seeded):
 # 구동하고, factory 가 받은 kwargs(=tools 전달 여부)를 holder 에 기록한다. 판정 사이드카가
 # 없으므로 judge monkeypatch 는 불필요하다.
 # --------------------------------------------------------------------------- #
-def _start_incoming(seeded, call_type=None):
+def _start_incoming(seeded, call_type=None, target_language=None):
     payload = {"type": "start", "character_id": seeded["character_id"]}
     if call_type is not None:
         payload["call_type"] = call_type
+    if target_language is not None:
+        payload["target_language"] = target_language
     return {"type": "websocket.receive", "text": json.dumps(payload)}
 
 
-async def _run_call_with(session, seeded, session_factory, *, call_type=None):
+async def _run_call_with(session, seeded, session_factory, *, call_type=None,
+                         target_language=None, member_target_language=None):
     """가짜 세션 하나로 run_call 을 끝까지 돌리고 (ws, holder) 반환.
 
     holder["kwargs"] 에는 factory 가 받은 키워드(=tools 전달 여부)가 담긴다.
@@ -1188,10 +1191,14 @@ async def _run_call_with(session, seeded, session_factory, *, call_type=None):
         holder["system_instruction"] = kwargs.get("system_instruction")
         yield session
 
-    ws = FakeWebSocket([_start_incoming(seeded, call_type)], hang=True)
+    ws = FakeWebSocket(
+        [_start_incoming(seeded, call_type, target_language)], hang=True
+    )
     await run_call(
         ws, app_settings, object(), session_factory,
-        member_id=seeded["member_id"], live_session_factory=factory,
+        member_id=seeded["member_id"],
+        member_target_language=member_target_language,
+        live_session_factory=factory,
     )
     await _wait_analysis_tasks()
     return ws, holder
@@ -1384,7 +1391,7 @@ async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypat
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if text.startswith("[시스템]"):
+            if text.startswith("[통화종료"):
                 self._close.set()
 
         async def events(self):
@@ -1434,7 +1441,7 @@ async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monke
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if text.startswith("[시스템]"):
+            if text.startswith("[통화종료"):
                 self._close.set()
 
         async def send_tool_response(self, fn_id, fn_name) -> None:
@@ -1747,3 +1754,149 @@ async def test_normal_call_never_observes_band(session_factory, seeded, monkeypa
     await _run_call_with(sess, seeded, session_factory, call_type="normal")
 
     assert rec["n"] == 0, f"일반 통화에서 종료 판정이 호출됨(격리 위반): {rec['n']}회"
+
+
+# --------------------------------------------------------------------------- #
+# 8. 자기낭독 안전망 — 비버가 제어 태그를 읽으면 서버가 대화를 되돌린다.
+#
+# 실측 call_id=706: 서버 주입 0인데 비버가 t≈80s 에 '"[시스템]" 종료' 를 읽고 혼자
+# 작별 → 통화는 안 끊긴 채 47초 死구간 → 사용자가 직접 종료 버튼. 종료 파이프는 서버
+# 상태로만 도는데(설계 의도), 모델이 규약을 어겼을 때 되돌리는 경로가 없었다.
+# 근거: docs/20260727_1710_통화-조기종료-종료태그-분리와-안전망.md
+# --------------------------------------------------------------------------- #
+
+
+class _SeedRecorder:
+    """send_text_turn 만 받아 적는 최소 가짜 세션."""
+
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent.append(text)
+
+
+def _beaver_turn(*chunks: str) -> cs._CallState:
+    st = cs._CallState()
+    st.cur_beaver_text = list(chunks)
+    return st
+
+
+def test_tag_leak_detected_across_split_chunks():
+    """out_tr 은 토큰 단위로 쪼개져 온다 — 대괄호가 갈라져도 누적 텍스트로 잡는다."""
+    st = _beaver_turn('"[시스', '템]" 종료')
+    cs._detect_tag_leak(st)
+    assert st.tag_leak_seen, "쪼개진 태그를 놓쳤다(청크 단위로 보면 안 된다)"
+
+
+def test_tag_leak_detected_for_each_control_tag():
+    """종료·안내·선톡 어느 태그를 읽든 누출이다."""
+    for leaked in ("[시스템] 통화가 종료되었습니다.", "[안내] 학습자가 잠깐",
+                   "[통화종료:9f2a] 통화 시간이", "[통화 시작] 네가 학습자에게"):
+        st = _beaver_turn(leaked)
+        cs._detect_tag_leak(st)
+        assert st.tag_leak_seen, f"미검출: {leaked!r}"
+
+
+def test_normal_speech_is_not_flagged():
+    """평범한 발화를 누출로 오판하면 대화가 끊긴다 — 작별 문구도 태그 없으면 무시."""
+    st = _beaver_turn("좋은 하루 보내세요! ", "다음에 또 통화해요!")
+    cs._detect_tag_leak(st)
+    assert not st.tag_leak_seen
+
+
+def test_tag_leak_ignored_during_normal_close():
+    """정상 종료 구간에선 판정하지 않는다 — 되돌리면 작별을 방해한다."""
+    for flag in ("should_close", "close_seed_sent"):
+        st = _beaver_turn("[통화종료:9f2a] 통화 시간이 다 됐다")
+        setattr(st, flag, True)
+        cs._detect_tag_leak(st)
+        assert not st.tag_leak_seen, f"{flag} 인데 누출 판정됨(작별 방해)"
+
+
+@pytest.mark.asyncio
+async def test_resume_seed_injected_and_capped():
+    """재개 시드는 CONTROL_TAG 로 나가고, 통화당 상한을 넘지 않는다(무한 왕복 방지)."""
+    st = cs._CallState()
+    sess = _SeedRecorder()
+    for _ in range(cs._RESUME_MAX + 3):
+        st.tag_leak_seen = True
+        await cs._inject_resume_seed(sess, st)
+    assert len(sess.sent) == cs._RESUME_MAX, f"상한 초과 주입: {len(sess.sent)}회"
+    assert all(t.startswith(cs.CONTROL_TAG) for t in sess.sent)
+    assert not st.tag_leak_seen, "판정 플래그는 턴마다 리셋돼야 한다"
+
+
+def test_leaked_tag_stripped_from_saved_segment():
+    """저장본 정화 — 통화후 분석·문장 추출이 지시문 조각을 학습 문장으로 삼지 않게."""
+    st = _beaver_turn("[시스템] 통화가 종료되었습니다.", " 잘 가!")
+    cs._flush_beaver_segment(st)
+    saved = st.segments[-1]["text"]
+    assert "[시스템]" not in saved
+    assert "잘 가!" in saved
+
+
+def test_nudge_seeds_never_use_the_close_tag():
+    """무음 넛지·재개 시드가 종료 태그를 쓰면 종료로 오독된다(call_id=683 재발 방지)."""
+    for seed in (cs._NUDGE_SEED_1, cs._NUDGE_SEED_2,
+                 cs._NUDGE_SEED_1_LEVELTEST, cs._RESUME_SEED):
+        assert seed.startswith(cs.CONTROL_TAG), f"CONTROL_TAG 로 시작해야 한다: {seed[:20]!r}"
+        assert "통화종료" not in seed
+        assert "[시스템]" not in seed
+
+
+def test_close_seed_uses_the_call_tag():
+    """종료 시드는 이 통화의 종료 태그로 시작해야 한다(지시문과 짝)."""
+    assert cs._close_seed("[통화종료:abcd]").startswith("[통화종료:abcd]")
+
+
+# --------------------------------------------------------------------------- #
+# 9. 학습 언어 단일 소스 — 항상 DB(member.target_language), 클라값은 무조건 무시.
+#
+# 옛날엔 앱 SharedPreferences 가 원본이라, 복원이 끝나기 전에 통화가 시작되면 저장값 대신
+# 기본 'ko' 가 실려 나갔다(잠금화면 수신통화가 정확히 그 구간). 서버가 거는 예약전화인데
+# 언어는 클라가 정하는 모순도 있었다.
+#
+# ⛔ ENV 로 게이트하지 않는다 — 실서비스(app-api)조차 ENV="test" 라 prod 게이트는 무력하다.
+# 근거: docs/20260728_0125_학습언어-DB-단일소스화와-모국어-정규화.md
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("env", ["prod", "test", "dev"])
+@pytest.mark.asyncio
+async def test_client_target_language_is_always_ignored(
+    session_factory, seeded, monkeypatch, env
+):
+    """어느 환경에서도 클라값이 DB 를 못 이긴다 — 구버전 앱이 뭘 보내든 무해하다.
+
+    ENV="test" 가 특히 중요하다: 실서비스가 그 값으로 돌기 때문에, 여기서 클라값이
+    이기면 프론트를 고치기 전까지 버그가 그대로 남는다.
+    """
+    monkeypatch.setattr(app_settings, "ENV", env)
+    sess = FakeLiveSession()
+    _, holder = await _run_call_with(
+        sess, seeded, session_factory,
+        target_language="ja",            # 클라가 보낸 값(무시돼야 함)
+        member_target_language="fr",     # DB 값(항상 이겨야 함)
+    )
+    si = holder["system_instruction"]
+    assert "프랑스어" in si, f"ENV={env}: 클라값이 이겼다(DB 단일 소스 위반)"
+    assert "일본어" not in si
+
+
+@pytest.mark.asyncio
+async def test_db_value_used_when_client_sends_nothing(session_factory, seeded):
+    """앱이 target_language 전송을 없앤 뒤의 정상 경로."""
+    sess = FakeLiveSession()
+    _, holder = await _run_call_with(
+        sess, seeded, session_factory, member_target_language="ja",
+    )
+    assert "일본어" in holder["system_instruction"]
+
+
+@pytest.mark.asyncio
+async def test_missing_target_language_falls_back_to_default(session_factory, seeded):
+    """DB·클라 둘 다 없으면 기본 언어로 — 언어가 비어서 통화가 깨지지 않는다(R5)."""
+    sess = FakeLiveSession()
+    _, holder = await _run_call_with(sess, seeded, session_factory)
+    assert "한국어" in holder["system_instruction"]

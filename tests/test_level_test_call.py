@@ -223,26 +223,32 @@ async def _wait_analysis_tasks():
         await asyncio.sleep(0.01)
 
 
-def _start_ws(character_id: int, call_type: str | None = None,
-              target_language: str | None = None) -> FakeWebSocket:
-    """start 메시지 1건으로 통화를 시작하는 가짜 WS(옵션 call_type/target_language 명시)."""
+def _start_ws(character_id: int, call_type: str | None = None) -> FakeWebSocket:
+    """start 메시지 1건으로 통화를 시작하는 가짜 WS(옵션 call_type 명시).
+
+    ⛔ target_language 는 start 에 싣지 않는다 — 서버가 무시한다(단일 소스는
+    member.target_language). 언어는 _run_one_call 이 run_call 인자로 넘긴다.
+    """
     start: dict = {"type": "start", "character_id": character_id}
     if call_type is not None:
         start["call_type"] = call_type
-    if target_language is not None:
-        start["target_language"] = target_language
     return FakeWebSocket([{"type": "websocket.receive", "text": json.dumps(start)}])
 
 
 async def _run_one_call(session_factory, member_id: int, character_id: int,
                         call_type: str | None = None,
                         target_language: str | None = None) -> dict:
-    """run_call 1회 실행 + 분석 task 대기 → holder(system_instruction 등) 반환."""
+    """run_call 1회 실행 + 분석 task 대기 → holder(system_instruction 등) 반환.
+
+    target_language 는 **DB 값**(member.target_language)으로 넘긴다 — 소켓으로 보내면
+    서버가 무시하기 때문이다.
+    """
     holder: dict = {}
-    ws = _start_ws(character_id, call_type, target_language)
+    ws = _start_ws(character_id, call_type)
     await run_call(
         ws, app_settings, object(), session_factory,
         member_id=member_id,
+        member_target_language=target_language,
         live_session_factory=make_live_factory(holder),
     )
     await _wait_analysis_tasks()

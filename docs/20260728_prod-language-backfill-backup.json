@@ -1,0 +1,47 @@
+[
+  {
+    "member_id": 2,
+    "email": null,
+    "language": null
+  },
+  {
+    "member_id": 13,
+    "email": "tttt@naver.com",
+    "language": null
+  },
+  {
+    "member_id": 18,
+    "email": "beaver.pmtest.001@gmail.com",
+    "language": null
+  },
+  {
+    "member_id": 26,
+    "email": "test3797@naver.com",
+    "language": null
+  },
+  {
+    "member_id": 27,
+    "email": "test123@naver.com",
+    "language": null
+  },
+  {
+    "member_id": 29,
+    "email": "limcon00@naver.com",
+    "language": null
+  },
+  {
+    "member_id": 30,
+    "email": "soardick@gmail.com",
+    "language": "ko-KR"
+  },
+  {
+    "member_id": 35,
+    "email": "qlqj1234@naver.com",
+    "language": "ko-KR"
+  },
+  {
+    "member_id": 37,
+    "email": "test123456@naver.com",
+    "language": "ko-KR"
+  }
+]

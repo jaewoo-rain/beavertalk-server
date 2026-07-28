@@ -54,6 +54,17 @@ class Member(Base, TimestampMixin):
 
     name: Mapped[Optional[str]] = mapped_column(Text, comment="이름(온보딩에서 입력)")
     language: Mapped[Optional[str]] = mapped_column(Text, comment="모국어(번역 target locale)")
+    # (멀티랭귀지) 현재 학습 대상 언어 — 통화 target_language 의 단일 소스.
+    # 옛날엔 앱 SharedPreferences 가 원본이라 ① 하이드레이션 레이스(복원 전에 통화가 시작되면
+    # 저장값 대신 기본 'ko' 전송 — 잠금화면 수신통화가 그 구간) ② 앱 재설치 시 리셋 ③ 서버가
+    # 거는 예약전화인데 언어는 클라가 정하는 모순이 있었다. 이제 서버가 소유한다.
+    # "어떤 언어들을 배우는가"는 member_language_level(회원×언어 1행)이 이미 안다 —
+    # 이 컬럼은 "그중 지금 활성인 것" 하나만 가리킨다.
+    # 근거: docs/20260728_0125_학습언어-DB-단일소스화와-모국어-정규화.md
+    target_language: Mapped[Optional[str]] = mapped_column(
+        Text, server_default=text("'ko'"),
+        comment="학습 대상 언어(ISO 639-1). NULL=기본 ko",
+    )
     email: Mapped[Optional[str]] = mapped_column(Text, unique=True, comment="이메일(Supabase 에서 동기화)")
     is_auto_payment: Mapped[Optional[bool]] = mapped_column(Boolean, comment="정기구독 여부")
     onboarding_completed: Mapped[bool] = mapped_column(

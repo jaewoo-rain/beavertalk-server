@@ -268,20 +268,31 @@ async function startCall() {
   gain0 = actx.createGain(); gain0.gain.value = 0;
   src.connect(proc); proc.connect(gain0); gain0.connect(actx.destination);
 
+  // (멀티랭귀지) 학습 언어는 이제 DB(member.target_language)가 단일 소스다 — 소켓으로
+  // 보내도 서버가 무시한다. 그래서 통화 전에 실제 앱과 같은 통로로 저장한다.
+  try {
+    await api('/api/v1/members/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_language: $('#tgt').value }),
+    });
+  } catch (e) { console.warn('target_language 저장 실패(기존 값으로 진행)', e); }
+
   ws = new WebSocket(`${wsBase()}/api/v1/calls/stream?token=${token}`);
   ws.binaryType='arraybuffer';
   $('#cdot').className='dot'; $('#cstat').textContent='연결 중…';
 
   ws.onopen = () => {
-    // (멀티랭귀지) target_language 를 보낸다 — 지원 언어(ja 등 has_curriculum·leveltest=True)면
-    // 그 언어의 정식 코스로 잡혀 레벨테스트→체크판→레벨업이 동작한다(옛 '언어 데모 차단'은 폐지).
+    // (멀티랭귀지) 학습 언어는 위에서 PATCH 로 DB 에 저장했다. 지원 언어(ja 등
+    // has_curriculum·leveltest=True)면 그 언어의 정식 코스로 잡혀 레벨테스트→체크판→레벨업이 동작한다.
     // 회화전용 언어(en/zh/fr/vi)를 고르면 레벨테스트 없이 대화만 — 서버가 자동 처리.
     // call_type 은 선택: 미전송 = 서버 자동 판단(그 언어 레벨 없으면 테스트) /
     //                    'level_test' 명시 = 레벨이 있어도 강제 재측정(non-prod 전용 통로).
     const durMin = +$('#dur').value || 3;
     callDurationS = durMin * 60;  // 카운트다운을 선택 길이에 맞춤(서버가 3~15분 클램프).
+    // target_language 는 안 보낸다 — 위에서 PATCH 로 DB 에 저장했고 서버는 그걸 읽는다.
     const msg = { type:'start', character_id:+$('#cid').value||1, locale: $('#loc').value,
-                  duration_min: durMin, target_language: $('#tgt').value };
+                  duration_min: durMin };
     if ($('#force').checked) msg.call_type = 'level_test';
     ws.send(JSON.stringify(msg));
     $('#cdot').className='dot on'; $('#cstat').textContent=$('#force').checked ? '레벨테스트 중(강제)' : '통화 중(서버 자동 판단)';

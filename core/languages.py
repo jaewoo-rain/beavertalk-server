@@ -68,3 +68,22 @@ def resolve_language(code: str | None) -> LanguageSpec | None:
     if alias is not None:
         return SUPPORTED_LANGUAGES[alias]
     return None
+
+
+def normalize_locale(value: str | None) -> str | None:
+    """로케일 문자열을 ISO 639-1 소문자 언어코드로 정규화한다("ko-KR"→"ko").
+
+    앱 언어 피커는 BCP-47 형태의 id("ko-KR")를 쓰는데, 서버의 모국어 라벨 표
+    (persona_prompt._LOCALE_LABEL)는 ISO 639-1 키("ko")만 갖는다. 변환 없이 저장되면
+    조회가 미스나 **영어로 폴백**한다 — 실측: 모국어를 한국어로 고른 회원의 프롬프트에
+    "학습자의 모국어는 영어(English)다"가 박혀 있었다(활성 23명 중 8명 영향).
+
+    구분자는 '-'(BCP-47)와 '_'(POSIX) 둘 다 받는다. 빈 값·None 은 None 그대로
+    (호출부의 "미상" 폴백을 가로채지 않는다).
+
+    근거: docs/20260728_0125_학습언어-DB-단일소스화와-모국어-정규화.md §2-3
+    """
+    if not value:
+        return None
+    head = value.strip().replace("_", "-").split("-", 1)[0].lower()
+    return head or None
