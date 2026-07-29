@@ -56,8 +56,32 @@ def get_genai_client(request: Request) -> Any | None:
     return getattr(request.app.state, "genai_client", None)
 
 
+ADMIN_ROLE = "admin"
+
+
+def get_current_admin(
+    member: Annotated[Member, Depends(get_current_member)],
+) -> Member:
+    """관리자 전용 — member.role != "admin" 이면 403.
+
+    /__dev/* 운영 도구(할인 이벤트·레벨 초기화·롤 관리)가 이걸 쓴다. 그 도구들은 배포
+    환경 판정(ENV != "prod")으로만 가려져 있었는데, 실서비스조차 ENV="test" 라 사실상
+    **로그인한 아무 회원에게나** 열려 있었다.
+
+    권한을 JWT 가 아니라 DB 에서 읽는다 — 권한 회수가 즉시 반영되고(JWT 는 만료까지
+    옛 권한이 산다), get_current_member 가 이미 member 행을 읽으므로 비용도 0이다.
+    """
+    if getattr(member, "role", None) != ADMIN_ROLE:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={"code": "ADMIN_ONLY", "message": "관리자 전용 기능입니다."},
+        )
+    return member
+
+
 # 라우터에서 `member: CurrentMember` 로 간결하게 주입
 CurrentMember = Annotated[Member, Depends(get_current_member)]
+CurrentAdmin = Annotated[Member, Depends(get_current_admin)]
 DbSession = Annotated[Session, Depends(get_db)]
 GenaiClient = Annotated[Any, Depends(get_genai_client)]
 

@@ -1,0 +1,150 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>회원 권한 관리</title>
+<!--
+  회원 권한(롤) 관리 콘솔 — 관리자 전용(member.role == "admin").
+  권한은 Supabase JWT 가 아니라 우리 DB(member.role)에 있다. 회수가 즉시 반영되고,
+  CurrentMember 가 이미 member 행을 읽으므로 조회 비용이 0이기 때문.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.6 system-ui, sans-serif; margin: 24px; max-width: 900px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { opacity: .7; margin-bottom: 20px; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; padding: 14px 16px; margin: 0 0 18px; }
+  legend { padding: 0 6px; font-weight: 600; }
+  label { display: inline-block; margin: 4px 14px 4px 0; }
+  input, button { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid #8886; background: transparent; color: inherit; }
+  button { cursor: pointer; }
+  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid #8883; padding: 7px 8px; text-align: left; }
+  th { font-weight: 600; opacity: .8; }
+  .admin { color: #16a34a; font-weight: 700; }
+  .muted { opacity: .6; }
+  .me { opacity: .55; font-size: 12px; }
+  #log { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; opacity: .8; }
+</style>
+
+<h1>회원 권한 관리</h1>
+<div class="sub">
+  <code>admin</code> 만 <b>/__dev</b> 운영 도구(할인 이벤트·레벨 초기화·이 화면)를 쓸 수 있다.
+  권한은 즉시 반영된다 — 다시 로그인할 필요 없다.
+</div>
+
+<fieldset>
+  <legend>1. 로그인</legend>
+  <label>API <input id="apibase" size="42"></label>
+  <label>이메일 <input id="email" size="26"></label>
+  <label>비밀번호 <input id="pw" type="password" size="16"></label>
+  <button class="primary" onclick="login()">로그인</button>
+  <button onclick="logout()">로그아웃</button>
+  <span id="who" class="muted">로그인 필요</span>
+</fieldset>
+
+<fieldset>
+  <legend>2. 회원</legend>
+  <label>검색 <input id="q" size="24" placeholder="이메일·이름" oninput="render()"></label>
+  <button onclick="load()">새로고침</button>
+  <table id="tbl"><thead><tr>
+    <th>id</th><th>이메일</th><th>이름</th><th>권한</th><th>가입</th><th></th>
+  </tr></thead><tbody></tbody></table>
+</fieldset>
+
+<div id="log"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
+let MEMBERS = [], ME = null;
+
+$('#apibase').value = location.origin;
+$('#email').value = localStorage.getItem('bt_email') || '';
+
+function log(m) { $('#log').textContent = m; }
+function setWho(t, ok) { $('#who').textContent = t; $('#who').className = ok ? 'admin' : 'muted'; }
+
+function token() { return localStorage.getItem('bt_token') || ''; }
+
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({ Authorization: `Bearer ${token()}` }, opts.headers || {});
+  const r = await fetch(apiBase() + path, opts);
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.status === 204 ? null : r.json();
+}
+
+// 할인 콘솔과 같은 로그인 통로(POST /__dev/login) — 서버가 대행한다.
+async function login() {
+  const email = $('#email').value.trim(), password = $('#pw').value;
+  if (!email || !password) { setWho('이메일·비밀번호를 입력해라', false); return; }
+  setWho('로그인 중…', false);
+  try {
+    const r = await fetch(apiBase() + '/__dev/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!r.ok) { setWho('❌ 로그인 실패 (' + r.status + ')', false); return; }
+    const d = await r.json();
+    localStorage.setItem('bt_token', d.access_token);
+    localStorage.setItem('bt_email', email);
+    setWho('✅ ' + d.email, true);
+    await load();
+  } catch (e) { setWho('❌ ' + e.message, false); }
+}
+
+function logout() {
+  localStorage.removeItem('bt_token');
+  $('#pw').value = '';
+  MEMBERS = []; render();
+  setWho('로그아웃됨', false);
+}
+
+async function load() {
+  if (!token()) { setWho('로그인 필요', false); return; }
+  try {
+    const d = await api('/__dev/members');
+    MEMBERS = d.members; ME = d.me;
+    render();
+    log(`회원 ${MEMBERS.length}명 · 관리자 ${MEMBERS.filter(m => m.role === 'admin').length}명`);
+  } catch (e) {
+    // 403 = 로그인은 됐지만 admin 이 아님. 가장 흔한 상황이라 따로 안내한다.
+    if (String(e.message).startsWith('403')) setWho('⛔ 관리자 권한이 없다', false);
+    log('실패: ' + e.message);
+  }
+}
+
+function render() {
+  const q = $('#q').value.trim().toLowerCase();
+  const rows = MEMBERS.filter(m => !q ||
+    (m.email || '').toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q));
+  $('#tbl tbody').innerHTML = rows.map(m => {
+    const isMe = m.member_id === ME;
+    const isAdmin = m.role === 'admin';
+    return `<tr>
+      <td>${m.member_id}</td>
+      <td>${m.email ?? '—'} ${isMe ? '<span class="me">(나)</span>' : ''}</td>
+      <td>${m.name ?? '—'}</td>
+      <td class="${isAdmin ? 'admin' : 'muted'}">${m.role}</td>
+      <td class="muted">${m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}</td>
+      <td>${isMe && isAdmin
+            ? '<span class="muted">본인 강등 불가</span>'
+            : `<button onclick="setRole(${m.member_id}, '${isAdmin ? 'user' : 'admin'}')">
+                 ${isAdmin ? '일반으로' : '관리자로'}</button>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function setRole(id, role) {
+  const m = MEMBERS.find(x => x.member_id === id);
+  if (!confirm(`${m?.email ?? id} → ${role}?`)) return;
+  try {
+    await api(`/__dev/members/${id}/role`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
+    await load();
+  } catch (e) { log('변경 실패: ' + e.message); }
+}
+
+if (token()) load();
+</script>

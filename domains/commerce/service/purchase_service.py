@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -35,7 +36,11 @@ class PurchaseService:
         self.char_service = CharacterService(db)
 
     def purchase(
-        self, member_id: int, character_id: int, card_info: str | None = None
+        self,
+        member_id: int,
+        character_id: int,
+        card_info: str | None = None,
+        expected_price: Decimal | None = None,
     ) -> PurchaseResponse:
         character = self.char_repo.get(character_id)
         if character is None:
@@ -49,6 +54,21 @@ class PurchaseService:
             )
 
         price = self.char_service.effective_price(character)  # 서버가 가격 결정
+
+        # 가격 경합 방어: 한정 할인이 "구매" 탭과 서버 처리 사이에 끝나면, 사용자는 할인가를
+        # 보고 눌렀는데 정가가 청구된다. 클라가 본 가격을 보내오면 대조해 다르면 거절하고
+        # 실제 가격을 알려준다 — 앱이 새 가격으로 다시 확인받게 하려는 것.
+        if expected_price is not None and Decimal(expected_price) != price:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "PRICE_CHANGED",
+                    "message": "가격이 변경되었습니다. 다시 확인해 주세요.",
+                    "expected_price": str(expected_price),
+                    "actual_price": str(price),
+                },
+            )
+
         now = datetime.now(timezone.utc)
 
         mc = MemberCharacter(

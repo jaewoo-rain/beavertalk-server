@@ -2,9 +2,10 @@
 
 검증 대상:
     - 콜타입 자동 라우팅(D11): korean_level=None → level_test 대본/call_type,
-      보유자 → normal 대본, start(call_type="level_test") 명시 재측정(non-prod).
-    - 명시 강등(P1): 데모(target_language 오버라이드) 명시 level_test → normal,
-      prod 재측정(korean_level 보유) 명시 level_test → normal.
+      보유자 → normal 대본, start(call_type="level_test") 명시 재측정(전 환경).
+    - 명시 강등(P1): 레벨테스트 미지원 언어(회화 전용) 명시 level_test → normal.
+      ⚠ "강등"은 이번 통화 종류를 normal 로 돌린다는 뜻 — 학습자 레벨은 안 건드린다.
+      옛 "prod 재측정 강등"은 폐지됐다(환경별 동작 분기 제거 — 재측정은 전 환경 허용).
     - analyze_level_test_call: 판정 성공 단일 커밋 저장 / 빈 전사 스킵 / LLM 실패 /
       모순 출력(unknown+sufficient) failed / member 소실 failed(부분 저장 없음).
     - _place_from_band: 넓은 레벨 매핑(chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10 — a3·a4 L3 흡수),
@@ -425,31 +426,33 @@ async def test_ja_level_test_active_uses_japanese_ladder(
         db.close()
 
 
+@pytest.mark.parametrize("env", ["prod", "test", "dev"])
 @pytest.mark.asyncio
-async def test_prod_remeasure_explicit_level_test_demoted_to_normal(
-    session_factory, seeded, monkeypatch, caplog
-):
-    """F2: prod && korean_level 보유자 + 명시 call_type=level_test → normal 강등
-    (재측정은 미지원 — 후속 기능) + warning."""
-    monkeypatch.setattr(app_settings, "ENV", "prod")
-    with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
-        holder = await _run_one_call(
-            session_factory, seeded["member_l5"], seeded["character_id"],
-            call_type="level_test",
-        )
+async def test_remeasure_allowed_in_every_env(session_factory, seeded, monkeypatch, env):
+    """레벨 보유자의 명시 재측정은 **환경과 무관하게** 허용된다.
+
+    옛날엔 "prod && 레벨 보유자면 normal 로 강등"이 있었는데 전제가 전부 틀렸다 —
+    ① 실서비스(app-api)조차 ENV="test" 라 그 분기는 애초에 안 걸렸고 ② 환경마다 동작이
+    갈리면 테스트한 경로와 배포된 경로가 달라진다 ③ 재측정 허용은 제품 규칙이지 서버가
+    어디 떠 있느냐의 문제가 아니다. ENV="test" 케이스가 특히 중요하다(실서비스 값).
+    """
+    monkeypatch.setattr(app_settings, "ENV", env)
+    holder = await _run_one_call(
+        session_factory, seeded["member_l5"], seeded["character_id"],
+        call_type="level_test",
+    )
 
     instr = holder["system_instruction"]
-    assert "[학습자 수준]" in instr  # 일반 대본(레벨 5 프로파일 주입)
-    assert "[진행 — 네가 이끈다]" not in instr
+    assert "[진행 — 네가 이끈다]" in instr, f"ENV={env}: 레벨테스트 대본이 아님"
+    assert "[학습자 수준]" not in instr, f"ENV={env}: 일반 대본으로 강등됨"
 
     db = session_factory()
     try:
         calls = db.query(Call).all()
         assert len(calls) == 1
-        assert calls[0].call_type == "normal"
+        assert calls[0].call_type == "level_test", f"ENV={env}: call_type 강등됨"
     finally:
         db.close()
-    assert any("재측정" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio

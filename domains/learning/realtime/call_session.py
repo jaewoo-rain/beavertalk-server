@@ -499,28 +499,25 @@ async def run_call(
     # "ko-KR" 이 남아 있으면 _LOCALE_LABEL 조회가 미스나 **영어로 폴백**한다(실측 3건).
     locale = normalize_locale(locale_override or setup["locale"]) or setup["locale"]
 
-    # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 2건은 normal 로 강등 ② 서버 자동.
-    #   강등 a) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
-    #          그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
-    #   강등 b) prod && korean_level 보유자의 명시 재측정: 재측정은 미지원(후속 기능) —
-    #          non-prod 는 개발 테스트 편의로 현행 허용.
+    # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 1건은 normal 로 강등 ② 서버 자동.
+    #   강등) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
+    #         그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
     # 자동: 레벨테스트 지원 언어(spec.leveltest) + 레벨 미확정일 때만 level_test.
+    #
+    # 🧒 여기서 "강등"은 **이번 통화의 종류**를 level_test → normal 로 돌린다는 뜻이다.
+    #   학습자 레벨(member_language_level·korean_level)은 전혀 건드리지 않는다.
+    #
+    # ⛔ 레벨 재측정을 ENV 로 막지 마라. 옛날엔 "prod && 레벨 보유자면 강등"이 있었는데
+    #   전부 틀린 전제였다 — ① 실서비스(app-api)조차 ENV="test" 라 그 분기는 애초에 안
+    #   걸렸고 ② 환경마다 동작이 갈리면 **테스트한 경로와 배포된 경로가 달라진다**
+    #   (학습 언어 버그가 정확히 그렇게 살아남았다) ③ 재측정 허용 여부는 제품 규칙이지
+    #   서버가 어디 떠 있느냐의 문제가 아니다. 레벨 재측정은 환경과 무관하게 허용한다.
     if call_type_override is not None:
         call_type = call_type_override
         if call_type == "level_test" and not spec.leveltest:
             logger.warning(
                 "normalcall: 레벨테스트 미지원 언어(target=%s) 통화에서 call_type=level_test 명시 "
                 "→ normal 강등(루브릭·대본 부재 판정 오염 방지) member=%s", spec.code, member_id,
-            )
-            call_type = "normal"
-        elif (
-            call_type == "level_test"
-            and settings.ENV == "prod"
-            and not setup["needs_level_test"]
-        ):
-            logger.warning(
-                "normalcall: prod 에서 korean_level 보유자의 level_test 재측정 명시 "
-                "→ normal 강등(재측정은 미지원 — 후속 기능) member=%s", member_id,
             )
             call_type = "normal"
     else:

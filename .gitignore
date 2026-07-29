@@ -103,3 +103,7 @@ fcm_sa.json
 AuthKey_*.p8
 # QA 테스트 오디오 산출물(대용량·로컬 전용)
 qa_audio/
+# 캐릭터 아바타 원본(1440x1440, 총 16MB) — Supabase 공개 버킷 character_image/ 가
+# 배포처다. 레포엔 두지 않는다(대용량·바이너리). 재업로드가 필요하면 버킷에서 받거나
+# 디자인 원본에서 다시 내려받을 것.
+assets/avatars/

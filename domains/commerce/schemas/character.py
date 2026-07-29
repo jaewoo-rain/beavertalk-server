@@ -34,13 +34,19 @@ class CharacterSummary(BaseModel):
     price: Decimal
     effective_price: Decimal  # 활성 할인 반영가(서버 계산)
     is_owned: bool            # 현재 회원 소유 여부
+    # 한정 할인 카운트다운용 — end_time 이 마감 시각이다. 상세 화면은 목록에서 카드를 눌러
+    # 진입하고 추가 조회를 하지 않으므로(N+1 회피), 카운트다운을 그리려면 종료 시각이
+    # **목록 응답에** 있어야 한다. 없으면(활성 할인 부재) None.
+    active_discount: Optional[DiscountOut] = None
 
 
 class CharacterDetail(CharacterSummary):
-    """상세용 — 요약 필드 + 성별 + 활성 할인 정보."""
+    """상세용 — 요약 필드 + 성별.
+
+    active_discount 는 CharacterSummary 로 승격돼 상속받는다(출력 형태 불변).
+    """
 
     gender: Optional[str] = None  # 캐릭터 성별 느낌(male/female, 상세 전용)
-    active_discount: Optional[DiscountOut]
 
 
 class OwnedCharacterOut(BaseModel):
