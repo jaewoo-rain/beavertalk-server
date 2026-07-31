@@ -43,3 +43,8 @@ class PurchaseResponse(BaseModel):
 
     member_character: MemberCharacterOut
     payment: PaymentOut
+    # ⚠ IAP 전환 전 임시 필드. True = **실결제가 아니라 테스트 지급**이다
+    # (서버가 카드사·PG·스토어 어디에도 청구하지 않았다). 앱은 이 값으로
+    # "테스트 구매" 배지를 띄우거나, 개발 빌드에서만 허용하는 식으로 쓸 수 있다.
+    # IAP(POST /purchases/verify)로 넘어가면 이 필드는 사라진다.
+    is_test_grant: bool = False
