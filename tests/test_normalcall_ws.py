@@ -1900,3 +1900,101 @@ async def test_missing_target_language_falls_back_to_default(session_factory, se
     sess = FakeLiveSession()
     _, holder = await _run_call_with(sess, seeded, session_factory)
     assert "한국어" in holder["system_instruction"]
+
+
+# --------------------------------------------------------------------------- #
+# 10. 일일 통화 한도 — 서버가 통화 시작을 거절한다.
+#
+# 클라 게이팅은 우회 가능하므로 서버가 막는다. 거절은 create_call(통화 행)·Live 세션
+# open **이전**이라 잔여물도 Gemini 비용도 안 생긴다.
+# 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_daily_limit_rejects_before_creating_call(
+    session_factory, seeded, monkeypatch
+):
+    """한도 초과면 DAILY_LIMIT 을 보내고, 통화 행도 Live 세션도 만들지 않는다."""
+    monkeypatch.setattr(app_settings, "ENV", "prod")
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached",
+                        lambda *a, **k: True)
+    opened = {"n": 0}
+
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming(seeded)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "DAILY_LIMIT", "거절 통지가 없다"
+    assert errors[0]["recoverable"] is False
+    assert opened["n"] == 0, "거절했는데 Live 세션을 열었다(Gemini 비용 발생)"
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 0, "거절했는데 통화 행이 생겼다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_within_limit_proceeds(session_factory, seeded, monkeypatch):
+    """한도 안이면 평소대로 통화가 열린다(거절 경로가 정상 통화를 막지 않는다)."""
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached",
+                        lambda *a, **k: False)
+    sess = FakeLiveSession()
+    _, holder = await _run_call_with(sess, seeded, session_factory)
+    assert holder["system_instruction"]
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 1
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_limit_checked_with_routed_call_type_and_client_tz(
+    session_factory, seeded, monkeypatch
+):
+    """판정에 넘어가는 값 검증 — 라우팅된 콜타입 + 클라가 보낸 tz 오프셋.
+
+    콜타입을 틀리면 레벨테스트가 일반 통화 한도를 깎고, tz 를 틀리면 하루 경계가
+    사용자 자정과 어긋난다.
+    """
+    seen: dict = {}
+
+    def spy(db, member_id, call_type, tz_offset_min=0):
+        seen.update(member_id=member_id, call_type=call_type, tz=tz_offset_min)
+        return False
+
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", spy)
+
+    start = {"type": "start", "character_id": seeded["character_id"],
+             "call_type": "level_test", "tz_offset_min": 540}
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive", "text": json.dumps(start)}], hang=True
+    )
+
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        yield FakeLiveSession()
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    assert seen["call_type"] == "level_test"
+    assert seen["tz"] == 540
+    assert seen["member_id"] == seeded["member_id"]

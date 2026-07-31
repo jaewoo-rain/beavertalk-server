@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass, field
 
 from core.config import settings
+from core.push_defaults import DEFAULT_CALLER_NAME, DEFAULT_CALL_HANDLE
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +111,8 @@ def send_incoming_call_voip(
     }
     payload = {
         "id": call_id,
-        "nameCaller": name or "비버 튜터",
-        "handle": "한국어 통화",
+        "nameCaller": name or DEFAULT_CALLER_NAME,
+        "handle": DEFAULT_CALL_HANDLE,
         "isVideo": False,
         "extra": {"characterId": character_id},
         "aps": {},

@@ -34,7 +34,9 @@ from core.gemini_live import DEFAULT_VOICE
 from core.persona_prompt import _LOCALE_LABEL
 from domains.account.models.member import Member
 from domains.account.models.member_reason import REASON_LABELS
+from domains.alarm.models.alarm import Alarm
 from domains.commerce.models.character import Character
+from domains.commerce.models.member_character import MemberCharacter
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
@@ -43,6 +45,7 @@ from domains.learning.models.level import Level
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository import mastery_repository
 from domains.learning.service import mastery_service
+from domains.push.models.push_dispatch_log import PushDispatchLog
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +84,87 @@ def _base_locale(lang: str | None) -> str:
     if not lang or not lang.strip():
         return "en"
     return lang.strip().replace("_", "-").split("-")[0].lower() or "en"
+
+
+def resolve_call_character(
+    db: Session, member_id: int, inbound_call_id: Optional[str] = None
+) -> int:
+    """이 통화의 캐릭터를 **서버가 정한다**. 클라는 캐릭터를 지정하지 못한다.
+
+    두 가지 실측 사고를 함께 막는다.
+
+    ① **엉뚱한 캐릭터로 연결** — 앱의 `call_loading` 이 `args is int ? args : 1` 로
+       폴백해, 인자를 안 넘기는 진입점(마이페이지·기록·온보딩완료)에서 항상 1(BABA)
+       을 보냈다. prod 통화 701 건 중 421 건(60%)이 사용자가 고른 캐릭터가 아닌
+       상대와 연결됐다(통화=1·선택=10 이 214 건).
+
+    ② **미구매 캐릭터 통화** — 예전엔 소유 검증이 전혀 없어서 `db.get(Character, id)`
+       만 했다. prod 에서 미구매 Bibi($10)로 126 건이 진행됐고, 앱을 고친 클라이언트
+       라면 유료 캐릭터를 얼마든지 부를 수 있었다.
+
+    둘 다 뿌리가 같다 — **캐릭터를 클라가 정했다**. 그래서 `start.character_id` 를
+    폐기하고 서버가 두 출처에서만 읽는다:
+
+        수신통화(알람)  inbound_call_id → push_dispatch_log → alarm.character_id
+        그 외 모든 경로  member.character_id (사용자가 고른 대표 캐릭터)
+
+    `inbound_call_id` 는 앱이 **고른 값이 아니라** 서버가 푸시로 내려준 불투명한
+    uuid 다. 위조해도 얻는 게 없다: 남의 uuid 는 모르고, 알아도 그 알람 주인이
+    아니면 아래에서 거절된다. 알람 캐릭터는 이미 사용자가 알람을 만들 때 고른
+    것이므로 소유 검증을 따로 하지 않는다(알람 생성 시점의 책임).
+
+    폴백 사슬(앞이 실패하면 다음으로):
+        알람 캐릭터 → member.character_id(소유 확인) → 가장 싼 캐릭터
+
+    ⚠ **거절이 아니라 폴백이다.** 통화는 사용자가 이미 마이크를 켜고 기다리는
+    순간이라, 캐릭터 문제로 연결을 끊으면 "전화가 안 됨"으로 보인다. 조용히
+    대표 캐릭터로 내려놓고 경고 로그를 남긴다(운영에서 집계 가능).
+
+    Returns:
+        실제로 통화에 쓸 character_id.
+    """
+    # ① 수신통화 — 서버가 발송할 때 남긴 로그로 알람을 되짚는다.
+    if inbound_call_id:
+        row = db.execute(
+            select(Alarm.character_id, Alarm.member_id)
+            .join(PushDispatchLog, PushDispatchLog.alarm_id == Alarm.alarm_id)
+            .where(PushDispatchLog.call_id == inbound_call_id)
+        ).first()
+        if row is None:
+            # 로그가 purge 됐거나(오래된 통화) 컬럼 추가 이전 발송.
+            logger.info(
+                "normalcall: inbound_call_id=%s 로 알람 못 찾음 → 대표 캐릭터",
+                inbound_call_id,
+            )
+        elif row.member_id != member_id:
+            # 남의 알람 uuid 를 들고 온 경우 — 캐릭터를 넘겨주지 않는다.
+            logger.warning(
+                "normalcall: 남의 알람 inbound_call_id member=%s owner=%s → 거절",
+                member_id, row.member_id,
+            )
+        else:
+            return row.character_id
+
+    # ② 사용자가 고른 대표 캐릭터. 소유를 확인한다 — member.character_id 는
+    #    ondelete=SET NULL 인 단순 FK 라 "고르기만 하고 안 산" 상태가 될 수 있다.
+    member = db.get(Member, member_id)
+    selected = member.character_id if member else None
+    if selected is not None and db.get(MemberCharacter, (member_id, selected)):
+        return selected
+
+    # ③ 마지막 폴백 = 가장 싼 캐릭터(온보딩 기본 무료 캐릭터). id 를 하드코딩하지
+    #    않는 이유는 IAP 상품 매핑과 같다 — 환경마다 character_id 가 다르다
+    #    (prod 1,2,9,10,11 / dev 1,2,3,4,5).
+    cheapest = db.scalar(
+        select(Character.character_id).order_by(
+            Character.price.asc().nulls_first(), Character.character_id.asc()
+        ).limit(1)
+    )
+    logger.warning(
+        "normalcall: 소유 캐릭터 없음 member=%s (대표=%s) → 기본 캐릭터 %s",
+        member_id, selected, cheapest,
+    )
+    return int(cheapest) if cheapest is not None else 1
 
 
 def _load_member_character(

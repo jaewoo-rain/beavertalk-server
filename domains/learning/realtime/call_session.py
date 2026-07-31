@@ -48,7 +48,7 @@ import json
 import logging
 import re
 import uuid
-from typing import AsyncContextManager, Callable, Optional
+from typing import NamedTuple, AsyncContextManager, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 from google import genai
@@ -82,10 +82,13 @@ from core.persona_prompt import (
     seed_leveltest_opening,
     seed_opening,
 )
+from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import (
     HintExample,
     ServerCallEnded,
+    ServerCallStarted,
+    ServerError,
     ServerHint,
     ServerInputTranscript,
     ServerMessage,
@@ -148,7 +151,6 @@ REGROUND_MODE = "on_user_turn"
 # on_user_turn 얹기 시점: "first"(유저 발화 초입, 권장) / "final"(is_final 직후 — 병합이 초입서
 # 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
 REGROUND_ATTACH_AT = "first"
-DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(BABA, 기본 무료)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
 _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
@@ -458,9 +460,13 @@ async def run_call(
     factory = live_session_factory or open_session
     # 1) 첫 start → character_id / locale / target_language / call_type / duration override.
     try:
-        character_id, locale_override, target_override, call_type_override, duration_override = (
-            await _read_initial_start(client_ws)
-        )
+        start = await _read_initial_start(client_ws)
+        inbound_call_id = start.inbound_call_id
+        client_character_id = start.character_id   # ⛔ 로그 전용 — 통화에 쓰지 않는다
+        locale_override = start.locale
+        target_override = start.target_language
+        call_type_override = start.call_type
+        duration_override = start.duration_min
     except _ClientDisconnect:
         logger.info("normalcall: start 수신 전 클라 종료")
         return
@@ -488,6 +494,24 @@ async def run_call(
         )
     spec = _resolve_target_language(settings, member_target_language)
     target_language = spec.label
+
+    # 통화 캐릭터는 **서버가 정한다** — start.character_id 는 무시한다.
+    #   수신통화(알람)면 inbound_call_id → push_dispatch_log → alarm.character_id,
+    #   그 외에는 member.character_id(소유 확인). 자세한 근거는 resolve_call_character.
+    # ⛔ ENV 로 게이트하지 마라 — 실서비스(app-api)조차 ENV="test" 인 적이 있어
+    #   prod 게이트는 무력하다(target_language 에서 겪은 그대로).
+    character_id = await svc.run_db(
+        db_session_factory,
+        lambda db: svc.resolve_call_character(db, member_id, inbound_call_id),
+    )
+    if client_character_id is not None and client_character_id != character_id:
+        # 구버전 앱 탐지용 — 전송이 사라지면 이 로그도 사라진다.
+        logger.info(
+            "normalcall: start.character_id(%s) 무시 — 서버 결정 %s (inbound=%s)",
+            client_character_id, character_id, inbound_call_id,
+        )
+    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
+    await _send_json(client_ws, ServerCallStarted(character_id=character_id))
 
     # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
@@ -522,6 +546,36 @@ async def run_call(
             call_type = "normal"
     else:
         call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "normal"
+
+    # ── 일일 통화 한도 ─────────────────────────────────────────────────── #
+    # 콜타입별로 따로 센다 — 레벨테스트를 썼어도 일반 통화 1회가 남는다.
+    #
+    # 여기서 막는 이유(위치가 중요): 콜타입 라우팅 **직후**라 한도를 콜타입별로 판정할 수
+    # 있고, create_call(통화 행)·Live 세션 open 이 **모두 아래**라 거절해도 잔여물도
+    # Gemini 비용도 0이다. 클라 게이팅은 우회되므로 서버가 거절해야 한다.
+    # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+    tz_offset_min = start.tz_offset_min or 0
+    if await svc.run_db(
+        db_session_factory,
+        lambda db: call_service.is_daily_limit_reached(
+            db, member_id, call_type, tz_offset_min
+        ),
+    ):
+        logger.info(
+            "normalcall: 일일 한도 초과 거절 member=%s call_type=%s tz=%s",
+            member_id, call_type, tz_offset_min,
+        )
+        with contextlib.suppress(Exception):
+            await _send_json(client_ws, ServerError(
+                code="DAILY_LIMIT",
+                message=(
+                    "오늘의 레벨테스트를 이미 사용했어요."
+                    if call_type == "level_test"
+                    else "오늘의 통화를 이미 사용했어요."
+                ),
+                recoverable=False,
+            ))
+        return
 
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
@@ -1013,10 +1067,29 @@ async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, m
             logger.warning("normalcall: 점진 flush 실패(무시): %s", exc)
 
 
-async def _read_initial_start(
-    client_ws,
-) -> tuple[int, str | None, str | None, str | None, int | None]:
-    """첫 start 에서 character_id / locale / target_language / call_type / duration_min 확보.
+class StartParams(NamedTuple):
+    """첫 start 프레임에서 뽑은 값들.
+
+    옛날엔 평범한 5-tuple 이었는데 필드가 늘면서 호출부가 위치로 풀어야 했다. 이름이
+    붙으면 순서를 틀릴 수 없고 뒤에 필드를 더해도 기존 언패킹이 안 깨진다.
+    (NamedTuple 이라 == (a, b, ...) 비교도 그대로 된다 — 기존 테스트 무영향.)
+    """
+
+    # ⛔ 서버가 무시한다(로그 전용). 통화 캐릭터는 resolve_call_character 가 정한다.
+    #    미전송(신버전 앱)이면 None — 그래서 int 가 아니라 int | None 이다.
+    character_id: int | None
+    locale: str | None
+    target_language: str | None
+    call_type: str | None
+    duration_min: int | None
+    tz_offset_min: int | None = None
+    # 수신통화(알람)일 때만. 서버가 푸시로 내려준 통화 id 를 앱이 되돌려준 값.
+    inbound_call_id: str | None = None
+
+
+async def _read_initial_start(client_ws) -> StartParams:
+    """첫 start 에서 character_id / locale / target_language / call_type / duration_min /
+    tz_offset_min 확보.
 
     target_language 는 **언어코드**로 해석한다(멀티랭귀지): resolve_language 로 정규화해
     지원 코드/구 데모 라벨("프랑스어")은 canonical code("fr")로, 미지원/부재는 원문 그대로
@@ -1054,16 +1127,25 @@ async def _read_initial_start(
                     # → _resolve_target_language 가 경고+DEFAULT 폴백.
                     spec = resolve_language(raw_target)
                     target_code = spec.code if spec is not None else raw_target
-                    return (
-                        int(getattr(cm, "character_id", DEFAULT_CHARACTER_ID)),
-                        getattr(cm, "locale", None),
-                        target_code,
-                        getattr(cm, "call_type", None),
-                        getattr(cm, "duration_min", None),
+                    # character_id 는 **선택**이 됐다 — 미전송이면 None 그대로 둔다.
+                    # int(None) 은 터지고, 여기서 기본값 1 을 채우면 "안 보냄"과
+                    # "BABA 선택"이 다시 구별되지 않는다(그게 원래 버그였다).
+                    raw_cid = getattr(cm, "character_id", None)
+                    return StartParams(
+                        character_id=int(raw_cid) if raw_cid is not None else None,
+                        locale=getattr(cm, "locale", None),
+                        target_language=target_code,
+                        call_type=getattr(cm, "call_type", None),
+                        duration_min=getattr(cm, "duration_min", None),
+                        tz_offset_min=getattr(cm, "tz_offset_min", None),
+                        inbound_call_id=getattr(cm, "inbound_call_id", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc
-    return DEFAULT_CHARACTER_ID, None, None, None, None
+    # 캐릭터 기본값을 여기서 정하지 않는다 — 서버 해석기(resolve_call_character)가
+    # member.character_id 로 정한다. 예전엔 DEFAULT_CHARACTER_ID=1 을 채웠는데, 그
+    # "일단 BABA" 폴백이 통화의 60%를 엉뚱한 캐릭터로 보낸 원인이었다.
+    return StartParams(None, None, None, None, None)
 
 
 # --------------------------------------------------------------------------- #

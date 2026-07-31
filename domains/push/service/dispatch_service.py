@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, select, text
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core import apns, fcm
 from core.config import settings
+from core.push_defaults import DEFAULT_CALLER_NAME
 from domains.alarm.models.alarm import Alarm
 from domains.push.models.device_token import DeviceToken
 from domains.push.models.push_dispatch_log import PushDispatchLog
@@ -69,26 +71,43 @@ class DispatchService:
                 if _DAY_CODES[b.weekday()] not in {s.day_of_week for s in a.schedules}:
                     continue
                 bucket_key = b.strftime("%Y-%m-%d %H:%M")
-                if self._claim(a.alarm_id, bucket_key):
-                    sent += self._ring(a)
+                # 클레임이 통화 id 까지 발급한다 — 발송과 기록이 갈리면 되짚기가
+                # 끊긴다(캐릭터를 알람에서 못 꺼낸다).
+                call_id = self._claim(a.alarm_id, bucket_key)
+                if call_id is not None:
+                    sent += self._ring(a, call_id)
                 break
         self._purge()
         return sent
 
-    def _claim(self, alarm_id: int, bucket_key: str) -> bool:
-        """(alarm, 벽분) 멱등 클레임. 이미 있으면(중복) False → 발송 스킵."""
+    def _claim(self, alarm_id: int, bucket_key: str) -> Optional[str]:
+        """(alarm, 벽분) 멱등 클레임 + 통화 id 발급.
+
+        Returns:
+            새로 클레임했으면 발급한 call_id, 이미 발송된 버킷이면 None(발송 스킵).
+
+        call_id 를 여기서 만드는 이유: 통화가 열릴 때 서버가 call_id → 이 로그 →
+        alarm → character 로 되짚어 **캐릭터를 스스로 정한다**. 발송만 하고 기록을
+        안 남기면 그 되짚기가 끊긴다.
+        """
         stmt = (
             pg_insert(PushDispatchLog)
-            .values(alarm_id=alarm_id, intended_fire_minute=bucket_key)
+            .values(
+                alarm_id=alarm_id,
+                intended_fire_minute=bucket_key,
+                call_id=str(uuid.uuid4()),
+            )
             .on_conflict_do_nothing(
                 index_elements=["alarm_id", "intended_fire_minute"]
             )
+            # 충돌(중복 발송)이면 행이 없어 None — rowcount 대신 이걸로 판정한다.
+            .returning(PushDispatchLog.call_id)
         )
-        res = self.db.execute(stmt)
+        call_id = self.db.execute(stmt).scalar_one_or_none()
         self.db.commit()
-        return res.rowcount == 1
+        return call_id
 
-    def _ring(self, alarm: Alarm) -> int:
+    def _ring(self, alarm: Alarm, call_id: str) -> int:
         """알람 주인의 유효 토큰에 착신 푸시(android=FCM, ios=APNs VoIP). 폐기 토큰은 is_valid=False."""
         tokens = (
             self.db.execute(
@@ -104,9 +123,8 @@ class DispatchService:
             return 0
         android = [t for t in tokens if t.platform == "android_fcm"]
         ios = [t for t in tokens if t.platform == "ios_voip"]
-        call_id = str(uuid.uuid4())
         char = alarm.character
-        name = char.name if char else "비버 튜터"
+        name = char.name if char else DEFAULT_CALLER_NAME
         image = char.image_url if char else None
         sent = 0
         dead: list = []

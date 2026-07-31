@@ -765,7 +765,18 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         result = await cs._read_initial_start(ws)
 
-    assert result == (7, None, None, None, None)
+    # StartParams(NamedTuple) — **이름으로** 확인한다. 위치 튜플과 비교하면 필드를
+    # 하나 더할 때마다 무관한 테스트가 깨진다(실제로 두 번 깨졌다).
+    assert result.character_id == 7
+    assert result._asdict() == {
+        "character_id": 7,
+        "locale": None,
+        "target_language": None,
+        "call_type": None,
+        "duration_min": None,
+        "tz_offset_min": None,
+        "inbound_call_id": None,
+    }
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)
 
