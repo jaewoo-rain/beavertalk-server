@@ -16,6 +16,7 @@ from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.sentence import Sentence
+from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
 from domains.learning.schemas.call import (
     CallCharacterBrief,
@@ -36,8 +37,58 @@ def _avg(values: list) -> float | None:
     return round(sum(nums) / len(nums), 1) if nums else None
 
 
-# '오늘 통화함' 유효 통화 최소 길이(초). 통화가 이만큼 이상이면 그 날 통화한 것으로 친다.
-DAILY_MIN_CALL_S = 10
+# '오늘 통화함'의 정의는 CallRepository.has_call_in_window 가 소유한다 —
+# **학습자가 최소 한 번 말한** done/analyzing 통화. 옛 DAILY_MIN_CALL_S(10초) 기준은
+# 폐기했다(자의적이었고, 마이크가 안 열린 통화가 하루를 소모했다).
+
+# ── 일일 통화 한도 ─────────────────────────────────────────────────────── #
+# 콜타입별로 **따로** 센다 — 레벨테스트를 했어도 일반 통화 1회가 남는다.
+# 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+DAILY_CALL_LIMIT: dict[str, int] = {"normal": 1, "level_test": 1}
+
+
+def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, datetime]:
+    """클라 로컬 하루 → UTC 반열린 구간 [start, end).
+
+    서버가 UTC 로 경계를 고정하면 한국 사용자는 오전 9시에 날짜가 바뀐다. 외국인
+    학습자라 타임존이 제각각이므로 경계는 클라가 알려준 오프셋으로 잡는다
+    (daily_status 와 같은 방식 — 두 곳이 어긋나면 "배지는 안 했다는데 서버는 거절"이 된다).
+    """
+    offset = timedelta(minutes=tz_offset_min)
+    start_utc = (datetime.combine(local_date, _time.min) - offset).replace(
+        tzinfo=timezone.utc
+    )
+    return start_utc, start_utc + timedelta(days=1)
+
+
+def is_daily_limit_reached(
+    db: Session, member_id: int, call_type: str, tz_offset_min: int = 0
+) -> bool:
+    """이 회원이 오늘(클라 로컬) 해당 콜타입 한도를 이미 썼는지.
+
+    ⛔ **ENV == "prod" 에서만 적용한다.** 그 외(dev/test/데모)는 자유롭게 쓴다 —
+    테스트하다 하루가 잠기면 개발이 안 된다.
+
+    "통화했다"의 정의는 daily_status 와 **같은 것**을 쓴다(학습자 발화 ≥ 1 +
+    done/analyzing). 두 곳이 다른 정의를 쓰면 "홈 배지는 안 했다는데 서버는 거절"이 된다.
+    마이크가 안 열렸거나 듣기만 한 통화는 한도를 소모하지 않는다.
+
+    남는 구멍: 조용히 5분 세션을 열고 끊으면 한도는 안 깎이는데 Gemini 비용은 나간다.
+    한도(상품)와 남용 방지(인프라)는 다른 축이라, 필요해지면 "하루 세션 오픈 N회" 같은
+    별도 레이트리밋으로 잡는다.
+
+    tz_offset_min: 클라 UTC 오프셋(분, 동쪽 +). KST=540. 미전송이면 0(UTC).
+    """
+    if settings.ENV != "prod":
+        return False
+    limit = DAILY_CALL_LIMIT.get(call_type)
+    if not limit:
+        return False  # 한도가 정의되지 않은 콜타입은 막지 않는다
+    now_local = datetime.now(timezone.utc) + timedelta(minutes=tz_offset_min)
+    start_utc, end_utc = daily_window_utc(now_local.date(), tz_offset_min)
+    return CallRepository(db).has_call_in_window(
+        member_id, start_utc, end_utc, call_type=call_type
+    )
 
 
 class CallService:
@@ -133,12 +184,19 @@ class CallService:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY, "tz_offset 은 분 단위(-840~840)여야 합니다."
             )
-        offset = timedelta(minutes=tz_offset_min)
-        # 로컬 자정(naive) - offset = 그 순간의 UTC. 예) KST(+540) 07-17 00:00 → UTC 07-16 15:00.
-        start_utc = (datetime.combine(d, _time.min) - offset).replace(tzinfo=timezone.utc)
-        end_utc = start_utc + timedelta(days=1)
-        called = self.repo.has_call_in_window(member_id, start_utc, end_utc, DAILY_MIN_CALL_S)
-        return {"date": local_date, "called_today": called}
+        start_utc, end_utc = daily_window_utc(d, tz_offset_min)
+        # 콜타입을 나눠 센다. 한도가 콜타입별로 따로 있으므로(일반 1 + 레벨테스트 1),
+        # 합쳐서 세면 레벨테스트만 해도 홈 배지가 "오늘 통화함"이 돼 일반 통화가 아직
+        # 남았는데 소진된 것처럼 보인다.
+        return {
+            "date": local_date,
+            "called_today": self.repo.has_call_in_window(
+                member_id, start_utc, end_utc, call_type="normal"
+            ),
+            "level_test_today": self.repo.has_call_in_window(
+                member_id, start_utc, end_utc, call_type="level_test"
+            ),
+        }
 
     def get_raw(self, member_id: int, call_id: int) -> list[RawDataOut]:
         call = self.repo.get_with_raw(call_id)
