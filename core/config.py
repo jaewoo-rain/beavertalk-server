@@ -112,6 +112,14 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str | None = None
     FCM_SERVICE_ACCOUNT_FILE: str | None = None
     FCM_SERVICE_ACCOUNT_JSON: str | None = None
+    # ── IAP(인앱결제) ────────────────────────────────────────────────── #
+    # 영수증을 애플·구글에 **실제로 검증**할지. 자격증명(.p8 / 서비스계정)이 아직 없어
+    # 지금은 전 환경 스텁이다 — 계약대로 응답하되 검증만 건너뛴다(프론트가 전 구간을
+    # 돌려볼 수 있게). 자격증명이 들어오면 prod 부터 True 로 올린다.
+    # ⛔ prod 에서 True 인데 키가 없으면 검증이 실패(503)한다 — 키 먼저, 스위치 나중.
+    IAP_VERIFY_ENABLED: bool = False
+    IAP_ALLOW_STUB: bool = True   # 스텁 허용(개발·QA). prod 전환 시 False 로 내린다
+
     INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
     INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)
 

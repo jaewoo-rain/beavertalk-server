@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.languages import normalize_locale
 from core.supabase_auth import delete_auth_user
 from domains.account.models.member import Member
 from domains.account.models.member_reason import ALLOWED_REASONS, MemberReason
@@ -28,6 +29,8 @@ from domains.account.schemas.member import (
 from domains.commerce.models.character import Character
 from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.models.subscribe import Subscribe
+from domains.learning.repository import mastery_repository
+from domains.learning.service import level_percentile
 
 
 class MemberService:
@@ -50,11 +53,17 @@ class MemberService:
         if member is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "회원을 찾을 수 없습니다.")
         is_subscribed = self._has_active_subscription(member_id)
+        # 레벨은 **학습 언어 스코프**다. member.korean_level 을 그대로 쓰면 학습 언어가
+        # ko 가 아닌 회원에게 남의 레벨을 보여준다 — get_language_level 이 mll 행 우선,
+        # ko 한정 korean_level 폴백이라는 규칙을 그대로 태운다.
+        language = member.target_language or "ko"
+        level_no = mastery_repository.get_language_level(self.db, member_id, language)
         return MyPageOut(
             member_id=member.member_id,
             email=member.email,
             name=member.name,
             language=member.language,
+            target_language=member.target_language,
             is_subscribed=is_subscribed,
             onboarding_completed=member.onboarding_completed,
             speak_country=(
@@ -63,6 +72,8 @@ class MemberService:
                 else None
             ),
             reasons=[r.reason for r in member.reasons],
+            korean_level=level_no,
+            level_top_percent=level_percentile.top_percent(level_no),
         )
 
     def _has_active_subscription(self, member_id: int) -> bool:
@@ -124,7 +135,9 @@ class MemberService:
         if name is not None:
             member.name = name
         if language is not None:
-            member.language = language
+            # 앱 언어 피커는 BCP-47 id("ko-KR")를 준다 — 저장 전에 ISO 639-1 로 정규화한다.
+            # 안 하면 모국어 라벨 조회가 미스나 영어로 폴백한다(실측 3건).
+            member.language = normalize_locale(language)
         if reasons is not None:
             codes = self._validate_reasons(reasons)
             # 기존 이유 교체(cascade delete-orphan 으로 옛 행 정리).
@@ -180,6 +193,10 @@ class MemberService:
         member = self.get(member_id)
         # 전달된 필드만 부분 수정
         for field, value in data.model_dump(exclude_unset=True).items():
+            # 언어 두 필드는 저장 전에 ISO 639-1 로 정규화한다("ko-KR"→"ko").
+            # 오염을 입구에서 막는다 — 조회 시 폴백에 기대면 데이터가 계속 썩는다.
+            if field in ("language", "target_language"):
+                value = normalize_locale(value)
             setattr(member, field, value)
         self.db.commit()
         self.db.refresh(member)

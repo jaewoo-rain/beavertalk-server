@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from core.deps import CurrentMember, DbSession, PageParams
 from domains.learning.realtime.call_session import trigger_reanalysis
@@ -15,6 +15,7 @@ from domains.learning.schemas.call import (
     RawDataOut,
 )
 from domains.learning.schemas.pronunciation import (
+    PronSummaryOut,
     PronHistoryItem,
     PronunciationReport,
 )
@@ -51,6 +52,23 @@ def get_pronunciation_history(
     라우트 순서로 의도를 명확히 한다). LLM 없이 얇게 — service→repository 집계만.
     """
     return pron_svc.get_pronunciation_history(db, member.member_id)
+
+
+@router.get("/pronunciation-summary", response_model=PronSummaryOut)
+def get_pronunciation_summary(
+    member: CurrentMember,
+    db: DbSession,
+    sessions: int = Query(10, ge=1, le=50, description="평균에 넣을 최근 통화 수"),
+) -> PronSummaryOut:
+    """마이페이지 발음 분석 카드 — 최근 N세션 발음 4지표 평균.
+
+    정적 경로라 `/{call_id}` 보다 먼저 선언한다(pronunciation-history 와 같은 이유).
+
+    ⚠ 지금 값의 출처는 스텁이다 — SpeechSuper 계정 만료(errId 41030)로 실채점이
+    폴백된다. 배선은 미리 만들어 두고, 벤더가 살아나면 이 경로 그대로 진짜 점수가
+    채워진다(스키마·계산 변경 없음).
+    """
+    return pron_svc.get_pronunciation_summary(db, member.member_id, sessions)
 
 
 @router.get("/daily-status")

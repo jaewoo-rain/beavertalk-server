@@ -107,6 +107,10 @@ class CharacterService:
         return d.discount_price if d else character.price
 
     def _to_summary(self, c: Character, owned: bool) -> CharacterSummary:
+        # 할인 1회 조회로 실가와 카운트다운 재료를 함께 채운다. active_discount 는 이미
+        # 로드된 c.discount_events 를 순회할 뿐이라 추가 쿼리가 없다(effective_price 를
+        # 따로 부르면 같은 순회를 두 번 한다).
+        discount = self.active_discount(c)
         return CharacterSummary(
             character_id=c.character_id,
             name=c.name,
@@ -116,6 +120,7 @@ class CharacterService:
             voice_url=c.voice_url,
             tags=c.tags or [],
             price=c.price,
-            effective_price=self.effective_price(c),
+            effective_price=discount.discount_price if discount else c.price,
             is_owned=owned,
+            active_discount=DiscountOut.model_validate(discount) if discount else None,
         )

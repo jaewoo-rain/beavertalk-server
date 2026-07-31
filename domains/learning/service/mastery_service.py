@@ -35,6 +35,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from domains.account.models.member import Member
 from domains.learning.models.item_evidence import ItemEvidence
 from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.member_level_history import MemberLevelHistory
@@ -632,3 +633,62 @@ def apply_grandfathering(
         member_id, level_no, created_mastered, created_introduced,
     )
     return {"mastered": created_mastered, "introduced": created_introduced}
+
+
+# --------------------------------------------------------------------------- #
+# 레벨 재측정 (사용자 요청 — 마이페이지 "레벨테스트 다시하기")
+# --------------------------------------------------------------------------- #
+def request_level_retest(db: Session, member: Member, language: str = "ko") -> dict:
+    """레벨만 백지화해 다음 통화가 레벨테스트로 라우팅되게 한다. **체크판은 보존.**
+
+    "다시하기"는 배운 걸 지우는 게 아니라 **레벨 배정만 다시 받는 것**이다. 그래서
+    member_item_progress(체크판)·item_evidence(증거)·member_level_history(승급 이력)는
+    건드리지 않는다. dev 전용 `/__dev/level-reset` 은 그것까지 전부 지우는 완전
+    백지화라 목적이 다르다 — 혼동하면 사용자의 학습 기록이 날아간다.
+
+    ⚠ **member_language_level 행을 지우는 게 핵심이다.** korean_level 만 NULL 로
+    만들면 라우팅이 안 바뀐다 — mastery_repository.get_language_level 은 mll 행이
+    있으면 그 level_no 를 진실로 삼고 member.korean_level 로 폴백하지 않는다.
+    (멀티랭귀지 도입 때 dev 엔드포인트가 이걸 놓쳐 "초기화해도 레벨테스트가 안 뜨는"
+    상태였던 전례가 있다.) 행을 NULL 로 두지 않고 삭제하는 이유는 get_language_level
+    이 "행 부재 = 콜드스타트"로 정의하고, 레벨테스트가 placement 로 행을 새로
+    만들어 주기 때문이다.
+
+    하루 1회 제한은 여기서 검사하지 않는다 — 실제 통화 시작(call_session)이
+    call_type='level_test' 로 한도를 검사해 거절한다. 즉 이 호출이 성공해도 오늘
+    이미 레벨테스트를 했다면 통화가 DAILY_LIMIT 로 거절된다. 판정을 한 곳에 두는
+    편이 두 곳에서 각자 세는 것보다 어긋날 여지가 없다.
+
+    Args:
+        member: 요청자(ORM). korean_level 을 직접 비운다.
+        language: 재측정할 학습 언어(기본 ko).
+
+    Returns:
+        {"language", "cleared_language_level"(삭제 행 수), "korean_level"}.
+    """
+    from sqlalchemy import delete
+
+    from domains.learning.models.member_language_level import MemberLanguageLevel
+
+    cleared = db.execute(
+        delete(MemberLanguageLevel).where(
+            MemberLanguageLevel.member_id == member.member_id,
+            MemberLanguageLevel.language == language,
+        )
+    ).rowcount
+
+    # ko 는 member.korean_level 이 폴백 경로라 같이 비운다. 다른 언어는 mll 행이
+    # 유일한 출처이므로 korean_level 을 건드리면 안 된다(한국어 레벨이 날아간다).
+    if language == "ko":
+        member.korean_level = None
+
+    db.commit()  # 쓰기는 service 가 명시적 커밋(프로젝트 컨벤션)
+    logger.info(
+        "level_retest: member=%s language=%s mll삭제=%s (체크판 보존)",
+        member.member_id, language, cleared,
+    )
+    return {
+        "language": language,
+        "cleared_language_level": int(cleared or 0),
+        "korean_level": member.korean_level,
+    }

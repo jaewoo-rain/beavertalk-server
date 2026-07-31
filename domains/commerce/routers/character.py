@@ -44,9 +44,17 @@ def purchase_character(
     db: DbSession,
     data: PurchaseRequest | None = None,
 ) -> PurchaseResponse:
-    """캐릭터 구매 — 결제 후 보유 처리. 이미 보유한 캐릭터면 중복구매가 막힌다."""
-    card_info = data.card_info if data else None
-    return PurchaseService(db).purchase(member.member_id, character_id, card_info)
+    """캐릭터 구매 — 결제 후 보유 처리. 이미 보유한 캐릭터면 중복구매가 막힌다.
+
+    data.expected_price 를 보내면 서버 계산가와 대조해 다를 때 409(PRICE_CHANGED)로
+    거절한다(한정 할인 종료 직후의 금액 불일치 방지).
+    """
+    return PurchaseService(db).purchase(
+        member.member_id,
+        character_id,
+        data.card_info if data else None,
+        data.expected_price if data else None,
+    )
 
 
 @router.get("/members/me/characters", response_model=list[OwnedCharacterOut])

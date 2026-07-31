@@ -11,6 +11,7 @@ LiveSessionProtocol 로 모킹 가능 — 테스트는 동일 인터페이스의
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from dataclasses import dataclass
@@ -256,6 +257,26 @@ class GeminiLiveSession:
                 break
 
 
+async def _ensure_fresh_credentials(client: genai.Client) -> None:
+    """공유 Vertex creds 의 access token 이 만료됐으면 connect 전에 갱신한다.
+
+    genai 내부(_api_client._credentials)의 SA 자격증명을 들여다본다. api_key 클라이언트나
+    구조가 다른 버전에선 creds 가 None 이라 조용히 건너뛴다(라이브러리 기본 동작 유지).
+    refresh 는 블로킹 네트워크 호출이므로 to_thread 로 이벤트 루프를 막지 않는다. 실패해도
+    여기서 죽이지 않고(경고만) connect 로 진행 — 진짜 원인은 connect 에러가 말하게 둔다.
+    """
+    creds = getattr(getattr(client, "_api_client", None), "_credentials", None)
+    if creds is None or getattr(creds, "valid", False):
+        return
+    try:
+        import google.auth.transport.requests as greq
+
+        await asyncio.to_thread(creds.refresh, greq.Request())
+        logger.info("normalcall Live: 만료된 Vertex 토큰 갱신 완료")
+    except Exception as exc:  # noqa: BLE001 - 갱신 실패는 connect 가 authoritative
+        logger.warning("normalcall Live: Vertex 토큰 갱신 실패(연결 계속 시도): %s", exc)
+
+
 @contextlib.asynccontextmanager
 async def open_session(
     client: genai.Client,
@@ -274,6 +295,13 @@ async def open_session(
     config = build_live_config(
         system_instruction=system_instruction, voice=voice, tools=tools
     )
+    # ⭐ Live 토큰 만료 방어: genai.Client 는 lifespan 이 한 번 만들어 인스턴스 수명 내내
+    # 공유한다. 그 SA access token 은 ~1시간 만료인데, REST(분석·TTS)는 요청마다 갱신돼
+    # 멀쩡하지만 Live 의 WS connect 는 만료 토큰을 그대로 보내 1008(invalid auth)로 죽는다
+    # ("인스턴스 뜨고 1시간 뒤 통화만 갑자기 안 됨"). 라이브러리 버전에 의존하지 않도록,
+    # connect 직전에 공유 creds 가 만료됐으면 강제로 새 토큰을 발급한다. api_key(AI Studio)
+    # 클라이언트엔 _credentials 가 없어 자동으로 건너뛴다(graceful).
+    await _ensure_fresh_credentials(client)
     logger.info("normalcall Live 연결 시도: model=%s voice=%s", settings.GEMINI_LIVE_MODEL, voice)
     async with client.aio.live.connect(
         model=settings.GEMINI_LIVE_MODEL,

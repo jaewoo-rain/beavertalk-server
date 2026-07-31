@@ -46,8 +46,9 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import uuid
-from typing import AsyncContextManager, Callable, Optional
+from typing import NamedTuple, AsyncContextManager, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 from google import genai
@@ -61,6 +62,7 @@ from core.languages import (
     DEFAULT_LANGUAGE,
     LanguageSpec,
     SUPPORTED_LANGUAGES,
+    normalize_locale,
     resolve_language,
 )
 from core.gemini_live import (
@@ -71,17 +73,22 @@ from core.gemini_live import (
 )
 from core.persona_prompt import (
     _LOCALE_LABEL,
-    CLOSE_SEED_LEVELTEST,
+    CONTROL_TAG,
     build_leveltest_instruction,
     build_reground_reminder,
     build_system_instruction,
+    close_seed_leveltest,
+    new_close_tag,
     seed_leveltest_opening,
     seed_opening,
 )
+from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import (
     HintExample,
     ServerCallEnded,
+    ServerCallStarted,
+    ServerError,
     ServerHint,
     ServerInputTranscript,
     ServerMessage,
@@ -144,38 +151,60 @@ REGROUND_MODE = "on_user_turn"
 # on_user_turn 얹기 시점: "first"(유저 발화 초입, 권장) / "final"(is_final 직후 — 병합이 초입서
 # 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
 REGROUND_ATTACH_AT = "first"
-DEFAULT_CHARACTER_ID = 1        # start 에 character_id 없을 때 폴백(BABA, 기본 무료)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
 _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 
-# normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.CLOSE_SEED_LEVELTEST(대본 소유자).
-_CLOSE_SEED = (
-    "[시스템] (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
-    "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
-    "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'는 취지로 작별해라 "
-    "— 작별 말투는 네 캐릭터 그대로(억지로 따뜻하게·공손하게 만들지 마라). "
-    "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
-    "★ 절대 '[시스템]'·'통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 사람처럼 "
-    "평범하게 작별해라(로봇 같은 종료 멘트 금지)."
-)
+# normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.close_seed_leveltest(대본 소유자).
+# close_tag 는 통화별 난수 태그(new_close_tag) — system_instruction 과 **반드시 같은 값**.
+def _close_seed(close_tag: str) -> str:
+    return (
+        f"{close_tag} (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
+        "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
+        "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'는 취지로 작별해라 "
+        "— 작별 말투는 네 캐릭터 그대로(억지로 따뜻하게·공손하게 만들지 마라). "
+        "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
+        "★ 절대 대괄호 안 문구나 '통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 사람처럼 "
+        "평범하게 작별해라(로봇 같은 종료 멘트 금지)."
+    )
+
 
 # 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
-# 프롬프트 규율 재사용: "[시스템]"으로 시작 = 지시문이므로 소리내 읽지 말 것.
+# ⛔ 접두어는 CONTROL_TAG(종료 아님) — 종료 태그와 절대 공유하지 마라. 옛날엔 둘 다
+#   "[시스템]" 이라 넛지가 종료 신호로 오독됐다(본문에 "작별하지 말고"라고 써놨는데도
+#   접두어가 이겼다). 근거: docs/20260727_1710_통화-조기종료-종료태그-분리와-안전망.md
 _NUDGE_SEED_1 = (
-    "[시스템] 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
+    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
     "가볍게 새 화제로 한 문장만 이어가라."
 )
 _NUDGE_SEED_2 = (
-    "[시스템] 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 모국어로 "
+    f"{CONTROL_TAG} 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 모국어로 "
     "'거기 있어? 잘 들려?'를 한 번만 부드럽게 물어라."
 )
 # 레벨테스트 1단 넛지: 일반과 달리 '새 화제로 이어가라' 대신 **방금 질문을 다시 묻는다** —
 # 작별하지 말고 방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며 모국어로 다시 묻게 한다.
 _NUDGE_SEED_1_LEVELTEST = (
-    "[시스템] 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
+    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
     "방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며(예/아니오 또는 둘 중 고르기) "
     "모국어로 딱 한 번만 다시 물어라."
+)
+
+# ── 자기낭독 안전망(2026-07-27) ────────────────────────────────────────── #
+# 비버가 서버 제어 태그를 **소리 내어 읽으면**, 그 출력이 자기 컨텍스트에 남아 다음 턴에
+# 종료 신호로 읽힌다(자기충족 루프). 실측 call_id=706: 서버 주입 0인데 t≈80s 에
+# '"[시스템]" 종료' 를 읽고 혼자 작별 → 통화는 안 끊긴 채 47초 死구간 → 사용자가 직접 종료.
+#
+# 태그 분리·난수화로 확률은 낮췄지만 그건 전부 "모델이 지시를 지킨다"에 기대는 방어다.
+# 이 검출·되돌리기만이 모델에 의존하지 않는다 — 뚫려도 死구간이 안 생기게 한다.
+#
+# ⚠ out_tr 은 토큰 단위로 쪼개져 온다("[시스템]" / " 통화가"). 청크 하나만 보면 대괄호가
+#   갈라져 못 잡으므로 **턴 누적 텍스트**에 대해 검사한다(turn_end 시점, flush 직전).
+_CONTROL_TAG_RE = re.compile(r"\[\s*(?:시스템|안내|통화종료|통화\s*시작)[^\]]*\]")
+_RESUME_MAX = 2  # 통화당 재개 시드 주입 상한(무한 루프 방지)
+_RESUME_SEED = (
+    f"{CONTROL_TAG} 이 메시지는 소리내 읽지 마라. 통화는 아직 끝나지 않았다 — 방금 네 발화에 "
+    "대사가 아닌 문구가 섞였거나 먼저 작별하려 했는데, 둘 다 하지 마라. 사과·설명·메타 발언 "
+    "없이 방금 하던 대화를 그대로 이어서 학습자에게 한마디만 건네라."
 )
 
 SessionFactory = Callable[..., AsyncContextManager[LiveSessionProtocol]]
@@ -264,6 +293,7 @@ class _CallState:
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
+        "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         "last_beaver_question", "band_tasks", "band_target_language",
@@ -273,7 +303,11 @@ class _CallState:
     def __init__(self) -> None:
         # 종료 시드 텍스트(콜타입별 — normal 기본, 레벨테스트는 run_call 이 교체).
         # 주입 시점·파이프(_inject_close_seed)는 불변, 문자열만 바뀐다(R4).
-        self.close_seed: str = _CLOSE_SEED
+        # ⚠ run_call 이 통화별 난수 태그로 다시 세팅한다 — 여기 기본값은 테스트/폴백용.
+        self.close_seed: str = _close_seed(new_close_tag())
+        # 자기낭독 안전망: 이번 비버 턴에 제어 태그가 섞였는지 / 재개 시드를 몇 번 넣었는지.
+        self.tag_leak_seen = False
+        self.resume_sent = 0
         self.turn_id: Optional[str] = None
         self.call_start_ts: Optional[float] = None
         self.should_close = False
@@ -374,7 +408,13 @@ def _flush_user_segment(state: _CallState) -> None:
 def _flush_beaver_segment(state: _CallState) -> None:
     if not state.cur_beaver_pcm and not state.cur_beaver_text:
         return
-    text = "".join(state.cur_beaver_text).strip()
+    text = "".join(state.cur_beaver_text)
+    # 자기낭독 정화: 비버가 서버 제어 태그를 읽어버린 경우 저장본에서 걷어낸다. 통화후
+    # 분석·문장 추출이 "[시스템] 통화가 종료되었습니다" 같은 걸 학습 문장으로 삼지 않게.
+    # (자막은 이미 나간 뒤라 손대지 않는다 — 조각 단위라 부분 마스킹이 더 이상해진다.)
+    if _CONTROL_TAG_RE.search(text):
+        text = _CONTROL_TAG_RE.sub("", text)
+    text = text.strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
     # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
     # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
@@ -398,6 +438,7 @@ async def run_call(
     db_session_factory: sessionmaker,
     *,
     member_id: int,
+    member_target_language: str | None = None,
     live_session_factory: SessionFactory | None = None,
 ) -> None:
     """노멀콜 단일 통화를 양방향 중계한다(인증은 ws_router 가 끝낸 뒤 호출).
@@ -408,6 +449,9 @@ async def run_call(
         client: lifespan 의 genai.Client(app.state.genai_client).
         db_session_factory: app.state.session_factory(SQLAlchemy sessionmaker).
         member_id: 인증된 회원 id.
+        member_target_language: DB(member.target_language)의 학습 대상 언어. 이 값이
+            **단일 소스**다 — 클라 start.target_language 는 환경과 무관하게 무시한다.
+            None 이면 settings.DEFAULT_TARGET_LANGUAGE 폴백. 기본 None 이라 기존 호출·테스트 무영향.
         live_session_factory: Live 세션 CM 팩토리(모킹 확장점). None 이면 호출 시점에
             모듈의 open_session 을 사용한다(기본 인자로 박지 않아 monkeypatch 가능).
     """
@@ -416,9 +460,13 @@ async def run_call(
     factory = live_session_factory or open_session
     # 1) 첫 start → character_id / locale / target_language / call_type / duration override.
     try:
-        character_id, locale_override, target_override, call_type_override, duration_override = (
-            await _read_initial_start(client_ws)
-        )
+        start = await _read_initial_start(client_ws)
+        inbound_call_id = start.inbound_call_id
+        client_character_id = start.character_id   # ⛔ 로그 전용 — 통화에 쓰지 않는다
+        locale_override = start.locale
+        target_override = start.target_language
+        call_type_override = start.call_type
+        duration_override = start.duration_min
     except _ClientDisconnect:
         logger.info("normalcall: start 수신 전 클라 종료")
         return
@@ -428,8 +476,42 @@ async def run_call(
     # (locale="ko" 도 이제 "한국어"로 해석 — 데모용 override hack 제거). ko 는 label=="한국어"·
     # has_curriculum·leveltest 라 기존 한국어 통화 경로·프롬프트 바이트 불변.
     # (멀티랭귀지) 레벨/커리큘럼 선별·needs_level_test 가 언어 스코프라 load_call_setup 전에 해석.
-    spec = _resolve_target_language(settings, target_override)
+    # (멀티랭귀지) 학습 대상 언어의 단일 소스는 **DB(member.target_language)** 다.
+    #   옛날엔 앱 SharedPreferences 가 원본이라 ① 복원 전에 통화가 시작되면 저장값 대신
+    #   기본 'ko' 가 실려 나가고(잠금화면 수신통화가 그 구간) ② 재설치 시 리셋되고
+    #   ③ 서버가 거는 예약전화인데 언어는 클라가 정하는 모순이 있었다.
+    #
+    # ⛔ start.target_language 는 **환경과 무관하게 항상 무시한다**. ENV 로 게이트하지 마라 —
+    #   실서비스(app-api)조차 ENV="test" 라 prod 게이트는 무력하다(실측). 언어를 바꾸는
+    #   유일한 통로는 PATCH /members/me {target_language} 다. 데모(level_call_demo.html)도
+    #   통화 전에 그 PATCH 를 호출한다 — 실제 동작과 같은 경로를 타게.
+    #   근거: docs/20260728_0125_학습언어-DB-단일소스화와-모국어-정규화.md
+    if target_override is not None:
+        # 구버전 앱 탐지용 — 전송이 사라지면 이 로그도 사라진다.
+        logger.info(
+            "normalcall: start.target_language(%s) 무시 — DB(member.target_language=%s) 사용",
+            target_override, member_target_language,
+        )
+    spec = _resolve_target_language(settings, member_target_language)
     target_language = spec.label
+
+    # 통화 캐릭터는 **서버가 정한다** — start.character_id 는 무시한다.
+    #   수신통화(알람)면 inbound_call_id → push_dispatch_log → alarm.character_id,
+    #   그 외에는 member.character_id(소유 확인). 자세한 근거는 resolve_call_character.
+    # ⛔ ENV 로 게이트하지 마라 — 실서비스(app-api)조차 ENV="test" 인 적이 있어
+    #   prod 게이트는 무력하다(target_language 에서 겪은 그대로).
+    character_id = await svc.run_db(
+        db_session_factory,
+        lambda db: svc.resolve_call_character(db, member_id, inbound_call_id),
+    )
+    if client_character_id is not None and client_character_id != character_id:
+        # 구버전 앱 탐지용 — 전송이 사라지면 이 로그도 사라진다.
+        logger.info(
+            "normalcall: start.character_id(%s) 무시 — 서버 결정 %s (inbound=%s)",
+            client_character_id, character_id, inbound_call_id,
+        )
+    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
+    await _send_json(client_ws, ServerCallStarted(character_id=character_id))
 
     # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
@@ -437,14 +519,23 @@ async def run_call(
         db_session_factory,
         lambda db: svc.load_call_setup(db, member_id, character_id, spec.code),
     )
-    locale = locale_override or setup["locale"]
+    # 읽기 쪽 방어: 저장 시 정규화(MemberService)를 넣었지만, 과거 데이터·다른 경로로 들어온
+    # "ko-KR" 이 남아 있으면 _LOCALE_LABEL 조회가 미스나 **영어로 폴백**한다(실측 3건).
+    locale = normalize_locale(locale_override or setup["locale"]) or setup["locale"]
 
-    # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 2건은 normal 로 강등 ② 서버 자동.
-    #   강등 a) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
-    #          그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
-    #   강등 b) prod && korean_level 보유자의 명시 재측정: 재측정은 미지원(후속 기능) —
-    #          non-prod 는 개발 테스트 편의로 현행 허용.
+    # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 1건은 normal 로 강등 ② 서버 자동.
+    #   강등) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
+    #         그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
     # 자동: 레벨테스트 지원 언어(spec.leveltest) + 레벨 미확정일 때만 level_test.
+    #
+    # 🧒 여기서 "강등"은 **이번 통화의 종류**를 level_test → normal 로 돌린다는 뜻이다.
+    #   학습자 레벨(member_language_level·korean_level)은 전혀 건드리지 않는다.
+    #
+    # ⛔ 레벨 재측정을 ENV 로 막지 마라. 옛날엔 "prod && 레벨 보유자면 강등"이 있었는데
+    #   전부 틀린 전제였다 — ① 실서비스(app-api)조차 ENV="test" 라 그 분기는 애초에 안
+    #   걸렸고 ② 환경마다 동작이 갈리면 **테스트한 경로와 배포된 경로가 달라진다**
+    #   (학습 언어 버그가 정확히 그렇게 살아남았다) ③ 재측정 허용 여부는 제품 규칙이지
+    #   서버가 어디 떠 있느냐의 문제가 아니다. 레벨 재측정은 환경과 무관하게 허용한다.
     if call_type_override is not None:
         call_type = call_type_override
         if call_type == "level_test" and not spec.leveltest:
@@ -453,21 +544,44 @@ async def run_call(
                 "→ normal 강등(루브릭·대본 부재 판정 오염 방지) member=%s", spec.code, member_id,
             )
             call_type = "normal"
-        elif (
-            call_type == "level_test"
-            and settings.ENV == "prod"
-            and not setup["needs_level_test"]
-        ):
-            logger.warning(
-                "normalcall: prod 에서 korean_level 보유자의 level_test 재측정 명시 "
-                "→ normal 강등(재측정은 미지원 — 후속 기능) member=%s", member_id,
-            )
-            call_type = "normal"
     else:
         call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "normal"
 
+    # ── 일일 통화 한도 ─────────────────────────────────────────────────── #
+    # 콜타입별로 따로 센다 — 레벨테스트를 썼어도 일반 통화 1회가 남는다.
+    #
+    # 여기서 막는 이유(위치가 중요): 콜타입 라우팅 **직후**라 한도를 콜타입별로 판정할 수
+    # 있고, create_call(통화 행)·Live 세션 open 이 **모두 아래**라 거절해도 잔여물도
+    # Gemini 비용도 0이다. 클라 게이팅은 우회되므로 서버가 거절해야 한다.
+    # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+    tz_offset_min = start.tz_offset_min or 0
+    if await svc.run_db(
+        db_session_factory,
+        lambda db: call_service.is_daily_limit_reached(
+            db, member_id, call_type, tz_offset_min
+        ),
+    ):
+        logger.info(
+            "normalcall: 일일 한도 초과 거절 member=%s call_type=%s tz=%s",
+            member_id, call_type, tz_offset_min,
+        )
+        with contextlib.suppress(Exception):
+            await _send_json(client_ws, ServerError(
+                code="DAILY_LIMIT",
+                message=(
+                    "오늘의 레벨테스트를 이미 사용했어요."
+                    if call_type == "level_test"
+                    else "오늘의 통화를 이미 사용했어요."
+                ),
+                recoverable=False,
+            ))
+        return
+
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
+    # 이 통화 전용 종료 태그(난수). ⚠ system_instruction 과 종료 시드가 **같은 값**을 써야
+    # 한다 — 어긋나면 비버가 종료 신호를 못 알아보고 작별 없이 백스톱으로 끊긴다.
+    close_tag = new_close_tag()
     if call_type == "level_test":
         # 레벨테스트 대본 — 레벨/이력 슬롯 없는 전용 셋업(회원당 사실상 1회라 재조회 비용 수용).
         lt_setup = await svc.run_db(
@@ -480,6 +594,7 @@ async def run_call(
             interests=lt_setup["interests"],
             name=lt_setup["name"],
             target_language=target_language,
+            close_tag=close_tag,
         )
         # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
         # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
@@ -504,6 +619,7 @@ async def run_call(
             recent_topics=setup.get("recent_topics") if inject_materials else None,
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
             lang_band=setup.get("lang_band", "beginner"),
+            close_tag=close_tag,
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
@@ -524,6 +640,7 @@ async def run_call(
 
     state = _CallState()
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
+    state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
     # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
     # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
@@ -535,7 +652,8 @@ async def run_call(
         state.call_duration_s = _resolve_call_duration(
             settings, duration_override, base=LEVELTEST_MAX_S
         )
-        state.close_seed = CLOSE_SEED_LEVELTEST  # 종료 시드 문자열만 교체(주입 파이프 불변)
+        # 종료 시드 문자열만 교체(주입 파이프 불변). 태그는 지시문과 같은 난수 태그.
+        state.close_seed = close_seed_leveltest(close_tag)
         # T3: 무음 캐던스 단축 + 1단 넛지 내용 전환(질문 재출제 유지).
         state.idle_nudge1_s = LEVELTEST_IDLE_NUDGE1_S
         state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
@@ -949,10 +1067,29 @@ async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, m
             logger.warning("normalcall: 점진 flush 실패(무시): %s", exc)
 
 
-async def _read_initial_start(
-    client_ws,
-) -> tuple[int, str | None, str | None, str | None, int | None]:
-    """첫 start 에서 character_id / locale / target_language / call_type / duration_min 확보.
+class StartParams(NamedTuple):
+    """첫 start 프레임에서 뽑은 값들.
+
+    옛날엔 평범한 5-tuple 이었는데 필드가 늘면서 호출부가 위치로 풀어야 했다. 이름이
+    붙으면 순서를 틀릴 수 없고 뒤에 필드를 더해도 기존 언패킹이 안 깨진다.
+    (NamedTuple 이라 == (a, b, ...) 비교도 그대로 된다 — 기존 테스트 무영향.)
+    """
+
+    # ⛔ 서버가 무시한다(로그 전용). 통화 캐릭터는 resolve_call_character 가 정한다.
+    #    미전송(신버전 앱)이면 None — 그래서 int 가 아니라 int | None 이다.
+    character_id: int | None
+    locale: str | None
+    target_language: str | None
+    call_type: str | None
+    duration_min: int | None
+    tz_offset_min: int | None = None
+    # 수신통화(알람)일 때만. 서버가 푸시로 내려준 통화 id 를 앱이 되돌려준 값.
+    inbound_call_id: str | None = None
+
+
+async def _read_initial_start(client_ws) -> StartParams:
+    """첫 start 에서 character_id / locale / target_language / call_type / duration_min /
+    tz_offset_min 확보.
 
     target_language 는 **언어코드**로 해석한다(멀티랭귀지): resolve_language 로 정규화해
     지원 코드/구 데모 라벨("프랑스어")은 canonical code("fr")로, 미지원/부재는 원문 그대로
@@ -990,16 +1127,25 @@ async def _read_initial_start(
                     # → _resolve_target_language 가 경고+DEFAULT 폴백.
                     spec = resolve_language(raw_target)
                     target_code = spec.code if spec is not None else raw_target
-                    return (
-                        int(getattr(cm, "character_id", DEFAULT_CHARACTER_ID)),
-                        getattr(cm, "locale", None),
-                        target_code,
-                        getattr(cm, "call_type", None),
-                        getattr(cm, "duration_min", None),
+                    # character_id 는 **선택**이 됐다 — 미전송이면 None 그대로 둔다.
+                    # int(None) 은 터지고, 여기서 기본값 1 을 채우면 "안 보냄"과
+                    # "BABA 선택"이 다시 구별되지 않는다(그게 원래 버그였다).
+                    raw_cid = getattr(cm, "character_id", None)
+                    return StartParams(
+                        character_id=int(raw_cid) if raw_cid is not None else None,
+                        locale=getattr(cm, "locale", None),
+                        target_language=target_code,
+                        call_type=getattr(cm, "call_type", None),
+                        duration_min=getattr(cm, "duration_min", None),
+                        tz_offset_min=getattr(cm, "tz_offset_min", None),
+                        inbound_call_id=getattr(cm, "inbound_call_id", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc
-    return DEFAULT_CHARACTER_ID, None, None, None, None
+    # 캐릭터 기본값을 여기서 정하지 않는다 — 서버 해석기(resolve_call_character)가
+    # member.character_id 로 정한다. 예전엔 DEFAULT_CHARACTER_ID=1 을 채웠는데, 그
+    # "일단 BABA" 폴백이 통화의 60%를 엉뚱한 캐릭터로 보낸 원인이었다.
+    return StartParams(None, None, None, None, None)
 
 
 # --------------------------------------------------------------------------- #
@@ -1338,7 +1484,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
 
     🧒 종료 규약(왜 이렇게 조심스럽게 끊나): 통화를 언제 끝낼지는 **AI 가 아니라 서버 시계**가
       정한다(프롬프트가 비버에게 통화 길이를 안 알려줘서, 비버 혼자 멋대로 작별 못 함). 끝낼
-      때가 되면 시계워처가 should_close 를 세우고, "[시스템] …" 종료 시드(작별 대본)를 별도
+      때가 되면 시계워처가 should_close 를 세우고, "[통화종료:난수] …" 종료 시드(작별 대본)를 별도
       완결 턴으로 주입한다. 단, **비버가 조용하고(idle) 유저 턴도 닫힌 깨끗한 순간에만** 넣는다
       — 말 도중에 끼워넣으면 하던 말이 잘리거나 학습자 응답이 작별로 둔갑하기 때문. 그래서
       아래에서 turn_end(발화가 끝난 깨끗한 경계)마다 종료 여부를 판단한다.
@@ -1398,6 +1544,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
 
         if event.kind == "turn_end":
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
+            # ⭐ 자기낭독 안전망: flush 전(누적 텍스트가 살아 있을 때) 태그 누출을 판정한다.
+            _detect_tag_leak(state)
             _flush_beaver_segment(state)
             if state.close_seed_sent:
                 # ⭐ 작별 턴이 실제로 시작됐을 때만 종료. 그 전(빈 turn_end — 이전 활동 잔여)
@@ -1409,6 +1557,11 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 logger.info("normalcall: 종료 시드 후 빈 turn_end — 작별 발화 대기(조기종료 방지)")
             elif state.should_close:  # 비버 발화중 경로: 이 턴 끝에서 주입(턴 안 자름)
                 await _inject_close_seed(session, state)
+            elif state.tag_leak_seen:
+                # 서버는 아직 끝낼 생각이 없는데 비버가 제어 태그를 읽었다 → 되돌린다.
+                # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
+                #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
+                await _inject_resume_seed(session, state)
 
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
@@ -1470,6 +1623,49 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         state.last_activity_ts = asyncio.get_running_loop().time()
 
     return turn_started
+
+
+def _detect_tag_leak(state: _CallState) -> None:
+    """방금 끝난 비버 턴에 서버 제어 태그가 섞였는지 판정한다(누적 텍스트 기준).
+
+    🧒 왜 누적 텍스트인가: 출력 자막(out_tr)은 토큰 단위로 쪼개져 온다 — 실측 로그에서
+      "[시스템]" 과 " 통화가" 가 별개 이벤트로 왔다. 조각 하나만 보면 대괄호가 갈라져
+      정규식이 못 잡는다. 그래서 턴이 끝나는 순간, 그 턴의 조각을 전부 이어 붙인
+      문자열에 대해 한 번만 검사한다.
+
+    정상 종료 구간(should_close/close_seed_sent)에서는 판정하지 않는다 — 그땐 서버가
+    의도적으로 마무리시키는 중이라, 되돌리면 작별을 방해한다.
+    """
+    if state.should_close or state.close_seed_sent:
+        return
+    match = _CONTROL_TAG_RE.search("".join(state.cur_beaver_text))
+    if match:
+        state.tag_leak_seen = True
+        logger.warning(
+            "normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독) — 대화 재개 시도: %r",
+            match.group(0),
+        )
+
+
+async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -> None:
+    """태그를 낭독한 비버를 대화로 되돌린다(자기낭독 안전망의 실행부).
+
+    상한(_RESUME_MAX)을 두는 이유: 되돌리기 자체도 텍스트 주입이라, 비버가 그것마저
+    읽는 병리 상태가 되면 무한 왕복이 된다. 상한을 넘으면 로그만 남기고 통화를 그대로
+    둔다 — 시계·무음 넛지·백스톱이 여전히 정상 종료를 책임진다(R5).
+    """
+    state.tag_leak_seen = False  # 판정은 턴 단위 — 매번 리셋
+    if state.resume_sent >= _RESUME_MAX:
+        logger.warning("normalcall: 태그 누출 재개 상한(%d) 도달 — 주입 생략", _RESUME_MAX)
+        return
+    state.resume_sent += 1
+    try:
+        await session.send_text_turn(_RESUME_SEED)
+        logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 재개 실패는 통화 무영향(R5)
+        logger.warning("normalcall: 대화 재개 시드 주입 실패(무시): %s", exc)
 
 
 async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) -> None:

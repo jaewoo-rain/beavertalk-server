@@ -44,7 +44,7 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - 통화 유형 2종(같은 엔진 + 대본만 교체): `build_system_instruction`(일반) / `build_leveltest_instruction`(레벨테스트). 공부/대화 블록·승급 알림·힌트는 신 인자 None 이면 출력 바이트 동일(하위호환).
 
 ### 레벨 시스템 (2026-07 신규 — 상세는 docs 3부작)
-외국인 학습자에게 **레벨테스트 → 체크판 → 자동 레벨업**을 서버가 자동으로 돌린다. 사용자에겐 레벨·점수를 **비노출**(D2).
+외국인 학습자에게 **레벨테스트 → 체크판 → 자동 레벨업**을 서버가 자동으로 돌린다. 레벨은 마이페이지에 **노출**한다(2026-07-31 D2 폐기 — 종합 레벨 카드 + 레벨별 고정 "상위 N%" `service/level_percentile.py`). 체크판 항목별 상태·진행률은 여전히 비노출.
 - **레벨 13단계**: L1 생존회화(청크 46) + L2~13 = CEFR A1~C4. `member.korean_level`(1~13). 커리큘럼 마스터 `learning_item`(문법 459 + 어휘 10,636 + 청크 46 ≈ 1.1만 행).
 - **체크판 3테이블**: `member_item_progress`(희소 — 행 부재=미학습), `item_evidence`(append-only 감사 로그 — **상태·승급의 원본, UPDATE 금지**), `member_level_history`(승급 이력·멱등 키).
 - **관통 원칙 3**: ①AI는 증인 코드가 심판(LLM 판정은 인용 검증 통과해야 데이터) ②증거가 원본·나머지는 파생 계산(별도 플래그 금지) ③선별은 SQL·AI엔 골라서 떠먹임(벡터DB 불필요).

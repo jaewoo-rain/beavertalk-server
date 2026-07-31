@@ -45,3 +45,7 @@ tts_key.json
 # FCM/서비스계정 키 (절대 이미지에 넣지 않음)
 *fcm*.json
 *service-account*.json# (Cloud Build 업로드 제외 — .dockerignore 와 동일 유지. .gitignore 와 분리해 gitignore 변경이 빌드를 깨지 않게)
+
+# 캐릭터 아바타 원본(1440x1440 PNG 5장, 16MB) — 런타임 불필요. 배포처는 Supabase
+#   공개 버킷 character_image/ 이고 서버는 URL만 DB에 들고 있다. 빌드 업로드·이미지에서 제외.
+assets/avatars/

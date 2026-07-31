@@ -116,6 +116,71 @@ class PronunciationRepository:
         )
         return self.db.scalars(stmt).all()
 
+    def scored_call_ids(self, member_id: int, limit: int) -> list[int]:
+        """발음 점수가 **실제로 있는** 최근 통화 id N개(최근순).
+
+        recent_calls 와 달리 점수 없는 통화를 건너뛴다. 마이페이지의 "최근 N세션
+        평균"은 점수가 있는 세션 N개를 뜻하기 때문 — 통화만 하고 발음 챌린지를
+        안 누른 통화(대부분이다)를 세면 표본이 순식간에 비어버린다.
+        """
+        stmt = (
+            select(Call.call_id)
+            .join(Sentence, Sentence.call_id == Call.call_id)
+            .join(Evaluation, Evaluation.sentence_id == Sentence.sentence_id)
+            .where(
+                Call.member_id == member_id,
+                Call.call_type == "normal",
+                Call.status == "done",
+                Sentence.deleted_at.is_(None),
+                Evaluation.pronunciation.is_not(None),
+            )
+            .group_by(Call.call_id, Call.call_date)
+            .order_by(Call.call_date.desc(), Call.call_id.desc())
+            .limit(limit)
+        )
+        return [int(r) for r in self.db.scalars(stmt).all()]
+
+    def metric_avgs(self, call_ids: Sequence[int]) -> dict[str, Optional[float]]:
+        """주어진 통화들의 발음 4지표 평균 + 표본 수.
+
+        통화별로 먼저 평균 내지 않고 **문장 단위로 한 번에** 평균한다. 통화별 평균의
+        평균은 문장이 1개인 통화에 과한 가중치를 준다(통화 A 1문장 50점 + 통화 B
+        10문장 90점 → 통화평균 70 vs 문장평균 86.4). 화면 문구가 "세션 평균"이라
+        헷갈리지만, 사용자가 기대하는 건 "내 발음이 대체로 몇 점이냐"다.
+        """
+        empty: dict[str, Optional[float]] = {
+            "total_score": None, "pronunciation": None,
+            "fluency": None, "rhythm": None, "sentence_count": 0,
+        }
+        if not call_ids:
+            return empty
+        stmt = (
+            select(
+                func.avg(Evaluation.total_score),
+                func.avg(Evaluation.pronunciation),
+                func.avg(Evaluation.fluency),
+                func.avg(Evaluation.rhythm),
+                func.count(),
+            )
+            .join(Sentence, Sentence.sentence_id == Evaluation.sentence_id)
+            .where(
+                Sentence.call_id.in_(call_ids),
+                Sentence.deleted_at.is_(None),
+                Evaluation.pronunciation.is_not(None),
+            )
+        )
+        row = self.db.execute(stmt).one_or_none()
+        if row is None:
+            return empty
+        total, pron, flu, rhy, n = row
+        return {
+            "total_score": float(total) if total is not None else None,
+            "pronunciation": float(pron) if pron is not None else None,
+            "fluency": float(flu) if flu is not None else None,
+            "rhythm": float(rhy) if rhy is not None else None,
+            "sentence_count": int(n or 0),
+        }
+
     def active_sentence_counts(self, call_ids: Sequence[int]) -> dict[int, int]:
         """call_id → 활성 문장 수."""
         if not call_ids:

@@ -312,8 +312,14 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
     item = plans[0]["items"][0]
     assert item == {"item_id": 77, "ko": "안녕하세요?", "roman": "annyeonghaseyo?",
                     "meaning": "Hello.", "example": None, "kind": "chunk"}
-    # 첫 텍스트 프레임(통화 본편 이전) — 카드 화면이 통화 시작과 함께 뜬다
-    assert _sent_types(ws)[0] == "teaching_plan"
+    # 통화 본편 이전에 나간다 — 카드 화면이 통화 시작과 함께 뜬다.
+    # (인덱스 0 으로 못 박지 않는다: 앞에 call_started 같은 세션 메타가 붙을 수 있고,
+    #  중요한 건 "몇 번째냐"가 아니라 **첫 턴보다 먼저냐**다.)
+    types = _sent_types(ws)
+    assert "turn_start" in types, f"턴이 시작되지 않음: {types}"
+    assert types.index("teaching_plan") < types.index("turn_start"), (
+        f"teaching_plan 이 통화 본편보다 늦게 나감: {types}"
+    )
 
 
 # --------------------------------------------------------------------------- #

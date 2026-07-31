@@ -2,9 +2,10 @@
 
 검증 대상:
     - 콜타입 자동 라우팅(D11): korean_level=None → level_test 대본/call_type,
-      보유자 → normal 대본, start(call_type="level_test") 명시 재측정(non-prod).
-    - 명시 강등(P1): 데모(target_language 오버라이드) 명시 level_test → normal,
-      prod 재측정(korean_level 보유) 명시 level_test → normal.
+      보유자 → normal 대본, start(call_type="level_test") 명시 재측정(전 환경).
+    - 명시 강등(P1): 레벨테스트 미지원 언어(회화 전용) 명시 level_test → normal.
+      ⚠ "강등"은 이번 통화 종류를 normal 로 돌린다는 뜻 — 학습자 레벨은 안 건드린다.
+      옛 "prod 재측정 강등"은 폐지됐다(환경별 동작 분기 제거 — 재측정은 전 환경 허용).
     - analyze_level_test_call: 판정 성공 단일 커밋 저장 / 빈 전사 스킵 / LLM 실패 /
       모순 출력(unknown+sufficient) failed / member 소실 failed(부분 저장 없음).
     - _place_from_band: 넓은 레벨 매핑(chunk→1/a1→2/a2·a3·a4→3/mid→6/adv→10 — a3·a4 L3 흡수),
@@ -223,26 +224,32 @@ async def _wait_analysis_tasks():
         await asyncio.sleep(0.01)
 
 
-def _start_ws(character_id: int, call_type: str | None = None,
-              target_language: str | None = None) -> FakeWebSocket:
-    """start 메시지 1건으로 통화를 시작하는 가짜 WS(옵션 call_type/target_language 명시)."""
+def _start_ws(character_id: int, call_type: str | None = None) -> FakeWebSocket:
+    """start 메시지 1건으로 통화를 시작하는 가짜 WS(옵션 call_type 명시).
+
+    ⛔ target_language 는 start 에 싣지 않는다 — 서버가 무시한다(단일 소스는
+    member.target_language). 언어는 _run_one_call 이 run_call 인자로 넘긴다.
+    """
     start: dict = {"type": "start", "character_id": character_id}
     if call_type is not None:
         start["call_type"] = call_type
-    if target_language is not None:
-        start["target_language"] = target_language
     return FakeWebSocket([{"type": "websocket.receive", "text": json.dumps(start)}])
 
 
 async def _run_one_call(session_factory, member_id: int, character_id: int,
                         call_type: str | None = None,
                         target_language: str | None = None) -> dict:
-    """run_call 1회 실행 + 분석 task 대기 → holder(system_instruction 등) 반환."""
+    """run_call 1회 실행 + 분석 task 대기 → holder(system_instruction 등) 반환.
+
+    target_language 는 **DB 값**(member.target_language)으로 넘긴다 — 소켓으로 보내면
+    서버가 무시하기 때문이다.
+    """
     holder: dict = {}
-    ws = _start_ws(character_id, call_type, target_language)
+    ws = _start_ws(character_id, call_type)
     await run_call(
         ws, app_settings, object(), session_factory,
         member_id=member_id,
+        member_target_language=target_language,
         live_session_factory=make_live_factory(holder),
     )
     await _wait_analysis_tasks()
@@ -419,31 +426,33 @@ async def test_ja_level_test_active_uses_japanese_ladder(
         db.close()
 
 
+@pytest.mark.parametrize("env", ["prod", "test", "dev"])
 @pytest.mark.asyncio
-async def test_prod_remeasure_explicit_level_test_demoted_to_normal(
-    session_factory, seeded, monkeypatch, caplog
-):
-    """F2: prod && korean_level 보유자 + 명시 call_type=level_test → normal 강등
-    (재측정은 미지원 — 후속 기능) + warning."""
-    monkeypatch.setattr(app_settings, "ENV", "prod")
-    with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
-        holder = await _run_one_call(
-            session_factory, seeded["member_l5"], seeded["character_id"],
-            call_type="level_test",
-        )
+async def test_remeasure_allowed_in_every_env(session_factory, seeded, monkeypatch, env):
+    """레벨 보유자의 명시 재측정은 **환경과 무관하게** 허용된다.
+
+    옛날엔 "prod && 레벨 보유자면 normal 로 강등"이 있었는데 전제가 전부 틀렸다 —
+    ① 실서비스(app-api)조차 ENV="test" 라 그 분기는 애초에 안 걸렸고 ② 환경마다 동작이
+    갈리면 테스트한 경로와 배포된 경로가 달라진다 ③ 재측정 허용은 제품 규칙이지 서버가
+    어디 떠 있느냐의 문제가 아니다. ENV="test" 케이스가 특히 중요하다(실서비스 값).
+    """
+    monkeypatch.setattr(app_settings, "ENV", env)
+    holder = await _run_one_call(
+        session_factory, seeded["member_l5"], seeded["character_id"],
+        call_type="level_test",
+    )
 
     instr = holder["system_instruction"]
-    assert "[학습자 수준]" in instr  # 일반 대본(레벨 5 프로파일 주입)
-    assert "[진행 — 네가 이끈다]" not in instr
+    assert "[진행 — 네가 이끈다]" in instr, f"ENV={env}: 레벨테스트 대본이 아님"
+    assert "[학습자 수준]" not in instr, f"ENV={env}: 일반 대본으로 강등됨"
 
     db = session_factory()
     try:
         calls = db.query(Call).all()
         assert len(calls) == 1
-        assert calls[0].call_type == "normal"
+        assert calls[0].call_type == "level_test", f"ENV={env}: call_type 강등됨"
     finally:
         db.close()
-    assert any("재측정" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio
@@ -584,11 +593,19 @@ def test_place_from_band_unknown_or_none_returns_one():
         _assessment(band="a1", sample_quality="none")) == 1
 
 
-def test_user_char_total_counts_letters_and_digits_only():
-    """F4: 유니코드 letter/digit 만 계수 — 문장부호·기호·이모지는 제외."""
+def test_user_char_total_counts_only_target_script():
+    """F4: **대상 언어 문자만** 계수 — 문장부호·기호·이모지·숫자·타 언어는 제외.
+
+    예전엔 isalnum() 으로 아무 문자나 셌다. 그래서 일본어 레벨테스트에서 한국어로만
+    떠들어도 표본 게이트를 통과했다(실측 call=818: 일본어 21자인데 한국어 143자가
+    더해져 164자로 통과 → 마커 1개로 A1 배정). 이제 언어를 인자로 받는다.
+
+    숫자가 빠진 것도 의도다 — "123" 은 어느 언어로도 산출 증거가 아니다.
+    """
     dialog = "[USER] 안녕!! 123 🙂...\n[BEAVER] 네, 반가워요"
-    assert svc._user_char_total(dialog) == 5  # 안녕(2) + 123(3)
-    assert svc._user_char_total("[USER] !!!???...###") == 0
+    assert svc._user_char_total(dialog, "ko") == 2   # 안녕(2). 숫자·기호 제외
+    assert svc._user_char_total(dialog, "ja") == 0   # 한국어는 일본어 표본이 아니다
+    assert svc._user_char_total("[USER] !!!???...###", "ko") == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -756,7 +773,18 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
     with caplog.at_level(logging.WARNING, logger="domains.learning.realtime.call_session"):
         result = await cs._read_initial_start(ws)
 
-    assert result == (7, None, None, None, None)
+    # StartParams(NamedTuple) — **이름으로** 확인한다. 위치 튜플과 비교하면 필드를
+    # 하나 더할 때마다 무관한 테스트가 깨진다(실제로 두 번 깨졌다).
+    assert result.character_id == 7
+    assert result._asdict() == {
+        "character_id": 7,
+        "locale": None,
+        "target_language": None,
+        "call_type": None,
+        "duration_min": None,
+        "tz_offset_min": None,
+        "inbound_call_id": None,
+    }
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)
 

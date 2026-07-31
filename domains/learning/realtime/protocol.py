@@ -38,25 +38,51 @@ class ClientStart(BaseModel):
     """통화 시작 신호(오디오 스트리밍 전에 1회). user/level/locale 은 서버가 DB 로 얻는다.
 
     Attributes:
-        character_id: 통화할 캐릭터(페르소나) id.
+        character_id: ⛔ **폐기 — 서버가 무시한다.** 통화 캐릭터의 단일 소스는 서버다:
+            수신통화면 inbound_call_id 로 되짚은 알람의 캐릭터, 그 외에는
+            member.character_id. 필드를 지우지 않는 이유는 target_language 와 같다 —
+            이미 배포된 앱이 계속 보내는데 제거하면 pydantic 422 로 통화가 아예
+            안 열린다. 받되 쓰지 않는다.
+
+            왜 뺐나: 앱의 call_loading 이 `args is int ? args : 1` 로 폴백해, 인자를
+            안 넘기는 진입점(마이페이지·기록·온보딩완료)에서 항상 1(BABA)을 보냈다.
+            prod 통화 701 건 중 421 건(60%)이 사용자가 고른 캐릭터가 아닌 상대와
+            연결됐다. 게다가 소유 검증이 없어 미구매 유료 캐릭터로도 126 건이
+            진행됐다 — 앱을 고치면 얼마든지 부를 수 있었다. 둘 다 "캐릭터를 클라가
+            정한다"가 뿌리라 통로 자체를 닫았다.
+        inbound_call_id: (선택) **수신통화일 때만.** 푸시로 받은 통화 id(uuid4)를
+            그대로 돌려준다. 서버가 push_dispatch_log 로 알람을 되짚어 그 알람의
+            캐릭터를 쓴다 — 알람마다 캐릭터가 다를 수 있는데 member.character_id
+            하나로는 그걸 표현할 수 없기 때문이다.
+
+            앱이 **고른 값이 아니라** 서버가 내려준 불투명한 uuid 라서 캐릭터 선택
+            통로가 되지 않는다. 남의 uuid 를 들고 와도 알람 주인이 아니면 거절된다.
+            홈에서 직접 거는 통화는 보내지 않는다(= member.character_id 사용).
         locale: (선택) 모국어 override. 없으면 member.language 사용.
-        target_language: (선택) 가르치는 대상 언어 **코드**(ISO 639-1: ko/en/ja/zh/fr/vi).
-            서버가 core.languages.resolve_language 로 해석하고, 미지원/부재면
-            settings.DEFAULT_TARGET_LANGUAGE("ko")로 폴백. 전환기 한정으로 구 데모의
-            한국어 라벨("프랑스어" 등)도 코드로 역해석한다(하위호환). 없으면 None → ko.
+        target_language: ⛔ **폐기 — 서버가 무시한다.** 학습 대상 언어의 단일 소스는
+            DB(member.target_language)이고, 바꾸는 통로는 PATCH /members/me 뿐이다.
+            필드를 지우지 않는 이유: 이미 배포된 앱이 계속 보내는데 제거하면 pydantic
+            검증에서 422 가 나 통화가 아예 안 열린다. 받되 쓰지 않는다.
+            근거: docs/20260728_0125_학습언어-DB-단일소스화와-모국어-정규화.md
         call_type: (선택) 통화 종류. None(기본)이면 서버가 판단한다(D11 자동 라우팅:
             member.korean_level 미확정 → level_test). 명시하면 그 값이 우선 —
             미래 레벨 재측정 요청 통로(기존 클라는 이 필드를 안 보내므로 무영향).
+        tz_offset_min: (선택) 클라 UTC 오프셋(분, 동쪽 +). KST=540. 일일 통화 한도의
+            "하루" 경계를 클라 로컬 자정으로 잡는 데 쓴다 — 서버가 UTC 로 고정하면
+            한국 사용자는 오전 9시에 날짜가 바뀐다. 미전송(구버전 앱)이면 UTC(0).
+            GET /calls/daily-status 의 tz_offset 과 같은 의미·같은 값을 보내야 한다.
         duration_min: (선택) 통화 길이(분) override. **데모/dev 전용** — prod 에서는
             서버가 무시하고 기본값을 쓴다. 서버가 3~15분으로 클램프. 없으면 기본값.
     """
 
     type: Literal["start"] = "start"
-    character_id: int
+    character_id: int | None = None
+    inbound_call_id: str | None = None
     locale: str | None = None
     target_language: str | None = None
     call_type: Literal["normal", "level_test"] | None = None
     duration_min: int | None = None
+    tz_offset_min: int | None = None
 
 
 class ClientPlaybackDone(BaseModel):
@@ -127,6 +153,21 @@ class ServerCallEnded(BaseModel):
     reason: str = "done"
 
 
+class ServerCallStarted(BaseModel):
+    """서버가 **이 통화의 캐릭터를 정했다**는 통지 — 오디오가 흐르기 전 1회.
+
+    캐릭터 결정이 서버로 넘어오면서 필요해졌다. 앱은 통화 화면 아바타를
+    `myProfile.characterId`(대표 캐릭터)로 그리는데, 수신통화는 알람마다 캐릭터가
+    다를 수 있어 **대화 상대와 화면 얼굴이 어긋난다**. 서버가 고른 값을 알려주면
+    앱이 그걸로 그려 한 사람으로 맞춰진다.
+
+    구버전 클라는 미지 타입을 무시하므로 무해(기존 동작 유지 = 대표 캐릭터 표시).
+    """
+
+    type: Literal["call_started"] = "call_started"
+    character_id: int
+
+
 class ServerError(BaseModel):
     type: Literal["error"] = "error"
     code: str
@@ -192,6 +233,7 @@ ServerMessage = Annotated[
         ServerInputTranscript,
         ServerTurnEnd,
         ServerCallEnded,
+        ServerCallStarted,
         ServerError,
         ServerPong,
         ServerTeachingPlan,

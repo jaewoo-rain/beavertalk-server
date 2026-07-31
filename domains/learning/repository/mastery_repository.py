@@ -486,6 +486,9 @@ def pick_chat_targets(
     3개 = practicing 중 last_used_at 오래된 순(주력 복습) / 1개 = mastered 최고령
     (리텐션 불시 점검) / 1개 = 최근 7일 introduced(갓 배운 것 굳히기). 부족분은
     practicing 으로 보충. 전부 level_no<=내레벨 한정. (멀티랭귀지) language 필터.
+
+    ⚠ **placement 는 뺀다** — 이유는 known_grammar 와 같다. 레벨 배정으로 찍힌 항목을
+    "복습·리텐션 점검" 대상으로 삼으면, 해본 적 없는 표현을 다시 꺼내라고 유도하게 된다.
     """
     def base(status_cond):
         return (
@@ -493,6 +496,7 @@ def pick_chat_targets(
             .join(MemberItemProgress, MemberItemProgress.item_id == LearningItem.item_id)
             .where(
                 MemberItemProgress.member_id == member_id,
+                MemberItemProgress.provenance != "placement",
                 LearningItem.language == language,
                 LearningItem.level_no <= level_no,
                 status_cond,
@@ -552,6 +556,16 @@ def known_grammar(db: Session, member_id: int, language: str = "ko") -> list[str
     """아는 문법 표기 ≤40(mechanics ③ soft 범위) — practicing/mastered, 최신 레벨 우선.
 
     (멀티랭귀지) learning_item.language 로 대상 언어 문법만.
+
+    ⚠ **placement 는 뺀다.** 레벨 k 를 배정받으면 하위 레벨 항목이 grandfathering 으로
+    한꺼번에 introduced/mastered 로 찍히는데(apply_grandfathering), 그건 "재교육하지
+    마라"는 **선별용 표시**지 학습자가 실제로 해본 것이 아니다. 이걸 프롬프트에 넣으면
+    비버가 배운 적 없는 표현을 두고 "그거 기억나?" 라고 한다(실측: 일본어 2단계 배정
+    직후 1단계 46개가 증거 0건인 채 introduced → 비버가 자기소개를 배웠다고 말함).
+
+    실증거가 붙으면 provenance 가 placement → observed 로 승격되므로(mastery_service),
+    이 조건은 정확히 "아직 증거가 없는 것" 만 걸러낸다. 재교육 방지는 pick_study_items
+    가 progress 행 존재로 판단하니 그대로 유지된다.
     """
     rows = db.scalars(
         select(LearningItem.surface)
@@ -559,6 +573,7 @@ def known_grammar(db: Session, member_id: int, language: str = "ko") -> list[str
         .where(
             MemberItemProgress.member_id == member_id,
             MemberItemProgress.status.in_(("practicing", "mastered")),
+            MemberItemProgress.provenance != "placement",
             LearningItem.language == language,
             LearningItem.kind == "grammar",
         )

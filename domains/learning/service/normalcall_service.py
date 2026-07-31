@@ -31,10 +31,13 @@ from core.audio import (
 )
 from core.config import Settings, settings
 from core.gemini_live import DEFAULT_VOICE
+from core.languages import count_target_script_chars, resolve_language
 from core.persona_prompt import _LOCALE_LABEL
 from domains.account.models.member import Member
 from domains.account.models.member_reason import REASON_LABELS
+from domains.alarm.models.alarm import Alarm
 from domains.commerce.models.character import Character
+from domains.commerce.models.member_character import MemberCharacter
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
@@ -43,6 +46,7 @@ from domains.learning.models.level import Level
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository import mastery_repository
 from domains.learning.service import mastery_service
+from domains.push.models.push_dispatch_log import PushDispatchLog
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +85,87 @@ def _base_locale(lang: str | None) -> str:
     if not lang or not lang.strip():
         return "en"
     return lang.strip().replace("_", "-").split("-")[0].lower() or "en"
+
+
+def resolve_call_character(
+    db: Session, member_id: int, inbound_call_id: Optional[str] = None
+) -> int:
+    """이 통화의 캐릭터를 **서버가 정한다**. 클라는 캐릭터를 지정하지 못한다.
+
+    두 가지 실측 사고를 함께 막는다.
+
+    ① **엉뚱한 캐릭터로 연결** — 앱의 `call_loading` 이 `args is int ? args : 1` 로
+       폴백해, 인자를 안 넘기는 진입점(마이페이지·기록·온보딩완료)에서 항상 1(BABA)
+       을 보냈다. prod 통화 701 건 중 421 건(60%)이 사용자가 고른 캐릭터가 아닌
+       상대와 연결됐다(통화=1·선택=10 이 214 건).
+
+    ② **미구매 캐릭터 통화** — 예전엔 소유 검증이 전혀 없어서 `db.get(Character, id)`
+       만 했다. prod 에서 미구매 Bibi($10)로 126 건이 진행됐고, 앱을 고친 클라이언트
+       라면 유료 캐릭터를 얼마든지 부를 수 있었다.
+
+    둘 다 뿌리가 같다 — **캐릭터를 클라가 정했다**. 그래서 `start.character_id` 를
+    폐기하고 서버가 두 출처에서만 읽는다:
+
+        수신통화(알람)  inbound_call_id → push_dispatch_log → alarm.character_id
+        그 외 모든 경로  member.character_id (사용자가 고른 대표 캐릭터)
+
+    `inbound_call_id` 는 앱이 **고른 값이 아니라** 서버가 푸시로 내려준 불투명한
+    uuid 다. 위조해도 얻는 게 없다: 남의 uuid 는 모르고, 알아도 그 알람 주인이
+    아니면 아래에서 거절된다. 알람 캐릭터는 이미 사용자가 알람을 만들 때 고른
+    것이므로 소유 검증을 따로 하지 않는다(알람 생성 시점의 책임).
+
+    폴백 사슬(앞이 실패하면 다음으로):
+        알람 캐릭터 → member.character_id(소유 확인) → 가장 싼 캐릭터
+
+    ⚠ **거절이 아니라 폴백이다.** 통화는 사용자가 이미 마이크를 켜고 기다리는
+    순간이라, 캐릭터 문제로 연결을 끊으면 "전화가 안 됨"으로 보인다. 조용히
+    대표 캐릭터로 내려놓고 경고 로그를 남긴다(운영에서 집계 가능).
+
+    Returns:
+        실제로 통화에 쓸 character_id.
+    """
+    # ① 수신통화 — 서버가 발송할 때 남긴 로그로 알람을 되짚는다.
+    if inbound_call_id:
+        row = db.execute(
+            select(Alarm.character_id, Alarm.member_id)
+            .join(PushDispatchLog, PushDispatchLog.alarm_id == Alarm.alarm_id)
+            .where(PushDispatchLog.call_id == inbound_call_id)
+        ).first()
+        if row is None:
+            # 로그가 purge 됐거나(오래된 통화) 컬럼 추가 이전 발송.
+            logger.info(
+                "normalcall: inbound_call_id=%s 로 알람 못 찾음 → 대표 캐릭터",
+                inbound_call_id,
+            )
+        elif row.member_id != member_id:
+            # 남의 알람 uuid 를 들고 온 경우 — 캐릭터를 넘겨주지 않는다.
+            logger.warning(
+                "normalcall: 남의 알람 inbound_call_id member=%s owner=%s → 거절",
+                member_id, row.member_id,
+            )
+        else:
+            return row.character_id
+
+    # ② 사용자가 고른 대표 캐릭터. 소유를 확인한다 — member.character_id 는
+    #    ondelete=SET NULL 인 단순 FK 라 "고르기만 하고 안 산" 상태가 될 수 있다.
+    member = db.get(Member, member_id)
+    selected = member.character_id if member else None
+    if selected is not None and db.get(MemberCharacter, (member_id, selected)):
+        return selected
+
+    # ③ 마지막 폴백 = 가장 싼 캐릭터(온보딩 기본 무료 캐릭터). id 를 하드코딩하지
+    #    않는 이유는 IAP 상품 매핑과 같다 — 환경마다 character_id 가 다르다
+    #    (prod 1,2,9,10,11 / dev 1,2,3,4,5).
+    cheapest = db.scalar(
+        select(Character.character_id).order_by(
+            Character.price.asc().nulls_first(), Character.character_id.asc()
+        ).limit(1)
+    )
+    logger.warning(
+        "normalcall: 소유 캐릭터 없음 member=%s (대표=%s) → 기본 캐릭터 %s",
+        member_id, selected, cheapest,
+    )
+    return int(cheapest) if cheapest is not None else 1
 
 
 def _load_member_character(
@@ -160,7 +245,7 @@ def load_call_setup(
     )
     level_profile = (level.profile if level else "") or ""
 
-    history = _load_history(db, member_id) if member_found else None
+    history = _load_history(db, member_id, language) if member_found else None
 
     # 체크판 재료(P2-c2) — 레벨 확정 회원만. 선별 실패는 통화를 막지 않는다(R5 폴백).
     materials = _EMPTY_MATERIALS
@@ -209,26 +294,48 @@ def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dic
     return base
 
 
-def _load_history(db: Session, member_id: int) -> dict | None:
-    """최근 학습 이력(프롬프트 주입용): 최근 통화 요약 + 최근 배운 한국어 표현.
+def _load_history(
+    db: Session, member_id: int, language: str = "ko"
+) -> dict | None:
+    """최근 학습 이력(프롬프트 주입용): 최근 통화 요약 + 최근 배운 표현.
 
     {"summaries": [...최대 5], "expressions": [...최대 30, 중복 제거]} 또는 None(이력 없음).
     persona_prompt._history_block 이 이 형태를 기대한다.
+
+    ⚠ **language 로 반드시 거른다.** 예전엔 member_id 로만 걸러서, 한국어를 공부하다
+    일본어로 바꾼 학습자의 일본어 통화에 **한국어 요약·문장이 그대로 주입**됐다.
+    비버가 "그거 기억나?" 하며 배운 적 없는 한국어를 꺼내는 원인이었다
+    (실측: ja 회원의 통화 37건 중 ko 36건 → summaries 5건·expressions 14건 전부 한국어).
+
+    체크판·힌트 선별(mastery_repository)은 처음부터 LearningItem.language 로 걸렀는데
+    이 이력 주입 경로만 빠져 있었다. Call.target_language 는 NOT NULL 이라 조인 없이
+    바로 조건에 넣을 수 있다.
     """
     summaries = [
         s.strip()
         for s in db.scalars(
             select(Call.summary)
-            .where(Call.member_id == member_id, Call.summary.is_not(None))
+            .where(
+                Call.member_id == member_id,
+                Call.target_language == language,
+                Call.summary.is_not(None),
+            )
             .order_by(Call.call_date.desc())
             .limit(5)
         ).all()
         if s and s.strip()
     ]
+    # 컬럼명이 korean_sentence 지만 실제로는 **학습 대상 언어** 문장이 들어간다
+    # (멀티랭귀지에서 컬럼을 재사용했다). 그래서 언어 구분은 컬럼이 아니라
+    # 통화의 target_language 로만 할 수 있다.
     expr_rows = db.scalars(
         select(Sentence.korean_sentence)
         .join(Call, Sentence.call_id == Call.call_id)
-        .where(Call.member_id == member_id, Sentence.korean_sentence.is_not(None))
+        .where(
+            Call.member_id == member_id,
+            Call.target_language == language,
+            Sentence.korean_sentence.is_not(None),
+        )
         .order_by(Sentence.sentence_id.desc())
         .limit(30)
     ).all()
@@ -736,6 +843,42 @@ def _dialog_from_rows(rows: list[dict]) -> str:
 def _build_dialog(db: Session, call_id: int) -> str:
     """CallRawData 를 turn 순서대로 [USER]/[BEAVER] 전사로 조립한다(텍스트만)."""
     return _dialog_from_rows(_load_dialog_rows(db, call_id))
+
+
+# 레벨테스트 전사 필터: USER 줄이 대상 언어를 이만큼은 담아야 판정 재료로 남는다.
+# 2자 = 「です」 같은 최소 정중체 하나. 1자로 두면 「あ」 한 글자짜리 감탄사도 통과한다.
+_MIN_LINE_TARGET_CHARS = 2
+
+
+def _strip_non_target_user_lines(dialog: str, language: str) -> str:
+    """레벨테스트 판정 전, USER 줄에서 **대상 언어가 없는 것**을 걷어낸다.
+
+    ⚠ 왜 필요한가 — 실측(call=823, ja). 학습자가 한국어에 「데스」만 붙였는데
+    판정관이 그걸 일본어 문법으로 읽고 A3(3단계)를 줬다:
+
+        [user] 어제는 나는 그 연구실 갔다데스, 프로젝트 했다데스
+        [user] 어 모른다 데스 어렵다 데스
+        판정관: "'갔다데스','했다데스' 와 같이 동사의 과거형(〜た)을 사용하려 시도했으며,
+                 '모른다 데스' 와 같이 부정형(〜ない)을 사용하려 했습니다 … A3 밴드"
+
+    한국어 어미 '-다' 가 일본어 「〜た」로, '모른다' 가 「〜ない」로 둔갑했다. 프롬프트에
+    "대상 언어 발화만 인용하라"고 적혀 있어도 판정관은 **자기가 속은 걸 모른다** — 스스로
+    마커 4종을 찾았다고 확신했다. 그래서 LLM 에게 부탁하지 않고 **입력에서 지운다**.
+    「갔다데스」는 일본어 문자가 0자라 판정관 눈에 아예 들어가지 않는다.
+
+    BEAVER 줄은 남긴다 — 무엇을 물었는지가 있어야 "유도했는데 못 했다"를 판정관이 안다.
+    표본 게이트(_user_char_total)와 역할이 다르다: 게이트는 **판정을 돌릴지**를 정하고,
+    이건 **무엇을 근거로 삼을지**를 정한다. 게이트를 통과한 통화 안에서도 오염은 남는다.
+    """
+    prefix = "[USER] "
+    kept: list[str] = []
+    for line in dialog.splitlines():
+        if line.startswith(prefix):
+            body = line[len(prefix):]
+            if count_target_script_chars(body, language) < _MIN_LINE_TARGET_CHARS:
+                continue
+        kept.append(line)
+    return "\n".join(kept)
 
 
 def _verify_detections(
@@ -1494,6 +1637,10 @@ def _leveltest_instruction(
         "③ band: 위 [밴드 기준]의 마커 체크리스트에 비추어 7밴드(chunk/a1/a2/a3/a4/mid/adv) 중 하나를 고른다. "
         "학습자가 '실제로 산출한 가장 높은' 마커로 정하라 — 짧게 답했어도 그 밴드 마커가 실재하면 그 밴드다. "
         "관찰된 상위 마커를 '경계에서 망설여진다'는 이유로 낮추지 마라.\n"
+        f"- ⛔ **모국어 문장에 {t} 정중체 어미만 붙인 것은 {t} 산출이 아니다.** 예) 한국어 "
+        "'갔다'에 '데스'를 붙인 '갔다데스', '모른다 데스'. 문장의 뼈대가 모국어면 그 언어의 "
+        "문법을 부린 것이 아니므로 evidence 에서 빼고 마커로도 세지 마라. 특히 모국어 어미를 "
+        f"{t} 활용형으로 오인하지 마라(한국어 '-다' ≠ 일본어 「〜た」).\n"
         "[표본 규칙]\n"
         f"- 채점 가능한(scorable) {t} 발화가 2턴 이하면 sample_quality 를 sparse(빈약), 사실상 없으면 "
         "none(전무)으로 표시하고 confidence 를 낮춘다.\n"
@@ -1525,24 +1672,44 @@ def _place_from_band(result: LevelAssessment) -> int | None:
         return 1
     level = _BUCKET_LEVEL[result.band]
     # 변주 게이트(sim_elicit.py to_level): 서로 다른 구조가 ≤1이면 아무리 밴드가 높아도
-    # 암기/반복이므로 min(level, 2)로 캡(게이밍 방지 — 반복충·암기긴문장충 → L2).
-    if result.distinct_structures <= 1:
-        level = min(level, 2)
-    # 표본 빈약(sparse)이면 중급 이상 배치 금지 — 1~2건 표본으로 과배치하지 않는다(보수).
-    if result.sample_quality == "sparse":
+    # 암기/반복이므로 캡(게이밍 방지 — 반복충·암기긴문장충).
+    #
+    # ⚠ 캡 바닥이 오래 2였는데, 그러면 **1↔2 변별이 아예 안 됐다.** 인사 한 마디 +
+    #   외운 자기소개만 해도 밴드 a1(=2)이 나오고 캡을 걸어도 2라 무효였다(실측
+    #   call=818: 일본어 2턴·21자, 즉흥 산출 3연속 실패인데 2단계 배정).
+    #   실사용자 대다수가 생존회화도 안 되는 진짜 초보라, 이 구간의 변별이 핵심이다.
+    #   그래서 **두 신호가 겹치면 바닥을 1(생존회화)로** 내린다:
+    #     구조 ≤1  = 문법을 부린 게 아니라 통째로 외운 것
+    #     sparse   = 표본 2턴 이하 — 그 하나조차 재확인되지 않음
+    #   하나만 걸리면 종전대로 2 — 과소배치는 자동 레벨업이 단조 상승으로 회복하지만,
+    #   한 번에 바닥까지 떨어뜨리면 실제 A1 학습자가 생존회화를 다시 듣게 된다.
+    thin_sample = result.sample_quality == "sparse"
+    memorized = result.distinct_structures <= 1
+    if memorized and thin_sample:
+        level = min(level, 1)
+    elif memorized or thin_sample:
         level = min(level, 2)
     return level
 
 
-def _user_char_total(dialog: str) -> int:
-    """전사에서 USER 발화의 유의미 글자수를 센다 — 판정 스킵 가드용.
+def _user_char_total(dialog: str, language: str = "ko") -> int:
+    """전사에서 USER 가 **대상 언어로** 말한 글자수를 센다 — 판정 스킵 가드용.
 
-    유니코드 letter/digit(한글·영숫자 등)만 계수 — 문장부호·기호·이모지만으로
-    20자를 채워 무의미한 LLM 판정이 도는 것을 막는다.
+    ⚠ **모국어는 세지 않는다.** 예전엔 isalnum() 으로 아무 문자나 셌는데, 그러면
+    학습자가 모국어로 도망친 통화가 "표본 충분" 으로 통과한다. 실측(call=818, ja):
+
+        일본어 발화  こんにちは / 私はヤンジェウデス            → 21자
+        한국어 발화  "모르겠는데요" + 일본 여행 이야기 114자    → 143자
+        합계 164자 ≥ 20 → 게이트 통과 → 마커 1개(〜は〜です)로 A1(2단계) 배정
+
+    일본어 요구 3연속 실패인데 2단계가 나왔다. 대상 언어 문자만 세면 21자로,
+    이 통화는 여전히 통과하지만(21 ≥ 20) 한국어로만 떠든 통화는 0자로 걸린다.
+
+    문장부호·기호·이모지는 어느 언어에서도 안 세므로 그 방어는 그대로 유지된다.
     """
     prefix = "[USER] "
     return sum(
-        sum(1 for ch in line[len(prefix):] if ch.isalnum())
+        count_target_script_chars(line[len(prefix):], language)
         for line in dialog.splitlines()
         if line.startswith(prefix)
     )
@@ -1605,15 +1772,23 @@ async def analyze_level_test_call(
     """
     try:
         dialog = await run_db(session_factory, lambda db: _build_dialog(db, call_id))
-        user_chars = _user_char_total(dialog)
+        # target_language 는 라벨("일본어")로 오므로 코드로 되돌린다 — 미지원이면
+        # is_target_script_char 가 보수적으로 전부 계수한다(기존 동작).
+        _spec = resolve_language(target_language)
+        _lang_code = _spec.code if _spec else "ko"
+        user_chars = _user_char_total(dialog, _lang_code)
         if user_chars < _MIN_LEVELTEST_USER_CHARS:
             # 표본 미달 — 판정 스킵·미저장(korean_level None 유지 → 다음 통화 재테스트).
             logger.info(
-                "leveltest 판정: USER 발화 %d자(<%d) → 스킵·done call_id=%s member=%s",
-                user_chars, _MIN_LEVELTEST_USER_CHARS, call_id, member_id,
+                "leveltest 판정: USER %s 발화 %d자(<%d) → 스킵·done call_id=%s member=%s",
+                _lang_code, user_chars, _MIN_LEVELTEST_USER_CHARS, call_id, member_id,
             )
             await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
             return
+
+        # 모국어에 정중체만 붙인 줄(「갔다데스」)을 판정 재료에서 제거한다 —
+        # 판정관은 자기가 속은 걸 모르므로 입력에서 지우는 편이 확실하다.
+        dialog = _strip_non_target_user_lines(dialog, _lang_code)
 
         result = await gemini_analysis.generate_structured(
             client,

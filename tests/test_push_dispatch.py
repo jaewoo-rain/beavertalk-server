@@ -3,7 +3,7 @@
 검증 대상:
     - core.fcm.send_incoming_call        : data-only 멀티캐스트 페이로드 / 폐기토큰 분류 / graceful.
     - DispatchService.run                : (시각·요일) 매칭, catch-up, 제외 규칙, dead 토큰 무효화.
-    - DispatchService (dedup gate)        : _claim False 면 발송 안 함.
+    - DispatchService (dedup gate)        : _claim 이 None(중복)이면 발송 안 함.
     - internal.dispatch_calls            : 공유 시크릿 가드(미설정/불일치/일치).
 
 환경 제약(반드시 모킹):
@@ -37,6 +37,7 @@ from domains.push.models.device_token import DeviceToken
 
 import core.fcm as fcm_mod
 from core.fcm import FcmSendResult, send_incoming_call
+from core.push_defaults import DEFAULT_CALLER_NAME
 import domains.push.service.dispatch_service as dsvc
 from domains.push.service.dispatch_service import DispatchService, _DAY_CODES
 
@@ -191,7 +192,7 @@ def test_fcm_payload_is_data_only_all_strings(fake_messaging):
     fake_messaging.responses = [_resp(True), _resp(True)]
     res = send_incoming_call(
         tokens=["tokA", "tokB"], call_id="c-1", character_id=7,
-        name="비버 튜터", image_url="https://img/x.png",
+        name="BIBI", image_url="https://img/x.png",
     )
     msg = fake_messaging.captured_msg
     # data-only: notification 없음(가짜 클래스에 넘겼다면 값이 있었을 것)
@@ -216,7 +217,10 @@ def test_fcm_name_and_image_fallback(fake_messaging):
     send_incoming_call(tokens=["t"], call_id="c", character_id=1,
                        name=None, image_url=None)
     data = fake_messaging.captured_msg.data
-    assert data["name"] == "비버 튜터"  # None → 기본 이름
+    # 폴백은 core.push_defaults 가 단일 소스 — 문구를 하드코딩하면 또 어긋난다.
+    assert data["name"] == DEFAULT_CALLER_NAME  # None → 기본 이름
+    # ★ 30개 로케일 앱의 잠금화면에 뜨는 문구다. 한글이 섞이면 안 된다.
+    assert data["name"].isascii(), "발신자 기본 이름에 비ASCII 문구가 들어감"
     assert data["image_url"] == ""      # None → 빈 문자열
     assert all(isinstance(v, str) for v in data.values())
 
@@ -270,13 +274,16 @@ def test_fcm_send_exception_is_graceful(fake_messaging):
 # =========================================================================== #
 @pytest.fixture()
 def patch_dispatch(monkeypatch):
-    """_claim True(기록), _purge no-op, fcm.send_incoming_call 가짜로 교체."""
+    """_claim 성공(call_id 반환·기록), _purge no-op, fcm.send_incoming_call 가짜로 교체."""
     claims = []
     fcm_calls = []
 
+    # _claim 은 성공 시 **발급한 call_id** 를, 중복이면 None 을 준다(bool 아님).
+    # 이 값이 그대로 푸시 페이로드의 call_id 가 되고, 통화가 열릴 때 서버가
+    # 그걸로 알람을 되짚어 캐릭터를 정한다.
     def fake_claim(self, alarm_id, bucket_key):
         claims.append((alarm_id, bucket_key))
-        return True
+        return f"call-{alarm_id}-{bucket_key}"
 
     monkeypatch.setattr(DispatchService, "_claim", fake_claim)
     monkeypatch.setattr(DispatchService, "_purge", lambda self: None)
@@ -435,12 +442,14 @@ def test_run_dead_token_marks_invalid_and_commits(
 
 
 # =========================================================================== #
-# C. dedup gate — _claim False 면 발송 안 함
+# C. dedup gate — _claim 이 None(중복)이면 발송 안 함
 # =========================================================================== #
 def test_run_claim_false_skips_send(session_factory, monkeypatch):
     now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
     _patch_now(monkeypatch, now)
-    monkeypatch.setattr(DispatchService, "_claim", lambda self, aid, key: False)
+    # 중복 클레임 = None. ⚠ False 를 쓰면 안 된다 — `is not None` 검사를 통과해
+    #   중복인데도 발송된다(계약이 bool → Optional[str] 로 바뀌었다).
+    monkeypatch.setattr(DispatchService, "_claim", lambda self, aid, key: None)
     monkeypatch.setattr(DispatchService, "_purge", lambda self: None)
     fcm_calls = []
     monkeypatch.setattr(fcm_mod, "send_incoming_call",

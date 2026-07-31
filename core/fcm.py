@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 
 from core.config import settings
+from core.push_defaults import DEFAULT_CALLER_NAME
 
 logger = logging.getLogger(__name__)
 _app = None
@@ -79,7 +80,7 @@ def send_incoming_call(
         data={
             "call_id": call_id,
             "character_id": str(character_id),
-            "name": name or "비버 튜터",
+            "name": name or DEFAULT_CALLER_NAME,
             "image_url": image_url or "",
         },
         android=messaging.AndroidConfig(
