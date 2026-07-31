@@ -406,3 +406,68 @@ def test_placement_promoted_to_observed_becomes_known(db):
     prog.provenance = "observed"   # mastery_service 가 증거 반영 시 하는 일
     db.commit()
     assert known_grammar(db, m.member_id, "ja") == ["〜は〜です"]
+
+
+# --------------------------------------------------------------------------- #
+# 8) 판정 전사 필터 — 모국어에 정중체만 붙인 발화를 근거로 세면 안 된다
+# --------------------------------------------------------------------------- #
+def test_strip_removes_native_lines_with_polite_suffix():
+    """★ 실측 call=823: 「갔다데스」를 일본어 과거형 「〜た」로 읽고 A3(3단계)를 줬다.
+
+    판정관은 자기가 속은 걸 모른다 — 스스로 마커 4종을 찾았다고 확신했다. 그래서
+    프롬프트로 부탁하지 않고 입력에서 지운다.
+    """
+    from domains.learning.service.normalcall_service import _strip_non_target_user_lines
+
+    dialog = "\n".join([
+        "[BEAVER] 일본어로 인사할 수 있어요?",
+        "[USER] こんにちは 。私 は ヤン ジェウ です よ 。",
+        "[BEAVER] 어제는 뭘 하셨어요?",
+        "[USER] 어제는 나는 그 연구실 갔다데스, 그리고 프로젝트 했다데스.",
+        "[USER] 어 모른다 데스 어렵다 데스",
+    ])
+    out = _strip_non_target_user_lines(dialog, "ja").splitlines()
+
+    assert "[USER] こんにちは 。私 は ヤン ジェウ です よ 。" in out
+    assert not any("갔다데스" in l for l in out), "한국어+데스가 남았다"
+    assert not any("모른다 데스" in l for l in out), "한국어+데스가 남았다"
+
+
+def test_strip_keeps_beaver_lines():
+    """비버 질문은 남긴다 — "유도했는데 못 했다"를 판정관이 알아야 한다."""
+    from domains.learning.service.normalcall_service import _strip_non_target_user_lines
+
+    dialog = "\n".join([
+        "[BEAVER] 어디에 사세요? 일본어로 말해 볼래요?",
+        "[USER] 아니요 모르겠는데요",
+    ])
+    out = _strip_non_target_user_lines(dialog, "ja").splitlines()
+    assert out == ["[BEAVER] 어디에 사세요? 일본어로 말해 볼래요?"]
+
+
+def test_strip_keeps_mixed_line_with_real_target_speech():
+    """진짜 일본어가 섞여 있으면 남긴다 — 과하게 지우면 근거가 사라진다."""
+    from domains.learning.service.normalcall_service import _strip_non_target_user_lines
+
+    dialog = "[USER] 어제는 연구실 갔어요. 私 は 学生 です 。"
+    assert _strip_non_target_user_lines(dialog, "ja") == dialog
+
+
+def test_strip_korean_call_is_unaffected():
+    """한국어 통화는 그대로 — 하위호환."""
+    from domains.learning.service.normalcall_service import _strip_non_target_user_lines
+
+    dialog = "\n".join([
+        "[BEAVER] 자기소개 해 주세요",
+        "[USER] 저는 학생이에요. 오늘 학교에 갔어요.",
+    ])
+    assert _strip_non_target_user_lines(dialog, "ko") == dialog
+
+
+def test_prompt_forbids_native_stem_with_polite_suffix():
+    """프롬프트 2차 방어도 남아 있어야 한다(필터가 놓친 경계 대비)."""
+    from domains.learning.service.normalcall_service import _leveltest_instruction
+
+    p = _leveltest_instruction("ko", "", target_language="일본어")
+    assert "갔다데스" in p
+    assert "정중체 어미만" in p

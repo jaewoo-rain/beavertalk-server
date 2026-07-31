@@ -845,6 +845,42 @@ def _build_dialog(db: Session, call_id: int) -> str:
     return _dialog_from_rows(_load_dialog_rows(db, call_id))
 
 
+# 레벨테스트 전사 필터: USER 줄이 대상 언어를 이만큼은 담아야 판정 재료로 남는다.
+# 2자 = 「です」 같은 최소 정중체 하나. 1자로 두면 「あ」 한 글자짜리 감탄사도 통과한다.
+_MIN_LINE_TARGET_CHARS = 2
+
+
+def _strip_non_target_user_lines(dialog: str, language: str) -> str:
+    """레벨테스트 판정 전, USER 줄에서 **대상 언어가 없는 것**을 걷어낸다.
+
+    ⚠ 왜 필요한가 — 실측(call=823, ja). 학습자가 한국어에 「데스」만 붙였는데
+    판정관이 그걸 일본어 문법으로 읽고 A3(3단계)를 줬다:
+
+        [user] 어제는 나는 그 연구실 갔다데스, 프로젝트 했다데스
+        [user] 어 모른다 데스 어렵다 데스
+        판정관: "'갔다데스','했다데스' 와 같이 동사의 과거형(〜た)을 사용하려 시도했으며,
+                 '모른다 데스' 와 같이 부정형(〜ない)을 사용하려 했습니다 … A3 밴드"
+
+    한국어 어미 '-다' 가 일본어 「〜た」로, '모른다' 가 「〜ない」로 둔갑했다. 프롬프트에
+    "대상 언어 발화만 인용하라"고 적혀 있어도 판정관은 **자기가 속은 걸 모른다** — 스스로
+    마커 4종을 찾았다고 확신했다. 그래서 LLM 에게 부탁하지 않고 **입력에서 지운다**.
+    「갔다데스」는 일본어 문자가 0자라 판정관 눈에 아예 들어가지 않는다.
+
+    BEAVER 줄은 남긴다 — 무엇을 물었는지가 있어야 "유도했는데 못 했다"를 판정관이 안다.
+    표본 게이트(_user_char_total)와 역할이 다르다: 게이트는 **판정을 돌릴지**를 정하고,
+    이건 **무엇을 근거로 삼을지**를 정한다. 게이트를 통과한 통화 안에서도 오염은 남는다.
+    """
+    prefix = "[USER] "
+    kept: list[str] = []
+    for line in dialog.splitlines():
+        if line.startswith(prefix):
+            body = line[len(prefix):]
+            if count_target_script_chars(body, language) < _MIN_LINE_TARGET_CHARS:
+                continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def _verify_detections(
     db: Session,
     call_id: int,
@@ -1601,6 +1637,10 @@ def _leveltest_instruction(
         "③ band: 위 [밴드 기준]의 마커 체크리스트에 비추어 7밴드(chunk/a1/a2/a3/a4/mid/adv) 중 하나를 고른다. "
         "학습자가 '실제로 산출한 가장 높은' 마커로 정하라 — 짧게 답했어도 그 밴드 마커가 실재하면 그 밴드다. "
         "관찰된 상위 마커를 '경계에서 망설여진다'는 이유로 낮추지 마라.\n"
+        f"- ⛔ **모국어 문장에 {t} 정중체 어미만 붙인 것은 {t} 산출이 아니다.** 예) 한국어 "
+        "'갔다'에 '데스'를 붙인 '갔다데스', '모른다 데스'. 문장의 뼈대가 모국어면 그 언어의 "
+        "문법을 부린 것이 아니므로 evidence 에서 빼고 마커로도 세지 마라. 특히 모국어 어미를 "
+        f"{t} 활용형으로 오인하지 마라(한국어 '-다' ≠ 일본어 「〜た」).\n"
         "[표본 규칙]\n"
         f"- 채점 가능한(scorable) {t} 발화가 2턴 이하면 sample_quality 를 sparse(빈약), 사실상 없으면 "
         "none(전무)으로 표시하고 confidence 를 낮춘다.\n"
@@ -1745,6 +1785,10 @@ async def analyze_level_test_call(
             )
             await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
             return
+
+        # 모국어에 정중체만 붙인 줄(「갔다데스」)을 판정 재료에서 제거한다 —
+        # 판정관은 자기가 속은 걸 모르므로 입력에서 지우는 편이 확실하다.
+        dialog = _strip_non_target_user_lines(dialog, _lang_code)
 
         result = await gemini_analysis.generate_structured(
             client,
