@@ -246,3 +246,163 @@ def test_history_none_when_no_call_in_that_language(db):
     m = _member(db, language="ja")
     _call_with_content(db, m.member_id, "ko", "한국어 요약", "저는 학생이에요.")
     assert _load_history(db, m.member_id, "ja") is None
+
+
+# --------------------------------------------------------------------------- #
+# 5) 레벨테스트 표본 게이트 — 모국어로 도망친 통화를 표본으로 세면 안 된다
+# --------------------------------------------------------------------------- #
+def test_sample_gate_counts_only_target_script():
+    """★ 실제 사고(call=818): 일본어 21자인데 한국어 143자가 더해져 게이트 통과.
+
+    합계 164자로 통과 → 마커 1개(〜は〜です)로 A1(2단계) 배정. 일본어 요구
+    3연속 실패였는데도 2단계가 나왔다.
+    """
+    from domains.learning.service.normalcall_service import _user_char_total
+
+    dialog = "\n".join([
+        "[BEAVER] 일본어로 인사 해 볼 수 있어요?",
+        "[USER] こんにちは。",
+        "[USER] 私 は ヤンジェ ウデス。",
+        "[USER] 아니요. 모르겠는데요.",
+        "[USER] 그냥 일본 가서 했었던 거는 뭐, 마트에 가가지고 이것저것 많이 샀었어요.",
+    ])
+    ja = _user_char_total(dialog, "ja")
+    ko = _user_char_total(dialog, "ko")
+    assert ja == 14, f"일본어 문자만 세야 한다: {ja}"   # こんにちは(5) + 私は…デス(9)
+    assert ko > ja, "한국어 발화가 훨씬 많다(같은 전사)"
+
+
+def test_sample_gate_rejects_native_only_call():
+    """★ 대상 언어를 한 마디도 안 했으면 0자 — 판정이 돌면 안 된다."""
+    from domains.learning.service.normalcall_service import (
+        _MIN_LEVELTEST_USER_CHARS, _user_char_total,
+    )
+
+    dialog = "\n".join([
+        "[BEAVER] 일본어로 말해 볼까요?",
+        "[USER] 모르겠는데요. 일본은 예전에 가봤는데 마트에서 이것저것 많이 샀어요.",
+    ])
+    assert _user_char_total(dialog, "ja") == 0
+    assert _user_char_total(dialog, "ja") < _MIN_LEVELTEST_USER_CHARS
+
+
+def test_sample_gate_korean_call_unaffected():
+    """한국어 통화는 기존과 동일해야 한다(하위호환)."""
+    from domains.learning.service.normalcall_service import _user_char_total
+
+    dialog = "[USER] 저는 학생이에요. 오늘 학교에 갔어요."
+    assert _user_char_total(dialog, "ko") == 15  # 공백·마침표 제외
+
+
+def test_sample_gate_ignores_punctuation_and_emoji():
+    """문장부호·이모지만으로 게이트를 채우는 방어는 유지된다."""
+    from domains.learning.service.normalcall_service import _user_char_total
+
+    assert _user_char_total("[USER] ！！？？…… 🦫🦫🦫🦫🦫", "ja") == 0
+
+
+def test_latin_language_excludes_korean():
+    """모국어(한글)로 도망친 영어 레벨테스트도 잡힌다."""
+    from core.languages import count_target_script_chars
+
+    assert count_target_script_chars("모르겠는데요 진짜로", "en") == 0
+    assert count_target_script_chars("I went to the store", "en") == 15
+
+
+def test_unregistered_language_falls_back_to_permissive():
+    """표에 없는 언어는 예전처럼 전부 계수 — 데이터 부재로 기능이 죽지 않게(R5)."""
+    from core.languages import count_target_script_chars
+
+    assert count_target_script_chars("모르겠는데요", "xx") == 6
+
+
+# --------------------------------------------------------------------------- #
+# 6) 배치 캡 — 1↔2 변별(실사용자 대다수가 진짜 초보)
+# --------------------------------------------------------------------------- #
+def _assessed(band="a1", structures=3, quality="sufficient"):
+    from domains.learning.service.normalcall_service import LevelAssessment
+    return LevelAssessment(
+        band=band, distinct_structures=structures, sample_quality=quality,
+        confidence="medium", summary="s", feedback_for_learner="f",
+        evidence=[], reasoning="r",
+    )
+
+
+def test_memorized_and_sparse_drops_to_survival():
+    """★ 실측 call=818: 일본어 2턴·구조 1개인데 2단계가 나왔다.
+
+    캡 바닥이 2였던 탓에 밴드 a1(=2)에 캡을 걸어도 2로 그대로였다. 두 신호가
+    겹치면(외운 것 + 표본 빈약) 생존회화 1단계여야 한다.
+    """
+    from domains.learning.service.normalcall_service import _place_from_band
+    assert _place_from_band(_assessed("a1", structures=1, quality="sparse")) == 1
+    # 밴드가 높아도 마찬가지 — 암기 긴 문장으로 상위 밴드를 따내는 게이밍 방지
+    assert _place_from_band(_assessed("mid", structures=1, quality="sparse")) == 1
+
+
+def test_single_signal_still_caps_at_two():
+    """하나만 걸리면 종전대로 2 — 과소배치는 자동 레벨업이 회복한다."""
+    from domains.learning.service.normalcall_service import _place_from_band
+    assert _place_from_band(_assessed("a4", structures=1, quality="sufficient")) == 2
+    assert _place_from_band(_assessed("a4", structures=5, quality="sparse")) == 2
+
+
+def test_healthy_sample_is_not_capped():
+    """표본이 충분하고 구조가 다양하면 밴드 그대로."""
+    from domains.learning.service.normalcall_service import _BUCKET_LEVEL, _place_from_band
+    got = _place_from_band(_assessed("a4", structures=5, quality="sufficient"))
+    assert got == _BUCKET_LEVEL["a4"]
+
+
+# --------------------------------------------------------------------------- #
+# 7) grandfathering — 선별엔 쓰되 "배웠다"고 말하지 않는다
+# --------------------------------------------------------------------------- #
+def _item(db, language: str, kind: str, surface: str, level_no: int = 1):
+    from domains.learning.models.learning_item import LearningItem
+    it = LearningItem(language=language, kind=kind, surface=surface,
+                      level_no=level_no, band=level_no, assign_rule="test",
+                      # 문법은 교재 좌표 필수(ck_learning_item_grammar_textbook)
+                      textbook_code="T1" if kind == "grammar" else None,
+                      topik_grade=1 if kind == "vocab" else None,
+                      source_key=f"{language}-{surface}")
+    db.add(it)
+    db.flush()
+    return it
+
+
+def test_placement_items_are_not_claimed_as_known(db):
+    """★ 레벨 배정으로 찍힌 항목을 비버가 "배웠잖아" 라고 하면 안 된다.
+
+    실측: 일본어 2단계 배정 직후 1단계 46개가 증거 0건인 채 introduced 로 찍혔고,
+    비버가 배운 적 없는 자기소개를 두고 "그거 기억나?" 라고 했다.
+    """
+    from domains.learning.repository.mastery_repository import known_grammar
+
+    m = _member(db, language="ja")
+    placed = _item(db, "ja", "grammar", "〜は〜です")
+    real = _item(db, "ja", "grammar", "〜ました")
+    db.add(MemberItemProgress(member_id=m.member_id, item_id=placed.item_id,
+                              status="mastered", provenance="placement"))
+    db.add(MemberItemProgress(member_id=m.member_id, item_id=real.item_id,
+                              status="mastered", provenance="observed"))
+    db.commit()
+
+    known = known_grammar(db, m.member_id, "ja")
+    assert known == ["〜ました"], f"placement 가 새어나왔다: {known}"
+
+
+def test_placement_promoted_to_observed_becomes_known(db):
+    """실제로 해보면 provenance 가 observed 로 승격되고, 그때는 아는 것으로 센다."""
+    from domains.learning.repository.mastery_repository import known_grammar
+
+    m = _member(db, language="ja")
+    it = _item(db, "ja", "grammar", "〜は〜です")
+    prog = MemberItemProgress(member_id=m.member_id, item_id=it.item_id,
+                              status="mastered", provenance="placement")
+    db.add(prog)
+    db.commit()
+    assert known_grammar(db, m.member_id, "ja") == []
+
+    prog.provenance = "observed"   # mastery_service 가 증거 반영 시 하는 일
+    db.commit()
+    assert known_grammar(db, m.member_id, "ja") == ["〜は〜です"]

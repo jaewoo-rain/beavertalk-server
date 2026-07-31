@@ -31,6 +31,7 @@ from core.audio import (
 )
 from core.config import Settings, settings
 from core.gemini_live import DEFAULT_VOICE
+from core.languages import count_target_script_chars, resolve_language
 from core.persona_prompt import _LOCALE_LABEL
 from domains.account.models.member import Member
 from domains.account.models.member_reason import REASON_LABELS
@@ -1631,24 +1632,44 @@ def _place_from_band(result: LevelAssessment) -> int | None:
         return 1
     level = _BUCKET_LEVEL[result.band]
     # 변주 게이트(sim_elicit.py to_level): 서로 다른 구조가 ≤1이면 아무리 밴드가 높아도
-    # 암기/반복이므로 min(level, 2)로 캡(게이밍 방지 — 반복충·암기긴문장충 → L2).
-    if result.distinct_structures <= 1:
-        level = min(level, 2)
-    # 표본 빈약(sparse)이면 중급 이상 배치 금지 — 1~2건 표본으로 과배치하지 않는다(보수).
-    if result.sample_quality == "sparse":
+    # 암기/반복이므로 캡(게이밍 방지 — 반복충·암기긴문장충).
+    #
+    # ⚠ 캡 바닥이 오래 2였는데, 그러면 **1↔2 변별이 아예 안 됐다.** 인사 한 마디 +
+    #   외운 자기소개만 해도 밴드 a1(=2)이 나오고 캡을 걸어도 2라 무효였다(실측
+    #   call=818: 일본어 2턴·21자, 즉흥 산출 3연속 실패인데 2단계 배정).
+    #   실사용자 대다수가 생존회화도 안 되는 진짜 초보라, 이 구간의 변별이 핵심이다.
+    #   그래서 **두 신호가 겹치면 바닥을 1(생존회화)로** 내린다:
+    #     구조 ≤1  = 문법을 부린 게 아니라 통째로 외운 것
+    #     sparse   = 표본 2턴 이하 — 그 하나조차 재확인되지 않음
+    #   하나만 걸리면 종전대로 2 — 과소배치는 자동 레벨업이 단조 상승으로 회복하지만,
+    #   한 번에 바닥까지 떨어뜨리면 실제 A1 학습자가 생존회화를 다시 듣게 된다.
+    thin_sample = result.sample_quality == "sparse"
+    memorized = result.distinct_structures <= 1
+    if memorized and thin_sample:
+        level = min(level, 1)
+    elif memorized or thin_sample:
         level = min(level, 2)
     return level
 
 
-def _user_char_total(dialog: str) -> int:
-    """전사에서 USER 발화의 유의미 글자수를 센다 — 판정 스킵 가드용.
+def _user_char_total(dialog: str, language: str = "ko") -> int:
+    """전사에서 USER 가 **대상 언어로** 말한 글자수를 센다 — 판정 스킵 가드용.
 
-    유니코드 letter/digit(한글·영숫자 등)만 계수 — 문장부호·기호·이모지만으로
-    20자를 채워 무의미한 LLM 판정이 도는 것을 막는다.
+    ⚠ **모국어는 세지 않는다.** 예전엔 isalnum() 으로 아무 문자나 셌는데, 그러면
+    학습자가 모국어로 도망친 통화가 "표본 충분" 으로 통과한다. 실측(call=818, ja):
+
+        일본어 발화  こんにちは / 私はヤンジェウデス            → 21자
+        한국어 발화  "모르겠는데요" + 일본 여행 이야기 114자    → 143자
+        합계 164자 ≥ 20 → 게이트 통과 → 마커 1개(〜は〜です)로 A1(2단계) 배정
+
+    일본어 요구 3연속 실패인데 2단계가 나왔다. 대상 언어 문자만 세면 21자로,
+    이 통화는 여전히 통과하지만(21 ≥ 20) 한국어로만 떠든 통화는 0자로 걸린다.
+
+    문장부호·기호·이모지는 어느 언어에서도 안 세므로 그 방어는 그대로 유지된다.
     """
     prefix = "[USER] "
     return sum(
-        sum(1 for ch in line[len(prefix):] if ch.isalnum())
+        count_target_script_chars(line[len(prefix):], language)
         for line in dialog.splitlines()
         if line.startswith(prefix)
     )
@@ -1711,12 +1732,16 @@ async def analyze_level_test_call(
     """
     try:
         dialog = await run_db(session_factory, lambda db: _build_dialog(db, call_id))
-        user_chars = _user_char_total(dialog)
+        # target_language 는 라벨("일본어")로 오므로 코드로 되돌린다 — 미지원이면
+        # is_target_script_char 가 보수적으로 전부 계수한다(기존 동작).
+        _spec = resolve_language(target_language)
+        _lang_code = _spec.code if _spec else "ko"
+        user_chars = _user_char_total(dialog, _lang_code)
         if user_chars < _MIN_LEVELTEST_USER_CHARS:
             # 표본 미달 — 판정 스킵·미저장(korean_level None 유지 → 다음 통화 재테스트).
             logger.info(
-                "leveltest 판정: USER 발화 %d자(<%d) → 스킵·done call_id=%s member=%s",
-                user_chars, _MIN_LEVELTEST_USER_CHARS, call_id, member_id,
+                "leveltest 판정: USER %s 발화 %d자(<%d) → 스킵·done call_id=%s member=%s",
+                _lang_code, user_chars, _MIN_LEVELTEST_USER_CHARS, call_id, member_id,
             )
             await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
             return

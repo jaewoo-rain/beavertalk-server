@@ -593,11 +593,19 @@ def test_place_from_band_unknown_or_none_returns_one():
         _assessment(band="a1", sample_quality="none")) == 1
 
 
-def test_user_char_total_counts_letters_and_digits_only():
-    """F4: 유니코드 letter/digit 만 계수 — 문장부호·기호·이모지는 제외."""
+def test_user_char_total_counts_only_target_script():
+    """F4: **대상 언어 문자만** 계수 — 문장부호·기호·이모지·숫자·타 언어는 제외.
+
+    예전엔 isalnum() 으로 아무 문자나 셌다. 그래서 일본어 레벨테스트에서 한국어로만
+    떠들어도 표본 게이트를 통과했다(실측 call=818: 일본어 21자인데 한국어 143자가
+    더해져 164자로 통과 → 마커 1개로 A1 배정). 이제 언어를 인자로 받는다.
+
+    숫자가 빠진 것도 의도다 — "123" 은 어느 언어로도 산출 증거가 아니다.
+    """
     dialog = "[USER] 안녕!! 123 🙂...\n[BEAVER] 네, 반가워요"
-    assert svc._user_char_total(dialog) == 5  # 안녕(2) + 123(3)
-    assert svc._user_char_total("[USER] !!!???...###") == 0
+    assert svc._user_char_total(dialog, "ko") == 2   # 안녕(2). 숫자·기호 제외
+    assert svc._user_char_total(dialog, "ja") == 0   # 한국어는 일본어 표본이 아니다
+    assert svc._user_char_total("[USER] !!!???...###", "ko") == 0
 
 
 # --------------------------------------------------------------------------- #
