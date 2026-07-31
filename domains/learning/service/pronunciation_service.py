@@ -26,6 +26,7 @@ from domains.learning.models.review import Review
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository.pronunciation_repository import PronunciationRepository
 from domains.learning.schemas.pronunciation import (
+    PronSummaryOut,
     PronHistoryItem,
     PronSentenceScore,
     PronunciationReport,
@@ -301,6 +302,35 @@ async def get_pronunciation_report(
 # --------------------------------------------------------------------------- #
 # T9 최근5 이력 (sync — LLM 없음, 얇게)
 # --------------------------------------------------------------------------- #
+DEFAULT_SUMMARY_SESSIONS = 10
+
+
+def get_pronunciation_summary(
+    db: Session, member_id: int, sessions: int = DEFAULT_SUMMARY_SESSIONS
+) -> PronSummaryOut:
+    """최근 `sessions` 개 통화의 발음 4지표 평균(마이페이지 카드).
+
+    "최근 N세션"은 **점수가 있는** 세션 N개다. 통화만 하고 발음 챌린지를 안 누른
+    통화가 대부분이라, 단순히 최근 통화 N개를 잡으면 표본이 거의 비어버린다.
+    """
+    repo = PronunciationRepository(db)
+    call_ids = repo.scored_call_ids(member_id, limit=sessions)
+    m = repo.metric_avgs(call_ids)
+
+    def r(key: str) -> Optional[float]:
+        v = m.get(key)
+        return round(v, 1) if isinstance(v, (int, float)) else None
+
+    return PronSummaryOut(
+        sessions=len(call_ids),
+        sentence_count=int(m.get("sentence_count") or 0),
+        total_score=r("total_score"),
+        pronunciation=r("pronunciation"),
+        fluency=r("fluency"),
+        rhythm=r("rhythm"),
+    )
+
+
 def get_pronunciation_history(db: Session, member_id: int) -> list[PronHistoryItem]:
     """최근5 통화(normal·done)의 [날짜, 활성 문장수, counted 문장 total_score 평균]."""
     repo = PronunciationRepository(db)

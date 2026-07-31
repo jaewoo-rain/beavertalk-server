@@ -1,0 +1,248 @@
+"""마이페이지 연동 회귀 — 레벨·상위% · 발음 요약 · 레벨테스트 재요청.
+
+핵심 불변식:
+  - 레벨은 **학습 언어 스코프**다. 학습 언어가 ko 가 아닌 회원에게 korean_level 을
+    그대로 보여주면 남의 레벨이 뜬다.
+  - "레벨테스트 다시하기"는 **체크판을 지우지 않는다**. 배운 걸 날리는 게 아니라
+    레벨 배정만 다시 받는 것이다(dev 의 완전 백지화와 목적이 다르다).
+  - member_language_level 행을 지워야 실제로 레벨테스트가 뜬다 — korean_level 만
+    NULL 로 만들면 라우팅이 안 바뀐다(전례 있음).
+  - "최근 N세션"은 **점수가 있는** 세션 N개다. 통화만 하고 발음 챌린지를 안 누른
+    통화가 대부분이라 단순 최근 N통화로 잡으면 표본이 비어버린다.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from sqlalchemy import Integer, create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from db.registry import Base  # noqa: F401 - 전 모델 import
+from domains.account.models.member import Member
+from domains.learning.models.call import Call
+from domains.learning.models.evaluation import Evaluation
+from domains.learning.models.item_evidence import ItemEvidence
+from domains.learning.models.member_item_progress import MemberItemProgress
+from domains.learning.models.member_language_level import MemberLanguageLevel
+from domains.learning.models.sentence import Sentence
+from domains.learning.service import level_percentile, mastery_service
+from domains.learning.service.pronunciation_service import get_pronunciation_summary
+
+
+@pytest.fixture()
+def db():
+    for t in Base.metadata.tables.values():
+        for pk in t.primary_key.columns:
+            pk.type = Integer()
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()
+
+
+def _member(db, language="ko", korean_level=None) -> Member:
+    m = Member(language="en", target_language=language, onboarding_completed=True,
+               auth_user_id=f"a{db.query(Member).count() + 1}", korean_level=korean_level)
+    db.add(m)
+    db.commit()
+    return m
+
+
+def _scored_call(db, member_id: int, days_ago: int, scores: list[int]) -> int:
+    """점수가 채워진 통화 1건. scores 는 문장별 pronunciation 값."""
+    c = Call(member_id=member_id, character_id=1, call_type="normal", status="done",
+             call_date=datetime.now(timezone.utc) - timedelta(days=days_ago))
+    db.add(c)
+    db.flush()
+    for s in scores:
+        sent = Sentence(call_id=c.call_id, korean_sentence="안녕하세요")
+        db.add(sent)
+        db.flush()
+        db.add(Evaluation(sentence_id=sent.sentence_id, total_score=s,
+                          pronunciation=s, fluency=s - 5, rhythm=s - 10))
+    db.commit()
+    return c.call_id
+
+
+def _unscored_call(db, member_id: int, days_ago: int) -> int:
+    """통화는 했지만 발음 챌린지를 안 눌러 점수가 없는 통화(실제로 대부분)."""
+    c = Call(member_id=member_id, character_id=1, call_type="normal", status="done",
+             call_date=datetime.now(timezone.utc) - timedelta(days=days_ago))
+    db.add(c)
+    db.flush()
+    sent = Sentence(call_id=c.call_id, korean_sentence="안녕하세요")
+    db.add(sent)
+    db.flush()
+    db.add(Evaluation(sentence_id=sent.sentence_id))  # 점수 전부 NULL
+    db.commit()
+    return c.call_id
+
+
+# --------------------------------------------------------------------------- #
+# 1) 상위 % 표
+# --------------------------------------------------------------------------- #
+def test_percent_decreases_as_level_rises():
+    """레벨이 오를수록 '상위 N%' 는 작아져야 한다 — 표를 고칠 때 뒤집히기 쉽다."""
+    percents = [level_percentile.top_percent(lv) for lv in range(1, 14)]
+    assert all(p is not None for p in percents), "1~13 전 레벨을 채워야 한다"
+    assert percents == sorted(percents, reverse=True), f"단조감소가 깨졌다: {percents}"
+
+
+def test_percent_stays_in_display_range():
+    """0%·100% 는 문구가 이상해진다."""
+    for lv in range(1, 14):
+        p = level_percentile.top_percent(lv)
+        assert 1 <= p <= 99, f"레벨 {lv} 의 {p}% 는 표시할 수 없는 값"
+
+
+def test_percent_none_when_level_unset():
+    assert level_percentile.top_percent(None) is None
+
+
+# --------------------------------------------------------------------------- #
+# 2) 발음 요약 — "점수 있는 세션 N개"
+# --------------------------------------------------------------------------- #
+def test_summary_empty_when_no_scores(db):
+    m = _member(db)
+    _unscored_call(db, m.member_id, days_ago=1)
+    s = get_pronunciation_summary(db, m.member_id, sessions=10)
+    assert s.sessions == 0 and s.sentence_count == 0
+    assert s.total_score is None and s.pronunciation is None
+
+
+def test_summary_skips_unscored_calls(db):
+    """★ 점수 없는 통화가 세션 수를 갉아먹으면 안 된다."""
+    m = _member(db)
+    for d in range(1, 6):
+        _unscored_call(db, m.member_id, days_ago=d)
+    _scored_call(db, m.member_id, days_ago=9, scores=[80])
+    s = get_pronunciation_summary(db, m.member_id, sessions=3)
+    assert s.sessions == 1, "점수 없는 통화가 표본에 섞였다"
+    assert s.pronunciation == 80.0
+
+
+def test_summary_averages_by_sentence_not_by_call(db):
+    """문장 단위 평균 — 1문장짜리 통화가 과대 대표되면 안 된다."""
+    m = _member(db)
+    _scored_call(db, m.member_id, days_ago=1, scores=[50])            # 1문장
+    _scored_call(db, m.member_id, days_ago=2, scores=[90] * 9)        # 9문장
+    s = get_pronunciation_summary(db, m.member_id, sessions=10)
+    assert s.sessions == 2 and s.sentence_count == 10
+    assert s.pronunciation == 86.0, "통화별 평균의 평균(70.0)이 나오면 안 된다"
+    assert s.fluency == 81.0 and s.rhythm == 76.0
+
+
+def test_summary_limits_to_requested_sessions(db):
+    m = _member(db)
+    for d in range(1, 6):
+        _scored_call(db, m.member_id, days_ago=d, scores=[70])
+    assert get_pronunciation_summary(db, m.member_id, sessions=2).sessions == 2
+
+
+# --------------------------------------------------------------------------- #
+# 3) 레벨테스트 다시하기
+# --------------------------------------------------------------------------- #
+def test_retest_clears_language_level_row(db):
+    """★ mll 행을 지워야 실제로 레벨테스트가 뜬다 — korean_level 만으론 부족."""
+    m = _member(db, korean_level=7)
+    db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=7))
+    db.commit()
+
+    mastery_service.request_level_retest(db, m, "ko")
+
+    assert db.query(MemberLanguageLevel).count() == 0
+    assert m.korean_level is None
+
+
+def test_retest_preserves_checkboard(db):
+    """★ 배운 걸 지우는 게 아니다 — 체크판·증거는 그대로."""
+    m = _member(db, korean_level=5)
+    db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=5))
+    db.add(MemberItemProgress(member_id=m.member_id, item_id=1, status="mastered"))
+    db.add(ItemEvidence(member_id=m.member_id, language="ko", item_id=1,
+                        call_id=1, grade_raw="E3", grade_final="E3"))
+    db.commit()
+
+    mastery_service.request_level_retest(db, m, "ko")
+
+    assert db.query(MemberItemProgress).count() == 1, "체크판이 지워졌다"
+    assert db.query(ItemEvidence).count() == 1, "증거가 지워졌다"
+
+
+def test_retest_of_other_language_keeps_korean_level(db):
+    """학습 언어가 ja 인데 korean_level 을 비우면 한국어 레벨이 날아간다."""
+    m = _member(db, language="ja", korean_level=6)
+    db.add(MemberLanguageLevel(member_id=m.member_id, language="ja", level_no=3))
+    db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=6))
+    db.commit()
+
+    mastery_service.request_level_retest(db, m, "ja")
+
+    assert m.korean_level == 6, "다른 언어 재측정이 한국어 레벨을 건드렸다"
+    rows = db.query(MemberLanguageLevel).all()
+    assert [r.language for r in rows] == ["ko"]
+
+
+# --------------------------------------------------------------------------- #
+# 4) 이력 주입 언어 격리 — 다른 언어 학습 내용이 새어들면 안 된다
+# --------------------------------------------------------------------------- #
+def _call_with_content(db, member_id: int, language: str, summary: str, sentence: str):
+    c = Call(member_id=member_id, character_id=1, call_type="normal", status="done",
+             target_language=language, summary=summary,
+             call_date=datetime.now(timezone.utc))
+    db.add(c)
+    db.flush()
+    db.add(Sentence(call_id=c.call_id, korean_sentence=sentence))
+    db.commit()
+    return c.call_id
+
+
+def test_history_excludes_other_languages(db):
+    """★ 일본어 통화에 한국어 이력이 주입되던 실제 사고.
+
+    prod 실측: ja 회원의 통화 37건 중 36건이 ko 였고, 주입된 summaries 5건·
+    expressions 14건이 **전부 한국어**였다. 비버가 "그거 기억나?" 하며 배운 적 없는
+    한국어를 꺼냈다.
+    """
+    from domains.learning.service.normalcall_service import _load_history
+
+    m = _member(db, language="ja")
+    _call_with_content(db, m.member_id, "ko", "Basic Korean phrases", "저는 학생이에요.")
+    _call_with_content(db, m.member_id, "ko", "Korean study mode", "집에 가요")
+    _call_with_content(db, m.member_id, "ja", "日本語の練習", "わたしは学生です。")
+
+    h = _load_history(db, m.member_id, "ja")
+
+    assert h is not None
+    assert h["summaries"] == ["日本語の練習"], f"한국어 요약이 섞였다: {h['summaries']}"
+    assert h["expressions"] == ["わたしは学生です。"], (
+        f"한국어 문장이 섞였다: {h['expressions']}"
+    )
+
+
+def test_history_of_korean_call_is_unaffected(db):
+    """한국어 통화는 기존과 동일해야 한다(하위호환)."""
+    from domains.learning.service.normalcall_service import _load_history
+
+    m = _member(db)
+    _call_with_content(db, m.member_id, "ko", "한국어 요약", "저는 학생이에요.")
+    _call_with_content(db, m.member_id, "ja", "日本語", "わたしは学生です。")
+
+    h = _load_history(db, m.member_id, "ko")
+    assert h["summaries"] == ["한국어 요약"]
+    assert h["expressions"] == ["저는 학생이에요."]
+
+
+def test_history_none_when_no_call_in_that_language(db):
+    """그 언어 통화가 없으면 None — 남의 언어로 채우지 않는다."""
+    from domains.learning.service.normalcall_service import _load_history
+
+    m = _member(db, language="ja")
+    _call_with_content(db, m.member_id, "ko", "한국어 요약", "저는 학생이에요.")
+    assert _load_history(db, m.member_id, "ja") is None

@@ -244,7 +244,7 @@ def load_call_setup(
     )
     level_profile = (level.profile if level else "") or ""
 
-    history = _load_history(db, member_id) if member_found else None
+    history = _load_history(db, member_id, language) if member_found else None
 
     # 체크판 재료(P2-c2) — 레벨 확정 회원만. 선별 실패는 통화를 막지 않는다(R5 폴백).
     materials = _EMPTY_MATERIALS
@@ -293,26 +293,48 @@ def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dic
     return base
 
 
-def _load_history(db: Session, member_id: int) -> dict | None:
-    """최근 학습 이력(프롬프트 주입용): 최근 통화 요약 + 최근 배운 한국어 표현.
+def _load_history(
+    db: Session, member_id: int, language: str = "ko"
+) -> dict | None:
+    """최근 학습 이력(프롬프트 주입용): 최근 통화 요약 + 최근 배운 표현.
 
     {"summaries": [...최대 5], "expressions": [...최대 30, 중복 제거]} 또는 None(이력 없음).
     persona_prompt._history_block 이 이 형태를 기대한다.
+
+    ⚠ **language 로 반드시 거른다.** 예전엔 member_id 로만 걸러서, 한국어를 공부하다
+    일본어로 바꾼 학습자의 일본어 통화에 **한국어 요약·문장이 그대로 주입**됐다.
+    비버가 "그거 기억나?" 하며 배운 적 없는 한국어를 꺼내는 원인이었다
+    (실측: ja 회원의 통화 37건 중 ko 36건 → summaries 5건·expressions 14건 전부 한국어).
+
+    체크판·힌트 선별(mastery_repository)은 처음부터 LearningItem.language 로 걸렀는데
+    이 이력 주입 경로만 빠져 있었다. Call.target_language 는 NOT NULL 이라 조인 없이
+    바로 조건에 넣을 수 있다.
     """
     summaries = [
         s.strip()
         for s in db.scalars(
             select(Call.summary)
-            .where(Call.member_id == member_id, Call.summary.is_not(None))
+            .where(
+                Call.member_id == member_id,
+                Call.target_language == language,
+                Call.summary.is_not(None),
+            )
             .order_by(Call.call_date.desc())
             .limit(5)
         ).all()
         if s and s.strip()
     ]
+    # 컬럼명이 korean_sentence 지만 실제로는 **학습 대상 언어** 문장이 들어간다
+    # (멀티랭귀지에서 컬럼을 재사용했다). 그래서 언어 구분은 컬럼이 아니라
+    # 통화의 target_language 로만 할 수 있다.
     expr_rows = db.scalars(
         select(Sentence.korean_sentence)
         .join(Call, Sentence.call_id == Call.call_id)
-        .where(Call.member_id == member_id, Sentence.korean_sentence.is_not(None))
+        .where(
+            Call.member_id == member_id,
+            Call.target_language == language,
+            Sentence.korean_sentence.is_not(None),
+        )
         .order_by(Sentence.sentence_id.desc())
         .limit(30)
     ).all()

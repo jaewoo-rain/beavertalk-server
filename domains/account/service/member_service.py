@@ -29,6 +29,8 @@ from domains.account.schemas.member import (
 from domains.commerce.models.character import Character
 from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.models.subscribe import Subscribe
+from domains.learning.repository import mastery_repository
+from domains.learning.service import level_percentile
 
 
 class MemberService:
@@ -51,6 +53,11 @@ class MemberService:
         if member is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "회원을 찾을 수 없습니다.")
         is_subscribed = self._has_active_subscription(member_id)
+        # 레벨은 **학습 언어 스코프**다. member.korean_level 을 그대로 쓰면 학습 언어가
+        # ko 가 아닌 회원에게 남의 레벨을 보여준다 — get_language_level 이 mll 행 우선,
+        # ko 한정 korean_level 폴백이라는 규칙을 그대로 태운다.
+        language = member.target_language or "ko"
+        level_no = mastery_repository.get_language_level(self.db, member_id, language)
         return MyPageOut(
             member_id=member.member_id,
             email=member.email,
@@ -65,6 +72,8 @@ class MemberService:
                 else None
             ),
             reasons=[r.reason for r in member.reasons],
+            korean_level=level_no,
+            level_top_percent=level_percentile.top_percent(level_no),
         )
 
     def _has_active_subscription(self, member_id: int) -> bool:

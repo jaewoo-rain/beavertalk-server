@@ -44,6 +44,29 @@ class PronunciationReport(BaseModel):
     comment: Optional[str] = None
 
 
+class PronSummaryOut(BaseModel):
+    """마이페이지 발음 분석 카드 — 최근 N세션 평균.
+
+    ⚠ 값의 출처가 지금은 **스텁**이다. SpeechSuper 계정이 만료(errId 41030)라
+    실채점이 스텁 폴백으로 떨어지고 있다. 배선은 지금 만들어 두고 벤더가 살아나면
+    같은 경로로 진짜 점수가 채워지게 한다 — 스키마·계산은 그대로다.
+
+    Attributes:
+        sessions: 평균에 실제로 들어간 통화 수(요청한 N 이하). 0이면 아직 발음
+            기록이 없다는 뜻이고, 이때 점수는 전부 None 이다.
+        sentence_count: 평균에 들어간 문장 수(표본 크기). 세션 수보다 이게 신뢰도를
+            더 잘 나타내서 같이 준다.
+        total_score/pronunciation/fluency/rhythm: 소수 1자리 반올림. 표본이 없으면 None.
+    """
+
+    sessions: int
+    sentence_count: int
+    total_score: Optional[float] = None
+    pronunciation: Optional[float] = None
+    fluency: Optional[float] = None
+    rhythm: Optional[float] = None
+
+
 class PronHistoryItem(BaseModel):
     """T9 최근 통화 1건의 발음 추이 항목."""
 

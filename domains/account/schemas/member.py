@@ -56,6 +56,14 @@ class MyPageOut(BaseModel):
     onboarding_completed: bool
     speak_country: Optional[SpeakCountryOut]
     reasons: list[str] = []
+    # 종합 레벨 카드(마이페이지). **target_language 스코프**다 — 회원은 언어마다 레벨이
+    # 따로라 member.korean_level 을 그대로 쓰면 안 된다(ko 가 아니면 남의 레벨을 보여준다).
+    # None = 레벨테스트 미실시 → 앱은 "레벨테스트 하기"로 안내한다.
+    korean_level: Optional[int] = None
+    level_max: int = 13
+    # 레벨별 고정 표에서 나온 "상위 N%" (실제 분포 계산 아님 — level_percentile 참고).
+    # 표에 없는 레벨이거나 레벨 미확정이면 None → 앱이 그 줄을 숨긴다.
+    level_top_percent: Optional[int] = None
 
 
 # ── 응답 DTO ──
