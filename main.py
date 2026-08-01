@@ -44,13 +44,24 @@ def _configure_logging() -> None:
     """통화(normalcall) 로그만 stdout 에 노출(전역 INFO 는 건드리지 않음).
 
     파이썬 루트 로거는 기본 WARNING 이라 앱 모듈의 logger.info 가 버려진다(Cloud Run 이
-    숨기는 게 아님 — 파이썬 기본값). 전역을 통째로 INFO 로 올리는 대신, normalcall 실시간
+    숨기는 게 아님 — 파이썬 기본값). 전역을 통째로 INFO 로 올리는 대신, 통화 관련
     패키지 로거에만 INFO StreamHandler 를 달아 통화 전사(👤/🦫)·genai 흐름만 보이게 한다.
     propagate=False 로 루트로 전파하지 않아 다른 로그 노이즈/비용 증가가 없다.
+
+    ⚠ domains.learning.service 를 빠뜨리면 **통화후 파이프라인 전체가 안 보인다**. 통화
+    자체는 realtime 패키지지만, 분석·체크판(증거 검출→검증→상태전이→승급)·레벨 판정은
+    전부 service 계층이다. 실제로 이게 빠져 있어서 `normalcall 체크판: 검출 N→검증 M`
+    이 30일간 한 줄도 안 남았고, 증거가 왜 0건인지(LLM 이 못 냈나 / 검증 게이트가
+    버렸나) 로그만으로는 가를 수 없었다. 이 패키지의 로그 호출은 32개뿐이라 비용 무시
+    가능 — 진단 가치가 압도적으로 크다.
     """
     handler = logging.StreamHandler()  # stdout → Cloud Logging
     handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
-    for name in ("domains.learning.realtime", "domains.push"):  # 통화 WS/세션 + 예약전화 발송
+    for name in (
+        "domains.learning.realtime",  # 통화 WS/세션(전사·타이밍)
+        "domains.learning.service",   # 통화후 분석·체크판·레벨 판정
+        "domains.push",               # 예약전화 발송
+    ):
         lg = logging.getLogger(name)
         lg.handlers.clear()
         lg.addHandler(handler)
