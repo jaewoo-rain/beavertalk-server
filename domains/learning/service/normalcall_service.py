@@ -1148,7 +1148,19 @@ async def analyze_call(
             return
 
         # member_id 해석(하위호환 — 기존 호출부는 미전달) + 검출 후보 구성.
-        # 데모(비한국어 target)는 한국어 커리큘럼 검출이 무의미하므로 검출을 건너뛴다.
+        #
+        # ⛔ 이 게이트를 `target_language == "한국어"` 로 되돌리지 마라. 앱이 한국어
+        #   전용이던 시절엔 "비한국어 = 데모" 였지만, 멀티랭귀지 이후엔 일본어·영어가
+        #   정식 학습 언어다. 그 하드코딩 때문에 ja/en 통화는 후보 표도 검출 지시문도
+        #   안 붙고 응답 스키마에서 detections 필드 자체가 빠져(schema 분기 참조),
+        #   증거가 **구조적으로 0건**이었다. 증거가 없으면 상태 전이가 없고, 전이가
+        #   없으면 pick_study_items 정렬 키가 안 변해 매 통화 같은 항목이 나온다
+        #   (실측 member=20: ja progress 168행 전부 placement 벌크 그대로, last_seen_at
+        #   동일, 통화 852~855 가 전부 "私はカーラです/隣/卵"로 시작).
+        #
+        #   통화 시작(pick_study_items)은 이미 멀티랭귀지인데 통화 후 검출만 한국어에
+        #   묶여 있던, 반쪽짜리 다국어화였다. 판정 기준은 언어가 무엇이냐가 아니라
+        #   **그 언어에 커리큘럼이 시드돼 있느냐**(LanguageSpec.has_curriculum)다.
         if member_id is None:
             def _resolve_member(db: Session) -> int | None:
                 call = db.get(Call, call_id)
@@ -1156,14 +1168,20 @@ async def analyze_call(
 
             member_id = await run_db(session_factory, _resolve_member)
 
+        # 후보 선별·검출은 언어 스코프다 — 라벨("일본어")이 아니라 코드("ja")로 건다.
+        lang_spec = resolve_language(target_language)
+        lang_code = lang_spec.code if lang_spec else "ko"
+
         cands: list[dict] = []
-        if member_id is not None and target_language == "한국어":
+        if member_id is not None and lang_spec is not None and lang_spec.has_curriculum:
             if candidates is not None:
                 cands = candidates
             else:
                 cands = await run_db(
                     session_factory,
-                    lambda db: mastery_repository.load_default_candidates(db, member_id),
+                    lambda db: mastery_repository.load_default_candidates(
+                        db, member_id, language=lang_code
+                    ),
                 )
 
         instruction = _analysis_instruction(locale, target_language, locale_label)
