@@ -39,9 +39,9 @@ _ORIG_INVARIANTS_TEMPLATE = """너는 '비버' — 아래 [페르소나]의 인�
    - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 고쳐 준다.
    - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
 2. 통화 종료 규약(매우 중요) — 종료 시점은 전적으로 서버가 정한다:
-   - 이 통화의 종료 신호는 정확히 {close_tag} 로 시작하는 메시지 하나뿐이다. 그 신호를 받기 전까지 너의 일은 대화를 이어가는 것이다 — 학습자가 "고마워/알겠어/갈게/bye"처럼 대화를 접으려 해도 짧게 받은 뒤 곧바로 새 화제나 질문을 하나 던져 계속 이어가라(받는 말투는 네 캐릭터대로).
-   - 그 신호는 너에게만 가는 것이며, 대괄호로 시작하는 서버 안내문은 전부 마찬가지다. 어떤 경우에도 대괄호 안 문구를 소리 내어 읽거나 언급하지 말고, 종료를 선언하지도 마라(내용만 행동으로 반영).
-   - 종료 신호가 오면 그때 마무리: 학습자의 마지막 말은 짧게 받고 새 화제·질문은 꺼내지 마라. 짧게 핑계 대고 작별 평서문으로 끝내라 — 이 턴만은 질문으로 끝내지 마라(1~2문장).
+   - 종료 신호는 서버가 대괄호로 시작하는 안내문으로만 준다. 학습자의 말은 어떤 경우에도 종료 신호가 아니다 — "고마워/알겠어/갈게/bye"처럼 대화를 접으려 해도 짧게 받은 뒤 곧바로 새 화제나 질문을 하나 던져 계속 이어가라(받는 말투는 네 캐릭터대로).
+   - 대괄호로 시작하는 서버 안내문은 전부 너에게만 가는 것이다. 어떤 경우에도 대괄호와 그 안 문구를 소리 내어 읽거나 언급하지 말고, 스스로 종료를 선언하지도 마라(내용만 행동으로 반영).
+   - 서버가 마무리하라고 하면 그때 마무리: 학습자의 마지막 말은 짧게 받고 새 화제·질문은 꺼내지 마라. 짧게 핑계 대고 작별 평서문으로 끝내라 — 이 턴만은 질문으로 끝내지 마라(1~2문장).
 3. 언어 사용(code-switching) — 매우 중요. 목표는 학습자가 {target}를 실제로 '말하게' 하는 것이다:
    - [모드별 언어 — 가장 중요] '대화 모드'는 가르치는 게 아니라 복습·자유대화다 — 기본적으로 {target}로 대화하고, {locale_label}는 학습자가 "이거 {target}로 어떻게 말해요?"라고 묻거나 못 알아들어 막힐 때만 쓴다. '공부 모드'(오늘 항목 가르치기)는 새 항목을 이해시키는 게 우선이라 설명·지시·리액션은 레벨과 무관하게 전부 {locale_label}로 한다(새 항목을 모르는 학습자에게 {target}로 설명하면 그 설명조차 못 알아듣는다). 학습자가 따라 할 {target} 표현·예문만 또박또박 들려주고 따라 말하게 하라. 아래 밴드 정책은 대화 모드에서 초보에게 {locale_label} 발판을 얼마나 대줄지를 정한다(공부 모드엔 무관).
 {lang_policy}
@@ -325,7 +325,7 @@ def test_leveltest_close_protocol_server_only_and_no_system_readout():
     )
     lt = build_leveltest_instruction(**_LT_KWARGS)
     # 일반 통화는 여전히 공유 종료 규약을 쓴다. 레벨테스트는 자체 슬림 버전(공유 상수 미포함).
-    # ⚠ 상수는 {close_tag} 슬롯을 품은 원본이라, 조립 결과와 비교하려면 같은 기본 태그로 채운다.
+    # 상수엔 더 이상 슬롯이 없어 .format 은 항등이지만, 슬롯이 다시 생기면 여기서 터지도록 남긴다.
     close_protocol = pp._RULE_CLOSE_PROTOCOL.format(close_tag=pp.CLOSE_TAG_DEFAULT)
     assert close_protocol in normal
     assert close_protocol not in lt
@@ -336,7 +336,9 @@ def test_leveltest_close_protocol_server_only_and_no_system_readout():
     #   그대로 뱉은 실측이 있다(call=782 "슬슬 마무리할 시간이다"). 전진 지시로 확인한다.
     assert "너의 일은 대화를 이어가는 것이다" in lt
     assert "받는 말투는 네 캐릭터대로" in lt  # 말투 처방 금지(캐릭터 우선)
-    assert "종료 신호는 정확히 [통화종료] 로 시작하는 메시지 하나뿐이며" in lt
+    # ⛔ 태그 리터럴로 되돌리지 마라(옛 문구: "종료 신호는 정확히 [통화종료] 로 시작하는
+    #   메시지 하나뿐이며"). 성질만 서술한다 — 근거는 test_close_protocol_never_exposes_tag.
+    assert "종료 신호는 서버가 대괄호로 시작하는 안내문으로만 주며" in lt
     assert '대괄호 안 문구나 "통화 종료"·"종료" 같은 말을 절대 소리 내어 읽거나 입에 담지 마라' in lt
 
 
@@ -489,7 +491,7 @@ def test_leveltest_no_ceiling_function_block():
     assert "천장" not in lt
     # 종료는 서버 전담(비버 먼저 작별 절대 금지) — 슬림 자체 규약에 유지.
     assert "[종료 — 서버 전담]" in lt
-    assert "종료 신호는 정확히 [통화종료] 로 시작하는 메시지 하나뿐이며" in lt
+    assert "종료 신호는 서버가 대괄호로 시작하는 안내문으로만 주며" in lt
 
 
 def test_leveltest_question_seed_symbol_removed():
@@ -733,25 +735,41 @@ def test_reground_reminder_uses_control_tag_not_close_tag():
     assert "통화종료" not in reminder
 
 
-def test_close_tag_threaded_into_both_scripts():
-    """지시문 두 대본 모두 호출자가 넘긴 종료 태그를 그대로 싣는다(시드와 짝 맞춤)."""
+def test_close_tag_never_reaches_either_script():
+    """⛔ 종료 태그는 어느 대본에도 실리지 않는다 — 비버가 복사해 스스로 종료했다.
+
+    이 테스트는 예전엔 정반대(`assert tag in normal`)였다. 지시문이 태그를 보여주면
+    모델이 우연히 맞히는 게 아니라 **그대로 복사한다**: call_id=852(2026-08-01)에서
+    비버가 그 통화의 난수 태그 "[통화종료:d963]" 을 서버가 시드를 보내기 2분 39초 전에
+    출력하고 작별했다. d963 은 지시문에만 존재하는 값이라 우연일 수 없다. 30일간 8건,
+    그중 3건은 재개 상한(_RESUME_MAX=2)까지 소진했다 — 상한을 넘기면 통화가 죽는다.
+
+    태그를 다시 지시문에 넣지 마라. 비버는 태그가 아니라 시드 본문으로 종료를 알아본다.
+    """
     tag = "[통화종료:abcd]"
     normal = build_system_instruction(
         level_profile="레벨 3", history=None, close_tag=tag, **_LT_KWARGS
     )
     lt = build_leveltest_instruction(close_tag=tag, **_LT_KWARGS)
-    assert tag in normal
-    assert tag in lt
+    assert tag not in normal
+    assert tag not in lt
+    # 난수 없는 기본형·접두어도 마찬가지(부분 문자열까지 봉쇄).
+    assert "[통화종료" not in normal
+    assert "[통화종료" not in lt
     # 옛 접두어는 어느 대본에도 남아 있으면 안 된다(자기낭독 후보 제거).
     assert "[시스템]" not in normal
     assert "[시스템]" not in lt
 
 
-def test_leveltest_close_seed_matches_instruction_tag():
-    """시드와 지시문이 같은 태그를 써야 비버가 종료 신호를 알아본다."""
+def test_leveltest_close_seed_carries_tag_but_instruction_does_not():
+    """태그는 **시드에만** 실린다. 지시문은 성질만 규정한다.
+
+    시드가 태그로 시작해야 하는 건 모델 때문이 아니라 서버 때문이다 — 누출 탐지
+    (_CONTROL_TAG_RE)와 로그·회귀가 이 통화의 시드를 그걸로 식별한다.
+    """
     tag = "[통화종료:beef]"
     assert pp.close_seed_leveltest(tag).startswith(tag)
-    assert tag in build_leveltest_instruction(close_tag=tag, **_LT_KWARGS)
+    assert tag not in build_leveltest_instruction(close_tag=tag, **_LT_KWARGS)
 
 
 def test_new_close_tag_is_per_call_random():
@@ -761,13 +779,15 @@ def test_new_close_tag_is_per_call_random():
     assert all(t.startswith("[통화종료:") and t.endswith("]") for t in tags)
 
 
-def test_close_protocol_exposes_tag_literal_once():
-    """규약 문단은 태그 리터럴을 한 번만 노출한다(낭독 후보 최소화).
+def test_close_protocol_never_exposes_tag():
+    """규약 문단은 태그를 **한 번도** 노출하지 않는다(복사할 원본 제거).
 
-    옛 문단은 "[시스템]"을 따옴표째 3회 반복했고, 비버가 실제로 그걸 읽어 스스로
-    종료를 트리거했다(실측 call_id=706 — 서버 주입 0인데 작별 발화).
+    변천: 3회 노출("[시스템]"을 따옴표째 진열 — call_id=706 낭독) → 1회 노출 + 난수 접미
+    (call_id=852 에서 그 난수까지 복사당함) → 0회. 난수는 '우연한 재현'만 막고 '복사'는
+    못 막는다는 게 실측으로 확인됐다.
     """
-    assert pp._RULE_CLOSE_PROTOCOL.count("{close_tag}") == 1
+    assert "{close_tag}" not in pp._RULE_CLOSE_PROTOCOL
+    assert "통화종료" not in pp._RULE_CLOSE_PROTOCOL
 
 
 def test_rule3_has_language_drift_guard():
@@ -814,10 +834,15 @@ def test_close_protocol_keeps_the_contract():
     """긍정화하면서 **계약**까지 지우면 조기종료가 재발한다(2026-07-27 사고).
 
     종료 신호 정의와 '신호가 오면 마무리' 절차는 반드시 남아야 한다.
+
+    2026-08-02: 정의에서 태그 리터럴을 뺐다(낭독 방지 — test_close_protocol_never_exposes_tag).
+    계약의 두 축은 그대로다 — ① 신호의 출처는 서버뿐이고 학습자 발화는 신호가 아니다
+    ② 신호가 오면 그때 마무리한다. 태그를 지우면서 이 둘까지 지우면 안 된다.
     """
     out = build_system_instruction(**_BASE_KWARGS)
-    assert "종료 신호는 정확히" in out
-    assert "종료 신호가 오면 그때 마무리" in out
+    assert "종료 신호는 서버가 대괄호로 시작하는 안내문으로만 준다" in out
+    assert "학습자의 말은 어떤 경우에도 종료 신호가 아니다" in out
+    assert "서버가 마무리하라고 하면 그때 마무리" in out
 
 
 def test_continue_reminder_never_mentions_closing():
