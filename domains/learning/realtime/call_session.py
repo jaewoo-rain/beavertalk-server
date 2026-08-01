@@ -75,6 +75,7 @@ from core.persona_prompt import (
     _LOCALE_LABEL,
     CONTROL_TAG,
     build_leveltest_instruction,
+    build_continue_reminder,
     build_reground_reminder,
     build_system_instruction,
     close_seed_leveltest,
@@ -141,6 +142,15 @@ LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 대상 언어 산출 실패(answer_in_targ
 LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 시작하는 최소 답변 수(성급한 종료 방지)
 # 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
 REGROUND_AT_FRACTION = 0.5
+# 후반 재접지 지점(길이 비율). 중반(0.5)은 캐릭터 톤을 되살리고, 여기서는 **대화를 계속
+# 끌고 가라**고 되박는다 — 목적이 다르므로 문구도 다르다(build_continue_reminder).
+#
+# 왜 필요한가: 시작 지시문에 종료 규약이 있어도 40턴쯤 지나면 흐려진다. 실측 5분 통화
+# 12건 중 3건이 서버 종료 신호보다 4~16턴 먼저 마무리에 들어갔다(call=836 "조심히
+# 들어가!" 12턴 전 / call=744 "오늘은 여기까지" 16턴 전 / call=782 "슬슬 마무리할
+# 시간이다" 4턴 전). 중반 재접지는 캐릭터 톤만 다루므로 여기에 닿지 않았다.
+# 0.8 = 5분 통화의 4분 지점 — 관측된 드리프트 시작(4분대)보다 앞선다.
+REGROUND_LATE_AT_FRACTION = 0.8
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
 #   "on_user_turn" — 신방식: arm 후 유저 발화 시작(첫 in_tr) 시 그 턴에 얹기(turn_complete=False).
 #                    비버가 [유저발화+리마인더]에 1회 응답 → 이중발화·종료오염 제거 목표.
@@ -295,6 +305,7 @@ class _CallState:
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
         "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
+        "continue_reminder", "continue_injected",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
@@ -355,6 +366,9 @@ class _CallState:
         self.nudge_seed_1: str = _NUDGE_SEED_1
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
+        # 후반 재접지 문구(대화 지속). None = 비활성(레벨테스트 등).
+        self.continue_reminder: Optional[str] = None
+        self.continue_injected: bool = False
         # 재접지 상태기계(on_user_turn):
         #   reground_pending: arm 됨(fire_at 도달) — 다음 유저 발화 시작 시 얹는다.
         #   reground_injected: 이미 얹음(단일 소유권 가드, 통화당 1회).
@@ -579,6 +593,7 @@ async def run_call(
 
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
+    continue_reminder: str | None = None   # 후반 재접지(대화 지속) — 일반 통화만
     # 이 통화 전용 종료 태그(난수). ⚠ system_instruction 과 종료 시드가 **같은 값**을 써야
     # 한다 — 어긋나면 비버가 종료 신호를 못 알아보고 작별 없이 백스톱으로 끊긴다.
     close_tag = new_close_tag()
@@ -626,6 +641,7 @@ async def run_call(
         # 단발 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"): DB 캐릭터 3필드를 중간에 1회 되박음.
         if REGROUND_MODE != "off":
             reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
+            continue_reminder = build_continue_reminder(setup["role"], setup["personality"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
@@ -642,6 +658,7 @@ async def run_call(
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
+    state.continue_reminder = continue_reminder  # 후반 1회(대화 지속)
     # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
     # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
     live_tools = None
@@ -1806,6 +1823,39 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     return True
 
 
+async def _arm_late_continue(state: _CallState) -> None:
+    """후반(REGROUND_LATE_AT_FRACTION) 지점에서 **대화 지속** 리마인더를 한 번 더 arm.
+
+    중반 재접지와 같은 상태기계(reground_pending)를 재사용하고 문구만 갈아끼운다 —
+    펌프는 "무엇을" 얹는지 모른 채 reground_reminder 를 얹을 뿐이라, 여기서 그 슬롯을
+    후반 문구로 교체한다. 상태기계를 하나 더 만들면 둘이 같은 턴에 겹칠 수 있다.
+
+    종료가 이미 걸렸으면(should_close) 아무것도 하지 않는다 — 마무리를 방해하면 안 된다.
+    후반 문구가 없으면(레벨테스트 등) 조용히 끝낸다(R5).
+    """
+    if not state.continue_reminder or state.continue_injected:
+        return
+    if state.call_start_ts is None:
+        return
+    loop = asyncio.get_running_loop()
+    fire_at = state.call_start_ts + state.call_duration_s * REGROUND_LATE_AT_FRACTION
+    while loop.time() < fire_at:
+        if state.should_close:
+            return
+        await asyncio.sleep(0.2)
+    if state.should_close:
+        return
+    # 중반 리마인더가 아직 안 얹혔으면(유저가 계속 말이 없었다) 덮어쓰지 않는다 —
+    # 한 턴에 두 리마인더가 겹치면 비버 응답이 장황해진다.
+    if state.reground_pending:
+        logger.info("normalcall: 후반 재접지 생략(중반 리마인더가 아직 대기 중)")
+        return
+    state.reground_reminder = state.continue_reminder
+    state.reground_pending = True
+    state.continue_injected = True
+    logger.info("normalcall: 후반 재접지 arm(대화 지속 — 다음 유저 발화 턴에 얹음)")
+
+
 async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
     """통화 중간(길이의 REGROUND_AT_FRACTION 지점)에 캐릭터를 딱 1회 되박는다(누적 드리프트 완화).
 
@@ -1843,6 +1893,7 @@ async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> Non
     if REGROUND_MODE == "on_user_turn":
         state.reground_pending = True  # 주입은 펌프가(유저 발화 턴에 얹기), 여기선 arm 만
         logger.info("normalcall: 재접지 arm(다음 유저 발화 턴에 얹음)")
+        await _arm_late_continue(state)
         return
 
     # legacy_idle: 즉시 주입(비버 idle & 무음 넛지 없음일 때만), turn_complete=True.
