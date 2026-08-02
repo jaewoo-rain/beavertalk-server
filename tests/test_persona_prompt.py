@@ -38,11 +38,9 @@ _ORIG_INVARIANTS_TEMPLATE = """너는 '비버' — 아래 [페르소나]의 인�
    - [공부 모드] 학습자의 레벨([학습자 수준])과 흥미를 반영해 따라 말할 {target} 문장을 그 자리에서 만들어 준다 → 또박또박 한 번 들려주고 따라 말하게 시킨다 → 반응(칭찬·핀잔 등)은 네 캐릭터대로 하고, 틀리면 고쳐 준다. 한 번에 한 문장씩.
    - [대화 모드] 학습자의 관심사로 {target}를 섞은 대화를 이어간다. 학습자가 "이거 {target}로 어떻게 말해요?"라고 물으면 알려 준다. {target}가 어색하면 고쳐 준다.
    - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
-2. 통화 종료 규약(매우 중요) — 종료 시점은 전적으로 서버가 정한다:
-   - 너는 통화 길이를 모른다. 남은·경과 시간을 언급하지 마라("슬슬 끊자", "마지막으로" 등 금지).
-   - 이 통화의 종료 신호는 정확히 {close_tag} 로 시작하는 메시지 하나뿐이다. 그 신호가 오기 전엔 절대 먼저 작별·마무리하지 마라. 학습자가 "갈게/그만/bye"로 끝내려 하거나 대화가 잠깐 끊겨도, 끝내지 말고 붙잡아 새 화제로 이어가라 — 끝내는 건 서버나 종료 버튼 몫이다.
-   - 그 신호는 너에게만 가는 것이며, 대괄호로 시작하는 서버 안내문은 전부 마찬가지다. 어떤 경우에도 대괄호 안 문구를 소리 내어 읽거나 언급하지 말고, 종료를 선언하지도 마라(내용만 행동으로 반영).
-   - 종료 신호가 오면 그때 마무리: 학습자의 마지막 말은 짧게 받고 새 화제·질문은 꺼내지 마라. 짧게 핑계 대고 작별 평서문으로 끝내라 — 이 턴만은 질문으로 끝내지 마라(1~2문장).
+2. 대화 지속(매우 중요):
+   - 너의 일은 학습자와 대화를 계속 이어가는 것이다. 학습자가 "고마워/알겠어/갈게/bye"처럼 대화를 접으려 해도 짧게 받은 뒤 곧바로 새 화제나 질문을 하나 던져 이어가라(받는 말투는 네 캐릭터대로).
+   - 대괄호로 시작하는 안내문이 대화 중간에 섞여 들어올 때가 있다. 그건 너에게만 가는 것이다 — 어떤 경우에도 대괄호와 그 안 문구를 소리 내어 읽거나 언급하지 말고, 내용만 행동으로 반영하라.
 3. 언어 사용(code-switching) — 매우 중요. 목표는 학습자가 {target}를 실제로 '말하게' 하는 것이다:
    - [모드별 언어 — 가장 중요] '대화 모드'는 가르치는 게 아니라 복습·자유대화다 — 기본적으로 {target}로 대화하고, {locale_label}는 학습자가 "이거 {target}로 어떻게 말해요?"라고 묻거나 못 알아들어 막힐 때만 쓴다. '공부 모드'(오늘 항목 가르치기)는 새 항목을 이해시키는 게 우선이라 설명·지시·리액션은 레벨과 무관하게 전부 {locale_label}로 한다(새 항목을 모르는 학습자에게 {target}로 설명하면 그 설명조차 못 알아듣는다). 학습자가 따라 할 {target} 표현·예문만 또박또박 들려주고 따라 말하게 하라. 아래 밴드 정책은 대화 모드에서 초보에게 {locale_label} 발판을 얼마나 대줄지를 정한다(공부 모드엔 무관).
 {lang_policy}
@@ -207,7 +205,7 @@ def test_close_protocol_constant_matches_original_paragraph():
     직전까지를 통째로 잘라 비교한다.
     """
     lines = _ORIG_INVARIANTS_TEMPLATE.splitlines()
-    start = next(i for i, ln in enumerate(lines) if ln.startswith("2. 통화 종료 규약"))
+    start = next(i for i, ln in enumerate(lines) if ln.startswith("2. 대화 지속"))
     end = next(i for i, ln in enumerate(lines) if ln.startswith("3. "))
     orig_rule2 = "\n".join(lines[start:end])
     assert "2. " + pp._RULE_CLOSE_PROTOCOL == orig_rule2
@@ -318,23 +316,31 @@ _LT_KWARGS = dict(
 )
 
 
-def test_leveltest_close_protocol_server_only_and_no_system_readout():
-    """레벨테스트는 자체 슬림 종료 규약을 갖는다(공유 _RULE_CLOSE_PROTOCOL 미사용).
-    핵심 불변: 종료는 서버 전담 + 대괄호 안 문구·"종료"를 소리 내어 읽지 않는다(낭독 방지)."""
+def test_leveltest_continuation_rule_and_no_readout():
+    """레벨테스트는 자체 슬림 대화지속 문단을 갖는다(공유 _RULE_CLOSE_PROTOCOL 미사용).
+
+    핵심 불변: 대화를 이어가라는 전진 지시 + 대괄호 낭독 금지. 종료 개념은 두 대본
+    어디에도 없다(근거는 test_prompt_never_mentions_closing)."""
     normal = build_system_instruction(
         level_profile="레벨 3", history=None, **_LT_KWARGS
     )
     lt = build_leveltest_instruction(**_LT_KWARGS)
     # 일반 통화는 여전히 공유 종료 규약을 쓴다. 레벨테스트는 자체 슬림 버전(공유 상수 미포함).
-    # ⚠ 상수는 {close_tag} 슬롯을 품은 원본이라, 조립 결과와 비교하려면 같은 기본 태그로 채운다.
+    # 상수엔 더 이상 슬롯이 없어 .format 은 항등이지만, 슬롯이 다시 생기면 여기서 터지도록 남긴다.
     close_protocol = pp._RULE_CLOSE_PROTOCOL.format(close_tag=pp.CLOSE_TAG_DEFAULT)
     assert close_protocol in normal
     assert close_protocol not in lt
-    # 자체 종료 규약의 핵심 불변식
-    assert "[종료 — 서버 전담]" in lt
-    assert "언제 끝낼지는 서버만 안다" in lt
-    assert "종료 신호는 정확히 [통화종료] 로 시작하는 메시지 하나뿐이며" in lt
-    assert '대괄호 안 문구나 "통화 종료"·"종료" 같은 말을 절대 소리 내어 읽거나 입에 담지 마라' in lt
+    # 자체 문단의 핵심 불변식
+    assert "[대화 지속]" in lt
+    # ⛔ 부정 지시로 되돌리지 마라. 옛 문구는 '언제 끝낼지는 서버만 안다 … "이제 그만"·
+    #   "마지막으로" 같은 말 금지' 였는데, 일반 통화 쪽 같은 형태의 금지 예시를 비버가
+    #   그대로 뱉은 실측이 있다(call=782 "슬슬 마무리할 시간이다"). 전진 지시로 확인한다.
+    assert "너의 일은 대화를 계속 이어가는 것이다" in lt
+    assert "받는 말투는 네 캐릭터대로" in lt  # 말투 처방 금지(캐릭터 우선)
+    # ⛔ 종료 메커니즘 설명을 되살리지 마라(옛 문구: "종료 신호는 정확히 [통화종료] 로
+    #   시작하는 메시지 하나뿐이며" → "서버가 대괄호로 시작하는 안내문으로만 주며").
+    #   전자는 복사(call 852), 후자는 태그 발명(call 870 "[마무리]")을 낳았다.
+    assert "대괄호 안 문구를 절대 소리 내어 읽거나 입에 담지 말고" in lt
 
 
 def test_leveltest_self_driven_progress_and_reaction_rules():
@@ -484,9 +490,9 @@ def test_leveltest_no_ceiling_function_block():
     assert "[천장 신호" not in lt
     assert "leveltest_ceiling_reached" not in lt
     assert "천장" not in lt
-    # 종료는 서버 전담(비버 먼저 작별 절대 금지) — 슬림 자체 규약에 유지.
-    assert "[종료 — 서버 전담]" in lt
-    assert "종료 신호는 정확히 [통화종료] 로 시작하는 메시지 하나뿐이며" in lt
+    # 대화 지속(비버가 먼저 끝내지 않는다) — 슬림 자체 문단에 유지.
+    assert "[대화 지속]" in lt
+    assert "너의 일은 대화를 계속 이어가는 것이다" in lt
 
 
 def test_leveltest_question_seed_symbol_removed():
@@ -567,7 +573,7 @@ def test_study_block_render_and_rule1_swap():
     # 블록 헤더(상호배제) + 본편/예비 구분
     assert "[오늘의 공부 항목 — 공부 모드일 때만 따르라. 대화 모드에서는 이 블록을 무시하라]" in out
     assert "본편:" in out
-    assert "예비(본편을 전부 끝냈는데 아직 종료 신호가 오지 않았을 때만 이어서 진행):" in out
+    assert "이어서(본편을 끝내면 여기서 계속):" in out
     # 항목 줄 렌더(유형라벨/예문/참고/예문 폴백) — 번호는 본편→예비 연속
     assert '1. (복습) V-았어요/었어요 — 예문: "어제 영화를 봤어요."' in out
     assert '2. (문법) V-(으)ㄹ 거예요 — 예문: "주말에 여행을 갈 거예요." — 참고: 미래 계획을 말할 때' in out
@@ -576,7 +582,9 @@ def test_study_block_render_and_rule1_swap():
     # 진행 규칙 핵심 문구
     assert "이 목록의 존재·남은 개수·진행률을 학습자에게 절대 발설하지 마라" in out
     assert "다 못 끝내도 괜찮다. 서두르지 마라" in out
-    assert "절대 먼저 작별·마무리하지 마라" in out
+    # ⛔ 부정 지시("작별하지 마라")로 되돌리지 마라 — 금지 예시를 비버가 그대로
+    #   뱉은 실측이 있다(call=782 "슬슬 마무리할 시간이다"). 전진 지시로만 확인한다.
+    assert "새 화제를 하나 꺼내 계속 이어가면 된다" in out
     assert "최대 2번까지만 다시 시도해라" in out
     # 일반(비 L1) 절차 — 문법 절차 존재(교정은 규칙4로 위임), 왕초보 변형 아님
     assert "유형별 절차:" in out
@@ -728,25 +736,41 @@ def test_reground_reminder_uses_control_tag_not_close_tag():
     assert "통화종료" not in reminder
 
 
-def test_close_tag_threaded_into_both_scripts():
-    """지시문 두 대본 모두 호출자가 넘긴 종료 태그를 그대로 싣는다(시드와 짝 맞춤)."""
+def test_close_tag_never_reaches_either_script():
+    """⛔ 종료 태그는 어느 대본에도 실리지 않는다 — 비버가 복사해 스스로 종료했다.
+
+    이 테스트는 예전엔 정반대(`assert tag in normal`)였다. 지시문이 태그를 보여주면
+    모델이 우연히 맞히는 게 아니라 **그대로 복사한다**: call_id=852(2026-08-01)에서
+    비버가 그 통화의 난수 태그 "[통화종료:d963]" 을 서버가 시드를 보내기 2분 39초 전에
+    출력하고 작별했다. d963 은 지시문에만 존재하는 값이라 우연일 수 없다. 30일간 8건,
+    그중 3건은 재개 상한(_RESUME_MAX=2)까지 소진했다 — 상한을 넘기면 통화가 죽는다.
+
+    태그를 다시 지시문에 넣지 마라. 비버는 태그가 아니라 시드 본문으로 종료를 알아본다.
+    """
     tag = "[통화종료:abcd]"
     normal = build_system_instruction(
         level_profile="레벨 3", history=None, close_tag=tag, **_LT_KWARGS
     )
     lt = build_leveltest_instruction(close_tag=tag, **_LT_KWARGS)
-    assert tag in normal
-    assert tag in lt
+    assert tag not in normal
+    assert tag not in lt
+    # 난수 없는 기본형·접두어도 마찬가지(부분 문자열까지 봉쇄).
+    assert "[통화종료" not in normal
+    assert "[통화종료" not in lt
     # 옛 접두어는 어느 대본에도 남아 있으면 안 된다(자기낭독 후보 제거).
     assert "[시스템]" not in normal
     assert "[시스템]" not in lt
 
 
-def test_leveltest_close_seed_matches_instruction_tag():
-    """시드와 지시문이 같은 태그를 써야 비버가 종료 신호를 알아본다."""
+def test_leveltest_close_seed_carries_tag_but_instruction_does_not():
+    """태그는 **시드에만** 실린다. 지시문은 성질만 규정한다.
+
+    시드가 태그로 시작해야 하는 건 모델 때문이 아니라 서버 때문이다 — 누출 탐지
+    (_CONTROL_TAG_RE)와 로그·회귀가 이 통화의 시드를 그걸로 식별한다.
+    """
     tag = "[통화종료:beef]"
     assert pp.close_seed_leveltest(tag).startswith(tag)
-    assert tag in build_leveltest_instruction(close_tag=tag, **_LT_KWARGS)
+    assert tag not in build_leveltest_instruction(close_tag=tag, **_LT_KWARGS)
 
 
 def test_new_close_tag_is_per_call_random():
@@ -756,13 +780,15 @@ def test_new_close_tag_is_per_call_random():
     assert all(t.startswith("[통화종료:") and t.endswith("]") for t in tags)
 
 
-def test_close_protocol_exposes_tag_literal_once():
-    """규약 문단은 태그 리터럴을 한 번만 노출한다(낭독 후보 최소화).
+def test_close_protocol_never_exposes_tag():
+    """규약 문단은 태그를 **한 번도** 노출하지 않는다(복사할 원본 제거).
 
-    옛 문단은 "[시스템]"을 따옴표째 3회 반복했고, 비버가 실제로 그걸 읽어 스스로
-    종료를 트리거했다(실측 call_id=706 — 서버 주입 0인데 작별 발화).
+    변천: 3회 노출("[시스템]"을 따옴표째 진열 — call_id=706 낭독) → 1회 노출 + 난수 접미
+    (call_id=852 에서 그 난수까지 복사당함) → 0회. 난수는 '우연한 재현'만 막고 '복사'는
+    못 막는다는 게 실측으로 확인됐다.
     """
-    assert pp._RULE_CLOSE_PROTOCOL.count("{close_tag}") == 1
+    assert "{close_tag}" not in pp._RULE_CLOSE_PROTOCOL
+    assert "통화종료" not in pp._RULE_CLOSE_PROTOCOL
 
 
 def test_rule3_has_language_drift_guard():
@@ -779,3 +805,100 @@ def test_rule3_has_language_drift_guard():
     assert "학습자가 한국어로 답해도 네 칭찬·교정·지시는 계속 영어(English)로" in out
     # 따라 말하기(공부 모드의 목적)까지 막으면 안 된다 — 인용은 허용해야 한다.
     assert "따라 할 표현만 인용해라" in out
+
+
+# --------------------------------------------------------------------------- #
+# 종료 규약 — 부정 지시 금지(금지 예시가 씨앗이 된 실측 사고)
+# --------------------------------------------------------------------------- #
+_SEED_PHRASES = ("슬슬 끊자", "마지막으로", "이제 그만")
+
+
+def test_close_protocol_has_no_forbidden_example_phrases():
+    """★ 금지 예시를 프롬프트에 적으면 비버가 그걸 뱉는다.
+
+    실측 call=782: 프롬프트가 '"슬슬 끊자","마지막으로" 등 금지' 라고 적어뒀는데
+    비버가 "슬슬 마무리할 시간이다" 라고 했다. 5분 통화 12건 중 3건이 서버 종료
+    신호보다 4~16턴 먼저 마무리에 들어갔다(call=836/744/782).
+    """
+    out = build_system_instruction(**_BASE_KWARGS)
+    for p in _SEED_PHRASES:
+        assert p not in out, f"금지 예시 {p!r} 가 프롬프트에 다시 들어왔다 — 씨앗이 된다"
+
+
+def test_leveltest_close_protocol_has_no_seed_phrases():
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    for p in _SEED_PHRASES:
+        assert p not in lt, f"금지 예시 {p!r} 가 레벨테스트 대본에 다시 들어왔다"
+
+
+def test_prompt_never_mentions_closing():
+    """⛔ 지시문은 '종료'라는 개념 자체를 모른다 — 두 대본 모두.
+
+    옛 계약("종료 신호 정의 + 신호가 오면 마무리 절차")은 **의도적으로 폐기됐다**.
+    종료 메커니즘을 가르치면 모델이 그걸 실행 수단으로 쓴다는 게 세 번 확인됐다:
+      ① 리터럴 3회 노출 → "[시스템]" 낭독 후 자체 종료(call 706)
+      ② 리터럴 1회 + 난수 → 난수까지 복사해 자체 종료(call 852, 서버 시드 2분 39초 전)
+      ③ 리터럴 0회 + "대괄호 안내문이 종료 신호" 성질 서술 → 없는 태그 발명(call 870
+         "[마무리]" 8회). 지시문 자체가 대괄호 라벨을 11종 쓰므로 흉내낼 문법이 된다.
+
+    종료는 때가 되면 서버가 평범한 지시문으로 넣고(in-context), 낭독 방지는 서버
+    필터가 강제한다(call_session._CONTROL_TAG_RE). 지시문이 알 필요가 없다.
+
+    남아야 하는 두 가지: ① 대화를 이어가라는 전진 지시 ② 대괄호 낭독 금지.
+    """
+    normal = build_system_instruction(**_BASE_KWARGS)
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    for name, out in (("일반", normal), ("레벨테스트", lt)):
+        assert "종료" not in out, f"{name} 대본에 '종료'가 다시 들어왔다"
+        assert "통화종료" not in out
+        assert "마무리" not in out, f"{name} 대본에 '마무리'가 다시 들어왔다"
+        # 남아야 하는 것
+        assert "대화를 계속 이어가는 것이다" in out
+        assert "소리 내어 읽거나" in out
+
+
+def test_continue_reminder_never_mentions_closing():
+    """★ 후반 재접지가 종료 어휘를 꺼내면 그 자체가 종료 신호가 된다.
+
+    전례: 재접지 리마인더가 종료 시드와 같은 태그를 써서 30초 뒤 작별했다(call_id=683).
+    태그는 분리됐지만, 어휘로도 같은 일이 난다.
+    """
+    from core.persona_prompt import CONTROL_TAG, build_continue_reminder
+
+    r = build_continue_reminder("선생님", "까칠하다")
+    for w in ("끝", "종료", "작별", "마무리", "시간", "남은"):
+        assert w not in r, f"후반 리마인더에 종료 어휘 {w!r} 가 들어갔다"
+    assert r.startswith(CONTROL_TAG), "종료 태그가 아니라 CONTROL_TAG 여야 한다"
+    assert "새 질문" in r and "이어가라" in r
+
+
+def test_continue_reminder_is_distinct_from_reground():
+    """중반(캐릭터 톤)과 후반(대화 지속)은 목적이 다르므로 문구도 달라야 한다."""
+    from core.persona_prompt import build_continue_reminder, build_reground_reminder
+
+    assert build_continue_reminder("r", "p") != build_reground_reminder("r", "p")
+
+
+def test_close_protocol_does_not_prescribe_tone():
+    """★ 종료 규약이 말투를 처방하면 캐릭터가 약해진다.
+
+    캐릭터는 "교정하는 순간에도 톤을 순화하지 마라"가 원칙이고, 커밋 f8e0ebb 가
+    종료 시드에서 작별 말투 처방을 이미 걷어냈다. 같은 원칙이 종료 규약에도 적용된다 —
+    "따뜻하게" 같은 부사를 넣지 말고 캐릭터에 위임한다.
+    """
+    out = build_system_instruction(**_BASE_KWARGS)
+    lt = build_leveltest_instruction(**_LT_KWARGS)
+    for w in ("따뜻하게", "다정하게", "부드럽게", "친절하게"):
+        assert w not in out, f"종료 규약이 말투를 처방한다: {w!r}"
+        assert w not in lt, f"레벨테스트 종료 규약이 말투를 처방한다: {w!r}"
+
+
+def test_close_protocol_has_no_meta_explanation():
+    """서버가 길이를 관리한다는 **설명**은 행동을 바꾸지 않는다 — 지시만 남긴다.
+
+    '너는 시간을 세지 말고' 도 결국 부정 지시라 "시간"을 심는다. 뒷줄이 이미
+    "너의 일은 대화를 이어가는 것" 이라고 행동을 정하므로 중복이다.
+    """
+    out = build_system_instruction(**_BASE_KWARGS)
+    assert "시간을 세지" not in out
+    assert "통화 길이를 모른다" not in out

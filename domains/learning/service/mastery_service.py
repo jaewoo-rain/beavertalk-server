@@ -470,11 +470,25 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
         return {"result": "stay", "reason": "no_gate_items", "level": k}
 
     prog_map = mastery_repository.get_progress_map(db, member_id, [i for i, _ in gate_items])
+    # ⛔ placement 는 세지 마라. grandfathering 이 "이 레벨 아래는 안다고 치자"고 찍은
+    #   **선별용 표시**지 학습자가 실제로 해본 것이 아니다(같은 원칙을 known_grammar·
+    #   pick_chat_targets 가 이미 쓴다 — 거기 주석 참조). 실증거가 붙으면 provenance 가
+    #   placement → observed 로 승격되므로, 이 조건은 정확히 "증거 없는 것"만 걸러낸다.
+    #
+    #   왜 게이트에서 특히 위험한가: 레벨이 **내려갈 때** 옛 배정의 placement 가 새 레벨의
+    #   게이트를 통째로 채운다. member=20 실측 — 예전에 ja 레벨 3 을 받아 L1 46개가
+    #   placement/mastered 로 찍혔고, 그 뒤 "다시하기"로 레벨 1 을 받자 그 46개가 곧바로
+    #   L1 게이트의 분자가 됐다. 첫 통화가 끝나자마자 g1=g2=100% 로 승급(#247·#249,
+    #   2026-08-02 하루 두 번). 같은 로그 줄에 "증거 0건, 레벨업 promoted" 가 찍혔다.
+    #
+    #   올바르게 배정된 레벨에서는 이 조건이 아무것도 바꾸지 않는다 — grandfathering 은
+    #   ≥k 를 건드리지 않으므로 레벨 k 의 게이트 항목엔 placement 가 애초에 없다.
+    counted = [p for p in prog_map.values() if p.provenance != "placement"]
     introduced_plus = sum(
-        1 for p in prog_map.values() if p.status in ("introduced", "practicing", "mastered")
+        1 for p in counted if p.status in ("introduced", "practicing", "mastered")
     )
     mastered_confirmed = sum(
-        1 for p in prog_map.values()
+        1 for p in counted
         if p.status == "mastered"
         and (p.provenance != "fast_track" or p.fast_track_confirmed_at is not None)
     )
@@ -511,6 +525,9 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
         "denominator": denom,
         "introduced_plus": introduced_plus,
         "mastered_confirmed": mastered_confirmed,
+        # 분자에서 제외한 placement 수 — 승급/미승급을 나중에 재구성할 때 "게이트 항목에
+        # 옛 배정 흔적이 얼마나 깔려 있었나"가 핵심 단서다(레벨 하향 후 오승급 진단용).
+        "placement_excluded": len(prog_map) - len(counted),
         "g1": {"ratio": round(g1_ratio, 4), "threshold": params["g1"], "pass": g1_pass},
         "g2": {"ratio": round(g2_ratio, 4), "threshold": params["g2"], "pass": g2_pass},
         "g4": {
