@@ -612,10 +612,19 @@ def test_user_char_total_counts_only_target_script():
 # (6) 빈 전사 스킵 / (7) LLM 실패
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_skips_judge_when_user_speech_under_threshold(
+async def test_assigns_lowest_level_when_user_speech_under_threshold(
     session_factory, seeded, monkeypatch
 ):
-    """USER 발화 <20자(공백 제외) → LLM 미호출·미저장·done(다음 통화 재테스트)."""
+    """USER 발화 <20자 → LLM 미호출이되 **최하 레벨(1) 배정**·done.
+
+    ⛔ 미저장(레벨 None 유지)으로 되돌리지 마라. "레벨테스트 다시하기"는
+    member_language_level 행을 지우고 가는데, 재측정이 미저장으로 끝나면 레벨이 없는
+    상태로 갇힌다 — 다음 통화도 레벨테스트로 라우팅되고 그것도 짧으면 또 미저장이라
+    빠져나올 길이 없다(실측 member=20, call 866·871 연속 스킵으로 ja 레벨 소실).
+
+    그리고 표본 미달은 대개 측정 실패가 아니라 측정 결과다 — 목표어를 20자도 못
+    만든 학습자의 자리가 레벨 1(생존 회화)이다.
+    """
     call_id = _seed_level_test_call(
         session_factory, seeded["member_none"], seeded["character_id"],
         user_lines=["안녕"],  # 2자 < 20자
@@ -628,13 +637,13 @@ async def test_skips_judge_when_user_speech_under_threshold(
         member_id=seeded["member_none"], locale="en",
     )
 
-    mock.assert_not_called()
+    mock.assert_not_called()  # LLM 콜은 여전히 아낀다
     db = session_factory()
     try:
-        assert db.get(Member, seeded["member_none"]).korean_level is None
+        assert db.get(Member, seeded["member_none"]).korean_level == 1
         call = db.get(Call, call_id)
         assert call.status == "done"
-        assert call.assessed_level is None
+        assert call.assessed_level == 1
     finally:
         db.close()
 
@@ -672,7 +681,7 @@ async def test_llm_failure_marks_failed_and_keeps_level_unset(
 async def test_skips_judge_when_user_speech_is_symbols_only(
     session_factory, seeded, monkeypatch
 ):
-    """F4: 기호·이모지만 20자+ → letter/digit 0자로 계수 → LLM 미호출·미저장·done."""
+    """F4: 기호·이모지만 20자+ → letter/digit 0자로 계수 → LLM 미호출·최하 레벨 배정."""
     call_id = _seed_level_test_call(
         session_factory, seeded["member_none"], seeded["character_id"],
         user_lines=["!!!???...,,,;;;###$$$%%%🙂🙂🙂"],  # 공백 제외 20자+ 이지만 전부 기호
@@ -688,10 +697,10 @@ async def test_skips_judge_when_user_speech_is_symbols_only(
     mock.assert_not_called()
     db = session_factory()
     try:
-        assert db.get(Member, seeded["member_none"]).korean_level is None
+        assert db.get(Member, seeded["member_none"]).korean_level == 1
         call = db.get(Call, call_id)
         assert call.status == "done"
-        assert call.assessed_level is None
+        assert call.assessed_level == 1
     finally:
         db.close()
 

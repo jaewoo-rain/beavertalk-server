@@ -1487,8 +1487,13 @@ _BUCKET_LEVEL: dict[str, int] = {
     "adv": 10,    # C 고급 — 격식·논증·추상 (coarse)
 }
 
-# 판정 스킵 하한: USER 한국어+모국어 발화 총합(공백 제외)이 이 미만이면 LLM 콜 없이 skip.
+# 표본 하한: USER 목표어 발화(공백 제외)가 이 미만이면 LLM 콜 없이 최하 레벨을 배정한다.
+# (예전엔 "판정 스킵·미저장"이었다 — analyze_level_test_call 의 해당 분기 주석 참조.)
 _MIN_LEVELTEST_USER_CHARS = 20
+
+# 표본 미달 시 배정할 레벨. L1 = 생존 회화(정형 표현·숫자) — 목표어를 20자도 못 만든
+# 학습자의 자리다. _BUCKET_LEVEL 의 "chunk" 밴드와 같은 값이며, 이 둘은 같이 움직여야 한다.
+_MIN_LEVEL_NO = 1
 
 # 루브릭 파일(운영 튜닝용 — 존재하면 전문이 {rubric} 슬롯에 들어간다). 없으면 아래 상수.
 _LEVELTEST_RUBRIC_PATH = (
@@ -1782,7 +1787,9 @@ async def analyze_level_test_call(
     """레벨테스트 통화후 판정 — 전사 1콜 판정 → 서버 클램프 → 레벨 배정(전체 graceful).
 
     analyze_call 과 동일 패턴(백그라운드, run_db 짧은 세션). 결과 상태:
-        - USER 발화(letter/digit) <20자: LLM 콜 없이 status=done·미저장(다음 통화 자동 재테스트).
+        - USER 목표어 발화 <20자: LLM 콜 없이 **최하 레벨(1) 배정**·done. 표본 미달은
+          측정 실패가 아니라 대개 측정 결과 그 자체다(목표어를 못 만든 학습자).
+          미저장으로 두면 "다시하기" 직후 레벨이 없는 상태로 갇힌다.
         - LLM 실패/모순 출력(클램프 None)/member·call 소실: status=failed·미저장.
         - 성공: member.korean_level + call.assessed_level/note/summary + done 단일 commit.
     (멀티랭귀지) target_language(라벨) 로 판정 대상 언어를 지정 — 판정관 지시문·버킷 정의·
@@ -1796,12 +1803,53 @@ async def analyze_level_test_call(
         _lang_code = _spec.code if _spec else "ko"
         user_chars = _user_char_total(dialog, _lang_code)
         if user_chars < _MIN_LEVELTEST_USER_CHARS:
-            # 표본 미달 — 판정 스킵·미저장(korean_level None 유지 → 다음 통화 재테스트).
+            # 표본 미달 → **최하 레벨 배정**(LLM 콜 없이).
+            #
+            # ⛔ 미저장으로 되돌리지 마라. 옛 동작은 status=done + 레벨 미기록이었는데,
+            #   "다시하기"(request_level_retest)가 member_language_level 행을 지운 뒤라
+            #   재측정이 스킵되면 **레벨이 없는 상태로 갇힌다** — 다음 통화도 계속
+            #   레벨테스트로 라우팅되고, 그 통화도 짧으면 또 스킵이라 영원히 안 빠져나온다.
+            #   실측(member=20, 2026-08-02): call 866·871 이 각각 15자·14자로 연속 스킵,
+            #   ja 레벨 행이 사라진 채 남았다.
+            #
+            #   그리고 표본 미달은 "측정 실패"가 아니라 **그 자체가 측정 결과**인 경우가
+            #   대부분이다 — 위 통화 전사는 학습자가 목표어를 모른다고만 말한 것이었고,
+            #   사다리 엔진도 그래서 55초 만에 조기 종료시켰다(nonspeaker_streak=4).
+            #   목표어를 20자도 못 만든 사람의 레벨은 1이 맞다.
+            #
+            #   저장은 성공 경로와 **같은 _save_level_assessment** 를 탄다 — 레벨 upsert +
+            #   call 메타 + grandfathering + history(placement)가 한 커밋으로 묶여야
+            #   "레벨은 생겼는데 체크판은 비었다" 같은 반쪽 상태가 안 생긴다.
             logger.info(
-                "leveltest 판정: USER %s 발화 %d자(<%d) → 스킵·done call_id=%s member=%s",
-                _lang_code, user_chars, _MIN_LEVELTEST_USER_CHARS, call_id, member_id,
+                "leveltest 판정: USER %s 발화 %d자(<%d) → 최하 레벨 %d 배정·done call_id=%s member=%s",
+                _lang_code, user_chars, _MIN_LEVELTEST_USER_CHARS,
+                _MIN_LEVEL_NO, call_id, member_id,
             )
-            await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
+            sparse = LevelAssessment(
+                evidence=[],
+                reasoning=(
+                    f"목표어 발화가 {user_chars}자로 최소 표본({_MIN_LEVELTEST_USER_CHARS}자)에 "
+                    "미달해 판정관을 돌리지 않고 최하 레벨을 배정했다(표본 미달 = 산출 없음)."
+                ),
+                distinct_structures=0,
+                band="unknown",
+                confidence="low",
+                sample_quality="none",
+                summary="",
+                feedback_for_learner="",
+            )
+            saved = await run_db(
+                session_factory,
+                lambda db: _save_level_assessment(
+                    db, call_id, member_id, _MIN_LEVEL_NO, sparse
+                ),
+            )
+            if not saved:
+                logger.warning(
+                    "leveltest 판정: 표본미달 저장 실패(member/call 소실) → failed call_id=%s",
+                    call_id,
+                )
+                await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
             return
 
         # 모국어에 정중체만 붙인 줄(「갔다데스」)을 판정 재료에서 제거한다 —
