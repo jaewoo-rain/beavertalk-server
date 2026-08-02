@@ -605,6 +605,43 @@ def test_grandfathering_placement_rows_and_history(env):
     assert r3 == {"result": "skipped", "reason": "already_evaluated"}, r3
 
 
+def test_placement_alone_never_promotes(env):
+    """⛔ placement 만으로는 절대 승급하지 않는다 — 하나도 안 배우고 레벨이 오르던 버그.
+
+    재현(실측 member=20, ja): 예전에 레벨 3 을 받아 grandfathering 이 L1 항목 전부를
+    placement/mastered 로 찍었다. 그 뒤 "레벨테스트 다시하기"로 레벨 1 을 받자, 그
+    placement 행들이 이제 **현재 레벨의 게이트 항목**이 됐다. 첫 통화가 끝나자마자
+    g1=g2=100% 로 승급 — 증거는 0건인데. 2026-08-02 하루에 두 번 났다(#247·#249).
+
+    레벨이 **내려갈 때만** 터진다. 올바르게 배정된 레벨에서는 grandfathering 이 ≥k 를
+    건드리지 않아 게이트 항목에 placement 가 아예 없다.
+    """
+    db, member = env["db"], env["member"]
+    call = _new_call(env, status="done")
+
+    # L1 게이트 항목(청크 4개)을 전부 placement/mastered 로 — 옛 상위 레벨 배정의 잔재.
+    for ch_item in (env["c1"], env["c2"], env["c3"], env["c4"]):
+        db.add(MemberItemProgress(
+            member_id=member.member_id, item_id=ch_item.item_id,
+            status="mastered", provenance="placement",
+            score=mastery_service.PLACEMENT_MASTERED_SCORE,
+            repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
+            first_seen_at=NOW, last_seen_at=NOW, mastered_at=NOW,
+        ))
+    db.commit()
+
+    r = mastery_service.evaluate_level_up(db, member.member_id, trigger_call_id=call.call_id)
+
+    assert r["result"] == "stay", f"placement 만으로 승급했다: {r}"
+    snap = r.get("gate") or r.get("snapshot") or {}
+    if snap:  # 스냅샷을 돌려주는 구현이면 분자가 0이어야 한다
+        assert snap.get("mastered_confirmed") == 0, snap
+        assert snap.get("introduced_plus") == 0, snap
+        assert snap.get("placement_excluded") == 4, snap
+    assert mastery_repository.get_language_level(db, member.member_id, "ko") in (1, None), \
+        "레벨이 올라갔다"
+
+
 # --------------------------------------------------------------------------- #
 # (7) 멀티랭귀지 — member-only 집계·선별·레벨 출처 언어 격리 (T3 리스크 1)
 # --------------------------------------------------------------------------- #
