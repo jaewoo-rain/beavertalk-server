@@ -21,7 +21,7 @@ from google import genai
 from google.genai import types
 
 from core.audio import INPUT_MIME_TYPE
-from core.config import Settings
+from core.config import Settings, settings
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +107,16 @@ def build_live_config(
         # ⭐ 세션 한계(압축 無): 오디오 15분 / 연결 자체 ~10분(S2). 압축은 세션을
         # 무제한으로 늘리는 동시에, 오래된 오디오 토큰을 밀어내 5분 통화의 드리프트를
         # 완화하는 역할이다. 블랙박스 기본값 대신 명시값을 박는다: trigger_tokens 에서
-        # 압축이 발동해 target_tokens 만큼 유지(gemini-live 권고값, 실측 튜닝 대상).
+        # 압축이 발동해 target_tokens 만큼 유지.
+        #
+        # 값은 env 로 뺐다(core.config 참조) — 통화 원가의 81%가 이 상한에 걸린 입력이라
+        # 튜닝 대상인데, 상수였으면 값 하나 바꿀 때마다 재빌드·재배포(5~6분)가 필요했다.
+        # 기본값은 종전과 동일(16000/12000)이라 이 변경만으로는 동작이 바뀌지 않는다.
         context_window_compression=types.ContextWindowCompressionConfig(
-            trigger_tokens=16000,
-            sliding_window=types.SlidingWindow(target_tokens=12000),
+            trigger_tokens=settings.LIVE_CTX_TRIGGER_TOKENS,
+            sliding_window=types.SlidingWindow(
+                target_tokens=settings.LIVE_CTX_TARGET_TOKENS
+            ),
         ),
         safety_settings=[
             types.SafetySetting(

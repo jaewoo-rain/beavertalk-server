@@ -84,6 +84,23 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
     GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
+
+    # Live 컨텍스트 압축(build_live_config). trigger 에 닿으면 target 만 남기고 오래된
+    # 대화부터 버린다. 세션 수명(압축 無면 오디오 15분/연결 ~10분) 대비로 넣은 값이지만,
+    # **통화 원가를 직접 결정하는 파라미터**이기도 하다 — Live 는 매 턴 컨텍스트 전체를
+    # 입력으로 재처리하므로, 이 상한이 곧 턴당 입력 토큰의 상한이다.
+    #
+    # 실측(2026-08-02, call 880 / 5분 / 22턴): 입력 209,974 tok 중 오디오 성분 85%.
+    # 통화 원가 ~$0.58 의 81%가 이 입력이다. 반면 5분 통화의 최대 컨텍스트는
+    # 지시문 1,428 + 오디오 9,344 + 주입 ~300 ≈ 11,000 tok 이라 **16000 에 닿지 않는다**
+    # — 즉 현재 값은 5분 통화에서 한 번도 발동하지 않는다.
+    #
+    # ⚠ 낮추면 비용은 줄지만 비버가 통화 초반을 실제로 잊는다("아까 그거 기억나?"가
+    #   깨진다). 드리프트 완화를 위해 재접지를 넣었던 이력이 있으니, 값을 바꿀 때는
+    #   반드시 실기기 통화 전사로 망각 여부를 확인할 것. env 로 뺀 이유가 그것이다 —
+    #   재빌드 없이 gcloud run services update 로 바꿔가며 관측하라.
+    LIVE_CTX_TRIGGER_TOKENS: int = 16000  # 압축 발동 임계
+    LIVE_CTX_TARGET_TOKENS: int = 12000   # 압축 후 유지량(trigger 보다 작아야 한다)
     # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
     # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
     TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)
@@ -146,6 +163,24 @@ class Settings(BaseSettings):
         # 운영(prod)에서 기본 JWT 시크릿이면 기동 차단(시크릿 교체 누락 사고 방지)
         if self.ENV == "prod" and self.JWT_SECRET == _DEV_JWT_SECRET:
             raise ValueError("운영(ENV=prod)에서는 JWT_SECRET 을 반드시 교체해야 합니다.")
+        return self
+
+    @model_validator(mode="after")
+    def _guard_live_ctx_window(self) -> "Settings":
+        """압축 창 정합성 — 잘못된 조합은 조용히 이상하게 도니 기동 시 막는다.
+
+        target >= trigger 면 압축이 아무것도 못 버리거나 매 턴 발동해 대화가 통째로
+        날아간다. env 로 튜닝하는 값이라 오타 한 번이 통화 품질을 무너뜨릴 수 있어,
+        런타임이 아니라 기동 시점에 잡는다.
+        """
+        if self.LIVE_CTX_TARGET_TOKENS >= self.LIVE_CTX_TRIGGER_TOKENS:
+            raise ValueError(
+                "LIVE_CTX_TARGET_TOKENS 는 LIVE_CTX_TRIGGER_TOKENS 보다 작아야 합니다 "
+                f"(target={self.LIVE_CTX_TARGET_TOKENS}, "
+                f"trigger={self.LIVE_CTX_TRIGGER_TOKENS})."
+            )
+        if self.LIVE_CTX_TARGET_TOKENS <= 0:
+            raise ValueError("LIVE_CTX_TARGET_TOKENS 는 양수여야 합니다.")
         return self
 
 
