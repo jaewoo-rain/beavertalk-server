@@ -25,6 +25,10 @@ class CharacterSummary(BaseModel):
     """
 
     character_id: int
+    # 스토어 상품 ID 슬러그(bt_character_{product_key}). 앱이 결제 시트를 띄울 때
+    # 이 값으로 상품 ID 를 만든다 — character_id 는 dev/prod 가 다르고(prod 2·9·10·11 /
+    # dev 2·3·4·5), name 은 바뀔 수 있는데 스토어 상품 ID 는 영구 불변이라 둘 다 못 쓴다.
+    product_key: str
     name: str
     image_url: Optional[str]
     description: Optional[str]  # 카드 설명

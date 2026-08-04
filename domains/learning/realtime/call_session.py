@@ -126,10 +126,6 @@ SESSION_ROTATE_AT_S = 480.0      # 세션 하나가 사는 최대 시간(8분). 
 MAX_RECONNECTS = 4               # 통화당 재연결 상한(15분 = 스왑 2회면 충분, 여유 2회)
 RECONNECT_MIN_REMAINING_S = 45.0 # 통화 잔여가 이보다 짧으면 재연결하지 않고 그냥 마무리
 SWAP_FLAP_GUARD_S = 30.0         # 직전 스왑 후 이 시간 안에는 재스왑 금지(플래핑 방어)
-# 압축 감지: prompt_token_count 가 이만큼 급감하면 압축이 발동한 것으로 본다. Live 에는
-# 압축 이벤트가 없어 이 급감이 유일한 신호다. ⚠ 미탐(주입 누락)은 무해하지만 오탐(불필요
-# 주입)은 이중발화 위험이라, 임계는 미탐 쪽으로 보수적으로 잡는다.
-COMPACTION_DROP_MIN = 1500
 SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
 #                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
@@ -349,9 +345,7 @@ class _CallState:
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
         "resume_handle", "session_epoch", "reconnects", "swap_requested", "last_swap_ts",
-        # 계측 — 압축 발동 감지와 원가 산출의 유일한 재료.
-        "last_prompt_tokens", "max_prompt_tokens", "usage_seen", "compaction_seen",
-        "modality_totals",
+        "usage_log", "usage_dropped",
     )
 
     def __init__(self) -> None:
@@ -370,12 +364,6 @@ class _CallState:
         self.reconnects = 0           # 실제 스왑 횟수(상한 MAX_RECONNECTS)
         self.swap_requested = False   # 시계/GoAway 가 세우고, 펌프가 깨끗한 경계에서 실행
         self.last_swap_ts: Optional[float] = None
-        # 계측(usage_metadata). prompt 가 급감하면 압축이 발동한 것이다.
-        self.last_prompt_tokens: Optional[int] = None
-        self.max_prompt_tokens = 0
-        self.usage_seen = 0
-        self.compaction_seen = 0
-        self.modality_totals: dict[str, int] = {}
         self.turn_id: Optional[str] = None
         self.call_start_ts: Optional[float] = None
         self.should_close = False
@@ -453,6 +441,12 @@ class _CallState:
         self.band_tasks: set[asyncio.Task] = set()
         # 종료 판정 사이드카(C)용 전체 전사 누적 — "Q: … / A: …" 턴별. 종료 판정관이 맥락으로 읽는다.
         self.leveltest_transcript: list[str] = []
+        # ── 원가 계기판(Phase 0) ──
+        # usage_log: Gemini Live 가 메시지마다 실어 보내는 과금 계측(usage_metadata)의 시계열.
+        #   지금껏 이 값을 읽지 않아 통화 원가가 추정치뿐이었다. 통화 종료 시 1줄로 방출하고
+        #   버린다(DB 저장 없음 — 관측 단계). usage_dropped: 상한 초과로 버린 개수.
+        self.usage_log: list[dict] = []
+        self.usage_dropped: int = 0
 
 
 class _ClientDisconnect(Exception):
@@ -506,6 +500,119 @@ def _flush_beaver_segment(state: _CallState) -> None:
     state.next_turn_index += 1
     state.cur_beaver_pcm = bytearray()
     state.cur_beaver_text = []
+
+
+# --------------------------------------------------------------------------- #
+# 원가 계기판(Phase 0) — Live usage_metadata 수집·방출
+# --------------------------------------------------------------------------- #
+# 통화당 적재 상한. 15분 통화·이상 상황에서 메모리·로그가 폭주하지 않게 한다.
+# 초과분은 개수만 세고 버린다(요약의 Σ 가 과소가 되지만, dropped 로 드러난다).
+_USAGE_LOG_MAX = 400
+
+
+def _modality_pairs(details) -> list[tuple[str, int]]:
+    """ModalityTokenCount 리스트를 (모달리티명, 토큰수) 튜플로 정규화한다.
+
+    modality 는 SDK enum(MediaModality) 이라 .name 을 우선 쓰고, 문자열이면 그대로 쓴다.
+    필드가 없거나 형태가 다르면 조용히 건너뛴다 — 계측이 통화를 죽이면 안 된다.
+    """
+    out: list[tuple[str, int]] = []
+    for m in details or []:
+        mod = getattr(m, "modality", None)
+        name = getattr(mod, "name", None) or (str(mod) if mod is not None else "UNKNOWN")
+        count = getattr(m, "token_count", None)
+        if count:
+            out.append((name, int(count)))
+    return out
+
+
+def _record_usage(state: _CallState, um) -> None:
+    """Live usage_metadata 1건을 시계열에 적재한다(예외 전량 흡수, R5).
+
+    🧒 왜 이걸 모으나: Live API 는 비버가 한 턴 말할 때마다 **그때까지의 대화 전체**를
+      입력으로 다시 과금한다. 통화가 길어질수록 매 턴의 입력값이 커지는 구조라, 통화
+      원가의 대부분이 여기서 나온다. 그런데 서버가 이 숫자를 여태 한 번도 안 봤다 —
+      가장 비싼 항목이 가장 안 보이는 상태였다. 여기서 그걸 받아 적는다.
+
+    ⚠ 이 값이 "메시지별 증분"인지 "세션 누적"인지는 서버가 정하고 문서로 확정되지
+      않았다. 그래서 해석하지 않고 원본 그대로 시계열에 쌓아, 종료 로그가 Σ(합)과
+      last(마지막 값)를 **둘 다** 내보내게 한다 — 단조증가면 누적, 톱니면 증분이다.
+      같은 시계열이 "컨텍스트 압축이 실제로 발동하는가"도 함께 답한다.
+    """
+    try:
+        if len(state.usage_log) >= _USAGE_LOG_MAX:
+            state.usage_dropped += 1
+            return
+        t: Optional[float] = None
+        if state.call_start_ts is not None:
+            t = round(asyncio.get_running_loop().time() - state.call_start_ts, 1)
+        state.usage_log.append({
+            "t": t,                               # 통화 시계 기준 경과초(첫 턴 전이면 None)
+            "turn": state.next_turn_index,        # 이 시점의 세그먼트 커서(턴 진행도 근사)
+            "prompt": getattr(um, "prompt_token_count", None),
+            "resp": getattr(um, "response_token_count", None),
+            "total": getattr(um, "total_token_count", None),
+            "thoughts": getattr(um, "thoughts_token_count", None),
+            "cached": getattr(um, "cached_content_token_count", None),
+            "tool_in": getattr(um, "tool_use_prompt_token_count", None),
+            "in_detail": _modality_pairs(getattr(um, "prompt_tokens_details", None)),
+            "out_detail": _modality_pairs(getattr(um, "response_tokens_details", None)),
+        })
+    except Exception as exc:  # noqa: BLE001 - 계측 실패가 통화를 죽이면 안 된다(R5)
+        logger.debug("normalcall usage: 적재 실패(무시): %s", exc)
+
+
+def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -> None:
+    """통화 종료 시 usage 시계열을 로그로 방출한다(요약 1줄 + 선택 시계열 1줄).
+
+    DB 에 쓰지 않는다 — 관측 단계라 Cloud Run 로그로 충분하고, 필드 구조가 확정되기
+    전에 스키마를 박지 않기 위해서다(영속화는 값이 안정화된 뒤 별도 Alembic Rev).
+
+    형식은 `key=value` 로 못박는다: 나중에 일별 원가 추이가 필요해지면 Cloud Logging
+    로그 기반 메트릭이 **코드 변경 0줄**로 이 줄에서 숫자를 뽑아갈 수 있다.
+    """
+    log = state.usage_log
+    if not log:
+        # usage 가 한 건도 안 왔다 = 필드 미제공이거나 모킹 세션. 원인 추적용으로만 남긴다.
+        logger.info("normalcall usage: call_id=%s type=%s msgs=0 (usage_metadata 미수신)",
+                    call_id, call_type)
+        return
+
+    def _s(key: str) -> int:
+        return sum(int(e[key] or 0) for e in log)
+
+    in_mod: dict[str, int] = {}
+    out_mod: dict[str, int] = {}
+    for e in log:
+        for name, cnt in e["in_detail"]:
+            in_mod[name] = in_mod.get(name, 0) + cnt
+        for name, cnt in e["out_detail"]:
+            out_mod[name] = out_mod.get(name, 0) + cnt
+
+    times = [e["t"] for e in log if e["t"] is not None]
+    last = log[-1]
+    # 단조성: total 이 한 번도 줄지 않으면 누적 의심, 줄었으면 증분 확정(+압축 발동 신호).
+    totals = [int(e["total"] or 0) for e in log]
+    monotonic = all(b >= a for a, b in zip(totals, totals[1:]))
+
+    logger.info(
+        "normalcall usage: call_id=%s type=%s msgs=%d dropped=%d t=[%s..%s] "
+        "sum_prompt=%d sum_resp=%d sum_thoughts=%d sum_total=%d "
+        "last_prompt=%s last_total=%s monotonic=%s "
+        "sum_in=%s sum_out=%s",
+        call_id, call_type, len(log), state.usage_dropped,
+        f"{times[0]:.1f}" if times else "?", f"{times[-1]:.1f}" if times else "?",
+        _s("prompt"), _s("resp"), _s("thoughts"), _s("total"),
+        last["prompt"], last["total"], monotonic,
+        # 모달리티 분해 — 오디오/텍스트 단가가 6배 차이라 이게 있어야 원가가 계산된다.
+        ",".join(f"{k}={v}" for k, v in sorted(in_mod.items())) or "-",
+        ",".join(f"{k}={v}" for k, v in sorted(out_mod.items())) or "-",
+    )
+
+    if _settings.LIVE_USAGE_TRACE:
+        # 시계열 상세: 압축 발동 판정용(톱니 = 발동, 단조증가 = 미발동).
+        trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in log)
+        logger.info("normalcall usage trace: call_id=%s t:prompt/total %s", call_id, trace)
 
 
 # --------------------------------------------------------------------------- #
@@ -833,7 +940,6 @@ async def run_call(
         #   무거운 작업(분석·업로드·국적 추론)은 전부 fire-and-forget(띄워만 놓고 안 기다림)로
         #   백그라운드에 넘겨, 학습자 쪽 소켓을 붙잡지 않고 빠르게 통화를 마무리한다.
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
-        _log_usage_summary(state)
         for t in list(state.hint_tasks):
             t.cancel()
         # Phase 2: 미완 밴드 관측 사이드카 전량 취소(통화 종료 후 뒤늦은 관측·종료 시도 방지).
@@ -841,6 +947,10 @@ async def run_call(
             t.cancel()
         _flush_user_segment(state)
         _flush_beaver_segment(state)
+        # 원가 계기판(Phase 0): 어떤 경로로 끝나든(정상 작별·클라 끊김·백스톱·예외) 딱 한 번
+        # 방출한다. 로그가 통화후 파이프라인을 막지 않게 예외는 전량 흡수(R5).
+        with contextlib.suppress(Exception):
+            _log_usage_summary(state, call_id, call_type)
         # P2.6: 전사(텍스트) 선저장 — 오디오 MP3 변환·업로드(~9s)는 pending 으로 분리.
         pending_audio = await _persist_remaining(db_session_factory, state, call_id, member_id)
         # 분석 태스크를 먼저 생성(분석 우선 착수) → 오디오 업로드는 병렬 후행.
@@ -1124,10 +1234,6 @@ async def _run_session(
             state.reconnects += 1
             state.last_swap_ts = asyncio.get_running_loop().time()
             state.swap_requested = False
-            # ⚠ 압축 감지 기준점 리셋. 새 연결의 첫 관측은 이전 세대보다 작을 수 있는데
-            #   그건 압축이 아니다 — 리셋 안 하면 스왑마다 압축으로 오인해 불필요한
-            #   주입이 나간다(오탐 = 이중발화 위험).
-            state.last_prompt_tokens = None
             logger.info(
                 "normalcall: 세션 스왑 #%d (epoch=%d → %d, handle=%s)",
                 state.reconnects, state.session_epoch, state.session_epoch + 1,
@@ -1680,45 +1786,6 @@ async def _handle_client_control(client_ws, text: str, state: _CallState) -> Non
         _record_hint_used(state, msg)  # 적재만(응답 불요, D16)
 
 
-def _observe_usage(state: _CallState, event: LiveEvent) -> None:
-    """usage_metadata 관측 — 압축 발동 감지 + 원가 재료 누적(부작용은 state 갱신뿐).
-
-    🧒 Live 는 매 턴 '지금까지의 대화 전체'를 다시 읽는다. 그래서 prompt_token_count 는
-      그 시점 컨텍스트의 실측 크기다. 이 값이 계속 커지다가 **뚝 떨어지면** 압축이 발동해
-      오래된 대화를 버린 것이다 — Live 에는 압축 이벤트가 없어서 이 급감이 유일한 신호다.
-
-    ⚠ 세션 교체 직후의 급감은 압축이 아니다(새 연결의 첫 관측). 그래서 스왑 때 기준점을
-      리셋한다 — 안 그러면 스왑마다 압축으로 오인해 불필요한 주입이 나간다.
-    """
-    cur = event.prompt_tokens
-    if not cur:
-        return
-    state.usage_seen += 1
-    prev = state.last_prompt_tokens
-    if prev is not None and prev - cur >= COMPACTION_DROP_MIN:
-        state.compaction_seen += 1
-        logger.info(
-            "normalcall: 컨텍스트 압축 감지 %d → %d tok (누적 %d회)",
-            prev, cur, state.compaction_seen,
-        )
-    state.last_prompt_tokens = cur
-    state.max_prompt_tokens = max(state.max_prompt_tokens, cur)
-    for name, count in (event.prompt_modalities or {}).items():
-        state.modality_totals[name] = state.modality_totals.get(name, 0) + count
-
-
-def _log_usage_summary(state: _CallState) -> None:
-    """통화 1건당 1줄 요약. 지금까지 원가·압축 시점이 전부 추정이었던 걸 실측으로 바꾼다."""
-    if not _settings.LIVE_USAGE_LOGGING or state.usage_seen == 0:
-        return
-    logger.info(
-        "normalcall usage: 관측 %d회 / 최대 컨텍스트 %d tok / 압축 %d회 / 세션 %d개(스왑 %d) / "
-        "모달리티 %s",
-        state.usage_seen, state.max_prompt_tokens, state.compaction_seen,
-        state.session_epoch, state.reconnects, state.modality_totals or "-",
-    )
-
-
 # --------------------------------------------------------------------------- #
 # 펌프: Gemini → 클라
 # --------------------------------------------------------------------------- #
@@ -1742,6 +1809,13 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
     async for event in session.events():
         event_count += 1
 
+        # 원가 계기판(Phase 0): 과금 계측은 대화 이벤트가 아니다 — 적재만 하고 즉시 continue.
+        # _forward_event 로 내려보내지 않으므로 턴 상태기계·barge-in·무음 시계·종료 규약
+        # 어디에도 닿지 않는다(R4). 클라로 나가는 것도 없다(WS 프로토콜 불변).
+        if event.kind == "usage":
+            _record_usage(state, event.usage)
+            continue
+
         # A3 GoAway: 서버가 곧 연결을 닫겠다는 예고(연결 ~10분 한계, S2). 뚝 끊기기 전에
         # 우리가 먼저 우아하게 마무리한다 — 기존 종료 파이프에 합류: should_close 를 세우고,
         # idle 이면 즉시 짧은 작별 시드를 주입(발화중이면 펌프가 turn_end 에서 주입).
@@ -1762,13 +1836,6 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 state.should_close = True
                 if state.turn_id is None:
                     await _inject_close_seed(session, state)
-            continue
-
-        # 계측: 그 시점 컨텍스트 크기. 압축 발동을 알 수 있는 유일한 신호가 이 급감이다.
-        # ⛔ 클라로 forward 하지 않는다(프로토콜 오염). ⛔ 턴을 열지 않는다 — 여기서
-        #   turn_id 가 켜지면 barge-in off 관문이 오작동해 마이크가 막힌다.
-        if event.kind == "usage":
-            _observe_usage(state, event)
             continue
 
         # 세션 재개 핸들 갱신. resumable=False 는 "지금 상태로는 재개 불가"(모델 생성 중·

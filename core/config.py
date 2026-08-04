@@ -103,7 +103,6 @@ class Settings(BaseSettings):
     LIVE_CTX_TARGET_TOKENS: int = 12000   # 압축 후 유지량(trigger 보다 작아야 한다)
     # 세션 재개(session_resumption). 15분 통화의 전제 — 압축은 **세션**(오디오 15분) 한계만
     # 풀고 **연결 수명(~10분)** 은 못 푼다. 연결을 이어붙이려면 서버가 주는 핸들이 필요하다.
-    #
     # ⚠ 이 플래그는 **핸들을 받아 로깅만** 한다(단계 0 계측). 재연결 자체는 아직 없다 —
     #   즉 켜도 통화 동작은 바뀌지 않는다. 스파이크에서 확인할 것: (1) native-audio 모델이
     #   핸들을 실제로 발급하는가 (2) resumable=False 가 얼마나 자주 오는가.
@@ -112,19 +111,16 @@ class Settings(BaseSettings):
     #   USE_VERTEX 분기는 build_live_config 가 한다 — 안 그러면 api_key 폴백에서 연결
     #   자체가 터져 graceful degradation(R5)이 깨진다.
     LIVE_SESSION_RESUMPTION: bool = False  # 핸들 수집 활성(동작 변경 없음)
-    # usage_metadata 계측. Live 는 매 응답에 토큰 카운트를 실어 보내는데 우리는 지금껏
-    # 버리고 있었다 — 통화 원가·압축 발동 시점이 전부 추정치인 이유다.
-    #
-    # 이걸 켜야 알 수 있는 것: (1) 압축이 실제로 발동하는가·언제(prompt_token 급감)
-    # (2) 오디오 vs 텍스트 실제 비중 (3) 5분 통화가 정말 16000 에 안 닿는가.
-    # (3)이 특히 중요하다 — 안 닿는다면 트리거 하향은 "5분 통화에 새 리스크를 들이는
-    # 변경"이 되므로 근거가 소멸한다.
-    LIVE_USAGE_LOGGING: bool = False  # 통화당 1줄 usage 요약(상세는 DEBUG)
     # 일반 통화 기본 길이(초). prod 는 5분 유지, 그 외 환경은 배포 env 로 900(15분)을 준다.
     # ⚠ 코드 기본값을 300 으로 두는 이유: 15분은 세션 재연결이 정상 동작해야 성립한다.
     #   재연결이 막히면(핸들 미발급·재개 실패) 백스톱이 통화를 자르므로, 기본값을 길게
     #   박아두면 장애 시 전 통화가 나빠진다. 길이는 **환경별로 명시해서** 켠다.
     NORMAL_CALL_DURATION_S: float = 300.0
+    # 통화 usage 시계열 상세 로그(원가 조사용). 기본 off = 통화 종료 시 요약 1줄만.
+    # true 면 메시지별 (경과초, prompt, total) 시계열을 1줄 더 찍는다 — 압축이 실제로
+    # 발동하는지(톱니 vs 단조증가)와 usage_metadata 가 증분인지 누적인지 판별하는 데 쓴다.
+    # 조사 기간에만 gcloud run services update 로 켰다 끄는 값이라 env 로 뺐다.
+    LIVE_USAGE_TRACE: bool = False
     # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
     # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
     TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)

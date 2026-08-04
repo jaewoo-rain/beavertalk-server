@@ -57,6 +57,7 @@ class CharacterService:
         discount = self.active_discount(c)
         return CharacterDetail(
             character_id=c.character_id,
+            product_key=c.product_key,
             name=c.name,
             image_url=c.image_url,
             price=c.price,
@@ -113,6 +114,7 @@ class CharacterService:
         discount = self.active_discount(c)
         return CharacterSummary(
             character_id=c.character_id,
+            product_key=c.product_key,
             name=c.name,
             image_url=c.image_url,
             description=c.description,

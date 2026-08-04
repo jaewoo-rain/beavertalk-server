@@ -64,12 +64,7 @@ class LiveEvent:
     time_left: Optional[str] = None    # kind=="go_away": 서버 종료 예고 timeLeft(있으면)
     fn_name: Optional[str] = None      # kind=="tool_call": 호출된 function 이름
     fn_id: Optional[str] = None        # kind=="tool_call": function_call id(send_tool_response 매칭용)
-    # kind=="usage": 그 시점 컨텍스트 실측치. prompt_tokens 가 급감하면 압축이 발동한 것이다
-    # (Live 에는 압축 전용 이벤트가 없어 이 급감이 유일한 신호다).
-    prompt_tokens: Optional[int] = None
-    total_tokens: Optional[int] = None
-    # 모달리티별 분해 {"AUDIO": n, "TEXT": n} — 오디오 $3/M vs 텍스트 $0.5/M 라 원가 계산에 필수.
-    prompt_modalities: Optional[dict[str, int]] = None
+    usage: Optional[Any] = None        # kind=="usage": SDK UsageMetadata 원본(어댑터는 해석 안 함)
     # kind=="resume_update": 세션 재개 핸들. resumable=False 면 지금 시점 상태로는 재개할 수
     # 없다는 뜻이라(모델 생성 중·tool 실행 중) **핸들을 덮어쓰면 안 된다**.
     resume_handle: Optional[str] = None
@@ -253,34 +248,22 @@ class GeminiLiveSession:
                         time_left=getattr(go_away, "time_left", None),
                     )
 
+                # usage: 과금 계측(server_content 와 무관한 최상위 필드 → go_away 와 같은 층위).
+                # Live 는 모델이 턴을 만들 때마다 세션 컨텍스트 전체를 입력으로 재과금하는데,
+                # 그 지배 항이 지금껏 관측되지 않았다(원가가 추정치뿐이었던 이유). SDK 는
+                # 서버의 usageMetadata 를 가공 없이 통과시키므로(_live_converters), 이 값이
+                # "메시지별 증분"인지 "세션 누적"인지는 서버가 정한다 — 어댑터는 판단하지 않고
+                # 원본 그대로 넘긴다. 의미 판별·집계·원가 산식은 소비측(call_session)의 몫.
+                # ⚠ total_token_count 로 거르지 않는다: 0/None 이어도 모달리티 detail 은 올 수
+                # 있고, "언제·얼마나 오는가" 자체가 관측 대상이라 표본을 미리 버리면 안 된다.
+                um = getattr(response, "usage_metadata", None)
+                if um is not None:
+                    yield LiveEvent(kind="usage", usage=um)
+
                 # tool_call: 모델의 function-call 요청(server_content 와 무관한 최상위
                 # 필드 → go_away 처럼 None-가드보다 먼저). 레벨테스트 조기종료 신호가
                 # 여기로 온다. function_calls 마다 정규화해 방출 — 소비측(call_session)이
                 # fn_name 으로 분기하고 send_tool_response(fn_id, fn_name) 로 응답한다.
-                # usage_metadata: 그 시점 컨텍스트 실측치(server_content 와 무관한 최상위).
-                # Live 에는 압축 발동 이벤트가 없어서, prompt_token_count 의 급감이 압축을
-                # 알 수 있는 유일한 신호다. 모달리티 분해까지 넘긴다 — 오디오와 텍스트는
-                # 단가가 6배 차이라 섞어 세면 원가를 못 맞춘다.
-                # ⚠ 이 이벤트는 턴을 열지 않는다. 소비측이 audio/out_tr 처럼 다루면
-                #   turn_id 가 켜져 barge-in off 관문이 오작동한다.
-                usage = getattr(response, "usage_metadata", None)
-                if usage is not None:
-                    prompt_tokens = getattr(usage, "prompt_token_count", None)
-                    modalities: dict[str, int] = {}
-                    for md in getattr(usage, "prompt_tokens_details", None) or []:
-                        name = getattr(getattr(md, "modality", None), "name", None)
-                        count = getattr(md, "token_count", None)
-                        if name and count:
-                            modalities[str(name)] = modalities.get(str(name), 0) + int(count)
-                    yield LiveEvent(
-                        kind="usage",
-                        prompt_tokens=int(prompt_tokens) if prompt_tokens else None,
-                        total_tokens=(
-                            int(getattr(usage, "total_token_count", None) or 0) or None
-                        ),
-                        prompt_modalities=modalities or None,
-                    )
-
                 # session_resumption_update: 서버가 주기적으로 밀어주는 재개 핸들.
                 # resumable=False 는 "지금 상태로는 재개 불가"(모델이 생성 중이거나 tool
                 # 실행 중)라는 뜻이므로 소비측이 **핸들을 덮어쓰면 안 된다** — 그 상태로

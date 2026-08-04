@@ -27,6 +27,7 @@ class _Ev:
 class _Char:
     def __init__(self, events):
         self.character_id = 2
+        self.product_key = "bibi"  # 스토어 상품 ID 슬러그(bt_character_bibi)
         self.name = "BIBI"
         self.image_url = None
         self.description = None

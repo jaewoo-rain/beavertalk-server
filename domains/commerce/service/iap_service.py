@@ -59,6 +59,12 @@ class IapService:
         expires = sub.end_date if sub else None
         # end_date 가 없으면(무기한) 활성으로 본다. 있으면 지금과 비교.
         is_pro = bool(sub) and (expires is None or _as_utc(expires) > now)
+        # ⛔ on_hold(결제 유예도 끝남)는 **접근 차단**, grace(재시도 중)는 **접근 유지**.
+        #   이 비대칭이 두 상태를 나눈 이유 전부다. 앱도 같은 규칙으로 짜여 있어서
+        #   (subscription_state.dart — grantsPaidAccess) 여기가 어긋나면
+        #   "앱은 되는데 서버가 거절"이 된다.
+        if sub is not None and sub.billing_state == "on_hold":
+            is_pro = False
 
         owned = list(
             self.db.scalars(
@@ -154,7 +160,9 @@ class IapService:
         if ref.kind == "character":
             self._grant_character(member_id, ref.character_id)  # type: ignore[arg-type]
         else:
-            expires_at = self._grant_subscription(member_id, result.expires_at)
+            expires_at = self._grant_subscription(
+                member_id, result.expires_at, ref, item.product_id
+            )
 
         self.db.add(IapReceipt(
             member_id=member_id,
@@ -236,25 +244,42 @@ class IapService:
         ))
 
     def _grant_subscription(
-        self, member_id: int, store_expires_at: object | None
+        self,
+        member_id: int,
+        store_expires_at: object | None,
+        ref: iap_catalog.ProductRef,
+        product_id: str,
     ) -> datetime:
-        """구독 활성화. 만료는 **스토어 값이 우선**, 없으면 30일 폴백(스텁용).
+        """구독 활성화. 만료는 **스토어 값이 우선**, 없으면 주기별 폴백(스텁용).
 
-        기존 활성 구독이 있으면 만료만 연장한다(중복 행 생성 금지).
+        기존 활성 구독이 있으면 만료를 연장하고 **플랜·주기도 갱신**한다 — Pro→Max
+        업그레이드나 월납→연납 전환이 같은 경로로 들어오는데, 만료만 늘리면 회원은
+        Max 를 샀는데 서버는 Pro 로 남는다.
+
+        source='store': 결제 미연동 기간에 만든 행(manual)과 구분하는 표식이다.
+        이게 없으면 결제가 붙는 날 "누가 진짜 유료인가"를 못 가른다.
         """
         now = datetime.now(timezone.utc)
         expires = (
             _as_utc(store_expires_at)  # type: ignore[arg-type]
             if isinstance(store_expires_at, datetime)
-            else now + timedelta(days=iap_catalog.SUBSCRIPTION_PERIOD_DAYS)
+            else now + timedelta(days=iap_catalog.period_days(ref.billing_period))
         )
         sub = self.db.scalar(
-            select(Subscribe).where(
-                Subscribe.member_id == member_id, Subscribe.is_activate.is_(True)
-            )
+            select(Subscribe)
+            .where(Subscribe.member_id == member_id, Subscribe.is_activate.is_(True))
+            .order_by(Subscribe.subscribe_id.desc())
         )
         if sub is not None:
             sub.end_date = expires
+            sub.plan = ref.plan or sub.plan
+            sub.billing_period = ref.billing_period or sub.billing_period
+            sub.product_id = product_id
+            sub.source = "store"
+            # 스토어가 갱신에 성공했다 = 재시도/보류 상태가 아니다.
+            sub.billing_state = "ok"
+            sub.retrying_until = None
+            sub.paused_since = None
             return expires
         self.db.add(Subscribe(
             member_id=member_id,
@@ -262,6 +287,10 @@ class IapService:
             end_date=expires,
             price=None,  # 스토어가 청구한다 — 서버는 금액을 모른다
             is_activate=True,
+            plan=ref.plan or "pro",
+            billing_period=ref.billing_period,
+            product_id=product_id,
+            source="store",
         ))
         return expires
 
