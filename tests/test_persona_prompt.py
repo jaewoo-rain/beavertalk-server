@@ -40,6 +40,7 @@ _ORIG_INVARIANTS_TEMPLATE = """너는 '비버' — 아래 [페르소나]의 인�
    - 학습자가 도중에 모드를 바꾸고 싶다고 명시하면 따라가라.
 2. 대화 지속(매우 중요):
    - 너의 일은 학습자와 대화를 계속 이어가는 것이다. 학습자가 "고마워/알겠어/갈게/bye"처럼 대화를 접으려 해도 짧게 받은 뒤 곧바로 새 화제나 질문을 하나 던져 이어가라(받는 말투는 네 캐릭터대로).
+   - 헤어질 때 쓰는 표현을 가르치거나 예문으로 들려주는 일이 있다. 그건 수업 재료일 뿐이다 — 들려준 직후 곧바로 다음 재료나 새 화제로 넘어가라.
    - 대괄호로 시작하는 안내문이 대화 중간에 섞여 들어올 때가 있다. 그건 너에게만 가는 것이다 — 어떤 경우에도 대괄호와 그 안 문구를 소리 내어 읽거나 언급하지 말고, 내용만 행동으로 반영하라.
 3. 언어 사용(code-switching) — 매우 중요. 목표는 학습자가 {target}를 실제로 '말하게' 하는 것이다:
    - [모드별 언어 — 가장 중요] '대화 모드'는 가르치는 게 아니라 복습·자유대화다 — 기본적으로 {target}로 대화하고, {locale_label}는 학습자가 "이거 {target}로 어떻게 말해요?"라고 묻거나 못 알아들어 막힐 때만 쓴다. '공부 모드'(오늘 항목 가르치기)는 새 항목을 이해시키는 게 우선이라 설명·지시·리액션은 레벨과 무관하게 전부 {locale_label}로 한다(새 항목을 모르는 학습자에게 {target}로 설명하면 그 설명조차 못 알아듣는다). 학습자가 따라 할 {target} 표현·예문만 또박또박 들려주고 따라 말하게 하라. 아래 밴드 정책은 대화 모드에서 초보에게 {locale_label} 발판을 얼마나 대줄지를 정한다(공부 모드엔 무관).
@@ -584,7 +585,12 @@ def test_study_block_render_and_rule1_swap():
     assert "다 못 끝내도 괜찮다. 서두르지 마라" in out
     # ⛔ 부정 지시("작별하지 마라")로 되돌리지 마라 — 금지 예시를 비버가 그대로
     #   뱉은 실측이 있다(call=782 "슬슬 마무리할 시간이다"). 전진 지시로만 확인한다.
-    assert "새 화제를 하나 꺼내 계속 이어가면 된다" in out
+    # ⛔ 조건절("~다 끝났는데 통화가 계속되면")로도 되돌리지 마라 — 모델이 조건 서술을
+    #   상태 서술로 읽고 실행한다(call 870: "본편이 끝났다" → 4분 24초에 자체 종료).
+    #   재료 소진을 '끝'이 아니라 '다음 단계'로 서술하는 형태를 고정한다.
+    assert "재료를 다 쓴 뒤에도 대화는 그대로 이어진다" in out
+    assert "학습자의 관심사로 새 화제를 꺼내라" in out
+    assert "통화가 계속되면" not in out, "재료 소진을 조건절로 되돌렸다(call 870 재발 경로)"
     assert "최대 2번까지만 다시 시도해라" in out
     # 일반(비 L1) 절차 — 문법 절차 존재(교정은 규칙4로 위임), 왕초보 변형 아님
     assert "유형별 절차:" in out
@@ -848,7 +854,24 @@ def test_prompt_never_mentions_closing():
     """
     normal = build_system_instruction(**_BASE_KWARGS)
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    for name, out in (("일반", normal), ("레벨테스트", lt)):
+    # ⚠ 블록이 붙은 판까지 반드시 검사한다. 예전엔 맨 지시문만 봤는데, 그 사각지대에서
+    #   공부 항목 블록의 진행 규칙이 "종료 신호가 오면 … 통화 종료 규약을 따르라"를
+    #   그대로 들고 있었다(2026-08-04 발견). 실제 통화는 거의 다 블록이 붙으므로,
+    #   맨 지시문만 통과시키는 검사는 사실상 아무것도 안 지킨 셈이었다.
+    with_blocks = build_system_instruction(
+        **_BASE_KWARGS,
+        study_items=_STUDY_ITEMS,
+        known_items=_KNOWN_ITEMS,
+        recent_topics=["여행", "음식"],
+        promotion_notice=True,
+    )
+    with_l1 = build_system_instruction(**_BASE_KWARGS, study_items=_STUDY_ITEMS_L1)
+    for name, out in (
+        ("일반", normal),
+        ("레벨테스트", lt),
+        ("일반+공부·대화 블록", with_blocks),
+        ("일반+L1 청크 블록", with_l1),
+    ):
         assert "종료" not in out, f"{name} 대본에 '종료'가 다시 들어왔다"
         assert "통화종료" not in out
         assert "마무리" not in out, f"{name} 대본에 '마무리'가 다시 들어왔다"
