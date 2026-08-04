@@ -2031,3 +2031,216 @@ async def test_limit_checked_with_routed_call_type_and_client_tz(
     assert seen["call_type"] == "level_test"
     assert seen["tz"] == 540
     assert seen["member_id"] == seeded["member_id"]
+
+
+# --------------------------------------------------------------------------- #
+# 세션 재연결(15분 통화) — 세대 루프 불변식
+#
+# ⚠ 이 묶음이 지키는 핵심: 세대 루프에서 **워처 태스크는 재생성되는데 상태(_CallState)는
+#   살아남는다**. 그래서 (a) 세대를 건너 유지돼야 할 것이 리셋되지 않고 (b) 1회성 동작이
+#   세대마다 반복되지 않아야 한다. de0133b(재접지 재arm → 후반 리마인더 생략)가 첫 사례였다.
+# --------------------------------------------------------------------------- #
+def _pause(seconds: float):
+    """events() 스크립트 중간에 끼우는 대기 — 회전 시계가 스왑을 요청할 시간을 준다."""
+    async def _inner(_fake):
+        await asyncio.sleep(seconds)
+    return _inner
+
+
+class _GenFake:
+    """한 세대(연결 1개)의 가짜 Live 세션 — 세대별 스크립트를 받는다."""
+
+    def __init__(self, script, epoch: int):
+        self._script = script
+        self.epoch = epoch
+        self.sent_audio: list[bytes] = []
+        self.sent_text_turns: list[str] = []
+        self.regrounds: list[tuple[str, bool]] = []
+        self.closed = False
+
+    async def send_audio(self, pcm16_16k: bytes) -> None:
+        self.sent_audio.append(pcm16_16k)
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        self.regrounds.append((text, turn_complete))
+
+    async def events(self):
+        for item in self._script:
+            if callable(item):
+                await item(self)
+            else:
+                yield item
+
+
+class _ReconnectingFactory:
+    """세대마다 새 _GenFake 를 만드는 팩토리 — 팩토리 kwargs 를 세대별로 기록한다.
+
+    ⚠ **kwargs 로 받는다. 기존 가짜 팩토리들은 (system_instruction, voice) 엄격 시그니처라
+      resume_handle 이 붙는 순간 TypeError 로 죽는다. 그러면 "재연결 경로는 테스트가 한 번도
+      안 타는 죽은 경로"가 된다 — tools 인자에서 이미 겪은 실수라 반복하지 않는다.
+    """
+
+    def __init__(self, scripts):
+        self._scripts = scripts
+        self.sessions: list[_GenFake] = []
+        self.kwargs: list[dict] = []
+
+    def __call__(self, client, settings, **kw):
+        import contextlib as _cl
+
+        @_cl.asynccontextmanager
+        async def _cm():
+            epoch = len(self.sessions) + 1
+            script = self._scripts[min(epoch - 1, len(self._scripts) - 1)]
+            sess = _GenFake(script, epoch)
+            self.sessions.append(sess)
+            self.kwargs.append(dict(kw))
+            try:
+                yield sess
+            finally:
+                sess.closed = True
+
+        return _cm()
+
+
+async def _run_reconnecting(factory, session_factory, seeded):
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+    return ws
+
+
+def _swap_ready(monkeypatch):
+    """스왑이 결정론적으로 딱 1회 일어나도록 시계를 낮춘다(테스트가 발화시킨다).
+
+    ⚠ SWAP_FLAP_GUARD_S 는 0 으로 만들지 마라. 스트림 종료 폴백("저쪽이 예고 없이 끊으면
+      교체")이 있어서, 가드를 끄면 재개된 세션이 또 끝날 때마다 예산(MAX_RECONNECTS)을
+      소진할 때까지 왕복한다 — 실제로 이 테스트를 쓰다가 5세대까지 가는 걸 봤다.
+      즉 무한 왕복을 실제로 막는 건 예산 횟수가 아니라 이 시간 가드다. 그 사실 자체를
+      여기서 값으로 고정한다(가드를 없애면 위 테스트들이 세대 수로 잡아낸다).
+    """
+    monkeypatch.setattr(cs, "SESSION_ROTATE_AT_S", 0.15)
+    monkeypatch.setattr(cs, "SWAP_FLAP_GUARD_S", 5.0)
+    monkeypatch.setattr(cs, "RECONNECT_MIN_REMAINING_S", 0.0)
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 30.0)
+
+
+def _gen_with_handle(handles):
+    """1세대 스크립트 — 핸들 몇 개를 주고, 대기 뒤 턴 경계를 만들어 스왑을 유도한다."""
+    script = [LiveEvent(kind="out_tr", text="안녕"), LiveEvent(kind="turn_end")]
+    script += handles
+    script += [
+        _pause(0.4),
+        LiveEvent(kind="out_tr", text="이어서"),
+        LiveEvent(kind="turn_end"),
+    ]
+    return script
+
+
+_GEN2 = [LiveEvent(kind="out_tr", text="계속"), LiveEvent(kind="turn_end")]
+
+
+@pytest.mark.asyncio
+async def test_reconnect_reuses_latest_handle(session_factory, seeded, monkeypatch):
+    """핸들 보관·재사용 + resumable=False 는 덮어쓰지 않는다.
+
+    ⛔ resumable=False 는 "지금 상태로는 재개 불가"(모델이 생성 중이거나 tool 실행 중)라는
+      뜻이다. 그 시점 핸들로 재개하면 데이터가 유실된다(SDK proto 주석). 덮어쓰면 안 된다.
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle([
+        LiveEvent(kind="resume_update", resume_handle="h1", resumable=True),
+        LiveEvent(kind="resume_update", resume_handle="h2", resumable=True),
+        LiveEvent(kind="resume_update", resume_handle="h_bad", resumable=False),
+    ])
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 2, f"세대가 2개가 아님: {len(factory.sessions)}"
+    assert "resume_handle" not in factory.kwargs[0], "1세대에 핸들을 넘겼다(새 세션이어야 함)"
+    got = factory.kwargs[1].get("resume_handle")
+    assert got == "h2", f"2세대가 최신 유효 핸들을 못 받았다: {got}"
+
+
+@pytest.mark.asyncio
+async def test_reconnect_does_not_resend_opening_seed(session_factory, seeded, monkeypatch):
+    """⛔ 선톡 시드는 1세대만. 재개 세대에 다시 보내면 비버가 통화 중간에 또 인사한다.
+
+    재개는 대화가 이어지는 것이지 새로 시작하는 게 아니다. 실기기 검증에서 가장 걱정했던
+    실패 모드라 코드로 못박는다(발생하면 15분화 자체를 보류해야 하는 종류였다).
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle(
+        [LiveEvent(kind="resume_update", resume_handle="h1", resumable=True)]
+    )
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 2
+    assert len(factory.sessions[0].sent_text_turns) >= 1, "1세대에 선톡 시드가 안 갔다"
+    assert factory.sessions[1].sent_text_turns == [], (
+        f"재개 세대에 시드가 다시 갔다(비버 재인사 유발): {factory.sessions[1].sent_text_turns}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_reconnect_closes_previous_session(session_factory, seeded, monkeypatch):
+    """좀비 미잔존 — 이전 세대 세션이 반드시 닫힌다.
+
+    세션은 세대의 지역 변수로만 존재하므로 별칭이 남을 수 없다는 설계를 실제로 확인한다.
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle(
+        [LiveEvent(kind="resume_update", resume_handle="h1", resumable=True)]
+    )
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 2
+    assert factory.sessions[0].closed is True, "1세대 세션이 안 닫혔다(좀비)"
+
+
+@pytest.mark.asyncio
+async def test_no_swap_without_handle(session_factory, seeded, monkeypatch):
+    """⛔ 핸들이 없으면 갈지 않는다 — 재개가 아니라 기억 상실이 된다.
+
+    차라리 현재 연결을 쓰다가 저쪽이 끊으면 기존 종료 파이프로 우아하게 마무리하는 편이
+    낫다. 이 가드가 없으면 재연결이 "대화를 통째로 잊는 기능"이 된다.
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle([])  # resume_update 를 한 번도 안 준다
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 1, (
+        f"핸들이 없는데 세션을 갈았다(기억 상실): 세대 {len(factory.sessions)}개"
+    )
+
+
+@pytest.mark.asyncio
+async def test_usage_event_does_not_open_turn_or_reach_client(session_factory, seeded):
+    """⛔ usage 이벤트는 턴을 열지 않고 클라로 나가지도 않는다.
+
+    턴을 열면 turn_id 가 켜져 barge-in off 관문이 마이크를 막는다(통화가 붙어 있는데 말이
+    안 들어가는 상태). 클라로 나가면 프로토콜 오염 — 구버전 앱이 모르는 타입을 받는다.
+    """
+    gen1 = [
+        LiveEvent(kind="usage", prompt_tokens=8000, total_tokens=9000,
+                  prompt_modalities={"AUDIO": 7000, "TEXT": 1000}),
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+    ]
+    factory = _ReconnectingFactory([gen1])
+    ws = await _run_reconnecting(factory, session_factory, seeded)
+
+    kinds = [json.loads(t).get("type") for t in ws.sent_text]
+    assert "usage" not in kinds, f"usage 가 클라로 샜다: {kinds}"
+    assert kinds.count("turn_start") == 1, f"턴이 예상보다 많이 열렸다: {kinds}"
