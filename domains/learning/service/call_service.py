@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date as _date, datetime, time as _time, timedelta, timezone
 from typing import Sequence
 
@@ -32,6 +33,9 @@ from domains.learning.schemas.call import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 def _avg(values: list) -> float | None:
     nums = [v for v in values if v is not None]
     return round(sum(nums) / len(nums), 1) if nums else None
@@ -46,6 +50,17 @@ def _avg(values: list) -> float | None:
 # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
 DAILY_CALL_LIMIT: dict[str, int] = {"normal": 1, "level_test": 1}
 
+# 3티어 재편(2026-08-04): 플랜별 한도. 빈 dict = 무제한.
+# Free(플랜 없음)만 하루 1회고, Pro·Max 는 무제한이다(기획서 §1).
+#
+# ⚠ 지금은 **실동작 변화가 없다** — 유료구매가 임시차단돼 유료 회원이 0명이다.
+#   결제가 붙는 날 "Pro 결제했는데 하루 1회"로 나가지 않도록 배선만 미리 해둔다.
+DAILY_CALL_LIMIT_BY_PLAN: dict[str | None, dict[str, int]] = {
+    None: DAILY_CALL_LIMIT,   # Free
+    "pro": {},                # 무제한
+    "max": {},                # 무제한
+}
+
 
 def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, datetime]:
     """클라 로컬 하루 → UTC 반열린 구간 [start, end).
@@ -59,6 +74,30 @@ def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, d
         tzinfo=timezone.utc
     )
     return start_utc, start_utc + timedelta(days=1)
+
+
+def effective_plan(db: Session, member_id: int) -> str | None:
+    """지금 **실제로 혜택이 열려 있는** 플랜. Free 면 None.
+
+    ⛔ 판정 규칙을 여기서 새로 쓰지 않고 commerce 의 resolve_status 를 재사용한다 —
+      두 곳이 어긋나면 "앱은 되는데 서버가 거절"이 된다. 특히 grace(결제 재시도 중,
+      **접근 유지**)와 on_hold(유예도 끝남, **접근 차단**)의 비대칭이 그렇다.
+
+    실패는 Free 로 떨어뜨린다(R5): 구독 조회가 통화를 막으면 안 되고, 모르면
+    보수적으로 무료 한도를 적용하는 편이 과금 사고보다 낫다.
+    """
+    try:
+        from domains.commerce.repository.subscribe_repository import SubscribeRepository
+        from domains.commerce.service.subscription_status import resolve_status
+
+        resolved = resolve_status(SubscribeRepository(db).list_by_member(member_id))
+    except Exception:  # noqa: BLE001 - 구독 조회 실패가 통화를 막으면 안 된다
+        logger.warning("call: 플랜 판정 실패 → Free 로 처리 member=%s", member_id)
+        return None
+    # 접근이 열리는 상태에서만 플랜을 인정한다. on_hold·expired·free 는 혜택 없음.
+    if resolved.state in ("trial", "active_pro", "active_max", "grace", "ending"):
+        return resolved.plan
+    return None
 
 
 def is_daily_limit_reached(
@@ -81,9 +120,11 @@ def is_daily_limit_reached(
     """
     if settings.ENV != "prod":
         return False
-    limit = DAILY_CALL_LIMIT.get(call_type)
+    limit = DAILY_CALL_LIMIT_BY_PLAN.get(effective_plan(db, member_id), DAILY_CALL_LIMIT).get(
+        call_type
+    )
     if not limit:
-        return False  # 한도가 정의되지 않은 콜타입은 막지 않는다
+        return False  # 한도가 없는 플랜(유료) 또는 정의되지 않은 콜타입은 막지 않는다
     now_local = datetime.now(timezone.utc) + timedelta(minutes=tz_offset_min)
     start_utc, end_utc = daily_window_utc(now_local.date(), tz_offset_min)
     return CallRepository(db).has_call_in_window(

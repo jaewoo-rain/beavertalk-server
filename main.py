@@ -297,6 +297,120 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 },
             }
 
+        @app.post("/__dev/subscription-state", include_in_schema=False)
+        def dev_subscription_state(
+            body: dict, member: CurrentAdmin, db: DbSession
+        ) -> dict:
+            """[dev] 내 구독을 원하는 **상태 8종**으로 만든다 — 프론트 화면 확인용.
+
+            🧒 왜 목데이터가 아니라 이건가: 응답에 가짜 값을 섞으면 ① 실제 사용자가
+              가짜 상태를 받을 수 있고 ② "진짜냐 목이냐"를 가리는 분기가 응답 경로에
+              영구히 남는다. 여기서는 **DB 행만** 원하는 모양으로 만든다 — 그러면
+              resolve_status 진짜 코드가 돌고 앱은 진짜 wire 를 받는다.
+
+            trial·grace·on_hold 는 원래 스토어만 채울 수 있는 값인데, 컬럼이 생겼으므로
+            여기서 세팅하면 8종 전부 실제 경로로 나온다(결제 연동 전 유일한 확인 수단).
+
+            ⚠ 항상 source='manual' 로 남긴다 — 결제가 붙는 날 이 행들이 진짜 유료로
+              둔갑하면 안 된다(iap_receipt.is_stub 과 같은 이유).
+            ⛔ CurrentAdmin 으로 막는다. 실서비스(app-api)의 ENV 는 "prod" 가 아니라
+              "test" 라 이 블록이 실서비스에도 노출되기 때문(위 할인 도구와 같은 이유).
+
+            body: {"state": "grace", "plan": "max", "email": "tester@x.com"}
+              - plan 기본 pro
+              - 대상은 member_id 또는 email 로 지정. 둘 다 없으면 **호출한 본인**.
+
+            ⭐ 대상 지정이 왜 필요한가: 이 엔드포인트는 관리자만 부를 수 있는데, 화면을
+              확인할 프론트 테스터는 보통 일반 계정이다. 대상을 못 고르면 정작 확인이
+              필요한 계정의 상태를 못 바꾼다.
+            """
+            from datetime import datetime, timedelta, timezone
+
+            from sqlalchemy import delete as sa_delete
+
+            from domains.account.models.member import Member as M
+            from domains.commerce.models.subscribe import Subscribe
+
+            state = str(body.get("state") or "").strip()
+            plan = str(body.get("plan") or "pro").strip()
+            valid = {
+                "free", "trial", "active_pro", "active_max",
+                "grace", "on_hold", "ending", "expired",
+            }
+            if state not in valid:
+                return {"error": f"state 는 {sorted(valid)} 중 하나"}
+            if plan not in {"pro", "max"}:
+                return {"error": "plan 은 pro | max"}
+
+            # 대상 회원 결정 — 미지정이면 본인.
+            target = None
+            if body.get("member_id") is not None:
+                target = db.get(M, int(body["member_id"]))
+            elif body.get("email"):
+                target = (
+                    db.query(M)
+                    .filter(M.email == str(body["email"]).strip(),
+                            M.deleted_at.is_(None))
+                    .one_or_none()
+                )
+            else:
+                target = member
+            if target is None:
+                return {"error": "대상 회원을 찾을 수 없습니다(member_id | email)."}
+
+            mid = target.member_id
+            now = datetime.now(timezone.utc)
+            # 기존 행을 전부 지우고 1건만 남긴다 — 다중 활성 행이 있으면 어느 것이
+            # 이겼는지 헷갈려 화면 확인이 무의미해진다.
+            deleted = db.execute(
+                sa_delete(Subscribe).where(Subscribe.member_id == mid)
+            ).rowcount
+            if state == "free":
+                db.commit()
+                return {
+                    "member_id": mid, "email": target.email,
+                    "state": "free", "deleted": deleted,
+                }
+
+            # active_pro/active_max 는 plan 이 상태에 이미 들어 있다.
+            if state == "active_max":
+                plan = "max"
+            elif state == "active_pro":
+                plan = "pro"
+            elif state == "trial":
+                plan = "max"  # 앱은 체험을 Max 로 취급(subscription_state.dart)
+
+            row = Subscribe(
+                member_id=mid,
+                start_date=now - timedelta(days=5),
+                # expired 만 과거 만료, ending 은 해지했지만 기간이 남은 상태.
+                end_date=now - timedelta(days=1) if state == "expired"
+                else now + timedelta(days=15),
+                price=None,
+                is_activate=False if state == "ending" else True,
+                plan=plan,
+                billing_period="monthly",
+                product_id=None,
+                source="manual",  # ⭐ 가짜 표식 — 정산에서 걸러야 한다
+                is_trial=state == "trial",
+                billing_state=(
+                    "grace" if state == "grace"
+                    else "on_hold" if state == "on_hold"
+                    else "ok"
+                ),
+                retrying_until=now + timedelta(days=7) if state == "grace" else None,
+                paused_since=now - timedelta(days=3) if state == "on_hold" else None,
+            )
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return {
+                "member_id": mid, "email": target.email,
+                "state": state, "plan": plan,
+                "subscribe_id": row.subscribe_id, "deleted": deleted,
+                "hint": "그 계정으로 GET /subscriptions/status 확인",
+            }
+
         # ── 할인 이벤트 운영 도구 ────────────────────────────────────────── #
         # ⚠ 실서비스(app-api)의 ENV 는 "prod" 가 아니라 "test" 라 이 블록이 **실서비스에도
         #   노출된다**. 그래서 환경 게이트에 기대지 않고 **member.role == "admin"**

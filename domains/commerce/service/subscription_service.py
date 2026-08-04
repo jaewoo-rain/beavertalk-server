@@ -13,7 +13,12 @@ from domains.commerce.models.payment import Payment
 from domains.commerce.models.subscribe import Subscribe
 from domains.commerce.repository.payment_repository import PaymentRepository
 from domains.commerce.repository.subscribe_repository import SubscribeRepository
-from domains.commerce.schemas.subscription import SubscribeCreate, SubscriptionOut
+from domains.commerce.schemas.subscription import (
+    SubscribeCreate,
+    SubscriptionOut,
+    SubscriptionStatusOut,
+)
+from domains.commerce.service.subscription_status import resolve_status
 
 
 logger = logging.getLogger(__name__)
@@ -37,9 +42,24 @@ class SubscriptionService:
         #   클라가 금액을 보내는 구조와 양립하지 않는다. 대체: POST /purchases/verify.
         #   근거: docs/20260731_1230_IAP-API-계약서-프론트공유용.md
         logger.warning(
-            "subscription: 결제 미연동 구독 시작 member=%s price=%s ⚠ 실결제 아님(IAP 전환 대기)",
-            member_id, data.price,
+            "subscription: 결제 미연동 구독 시작 member=%s price=%s plan=%s ⚠ 실결제 아님(IAP 전환 대기)",
+            member_id, data.price, data.plan,
         )
+
+        # ⛔ 중복 활성 행 차단. 그동안 검사가 없어서 회원당 활성 구독이 여러 개 생길 수
+        #   있었고, 그게 상태 판정 모호성의 원천이었다(앱 resolver 도 "여러 개일 수
+        #   있다"를 전제로 짜여 있다). 상태 8종을 내리기 시작하는 이상, 어느 행이
+        #   진짜인지가 갈리면 안 된다.
+        #   ⚠ DB 부분 UNIQUE 인덱스는 기존 중복 데이터 때문에 아직 못 건다(파괴적
+        #     정리가 선행돼야 함 — R6). 그때까지 이 검사가 유일한 방어선이다.
+        if self.repo.find_active(member_id) is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "SUBSCRIPTION_ALREADY_ACTIVE",
+                    "message": "이미 활성 구독이 있습니다.",
+                },
+            )
 
         now = datetime.now(timezone.utc)
         sub = Subscribe(
@@ -48,6 +68,9 @@ class SubscriptionService:
             end_date=data.end_date,
             price=data.price,
             is_activate=True,
+            plan=data.plan,
+            billing_period=data.billing_period,
+            source="manual",  # 결제 없이 만든 행 — 정산에서 걸러야 한다
         )
         payment = Payment(
             member_id=member_id,
@@ -65,6 +88,24 @@ class SubscriptionService:
 
     def list(self, member_id: int) -> list[SubscriptionOut]:
         return [SubscriptionOut.model_validate(s) for s in self.repo.list_by_member(member_id)]
+
+    def status(self, member_id: int) -> SubscriptionStatusOut:
+        """회원 단위 현재 상태 1건 — 상태의 권위는 서버다.
+
+        앱이 price 같은 값으로 상태를 역추론하면 해지 안내가 틀어진다. 판정 규칙은
+        subscription_status.resolve_status 한 곳에만 둔다.
+        """
+        resolved = resolve_status(self.repo.list_by_member(member_id))
+        return SubscriptionStatusOut(
+            state=resolved.state,  # type: ignore[arg-type]
+            plan=resolved.plan,  # type: ignore[arg-type]
+            subscribe_id=resolved.subscribe_id,
+            price=resolved.price,
+            start_date=resolved.start_date,
+            end_date=resolved.end_date,
+            retrying_until=resolved.retrying_until,
+            paused_since=resolved.paused_since,
+        )
 
     def cancel(self, member_id: int, subscribe_id: int) -> SubscriptionOut:
         sub = self.repo.get(subscribe_id)
