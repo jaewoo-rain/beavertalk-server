@@ -1998,3 +1998,231 @@ async def test_limit_checked_with_routed_call_type_and_client_tz(
     assert seen["call_type"] == "level_test"
     assert seen["tz"] == 540
     assert seen["member_id"] == seeded["member_id"]
+
+
+# --------------------------------------------------------------------------- #
+# (h) 원가 계기판(Phase 0) — Live usage_metadata 관측
+# --------------------------------------------------------------------------- #
+class _FakeModality:
+    """types.ModalityTokenCount 흉내 — modality 는 enum 이라 .name 을 갖는다."""
+
+    def __init__(self, name: str, count: int):
+        self.modality = type("_M", (), {"name": name})()
+        self.token_count = count
+
+
+class _FakeUsage:
+    """types.UsageMetadata 흉내(필요 필드만)."""
+
+    def __init__(self, prompt, resp, total, *, in_audio=0, in_text=0, out_audio=0):
+        self.prompt_token_count = prompt
+        self.response_token_count = resp
+        self.total_token_count = total
+        self.thoughts_token_count = 0
+        self.cached_content_token_count = None
+        self.tool_use_prompt_token_count = None
+        self.prompt_tokens_details = [
+            _FakeModality("AUDIO", in_audio), _FakeModality("TEXT", in_text)
+        ]
+        self.response_tokens_details = [_FakeModality("AUDIO", out_audio)]
+
+
+class _UsageWS:
+    """펌프가 쓰는 최소 WS 인터페이스."""
+
+    def __init__(self):
+        self.sent_text: list[str] = []
+        self.sent_bytes: list[bytes] = []
+
+    async def send_text(self, text):
+        self.sent_text.append(text)
+
+    async def send_bytes(self, data):
+        self.sent_bytes.append(data)
+
+
+class _ScriptedSession:
+    """주어진 LiveEvent 리스트를 그대로 흘리고 소진되는 가짜 Live 세션."""
+
+    def __init__(self, script):
+        self._script = list(script)
+        self.sent_text_turns: list[str] = []
+
+    async def send_audio(self, pcm16_16k: bytes) -> None: ...
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+
+    async def events(self):
+        for e in self._script:
+            yield e
+
+
+_USAGE_CONVO = [
+    LiveEvent(kind="out_tr", text="안녕"),
+    LiveEvent(kind="audio", audio=b"\x00\x00"),
+    LiveEvent(kind="turn_end"),
+    LiveEvent(kind="in_tr", text="네", is_final=True),
+    LiveEvent(kind="out_tr", text="좋아요"),
+    LiveEvent(kind="audio", audio=b"\x11\x11"),
+    LiveEvent(kind="turn_end"),
+]
+
+
+async def _drain(script):
+    """펌프를 스크립트로 끝까지 돌리고 (state, ws) 를 돌려준다."""
+    state = cs._CallState()
+    ws = _UsageWS()
+    with pytest.raises(cs._CallFinished):
+        await cs._pump_gemini_to_client(ws, _ScriptedSession(script), state)
+    return state, ws
+
+
+@pytest.mark.asyncio
+async def test_usage_events_do_not_disturb_turn_state():
+    """⛔ R4 불변식: usage 이벤트를 아무리 섞어도 턴 상태기계·세그먼트·클라 전송이
+    바뀌지 않는다. usage 는 _forward_event 에 도달하지 않고 적재 후 continue 되므로,
+    usage 를 넣은 통화와 뺀 통화의 관측 가능한 결과가 **완전히 동일**해야 한다.
+    """
+    control, ws_ctl = await _drain(_USAGE_CONVO)
+
+    # 같은 대화에 usage 를 매 이벤트 사이에 끼워 넣는다(최악 케이스).
+    noisy: list = []
+    for i, ev in enumerate(_USAGE_CONVO):
+        noisy.append(LiveEvent(kind="usage", usage=_FakeUsage(
+            100 * (i + 1), 5, 200 * (i + 1), in_audio=90 * (i + 1), in_text=10 * (i + 1),
+        )))
+        noisy.append(ev)
+    treated, ws_trt = await _drain(noisy)
+
+    # 세그먼트(역할·턴인덱스·텍스트)와 클라로 나간 바이트/텍스트가 바이트 동일해야 한다.
+    def _shape(s):
+        return [(x["turn_index"], x["role"], x["text"]) for x in s.segments]
+
+    assert _shape(treated) == _shape(control), "usage 가 세그먼트/턴 인덱스를 오염시켰다"
+    assert treated.next_turn_index == control.next_turn_index
+    assert ws_trt.sent_bytes == ws_ctl.sent_bytes, "usage 가 오디오 전달을 바꿨다"
+
+    # turn_id 는 통화마다 새로 뽑는 난수라 값 자체는 다르다 — 메시지의 종류·순서·나머지
+    # 필드가 같은지를 본다(그게 클라가 실제로 보는 프로토콜이다).
+    def _msgs(w):
+        out = []
+        for t in w.sent_text:
+            d = json.loads(t)
+            d.pop("turn_id", None)
+            out.append(d)
+        return out
+
+    assert _msgs(ws_trt) == _msgs(ws_ctl), "usage 가 클라 제어 메시지를 바꿨다"
+    # 그러면서 계측은 전량 적재됐다.
+    assert control.usage_log == [], "usage 없는 통화인데 적재됐다"
+    assert len(treated.usage_log) == len(_USAGE_CONVO)
+    assert treated.usage_log[0]["prompt"] == 100
+    assert treated.usage_log[0]["in_detail"] == [("AUDIO", 90), ("TEXT", 10)], \
+        "모달리티 분해가 유실됐다 — 오디오/텍스트 단가가 6배 차라 이게 없으면 원가 계산 불가"
+
+
+@pytest.mark.asyncio
+async def test_record_usage_graceful_on_unknown_shape():
+    """R5: usage_metadata 의 형태가 바뀌거나 필드가 없어도 죽지 않는다(로그만 비고 통화 정상)."""
+    state, _ = await _drain([
+        LiveEvent(kind="usage", usage=object()),   # 필드 전무
+        LiveEvent(kind="usage", usage=None),       # 값 없음
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+    ])
+    assert len(state.usage_log) == 2, "이형 usage 가 적재를 건너뛰거나 예외를 냈다"
+    assert state.usage_log[0]["prompt"] is None
+    assert state.usage_log[0]["in_detail"] == []
+    # 요약 방출도 죽지 않아야 한다.
+    cs._log_usage_summary(state, 1, "normal")
+
+
+@pytest.mark.asyncio
+async def test_usage_log_capped(monkeypatch):
+    """상한: 이상 상황(15분 통화·폭주)에서 메모리·로그가 무한히 자라지 않는다."""
+    monkeypatch.setattr(cs, "_USAGE_LOG_MAX", 3)
+    state, _ = await _drain(
+        [LiveEvent(kind="usage", usage=_FakeUsage(10, 1, 11)) for _ in range(10)]
+    )
+    assert len(state.usage_log) == 3
+    assert state.usage_dropped == 7
+
+
+def test_usage_summary_line_is_parseable():
+    """요약 줄은 key=value 로 못박는다 — 나중에 Cloud Logging 로그 기반 메트릭이
+    코드 변경 0줄로 여기서 숫자를 뽑아갈 수 있어야 한다. 또한 Σ와 last 를 **둘 다**
+    내보내야 usage_metadata 가 증분인지 누적인지 실측으로 판별할 수 있다."""
+    import logging
+
+    state = cs._CallState()
+    state.call_start_ts = None
+    state.usage_log = [
+        {"t": 1.0, "turn": 0, "prompt": 100, "resp": 10, "total": 110, "thoughts": 0,
+         "cached": None, "tool_in": None,
+         "in_detail": [("AUDIO", 90), ("TEXT", 10)], "out_detail": [("AUDIO", 10)]},
+        {"t": 5.0, "turn": 2, "prompt": 300, "resp": 20, "total": 320, "thoughts": 0,
+         "cached": None, "tool_in": None,
+         "in_detail": [("AUDIO", 280), ("TEXT", 20)], "out_detail": [("AUDIO", 20)]},
+    ]
+
+    records: list[str] = []
+
+    class _Cap(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    h = _Cap()
+    cs.logger.addHandler(h)
+    prev_level = cs.logger.level
+    cs.logger.setLevel(logging.INFO)  # 루트 기본은 WARNING — INFO 요약이 핸들러에 안 온다
+    try:
+        cs._log_usage_summary(state, 42, "normal")
+    finally:
+        cs.logger.removeHandler(h)
+        cs.logger.setLevel(prev_level)
+
+    line = next(r for r in records if r.startswith("normalcall usage:"))
+    for token in (
+        "call_id=42", "type=normal", "msgs=2", "dropped=0",
+        "sum_prompt=400",      # Σ — 증분 해석일 때의 재과금 항
+        "last_prompt=300", "last_total=320",  # last — 누적 해석일 때의 값
+        "monotonic=True",      # 단조증가 = 누적 의심 / 압축 미발동
+        "AUDIO=370", "TEXT=30",  # 모달리티 분해(오디오·텍스트 단가 6배 차 → 원가 계산 필수)
+    ):
+        assert token in line, f"요약 줄에 {token} 없음: {line}"
+
+
+@pytest.mark.asyncio
+async def test_usage_summary_emitted_on_every_exit_path(session_factory, seeded):
+    """통화가 어떤 경로로 끝나든 요약이 정확히 1회 방출된다(run_call finally 경유)."""
+    import logging
+
+    records: list[str] = []
+
+    class _Cap(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    h = _Cap()
+    cs.logger.addHandler(h)
+    prev_level = cs.logger.level
+    cs.logger.setLevel(logging.INFO)  # 루트 기본은 WARNING — INFO 요약이 핸들러에 안 온다
+    try:
+        fake = _RegroundFake([
+            LiveEvent(kind="usage", usage=_FakeUsage(1000, 50, 1050, in_audio=900, in_text=100)),
+            LiveEvent(kind="out_tr", text="안녕"),
+            LiveEvent(kind="audio", audio=b"\x00\x00"),
+            LiveEvent(kind="turn_end"),
+            LiveEvent(kind="usage", usage=_FakeUsage(2000, 60, 2060, in_audio=1800, in_text=200)),
+        ])
+        await _run_with_fake(fake, session_factory, seeded)
+    finally:
+        cs.logger.removeHandler(h)
+        cs.logger.setLevel(prev_level)
+
+    summaries = [r for r in records if r.startswith("normalcall usage:")]
+    assert len(summaries) == 1, f"요약이 1회가 아님({len(summaries)}회)"
+    assert "msgs=2" in summaries[0]
+    assert "sum_prompt=3000" in summaries[0]
+    assert "AUDIO=2700" in summaries[0]

@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     #   재빌드 없이 gcloud run services update 로 바꿔가며 관측하라.
     LIVE_CTX_TRIGGER_TOKENS: int = 16000  # 압축 발동 임계
     LIVE_CTX_TARGET_TOKENS: int = 12000   # 압축 후 유지량(trigger 보다 작아야 한다)
+    # 통화 usage 시계열 상세 로그(원가 조사용). 기본 off = 통화 종료 시 요약 1줄만.
+    # true 면 메시지별 (경과초, prompt, total) 시계열을 1줄 더 찍는다 — 압축이 실제로
+    # 발동하는지(톱니 vs 단조증가)와 usage_metadata 가 증분인지 누적인지 판별하는 데 쓴다.
+    # 조사 기간에만 gcloud run services update 로 켰다 끄는 값이라 env 로 뺐다.
+    LIVE_USAGE_TRACE: bool = False
     # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
     # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
     TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)

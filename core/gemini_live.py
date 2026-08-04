@@ -48,7 +48,7 @@ LEVELTEST_DONE_TOOL = types.Tool(
 )
 
 LiveEventKind = Literal[
-    "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call"
+    "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call", "usage"
 ]
 
 
@@ -63,6 +63,7 @@ class LiveEvent:
     time_left: Optional[str] = None    # kind=="go_away": 서버 종료 예고 timeLeft(있으면)
     fn_name: Optional[str] = None      # kind=="tool_call": 호출된 function 이름
     fn_id: Optional[str] = None        # kind=="tool_call": function_call id(send_tool_response 매칭용)
+    usage: Optional[Any] = None        # kind=="usage": SDK UsageMetadata 원본(어댑터는 해석 안 함)
 
 
 @runtime_checkable
@@ -223,6 +224,18 @@ class GeminiLiveSession:
                         kind="go_away",
                         time_left=getattr(go_away, "time_left", None),
                     )
+
+                # usage: 과금 계측(server_content 와 무관한 최상위 필드 → go_away 와 같은 층위).
+                # Live 는 모델이 턴을 만들 때마다 세션 컨텍스트 전체를 입력으로 재과금하는데,
+                # 그 지배 항이 지금껏 관측되지 않았다(원가가 추정치뿐이었던 이유). SDK 는
+                # 서버의 usageMetadata 를 가공 없이 통과시키므로(_live_converters), 이 값이
+                # "메시지별 증분"인지 "세션 누적"인지는 서버가 정한다 — 어댑터는 판단하지 않고
+                # 원본 그대로 넘긴다. 의미 판별·집계·원가 산식은 소비측(call_session)의 몫.
+                # ⚠ total_token_count 로 거르지 않는다: 0/None 이어도 모달리티 detail 은 올 수
+                # 있고, "언제·얼마나 오는가" 자체가 관측 대상이라 표본을 미리 버리면 안 된다.
+                um = getattr(response, "usage_metadata", None)
+                if um is not None:
+                    yield LiveEvent(kind="usage", usage=um)
 
                 # tool_call: 모델의 function-call 요청(server_content 와 무관한 최상위
                 # 필드 → go_away 처럼 None-가드보다 먼저). 레벨테스트 조기종료 신호가

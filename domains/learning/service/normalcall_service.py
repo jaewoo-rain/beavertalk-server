@@ -1197,6 +1197,13 @@ async def analyze_call(
             prompt=prompt,
             # 후보 0개면 detections 없는 스키마 — 기존 분석 출력 무변화(하위호환)
             schema=CallAnalysis if cands else _CallAnalysisBase,
+            # 추론 예산 상한 명시. 미지정이면 모델 기본값(동적 thinking)이 켜져 추론 토큰이
+            # 출력 단가로 무제한 과금된다. 0(완전 비활성)이 아니라 512 인 이유: 이 콜은
+            # 후보표(≤30행) 대조 + 인용 검증 게이트로 이어지는 검출 과업이라, 추론을 아예
+            # 끄면 인용 정확도가 떨어져 하류 게이트에서 탈락 → 검출 recall 하락 → 증거
+            # 적립·레벨업 지연으로 번진다. 동적 예산의 상한만 깎는 절충이다.
+            # (대조군: 통화중 사이드카들은 지연이 우선이라 thinking_budget=0.)
+            thinking_budget=512,
         )
         if result is None:
             logger.warning("normalcall 분석: _analyze 실패 → failed call_id=%s", call_id)
