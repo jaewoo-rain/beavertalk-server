@@ -48,7 +48,8 @@ LEVELTEST_DONE_TOOL = types.Tool(
 )
 
 LiveEventKind = Literal[
-    "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call"
+    "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call",
+    "usage", "resume_update",
 ]
 
 
@@ -63,6 +64,16 @@ class LiveEvent:
     time_left: Optional[str] = None    # kind=="go_away": 서버 종료 예고 timeLeft(있으면)
     fn_name: Optional[str] = None      # kind=="tool_call": 호출된 function 이름
     fn_id: Optional[str] = None        # kind=="tool_call": function_call id(send_tool_response 매칭용)
+    # kind=="usage": 그 시점 컨텍스트 실측치. prompt_tokens 가 급감하면 압축이 발동한 것이다
+    # (Live 에는 압축 전용 이벤트가 없어 이 급감이 유일한 신호다).
+    prompt_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    # 모달리티별 분해 {"AUDIO": n, "TEXT": n} — 오디오 $3/M vs 텍스트 $0.5/M 라 원가 계산에 필수.
+    prompt_modalities: Optional[dict[str, int]] = None
+    # kind=="resume_update": 세션 재개 핸들. resumable=False 면 지금 시점 상태로는 재개할 수
+    # 없다는 뜻이라(모델 생성 중·tool 실행 중) **핸들을 덮어쓰면 안 된다**.
+    resume_handle: Optional[str] = None
+    resumable: bool = False
 
 
 @runtime_checkable
@@ -81,6 +92,7 @@ def build_live_config(
     system_instruction: str,
     voice: str = DEFAULT_VOICE,
     tools: Optional[list[types.Tool]] = None,
+    resume_handle: Optional[str] = None,
 ) -> types.LiveConnectConfig:
     """normalcall 용 LiveConnectConfig 구성.
 
@@ -91,10 +103,27 @@ def build_live_config(
     tools: 기본 None → 일반 통화 config 는 바이트 동일(하위호환). 레벨테스트 조기종료
     같은 function-call 이 필요할 때만 [LEVELTEST_DONE_TOOL] 등을 넘긴다. LiveConnectConfig.tools
     의 pydantic 기본값도 None 이라 None 전달 시 미전달과 동일 직렬화(회귀 무영향).
+
+    resume_handle: 세션 재개용 핸들. LIVE_SESSION_RESUMPTION 이 꺼져 있으면 session_resumption
+    필드 자체를 넣지 않아 **종전과 바이트 동일**이다(스냅샷 회귀 무영향). 켜져 있고 핸들이
+    None 이면 "새 세션이되 핸들을 발급해 달라"는 뜻이고, 핸들이 있으면 그 시점 상태를 복원한다.
+
+    ⚠ transparent 는 Vertex 전용이라 USE_VERTEX 일 때만 켠다 — api_key 폴백 경로에 그대로
+      넘기면 SDK 가 ValueError 를 던져 통화가 아예 안 열린다(R5 위반).
     """
+    session_resumption = None
+    if settings.LIVE_SESSION_RESUMPTION:
+        session_resumption = types.SessionResumptionConfig(
+            handle=resume_handle,
+            # transparent=True 면 서버가 last_consumed_client_message_index 를 같이 준다
+            # (재연결 시 미소비 오디오만 골라 재전송하기 위한 값). 지금은 재연결을 안 하므로
+            # 관측 목적으로만 켠다 — 인덱스가 실제로 오는지 봐야 재연결 설계를 확정한다.
+            transparent=True if settings.USE_VERTEX else None,
+        )
     return types.LiveConnectConfig(
         response_modalities=["AUDIO"],
         tools=tools,
+        session_resumption=session_resumption,
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         system_instruction=system_instruction,
@@ -228,6 +257,42 @@ class GeminiLiveSession:
                 # 필드 → go_away 처럼 None-가드보다 먼저). 레벨테스트 조기종료 신호가
                 # 여기로 온다. function_calls 마다 정규화해 방출 — 소비측(call_session)이
                 # fn_name 으로 분기하고 send_tool_response(fn_id, fn_name) 로 응답한다.
+                # usage_metadata: 그 시점 컨텍스트 실측치(server_content 와 무관한 최상위).
+                # Live 에는 압축 발동 이벤트가 없어서, prompt_token_count 의 급감이 압축을
+                # 알 수 있는 유일한 신호다. 모달리티 분해까지 넘긴다 — 오디오와 텍스트는
+                # 단가가 6배 차이라 섞어 세면 원가를 못 맞춘다.
+                # ⚠ 이 이벤트는 턴을 열지 않는다. 소비측이 audio/out_tr 처럼 다루면
+                #   turn_id 가 켜져 barge-in off 관문이 오작동한다.
+                usage = getattr(response, "usage_metadata", None)
+                if usage is not None:
+                    prompt_tokens = getattr(usage, "prompt_token_count", None)
+                    modalities: dict[str, int] = {}
+                    for md in getattr(usage, "prompt_tokens_details", None) or []:
+                        name = getattr(getattr(md, "modality", None), "name", None)
+                        count = getattr(md, "token_count", None)
+                        if name and count:
+                            modalities[str(name)] = modalities.get(str(name), 0) + int(count)
+                    yield LiveEvent(
+                        kind="usage",
+                        prompt_tokens=int(prompt_tokens) if prompt_tokens else None,
+                        total_tokens=(
+                            int(getattr(usage, "total_token_count", None) or 0) or None
+                        ),
+                        prompt_modalities=modalities or None,
+                    )
+
+                # session_resumption_update: 서버가 주기적으로 밀어주는 재개 핸들.
+                # resumable=False 는 "지금 상태로는 재개 불가"(모델이 생성 중이거나 tool
+                # 실행 중)라는 뜻이므로 소비측이 **핸들을 덮어쓰면 안 된다** — 그 상태로
+                # 재개하면 데이터가 유실된다(SDK proto 주석).
+                resume = getattr(response, "session_resumption_update", None)
+                if resume is not None:
+                    yield LiveEvent(
+                        kind="resume_update",
+                        resume_handle=getattr(resume, "new_handle", None),
+                        resumable=bool(getattr(resume, "resumable", False)),
+                    )
+
                 tool_call = getattr(response, "tool_call", None)
                 if tool_call is not None:
                     for fc in getattr(tool_call, "function_calls", None) or []:
@@ -291,15 +356,23 @@ async def open_session(
     system_instruction: str,
     voice: str = DEFAULT_VOICE,
     tools: Optional[list[types.Tool]] = None,
+    resume_handle: Optional[str] = None,
 ) -> AsyncIterator[GeminiLiveSession]:
     """normalcall Gemini Live 세션을 열고 래퍼를 yield 하는 async 컨텍스트 매니저.
 
-    클라이언트 WS 수명 동안 단일 세션 유지(멀티턴 히스토리 보존). config 는
-    build_live_config 가 구성, system_instruction/voice 는 호출부(realtime)가 조립.
+    config 는 build_live_config 가 구성, system_instruction/voice 는 호출부(realtime)가 조립.
     tools 기본 None → 일반 통화 무영향. 레벨테스트만 [LEVELTEST_DONE_TOOL] 을 넘긴다.
+
+    ⚠ 통화 1건 = 세션 1개가 **아니다**(2026-08-04부터). Gemini 연결 수명이 ~10분이라
+      15분 통화는 연결을 갈아끼워야 한다. call_session 의 세대 루프가 이 컨텍스트 매니저를
+      여러 번 연다. resume_handle 을 넘기면 서버가 그 시점 대화 상태를 복원하므로,
+      모델 입장에서는 대화가 끊긴 적이 없다.
     """
     config = build_live_config(
-        system_instruction=system_instruction, voice=voice, tools=tools
+        system_instruction=system_instruction,
+        voice=voice,
+        tools=tools,
+        resume_handle=resume_handle,
     )
     # ⭐ Live 토큰 만료 방어: genai.Client 는 lifespan 이 한 번 만들어 인스턴스 수명 내내
     # 공유한다. 그 SA access token 은 ~1시간 만료인데, REST(분석·TTS)는 요청마다 갱신돼
