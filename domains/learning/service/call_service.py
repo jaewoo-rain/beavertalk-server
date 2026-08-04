@@ -95,25 +95,13 @@ def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, d
 def effective_plan(db: Session, member_id: int) -> str | None:
     """지금 **실제로 혜택이 열려 있는** 플랜. Free 면 None.
 
-    ⛔ 판정 규칙을 여기서 새로 쓰지 않고 commerce 의 resolve_status 를 재사용한다 —
-      두 곳이 어긋나면 "앱은 되는데 서버가 거절"이 된다. 특히 grace(결제 재시도 중,
-      **접근 유지**)와 on_hold(유예도 끝남, **접근 차단**)의 비대칭이 그렇다.
-
-    실패는 Free 로 떨어뜨린다(R5): 구독 조회가 통화를 막으면 안 되고, 모르면
-    보수적으로 무료 한도를 적용하는 편이 과금 사고보다 낫다.
+    판정 본체는 commerce 로 옮겼다(`service/entitlements.py`) — 재료가 구독 행이고,
+    캐릭터 잠금 해제도 같은 판정을 쓰기 때문이다. 두 도메인이 각자 규칙을 쓰면
+    "통화는 되는데 캐릭터는 잠김" 같은 어긋남이 난다. 여기 이름은 호출부 보존용.
     """
-    try:
-        from domains.commerce.repository.subscribe_repository import SubscribeRepository
-        from domains.commerce.service.subscription_status import resolve_status
+    from domains.commerce.service import entitlements
 
-        resolved = resolve_status(SubscribeRepository(db).list_by_member(member_id))
-    except Exception:  # noqa: BLE001 - 구독 조회 실패가 통화를 막으면 안 된다
-        logger.warning("call: 플랜 판정 실패 → Free 로 처리 member=%s", member_id)
-        return None
-    # 접근이 열리는 상태에서만 플랜을 인정한다. on_hold·expired·free 는 혜택 없음.
-    if resolved.state in ("trial", "active_pro", "active_max", "grace", "ending"):
-        return resolved.plan
-    return None
+    return entitlements.effective_plan(db, member_id)
 
 
 def call_duration_s_for_member(db: Session, member_id: int) -> float:

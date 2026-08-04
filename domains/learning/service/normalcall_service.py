@@ -38,6 +38,7 @@ from domains.account.models.member_reason import REASON_LABELS
 from domains.alarm.models.alarm import Alarm
 from domains.commerce.models.character import Character
 from domains.commerce.models.member_character import MemberCharacter
+from domains.commerce.service import entitlements
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
@@ -148,9 +149,14 @@ def resolve_call_character(
 
     # ② 사용자가 고른 대표 캐릭터. 소유를 확인한다 — member.character_id 는
     #    ondelete=SET NULL 인 단순 FK 라 "고르기만 하고 안 산" 상태가 될 수 있다.
+    #    Max 구독은 카탈로그 전체를 열어주므로 소유 없이도 통과한다(구매가 아니라 접근 —
+    #    member_character 행은 만들지 않는다. 해지하면 다시 잠겨야 하기 때문).
     member = db.get(Member, member_id)
     selected = member.character_id if member else None
-    if selected is not None and db.get(MemberCharacter, (member_id, selected)):
+    if selected is not None and (
+        db.get(MemberCharacter, (member_id, selected))
+        or entitlements.has_all_characters(db, member_id)
+    ):
         return selected
 
     # ③ 마지막 폴백 = 가장 싼 캐릭터(온보딩 기본 무료 캐릭터). id 를 하드코딩하지
