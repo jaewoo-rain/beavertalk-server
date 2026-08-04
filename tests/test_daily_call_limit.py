@@ -15,7 +15,9 @@ import pytest
 
 from core.config import settings as app_settings
 from domains.learning.service.call_service import (
+    CALL_DURATION_S_BY_PLAN,
     DAILY_CALL_LIMIT,
+    call_duration_s_for_member,
     daily_window_utc,
     is_daily_limit_reached,
 )
@@ -153,3 +155,68 @@ def test_unknown_call_type_is_not_limited(patched_repo):
     """한도가 정의되지 않은 콜타입은 막지 않는다(새 콜타입이 조용히 잠기지 않게)."""
     patched_repo({"normal", "level_test"})
     assert is_daily_limit_reached(None, 1, "practice", 540) is False
+
+
+# --------------------------------------------------------------------------- #
+# 4) 플랜별 통화 길이 — Free 5분 / Pro·Max 15분
+# --------------------------------------------------------------------------- #
+# ⛔ 앱 카피(`app_en.arb`)가 계약이다: Free "One 5-minute voice call a day",
+#    Pro "Unlimited calls. 15 minutes each." 여기 숫자가 그 문구보다 짧으면 결제한
+#    사람의 통화가 광고보다 일찍 끊긴다.
+def test_plan_duration_table_matches_app_copy():
+    assert CALL_DURATION_S_BY_PLAN[None] == 300.0    # Free 5분
+    assert CALL_DURATION_S_BY_PLAN["pro"] == 900.0   # 15분
+    assert CALL_DURATION_S_BY_PLAN["max"] == 900.0   # Max 는 "Everything in Pro" — 길이 동일
+
+
+@pytest.mark.parametrize(
+    "state,plan,expected",
+    [
+        ("free", None, 300.0),
+        ("active_pro", "pro", 900.0),
+        ("active_max", "max", 900.0),
+        # grace(결제 재시도 중)는 **접근 유지** — 길이를 뺏으면 카드 갱신하는 동안
+        # 통화가 짧아진다. ending(해지했지만 기간 남음)도 같다.
+        ("grace", "max", 900.0),
+        ("ending", "pro", 900.0),
+        ("trial", "max", 900.0),
+        # on_hold(유예도 끝남)·expired 는 접근 없음 → Free 길이.
+        ("on_hold", "max", 300.0),
+        ("expired", None, 300.0),
+    ],
+)
+def test_duration_follows_effective_plan(monkeypatch, state, plan, expected):
+    """길이는 구독 **상태**가 여는 플랜을 따른다 — resolve_status 를 재사용한다."""
+    from domains.commerce.service.subscription_status import ResolvedStatus
+
+    monkeypatch.setattr(
+        "domains.commerce.service.subscription_status.resolve_status",
+        lambda rows, **kw: ResolvedStatus(
+            state=state, plan=plan, subscribe_id=1, price=None,
+            start_date=None, end_date=None, retrying_until=None, paused_since=None,
+        ),
+    )
+    monkeypatch.setattr(
+        "domains.commerce.repository.subscribe_repository.SubscribeRepository",
+        lambda _db: type("_R", (), {"list_by_member": lambda self, _m: [object()]})(),
+    )
+    assert call_duration_s_for_member(None, 1) == expected
+
+
+def test_duration_falls_back_to_free_when_lookup_fails():
+    """R5: 구독 조회가 죽어도 통화는 열린다 — 모르면 짧게(Free) 준다.
+
+    db=None 이면 SubscribeRepository 가 터진다. 그게 여기서 원하는 상황이다.
+    """
+    assert call_duration_s_for_member(None, 1) == 300.0
+
+
+@pytest.mark.parametrize("env", ["dev", "test", "prod"])
+def test_duration_is_not_gated_by_env(monkeypatch, env):
+    """⛔ 길이는 한도와 달리 환경으로 끄지 않는다.
+
+    ENV 로 또 분기하면 dev 에서 플랜 경로가 한 번도 안 도는 죽은 코드가 된다.
+    dev 에서 15분이 필요하면 NORMAL_CALL_DURATION_S 로 전 회원 강제하는 탈출구를 쓴다.
+    """
+    monkeypatch.setattr(app_settings, "ENV", env)
+    assert call_duration_s_for_member(None, 1) == 300.0

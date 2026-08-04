@@ -621,7 +621,8 @@ def test_resolve_call_duration_clamps_and_defaults():
     from types import SimpleNamespace
     dev = SimpleNamespace(ENV="dev")
     prod = SimpleNamespace(ENV="prod")
-    base = cs.CALL_DURATION_S
+    # base 미지정 → env 강제값(CALL_DURATION_S), 그것도 없으면 Free 길이로 떨어진다.
+    base = cs.CALL_DURATION_S if cs.CALL_DURATION_S is not None else 300.0
     assert cs._resolve_call_duration(dev, None) == base       # 미지정 → 기본
     assert cs._resolve_call_duration(dev, 3) == 180.0         # 하한
     assert cs._resolve_call_duration(dev, 15) == 900.0        # 상한
@@ -2450,3 +2451,85 @@ async def test_usage_summary_emitted_on_every_exit_path(session_factory, seeded)
     assert "msgs=2" in summaries[0]
     assert "sum_prompt=3000" in summaries[0]
     assert "AUDIO=2700" in summaries[0]
+
+
+# --------------------------------------------------------------------------- #
+# (i) 플랜별 통화 길이 — 일반 통화만, 레벨테스트는 3분 하드캡 유지
+# --------------------------------------------------------------------------- #
+def _spy_duration(monkeypatch) -> list:
+    """_resolve_call_duration 이 받은 base 를 순서대로 기록한다(마지막이 실제 채택값)."""
+    seen: list = []
+    orig = cs._resolve_call_duration
+
+    def spy(settings, duration_min, base=None):
+        seen.append(base)
+        return orig(settings, duration_min, base=base)
+
+    monkeypatch.setattr(cs, "_resolve_call_duration", spy)
+    return seen
+
+
+@pytest.mark.asyncio
+async def test_normal_call_duration_comes_from_plan(session_factory, seeded, monkeypatch):
+    """env 강제값이 없으면 일반 통화 길이는 **구독 플랜**이 정한다(Free 5분 / Pro·Max 15분)."""
+    monkeypatch.setattr(cs, "CALL_DURATION_S", None)   # prod 상태(강제 없음)
+    monkeypatch.setattr(
+        cs.call_service, "call_duration_s_for_member", lambda db, mid: 900.0
+    )
+    seen = _spy_duration(monkeypatch)
+    await _run_with_fake(_RegroundFake([LiveEvent(kind="turn_end")]), session_factory, seeded)
+    assert seen[-1] == 900.0, f"플랜 길이가 안 잡혔다: {seen}"
+
+
+@pytest.mark.asyncio
+async def test_env_duration_overrides_plan_and_skips_lookup(
+    session_factory, seeded, monkeypatch
+):
+    """⛔ env 강제값이 있으면 플랜 조회를 **아예 안 한다**.
+
+    dev/demo 에서 구독 없는 계정으로 15분을 밟는 탈출구다. 조회를 하면서 값만 버리면
+    구독 테이블이 깨졌을 때 통화가 같이 죽는다 — 안 부르는 것이 요점이다.
+    """
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 900.0)
+
+    def _boom(db, mid):
+        raise AssertionError("env 강제값이 있는데 플랜을 조회했다")
+
+    monkeypatch.setattr(cs.call_service, "call_duration_s_for_member", _boom)
+    seen = _spy_duration(monkeypatch)
+    await _run_with_fake(_RegroundFake([LiveEvent(kind="turn_end")]), session_factory, seeded)
+    assert seen[-1] == 900.0
+
+
+@pytest.mark.asyncio
+async def test_level_test_duration_ignores_plan(session_factory, seeded, monkeypatch):
+    """⛔ 레벨테스트 3분 하드캡은 상품 혜택이 아니라 측정 설계다 — 플랜을 타면 안 된다.
+
+    Max 회원의 레벨테스트가 15분이 되면 판정 재료가 통째로 달라진다(레벨 비교 불가).
+    """
+    monkeypatch.setattr(cs, "CALL_DURATION_S", None)
+
+    def _boom(db, mid):
+        raise AssertionError("레벨테스트가 플랜 길이를 조회했다")
+
+    monkeypatch.setattr(cs.call_service, "call_duration_s_for_member", _boom)
+    seen = _spy_duration(monkeypatch)
+
+    import contextlib as _cl
+
+    fake = _RegroundFake([LiveEvent(kind="turn_end")])
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kw):
+        yield fake
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"],
+                              "call_type": "level_test"})}],
+        hang=True,
+    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+    assert seen[-1] == cs.LEVELTEST_MAX_S, f"레벨테스트 base 가 3분캡이 아니다: {seen}"

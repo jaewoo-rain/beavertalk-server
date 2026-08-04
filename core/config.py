@@ -6,6 +6,8 @@ Spring 의 application.yml 대응. `.env` 파일에서 값을 읽어온다.
 - DATABASE_URL_DIRECT : Alembic 마이그레이션용 5432 Direct 연결
 """
 
+from typing import Optional
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -111,11 +113,14 @@ class Settings(BaseSettings):
     #   USE_VERTEX 분기는 build_live_config 가 한다 — 안 그러면 api_key 폴백에서 연결
     #   자체가 터져 graceful degradation(R5)이 깨진다.
     LIVE_SESSION_RESUMPTION: bool = False  # 핸들 수집 활성(동작 변경 없음)
-    # 일반 통화 기본 길이(초). prod 는 5분 유지, 그 외 환경은 배포 env 로 900(15분)을 준다.
-    # ⚠ 코드 기본값을 300 으로 두는 이유: 15분은 세션 재연결이 정상 동작해야 성립한다.
-    #   재연결이 막히면(핸들 미발급·재개 실패) 백스톱이 통화를 자르므로, 기본값을 길게
-    #   박아두면 장애 시 전 통화가 나빠진다. 길이는 **환경별로 명시해서** 켠다.
-    NORMAL_CALL_DURATION_S: float = 300.0
+    # 일반 통화 길이(초)를 **전 회원에게 강제**하는 값. None(기본) 이면 강제하지 않고
+    # 구독 플랜별 길이(call_service.CALL_DURATION_S_BY_PLAN — Free 5분 / Pro·Max 15분)가
+    # 소스가 된다. prod 는 이 값을 주지 않는다(플랜이 결정해야 하므로).
+    # ⚠ 이건 dev/demo 탈출구다: 구독 없는 개발 계정으로 15분 경로를 테스트해야 하는데,
+    #   플랜만이 소스면 dev 에서 15분을 영영 못 밟는다. 900 을 주면 플랜 무관 15분.
+    #   코드 기본값을 길게 박지 않는 이유는 그대로다 — 15분은 세션 재연결이 정상
+    #   동작해야 성립하고, 재연결이 막히면 백스톱이 통화를 자른다.
+    NORMAL_CALL_DURATION_S: Optional[float] = None
     # 통화 usage 시계열 상세 로그(원가 조사용). 기본 off = 통화 종료 시 요약 1줄만.
     # true 면 메시지별 (경과초, prompt, total) 시계열을 1줄 더 찍는다 — 압축이 실제로
     # 발동하는지(톱니 vs 단조증가)와 usage_metadata 가 증분인지 누적인지 판별하는 데 쓴다.

@@ -105,10 +105,14 @@ from domains.learning.realtime.protocol import (
 
 logger = logging.getLogger(__name__)
 
-# 통화 길이: 기본 5분 경과 시 종료 시드(정상 작별 시작), 백스톱(강제 종료). 1분마다 중간 저장.
-# 기본 통화 길이. env(NORMAL_CALL_DURATION_S)에서 읽는다 — prod 는 5분, 그 외 환경은 배포
-# env 로 900(15분)을 준다. 테스트는 이 모듈 속성을 monkeypatch 하므로 종전과 동일하게 동작한다.
-CALL_DURATION_S = _settings.NORMAL_CALL_DURATION_S
+# 통화 길이: 경과 시 종료 시드(정상 작별 시작), 백스톱(강제 종료). 1분마다 중간 저장.
+#
+# 일반 통화 길이의 소스는 **구독 플랜**이다(Free 5분 / Pro·Max 15분 —
+# call_service.CALL_DURATION_S_BY_PLAN). 아래 상수는 그 위에 얹는 **전 회원 강제값**으로,
+# env(NORMAL_CALL_DURATION_S)가 있을 때만 값이 있다(없으면 None → 플랜이 결정).
+# ⚠ 테스트는 이 모듈 속성을 monkeypatch 한다 — 값이 박히면 플랜 조회를 건너뛰므로
+#   종전과 동일하게 동작한다(짧은 시계로 통화를 끝내는 회귀 테스트들이 그 경로다).
+CALL_DURATION_S: Optional[float] = _settings.NORMAL_CALL_DURATION_S
 # 레벨테스트(Phase 1): 인-콜 판정·주입 없이 비버 자율 진행. 종료는 3분 하드캡(이 시계) 또는
 # 무음 3단/GoAway 가 종료 파이프로 우아하게 몬다(R5 안전망 — 서버는 통화중 질문을 주입하지 않음).
 LEVELTEST_MAX_S = 180.0          # 레벨테스트 하드캡(3분) — call_duration_s 의 base
@@ -301,13 +305,17 @@ def _resolve_call_duration(
     duration_min 없음 → base(콜타입 기본값). prod 에서 override 오면 무시+warning
     (실서비스는 통화 길이를 클라가 못 정한다 — 오남용/버그 방지). non-prod 는 3~15분 클램프.
 
-    base: 콜타입별 기본 통화 길이. None(미지정)이면 일반 통화 기본값 CALL_DURATION_S 를
-    **런타임에** 읽는다(테스트 monkeypatch 반영 — 리터럴 기본값으로 박으면 def-time 에
-    고정돼 monkeypatch 가 안 먹는다). 레벨테스트는 base=LEVELTEST_MAX_S 로 3분 캡을 준다.
-    하위호환: base 미지정 → 일반 경로 반환 바이트 동일.
+    base: 콜타입별 기본 통화 길이. 호출부가 정한다 — 일반 통화는 플랜별 길이(또는 env
+    강제값), 레벨테스트는 LEVELTEST_MAX_S(3분 캡). None(미지정)이면 env 강제값을
+    **런타임에** 읽고(테스트 monkeypatch 반영 — 리터럴 기본값으로 박으면 def-time 에
+    고정돼 monkeypatch 가 안 먹는다), 그것도 없으면 Free 길이로 떨어진다.
     """
     if base is None:
-        base = CALL_DURATION_S
+        base = (
+            CALL_DURATION_S
+            if CALL_DURATION_S is not None
+            else call_service.FREE_CALL_DURATION_S
+        )
     if duration_min is None:
         return base
     if settings.ENV == "prod":
@@ -400,9 +408,11 @@ class _CallState:
         # silence_stage: 0=무넛지, 1=1단 주입됨, 2=2단 주입됨(3단은 직접 종료 시드 주입).
         self.last_activity_ts: Optional[float] = None
         self.silence_stage: int = 0
-        # 통화 길이(초). 기본 CALL_DURATION_S. 데모/dev 는 start.duration_min 으로 3~15분
-        # override(run_call 에서 세팅). _watch_call_clock 이 모듈 상수 대신 이 값을 본다.
-        self.call_duration_s: float = CALL_DURATION_S
+        # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
+        # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
+        # 이 값을 본다. 여기 기본값은 run_call 을 안 거치는 펌프 단위 테스트용 안전값이라
+        # 플랜을 모르는 상태의 보수적 선택(Free 길이 또는 env 강제값)으로 둔다.
+        self.call_duration_s: float = _resolve_call_duration(_settings, None)
         # 무음 3단 캐던스 + 1단 넛지 시드(콜타입별 — run_call 이 꽂는다). 기본은 일반 통화 값.
         # _watch_idle 은 모듈 상수 대신 이 필드를 본다(레벨테스트만 짧은 캐던스로 override).
         self.idle_nudge1_s: float = IDLE_NUDGE1_S
@@ -855,7 +865,19 @@ async def run_call(
         state.band_client = client
         state.band_target_language = target_language  # (멀티랭귀지) 판정관 대상 언어
     else:
-        state.call_duration_s = _resolve_call_duration(settings, duration_override)
+        # 일반 통화 길이 = 구독 플랜(Free 5분 / Pro·Max 15분). env 강제값이 있으면 그게
+        # 이긴다 — dev/demo 에서 구독 없이 15분 경로를 밟기 위한 탈출구이고, 테스트가
+        # monkeypatch 하는 지점도 여기다(값이 박히면 DB 조회 자체를 건너뛴다).
+        if CALL_DURATION_S is not None:
+            plan_duration_s = CALL_DURATION_S
+        else:
+            plan_duration_s = await svc.run_db(
+                db_session_factory,
+                lambda db: call_service.call_duration_s_for_member(db, member_id),
+            )
+        state.call_duration_s = _resolve_call_duration(
+            settings, duration_override, base=plan_duration_s
+        )
         state.idle_nudge1_s = IDLE_NUDGE1_S
         state.idle_nudge2_s = IDLE_NUDGE2_S
         state.idle_close_s = IDLE_CLOSE_S

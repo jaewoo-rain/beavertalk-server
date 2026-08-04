@@ -61,6 +61,22 @@ DAILY_CALL_LIMIT_BY_PLAN: dict[str | None, dict[str, int]] = {
     "max": {},                # 무제한
 }
 
+# ── 플랜별 통화 길이(초) ───────────────────────────────────────────────── #
+# 앱 카피가 이미 계약이다(`app_en.arb`) — 여기 숫자는 그 문구에서 왔다:
+#   Free "One 5-minute voice call a day" / Pro "Unlimited calls. 15 minutes each."
+# Max 는 "Everything in Pro" + 영상통화라 **길이는 Pro 와 같다**(차별점이 길이가 아니다).
+#
+# ⛔ 앱 문구와 이 값이 어긋나면 결제한 사람의 통화가 광고보다 짧게 끊긴다 — 이 도메인에서
+#   가장 비싼 종류의 불일치라, 문구를 바꿀 땐 이 표도 같이 바꾼다.
+# ⚠ 레벨테스트는 이 표에 없다. 3분 하드캡(LEVELTEST_MAX_S)은 측정 설계지 상품 혜택이
+#   아니라서 플랜을 타면 안 된다.
+CALL_DURATION_S_BY_PLAN: dict[str | None, float] = {
+    None: 300.0,    # Free — 5분
+    "pro": 900.0,   # 15분
+    "max": 900.0,   # 15분(Pro 상위집합)
+}
+FREE_CALL_DURATION_S = CALL_DURATION_S_BY_PLAN[None]
+
 
 def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, datetime]:
     """클라 로컬 하루 → UTC 반열린 구간 [start, end).
@@ -98,6 +114,20 @@ def effective_plan(db: Session, member_id: int) -> str | None:
     if resolved.state in ("trial", "active_pro", "active_max", "grace", "ending"):
         return resolved.plan
     return None
+
+
+def call_duration_s_for_member(db: Session, member_id: int) -> float:
+    """이 회원의 일반 통화 길이(초). Free 5분 / Pro·Max 15분.
+
+    ⛔ 일일 한도(is_daily_limit_reached)와 달리 **환경으로 끄지 않는다.** 한도는 켜두면
+      개발이 막히지만(하루 1회), 길이는 짧아질 뿐이고 dev 에서 15분을 밟아야 할 땐
+      `NORMAL_CALL_DURATION_S` 로 전 회원 강제하는 탈출구가 따로 있다. 여기서 ENV 로
+      또 분기하면 "dev 에선 플랜 경로가 한 번도 안 도는" 죽은 코드가 된다.
+
+    실패는 Free 로 떨어뜨린다(R5) — effective_plan 과 같은 방침. 모르면 짧게 주는 편이
+    안전하다(길게 줬다 원가가 새는 것보다 낫다).
+    """
+    return CALL_DURATION_S_BY_PLAN.get(effective_plan(db, member_id), FREE_CALL_DURATION_S)
 
 
 def is_daily_limit_reached(
