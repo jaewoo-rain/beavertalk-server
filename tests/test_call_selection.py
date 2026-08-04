@@ -224,7 +224,12 @@ def test_promotion_pending_true_then_false_after_evidence_call(env):
 # (7) pick_study_items
 # --------------------------------------------------------------------------- #
 def test_pick_study_items_survival_l1(env):
-    """L1(A): 본편 = 청크 3(seq 순) + 어휘 1, 문법 0 / 예비 5 = 전부 어휘 다음 순번."""
+    """L1(A): 본편 = 청크 3(seq 순) + 어휘 1, 문법 0 / 예비 = 남은 어휘 전부 다음 순번.
+
+    ⚠ 예비 상한은 STUDY_RESERVE_TOTAL(25)이지만 이 시드는 L1 어휘가 v1~v8 뿐이라
+      본편이 v1 을 쓰고 남는 v2~v8 = 7개가 전부 예비로 온다. 즉 여기서 7 은 상한이
+      아니라 **시드가 정한 수**다 — 상한을 다시 조정해도 이 테스트는 안 흔들린다.
+    """
     db = env["db"]
     pa = repo.pick_study_items(db, env["mA"].member_id, 1,
                                review_slots=3, bridge_prev_ratio=0.7)
@@ -236,8 +241,8 @@ def test_pick_study_items_survival_l1(env):
     assert [e["item"].surface for e in main[:3]] == \
         ["청크1 주세요", "청크2 주세요", "청크3 주세요"]
     assert main[3]["item"].surface == "단어v1"
-    assert [e["study_kind"] for e in reserve] == ["vocab"] * 5
-    assert [e["item"].surface for e in reserve] == [f"단어v{i}" for i in range(2, 7)]
+    assert [e["study_kind"] for e in reserve] == ["vocab"] * 7
+    assert [e["item"].surface for e in reserve] == [f"단어v{i}" for i in range(2, 9)]
 
 
 def test_pick_study_items_beginner_mix_and_sel_filters(env):
