@@ -734,6 +734,39 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_reground_not_rearmed_after_session_swap(monkeypatch):
+    """세션 교체로 _reground_once 가 다시 떠도 이미 얹힌 중반 재접지를 재arm 하지 않는다.
+
+    ⚠ 왜 이 테스트가 있나(실측 회귀): 세션 재연결이 들어오면서 _run_one_generation 이
+      세대마다 _reground_once 를 새로 띄운다. 그런데 상태(_CallState)는 세대를 건너 살기
+      때문에, 무조건 재arm 하면 이미 얹힌 재접지가 되살아나 reground_pending 이 True 로
+      남는다. 그러면 _arm_late_continue 가 "중반 리마인더가 아직 대기 중"으로 보고
+      **후반 리마인더를 통째로 생략**한다 — 15분 실기기 통화에서 스왑 직후 그렇게 후반
+      드리프트 방어가 사라졌고, 비버가 "여기까지 마무리할까?"를 반복했다.
+
+    단언은 "후반이 arm 됐는가"(continue_injected)다. 재arm 버그가 있으면 여기서 막힌다.
+    """
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+
+    state = cs._CallState()
+    state.reground_reminder = "중반 리마인더"
+    state.continue_reminder = "후반 리마인더"
+    state.call_duration_s = 1.0
+    # 1세대에서 중반 재접지가 이미 얹힌 상태 + fire_at 은 한참 전에 지남(스왑 후 재실행 상황)
+    state.call_start_ts = asyncio.get_running_loop().time() - 100.0
+    state.reground_injected = True
+    state.reground_pending = False
+
+    await cs._reground_once(None, state)  # 2세대에서 재실행(on_user_turn 경로는 session 미사용)
+
+    assert state.continue_injected is True, (
+        "세션 교체 후 후반 리마인더가 arm 되지 않았다 — 중반 재접지가 재arm 되어 "
+        "_arm_late_continue 가 생략됐다(후반 드리프트 방어 소실)"
+    )
+    assert state.reground_reminder == "후반 리마인더", "후반 문구로 교체되지 않았다"
+
+
+@pytest.mark.asyncio
 async def test_go_away_triggers_graceful_close(session_factory, seeded, monkeypatch):
     """A3 GoAway: events() 가 go_away 이벤트를 내면 idle 에서 즉시 종료 시드 주입 →
     정상 작별 종료(연결 뚝 끊기 전 선제 마무리)."""

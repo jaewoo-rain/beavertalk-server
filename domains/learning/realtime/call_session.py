@@ -2166,8 +2166,15 @@ async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> Non
         return
 
     if REGROUND_MODE == "on_user_turn":
-        state.reground_pending = True  # 주입은 펌프가(유저 발화 턴에 얹기), 여기선 arm 만
-        logger.info("normalcall: 재접지 arm(다음 유저 발화 턴에 얹음)")
+        # ⚠ 이 태스크는 **세대마다 새로 뜬다**(세션 재연결). 상태는 _CallState 에 있어
+        #   세대를 건너 사는데, 여기서 무조건 재arm 하면 이미 얹힌 재접지가 되살아나
+        #   reground_pending 이 True 로 남는다. 그러면 _arm_late_continue 가 "중반이
+        #   아직 대기 중"으로 보고 **후반 리마인더를 통째로 생략**한다 — 15분 통화
+        #   실측에서 후반 드리프트 방어가 그렇게 사라졌다(스왑 후 "여기까지 마무리할까?"
+        #   반복). 이미 얹혔거나 대기 중이면 arm 을 건너뛰고 후반만 이어받는다.
+        if not (state.reground_injected or state.reground_pending):
+            state.reground_pending = True  # 주입은 펌프가(유저 발화 턴에 얹기), 여기선 arm 만
+            logger.info("normalcall: 재접지 arm(다음 유저 발화 턴에 얹음)")
         await _arm_late_continue(state)
         return
 
