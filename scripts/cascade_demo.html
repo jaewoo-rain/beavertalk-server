@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeaverTalk · 캐스케이드 턴 감지 데모</title>
+<style>
+  :root { --bg:#121217; --card:#181A20; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
+          --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF7070; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,Segoe UI,Pretendard,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:20px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .muted { color:var(--sub); font-size:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .step { font-size:12px; color:var(--pri); font-weight:700; letter-spacing:.4px; }
+  input, select { background:#0e0f13; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:8px 10px; }
+  button { background:var(--pri); color:#08110d; border:0; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer; }
+  button.sec { background:#2a2e38; color:var(--txt); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .log { background:#0e0f13; border:1px solid var(--line); border-radius:8px; padding:10px; height:160px; overflow:auto; font-size:12px; font-family:ui-monospace,Consolas,monospace; }
+  .ok { color:var(--good); } .err { color:var(--bad); } .w { color:var(--warn); }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--good); } .dot.talk { background:var(--warn); }
+  table { width:100%; border-collapse:collapse; margin-top:6px; font-size:13px; }
+  table td, table th { padding:5px 6px; border-bottom:1px solid var(--line); text-align:left; }
+  table th { color:var(--sub); font-weight:700; font-size:12px; }
+  .big { font-size:26px; font-weight:800; color:var(--pri); }
+  .banner { padding:10px 12px; border-radius:8px; margin:10px 0; display:none; }
+  .banner.fake { display:block; background:#3a2a10; border:1px solid var(--warn); color:#ffd479; }
+  .live { min-height:44px; padding:8px 10px; background:#0e0f13; border:1px solid var(--line); border-radius:8px; }
+  .tip { border-left:3px solid var(--pri); padding:6px 10px; background:#0e0f13; border-radius:6px; margin:8px 0; }
+  .kv { display:inline-block; min-width:150px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎙 캐스케이드 — 턴 감지 최소루프</h1>
+  <div class="muted">
+    마이크(PCM16/16k) → WS → <b>STT v2</b> → 턴 시작·종료 판정 → 텍스트 에코.
+    TTS·LLM·페르소나·DB·분석은 <b>전부 빠져 있다</b> — 이 화면은 오직 "턴이 제때 끊기나"만 본다.
+    설계: <code>docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md</code>
+  </div>
+
+  <div id="fakeBanner" class="banner">
+    ⚠ <b>페이크 STT</b>로 돌고 있다 — 실제 인식이 아니다(크레덴셜 부재/STT_V2_FAKE).
+    아래 "dev 훅"으로 상태기계·프로토콜만 검증할 수 있다.
+  </div>
+
+  <!-- STEP 0 로그인 -->
+  <div class="card">
+    <div class="step">STEP 0 · 로그인 (STT 는 과금이 있어 인증 필수)</div>
+    <div class="row" style="margin:8px 0">
+      <input id="email" placeholder="이메일" value="test@naver.com" style="width:220px" />
+      <input id="pw" placeholder="비밀번호" value="11111111" type="password" style="width:140px" />
+      <button id="loginBtn">로그인</button>
+      <span id="who" class="muted"></span>
+    </div>
+    <div class="muted">서버의 <code>/__dev/login</code> 을 쓴다 — 배포 환경마다 Supabase 프로젝트가 달라도 어긋나지 않는다.</div>
+  </div>
+
+  <!-- STEP 1 세션 -->
+  <div class="card">
+    <div class="step">STEP 1 · 마이크 세션</div>
+    <div class="row" style="margin:8px 0">
+      <button id="startBtn" disabled>🎤 시작</button>
+      <button id="stopBtn" class="sec" disabled>정지</button>
+      <span><span id="dot" class="dot"></span><span id="stat">대기</span></span>
+      <span id="engine" class="muted"></span>
+      <span id="clock" class="muted"></span>
+    </div>
+    <div class="muted" style="margin-bottom:6px">현재 전사(부분/최종):</div>
+    <div id="live" class="live muted">…</div>
+    <div class="row" style="margin-top:10px">
+      <span class="muted">로컬 VAD 임계(RMS·측정 전용, 판정에 관여 안 함)</span>
+      <input id="vadTh" value="0.012" style="width:80px" />
+      <span id="vadNow" class="muted"></span>
+    </div>
+  </div>
+
+  <!-- STEP 2 결과 -->
+  <div class="card">
+    <div class="step">STEP 2 · 턴 기록 (이 표가 결론이다)</div>
+    <div class="row" style="margin:8px 0">
+      <div><div class="muted">턴 수</div><div id="mTurns" class="big">0</div></div>
+      <div style="margin-left:24px"><div class="muted">감지지연 중앙값</div><div id="mMedian" class="big">-</div></div>
+      <div style="margin-left:24px"><div class="muted">파이프라인 지연(중앙값)</div><div id="mPipe" class="big">-</div></div>
+      <div style="margin-left:24px"><div class="muted">잔여 오버헤드(중앙값)</div><div id="mOver" class="big">-</div></div>
+      <div style="margin-left:24px"><div class="muted">롤오버 갭(최대)</div><div id="mGap" class="big">-</div></div>
+    </div>
+    <div class="tip muted">
+      <b>감지지연</b> = <code>user_turn_end 도착 − 로컬 VAD 가 본 마지막 유성 프레임</code>.
+      여기에는 세 항이 겹쳐 있다 — <b>침묵 임계</b>(<span id="thNote">800</span>ms, 서버 타이머)
+      + <b>파이프라인 지연</b>(STT v2 는 서울·도쿄 리전이 없어 global/us 태평양 왕복이 붙는다)
+      + 나머지. 표에서 셋을 분리해 보여준다.
+      판정 기준: 생각하느라 3초 쉬어도 안 끊기고, 감지지연 ≤ 1.2s.
+    </div>
+    <table id="tbl">
+      <thead><tr><th>#</th><th>턴 시작</th><th>턴 종료</th><th>발화</th><th>감지지연</th><th>파이프라인</th><th>잔여오버헤드</th><th>시작지연</th><th>전사</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- dev 훅 -->
+  <div class="card">
+    <div class="step">DEV 훅 · 페이크 STT 구동 (크레덴셜 없이 상태기계 검증)</div>
+    <div class="row" style="margin:8px 0">
+      <button id="hBegin" class="sec" disabled>speech_begin</button>
+      <input id="hText" value="안녕하세요 저는 학생이에요" style="width:260px" />
+      <button id="hSay" class="sec" disabled>전사 주입(final)</button>
+      <button id="hEnd" class="sec" disabled>speech_end</button>
+      <button id="hTurn" class="sec" disabled>가짜 턴 1회(자동)</button>
+    </div>
+    <div class="muted">페이크 모드에서는 로컬 VAD 기준점이 없어 감지지연이 의미 없다(표에 "-"로 표시).</div>
+  </div>
+
+  <div class="card">
+    <div class="step">로그</div>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let token = null, ws = null, actx = null, mic = null, proc = null, gain0 = null;
+let t0 = 0, engine = 'fake', silenceMs = 800;
+let turns = [], maxGap = 0;
+let lastVoicedAt = 0, firstVoicedAt = 0, voiced = false, turnOpenAt = 0;
+let clockTimer = null;
+
+const apiBase = () => location.origin;
+function wsBase() { const u = new URL(apiBase()); return (u.protocol === 'https:' ? 'wss' : 'ws') + '://' + u.host; }
+function log(html, cls='') { const d=$('#log'); d.innerHTML += `<div class="${cls}">${html}</div>`; d.scrollTop=d.scrollHeight; }
+function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+const nowMs = () => performance.now();
+
+/* ---------- 로그인 (서버 대행 — 환경마다 Supabase 프로젝트가 달라도 맞는다) ---------- */
+$('#loginBtn').onclick = async () => {
+  $('#who').textContent = '로그인 중…';
+  try {
+    const r = await fetch(apiBase() + '/__dev/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: $('#email').value.trim(), password: $('#pw').value }),
+    });
+    if (!r.ok) { $('#who').textContent = '❌ 로그인 실패 ' + r.status; return; }
+    const d = await r.json();
+    token = d.access_token;
+    $('#who').innerHTML = `<span class="ok">✅ ${esc(d.email)}</span>`;
+    $('#startBtn').disabled = false;
+  } catch (e) { $('#who').textContent = '❌ ' + e; }
+};
+
+/* ---------- 오디오 유틸 (level_call_demo 와 동일 규격: PCM16/16k) ---------- */
+function downsample(f32, inRate, outRate) {
+  if (outRate === inRate) return f32;
+  const ratio = inRate/outRate, n = Math.round(f32.length/ratio), out = new Float32Array(n);
+  let pos = 0;
+  for (let i=0;i<n;i++){ const next=Math.round((i+1)*ratio); let s=0,c=0; for(let j=pos;j<next&&j<f32.length;j++){s+=f32[j];c++;} out[i]=c?s/c:0; pos=next; }
+  return out;
+}
+function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.length;i++){let s=Math.max(-1,Math.min(1,f32[i]));o[i]=s<0?s*0x8000:s*0x7FFF;} return o; }
+function rms(f32){ let s=0; for (let i=0;i<f32.length;i++) s+=f32[i]*f32[i]; return Math.sqrt(s/f32.length); }
+
+/* ---------- 세션 ---------- */
+$('#startBtn').onclick = start;
+$('#stopBtn').onclick = () => { if (ws && ws.readyState===1) { try { ws.send(JSON.stringify({type:'stop'})); } catch {} ws.close(); } };
+
+async function start() {
+  turns = []; maxGap = 0; renderTable(); $('#log').innerHTML=''; $('#live').textContent='…';
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1, echoCancellation:true, noiseSuppression:true} }); }
+  catch(e) { alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  const src = actx.createMediaStreamSource(mic);
+  proc = actx.createScriptProcessor(4096,1,1);
+  gain0 = actx.createGain(); gain0.gain.value = 0;   // 자기 소리 되울림 방지
+  src.connect(proc); proc.connect(gain0); gain0.connect(actx.destination);
+
+  ws = new WebSocket(`${wsBase()}/api/v1/cascade/stream?token=${token}`);
+  ws.binaryType = 'arraybuffer';
+  $('#dot').className='dot'; $('#stat').textContent='연결 중…';
+
+  ws.onopen = () => {
+    // 브라우저는 캡처·재생을 같은 엔진이 소유해 AEC 가 실제로 걸린다(echoCancellation:true).
+    // ⚠ 그래서 이 데모의 barge-in 결과는 **실기기 판정 근거가 되지 않는다**(조사 §3-6).
+    ws.send(JSON.stringify({ type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' } }));
+    t0 = nowMs();
+    $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
+    $('#startBtn').disabled=true; $('#stopBtn').disabled=false;
+    ['#hBegin','#hSay','#hEnd','#hTurn'].forEach(s => $(s).disabled=false);
+    clockTimer = setInterval(() => { $('#clock').textContent = `· ${((nowMs()-t0)/1000).toFixed(1)}s`; }, 200);
+  };
+
+  proc.onaudioprocess = (e) => {
+    if (!ws || ws.readyState!==1) return;
+    const buf = e.inputBuffer.getChannelData(0);
+    // 로컬 VAD — **측정 전용**. 턴 판정은 서버(STT v2 endpointing)만 한다(D2).
+    const level = rms(buf), th = parseFloat($('#vadTh').value) || 0.012;
+    $('#vadNow').textContent = `현재 RMS ${level.toFixed(4)}`;
+    if (level >= th) {
+      if (!voiced) { voiced = true; firstVoicedAt = nowMs(); }
+      lastVoicedAt = nowMs();
+    } else if (voiced && nowMs() - lastVoicedAt > 400) {
+      voiced = false;  // 유성 구간 종료(다음 발화의 시작점을 다시 잡기 위해)
+    }
+    ws.send(toPCM16(downsample(buf, actx.sampleRate, 16000)).buffer);
+  };
+
+  ws.onmessage = onMsg;
+  ws.onclose = () => {
+    $('#dot').className='dot'; $('#stat').textContent='종료';
+    if (clockTimer) { clearInterval(clockTimer); clockTimer=null; }
+    cleanup();
+  };
+  ws.onerror = () => log('⚠️ WS 오류', 'err');
+}
+
+function cleanup() {
+  try { proc && proc.disconnect(); } catch {}
+  if (proc) proc.onaudioprocess = null;
+  if (mic) mic.getTracks().forEach(t => t.stop());
+  if (actx) { try { actx.close(); } catch {} actx = null; }
+  $('#startBtn').disabled=false; $('#stopBtn').disabled=true;
+  ['#hBegin','#hSay','#hEnd','#hTurn'].forEach(s => $(s).disabled=true);
+}
+
+/* ---------- 서버 메시지 ---------- */
+function onMsg(ev) {
+  let m; try { m = JSON.parse(ev.data); } catch { return; }
+  if (m.type === 'ready') {
+    engine = m.engine; silenceMs = m.turn_silence_ms;
+    $('#engine').textContent = `엔진 ${m.engine} · 침묵임계 ${m.turn_silence_ms}ms(서버 타이머) · ${m.language} · ${m.sample_rate}Hz · barge-in ${m.bargein_confirm}/${m.bargein_min_ms}ms`;
+    $('#thNote').textContent = m.turn_silence_ms;
+    if (m.engine === 'fake') $('#fakeBanner').className = 'banner fake';
+    log(`ready — engine=${m.engine} turn_silence=${m.turn_silence_ms}ms (서버 자체 타이머)`, 'ok');
+  }
+  else if (m.type === 'user_turn_start') {
+    turnOpenAt = nowMs();
+    $('#dot').className='dot talk'; $('#stat').textContent='사용자 발화 중';
+    // 시작지연 = turn_start 도착 − 로컬 VAD 가 본 첫 유성 프레임
+    const startLag = (voiced && firstVoicedAt) ? Math.round(turnOpenAt - firstVoicedAt) : null;
+    turns.push({ id:m.turn_id, startMs:m.at_ms, startLag, text:'' });
+    log(`▶ ${m.turn_id} 턴 시작 (서버 ${m.at_ms}ms)`);
+    renderTable();
+  }
+  else if (m.type === 'input_transcript') {
+    $('#live').className = 'live';
+    $('#live').textContent = (m.final ? '✔ ' : '… ') + m.text;
+  }
+  else if (m.type === 'user_turn_end') {
+    const arrived = nowMs();
+    const t = turns.find(x => x.id === m.turn_id) || turns[turns.length-1];
+    if (t) {
+      t.endMs = m.at_ms; t.speechMs = m.speech_ms; t.endLagMs = m.end_lag_ms; t.text = m.text;
+      t.pipeMs = m.pipeline_lag_ms; t.reason = m.reason;
+      // 감지지연 — 로컬 VAD 기준점이 있어야 의미가 있다(페이크 모드에선 null).
+      t.detectMs = (engine !== 'fake' && lastVoicedAt) ? Math.round(arrived - lastVoicedAt) : null;
+      // 오버헤드 = 감지지연 − 침묵임계 − 파이프라인(리전 왕복+인식). 셋을 분리해 봐야
+      // 무엇을 고칠지 안다(임계를 줄일 문제인가, 리전을 옮길 문제인가).
+      t.overMs = (t.detectMs !== null) ? t.detectMs - silenceMs - (m.pipeline_lag_ms||0) : null;
+    }
+    $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
+    $('#live').textContent = '✔ ' + (m.text || '(빈 전사)');
+    log(`■ ${m.turn_id} 턴 종료(${m.reason}) — 발화 ${m.speech_ms}ms · 파이프라인지연 ${m.pipeline_lag_ms}ms · "${esc(m.text)}"`, 'ok');
+    renderTable();
+  }
+  else if (m.type === 'stt_rollover') {
+    maxGap = Math.max(maxGap, m.gap_ms);
+    log(`↻ STT 스트림 롤오버 (${m.reason}) — 오디오 공백 ${m.gap_ms}ms · 버퍼 리플레이됨`, 'w');
+    renderTable();
+  }
+  else if (m.type === 'error') { log(`error ${m.code}: ${esc(m.message)}`, 'err'); }
+}
+
+/* ---------- 표 ---------- */
+function median(a) { if (!a.length) return null; const s=[...a].sort((x,y)=>x-y); const h=Math.floor(s.length/2);
+  return s.length%2 ? s[h] : Math.round((s[h-1]+s[h])/2); }
+
+function renderTable() {
+  const body = $('#tbl').querySelector('tbody');
+  body.innerHTML = turns.map((t,i) => {
+    const det = t.detectMs != null ? `<b class="${t.detectMs<=1200?'ok':'err'}">${t.detectMs}ms</b>` : '-';
+    const ovr = t.overMs != null ? `${t.overMs}ms` : '-';
+    const sl = t.startLag != null ? `${t.startLag}ms` : '-';
+    return `<tr><td>${i+1}</td><td>${(t.startMs/1000).toFixed(2)}s</td>` +
+      `<td>${t.endMs!=null ? (t.endMs/1000).toFixed(2)+'s' : '<span class="w">진행중</span>'}</td>` +
+      `<td>${t.speechMs!=null ? t.speechMs+'ms' : '-'}</td><td>${det}</td>` +
+      `<td>${t.pipeMs!=null ? t.pipeMs+'ms' : '-'}</td><td>${ovr}</td><td>${sl}</td>` +
+      `<td>${esc(t.text||'')}</td></tr>`;
+  }).join('');
+  $('#mTurns').textContent = turns.length;
+  const dets = turns.filter(t=>t.detectMs!=null).map(t=>t.detectMs);
+  const ovs = turns.filter(t=>t.overMs!=null).map(t=>t.overMs);
+  const pipes = turns.filter(t=>t.pipeMs!=null).map(t=>t.pipeMs);
+  $('#mPipe').textContent = pipes.length ? median(pipes)+'ms' : '-';
+  $('#mMedian').textContent = dets.length ? median(dets)+'ms' : '-';
+  $('#mOver').textContent = ovs.length ? median(ovs)+'ms' : '-';
+  $('#mGap').textContent = maxGap ? maxGap+'ms' : '-';
+}
+
+/* ---------- dev 훅 (페이크 STT 구동) ---------- */
+const sendCtl = o => { if (ws && ws.readyState===1) ws.send(JSON.stringify(o)); };
+$('#hBegin').onclick = () => sendCtl({type:'__test_event', event:'speech_begin'});
+$('#hEnd').onclick   = () => sendCtl({type:'__test_event', event:'speech_end'});
+$('#hSay').onclick   = () => sendCtl({type:'__test_say', text:$('#hText').value});
+$('#hTurn').onclick  = async () => {
+  sendCtl({type:'__test_event', event:'speech_begin'});
+  await new Promise(r=>setTimeout(r,400));
+  sendCtl({type:'__test_say', text:$('#hText').value});
+  await new Promise(r=>setTimeout(r,200));
+  sendCtl({type:'__test_event', event:'speech_end'});
+};
+</script>
+</body>
+</html>
