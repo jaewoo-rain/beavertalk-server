@@ -138,6 +138,63 @@ class Settings(BaseSettings):
     STT_FAKE: bool = False                          # True 면 실제 STT 대신 페이크(테스트/크레덴셜 부재)
     STT_SA_KEY_FILE: str = ""                       # STT 전용 SA 키. 비우면 TTS_SA_KEY_FILE(bt-dev-web-01) 재사용
 
+    # ── 캐스케이드 통화용 STT v2 (Speech-to-Text v2 스트리밍 + 음성활동 이벤트) ──
+    # 발음챌린지의 v1 경로와 **나란히** 존재한다(v1 은 일부러 v1 — 건드리지 않는다).
+    # v2 를 따로 쓰는 이유: v1 에는 음성활동 이벤트가 없어 턴 "시작"을 알 수 없다 = barge-in 불가.
+    # 설계: docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md
+    STT_V2_LANGUAGE: str = ""            # 비우면 STT_LANGUAGE 재사용
+    STT_V2_MODEL: str = "long"           # 대화 길이 발화용(v1 의 latest_short 는 단어용)
+    STT_V2_LOCATION: str = "global"      # global 이 아니면 리전 엔드포인트로 클라 생성
+    STT_V2_PROJECT: str = ""             # 비우면 SA 키의 project_id
+    STT_V2_RECOGNIZER: str = "_"         # 인라인 설정용 기본 recognizer
+    STT_V2_STREAM_MAX_S: int = 240       # 선제 롤오버 시점(v2 스트림 하드 한도 5분보다 짧게)
+    STT_V2_FAKE: bool = False            # True 면 실제 v2 대신 페이크(과금 0)
+    # ⛔ voice_activity_timeout 은 **턴 감지 노브가 아니다.** proto 원문:
+    #   "the server will automatically close the stream after the specified duration has
+    #    elapsed after the last VOICE_ACTIVITY speech event has been sent."
+    #   → 800ms 로 두면 사용자가 0.8초 쉴 때마다 **스트림이 통째로 닫힌다**. 턴 종료는
+    #   아래 CASCADE_TURN_SILENCE_MS(서버 자체 타이머)가 판정한다. 이 두 값은 **스트림 보호
+    #   상한**으로만 쓰고 기본은 미설정(0)이다. 0 초과로 줄 땐 문서상 범위 500ms~60s 를 지킬 것.
+    STT_V2_VAD_START_GUARD_MS: int = 0   # 0=미설정. speech_start_timeout(스트림 보호)
+    STT_V2_VAD_END_GUARD_MS: int = 0     # 0=미설정. speech_end_timeout(스트림 보호)
+
+    # ── 캐스케이드 세션(턴 상태기계) ──
+    # 턴 종료 = **서버 자체 타이머**. SPEECH_ACTIVITY_END(또는 마지막 인식 오디오) 이후
+    # 이만큼 침묵이 이어지면 턴을 닫는다. 출발값 800ms = Live 기본값과 같은 값.
+    CASCADE_TURN_SILENCE_MS: int = 800
+    CASCADE_TURN_MAX_S: int = 60                 # END 가 영영 안 와도 턴을 강제 종료(안전망)
+    CASCADE_ROLLOVER_BUFFER_MS: int = 3000       # 롤오버 갭 동안 보관할 오디오 상한
+    # ── 마이크 상시 개방 (barge-in 의 전제) ──
+    # ⛔ 기본 OFF. 지금 클라의 '비버 발화 중 마이크 닫기' 게이팅이 **자기-대화 루프의 유일한
+    #   방어선**이다(Android 재생이 USAGE_MEDIA 라 플랫폼 AEC 레퍼런스 밖 → AEC 실질 미작동).
+    #   실측: call_id=855 에서 게이팅이 켜져 있었는데도 타이밍 결함 하나로 **유저 턴의 절반이
+    #   비버 대사**였다. 게이팅까지 빼면 스피커폰에서 무방비다.
+    #   켜는 조건 2개가 모두 충족된 뒤에 켠다: (a) Android AEC 정비 머지 (b) 에코 측정으로
+    #   서버 2차 방어 파라미터 확정.
+    # ⚠ 서버 상태기계는 **양쪽 모드를 모두 견딘다** — '비버 발화 중 입력이 온다/안 온다'를
+    #   어느 쪽으로도 가정하지 않는다. 이 값은 barge-in 을 시도할지와 클라 통지에만 쓴다.
+    CASCADE_MIC_ALWAYS_OPEN: bool = False
+    # ── barge-in 에코 2차 방어 (AEC 가 부분적이라는 클라 조사 결론에 따른 필수 장치) ──
+    # 기본값은 **보수적으로**(막는 쪽) 잡는다 — 클라 에코 측정 리그 실측이 나오면 그 값으로
+    # 조인다. 전부 env 라 재빌드 없이 바뀐다.
+    CASCADE_BARGEIN_CONFIRM: str = "transcript"  # 'immediate' | 'transcript'(세션값으로 덮임)
+    CASCADE_BARGEIN_MIN_MS: int = 200            # 비버 발화 중엔 이만큼 지속돼야 barge-in 인정
+    CASCADE_BARGEIN_MIN_CHARS: int = 2           # transcript 확인 모드에서 요구할 최소 글자수
+    # 비버 발화 구간 **에너지 임계 상향** — 잔여 에코는 대개 원음보다 작다. 0 = 비활성.
+    CASCADE_BARGEIN_RMS: float = 0.05            # 0~1 정규화 RMS(보수적 = 높게 시작)
+    CASCADE_ECHO_TAIL_MS: int = 300              # 마지막 TTS 바이트 이후 에코 경계 구간(P1)
+    # ── 재생 진행도(이력 절단 근거) ──
+    # ⚠ played_ms 는 **네이티브 카운터 값만** 신뢰한다(Android getPlaybackHeadPosition ±10~20ms).
+    #   Dart 외삽값은 ±50~150ms 라 원장 절단의 '짧은 쪽 편향'을 무의미하게 만든다 → 버린다.
+    CASCADE_TRUST_ESTIMATED_PROGRESS: bool = False
+    CASCADE_CANCEL_STOP_MS: int = 120            # audio_cancel 수신 → 실제 무음까지 클라 지연(50~120ms)
+    CASCADE_CLIENT_BUFFER_MS: int = 600          # progress 부재 시 서버 추정용 클라 버퍼(보수적=크게)
+    # (P1) 비버 턴 페이서 — 클라가 250ms 공백(normalcall_controller.dart:1494)을 언더런으로
+    # 오인하면 재생 쿠션이 상한까지 차오르고(1200ms — 동 파일 :455 의 _cushionMaxBytes)
+    # 이후 모든 턴에 그 지연이 붙는다. 서버가 고정 간격(무음 패딩 포함)으로 흘려 와이어를
+    # 굶기지 않는다. Cloud TTS 스트리밍 합성이 되므로 선행버퍼는 작게 잡는다.
+    CASCADE_TTS_LEAD_MS: int = 200               # 송출 시작 전 확보할 합성 선행분
+
     # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_KEY: str | None = None
