@@ -76,6 +76,7 @@ from core.persona_prompt import (
     CONTROL_TAG,
     build_leveltest_instruction,
     build_continue_reminder,
+    build_reground_brief,
     build_reground_reminder,
     build_system_instruction,
     close_seed_leveltest,
@@ -168,17 +169,35 @@ LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 대상 언어 산출 실패(answer_in_targ
 # 종료 판정 사이드카(C): 매 답변마다 전체 전사를 LLM에 넣어 "지금 끝내도 되나(should_end)" 판정 —
 # 등반 실패(정체·막힘)를 맥락으로 조기 종료. 시간 플로어·최소 답변 충족 후에만 반영.
 LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 시작하는 최소 답변 수(성급한 종료 방지)
-# 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
-REGROUND_AT_FRACTION = 0.5
-# 후반 재접지 지점(길이 비율). 중반(0.5)은 캐릭터 톤을 되살리고, 여기서는 **대화를 계속
-# 끌고 가라**고 되박는다 — 목적이 다르므로 문구도 다르다(build_continue_reminder).
+# ── 재접지(단계 3: 시각 비율 → 압축 신호 통합) ────────────────────────────
+# 🧒 재접지 = 대화가 길어지면 AI 가 캐릭터·규칙·지금까지 한 얘기를 조금씩 잊는데(드리프트),
+#   중간중간 짧게 되박아 주는 것. 옛날엔 "통화 길이의 50%·80% 지점"이라는 **시계**로 넣었다.
 #
-# 왜 필요한가: 시작 지시문에 종료 규약이 있어도 40턴쯤 지나면 흐려진다. 실측 5분 통화
-# 12건 중 3건이 서버 종료 신호보다 4~16턴 먼저 마무리에 들어갔다(call=836 "조심히
-# 들어가!" 12턴 전 / call=744 "오늘은 여기까지" 16턴 전 / call=782 "슬슬 마무리할
-# 시간이다" 4턴 전). 중반 재접지는 캐릭터 톤만 다루므로 여기에 닿지 않았다.
-# 0.8 = 5분 통화의 4분 지점 — 관측된 드리프트 시작(4분대)보다 앞선다.
-REGROUND_LATE_AT_FRACTION = 0.8
+# 왜 시계를 버리나: 진짜로 기억을 지우는 건 시간이 아니라 **컨텍스트 압축**이다. 압축은
+#   trigger_tokens 에 닿는 순간 오래된 대화부터 버리는데, 그 시점은 통화마다 다르다(말이
+#   많으면 빨리, 적으면 늦게). 시계로 맞추면 압축과 어긋나 "이미 잊은 뒤에 되박는" 일이 생긴다.
+#
+# 3층 구조(우선순위):
+#   ① 선제 arm  — prompt_token_count 가 ARM_RATIO × trigger 를 넘으면 = 압축 임박.
+#                 압축 **직전**에 얹은 요약은 컨텍스트 최신단이라 그 압축을 반드시 살아남는다.
+#   ② 사후 감지 — prompt 가 직전 최고치 대비 급감 = 압축이 이미 일어났다. ①이 유저 침묵으로
+#                 얹히지 못한 채 지나간 경우의 보정.
+#   ③ 시간 폴백 — usage_metadata 가 아예 안 오는 환경(필드 미제공·모킹)에서도 돌아야 한다.
+#                 마지막 주입 이후 GAP 경과면 arm(R5 — 자동으로 옛 시간 기반 동작으로 강등).
+REGROUND_ARM_RATIO = 0.85        # 압축 임박 판정(× LIVE_CTX_TRIGGER_TOKENS)
+# 사후 감지 비율. ⚠ 0.75 로 잡지 마라 — 현행 16000/12000 은 낙차가 정확히 0.75 라
+#   경계에 걸리고, 압축이 target 보다 조금 위에서 멈추면(턴 경계 컷) 그대로 미탐이 된다.
+#   실질 방어선은 절대 낙차(DROP_MIN_TOKENS)이고 이 비율은 "큰 컨텍스트의 작은 요동" 배제용.
+REGROUND_DROP_RATIO = 0.85
+REGROUND_DROP_MIN_TOKENS = 2000  # 잡음 배제 — 이만큼은 떨어져야 압축(작은 요동은 무시)
+REGROUND_MIN_GAP_S = 60.0        # 연속 주입 최소 간격(같은 압축 주기에 두 번 얹지 않기)
+REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
+# 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
+#   5분(300s) → 120s → 2회 = 옛 0.5·0.8 지점 2회와 실질 동일(5분 하위호환)
+#   15분(900s) → 240s → 3회 + 압축 arm ≈ 6회 = 0.40회/분(5분과 같은 빈도)
+REGROUND_GAP_DIVISOR = 2.5
+REGROUND_GAP_MIN_S = 120.0
+REGROUND_GAP_MAX_S = 240.0
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
 #   "on_user_turn" — 신방식: arm 후 유저 발화 시작(첫 in_tr) 시 그 턴에 얹기(turn_complete=False).
 #                    비버가 [유저발화+리마인더]에 1회 응답 → 이중발화·종료오염 제거 목표.
@@ -342,6 +361,20 @@ class HintOut(BaseModel):
     examples: list[HintExample]
 
 
+class RegroundOut(BaseModel):
+    """재접지 사이드카 구조화 출력 — **문장이 아니라 슬롯만** 받는다.
+
+    ⛔ 여기에 문장 필드를 추가하지 마라. 사이드카가 문장을 만들면 그 문장이 곧 프롬프트가
+      되고, "LLM 생성 0, 순수 조립"(persona_prompt 규율)이 재접지 경로에서만 무너진다.
+      서버가 준 목록에서 **번호**를 고르고, 화제는 짧은 명사구 한 조각만 준다.
+    """
+
+    mode: str = ""            # "study" | "chat" | "" (제안일 뿐 — 채택은 서버가 판정)
+    mode_quote: str = ""      # 모드 전환 근거 인용. 전사에 **실재해야** 채택된다
+    covered: list[int] = []   # 서버가 준 목록의 번호(1-base)
+    topic: str = ""           # 지금 대화 흐름 한 조각(짧은 명사구)
+
+
 class _CallState:
     """두 펌프가 공유하는 통화 상태(세그먼트 누적 + 시계 + 종료 플래그)."""
 
@@ -359,6 +392,10 @@ class _CallState:
         "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "continue_reminder", "continue_injected",
+        # 재접지 통합(단계 3) — 압축 신호 관측 + 사이드카 + 모드 sticky
+        "reground_count", "last_reground_ts", "reground_arm_reason",
+        "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
+        "call_mode", "usage_prompt_peak", "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
@@ -449,6 +486,28 @@ class _CallState:
         self.reground_pending: bool = False
         self.reground_injected: bool = False
         self.user_turn_open: bool = False
+        # ── 재접지 통합(단계 3) ──
+        # reground_count: 이번 통화에 실제로 얹은 횟수(상한 REGROUND_MAX_PER_CALL).
+        #   ⚠ reground_injected(1회성 불리언)를 이걸로 대체한다 — 옛 게이트는 중반 재접지가
+        #     얹히면 True 로 굳어 **후반 리마인더가 영원히 안 얹혔다**(실측 결함).
+        # last_reground_ts: 마지막 주입 시각(최소 간격·시간 폴백 기준).
+        # reground_arm_reason: 이번 arm 의 근거("compress"/"post-compress"/"time") — 로그·테스트용.
+        # reground_ctx: 재접지 사이드카 {client, model, instruction}. None = 사이드카 비활성.
+        # reground_items: 사이드카에 번호로 떠먹일 학습 항목 라벨(서버가 소유하는 목록).
+        # reground_persona: (role, personality) — 문구 조립 재료.
+        # call_mode: 공부/대화 모드. **서버가 sticky 로 소유**하고, 사이드카 제안은 전사에
+        #   실재하는 인용이 증명될 때만 받아들인다(AI 는 증인, 코드가 심판).
+        self.reground_count: int = 0
+        self.last_reground_ts: Optional[float] = None
+        self.reground_arm_reason: str = ""
+        self.reground_ctx: Optional[dict] = None
+        self.reground_items: list[str] = []
+        self.reground_tasks: set[asyncio.Task] = set()
+        self.reground_persona: tuple[str, str] = ("", "")
+        self.call_mode: str = "chat"
+        # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
+        self.usage_prompt_peak: int = 0
+        self.compression_seen: int = 0
         # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
         # band_client: judge_leveltest_turn 에 넘길 genai.Client(사이드카가 참조).
@@ -586,6 +645,39 @@ def _modality_pairs(details) -> list[tuple[str, int]]:
     return out
 
 
+def _observe_compression(state: _CallState, prompt) -> None:
+    """prompt_token_count 시계열로 **컨텍스트 압축**을 관측한다(재접지 트리거의 눈).
+
+    🧒 Live 는 "압축했다"는 이벤트를 안 준다(전 필드를 다 뒤졌다). 유일한 단서가 매 턴
+      실려 오는 입력 토큰 수다 — 대화가 쌓이면 계속 늘다가, 압축이 일어나면 **뚝 떨어진다**.
+      그 톱니를 보고 추론하는 게 여기다.
+
+    두 신호를 세운다:
+      - 임박(선제): 최고치가 ARM_RATIO × trigger 를 넘었다 → 곧 압축된다.
+      - 발생(사후): 최고치 대비 급감했다 → 방금 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우).
+
+    ⚠ 미탐(주입 누락)은 무해하고 오탐(불필요 주입)은 이중발화 위험이라, 임계는 미탐 쪽으로
+      보수적으로 잡는다 — 절대 낙차(DROP_MIN_TOKENS)까지 함께 요구한다.
+    판정 결과는 플래그가 아니라 상태값(peak·compression_seen)으로만 남긴다. arm 여부는
+    워처가 이 값을 읽어 정한다(관측과 결정의 분리).
+    """
+    if not prompt:
+        return
+    p = int(prompt)
+    peak = state.usage_prompt_peak
+    if p > peak:
+        state.usage_prompt_peak = p
+        return
+    # 급감 = 압축. 비율과 절대 낙차를 **둘 다** 만족해야 한다(작은 요동 배제).
+    if peak - p >= REGROUND_DROP_MIN_TOKENS and p <= peak * REGROUND_DROP_RATIO:
+        state.compression_seen += 1
+        state.usage_prompt_peak = p  # 새 사이클의 바닥에서 다시 센다
+        logger.info(
+            "normalcall: 컨텍스트 압축 감지 #%d (prompt %d → %d)",
+            state.compression_seen, peak, p,
+        )
+
+
 def _record_usage(state: _CallState, um) -> None:
     """Live usage_metadata 1건을 시계열에 적재한다(예외 전량 흡수, R5).
 
@@ -600,6 +692,9 @@ def _record_usage(state: _CallState, um) -> None:
       같은 시계열이 "컨텍스트 압축이 실제로 발동하는가"도 함께 답한다.
     """
     try:
+        # 압축 관측은 적재 상한과 무관하게 계속 돈다 — 상한을 넘긴 긴 통화야말로 압축이
+        # 가장 활발한 구간이라, 여기서 끊으면 재접지가 후반부터 눈이 먼다.
+        _observe_compression(state, getattr(um, "prompt_token_count", None))
         if len(state.usage_log) >= _USAGE_LOG_MAX:
             state.usage_dropped += 1
             return
@@ -871,7 +966,9 @@ async def run_call(
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
-        # 단발 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"): DB 캐릭터 3필드를 중간에 1회 되박음.
+        # 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"). 통합 재접지는 캐릭터 3필드에
+        # 맥락 슬롯을 얹어 조립하므로(build_reground_brief) 페르소나 원재료를 그대로 넘긴다.
+        # 아래 두 문자열은 하위호환(legacy 문구 · 기존 테스트 계약)용으로 계속 만든다.
         if REGROUND_MODE != "off":
             reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
             continue_reminder = build_continue_reminder(setup["role"], setup["personality"])
@@ -890,8 +987,22 @@ async def run_call(
     state = _CallState()
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
-    state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
-    state.continue_reminder = continue_reminder  # 후반 1회(대화 지속)
+    state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
+    state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
+    if call_type != "level_test" and REGROUND_MODE != "off":
+        # 재접지 통합(단계 3): 문구 조립 재료 + 사이드카에 번호로 떠먹일 항목 목록 + 모드 시드.
+        # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
+        #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
+        state.reground_persona = (setup["role"] or "", setup["personality"] or "")
+        state.reground_items = [
+            str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
+        ][:10]
+        state.call_mode = "study" if state.reground_items else "chat"
+        state.reground_ctx = {
+            "client": client,
+            "model": settings.JUDGE_MODEL,
+            "instruction": _reground_instruction(state.reground_items, target_language),
+        }
     # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
     # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
     live_tools = None
@@ -1016,6 +1127,9 @@ async def run_call(
             t.cancel()
         # Phase 2: 미완 밴드 관측 사이드카 전량 취소(통화 종료 후 뒤늦은 관측·종료 시도 방지).
         for t in list(state.band_tasks):
+            t.cancel()
+        # 단계 3: 미완 재접지 브리프 사이드카 전량 취소(끝난 통화의 문구를 만들 이유가 없다).
+        for t in list(state.reground_tasks):
             t.cancel()
         _flush_user_segment(state)
         _flush_beaver_segment(state)
@@ -1364,7 +1478,7 @@ async def _run_one_generation(
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
                 tg.create_task(_watch_call_clock(state, session), name="nc-clock")
                 tg.create_task(_watch_idle(session, state), name="nc-idle")
-                tg.create_task(_reground_once(session, state), name="nc-reground")
+                tg.create_task(_reground_watch(session, state), name="nc-reground")
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
@@ -1979,20 +2093,29 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 state.close_reply_started = True
 
         # ── 재접지 "유저 발화 턴에 얹기"(on_user_turn) ──
-        # arm 됐고(reground_pending) 아직 안 얹었으면, 유저 발화 턴에 리마인더를 turn_complete=False
-        # 로 얹어 비버가 [유저발화+리마인더]에 1회 응답하게 한다(이중발화·잔류 제거 목표).
+        # arm 됐으면(reground_pending) 유저 발화 턴에 리마인더를 turn_complete=False 로 얹어
+        # 비버가 [유저발화+리마인더]에 1회 응답하게 한다(이중발화·잔류 제거 목표).
         # ⛔ 가드①(핵심 안전): should_close/close_seed_sent 면 절대 안 얹음 — 종료 근처 늦은
-        #    in_tr 이 작별 턴을 오염(174/178 재발)하는 것을 원천 차단. ②1회만(reground_injected).
+        #    in_tr 이 작별 턴을 오염(174/178 재발)하는 것을 원천 차단.
+        # ⛔ 가드②: 대기 중인 arm 하나당 정확히 1회(reground_pending 을 await 전에 내린다).
+        #    ⚠ 옛 게이트(reground_injected, 통화당 1회성)를 쓰지 마라 — 중반 재접지가 얹히면
+        #      True 로 굳어 **후반 리마인더가 영영 안 얹혔다**. 횟수 상한은 arm 쪽(_reground_due)이
+        #      REGROUND_MAX_PER_CALL 로 건다.
         if (REGROUND_MODE == "on_user_turn" and event.kind == "in_tr"
-                and state.reground_pending and not state.reground_injected
+                and state.reground_pending and state.reground_reminder
                 and not state.should_close and not state.close_seed_sent):
             attach_now = in_tr_first if REGROUND_ATTACH_AT == "first" else bool(event.is_final)
             if attach_now:
-                state.reground_injected = True   # await 전 선점(단일 소유권)
-                state.reground_pending = False
+                state.reground_pending = False    # await 전 선점(단일 소유권)
+                state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
+                state.reground_count += 1
+                state.last_reground_ts = asyncio.get_running_loop().time()
                 try:
                     await session.send_reground(state.reground_reminder, turn_complete=False)
-                    logger.info("normalcall: 재접지 얹기(유저 발화 턴, at=%s, tc=False)", REGROUND_ATTACH_AT)
+                    logger.info(
+                        "normalcall: 재접지 얹기(유저 발화 턴, 근거=%s, %d회째, at=%s, tc=False)",
+                        state.reground_arm_reason, state.reground_count, REGROUND_ATTACH_AT,
+                    )
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
@@ -2291,101 +2414,242 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     return True
 
 
-async def _arm_late_continue(state: _CallState) -> None:
-    """후반(REGROUND_LATE_AT_FRACTION) 지점에서 **대화 지속** 리마인더를 한 번 더 arm.
+def _reground_gap_s(state: _CallState) -> float:
+    """시간 폴백 간격 — clamp(통화길이 / 2.5, 120s, 240s).
 
-    중반 재접지와 같은 상태기계(reground_pending)를 재사용하고 문구만 갈아끼운다 —
-    펌프는 "무엇을" 얹는지 모른 채 reground_reminder 를 얹을 뿐이라, 여기서 그 슬롯을
-    후반 문구로 교체한다. 상태기계를 하나 더 만들면 둘이 같은 턴에 겹칠 수 있다.
-
-    종료가 이미 걸렸으면(should_close) 아무것도 하지 않는다 — 마무리를 방해하면 안 된다.
-    후반 문구가 없으면(레벨테스트 등) 조용히 끝낸다(R5).
+    5분 통화는 120s(2회)로 옛 시각 트리거(0.5·0.8 지점 2회)와 실질 동일하고, 15분은
+    240s(3회) + 압축 arm 으로 합계 ≈ 6회 = 분당 0.40회. **빈도는 5분과 같다** —
+    통화가 길어졌다고 재접지가 촘촘해지지 않게 분당으로 맞춘 값이다.
     """
-    if not state.continue_reminder or state.continue_injected:
-        return
-    if state.call_start_ts is None:
-        return
-    loop = asyncio.get_running_loop()
-    fire_at = state.call_start_ts + state.call_duration_s * REGROUND_LATE_AT_FRACTION
-    while loop.time() < fire_at:
-        if state.should_close:
-            return
-        await asyncio.sleep(0.2)
-    if state.should_close:
-        return
-    # 중반 리마인더가 아직 안 얹혔으면(유저가 계속 말이 없었다) 덮어쓰지 않는다 —
-    # 한 턴에 두 리마인더가 겹치면 비버 응답이 장황해진다.
-    if state.reground_pending:
-        logger.info("normalcall: 후반 재접지 생략(중반 리마인더가 아직 대기 중)")
-        return
-    state.reground_reminder = state.continue_reminder
+    return max(REGROUND_GAP_MIN_S, min(REGROUND_GAP_MAX_S,
+                                       state.call_duration_s / REGROUND_GAP_DIVISOR))
+
+
+def _reground_due(state: _CallState, now: float) -> str:
+    """지금 재접지를 arm 해야 하는가 — 근거 문자열(빈 문자열이면 아니다).
+
+    ⛔ 종료가 최우선이다. 마무리 중에 되박으면 작별이 오염된다(174/178 재발).
+    ⛔ 이미 대기 중(reground_pending)이면 새로 세우지 않는다 — 한 턴에 두 리마인더가
+      겹치면 비버 응답이 장황해지고, 유저 발화 하나에 서버 텍스트 500 토큰이 붙는다.
+    """
+    if state.should_close or state.close_seed_sent or state.reground_pending:
+        return ""
+    if state.reground_count >= REGROUND_MAX_PER_CALL:
+        return ""
+    # 최소 간격: 같은 압축 주기 안에서 두 번 얹지 않는다.
+    if state.last_reground_ts is not None and now - state.last_reground_ts < REGROUND_MIN_GAP_S:
+        return ""
+    trigger = _settings.LIVE_CTX_TRIGGER_TOKENS
+    # ① 선제 — 압축 임박(컨텍스트가 트리거의 85%까지 찼다). 압축 직전에 얹은 요약은
+    #    최신단에 있어 그 압축을 살아남는다.
+    if state.usage_prompt_peak >= trigger * REGROUND_ARM_RATIO:
+        return "compress"
+    # ② 사후 — 이미 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우의 보정).
+    if state.compression_seen > state.reground_count:
+        return "post-compress"
+    # ③ 시간 폴백 — usage 가 안 오는 환경에서도 옛 동작만큼은 보장한다(R5).
+    base = state.last_reground_ts or state.call_start_ts
+    if base is not None and now - base >= _reground_gap_s(state):
+        return "time"
+    return ""
+
+
+def _arm_reground(state: _CallState, reason: str) -> None:
+    """재접지를 arm 한다 — 문구는 **지금 당장 조립 가능한 것**으로 먼저 채운다.
+
+    사이드카(맥락 슬롯 채우기)를 기다리지 않는 이유: 유저가 말을 시작하는 순간이 얹을
+    자리인데, LLM 을 기다리면 그 자리를 놓친다. 그래서 캐릭터 기본 문구로 즉시 arm 하고,
+    사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
+    """
+    role, personality = state.reground_persona
+    state.reground_reminder = build_reground_brief(
+        role, personality, mode=state.call_mode,
+    )
     state.reground_pending = True
-    state.continue_injected = True
-    logger.info("normalcall: 후반 재접지 arm(대화 지속 — 다음 유저 발화 턴에 얹음)")
+    state.reground_arm_reason = reason
+    logger.info(
+        "normalcall: 재접지 arm(근거=%s, %d/%d회, 압축감지=%d, peak=%d)",
+        reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
+        state.compression_seen, state.usage_prompt_peak,
+    )
 
 
-async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
-    """통화 중간(길이의 REGROUND_AT_FRACTION 지점)에 캐릭터를 딱 1회 되박는다(누적 드리프트 완화).
+async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> None:
+    """재접지 arm 워처 — 압축 신호(주) + 시간 폴백(보조)으로 통화당 N회 arm 한다.
 
-    🧒 왜 '재접지(re-grounding)'가 필요한가: AI 는 대화가 길어질수록 처음에 준 캐릭터 설정
-      (선생님 역할·성격·규칙)을 조금씩 잊고 톤이 흐려진다(이걸 '드리프트'라 한다 — 배가 닻줄이
-      느슨해져 원래 자리에서 슬슬 밀려나듯). 그래서 통화 중간쯤(기본 50% 지점)에 캐릭터를
-      한 번 살짝 다시 심어 톤을 되살린다.
-    🧒 왜 캐릭터 3필드(역할/성격/규칙)만 넣고, 처음 준 전체 프롬프트를 통째로 다시 안 넣나:
-      전체 프롬프트는 아주 길어서(레벨·이력·학습재료까지) 다시 넣으면 무겁고, AI 가 그걸
-      '새 지시'로 오해해 갑자기 이상하게 다시 인사하거나 같은 말을 두 번 하는(이중발화) 사고가
-      난다. 그래서 톤을 되살리는 데 꼭 필요한 최소한(성격 3필드)만 가볍게 되박는다.
+    🧒 재접지 = 대화가 길어져 AI 가 캐릭터·맥락을 잊기 전에 짧게 되박아 주는 것.
+      옛날엔 "통화의 50%·80% 지점"이라는 시계로 넣었는데, 진짜로 기억을 지우는 건 시간이
+      아니라 **컨텍스트 압축**이다(오래된 대화부터 버린다). 그래서 압축 시점에 맞춰 넣는다.
 
-    REGROUND_MODE 로 방식이 갈린다:
-      - "off": 아무것도 안 함(하드닝만 — 폴백).
-      - "legacy_idle": fire_at 에 비버 idle & 무음 넛지 없음이면 send_reground(turn_complete=True).
-                       비버가 별도 응답(이중발화). 회귀 대비 보존.
-      - "on_user_turn": fire_at 에 **arm 만**(reground_pending=True). 실제 얹기는 펌프가 다음 유저
-                        발화 턴에서 수행(turn_complete=False). 이 태스크는 send_reground 를 호출하지
-                        않는다 → 시각 판정(태스크)과 얹기 실행(펌프) 관심사 분리.
-    비활성(reground_reminder None = 레벨테스트 등)이면 즉시 종료. 종료 우선(should_close → arm 취소).
+    ⛔ 얹는 건 이 태스크가 아니다. 여기서는 arm 만 세우고, 실제 주입은 펌프가 다음 유저
+      발화 턴에 turn_complete=False 로 얹는다(기존 경로 승계 — 새 주입 경로를 만들지 않는다).
+    ⚠ 이 태스크는 세대마다 새로 뜬다(세션 재연결). 상태는 _CallState 에 살아 있으므로
+      횟수·마지막 주입 시각이 그대로 이어진다 — 스왑이 재접지를 되살리지 않는다.
     """
-    if REGROUND_MODE == "off" or not state.reground_reminder:
+    # 비활성 조건: 모드 off, 또는 되박을 재료가 아예 없음(레벨테스트가 여기 해당).
+    if REGROUND_MODE == "off" or (
+        not state.reground_persona[0] and not state.reground_reminder
+    ):
         return
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
-        await asyncio.sleep(0.2)
-    fire_at = state.call_start_ts + state.call_duration_s * REGROUND_AT_FRACTION
-    while loop.time() < fire_at:
-        if state.should_close:  # 종료 우선 — arm 취소
-            return
-        await asyncio.sleep(0.2)
-    if state.should_close:
-        return
-
-    if REGROUND_MODE == "on_user_turn":
-        # ⚠ 이 태스크는 **세대마다 새로 뜬다**(세션 재연결). 상태는 _CallState 에 있어
-        #   세대를 건너 사는데, 여기서 무조건 재arm 하면 이미 얹힌 재접지가 되살아나
-        #   reground_pending 이 True 로 남는다. 그러면 _arm_late_continue 가 "중반이
-        #   아직 대기 중"으로 보고 **후반 리마인더를 통째로 생략**한다 — 15분 통화
-        #   실측에서 후반 드리프트 방어가 그렇게 사라졌다(스왑 후 "여기까지 마무리할까?"
-        #   반복). 이미 얹혔거나 대기 중이면 arm 을 건너뛰고 후반만 이어받는다.
-        if not (state.reground_injected or state.reground_pending):
-            state.reground_pending = True  # 주입은 펌프가(유저 발화 턴에 얹기), 여기선 arm 만
-            logger.info("normalcall: 재접지 arm(다음 유저 발화 턴에 얹음)")
-        await _arm_late_continue(state)
-        return
-
-    # legacy_idle: 즉시 주입(비버 idle & 무음 넛지 없음일 때만), turn_complete=True.
-    while True:
-        await asyncio.sleep(0.2)
         if state.should_close:
             return
-        if state.turn_id is not None or state.silence_stage > 0:
+        await asyncio.sleep(0.2)
+
+    while True:
+        await asyncio.sleep(0.2)
+        if state.should_close or state.close_seed_sent:
+            return  # 종료 우선 — 남은 arm 은 버린다
+        reason = _reground_due(state, loop.time())
+        if not reason:
             continue
-        try:
-            await session.send_reground(state.reground_reminder, turn_complete=True)
-            logger.info("normalcall: 캐릭터 재접지 1회 주입(legacy_idle, tc=True)")
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
-            logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
+        if REGROUND_MODE == "legacy_idle":
+            await _reground_legacy_inject(session, state)
+            continue
+        _arm_reground(state, reason)
+        _spawn_reground_sidecar(state)
+
+
+async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallState) -> None:
+    """구방식 폴백(legacy_idle): 비버 idle 일 때 별도 완결 턴으로 주입(이중발화 감수).
+
+    on_user_turn 병합이 Gemini 미보장이라, 실기기에서 이중발화가 보이면 코드 한 줄
+    (REGROUND_MODE)로 여기로 되돌린다. 회귀 대비로 남긴다.
+    """
+    if state.turn_id is not None or state.silence_stage > 0:
         return
+    role, personality = state.reground_persona
+    text = state.reground_reminder or build_reground_brief(
+        role, personality, mode=state.call_mode
+    )
+    try:
+        await session.send_reground(text, turn_complete=True)
+        state.reground_count += 1
+        state.last_reground_ts = asyncio.get_running_loop().time()
+        logger.info("normalcall: 캐릭터 재접지 주입(legacy_idle, tc=True)")
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
+        logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
+
+
+def _reground_instruction(items: list[str], target_language: str) -> str:
+    """재접지 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
+
+    항목을 **번호로 떠먹인다**: 사이드카는 목록에서 고르기만 하면 되므로 자유 서술이 없고,
+    서버는 돌아온 번호를 자기 목록으로 되짚어 라벨을 얻는다(환각이 들어올 자리가 없다).
+    """
+    listing = "\n".join(f"{i}. {label}" for i, label in enumerate(items, 1)) or "(없음)"
+    return (
+        f"너는 {target_language} 회화 통화의 상태 요약기다. 아래 대화 일부를 읽고 "
+        "JSON 슬롯만 채워라. **문장을 만들지 마라.**\n"
+        f"[항목 목록]\n{listing}\n"
+        "- covered: 위 목록 중 대화에서 **이미 실제로 다뤄진** 항목의 번호만. 없으면 빈 배열.\n"
+        "- topic: 지금 대화가 흐르고 있는 화제를 짧은 명사구 하나로(최대 12자). "
+        "확실하지 않으면 빈 문자열.\n"
+        "- mode: 학습 항목을 가르치는 흐름이면 \"study\", 자유 대화면 \"chat\".\n"
+        "- mode_quote: mode 판단의 근거가 된 **대화 원문 그대로**의 짧은 인용. "
+        "지어내지 마라 — 원문에 없는 인용은 무시된다."
+    )
+
+
+def _transcript_tail(state: _CallState, turns: int = 12) -> str:
+    """사이드카에 넘길 최근 전사 꼬리(오디오 아님 — 텍스트만).
+
+    통화 전체를 넣지 않는 이유: 재접지가 필요한 건 **지금 흐름**이고, 전체를 넣으면
+    사이드카 입력이 통화만큼 커져 원가가 통화와 함께 자란다(재접지가 비싸지면 안 된다).
+    """
+    lines = [
+        f"{'학습자' if s['role'] == 'user' else '선생님'}: {s['text']}"
+        for s in state.segments[-turns:]
+        if (s.get("text") or "").strip()
+    ]
+    return "\n".join(lines)
+
+
+def _apply_mode_proposal(state: _CallState, proposed: str, quote: str, tail: str) -> None:
+    """모드는 **서버가 sticky 로 소유**한다 — 사이드카 제안은 인용이 증명될 때만 채택.
+
+    🧒 왜 그냥 안 믿나: 압축이 통화 초반을 삼키면 사이드카는 "지금 보이는 몇 턴"만 보고
+      모드를 다르게 부를 수 있다(공부하던 통화를 잡담으로 오인). 그때마다 모드가 흔들리면
+      비버가 통화 중간에 성격이 바뀐 것처럼 군다. 그래서 **전사에 실제로 있는 말**로
+      전환이 증명될 때만 바꾼다 — AI 는 증인이고, 판단은 코드가 한다(레벨 시스템 관통원칙 ①).
+    """
+    if proposed not in ("study", "chat") or proposed == state.call_mode:
+        return
+    q = (quote or "").strip()
+    if len(q) < 4 or q not in tail:      # 원문에 없는 인용 = 환각 → 기각
+        logger.info("normalcall: 재접지 모드 전환 제안 기각(인용 미검증) %s→%s",
+                    state.call_mode, proposed)
+        return
+    logger.info("normalcall: 재접지 모드 전환 채택 %s→%s (인용: %.20s)",
+                state.call_mode, proposed, q)
+    state.call_mode = proposed
+
+
+def _spawn_reground_sidecar(state: _CallState) -> None:
+    """arm 직후 맥락 슬롯을 채우는 사이드카를 띄운다(논블로킹 — 얹기를 막지 않는다).
+
+    ⛔ 격리(R4/R5): 2펌프 경로 밖에서만 돈다. 느리거나 실패하면 arm 때 조립해 둔 기본
+    문구가 그대로 얹힌다(재접지가 사라지지 않는다). 비활성(reground_ctx None)이면 무동작.
+    """
+    ctx = state.reground_ctx
+    if ctx is None or state.should_close:
+        return
+    task = asyncio.create_task(_reground_sidecar(state), name="normalcall-reground-brief")
+    state.reground_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
+    task.add_done_callback(state.reground_tasks.discard)
+
+
+async def _reground_sidecar(state: _CallState) -> None:
+    """대기 중인 재접지 문구를 맥락 슬롯(다룬 항목·화제·모드)으로 업그레이드한다.
+
+    ⛔ 문장 조립은 여기서 하지 않는다 — build_reground_brief(persona_prompt)가 한다.
+      이 함수가 하는 일은 "슬롯을 받아 검증하고 넘기기"뿐이다. 종료 어휘 denylist 도
+      조립 함수 안에 있어, 어느 경로로 슬롯이 들어와도 같은 방어를 통과한다.
+    """
+    ctx = state.reground_ctx
+    tail = _transcript_tail(state)
+    if ctx is None or not tail:
+        return
+    try:
+        result = await gemini_analysis.generate_structured(
+            ctx["client"], ctx["model"],
+            system_instruction=ctx["instruction"],
+            prompt=tail,
+            schema=RegroundOut,
+            temperature=0.0,
+            thinking_budget=0,
+        )
+        if result is None:
+            return
+        _apply_mode_proposal(
+            state, getattr(result, "mode", "") or "", getattr(result, "mode_quote", "") or "", tail
+        )
+        items = state.reground_items
+        covered = [
+            items[n - 1] for n in (getattr(result, "covered", None) or [])
+            if isinstance(n, int) and 1 <= n <= len(items)
+        ]
+        # 이미 얹혔거나 종료 구간이면 업그레이드는 무의미하다(다음 arm 때 새로 받는다).
+        if not state.reground_pending or state.should_close or state.close_seed_sent:
+            return
+        role, personality = state.reground_persona
+        state.reground_reminder = build_reground_brief(
+            role, personality,
+            mode=state.call_mode,
+            covered=covered,
+            topic=getattr(result, "topic", "") or "",
+        )
+        logger.info(
+            "normalcall: 재접지 브리프 업그레이드(mode=%s covered=%d topic=%s)",
+            state.call_mode, len(covered), (getattr(result, "topic", "") or "")[:12],
+        )
+    except asyncio.CancelledError:
+        raise  # 취소(통화 종료)는 정상 경로
+    except Exception as exc:  # noqa: BLE001 - 실패 시 기본 문구가 얹힌다(R5)
+        logger.warning("normalcall: 재접지 사이드카 실패(무시 — 기본 문구 사용): %s", exc)
 
 
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:

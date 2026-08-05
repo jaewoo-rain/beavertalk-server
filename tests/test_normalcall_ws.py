@@ -679,16 +679,27 @@ async def _run_with_fake(fake, session_factory, seeded):
     return ws
 
 
+def _arm_fast(monkeypatch):
+    """시간 폴백 간격을 짧게 — 옛 REGROUND_AT_FRACTION 이 하던 "곧 arm" 을 새 기계로.
+
+    ⚠ 값(간격)만 바꾼다. 검증하는 계약("arm 후 첫 in_tr 에 turn_complete=False 로 얹힌다")은
+      그대로다 — 마스터플랜 §6 이 말한 "당시 구현 파라미터는 뒤집어도, 사고는 보존".
+    """
+    monkeypatch.setattr(cs, "REGROUND_GAP_MIN_S", 0.05)
+    monkeypatch.setattr(cs, "REGROUND_GAP_MAX_S", 0.05)
+    monkeypatch.setattr(cs, "REGROUND_MIN_GAP_S", 0.05)
+
+
 @pytest.mark.asyncio
 async def test_reground_on_user_turn_attaches_once(session_factory, seeded, monkeypatch):
     """on_user_turn: arm 후 유저 발화 시작(첫 in_tr)에 리마인더가 turn_complete=False 로 딱 1회
     얹힌다. 같은 턴 두 번째 in_tr 은 재주입 없음. send_text_turn(종료/무음)와 분리."""
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
     monkeypatch.setattr(cs, "REGROUND_ATTACH_AT", "first")
-    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)  # fire_at ≈ 통화 시작 직후
+    _arm_fast(monkeypatch)
 
     async def wait_arm(f):
-        await asyncio.sleep(0.5)  # _reground_once 가 arm(reground_pending) 할 시간
+        await asyncio.sleep(0.5)  # _reground_watch 가 arm(reground_pending) 할 시간
     fake = _RegroundFake([
         LiveEvent(kind="out_tr", text="안녕"),   # 비버 오프닝 → call_start_ts 세팅
         LiveEvent(kind="turn_end"),
@@ -702,7 +713,9 @@ async def test_reground_on_user_turn_attaches_once(session_factory, seeded, monk
     assert len(fake.regrounds) == 1, "재접지 얹기가 정확히 1회가 아님"
     text, tc = fake.regrounds[0]
     assert tc is False, "on_user_turn 은 turn_complete=False 여야 함(유저 턴에 얹기)"
-    assert "캐릭터답게 한마디" in text, "재접지 문구가 행동 지시 리마인더가 아님"
+    # 통합 브리프는 "학습자가 방금 한 말에 먼저 반응하고"로 시작해야 한다 — 이게 없으면
+    # 250 토큰짜리 주입이 사용자의 한마디를 밀어내고 비버가 주입에 응답한다(문맥 없는 화제 전환).
+    assert "먼저" in text and "반응" in text, "브리프가 '유저 먼저' 지시로 시작하지 않는다"
     assert not any(text == t for t in fake.sent_text_turns), "재접지가 send_text_turn 로 샜다"
 
 
@@ -711,7 +724,7 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
     """핵심 안전(가드①): 종료 시드(close_seed_sent) 이후 늦은 유저 in_tr 에는 재접지를 얹지
     않는다 — 작별 턴 오염(174/178 재발) 방지."""
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
-    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)
+    _arm_fast(monkeypatch)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 곧 종료(_watch_call_clock)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     close_seen = asyncio.Event()
@@ -736,36 +749,232 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_reground_not_rearmed_after_session_swap(monkeypatch):
-    """세션 교체로 _reground_once 가 다시 떠도 이미 얹힌 중반 재접지를 재arm 하지 않는다.
+async def test_reground_survives_session_swap_without_flooding(monkeypatch):
+    """세션 교체로 워처가 다시 떠도 재접지 횟수·간격이 세대를 건너 유지된다.
 
     ⚠ 왜 이 테스트가 있나(실측 회귀): 세션 재연결이 들어오면서 _run_one_generation 이
-      세대마다 _reground_once 를 새로 띄운다. 그런데 상태(_CallState)는 세대를 건너 살기
-      때문에, 무조건 재arm 하면 이미 얹힌 재접지가 되살아나 reground_pending 이 True 로
-      남는다. 그러면 _arm_late_continue 가 "중반 리마인더가 아직 대기 중"으로 보고
-      **후반 리마인더를 통째로 생략**한다 — 15분 실기기 통화에서 스왑 직후 그렇게 후반
-      드리프트 방어가 사라졌고, 비버가 "여기까지 마무리할까?"를 반복했다.
+      세대마다 재접지 워처를 새로 띄운다. 상태(_CallState)는 세대를 건너 살기 때문에,
+      워처가 자기 지역 변수로 "몇 번 넣었나"를 세면 스왑마다 리셋돼 재접지가 폭주하거나
+      (옛 구현처럼) 이미 얹힌 것이 되살아나 다음 arm 을 통째로 삼킨다. de0133b 가 그 사례다.
 
-    단언은 "후반이 arm 됐는가"(continue_injected)다. 재arm 버그가 있으면 여기서 막힌다.
+    새 기계에서 그 방어는 **상태에 있는 횟수·마지막 주입 시각**이다. 스왑 직후(간격 미충족)
+    엔 arm 되지 않고, 간격이 지나면 다시 arm 된다.
     """
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    monkeypatch.setattr(cs, "REGROUND_MIN_GAP_S", 60.0)
 
+    now = asyncio.get_running_loop().time()
     state = cs._CallState()
-    state.reground_reminder = "중반 리마인더"
-    state.continue_reminder = "후반 리마인더"
-    state.call_duration_s = 1.0
-    # 1세대에서 중반 재접지가 이미 얹힌 상태 + fire_at 은 한참 전에 지남(스왑 후 재실행 상황)
-    state.call_start_ts = asyncio.get_running_loop().time() - 100.0
-    state.reground_injected = True
-    state.reground_pending = False
+    state.call_duration_s = 900.0
+    state.call_start_ts = now - 500.0
+    state.reground_count = 1          # 1세대에서 이미 1회 얹혔다
+    state.last_reground_ts = now - 5.0
 
-    await cs._reground_once(None, state)  # 2세대에서 재실행(on_user_turn 경로는 session 미사용)
+    assert cs._reground_due(state, now) == "", "스왑 직후 최소 간격 안에서 재arm 됐다(폭주)"
+    # 간격이 지나면 시간 폴백이 다시 arm 한다(후반 방어가 살아 있다).
+    later = now + cs._reground_gap_s(state) + 1.0
+    assert cs._reground_due(state, later) == "time"
 
-    assert state.continue_injected is True, (
-        "세션 교체 후 후반 리마인더가 arm 되지 않았다 — 중반 재접지가 재arm 되어 "
-        "_arm_late_continue 가 생략됐다(후반 드리프트 방어 소실)"
+
+def test_five_minute_call_still_regrounds_without_any_compression():
+    """⛔ Free 5분 통화는 **압축이 영영 안 걸린다** — 그래도 재접지는 받아야 한다.
+
+    실측: 5분 통화의 최대 컨텍스트는 약 11,000 토큰인데 압축 트리거는 16,000 이다.
+    즉 압축 신호(①선제 ②사후)는 5분 통화에서 **한 번도 뜨지 않는다**. 트리거를 압축 신호로만
+    갈아끼웠다면 Free 사용자는 재접지를 통째로 잃었을 것이다 — 그래서 시간 폴백(③)이
+    "usage 가 안 올 때의 R5 안전망"이 아니라 **5분 통화의 정규 경로**다.
+    근거: docs/20260805_1830_압축-트리거-하향-논증.md §1
+    """
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    now = 1000.0
+    state = cs._CallState()
+    state.call_duration_s = 300.0
+    state.call_start_ts = now
+    state.usage_prompt_peak = 11000            # 5분 통화의 실측 최대 컨텍스트
+
+    # 전제: 이 컨텍스트는 압축 arm 임계(0.85×trigger)에 닿지 않는다.
+    assert state.usage_prompt_peak < trigger * cs.REGROUND_ARM_RATIO, \
+        "테스트 전제 붕괴 — 5분 통화가 압축 임계에 닿는다면 이 테스트를 다시 설계하라"
+
+    gap = cs._reground_gap_s(state)
+    assert gap == 120.0, f"5분 통화 폴백 간격이 120s 가 아니다: {gap}"
+    assert cs._reground_due(state, now + gap - 1) == "", "간격 전에 arm 됐다"
+    assert cs._reground_due(state, now + gap + 1) == "time", \
+        "5분 통화가 재접지를 통째로 잃었다(압축 신호 전용 트리거 회귀)"
+
+    # 5분 동안 2회 — 옛 시각 트리거(0.5·0.8 지점 2회)와 실질 동일하다.
+    state.reground_count, state.last_reground_ts = 1, now + gap
+    assert cs._reground_due(state, now + 2 * gap + 1) == "time"
+    state.reground_count, state.last_reground_ts = 2, now + 2 * gap
+    assert cs._reground_due(state, now + 300) == "", "5분 통화에서 3회째가 arm 됐다(과주입)"
+
+
+@pytest.mark.asyncio
+async def test_late_reminder_actually_attaches_not_just_arms(session_factory, seeded, monkeypatch):
+    """⛔ 통화 하나에 재접지가 **2회 이상 실제로 얹힌다**(arm 만이 아니라).
+
+    옛 기계의 실측 결함: 펌프 게이트가 `not reground_injected`(통화당 1회성)라, 중반
+    재접지가 얹히는 순간 True 로 굳어 **후반 "대화를 더 끌고 가라" 리마인더가 영원히
+    안 얹혔다.** 후반 재접지는 비버가 서버 종료 신호보다 4~16턴 먼저 작별하는 실측
+    3건(call 836/744/782)을 막으려고 넣은 방어인데, 정작 정상 통화에서 죽어 있었다.
+    기존 테스트가 못 잡은 이유는 단언이 "arm 됐는가"까지였기 때문 — 여기서는 **얹힌
+    문구의 개수**를 센다.
+    """
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    _arm_fast(monkeypatch)
+
+    async def pause(_f):
+        await asyncio.sleep(0.3)   # 다음 arm 이 설 시간(간격 0.05s)
+
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+        pause,
+        LiveEvent(kind="in_tr", text="네", is_final=True),      # 1회차 얹기
+        LiveEvent(kind="out_tr", text="그래"),
+        LiveEvent(kind="turn_end"),
+        pause,
+        LiveEvent(kind="in_tr", text="좋아요", is_final=True),   # 2회차 얹기
+        LiveEvent(kind="out_tr", text="응"),
+        LiveEvent(kind="turn_end"),
+    ])
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert len(fake.regrounds) >= 2, \
+        f"재접지가 통화당 1회로 굳었다(후반 드리프트 방어 소실): {len(fake.regrounds)}회"
+    assert all(tc is False for _t, tc in fake.regrounds), "얹기가 완결 턴으로 샜다"
+
+
+# --- 재접지 통합: 압축 신호 트리거 ------------------------------------------ #
+def _fresh_state(duration=900.0, now=1000.0):
+    st = cs._CallState()
+    st.call_duration_s = duration
+    st.call_start_ts = now
+    return st
+
+
+def test_arm_fires_before_compression_not_after():
+    """① 선제 arm: 컨텍스트가 트리거의 85%에 닿으면 **압축이 오기 전에** arm 한다.
+
+    압축 직전에 얹은 요약은 컨텍스트 최신단이라 그 압축을 살아남는다. 압축을 감지한 **뒤**
+    주입하면 '이미 잊은 채로 1~2턴'이 뜬다 — 그래서 임박 신호가 본체다.
+    """
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    st = _fresh_state()
+    st.usage_prompt_peak = int(trigger * 0.5)
+    assert cs._reground_due(st, 1001.0) == "", "절반밖에 안 찼는데 arm 됐다"
+    st.usage_prompt_peak = int(trigger * cs.REGROUND_ARM_RATIO) + 1
+    assert cs._reground_due(st, 1001.0) == "compress", "압축 임박인데 arm 이 안 섰다"
+
+
+def test_compression_detected_from_prompt_drop():
+    """② 사후 감지: prompt 급감이 압축이다(Live 는 압축 이벤트를 주지 않는다).
+
+    ⚠ 미탐(주입 누락)은 무해하고 오탐(불필요 주입)은 이중발화 위험이라, 비율과 절대 낙차를
+      **둘 다** 만족할 때만 압축으로 센다.
+    """
+    st = _fresh_state()
+    for p in (4000, 9000, 16000):               # 트리거(16k)까지 차오른다
+        cs._observe_compression(st, p)
+    assert st.compression_seen == 0 and st.usage_prompt_peak == 16000
+
+    cs._observe_compression(st, 15200)          # 작은 요동 — 압축 아님(낙차 800)
+    assert st.compression_seen == 0, "잡음을 압축으로 셌다(오탐)"
+
+    cs._observe_compression(st, 12000)          # 16k → target 12k: 실제 압축 모양
+    assert st.compression_seen == 1, "현행 16000/12000 압축을 못 봤다(미탐)"
+    assert st.usage_prompt_peak == 12000, "새 사이클 바닥에서 다시 세지 않는다"
+    assert cs._reground_due(st, 1001.0) == "post-compress"
+
+
+def test_close_wins_over_reground_arm():
+    """⛔ 종료가 최우선 — 마무리 구간에서는 어떤 근거로도 arm 하지 않는다(작별 오염 방지)."""
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    st = _fresh_state()
+    st.usage_prompt_peak = trigger             # 압축 임박(가장 강한 근거)
+    assert cs._reground_due(st, 1001.0) == "compress"
+    st.should_close = True
+    assert cs._reground_due(st, 1001.0) == "", "종료 중인데 재접지가 arm 됐다"
+    st.should_close, st.close_seed_sent = False, True
+    assert cs._reground_due(st, 1001.0) == "", "종료 시드 주입 후에 재접지가 arm 됐다"
+    st.close_seed_sent = False
+    st.reground_count = cs.REGROUND_MAX_PER_CALL
+    assert cs._reground_due(st, 1001.0) == "", "통화당 상한을 넘겨 arm 됐다"
+
+
+# --- 재접지 통합: 사이드카는 문장을 만들지 않는다 ---------------------------- #
+def test_brief_drops_closing_vocabulary_slots():
+    """⛔ 최대 신규 위험: 학습자의 "이제 그만할래요"가 슬롯에 실려 **다시 주입**되는 경로.
+
+    태그를 분리해도 소용없다 — 어휘만으로 같은 일이 난다(실측 call 683: 재접지 30초 뒤 작별).
+    방어는 프롬프트가 아니라 코드다: 조립 직전에 종료 어휘가 걸린 슬롯을 통째로 버린다.
+    적대적 페이로드를 넣어 결과에 안 나오는지 단언한다.
+    """
+    from core.persona_prompt import build_reground_brief
+
+    out = build_reground_brief(
+        "선생님", "다정함",
+        mode="chat",
+        covered=["인사말", "이제 그만할래요", "오늘은 여기까지 마무리", "숫자 세기"],
+        topic="슬슬 작별할 시간",
     )
-    assert state.reground_reminder == "후반 리마인더", "후반 문구로 교체되지 않았다"
+    for poison in ("그만", "마무리", "작별", "여기까지"):
+        assert poison not in out, f"종료 어휘가 재접지 주입문에 실렸다: {poison}"
+    # 걸린 원소만 버리고 멀쩡한 것은 남는다(전량 폐기가 아니다).
+    assert "인사말" in out and "숫자 세기" in out
+    # 종료 어휘를 **금지문으로도** 쓰지 않는다 — 금지 예시가 씨앗이 된 전례가 있다.
+    assert "끝내지" not in out and "종료" not in out
+
+
+def test_brief_leads_with_react_to_user_first():
+    """주입은 약 250 토큰으로 사용자의 한마디보다 크다 — '유저에게 먼저 반응' 지시가 앞에 없으면
+    비버가 유저를 무시하고 주입 텍스트에 응답한다(문맥 없는 화제 전환)."""
+    from core.persona_prompt import build_reground_brief
+
+    out = build_reground_brief("선생님", "다정함")
+    head = out[:120]
+    assert "먼저" in head and "반응" in head, f"'유저 먼저'가 앞에 없다: {head}"
+
+
+def test_mode_is_sticky_unless_quote_is_verified():
+    """모드는 서버가 소유한다 — 사이드카 제안은 **전사에 실재하는 인용**으로만 뒤집힌다.
+
+    압축이 통화 초반을 삼키면 사이드카는 최근 몇 턴만 보고 모드를 다르게 부른다. 그때마다
+    바뀌면 비버가 통화 중간에 성격이 바뀐 것처럼 군다(AI 는 증인, 코드가 심판).
+    """
+    tail = "학습자: 그냥 편하게 얘기해요\n선생님: 좋아"
+    st = cs._CallState()
+    st.call_mode = "study"
+
+    cs._apply_mode_proposal(st, "chat", "", tail)                      # 인용 없음
+    assert st.call_mode == "study"
+    cs._apply_mode_proposal(st, "chat", "문법 공부하고 싶어요", tail)   # 전사에 없는 인용(환각)
+    assert st.call_mode == "study", "검증되지 않은 인용으로 모드가 바뀌었다"
+    cs._apply_mode_proposal(st, "말하기", "그냥 편하게 얘기해요", tail)  # 모르는 값
+    assert st.call_mode == "study"
+
+    cs._apply_mode_proposal(st, "chat", "그냥 편하게 얘기해요", tail)    # 실재 인용
+    assert st.call_mode == "chat", "인용이 증명됐는데 모드가 안 바뀌었다"
+
+
+@pytest.mark.asyncio
+async def test_reground_sidecar_failure_keeps_default_brief(monkeypatch):
+    """R5: 사이드카가 죽어도 arm 때 조립해 둔 기본 문구가 그대로 남는다(재접지가 사라지지 않는다)."""
+    async def _boom(*a, **k):
+        raise RuntimeError("sidecar down")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _boom)
+
+    st = cs._CallState()
+    st.reground_persona = ("선생님", "다정함")
+    st.reground_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": 0, "role": "user", "text": "안녕하세요", "pcm": b""}]
+    cs._arm_reground(st, "time")
+    before = st.reground_reminder
+
+    await cs._reground_sidecar(st)   # 예외를 흡수해야 한다
+
+    assert st.reground_pending is True and st.reground_reminder == before
 
 
 @pytest.mark.asyncio
@@ -2790,7 +2999,7 @@ async def test_two_signals_do_not_regroup_into_an_exception_group(
         raise cs._CallFinished()
 
     monkeypatch.setattr(cs, "_watch_session_rotate", _swap)
-    monkeypatch.setattr(cs, "_reground_once", _finish)
+    monkeypatch.setattr(cs, "_reground_watch", _finish)
 
     seen: dict = {}
     with pytest.raises(cs._CallFinished):         # 종료가 스왑을 이긴다
@@ -2809,7 +3018,7 @@ async def test_disconnect_wins_over_swap(session_factory, seeded, monkeypatch):
         raise cs._ClientDisconnect()
 
     monkeypatch.setattr(cs, "_watch_session_rotate", _swap)
-    monkeypatch.setattr(cs, "_reground_once", _disconnect)
+    monkeypatch.setattr(cs, "_reground_watch", _disconnect)
 
     seen: dict = {}
     with pytest.raises(cs._ClientDisconnect):
