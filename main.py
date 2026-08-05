@@ -245,6 +245,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ── (dev 전용) 통화 데모 콘솔 ──
     # 운영(prod)에는 노출하지 않는다. 같은 오리진으로 서빙하므로 CORS 불필요.
     if settings.ENV != "prod":
+        # 캐스케이드(STT→LLM→TTS) 실험 경로 — WS /api/v1/cascade/stream.
+        # prod 에는 마운트조차 하지 않는다(노출 0). normalcall 과 완전히 분리된 경로다.
+        from domains.learning.realtime.cascade_router import router as cascade_router
+
+        app.include_router(cascade_router, prefix=API_PREFIX)
+
+        @app.get("/__cascadedemo", include_in_schema=False)
+        def cascade_demo() -> FileResponse:
+            """캐스케이드 턴 감지 최소루프 데모 HTML(마이크 → STT v2 → 턴 판정 에코)."""
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "cascade_demo.html",
+                media_type="text/html",
+            )
 
         @app.get("/__calldemo", include_in_schema=False)
         def call_demo() -> FileResponse:
