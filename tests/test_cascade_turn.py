@@ -899,3 +899,34 @@ async def test_hook_report_carries_measurement_context(fake_v2, monkeypatch):
     assert report is not None, transport.types()
     assert report["platform"] == "ios" and report["audio_route"] == "speaker", report
     assert report["client_stop_is_lower_bound"] is True   # iOS 는 구조적으로 하한이다
+
+
+@pytest.mark.asyncio
+async def test_hook_unknown_field_values_do_not_drop_the_measurement(fake_v2, monkeypatch):
+    """⭐ 모르는 값이 와도 **측정 자체가 사라지지 않는다.**
+
+    source/sampled_at/stop_measure 를 화이트리스트(Literal)로 두면 클라가 값을 하나 늘리는
+    순간 pydantic 이 **메시지 전체를 거부**해 리포트도 원장 절단도 통째로 날아간다.
+    평문 문자열로 받고 **모르는 값은 보수적인 쪽으로** 해석한다.
+    audio_route 도 자유 문자열이라 새 값(receiver)이 그대로 실려 온다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=0.5, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=4800,
+                 source="native", sampled_at="stop",
+                 stop_measure="hal_drained_estimated",   # ← 아직 없는 값
+                 platform="ios", audio_route="receiver"),  # ← 새로 생긴 라우트
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+
+    report = transport.first("__test_cancel_report")
+    assert report is not None, transport.types()          # 메시지가 통째로 날아가지 않았다
+    assert report["accepted"] is True                     # 원장 절단은 정상 수행
+    assert report["audio_route"] == "receiver"            # 새 라우트가 그대로 실린다
+    assert report["stop_measure"] == "hal_drained_estimated"
+    assert report["client_stop_is_lower_bound"] is True   # 모르는 값 = 안 믿는다(하한)

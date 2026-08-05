@@ -437,8 +437,9 @@ function renderCancelStats() {
     const cs = r.client_stop_ms >= 0 ? `${lb ? '≥ ' : ''}${r.client_stop_ms}ms` : '-';
     const net = r.network_ms >= 0 ? `${lb ? '≤ ' : ''}${r.network_ms}ms` : '-';
     // ⚠ 빈 문자열을 공백으로 두면 'speaker' 와 구별이 안 간다 — **불명이라고 말해야 한다.**
-    const plat = r.platform || '<span class="w">불명</span>';
-    const route = r.audio_route || '<span class="w">라우트 불명</span>';
+    // 클라가 준 문자열은 그대로 넣지 않는다(모르는 값이 와도 화면이 안 깨지게 이스케이프).
+    const plat = r.platform ? esc(r.platform) : '<span class="w">불명</span>';
+    const route = r.audio_route ? esc(r.audio_route) : '<span class="w">라우트 불명</span>';
     const envs = `${plat}/${route}`;
     return `<tr><td>${i + 1}</td><td>${esc(r.turn_id)}</td><td class="muted">${envs}</td><td>${r.rtt_ms}ms</td>` +
       `<td class="${lb ? 'w' : 'ok'}">${cs}</td><td class="muted">${esc(r.stop_measure)}</td>` +

@@ -149,8 +149,12 @@ class ClientPlaybackProgress(BaseModel):
     played_server_bytes: int = 0        # ⭐ 주 계약값(아래 설명)
     played_ms: int = 0                  # 진단용 참고치(원장 절단에 쓰지 않는다)
     discarded_ms: int = 0
-    source: Literal["native", "estimate"] = "estimate"
-    sampled_at: Literal["stop", "cancel"] = "stop"
+    # ⛔ Literal(화이트리스트)을 쓰지 않는다. 모르는 값이 오면 pydantic 이 **메시지 전체를
+    #   거부**해 리포트도 원장 절단도 통째로 날아간다 — 필드 하나 때문에 측정이 사라진다.
+    #   대신 평문 str 로 받고 **모르는 값은 보수적인 쪽으로** 해석한다(native 가 아니면 안 믿고,
+    #   cancel 이 아니면 보정 없음). 클라가 나중에 값을 늘려도 서버는 안 깨진다.
+    source: str = "estimate"        # 'native' 만 신뢰. 그 외/누락 = 안 믿는다
+    sampled_at: str = "stop"        # 'cancel' 이면 정지 지연 보정. 그 외/누락 = 보정 없음
     # 클라가 **자기 안에서** 잰 시간: audio_cancel 수신 → 소리가 멎기까지(ms). 미보고면 -1.
     client_stop_ms: int = -1
     # ⭐ 그 숫자가 **무엇까지 포함하는가**. client_stop_ms 는 값이 항상 오지만 의미가 둘이라,
@@ -161,13 +165,16 @@ class ClientPlaybackProgress(BaseModel):
     #                      스스로 flush)가 그 뒤에 올 수 있어 **실제 무음은 이보다 늦다** = 하한
     #   ⛔ 기본값이 clear_returned 인 이유: **누락 = 안 믿는다**(침묵을 실측으로 오해하지 않는다).
     #   ※ source 와 달리 값을 **버리지는 않는다** — 쓸모 있는 하한이므로 성격만 표시한다.
-    stop_measure: Literal["hal_drained", "clear_returned"] = "clear_returned"
+    stop_measure: str = "clear_returned"   # 'hal_drained' 만 실측. 그 외/누락 = 하한
     # ⭐ 이 측정이 **어떤 환경에서 나왔는지**. 강등률(clear_returned 비율)만 보면 오독한다 —
     #   iOS 나 타임스탬프 미지원 라우트는 HAL 잔량을 잴 방법이 아예 없어 **100% 강등이 정상**
     #   이다. 맥락 없이 숫자만 보면 결함으로 읽힌다. 라우트는 통화 중에도 바뀌므로(이어폰을
     #   뽑으면) 세션이 아니라 **측정마다** 싣는다. 빈 문자열 = 미보고.
-    platform: str = ""      # 'android' | 'ios' | 'web'
-    audio_route: str = ""   # 'speaker' | 'headset' | 'bt_a2dp' | 'bt_hfp' | 'usb' …
+    #   ⭐ 둘 다 **자유 문자열**이다(화이트리스트 없음). 서버는 이 값을 분류표에 넣고 조회하는
+    #   게 아니라 **그룹 키**로만 쓴다 — "같은 라우트에서 hal_drained 가 한 번이라도 나왔나",
+    #   "라우트가 바뀌었는데도 계속 0건인가". 그래서 클라가 값을 늘려도(예: receiver) 그대로 돈다.
+    platform: str = ""      # 'android' | 'ios' | …
+    audio_route: str = ""   # 'speaker' | 'headset' | 'receiver' | 'bt_a2dp' | … (자유)
 
 
 class ClientTestSay(BaseModel):
