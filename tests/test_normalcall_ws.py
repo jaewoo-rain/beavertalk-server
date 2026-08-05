@@ -3025,3 +3025,144 @@ async def test_disconnect_wins_over_swap(session_factory, seeded, monkeypatch):
         await _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen)
     assert seen["types"] == ["_ClientDisconnect", "_SessionSwap"], \
         f"봉투에 신호가 2개 담기지 않았다(테스트 전제 붕괴): {seen}"
+
+
+# --------------------------------------------------------------------------- #
+# (o) 원가 계기판 2단계 — usage 영속화
+# --------------------------------------------------------------------------- #
+# Cloud Logging 보존이 30일이라 그 뒤엔 원가 근거가 사라진다. 통화 행에 남긴다.
+# ⛔ 통화 경로가 아니다 — 저장이 실패해도 통화·전사·분석은 그대로 가야 한다(R5).
+
+def _usage_state(entries, dropped: int = 0):
+    """(prompt, total, in_audio, in_text, out_audio) 튜플로 usage_log 를 만든다."""
+    st = cs._CallState()
+    st.usage_dropped = dropped
+    for i, (prompt, total, ia, it, oa) in enumerate(entries):
+        st.usage_log.append({
+            "t": float(i), "turn": i, "prompt": prompt, "resp": 10, "total": total,
+            "thoughts": 0, "cached": None, "tool_in": None,
+            "in_detail": [("AUDIO", ia), ("TEXT", it)],
+            "out_detail": [("AUDIO", oa)],
+        })
+        st.usage_prompt_peak = max(st.usage_prompt_peak, prompt)
+    return st
+
+
+def test_usage_summary_aggregates_modalities():
+    """요약이 로그와 DB 의 단일 소스 — 모달리티 4항·총합·최대 컨텍스트가 정확해야 한다."""
+    st = _usage_state([(1000, 1100, 900, 100, 40), (2500, 2700, 2300, 200, 60)])
+    s = cs._usage_summary(st)
+    assert s["msgs"] == 2
+    assert s["in_mod"] == {"AUDIO": 3200, "TEXT": 300}
+    assert s["out_mod"] == {"AUDIO": 100}
+    assert s["sum_total"] == 3800
+    assert s["peak_prompt"] == 2500, "최대 컨텍스트가 안 잡혔다(압축·트리거 판단의 핵심 지표)"
+    assert cs._usage_summary(cs._CallState()) is None, "usage 0건은 None(=계측 미수신)이어야 한다"
+
+
+def test_save_call_usage_writes_columns_and_json(session_factory, seeded):
+    """집계 컬럼 + 원본 JSON 이 함께 저장된다. 컬럼으로 뺀 4종 외 모달리티는 JSON 으로 흘러간다."""
+    db = session_factory()
+    try:
+        call_id = svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal")
+        summary = {
+            "msgs": 5, "dropped": 2, "sum_total": 9999, "peak_prompt": 15844,
+            "monotonic": False, "last_prompt": 11695, "last_total": 12000,
+            "sum_prompt": 50000, "sum_resp": 900, "sum_thoughts": 0,
+            "t_first": 0.1, "t_last": 899.0, "compressions": 1, "epochs": 2, "reconnects": 1,
+            "in_mod": {"AUDIO": 300628, "TEXT": 245338, "VIDEO": 7},
+            "out_mod": {"AUDIO": 17600, "TEXT": 440},
+        }
+        assert svc.save_call_usage(db, call_id, summary) is True
+
+        call = db.get(Call, call_id)
+        assert (call.usage_in_audio, call.usage_in_text) == (300628, 245338)
+        assert (call.usage_out_audio, call.usage_out_text) == (17600, 440)
+        assert call.usage_msgs == 5 and call.usage_total == 9999
+        assert call.usage_peak_prompt == 15844
+        # 상한 초과로 버린 개수도 남아야 한다 — Σ가 과소라는 사실이 드러나야 하니까.
+        assert call.usage_json["dropped"] == 2
+        assert call.usage_json["compressions"] == 1 and call.usage_json["reconnects"] == 1
+        # 컬럼 없는 모달리티는 스키마 변경 없이 JSON 으로 받는다.
+        assert call.usage_json["in_other"] == {"VIDEO": 7}
+        assert "out_other" not in call.usage_json
+    finally:
+        db.close()
+
+
+def test_save_call_usage_unknown_call_is_silent(session_factory):
+    """없는 통화면 조용히 False — 계기판 때문에 예외를 올릴 이유가 없다."""
+    db = session_factory()
+    try:
+        assert svc.save_call_usage(db, 999999, {"msgs": 1, "in_mod": {}, "out_mod": {}}) is False
+    finally:
+        db.close()
+
+
+def test_estimate_cost_matches_hand_calculation():
+    """원가는 저장하지 않고 매번 곱한다 — 그 산식이 손계산과 맞는지."""
+    cost = svc.estimate_usage_cost_usd(
+        in_audio=1_000_000, in_text=1_000_000, out_audio=1_000_000, out_text=1_000_000
+    )
+    assert round(cost, 6) == round(3.00 + 0.50 + 12.00 + 2.00, 6)
+    # 실측 call 890 규모(모달리티 합 546k)를 넣어도 자릿수가 맞는지.
+    assert 0 < svc.estimate_usage_cost_usd(in_audio=300628, in_text=245338) < 1.5
+
+
+@pytest.mark.asyncio
+async def test_call_persists_usage_and_survives_save_failure(
+    session_factory, seeded, monkeypatch
+):
+    """통화 1건 끝까지: usage 가 행에 남는다. 그리고 저장이 터져도 통화는 정상 종료된다(R5)."""
+    def _convo():
+        return [
+            LiveEvent(kind="usage",
+                      usage=_FakeUsage(1200, 30, 1400, in_audio=1000, in_text=200)),
+            LiveEvent(kind="out_tr", text="안녕"),
+            LiveEvent(kind="usage",
+                      usage=_FakeUsage(2400, 40, 2700, in_audio=2100, in_text=300)),
+            LiveEvent(kind="turn_end"),
+        ]
+
+    await _run_with_fake(_RegroundFake(_convo()), session_factory, seeded)
+
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.usage_msgs == 2, "usage 가 통화 행에 안 남았다"
+        assert call.usage_in_audio == 3100 and call.usage_in_text == 500
+        assert call.usage_peak_prompt == 2400
+        assert call.status in ("analyzing", "done")
+    finally:
+        db.close()
+
+    # 저장이 터지는 경우 — 통화는 그대로 끝나야 한다(전사·상태 무손상).
+    def _boom(db, call_id, summary):
+        raise RuntimeError("usage table gone")
+
+    monkeypatch.setattr(svc, "save_call_usage", _boom)
+    await _run_with_fake(_RegroundFake(_convo()), session_factory, seeded)
+
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.status in ("analyzing", "done"), "usage 저장 실패가 통화를 죽였다(R5 위반)"
+        assert call.usage_msgs is None, "저장이 실패했는데 값이 남았다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_call_without_usage_leaves_columns_null(session_factory, seeded):
+    """usage 미수신 통화(모킹 세션·Live 실패)는 NULL 로 남는다 — '계측 안 됨'과 '0 토큰'의 구별."""
+    await _run_with_fake(
+        _RegroundFake([LiveEvent(kind="out_tr", text="안녕"), LiveEvent(kind="turn_end")]),
+        session_factory, seeded,
+    )
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.usage_msgs is None and call.usage_json is None
+        assert call.status in ("analyzing", "done")
+    finally:
+        db.close()

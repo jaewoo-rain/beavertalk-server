@@ -717,21 +717,18 @@ def _record_usage(state: _CallState, um) -> None:
         logger.debug("normalcall usage: 적재 실패(무시): %s", exc)
 
 
-def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -> None:
-    """통화 종료 시 usage 시계열을 로그로 방출한다(요약 1줄 + 선택 시계열 1줄).
+def _usage_summary(state: _CallState) -> Optional[dict]:
+    """usage 시계열을 요약 1건으로 접는다(순수 함수 — 로그와 DB 의 **단일 소스**).
 
-    DB 에 쓰지 않는다 — 관측 단계라 Cloud Run 로그로 충분하고, 필드 구조가 확정되기
-    전에 스키마를 박지 않기 위해서다(영속화는 값이 안정화된 뒤 별도 Alembic Rev).
+    로그 줄과 영속화(call.usage_*)가 서로 다른 계산을 하면 "로그엔 이렇게 찍혔는데 DB 엔
+    다른 값"이 된다. 그래서 계산은 여기 한 곳에만 두고, 로그는 이 결과를 문자열로 만들고
+    DB 는 같은 결과를 컬럼에 넣는다.
 
-    형식은 `key=value` 로 못박는다: 나중에 일별 원가 추이가 필요해지면 Cloud Logging
-    로그 기반 메트릭이 **코드 변경 0줄**로 이 줄에서 숫자를 뽑아갈 수 있다.
+    usage 가 한 건도 없으면 None — 호출부가 "계측 미수신"으로 분기한다(0 토큰과 구별).
     """
     log = state.usage_log
     if not log:
-        # usage 가 한 건도 안 왔다 = 필드 미제공이거나 모킹 세션. 원인 추적용으로만 남긴다.
-        logger.info("normalcall usage: call_id=%s type=%s msgs=0 (usage_metadata 미수신)",
-                    call_id, call_type)
-        return
+        return None
 
     def _s(key: str) -> int:
         return sum(int(e[key] or 0) for e in log)
@@ -749,16 +746,49 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
     # 단조성: total 이 한 번도 줄지 않으면 누적 의심, 줄었으면 증분 확정(+압축 발동 신호).
     totals = [int(e["total"] or 0) for e in log]
     monotonic = all(b >= a for a, b in zip(totals, totals[1:]))
+    return {
+        "msgs": len(log),
+        "dropped": state.usage_dropped,
+        "t_first": times[0] if times else None,
+        "t_last": times[-1] if times else None,
+        "sum_prompt": _s("prompt"), "sum_resp": _s("resp"),
+        "sum_thoughts": _s("thoughts"), "sum_total": _s("total"),
+        "last_prompt": last["prompt"], "last_total": last["total"],
+        "monotonic": monotonic,
+        "in_mod": in_mod, "out_mod": out_mod,
+        # 압축·재연결 관측(원가 추이와 함께 봐야 의미가 있는 값들).
+        "peak_prompt": state.usage_prompt_peak,
+        "compressions": state.compression_seen,
+        "epochs": state.session_epoch, "reconnects": state.reconnects,
+    }
+
+
+def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -> None:
+    """통화 종료 시 usage 요약을 로그로 방출한다(요약 1줄 + 선택 시계열 1줄).
+
+    ⛔ 이 줄의 형식을 바꾸지 마라. `key=value` 로 못박아 둔 덕에 Cloud Logging 로그 기반
+    메트릭이 **코드 변경 0줄**로 숫자를 뽑아가고 있고, 조사도 이 줄을 grep 해서 한다.
+    영속화(2단계)가 붙은 뒤에도 로그는 그대로다 — DB 는 30일 이후를 위한 것이고,
+    로그는 지금 당장 보기 위한 것이라 둘 다 필요하다.
+    """
+    s = _usage_summary(state)
+    if s is None:
+        # usage 가 한 건도 안 왔다 = 필드 미제공이거나 모킹 세션. 원인 추적용으로만 남긴다.
+        logger.info("normalcall usage: call_id=%s type=%s msgs=0 (usage_metadata 미수신)",
+                    call_id, call_type)
+        return
+    in_mod, out_mod = s["in_mod"], s["out_mod"]
 
     logger.info(
         "normalcall usage: call_id=%s type=%s msgs=%d dropped=%d t=[%s..%s] "
         "sum_prompt=%d sum_resp=%d sum_thoughts=%d sum_total=%d "
         "last_prompt=%s last_total=%s monotonic=%s "
         "sum_in=%s sum_out=%s",
-        call_id, call_type, len(log), state.usage_dropped,
-        f"{times[0]:.1f}" if times else "?", f"{times[-1]:.1f}" if times else "?",
-        _s("prompt"), _s("resp"), _s("thoughts"), _s("total"),
-        last["prompt"], last["total"], monotonic,
+        call_id, call_type, s["msgs"], s["dropped"],
+        f"{s['t_first']:.1f}" if s["t_first"] is not None else "?",
+        f"{s['t_last']:.1f}" if s["t_last"] is not None else "?",
+        s["sum_prompt"], s["sum_resp"], s["sum_thoughts"], s["sum_total"],
+        s["last_prompt"], s["last_total"], s["monotonic"],
         # 모달리티 분해 — 오디오/텍스트 단가가 6배 차이라 이게 있어야 원가가 계산된다.
         ",".join(f"{k}={v}" for k, v in sorted(in_mod.items())) or "-",
         ",".join(f"{k}={v}" for k, v in sorted(out_mod.items())) or "-",
@@ -766,8 +796,30 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
 
     if _settings.LIVE_USAGE_TRACE:
         # 시계열 상세: 압축 발동 판정용(톱니 = 발동, 단조증가 = 미발동).
-        trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in log)
+        trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in state.usage_log)
         logger.info("normalcall usage trace: call_id=%s t:prompt/total %s", call_id, trace)
+
+
+async def _persist_usage(db_session_factory, state: _CallState, call_id: int | None) -> None:
+    """usage 요약을 통화 행에 남긴다(원가 계기판 2단계 — 로그 30일 보존을 넘기기 위해).
+
+    ⛔ 통화 경로가 아니다. 통화 루프가 끝난 뒤 붙는 부가 작업이라, 실패해도 전사 저장·분석·
+      통화 종료는 그대로 간다(R5). 그래서 _persist_remaining 과 **트랜잭션을 나눈다** —
+      한 트랜잭션에 묶으면 usage 오류 하나가 통화 기록을 같이 죽인다.
+    ⛔ usage 가 한 건도 없으면 **아무것도 쓰지 않는다.** NULL 로 남아야 "계측 안 됨"과
+      "정말 0 토큰"이 구별된다.
+    """
+    if call_id is None:
+        return
+    summary = _usage_summary(state)
+    if summary is None:
+        return
+    try:
+        await svc.run_db(
+            db_session_factory, lambda db: svc.save_call_usage(db, call_id, summary)
+        )
+    except Exception as exc:  # noqa: BLE001 - 계기판 저장 실패가 통화를 죽이면 안 된다(R5)
+        logger.warning("normalcall usage: 영속화 실패(무시) call_id=%s: %s", call_id, exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -1137,6 +1189,9 @@ async def run_call(
         # 방출한다. 로그가 통화후 파이프라인을 막지 않게 예외는 전량 흡수(R5).
         with contextlib.suppress(Exception):
             _log_usage_summary(state, call_id, call_type)
+        # 2단계(영속화): 로그는 30일이면 사라진다. 원가 추이를 계속 보려면 행에 남아야 한다.
+        # 예외는 함수 안에서 흡수한다(R5) — 통화 기록·분석과 트랜잭션을 나눠 둔 이유.
+        await _persist_usage(db_session_factory, state, call_id)
         # P2.6: 전사(텍스트) 선저장 — 오디오 MP3 변환·업로드(~9s)는 pending 으로 분리.
         pending_audio = await _persist_remaining(db_session_factory, state, call_id, member_id)
         # 분석 태스크를 먼저 생성(분석 우선 착수) → 오디오 업로드는 병렬 후행.
