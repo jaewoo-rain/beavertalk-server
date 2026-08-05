@@ -403,13 +403,43 @@ function onMsg(ev) {
    갈라서** 낸다 — 하한과 실측을 섞어 중앙값을 내면 판정이 뒤엉킨다. */
 const cancelRuns = [];
 
+/* hal_drained 가 0건일 때의 해석 — **라우트를 아는지에 따라 결론이 갈린다.**
+   원인이 둘인데(① 그 라우트가 타임스탬프를 지원 안 함 ② 플래그가 비정상적으로 오래 서 있음)
+   와이어만으로는 못 가른다. 그래서 **가를 수 있는 조건일 때만** 결함을 의심하고, 라우트를
+   모르면 판정을 보류한다 — 못 읽은 라우트를 speaker 로 오해하면 틀린 전제로 결론이 난다. */
+function zeroDiagnosis() {
+  const androids = cancelRuns.filter(r => r.platform === 'android');
+  if (!androids.length) {
+    return `이 기기·라우트에서는 HAL 잔량을 잴 방법이 없는 것이다(iOS 이거나 타임스탬프 미지원
+            라우트) — <b>결함이 아니라 발견</b>이다. 그대로 보고하면 된다.`;
+  }
+  const routes = [...new Set(androids.map(r => r.audio_route).filter(Boolean))];
+  if (!routes.length) {
+    return `<b class="w">판정 보류 — android 인데 라우트가 불명이다.</b>
+            '지원 안 하는 라우트'인지 '플래그가 오래 서 있는 결함'인지 <b>가릴 수 없다.</b>
+            라우트를 읽을 수 있게 하거나, <b>이어폰을 꽂았다 빼며 재측정</b>하시라 —
+            라우트가 바뀌었는데도 계속 0건이면 결함 쪽이다.`;
+  }
+  if (routes.length >= 2) {
+    return `<b class="err">결함 의심 — android 에서 서로 다른 라우트(${routes.map(esc).join(', ')})
+            ${routes.length}종 전부 0건이다.</b> 라우트 미지원으로는 설명이 안 된다.
+            표의 '환경' 열과 함께 클라에 전달하시라.`;
+  }
+  return `android · 라우트 <b>${esc(routes[0])}</b> 에서만 0건이다. <b>다른 라우트로 바꿔
+          재측정하면 갈린다</b> — 이어폰을 꽂고(또는 빼고) 다시 해보시라. 거기서 hal_drained 가
+          잡히면 이 라우트가 타임스탬프를 지원 안 하는 것이고, 거기서도 0건이면 결함 쪽이다.`;
+}
+
 function renderCancelStats() {
   const body = $('#cTbl').querySelector('tbody');
   body.innerHTML = cancelRuns.map((r, i) => {
     const lb = r.client_stop_is_lower_bound;
     const cs = r.client_stop_ms >= 0 ? `${lb ? '≥ ' : ''}${r.client_stop_ms}ms` : '-';
     const net = r.network_ms >= 0 ? `${lb ? '≤ ' : ''}${r.network_ms}ms` : '-';
-    const envs = [r.platform, r.audio_route].filter(Boolean).join('/') || '<span class="muted">미보고</span>';
+    // ⚠ 빈 문자열을 공백으로 두면 'speaker' 와 구별이 안 간다 — **불명이라고 말해야 한다.**
+    const plat = r.platform || '<span class="w">불명</span>';
+    const route = r.audio_route || '<span class="w">라우트 불명</span>';
+    const envs = `${plat}/${route}`;
     return `<tr><td>${i + 1}</td><td>${esc(r.turn_id)}</td><td class="muted">${envs}</td><td>${r.rtt_ms}ms</td>` +
       `<td class="${lb ? 'w' : 'ok'}">${cs}</td><td class="muted">${esc(r.stop_measure)}</td>` +
       `<td>${net}</td><td>${r.unplayed_ms}ms</td>` +
@@ -438,11 +468,7 @@ function renderCancelStats() {
       (clr.length ? ` (clear_returned ${clr.length}건은 <b>하한</b>이라 판정에 쓰지 않는다).` : '.') +
       ` 몇 번 더 끊어 보시라.` +
       (total >= 15 ? ` <b class="w">⚠ ${total}회를 눌렀는데도 0건이면 그 자체가 결과다</b> — ` +
-        (cancelRuns.some(r => r.platform === 'android')
-          ? `<b class="err">환경이 android 인데 0건이면 클라에 알려야 한다</b>(플래그가 비정상적으로
-             오래 서 있다는 뜻). 표의 '환경' 열을 함께 전달하시라.`
-          : `이 기기·라우트에서는 HAL 잔량을 잴 방법이 없는 것이다(iOS 이거나 타임스탬프 미지원
-             라우트) — 결함이 아니라 발견이다. 그대로 보고하면 된다.`) : '');
+        zeroDiagnosis() : '');
   } else if (hal.length < NEED) {
     v.className = 'tip muted';
     v.innerHTML = `<b>표본 부족 — hal_drained ${hal.length}/${NEED}건.</b> ` +
