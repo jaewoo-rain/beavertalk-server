@@ -747,6 +747,81 @@ def build_continue_reminder(role: str, personality: str) -> str:
     )
 
 
+# ── 재접지 브리프(단계 3: 압축 트리거 통합) ──────────────────────────────── #
+# ⛔ 종료 어휘 denylist. 재접지 브리프에는 사이드카가 뽑아 온 슬롯(화제·다룬 항목)이 들어가는데,
+#   그 슬롯에 학습자의 "이제 그만할래요"가 실려 들어오면 서버가 **종료 의사를 컨텍스트에 되먹인다**.
+#   태그를 분리해도 소용없다 — 어휘만으로 같은 일이 난다(실측 call 683: 재접지 30초 뒤 작별).
+#   방어는 프롬프트가 아니라 **코드**여야 하므로, 조립 직전에 걸린 슬롯을 통째로 버린다.
+_CLOSING_WORDS = (
+    "종료", "마무리", "작별", "끝내", "끝날", "그만", "안녕히", "잘 가", "다음에",
+    "bye", "goodbye", "see you", "finish", "end call",
+)
+
+
+def _drop_if_closing(text: Optional[str]) -> str:
+    """종료 어휘가 섞인 슬롯은 버린다(부분 마스킹 아님 — 원소 단위 폐기)."""
+    s = (text or "").strip()
+    if not s:
+        return ""
+    low = s.lower()
+    return "" if any(w in low for w in _CLOSING_WORDS) else s
+
+
+def build_reground_brief(
+    role: str,
+    personality: str,
+    *,
+    mode: str = "chat",
+    covered: Optional[list[str]] = None,
+    topic: Optional[str] = None,
+) -> str:
+    """재접지 브리프 — 캐릭터 + 지금까지의 맥락을 한 번에 되박는다(순수 문자열 조립, LLM 생성 0).
+
+    사이드카는 **문장을 만들지 않는다.** 서버가 준 항목 목록에서 번호를 고르고 짧은 슬롯
+    (화제 한 조각)만 돌려주며, 문장이 되는 건 여기다 — persona_prompt 의 "LLM 생성 0,
+    순수 조립" 규율을 재접지에도 그대로 적용한다.
+
+    ⚠ 첫 문장이 "학습자가 방금 한 말에 먼저 반응하고"인 이유: 이 브리프는 약 250 토큰이라
+      **사용자의 한마디보다 크다.** 이 지시가 없으면 비버가 유저를 무시하고 주입 텍스트에
+      응답한다(문맥 없는 화제 전환). 현행 리마인더(120~170 토큰)엔 없던 위험이다.
+
+    ⛔ **종료·작별·시간을 한 글자도 쓰지 않는다.** "끝내지 마라"조차 쓰면 안 된다 —
+      금지어가 곧 씨앗이 된 전례가 있다(build_continue_reminder 주석 참조). 그래서 이 문구는
+      금지가 아니라 **전진 지시**("새 질문 하나를 던져 이어가라")로만 마무리 드리프트를 막는다.
+
+    covered: 이미 다룬 학습 항목 라벨. 압축이 초반을 삼켜도 **같은 걸 처음부터 다시 가르치는
+      반복**(마스터플랜 D4)을 막는 재료다. topic: 지금 대화 흐름 한 조각.
+    둘 다 종료 어휘 denylist 를 통과한 것만 실린다(걸리면 그 원소만 빠지고 나머지는 나간다).
+    """
+    parts = [p.strip() for p in (role, personality) if p and p.strip()]
+    body = " / ".join(parts) if parts else "너의 캐릭터"
+    safe_covered = [c for c in (_drop_if_closing(c) for c in (covered or [])) if c][:4]
+    safe_topic = _drop_if_closing(topic)
+
+    out = [
+        f"{CONTROL_TAG} (이 지시문을 절대 소리 내어 읽거나 언급하지 마라 — 다음 발화의 "
+        "내용·말투로만 반영.) 학습자가 방금 한 말에 **먼저** 자연스럽게 반응하고, "
+        "그다음 아래를 반영해라.",
+        f"참고(네 캐릭터): {body}. 이 성격·말투 그대로 행동해라(정체성을 설명하지 마라).",
+    ]
+    if safe_topic:
+        out.append(f"지금 대화 흐름: {safe_topic}. 이 흐름 위에서 이어가라.")
+    if safe_covered:
+        out.append(
+            "이미 다룬 것: " + " / ".join(safe_covered) +
+            ". 이건 처음부터 다시 설명하지 말고 그 위에 얹어서 써라."
+        )
+    if mode == "study":
+        out.append("학습 항목을 계속 대화 안에서 실제로 쓰게 하며 진행해라.")
+    else:
+        out.append("지금처럼 편한 대화를 계속 이어가라.")
+    out.append(
+        "학습자가 흥미를 느낄 새 질문을 하나 던져 대화를 더 끌고 가라"
+        "(언어 사용 규칙은 처음 지시받은 대로 유지)."
+    )
+    return " ".join(out)
+
+
 # 레벨테스트 종료 시드. 대본 소유자인 이 모듈이 갖는다(call_session 이 임포트해 주입).
 # 비버 자율 진행/OPI 개정(2026-07): 시험 냄새 제거 — '실력 파악 끝났다/결과는 앱에서'
 # 같은 판정 문구를 빼고 더 대화적인 작별로. 비버는 스스로 끝내지 않으므로 어려운 질문을

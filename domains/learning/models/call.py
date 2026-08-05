@@ -5,7 +5,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Index, Integer, Text, text
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    Text,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimestampMixin
@@ -68,6 +78,48 @@ class Call(Base, TimestampMixin):
     )
     # (D15) 유효통화 컬럼 3종(is_valid_call/user_turn_count/user_char_count)은 폐지 —
     # 통화 수 파생값은 item_evidence 의 "증거통화"(distinct call)로 계산한다.
+
+    # ── 원가 계기판 2단계: Live usage 영속화 (2026-08-05) ────────────────────
+    # 🧒 왜 DB 에 남기나: 통화 원가는 지금까지 로그로만 봤는데 Cloud Logging 보존이 30일이라
+    #   그 뒤엔 사라진다. 무제한 플랜을 열면 원가 추이를 계속 봐야 하므로 통화 행에 남긴다.
+    #
+    # ⛔ 전부 NULL 허용이다. NULL = "계측이 안 됐다"(구 통화·모킹 세션·Live 실패)이고
+    #   0 = "정말 0 토큰"이다 — 둘을 구별할 수 있어야 표본을 신뢰할 수 있다.
+    #
+    # ⛔ 원가(달러) 컬럼은 **일부러 만들지 않았다.** 단가는 벤더가 바꾼다. 토큰은 사실이고
+    #   원가는 파생 계산이라, 달러를 박아 두면 단가가 바뀐 순간 과거와 현재를 같은 잣대로
+    #   못 본다. 산식은 normalcall_service.estimate_usage_cost_usd 한 곳에만 둔다.
+    #   (레벨 시스템 관통 원칙 ② — 증거가 원본, 나머지는 파생 계산.)
+    #
+    # 왜 모달리티 4항이 각각 컬럼인가: 단가가 전부 다르다(입력 오디오 $3 / 입력 텍스트 $0.5 /
+    # 출력 오디오 $12 / 출력 텍스트 $2). 합쳐 두면 원가를 계산할 수가 없다.
+    usage_msgs: Mapped[Optional[int]] = mapped_column(
+        Integer, comment="Live usage 관측 메시지 수(0/NULL = 미수신)",
+    )
+    usage_in_audio: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="입력 오디오 토큰 합($3.00/1M)",
+    )
+    usage_in_text: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="입력 텍스트 토큰 합($0.50/1M)",
+    )
+    usage_out_audio: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="출력 오디오 토큰 합($12.00/1M)",
+    )
+    usage_out_text: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="출력 텍스트 토큰 합($2.00/1M)",
+    )
+    usage_total: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="API 총 토큰 합(모달리티 4항의 합이 아니다 — thoughts·cached 포함)",
+    )
+    usage_peak_prompt: Mapped[Optional[int]] = mapped_column(
+        Integer, comment="이 통화가 도달한 최대 컨텍스트(압축·트리거 튜닝의 핵심 지표)",
+    )
+    # 나머지 요약 원본. ⛔ JSONB 아님 — 프로젝트 규약(sqlite 테스트 호환). 집계는 위 컬럼이
+    # 담당하므로 JSONB 의 인덱싱 이점이 필요 없다. ⛔ 턴별 시계열은 넣지 않는다(통화당
+    # 최대 400엔트리 ≈ 48KB — 1만 통화면 480MB). 시계열이 필요한 건 조사 기간뿐이고 로그로 충분.
+    usage_json: Mapped[Optional[dict]] = mapped_column(
+        JSON, comment="usage 요약 원본(dropped/monotonic/last/thoughts/기타 모달리티/재연결·압축 수)",
+    )
 
     member: Mapped["Member"] = relationship(back_populates="calls")
     character: Mapped["Character"] = relationship(lazy="select")  # 단방향(필요 시 쿼리에서 joinedload)

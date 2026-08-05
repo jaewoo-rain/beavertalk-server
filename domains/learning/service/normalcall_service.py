@@ -637,6 +637,80 @@ def finalize_call(db: Session, call_id: int, *, total_time: int, status: str) ->
     db.commit()
 
 
+# ── 원가 계기판 2단계: usage 영속화 + 원가 산식 ─────────────────────────────
+# Live 토큰 단가(USD / 1M 토큰). Vertex·AI Studio 동일(2026-08 기준).
+# ⛔ 이 표를 DB 에 넣지 마라. 단가는 벤더가 바꾸는 값이고, 통화 행에 달러를 박아 두면
+#   단가가 바뀐 순간 과거와 현재를 같은 잣대로 못 본다. 토큰은 사실이고 원가는 파생이다.
+#   나중에 회계(실청구액 대사)가 필요해지면 여기에 적용일자를 붙여 확장한다.
+LIVE_TOKEN_PRICE_USD = {
+    "in_audio": 3.00,
+    "in_text": 0.50,
+    "out_audio": 12.00,
+    "out_text": 2.00,
+}
+
+
+def estimate_usage_cost_usd(
+    *, in_audio: int = 0, in_text: int = 0, out_audio: int = 0, out_text: int = 0
+) -> float:
+    """모달리티 4항 × 단가 = 통화 원가(USD). call.usage_* 컬럼을 그대로 넘기면 된다.
+
+    4항을 나눠 두는 이유가 여기 있다 — 단가가 최대 24배까지 차이난다(텍스트 입력 $0.5 vs
+    오디오 출력 $12). 합쳐 놓은 숫자로는 원가를 계산할 수가 없다.
+    """
+    p = LIVE_TOKEN_PRICE_USD
+    return (
+        in_audio * p["in_audio"] + in_text * p["in_text"]
+        + out_audio * p["out_audio"] + out_text * p["out_text"]
+    ) / 1_000_000
+
+
+def save_call_usage(db: Session, call_id: int, summary: dict) -> bool:
+    """Live usage 요약을 통화 행에 남긴다(원가 계기판 2단계). 저장했으면 True.
+
+    call_session._usage_summary 가 만든 요약을 받는다 — 로그 줄과 **같은 계산 결과**다.
+    자주 집계하는 값(모달리티 4항·총합·최대 컨텍스트·메시지 수)만 컬럼으로 승격하고,
+    나머지는 usage_json 에 통째로 둔다(스키마를 안 바꾸고 새 필드를 받는 그릇).
+
+    ⛔ 통화가 없으면 조용히 False — 계기판 때문에 예외를 올릴 이유가 없다(R5).
+    설계 근거: docs/20260805_1950_원가계기판-2단계-영속화-설계.md
+    """
+    call = db.get(Call, call_id)
+    if call is None:
+        return False
+    in_mod = summary.get("in_mod") or {}
+    out_mod = summary.get("out_mod") or {}
+    call.usage_msgs = int(summary.get("msgs") or 0)
+    call.usage_in_audio = int(in_mod.get("AUDIO") or 0)
+    call.usage_in_text = int(in_mod.get("TEXT") or 0)
+    call.usage_out_audio = int(out_mod.get("AUDIO") or 0)
+    call.usage_out_text = int(out_mod.get("TEXT") or 0)
+    call.usage_total = int(summary.get("sum_total") or 0)
+    call.usage_peak_prompt = int(summary.get("peak_prompt") or 0)
+    # 컬럼으로 뺀 4종(AUDIO/TEXT × in/out) 외의 모달리티가 오면 여기 남는다 —
+    # 새 모달리티(VIDEO 등)가 생겨도 컬럼 추가 없이 관측이 이어진다.
+    extra_in = {k: v for k, v in in_mod.items() if k not in ("AUDIO", "TEXT")}
+    extra_out = {k: v for k, v in out_mod.items() if k not in ("AUDIO", "TEXT")}
+    call.usage_json = {
+        "dropped": summary.get("dropped"),
+        "monotonic": summary.get("monotonic"),
+        "last_prompt": summary.get("last_prompt"),
+        "last_total": summary.get("last_total"),
+        "sum_prompt": summary.get("sum_prompt"),
+        "sum_resp": summary.get("sum_resp"),
+        "sum_thoughts": summary.get("sum_thoughts"),
+        "t_first": summary.get("t_first"),
+        "t_last": summary.get("t_last"),
+        "compressions": summary.get("compressions"),
+        "epochs": summary.get("epochs"),
+        "reconnects": summary.get("reconnects"),
+        **({"in_other": extra_in} if extra_in else {}),
+        **({"out_other": extra_out} if extra_out else {}),
+    }
+    db.commit()  # R3 — 쓰기는 service 가 명시적으로 커밋
+    return True
+
+
 def set_status(db: Session, call_id: int, status: str) -> None:
     """통화 분석 상태만 갱신한다(ongoing/analyzing/done/failed)."""
     call = db.get(Call, call_id)
