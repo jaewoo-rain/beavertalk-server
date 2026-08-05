@@ -131,9 +131,24 @@
         <div id="cDemote" class="big">-</div>
       </div>
     </div>
+    <div class="tip muted" style="border-left-color:var(--warn)">
+      ⚠ <b>강등률만 보고 판정하지 마라 — 높은 게 정상일 수 있다.</b>
+      강등 조건은 클라의 <code>write_in_flight</code> 인데, 그 플래그가 서 있는 시간의 대부분은
+      <code>AudioTrack.write(WRITE_BLOCKING)</code> <b>그 자체</b>다(수십 ms). 그건 재생을 실시간에
+      맞추는 정상 동작이고, <b>그 구간의 강등은 맞는 판정</b>이다(진짜 write 중이라 실제 무음은 나중이다).
+      <div style="margin-top:6px">
+        · <b>50~70% 강등</b> → 정상일 가능성이 크다. write 체류 비중을 반영할 뿐이다<br>
+        · <b>iOS · 타임스탬프 미지원 라우트</b> → <b>100% 강등이 당연하다</b>(HAL 잔량을 잴 방법이 없다)<br>
+        · <b>결함 신호는 강등률이 아니다</b> — <code>platform=android</code> + 잔량을 잴 수 있는
+          라우트인데도 <b>15회를 넘겨 hal_drained 가 0건</b>인 경우다. 그건 플래그가 비정상적으로
+          오래 서 있다는 뜻이라 클라에 알려야 한다
+      </div>
+    </div>
+    <div class="row" style="display:none">
+    </div>
     <div id="cVerdict" class="tip muted">아직 측정 없음.</div>
     <table id="cTbl">
-      <thead><tr><th>#</th><th>턴</th><th>왕복(⚠포함)</th><th>클라 정지</th><th>측정 지점</th><th>네트워크</th><th>버려짐</th><th>절단 결과</th></tr></thead>
+      <thead><tr><th>#</th><th>턴</th><th>환경</th><th>왕복(⚠포함)</th><th>클라 정지</th><th>측정 지점</th><th>네트워크</th><th>버려짐</th><th>절단 결과</th></tr></thead>
       <tbody></tbody>
     </table>
     <div id="cancelReport" class="muted" style="margin-top:8px"></div>
@@ -374,7 +389,8 @@ function onMsg(ev) {
     // 걸린다) → 정직하게 clear_returned = **하한**으로 보고한다. 실제 무음은 이보다 늦다.
     sendCtl({ type:'playback_progress', turn_id:m.turn_id, epoch:m.epoch,
               played_server_bytes:playedBytes, source:'native', sampled_at:'stop',
-              client_stop_ms:clientStopMs, stop_measure:'clear_returned' });
+              client_stop_ms:clientStopMs, stop_measure:'clear_returned',
+              platform:'web', audio_route:'browser' });
     log(`✋ audio_cancel ${m.turn_id} → 정지·폐기, 재생 ${playedBytes}B 보고(클라 자체 ${clientStopMs}ms)`, 'w');
   }
   else if (m.type === '__test_cancel_report') { showCancelReport(m); }
@@ -393,7 +409,8 @@ function renderCancelStats() {
     const lb = r.client_stop_is_lower_bound;
     const cs = r.client_stop_ms >= 0 ? `${lb ? '≥ ' : ''}${r.client_stop_ms}ms` : '-';
     const net = r.network_ms >= 0 ? `${lb ? '≤ ' : ''}${r.network_ms}ms` : '-';
-    return `<tr><td>${i + 1}</td><td>${esc(r.turn_id)}</td><td>${r.rtt_ms}ms</td>` +
+    const envs = [r.platform, r.audio_route].filter(Boolean).join('/') || '<span class="muted">미보고</span>';
+    return `<tr><td>${i + 1}</td><td>${esc(r.turn_id)}</td><td class="muted">${envs}</td><td>${r.rtt_ms}ms</td>` +
       `<td class="${lb ? 'w' : 'ok'}">${cs}</td><td class="muted">${esc(r.stop_measure)}</td>` +
       `<td>${net}</td><td>${r.unplayed_ms}ms</td>` +
       `<td>${r.accepted ? esc(r.spoken_text) : `<span class="err">${esc(r.note)}</span>`}</td></tr>`;
@@ -420,9 +437,12 @@ function renderCancelStats() {
     v.innerHTML = `<b>판정 불가 — hal_drained 표본 0건</b>` +
       (clr.length ? ` (clear_returned ${clr.length}건은 <b>하한</b>이라 판정에 쓰지 않는다).` : '.') +
       ` 몇 번 더 끊어 보시라.` +
-      (total >= 15 ? ` <b class="w">⚠ ${total}회를 눌렀는데도 0건이면 그 자체가 결과다</b> —
-        이 기기·라우트에서는 HAL 잔량을 못 재는 것이다(iOS 이거나 타임스탬프 미지원 라우트).
-        그대로 보고하면 된다.` : '');
+      (total >= 15 ? ` <b class="w">⚠ ${total}회를 눌렀는데도 0건이면 그 자체가 결과다</b> — ` +
+        (cancelRuns.some(r => r.platform === 'android')
+          ? `<b class="err">환경이 android 인데 0건이면 클라에 알려야 한다</b>(플래그가 비정상적으로
+             오래 서 있다는 뜻). 표의 '환경' 열을 함께 전달하시라.`
+          : `이 기기·라우트에서는 HAL 잔량을 잴 방법이 없는 것이다(iOS 이거나 타임스탬프 미지원
+             라우트) — 결함이 아니라 발견이다. 그대로 보고하면 된다.`) : '');
   } else if (hal.length < NEED) {
     v.className = 'tip muted';
     v.innerHTML = `<b>표본 부족 — hal_drained ${hal.length}/${NEED}건.</b> ` +

@@ -873,3 +873,29 @@ async def test_hook_stop_measure_hal_drained_is_taken_as_actual(fake_v2, monkeyp
     assert report is not None and report["client_stop_is_lower_bound"] is False, report
     assert report["stop_measure"] == "hal_drained"
     assert report["client_stop_ms"] == 88
+
+
+@pytest.mark.asyncio
+async def test_hook_report_carries_measurement_context(fake_v2, monkeypatch):
+    """측정 맥락(플랫폼·라우트)이 리포트에 그대로 실린다.
+
+    강등률(clear_returned 비율)은 **맥락 없이 읽으면 오독한다** — iOS·타임스탬프 미지원
+    라우트는 HAL 잔량을 잴 방법이 없어 100% 강등이 정상이다. 그래서 측정마다 환경을 싣는다
+    (라우트는 통화 중에도 바뀌므로 세션이 아니라 측정 단위여야 한다).
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=0.5, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=4800,
+                 source="native", sampled_at="stop", client_stop_ms=64,
+                 stop_measure="clear_returned", platform="ios", audio_route="speaker"),
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+    report = transport.first("__test_cancel_report")
+    assert report is not None, transport.types()
+    assert report["platform"] == "ios" and report["audio_route"] == "speaker", report
+    assert report["client_stop_is_lower_bound"] is True   # iOS 는 구조적으로 하한이다

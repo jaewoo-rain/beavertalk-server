@@ -871,6 +871,8 @@ class CascadeSession:
                     client_stop_ms=client_stop_ms,
                     client_stop_is_lower_bound=lower_bound,
                     stop_measure=progress.stop_measure,
+                    platform=progress.platform,
+                    audio_route=progress.audio_route,
                     network_ms=network_ms,
                     sent_bytes=sent,
                     played_server_bytes=progress.played_server_bytes,

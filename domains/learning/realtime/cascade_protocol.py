@@ -162,6 +162,12 @@ class ClientPlaybackProgress(BaseModel):
     #   ⛔ 기본값이 clear_returned 인 이유: **누락 = 안 믿는다**(침묵을 실측으로 오해하지 않는다).
     #   ※ source 와 달리 값을 **버리지는 않는다** — 쓸모 있는 하한이므로 성격만 표시한다.
     stop_measure: Literal["hal_drained", "clear_returned"] = "clear_returned"
+    # ⭐ 이 측정이 **어떤 환경에서 나왔는지**. 강등률(clear_returned 비율)만 보면 오독한다 —
+    #   iOS 나 타임스탬프 미지원 라우트는 HAL 잔량을 잴 방법이 아예 없어 **100% 강등이 정상**
+    #   이다. 맥락 없이 숫자만 보면 결함으로 읽힌다. 라우트는 통화 중에도 바뀌므로(이어폰을
+    #   뽑으면) 세션이 아니라 **측정마다** 싣는다. 빈 문자열 = 미보고.
+    platform: str = ""      # 'android' | 'ios' | 'web'
+    audio_route: str = ""   # 'speaker' | 'headset' | 'bt_a2dp' | 'bt_hfp' | 'usb' …
 
 
 class ClientTestSay(BaseModel):
@@ -328,6 +334,8 @@ class ServerTestCancelReport(BaseModel):
     client_stop_ms: int = -1        # 클라 자체 소요(-1 = 미보고)
     client_stop_is_lower_bound: bool = True   # True = 실제 무음은 이보다 늦다
     stop_measure: str = "clear_returned"      # 그 값이 무엇까지 포함하는가
+    platform: str = ""                        # 측정 맥락(강등률 해석에 필수)
+    audio_route: str = ""
     network_ms: int = -1            # rtt − client_stop (둘 다 있을 때만)
     sent_bytes: int = 0
     played_server_bytes: int = 0
