@@ -2675,3 +2675,54 @@ async def test_call_end_releases_pcm_but_still_feeds_nationality(
         "통화가 끝났는데 세그먼트 PCM 이 남아 있다(B1 재발)"
     assert got and isinstance(got[0], bytes), "국적 추론 훅이 바이트를 못 받았다"
     assert got[0] == b"\x07\x08" * 512, "국적 추론용 user 원음이 유실됐다"
+
+
+# --- B2: TaskGroup 밖 사이드카가 죽은 세션을 잡지 않는가 --------------------- #
+@pytest.mark.asyncio
+async def test_band_sidecar_requests_close_without_a_session(monkeypatch):
+    """종료 판정 사이드카는 **세션을 받지 않는다** — 신호만 세운다.
+
+    ⛔ 예전엔 session 을 캡처해 _inject_close_seed 를 직접 불렀다. 이 태스크는 TaskGroup
+      밖이라 세션 교체보다 오래 살 수 있어서, 세션이 갈린 뒤엔 **죽은 세션에 주입**하는
+      유일한 경로였다(B2). 이 호출이 session 인자 없이 성립하는 것 자체가 회귀 방어다.
+    """
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    monkeypatch.setattr(cs, "LEVELTEST_END_JUDGE_MIN_ANSWERS", 1)
+    fake, _rec = _fake_band(True, end_after=1)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
+
+    state = cs._CallState()
+    state.band_observe = True
+    state.call_start_ts = asyncio.get_running_loop().time() - 100.0
+
+    await cs._band_observe_sidecar(state, "저는 서울에 살아요", "어디 살아요?")
+
+    assert state.should_close, "종료 트리거가 섰는데 should_close 가 안 섰다"
+    assert state.close_requested.is_set(), "세대(워처)를 깨우는 신호가 안 섰다"
+
+
+@pytest.mark.asyncio
+async def test_close_request_is_injected_by_the_live_generation():
+    """사이드카가 요청만 해도, **살아 있는 세대**의 시계워처가 종료 시드를 넣는다.
+
+    B2 의 대체 경로가 실제로 작동하는지(그리고 폴링 지연에 묻히지 않는지) 검증한다.
+    """
+    state = cs._CallState()
+    state.call_start_ts = asyncio.get_running_loop().time()
+    state.call_duration_s = 30.0          # 시계로는 아직 한참 남았다
+    sess = _RegroundFake([])
+
+    watcher = asyncio.create_task(cs._watch_call_clock(state, sess))
+    await asyncio.sleep(0)                # 워처가 대기 상태로 들어가게
+    cs._request_close(state)              # 사이드카가 하는 일 전부
+
+    for _ in range(100):
+        if sess.sent_text_turns:
+            break
+        await asyncio.sleep(0.01)
+    watcher.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await watcher
+
+    assert state.close_seed in sess.sent_text_turns, \
+        "종료 요청이 살아 있는 세션의 종료 시드 주입으로 이어지지 않았다"

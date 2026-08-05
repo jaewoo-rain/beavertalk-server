@@ -349,6 +349,7 @@ class _CallState:
         "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
         "seed_sent_ts",
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
+        "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
@@ -397,6 +398,9 @@ class _CallState:
         # 저장이 끝난 세그먼트에서 회수해 둔 user 원음(국적 추론 전용, NATIONALITY_PCM_MAX_S 상한).
         # ⚠ 이게 있어야 세그먼트 PCM 을 flush 직후 놓아줄 수 있다 — 상세는 _release_persisted_pcm.
         self.nationality_pcm = bytearray()
+        # 종료 요청 신호(TaskGroup **밖**의 사이드카 → 시계워처). 사이드카가 죽은 세션을 잡고
+        # 직접 종료 시드를 주입하던 경로를 이 이벤트로 대체했다(_band_observe_sidecar 참조).
+        self.close_requested = asyncio.Event()
         self.cur_user_pcm = bytearray()
         self.cur_user_text: list[str] = []
         self.cur_beaver_pcm = bytearray()
@@ -1705,14 +1709,18 @@ def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
     return state.total_answers >= LEVELTEST_BAND_MAX_ANSWERS
 
 
-def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None:
+def _spawn_band_observe(state: _CallState) -> None:
     """유저 답변 1건을 조용히 밴드 관측하는 사이드카를 띄운다(무주입 — should_close 만).
 
     ⛔ 격리(R4/R5): 2펌프 경로의 추가 비용은 create_task 1회뿐. 분류 LLM 콜은 백그라운드
     사이드카에서 일어나며, 느리거나 실패해도 통화 무영향(관측 1건 누락일 뿐 — 3분캡/무음이
-    백스톱). ★ 질문 주입 코드 없음: 사이드카는 천장 도달 시 종료 시드만 주입한다.
+    백스톱). ★ 질문 주입 코드 없음: 사이드카는 천장 도달 시 종료를 **요청**만 한다.
     band_awaiting 1회 가드로 동시 1건만(진행중이면 이 답변은 관측 스킵 — 다음 답변에 재개).
     호출 시점은 _flush_user_segment **이전**이어야 한다(cur_user_text 가 비워지기 전 캡처).
+
+    ⛔ session 을 넘기지 않는다(B2). 이 태스크는 TaskGroup **밖**이라 세대(연결)보다 오래
+      살 수 있는데, 세션은 세대의 지역 변수다 — 잡고 있으면 세션 교체 후 **죽은 세션**에
+      주입하게 된다. 세션에 손대는 일은 전부 세대 안(펌프·워처)에서만 한다.
     """
     if not state.band_observe or state.band_awaiting or state.should_close:
         return  # 종료 진행중이면 관측 불필요(m4: LLM 콜 낭비 방지)
@@ -1721,7 +1729,7 @@ def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None
         return  # 무발화 턴(오프닝 등) — 관측 대상 아님
     state.band_awaiting = True  # create_task 전 선점(동시 1건 가드)
     task = asyncio.create_task(
-        _band_observe_sidecar(session, state, answer, state.last_beaver_question),
+        _band_observe_sidecar(state, answer, state.last_beaver_question),
         name="normalcall-band-observe",
     )
     state.band_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
@@ -1729,17 +1737,22 @@ def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None
 
 
 async def _band_observe_sidecar(
-    session: LiveSessionProtocol, state: _CallState, answer: str, prior_question: str
+    state: _CallState, answer: str, prior_question: str
 ) -> None:
-    """답변 1건 종료 판정 → 종료 트리거면 종료 시드 주입(백그라운드, R5).
+    """답변 1건 종료 판정 → 종료 트리거면 종료를 **요청**한다(백그라운드, R5).
 
     judge_leveltest_turn 이 (answer_in_target, should_end) 를 준다(밴드 정밀분류 없음 — 최종
     레벨은 통화후 판정관 몫). 세 종료 트리거 중 하나면 종료:
       ① should_end(판정관 등반실패 감지) — 시간 플로어 & 최소 답변(END_JUDGE_MIN) 충족 시.
       ② 비화자 결정론 컷 — answer_in_target=False 연속 NONSPEAKER_MAX — 시간 플로어 충족 시.
       ③ 하드 턴캡(_band_ceiling_reached) — total_answers >= MAX_ANSWERS(무한 관측 방지).
-    어느 트리거든 should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접
-    주입한다(발화중/유저턴 열림이면 펌프의 다음 깨끗한 turn_end + 시계워처 백스톱이 주입).
+    어느 트리거든 should_close 를 세우고 close_requested 를 깨운다. **실제 종료 시드 주입은
+    세대 안의 워처·펌프가 한다** — 비버 idle & 유저 응답 대기 없음이면 시계워처가 즉시,
+    발화중이면 펌프가 다음 깨끗한 turn_end 에서 주입한다.
+
+    ⛔ 세션을 직접 잡지 않는다(B2). 이 태스크는 TaskGroup 밖이라 세션 교체보다 오래 살 수
+      있어서, 예전처럼 session 을 캡처해 _inject_close_seed 를 부르면 **죽은 세션에 주입**하는
+      유일한 경로가 된다. 신호만 넘기고 주입은 살아 있는 세대에 맡긴다.
     ★ 질문 주입 없음. 예외·CancelledError 처리는 힌트 사이드카와 동일(취소 재전파, 그 외 흡수).
     """
     answer_in_target = False
@@ -1797,22 +1810,11 @@ async def _band_observe_sidecar(
     # 종료 트리거 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
     if state.should_close or state.close_seed_sent:
         return
-    state.should_close = True
+    _request_close(state)
     logger.info(
         "normalcall: 레벨테스트 종료 트리거(턴캡=%s 비화자컷=%s 판정종료=%s) → 종료 플래그",
         hard_cap, nonspeaker_cut, judge_end,
     )
-    # 종료 레이스 가드(시계워처와 동일): 비버 idle & 유저 응답 대기 없음이면 직접 주입,
-    # 아니면 펌프 turn_end(should_close 경로)/시계워처 백스톱이 주입한다. ★ 질문 주입 아님.
-    # M1(시니어): 세션 종료 레이스에 종료 시드 send_text_turn 이 던지면 미회수 태스크 예외로
-    # 새어 "exception never retrieved" 로그가 남으므로 여기서 흡수(취소는 재전파).
-    if state.turn_id is None and not state.user_turn_open:
-        try:
-            await _inject_close_seed(session, state)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - 종료중 주입 실패는 백스톱이 마무리(R5)
-            logger.warning("normalcall: 밴드 천장 종료 시드 주입 실패(무시): %s", exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -1938,7 +1940,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         if turn_started:
             # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
             # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
-            _spawn_band_observe(session, state)
+            _spawn_band_observe(state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
@@ -2108,6 +2110,18 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         logger.warning("normalcall: 대화 재개 시드 주입 실패(무시): %s", exc)
 
 
+def _request_close(state: _CallState) -> None:
+    """통화를 마무리해 달라고 **요청**한다(TaskGroup 밖 사이드카 전용, 세션 무접촉).
+
+    should_close 플래그 + close_requested 이벤트를 함께 세운다. 플래그만 세워도 워처들이
+    다음 폴링(0.2s)에 알아채지만, 이벤트를 같이 깨우면 시계워처가 **즉시** 종료 시드 주입
+    단계로 넘어간다 — 예전에 사이드카가 세션을 직접 잡고 주입해 벌었던 지연차(B2)를
+    죽은 세션 참조 없이 되돌려준다. 주입 자체는 언제나 살아 있는 세대(워처·펌프)의 몫.
+    """
+    state.should_close = True
+    state.close_requested.set()
+
+
 async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) -> None:
     """종료 시드를 정확히 1회만 주입한다(펌프·워처 공용, 단일 소유권 가드).
 
@@ -2147,7 +2161,10 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
         # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지(최대 절대백스톱) 매달린다.
         if state.should_close:
             break
-        await asyncio.sleep(0.2)
+        # 폴링 0.2s 유지 + 종료 요청이 오면 즉시 깨어난다(_request_close). TaskGroup 밖
+        # 사이드카가 세션을 직접 잡지 않고도 지연 없이 종료 시드를 내보내게 하는 통로(B2).
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(state.close_requested.wait(), 0.2)
     state.should_close = True
     logger.info("normalcall: %.0fs 경과/조기신호 → 종료 플래그", state.call_duration_s)
 
