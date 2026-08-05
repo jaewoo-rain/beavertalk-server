@@ -2726,3 +2726,93 @@ async def test_close_request_is_injected_by_the_live_generation():
 
     assert state.close_seed in sess.sent_text_turns, \
         "종료 요청이 살아 있는 세션의 종료 시드 주입으로 이어지지 않았다"
+
+
+# --- B4: 한 봉투에 신호가 둘 들어와도 재그룹화되지 않는가 -------------------- #
+def test_pick_call_signal_priority():
+    """우선순위 종료 > 클라 끊김 > 스왑. 신호가 없으면 None(봉투를 그대로 올린다)."""
+    def _pick(*excs):
+        return cs._pick_call_signal(ExceptionGroup("tg", list(excs)))
+
+    assert isinstance(_pick(cs._CallFinished(), cs._ClientDisconnect()), cs._CallFinished)
+    assert isinstance(_pick(cs._SessionSwap(), cs._CallFinished()), cs._CallFinished)
+    assert isinstance(_pick(cs._SessionSwap(), cs._ClientDisconnect()), cs._ClientDisconnect)
+    assert isinstance(_pick(cs._SessionSwap()), cs._SessionSwap)
+    assert isinstance(_pick(cs._SessionSwap(), ValueError("x")), cs._SessionSwap)
+    assert _pick(ValueError("x")) is None
+
+
+async def _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen: dict):
+    """monkeypatch 된 두 워처가 각각 신호를 던진다 → **한 봉투에 신호 2개**.
+
+    ⚠ events() 는 끝나지 않게 매달아 둔다. 스트림이 끝나면 펌프가 스스로 _CallFinished 를
+      올려 봉투에 신호가 하나 더 섞이고, 그러면 "둘 중 무엇이 이기는가"를 못 재게 된다.
+    ⚠ 봉투에 실제로 뭐가 담겼는지 seen 에 기록한다 — 호출부가 그걸 단언해야 이 테스트가
+      "신호 1개짜리 쉬운 경우"로 조용히 약해지는 것을 막는다.
+    """
+    orig = cs._pick_call_signal
+
+    def _spy(eg):
+        seen["types"] = sorted(type(e).__name__ for e in eg.exceptions)
+        return orig(eg)
+
+    monkeypatch.setattr(cs, "_pick_call_signal", _spy)
+    fake = _RegroundFake([lambda f: asyncio.Event().wait()])
+    await cs._run_session(
+        FakeWebSocket([], hang=True),
+        state=cs._CallState(),
+        system_instruction="지시문",
+        voice="Fenrir",
+        seed_text="시작",
+        settings=app_settings,
+        client=object(),
+        live_session_factory=_factory_for(fake),
+        db_session_factory=session_factory,
+        call_id=1,
+        member_id=seeded["member_id"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_two_signals_do_not_regroup_into_an_exception_group(
+    session_factory, seeded, monkeypatch
+):
+    """⛔ 두 신호가 같은 TaskGroup 봉투에 담겨도 **홑겹 신호 하나**가 올라온다.
+
+    except* 절을 나열하면 매치되는 절이 전부 실행돼 결과가 ExceptionGroup([A, B]) 이 되고,
+    호출부의 `except _CallFinished` / `except _SessionSwap` 이 아무것도 못 잡는다(B4).
+    특히 [_SessionSwap + _CallFinished] 조합은 스왑이 통째로 실패해 통화가 오류로 끝난다.
+    """
+    async def _swap(state):                       # nc-rotate 자리
+        raise cs._SessionSwap()
+
+    async def _finish(session, state):            # nc-reground 자리
+        raise cs._CallFinished()
+
+    monkeypatch.setattr(cs, "_watch_session_rotate", _swap)
+    monkeypatch.setattr(cs, "_reground_once", _finish)
+
+    seen: dict = {}
+    with pytest.raises(cs._CallFinished):         # 종료가 스왑을 이긴다
+        await _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen)
+    assert seen["types"] == ["_CallFinished", "_SessionSwap"], \
+        f"봉투에 신호가 2개 담기지 않았다(테스트 전제 붕괴): {seen}"
+
+
+@pytest.mark.asyncio
+async def test_disconnect_wins_over_swap(session_factory, seeded, monkeypatch):
+    """클라가 이미 끊었으면 스왑하지 않는다 — 아무도 없는 통화에 새 연결을 열면 안 된다."""
+    async def _swap(state):
+        raise cs._SessionSwap()
+
+    async def _disconnect(session, state):
+        raise cs._ClientDisconnect()
+
+    monkeypatch.setattr(cs, "_watch_session_rotate", _swap)
+    monkeypatch.setattr(cs, "_reground_once", _disconnect)
+
+    seen: dict = {}
+    with pytest.raises(cs._ClientDisconnect):
+        await _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen)
+    assert seen["types"] == ["_ClientDisconnect", "_SessionSwap"], \
+        f"봉투에 신호가 2개 담기지 않았다(테스트 전제 붕괴): {seen}"

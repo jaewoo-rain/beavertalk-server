@@ -1376,19 +1376,47 @@ async def _run_one_generation(
                 #   재개 후에는 학습자 마이크가 계속 흐르므로 VAD 가 다음 턴을 열어준다.
                 if state.session_epoch == 1:
                     await session.send_text_turn(seed_text)  # 선톡 트리거
-        # 🧒 except* 는 TaskGroup 전용 문법(ExceptionGroup 해체). 펌프 중 하나가 우리가 정한
-        #   '정상 종료 신호'로 죽으면, TaskGroup 은 그걸 여러 예외를 담는 봉투(그룹)로 감싸서
-        #   던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=클라가
-        #   끊음)만 골라 홑겹 예외로 다시 던진다 → run_call 의 except 가 사람이 읽기 쉽게 처리.
-        # ⚠ 절이 여럿이면 여러 개가 동시에 매치될 수 있으므로 **우선순위대로 하나만** 고른다.
-        #   종료 > 클라 끊김 > 스왑 — 종료가 걸린 그룹을 스왑으로 처리하면 끝난 통화가
-        #   되살아난다.
-        except* _CallFinished:
-            raise _CallFinished()
-        except* _ClientDisconnect:
-            raise _ClientDisconnect()
-        except* _SessionSwap:
-            raise _SessionSwap()
+        # 🧒 TaskGroup 은 일꾼이 죽으면 그 예외들을 여러 개 담는 **봉투(ExceptionGroup)** 로
+        #   감싸 던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=
+        #   클라가 끊음, _SessionSwap=연결 교체)를 홑겹 예외로 다시 던진다 → 호출부의 평범한
+        #   except 가 사람이 읽기 쉽게 처리한다.
+        #
+        # ⛔ except* 절을 여러 개 쓰지 마라(B4). except* 는 매치되는 절을 **전부** 실행하고,
+        #   절들이 던진 예외를 다시 그룹으로 묶어 올린다 — 즉 신호가 둘 이상 섞인 봉투에서
+        #   `except* A` / `except* B` 를 나란히 쓰면 결과가 ExceptionGroup([A, B]) 이 되어
+        #   호출부의 `except _CallFinished` / `except _SessionSwap` 이 **아무것도 못 잡는다**.
+        #   특히 [_SessionSwap + _CallFinished] 조합은 스왑이 통째로 실패해 통화가 오류로
+        #   끝난다. 그래서 봉투를 직접 받아 우선순위로 딱 하나만 고른다.
+        except BaseExceptionGroup as eg:
+            signal = _pick_call_signal(eg)
+            if signal is None:
+                raise
+            raise signal
+
+
+# 통화 신호 우선순위(B4). ⛔ 순서가 곧 규칙이다 — **종료 > 클라 끊김 > 스왑**.
+# 종료가 걸린 봉투를 스왑으로 처리하면 이미 끝난 통화가 되살아나고, 클라가 이미 끊었는데
+# 스왑하면 아무도 없는 통화에 새 연결을 연다.
+_CALL_SIGNALS: tuple[type[Exception], ...] = (_CallFinished, _ClientDisconnect, _SessionSwap)
+
+
+def _pick_call_signal(eg: BaseExceptionGroup) -> Optional[Exception]:
+    """TaskGroup 봉투에서 통화 신호 하나를 우선순위로 골라 돌려준다(없으면 None).
+
+    신호가 아닌 예외(진짜 오류)가 같이 들어 있으면 여기서 로그로 남긴다 — 신호를 홑겹으로
+    올리면서 봉투를 버리기 때문에, 안 남기면 그 오류가 조용히 사라진다.
+    """
+    for sig in _CALL_SIGNALS:
+        if eg.subgroup(sig) is None:
+            continue
+        rest = eg.split(sig)[1]  # 이 신호를 뺀 나머지(다른 신호 + 진짜 오류)
+        if rest is not None and rest.split(_CALL_SIGNALS)[1] is not None:
+            logger.warning(
+                "normalcall: 통화 신호(%s)와 함께 올라온 예외(무시하지 않고 기록만): %r",
+                sig.__name__, rest.split(_CALL_SIGNALS)[1],
+            )
+        return sig()
+    return None
 
 
 def _swap_eligible(state: _CallState) -> bool:
