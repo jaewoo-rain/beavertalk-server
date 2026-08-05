@@ -134,6 +134,17 @@ SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강�
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
 #                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
 FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 주기(1분)
+# 국적 추론(_trigger_nationality)용으로 붙잡아 두는 **user 원음 상한**(초).
+#
+# 🧒 왜 상한이 필요한가: 예전엔 통화 오디오 전체(비버+학습자)를 state.segments 안에 통화가
+#   끝날 때까지 들고 있었다. DB 저장(flush)이 끝나도 안 놓아줬다 — 15분 통화면 통화당
+#   30~50MB 가 계속 RAM 에 앉아 있고, Cloud Run 인스턴스 하나가 받을 수 있는 동시 통화 수를
+#   그대로 깎아먹는다. 그런데 저장이 끝난 뒤에도 그 바이트가 실제로 필요한 곳은 **딱 하나**,
+#   통화후 국적 추론뿐이고 그건 user 원음만 쓴다. 그래서 저장 직후 비버 PCM 은 전량 놓아주고,
+#   user PCM 은 이 상한만큼만 따로 이어붙여 보관한다(나머지는 놓아준다).
+# 60초 = 호출 게이트(NATIONALITY_MIN_SPEECH_S, 기본 10초)의 6배라 추론 표본은 넉넉하고,
+# 16k·PCM16 기준 약 1.9MB 로 고정된다(통화가 길어져도 안 자란다).
+NATIONALITY_PCM_MAX_S = 60.0
 # 무음 3단 넛지(A2): 클라 마이크는 상시 스트리밍이라 무음을 오디오 부재로 못 잰다 —
 # 무음 = 마지막 활동(학습자 in_tr / 비버 turn_end / 넛지) 이후 경과. 비버 idle(turn_id None)일 때만
 # 카운트하고, 각 단계는 "직전 활동 이후" 신선한 무음을 잰다(비버 발화 직후 넛지 폭발 방지).
@@ -337,7 +348,7 @@ class _CallState:
     __slots__ = (
         "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
         "seed_sent_ts",
-        "playback_done_event", "segments", "persisted_count",
+        "playback_done_event", "segments", "persisted_count", "nationality_pcm",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
@@ -383,6 +394,9 @@ class _CallState:
         self.playback_done_event = asyncio.Event()
         self.segments: list[dict] = []
         self.persisted_count = 0  # 이미 DB 에 저장한 세그먼트 수(점진 flush 커서)
+        # 저장이 끝난 세그먼트에서 회수해 둔 user 원음(국적 추론 전용, NATIONALITY_PCM_MAX_S 상한).
+        # ⚠ 이게 있어야 세그먼트 PCM 을 flush 직후 놓아줄 수 있다 — 상세는 _release_persisted_pcm.
+        self.nationality_pcm = bytearray()
         self.cur_user_pcm = bytearray()
         self.cur_user_text: list[str] = []
         self.cur_beaver_pcm = bytearray()
@@ -474,6 +488,38 @@ class _SessionSwap(Exception):
       새 연결을 열고 대화를 이어간다. 종료가 스왑보다 항상 우선이므로, should_close 나
       close_seed_sent 가 서 있으면 이 신호를 올리지 않는다.
     """
+
+
+def _release_persisted_pcm(state: _CallState, upto: int) -> int:
+    """저장이 끝난 세그먼트 [0, upto) 의 PCM 바이트를 놓아준다. 해제한 바이트 수를 반환.
+
+    🧒 통화 오디오는 무겁다(비버 출력 24kHz·학습자 입력 16kHz, 둘 다 16bit). 15분 통화면
+      다 합쳐 수십 MB 다. 예전엔 DB 저장이 끝난 뒤에도 이 바이트가 state.segments 안에
+      그대로 남아 통화가 끝날 때까지 메모리를 잡고 있었다(저장 커서 persisted_count 만
+      올렸다). 저장이 끝난 오디오는 이미 스토리지에 있으니 서버가 계속 들고 있을 이유가 없다.
+
+    ⚠ 딱 하나 예외: 통화후 **국적 추론**은 학습자(user) 원음을 다시 읽는다. 그래서 놓아주기
+      전에 user PCM 만 nationality_pcm 으로 옮겨 담는다 — 단 NATIONALITY_PCM_MAX_S 상한까지만.
+      추론 게이트가 10초라 60초면 표본은 충분하고, 보관량이 통화 길이와 무관하게 고정된다.
+
+    ⚠ 오디오 업로드 경로와 충돌하지 않는다: 점진 flush(upload_audio=True)는 저장 시점에
+      업로드까지 끝내고, 최종 persist(upload_audio=False)는 save_segments 가 pending 목록에
+      **바이트 사본**을 떠 가므로 후행 업로드가 여기 원본에 의존하지 않는다.
+
+    호출 규약: 반드시 저장이 성공한 뒤에만, 저장된 구간까지만 부른다(upto <= persisted_count).
+    통화 종료 뒤 마지막 회수만 예외로 전체 구간을 부른다(그 시점엔 아무도 원본을 안 읽는다).
+    """
+    limit = int(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES * NATIONALITY_PCM_MAX_S)
+    freed = 0
+    for seg in state.segments[:upto]:
+        pcm = seg.get("pcm")
+        if not pcm:
+            continue
+        if seg["role"] == "user" and len(state.nationality_pcm) < limit:
+            state.nationality_pcm.extend(pcm[: limit - len(state.nationality_pcm)])
+        freed += len(pcm)
+        seg["pcm"] = b""
+    return freed
 
 
 def _flush_user_segment(state: _CallState) -> None:
@@ -985,11 +1031,15 @@ async def run_call(
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
-        # 요구5: 국적 추론 훅(fire-and-forget) — user 턴 in-memory PCM 을 넘긴다. 통화 루프
-        # 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
+        # 마지막 회수·해제(B1): 아직 안 놓아준 세그먼트의 PCM 을 여기서 전부 정리한다.
+        # 이 시점 이후 원본을 읽는 코드는 없다 — 오디오 후행 업로드는 save_segments 가 뜬
+        # 사본(pending_audio)을 쓰고, 국적 추론은 아래 nationality_pcm 을 쓴다.
+        _release_persisted_pcm(state, len(state.segments))
+        # 요구5: 국적 추론 훅(fire-and-forget) — 통화 내내 회수해 둔 user 원음을 넘긴다. 통화
+        # 루프 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
         _trigger_nationality(
             db_session_factory, call_id, member_id,
-            user_pcm=[s["pcm"] for s in state.segments if s["role"] == "user" and s.get("pcm")],
+            user_pcm=bytes(state.nationality_pcm),
         )
         await _finish_call(client_ws, state, call_id)
 
@@ -1146,12 +1196,15 @@ def _trigger_audio_upload(
 
 
 def _trigger_nationality(
-    db_session_factory, call_id: int, member_id: int, user_pcm: list[bytes]
+    db_session_factory, call_id: int, member_id: int, user_pcm: bytes
 ) -> None:
     """user 턴 음성으로 국적을 추론해 프로필을 갱신하는 훅을 백그라운드 task 로 띄운다(요구5).
 
     _trigger_audio_upload 와 100% 동일 패턴(GC 방지 강참조 + done 콜백). 예외는 전량
     흡수 — 국적 추론 실패는 통화·분석에 무손상(R5). 매 통화(레벨테스트 포함)에서 돈다.
+
+    user_pcm: 통화 내내 회수해 둔 학습자 원음(_release_persisted_pcm 이 이어붙인 단일 바이트열,
+    NATIONALITY_PCM_MAX_S 상한). 비면 아무것도 하지 않는다.
 
     🧒 왜 GCS(클라우드 저장소)에서 오디오를 도로 내려받지 않고, 통화 중 메모리에 쌓아둔
       user PCM(원음 조각들)을 바로 쓰나? 이유 셋:
@@ -1175,7 +1228,7 @@ def _trigger_nationality(
 
     async def _run() -> None:
         try:
-            pcm = b"".join(user_pcm)
+            pcm = bytes(user_pcm)
             total_s = len(pcm) / (INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)
             if total_s < _settings.NATIONALITY_MIN_SPEECH_S:
                 logger.debug(
@@ -1400,7 +1453,13 @@ async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, m
                 db_session_factory, lambda db: svc.save_segments(db, call_id, new, member_id)
             )
             state.persisted_count = target
-            logger.info("normalcall: 점진 flush %d개(누적 %d) call_id=%s", len(new), target, call_id)
+            # ⭐ 저장이 끝났으니 PCM 을 놓아준다(B1). 안 놓으면 통화 오디오 전체가 통화
+            #   내내 RAM 에 남아 15분 통화 하나가 30~50MB 를 물고 있게 된다.
+            freed = _release_persisted_pcm(state, target)
+            logger.info(
+                "normalcall: 점진 flush %d개(누적 %d) call_id=%s pcm해제=%dKB",
+                len(new), target, call_id, freed // 1024,
+            )
         except Exception as exc:  # noqa: BLE001 - flush 실패는 다음 주기/종료시 재시도
             logger.warning("normalcall: 점진 flush 실패(무시): %s", exc)
 

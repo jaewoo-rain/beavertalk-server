@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 
 import pytest
@@ -2533,3 +2534,144 @@ async def test_level_test_duration_ignores_plan(session_factory, seeded, monkeyp
                    member_id=seeded["member_id"], live_session_factory=factory)
     await _wait_analysis_tasks()
     assert seen[-1] == cs.LEVELTEST_MAX_S, f"레벨테스트 base 가 3분캡이 아니다: {seen}"
+
+
+# --------------------------------------------------------------------------- #
+# (n) 기존 결함 회귀 (마스터플랜 20260804_1930 §4)
+# --------------------------------------------------------------------------- #
+# 15분 통화와 별개로 원래 있던 결함들이다. 5분에선 증상이 작아 안 보였고,
+# 15분·세션 재연결이 붙는 순간 각각 메모리·죽은 세션·거짓 신호로 드러난다.
+
+_SEC = cs.INPUT_SAMPLE_RATE * cs.SAMPLE_WIDTH_BYTES  # user PCM 1초치 바이트 수
+
+
+def _seg(idx: int, role: str, pcm: bytes, text: str = "말") -> dict:
+    return {"turn_index": idx, "role": role, "text": text, "pcm": pcm}
+
+
+@contextlib.asynccontextmanager
+async def _fixed_factory(fake):
+    """세대와 무관하게 같은 가짜 세션을 돌려주는 팩토리(**kwargs 수용)."""
+    yield fake
+
+
+def _factory_for(fake):
+    def _f(client, settings, **kw):
+        return _fixed_factory(fake)
+
+    return _f
+
+
+# --- B1: flush 후 통화 오디오가 RAM 에서 실제로 놓아지는가 -------------------- #
+def test_release_frees_pcm_and_keeps_user_audio():
+    """저장이 끝난 세그먼트의 PCM 은 놓아주되, 국적 추론용 user 원음은 회수해 둔다.
+
+    ⛔ 두 요구가 동시에 지켜져야 한다 — 그냥 지우면 통화후 국적 추론이 깨지고,
+      안 지우면 통화 오디오 전체가 통화 내내 RAM 에 남는다(B1).
+    """
+    state = cs._CallState()
+    state.segments = [
+        _seg(0, "user", b"\x01\x02" * _SEC),          # 2초치
+        _seg(1, "beaver", b"\x03\x04" * _SEC * 3),
+        _seg(2, "user", b"\x05\x06" * _SEC),
+    ]
+    before = sum(len(s["pcm"]) for s in state.segments)
+
+    freed = cs._release_persisted_pcm(state, len(state.segments))
+
+    assert freed == before
+    assert sum(len(s["pcm"]) for s in state.segments) == 0, "flush 후에도 PCM 이 남아 있다"
+    # user 원음만, 순서대로 이어붙어 회수됐다(비버 출력은 회수 대상이 아니다).
+    assert bytes(state.nationality_pcm) == b"\x01\x02" * _SEC + b"\x05\x06" * _SEC
+
+
+def test_release_only_touches_persisted_range():
+    """아직 저장 안 된 구간(upto 밖)은 건드리지 않는다 — 저장 전에 놓으면 기록이 유실된다."""
+    state = cs._CallState()
+    state.segments = [_seg(0, "user", b"\xaa" * 100), _seg(1, "beaver", b"\xbb" * 100)]
+    cs._release_persisted_pcm(state, 1)
+    assert state.segments[0]["pcm"] == b""
+    assert state.segments[1]["pcm"] == b"\xbb" * 100, "미저장 세그먼트의 PCM 을 놓아버렸다"
+
+
+def test_nationality_buffer_is_capped():
+    """보관량이 통화 길이와 무관하게 상한에 고정된다 — 15분 통화가 메모리를 못 키운다."""
+    state = cs._CallState()
+    chunk = b"\x00\x01" * (_SEC * 40)  # 40초치 × 3턴 = 120초
+    state.segments = [_seg(i, "user", chunk) for i in range(3)]
+    cs._release_persisted_pcm(state, 3)
+    assert len(state.nationality_pcm) == int(_SEC * cs.NATIONALITY_PCM_MAX_S)
+    assert sum(len(s["pcm"]) for s in state.segments) == 0
+
+
+@pytest.mark.asyncio
+async def test_periodic_flush_releases_pcm(session_factory, seeded, monkeypatch):
+    """점진 flush 가 돌고 나면 그 구간 PCM 이 실제로 사라진다(단위가 아니라 실제 경로)."""
+    monkeypatch.setattr(cs, "FLUSH_INTERVAL_S", 0.01)
+    call_id = await svc.run_db(
+        session_factory,
+        lambda db: svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal"),
+    )
+    state = cs._CallState()
+    state.segments = [_seg(0, "user", b"\x11\x22" * _SEC),
+                      _seg(1, "beaver", b"\x33\x44" * _SEC)]
+
+    task = asyncio.create_task(
+        cs._periodic_flush(session_factory, state, call_id, seeded["member_id"])
+    )
+    for _ in range(300):
+        if state.persisted_count == 2:
+            break
+        await asyncio.sleep(0.01)
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+    assert state.persisted_count == 2, "점진 flush 가 저장하지 못했다(테스트 전제 붕괴)"
+    assert sum(len(s["pcm"]) for s in state.segments) == 0, \
+        "저장이 끝났는데 PCM 이 그대로 남아 있다(B1 재발)"
+    assert bytes(state.nationality_pcm) == b"\x11\x22" * _SEC, "user 원음 회수가 안 됐다"
+
+
+@pytest.mark.asyncio
+async def test_call_end_releases_pcm_but_still_feeds_nationality(
+    session_factory, seeded, monkeypatch
+):
+    """통화 1건 끝까지: 종료 시점에 세그먼트 PCM 은 0, 국적 추론은 user 원음을 받는다."""
+    captured: dict = {}
+    orig = cs._persist_remaining
+
+    async def _spy(dbf, state, call_id, member_id):
+        captured["state"] = state
+        return await orig(dbf, state, call_id, member_id)
+
+    monkeypatch.setattr(cs, "_persist_remaining", _spy)
+
+    got: list[bytes] = []
+    monkeypatch.setattr(
+        cs, "_trigger_nationality",
+        lambda dbf, call_id, member_id, user_pcm: got.append(user_pcm),
+    )
+
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+        LiveEvent(kind="in_tr", text="네 안녕하세요", is_final=True),
+        LiveEvent(kind="out_tr", text="반가워"),   # 비버 응답 시작 → user 세그먼트 확정
+        LiveEvent(kind="turn_end"),
+    ])
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+        {"type": "websocket.receive", "bytes": b"\x07\x08" * 512},  # 학습자 원음
+    ])
+
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=_factory_for(fake))
+    await _wait_analysis_tasks()
+
+    state = captured["state"]
+    assert sum(len(s["pcm"]) for s in state.segments) == 0, \
+        "통화가 끝났는데 세그먼트 PCM 이 남아 있다(B1 재발)"
+    assert got and isinstance(got[0], bytes), "국적 추론 훅이 바이트를 못 받았다"
+    assert got[0] == b"\x07\x08" * 512, "국적 추론용 user 원음이 유실됐다"
