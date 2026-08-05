@@ -473,6 +473,51 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return JSONResponse({"detail": "로그인 실패"}, status_code=401)
             return JSONResponse({"access_token": token, "email": email})
 
+        @app.post("/__dev/signup", include_in_schema=False)
+        def dev_signup(body: dict) -> JSONResponse:
+            """[dev] 이메일·비밀번호로 **계정을 만들고 바로 토큰까지** 준다(데모 전용).
+
+            왜 필요한가: 레벨테스트 데모는 "레벨 없는 새 계정"이 있어야 자동 판단 경로를
+            제대로 밟는다. 그래서 가입 버튼이 있었는데, 그게 페이지에서 **Supabase 를 직접**
+            부르는 유일한 이유였다. 서버가 대신 만들어 주면 페이지에서 Supabase 의존이
+            통째로 사라지고, **서버가 토큰을 검증하는 그 프로젝트에** 계정이 생긴다 —
+            프로젝트가 어긋나 로그인 후 전부 401 이 나던 사고가 구조적으로 불가능해진다.
+
+            service key 로 만들기 때문에 **이메일 확인 절차를 건너뛴다**(email_confirm=True).
+            이미 있는 계정이면 만들지 않고 로그인만 한다.
+            권한 상승이 아니다 — 이메일·비밀번호를 아는 사람이 자기 토큰을 받는 것뿐이고,
+            애초에 non-prod 에서만 마운트된다.
+            """
+            client = supabase_client.get_client()
+            if client is None:
+                return JSONResponse(
+                    {"detail": "Supabase 미설정(SUPABASE_URL/SERVICE_KEY)"}, status_code=503
+                )
+            email = (body.get("email") or "").strip()
+            password = body.get("password") or ""
+            if not email or not password:
+                return JSONResponse({"detail": "email·password 필요"}, status_code=400)
+            created = False
+            try:
+                client.auth.admin.create_user(
+                    {"email": email, "password": password, "email_confirm": True}
+                )
+                created = True
+            except Exception as exc:  # noqa: BLE001 - 이미 있으면 로그인으로 진행
+                logger.info("dev_signup: 생성 건너뜀 email=%s: %s", email, exc)
+            try:
+                res = client.auth.sign_in_with_password(
+                    {"email": email, "password": password}
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("dev_signup: 로그인 실패 email=%s: %s", email, exc)
+                return JSONResponse({"detail": "가입은 됐으나 로그인 실패"}, status_code=401)
+            session = getattr(res, "session", None)
+            token = getattr(session, "access_token", None) if session else None
+            if not token:
+                return JSONResponse({"detail": "로그인 실패"}, status_code=401)
+            return JSONResponse({"access_token": token, "email": email, "created": created})
+
         # ── 회원 권한(롤) 관리 ──────────────────────────────────────────── #
         @app.get("/__roles", include_in_schema=False)
         def role_admin() -> FileResponse:

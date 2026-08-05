@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>BeaverTalk · 레벨테스트 통화 데모</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root { --bg:#121217; --card:#181A20; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
           --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF7070; }
@@ -55,11 +54,11 @@
   <div class="muted">첫 통화(레벨 측정)를 브라우저로 체험. 비버가 대화하듯 실력을 떠보고, 끝나면 레벨(1~13)이 판정·저장됩니다.
     ⚠️ 이 데모는 <b>테스트 계정의 레벨을 실제로 저장/덮어씀</b>. 마이크는 localhost/https 에서만 동작.</div>
 
-  <!-- 접속 설정 (숨김) -->
-  <div style="display:none">
-    <input id="apibase" />
-    <input id="supaurl" />
-    <input id="supakey" />
+  <!-- 접속 설정 — 기본은 이 페이지를 준 서버. 다른 서버를 가리켜 시험할 수 있게 남겨둔다 -->
+  <div class="row" style="margin:6px 0">
+    <span class="muted">API base</span>
+    <input id="apibase" style="width:320px" title="비우고 새로고침하면 이 페이지를 준 서버로 돌아간다" />
+    <span class="muted">인증은 이 서버가 발급한다(/__dev/login) — 별도 Supabase 설정이 없다</span>
   </div>
 
   <!-- STEP 0 로그인 — 테스트하는 사람마다 다른 계정으로 -->
@@ -155,11 +154,11 @@
 const $ = s => document.querySelector(s);
 let token = null, callId = null;
 
-$('#apibase').value = location.pathname.indexOf('__levelcalldemo') >= 0 ? location.origin : 'http://localhost:8000';
-// (멀티랭귀지 도그푸딩 브랜치) 인증 = 새 Supabase 프로젝트(wbxyhgkmhfbjvqmxlgrh). 도그푸딩 서버가
-// 이 프로젝트로 토큰을 검증하므로 로그인/가입도 이 프로젝트로. 공개(anon) 키라 노출 안전.
-$('#supaurl').value = 'https://wbxyhgkmhfbjvqmxlgrh.supabase.co';
-$('#supakey').value = 'sb_publishable_gvBEWUsp2gHSPW1bKBnORA_D8OpMO9z';  // 공개키(안전)
+// ⛔ Supabase 주소·키를 페이지에 박지 않는다. 예전엔 여기에 프로젝트를 하드코딩했는데,
+//   서버가 토큰을 검증하는 프로젝트가 바뀌자 **로그인 이후 전부 401/403** 이 났고 서버
+//   ERROR 로그는 0건이라 아무도 못 찾았다. 이제 토큰은 **이 페이지를 준 서버**가 발급한다
+//   (/__dev/login·/__dev/signup) — 어긋날 대상 자체가 없다. cascade_demo 와 같은 방식.
+$('#apibase').value = location.origin;
 const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
 function wsBase() {
   const u = new URL(apiBase());
@@ -172,7 +171,6 @@ function api(path, opts={}) {
 function tlog(html, cls='') { const d=$('#tlog'); d.innerHTML += `<div class="${cls}">${html}</div>`; d.scrollTop=d.scrollHeight; }
 
 /* ---------- 로그인 + 현재 레벨 표시 ---------- */
-let sb = null;
 async function refreshMyLevel() {
   try {
     const me = await (await api('/api/v1/members/me')).json();
@@ -180,14 +178,21 @@ async function refreshMyLevel() {
     return me.korean_level;
   } catch { return null; }
 }
+async function serverAuth(path) {
+  // 서버가 자기 Supabase 프로젝트로 로그인/가입해 토큰을 돌려준다.
+  const r = await fetch(apiBase() + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: $('#email').value.trim(), password: $('#pw').value }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+  return d;
+}
 async function doLogin() {
   $('#who2').textContent = '로그인 중…';
   try {
-    sb = sb || supabase.createClient($('#supaurl').value.trim(), $('#supakey').value.trim());
-    const { data, error } = await sb.auth.signInWithPassword({ email:$('#email').value.trim(), password:$('#pw').value });
-    if (error) { $('#who2').textContent = '❌ 로그인 실패: ' + error.message; return false; }
-    token = data.session.access_token;
-  } catch (e) { $('#who2').textContent = '❌ Supabase 오류: ' + e; return false; }
+    token = (await serverAuth('/__dev/login')).access_token;
+  } catch (e) { $('#who2').textContent = '❌ 로그인 실패: ' + e.message; return false; }
   const lvl = await refreshMyLevel();
   $('#who2').textContent = `✅ ${$('#email').value.trim()} 로 로그인됨`;
   $('#who').textContent = '✅ 준비됨';
@@ -207,13 +212,17 @@ $('#resetBtn').onclick = async () => {
 $('#loginBtn').onclick = doLogin;
 $('#signupBtn').onclick = async () => {
   $('#who2').textContent = '가입 중…';
-  try {
-    sb = sb || supabase.createClient($('#supaurl').value.trim(), $('#supakey').value.trim());
-    const { error } = await sb.auth.signUp({ email:$('#email').value.trim(), password:$('#pw').value });
-    if (error && !/already/i.test(error.message)) { $('#who2').textContent = '❌ 가입 실패: ' + error.message; return; }
-    if (error) $('#who2').textContent = '이미 있는 계정 — 로그인 시도…';
-  } catch (e) { $('#who2').textContent = '❌ 가입 오류: ' + e; return; }
-  await doLogin();  // member 행은 첫 API/통화 호출 때 서버가 find-or-create
+  let d;
+  try { d = await serverAuth('/__dev/signup'); }   // 서버가 만들고 토큰까지 준다
+  catch (e) { $('#who2').textContent = '❌ 가입 실패: ' + e.message; return; }
+  token = d.access_token;
+  await refreshMyLevel();
+  // member 행은 첫 API/통화 호출 때 서버가 find-or-create 한다.
+  $('#who2').textContent = (d.created ? '✅ 새 계정 생성 + 로그인됨: ' : '✅ 이미 있는 계정으로 로그인됨: ')
+    + $('#email').value.trim();
+  $('#who').textContent = '✅ 준비됨';
+  $('#callBtn').disabled = false;
+  $('#resetBtn').disabled = false;
 };
 
 /* ---------- 오디오 유틸 (call_demo 와 동일) ---------- */
