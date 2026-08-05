@@ -35,9 +35,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Protocol
 
 from pydantic import ValidationError
@@ -54,7 +56,9 @@ from core.stt import (
     SttV2Event,
 )
 from domains.learning.realtime.cascade_protocol import (
+    BEAVER_FRAME_INTERVAL_MS,
     ClientPlaybackProgress,
+    ClientTestBeaver,
     ServerAudioCancel,
     ServerCascadeReady,
     ServerTurnEnd,
@@ -63,6 +67,7 @@ from domains.learning.realtime.cascade_protocol import (
     ServerUserTurnStart,
     ServerInputPartial,
     ServerSttRollover,
+    ServerTestCancelReport,
     cascade_server_adapter,
 )
 from domains.learning.realtime.protocol import ServerError, ServerPong
@@ -93,6 +98,23 @@ def _frame_rms(pcm: bytes) -> float:
     if not count:
         return 0.0
     return (total / count) ** 0.5 / 32768.0
+
+
+@lru_cache(maxsize=4)
+def _tone_frame(ms: int) -> bytes:
+    """[dev 훅] 440Hz 톤 PCM24k 프레임. 100ms 는 정확히 44주기라 이어 붙여도 위상이 끊기지 않는다."""
+    n = int(24000 * ms / 1000)
+    amp = 8000  # 귀에 편한 수준(-12dBFS 부근)
+    out = bytearray()
+    for i in range(n):
+        out += int(amp * math.sin(2 * math.pi * 440 * i / 24000)).to_bytes(2, "little", signed=True)
+    return bytes(out)
+
+
+@lru_cache(maxsize=4)
+def _silence_frame(ms: int) -> bytes:
+    """[dev 훅] 무음 PCM24k 프레임(샘플당 2바이트 = 전부 0)."""
+    return bytes(2 * int(24000 * ms / 1000))
 
 
 class TurnState(str, Enum):
@@ -244,6 +266,11 @@ class BeaverOutput:
     def ledger(self, turn_id: str | None = None) -> list[SpokenChunk]:
         record = self._record(turn_id)
         return list(record.ledger) if record else []
+
+    def sent_bytes_of(self, turn_id: str) -> int:
+        """그 턴에서 **보낸** 총 바이트(진행도와 견줘 '안 들린 양'을 낸다)."""
+        record = self._records.get(turn_id)
+        return record.sent_bytes if record else 0
 
     def _record(self, turn_id: str | None) -> "_TurnRecord | None":
         if turn_id is None:
@@ -408,6 +435,12 @@ class CascadeSession:
         # 되보내는 playback_progress 를 **턴별 원장에 대조**하려면 지금부터 있어야 한다.
         self.beaver = BeaverOutput(transport)
         self._spoken_by_turn: dict[str, str] = {}   # turn_id → 실제로 들린 대사(이력용)
+        # [dev 훅] 취소 배관 실측용
+        self._tg: asyncio.TaskGroup | None = None
+        self._fake_beaver_task: asyncio.Task | None = None
+        self._fake_beaver_cancelled = False
+        self._cancel_sent_at = 0.0
+        self._cancel_turn_id: str | None = None
 
     # ── 수명주기 ──
     async def run(self) -> None:
@@ -455,6 +488,7 @@ class CascadeSession:
 
         try:
             async with asyncio.TaskGroup() as tg:
+                self._tg = tg  # [dev 훅] 가짜 비버 태스크를 같은 그룹에 붙이기 위해
                 tg.create_task(self._pump_in(stream, pending_audio))
                 tg.create_task(self._pump_stt(stream))
                 tg.create_task(self._pump_turn())
@@ -464,6 +498,7 @@ class CascadeSession:
             self._log_pump_errors(eg)
             await self._safe(ServerError(code="cascade_error", message="cascade_stream_error"))
         finally:
+            self._tg = None
             try:
                 await stream.close()
             except Exception:  # noqa: BLE001
@@ -485,7 +520,11 @@ class CascadeSession:
                 if ctype == "ping":
                     await self._safe(ServerPong(t=ctrl.get("t")))
                 elif ctype == "playback_progress":
-                    self._on_playback_progress(ctrl)
+                    await self._on_playback_progress(ctrl)
+                elif ctype == "__test_beaver":   # dev 훅(가짜 비버 오디오)
+                    await self._start_fake_beaver(ctrl)
+                elif ctype == "__test_cancel":   # dev 훅(취소 배관)
+                    await self._cancel_fake_beaver(ctrl)
                 elif ctype == "__test_say":  # dev 훅(페이크 STT 구동)
                     stream.feed_test(str(ctrl.get("text") or ""))
                 elif ctype == "__test_event":
@@ -707,7 +746,90 @@ class CascadeSession:
         self.state = TurnState.CANCELLING
         logger.info("cascade barge-in 감지(P0: TTS 미연결 — 취소 배관 미실행)")
 
-    def _on_playback_progress(self, ctrl: dict) -> None:
+    # ── [dev 훅] 가짜 비버 오디오 — 클라 취소 배관을 P1 없이 실기기에서 검증한다 ──
+    async def _start_fake_beaver(self, ctrl: dict) -> None:
+        """톤/무음 PCM24k 를 **실시간 레이트로** 흘린다. 진짜 TTS·LLM 은 붙지 않는다.
+
+        왜 필요한가: 지금 서버는 오디오를 낼 일이 없어 `audio_cancel` 을 보낼 수가 없고,
+        그래서 클라가 만들어 둔 네이티브 clear() 를 한 줄도 못 돌린다. 이 훅이 그 통로다.
+
+        ⛔ 훅이라도 **불변식은 그대로 지킨다** — 송출은 전부 BeaverOutput 을 통과하므로
+        turn_start 가 오디오보다 먼저 나가고(I2), 페이싱이 실시간을 앞지르지 않으며(I3),
+        취소 시 turn_end 를 내지 않는다(I4). 훅이 불변식을 어기면 클라 판별식이 깨진다.
+        """
+        if self._fake_beaver_task is not None and not self._fake_beaver_task.done():
+            logger.info("cascade [dev] 가짜 비버가 이미 흐르는 중 — 무시")
+            return
+        try:
+            request = ClientTestBeaver.model_validate(ctrl)
+        except ValidationError as exc:
+            logger.warning("cascade [dev] __test_beaver 형식 오류(무시) — %s", exc)
+            return
+        if self._tg is None:
+            return
+        self._fake_beaver_task = self._tg.create_task(self._run_fake_beaver(request))
+
+    async def _run_fake_beaver(self, request: ClientTestBeaver) -> None:
+        frame_ms = BEAVER_FRAME_INTERVAL_MS
+        frame = _tone_frame(frame_ms) if request.tone else _silence_frame(frame_ms)
+        total_frames = max(1, int(request.seconds * 1000 / frame_ms))
+        per_sentence = max(1, int(request.sentence_ms / frame_ms))
+        self.state = TurnState.BEAVER_SPEAKING
+        self._fake_beaver_cancelled = False
+        turn_id = await self.beaver.begin()
+        logger.info(
+            "cascade [dev] 가짜 비버 시작: turn=%s %.1fs %s",
+            turn_id, request.seconds, "톤" if request.tone else "무음",
+        )
+        try:
+            for i in range(total_frames):
+                # "문장"은 **마지막 프레임에만** 이름표를 단다. 원장 절단이 "그 문장을 끝까지
+                # 들었을 때만 이력에 남긴다"이므로, 종료 지점에 텍스트를 두는 게 실제 TTS
+                # 청크 스트림과 같은 의미가 된다(걸친 문장은 버려진다).
+                sentence_no = i // per_sentence + 1
+                is_sentence_end = (i + 1) % per_sentence == 0
+                await self.beaver.send(frame, f"문장{sentence_no}" if is_sentence_end else "")
+            await self.beaver.end()
+            logger.info("cascade [dev] 가짜 비버 정상 종료: turn=%s", turn_id)
+        except asyncio.CancelledError:
+            # ⚠ 우리가 건 취소는 **여기서 흡수하고 정상 종료**한다. 이 태스크는 세션의
+            # TaskGroup 자식이라, 밖에서 취소된 채로 CancelledError 를 다시 올리면
+            # TaskGroup 이 그걸 그룹 취소로 보고 **세션 전체를 무너뜨린다**(실측 확인).
+            # 세션 종료로 인한 취소(플래그 미설정)는 그대로 올려보내야 정리가 된다.
+            if not self._fake_beaver_cancelled:
+                raise
+            logger.info("cascade [dev] 가짜 비버 송출 취소됨 turn=%s", turn_id)
+        except InvariantError:
+            # 취소가 먼저 들어와 턴이 닫힌 뒤의 잔여 송출 — 정상 경로다(설계 §5 실행 상세).
+            logger.info("cascade [dev] 가짜 비버 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
+        finally:
+            if self.state == TurnState.BEAVER_SPEAKING:
+                self.state = TurnState.IDLE
+
+    async def _cancel_fake_beaver(self, ctrl: dict) -> None:
+        """barge-in 과 **같은 취소 배관**을 탄다: 송출 태스크 cancel → audio_cancel.
+
+        ⭐ **STT 음성활동 감지를 타지 않는다.** 버튼 → 서버가 직접 audio_cancel 을 쏜다.
+        그래서 `CASCADE_MIC_ALWAYS_OPEN` 이 꺼져 있어도(=AEC 정비 전이라 켤 수 없어도)
+        **취소 경로만 독립적으로** 잴 수 있다. 우리가 재려는 건 취소 배관의 지연이지
+        음성 barge-in 판정이 아니다. `_bargein_allowed()`(플래그 게이트)는 speech_begin
+        경로에만 걸려 있고 이 훅은 그 위를 지나가지 않는다.
+        """
+        turn_id = self.beaver.turn_id
+        if turn_id is None:
+            logger.info("cascade [dev] 취소할 비버 턴이 없다")
+            return
+        task, self._fake_beaver_task = self._fake_beaver_task, None
+        if task is not None and not task.done():
+            self._fake_beaver_cancelled = True
+            task.cancel()  # await 하지 않는다 — 기다리면 그만큼 더 들린다(설계 §5)
+        self._cancel_sent_at = time.monotonic()
+        self._cancel_turn_id = turn_id
+        await self.beaver.cancel(str(ctrl.get("reason") or "barge_in"))
+        self.state = TurnState.IDLE
+        logger.info("cascade [dev] audio_cancel 발신: turn=%s", turn_id)
+
+    async def _on_playback_progress(self, ctrl: dict) -> None:
         """클라의 재생 진행도 → **그 턴의 원장에만** 적용해 실제로 들린 대사를 확정한다.
 
         ⚠ 이 메시지는 비동기라 **서버가 이미 다음 턴을 시작한 뒤** 도착할 수 있다. 그래서
@@ -723,11 +845,45 @@ class CascadeSession:
         except ValidationError as exc:
             logger.warning("cascade playback_progress 형식 오류(무시) — %s", exc)
             return
+        # [dev 훅] 취소 배관 실측: audio_cancel 을 쓴 시각 → 이 메시지가 도착한 시각.
+        # 클라가 말한 '폐기 실효지연 50~120ms'의 실측치다(지금까지는 추정이었다).
+        rtt_ms = 0
+        measured = bool(self._cancel_sent_at) and self._cancel_turn_id == progress.turn_id
+        if measured:
+            rtt_ms = int((time.monotonic() - self._cancel_sent_at) * 1000)
+        # 분해: 클라가 자기 소요를 실어 보내면 네트워크 왕복을 갈라낼 수 있다.
+        # 못 갈라내면 rtt_ms 는 '왕복 포함'으로만 읽어야 한다(화면에 그렇게 표기한다).
+        client_stop_ms = progress.client_stop_ms
+        network_ms = (
+            max(0, rtt_ms - client_stop_ms) if (measured and client_stop_ms >= 0) else -1
+        )
+
+        async def report(accepted: bool, note: str, spoken: str = "") -> None:
+            sent = self.beaver.sent_bytes_of(progress.turn_id)
+            unplayed = max(0, sent - progress.played_server_bytes)
+            await self._safe(
+                ServerTestCancelReport(
+                    turn_id=progress.turn_id,
+                    rtt_ms=rtt_ms,
+                    client_stop_ms=client_stop_ms,
+                    network_ms=network_ms,
+                    sent_bytes=sent,
+                    played_server_bytes=progress.played_server_bytes,
+                    unplayed_ms=int(unplayed / BEAVER_BYTES_PER_MS),
+                    spoken_text=spoken,
+                    source=progress.source,
+                    sampled_at=progress.sampled_at,
+                    accepted=accepted,
+                    note=note,
+                )
+            )
+
         if progress.source != "native" and not settings.CASCADE_TRUST_ESTIMATED_PROGRESS:
             logger.info(
                 "cascade playback_progress 무시 — source=%s(추정치는 절단 근거로 못 쓴다) turn=%s",
                 progress.source, progress.turn_id,
             )
+            await report(False, "source=estimate — 추정치는 절단 근거로 쓰지 않는다")
             return
         spoken = self.beaver.spoken_text(
             progress.turn_id, progress.played_server_bytes, progress.sampled_at
@@ -737,12 +893,16 @@ class CascadeSession:
                 "cascade playback_progress 무시 — 미상/만료된 turn_id=%s(현재 턴=%s)",
                 progress.turn_id, self.beaver.turn_id,
             )
+            await report(False, "미상/만료된 turn_id — 다른 턴 원장에 적용하지 않는다")
             return
         self._spoken_by_turn[progress.turn_id] = spoken
         logger.info(
-            "cascade 재생 진행도: turn=%s played=%dB sampled_at=%s → 이력 반영 %r",
-            progress.turn_id, progress.played_server_bytes, progress.sampled_at, spoken,
+            "cascade 재생 진행도: turn=%s played=%dB rtt=%dms(왕복포함) client_stop=%dms "
+            "network=%dms sampled_at=%s → 이력 반영 %r",
+            progress.turn_id, progress.played_server_bytes, rtt_ms, client_stop_ms,
+            network_ms, progress.sampled_at, spoken,
         )
+        await report(True, "", spoken)
 
     def _apply_aec_hint(self, aec: Any) -> None:
         """start.aec 힌트로 **세션별** barge-in 정책을 정한다.

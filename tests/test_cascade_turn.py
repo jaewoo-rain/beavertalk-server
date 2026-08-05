@@ -651,3 +651,176 @@ async def test_session_ignores_estimated_and_stale_progress(fake_v2, caplog):
     session = CascadeSession(transport)
     await asyncio.wait_for(session.run(), timeout=5)
     assert session._spoken_by_turn == {}, session._spoken_by_turn
+
+
+# ════════════ [dev 훅] 가짜 비버 오디오 → 취소 배관 (P1 없이 클라 검증용) ════════════
+#
+# 이 훅이 있는 이유: 서버가 오디오를 낼 일이 없으면 audio_cancel 을 보낼 수가 없고, 그러면
+# 클라가 만들어 둔 네이티브 clear() 를 실기기에서 한 줄도 못 돌린다.
+# ⭐ 취소는 **버튼 → 서버가 직접 발신**이다. STT 음성감지를 타지 않으므로
+#    CASCADE_MIC_ALWAYS_OPEN 이 꺼진 빌드에서도(=AEC 정비 전이라 켤 수 없어도) 잴 수 있다.
+
+
+class _HookTransport(_StubTransport):
+    """스크립트 inbound + 나간 이벤트/오디오를 **순서 그대로** 기록(순서가 계약이다)."""
+
+    def __init__(self, scripted, wait_for="__test_cancel_report") -> None:
+        super().__init__(scripted, wait_for=wait_for)
+        self.wire: list[tuple[str, object]] = []
+
+    async def send_event(self, event: dict) -> None:
+        self.wire.append(("event", event))
+        await super().send_event(event)
+
+    async def send_audio(self, frame: bytes) -> None:
+        self.wire.append(("audio", frame))
+
+    def wire_kinds(self) -> list[str]:
+        return [p["type"] if k == "event" else "audio" for k, p in self.wire]
+
+    def audio_bytes(self) -> int:
+        return sum(len(p) for k, p in self.wire if k == "audio")
+
+
+@pytest.mark.asyncio
+async def test_hook_beaver_audio_then_normal_end(fake_v2, monkeypatch):
+    """가짜 비버가 흐르고 정상 종료되면 turn_start → 오디오… → turn_end 순서다(I2·I5)."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)  # 테스트에선 페이싱 대기 제거
+    transport = _HookTransport(
+        [_ctl(type="start"), _ctl(type="__test_beaver", seconds=0.5, tone=False, sentence_ms=100)],
+        wait_for="turn_end",
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+
+    kinds = transport.wire_kinds()
+    assert "turn_start" in kinds, kinds
+    assert "audio" in kinds, kinds
+    assert kinds.index("turn_start") < kinds.index("audio"), kinds       # I2
+    assert kinds.index("turn_end") > max(i for i, k in enumerate(kinds) if k == "audio")  # I5
+    # 0.5초 = 5프레임 × 100ms × 4,800B
+    assert transport.audio_bytes() == 5 * 4800, transport.audio_bytes()
+
+
+@pytest.mark.asyncio
+async def test_hook_cancel_sends_audio_cancel_without_turn_end(fake_v2, monkeypatch):
+    """버튼 취소 → audio_cancel 만 나가고 turn_end 는 안 나간다(I4). **플래그와 무관하다.**
+
+    ⚠ 페이싱을 끄면(lead 를 크게) 30초 스트림이 즉시 끝나버려 취소가 낄 자리가 없다.
+    실제 페이싱을 그대로 두고 흐르는 중간에 끊는다 — 실기기 시나리오와 같다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_MIC_ALWAYS_OPEN", False)  # 꺼도 취소는 돈다
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=30, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="__test_cancel", reason="barge_in"),
+        ],
+        wait_for="audio_cancel",
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+
+    kinds = transport.wire_kinds()
+    cancel = transport.first("audio_cancel")
+    assert cancel is not None, kinds
+    assert cancel["turn_id"] == transport.first("turn_start")["turn_id"]
+    assert "turn_end" not in kinds, kinds        # I4 — 취소가 턴 종결을 겸한다
+    # 30초를 요청했지만 50ms 만에 끊었으므로 실제로 나간 오디오는 lead 언저리뿐이다.
+    assert transport.audio_bytes() < 30 * 48000, transport.audio_bytes()
+
+
+@pytest.mark.asyncio
+async def test_hook_cancel_measures_rtt_and_splits_network(fake_v2, monkeypatch):
+    """취소 후 진행도가 오면 왕복/클라자체/네트워크로 **분해**해 리포트한다.
+
+    왕복 값에는 네트워크가 섞여 있다 — 클라가 자기 소요를 실어 보내야 갈라진다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_MIC_ALWAYS_OPEN", False)
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=30, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="__test_cancel"),
+            0.02,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=4800,
+                 source="native", sampled_at="stop", client_stop_ms=5),
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+
+    report = transport.first("__test_cancel_report")
+    assert report is not None, transport.types()
+    assert report["accepted"] is True, report
+    assert report["client_stop_ms"] == 5
+    assert report["rtt_ms"] >= 0
+    assert report["network_ms"] == max(0, report["rtt_ms"] - 5)   # 분해가 실제로 된다
+
+
+@pytest.mark.asyncio
+async def test_hook_reports_ledger_truncation(fake_v2, monkeypatch):
+    """진행도 회신 → 리포트에 **원장 절단 결과**가 실린다(안 들린 문장은 빠진다).
+
+    여기서는 취소 없이 1초 스트림을 끝까지 보낸 뒤(원장은 턴 종료 후에도 남는다) 진행도를
+    보낸다 — 절단 계산만 따로 본다. 왕복 계측은 위 취소 테스트가 맡는다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)  # 페이싱 대기 제거
+    played = 4 * 4800   # 400ms = 문장4까지 들었다
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=1.0, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=played,
+                 source="native", sampled_at="stop", client_stop_ms=37),
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+
+    report = transport.first("__test_cancel_report")
+    assert report is not None, transport.types()
+    assert report["accepted"] is True, report
+    assert report["played_server_bytes"] == played
+    assert report["sent_bytes"] == 10 * 4800          # 1.0초 = 10프레임
+    assert report["unplayed_ms"] == 600               # 6프레임 = 600ms 가 안 들렸다
+    # 문장은 100ms 프레임마다 하나씩 끝나므로 400ms 까지면 문장1~4.
+    assert report["spoken_text"] == "문장1 문장2 문장3 문장4", report["spoken_text"]
+    # 취소를 안 거쳤으니 왕복은 측정되지 않았다 → 분해 불가로 표기한다(-1).
+    assert report["network_ms"] == -1, report
+
+
+@pytest.mark.asyncio
+async def test_hook_rejects_estimated_progress_with_reason(fake_v2, monkeypatch):
+    """추정치 보고는 리포트에 **거부 사유와 함께** 돌아온다(조용히 무시하지 않는다)."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=0.5, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=4800,
+                 source="estimate", sampled_at="stop"),
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+    report = transport.first("__test_cancel_report")
+    assert report is not None and report["accepted"] is False, report
+    assert "estimate" in report["note"], report["note"]
+
+
+@pytest.mark.asyncio
+async def test_hook_pacing_is_realtime(fake_v2):
+    """페이싱이 살아 있다 — 0.6초 분량은 실제로 그만큼 걸려서 나간다(I3).
+
+    lead(200ms)를 빼고도 최소 0.3초는 걸려야 한다. 이게 깨지면 클라 버퍼가 부푼다.
+    """
+    import time as _time
+
+    transport = _HookTransport(
+        [_ctl(type="start"), _ctl(type="__test_beaver", seconds=0.6, tone=False, sentence_ms=200)],
+        wait_for="turn_end",
+    )
+    began = _time.monotonic()
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+    elapsed = _time.monotonic() - began
+    assert elapsed >= 0.3, elapsed

@@ -56,12 +56,15 @@ __all__ = [
     "ClientCascadeStop",
     "ClientPing",
     "ClientPlaybackProgress",
+    "ClientTestBeaver",
+    "ClientTestCancel",
     "ClientTestEvent",
     "ClientTestSay",
     "ServerAudioCancel",
     "ServerCascadeReady",
     "ServerInputPartial",
     "ServerSttRollover",
+    "ServerTestCancelReport",
     "ServerUserTurnEnd",
     "ServerUserTurnStart",
     "ServerError",
@@ -148,6 +151,10 @@ class ClientPlaybackProgress(BaseModel):
     discarded_ms: int = 0
     source: Literal["native", "estimate"] = "estimate"
     sampled_at: Literal["stop", "cancel"] = "stop"
+    # 클라가 **자기 안에서** 잰 시간: audio_cancel 수신 → 실제로 소리가 멎기까지(ms).
+    # 서버가 재는 값(cancel 송신 → progress 수신)에는 네트워크 왕복이 섞여 있어서,
+    # "앱이 얼마나 빨리 조용해지는가"를 따로 알려면 이 값이 필요하다. 미보고면 -1.
+    client_stop_ms: int = -1
 
 
 class ClientTestSay(BaseModel):
@@ -164,6 +171,31 @@ class ClientTestEvent(BaseModel):
     event: Literal["speech_begin", "speech_end"]
 
 
+class ClientTestBeaver(BaseModel):
+    """[dev 훅] **가짜 비버 오디오**를 실시간 레이트로 흘려 달라(취소 배관 검증용).
+
+    P1(LLM·TTS)이 붙기 전에 **클라의 취소 배관을 실기기에서 검증**하려고 만든 통로다.
+    지금은 서버가 오디오를 낼 일이 없어 audio_cancel 을 보낼 수가 없고, 그래서 클라가
+    만들어 둔 네이티브 clear() 를 한 줄도 못 돌린다.
+
+    ⛔ 이건 P1 착수가 아니다. 진짜 TTS·LLM 은 붙이지 않는다 — 톤/무음 PCM24k 를 흘릴 뿐이다.
+    그래도 **서버 불변식은 그대로 지킨다**(오디오 전에 turn_start, 실시간 페이싱,
+    audio_cancel 이 턴 종결 겸함). 훅이 불변식을 어기면 클라 판별식이 깨진다.
+    """
+
+    type: Literal["__test_beaver"] = "__test_beaver"
+    seconds: float = 5.0            # 흘릴 길이(초)
+    tone: bool = True               # True=440Hz 톤(귀로 확인) / False=무음
+    sentence_ms: int = 1000         # 이 간격마다 "문장" 하나가 끝난 것으로 원장에 표시
+
+
+class ClientTestCancel(BaseModel):
+    """[dev 훅] 지금 흐르는 가짜 비버 턴을 **끊어라**(= barge-in 과 같은 취소 배관)."""
+
+    type: Literal["__test_cancel"] = "__test_cancel"
+    reason: str = "barge_in"
+
+
 CascadeClientMessage = Annotated[
     Union[
         ClientCascadeStart,
@@ -172,6 +204,8 @@ CascadeClientMessage = Annotated[
         ClientPlaybackProgress,
         ClientTestSay,
         ClientTestEvent,
+        ClientTestBeaver,
+        ClientTestCancel,
     ],
     Field(discriminator="type"),
 ]
@@ -262,6 +296,36 @@ class ServerSttRollover(BaseModel):
     gap_ms: int = 0
 
 
+class ServerTestCancelReport(BaseModel):
+    """[dev 훅] 취소 배관 **실측 리포트** — 데모 화면이 이걸 표로 띄운다.
+
+    Attributes:
+        rtt_ms: `audio_cancel` 을 소켓에 쓴 시각 → `playback_progress` 가 도착한 시각.
+            ⚠ **네트워크 왕복이 섞인 값**이다(화면에도 그렇게 표기한다).
+        client_stop_ms: 클라가 자기 안에서 잰 값 — audio_cancel 수신 → 실제 무음까지.
+            **이게 "폐기 실효지연 50~120ms 목표"의 진짜 실측치**다. 미보고면 -1.
+        network_ms: rtt_ms − client_stop_ms = 네트워크 왕복 추정(둘 다 있을 때만).
+        sent_bytes: 서버가 그 턴에서 보낸 총 바이트.
+        played_server_bytes: 클라가 실제로 재생했다고 보고한 바이트.
+        unplayed_ms: (sent − played) 를 ms 로 — **버려진 양**. 이만큼이 안 들렸다.
+        spoken_text: 원장 절단 결과(실제로 들린 데까지의 대사). 절단이 도는지 눈으로 본다.
+    """
+
+    type: Literal["__test_cancel_report"] = "__test_cancel_report"
+    turn_id: str
+    rtt_ms: int = 0                 # ⚠ 왕복 포함
+    client_stop_ms: int = -1        # 클라 자체 소요(-1 = 미보고)
+    network_ms: int = -1            # rtt − client_stop (둘 다 있을 때만)
+    sent_bytes: int = 0
+    played_server_bytes: int = 0
+    unplayed_ms: int = 0
+    spoken_text: str = ""
+    source: str = ""
+    sampled_at: str = ""
+    accepted: bool = True           # False = 서버가 그 진행도를 버렸다(사유는 note)
+    note: str = ""
+
+
 class ServerAudioCancel(BaseModel):
     """(P1) **지금 재생 중이거나 버퍼에 쌓인 이 턴 오디오를 즉시 버려라.**
 
@@ -290,6 +354,7 @@ CascadeServerMessage = Annotated[
         ServerUserTurnEnd,
         ServerSttRollover,
         ServerAudioCancel,
+        ServerTestCancelReport,
         # 비버(서버 출력) 턴 — normalcall 과 **같은 모델을 재사용**한다. 앱의 재생 상태기계가
         # 이 두 메시지에 묶여 있어 의미를 바꾸면 안 된다(클라 제약 #1).
         ServerTurnStart,
