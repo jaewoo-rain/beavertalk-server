@@ -126,6 +126,10 @@
         <div class="muted">clear_returned 중앙값 <span class="w">(하한 · 참고용)</span></div>
         <div id="cClear" class="big">-</div>
       </div>
+      <div style="margin-left:24px">
+        <div class="muted">강등률 <span class="muted">(clear_returned / 전체)</span></div>
+        <div id="cDemote" class="big">-</div>
+      </div>
     </div>
     <div id="cVerdict" class="tip muted">아직 측정 없음.</div>
     <table id="cTbl">
@@ -403,19 +407,33 @@ function renderCancelStats() {
   $('#cHal').textContent = hal.length ? median(hal) + 'ms' : '-';
   $('#cClear').textContent = clr.length ? '≥ ' + median(clr) + 'ms' : '-';
 
-  // 합격 판정은 **hal_drained 표본으로만** 한다. 하한을 섞으면 낙관 편향이 들어간다.
+  const total = cancelRuns.length;
+  $('#cDemote').textContent = total ? Math.round(clr.length / total * 100) + '%' : '-';
+
+  // ⭐ 판정 기준은 '몇 번 눌렀나'가 아니라 **hal_drained 표본이 몇 건 모였나**다.
+  //   강등 빈도는 기기·라우트·타이밍에 따라 달라지므로 고정 횟수는 의미를 잃는다
+  //   (10번 눌러도 hal_drained 가 1건일 수 있다). 화면이 몇 건 더 필요한지 직접 말한다.
+  const NEED = 5;
   const v = $('#cVerdict');
   if (!hal.length) {
     v.className = 'tip muted';
-    v.innerHTML = `판정 불가 — <b>hal_drained 표본 0건</b>` +
+    v.innerHTML = `<b>판정 불가 — hal_drained 표본 0건</b>` +
       (clr.length ? ` (clear_returned ${clr.length}건은 <b>하한</b>이라 판정에 쓰지 않는다).` : '.') +
-      ` 클라가 HAL 잔량을 실측한 턴이 있어야 "50~120ms" 를 판정할 수 있다.`;
+      ` 몇 번 더 끊어 보시라.` +
+      (total >= 15 ? ` <b class="w">⚠ ${total}회를 눌렀는데도 0건이면 그 자체가 결과다</b> —
+        이 기기·라우트에서는 HAL 잔량을 못 재는 것이다(iOS 이거나 타임스탬프 미지원 라우트).
+        그대로 보고하면 된다.` : '');
+  } else if (hal.length < NEED) {
+    v.className = 'tip muted';
+    v.innerHTML = `<b>표본 부족 — hal_drained ${hal.length}/${NEED}건.</b> ` +
+      `${NEED - hal.length}번 더 잡히면 판정한다(중앙값은 표본이 몇 개는 돼야 흔들리지 않는다). ` +
+      `<span class="muted">지금까지 ${total}회 중 ${clr.length}회가 하한으로 강등됐다.</span>`;
   } else {
-    const med = median(hal);
+    const med = median(hal), lo = Math.min(...hal), hi = Math.max(...hal);
     const pass = med <= 120;
     v.className = 'tip';
     v.innerHTML = `<b class="${pass ? 'ok' : 'err'}">${pass ? '✅ 합격' : '❌ 목표 초과'}</b> — ` +
-      `hal_drained ${hal.length}건 중앙값 <b>${med}ms</b> (목표 50~120ms). ` +
+      `hal_drained ${hal.length}건 중앙값 <b>${med}ms</b> (범위 ${lo}~${hi}ms · 목표 50~120ms). ` +
       (clr.length ? `<span class="w">clear_returned ${clr.length}건은 하한이라 제외했다.</span>` : '');
   }
 }
