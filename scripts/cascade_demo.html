@@ -116,7 +116,23 @@
       <label class="muted"><input type="checkbox" id="toneChk" checked /> 톤(끄면 무음)</label>
       <span id="beaverStat" class="muted"></span>
     </div>
-    <div id="cancelReport" class="muted">아직 측정 없음.</div>
+    <div class="row" style="margin:8px 0">
+      <div><div class="muted">측정 횟수</div><div id="cRuns" class="big">0</div></div>
+      <div style="margin-left:24px">
+        <div class="muted">클라 정지 중앙값 <b>(hal_drained · 판정용)</b></div>
+        <div id="cHal" class="big">-</div>
+      </div>
+      <div style="margin-left:24px">
+        <div class="muted">clear_returned 중앙값 <span class="w">(하한 · 참고용)</span></div>
+        <div id="cClear" class="big">-</div>
+      </div>
+    </div>
+    <div id="cVerdict" class="tip muted">아직 측정 없음.</div>
+    <table id="cTbl">
+      <thead><tr><th>#</th><th>턴</th><th>왕복(⚠포함)</th><th>클라 정지</th><th>측정 지점</th><th>네트워크</th><th>버려짐</th><th>절단 결과</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="cancelReport" class="muted" style="margin-top:8px"></div>
   </div>
 
   <!-- dev 훅 -->
@@ -362,7 +378,51 @@ function onMsg(ev) {
 }
 
 /* ---------- 취소 배관 리포트 ---------- */
+/* ⚠ 같은 기기·같은 세션 안에서도 턴마다 stop_measure 가 달라질 수 있다(getTimestamp 미가용,
+   라우트 변경 직후, iOS 는 전부 clear_returned). 그래서 턴별로 남기고, 통계는 **측정 지점별로
+   갈라서** 낸다 — 하한과 실측을 섞어 중앙값을 내면 판정이 뒤엉킨다. */
+const cancelRuns = [];
+
+function renderCancelStats() {
+  const body = $('#cTbl').querySelector('tbody');
+  body.innerHTML = cancelRuns.map((r, i) => {
+    const lb = r.client_stop_is_lower_bound;
+    const cs = r.client_stop_ms >= 0 ? `${lb ? '≥ ' : ''}${r.client_stop_ms}ms` : '-';
+    const net = r.network_ms >= 0 ? `${lb ? '≤ ' : ''}${r.network_ms}ms` : '-';
+    return `<tr><td>${i + 1}</td><td>${esc(r.turn_id)}</td><td>${r.rtt_ms}ms</td>` +
+      `<td class="${lb ? 'w' : 'ok'}">${cs}</td><td class="muted">${esc(r.stop_measure)}</td>` +
+      `<td>${net}</td><td>${r.unplayed_ms}ms</td>` +
+      `<td>${r.accepted ? esc(r.spoken_text) : `<span class="err">${esc(r.note)}</span>`}</td></tr>`;
+  }).join('');
+
+  const hal = cancelRuns.filter(r => !r.client_stop_is_lower_bound && r.client_stop_ms >= 0)
+                        .map(r => r.client_stop_ms);
+  const clr = cancelRuns.filter(r => r.client_stop_is_lower_bound && r.client_stop_ms >= 0)
+                        .map(r => r.client_stop_ms);
+  $('#cRuns').textContent = cancelRuns.length;
+  $('#cHal').textContent = hal.length ? median(hal) + 'ms' : '-';
+  $('#cClear').textContent = clr.length ? '≥ ' + median(clr) + 'ms' : '-';
+
+  // 합격 판정은 **hal_drained 표본으로만** 한다. 하한을 섞으면 낙관 편향이 들어간다.
+  const v = $('#cVerdict');
+  if (!hal.length) {
+    v.className = 'tip muted';
+    v.innerHTML = `판정 불가 — <b>hal_drained 표본 0건</b>` +
+      (clr.length ? ` (clear_returned ${clr.length}건은 <b>하한</b>이라 판정에 쓰지 않는다).` : '.') +
+      ` 클라가 HAL 잔량을 실측한 턴이 있어야 "50~120ms" 를 판정할 수 있다.`;
+  } else {
+    const med = median(hal);
+    const pass = med <= 120;
+    v.className = 'tip';
+    v.innerHTML = `<b class="${pass ? 'ok' : 'err'}">${pass ? '✅ 합격' : '❌ 목표 초과'}</b> — ` +
+      `hal_drained ${hal.length}건 중앙값 <b>${med}ms</b> (목표 50~120ms). ` +
+      (clr.length ? `<span class="w">clear_returned ${clr.length}건은 하한이라 제외했다.</span>` : '');
+  }
+}
+
 function showCancelReport(m) {
+  cancelRuns.push(m);
+  renderCancelStats();
   const net = m.network_ms >= 0 ? `${m.network_ms}ms` : '<span class="muted">분리 불가</span>';
   const lb  = m.client_stop_is_lower_bound;
   const cs  = m.client_stop_ms >= 0
