@@ -350,9 +350,11 @@ function onMsg(ev) {
     const playedBytes = beaverStopNow();
     bDrop = true;
     const clientStopMs = Math.round(nowMs() - gotAt);   // 앱이 조용해지기까지(클라 자체)
+    // stop_measure: 브라우저도 하드웨어 버퍼 잔량까지는 모른다(stop() 은 다음 렌더 퀀텀에
+    // 걸린다) → 정직하게 clear_returned = **하한**으로 보고한다. 실제 무음은 이보다 늦다.
     sendCtl({ type:'playback_progress', turn_id:m.turn_id, epoch:m.epoch,
               played_server_bytes:playedBytes, source:'native', sampled_at:'stop',
-              client_stop_ms:clientStopMs });
+              client_stop_ms:clientStopMs, stop_measure:'clear_returned' });
     log(`✋ audio_cancel ${m.turn_id} → 정지·폐기, 재생 ${playedBytes}B 보고(클라 자체 ${clientStopMs}ms)`, 'w');
   }
   else if (m.type === '__test_cancel_report') { showCancelReport(m); }
@@ -362,22 +364,27 @@ function onMsg(ev) {
 /* ---------- 취소 배관 리포트 ---------- */
 function showCancelReport(m) {
   const net = m.network_ms >= 0 ? `${m.network_ms}ms` : '<span class="muted">분리 불가</span>';
-  const cs  = m.client_stop_ms >= 0 ? `${m.client_stop_ms}ms` : '<span class="muted">미보고</span>';
+  const lb  = m.client_stop_is_lower_bound;
+  const cs  = m.client_stop_ms >= 0
+      ? (lb ? `<b>≥ ${m.client_stop_ms}ms</b> <span class="w">(하한 — 실제 무음은 이보다 늦다)</span>`
+            : `<b>${m.client_stop_ms}ms</b> <span class="ok">(실제 무음 시각)</span>`)
+      : '<span class="muted">미보고</span>';
   $('#cancelReport').innerHTML = `
     <table>
       <tr><th colspan="2">취소 배관 실측 — 턴 ${esc(m.turn_id)}</th></tr>
       <tr><td>왕복 지연 <b>(⚠ 네트워크 왕복 포함)</b><div class="muted">서버가 audio_cancel 을 쓴 시각 → playback_progress 도착</div></td>
           <td><b class="${m.rtt_ms<=200?'ok':'err'}">${m.rtt_ms}ms</b></td></tr>
-      <tr><td><b>클라 자체 정지 시간</b><div class="muted">앱이 audio_cancel 을 받고 실제로 조용해지기까지 — <b>목표 50~120ms</b></div></td>
-          <td><b>${cs}</b></td></tr>
-      <tr><td>네트워크 왕복(추정)<div class="muted">왕복 − 클라 자체</div></td><td>${net}</td></tr>
+      <tr><td><b>클라 자체 정지 시간</b><div class="muted">앱이 audio_cancel 을 받고 조용해지기까지 — <b>목표 50~120ms</b>
+          <br>측정 지점: <code>${esc(m.stop_measure)}</code>${lb ? ' — 하드웨어 잔량 미포함이라 <b>합격 판정에 그대로 쓰면 안 된다</b>' : ''}</div></td>
+          <td>${cs}</td></tr>
+      <tr><td>네트워크 왕복(추정)<div class="muted">왕복 − 클라 자체${lb ? ' · 클라 값이 하한이라 이 값은 <b>상한</b>이다' : ''}</div></td><td>${lb && m.network_ms >= 0 ? '≤ ' : ''}${net}</td></tr>
       <tr><td>보낸 양 / 재생된 양</td><td>${m.sent_bytes}B / ${m.played_server_bytes}B</td></tr>
       <tr><td>버려진 양(안 들린 소리)</td><td><b>${m.unplayed_ms}ms</b></td></tr>
       <tr><td>원장 절단 결과<div class="muted">실제로 들린 데까지의 대사만 이력에 남는다</div></td>
           <td>${m.accepted ? `<b class="ok">"${esc(m.spoken_text)}"</b>` : `<span class="err">반영 안 됨 — ${esc(m.note)}</span>`}</td></tr>
       <tr><td>보고 형식</td><td class="muted">source=${esc(m.source)} · sampled_at=${esc(m.sampled_at)}</td></tr>
     </table>`;
-  log(`📋 취소 리포트: 왕복 ${m.rtt_ms}ms(포함) · 클라 ${cs} · 버려짐 ${m.unplayed_ms}ms · 절단 "${esc(m.spoken_text)}"`, 'ok');
+  log(`📋 취소 리포트: 왕복 ${m.rtt_ms}ms(포함) · 클라 ${lb?'≥':''}${m.client_stop_ms}ms(${esc(m.stop_measure)}) · 버려짐 ${m.unplayed_ms}ms · 절단 "${esc(m.spoken_text)}"`, 'ok');
 }
 
 /* ---------- 표 ---------- */

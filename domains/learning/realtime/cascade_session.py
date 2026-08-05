@@ -857,6 +857,9 @@ class CascadeSession:
         network_ms = (
             max(0, rtt_ms - client_stop_ms) if (measured and client_stop_ms >= 0) else -1
         )
+        # ⭐ 그 값이 실제 무음 시각인지 **하한**인지. 명시가 없으면 하한으로 본다 —
+        #   낙관 편향된 값으로 '50~120ms 합격'을 내면 실기기에서 뒤집힌다.
+        lower_bound = progress.stop_measure != "hal_drained"
 
         async def report(accepted: bool, note: str, spoken: str = "") -> None:
             sent = self.beaver.sent_bytes_of(progress.turn_id)
@@ -866,6 +869,8 @@ class CascadeSession:
                     turn_id=progress.turn_id,
                     rtt_ms=rtt_ms,
                     client_stop_ms=client_stop_ms,
+                    client_stop_is_lower_bound=lower_bound,
+                    stop_measure=progress.stop_measure,
                     network_ms=network_ms,
                     sent_bytes=sent,
                     played_server_bytes=progress.played_server_bytes,
@@ -897,9 +902,10 @@ class CascadeSession:
             return
         self._spoken_by_turn[progress.turn_id] = spoken
         logger.info(
-            "cascade 재생 진행도: turn=%s played=%dB rtt=%dms(왕복포함) client_stop=%dms "
-            "network=%dms sampled_at=%s → 이력 반영 %r",
-            progress.turn_id, progress.played_server_bytes, rtt_ms, client_stop_ms,
+            "cascade 재생 진행도: turn=%s played=%dB rtt=%dms(왕복포함) client_stop=%s%dms"
+            "(%s) network=%dms sampled_at=%s → 이력 반영 %r",
+            progress.turn_id, progress.played_server_bytes, rtt_ms,
+            "≥" if lower_bound else "", client_stop_ms, progress.stop_measure,
             network_ms, progress.sampled_at, spoken,
         )
         await report(True, "", spoken)

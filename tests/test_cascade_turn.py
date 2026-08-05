@@ -824,3 +824,52 @@ async def test_hook_pacing_is_realtime(fake_v2):
     await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
     elapsed = _time.monotonic() - began
     assert elapsed >= 0.3, elapsed
+
+
+@pytest.mark.asyncio
+async def test_hook_stop_measure_missing_is_lower_bound(fake_v2, monkeypatch):
+    """⭐ stop_measure 누락 = **하한**으로 표기한다(안 믿는다).
+
+    client_stop_ms 는 값이 항상 오지만 의미가 둘이다 — 하드웨어 잔량까지 빠진 '실제 무음
+    시각'이냐, clear() 반환까지만 잰 값이냐. 구분이 없으면 서버가 **가장 낙관적인 값을
+    실측으로 믿게 되고**, 그 값으로 "50~120ms 합격"을 내면 실기기에서 뒤집힌다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=0.5, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=4800,
+                 source="native", sampled_at="stop", client_stop_ms=42),  # stop_measure 없음
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+    report = transport.first("__test_cancel_report")
+    assert report is not None, transport.types()
+    assert report["client_stop_ms"] == 42
+    assert report["client_stop_is_lower_bound"] is True, report
+    assert report["stop_measure"] == "clear_returned", report
+    # ⚠ 값 자체는 버리지 않는다 — 쓸모 있는 하한이므로 성격만 표시한다(원장 절단은 그대로).
+    assert report["accepted"] is True, report
+
+
+@pytest.mark.asyncio
+async def test_hook_stop_measure_hal_drained_is_taken_as_actual(fake_v2, monkeypatch):
+    """hal_drained 로 명시하면 **실제 무음 시각**으로 취급한다(판정에 그대로 쓴다)."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LEAD_MS", 100_000)
+    transport = _HookTransport(
+        [
+            _ctl(type="start"),
+            _ctl(type="__test_beaver", seconds=0.5, tone=False, sentence_ms=100),
+            0.05,
+            _ctl(type="playback_progress", turn_id="b1", played_server_bytes=4800,
+                 source="native", sampled_at="stop", client_stop_ms=88,
+                 stop_measure="hal_drained"),
+        ]
+    )
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
+    report = transport.first("__test_cancel_report")
+    assert report is not None and report["client_stop_is_lower_bound"] is False, report
+    assert report["stop_measure"] == "hal_drained"
+    assert report["client_stop_ms"] == 88

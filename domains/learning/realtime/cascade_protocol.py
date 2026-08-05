@@ -151,10 +151,17 @@ class ClientPlaybackProgress(BaseModel):
     discarded_ms: int = 0
     source: Literal["native", "estimate"] = "estimate"
     sampled_at: Literal["stop", "cancel"] = "stop"
-    # 클라가 **자기 안에서** 잰 시간: audio_cancel 수신 → 실제로 소리가 멎기까지(ms).
-    # 서버가 재는 값(cancel 송신 → progress 수신)에는 네트워크 왕복이 섞여 있어서,
-    # "앱이 얼마나 빨리 조용해지는가"를 따로 알려면 이 값이 필요하다. 미보고면 -1.
+    # 클라가 **자기 안에서** 잰 시간: audio_cancel 수신 → 소리가 멎기까지(ms). 미보고면 -1.
     client_stop_ms: int = -1
+    # ⭐ 그 숫자가 **무엇까지 포함하는가**. client_stop_ms 는 값이 항상 오지만 의미가 둘이라,
+    #   구분이 없으면 서버가 **가장 낙관적인 값을 실측으로 믿게 된다**(우리가 재려는 게 정확히
+    #   "50~120ms 목표에 드는가"인데, 낙관 편향된 값으로 합격을 내면 실기기에서 뒤집힌다).
+    #     hal_drained    = 하드웨어 잔량까지 빠져 **실제로 조용해진 시각**. 판정에 그대로 쓴다
+    #     clear_returned = 네이티브 clear() 반환까지만. 회수 경로(재생스레드가 세대변화를 보고
+    #                      스스로 flush)가 그 뒤에 올 수 있어 **실제 무음은 이보다 늦다** = 하한
+    #   ⛔ 기본값이 clear_returned 인 이유: **누락 = 안 믿는다**(침묵을 실측으로 오해하지 않는다).
+    #   ※ source 와 달리 값을 **버리지는 않는다** — 쓸모 있는 하한이므로 성격만 표시한다.
+    stop_measure: Literal["hal_drained", "clear_returned"] = "clear_returned"
 
 
 class ClientTestSay(BaseModel):
@@ -302,9 +309,13 @@ class ServerTestCancelReport(BaseModel):
     Attributes:
         rtt_ms: `audio_cancel` 을 소켓에 쓴 시각 → `playback_progress` 가 도착한 시각.
             ⚠ **네트워크 왕복이 섞인 값**이다(화면에도 그렇게 표기한다).
-        client_stop_ms: 클라가 자기 안에서 잰 값 — audio_cancel 수신 → 실제 무음까지.
-            **이게 "폐기 실효지연 50~120ms 목표"의 진짜 실측치**다. 미보고면 -1.
+        client_stop_ms: 클라가 자기 안에서 잰 값 — audio_cancel 수신 → 소리가 멎기까지.
+            **"폐기 실효지연 50~120ms 목표"의 실측치**다. 미보고면 -1.
+        client_stop_is_lower_bound: True 면 위 값은 **하한**이다(실제 무음은 더 늦다).
+            stop_measure != "hal_drained" 일 때 참. **합격 판정에 그대로 쓰면 안 된다.**
+        stop_measure: 그 값이 무엇까지 포함하는지(hal_drained / clear_returned).
         network_ms: rtt_ms − client_stop_ms = 네트워크 왕복 추정(둘 다 있을 때만).
+            ⚠ client_stop 이 하한이면 이 값은 **상한**이 된다(빼는 값이 작으므로).
         sent_bytes: 서버가 그 턴에서 보낸 총 바이트.
         played_server_bytes: 클라가 실제로 재생했다고 보고한 바이트.
         unplayed_ms: (sent − played) 를 ms 로 — **버려진 양**. 이만큼이 안 들렸다.
@@ -315,6 +326,8 @@ class ServerTestCancelReport(BaseModel):
     turn_id: str
     rtt_ms: int = 0                 # ⚠ 왕복 포함
     client_stop_ms: int = -1        # 클라 자체 소요(-1 = 미보고)
+    client_stop_is_lower_bound: bool = True   # True = 실제 무음은 이보다 늦다
+    stop_measure: str = "clear_returned"      # 그 값이 무엇까지 포함하는가
     network_ms: int = -1            # rtt − client_stop (둘 다 있을 때만)
     sent_bytes: int = 0
     played_server_bytes: int = 0
