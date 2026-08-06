@@ -79,13 +79,13 @@
     <div class="row" style="margin:8px 0">
       <span class="muted">캐릭터 ID</span><input id="cid" value="1" style="width:50px" />
       <span class="muted">학습 언어(target)</span>
-      <select id="tgt" title="배울 언어. ja=일본어 도그푸딩(레벨테스트·체크판·레벨업 정식 가동). 회화전용은 레벨 시스템 없이 대화만.">
+      <select id="tgt" title="배울 언어. 6개 언어 모두 레벨테스트·체크판·레벨업이 가동된다(core/languages.py 기준). ja 는 도그푸딩으로 먼저 돌린 언어일 뿐 특별하지 않다.">
         <option value="ja">일본어(ja) · 도그푸딩</option>
         <option value="ko">한국어(ko)</option>
-        <option value="en">영어(en) · 회화전용</option>
-        <option value="zh">중국어(zh) · 회화전용</option>
-        <option value="fr">프랑스어(fr) · 회화전용</option>
-        <option value="vi">베트남어(vi) · 회화전용</option>
+        <option value="en">영어(en)</option>
+        <option value="zh">중국어(zh)</option>
+        <option value="fr">프랑스어(fr)</option>
+        <option value="vi">베트남어(vi)</option>
       </select>
       <span class="muted">모국어(안내 언어)</span>
       <select id="loc" title="안내·리액션 언어(학습자 L1). 일본어를 배우는 한국인 도그푸딩이면 ko.">
@@ -98,7 +98,7 @@
       <label class="muted" title="끄면 앱과 동일한 자동 판단(레벨 없으면 테스트, 있으면 일반 통화). 켜면 레벨이 있어도 강제 재측정(non-prod 전용).">
         <input type="checkbox" id="force" checked /> 재측정 강제
       </label>
-      <span class="muted" title="데모/dev 전용 — 3~15분에서 선택. 10분 초과는 Gemini 연결 한계로 일찍 끝날 수 있음.">통화 길이</span>
+      <span class="muted" title="데모/dev 전용 — 3~15분. 10분 초과는 Live 연결 한계(~10분)를 세션 재연결(세대 루프)로 넘는다. 재연결은 아직 실측 검증 전이라, 후반에 끊기거나 이상하면 알려주세요.">통화 길이</span>
       <select id="dur">
         <option value="3">3분</option>
         <option value="5">5분</option>
@@ -390,7 +390,8 @@ async function afterCall(myGen) {
     $('#ana').innerHTML = `<span class="ok">판정 완료</span> — call_id ${callId}`;
     $('#lvlbox').innerHTML = `<div class="lvl">레벨 ${lvl} / 13</div>
       <div class="muted">member.korean_level 에 저장됨 — 다음 일반 통화부터 이 레벨의 커리큘럼이 적용됩니다.
-      (실서비스에선 사용자에게 숫자를 보여주지 않습니다 — 이 화면은 개발 확인용)</div>`;
+      (실서비스도 마이페이지에 레벨을 보여줍니다 — 종합 레벨 카드 + 레벨별 고정 "상위 N%".
+      2026-07-31 D2 폐기. 다만 체크판 항목별 상태·진행률은 여전히 비노출입니다)</div>`;
   } else if (last.status==='done') {
     $('#lvlbox').innerHTML = `<div class="muted">판정 스킵 — 발화가 너무 적었어요(레벨 미저장). 다시 통화하면 재측정됩니다.</div>`;
   } else {
