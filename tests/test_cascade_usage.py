@@ -174,20 +174,35 @@ def test_summary_matches_contract():
     assert s["total"] == 44_320
     v = s["vendors"]
     assert set(v) == {"stt", "llm", "tts"}
-    assert v["stt"]["vendor"] == "google-stt-v2" and v["stt"]["audio_s"] == 902.4
+    assert v["stt"]["vendor"] == "google-stt-v2" and v["stt"]["audio_s"] == 890.0
     assert v["llm"]["vendor"] == "gemini-2.5-flash"
     assert v["tts"]["vendor"] == "cloud-tts-chirp3-hd" and v["tts"]["chars"] == 5
 
 
-def test_audio_s_always_declares_its_source():
-    """모르는 값을 아는 척하지 않는다 — `audio_s` 가 어디서 왔는지 항상 붙어 나간다."""
+def test_audio_s_uses_vendor_max_and_declares_its_source():
+    """⭐ 실통화로 판정났다: total_billed_duration 은 **누적값이 반복해 실린다**.
+
+    실측(통화 104.5초): billed_max=102.0s 가 실제와 맞고 billed_sum=419.0s 는 4배였다.
+    → 원가 산식이 쓰는 audio_s 는 **max** 다. sum 을 썼으면 STT 원가를 4배로 과대계상했다.
+    무엇을 넣었는지는 항상 audio_s_source 가 말한다.
+    """
     s = _filled_usage().summary()
     stt = s["vendors"]["stt"]
-    assert stt["audio_s_source"] == "sent_audio"
-    assert stt["audio_s"] == stt["sent_audio_s"]
-    # 벤더 값은 지우지 않고 원본 그대로 함께 남는다(확정되면 출처만 바꾸면 된다).
-    assert (stt["billed_sum_s"], stt["billed_max_s"], stt["billed_msgs"]) == (900.0, 890.0, 12)
+    assert stt["audio_s_source"] == "vendor_billed_max"
+    assert stt["audio_s"] == stt["billed_max_s"] == 890.0
+    assert stt["audio_s"] != stt["billed_sum_s"]     # sum 은 중복이다
+    # 원본 3종은 그대로 남는다(다음에 또 판정할 일이 생기면 이게 재료다).
+    assert (stt["billed_sum_s"], stt["billed_msgs"]) == (900.0, 12)
+    assert stt["sent_audio_s"] == 902.4
     assert stt["replay_audio_s"] == 1.2 and stt["streams"] == 3
+
+
+def test_audio_s_falls_back_to_our_counter_when_vendor_is_silent():
+    """벤더가 과금 초를 안 실어 주면(페이크·필드 미제공) 우리 카운터로 폴백하고 그렇게 밝힌다."""
+    usage = CascadeUsage()
+    usage.record_stt(_StubStream(sent_audio_ms=1_000, billed_msgs=0, billed_max_ms=0), engine="v2")
+    stt = usage.summary()["vendors"]["stt"]
+    assert stt["audio_s_source"] == "sent_audio" and stt["audio_s"] == 1.0
 
 
 def test_thoughts_tokens_are_kept_out_of_out_text():

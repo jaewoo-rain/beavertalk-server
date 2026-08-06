@@ -194,17 +194,24 @@ class CascadeUsage:
         """계약 모양의 요약 1건. 아무것도 못 모았으면 None(호출부가 '미수집'으로 분기).
 
         `audio_s`(계약 키)에 무엇을 넣었는지는 **항상** `audio_s_source` 가 말한다:
-          - "sent_audio"   : 우리가 흘린 오디오 길이(현재 기본 — 벤더 값의 의미가 미확정)
-          - "vendor_billed": 벤더가 준 과금 초
+          - "vendor_billed_max" : 벤더가 준 과금 초(스트림별 최댓값의 합 — 실통화로 확정된 기본)
+          - "sent_audio"        : 우리가 흘린 오디오 길이(벤더 값이 안 실렸을 때의 폴백)
         """
         try:
             if not (self.stt.collected or self.llm.calls or self.tts.calls or self.tts.calls_failed):
                 return None
+            # ⭐ 2026-08-07 실통화로 **판정 완료**: total_billed_duration 은 응답마다의 증분이
+            #   아니라 **누적값이 반복해 실린다.** 실측(통화 104초): max=102.0s 가 실제 오디오와
+            #   맞고 sum=419.0s 는 4배다. → 원가 산식은 **max** 를 쓴다. sum 을 썼으면 STT
+            #   원가를 4배로 과대계상했다(설계 §1-1 의 판정표대로 sum·max 를 둘 다 든 덕에 갈렸다).
+            #   벤더 값이 안 실린 세션(페이크·필드 미제공)에서는 우리 카운터로 폴백한다.
+            billed_s = round(self.stt.billed_max_ms / 1000.0, 1)
+            sent_s = round(self.stt.sent_ms / 1000.0, 1)
+            use_vendor = self.stt.billed_msgs > 0 and self.stt.billed_max_ms > 0
             stt = {
                 "vendor": self.stt.vendor,
-                # 확정 전까지 우리 카운터를 쓴다 — 벤더 값은 아래에 원본 그대로 함께 남는다.
-                "audio_s": round(self.stt.sent_ms / 1000.0, 1),
-                "audio_s_source": "sent_audio",
+                "audio_s": billed_s if use_vendor else sent_s,
+                "audio_s_source": "vendor_billed_max" if use_vendor else "sent_audio",
                 "sent_audio_s": round(self.stt.sent_ms / 1000.0, 1),
                 "replay_audio_s": round(self.stt.replay_ms / 1000.0, 1),
                 "billed_sum_s": round(self.stt.billed_sum_ms / 1000.0, 1),
