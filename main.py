@@ -248,21 +248,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(push_router, prefix=API_PREFIX)
 
     # ── (dev 전용) 통화 데모 콘솔 ──
-    # 운영(prod)에는 노출하지 않는다. 같은 오리진으로 서빙하므로 CORS 불필요.
+    # ⛔ **"dev 전용"은 의도이지 현실이 아니다.** 실서비스(app-api)의 ENV 는 "prod" 가 아니라
+    #   **"test"** 다(2026-08-07 실측: 운영 /health → {"status":"ok","env":"test"}). 그래서
+    #   아래 조건은 **운영에서도 참**이고 이 블록은 실서비스에 마운트된다.
+    #   같은 사실을 이미 알고 있었으면서(아래 구독 도구 주석 참조) 캐스케이드에는 2차 방어를
+    #   안 붙였다. 옛 주석("prod 에는 마운트조차 하지 않는다")을 1차 자료로 읽은 클라 쪽이
+    #   "prod 백엔드면 소켓이 안 열린다"를 **안전장치로 세는** 일까지 벌어졌다 —
+    #   틀린 주석이 남의 설계 판단이 됐다. 그래서 문구를 사실로 바꾼다.
+    #   ENV 값을 바로잡는 게 근본이지만 같은 조건을 쓰는 다른 블록이 동시에 닫히므로
+    #   영향 범위를 잰 뒤 별건으로 한다(docs/20260807_0510_dev블록-노출-사실관계.md).
     if settings.ENV != "prod":
         # 캐스케이드(STT→LLM→TTS) 실험 경로 — WS /api/v1/cascade/stream.
-        # prod 에는 마운트조차 하지 않는다(노출 0). normalcall 과 완전히 분리된 경로다.
-        from domains.learning.realtime.cascade_router import router as cascade_router
+        # ⭐ **전용 스위치로 한 번 더 막는다.** ENV 게이트가 깨져 있으므로 그것에 기대지
+        #   않는다 — 기본값 False 라 아무 데도 안 열리고, 켠 곳에서만 열린다.
+        #   위험은 미인증 공개가 아니다(verify_token 이 있다). **인증된 아무 계정이나 세션을
+        #   열 수 있고 LLM·TTS 가 실제로 돈다는 것**이다. call_id·DB 연동이 없어 누가 얼마나
+        #   썼는지 사후 추적도 안 되고, dev 훅(__test_beaver)까지 같이 열린다.
+        # ⚠ **demo-api 에는 CASCADE_ENABLED=true 를 넣어야 데모가 산다.** 코드만 배포하고
+        #   env 를 안 넣으면 /__cascadedemo 가 즉시 404 다(배포와 같이 나가야 한다).
+        if settings.CASCADE_ENABLED:
+            from domains.learning.realtime.cascade_router import router as cascade_router
 
-        app.include_router(cascade_router, prefix=API_PREFIX)
+            app.include_router(cascade_router, prefix=API_PREFIX)
 
-        @app.get("/__cascadedemo", include_in_schema=False)
-        def cascade_demo() -> FileResponse:
-            """캐스케이드 턴 감지 최소루프 데모 HTML(마이크 → STT v2 → 턴 판정 에코)."""
-            return FileResponse(
-                Path(__file__).parent / "scripts" / "cascade_demo.html",
-                media_type="text/html",
-            )
+            @app.get("/__cascadedemo", include_in_schema=False)
+            def cascade_demo() -> FileResponse:
+                """캐스케이드 턴 감지 최소루프 데모 HTML(마이크 → STT v2 → 턴 판정 에코)."""
+                return FileResponse(
+                    Path(__file__).parent / "scripts" / "cascade_demo.html",
+                    media_type="text/html",
+                )
 
         @app.get("/__calldemo", include_in_schema=False)
         def call_demo() -> FileResponse:

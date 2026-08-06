@@ -179,6 +179,12 @@ class Settings(BaseSettings):
     # ⭐ 0 = 추론 끄기. 음성 대화에 사고 토큰은 대부분 불필요한데 **출력 단가로 과금되고
     #   첫 소리를 늦춘다** — 원가·체감속도 둘 다 손해다. None 이면 모델 기본값.
     CASCADE_LLM_THINKING_BUDGET: int | None = 0
+    # ⛔ 캐스케이드 경로(WS + 데모 콘솔)를 여는 **전용 스위치**. 기본 False.
+    #   ENV 게이트("prod 가 아니면 dev")에 기대지 않는 이유: 실서비스(app-api)의 ENV 가
+    #   "prod" 가 아니라 **"test"** 라 그 게이트가 실서비스에서 열려 있다(2026-08-07 실측).
+    #   깨진 게이트 위에 기능을 얹지 않는다 — 이 값이 True 인 곳에서만 열린다.
+    #   ⚠ demo-api 에는 CASCADE_ENABLED=true 를 넣어야 사장님 데모가 산다(배포와 동시에).
+    CASCADE_ENABLED: bool = False
     # ⭐ 선톡 — 비버가 먼저 인사한다(Live 와 같은 규약). 끄면 둘 다 서로 말하기를 기다린다.
     CASCADE_GREETING: bool = True
     # 이력 백스톱은 **글자 수**다(턴 수가 아니다 — 긴 발화 몇 개가 짧은 턴 12개보다 크다).
