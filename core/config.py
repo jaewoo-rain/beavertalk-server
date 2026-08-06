@@ -174,6 +174,18 @@ class Settings(BaseSettings):
     # 앞선 오디오를 가리키는 최종 전사는 이미 낸 턴의 잔여물이다(유령 턴 차단).
     CASCADE_STALE_FINAL_MS: int = 1500
     CASCADE_ROLLOVER_BUFFER_MS: int = 3000       # 롤오버 갭 동안 보관할 오디오 상한
+    # ── P1: 비버가 말한다(LLM → TTS) ──
+    CASCADE_LLM_MODEL: str = "gemini-2.5-flash"  # 설계 §1-1(품질 비교 후 lite 전환 가능)
+    # ⭐ 0 = 추론 끄기. 음성 대화에 사고 토큰은 대부분 불필요한데 **출력 단가로 과금되고
+    #   첫 소리를 늦춘다** — 원가·체감속도 둘 다 손해다. None 이면 모델 기본값.
+    CASCADE_LLM_THINKING_BUDGET: int | None = 0
+    CASCADE_TTS_LANGUAGE: str = "ko"             # 비버가 말하는 언어(= 학습 대상 언어)
+    CASCADE_TTS_VOICE: str = "Aoede"             # Chirp3-HD 음성명(Live 캐릭터 voice 와 같은 이름 체계)
+    # 데모용 페르소나(캐스케이드는 아직 DB·캐릭터를 안 읽는다 — normalcall 과 같은 조립기를 쓴다)
+    CASCADE_PERSONA_ROLE: str = "한국어를 가르치는 다정한 비버 선생님"
+    CASCADE_PERSONA_PERSONALITY: str = "친근하고 밝다. 짧게 말하고 자주 되묻는다."
+    CASCADE_PERSONA_LEVEL: str = "아주 쉬운 단어와 짧은 문장으로 천천히 말한다."
+    CASCADE_PERSONA_LOCALE: str = "en"
     # ── 마이크 상시 개방 (barge-in 의 전제) ──
     # ⛔ 기본 OFF. 지금 클라의 '비버 발화 중 마이크 닫기' 게이팅이 **자기-대화 루프의 유일한
     #   방어선**이다(Android 재생이 USAGE_MEDIA 라 플랫폼 AEC 레퍼런스 밖 → AEC 실질 미작동).

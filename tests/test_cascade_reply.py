@@ -1,0 +1,265 @@
+"""캐스케이드 P1 — LLM → 문장 분할 → TTS → 비버 송출, 그리고 barge-in 취소.
+
+여기서 고정하는 것:
+  ① 문장 분할(첫 소리를 앞당기는 장치) — 종결부호·최소·최대 길이
+  ② 문장 이름표는 **마지막 오디오 조각**에 붙는다(원장 절단이 걸친 문장을 버리게 하려면)
+  ③ 사용자 발화 1건 → 비버 턴 1건(turn_start → 오디오 → turn_end), 이력·원가가 함께 남는다
+  ④ ⛔ 빈 전사로는 LLM 을 부르지 않는다(원가만 나가고 헛대답)
+  ⑤ barge-in 취소: audio_cancel 을 내고 **turn_end 는 내지 않는다**(I4), 세션은 살아 있고,
+     못 들려준 글자가 원가에 남는다(합성했으면 이미 과금됐다)
+"""
+
+import asyncio
+
+import pytest
+
+import core.stt as stt_mod
+from core.stt import SPEECH_BEGIN, SPEECH_END
+from domains.learning.realtime import cascade_session as cs
+from domains.learning.realtime.cascade_reply import SentenceBuffer, speak_stream
+from domains.learning.realtime.cascade_session import CascadeInbound, CascadeSession
+
+_FRAME = b"\x00\x01" * 240   # 10ms PCM24k
+
+
+# --------------------------------------------------------------------------- #
+# ① 문장 분할
+# --------------------------------------------------------------------------- #
+def test_sentence_buffer_splits_on_terminator():
+    buf = SentenceBuffer()
+    assert buf.push("안녕하세요 반가워요. ") == ["안녕하세요 반가워요."]
+    assert buf.push("오늘 뭐 하셨") == []          # 아직 문장이 안 끝났다
+    assert buf.push("어요? 저는요") == ["오늘 뭐 하셨어요?"]
+    assert buf.flush() == "저는요"                 # 종결부호가 없어도 남은 말은 내보낸다
+
+
+def test_sentence_buffer_keeps_short_fragments_together():
+    """너무 잘게 쪼개면 TTS 요청이 늘고 운율이 끊긴다 — 최소 길이 전에는 안 끊는다."""
+    buf = SentenceBuffer()
+    assert buf.push("네. ") == []                       # 맞장구만으로는 안 끊는다
+    assert buf.push("그럼 내일 봐요. ") == ["네. 그럼 내일 봐요."]
+
+
+def test_sentence_buffer_caps_runaway_output():
+    """모델이 종결부호 없이 폭주해도 상한에서 끊는다(첫 소리가 영영 안 나오면 안 된다)."""
+    buf = SentenceBuffer()
+    out = buf.push("가 " * 200)
+    assert out and all(len(s) <= 121 for s in out)
+
+
+# --------------------------------------------------------------------------- #
+# ② 문장 이름표 위치
+# --------------------------------------------------------------------------- #
+class _RecordingBeaver:
+    def __init__(self) -> None:
+        self.sent: list[tuple[int, str]] = []
+
+    async def send(self, pcm: bytes, text: str = "") -> None:
+        self.sent.append((len(pcm), text))
+
+
+@pytest.mark.asyncio
+async def test_sentence_label_goes_on_the_last_chunk():
+    """이름표가 앞 조각에 붙으면, 문장을 다 듣기 전에 이력에 남는다 — 못 들은 말을 들었다고 치게 된다."""
+    async def chunks():
+        for _ in range(3):
+            yield _FRAME
+
+    beaver = _RecordingBeaver()
+    sent = await speak_stream(beaver, chunks(), "안녕하세요")
+    assert sent == len(_FRAME) * 3
+    assert [t for _, t in beaver.sent] == ["", "", "안녕하세요"]
+
+
+# --------------------------------------------------------------------------- #
+# ③~⑤ 세션 통합 (LLM·TTS 는 페이크 — 크레덴셜·과금 0)
+# --------------------------------------------------------------------------- #
+class _FakeChat:
+    """ChatStream 대역 — 정해진 조각을 흘리고 usage 를 남긴다."""
+
+    def __init__(self, pieces, usage=None) -> None:
+        self._pieces = pieces
+        self.text = ""
+        self.usage_metadata = usage
+        self.failed = False
+
+    async def chunks(self):
+        for piece in self._pieces:
+            self.text += piece
+            yield piece
+            await asyncio.sleep(0)
+
+
+class _Usage:
+    prompt_token_count = 120
+    candidates_token_count = 30
+    thoughts_token_count = 0
+    cached_content_token_count = 0
+    total_token_count = 150
+
+
+class _Transport:
+    """스크립트를 순서대로 내주고 나간 것을 모은다. 기다리는 이벤트가 나오면 stop."""
+
+    def __init__(self, scripted, wait_for="turn_end") -> None:
+        self._scripted = list(scripted)
+        self.events: list[dict] = []
+        self.audio = 0
+        self._wait_for = wait_for
+        self._done = asyncio.Event()
+
+    async def send_event(self, event: dict) -> None:
+        self.events.append(event)
+        if event.get("type") == self._wait_for:
+            self._done.set()
+
+    async def send_audio(self, frame: bytes) -> None:
+        self.audio += len(frame)
+
+    async def receive(self) -> CascadeInbound:
+        if self._scripted:
+            item = self._scripted.pop(0)
+            if isinstance(item, float):
+                await asyncio.sleep(item)
+                return await self.receive()
+            return item
+        await self._done.wait()
+        return CascadeInbound(kind="control", control={"type": "stop"})
+
+    def types(self) -> list[str]:
+        return [e.get("type") for e in self.events]
+
+    def first(self, type_: str) -> dict | None:
+        return next((e for e in self.events if e.get("type") == type_), None)
+
+
+def _ctl(**kwargs) -> CascadeInbound:
+    return CascadeInbound(kind="control", control=kwargs)
+
+
+@pytest.fixture
+def reply_rig(monkeypatch):
+    """페이크 STT + 페이크 LLM + 페이크 TTS. 대답 배관만 검사한다."""
+    monkeypatch.setattr(stt_mod.settings, "STT_V2_FAKE", True)
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_SILENCE_MS", 60)
+    monkeypatch.setattr(cs.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    stt_mod.get_speech_v2_client.cache_clear()
+
+    state = {"chat": None, "tts_calls": [], "chunk_delay": 0.0, "chunks": 2}
+
+    def _open(client, model, **kwargs):
+        state["chat"] = _FakeChat(["안녕하세요 반갑습니다. ", "오늘 기분은 어떠세요?"], _Usage())
+        state["system"] = kwargs.get("system_instruction", "")
+        state["thinking"] = kwargs.get("thinking_budget", "미지정")
+        state["history"] = list(kwargs.get("history") or [])
+        return state["chat"]
+
+    async def _tts(text, **kwargs):
+        state["tts_calls"].append(text)
+
+        async def _gen():
+            for _ in range(state["chunks"]):
+                await asyncio.sleep(state["chunk_delay"])
+                yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.gemini_chat, "open_chat_stream", _open)
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    yield state
+    stt_mod.get_speech_v2_client.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_user_turn_produces_one_beaver_turn(reply_rig):
+    """사용자 발화 1건 → 비버 턴 1건. 오디오는 turn_start 뒤에, turn_end 는 마지막 바이트 뒤에."""
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_event", event=SPEECH_BEGIN),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    types = transport.types()
+    assert types.count("turn_start") == 1, transport.events   # 비버 턴
+    assert types.count("turn_end") == 1, transport.events
+    assert types.index("turn_start") < types.index("turn_end")
+    assert transport.audio > 0                                 # 실제로 소리가 나갔다
+    # 문장 2개가 각각 합성됐다(첫 문장이 끝나는 즉시 흘린다 = 첫 소리 앞당기기)
+    assert reply_rig["tts_calls"] == ["안녕하세요 반갑습니다.", "오늘 기분은 어떠세요?"]
+    # ⭐ 추론 토큰은 끈다(원가·첫 소리 둘 다 손해)
+    assert reply_rig["thinking"] == 0
+    # 이력: 사용자 발화 + 비버가 실제로 한 말
+    assert session._history[0]["role"] == "user" and session._history[0]["text"] == "안녕"
+    assert session._history[1]["role"] == "model"
+    assert "오늘 기분은 어떠세요?" in session._history[1]["text"]
+
+
+@pytest.mark.asyncio
+async def test_usage_records_llm_tokens_and_tts_chars(reply_rig):
+    """원가 3구간이 한 번의 대답으로 모두 채워진다(STT 는 세션 종료 시)."""
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    summary = session.usage.summary()
+    assert summary["in_text"] == 120 and summary["out_text"] == 30
+    assert (summary["in_audio"], summary["out_audio"]) == (0, 0)   # 캐스케이드 LLM 은 오디오를 안 받는다
+    tts = summary["vendors"]["tts"]
+    assert tts["calls"] == 2
+    assert tts["chars"] == len("안녕하세요 반갑습니다.") + len("오늘 기분은 어떠세요?")
+    assert summary["engine"].startswith("cascade:")
+    assert "gemini" in summary["engine"] and "cloud-tts" in summary["engine"]
+
+
+@pytest.mark.asyncio
+async def test_empty_transcript_never_calls_llm(reply_rig):
+    """⛔ 빈 턴으로 LLM 을 부르면 원가만 나가고 비버가 헛대답을 한다(결함 C 판단)."""
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_event", event=SPEECH_BEGIN),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ], wait_for="user_turn_end")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    assert reply_rig["chat"] is None                 # LLM 호출 자체가 없다
+    assert reply_rig["tts_calls"] == []
+    assert "turn_start" not in transport.types()     # 비버 턴도 없다
+
+
+@pytest.mark.asyncio
+async def test_barge_in_cancels_reply_without_killing_session(reply_rig, monkeypatch):
+    """⭐ barge-in: audio_cancel 을 내고 **turn_end 는 안 낸다**(I4). 세션은 살아 있다.
+
+    그리고 합성했지만 못 들려준 글자를 원가에 남긴다 — 그 문장은 이미 과금됐다.
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
+    reply_rig["chunk_delay"] = 0.05     # 비버가 말하는 동안 끼어들 시간을 만든다
+    reply_rig["chunks"] = 20
+
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.25,                                        # 비버가 말하기 시작한다
+        _ctl(type="__test_event", event=SPEECH_BEGIN),   # 사용자가 끼어든다
+        0.15,
+    ], wait_for="audio_cancel")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    types = transport.types()
+    assert "audio_cancel" in types, transport.events
+    assert "turn_end" not in types, transport.events     # I4 — 취소된 턴에는 종료를 안 낸다
+    cancel = transport.first("audio_cancel")
+    assert cancel["turn_id"] == transport.first("turn_start")["turn_id"]
+    # 세션은 죽지 않았다(TaskGroup 이 취소로 무너지면 아래 요약 자체가 안 나온다)
+    assert session.usage.summary() is not None

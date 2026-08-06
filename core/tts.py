@@ -128,3 +128,83 @@ async def synthesize(
     except Exception as exc:  # noqa: BLE001 - 인증/비활성/임의 예외 graceful
         logger.warning("tts(gcp): 합성 실패(무시, None) — %s", exc)
         return None
+
+
+# --------------------------------------------------------------------------- #
+# 캐스케이드 통화용 스트리밍 합성 (P1) — ⛔ 위 synthesize() 는 한 줄도 건드리지 않는다
+# --------------------------------------------------------------------------- #
+# 왜 따로 두나: 위 함수는 통화후 분석의 **표현 오디오**(MP3 단발)다. 통화 중 비버 발화는
+# 성질이 다르다 — 문장이 끝나기 전에 소리가 나기 시작해야 하고(첫 소리 지연), 포맷은 앱
+# 재생 경로에 그대로 꽂히는 **PCM16/24kHz** 여야 하며, 끊겼을 때 안 보낸 문장은 과금되지
+# 않아야 한다. 그래서 streaming_synthesize 로 별도 경로를 만든다.
+CASCADE_TTS_SAMPLE_RATE = 24000     # 서버→클라 오디오 규약(PCM16 24k mono)
+_WAV_HEADER = b"RIFF"
+
+
+async def synthesize_stream(
+    text: str,
+    *,
+    language: str = "ko",
+    voice: str | None = None,
+    sample_rate: int = CASCADE_TTS_SAMPLE_RATE,
+) -> "Any":
+    """문장 하나를 PCM16/24k 조각으로 흘린다(async generator). 키 부재·실패면 **아무것도 안 낸다**.
+
+    호출부(캐스케이드)는 조각을 받는 즉시 페이서를 통해 송출한다. 실패해도 예외를 올리지
+    않는다 — 비버가 한 문장 못 말해도 통화는 계속돼야 한다(R5).
+
+    ⚠ 응답에 사용량 필드가 없다(SDK 정의 확인 — audio_content 뿐). 과금 문자 수는 호출부가
+      **API 에 넘긴 문자열**로 센다(원가 설계 §1-2).
+    """
+    async def _empty():
+        return
+        yield b""  # pragma: no cover - 타입만 맞추는 빈 제너레이터
+
+    if not text or not text.strip():
+        return _empty()
+    cli = _client()
+    if cli is None:
+        return _empty()
+    lang_code, voice_name = _resolve_voice(language, voice)
+
+    async def _run():
+        from google.cloud import texttospeech
+
+        async def _requests():
+            # 첫 요청 = 설정, 이후 = 텍스트. 문장 단위로 열고 닫는다(스트림 1개 = 문장 1개).
+            yield texttospeech.StreamingSynthesizeRequest(
+                streaming_config=texttospeech.StreamingSynthesizeConfig(
+                    voice=texttospeech.VoiceSelectionParams(
+                        language_code=lang_code, name=voice_name
+                    ),
+                    streaming_audio_config=texttospeech.StreamingAudioConfig(
+                        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+                        sample_rate_hertz=sample_rate,
+                    ),
+                )
+            )
+            yield texttospeech.StreamingSynthesizeRequest(
+                input=texttospeech.StreamingSynthesisInput(text=text.strip())
+            )
+
+        try:
+            responses = await cli.streaming_synthesize(requests=_requests())
+            first = True
+            async for resp in responses:
+                chunk = getattr(resp, "audio_content", b"") or b""
+                if not chunk:
+                    continue
+                if first:
+                    first = False
+                    # LINEAR16 이 WAV 헤더를 달고 오는 구현이 있어 방어한다 — 헤더를 그대로
+                    # 재생 큐에 넣으면 딸깍 소리가 난다. 데이터 청크만 넘긴다.
+                    if chunk[:4] == _WAV_HEADER:
+                        idx = chunk.find(b"data")
+                        chunk = chunk[idx + 8 :] if idx >= 0 else chunk
+                        if not chunk:
+                            continue
+                yield chunk
+        except Exception as exc:  # noqa: BLE001 - 합성 실패 graceful(R5)
+            logger.warning("tts(gcp): 스트리밍 합성 실패(무시) — %s", exc)
+
+    return _run()

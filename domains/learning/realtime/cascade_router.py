@@ -38,7 +38,9 @@ async def ws_cascade_stream(websocket: WebSocket) -> None:
 
     await websocket.accept()
     try:
-        await run_cascade(websocket)
+        # LLM 클라이언트는 서버가 켜질 때 만들어 app.state 에 둔다(normalcall 과 같은 규율).
+        # 없으면 비버는 말하지 않고 **턴 감지만** 돈다 — 키 부재로 통화가 죽지 않는다(R5).
+        await run_cascade(websocket, getattr(websocket.app.state, "genai_client", None))
     except Exception as exc:  # noqa: BLE001 - 최종 방어선(이 세션만 실패, 서버는 계속)
         logger.exception("ws_cascade_stream 처리 중 예외: %s", exc)
     finally:

@@ -45,8 +45,11 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 from starlette.websockets import WebSocket, WebSocketState
 
+from core import gemini_chat
 from core import stt as stt_mod
+from core import tts
 from core.config import settings
+from core.persona_prompt import build_system_instruction
 from core.stt import (
     SPEECH_BEGIN,
     SPEECH_END,
@@ -70,6 +73,8 @@ from domains.learning.realtime.cascade_protocol import (
     ServerTestCancelReport,
     cascade_server_adapter,
 )
+from domains.learning.realtime.cascade_reply import SentenceBuffer, speak_stream
+from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
 from domains.learning.realtime.protocol import ServerError, ServerPong
 
 logger = logging.getLogger(__name__)
@@ -77,6 +82,16 @@ logger = logging.getLogger(__name__)
 _DEFAULT_SAMPLE_RATE = 16000
 _EOS = object()  # 큐 종료 센티널
 _RMS_STRIDE = 8  # 에너지 계산 표본 간격(전 샘플을 돌 필요 없다 — 게이트용 근사면 충분)
+# 유령 턴 판정의 여유 — 같은 발화의 꼬리 전사는 앞 턴의 끝과 사실상 같은 지점을 가리킨다.
+# 200ms 는 "새 발화라면 최소 이만큼은 뒤여야 한다"는 하한(사람이 그보다 빨리 새 말을 시작하면
+# 어차피 같은 턴으로 이어진다).
+_STALE_OFFSET_EPSILON_MS = 200
+# 이 값을 넘는 파이프라인 지연은 계측이 아니라 **버그 신호**다(리전 왕복은 1초 수준).
+_LAG_SANITY_MS = 3000
+# LLM 에 넘길 최근 대화 턴 수(사용자+비버 = 2줄/턴). 통화가 길어져도 프롬프트가 무한정
+# 자라지 않게 한다 — 캐스케이드는 매 턴 이력 전체를 다시 입력으로 넣어 과금되기 때문이다.
+_HISTORY_MAX_TURNS = 12
+_TTS_VENDOR = "cloud-tts-chirp3-hd"
 
 
 def _frame_rms(pcm: bytes) -> float:
@@ -406,8 +421,15 @@ class BeaverOutput:
 class CascadeSession:
     """WS 1개 = 캐스케이드 세션 1건. P0 은 턴 감지만 한다."""
 
-    def __init__(self, transport: CascadeTransport) -> None:
+    def __init__(self, transport: CascadeTransport, genai_client: Any = None) -> None:
         self.transport = transport
+        # P1: 비버가 말하려면 LLM 클라이언트가 있어야 한다. 없으면 **턴 감지만**(P0 동작) —
+        # 키가 없다고 통화가 죽으면 안 된다(R5).
+        self._genai_client = genai_client
+        self._history: list[dict] = []
+        self._reply_task: asyncio.Task | None = None
+        self._reply_cancelled = False
+        self._system_cache: str | None = None
         self.state = TurnState.IDLE
         self._q: asyncio.Queue[Any] = asyncio.Queue()
         self._t0 = time.monotonic()
@@ -826,16 +848,165 @@ class CascadeSession:
         return True
 
     async def _on_barge_in(self, event: SttV2Event) -> None:
-        """(P1) barge-in 취소 배관. P0 은 TTS 가 없어 호출될 일이 없다.
+        """barge-in 취소 배관 — **세 곳을 동시에** 친다(설계 §4).
 
-        구현 시 **세 곳을 동시에** 친다(설계 §4):
-          ① TTS 합성 태스크 cancel  ② 서버 송신 큐 drain + epoch += 1
+          ① LLM·TTS 태스크 cancel(안 그러면 계속 생성돼 과금된다)
+          ② 서버 송출 중단 + epoch += 1
           ③ audio_cancel 전송 → 클라가 버퍼 폐기 + played_server_bytes 회신(이력 절단 근거)
-        ③ 이후 클라가 실제로 조용해지기까지 50~120ms 더 들린다 — 이력 절단은 그 지연을
-        포함한 값(정지 후 샘플된 네이티브 카운터)으로 해야 한다(설계 §5-3).
+
+        ①을 **await 하지 않는다**: 취소 완료를 기다리면 그만큼 비버가 더 말한다. 취소된
+        태스크가 뒤늦게 send() 를 부르면 턴이 이미 닫혀 InvariantError 가 나는데, 그건
+        정상 경로라 태스크 쪽에서 로그만 남긴다.
         """
         self.state = TurnState.CANCELLING
-        logger.info("cascade barge-in 감지(P0: TTS 미연결 — 취소 배관 미실행)")
+        logger.info("cascade barge-in 감지 — 취소 배관 실행")
+        self._cancel_reply()
+        if self.beaver.turn_id is not None:
+            await self.beaver.cancel(reason="barge_in")
+
+    # ── P1: LLM → TTS → 비버 송출 ──
+    def _reply_enabled(self) -> bool:
+        """비버가 말할 수 있는 상태인가(클라이언트·모델·TaskGroup). 아니면 P0 처럼 턴만 감지한다."""
+        return self._genai_client is not None and self._tg is not None
+
+    def _cancel_reply(self) -> None:
+        task, self._reply_task = self._reply_task, None
+        if task is not None and not task.done():
+            self._reply_cancelled = True
+            task.cancel()
+
+    def _start_reply(self, user_text: str) -> None:
+        if not self._reply_enabled() or not user_text.strip():
+            return
+        if self._reply_task is not None and not self._reply_task.done():
+            # 앞 대답이 아직 흐르는 중이면 새 대답을 겹치지 않는다(불변식 I1 — 턴 1개).
+            logger.info("cascade 대답이 이미 진행 중 — 이번 발화는 건너뛴다")
+            return
+        self.state = TurnState.THINKING
+        self._reply_task = self._tg.create_task(self._run_reply(user_text))
+
+    async def _run_reply(self, user_text: str) -> None:
+        """사용자 발화 1건에 대한 비버의 대답 — LLM 스트리밍 → 문장 분할 → TTS → 송출."""
+        self._reply_cancelled = False
+        chat = gemini_chat.open_chat_stream(
+            self._genai_client,
+            settings.CASCADE_LLM_MODEL,
+            system_instruction=self._system_instruction(),
+            history=self._history,
+            user_text=user_text,
+            thinking_budget=settings.CASCADE_LLM_THINKING_BUDGET,
+        )
+        if chat is None:
+            self.state = TurnState.IDLE
+            return
+        self._history.append({"role": "user", "text": user_text})
+        buffer = SentenceBuffer()
+        turn_id: str | None = None
+        spoken_chars = 0
+        began = time.monotonic()
+        first_audio_ms = -1
+        try:
+            async for piece in chat.chunks():
+                for sentence in buffer.push(piece):
+                    turn_id = turn_id or await self._begin_beaver_turn()
+                    sent = await self._speak(sentence)
+                    if sent and first_audio_ms < 0:
+                        first_audio_ms = int((time.monotonic() - began) * 1000)
+                    spoken_chars += len(sentence)
+            tail = buffer.flush()
+            if tail:
+                turn_id = turn_id or await self._begin_beaver_turn()
+                sent = await self._speak(tail)
+                if sent and first_audio_ms < 0:
+                    first_audio_ms = int((time.monotonic() - began) * 1000)
+                spoken_chars += len(tail)
+            if turn_id is not None:
+                await self.beaver.end()
+            self._remember_beaver(turn_id, chat.text)
+            logger.info(
+                "cascade 대답: turn=%s 첫소리=%dms 글자=%d 문장모델=%s",
+                turn_id, first_audio_ms, spoken_chars, settings.CASCADE_LLM_MODEL,
+            )
+        except asyncio.CancelledError:
+            # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
+            # TaskGroup 의 자식이라, 밖에서 취소된 채 다시 올리면 **세션 전체가 무너진다**.
+            if not self._reply_cancelled:
+                raise
+            self._on_reply_cancelled(turn_id, chat.text)
+        except InvariantError:
+            logger.info("cascade 대답 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
+        finally:
+            self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
+            if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
+                self.state = TurnState.IDLE
+
+    async def _begin_beaver_turn(self) -> str:
+        self.state = TurnState.BEAVER_SPEAKING
+        return await self.beaver.begin()
+
+    async def _speak(self, sentence: str) -> int:
+        """문장 하나를 합성해 송출하고, **API 에 넘긴 문자 수**를 원가에 기록한다."""
+        # ⭐ 문자는 **API 에 넘기는 시점**에 센다. 과금은 우리가 텍스트를 보낸 순간 일어나므로,
+        #   barge-in 으로 이 문장이 중간에 끊겨도(= 아래 await 가 취소돼 돌아오지 않아도)
+        #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
+        self.usage.record_tts(sentence, vendor=_TTS_VENDOR)
+        stream = await tts.synthesize_stream(
+            sentence, language=settings.CASCADE_TTS_LANGUAGE, voice=settings.CASCADE_TTS_VOICE
+        )
+        sent = await speak_stream(self.beaver, stream, sentence)
+        if not sent:
+            # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
+            self.usage.record_tts("", vendor=_TTS_VENDOR, failed=True)
+        return sent
+
+    def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
+        """이력에는 **실제로 들린 데까지**만 남긴다(설계 §5).
+
+        끊기지 않은 턴은 생성 전체가 곧 들린 말이다. 끊긴 턴은 원장이 답을 안다.
+        """
+        if turn_id is None or not generated.strip():
+            return
+        self._history.append({"role": "model", "text": generated.strip()})
+        self._trim_history()
+
+    def _on_reply_cancelled(self, turn_id: str | None, generated: str) -> None:
+        """barge-in 으로 끊긴 대답 — 들린 데까지만 이력에 남기고, 못 들려준 문자를 원가에 센다."""
+        spoken = ""
+        if turn_id is not None:
+            spoken = self.beaver.spoken_text(
+                turn_id, self.beaver.estimated_played_bytes(turn_id)
+            ) or ""
+        if spoken:
+            self._history.append({"role": "model", "text": f"{spoken} …(사용자가 끼어들어 끊김)"})
+            self._trim_history()
+        unheard = max(0, len(generated.strip()) - len(spoken))
+        if unheard:
+            self.usage.record_tts_unheard(unheard)
+        logger.info(
+            "cascade 대답 취소됨: turn=%s 들린글자=%d 못들려준글자=%d",
+            turn_id, len(spoken), unheard,
+        )
+
+    def _trim_history(self) -> None:
+        if len(self._history) > _HISTORY_MAX_TURNS * 2:
+            del self._history[: len(self._history) - _HISTORY_MAX_TURNS * 2]
+
+    def _system_instruction(self) -> str:
+        """페르소나는 **새로 만들지 않는다** — normalcall 과 같은 조립기를 쓴다(설계 §1-2).
+
+        두 엔진이 같은 지시문을 써야 품질 비교가 성립한다. 캐스케이드 데모는 DB 가 없어
+        캐릭터·레벨을 못 읽으므로 데모용 기본값으로 채운다(P1 이후 통화 기록에 올릴 때
+        normalcall 과 같은 값으로 바꾼다).
+        """
+        if self._system_cache is None:
+            self._system_cache = build_system_instruction(
+                role=settings.CASCADE_PERSONA_ROLE,
+                personality=settings.CASCADE_PERSONA_PERSONALITY,
+                level_profile=settings.CASCADE_PERSONA_LEVEL,
+                locale=settings.CASCADE_PERSONA_LOCALE,
+                interests=[],
+            )
+        return self._system_cache
 
     # ── [dev 훅] 가짜 비버 오디오 — 클라 취소 배관을 P1 없이 실기기에서 검증한다 ──
     async def _start_fake_beaver(self, ctrl: dict) -> None:
@@ -1043,9 +1214,12 @@ class CascadeSession:
             logger.error("캐스케이드 pump 오류: %r", real.exceptions)
 
 
-async def run_cascade(websocket: WebSocket) -> None:
-    """WS 캐스케이드 세션 구동(라우터에서 accept 후 위임). 소켓 정리까지 책임."""
-    session = CascadeSession(WsCascadeTransport(websocket))
+async def run_cascade(websocket: WebSocket, genai_client: Any = None) -> None:
+    """WS 캐스케이드 세션 구동(라우터에서 accept 후 위임). 소켓 정리까지 책임.
+
+    genai_client 가 None 이면 비버는 말하지 않고 턴 감지만 돈다(P0 동작 — R5).
+    """
+    session = CascadeSession(WsCascadeTransport(websocket), genai_client)
     try:
         await session.run()
     finally:
