@@ -143,6 +143,10 @@ def reply_rig(monkeypatch):
     monkeypatch.setattr(stt_mod.settings, "STT_V2_FAKE", True)
     monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_SILENCE_MS", 60)
     monkeypatch.setattr(cs.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    # 선톡은 기본 ON 이지만, 아래 테스트들은 **사용자 발화에 대한 대답**을 본다.
+    # 선톡이 먼저 돌면 그 대답이 첫 비버 턴이 되어 검사 대상이 흐려진다 — 선톡 자체는
+    # 전용 테스트(test_greeting_speaks_first)에서 본다.
+    monkeypatch.setattr(cs.settings, "CASCADE_GREETING", False)
     stt_mod.get_speech_v2_client.cache_clear()
 
     state = {"chat": None, "tts_calls": [], "chunk_delay": 0.0, "chunks": 2}
@@ -152,6 +156,7 @@ def reply_rig(monkeypatch):
         state["system"] = kwargs.get("system_instruction", "")
         state["thinking"] = kwargs.get("thinking_budget", "미지정")
         state["history"] = list(kwargs.get("history") or [])
+        state["history_or_seed"] = kwargs.get("user_text", "")
         return state["chat"]
 
     async def _tts(text, **kwargs):
@@ -231,6 +236,25 @@ async def test_empty_transcript_never_calls_llm(reply_rig):
     assert reply_rig["chat"] is None                 # LLM 호출 자체가 없다
     assert reply_rig["tts_calls"] == []
     assert "turn_start" not in transport.types()     # 비버 턴도 없다
+
+
+@pytest.mark.asyncio
+async def test_greeting_speaks_first(reply_rig, monkeypatch):
+    """⭐ 선톡 — 사용자가 한 마디도 안 했는데 비버가 먼저 말한다.
+
+    안 하면 둘 다 서로 말하기를 기다려 통화가 조용히 멈춘다(Live 도 같은 이유로 시드를 던진다).
+    덤으로 콜드 스타트를 흡수한다 — 실측에서 첫 대답만 9971ms 였고 그다음은 2.6~3.0초였다.
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_GREETING", True)
+    transport = _Transport([_ctl(type="start")], wait_for="turn_end")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    assert "turn_start" in transport.types(), transport.events   # 비버가 먼저 열었다
+    assert transport.audio > 0                                   # 실제로 소리가 나갔다
+    assert "user_turn_start" not in transport.types()            # 사용자는 말한 적이 없다
+    # 시드는 "네가 먼저 인사하며 시작해" 라는 지시다 — 소리 내어 읽을 문장이 아니다.
+    assert "[통화 시작]" in reply_rig["history_or_seed"]
 
 
 @pytest.mark.asyncio

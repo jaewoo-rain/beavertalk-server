@@ -179,6 +179,12 @@ class Settings(BaseSettings):
     # ⭐ 0 = 추론 끄기. 음성 대화에 사고 토큰은 대부분 불필요한데 **출력 단가로 과금되고
     #   첫 소리를 늦춘다** — 원가·체감속도 둘 다 손해다. None 이면 모델 기본값.
     CASCADE_LLM_THINKING_BUDGET: int | None = 0
+    # ⭐ 선톡 — 비버가 먼저 인사한다(Live 와 같은 규약). 끄면 둘 다 서로 말하기를 기다린다.
+    CASCADE_GREETING: bool = True
+    # 이력 백스톱은 **글자 수**다(턴 수가 아니다 — 긴 발화 몇 개가 짧은 턴 12개보다 크다).
+    # 15분 정상 통화(대략 1만 자)의 몇 배로 잡아 정상 통화는 절대 안 걸리게 하고, 병적으로
+    # 긴 통화만 막는다. 넘으면 오래된 것부터 버리되 버린 사실을 로그로 남긴다.
+    CASCADE_HISTORY_MAX_CHARS: int = 40000
     CASCADE_TTS_LANGUAGE: str = "ko"             # 비버가 말하는 언어(= 학습 대상 언어)
     CASCADE_TTS_VOICE: str = "Aoede"             # Chirp3-HD 음성명(Live 캐릭터 voice 와 같은 이름 체계)
     # 데모용 페르소나(캐스케이드는 아직 DB·캐릭터를 안 읽는다 — normalcall 과 같은 조립기를 쓴다)

@@ -49,7 +49,7 @@ from core import gemini_chat
 from core import stt as stt_mod
 from core import tts
 from core.config import settings
-from core.persona_prompt import build_system_instruction
+from core.persona_prompt import build_system_instruction, seed_opening
 from core.stt import (
     SPEECH_BEGIN,
     SPEECH_END,
@@ -428,6 +428,9 @@ class CascadeSession:
         # 키가 없다고 통화가 죽으면 안 된다(R5).
         self._genai_client = genai_client
         self._history: list[dict] = []
+        # 상한을 넘어 이력에서 잘라낸 줄들. 지금은 안 쓰지만 **버리지 않고 들고 있는다** —
+        # 나중에 요약해 되먹이려면 원문이 우리 손에 있어야 한다(Live 는 이게 불가능했다).
+        self._history_dropped: list[dict] = []
         self._reply_task: asyncio.Task | None = None
         self._reply_cancelled = False
         self._system_cache: str | None = None
@@ -524,6 +527,12 @@ class CascadeSession:
                 tg.create_task(self._pump_in(stream, pending_audio))
                 tg.create_task(self._pump_stt(stream))
                 tg.create_task(self._pump_turn())
+                # ⭐ 선톡 — 비버가 먼저 인사한다(Live 와 같은 규약: call_session.py:1574).
+                #   안 하면 둘 다 서로 말하기를 기다려 통화가 조용히 멈춘다. 덤으로 콜드
+                #   스타트를 흡수한다: 실측에서 첫 대답만 9971ms 였고 그다음은 2.6~3.0초였다.
+                #   사용자가 마이크를 허용하고 자세를 잡는 사이에 그 10초가 인사말에 실린다.
+                if settings.CASCADE_GREETING:
+                    self._start_reply(seed_opening(), is_greeting=True)
         except* _Stop:
             pass  # 정상 종료(클라 stop / 스트림 끝 / disconnect)
         except* Exception as eg:  # noqa: BLE001
@@ -898,7 +907,7 @@ class CascadeSession:
             self._reply_cancelled = True
             task.cancel()
 
-    def _start_reply(self, user_text: str) -> None:
+    def _start_reply(self, user_text: str, is_greeting: bool = False) -> None:
         if not self._reply_enabled() or not user_text.strip():
             return
         if self._reply_task is not None and not self._reply_task.done():
@@ -906,9 +915,9 @@ class CascadeSession:
             logger.info("cascade 대답이 이미 진행 중 — 이번 발화는 건너뛴다")
             return
         self.state = TurnState.THINKING
-        self._reply_task = self._tg.create_task(self._run_reply(user_text))
+        self._reply_task = self._tg.create_task(self._run_reply(user_text, is_greeting))
 
-    async def _run_reply(self, user_text: str) -> None:
+    async def _run_reply(self, user_text: str, is_greeting: bool = False) -> None:
         """사용자 발화 1건에 대한 비버의 대답 — LLM 스트리밍 → 문장 분할 → TTS → 송출."""
         self._reply_cancelled = False
         chat = gemini_chat.open_chat_stream(
@@ -947,8 +956,9 @@ class CascadeSession:
                 await self.beaver.end()
             self._remember_beaver(turn_id, chat.text)
             logger.info(
-                "cascade 대답: turn=%s 첫소리=%dms 글자=%d 문장모델=%s",
-                turn_id, first_audio_ms, spoken_chars, settings.CASCADE_LLM_MODEL,
+                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s",
+                "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
+                settings.CASCADE_LLM_MODEL,
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -1011,8 +1021,39 @@ class CascadeSession:
         )
 
     def _trim_history(self) -> None:
-        if len(self._history) > _HISTORY_MAX_TURNS * 2:
-            del self._history[: len(self._history) - _HISTORY_MAX_TURNS * 2]
+        """⭐ 이력은 **글자 수**로 막는다 — 턴 수가 아니라.
+
+        예전엔 12턴 상한이었는데 두 가지로 틀렸다. ①어제 Live 15분 통화가 72턴이었다 —
+        12턴이면 2~3분치라 15분 데모에서 비버가 앞부분을 통째로 잊는다. ②턴 수는 애초에
+        잘못된 단위다. 긴 발화 몇 개가 짧은 턴 12개보다 훨씬 크다(과금은 글자·토큰으로 된다).
+
+        상한은 **정상 통화가 절대 안 걸리게** 잡았다(15분 정상 통화의 몇 배). 이건 정책이
+        아니라 병적으로 긴 통화를 막는 백스톱이다.
+
+        ⛔ 잘라낸 내용을 그냥 버리지 않는다. Live 는 압축으로 날아간 대화를 **되살릴 수
+        없었다**(오디오가 구글 서버 안에서 사라진다). 캐스케이드는 우리가 우리 손으로
+        자르는 것이라 그 텍스트가 우리에게 남아 있다 — 나중에 요약해서 되먹일 수 있게
+        `_history_dropped` 에 들고 있는다. 그리고 **버린 사실을 로그로 남긴다**: 조용히
+        버리면 "비버가 왜 앞을 까먹지"를 아무도 못 찾는다.
+        """
+        limit = max(1000, settings.CASCADE_HISTORY_MAX_CHARS)
+        total = sum(len(item.get("text") or "") for item in self._history)
+        if total <= limit:
+            return
+        dropped_chars = 0
+        dropped_turns = 0
+        # 가장 오래된 것부터 버린다. 마지막 한 턴은 남긴다(문맥이 통째로 사라지면 안 된다).
+        while self._history and len(self._history) > 1 and total > limit:
+            item = self._history.pop(0)
+            self._history_dropped.append(item)
+            dropped_chars += len(item.get("text") or "")
+            dropped_turns += 1
+            total -= len(item.get("text") or "")
+        logger.info(
+            "cascade 이력 절단: %d줄 %d자 버림(상한 %d자, 남은 %d줄 %d자) — 버린 내용은 "
+            "요약 재주입용으로 보관 중",
+            dropped_turns, dropped_chars, limit, len(self._history), total,
+        )
 
     def _system_instruction(self) -> str:
         """페르소나는 **새로 만들지 않는다** — normalcall 과 같은 조립기를 쓴다(설계 §1-2).
