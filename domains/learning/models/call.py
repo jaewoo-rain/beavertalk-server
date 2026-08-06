@@ -93,6 +93,22 @@ class Call(Base, TimestampMixin):
     #
     # 왜 모달리티 4항이 각각 컬럼인가: 단가가 전부 다르다(입력 오디오 $3 / 입력 텍스트 $0.5 /
     # 출력 오디오 $12 / 출력 텍스트 $2). 합쳐 두면 원가를 계산할 수가 없다.
+    # 🧒 어느 엔진이 쓴 토큰인가. 이게 없으면 Live 통화와 캐스케이드 통화가 같은 컬럼에
+    #   섞여 AVG(원가)가 뒤죽박죽이 되고, **"캐스케이드가 정말 싼가"를 증명할 수 없다.**
+    #   지난 행들을 되짚을 방법도 없다(기록이 없으므로) — 그래서 캐스케이드 배포 전에 넣는다.
+    #
+    # 형식: '<모드>:<구성요소를 + 로 연결>' — STT/TTS 조합까지 문자열에 박는다.
+    #   'live:gemini-native-audio'
+    #   'cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd'
+    #   나중에 STT 를 Whisper 로 바꿔도 **같은 컬럼에서 갈라진다**(스키마 변경 없이).
+    #
+    # ⚠ 토큰 4컬럼의 의미가 엔진마다 다르다 — cascade 는 in_text/out_text = LLM 토큰,
+    #   in_audio/out_audio = 0(캐스케이드 LLM 은 오디오를 안 받는다). STT·TTS 는 단위가
+    #   초·문자라 컬럼에 섞지 않고 usage_json.vendors 에 둔다. 그래서 원가 계산은
+    #   반드시 engine 을 받는 normalcall_service.estimate_call_cost_usd 로 해야 한다.
+    usage_engine: Mapped[Optional[str]] = mapped_column(
+        Text, comment="usage 를 만든 엔진('live:...' / 'cascade:stt+llm+tts'). NULL = 미기록",
+    )
     usage_msgs: Mapped[Optional[int]] = mapped_column(
         Integer, comment="Live usage 관측 메시지 수(0/NULL = 미수신)",
     )
@@ -111,8 +127,13 @@ class Call(Base, TimestampMixin):
     usage_total: Mapped[Optional[int]] = mapped_column(
         BigInteger, comment="API 총 토큰 합(모달리티 4항의 합이 아니다 — thoughts·cached 포함)",
     )
+    # ⚠ 2026-08-07 정정: 예전엔 여기에 **압축 사이클 peak**(압축될 때마다 리셋되는 값)가
+    #   들어갔다 — call 909 에서 DB 13,355 vs 실제 최대 15,904 로 어긋났다. 지금은 통화
+    #   전체 최대치(단조증가, 압축·세션스왑과 무관)가 들어간다. 압축 트리거 하향 실험은
+    #   "이 통화가 실제로 몇 토큰까지 갔나"를 봐야 하므로 이 의미여야 한다.
+    #   사이클 peak 는 usage_json.cycle_peak 에 참고용으로 남는다.
     usage_peak_prompt: Mapped[Optional[int]] = mapped_column(
-        Integer, comment="이 통화가 도달한 최대 컨텍스트(압축·트리거 튜닝의 핵심 지표)",
+        Integer, comment="이 통화가 도달한 최대 컨텍스트(단조증가 — 압축·트리거 튜닝의 핵심 지표)",
     )
     # 나머지 요약 원본. ⛔ JSONB 아님 — 프로젝트 규약(sqlite 테스트 호환). 집계는 위 컬럼이
     # 담당하므로 JSONB 의 인덱싱 이점이 필요 없다. ⛔ 턴별 시계열은 넣지 않는다(통화당

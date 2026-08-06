@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 
 import pytest
 from sqlalchemy import Integer, create_engine
@@ -3045,6 +3046,7 @@ def _usage_state(entries, dropped: int = 0):
             "out_detail": [("AUDIO", oa)],
         })
         st.usage_prompt_peak = max(st.usage_prompt_peak, prompt)
+        st.usage_prompt_max = max(st.usage_prompt_max, prompt)
     return st
 
 
@@ -3137,7 +3139,7 @@ async def test_call_persists_usage_and_survives_save_failure(
         db.close()
 
     # 저장이 터지는 경우 — 통화는 그대로 끝나야 한다(전사·상태 무손상).
-    def _boom(db, call_id, summary):
+    def _boom(db, call_id, summary, **kw):
         raise RuntimeError("usage table gone")
 
     monkeypatch.setattr(svc, "save_call_usage", _boom)
@@ -3166,3 +3168,214 @@ async def test_call_without_usage_leaves_columns_null(session_factory, seeded):
         assert call.status in ("analyzing", "done")
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# (p) 원가 계기판 3단계 — 엔진 구분(usage_engine) + peak 의미 수정
+# --------------------------------------------------------------------------- #
+# Live 와 캐스케이드가 같은 컬럼에 섞이면 AVG(원가) 가 두 엔진의 평균이 돼, 캐스케이드
+# 프로젝트의 유일한 목적("정말 싼가")을 데이터로 증명할 수 없게 된다.
+# 그리고 usage_peak_prompt 는 압축마다 리셋되는 사이클 peak 를 담고 있었다(call 909:
+# DB 13,355 vs 실제 15,904) — 압축 트리거 하향 실험이 바로 그 숫자를 본다.
+
+def test_engine_tag_follows_the_contract():
+    """엔진 태그 조립 — cascade-impl 과 공유하는 계약 문자열이라 한 글자도 어긋나면 안 된다."""
+    assert svc.ENGINE_LIVE_GEMINI == "live:gemini-native-audio"
+    assert svc.build_engine_tag(
+        "cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
+    ) == "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd"
+    # STT 를 갈아끼워도 같은 컬럼에서 갈라진다(스키마 변경 없이).
+    assert svc.build_engine_tag(
+        "cascade", "whisper", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
+    ) == "cascade:whisper+gemini-2.5-flash+cloud-tts-chirp3-hd"
+    # 폴백으로 한 다리가 빠지면 빈 칸이 아니라 그냥 빠진다("a++b" 같은 쓰레기 방지).
+    assert svc.build_engine_tag("cascade", "whisper", "", "cloud-tts-chirp3-hd") \
+        == "cascade:whisper+cloud-tts-chirp3-hd"
+
+
+@pytest.mark.asyncio
+async def test_live_call_stamps_its_engine(session_factory, seeded):
+    """⛔ Live 통화는 **반드시** 엔진 태그를 남긴다 — 비면 나중에 되짚을 방법이 없다."""
+    await _run_with_fake(
+        _RegroundFake([
+            LiveEvent(kind="usage", usage=_FakeUsage(1200, 30, 1400, in_audio=1000, in_text=200)),
+            LiveEvent(kind="out_tr", text="안녕"),
+            LiveEvent(kind="turn_end"),
+        ]),
+        session_factory, seeded,
+    )
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.usage_engine == "live:gemini-native-audio", \
+            "Live 통화에 엔진 태그가 안 남았다 — 캐스케이드와 섞이면 구별 불가"
+    finally:
+        db.close()
+
+
+def test_cascade_summary_keeps_column_contract_and_vendors(session_factory, seeded):
+    """캐스케이드 규약: 오디오 컬럼 0, 텍스트 컬럼 = LLM 토큰, STT·TTS 는 usage_json.vendors."""
+    db = session_factory()
+    try:
+        call_id = svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal")
+        engine = svc.build_engine_tag(
+            "cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
+        )
+        summary = {
+            "msgs": 40, "sum_total": 44200, "peak_prompt": 5200,
+            "in_mod": {"TEXT": 41000}, "out_mod": {"TEXT": 3200},
+            "vendors": {
+                "stt": {"vendor": "google-stt-v2", "audio_s": 902.4},
+                "llm": {"vendor": "gemini-2.5-flash", "in_text": 41000, "out_text": 3200},
+                "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 8400},
+            },
+        }
+        assert svc.save_call_usage(db, call_id, summary, engine=engine) is True
+
+        call = db.get(Call, call_id)
+        assert call.usage_engine == engine
+        # 오디오 토큰은 0 — 캐스케이드 LLM 은 오디오를 안 받는다(NULL 아님: 0 은 사실이다).
+        assert (call.usage_in_audio, call.usage_out_audio) == (0, 0)
+        assert (call.usage_in_text, call.usage_out_text) == (41000, 3200)
+        # 초·문자는 토큰 컬럼에 못 들어간다 — JSON 에 원형 그대로.
+        assert call.usage_json["vendors"]["tts"]["chars"] == 8400
+        assert call.usage_json["vendors"]["stt"]["audio_s"] == 902.4
+    finally:
+        db.close()
+
+
+def test_cost_depends_on_engine_not_just_tokens():
+    """같은 토큰 수라도 엔진이 다르면 원가가 다르다 — 엔진을 모르고 계산하면 조용히 틀린다."""
+    live, unknown = svc.estimate_call_cost_usd(
+        svc.ENGINE_LIVE_GEMINI, in_text=1_000_000, out_text=1_000_000
+    )
+    assert unknown == []
+    assert round(live, 6) == round(0.50 + 2.00, 6), "Live 텍스트 단가"
+
+    casc, unknown = svc.estimate_call_cost_usd(
+        "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd",
+        in_text=1_000_000, out_text=1_000_000,
+        usage_json={"vendors": {
+            "llm": {"vendor": "gemini-2.5-flash", "in_text": 1_000_000, "out_text": 1_000_000},
+        }},
+    )
+    assert unknown == []
+    assert round(casc, 6) == round(0.30 + 2.50, 6), "캐스케이드 LLM 단가"
+    assert live != casc, "엔진이 달라도 같은 값이 나오면 컬럼이 섞인 걸 못 잡는다"
+
+    # engine 이 NULL(계기판 이전 통화)이면 Live 로 본다 — 캐스케이드는 이 컬럼 이후에만 있다.
+    assert svc.estimate_call_cost_usd(None, in_text=1_000_000)[0] == \
+        svc.estimate_usage_cost_usd(in_text=1_000_000)
+
+
+def test_cascade_cost_matches_hand_calculation_and_flags_unknown_vendors():
+    """세 다리 합산이 손계산과 맞고, 모르는 벤더는 **조용히 0 원이 되지 않는다.**"""
+    cost, unknown = svc.estimate_cascade_cost_usd({
+        "stt": {"vendor": "google-stt-v2", "audio_s": 900.0},
+        "llm": {"vendor": "gemini-2.5-flash", "in_text": 41_000, "out_text": 3_200},
+        "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 8_400},
+    })
+    expected = (
+        900.0 * (0.016 / 60)
+        + (41_000 * 0.30 + 3_200 * 2.50) / 1_000_000
+        + 8_400 * (30.0 / 1_000_000)
+    )
+    assert unknown == [] and round(cost, 8) == round(expected, 8)
+
+    # 모르는 벤더 → 값이 0 이 아니라 "미상"으로 드러나야 한다. 조용히 0 이면
+    # "캐스케이드가 공짜"라는 그럴듯한 거짓말이 통계에 섞인다.
+    cost2, unknown2 = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "elevenlabs-v3", "chars": 8_400},
+    })
+    assert cost2 == 0.0 and unknown2 == ["tts:elevenlabs-v3"]
+
+
+def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
+    """call 909 재현 — 압축이 여러 번 나도 DB 로 가는 값은 **통화 전체 최대치**여야 한다.
+
+    실제로 저장됐던 값 13,355 는 마지막 압축 사이클의 최고치였고, 통화가 실제로 도달한
+    최대는 15,904 였다. 압축 트리거 하향(16k→12k) 실험이 보는 게 후자다.
+    """
+    st = cs._CallState()
+    for p in (8_000, 15_904, 11_500, 13_355, 9_000):   # 압축 톱니 두 번
+        cs._observe_compression(st, p)
+    assert st.compression_seen >= 1, "압축이 감지되지 않으면 이 테스트가 무의미하다"
+    assert st.usage_prompt_max == 15_904
+    assert st.usage_prompt_peak < st.usage_prompt_max, "사이클 peak 는 리셋돼 더 작아야 한다"
+
+    st.usage_log.append({
+        "t": 1.0, "turn": 0, "prompt": 9_000, "resp": 10, "total": 9_100,
+        "thoughts": 0, "cached": None, "tool_in": None,
+        "in_detail": [], "out_detail": [],
+    })
+    s = cs._usage_summary(st)
+    assert s["peak_prompt"] == 15_904, "DB 로 가는 값이 사이클 peak 면 트리거 튜닝을 못 한다"
+    assert s["cycle_peak"] == st.usage_prompt_peak, "사이클 peak 도 참고용으로 남아야 한다"
+
+
+def test_compression_detection_and_arm_still_use_the_cycle_peak():
+    """⛔ 관측값을 하나 더 세웠을 뿐 — 압축 감지·재접지 arm 동작은 무변경이어야 한다(R4)."""
+    st = cs._CallState()
+    cs._observe_compression(st, 16_000)
+    cs._observe_compression(st, 12_000)          # 압축 1회
+    assert st.compression_seen == 1
+
+    # 사후·시간 폴백 두 경로를 닫아 두고 ①선제 arm 만 본다.
+    st.call_start_ts = 0.0
+    st.reground_count = 1        # 압축 1회는 이미 소비 → ② post-compress 안 걸림
+    st.last_reground_ts = 100.0  # 최소간격(60s) 충족, 시간 폴백(120s) 미충족
+    now = 180.0
+    # 압축 직후엔 사이클 peak 가 바닥이라 arm 이 안 걸려야 한다.
+    # (전체 최대치 16,000 을 봤다면 16,000 ≥ 13,600 이라 걸렸을 것이다.)
+    assert cs._reground_due(st, now) == "", "리셋된 사이클 peak 가 아니라 전체 최대치를 보고 있다"
+    # 다시 차오르면 선제 arm.
+    cs._observe_compression(st, int(16_000 * cs.REGROUND_ARM_RATIO) + 1)
+    assert cs._reground_due(st, now) == "compress"
+
+
+def test_cascade_output_cost_includes_thinking_tokens():
+    """사고 토큰은 출력 단가로 과금되는데 응답 본문(candidates)엔 안 들어온다.
+
+    ⛔ out_text 만 세면 낸 돈의 일부가 통계에서 사라지고, 하필 그 통계가
+      "캐스케이드가 Live 보다 싼가"의 근거가 된다.
+    """
+    base = {"llm": {"vendor": "gemini-2.5-flash", "in_text": 10_000, "out_text": 2_000}}
+    thinking = {"llm": {**base["llm"], "thoughts": 1_500}}
+
+    cost_base, _ = svc.estimate_cascade_cost_usd(base)
+    cost_thinking, unknown = svc.estimate_cascade_cost_usd(thinking)
+
+    assert unknown == []
+    # 늘어난 만큼이 정확히 사고 토큰 × 출력 단가여야 한다.
+    assert round(cost_thinking - cost_base, 10) == round(1_500 * 2.50 / 1_000_000, 10)
+    # 손계산 전체.
+    assert round(cost_thinking, 10) == round(
+        (10_000 * 0.30 + (2_000 + 1_500) * 2.50) / 1_000_000, 10
+    )
+    # 사고 토큰만 온 경우도(출력 본문 0) 원가가 잡혀야 한다 — 게이트에서 안 빠지는지.
+    only, _ = svc.estimate_cascade_cost_usd(
+        {"llm": {"vendor": "gemini-2.5-flash", "thoughts": 1_000}}
+    )
+    assert round(only, 10) == round(1_000 * 2.50 / 1_000_000, 10)
+
+
+def test_live_thinking_tokens_raise_a_warning_not_a_silent_undercount(caplog):
+    """Live 산식은 사고 토큰을 안 센다(근거는 estimate_usage_cost_usd 주석) — 대신 경고를 남긴다.
+
+    지금 모델(gemini-live-2.5-flash-native-audio)은 사고를 안 해서 0 이라는 전제 위에 선
+    계산이다. 그 전제가 깨지는 순간(사고형 모델 전환 등) 조용히 과소 계상되면 안 된다.
+    """
+    st = _usage_state([(1000, 1100, 900, 100, 40)])
+    st.usage_log[0]["thoughts"] = 0
+    with caplog.at_level(logging.WARNING):
+        cs._log_usage_summary(st, 1, "normal")
+    assert not [r for r in caplog.records if "사고 토큰" in r.getMessage()], \
+        "사고 토큰이 0 인데 경고가 났다"
+
+    caplog.clear()
+    st.usage_log[0]["thoughts"] = 320
+    with caplog.at_level(logging.WARNING):
+        cs._log_usage_summary(st, 1, "normal")
+    warned = [r for r in caplog.records if "사고 토큰" in r.getMessage()]
+    assert warned and warned[0].levelno == logging.WARNING, \
+        "사고 토큰이 관측됐는데 아무 신호도 안 나온다(조용한 과소 계상)"

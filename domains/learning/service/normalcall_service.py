@@ -653,10 +653,30 @@ LIVE_TOKEN_PRICE_USD = {
 def estimate_usage_cost_usd(
     *, in_audio: int = 0, in_text: int = 0, out_audio: int = 0, out_text: int = 0
 ) -> float:
-    """모달리티 4항 × 단가 = 통화 원가(USD). call.usage_* 컬럼을 그대로 넘기면 된다.
+    """**Live 전용** — 모달리티 4항 × Live 단가 = 통화 원가(USD).
 
     4항을 나눠 두는 이유가 여기 있다 — 단가가 최대 24배까지 차이난다(텍스트 입력 $0.5 vs
     오디오 출력 $12). 합쳐 놓은 숫자로는 원가를 계산할 수가 없다.
+
+    ⛔ 캐스케이드 행에 이 함수를 쓰지 마라. 캐스케이드는 같은 `usage_in_text` 컬럼에
+      **LLM 토큰**을 담는데 단가가 다르다($0.30 vs Live $0.50) — 조용히 틀린 값이 나오고,
+      하필 그 값이 "캐스케이드가 싼가"의 근거로 쓰인다. 엔진이 섞인 데이터에는
+      estimate_call_cost_usd(engine=...) 를 써라.
+
+    ⚠ **사고(thinking) 토큰은 여기 안 들어간다 — 확신이 없어서 일부러 뺐다.**
+      캐스케이드 쪽은 out_text + thoughts 로 센다(사고 토큰이 출력 단가로 과금되므로).
+      Live 도 같은 논리로 보이지만, 더하기 전에 확인이 안 된 게 둘이다:
+        ① 이중계상 위험이 클라이언트마다 다르다. AI Studio 는 candidates 에 사고 토큰이
+           **포함**돼 나오고 Vertex 는 **빠진다**. 이 앱은 Vertex 지만(USE_VERTEX), 원가는
+           모달리티 분해(response_tokens_details)로 계산하는데 그 분해가 사고 토큰을
+           품는지는 문서에서 확인하지 못했다. 품는다면 더하는 순간 이중계상이다.
+        ② 애초에 이 모델은 사고를 안 한다. GEMINI_LIVE_MODEL 이
+           'gemini-live-2.5-flash-native-audio'(비-사고 대화형)이고, 사고형은
+           '...-native-audio-thinking-dialog' 라는 **다른 모델 id** 다.
+           실측 call 909 도 sum_thoughts=0 이었다.
+      즉 지금 더해도 값이 안 변하고, 틀리면 조용히 과대계상이 된다 — 그래서 안 더한다.
+      대신 sum_thoughts>0 인 Live 통화가 나오면 call_session 이 **경고를 찍는다**(이 판단이
+      낡았다는 신호). 그 로그가 보이면 ①을 실측으로 확인하고 여기 산식을 고쳐라.
     """
     p = LIVE_TOKEN_PRICE_USD
     return (
@@ -665,21 +685,160 @@ def estimate_usage_cost_usd(
     ) / 1_000_000
 
 
-def save_call_usage(db: Session, call_id: int, summary: dict) -> bool:
-    """Live usage 요약을 통화 행에 남긴다(원가 계기판 2단계). 저장했으면 True.
+# ── 원가 계기판 3단계: 엔진 구분 + 캐스케이드 단가 ───────────────────────────
+# 🧒 왜 엔진 이름을 남기나: Live 통화와 캐스케이드 통화가 같은 테이블·같은 컬럼에 섞이면
+#   AVG(원가) 가 두 엔진의 평균이 돼 버려, **"캐스케이드가 정말 싼가"를 증명할 수 없다.**
+#   그게 캐스케이드 프로젝트의 유일한 목적인데. 나중에 백필할 근거도 안 남는다.
+#
+# ⛔ 이 문자열들은 cascade-impl 과 공유하는 **계약**이다. 임의로 바꾸지 마라 —
+#   한쪽만 바꾸면 두 엔진의 행이 서로 다른 이름으로 쌓여 비교가 깨진다.
+ENGINE_LIVE_GEMINI = "live:gemini-native-audio"
+ENGINE_LIVE_OPENAI = "live:openai-realtime"
+
+
+def build_engine_tag(mode: str, *components: str) -> str:
+    """엔진 태그를 계약 형식('<모드>:<구성요소를 + 로 연결>')으로 조립한다.
+
+    >>> build_engine_tag("cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd")
+    'cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd'
+
+    STT/TTS 조합까지 문자열에 박아 두는 게 요점이다 — 나중에 Whisper 로 바꿔도 스키마 변경
+    없이 **같은 컬럼에서 갈라진다**. 빈 구성요소는 무시한다(폴백으로 한 다리가 빠진 경우).
+    """
+    parts = [c.strip() for c in components if c and c.strip()]
+    return f"{mode}:{'+'.join(parts)}"
+
+
+# 캐스케이드 구성요소 단가(2026-08-07 조사).
+# ⚠ 공식 가격 페이지는 표가 JS 로 그려져 본문 추출이 안 됐다 — 아래는 검색 결과 요약 기준이다.
+#   **과금 판단(플랜 가격 결정 등) 전에는 반드시 콘솔 청구서로 재확인해라.** 계기판 추이를
+#   보는 용도로는 충분하지만, 이 숫자로 가격을 정하면 안 된다.
+# ⛔ 무료 한도(TTS Chirp3 HD 월 100만 자, STT 월 60분 등)는 **일부러 반영하지 않았다.**
+#   한도는 프로젝트 전체에 걸쳐 소진되는 값이라 통화 1건에 배분할 수가 없다. 여기 값은
+#   "한도를 다 쓴 뒤의 한계원가"이고, 그게 증설 판단에 필요한 숫자다.
+STT_PRICE_USD_PER_S = {
+    "google-stt-v2": 0.016 / 60,          # 실시간/스트리밍 표준가 $0.016/분(대량 시 $0.004까지)
+    "openai-whisper": 0.006 / 60,         # whisper-1 정가 $0.006/분, 볼륨 할인 없음
+    "gpt-4o-mini-transcribe": 0.003 / 60,  # 참고용
+}
+
+TTS_PRICE_USD_PER_CHAR = {
+    "cloud-tts-chirp3-hd": 30.0 / 1_000_000,   # $30/1M 자
+    "cloud-tts-neural2": 16.0 / 1_000_000,
+    "cloud-tts-wavenet": 16.0 / 1_000_000,
+    "cloud-tts-standard": 4.0 / 1_000_000,
+}
+
+# LLM 단가(USD / 1M 토큰). 캐스케이드의 LLM 다리는 **텍스트만** 받는다(오디오는 STT 가 처리).
+LLM_TOKEN_PRICE_USD = {
+    "gemini-2.5-flash": {"in_text": 0.30, "out_text": 2.50},
+    "gemini-2.5-flash-lite": {"in_text": 0.10, "out_text": 0.40},  # 2026-10-16 은퇴 예고
+}
+
+
+def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
+    """캐스케이드 원가(USD)를 usage_json.vendors 에서 계산한다.
+
+    반환: (원가, **단가표에 없는 벤더 이름들**). 두 번째 값이 요점이다 — 모르는 벤더를
+    조용히 0 원으로 먹으면 "캐스케이드가 공짜"라는 그럴듯한 거짓말이 나온다. 모르면
+    모른다고 드러내고, 호출부가 그 행을 표본에서 뺄지 정하게 한다.
+
+    기대 형태(계약):
+      {"stt": {"vendor": ..., "audio_s": 902.4},
+       "llm": {"vendor": ..., "in_text": 41000, "out_text": 3200, "thoughts": 1500},
+       "tts": {"vendor": ..., "chars": 8400}}
+    llm.thoughts 는 선택이지만 **있으면 출력 원가에 더해진다**(아래 산식 주석 참조).
+    """
+    total = 0.0
+    unknown: list[str] = []
+    v = vendors or {}
+
+    stt = v.get("stt") or {}
+    if stt.get("audio_s"):
+        price = STT_PRICE_USD_PER_S.get(stt.get("vendor"))
+        if price is None:
+            unknown.append(f"stt:{stt.get('vendor')}")
+        else:
+            total += float(stt["audio_s"]) * price
+
+    llm = v.get("llm") or {}
+    if llm.get("in_text") or llm.get("out_text") or llm.get("thoughts"):
+        price = LLM_TOKEN_PRICE_USD.get(llm.get("vendor"))
+        if price is None:
+            unknown.append(f"llm:{llm.get('vendor')}")
+        else:
+            # ⛔ out_text + thoughts 다. 둘을 더하는 건 실수가 아니다 — **빼면 원가가 과소 계상된다.**
+            #   gemini-2.5-flash 는 사고(thinking) 토큰을 **출력 단가로 과금**하는데, 그 토큰은
+            #   응답 본문(candidates)에 들어오지 않는다. out_text 만 세면 낸 돈의 일부가 통계에서
+            #   사라지고, 하필 그 통계가 "캐스케이드가 Live 보다 싼가"의 근거로 쓰인다.
+            #   (Vertex 기준. AI Studio 는 candidates 에 사고 토큰이 포함돼 나오므로, 만약
+            #    거기로 옮기면 이 덧셈이 이중계상이 된다 — 그때 다시 판단해라.)
+            out_billable = int(llm.get("out_text") or 0) + int(llm.get("thoughts") or 0)
+            total += (
+                int(llm.get("in_text") or 0) * price["in_text"]
+                + out_billable * price["out_text"]
+            ) / 1_000_000
+
+    tts = v.get("tts") or {}
+    if tts.get("chars"):
+        price = TTS_PRICE_USD_PER_CHAR.get(tts.get("vendor"))
+        if price is None:
+            unknown.append(f"tts:{tts.get('vendor')}")
+        else:
+            total += int(tts["chars"]) * price
+
+    return total, unknown
+
+
+def estimate_call_cost_usd(
+    engine: str | None,
+    *,
+    in_audio: int = 0, in_text: int = 0, out_audio: int = 0, out_text: int = 0,
+    usage_json: dict | None = None,
+) -> tuple[float, list[str]]:
+    """통화 1건의 원가(USD)를 **엔진에 맞는 단가로** 계산한다. 반환 (원가, 미상 벤더).
+
+    🧒 왜 엔진을 받나: `usage_in_text` 라는 같은 컬럼이 Live 에선 Live 텍스트 토큰($0.50/1M),
+      캐스케이드에선 LLM 토큰($0.30/1M)이다. 엔진을 모르고 계산하면 **틀린 값이 조용히**
+      나오고, 그 값이 두 엔진 비교의 근거가 된다. 그래서 여기가 유일한 입구다.
+
+    engine 이 NULL(계기판 이전 통화)이면 Live 로 본다 — 캐스케이드는 이 컬럼이 생긴 뒤에만
+    존재하므로, NULL 은 전부 Live 통화다.
+    """
+    if engine and engine.startswith("cascade:"):
+        return estimate_cascade_cost_usd((usage_json or {}).get("vendors"))
+    return estimate_usage_cost_usd(
+        in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text
+    ), []
+
+
+def save_call_usage(
+    db: Session, call_id: int, summary: dict, *, engine: str | None = None
+) -> bool:
+    """usage 요약을 통화 행에 남긴다(원가 계기판 2·3단계). 저장했으면 True.
 
     call_session._usage_summary 가 만든 요약을 받는다 — 로그 줄과 **같은 계산 결과**다.
     자주 집계하는 값(모달리티 4항·총합·최대 컨텍스트·메시지 수)만 컬럼으로 승격하고,
     나머지는 usage_json 에 통째로 둔다(스키마를 안 바꾸고 새 필드를 받는 그릇).
 
+    engine 은 계약 문자열('live:gemini-native-audio' / 'cascade:stt+llm+tts')이다.
+    ⚠ 캐스케이드 호출부는 컬럼 규약을 지켜라 — in_text/out_text = **LLM 토큰**,
+      in_audio/out_audio = 0. STT·TTS 는 단위가 초·문자라 컬럼이 아니라
+      summary["vendors"] 로 넘긴다(usage_json.vendors 에 그대로 남는다).
+      원가 계산은 반드시 estimate_call_cost_usd(engine=...) 로.
+
     ⛔ 통화가 없으면 조용히 False — 계기판 때문에 예외를 올릴 이유가 없다(R5).
     설계 근거: docs/20260805_1950_원가계기판-2단계-영속화-설계.md
+              docs/20260807_0028_엔진구분-usage_engine-과-peak-수정-계획.md
     """
     call = db.get(Call, call_id)
     if call is None:
         return False
     in_mod = summary.get("in_mod") or {}
     out_mod = summary.get("out_mod") or {}
+    # engine 인자 우선, 없으면 요약에 실려 온 값. 둘 다 없으면 NULL(= 미기록)로 남긴다 —
+    # 0 이나 'unknown' 으로 채우면 "모른다"와 "정말 그 엔진"이 구별되지 않는다.
+    call.usage_engine = engine or summary.get("engine")
     call.usage_msgs = int(summary.get("msgs") or 0)
     call.usage_in_audio = int(in_mod.get("AUDIO") or 0)
     call.usage_in_text = int(in_mod.get("TEXT") or 0)
@@ -704,6 +863,12 @@ def save_call_usage(db: Session, call_id: int, summary: dict) -> bool:
         "compressions": summary.get("compressions"),
         "epochs": summary.get("epochs"),
         "reconnects": summary.get("reconnects"),
+        # 압축 사이클 peak(압축마다 리셋되는 값). 컬럼의 peak_prompt 는 통화 전체 최대치라
+        # 둘이 갈라진다 — 왜 갈라졌는지 나중에 봐야 해서 참고용으로 같이 남긴다.
+        "cycle_peak": summary.get("cycle_peak"),
+        # 캐스케이드 다리별 사용량(STT 초·TTS 문자·LLM 토큰). 단위가 토큰이 아니라
+        # 컬럼에 못 들어가는 값들이다 — 원가는 estimate_cascade_cost_usd 가 여기서 계산한다.
+        **({"vendors": summary["vendors"]} if summary.get("vendors") else {}),
         **({"in_other": extra_in} if extra_in else {}),
         **({"out_other": extra_out} if extra_out else {}),
     }

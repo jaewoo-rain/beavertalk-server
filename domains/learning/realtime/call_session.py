@@ -395,7 +395,7 @@ class _CallState:
         # 재접지 통합(단계 3) — 압축 신호 관측 + 사이드카 + 모드 sticky
         "reground_count", "last_reground_ts", "reground_arm_reason",
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
-        "call_mode", "usage_prompt_peak", "compression_seen",
+        "call_mode", "usage_prompt_peak", "usage_prompt_max", "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
@@ -506,7 +506,15 @@ class _CallState:
         self.reground_persona: tuple[str, str] = ("", "")
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
+        # ⚠ peak 와 max 는 **다른 값이다.**
+        #   usage_prompt_peak — 압축 사이클 peak. 압축될 때마다 바닥에서 다시 센다.
+        #     낙차를 재는 기준선이자 재접지 arm 게이트의 입력이라 반드시 리셋돼야 한다.
+        #   usage_prompt_max  — 통화 전체 최대치. **절대 리셋 없음**(단조증가).
+        #     DB(call.usage_peak_prompt)로 가는 건 이쪽이다. 압축 트리거 하향 실험이
+        #     "이 통화가 실제로 몇 토큰까지 갔나"를 물으므로. 예전엔 사이클 peak 가
+        #     저장돼 call 909 에서 13,355(DB) vs 15,904(실제)로 어긋났다.
         self.usage_prompt_peak: int = 0
+        self.usage_prompt_max: int = 0
         self.compression_seen: int = 0
         # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
@@ -664,6 +672,9 @@ def _observe_compression(state: _CallState, prompt) -> None:
     if not prompt:
         return
     p = int(prompt)
+    # 통화 전체 최대치는 압축과 무관하게 여기서만 갱신한다(아래 리셋에 걸리지 않는 자리).
+    if p > state.usage_prompt_max:
+        state.usage_prompt_max = p
     peak = state.usage_prompt_peak
     if p > peak:
         state.usage_prompt_peak = p
@@ -757,7 +768,11 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "monotonic": monotonic,
         "in_mod": in_mod, "out_mod": out_mod,
         # 압축·재연결 관측(원가 추이와 함께 봐야 의미가 있는 값들).
-        "peak_prompt": state.usage_prompt_peak,
+        # ⚠ peak_prompt 는 **통화 전체 최대치**(단조증가)다. 압축마다 리셋되는 사이클 peak 는
+        #   cycle_peak 로 따로 낸다 — DB 에 사이클 peak 를 넣었더니 "이 통화가 몇 토큰까지
+        #   갔나"를 못 보게 됐던 게 call 909(13,355 vs 실제 15,904)에서 드러났다.
+        "peak_prompt": state.usage_prompt_max,
+        "cycle_peak": state.usage_prompt_peak,
         "compressions": state.compression_seen,
         "epochs": state.session_epoch, "reconnects": state.reconnects,
     }
@@ -794,6 +809,19 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
         ",".join(f"{k}={v}" for k, v in sorted(out_mod.items())) or "-",
     )
 
+    if s["sum_thoughts"]:
+        # 🧒 이 줄이 보이면 원가 산식이 낡았다는 뜻이다. Live 원가는 모달리티 4항만 곱하고
+        #   사고 토큰을 안 더한다 — 지금 모델(비-사고 native-audio)이 사고를 안 해서
+        #   0 이라는 전제 위에 서 있는 계산이다. 사고형 모델로 갈아탔거나 모델이 조용히
+        #   바뀌었으면 그 전제가 깨지고 **원가가 과소 계상된다.**
+        #   확인할 것: 모달리티 분해(sum_out)가 이 토큰을 이미 품는지. 안 품으면
+        #   estimate_usage_cost_usd 에 out_text 단가로 더해라(주석에 근거 있음).
+        logger.warning(
+            "normalcall usage: call_id=%s 사고 토큰 %d 관측 — Live 원가 산식이 이 값을 "
+            "안 세고 있다(과소 계상 가능). estimate_usage_cost_usd 주석 참조",
+            call_id, s["sum_thoughts"],
+        )
+
     if _settings.LIVE_USAGE_TRACE:
         # 시계열 상세: 압축 발동 판정용(톱니 = 발동, 단조증가 = 미발동).
         trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in state.usage_log)
@@ -816,7 +844,12 @@ async def _persist_usage(db_session_factory, state: _CallState, call_id: int | N
         return
     try:
         await svc.run_db(
-            db_session_factory, lambda db: svc.save_call_usage(db, call_id, summary)
+            db_session_factory,
+            # ⛔ 엔진 태그는 **반드시** 넘긴다. 이게 비면 나중에 캐스케이드 행과 섞여
+            #   "어느 엔진의 원가인지" 되짚을 수 없게 된다(계약: models/call.py usage_engine).
+            lambda db: svc.save_call_usage(
+                db, call_id, summary, engine=svc.ENGINE_LIVE_GEMINI
+            ),
         )
     except Exception as exc:  # noqa: BLE001 - 계기판 저장 실패가 통화를 죽이면 안 된다(R5)
         logger.warning("normalcall usage: 영속화 실패(무시) call_id=%s: %s", call_id, exc)
