@@ -812,7 +812,15 @@ async def test_hook_rejects_estimated_progress_with_reason(fake_v2, monkeypatch)
 async def test_hook_pacing_is_realtime(fake_v2):
     """페이싱이 살아 있다 — 0.6초 분량은 실제로 그만큼 걸려서 나간다(I3).
 
-    lead(200ms)를 빼고도 최소 0.3초는 걸려야 한다. 이게 깨지면 클라 버퍼가 부푼다.
+    산수: 100ms 프레임 6장, 허용 선행 lead=200ms → 앞의 두 장은 그냥 나가고 나머지는
+    100ms 씩 기다린다 = **약 0.3초**. 페이싱이 죽으면 0.01초 안에 끝난다.
+
+    ⚠ 임계를 0.3 으로 잡으면 안 된다(2026-08-07 수정). 기대값이 정확히 0.3 이라
+    **경계 위**에 앉는 판정이 되는데, asyncio 는 이벤트 루프의 clock resolution 만큼
+    일찍 깨어날 수 있고 윈도우에서 그 값이 ~15.6ms 다(sleep 3회 = 최대 ~47ms 이르다).
+    실제로 0.297 초가 나와 **HEAD 에서도 5회 중 4회 실패**했다 — 코드가 아니라 판정이
+    틀린 것이다. 여기서 지키려는 성질은 "실시간만큼 기다렸나"지 "정확히 300ms 였나"가
+    아니므로, 페이싱 유무를 가르는 데 충분한 여유(0.24s)로 잡는다.
     """
     import time as _time
 
@@ -823,7 +831,7 @@ async def test_hook_pacing_is_realtime(fake_v2):
     began = _time.monotonic()
     await asyncio.wait_for(CascadeSession(transport).run(), timeout=5)
     elapsed = _time.monotonic() - began
-    assert elapsed >= 0.3, elapsed
+    assert elapsed >= 0.24, elapsed
 
 
 @pytest.mark.asyncio

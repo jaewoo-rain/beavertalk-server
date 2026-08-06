@@ -590,15 +590,50 @@ class RollingSttV2Stream:
         전역 타임라인에서 그 지점은 (지금까지 들어온 총량 − 버퍼 길이)다. 이 기준점을
         더해줘야 스트림이 바뀌어도 이벤트 오프셋이 연속된다(안 하면 롤오버마다 0으로
         되돌아가 턴 타이머가 오작동한다).
+
+        ⭐ **이미 최종 전사가 난 오디오는 다시 흘리지 않는다**(2026-08-07). 예전엔 버퍼를
+        통째로 재생했는데, 그 안에 앞 스트림이 이미 확정한 발화의 꼬리가 들어 있으면 새
+        스트림이 그걸 **다시 인식해 같은 최종 전사를 한 번 더** 낸다. 결과는 두 가지로
+        동시에 나쁘다: ① 같은 발화가 턴 2개(실통화에서 관측) ② 그 구간 STT 이중 과금
+        (원가 설계 §2-2 의 위험이 실제로 발생). 기준은 우리가 **이미 받은 최종 전사의 오디오
+        끝**이라 추측이 아니다.
         """
         if not self._cur:
             return
-        self._base_ms = int(max(0.0, self._audio_ms - self._bytes_to_ms(self._pending_bytes)))
+        start_ms = max(0.0, self._audio_ms - self._bytes_to_ms(self._pending_bytes))
+        trimmed_ms = 0.0
+        if self._last_final_ms > start_ms:
+            trimmed_ms = self._trim_pending(self._last_final_ms - start_ms)
+            start_ms += trimmed_ms
+        self._base_ms = int(start_ms)
+        self._replay_ms += self._bytes_to_ms(self._pending_bytes)   # 이중 과금 후보 구간
+        logger.info(
+            "[stt-v2] 스트림 교체: base_ms=%d 재생=%.0fms 잘라냄=%.0fms audio_ms=%.0f",
+            self._base_ms, self._bytes_to_ms(self._pending_bytes), trimmed_ms, self._audio_ms,
+        )
         for chunk in self._pending:
             with contextlib.suppress(Exception):
                 await self._cur.push_audio(chunk)
         self._pending.clear()
         self._pending_bytes = 0
+
+    def _trim_pending(self, drop_ms: float) -> float:
+        """대기 버퍼 앞에서 drop_ms 만큼 버린다(이미 인식이 끝난 구간). 실제로 버린 ms 반환."""
+        drop_bytes = int(drop_ms * self._sample_rate * 2 / 1000) & ~1   # 샘플 경계 유지
+        dropped = 0
+        while drop_bytes > 0 and self._pending:
+            head = self._pending[0]
+            if len(head) <= drop_bytes:
+                self._pending.pop(0)
+                self._pending_bytes -= len(head)
+                drop_bytes -= len(head)
+                dropped += len(head)
+            else:
+                self._pending[0] = head[drop_bytes:]
+                self._pending_bytes -= drop_bytes
+                dropped += drop_bytes
+                drop_bytes = 0
+        return self._bytes_to_ms(dropped)
 
     def feed_test(self, text: str) -> None:
         if self._cur is not None:
@@ -650,6 +685,9 @@ class RollingSttV2Stream:
                         self._speech_active = False
                     if event.offset_ms >= 0:
                         event.offset_ms += self._base_ms  # 스트림 로컬 → 전역 타임라인
+                        if event.kind == TRANSCRIPT and event.is_final:
+                            # 여기까지는 확정됐다 — 롤오버 재생에서 다시 흘리지 않는다.
+                            self._last_final_ms = max(self._last_final_ms, float(event.offset_ms))
                     yield event
             except asyncio.CancelledError:
                 raise
@@ -726,7 +764,7 @@ def make_stt_v2_stream(sample_rate: int = 16000) -> Any:
     """
     resolved = get_speech_v2_client()
     if resolved is None:
-        return FakeSttV2Stream()
+        return FakeSttV2Stream(sample_rate)
     client, project = resolved
     return RollingSttV2Stream(
         lambda: GoogleSttV2Stream(client, project, sample_rate), sample_rate

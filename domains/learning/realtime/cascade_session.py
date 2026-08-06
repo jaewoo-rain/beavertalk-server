@@ -427,6 +427,12 @@ class CascadeSession:
         self._last_voice_offset_ms = -1       # 마지막 음성 활동의 오디오 시각
         self._last_voice_at = 0.0             # 동 — 도착 시각(오프셋 미상일 때 폴백)
         self._pipeline_lag_ms = 0             # audio_ms_sent − offset (리전 왕복 + 인식 지연)
+        self._lag_warned = False              # 비정상 지연은 **한 번만** 크게 알린다
+        # 방금 닫은 턴(유령 턴 차단 — 같은 발화가 턴 2개가 되는 것을 막는다)
+        self._closed_turn_id: str | None = None
+        self._closed_end_offset_ms = -1
+        self._closed_text = ""
+        self._closed_at = 0.0
         # barge-in 에코 2차 방어(세션 단위 — 기기/라우트마다 달라야 한다)
         self._bargein_confirm = settings.CASCADE_BARGEIN_CONFIRM
         self._aec_mode = "unknown"
@@ -590,6 +596,13 @@ class CascadeSession:
         elif event.kind == SPEECH_END:
             await self._on_speech_end(event)
         elif event.kind == STREAM_ROLLOVER:
+            # ⭐ 서버 로그에도 남긴다(2026-08-07). 지금까지 롤오버는 WS 이벤트로만 나가서
+            # **서버 로그에서는 보이지 않았다** — 그래서 실통화에서 지연이 79초로 튀었을 때
+            # 롤오버가 있었는지조차 확인할 수 없었다. 진단은 로그로 한다.
+            logger.info(
+                "cascade stt 롤오버: reason=%s gap_ms=%d audio_ms=%.0f 다음턴부터 새 스트림",
+                event.detail, event.gap_ms, self._audio_ms,
+            )
             await self._safe(ServerSttRollover(reason=event.detail, gap_ms=event.gap_ms))
         elif event.kind == STREAM_ERROR:
             await self._safe(
@@ -613,6 +626,8 @@ class CascadeSession:
 
     async def _on_transcript(self, event: SttV2Event) -> None:
         if self.state == TurnState.IDLE:
+            if self._is_stale_tail(event):
+                return
             # 방어: VAD BEGIN 없이 전사가 먼저 오는 엔진/설정도 있다. 전사를 턴 시작으로 본다.
             await self._open_turn(event.at)
         if event.is_final:
@@ -637,25 +652,76 @@ class CascadeSession:
             return  # 열린 턴이 없으면 무시(스트림 시작 직후의 잔여 이벤트 등)
         self._arm_close_timer(event)
 
+    def _is_stale_tail(self, event: SttV2Event) -> bool:
+        """방금 닫은 턴의 **꼬리**인가 — 그렇다면 새 턴을 열지 않는다(유령 턴 차단).
+
+        왜 필요한가: 턴은 서버 타이머가 닫는데, 그 발화의 최종 전사가 **닫힌 뒤에** 도착할
+        수 있다(파이프라인 지연·롤오버 재인식). 그걸 그대로 받으면 IDLE 상태라 새 턴이
+        열리고, 같은 말이 턴 2개가 된다 — P1 에서 비버가 두 번 대답하는 버그가 된다.
+
+        판정은 **오디오 시각**으로 한다: 이 전사가 가리키는 오디오 끝이 방금 닫은 턴의 마지막
+        음성 지점보다 **뒤로 가지 않으면** 새 소리가 아니다. 오프셋을 모르는 엔진(페이크·구
+        버전)에서는 같은 텍스트인지로만 본다 — 판정 재료가 없을 때 새 턴을 막는 쪽이 더 위험해
+        (진짜 발화를 삼킨다) 유예 시간(CASCADE_STALE_FINAL_MS) 안에서만 막는다.
+        """
+        if self._closed_at <= 0.0:
+            return False
+        if (time.monotonic() - self._closed_at) * 1000.0 > max(0, settings.CASCADE_STALE_FINAL_MS):
+            return False
+        text = (event.text or "").strip()
+        if event.offset_ms >= 0 and self._closed_end_offset_ms >= 0:
+            fresh = event.offset_ms > self._closed_end_offset_ms + _STALE_OFFSET_EPSILON_MS
+        else:
+            fresh = bool(text) and text != self._closed_text
+        if fresh:
+            return False
+        logger.info(
+            "cascade 유령 턴 차단: 방금 닫은 %s 의 꼬리 전사(offset=%d ≤ %d) text=%r",
+            self._closed_turn_id, event.offset_ms, self._closed_end_offset_ms, text,
+        )
+        return True
+
     def _mark_voice(self, event: SttV2Event) -> None:
         """마지막 음성 활동 지점을 오디오 시각으로 기록 + 파이프라인 지연 계측."""
         self._last_voice_at = event.at
         if event.offset_ms >= 0:
             self._last_voice_offset_ms = event.offset_ms
             self._pipeline_lag_ms = int(max(0.0, self._audio_ms - event.offset_ms))
+            # ⭐ 지연이 상식 밖이면 오프셋 기준점이 어긋난 것이다(2026-08-06 실통화에서 79초가
+            # 나왔다 — 세션 시작~롤오버 지점과 같은 값이라 스트림 타임라인 문제로 의심된다).
+            # 원인을 못 짚은 채 값만 덮으면 안 되므로, **재료를 통째로** 남겨 다음 통화에서
+            # 판정한다(어느 종류의 이벤트가·어떤 오프셋으로 왔는지).
+            if self._pipeline_lag_ms > _LAG_SANITY_MS and not self._lag_warned:
+                self._lag_warned = True
+                logger.warning(
+                    "cascade 파이프라인 지연 이상: lag=%dms kind=%s offset_ms=%d audio_ms=%.0f "
+                    "turn=%s (오프셋 기준점 의심 — 롤오버 로그와 대조하라)",
+                    self._pipeline_lag_ms, event.kind, event.offset_ms, self._audio_ms,
+                    self._turn_id,
+                )
 
     def _arm_close_timer(self, event: SttV2Event) -> None:
-        """침묵 카운트다운을 건다 — **이미 흘러간 침묵은 빼고** 남은 만큼만.
+        """침묵 카운트다운을 건다 — **이미 흘러간 침묵은 빼되, 바닥 아래로는 안 내린다.**
 
         이벤트가 오디오 시각(offset)을 들고 오면 `audio_ms_sent − offset` 이 이미 지난
         침묵이다. 그만큼을 빼야 리전 왕복·인식 지연이 임계에 얹히지 않는다(오프셋이 없으면
         0으로 보고 그냥 전체를 기다린다 — 페이크·구버전 대비 폴백).
+
+        ⭐ 2026-08-07 실통화가 이 뺄셈의 전제를 깼다. 전제는 **파이프라인 지연 < 침묵 임계**
+        인데, 실측 지연이 810~914ms 로 임계(800ms)를 넘었다. 그러면 남은 대기가 0 이 되어
+        **턴이 speech_end 를 처리하는 순간 닫히고**, 0.02~0.9초 뒤 도착한 최종 전사가 IDLE
+        상태에서 **같은 발화로 턴을 하나 더 연다**(u2/u3, u16/u17 … speech_ms=0 짜리 유령 턴).
+        P1 에서는 비버가 같은 말에 두 번 대답하게 된다.
+
+        그래서 바닥(CASCADE_TURN_MIN_WAIT_MS)을 둔다 — 지연이 임계를 넘어도 **최종 전사가
+        도착할 시간은 항상 남긴다.** 지연이 임계보다 작을 때의 동작은 예전과 같다.
         """
         already_ms = 0.0
         if event.offset_ms >= 0:
             already_ms = max(0.0, self._audio_ms - event.offset_ms)
         remain_s = max(0.0, (self._silence_ms - already_ms) / 1000.0)
-        self._close_at = time.monotonic() + remain_s
+        floor_s = max(0, settings.CASCADE_TURN_MIN_WAIT_MS) / 1000.0
+        self._close_at = time.monotonic() + max(remain_s, floor_s)
 
     async def _open_turn(self, at: float) -> None:
         self._turn_seq += 1
@@ -695,13 +761,26 @@ class CascadeSession:
             "cascade turn: id=%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d text=%r",
             self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms, text,
         )
+        # 유령 턴 차단용 기록 — **닫은 턴의 끝**을 오디오 시각으로 남긴다(_is_stale_tail).
+        self._closed_turn_id = self._turn_id
+        self._closed_end_offset_ms = self._last_voice_offset_ms
+        self._closed_text = text
+        self._closed_at = now
+        if not text:
+            # 빈 턴: 상태가 굳으면 안 되니 **닫기는 한다**. 다만 이건 사용자 발화가 아니다 —
+            # ⛔ P1 은 text=='' 인 턴으로 LLM 을 부르면 안 된다(빈 입력 호출 = 원가 + 헛대답).
+            logger.info("cascade 빈 턴: id=%s reason=%s — 발화 없음(LLM 호출 금지)",
+                        self._turn_id, reason)
         self._turn_id = None
         self._close_at = None
         self._turn_deadline = None
         self._finals = []
         self._partial = ""
-        # P1: 여기서 THINKING 으로 넘어가 LLM 을 부른다. P0 은 곧장 IDLE.
         self.state = TurnState.IDLE
+        # ⭐ 여기서 비버가 대답한다(P1). ⛔ 빈 텍스트면 부르지 않는다 — 빈 입력 LLM 호출은
+        # 원가만 나가고 헛대답을 만든다(결함 C 판단, 2026-08-07).
+        if text:
+            self._start_reply(text)
 
     # ── barge-in ──
     async def _bargein_allowed(self, event: SttV2Event) -> bool:
