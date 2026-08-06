@@ -207,11 +207,11 @@ async def test_offset_shortens_wait(fake_v2, monkeypatch):
     이게 없으면 리전 왕복(STT v2 는 서울·도쿄가 없다)과 인식 지연이 침묵 임계에 그대로
     얹혀 턴이 그만큼 늦게 끊긴다.
     """
-    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_SILENCE_MS", 5000)
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_SILENCE_MS", 3000)
     from core.stt import FakeSttV2Stream
 
     class _OffsetFake(FakeSttV2Stream):
-        """speech_end 를 '한참 전 오디오'로 표시 — 이미 침묵이 다 흘렀다는 뜻."""
+        """speech_end 를 '조금 전 오디오'로 표시 — 그만큼 침묵이 이미 흘렀다는 뜻."""
 
         def feed_test_event(self, kind: str) -> None:
             if kind == SPEECH_END:
@@ -221,19 +221,22 @@ async def test_offset_shortens_wait(fake_v2, monkeypatch):
 
     monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000: _OffsetFake())
 
-    # 오디오 10,000ms 를 보낸 뒤(오프셋 0 기준 침묵 10초 경과) speech_end 가 도착 →
-    # 남은 대기 0 → 5초 임계에도 불구하고 즉시 닫혀야 한다.
-    ten_seconds = b"\x00\x00" * 16000 * 10
+    # 오디오 2,500ms 를 보낸 뒤(오프셋 0 기준 침묵 2.5초 경과) speech_end 가 도착 →
+    # 남은 대기 0.5초 → 3초 임계에도 불구하고 금방 닫혀야 한다.
+    # ⚠ 2026-08-07: 예전엔 10초 오프셋을 썼는데, 지금은 상식 밖 오프셋(>3초 차이)을 미상으로
+    #   거절한다(결함 A). 그건 정상 동작이라 테스트를 **현실적인 지연**으로 바꿨다 —
+    #   실측 파이프라인 지연은 0.8~0.9초다.
+    two_and_half_seconds = b"\x00\x00" * (16000 * 5 // 2)   # 40,000 샘플 = 2.5초
     transport = _StubTransport(
         [
             _ctl(type="start"),
             _ctl(type="__test_event", event=SPEECH_BEGIN),
             _ctl(type="__test_say", text="끝났다"),
-            CascadeInbound(kind="audio", audio=ten_seconds),
+            CascadeInbound(kind="audio", audio=two_and_half_seconds),
             _ctl(type="__test_event", event=SPEECH_END),
         ]
     )
-    await asyncio.wait_for(CascadeSession(transport).run(), timeout=3)  # 5초 임계보다 짧게
+    await asyncio.wait_for(CascadeSession(transport).run(), timeout=2)  # 3초 임계보다 짧게
     assert transport.first("user_turn_end")["text"] == "끝났다", transport.events
 
 

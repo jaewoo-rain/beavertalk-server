@@ -87,10 +87,11 @@ _RMS_STRIDE = 8  # 에너지 계산 표본 간격(전 샘플을 돌 필요 없�
 # 어차피 같은 턴으로 이어진다).
 _STALE_OFFSET_EPSILON_MS = 200
 # 이 값을 넘는 파이프라인 지연은 계측이 아니라 **버그 신호**다(리전 왕복은 1초 수준).
+# 넘는 오프셋은 계측에 쓰지 않고 미상으로 거절한다(_sanitize_offset).
 _LAG_SANITY_MS = 3000
-# LLM 에 넘길 최근 대화 턴 수(사용자+비버 = 2줄/턴). 통화가 길어져도 프롬프트가 무한정
-# 자라지 않게 한다 — 캐스케이드는 매 턴 이력 전체를 다시 입력으로 넣어 과금되기 때문이다.
-_HISTORY_MAX_TURNS = 12
+# 오프셋이 우리 카운터보다 살짝 앞설 수는 있다(우리가 센 바이트와 엔진이 받은 바이트의 미세한
+# 시차). 이만큼은 정상으로 본다.
+_OFFSET_FUTURE_TOLERANCE_MS = 500
 _TTS_VENDOR = "cloud-tts-chirp3-hd"
 
 
@@ -610,7 +611,39 @@ class CascadeSession:
                 raise _Stop
             await self._handle(item)
 
+    def _sanitize_offset(self, event: SttV2Event) -> None:
+        """⭐ 상식 밖 오프셋은 **미상(-1)으로 거절한다** — 결함 A(2026-08-07 확정).
+
+        실측: `lag=79377ms kind=speech_begin offset_ms=860 audio_ms=73113`, 그리고 같은 통화의
+        `stt_streams=1` — **롤오버가 0회인데 79초가 튀었다.** 우리 기준점(rebase) 문제가 아니라
+        `speech_event_offset` 자체가 전역 오디오 타임라인이 아니라는 뜻이다(문서에는 'beginning
+        of the audio' 라고 돼 있는데 실측이 다르다).
+
+        ⛔ 그래서 **벤더의 의미를 안다고 가정하지 않는다.** 우리가 확실히 아는 것은 하나뿐이다 —
+        "우리가 STT 로 흘려보낸 오디오보다 한참 과거를 가리키는 값은 침묵 계산에 쓸 수 없다".
+        그런 값은 버리고 미상으로 둔다. 그러면 기존 폴백(오프셋 없이 전체 침묵 대기)으로 흐른다.
+
+        오염값 하나가 **세 곳을 동시에** 망가뜨리기 때문에 여기 한 곳에서 막는다:
+          ① 계측(pipeline_lag) ② 침묵 타이머 remain(=0 이 되어 턴이 즉시 닫힌다 — 결함 B 재발)
+          ③ barge-in 최소 지속 게이트(audio_ms − offset >= min_ms 가 **무조건 참**이 된다.
+             마이크 상시개방을 켜면 이게 곧바로 드러난다 — 잔여 에코 한 번에 비버가 끊긴다)
+        """
+        if event.offset_ms < 0:
+            return
+        drift_ms = self._audio_ms - event.offset_ms
+        if -_OFFSET_FUTURE_TOLERANCE_MS <= drift_ms <= _LAG_SANITY_MS:
+            return
+        if not self._lag_warned:
+            self._lag_warned = True
+            logger.warning(
+                "cascade 오프셋 거절: kind=%s offset_ms=%d audio_ms=%.0f 차이=%.0fms "
+                "(전역 오디오 시각이 아니다 → 미상 처리, 침묵은 전체 대기로 폴백)",
+                event.kind, event.offset_ms, self._audio_ms, drift_ms,
+            )
+        event.offset_ms = -1
+
     async def _handle(self, event: SttV2Event) -> None:
+        self._sanitize_offset(event)
         if event.kind == SPEECH_BEGIN:
             await self._on_speech_begin(event)
         elif event.kind == TRANSCRIPT:
@@ -708,19 +741,9 @@ class CascadeSession:
         self._last_voice_at = event.at
         if event.offset_ms >= 0:
             self._last_voice_offset_ms = event.offset_ms
+            # 여기 도착하는 오프셋은 _sanitize_offset 을 이미 통과했다(상식 밖 값은 -1 로
+            # 걸러져 이 분기에 들어오지 않는다) — 그래서 이 지연값은 계측으로 믿을 수 있다.
             self._pipeline_lag_ms = int(max(0.0, self._audio_ms - event.offset_ms))
-            # ⭐ 지연이 상식 밖이면 오프셋 기준점이 어긋난 것이다(2026-08-06 실통화에서 79초가
-            # 나왔다 — 세션 시작~롤오버 지점과 같은 값이라 스트림 타임라인 문제로 의심된다).
-            # 원인을 못 짚은 채 값만 덮으면 안 되므로, **재료를 통째로** 남겨 다음 통화에서
-            # 판정한다(어느 종류의 이벤트가·어떤 오프셋으로 왔는지).
-            if self._pipeline_lag_ms > _LAG_SANITY_MS and not self._lag_warned:
-                self._lag_warned = True
-                logger.warning(
-                    "cascade 파이프라인 지연 이상: lag=%dms kind=%s offset_ms=%d audio_ms=%.0f "
-                    "turn=%s (오프셋 기준점 의심 — 롤오버 로그와 대조하라)",
-                    self._pipeline_lag_ms, event.kind, event.offset_ms, self._audio_ms,
-                    self._turn_id,
-                )
 
     def _arm_close_timer(self, event: SttV2Event) -> None:
         """침묵 카운트다운을 건다 — **이미 흘러간 침묵은 빼되, 바닥 아래로는 안 내린다.**

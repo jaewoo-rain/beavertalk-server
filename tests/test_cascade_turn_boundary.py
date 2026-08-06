@@ -19,6 +19,7 @@ IDLE 에서 **턴을 하나 더 연다**. P1 에서는 비버가 같은 말에 �
 """
 
 import asyncio
+import time
 
 import pytest
 
@@ -36,9 +37,14 @@ class _Sink:
 
     def __init__(self) -> None:
         self.events: list[dict] = []
+        self.at: list[float] = []          # 이벤트가 나간 시각(닫히기까지 얼마 기다렸나 검사용)
 
     async def send_event(self, event: dict) -> None:
         self.events.append(event)
+        self.at.append(time.monotonic())
+
+    def time_of(self, type_: str) -> float:
+        return next(t for e, t in zip(self.events, self.at) if e.get("type") == type_)
 
     async def send_audio(self, frame: bytes) -> None:
         return None
@@ -148,6 +154,50 @@ async def test_new_speech_after_close_still_opens_a_turn(monkeypatch):
     ])
     ends = sink.all("user_turn_end")
     assert [e["text"] for e in ends] == ["첫마디", "둘째마디"], sink.events
+
+
+@pytest.mark.asyncio
+async def test_absurd_offset_is_rejected_not_trusted(monkeypatch):
+    """⭐ 결함 A — 상식 밖 오프셋은 **미상으로 거절**하고 전체 침묵을 기다린다.
+
+    실측: `lag=79377ms kind=speech_begin offset_ms=860 audio_ms=73113` 인데 같은 통화의
+    `stt_streams=1` — **롤오버 0회인데 79초**가 튀었다. 우리 기준점 문제가 아니라
+    speech_event_offset 이 전역 오디오 타임라인이 아니라는 뜻이다.
+
+    이 오염값을 믿으면 남은 대기가 0 이 되어 턴이 즉시 닫히고(결함 B 재발), barge-in 최소
+    지속 게이트도 무조건 통과한다. 벤더의 의미를 가정하지 않고 **말이 안 되는 값을 버린다.**
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=200)
+    session._audio_ms = 73_113.0
+    began = time.monotonic()
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=860),      # 72초 과거를 가리킨다 = 거절
+        SttV2Event(kind=TRANSCRIPT, text="안녕", is_final=True, offset_ms=860),
+        SttV2Event(kind=SPEECH_END, offset_ms=860),
+        0.4,
+    ])
+    ends = sink.all("user_turn_end")
+    assert len(ends) == 1 and ends[0]["text"] == "안녕", sink.events
+    # ⭐ 오염값을 믿었으면 remain=0 이라 speech_end 직후 닫혔을 것이다. 거절했으니 침묵
+    #   임계(200ms)를 온전히 기다린다.
+    assert sink.time_of("user_turn_end") - began >= 0.15, "오염된 오프셋을 믿고 일찍 닫았다"
+    # 계측도 오염되지 않는다 — 79초짜리 lag 이 기록에 남으면 안 된다.
+    assert ends[0]["pipeline_lag_ms"] < 3000, ends[0]
+
+
+@pytest.mark.asyncio
+async def test_plausible_offset_is_still_trusted(monkeypatch):
+    """⚠ 거절이 지나치면 안 된다 — 실측 수준(0.9초)의 지연은 그대로 믿고 침묵에서 뺀다."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=1000)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=TRANSCRIPT, text="안녕", is_final=True, offset_ms=int(audio - 900)),
+        SttV2Event(kind=SPEECH_END, offset_ms=int(audio - 900)),
+        0.25,   # 남은 대기 100ms → 이 안에 닫혀야 한다(1초 임계를 다 기다리면 안 된다)
+    ])
+    assert len(sink.all("user_turn_end")) == 1, sink.events
 
 
 # --------------------------------------------------------------------------- #
