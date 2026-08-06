@@ -662,6 +662,21 @@ def estimate_usage_cost_usd(
       **LLM 토큰**을 담는데 단가가 다르다($0.30 vs Live $0.50) — 조용히 틀린 값이 나오고,
       하필 그 값이 "캐스케이드가 싼가"의 근거로 쓰인다. 엔진이 섞인 데이터에는
       estimate_call_cost_usd(engine=...) 를 써라.
+
+    ⚠ **사고(thinking) 토큰은 여기 안 들어간다 — 확신이 없어서 일부러 뺐다.**
+      캐스케이드 쪽은 out_text + thoughts 로 센다(사고 토큰이 출력 단가로 과금되므로).
+      Live 도 같은 논리로 보이지만, 더하기 전에 확인이 안 된 게 둘이다:
+        ① 이중계상 위험이 클라이언트마다 다르다. AI Studio 는 candidates 에 사고 토큰이
+           **포함**돼 나오고 Vertex 는 **빠진다**. 이 앱은 Vertex 지만(USE_VERTEX), 원가는
+           모달리티 분해(response_tokens_details)로 계산하는데 그 분해가 사고 토큰을
+           품는지는 문서에서 확인하지 못했다. 품는다면 더하는 순간 이중계상이다.
+        ② 애초에 이 모델은 사고를 안 한다. GEMINI_LIVE_MODEL 이
+           'gemini-live-2.5-flash-native-audio'(비-사고 대화형)이고, 사고형은
+           '...-native-audio-thinking-dialog' 라는 **다른 모델 id** 다.
+           실측 call 909 도 sum_thoughts=0 이었다.
+      즉 지금 더해도 값이 안 변하고, 틀리면 조용히 과대계상이 된다 — 그래서 안 더한다.
+      대신 sum_thoughts>0 인 Live 통화가 나오면 call_session 이 **경고를 찍는다**(이 판단이
+      낡았다는 신호). 그 로그가 보이면 ①을 실측으로 확인하고 여기 산식을 고쳐라.
     """
     p = LIVE_TOKEN_PRICE_USD
     return (

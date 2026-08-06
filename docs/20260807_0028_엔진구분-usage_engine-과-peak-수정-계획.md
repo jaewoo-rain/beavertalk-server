@@ -160,6 +160,29 @@ cascade-impl 지적 채택. **gemini-2.5-flash 는 사고(thinking) 토큰을 �
 회귀 테스트: 사고 토큰이 있으면 캐스케이드 출력 원가가 정확히 `thoughts × 출력단가` 만큼
 커진다(손계산 대조 + 사고 토큰만 온 경우 포함).
 
+### Live 는 안 더한다 (판단 근거)
+
+같은 논리로 보이지만 **확인 못 한 게 둘**이라 손대지 않았다:
+
+1. **이중계상 위험이 클라이언트마다 다르다.** AI Studio 는 `candidatesTokenCount` 에 사고 토큰이
+   **포함**되고 Vertex 는 **빠진다**. 이 앱은 Vertex 지만, Live 원가는 `response_token_count` 가
+   아니라 **모달리티 분해**(`response_tokens_details`)로 계산하는데 그 분해가 사고 토큰을 품는지는
+   문서에서 확인하지 못했다. 품는다면 더하는 순간 이중계상이다.
+   ⚠ `usage_total` 과의 이중계상은 아니다 — 원가 산식은 `usage_total` 을 아예 안 쓴다.
+2. **애초에 이 모델은 사고를 안 한다.** `GEMINI_LIVE_MODEL = 'gemini-live-2.5-flash-native-audio'`
+   (비-사고 대화형)이고 사고형은 `...-native-audio-thinking-dialog` 라는 **다른 모델 id** 다.
+   실측 call 909 의 `sum_thoughts=0` 은 우연이 아니라 구조다.
+
+즉 **지금 더해도 값이 안 변하고, 틀리면 조용히 과대계상**이 된다. 그래서 안 더하되 —
+"모른다"를 주석으로만 남기면 썩으므로 신호를 심었다:
+
+- `estimate_usage_cost_usd` 주석에 위 두 근거를 그대로 박았다(무엇을 확인하면 고칠 수 있는지까지).
+- `_log_usage_summary` 가 **`sum_thoughts > 0` 인 Live 통화에 WARNING 을 찍는다.** 전제가
+  깨지는 순간(모델 전환 등) 침묵 대신 신호가 나오게. ⛔ 기존 요약 줄은 무변경 —
+  별도 줄로만, 그것도 0 이 아닐 때만 나간다.
+
+회귀 테스트: `sum_thoughts=0` 이면 조용하고 `>0` 이면 WARNING 이 난다.
+
 ## 6. 보류(손대지 않음)
 
 세션 스왑이 압축을 되돌리는 건(480.5s 11,729 → 500.3s 15,728 → 516.9s 11,643). 초과 3,628 tok ×

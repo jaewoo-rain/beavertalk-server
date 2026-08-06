@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 
 import pytest
 from sqlalchemy import Integer, create_engine
@@ -3356,3 +3357,25 @@ def test_cascade_output_cost_includes_thinking_tokens():
         {"llm": {"vendor": "gemini-2.5-flash", "thoughts": 1_000}}
     )
     assert round(only, 10) == round(1_000 * 2.50 / 1_000_000, 10)
+
+
+def test_live_thinking_tokens_raise_a_warning_not_a_silent_undercount(caplog):
+    """Live 산식은 사고 토큰을 안 센다(근거는 estimate_usage_cost_usd 주석) — 대신 경고를 남긴다.
+
+    지금 모델(gemini-live-2.5-flash-native-audio)은 사고를 안 해서 0 이라는 전제 위에 선
+    계산이다. 그 전제가 깨지는 순간(사고형 모델 전환 등) 조용히 과소 계상되면 안 된다.
+    """
+    st = _usage_state([(1000, 1100, 900, 100, 40)])
+    st.usage_log[0]["thoughts"] = 0
+    with caplog.at_level(logging.WARNING):
+        cs._log_usage_summary(st, 1, "normal")
+    assert not [r for r in caplog.records if "사고 토큰" in r.getMessage()], \
+        "사고 토큰이 0 인데 경고가 났다"
+
+    caplog.clear()
+    st.usage_log[0]["thoughts"] = 320
+    with caplog.at_level(logging.WARNING):
+        cs._log_usage_summary(st, 1, "normal")
+    warned = [r for r in caplog.records if "사고 토큰" in r.getMessage()]
+    assert warned and warned[0].levelno == logging.WARNING, \
+        "사고 토큰이 관측됐는데 아무 신호도 안 나온다(조용한 과소 계상)"

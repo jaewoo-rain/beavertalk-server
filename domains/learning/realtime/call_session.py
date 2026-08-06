@@ -809,6 +809,19 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
         ",".join(f"{k}={v}" for k, v in sorted(out_mod.items())) or "-",
     )
 
+    if s["sum_thoughts"]:
+        # 🧒 이 줄이 보이면 원가 산식이 낡았다는 뜻이다. Live 원가는 모달리티 4항만 곱하고
+        #   사고 토큰을 안 더한다 — 지금 모델(비-사고 native-audio)이 사고를 안 해서
+        #   0 이라는 전제 위에 서 있는 계산이다. 사고형 모델로 갈아탔거나 모델이 조용히
+        #   바뀌었으면 그 전제가 깨지고 **원가가 과소 계상된다.**
+        #   확인할 것: 모달리티 분해(sum_out)가 이 토큰을 이미 품는지. 안 품으면
+        #   estimate_usage_cost_usd 에 out_text 단가로 더해라(주석에 근거 있음).
+        logger.warning(
+            "normalcall usage: call_id=%s 사고 토큰 %d 관측 — Live 원가 산식이 이 값을 "
+            "안 세고 있다(과소 계상 가능). estimate_usage_cost_usd 주석 참조",
+            call_id, s["sum_thoughts"],
+        )
+
     if _settings.LIVE_USAGE_TRACE:
         # 시계열 상세: 압축 발동 판정용(톱니 = 발동, 단조증가 = 미발동).
         trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in state.usage_log)
