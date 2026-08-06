@@ -297,6 +297,11 @@ class GoogleSttV2Stream:
         self._sample_rate = sample_rate
         self._audio_q: asyncio.Queue[Any] = asyncio.Queue()
         self._responses: AsyncIterator[Any] | None = None
+        # 과금 계측(원가) — 응답에 실려 오는 total_billed_duration 을 누적한다. 자세한 근거와
+        # sum/max 를 둘 다 드는 이유는 _absorb_billing 주석과 설계 §1-1.
+        self._billed_sum_ms = 0.0
+        self._billed_max_ms = 0.0
+        self._billed_msgs = 0
 
     # ── 설정 조립 ──
     def _recognizer(self) -> str:
@@ -386,6 +391,7 @@ class GoogleSttV2Stream:
         if self._responses is None:
             return
         async for response in self._responses:
+            self._absorb_billing(response)
             # enum 이름으로 비교한다 — 라이브러리 버전에 따라 멤버 구성이 달라도 안 깨지게.
             event_type = getattr(response, "speech_event_type", None)
             name = getattr(event_type, "name", "") or ""
@@ -412,6 +418,41 @@ class GoogleSttV2Stream:
                     offset_ms=self._offset_ms(getattr(result, "result_end_offset", None)),
                 )
 
+    def _absorb_billing(self, response: Any) -> None:
+        """응답에 실린 과금 초를 누적한다(예외 전량 흡수 — 계측이 통화를 죽이면 안 된다, R5).
+
+        proto 원문(2026-08-07 직접 확인, googleapis master):
+          RecognitionResponseMetadata.total_billed_duration
+            "When available, billed audio seconds for the corresponding request."
+          StreamingRecognizeResponse 에 `RecognitionResponseMetadata metadata = 5` 로 달려 있다.
+
+        ⚠ v1 의 같은 필드는 "billed audio seconds for **the stream** / Set only if this is the
+          last response in the stream" 이었다. v2 는 문구가 '해당 요청'으로 바뀌어 **응답마다의
+          증분인지, 누적값이 반복해 실리는지 원문만으로 못 정한다.** 그래서 여기서 판정하지
+          않고 sum·max·건수를 **셋 다** 들고 간다. 첫 실통화 로그 한 줄이 어느 쪽인지 드러낸다
+          (max 를 실제 오디오 길이와 대조하면 갈린다 — 설계 §1-1).
+        """
+        try:
+            meta = getattr(response, "metadata", None)
+            if meta is None:
+                return
+            ms = self._offset_ms(getattr(meta, "total_billed_duration", None))
+            if ms <= 0:
+                return
+            self._billed_sum_ms += ms
+            self._billed_max_ms = max(self._billed_max_ms, float(ms))
+            self._billed_msgs += 1
+        except Exception as exc:  # noqa: BLE001 - 계측 실패는 무시하고 인식은 계속(R5)
+            logger.debug("[stt-v2] 과금 메타 누적 실패(무시): %s", exc)
+
+    def usage(self) -> dict:
+        """이 스트림 1개가 본 과금 계측(ms). 소유자(RollingSttV2Stream)가 걷어 간다."""
+        return {
+            "billed_sum_ms": self._billed_sum_ms,
+            "billed_max_ms": self._billed_max_ms,
+            "billed_msgs": self._billed_msgs,
+        }
+
     async def close(self) -> None:
         await self._audio_q.put(_SENTINEL)
 
@@ -419,21 +460,26 @@ class GoogleSttV2Stream:
 class FakeSttV2Stream:
     """크레덴셜 없이 턴 상태기계를 구동하는 페이크(키부재·미설치·STT_V2_FAKE).
 
-    push_audio 는 무시하고, dev 훅으로 넣은 것만 방출한다:
+    push_audio 는 인식에 쓰지 않고 **길이만 센다**(원가 줄). 이벤트는 dev 훅으로 넣은 것만:
       feed_test_event("speech_begin"|"speech_end") → VAD 이벤트
       feed_test("텍스트")                          → 최종 전사
     데모 페이지가 이 훅으로 "말 시작 → 전사 → 말 끝"을 손으로 재현해 상태기계·프로토콜을
     크레덴셜 0 으로 검증한다.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, sample_rate: int = 16000) -> None:
         self._q: asyncio.Queue[Any] = asyncio.Queue()
+        # 인식은 안 하지만 **들어온 오디오 길이는 센다** — 데모 세션의 원가 줄이 0.0초로
+        # 찍히면 "계측이 안 붙었다"와 "과금이 없었다"를 구분할 수 없다. 과금이 0 이라는
+        # 사실은 engine=cascade:fake-stt 가 말한다.
+        self._sample_rate = max(1, sample_rate)
+        self._sent_ms = 0.0
 
     async def start(self) -> None:
         return None
 
     async def push_audio(self, pcm: bytes) -> None:
-        return None
+        self._sent_ms += len(pcm) / (self._sample_rate * 2) * 1000.0
 
     def feed_test(self, text: str) -> None:
         if text:
@@ -442,6 +488,11 @@ class FakeSttV2Stream:
     def feed_test_event(self, kind: str) -> None:
         if kind in (SPEECH_BEGIN, SPEECH_END):
             self._q.put_nowait(SttV2Event(kind=kind))
+
+    def usage(self) -> dict:
+        # 페이크는 과금이 0이다. 그래도 **같은 모양**을 돌려줘야 호출부가 분기하지 않는다.
+        return {"streams": 0, "sent_audio_ms": self._sent_ms, "replay_audio_ms": 0.0,
+                "billed_sum_ms": 0.0, "billed_max_ms": 0.0, "billed_msgs": 0}
 
     async def events(self) -> AsyncIterator[SttV2Event]:
         while True:
@@ -487,6 +538,18 @@ class RollingSttV2Stream:
             1, settings.CASCADE_ROLLOVER_BUFFER_MS * sample_rate * 2 // 1000
         )
         self._max_life_s = max(30, settings.STT_V2_STREAM_MAX_S)
+        # ── 원가 계측 ──
+        # streams: 스트림 수(요청/스트림 단위 올림이 있으면 여기에 비례해 실청구가 얹힌다).
+        # replay_ms: 롤오버 때 **다시 흘려 넣은** 오디오. _audio_ms 는 이 구간을 1회만 세므로
+        #   그만큼 우리 카운터가 실청구보다 과소일 수 있다 — 크기를 따로 남긴다(설계 §2-2).
+        self._streams = 0
+        self._replay_ms = 0.0
+        # 이미 최종 전사가 난 오디오의 끝(전역 ms). 롤오버 재생에서 이 앞은 잘라낸다 —
+        # 다시 인식되면 같은 발화가 턴 2개가 되고 그 구간이 이중 과금된다.
+        self._last_final_ms = -1.0
+        self._billed_sum_ms = 0.0
+        self._billed_max_ms = 0.0
+        self._billed_msgs = 0
 
     # ── 입력 ──
     def _bytes_to_ms(self, n: int) -> float:
@@ -566,6 +629,7 @@ class RollingSttV2Stream:
                 await asyncio.sleep(0.2 * fails)
                 continue
             self._cur = stream
+            self._streams += 1
             self._started_at = time.monotonic()
             self._rolling = False
             self._roll_reason = ""
@@ -598,6 +662,7 @@ class RollingSttV2Stream:
             finally:
                 self._rolling = True
                 self._cur = None
+                self._absorb_usage(stream)
                 with contextlib.suppress(Exception):
                     await stream.close()
             if self._closed:
@@ -613,11 +678,43 @@ class RollingSttV2Stream:
                 fails = 0
             gap_from = time.monotonic()
 
+    def _absorb_usage(self, stream: Any) -> None:
+        """끝난 스트림의 과금 계측을 세션 누계로 옮긴다(스트림당 1회, 예외 전량 흡수 R5).
+
+        같은 스트림을 events() 의 finally 와 close() 양쪽에서 만날 수 있어 **객체에 표식을**
+        남긴다 — id() 로 판별하면 GC 후 id 재사용에 걸린다.
+        """
+        try:
+            if stream is None or getattr(stream, "_usage_absorbed", False):
+                return
+            stream._usage_absorbed = True
+            u = stream.usage() if hasattr(stream, "usage") else None
+            if not u:
+                return
+            self._billed_sum_ms += float(u.get("billed_sum_ms") or 0.0)
+            # 스트림별 최댓값을 더한다 — 값이 '스트림 누적'이면 이 합이 세션 전체 과금이 된다.
+            self._billed_max_ms += float(u.get("billed_max_ms") or 0.0)
+            self._billed_msgs += int(u.get("billed_msgs") or 0)
+        except Exception as exc:  # noqa: BLE001 - 계측 실패로 세션이 죽으면 안 된다(R5)
+            logger.debug("[stt-v2] 과금 계측 흡수 실패(무시): %s", exc)
+
+    def usage(self) -> dict:
+        """세션 전체 STT 사용량(ms). 캐스케이드 세션이 종료 시 한 번 읽는다."""
+        return {
+            "streams": self._streams,
+            "sent_audio_ms": self._audio_ms,
+            "replay_audio_ms": self._replay_ms,
+            "billed_sum_ms": self._billed_sum_ms,
+            "billed_max_ms": self._billed_max_ms,
+            "billed_msgs": self._billed_msgs,
+        }
+
     async def close(self) -> None:
         self._closed = True
         self._rolling = True
         cur, self._cur = self._cur, None
         if cur is not None:
+            self._absorb_usage(cur)
             with contextlib.suppress(Exception):
                 await cur.close()
 

@@ -435,6 +435,9 @@ class CascadeSession:
         # 되보내는 playback_progress 를 **턴별 원장에 대조**하려면 지금부터 있어야 한다.
         self.beaver = BeaverOutput(transport)
         self._spoken_by_turn: dict[str, str] = {}   # turn_id → 실제로 들린 대사(이력용)
+        # 원가 계측 — 캐스케이드의 **유일한 동기**가 원가라 세션이 끝나면 반드시 한 줄 남긴다.
+        # P0 에서 실제로 도는 구간은 STT 뿐이고, LLM·TTS 수집 지점은 P1 이 붙인다(cascade_usage).
+        self.usage = CascadeUsage()
         # [dev 훅] 취소 배관 실측용
         self._tg: asyncio.TaskGroup | None = None
         self._fake_beaver_task: asyncio.Task | None = None
@@ -503,6 +506,15 @@ class CascadeSession:
                 await stream.close()
             except Exception:  # noqa: BLE001
                 pass
+            # ⭐ 원가 한 줄. **stream.close() 뒤**에 걷는다 — 마지막 스트림이 닫히면서
+            # 그 스트림의 과금 계측이 세션 누계로 넘어오기 때문이다(core/stt.py _absorb_usage).
+            # 계측 전 구간이 예외를 흡수하므로 여기서 통화가 죽을 일은 없다(R5).
+            self.usage.record_stt(stream, stt_mod.stt_v2_engine_name())
+            log_usage_summary(
+                self.usage,
+                duration_s=time.monotonic() - self._t0,
+                turns=self._turn_seq,
+            )
 
     # ── ① client → STT ──
     async def _pump_in(self, stream: Any, pending_audio: bytes | None) -> None:
