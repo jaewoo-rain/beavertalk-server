@@ -146,6 +146,20 @@ call 909 실증: DB **13,355** vs 로그 시계열 실제 최대 **15,904**(t=77
 - **R6** ⛔ `alembic upgrade head` 실행 금지 · ⛔ 배포 금지 · ⛔ 푸시 금지. 파일 작성까지만.
   DB 적용은 사장님 재확인 — demo/test/prod 가 **같은 Supabase**(`ppllscbfdvebsmdatpnc`)를 쓴다.
 
+## 5-A. 추가 (2026-08-07, bt-back 판정) — 사고 토큰은 출력 원가다
+
+cascade-impl 지적 채택. **gemini-2.5-flash 는 사고(thinking) 토큰을 출력 단가로 과금하는데
+그 토큰은 응답 본문(candidates)에 안 들어온다** → `out_text` 만 세면 캐스케이드 LLM 출력
+원가가 과소 계상된다. 값은 `usage_json.vendors.llm.thoughts` 로 이미 들어온다(컬럼 무변경).
+
+- `estimate_cascade_cost_usd` 가 **`out_text + thoughts`** 로 계산한다. 왜 더하는지는 산식
+  바로 옆 주석에 남겼다 — 안 그러면 다음 사람이 정리한답시고 뺀다.
+- 게이트도 함께 고쳤다. 기존 `if` 가 `in_text/out_text` 만 봐서 **사고 토큰만 오고 `out_text` 가
+  0 인 응답이 통째로 빠질 뻔했다**(원가 0 원으로 계상).
+
+회귀 테스트: 사고 토큰이 있으면 캐스케이드 출력 원가가 정확히 `thoughts × 출력단가` 만큼
+커진다(손계산 대조 + 사고 토큰만 온 경우 포함).
+
 ## 6. 보류(손대지 않음)
 
 세션 스왑이 압축을 되돌리는 건(480.5s 11,729 → 500.3s 15,728 → 516.9s 11,643). 초과 3,628 tok ×

@@ -3330,3 +3330,29 @@ def test_compression_detection_and_arm_still_use_the_cycle_peak():
     # 다시 차오르면 선제 arm.
     cs._observe_compression(st, int(16_000 * cs.REGROUND_ARM_RATIO) + 1)
     assert cs._reground_due(st, now) == "compress"
+
+
+def test_cascade_output_cost_includes_thinking_tokens():
+    """사고 토큰은 출력 단가로 과금되는데 응답 본문(candidates)엔 안 들어온다.
+
+    ⛔ out_text 만 세면 낸 돈의 일부가 통계에서 사라지고, 하필 그 통계가
+      "캐스케이드가 Live 보다 싼가"의 근거가 된다.
+    """
+    base = {"llm": {"vendor": "gemini-2.5-flash", "in_text": 10_000, "out_text": 2_000}}
+    thinking = {"llm": {**base["llm"], "thoughts": 1_500}}
+
+    cost_base, _ = svc.estimate_cascade_cost_usd(base)
+    cost_thinking, unknown = svc.estimate_cascade_cost_usd(thinking)
+
+    assert unknown == []
+    # 늘어난 만큼이 정확히 사고 토큰 × 출력 단가여야 한다.
+    assert round(cost_thinking - cost_base, 10) == round(1_500 * 2.50 / 1_000_000, 10)
+    # 손계산 전체.
+    assert round(cost_thinking, 10) == round(
+        (10_000 * 0.30 + (2_000 + 1_500) * 2.50) / 1_000_000, 10
+    )
+    # 사고 토큰만 온 경우도(출력 본문 0) 원가가 잡혀야 한다 — 게이트에서 안 빠지는지.
+    only, _ = svc.estimate_cascade_cost_usd(
+        {"llm": {"vendor": "gemini-2.5-flash", "thoughts": 1_000}}
+    )
+    assert round(only, 10) == round(1_000 * 2.50 / 1_000_000, 10)

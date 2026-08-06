@@ -730,8 +730,9 @@ def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
 
     기대 형태(계약):
       {"stt": {"vendor": ..., "audio_s": 902.4},
-       "llm": {"vendor": ..., "in_text": 41000, "out_text": 3200},
+       "llm": {"vendor": ..., "in_text": 41000, "out_text": 3200, "thoughts": 1500},
        "tts": {"vendor": ..., "chars": 8400}}
+    llm.thoughts 는 선택이지만 **있으면 출력 원가에 더해진다**(아래 산식 주석 참조).
     """
     total = 0.0
     unknown: list[str] = []
@@ -746,14 +747,21 @@ def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
             total += float(stt["audio_s"]) * price
 
     llm = v.get("llm") or {}
-    if llm.get("in_text") or llm.get("out_text"):
+    if llm.get("in_text") or llm.get("out_text") or llm.get("thoughts"):
         price = LLM_TOKEN_PRICE_USD.get(llm.get("vendor"))
         if price is None:
             unknown.append(f"llm:{llm.get('vendor')}")
         else:
+            # ⛔ out_text + thoughts 다. 둘을 더하는 건 실수가 아니다 — **빼면 원가가 과소 계상된다.**
+            #   gemini-2.5-flash 는 사고(thinking) 토큰을 **출력 단가로 과금**하는데, 그 토큰은
+            #   응답 본문(candidates)에 들어오지 않는다. out_text 만 세면 낸 돈의 일부가 통계에서
+            #   사라지고, 하필 그 통계가 "캐스케이드가 Live 보다 싼가"의 근거로 쓰인다.
+            #   (Vertex 기준. AI Studio 는 candidates 에 사고 토큰이 포함돼 나오므로, 만약
+            #    거기로 옮기면 이 덧셈이 이중계상이 된다 — 그때 다시 판단해라.)
+            out_billable = int(llm.get("out_text") or 0) + int(llm.get("thoughts") or 0)
             total += (
                 int(llm.get("in_text") or 0) * price["in_text"]
-                + int(llm.get("out_text") or 0) * price["out_text"]
+                + out_billable * price["out_text"]
             ) / 1_000_000
 
     tts = v.get("tts") or {}
