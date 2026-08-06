@@ -490,11 +490,29 @@ class CascadeSession:
         pending_audio: bytes | None = None
         if first.kind == "control" and (first.control or {}).get("type") == "start":
             ctrl = first.control or {}
-            raw = ctrl.get("sampleRate") or ctrl.get("sample_rate") or _DEFAULT_SAMPLE_RATE
+            raw = ctrl.get("sampleRate") or ctrl.get("sample_rate")
+            # ⭐ 샘플레이트는 **조용히 어긋나는** 자리다. 클라가 안 보내면 서버는 16000 을
+            #   가정하는데, 클라 마이크가 16k 가 아니면 오디오는 정상 재생되면서 목소리만
+            #   이상해진다(느려지거나 빨라진다) — 에러가 없어 원인 찾기가 제일 나쁜 종류다.
+            #   지금 앱은 이 값을 **안 보낸다**(2026-08-07 확인). 그래서 우연히 맞는 상태다.
+            #   고칠 쪽은 클라지만, 서버는 최소한 **무엇을 가정했는지 로그로 드러낸다**.
+            if raw is None:
+                logger.info(
+                    "cascade start: sample_rate 미전송 → 기본 %dHz 가정(클라 마이크가 다르면 "
+                    "목소리가 이상해진다 — 에러는 안 난다)", _DEFAULT_SAMPLE_RATE,
+                )
             try:
-                sample_rate = int(raw)
+                sample_rate = int(raw) if raw is not None else _DEFAULT_SAMPLE_RATE
             except (TypeError, ValueError):
+                logger.warning("cascade start: sample_rate 해석 실패(%r) → %dHz 로 진행",
+                               raw, _DEFAULT_SAMPLE_RATE)
                 sample_rate = _DEFAULT_SAMPLE_RATE
+            if sample_rate != _DEFAULT_SAMPLE_RATE:
+                logger.warning(
+                    "cascade start: 클라 sample_rate=%dHz 가 서버 기대(%dHz)와 다르다 — STT 는 "
+                    "이 값으로 설정하지만 오디오 타임라인·지연 계측이 이 값에 의존한다",
+                    sample_rate, _DEFAULT_SAMPLE_RATE,
+                )
             self._apply_aec_hint(ctrl.get("aec"))
         elif first.kind == "audio":
             pending_audio = first.audio
@@ -1243,8 +1261,18 @@ class CascadeSession:
 
         AEC 는 기기·라우트마다 다르다(이어폰=사실상 무해 / 스피커폰=최악). 전역 설정 하나로는
         이 차이를 표현할 수 없어서 세션 값으로 둔다. 힌트가 없으면 전역 기본값.
+
+        ⚠ **지금 앱은 이 필드를 보내지 않는다**(2026-08-07 확인). 필드는 프로토콜에 있는데
+          클라가 안 실어서, 실사용 세션은 **전부 기본값 `transcript`** 로 간다 — "기기별로 다르게
+          잡는다"는 위 설명은 아직 **의도이지 현실이 아니다.** 실패 방향은 안전한 쪽이고
+          (이어폰이어도 전사를 기다린다) 비용은 지연뿐이다. 앱이 보내기 시작하면 그때부터
+          위 설명대로 돈다. dev 데모(cascade_demo.html)는 보내고 있어 경로 자체는 살아 있다.
         """
         if not isinstance(aec, dict):
+            logger.info(
+                "cascade aec 힌트 없음 → 전 세션 공통 bargein_confirm=%s (앱이 아직 안 보낸다)",
+                self._bargein_confirm,
+            )
             return
         mode = str(aec.get("mode") or "unknown")
         self._aec_mode = mode

@@ -61,6 +61,11 @@ def _configure_logging() -> None:
         "domains.learning.realtime",  # 통화 WS/세션(전사·타이밍)
         "domains.learning.service",   # 통화후 분석·체크판·레벨 판정
         "domains.push",               # 예약전화 발송
+        # ⭐ core.* 외부 어댑터(STT·TTS·Gemini). 이게 빠져 있어서 캐스케이드 TTS 가 문장마다
+        #   실패하는데도 그 원인(400 Unsupported audio encoding)이 로그에 안 떴다 — 세션 쪽
+        #   "첫소리=-1ms" 만 보고 거꾸로 추적해야 했다. 어댑터가 왜 실패했는지는 어댑터가
+        #   가장 잘 안다. 여기 로그 호출도 수십 개뿐이라 비용은 무시할 수준이다.
+        "core",
     ):
         lg = logging.getLogger(name)
         lg.handlers.clear()
