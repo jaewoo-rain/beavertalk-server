@@ -139,6 +139,7 @@ async def synthesize(
 # 않아야 한다. 그래서 streaming_synthesize 로 별도 경로를 만든다.
 CASCADE_TTS_SAMPLE_RATE = 24000     # 서버→클라 오디오 규약(PCM16 24k mono)
 _WAV_HEADER = b"RIFF"
+_FIRST_BYTES_LOGGED = False   # 첫 조각 형태를 프로세스당 한 번만 남긴다(_log_first_bytes)
 
 
 async def synthesize_stream(
@@ -167,22 +168,14 @@ async def synthesize_stream(
         return _empty()
     lang_code, voice_name = _resolve_voice(language, voice)
 
+    config = build_streaming_config(lang_code, voice_name, sample_rate)
+
     async def _run():
         from google.cloud import texttospeech
 
         async def _requests():
             # 첫 요청 = 설정, 이후 = 텍스트. 문장 단위로 열고 닫는다(스트림 1개 = 문장 1개).
-            yield texttospeech.StreamingSynthesizeRequest(
-                streaming_config=texttospeech.StreamingSynthesizeConfig(
-                    voice=texttospeech.VoiceSelectionParams(
-                        language_code=lang_code, name=voice_name
-                    ),
-                    streaming_audio_config=texttospeech.StreamingAudioConfig(
-                        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                        sample_rate_hertz=sample_rate,
-                    ),
-                )
-            )
+            yield texttospeech.StreamingSynthesizeRequest(streaming_config=config)
             yield texttospeech.StreamingSynthesizeRequest(
                 input=texttospeech.StreamingSynthesisInput(text=text.strip())
             )
@@ -196,8 +189,9 @@ async def synthesize_stream(
                     continue
                 if first:
                     first = False
-                    # LINEAR16 이 WAV 헤더를 달고 오는 구현이 있어 방어한다 — 헤더를 그대로
-                    # 재생 큐에 넣으면 딸깍 소리가 난다. 데이터 청크만 넘긴다.
+                    _log_first_bytes(chunk)
+                    # PCM 은 원래 헤더가 없다. 그래도 방어는 남긴다 — 헤더가 섞여 들어오면
+                    # 재생 큐에서 딸깍 소리가 나고, 그건 원인 찾기가 오래 걸리는 증상이다.
                     if chunk[:4] == _WAV_HEADER:
                         idx = chunk.find(b"data")
                         chunk = chunk[idx + 8 :] if idx >= 0 else chunk
@@ -208,3 +202,44 @@ async def synthesize_stream(
             logger.warning("tts(gcp): 스트리밍 합성 실패(무시) — %s", exc)
 
     return _run()
+
+
+def build_streaming_config(lang_code: str, voice_name: str, sample_rate: int) -> "Any":
+    """스트리밍 합성 설정 1건. **인코딩이 여기서 틀리면 소리가 아예 안 난다.**
+
+    ⛔ `LINEAR16` 을 쓰지 마라. 설치된 SDK 원문(StreamingAudioConfig.audio_encoding):
+        "Required. The format of the audio byte stream. Streaming supports PCM, ALAW,
+         MULAW and OGG_OPUS. All other encodings return an error."
+      2026-08-07 실통화에서 LINEAR16 으로 나가 문장마다 `400 Unsupported audio encoding`
+      이 떴다 — STT·LLM 은 정상이었고 소리만 안 났다. 비스트리밍 synthesize_speech 에서는
+      LINEAR16 이 유효해서 헷갈리는 자리다(그쪽은 건드리지 않는다).
+
+    PCM = 헤더 없는 리틀엔디언 16bit 샘플이라, 24kHz 로 받으면 그대로 앱 재생 경로에 꽂힌다.
+    함수로 떼어낸 이유는 **테스트가 인코딩을 못박기 위해서**다(실통화에서만 드러난 결함이라
+    테스트가 없으면 다음에 또 LINEAR16 으로 돌아간다).
+    """
+    from google.cloud import texttospeech
+
+    return texttospeech.StreamingSynthesizeConfig(
+        voice=texttospeech.VoiceSelectionParams(language_code=lang_code, name=voice_name),
+        streaming_audio_config=texttospeech.StreamingAudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.PCM,
+            sample_rate_hertz=sample_rate,
+        ),
+    )
+
+
+def _log_first_bytes(chunk: bytes) -> None:
+    """첫 조각의 앞 8바이트를 **프로세스당 한 번만** 남긴다.
+
+    PCM 에 헤더가 붙어 오는지를 로그로 답하기 위한 것이다(크레덴셜이 없는 워크트리에서는
+    확인할 방법이 없다). 한 번만 찍으므로 통화 로그를 어지럽히지 않는다.
+    """
+    global _FIRST_BYTES_LOGGED
+    if _FIRST_BYTES_LOGGED:
+        return
+    _FIRST_BYTES_LOGGED = True
+    logger.info(
+        "tts(gcp): 스트리밍 첫 조각 앞 8바이트=%s (RIFF 면 헤더 포함, 아니면 raw PCM)",
+        chunk[:8].hex(" "),
+    )
