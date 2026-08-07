@@ -629,3 +629,77 @@ async def test_quota_429_pins_engine_for_this_call_only(reply_rig, monkeypatch, 
     # ⛔ 세션 단위여야 한다 — 새 세션은 다시 gemini 로 시작한다
     fresh = CascadeSession(_Transport([]), genai_client=object())
     assert fresh._tts_gemini_off is False
+
+
+# --------------------------------------------------------------------------- #
+# 데모 화면에서 엔진 고르기 (⛔ dev 한정 편의 — 클라가 서버 기본값을 덮는다)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_client_can_pick_engine_and_rate(reply_rig, monkeypatch):
+    """start 에서 고른 값이 **세션 값**으로 잡히고 합성 호출까지 전달된다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
+    seen: list[dict] = []
+
+    async def _tts(text, **kwargs):
+        seen.append(kwargs)
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    transport = _Transport([
+        _ctl(type="start", ttsEngine="gemini-tts", speakingRate=1.25, stylePrompt="밝게"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    assert session._tts_engine == "gemini-tts"
+    assert seen and seen[0]["engine"] == "gemini-tts"
+    assert seen[0]["speaking_rate"] == pytest.approx(1.25)
+    assert seen[0]["style_prompt"] == "밝게"
+
+
+@pytest.mark.asyncio
+async def test_unknown_engine_is_rejected(reply_rig, monkeypatch):
+    """⚠ 클라가 아무 문자열이나 보내면 안 된다 — 거절하고 서버 기본값으로 간다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
+    transport = _Transport([_ctl(type="start", ttsEngine="아무거나")], wait_for="ready")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert session._tts_engine == "chirp3-hd"
+
+
+@pytest.mark.asyncio
+async def test_only_the_switching_reply_logs_both_engines(reply_rig, monkeypatch):
+    """⭐ **엔진이 바뀐 대답만 혼합으로 찍히고, 그다음은 단일**로 찍힌다.
+
+    예전엔 `_tts_engines` 를 어디서도 안 비워서 세션 전체가 누적됐다 — 429 백오프가 걸린
+    통화는 **전 구간이 chirp+gemini 로 보였고**, 턴 단위 A/B 판정이 아예 불가능했다.
+    주석은 '이 턴에서'라고 적혀 있었는데 실제는 세션 누적이라, 그 거짓 주석을 근거로
+    다른 탭이 문서에 틀린 문장을 쓰기도 했다.
+    """
+    calls = {"n": 0}
+
+    async def _tts(text, **kwargs):
+        calls["n"] += 1
+        report = kwargs.get("report")
+        if report is not None:
+            # 첫 문장만 gemini 가 내고, 그 뒤로는 chirp 이 낸다(= 그 대답만 혼합이다).
+            report["engine"] = "gemini-2.5-flash-tts" if calls["n"] == 1 else cs.tts.CHIRP3_ENGINE
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    session._tg = _StubGroup()
+
+    await session._run_reply("안녕")
+    assert session._tts_engines == {"gemini-2.5-flash-tts", cs.tts.CHIRP3_ENGINE}
+
+    await session._run_reply("또 안녕")
+    assert session._tts_engines == {cs.tts.CHIRP3_ENGINE}, "이전 대답의 엔진이 남았다"

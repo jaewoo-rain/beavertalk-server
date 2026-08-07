@@ -73,6 +73,29 @@
       <span id="engine" class="muted"></span>
       <span id="clock" class="muted"></span>
     </div>
+    <div class="row" style="margin:8px 0; gap:12px; flex-wrap:wrap">
+      <span class="muted">TTS 엔진</span>
+      <select id="ttsEngine" title="통화를 시작할 때 정해진다. 통화 중에는 안 바뀐다.">
+        <option value="chirp3-hd">Chirp3-HD (기본 · 빠름)</option>
+        <option value="gemini-tts">Gemini-TTS (감정 지시 가능)</option>
+      </select>
+      <span class="muted">말하기 속도</span>
+      <select id="speakingRate" title="1.0 = 그 목소리의 정상 속도. 범위 0.25~2.0">
+        <option value="">서버값</option>
+        <option value="0.75">0.75x</option>
+        <option value="1.0">1.0x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+      </select>
+      <input id="stylePrompt" style="width:260px" placeholder="감정 지시(비우면 서버값) — Gemini 전용"
+             title="Gemini-TTS 만 이 문구를 쓴다. Chirp3-HD 는 감정 제어가 없다." />
+    </div>
+    <div class="muted" style="margin:0 0 6px">
+      ⚠ <b>Chirp3-HD 가 기본</b>이다 — 실측(같은 44자 문장): Chirp 합성 1.5초/실시간 4.5배속,
+      Gemini 6.9초/<b>1.3배속</b>. Gemini 는 합성이 재생 속도를 겨우 따라잡아 버퍼가 안 쌓이고,
+      거기에 <b>분당 요청 10회</b> 쿼터가 겹친다(초과하면 이 통화는 Chirp 으로 고정된다).
+      선택은 <b>통화 시작 시점</b>에 서버로 간다.
+    </div>
     <div class="muted" style="margin-bottom:6px">현재 전사(부분/최종):</div>
     <div id="live" class="live muted">…</div>
     <div class="row" style="margin-top:10px">
@@ -239,7 +262,17 @@ async function start() {
   ws.onopen = () => {
     // 브라우저는 캡처·재생을 같은 엔진이 소유해 AEC 가 실제로 걸린다(echoCancellation:true).
     // ⚠ 그래서 이 데모의 barge-in 결과는 **실기기 판정 근거가 되지 않는다**(조사 §3-6).
-    ws.send(JSON.stringify({ type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' } }));
+    // ⛔ dev 데모 한정 편의다 — 클라가 서버 기본값을 덮는다. 앱이 캐스케이드를 타게 되면
+    //   이 통로를 열어 두면 안 된다(엔진마다 단가·쿼터가 달라 원가 통제가 클라로 넘어간다).
+    const rate = $('#speakingRate').value;
+    const style = $('#stylePrompt').value.trim();
+    ws.send(JSON.stringify({
+      type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' },
+      ttsEngine: $('#ttsEngine').value,
+      ...(rate ? { speakingRate: parseFloat(rate) } : {}),
+      ...(style ? { stylePrompt: style } : {}),
+    }));
+    log(`🔊 TTS 엔진=${$('#ttsEngine').value}${rate ? ' 속도='+rate+'x' : ''}`);
     t0 = nowMs();
     $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
     $('#startBtn').disabled=true; $('#stopBtn').disabled=false;

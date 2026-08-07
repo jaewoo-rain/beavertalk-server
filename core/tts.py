@@ -177,6 +177,9 @@ async def synthesize_stream(
     sample_rate: int = CASCADE_TTS_SAMPLE_RATE,
     report: dict | None = None,
     allow_gemini: bool = True,
+    engine: str | None = None,
+    speaking_rate: float | None = None,
+    style_prompt: str | None = None,
 ) -> "Any":
     """문장 하나를 PCM16/24k 조각으로 흘린다(async generator). 키 부재·실패면 **아무것도 안 낸다**.
 
@@ -205,7 +208,10 @@ async def synthesize_stream(
     lang_code, chirp_voice = _resolve_voice(language, voice)
     _, gemini_voice = _resolve_voice(language, voice, gemini=True)
 
-    engine = (settings.CASCADE_TTS_ENGINE or CHIRP3_ENGINE).strip()
+    # 세션이 고른 값이 있으면 그것, 없으면 서버 설정(env → 코드 기본값).
+    engine = (engine or settings.CASCADE_TTS_ENGINE or CHIRP3_ENGINE).strip()
+    rate = settings.CASCADE_TTS_SPEAKING_RATE if speaking_rate is None else speaking_rate
+    style = settings.CASCADE_TTS_STYLE_PROMPT if style_prompt is None else style_prompt
 
     async def _run():
         from google.cloud import texttospeech
@@ -217,7 +223,7 @@ async def synthesize_stream(
                 gemini_voice if model_name else chirp_voice,
                 sample_rate,
                 model_name=model_name,
-                speaking_rate=settings.CASCADE_TTS_SPEAKING_RATE,
+                speaking_rate=rate,
             )
 
             async def _requests():
@@ -256,7 +262,7 @@ async def synthesize_stream(
             model = (settings.CASCADE_TTS_GEMINI_MODEL or "").strip()
             produced = False
             try:
-                async for chunk in _one(model, settings.CASCADE_TTS_STYLE_PROMPT, model):
+                async for chunk in _one(model, style, model):
                     produced = True
                     yield chunk
                 return

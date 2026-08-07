@@ -106,6 +106,9 @@ _RMS_WINDOW_MS = 400        # 그 시각 ± 이 범위에서 가장 큰 에너�
 # 에코 판정: 이보다 짧은 발화는 겹침을 재도 의미가 없다(짧은 맞장구를 버리면 더 나쁘다).
 _ECHO_MIN_CHARS = 6
 _ECHO_OVERLAP = 0.6         # 글자 2-gram 이 이 비율 이상 겹치면 비버 자기 목소리로 본다
+# 화면에서 고를 수 있는 엔진 값(서버가 아는 것만 받는다). Gemini 쪽 값은 core.tts 가 소유한다.
+_CHIRP_CHOICE = "chirp3-hd"
+_STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
 
 
@@ -464,7 +467,12 @@ class CascadeSession:
         self._reply_task: asyncio.Task | None = None
         self._reply_cancelled = False
         self._system_cache: str | None = None
-        self._tts_engines: set[str] = set()   # 이 턴에서 실제로 소리를 낸 엔진(A/B 로그용)
+        self._tts_engines: set[str] = set()   # **이 대답에서** 실제로 소리를 낸 엔진(A/B 로그용)
+        # TTS 선택은 **세션 값**이다(예전엔 매 문장 settings 를 읽었다). 클라가 start 에서
+        # 고르면 그 값으로, 안 고르면 서버 설정으로 통화 내내 일관되게 간다.
+        self._tts_engine = (settings.CASCADE_TTS_ENGINE or "").strip()
+        self._tts_rate: float | None = None
+        self._tts_style: str | None = None
         self._marker_seen: dict[str, int] = {}   # 언어 마커 상태별 문장 수(실험 성립 판정)
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
@@ -555,6 +563,7 @@ class CascadeSession:
                     "이 값으로 설정하지만 오디오 타임라인·지연 계측이 이 값에 의존한다",
                     sample_rate, _DEFAULT_SAMPLE_RATE,
                 )
+            self._apply_tts_choice(ctrl)
             self._apply_aec_hint(ctrl.get("aec"))
         elif first.kind == "audio":
             pending_audio = first.audio
@@ -1143,6 +1152,11 @@ class CascadeSession:
     async def _run_reply(self, user_text: str, is_greeting: bool = False) -> None:
         """사용자 발화 1건에 대한 비버의 대답 — LLM 스트리밍 → 문장 분할 → TTS → 송출."""
         self._reply_cancelled = False
+        # ⛔ **대답마다 비운다.** 안 비우면 이전 턴의 엔진·마커 집계가 누적돼 로그가
+        #   `tts=chirp+gemini` 처럼 섞여 찍히고, **어느 엔진이 낸 소리인지 못 가린다**
+        #   (A/B 판정이 오염된다 — 2026-08-07 실측 로그에서 그 증상이 나왔다).
+        self._tts_engines.clear()
+        self._marker_seen.clear()
         chat = gemini_chat.open_chat_stream(
             self._genai_client,
             settings.CASCADE_LLM_MODEL,
@@ -1290,6 +1304,9 @@ class CascadeSession:
             voice=settings.CASCADE_TTS_VOICE,
             report=report,
             allow_gemini=allow_gemini,
+            engine=self._tts_engine or None,
+            speaking_rate=self._tts_rate,
+            style_prompt=self._tts_style,
         )
         sent = await speak_stream(self.beaver, stream, sentence)
         # ⭐ 내보낸 오디오 초 — Gemini-TTS 단가의 기준(문자가 아니라 출력 오디오 토큰이다).
@@ -1318,7 +1335,7 @@ class CascadeSession:
 
     def _tts_vendor(self) -> str:
         """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다."""
-        if (settings.CASCADE_TTS_ENGINE or "").strip() == tts.GEMINI_ENGINE:
+        if self._tts_engine == tts.GEMINI_ENGINE:
             return (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip()
         return tts.CHIRP3_ENGINE
 
@@ -1639,6 +1656,39 @@ class CascadeSession:
             network_ms, progress.sampled_at, spoken,
         )
         await report(True, "", spoken)
+
+    def _apply_tts_choice(self, ctrl: dict) -> None:
+        """start 에서 온 TTS 선택을 세션 값으로 잡는다(⛔ **dev 데모 한정 편의**).
+
+        화면에서 엔진을 골라 A/B 하기 위한 통로다 — env 를 고치고 새 리비전을 띄우는 왕복
+        없이 통화마다 바꿔 들을 수 있다.
+        ⚠ 이건 **클라가 서버 기본값을 덮는 구조**다. 앱이 캐스케이드를 타게 되면 이 통로를
+          그대로 열어 두면 안 된다 — 엔진마다 단가와 쿼터가 달라 **원가 통제가 클라로 넘어간다.**
+        ⚠ 알 수 없는 값은 **거절하고 서버 기본값**을 쓴다(클라가 아무 문자열이나 보내면 안 된다).
+        """
+        picked = str(ctrl.get("ttsEngine") or ctrl.get("tts_engine") or "").strip()
+        source = "서버 기본값"
+        if picked:
+            if picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE):
+                self._tts_engine, source = picked, "클라 지정"
+            else:
+                logger.warning("cascade tts 엔진 값 거절: %r — 서버 기본값으로 진행", picked[:40])
+        raw_rate = ctrl.get("speakingRate", ctrl.get("speaking_rate"))
+        if raw_rate is not None:
+            try:
+                self._tts_rate = float(raw_rate)
+            except (TypeError, ValueError):
+                logger.warning("cascade speaking_rate 값 거절: %r", raw_rate)
+        style = ctrl.get("stylePrompt", ctrl.get("style_prompt"))
+        if isinstance(style, str):
+            self._tts_style = style.strip()[:_STYLE_PROMPT_MAX]
+        # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
+        logger.info(
+            "cascade 엔진 선택: %s (%s) speaking_rate=%s style=%r",
+            self._tts_engine or tts.CHIRP3_ENGINE, source,
+            self._tts_rate if self._tts_rate is not None else "서버값",
+            (self._tts_style if self._tts_style is not None else "서버값")[:40],
+        )
 
     def _apply_aec_hint(self, aec: Any) -> None:
         """start.aec 힌트로 **세션별** barge-in 정책을 정한다.

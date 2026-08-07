@@ -108,6 +108,16 @@ class ClientCascadeStart(BaseModel):
     sample_rate: int = Field(default=16000, alias="sampleRate")
     language: str | None = None  # 미전송이면 서버 설정(STT_V2_LANGUAGE→STT_LANGUAGE)
     aec: AecHint | None = None
+    # ── TTS 선택 (⛔ **dev 데모 한정 편의**) ──
+    # 사장님이 화면에서 엔진을 골라 A/B 하시려고 연 통로다. env 를 고치고 새 리비전을 띄우는
+    # 왕복 없이 통화마다 바꿔 들으실 수 있다.
+    # ⚠ 이건 **클라가 서버 기본값을 덮는 구조**다. 나중에 앱이 캐스케이드를 타게 되면
+    #   이 통로를 그대로 열어 두면 안 된다 — **원가 통제가 클라로 넘어간다**(엔진마다 단가가
+    #   다르고 쿼터도 다르다). 앱 연동 시에는 서버가 정하고 클라는 통보만 받아야 한다.
+    # 미전송이면 서버 설정(env → 코드 기본값)을 쓴다. 알 수 없는 값은 서버가 거절한다.
+    tts_engine: str | None = Field(default=None, alias="ttsEngine")
+    speaking_rate: float | None = Field(default=None, alias="speakingRate")
+    style_prompt: str | None = Field(default=None, alias="stylePrompt")
 
     model_config = {"populate_by_name": True}
 
