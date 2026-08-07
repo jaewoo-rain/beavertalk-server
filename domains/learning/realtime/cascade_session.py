@@ -75,6 +75,7 @@ from domains.learning.realtime.cascade_protocol import (
     cascade_server_adapter,
 )
 from domains.learning.realtime.cascade_reply import (
+    MARKER,
     SentenceBuffer,
     speak_stream,
     split_by_language,
@@ -106,6 +107,22 @@ _RMS_WINDOW_MS = 400        # 그 시각 ± 이 범위에서 가장 큰 에너�
 _ECHO_MIN_CHARS = 6
 _ECHO_OVERLAP = 0.6         # 글자 2-gram 이 이 비율 이상 겹치면 비버 자기 목소리로 본다
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
+
+
+def _marker_state(text: str) -> str:
+    """이 문장에서 언어 마커가 어떤 상태였나 — **셋을 갈라야** 판정이 된다.
+
+      없음      : 모델이 마커를 안 썼다(규칙이 안 먹혔다)
+      있음      : 짝이 맞는 마커가 있었다(설계대로 동작)
+      짝안맞음  : 모델이 반만 지켰다 → 통째로 기본 언어로 폴백했다
+
+    ⚠ '구간 1개'만 보면 "마커가 없었다"와 "마커가 있었지만 전부 한 언어였다"가 섞인다.
+      그 둘이 섞이면 실험이 성립하지 않는다.
+    """
+    count = (text or "").count(MARKER)
+    if count == 0:
+        return "없음"
+    return "있음" if count % 2 == 0 else "짝안맞음"
 
 
 def _frame_rms(pcm: bytes) -> float:
@@ -448,6 +465,7 @@ class CascadeSession:
         self._reply_cancelled = False
         self._system_cache: str | None = None
         self._tts_engines: set[str] = set()   # 이 턴에서 실제로 소리를 낸 엔진(A/B 로그용)
+        self._marker_seen: dict[str, int] = {}   # 언어 마커 상태별 문장 수(실험 성립 판정)
         # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
         self._bargein_at: float | None = None
         self._interrupted: dict | None = None
@@ -1161,10 +1179,11 @@ class CascadeSession:
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s",
+                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s 마커=%s",
                 "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
+                ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -1206,6 +1225,16 @@ class CascadeSession:
         """
         segments = split_by_language(
             sentence, settings.CASCADE_TTS_LANGUAGE, settings.CASCADE_TTS_TARGET_LANGUAGE
+        )
+        # ⭐ **마커가 실제로 걸렸는지**를 로그로 남긴다. 이게 없으면 실험이 성립하지 않는다 —
+        #   폴백이 조용해서(마커를 안 써도 통째 재생돼 소리는 정상) "끊김이 줄었다"는 판단이
+        #   '마커가 걸린 상태'에서 나온 건지 '안 걸린 상태'에서 나온 건지 못 가른다.
+        #   ⛔ 대사 원문은 찍지 않는다(통화 내용이 로그에 남는다). 구간 수·언어·마커 상태면 된다.
+        marker_state = _marker_state(sentence)
+        self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
+        logger.info(
+            "cascade 언어구간: %d개 %s 마커=%s",
+            len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
         )
         if len(segments) <= 1:
             return await self._speak_one(strip_markers(sentence).strip(),

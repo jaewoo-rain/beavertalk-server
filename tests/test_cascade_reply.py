@@ -509,3 +509,32 @@ async def test_each_language_segment_is_synthesized_with_its_language(reply_rig,
         ("를 배워볼까?", "ko"),
     ]
     assert all("__" not in text for text, _ in calls)   # 마커를 소리로 읽지 않는다
+
+
+@pytest.mark.asyncio
+async def test_marker_state_is_logged_for_every_sentence(reply_rig, monkeypatch, caplog):
+    """⭐ 마커가 **실제로 걸렸는지**가 로그에 남는다 — 없으면 실험이 성립하지 않는다.
+
+    폴백이 조용해서(마커를 안 써도 통째 재생 = 소리는 정상) "끊김이 줄었다"는 판단이
+    '마커가 걸린 상태'에서 나온 건지 아닌지 못 가른다. 그래서 셋을 갈라 찍는다.
+    ⛔ 대사 원문은 찍지 않는다(통화 내용이 로그에 남는다).
+    """
+    import logging
+
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_LANGUAGE", "ko")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_TARGET_LANGUAGE", "en")
+    session = CascadeSession(_Transport([]), genai_client=object())
+    await session.beaver.begin()
+
+    with caplog.at_level(logging.INFO):
+        await session._speak("오늘은 __How are you?__ 를 배워볼까?")   # 마커 있음
+        await session._speak("그냥 한국어만 말한다")                    # 마커 없음
+        await session._speak("반쪽만 __지켰다")                         # 짝 안 맞음
+    lines = [r.getMessage() for r in caplog.records if "언어구간" in r.getMessage()]
+    assert len(lines) == 3, lines
+    assert "3개 ko/en/ko 마커=있음" in lines[0]
+    assert "마커=없음" in lines[1]
+    assert "마커=짝안맞음" in lines[2]
+    # 통화 내용이 로그로 새지 않는다
+    assert all("How are you" not in line for line in lines), lines
+    assert session._marker_seen == {"있음": 1, "없음": 1, "짝안맞음": 1}
