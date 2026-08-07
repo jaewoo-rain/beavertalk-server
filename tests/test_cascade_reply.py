@@ -788,3 +788,53 @@ async def test_batch_mode_is_gemini_only(reply_rig, monkeypatch):
     ])
     await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
     assert "beaver_preparing" not in transport.types(), transport.events
+
+
+@pytest.mark.asyncio
+async def test_batch_mode_ignores_bargein_while_synthesizing(reply_rig, monkeypatch, caplog):
+    """⭐ 합성 중(소리가 아직 안 나감)에는 끼어들어도 **대답을 취소하지 않는다**.
+
+    배치 모드는 20초 넘게 조용하다. 그 사이 "여보세요?" 한 번에 21초치 합성이 날아가면
+    **이 모드의 목적(끊김 없이 소리를 들어보기)이 배반된다.**
+    ⛔ 다만 사용자 발화를 **버리지는 않는다** — 대답이 끝난 뒤 답한다(dead-air 재발 방지).
+    """
+    import logging
+
+    monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
+
+    async def _slow_tts(text, **kwargs):
+        await asyncio.sleep(0.15)          # 합성이 오래 걸리는 상황
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _slow_tts)
+    transport = _Transport([
+        _ctl(type="start", ttsEngine="gemini-batch"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.1,                                # 합성 중이다(소리는 아직 안 나갔다)
+        _ctl(type="__test_event", event=SPEECH_BEGIN),
+        _ctl(type="__test_say", text="여보세요"),
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.6,
+        _ctl(type="stop"),          # 결정적으로 끝낸다(턴 종료를 기다리지 않는다)
+    ], wait_for="__never__")
+    session = CascadeSession(transport, genai_client=object())
+    with caplog.at_level(logging.INFO):
+        await asyncio.wait_for(session.run(), timeout=5)
+    assert any("합성 중" in r.getMessage() for r in caplog.records), caplog.text
+
+    types = transport.types()
+    assert "audio_cancel" not in types, transport.events   # 합성이 날아가지 않았다
+    assert "turn_end" in types, transport.events           # 대답을 끝까지 들려줬다
+    # ⛔ 그 발화는 버려지지 않는다 — 사용자 턴으로 잡혀 '대답 뒤에 답할 대상'이 된다.
+    #   (대기열→답변까지는 test_rejected_bargein_utterance_still_gets_answered 가 본다.
+    #    여기서는 세션을 stop 으로 끝내므로 그 뒤 처리까지는 보지 않는다.)
+    assert types.count("user_turn_start") == 2, transport.events
+    assert any(e.get("text") == "여보세요" for e in transport.events
+               if e.get("type") == "input_transcript"), transport.events

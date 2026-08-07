@@ -412,9 +412,12 @@ function onMsg(ev) {
   }
   else if (m.type === 'beaver_preparing') {
     // 배치 모드는 합성이 끝날 때까지 소리가 안 난다 — 침묵을 설명하지 않으면 "끊겼나?" 가 된다.
+    // ⚠ 이 구간에는 **끼어들기가 안 걸린다**(아직 소리가 안 나갔으니 끊을 것도 없다).
+    //   그 사실을 안 보여주면 사장님이 "왜 안 끊기지?"로 헤맨다.
     const label = m.stage === 'llm'
-      ? '비버가 대답을 생각하는 중…'
-      : `비버가 목소리를 만드는 중… 구간 ${m.index}/${m.total} (${(m.elapsed_ms/1000).toFixed(1)}s)`;
+      ? '비버가 대답을 생각하는 중… · 지금은 끼어들 수 없어요'
+      : `비버가 목소리를 만드는 중… 구간 ${m.index}/${m.total} `
+        + `(${(m.elapsed_ms/1000).toFixed(1)}s) · 지금은 끼어들 수 없어요`;
     $('#prep').textContent = '⏳ ' + label;
     log('⏳ ' + label);
   }

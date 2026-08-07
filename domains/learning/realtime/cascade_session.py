@@ -479,6 +479,7 @@ class CascadeSession:
         self._tts_engine = (settings.CASCADE_TTS_ENGINE or "").strip()
         self._tts_rate: float | None = None
         self._tts_style: str | None = None
+        self._batch_synthesizing = False   # 배치 합성 중(소리가 아직 안 나갔다)
         self._marker_seen: dict[str, int] = {}   # 언어 마커 상태별 문장 수(실험 성립 판정)
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
@@ -996,10 +997,21 @@ class CascadeSession:
         audible_ms = self._audible_ms()
         min_audible = max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS)
         if audible_ms < min_audible:
-            logger.info(
-                "cascade barge-in 기각 — 비버가 아직 안 들린다(들린 %dms < %dms). 대답을 살린다",
-                audible_ms, min_audible,
-            )
+            # ⭐ 배치 모드에서는 이 상태가 **20초 넘게 지속된다**(전체를 합성한 뒤에야 소리가
+            #   난다). 거기서 "여보세요?" 한 번에 21초치 합성이 날아가면 그 모드의 목적
+            #   (끊김 없이 소리를 들어보기)이 배반된다 — 같은 관문이 그대로 막아 준다.
+            #   ⛔ 발화를 버리는 게 아니다: 취소만 안 하고, 그 말은 대답이 끝난 뒤 답한다
+            #   (_pending_user_text 대기열).
+            if self._batch_synthesizing:
+                logger.info(
+                    "cascade barge-in 무시 — 배치 합성 중(아직 소리가 안 나갔다). "
+                    "이 발화는 대답이 끝난 뒤 답한다"
+                )
+            else:
+                logger.info(
+                    "cascade barge-in 기각 — 비버가 아직 안 들린다(들린 %dms < %dms). 대답을 살린다",
+                    audible_ms, min_audible,
+                )
             return False
         # ⓪ 마이크 상시 개방이 꺼져 있으면 barge-in 을 시도하지 않는다.
         #   그 모드에서는 클라가 비버 발화 중 마이크를 닫으므로, 이때 들어오는 음성 활동은
@@ -1247,6 +1259,7 @@ class CascadeSession:
             logger.info("cascade 대답 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
         finally:
             self._speaking_text = ""
+            self._batch_synthesizing = False
             self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
             if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
                 self.state = TurnState.IDLE
@@ -1276,11 +1289,13 @@ class CascadeSession:
         ⛔ 구간을 **병렬로 쏘지 않는다.** 순간 집중이 429 를 부른다(분당 10회 한도).
           어차피 이 모드에서 지연은 비용이 아니다.
         """
+        self._batch_synthesizing = True
         await self._safe(ServerBeaverPreparing(stage="llm"))
         async for _ in chat.chunks():                 # 전체 텍스트가 완성될 때까지 받는다
             self._speaking_text = chat.text
         text = strip_markers(chat.text).strip() and chat.text.strip()
         if not text:
+            self._batch_synthesizing = False
             return None, -1, 0
 
         segments = split_by_language(
@@ -1316,6 +1331,7 @@ class CascadeSession:
             if pcm:
                 parts.append((pcm, seg_text))
         if not parts:
+            self._batch_synthesizing = False
             logger.warning("cascade 배치 합성: 오디오가 한 조각도 안 나왔다(구간 %d개)", len(segments))
             return None, -1, 0
 
@@ -1327,6 +1343,7 @@ class CascadeSession:
         )
 
         # 이어붙인 오디오를 **한 번에** 송출한다(페이서가 실시간 속도로 흘려보낸다 — I3).
+        self._batch_synthesizing = False   # 여기서부터 소리가 난다 = barge-in 유효
         turn_id = await self._begin_beaver_turn()
         first_audio_ms = -1
         spoken = 0
