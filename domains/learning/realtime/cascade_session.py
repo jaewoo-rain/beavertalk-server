@@ -1082,6 +1082,8 @@ class CascadeSession:
             report=report,
         )
         sent = await speak_stream(self.beaver, stream, sentence)
+        # ⭐ 내보낸 오디오 초 — Gemini-TTS 단가의 기준(문자가 아니라 출력 오디오 토큰이다).
+        self.usage.record_tts_audio(sent)
         engine = report.get("engine")
         if engine:
             self._tts_engines.add(engine)

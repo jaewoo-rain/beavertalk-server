@@ -43,6 +43,8 @@ MODE = "cascade"
 
 # 구성요소 이름(engine 문자열에 그대로 들어간다). 벤더를 갈아끼우면 여기만 늘어난다 —
 # 같은 컬럼에서 'cascade:whisper+...' 로 갈라져 보이게 하려는 것이 계약의 의도다.
+# 서버→클라 오디오 규약(PCM16 / 24kHz mono) = 48,000 bytes/s. 바이트↔초는 산수다.
+_TTS_BYTES_PER_S = 24000 * 2
 STT_VENDOR_V2 = "google-stt-v2"
 STT_VENDOR_FAKE = "fake-stt"
 
@@ -100,6 +102,11 @@ class TtsUsage:
     calls_failed: int = 0     # 실패 호출의 과금 여부는 문서 미확인 → 문자에 안 더한다
     chars: int = 0
     chars_unheard: int = 0    # 합성했지만 barge-in 으로 못 들려준 문자(돈은 나갔다)
+    # ⭐ 내보낸 오디오 바이트(PCM16/24k mono). **Gemini-TTS 는 문자가 아니라 출력 오디오
+    #   토큰으로 과금한다**(1초 = 25tok) — 같은 문장도 천천히 읽으면 더 비싸다. 문자↔초
+    #   환산은 말하는 속도에 따라 배로 틀리므로 **초를 실측**해서 넘긴다.
+    #   덤: 비버가 실제로 몇 초 말했는지도 이걸로 처음 확정된다(지금 원가 계산은 가정 위에 있다).
+    audio_bytes: int = 0
 
 
 @dataclass
@@ -170,6 +177,18 @@ class CascadeUsage:
             self.errors += 1
             logger.warning("cascade usage: TTS 계측 실패(무시) — %s", exc)
 
+    def record_tts_audio(self, audio_bytes: int) -> None:
+        """실제로 내보낸 TTS 오디오 바이트(PCM16/24k). 초 환산은 요약에서 한다.
+
+        ⚠ 문자 수로 대신할 수 없다 — Gemini-TTS 는 **출력 오디오 토큰**으로 과금하고
+        (1초 = 25tok), 같은 문장도 읽는 속도에 따라 초가 달라진다. 그래서 재는 쪽을 바꾼다.
+        """
+        try:
+            self.tts.audio_bytes += max(0, int(audio_bytes))
+        except Exception as exc:  # noqa: BLE001 - R5
+            self.errors += 1
+            logger.warning("cascade usage: TTS 오디오 계측 실패(무시) — %s", exc)
+
     def record_tts_unheard(self, chars: int) -> None:
         """합성은 했지만 barge-in 취소로 못 들려준 문자 수(이미 과금된 몫)."""
         try:
@@ -228,6 +247,9 @@ class CascadeUsage:
                 "vendor": self.tts.vendor, "calls": self.tts.calls,
                 "calls_failed": self.tts.calls_failed,
                 "chars": self.tts.chars, "chars_unheard": self.tts.chars_unheard,
+                # ⭐ 오디오 초 — Gemini-TTS 단가의 기준이다(문자 아님). PCM16/24k mono 라
+                #   바이트 ÷ 48,000 이고, 이건 추정이 아니라 우리가 내보낸 실측이다.
+                "audio_s": round(self.tts.audio_bytes / _TTS_BYTES_PER_S, 1),
             }
             return {
                 "engine": self.engine(),
@@ -262,7 +284,8 @@ def format_usage_line(summary: dict) -> str:
         f"stt_billed_msgs={stt['billed_msgs']} "
         f"llm_in={llm['in_text']} llm_out={llm['out_text']} llm_thoughts={llm['thoughts']} "
         f"llm_calls={llm['calls']} "
-        f"tts_chars={tts['chars']} tts_unheard={tts['chars_unheard']} tts_calls={tts['calls']} "
+        f"tts_chars={tts['chars']} tts_audio_s={tts['audio_s']} "
+        f"tts_unheard={tts['chars_unheard']} tts_calls={tts['calls']} "
         f"tts_failed={tts['calls_failed']} err={summary.get('errors', 0)}"
     )
 

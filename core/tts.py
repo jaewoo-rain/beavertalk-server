@@ -233,14 +233,20 @@ async def synthesize_stream(
             except Exception as exc:  # noqa: BLE001 - 실패는 폴백으로(R5)
                 if produced:
                     # 소리가 이미 나가던 중이면 폴백하지 않는다 — 같은 문장을 두 번 말하게 된다.
-                    logger.warning("tts: %s 스트림이 도중에 끊겼다(그 문장은 여기까지) — %s",
-                                   model, exc)
+                    logger.warning(
+                        "tts 중단: engine=gemini-tts model=%s 실패사유=%r (그 문장은 여기까지)",
+                        model, str(exc)[:200],
+                    )
                     return
                 # ⛔ 조용히 죽지 않는다. 폴백이 조용하면 "제미나이가 느리다"가 아니라
                 #   "제미나이인 줄 알았는데 Chirp 였다"가 된다(오늘 400 무음 전례).
+                # ⚠ **모델 ID 를 반드시 찍는다.** Cloud TTS 의 model_name 과 Gemini API 의
+                #   모델 ID 는 문자열 규칙이 다르다 — ID 가 틀려서 거절된 건지, 다른 이유로
+                #   실패한 건지 이 줄로 갈린다. env 로 다른 ID 를 넣어 재시험할 때의 근거다.
                 logger.warning(
-                    "tts: %s 실패 → Chirp3-HD 로 폴백한다(엔진 비교 로그를 이 줄로 보정해라) — %s",
-                    model, exc,
+                    "tts 폴백: engine=gemini-tts model=%s 실패사유=%r → %s 로 대체(A/B 로그를 "
+                    "이 줄로 보정해라)",
+                    model, str(exc)[:200], CHIRP3_ENGINE,
                 )
                 if report is not None:
                     report["fallback_from"] = model

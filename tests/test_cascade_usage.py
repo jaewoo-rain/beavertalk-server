@@ -230,8 +230,12 @@ def test_tts_counts_the_string_actually_sent():
     usage.record_tts("\n 안녕 \n", vendor="cloud-tts-chirp3-hd")
     usage.record_tts("실패한 합성", failed=True)
     usage.record_tts_unheard(7)          # barge-in 으로 못 들려준 몫(돈은 나갔다)
+    usage.record_tts_audio(48_000 * 3)      # 3초 분량을 실제로 내보냈다
     tts = usage.summary()["vendors"]["tts"]
     assert (tts["chars"], tts["calls"], tts["calls_failed"], tts["chars_unheard"]) == (2, 1, 1, 7)
+    # ⭐ Gemini-TTS 는 문자가 아니라 **출력 오디오 초**로 과금한다(1초=25tok) — 같은 문장도
+    #   천천히 읽으면 더 비싸다. 그래서 문자에서 환산하지 않고 내보낸 바이트로 실측한다.
+    assert tts["audio_s"] == 3.0
 
 
 # --------------------------------------------------------------------------- #

@@ -197,6 +197,12 @@ class Settings(BaseSettings):
     #   비교가 실측으로 끝난다. 느리거나 이상하면 env 만 되돌린다.
     CASCADE_TTS_ENGINE: str = "chirp3-hd"
     # 속도가 목적이라 flash 계열부터. lite 가 더 빠를 수 있어 이것도 env 로 바꾼다.
+    # ⭐ **Cloud TTS 의 model_name 문자열**이다(2026-08-07 공식 문서 확인). 유효값 4종:
+    #     gemini-2.5-flash-tts / gemini-2.5-flash-lite-preview-tts /
+    #     gemini-2.5-pro-tts / gemini-3.1-flash-tts-preview
+    # ⚠ **Gemini API(ai.google.dev) 의 모델 ID 와 문자열이 다르다**(그쪽은
+    #   gemini-2.5-flash-preview-tts 처럼 'preview' 위치가 다르다). 가격표를 그쪽 페이지에서
+    #   읽어 왔다면 **이름을 그대로 가져다 쓰면 안 된다** — 우리는 Cloud TTS 를 호출한다.
     CASCADE_TTS_GEMINI_MODEL: str = "gemini-2.5-flash-tts"
     # 감정 지시(Style Instructions). ⚠ **짧게 유지해라** — 길어지면 지연 비교가 오염된다.
     # 사장님이 문구를 바꿔가며 들어보실 수 있게 env 로 뺐다.
