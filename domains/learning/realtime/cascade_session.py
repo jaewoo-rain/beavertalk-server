@@ -92,7 +92,7 @@ _LAG_SANITY_MS = 3000
 # 오프셋이 우리 카운터보다 살짝 앞설 수는 있다(우리가 센 바이트와 엔진이 받은 바이트의 미세한
 # 시차). 이만큼은 정상으로 본다.
 _OFFSET_FUTURE_TOLERANCE_MS = 500
-_TTS_VENDOR = "cloud-tts-chirp3-hd"
+# (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
 
 
 def _frame_rms(pcm: bytes) -> float:
@@ -1043,10 +1043,13 @@ class CascadeSession:
             if turn_id is not None:
                 await self.beaver.end()
             self._remember_beaver(turn_id, chat.text)
+            # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
+            #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s",
+                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s",
                 "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
                 settings.CASCADE_LLM_MODEL,
+                "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -1070,15 +1073,34 @@ class CascadeSession:
         # ⭐ 문자는 **API 에 넘기는 시점**에 센다. 과금은 우리가 텍스트를 보낸 순간 일어나므로,
         #   barge-in 으로 이 문장이 중간에 끊겨도(= 아래 await 가 취소돼 돌아오지 않아도)
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
-        self.usage.record_tts(sentence, vendor=_TTS_VENDOR)
+        self.usage.record_tts(sentence, vendor=self._tts_vendor())
+        report: dict = {}
         stream = await tts.synthesize_stream(
-            sentence, language=settings.CASCADE_TTS_LANGUAGE, voice=settings.CASCADE_TTS_VOICE
+            sentence,
+            language=settings.CASCADE_TTS_LANGUAGE,
+            voice=settings.CASCADE_TTS_VOICE,
+            report=report,
         )
         sent = await speak_stream(self.beaver, stream, sentence)
+        engine = report.get("engine")
+        if engine:
+            self._tts_engines.add(engine)
+        if report.get("fallback_from"):
+            # 폴백은 A/B 비교를 오염시킨다 — 이 통화의 '첫소리'가 어느 엔진 것인지 흐려진다.
+            # 로그 한 줄로 드러내고, 원가는 **실제로 소리를 낸 엔진** 이름으로 남긴다.
+            self.usage.record_tts("", vendor=report["fallback_from"], failed=True)
+            if engine:
+                self.usage.record_tts(sentence, vendor=engine)
         if not sent:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
-            self.usage.record_tts("", vendor=_TTS_VENDOR, failed=True)
+            self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         return sent
+
+    def _tts_vendor(self) -> str:
+        """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다."""
+        if (settings.CASCADE_TTS_ENGINE or "").strip() == tts.GEMINI_ENGINE:
+            return (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip()
+        return tts.CHIRP3_ENGINE
 
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
         """이력에는 **실제로 들린 데까지**만 남긴다(설계 §5).

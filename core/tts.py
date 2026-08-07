@@ -139,7 +139,12 @@ async def synthesize(
 # 않아야 한다. 그래서 streaming_synthesize 로 별도 경로를 만든다.
 CASCADE_TTS_SAMPLE_RATE = 24000     # 서버→클라 오디오 규약(PCM16 24k mono)
 _WAV_HEADER = b"RIFF"
-_FIRST_BYTES_LOGGED = False   # 첫 조각 형태를 프로세스당 한 번만 남긴다(_log_first_bytes)
+_FIRST_BYTES_LOGGED: set[str] = set()   # 첫 조각 형태를 엔진당 한 번만 남긴다(_log_first_bytes)
+# 엔진 이름 = **원가 벤더 문자열이기도 하다.** 단가표(normalcall_service)의 키와 정확히
+# 같아야 원가가 0 으로 떨어지지 않는다. gemini 쪽은 모델 id 를 그대로 벤더로 쓴다 —
+# flash/lite/pro 단가가 다르므로 'gemini-tts' 로 뭉개면 원가를 못 가른다.
+CHIRP3_ENGINE = "cloud-tts-chirp3-hd"
+GEMINI_ENGINE = "gemini-tts"            # CASCADE_TTS_ENGINE 이 고르는 값(벤더 이름 아님)
 
 
 async def synthesize_stream(
@@ -148,6 +153,7 @@ async def synthesize_stream(
     language: str = "ko",
     voice: str | None = None,
     sample_rate: int = CASCADE_TTS_SAMPLE_RATE,
+    report: dict | None = None,
 ) -> "Any":
     """문장 하나를 PCM16/24k 조각으로 흘린다(async generator). 키 부재·실패면 **아무것도 안 낸다**.
 
@@ -156,6 +162,11 @@ async def synthesize_stream(
 
     ⚠ 응답에 사용량 필드가 없다(SDK 정의 확인 — audio_content 뿐). 과금 문자 수는 호출부가
       **API 에 넘긴 문자열**로 센다(원가 설계 §1-2).
+
+    엔진은 `CASCADE_TTS_ENGINE` 이 정한다("chirp3-hd" | "gemini-tts"). gemini 경로가 실패하면
+    **Chirp3-HD 로 폴백하고 WARNING 을 남긴다** — 조용한 폴백은 A/B 비교를 거짓말로 만든다.
+    report(dict)를 주면 실제로 소리를 낸 엔진(`engine`)과 폴백 여부(`fallback_from`)를 채워
+    준다. 호출부는 그걸로 로그·원가 벤더를 정한다.
     """
     async def _empty():
         return
@@ -168,19 +179,29 @@ async def synthesize_stream(
         return _empty()
     lang_code, voice_name = _resolve_voice(language, voice)
 
-    config = build_streaming_config(lang_code, voice_name, sample_rate)
+    engine = (settings.CASCADE_TTS_ENGINE or CHIRP3_ENGINE).strip()
 
     async def _run():
         from google.cloud import texttospeech
 
-        async def _requests():
-            # 첫 요청 = 설정, 이후 = 텍스트. 문장 단위로 열고 닫는다(스트림 1개 = 문장 1개).
-            yield texttospeech.StreamingSynthesizeRequest(streaming_config=config)
-            yield texttospeech.StreamingSynthesizeRequest(
-                input=texttospeech.StreamingSynthesisInput(text=text.strip())
+        async def _one(model_name: str | None, style_prompt: str, label: str):
+            """엔진 하나로 한 문장을 흘린다. (첫 조각을 냈는지, 실패 사유) 를 남긴다."""
+            config = build_streaming_config(
+                lang_code, voice_name, sample_rate, model_name=model_name
             )
 
-        try:
+            async def _requests():
+                # 첫 요청 = 설정, 이후 = 텍스트. 문장 단위로 열고 닫는다(스트림 1개 = 문장 1개).
+                yield texttospeech.StreamingSynthesizeRequest(streaming_config=config)
+                kwargs = {"text": text.strip()}
+                if style_prompt:
+                    # Gemini-TTS 의 감정 지시(Style Instructions). Chirp3-HD 엔 없는 기능이라
+                    # 그쪽 경로에서는 넣지 않는다(넣으면 요청이 거절될 수 있다).
+                    kwargs["prompt"] = style_prompt
+                yield texttospeech.StreamingSynthesizeRequest(
+                    input=texttospeech.StreamingSynthesisInput(**kwargs)
+                )
+
             responses = await cli.streaming_synthesize(requests=_requests())
             first = True
             async for resp in responses:
@@ -189,7 +210,9 @@ async def synthesize_stream(
                     continue
                 if first:
                     first = False
-                    _log_first_bytes(chunk)
+                    if report is not None:
+                        report["engine"] = label
+                    _log_first_bytes(chunk, label)
                     # PCM 은 원래 헤더가 없다. 그래도 방어는 남긴다 — 헤더가 섞여 들어오면
                     # 재생 큐에서 딸깍 소리가 나고, 그건 원인 찾기가 오래 걸리는 증상이다.
                     if chunk[:4] == _WAV_HEADER:
@@ -198,13 +221,42 @@ async def synthesize_stream(
                         if not chunk:
                             continue
                 yield chunk
+
+        if engine == GEMINI_ENGINE:
+            model = (settings.CASCADE_TTS_GEMINI_MODEL or "").strip()
+            produced = False
+            try:
+                async for chunk in _one(model, settings.CASCADE_TTS_STYLE_PROMPT, model):
+                    produced = True
+                    yield chunk
+                return
+            except Exception as exc:  # noqa: BLE001 - 실패는 폴백으로(R5)
+                if produced:
+                    # 소리가 이미 나가던 중이면 폴백하지 않는다 — 같은 문장을 두 번 말하게 된다.
+                    logger.warning("tts: %s 스트림이 도중에 끊겼다(그 문장은 여기까지) — %s",
+                                   model, exc)
+                    return
+                # ⛔ 조용히 죽지 않는다. 폴백이 조용하면 "제미나이가 느리다"가 아니라
+                #   "제미나이인 줄 알았는데 Chirp 였다"가 된다(오늘 400 무음 전례).
+                logger.warning(
+                    "tts: %s 실패 → Chirp3-HD 로 폴백한다(엔진 비교 로그를 이 줄로 보정해라) — %s",
+                    model, exc,
+                )
+                if report is not None:
+                    report["fallback_from"] = model
+
+        try:
+            async for chunk in _one(None, "", CHIRP3_ENGINE):
+                yield chunk
         except Exception as exc:  # noqa: BLE001 - 합성 실패 graceful(R5)
             logger.warning("tts(gcp): 스트리밍 합성 실패(무시) — %s", exc)
 
     return _run()
 
 
-def build_streaming_config(lang_code: str, voice_name: str, sample_rate: int) -> "Any":
+def build_streaming_config(
+    lang_code: str, voice_name: str, sample_rate: int, model_name: str | None = None
+) -> "Any":
     """스트리밍 합성 설정 1건. **인코딩이 여기서 틀리면 소리가 아예 안 난다.**
 
     ⛔ `LINEAR16` 을 쓰지 마라. 설치된 SDK 원문(StreamingAudioConfig.audio_encoding):
@@ -220,8 +272,14 @@ def build_streaming_config(lang_code: str, voice_name: str, sample_rate: int) ->
     """
     from google.cloud import texttospeech
 
+    # model_name 은 Gemini-TTS 를 고를 때만 넣는다(설치된 SDK 의 VoiceSelectionParams 필드로
+    # 확인 — language_code/name/ssml_gender/custom_voice/voice_clone/**model_name**/…).
+    # 음색 이름 체계가 Chirp3-HD 와 같아서 **재매핑이 없다**(core/tts.py 상단 주석 참조).
+    voice_kwargs: dict = {"language_code": lang_code, "name": voice_name}
+    if model_name:
+        voice_kwargs["model_name"] = model_name
     return texttospeech.StreamingSynthesizeConfig(
-        voice=texttospeech.VoiceSelectionParams(language_code=lang_code, name=voice_name),
+        voice=texttospeech.VoiceSelectionParams(**voice_kwargs),
         streaming_audio_config=texttospeech.StreamingAudioConfig(
             audio_encoding=texttospeech.AudioEncoding.PCM,
             sample_rate_hertz=sample_rate,
@@ -229,17 +287,17 @@ def build_streaming_config(lang_code: str, voice_name: str, sample_rate: int) ->
     )
 
 
-def _log_first_bytes(chunk: bytes) -> None:
-    """첫 조각의 앞 8바이트를 **프로세스당 한 번만** 남긴다.
+def _log_first_bytes(chunk: bytes, engine: str) -> None:
+    """첫 조각의 앞 8바이트를 **엔진마다 한 번씩** 남긴다.
 
     PCM 에 헤더가 붙어 오는지를 로그로 답하기 위한 것이다(크레덴셜이 없는 워크트리에서는
-    확인할 방법이 없다). 한 번만 찍으므로 통화 로그를 어지럽히지 않는다.
+    확인할 방법이 없다). Chirp3-HD 는 `01 00 00 00 …`(RIFF 아님 = raw PCM)로 확인됐고,
+    Gemini-TTS 도 같은지는 **첫 통화 로그 한 줄**로 갈린다. 엔진당 한 번만 찍는다.
     """
-    global _FIRST_BYTES_LOGGED
-    if _FIRST_BYTES_LOGGED:
+    if engine in _FIRST_BYTES_LOGGED:
         return
-    _FIRST_BYTES_LOGGED = True
+    _FIRST_BYTES_LOGGED.add(engine)
     logger.info(
-        "tts(gcp): 스트리밍 첫 조각 앞 8바이트=%s (RIFF 면 헤더 포함, 아니면 raw PCM)",
-        chunk[:8].hex(" "),
+        "tts: 스트리밍 첫 조각 engine=%s 앞 8바이트=%s (RIFF 면 헤더 포함, 아니면 raw PCM)",
+        engine, chunk[:8].hex(" "),
     )

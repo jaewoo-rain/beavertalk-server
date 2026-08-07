@@ -191,6 +191,16 @@ class Settings(BaseSettings):
     # 15분 정상 통화(대략 1만 자)의 몇 배로 잡아 정상 통화는 절대 안 걸리게 하고, 병적으로
     # 긴 통화만 막는다. 넘으면 오래된 것부터 버리되 버린 사실을 로그로 남긴다.
     CASCADE_HISTORY_MAX_CHARS: int = 40000
+    # ── TTS 엔진 A/B (사장님이 두 개를 번갈아 들으며 고르신다) ──
+    # ⭐ **재빌드 없이 env 로 왔다갔다** 하는 게 요점이다. "chirp3-hd"(기본, 지금 동작) ↔
+    #   "gemini-tts"(감정 지시 가능). 같은 통화 조건에서 양쪽 `첫소리=Xms` 를 뽑으면 지연
+    #   비교가 실측으로 끝난다. 느리거나 이상하면 env 만 되돌린다.
+    CASCADE_TTS_ENGINE: str = "chirp3-hd"
+    # 속도가 목적이라 flash 계열부터. lite 가 더 빠를 수 있어 이것도 env 로 바꾼다.
+    CASCADE_TTS_GEMINI_MODEL: str = "gemini-2.5-flash-tts"
+    # 감정 지시(Style Instructions). ⚠ **짧게 유지해라** — 길어지면 지연 비교가 오염된다.
+    # 사장님이 문구를 바꿔가며 들어보실 수 있게 env 로 뺐다.
+    CASCADE_TTS_STYLE_PROMPT: str = "밝고 다정한 선생님 목소리로, 또박또박 조금 천천히."
     CASCADE_TTS_LANGUAGE: str = "ko"             # 비버가 말하는 언어(= 학습 대상 언어)
     CASCADE_TTS_VOICE: str = "Aoede"             # Chirp3-HD 음성명(Live 캐릭터 voice 와 같은 이름 체계)
     # 데모용 페르소나(캐스케이드는 아직 DB·캐릭터를 안 읽는다 — normalcall 과 같은 조립기를 쓴다)
