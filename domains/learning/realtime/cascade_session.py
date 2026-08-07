@@ -480,7 +480,12 @@ class CascadeSession:
         self._tts_rate: float | None = None
         self._tts_style: str | None = None
         self._batch_synthesizing = False   # 배치 합성 중(소리가 아직 안 나갔다)
+        self._batch_synth_s: float | None = None   # 배치 합성 소요(대답 줄의 합성배속 재료)
         self._marker_seen: dict[str, int] = {}   # 언어 마커 상태별 문장 수(실험 성립 판정)
+        # 대답별 **읽기 속도 실측**용. (언어, 들린 글자, 오디오 바이트) — 소리가 실제로 나간 것만.
+        # ⛔ 원가용 tts_chars 와 다르다: 그건 'API 에 넘긴 글자'(끊겨도 돈은 나간다)라
+        #   분모(오디오)와 모집단이 어긋나 **읽기 속도로 쓰면 28자/초 같은 값이 나온다.**
+        self._reply_spans: list[tuple[str, int, int]] = []
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
         self._tts_gemini_calls = 0
@@ -1175,6 +1180,7 @@ class CascadeSession:
         #   (A/B 판정이 오염된다 — 2026-08-07 실측 로그에서 그 증상이 나왔다).
         self._tts_engines.clear()
         self._marker_seen.clear()
+        self._reply_spans.clear()
         chat = gemini_chat.open_chat_stream(
             self._genai_client,
             settings.CASCADE_LLM_MODEL,
@@ -1215,10 +1221,11 @@ class CascadeSession:
                 turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, began)
                 self._remember_beaver(turn_id, chat.text)
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s",
+                    "cascade 대답%s(배치): turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s %s",
                     "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
+                    self._reading_summary(self._batch_synth_s),
                 )
                 return
             async for piece in chat.chunks():
@@ -1242,12 +1249,13 @@ class CascadeSession:
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
                 "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s 마커=%s "
-                "gemini호출=%d %s",
+                "gemini호출=%d %s %s",
                 "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
                 self._tts_gemini_calls, "고정" if self._tts_gemini_off else "-",
+                self._reading_summary(None),
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -1329,17 +1337,21 @@ class CascadeSession:
                 f"/{len(pcm) / BEAVER_BYTES_PER_MS / 1000:.1f}s"
             )
             if pcm:
-                parts.append((pcm, seg_text))
+                parts.append((pcm, seg_text, language))
         if not parts:
             self._batch_synthesizing = False
             logger.warning("cascade 배치 합성: 오디오가 한 조각도 안 나왔다(구간 %d개)", len(segments))
             return None, -1, 0
 
-        audio_s = sum(len(p) for p, _ in parts) / BEAVER_BYTES_PER_MS / 1000
+        audio_s = sum(len(p) for p, _, _ in parts) / BEAVER_BYTES_PER_MS / 1000
+        synth_s = time.monotonic() - started
+        self._batch_synth_s = synth_s
         logger.info(
-            "cascade 배치 합성: 구간 %d개 %s 텍스트 %d자 → 합성 %.1f초 오디오 %.1f초 [%s]",
+            "cascade 배치 합성: 구간 %d개 %s 텍스트 %d자 → 합성 %.1f초 오디오 %.1f초 "
+            "합성배속 %.2fx [%s]",
             len(segments), "/".join(lang for _, lang in segments) or "-", len(text),
-            time.monotonic() - started, audio_s, " ".join(per_segment),
+            synth_s, audio_s, (audio_s / synth_s) if synth_s > 0 else 0.0,
+            " ".join(per_segment),
         )
 
         # 이어붙인 오디오를 **한 번에** 송출한다(페이서가 실시간 속도로 흘려보낸다 — I3).
@@ -1347,10 +1359,13 @@ class CascadeSession:
         turn_id = await self._begin_beaver_turn()
         first_audio_ms = -1
         spoken = 0
-        for pcm, seg_text in parts:
-            sent = await self._speak_pcm(pcm, strip_markers(seg_text).strip())
+        for pcm, seg_text, language in parts:
+            label = strip_markers(seg_text).strip()
+            sent = await self._speak_pcm(pcm, label)
             if sent and first_audio_ms < 0:
                 first_audio_ms = int((time.monotonic() - began) * 1000)
+            if sent:
+                self._reply_spans.append((language, len(label), sent))
             spoken += len(seg_text)
         await self.beaver.end()
         return turn_id, first_audio_ms, spoken
@@ -1391,6 +1406,41 @@ class CascadeSession:
                     yield frame
 
         return await speak_stream(self.beaver, _gen(), label)
+
+    def _reading_summary(self, synth_s: float | None) -> str:
+        """이 대답의 **읽기 속도**를 실측으로 요약한다(언어별).
+
+        ⛔ 분자는 **실제로 소리가 나간 글자**다. 원가용 tts_chars(=API 에 넘긴 글자)를 쓰면
+          barge-in 으로 끊긴 몫까지 분자에 들어가 **28자/초 같은 불가능한 값**이 나온다.
+        ⚠ 언어를 반드시 붙인다 — 같은 시간을 말해도 영어와 한국어는 글자 수가 다르다
+          ("Hello, how are you today?" 25자 vs "안녕하세요 오늘 어때요?" 14자).
+          **언어를 빼고 자/초를 비교하면 틀린 결론이 나온다.**
+        합성 배속은 배치에서만 잰다 — 실시간은 합성과 재생이 겹쳐 '합성 소요'가 정의되지 않는다.
+        ⛔ 억지 숫자를 만들어 배치 값과 나란히 두지 않는다. 못 재면 못 잰다고 적는다.
+        """
+        if not self._reply_spans:
+            return "오디오=0초 읽기=측정불가(소리 없음)"
+        by_lang: dict[str, list[int]] = {}
+        for language, chars, audio_bytes in self._reply_spans:
+            row = by_lang.setdefault(language, [0, 0])
+            row[0] += chars
+            row[1] += audio_bytes
+        total_chars = sum(r[0] for r in by_lang.values())
+        total_s = sum(r[1] for r in by_lang.values()) / BEAVER_BYTES_PER_MS / 1000
+        per_lang = " ".join(
+            f"{lang}:{r[0]}자/{r[1] / BEAVER_BYTES_PER_MS / 1000:.1f}초"
+            f"/{(r[0] / (r[1] / BEAVER_BYTES_PER_MS / 1000)):.1f}자per초"
+            for lang, r in sorted(by_lang.items()) if r[1] > 0
+        )
+        speed = f"{total_chars / total_s:.1f}" if total_s > 0 else "-"
+        synth = (
+            f"합성배속={(total_s / synth_s):.2f}x" if synth_s and synth_s > 0
+            else "합성배속=측정불가(실시간은 합성·재생이 겹친다)"
+        )
+        return (
+            f"들린글자={total_chars} 오디오={total_s:.1f}초 읽기={speed}자per초 "
+            f"[{per_lang}] {synth}"
+        )
 
     async def _begin_beaver_turn(self) -> str:
         self.state = TurnState.BEAVER_SPEAKING
@@ -1456,6 +1506,9 @@ class CascadeSession:
         sent = await speak_stream(self.beaver, stream, sentence)
         # ⭐ 내보낸 오디오 초 — Gemini-TTS 단가의 기준(문자가 아니라 출력 오디오 토큰이다).
         self.usage.record_tts_audio(sent)
+        if sent:
+            # 소리가 실제로 나간 것만 읽기 속도의 재료가 된다(합성 실패는 글자도 안 센다).
+            self._reply_spans.append((language, len(sentence), sent))
         engine = report.get("engine")
         if engine:
             self._tts_engines.add(engine)

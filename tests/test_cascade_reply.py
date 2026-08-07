@@ -838,3 +838,70 @@ async def test_batch_mode_ignores_bargein_while_synthesizing(reply_rig, monkeypa
     assert types.count("user_turn_start") == 2, transport.events
     assert any(e.get("text") == "여보세요" for e in transport.events
                if e.get("type") == "input_transcript"), transport.events
+
+
+# --------------------------------------------------------------------------- #
+# 읽기 속도 실측 — 세 모드를 **로그로** 비교할 수 있어야 한다
+#   사장님: "batch 랑 말하는 속도 똑같은데?" → 로그가 확인하거나 반박해줘야 한다.
+# --------------------------------------------------------------------------- #
+def test_reading_speed_uses_spoken_chars_and_names_the_language():
+    """⛔ 분자는 **실제로 소리가 나간 글자**다(원가용 tts_chars 가 아니라).
+
+    tts_chars 는 'API 에 넘긴 글자'라 barge-in 으로 끊긴 몫까지 들어간다 — 그걸 오디오 초로
+    나누면 **28자/초 같은 불가능한 값**이 나온다(실측 로그에서 실제로 나왔다).
+    ⚠ 언어도 반드시 붙는다: "Hello, how are you today?" 25자 vs "안녕하세요 오늘 어때요?" 14자 —
+      같은 시간을 말해도 글자 수가 다르다. 언어를 빼고 자/초를 비교하면 틀린 결론이 나온다.
+    """
+    session = CascadeSession(_Transport([]), genai_client=object())
+    sec = int(cs.BEAVER_BYTES_PER_MS * 1000)          # 1초치 PCM 바이트
+    session._reply_spans = [("ko", 20, sec * 2), ("en", 30, sec * 2)]
+
+    summary = session._reading_summary(None)
+    assert "들린글자=50" in summary
+    assert "오디오=4.0초" in summary
+    assert "읽기=12.5자per초" in summary               # 50자 / 4.0초
+    assert "ko:20자/2.0초/10.0자per초" in summary      # 언어별로 갈라 보여준다
+    assert "en:30자/2.0초/15.0자per초" in summary
+
+
+def test_synthesis_speed_is_only_claimed_where_it_can_be_measured():
+    """⛔ 실시간은 합성과 재생이 겹쳐 '합성 소요'가 정의되지 않는다 — 억지 숫자를 만들지 않는다.
+
+    억지로 만든 값이 배치의 실측값과 나란히 놓이면 **비교가 더 나빠진다.**
+    """
+    session = CascadeSession(_Transport([]), genai_client=object())
+    sec = int(cs.BEAVER_BYTES_PER_MS * 1000)
+    session._reply_spans = [("ko", 40, sec * 4)]
+
+    assert "합성배속=측정불가" in session._reading_summary(None)      # 실시간
+    assert "합성배속=2.00x" in session._reading_summary(2.0)          # 배치(오디오 4초 / 합성 2초)
+
+
+@pytest.mark.asyncio
+async def test_both_modes_log_the_same_reading_fields(reply_rig, monkeypatch, caplog):
+    """실시간과 배치가 **같은 형식**으로 찍어야 두 모드를 비교할 수 있다."""
+    import logging
+
+    async def _tts(text, **kwargs):
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    lines: list[str] = []
+    for engine in ("chirp3-hd", "gemini-batch"):
+        transport = _Transport([
+            _ctl(type="start", ttsEngine=engine),
+            _ctl(type="__test_say", text="안녕"),
+            _ctl(type="__test_event", event=SPEECH_END),
+        ])
+        with caplog.at_level(logging.INFO):
+            caplog.clear()
+            await asyncio.wait_for(
+                CascadeSession(transport, genai_client=object()).run(), timeout=5
+            )
+        lines.append(next(r.getMessage() for r in caplog.records
+                          if r.getMessage().startswith("cascade 대답")))
+    for line in lines:
+        for field in ("들린글자=", "오디오=", "읽기=", "합성배속="):
+            assert field in line, (field, line)
