@@ -466,6 +466,9 @@ class CascadeSession:
         self._system_cache: str | None = None
         self._tts_engines: set[str] = set()   # 이 턴에서 실제로 소리를 낸 엔진(A/B 로그용)
         self._marker_seen: dict[str, int] = {}   # 언어 마커 상태별 문장 수(실험 성립 판정)
+        # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
+        self._tts_gemini_off = False
+        self._tts_gemini_calls = 0
         # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
         self._bargein_at: float | None = None
         self._interrupted: dict | None = None
@@ -1158,32 +1161,51 @@ class CascadeSession:
         began = time.monotonic()
         first_audio_ms = -1
         try:
+            # ⭐ **첫 문장은 즉시, 그 뒤는 묶어서** 합성한다(2026-08-07 실통화의 429 대응).
+            #   문장마다 스트림을 열면 요청 수가 턴당 7회까지 갔고(57 calls / 8턴) 분당 요청
+            #   쿼터에 걸렸다(429). 묶으면 요청이 크게 줄고 **문장 간 억양도 이어진다**
+            #   — 사장님이 "문장마다 톤이 바뀐다"고 하신 것이 같은 원인이다.
+            #   ⛔ 첫 문장은 절대 묶지 않는다. 첫 소리가 그만큼 늦어진다.
+            pending: list[str] = []
+
+            async def _flush_batch() -> None:
+                nonlocal turn_id, first_audio_ms, spoken_chars, pending
+                if not pending:
+                    return
+                text_batch, pending = " ".join(pending), []
+                turn_id = turn_id or await self._begin_beaver_turn()
+                sent = await self._speak(text_batch)
+                if sent and first_audio_ms < 0:
+                    first_audio_ms = int((time.monotonic() - began) * 1000)
+                spoken_chars += len(text_batch)
+
             async for piece in chat.chunks():
                 self._speaking_text = chat.text     # 에코 판정 재료(지금 하는 말)
                 for sentence in buffer.push(piece):
-                    turn_id = turn_id or await self._begin_beaver_turn()
-                    sent = await self._speak(sentence)
-                    if sent and first_audio_ms < 0:
-                        first_audio_ms = int((time.monotonic() - began) * 1000)
-                    spoken_chars += len(sentence)
+                    if first_audio_ms < 0 and not pending:
+                        pending.append(sentence)
+                        await _flush_batch()        # 첫 문장 = 단독 즉시 송출
+                        continue
+                    pending.append(sentence)
+                    if sum(len(x) for x in pending) >= max(1, settings.CASCADE_TTS_BATCH_CHARS):
+                        await _flush_batch()
             tail = buffer.flush()
             if tail:
-                turn_id = turn_id or await self._begin_beaver_turn()
-                sent = await self._speak(tail)
-                if sent and first_audio_ms < 0:
-                    first_audio_ms = int((time.monotonic() - began) * 1000)
-                spoken_chars += len(tail)
+                pending.append(tail)
+            await _flush_batch()
             if turn_id is not None:
                 await self.beaver.end()
             self._remember_beaver(turn_id, chat.text)
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s 마커=%s",
+                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s 마커=%s "
+                "gemini호출=%d %s",
                 "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
+                self._tts_gemini_calls, "고정" if self._tts_gemini_off else "-",
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -1253,11 +1275,21 @@ class CascadeSession:
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
+        # ⭐ 이 통화에서 이미 429 를 맞았으면 **Gemini 를 다시 찌르지 않는다**(세션 단위 백오프).
+        #   실측: 한도가 분당 10회인데 수요가 평균 19.2 / 피크 27 이었다. 소진된 상태에서
+        #   문장마다 찔러봐야 **실패해도 요청은 나가고**(회복이 늦어진다) 첫소리만 늘어난다.
+        #   ⛔ 프로세스 전역으로 고정하면 쿼터가 회복돼도 영영 Chirp 이다 — 세션 단위여야 한다.
+        allow_gemini = not self._tts_gemini_off
+        if allow_gemini and self._tts_vendor() != tts.CHIRP3_ENGINE:
+            # 백오프 전까지의 Gemini 호출 수 — ①(요청 수 줄이기)의 효과를 재는 유일한 값이다
+            # (백오프가 호출 자체를 막으므로 tts_calls 로는 못 잰다).
+            self._tts_gemini_calls += 1
         stream = await tts.synthesize_stream(
             sentence,
             language=language,
             voice=settings.CASCADE_TTS_VOICE,
             report=report,
+            allow_gemini=allow_gemini,
         )
         sent = await speak_stream(self.beaver, stream, sentence)
         # ⭐ 내보낸 오디오 초 — Gemini-TTS 단가의 기준(문자가 아니라 출력 오디오 토큰이다).
@@ -1265,6 +1297,14 @@ class CascadeSession:
         engine = report.get("engine")
         if engine:
             self._tts_engines.add(engine)
+        if report.get("quota") and not self._tts_gemini_off:
+            # ⛔ 엔진이 통화 중간에 바뀐 사실을 반드시 남긴다 — A/B 판정이 이 줄에 걸린다.
+            self._tts_gemini_off = True
+            logger.warning(
+                "cascade tts 엔진 고정: gemini 호출 %d회 만에 429(분당 쿼터) → 이 통화 동안 %s "
+                "로 고정한다(다음 통화는 다시 gemini 로 시작)",
+                self._tts_gemini_calls, tts.CHIRP3_ENGINE,
+            )
         if report.get("fallback_from"):
             # 폴백은 A/B 비교를 오염시킨다 — 이 통화의 '첫소리'가 어느 엔진 것인지 흐려진다.
             # 로그 한 줄로 드러내고, 원가는 **실제로 소리를 낸 엔진** 이름으로 남긴다.

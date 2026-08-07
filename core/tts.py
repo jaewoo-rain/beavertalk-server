@@ -176,6 +176,7 @@ async def synthesize_stream(
     voice: str | None = None,
     sample_rate: int = CASCADE_TTS_SAMPLE_RATE,
     report: dict | None = None,
+    allow_gemini: bool = True,
 ) -> "Any":
     """문장 하나를 PCM16/24k 조각으로 흘린다(async generator). 키 부재·실패면 **아무것도 안 낸다**.
 
@@ -250,7 +251,7 @@ async def synthesize_stream(
                             continue
                 yield chunk
 
-        if engine == GEMINI_ENGINE:
+        if engine == GEMINI_ENGINE and allow_gemini:
             model = (settings.CASCADE_TTS_GEMINI_MODEL or "").strip()
             produced = False
             try:
@@ -271,13 +272,19 @@ async def synthesize_stream(
                 # ⚠ **모델 ID 를 반드시 찍는다.** Cloud TTS 의 model_name 과 Gemini API 의
                 #   모델 ID 는 문자열 규칙이 다르다 — ID 가 틀려서 거절된 건지, 다른 이유로
                 #   실패한 건지 이 줄로 갈린다. env 로 다른 ID 를 넣어 재시험할 때의 근거다.
+                quota = _is_quota_error(exc)
                 logger.warning(
-                    "tts 폴백: engine=gemini-tts model=%s 실패사유=%r → %s 로 대체(A/B 로그를 "
-                    "이 줄로 보정해라)",
-                    model, str(exc)[:200], CHIRP3_ENGINE,
+                    "tts 폴백: engine=gemini-tts model=%s 쿼터=%s 실패사유=%r → %s 로 대체"
+                    "(A/B 로그를 이 줄로 보정해라)",
+                    model, quota, str(exc)[:200], CHIRP3_ENGINE,
                 )
                 if report is not None:
                     report["fallback_from"] = model
+                    if quota:
+                        # ⭐ 호출부(세션)가 이 통화 동안 Gemini 재시도를 멈추게 하는 신호다.
+                        #   소진된 상태에서 문장마다 찔러봐야 **실패해도 요청은 나가고**
+                        #   회복만 늦춘다(그리고 첫소리도 그만큼 늘어난다).
+                        report["quota"] = True
 
         try:
             async for chunk in _one(None, "", CHIRP3_ENGINE):
@@ -319,6 +326,24 @@ def build_streaming_config(
             sample_rate_hertz=sample_rate,
         ),
     )
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    """분당 요청 쿼터 초과(429)인가 — 다른 실패와 **구분해야** 한다.
+
+    쿼터는 '잠깐 기다리면 되는' 실패라 재시도가 의미 있는 다른 오류와 대응이 다르다.
+    타입으로 먼저 보고(설치돼 있으면), 없으면 메시지로 본다 — 벤더 라이브러리가 예외를
+    감싸 던지는 경우가 있어 타입만 믿으면 놓친다.
+    """
+    try:
+        from google.api_core import exceptions as gexc
+
+        if isinstance(exc, gexc.ResourceExhausted):
+            return True
+    except Exception:  # noqa: BLE001 - 미설치 환경
+        pass
+    text = str(exc)
+    return "429" in text or "Quota exceeded" in text or "RESOURCE_EXHAUSTED" in text
 
 
 def _log_first_bytes(chunk: bytes, engine: str) -> None:

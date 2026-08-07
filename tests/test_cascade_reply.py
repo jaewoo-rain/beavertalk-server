@@ -538,3 +538,94 @@ async def test_marker_state_is_logged_for_every_sentence(reply_rig, monkeypatch,
     # 통화 내용이 로그로 새지 않는다
     assert all("How are you" not in line for line in lines), lines
     assert session._marker_seen == {"있음": 1, "없음": 1, "짝안맞음": 1}
+
+
+@pytest.mark.asyncio
+async def test_first_sentence_alone_then_batched(reply_rig, monkeypatch):
+    """⭐ 요청 수를 줄이되 **첫 소리는 안 늦춘다** — 첫 문장 단독, 나머지는 묶음.
+
+    2026-08-07 실통화에서 문장마다 스트림을 여느라 턴당 7회(57 calls/8턴)까지 갔고 분당 요청
+    쿼터에 걸려 429 → 다른 엔진으로 폴백 → 한 대답 안에서 목소리가 섞였다.
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_BATCH_CHARS", 1000)   # 끝까지 안 끊기게
+
+    def _open(client, model, **kwargs):
+        chat = _FakeChat(["첫 번째 문장입니다. ", "두 번째 문장입니다. ", "세 번째 문장입니다."])
+        reply_rig["chat"] = chat
+        return chat
+
+    monkeypatch.setattr(cs.gemini_chat, "open_chat_stream", _open)
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
+
+    calls = reply_rig["tts_calls"]
+    assert len(calls) == 2, calls                 # 문장 3개인데 요청은 2번
+    assert calls[0] == "첫 번째 문장입니다."       # 첫 문장은 단독 = 첫 소리 유지
+    assert calls[1] == "두 번째 문장입니다. 세 번째 문장입니다."
+
+
+@pytest.mark.asyncio
+async def test_batch_flushes_at_the_cap(reply_rig, monkeypatch):
+    """묶음이 무한정 커지면 뒤쪽 첫 소리가 늦는다 — 상한에서 끊어 보낸다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_BATCH_CHARS", 8)
+
+    def _open(client, model, **kwargs):
+        chat = _FakeChat(["첫 번째 문장입니다. ", "두 번째 문장입니다. ", "세 번째 문장입니다."])
+        reply_rig["chat"] = chat
+        return chat
+
+    monkeypatch.setattr(cs.gemini_chat, "open_chat_stream", _open)
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
+    assert reply_rig["tts_calls"] == [
+        "첫 번째 문장입니다.", "두 번째 문장입니다.", "세 번째 문장입니다."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_quota_429_pins_engine_for_this_call_only(reply_rig, monkeypatch, caplog):
+    """⭐ 429 를 한 번 맞으면 **이 통화 동안** Gemini 재시도를 멈춘다(다음 통화는 다시 시작).
+
+    실측: 한도 분당 10회 / 수요 평균 19.2·피크 27. 소진된 상태에서 문장마다 찔러봐야
+    실패해도 요청은 나가고(회복이 늦어진다) 첫소리만 늘어난다. 그리고 통화 중간에 엔진이
+    왔다갔다 하면 목소리가 바뀐다.
+    """
+    import logging
+
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "gemini-tts")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_GEMINI_MODEL", "gemini-2.5-flash-tts")
+    allowed: list[bool] = []
+
+    async def _tts(text, **kwargs):
+        allowed.append(kwargs.get("allow_gemini"))
+        report = kwargs.get("report")
+        if report is not None and kwargs.get("allow_gemini"):
+            report["quota"] = True           # 첫 호출에서 429
+            report["fallback_from"] = "gemini-2.5-flash-tts"
+            report["engine"] = cs.tts.CHIRP3_ENGINE
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    await session.beaver.begin()
+    with caplog.at_level(logging.WARNING):
+        await session._speak("첫 번째 문장입니다.")
+        await session._speak("두 번째 문장입니다.")
+
+    assert allowed == [True, False], allowed          # 두 번째부터는 안 찌른다
+    assert session._tts_gemini_calls == 1             # ①의 효과를 재는 값
+    assert any("엔진 고정" in r.getMessage() for r in caplog.records), caplog.text
+    # ⛔ 세션 단위여야 한다 — 새 세션은 다시 gemini 로 시작한다
+    fresh = CascadeSession(_Transport([]), genai_client=object())
+    assert fresh._tts_gemini_off is False
