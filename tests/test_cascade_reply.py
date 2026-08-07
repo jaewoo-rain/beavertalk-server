@@ -391,3 +391,60 @@ class _StubGroup:
         self.started = True
         coro.close()          # 실행하지 않는다(경고 방지)
         return None
+
+
+# --------------------------------------------------------------------------- #
+# barge-in 기각 뒤의 발화 (2026-08-07 사장님 통화)
+#   "중간에 말하면 마이크 인식은 되어서 전사는 되는데 대답이 끊기지도 않고,
+#    대답 다 해도 내가 중간에 말한 거에 대한 답변을 하지 않아"
+#   기각의 뜻은 "비버를 끊지 않는다"지 "사용자 말을 무시한다"가 아니다.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_rejected_bargein_utterance_still_gets_answered(reply_rig, monkeypatch):
+    """⭐ 비버가 말하는 중에 한 말도 **대답이 끝난 뒤 답을 받는다**(버리지 않는다)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", False)   # barge-in 은 기각된다
+    reply_rig["chunk_delay"] = 0.03
+    reply_rig["chunks"] = 8
+
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.12,                                   # 비버가 말하는 중
+        _ctl(type="__test_say", text="지금 몇 시야"),   # 끼어들어 말한다(기각될 것)
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.9,
+        _ctl(type="stop"),
+    ], wait_for="__never__")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    # 두 발화 모두 사용자 턴으로 잡혔다(전사만 뜨고 사라지지 않았다)
+    said = [e["text"] for e in transport.events if e.get("type") == "user_turn_end"]
+    assert "지금 몇 시야" in said, transport.events
+    # 그리고 그 발화가 **답을 받았다** — 이력에 사용자 발화로 들어갔다는 게 증거다
+    assert any(h["role"] == "user" and h["text"] == "지금 몇 시야" for h in session._history), \
+        session._history
+
+
+@pytest.mark.asyncio
+async def test_echo_of_beaver_is_not_answered(reply_rig, monkeypatch):
+    """⚠ 반대쪽 — 비버 자기 목소리가 전사된 것에는 답하지 않는다(자기 말에 답하면 안 된다)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", False)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    session._tg = _StubGroup()
+    session._history.append({"role": "model", "text": "안녕하세요 반갑습니다. 오늘 기분은 어떠세요?"})
+
+    session._start_reply("오늘 기분은 어떠세요")      # 비버 대사와 겹친다 = 에코
+    assert session._tg.started is False, "비버가 자기 말에 답하려 했다"
+
+    session._start_reply("저는 학교에 갔어요")        # 진짜 발화는 답한다
+    assert session._tg.started is True
+
+
+def test_short_backchannel_is_not_treated_as_echo():
+    """짧은 맞장구는 겹침으로 못 가른다 — 에코로 몰아 버리면 진짜 발화를 잃는다."""
+    session = CascadeSession(_Transport([]), genai_client=object())
+    session._history.append({"role": "model", "text": "네 맞아요 그렇죠"})
+    assert session._looks_like_echo("네") is False
+    assert session._looks_like_echo("맞아요") is False

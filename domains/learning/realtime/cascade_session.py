@@ -37,6 +37,7 @@ import json
 import logging
 import math
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
@@ -92,6 +93,13 @@ _LAG_SANITY_MS = 3000
 # 오프셋이 우리 카운터보다 살짝 앞설 수는 있다(우리가 센 바이트와 엔진이 받은 바이트의 미세한
 # 시차). 이만큼은 정상으로 본다.
 _OFFSET_FUTURE_TOLERANCE_MS = 500
+# barge-in 에너지 이력: 이만큼의 오디오를 (시각, RMS)로 들고 있다가 **이벤트가 가리키는
+# 시각**에서 찾아본다. 파이프라인 지연(실측 0.8~0.9초)보다 넉넉해야 한다.
+_RMS_HISTORY_MS = 4000
+_RMS_WINDOW_MS = 400        # 그 시각 ± 이 범위에서 가장 큰 에너지를 본다
+# 에코 판정: 이보다 짧은 발화는 겹침을 재도 의미가 없다(짧은 맞장구를 버리면 더 나쁘다).
+_ECHO_MIN_CHARS = 6
+_ECHO_OVERLAP = 0.6         # 글자 2-gram 이 이 비율 이상 겹치면 비버 자기 목소리로 본다
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
 
 
@@ -438,6 +446,10 @@ class CascadeSession:
         # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
         self._bargein_at: float | None = None
         self._interrupted: dict | None = None
+        # 비버가 말하는 동안 들어온 발화(대답이 끝나면 답한다) / 지금 비버가 하는 말(에코 판정)
+        self._pending_user_text = ""
+        self._speaking_text = ""
+        self._rms_log: deque[tuple[float, float]] = deque()
         self.state = TurnState.IDLE
         self._q: asyncio.Queue[Any] = asyncio.Queue()
         self._t0 = time.monotonic()
@@ -606,7 +618,15 @@ class CascadeSession:
                 # 오디오 타임라인을 서버가 직접 센다 — 턴 타이머와 지연 계측의 기준자다.
                 self._audio_ms += len(inb.audio) / (self._sample_rate * 2) * 1000.0
                 if settings.CASCADE_BARGEIN_RMS > 0:
-                    self._recent_rms = _frame_rms(inb.audio)
+                    # ⭐ **에너지도 오디오 시각과 함께** 남긴다(2026-08-07, 오늘 세 번째 '두 시계').
+                    #   예전엔 '지금 프레임의 RMS' 한 값만 들고 있었는데, barge-in 판정은
+                    #   **~800ms 전 오디오**를 가리키는 speech_begin 으로 일어난다. 짧게 말하면
+                    #   이벤트가 도착했을 땐 이미 조용해서 RMS≈0 → 기각(실측 0.0000~0.0017).
+                    #   그래서 **그때 그 오디오의 에너지**를 찾아볼 수 있게 짧은 이력을 둔다.
+                    self._rms_log.append((self._audio_ms, _frame_rms(inb.audio)))
+                    cutoff = self._audio_ms - _RMS_HISTORY_MS
+                    while self._rms_log and self._rms_log[0][0] < cutoff:
+                        self._rms_log.popleft()
                 await stream.push_audio(inb.audio)
 
     # ── ② STT → 큐 (읽기 전용) ──
@@ -729,7 +749,13 @@ class CascadeSession:
                 await self._confirm_bargein(event, "전사 확인")
             elif not event.text.strip():
                 return
-        if self.state == TurnState.IDLE:
+        # ⭐ **열린 턴이 없으면 연다 — 비버가 말하는 중이어도.**(2026-08-07)
+        #   예전엔 `state == IDLE` 일 때만 열었다. 그러면 barge-in 이 기각된 뒤 사용자가 말하면
+        #   state 가 BEAVER_SPEAKING 인 채라 **턴이 안 열리고**, 전사는 화면에 뜨는데
+        #   (input_transcript 는 그대로 나간다) 닫을 턴이 없어 **LLM 이 영영 안 불렸다.**
+        #   사장님 증상이 정확히 이것이었다: "전사는 되는데 대답이 없어."
+        #   기각의 의미는 "비버를 끊지 않는다"지 "사용자 말을 무시한다"가 아니다.
+        if self._turn_id is None:
             if self._is_stale_tail(event):
                 return
             # 방어: VAD BEGIN 없이 전사가 먼저 오는 엔진/설정도 있다. 전사를 턴 시작으로 본다.
@@ -840,7 +866,12 @@ class CascadeSession:
         self._partial = ""
         self._close_at = None
         self._turn_deadline = at + max(5, settings.CASCADE_TURN_MAX_S)
-        self.state = TurnState.USER_SPEAKING
+        # ⛔ 비버가 말하는 중이면 **상태를 뺏지 않는다.** 마이크가 열려 있으면 사용자 턴과
+        #   비버 턴은 겹칠 수 있다(그게 barge-in 이 가능한 이유다). 여기서 상태를 덮으면
+        #   비버 쪽 취소·종료 경로가 자기 상태를 잃는다.
+        if self.state not in (TurnState.BEAVER_SPEAKING, TurnState.THINKING,
+                              TurnState.CANCELLING):
+            self.state = TurnState.USER_SPEAKING
         await self._safe(ServerUserTurnStart(turn_id=self._turn_id, at_ms=self._ms(at)))
 
     async def _close_turn(self, reason: str = "silence") -> None:
@@ -888,7 +919,9 @@ class CascadeSession:
         self._turn_deadline = None
         self._finals = []
         self._partial = ""
-        self.state = TurnState.IDLE
+        # 비버가 말하는 중이었다면 그 상태를 그대로 둔다(위 _open_turn 과 같은 이유).
+        if self.state == TurnState.USER_SPEAKING:
+            self.state = TurnState.IDLE
         # ⭐ 여기서 비버가 대답한다(P1). ⛔ 빈 텍스트면 부르지 않는다 — 빈 입력 LLM 호출은
         # 원가만 나가고 헛대답을 만든다(결함 C 판단, 2026-08-07).
         if text:
@@ -936,13 +969,17 @@ class CascadeSession:
             logger.info("cascade barge-in 기각 — 마이크 상시개방 OFF(에코/게이팅 잔여 추정)")
             return False
         # ① 에너지 임계 — 잔여 에코는 대개 original 보다 작다(0 이면 비활성).
+        #   ⛔ **'지금'이 아니라 '그 이벤트가 가리키는 오디오'의 에너지를 본다.** 임계값은
+        #   그대로다(에코 리그 실측으로 잡을 값이다) — 고친 건 **언제 재느냐**다.
         threshold = settings.CASCADE_BARGEIN_RMS
-        if threshold > 0 and self._recent_rms < threshold:
-            logger.info(
-                "cascade barge-in 기각 — 에너지 %.4f < 임계 %.4f(에코 추정)",
-                self._recent_rms, threshold,
-            )
-            return False
+        if threshold > 0:
+            rms = self._rms_at(event.offset_ms)
+            if rms < threshold:
+                logger.info(
+                    "cascade barge-in 기각 — 에너지 %.4f < 임계 %.4f(에코 추정, offset=%d)",
+                    rms, threshold, event.offset_ms,
+                )
+                return False
         # ② 최소 지속 — 순간 튐으로 비버를 끊지 않는다.
         min_ms = max(0, settings.CASCADE_BARGEIN_MIN_MS)
         # ⚠ min_ms=0 이어도 여기서 바로 True 를 돌려주면 **아래 ③ 전사 확인이 통째로
@@ -963,6 +1000,54 @@ class CascadeSession:
             logger.info("cascade barge-in 보류 — 전사 확인 대기(잡음이면 여기서 끝난다)")
             return False
         return True
+
+    def _looks_like_echo(self, text: str) -> bool:
+        """비버가 방금 한(또는 하는 중인) 말과 겹치나 — 겹치면 **에코**다.
+
+        ⛔ 이게 없으면 (A)가 위험해진다: 기각된 발화도 답하게 만들었으므로, 그게 에코라면
+        **비버가 자기 말에 답한다.** 잡음은 전사를 못 만들지만 에코는 만든다 — 그래서
+        "전사가 나왔다"만으로는 못 가른다. 우리는 비버 대사를 갖고 있으니 그걸로 가른다.
+
+        판정은 글자 2-gram 겹침이다(전사는 조사·띄어쓰기가 흔들려서 완전일치로는 못 잡는다).
+        짧은 맞장구("네", "응")는 겹침을 재기엔 정보가 없어 **에코로 보지 않는다** — 진짜
+        발화를 버리는 쪽이 더 나쁘다.
+        """
+        probe = "".join((text or "").split())
+        if len(probe) < _ECHO_MIN_CHARS:
+            return False
+        said = self._beaver_said_recently()
+        if not said:
+            return False
+        grams = {probe[i:i + 2] for i in range(len(probe) - 1)}
+        if not grams:
+            return False
+        hit = sum(1 for g in grams if g in said)
+        return hit / len(grams) >= _ECHO_OVERLAP
+
+    def _beaver_said_recently(self) -> str:
+        """비버가 방금 한 말(이력의 마지막 model 발화 + 지금 생성 중인 대사)."""
+        parts = [self._speaking_text]
+        for item in reversed(self._history):
+            if item.get("role") == "model":
+                parts.append(item.get("text") or "")
+                break
+        return "".join("".join(p.split()) for p in parts)
+
+    def _rms_at(self, offset_ms: int) -> float:
+        """그 오디오 시각 부근의 **최대** 에너지. 이력이 없으면 0.
+
+        최대를 쓰는 이유: 이벤트 오프셋에는 오차가 있고(엔진마다 기준이 다르다 — 결함 A),
+        발화의 시작 프레임은 원래 작다. 창 안에서 가장 큰 값이 "그때 소리가 났나"에 가장
+        가까운 답이다. 오프셋을 모르면(거절됐거나 미제공) **최근 창 전체**에서 찾는다 —
+        그 경우 관문이 느슨해지지만, 발화를 통째로 버리는 쪽이 더 나쁘다.
+        """
+        if not self._rms_log:
+            return 0.0
+        if offset_ms < 0:
+            return max(rms for _, rms in self._rms_log)
+        lo, hi = offset_ms - _RMS_WINDOW_MS, offset_ms + _RMS_WINDOW_MS
+        window = [rms for at, rms in self._rms_log if lo <= at <= hi]
+        return max(window) if window else max(rms for _, rms in self._rms_log)
 
     def _audible_ms(self) -> int:
         """지금 비버 턴에서 **사용자가 들었을** 오디오 길이(ms, 짧은 쪽 편향 추정)."""
@@ -1013,9 +1098,18 @@ class CascadeSession:
     def _start_reply(self, user_text: str, is_greeting: bool = False) -> None:
         if not self._reply_enabled() or not user_text.strip():
             return
+        if self._looks_like_echo(user_text):
+            # ⛔ 비버 자기 목소리가 전사된 것 — 답하면 **비버가 자기 말에 답한다.**
+            logger.info("cascade 발화 무시 — 비버 대사와 겹친다(에코 추정): %r", user_text[:40])
+            return
         if self._reply_task is not None and not self._reply_task.done():
-            # 앞 대답이 아직 흐르는 중이면 새 대답을 겹치지 않는다(불변식 I1 — 턴 1개).
-            logger.info("cascade 대답이 이미 진행 중 — 이번 발화는 건너뛴다")
+            # 앞 대답이 흐르는 중이면 겹쳐 말하지 않는다(불변식 I1 — 비버 턴은 하나).
+            # ⭐ 그렇다고 **버리지도 않는다**(2026-08-07). 예전엔 여기서 그냥 건너뛰어서
+            #   "대답 다 해도 내가 중간에 말한 거에 답을 안 해" 가 됐다. 줄 세워 뒀다가
+            #   대답이 끝나면 그때 답한다.
+            self._pending_user_text = user_text
+            logger.info("cascade 발화 대기열 — 비버가 말하는 중이라 대답 뒤로 미룬다: %r",
+                        user_text[:40])
             return
         self.state = TurnState.THINKING
         self._reply_task = self._tg.create_task(self._run_reply(user_text, is_greeting))
@@ -1042,6 +1136,7 @@ class CascadeSession:
         first_audio_ms = -1
         try:
             async for piece in chat.chunks():
+                self._speaking_text = chat.text     # 에코 판정 재료(지금 하는 말)
                 for sentence in buffer.push(piece):
                     turn_id = turn_id or await self._begin_beaver_turn()
                     sent = await self._speak(sentence)
@@ -1075,9 +1170,23 @@ class CascadeSession:
         except InvariantError:
             logger.info("cascade 대답 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
         finally:
+            self._speaking_text = ""
             self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
             if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
                 self.state = TurnState.IDLE
+            self._drain_pending_user_text()
+
+    def _drain_pending_user_text(self) -> None:
+        """비버가 말하는 동안 들어온 발화에 **이제** 답한다(줄 세워 둔 것 하나).
+
+        ⛔ 여기서 안 부르면 그 발화는 영영 답을 못 받는다 — 사장님이 겪으신 그 증상이다.
+        """
+        pending, self._pending_user_text = self._pending_user_text, ""
+        if not pending:
+            return
+        self._reply_task = None      # 방금 끝난 태스크 참조를 비워야 새 대답이 시작된다
+        logger.info("cascade 대기열 발화에 답한다: %r", pending[:40])
+        self._start_reply(pending)
 
     async def _begin_beaver_turn(self) -> str:
         self.state = TurnState.BEAVER_SPEAKING
