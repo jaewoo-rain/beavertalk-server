@@ -9,6 +9,9 @@ env 하나로 왔다갔다 하고, 느리면 1분 안에 되돌린다.
   ③ ⭐ gemini 가 실패하면 **Chirp3-HD 로 폴백하되 조용히 하지 않는다**(WARNING + report)
      — 조용한 폴백은 "제미나이가 느리다"를 "제미나이인 줄 알았는데 Chirp 였다"로 만든다
   ④ 이미 소리가 나가던 중 끊기면 폴백하지 않는다(같은 문장을 두 번 말하게 된다)
+  ⑤ ⛔ **엔진마다 음성명 형식이 다르다** — Chirp 'ko-KR-Chirp3-HD-Sulafat' / Gemini 'Sulafat'.
+     섞으면 400 "Gemini models cannot be used with non-Gemini voices." 또는 404 다.
+     실사격에서만 드러난 결함이라, 테스트가 없으면 다음 리팩터에 "통일하자"며 되돌아온다.
 """
 
 import logging
@@ -92,7 +95,7 @@ async def test_default_stays_on_chirp3(rig):
 
 @pytest.mark.asyncio
 async def test_gemini_engine_sends_model_and_style_prompt(rig):
-    """② 켜면 모델 id 와 감정 지시가 실제로 요청에 실린다(음색 이름은 그대로 — 재매핑 0)."""
+    """② 켜면 모델 id·감정 지시가 실리고, 음성명은 **맨이름**으로 나간다."""
     client = rig(
         _FakeClient(),
         CASCADE_TTS_ENGINE="gemini-tts",
@@ -103,7 +106,10 @@ async def test_gemini_engine_sends_model_and_style_prompt(rig):
     await _drain(await tts.synthesize_stream("안녕하세요", voice="Fenrir", report=report))
     voice = _voice_of(client)
     assert voice.model_name == "gemini-2.5-flash-tts"
-    assert voice.name.endswith("-Chirp3-HD-Fenrir")   # 음색 이름 체계가 같아 그대로 쓴다
+    # ⛔ Gemini 는 **맨이름**만 받는다. 접두어를 붙이면 400 "Gemini models cannot be used
+    #   with non-Gemini voices." 다(2026-08-07 실사격 확인). 로스터는 공유하지만 형식이 다르다.
+    assert voice.name == "Fenrir"
+    assert voice.language_code == "ko-KR"
     assert _input_of(client).prompt == "밝게 천천히"
     assert report["engine"] == "gemini-2.5-flash-tts"
 
@@ -123,7 +129,11 @@ async def test_gemini_failure_falls_back_loudly(rig, caplog):
     assert report["fallback_from"] == "gemini-2.5-flash-tts"
     assert report["engine"] == tts.CHIRP3_ENGINE     # 원가·로그는 **실제로 낸 엔진**으로
     assert any("폴백" in r.getMessage() for r in caplog.records), caplog.text
-    assert _voice_of(client, 1).model_name == ""     # 두 번째 시도는 Chirp3-HD
+    second = _voice_of(client, 1)
+    assert second.model_name == ""                   # 두 번째 시도는 Chirp3-HD
+    # ⭐ 폴백은 이름 형식도 같이 바꿔야 한다 — 맨이름 그대로 보내면 Chirp 이 404 를 낸다.
+    assert second.name == "ko-KR-Chirp3-HD-Aoede"
+    assert _voice_of(client, 0).name == "Aoede"
 
 
 @pytest.mark.asyncio

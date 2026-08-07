@@ -46,8 +46,19 @@ _LABEL_TO_CODE: dict[str, str] = {
     "중국어": "zh", "프랑스어": "fr", "베트남어": "vi",
 }
 
-# Chirp3-HD 프리빌트 음성 30종. 이름이 Gemini Live 캐릭터 voice 와 동일 —
-# 통화 캐릭터의 voice(예: "Fenrir")를 그대로 넘기면 표현 오디오가 같은 목소리로 난다.
+# 프리빌트 음성 30종. **로스터(이름 목록)는 Gemini Live 캐릭터 voice·Gemini-TTS 와 같다** —
+# 통화 캐릭터의 voice(예: "Fenrir")가 그대로 이 목록에 있다.
+# ⛔ 그런데 **API 가 요구하는 문자열 형식은 엔진마다 다르다**(2026-08-07 실사격으로 확인):
+#     Chirp3-HD   : 'ko-KR-Chirp3-HD-Sulafat'   (언어·계열 접두어)
+#     Gemini-TTS  : 'Sulafat'                   (맨이름)
+#   섞으면 400 "Gemini models cannot be used with non-Gemini voices." / 404 Voice not found 다.
+#   그래서 로스터는 공유하되(오타 방어) **문자열은 엔진별로 만든다**(_resolve_voice).
+#
+# ⭐ 오늘 같은 함정을 **세 번** 밟았다. "같은 구글이니 같은 규칙일 것"이 세 번 다 틀렸다:
+#     ① LINEAR16   — 비스트리밍엔 유효, 스트리밍엔 무효(400)
+#     ② 모델 ID     — Cloud TTS 의 model_name 과 Gemini API 모델 ID 가 다른 문자열
+#     ③ 음성명 형식 — 위 두 줄
+#   다음 사람에게: **문서로 같아 보여도 한 번 쏴보고 확정해라.** 셋 다 실사격에서만 드러났다.
 _CHIRP3_HD_VOICES: frozenset[str] = frozenset({
     "Achernar", "Achird", "Algenib", "Algieba", "Alnilam", "Aoede", "Autonoe",
     "Callirrhoe", "Charon", "Despina", "Enceladus", "Erinome", "Fenrir", "Gacrux",
@@ -57,16 +68,27 @@ _CHIRP3_HD_VOICES: frozenset[str] = frozenset({
 })
 
 
-def _resolve_voice(language: str, voice: str | None = None) -> tuple[str, str]:
-    """(languageCode, voice_name) 반환.
+def _resolve_voice(
+    language: str, voice: str | None = None, gemini: bool = False
+) -> tuple[str, str]:
+    """(languageCode, voice_name) 반환. **엔진에 따라 이름 형식이 다르다.**
 
-    언어(코드 'ja' 또는 라벨 '일본어')로 언어를 정하고, voice(캐릭터 Chirp3-HD 이름)가
-    유효하면 그 목소리(캐릭터 음색)를, 아니면 언어 기본 음성을 쓴다. 미상 언어는 ko 폴백.
+    언어(코드 'ja' 또는 라벨 '일본어')로 언어를 정하고, voice(캐릭터 음색 이름)가 로스터에
+    있으면 그 목소리를, 아니면 언어 기본 음성을 쓴다. 미상 언어는 ko 폴백.
+
+    gemini=True 면 **맨이름**('Sulafat')을 돌려준다. Gemini-TTS 는 접두어가 붙은 이름을
+    거절한다(400 "Gemini models cannot be used with non-Gemini voices."). 기본값(False)은
+    Chirp3-HD 형식('ko-KR-Chirp3-HD-Sulafat') 그대로 — ⛔ 비스트리밍 synthesize()(표현
+    오디오)가 이 경로를 쓰므로 **기본 동작을 바꾸면 안 된다.**
     """
     code = _LABEL_TO_CODE.get((language or "").strip(), (language or "ko").strip().lower())
     lang_code, default_name = _VOICE_BY_LANG.get(code, _VOICE_BY_LANG["ko"])
-    if voice and voice.strip() in _CHIRP3_HD_VOICES:
-        return lang_code, f"{lang_code}-Chirp3-HD-{voice.strip()}"
+    picked = voice.strip() if voice and voice.strip() in _CHIRP3_HD_VOICES else ""
+    if gemini:
+        # 로스터에 없으면 언어 기본 음성의 맨이름으로 떨어진다('ko-KR-Chirp3-HD-Aoede' → 'Aoede').
+        return lang_code, picked or default_name.rsplit("-", 1)[-1]
+    if picked:
+        return lang_code, f"{lang_code}-Chirp3-HD-{picked}"
     return lang_code, default_name
 
 
@@ -177,7 +199,10 @@ async def synthesize_stream(
     cli = _client()
     if cli is None:
         return _empty()
-    lang_code, voice_name = _resolve_voice(language, voice)
+    # ⛔ 엔진마다 **음성명 형식이 다르다** — 하나로 만들어 두 경로에 쓰면 400/404 가 난다.
+    #   Chirp3-HD 'ko-KR-Chirp3-HD-Sulafat' / Gemini-TTS 'Sulafat'(맨이름).
+    lang_code, chirp_voice = _resolve_voice(language, voice)
+    _, gemini_voice = _resolve_voice(language, voice, gemini=True)
 
     engine = (settings.CASCADE_TTS_ENGINE or CHIRP3_ENGINE).strip()
 
@@ -187,7 +212,10 @@ async def synthesize_stream(
         async def _one(model_name: str | None, style_prompt: str, label: str):
             """엔진 하나로 한 문장을 흘린다. (첫 조각을 냈는지, 실패 사유) 를 남긴다."""
             config = build_streaming_config(
-                lang_code, voice_name, sample_rate, model_name=model_name
+                lang_code,
+                gemini_voice if model_name else chirp_voice,
+                sample_rate,
+                model_name=model_name,
             )
 
             async def _requests():

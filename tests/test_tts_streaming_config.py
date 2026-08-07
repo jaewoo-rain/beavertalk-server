@@ -46,3 +46,20 @@ def test_non_streaming_synthesize_is_untouched():
     source = inspect.getsource(tts.synthesize)
     assert "AudioEncoding.MP3" in source
     assert "streaming" not in source.lower()
+
+
+def test_voice_name_format_differs_per_engine():
+    """⛔ 로스터는 같지만 **문자열 형식이 다르다**(2026-08-07 실사격에서만 드러났다).
+
+        Chirp3-HD  : 'ko-KR-Chirp3-HD-Sulafat'  (언어·계열 접두어)
+        Gemini-TTS : 'Sulafat'                  (맨이름)
+    섞으면 400 "Gemini models cannot be used with non-Gemini voices." / 404 Voice not found.
+    """
+    assert tts._resolve_voice("ko", "Sulafat") == ("ko-KR", "ko-KR-Chirp3-HD-Sulafat")
+    assert tts._resolve_voice("ko", "Sulafat", gemini=True) == ("ko-KR", "Sulafat")
+    # 로스터에 없는 이름은 양쪽 다 언어 기본 음성으로 떨어진다(오타 방어는 유지).
+    assert tts._resolve_voice("ko", "없는목소리") == ("ko-KR", "ko-KR-Chirp3-HD-Aoede")
+    assert tts._resolve_voice("ko", "없는목소리", gemini=True) == ("ko-KR", "Aoede")
+    # 언어가 바뀌어도 규칙은 같다(일본어 Chirp 접두어 vs 맨이름).
+    assert tts._resolve_voice("ja", "Leda") == ("ja-JP", "ja-JP-Chirp3-HD-Leda")
+    assert tts._resolve_voice("ja", "Leda", gemini=True) == ("ja-JP", "Leda")
