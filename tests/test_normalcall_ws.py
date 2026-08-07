@@ -3379,3 +3379,83 @@ def test_live_thinking_tokens_raise_a_warning_not_a_silent_undercount(caplog):
     warned = [r for r in caplog.records if "사고 토큰" in r.getMessage()]
     assert warned and warned[0].levelno == logging.WARNING, \
         "사고 토큰이 관측됐는데 아무 신호도 안 나온다(조용한 과소 계상)"
+
+
+def test_gemini_tts_is_priced_by_audio_seconds_not_characters():
+    """Gemini-TTS 는 **출력 오디오 토큰**(1초=25tok) 과금이다 — 문자 수로 계산하면 틀린다."""
+    cost, unknown = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 450.0},
+    })
+    assert unknown == []
+    assert round(cost, 8) == round(450.0 * 25 * 10.00 / 1_000_000, 8)
+
+    # pro 는 flash 의 2배 단가 — 모델별로 갈라야 "어느 걸 들었나"와 원가가 맞는다.
+    pro, _ = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-pro-tts", "audio_s": 450.0},
+    })
+    assert round(pro, 8) == round(cost * 2, 8), "flash/pro 를 뭉개면 원가가 어긋난다"
+
+    # 가격표(Gemini API) 이름도 알아둔다 — 우리 경로로는 안 오지만 다른 경로로 올 수 있다.
+    for name in ("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"):
+        _, unk = svc.estimate_cascade_cost_usd({"tts": {"vendor": name, "audio_s": 10.0}})
+        assert unk == [], f"{name} 이 미상으로 빠진다"
+
+
+def test_every_cloud_tts_model_name_is_priced():
+    """⛔ **실제로 들어오는 건 Cloud TTS 이름이다.** 하나라도 빠지면 그 통화가 원가 표본에서 사라진다.
+
+    같은 모델인데 API 마다 이름이 다르다(Cloud TTS 'gemini-2.5-flash-tts' vs Gemini API
+    'gemini-2.5-flash-preview-tts'). 가격 페이지 이름만 코드에 남기면 **동작은 하는데 값이
+    안 잡히는** 조용한 실패가 된다 — LINEAR16 과 같은 종류의 함정이다.
+    """
+    assert svc.CLOUD_TTS_GEMINI_MODELS, "Cloud TTS 모델 목록이 비었다"
+    for name in svc.CLOUD_TTS_GEMINI_MODELS:
+        cost, unk = svc.estimate_cascade_cost_usd({"tts": {"vendor": name, "audio_s": 10.0}})
+        assert unk == [], f"{name} 이 미상으로 빠진다 — 그 통화 원가가 통째로 사라진다"
+        assert cost > 0, f"{name} 이 0 원으로 계산된다"
+
+
+def test_audio_seconds_win_over_characters_for_token_billed_tts():
+    """chars 가 같이 와도 **초를 쓴다.** 문자 단가를 곱하면 조용히 틀린 값이 나온다."""
+    only_secs, _ = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0},
+    })
+    both, unknown = svc.estimate_cascade_cost_usd({
+        # 실제 캐스케이드 요약은 chars 와 audio_s 를 **둘 다** 싣는다.
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0, "chars": 6000},
+    })
+    assert unknown == []
+    assert both == only_secs, "chars 가 섞여 들어와 계산이 오염됐다"
+    # 문자 단가($30/1M)로 계산했다면 나왔을 값과 달라야 한다(같으면 잘못된 경로를 탄 것).
+    assert round(both, 8) != round(6000 * 30.0 / 1_000_000, 8)
+
+
+def test_token_billed_tts_without_audio_seconds_is_flagged_not_guessed():
+    """⛔ chars 만 오면 **추정하지 않는다.** 문자→초 환산은 말하는 속도에 따라 배로 틀린다."""
+    cost, unknown = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "chars": 6000},
+    })
+    assert cost == 0.0
+    assert unknown and "audio_s" in unknown[0], "왜 못 쟀는지가 안 드러난다"
+
+    # 반대로 문자 과금 엔진은 chars 로 정상 계산된다(기존 동작 무변경).
+    chirp, unk = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 6000},
+    })
+    assert unk == [] and round(chirp, 8) == round(6000 * 30.0 / 1_000_000, 8)
+
+    # 초는 왔는데 모르는 벤더 → 조용히 0 원이 되면 안 된다.
+    _, unk2 = svc.estimate_cascade_cost_usd({"tts": {"vendor": "무명TTS", "audio_s": 100.0}})
+    assert unk2 == ["tts:무명TTS"]
+
+
+def test_gemini_tts_input_text_tokens_are_added_when_present():
+    """입력 텍스트 토큰은 선택이지만, 오면 더한다(출력 대비 1% 미만이라 없어도 무방)."""
+    base, _ = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0},
+    })
+    withtext, unknown = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0, "in_text": 1_500},
+    })
+    assert unknown == []
+    assert round(withtext - base, 10) == round(1_500 * 0.50 / 1_000_000, 10)
