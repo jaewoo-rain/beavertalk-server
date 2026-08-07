@@ -179,6 +179,22 @@ _INVARIANTS_TEMPLATE = """너는 '비버' — 아래 [페르소나]의 인물이
    - 교정할 때는 틀린 부분을 {locale_label}로 짚고, 올바른 {target} '○○○'를 단독으로 또박또박 다시 들려줘라 — 감싸는 말투는 네 캐릭터대로(공손한 "이렇게 말해요"를 강요하지 마라).
 5. 응답 길이: 매 응답은 1~4문장으로 짧게. 혼자 길게 떠들지 말고 학습자가 말할 차례를 자주 줘라. 통화 시작 시 네가 먼저 말을 건다(선톡)."""
 
+# 언어 마커 표기 규칙(캐스케이드 전용, 옵트인).
+# ⛔ **code-switching 규칙(불변 규칙 3)은 손대지 않는다.** 무엇을 어느 언어로 말할지는 거기서
+#   정하고, 이 블록은 **이미 정해진 그것을 어떻게 표기하느냐**만 얹는다.
+# 왜 따옴표가 아니라 __ 인가: 이 프롬프트는 이미 따옴표를 두 용도로 쓴다(대사 인용 / 특정
+#   표현만 타깃으로 들려주기). 언어 마커로 겹쳐 쓰면 충돌한다. __ 는 자연스러운 한국어·영어
+#   문장에 안 나오고, 마크다운 굵게 문법이라 모델이 잘 지킨다.
+_LANGUAGE_MARKER_RULE = """
+[표기 규칙 — 언어 마커]
+- {target} 로 말하는 부분은 __이렇게__ 밑줄 두 개로 감싸라. {locale_label} 부분은 감싸지 않는다.
+  예) 오늘은 __How are you?__ 를 배워볼까?
+- 서버가 이 경계로 잘라 **부분마다 그 언어의 목소리로 읽는다.** 안 감싸면 {locale_label}
+  발음으로 읽혀서 {target} 학습에 방해가 된다.
+- 마커는 소리 내어 읽는 기호가 아니다("밑줄"이라고 말하지 마라). 한 문장에 여러 번 써도 된다.
+- 무엇을 {target} 로 말할지는 위 규칙 3 그대로다 — 이 규칙은 **표기만** 정한다."""
+
+
 def _history_block(history: object | None) -> str:
     """최근 이력을 압축 블록으로 만든다(없으면 빈 문자열).
 
@@ -414,6 +430,7 @@ def build_system_instruction(
     promotion_notice: bool = False,
     lang_band: str = "beginner",
     close_tag: str = CLOSE_TAG_DEFAULT,
+    language_marker: bool = False,
 ) -> str:
     """normalcall Live 세션용 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -506,6 +523,14 @@ def build_system_instruction(
         parts.append(history_block)
     if promotion_notice:
         parts.append("\n" + _PROMOTION_NOTICE_TEMPLATE.format(locale_label=locale_label))
+    if language_marker:
+        # ⛔ 옵트인이다. 기본값(False)에서는 이 블록이 안 붙어 **기존 호출부의 출력이
+        #   바이트 동일**하다(스냅샷 테스트가 그걸 지킨다).
+        parts.append(
+            _LANGUAGE_MARKER_RULE.format(
+                target=target_language, locale_label=locale_label
+            )
+        )
     return "\n".join(parts)
 
 

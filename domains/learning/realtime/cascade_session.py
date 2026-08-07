@@ -74,7 +74,12 @@ from domains.learning.realtime.cascade_protocol import (
     ServerTestCancelReport,
     cascade_server_adapter,
 )
-from domains.learning.realtime.cascade_reply import SentenceBuffer, speak_stream
+from domains.learning.realtime.cascade_reply import (
+    SentenceBuffer,
+    speak_stream,
+    split_by_language,
+    strip_markers,
+)
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
 from domains.learning.realtime.protocol import ServerError, ServerPong
 
@@ -1193,7 +1198,27 @@ class CascadeSession:
         return await self.beaver.begin()
 
     async def _speak(self, sentence: str) -> int:
-        """문장 하나를 합성해 송출하고, **API 에 넘긴 문자 수**를 원가에 기록한다."""
+        """문장 하나를 **언어 구간별로** 합성해 송출한다.
+
+        비버는 타깃 언어 부분을 __이렇게__ 감싸서 낸다. 그 경계로 잘라 구간마다 그 언어로
+        읽는다 — 감싼 부분을 모국어 발음으로 읽으면 학습에 방해가 되기 때문이다.
+        마커가 없으면(또는 짝이 안 맞으면) 통째로 기본 언어로 나간다(설계 폴백).
+        """
+        segments = split_by_language(
+            sentence, settings.CASCADE_TTS_LANGUAGE, settings.CASCADE_TTS_TARGET_LANGUAGE
+        )
+        if len(segments) <= 1:
+            return await self._speak_one(strip_markers(sentence).strip(),
+                                         settings.CASCADE_TTS_LANGUAGE)
+        sent = 0
+        for text, language in segments:
+            sent += await self._speak_one(text, language)
+        return sent
+
+    async def _speak_one(self, sentence: str, language: str) -> int:
+        """구간 하나를 합성해 송출하고, **API 에 넘긴 문자 수**를 원가에 기록한다."""
+        if not sentence:
+            return 0
         # ⭐ 문자는 **API 에 넘기는 시점**에 센다. 과금은 우리가 텍스트를 보낸 순간 일어나므로,
         #   barge-in 으로 이 문장이 중간에 끊겨도(= 아래 await 가 취소돼 돌아오지 않아도)
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
@@ -1201,7 +1226,7 @@ class CascadeSession:
         report: dict = {}
         stream = await tts.synthesize_stream(
             sentence,
-            language=settings.CASCADE_TTS_LANGUAGE,
+            language=language,
             voice=settings.CASCADE_TTS_VOICE,
             report=report,
         )
@@ -1373,6 +1398,10 @@ class CascadeSession:
                 level_profile=settings.CASCADE_PERSONA_LEVEL,
                 locale=settings.CASCADE_PERSONA_LOCALE,
                 interests=[],
+                target_language=settings.CASCADE_TTS_TARGET_LANGUAGE_LABEL,
+                # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
+                #   출력이 바이트 동일하게 유지된다.
+                language_marker=True,
             )
         return self._system_cache
 

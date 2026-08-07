@@ -448,3 +448,64 @@ def test_short_backchannel_is_not_treated_as_echo():
     session._history.append({"role": "model", "text": "네 맞아요 그렇죠"})
     assert session._looks_like_echo("네") is False
     assert session._looks_like_echo("맞아요") is False
+
+
+# --------------------------------------------------------------------------- #
+# 언어 마커 (사장님 설계) — "오늘은 __How are you?__ 를 배워볼까?"
+#   타깃 언어 부분을 __ 로 감싸 오면 그 경계로 잘라 **구간마다 그 언어로** 읽는다.
+# --------------------------------------------------------------------------- #
+def test_marker_splits_into_language_segments():
+    from domains.learning.realtime.cascade_reply import split_by_language
+
+    segments = split_by_language("오늘은 __How are you?__ 를 배워볼까?", "ko", "en")
+    assert segments == [
+        ("오늘은", "ko"),
+        ("How are you?", "en"),
+        ("를 배워볼까?", "ko"),
+    ]
+
+
+def test_marker_absent_or_unbalanced_falls_back_whole():
+    """⛔ 마커 준수에 전부를 걸지 않는다 — 없거나 짝이 안 맞으면 통째로 기본 언어로 낸다."""
+    from domains.learning.realtime.cascade_reply import split_by_language
+
+    assert split_by_language("그냥 한국어 문장", "ko", "en") == [("그냥 한국어 문장", "ko")]
+    # 짝이 안 맞는다(모델이 반만 지켰다) — 말이 사라지는 것보다 통째로 내는 게 낫다.
+    assert split_by_language("오늘은 __How are you 를 배울까?", "ko", "en") == [
+        ("오늘은 How are you 를 배울까?", "ko")
+    ]
+
+
+def test_strip_markers_is_the_single_place():
+    """마커를 지우는 지점은 한 곳이다 — 나중에 DB·복습을 붙이는 사람이 헤매지 않게."""
+    from domains.learning.realtime.cascade_reply import strip_markers
+
+    assert strip_markers("오늘은 __How are you?__ 를") == "오늘은 How are you? 를"
+    assert strip_markers("") == ""
+
+
+@pytest.mark.asyncio
+async def test_each_language_segment_is_synthesized_with_its_language(reply_rig, monkeypatch):
+    """구간마다 **그 언어로** 합성 요청이 나가고, 마커는 TTS 에 안 들어간다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_LANGUAGE", "ko")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_TARGET_LANGUAGE", "en")
+    calls: list[tuple[str, str]] = []
+
+    async def _tts(text, **kwargs):
+        calls.append((text, kwargs.get("language")))
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    await session.beaver.begin()      # 불변식 I1 — 비버 턴 밖에서는 오디오를 못 보낸다
+    await session._speak("오늘은 __How are you?__ 를 배워볼까?")
+
+    assert calls == [
+        ("오늘은", "ko"),
+        ("How are you?", "en"),
+        ("를 배워볼까?", "ko"),
+    ]
+    assert all("__" not in text for text, _ in calls)   # 마커를 소리로 읽지 않는다

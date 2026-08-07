@@ -207,7 +207,14 @@ class Settings(BaseSettings):
     # 감정 지시(Style Instructions). ⚠ **짧게 유지해라** — 길어지면 지연 비교가 오염된다.
     # 사장님이 문구를 바꿔가며 들어보실 수 있게 env 로 뺐다.
     CASCADE_TTS_STYLE_PROMPT: str = "밝고 다정한 선생님 목소리로, 또박또박 조금 천천히."
-    CASCADE_TTS_LANGUAGE: str = "ko"             # 비버가 말하는 언어(= 학습 대상 언어)
+    # ── 언어 두 개 ──
+    # 비버는 **설명은 모국어, 배울 표현은 타깃 언어**로 말한다(code-switching). 타깃 부분을
+    # __이렇게__ 감싸 오면 서버가 그 경계로 잘라 **구간마다 그 언어로** 읽는다.
+    # ⚠ 데모엔 회원이 없어 둘 다 env 다(실서비스는 member.language / target_language 가 준다).
+    # 기본값은 둘 다 ko → 마커가 있어도 같은 언어라 **지금 동작과 같다**(안전한 기본값).
+    CASCADE_TTS_LANGUAGE: str = "ko"             # 기본(모국어) 구간을 읽을 언어
+    CASCADE_TTS_TARGET_LANGUAGE: str = "ko"      # __마커__ 안쪽을 읽을 언어
+    CASCADE_TTS_TARGET_LANGUAGE_LABEL: str = "한국어"   # 프롬프트에 넣을 이름(예: "영어")
     CASCADE_TTS_VOICE: str = "Aoede"             # Chirp3-HD 음성명(Live 캐릭터 voice 와 같은 이름 체계)
     # 데모용 페르소나(캐스케이드는 아직 DB·캐릭터를 안 읽는다 — normalcall 과 같은 조립기를 쓴다)
     CASCADE_PERSONA_ROLE: str = "한국어를 가르치는 다정한 비버 선생님"

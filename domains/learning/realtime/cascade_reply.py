@@ -69,6 +69,48 @@ class SentenceBuffer:
         return 0
 
 
+# 언어 마커 — 비버가 **타깃 언어로 말하는 부분**을 감싼다: "오늘은 __How are you?__ 를 배울까?"
+# 따옴표를 안 쓰는 이유는 persona_prompt 가 이미 따옴표를 두 용도로 쓰기 때문이다(대사 인용 /
+# 특정 표현만 타깃으로 들려주기). __ 는 자연 문장에 안 나오고 마크다운 굵게 문법이라 모델이 잘 지킨다.
+MARKER = "__"
+
+
+def split_by_language(text: str, base_lang: str, target_lang: str) -> list[tuple[str, str]]:
+    """마커 경계로 잘라 [(문자열, 언어)] 로 만든다. 마커는 **여기서 사라진다**.
+
+    폴백이 중요하다: 모델이 마커를 안 쓰면(또는 짝이 안 맞으면) 잘리지 않고 통째로
+    base_lang 으로 나간다 — **마커 준수에 전부를 걸지 않는다.** 그 경우 문자 체계로
+    고르는 판정을 얹을 수 있는데(후보가 둘뿐이라 판정이 아니라 고르기다), 지금은 그
+    자리만 열어 두고 단순 폴백을 쓴다.
+    """
+    if not text:
+        return []
+    chunks = text.split(MARKER)
+    if len(chunks) % 2 == 0:
+        # 짝이 안 맞는다 = 모델이 규칙을 반만 지켰다. 자르지 않고 통째로 낸다(말이 사라지는
+        # 것보다 낫다). 마커만 지운다.
+        return [(text.replace(MARKER, "").strip(), base_lang)]
+    out: list[tuple[str, str]] = []
+    for i, chunk in enumerate(chunks):
+        piece = chunk.strip()
+        if piece:
+            out.append((piece, target_lang if i % 2 else base_lang))
+    return out
+
+
+def strip_markers(text: str) -> str:
+    """⭐ **마커를 지우는 유일한 지점.**
+
+    비버 대사는 TTS 로만 가지 않는다:
+      TTS      마커로 언어를 정하고 **지우고** 합성한다(split_by_language 가 한다)
+      _history **남긴다** — LLM 이 자기 형식을 봐야 관행이 유지된다
+      그 외    전사 저장·문장 추출·복습·화면 등 **전부 지운다**
+    지금 캐스케이드는 DB 를 안 타지만 곧 탄다. 영속화를 붙이는 사람은 **이 함수를 쓰면 된다** —
+    찾아 헤매지 않게 한 곳에 모아 둔다.
+    """
+    return (text or "").replace(MARKER, "")
+
+
 async def speak_stream(beaver: Any, pcm_stream: AsyncIterator[bytes], text: str) -> int:
     """한 문장의 오디오를 송출한다. **이름표는 마지막 조각에** 붙는다. 보낸 바이트 수 반환.
 
