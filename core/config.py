@@ -219,7 +219,21 @@ class Settings(BaseSettings):
     # 기본값은 **보수적으로**(막는 쪽) 잡는다 — 클라 에코 측정 리그 실측이 나오면 그 값으로
     # 조인다. 전부 env 라 재빌드 없이 바뀐다.
     CASCADE_BARGEIN_CONFIRM: str = "transcript"  # 'immediate' | 'transcript'(세션값으로 덮임)
-    CASCADE_BARGEIN_MIN_MS: int = 200            # 비버 발화 중엔 이만큼 지속돼야 barge-in 인정
+    CASCADE_BARGEIN_MIN_MS: int = 200
+    # ⭐ **비버가 실제로 들리고 있을 때만** 끊는다(2026-08-07 45분 통화에서 나온 결함).
+    #   사용자가 한 글자도 못 들었으면 끼어든 게 아니다 — 끊어봐야 멈출 소리가 없고(이득 0)
+    #   준비한 대답만 사라진다(손실 큼). 관측: 취소 14건 중 7건이 '들린글자=0' 이었고 그 뒤가
+    #   전부 빈 턴 → 침묵이었다. ⚠ 판정은 **오디오 시간**으로 한다 — 원장의 '들린 글자'는
+    #   문장 단위라 2초를 들었어도 0 일 수 있다(그걸로 막으면 진짜 barge-in 을 막는다).
+    CASCADE_BARGEIN_MIN_AUDIBLE_MS: int = 300
+    # ③ 전사 확인 관문(bargein_confirm=="transcript"일 때). 잡음은 전사를 못 만든다.
+    CASCADE_BARGEIN_MIN_CHARS: int = 2
+    # 전사가 안 와도 **음성이 이 시간만큼 이어지면** 인정한다. 1.2초 연속 발성은 기침이 아니다.
+    # STT 지연(실측 0.8~0.9초)으로 진짜 끼어들기가 영영 안 먹는 상황을 막는 구조적 폴백이다.
+    CASCADE_BARGEIN_SUSTAIN_MS: int = 1200
+    # 취소로 죽은 대답을 되살리는 유예. 이 안에서 사용자가 결국 아무 말도 안 했으면(빈 턴)
+    # 하던 말을 이어서 한다 — 침묵으로 끝내지 않는다.
+    CASCADE_RESUME_WINDOW_MS: int = 8000            # 비버 발화 중엔 이만큼 지속돼야 barge-in 인정
     CASCADE_BARGEIN_MIN_CHARS: int = 2           # transcript 확인 모드에서 요구할 최소 글자수
     # 비버 발화 구간 **에너지 임계 상향** — 잔여 에코는 대개 원음보다 작다. 0 = 비활성.
     CASCADE_BARGEIN_RMS: float = 0.05            # 0~1 정규화 RMS(보수적 = 높게 시작)

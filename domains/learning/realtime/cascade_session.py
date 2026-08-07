@@ -434,6 +434,10 @@ class CascadeSession:
         self._reply_task: asyncio.Task | None = None
         self._reply_cancelled = False
         self._system_cache: str | None = None
+        self._tts_engines: set[str] = set()   # 이 턴에서 실제로 소리를 낸 엔진(A/B 로그용)
+        # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
+        self._bargein_at: float | None = None
+        self._interrupted: dict | None = None
         self.state = TurnState.IDLE
         self._q: asyncio.Queue[Any] = asyncio.Queue()
         self._t0 = time.monotonic()
@@ -620,7 +624,10 @@ class CascadeSession:
             # 두 개의 데드라인 중 이른 것: ① 침묵 타이머 ② 턴 상한(안전망).
             # ②가 필요한 이유: 엔진이 SPEECH_ACTIVITY_END 를 영영 안 주면(스트림이 발화 중
             # 닫히면 END 는 발송되지 않는다) 턴이 열린 채 굳는다.
-            deadlines = [d for d in (self._close_at, self._turn_deadline) if d is not None]
+            deadlines = [
+                d for d in (self._close_at, self._turn_deadline, self._bargein_at)
+                if d is not None
+            ]
             timeout = max(0.0, min(deadlines) - now) if deadlines else None
             try:
                 if timeout is None:
@@ -628,6 +635,15 @@ class CascadeSession:
                 else:
                     item = await asyncio.wait_for(self._q.get(), timeout)
             except asyncio.TimeoutError:
+                # 보류 중이던 barge-in 의 지속 시간이 찼다 — 전사가 안 와도 이만큼 이어지는
+                # 발성은 잡음이 아니다(STT 지연으로 진짜 끼어들기가 영영 안 먹는 걸 막는다).
+                if self._bargein_at is not None and time.monotonic() >= self._bargein_at:
+                    if self._speech_active:
+                        await self._confirm_bargein(None, "음성 지속")
+                    else:
+                        self._bargein_at = None
+                        logger.info("cascade barge-in 기각 — 전사도 지속도 없었다(잡음 추정)")
+                    continue
                 # 침묵 타이머 만료 = 턴 종료. **이 판정이 캐스케이드의 심장이다.**
                 expired_silence = (
                     self._close_at is not None and time.monotonic() >= self._close_at
@@ -707,6 +723,12 @@ class CascadeSession:
         await self._open_turn(event.at)
 
     async def _on_transcript(self, event: SttV2Event) -> None:
+        # 보류해 둔 barge-in 이 있으면 **여기가 확정 지점**이다 — 잡음은 전사를 못 만든다.
+        if self._bargein_at is not None:
+            if len((event.text or "").strip()) >= max(1, settings.CASCADE_BARGEIN_MIN_CHARS):
+                await self._confirm_bargein(event, "전사 확인")
+            elif not event.text.strip():
+                return
         if self.state == TurnState.IDLE:
             if self._is_stale_tail(event):
                 return
@@ -840,9 +862,12 @@ class CascadeSession:
         self._closed_at = now
         if not text:
             # 빈 턴: 상태가 굳으면 안 되니 **닫기는 한다**. 다만 이건 사용자 발화가 아니다 —
-            # ⛔ P1 은 text=='' 인 턴으로 LLM 을 부르면 안 된다(빈 입력 호출 = 원가 + 헛대답).
+            # ⛔ text=='' 인 턴으로 LLM 을 부르지 않는다(빈 입력 호출 = 원가 + 헛대답).
             logger.info("cascade 빈 턴: id=%s reason=%s — 발화 없음(LLM 호출 금지)",
                         self._turn_id, reason)
+        else:
+            # 사용자가 실제로 말했다 = 대화가 진행됐다. 끊겼던 대답을 되살릴 이유가 없다.
+            self._interrupted = None
         self._turn_id = None
         self._close_at = None
         self._turn_deadline = None
@@ -853,6 +878,10 @@ class CascadeSession:
         # 원가만 나가고 헛대답을 만든다(결함 C 판단, 2026-08-07).
         if text:
             self._start_reply(text)
+        else:
+            # ⭐ 빈 턴이라고 침묵으로 두지 않는다 — 직전에 **비버를 죽였다면** 하던 말을
+            #   이어서 한다. 사장님 45분 통화에서 이 자리가 dead air 였다.
+            self._resume_interrupted()
 
     # ── barge-in ──
     async def _bargein_allowed(self, event: SttV2Event) -> bool:
@@ -868,6 +897,21 @@ class CascadeSession:
         ①은 지금 구현하고, ②는 P1(TTS 연결)에서 재생 구간과 함께 붙인다. 세션 단위 값이라
         `start.aec` 힌트로 기기·라우트마다 다르게 잡는다(이어폰이면 immediate).
         """
+        # ⭐ ⓪-1 **비버가 실제로 들리고 있나.** 사용자가 한 글자도 못 들었으면 끼어든 게
+        #   아니다 — 그냥 기다리다 소리를 낸 것이다. 끊어봐야 멈출 소리가 없고(이득 0),
+        #   준비한 대답만 통째로 사라진다(손실 큼). 2026-08-07 45분 통화에서 취소 14건 중
+        #   7건이 이 경우였고 그 뒤가 전부 빈 턴 → 침묵이었다("너가 말을 안 듣잖아").
+        #   ⚠ 판정은 **오디오 시간**으로 한다(들린 '글자'는 문장 단위라 2초를 들었어도 0 일
+        #   수 있다). 이 관문은 진짜 barge-in 을 느리게 하지 않는다 — 진짜 끼어들기는 비버가
+        #   들릴 때 일어난다.
+        audible_ms = self._audible_ms()
+        min_audible = max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS)
+        if audible_ms < min_audible:
+            logger.info(
+                "cascade barge-in 기각 — 비버가 아직 안 들린다(들린 %dms < %dms). 대답을 살린다",
+                audible_ms, min_audible,
+            )
+            return False
         # ⓪ 마이크 상시 개방이 꺼져 있으면 barge-in 을 시도하지 않는다.
         #   그 모드에서는 클라가 비버 발화 중 마이크를 닫으므로, 이때 들어오는 음성 활동은
         #   **에코이거나 게이팅 타이밍 결함**일 가능성이 높다(실측: call 855 에서 유저 턴의
@@ -886,16 +930,42 @@ class CascadeSession:
             return False
         # ② 최소 지속 — 순간 튐으로 비버를 끊지 않는다.
         min_ms = max(0, settings.CASCADE_BARGEIN_MIN_MS)
-        if min_ms <= 0:
-            return True
+        # ⚠ min_ms=0 이어도 여기서 바로 True 를 돌려주면 **아래 ③ 전사 확인이 통째로
+        #   건너뛰어진다.** 예전 코드가 그랬다(그래서 지속 시간을 0 으로 두면 잡음이 전부
+        #   통과했다). 지속 대기만 건너뛰고 관문은 계속 태운다.
         # 지속 판정은 오디오 시각으로 한다 — 도착 시각으로 재면 리전 왕복이 섞인다.
-        if event.offset_ms >= 0 and (self._audio_ms - event.offset_ms) >= min_ms:
-            return True
-        await asyncio.sleep(min_ms / 1000.0)
-        if not self._speech_active:
-            logger.info("cascade barge-in 기각 — 최소 지속 %dms 미달(에코/잡음 추정)", min_ms)
+        if min_ms > 0 and not (event.offset_ms >= 0 and (self._audio_ms - event.offset_ms) >= min_ms):
+            await asyncio.sleep(min_ms / 1000.0)
+            if not self._speech_active:
+                logger.info("cascade barge-in 기각 — 최소 지속 %dms 미달(에코/잡음 추정)", min_ms)
+                return False
+        # ③ 전사 확인 — **설계에 있다고 적어 두고 P1 에서 안 붙였던 관문**이다(2026-08-07).
+        #   그동안 barge-in 은 에너지+지속만으로 발동했고, 기침·키보드·숨소리가 전부 통과했다.
+        #   여기서 True 를 돌려주면 즉시 취소되므로, transcript 모드는 **판정을 미룬다**:
+        #   전사가 오거나(_on_transcript) 음성이 길게 이어지면(_pump_turn 타이머) 그때 친다.
+        if self._bargein_confirm == "transcript":
+            self._bargein_at = time.monotonic() + max(0, settings.CASCADE_BARGEIN_SUSTAIN_MS) / 1000.0
+            logger.info("cascade barge-in 보류 — 전사 확인 대기(잡음이면 여기서 끝난다)")
             return False
         return True
+
+    def _audible_ms(self) -> int:
+        """지금 비버 턴에서 **사용자가 들었을** 오디오 길이(ms, 짧은 쪽 편향 추정)."""
+        turn_id = self.beaver.turn_id
+        if turn_id is None:
+            return 0
+        return int(self.beaver.estimated_played_bytes(turn_id) / BEAVER_BYTES_PER_MS)
+
+    async def _confirm_bargein(self, event: SttV2Event | None, reason: str) -> None:
+        """보류해 둔 barge-in 을 확정한다(전사가 왔거나 음성이 길게 이어졌다)."""
+        self._bargein_at = None
+        if self.state not in (TurnState.BEAVER_SPEAKING, TurnState.THINKING):
+            return
+        if self._audible_ms() < max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS):
+            logger.info("cascade barge-in 취소 — 확인 사이에 비버가 안 들리는 상태가 됐다")
+            return
+        logger.info("cascade barge-in 확정(%s)", reason)
+        await self._on_barge_in(event or SttV2Event(kind=SPEECH_BEGIN))
 
     async def _on_barge_in(self, event: SttV2Event) -> None:
         """barge-in 취소 배관 — **세 곳을 동시에** 친다(설계 §4).
@@ -1033,10 +1103,78 @@ class CascadeSession:
         unheard = max(0, len(generated.strip()) - len(spoken))
         if unheard:
             self.usage.record_tts_unheard(unheard)
+        # ⭐ 못 들려준 나머지를 들고 있는다 — 사용자가 결국 아무 말도 안 하면(빈 턴) 이어서
+        #   말한다. 침묵으로 끝내지 않기 위한 것이고, **LLM 은 다시 부르지 않는다**(빈 입력
+        #   호출 금지 판단은 그대로다 — 이미 만든 말을 소리로만 다시 낸다).
+        remaining = self._remaining_after(generated.strip(), spoken)
+        self._interrupted = (
+            {"text": remaining, "at": time.monotonic()} if remaining else None
+        )
         logger.info(
             "cascade 대답 취소됨: turn=%s 들린글자=%d 못들려준글자=%d",
             turn_id, len(spoken), unheard,
         )
+
+    @staticmethod
+    def _remaining_after(generated: str, spoken: str) -> str:
+        """생성문 중 **아직 안 들려준 부분**. 어디까지 들렸는지 모르면 되살리지 않는다.
+
+        되풀이가 침묵보다 나쁠 수 있어서(이미 들은 말을 또 하면 대화가 이상해진다) 모르면
+        빈 문자열을 돌려준다 — 안전한 쪽은 '안 하는 것'이다.
+        """
+        if not generated:
+            return ""
+        if not spoken:
+            return generated          # 한 글자도 못 들었다 → 통째로 다시
+        tail = spoken.strip().split()[-1] if spoken.strip() else ""
+        idx = generated.rfind(tail) if tail else -1
+        if idx < 0:
+            return ""
+        return generated[idx + len(tail):].strip()
+
+    def _resume_interrupted(self) -> bool:
+        """빈 턴 뒤의 침묵을 막는다 — 끊겼던 대답의 나머지를 이어서 말한다(LLM 호출 0).
+
+        되살리기는 **한 번만**이고 유예(CASCADE_RESUME_WINDOW_MS) 안에서만이다. 그 사이
+        사용자가 실제로 말했으면 되살리지 않는다 — 그건 대화가 진행된 것이다.
+        """
+        pending, self._interrupted = self._interrupted, None
+        if not pending or not self._reply_enabled():
+            return False
+        age_ms = (time.monotonic() - pending["at"]) * 1000.0
+        if age_ms > max(0, settings.CASCADE_RESUME_WINDOW_MS):
+            return False
+        if self._reply_task is not None and not self._reply_task.done():
+            return False
+        logger.info("cascade 대답 이어가기: %d자(사용자가 결국 말하지 않았다 — 침묵 방지)",
+                    len(pending["text"]))
+        self.state = TurnState.THINKING
+        self._reply_task = self._tg.create_task(self._run_resume(pending["text"]))
+        return True
+
+    async def _run_resume(self, text: str) -> None:
+        """끊겼던 말의 나머지를 그대로 소리로 낸다. ⛔ LLM 호출 없음(새 입력이 없으니 새 말도 없다)."""
+        self._reply_cancelled = False
+        buffer = SentenceBuffer()
+        turn_id: str | None = None
+        try:
+            for sentence in buffer.push(text) + [buffer.flush()]:
+                if not sentence:
+                    continue
+                turn_id = turn_id or await self._begin_beaver_turn()
+                await self._speak(sentence)
+            if turn_id is not None:
+                await self.beaver.end()
+            self._remember_beaver(turn_id, text)
+        except asyncio.CancelledError:
+            if not self._reply_cancelled:
+                raise
+            self._on_reply_cancelled(turn_id, text)
+        except InvariantError:
+            logger.info("cascade 이어가기 중단(턴이 이미 닫힘) turn=%s", turn_id)
+        finally:
+            if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
+                self.state = TurnState.IDLE
 
     def _trim_history(self) -> None:
         """⭐ 이력은 **글자 수**로 막는다 — 턴 수가 아니라.

@@ -266,6 +266,11 @@ async def test_barge_in_cancels_reply_without_killing_session(reply_rig, monkeyp
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
+    # 비버가 **실제로 들리고 있는** 상태를 만든다(2026-08-07 관문 ⓪-1). 클라 버퍼 추정을
+    # 0 으로 두고 임계를 낮춰, 몇 프레임만 나가도 '들렸다'가 되게 한다.
+    monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 20)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
     reply_rig["chunk_delay"] = 0.05     # 비버가 말하는 동안 끼어들 시간을 만든다
     reply_rig["chunks"] = 20
 
@@ -287,3 +292,102 @@ async def test_barge_in_cancels_reply_without_killing_session(reply_rig, monkeyp
     assert cancel["turn_id"] == transport.first("turn_start")["turn_id"]
     # 세션은 죽지 않았다(TaskGroup 이 취소로 무너지면 아래 요약 자체가 안 나온다)
     assert session.usage.summary() is not None
+
+
+# --------------------------------------------------------------------------- #
+# dead air 회귀 — 2026-08-07 사장님 45분 통화(98턴)에서 나온 결함
+#   취소 14건 중 7건이 '들린글자=0' 이었고, 그 뒤가 전부 빈 턴 → 침묵이었다.
+#   통화 중 비버에게 하신 말이 로그에 남았다: '그냥 너가 말을 안 듣잖아'
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_inaudible_beaver_is_not_cancelled(reply_rig, monkeypatch):
+    """⭐ 비버가 아직 안 들리면 잡음으로 죽이지 않는다 — 끊어봐야 멈출 소리가 없다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 300)
+    monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 600)  # 기본값 — 아직 안 들린다
+    reply_rig["chunk_delay"] = 0.02
+    reply_rig["chunks"] = 6                      # 60ms 분량 = 들린 것 0
+
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.15,
+        _ctl(type="__test_event", event=SPEECH_BEGIN),   # 잡음
+        0.2,
+    ], wait_for="turn_end")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    assert "audio_cancel" not in transport.types(), transport.events
+    assert "turn_end" in transport.types(), transport.events   # 대답을 끝까지 했다
+
+
+@pytest.mark.asyncio
+async def test_transcript_confirm_rejects_noise(reply_rig, monkeypatch):
+    """③ 전사 확인 관문 — 소리만 나고 전사가 없으면 비버를 끊지 않는다(설계엔 있었고 구현이 없었다)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "transcript")
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 20)
+    monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_SUSTAIN_MS", 5000)  # 지속 폴백은 안 걸리게
+    reply_rig["chunk_delay"] = 0.02
+    reply_rig["chunks"] = 30
+
+    transport = _Transport([
+        _ctl(type="start"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+        0.15,
+        _ctl(type="__test_event", event=SPEECH_BEGIN),   # 잡음 — 전사가 따라오지 않는다
+        0.3,
+        _ctl(type="stop"),          # 턴 종료를 기다리지 않고 결정적으로 끝낸다
+    ], wait_for="__never__")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    assert "audio_cancel" not in transport.types(), transport.events
+
+
+@pytest.mark.asyncio
+async def test_cancelled_reply_resumes_instead_of_dead_air(reply_rig, monkeypatch):
+    """⭐⭐ 취소 뒤 빈 턴이 와도 **침묵하지 않는다** — 못 들려준 말을 이어서 한다(LLM 재호출 0)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TURN_SILENCE_MS", 60)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    session._tg = _StubGroup()
+    # 비버가 49자를 준비했는데 한 글자도 못 들려주고 죽은 상태를 만든다(관측된 b36).
+    session._on_reply_cancelled("b1", "안녕하세요. 오늘은 뭐 하셨어요?")
+    assert session._interrupted is not None
+
+    resumed = session._resume_interrupted()
+    assert resumed is True
+    assert session._tg.started, "빈 턴 뒤에 아무 일도 안 일어나면 그게 dead air 다"
+    assert reply_rig["chat"] is None, "이어가기는 LLM 을 다시 부르지 않는다"
+
+
+@pytest.mark.asyncio
+async def test_resume_is_skipped_when_user_actually_spoke(reply_rig):
+    """사용자가 실제로 말했으면 되살리지 않는다 — 그건 대화가 진행된 것이다."""
+    session = CascadeSession(_Transport([]), genai_client=object())
+    session._tg = _StubGroup()
+    session._on_reply_cancelled("b1", "안녕하세요. 오늘은 뭐 하셨어요?")
+    session._interrupted = None          # _close_turn 이 비지 않은 턴에서 하는 일
+    assert session._resume_interrupted() is False
+    assert session._tg.started is False
+
+
+class _StubGroup:
+    """TaskGroup 대역 — 태스크를 실제로 돌리지 않고 '시작됐는지'만 본다."""
+
+    def __init__(self) -> None:
+        self.started = False
+
+    def create_task(self, coro):
+        self.started = True
+        coro.close()          # 실행하지 않는다(경고 방지)
+        return None
