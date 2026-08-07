@@ -722,11 +722,40 @@ STT_PRICE_USD_PER_S = {
     "gpt-4o-mini-transcribe": 0.003 / 60,  # 참고용
 }
 
+# ── TTS 는 **과금 단위가 두 종류**다. 섞으면 조용히 틀린다 ────────────────────
+# 클래식 TTS(Chirp3-HD 등) = **문자 수** 과금. Gemini-TTS = **출력 오디오 토큰** 과금.
+# ⛔ 문자 수에 토큰 단가를 곱하지 마라(그 반대도). 아래 두 표를 벤더로 갈라 쓴다.
 TTS_PRICE_USD_PER_CHAR = {
     "cloud-tts-chirp3-hd": 30.0 / 1_000_000,   # $30/1M 자
     "cloud-tts-neural2": 16.0 / 1_000_000,
     "cloud-tts-wavenet": 16.0 / 1_000_000,
     "cloud-tts-standard": 4.0 / 1_000_000,
+}
+
+# Gemini-TTS: 출력 오디오 1초 = **정확히 25 토큰**. 그래서 원가가 문자 수가 아니라
+# **합성된 오디오 길이**에 붙는다 — 같은 문장이라도 천천히 읽으면 더 비싸다.
+# ⛔ 그래서 이 엔진들은 tts.chars 로 계산할 수 없다. tts.audio_s 가 없으면
+#   추정하지 않고 **미상으로 드러낸다**(0 원으로 먹으면 "캐스케이드가 공짜"가 된다).
+GEMINI_TTS_TOKENS_PER_AUDIO_S = 25
+
+# USD / 1M 토큰. in=입력 텍스트, out=출력 오디오.
+# ✅ 2026-08-07 **공식 가격표 본문에서 확인**(ai.google.dev/gemini-api/docs/pricing) —
+#   이 프로젝트에서 가격을 원문으로 확인한 첫 사례다. 나머지 단가표는 검색 요약 기준이다.
+# 모델 ID 는 cascade-impl 이 실제로 넣는 문자열(`gemini-2.5-flash-tts` 등)과 가격표의
+# preview 표기(`gemini-2.5-flash-preview-tts`)가 다르다 → **둘 다 키로 넣는다.**
+# 하나라도 빠지면 그 통화가 통째로 '미상 벤더'가 되어 원가 표본에서 사라진다.
+TTS_TOKEN_PRICE_USD_PER_1M = {
+    "gemini-2.5-flash-tts":            {"in_text": 0.50, "out_audio": 10.00},
+    "gemini-2.5-flash-preview-tts":    {"in_text": 0.50, "out_audio": 10.00},
+    "gemini-2.5-pro-tts":              {"in_text": 1.00, "out_audio": 20.00},
+    "gemini-2.5-pro-preview-tts":      {"in_text": 1.00, "out_audio": 20.00},
+    "gemini-3.1-flash-tts-preview":    {"in_text": 1.00, "out_audio": 20.00},
+    # ⚠ **미확인 — flash 단가를 보수적으로 차용했다.** 공식 가격표에 lite TTS 행이 없다
+    #   (텍스트 모델의 lite 는 flash 의 1/3 이라 실제론 더 쌀 가능성이 크다).
+    #   과소 계상이 과대 계상보다 위험해서(캐스케이드가 싸 보인다) 비싼 쪽으로 뒀다.
+    #   ⛔ 이 줄의 숫자로 플랜 가격을 정하지 마라. 청구서로 확인되면 고쳐라.
+    "gemini-2.5-flash-lite-preview-tts": {"in_text": 0.50, "out_audio": 10.00},
+    "gemini-2.5-flash-lite-tts":         {"in_text": 0.50, "out_audio": 10.00},
 }
 
 # LLM 단가(USD / 1M 토큰). 캐스케이드의 LLM 다리는 **텍스트만** 받는다(오디오는 STT 가 처리).
@@ -746,8 +775,11 @@ def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
     기대 형태(계약):
       {"stt": {"vendor": ..., "audio_s": 902.4},
        "llm": {"vendor": ..., "in_text": 41000, "out_text": 3200, "thoughts": 1500},
-       "tts": {"vendor": ..., "chars": 8400}}
+       "tts": {"vendor": ..., "chars": 8400}}          ← 문자 과금 엔진
+       "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 452.0}  ← 토큰 과금 엔진
     llm.thoughts 는 선택이지만 **있으면 출력 원가에 더해진다**(아래 산식 주석 참조).
+    ⚠ Gemini-TTS 계열은 **audio_s(합성된 오디오 초)가 필수**다. 없으면 chars 가 와도
+      계산하지 않고 미상으로 낸다 — 과금 단위가 문자가 아니라 오디오 길이이기 때문이다.
     """
     total = 0.0
     unknown: list[str] = []
@@ -780,12 +812,34 @@ def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
             ) / 1_000_000
 
     tts = v.get("tts") or {}
-    if tts.get("chars"):
-        price = TTS_PRICE_USD_PER_CHAR.get(tts.get("vendor"))
+    tts_vendor = tts.get("vendor")
+    tok_price = TTS_TOKEN_PRICE_USD_PER_1M.get(tts_vendor)
+    if tok_price is not None:
+        # ── 토큰 과금 엔진(Gemini-TTS) ──
+        # ⛔ chars 가 같이 와도 **쓰지 않는다.** 문자 수는 이 엔진의 과금 단위가 아니고,
+        #   문자→오디오초 환산은 말하는 속도에 따라 배로 틀린다(그럴듯한 거짓 숫자가 된다).
+        secs = tts.get("audio_s")
+        if not secs:
+            # 잴 수 없으면 잰 척하지 않는다 — 무엇이 없어서 못 쟀는지까지 남긴다.
+            unknown.append(f"tts:{tts_vendor}(audio_s 없음 — 토큰 과금이라 chars 로 못 잰다)")
+        else:
+            out_tok = float(secs) * GEMINI_TTS_TOKENS_PER_AUDIO_S
+            # 입력 텍스트 토큰은 선택 — 있으면 더한다. 없어도 무시할 만하다
+            # (오디오 출력 대비 1% 미만: 6,000자 ≈ 1,500tok × $0.5/1M ≈ $0.0008).
+            total += (
+                out_tok * tok_price["out_audio"]
+                + int(tts.get("in_text") or 0) * tok_price["in_text"]
+            ) / 1_000_000
+    elif tts.get("chars"):
+        # ── 문자 과금 엔진(Chirp3-HD 등) ──
+        price = TTS_PRICE_USD_PER_CHAR.get(tts_vendor)
         if price is None:
-            unknown.append(f"tts:{tts.get('vendor')}")
+            unknown.append(f"tts:{tts_vendor}")
         else:
             total += int(tts["chars"]) * price
+    elif tts.get("audio_s"):
+        # 초는 왔는데 벤더를 모른다 — 조용히 넘기지 않는다.
+        unknown.append(f"tts:{tts_vendor}")
 
     return total, unknown
 
