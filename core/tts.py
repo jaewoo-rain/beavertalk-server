@@ -217,6 +217,7 @@ async def synthesize_stream(
                 gemini_voice if model_name else chirp_voice,
                 sample_rate,
                 model_name=model_name,
+                speaking_rate=settings.CASCADE_TTS_SPEAKING_RATE,
             )
 
             async def _requests():
@@ -296,7 +297,11 @@ async def synthesize_stream(
 
 
 def build_streaming_config(
-    lang_code: str, voice_name: str, sample_rate: int, model_name: str | None = None
+    lang_code: str,
+    voice_name: str,
+    sample_rate: int,
+    model_name: str | None = None,
+    speaking_rate: float | None = None,
 ) -> "Any":
     """스트리밍 합성 설정 1건. **인코딩이 여기서 틀리면 소리가 아예 안 난다.**
 
@@ -319,13 +324,56 @@ def build_streaming_config(
     voice_kwargs: dict = {"language_code": lang_code, "name": voice_name}
     if model_name:
         voice_kwargs["model_name"] = model_name
+    audio_kwargs: dict = {
+        "audio_encoding": texttospeech.AudioEncoding.PCM,
+        "sample_rate_hertz": sample_rate,
+    }
+    rate = _clamp_speaking_rate(speaking_rate)
+    if rate is not None:
+        # ⭐ **말하는 속도는 파라미터로 잡는다.** 스타일 프롬프트로 "천천히/빠르게"를 부탁하면
+        #   실측 편차가 1.5배까지 났다(2.4 ~ 10.0 자/초). 부탁은 들쭉날쭉하고 파라미터는 일정하다.
+        #   엔진 공통 필드라 Chirp3-HD 경로에도 같이 걸린다.
+        #   ⚠ 1.0(정상 속도)이면 아예 안 넘긴다 — "배포만 해서는 아무것도 안 바뀐다"를 지키려면
+        #     필드를 넣지 않는 쪽이 확실하다.
+        audio_kwargs["speaking_rate"] = rate
     return texttospeech.StreamingSynthesizeConfig(
         voice=texttospeech.VoiceSelectionParams(**voice_kwargs),
-        streaming_audio_config=texttospeech.StreamingAudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.PCM,
-            sample_rate_hertz=sample_rate,
-        ),
+        streaming_audio_config=texttospeech.StreamingAudioConfig(**audio_kwargs),
     )
+
+
+# proto 원문: "Speaking rate/speed, in the range [0.25, 2.0]. 1.0 is the normal native speed
+# supported by the specific voice. 2.0 is twice as fast, and 0.5 is half as fast."
+_RATE_MIN, _RATE_MAX, _RATE_NORMAL = 0.25, 2.0, 1.0
+_RATE_LOGGED: set[float] = set()
+
+
+def _clamp_speaking_rate(rate: float | None) -> float | None:
+    """유효 범위로 자르고, **실제로 적용된 값**을 값이 바뀔 때마다 한 번 남긴다.
+
+    범위를 벗어나면 API 가 거절한다 — 그러면 그 문장이 통째로 무음이 된다. 설정 실수 하나로
+    비버가 벙어리가 되는 것보다 잘라서 소리를 내는 쪽이 낫다(자른 사실은 로그로 드러낸다).
+    1.0 은 None 으로 돌려준다(필드를 안 넘긴다 = 지금 동작 그대로).
+    """
+    if rate is None:
+        return None
+    try:
+        value = float(rate)
+    except (TypeError, ValueError):
+        logger.warning("tts: speaking_rate=%r 해석 불가 — 정상 속도로 진행", rate)
+        return None
+    if value != _RATE_NORMAL:
+        clamped = max(_RATE_MIN, min(_RATE_MAX, value))
+        if clamped != value:
+            logger.warning(
+                "tts: speaking_rate=%.2f 는 유효 범위[%.2f, %.2f] 밖 — %.2f 로 자른다",
+                value, _RATE_MIN, _RATE_MAX, clamped,
+            )
+        value = clamped
+    if value not in _RATE_LOGGED:
+        _RATE_LOGGED.add(value)
+        logger.info("tts: speaking_rate=%.2f 적용(엔진 공통, 1.0=정상 속도)", value)
+    return None if value == _RATE_NORMAL else value
 
 
 def _is_quota_error(exc: Exception) -> bool:

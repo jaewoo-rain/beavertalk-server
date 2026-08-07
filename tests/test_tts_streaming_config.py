@@ -63,3 +63,54 @@ def test_voice_name_format_differs_per_engine():
     # 언어가 바뀌어도 규칙은 같다(일본어 Chirp 접두어 vs 맨이름).
     assert tts._resolve_voice("ja", "Leda") == ("ja-JP", "ja-JP-Chirp3-HD-Leda")
     assert tts._resolve_voice("ja", "Leda", gemini=True) == ("ja-JP", "Leda")
+
+
+def test_speaking_rate_is_a_parameter_not_a_request():
+    """⭐ 말하는 속도는 **파라미터**로 잡는다 — 스타일 프롬프트로 부탁하면 편차가 1.5배였다.
+
+    실측(2026-08-07): 2.4 · 2.8 · 6.7 · 8.4 · 10.0 자/초. 같은 지시문인데도 들쭉날쭉했다.
+    proto 원문: "in the range [0.25, 2.0]. 1.0 is the normal native speed".
+    """
+    config = tts.build_streaming_config("ko-KR", "Sulafat", 24000, speaking_rate=1.25)
+    assert config.streaming_audio_config.speaking_rate == pytest.approx(1.25)
+
+
+def test_normal_speed_changes_nothing():
+    """⛔ 기본값(1.0)에서는 필드를 아예 안 넘긴다 — 배포만으로는 아무것도 안 바뀌어야 한다."""
+    config = tts.build_streaming_config("ko-KR", "Sulafat", 24000, speaking_rate=1.0)
+    assert config.streaming_audio_config.speaking_rate == 0.0   # proto 기본 = 미설정
+    same = tts.build_streaming_config("ko-KR", "Sulafat", 24000)
+    assert config.streaming_audio_config == same.streaming_audio_config
+
+
+def test_out_of_range_is_clamped_not_rejected():
+    """범위를 벗어나면 API 가 거절해 그 문장이 통째로 무음이 된다 — 잘라서 소리를 낸다."""
+    fast = tts.build_streaming_config("ko-KR", "Sulafat", 24000, speaking_rate=9.9)
+    slow = tts.build_streaming_config("ko-KR", "Sulafat", 24000, speaking_rate=0.01)
+    assert fast.streaming_audio_config.speaking_rate == pytest.approx(2.0)
+    assert slow.streaming_audio_config.speaking_rate == pytest.approx(0.25)
+
+
+def test_speaking_rate_applies_to_both_engines():
+    """엔진 공통 필드다 — Gemini 든 Chirp 든 같은 손잡이가 걸린다."""
+    gemini = tts.build_streaming_config(
+        "ko-KR", "Sulafat", 24000, model_name="gemini-2.5-flash-tts", speaking_rate=1.4
+    )
+    chirp = tts.build_streaming_config("ko-KR", "ko-KR-Chirp3-HD-Sulafat", 24000, speaking_rate=1.4)
+    assert gemini.streaming_audio_config.speaking_rate == pytest.approx(1.4)
+    assert chirp.streaming_audio_config.speaking_rate == pytest.approx(1.4)
+
+
+def test_prompts_do_not_dictate_speed():
+    """⚠ 프롬프트가 속도를 얘기하면 파라미터와 싸운다 — 어느 게 진짜인지 못 가리게 된다.
+
+    캐스케이드가 쓰는 **두 문구**(TTS 스타일 / 레벨 프로파일)에서 속도 지시를 뺐다.
+    ⛔ normalcall 의 교수법 지시("천천히 또박또박 들려주고 따라 말하게")는 **건드리지 않았다** —
+      그건 실서비스의 어학적 의도이고 Live 는 모델이 직접 음성을 낸다.
+    ⭐ "또박또박"은 속도가 아니라 또렷함이라 남긴다(초보는 뭉개진 발음을 못 알아듣는다).
+    """
+    from core.config import settings
+
+    for prompt in (settings.CASCADE_TTS_STYLE_PROMPT, settings.CASCADE_PERSONA_LEVEL):
+        for word in ("천천히", "빠르게", "속도"):
+            assert word not in prompt, prompt
