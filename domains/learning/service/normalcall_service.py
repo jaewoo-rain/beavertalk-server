@@ -739,24 +739,46 @@ TTS_PRICE_USD_PER_CHAR = {
 GEMINI_TTS_TOKENS_PER_AUDIO_S = 25
 
 # USD / 1M 토큰. in=입력 텍스트, out=출력 오디오.
-# ✅ 2026-08-07 **공식 가격표 본문에서 확인**(ai.google.dev/gemini-api/docs/pricing) —
+#
+# ⛔ **같은 모델인데 API 마다 이름이 다르다. 이 표에 두 이름 체계가 섞여 있다 — 통일하지 마라.**
+#   Cloud TTS(우리가 호출하는 쪽)      : gemini-2.5-flash-tts, gemini-2.5-pro-tts …
+#   Gemini API(ai.google.dev, 가격 출처): gemini-2.5-flash-preview-tts, …-pro-preview-tts …
+#   `vendors.tts.vendor` 로 **실제 들어오는 건 Cloud TTS 이름**이다(cascade 가 Cloud TTS 의
+#   voice.model_name 을 그대로 넣는다). Gemini API 이름은 **가격 출처일 뿐** 우리가 받는
+#   이름이 아니다 — 그래도 지우지 않는다(다른 경로로 올 수 있다).
+#   🧒 왜 이 경고가 여기 있나: 가격 페이지 이름만 남기면 **동작은 하는데 값이 안 잡힌다**.
+#     예외도 로그도 없이 전부 '미상 벤더'가 되고, 그러면 캐스케이드 통화가 원가 표본에서
+#     통째로 사라진다. 오늘 LINEAR16(비스트리밍엔 유효·스트리밍엔 무효)과 같은 종류의 함정이다.
+#     "이름을 통일하자"는 정리는 **원가 계측을 조용히 죽인다.**
+#
+# ✅ 단가는 2026-08-07 **공식 가격표 본문에서 확인**(ai.google.dev/gemini-api/docs/pricing) —
 #   이 프로젝트에서 가격을 원문으로 확인한 첫 사례다. 나머지 단가표는 검색 요약 기준이다.
-# 모델 ID 는 cascade-impl 이 실제로 넣는 문자열(`gemini-2.5-flash-tts` 등)과 가격표의
-# preview 표기(`gemini-2.5-flash-preview-tts`)가 다르다 → **둘 다 키로 넣는다.**
-# 하나라도 빠지면 그 통화가 통째로 '미상 벤더'가 되어 원가 표본에서 사라진다.
 TTS_TOKEN_PRICE_USD_PER_1M = {
+    # ── Cloud TTS 이름(실제로 들어오는 키) ──
     "gemini-2.5-flash-tts":            {"in_text": 0.50, "out_audio": 10.00},
-    "gemini-2.5-flash-preview-tts":    {"in_text": 0.50, "out_audio": 10.00},
     "gemini-2.5-pro-tts":              {"in_text": 1.00, "out_audio": 20.00},
-    "gemini-2.5-pro-preview-tts":      {"in_text": 1.00, "out_audio": 20.00},
     "gemini-3.1-flash-tts-preview":    {"in_text": 1.00, "out_audio": 20.00},
+    # ── Gemini API 이름(가격 출처. 우리 경로로는 안 오지만 남겨둔다) ──
+    "gemini-2.5-flash-preview-tts":    {"in_text": 0.50, "out_audio": 10.00},
+    "gemini-2.5-pro-preview-tts":      {"in_text": 1.00, "out_audio": 20.00},
     # ⚠ **미확인 — flash 단가를 보수적으로 차용했다.** 공식 가격표에 lite TTS 행이 없다
     #   (텍스트 모델의 lite 는 flash 의 1/3 이라 실제론 더 쌀 가능성이 크다).
     #   과소 계상이 과대 계상보다 위험해서(캐스케이드가 싸 보인다) 비싼 쪽으로 뒀다.
     #   ⛔ 이 줄의 숫자로 플랜 가격을 정하지 마라. 청구서로 확인되면 고쳐라.
+    #   앞의 것이 Cloud TTS 이름(실제 키), 뒤는 있을 법한 GA 표기 대비.
     "gemini-2.5-flash-lite-preview-tts": {"in_text": 0.50, "out_audio": 10.00},
     "gemini-2.5-flash-lite-tts":         {"in_text": 0.50, "out_audio": 10.00},
 }
+
+# cascade 가 Cloud TTS 로 지정할 수 있는 model_name 전량(공식 문서 확인).
+# 회귀 테스트가 이 목록을 그대로 돌며 "하나도 미상으로 안 빠지는지"를 지킨다 —
+# 새 모델이 붙으면 여기에 한 줄 추가하는 것만으로 누락이 드러난다.
+CLOUD_TTS_GEMINI_MODELS = (
+    "gemini-2.5-flash-tts",
+    "gemini-2.5-flash-lite-preview-tts",
+    "gemini-2.5-pro-tts",
+    "gemini-3.1-flash-tts-preview",
+)
 
 # LLM 단가(USD / 1M 토큰). 캐스케이드의 LLM 다리는 **텍스트만** 받는다(오디오는 STT 가 처리).
 LLM_TOKEN_PRICE_USD = {
