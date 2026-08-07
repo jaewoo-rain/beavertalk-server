@@ -772,6 +772,16 @@ class CascadeSession:
             return False
         if (time.monotonic() - self._closed_at) * 1000.0 > max(0, settings.CASCADE_STALE_FINAL_MS):
             return False
+        # ⭐⭐ **닫힌 턴이 비어 있었으면 절대 버리지 않는다**(2026-08-07 사장님 통화).
+        #   중복 차단은 "이미 전달한 말을 또 내지 않기" 위한 것이다. 아무것도 전달하지 않은
+        #   턴이라면 중복이 생길 수가 없고, 늦게 온 그 전사가 **곧 그 턴의 내용**이다.
+        #   실제로 이것 때문에 진짜 발화가 사라졌다: u2/u4/u7/u9 가 speech_ms=1~4초인데
+        #   text='' 로 닫혔고("안녕 두 글자를 인식 못 할 때가 있네"), 뒤늦게 온 진짜 전사는
+        #   꼬리로 분류돼 버려졌다. 중복을 막으려다 발화를 버리면 더 나쁘다.
+        if not self._closed_text:
+            logger.info("cascade 늦은 전사 수용 — 직전 턴(%s)이 비어 있었다: %r",
+                        self._closed_turn_id, (event.text or "").strip()[:40])
+            return False
         text = (event.text or "").strip()
         if event.offset_ms >= 0 and self._closed_end_offset_ms >= 0:
             fresh = event.offset_ms > self._closed_end_offset_ms + _STALE_OFFSET_EPSILON_MS
@@ -811,7 +821,12 @@ class CascadeSession:
         도착할 시간은 항상 남긴다.** 지연이 임계보다 작을 때의 동작은 예전과 같다.
         """
         already_ms = 0.0
-        if event.offset_ms >= 0:
+        # ⭐ **VAD 이벤트의 오프셋으로는 빼지 않는다**(2026-08-07). 두 시계가 다르기 때문이다:
+        #   우리가 기다리는 건 **최종 전사**인데, 그 지연(실측 723~870ms)이 VAD 이벤트 지연
+        #   (실측 291~348ms)보다 훨씬 크다. VAD 기준으로 300ms 를 빼고 500ms 만 기다리면
+        #   전사는 그 뒤에 도착하고, 그 턴은 **말을 했는데 빈 채로** 닫힌다(u2/u4/u7/u9 —
+        #   speech_ms 가 1~4초인데 text=''). 전사 오프셋일 때만 빼는 게 맞다.
+        if event.offset_ms >= 0 and event.kind == TRANSCRIPT:
             already_ms = max(0.0, self._audio_ms - event.offset_ms)
         remain_s = max(0.0, (self._silence_ms - already_ms) / 1000.0)
         floor_s = max(0, settings.CASCADE_TURN_MIN_WAIT_MS) / 1000.0

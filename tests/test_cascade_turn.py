@@ -211,13 +211,16 @@ async def test_offset_shortens_wait(fake_v2, monkeypatch):
     from core.stt import FakeSttV2Stream
 
     class _OffsetFake(FakeSttV2Stream):
-        """speech_end 를 '조금 전 오디오'로 표시 — 그만큼 침묵이 이미 흘렀다는 뜻."""
+        """**전사**를 '조금 전 오디오'로 표시 — 그만큼 침묵이 이미 흘렀다는 뜻.
 
-        def feed_test_event(self, kind: str) -> None:
-            if kind == SPEECH_END:
-                self._q.put_nowait(SttV2Event(kind=SPEECH_END, offset_ms=0))
-                return
-            super().feed_test_event(kind)
+        ⚠ 2026-08-07: VAD 이벤트 오프셋으로는 더 이상 침묵을 깎지 않는다(두 시계가 다르다 —
+          VAD 지연 300ms vs 전사 지연 800ms). 그래서 이 성질은 **전사 오프셋**으로 검사한다.
+        """
+
+        def feed_test(self, text: str) -> None:
+            self._q.put_nowait(
+                SttV2Event(kind=TRANSCRIPT, text=text, is_final=True, offset_ms=0)
+            )
 
     monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000: _OffsetFake())
 
@@ -231,9 +234,9 @@ async def test_offset_shortens_wait(fake_v2, monkeypatch):
         [
             _ctl(type="start"),
             _ctl(type="__test_event", event=SPEECH_BEGIN),
-            _ctl(type="__test_say", text="끝났다"),
             CascadeInbound(kind="audio", audio=two_and_half_seconds),
             _ctl(type="__test_event", event=SPEECH_END),
+            _ctl(type="__test_say", text="끝났다"),   # 전사가 2.5초 전 오디오를 가리킨다
         ]
     )
     await asyncio.wait_for(CascadeSession(transport).run(), timeout=2)  # 3초 임계보다 짧게

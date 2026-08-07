@@ -193,8 +193,10 @@ async def test_plausible_offset_is_still_trusted(monkeypatch):
     session, sink = _session(monkeypatch, silence_ms=1000)
     audio = session._audio_ms
     await _drive(session, [
-        SttV2Event(kind=TRANSCRIPT, text="안녕", is_final=True, offset_ms=int(audio - 900)),
+        # ⚠ 순서가 요점이다: VAD 종료가 먼저 오고(전체 대기), 그 뒤 전사가 오면 그때 깎는다.
+        #   실통화의 순서도 이쪽이다 — speech_end 가 전사보다 먼저 온다.
         SttV2Event(kind=SPEECH_END, offset_ms=int(audio - 900)),
+        SttV2Event(kind=TRANSCRIPT, text="안녕", is_final=True, offset_ms=int(audio - 900)),
         0.25,   # 남은 대기 100ms → 이 안에 닫혀야 한다(1초 임계를 다 기다리면 안 된다)
     ])
     assert len(sink.all("user_turn_end")) == 1, sink.events
@@ -247,3 +249,76 @@ async def test_rollover_replay_keeps_unrecognized_audio():
     await rolling._flush()
     assert child.pushed == 32_000
     assert rolling._base_ms == 0
+
+
+# --------------------------------------------------------------------------- #
+# ⑤ 말했는데 빈 턴이 되고, 늦게 온 진짜 전사가 버려지던 것 (2026-08-07 사장님 통화)
+#   "인사 안녕 이렇게 2글자를 인식 못 할 때가 있네"
+#   u2 speech_ms=1042 text='' / u4 speech_ms=4271 text='' — 말은 했는데 전사가 비었다.
+#   신호: 빈 턴은 lag 이 낮다(291·338·348) vs 전사 있는 턴(723~870) = **시계가 둘이다.**
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_vad_offset_does_not_shorten_the_wait(monkeypatch):
+    """⭐ VAD 이벤트의 오프셋으로는 침묵을 깎지 않는다 — 기다리는 대상은 **전사**다.
+
+    VAD 지연(300ms)만큼 깎고 닫으면, 전사 지연(800ms)으로 오는 진짜 말이 뒤늦게 도착해
+    그 턴은 빈 채로 닫힌다. 두 시계를 같은 것으로 보면 안 된다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=400)
+    audio = session._audio_ms
+    began = time.monotonic()
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 2000)),
+        # VAD 종료가 '방금 300ms 전'을 가리킨다 — 예전 코드면 100ms 만 기다리고 닫았다.
+        SttV2Event(kind=SPEECH_END, offset_ms=int(audio - 300)),
+        0.2,
+        # 진짜 최종 전사는 800ms 지연으로 뒤늦게 온다.
+        SttV2Event(kind=TRANSCRIPT, text="안녕", is_final=True, offset_ms=int(audio - 800)),
+        0.5,
+    ])
+    ends = sink.all("user_turn_end")
+    assert len(ends) == 1, sink.events
+    assert ends[0]["text"] == "안녕", "말을 했는데 빈 턴으로 닫혔다"
+    # VAD(300ms)만 보고 100ms 만에 닫았으면 전사(0.2초 뒤 도착)를 놓쳤다. 전사를 받고 나서
+    # 닫혔다는 것 = VAD 오프셋으로 깎지 않았다는 뜻이다.
+    assert sink.time_of("user_turn_end") - began >= 0.2
+
+
+@pytest.mark.asyncio
+async def test_late_final_is_kept_when_the_closed_turn_was_empty(monkeypatch):
+    """⭐⭐ 빈 턴 뒤에 온 진짜 전사는 **버리지 않는다** — 전달한 게 없으니 중복일 수 없다.
+
+    중복 차단(유령 턴)과 발화 보존은 둘 다 만족해야 한다. 한쪽만 고치면 다른 쪽이 되살아난다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=60)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 500)),
+        SttV2Event(kind=SPEECH_END, offset_ms=int(audio - 100)),
+        0.25,                                    # 빈 턴으로 닫힌다
+        # 그 발화의 최종 전사가 뒤늦게 온다. 오디오 지점은 닫힌 턴의 끝과 사실상 같다 —
+        # 예전 규칙이면 '꼬리'로 분류돼 버려졌다.
+        SttV2Event(kind=TRANSCRIPT, text="안녕", is_final=True, offset_ms=int(audio - 120)),
+        SttV2Event(kind=SPEECH_END, offset_ms=int(audio - 120)),
+        0.25,
+    ])
+    texts = [e["text"] for e in sink.all("user_turn_end")]
+    assert "안녕" in texts, f"진짜 발화가 버려졌다: {texts}"
+
+
+@pytest.mark.asyncio
+async def test_tail_of_delivered_text_is_still_blocked(monkeypatch):
+    """⚠ 반대쪽도 지킨다 — **이미 전달한** 말의 꼬리는 여전히 새 턴을 못 연다(유령 턴 차단)."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=60)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=TRANSCRIPT, text="가랑가랑", is_final=True, offset_ms=int(audio - 100)),
+        SttV2Event(kind=SPEECH_END, offset_ms=int(audio - 100)),
+        0.25,
+        SttV2Event(kind=TRANSCRIPT, text="가랑가랑", is_final=True, offset_ms=int(audio - 120)),
+        0.25,
+    ])
+    assert len(sink.all("user_turn_end")) == 1, sink.events
