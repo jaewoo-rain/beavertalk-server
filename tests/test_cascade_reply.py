@@ -703,3 +703,88 @@ async def test_only_the_switching_reply_logs_both_engines(reply_rig, monkeypatch
 
     await session._run_reply("또 안녕")
     assert session._tts_engines == {cs.tts.CHIRP3_ENGINE}, "이전 대답의 엔진이 남았다"
+
+
+# --------------------------------------------------------------------------- #
+# Gemini 배치 모드 — 전체 합성 후 재생 (⛔ 프로덕션 방식 아님, 소리 판정용)
+#   Gemini 는 합성 배속 1.3x 라 실시간을 못 따라간다(실측) → 문장 중간에 끊긴다.
+#   끊긴 소리로는 감정·발음이 좋은지 판단할 수가 없어서, 지연을 내주고 끊김을 없앤 모드다.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_batch_mode_synthesizes_everything_before_speaking(reply_rig, monkeypatch):
+    """⭐ 전부 합성한 **뒤에** 소리가 나간다 — 중간에 끊길 자리가 없다."""
+    order: list[str] = []
+
+    async def _tts(text, **kwargs):
+        order.append(f"tts:{text[:6]}")
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    transport = _Transport([
+        _ctl(type="start", ttsEngine="gemini-batch"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    types = transport.types()
+    # 준비 알림이 **소리보다 먼저** 나간다(침묵을 설명하지 않으면 "끊겼나?"가 된다)
+    assert "beaver_preparing" in types, transport.events
+    assert types.index("beaver_preparing") < types.index("turn_start")
+    stages = [e["stage"] for e in transport.events if e.get("type") == "beaver_preparing"]
+    assert stages[0] == "llm" and "tts" in stages, stages
+    assert types.count("turn_start") == 1 and types.count("turn_end") == 1
+    assert transport.audio > 0
+
+
+@pytest.mark.asyncio
+async def test_batch_mode_splits_by_language_and_joins(reply_rig, monkeypatch):
+    """구간마다 그 언어로 합성해 **이어붙인다**. ⛔ 병렬로 쏘지 않는다(순간 집중이 429 를 부른다)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_LANGUAGE", "ko")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_TARGET_LANGUAGE", "en")
+    calls: list[tuple[str, str]] = []
+    inflight = {"now": 0, "max": 0}
+
+    def _open(client, model, **kwargs):
+        chat = _FakeChat(["오늘은 __How are you?__ 를 배워볼까요?"])
+        reply_rig["chat"] = chat
+        return chat
+
+    async def _tts(text, **kwargs):
+        inflight["now"] += 1
+        inflight["max"] = max(inflight["max"], inflight["now"])
+        calls.append((text, kwargs.get("language")))
+        await asyncio.sleep(0)
+        inflight["now"] -= 1
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.gemini_chat, "open_chat_stream", _open)
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    transport = _Transport([
+        _ctl(type="start", ttsEngine="gemini-batch"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
+
+    assert calls == [("오늘은", "ko"), ("How are you?", "en"), ("를 배워볼까요?", "ko")]
+    assert inflight["max"] == 1, "구간을 병렬로 쐈다 — 429 를 부른다"
+
+
+@pytest.mark.asyncio
+async def test_batch_mode_is_gemini_only(reply_rig, monkeypatch):
+    """⛔ Chirp 은 지금 방식(문장 단위 스트리밍) 그대로다 — 배치는 Gemini 전용이다."""
+    transport = _Transport([
+        _ctl(type="start", ttsEngine="chirp3-hd"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
+    assert "beaver_preparing" not in transport.types(), transport.events

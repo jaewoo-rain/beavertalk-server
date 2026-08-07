@@ -61,6 +61,7 @@ from core.stt import (
 )
 from domains.learning.realtime.cascade_protocol import (
     BEAVER_FRAME_INTERVAL_MS,
+    ServerBeaverPreparing,
     ClientPlaybackProgress,
     ClientTestBeaver,
     ServerAudioCancel,
@@ -108,6 +109,11 @@ _ECHO_MIN_CHARS = 6
 _ECHO_OVERLAP = 0.6         # 글자 2-gram 이 이 비율 이상 겹치면 비버 자기 목소리로 본다
 # 화면에서 고를 수 있는 엔진 값(서버가 아는 것만 받는다). Gemini 쪽 값은 core.tts 가 소유한다.
 _CHIRP_CHOICE = "chirp3-hd"
+# ⭐ Gemini 배치 모드 — **실시간을 포기하고** 전체를 합성한 뒤 한 번에 들려준다.
+#   Gemini 는 합성 배속이 1.3x 라 실시간을 못 따라가고(실측), 그래서 문장 중간에 끊긴다.
+#   끊긴 소리로는 **감정·발음이 좋은지 판단할 수가 없다.** 판정을 위해 지연을 내주는 모드다.
+#   ⛔ 프로덕션 방식이 아니다. Chirp 은 지금 방식 그대로 간다.
+_GEMINI_BATCH_CHOICE = "gemini-batch"
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
 
@@ -1193,6 +1199,16 @@ class CascadeSession:
                     first_audio_ms = int((time.monotonic() - began) * 1000)
                 spoken_chars += len(text_batch)
 
+            if self._tts_engine == _GEMINI_BATCH_CHOICE:
+                turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, began)
+                self._remember_beaver(turn_id, chat.text)
+                logger.info(
+                    "cascade 대답%s(배치): turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s",
+                    "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
+                    settings.CASCADE_LLM_MODEL,
+                    "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
+                )
+                return
             async for piece in chat.chunks():
                 self._speaking_text = chat.text     # 에코 판정 재료(지금 하는 말)
                 for sentence in buffer.push(piece):
@@ -1247,6 +1263,117 @@ class CascadeSession:
         self._reply_task = None      # 방금 끝난 태스크 참조를 비워야 새 대답이 시작된다
         logger.info("cascade 대기열 발화에 답한다: %r", pending[:40])
         self._start_reply(pending)
+
+    async def _run_batch_reply(self, chat: Any, began: float) -> tuple[str | None, int, int]:
+        """⭐ **전체를 합성한 뒤 한 번에 들려준다**(Gemini 전용 배치 모드).
+
+        왜 이런 걸 만드나: Gemini 는 합성 배속이 1.3x 라 실시간 재생을 못 따라간다(실측).
+        버퍼가 안 쌓여 문장 중간에 끊기고, **끊긴 소리로는 감정·발음이 좋은지 판단할 수가
+        없다.** 이 모드는 판정을 위해 지연을 내주는 것이지 프로덕션 방식이 아니다.
+
+        ⛔ 침묵을 설명하지 않으면 사용자는 "끊겼나?" 하고 통화를 끊는다 — 단계마다
+          beaver_preparing 을 보낸다(지연은 비용이 아니지만 **설명되지 않는 침묵은 비용**이다).
+        ⛔ 구간을 **병렬로 쏘지 않는다.** 순간 집중이 429 를 부른다(분당 10회 한도).
+          어차피 이 모드에서 지연은 비용이 아니다.
+        """
+        await self._safe(ServerBeaverPreparing(stage="llm"))
+        async for _ in chat.chunks():                 # 전체 텍스트가 완성될 때까지 받는다
+            self._speaking_text = chat.text
+        text = strip_markers(chat.text).strip() and chat.text.strip()
+        if not text:
+            return None, -1, 0
+
+        segments = split_by_language(
+            text, settings.CASCADE_TTS_LANGUAGE, settings.CASCADE_TTS_TARGET_LANGUAGE
+        )
+        marker_state = _marker_state(text)
+        self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
+        budget_s = max(5, settings.CASCADE_TTS_BATCH_TIMEOUT_S)
+        started = time.monotonic()
+        parts: list[tuple[bytes, str]] = []
+        per_segment: list[str] = []
+        for i, (seg_text, language) in enumerate(segments, start=1):
+            await self._safe(
+                ServerBeaverPreparing(
+                    stage="tts", index=i, total=len(segments),
+                    elapsed_ms=int((time.monotonic() - started) * 1000),
+                )
+            )
+            left = budget_s - (time.monotonic() - started)
+            if left <= 0:
+                # ⛔ 조용히 멈추지 않는다 — 여기까지 만든 것만 들려주고 그 사실을 남긴다.
+                logger.warning(
+                    "cascade 배치 합성 상한(%ds) 초과 — 구간 %d/%d 부터 버린다",
+                    budget_s, i, len(segments),
+                )
+                break
+            seg_started = time.monotonic()
+            pcm = await self._synthesize_all(seg_text, language, left)
+            per_segment.append(
+                f"{language}:{len(seg_text)}자/{(time.monotonic() - seg_started):.1f}s"
+                f"/{len(pcm) / BEAVER_BYTES_PER_MS / 1000:.1f}s"
+            )
+            if pcm:
+                parts.append((pcm, seg_text))
+        if not parts:
+            logger.warning("cascade 배치 합성: 오디오가 한 조각도 안 나왔다(구간 %d개)", len(segments))
+            return None, -1, 0
+
+        audio_s = sum(len(p) for p, _ in parts) / BEAVER_BYTES_PER_MS / 1000
+        logger.info(
+            "cascade 배치 합성: 구간 %d개 %s 텍스트 %d자 → 합성 %.1f초 오디오 %.1f초 [%s]",
+            len(segments), "/".join(lang for _, lang in segments) or "-", len(text),
+            time.monotonic() - started, audio_s, " ".join(per_segment),
+        )
+
+        # 이어붙인 오디오를 **한 번에** 송출한다(페이서가 실시간 속도로 흘려보낸다 — I3).
+        turn_id = await self._begin_beaver_turn()
+        first_audio_ms = -1
+        spoken = 0
+        for pcm, seg_text in parts:
+            sent = await self._speak_pcm(pcm, strip_markers(seg_text).strip())
+            if sent and first_audio_ms < 0:
+                first_audio_ms = int((time.monotonic() - began) * 1000)
+            spoken += len(seg_text)
+        await self.beaver.end()
+        return turn_id, first_audio_ms, spoken
+
+    async def _synthesize_all(self, text: str, language: str, budget_s: float) -> bytes:
+        """구간 하나를 **끝까지** 합성해 PCM 을 모은다(스트리밍 송출 없음)."""
+        chunks: list[bytes] = []
+        try:
+            async with asyncio.timeout(max(1.0, budget_s)):
+                stream = await tts.synthesize_stream(
+                    text,
+                    language=language,
+                    voice=settings.CASCADE_TTS_VOICE,
+                    engine=tts.GEMINI_ENGINE,
+                    speaking_rate=self._tts_rate,
+                    style_prompt=self._tts_style,
+                    allow_gemini=not self._tts_gemini_off,
+                )
+                async for chunk in stream:
+                    chunks.append(chunk)
+        except asyncio.TimeoutError:
+            logger.warning("cascade 배치 합성: 구간 시간 초과 — 받은 %d조각만 쓴다", len(chunks))
+        self.usage.record_tts(text, vendor=self._tts_vendor())
+        pcm = b"".join(chunks)
+        self.usage.record_tts_audio(len(pcm))
+        if pcm:
+            self._tts_engines.add(self._tts_vendor())
+        return pcm
+
+    async def _speak_pcm(self, pcm: bytes, label: str) -> int:
+        """이미 만들어 둔 PCM 을 프레임으로 쪼개 송출한다(이름표는 **마지막 조각**에)."""
+        step = int(BEAVER_FRAME_INTERVAL_MS * BEAVER_BYTES_PER_MS)
+        frames = [pcm[i : i + step] for i in range(0, len(pcm), step)] or [b""]
+
+        async def _gen():
+            for frame in frames:
+                if frame:
+                    yield frame
+
+        return await speak_stream(self.beaver, _gen(), label)
 
     async def _begin_beaver_turn(self) -> str:
         self.state = TurnState.BEAVER_SPEAKING
@@ -1304,7 +1431,8 @@ class CascadeSession:
             voice=settings.CASCADE_TTS_VOICE,
             report=report,
             allow_gemini=allow_gemini,
-            engine=self._tts_engine or None,
+            engine=(tts.GEMINI_ENGINE if self._tts_engine == _GEMINI_BATCH_CHOICE
+                    else self._tts_engine or None),
             speaking_rate=self._tts_rate,
             style_prompt=self._tts_style,
         )
@@ -1335,7 +1463,7 @@ class CascadeSession:
 
     def _tts_vendor(self) -> str:
         """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다."""
-        if self._tts_engine == tts.GEMINI_ENGINE:
+        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
             return (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip()
         return tts.CHIRP3_ENGINE
 
@@ -1669,7 +1797,7 @@ class CascadeSession:
         picked = str(ctrl.get("ttsEngine") or ctrl.get("tts_engine") or "").strip()
         source = "서버 기본값"
         if picked:
-            if picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE):
+            if picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE, _GEMINI_BATCH_CHOICE):
                 self._tts_engine, source = picked, "클라 지정"
             else:
                 logger.warning("cascade tts 엔진 값 거절: %r — 서버 기본값으로 진행", picked[:40])

@@ -314,6 +314,21 @@ class ServerUserTurnEnd(BaseModel):
     reason: str = "silence"
 
 
+class ServerBeaverPreparing(BaseModel):
+    """비버가 **대답을 만드는 중**임을 알린다(배치 합성 전용).
+
+    왜 필요한가: 배치 모드는 전체를 합성한 뒤에 한 번에 들려준다 — 163자면 합성만 20초가
+    넘는다. 화면에 아무 표시가 없으면 사용자는 **"끊겼나?" 하고 통화를 끊는다.**
+    지연 자체는 이 모드에서 비용이 아니지만 **침묵이 설명되지 않는 것**은 비용이다.
+    """
+
+    type: Literal["beaver_preparing"] = "beaver_preparing"
+    stage: str                 # "llm" | "tts"
+    index: int = 0             # 지금 몇 번째 구간을 합성 중인가(1부터)
+    total: int = 0             # 전체 구간 수(llm 단계에선 0)
+    elapsed_ms: int = 0
+
+
 class ServerSttRollover(BaseModel):
     """내부 STT 스트림 교체 통지(진단 전용 — 턴 판정과 무관).
 
@@ -391,6 +406,7 @@ CascadeServerMessage = Annotated[
         ServerInputPartial,
         ServerUserTurnEnd,
         ServerSttRollover,
+        ServerBeaverPreparing,
         ServerAudioCancel,
         ServerTestCancelReport,
         # 비버(서버 출력) 턴 — normalcall 과 **같은 모델을 재사용**한다. 앱의 재생 상태기계가

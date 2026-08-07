@@ -71,13 +71,15 @@
       <button id="stopBtn" class="sec" disabled>정지</button>
       <span><span id="dot" class="dot"></span><span id="stat">대기</span></span>
       <span id="engine" class="muted"></span>
+      <span id="prep" class="muted"></span>
       <span id="clock" class="muted"></span>
     </div>
     <div class="row" style="margin:8px 0; gap:12px; flex-wrap:wrap">
       <span class="muted">TTS 엔진</span>
       <select id="ttsEngine" title="통화를 시작할 때 정해진다. 통화 중에는 안 바뀐다.">
         <option value="chirp3-hd">Chirp3-HD (기본 · 빠름)</option>
-        <option value="gemini-tts">Gemini-TTS (감정 지시 가능)</option>
+        <option value="gemini-tts">Gemini-TTS · 실시간 (끊길 수 있음)</option>
+        <option value="gemini-batch">Gemini-TTS · 전체 합성 후 재생 (안 끊김 · 20초+ 대기)</option>
       </select>
       <span class="muted">말하기 속도</span>
       <select id="speakingRate" title="1.0 = 그 목소리의 정상 속도. 범위 0.25~2.0">
@@ -95,6 +97,9 @@
       Gemini 6.9초/<b>1.3배속</b>. Gemini 는 합성이 재생 속도를 겨우 따라잡아 버퍼가 안 쌓이고,
       거기에 <b>분당 요청 10회</b> 쿼터가 겹친다(초과하면 이 통화는 Chirp 으로 고정된다).
       선택은 <b>통화 시작 시점</b>에 서버로 간다.
+      <br>⭐ <b>전체 합성 후 재생</b>: 대답을 통째로 만든 뒤 한 번에 들려준다. 말이 끝나고
+      <b>20초 넘게 조용할 수 있지만 끊기지 않는다</b> — 소리 자체(감정·발음)를 판정하기 위한 모드다.
+      기다리는 동안 아래에 진행 상황이 뜬다.
     </div>
     <div class="muted" style="margin-bottom:6px">현재 전사(부분/최종):</div>
     <div id="live" class="live muted">…</div>
@@ -405,9 +410,18 @@ function onMsg(ev) {
     log(`↻ STT 스트림 롤오버 (${m.reason}) — 오디오 공백 ${m.gap_ms}ms · 버퍼 리플레이됨`, 'w');
     renderTable();
   }
+  else if (m.type === 'beaver_preparing') {
+    // 배치 모드는 합성이 끝날 때까지 소리가 안 난다 — 침묵을 설명하지 않으면 "끊겼나?" 가 된다.
+    const label = m.stage === 'llm'
+      ? '비버가 대답을 생각하는 중…'
+      : `비버가 목소리를 만드는 중… 구간 ${m.index}/${m.total} (${(m.elapsed_ms/1000).toFixed(1)}s)`;
+    $('#prep').textContent = '⏳ ' + label;
+    log('⏳ ' + label);
+  }
   else if (m.type === 'turn_start') {          // 비버 턴 시작 — 오디오보다 먼저 온다(불변식 I2)
     beaverReset(m.turn_id);
     $('#beaverStat').innerHTML = `<span class="ok">🔊 비버 턴 ${esc(m.turn_id)} 재생 중</span>`;
+    $('#prep').textContent = '';
     log(`🔊 turn_start ${m.turn_id} (오디오 시작)`);
   }
   else if (m.type === 'turn_end') {
