@@ -296,6 +296,9 @@ class BeaverOutput:
         self._transport = transport
         self._now = now
         self._sleep = sleep
+        # 세션이 엔진에 맞춰 덮어쓴다(None 이면 전역 설정). 엔진마다 합성이 뒤처지는 폭이 달라
+        # 상수 하나로 쓰면 한쪽은 끊기고 한쪽은 버퍼가 부푼다.
+        self.lead_ms: int | None = None
         self._turn_seq = 0
         self._epoch = 0
         self._cur: _TurnRecord | None = None
@@ -410,11 +413,13 @@ class BeaverOutput:
     async def _pace(self) -> None:
         """실시간보다 앞서 나가면 그만큼 기다린다.
 
-        허용 선행 = CASCADE_TTS_LEAD_MS. 이걸 넘겨 밀어내면 클라 버퍼가 부푼다.
+        허용 선행 = CASCADE_TTS_LEAD_MS(기본) 또는 **세션이 엔진에 맞춰 지정한 값**.
+        이걸 넘겨 밀어내면 클라 버퍼가 부풀고, 반대로 **너무 작으면 언더런이 난다** —
+        합성이 재생보다 뒤처지는 폭이 엔진마다 다르기 때문이다(Gemini 최대 1.5초).
         """
         if self._cur is None:
             return
-        lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS)
+        lead_ms = max(0, self.lead_ms if self.lead_ms is not None else settings.CASCADE_TTS_LEAD_MS)
         elapsed_ms = (self._now() - self._cur.started_at) * 1000.0
         sent_ms = self._cur.sent_bytes / BEAVER_BYTES_PER_MS
         ahead_ms = sent_ms - elapsed_ms - lead_ms
@@ -1231,12 +1236,15 @@ class CascadeSession:
             async for piece in chat.chunks():
                 self._speaking_text = chat.text     # 에코 판정 재료(지금 하는 말)
                 for sentence in buffer.push(piece):
-                    if first_audio_ms < 0 and not pending:
+                    # ⚠ **첫 문장 단독**은 Chirp 규칙이다. Gemini 는 짧은 요청이 특히
+                    #   불리하고(고정 오버헤드 ≈1.3초), 어차피 선행 버퍼로 1.5초를 기다리므로
+                    #   첫 문장만 따로 쏘면 손해만 본다 — 그래서 Gemini 는 묶어서 낸다.
+                    if first_audio_ms < 0 and not pending and not self._gemini_realtime():
                         pending.append(sentence)
                         await _flush_batch()        # 첫 문장 = 단독 즉시 송출
                         continue
                     pending.append(sentence)
-                    if sum(len(x) for x in pending) >= max(1, settings.CASCADE_TTS_BATCH_CHARS):
+                    if sum(len(x) for x in pending) >= self._batch_chars():
                         await _flush_batch()
             tail = buffer.flush()
             if tail:
@@ -1530,6 +1538,21 @@ class CascadeSession:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         return sent
+
+    def _gemini_realtime(self) -> bool:
+        """지금 세션이 **Gemini 실시간** 모드인가(배치는 별도 경로라 제외)."""
+        return self._tts_engine == tts.GEMINI_ENGINE
+
+    def _batch_chars(self) -> int:
+        """문장을 얼마나 모아 한 번에 합성할지 — **엔진마다 다르다.**
+
+        Gemini 는 요청마다 고정 오버헤드(≈1.3초)가 붙어 짧은 요청이 특히 손해다. 반대로
+        TTFB 는 길이와 거의 무관했으므로(49자 1,328ms / 196자 1,188ms) 크게 묶어도 첫 소리가
+        그만큼 늦지 않는다. 요청 수가 줄어 분당 쿼터(10회)에도 유리하다.
+        """
+        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
+            return max(1, settings.CASCADE_TTS_BATCH_CHARS_GEMINI)
+        return max(1, settings.CASCADE_TTS_BATCH_CHARS)
 
     def _tts_vendor(self) -> str:
         """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다."""
@@ -1880,11 +1903,22 @@ class CascadeSession:
         style = ctrl.get("stylePrompt", ctrl.get("style_prompt"))
         if isinstance(style, str):
             self._tts_style = style.strip()[:_STYLE_PROMPT_MAX]
+        # ⭐ 엔진에 맞는 선행 버퍼를 잡는다. Gemini 는 합성이 재생보다 최대 1.5초 뒤처져서
+        #   200ms 만 모으고 시작하면 **반드시 언더런이 난다**(그게 '끊긴다'의 정체였다).
+        #   배속 자체는 1.7~1.9x 라 초반만 견디면 격차가 벌어져 안 끊긴다.
+        self.beaver.lead_ms = (
+            max(0, settings.CASCADE_TTS_LEAD_MS_GEMINI)
+            if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE)
+            else None
+        )
         # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
         logger.info(
-            "cascade 엔진 선택: %s (%s) speaking_rate=%s style=%r",
+            "cascade 엔진 선택: %s (%s) speaking_rate=%s 선행버퍼=%dms 묶음=%d자 style=%r",
             self._tts_engine or tts.CHIRP3_ENGINE, source,
             self._tts_rate if self._tts_rate is not None else "서버값",
+            self.beaver.lead_ms if self.beaver.lead_ms is not None
+            else settings.CASCADE_TTS_LEAD_MS,
+            self._batch_chars(),
             (self._tts_style if self._tts_style is not None else "서버값")[:40],
         )
 

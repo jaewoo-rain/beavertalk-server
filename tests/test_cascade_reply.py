@@ -905,3 +905,73 @@ async def test_both_modes_log_the_same_reading_fields(reply_rig, monkeypatch, ca
     for line in lines:
         for field in ("들린글자=", "오디오=", "읽기=", "합성배속="):
             assert field in line, (field, line)
+
+
+# --------------------------------------------------------------------------- #
+# 선행 버퍼는 **엔진마다 다르다** (2026-08-08 재측정)
+#   Gemini 는 합성이 재생보다 최대 1.16~1.48초 뒤처지는데 200ms 만 모으고 시작했다 →
+#   언더런(= "끊긴다")이 나는 게 당연했다. 배속 자체는 1.68~1.94x 로 실시간보다 빠르다 —
+#   문제는 속도가 아니라 **출발 버퍼**였다.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_lead_buffer_is_per_engine(reply_rig, monkeypatch):
+    """Gemini 를 고르면 선행 버퍼가 커지고, Chirp 은 전역 기본값(작게)을 그대로 쓴다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_LEAD_MS_GEMINI", 1500)
+
+    for engine, expected in (("chirp3-hd", None), ("gemini-tts", 1500), ("gemini-batch", 1500)):
+        transport = _Transport([_ctl(type="start", ttsEngine=engine)], wait_for="ready")
+        session = CascadeSession(transport, genai_client=object())
+        await asyncio.wait_for(session.run(), timeout=5)
+        assert session.beaver.lead_ms == expected, engine
+
+
+@pytest.mark.asyncio
+async def test_pacer_uses_the_session_lead(reply_rig, monkeypatch):
+    """⭐ 페이서가 **세션 값**을 쓴다 — 전역 상수만 보면 엔진별 설정이 무의미해진다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_LEAD_MS", 200)
+    slept: list[float] = []
+
+    async def _sleep(sec):
+        slept.append(sec)
+
+    one_second = b"\x00" * int(cs.BEAVER_BYTES_PER_MS * 1000)
+
+    beaver = cs.BeaverOutput(_Transport([]), sleep=_sleep)
+    await beaver.begin()
+    beaver.lead_ms = 1500                       # Gemini 상태
+    await beaver.send(one_second)
+    await beaver.send(one_second)               # 누적 1초 선행 — 1.5초 한도 안쪽이다
+    assert slept == [], "선행 1.5초 안쪽인데 기다렸다(그러면 버퍼가 안 쌓여 언더런이 난다)"
+
+    beaver2 = cs.BeaverOutput(_Transport([]), sleep=_sleep)
+    await beaver2.begin()                        # lead_ms=None → 전역 200ms
+    await beaver2.send(one_second)
+    await beaver2.send(one_second)
+    assert slept and slept[0] > 0.5, slept       # 200ms 를 넘겼으니 기다린다
+
+
+@pytest.mark.asyncio
+async def test_gemini_does_not_send_the_first_sentence_alone(reply_rig, monkeypatch):
+    """짧은 요청은 Gemini 에 특히 불리하다(고정 오버헤드 ≈1.3초) — 첫 문장도 묶는다.
+
+    ⛔ Chirp 은 지금대로 첫 문장을 단독 즉시 송출한다(그쪽은 오버헤드가 작다).
+    """
+    def _open(client, model, **kwargs):
+        chat = _FakeChat(["첫 번째 문장입니다. ", "두 번째 문장입니다. ", "세 번째 문장입니다."])
+        reply_rig["chat"] = chat
+        return chat
+
+    monkeypatch.setattr(cs.gemini_chat, "open_chat_stream", _open)
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_BATCH_CHARS_GEMINI", 1000)
+
+    for engine, expected_calls in (("gemini-tts", 1), ("chirp3-hd", 2)):
+        reply_rig["tts_calls"].clear()
+        transport = _Transport([
+            _ctl(type="start", ttsEngine=engine),
+            _ctl(type="__test_say", text="안녕"),
+            _ctl(type="__test_event", event=SPEECH_END),
+        ])
+        await asyncio.wait_for(
+            CascadeSession(transport, genai_client=object()).run(), timeout=5
+        )
+        assert len(reply_rig["tts_calls"]) == expected_calls, (engine, reply_rig["tts_calls"])
