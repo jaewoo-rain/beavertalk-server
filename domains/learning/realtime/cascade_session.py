@@ -104,9 +104,6 @@ _OFFSET_FUTURE_TOLERANCE_MS = 500
 # 시각**에서 찾아본다. 파이프라인 지연(실측 0.8~0.9초)보다 넉넉해야 한다.
 _RMS_HISTORY_MS = 4000
 _RMS_WINDOW_MS = 400        # 그 시각 ± 이 범위에서 가장 큰 에너지를 본다
-# 에코 판정: 이보다 짧은 발화는 겹침을 재도 의미가 없다(짧은 맞장구를 버리면 더 나쁘다).
-_ECHO_MIN_CHARS = 6
-_ECHO_OVERLAP = 0.6         # 글자 2-gram 이 이 비율 이상 겹치면 비버 자기 목소리로 본다
 # 화면에서 고를 수 있는 엔진 값(서버가 아는 것만 받는다). Gemini 쪽 값은 core.tts 가 소유한다.
 _CHIRP_CHOICE = "chirp3-hd"
 # ⭐ Gemini 배치 모드 — **실시간을 포기하고** 전체를 합성한 뒤 한 번에 들려준다.
@@ -309,9 +306,6 @@ class BeaverOutput:
         # 세션이 엔진에 맞춰 덮어쓴다(None 이면 전역 설정). 엔진마다 합성이 뒤처지는 폭이 달라
         # 상수 하나로 쓰면 한쪽은 끊기고 한쪽은 버퍼가 부푼다.
         self.lead_ms: int | None = None
-        # 마지막으로 오디오를 내보낸 시각 — **에코 판정의 물리적 근거**다(스피커가 소리를
-        # 내고 있을 때만 에코가 생긴다). 0 이면 아직 한 번도 안 냈다.
-        self.last_sent_at: float = 0.0
         self._turn_seq = 0
         self._epoch = 0
         self._cur: _TurnRecord | None = None
@@ -381,7 +375,6 @@ class BeaverOutput:
             SpokenChunk(start_byte=start, end_byte=self._cur.sent_bytes, text=text)
         )
         await self._transport.send_audio(pcm)
-        self.last_sent_at = self._now()
 
     async def end(self) -> None:
         """턴 종료 — **마지막 바이트를 보낸 뒤**에 turn_end(I5). 취소된 턴이면 내지 않는다(I4)."""
@@ -513,7 +506,6 @@ class CascadeSession:
         self._interrupted: dict | None = None
         # 비버가 말하는 동안 들어온 발화(대답이 끝나면 답한다) / 지금 비버가 하는 말(에코 판정)
         self._pending_user_text = ""
-        self._speaking_text = ""
         self._rms_log: deque[tuple[float, float]] = deque()
         self.state = TurnState.IDLE
         self._q: asyncio.Queue[Any] = asyncio.Queue()
@@ -1078,60 +1070,6 @@ class CascadeSession:
             return False
         return True
 
-    def _looks_like_echo(self, text: str) -> bool:
-        """비버 자기 목소리가 전사된 것인가.
-
-        ⛔⛔ **텍스트 겹침만으로 판정하면 안 된다**(2026-08-08 실통화에서 확인).
-          일반 음성 앱이면 "비버 말과 똑같이 말함 = 에코"가 맞지만, **여기는 어학 앱**이다.
-          우리가 프롬프트에서 직접 시킨다 — "통문장을 또박또박 들려주고 **2번 따라 말하게**"
-          (persona_prompt). 즉 **비버 말을 그대로 따라 하는 것이 정상 학습 행동**이다.
-          따라 말했는데 무시당하면 사장님이 겪으신 그대로 "왜 응답을 안 하지?"가 된다.
-
-        → **판정의 축은 텍스트가 아니라 물리다.** 에코는 스피커가 소리를 낼 때만 생긴다:
-          ① 비버 턴이 열려 있다(지금 오디오가 흐른다) 또는
-          ② 마지막 송출 직후의 꼬리 창 안이다(클라 버퍼에 남은 소리가 아직 재생 중이다)
-          그 창 밖이면 **무조건 사용자 발화**다 — 텍스트가 아무리 겹쳐도 따라 말하기다.
-          겹침은 **창 안에서만** 보조 근거로 쓴다(마이크 상시개방이라 그때는 에코가 실재한다).
-        """
-        if not self._beaver_audible_recently():
-            return False
-        probe = "".join((text or "").split())
-        if len(probe) < _ECHO_MIN_CHARS:
-            return False
-        said = self._beaver_said_recently()
-        if not said:
-            return False
-        grams = {probe[i:i + 2] for i in range(len(probe) - 1)}
-        if not grams:
-            return False
-        hit = sum(1 for g in grams if g in said)
-        return hit / len(grams) >= _ECHO_OVERLAP
-
-    def _beaver_audible_recently(self) -> bool:
-        """지금(또는 방금까지) 비버 소리가 스피커에서 났나 — 에코가 **가능한** 구간인가.
-
-        창 = 클라 버퍼(선행 버퍼만큼 아직 재생 중이다) + 잔향 꼬리(CASCADE_ECHO_TAIL_MS).
-        우리는 실시간보다 lead_ms 만큼 앞서 보내므로, 송출을 멈춘 뒤에도 그만큼은 소리가 난다.
-        """
-        if self.beaver.turn_id is not None:
-            return True
-        if self.beaver.last_sent_at <= 0.0:
-            return False
-        lead = self.beaver.lead_ms
-        if lead is None:
-            lead = settings.CASCADE_TTS_LEAD_MS
-        window_ms = max(0, lead) + max(0, settings.CASCADE_ECHO_TAIL_MS)
-        return (time.monotonic() - self.beaver.last_sent_at) * 1000.0 <= window_ms
-
-    def _beaver_said_recently(self) -> str:
-        """비버가 방금 한 말(이력의 마지막 model 발화 + 지금 생성 중인 대사)."""
-        parts = [self._speaking_text]
-        for item in reversed(self._history):
-            if item.get("role") == "model":
-                parts.append(item.get("text") or "")
-                break
-        return "".join("".join(p.split()) for p in parts)
-
     def _rms_at(self, offset_ms: int) -> float:
         """그 오디오 시각 부근의 **최대** 에너지. 이력이 없으면 0.
 
@@ -1196,10 +1134,6 @@ class CascadeSession:
 
     def _start_reply(self, user_text: str, is_greeting: bool = False) -> None:
         if not self._reply_enabled() or not user_text.strip():
-            return
-        if self._looks_like_echo(user_text):
-            # ⛔ 비버 자기 목소리가 전사된 것 — 답하면 **비버가 자기 말에 답한다.**
-            logger.info("cascade 발화 무시 — 비버 대사와 겹친다(에코 추정): %r", user_text[:40])
             return
         if self._reply_task is not None and not self._reply_task.done():
             # 앞 대답이 흐르는 중이면 겹쳐 말하지 않는다(불변식 I1 — 비버 턴은 하나).
@@ -1270,7 +1204,6 @@ class CascadeSession:
                 )
                 return
             async for piece in chat.chunks():
-                self._speaking_text = chat.text     # 에코 판정 재료(지금 하는 말)
                 for sentence in buffer.push(piece):
                     # ⚠ **첫 문장 단독**은 Chirp 규칙이다. Gemini 는 짧은 요청이 특히
                     #   불리하고(고정 오버헤드 ≈1.3초), 어차피 선행 버퍼로 1.5초를 기다리므로
@@ -1312,7 +1245,6 @@ class CascadeSession:
         except InvariantError:
             logger.info("cascade 대답 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
         finally:
-            self._speaking_text = ""
             self._batch_synthesizing = False
             self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
             if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
@@ -1346,7 +1278,7 @@ class CascadeSession:
         self._batch_synthesizing = True
         await self._safe(ServerBeaverPreparing(stage="llm"))
         async for _ in chat.chunks():                 # 전체 텍스트가 완성될 때까지 받는다
-            self._speaking_text = chat.text
+            pass
         text = strip_markers(chat.text).strip() and chat.text.strip()
         if not text:
             self._batch_synthesizing = False
@@ -2006,11 +1938,21 @@ class CascadeSession:
           위 설명대로 돈다. dev 데모(cascade_demo.html)는 보내고 있어 경로 자체는 살아 있다.
         """
         if not isinstance(aec, dict):
-            logger.info(
-                "cascade aec 힌트 없음 → 전 세션 공통 bargein_confirm=%s (앱이 아직 안 보낸다)",
+            # ⛔ **에코 억제는 음향 층(클라 AEC)의 일이다.** 서버는 말 내용으로 에코를 추측하지
+            #   않는다(그 추측이 어학 앱에서 따라 말하기를 죽였다 — 2026-08-08).
+            #   그래서 위험을 없애는 대신 **보이게** 남긴다: 이 세션은 AEC 선언이 없다.
+            logger.warning(
+                "cascade AEC 미선언 세션 — 앱이 start.aec 를 안 보낸다. 에코가 나면 **클라에서**"
+                " 잡아야 한다(서버는 에너지 게이트만 본다). bargein_confirm=%s",
                 self._bargein_confirm,
             )
             return
+        if str(aec.get("mode") or "unknown") in ("none", "unknown"):
+            logger.warning(
+                "cascade AEC 없음/미상 선언(mode=%r) — 에코 억제는 클라 AEC 의 일이다."
+                " 서버는 말 내용으로 에코를 판정하지 않는다",
+                aec.get("mode"),
+            )
         mode = str(aec.get("mode") or "unknown")
         self._aec_mode = mode
         if mode == "headset":

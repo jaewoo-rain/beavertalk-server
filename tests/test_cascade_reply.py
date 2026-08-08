@@ -428,33 +428,49 @@ async def test_rejected_bargein_utterance_still_gets_answered(reply_rig, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_echo_of_beaver_is_not_answered(reply_rig, monkeypatch):
-    """⚠ 반대쪽 — **재생 중** 들어온 비버 자기 목소리에는 답하지 않는다.
+async def test_repeating_the_beaver_is_answered(reply_rig, monkeypatch):
+    """⭐ **따라 말하기는 답을 받는다** — 어학 앱에서 그건 정상 학습 행동이다.
 
-    ⛔ 2026-08-08 갱신: 예전엔 텍스트 겹침만 봤다. 그러면 **따라 말하기**(우리가 프롬프트로
-      시킨 정상 학습 행동)까지 무시된다. 이제 **비버가 실제로 소리를 내는 중**일 때만 에코로 본다.
+    2026-08-08: 서버가 '비버 대사와 겹치면 에코'로 분류해 진짜 발화 5건을 죽였다
+    (사장님: "왜 응답을 안 하지?"). 우리는 프롬프트에서 직접 "2번 따라 말하게" 라고 시킨다.
+    ⛔ 에코 억제는 **음향 층(클라 AEC)의 일**이지 말 내용으로 추측할 일이 아니다.
+    실측: 비버 재생 중 마이크 에너지 최대 0.0443 < 임계 0.05, 그리고 **재생 중 전사 0건**.
     """
-    import time as _time
-
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", False)
     session = CascadeSession(_Transport([]), genai_client=object())
     session._tg = _StubGroup()
-    session._history.append({"role": "model", "text": "안녕하세요 반갑습니다. 오늘 기분은 어떠세요?"})
-    session.beaver.last_sent_at = _time.monotonic()   # 지금 재생 중이다
+    session._history.append({"role": "model", "text": "책이 탁자 위에 있어요."})
 
-    session._start_reply("오늘 기분은 어떠세요")      # 재생 중 + 겹침 = 에코
-    assert session._tg.started is False, "비버가 자기 말에 답하려 했다"
-
-    session._start_reply("저는 학교에 갔어요")        # 진짜 발화는 답한다
-    assert session._tg.started is True
+    session._start_reply("책이 탁자 위에 있어요")     # 비버 대사와 100% 겹친다
+    assert session._tg.started is True, "따라 말하기를 버렸다"
 
 
-def test_short_backchannel_is_not_treated_as_echo():
-    """짧은 맞장구는 겹침으로 못 가른다 — 에코로 몰아 버리면 진짜 발화를 잃는다."""
-    session = CascadeSession(_Transport([]), genai_client=object())
-    session._history.append({"role": "model", "text": "네 맞아요 그렇죠"})
-    assert session._looks_like_echo("네") is False
-    assert session._looks_like_echo("맞아요") is False
+def test_no_text_similarity_gate_remains():
+    """⛔ 텍스트 유사도로 발화를 거르는 분류기가 **남아 있으면 안 된다**.
+
+    창(재생 중인가)만 남겨도 같은 종류의 사고가 난다 — barge-in 이 안 걸린 발화가
+    재생 중이라는 이유로 통째로 죽는다. 그래서 이 경로에서 통째로 걷어냈다.
+    남은 방어는 두 층이다: ①클라 AEC ②에너지 게이트(CASCADE_BARGEIN_RMS).
+    """
+    import inspect
+
+    source = inspect.getsource(cs)
+    for gone in ("_looks_like_echo", "_beaver_said_recently", "_ECHO_OVERLAP"):
+        assert gone not in source, gone
+
+
+@pytest.mark.asyncio
+async def test_aec_missing_is_logged_as_a_warning(reply_rig, caplog):
+    """AEC 선언이 없으면 **경고로 보이게** 한다 — 없앤 방어를 조용히 두지 않는다."""
+    import logging
+
+    transport = _Transport([_ctl(type="start")], wait_for="ready")
+    with caplog.at_level(logging.WARNING):
+        await asyncio.wait_for(
+            CascadeSession(transport, genai_client=object()).run(), timeout=5
+        )
+    assert any("AEC" in r.getMessage() for r in caplog.records
+               if r.levelno >= logging.WARNING), caplog.text
 
 
 # --------------------------------------------------------------------------- #
@@ -1081,58 +1097,3 @@ def test_marker_only_punctuation_input_makes_no_segment():
     assert split_by_language("__?__", "ko", "en") == []
 
 
-# --------------------------------------------------------------------------- #
-# 에코 판정 (2026-08-08 실통화) — 텍스트 겹침만으로 가르면 **학습 행동을 죽인다**
-#   로그: 발화 무시 — 비버 대사와 겹친다(에코 추정): '책이 탁자 위에 있어요'  ×3
-#   사장님: "왜 응답을 안 하지?"  ← 따라 말하기를 무시했다.
-#   우리가 프롬프트에서 "2번 따라 말하게" 라고 시켜 놓고 무시하는 구조였다.
-# --------------------------------------------------------------------------- #
-def test_repeating_after_the_beaver_finished_is_a_real_utterance():
-    """⭐ 비버 소리가 끝난 뒤 같은 문장을 말하면 **따라 말하기**다 — 답을 받아야 한다."""
-    session = CascadeSession(_Transport([]), genai_client=object())
-    session._history.append({"role": "model", "text": "책이 탁자 위에 있어요."})
-    session.beaver.last_sent_at = 0.0            # 비버가 소리를 낸 적이 없다(재생 아님)
-
-    assert session._looks_like_echo("책이 탁자 위에 있어요") is False
-
-
-def test_same_sentence_while_the_beaver_is_playing_is_echo():
-    """⚠ 반대쪽도 지킨다 — 재생 중에 비버 대사가 그대로 들어오면 **여전히 에코**다.
-
-    마이크 상시개방이면 비버 발화 중에도 마이크가 열려 있어 에코가 실재한다.
-    """
-    import time as _time
-
-    session = CascadeSession(_Transport([]), genai_client=object())
-    session._history.append({"role": "model", "text": "책이 탁자 위에 있어요."})
-    session.beaver.last_sent_at = _time.monotonic()   # 방금 소리를 냈다 = 아직 재생 중
-
-    assert session._looks_like_echo("책이 탁자 위에 있어요") is True
-
-
-def test_unrelated_speech_while_playing_is_not_echo():
-    """재생 중이어도 **다른 말**은 에코가 아니다(겹침은 창 안에서만 보조 근거다)."""
-    import time as _time
-
-    session = CascadeSession(_Transport([]), genai_client=object())
-    session._history.append({"role": "model", "text": "책이 탁자 위에 있어요."})
-    session.beaver.last_sent_at = _time.monotonic()
-
-    assert session._looks_like_echo("저는 학교에 갔어요") is False
-
-
-def test_echo_window_covers_the_client_buffer():
-    """⚠ 창은 '마지막 송출'이 아니라 **클라가 아직 재생 중인 시간**까지다.
-
-    우리는 실시간보다 선행 버퍼만큼 앞서 보내므로, 송출을 멈춘 뒤에도 그만큼 소리가 난다.
-    """
-    import time as _time
-
-    session = CascadeSession(_Transport([]), genai_client=object())
-    session._history.append({"role": "model", "text": "책이 탁자 위에 있어요."})
-    session.beaver.lead_ms = 1500                     # Gemini 처럼 큰 버퍼
-    session.beaver.last_sent_at = _time.monotonic() - 1.0   # 1초 전에 마지막 송출
-    assert session._looks_like_echo("책이 탁자 위에 있어요") is True   # 아직 재생 중이다
-
-    session.beaver.lead_ms = 0                        # 버퍼가 없으면 이미 끝났다
-    assert session._looks_like_echo("책이 탁자 위에 있어요") is False
