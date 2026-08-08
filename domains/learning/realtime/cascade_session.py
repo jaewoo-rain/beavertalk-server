@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import itertools
 import logging
 import math
 import time
@@ -94,6 +95,13 @@ _RMS_STRIDE = 8  # 에너지 계산 표본 간격(전 샘플을 돌 필요 없�
 # 200ms 는 "새 발화라면 최소 이만큼은 뒤여야 한다"는 하한(사람이 그보다 빨리 새 말을 시작하면
 # 어차피 같은 턴으로 이어진다).
 _STALE_OFFSET_EPSILON_MS = 200
+# barge-in 판정 표본 상한 — 병적 세션에서 메모리가 새지 않게(통화당 수십 건이 정상).
+_BARGEIN_OBS_MAX = 500
+# ⭐ 세션 일련번호 — **로그에 세션 식별자가 없어서** 08-08 u7 을 로그만으로 못 갈랐다.
+#   두 세션이 겹쳐 돌면(탭 두 개, 재접속) 두 상태기계의 줄이 한 스트림에 섞이는데, 그걸
+#   구분할 방법이 없어 "한 세션의 모순"처럼 보였다. 프로세스 안에서만 유일하면 충분하다
+#   (인스턴스가 다르면 Cloud Run 이 resource.labels 로 이미 갈라 준다).
+_session_seq = itertools.count(1)
 # 이 값을 넘는 파이프라인 지연은 계측이 아니라 **버그 신호**다(리전 왕복은 1초 수준).
 # 넘는 오프셋은 계측에 쓰지 않고 미상으로 거절한다(_sanitize_offset).
 _LAG_SANITY_MS = 3000
@@ -537,6 +545,7 @@ class CascadeSession:
         self.state = TurnState.IDLE
         self._q: asyncio.Queue[Any] = asyncio.Queue()
         self._t0 = time.monotonic()
+        self._sid = "s%d" % next(_session_seq)
         self._sample_rate = _DEFAULT_SAMPLE_RATE
         self._audio_ms = 0.0        # 클라에서 받아 STT 로 흘린 오디오 총량(오디오 타임라인)
         # 턴 누적
@@ -563,6 +572,13 @@ class CascadeSession:
         self._bargein_confirm = settings.CASCADE_BARGEIN_CONFIRM
         self._aec_mode = "unknown"
         self._recent_rms = 0.0
+        # ⭐ 에너지 관문을 이 세션에서 **돌릴 것인가**(AEC 선언이면 끈다 — _apply_aec_hint).
+        #   기본은 켬 = 안전 쪽. start 를 못 받은 세션도 여기에 떨어진다.
+        self._energy_gate = True
+        # barge-in 판정 계측(관측 전용) — 보류 시각·그때 에너지 / 판정별 에너지 표본.
+        self._bargein_pending_at = 0.0
+        self._bargein_pending_rms = 0.0
+        self._bargein_obs: list[tuple[str, float]] = []
         # 비버 출력(P1: TTS 송출·원장·페이서). P0 에서는 오디오를 내지 않지만, 클라가
         # 되보내는 playback_progress 를 **턴별 원장에 대조**하려면 지금부터 있어야 한다.
         self.beaver = BeaverOutput(transport)
@@ -672,6 +688,7 @@ class CascadeSession:
                 duration_s=time.monotonic() - self._t0,
                 turns=self._turn_seq,
             )
+            self._log_bargein_summary()
 
     # ── ① client → STT ──
     async def _pump_in(self, stream: Any, pending_audio: bytes | None) -> None:
@@ -1003,10 +1020,15 @@ class CascadeSession:
                 reason=reason,
             )
         )
+        # ⭐ `열림`·`마지막음성`을 같이 남긴다(2026-08-08). u7(열린 지 얼마 안 된 턴이
+        #   reason=max 로 닫혔다) 같은 사건을 **로그만으로** 가르려면 이 둘이 있어야 한다 —
+        #   지금까지 턴이 언제 열렸는지가 로그에 없어 사후 재구성이 불가능했다.
         logger.info(
-            "cascade turn: id=%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d "
-            "미완=%s text=%r",
-            self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms,
+            "cascade turn: %s/%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d "
+            "열림=%.1f초전 마지막음성=%.1f초전 미완=%s text=%r",
+            self._sid, self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms,
+            max(0.0, now - self._turn_began_at),
+            max(0.0, now - self._last_voice_at) if self._last_voice_at else -1.0,
             "yes" if _looks_unfinished(text) else "no", text,
         )
         # 유령 턴 차단용 기록 — **닫은 턴의 끝**을 오디오 시각으로 남긴다(_is_stale_tail).
@@ -1060,6 +1082,8 @@ class CascadeSession:
         #   ⚠ 판정은 **오디오 시간**으로 한다(들린 '글자'는 문장 단위라 2초를 들었어도 0 일
         #   수 있다). 이 관문은 진짜 barge-in 을 느리게 하지 않는다 — 진짜 끼어들기는 비버가
         #   들릴 때 일어난다.
+        # 판정 계측용 에너지 — **관문을 돌리든 말든** 값은 항상 걷는다(관측 전용).
+        rms = self._rms_at(event.offset_ms)
         audible_ms = self._audible_ms()
         min_audible = max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS)
         if audible_ms < min_audible:
@@ -1078,6 +1102,7 @@ class CascadeSession:
                     "cascade barge-in 기각 — 비버가 아직 안 들린다(들린 %dms < %dms). 대답을 살린다",
                     audible_ms, min_audible,
                 )
+            self._note_bargein("기각-안들림", rms)
             return False
         # ⓪ 마이크 상시 개방이 꺼져 있으면 barge-in 을 시도하지 않는다.
         #   그 모드에서는 클라가 비버 발화 중 마이크를 닫으므로, 이때 들어오는 음성 활동은
@@ -1109,15 +1134,27 @@ class CascadeSession:
             await asyncio.sleep(min_ms / 1000.0)
             if not self._speech_active:
                 logger.info("cascade barge-in 기각 — 최소 지속 %dms 미달(에코/잡음 추정)", min_ms)
+                self._note_bargein("기각-지속", rms)
                 return False
         # ③ 전사 확인 — **설계에 있다고 적어 두고 P1 에서 안 붙였던 관문**이다(2026-08-07).
         #   그동안 barge-in 은 에너지+지속만으로 발동했고, 기침·키보드·숨소리가 전부 통과했다.
         #   여기서 True 를 돌려주면 즉시 취소되므로, transcript 모드는 **판정을 미룬다**:
         #   전사가 오거나(_on_transcript) 음성이 길게 이어지면(_pump_turn 타이머) 그때 친다.
         if self._bargein_confirm == "transcript":
-            self._bargein_at = time.monotonic() + max(0, settings.CASCADE_BARGEIN_SUSTAIN_MS) / 1000.0
-            logger.info("cascade barge-in 보류 — 전사 확인 대기(잡음이면 여기서 끝난다)")
+            self._bargein_pending_at = time.monotonic()
+            self._bargein_pending_rms = rms
+            self._bargein_at = (
+                self._bargein_pending_at + max(0, settings.CASCADE_BARGEIN_SUSTAIN_MS) / 1000.0
+            )
+            logger.info(
+                "cascade barge-in 보류 — %s 전사 확인 대기(rms=%.4f 게이트=%s offset=%d, "
+                "잡음이면 여기서 끝난다)",
+                self._sid, rms, "on" if self._energy_gate else "off", event.offset_ms,
+            )
             return False
+        # ⛔ 여기(=immediate)는 **글자 없이 소리만으로 끊는 경로**다 — 사장님 규칙 위반이라
+        #   aec 힌트로는 절대 선택되지 않는다(env 로 강제한 경우만 온다. _apply_aec_hint 가 경고).
+        self._note_bargein("확정-즉시", rms)
         return True
 
     def _rms_at(self, offset_ms: int) -> float:
@@ -1143,15 +1180,66 @@ class CascadeSession:
             return 0
         return int(self.beaver.estimated_played_bytes(turn_id) / BEAVER_BYTES_PER_MS)
 
+    # ── barge-in 판정 계측(관측 전용) ──
+    def _note_bargein(self, outcome: str, rms: float) -> None:
+        """판정 1건의 (결과, 그때 에너지)를 모은다. ⛔ 동작에 쓰지 않는다."""
+        if len(self._bargein_obs) < _BARGEIN_OBS_MAX:
+            self._bargein_obs.append((outcome, rms))
+
+    def _log_bargein_summary(self) -> None:
+        """통화당 **한 줄** — barge-in 판정 에너지 분포.
+
+        ⭐ 분류를 **에너지가 아니라 결과**로 한다. 임계로 갈라낸 표본으로 임계를 정하면
+          순환논법이다 — 실제로 그렇게 모은 표본이 "발화 최저 0.0110" 을 만들었는데, 그건
+          **임계를 못 넘어 기각된 것들만** 모인 값이라 진짜 하단이 아니었다.
+          여기서는 `전사확정`(= 글자가 나왔다 = 진짜 발화)과 `보류만료`(= 글자가 끝내 안 나왔다
+          = 잡음)를 **전사로** 가른다. 그러면 게이트를 꺼도 표본이 안 잘린다.
+        ⛔ 프레임마다 찍지 않는다(통화당 판정이 수십 건이면 사람이 못 읽는다). 판정 시점만
+          모아 세션 끝에 한 줄로 낸다. R5 — 계측이 통화를 죽이지 않는다.
+        """
+        try:
+            if not self._bargein_obs:
+                return
+            groups: dict[str, list[float]] = {}
+            for outcome, rms in self._bargein_obs:
+                groups.setdefault(outcome, []).append(rms)
+            parts = []
+            for outcome, vals in sorted(groups.items()):
+                vals.sort()
+                parts.append("%s %d건 %.4f/%.4f/%.4f"
+                             % (outcome, len(vals), vals[0], vals[len(vals) // 2], vals[-1]))
+            logger.info(
+                "cascade barge-in 요약(rms min/중앙/max): %s 게이트=%s 임계=%.4f mode=%s | %s",
+                self._sid, "on" if self._energy_gate else "off", settings.CASCADE_BARGEIN_RMS,
+                self._aec_mode, " | ".join(parts),
+            )
+        except Exception as exc:  # noqa: BLE001 - 계측 실패로 통화가 죽지 않는다(R5)
+            logger.warning("cascade barge-in 요약 실패(무시) — %s", exc)
+
     async def _confirm_bargein(self, event: SttV2Event | None, reason: str) -> None:
-        """보류해 둔 barge-in 을 확정한다(전사가 왔거나 음성이 길게 이어졌다)."""
+        """보류해 둔 barge-in 을 확정한다(전사가 왔거나 STT 무응답 안전망이 찼다).
+
+        ⭐ 확정 줄에 **보류→확정 ms 와 그때 에너지**를 같이 남긴다(2026-08-08). 없을 때는
+          두 줄의 타임스탬프를 사람이 손으로 빼서 "전사가 안전망보다 먼저 이긴다"를 증명해야
+          했다. 같은 계산을 매번 손으로 하게 두지 않는다.
+        """
+        rms = self._bargein_pending_rms
+        waited_ms = (
+            int(max(0.0, time.monotonic() - self._bargein_pending_at) * 1000)
+            if self._bargein_pending_at else -1
+        )
         self._bargein_at = None
+        self._bargein_pending_at = 0.0
         if self.state not in (TurnState.BEAVER_SPEAKING, TurnState.THINKING):
+            self._note_bargein("확정취소-상태", rms)
             return
         if self._audible_ms() < max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS):
             logger.info("cascade barge-in 취소 — 확인 사이에 비버가 안 들리는 상태가 됐다")
+            self._note_bargein("확정취소-안들림", rms)
             return
-        logger.info("cascade barge-in 확정(%s)", reason)
+        self._note_bargein("안전망확정" if reason.startswith("안전망") else "전사확정", rms)
+        logger.info("cascade barge-in 확정(%s) — %s 보류→확정 %dms rms=%.4f",
+                    reason, self._sid, waited_ms, rms)
         await self._on_barge_in(event or SttV2Event(kind=SPEECH_BEGIN))
 
     async def _on_barge_in(self, event: SttV2Event) -> None:
