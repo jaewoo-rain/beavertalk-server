@@ -97,6 +97,19 @@ _RMS_STRIDE = 8  # 에너지 계산 표본 간격(전 샘플을 돌 필요 없�
 _STALE_OFFSET_EPSILON_MS = 200
 # barge-in 판정 표본 상한 — 병적 세션에서 메모리가 새지 않게(통화당 수십 건이 정상).
 _BARGEIN_OBS_MAX = 500
+# 버린 대답이 죽기를 기다리는 상한. 취소는 다음 await 에서 곧바로 걸리므로 보통 수 ms 다 —
+# 이 값은 "네트워크 호출 안에서 안 풀리는 병적 케이스"의 바닥이고, 넘으면 그냥 진행한다.
+_REPLY_CANCEL_WAIT_S = 0.5
+# ⭐ **타이머 조기 발화 허용오차**(2026-08-08 실측: `만료된 데드라인 없이 깨어났다` 6건).
+#   데드라인은 `time.monotonic()` 으로 세우는데 대기는 이벤트 루프 타이머가 깨운다. 그 둘은
+#   **같은 시계가 아니다** — uvicorn[standard] 는 uvloop 를 쓰고(Dockerfile: uvicorn main:app),
+#   uvloop 의 `loop.time()` 은 루프 반복마다 갱신되는 **캐시된 시각**이라 실시간과 어긋난다.
+#   그 어긋남이 줄어드는 방향이면 타이머가 monotonic 기준으로 **조금 일찍** 깬다.
+#   허용오차 없이 재면 두 가지가 난다:
+#     ① 다 된 침묵 타이머를 "만료 안 됨"으로 보고 사유가 뒤바뀐다(`reason=max` 오표기)
+#     ② timeout=0 으로 즉시 다시 깨는 **바쁜 대기**(cpu=1 에서는 그냥 손해다)
+#   5ms 는 판정에 영향이 없는 폭이고(침묵 임계가 800~1500ms 다), 조기 발화 폭보다 넉넉하다.
+_DEADLINE_EPS_S = 0.005
 # ⭐ 세션 일련번호 — **로그에 세션 식별자가 없어서** 08-08 u7 을 로그만으로 못 갈랐다.
 #   두 세션이 겹쳐 돌면(탭 두 개, 재접속) 두 상태기계의 줄이 한 스트림에 섞이는데, 그걸
 #   구분할 방법이 없어 "한 세션의 모순"처럼 보였다. 프로세스 안에서만 유일하면 충분하다
@@ -768,7 +781,7 @@ class CascadeSession:
                 woke = time.monotonic()
                 # 보류 중이던 barge-in 의 지속 시간이 찼다 — STT 가 먹통일 때만 오는 자리다
                 # (정상 경로는 전사가 항상 먼저 이긴다: 실측 476~620ms vs 안전망 3.5초).
-                if self._bargein_at is not None and woke >= self._bargein_at:
+                if self._bargein_at is not None and woke >= self._bargein_at - _DEADLINE_EPS_S:
                     if self._speech_active:
                         await self._confirm_bargein(
                             None, "안전망 — STT 무응답 %dms" % settings.CASCADE_BARGEIN_SUSTAIN_MS
@@ -782,12 +795,15 @@ class CascadeSession:
                         )
                     continue
                 # 침묵 타이머 만료 = 턴 종료. **이 판정이 캐스케이드의 심장이다.**
-                if self._close_at is not None and woke >= self._close_at:
+                if self._close_at is not None and woke >= self._close_at - _DEADLINE_EPS_S:
                     await self._close_turn("silence")
                     continue
-                if self._turn_deadline is not None and woke >= self._turn_deadline:
+                if self._turn_deadline is not None and woke >= self._turn_deadline - _DEADLINE_EPS_S:
                     await self._close_turn("max")
                     continue
+                # 허용오차를 넘어 일찍 깼다 = 우리가 모르는 일이다. **닫지 않고** 조금 쉬었다
+                # 다시 잰다 — 여기서 곧장 continue 하면 timeout=0 으로 스핀이 된다(cpu=1).
+                await asyncio.sleep(_DEADLINE_EPS_S)
                 logger.warning(
                     "cascade ⚠ 만료된 데드라인 없이 깨어났다 — 턴을 닫지 않는다"
                     "(close=%s turn=%s barge=%s 남은=%.3f/%.3f/%.3f초)",
