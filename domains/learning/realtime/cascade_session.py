@@ -125,6 +125,33 @@ _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 �
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
 
 
+def _looks_unfinished(text: str) -> bool:
+    """이 발화가 **문장 중간에 잘린 것으로 보이나** — ⛔ 관측 전용이다.
+
+    사장님 아이디어("작고 빠른 LLM 으로 문장이 끝났는지 확인")는 오바가 아니라 업계의 smart
+    turn detection 이다. 다만 **큰 구멍(전사 기준 종료)을 먼저 막고, 실제로 얼마나 자주
+    잘리는지 세어 본 뒤** 붙일지 정한다. 그 카운트를 위한 값이라 **판정에는 절대 쓰지 않는다.**
+
+    한국어는 조사·연결어미로 끝나면 미완 신호다("제가", "그런데", "~고", "~는데", "~서").
+    ⚠ 규칙 기반이라 완벽하지 않다 — 그래서 동작을 바꾸지 않고 **세기만** 한다.
+    """
+    tail = (text or "").strip().rstrip("\"'’”)]}")
+    if not tail:
+        return False
+    if tail[-1] in "?!.。！？…":
+        return False                      # 종결부호가 있으면 끝난 문장으로 본다
+    last = tail.split()[-1] if tail.split() else tail
+    return any(last.endswith(suffix) for suffix in _UNFINISHED_TAILS)
+
+
+# 조사·연결어미(끝나면 뒤에 말이 더 온다는 신호). ⚠ 관측 전용 목록이다.
+_UNFINISHED_TAILS = (
+    "은", "는", "이", "가", "을", "를", "에", "에서", "으로", "로", "와", "과", "랑", "의",
+    "고", "며", "면서", "는데", "은데", "ㄴ데", "서", "니까", "지만", "거나", "든지",
+    "그리고", "그런데", "그래서", "하지만", "왜냐하면",
+)
+
+
 def _marker_state(text: str) -> str:
     """이 문장에서 언어 마커가 어떤 상태였나 — **셋을 갈라야** 판정이 된다.
 
@@ -977,8 +1004,10 @@ class CascadeSession:
             )
         )
         logger.info(
-            "cascade turn: id=%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d text=%r",
-            self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms, text,
+            "cascade turn: id=%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d "
+            "미완=%s text=%r",
+            self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms,
+            "yes" if _looks_unfinished(text) else "no", text,
         )
         # 유령 턴 차단용 기록 — **닫은 턴의 끝**을 오디오 시각으로 남긴다(_is_stale_tail).
         self._closed_turn_id = self._turn_id
