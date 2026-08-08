@@ -975,3 +975,100 @@ async def test_gemini_does_not_send_the_first_sentence_alone(reply_rig, monkeypa
             CascadeSession(transport, genai_client=object()).run(), timeout=5
         )
         assert len(reply_rig["tts_calls"]) == expected_calls, (engine, reply_rig["tts_calls"])
+
+
+# --------------------------------------------------------------------------- #
+# ElevenLabs 2종 — 구글이 아니라 별도 어댑터(core/elevenlabs_tts.py)를 탄다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_elevenlabs_is_rejected_without_a_key(reply_rig, monkeypatch):
+    """⛔ 키가 없으면 **명확히 거절**한다 — 조용히 다른 엔진으로 바꾸면 그 소리를
+    ElevenLabs 로 착각하게 된다(오늘 폴백에서 배운 그대로)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_API_KEY", "")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
+    transport = _Transport([_ctl(type="start", ttsEngine="elevenlabs-v3")], wait_for="ready")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert session._tts_engine == "chirp3-hd"
+
+
+@pytest.mark.asyncio
+async def test_elevenlabs_uses_its_own_adapter_and_model_id(reply_rig, monkeypatch):
+    """모델 ID 가 **문서 문자열 그대로** 나가고, 원가 벤더도 모델별로 갈린다.
+
+    ⚠ 오늘 Cloud TTS vs Gemini API 에서 이름 규칙이 달라 세 번 밟았다 — 그래서 문자열을 고정한다.
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_API_KEY", "x")   # 값은 검사 안 한다
+    seen: list[str] = []
+
+    async def _stream(text, **kwargs):
+        seen.append(kwargs["model_id"])
+        report = kwargs.get("report")
+        if report is not None:
+            report["engine"] = kwargs["model_id"]
+        yield _FRAME
+
+    monkeypatch.setattr(cs.elevenlabs_tts, "synthesize_stream", _stream)
+    for choice, expected in (("elevenlabs-flash", "eleven_flash_v2_5"),
+                             ("elevenlabs-v3", "eleven_v3")):
+        seen.clear()
+        transport = _Transport([
+            _ctl(type="start", ttsEngine=choice),
+            _ctl(type="__test_say", text="안녕"),
+            _ctl(type="__test_event", event=SPEECH_END),
+        ])
+        session = CascadeSession(transport, genai_client=object())
+        await asyncio.wait_for(session.run(), timeout=5)
+        assert seen and all(m == expected for m in seen), (choice, seen)
+        # 원가 벤더도 모델별로 갈린다(뭉개면 단가를 못 가른다)
+        assert session.usage.summary()["vendors"]["tts"]["vendor"] == expected
+
+
+def test_elevenlabs_lead_buffer_is_conservative_until_measured():
+    """⚠ 실측 전이라 보수적으로 잡는다 — 오늘 짧은 요청 측정이 결론을 뒤집었다."""
+    from core.config import settings as live
+
+    assert live.CASCADE_TTS_LEAD_MS_ELEVEN >= live.CASCADE_TTS_LEAD_MS
+
+
+# --------------------------------------------------------------------------- #
+# 구두점 단독 구간 (2026-08-08 실통화)
+#   사장님: "? 를 쿼스쳔마크라고 읽기 시작하고 그러네."
+#   "That's right! __맞아요__?" 를 쪼개면 마지막 조각이 "?" 하나가 되고, 그것만 TTS 에
+#   보내면 문맥이 없어 **기호를 단어로 읽는다**. 로그: `언어구간: 5개 en/ko/en/ko/en`
+# --------------------------------------------------------------------------- #
+def test_punctuation_never_becomes_its_own_segment():
+    """⛔ 구두점만 남은 조각은 단독 구간이 되면 안 된다 — 앞 구간에 붙인다."""
+    from domains.learning.realtime.cascade_reply import split_by_language
+
+    segments = split_by_language("That's right! __맞아요__?", "en", "ko")
+    assert len(segments) == 2, segments
+    assert segments[0] == ("That's right!", "en")
+    assert segments[1] == ("맞아요?", "ko")      # 물음표가 앞 구간에 붙었다
+    assert all(any(ch.isalnum() for ch in text) for text, _ in segments), segments
+
+
+def test_short_but_real_utterances_survive():
+    """⚠ 길이로 자르면 안 된다 — "네", "Oh" 는 짧지만 **진짜 발화**다."""
+    from domains.learning.realtime.cascade_reply import split_by_language
+
+    assert split_by_language("네", "ko", "en") == [("네", "ko")]
+    assert split_by_language("__Oh__ 그렇군요", "ko", "en") == [
+        ("Oh", "en"), ("그렇군요", "ko"),
+    ]
+
+
+def test_leading_punctuation_attaches_forward():
+    """앞 구간이 없으면(첫 조각이 구두점) **뒤에** 붙인다 — 버리지는 않는다."""
+    from domains.learning.realtime.cascade_reply import split_by_language
+
+    assert split_by_language("…__좋아요__", "ko", "en") == [("…좋아요", "en")]
+
+
+def test_marker_only_punctuation_input_makes_no_segment():
+    """읽을 말이 하나도 없으면 구간을 만들지 않는다(합성 요청도 안 나간다)."""
+    from domains.learning.realtime.cascade_reply import split_by_language
+
+    # 마커가 없어도 **읽을 말이 없으면 구간 0개**다 — 합성 요청 자체가 안 나간다.
+    assert split_by_language("...", "ko", "en") == []
+    assert split_by_language("__?__", "ko", "en") == []

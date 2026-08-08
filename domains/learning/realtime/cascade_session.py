@@ -48,7 +48,7 @@ from starlette.websockets import WebSocket, WebSocketState
 
 from core import gemini_chat
 from core import stt as stt_mod
-from core import tts
+from core import elevenlabs_tts, tts
 from core.config import settings
 from core.persona_prompt import build_system_instruction, seed_opening
 from core.stt import (
@@ -114,6 +114,16 @@ _CHIRP_CHOICE = "chirp3-hd"
 #   끊긴 소리로는 **감정·발음이 좋은지 판단할 수가 없다.** 판정을 위해 지연을 내주는 모드다.
 #   ⛔ 프로덕션 방식이 아니다. Chirp 은 지금 방식 그대로 간다.
 _GEMINI_BATCH_CHOICE = "gemini-batch"
+# ElevenLabs 2종 — 구글이 아니라 별도 어댑터(core/elevenlabs_tts.py)를 탄다.
+#   flash: "Ultra-low latency(~75ms†)" 라 실시간용 / v3: 인라인 감정 태그([laughs] 등)가 되지만
+#   문서가 실시간엔 flash 를 권한다 — 느리면 배치 경로로 돌린다.
+_ELEVEN_FLASH_CHOICE = "elevenlabs-flash"
+_ELEVEN_V3_CHOICE = "elevenlabs-v3"
+_ELEVEN_CHOICES = (_ELEVEN_FLASH_CHOICE, _ELEVEN_V3_CHOICE)
+_ELEVEN_MODEL_BY_CHOICE = {
+    _ELEVEN_FLASH_CHOICE: elevenlabs_tts.FLASH_MODEL,
+    _ELEVEN_V3_CHOICE: elevenlabs_tts.V3_MODEL,
+}
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
 
@@ -1239,7 +1249,9 @@ class CascadeSession:
                     # ⚠ **첫 문장 단독**은 Chirp 규칙이다. Gemini 는 짧은 요청이 특히
                     #   불리하고(고정 오버헤드 ≈1.3초), 어차피 선행 버퍼로 1.5초를 기다리므로
                     #   첫 문장만 따로 쏘면 손해만 본다 — 그래서 Gemini 는 묶어서 낸다.
-                    if first_audio_ms < 0 and not pending and not self._gemini_realtime():
+                    if (first_audio_ms < 0 and not pending
+                            and not self._gemini_realtime()
+                            and self._tts_engine not in _ELEVEN_CHOICES):
                         pending.append(sentence)
                         await _flush_batch()        # 첫 문장 = 단독 즉시 송출
                         continue
@@ -1491,6 +1503,24 @@ class CascadeSession:
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
+        if self._tts_engine in _ELEVEN_CHOICES:
+            # ⛔ 구글이 아니다 — 별도 어댑터를 탄다. 폴백도 하지 않는다(엔진을 골라 듣는 중인데
+            #   조용히 다른 소리가 나면 A/B 가 거짓말이 된다).
+            stream = elevenlabs_tts.synthesize_stream(
+                sentence,
+                model_id=_ELEVEN_MODEL_BY_CHOICE[self._tts_engine],
+                speaking_rate=self._tts_rate,
+                report=report,
+            )
+            sent = await speak_stream(self.beaver, stream, sentence)
+            self.usage.record_tts(sentence, vendor=self._tts_vendor())
+            self.usage.record_tts_audio(sent)
+            if sent:
+                self._tts_engines.add(report.get("engine") or self._tts_vendor())
+                self._reply_spans.append((language, len(sentence), sent))
+            else:
+                self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
+            return sent
         # ⭐ 이 통화에서 이미 429 를 맞았으면 **Gemini 를 다시 찌르지 않는다**(세션 단위 백오프).
         #   실측: 한도가 분당 10회인데 수요가 평균 19.2 / 피크 27 이었다. 소진된 상태에서
         #   문장마다 찔러봐야 **실패해도 요청은 나가고**(회복이 늦어진다) 첫소리만 늘어난다.
@@ -1552,12 +1582,19 @@ class CascadeSession:
         """
         if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
             return max(1, settings.CASCADE_TTS_BATCH_CHARS_GEMINI)
+        if self._tts_engine in _ELEVEN_CHOICES:
+            return max(1, settings.CASCADE_TTS_BATCH_CHARS_ELEVEN)
         return max(1, settings.CASCADE_TTS_BATCH_CHARS)
 
     def _tts_vendor(self) -> str:
-        """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다."""
+        """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다.
+
+        ⚠ 모델별로 단가가 다르다 — flash 와 v3 를 뭉개면 원가를 못 가른다.
+        """
         if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
             return (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip()
+        if self._tts_engine in _ELEVEN_CHOICES:
+            return _ELEVEN_MODEL_BY_CHOICE[self._tts_engine]
         return tts.CHIRP3_ENGINE
 
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
@@ -1890,7 +1927,14 @@ class CascadeSession:
         picked = str(ctrl.get("ttsEngine") or ctrl.get("tts_engine") or "").strip()
         source = "서버 기본값"
         if picked:
-            if picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE, _GEMINI_BATCH_CHOICE):
+            if picked in _ELEVEN_CHOICES and not elevenlabs_tts.is_configured():
+                # ⛔ 키가 없으면 **명확히 거절한다.** 조용히 다른 엔진으로 바꾸면 사장님이
+                #   "ElevenLabs 소리"로 착각하신다(오늘 폴백에서 배운 그대로다).
+                logger.warning(
+                    "cascade tts 엔진 거절: %s — API 키 미설정(CASCADE_TTS_ELEVEN_API_KEY)", picked
+                )
+            elif picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE, _GEMINI_BATCH_CHOICE,
+                            *_ELEVEN_CHOICES):
                 self._tts_engine, source = picked, "클라 지정"
             else:
                 logger.warning("cascade tts 엔진 값 거절: %r — 서버 기본값으로 진행", picked[:40])
@@ -1906,11 +1950,12 @@ class CascadeSession:
         # ⭐ 엔진에 맞는 선행 버퍼를 잡는다. Gemini 는 합성이 재생보다 최대 1.5초 뒤처져서
         #   200ms 만 모으고 시작하면 **반드시 언더런이 난다**(그게 '끊긴다'의 정체였다).
         #   배속 자체는 1.7~1.9x 라 초반만 견디면 격차가 벌어져 안 끊긴다.
-        self.beaver.lead_ms = (
-            max(0, settings.CASCADE_TTS_LEAD_MS_GEMINI)
-            if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE)
-            else None
-        )
+        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
+            self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_GEMINI)
+        elif self._tts_engine in _ELEVEN_CHOICES:
+            self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_ELEVEN)
+        else:
+            self.beaver.lead_ms = None
         # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
         logger.info(
             "cascade 엔진 선택: %s (%s) speaking_rate=%s 선행버퍼=%dms 묶음=%d자 style=%r",

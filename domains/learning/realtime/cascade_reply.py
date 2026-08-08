@@ -91,11 +91,40 @@ def split_by_language(text: str, base_lang: str, target_lang: str) -> list[tuple
         # 것보다 낫다). 마커만 지운다.
         return [(text.replace(MARKER, "").strip(), base_lang)]
     out: list[tuple[str, str]] = []
+    orphan = ""      # 아직 붙일 앞 구간이 없는 조각(첫 조각이 구두점일 때)
     for i, chunk in enumerate(chunks):
-        piece = chunk.strip()
-        if piece:
-            out.append((piece, target_lang if i % 2 else base_lang))
+        piece = (orphan + chunk).strip()
+        orphan = ""
+        if not piece:
+            continue
+        if not _has_speech(piece):
+            # ⛔ **구두점만 남은 조각을 단독 구간으로 만들지 않는다**(2026-08-08 실통화).
+            #   "That's right! __맞아요__?" 를 쪼개면 마지막 조각이 "?" 하나가 되는데,
+            #   그것만 TTS 에 보내면 문맥이 없어 **기호를 단어로 읽는다**("쿼스천 마크").
+            #   앞 구간에 붙인다 — 앞이 없으면 다음 조각 앞에 붙인다.
+            if out:
+                prev_text, prev_lang = out[-1]
+                # ⚠ 이러면 그 구두점은 **앞 구간의 언어로** 읽힌다. 구두점은 언어색이 옅어
+                #   대개 무해하고, 단독으로 읽히는 것보다는 확실히 낫다.
+                out[-1] = (f"{prev_text}{piece}", prev_lang)
+            else:
+                orphan = piece
+            continue
+        out.append((piece, target_lang if i % 2 else base_lang))
+    if orphan and out:
+        # 끝까지 붙일 곳을 못 찾은 조각(입력이 구두점으로 시작해 그 뒤가 전부 비었던 경우)
+        out[0] = (f"{orphan}{out[0][0]}", out[0][1])
     return out
+
+
+def _has_speech(text: str) -> bool:
+    """소리 내어 읽을 **말**이 들어 있나 — 글자·숫자가 하나라도 있으면 발화다.
+
+    ⚠ 길이로 자르면 안 된다. "네", "응", "Oh" 는 짧지만 **진짜 발화**다. 반대로 "?" 는
+    길이가 같아도 발화가 아니다. 그래서 **문자 종류**로 가른다(isalnum 은 한글·라틴·숫자를
+    모두 참으로 본다).
+    """
+    return any(ch.isalnum() for ch in text)
 
 
 def strip_markers(text: str) -> str:
