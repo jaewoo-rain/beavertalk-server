@@ -759,20 +759,43 @@ class CascadeSession:
                 else:
                     item = await asyncio.wait_for(self._q.get(), timeout)
             except asyncio.TimeoutError:
-                # 보류 중이던 barge-in 의 지속 시간이 찼다 — 전사가 안 와도 이만큼 이어지는
-                # 발성은 잡음이 아니다(STT 지연으로 진짜 끼어들기가 영영 안 먹는 걸 막는다).
-                if self._bargein_at is not None and time.monotonic() >= self._bargein_at:
+                # ⭐ **어느 데드라인이 깨웠는지 명시적으로 고른다**(2026-08-08).
+                #   예전엔 "barge-in 이 아니면 턴 종료"로 흘리고, 사유는 `_close_at` 을 다시
+                #   재서 붙였다. 그러면 **아무것도 만료되지 않은 깨어남**이 `reason=max` 로
+                #   둔갑해 턴을 조용히 죽인다. 만료된 게 없으면 **닫지 않고 다시 기다린다** —
+                #   데드라인은 그대로라 곧 다시 깬다(무한 스핀도 없다: 미래 데드라인이면
+                #   timeout 이 양수로 다시 잡힌다).
+                woke = time.monotonic()
+                # 보류 중이던 barge-in 의 지속 시간이 찼다 — STT 가 먹통일 때만 오는 자리다
+                # (정상 경로는 전사가 항상 먼저 이긴다: 실측 476~620ms vs 안전망 3.5초).
+                if self._bargein_at is not None and woke >= self._bargein_at:
                     if self._speech_active:
-                        await self._confirm_bargein(None, "음성 지속")
+                        await self._confirm_bargein(
+                            None, "안전망 — STT 무응답 %dms" % settings.CASCADE_BARGEIN_SUSTAIN_MS
+                        )
                     else:
                         self._bargein_at = None
-                        logger.info("cascade barge-in 기각 — 전사도 지속도 없었다(잡음 추정)")
+                        self._note_bargein("보류만료", self._bargein_pending_rms)
+                        logger.info(
+                            "cascade barge-in 기각 — 전사도 지속도 없었다(잡음 추정, rms=%.4f)",
+                            self._bargein_pending_rms,
+                        )
                     continue
                 # 침묵 타이머 만료 = 턴 종료. **이 판정이 캐스케이드의 심장이다.**
-                expired_silence = (
-                    self._close_at is not None and time.monotonic() >= self._close_at
+                if self._close_at is not None and woke >= self._close_at:
+                    await self._close_turn("silence")
+                    continue
+                if self._turn_deadline is not None and woke >= self._turn_deadline:
+                    await self._close_turn("max")
+                    continue
+                logger.warning(
+                    "cascade ⚠ 만료된 데드라인 없이 깨어났다 — 턴을 닫지 않는다"
+                    "(close=%s turn=%s barge=%s 남은=%.3f/%.3f/%.3f초)",
+                    self._close_at is not None, self._turn_deadline is not None,
+                    self._bargein_at is not None,
+                    (self._close_at or woke) - woke, (self._turn_deadline or woke) - woke,
+                    (self._bargein_at or woke) - woke,
                 )
-                await self._close_turn("silence" if expired_silence else "max")
                 continue
             if item is _EOS:
                 raise _Stop
