@@ -704,7 +704,15 @@ class CascadeSession:
             pending_audio = first.audio
         self._sample_rate = sample_rate
 
-        stream = stt_mod.make_stt_v2_stream(sample_rate)
+        stream = stt_mod.make_stt_v2_stream(sample_rate, self._stt_language_codes())
+        # ⭐ **무슨 언어로 듣고 있는지 로그만 보고 알 수 있어야 한다**(2026-08-08). 지금까지는
+        #   코드를 읽고 env 를 조회해야 알 수 있었고, 그래서 "영어가 안 들린다"를 실통화 5건이
+        #   빈 턴으로 닫힌 뒤에야 찾았다.
+        logger.info(
+            "cascade stt: %s 인식언어=%s 모델=%s 위치=%s",
+            self._sid, getattr(stream, "language_codes", None) or self._stt_language_codes(),
+            settings.STT_V2_MODEL, settings.STT_V2_LOCATION,
+        )
         try:
             await stream.start()
         except Exception as exc:  # noqa: BLE001 - 개시 실패는 이 세션만 실패(R5)
@@ -2228,6 +2236,21 @@ class CascadeSession:
             self._batch_chars(),
             (self._tts_style if self._tts_style is not None else "서버값")[:40],
         )
+
+    def _stt_language_codes(self) -> list[str]:
+        """이 통화에서 **들을 언어들** — 학습 언어 + 모국어.
+
+        ⛔ 학습자는 두 언어를 섞어 쓴다: 모국어로 묻고("What does that mean?") 한국어로 따라
+          말한다. 한쪽만 들으면 다른 쪽은 **통째로 사라진다**(2026-08-08 실통화: 영어 발화
+          5회 연속 36초가 text='' 로 닫혔다). 이건 데모 버그가 아니라 제품 결함이다 —
+          우리 사용자는 외국인이다.
+        ⚠ **지금은 데모 경로다.** 회원의 모국어(`member.language`)로 배선하는 건 계약을 정하고
+          따로 간다. 여기서는 실험이 가능하도록 env 두 개에서 끌어온다.
+        학습 언어를 먼저 적는다 — 문서가 순서에 의미를 부여하지는 않지만(REST 레퍼런스는
+        "most likely language detected" 라고만 한다), 이 통화의 주 언어가 무엇인지 우리 의도를
+        코드에 남긴다. 벤더 문서의 권고("bare minimum")대로 2개까지만 쓴다.
+        """
+        return [settings.CASCADE_TTS_TARGET_LANGUAGE, settings.CASCADE_TTS_LANGUAGE]
 
     def _apply_aec_hint(self, aec: Any) -> None:
         """start.aec 로 **세션별** barge-in 정책을 정한다 — 에너지 게이트를 켤지 끌지.

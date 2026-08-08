@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -273,6 +274,73 @@ def get_speech_v2_client() -> "tuple[Any, str] | None":
         return None
 
 
+# ── 다중 언어(1차 자료: Speech-to-Text V2 문서) ─────────────────────────────
+# https://cloud.google.com/speech-to-text/v2/docs/multiple-languages (2026-08-08 확인)
+#   "You can only use the alternative languages feature with the long, short, and
+#    telephony models."                                  → 우리 모델 `long` = 지원 ✓
+#   "You can list up to three languages for automatic language recognition."   → 상한 3
+#   "Specifying multiple languages is only available in the ... global region and the
+#    us and eu multi-regions."                           → 우리 위치 `global` = 지원 ✓
+#   "Though you can specify up to three languages, constrain the language list to the
+#    bare minimum needed as a best practice. The fewer language codes you specify, the
+#    higher the likelihood that Cloud Speech-to-Text successfully selects the correct one."
+#                                                        → **꼭 필요한 것만 넣는다**
+# 필드 의미(REST 레퍼런스): "If additional languages are provided, recognition result will
+#   contain recognition in the most likely language detected." → 순서가 우선순위라는 규정은
+#   문서에 **없다**. 우리는 학습 언어를 먼저 적지만 그건 규약이 아니라 우리 의도의 표시다.
+STT_V2_MAX_LANGUAGES = 3
+
+# ⛔ **검증한 것만 매핑한다.** 짧은 코드(en)는 STT 코드가 아니다 — BCP-47 지역까지 필요하다
+#   (`en-US`, `ko-KR`. 1차 자료: v2 supported-languages 표에서 `long` 모델 지원 확인).
+#   나머지 언어(vi/th/mn/…)는 아직 표에서 확인하지 않았다. 근거 없는 추측을 넣으면 조용히
+#   인식이 죽으므로 **넣지 않는다** — 모르는 짧은 코드는 경고와 함께 버린다(그 경우 동작은
+#   지금과 같다: 학습 언어만 듣는다). 실서비스 배선 때 표 전체를 확인해 채운다.
+_STT_LANGUAGE_ALIASES: dict[str, str] = {"en": "en-US", "ko": "ko-KR"}
+# 모양 검사(BCP-47 근사): 언어[-문자]**-지역**. 통과한 값은 그대로 벤더에 넘긴다.
+# ⭐ **지역이 없으면 거절한다.** v2 지원 표의 코드는 지역까지 있다(en-US · ko-KR · cmn-Hans-CN).
+#   그리고 우리 설정의 짧은 코드(`CASCADE_TTS_LANGUAGE="en"`)가 바로 그 모양이라, 통과시키면
+#   "설정값을 그대로 STT 에 꽂았는데 조용히 안 들리는" 지금 결함이 형태만 바꿔 되살아난다.
+_BCP47_RE = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z]{4})?-([A-Za-z]{2}|\d{3})$")
+
+
+def normalize_language_codes(codes: Any, fallback: str = "") -> list[str]:
+    """언어 코드 목록을 **벤더가 받을 수 있는 모양**으로 다듬는다.
+
+    하는 일: 별칭 확장(en→en-US) · 표준 대소문자 · 중복 제거(순서 유지) · 상한 3 · 모양이
+    틀린 값 폐기. 결과가 비면 폴백 한 개를 쓴다 — **언어 코드가 비면 스트림이 400 으로 죽고,
+    그건 통화 전체가 죽는다는 뜻이다**(R5).
+    """
+    out: list[str] = []
+    dropped: list[str] = []
+    for raw in list(codes or []):
+        code = str(raw or "").strip().replace("_", "-")
+        if not code:
+            continue
+        code = _STT_LANGUAGE_ALIASES.get(code.lower(), code)
+        if not _BCP47_RE.match(code):
+            dropped.append(str(raw))
+            continue
+        parts = code.split("-")
+        code = "-".join(
+            [parts[0].lower()]
+            + [p.title() if len(p) == 4 else p.upper() for p in parts[1:]]
+        )
+        if code not in out:
+            out.append(code)
+    if dropped:
+        logger.warning(
+            "[stt-v2] 인식 언어 코드 폐기 %s — 지역까지 있는 BCP-47 이어야 한다(예: en-US). "
+            "그 언어는 이 통화에서 안 들린다", dropped,
+        )
+    if len(out) > STT_V2_MAX_LANGUAGES:
+        logger.warning("[stt-v2] 언어 %d개 → 문서 상한 %d개로 자른다: %s",
+                       len(out), STT_V2_MAX_LANGUAGES, out)
+        out = out[:STT_V2_MAX_LANGUAGES]
+    if not out:
+        out = normalize_language_codes([fallback]) if fallback else []
+    return out
+
+
 class GoogleSttV2Stream:
     """speech_v2 스트리밍 **1개**. 수명 관리는 RollingSttV2Stream 이 한다.
 
@@ -291,10 +359,12 @@ class GoogleSttV2Stream:
     # per request." → 초과분은 잘라 보낸다(클라 프레임이 크면 여기서 방어).
     _MAX_AUDIO_BYTES = 15 * 1024
 
-    def __init__(self, client: Any, project: str, sample_rate: int) -> None:
+    def __init__(self, client: Any, project: str, sample_rate: int,
+                 language_codes: list[str] | None = None) -> None:
         self._client = client
         self._project = project
         self._sample_rate = sample_rate
+        self._language_codes = list(language_codes or [])
         self._audio_q: asyncio.Queue[Any] = asyncio.Queue()
         self._responses: AsyncIterator[Any] | None = None
         # 과금 계측(원가) — 응답에 실려 오는 total_billed_duration 을 누적한다. 자세한 근거와
@@ -318,7 +388,9 @@ class GoogleSttV2Stream:
                 sample_rate_hertz=self._sample_rate,
                 audio_channel_count=1,
             ),
-            language_codes=[settings.STT_V2_LANGUAGE or settings.STT_LANGUAGE],
+            language_codes=list(self._language_codes) or [
+                settings.STT_V2_LANGUAGE or settings.STT_LANGUAGE
+            ],
             model=settings.STT_V2_MODEL or "long",
         )
         # 스트림 보호 상한(기본 미설정). 문서상 유효 범위 500ms~60s 밖 값은 무시한다 —
@@ -521,9 +593,13 @@ class RollingSttV2Stream:
     _MAX_START_FAILS = 3          # 연속 개시 실패 허용치(넘으면 error 로 포기)
     _HOT_LOOP_GUARD_S = 1.0       # 이 시간 안에 무이벤트로 끝난 스트림은 실패로 센다
 
-    def __init__(self, factory: Any, sample_rate: int) -> None:
-        self._factory = factory   # () -> GoogleSttV2Stream
+    def __init__(self, factory: Any, sample_rate: int,
+                 language_codes: list[str] | None = None) -> None:
+        self._factory = factory   # (language_codes) -> GoogleSttV2Stream
         self._sample_rate = sample_rate
+        # 이 세션이 **실제로 듣고 있는** 언어들. 개시가 실패하면 첫 언어만 남기고 계속한다
+        # (아래 events()). 롤오버로 새 스트림을 열 때도 이 값을 그대로 쓴다.
+        self._language_codes = list(language_codes or [])
         self._cur: Any | None = None
         self._closed = False
         self._rolling = True       # events() 가 첫 스트림을 열기 전까진 버퍼로
@@ -550,6 +626,11 @@ class RollingSttV2Stream:
         self._billed_sum_ms = 0.0
         self._billed_max_ms = 0.0
         self._billed_msgs = 0
+
+    @property
+    def language_codes(self) -> list[str]:
+        """이 세션이 **지금** 듣고 있는 언어들(강등되면 줄어든다)."""
+        return list(self._language_codes)
 
     # ── 입력 ──
     def _bytes_to_ms(self, n: int) -> float:
@@ -652,12 +733,15 @@ class RollingSttV2Stream:
         gap_from: float | None = None
         reason = "start"
         while not self._closed:
-            stream = self._factory()
+            stream = self._factory(self._language_codes)
             try:
                 await stream.start()
             except Exception as exc:  # noqa: BLE001
                 fails += 1
                 logger.warning("[stt-v2] 스트림 개시 실패(%d/%d) — %s", fails, self._MAX_START_FAILS, exc)
+                if self._degrade_languages("개시 실패"):
+                    fails = 0
+                    continue
                 if fails >= self._MAX_START_FAILS:
                     yield SttV2Event(kind=STREAM_ERROR, detail=f"start_failed: {exc}")
                     return
@@ -708,6 +792,10 @@ class RollingSttV2Stream:
             # 이벤트 한 건 없이 즉시 끝난 스트림이 반복되면(설정 오류 등) 무한 재개시를 막는다.
             if not saw_event and (time.monotonic() - self._started_at) < self._HOT_LOOP_GUARD_S:
                 fails += 1
+                if self._degrade_languages("이벤트 없이 즉시 종료"):
+                    fails = 0
+                    gap_from = time.monotonic()
+                    continue
                 if fails >= self._MAX_START_FAILS:
                     yield SttV2Event(kind=STREAM_ERROR, detail="stream_closed_immediately")
                     return
@@ -715,6 +803,24 @@ class RollingSttV2Stream:
             else:
                 fails = 0
             gap_from = time.monotonic()
+
+    def _degrade_languages(self, why: str) -> bool:
+        """다중 언어 때문에 스트림이 안 열리면 **첫 언어만 남기고 계속한다**(R5).
+
+        ⛔ 통화가 죽는 것보다 한 언어로라도 듣는 게 낫다. 실패 원인이 언어가 아닐 수도 있지만,
+          그 경우에도 이 강등은 손해가 없다(원래 듣던 언어는 그대로 남는다).
+        재시도 3회를 다 쓰고 나서가 아니라 **첫 실패에서 바로** 내린다 — 설정이 틀렸다면
+        재시도해도 절대 안 열리고, 그 사이 통화는 귀가 먹은 채로 흐른다.
+        """
+        if len(self._language_codes) <= 1:
+            return False
+        dropped = self._language_codes[1:]
+        self._language_codes = self._language_codes[:1]
+        logger.warning(
+            "[stt-v2] 다중 언어 강등(%s) — %s 를 빼고 %s 로만 듣는다. 사용자가 모국어로 말하면 "
+            "그 발화는 이 통화에서 전사되지 않는다", why, dropped, self._language_codes,
+        )
+        return True
 
     def _absorb_usage(self, stream: Any) -> None:
         """끝난 스트림의 과금 계측을 세션 누계로 옮긴다(스트림당 1회, 예외 전량 흡수 R5).
@@ -757,17 +863,26 @@ class RollingSttV2Stream:
                 await cur.close()
 
 
-def make_stt_v2_stream(sample_rate: int = 16000) -> Any:
+def make_stt_v2_stream(sample_rate: int = 16000, language_codes: Any = None) -> Any:
     """캐스케이드용 STT v2 스트림(롤오버 포함). 크레덴셜 없으면 페이크로 폴백(R5).
 
     반환 객체 인터페이스: start / push_audio / feed_test / feed_test_event / events / close.
+
+    ⭐ `language_codes` 는 **여러 개**를 받는다(2026-08-08). 지금까지 한 개(ko-KR)만 넣어서
+      **사용자가 모국어로 말하면 전사가 통째로 사라졌다** — 실통화에서 영어 발화 5회 연속
+      36초가 `text=''` 로 닫혔다. 우리 사용자는 외국인 학습자이고, 그들은 모국어로 묻고
+      한국어로 따라 말한다. 둘 다 들어야 한다.
     """
+    codes = normalize_language_codes(
+        language_codes, fallback=settings.STT_V2_LANGUAGE or settings.STT_LANGUAGE
+    )
     resolved = get_speech_v2_client()
     if resolved is None:
         return FakeSttV2Stream(sample_rate)
     client, project = resolved
     return RollingSttV2Stream(
-        lambda: GoogleSttV2Stream(client, project, sample_rate), sample_rate
+        lambda langs: GoogleSttV2Stream(client, project, sample_rate, langs),
+        sample_rate, language_codes=codes,
     )
 
 

@@ -222,7 +222,7 @@ async def test_offset_shortens_wait(fake_v2, monkeypatch):
                 SttV2Event(kind=TRANSCRIPT, text=text, is_final=True, offset_ms=0)
             )
 
-    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000: _OffsetFake())
+    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000, langs=None: _OffsetFake())
 
     # 오디오 2,500ms 를 보낸 뒤(오프셋 0 기준 침묵 2.5초 경과) speech_end 가 도착 →
     # 남은 대기 0.5초 → 3초 임계에도 불구하고 금방 닫혀야 한다.
@@ -269,7 +269,7 @@ async def test_rollover_is_relayed_and_does_not_break_turn(fake_v2, monkeypatch)
                 return
             super().feed_test_event(kind)
 
-    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000: _RollingFake())
+    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000, langs=None: _RollingFake())
 
     transport = _StubTransport(
         [
@@ -307,7 +307,7 @@ async def test_stream_error_reports_and_stops(fake_v2, monkeypatch):
         def feed_test_event(self, kind: str) -> None:
             self._q.put_nowait(SttV2Event(kind=STREAM_ERROR, detail="start_failed: boom"))
 
-    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000: _BrokenFake())
+    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000, langs=None: _BrokenFake())
     transport = _StubTransport(
         [_ctl(type="start"), _ctl(type="__test_event", event=SPEECH_BEGIN)], wait_for="error"
     )
@@ -330,7 +330,7 @@ async def test_audio_frames_flow_to_stt(fake_v2, monkeypatch):
                 self._q.put_nowait(SttV2Event(kind=TRANSCRIPT, text="ok", is_final=True))
                 self._q.put_nowait(SttV2Event(kind=SPEECH_END))
 
-    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000: _RecordingFake())
+    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000, langs=None: _RecordingFake())
     transport = _StubTransport(
         [
             _ctl(type="start"),
@@ -554,7 +554,7 @@ async def test_rolling_stream_bridges_and_rebases_offsets():
         [SttV2Event(kind=TRANSCRIPT, text="둘", is_final=True, offset_ms=50)],
     ]
 
-    def factory():
+    def factory(language_codes=None):
         events = scripts.pop(0) if scripts else []
         stream = _ScriptedStream(events, hang=not scripts)
         made.append(stream)
