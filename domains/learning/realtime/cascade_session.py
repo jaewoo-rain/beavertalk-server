@@ -84,7 +84,7 @@ from domains.learning.realtime.cascade_reply import (
     strip_markers,
 )
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
-from domains.learning.realtime.protocol import ServerError, ServerPong
+from domains.learning.realtime.protocol import AecHint, ServerError, ServerPong
 
 logger = logging.getLogger(__name__)
 
@@ -632,6 +632,8 @@ class CascadeSession:
             self._apply_tts_choice(ctrl)
             self._apply_aec_hint(ctrl.get("aec"))
         elif first.kind == "audio":
+            # start 없이 오디오부터 온 세션도 **어느 체제로 도는지**는 로그에 남아야 한다.
+            self._apply_aec_hint(None)
             pending_audio = first.audio
         self._sample_rate = sample_rate
 
@@ -1111,18 +1113,22 @@ class CascadeSession:
         #   "끼어들지 않는 것"이다.
         if not settings.CASCADE_MIC_ALWAYS_OPEN:
             logger.info("cascade barge-in 기각 — 마이크 상시개방 OFF(에코/게이팅 잔여 추정)")
+            self._note_bargein("기각-마이크닫힘", rms)
             return False
-        # ① 에너지 임계 — 잔여 에코는 대개 original 보다 작다(0 이면 비활성).
-        #   ⛔ **'지금'이 아니라 '그 이벤트가 가리키는 오디오'의 에너지를 본다.** 임계값은
-        #   그대로다(에코 리그 실측으로 잡을 값이다) — 고친 건 **언제 재느냐**다.
+        # ① 에너지 임계 — **에코 2차 방어 전용**이다(2026-08-08 역할 재정의).
+        #   ⭐ 여기서 묻는 건 "사용자가 말했나"가 아니다(그건 전사가 답한다). "이게 비버 자기
+        #   목소리인가"다. 그래서 AEC 를 선언한 세션에서는 **아예 돌리지 않는다** — 막을 대상이
+        #   없는 관문이고(재생 중 전사 0건으로 실증), 돌리면 잔여 에코가 아니라 **진짜 발화**만
+        #   걸린다(08-08 오전 기각 17건).
+        #   ⛔ **'지금'이 아니라 '그 이벤트가 가리키는 오디오'의 에너지를 본다.**
         threshold = settings.CASCADE_BARGEIN_RMS
-        if threshold > 0:
-            rms = self._rms_at(event.offset_ms)
+        if self._energy_gate and threshold > 0:
             if rms < threshold:
                 logger.info(
                     "cascade barge-in 기각 — 에너지 %.4f < 임계 %.4f(에코 추정, offset=%d)",
                     rms, threshold, event.offset_ms,
                 )
+                self._note_bargein("기각-에너지", rms)
                 return False
         # ② 최소 지속 — 순간 튐으로 비버를 끊지 않는다.
         min_ms = max(0, settings.CASCADE_BARGEIN_MIN_MS)
@@ -2064,40 +2070,54 @@ class CascadeSession:
         )
 
     def _apply_aec_hint(self, aec: Any) -> None:
-        """start.aec 힌트로 **세션별** barge-in 정책을 정한다.
+        """start.aec 로 **세션별** barge-in 정책을 정한다 — 에너지 게이트를 켤지 끌지.
 
-        AEC 는 기기·라우트마다 다르다(이어폰=사실상 무해 / 스피커폰=최악). 전역 설정 하나로는
-        이 차이를 표현할 수 없어서 세션 값으로 둔다. 힌트가 없으면 전역 기본값.
+        ⭐ 2026-08-08 역할 재정의(사장님 판단): 에너지 관문은 '발화 감지기'가 아니라
+          **에코 2차 방어**다. 클라가 AEC 를 선언했으면 막을 대상이 없다(같은 날 로그에서
+          비버 재생 중 전사 0건으로 실증) — 그 세션에서 관문을 돌리면 잔여 에코가 아니라
+          **진짜 발화만** 걸린다. 그래서 끈다. 선언이 없거나 모르는 값이면 **켠다**(안전 쪽).
+          지금 플러터 앱이 이 상태다(필드를 안 보낸다 — 2026-08-07 확인).
 
-        ⚠ **지금 앱은 이 필드를 보내지 않는다**(2026-08-07 확인). 필드는 프로토콜에 있는데
-          클라가 안 실어서, 실사용 세션은 **전부 기본값 `transcript`** 로 간다 — "기기별로 다르게
-          잡는다"는 위 설명은 아직 **의도이지 현실이 아니다.** 실패 방향은 안전한 쪽이고
-          (이어폰이어도 전사를 기다린다) 비용은 지연뿐이다. 앱이 보내기 시작하면 그때부터
-          위 설명대로 돈다. dev 데모(cascade_demo.html)는 보내고 있어 경로 자체는 살아 있다.
+        ⛔ 어떤 mode 가 "AEC 있음"인지는 **명시적 화이트리스트**(protocol.AEC_MODES_WITH_CANCEL)
+          로만 판정한다. 모르는 값이 방어를 끄면 안 된다 — 데모가 보내는 `hw` 가 예전 분기
+          어디에도 안 걸려 조용히 기본값으로 흐르던 것이 그 사고의 예고편이었다.
+
+        ⛔ **소리만으로는 끊지 않는다**(사장님 판단, 2026-08-08). 그래서 여기서 확인 방식을
+          `immediate` 로 올리지 않는다 — 이어폰이어도 전사를 기다린다. 이어폰에 에코가 없다는
+          것은 "게이트가 필요 없다"는 뜻이지 "글자 없이 끊어도 된다"는 뜻이 아니다.
         """
-        if not isinstance(aec, dict):
-            # ⛔ **에코 억제는 음향 층(클라 AEC)의 일이다.** 서버는 말 내용으로 에코를 추측하지
+        hint: AecHint | None = None
+        if isinstance(aec, dict):
+            try:
+                hint = AecHint.model_validate(aec)
+            except Exception as exc:  # noqa: BLE001 - 계약 위반은 거절이 아니라 안전 쪽 폴백(R5)
+                logger.warning("cascade aec 해석 실패(%s) — unknown 으로 본다(게이트 켬): %r",
+                               exc, aec)
+        elif aec is not None:
+            logger.warning("cascade aec 가 객체가 아니다(%s) — unknown 으로 본다(게이트 켬)",
+                           type(aec).__name__)
+        self._aec_mode = hint.mode if hint is not None else "미선언"
+        self._energy_gate = not (hint is not None and hint.has_echo_cancel)
+        if self._energy_gate:
+            # ⛔ 에코 억제는 **음향 층(클라 AEC)의 일**이다. 서버는 말 내용으로 에코를 추측하지
             #   않는다(그 추측이 어학 앱에서 따라 말하기를 죽였다 — 2026-08-08).
-            #   그래서 위험을 없애는 대신 **보이게** 남긴다: 이 세션은 AEC 선언이 없다.
             logger.warning(
-                "cascade AEC 미선언 세션 — 앱이 start.aec 를 안 보낸다. 에코가 나면 **클라에서**"
-                " 잡아야 한다(서버는 에너지 게이트만 본다). bargein_confirm=%s",
-                self._bargein_confirm,
+                "cascade AEC 미선언/미상(mode=%s) — 에너지 게이트 ON(임계 %.4f). 에코가 나면"
+                " **클라에서** 잡아야 한다(서버는 말 내용으로 에코를 판정하지 않는다)",
+                self._aec_mode, settings.CASCADE_BARGEIN_RMS,
             )
-            return
-        if str(aec.get("mode") or "unknown") in ("none", "unknown"):
+        if self._bargein_confirm != "transcript":
             logger.warning(
-                "cascade AEC 없음/미상 선언(mode=%r) — 에코 억제는 클라 AEC 의 일이다."
-                " 서버는 말 내용으로 에코를 판정하지 않는다",
-                aec.get("mode"),
+                "cascade ⚠ bargein_confirm=%s — 글자 없이 **소리만으로** 비버를 끊는 모드다."
+                " env 로 켠 것이면 끄는 게 맞다(잡음이 비버를 죽인다)", self._bargein_confirm,
             )
-        mode = str(aec.get("mode") or "unknown")
-        self._aec_mode = mode
-        if mode == "headset":
-            self._bargein_confirm = "immediate"   # 음향 결합이 없다 — 빠르게 반응
-        elif mode in ("none", "unknown"):
-            self._bargein_confirm = "transcript"  # AEC 없음 — 전사 확인까지 요구
-        logger.info("cascade aec 힌트: mode=%s → bargein_confirm=%s", mode, self._bargein_confirm)
+        logger.info(
+            "cascade aec 힌트: %s mode=%s → bargein_confirm=%s 에너지게이트=%s(임계 %.4f)"
+            " 안전망=%dms",
+            self._sid, self._aec_mode, self._bargein_confirm,
+            "on" if self._energy_gate else "off", settings.CASCADE_BARGEIN_RMS,
+            settings.CASCADE_BARGEIN_SUSTAIN_MS,
+        )
 
     # ── 유틸 ──
     def _ms(self, at: float) -> int:

@@ -28,9 +28,9 @@ P2.5(D16): teaching_plan(통화 시작 직후 1회 — L1 학습 카드), hint(�
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 
 # ── 클라이언트 → 서버 ──
@@ -173,6 +173,40 @@ class ServerError(BaseModel):
     code: str
     message: str
     recoverable: bool = True
+
+
+# ── start.aec — 클라가 선언하는 에코 억제(AEC) 상태 ──
+# ⛔ **이 값은 이제 서버 방어 관문을 끄는 스위치다**(2026-08-08). 그전까지는 barge-in 확인
+#   방식만 고르는 느슨한 힌트라 생짜 dict(`ctrl.get("aec")`)로 읽어도 됐다. 방어를 끄는
+#   값이 된 이상 **모르는 값이 조용히 통과하면 안 된다** — `mode:'HW'` 오타 하나로 관문이
+#   꺼지는 걸 막으려고 타입을 박고 소문자로 정규화한다.
+# ⚠ 보안 경계는 아니다: 이 WS 는 본인 통화이고, 게이트가 꺼져 봐야 손해는 본인 통화 품질뿐이며
+#   barge-in 은 오히려 원가를 **줄인다**. 그래서 목적은 인증이 아니라 **오타 차단**이다.
+#   그래서 파싱 실패도 거절이 아니라 `unknown`(= 게이트 켬, 안전 쪽) 으로 떨어뜨린다.
+AEC_MODES_WITH_CANCEL = frozenset({
+    "hw",          # 기기/OS 하드웨어 AEC (브라우저 데모가 보내는 값)
+    "sw", "software",
+    "system",      # OS 음성통화 모드(VoiceProcessingIO 등)
+    "browser",     # WebRTC getUserMedia echoCancellation:true
+    "headset",     # 이어폰 — 음향 결합 자체가 없다(에코가 물리적으로 불가능)
+})
+
+
+class AecHint(BaseModel):
+    """`start.aec`. 모르는 값·미선언은 전부 `unknown` = **게이트 켜는 쪽**으로 떨어진다."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    mode: str = "unknown"
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def _normalize(cls, v: Any) -> str:
+        return str(v).strip().lower() if v is not None else "unknown"
+
+    @property
+    def has_echo_cancel(self) -> bool:
+        return self.mode in AEC_MODES_WITH_CANCEL
 
 
 class ServerPong(BaseModel):
