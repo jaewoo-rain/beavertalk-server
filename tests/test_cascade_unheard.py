@@ -231,3 +231,65 @@ def test_pump_sleeps_before_retrying_an_unexplained_wake():
     import inspect
     src = inspect.getsource(CascadeSession._pump_turn)
     assert "await asyncio.sleep(_DEADLINE_EPS_S)" in src, src[-800:]
+
+
+# ── 판정 시점: **말을 시작한 때**(2026-08-08 23:18 실통화) ──────────────────
+# 사장님: "1·2·3을 물어봤으면 2번을 대답하는 것 같다."
+#     23:18:26.379  turn u6 text='4K'                          ← 대답 b7 시작(오인식이다)
+#     23:18:29.338  b7 첫 소리(첫소리=2959ms)
+#     23:18:29.815  turn u7 "Let's go to the 한국어 공부하자" → **대기열**
+#     23:18:36.938  b7 재생 완료 → 그제서야 u7 에 답한다(7124ms 늦게)
+# 같은 술어를 두 시점에 쟀고 그 사이에 답이 바뀌었다 — 시작할 땐 너무 일러서 못 끊고,
+# 닫힐 땐 이미 늦어서 못 버린다. 그 간격은 일상적으로 열린다(말 시작→닫힘 1.7~2초 < 첫소리 3초).
+@pytest.mark.asyncio
+async def test_unheard_at_speech_start_wins_over_audible_at_close():
+    """⭐ **말을 시작한 순간** 안 들렸으면, 닫힐 때 들리더라도 버리고 새 발화에 답한다."""
+    session, group, running = await _rig(audible_ms=0)
+    session._turn_beaver_unheard = session._beaver_unheard()   # 턴이 열린 순간(= _open_turn)
+    session._audible_ms = lambda: 1_400                        # 닫힐 때는 이미 소리가 나간다
+    await session._start_reply("Let's go to the 한국어 공부하자")
+    assert running.cancelled() or running.done(), "낡은 대답을 끝까지 재생한다"
+    assert group.started == 1
+    assert session._pending_user_text == ""
+
+
+@pytest.mark.asyncio
+async def test_audible_at_speech_start_still_queues():
+    """⛔ 말을 시작할 때 **이미 들리고 있었으면** 대기열이다(2026-08-07 근거 보존).
+
+    그건 사용자가 그 대답을 듣고 반응한 경우다 — 버리면 "듣고 있던 말이 사라진다".
+    """
+    session, group, running = await _rig(audible_ms=5_000)
+    session._turn_beaver_unheard = session._beaver_unheard()
+    await session._start_reply("잠깐만요")
+    assert not running.cancelled()
+    assert session._pending_user_text == "잠깐만요"
+    running.cancel()
+
+
+@pytest.mark.asyncio
+async def test_open_turn_records_the_moment_speech_started():
+    """`_open_turn` 이 그 순간을 굳힌다 — 나중에 소리가 나도 기억은 안 바뀐다."""
+    session = CascadeSession(_Sink())
+    session._audible_ms = lambda: 0
+    await session._open_turn(0.0)
+    assert session._turn_beaver_unheard is True
+    session._audible_ms = lambda: 9_999          # 그새 소리가 나기 시작해도
+    assert session._turn_beaver_unheard is True  # 판정 근거는 '말을 시작한 때'다
+
+
+@pytest.mark.asyncio
+async def test_queue_answers_only_the_last_utterance():
+    """⭐ 밀린 발화가 2건 이상이면 **마지막 것만** 답한다(사장님 선택 ①).
+
+    지금은 단순 대입이라 우연히 그렇다 — 누가 리스트로 바꾸면 조용히 "순서대로 다 답함"이
+    되고, 사용자는 이미 지나간 질문의 답을 줄줄이 듣는다.
+    """
+    session, group, running = await _rig(audible_ms=5_000)
+    session._turn_beaver_unheard = False
+    await session._start_reply("첫 번째 질문")
+    await session._start_reply("두 번째 질문")
+    await session._start_reply("세 번째 질문")
+    assert session._pending_user_text == "세 번째 질문"
+    assert group.started == 0
+    running.cancel()

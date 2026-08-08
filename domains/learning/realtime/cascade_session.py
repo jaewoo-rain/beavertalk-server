@@ -619,6 +619,9 @@ class CascadeSession:
         self._turn_seq = 0
         self._turn_id: str | None = None
         self._turn_began_at = 0.0
+        # ⭐ **이 턴이 열린 순간** 비버가 안 들리고 있었나. 판정 시점을 '말을 시작한 때'로
+        #   옮기기 위한 값이다(2026-08-08). 자세한 이유는 _open_turn·_start_reply 주석.
+        self._turn_beaver_unheard = False
         self._finals: list[str] = []
         self._partial = ""
         # 턴 종료 타이머
@@ -1087,6 +1090,15 @@ class CascadeSession:
     async def _open_turn(self, at: float) -> None:
         self._turn_seq += 1
         self._turn_id = f"u{self._turn_seq}"
+        # ⭐⭐ **말을 시작한 순간**의 '안 들림'을 여기서 굳힌다(2026-08-08 실통화).
+        #   같은 술어를 두 시점에 재면 그 사이에 답이 바뀐다:
+        #     말 시작(비버 아직 무음) → barge-in 기각("대답을 살린다")   ← 너무 일러서 못 끊고
+        #     턴 닫힘(그새 소리가 남) → 버리기 조건 불성립 → 대기열      ← 이미 늦어서 못 버린다
+        #   그 사이 간격이 **일상적으로 열린다**: 말 시작→턴 닫힘 = 침묵 800ms + 파이프라인
+        #   지연 ~900ms ≈ 1.7~2초인데, 대답 첫소리는 ~3초다.
+        #   ⛔ 새 술어를 만들지 않는다 — 두 곳이 갈리면 또 구멍이 생긴다. 같은 `_beaver_unheard()`
+        #   를 **더 이른 시점에** 한 번 재서 그 턴에 붙여 둔다.
+        self._turn_beaver_unheard = self._beaver_unheard()
         self._turn_began_at = at
         self._finals = []
         self._partial = ""
@@ -1408,7 +1420,12 @@ class CascadeSession:
             #   안 듣는 대답을 끝까지 하고 ④그 뒤에 **낡은 말**에 답했다.
             #   버려서 잃는 것은 0 이다(누구도 못 들었다). 안 버리면 사용자는 이미 지나간
             #   말에 대한 답을 듣는다 — 그게 증상 자체다.
-            if self._beaver_unheard() and not self._batch_synthesizing:
+            #   ⭐ 판정은 **말을 시작한 시점** 기준이다(2026-08-08). 그때 안 들렸으면 그 대답은
+            #   아무도 못 들은 것이다 — 사용자가 그걸 듣고 반응한 게 아니다. 말하는 도중에
+            #   소리가 나기 시작했더라도 마찬가지다(이미 말하고 있었으면 그 대답을 원한 게 아니다).
+            #   닫힘 시점 검사도 함께 둔다(OR): 그새 **다른** 대답이 새로 시작됐을 수 있고,
+            #   그건 더 낡은 발화에 대한 답이라 역시 버리는 게 맞다.
+            if (self._turn_beaver_unheard or self._beaver_unheard())                     and not self._batch_synthesizing:
                 await self._discard_unheard_reply(user_text)
             else:
                 # 앞 대답이 **들리고 있으면** 겹쳐 말하지 않는다(불변식 I1 — 비버 턴은 하나).
