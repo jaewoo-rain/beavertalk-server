@@ -796,7 +796,11 @@ class CascadeSession:
                 return
             await self._on_barge_in(event)
         if self.state == TurnState.USER_SPEAKING:
-            self._close_at = None  # 발화 재개 — 카운트다운 취소(같은 턴 계속)
+            # ⚠ 글자가 이미 나온 턴에서는 **취소하지 않는다.** 잡음이 speech_begin 을 계속
+            #   만들어 내면 전사 기준 카운트다운이 매번 취소돼 위 규칙이 무력해진다.
+            #   진짜로 말을 이어가면 **새 전사가 도착해 다시 건다**(그게 정상 경로다).
+            if not self._turn_has_text():
+                self._close_at = None  # 아직 글자 없음 = 진짜 발화 시작을 기다리는 중
             return
         await self._open_turn(event.at)
 
@@ -828,10 +832,22 @@ class CascadeSession:
         await self._safe(
             ServerInputPartial(text=event.text, final=event.is_final, turn_id=self._turn_id)
         )
-        # 발화 중(BEGIN..END)이면 카운트다운을 걸지 않는다 — 엔진이 "말하는 중"이라고 본다.
-        # 반대로 VAD 이벤트를 아예 안 주는 엔진/설정에서는 전사 오프셋이 타이머를 몬다.
+        # ⭐ **판정 축을 음향에서 전사로 옮긴다**(2026-08-08, 사장님 지적).
+        #   지금까지는 VAD 가 조용해져야 카운트다운을 걸었다. 그런데 차·카페·에어컨에서는
+        #   VAD 가 **영영 조용해지지 않는다** — 잡음은 소리는 내지만 단어를 못 만든다.
+        #   그러면 턴 상한(CASCADE_TURN_MAX_S)까지 열려 있어 "안녕하세요" 한 마디에 수십 초를
+        #   기다리게 된다.
+        # ⚠ 그냥 뒤집으면 **말 시작 전에 턴이 닫힌다**(숨 고르는 동안엔 아직 글자가 없다).
+        #   그래서 조건을 건다:
+        #     글자가 아직 없다  → 예전대로 VAD 기준(엔진이 "말하는 중"이면 안 닫는다)
+        #     글자가 나온 뒤부터 → **전사 정지 기준**(VAD 가 활성이어도 닫는다)
+        #   = "말을 시작한 뒤부터는 잡음이 무의미해진다".
         if not self._speech_active:
             self._arm_close_timer(event)
+        elif self._turn_has_text():
+            self._arm_close_timer(
+                event, silence_ms=settings.CASCADE_TURN_TRANSCRIPT_SILENCE_MS
+            )
 
     async def _on_speech_end(self, event: SttV2Event) -> None:
         self._speech_active = False
@@ -888,7 +904,11 @@ class CascadeSession:
             # 걸러져 이 분기에 들어오지 않는다) — 그래서 이 지연값은 계측으로 믿을 수 있다.
             self._pipeline_lag_ms = int(max(0.0, self._audio_ms - event.offset_ms))
 
-    def _arm_close_timer(self, event: SttV2Event) -> None:
+    def _turn_has_text(self) -> bool:
+        """이 턴에서 **글자가 한 번이라도 나왔나** — 전사 기준 판정의 전제다."""
+        return bool(self._finals) or bool(self._partial.strip())
+
+    def _arm_close_timer(self, event: SttV2Event, silence_ms: int | None = None) -> None:
         """침묵 카운트다운을 건다 — **이미 흘러간 침묵은 빼되, 바닥 아래로는 안 내린다.**
 
         이벤트가 오디오 시각(offset)을 들고 오면 `audio_ms_sent − offset` 이 이미 지난
@@ -912,7 +932,8 @@ class CascadeSession:
         #   speech_ms 가 1~4초인데 text=''). 전사 오프셋일 때만 빼는 게 맞다.
         if event.offset_ms >= 0 and event.kind == TRANSCRIPT:
             already_ms = max(0.0, self._audio_ms - event.offset_ms)
-        remain_s = max(0.0, (self._silence_ms - already_ms) / 1000.0)
+        threshold_ms = self._silence_ms if silence_ms is None else max(0, silence_ms)
+        remain_s = max(0.0, (threshold_ms - already_ms) / 1000.0)
         floor_s = max(0, settings.CASCADE_TURN_MIN_WAIT_MS) / 1000.0
         self._close_at = time.monotonic() + max(remain_s, floor_s)
 

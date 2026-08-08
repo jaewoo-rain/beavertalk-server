@@ -322,3 +322,83 @@ async def test_tail_of_delivered_text_is_still_blocked(monkeypatch):
         0.25,
     ])
     assert len(sink.all("user_turn_end")) == 1, sink.events
+
+
+# --------------------------------------------------------------------------- #
+# ⑥ 전사 기준 종료판정 (2026-08-08)
+#   사장님: "차 안이면 잡음이 계속 들어가는데, STT 로 더 이상 글자가 안 나오면 0.8초 뒤
+#   바로 넘기면 안 되나?" — 종료판정 축이 **음향(VAD)** 이라 차·카페에서는 VAD 가 영영
+#   조용해지지 않고, 턴 상한까지 열려 있었다("안녕하세요" 한 마디에 수십 초).
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_transcript_stop_closes_the_turn_even_while_vad_is_active(monkeypatch):
+    """⭐ 글자가 나온 뒤에는 **VAD 가 활성이어도** 전사가 멎으면 닫는다(잡음 무시)."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_TRANSCRIPT_SILENCE_MS", 150)
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=5000)   # VAD 기준이면 5초 = 안 닫힌다
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 500)),   # 이후 speech_end 는 안 온다
+        SttV2Event(kind=TRANSCRIPT, text="안녕하세요", is_final=True, offset_ms=int(audio)),
+        0.35,
+    ])
+    ends = sink.all("user_turn_end")
+    assert len(ends) == 1, sink.events
+    assert ends[0]["text"] == "안녕하세요"
+
+
+@pytest.mark.asyncio
+async def test_before_any_text_the_vad_rule_still_applies(monkeypatch):
+    """⚠ 글자가 나오기 전에는 예전대로 VAD 기준이다 — 안 그러면 **말 시작 전에 닫힌다**.
+
+    숨 고르는 동안엔 아직 글자가 없다. 그때 전사 기준을 적용하면 학습자가 입을 떼기도 전에
+    턴이 닫힌다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_TRANSCRIPT_SILENCE_MS", 100)
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=5000)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 200)),
+        0.35,                                   # 전사 없이 시간만 흐른다(잡음/숨 고르기)
+    ])
+    assert sink.all("user_turn_end") == [], "글자도 없는데 턴을 닫았다"
+
+
+@pytest.mark.asyncio
+async def test_noise_speech_begin_does_not_cancel_the_transcript_countdown(monkeypatch):
+    """⛔ 잡음이 speech_begin 을 계속 만들어도 카운트다운이 취소되면 안 된다.
+
+    취소되면 위 규칙이 무력해져 차 안에서 영영 안 닫힌다. 그리고 유령 턴(speech_ms=0 중복)이
+    생기지 않는 것도 같이 지킨다 — 87fdf7d 가 고친 그 결함이다.
+    """
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_TRANSCRIPT_SILENCE_MS", 200)
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_MIN_WAIT_MS", 20)
+    session, sink = _session(monkeypatch, silence_ms=5000)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 500)),
+        SttV2Event(kind=TRANSCRIPT, text="안녕하세요", is_final=True, offset_ms=int(audio)),
+        0.05,
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio + 10)),    # 잡음
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio + 20)),    # 잡음
+        0.35,
+    ])
+    ends = sink.all("user_turn_end")
+    assert len(ends) == 1, sink.events
+    assert ends[0]["text"] == "안녕하세요", ends
+    # 유령 턴이 없다 = 같은 발화가 턴 2개가 되지 않았다(87fdf7d 가 고친 그 결함).
+    # ⚠ speech_ms 는 이 하네스에서 이벤트를 한꺼번에 만들어 0 이 나온다 — 그건 하네스
+    #   산물이라 판정에 쓰지 않고, **턴 개수**로 본다.
+    assert len(sink.all("user_turn_start")) == 1, sink.events
+
+
+def test_unfinished_sentence_is_observed_not_enforced():
+    """⛔ 미완 판정은 **로그 전용**이다 — 판정에 쓰면 규칙 기반 오판이 대화를 끊는다."""
+    from domains.learning.realtime.cascade_session import _looks_unfinished
+
+    assert _looks_unfinished("제가") is True          # 조사로 끝났다
+    assert _looks_unfinished("어제 학교에 갔는데") is True
+    assert _looks_unfinished("안녕하세요.") is False   # 종결부호
+    assert _looks_unfinished("안녕하세요") is False    # 종결어미(조사·연결어미 아님)
+    assert _looks_unfinished("") is False
