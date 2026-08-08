@@ -309,6 +309,9 @@ class BeaverOutput:
         # 세션이 엔진에 맞춰 덮어쓴다(None 이면 전역 설정). 엔진마다 합성이 뒤처지는 폭이 달라
         # 상수 하나로 쓰면 한쪽은 끊기고 한쪽은 버퍼가 부푼다.
         self.lead_ms: int | None = None
+        # 마지막으로 오디오를 내보낸 시각 — **에코 판정의 물리적 근거**다(스피커가 소리를
+        # 내고 있을 때만 에코가 생긴다). 0 이면 아직 한 번도 안 냈다.
+        self.last_sent_at: float = 0.0
         self._turn_seq = 0
         self._epoch = 0
         self._cur: _TurnRecord | None = None
@@ -378,6 +381,7 @@ class BeaverOutput:
             SpokenChunk(start_byte=start, end_byte=self._cur.sent_bytes, text=text)
         )
         await self._transport.send_audio(pcm)
+        self.last_sent_at = self._now()
 
     async def end(self) -> None:
         """턴 종료 — **마지막 바이트를 보낸 뒤**에 turn_end(I5). 취소된 턴이면 내지 않는다(I4)."""
@@ -1075,16 +1079,22 @@ class CascadeSession:
         return True
 
     def _looks_like_echo(self, text: str) -> bool:
-        """비버가 방금 한(또는 하는 중인) 말과 겹치나 — 겹치면 **에코**다.
+        """비버 자기 목소리가 전사된 것인가.
 
-        ⛔ 이게 없으면 (A)가 위험해진다: 기각된 발화도 답하게 만들었으므로, 그게 에코라면
-        **비버가 자기 말에 답한다.** 잡음은 전사를 못 만들지만 에코는 만든다 — 그래서
-        "전사가 나왔다"만으로는 못 가른다. 우리는 비버 대사를 갖고 있으니 그걸로 가른다.
+        ⛔⛔ **텍스트 겹침만으로 판정하면 안 된다**(2026-08-08 실통화에서 확인).
+          일반 음성 앱이면 "비버 말과 똑같이 말함 = 에코"가 맞지만, **여기는 어학 앱**이다.
+          우리가 프롬프트에서 직접 시킨다 — "통문장을 또박또박 들려주고 **2번 따라 말하게**"
+          (persona_prompt). 즉 **비버 말을 그대로 따라 하는 것이 정상 학습 행동**이다.
+          따라 말했는데 무시당하면 사장님이 겪으신 그대로 "왜 응답을 안 하지?"가 된다.
 
-        판정은 글자 2-gram 겹침이다(전사는 조사·띄어쓰기가 흔들려서 완전일치로는 못 잡는다).
-        짧은 맞장구("네", "응")는 겹침을 재기엔 정보가 없어 **에코로 보지 않는다** — 진짜
-        발화를 버리는 쪽이 더 나쁘다.
+        → **판정의 축은 텍스트가 아니라 물리다.** 에코는 스피커가 소리를 낼 때만 생긴다:
+          ① 비버 턴이 열려 있다(지금 오디오가 흐른다) 또는
+          ② 마지막 송출 직후의 꼬리 창 안이다(클라 버퍼에 남은 소리가 아직 재생 중이다)
+          그 창 밖이면 **무조건 사용자 발화**다 — 텍스트가 아무리 겹쳐도 따라 말하기다.
+          겹침은 **창 안에서만** 보조 근거로 쓴다(마이크 상시개방이라 그때는 에코가 실재한다).
         """
+        if not self._beaver_audible_recently():
+            return False
         probe = "".join((text or "").split())
         if len(probe) < _ECHO_MIN_CHARS:
             return False
@@ -1096,6 +1106,22 @@ class CascadeSession:
             return False
         hit = sum(1 for g in grams if g in said)
         return hit / len(grams) >= _ECHO_OVERLAP
+
+    def _beaver_audible_recently(self) -> bool:
+        """지금(또는 방금까지) 비버 소리가 스피커에서 났나 — 에코가 **가능한** 구간인가.
+
+        창 = 클라 버퍼(선행 버퍼만큼 아직 재생 중이다) + 잔향 꼬리(CASCADE_ECHO_TAIL_MS).
+        우리는 실시간보다 lead_ms 만큼 앞서 보내므로, 송출을 멈춘 뒤에도 그만큼은 소리가 난다.
+        """
+        if self.beaver.turn_id is not None:
+            return True
+        if self.beaver.last_sent_at <= 0.0:
+            return False
+        lead = self.beaver.lead_ms
+        if lead is None:
+            lead = settings.CASCADE_TTS_LEAD_MS
+        window_ms = max(0, lead) + max(0, settings.CASCADE_ECHO_TAIL_MS)
+        return (time.monotonic() - self.beaver.last_sent_at) * 1000.0 <= window_ms
 
     def _beaver_said_recently(self) -> str:
         """비버가 방금 한 말(이력의 마지막 model 발화 + 지금 생성 중인 대사)."""
