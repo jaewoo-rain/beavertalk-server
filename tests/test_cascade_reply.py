@@ -441,7 +441,7 @@ async def test_repeating_the_beaver_is_answered(reply_rig, monkeypatch):
     session._tg = _StubGroup()
     session._history.append({"role": "model", "text": "책이 탁자 위에 있어요."})
 
-    session._start_reply("책이 탁자 위에 있어요")     # 비버 대사와 100% 겹친다
+    await session._start_reply("책이 탁자 위에 있어요")   # 비버 대사와 100% 겹친다
     assert session._tg.started is True, "따라 말하기를 버렸다"
 
 

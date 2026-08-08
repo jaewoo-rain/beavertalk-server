@@ -322,6 +322,58 @@ class _TurnRecord:
     ledger: list[SpokenChunk] = field(default_factory=list)
 
 
+class _ReplyTiming:
+    """첫소리 분해 — **어디서 늦는지**를 로그 한 줄로 가른다(2026-08-08).
+
+    첫소리가 06:07 ~3.1초 → 07:03 ~2.7초 → 08:12 ~5.9초로 2배가 됐는데, 한 숫자로 뭉쳐
+    있어서 원인을 못 짚었다. 타임스탬프 역산은 변수가 셋인데 방정식이 하나라 신뢰할 수 없다
+    ("여러 지표가 같은 방향을 가리켜도 원인이 확인된 게 아니다").
+
+        첫소리 = ①LLM 첫 조각까지 + ②첫 문장이 완성될 때까지 + ③TTS 첫 바이트까지
+    ⚠ **대기열 대기는 첫소리 밖이다**(`began` 이 _run_reply 안에서 찍힌다). 사용자가 체감하는
+      지연은 둘의 합이라 따로 싣는다.
+    ⛔ '출력 대기'는 항목에 없다 — 페이서는 **그 비버 턴의 시작 시각** 기준으로 재우므로
+      (`_pace`: elapsed = now − _cur.started_at) 새 턴의 첫 조각은 절대 안 기다린다.
+      앞 대답이 흐르는 동안은 애초에 `_run_reply` 가 시작되지 않는다(대기열).
+    """
+
+    __slots__ = ("began", "queued_ms", "chunk_at", "sentence_at", "audio_at")
+
+    def __init__(self, began: float, queued_ms: int = 0) -> None:
+        self.began = began
+        self.queued_ms = max(0, queued_ms)
+        self.chunk_at = 0.0
+        self.sentence_at = 0.0
+        self.audio_at = 0.0
+
+    def mark_chunk(self) -> None:
+        self.chunk_at = self.chunk_at or time.monotonic()
+
+    def mark_sentence(self) -> None:
+        self.mark_chunk()      # 첫 문장이 먼저 보이는 구현이어도 순서가 뒤집히지 않게
+        self.sentence_at = self.sentence_at or time.monotonic()
+
+    def mark_audio(self) -> None:
+        self.mark_sentence()
+        self.audio_at = self.audio_at or time.monotonic()
+
+    @property
+    def first_sound_ms(self) -> int:
+        return int((self.audio_at - self.began) * 1000) if self.audio_at else -1
+
+    def summary(self) -> str:
+        if not self.audio_at:
+            return "첫소리=없음(소리가 한 조각도 안 나갔다)"
+        ms = lambda a, b: int(max(0.0, a - b) * 1000)  # noqa: E731
+        return (
+            "첫소리=%dms(대기열 %d + LLM첫조각 %d + 문장완성 %d + TTS %d)"
+            % (self.first_sound_ms, self.queued_ms,
+               ms(self.chunk_at, self.began),
+               ms(self.sentence_at, self.chunk_at),
+               ms(self.audio_at, self.sentence_at))
+        )
+
+
 class BeaverOutput:
     """(P1) 비버 턴의 송출 게이트 + 재생 원장 + 페이서.
 
@@ -554,6 +606,8 @@ class CascadeSession:
         self._interrupted: dict | None = None
         # 비버가 말하는 동안 들어온 발화(대답이 끝나면 답한다) / 지금 비버가 하는 말(에코 판정)
         self._pending_user_text = ""
+        self._pending_since = 0.0     # 대기열에 들어간 시각
+        self._reply_queued_ms = 0     # 이번 대답이 대기열에서 기다린 시간(첫소리 분해용)
         self._rms_log: deque[tuple[float, float]] = deque()
         self.state = TurnState.IDLE
         self._q: asyncio.Queue[Any] = asyncio.Queue()
@@ -682,7 +736,7 @@ class CascadeSession:
                 #   스타트를 흡수한다: 실측에서 첫 대답만 9971ms 였고 그다음은 2.6~3.0초였다.
                 #   사용자가 마이크를 허용하고 자세를 잡는 사이에 그 10초가 인사말에 실린다.
                 if settings.CASCADE_GREETING:
-                    self._start_reply(seed_opening(), is_greeting=True)
+                    await self._start_reply(seed_opening(), is_greeting=True)
         except* _Stop:
             pass  # 정상 종료(클라 stop / 스트림 끝 / disconnect)
         except* Exception as eg:  # noqa: BLE001
@@ -1096,7 +1150,7 @@ class CascadeSession:
         # ⭐ 여기서 비버가 대답한다(P1). ⛔ 빈 텍스트면 부르지 않는다 — 빈 입력 LLM 호출은
         # 원가만 나가고 헛대답을 만든다(결함 C 판단, 2026-08-07).
         if text:
-            self._start_reply(text)
+            await self._start_reply(text)
         else:
             # ⭐ 빈 턴이라고 침묵으로 두지 않는다 — 직전에 **비버를 죽였다면** 하던 말을
             #   이어서 한다. 사장님 45분 통화에서 이 자리가 dead air 였다.
@@ -1275,13 +1329,15 @@ class CascadeSession:
         )
         self._bargein_at = None
         self._bargein_pending_at = 0.0
+        # ⚠ 상태 검사는 남긴다 — 이건 진입 관문의 중복이 아니라 **끊을 대상이 이미 없는
+        #   경우**다(보류 0.5초 사이에 대답이 끝났다). 여기서 치면 끝난 턴에 audio_cancel 이
+        #   나가고 state 가 CANCELLING 으로 굳는다.
         if self.state not in (TurnState.BEAVER_SPEAKING, TurnState.THINKING):
             self._note_bargein("확정취소-상태", rms)
             return
-        if self._audible_ms() < max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS):
-            logger.info("cascade barge-in 취소 — 확인 사이에 비버가 안 들리는 상태가 됐다")
-            self._note_bargein("확정취소-안들림", rms)
-            return
+        # ⛔ **'안 들림' 재검사는 걷어냈다**(2026-08-08). 같은 판정을 진입부에서 이미 했고,
+        #   0.5초 뒤에 한 번 더 재는 것이 08-08 통화에서 확정 3건을 죽였다(확정취소-안들림).
+        #   진입 때 들렸으면 지금은 **더 들렸다** — 다시 물을 이유가 없다.
         self._note_bargein("안전망확정" if reason.startswith("안전망") else "전사확정", rms)
         logger.info("cascade barge-in 확정(%s) — %s 보류→확정 %dms rms=%.4f",
                     reason, self._sid, waited_ms, rms)
@@ -1315,20 +1371,76 @@ class CascadeSession:
             self._reply_cancelled = True
             task.cancel()
 
-    def _start_reply(self, user_text: str, is_greeting: bool = False) -> None:
+    def _pending_wait_ms(self) -> int:
+        """대기열에서 기다린 시간 — **첫소리(첫 소리까지)에는 안 들어가는 구간**이다.
+
+        `began` 은 `_run_reply` 안에서 찍히므로 대기열 대기는 그 밖이다. 사용자가 체감하는
+        지연은 둘의 합이라, 따로 세지 않으면 "왜 늦나"를 로그로 못 가른다.
+        """
+        if not self._pending_since:
+            return 0
+        return int(max(0.0, time.monotonic() - self._pending_since) * 1000)
+
+    def _beaver_unheard(self) -> bool:
+        """준비 중인 대답을 **사용자가 아직 한 조각도 못 들었나.**
+
+        ⛔ barge-in 진입 관문(`_bargein_allowed` ⓪-1)과 **같은 술어**를 쓴다. 그래야
+          "안 들려서 안 끊었다"와 "안 들렸으니 버린다"가 어긋날 수 없다.
+        """
+        return self._audible_ms() < max(0, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS)
+
+    async def _start_reply(self, user_text: str, is_greeting: bool = False) -> None:
         if not self._reply_enabled() or not user_text.strip():
             return
         if self._reply_task is not None and not self._reply_task.done():
-            # 앞 대답이 흐르는 중이면 겹쳐 말하지 않는다(불변식 I1 — 비버 턴은 하나).
-            # ⭐ 그렇다고 **버리지도 않는다**(2026-08-07). 예전엔 여기서 그냥 건너뛰어서
-            #   "대답 다 해도 내가 중간에 말한 거에 답을 안 해" 가 됐다. 줄 세워 뒀다가
-            #   대답이 끝나면 그때 답한다.
-            self._pending_user_text = user_text
-            logger.info("cascade 발화 대기열 — 비버가 말하는 중이라 대답 뒤로 미룬다: %r",
-                        user_text[:40])
-            return
+            # ⭐⭐ **아무도 안 들은 대답은 버린다**(2026-08-08 사장님 증상: "음성이 끊겼으면
+            #   삭제돼야 하는데 계속 나온다"). THINKING 구간(LLM 생성)에는 오디오가 아예
+            #   없어서 `_audible_ms()` 가 항상 0 인데, 실측 첫소리가 3.5~8초라 그동안은
+            #   ①barge-in 이 "안 들림"으로 기각되고 ②발화는 대기열로 밀리고 ③비버는 아무도
+            #   안 듣는 대답을 끝까지 하고 ④그 뒤에 **낡은 말**에 답했다.
+            #   버려서 잃는 것은 0 이다(누구도 못 들었다). 안 버리면 사용자는 이미 지나간
+            #   말에 대한 답을 듣는다 — 그게 증상 자체다.
+            if self._beaver_unheard() and not self._batch_synthesizing:
+                await self._discard_unheard_reply(user_text)
+            else:
+                # 앞 대답이 **들리고 있으면** 겹쳐 말하지 않는다(불변식 I1 — 비버 턴은 하나).
+                # ⭐ 그렇다고 버리지도 않는다(2026-08-07). 예전엔 여기서 그냥 건너뛰어서
+                #   "대답 다 해도 내가 중간에 말한 거에 답을 안 해" 가 됐다. 줄 세워 뒀다가
+                #   대답이 끝나면 그때 답한다.
+                self._pending_user_text = user_text
+                self._pending_since = time.monotonic()
+                logger.info("cascade 발화 대기열 — 비버가 말하는 중이라 대답 뒤로 미룬다: %r",
+                            user_text[:40])
+                return
         self.state = TurnState.THINKING
         self._reply_task = self._tg.create_task(self._run_reply(user_text, is_greeting))
+
+    async def _discard_unheard_reply(self, user_text: str) -> None:
+        """준비 중이던 대답을 버리고 새 발화에 답할 자리를 비운다.
+
+        ⛔ **클라 버퍼도 같이 지운다.** 소리가 아직 안 났어도 바이트는 이미 나가 있을 수
+          있다(선행 버퍼). 그걸 안 지우면 버린 대답이 **그대로 재생된다** — 사장님이 겪으신
+          "삭제돼야 하는데 계속 나온다"가 정확히 이것이다.
+        ⚠ 취소 완료를 **기다린다**(barge-in 경로와 다르다). 안 기다리면 죽은 태스크의
+          finally 가 뒤늦게 돌면서 새 대답의 state(THINKING)를 IDLE 로 덮는다. 어차피 지금은
+          아무 소리도 안 나가고 있어 기다려서 잃는 시간이 없다.
+        """
+        task, cancelled_turn = self._reply_task, self.beaver.turn_id
+        logger.info(
+            "cascade 준비 중이던 대답을 버린다 — 아직 아무도 못 들었다(들린 %dms). "
+            "새 발화에 답한다: %r", self._audible_ms(), user_text[:40],
+        )
+        self._cancel_reply()
+        if cancelled_turn is not None:
+            await self.beaver.cancel(reason="unheard_replaced")
+        if task is not None:
+            done, _ = await asyncio.wait({task}, timeout=_REPLY_CANCEL_WAIT_S)
+            if not done:
+                logger.warning("cascade 버린 대답이 %.1f초 안에 안 죽었다 — 그대로 진행한다",
+                               _REPLY_CANCEL_WAIT_S)
+        # 되살릴 이유가 없다(아무도 안 들었다) + 대기열에 낡은 말이 남아 있으면 안 된다.
+        self._interrupted = None
+        self._pending_user_text = ""
 
     async def _run_reply(self, user_text: str, is_greeting: bool = False) -> None:
         """사용자 발화 1건에 대한 비버의 대답 — LLM 스트리밍 → 문장 분할 → TTS → 송출."""
@@ -1355,6 +1467,8 @@ class CascadeSession:
         turn_id: str | None = None
         spoken_chars = 0
         began = time.monotonic()
+        timing = _ReplyTiming(began, self._reply_queued_ms)
+        self._reply_queued_ms = 0
         first_audio_ms = -1
         try:
             # ⭐ **첫 문장은 즉시, 그 뒤는 묶어서** 합성한다(2026-08-07 실통화의 429 대응).
@@ -1372,22 +1486,25 @@ class CascadeSession:
                 turn_id = turn_id or await self._begin_beaver_turn()
                 sent = await self._speak(text_batch)
                 if sent and first_audio_ms < 0:
-                    first_audio_ms = int((time.monotonic() - began) * 1000)
+                    timing.mark_audio()
+                    first_audio_ms = timing.first_sound_ms
                 spoken_chars += len(text_batch)
 
             if self._tts_engine == _GEMINI_BATCH_CHOICE:
-                turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, began)
+                turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, timing)
                 self._remember_beaver(turn_id, chat.text)
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s %s",
-                    "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
+                    "cascade 대답%s(배치): turn=%s %s 글자=%d 문장모델=%s tts=%s %s",
+                    "(선톡)" if is_greeting else "", turn_id, timing.summary(), spoken_chars,
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                     self._reading_summary(self._batch_synth_s),
                 )
                 return
             async for piece in chat.chunks():
+                timing.mark_chunk()
                 for sentence in buffer.push(piece):
+                    timing.mark_sentence()
                     # ⚠ **첫 문장 단독**은 Chirp 규칙이다. Gemini 는 짧은 요청이 특히
                     #   불리하고(고정 오버헤드 ≈1.3초), 어차피 선행 버퍼로 1.5초를 기다리므로
                     #   첫 문장만 따로 쏘면 손해만 본다 — 그래서 Gemini 는 묶어서 낸다.
@@ -1410,9 +1527,9 @@ class CascadeSession:
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s 첫소리=%dms 글자=%d 문장모델=%s tts=%s 마커=%s "
+                "cascade 대답%s: turn=%s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
                 "gemini호출=%d %s %s",
-                "(선톡)" if is_greeting else "", turn_id, first_audio_ms, spoken_chars,
+                "(선톡)" if is_greeting else "", turn_id, timing.summary(), spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
@@ -1432,21 +1549,23 @@ class CascadeSession:
             self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
             if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
                 self.state = TurnState.IDLE
-            self._drain_pending_user_text()
+            await self._drain_pending_user_text()
 
-    def _drain_pending_user_text(self) -> None:
+    async def _drain_pending_user_text(self) -> None:
         """비버가 말하는 동안 들어온 발화에 **이제** 답한다(줄 세워 둔 것 하나).
 
         ⛔ 여기서 안 부르면 그 발화는 영영 답을 못 받는다 — 사장님이 겪으신 그 증상이다.
         """
         pending, self._pending_user_text = self._pending_user_text, ""
+        waited_ms, self._pending_since = self._pending_wait_ms(), 0.0
         if not pending:
             return
         self._reply_task = None      # 방금 끝난 태스크 참조를 비워야 새 대답이 시작된다
-        logger.info("cascade 대기열 발화에 답한다: %r", pending[:40])
-        self._start_reply(pending)
+        logger.info("cascade 대기열 발화에 답한다(%dms 기다렸다): %r", waited_ms, pending[:40])
+        self._reply_queued_ms = waited_ms
+        await self._start_reply(pending)
 
-    async def _run_batch_reply(self, chat: Any, began: float) -> tuple[str | None, int, int]:
+    async def _run_batch_reply(self, chat: Any, timing: "_ReplyTiming") -> tuple[str | None, int, int]:
         """⭐ **전체를 합성한 뒤 한 번에 들려준다**(Gemini 전용 배치 모드).
 
         왜 이런 걸 만드나: Gemini 는 합성 배속이 1.3x 라 실시간 재생을 못 따라간다(실측).
@@ -1461,7 +1580,8 @@ class CascadeSession:
         self._batch_synthesizing = True
         await self._safe(ServerBeaverPreparing(stage="llm"))
         async for _ in chat.chunks():                 # 전체 텍스트가 완성될 때까지 받는다
-            pass
+            timing.mark_chunk()
+        timing.mark_sentence()   # 배치는 '전체 텍스트 완성'이 곧 문장 완성 시점이다
         text = strip_markers(chat.text).strip() and chat.text.strip()
         if not text:
             self._batch_synthesizing = False
@@ -1524,7 +1644,8 @@ class CascadeSession:
             label = strip_markers(seg_text).strip()
             sent = await self._speak_pcm(pcm, label)
             if sent and first_audio_ms < 0:
-                first_audio_ms = int((time.monotonic() - began) * 1000)
+                timing.mark_audio()
+                first_audio_ms = timing.first_sound_ms
             if sent:
                 self._reply_spans.append((language, len(label), sent))
             spoken += len(seg_text)
