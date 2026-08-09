@@ -190,11 +190,13 @@ def test_first_sound_breakdown_sums_to_the_total():
     # ⚠ 2진수로 정확히 떨어지는 값을 쓴다 — 0.32 같은 값은 int() 절삭으로 319 가 된다.
     t = cs._ReplyTiming(began=100.0, queued_ms=120)
     t.chunk_at, t.sentence_at, t.audio_at = 100.75, 101.0, 102.25
+    t.vendor_ms = 1000
     line = t.summary()
     assert "첫소리=2250ms" in line, line
     assert "대기열 120" in line and "LLM첫조각 750" in line
-    assert "문장완성 250" in line and "TTS 1250" in line
-    assert 750 + 250 + 1250 == 2250          # 합 = 첫소리(대기열은 첫소리 **밖**이다)
+    assert "문장완성 250" in line
+    assert "벤더 1000" in line and "송출 250" in line, line
+    assert 750 + 250 + 1000 + 250 == 2250    # 합 = 첫소리(대기열은 첫소리 **밖**이다)
 
 
 def test_first_sound_is_honest_when_no_audio_went_out():
@@ -293,3 +295,57 @@ async def test_queue_answers_only_the_last_utterance():
     assert session._pending_user_text == "세 번째 질문"
     assert group.started == 0
     running.cancel()
+
+
+# ── 첫소리 분해: **페이서는 첫소리가 아니다**(2026-08-09) ───────────────────
+# 실측 12건에서 TTS 항목이 `1200`(3회)·`2160/2161`(2회)로 반복되고 글자 수와 무관했다.
+# 정체는 벤더 지연이 아니라 **재던 구간**이었다 — 예전 `TTS` 는 "첫 문장 준비 → 첫 배치가
+# **전량** 송출 완료"까지였고, 그 안에 페이서(실시간 송출, I3)가 통째로 들어 있었다.
+def test_pacer_dominates_the_time_to_send_a_whole_batch():
+    """⭐ 배치 전량 송출 시간 ≈ **오디오 길이 − 선행버퍼**. 벤더가 아무리 빨라도 그렇다.
+
+    가짜 시계로 재므로 결정적이다(벤더도 네트워크도 없다). 이 성질이 "왜 같은 값이 반복되나"의
+    답이다 — 그 숫자는 벤더 지연이 아니라 **그 배치의 오디오 길이**를 보고 있었다.
+    """
+    from domains.learning.realtime.cascade_reply import speak_stream
+    from domains.learning.realtime.cascade_session import BEAVER_BYTES_PER_MS, BeaverOutput
+
+    async def _run(audio_ms: int, lead_ms: int) -> tuple[float, float]:
+        clock = {"t": 0.0}
+
+        async def _sleep(sec: float) -> None:
+            clock["t"] += sec
+
+        beaver = BeaverOutput(_Sink(), now=lambda: clock["t"], sleep=_sleep)
+        beaver.lead_ms = lead_ms
+        await beaver.begin()
+
+        async def _stream():
+            for _ in range(audio_ms // 200):
+                yield b"\x00" * int(200 * BEAVER_BYTES_PER_MS)
+
+        await speak_stream(beaver, _stream(), "x")
+        return clock["t"] * 1000.0, beaver.first_audio_at * 1000.0
+
+    total, first_at = asyncio.run(_run(2400, 200))
+    assert 1900 <= total <= 2300, total          # ≈ 오디오 2400 − 선행 200 (− 마지막 조각)
+    assert first_at == 0.0, "첫 바이트는 기다리지 않는다 — 사용자는 여기서부터 듣는다"  # noqa: E501
+    faster, _ = asyncio.run(_run(2400, 1200))    # 선행버퍼를 키우면 그만큼 줄어든다
+    assert faster < total - 900, (faster, total)
+
+
+def test_first_sound_measures_the_first_byte_not_the_whole_batch():
+    """⛔ '첫소리'는 **사용자가 듣기 시작한 시각**이다. 배치 전량은 따로 싣는다.
+
+    둘을 한 숫자로 뭉치면 "이미 소리가 나가고 있는 시간"을 지연으로 세게 되고, 벤더를 바꿔도
+    그 값은 안 줄어든다(엉뚱한 데를 판다).
+    """
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.vendor_ms = 240
+    t.mark_audio(101.0)                 # 첫 바이트가 나간 시각
+    t.mark_batch(audio_ms=2400)         # 그 배치가 다 나간 건 한참 뒤
+    t.batch_at = 103.2
+    line = t.summary()
+    assert t.first_sound_ms == 1000, line
+    assert "벤더 240" in line and "첫배치=3200ms" in line and "페이서 2200ms" in line, line

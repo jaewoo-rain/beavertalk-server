@@ -21,6 +21,7 @@ TTS 가 안 돼도 분석 흐름(추출/번역/요약/저장)은 죽지 않는�
 from __future__ import annotations
 
 import logging
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -240,6 +241,7 @@ async def synthesize_stream(
 
             responses = await cli.streaming_synthesize(requests=_requests())
             first = True
+            asked_at = time.monotonic()   # 벤더 대기 계측 시작(요청을 건 시각)
             async for resp in responses:
                 chunk = getattr(resp, "audio_content", b"") or b""
                 if not chunk:
@@ -248,6 +250,9 @@ async def synthesize_stream(
                     first = False
                     if report is not None:
                         report["engine"] = label
+                        # ⭐ **벤더가 첫 오디오를 주기까지**(2026-08-09). 이게 없으면 '첫소리'가
+                        #   벤더 탓인지 우리 송출 정책 탓인지 로그로 못 가른다.
+                        report["ttfb_ms"] = int((time.monotonic() - asked_at) * 1000)
                     _log_first_bytes(chunk, label)
                     # PCM 은 원래 헤더가 없다. 그래도 방어는 남긴다 — 헤더가 섞여 들어오면
                     # 재생 큐에서 딸깍 소리가 나고, 그건 원인 찾기가 오래 걸리는 증상이다.

@@ -317,6 +317,10 @@ class _TurnRecord:
     turn_id: str
     started_at: float
     sent_bytes: int = 0
+    # 이 턴에서 **첫 오디오 바이트가 실제로 나간 시각**(monotonic). 음수면 아직 안 나갔다.
+    # ⛔ `started_at` 과 다르다 — 그건 합성을 시작한 시각이라 벤더 대기가 통째로 들어 있다.
+    # ⚠ 기본값이 0.0 이면 안 된다 — 0 은 falsy 라 "아직 안 나갔다"와 구분이 안 된다.
+    first_audio_at: float = -1.0
     cancelled: bool = False
     epoch: int = 0
     ledger: list[SpokenChunk] = field(default_factory=list)
@@ -337,14 +341,18 @@ class _ReplyTiming:
       앞 대답이 흐르는 동안은 애초에 `_run_reply` 가 시작되지 않는다(대기열).
     """
 
-    __slots__ = ("began", "queued_ms", "chunk_at", "sentence_at", "audio_at")
+    __slots__ = ("began", "queued_ms", "chunk_at", "sentence_at", "audio_at",
+                 "batch_at", "vendor_ms", "batch_audio_ms")
 
     def __init__(self, began: float, queued_ms: int = 0) -> None:
         self.began = began
         self.queued_ms = max(0, queued_ms)
         self.chunk_at = 0.0
         self.sentence_at = 0.0
-        self.audio_at = 0.0
+        self.audio_at = 0.0        # 첫 바이트가 **클라로 나간** 시각(사용자가 듣기 시작한 때)
+        self.batch_at = 0.0        # 첫 배치가 **전량** 나간 시각(페이서가 실시간으로 흘린다)
+        self.vendor_ms = -1        # 벤더가 첫 오디오를 주기까지(report["ttfb_ms"])
+        self.batch_audio_ms = 0    # 첫 배치의 오디오 길이
 
     def mark_chunk(self) -> None:
         self.chunk_at = self.chunk_at or time.monotonic()
@@ -353,25 +361,48 @@ class _ReplyTiming:
         self.mark_chunk()      # 첫 문장이 먼저 보이는 구현이어도 순서가 뒤집히지 않게
         self.sentence_at = self.sentence_at or time.monotonic()
 
-    def mark_audio(self) -> None:
+    def mark_audio(self, at: float = 0.0) -> None:
+        """첫 바이트가 나간 시각. 인자로 **원장이 기록한 실제 시각**을 받는다."""
         self.mark_sentence()
-        self.audio_at = self.audio_at or time.monotonic()
+        self.audio_at = self.audio_at or at or time.monotonic()
+
+    def mark_batch(self, audio_ms: int = 0) -> None:
+        """첫 배치 전량 송출 완료 — 여기까지가 예전 `TTS` 항목이었다."""
+        if not self.batch_at:
+            self.batch_at = time.monotonic()
+            self.batch_audio_ms = max(0, audio_ms)
 
     @property
     def first_sound_ms(self) -> int:
         return int((self.audio_at - self.began) * 1000) if self.audio_at else -1
 
     def summary(self) -> str:
+        """⚠ **2026-08-09 부터 `첫소리` 의 뜻이 바뀌었다** — 예전 값과 직접 비교하지 마라.
+
+        예전: 첫 배치가 **전량 송출**될 때까지. 그 안에 페이서(실시간 송출)가 통째로 들어 있어
+              "이미 소리가 나가고 있는 시간"을 지연으로 세고 있었다.
+        지금: **첫 바이트가 클라로 나간 시각**까지 = 사용자가 기다리는 시간.
+        값이 뚝 떨어지는데 **코드가 빨라진 게 아니다. 재던 구간이 달랐다.**
+        `첫배치` 는 그 뒤에 따로 싣는다(페이서가 얼마를 먹었는지 보이게).
+        """
         if not self.audio_at:
             return "첫소리=없음(소리가 한 조각도 안 나갔다)"
         ms = lambda a, b: int(max(0.0, a - b) * 1000)  # noqa: E731
-        return (
-            "첫소리=%dms(대기열 %d + LLM첫조각 %d + 문장완성 %d + TTS %d)"
+        vendor = ms(self.audio_at, self.sentence_at) if self.vendor_ms < 0 else self.vendor_ms
+        line = (
+            "첫소리=%dms(대기열 %d + LLM첫조각 %d + 문장완성 %d + 벤더 %d + 송출 %d)"
             % (self.first_sound_ms, self.queued_ms,
                ms(self.chunk_at, self.began),
                ms(self.sentence_at, self.chunk_at),
-               ms(self.audio_at, self.sentence_at))
+               vendor,
+               max(0, ms(self.audio_at, self.sentence_at) - max(0, vendor)))
         )
+        if self.batch_at:
+            line += " 첫배치=%dms(오디오 %dms 페이서 %dms)" % (
+                ms(self.batch_at, self.began), self.batch_audio_ms,
+                ms(self.batch_at, self.audio_at),
+            )
+        return line
 
 
 class BeaverOutput:
@@ -428,6 +459,13 @@ class BeaverOutput:
     def sent_bytes(self) -> int:
         return self._cur.sent_bytes if self._cur else 0
 
+    @property
+    def first_audio_at(self) -> float:
+        """이 턴의 첫 오디오가 나간 시각(0 = 아직). '첫소리' 계측의 기준점이다."""
+        if self._cur is None or self._cur.first_audio_at < 0:
+            return 0.0
+        return self._cur.first_audio_at
+
     def ledger(self, turn_id: str | None = None) -> list[SpokenChunk]:
         record = self._record(turn_id)
         return list(record.ledger) if record else []
@@ -469,6 +507,8 @@ class BeaverOutput:
         if not pcm:
             return
         await self._pace()
+        if self._cur.first_audio_at < 0:
+            self._cur.first_audio_at = self._now()
         start = self._cur.sent_bytes
         self._cur.sent_bytes += len(pcm)
         self._cur.ledger.append(
@@ -601,6 +641,7 @@ class CascadeSession:
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
         self._tts_gemini_calls = 0
+        self._tts_ttfb_ms = -1
         # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
         self._bargein_at: float | None = None
         self._interrupted: dict | None = None
@@ -1476,6 +1517,7 @@ class CascadeSession:
         self._tts_engines.clear()
         self._marker_seen.clear()
         self._reply_spans.clear()
+        self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
         chat = gemini_chat.open_chat_stream(
             self._genai_client,
             settings.CASCADE_LLM_MODEL,
@@ -1509,9 +1551,14 @@ class CascadeSession:
                     return
                 text_batch, pending = " ".join(pending), []
                 turn_id = turn_id or await self._begin_beaver_turn()
+                first_audio_at = self.beaver.first_audio_at
                 sent = await self._speak(text_batch)
                 if sent and first_audio_ms < 0:
-                    timing.mark_audio()
+                    # ⭐ 첫 바이트가 **실제로 나간 시각**을 원장에서 받는다. 여기(=배치 전량
+                    #   송출 완료) 시각을 쓰면 페이서 대기가 '첫소리'에 통째로 들어간다.
+                    timing.mark_audio(first_audio_at or self.beaver.first_audio_at)
+                    timing.vendor_ms = self._tts_ttfb_ms
+                    timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
                     first_audio_ms = timing.first_sound_ms
                 spoken_chars += len(text_batch)
 
@@ -1669,7 +1716,9 @@ class CascadeSession:
             label = strip_markers(seg_text).strip()
             sent = await self._speak_pcm(pcm, label)
             if sent and first_audio_ms < 0:
-                timing.mark_audio()
+                timing.mark_audio(self.beaver.first_audio_at)
+                timing.vendor_ms = self._tts_ttfb_ms
+                timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
                 first_audio_ms = timing.first_sound_ms
             if sent:
                 self._reply_spans.append((language, len(label), sent))
@@ -1800,6 +1849,8 @@ class CascadeSession:
                 report=report,
             )
             sent = await speak_stream(self.beaver, stream, sentence)
+            if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
+                self._tts_ttfb_ms = int(report["ttfb_ms"])
             self.usage.record_tts(sentence, vendor=self._tts_vendor())
             self.usage.record_tts_audio(sent)
             if sent:
@@ -1834,6 +1885,8 @@ class CascadeSession:
         if sent:
             # 소리가 실제로 나간 것만 읽기 속도의 재료가 된다(합성 실패는 글자도 안 센다).
             self._reply_spans.append((language, len(sentence), sent))
+        if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
+            self._tts_ttfb_ms = int(report["ttfb_ms"])
         engine = report.get("engine")
         if engine:
             self._tts_engines.add(engine)

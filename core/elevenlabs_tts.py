@@ -30,6 +30,7 @@ R5: 키가 없거나 호출이 실패하면 **예외를 밖으로 내지 않고*
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, AsyncIterator
 
 from core.config import settings
@@ -92,6 +93,7 @@ async def synthesize_stream(
 
     url = f"{API_BASE}/{voice}/stream?output_format={OUTPUT_FORMAT}"
     headers = {"xi-api-key": key, "Content-Type": "application/json"}
+    asked_at = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             async with client.stream("POST", url, json=payload, headers=headers) as resp:
@@ -114,6 +116,8 @@ async def synthesize_stream(
                         first = False
                         if report is not None:
                             report["engine"] = model_id
+                            # 벤더가 첫 오디오를 주기까지(첫소리 분해의 '벤더' 항목).
+                            report["ttfb_ms"] = int((time.monotonic() - asked_at) * 1000)
                         _log_first_bytes(chunk, model_id)
                     yield chunk
     except Exception as exc:  # noqa: BLE001 - 네트워크·파싱 등 전부 graceful(R5)
