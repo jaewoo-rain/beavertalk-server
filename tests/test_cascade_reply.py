@@ -1033,6 +1033,7 @@ async def test_elevenlabs_uses_its_own_adapter_and_model_id(reply_rig, monkeypat
 
     monkeypatch.setattr(cs.elevenlabs_tts, "synthesize_stream", _stream)
     for choice, expected in (("elevenlabs-flash", "eleven_flash_v2_5"),
+                             ("elevenlabs-multilingual", "eleven_multilingual_v2"),
                              ("elevenlabs-v3", "eleven_v3")):
         seen.clear()
         transport = _Transport([
@@ -1045,6 +1046,68 @@ async def test_elevenlabs_uses_its_own_adapter_and_model_id(reply_rig, monkeypat
         assert seen and all(m == expected for m in seen), (choice, seen)
         # 원가 벤더도 모델별로 갈린다(뭉개면 단가를 못 가른다)
         assert session.usage.summary()["vendors"]["tts"]["vendor"] == expected
+
+
+@pytest.mark.asyncio
+async def test_elevenlabs_chars_are_counted_once(reply_rig, monkeypatch):
+    """⛔ **API 에 넘긴 문자를 두 번 세지 않는다** — 2026-08-09 발견한 이중계상.
+
+    이 가지가 상단 계측에 더해 한 번 더 세고 있어서 ElevenLabs 원가가 **두 배**로 잡혔다.
+    원가가 이 프로젝트의 유일한 동기라, 이런 이중계상은 "캐스케이드가 싼가"의 결론을 뒤집는다.
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_API_KEY", "x")
+    asked: list[str] = []
+
+    async def _stream(text, **kwargs):
+        asked.append(text)
+        report = kwargs.get("report")
+        if report is not None:
+            report["engine"] = kwargs["model_id"]
+        yield _FRAME
+
+    monkeypatch.setattr(cs.elevenlabs_tts, "synthesize_stream", _stream)
+    transport = _Transport([
+        _ctl(type="start", ttsEngine="elevenlabs-multilingual"),
+        _ctl(type="__test_say", text="안녕"),
+        _ctl(type="__test_event", event=SPEECH_END),
+    ])
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert asked, "합성 요청이 없었다"
+    assert session.usage.summary()["vendors"]["tts"]["chars"] == sum(len(t) for t in asked)
+
+
+@pytest.mark.asyncio
+async def test_elevenlabs_target_language_can_use_its_own_voice(reply_rig, monkeypatch):
+    """⭐ **한국어 구간은 다른 음성으로 읽을 수 있어야 한다.**
+
+    ElevenLabs 는 다국어 음성 하나가 두 언어를 다 읽는다. 그 음성이 영어권 화자에서
+    만들어졌으면 한국어가 외국인 억양으로 나온다 — 비버는 발음 선생님이고 학습자가 그대로
+    따라 하므로, 목소리가 사람 같아도 **발음이 틀리면 못 쓴다.**
+    ⚠ 미설정이면 기존과 같다(음성 하나가 다 읽는다).
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_API_KEY", "x")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_LANGUAGE", "en")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_TARGET_LANGUAGE", "ko")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_VOICE_ID_TARGET", "ko-voice")
+    session = CascadeSession(_Transport([]), genai_client=object())
+    session._tts_engine = "elevenlabs-multilingual"
+    assert session._eleven_voice_for("ko") == "ko-voice"
+    assert session._eleven_voice_for("en") is None      # 기본 음성으로 폴백
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_VOICE_ID_TARGET", "")
+    assert session._eleven_voice_for("ko") is None      # 미설정 = 동작 무변경
+
+
+@pytest.mark.asyncio
+async def test_new_elevenlabs_model_is_rejected_without_a_key(reply_rig, monkeypatch):
+    """키가 없으면 **그 엔진만** 거절된다 — 앱은 죽지 않는다(R5)."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ELEVEN_API_KEY", "")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
+    transport = _Transport([_ctl(type="start", ttsEngine="elevenlabs-multilingual")],
+                           wait_for="ready")
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert session._tts_engine == "chirp3-hd"
 
 
 def test_elevenlabs_lead_buffer_is_conservative_until_measured():

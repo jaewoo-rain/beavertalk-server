@@ -3289,6 +3289,15 @@ def test_cascade_cost_matches_hand_calculation_and_flags_unknown_vendors():
     })
     assert cost2 == 0.0 and unknown2 == ["tts:elevenlabs-v3"]
 
+    # ⭐ 실제로 원가에 실리는 문자열은 **모델 ID** 다(`_tts_vendor()`). 새 모델을 붙일 때마다
+    #   여기 걸려야 한다 — ElevenLabs 는 구독 등급별 문자 단가라 **검증된 USD/자가 없다.**
+    #   근거 없는 숫자를 표에 넣느니 미상으로 드러내는 쪽이 맞다(그게 274044a 의 교훈이다).
+    for model in ("eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_v3"):
+        cost3, unknown3 = svc.estimate_cascade_cost_usd({
+            "tts": {"vendor": model, "chars": 8_400},
+        })
+        assert cost3 == 0.0 and unknown3 == [f"tts:{model}"], model
+
 
 def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
     """call 909 재현 — 압축이 여러 번 나도 DB 로 가는 값은 **통화 전체 최대치**여야 한다.

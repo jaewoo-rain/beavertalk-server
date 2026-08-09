@@ -137,9 +137,13 @@ _GEMINI_BATCH_CHOICE = "gemini-batch"
 #   문서가 실시간엔 flash 를 권한다 — 느리면 배치 경로로 돌린다.
 _ELEVEN_FLASH_CHOICE = "elevenlabs-flash"
 _ELEVEN_V3_CHOICE = "elevenlabs-v3"
-_ELEVEN_CHOICES = (_ELEVEN_FLASH_CHOICE, _ELEVEN_V3_CHOICE)
+# ⭐ 중간 등급 — 문서상 "Lifelike, consistent quality". 사장님 목적이 **목소리**라서 필요하다:
+#   빠른 모델(flash)은 표현력을 깎아서 빠르므로 "AI 티"가 그대로 남을 수 있다.
+_ELEVEN_MULTI_CHOICE = "elevenlabs-multilingual"
+_ELEVEN_CHOICES = (_ELEVEN_FLASH_CHOICE, _ELEVEN_MULTI_CHOICE, _ELEVEN_V3_CHOICE)
 _ELEVEN_MODEL_BY_CHOICE = {
     _ELEVEN_FLASH_CHOICE: elevenlabs_tts.FLASH_MODEL,
+    _ELEVEN_MULTI_CHOICE: elevenlabs_tts.MULTILINGUAL_MODEL,
     _ELEVEN_V3_CHOICE: elevenlabs_tts.V3_MODEL,
 }
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
@@ -1845,13 +1849,16 @@ class CascadeSession:
             stream = elevenlabs_tts.synthesize_stream(
                 sentence,
                 model_id=_ELEVEN_MODEL_BY_CHOICE[self._tts_engine],
+                voice_id=self._eleven_voice_for(language),
                 speaking_rate=self._tts_rate,
                 report=report,
             )
             sent = await speak_stream(self.beaver, stream, sentence)
             if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
                 self._tts_ttfb_ms = int(report["ttfb_ms"])
-            self.usage.record_tts(sentence, vendor=self._tts_vendor())
+            # ⛔ 여기서 문자를 **또 세지 않는다**(2026-08-09 수정). 위에서 이미 셌는데 이 가지가
+            #   한 번 더 세고 있었다 = ElevenLabs 원가가 **두 배**로 잡혔다. 원가가 이 프로젝트의
+            #   동기라 이런 이중계상은 결론을 통째로 뒤집는다.
             self.usage.record_tts_audio(sent)
             if sent:
                 self._tts_engines.add(report.get("engine") or self._tts_vendor())
@@ -1908,6 +1915,20 @@ class CascadeSession:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         return sent
+
+    def _eleven_voice_for(self, language: str) -> str | None:
+        """이 구간을 읽을 ElevenLabs 음성 — **타깃 언어는 따로 지정할 수 있다.**
+
+        ⛔ ElevenLabs 는 다국어 음성 **하나**가 두 언어를 다 읽는다. 그 음성이 영어권 화자에서
+          만들어졌으면 한국어가 **외국인 억양**으로 나온다. 비버는 발음 선생님이고 학습자가
+          그대로 따라 한다 — 목소리가 사람 같아도 발음이 틀리면 못 쓴다.
+        ⚠ 미설정이면 None 을 돌려 기존 동작(음성 하나가 다 읽는다)을 그대로 둔다. 마커 분할은
+          이미 하고 있으므로(`_speak`), 음성만 갈아 끼우면 Chirp 경로와 같은 구조가 된다.
+        """
+        target = (settings.CASCADE_TTS_TARGET_LANGUAGE or "").strip().lower()
+        if target and language.strip().lower() == target:
+            return (settings.CASCADE_TTS_ELEVEN_VOICE_ID_TARGET or "").strip() or None
+        return None
 
     def _gemini_realtime(self) -> bool:
         """지금 세션이 **Gemini 실시간** 모드인가(배치는 별도 경로라 제외)."""
@@ -2293,6 +2314,10 @@ class CascadeSession:
         if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
             self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_GEMINI)
         elif self._tts_engine in _ELEVEN_CHOICES:
+            # ⚠ 세 모델이 같은 값을 쓴다. multilingual_v2 는 문서가 **실시간 최적화가 아니라고
+            #   명시**하므로(“Most stable on long-form generations”) 더 뒤처질 수 있는데,
+            #   측정 없이 모델별 상수를 새로 만들면 그게 곧 근거 없는 숫자가 된다.
+            #   보수적인 현재 값(Gemini 급)으로 시작하고, **끊김이 관측되면 이 값부터** 올려라.
             self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_ELEVEN)
         else:
             self.beaver.lead_ms = None

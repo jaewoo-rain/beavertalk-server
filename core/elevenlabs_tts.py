@@ -43,6 +43,15 @@ API_BASE = "https://api.elevenlabs.io/v1/text-to-speech"
 #     배운 그대로다).
 FLASH_MODEL = "eleven_flash_v2_5"
 V3_MODEL = "eleven_v3"
+# ⭐ 사장님 목적은 **속도가 아니라 목소리**다("AI 티가 나서 일레븐랩스를 쓰려는 거야").
+#   1차 자료(https://elevenlabs.io/docs/models, 2026-08-09):
+#     flash          "Our fast, affordable speech synthesis model" · ~75ms · 32개 언어
+#     multilingual_v2 "**Lifelike, consistent quality** speech synthesis model" · 29개 언어
+#                     "Most stable on long-form generations" · **실시간 최적화 아님**
+#     v3             "Our most emotionally rich, expressive speech synthesis model" · 70+ 언어
+#   ⛔ 빠른 모델은 표현력을 깎아서 빠르다 — flash 만으로는 "AI 티"가 그대로 남을 수 있다.
+#   그래서 **중간 등급**을 후보로 둔다. 셋 다 한국어를 지원한다(문서 언어 목록).
+MULTILINGUAL_MODEL = "eleven_multilingual_v2"
 # 우리 파이프라인 규약(PCM16 / 24kHz mono)과 정확히 맞는 값.
 OUTPUT_FORMAT = "pcm_24000"
 _FIRST_BYTES_LOGGED: set[str] = set()
