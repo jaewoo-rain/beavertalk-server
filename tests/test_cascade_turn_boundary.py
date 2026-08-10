@@ -402,3 +402,53 @@ def test_unfinished_sentence_is_observed_not_enforced():
     assert _looks_unfinished("안녕하세요.") is False   # 종결부호
     assert _looks_unfinished("안녕하세요") is False    # 종결어미(조사·연결어미 아님)
     assert _looks_unfinished("") is False
+
+
+# ── STT 가 통째로 조용해지면 턴이 스스로 닫힌다 (2026-08-10 실통화) ─────────
+#   07:23:45 barge-in 보류 → 49 안전망 확정 → **30초 로그 한 줄 없음** → 사장님이 끊으셨다
+#   ("내 턴이라면서 시작 안 해. 0.8초 이상 말 안 하면 넘어가야 하는데 안 넘어가.")
+#   원인: STT 가 `speech_begin` **하나만** 보내고 전사도 speech_end 도 안 보냈다. 그러면
+#   침묵 타이머(speech_end 가 건다)도 전사 정지 타이머(전사가 건다)도 **걸릴 기회가 없다**.
+@pytest.mark.asyncio
+async def test_turn_closes_when_stt_goes_silent_after_speech_begin(monkeypatch):
+    """⭐ speech_begin 만 오고 STT 가 조용해도 **몇 초 안에** 닫힌다(상한 30초를 안 기다린다)."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_IDLE_S", 0.25)
+    session, sink = _session(monkeypatch)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 500)),
+        0.6,                                    # 그 뒤 STT 는 아무것도 안 보낸다
+    ])
+    ends = sink.all("user_turn_end")
+    assert len(ends) == 1, sink.events          # ⛔ 안 닫히면 통화가 죽은 것이다
+    assert ends[0]["reason"] == "stt_idle", ends[0]
+    assert ends[0]["text"] == "", "빈 턴이다 — LLM 을 부르지 않는다(원가 0)"
+
+
+@pytest.mark.asyncio
+async def test_idle_watchdog_is_refreshed_by_any_stt_activity(monkeypatch):
+    """⛔ 말하는 중에는 닫히면 안 된다 — STT 이벤트가 올 때마다 마감이 미뤄진다."""
+    monkeypatch.setattr(stt_mod.settings, "CASCADE_TURN_IDLE_S", 0.25)
+    session, sink = _session(monkeypatch, silence_ms=2000)
+    audio = session._audio_ms
+    await _drive(session, [
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(audio - 900)),
+        0.15,
+        SttV2Event(kind=TRANSCRIPT, text="안녕하", is_final=False, offset_ms=int(audio - 600)),
+        0.15,
+        SttV2Event(kind=TRANSCRIPT, text="안녕하세요", is_final=False, offset_ms=int(audio - 300)),
+        0.15,
+    ])
+    assert not sink.all("user_turn_end"), "말하는 중인데 무활동으로 닫았다"
+
+
+def test_idle_watchdog_sits_between_normal_delay_and_the_hard_cap():
+    """⭐ 값이 아니라 **위치**로 고정한다.
+
+    아래로는 실측 파이프라인 지연(914ms)보다 충분히 멀어야 하고(정상 대화에 안 닿는다),
+    위로는 "통화가 죽었다"고 느끼기 전이어야 한다(30초 상한은 그 자체가 결함이었다).
+    """
+    from core.config import settings as live
+
+    assert live.CASCADE_TURN_IDLE_S * 1000 >= LIVE_LAG_MS * 3
+    assert live.CASCADE_TURN_IDLE_S < live.CASCADE_TURN_MAX_S / 3

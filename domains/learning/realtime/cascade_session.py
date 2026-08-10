@@ -660,6 +660,10 @@ class CascadeSession:
         self._silence_ms = max(0, settings.CASCADE_TURN_SILENCE_MS)
         self._close_at: float | None = None   # 침묵 데드라인(monotonic). None 이면 카운트다운 없음
         self._turn_deadline: float | None = None  # 턴 상한 데드라인(안전망)
+        # ⭐ **STT 무활동 감시.** 턴이 열리는 순간 걸고, STT 이벤트가 올 때마다 갱신한다.
+        #   이게 없으면 STT 가 speech_begin 하나만 보내고 조용해졌을 때 **아무 시계도 안 걸려**
+        #   턴이 상한까지 굳는다(2026-08-10: 30초 침묵 뒤 사장님이 통화를 끊으셨다).
+        self._turn_idle_at: float | None = None
         self._speech_active = False           # STT 가 "발화 중"이라고 보는가(BEGIN..END)
         self._last_voice_offset_ms = -1       # 마지막 음성 활동의 오디오 시각
         self._last_voice_at = 0.0             # 동 — 도착 시각(오프셋 미상일 때 폴백)
@@ -859,7 +863,8 @@ class CascadeSession:
             # ②가 필요한 이유: 엔진이 SPEECH_ACTIVITY_END 를 영영 안 주면(스트림이 발화 중
             # 닫히면 END 는 발송되지 않는다) 턴이 열린 채 굳는다.
             deadlines = [
-                d for d in (self._close_at, self._turn_deadline, self._bargein_at)
+                d for d in (self._close_at, self._turn_deadline, self._turn_idle_at,
+                            self._bargein_at)
                 if d is not None
             ]
             timeout = max(0.0, min(deadlines) - now) if deadlines else None
@@ -897,6 +902,10 @@ class CascadeSession:
                     continue
                 if self._turn_deadline is not None and woke >= self._turn_deadline - _DEADLINE_EPS_S:
                     await self._close_turn("max")
+                    continue
+                # STT 가 통째로 조용하다 — 침묵/전사 타이머는 **걸릴 기회조차 없었다.**
+                if self._turn_idle_at is not None and woke >= self._turn_idle_at - _DEADLINE_EPS_S:
+                    await self._close_turn("stt_idle")
                     continue
                 # 허용오차를 넘어 일찍 깼다 = 우리가 모르는 일이다. **닫지 않고** 조금 쉬었다
                 # 다시 잰다 — 여기서 곧장 continue 하면 timeout=0 으로 스핀이 된다(cpu=1).
@@ -1078,13 +1087,25 @@ class CascadeSession:
         return True
 
     def _mark_voice(self, event: SttV2Event) -> None:
-        """마지막 음성 활동 지점을 오디오 시각으로 기록 + 파이프라인 지연 계측."""
+        """마지막 음성 활동 지점을 오디오 시각으로 기록 + 파이프라인 지연 계측.
+
+        ⭐ **STT 무활동 감시도 여기서 갱신한다** — 이벤트 종류를 가리지 않는다(begin/전사/end).
+          우리가 알고 싶은 건 "STT 가 살아 있나"이지 "무슨 이벤트인가"가 아니다.
+        """
+        self._arm_idle_watchdog()
         self._last_voice_at = event.at
         if event.offset_ms >= 0:
             self._last_voice_offset_ms = event.offset_ms
             # 여기 도착하는 오프셋은 _sanitize_offset 을 이미 통과했다(상식 밖 값은 -1 로
             # 걸러져 이 분기에 들어오지 않는다) — 그래서 이 지연값은 계측으로 믿을 수 있다.
             self._pipeline_lag_ms = int(max(0.0, self._audio_ms - event.offset_ms))
+
+    def _arm_idle_watchdog(self) -> None:
+        """열린 턴의 **무활동 마감**을 지금부터 다시 센다(턴이 없으면 아무것도 안 한다)."""
+        if self._turn_id is None:
+            self._turn_idle_at = None
+            return
+        self._turn_idle_at = time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
 
     def _turn_has_text(self) -> bool:
         """이 턴에서 **글자가 한 번이라도 나왔나** — 전사 기준 판정의 전제다."""
@@ -1136,6 +1157,9 @@ class CascadeSession:
         self._partial = ""
         self._close_at = None
         self._turn_deadline = at + max(5, settings.CASCADE_TURN_MAX_S)
+        # ⛔ **여는 순간 마감 시계를 건다.** 침묵·전사 타이머는 각각 speech_end·전사가 와야
+        #   걸리는데, STT 가 조용해지면 **둘 다 안 온다**. 그때 유일하게 남는 시계다.
+        self._turn_idle_at = time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
         # ⛔ 비버가 말하는 중이면 **상태를 뺏지 않는다.** 마이크가 열려 있으면 사용자 턴과
         #   비버 턴은 겹칠 수 있다(그게 barge-in 이 가능한 이유다). 여기서 상태를 덮으면
         #   비버 쪽 취소·종료 경로가 자기 상태를 잃는다.
@@ -1194,6 +1218,7 @@ class CascadeSession:
         self._turn_id = None
         self._close_at = None
         self._turn_deadline = None
+        self._turn_idle_at = None
         self._finals = []
         self._partial = ""
         # 비버가 말하는 중이었다면 그 상태를 그대로 둔다(위 _open_turn 과 같은 이유).
