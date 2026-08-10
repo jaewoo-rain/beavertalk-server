@@ -177,6 +177,21 @@ class CascadeUsage:
             self.errors += 1
             logger.warning("cascade usage: TTS 계측 실패(무시) — %s", exc)
 
+    def retag_tts(self, vendor: str) -> None:
+        """벤더 이름만 바꾼다 — ⛔ **문자를 다시 세지 않는다.**
+
+        폴백(의도한 엔진이 실패해 다른 엔진이 소리를 냈다)에서 필요하다. 예전엔 호출부가
+        `record_tts(문장, vendor=실제엔진)` 을 한 번 더 불러서 **같은 문장을 두 번 셌다** —
+        원가가 두 배로 잡힌다. 이 프로젝트의 유일한 동기가 원가라, 그 숫자가 틀리면
+        "캐스케이드가 싼가"라는 질문 자체가 무의미해진다.
+        """
+        try:
+            if vendor:
+                self.tts.vendor = vendor
+        except Exception as exc:  # noqa: BLE001 - R5
+            self.errors += 1
+            logger.warning("cascade usage: TTS 벤더 갱신 실패(무시) — %s", exc)
+
     def record_tts_audio(self, audio_bytes: int) -> None:
         """실제로 내보낸 TTS 오디오 바이트(PCM16/24k). 초 환산은 요약에서 한다.
 

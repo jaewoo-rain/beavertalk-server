@@ -1160,3 +1160,63 @@ def test_marker_only_punctuation_input_makes_no_segment():
     assert split_by_language("__?__", "ko", "en") == []
 
 
+
+
+# --------------------------------------------------------------------------- #
+# 원가 계측의 일반 성질 — **센 문자 == API 에 넘긴 문자** (엔진 무관)
+#   2026-08-09 ElevenLabs 가지에서 이중계상을 발견했고, 2026-08-10 **공용 폴백 경로에도**
+#   같은 결함이 있는 걸 확인했다(폴백 시 문장을 한 번 더 셌다). 엔진이 바뀌어도 이 성질은
+#   남아야 한다 — 원가가 이 프로젝트의 유일한 동기다.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_tts_chars_are_counted_once_per_sentence(monkeypatch):
+    """정상 경로: 한 문장을 합성하면 그 문장 길이만큼만 센다."""
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
+    asked: list[str] = []
+
+    async def _tts(text, **kwargs):
+        asked.append(text)
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    await session.beaver.begin()
+    await session._speak("문장 하나입니다.")
+    assert asked
+    assert session.usage.summary()["vendors"]["tts"]["chars"] == sum(len(t) for t in asked)
+
+
+@pytest.mark.asyncio
+async def test_tts_chars_are_not_double_counted_on_fallback(monkeypatch):
+    """⛔ **폴백에서도 두 번 세지 않는다.**
+
+    의도한 엔진이 실패해 다른 엔진이 소리를 내면 벤더 **이름만** 바뀌어야 한다. 예전 코드는
+    거기서 문장을 한 번 더 세서 원가가 두 배가 됐다 — 그리고 하필 그 숫자가 "Live 보다 싼가"의
+    근거로 쓰인다.
+    """
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "gemini-tts")
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_GEMINI_MODEL", "gemini-2.5-flash-tts")
+    asked: list[str] = []
+
+    async def _tts(text, **kwargs):
+        asked.append(text)
+        report = kwargs.get("report")
+        if report is not None:
+            report["fallback_from"] = "gemini-2.5-flash-tts"
+            report["engine"] = cs.tts.CHIRP3_ENGINE
+
+        async def _gen():
+            yield _FRAME
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
+    session = CascadeSession(_Transport([]), genai_client=object())
+    await session.beaver.begin()
+    await session._speak("폴백이 일어난 문장입니다.")
+    tts_usage = session.usage.summary()["vendors"]["tts"]
+    assert tts_usage["chars"] == sum(len(t) for t in asked), tts_usage
+    # 벤더는 **실제로 소리를 낸 엔진**으로 정정된다(이름만 바뀐다)
+    assert tts_usage["vendor"] == cs.tts.CHIRP3_ENGINE

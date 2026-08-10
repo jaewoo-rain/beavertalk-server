@@ -1910,7 +1910,10 @@ class CascadeSession:
             # 로그 한 줄로 드러내고, 원가는 **실제로 소리를 낸 엔진** 이름으로 남긴다.
             self.usage.record_tts("", vendor=report["fallback_from"], failed=True)
             if engine:
-                self.usage.record_tts(sentence, vendor=engine)
+                # ⛔ **문자를 다시 세지 않는다**(2026-08-10 수정). 여기서 `record_tts(문장, ...)`
+                #   을 부르면 위에서 이미 센 문장을 **한 번 더** 세서 원가가 두 배가 된다.
+                #   여기서 필요한 건 재계량이 아니라 **벤더 이름 정정**이다.
+                self.usage.retag_tts(engine)
         if not sent:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
