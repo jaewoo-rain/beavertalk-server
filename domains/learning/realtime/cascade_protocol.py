@@ -300,7 +300,9 @@ class ServerUserTurnEnd(BaseModel):
             나가므로 이 항이 고정비로 붙는다. 감지지연을 이 값과 분리해 봐야 무엇을 고칠지
             알 수 있다(임계를 줄일 문제인지, 리전을 옮길 문제인지).
         end_lag_ms: 마지막 음성 활동 → 이 메시지 발신까지의 벽시계 시간.
-        reason: 'silence'(침묵 타이머) | 'max'(턴 상한 안전망).
+        reason: 'silence'(침묵/전사정지 타이머) | 'stt_idle'(STT 가 통째로 조용해서 — 열린
+            순간부터 걸리는 무활동 감시) | 'max'(턴 상한 안전망).
+            ⚠ 값이 늘면 여기도 같이 늘려라. 클라가 이 문자열로 화면을 가른다.
     """
 
     type: Literal["user_turn_end"] = "user_turn_end"

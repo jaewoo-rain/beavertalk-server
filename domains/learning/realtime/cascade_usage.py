@@ -143,7 +143,7 @@ class CascadeUsage:
             logger.warning("cascade usage: STT 계측 수집 실패(무시) — %s", exc)
 
     def record_llm(self, usage_metadata: Any, vendor: str = "") -> None:
-        """LLM 응답 1건의 usage_metadata 를 누적한다(P1 이 호출한다).
+        """LLM 응답 1건의 usage_metadata 를 누적한다(대답 배관이 호출한다).
 
         필드는 Live 경로와 같다. 없는 필드는 0 으로 흡수한다 — 모델·SDK 가 바뀌어도
         **한 필드가 사라졌다고 통화가 죽지는 않게**.

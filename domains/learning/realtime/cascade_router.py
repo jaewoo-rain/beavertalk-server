@@ -5,7 +5,7 @@ WS /api/v1/cascade/stream?token=<Supabase access token>
   토큰 없음/무효면 accept 하지 않고 1008 로 닫는다.
 
 normalcall(`/calls/stream`)과 **완전히 분리된 경로**다. 이 라우터는 통화 DB·분석·페르소나를
-전혀 건드리지 않는다(P0 = 턴 감지 실증).
+전혀 건드리지 않는다(데모는 통화 기록·분석 없이 음성 왕복만 돈다).
 """
 
 from __future__ import annotations

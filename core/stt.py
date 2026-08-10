@@ -1,5 +1,10 @@
 """서버 STT 어댑터 — Google Cloud Speech-to-Text 스트리밍. **v1·v2 두 경로가 나란히 산다.**
 
+⭐ 2026-08-10 부터 **벤더가 하나가 아니다.** `make_stt_v2_stream()` 이 엔진을 고르고
+  (`CASCADE_STT_ENGINE`, 기본 `openai`), OpenAI 실시간 전사는 `core/openai_stt.py` 가 맡는다.
+  개시가 실패하면 `FallbackSttStream` 이 여기 Google 경로로 갈아탄다 — 그래서 이 파일은
+  **폴백 대상이자 기본 경로**다. 어느 쪽이 실제로 돌았는지는 스트림의 `vendor` 가 말한다.
+
 core 어댑터 규율(도메인/DB 무지, graceful degradation): 키 부재·미설치·인증실패·STT_FAKE
 어느 경우든 죽지 않고 **페이크 스트림**으로 폴백한다(과금 0, 서버 정상 기동). tts.py 와 동일한
 lru_cache + None 폴백 패턴.

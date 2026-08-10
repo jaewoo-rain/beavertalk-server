@@ -25,9 +25,12 @@
 그 차이(audio_ms_sent − offset_ms)가 곧 파이프라인 지연이라 계측도 같이 나온다.
 
 상태 (설계 §3 — docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md):
-  IDLE → USER_SPEAKING → THINKING → BEAVER_SPEAKING → (barge-in) CANCELLING → USER_SPEAKING
-P0 은 THINKING 이후가 없다(LLM·TTS 미연결). speech_end 즉시 최종 전사를 에코하고 IDLE 로
-돌아간다. 상태 enum·전이 훅은 P1 이 그대로 채우도록 미리 둔다.
+  IDLE → USER_SPEAKING → THINKING → BEAVER_SPEAKING → (barge-in) CANCELLING → IDLE
+⭐ **상태 축과 턴 축은 다르다**(2026-08-11 QA 발견1). 비버가 말하는 중에도 사용자 턴은 열린다
+  (barge-in 겹침) — 그래서 `_open_turn` 은 비버 상태를 뺏지 않고, 턴 타이머는 상태가 아니라
+  **`_turn_id` 가 있는가**로 판단한다.
+⛔ `CANCELLING` 은 반드시 풀린다(`_settle_reply_state` / `_settle_cancelling`). 안 풀리면
+  `_open_turn` 이 그걸 보존해 이후 모든 턴이 USER_SPEAKING 이 못 된다 — 통화가 침묵으로 굳는다.
 """
 
 from __future__ import annotations
@@ -364,7 +367,11 @@ class _ReplyTiming:
     있어서 원인을 못 짚었다. 타임스탬프 역산은 변수가 셋인데 방정식이 하나라 신뢰할 수 없다
     ("여러 지표가 같은 방향을 가리켜도 원인이 확인된 게 아니다").
 
-        첫소리 = ①LLM 첫 조각까지 + ②첫 문장이 완성될 때까지 + ③TTS 첫 바이트까지
+        첫소리 = ①LLM 첫 조각 + ②첫 문장 완성 + ③벤더 TTFB + ④첫 바이트 송출
+    ⚠ **2026-08-09 에 뜻이 바뀌었다.** 예전에는 "첫 배치가 **전량** 송출될 때까지"였고, 그 안에
+      페이서(실시간 송출)가 통째로 들어 있어 **이미 소리가 나가는 시간**을 지연으로 셌다.
+      지금은 **첫 바이트가 클라로 나간 시각**까지다 — 그 뒤(첫 배치 전량)는 `첫배치=` 로 따로 낸다.
+      ⛔ 08-09 이전 로그의 숫자와 직접 비교하지 마라.
     ⚠ **대기열 대기는 첫소리 밖이다**(`began` 이 _run_reply 안에서 찍힌다). 사용자가 체감하는
       지연은 둘의 합이라 따로 싣는다.
     ⛔ '출력 대기'는 항목에 없다 — 페이서는 **그 비버 턴의 시작 시각** 기준으로 재우므로
@@ -649,11 +656,14 @@ class BeaverOutput:
 
 
 class CascadeSession:
-    """WS 1개 = 캐스케이드 세션 1건. P0 은 턴 감지만 한다."""
+    """WS 1개 = 캐스케이드 세션 1건 — 턴 감지 → LLM → TTS → 송출까지 한 바퀴를 돈다.
+
+    ⚠ LLM 클라이언트가 없으면 **턴 감지까지만** 돈다(비버가 말하지 않는다 — R5).
+    """
 
     def __init__(self, transport: CascadeTransport, genai_client: Any = None) -> None:
         self.transport = transport
-        # P1: 비버가 말하려면 LLM 클라이언트가 있어야 한다. 없으면 **턴 감지만**(P0 동작) —
+        # 비버가 말하려면 LLM 클라이언트가 있어야 한다. 없으면 **턴 감지까지만** 돈다 —
         # 키가 없다고 통화가 죽으면 안 된다(R5).
         self._genai_client = genai_client
         self._history: list[dict] = []
@@ -744,12 +754,12 @@ class CascadeSession:
         self._bargein_pending_rms = 0.0
         self._bargein_blind = 0      # 오프셋이 없어 최소지속을 못 잰 횟수(관측 — 로그 폭발 방지)
         self._bargein_obs: list[tuple[str, float]] = []
-        # 비버 출력(P1: TTS 송출·원장·페이서). P0 에서는 오디오를 내지 않지만, 클라가
+        # 비버 출력(TTS 송출·원장·페이서). LLM 이 없어 소리를 안 내는 세션에서도, 클라가
         # 되보내는 playback_progress 를 **턴별 원장에 대조**하려면 지금부터 있어야 한다.
         self.beaver = BeaverOutput(transport)
         self._spoken_by_turn: dict[str, str] = {}   # turn_id → 실제로 들린 대사(이력용)
         # 원가 계측 — 캐스케이드의 **유일한 동기**가 원가라 세션이 끝나면 반드시 한 줄 남긴다.
-        # P0 에서 실제로 도는 구간은 STT 뿐이고, LLM·TTS 수집 지점은 P1 이 붙인다(cascade_usage).
+        # 구성요소(STT·LLM·TTS)마다 수집 지점이 따로 있다 — cascade_usage 가 모아 한 줄로 낸다.
         self.usage = CascadeUsage()
         # [dev 훅] 취소 배관 실측용
         self._tg: asyncio.TaskGroup | None = None
@@ -1113,7 +1123,7 @@ class CascadeSession:
 
         왜 필요한가: 턴은 서버 타이머가 닫는데, 그 발화의 최종 전사가 **닫힌 뒤에** 도착할
         수 있다(파이프라인 지연·롤오버 재인식). 그걸 그대로 받으면 IDLE 상태라 새 턴이
-        열리고, 같은 말이 턴 2개가 된다 — P1 에서 비버가 두 번 대답하는 버그가 된다.
+        열리고, 같은 말이 턴 2개가 된다 — 비버가 같은 말에 두 번 대답한다.
 
         판정은 **오디오 시각**으로 한다: 이 전사가 가리키는 오디오 끝이 방금 닫은 턴의 마지막
         음성 지점보다 **뒤로 가지 않으면** 새 소리가 아니다. 오프셋을 모르는 엔진(페이크·구
@@ -1183,7 +1193,7 @@ class CascadeSession:
         인데, 실측 지연이 810~914ms 로 임계(800ms)를 넘었다. 그러면 남은 대기가 0 이 되어
         **턴이 speech_end 를 처리하는 순간 닫히고**, 0.02~0.9초 뒤 도착한 최종 전사가 IDLE
         상태에서 **같은 발화로 턴을 하나 더 연다**(u2/u3, u16/u17 … speech_ms=0 짜리 유령 턴).
-        P1 에서는 비버가 같은 말에 두 번 대답하게 된다.
+        그러면 비버가 같은 말에 두 번 대답한다.
 
         그래서 바닥(CASCADE_TURN_MIN_WAIT_MS)을 둔다 — 지연이 임계를 넘어도 **최종 전사가
         도착할 시간은 항상 남긴다.** 지연이 임계보다 작을 때의 동작은 예전과 같다.
