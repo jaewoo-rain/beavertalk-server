@@ -385,7 +385,11 @@ class Settings(BaseSettings):
     CASCADE_BARGEIN_PENDING_MS: int = 3500
     # 취소로 죽은 대답을 되살리는 유예. 이 안에서 사용자가 결국 아무 말도 안 했으면(빈 턴)
     # 하던 말을 이어서 한다 — 침묵으로 끝내지 않는다.
-    CASCADE_RESUME_WINDOW_MS: int = 8000            # 비버 발화 중엔 이만큼 지속돼야 barge-in 인정
+    # ⚠ 주석이 **다른 설정을 설명하고 있었다**(2026-08-11 QA 발견7). 실제 용도는 이것이다:
+    #   barge-in 으로 **끊긴 대답을 이어 말할 유예**. 이 시간을 넘기면 포기한다
+    #   (`_resume_interrupted`). 잘못된 주석이 설명하던 값은 `CASCADE_BARGEIN_MIN_MS` 다 —
+    #   그대로 뒀으면 barge-in 을 튜닝하려는 사람이 **이어 말하기를 끄게** 된다.
+    CASCADE_RESUME_WINDOW_MS: int = 8000
     CASCADE_BARGEIN_MIN_CHARS: int = 2           # transcript 확인 모드에서 요구할 최소 글자수
     # ⭐⭐ **이 게이트의 일은 '사용자가 말했나'가 아니라 '이게 비버 자기 목소리인가'다**
     #   (2026-08-08 사장님 판단으로 역할이 재정의됐다). 그러면 임계는 **발화 분포가 아니라
@@ -408,7 +412,8 @@ class Settings(BaseSettings):
     #   ⛔ env 로만 때우지 않는다 — 코드 기본값이 낡으면 env 없는 환경이 옛 동작으로 남는다.
     #   안전망: 임계를 넘어도 전사 확인 게이트가 한 겹 더 있다(CASCADE_BARGEIN_CONFIRM).
     CASCADE_BARGEIN_RMS: float = 0.007            # 0~1 정규화 RMS(0 이면 이 관문 비활성)
-    CASCADE_ECHO_TAIL_MS: int = 300              # 마지막 TTS 바이트 이후 에코 경계 구간(P1)
+    # (CASCADE_ECHO_TAIL_MS 는 2026-08-11 제거 — 에코 분류기를 걷어낸 뒤 아무도 안 읽는다.
+    #  설정 50개 전수 확인에서 유일한 죽은 값이었다.)
     # ── 재생 진행도(이력 절단 근거) ──
     # ⚠ played_ms 는 **네이티브 카운터 값만** 신뢰한다(Android getPlaybackHeadPosition ±10~20ms).
     #   Dart 외삽값은 ±50~150ms 라 원장 절단의 '짧은 쪽 편향'을 무의미하게 만든다 → 버린다.
