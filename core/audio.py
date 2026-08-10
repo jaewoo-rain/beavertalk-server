@@ -20,6 +20,20 @@ OUTPUT_SAMPLE_RATE = 24_000
 CHANNELS = 1
 SAMPLE_WIDTH_BYTES = 2  # 16-bit
 
+# ⭐ 출력 PCM 1ms 당 바이트 수. **말하기 속도(자per초)를 두 엔진이 같은 식으로 재게 하는
+#   단일 출처다**(2026-08-10). Live 와 캐스케이드가 각자 계산하면 비교 자체가 무의미해진다 —
+#   사장님이 "라이브 속도가 정답"이라고 하신 이상, 두 값은 같은 잣대로 나와야 한다.
+OUTPUT_BYTES_PER_MS = OUTPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES / 1000.0
+
+
+def output_audio_s(audio_bytes: int) -> float:
+    """출력 PCM 바이트 → 초. 음수·잡값은 0 으로 본다(계측이 통화를 죽이지 않는다)."""
+    try:
+        return max(0, int(audio_bytes)) / OUTPUT_BYTES_PER_MS / 1000.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
 # Gemini send_realtime_input 입력 오디오 MIME 타입.
 INPUT_MIME_TYPE = f"audio/pcm;rate={INPUT_SAMPLE_RATE}"
 

@@ -55,13 +55,14 @@ from google import genai
 from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
-from core import gemini_analysis
+from core import audio, gemini_analysis
 from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
 from core.config import Settings, settings as _settings
 from core.languages import (
     DEFAULT_LANGUAGE,
     LanguageSpec,
     SUPPORTED_LANGUAGES,
+    count_target_script_chars,
     normalize_locale,
     resolve_language,
 )
@@ -606,6 +607,38 @@ def _flush_user_segment(state: _CallState) -> None:
     state.cur_user_text = []
 
 
+def _reading_speed_line(text: str, audio_bytes: int) -> str:
+    """비버 발화 1건의 **읽기 속도** — 캐스케이드의 `읽기=…` 와 같은 잣대로 낸다.
+
+    ⛔ 바이트→초는 `core.audio.output_audio_s` **하나**를 쓴다. 두 경로가 각자 계산하면
+      비교 자체가 무의미해진다(그게 이 계측의 유일한 목적이다).
+    ⚠ 분자는 `len(text)` — 캐스케이드도 같은 규칙(문장 전체 길이)이라 그대로 맞춘다.
+      공백·문장부호가 섞이지만 **두 쪽이 같은 방식으로 섞이므로** 비교는 성립한다.
+
+    언어 구분: Live 는 마커를 안 쓰므로 **문자 종류**로 가른다
+    (`core.languages` 의 스크립트 표 — 레벨테스트가 쓰는 것과 같은 잣대다).
+    한 발화가 한 언어에 90% 이상 쏠렸을 때만 그 언어로 이름표를 붙이고, 섞였으면 `mixed`
+    로 낸다 — 섞인 발화는 **어느 언어가 몇 초를 썼는지 알 수 없기 때문**이다(오디오는
+    통짜 하나다). ⛔ 모르면 아는 척하지 않는다. 전체 값만으로도 판단은 된다.
+    """
+    audio_s = audio.output_audio_s(audio_bytes)
+    chars = len(text or "")
+    if audio_s <= 0 or chars <= 0:
+        return "읽기=측정불가(소리 %.1f초 글자 %d)" % (audio_s, chars)
+    ko = count_target_script_chars(text, "ko")
+    latin = count_target_script_chars(text, "en")
+    script_total = ko + latin
+    label = "mixed"
+    if script_total:
+        if ko >= script_total * 0.9:
+            label = "ko"
+        elif latin >= script_total * 0.9:
+            label = "en"
+    return "읽기=%.1f자per초 [%s:%d자/%.1f초] (한글 %d 라틴 %d)" % (
+        chars / audio_s, label, chars, audio_s, ko, latin,
+    )
+
+
 def _flush_beaver_segment(state: _CallState) -> None:
     if not state.cur_beaver_pcm and not state.cur_beaver_text:
         return
@@ -617,6 +650,12 @@ def _flush_beaver_segment(state: _CallState) -> None:
         text = _CONTROL_TAG_RE.sub("", text)
     text = text.strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
+    # ⭐ **말하기 속도 실측**(2026-08-10). 사장님: "라이브에서는 속도가 딱 좋아" — 그러니
+    #   Live 값이 캐스케이드 TTS 의 **목표 숫자**가 된다. 지금은 "몇 자per초가 정상인가"에
+    #   근거가 없어서, 느리다는 판정이 귀에만 있고 숫자로 못 옮겨진다.
+    #   ⛔ 계측만이다. 흐름·버퍼는 건드리지 않는다(R4) — 이미 있는 pcm/전사의 **길이만** 센다.
+    logger.info("🦫 BEAVER[t%d] %s", state.next_turn_index,
+                _reading_speed_line(text, len(state.cur_beaver_pcm)))
     # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
     # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
     if state.band_observe and text:

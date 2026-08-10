@@ -47,6 +47,7 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 from starlette.websockets import WebSocket, WebSocketState
 
+from core import audio
 from core import gemini_chat
 from core import stt as stt_mod
 from core import tts
@@ -280,7 +281,8 @@ class InvariantError(RuntimeError):
 
 
 # 서버→클라 오디오 = PCM16 / 24kHz mono = 48,000 bytes/s (고정 비트레이트 = 바이트↔ms 는 산수)
-BEAVER_BYTES_PER_MS = 24000 * 2 / 1000.0
+# ⭐ Live 와 **같은 상수**를 쓴다 — 두 엔진의 말하기 속도를 비교하려면 잣대가 하나여야 한다.
+BEAVER_BYTES_PER_MS = audio.OUTPUT_BYTES_PER_MS
 
 
 @dataclass(slots=True)
