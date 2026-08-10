@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 from typing import Any, AsyncIterator
 
+from core.audio import trim_silence_edges
+
 logger = logging.getLogger(__name__)
 
 # 문장 분할 규칙(설계 §1-4). 종결부호·줄바꿈에서 끊고, 너무 짧으면 붙이고, 너무 길면 자른다.
@@ -140,10 +142,16 @@ def strip_markers(text: str) -> str:
     return (text or "").replace(MARKER, "")
 
 
-async def speak_stream(beaver: Any, pcm_stream: AsyncIterator[bytes], text: str) -> int:
+async def speak_stream(beaver: Any, pcm_stream: AsyncIterator[bytes], text: str,
+                       trim_tail: bool = False) -> int:
     """한 문장의 오디오를 송출한다. **이름표는 마지막 조각에** 붙는다. 보낸 바이트 수 반환.
 
     한 조각 앞서 보내는 이유: 마지막 조각이 어느 것인지는 다음 조각이 와 봐야 안다.
+
+    ⭐ `trim_tail` — **마지막 조각의 뒤쪽 침묵**을 잘라낸다(2026-08-10). 어차피 그 조각은
+      위 이유로 이미 손에 들고 있으므로 **지연이 0** 이다. 새로 버퍼를 만들지 않는다.
+      ⚠ 한계: 꼬리 침묵이 마지막 조각보다 길면 그 앞 조각의 몫은 못 자른다. 더 자르려면
+        조각을 더 붙들어야 하는데 그건 **첫소리를 늦추는 대가**라 하지 않는다.
     """
     sent = 0
     pending: bytes | None = None
@@ -155,6 +163,8 @@ async def speak_stream(beaver: Any, pcm_stream: AsyncIterator[bytes], text: str)
             sent += len(pending)
         pending = chunk
     if pending is not None:
+        if trim_tail:
+            pending = trim_silence_edges(pending, head=False)
         await beaver.send(pending, text)   # 이 문장을 끝까지 들었으면 이력에 남는다
         sent += len(pending)
     return sent

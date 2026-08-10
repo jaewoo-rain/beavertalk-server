@@ -49,6 +49,7 @@ from starlette.websockets import WebSocket, WebSocketState
 
 from core import audio
 from core import gemini_chat
+from core.audio import trim_silence_edges
 from core import stt as stt_mod
 from core import tts
 from core.config import settings
@@ -1760,6 +1761,17 @@ class CascadeSession:
             logger.warning("cascade 배치 합성: 구간 시간 초과 — 받은 %d조각만 쓴다", len(chunks))
         self.usage.record_tts(text, vendor=self._tts_vendor())
         pcm = b"".join(chunks)
+        if pcm and self._trim_silence():
+            # 배치는 전량을 손에 들고 있으니 **앞뒤 다** 자른다(지연 트레이드오프가 없다).
+            before = len(pcm)
+            pcm = trim_silence_edges(
+                pcm, keep_head_ms=max(0, settings.CASCADE_TTS_TRIM_KEEP_MS),
+                keep_tail_ms=max(0, settings.CASCADE_TTS_TRIM_KEEP_MS),
+            )
+            if len(pcm) != before:
+                logger.info("cascade 침묵 정리: %.0fms → %.0fms (구간 %d자)",
+                            before / BEAVER_BYTES_PER_MS, len(pcm) / BEAVER_BYTES_PER_MS,
+                            len(text))
         self.usage.record_tts_audio(len(pcm))
         if pcm:
             self._tts_engines.add(self._tts_vendor())
@@ -1873,7 +1885,10 @@ class CascadeSession:
             speaking_rate=self._tts_rate,
             style_prompt=self._tts_style,
         )
-        sent = await speak_stream(self.beaver, stream, sentence)
+        trim = self._trim_silence()
+        if trim:
+            stream = self._trim_head(stream)
+        sent = await speak_stream(self.beaver, stream, sentence, trim_tail=trim)
         # ⭐ 내보낸 오디오 초 — Gemini-TTS 단가의 기준(문자가 아니라 출력 오디오 토큰이다).
         self.usage.record_tts_audio(sent)
         if sent:
@@ -1905,6 +1920,38 @@ class CascadeSession:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         return sent
+
+    def _trim_silence(self) -> bool:
+        """이 엔진의 출력에서 **구간 앞뒤 침묵을 잘라낼 것인가.**
+
+        ⛔ 엔진 이름으로 명시한다(설정). Chirp 은 빠져 있다 — 지금 잘 나오는 걸 건드리지 않는다.
+        """
+        engine = (self._tts_engine or tts.CHIRP3_ENGINE).strip()
+        names = {n.strip() for n in (settings.CASCADE_TTS_TRIM_ENGINES or "").split(",")}
+        return bool(engine) and engine in names
+
+    async def _trim_head(self, stream: Any) -> Any:
+        """스트림 **앞쪽** 침묵을 흘려보내지 않고 걷어낸다.
+
+        ⭐ 지연이 늘지 않는다 — 붙들고 있는 것이 **침묵**이라 사용자가 듣는 시점은 그대로다
+          (오히려 첫 소리가 빨라진다). 꼬리는 `speak_stream` 이 이미 들고 있는 마지막 조각에서
+          처리한다(거기도 추가 버퍼가 없다).
+        """
+        trimmed = False
+        async for chunk in stream:
+            if not chunk:
+                continue
+            if not trimmed:
+                # ⛔ `trim_silence_edges` 의 반환값으로 판별하면 안 된다 — 전부 침묵이면
+                #   **그대로** 돌려주는 규약이라(멀쩡한 오디오 보호) 침묵을 소리로 오인한다.
+                if not audio.has_audible_signal(chunk):
+                    continue                 # 통째로 침묵인 조각은 버린다
+                trimmed = True               # 소리가 시작됐다 — 이후 조각은 그대로 흘린다
+                yield trim_silence_edges(
+                    chunk, keep_head_ms=max(0, settings.CASCADE_TTS_TRIM_KEEP_MS), tail=False
+                )
+                continue
+            yield chunk
 
     def _gemini_realtime(self) -> bool:
         """지금 세션이 **Gemini 실시간** 모드인가(배치는 별도 경로라 제외)."""
