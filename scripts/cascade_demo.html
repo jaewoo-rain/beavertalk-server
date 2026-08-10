@@ -81,14 +81,20 @@
         <option value="gemini-tts">Gemini-TTS · 실시간 (끊길 수 있음)</option>
         <option value="gemini-batch">Gemini-TTS · 전체 합성 후 재생 (안 끊김 · 20초+ 대기)</option>
       </select>
-      <span class="muted">말하기 속도</span>
-      <select id="speakingRate" title="1.0 = 그 목소리의 정상 속도. 범위 0.25~2.0">
-        <option value="">서버값</option>
-        <option value="0.75">0.75x</option>
-        <option value="1.0">1.0x</option>
-        <option value="1.25">1.25x</option>
-        <option value="1.5">1.5x</option>
-      </select>
+      <!-- ⭐ 드롭다운(0.75/1.0/1.25…)이던 것을 직접 입력으로 바꿨다 — 1.1·1.15 같은 값을
+           못 넣어서 귀로 값을 찾는 실험의 해상도가 눈금에 갇혀 있었다.
+           ⭐⭐ 그리고 **언어별로 나눴다**: 하나의 값으로는 둘을 못 맞춘다. 같은 언어끼리 본
+           실측 — 한국어 Live 7.7 vs Gemini 6.2~7.4(거의 맞음) / 영어 Chirp 19.6 vs
+           Gemini 12.0(1.6배 느림). 하나를 1.6 으로 올리면 한국어가 11.8 이 되어 **학습자가
+           따라 말하는 부분**이 Live 보다 훨씬 빨라진다. -->
+      <span class="muted">속도(설명)</span>
+      <input id="rateNative" type="number" step="0.05" min="0.25" max="2.0"
+             style="width:76px" placeholder="서버값"
+             title="설명 언어(영어 등) 구간의 배속. 비우면 서버값. 범위 0.25~2.0" />
+      <span class="muted">속도(한국어)</span>
+      <input id="rateTarget" type="number" step="0.05" min="0.25" max="2.0"
+             style="width:76px" placeholder="서버값"
+             title="배우는 언어(한국어) 구간의 배속. 비우면 서버값. 범위 0.25~2.0" />
       <input id="stylePrompt" style="width:260px" placeholder="감정 지시(비우면 서버값) — Gemini 전용"
              title="Gemini-TTS 만 이 문구를 쓴다. Chirp3-HD 는 감정 제어가 없다." />
     </div>
@@ -271,15 +277,31 @@ async function start() {
     // ⚠ 그래서 이 데모의 barge-in 결과는 **실기기 판정 근거가 되지 않는다**(조사 §3-6).
     // ⛔ dev 데모 한정 편의다 — 클라가 서버 기본값을 덮는다. 앱이 캐스케이드를 타게 되면
     //   이 통로를 열어 두면 안 된다(엔진마다 단가·쿼터가 달라 원가 통제가 클라로 넘어간다).
-    const rate = $('#speakingRate').value;
+    // ⛔ 서버에 쓰레기를 보내지 않는다 — 숫자가 아니거나 문서 범위[0.25, 2.0] 밖이면
+    //   **필드를 아예 빼고**(=서버값) 진행한다. 비운 경우와 같은 동작이다.
+    const readRate = (id, label) => {
+      const raw = $(id).value.trim();
+      if (raw === '') return null;
+      const v = parseFloat(raw);
+      if (Number.isFinite(v) && v >= 0.25 && v <= 2.0) return v;
+      log(`⚠ ${label} 속도 '${raw}' 는 0.25~2.0 범위 밖이다 — 서버값으로 진행한다`);
+      return null;
+    };
+    const rateNative = readRate('#rateNative', '설명');
+    const rateTarget = readRate('#rateTarget', '한국어');
+    const rateLog = [
+      rateNative === null ? null : `설명 ${rateNative}x`,
+      rateTarget === null ? null : `한국어 ${rateTarget}x`,
+    ].filter(Boolean).join(' / ');
     const style = $('#stylePrompt').value.trim();
     ws.send(JSON.stringify({
       type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' },
       ttsEngine: $('#ttsEngine').value,
-      ...(rate ? { speakingRate: parseFloat(rate) } : {}),
+      ...(rateNative === null ? {} : { speakingRateNative: rateNative }),
+      ...(rateTarget === null ? {} : { speakingRateTarget: rateTarget }),
       ...(style ? { stylePrompt: style } : {}),
     }));
-    log(`🔊 TTS 엔진=${$('#ttsEngine').value}${rate ? ' 속도='+rate+'x' : ''}`);
+    log(`🔊 TTS 엔진=${$('#ttsEngine').value}${rateLog ? ' 속도='+rateLog : ''}`);
     t0 = nowMs();
     $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
     $('#startBtn').disabled=true; $('#stopBtn').disabled=false;

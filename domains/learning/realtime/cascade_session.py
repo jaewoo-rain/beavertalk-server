@@ -140,7 +140,36 @@ _CHIRP_CHOICE = "chirp3-hd"
 _GEMINI_BATCH_CHOICE = "gemini-batch"
 # (ElevenLabs 3종은 2026-08-10 제거했다 — 실측 전에 접었다. 사유는 그 커밋 메시지에 있다.)
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
+# 말하기 배속 허용 범위 — proto 원문 [0.25, 2.0]. 밖은 거절한다(요청이 통째로 거절되기 전에).
+_RATE_MIN, _RATE_MAX = 0.25, 2.0
 # (TTS 벤더 이름은 core.tts 가 소유한다 — 엔진 A/B 로 값이 바뀌므로 _tts_vendor() 로 읽는다)
+
+
+def _parse_rate_map(raw: str) -> dict[str, float]:
+    """`"en:1.4,ko:1.0"` → `{"en": 1.4, "ko": 1.0}`.
+
+    ⛔ 범위 밖([0.25, 2.0] — proto 원문)·숫자 아님은 **버리고 경고**한다. 통화가 죽으면 안 되고
+      (R5), 조용히 넣으면 요청이 통째로 거절된다.
+    """
+    out: dict[str, float] = {}
+    for item in (raw or "").split(","):
+        item = item.strip()
+        if not item:
+            continue
+        lang, _, value = item.partition(":")
+        try:
+            rate = float(value)
+        except (TypeError, ValueError):
+            logger.warning("cascade 언어별 배속 무시 — 숫자가 아니다: %r", item[:24])
+            continue
+        if not (_RATE_MIN <= rate <= _RATE_MAX):
+            logger.warning("cascade 언어별 배속 무시 — 범위 [%.2f, %.2f] 밖: %r",
+                           _RATE_MIN, _RATE_MAX, item[:24])
+            continue
+        key = lang.strip().lower()
+        if key:
+            out[key] = rate
+    return out
 
 
 def _looks_unfinished(text: str) -> bool:
@@ -628,6 +657,13 @@ class CascadeSession:
         # 고르면 그 값으로, 안 고르면 서버 설정으로 통화 내내 일관되게 간다.
         self._tts_engine = (settings.CASCADE_TTS_ENGINE or "").strip()
         self._tts_rate: float | None = None
+        # ⭐ **언어별 배속.** 구간이 어느 언어인지는 이미 안다(`__마커__` 분할) — 거기에 값을
+        #   붙인다. ⛔ 새 분류기를 만들지 않는다. 비면 예전과 같다(엔진 기본값 → 1.0).
+        self._tts_rate_by_lang: dict[str, float] = _parse_rate_map(
+            settings.CASCADE_TTS_SPEAKING_RATE_BY_LANG
+        )
+        # 이 대답에서 **실제로 나간** 언어별 배속(로그용 — 세션 값만 찍으면 구간별 차이를 못 본다)
+        self._reply_rates: dict[str, float] = {}
         self._tts_style: str | None = None
         self._batch_synthesizing = False   # 배치 합성 중(소리가 아직 안 나갔다)
         self._batch_synth_s: float | None = None   # 배치 합성 소요(대답 줄의 합성배속 재료)
@@ -1591,9 +1627,9 @@ class CascadeSession:
                 turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, timing)
                 self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s %s %s 글자=%d 문장모델=%s tts=%s %s",
+                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s %s",
                     "(선톡)" if is_greeting else "", turn_id, timing.summary(),
-                    self._emotion_log(), spoken_chars,
+                    self._emotion_log(), self._rate_log(), spoken_chars,
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                     self._reading_summary(self._batch_synth_s),
@@ -1628,10 +1664,10 @@ class CascadeSession:
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s %s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
+                "cascade 대답%s: turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
                 "gemini호출=%d %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
-                self._emotion_log(), spoken_chars,
+                self._emotion_log(), self._rate_log(), spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
@@ -1770,8 +1806,8 @@ class CascadeSession:
                     language=language,
                     voice=settings.CASCADE_TTS_VOICE,
                     engine=tts.GEMINI_ENGINE,
-                    speaking_rate=self._speaking_rate(),
-                    style_prompt=self._tts_style,
+                    speaking_rate=self._note_rate(language),
+                    style_prompt=self._style_prompt(),
                     allow_gemini=not self._tts_gemini_off,
                 )
                 async for chunk in stream:
@@ -1904,8 +1940,8 @@ class CascadeSession:
             allow_gemini=allow_gemini,
             engine=(tts.GEMINI_ENGINE if self._tts_engine == _GEMINI_BATCH_CHOICE
                     else self._tts_engine or None),
-            speaking_rate=self._speaking_rate(),
-            style_prompt=self._tts_style,
+            speaking_rate=self._note_rate(language),
+            style_prompt=self._style_prompt(),
         )
         trim = self._trim_silence()
         if trim:
@@ -1943,13 +1979,65 @@ class CascadeSession:
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         return sent
 
-    def _speaking_rate(self) -> float | None:
-        """이 엔진에 적용할 말하기 배속 — **엔진마다 다르다.**
+    def _note_rate(self, language: str) -> float | None:
+        """이 구간에 쓸 배속을 고르고 **실제로 나간 값을 기록한다**(로그용).
 
-        ⛔ 클라(데모 화면)가 고른 값이 있으면 그게 우선이다(A/B 하려고 만든 통로다).
-        ⛔ 없으면 **엔진별 기본값**을 쓴다. 공통 값 하나를 올리면 Chirp 까지 빨라지는데,
-          Chirp 은 이미 충분히 빠르다 — 올릴 곳은 Gemini 뿐이다.
+        ⛔ 세션 값만 찍으면 구간별로 달라진 걸 확인할 방법이 없다 — 그게 이 기능의 요점이다.
         """
+        rate = self._speaking_rate(language)
+        if rate is not None:
+            self._reply_rates[(language or "?").strip().lower()] = rate
+        return rate
+
+    def _rate_log(self) -> str:
+        """대답 줄에 실을 언어별 배속 표시."""
+        if not self._reply_rates:
+            return "배속=서버값"
+        return "배속=[%s]" % " ".join(
+            f"{lang}:{rate:.2f}" for lang, rate in sorted(self._reply_rates.items())
+        )
+
+    def _style_prompt(self) -> str | None:
+        """이 대답에 쓸 스타일 문구 — **감정 태그 → 고정 문구**(없으면 서버 기본값).
+
+        ⛔ 문구는 `EMOTION_STYLES` 표에서만 나온다. LLM 이 스타일 문장을 지어내면 같은 감정도
+          통화마다 다르게 들린다(사장님: "프롬프트가 일정해야 감정 표현도 일정하다").
+        ⚠ 집합 밖 값·태그 누락은 조용히 기본 스타일로 떨어진다(R5 — 통화가 죽지 않는다).
+        ⚠ Chirp 세션에서는 `core/tts` 가 스타일을 아예 안 넘긴다 — 태그는 걷어내지고 소리에는
+          영향이 없다. 그 사실은 대답 로그의 `감정=…(미적용)` 으로 보인다.
+        """
+        if self._tts_style is not None:
+            return self._tts_style              # 데모 화면이 직접 고른 값이 이긴다
+        return emotion_style(self._reply_emotion)
+
+    def _emotion_log(self) -> str:
+        """대답 줄에 실을 감정 표시 — **적용됐는지까지** 적는다.
+
+        ⛔ Chirp 은 스타일을 안 받는다. 그 사실이 안 보이면 사장님이 Chirp 으로 들으시고
+          "감정이 안 되네"라고 하시게 된다.
+        """
+        if not self._reply_emotion:
+            return "감정=없음"
+        applied = self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE)
+        return "감정=%s%s" % (self._reply_emotion,
+                             "" if applied else "(미적용:%s)" % tts.CHIRP3_ENGINE)
+
+    def _speaking_rate(self, language: str | None = None) -> float | None:
+        """이 **구간**에 적용할 말하기 배속 — 언어·엔진마다 다르다.
+
+        고르는 순서(위가 이긴다):
+          ① **언어별 값**(데모 화면·env). 하나의 값으로는 둘을 못 맞춘다 — 실측에서 영어는
+             1.6배 느린데 한국어는 이미 맞았다. 한국어를 같이 올리면 **학습자가 따라 말하는
+             부분이 Live 보다 빨라진다.**
+          ② 클라가 고른 공통 값(데모 화면의 기존 통로 — 그대로 둔다)
+          ③ 엔진 기본값(Gemini 만 따로) → 없으면 서버 공통값
+        ⛔ 새 분류기를 만들지 않는다 — 구간의 언어는 `__마커__` 분할이 이미 알려 준다.
+        ⚠ `자per초` 는 언어 간 직접 비교가 안 된다(한국어 1글자 ≈ 영어 3~4글자). 값을 정할 땐
+          반드시 **같은 언어끼리** 비교해라.
+        """
+        lang = (language or "").strip().lower()
+        if lang and lang in self._tts_rate_by_lang:
+            return self._tts_rate_by_lang[lang]
         if self._tts_rate is not None:
             return self._tts_rate
         if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
@@ -2355,6 +2443,24 @@ class CascadeSession:
                 self._tts_rate = float(raw_rate)
             except (TypeError, ValueError):
                 logger.warning("cascade speaking_rate 값 거절: %r", raw_rate)
+        # ⭐ **언어별 배속**(데모 화면). 화면은 서버의 언어 코드를 모르므로 '설명/한국어'로
+        #   보내고, 여기서 이 통화의 실제 코드에 얹는다. 범위 밖·숫자 아님은 거절한다.
+        for key, language in (
+            ("speakingRateNative", settings.CASCADE_TTS_LANGUAGE),
+            ("speakingRateTarget", settings.CASCADE_TTS_TARGET_LANGUAGE),
+        ):
+            raw = ctrl.get(key)
+            if raw is None:
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                logger.warning("cascade %s 값 거절: %r", key, raw)
+                continue
+            if not (_RATE_MIN <= value <= _RATE_MAX):
+                logger.warning("cascade %s 범위 밖 거절: %r", key, raw)
+                continue
+            self._tts_rate_by_lang[(language or "").strip().lower()] = value
         style = ctrl.get("stylePrompt", ctrl.get("style_prompt"))
         if isinstance(style, str):
             self._tts_style = style.strip()[:_STYLE_PROMPT_MAX]
@@ -2367,10 +2473,12 @@ class CascadeSession:
             self.beaver.lead_ms = None
         # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
         logger.info(
-            "cascade 엔진 선택: %s (%s) speaking_rate=%.2f(%s) 선행버퍼=%dms 묶음=%d자 style=%r",
+            "cascade 엔진 선택: %s (%s) speaking_rate=%.2f(%s) 언어별=%s "
+            "선행버퍼=%dms 묶음=%d자 style=%r",
             self._tts_engine or tts.CHIRP3_ENGINE, source,
             self._speaking_rate() or 1.0,
             "클라 지정" if self._tts_rate is not None else "엔진 기본값",
+            self._tts_rate_by_lang or "없음",
             self.beaver.lead_ms if self.beaver.lead_ms is not None
             else settings.CASCADE_TTS_LEAD_MS,
             self._batch_chars(),
