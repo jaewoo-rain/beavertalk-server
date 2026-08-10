@@ -8,6 +8,8 @@
   "Streaming supports PCM, ALAW, MULAW and OGG_OPUS. All other encodings return an error."
 """
 
+import inspect
+
 import pytest
 
 from core import tts
@@ -106,11 +108,44 @@ def test_prompts_do_not_dictate_speed():
 
     캐스케이드가 쓰는 **두 문구**(TTS 스타일 / 레벨 프로파일)에서 속도 지시를 뺐다.
     ⛔ normalcall 의 교수법 지시("천천히 또박또박 들려주고 따라 말하게")는 **건드리지 않았다** —
-      그건 실서비스의 어학적 의도이고 Live 는 모델이 직접 음성을 낸다.
-    ⭐ "또박또박"은 속도가 아니라 또렷함이라 남긴다(초보는 뭉개진 발음을 못 알아듣는다).
+      그건 실서비스의 어학적 의도이고 Live 는 모델이 직접 음성을 낸다(아래 전용 테스트가 지킨다).
     """
     from core.config import settings
 
     for prompt in (settings.CASCADE_TTS_STYLE_PROMPT, settings.CASCADE_PERSONA_LEVEL):
         for word in ("천천히", "빠르게", "속도"):
             assert word not in prompt, prompt
+
+
+def test_tts_style_prompt_has_no_pacing_words():
+    """⭐ TTS 스타일 프롬프트에 **말 빠르기를 건드리는 어휘가 없어야 한다.**
+
+    같은 실수가 두 번 났다 — "천천히"를 지우면서 **같은 뜻인 "또박또박"을 남겼다.** 사람이
+    기억으로 막을 일이 아니라서 성질로 박는다.
+    실측 근거(2026-08-10): Gemini-TTS 가 한국어를 **1.3자per초**로 읽었다(Chirp 4.5~5.6).
+    스타일 프롬프트는 **Gemini 에만** 간다 — Chirp 가지는 빈 문자열을 넘긴다.
+    ⛔ 속도는 프롬프트가 아니라 **`speaking_rate` 파라미터**가 맡는다. 둘 다 건드리면 어느 게
+      진짜인지 못 가린다.
+    """
+    from core.config import settings
+
+    banned = ("천천히", "또박또박", "느리게", "느릿", "차분", "slow", "slowly", "pace")
+    text = settings.CASCADE_TTS_STYLE_PROMPT.lower()
+    for word in banned:
+        assert word not in text, (word, settings.CASCADE_TTS_STYLE_PROMPT)
+    # ⚠ 감정·톤은 남아야 한다 — 사장님이 원하시는 건 표현력이지 무미건조함이 아니다.
+    assert settings.CASCADE_TTS_STYLE_PROMPT.strip(), "스타일을 통째로 비우지는 않는다"
+
+
+def test_teaching_prompt_still_says_slowly_and_clearly():
+    """⛔⛔ **금지 구역** — normalcall 교수법의 "천천히 또박또박"은 지우면 안 된다.
+
+    TTS 스타일에서 같은 낱말을 뺐다고 `grep` 으로 여기까지 지우면 **가르치는 방식이 통째로
+    무너진다.** 이건 TTS 목소리가 아니라 **LLM 에게 주는 교수법**이고, 학습자가 그걸 듣고 따라
+    말한다("2번 따라 말하게" — 오늘 고친 에코 결함도 이 문장이 근거였다).
+    """
+    import core.persona_prompt as pp
+
+    src = inspect.getsource(pp)
+    assert "천천히 또박또박" in src, "교수법 지시가 사라졌다 — TTS 스타일과 혼동한 것이다"
+    assert "2번 따라 말하게" in src
