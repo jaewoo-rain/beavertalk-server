@@ -17,9 +17,58 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, AsyncIterator
 
 from core.audio import trim_silence_edges
+
+# ── 감정 태그 (2026-08-10 사장님 지시) ──────────────────────────────────────
+# ① "llm 이 감정을 태그로 뱉어서 그걸 tts 에 넣어야 하잖아"
+# ② ⭐ "미리 감정들 프롬프트를 정해놓고 **골라 쓰게** 하는 게 어때? **프롬프트가 일정해야
+#    감정 표현도 그나마 일정할 거 아니야**"
+# ⇒ **자유 서술 금지.** LLM 이 매번 스타일 문장을 지어내면 같은 감정도 통화마다 다르게 들린다.
+#   여기 표가 유일한 출처이고, LLM 은 **이 태그 이름만** 고른다.
+#
+# ⛔ **개수를 늘리지 마라.** 많을수록 LLM 이 헷갈리고 표현이 흔들린다(②를 깬다). 6개는
+#   어학 선생님이 실제로 하는 일 — 칭찬·격려·질문·설명·정정·인사 — 에서 뽑았다.
+# ⛔ **속도 어휘를 넣지 마라**(천천히·또박또박·느리게·차분·차근…). 오늘 "또박또박" 한 낱말이
+#   한국어 속도의 절반을 먹고 있었다(ko 1.3 → 침묵 정리 후 6.2~7.4자per초). 속도는
+#   `speaking_rate` 파라미터가 맡는다 — 문구와 파라미터가 싸우면 어느 게 진짜인지 못 가린다.
+EMOTION_STYLES: dict[str, str] = {
+    "칭찬": "밝고 기쁘게 칭찬하는 목소리로.",
+    "격려": "따뜻하게 격려하는 목소리로.",
+    "질문": "궁금해하며 묻는 목소리로.",
+    "설명": "친절하게 알려 주는 선생님 목소리로.",
+    "정정": "부드럽게 바로잡아 주는 목소리로.",
+    "인사": "반갑게 인사하는 목소리로.",
+}
+# 태그 표기: 대사 맨 앞의 `[칭찬]`. ⚠ 어떤 위치에 나와도 **전부** 걷어낸다(소리로 나가면 안 된다).
+_EMOTION_TAG_RE = re.compile(r"\[(%s)\]" % "|".join(map(re.escape, EMOTION_STYLES)))
+
+
+def detect_emotion(text: str) -> str | None:
+    """대사에서 **첫 번째** 감정 태그를 읽는다. 없거나 집합 밖이면 None(=기본 스타일).
+
+    ⛔ 대답 1건에 **하나만** 쓴다 — 문장마다 바꾸면 구간이 더 쪼개져 TTS 호출이 늘고,
+      지금 분당 상한이 10 인데 대답 하나가 이미 3~6회다(429 위험이 이 설계의 1순위 제약).
+    """
+    m = _EMOTION_TAG_RE.search(text or "")
+    return m.group(1) if m else None
+
+
+def strip_emotion_tags(text: str) -> str:
+    """TTS 로 넘어가기 전에 태그를 **전부** 걷어낸다.
+
+    ⛔ 태그가 소리로 나가면 안 된다 — `__마커__` 와 같은 급의 요구다. 오늘 `?` 를
+      "쿼스천마크"로 읽던 사고가 정확히 이 계열이다.
+    """
+    return _EMOTION_TAG_RE.sub("", text or "")
+
+
+def emotion_style(emotion: str | None) -> str | None:
+    """감정 → 스타일 문구. 집합 밖·None 이면 None(호출부가 기본 스타일을 쓴다 — R5)."""
+    return EMOTION_STYLES.get(emotion or "")
+
 
 logger = logging.getLogger(__name__)
 

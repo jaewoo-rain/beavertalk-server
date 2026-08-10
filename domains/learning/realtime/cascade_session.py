@@ -79,10 +79,14 @@ from domains.learning.realtime.cascade_protocol import (
     cascade_server_adapter,
 )
 from domains.learning.realtime.cascade_reply import (
+    EMOTION_STYLES,
     MARKER,
     SentenceBuffer,
+    detect_emotion,
+    emotion_style,
     speak_stream,
     split_by_language,
+    strip_emotion_tags,
     strip_markers,
 )
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
@@ -636,6 +640,7 @@ class CascadeSession:
         self._tts_gemini_off = False
         self._tts_gemini_calls = 0
         self._tts_ttfb_ms = -1
+        self._reply_emotion: str | None = None
         # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
         self._bargein_at: float | None = None
         self._interrupted: dict | None = None
@@ -1534,6 +1539,10 @@ class CascadeSession:
         self._marker_seen.clear()
         self._reply_spans.clear()
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
+        # ⭐ 이 대답의 감정(대답 1건당 **하나**). 문장마다 바꾸면 구간이 쪼개져 TTS 호출이
+        #   늘고, 분당 상한이 10 인데 대답 하나가 이미 3~6회다(429 가 1순위 제약이다).
+        self._reply_emotion = None
+        self._reply_rates = {}
         chat = gemini_chat.open_chat_stream(
             self._genai_client,
             settings.CASCADE_LLM_MODEL,
@@ -1580,10 +1589,11 @@ class CascadeSession:
 
             if self._tts_engine == _GEMINI_BATCH_CHOICE:
                 turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, timing)
-                self._remember_beaver(turn_id, chat.text)
+                self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s %s 글자=%d 문장모델=%s tts=%s %s",
-                    "(선톡)" if is_greeting else "", turn_id, timing.summary(), spoken_chars,
+                    "cascade 대답%s(배치): turn=%s %s %s 글자=%d 문장모델=%s tts=%s %s",
+                    "(선톡)" if is_greeting else "", turn_id, timing.summary(),
+                    self._emotion_log(), spoken_chars,
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                     self._reading_summary(self._batch_synth_s),
@@ -1591,6 +1601,10 @@ class CascadeSession:
                 return
             async for piece in chat.chunks():
                 timing.mark_chunk()
+                # ⭐ 감정은 **대답 맨 앞 태그 하나**다. 조각 경계로 태그가 쪼개져도 누적
+                #   텍스트(chat.text)에서 읽으므로 놓치지 않는다.
+                if self._reply_emotion is None:
+                    self._reply_emotion = detect_emotion(chat.text)
                 for sentence in buffer.push(piece):
                     timing.mark_sentence()
                     # ⚠ **첫 문장 단독**은 Chirp 규칙이다. Gemini 는 짧은 요청이 특히
@@ -1610,13 +1624,14 @@ class CascadeSession:
             await _flush_batch()
             if turn_id is not None:
                 await self.beaver.end()
-            self._remember_beaver(turn_id, chat.text)
+            self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
+                "cascade 대답%s: turn=%s %s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
                 "gemini호출=%d %s %s",
-                "(선톡)" if is_greeting else "", turn_id, timing.summary(), spoken_chars,
+                "(선톡)" if is_greeting else "", turn_id, timing.summary(),
+                self._emotion_log(), spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
@@ -1668,6 +1683,7 @@ class CascadeSession:
         await self._safe(ServerBeaverPreparing(stage="llm"))
         async for _ in chat.chunks():                 # 전체 텍스트가 완성될 때까지 받는다
             timing.mark_chunk()
+        self._reply_emotion = detect_emotion(chat.text)
         timing.mark_sentence()   # 배치는 '전체 텍스트 완성'이 곧 문장 완성 시점이다
         text = strip_markers(chat.text).strip() and chat.text.strip()
         if not text:
@@ -1743,6 +1759,9 @@ class CascadeSession:
 
     async def _synthesize_all(self, text: str, language: str, budget_s: float) -> bytes:
         """구간 하나를 **끝까지** 합성해 PCM 을 모은다(스트리밍 송출 없음)."""
+        text = strip_emotion_tags(text).strip()      # ⛔ 태그는 소리로 안 나간다
+        if not text:
+            return b""
         chunks: list[bytes] = []
         try:
             async with asyncio.timeout(max(1.0, budget_s)):
@@ -1858,6 +1877,9 @@ class CascadeSession:
 
     async def _speak_one(self, sentence: str, language: str) -> int:
         """구간 하나를 합성해 송출하고, **API 에 넘긴 문자 수**를 원가에 기록한다."""
+        # ⛔ **감정 태그는 절대 소리로 나가지 않는다.** 여기가 벤더로 나가기 직전의 마지막
+        #   길목이다(`__마커__` 와 같은 급의 요구 — `?` 를 "쿼스천마크"로 읽던 사고 계열이다).
+        sentence = strip_emotion_tags(sentence).strip()
         if not sentence:
             return 0
         # ⭐ 문자는 **API 에 넘기는 시점**에 센다. 과금은 우리가 텍스트를 보낸 순간 일어나므로,
@@ -2139,6 +2161,9 @@ class CascadeSession:
                 # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
                 #   출력이 바이트 동일하게 유지된다.
                 language_marker=True,
+                # ⭐ 감정 태그도 **캐스케이드 전용**이다. ⛔ Live 에 켜면 모델이 태그를 그대로
+                #   읽어 버린다 — 서버가 걷어낼 자리가 없다(Live 는 모델이 직접 소리를 낸다).
+                emotion_tags=tuple(EMOTION_STYLES),
             )
         return self._system_cache
 

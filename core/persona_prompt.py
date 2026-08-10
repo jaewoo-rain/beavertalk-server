@@ -195,6 +195,16 @@ _LANGUAGE_MARKER_RULE = """
 - 무엇을 {target} 로 말할지는 위 규칙 3 그대로다 — 이 규칙은 **표기만** 정한다."""
 
 
+_EMOTION_TAG_RULE = """
+[표기 규칙 — 감정 태그]
+- 대사 **맨 앞에** 이번 대답의 감정을 하나만 붙여라: {tags} 중에서 고른다.
+  예) [칭찬] 우와, 정말 잘했어요!
+- **한 대답에 하나만.** 문장마다 바꾸지 마라.
+- 목록에 없는 말을 지어내지 마라. 애매하면 [설명] 을 써라.
+- 태그는 소리 내어 읽는 기호가 아니다("대괄호"라고 말하지 마라). 서버가 걷어내고
+  **그 감정에 맞는 목소리로 읽는다.**"""
+
+
 def _history_block(history: object | None) -> str:
     """최근 이력을 압축 블록으로 만든다(없으면 빈 문자열).
 
@@ -431,6 +441,7 @@ def build_system_instruction(
     lang_band: str = "beginner",
     close_tag: str = CLOSE_TAG_DEFAULT,
     language_marker: bool = False,
+    emotion_tags: tuple[str, ...] = (),
 ) -> str:
     """normalcall Live 세션용 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -523,6 +534,13 @@ def build_system_instruction(
         parts.append(history_block)
     if promotion_notice:
         parts.append("\n" + _PROMOTION_NOTICE_TEMPLATE.format(locale_label=locale_label))
+    if emotion_tags:
+        # ⛔ 옵트인이다(캐스케이드 전용). **Live 에는 절대 붙이지 마라** — Live 는 모델이
+        #   직접 소리를 내므로 태그를 **그대로 읽어 버린다**(서버가 걷어낼 자리가 없다).
+        #   기본값(빈 튜플)에서는 이 블록이 안 붙어 기존 호출부 출력이 바이트 동일하다.
+        parts.append(
+            _EMOTION_TAG_RULE.format(tags=" ".join(f"[{t}]" for t in emotion_tags))
+        )
     if language_marker:
         # ⛔ 옵트인이다. 기본값(False)에서는 이 블록이 안 붙어 **기존 호출부의 출력이
         #   바이트 동일**하다(스냅샷 테스트가 그걸 지킨다).
