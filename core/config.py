@@ -142,6 +142,19 @@ class Settings(BaseSettings):
     # 발음챌린지의 v1 경로와 **나란히** 존재한다(v1 은 일부러 v1 — 건드리지 않는다).
     # v2 를 따로 쓰는 이유: v1 에는 음성활동 이벤트가 없어 턴 "시작"을 알 수 없다 = barge-in 불가.
     # 설계: docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md
+    # ── STT 엔진 선택 (2026-08-10) ──
+    # ⭐ `openai` 는 code-switching 실측에서 **6/6** 을 맞춘 유일한 후보다(구글은 1~2/6).
+    #   ⛔ 기본은 **google** 이다 — 실통화로 검증되기 전에 기본을 바꾸지 않는다.
+    #   ⚠ 키가 없거나 연결이 실패하면 google 로 폴백하고 WARNING 을 남긴다(R5). 조용한 폴백
+    #     금지 — 어느 엔진이 실제로 돌았는지 로그와 **원가 벤더**에 남아야 한다.
+    CASCADE_STT_ENGINE: str = "google"        # 'google' | 'openai'
+    OPENAI_STT_MODEL: str = "gpt-4o-mini-transcribe"   # $0.003/분(구글의 1/5.3)
+    # ⭐ 통화를 끊기 전에 흘릴 무음 길이. **없으면 마지막 발화가 사라진다**(2026-08-10 실측:
+    #   그냥 끊으면 전사 2건, 꼬리 무음 1.5초를 붙이면 3건째가 온다 — server VAD 가 발화 끝을
+    #   못 봐서 마지막 구간을 커밋하지 않는다). 통화 중에는 마이크가 상시 열려 문제가 없다.
+    OPENAI_STT_TAIL_SILENCE_MS: int = 1500
+    # ⚠ 이름이 관례와 다르다(`OPENAI_API_KEY` 가 아니다) — .env 에 이렇게 들어 있다.
+    GPT_API_KEY: str = ""
     STT_V2_LANGUAGE: str = ""            # 비우면 STT_LANGUAGE 재사용
     STT_V2_MODEL: str = "long"           # 대화 길이 발화용(v1 의 latest_short 는 단어용)
     STT_V2_LOCATION: str = "global"      # global 이 아니면 리전 엔드포인트로 클라 생성

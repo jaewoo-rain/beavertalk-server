@@ -863,6 +863,64 @@ class RollingSttV2Stream:
                 await cur.close()
 
 
+class FallbackSttStream:
+    """1차 엔진으로 열어 보고, 실패하면 **2차로 갈아탄다**(R5 — 통화가 죽으면 안 된다).
+
+    ⛔ 조용한 폴백 금지. WARNING 을 남기고, `vendor` 를 실제로 돈 엔진 것으로 바꾼다 —
+      원가 장부와 로그가 **같은 것을 말해야** 다음 판단이 흔들리지 않는다(TTS 폴백과 같은 설계).
+    ⚠ 개시(start)에서만 갈아탄다. 통화 도중 죽으면 그건 스트림 오류 경로(STREAM_ERROR)다 —
+      중간에 엔진을 바꾸면 같은 발화가 두 번 인식되거나 사라진다.
+    """
+
+    def __init__(self, primary: Any, secondary: Any, primary_name: str) -> None:
+        self._primary = primary
+        self._secondary = secondary
+        self._name = primary_name
+        self._cur: Any = None
+        self.vendor = ""
+
+    async def start(self) -> None:
+        try:
+            self._cur = self._primary()
+            await self._cur.start()
+            self.vendor = getattr(self._cur, "vendor", "") or self._name
+            return
+        except Exception as exc:  # noqa: BLE001 - 어떤 실패든 통화는 살린다
+            logger.warning("[stt] %s 개시 실패 → google 로 폴백한다 — %s",
+                           self._name, str(exc)[:160])
+            with contextlib.suppress(Exception):
+                if self._cur is not None:
+                    await self._cur.close()
+        self._cur = self._secondary()
+        await self._cur.start()
+        self.vendor = getattr(self._cur, "vendor", "")
+
+    async def push_audio(self, pcm: bytes) -> None:
+        if self._cur is not None:
+            await self._cur.push_audio(pcm)
+
+    async def events(self):
+        if self._cur is None:
+            return
+        async for event in self._cur.events():
+            yield event
+
+    async def close(self) -> None:
+        if self._cur is not None:
+            await self._cur.close()
+
+    def feed_test(self, text: str) -> None:
+        if hasattr(self._cur, "feed_test"):
+            self._cur.feed_test(text)
+
+    def feed_test_event(self, kind: str) -> None:
+        if hasattr(self._cur, "feed_test_event"):
+            self._cur.feed_test_event(kind)
+
+    def usage(self) -> dict:
+        return self._cur.usage() if hasattr(self._cur, "usage") else {}
+
+
 def make_stt_v2_stream(sample_rate: int = 16000, language_codes: Any = None) -> Any:
     """캐스케이드용 STT v2 스트림(롤오버 포함). 크레덴셜 없으면 페이크로 폴백(R5).
 
@@ -876,13 +934,28 @@ def make_stt_v2_stream(sample_rate: int = 16000, language_codes: Any = None) -> 
     codes = normalize_language_codes(
         language_codes, fallback=settings.STT_V2_LANGUAGE or settings.STT_LANGUAGE
     )
-    resolved = get_speech_v2_client()
-    if resolved is None:
-        return FakeSttV2Stream(sample_rate)
-    client, project = resolved
-    return RollingSttV2Stream(
-        lambda langs: GoogleSttV2Stream(client, project, sample_rate, langs),
-        sample_rate, language_codes=codes,
+
+    def _google() -> Any:
+        resolved = get_speech_v2_client()
+        if resolved is None:
+            return FakeSttV2Stream(sample_rate)
+        client, project = resolved
+        return RollingSttV2Stream(
+            lambda langs: GoogleSttV2Stream(client, project, sample_rate, langs),
+            sample_rate, language_codes=codes,
+        )
+
+    if (settings.CASCADE_STT_ENGINE or "google").strip().lower() != "openai":
+        return _google()
+
+    from core import openai_stt
+
+    if not openai_stt.is_configured():
+        # ⛔ 조용히 넘어가지 않는다 — 어느 엔진이 돌았는지 모르면 실측이 거짓말이 된다.
+        logger.warning("[stt] openai 선택됐지만 키가 없다(GPT_API_KEY) → google 로 진행")
+        return _google()
+    return FallbackSttStream(
+        lambda: openai_stt.OpenAiRealtimeSttStream(sample_rate, codes), _google, "openai"
     )
 
 

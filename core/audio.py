@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import array
 import io
 import logging
 import shutil
@@ -58,6 +59,33 @@ def _window_rms(pcm: bytes, start: int, end: int) -> float:
         total += (v / 32768.0) ** 2
         n += 1
     return (total / n) ** 0.5 if n else 0.0
+
+
+def upsample_16k_to_24k(pcm: bytes) -> bytes:
+    """PCM16 16kHz → 24kHz. **2:3 정수비**라 부동소수 리샘플러가 필요 없다.
+
+    왜 필요한가: OpenAI Realtime 전사가 `rate: 16000` 을 거절한다(`integer_below_min_value`).
+    우리 클라는 16k 를 보낸다 — 서버에서 올려 보내는 수밖에 없다.
+
+    방식: 입력 두 표본(a, b)마다 **a, (a+b)/2, b** 세 표본을 낸다(선형 보간).
+    ⛔ 무거운 리샘플러를 넣지 않는다 — cpu=1 Cloud Run 이고 이 경로는 통화 내내 돈다.
+      정수 산술뿐이라 1초치(16,000표본)에 파이썬으로도 수 ms 다.
+    ⚠ 표본 수가 홀수면 마지막 한 표본은 그대로 붙인다(0.06ms — 프레임 경계에서만, 누적 없음).
+    """
+    if len(pcm) < 4:
+        return pcm
+    src = array.array("h")
+    src.frombytes(pcm[: len(pcm) // 2 * 2])
+    out = array.array("h")
+    n = len(src) - 1
+    for i in range(0, n, 2):
+        a, b = src[i], src[i + 1]
+        out.append(a)
+        out.append((a + b) // 2)
+        out.append(b)
+    if len(src) % 2:
+        out.append(src[-1])
+    return out.tobytes()
 
 
 def _loud_windows(pcm: bytes, sample_rate: int) -> tuple[list[int], int, int]:
