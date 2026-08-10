@@ -109,16 +109,42 @@ def test_the_set_stays_small_and_teacherly():
 
 
 # ── ④ Chirp 에서는 스타일이 안 간다(기존 성질) + 로그로 보인다 ─────────────
-def test_chirp_gets_no_style_and_says_so_in_the_log():
-    """⛔ Chirp 은 스타일을 안 받는다. 그 사실이 안 보이면 "감정이 안 되네"가 된다."""
+@pytest.mark.parametrize("engine,applied", [
+    ("chirp3-hd", False),          # 스타일을 안 받는다
+    ("", False),                   # 서버 기본값(Chirp)
+    ("gemini-tts", True),
+    ("gemini-batch", True),
+    ("openai-tts", True),          # ⛔ 2026-08-11 까지 여기가 빠져 **거짓 로그**를 찍었다
+])
+def test_emotion_log_tells_the_truth_for_every_engine(engine, applied):
+    """⛔⛔ **로그가 거짓말을 하면 사람이 잘못 판단한다.**
+
+    실통화 원문: `tts=openai-gpt-4o-mini-tts` 인데 `감정=인사(미적용:cloud-tts-chirp3-hd)`.
+    감정은 실제로 들어가고 있었고(instructions) **로그만 틀렸다.** 그걸 보고 "감정이 안
+    걸리는구나"라고 판단하면 멀쩡한 기능을 다시 만들게 된다.
+    ⚠ 미적용일 때 찍는 엔진 이름도 **실제로 도는 엔진**이어야 한다(예전엔 하드코딩이었다).
+    """
     session = cs.CascadeSession(_Sink())
-    session._tts_engine = "chirp3-hd"
+    session._tts_engine = engine
     session._reply_emotion = "칭찬"
-    assert "미적용" in session._emotion_log()
-    session._tts_engine = "gemini-tts"
-    assert session._emotion_log() == "감정=칭찬"
+    line = session._emotion_log()
+    if applied:
+        assert line == "감정=칭찬", line
+    else:
+        assert "미적용" in line and session._tts_vendor() in line, line
+
+
+def test_emotion_log_says_none_when_there_is_no_tag():
+    session = cs.CascadeSession(_Sink())
     session._reply_emotion = None
     assert session._emotion_log() == "감정=없음"
+
+
+def test_style_engine_set_is_defined_in_one_place():
+    """⛔ 하드코딩이 이 사고의 원인이었다 — 판정은 한 곳에서만."""
+    assert cs._OPENAI_TTS_CHOICE in cs._STYLE_ENGINES
+    assert cs.tts.GEMINI_ENGINE in cs._STYLE_ENGINES
+    assert cs.tts.CHIRP3_ENGINE not in cs._STYLE_ENGINES
 
 
 def test_chirp_branch_still_passes_an_empty_style():

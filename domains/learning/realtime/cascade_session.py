@@ -146,6 +146,11 @@ _GEMINI_BATCH_CHOICE = "gemini-batch"
 # ⭐ OpenAI TTS — `/v1/audio/speech` HTTP 청크 스트리밍. `pcm`=24k/16bit/mono 라 변환이 없다.
 #   `instructions` 가 스타일 프롬프트 자리라 **감정 태그가 그대로 붙는다.**
 _OPENAI_TTS_CHOICE = "openai-tts"
+# ⭐ **스타일(감정) 지시를 실제로 받는 엔진들.** ⛔ 한 곳에서만 정한다 — 2026-08-11 에 이 판정이
+#   `_emotion_log` 에 하드코딩돼 있어서, OpenAI 로 돌면서 `감정=인사(미적용:cloud-tts-chirp3-hd)`
+#   라고 **거짓 로그**가 찍혔다(감정은 실제로 들어가고 있었다). 로그가 거짓이면 사장님이
+#   "감정이 안 걸리는구나"라고 잘못 판단하신다 — 잘못 잰 지표로 하루를 태운 것과 같은 계열이다.
+_STYLE_ENGINES = (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # 말하기 배속 허용 범위 — proto 원문 [0.25, 2.0]. 밖은 거절한다(요청이 통째로 거절되기 전에).
 _RATE_MIN, _RATE_MAX = 0.25, 2.0
@@ -2123,12 +2128,17 @@ class CascadeSession:
 
         ⛔ Chirp 은 스타일을 안 받는다. 그 사실이 안 보이면 사장님이 Chirp 으로 들으시고
           "감정이 안 되네"라고 하시게 된다.
+        ⛔⛔ **판정은 `_STYLE_ENGINES` 한 곳에서만 한다.** 여기 하드코딩돼 있던 탓에 OpenAI 로
+          돌면서 `감정=인사(미적용:cloud-tts-chirp3-hd)` 라는 **거짓 로그**가 찍혔다 —
+          감정은 실제로 들어가고 있었는데(instructions), 로그만 아니라고 말했다.
+          그리고 엔진 이름도 하드코딩이라 **돌지도 않은 엔진 이름**을 찍었다.
         """
         if not self._reply_emotion:
             return "감정=없음"
-        applied = self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE)
-        return "감정=%s%s" % (self._reply_emotion,
-                             "" if applied else "(미적용:%s)" % tts.CHIRP3_ENGINE)
+        if self._tts_engine in _STYLE_ENGINES:
+            return "감정=%s" % self._reply_emotion
+        # 미적용이면 **실제로 도는 엔진 이름**을 적는다(빈 값이면 서버 기본값 = Chirp).
+        return "감정=%s(미적용:%s)" % (self._reply_emotion, self._tts_vendor())
 
     def _speaking_rate(self, language: str | None = None) -> float | None:
         """이 **구간**에 적용할 말하기 배속 — 언어·엔진마다 다르다.
