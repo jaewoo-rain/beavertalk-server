@@ -151,6 +151,38 @@ _OPENAI_TTS_CHOICE = "openai-tts"
 #   라고 **거짓 로그**가 찍혔다(감정은 실제로 들어가고 있었다). 로그가 거짓이면 사장님이
 #   "감정이 안 걸리는구나"라고 잘못 판단하신다 — 잘못 잰 지표로 하루를 태운 것과 같은 계열이다.
 _STYLE_ENGINES = (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
+# ⭐ **고를 수 있는 TTS 전부.** 엔진을 늘릴 때 손댈 자리를 한 곳으로 모은다 —
+#   나열이 여러 곳에 흩어져 있으면 **어느 하나에서 빠진다**(2026-08-11 실제로 그랬다:
+#   묶음 크기 분기에서 OpenAI 가 빠져 Chirp 값 160 을 물려받았다. Chirp 은 TTFB 165~212ms 라
+#   요청이 많아도 견디는데, OpenAI 는 545~953ms 다 — **요청도 많고 왕복도 긴 최악 조합**).
+_TTS_CHOICES = (_CHIRP_CHOICE, tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
+
+
+# 엔진 → 묶음 크기 설정 이름. ⛔ **값이 아니라 이름**이라 env 로 바꿔도 그대로 따라간다.
+#   실측 TTFB(괄호)가 클수록 크게 묶는다 — 요청당 그 시간이 통째로 붙기 때문이다.
+_TTS_BATCH_SETTING = {
+    _CHIRP_CHOICE: "CASCADE_TTS_BATCH_CHARS",                 # 165~212ms
+    tts.GEMINI_ENGINE: "CASCADE_TTS_BATCH_CHARS_GEMINI",      # 805~1271ms
+    _GEMINI_BATCH_CHOICE: "CASCADE_TTS_BATCH_CHARS_GEMINI",
+    _OPENAI_TTS_CHOICE: "CASCADE_TTS_BATCH_CHARS_OPENAI",     # 545~953ms
+}
+
+
+def _batch_chars_for(engine: str) -> int:
+    """엔진별 묶음 크기 — **요청당 고정 오버헤드(TTFB)가 큰 엔진일수록 크게 묶는다.**
+
+    ⛔ 새 엔진을 `_TTS_CHOICES` 에 넣고 위 표에 안 넣으면 **경고가 뜬다**(조용히 기본값으로
+      떨어지지 않는다). 회귀는 **전 선택지가 표에 있는지**를 본다 — 그게 이번 사고의 재발 방지다.
+    """
+    name = (engine or _CHIRP_CHOICE).strip()
+    key = _TTS_BATCH_SETTING.get(name)
+    if key is None:
+        logger.warning(
+            "cascade tts 묶음 크기 미지정 엔진(%r) — 기본 %d자로 간다. 표에 넣어라",
+            name[:24], settings.CASCADE_TTS_BATCH_CHARS,
+        )
+        key = "CASCADE_TTS_BATCH_CHARS"
+    return max(1, int(getattr(settings, key)))
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # 말하기 배속 허용 범위 — proto 원문 [0.25, 2.0]. 밖은 거절한다(요청이 통째로 거절되기 전에).
 _RATE_MIN, _RATE_MAX = 0.25, 2.0
@@ -2208,15 +2240,16 @@ class CascadeSession:
         return self._tts_engine == tts.GEMINI_ENGINE
 
     def _batch_chars(self) -> int:
-        """문장을 얼마나 모아 한 번에 합성할지 — **엔진마다 다르다.**
+        """문장을 얼마나 모아 한 번에 합성할지 — **요청당 오버헤드가 큰 엔진일수록 크게.**
 
-        Gemini 는 요청마다 고정 오버헤드(≈1.3초)가 붙어 짧은 요청이 특히 손해다. 반대로
-        TTFB 는 길이와 거의 무관했으므로(49자 1,328ms / 196자 1,188ms) 크게 묶어도 첫 소리가
-        그만큼 늦지 않는다. 요청 수가 줄어 분당 쿼터(10회)에도 유리하다.
+        요청마다 고정 오버헤드(TTFB)가 붙으므로 짧은 요청이 많을수록 손해다. 반대로 TTFB 는
+        길이와 거의 무관하므로(Gemini 실측 49자 1,328ms / 196자 1,188ms) 크게 묶어도 첫 소리가
+        그만큼 늦지 않는다. 요청 수가 줄면 분당 쿼터에도 유리하다.
+        ⚠ 이 값은 **문장 사이**만 묶는다 — `__마커__` 로 갈린 **언어 구간**은 어차피 요청이
+          따로 나간다(그쪽은 `CASCADE_TTS_SINGLE_VOICE_ENGINES` 가 다루고, 한국어 발음이
+          걸려 있어 귀로 판단할 문제다).
         """
-        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
-            return max(1, settings.CASCADE_TTS_BATCH_CHARS_GEMINI)
-        return max(1, settings.CASCADE_TTS_BATCH_CHARS)
+        return _batch_chars_for(self._tts_engine)
 
     def _tts_vendor(self) -> str:
         """원가 벤더 문자열 = **의도한 엔진**. 실제로 다른 엔진이 냈으면 위에서 보정한다.
@@ -2580,8 +2613,7 @@ class CascadeSession:
                 # ⛔ 키가 없으면 **명확히 거절한다.** 조용히 다른 엔진으로 바꾸면 사장님이
                 #   "OpenAI 소리"로 착각하신다(ElevenLabs 에서 했던 그대로).
                 logger.warning("cascade tts 엔진 거절: %s — API 키 미설정(GPT_API_KEY)", picked)
-            elif picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE, _GEMINI_BATCH_CHOICE,
-                            _OPENAI_TTS_CHOICE):
+            elif picked in _TTS_CHOICES:
                 self._tts_engine, source = picked, "클라 지정"
             else:
                 logger.warning("cascade tts 엔진 값 거절: %r — 서버 기본값으로 진행", picked[:40])
