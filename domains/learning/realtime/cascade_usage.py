@@ -125,7 +125,9 @@ class CascadeUsage:
         `usage()` 가 없는 객체(다른 엔진·목)도 그냥 통과한다 — 계측 부재는 오류가 아니다.
         """
         try:
-            self.stt.vendor = stt_vendor_name(engine)
+            # ⭐ 스트림이 자기 벤더를 알면 **그게 진실이다** — 폴백이 일어나면 엔진 이름과
+            #   실제로 돈 엔진이 갈린다(TTS 폴백에서 배운 그대로).
+            self.stt.vendor = getattr(stream, "vendor", "") or stt_vendor_name(engine)
             usage = stream.usage() if hasattr(stream, "usage") else None
             if not usage:
                 return
