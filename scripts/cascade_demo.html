@@ -80,9 +80,6 @@
         <option value="chirp3-hd">Chirp3-HD (기본 · 빠름)</option>
         <option value="gemini-tts">Gemini-TTS · 실시간 (끊길 수 있음)</option>
         <option value="gemini-batch">Gemini-TTS · 전체 합성 후 재생 (안 끊김 · 20초+ 대기)</option>
-        <option value="elevenlabs-flash">ElevenLabs · 라이브 (빠름 · 감정 태그 없음)</option>
-        <option value="elevenlabs-multilingual">ElevenLabs · 자연스러운 목소리 (사람 같음 · 실시간용 아님)</option>
-        <option value="elevenlabs-v3">ElevenLabs · 감정 태그 ([laughs] 등 · 느릴 수 있음)</option>
       </select>
       <span class="muted">말하기 속도</span>
       <select id="speakingRate" title="1.0 = 그 목소리의 정상 속도. 범위 0.25~2.0">
@@ -100,7 +97,6 @@
       Gemini 6.9초/<b>1.3배속</b>. Gemini 는 합성이 재생 속도를 겨우 따라잡아 버퍼가 안 쌓이고,
       거기에 <b>분당 요청 10회</b> 쿼터가 겹친다(초과하면 이 통화는 Chirp 으로 고정된다).
       선택은 <b>통화 시작 시점</b>에 서버로 간다.
-      <br>⚠ <b>ElevenLabs</b> 두 항목은 서버에 API 키가 있어야 동작한다 — 없으면 서버가 거절하고
       기본 엔진으로 간다(로그에 이유가 남는다). v3 는 감정 태그를 쓰지만 공식 문서가
       실시간에는 flash 를 권한다.
       <br>⭐ <b>전체 합성 후 재생</b>: 대답을 통째로 만든 뒤 한 번에 들려준다. 말이 끝나고

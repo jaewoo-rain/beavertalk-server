@@ -347,26 +347,7 @@ class Settings(BaseSettings):
     # 그래서 Gemini 는 더 크게 묶는다. ⚠ TTFB 는 길이와 거의 무관했다(49자 1,328ms /
     # 196자 1,188ms) — 묶어도 첫 소리가 그만큼 늦지는 않는다.
     CASCADE_TTS_BATCH_CHARS_GEMINI: int = 400
-    # ── ElevenLabs (구글이 아니다 — core/elevenlabs_tts.py 가 REST 를 직접 부른다) ──
-    # ⛔ 키가 없으면 그 두 선택지는 **비활성**이다(고르면 명확한 에러). 앱은 그대로 뜬다(R5).
-    #   키는 배포 환경에만 넣는다 — 코드·문서·로그 어디에도 값을 적지 않는다.
-    CASCADE_TTS_ELEVEN_API_KEY: str = ""
-    # ⚠ ElevenLabs 는 voice_id 체계가 구글과 **완전히 다르다**(Sulafat 같은 이름이 없다).
-    #   기본값은 공식 기본 보이스 중 **다국어 지원 여성 목소리(Rachel)** 의 공개 voice_id 다 —
-    #   한국어를 내려면 다국어 모델(flash v2.5 / v3)과 함께 써야 한다.
-    #   ⭐ 최종 선택은 들어보고 정한다. 그래서 env 로 뺐다.
-    CASCADE_TTS_ELEVEN_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
-    # ⭐ **타깃 언어(한국어) 구간 전용 음성.** 비우면 위 음성 하나가 두 언어를 다 읽는다.
-    #   ⛔ 왜 필요한가: Chirp 경로는 `__마커__` 로 구간을 갈라 영어는 en 음성, 한국어는 ko
-    #   음성으로 읽는다. ElevenLabs 는 다국어 음성 **하나**가 둘 다 읽는데, 그 음성이 영어권
-    #   화자에서 만들어졌으면 한국어가 **외국인 억양**으로 나온다. 비버는 발음 선생님이고
-    #   학습자가 그대로 따라 한다 — 목소리가 사람 같아도 **발음이 틀리면 못 쓴다.**
-    #   ⚠ 미설정이 기본이다(동작 무변경). 키가 들어온 뒤 한국어 구간을 들어보고 정한다.
-    CASCADE_TTS_ELEVEN_VOICE_ID_TARGET: str = ""
-    # 선행 버퍼 — ⚠ **실측 전이라 보수적으로** Gemini 와 같은 값에서 시작한다.
-    #   오늘 배운 것: 짧은 요청 측정이 결론을 뒤집었다. 배포 후 실측으로 조정한다.
-    CASCADE_TTS_LEAD_MS_ELEVEN: int = 1500
-    CASCADE_TTS_BATCH_CHARS_ELEVEN: int = 400
+    # (ElevenLabs 설정 5종은 2026-08-10 제거했다 — 실측 전에 접었다. git 이력에 남아 있다.)
 
     # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None

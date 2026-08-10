@@ -3284,19 +3284,14 @@ def test_cascade_cost_matches_hand_calculation_and_flags_unknown_vendors():
 
     # 모르는 벤더 → 값이 0 이 아니라 "미상"으로 드러나야 한다. 조용히 0 이면
     # "캐스케이드가 공짜"라는 그럴듯한 거짓말이 통계에 섞인다.
-    cost2, unknown2 = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "elevenlabs-v3", "chars": 8_400},
-    })
-    assert cost2 == 0.0 and unknown2 == ["tts:elevenlabs-v3"]
-
-    # ⭐ 실제로 원가에 실리는 문자열은 **모델 ID** 다(`_tts_vendor()`). 새 모델을 붙일 때마다
-    #   여기 걸려야 한다 — ElevenLabs 는 구독 등급별 문자 단가라 **검증된 USD/자가 없다.**
-    #   근거 없는 숫자를 표에 넣느니 미상으로 드러내는 쪽이 맞다(그게 274044a 의 교훈이다).
-    for model in ("eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_v3"):
-        cost3, unknown3 = svc.estimate_cascade_cost_usd({
+    # ⭐ 원가에 실리는 문자열은 **모델 ID** 다(`_tts_vendor()`). 표에 없는 모델이 오면
+    #   조용히 0 원이 아니라 **미상으로 드러나야** 한다 — 검증된 단가가 없는 벤더에 근거 없는
+    #   숫자를 넣느니 모른다고 말하는 쪽이 맞다(274044a 의 교훈). 엔진이 바뀌어도 남는 성질이다.
+    for model in ("some-new-tts-2026", "another-vendor-hd"):
+        cost2, unknown2 = svc.estimate_cascade_cost_usd({
             "tts": {"vendor": model, "chars": 8_400},
         })
-        assert cost3 == 0.0 and unknown3 == [f"tts:{model}"], model
+        assert cost2 == 0.0 and unknown2 == [f"tts:{model}"], model
 
 
 def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
