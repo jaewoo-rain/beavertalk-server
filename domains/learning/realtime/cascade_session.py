@@ -538,6 +538,13 @@ class BeaverOutput:
         if not pcm:
             return
         await self._pace()
+        # ⛔ **여기서 다시 본다**(2026-08-11 QA 발견4). 위 `_pace()` 는 최대 lead_ms 만큼 자고,
+        #   그 사이 다른 태스크의 `cancel()` 이 `_cur` 를 None 으로 만들 수 있다. 재확인이 없으면
+        #   AttributeError 가 나고, 호출부는 `InvariantError` 만 잡으므로 **TaskGroup 으로 올라가
+        #   세션 전체가 죽는다.** 지금 안 터지는 건 호출부 3곳이 태스크를 먼저 cancel 하기
+        #   때문이다 — 즉 **클래스가 아니라 호출 관례가 안전을 지키고 있었다.**
+        if self._cur is None:
+            raise InvariantError("송출 중 턴이 취소됐다(I1 — 정상 경로)")
         if self._cur.first_audio_at < 0:
             self._cur.first_audio_at = self._now()
         start = self._cur.sent_bytes
@@ -732,6 +739,7 @@ class CascadeSession:
         # barge-in 판정 계측(관측 전용) — 보류 시각·그때 에너지 / 판정별 에너지 표본.
         self._bargein_pending_at = 0.0
         self._bargein_pending_rms = 0.0
+        self._bargein_blind = 0      # 오프셋이 없어 최소지속을 못 잰 횟수(관측 — 로그 폭발 방지)
         self._bargein_obs: list[tuple[str, float]] = []
         # 비버 출력(P1: TTS 송출·원장·페이서). P0 에서는 오디오를 내지 않지만, 클라가
         # 되보내는 playback_progress 를 **턴별 원장에 대조**하려면 지금부터 있어야 한다.
@@ -1345,18 +1353,29 @@ class CascadeSession:
                 )
                 self._note_bargein("기각-에너지", rms)
                 return False
-        # ② 최소 지속 — 순간 튐으로 비버를 끊지 않는다.
+        # ② 최소 지속 — 순간 튐으로 비버를 끊지 않는다. **오디오 시각으로만 판정한다.**
+        #   ⛔⛔ 예전엔 오디오 시각으로 못 재면 `await asyncio.sleep(200ms)` 로 기다렸다.
+        #     이 함수는 `_on_speech_begin` → `_handle` → **`_pump_turn` 본체**에서 돈다 —
+        #     그 200ms 동안 `_close_at`·`_turn_deadline`·`_turn_idle_at`·`_bargein_at`
+        #     **네 시계가 전부 멈춘다.** 게다가 오프셋이 -1 이면 조건이 **항상 참**이라
+        #     `speech_begin` 마다 잤고, 지금 기본 STT(openai)는 전사에 오프셋을 안 싣는다
+        #     = **기본 구성에서 상시 발생**이었다(2026-08-11 QA 발견5).
+        #   ⭐ 지금은 기다릴 이유도 약하다: 보류로 넘어가도 **끊지는 않는다**(전사가 와야 끊는다).
+        #     그래서 못 재면 **관문을 통과시키고 전사 확인에 맡긴다.** 대신 그 사실을 로그로 남긴다.
         min_ms = max(0, settings.CASCADE_BARGEIN_MIN_MS)
-        # ⚠ min_ms=0 이어도 여기서 바로 True 를 돌려주면 **아래 ③ 전사 확인이 통째로
-        #   건너뛰어진다.** 예전 코드가 그랬다(그래서 지속 시간을 0 으로 두면 잡음이 전부
-        #   통과했다). 지속 대기만 건너뛰고 관문은 계속 태운다.
-        # 지속 판정은 오디오 시각으로 한다 — 도착 시각으로 재면 리전 왕복이 섞인다.
-        if min_ms > 0 and not (event.offset_ms >= 0 and (self._audio_ms - event.offset_ms) >= min_ms):
-            await asyncio.sleep(min_ms / 1000.0)
-            if not self._speech_active:
+        if min_ms > 0 and event.offset_ms >= 0:
+            if (self._audio_ms - event.offset_ms) < min_ms:
                 logger.info("cascade barge-in 기각 — 최소 지속 %dms 미달(에코/잡음 추정)", min_ms)
                 self._note_bargein("기각-지속", rms)
                 return False
+        elif min_ms > 0:
+            # ⚠ 판정 재료가 없다 — **기다리지 않는다**(펌프가 멈춘다). 전사 게이트가 결정한다.
+            self._bargein_blind += 1
+            if self._bargein_blind == 1:
+                logger.info(
+                    "cascade barge-in 최소지속 판정 불가(오프셋 미상) — 기다리지 않고 "
+                    "전사 확인에 맡긴다. 이 통화에서 처음이다"
+                )
         # ③ 전사 확인 — **설계에 있다고 적어 두고 P1 에서 안 붙였던 관문**이다(2026-08-07).
         #   그동안 barge-in 은 에너지+지속만으로 발동했고, 기침·키보드·숨소리가 전부 통과했다.
         #   여기서 True 를 돌려주면 즉시 취소되므로, transcript 모드는 **판정을 미룬다**:
@@ -1569,7 +1588,8 @@ class CascadeSession:
         self._interrupted = None
         self._pending_user_text = ""
 
-    async def _run_reply(self, user_text: str, is_greeting: bool = False) -> None:
+    async def _run_reply(self, user_text: str, is_greeting: bool = False,
+                         seq: int = 0) -> None:
         """사용자 발화 1건에 대한 비버의 대답 — LLM 스트리밍 → 문장 분할 → TTS → 송출."""
         self._reply_cancelled = False
         # ⛔ **대답마다 비운다.** 안 비우면 이전 턴의 엔진·마커 집계가 누적돼 로그가

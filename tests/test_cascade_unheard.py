@@ -349,3 +349,27 @@ def test_first_sound_measures_the_first_byte_not_the_whole_batch():
     line = t.summary()
     assert t.first_sound_ms == 1000, line
     assert "벤더 240" in line and "첫배치=3200ms" in line and "페이서 2200ms" in line, line
+
+
+# ── 송출 경쟁: `_pace()` 뒤 턴이 사라져도 **세션은 안 죽는다**(QA 발견4) ────
+@pytest.mark.asyncio
+async def test_send_after_cancel_raises_invariant_not_attribute_error():
+    """⛔ 예전엔 `_pace()` 뒤 `_cur` 를 재확인 없이 역참조해 **AttributeError** 가 났다.
+
+    호출부는 `InvariantError` 만 잡으므로 그 예외는 **TaskGroup 으로 올라가 세션 전체를**
+    죽인다. 지금 안 터진 건 호출부 3곳이 태스크를 먼저 cancel 하기 때문 —
+    **클래스가 아니라 호출 관례가 안전을 지키고 있었다.** 네 번째 호출부가 생기면 즉시 크래시다.
+    """
+    from domains.learning.realtime.cascade_session import BeaverOutput, InvariantError
+
+    beaver = BeaverOutput(_Sink())
+
+    async def _cancel_midway(_sec: float) -> None:
+        await beaver.cancel(reason="test")     # 자는 동안 턴이 사라진다
+
+    beaver._sleep = _cancel_midway
+    beaver.lead_ms = 0
+    await beaver.begin()
+    await beaver.send(b"\x01\x02" * 2_400, "")   # 페이서가 한 번 자게 만든다
+    with pytest.raises(InvariantError):
+        await beaver.send(b"\x01\x02" * 2_400, "")
