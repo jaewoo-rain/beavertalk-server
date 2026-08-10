@@ -49,6 +49,7 @@ from starlette.websockets import WebSocket, WebSocketState
 
 from core import audio
 from core import gemini_chat
+from core import openai_tts
 from core.audio import trim_silence_edges
 from core import stt as stt_mod
 from core import tts
@@ -139,6 +140,9 @@ _CHIRP_CHOICE = "chirp3-hd"
 #   ⛔ 프로덕션 방식이 아니다. Chirp 은 지금 방식 그대로 간다.
 _GEMINI_BATCH_CHOICE = "gemini-batch"
 # (ElevenLabs 3종은 2026-08-10 제거했다 — 실측 전에 접었다. 사유는 그 커밋 메시지에 있다.)
+# ⭐ OpenAI TTS — `/v1/audio/speech` HTTP 청크 스트리밍. `pcm`=24k/16bit/mono 라 변환이 없다.
+#   `instructions` 가 스타일 프롬프트 자리라 **감정 태그가 그대로 붙는다.**
+_OPENAI_TTS_CHOICE = "openai-tts"
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # 말하기 배속 허용 범위 — proto 원문 [0.25, 2.0]. 밖은 거절한다(요청이 통째로 거절되기 전에).
 _RATE_MIN, _RATE_MAX = 0.25, 2.0
@@ -1899,6 +1903,14 @@ class CascadeSession:
         #   ⛔ 대사 원문은 찍지 않는다(통화 내용이 로그에 남는다). 구간 수·언어·마커 상태면 된다.
         marker_state = _marker_state(sentence)
         self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
+        # ⭐ **한 음성이 두 언어를 다 읽는 엔진**은 구간을 안 나눈다 — 요청 수와 구간 침묵이
+        #   같이 준다(429 에도 유리). ⛔ 기본은 나눈다: 안 나눴을 때 한국어 발음이 어떻게 되는지
+        #   **미확인**이라 귀로 확인하기 전엔 기본을 바꾸지 않는다.
+        if self._single_voice():
+            logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 마커=%s",
+                        self._tts_engine, marker_state)
+            return await self._speak_one(strip_markers(sentence).strip(),
+                                         settings.CASCADE_TTS_LANGUAGE)
         logger.info(
             "cascade 언어구간: %d개 %s 마커=%s",
             len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
@@ -1923,6 +1935,27 @@ class CascadeSession:
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
+        if self._tts_engine == _OPENAI_TTS_CHOICE:
+            # ⛔ 구글이 아니다 — 별도 어댑터를 탄다. 폴백도 하지 않는다(엔진을 골라 듣는 중인데
+            #   조용히 다른 소리가 나면 A/B 가 거짓말이 된다).
+            stream = openai_tts.synthesize_stream(
+                sentence,
+                instructions=self._style_prompt(),   # ⭐ 감정 태그가 여기로 들어간다
+                report=report,
+            )
+            trim = self._trim_silence()
+            if trim:
+                stream = self._trim_head(stream)
+            sent = await speak_stream(self.beaver, stream, sentence, trim_tail=trim)
+            if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
+                self._tts_ttfb_ms = int(report["ttfb_ms"])
+            self.usage.record_tts_audio(sent)
+            if sent:
+                self._tts_engines.add(report.get("engine") or self._tts_vendor())
+                self._reply_spans.append((language, len(sentence), sent))
+            else:
+                self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
+            return sent
         # ⭐ 이 통화에서 이미 429 를 맞았으면 **Gemini 를 다시 찌르지 않는다**(세션 단위 백오프).
         #   실측: 한도가 분당 10회인데 수요가 평균 19.2 / 피크 27 이었다. 소진된 상태에서
         #   문장마다 찔러봐야 **실패해도 요청은 나가고**(회복이 늦어진다) 첫소리만 늘어난다.
@@ -2044,6 +2077,15 @@ class CascadeSession:
             return settings.CASCADE_TTS_SPEAKING_RATE_GEMINI
         return settings.CASCADE_TTS_SPEAKING_RATE
 
+    def _single_voice(self) -> bool:
+        """이 엔진은 **한 음성으로 두 언어를 다 읽나**(=마커 분할을 건너뛰나).
+
+        ⛔ 엔진 이름으로 명시한다(설정). 기본은 비어 있어 지금처럼 나눈다.
+        """
+        engine = (self._tts_engine or tts.CHIRP3_ENGINE).strip()
+        names = {n.strip() for n in (settings.CASCADE_TTS_SINGLE_VOICE_ENGINES or "").split(",")}
+        return bool(engine) and engine in names
+
     def _trim_silence(self) -> bool:
         """이 엔진의 출력에서 **구간 앞뒤 침묵을 잘라낼 것인가.**
 
@@ -2098,6 +2140,8 @@ class CascadeSession:
         """
         if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
             return (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip()
+        if self._tts_engine == _OPENAI_TTS_CHOICE:
+            return openai_tts.vendor_name()
         return tts.CHIRP3_ENGINE
 
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
@@ -2433,7 +2477,12 @@ class CascadeSession:
         picked = str(ctrl.get("ttsEngine") or ctrl.get("tts_engine") or "").strip()
         source = "서버 기본값"
         if picked:
-            if picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE, _GEMINI_BATCH_CHOICE):
+            if picked == _OPENAI_TTS_CHOICE and not openai_tts.is_configured():
+                # ⛔ 키가 없으면 **명확히 거절한다.** 조용히 다른 엔진으로 바꾸면 사장님이
+                #   "OpenAI 소리"로 착각하신다(ElevenLabs 에서 했던 그대로).
+                logger.warning("cascade tts 엔진 거절: %s — API 키 미설정(GPT_API_KEY)", picked)
+            elif picked in (tts.GEMINI_ENGINE, _CHIRP_CHOICE, _GEMINI_BATCH_CHOICE,
+                            _OPENAI_TTS_CHOICE):
                 self._tts_engine, source = picked, "클라 지정"
             else:
                 logger.warning("cascade tts 엔진 값 거절: %r — 서버 기본값으로 진행", picked[:40])
@@ -2469,6 +2518,9 @@ class CascadeSession:
         #   배속 자체는 1.7~1.9x 라 초반만 견디면 격차가 벌어져 안 끊긴다.
         if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
             self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_GEMINI)
+        elif self._tts_engine == _OPENAI_TTS_CHOICE:
+            # ⚠ 미측정이라 크게 잡는다 — 작으면 언더런이 난다(Gemini 에서 겪은 그것).
+            self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_OPENAI)
         else:
             self.beaver.lead_ms = None
         # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
