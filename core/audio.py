@@ -157,11 +157,6 @@ def trim_silence_edges(
 INPUT_MIME_TYPE = f"audio/pcm;rate={INPUT_SAMPLE_RATE}"
 
 
-def is_valid_pcm16_frame(data: bytes) -> bool:
-    """PCM 16-bit 프레임(2바이트 정렬, 비어있지 않음)인지 검증한다."""
-    return len(data) > 0 and len(data) % SAMPLE_WIDTH_BYTES == 0
-
-
 def pcm16_to_wav(
     pcm: bytes,
     *,
