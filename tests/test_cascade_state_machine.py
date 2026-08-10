@@ -260,3 +260,88 @@ async def test_fake_beaver_never_clears_a_real_reply_state():
 
     src = inspect.getsource(CascadeSession._run_fake_beaver)
     assert "_reply_task is None or self._reply_task.done()" in src, src[-500:]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 세션 절대 백스톱 — **못 본 게 또 있다는 전제의 마지막 방어선**(2026-08-11 승인)
+#   턴 시계 넷은 전부 "이벤트가 정상적으로 흐른다"를 전제한다. 그 전제가 깨지면
+#   (펌프 정지·반열림 소켓) 아무 시계도 안 걸리고 **세션이 무기한 산다** — STT 가 원가의
+#   53% 이고 마이크는 상시개방이라 끝나지 않는 세션 하나가 계속 과금된다.
+# ══════════════════════════════════════════════════════════════════════════
+@pytest.mark.asyncio
+async def test_backstop_closes_a_stuck_session_through_the_normal_path(monkeypatch, caplog):
+    """⛔ **하드 킬이 아니다.** 원가 한 줄(`cascade usage:`)이 남고, 사유가 로그에 보인다.
+
+    하드 킬이면 오늘 원가 계측에 들인 작업이 그 자리에서 무의미해진다.
+    """
+    import core.stt as stt_mod
+    import domains.learning.realtime.cascade_session as cs
+
+    caplog.set_level("INFO")
+    monkeypatch.setattr(cs.settings, "CASCADE_SESSION_MAX_S", 0.3)
+    monkeypatch.setattr(cs.settings, "CASCADE_GREETING", False)
+    monkeypatch.setattr(stt_mod.settings, "STT_V2_FAKE", True)
+    stt_mod.get_speech_v2_client.cache_clear()
+
+    class _Stuck:
+        """start 만 되고 **아무 이벤트도 안 오는** 스트림(반열림 소켓 흉내)."""
+
+        vendor = "fake-stt"
+
+        async def start(self):
+            return None
+
+        async def push_audio(self, pcm):
+            return None
+
+        async def events(self):
+            await asyncio.sleep(60)
+            yield None      # 도달하지 않는다
+
+        async def close(self):
+            return None
+
+        def usage(self):
+            return {"streams": 1, "sent_audio_ms": 1234.0, "billed_msgs": 0}
+
+    class _Silent:
+        """start 만 보내고 **그 뒤로 아무것도 안 오는** 클라(펌프가 영영 대기).
+
+        ⚠ start 를 보내야 한다 — 백스톱은 **STT 스트림이 열린 뒤**를 감싼다(거기서부터 과금이
+          시작되기 때문이다). 그 앞의 유휴 소켓은 비용이 0 이고 플랫폼 타임아웃이 맡는다.
+        """
+
+        def __init__(self) -> None:
+            self.events: list[dict] = []
+            self._first = True
+
+        async def send_event(self, event: dict) -> None:
+            self.events.append(event)
+
+        async def send_audio(self, frame: bytes) -> None:
+            return None
+
+        async def receive(self):
+            if self._first:
+                self._first = False
+                return cs.CascadeInbound(kind="control",
+                                         control={"type": "start", "sampleRate": 16000})
+            await asyncio.sleep(60)
+
+    monkeypatch.setattr(stt_mod, "make_stt_v2_stream", lambda sr=16000, langs=None: _Stuck())
+    sink = _Silent()
+    session = cs.CascadeSession(sink)
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    assert any("절대 백스톱" in m for m in caplog.messages), caplog.messages[-5:]
+    assert any("cascade usage:" in m for m in caplog.messages), "원가 한 줄이 사라졌다"
+    codes = [e.get("code") for e in sink.events if e.get("type") == "error"]
+    assert "cascade_session_timeout" in codes, sink.events
+
+
+def test_backstop_never_fires_within_a_real_call():
+    """⭐ 정상 통화는 여기 **절대 안 닿는다** — 닿았다면 그 자체가 결함 신호다."""
+    from core.config import settings as live
+
+    assert live.CASCADE_SESSION_MAX_S >= 15 * 60, "15분 통화가 백스톱에 걸린다"
+    assert live.CASCADE_SESSION_MAX_S <= 30 * 60, "너무 길면 방어선 구실을 못 한다"

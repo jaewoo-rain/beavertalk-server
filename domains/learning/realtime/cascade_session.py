@@ -878,8 +878,15 @@ class CascadeSession:
             )
         )
 
+        # ⭐ **세션 절대 백스톱**(Live 불변식의 대응물). 턴 시계 넷은 전부 "이벤트가 정상적으로
+        #   흐른다"를 전제하므로, 그 전제가 깨지면 아무것도 안 걸린다. 여기가 마지막 방어선이다.
+        #   ⛔ 하드 킬이 아니다 — 아래 `finally` 가 그대로 돌아 **원가 한 줄이 남는다.**
+        #   ⚠ 감싸는 구간은 **STT 스트림이 열린 뒤**다. 그 앞(첫 메시지 대기)은 STT·LLM 이 아직
+        #     안 돌아 **과금이 0** 이고, 유휴 소켓은 플랫폼 타임아웃이 맡는다.
+        # 바닥은 0·음수 방어용이다(정책이 아니다) — 값 자체는 설정이 정한다.
+        backstop_s = max(1.0, float(settings.CASCADE_SESSION_MAX_S))
         try:
-            async with asyncio.TaskGroup() as tg:
+            async with asyncio.timeout(backstop_s), asyncio.TaskGroup() as tg:
                 self._tg = tg  # [dev 훅] 가짜 비버 태스크를 같은 그룹에 붙이기 위해
                 tg.create_task(self._pump_in(stream, pending_audio))
                 tg.create_task(self._pump_stt(stream))
@@ -892,6 +899,17 @@ class CascadeSession:
                     await self._start_reply(seed_opening(), is_greeting=True)
         except* _Stop:
             pass  # 정상 종료(클라 stop / 스트림 끝 / disconnect)
+        except* TimeoutError:
+            # ⛔ **백스톱으로 닫혔다는 사실이 보여야 한다** — 정상 종료와 구분이 안 되면
+            #   "왜 끊겼지"를 로그로 못 가른다. 그리고 이 줄이 뜨는 것 자체가 결함 신호다
+            #   (정상 통화는 여기 절대 안 닿는다).
+            logger.warning(
+                "cascade ⚠ 세션 절대 백스톱 발동(%.0f초) — 펌프가 멈췄거나 종료 신호를 못 받았다."
+                " 정상 통화는 여기 안 닿는다. 턴=%d",
+                backstop_s, self._turn_seq,
+            )
+            await self._safe(ServerError(code="cascade_session_timeout",
+                                         message="session_backstop", recoverable=False))
         except* Exception as eg:  # noqa: BLE001
             self._log_pump_errors(eg)
             await self._safe(ServerError(code="cascade_error", message="cascade_stream_error"))
