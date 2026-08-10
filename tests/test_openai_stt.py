@@ -176,11 +176,16 @@ def test_upsample_survives_tiny_and_odd_input():
 
 
 # ── ⑤ 기본값은 google ──────────────────────────────────────────────────────
-def test_engine_default_is_still_google():
-    """⛔ 실통화로 검증되기 전에 기본을 바꾸지 않는다."""
+def test_engine_default_is_openai_with_google_as_the_safety_net():
+    """⭐ 2026-08-10 사장님 지시로 **기본이 openai 로 뒤집혔다**(실측 6/6 vs 구글 1~2/6).
+
+    ⚠ 예전 성질("기본은 google")을 **지운 게 아니라 뒤집어 다시 박았다** — 기본이 무엇인지는
+      계속 못박혀 있어야 누가 조용히 바꿔도 잡힌다.
+    ⛔ 폴백은 그대로 산다: 키가 없으면 google 로 돌고 WARNING 이 남는다(위 테스트가 지킨다).
+    """
     from core.config import settings as live
 
-    assert live.CASCADE_STT_ENGINE == "google"
+    assert live.CASCADE_STT_ENGINE == "openai"
     assert live.OPENAI_STT_MODEL == "gpt-4o-mini-transcribe"
 
 

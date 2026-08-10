@@ -144,10 +144,12 @@ class Settings(BaseSettings):
     # 설계: docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md
     # ── STT 엔진 선택 (2026-08-10) ──
     # ⭐ `openai` 는 code-switching 실측에서 **6/6** 을 맞춘 유일한 후보다(구글은 1~2/6).
-    #   ⛔ 기본은 **google** 이다 — 실통화로 검증되기 전에 기본을 바꾸지 않는다.
+    #   ⭐ **기본이 openai 다**(2026-08-10 사장님 지시). 실측이 근거다 — 6개 언어쌍 같은
+    #     오디오·같은 실시간 경로에서 OpenAI **6/6**, Google 1~2/6, ElevenLabs 2/6.
     #   ⚠ 키가 없거나 연결이 실패하면 google 로 폴백하고 WARNING 을 남긴다(R5). 조용한 폴백
     #     금지 — 어느 엔진이 실제로 돌았는지 로그와 **원가 벤더**에 남아야 한다.
-    CASCADE_STT_ENGINE: str = "google"        # 'google' | 'openai'
+    #     ⇒ 폴백은 **안전망으로 그대로 산다.** 키가 빠지면 통화가 죽는 게 아니라 구글로 돈다.
+    CASCADE_STT_ENGINE: str = "openai"        # 'openai' | 'google'
     OPENAI_STT_MODEL: str = "gpt-4o-mini-transcribe"   # $0.003/분(구글의 1/5.3)
     # ⭐ 통화를 끊기 전에 흘릴 무음 길이. **없으면 마지막 발화가 사라진다**(2026-08-10 실측:
     #   그냥 끊으면 전사 2건, 꼬리 무음 1.5초를 붙이면 3건째가 온다 — server VAD 가 발화 끝을
