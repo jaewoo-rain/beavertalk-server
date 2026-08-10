@@ -1751,7 +1751,7 @@ class CascadeSession:
                     language=language,
                     voice=settings.CASCADE_TTS_VOICE,
                     engine=tts.GEMINI_ENGINE,
-                    speaking_rate=self._tts_rate,
+                    speaking_rate=self._speaking_rate(),
                     style_prompt=self._tts_style,
                     allow_gemini=not self._tts_gemini_off,
                 )
@@ -1882,7 +1882,7 @@ class CascadeSession:
             allow_gemini=allow_gemini,
             engine=(tts.GEMINI_ENGINE if self._tts_engine == _GEMINI_BATCH_CHOICE
                     else self._tts_engine or None),
-            speaking_rate=self._tts_rate,
+            speaking_rate=self._speaking_rate(),
             style_prompt=self._tts_style,
         )
         trim = self._trim_silence()
@@ -1920,6 +1920,19 @@ class CascadeSession:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         return sent
+
+    def _speaking_rate(self) -> float | None:
+        """이 엔진에 적용할 말하기 배속 — **엔진마다 다르다.**
+
+        ⛔ 클라(데모 화면)가 고른 값이 있으면 그게 우선이다(A/B 하려고 만든 통로다).
+        ⛔ 없으면 **엔진별 기본값**을 쓴다. 공통 값 하나를 올리면 Chirp 까지 빨라지는데,
+          Chirp 은 이미 충분히 빠르다 — 올릴 곳은 Gemini 뿐이다.
+        """
+        if self._tts_rate is not None:
+            return self._tts_rate
+        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
+            return settings.CASCADE_TTS_SPEAKING_RATE_GEMINI
+        return settings.CASCADE_TTS_SPEAKING_RATE
 
     def _trim_silence(self) -> bool:
         """이 엔진의 출력에서 **구간 앞뒤 침묵을 잘라낼 것인가.**
@@ -2329,9 +2342,10 @@ class CascadeSession:
             self.beaver.lead_ms = None
         # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
         logger.info(
-            "cascade 엔진 선택: %s (%s) speaking_rate=%s 선행버퍼=%dms 묶음=%d자 style=%r",
+            "cascade 엔진 선택: %s (%s) speaking_rate=%.2f(%s) 선행버퍼=%dms 묶음=%d자 style=%r",
             self._tts_engine or tts.CHIRP3_ENGINE, source,
-            self._tts_rate if self._tts_rate is not None else "서버값",
+            self._speaking_rate() or 1.0,
+            "클라 지정" if self._tts_rate is not None else "엔진 기본값",
             self.beaver.lead_ms if self.beaver.lead_ms is not None
             else settings.CASCADE_TTS_LEAD_MS,
             self._batch_chars(),

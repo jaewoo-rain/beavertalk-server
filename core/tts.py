@@ -343,7 +343,8 @@ def build_streaming_config(
     if rate is not None:
         # ⭐ **말하는 속도는 파라미터로 잡는다.** 스타일 프롬프트로 "천천히/빠르게"를 부탁하면
         #   실측 편차가 1.5배까지 났다(2.4 ~ 10.0 자/초). 부탁은 들쭉날쭉하고 파라미터는 일정하다.
-        #   엔진 공통 필드라 Chirp3-HD 경로에도 같이 걸린다.
+        #   ⚠ 이 필드 자체는 엔진 공통이다 — **어느 값을 넣을지는 호출부가 엔진별로 고른다**
+        #     (cascade `_speaking_rate()`). 여기서 공통 기본값을 올리면 Chirp 까지 빨라진다.
         #   ⚠ 1.0(정상 속도)이면 아예 안 넘긴다 — "배포만 해서는 아무것도 안 바뀐다"를 지키려면
         #     필드를 넣지 않는 쪽이 확실하다.
         audio_kwargs["speaking_rate"] = rate
@@ -383,7 +384,8 @@ def _clamp_speaking_rate(rate: float | None) -> float | None:
         value = clamped
     if value not in _RATE_LOGGED:
         _RATE_LOGGED.add(value)
-        logger.info("tts: speaking_rate=%.2f 적용(엔진 공통, 1.0=정상 속도)", value)
+        logger.info("tts: speaking_rate=%.2f 적용(호출부가 엔진별로 고른 값, 1.0=정상 속도)",
+                    value)
     return None if value == _RATE_NORMAL else value
 
 
