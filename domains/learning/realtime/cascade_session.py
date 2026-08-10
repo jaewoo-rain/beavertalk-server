@@ -662,6 +662,9 @@ class CascadeSession:
         self._history_dropped: list[dict] = []
         self._reply_task: asyncio.Task | None = None
         self._reply_cancelled = False
+        # ⭐ 대답 세대 번호. 끝나는 태스크가 **자기 것일 때만** 상태를 되돌린다 —
+        #   안 그러면 늦게 죽은 옛 태스크가 새 대답의 THINKING 을 IDLE 로 덮는다.
+        self._reply_seq = 0
         self._system_cache: str | None = None
         self._tts_engines: set[str] = set()   # **이 대답에서** 실제로 소리를 낸 엔진(A/B 로그용)
         # TTS 선택은 **세션 값**이다(예전엔 매 문장 settings 를 읽었다). 클라가 start 에서
@@ -1096,7 +1099,12 @@ class CascadeSession:
     async def _on_speech_end(self, event: SttV2Event) -> None:
         self._speech_active = False
         self._mark_voice(event)
-        if self.state != TurnState.USER_SPEAKING or self._turn_id is None:
+        # ⛔ **턴이 열려 있나만 본다.** 예전엔 `state == USER_SPEAKING` 도 요구했는데,
+        #   `_open_turn` 은 비버가 말하는 중이면 **일부러 상태를 안 뺏는다**(barge-in 겹침 허용).
+        #   그래서 barge-in 이 켜진 상태에서 열린 턴 — 즉 **주 경로** — 은 여기서 조기 반환돼
+        #   `_close_at` 이 한 번도 안 걸렸다. 글자가 끝내 안 나온 턴은 30초 상한까지 갔다.
+        #   ⭐ 이 함수가 묻는 것은 "누가 말하는가"가 아니라 **"닫을 턴이 있는가"** 다.
+        if self._turn_id is None:
             return  # 열린 턴이 없으면 무시(스트림 시작 직후의 잔여 이벤트 등)
         self._arm_close_timer(event)
 
@@ -1279,6 +1287,7 @@ class CascadeSession:
             self.state = TurnState.IDLE
         # ⭐ 여기서 비버가 대답한다(P1). ⛔ 빈 텍스트면 부르지 않는다 — 빈 입력 LLM 호출은
         # 원가만 나가고 헛대답을 만든다(결함 C 판단, 2026-08-07).
+        self._settle_cancelling()
         if text:
             await self._start_reply(text)
         else:
@@ -1559,7 +1568,10 @@ class CascadeSession:
                             user_text[:40])
                 return
         self.state = TurnState.THINKING
-        self._reply_task = self._tg.create_task(self._run_reply(user_text, is_greeting))
+        self._reply_seq += 1
+        self._reply_task = self._tg.create_task(
+            self._run_reply(user_text, is_greeting, self._reply_seq)
+        )
 
     async def _discard_unheard_reply(self, user_text: str) -> None:
         """준비 중이던 대답을 버리고 새 발화에 답할 자리를 비운다.
@@ -1709,9 +1721,42 @@ class CascadeSession:
         finally:
             self._batch_synthesizing = False
             self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
-            if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
-                self.state = TurnState.IDLE
+            self._settle_reply_state(seq)
             await self._drain_pending_user_text()
+
+    def _settle_reply_state(self, seq: int) -> None:
+        """대답이 끝났다 — **자기 세대일 때만** 상태를 IDLE 로 되돌린다.
+
+        ⭐ **CANCELLING 도 여기서 풀린다**(2026-08-11 QA 발견2). barge-in 이 세운 그 상태를 푸는
+          전이가 **하나도 없었다** — 굳으면 `_open_turn` 이 그걸 보존 목록에 두므로 이후 모든 턴이
+          USER_SPEAKING 이 못 되고 발견1(침묵 타이머 부재)이 **영구화**된다.
+        ⚠ 세대 번호를 보는 이유: 늦게 죽은 옛 태스크가 **새 대답의 THINKING 을 IDLE 로 덮으면**
+          그것도 같은 종류의 굳음이다(비버가 말하는데 상태는 IDLE).
+        """
+        if seq != self._reply_seq:
+            return
+        if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING,
+                          TurnState.CANCELLING):
+            self.state = TurnState.IDLE
+
+    def _settle_cancelling(self) -> None:
+        """**끝난 취소**를 IDLE 로 정리한다(2층 안전망 — QA 발견2).
+
+        1층은 대답 태스크의 finally 다. 그런데 취소할 대답이 애초에 없었거나 태스크가 다른
+        경로로 사라지면 그 층이 안 돈다. 그때 CANCELLING 이 남으면:
+          `_open_turn` 이 CANCELLING 을 **보존 목록**에 두므로 이후 턴이 USER_SPEAKING 이 못 되고,
+          발견1(침묵 타이머 부재)이 통화 끝까지 영구화된다.
+        ⛔ 조건은 **"정말 끝났나"** 다 — 대답 태스크가 죽었고 비버 턴도 없을 때만 푼다.
+          아직 도는 대답이 있는데 풀면 취소 배관이 자기 상태를 잃는다(`_open_turn` 주석의 의도).
+        """
+        if self.state != TurnState.CANCELLING:
+            return
+        if self._reply_task is not None and not self._reply_task.done():
+            return
+        if self.beaver.turn_id is not None:
+            return
+        logger.info("cascade 상태 정리: CANCELLING → IDLE(취소가 끝났다)")
+        self.state = TurnState.IDLE
 
     async def _drain_pending_user_text(self) -> None:
         """비버가 말하는 동안 들어온 발화에 **이제** 답한다(줄 세워 둔 것 하나).
