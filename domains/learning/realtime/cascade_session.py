@@ -2288,11 +2288,21 @@ class CascadeSession:
         logger.info("cascade 대답 이어가기: %d자(사용자가 결국 말하지 않았다 — 침묵 방지)",
                     len(pending["text"]))
         self.state = TurnState.THINKING
-        self._reply_task = self._tg.create_task(self._run_resume(pending["text"]))
+        self._reply_seq += 1
+        self._reply_task = self._tg.create_task(
+            self._run_resume(pending["text"], self._reply_seq)
+        )
         return True
 
-    async def _run_resume(self, text: str) -> None:
-        """끊겼던 말의 나머지를 그대로 소리로 낸다. ⛔ LLM 호출 없음(새 입력이 없으니 새 말도 없다)."""
+    async def _run_resume(self, text: str, seq: int = 0) -> None:
+        """끊겼던 말의 나머지를 그대로 소리로 낸다. ⛔ LLM 호출 없음(새 입력이 없으니 새 말도 없다).
+
+        ⛔ **이것도 '대답 경로'다.** `_run_reply` 에만 붙였던 세 가지가 여기 빠져 있었다
+          (2026-08-11 QA R1): ①대기열 배수 ②CANCELLING 해제 ③세대 가드.
+          ①이 없으면 이어가기 중에 한 말이 **영영 답을 못 받고**, 사용자가 참다 다시 말하면
+          그 새 대답의 finally 가 낡은 발화를 배수해 **침묵 → 새 말 답 → 낡은 말 답** 순으로 들린다
+          (`32616b9` 가 `_run_reply` 에서 없앤 증상 그대로다).
+        """
         self._reply_cancelled = False
         buffer = SentenceBuffer()
         turn_id: str | None = None
@@ -2312,8 +2322,8 @@ class CascadeSession:
         except InvariantError:
             logger.info("cascade 이어가기 중단(턴이 이미 닫힘) turn=%s", turn_id)
         finally:
-            if self.state in (TurnState.THINKING, TurnState.BEAVER_SPEAKING):
-                self.state = TurnState.IDLE
+            self._settle_reply_state(seq)
+            await self._drain_pending_user_text()
 
     def _trim_history(self) -> None:
         """⭐ 이력은 **글자 수**로 막는다 — 턴 수가 아니라.
@@ -2431,7 +2441,11 @@ class CascadeSession:
             # 취소가 먼저 들어와 턴이 닫힌 뒤의 잔여 송출 — 정상 경로다(설계 §5 실행 상세).
             logger.info("cascade [dev] 가짜 비버 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
         finally:
-            if self.state == TurnState.BEAVER_SPEAKING:
+            # ⚠ 진짜 대답이 돌고 있으면 **건드리지 않는다.** dev 훅과 대답 경로는 다른
+            #   태스크 축이라, 여기서 IDLE 로 덮으면 말하는 중인 비버의 상태가 사라진다.
+            if self.state == TurnState.BEAVER_SPEAKING and (
+                self._reply_task is None or self._reply_task.done()
+            ):
                 self.state = TurnState.IDLE
 
     async def _cancel_fake_beaver(self, ctrl: dict) -> None:

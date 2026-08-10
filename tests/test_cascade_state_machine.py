@@ -189,3 +189,74 @@ def test_bargein_gate_never_sleeps_in_the_pump():
         and isinstance(node.func, ast.Attribute) and node.func.attr == "sleep"
     ]
     assert not sleeps, "펌프 본체에서 자면 네 시계가 전부 멈춘다"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 대답 **경로** 축 — QA R1(2026-08-11)
+#   지적: "격자가 상태로만 짜였고 **대답 경로(reply / resume / 배치 / 가짜비버) 축이 없다.**
+#         R1 세 결함은 전부 '다른 경로'라 통과했다."
+#   실제로 `_run_resume` 에는 세 가지가 통째로 빠져 있었다:
+#     ①대기열 배수(=사용자 말이 사라진다) ②CANCELLING 해제 ③세대 가드
+# ══════════════════════════════════════════════════════════════════════════
+def _reply_paths():
+    """대답을 내는 **모든 경로**의 (이름, 코루틴 소스). 새 경로가 생기면 여기 추가한다."""
+    import inspect
+
+    return [
+        ("reply", inspect.getsource(CascadeSession._run_reply)),
+        ("resume", inspect.getsource(CascadeSession._run_resume)),
+    ]
+
+
+@pytest.mark.parametrize("name,src", _reply_paths())
+def test_every_reply_path_drains_the_queue(name, src):
+    """⛔ **모든 대답 경로가 대기열을 배수해야 한다.**
+
+    안 하면 그 경로가 도는 동안 한 말이 **영영 답을 못 받는다.** 그리고 사용자가 참다 다시
+    말하면 새 대답의 finally 가 낡은 발화를 배수해 **침묵 → 새 말 답 → 낡은 말 답** 순으로 들린다.
+    """
+    assert "_drain_pending_user_text" in src, f"{name} 경로가 대기열을 안 비운다"
+
+
+@pytest.mark.parametrize("name,src", _reply_paths())
+def test_every_reply_path_settles_state_with_a_generation_guard(name, src):
+    """⛔ 상태 되돌리기는 **한 곳**(`_settle_reply_state`)을 거친다.
+
+    직접 `state = IDLE` 로 되돌리면 ①CANCELLING 이 안 풀리고 ②늦게 죽은 옛 태스크가
+    **새 대답의 THINKING 을 덮는다**. 두 결함 다 실제로 있었다.
+    """
+    assert "_settle_reply_state" in src, f"{name} 경로가 상태를 직접 되돌린다"
+
+
+@pytest.mark.asyncio
+async def test_resume_takes_a_generation_number():
+    """세대 가드가 실제로 걸리는지 — 옛 resume 이 새 대답 상태를 못 덮는다."""
+    import inspect
+
+    assert "seq" in inspect.signature(CascadeSession._run_resume).parameters
+    session = _session()
+    session._reply_seq = 3
+    session.state = TurnState.THINKING
+    session._settle_reply_state(2)            # 옛 resume 이 뒤늦게 끝났다
+    assert session.state is TurnState.THINKING
+
+
+def test_batch_reply_is_inline_so_it_inherits_the_reply_finally():
+    """⭐ 배치(Gemini)는 **별도 태스크가 아니다** — `_run_reply` 안에서 await 된다.
+
+    그래서 대기열 배수·상태 정리를 그대로 물려받는다. (별도 태스크가 되는 순간 위 두 성질을
+    직접 갖춰야 한다 — 이 테스트가 그 변화를 알려 준다.)
+    """
+    import inspect
+
+    assert "await self._run_batch_reply(" in inspect.getsource(CascadeSession._run_reply)
+
+
+@pytest.mark.asyncio
+async def test_fake_beaver_never_clears_a_real_reply_state():
+    """⚠ dev 훅과 대답 경로는 **다른 태스크 축**이다 — 훅의 finally 가 진짜 대답 상태를
+    덮으면 말하는 중인 비버의 상태가 사라진다."""
+    import inspect
+
+    src = inspect.getsource(CascadeSession._run_fake_beaver)
+    assert "_reply_task is None or self._reply_task.done()" in src, src[-500:]
