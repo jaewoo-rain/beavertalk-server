@@ -17,6 +17,7 @@
 """
 
 import array
+import asyncio
 import struct
 
 import pytest
@@ -232,3 +233,26 @@ def test_tail_silence_default_is_long_enough_to_commit():
     from core.config import settings as live
 
     assert live.OPENAI_STT_TAIL_SILENCE_MS >= 1000
+
+
+# ── 반열림 소켓: **조용히 버리지 않는다**(QA 발견6) ────────────────────────
+@pytest.mark.asyncio
+async def test_send_failure_surfaces_as_stream_error(caplog):
+    """⛔ 예전엔 경고 한 줄 뒤 `_closed=True` 로 두고 **모든 오디오를 버렸다.**
+
+    수신이 안 끝나면 STREAM_ERROR 도 안 나가 세션은 살아 있는데 **사용자 말이 전부 사라진다**
+    (websockets keepalive 가 끊어 줄 때까지 ~40초). 이제 큐에 넣어 세션이 이미 가진 경로로 흘린다.
+    """
+    caplog.set_level("WARNING")
+
+    class _Broken:
+        async def send(self, raw: str) -> None:
+            raise ConnectionResetError("half open")
+
+    s = _stream()
+    s._ws = _Broken()
+    await s.push_audio(b"\x01\x02" * 160)
+    assert s._closed is True
+    event = await asyncio.wait_for(s._q.get(), timeout=1)
+    assert event.kind == STREAM_ERROR and "push_audio" in event.detail
+    assert any("전송 실패" in r.getMessage() for r in caplog.records), caplog.text

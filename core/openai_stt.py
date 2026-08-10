@@ -144,9 +144,17 @@ class OpenAiRealtimeSttStream:
                 "type": "input_audio_buffer.append",
                 "audio": base64.b64encode(out).decode("ascii"),
             }))
-        except Exception as exc:  # noqa: BLE001 - 끊긴 소켓은 events() 가 STREAM_ERROR 로 알린다
-            logger.warning("[stt-openai] 오디오 전송 실패 — %s", str(exc)[:120])
+        except Exception as exc:  # noqa: BLE001
+            # ⛔ **조용히 버리지 않는다**(2026-08-11 QA 발견6). 예전엔 경고 한 줄만 남기고
+            #   `_closed=True` 로 두어, 반열림 소켓(송신 실패 + 수신 무응답)에서 **모든 오디오를
+            #   버렸다.** 수신이 안 끝나면 STREAM_ERROR 도 안 나가서 세션은 살아 있는데
+            #   **사용자 말이 전부 사라진다.** websockets keepalive 가 대개 ~40초 안에 끊어
+            #   주지만, 그 40초치 발화는 흔적 없이 없어진다.
+            #   ⭐ 큐에 직접 넣으면 세션이 **이미 가진 경로**(에러 통지·종료)로 흘러간다.
+            logger.warning("[stt-openai] 오디오 전송 실패 — 스트림을 끊는다: %s", str(exc)[:120])
             self._closed = True
+            self._q.put_nowait(SttV2Event(kind=STREAM_ERROR,
+                                          detail=f"push_audio 실패: {str(exc)[:160]}"))
 
     # ── 출력 ──
     async def _read_loop(self) -> None:
