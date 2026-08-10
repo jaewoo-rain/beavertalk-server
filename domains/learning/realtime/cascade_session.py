@@ -881,20 +881,17 @@ class CascadeSession:
                 #   데드라인은 그대로라 곧 다시 깬다(무한 스핀도 없다: 미래 데드라인이면
                 #   timeout 이 양수로 다시 잡힌다).
                 woke = time.monotonic()
-                # 보류 중이던 barge-in 의 지속 시간이 찼다 — STT 가 먹통일 때만 오는 자리다
-                # (정상 경로는 전사가 항상 먼저 이긴다: 실측 476~620ms vs 안전망 3.5초).
+                # 보류 유효기간이 끝났다 = **전사가 끝내 안 왔다** → 무조건 기각.
+                # ⛔ 예전엔 여기서 `_speech_active` 면 "안전망"으로 **끊었다.** 없앴다 —
+                #   전사 없이 끊은 그 판단이 2026-08-10 통화를 죽였다(rms 0.0077 회색지대).
+                #   사장님 규칙 그대로다: **글자로 인식할 때만 끊는다.**
                 if self._bargein_at is not None and woke >= self._bargein_at - _DEADLINE_EPS_S:
-                    if self._speech_active:
-                        await self._confirm_bargein(
-                            None, "안전망 — STT 무응답 %dms" % settings.CASCADE_BARGEIN_SUSTAIN_MS
-                        )
-                    else:
-                        self._bargein_at = None
-                        self._note_bargein("보류만료", self._bargein_pending_rms)
-                        logger.info(
-                            "cascade barge-in 기각 — 전사도 지속도 없었다(잡음 추정, rms=%.4f)",
-                            self._bargein_pending_rms,
-                        )
+                    self._bargein_at = None
+                    self._note_bargein("보류만료", self._bargein_pending_rms)
+                    logger.info(
+                        "cascade barge-in 기각 — 전사가 안 왔다(잡음 추정, rms=%.4f)",
+                        self._bargein_pending_rms,
+                    )
                     continue
                 # 침묵 타이머 만료 = 턴 종료. **이 판정이 캐스케이드의 심장이다.**
                 if self._close_at is not None and woke >= self._close_at - _DEADLINE_EPS_S:
@@ -1320,7 +1317,7 @@ class CascadeSession:
             self._bargein_pending_at = time.monotonic()
             self._bargein_pending_rms = rms
             self._bargein_at = (
-                self._bargein_pending_at + max(0, settings.CASCADE_BARGEIN_SUSTAIN_MS) / 1000.0
+                self._bargein_pending_at + max(0, settings.CASCADE_BARGEIN_PENDING_MS) / 1000.0
             )
             logger.info(
                 "cascade barge-in 보류 — %s 전사 확인 대기(rms=%.4f 게이트=%s offset=%d, "
@@ -1393,10 +1390,10 @@ class CascadeSession:
             logger.warning("cascade barge-in 요약 실패(무시) — %s", exc)
 
     async def _confirm_bargein(self, event: SttV2Event | None, reason: str) -> None:
-        """보류해 둔 barge-in 을 확정한다(전사가 왔거나 STT 무응답 안전망이 찼다).
+        """보류해 둔 barge-in 을 확정한다 — **전사가 왔을 때만 여기 온다.**
 
         ⭐ 확정 줄에 **보류→확정 ms 와 그때 에너지**를 같이 남긴다(2026-08-08). 없을 때는
-          두 줄의 타임스탬프를 사람이 손으로 빼서 "전사가 안전망보다 먼저 이긴다"를 증명해야
+          두 줄의 타임스탬프를 사람이 손으로 빼서 "전사가 얼마나 빨리 이기나"를 증명해야
           했다. 같은 계산을 매번 손으로 하게 두지 않는다.
         """
         rms = self._bargein_pending_rms
@@ -1415,7 +1412,7 @@ class CascadeSession:
         # ⛔ **'안 들림' 재검사는 걷어냈다**(2026-08-08). 같은 판정을 진입부에서 이미 했고,
         #   0.5초 뒤에 한 번 더 재는 것이 08-08 통화에서 확정 3건을 죽였다(확정취소-안들림).
         #   진입 때 들렸으면 지금은 **더 들렸다** — 다시 물을 이유가 없다.
-        self._note_bargein("안전망확정" if reason.startswith("안전망") else "전사확정", rms)
+        self._note_bargein("전사확정", rms)
         logger.info("cascade barge-in 확정(%s) — %s 보류→확정 %dms rms=%.4f",
                     reason, self._sid, waited_ms, rms)
         await self._on_barge_in(event or SttV2Event(kind=SPEECH_BEGIN))
@@ -2351,10 +2348,10 @@ class CascadeSession:
             )
         logger.info(
             "cascade aec 힌트: %s mode=%s → bargein_confirm=%s 에너지게이트=%s(임계 %.4f)"
-            " 안전망=%dms",
+            " 전사대기=%dms",
             self._sid, self._aec_mode, self._bargein_confirm,
             "on" if self._energy_gate else "off", settings.CASCADE_BARGEIN_RMS,
-            settings.CASCADE_BARGEIN_SUSTAIN_MS,
+            settings.CASCADE_BARGEIN_PENDING_MS,
         )
 
     # ── 유틸 ──

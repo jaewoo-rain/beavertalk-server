@@ -222,7 +222,7 @@ def test_deadline_tolerance_is_small_enough_to_be_invisible():
     """허용오차는 **판정에 영향을 주지 않을 만큼** 작아야 한다."""
     assert cs._DEADLINE_EPS_S > 0
     assert cs._DEADLINE_EPS_S * 1000 <= settings.CASCADE_TURN_SILENCE_MS / 10
-    assert cs._DEADLINE_EPS_S * 1000 <= settings.CASCADE_BARGEIN_SUSTAIN_MS / 100
+    assert cs._DEADLINE_EPS_S * 1000 <= settings.CASCADE_BARGEIN_PENDING_MS / 100
 
 
 def test_pump_sleeps_before_retrying_an_unexplained_wake():

@@ -335,7 +335,7 @@ async def test_transcript_confirm_rejects_noise(reply_rig, monkeypatch):
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "transcript")
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 20)
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_SUSTAIN_MS", 5000)  # 지속 폴백은 안 걸리게
+    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_PENDING_MS", 5000)  # 보류가 안 만료되게
     reply_rig["chunk_delay"] = 0.02
     reply_rig["chunks"] = 30
 

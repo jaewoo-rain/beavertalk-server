@@ -7,7 +7,8 @@
          전사로 확정된 건들의 보류→확정   476 · 529 · 539 · 620ms
          파이프라인 지연                  723 ~ 914ms
      **진짜 말이면 전사가 항상 먼저 이긴다.** 1.2초까지 글자가 없었으면 그건 잡음이다.
-     → 그 우회로는 판정 기준이 아니라 **STT 장애용 안전망**으로 밀어 둔다(3.5초).
+     → 2026-08-10 그 우회로를 **통째로 없앴다**(사장님 지시). 남은 3.5초는 "끊는 시간"이
+       아니라 **보류 유효기간**이다 — 그 안에 전사가 없으면 기각한다.
 
   ② 같은 통화에서 barge-in 기각 17건이 `에너지 < 임계` 였다. 임계를 발화 분포에 맞춰 올린
      결과 **에코 필터가 아니라 발화 필터**가 돼 있었다. 이 관문의 일은 "사용자가 말했나"가
@@ -16,8 +17,8 @@
        실측 발화 하단(0.011) 아래에 긋는다.
 
 여기서 고정하는 성질:
-  ⓐ 전사가 오면 끊는다 / 소리만으로는 안 끊는다(안전망은 정상 경로가 닿지 못할 만큼 멀다)
-  ⓑ STT 가 진짜로 먹통이면 안전망이 여전히 작동한다
+  ⓐ 전사가 오면 끊는다 / **소리만으로는 어떤 에너지에서도 안 끊는다**
+  ⓑ STT 가 먹통이면 비버를 죽이는 게 아니라 **턴이 스스로 닫힌다**(dead air 방지는 그쪽 몫)
   ⓒ AEC 선언 = 에너지 게이트 off / 미선언·미상 = on(안전 쪽)
   ⓓ 임계는 **값이 아니라 위치**로 고정한다(잔여 에코 위, 발화 하단 아래)
   ⓔ 판정 로그가 사후 분석에 필요한 것을 들고 있다(에너지·대기 ms·분포 요약)
@@ -103,41 +104,47 @@ async def test_sound_alone_does_not_cut_beaver(monkeypatch):
     await session._on_speech_begin(_begin(session))
     await asyncio.sleep(LIVE_PIPELINE_LAG_MS * 2 / 1000.0)
     assert not cuts, "글자 없이 소리만으로 끊겼다 — 08-08 결함 재발"
-    assert session._bargein_at is not None, "보류는 안전망 시각까지 유지된다"
+    assert session._bargein_at is not None, "보류는 유효기간까지 유지된다"
 
 
-def test_safety_net_is_far_beyond_the_normal_path():
-    """⭐ 안전망은 **정상 경로가 닿지 못할 만큼** 멀어야 한다(값이 아니라 위치로 고정).
+def test_pending_window_outlives_normal_transcript_delay():
+    """⭐ 보류 유효기간은 **정상 전사가 도착할 시간**보다 넉넉해야 한다.
 
-    1.2초였을 때 취소 3건이 전부 이 경로였다 = 정상 경로 안에 안전망이 들어와 있었다.
+    짧으면 진짜 끼어들기가 기각된다(전사가 도착하기 전에 보류가 만료된다).
+    ⛔ 길어도 이제 위험하지 않다 — 이 시간이 하는 일은 **기각**뿐이다(끊지 않는다).
     """
-    assert settings.CASCADE_BARGEIN_SUSTAIN_MS > LIVE_PIPELINE_LAG_MS * 3, (
-        "안전망이 전사 지연과 겹친다 — 잡음이 비버를 끊는다"
+    assert settings.CASCADE_BARGEIN_PENDING_MS > LIVE_PIPELINE_LAG_MS * 3, (
+        "전사가 도착하기 전에 보류가 만료된다 — 진짜 끼어들기가 죽는다"
     )
-    assert settings.CASCADE_BARGEIN_SUSTAIN_MS > LIVE_TRANSCRIPT_CONFIRM_MS * 4
-    # 사람이 "안 끊긴다"고 느끼기 시작하는 시간 위로는 올리지 않는다.
-    assert settings.CASCADE_BARGEIN_SUSTAIN_MS <= 5_000
+    assert settings.CASCADE_BARGEIN_PENDING_MS > LIVE_TRANSCRIPT_CONFIRM_MS * 4
 
 
 # ── ⓑ STT 장애 안전망 ────────────────────────────────────────────────────────
 @pytest.mark.asyncio
-async def test_safety_net_still_cuts_when_stt_is_dead(monkeypatch):
-    """STT 가 먹통이어도 비버가 사용자 말을 깔고 계속 말하면 안 된다."""
-    monkeypatch.setattr(settings, "CASCADE_BARGEIN_SUSTAIN_MS", 120)
-    session, cuts = _session(monkeypatch, rms=0.02)
+@pytest.mark.parametrize("rms", [0.0077, 0.02, 0.44])
+async def test_no_transcript_never_cuts_at_any_energy(monkeypatch, rms):
+    """⛔⛔ **전사가 없으면 어떤 에너지에서도 안 끊는다**(2026-08-10 사장님 지시).
+
+    예전엔 음성이 이어지면 "안전망"으로 끊었다. 그 판단이 통화를 죽였다 —
+    rms=**0.0077**(침묵 0.0000~0.0030 과 발화 0.011~0.44 사이 회색지대)에서 비버를 죽였고,
+    그 뒤 턴까지 굳어 30초 완전 침묵이 됐다. 막으려던 것보다 나쁜 결과였다.
+    ⭐ STT 먹통 대응은 이제 **턴이 스스로 닫히는 것**이 맡는다(_turn_idle_at).
+    """
+    monkeypatch.setattr(settings, "CASCADE_BARGEIN_PENDING_MS", 120)
+    session, cuts = _session(monkeypatch, rms=rms)
     await session._on_speech_begin(_begin(session))
     session._speech_active = True                     # 음성은 계속 이어지는데 글자가 없다
     pump = asyncio.create_task(session._pump_turn())
     await asyncio.sleep(0.3)
     pump.cancel()
-    assert len(cuts) == 1, "STT 무응답이 길어져도 안 끊었다"
-    assert [o for o, _ in session._bargein_obs] == ["안전망확정"]
+    assert not cuts, "전사 없이 끊었다 — 08-10 결함 재발"
+    assert [o for o, _ in session._bargein_obs] == ["보류만료"]
 
 
 @pytest.mark.asyncio
 async def test_pending_expires_as_noise_when_voice_stops(monkeypatch):
     """소리가 멎고 글자도 안 나왔다 = 잡음. 끊지 않고 표본으로만 남는다."""
-    monkeypatch.setattr(settings, "CASCADE_BARGEIN_SUSTAIN_MS", 120)
+    monkeypatch.setattr(settings, "CASCADE_BARGEIN_PENDING_MS", 120)
     session, cuts = _session(monkeypatch, rms=0.02)
     await session._on_speech_begin(_begin(session))
     session._speech_active = False
@@ -245,8 +252,8 @@ async def test_judgment_logs_carry_energy_and_wait(monkeypatch, caplog):
     await session._on_transcript(
         SttV2Event(kind=TRANSCRIPT, text="잠깐", offset_ms=int(session._audio_ms))
     )
-    hold = next(m for m in caplog.messages if "보류" in m)
-    confirm = next(m for m in caplog.messages if "확정" in m)
+    hold = next(m for m in caplog.messages if "barge-in 보류" in m)
+    confirm = next(m for m in caplog.messages if "barge-in 확정" in m)
     assert "rms=0.0123" in hold and "게이트=on" in hold
     assert "보류→확정" in confirm and "rms=0.0123" in confirm
 
