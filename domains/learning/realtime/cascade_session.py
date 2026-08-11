@@ -151,6 +151,29 @@ _OPENAI_TTS_CHOICE = "openai-tts"
 #   `_emotion_log` 에 하드코딩돼 있어서, OpenAI 로 돌면서 `감정=인사(미적용:cloud-tts-chirp3-hd)`
 #   라고 **거짓 로그**가 찍혔다(감정은 실제로 들어가고 있었다). 로그가 거짓이면 사장님이
 #   "감정이 안 걸리는구나"라고 잘못 판단하신다 — 잘못 잰 지표로 하루를 태운 것과 같은 계열이다.
+@dataclass
+class _OpenSegment:
+    """**열려 있는** 합성 요청 하나 — 벤더가 보내는 오디오를 미리 받아 두는 자리.
+
+    ⭐ 왜 미리 받나(2026-08-11 사장님: "언어 바뀔 때 살짝 끊긴다"): 언어 구간마다 벤더
+      왕복이 **직렬로** 붙는다. 실측 로그에서 한국어 구간은 5자인데 1.0~1.35초였다(대부분
+      TTFB). 그 동안 페이서에 줄 게 없어 소리가 빈다. 묶음 텍스트는 이미 다 손에 있으므로
+      **앞 구간이 재생되는 동안** 뒤 구간을 열어 두면 그 공백만 사라진다.
+    ⛔ 구간별 음성은 그대로다 — 한국어는 한국어 음성이 읽는다(발음이 학습 자료다).
+    ⛔ 미리 **받아만** 둔다. 송출은 순서대로 `BeaverOutput` 이 하고, 실시간 페이싱(I3)도
+      거기서 그대로 걸린다 — 미리 만들었다고 한꺼번에 밀어내지 않는다.
+    """
+
+    text: str
+    language: str
+    queue: Any                 # asyncio.Queue[bytes | None] — None = 이 구간 끝
+    task: Any                  # 벤더 → 큐 펌프(취소하면 선행분이 통째로 버려진다)
+    report: dict
+    align: dict
+    trim: bool
+    opened_at: float
+
+
 @dataclass(frozen=True)
 class _TtsProfile:
     """엔진 하나의 **성질**. ⛔ 분기에서 엔진 이름을 비교하지 말고 여기를 봐라.
@@ -173,6 +196,8 @@ class _TtsProfile:
             첫 배치가 짧아져 **재생이 버퍼보다 먼저 바닥나고 끊긴다** — 그게 위 ②다.
         takes_style: 감정/스타일 지시를 **실제로 받나**(안 받는 엔진은 로그에 미적용으로 적는다).
         vendor: 원가 벤더 문자열을 만드는 함수(모델마다 단가가 다르다).
+        prefetch_depth: **동시에 열어 둘 합성 요청 수**(1 = 지금처럼 하나씩).
+            ⛔ 벤더 쿼터가 상한을 정한다 — Gemini 는 분당 10회라 늘리면 429 를 앞당긴다.
         is_configured: 이 엔진을 **지금 쓸 수 있나**(키·자격증명). 화면에서 고를 때 검사한다.
         google_engine: `core.tts` 에 넘길 엔진 이름. 구글을 안 타는 엔진은 None.
             ⚠ Chirp 이 None 이면 안 된다 — 그러면 `core.tts` 가 서버 기본값으로 되돌아가
@@ -184,6 +209,7 @@ class _TtsProfile:
     rate_setting: str
     solo_first_sentence: bool
     takes_style: bool
+    prefetch_depth: int
     vendor: Any
     is_configured: Any
     google_engine: str | None
@@ -194,6 +220,8 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
     _CHIRP_CHOICE: _TtsProfile(
         "CASCADE_TTS_BATCH_CHARS", None, "CASCADE_TTS_SPEAKING_RATE",
         solo_first_sentence=True, takes_style=False,
+        # 왕복이 165~212ms 라 얻을 게 적다. 쿼터도 실측이 없어 2 까지만 연다(보수적).
+        prefetch_depth=2,
         vendor=lambda: tts.CHIRP3_ENGINE,
         is_configured=lambda: True,        # 구글 자격증명은 서버 기본 경로다
         google_engine=_CHIRP_CHOICE,
@@ -203,6 +231,9 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
         "CASCADE_TTS_BATCH_CHARS_GEMINI", "CASCADE_TTS_LEAD_MS_GEMINI",
         "CASCADE_TTS_SPEAKING_RATE_GEMINI",
         solo_first_sentence=False, takes_style=True,
+        # ⛔ **1(직렬) 고정.** 분당 10회 상한인데 실측 수요가 평균 19.2 / 피크 27 이었다 —
+        #   미리 열면 그 상한을 더 빨리 태운다. 여긴 지연보다 429 가 1순위 제약이다.
+        prefetch_depth=1,
         vendor=lambda: (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip(),
         is_configured=lambda: True,
         google_engine=tts.GEMINI_ENGINE,
@@ -212,6 +243,7 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
         "CASCADE_TTS_BATCH_CHARS_GEMINI", "CASCADE_TTS_LEAD_MS_GEMINI",
         "CASCADE_TTS_SPEAKING_RATE_GEMINI",
         solo_first_sentence=False, takes_style=True,
+        prefetch_depth=1,                  # 같은 쿼터를 쓴다
         vendor=lambda: (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip(),
         is_configured=lambda: True,
         google_engine=tts.GEMINI_ENGINE,   # 배치도 소리는 Gemini 가 낸다(모으는 방식만 다르다)
@@ -221,6 +253,10 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
         "CASCADE_TTS_BATCH_CHARS_OPENAI", "CASCADE_TTS_LEAD_MS_OPENAI",
         "CASCADE_TTS_SPEAKING_RATE",
         solo_first_sentence=False, takes_style=True,
+        # ⭐ 분당 상한이 없다 → 구간 왕복(0.7~1.35초)을 앞 구간 재생 뒤로 숨긴다.
+        #   3 인 이유: 실측 대답이 **구간 3~5개**라 3이면 대부분 첫 구간 재생 중에 나머지가
+        #   다 열린다. 더 키워도 얻는 게 없고 메모리·동시요청만 는다.
+        prefetch_depth=3,
         vendor=openai_tts.vendor_name,
         is_configured=openai_tts.is_configured,   # ⛔ 키 없으면 이 엔진만 거절(R5)
         google_engine=None,                       # 구글을 안 탄다(별도 어댑터)
@@ -234,6 +270,7 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
 _TTS_FALLBACK_PROFILE = _TtsProfile(
     "CASCADE_TTS_BATCH_CHARS", None, "CASCADE_TTS_SPEAKING_RATE",
     solo_first_sentence=False, takes_style=False,
+    prefetch_depth=1,                  # 쿼터를 모르면 늘리지 않는다
     vendor=lambda: tts.CHIRP3_ENGINE,
     is_configured=lambda: False,       # 모르는 엔진은 고를 수 없다(거절이 안전하다)
     google_engine=_CHIRP_CHOICE,
@@ -833,6 +870,8 @@ class CascadeSession:
         self._reply_spans: list[tuple[str, int, int]] = []
         # 요청별 홀수 조각 수 — 0 이 아니면 벤더가 PCM16 표본 경계를 안 지킨다는 증거다.
         self._tts_odd_chunks: list[int] = []
+        # 요청별 **첫 소리를 기다린 시간** — 구간 사이에 소리가 빈 시간이다(선행 합성의 성적표).
+        self._tts_waits: list[float] = []
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
         self._tts_gemini_calls = 0
@@ -1776,6 +1815,7 @@ class CascadeSession:
         self._marker_seen.clear()
         self._reply_spans.clear()
         self._tts_odd_chunks.clear()
+        self._tts_waits.clear()
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
         # ⭐ 이 대답의 감정(대답 1건당 **하나**). 문장마다 바꾸면 구간이 쪼개져 TTS 호출이
         #   늘고, 분당 상한이 10 인데 대답 하나가 이미 3~6회다(429 가 1순위 제약이다).
@@ -2085,7 +2125,7 @@ class CascadeSession:
         return await speak_stream(self.beaver, _gen(), label)
 
     def _note_tts_request(self, language: str, chars: int, sent: int,
-                          align: dict | None = None) -> None:
+                          align: dict | None = None, wait_s: float = 0.0) -> None:
         """합성 요청 1건의 결과를 남긴다 — **잘렸으면 여기서 드러난다.**
 
         ⛔ 어댑터엔 완결성 검사가 없다. 실제로 status 200 인데 14.5초짜리 문장이 **0.30초만
@@ -2097,6 +2137,7 @@ class CascadeSession:
         """
         self._reply_spans.append((language, chars, sent))
         self._tts_odd_chunks.append(int((align or {}).get("odd", 0)))
+        self._tts_waits.append(max(0.0, wait_s))
         audio_s = audio.output_audio_s(sent)
         if chars and audio_s > 0 and chars / audio_s > _IMPOSSIBLE_CHARS_PER_S:
             logger.warning(
@@ -2109,10 +2150,15 @@ class CascadeSession:
         """이 대답의 **요청별** (글자·오디오 초). 요청 수와 절단이 한 줄에서 보인다."""
         if not self._reply_spans:
             return "요청=-"
-        odd = self._tts_odd_chunks
+        odd, waits = self._tts_odd_chunks, self._tts_waits
         return "요청=[%s]" % ", ".join(
-            "%d자·%.2fs%s" % (chars, audio.output_audio_s(sent),
-                              "·홀수%d" % odd[i] if i < len(odd) and odd[i] else "")
+            "%d자·%.2fs%s%s" % (
+                chars, audio.output_audio_s(sent),
+                # ⭐ **구간 간 공백** — 이 구간의 첫 소리를 기다린 시간이다. 언어가 바뀔 때
+                #   들리던 그 끊김이 이 값이고, 선행 합성이 먹히면 0 에 가까워진다.
+                "·대기%.2fs" % waits[i] if i < len(waits) and waits[i] >= 0.05 else "",
+                "·홀수%d" % odd[i] if i < len(odd) and odd[i] else "",
+            )
             for i, (_, chars, sent) in enumerate(self._reply_spans)
         )
 
@@ -2186,51 +2232,102 @@ class CascadeSession:
         if len(segments) <= 1:
             return await self._speak_one(strip_markers(sentence).strip(),
                                          settings.CASCADE_TTS_LANGUAGE)
+        return await self._speak_segments(segments)
+
+    async def _speak_segments(self, segments: list[tuple[str, str]]) -> int:
+        """구간들을 **순서대로** 송출하되, 뒤 구간의 합성은 **미리 시작**한다.
+
+        ⛔ 순서는 절대 유지된다 — 합성이 먼저 끝났다고 먼저 내보내면 말이 뒤섞인다.
+          앞 구간을 다 보낸 뒤에야 다음 구간의 큐를 읽는다.
+        ⭐ 얻는 것: 뒤 구간의 벤더 왕복(실측 0.7~1.35초)이 **앞 구간 재생 시간 뒤로 숨는다.**
+        ⚠ 깊이는 엔진 성질이다(`prefetch_depth`) — Gemini 는 분당 10회 상한이라 1(직렬)이다.
+        """
+        depth = max(1, int(self._profile().prefetch_depth))
+        opening: deque[_OpenSegment] = deque()
+        index = 0
         sent = 0
-        for text, language in segments:
-            sent += await self._speak_one(text, language)
+        try:
+            while index < len(segments) or opening:
+                # 상한까지 미리 연다. ⛔ 이 수가 곧 **동시 벤더 요청 수**다(쿼터가 정한다).
+                while index < len(segments) and len(opening) < depth:
+                    text, language = segments[index]
+                    index += 1
+                    segment = await self._open_segment(text, language)
+                    if segment is not None:
+                        opening.append(segment)
+                if not opening:
+                    break
+                sent += await self._send_segment(opening.popleft())
+        finally:
+            # ⛔ **미리 연 것도 같이 버린다.** barge-in 으로 여기서 취소돼도 남은 큐가 나중에
+            #   흘러나가면 "끊었는데 소리가 더 난다"가 된다(오늘 고친 그 계열).
+            for segment in opening:
+                segment.task.cancel()
         return sent
 
     async def _speak_one(self, sentence: str, language: str) -> int:
-        """구간 하나를 합성해 송출하고, **API 에 넘긴 문자 수**를 원가에 기록한다."""
+        """구간 하나를 합성해 송출한다(열기 → 보내기). 보낸 바이트 수를 돌려준다."""
+        segment = await self._open_segment(sentence, language)
+        if segment is None:
+            return 0
+        return await self._send_segment(segment)
+
+    async def _pump_segment(self, stream: Any, queue: Any) -> None:
+        """벤더 오디오를 **큐로 미리 옮긴다**(송출은 하지 않는다).
+
+        ⛔ 여기서 예외를 밖으로 올리지 않는다 — 한 구간이 실패해도 **나머지 구간은 나가야**
+          한다(R5). 큐에 끝 표시만 넣고 조용히 끝내되, **사유는 로그로 남긴다.**
+        """
+        try:
+            async for chunk in stream:
+                queue.put_nowait(chunk)
+        except asyncio.CancelledError:
+            raise                      # 취소는 그대로 — 선행분은 큐째로 버려진다
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("cascade tts 구간 합성 중단(나머지 구간은 계속) — %s", str(exc)[:200])
+        finally:
+            queue.put_nowait(None)
+
+    async def _open_segment(self, sentence: str, language: str) -> _OpenSegment | None:
+        """구간 하나의 **합성을 시작**한다(아직 소리는 안 나간다). 빈 구간이면 None.
+
+        원가의 문자 수는 **여기서** 센다 — 과금은 우리가 텍스트를 넘긴 순간 일어나므로,
+        barge-in 으로 뒤에 안 나가더라도 그 값은 이미 나갔다(다 나온 뒤에 세면 장부에서 사라진다).
+        """
         # ⛔ **감정 태그는 절대 소리로 나가지 않는다.** 여기가 벤더로 나가기 직전의 마지막
         #   길목이다(`__마커__` 와 같은 급의 요구 — `?` 를 "쿼스천마크"로 읽던 사고 계열이다).
         sentence = strip_emotion_tags(sentence).strip()
         if not sentence:
-            return 0
-        # ⭐ 문자는 **API 에 넘기는 시점**에 센다. 과금은 우리가 텍스트를 보낸 순간 일어나므로,
-        #   barge-in 으로 이 문장이 중간에 끊겨도(= 아래 await 가 취소돼 돌아오지 않아도)
-        #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
+            return None
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
         align: dict = {}          # 이 요청에서 홀수 조각이 몇 개였나(벤더가 격자를 지키나)
-        # ✓ 이건 성질이 아니라 **어느 어댑터를 부르느냐**다(구글 SDK vs HTTP — 인자 자체가
-        #   다르다). 조절값이 아니므로 성질 표로 안 옮긴다.
+        stream = await self._open_vendor_stream(sentence, language, report)
+        # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_head` 는 조각을 통째로 버리고
+        #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
+        #   **뒤따르는 바이트가 반 표본씩 밀린다**(소리가 통째로 잡음이 된다).
+        stream = sample_aligned(stream, align)
+        trim = self._trim_silence()
+        if trim:
+            stream = self._trim_head(stream)
+        queue: asyncio.Queue = asyncio.Queue()
+        # ⚠ 세션 TaskGroup 에 붙이지 않는다 — 여기서 난 실패가 **통화 전체를 무너뜨리면** 안
+        #   된다(R5). 대신 소유자(`_speak`)가 finally 에서 반드시 취소한다.
+        task = asyncio.create_task(self._pump_segment(stream, queue))
+        return _OpenSegment(sentence, language, queue, task, report, align, trim,
+                            time.monotonic())
+
+    async def _open_vendor_stream(self, sentence: str, language: str, report: dict) -> Any:
+        """벤더 호출 — ✓ 이건 성질이 아니라 **어느 어댑터를 부르느냐**다(구글 SDK vs HTTP,
+        인자 자체가 다르다). 조절값이 아니므로 성질 표로 안 옮긴다."""
         if self._tts_engine == _OPENAI_TTS_CHOICE:
             # ⛔ 구글이 아니다 — 별도 어댑터를 탄다. 폴백도 하지 않는다(엔진을 골라 듣는 중인데
             #   조용히 다른 소리가 나면 A/B 가 거짓말이 된다).
-            stream = openai_tts.synthesize_stream(
+            return openai_tts.synthesize_stream(
                 sentence,
                 instructions=self._style_prompt(),   # ⭐ 감정 태그가 여기로 들어간다
                 report=report,
             )
-            # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_head` 는 조각을 통째로 버리고
-            #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
-            #   **뒤따르는 바이트가 반 표본씩 밀린다**(소리가 통째로 잡음이 된다).
-            stream = sample_aligned(stream, align)
-            trim = self._trim_silence()
-            if trim:
-                stream = self._trim_head(stream)
-            sent = await speak_stream(self.beaver, stream, sentence, trim_tail=trim)
-            if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
-                self._tts_ttfb_ms = int(report["ttfb_ms"])
-            self.usage.record_tts_audio(sent)
-            if sent:
-                self._tts_engines.add(report.get("engine") or self._tts_vendor())
-                self._note_tts_request(language, len(sentence), sent, align)
-            else:
-                self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
-            return sent
         # ⭐ 이 통화에서 이미 429 를 맞았으면 **Gemini 를 다시 찌르지 않는다**(세션 단위 백오프).
         #   실측: 한도가 분당 10회인데 수요가 평균 19.2 / 피크 27 이었다. 소진된 상태에서
         #   문장마다 찔러봐야 **실패해도 요청은 나가고**(회복이 늦어진다) 첫소리만 늘어난다.
@@ -2241,7 +2338,7 @@ class CascadeSession:
             # 백오프 전까지의 Gemini 호출 수 — ①(요청 수 줄이기)의 효과를 재는 유일한 값이다
             # (백오프가 호출 자체를 막으므로 tts_calls 로는 못 잰다).
             self._tts_gemini_calls += 1
-        stream = await tts.synthesize_stream(
+        return await tts.synthesize_stream(
             sentence,
             language=language,
             voice=settings.CASCADE_TTS_VOICE,
@@ -2251,21 +2348,42 @@ class CascadeSession:
             speaking_rate=self._note_rate(language),
             style_prompt=self._style_prompt(),
         )
-        stream = sample_aligned(stream, align)   # 정렬이 침묵 절단보다 먼저다(위와 같은 이유)
-        trim = self._trim_silence()
-        if trim:
-            stream = self._trim_head(stream)
-        sent = await speak_stream(self.beaver, stream, sentence, trim_tail=trim)
-        # ⭐ 내보낸 오디오 초 — Gemini-TTS 단가의 기준(문자가 아니라 출력 오디오 토큰이다).
+
+    async def _send_segment(self, segment: _OpenSegment) -> int:
+        """열어 둔 구간을 **순서대로** 송출하고 정산한다. 보낸 바이트 수를 돌려준다."""
+        wait_at = time.monotonic()
+        first_at = -1.0
+
+        async def _buffered():
+            nonlocal first_at
+            while True:
+                item = await segment.queue.get()
+                if item is None:
+                    return
+                if first_at < 0:
+                    first_at = time.monotonic()
+                yield item
+
+        try:
+            sent = await speak_stream(self.beaver, _buffered(), segment.text,
+                                      trim_tail=segment.trim)
+        finally:
+            # ⛔ 취소로 빠져나가도 **미리 받아 둔 것까지 같이 버린다** — 안 그러면 끊은 뒤에
+            #   소리가 더 난다(오늘 고친 "삭제돼야 하는데 계속 나온다"가 그 종류다).
+            segment.task.cancel()
+        report, align = segment.report, segment.align
+        # 이 구간이 소리를 낼 때까지 **페이서에 줄 게 없던 시간** — 언어가 바뀔 때 들리던
+        # 그 공백이 이 값이다(선행 합성이 먹히면 0 에 가까워진다).
+        wait_s = max(0.0, (first_at - wait_at)) if first_at > 0 else 0.0
         self.usage.record_tts_audio(sent)
         if sent:
-            # 소리가 실제로 나간 것만 읽기 속도의 재료가 된다(합성 실패는 글자도 안 센다).
-            self._note_tts_request(language, len(sentence), sent, align)
+            self._tts_engines.add(report.get("engine") or self._tts_vendor())
+            self._note_tts_request(segment.language, len(segment.text), sent, align, wait_s)
+        else:
+            # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 열 때 이미).
+            self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
         if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
             self._tts_ttfb_ms = int(report["ttfb_ms"])
-        engine = report.get("engine")
-        if engine:
-            self._tts_engines.add(engine)
         if report.get("quota") and not self._tts_gemini_off:
             # ⛔ 엔진이 통화 중간에 바뀐 사실을 반드시 남긴다 — A/B 판정이 이 줄에 걸린다.
             self._tts_gemini_off = True
@@ -2275,18 +2393,22 @@ class CascadeSession:
                 self._tts_gemini_calls, tts.CHIRP3_ENGINE,
             )
         if report.get("fallback_from"):
-            # 폴백은 A/B 비교를 오염시킨다 — 이 통화의 '첫소리'가 어느 엔진 것인지 흐려진다.
-            # 로그 한 줄로 드러내고, 원가는 **실제로 소리를 낸 엔진** 이름으로 남긴다.
-            self.usage.record_tts("", vendor=report["fallback_from"], failed=True)
-            if engine:
-                # ⛔ **문자를 다시 세지 않는다**(2026-08-10 수정). 여기서 `record_tts(문장, ...)`
-                #   을 부르면 위에서 이미 센 문장을 **한 번 더** 세서 원가가 두 배가 된다.
-                #   여기서 필요한 건 재계량이 아니라 **벤더 이름 정정**이다.
-                self.usage.retag_tts(engine)
-        if not sent:
-            # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 위에서 이미).
-            self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
+            self._note_fallback(report)
         return sent
+
+    def _note_fallback(self, report: dict) -> None:
+        """폴백이 일어났다 — **어느 엔진이 실제로 소리를 냈는지** 장부와 로그를 맞춘다.
+
+        폴백은 A/B 비교를 오염시킨다(이 통화의 '첫소리'가 어느 엔진 것인지 흐려진다).
+        ⛔ **문자를 다시 세지 않는다**(2026-08-10 수정). 여기서 `record_tts(문장, ...)` 을
+          부르면 열 때 이미 센 문장을 **한 번 더** 세서 원가가 두 배가 된다. 여기서 필요한
+          건 재계량이 아니라 **벤더 이름 정정**이다.
+        """
+        self.usage.record_tts("", vendor=report["fallback_from"], failed=True)
+        engine = report.get("engine")
+        if engine:
+            self.usage.retag_tts(engine)
+
 
     def _note_rate(self, language: str) -> float | None:
         """이 구간에 쓸 배속을 고르고 **실제로 나간 값을 기록한다**(로그용).
