@@ -168,6 +168,36 @@ _TTS_BATCH_SETTING = {
 }
 
 
+# 엔진 → **첫 문장을 단독으로 즉시 쏘나.** ⛔ 묶음 크기와 같은 계열의 성질이다.
+#   왕복이 짧으면 이득이고(첫 소리가 그만큼 빨라진다), 길면 손해만 본다 — 첫 요청에 고정
+#   오버헤드가 통째로 붙는 데다, 나온 오디오가 **선행버퍼보다 짧아** 재생이 먼저 바닥난다.
+#   ⛔ 여기가 `_gemini_realtime()` 이던 탓에 **OpenAI 가 Chirp 규칙을 물려받았다**:
+#     첫 배치 오디오 800·1000·1450ms 인데 선행버퍼는 1500ms 였다. 그게 그 끊김이다.
+#     (Gemini 는 같은 자리에서 6440·8240ms 라 멀쩡했고, Chirp 은 TTFB 165~212ms 라 무해했다.)
+_TTS_SOLO_FIRST = {
+    _CHIRP_CHOICE: True,              # 165~212ms — 짧은 요청이 싸다
+    tts.GEMINI_ENGINE: False,         # 805~1271ms
+    _GEMINI_BATCH_CHOICE: False,      # 전체를 한 번에 낸다(이 규칙을 아예 안 탄다)
+    _OPENAI_TTS_CHOICE: False,        # 545~953ms — **Chirp 이 아니라 이쪽 성질이다**
+}
+
+
+def _solo_first_sentence(engine: str) -> bool:
+    """첫 문장을 단독으로 쏠까 — ⛔ 표에 없으면 **경고를 찍고** 안 쏜다.
+
+    모르는 엔진은 왕복도 모른다. 모르면 **묶는 쪽**이 안전하다(단독 송출은 왕복이 짧다는
+    걸 알 때만 이득이고, 틀리면 소리가 끊긴다).
+    """
+    name = (engine or _CHIRP_CHOICE).strip()
+    solo = _TTS_SOLO_FIRST.get(name)
+    if solo is None:
+        logger.warning(
+            "cascade tts 첫문장 규칙 미지정 엔진(%r) — 묶어서 낸다(안전). 표에 넣어라", name[:24],
+        )
+        return False
+    return solo
+
+
 def _batch_chars_for(engine: str) -> int:
     """엔진별 묶음 크기 — **요청당 고정 오버헤드(TTFB)가 큰 엔진일수록 크게 묶는다.**
 
@@ -1744,11 +1774,11 @@ class CascadeSession:
                     self._reply_emotion = detect_emotion(chat.text)
                 for sentence in buffer.push(piece):
                     timing.mark_sentence()
-                    # ⚠ **첫 문장 단독**은 Chirp 규칙이다. Gemini 는 짧은 요청이 특히
-                    #   불리하고(고정 오버헤드 ≈1.3초), 어차피 선행 버퍼로 1.5초를 기다리므로
-                    #   첫 문장만 따로 쏘면 손해만 본다 — 그래서 Gemini 는 묶어서 낸다.
+                    # ⚠ **첫 문장 단독**은 왕복이 짧은 엔진의 규칙이다(위 표가 판정한다).
+                    #   길면 손해만 본다 — 고정 오버헤드가 통째로 붙고, 첫 배치가 선행버퍼보다
+                    #   짧아 재생이 먼저 바닥난다.
                     if (first_audio_ms < 0 and not pending
-                            and not self._gemini_realtime()):
+                            and _solo_first_sentence(self._tts_engine)):
                         pending.append(sentence)
                         await _flush_batch()        # 첫 문장 = 단독 즉시 송출
                         continue
@@ -2252,10 +2282,6 @@ class CascadeSession:
                 )
                 continue
             yield chunk
-
-    def _gemini_realtime(self) -> bool:
-        """지금 세션이 **Gemini 실시간** 모드인가(배치는 별도 경로라 제외)."""
-        return self._tts_engine == tts.GEMINI_ENGINE
 
     def _batch_chars(self) -> int:
         """문장을 얼마나 모아 한 번에 합성할지 — **요청당 오버헤드가 큰 엔진일수록 크게.**
