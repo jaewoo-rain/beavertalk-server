@@ -88,6 +88,7 @@ from domains.learning.realtime.cascade_reply import (
     SentenceBuffer,
     detect_emotion,
     emotion_style,
+    sample_aligned,
     speak_stream,
     split_by_language,
     strip_emotion_tags,
@@ -567,10 +568,16 @@ class BeaverOutput:
       I3. 누적 송출량 ≤ 실시간 레이트 + 선행버퍼(lead)
       I4. 취소된 턴에는 `turn_end` 를 보내지 않는다 — `audio_cancel` 이 종결을 겸한다
       I5. `turn_end` 는 **마지막 오디오 바이트를 보낸 뒤**에 낸다(LLM 텍스트 완료 시점 아님)
+      I6. 클라로 나가는 오디오 바이너리는 **항상 2의 배수 바이트**다(PCM16 표본 경계)
 
     I3 이 서버 책임인 이유: 실시간보다 빨리 밀어내면 클라 버퍼가 무한히 부푼다 →
     barge-in 취소가 늦게 먹히고(사용자가 끊었는데 계속 들린다) 이력 절단도 같이 틀어진다.
     클라의 백로그 계측은 **안전망이지 대책이 아니다.**
+
+    I6 이 여기 있는 이유(2026-08-11): OpenAI TTS 가 홀수 길이 조각을 흘렸고, 클라는
+    `new Int16Array(buf)` 에서 예외가 나 **그 조각을 통째로, 아무 흔적 없이 버렸다.**
+    정렬 자체는 요청 경계(`speak_stream`)가 한다 — 거기만 조각의 연속성을 안다. 여기서는
+    **못 지나가게만** 한다: 어떤 경로로 들어와도 클라가 받는 바이너리는 짝수다.
     """
 
     _HISTORY_MAX = 4  # 최근 N개 턴의 원장을 남긴다(늦게 오는 progress 대비, 메모리 상한)
@@ -657,6 +664,17 @@ class BeaverOutput:
             raise InvariantError("비버 턴 밖에서 오디오를 보내려 했다(I1 위반)")
         if not pcm:
             return
+        if len(pcm) % 2:
+            # ⛔ I6 — 여기까지 홀수가 왔다는 건 **정렬 경로를 안 탄 조각**이 있다는 뜻이다.
+            #   반 표본을 그냥 보내면 클라가 조용히 버리므로, 잘라서라도 짝수로 내보내고
+            #   **사실을 크게 남긴다**(조용히 고치면 다음에 또 못 찾는다).
+            logger.warning(
+                "cascade ⚠ 홀수 바이트 오디오(%d) — I6 위반. 표본 경계로 잘라 보낸다. "
+                "정렬은 speak_stream 이 해야 한다(어느 경로가 건너뛰었나)", len(pcm),
+            )
+            pcm = pcm[:-1]
+            if not pcm:
+                return
         await self._pace()
         # ⛔ **여기서 다시 본다**(2026-08-11 QA 발견4). 위 `_pace()` 는 최대 lead_ms 만큼 자고,
         #   그 사이 다른 태스크의 `cancel()` 이 `_cur` 를 None 으로 만들 수 있다. 재확인이 없으면
@@ -2154,6 +2172,10 @@ class CascadeSession:
                 instructions=self._style_prompt(),   # ⭐ 감정 태그가 여기로 들어간다
                 report=report,
             )
+            # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_head` 는 조각을 통째로 버리고
+            #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
+            #   **뒤따르는 바이트가 반 표본씩 밀린다**(소리가 통째로 잡음이 된다).
+            stream = sample_aligned(stream)
             trim = self._trim_silence()
             if trim:
                 stream = self._trim_head(stream)
@@ -2187,6 +2209,7 @@ class CascadeSession:
             speaking_rate=self._note_rate(language),
             style_prompt=self._style_prompt(),
         )
+        stream = sample_aligned(stream)     # 정렬이 침묵 절단보다 먼저다(위 주석과 같은 이유)
         trim = self._trim_silence()
         if trim:
             stream = self._trim_head(stream)

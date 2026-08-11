@@ -20,7 +20,7 @@ import logging
 import re
 from typing import Any, AsyncIterator
 
-from core.audio import trim_silence_edges
+from core.audio import align_pcm16, trim_silence_edges
 
 # ── 감정 태그 (2026-08-10 사장님 지시) ──────────────────────────────────────
 # ① "llm 이 감정을 태그로 뱉어서 그걸 tts 에 넣어야 하잖아"
@@ -191,6 +191,31 @@ def strip_markers(text: str) -> str:
     return (text or "").replace(MARKER, "")
 
 
+async def sample_aligned(pcm_stream: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
+    """조각 경계를 **표본 경계로** 맞춘다 — 홀수 꼬리는 다음 조각으로 이월한다.
+
+    ⭐ **왜 여기인가**(2026-08-11). 이월은 "한 합성 요청 안에서"만 옳다:
+      · 어댑터 안에서 고치면 **다음 어댑터가 또 홀수를 낸다**(같은 사고를 세 번째로 겪는다).
+      · 송출 경계(`BeaverOutput.send`)는 조각의 **연속성을 모른다** — 거기서 이월하면 문장
+        A 의 남은 반 표본이 문장 B(다른 요청)의 첫 조각에 붙어 **B 전체가 1바이트 밀린다.**
+      · `speak_stream` 은 **요청 하나의 시작과 끝**을 아는 유일한 자리다. 그래서 이월도,
+        끝에 남은 1바이트를 버리는 것도 여기서만 안전하다.
+    ⚠ 그래도 송출 경계에 불변식(I6)을 하나 더 둔다 — 이 함수를 안 타는 경로가 생겨도
+      클라로는 홀수가 못 나가게. 두 겹인 이유는 **조용한 실패를 다시는 만들지 않기** 위해서다.
+    """
+    carry = b""
+    async for chunk in pcm_stream:
+        if not chunk:
+            continue
+        out, carry = align_pcm16(chunk, carry)
+        if out:
+            yield out
+    if carry:
+        # 스트림이 끝났는데 반 표본이 남았다 = 벤더가 홀수 길이를 냈다. 여기서는 버려도 된다
+        # (0.02ms, 뒤에 이어질 바이트가 없다). ⚠ 흔한 일이 아니므로 흔적은 남긴다.
+        logger.info("tts 스트림 끝에 반 표본 1바이트 — 버린다(길이 홀수)")
+
+
 async def speak_stream(beaver: Any, pcm_stream: AsyncIterator[bytes], text: str,
                        trim_tail: bool = False) -> int:
     """한 문장의 오디오를 송출한다. **이름표는 마지막 조각에** 붙는다. 보낸 바이트 수 반환.
@@ -204,7 +229,7 @@ async def speak_stream(beaver: Any, pcm_stream: AsyncIterator[bytes], text: str,
     """
     sent = 0
     pending: bytes | None = None
-    async for chunk in pcm_stream:
+    async for chunk in sample_aligned(pcm_stream):
         if not chunk:
             continue
         if pending is not None:

@@ -103,6 +103,24 @@ def _loud_windows(pcm: bytes, sample_rate: int) -> tuple[list[int], int, int]:
     return [i for i, v in enumerate(rms) if v >= floor], win, samples
 
 
+def align_pcm16(chunk: bytes, carry: bytes = b"") -> tuple[bytes, bytes]:
+    """PCM16 을 **샘플 경계**로 자른다 → (내보낼 조각, 다음으로 이월할 나머지).
+
+    ⛔ **1바이트를 버리면 안 된다.** PCM16 은 2바이트가 표본 하나라, 중간에서 1바이트를
+      버리면 **그 뒤 전부가 1바이트 밀려** 소리가 통째로 잡음이 된다. 반드시 이월한다.
+      (버려도 되는 건 스트림이 끝난 뒤 남은 1바이트뿐이다 — 0.02ms.)
+
+    왜 필요한가(2026-08-11 실측): OpenAI TTS 는 HTTP 청크를 **받은 그대로** 흘리는데
+    그 경계가 표본 중간에 떨어진다 — 조각 대부분이 **1369바이트(홀수)** 였고 회차에 따라
+    홀수 비율이 51~87% 였다. Chirp(1920의 배수)·Gemini(gRPC 메시지)는 0% 다.
+    홀수 조각을 받은 클라는 `new Int16Array(buf)` 에서 예외가 나 **그 조각을 통째로 버렸다** —
+    28.5ms 짜리 구멍이 초당 열댓 번 뚫려 말이 잘게 씹혔다.
+    """
+    buf = carry + chunk if carry else chunk
+    cut = len(buf) - (len(buf) % 2)
+    return buf[:cut], buf[cut:]
+
+
 def has_audible_signal(pcm: bytes, *, sample_rate: int = OUTPUT_SAMPLE_RATE) -> bool:
     """이 조각에 **소리가 들어 있나**(통째로 침묵인가).
 
