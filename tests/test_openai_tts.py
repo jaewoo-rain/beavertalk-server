@@ -223,83 +223,8 @@ def test_openai_tts_cost_surfaces_as_unknown_not_zero():
     assert unknown == ["tts:openai-gpt-4o-mini-tts"], unknown
 
 
-# ── 묶음 크기: **요청당 오버헤드가 큰 엔진일수록 크게**(2026-08-11) ─────────
-#   OpenAI 가 분기에서 빠져 **Chirp 값 160** 을 물려받고 있었다. Chirp 은 TTFB 165~212ms 라
-#   요청이 많아도 견디는데, OpenAI 는 545~953ms 다 — 요청도 많고 왕복도 긴 **최악 조합**.
-#   실통화 99자에 요청 6회 / 실측 4회에 벤더 대기 합계 2.90초.
-def test_every_tts_choice_has_an_explicit_batch_size():
-    """⛔ **엔진을 늘릴 때 여기서 빠지면 안 된다** — 이번 사고가 정확히 그것이다.
-
-    선택지 목록에 있는 값이 표에 없으면 조용히 기본값으로 떨어진다. 그래서 전 선택지를 돈다.
-    """
-    missing = [c for c in cs._TTS_CHOICES if c not in cs._TTS_BATCH_SETTING]
-    assert not missing, f"묶음 크기 표에 없는 선택지: {missing}"
-    for choice in cs._TTS_CHOICES:
-        assert cs._batch_chars_for(choice) > 0
-
-
-def test_openai_batches_as_large_as_the_slow_vendors():
-    """OpenAI 는 왕복이 Chirp 의 4~5배다 → **큰 묶음** 쪽이어야 한다."""
-    assert cs._batch_chars_for("openai-tts") >= cs._batch_chars_for("gemini-tts") * 0.5
-    assert cs._batch_chars_for("openai-tts") > cs._batch_chars_for(cs._CHIRP_CHOICE)
-
-
-def test_unknown_engine_falls_back_loudly(caplog):
-    """모르는 엔진은 기본값으로 가되 **조용히 가지 않는다**."""
-    import logging
-
-    with caplog.at_level(logging.WARNING):
-        assert cs._batch_chars_for("some-new-tts") == cs.settings.CASCADE_TTS_BATCH_CHARS
-    assert any("묶음 크기 미지정" in r.getMessage() for r in caplog.records), caplog.text
-
-
-# ── 첫 문장 단독 송출: **같은 사고의 두 번째**(2026-08-11) ─────────────────
-#   조건이 `_gemini_realtime()` 이라 OpenAI 가 Chirp 규칙을 탔다. 실측 첫 배치 오디오가
-#   800·1000·1450ms 인데 선행버퍼가 1500ms 라, 버퍼를 못 채우고 바로 바닥나 **끊겼다**.
-def test_every_tts_choice_declares_a_first_sentence_rule():
-    """⛔ 묶음 크기 표와 **같은 이유**로 전 선택지를 돈다 — 빠지면 남의 규칙을 물려받는다."""
-    missing = [c for c in cs._TTS_CHOICES if c not in cs._TTS_SOLO_FIRST]
-    assert not missing, f"첫문장 규칙 표에 없는 선택지: {missing}"
-
-
-def test_slow_vendors_do_not_send_the_first_sentence_alone():
-    """왕복이 긴 엔진(OpenAI·Gemini)은 묶어서 낸다."""
-    assert cs._solo_first_sentence(cs._OPENAI_TTS_CHOICE) is False
-    assert cs._solo_first_sentence(cs.tts.GEMINI_ENGINE) is False
-
-
-def test_chirp_keeps_sending_the_first_sentence_alone():
-    """⛔ Chirp 은 **유지**다 — 왕복이 165~212ms 라 단독 송출이 첫 소리를 앞당긴다."""
-    assert cs._solo_first_sentence(cs._CHIRP_CHOICE) is True
-    assert cs._solo_first_sentence("") is True, "빈 값 = 서버 기본(Chirp)"
-
-
-def test_unknown_engine_batches_and_says_so(caplog):
-    """모르는 엔진은 **묶는 쪽**(안전)으로 가되 조용히 가지 않는다."""
-    import logging
-
-    with caplog.at_level(logging.WARNING):
-        assert cs._solo_first_sentence("some-new-tts") is False
-    assert any("첫문장 규칙 미지정" in r.getMessage() for r in caplog.records), caplog.text
-
-
-def test_first_sentence_rule_is_read_from_the_table_not_the_engine_name():
-    """⭐ **표로 물어야** 새 엔진이 남의 규칙을 물려받지 않는다.
-
-    ⚠ 소스 문자열로 보면 주석에 걸린다(사고 경위를 주석에 적어 뒀다) — 코드만 본다.
-    """
-    import ast
-    import inspect
-    import textwrap
-
-    tree = ast.parse(textwrap.dedent(inspect.getsource(cs.CascadeSession._run_reply)))
-    called = {n.func.id for n in ast.walk(tree)
-              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    attrs = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
-    assert "_solo_first_sentence" in called, "표를 안 묻는다"
-    assert "_gemini_realtime" not in attrs, "엔진 이름으로 되돌아갔다"
-
-
+# ── 엔진별 성질(묶음 크기·첫 문장 단독·선행버퍼)은 `test_cascade_tts_profile.py` 가 지킨다.
+#   OpenAI 가 그 표들에서 두 번 빠졌던 게 사고의 원인이라 **전 선택지 전수 점검**을 한 곳에 뒀다.
 def test_choice_list_is_the_single_source(monkeypatch):
     """선택지 나열이 흩어지면 또 어딘가에서 빠진다 — 수락 판정도 같은 목록을 쓴다."""
     import inspect

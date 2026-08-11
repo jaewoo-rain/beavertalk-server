@@ -150,7 +150,105 @@ _OPENAI_TTS_CHOICE = "openai-tts"
 #   `_emotion_log` 에 하드코딩돼 있어서, OpenAI 로 돌면서 `감정=인사(미적용:cloud-tts-chirp3-hd)`
 #   라고 **거짓 로그**가 찍혔다(감정은 실제로 들어가고 있었다). 로그가 거짓이면 사장님이
 #   "감정이 안 걸리는구나"라고 잘못 판단하신다 — 잘못 잰 지표로 하루를 태운 것과 같은 계열이다.
-_STYLE_ENGINES = (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
+@dataclass(frozen=True)
+class _TtsProfile:
+    """엔진 하나의 **성질**. ⛔ 분기에서 엔진 이름을 비교하지 말고 여기를 봐라.
+
+    같은 사고가 **두 번** 났다(2026-08-11):
+      ① 묶음 크기 — OpenAI 가 Chirp 값(160)을 물려받았다. Chirp 은 TTFB 165~212ms 라 견디는데
+         OpenAI 는 545~953ms 다.
+      ② 첫 문장 단독 송출 — 조건이 `_gemini_realtime()` 이라 **OpenAI 가 Chirp 규칙을 탔다.**
+         실측: OpenAI 첫 배치 오디오가 **800·1000·1450ms** 인데 선행버퍼가 1500ms 다 →
+         버퍼를 못 채우고 바닥나서 **끊긴다.** Gemini 는 첫 배치가 6440·8240ms 라 안 끊긴다.
+    ⇒ 두 번 다 "이름으로 비교"가 원인이다. 새 엔진은 **이 표에 한 줄**을 넣으면 되고,
+      안 넣으면 회귀가 먼저 실패한다.
+
+    Attributes:
+        batch_setting: 문장을 얼마나 모아 한 요청으로 보낼지(설정 이름).
+        lead_setting: 페이서 선행버퍼(설정 이름). None 이면 서버 공통값.
+        rate_setting: 배속 기본값(설정 이름).
+        solo_first_sentence: **첫 문장을 단독으로 즉시 쏘나.**
+            ⭐ 왕복이 짧은 엔진에서만 이득이다(첫 소리가 그만큼 빨라진다). 왕복이 길면
+            첫 배치가 짧아져 **재생이 버퍼보다 먼저 바닥나고 끊긴다** — 그게 위 ②다.
+        takes_style: 감정/스타일 지시를 **실제로 받나**(안 받는 엔진은 로그에 미적용으로 적는다).
+        vendor: 원가 벤더 문자열을 만드는 함수(모델마다 단가가 다르다).
+        is_configured: 이 엔진을 **지금 쓸 수 있나**(키·자격증명). 화면에서 고를 때 검사한다.
+        google_engine: `core.tts` 에 넘길 엔진 이름. 구글을 안 타는 엔진은 None.
+            ⚠ Chirp 이 None 이면 안 된다 — 그러면 `core.tts` 가 서버 기본값으로 되돌아가
+            **고른 것과 다른 소리**가 난다.
+    """
+
+    batch_setting: str
+    lead_setting: str | None
+    rate_setting: str
+    solo_first_sentence: bool
+    takes_style: bool
+    vendor: Any
+    is_configured: Any
+    google_engine: str | None
+
+
+_TTS_PROFILES: dict[str, _TtsProfile] = {
+    # Chirp: TTFB 165~212ms — 왕복이 짧아 첫 문장 단독이 **이득**이다(첫 소리가 빨라진다).
+    _CHIRP_CHOICE: _TtsProfile(
+        "CASCADE_TTS_BATCH_CHARS", None, "CASCADE_TTS_SPEAKING_RATE",
+        solo_first_sentence=True, takes_style=False,
+        vendor=lambda: tts.CHIRP3_ENGINE,
+        is_configured=lambda: True,        # 구글 자격증명은 서버 기본 경로다
+        google_engine=_CHIRP_CHOICE,
+    ),
+    # Gemini 실시간: TTFB 805~1271ms · 합성이 재생보다 최대 1.5초 뒤처진다.
+    tts.GEMINI_ENGINE: _TtsProfile(
+        "CASCADE_TTS_BATCH_CHARS_GEMINI", "CASCADE_TTS_LEAD_MS_GEMINI",
+        "CASCADE_TTS_SPEAKING_RATE_GEMINI",
+        solo_first_sentence=False, takes_style=True,
+        vendor=lambda: (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip(),
+        is_configured=lambda: True,
+        google_engine=tts.GEMINI_ENGINE,
+    ),
+    # Gemini 배치: 전체를 합성한 뒤 한 번에 낸다(첫 문장 규칙 자체가 안 탄다).
+    _GEMINI_BATCH_CHOICE: _TtsProfile(
+        "CASCADE_TTS_BATCH_CHARS_GEMINI", "CASCADE_TTS_LEAD_MS_GEMINI",
+        "CASCADE_TTS_SPEAKING_RATE_GEMINI",
+        solo_first_sentence=False, takes_style=True,
+        vendor=lambda: (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip(),
+        is_configured=lambda: True,
+        google_engine=tts.GEMINI_ENGINE,   # 배치도 소리는 Gemini 가 낸다(모으는 방식만 다르다)
+    ),
+    # OpenAI: TTFB 545~953ms — **Chirp 이 아니라 Gemini 쪽 성질**이다(위 ②).
+    _OPENAI_TTS_CHOICE: _TtsProfile(
+        "CASCADE_TTS_BATCH_CHARS_OPENAI", "CASCADE_TTS_LEAD_MS_OPENAI",
+        "CASCADE_TTS_SPEAKING_RATE",
+        solo_first_sentence=False, takes_style=True,
+        vendor=openai_tts.vendor_name,
+        is_configured=openai_tts.is_configured,   # ⛔ 키 없으면 이 엔진만 거절(R5)
+        google_engine=None,                       # 구글을 안 탄다(별도 어댑터)
+    ),
+}
+
+# 표에 없는 엔진이 쓸 성질 — ⛔ **Chirp 을 그대로 주면 안 된다.** 그러면 첫 문장 단독 송출을
+#   물려주는 셈이라 이번 사고를 그대로 재현한다. 왕복을 모르면 **묶는 쪽**이 안전하다
+#   (단독 송출은 왕복이 짧다는 걸 알 때만 이득이고, 틀리면 소리가 끊긴다).
+#   스타일도 안 받는 것으로 둔다 — 받는다고 가정했다가 틀리면 로그가 거짓말을 한다.
+_TTS_FALLBACK_PROFILE = _TtsProfile(
+    "CASCADE_TTS_BATCH_CHARS", None, "CASCADE_TTS_SPEAKING_RATE",
+    solo_first_sentence=False, takes_style=False,
+    vendor=lambda: tts.CHIRP3_ENGINE,
+    is_configured=lambda: False,       # 모르는 엔진은 고를 수 없다(거절이 안전하다)
+    google_engine=_CHIRP_CHOICE,
+)
+
+
+def _profile_for(engine: str) -> _TtsProfile:
+    """엔진의 성질. ⛔ 표에 없으면 **경고를 찍고** 보수적인 기본 성질로 간다(조용히 안 떨어진다)."""
+    name = (engine or _CHIRP_CHOICE).strip()
+    profile = _TTS_PROFILES.get(name)
+    if profile is None:
+        logger.warning("cascade tts 성질 미등록 엔진(%r) — 표에 한 줄 넣어라", name[:24])
+        return _TTS_FALLBACK_PROFILE
+    return profile
+
+
 # ⭐ **고를 수 있는 TTS 전부.** 엔진을 늘릴 때 손댈 자리를 한 곳으로 모은다 —
 #   나열이 여러 곳에 흩어져 있으면 **어느 하나에서 빠진다**(2026-08-11 실제로 그랬다:
 #   묶음 크기 분기에서 OpenAI 가 빠져 Chirp 값 160 을 물려받았다. Chirp 은 TTFB 165~212ms 라
@@ -158,61 +256,9 @@ _STYLE_ENGINES = (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
 _TTS_CHOICES = (_CHIRP_CHOICE, tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
 
 
-# 엔진 → 묶음 크기 설정 이름. ⛔ **값이 아니라 이름**이라 env 로 바꿔도 그대로 따라간다.
-#   실측 TTFB(괄호)가 클수록 크게 묶는다 — 요청당 그 시간이 통째로 붙기 때문이다.
-_TTS_BATCH_SETTING = {
-    _CHIRP_CHOICE: "CASCADE_TTS_BATCH_CHARS",                 # 165~212ms
-    tts.GEMINI_ENGINE: "CASCADE_TTS_BATCH_CHARS_GEMINI",      # 805~1271ms
-    _GEMINI_BATCH_CHOICE: "CASCADE_TTS_BATCH_CHARS_GEMINI",
-    _OPENAI_TTS_CHOICE: "CASCADE_TTS_BATCH_CHARS_OPENAI",     # 545~953ms
-}
-
-
-# 엔진 → **첫 문장을 단독으로 즉시 쏘나.** ⛔ 묶음 크기와 같은 계열의 성질이다.
-#   왕복이 짧으면 이득이고(첫 소리가 그만큼 빨라진다), 길면 손해만 본다 — 첫 요청에 고정
-#   오버헤드가 통째로 붙는 데다, 나온 오디오가 **선행버퍼보다 짧아** 재생이 먼저 바닥난다.
-#   ⛔ 여기가 `_gemini_realtime()` 이던 탓에 **OpenAI 가 Chirp 규칙을 물려받았다**:
-#     첫 배치 오디오 800·1000·1450ms 인데 선행버퍼는 1500ms 였다. 그게 그 끊김이다.
-#     (Gemini 는 같은 자리에서 6440·8240ms 라 멀쩡했고, Chirp 은 TTFB 165~212ms 라 무해했다.)
-_TTS_SOLO_FIRST = {
-    _CHIRP_CHOICE: True,              # 165~212ms — 짧은 요청이 싸다
-    tts.GEMINI_ENGINE: False,         # 805~1271ms
-    _GEMINI_BATCH_CHOICE: False,      # 전체를 한 번에 낸다(이 규칙을 아예 안 탄다)
-    _OPENAI_TTS_CHOICE: False,        # 545~953ms — **Chirp 이 아니라 이쪽 성질이다**
-}
-
-
-def _solo_first_sentence(engine: str) -> bool:
-    """첫 문장을 단독으로 쏠까 — ⛔ 표에 없으면 **경고를 찍고** 안 쏜다.
-
-    모르는 엔진은 왕복도 모른다. 모르면 **묶는 쪽**이 안전하다(단독 송출은 왕복이 짧다는
-    걸 알 때만 이득이고, 틀리면 소리가 끊긴다).
-    """
-    name = (engine or _CHIRP_CHOICE).strip()
-    solo = _TTS_SOLO_FIRST.get(name)
-    if solo is None:
-        logger.warning(
-            "cascade tts 첫문장 규칙 미지정 엔진(%r) — 묶어서 낸다(안전). 표에 넣어라", name[:24],
-        )
-        return False
-    return solo
-
-
 def _batch_chars_for(engine: str) -> int:
-    """엔진별 묶음 크기 — **요청당 고정 오버헤드(TTFB)가 큰 엔진일수록 크게 묶는다.**
-
-    ⛔ 새 엔진을 `_TTS_CHOICES` 에 넣고 위 표에 안 넣으면 **경고가 뜬다**(조용히 기본값으로
-      떨어지지 않는다). 회귀는 **전 선택지가 표에 있는지**를 본다 — 그게 이번 사고의 재발 방지다.
-    """
-    name = (engine or _CHIRP_CHOICE).strip()
-    key = _TTS_BATCH_SETTING.get(name)
-    if key is None:
-        logger.warning(
-            "cascade tts 묶음 크기 미지정 엔진(%r) — 기본 %d자로 간다. 표에 넣어라",
-            name[:24], settings.CASCADE_TTS_BATCH_CHARS,
-        )
-        key = "CASCADE_TTS_BATCH_CHARS"
-    return max(1, int(getattr(settings, key)))
+    """엔진별 묶음 크기 — **요청당 고정 오버헤드(TTFB)가 큰 엔진일수록 크게 묶는다.**"""
+    return max(1, int(getattr(settings, _profile_for(engine).batch_setting)))
 _STYLE_PROMPT_MAX = 200     # 스타일 문구 상한 — 길어지면 지연 비교가 오염된다
 # 말하기 배속 허용 범위 — proto 원문 [0.25, 2.0]. 밖은 거절한다(요청이 통째로 거절되기 전에).
 _RATE_MIN, _RATE_MAX = 0.25, 2.0
@@ -1754,6 +1800,7 @@ class CascadeSession:
                     first_audio_ms = timing.first_sound_ms
                 spoken_chars += len(text_batch)
 
+            # ✓ 이건 모으는 **방식**(전체 합성 후 한 번에 낸다)이지 조절값이 아니다.
             if self._tts_engine == _GEMINI_BATCH_CHOICE:
                 turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, timing)
                 self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
@@ -1774,11 +1821,13 @@ class CascadeSession:
                     self._reply_emotion = detect_emotion(chat.text)
                 for sentence in buffer.push(piece):
                     timing.mark_sentence()
-                    # ⚠ **첫 문장 단독**은 왕복이 짧은 엔진의 규칙이다(위 표가 판정한다).
-                    #   길면 손해만 본다 — 고정 오버헤드가 통째로 붙고, 첫 배치가 선행버퍼보다
-                    #   짧아 재생이 먼저 바닥난다.
+                    # ⚠ **첫 문장 단독**은 왕복이 짧은 엔진의 규칙이다(성질 표가 판정한다).
+                    #   왕복이 길면 손해만 본다: 첫 요청에 고정 오버헤드가 통째로 붙고,
+                    #   나온 오디오가 **선행버퍼보다 짧아** 재생이 먼저 바닥나 끊긴다.
+                    #   ⛔ 여기가 `_gemini_realtime()` 이라 OpenAI 가 Chirp 규칙을 탔다 —
+                    #     첫 배치 800·1000·1450ms 인데 버퍼는 1500ms 였다. 그 끊김이다.
                     if (first_audio_ms < 0 and not pending
-                            and _solo_first_sentence(self._tts_engine)):
+                            and self._profile().solo_first_sentence):
                         pending.append(sentence)
                         await _flush_batch()        # 첫 문장 = 단독 즉시 송출
                         continue
@@ -2095,6 +2144,8 @@ class CascadeSession:
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
+        # ✓ 이건 성질이 아니라 **어느 어댑터를 부르느냐**다(구글 SDK vs HTTP — 인자 자체가
+        #   다르다). 조절값이 아니므로 성질 표로 안 옮긴다.
         if self._tts_engine == _OPENAI_TTS_CHOICE:
             # ⛔ 구글이 아니다 — 별도 어댑터를 탄다. 폴백도 하지 않는다(엔진을 골라 듣는 중인데
             #   조용히 다른 소리가 나면 A/B 가 거짓말이 된다).
@@ -2121,6 +2172,7 @@ class CascadeSession:
         #   문장마다 찔러봐야 **실패해도 요청은 나가고**(회복이 늦어진다) 첫소리만 늘어난다.
         #   ⛔ 프로세스 전역으로 고정하면 쿼터가 회복돼도 영영 Chirp 이다 — 세션 단위여야 한다.
         allow_gemini = not self._tts_gemini_off
+        # ✓ 이건 Gemini **쿼터** 고유라 성질 표로 안 옮긴다(다른 벤더엔 이 백오프가 없다).
         if allow_gemini and self._tts_vendor() != tts.CHIRP3_ENGINE:
             # 백오프 전까지의 Gemini 호출 수 — ①(요청 수 줄이기)의 효과를 재는 유일한 값이다
             # (백오프가 호출 자체를 막으므로 tts_calls 로는 못 잰다).
@@ -2131,8 +2183,7 @@ class CascadeSession:
             voice=settings.CASCADE_TTS_VOICE,
             report=report,
             allow_gemini=allow_gemini,
-            engine=(tts.GEMINI_ENGINE if self._tts_engine == _GEMINI_BATCH_CHOICE
-                    else self._tts_engine or None),
+            engine=self._profile().google_engine,
             speaking_rate=self._note_rate(language),
             style_prompt=self._style_prompt(),
         )
@@ -2208,14 +2259,14 @@ class CascadeSession:
 
         ⛔ Chirp 은 스타일을 안 받는다. 그 사실이 안 보이면 사장님이 Chirp 으로 들으시고
           "감정이 안 되네"라고 하시게 된다.
-        ⛔⛔ **판정은 `_STYLE_ENGINES` 한 곳에서만 한다.** 여기 하드코딩돼 있던 탓에 OpenAI 로
+        ⛔⛔ **판정은 성질 표 한 곳에서만 한다**(`_TtsProfile.takes_style`). 여기 하드코딩돼 있던 탓에 OpenAI 로
           돌면서 `감정=인사(미적용:cloud-tts-chirp3-hd)` 라는 **거짓 로그**가 찍혔다 —
           감정은 실제로 들어가고 있었는데(instructions), 로그만 아니라고 말했다.
           그리고 엔진 이름도 하드코딩이라 **돌지도 않은 엔진 이름**을 찍었다.
         """
         if not self._reply_emotion:
             return "감정=없음"
-        if self._tts_engine in _STYLE_ENGINES:
+        if self._profile().takes_style:
             return "감정=%s" % self._reply_emotion
         # 미적용이면 **실제로 도는 엔진 이름**을 적는다(빈 값이면 서버 기본값 = Chirp).
         return "감정=%s(미적용:%s)" % (self._reply_emotion, self._tts_vendor())
@@ -2238,9 +2289,7 @@ class CascadeSession:
             return self._tts_rate_by_lang[lang]
         if self._tts_rate is not None:
             return self._tts_rate
-        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
-            return settings.CASCADE_TTS_SPEAKING_RATE_GEMINI
-        return settings.CASCADE_TTS_SPEAKING_RATE
+        return getattr(settings, self._profile().rate_setting)
 
     def _single_voice(self) -> bool:
         """이 엔진은 **한 음성으로 두 언어를 다 읽나**(=마커 분할을 건너뛰나).
@@ -2283,6 +2332,10 @@ class CascadeSession:
                 continue
             yield chunk
 
+    def _profile(self) -> _TtsProfile:
+        """이 세션 엔진의 성질(표 한 곳)."""
+        return _profile_for(self._tts_engine)
+
     def _batch_chars(self) -> int:
         """문장을 얼마나 모아 한 번에 합성할지 — **요청당 오버헤드가 큰 엔진일수록 크게.**
 
@@ -2300,11 +2353,7 @@ class CascadeSession:
 
         ⚠ 모델별로 단가가 다르다 — 모델 ID 까지 남겨야 원가를 가를 수 있다.
         """
-        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
-            return (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip()
-        if self._tts_engine == _OPENAI_TTS_CHOICE:
-            return openai_tts.vendor_name()
-        return tts.CHIRP3_ENGINE
+        return self._profile().vendor()
 
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
         """이력에는 **실제로 들린 데까지**만 남긴다(설계 §5).
@@ -2653,10 +2702,11 @@ class CascadeSession:
         picked = str(ctrl.get("ttsEngine") or ctrl.get("tts_engine") or "").strip()
         source = "서버 기본값"
         if picked:
-            if picked == _OPENAI_TTS_CHOICE and not openai_tts.is_configured():
+            if picked in _TTS_CHOICES and not _TTS_PROFILES[picked].is_configured():
                 # ⛔ 키가 없으면 **명확히 거절한다.** 조용히 다른 엔진으로 바꾸면 사장님이
                 #   "OpenAI 소리"로 착각하신다(ElevenLabs 에서 했던 그대로).
-                logger.warning("cascade tts 엔진 거절: %s — API 키 미설정(GPT_API_KEY)", picked)
+                #   ⭐ 판정은 성질 표가 한다 — 새 엔진의 키 검사가 빠지는 걸 막는다.
+                logger.warning("cascade tts 엔진 거절: %s — API 키 미설정", picked)
             elif picked in _TTS_CHOICES:
                 self._tts_engine, source = picked, "클라 지정"
             else:
@@ -2691,13 +2741,8 @@ class CascadeSession:
         # ⭐ 엔진에 맞는 선행 버퍼를 잡는다. Gemini 는 합성이 재생보다 최대 1.5초 뒤처져서
         #   200ms 만 모으고 시작하면 **반드시 언더런이 난다**(그게 '끊긴다'의 정체였다).
         #   배속 자체는 1.7~1.9x 라 초반만 견디면 격차가 벌어져 안 끊긴다.
-        if self._tts_engine in (tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE):
-            self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_GEMINI)
-        elif self._tts_engine == _OPENAI_TTS_CHOICE:
-            # ⚠ 미측정이라 크게 잡는다 — 작으면 언더런이 난다(Gemini 에서 겪은 그것).
-            self.beaver.lead_ms = max(0, settings.CASCADE_TTS_LEAD_MS_OPENAI)
-        else:
-            self.beaver.lead_ms = None
+        lead = self._profile().lead_setting
+        self.beaver.lead_ms = None if lead is None else max(0, int(getattr(settings, lead)))
         # ⭐ 세션 시작에 한 줄 — 이 통화의 소리가 어느 엔진 것인지 여기서 확정된다.
         logger.info(
             "cascade 엔진 선택: %s (%s) speaking_rate=%.2f(%s) 언어별=%s "

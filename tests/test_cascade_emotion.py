@@ -141,10 +141,17 @@ def test_emotion_log_says_none_when_there_is_no_tag():
 
 
 def test_style_engine_set_is_defined_in_one_place():
-    """⛔ 하드코딩이 이 사고의 원인이었다 — 판정은 한 곳에서만."""
-    assert cs._OPENAI_TTS_CHOICE in cs._STYLE_ENGINES
-    assert cs.tts.GEMINI_ENGINE in cs._STYLE_ENGINES
-    assert cs.tts.CHIRP3_ENGINE not in cs._STYLE_ENGINES
+    """⛔ 하드코딩이 이 사고의 원인이었다 — 판정은 성질 표 한 곳에서만.
+
+    표 자체의 전수 점검은 `test_cascade_tts_profile.py` 가 한다. 여기서는 **로그가 표를
+    본다**는 것만 잡는다.
+    """
+    import inspect
+
+    assert cs._TTS_PROFILES[cs._OPENAI_TTS_CHOICE].takes_style is True
+    assert cs._TTS_PROFILES[cs.tts.GEMINI_ENGINE].takes_style is True
+    assert cs._TTS_PROFILES[cs._CHIRP_CHOICE].takes_style is False
+    assert "takes_style" in inspect.getsource(cs.CascadeSession._emotion_log)
 
 
 def test_chirp_branch_still_passes_an_empty_style():
