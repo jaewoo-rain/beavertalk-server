@@ -256,6 +256,10 @@ def _profile_for(engine: str) -> _TtsProfile:
 #   요청이 많아도 견디는데, OpenAI 는 545~953ms 다 — **요청도 많고 왕복도 긴 최악 조합**).
 _TTS_CHOICES = (_CHIRP_CHOICE, tts.GEMINI_ENGINE, _GEMINI_BATCH_CHOICE, _OPENAI_TTS_CHOICE)
 
+# 이보다 빠르면 **말이 아니라 잘린 오디오**다. 실측 기준: Live 한국어 7.7자/초,
+# 빠른 영어 16~18자/초. 여유를 크게 둬서 정상 발화가 걸리지 않게 한다.
+_IMPOSSIBLE_CHARS_PER_S = 25.0
+
 
 def _batch_chars_for(engine: str) -> int:
     """엔진별 묶음 크기 — **요청당 고정 오버헤드(TTFB)가 큰 엔진일수록 크게 묶는다.**"""
@@ -827,6 +831,8 @@ class CascadeSession:
         # ⛔ 원가용 tts_chars 와 다르다: 그건 'API 에 넘긴 글자'(끊겨도 돈은 나간다)라
         #   분모(오디오)와 모집단이 어긋나 **읽기 속도로 쓰면 28자/초 같은 값이 나온다.**
         self._reply_spans: list[tuple[str, int, int]] = []
+        # 요청별 홀수 조각 수 — 0 이 아니면 벤더가 PCM16 표본 경계를 안 지킨다는 증거다.
+        self._tts_odd_chunks: list[int] = []
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
         self._tts_gemini_calls = 0
@@ -1769,6 +1775,7 @@ class CascadeSession:
         self._tts_engines.clear()
         self._marker_seen.clear()
         self._reply_spans.clear()
+        self._tts_odd_chunks.clear()
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
         # ⭐ 이 대답의 감정(대답 1건당 **하나**). 문장마다 바꾸면 구간이 쪼개져 TTS 호출이
         #   늘고, 분당 상한이 10 인데 대답 하나가 이미 3~6회다(429 가 1순위 제약이다).
@@ -1823,11 +1830,12 @@ class CascadeSession:
                 turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, timing)
                 self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s %s",
+                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s %s %s",
                     "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                     self._emotion_log(), self._rate_log(), spoken_chars,
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
+                    self._tts_request_log(),
                     self._reading_summary(self._batch_synth_s),
                 )
                 return
@@ -1863,13 +1871,14 @@ class CascadeSession:
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
                 "cascade 대답%s: turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
-                "gemini호출=%d %s %s",
+                "gemini호출=%d %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
                 self._tts_gemini_calls, "고정" if self._tts_gemini_off else "-",
+                self._tts_request_log(),
                 self._reading_summary(None),
             )
         except asyncio.CancelledError:
@@ -2075,6 +2084,38 @@ class CascadeSession:
 
         return await speak_stream(self.beaver, _gen(), label)
 
+    def _note_tts_request(self, language: str, chars: int, sent: int,
+                          align: dict | None = None) -> None:
+        """합성 요청 1건의 결과를 남긴다 — **잘렸으면 여기서 드러난다.**
+
+        ⛔ 어댑터엔 완결성 검사가 없다. 실제로 status 200 인데 14.5초짜리 문장이 **0.30초만
+          오고 조용히 끝난** 회차가 있었다(2026-08-11, 8회 중 1회, 재현 안 됨). 그런 절단이
+          로그에 안 남으면 "가끔 이상하다"로 끝나고 원인을 영영 못 찾는다.
+        ⚠ 판정 문턱(자/초)은 **물리적으로 불가능한 선**이다 — 실측 목표가 7.7자/초(Live 한국어),
+          빠른 영어가 16~18자/초다. 여기 걸리는 건 속도가 아니라 **잘린 오디오**다.
+        ⚠ core 어댑터의 로그는 Cloud Logging 에 안 남는다 — 그래서 판정도 기록도 여기서 한다.
+        """
+        self._reply_spans.append((language, chars, sent))
+        self._tts_odd_chunks.append(int((align or {}).get("odd", 0)))
+        audio_s = audio.output_audio_s(sent)
+        if chars and audio_s > 0 and chars / audio_s > _IMPOSSIBLE_CHARS_PER_S:
+            logger.warning(
+                "cascade ⚠ tts 응답이 너무 짧다: %d자를 %.2f초(%.0f자/초)로 받았다 — "
+                "벤더가 도중에 끊었을 수 있다. 엔진=%s",
+                chars, audio_s, chars / audio_s, self._tts_vendor(),
+            )
+
+    def _tts_request_log(self) -> str:
+        """이 대답의 **요청별** (글자·오디오 초). 요청 수와 절단이 한 줄에서 보인다."""
+        if not self._reply_spans:
+            return "요청=-"
+        odd = self._tts_odd_chunks
+        return "요청=[%s]" % ", ".join(
+            "%d자·%.2fs%s" % (chars, audio.output_audio_s(sent),
+                              "·홀수%d" % odd[i] if i < len(odd) and odd[i] else "")
+            for i, (_, chars, sent) in enumerate(self._reply_spans)
+        )
+
     def _reading_summary(self, synth_s: float | None) -> str:
         """이 대답의 **읽기 속도**를 실측으로 요약한다(언어별).
 
@@ -2162,6 +2203,7 @@ class CascadeSession:
         #   그 문장 값은 이미 나갔다. 다 나온 뒤에 세면 끊긴 문장이 통째로 장부에서 사라진다.
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
+        align: dict = {}          # 이 요청에서 홀수 조각이 몇 개였나(벤더가 격자를 지키나)
         # ✓ 이건 성질이 아니라 **어느 어댑터를 부르느냐**다(구글 SDK vs HTTP — 인자 자체가
         #   다르다). 조절값이 아니므로 성질 표로 안 옮긴다.
         if self._tts_engine == _OPENAI_TTS_CHOICE:
@@ -2175,7 +2217,7 @@ class CascadeSession:
             # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_head` 는 조각을 통째로 버리고
             #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
             #   **뒤따르는 바이트가 반 표본씩 밀린다**(소리가 통째로 잡음이 된다).
-            stream = sample_aligned(stream)
+            stream = sample_aligned(stream, align)
             trim = self._trim_silence()
             if trim:
                 stream = self._trim_head(stream)
@@ -2185,7 +2227,7 @@ class CascadeSession:
             self.usage.record_tts_audio(sent)
             if sent:
                 self._tts_engines.add(report.get("engine") or self._tts_vendor())
-                self._reply_spans.append((language, len(sentence), sent))
+                self._note_tts_request(language, len(sentence), sent, align)
             else:
                 self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
             return sent
@@ -2209,7 +2251,7 @@ class CascadeSession:
             speaking_rate=self._note_rate(language),
             style_prompt=self._style_prompt(),
         )
-        stream = sample_aligned(stream)     # 정렬이 침묵 절단보다 먼저다(위 주석과 같은 이유)
+        stream = sample_aligned(stream, align)   # 정렬이 침묵 절단보다 먼저다(위와 같은 이유)
         trim = self._trim_silence()
         if trim:
             stream = self._trim_head(stream)
@@ -2218,7 +2260,7 @@ class CascadeSession:
         self.usage.record_tts_audio(sent)
         if sent:
             # 소리가 실제로 나간 것만 읽기 속도의 재료가 된다(합성 실패는 글자도 안 센다).
-            self._reply_spans.append((language, len(sentence), sent))
+            self._note_tts_request(language, len(sentence), sent, align)
         if self._tts_ttfb_ms < 0 and report.get("ttfb_ms") is not None:
             self._tts_ttfb_ms = int(report["ttfb_ms"])
         engine = report.get("engine")

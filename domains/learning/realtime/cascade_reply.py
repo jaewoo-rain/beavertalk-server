@@ -191,7 +191,8 @@ def strip_markers(text: str) -> str:
     return (text or "").replace(MARKER, "")
 
 
-async def sample_aligned(pcm_stream: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
+async def sample_aligned(pcm_stream: AsyncIterator[bytes],
+                         stats: dict | None = None) -> AsyncIterator[bytes]:
     """조각 경계를 **표본 경계로** 맞춘다 — 홀수 꼬리는 다음 조각으로 이월한다.
 
     ⭐ **왜 여기인가**(2026-08-11). 이월은 "한 합성 요청 안에서"만 옳다:
@@ -207,6 +208,10 @@ async def sample_aligned(pcm_stream: AsyncIterator[bytes]) -> AsyncIterator[byte
     async for chunk in pcm_stream:
         if not chunk:
             continue
+        if len(chunk) % 2 and stats is not None:
+            # ⭐ **몇 개나 홀수였나**를 세어 둔다. 이 숫자가 0 이 아니면 벤더가 표본 경계를
+            #   안 지킨다는 뜻이고, 그게 보여야 다음에 같은 증상을 **듣기 전에** 안다.
+            stats["odd"] = stats.get("odd", 0) + 1
         out, carry = align_pcm16(chunk, carry)
         if out:
             yield out

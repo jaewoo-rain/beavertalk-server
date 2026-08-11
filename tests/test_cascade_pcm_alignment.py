@@ -162,3 +162,77 @@ async def test_alignment_happens_before_silence_trimming(monkeypatch):
 async def _wrap(gen):
     """`tts.synthesize_stream` 은 **await 하면 제너레이터**를 준다 — 그 모양을 맞춘다."""
     return gen
+
+
+# ── ④ 계측: 홀수가 왔다는 사실이 로그에 남는다 ─────────────────────────────
+@pytest.mark.asyncio
+async def test_odd_chunks_are_counted_for_the_reply_log(monkeypatch):
+    """⭐ **조용한 실패를 없앤다** — 벤더가 홀수를 내면 그 숫자가 대답 줄에 남아야 한다.
+
+    이 사고를 하루 넘게 못 찾은 이유가 "아무 흔적이 없었다"이다. 고친 뒤에도 벤더가
+    여전히 홀수를 내는지는 **로그로만** 알 수 있다.
+    """
+    async def _stream(text, **kwargs):
+        for i in range(3):
+            yield bytes([(i + 1) * 40] * 1369)      # 전부 홀수
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream",
+                        lambda *a, **kw: _wrap(_stream(*a, **kw)))
+    session = cs.CascadeSession(_Recorder())
+    await session.beaver.begin()
+    await session._speak_one("문장", "ko")
+    assert session._tts_odd_chunks == [3], session._tts_odd_chunks
+    assert "홀수3" in session._tts_request_log(), session._tts_request_log()
+
+
+@pytest.mark.asyncio
+async def test_normal_engines_leave_no_noise_in_the_log(monkeypatch):
+    """짝수만 오면 **아무 표시도 안 붙는다**(정상이 시끄러우면 이상을 못 본다)."""
+    async def _stream(text, **kwargs):
+        yield bytes(1920)
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream",
+                        lambda *a, **kw: _wrap(_stream(*a, **kw)))
+    session = cs.CascadeSession(_Recorder())
+    await session.beaver.begin()
+    await session._speak_one("문장", "ko")
+    assert "홀수" not in session._tts_request_log()
+
+
+# ── ⑤ 잘린 응답: 완결성이 로그에 드러난다 ──────────────────────────────────
+@pytest.mark.asyncio
+async def test_a_truncated_vendor_response_is_reported(monkeypatch, caplog):
+    """⛔ status 200 인데 오디오만 짧게 오고 끝나는 회차가 있었다(재현 안 됨).
+
+    어댑터에 완결성 검사가 없어 **로그에 아무것도 안 남았다.** 물리적으로 불가능한
+    자/초가 나오면 경고로 드러낸다 — 속도가 아니라 절단의 신호다.
+    """
+    import logging
+
+    async def _stream(text, **kwargs):
+        yield bytes(14400)                          # 0.30초 — 100자짜리 문장에 비해 불가능
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream",
+                        lambda *a, **kw: _wrap(_stream(*a, **kw)))
+    session = cs.CascadeSession(_Recorder())
+    await session.beaver.begin()
+    with caplog.at_level(logging.WARNING):
+        await session._speak_one("가" * 100, "ko")
+    assert any("너무 짧다" in r.getMessage() for r in caplog.records), caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_normal_response_does_not_warn(monkeypatch, caplog):
+    """⚠ 정상 발화가 걸리면 경고가 무의미해진다 — 문턱은 불가능한 선이어야 한다."""
+    import logging
+
+    async def _stream(text, **kwargs):
+        yield bytes(48000 * 2)                      # 2초 — 20자면 10자/초(정상)
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream",
+                        lambda *a, **kw: _wrap(_stream(*a, **kw)))
+    session = cs.CascadeSession(_Recorder())
+    await session.beaver.begin()
+    with caplog.at_level(logging.WARNING):
+        await session._speak_one("가" * 20, "ko")
+    assert not [r for r in caplog.records if "너무 짧다" in r.getMessage()], caplog.text

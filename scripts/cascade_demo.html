@@ -350,14 +350,22 @@ function cleanup() {
    WS 는 한 연결 내 순서를 보장하므로 그 구간 = 취소된 턴의 잔여로 유일하게 식별된다. */
 const BEAVER_RATE = 24000, BEAVER_BPS = BEAVER_RATE * 2;   // 48,000 bytes/s
 let bTurnId = null, bDrop = false, bSources = [], bBytes = 0, bStartT = 0, bPlayT = 0;
-let droppedFrames = 0;
+let droppedFrames = 0, oddFrames = 0, badFrames = 0;
 
 function beaverReset(turnId) {
   bTurnId = turnId; bDrop = false; bSources = []; bBytes = 0; bStartT = 0; bPlayT = 0; droppedFrames = 0;
+  oddFrames = 0; badFrames = 0;
 }
 function playBeaverChunk(buf) {
   if (bDrop) { droppedFrames++; return; }        // (2) 취소 잔여 — 디코드조차 하지 않는다
   if (!actx || bTurnId === null) return;
+  // ⛔ 홀수 길이면 Int16Array 가 RangeError 를 던진다 — 예전엔 그 예외가 위에서 먹혀
+  //   **조각 하나가 아무 흔적 없이 사라졌다**(28.5ms 구멍이 초당 열댓 번). 서버가 표본
+  //   경계를 지키는 게 정답이고(I6), 여기서는 **소리 없이 사라지지 않게** 잘라 쓰고 센다.
+  //   ⚠ 1바이트를 버리면 그 조각 안에서 반 표본이 어긋나지만, 통째로 버리는 것보다 낫다.
+  //     이 숫자가 0 이 아니면 **서버가 불변식을 어기고 있다는 뜻**이다.
+  if (buf.byteLength % 2) { oddFrames++; buf = buf.slice(0, buf.byteLength - 1); }
+  if (!buf.byteLength) return;
   const i16 = new Int16Array(buf), f32 = new Float32Array(i16.length);
   for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 0x8000;
   const ab = actx.createBuffer(1, f32.length, BEAVER_RATE);
@@ -391,7 +399,14 @@ $('#cancelBtn').onclick = () => {
 
 /* ---------- 서버 메시지 ---------- */
 function onMsg(ev) {
-  if (ev.data instanceof ArrayBuffer) { playBeaverChunk(ev.data); return; }   // 비버 오디오
+  if (ev.data instanceof ArrayBuffer) {
+    // ⛔ **조용히 죽지 않는다.** 여기서 예외가 나면 그 조각은 재생도, bBytes 가산도,
+    //   bPlayT 전진도 없이 사라진다 — 진행도까지 작게 보고돼 이력 절단이 같이 틀어진다.
+    //   하루 넘게 못 찾은 이유가 정확히 이 침묵이었다.
+    try { playBeaverChunk(ev.data); }
+    catch (e) { badFrames++; console.warn('비버 오디오 조각 처리 실패', ev.data.byteLength, e); }
+    return;
+  }
   let m; try { m = JSON.parse(ev.data); } catch { return; }
   if (m.type === 'ready') {
     engine = m.engine; silenceMs = m.turn_silence_ms;
@@ -453,7 +468,11 @@ function onMsg(ev) {
     log(`🔊 turn_start ${m.turn_id} (오디오 시작)`);
   }
   else if (m.type === 'turn_end') {
-    $('#beaverStat').textContent = `비버 턴 ${m.turn_id} 정상 종료`;
+    // ⭐ 사라진 조각을 **눈에 보이게** 남긴다. 0 이 아니면 서버가 표본 경계(I6)를 어겼거나
+    //   클라가 조각을 못 다뤘다는 뜻이다 — 예전엔 이 숫자가 없어서 증상만 들렸다.
+    const lost = (oddFrames ? ` ⚠홀수조각 ${oddFrames}` : '') + (badFrames ? ` ⛔처리실패 ${badFrames}` : '');
+    $('#beaverStat').textContent = `비버 턴 ${m.turn_id} 정상 종료${lost}`;
+    if (lost) log(`⚠ 이 턴에서 온전히 못 쓴 오디오 조각:${lost}`);
     log(`🔇 turn_end ${m.turn_id} (마지막 바이트 뒤에 도착 = 정상)`);
     bTurnId = null;
   }
