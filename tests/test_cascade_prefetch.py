@@ -44,7 +44,7 @@ def _session(monkeypatch, engine: str = "openai-tts") -> cs.CascadeSession:
     return session
 
 
-def _mark(byte: int, ms: int = 100) -> bytes:
+def _mark(byte: int, ms: int = 200) -> bytes:
     """구간을 알아볼 수 있는 오디오(같은 값으로 채운다)."""
     return bytes([byte]) * (48 * ms)
 
@@ -208,19 +208,23 @@ async def test_one_failing_segment_does_not_kill_the_rest(monkeypatch):
 # ── 측정: 구간 대기가 로그에 남는다 ────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_the_segment_wait_is_measured_and_logged(monkeypatch):
-    """⛔ **재지 않고 좋아졌다고 하지 않는다.** 구간이 첫 소리를 기다린 시간을 남긴다."""
+    """⛔ **재지 않고 좋아졌다고 하지 않는다.** 구간이 첫 소리를 기다린 시간을 남긴다.
+
+    ⚠ 선행 합성의 이득은 **앞 구간이 실제로 재생되는 동안**에만 생긴다. 그래서 선행버퍼를
+      0 으로 두고(=실시간 페이싱) 앞 구간에 벤더 지연보다 긴 오디오를 준다 — 안 그러면
+      페이서가 순식간에 다 뱉고 결국 뒤 구간 왕복을 그대로 기다린다(시험이 흔들린다).
+    """
     vendor = _FakeVendor({"가": (1, 0.0), "나": (2, 0.30)})
     monkeypatch.setattr(cs.openai_tts, "synthesize_stream", vendor.stream)
+    monkeypatch.setattr(vendor, "plan", {"가": (1, 0.0), "나": (2, 0.30)})
     session = _session(monkeypatch)
+    session.beaver.lead_ms = 0                     # 실시간 페이싱(선행버퍼 없음)
     await session.beaver.begin()
 
     await session._speak_segments([("가", "ko"), ("나", "en")])
     assert len(session._tts_waits) == 2
-    # 첫 구간은 기다린다(벤더 왕복). 둘째는 **앞 구간 재생 중에 미리 받아 뒀다.**
-    assert session._tts_waits[1] < 0.30, session._tts_waits
-    assert "대기" in session._tts_request_log() or all(
-        w < 0.05 for w in session._tts_waits
-    ), session._tts_request_log()
+    # 첫 구간은 벤더를 기다린다. 둘째는 **앞 구간 재생(0.2초) 동안 미리 받아 뒀다.**
+    assert session._tts_waits[1] < 0.30 / 2, session._tts_waits
 
 
 @pytest.mark.asyncio

@@ -868,6 +868,9 @@ class CascadeSession:
         # ⛔ 원가용 tts_chars 와 다르다: 그건 'API 에 넘긴 글자'(끊겨도 돈은 나간다)라
         #   분모(오디오)와 모집단이 어긋나 **읽기 속도로 쓰면 28자/초 같은 값이 나온다.**
         self._reply_spans: list[tuple[str, int, int]] = []
+        # 배치 경로가 **실제로 말한 텍스트**와 상한에 걸려 버린 꼬리(이력·로그가 쓴다)
+        self._batch_spoken = ""
+        self._batch_dropped = ""
         # 요청별 홀수 조각 수 — 0 이 아니면 벤더가 PCM16 표본 경계를 안 지킨다는 증거다.
         self._tts_odd_chunks: list[int] = []
         # 요청별 **첫 소리를 기다린 시간** — 구간 사이에 소리가 빈 시간이다(선행 합성의 성적표).
@@ -1828,6 +1831,7 @@ class CascadeSession:
             history=self._history,
             user_text=user_text,
             thinking_budget=settings.CASCADE_LLM_THINKING_BUDGET,
+            max_output_tokens=settings.CASCADE_LLM_MAX_OUTPUT_TOKENS,
         )
         if chat is None:
             self.state = TurnState.IDLE
@@ -1868,11 +1872,14 @@ class CascadeSession:
             # ✓ 이건 모으는 **방식**(전체 합성 후 한 번에 낸다)이지 조절값이 아니다.
             if self._tts_engine == _GEMINI_BATCH_CHOICE:
                 turn_id, first_audio_ms, spoken_chars = await self._run_batch_reply(chat, timing)
-                self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
+                # ⚠ 이력에는 **실제로 말한 것만**(버린 꼬리 제외).
+                self._remember_beaver(turn_id, strip_emotion_tags(self._batch_spoken))
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s %s %s",
+                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d%s 문장모델=%s tts=%s %s %s",
                     "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                     self._emotion_log(), self._rate_log(), spoken_chars,
+                    "(상한잘림 꼬리%d자버림)" % len(self._batch_dropped)
+                    if self._batch_dropped else ("(상한잘림)" if chat.truncated else ""),
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                     self._tts_request_log(),
@@ -1901,19 +1908,32 @@ class CascadeSession:
                     if sum(len(x) for x in pending) >= self._batch_chars():
                         await _flush_batch()
             tail = buffer.flush()
+            dropped = ""
+            if tail and chat.truncated and (spoken_chars or pending):
+                # ⛔ 상한에 걸린 대답의 꼬리는 **미완성 문장**이다 — 말하지 않는다.
+                #   (아직 아무것도 못 말했으면 그 꼬리라도 낸다 — 침묵보다 낫다.)
+                dropped, tail = tail.strip(), ""
             if tail:
                 pending.append(tail)
             await _flush_batch()
             if turn_id is not None:
                 await self.beaver.end()
-            self._remember_beaver(turn_id, strip_emotion_tags(chat.text))
+            # ⚠ 이력에는 **실제로 말한 것만** 남긴다 — 버린 꼬리를 넣으면 다음 턴의 모델이
+            #   자기가 하지도 않은 말을 했다고 믿는다.
+            spoken_reply = strip_emotion_tags(chat.text)
+            if dropped and dropped in spoken_reply:
+                spoken_reply = spoken_reply[: spoken_reply.rfind(dropped)]
+            self._remember_beaver(turn_id, spoken_reply)
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s %s %s %s 글자=%d 문장모델=%s tts=%s 마커=%s "
+                "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 문장모델=%s tts=%s 마커=%s "
                 "gemini호출=%d %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
+                # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
+                "(상한잘림 꼬리%d자버림)" % len(dropped) if dropped else
+                ("(상한잘림)" if chat.truncated else ""),
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
@@ -2002,6 +2022,11 @@ class CascadeSession:
         self._reply_emotion = detect_emotion(chat.text)
         timing.mark_sentence()   # 배치는 '전체 텍스트 완성'이 곧 문장 완성 시점이다
         text = strip_markers(chat.text).strip() and chat.text.strip()
+        self._batch_dropped = ""
+        if text and chat.truncated:
+            # 배치도 같은 규칙이다 — 미완성 문장은 말하지 않는다.
+            text, self._batch_dropped = self._drop_incomplete_tail(text)
+        self._batch_spoken = text
         if not text:
             self._batch_synthesizing = False
             return None, -1, 0
@@ -2541,6 +2566,26 @@ class CascadeSession:
         ⚠ 모델별로 단가가 다르다 — 모델 ID 까지 남겨야 원가를 가를 수 있다.
         """
         return self._profile().vendor()
+
+    def _drop_incomplete_tail(self, text: str) -> tuple[str, str]:
+        """상한에 걸려 잘린 대답에서 **마지막 미완성 문장**을 떼어낸다 → (말할 것, 버릴 것).
+
+        ⛔ 잘린 말을 그대로 읽으면 상한을 안 두느니만 못하다("…그리고 저는" 하고 끝난다).
+        ⚠ **완성된 문장이 하나도 없으면 버리지 않는다** — 침묵보다는 미완성이 낫다.
+          그 경우는 드물고(상한이 첫 문장도 못 담았다는 뜻이다) 로그로 드러낸다.
+        """
+        buffer = SentenceBuffer()
+        sentences = buffer.push(text)
+        tail = buffer.flush().strip()
+        kept = "".join(sentences).strip()
+        if not kept:
+            logger.warning(
+                "cascade ⚠ 대답이 상한(%d토큰)에 걸렸는데 **완성된 문장이 하나도 없다** — "
+                "미완성인 채로 내보낸다. 상한이 너무 낮다는 신호다",
+                settings.CASCADE_LLM_MAX_OUTPUT_TOKENS,
+            )
+            return text, ""
+        return kept, tail
 
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
         """이력에는 **실제로 들린 데까지**만 남긴다(설계 §5).

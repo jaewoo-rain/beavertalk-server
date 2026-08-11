@@ -75,13 +75,18 @@ async def test_sentence_label_goes_on_the_last_chunk():
 # ③~⑤ 세션 통합 (LLM·TTS 는 페이크 — 크레덴셜·과금 0)
 # --------------------------------------------------------------------------- #
 class _FakeChat:
-    """ChatStream 대역 — 정해진 조각을 흘리고 usage 를 남긴다."""
+    """ChatStream 대역 — 정해진 조각을 흘리고 usage 를 남긴다.
 
-    def __init__(self, pieces, usage=None) -> None:
+    ⚠ 실물과 **같은 속성**을 갖춰야 한다. `truncated`(출력 상한에 걸렸나)가 빠져 있으면
+      대역만 통과하고 실물에서 터진다 — 2026-08-12 에 실제로 그랬다.
+    """
+
+    def __init__(self, pieces, usage=None, truncated=False) -> None:
         self._pieces = pieces
         self.text = ""
         self.usage_metadata = usage
         self.failed = False
+        self.truncated = truncated
 
     async def chunks(self):
         for piece in self._pieces:

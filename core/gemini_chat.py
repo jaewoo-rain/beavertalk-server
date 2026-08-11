@@ -26,7 +26,8 @@ class ChatStream:
     본 자리**에서만 정확하다. 호출부가 토큰을 세지 않는다(세면 벤더와 어긋난다).
     """
 
-    __slots__ = ("text", "usage_metadata", "failed", "_client", "_model", "_kwargs")
+    __slots__ = ("text", "usage_metadata", "failed", "truncated",
+                 "_client", "_model", "_kwargs")
 
     def __init__(self, client: Any, model: str, kwargs: dict) -> None:
         self._client = client
@@ -35,6 +36,9 @@ class ChatStream:
         self.text = ""                 # 지금까지 생성된 전체(감사·이력용 원본)
         self.usage_metadata: Any = None
         self.failed = False
+        # ⛔ **상한에 걸려 잘렸나.** 잘렸으면 마지막 문장이 미완성일 수 있어 호출부가
+        #   그 꼬리를 버린다. 이 사실이 안 보이면 "왜 말이 이상하지"를 못 찾는다.
+        self.truncated = False
 
     async def chunks(self) -> AsyncIterator[str]:
         """생성 텍스트 조각을 도착하는 대로 흘린다(실패는 흡수하고 조용히 끝낸다)."""
@@ -52,6 +56,10 @@ class ChatStream:
                 usage = getattr(response, "usage_metadata", None)
                 if usage is not None:
                     self.usage_metadata = usage
+                for candidate in (getattr(response, "candidates", None) or []):
+                    reason = getattr(candidate, "finish_reason", None)
+                    if reason is not None and "MAX_TOKENS" in str(reason).upper():
+                        self.truncated = True
                 piece = getattr(response, "text", None)
                 if not piece:
                     continue
@@ -71,6 +79,7 @@ def open_chat_stream(
     user_text: str,
     thinking_budget: int | None = 0,
     temperature: float = 0.9,
+    max_output_tokens: int | None = None,
 ) -> ChatStream | None:
     """대화 1턴을 스트리밍으로 연다. 클라이언트·SDK 가 없으면 None(호출부는 비버를 건너뛴다).
 
@@ -79,6 +88,9 @@ def open_chat_stream(
             (끊긴 비버 발화는 생성 전체가 아니라 들린 데까지. 설계 §5).
         user_text: 이번 사용자 발화(STT 최종 전사).
         thinking_budget: 0 = 추론 끄기(기본). None 이면 모델 기본값.
+        max_output_tokens: 출력 상한(토큰). None·0 이면 벤더 기본값(상한 없음).
+            ⚠ 여기 걸리면 **마지막 문장이 중간에서 끊긴다** — 호출부가 `truncated` 를 보고
+              그 꼬리를 버려야 한다(잘린 말을 그대로 읽으면 그게 더 나쁘다).
     """
     if client is None or not (user_text or "").strip():
         return None
@@ -98,6 +110,8 @@ def open_chat_stream(
     contents.append(types.Content(role="user", parts=[types.Part(text=user_text.strip())]))
 
     config_kwargs: dict = {}
+    if max_output_tokens:
+        config_kwargs["max_output_tokens"] = int(max_output_tokens)
     if thinking_budget is not None:
         config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
     config = types.GenerateContentConfig(
