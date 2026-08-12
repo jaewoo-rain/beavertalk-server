@@ -49,12 +49,47 @@ def test_the_cap_is_a_call_parameter_not_a_prompt_sentence():
     assert "max_output_tokens" in inspect.getsource(cs.CascadeSession._run_reply)
 
 
-def test_the_cap_is_configurable_and_sane_by_default():
+def test_the_token_cap_is_a_safety_net_not_a_length_knob():
+    """⚠ **의미가 바뀐 자리다**(2026-08-12). 길이는 이제 **문장 개수**가 정한다.
+
+    예전 이 테스트는 "30~64 사이"를 지켰다 — 그때는 토큰 상한이 길이 조절 수단이었다.
+    이제 그 값은 **종결부호를 영영 안 찍는 병리**(목록·이모지 폭주)만 잡는 마지막 방어선이다.
+    ⛔ 다시 낮추면 문장 상한보다 먼저 걸려 **문장 중간에서 끊긴다** — 이번 결함 그 자체다.
+      4문장이 실제로 몇 토큰인지로 하한을 잡는다(실측 0.34~0.45 토큰per자 · 4문장 ≈ 200자).
+    """
     from core.config import settings
 
-    assert settings.CASCADE_LLM_MAX_OUTPUT_TOKENS > 0, "기본값이 상한 없음이면 의미가 없다"
-    # 실측 표 기준: 36~64 밖으로 나가면 '너무 짧다/의미 없다' 중 하나다.
-    assert 30 <= settings.CASCADE_LLM_MAX_OUTPUT_TOKENS <= 64
+    assert settings.CASCADE_LLM_MAX_OUTPUT_TOKENS > 0, "기본값이 상한 없음이면 안전망이 없다"
+    assert settings.CASCADE_LLM_MAX_OUTPUT_TOKENS >= 120, (
+        "안전망이 문장 상한보다 먼저 걸린다 — 문장 중간에서 잘리던 결함이 재발한다"
+    )
+
+
+def test_the_sentence_cap_matches_the_prompt_rule():
+    """⭐⭐ **프롬프트와 강제가 같은 숫자여야 한다** — 이번 결함의 뿌리가 그 불일치였다.
+
+        프롬프트  "5. 응답 길이: 매 응답은 1~4문장으로 짧게."
+        서버      CASCADE_LLM_MAX_SENTENCES = 4
+        사장님    "응답은 1~4문장이야"
+
+    셋이 갈리는 순간 모델은 지시를 따르고 서버가 자른다(= 꼬리 버림). 한쪽만 바꾸면 깨지게
+    묶어 둔다.
+    """
+    import re
+
+    from core.config import settings
+    from core.persona_prompt import build_system_instruction
+
+    text = build_system_instruction(
+        role="r", personality="p", level_profile="", locale="en",
+        interests=[], target_language="한국어",
+    )
+    m = re.search(r"응답 길이: 매 응답은 1~(\d+)문장", text)
+    assert m, "프롬프트에서 길이 규칙을 못 찾았다(문구가 바뀌었나)"
+    assert int(m.group(1)) == settings.CASCADE_LLM_MAX_SENTENCES, (
+        f"프롬프트는 1~{m.group(1)}문장인데 서버 상한은 "
+        f"{settings.CASCADE_LLM_MAX_SENTENCES} 다 — 갈리면 다시 잘린다"
+    )
 
 
 def test_zero_means_no_cap(monkeypatch):

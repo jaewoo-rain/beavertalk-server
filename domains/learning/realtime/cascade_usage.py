@@ -92,6 +92,10 @@ class LlmUsage:
     out_text: int = 0
     thoughts: int = 0    # ⚠ candidates 에 안 들어간다 — 출력 원가를 계산할 땐 더해야 한다
     cached: int = 0
+    # ⭐ **토큰을 못 받은 호출 수**(2026-08-12). 스트림을 문장 상한에서 중간에 닫으면 벤더가
+    #   usage 객체는 주는데 **필드가 전부 None** 인 회차가 있다(실측 4회 중 1회).
+    #   ⛔ 그걸 0 으로 먹으면 원가가 조용히 과소 집계된다 — **모른다고 드러낸다.**
+    unknown: int = 0
     total: int = 0
 
 
@@ -155,6 +159,13 @@ class CascadeUsage:
             if vendor:
                 self.llm.vendor = vendor
             self.llm.calls += 1
+            if usage_metadata is None or getattr(usage_metadata, "total_token_count", None) is None:
+                # ⚠ 이 호출의 토큰은 **모른다**(스트림 조기 종료 등). 세어서 드러낸다.
+                self.llm.unknown += 1
+                logger.warning(
+                    "cascade usage: LLM 토큰을 못 받았다(usage=%s) — 이 호출은 원가에서 빠진다",
+                    "없음" if usage_metadata is None else "필드 없음",
+                )
             self.llm.in_text += int(_attr(usage_metadata, "prompt_token_count"))
             self.llm.out_text += int(_attr(usage_metadata, "candidates_token_count"))
             self.llm.thoughts += int(_attr(usage_metadata, "thoughts_token_count"))
@@ -266,6 +277,9 @@ class CascadeUsage:
                 "vendor": self.llm.vendor, "calls": self.llm.calls,
                 "in_text": self.llm.in_text, "out_text": self.llm.out_text,
                 "thoughts": self.llm.thoughts, "cached": self.llm.cached,
+                # ⭐ 토큰을 못 받은 호출 수 — 0 이 아니면 **원가가 그만큼 과소집계**다.
+                #   조용히 비는 것보다 세는 게 낫다(errors 와 같은 규율).
+                "unknown": self.llm.unknown,
             }
             tts = {
                 "vendor": self.tts.vendor, "calls": self.tts.calls,
@@ -309,6 +323,8 @@ def format_usage_line(summary: dict) -> str:
         f"stt_billed_msgs={stt['billed_msgs']} "
         f"llm_in={llm['in_text']} llm_out={llm['out_text']} llm_thoughts={llm['thoughts']} "
         f"llm_calls={llm['calls']} "
+        + (f"⚠llm_unknown={llm['unknown']} " if llm.get("unknown") else "")
+        + 
         f"tts_chars={tts['chars']} tts_audio_s={tts['audio_s']} "
         f"tts_unheard={tts['chars_unheard']} tts_calls={tts['calls']} "
         f"tts_failed={tts['calls_failed']} tts_fallbacks={tts.get('fallbacks', 0)} "

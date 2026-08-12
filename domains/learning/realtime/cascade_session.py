@@ -2152,7 +2152,14 @@ class CascadeSession:
             await self._safe(ServerBeaverPreparing(
                 stage="llm", elapsed_ms=int((time.monotonic() - began) * 1000),
             ))
-            async for piece in chat.chunks():
+            # ⭐⭐ **문장 개수가 길이를 정한다**(2026-08-12 사장님 "응답은 1~4문장이야").
+            #   토큰으로 자르면 문장 중간에서 끊겨 꼬리를 버렸다(call 938: 99자 = 말한 것의 4배).
+            #   ⛔ 새 파서를 만들지 않는다 — **이미 쓰는 `SentenceBuffer` 를 종료 조건으로도**
+            #     쓴다. 그래야 "무엇이 한 문장인가"의 출처가 하나로 남는다.
+            cap = max(0, settings.CASCADE_LLM_MAX_SENTENCES)
+            sentences_done, capped = 0, False
+            stream = chat.chunks()
+            async for piece in stream:
                 timing.mark_chunk()
                 # ⭐ 감정은 **대답 맨 앞 태그 하나**다. 조각 경계로 태그가 쪼개져도 누적
                 #   텍스트(chat.text)에서 읽으므로 놓치지 않는다.
@@ -2160,6 +2167,7 @@ class CascadeSession:
                     self._reply_emotion = detect_emotion(chat.text)
                     self._note_stray_tag(chat.text)
                 for sentence in buffer.push(piece):
+                    sentences_done += 1
                     timing.mark_sentence()
                     # ⚠ **첫 문장 단독**은 왕복이 짧은 엔진의 규칙이다(성질 표가 판정한다).
                     #   왕복이 길면 손해만 본다: 첫 요청에 고정 오버헤드가 통째로 붙고,
@@ -2174,8 +2182,21 @@ class CascadeSession:
                     pending.append(sentence)
                     if sum(len(x) for x in pending) >= self._batch_chars():
                         await _flush_batch()
+                if cap and sentences_done >= cap:
+                    # ⭐ 상한을 채웠다 — **남은 생성을 받지 않는다.** 원가·지연이 같이 준다.
+                    #   ⚠ 이건 **생성 종료 조건**이지 발화 삭제 규칙이 아니다. 같은 조각에
+                    #     N+1번째 **완결** 문장이 함께 실려 오면 그것까지 말한다 — 이미 만들어
+                    #     졌고(값을 이미 냈다) 완결이라 말이 안 잘린다. 버리면 질문 하나가
+                    #     통째로 사라진다.
+                    capped = True
+                    await stream.aclose()
+                    break
             tail = buffer.flush()
             dropped = ""
+            if tail and capped:
+                # 상한에서 끊었을 때 남은 것은 **N+1번째 문장의 앞부분**이다 — 말하지 않는다.
+                #   ⚠ 토큰 상한 때와 달리 여기서 버리는 양은 문장 시작 몇 글자다(그게 요점이다).
+                dropped, tail = tail.strip(), ""
             if tail and chat.truncated and (spoken_chars or pending):
                 # ⛔ 상한에 걸린 대답의 꼬리는 **미완성 문장**이다 — 말하지 않는다.
                 #   (아직 아무것도 못 말했으면 그 꼬리라도 낸다 — 침묵보다 낫다.)
@@ -2199,8 +2220,12 @@ class CascadeSession:
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
-                "(상한잘림 꼬리%d자버림)" % len(dropped) if dropped else
-                ("(상한잘림)" if chat.truncated else ""),
+                # ⭐ **끝난 이유를 구분한다.** 문장 상한은 정상 종료고, 토큰 상한은 병리다
+                #   (종결부호를 영영 안 찍었다는 뜻) — 같은 표시로 찍으면 신호가 죽는다.
+                ("(문장상한%d 꼬리%d자버림)" % (cap, len(dropped)) if capped else
+                 "(상한잘림 꼬리%d자버림)" % len(dropped)) if dropped else
+                ("(문장상한%d)" % cap if capped else
+                 ("⚠토큰상한잘림" if chat.truncated else "")),
                 # ⭐ **자막이 실제로 나갔나**(구간 마커 수). 0 이면 클라가 자막을 못 받는다 —
                 #   지금까지 이 값이 없어 "자막이 안 뜬다"를 서버 로그로 못 갈랐다.
                 #   ⚠ 아래 `언어분할=` 과 다른 것이다(그건 `__마커__` 언어 구간 상태).
@@ -3540,12 +3565,6 @@ class CascadeSession:
                 # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
                 #   출력이 바이트 동일하게 유지된다.
                 language_marker=True,
-                # ⭐ **짧은 응답 규칙**(캐스케이드 전용, 2026-08-12). 기본 프롬프트는 "1~4문장"을
-                #   시키는데 우리는 LLM 출력에 토큰 상한(안전망)을 건다 — 모델은 지시를 따르고
-                #   **우리가 중간에서 잘랐다**(call 938: 글자=27 인데 꼬리 99자 버림).
-                #   ⛔ 상한을 올려서 풀지 않는다(대답이 길어져 첫소리·턴이 늦어진다).
-                #   Live 는 기본값 False 라 **출력 바이트가 그대로**다.
-                short_reply=True,
                 # ⭐ 감정 태그도 **캐스케이드 전용**이다. ⛔ Live 에 켜면 모델이 태그를 그대로
                 #   읽어 버린다 — 서버가 걷어낼 자리가 없다(Live 는 모델이 직접 소리를 낸다).
                 emotion_tags=tuple(EMOTION_STYLES),
