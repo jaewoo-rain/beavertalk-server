@@ -88,6 +88,8 @@ from domains.learning.realtime.cascade_reply import (
     SentenceBuffer,
     detect_emotion,
     emotion_style,
+    read_bare_label,
+    read_stray_tag,
     sample_aligned,
     speak_stream,
     split_by_language,
@@ -868,6 +870,8 @@ class CascadeSession:
         # ⛔ 원가용 tts_chars 와 다르다: 그건 'API 에 넘긴 글자'(끊겨도 돈은 나간다)라
         #   분모(오디오)와 모집단이 어긋나 **읽기 속도로 쓰면 28자/초 같은 값이 나온다.**
         self._reply_spans: list[tuple[str, int, int]] = []
+        # 대사 맨 앞에 온 **집합 밖 태그**(있으면 소리로 안 내보내고 로그로 드러낸다)
+        self._dropped_tag = ""
         # 배치 경로가 **실제로 말한 텍스트**와 상한에 걸려 버린 꼬리(이력·로그가 쓴다)
         self._batch_spoken = ""
         self._batch_dropped = ""
@@ -1817,6 +1821,7 @@ class CascadeSession:
         self._tts_engines.clear()
         self._marker_seen.clear()
         self._reply_spans.clear()
+        self._dropped_tag = ""
         self._tts_odd_chunks.clear()
         self._tts_waits.clear()
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
@@ -1892,6 +1897,7 @@ class CascadeSession:
                 #   텍스트(chat.text)에서 읽으므로 놓치지 않는다.
                 if self._reply_emotion is None:
                     self._reply_emotion = detect_emotion(chat.text)
+                    self._note_stray_tag(chat.text)
                 for sentence in buffer.push(piece):
                     timing.mark_sentence()
                     # ⚠ **첫 문장 단독**은 왕복이 짧은 엔진의 규칙이다(성질 표가 판정한다).
@@ -2020,6 +2026,7 @@ class CascadeSession:
         async for _ in chat.chunks():                 # 전체 텍스트가 완성될 때까지 받는다
             timing.mark_chunk()
         self._reply_emotion = detect_emotion(chat.text)
+        self._note_stray_tag(chat.text)
         timing.mark_sentence()   # 배치는 '전체 텍스트 완성'이 곧 문장 완성 시점이다
         text = strip_markers(chat.text).strip() and chat.text.strip()
         self._batch_dropped = ""
@@ -2466,6 +2473,38 @@ class CascadeSession:
             return self._tts_style              # 데모 화면이 직접 고른 값이 이긴다
         return emotion_style(self._reply_emotion)
 
+    def _note_stray_tag(self, text: str) -> None:
+        """대사 맨 앞에 **집합 밖 태그**가 왔으면 그 사실을 남긴다(소리로는 이미 안 나간다).
+
+        ⛔ 조용히 지우면 **프롬프트가 이상한 걸 뱉고 있다는 사실을 다시는 못 본다.**
+          실통화 00147 이 그랬다 — `[대화]` 가 소리로 새고 감정은 전부 '없음'이었는데,
+          로그에는 아무 흔적이 없어 원인을 길이 상한 쪽으로 잘못 짚었다.
+        ⚠ 대답 하나에 **한 번만** 찍는다(조각마다 찍으면 로그가 도배된다).
+        """
+        if self._dropped_tag or self._reply_emotion:
+            return
+        tag = read_stray_tag(text)
+        if not tag:
+            # ⚠ 대괄호가 **없는** 경우도 갈라 둔다. 우리는 대사 원문을 안 찍으므로, 모델이
+            #   `[대화]` 를 뱉었는지 `대화.` 를 뱉었는지는 지금 추론이다 — 후자면 위 제거가
+            #   안 먹고 증상이 그대로 남는다. **지우지는 않고**(정상 낱말이다) 사실만 남겨
+            #   다음 통화 로그에서 판별되게 한다.
+            bare = read_bare_label(text)
+            if bare:
+                self._dropped_tag = "?" + bare       # 버린 게 아니라 **의심**이라는 표시
+                logger.warning(
+                    "cascade ⚠ 대사가 라벨 낱말 %r 로 시작한다(대괄호 없음) — 지우지 않았다. "
+                    "소리로 그대로 나간다면 프롬프트 쪽 문제다(persona_prompt 의 구획 라벨)",
+                    bare,
+                )
+            return
+        self._dropped_tag = tag
+        logger.warning(
+            "cascade ⚠ 대사 맨 앞에 집합 밖 태그 %r — 소리로 안 내보내고 감정도 없음으로 둔다. "
+            "프롬프트가 대괄호를 구획 라벨로 쓰는 것과 태그 규약이 충돌한다(persona_prompt)",
+            tag[:20],
+        )
+
     def _emotion_log(self) -> str:
         """대답 줄에 실을 감정 표시 — **적용됐는지까지** 적는다.
 
@@ -2477,6 +2516,10 @@ class CascadeSession:
           그리고 엔진 이름도 하드코딩이라 **돌지도 않은 엔진 이름**을 찍었다.
         """
         if not self._reply_emotion:
+            # ⭐ **무엇이 왔는지**까지 적는다 — '없음'만 보고는 태그가 안 온 건지
+            #   집합 밖이 온 건지 못 가른다(그 구분이 이번 사고의 실마리였다).
+            if self._dropped_tag:
+                return "감정=없음(버린태그:%s)" % self._dropped_tag[:12]
             return "감정=없음"
         if self._profile().takes_style:
             return "감정=%s" % self._reply_emotion

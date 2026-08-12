@@ -45,6 +45,50 @@ EMOTION_STYLES: dict[str, str] = {
 # 태그 표기: 대사 맨 앞의 `[칭찬]`. ⚠ 어떤 위치에 나와도 **전부** 걷어낸다(소리로 나가면 안 된다).
 _EMOTION_TAG_RE = re.compile(r"\[(%s)\]" % "|".join(map(re.escape, EMOTION_STYLES)))
 
+# ⛔⛔ **집합 밖 대괄호 토큰**(2026-08-12 실통화 00147). 비버가 `[대화] ~~` 로 시작했고
+#   위 정규식은 6개만 알아서 **안 지워졌다** → TTS 가 "대화"를 그대로 읽었다. 같은 원인으로
+#   `detect_emotion` 도 None 을 내서 그 통화의 감정이 전부 '없음'이었다. **두 증상이 하나다.**
+#
+# ⭐ 왜 LLM 이 그걸 뱉나(가설, 프롬프트는 이번 범위 밖이라 안 고쳤다):
+#   `core/persona_prompt.py` 가 `[공부 모드]` `[대화 모드]` `[학습자 수준]`
+#   `[오늘의 공부 항목]` 처럼 **대괄호를 구획 라벨로** 쓴다. 같은 프롬프트가 "대사 맨 앞에
+#   `[칭찬]` 을 붙여라"라고도 가르치니, 모델이 그 자리에 **모드 이름**을 넣는다.
+#   ⇒ 프롬프트를 정제할 때 이 충돌을 같이 봐야 한다(라벨 표기를 바꾸든 태그를 다른 기호로 하든).
+#
+# ⚠ 범위를 **맨 앞 + 한글 토큰**으로 좁힌 이유(정상 대사를 지우면 안 된다):
+#   · 위치 — 규약이 '맨 앞'이다. 문장 중간의 대괄호는 대사의 일부일 가능성이 높다.
+#   · 한글 — 이 앱의 대사에서 대괄호가 정상적으로 쓰이는 자리는 **로마자 표기·영어 뜻**
+#     (`[annyeonghaseyo]`)이다. 프롬프트가 흘리는 라벨은 전부 한글이다. 그래서 한글만 지운다.
+#   그래도 지운 건 **반드시 로그로 드러낸다** — 조용히 지우면 프롬프트가 이상한 걸 뱉고
+#   있다는 사실을 다시는 못 본다.
+_STRAY_TAG_RE = re.compile(r"^\s*\[([가-힣][가-힣\s]{0,9})\]\s*")
+
+
+# ⚠ **대괄호가 없는 경우**를 가르는 관측용(2026-08-12). 우리는 대사 원문을 로그에 안 찍기
+#   때문에, 모델이 `[대화]` 를 뱉었는지 `대화.` 를 뱉었는지는 지금 **추론**이다. 전자는 위에서
+#   막았지만 후자면 증상이 그대로 남는다 — 그래서 **지우지는 않고 세기만** 한다.
+#   ⛔ 지우면 안 된다: "대화"는 정상 대사에도 나오는 낱말이다("대화 연습해 봐요").
+#   ⛔ 임의 문자열을 찍지 않는다 — **프롬프트가 쓰는 라벨 낱말**에 걸릴 때만 남긴다.
+_LABEL_WORDS = ("대화 모드", "공부 모드", "학습자 수준", "대화", "공부", "시스템")
+_BARE_LABEL_RE = re.compile(
+    r"^\s*(%s)\s*[.:,、·\-–]" % "|".join(map(re.escape, _LABEL_WORDS))
+)
+
+
+def read_bare_label(text: str) -> str | None:
+    """대괄호 **없이** 라벨 낱말로 시작하나(`대화. ~~`). 관측 전용 — 지우지 않는다."""
+    match = _BARE_LABEL_RE.match(text or "")
+    return match.group(1) if match else None
+
+
+def read_stray_tag(text: str) -> str | None:
+    """대사 **맨 앞**의 집합 밖 한글 대괄호 토큰. 없으면(또는 아직 안 닫혔으면) None."""
+    match = _STRAY_TAG_RE.match(text or "")
+    if not match:
+        return None
+    tag = match.group(1).strip()
+    return None if tag in EMOTION_STYLES else tag
+
 
 def detect_emotion(text: str) -> str | None:
     """대사에서 **첫 번째** 감정 태그를 읽는다. 없거나 집합 밖이면 None(=기본 스타일).
@@ -61,8 +105,13 @@ def strip_emotion_tags(text: str) -> str:
 
     ⛔ 태그가 소리로 나가면 안 된다 — `__마커__` 와 같은 급의 요구다. 오늘 `?` 를
       "쿼스천마크"로 읽던 사고가 정확히 이 계열이다.
+    ⛔ **집합 밖 토큰도 맨 앞이면 걷어낸다**(`[대화]` 가 소리로 나갔다). 위 주석 참고 —
+      감정으로 쓰지는 않되 소리로도 내보내지 않는다.
     """
-    return _EMOTION_TAG_RE.sub("", text or "")
+    out = _EMOTION_TAG_RE.sub("", text or "")      # 집합 안: 어디에 있든
+    while _STRAY_TAG_RE.match(out):                # 집합 밖: 맨 앞만(`[대화] [공부 모드] …`)
+        out = _STRAY_TAG_RE.sub("", out, count=1)
+    return out
 
 
 def emotion_style(emotion: str | None) -> str | None:
