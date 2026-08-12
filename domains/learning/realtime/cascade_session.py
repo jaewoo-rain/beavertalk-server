@@ -2096,12 +2096,24 @@ class CascadeSession:
             #   — 사장님이 "문장마다 톤이 바뀐다"고 하신 것이 같은 원인이다.
             #   ⛔ 첫 문장은 절대 묶지 않는다. 첫 소리가 그만큼 늦어진다.
             pending: list[str] = []
+            # ⭐ 단계 전환을 **한 번씩만** 알린다(아래 _flush_batch·llm 프레임).
+            tts_announced = False
 
             async def _flush_batch() -> None:
-                nonlocal turn_id, first_audio_ms, spoken_chars, pending
+                nonlocal turn_id, first_audio_ms, spoken_chars, pending, tts_announced
                 if not pending:
                     return
                 text_batch, pending = " ".join(pending), []
+                if not tts_announced:
+                    # ⭐ **LLM → TTS 전환**. 프론트가 요청한 것: 클라가 가진 값은
+                    #   `mic OPEN → 다음 발화`뿐인데 거기엔 사용자 발화 시간이 섞여 있어
+                    #   순수 서버 지연이 아니다. 단계가 갈려야 LLM 이 느린지 TTS 가 느린지
+                    #   답할 수 있다. ⛔ 도배 금지 — 구간마다가 아니라 **전환에서 한 번**.
+                    tts_announced = True
+                    await self._safe(ServerBeaverPreparing(
+                        stage="tts", index=1, total=0,
+                        elapsed_ms=int((time.monotonic() - began) * 1000),
+                    ))
                 turn_id = turn_id or await self._begin_beaver_turn()
                 first_audio_at = self.beaver.first_audio_at
                 sent = await self._speak(text_batch)
@@ -2133,6 +2145,12 @@ class CascadeSession:
                     self._reading_summary(self._batch_synth_s),
                 )
                 return
+            # ⭐ **생성 시작**을 알린다(스트리밍 경로). 예전엔 이 프레임이 배치 경로에만
+            #   있어서 폰(gemini-tts=스트리밍)에는 **한 번도 안 갔다** — 프론트 실기기 0건.
+            #   ⚠ 클라 변경 0: 모델·필드가 배치 때와 같다(프론트가 이미 파싱한다).
+            await self._safe(ServerBeaverPreparing(
+                stage="llm", elapsed_ms=int((time.monotonic() - began) * 1000),
+            ))
             async for piece in chat.chunks():
                 timing.mark_chunk()
                 # ⭐ 감정은 **대답 맨 앞 태그 하나**다. 조각 경계로 태그가 쪼개져도 누적
@@ -3494,6 +3512,12 @@ class CascadeSession:
                 # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
                 #   출력이 바이트 동일하게 유지된다.
                 language_marker=True,
+                # ⭐ **짧은 응답 규칙**(캐스케이드 전용, 2026-08-12). 기본 프롬프트는 "1~4문장"을
+                #   시키는데 우리는 LLM 출력에 토큰 상한(안전망)을 건다 — 모델은 지시를 따르고
+                #   **우리가 중간에서 잘랐다**(call 938: 글자=27 인데 꼬리 99자 버림).
+                #   ⛔ 상한을 올려서 풀지 않는다(대답이 길어져 첫소리·턴이 늦어진다).
+                #   Live 는 기본값 False 라 **출력 바이트가 그대로**다.
+                short_reply=True,
                 # ⭐ 감정 태그도 **캐스케이드 전용**이다. ⛔ Live 에 켜면 모델이 태그를 그대로
                 #   읽어 버린다 — 서버가 걷어낼 자리가 없다(Live 는 모델이 직접 소리를 낸다).
                 emotion_tags=tuple(EMOTION_STYLES),

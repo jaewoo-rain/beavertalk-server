@@ -825,14 +825,27 @@ async def test_batch_mode_splits_by_language_and_joins(reply_rig, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_batch_mode_is_gemini_only(reply_rig, monkeypatch):
-    """⛔ Chirp 은 지금 방식(문장 단위 스트리밍) 그대로다 — 배치는 Gemini 전용이다."""
+    """⛔ Chirp 은 지금 방식(**문장 단위 스트리밍**) 그대로다 — 배치는 Gemini 전용이다.
+
+    ⚠ 2026-08-12 판정 기준이 바뀌었다. 예전엔 `beaver_preparing` **부재**로 "배치가 아님"을
+      확인했는데, 그 프레임이 이제 스트리밍 경로에도 나간다(프론트 요청 — 단계가 갈려야
+      LLM 이 느린지 TTS 가 느린지 답한다). 프레임 유무는 더 이상 모드의 증거가 아니다.
+    ⇒ **모드 자체를 직접 본다**: 배치는 전체를 다 만든 뒤 한 번에 합성하므로 그 상태 플래그와
+      배치 산물(`_batch_spoken`)이 남는다. Chirp 은 그 자리를 지나지 않는다.
+    """
     transport = _Transport([
         _ctl(type="start", ttsEngine="chirp3-hd"),
         _ctl(type="__test_say", text="안녕"),
         _ctl(type="__test_event", event=SPEECH_END),
     ])
-    await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
-    assert "beaver_preparing" not in transport.types(), transport.events
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert session._batch_spoken == "", "Chirp 이 배치 경로를 탔다"
+    assert session._batch_synthesizing is False
+    prep = [e for e in transport.events if e.get("type") == "beaver_preparing"]
+    # 스트리밍 경로의 단계 알림은 **정확히 2건**(llm 1 · tts 1)이다 — 배치처럼 구간마다 나가면
+    # 훨씬 많아진다. 개수로도 두 모드가 갈린다.
+    assert [e["stage"] for e in prep] == ["llm", "tts"], prep
 
 
 @pytest.mark.asyncio
