@@ -6,10 +6,13 @@
 - `code`           : ISO 639-1 언어코드(소문자). call.target_language·member_language_level·
                      커리큘럼 선별·증거/이력 집계 스코프의 키.
 - `label`          : 프롬프트에 넣는 대상 언어 한국어 라벨(예: "한국어", "일본어").
-- `level_count`    : 레벨 단계 수. 시드된 언어(ko·ja)는 13[생존 L1 + CEFR 12], 미시드는 12[CEFR A1~C4].
+- `level_count`    : 레벨 단계 수. 시드된 언어는 13[생존 L1 + CEFR 12], 미시드는 12[CEFR A1~C4]
+                     (**지금은 6개 언어 모두 13** — 아래 레지스트리 참고).
 - `has_curriculum` : 커리큘럼 데이터(learning_item/level profile)가 시드돼 있나.
-                     True(ko·ja)면 정식 코스(검출/증거/힌트/레벨 프로파일 주입). False 는 **회화 전용**.
+                     True 면 정식 코스(검출/증거/힌트/레벨 프로파일 주입). False 는 **회화 전용**.
                      시드(parse_<lang>.py + seed) 후 True 로 뒤집는다.
+                     ⚠ **지금은 6개 언어 모두 True** 다 — "ko·ja 만"이라고 적혀 있던 게 낡은
+                     설명이었다(2026-08-12 정정). 이 값은 실동작을 가른다(힌트 사이드카 등).
 - `leveltest`      : 언어별 레벨테스트 대본·루브릭·사다리 앵커가 준비됐나(**6개 언어 모두 True**).
 
 새 언어 = 여기 1행 + DB 시드 + 콘텐츠. 코드 분기는 추가하지 않는다(관통 원칙).
@@ -32,9 +35,14 @@ class LanguageSpec:
 
 
 # 지원 언어 레지스트리.
-#   ko·ja : 커리큘럼·레벨테스트 활성(정식 코스). ja 는 도그푸딩용으로 T4b/T5 에서 시드·저작 완료
-#           — level_count=13(생존 L1 + CEFR 12, 한국어와 동일 축), 문법 바둑판·체크판·레벨업 동작.
-#   en/zh/fr/vi : 아직 회화 전용(커리큘럼·레벨테스트 데이터 미시드) — 시드·저작 후 True 로 뒤집는다.
+#   ⭐ **6개 언어 전부 정식 코스**다(커리큘럼·레벨테스트 활성). level_count=13(생존 L1 + CEFR 12,
+#     한국어와 같은 축)이고 문법 바둑판·체크판·레벨업이 전 언어에서 돈다.
+#     zh·fr·vi 는 `c7a7e5f`("중국어·프랑스어·베트남어 정식화 — 6개 언어 완성")에서 자산이
+#     들어갔다(`curriculum_v2_{fr,vi,zh}/survival_chunks.json`, `level_profiles_*.json`).
+#   ⚠ **이 주석은 2026-08-12 까지 낡아 있었다** — "en/zh/fr/vi 는 아직 회화 전용"이라고 적혀
+#     있었지만 값은 이미 True 였다(`c7a7e5f` 가 값만 고치고 5줄 위 주석을 안 고쳤다).
+#     ⛔ `has_curriculum` 은 **실동작을 가른다**(예: 힌트 사이드카는 커리큘럼 있는 언어에만
+#       뜬다). 주석을 믿고 값을 되돌렸으면 **전 언어의 힌트가 조용히 죽었다.**
 SUPPORTED_LANGUAGES: dict[str, LanguageSpec] = {
     "ko": LanguageSpec("ko", "한국어", 13, True, True),
     "en": LanguageSpec("en", "영어", 13, True, True),
