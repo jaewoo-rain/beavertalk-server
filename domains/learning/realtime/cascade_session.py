@@ -1007,7 +1007,11 @@ class CascadeSession:
         self._bargein_at: float | None = None
         self._interrupted: dict | None = None
         # 비버가 말하는 동안 들어온 발화(대답이 끝나면 답한다) / 지금 비버가 하는 말(에코 판정)
-        self._pending_user_text = ""
+        # ⭐ 대기열은 **목록**이다(2026-08-12). 예전엔 문자열 하나여서 두 가지가 동시에 틀렸다:
+        #   ① **뒤에 온 발화가 앞을 덮어썼다** — 두 마디를 하면 앞 마디가 조용히 사라진다.
+        #   ② 하나씩 소비해서 **비버가 연속으로 두 번 답했다**(사장님 실통화 call 937 의 b4·b5).
+        #   사람이라면 밀린 두 마디를 한 번에 받고 **한 번** 답한다.
+        self._pending_user_texts: list[str] = []
         self._pending_since = 0.0     # 대기열에 들어간 시각
         self._reply_queued_ms = 0     # 이번 대답이 대기열에서 기다린 시간(첫소리 분해용)
         self._rms_log: deque[tuple[float, float]] = deque()
@@ -1766,7 +1770,7 @@ class CascadeSession:
             #   난다). 거기서 "여보세요?" 한 번에 21초치 합성이 날아가면 그 모드의 목적
             #   (끊김 없이 소리를 들어보기)이 배반된다 — 같은 관문이 그대로 막아 준다.
             #   ⛔ 발화를 버리는 게 아니다: 취소만 안 하고, 그 말은 대답이 끝난 뒤 답한다
-            #   (_pending_user_text 대기열).
+            #   (_pending_user_texts 대기열).
             if self._batch_synthesizing:
                 logger.info(
                     "cascade barge-in 무시 — 배치 합성 중(아직 소리가 안 나갔다). "
@@ -2003,10 +2007,15 @@ class CascadeSession:
                 # ⭐ 그렇다고 버리지도 않는다(2026-08-07). 예전엔 여기서 그냥 건너뛰어서
                 #   "대답 다 해도 내가 중간에 말한 거에 답을 안 해" 가 됐다. 줄 세워 뒀다가
                 #   대답이 끝나면 그때 답한다.
-                self._pending_user_text = user_text
-                self._pending_since = time.monotonic()
-                logger.info("cascade 발화 대기열 — 비버가 말하는 중이라 대답 뒤로 미룬다: %r",
-                            user_text[:40])
+                if not self._pending_user_texts:
+                    # ⚠ 대기 시간은 **첫 발화 기준**이다 — 뒤에 온 것으로 갱신하면
+                    #   "얼마나 기다렸나"가 짧게 나와 지연을 못 본다.
+                    self._pending_since = time.monotonic()
+                self._pending_user_texts.append(user_text)
+                logger.info(
+                    "cascade 발화 대기열(%d건) — 비버가 말하는 중이라 대답 뒤로 미룬다: %r",
+                    len(self._pending_user_texts), user_text[:40],
+                )
                 return
         self.state = TurnState.THINKING
         self._reply_seq += 1
@@ -2039,7 +2048,7 @@ class CascadeSession:
                                _REPLY_CANCEL_WAIT_S)
         # 되살릴 이유가 없다(아무도 안 들었다) + 대기열에 낡은 말이 남아 있으면 안 된다.
         self._interrupted = None
-        self._pending_user_text = ""
+        self._pending_user_texts.clear()
 
     async def _run_reply(self, user_text: str, is_greeting: bool = False,
                          seq: int = 0) -> None:
@@ -2233,16 +2242,28 @@ class CascadeSession:
         self.state = TurnState.IDLE
 
     async def _drain_pending_user_text(self) -> None:
-        """비버가 말하는 동안 들어온 발화에 **이제** 답한다(줄 세워 둔 것 하나).
+        """비버가 말하는 동안 들어온 발화에 **이제** 답한다 — **모아서 한 번**.
 
         ⛔ 여기서 안 부르면 그 발화는 영영 답을 못 받는다 — 사장님이 겪으신 그 증상이다.
+        ⭐ **둘 이상이면 합쳐서 한 번만 답한다**(2026-08-12 사장님 결정 "A"). 하나씩 소비하면
+          비버가 **연속 두 번** 말해 대화가 어긋난다(call 937: "안녕하세요."→b4, "여보세요?"→b5).
+        ⚠ 잇는 방식은 **공백 한 칸**이다. 근거: 한 턴 안의 여러 최종 전사를 합칠 때
+          `_close_turn` 이 이미 `" ".join(...)` 을 쓴다 — **같은 층의 같은 규칙**이므로
+          새 규칙을 만들지 않는다. 전사에는 종결부호가 붙어 오므로("안녕하세요." "여보세요?")
+          이어 붙이면 사람이 두 마디를 연달아 한 것과 같은 모양이 된다.
+        ⚠ 대기열은 **비버가 말하는 동안**에만 쌓인다(대답 ~10초) — 시간이 벌어진 발화가 섞일
+          여지가 구조적으로 작아, 간격 기준 분할은 두지 않았다.
+        ⛔ 꺼내기는 **원자적**이다(리스트를 통째로 교체) — 남겨 두면 다음 드레인이 같은 말에
+          다시 답한다(중복 응답). 두 호출 자리(_run_reply·_run_resume) 모두 이 함수를 지난다.
         """
-        pending, self._pending_user_text = self._pending_user_text, ""
+        pending_list, self._pending_user_texts = self._pending_user_texts, []
         waited_ms, self._pending_since = self._pending_wait_ms(), 0.0
+        pending = " ".join(t.strip() for t in pending_list if t.strip())
         if not pending:
             return
         self._reply_task = None      # 방금 끝난 태스크 참조를 비워야 새 대답이 시작된다
-        logger.info("cascade 대기열 발화에 답한다(%dms 기다렸다): %r", waited_ms, pending[:40])
+        logger.info("cascade 대기열 발화에 답한다(%d건 합쳐서, %dms 기다렸다): %r",
+                    len(pending_list), waited_ms, pending[:60])
         self._reply_queued_ms = waited_ms
         await self._start_reply(pending)
 

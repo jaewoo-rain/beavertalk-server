@@ -88,7 +88,7 @@ async def test_unheard_reply_is_discarded_and_new_utterance_answered():
     await session._start_reply("지금 몇 시야")
     assert running.cancelled() or running.done(), "죽은 대답이 계속 돈다"
     assert group.started == 1, "새 발화가 답을 못 받았다"
-    assert session._pending_user_text == "", "버렸는데 대기열에도 남겼다(두 번 답한다)"
+    assert session._pending_user_texts == [], "버렸는데 대기열에도 남겼다(두 번 답한다)"
     assert session.state == TurnState.THINKING
 
 
@@ -103,7 +103,7 @@ async def test_heard_reply_keeps_the_queue():
     await session._start_reply("지금 몇 시야")
     assert not running.cancelled(), "듣고 있는 대답을 죽였다"
     assert group.started == 0
-    assert session._pending_user_text == "지금 몇 시야", "발화를 통째로 버렸다"
+    assert session._pending_user_texts == ["지금 몇 시야"], "발화를 통째로 버렸다"
     running.cancel()
 
 
@@ -133,7 +133,7 @@ async def test_batch_synthesis_is_not_discarded():
     session._batch_synthesizing = True
     await session._start_reply("여보세요")
     assert not running.cancelled()
-    assert session._pending_user_text == "여보세요"
+    assert session._pending_user_texts == ["여보세요"]
     running.cancel()
 
 
@@ -252,7 +252,7 @@ async def test_unheard_at_speech_start_wins_over_audible_at_close():
     await session._start_reply("Let's go to the 한국어 공부하자")
     assert running.cancelled() or running.done(), "낡은 대답을 끝까지 재생한다"
     assert group.started == 1
-    assert session._pending_user_text == ""
+    assert session._pending_user_texts == []
 
 
 @pytest.mark.asyncio
@@ -265,7 +265,7 @@ async def test_audible_at_speech_start_still_queues():
     session._turn_beaver_unheard = session._beaver_unheard()
     await session._start_reply("잠깐만요")
     assert not running.cancelled()
-    assert session._pending_user_text == "잠깐만요"
+    assert session._pending_user_texts == ["잠깐만요"]
     running.cancel()
 
 
@@ -281,18 +281,25 @@ async def test_open_turn_records_the_moment_speech_started():
 
 
 @pytest.mark.asyncio
-async def test_queue_answers_only_the_last_utterance():
-    """⭐ 밀린 발화가 2건 이상이면 **마지막 것만** 답한다(사장님 선택 ①).
+async def test_queue_keeps_every_utterance_and_answers_once():
+    """⭐⭐ **판단이 뒤집힌 자리다.** 밀린 발화는 **다 모아 두고, 한 번만** 답한다.
 
-    지금은 단순 대입이라 우연히 그렇다 — 누가 리스트로 바꾸면 조용히 "순서대로 다 답함"이
-    되고, 사용자는 이미 지나간 질문의 답을 줄줄이 듣는다.
+    2026-08-08 에는 "마지막 것만 답한다"였다(단순 대입이라 앞말이 덮였다). 2026-08-12
+    사장님 실통화(call 937)에서 그 대가가 드러났다 — 앞말 "안녕하세요."가 사라졌고, 그런데도
+    소비는 하나씩이라 비버가 **연달아 두 번** 답했다. 사장님 결정은 **A(합친다)** 다.
+
+    ⛔ 원래 이 테스트가 막으려던 것("순서대로 줄줄이 답함")은 그대로 막는다 — 답은 **1회**다.
+      바뀐 것은 "앞말을 버려서" 1회를 만드느냐, "합쳐서" 1회를 만드느냐다.
+    합치기 자체의 회귀는 tests/test_cascade_pending_merge.py 에 있다.
     """
     session, group, running = await _rig(audible_ms=5_000)
     session._turn_beaver_unheard = False
     await session._start_reply("첫 번째 질문")
     await session._start_reply("두 번째 질문")
     await session._start_reply("세 번째 질문")
-    assert session._pending_user_text == "세 번째 질문"
+    assert session._pending_user_texts == ["첫 번째 질문", "두 번째 질문", "세 번째 질문"], (
+        "밀린 발화를 버렸다 — 사용자가 한 말이 조용히 사라진다"
+    )
     assert group.started == 0
     running.cancel()
 
