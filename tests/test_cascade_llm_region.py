@@ -45,17 +45,22 @@ def _settings(**kw) -> Settings:
 def test_empty_location_reuses_the_default_client():
     """① 비어 있으면 **같은 객체**다 — 기본 동작이 지금과 완전히 같아야 한다."""
     default = object()
-    got = app_main._create_cascade_client(_settings(CASCADE_LLM_LOCATION=""), default)
+    got, where = app_main._create_cascade_client(
+        _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION=""), default)
     assert got is default, "값이 없는데 클라이언트를 새로 만들었다"
+    # ⭐ 리전도 함께 돌려준다 — 통화 로그가 이 값을 찍는다(부팅 로그는 인스턴스 재활용 때문에
+    #   그 통화와 짝을 못 짓는다).
+    assert where == "us-central1"
 
 
 def test_same_location_reuses_the_default_client():
     """전역과 같은 리전을 적어도 새로 안 만든다(같은 것을 둘로 두면 헷갈린다)."""
     default = object()
-    got = app_main._create_cascade_client(
+    got, where = app_main._create_cascade_client(
         _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="us-central1"), default
     )
     assert got is default
+    assert where == "us-central1"
 
 
 def test_a_different_location_builds_a_separate_client(monkeypatch):
@@ -68,22 +73,26 @@ def test_a_different_location_builds_a_separate_client(monkeypatch):
 
     monkeypatch.setattr(app_main, "_create_genai_client", _fake)
     default = object()
-    got = app_main._create_cascade_client(
+    got, where = app_main._create_cascade_client(
         _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="asia-northeast3"), default
     )
     assert got == "client@asia-northeast3"
     assert made == ["asia-northeast3"]
     assert got is not default, "기본 클라이언트를 덮어썼다 — Live 가 같이 옮겨간다"
+    assert where == "asia-northeast3"
 
 
 def test_a_failed_regional_client_falls_back(monkeypatch, caplog):
     """③ 실패하면 **기본 리전으로 계속한다**(R5) — 리전 하나 때문에 통화가 죽으면 안 된다."""
     monkeypatch.setattr(app_main, "_create_genai_client", lambda settings, location=None: None)
     default = object()
-    got = app_main._create_cascade_client(
+    got, where = app_main._create_cascade_client(
         _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="asia-northeast3"), default
     )
     assert got is default
+    # ⭐⭐ **폴백했으면 리전도 사실대로** — 설정값(asia-northeast3)을 찍으면 로그가 거짓말을
+    #   하고, 그 통화의 지연·원가를 서울 것으로 잘못 읽는다.
+    assert where == "us-central1", "폴백했는데 설정값을 그대로 돌려줬다(로그가 거짓말한다)"
 
 
 def test_the_session_uses_the_reply_client_only_for_replies():

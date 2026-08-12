@@ -66,6 +66,14 @@ def _configure_logging() -> None:
         #   "첫소리=-1ms" 만 보고 거꾸로 추적해야 했다. 어댑터가 왜 실패했는지는 어댑터가
         #   가장 잘 안다. 여기 로그 호출도 수십 개뿐이라 비용은 무시할 수준이다.
         "core",
+        # ⭐ **부팅·lifespan 판정이 여기서 나온다**(2026-08-13). 이게 빠져 있어서
+        #   "cascade LLM: 대답 전용 클라이언트 location=…" 가 **한 줄도 안 떴고**, 리전이
+        #   실제로 갈렸는지를 로그로 확인할 방법이 없었다. 폴백 경고도 같이 조용했다.
+        #   ⚠ 바로 위 `core` 주석과 **같은 실수**다 — 그때는 어댑터가 조용했고 이번엔
+        #     우리 자신의 확인 수단이 조용했다. "로그가 없다 = 안 돈다"로 읽으면 틀린다.
+        #   ⚠ 호출 수는 부팅당 몇 줄뿐이라(클라이언트 생성·리전·FCM) 도배 위험이 없다.
+        "__main__",
+        "main",
     ):
         lg = logging.getLogger(name)
         lg.handlers.clear()
@@ -125,7 +133,9 @@ def _create_genai_client(settings: Settings, location: str | None = None) -> Any
         return None
 
 
-def _create_cascade_client(settings: Settings, default_client: Any | None) -> Any | None:
+def _create_cascade_client(
+    settings: Settings, default_client: Any | None
+) -> tuple[Any | None, str]:
     """캐스케이드 **대답 LLM 전용** 클라이언트 — 리전만 다르다.
 
     ⛔ 왜 따로 만드나: `genai.Client` 는 lifespan 이 한 번 만들어 **Live·캐스케이드·분석이
@@ -142,19 +152,20 @@ def _create_cascade_client(settings: Settings, default_client: Any | None) -> An
       (`generate_content_stream`)라 **요청마다 갱신**된다. 그래도 같은 SA creds 를 공유하므로
       갱신이 일어나면 두 클라이언트가 함께 이득을 본다.
     """
+    base = (settings.GCP_LOCATION or "").strip()
     where = (settings.CASCADE_LLM_LOCATION or "").strip()
-    if not where or where == (settings.GCP_LOCATION or "").strip():
-        return default_client
+    if not where or where == base:
+        return default_client, base
     client = _create_genai_client(settings, location=where)
     if client is None:
         logger.warning(
-            "cascade LLM: %s 리전 클라이언트 생성 실패 → 기본 리전(%s)으로 계속한다",
-            where, settings.GCP_LOCATION,
+            "cascade LLM: %s 리전 클라이언트 생성 실패 → 기본 리전(%s)으로 계속한다", where, base,
         )
-        return default_client
-    logger.info("cascade LLM: 대답 전용 클라이언트 location=%s (Live 는 %s 그대로)",
-                where, settings.GCP_LOCATION)
-    return client
+        return default_client, base
+    logger.info("cascade LLM: 대답 전용 클라이언트 location=%s (Live 는 %s 그대로)", where, base)
+    # ⚠ **실제로 만들어진 리전**을 돌려준다(설정값이 아니라) — 폴백이 일어났는데 설정값을
+    #   찍으면 로그가 거짓말을 한다. 통화 로그가 이 값을 그대로 쓴다.
+    return client, where
 
 
 @contextlib.asynccontextmanager
@@ -166,7 +177,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.session_factory = build_session_factory(engine)
     app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
     # ⭐ 캐스케이드 **대답 전용**(리전만 다를 수 있다). 값이 없으면 위 객체를 그대로 재사용한다.
-    app.state.cascade_llm_client = _create_cascade_client(settings, app.state.genai_client)
+    #   ⚠ 리전을 **함께** 받아 둔다 — 부팅 로그는 인스턴스가 재활용되면 한참 전 것이라 못
+    #     찾는다. 통화 로그가 이 값을 찍어야 "그 통화가 어느 리전으로 돌았나"가 그 통화
+    #     안에서 닫힌다(원가·지연을 통화 단위로 비교하려면 필수다).
+    app.state.cascade_llm_client, app.state.cascade_llm_location = _create_cascade_client(
+        settings, app.state.genai_client
+    )
     from core import fcm
 
     fcm.warmup()  # 예약전화 FCM 워밍업(실패해도 무시 — 발송만 비활성)

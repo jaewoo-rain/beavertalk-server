@@ -565,9 +565,11 @@ async def test_marker_state_is_logged_for_every_sentence(reply_rig, monkeypatch,
         await session._speak("반쪽만 __지켰다")                         # 짝 안 맞음
     lines = [r.getMessage() for r in caplog.records if "언어구간" in r.getMessage()]
     assert len(lines) == 3, lines
-    assert "3개 ko/en/ko 마커=있음" in lines[0]
-    assert "마커=없음" in lines[1]
-    assert "마커=짝안맞음" in lines[2]
+    # ⚠ 이름이 `마커=` → **`언어마커=`** 로 바뀌었다(2026-08-13) — `자막=`(문장 마커 수)와
+    #   겹쳐 실제로 혼동이 났다. 세는 것도 뜻도 다른 두 값이라 이름을 갈랐다.
+    assert "3개 ko/en/ko 언어마커=있음" in lines[0]
+    assert "언어마커=없음" in lines[1]
+    assert "언어마커=짝안맞음" in lines[2]
     # 통화 내용이 로그로 새지 않는다
     assert all("How are you" not in line for line in lines), lines
     assert session._marker_seen == {"있음": 1, "없음": 1, "짝안맞음": 1}
@@ -932,7 +934,10 @@ def test_synthesis_speed_is_only_claimed_where_it_can_be_measured():
     sec = int(cs.BEAVER_BYTES_PER_MS * 1000)
     session._reply_spans = [("ko", 40, sec * 4)]
 
-    assert "합성배속=측정불가" in session._reading_summary(None)      # 실시간
+    # ⚠ 2026-08-13: 실시간에서는 그 문구를 **아예 안 쓴다**(예전엔 `합성배속=측정불가(...)` 를
+    #   찍었는데 **모든 줄에 항상 같은 문구**라 정보가 0 이고 줄만 길어졌다). 성질은 그대로다 —
+    #   못 재는 곳에서 숫자를 만들지 않는다.
+    assert "합성배속" not in session._reading_summary(None)           # 실시간 = 침묵
     assert "합성배속=2.00x" in session._reading_summary(2.0)          # 배치(오디오 4초 / 합성 2초)
 
 
@@ -962,8 +967,14 @@ async def test_both_modes_log_the_same_reading_fields(reply_rig, monkeypatch, ca
         lines.append(next(r.getMessage() for r in caplog.records
                           if r.getMessage().startswith("cascade 대답")))
     for line in lines:
-        for field in ("들린글자=", "오디오=", "읽기=", "합성배속="):
+        # ⚠ `합성배속=` 은 **공통 필드가 아니다**(배치에서만 잴 수 있다) — 2026-08-13 에
+        #   실시간 쪽의 "측정불가" 문구를 없앴다. 공통이어야 하는 건 아래 셋이다.
+        for field in ("들린글자=", "오디오=", "읽기="):
             assert field in line, (field, line)
+    assert "합성배속" not in lines[0], "실시간에서 못 재는 값을 주장했다"
+    # ⚠ 배치 쪽은 여기서 안 본다 — 이 리그의 가짜 오디오는 합성 시간이 0 이라 "잴 수 있는
+    #   경우"가 아니다. 배치에서 값이 실제로 붙는지는 위 단위 시험이 본다
+    #   (`test_synthesis_speed_is_only_claimed_where_it_can_be_measured`).
 
 
 # --------------------------------------------------------------------------- #

@@ -902,6 +902,7 @@ class CascadeSession:
         genai_client: Any = None,
         *,
         llm_client: Any = None,
+        llm_location: str = "",
         session_factory: Any = None,
         member_id: int | None = None,
         member_target_language: str | None = None,
@@ -915,6 +916,12 @@ class CascadeSession:
         #     ③ 곁다리가 실패해도 대답은 살아야 한다 — 배관을 나눠 두면 그게 자동으로 된다.
         #   ⚠ 안 넘기면 `genai_client` 를 그대로 쓴다 ⇒ 기본 동작이 지금과 **완전히 같다**.
         self._llm_client = llm_client or genai_client
+        # ⭐ **어느 리전으로 돌았나** — 통화 로그에 찍는다(2026-08-13).
+        #   ⛔ 부팅 로그로는 답이 안 된다: 인스턴스가 재활용되면 그 줄은 한참 전 것이고,
+        #     통화 로그와 짝을 못 짓는다. 원가·지연을 통화 단위로 비교하려면 **그 통화
+        #     안에서** 리전이 닫혀야 한다.
+        #   ⚠ 설정값이 아니라 **실제로 만들어진 리전**을 받는다(폴백이 일어나면 다르다).
+        self._llm_location = (llm_location or "").strip()
         # ── DB 연결(설계 20260812_1620) ──────────────────────────────────────
         # ⛔ 셋 다 **없어도 돈다**(데모·테스트). 없으면 env 기본값으로 예전처럼 간다 — DB 가
         #   빠졌다고 통화가 죽으면 안 된다(R5). 있으면 Live 와 **같은 함수**로 같은 기록을 남긴다.
@@ -1155,6 +1162,7 @@ class CascadeSession:
             self._sid, getattr(stream, "language_codes", None) or self._stt_language_codes(),
             settings.STT_V2_MODEL, settings.STT_V2_LOCATION,
         )
+        self._log_config_snapshot()
         try:
             await stream.start()
         except Exception as exc:  # noqa: BLE001 - 개시 실패는 이 세션만 실패(R5)
@@ -2554,13 +2562,13 @@ class CascadeSession:
             for lang, r in sorted(by_lang.items()) if r[1] > 0
         )
         speed = f"{total_chars / total_s:.1f}" if total_s > 0 else "-"
-        synth = (
-            f"합성배속={(total_s / synth_s):.2f}x" if synth_s and synth_s > 0
-            else "합성배속=측정불가(실시간은 합성·재생이 겹친다)"
-        )
+        # ⚠ `합성배속=측정불가(...)` 는 **뺐다**(2026-08-13). 스트리밍 경로에서는 합성과 재생이
+        #   겹쳐 원리상 못 재므로 **모든 줄에 똑같은 문구**가 붙었다 — 정보가 0 이고 줄만 길어진다.
+        #   배치 모드에서만 값이 있어 거기서만 붙인다(그 모드는 전량 합성 후 재생이라 잴 수 있다).
+        synth = f" 합성배속={(total_s / synth_s):.2f}x" if synth_s and synth_s > 0 else ""
         return (
             f"들린글자={total_chars} 오디오={total_s:.1f}초 읽기={speed}자per초 "
-            f"[{per_lang}] {synth}"
+            f"[{per_lang}]{synth}"
         )
 
     async def _begin_beaver_turn(self) -> str:
@@ -2605,12 +2613,15 @@ class CascadeSession:
         #   **미확인**이라 귀로 확인하기 전엔 기본을 바꾸지 않는다.
         emotion = self._sentence_emotion(sentence)
         if self._single_voice():
-            logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 마커=%s",
+            logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 언어마커=%s",
                         self._tts_engine, marker_state)
             return await self._speak_one(strip_markers(sentence).strip(),
                                          self._locale, emotion)
         logger.info(
-            "cascade 언어구간: %d개 %s 마커=%s",
+            # ⚠ **`언어마커=`** 다(`자막=`·문장 마커와 다른 것이다). 이름이 겹쳐 실제로 혼동이
+            #   났다 — `__마커__` 는 **어느 부분을 타깃 언어로 읽을지**의 표기이고, 문장 마커는
+            #   **클라에 보내는 자막 프레임**이다. 세는 것도 뜻도 다르다.
+            "cascade 언어구간: %d개 %s 언어마커=%s",
             len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
         )
         if len(segments) <= 1:
@@ -3419,6 +3430,43 @@ class CascadeSession:
             # 덮어쓰기(실험)와 기본값(폴백) 둘 다 **의도된 운영 상태가 아니다**.
             logger.warning(*line)
 
+    def _log_config_snapshot(self) -> None:
+        """⭐⭐ **이 통화가 어떤 조건으로 돌았나 — 한 줄로**(2026-08-13).
+
+        ⛔ 왜 필요한가: 오늘 우리는 **서로 다른 설정으로 돌아간 통화들을 나란히 비교했다.**
+          임계 0.007 통화와 0.04 통화를 같은 표에 놓고 "에코가 안 잡힌다"고 판단할 뻔했고,
+          문장상한 4 와 3 의 `글자=` 를 섞어 봤다. 조건은 env 에 있는데 **env 는 그 사이에
+          바뀌므로**, 나중에 보면 과거 로그는 **영영 해석이 안 된다.**
+        ⛔ **반드시 한 줄**이다. 여러 줄로 흩으면 grep 으로 한 통화를 못 묶는다.
+        ⚠ 값이 확정된 뒤에 부른다 — 클라 `start` 가 엔진·배속을 바꿀 수 있어서, 그 전에 찍으면
+          **찍은 값과 실제가 다르다**(그게 이 줄을 넣는 이유와 정반대가 된다).
+        """
+        lead = self.beaver.lead_ms
+        logger.info(
+            "cascade 설정: %s llm=%s@%s tts=%s 문장상한=%s 힌트=%s 마이크상시=%s "
+            "bargein(rms=%.3f min=%dms confirm=%s) 침묵=%dms 선행버퍼=%s 세션상한=%ds",
+            self._sid,
+            settings.CASCADE_LLM_MODEL, self._llm_location or "미상",
+            self._tts_engine or tts.CHIRP3_ENGINE,
+            self._max_sentences() or "없음",
+            "on" if settings.CASCADE_HINT_ENABLED else "off",
+            "on" if settings.CASCADE_MIC_ALWAYS_OPEN else "off",
+            settings.CASCADE_BARGEIN_RMS, settings.CASCADE_BARGEIN_MIN_MS,
+            self._bargein_confirm,
+            self._silence_ms,
+            "%dms" % lead if lead is not None else "서버공통",
+            int(settings.CASCADE_SESSION_MAX_S),
+        )
+        # ⭐ **자기 점검** — 의도와 실제가 어긋난 것만 시끄럽게(정상이면 조용하다).
+        #   ⚠ 정상까지 경고하면 아무도 안 본다. 여기 걸리는 건 "설정은 했는데 안 먹었다"뿐이다.
+        wanted = (settings.CASCADE_LLM_LOCATION or "").strip()
+        if wanted and wanted != self._llm_location:
+            logger.warning(
+                "cascade ⚠ LLM 리전 불일치 — 설정은 %s 인데 실제는 %s 다(클라이언트 생성 실패 "
+                "폴백이었을 수 있다). 이 통화의 지연·원가를 서울 것으로 읽으면 안 된다",
+                wanted, self._llm_location or "미상",
+            )
+
     async def _resolve_call_duration(self) -> None:
         """이 통화의 길이 — **env 강제값 > 구독 플랜 > Free**(Live 와 같은 우선순위).
 
@@ -4056,6 +4104,7 @@ async def run_cascade(
     genai_client: Any = None,
     *,
     llm_client: Any = None,
+    llm_location: str = "",
     session_factory: Any = None,
     member_id: int | None = None,
     member_target_language: str | None = None,
@@ -4072,6 +4121,7 @@ async def run_cascade(
     session = CascadeSession(
         WsCascadeTransport(websocket), genai_client,
         llm_client=llm_client,
+        llm_location=llm_location,
         session_factory=session_factory,
         member_id=member_id,
         member_target_language=member_target_language,

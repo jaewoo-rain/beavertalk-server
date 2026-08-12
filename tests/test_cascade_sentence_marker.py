@@ -288,13 +288,22 @@ async def test_the_reply_line_reports_how_many_subtitles_went_out(monkeypatch, c
 
 
 def test_the_subtitle_count_has_a_different_name_from_the_language_split():
-    """⛔ `마커=` 는 **언어분할**(`__마커__`) 표시다 — 이름이 겹치면 다음 사람이 헷갈린다.
+    """⛔ 자막(문장 마커)과 **언어분할**(`__마커__`)은 **이름이 달라야 한다**.
 
-    (그 계열의 오독이 오늘만 여러 번 있었다.)
+    같은 "마커"라는 말이 두 뜻으로 쓰여 오늘 실제로 혼동이 났다(대답 줄의 `자막=N개` 를
+    언어분할로 읽었다). 2026-08-13 에 언어 쪽을 `언어마커=`·`언어분할=` 로 갈랐다.
+    ⚠ 세션 전체에서 **맨 `마커=`** 가 없어야 한다 — 한 곳만 고치면 다른 곳이 또 헷갈린다.
     """
     import inspect
+    import re
 
     src = inspect.getsource(cs.CascadeSession._run_reply)
     assert "자막=%d개" in src, "자막 개수가 대답 줄에 없다"
     assert "언어분할=" in src, "언어분할 표시가 사라졌다"
-    assert "마커=%s" not in src, "옛 이름이 남아 자막과 헷갈린다"
+
+    whole = inspect.getsource(cs)
+    bare = [ln.strip() for ln in whole.splitlines()
+            if re.search(r'(?<![가-힣])마커=', ln) and "언어마커=" not in ln
+            and "문장마커" not in ln and ln.strip().startswith(('"', "'", "#", "f'", 'f"'))
+            and not ln.strip().startswith("#")]
+    assert not bare, f"맨 `마커=` 가 남아 자막과 헷갈린다: {bare}"

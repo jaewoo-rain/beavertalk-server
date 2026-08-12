@@ -83,6 +83,8 @@ async def ws_cascade_stream(websocket: WebSocket) -> None:
             # ⭐ 대답 LLM 은 **리전이 다를 수 있다**(`CASCADE_LLM_LOCATION`). 없으면 위와 같은
             #   객체가 온다 — 기본 동작 불변. ⚠ 힌트·분석은 위 클라이언트를 계속 쓴다.
             llm_client=getattr(websocket.app.state, "cascade_llm_client", None),
+            # ⚠ **실제로 만들어진** 리전(설정값이 아니다) — 통화 로그가 이 값을 찍는다.
+            llm_location=getattr(websocket.app.state, "cascade_llm_location", "") or "",
             session_factory=session_factory,
             member_id=member_id,
             member_target_language=member_target_language,
