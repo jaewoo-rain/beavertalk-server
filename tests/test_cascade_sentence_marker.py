@@ -128,6 +128,61 @@ async def test_server_bytes_matches_what_was_actually_sent(monkeypatch):
     assert session.beaver.sent_bytes == 5760
 
 
+@pytest.mark.asyncio
+async def test_server_bytes_is_monotonic_and_skips_nothing(monkeypatch):
+    """⭐⭐ **프론트가 이 값의 차분으로 자막 속도를 정한다**(2026-08-13 확정).
+
+        구간 N 의 길이 = marker[N+1].server_bytes − marker[N].server_bytes
+
+    ⇒ 이 값이 틀리면 **자막이 소리와 어긋난다.** `audio_bytes` 필드를 따로 안 넣기로 한
+      근거가 이 성질이므로, 성질 쪽을 대신 못박는다:
+      ① 단조 **증가**(같거나 줄면 그 구간 길이가 0/음수가 된다)
+      ② **건너뛰지 않는다** — 차분의 합 = 실제로 보낸 총 바이트(중간에 새는 바이트 0)
+      ③ 각 차분 = **그 구간이 실제로 낸 오디오**(가짜 TTS 가 준 길이 그대로)
+    """
+    sizes = {"첫 구간이에요": 4800, "둘째 구간이에요": 960, "셋째 구간이에요": 2400}
+    session = _session(monkeypatch, chunks_by_text=sizes)
+    await session.beaver.begin()
+    for text in sizes:
+        await session._speak(f"<happy> {text}")
+
+    markers = session.transport.markers()
+    assert len(markers) == 3, markers
+    values = [m["server_bytes"] for m in markers]
+    assert values == sorted(values), f"단조 증가가 깨졌다 — 구간 길이가 음수가 된다: {values}"
+    assert len(set(values)) == len(values), f"같은 값이 두 번 — 그 구간이 0바이트가 된다: {values}"
+
+    total = session.beaver.sent_bytes
+    diffs = [b - a for a, b in zip(values, values[1:])] + [total - values[-1]]
+    assert sum(diffs) == total, f"차분 합({sum(diffs)}) != 실제 송출({total}) — 바이트가 샌다"
+    assert diffs == [sizes[m["text"]] for m in markers], (diffs, markers)
+
+
+@pytest.mark.asyncio
+async def test_a_new_turn_starts_counting_from_zero(monkeypatch):
+    """⛔ 취소·턴 교체 뒤에는 **0 부터 다시 센다** — 누적이 이어지면 프론트의 첫 차분이
+    앞 턴의 잔량을 먹어 **첫 자막이 통째로 어긋난다**.
+
+    (`sent_bytes` 는 턴 레코드에 달려 있어 새 턴이면 새 레코드다 — 그 성질을 고정한다.)
+    """
+    session = _session(monkeypatch, chunks_by_text={"앞 턴 문장": 4800, "새 턴 문장": 960})
+    await session.beaver.begin()
+    await session._speak("<happy> 앞 턴 문장")
+    assert session.beaver.sent_bytes == 4800
+
+    await session.beaver.cancel(reason="barge_in")     # 실제 취소 경로를 지난다
+    await session.beaver.begin()
+    await session._speak("<sad> 새 턴 문장")
+
+    markers = session.transport.markers()
+    new_turn = [m for m in markers if m["text"] == "새 턴 문장"]
+    assert new_turn, markers
+    assert new_turn[0]["server_bytes"] == 0, (
+        f"새 턴인데 앞 턴 누적을 이어받았다({new_turn[0]['server_bytes']})"
+    )
+    assert new_turn[0]["turn_id"] != markers[0]["turn_id"], "턴 id 가 안 바뀌었다"
+
+
 # ── ④ carry-forward ───────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_an_untagged_sentence_keeps_the_previous_emotion(monkeypatch):
