@@ -177,7 +177,12 @@ _INVARIANTS_TEMPLATE = """너는 '비버' — 아래 [페르소나]의 인물이
    - 물어보면 올바른 {target} 표현을 또박또박 알려 준다(뜻·쓰임 설명은 위 '설명은 모국어로'를 따른다).
    - 교정은 한 번에 1~2개만. 사소한 것까지 다 잡는 과교정은 금지.
    - 교정할 때는 틀린 부분을 {locale_label}로 짚고, 올바른 {target} '○○○'를 단독으로 또박또박 다시 들려줘라 — 감싸는 말투는 네 캐릭터대로(공손한 "이렇게 말해요"를 강요하지 마라).
-5. 응답 길이: 매 응답은 1~4문장으로 짧게. 혼자 길게 떠들지 말고 학습자가 말할 차례를 자주 줘라. 통화 시작 시 네가 먼저 말을 건다(선톡)."""
+5. 응답 길이: 매 응답은 1~{max_sentences}문장으로 짧게. 혼자 길게 떠들지 말고 학습자가 말할 차례를 자주 줘라. 통화 시작 시 네가 먼저 말을 건다(선톡)."""
+
+# 응답 길이 규칙(불변 규칙 5)의 기본 문장 수. ⛔ **여기서만 4 다** — 이 값을 안 넘기는
+# 호출부(Live)는 예전과 **바이트 동일한** 문자열을 얻는다. 캐스케이드는 자기 서버 상한
+# (`CASCADE_LLM_MAX_SENTENCES`)을 넘겨 문구와 강제를 같은 숫자로 맞춘다.
+_DEFAULT_MAX_SENTENCES = 4
 
 # 언어 마커 표기 규칙(캐스케이드 전용, 옵트인).
 # ⛔ **code-switching 규칙(불변 규칙 3)은 손대지 않는다.** 무엇을 어느 언어로 말할지는 거기서
@@ -454,6 +459,7 @@ def build_system_instruction(
     promotion_notice: bool = False,
     lang_band: str = "beginner",
     close_tag: str = CLOSE_TAG_DEFAULT,
+    max_sentences: int | None = None,
     language_marker: bool = False,
     emotion_tags: tuple[str, ...] = (),
 ) -> str:
@@ -498,6 +504,17 @@ def build_system_instruction(
     Returns:
         Gemini Live system_instruction 문자열.
     """
+    # ⭐⭐ 응답 길이 문구의 숫자는 **호출부의 상한에서 온다**(2026-08-13).
+    #   ⚠ 오늘 아침 결함과 같은 모양이 재발했다: 서버는 3문장에서 끊는데 프롬프트는 "1~4문장"을
+    #     시켰다. 문장 경계라 말이 잘리진 않지만 **모델이 4번째를 쓰고 우리가 버린다**(낭비)이고,
+    #     무엇보다 **다음 사람이 어느 게 진짜인지 못 안다.** 손으로 쓴 숫자가 두 곳에 있으면 안 된다.
+    #   ⚠ 이건 오늘 지웠던 `short_reply` 분기의 부활이 **아니다.** 그건 사람이 고른 **다른 문구**를
+    #     캐스케이드에만 주는 갈래였고, 이건 **같은 문구에 자기 설정값을 채우는 것**이다 —
+    #     갈래가 생기는 게 아니라 출처가 하나로 모인다.
+    #   ⚠ Live 는 상한이 없어 값을 안 넘긴다 → 기본 4 → **출력 바이트 그대로**(회귀로 고정).
+    #   ⚠ 언어별로 다른 값이 필요해질 수 있다(영어는 문장이 길어 4문장이 200자·20초였다).
+    #     그때는 **호출부가 언어를 보고 숫자를 골라 넘기면 된다** — 이 함수는 안 바뀐다.
+    max_sentences = _DEFAULT_MAX_SENTENCES if not max_sentences else max(1, int(max_sentences))
     locale_label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL[_DEFAULT_LOCALE])
     interests_text = ", ".join(i for i in interests if i) or "일상"
     username = (name or "").strip() or "학습자"
@@ -513,6 +530,7 @@ def build_system_instruction(
         target=target_language, locale_label=locale_label
     )
     invariants = template.format(
+        max_sentences=max_sentences,
         locale_label=locale_label,
         role=role or "친근한 한국어 대화 파트너",
         personality=personality or "다정하고 편안한 말투",

@@ -43,6 +43,20 @@ async def ws_cascade_stream(websocket: WebSocket) -> None:
 
     await websocket.accept()
 
+    # ⭐ **어느 클라에서 온 통화인가** — 접속 때 한 줄만 남긴다(2026-08-13).
+    #   왜: "웹에서는 괜찮았는데 앱만 느리다"를 조사할 때 **로그로 못 갈랐다.** AEC 힌트는
+    #   양쪽 다 `mode=unknown` 이라 구분이 안 됐고, 그래서 추측으로 답할 뻔했다. 이 한 줄이
+    #   없어서 못 가른 것이므로 이 한 줄을 남긴다.
+    #   ⚠ 판정하지 않는다 — **원문 그대로** 남기고 해석은 사람이 한다(우리가 웹/앱을 규칙으로
+    #     찍으면 그 규칙이 틀렸을 때 조용히 틀린 답이 나온다). 브라우저는 origin 이 있고
+    #     플러터 앱은 보통 없다 — 그 차이만으로 대개 갈린다.
+    #   ⚠ UA 는 길 수 있어 잘라 남긴다. 개인정보가 아니라 클라 종류 식별용이다.
+    headers = websocket.headers
+    logger.info(
+        "cascade 클라: origin=%s ua=%r",
+        headers.get("origin") or "-", (headers.get("user-agent") or "-")[:120],
+    )
+
     # auth uuid → member find-or-create → (member_id, 학습 대상 언어). DB 는 threadpool.
     # ⭐ **Live 와 같은 함수·같은 자리**다(`ws_router.ws_call_stream`). 두 경로가 다른 방식으로
     #   회원을 풀면 통화 기록의 주인이 갈린다.

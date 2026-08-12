@@ -65,31 +65,77 @@ def test_the_token_cap_is_a_safety_net_not_a_length_knob():
     )
 
 
-def test_the_sentence_cap_matches_the_prompt_rule():
-    """⭐⭐ **프롬프트와 강제가 같은 숫자여야 한다** — 이번 결함의 뿌리가 그 불일치였다.
+def test_the_prompt_number_follows_the_setting():
+    """⭐⭐ **문구의 숫자는 설정값에서 나온다** — 손으로 쓴 숫자가 두 곳에 있으면 안 된다.
 
-        프롬프트  "5. 응답 길이: 매 응답은 1~4문장으로 짧게."
-        서버      CASCADE_LLM_MAX_SENTENCES = 4
-        사장님    "응답은 1~4문장이야"
-
-    셋이 갈리는 순간 모델은 지시를 따르고 서버가 자른다(= 꼬리 버림). 한쪽만 바꾸면 깨지게
-    묶어 둔다.
+    2026-08-13 재발: 서버 상한을 3으로 내렸는데 프롬프트는 "1~4문장"을 시켰다. 문장 경계라
+    말이 잘리진 않지만 **모델이 4번째를 쓰고 우리가 버린다**(낭비)이고, 다음 사람이 어느 게
+    진짜인지 못 안다. 이제 env 를 바꾸면 문구가 따라온다.
     """
     import re
 
-    from core.config import settings
     from core.persona_prompt import build_system_instruction
 
-    text = build_system_instruction(
-        role="r", personality="p", level_profile="", locale="en",
-        interests=[], target_language="한국어",
-    )
-    m = re.search(r"응답 길이: 매 응답은 1~(\d+)문장", text)
-    assert m, "프롬프트에서 길이 규칙을 못 찾았다(문구가 바뀌었나)"
-    assert int(m.group(1)) == settings.CASCADE_LLM_MAX_SENTENCES, (
-        f"프롬프트는 1~{m.group(1)}문장인데 서버 상한은 "
-        f"{settings.CASCADE_LLM_MAX_SENTENCES} 다 — 갈리면 다시 잘린다"
-    )
+    base = dict(role="r", personality="p", level_profile="", locale="en",
+                interests=[], target_language="한국어")
+    for n in (2, 3, 4, 5):
+        text = build_system_instruction(**base, max_sentences=n)
+        m = re.search(r"응답 길이: 매 응답은 1~(\d+)문장", text)
+        assert m and int(m.group(1)) == n, f"상한 {n} 인데 문구는 {m and m.group(1)}"
+
+
+def test_live_keeps_the_original_wording():
+    """⛔ **Live 는 상한이 없다** — 값을 안 넘기면 예전 문구·예전 바이트 그대로다."""
+    from core.persona_prompt import build_system_instruction
+
+    base = dict(role="r", personality="p", level_profile="", locale="en",
+                interests=[], target_language="한국어")
+    assert build_system_instruction(**base) == build_system_instruction(**base, max_sentences=None)
+    assert "1~4문장으로 짧게" in build_system_instruction(**base)
+
+
+def test_cascade_passes_its_own_cap_to_the_prompt():
+    """⭐ 캐스케이드는 **자기 상한**을 넘긴다 — 강제와 문구가 같은 값에서 나온다."""
+    import ast
+    import inspect
+    import textwrap
+
+    import domains.learning.realtime.cascade_session as cs
+
+    src = textwrap.dedent(inspect.getsource(cs.CascadeSession._system_instruction))
+    for node in ast.walk(ast.parse(src)):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        if (fn.id if isinstance(fn, ast.Name) else getattr(fn, "attr", "")) != "build_system_instruction":
+            continue
+        kw = next((k for k in node.keywords if k.arg == "max_sentences"), None)
+        assert kw is not None, "캐스케이드가 상한을 안 넘긴다 — 문구가 서버와 갈린다"
+        # 상수를 박으면 또 두 곳이 된다. 접근자를 거쳐야 한다.
+        assert isinstance(kw.value, ast.Call), "상수를 박았다 — 설정에서 파생돼야 한다"
+        return
+    raise AssertionError("조립기 호출을 못 찾았다")
+
+
+def test_the_cascade_prompt_and_the_server_cap_agree_end_to_end(monkeypatch):
+    """⭐⭐ **끝에서 끝까지**: 캐스케이드가 실제로 만드는 지시문의 숫자 == 서버가 끊는 값.
+
+    이번 결함의 뿌리가 그 불일치였다(프롬프트 4문장 vs 서버 3문장). 위 테스트들이 조각을
+    각각 보지만, 갈리는 건 **조립된 결과**이므로 여기서 통째로 본다.
+    """
+    import re
+
+    import domains.learning.realtime.cascade_session as cs
+
+    for n in (3, 4):
+        monkeypatch.setattr(cs.settings, "CASCADE_LLM_MAX_SENTENCES", n)
+        session = cs.CascadeSession(object(), object())
+        text = session._system_instruction()
+        m = re.search(r"응답 길이: 매 응답은 1~(\d+)문장", text)
+        assert m, "프롬프트에서 길이 규칙을 못 찾았다(문구가 바뀌었나)"
+        assert int(m.group(1)) == n == session._max_sentences(), (
+            f"프롬프트는 1~{m.group(1)}문장인데 서버 상한은 {session._max_sentences()} 다"
+        )
 
 
 def test_zero_means_no_cap(monkeypatch):

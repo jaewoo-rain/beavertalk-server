@@ -2161,7 +2161,7 @@ class CascadeSession:
             #   토큰으로 자르면 문장 중간에서 끊겨 꼬리를 버렸다(call 938: 99자 = 말한 것의 4배).
             #   ⛔ 새 파서를 만들지 않는다 — **이미 쓰는 `SentenceBuffer` 를 종료 조건으로도**
             #     쓴다. 그래야 "무엇이 한 문장인가"의 출처가 하나로 남는다.
-            cap = max(0, settings.CASCADE_LLM_MAX_SENTENCES)
+            cap = self._max_sentences()
             sentences_done, capped = 0, False
             stream = chat.chunks()
             async for piece in stream:
@@ -2974,6 +2974,16 @@ class CascadeSession:
             report["trim_head_ms"] = round(dropped_head / BEAVER_BYTES_PER_MS)
             report["trim_tail_ms"] = round(dropped_tail / BEAVER_BYTES_PER_MS)
 
+    def _max_sentences(self) -> int:
+        """이 통화의 문장 상한 — **프롬프트 문구와 강제가 여기서 같이 나온다**.
+
+        ⚠ 지금은 설정 하나지만 **언어별로 갈릴 수 있다**(실측: 영어 4문장 = 197자·19.4초,
+          한국어는 훨씬 짧다). 그때 고칠 자리가 여기 하나가 되도록 접근을 이 함수로 모아 뒀다
+          — 값을 읽는 곳이 흩어지면 언어별 규칙을 넣을 때 또 갈린다.
+        ⚠ 0 이하는 "상한 없음"이다(되돌릴 길).
+        """
+        return max(0, settings.CASCADE_LLM_MAX_SENTENCES)
+
     def _profile(self) -> _TtsProfile:
         """이 세션 엔진의 성질(표 한 곳)."""
         return _profile_for(self._tts_engine)
@@ -3618,6 +3628,9 @@ class CascadeSession:
                 close_tag=self._close_tag,
                 # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
                 #   출력이 바이트 동일하게 유지된다.
+                # ⭐ 문구의 숫자를 **우리 상한에서** 만든다 — 손으로 쓴 숫자가 두 곳에 있으면
+                #   서버는 3에서 끊는데 프롬프트는 4를 시키는 모순이 다시 생긴다.
+                max_sentences=self._max_sentences(),
                 language_marker=True,
                 # ⭐ 감정 태그도 **캐스케이드 전용**이다. ⛔ Live 에 켜면 모델이 태그를 그대로
                 #   읽어 버린다 — 서버가 걷어낼 자리가 없다(Live 는 모델이 직접 소리를 낸다).
