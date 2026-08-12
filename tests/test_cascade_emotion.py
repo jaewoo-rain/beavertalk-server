@@ -154,6 +154,13 @@ def test_style_engine_set_is_defined_in_one_place():
     assert "takes_style" in inspect.getsource(cs.CascadeSession._emotion_log)
 
 
+def test_the_old_bracket_form_is_still_accepted():
+    """⚠ 모델이 규약을 어기고 `[칭찬]` 을 뱉을 때 **안 받으면 손해만 본다** —
+    감정을 잃고 그 글자가 소리로 나간다. 어차피 걷어내므로 받는 쪽이 안전하다."""
+    assert cr.detect_emotion("[칭찬] 잘했어요!") == "칭찬"
+    assert cr.strip_emotion_tags("[칭찬] 잘했어요!").strip() == "잘했어요!"
+
+
 def test_chirp_branch_still_passes_an_empty_style():
     """기존 성질 보존 — `core/tts` 의 Chirp 가지는 스타일을 넘기지 않는다."""
     import inspect
@@ -179,6 +186,13 @@ def test_emotion_rule_is_opt_in_and_live_output_is_unchanged():
     assert "[감정 태그]" not in base and "감정 태그" not in base
     assert base != with_tags
     assert with_tags.startswith(base)                 # 뒤에 붙기만 한다
+    # ⭐ **꺾쇠로 가르친다**(2026-08-12). 대괄호로 가르치면 이 프롬프트가 이미 구획 라벨로
+    #   쓰는 `[공부 모드]` 와 자리가 겹쳐, 모델이 태그 자리에 모드 이름을 넣는다 —
+    #   그러면 그 글자가 소리로 나가고 감정은 통화 내내 죽는다(실통화 00147/00148).
     for emotion in cr.EMOTION_STYLES:
-        assert f"[{emotion}]" in with_tags
+        assert f"<{emotion}>" in with_tags
+        assert f"[{emotion}]" not in with_tags, "대괄호로 가르치면 구획 라벨과 충돌한다"
+        # ⛔ 프롬프트가 가르치는 표기를 **서버가 실제로 읽어야** 한다. 둘이 갈리면 감정이
+        #   조용히 죽는다(표기만 바꾸고 정규식을 안 옮기는 실수를 여기서 막는다).
+        assert cr.detect_emotion(f"<{emotion}> 잘했어요") == emotion
     assert "하나만" in with_tags, "대답당 하나라는 제약이 프롬프트에 없다"
