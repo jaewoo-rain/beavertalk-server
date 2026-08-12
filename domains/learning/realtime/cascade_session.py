@@ -3136,6 +3136,11 @@ class CascadeSession:
         ⚠ 커리큘럼이 있는 언어(ko)만 — 회화 전용 언어는 예시 생성 프롬프트가 그 언어에
           맞춰져 있지 않아 무의미하다(Live 와 같은 조건).
         """
+        if not settings.CASCADE_HINT_ENABLED:
+            # ⭐ **순정 모드** — 사이드카를 아예 안 띄운다(만들지도, 보내지도 않는다).
+            #   화면에서 안 그리는 것과 다르다: 여기서 막으면 턴당 LLM 호출 1건이 줄고
+            #   로그가 조용해져 **통화 자체를 판정할 수 있다.**
+            return
         if self._genai_client is None or not turn_id:
             return
         spec = resolve_language(self._target_code)

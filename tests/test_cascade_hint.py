@@ -9,6 +9,7 @@
   ③ 지난 턴 힌트가 **다음 턴에 안 샌다**
   ④ 힌트 LLM 예외 → **통화 계속**(R5)
   ⑤ 질문이 아닌 턴엔 안 부른다(설명 턴 힌트는 소음이고 원가만 는다)
+  ⑥ **끌 수 있다**(2026-08-13) — 껐으면 만들지도, 보내지도, 호출하지도 않는다
 """
 
 import asyncio
@@ -187,3 +188,63 @@ def test_without_an_llm_client_nothing_is_spawned():
     session = cs.CascadeSession(_Sink(), None)
     session._spawn_hint("b1", "뭐 했어요?")
     assert session._hint_task is None
+
+
+# ── ⑥ 순정 모드: 끌 수 있다 ────────────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_the_switch_stops_the_sidecar_entirely(monkeypatch):
+    """⭐⭐ 사장님 방향(2026-08-13): "기능은 하나씩 추가하자" — 먼저 **순정으로 벗겨** 돌린다.
+
+    ⛔ 프론트가 화면에서 안 그리는 것으로는 부족하다. **서버가 안 만들어야** 턴당 LLM 호출이
+      1건 줄고 로그가 조용해진다 — 순정 판정에 잡음이 없어야 한다.
+    """
+    called = {"n": 0}
+
+    async def _count(*a, **kw):
+        called["n"] += 1
+        return None
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _count)
+    monkeypatch.setattr(cs.settings, "CASCADE_HINT_ENABLED", False)
+    session = _session(monkeypatch)
+
+    session._spawn_hint("b1", "주말에 뭐 했어요?")      # 원래라면 힌트가 나가는 조건이다
+    await asyncio.sleep(0.05)
+
+    assert session._hint_task is None, "껐는데 태스크를 띄웠다"
+    assert called["n"] == 0, "껐는데 LLM 을 불렀다 — 원가·로그가 그대로 는다"
+    assert not [e for e in session.transport.events if e.get("type") == "hint"], (
+        session.transport.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_call_works_the_same_with_hints_off(monkeypatch):
+    """⚠ **꺼도 통화는 그대로 돈다** — 힌트는 원래 곁다리다.
+
+    끄는 스위치가 대답 경로를 건드리면 순정 판정 자체가 오염된다(무엇을 재는지 모르게 된다).
+    """
+    async def _stream(text, **kwargs):
+        async def _gen():
+            yield bytes([40]) * 480
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _stream)
+    monkeypatch.setattr(cs.settings, "CASCADE_HINT_ENABLED", False)
+    session = _session(monkeypatch)
+    session.beaver.lead_ms = 100_000
+
+    await session.beaver.begin()
+    sent = await session._speak("<happy> 주말에 뭐 했어요?")
+
+    assert sent > 0, "힌트를 껐더니 말을 안 한다"
+    assert [e["type"] for e in session.transport.events if e.get("type") == "sentence"] == [
+        "sentence"
+    ], session.transport.events
+
+
+def test_the_switch_defaults_to_on():
+    """⚠ 기본은 켜짐이다 — 스위치를 넣었다고 기존 동작이 조용히 바뀌면 안 된다."""
+    from core.config import Settings
+
+    assert Settings.model_fields["CASCADE_HINT_ENABLED"].default is True
