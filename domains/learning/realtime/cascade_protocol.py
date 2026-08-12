@@ -53,6 +53,7 @@ __all__ = [
     "BEAVER_FRAME_INTERVAL_MS",
     "CascadeClientMessage",
     "CascadeServerMessage",
+    "CascadeCallEnded",
     "CascadeSentenceMarker",
     "CascadeTurnStart",
     "ServerCallEnded",
@@ -246,6 +247,25 @@ CascadeClientMessage = Annotated[
 
 
 # ────────────────────────────── 서버 → 클라이언트 ──────────────────────────────
+class CascadeCallEnded(BaseModel):
+    """통화 종료 통지 — **캐스케이드 전용**(Live 의 `ServerCallEnded` 를 안 건드린다).
+
+    ⛔ 두 가지가 Live 와 다르다. 둘 다 실사용에서 사고가 났던 자리다:
+      ① `call_id` 가 **null 을 허용**한다. Live 모델은 `str` 필수라 우리가 `str(... or "")` 로
+         빈 문자열을 보내고 있었다 — **클라가 `""` 를 유효한 id 로 착각한다.** 없으면 null 이다.
+      ② `reason` 이 종료 경로를 가른다: `duration`(시간 만료) · `client`(사용자 종료) ·
+         `backstop`(세션 절대 백스톱) · `stream_end`/`error`(STT 쪽).
+
+    ⭐ 왜 필요한가(프론트 보고): 지금 캐스케이드는 **시간 만료 때만** call_ended 를 냈다.
+      사용자가 종료 버튼을 누르면 안 나가서, 클라가 `GET /calls` 를 **5회×600ms 폴링**해
+      call_id 를 되짚고 있었다 — **3초를 헛돌고, 그 사이 다른 통화가 생기면 엉뚱한 id 를 집는다.**
+    """
+
+    type: Literal["call_ended"] = "call_ended"
+    call_id: str | None = None
+    reason: str = "client"
+
+
 class CascadeSentenceMarker(BaseModel):
     """구간 마커 — **그 구간 오디오 바로 앞**에 인밴드로 끼운다(2026-08-12 프론트 합의).
 
@@ -468,14 +488,13 @@ CascadeServerMessage = Annotated[
         # 비버(서버 출력) 턴. ⚠ turn_start 만 캐스케이드 전용이다(표정 한 칸 때문 —
         # Live 모델에 필드를 더하면 Live 출력이 바뀐다). 나머지는 normalcall 과 같은 모델을
         # 재사용한다 — 앱의 재생 상태기계가 묶여 있어 의미를 바꾸면 안 된다(클라 제약 #1).
+        CascadeCallEnded,
         CascadeSentenceMarker,
         CascadeTurnStart,
         ServerTurnEnd,
         ServerOutputTranscript,
-        # 통화 종료 통지 — **normalcall 과 같은 모델**이다(앱이 이미 아는 프레임).
-        # ⚠ union 에 없으면 직렬화가 다른 타입으로 폴백돼 경고가 나고, 클라가 받는 모양도
-        #   보장되지 않는다(실제로 그 경고를 보고 넣었다).
-        ServerCallEnded,
+        # 통화 종료 — 캐스케이드 전용 모델이다(위 CascadeCallEnded 주석 참고).
+        # ⚠ 같은 `type` 을 가진 모델이 union 에 둘이면 판별이 깨진다 — Live 것은 안 넣는다.
         ServerError,
         ServerPong,
     ],

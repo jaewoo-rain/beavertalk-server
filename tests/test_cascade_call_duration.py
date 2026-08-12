@@ -136,8 +136,9 @@ async def test_time_up_speaks_a_farewell_before_closing(monkeypatch):
     # ⛔ 문구는 **Live 의 것**이어야 한다(두 경로의 마무리가 갈리면 안 된다).
     assert said[0] == session._close_seed()
     assert "작별" in said[0] and "질문으로 끝내지 마라" in said[0]
-    ended = [e for e in session.transport.events if e.get("type") == "call_ended"]
-    assert ended and ended[0]["reason"] == "duration", session.transport.events
+    # ⚠ 통지는 시계가 하지 않는다(아래 시험) — **사유만** 남기고 끝낸다.
+    #   `call_id` 는 종료 마감 뒤에 확정되므로 통지도 그 뒤에서 한 번만 나간다.
+    assert session._end_reason == "duration"
 
 
 @pytest.mark.asyncio
@@ -180,10 +181,100 @@ async def test_the_clock_waits_for_a_reply_in_flight(monkeypatch):
     assert order == ["앞 대답 끝", "작별"], order
 
 
-def test_the_clock_does_not_finalize_the_call_itself():
-    """⛔ 마감(usage·통화행)은 `run()` 의 finally 가 한다 — 두 곳에서 하면 **두 번 저장**된다."""
-    import inspect
+def test_the_clock_neither_finalizes_nor_notifies():
+    """⛔ 마감(usage·통화행)도 종료 통지도 **시계가 하지 않는다**.
 
-    src = inspect.getsource(cs.CascadeSession._watch_call_clock)
-    assert "_finalize_call" not in src, src
-    assert "save_call_usage" not in src
+    · 마감이 두 곳이면 한 통화가 **두 번 저장**된다.
+    · 통지가 두 곳이면 **0회 또는 2회**가 되기 쉽고, `call_id` 가 확정되기 **전에** 나가면
+      빈 값이 실린다(예전 `str(... or "")` 가 정확히 그 사고였다).
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    # ⚠ 소스 **문자열**로 보면 주석에 걸린다(그 사고를 이 프로젝트에서 이미 두 번 냈다) —
+    #   여기서는 이 함수가 **실제로 부르는 것**만 본다.
+    tree = ast.parse(textwrap.dedent(inspect.getsource(cs.CascadeSession._watch_call_clock)))
+    called = {n.func.attr for n in ast.walk(tree)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+    constructed = {n.func.id for n in ast.walk(tree)
+                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "_finalize_call" not in called, called
+    assert "save_call_usage" not in called
+    assert not [c for c in constructed if "CallEnded" in c], "시계가 종료 통지까지 한다"
+
+
+# ── 🔴 종료 통지는 **모든 경로**에서 정확히 1회(2026-08-12 프론트 보고) ────
+@pytest.mark.parametrize("path,reason", [("client", "client"),
+                                         ("duration", "duration"),
+                                         ("backstop", "backstop")])
+@pytest.mark.asyncio
+async def test_call_ended_fires_once_on_every_path(monkeypatch, path, reason):
+    """⛔ 예전엔 **시간 만료 때만** 나갔다. 사용자가 끊으면 안 나가서, 클라가 `GET /calls` 를
+    **5회×600ms 폴링**해 call_id 를 되짚고 있었다 — 3초를 헛돌고, 그 사이 다른 통화가 생기면
+    **엉뚱한 id 를 집는다.**
+
+    세 경로 각각에서 **정확히 1회**, **실제 call_id** 를 싣고 나가야 한다(0회도 2회도 아님).
+    """
+    import core.stt as stt_mod
+
+    monkeypatch.setattr(stt_mod.settings, "STT_V2_FAKE", True)
+    monkeypatch.setattr(cs.settings, "CASCADE_GREETING", False)
+    monkeypatch.setattr(cs.settings, "CASCADE_FAREWELL_GRACE_S", 0.1)
+    stt_mod.get_speech_v2_client.cache_clear()
+
+    if path == "duration":
+        monkeypatch.setattr(cs.settings, "NORMAL_CALL_DURATION_S", 0.1)
+    elif path == "backstop":
+        # 시계가 멈춘 상황을 만든다 — 그게 백스톱이 존재하는 이유다.
+        async def _stuck(self):
+            await asyncio.sleep(60)
+
+        monkeypatch.setattr(cs.CascadeSession, "_watch_call_clock", _stuck)
+        monkeypatch.setattr(cs.settings, "NORMAL_CALL_DURATION_S", 0.05)
+        monkeypatch.setattr(cs.settings, "CASCADE_SESSION_MAX_S", 0.3)
+
+    class _Transport:
+        def __init__(self) -> None:
+            self.events: list[dict] = []
+            self._sent = False
+
+        async def send_event(self, event: dict) -> None:
+            self.events.append(event)
+
+        async def send_audio(self, frame: bytes) -> None:
+            return None
+
+        async def receive(self):
+            if not self._sent:
+                self._sent = True
+                return cs.CascadeInbound(kind="control",
+                                         control={"type": "start", "sampleRate": 16000})
+            if path == "client":
+                return cs.CascadeInbound(kind="control", control={"type": "stop"})
+            await asyncio.sleep(30)
+
+    transport = _Transport()
+    session = cs.CascadeSession(transport)
+    session._call_id = 77          # 통화 행이 이미 있다고 본다(마감은 팩토리 없이 건너뛴다)
+    await asyncio.wait_for(session.run(), timeout=5)
+
+    ended = [e for e in transport.events if e.get("type") == "call_ended"]
+    assert len(ended) == 1, transport.events
+    assert ended[0]["call_id"] == "77", ended
+    assert ended[0]["reason"] == reason, ended
+
+
+@pytest.mark.asyncio
+async def test_call_ended_carries_null_not_an_empty_string(monkeypatch):
+    """⛔ 빈 문자열 금지 — 클라가 `""` 를 **유효한 id 로 착각**한다(프론트 지적)."""
+    import json
+
+    from domains.learning.realtime.cascade_protocol import (
+        CascadeCallEnded,
+        cascade_server_adapter,
+    )
+
+    frame = json.loads(cascade_server_adapter.dump_json(
+        CascadeCallEnded(call_id=None, reason="client")).decode())
+    assert frame["call_id"] is None, frame

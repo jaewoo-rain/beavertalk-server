@@ -75,6 +75,7 @@ from domains.learning.realtime.cascade_protocol import (
     ServerAudioCancel,
     ServerCascadeReady,
     ServerTurnEnd,
+    CascadeCallEnded,
     CascadeSentenceMarker,
     CascadeTurnStart,
     ServerUserTurnEnd,
@@ -102,7 +103,7 @@ from domains.learning.realtime.call_session import _close_seed as live_close_see
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
 from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
-from domains.learning.realtime.protocol import AecHint, ServerCallEnded, ServerError, ServerPong
+from domains.learning.realtime.protocol import AecHint, ServerError, ServerPong
 
 logger = logging.getLogger(__name__)
 
@@ -909,6 +910,8 @@ class CascadeSession:
         # 문장 단위 감정: 직전 구간의 값(태그가 없으면 이어간다) + 이 턴에서 보낸 구간 순번.
         self._last_emotion = _DEFAULT_EMOTION
         self._segment_seq = 0
+        # 이 세션이 **왜** 끝났나 — 종료 통지의 reason 이 된다(기본은 사용자 종료).
+        self._end_reason = "client"
         # 종료 태그 — 지시문과 시드가 **같은 값**을 써야 모델이 그 문구를 시스템 지시로 읽는다.
         self._close_tag = new_close_tag()
         # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
@@ -1161,6 +1164,7 @@ class CascadeSession:
                 " 정상 통화는 여기 안 닿는다. 턴=%d",
                 backstop_s, self._turn_seq,
             )
+            self._end_reason = "backstop"
             await self._safe(ServerError(code="cascade_session_timeout",
                                          message="session_backstop", recoverable=False))
         except* Exception as eg:  # noqa: BLE001
@@ -1185,6 +1189,15 @@ class CascadeSession:
             #   ⛔ **원가 요약은 한 번만 만든다**: 로그로 나간 그 객체를 그대로 저장한다.
             #     두 번 계산하면 로그와 DB 의 숫자가 갈린다(그러면 어느 쪽도 못 믿는다).
             await self._finalize_call(summary, duration_s)
+            # ⭐⭐ **모든 정상 종료 경로**가 여기를 지난다(사용자 종료·시간 만료·백스톱).
+            #   ⛔ 순서가 중요하다 — `call_id` 는 위 마감이 끝나야 확정이다. 먼저 보내면
+            #     빈 값이 나가고, 클라는 그걸로 결과 화면을 못 연다.
+            #   ⚠ 예전엔 **시간 만료 때만** 나갔다. 사용자가 끊으면 클라가 call_id 를 몰라
+            #     `GET /calls` 를 5회×600ms 폴링해 되짚고 있었다(3초 헛돌고 오탐 위험).
+            await self._safe(CascadeCallEnded(
+                call_id=str(self._call_id) if self._call_id is not None else None,
+                reason=self._end_reason,
+            ))
 
     # ── ① client → STT ──
     async def _pump_in(self, stream: Any, pending_audio: bytes | None) -> None:
@@ -1193,11 +1206,15 @@ class CascadeSession:
         while True:
             inb = await self.transport.receive()
             if inb.kind == "disconnect":
+                # 소켓이 이미 끊겼다 — 통지는 못 가지만(그래서 _safe 가 삼킨다) 사유는 남긴다.
+                self._end_reason = "disconnect"
                 raise _Stop
             if inb.kind == "control":
                 ctrl = inb.control or {}
                 ctype = ctrl.get("type")
                 if ctype == "stop":
+                    # ⭐ **사용자가 종료 버튼을 눌렀다** — 실사용의 대부분이 이 경로다.
+                    self._end_reason = "client"
                     raise _Stop
                 if ctype == "ping":
                     await self._safe(ServerPong(t=ctrl.get("t")))
@@ -1301,6 +1318,7 @@ class CascadeSession:
                 )
                 continue
             if item is _EOS:
+                self._end_reason = "stream_end"
                 raise _Stop
             await self._handle(item)
 
@@ -1356,6 +1374,7 @@ class CascadeSession:
             await self._safe(
                 ServerError(code="stt_stream_error", message=event.detail, recoverable=False)
             )
+            self._end_reason = "error"
             raise _Stop
 
     # ── 전이 ──
@@ -3195,7 +3214,9 @@ class CascadeSession:
         deadline = time.monotonic() + grace
         while self._reply_busy() and time.monotonic() < deadline:
             await asyncio.sleep(0.2)
-        await self._safe(ServerCallEnded(call_id=str(self._call_id or ""), reason="duration"))
+        # ⛔ 여기서 통지하지 않는다. `call_id` 는 종료 마감(`_finalize_call`) 뒤에 확정되고,
+        #   통지가 두 곳이면 **0회 또는 2회**가 되기 쉽다. 사유만 남기고 끝낸다.
+        self._end_reason = "duration"
         raise _Stop
 
     async def _send_sentence_marker(self, segment: _OpenSegment) -> None:
