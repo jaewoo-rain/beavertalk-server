@@ -41,6 +41,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from domains.learning.realtime.protocol import (
     ClientPing,
     ServerCallEnded,
+    ServerHint,
     ServerError,
     ServerOutputTranscript,
     ServerPong,
@@ -57,6 +58,7 @@ __all__ = [
     "CascadeSentenceMarker",
     "CascadeTurnStart",
     "ServerCallEnded",
+    "ServerHint",
     "ClientCascadeStart",
     "ClientCascadeStop",
     "ClientPing",
@@ -499,6 +501,9 @@ CascadeServerMessage = Annotated[
         CascadeTurnStart,
         ServerTurnEnd,
         ServerOutputTranscript,
+        # 힌트(D16) — **normalcall 과 같은 모델**을 재사용한다(클라가 이미 처리한다).
+        # ⚠ union 에 없으면 직렬화가 다른 타입으로 폴백해 경고가 난다(call_ended 에서 겪었다).
+        ServerHint,
         # 통화 종료 — 캐스케이드 전용 모델이다(위 CascadeCallEnded 주석 참고).
         # ⚠ 같은 `type` 을 가진 모델이 union 에 둘이면 판별이 깨진다 — Live 것은 안 넣는다.
         ServerError,

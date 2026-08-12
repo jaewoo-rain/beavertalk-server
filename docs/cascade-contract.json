@@ -239,6 +239,27 @@
       ]
     },
     {
+      "wire_type": "hint",
+      "model": "ServerHint",
+      "doc": "비버 질문에 대한 예시 답변 힌트(D16 — 서버 사이드카 LLM 생성, 예시 3개).",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "examples",
+          "type": "list[HintExample]",
+          "required": true,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
       "wire_type": "input_transcript",
       "model": "ServerInputPartial",
       "doc": "사용자 발화 부분/최종 전사.",

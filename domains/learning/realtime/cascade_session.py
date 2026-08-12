@@ -51,6 +51,7 @@ from pydantic import ValidationError
 from starlette.websockets import WebSocket, WebSocketState
 
 from core import audio
+from core import gemini_analysis
 from core import gemini_chat
 from core import openai_tts
 from core.audio import trim_silence_edges
@@ -99,11 +100,26 @@ from domains.learning.realtime.cascade_reply import (
     strip_emotion_tags,
     strip_markers,
 )
-from domains.learning.realtime.call_session import _close_seed as live_close_seed
+# ⛔ 힌트·작별 문구는 **Live 의 것을 그대로 쓴다**(새로 쓰면 두 경로가 갈린다).
+#   ⚠ 다만 `_hint_sidecar` 자체는 못 쓴다 — 그 함수는 **원시 WebSocket** 을 받아
+#     `client_state` 를 보고 `send_text` 한다. 캐스케이드는 transport 추상화를 지나므로
+#     **생성·스키마·프레임은 재사용**하고 송신만 우리 경로로 한다(아래 `_run_hint`).
+from domains.learning.realtime.call_session import (
+    _LOCALE_LABEL,
+    HintOut,
+    _close_seed as live_close_seed,
+    _hint_instruction,
+)
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
 from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
-from domains.learning.realtime.protocol import AecHint, ServerError, ServerPong
+from domains.learning.realtime.protocol import (
+    AecHint,
+    HintExample,
+    ServerError,
+    ServerHint,
+    ServerPong,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -913,6 +929,11 @@ class CascadeSession:
         # 이 세션이 **왜** 끝났나 — 종료 통지의 reason 이 된다(기본은 사용자 종료).
         self._end_reason = "client"
         self._odd_frames_warned = False   # I6 경고는 통화당 한 번(도배 방지)
+        # ⭐ 힌트 사이드카(D16) — **곁다리**다. 메인 파이프는 이걸 기다리지 않는다.
+        #   세션당 동시 1개: 새 질문이 오면 이전 미완 힌트를 취소한다(낡은 힌트가 다음 턴에
+        #   뜨면 학습자가 엉뚱한 예시를 본다).
+        self._hint_task: Any = None
+        self._hint_tasks: set = set()      # 강참조(GC 방지) — 세션 종료 때 전량 취소
         # 종료 태그 — 지시문과 시드가 **같은 값**을 써야 모델이 그 문구를 시스템 지시로 읽는다.
         self._close_tag = new_close_tag()
         # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
@@ -1173,6 +1194,10 @@ class CascadeSession:
             await self._safe(ServerError(code="cascade_error", message="cascade_stream_error"))
         finally:
             self._tg = None
+            # ⛔ 남은 힌트 태스크를 전부 취소한다 — 통화가 끝났는데 힌트가 늦게 나가면
+            #   닫힌 소켓에 쓰거나(무해하지만) 다음 통화와 헷갈린다.
+            for task in list(self._hint_tasks):
+                task.cancel()
             try:
                 await stream.close()
             except Exception:  # noqa: BLE001
@@ -2954,6 +2979,84 @@ class CascadeSession:
             await asyncio.sleep(max(5.0, settings.CASCADE_SEGMENT_FLUSH_S))
             await self._persist_segments()
 
+    def _spawn_hint(self, turn_id: str | None, question: str) -> None:
+        """비버 **질문** 턴 뒤에 예시 답변을 만들어 보낸다(D16 — Live 와 같은 사이드카).
+
+        ⛔⛔ **메인 파이프를 1ms 도 늦추지 않는다.** 여기서 하는 일은 `create_task` 하나뿐이고
+          LLM 콜·전송은 전부 백그라운드다. 실패·지연은 **힌트 미표시**로 끝난다(R5).
+          ⚠ 세션 TaskGroup 에 붙이지 않는다 — 거기 붙이면 힌트가 터질 때 **통화가 죽는다**.
+        ⭐ 질문 판정은 **물음표**다(Live 와 같은 규칙). 근거 셋:
+          ① 이미 D16 이 그 규칙으로 돈다 — 갈리면 두 경로의 힌트가 달라진다(이번 작업 내내
+             지킨 규율과 같다).
+          ② 매 턴 LLM 에 물어보는 방식(선택지 b)은 **설명 턴에서도 호출**이 나가 원가가 는다.
+          ③ "한국어 의문 어미를 놓친다"는 우려는 **우리 대사에는 해당이 적다** — 프롬프트가
+             비버에게 "물음표로 끝내고 멈춰라"를 지시한다(persona_prompt 착지 규칙).
+        ⚠ 커리큘럼이 있는 언어(ko)만 — 회화 전용 언어는 예시 생성 프롬프트가 그 언어에
+          맞춰져 있지 않아 무의미하다(Live 와 같은 조건).
+        """
+        if self._genai_client is None or not turn_id:
+            return
+        spec = resolve_language(self._target_code)
+        if spec is None or not spec.has_curriculum:
+            return
+        question = (question or "").strip()
+        if "?" not in question:
+            return          # 설명·안내 턴에 힌트를 띄우면 소음이다(mechanics ⑬)
+        prev = self._hint_task
+        if prev is not None and not prev.done():
+            prev.cancel()   # 낡은 질문의 힌트가 늦게 뜨는 혼선 방지
+        ctx = {
+            "client": self._genai_client,
+            "model": settings.JUDGE_MODEL,
+            "instruction": _hint_instruction(
+                _LOCALE_LABEL.get(self._locale) or _LOCALE_LABEL["en"], self._target_label
+            ),
+        }
+        task = asyncio.create_task(
+            self._run_hint(ctx, turn_id, question), name=f"cascade-hint-{turn_id}",
+        )
+        self._hint_task = task
+        self._hint_tasks.add(task)
+        task.add_done_callback(self._hint_tasks.discard)
+
+    async def _run_hint(self, ctx: dict, turn_id: str, question: str) -> None:
+        """힌트 1건 생성 → 전송(백그라운드 본문 — **예외 전량 흡수**, R5).
+
+        ⚠ Live 의 `_hint_sidecar` 와 같은 일을 한다. 함수를 그대로 못 쓴 이유는 하나 —
+          그쪽은 **원시 WebSocket** 을 받아 `send_text` 한다. 프레임(`ServerHint`)·스키마
+          (`HintOut`)·지시문(`_hint_instruction`)은 **그대로 재사용**하므로 클라 변경은 0 이다.
+        ⛔ 이 안에서 세션 상태를 건드리지 않는다 — 메인 턴과 경합하면 사이드카의 의미가 없다.
+        """
+        try:
+            result = await gemini_analysis.generate_structured(
+                ctx["client"], ctx["model"],
+                system_instruction=ctx["instruction"], prompt=question,
+                schema=HintOut, temperature=0.3, thinking_budget=0,
+            )
+            raw = getattr(result, "examples", None) if result is not None else None
+            examples = [
+                HintExample(
+                    korean=k,
+                    roman=getattr(e, "roman", None),
+                    native=getattr(e, "native", "") or "",
+                )
+                for e in (raw or [])
+                if (k := (getattr(e, "korean", None) or "").strip())
+            ][:3]   # 최대 3개, `korean` 없는 예시는 버린다(클라 계약)
+            if not examples:
+                return
+            if turn_id != self.beaver.turn_id and self._hint_task is not asyncio.current_task():
+                # ⛔ 이미 다음 턴이 시작됐고 나는 낡은 태스크다 — 늦은 힌트는 **버린다**.
+                logger.info("cascade 힌트 폐기(턴이 지났다) turn=%s", turn_id)
+                return
+            await self._safe(ServerHint(turn_id=turn_id, examples=examples))
+            # ⛔ 대사 원문은 안 찍는다 — 개수와 턴만 남긴다.
+            logger.info("cascade 💡 hint[turn=%s]: %d개", turn_id, len(examples))
+        except asyncio.CancelledError:
+            raise       # 취소(새 질문·통화 종료)는 정상 경로다
+        except Exception as exc:  # noqa: BLE001 - 힌트 실패는 미표시일 뿐 통화 무영향
+            logger.warning("cascade 힌트 사이드카 실패(무시 — 힌트 미표시): %s", str(exc)[:200])
+
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
         """이력에는 **실제로 들린 데까지**만 남긴다(설계 §5).
 
@@ -2969,6 +3072,8 @@ class CascadeSession:
         self._trim_history()
         # ⭐ 통화 기록도 **같은 자리**에서 남긴다 — 이력과 기록이 갈리면 분석이 다른 말을 본다.
         self._record_beaver_segment(turn_id, generated)
+        # 힌트는 **여기서 태스크만** 띄운다(대답은 이미 다 나갔다 — 지연 0).
+        self._spawn_hint(turn_id, generated)
 
     def _on_reply_cancelled(self, turn_id: str | None, generated: str) -> None:
         """barge-in 으로 끊긴 대답 — 들린 데까지만 이력에 남기고, 못 들려준 문자를 원가에 센다."""

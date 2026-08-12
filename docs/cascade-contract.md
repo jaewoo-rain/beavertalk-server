@@ -70,6 +70,15 @@
 | `message` | `str` | ✔ | `—` |
 | `recoverable` | `bool` |  | `true` |
 
+### `hint`  (ServerHint)
+
+비버 질문에 대한 예시 답변 힌트(D16 — 서버 사이드카 LLM 생성, 예시 3개).
+
+| 필드 | 타입 | 필수 | 기본값 |
+|---|---|---|---|
+| `turn_id` | `str` | ✔ | `—` |
+| `examples` | `list[HintExample]` | ✔ | `—` |
+
 ### `input_transcript`  (ServerInputPartial)
 
 사용자 발화 부분/최종 전사.
