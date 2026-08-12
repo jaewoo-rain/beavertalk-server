@@ -901,11 +901,20 @@ class CascadeSession:
         transport: CascadeTransport,
         genai_client: Any = None,
         *,
+        llm_client: Any = None,
         session_factory: Any = None,
         member_id: int | None = None,
         member_target_language: str | None = None,
     ) -> None:
         self.transport = transport
+        # ⭐ **대답 LLM 만** 다른 리전을 쓸 수 있다(2026-08-13 사장님 지시: "LLM 을 서울로").
+        #   ⛔ 힌트·통화후 분석은 **기본 클라이언트를 그대로 쓴다.** 근거 셋:
+        #     ① 실시간이 아니다 — 사용자가 그 왕복을 기다리지 않는다(리전 이득이 없다).
+        #     ② 다른 모델을 쓴다(`JUDGE_MODEL`) — **그 모델의 서울 가용성은 확인 못 했다.**
+        #        확인 안 된 채 옮기면 분석이 조용히 실패한다.
+        #     ③ 곁다리가 실패해도 대답은 살아야 한다 — 배관을 나눠 두면 그게 자동으로 된다.
+        #   ⚠ 안 넘기면 `genai_client` 를 그대로 쓴다 ⇒ 기본 동작이 지금과 **완전히 같다**.
+        self._llm_client = llm_client or genai_client
         # ── DB 연결(설계 20260812_1620) ──────────────────────────────────────
         # ⛔ 셋 다 **없어도 돈다**(데모·테스트). 없으면 env 기본값으로 예전처럼 간다 — DB 가
         #   빠졌다고 통화가 죽으면 안 된다(R5). 있으면 Live 와 **같은 함수**로 같은 기록을 남긴다.
@@ -2078,7 +2087,7 @@ class CascadeSession:
         self._reply_emotion = None
         self._reply_rates = {}
         chat = gemini_chat.open_chat_stream(
-            self._genai_client,
+            self._llm_client,
             settings.CASCADE_LLM_MODEL,
             system_instruction=self._system_instruction(),
             history=self._history,
@@ -4046,6 +4055,7 @@ async def run_cascade(
     websocket: WebSocket,
     genai_client: Any = None,
     *,
+    llm_client: Any = None,
     session_factory: Any = None,
     member_id: int | None = None,
     member_target_language: str | None = None,
@@ -4061,6 +4071,7 @@ async def run_cascade(
     """
     session = CascadeSession(
         WsCascadeTransport(websocket), genai_client,
+        llm_client=llm_client,
         session_factory=session_factory,
         member_id=member_id,
         member_target_language=member_target_language,

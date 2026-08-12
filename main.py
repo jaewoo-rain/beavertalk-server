@@ -79,8 +79,11 @@ _configure_logging()
 logger = logging.getLogger(__name__)
 
 
-def _create_genai_client(settings: Settings) -> Any | None:
+def _create_genai_client(settings: Settings, location: str | None = None) -> Any | None:
     """normalcall 용 genai.Client 를 생성한다(실패 시 None — 통화만 비활성, 앱은 정상).
+
+    `location` 을 주면 그 리전으로 만든다(기본은 `GCP_LOCATION`). 리전만 다른 **두 번째**
+    클라이언트가 필요해서 열어 둔 인자다 — 자세한 이유는 `_create_cascade_client`.
 
     USE_VERTEX=True 면 서비스계정 키(설정 경로 → 프로젝트 루트 gcp_key.json 폴백)로
     Vertex 클라이언트를, 아니면 GEMINI_API_KEY 로 AI Studio 클라이언트를 만든다.
@@ -102,14 +105,15 @@ def _create_genai_client(settings: Settings) -> Any | None:
             creds = service_account.Credentials.from_service_account_file(
                 key_path, scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
+            where = (location or settings.GCP_LOCATION or "").strip()
             logger.info(
                 "normalcall: Vertex genai 클라이언트 생성 project=%s location=%s model=%s",
-                settings.GCP_PROJECT, settings.GCP_LOCATION, settings.GEMINI_LIVE_MODEL,
+                settings.GCP_PROJECT, where, settings.GEMINI_LIVE_MODEL,
             )
             return genai.Client(
                 vertexai=True,
                 project=settings.GCP_PROJECT,
-                location=settings.GCP_LOCATION,
+                location=where,
                 credentials=creds,
             )
         if not settings.GEMINI_API_KEY:
@@ -121,6 +125,38 @@ def _create_genai_client(settings: Settings) -> Any | None:
         return None
 
 
+def _create_cascade_client(settings: Settings, default_client: Any | None) -> Any | None:
+    """캐스케이드 **대답 LLM 전용** 클라이언트 — 리전만 다르다.
+
+    ⛔ 왜 따로 만드나: `genai.Client` 는 lifespan 이 한 번 만들어 **Live·캐스케이드·분석이
+      전부 공유**한다. 그래서 `GCP_LOCATION` 을 서울로 바꾸면 **Live 도 같이 옮겨간다**.
+      Live 네이티브 오디오(`gemini-live-2.5-flash-native-audio`)의 서울 지원 여부는
+      **확인하지 못했다** — bidi WebSocket 이라 단순 호출로 못 재고, 모델 GET 은 어느
+      리전에서든 404 라 가용성 판정에 못 쓴다. 확인 안 된 채 전역을 옮기면 **통화가 죽는다**.
+      ⇒ 교체가 아니라 **추가**다. `app.state.genai_client` 는 그대로 둔다.
+    ⚠ 값이 없으면 **기본 클라이언트를 그대로 재사용**한다(객체를 하나 더 만들지 않는다) —
+      기본 동작이 지금과 **완전히 같아야** 한다.
+    ⚠ 실패해도 기본 클라이언트로 떨어진다(R5) — 리전 하나 때문에 통화가 죽으면 안 된다.
+    ⚠ 토큰 만료(1008)는 **여기 해당 없다**: 그건 Live 의 **WS connect** 가 만료 토큰을 그대로
+      보내서 났고(`gemini_live._ensure_fresh_credentials` 주석), 캐스케이드 대답은 REST
+      (`generate_content_stream`)라 **요청마다 갱신**된다. 그래도 같은 SA creds 를 공유하므로
+      갱신이 일어나면 두 클라이언트가 함께 이득을 본다.
+    """
+    where = (settings.CASCADE_LLM_LOCATION or "").strip()
+    if not where or where == (settings.GCP_LOCATION or "").strip():
+        return default_client
+    client = _create_genai_client(settings, location=where)
+    if client is None:
+        logger.warning(
+            "cascade LLM: %s 리전 클라이언트 생성 실패 → 기본 리전(%s)으로 계속한다",
+            where, settings.GCP_LOCATION,
+        )
+        return default_client
+    logger.info("cascade LLM: 대답 전용 클라이언트 location=%s (Live 는 %s 그대로)",
+                where, settings.GCP_LOCATION)
+    return client
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """앱 수명 동안 공유 자원(엔진/세션 팩토리/genai)을 준비하고 종료 시 정리한다."""
@@ -129,6 +165,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
+    # ⭐ 캐스케이드 **대답 전용**(리전만 다를 수 있다). 값이 없으면 위 객체를 그대로 재사용한다.
+    app.state.cascade_llm_client = _create_cascade_client(settings, app.state.genai_client)
     from core import fcm
 
     fcm.warmup()  # 예약전화 FCM 워밍업(실패해도 무시 — 발송만 비활성)
