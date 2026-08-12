@@ -78,6 +78,7 @@ from domains.learning.realtime.cascade_protocol import (
     ServerCascadeReady,
     ServerTurnEnd,
     CascadeCallEnded,
+    CascadeCallStarted,
     CascadeSentenceMarker,
     CascadeTurnStart,
     ServerUserTurnEnd,
@@ -3423,6 +3424,11 @@ class CascadeSession:
                 self._session_factory,
                 lambda db: svc.resolve_call_character(db, self._member_id, None),
             )
+            # ⭐ **캐릭터를 정한 그 자리에서 알린다** — Live 도 같은 시점이다
+            #   (call_session.py: resolve_call_character 직후, `call_id` 확정 **전**).
+            #   이건 통화 시작 알림이라 call_id 를 기다릴 이유가 없고, 기다리면 앱이 그만큼
+            #   오래 엉뚱한 얼굴을 띄운다.
+            await self._announce_character()
             # ⚠ 언어 스코프가 필요하다 — 학습 대상 언어로 레벨·커리큘럼을 고른다.
             spec = resolve_language(self._member_target_language or self._target_code)
             code = spec.code if spec else self._target_code
@@ -3459,6 +3465,28 @@ class CascadeSession:
             self._member_id, self._character_id, self._voice or "서버 기본값",
             "있음" if (self._setup or {}).get("level_profile") else "없음",
         )
+
+    async def _announce_character(self) -> None:
+        """이 통화의 캐릭터를 클라에 알린다 — 통화당 **1회**, 오디오가 흐르기 전.
+
+        ⛔ 안 보내면 앱은 **자기가 고른 캐릭터 얼굴**로 폴백한다. 서버가 다른 캐릭터를
+          고르면(수신통화=알람 캐릭터, 그 외=member.character_id) **목소리와 얼굴이
+          어긋난다** — 에러 없이 조용히.
+        ⚠ 이름은 **더 있으면 좋은 것**이지 필수가 아니다(프론트는 환경마다 다른 id 대신
+          이름으로 자산을 고른다). 조회가 실패해도 id 는 반드시 보낸다 — R5.
+        """
+        if self._character_id is None:
+            return
+        name = None
+        try:
+            name = await svc.run_db(
+                self._session_factory,
+                lambda db: svc.character_display_name(db, self._character_id),
+            )
+        except Exception as exc:  # noqa: BLE001 - R5
+            logger.warning("cascade: 캐릭터 이름 조회 실패 — id 만 보낸다: %s", str(exc)[:200])
+        await self._safe(CascadeCallStarted(character_id=self._character_id, name=name))
+        logger.info("cascade 통화 시작 통지: character=%s(%s)", self._character_id, name or "이름없음")
 
     def _tts_voice(self) -> str | None:
         """이 통화의 TTS 음색 — **env override > DB 캐릭터 > 언어 기본**.

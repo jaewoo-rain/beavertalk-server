@@ -62,6 +62,15 @@
 | `call_id` | `str | null` |  | `null` |
 | `reason` | `str` |  | `"client"` |
 
+### `call_started`  (CascadeCallStarted)
+
+서버가 **이 통화의 캐릭터를 정했다**는 통지 — 오디오가 흐르기 전 1회.
+
+| 필드 | 타입 | 필수 | 기본값 |
+|---|---|---|---|
+| `character_id` | `int` | ✔ | `—` |
+| `name` | `str | null` |  | `null` |
+
 ### `error`  (ServerError)
 
 | 필드 | 타입 | 필수 | 기본값 |

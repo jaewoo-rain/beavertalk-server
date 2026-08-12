@@ -55,6 +55,7 @@ __all__ = [
     "CascadeClientMessage",
     "CascadeServerMessage",
     "CascadeCallEnded",
+    "CascadeCallStarted",
     "CascadeSentenceMarker",
     "CascadeTurnStart",
     "ServerCallEnded",
@@ -289,6 +290,31 @@ CascadeClientMessage = Annotated[
 
 
 # ────────────────────────────── 서버 → 클라이언트 ──────────────────────────────
+class CascadeCallStarted(BaseModel):
+    """서버가 **이 통화의 캐릭터를 정했다**는 통지 — 오디오가 흐르기 전 1회.
+
+    ⛔ 왜 필요한가(지금 안 깨지는데도): 클라는 이 값으로 **어느 캐릭터 얼굴을 띄울지** 정하고,
+      없으면 앱이 고른 캐릭터로 폴백한다 — 그래서 지금은 정상으로 보인다. 깨지는 조건은
+      **서버가 앱 선택과 다른 캐릭터를 고를 때**다. 캐릭터는 우리가 DB 에서 읽으므로
+      (`resolve_call_character`: 수신통화면 알람 캐릭터, 그 외엔 member.character_id)
+      앱은 그걸 모른 채 자기 얼굴을 띄운다 ⇒ **목소리와 얼굴이 다른 캐릭터**가 된다.
+      에러도 안 난다 — 조용히 어긋난다.
+
+    ⚠ **캐스케이드 전용 모델**인 이유는 `name` 한 칸이다. Live 의 `ServerCallStarted` 에
+      필드를 더하면 Live 가 내보내는 JSON 이 바뀐다(`CascadeCallEnded` 와 같은 판단).
+      ⛔ 같은 `type` 을 가진 모델이 union 에 둘이면 판별이 깨진다 — Live 것은 안 넣는다.
+    ⭐ 이름을 같이 싣는 이유(프론트 사정): 프론트는 id 가 아니라 **이름**으로 자산을 고른다 —
+      **서버 캐릭터 id 가 환경마다 다르다**(prod 9=Popo / dev 3=Popo). id 만 주면 이름으로
+      되짚어야 하고, 그 매핑이 틀리면 또 조용히 어긋난다.
+    ⚠ `name` 은 못 읽을 수 있다(캐릭터 행이 없거나 조회 실패 — R5). 그때는 null 이고,
+      클라는 예전처럼 id 로 되짚으면 된다. **통화는 계속된다.**
+    """
+
+    type: Literal["call_started"] = "call_started"
+    character_id: int
+    name: str | None = None
+
+
 class CascadeCallEnded(BaseModel):
     """통화 종료 통지 — **캐스케이드 전용**(Live 의 `ServerCallEnded` 를 안 건드린다).
 
@@ -531,6 +557,7 @@ CascadeServerMessage = Annotated[
         # Live 모델에 필드를 더하면 Live 출력이 바뀐다). 나머지는 normalcall 과 같은 모델을
         # 재사용한다 — 앱의 재생 상태기계가 묶여 있어 의미를 바꾸면 안 된다(클라 제약 #1).
         CascadeCallEnded,
+        CascadeCallStarted,
         CascadeSentenceMarker,
         CascadeTurnStart,
         ServerTurnEnd,

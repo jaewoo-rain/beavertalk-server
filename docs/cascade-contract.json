@@ -211,6 +211,27 @@
       ]
     },
     {
+      "wire_type": "call_started",
+      "model": "CascadeCallStarted",
+      "doc": "서버가 **이 통화의 캐릭터를 정했다**는 통지 — 오디오가 흐르기 전 1회.",
+      "fields": [
+        {
+          "name": "character_id",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "name",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
       "wire_type": "error",
       "model": "ServerError",
       "doc": "",
