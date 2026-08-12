@@ -170,9 +170,19 @@ async def test_concurrent_vendor_requests_never_exceed_the_engine_limit(monkeypa
     assert vendor.peak > 1, "선행 합성이 아예 안 걸렸다(이 시험이 무의미해진다)"
 
 
-def test_gemini_stays_serial_because_of_its_quota():
-    """⛔ Gemini 는 **분당 10회** 상한이다 — 미리 열면 429 를 앞당긴다. 직렬 고정."""
-    assert cs._TTS_PROFILES[cs.tts.GEMINI_ENGINE].prefetch_depth == 1
+def test_depth_is_bounded_where_the_quota_is_the_constraint():
+    """⚠ **정정(2026-08-12).** 처음엔 "Gemini 는 분당 10회라 직렬" 이라고 1 로 박았는데
+    그 논리가 틀렸다 — 상한은 분당 **요청 수**이고, 선행 합성은 같은 구간을 일찍 부를 뿐
+    요청 수를 안 늘린다. 1 로 둔 대가만 남아 실통화에서 구간마다 0.83~1.49초가 비었다.
+
+    ⛔ 그래도 **동시 요청** 한도는 1차 자료로 확인 못 했다 — 그래서 쿼터가 걸린 엔진은
+      상한 없는 엔진(OpenAI)보다 **작아야** 한다. 이 관계를 성질로 박는다.
+    """
+    gemini = cs._TTS_PROFILES[cs.tts.GEMINI_ENGINE].prefetch_depth
+    openai = cs._TTS_PROFILES[cs._OPENAI_TTS_CHOICE].prefetch_depth
+    assert 1 < gemini < openai, (gemini, openai)
+    # ⛔ 배치 모드는 **직렬 고정**이다 — 그쪽은 순간 집중이 실제로 429 를 부르고
+    #   (`_run_batch_reply` 주석), 어차피 지연이 비용이 아닌 판정용 모드다.
     assert cs._TTS_PROFILES[cs._GEMINI_BATCH_CHOICE].prefetch_depth == 1
     assert cs._TTS_FALLBACK_PROFILE.prefetch_depth == 1, "쿼터를 모르면 늘리지 않는다"
 

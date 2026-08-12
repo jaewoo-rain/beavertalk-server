@@ -233,9 +233,14 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
         "CASCADE_TTS_BATCH_CHARS_GEMINI", "CASCADE_TTS_LEAD_MS_GEMINI",
         "CASCADE_TTS_SPEAKING_RATE_GEMINI",
         solo_first_sentence=False, takes_style=True,
-        # ⛔ **1(직렬) 고정.** 분당 10회 상한인데 실측 수요가 평균 19.2 / 피크 27 이었다 —
-        #   미리 열면 그 상한을 더 빨리 태운다. 여긴 지연보다 429 가 1순위 제약이다.
-        prefetch_depth=1,
+        # ⚠ 2 로 올린다(2026-08-12 정정). 처음엔 "분당 10회 상한이라 미리 열면 상한을 빨리
+        #   태운다"고 1로 뒀는데, **그 논리가 틀렸다**: 상한은 분당 **요청 수**이고 선행 합성은
+        #   같은 구간을 1~2초 **일찍** 부를 뿐 요청 수를 늘리지 않는다. 분당 총량은 그대로다.
+        #   ⛔ 그래서 1 로 둔 대가만 남았다 — 실통화에서 구간마다 0.83~1.49초씩 소리가 비었다
+        #     (Gemini TTFB 805~1271ms × 구간 5~7개). 사장님이 "언어 바뀔 때 끊긴다"고 하신 그것이다.
+        #   ⚠ 3 이 아니라 2 인 이유: **동시 요청** 한도는 1차 자료로 확인 못 했다. 모르는 값
+        #     앞에서는 한 칸만 움직인다. 429 가 나면 세션 백오프가 Chirp 으로 내린다(안전망).
+        prefetch_depth=2,
         vendor=lambda: (settings.CASCADE_TTS_GEMINI_MODEL or tts.GEMINI_ENGINE).strip(),
         is_configured=lambda: True,
         google_engine=tts.GEMINI_ENGINE,
