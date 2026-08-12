@@ -185,4 +185,6 @@ def test_every_language_use_reads_the_session_not_the_settings():
         src = inspect.getsource(getattr(cs.CascadeSession, name))
         assert "settings.CASCADE_TTS_LANGUAGE" not in src, name
         assert "settings.CASCADE_TTS_TARGET_LANGUAGE" not in src, name
-        assert "settings.CASCADE_PERSONA_LOCALE" not in src, name
+        # ⚠ `CASCADE_PERSONA_LOCALE` 검사는 2026-08-13 에 뺐다 — **그 값을 지웠기 때문**이다
+        #   (모국어를 `CASCADE_TTS_LANGUAGE` 하나로 모은 뒤 코드가 한 번도 안 읽었다).
+        #   대상이 없어진 검사는 남겨 두면 "무엇을 지키는지 모르는 줄"이 된다.

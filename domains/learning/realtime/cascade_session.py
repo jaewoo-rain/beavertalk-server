@@ -956,7 +956,9 @@ class CascadeSession:
         self._target_code = (settings.CASCADE_TTS_TARGET_LANGUAGE or "ko").strip()
         self._target_label = (settings.CASCADE_TTS_TARGET_LANGUAGE_LABEL or "한국어").strip()
         self._voice: str | None = None      # 캐릭터 음색(로스터 이름). None = 서버 기본값
-        self._voice_warned = False          # OpenAI 음색 미적용 경고는 통화당 한 번
+        self._voice_warned = False
+        # 음색 폴백 경고는 통화당 한 번(도배 방지) — 구간마다 부르는 자리다.
+        self._voice_fallback_warned = False          # OpenAI 음색 미적용 경고는 통화당 한 번
         # 비버가 말하려면 LLM 클라이언트가 있어야 한다. 없으면 **턴 감지까지만** 돈다 —
         # 키가 없다고 통화가 죽으면 안 된다(R5).
         self._genai_client = genai_client
@@ -3391,11 +3393,22 @@ class CascadeSession:
             self._locale = normalize_locale(override_locale) or override_locale
         elif setup_locale:
             self._locale = normalize_locale(setup_locale) or setup_locale
-        logger.info(
-            "cascade 언어: 모국어=%s 학습대상=%s(%s) 출처=%s · STT=자동감지(고정)",
-            self._locale, self._target_code, self._target_label,
-            "DB" if (self._setup or self._member_target_language) else "env 기본값",
-        )
+        # ⭐⭐ **조용한 폴백을 시끄럽게 한다**(2026-08-13). 오늘 우리가 당한 사고가 전부
+        #   조용한 폴백이었다(자막 미전송·beaver_preparing 미전송·힌트 로그 부재).
+        #   ⛔ **소리 없이 기본값으로 도는 게 제일 나쁘다** — 통화는 멀쩡해 보이는데 학습자는
+        #     자기 모국어가 아닌 언어로 설명을 듣는다. 지금 영어권 사용자라 `en` 기본값이
+        #     **우연히 맞을** 뿐이고, 그 우연이 깨지는 날 아무 신호도 없다.
+        #   ⚠ env 는 안 비운다(R5 폴백이 필요하다). 대신 **발동하면 반드시 보인다.**
+        overridden = bool(override_target or override_locale)
+        from_db = bool(self._setup or self._member_target_language)
+        source = "override(env)" if overridden else ("DB" if from_db else "env 기본값")
+        line = ("cascade 언어: 모국어=%s 학습대상=%s(%s) 출처=%s · STT=자동감지(고정)",
+                self._locale, self._target_code, self._target_label, source)
+        if from_db and not overridden:
+            logger.info(*line)
+        else:
+            # 덮어쓰기(실험)와 기본값(폴백) 둘 다 **의도된 운영 상태가 아니다**.
+            logger.warning(*line)
 
     async def _resolve_call_duration(self) -> None:
         """이 통화의 길이 — **env 강제값 > 구독 플랜 > Free**(Live 와 같은 우선순위).
@@ -3555,8 +3568,12 @@ class CascadeSession:
             #   Live 라면 여기서 라우팅이 갈린다 — 그 차이를 로그로 드러낸다.
             logger.info("cascade: 레벨 미확정이지만 call_type=normal 로 진행(레벨테스트 미지원)")
         logger.info(
-            "cascade 캐릭터: member=%s character=%s 음색=%s 레벨프로파일=%s",
-            self._member_id, self._character_id, self._voice or "서버 기본값",
+            "cascade 캐릭터: member=%s character=%s 음색=%s(출처=%s) 레벨프로파일=%s",
+            self._member_id, self._character_id,
+            self._voice or (settings.CASCADE_TTS_VOICE or "").strip() or "언어 기본",
+            # ⭐ 값만 찍으면 **어디서 온 값인지 모른다** — `음색=Sulafat` 이 DB 인지 env 인지
+            #   구별이 안 돼 오늘 조사에서 시간을 썼다. 출처를 같이 박는다.
+            "DB" if self._voice else ("env" if (settings.CASCADE_TTS_VOICE or "").strip() else "기본"),
             "있음" if (self._setup or {}).get("level_profile") else "없음",
         )
 
@@ -3604,7 +3621,20 @@ class CascadeSession:
             return None
         # DB 캐릭터 음색이 없으면 서버 기본값(env). ⚠ 이 값은 **덮어쓰기가 아니다** —
         #   배포 env 에 값이 들어 있어 덮어쓰기로 쓰면 DB 가 영영 안 먹는다(config 주석).
-        return self._voice or (settings.CASCADE_TTS_VOICE or "").strip() or None
+        if self._voice:
+            return self._voice
+        # ⚠ 여기까지 왔다 = **DB 캐릭터에 음색이 없다**(`character.voice_id` NULL 등).
+        #   그러면 이 통화는 그 캐릭터의 목소리가 아니다 — 그런데 에러도 없다. 조용히
+        #   서버 기본값(env)이나 언어 기본 음성이 나간다. **그 사실이 보여야 한다.**
+        fallback = (settings.CASCADE_TTS_VOICE or "").strip() or None
+        if not self._voice_fallback_warned:
+            self._voice_fallback_warned = True
+            logger.warning(
+                "cascade 음색 폴백 — DB 캐릭터에 음색이 없다(character=%s) → %s. "
+                "이 통화는 **그 캐릭터 목소리가 아니다**",
+                self._character_id, ("env %s" % fallback) if fallback else "언어 기본 음성",
+            )
+        return fallback
 
     def _system_instruction(self) -> str:
         """페르소나는 **새로 만들지 않는다** — normalcall 과 같은 조립기를 쓴다(설계 §1-2).

@@ -391,9 +391,10 @@ class Settings(BaseSettings):
     # ⚠ 데모엔 회원이 없어 둘 다 env 다(실서비스는 member.language / target_language 가 준다).
     # 기본값은 둘 다 ko → 마커가 있어도 같은 언어라 **지금 동작과 같다**(안전한 기본값).
     # ⭐⭐ **학습자 모국어 = 비버가 설명·리액션에 쓰는 언어**(2026-08-12 단일화).
-    #   예전엔 같은 뜻이 `CASCADE_PERSONA_LOCALE`(기본 en)과 여기(기본 ko) **두 곳에 다른
-    #   기본값**으로 있었다 — 페르소나는 영어로 설명한다면서 TTS 는 한국어 음성으로 읽는
-    #   조합이 만들어진다. DB 를 붙이면서 **이 값 하나로 모은다**(세션이 `_locale` 로 확정).
+    #   예전엔 같은 뜻이 두 곳에 **다른 기본값**으로 있었다(`CASCADE_PERSONA_LOCALE`=en /
+    #   여기=ko) — 페르소나는 영어로 설명한다면서 TTS 는 한국어 음성으로 읽는 조합이
+    #   만들어진다. 2026-08-12 에 **이 값 하나로 모았고**(세션이 `_locale` 로 확정),
+    #   2026-08-13 에 죽은 쪽을 지웠다.
     #   ⚠ 기본을 en 으로 바꾼 이유: 배포 env 가 이미 en 이고(demo-api), 페르소나 기본도 en 이라
     #     **둘 중 en 쪽이 실제로 돌던 값**이다. 학습자는 외국인이다.
     CASCADE_TTS_LANGUAGE: str = "en"             # 모국어 구간을 읽을 언어(= 페르소나 locale)
@@ -407,11 +408,8 @@ class Settings(BaseSettings):
     #   (CASCADE_TTS_SPEAKING_RATE)가 빠르게 잡으면 **다음 사람이 어느 게 진짜인지 못 가린다.**
     #   난이도(쉬운 단어·짧은 문장)만 맡는다.
     CASCADE_PERSONA_LEVEL: str = "아주 쉬운 단어와 짧은 문장으로 말한다."
-    # ⚠ **더 이상 안 쓴다**(2026-08-12). 모국어는 `CASCADE_TTS_LANGUAGE` 하나로 모았다 —
-    #   env 호환을 위해 남겨 두지만 코드가 읽지 않는다. 값을 바꿔도 아무 일도 안 일어난다.
-    CASCADE_PERSONA_LOCALE: str = "en"
     # ── DB 연결(2026-08-12): 데모 전용 **덮어쓰기**. 비어 있으면 DB 값이 이긴다 ──
-    # ⛔ 위 세 값(`CASCADE_TTS_VOICE`·`CASCADE_TTS_LANGUAGE`·`CASCADE_PERSONA_LOCALE`)을
+    # ⛔ 위 두 값(`CASCADE_TTS_VOICE`·`CASCADE_TTS_LANGUAGE`)을
     #   덮어쓰기로 쓰면 안 된다 — **배포 env 에 이미 값이 들어 있어서**(demo-api:
     #   CASCADE_TTS_VOICE=Sulafat, CASCADE_TTS_LANGUAGE=en …) DB 캐릭터·언어가 **영영 안 먹는다.**
     #   그 셋은 **DB 가 없을 때의 기본값**이고, 실험용 덮어쓰기는 아래 세 개다(기본 빈 값).
