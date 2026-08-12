@@ -228,11 +228,18 @@ class _FakeChat:
 async def _run(monkeypatch, pieces, truncated: bool):
     spoken: list[str] = []
 
-    async def _speak(self, text):
-        spoken.append(text)
-        return len(text) * 100
+    # ⚠ 2026-08-13: 대답 경로가 **준비/송출**로 갈렸다(묶음 선행 합성). 가로챌 이음매가
+    #   `_speak` 하나에서 둘로 바뀌었다 — 성질("무엇이 소리로 나갔나")은 그대로 본다.
+    #   ⛔ `_prepare_batch` 도 가로채야 한다: 안 그러면 진짜 벤더 요청이 나간다.
+    async def _prepare(self, text):
+        return cs._PreparedBatch(text, [(text, "ko")], None, None)
 
-    monkeypatch.setattr(cs.CascadeSession, "_speak", _speak)
+    async def _send(self, prep):
+        spoken.append(prep.text)
+        return len(prep.text) * 100
+
+    monkeypatch.setattr(cs.CascadeSession, "_prepare_batch", _prepare)
+    monkeypatch.setattr(cs.CascadeSession, "_speak_prepared", _send)
     monkeypatch.setattr(cs.CascadeSession, "_begin_beaver_turn",
                         lambda self: _turn(self))
     session = cs.CascadeSession(_Sink())

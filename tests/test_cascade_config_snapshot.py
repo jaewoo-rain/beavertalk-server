@@ -138,15 +138,19 @@ def test_the_snapshot_runs_after_the_client_start_is_applied():
     )
 
 
-# ── 묶음 사이 공백 — 클라의 `SERVER GAP` 과 짝이 되는 서버 값 ─────────────
+# ── 와이어 공백 — 클라의 `SERVER GAP` 과 짝이 되는 서버 값 ────────────────
 def test_the_batch_gap_uses_the_same_window_as_the_client():
     """⭐ 클라가 `SERVER GAP … mid-utterance` 로 판정하는 창(250ms)과 **같은 기준**이다.
 
     ⛔ 기준이 다르면 양쪽 로그를 맞대 볼 수 없다 — 그게 이 값을 넣는 유일한 이유다.
     ⚠ 작은 공백까지 다 찍으면 줄만 길어진다(정상 통화에도 수십 개가 있다).
+    ⚠ 2026-08-13: 이름이 `묶음공백=` → **`와이어공백=`** 으로 바뀌었다. 선행 합성을 넣으면
+      **묶음 경계의 대기는 0 이 되는데 소리는 여전히 안 나갈 수 있다** — 그러면 값만 좋아진
+      척한다. 그래서 재는 자리를 **송출 지점(프레임 간격)** 으로 옮겼다. 굶는 쪽은 클라이고,
+      클라가 보는 것도 프레임 간격이다.
     """
-    assert cs.CascadeSession._batch_gap_log([]) == "묶음공백=-"
-    assert cs.CascadeSession._batch_gap_log([0.05, 0.2, 0.24]) == "묶음공백=-", (
+    assert cs.CascadeSession._batch_gap_log([]) == "와이어공백=-"
+    assert cs.CascadeSession._batch_gap_log([0.05, 0.2, 0.24]) == "와이어공백=-", (
         "판정 창보다 작은 공백까지 찍었다 — 신호가 잡음에 묻힌다"
     )
     line = cs.CascadeSession._batch_gap_log([0.05, 2.435, 0.49])

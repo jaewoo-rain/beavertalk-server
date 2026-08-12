@@ -206,6 +206,28 @@ class _OpenSegment:
     opened_at: float
 
 
+class _PreparedBatch:
+    """송출 전에 **미리 준비한 묶음** — 언어 구간 목록 + 첫 구간의 열린 스트림.
+
+    ⛔ `first` 는 **이미 벤더에 요청이 나간** 구간이다. 안 쓰게 되면(취소) **반드시 cancel** 해야
+      한다 — 안 그러면 끊은 뒤에 소리가 더 나온다(I3).
+    """
+
+    __slots__ = ("text", "segments", "emotion", "first")
+
+    def __init__(self, text: str, segments: list[tuple[str, str]],
+                 emotion: str | None, first: "_OpenSegment | None") -> None:
+        self.text = text
+        self.segments = segments
+        self.emotion = emotion
+        self.first = first
+
+    def cancel(self) -> None:
+        if self.first is not None:
+            self.first.task.cancel()
+            self.first = None
+
+
 @dataclass(frozen=True)
 class _TtsProfile:
     """엔진 하나의 **성질**. ⛔ 분기에서 엔진 이름을 비교하지 말고 여기를 봐라.
@@ -676,6 +698,11 @@ class BeaverOutput:
         # 세션이 엔진에 맞춰 덮어쓴다(None 이면 전역 설정). 엔진마다 합성이 뒤처지는 폭이 달라
         # 상수 하나로 쓰면 한쪽은 끊기고 한쪽은 버퍼가 부푼다.
         self.lead_ms: int | None = None
+        # ⭐ **와이어 공백** — 프레임을 안 내보낸 구간(250ms 이상)만 모은다. 클라의
+        #   `SERVER GAP … mid-utterance` 와 같은 것을 서버 쪽에서 재는 값이다.
+        #   대답마다 비우고(대답 줄에 찍는다), 여기 값이 크면 **클라가 굶는다**.
+        self.wire_gaps: list[float] = []
+        self._last_send_at = 0.0
         self._turn_seq = 0
         self._epoch = 0
         self._cur: _TurnRecord | None = None
@@ -794,6 +821,18 @@ class BeaverOutput:
         # 통화 기록용 원본(저장하면 비운다 — `take_pcm`). ⛔ 여기 말고 다른 데서 모으면
         # 원장 바이트와 갈린다.
         self._cur.pcm.extend(pcm)
+        # ⭐⭐ **와이어 공백**(2026-08-13) — 클라의 `SERVER GAP … mid-utterance` 와 같은 것을
+        #   서버에서 잰다. 앞 프레임을 보낸 뒤 여기까지가 **아무것도 안 나간 시간**이다.
+        #   ⛔ 여기서 재는 이유: 상위(묶음 경계)에서 재면 **선행 합성을 넣은 뒤 0 이 된다** —
+        #     합성은 미리 시작했는데 소리가 아직 안 나가는 구간을 못 본다. 즉 값이 좋아진 척
+        #     한다. 굶는 쪽은 클라이고, 클라가 보는 건 **프레임 간격**이다.
+        #   ⚠ 판정 창은 클라와 같은 250ms(그 아래는 정상 페이싱이라 안 센다).
+        now = self._now()
+        if self._last_send_at > 0:
+            idle = now - self._last_send_at
+            if idle >= 0.25:
+                self.wire_gaps.append(idle)
+        self._last_send_at = now
         await self._transport.send_audio(pcm)
 
     async def end(self) -> None:
@@ -2128,14 +2167,67 @@ class CascadeSession:
             #   구간 사이 공백은 `대기N.NNs` 로 보이지만, **묶음과 묶음 사이**(다음 문장들의
             #   LLM 생성 + TTS 왕복)는 아무 데도 안 남았다. 페이서엔 필러가 없어서 그 시간
             #   동안 **와이어가 그냥 조용하다** — 클라 큐가 그만큼 굶는다.
-            batch_gaps: list[float] = []
-            last_sent_at = 0.0
+            self.beaver.wire_gaps.clear()
+            # ⭐⭐ **묶음 선행 합성**(2026-08-13, 설계 `docs/20260813_0430_…`).
+            #   송출을 태스크로 돌리고 **체인으로 순서를 지킨다**. 그러면 이 루프가 LLM 을
+            #   계속 읽고, 다음 묶음이 준비되는 즉시 **TTS 요청을 건다** — 앞 묶음이 재생되는
+            #   동안 벤더 왕복이 끝나 있다(그 왕복이 곧 침묵이었다).
+            send_task: asyncio.Task | None = None
+            wasted_chars = 0        # 미리 만들었는데 못 쓴 글자(원가만 나간 몫)
+            # ⛔ **"첫 묶음을 이미 보냈나"는 동기 플래그여야 한다**(2026-08-13). 예전엔
+            #   `first_audio_ms < 0` 으로 판정했는데, 송출이 태스크로 빠지면서 그 값은 소리가
+            #   실제로 나갈 때까지 -1 로 남는다 ⇒ **모든 문장이 "첫 문장 단독" 경로**를 타서
+            #   요청이 문장 수만큼 늘어난다(429 를 부른 그 상태로 되돌아간다).
+            first_batch_out = False
+
+            async def _send_chain(prev: asyncio.Task | None, prep: _PreparedBatch) -> None:
+                """앞 묶음이 끝난 뒤 이 묶음을 보낸다 — **순서는 이 체인이 지킨다**.
+
+                ⛔ 조건 B(2026-08-13 합의): 앞 묶음이 **취소**되면 뒤 묶음도 **같이 죽는다.**
+                  사용자가 끊었는데 뒤 문장이 나가면 안 된다(I3 와 같은 취지). 우연이 아니라
+                  **의도**이므로 여기서 명시적으로 취소하고, 미리 연 것도 함께 버린다.
+                ⛔ 조건 A: 태스크 예외는 **아무도 await 하지 않으면 조용히 사라진다.** 이건
+                  곁다리가 아니라 **대답 경로**다 — 소리가 안 나가는데 로그가 조용하면 오늘
+                  우리가 당한 그 유형이 또 생긴다. 반드시 남기고, **다음 묶음은 계속 간다**(R5).
+                """
+                nonlocal turn_id, first_audio_ms, spoken_chars, wasted_chars
+                if prev is not None:
+                    try:
+                        await prev
+                    except asyncio.CancelledError:
+                        prep.cancel()
+                        raise                      # 뒤 묶음도 같이 죽는다(의도)
+                try:
+                    turn_id = turn_id or await self._begin_beaver_turn()
+                    first_audio_at = self.beaver.first_audio_at
+                    sent = await self._speak_prepared(prep)
+                    if sent and first_audio_ms < 0:
+                        # ⭐ 첫 바이트가 **실제로 나간 시각**을 원장에서 받는다.
+                        timing.mark_audio(first_audio_at or self.beaver.first_audio_at)
+                        timing.vendor_ms = self._tts_ttfb_ms
+                        timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
+                        first_audio_ms = timing.first_sound_ms
+                    spoken_chars += len(prep.text)
+                except asyncio.CancelledError:
+                    prep.cancel()
+                    wasted_chars += len(prep.text)
+                    raise
+                except InvariantError:
+                    prep.cancel()
+                    wasted_chars += len(prep.text)
+                    logger.info("cascade 묶음 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
+                except Exception as exc:  # noqa: BLE001 - R5: 이 묶음만 실패, 다음은 계속
+                    prep.cancel()
+                    wasted_chars += len(prep.text)
+                    logger.exception("cascade 묶음 송출 실패(다음 묶음은 계속) — %s", exc)
 
             async def _flush_batch() -> None:
-                nonlocal turn_id, first_audio_ms, spoken_chars, pending, tts_announced, last_sent_at
+                nonlocal pending, tts_announced, send_task
+                nonlocal first_batch_out
                 if not pending:
                     return
                 text_batch, pending = " ".join(pending), []
+                first_batch_out = True
                 if not tts_announced:
                     # ⭐ **LLM → TTS 전환**. 프론트가 요청한 것: 클라가 가진 값은
                     #   `mic OPEN → 다음 발화`뿐인데 거기엔 사용자 발화 시간이 섞여 있어
@@ -2146,21 +2238,10 @@ class CascadeSession:
                         stage="tts", index=1, total=0,
                         elapsed_ms=int((time.monotonic() - began) * 1000),
                     ))
-                if last_sent_at:
-                    # 앞 묶음을 다 보낸 뒤 여기까지 = **아무것도 안 나간 시간**이다.
-                    batch_gaps.append(time.monotonic() - last_sent_at)
-                turn_id = turn_id or await self._begin_beaver_turn()
-                first_audio_at = self.beaver.first_audio_at
-                sent = await self._speak(text_batch)
-                last_sent_at = time.monotonic()
-                if sent and first_audio_ms < 0:
-                    # ⭐ 첫 바이트가 **실제로 나간 시각**을 원장에서 받는다. 여기(=배치 전량
-                    #   송출 완료) 시각을 쓰면 페이서 대기가 '첫소리'에 통째로 들어간다.
-                    timing.mark_audio(first_audio_at or self.beaver.first_audio_at)
-                    timing.vendor_ms = self._tts_ttfb_ms
-                    timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
-                    first_audio_ms = timing.first_sound_ms
-                spoken_chars += len(text_batch)
+                # ⭐ **여기서 TTS 요청을 건다**(앞 묶음이 아직 재생 중일 수 있다).
+                prep = await self._prepare_batch(text_batch)
+                prev, send_task = send_task, None
+                send_task = asyncio.create_task(_send_chain(prev, prep))
 
             # ✓ 이건 모으는 **방식**(전체 합성 후 한 번에 낸다)이지 조절값이 아니다.
             if self._tts_engine == _GEMINI_BATCH_CHOICE:
@@ -2208,7 +2289,7 @@ class CascadeSession:
                     #   나온 오디오가 **선행버퍼보다 짧아** 재생이 먼저 바닥나 끊긴다.
                     #   ⛔ 여기가 `_gemini_realtime()` 이라 OpenAI 가 Chirp 규칙을 탔다 —
                     #     첫 배치 800·1000·1450ms 인데 버퍼는 1500ms 였다. 그 끊김이다.
-                    if (first_audio_ms < 0 and not pending
+                    if (not first_batch_out and not pending
                             and self._profile().solo_first_sentence):
                         pending.append(sentence)
                         await _flush_batch()        # 첫 문장 = 단독 즉시 송출
@@ -2248,6 +2329,15 @@ class CascadeSession:
             if tail:
                 pending.append(tail)
             await _flush_batch()
+            # ⛔ **마지막 묶음이 다 나갈 때까지 기다린다.** 안 기다리면 아래 `turn_end` 가
+            #   소리보다 먼저 나가고(I5 위반), 이력·기록도 덜 찬 값으로 남는다.
+            if send_task is not None:
+                try:
+                    await send_task
+                except asyncio.CancelledError:
+                    # 체인이 취소로 끝났다 = barge-in. 아래 except 절이 처리한다.
+                    if not self._reply_cancelled:
+                        raise
             if turn_id is not None:
                 await self.beaver.end()
             # ⚠ 이력에는 **실제로 말한 것만** 남긴다 — 버린 꼬리를 넣으면 다음 턴의 모델이
@@ -2264,7 +2354,7 @@ class CascadeSession:
                 #   가짓수 1 이지만 **폴백하면 바뀐다**("지금 안 변한다"와 "영영 안 변한다"는
                 #   다르다 — 폴백이 일어난 날 아무것도 안 남으면 안 된다).
                 "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
-                "언어분할=%s gemini호출=%d %s %s %s %s",
+                "언어분할=%s gemini호출=%d %s %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
@@ -2283,9 +2373,13 @@ class CascadeSession:
                 self._tts_gemini_calls, "고정" if self._tts_gemini_off else "-",
                 self._tts_request_log(),
                 self._reading_summary(None),
-                # ⭐ **묶음 사이 공백** — 0.25초를 넘으면 클라가 `SERVER GAP mid-utterance` 로
-                #   본다(그 창이 클라 판정 기준이다). 여기서 안 보이면 원인을 영영 못 가른다.
-                self._batch_gap_log(batch_gaps),
+                # ⭐ **와이어 공백** — 프레임을 안 내보낸 구간(클라 판정과 같은 250ms 창).
+                #   ⚠ 예전의 `묶음공백=` 을 이걸로 **바꿨다**: 선행 합성을 넣으면 묶음 경계의
+                #     대기가 0 이 되는데 **소리는 여전히 안 나갈 수 있다** — 그러면 값만
+                #     좋아진 척한다. 굶는 쪽은 클라이고 클라가 보는 건 **프레임 간격**이다.
+                self._batch_gap_log(self.beaver.wire_gaps),
+                # ⚠ 미리 만들었는데 못 쓴 글자 — 선행 합성의 **대가**다(원가만 나갔다).
+                "선행폐기=%d자" % wasted_chars if wasted_chars else "선행폐기=-",
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -2535,7 +2629,7 @@ class CascadeSession:
 
     @staticmethod
     def _batch_gap_log(gaps: list[float]) -> str:
-        """묶음과 묶음 사이 **아무것도 안 나간 시간** — 클라의 `SERVER GAP` 과 짝이다.
+        """**아무것도 안 나간 시간** — 클라의 `SERVER GAP mid-utterance` 와 짝이다.
 
         ⛔ 페이서에는 **필러가 없다**(`_pace` 는 앞설 때 재우기만 한다). 그래서 우리가 보낼
           것이 없는 동안 와이어는 **그냥 조용하다** — 선행버퍼(1.5초)를 넘기면 클라가 굶는다.
@@ -2544,8 +2638,8 @@ class CascadeSession:
         """
         big = [g for g in gaps if g >= 0.25]     # 클라 판정 창(250ms)과 같은 기준
         if not big:
-            return "묶음공백=-"
-        return "묶음공백=[%s]" % ", ".join(f"{g:.2f}s" for g in big)
+            return "와이어공백=-"
+        return "와이어공백=[%s]" % ", ".join(f"{g:.2f}s" for g in big)
 
     def _tts_request_log(self) -> str:
         """이 대답의 **요청별** (글자·오디오 초). 요청 수와 절단이 한 줄에서 보인다."""
@@ -2622,6 +2716,52 @@ class CascadeSession:
             self._last_emotion = tag
         return self._last_emotion
 
+    async def _prepare_batch(self, sentence: str) -> _PreparedBatch:
+        """묶음을 **송출 없이 준비**한다 — 언어 분할 + **첫 구간 합성 시작**.
+
+        ⭐⭐ 이게 묶음 사이 공백(실측 2.44s)을 닫는 자리다. 예전엔 앞 묶음을 **다 보낸 뒤에야**
+          다음 묶음의 TTS 를 걸어서 **벤더 왕복(실측 937~1098ms)이 통째로 침묵**이 됐다.
+          이제 앞 묶음이 재생되는 동안 다음 묶음의 요청이 이미 나가 있다.
+        ⛔ **깊이 1 이다**(다음 묶음의 첫 구간만). 동시 벤더 요청은 최대 `prefetch_depth + 1` —
+          429 를 이미 겪은 자리라 늘리지 않는다.
+        ⚠ 여기서 하는 일은 **요청을 거는 것**이지 오디오를 받는 게 아니다(빠르다).
+        """
+        segments, emotion = self._split_for_speak(sentence)
+        first = None
+        if segments:
+            text, language = segments[0]
+            first = await self._open_segment(text, language, emotion)
+        return _PreparedBatch(sentence, segments, emotion, first)
+
+    async def _speak_prepared(self, prep: _PreparedBatch) -> int:
+        """준비된 묶음을 송출한다(첫 구간은 이미 열려 있다)."""
+        if not prep.segments:
+            return 0
+        if len(prep.segments) == 1:
+            return await self._send_segment(prep.first) if prep.first is not None else 0
+        return await self._speak_segments(prep.segments, prep.emotion, preopened=prep.first)
+
+    def _split_for_speak(self, sentence: str) -> tuple[list[tuple[str, str]], str | None]:
+        """언어 분할 + 마커 로그 + 감정 판정 — `_speak`/`_prepare_batch` 의 공통 앞부분."""
+        segments = split_by_language(sentence, self._locale, self._target_code)
+        marker_state = _marker_state(sentence)
+        self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
+        emotion = self._sentence_emotion(sentence)
+        if self._single_voice():
+            logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 언어마커=%s",
+                        self._tts_engine, marker_state)
+            text = strip_markers(sentence).strip()
+            return ([(text, self._locale)] if text else []), emotion
+        logger.info(
+            # ⚠ **`언어마커=`** 다(`자막=`·문장 마커와 다른 것이다).
+            "cascade 언어구간: %d개 %s 언어마커=%s",
+            len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
+        )
+        if len(segments) <= 1:
+            text = strip_markers(sentence).strip()
+            return ([(text, self._locale)] if text else []), emotion
+        return segments, emotion
+
     async def _speak(self, sentence: str) -> int:
         """문장 하나를 **언어 구간별로** 합성해 송출한다.
 
@@ -2629,38 +2769,13 @@ class CascadeSession:
         읽는다 — 감싼 부분을 모국어 발음으로 읽으면 학습에 방해가 되기 때문이다.
         마커가 없으면(또는 짝이 안 맞으면) 통째로 기본 언어로 나간다(설계 폴백).
         """
-        segments = split_by_language(
-            sentence, self._locale, self._target_code
-        )
-        # ⭐ **마커가 실제로 걸렸는지**를 로그로 남긴다. 이게 없으면 실험이 성립하지 않는다 —
-        #   폴백이 조용해서(마커를 안 써도 통째 재생돼 소리는 정상) "끊김이 줄었다"는 판단이
-        #   '마커가 걸린 상태'에서 나온 건지 '안 걸린 상태'에서 나온 건지 못 가른다.
-        #   ⛔ 대사 원문은 찍지 않는다(통화 내용이 로그에 남는다). 구간 수·언어·마커 상태면 된다.
-        marker_state = _marker_state(sentence)
-        self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
-        # ⭐ **한 음성이 두 언어를 다 읽는 엔진**은 구간을 안 나눈다 — 요청 수와 구간 침묵이
-        #   같이 준다(429 에도 유리). ⛔ 기본은 나눈다: 안 나눴을 때 한국어 발음이 어떻게 되는지
-        #   **미확인**이라 귀로 확인하기 전엔 기본을 바꾸지 않는다.
-        emotion = self._sentence_emotion(sentence)
-        if self._single_voice():
-            logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 언어마커=%s",
-                        self._tts_engine, marker_state)
-            return await self._speak_one(strip_markers(sentence).strip(),
-                                         self._locale, emotion)
-        logger.info(
-            # ⚠ **`언어마커=`** 다(`자막=`·문장 마커와 다른 것이다). 이름이 겹쳐 실제로 혼동이
-            #   났다 — `__마커__` 는 **어느 부분을 타깃 언어로 읽을지**의 표기이고, 문장 마커는
-            #   **클라에 보내는 자막 프레임**이다. 세는 것도 뜻도 다르다.
-            "cascade 언어구간: %d개 %s 언어마커=%s",
-            len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
-        )
-        if len(segments) <= 1:
-            return await self._speak_one(strip_markers(sentence).strip(),
-                                         self._locale, emotion)
-        return await self._speak_segments(segments, emotion)
+        # ⚠ **준비/송출을 가른 뒤의 얇은 껍데기**다(2026-08-13). 데모 훅·회귀가 이 이름을
+        #   쓰므로 남긴다 — 지우면 회귀가 대거 깨진다(오늘 정리에서 배운 것).
+        return await self._speak_prepared(await self._prepare_batch(sentence))
 
     async def _speak_segments(self, segments: list[tuple[str, str]],
-                              emotion: str | None = None) -> int:
+                              emotion: str | None = None,
+                              preopened: _OpenSegment | None = None) -> int:
         """구간들을 **순서대로** 송출하되, 뒤 구간의 합성은 **미리 시작**한다.
 
         ⛔ 순서는 절대 유지된다 — 합성이 먼저 끝났다고 먼저 내보내면 말이 뒤섞인다.
@@ -2672,6 +2787,10 @@ class CascadeSession:
         opening: deque[_OpenSegment] = deque()
         index = 0
         sent = 0
+        if preopened is not None:
+            # ⭐ 앞 묶음이 재생되는 동안 **미리 연** 첫 구간이다(묶음 선행 합성).
+            opening.append(preopened)
+            index = 1
         try:
             while index < len(segments) or opening:
                 # 상한까지 미리 연다. ⛔ 이 수가 곧 **동시 벤더 요청 수**다(쿼터가 정한다).
