@@ -2169,13 +2169,12 @@ class CascadeSession:
                 self._remember_beaver(turn_id, strip_emotion_tags(self._batch_spoken))
                 logger.info(
                     "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d%s 자막=%d개 "
-                    "문장모델=%s tts=%s %s %s",
+                    "tts=%s %s %s",
                     "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                     self._emotion_log(), self._rate_log(), spoken_chars,
                     "(상한잘림 꼬리%d자버림)" % len(self._batch_dropped)
                     if self._batch_dropped else ("(상한잘림)" if chat.truncated else ""),
                     self._sentence_markers,
-                    settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                     self._tts_request_log(),
                     self._reading_summary(self._batch_synth_s),
@@ -2260,7 +2259,11 @@ class CascadeSession:
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 문장모델=%s tts=%s "
+                # ⚠ `문장모델=` 은 뺐다(2026-08-13) — 설정 echo 라 **실측 가짓수 1** 이고
+                #   통화 시작의 `cascade 설정:` 줄에 이미 있다. ⛔ `tts=` 는 남긴다:
+                #   가짓수 1 이지만 **폴백하면 바뀐다**("지금 안 변한다"와 "영영 안 변한다"는
+                #   다르다 — 폴백이 일어난 날 아무것도 안 남으면 안 된다).
+                "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
                 "언어분할=%s gemini호출=%d %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
@@ -2275,7 +2278,6 @@ class CascadeSession:
                 #   지금까지 이 값이 없어 "자막이 안 뜬다"를 서버 로그로 못 갈랐다.
                 #   ⚠ 아래 `언어분할=` 과 다른 것이다(그건 `__마커__` 언어 구간 상태).
                 self._sentence_markers,
-                settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
                 self._tts_gemini_calls, "고정" if self._tts_gemini_off else "-",
