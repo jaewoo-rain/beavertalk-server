@@ -239,3 +239,34 @@ def test_the_flush_interval_matches_live(monkeypatch):
     from domains.learning.realtime.call_session import FLUSH_INTERVAL_S
 
     assert settings.CASCADE_SEGMENT_FLUSH_S == FLUSH_INTERVAL_S
+
+
+# ── ⭐ 설계 §2 의 증명을 **기계로** 고정한다 ───────────────────────────────
+def test_both_paths_call_the_same_persistence_functions():
+    """⛔⛔ **두 경로가 같은 함수를 부른다** — 이 설계의 전부다.
+
+    한쪽이 자기만의 저장 방식을 만들면 통화 기록 형식이 갈리고, 그러면 복습·발음평가·분석이
+    **한쪽 통화에서만** 돈다. 값이 아니라 **호출 자체**를 본다 — 새 경로가 몰래 갈라지면
+    여기서 먼저 터진다.
+    """
+    import ast
+    import io
+
+    def called(path: str) -> set[str]:
+        tree = ast.parse(io.open(path, encoding="utf-8").read())
+        return {
+            n.func.attr for n in ast.walk(tree)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+        }
+
+    required = {"resolve_call_character", "load_call_setup", "create_call",
+                "save_segments", "save_call_usage", "finalize_call"}
+    live = called("domains/learning/realtime/call_session.py")
+    cascade = called("domains/learning/realtime/cascade_session.py")
+    assert required <= live, f"Live 가 안 부르는 게 있다: {required - live}"
+    assert required <= cascade, f"캐스케이드가 안 부르는 게 있다: {required - cascade}"
+
+    # 회원 해석은 **라우터**가 한다(둘 다 같은 자리·같은 함수).
+    for router in ("domains/learning/realtime/ws_router.py",
+                   "domains/learning/realtime/cascade_router.py"):
+        assert "find_or_create_by_auth" in called(router), router
