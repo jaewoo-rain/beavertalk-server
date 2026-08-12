@@ -53,6 +53,7 @@ __all__ = [
     "BEAVER_FRAME_INTERVAL_MS",
     "CascadeClientMessage",
     "CascadeServerMessage",
+    "CascadeSentenceMarker",
     "CascadeTurnStart",
     "ServerCallEnded",
     "ClientCascadeStart",
@@ -245,6 +246,34 @@ CascadeClientMessage = Annotated[
 
 
 # ────────────────────────────── 서버 → 클라이언트 ──────────────────────────────
+class CascadeSentenceMarker(BaseModel):
+    """구간 마커 — **그 구간 오디오 바로 앞**에 인밴드로 끼운다(2026-08-12 프론트 합의).
+
+    ⭐ 하는 일이 둘이다. 하나로 합친 이유는 **같은 사실의 출처가 둘이면 어긋나기** 때문이다:
+      ① 표정: 클라가 문장 단위로 아바타를 바꾼다(`SentenceEmotion`)
+      ② 자막: ⛔ 캐스케이드는 지금까지 **비버 자막을 한 번도 안 보냈다**(Live 는 보낸다) —
+         사용자가 비버 말을 글로 못 봤다. `text` 가 그 후퇴를 같이 메운다.
+
+    ⚠ **미리 보내지 않는다.** 프론트 재생 파이프는 '도착 시점'이 아니라 '들리는 시점'으로
+      얼굴을 움직인다(마커를 오디오 큐에 **위치로** 꽂는다). 그래서 선행 여유가 필요 없고
+      **순서만** 맞으면 된다 — 그 구간 첫 오디오 프레임보다 먼저 나가기만 하면 된다.
+    ⚠ `seq` 는 **구간 순번**이지 문장 순번이 아니다. 코드스위칭 문장 하나가 언어 구간 2개면
+      마커도 2개이고 `text` 는 각각 조각이다(프론트가 이어 붙인다).
+    ⚠ `server_bytes` 는 주 키가 **아니다**(순서가 주 키다). 프론트 원장(바이트 단위)과
+      **정수로 대조**해 어긋남을 잡는 교차검증용이다 — ms 로 주면 반올림 오차가 조용히 쌓인다.
+    ⛔ `emotion` 은 **이미 이어붙인 결과값**이다(carry-forward 계산은 서버가 끝낸다).
+      클라가 상태를 들면 `audio_cancel` 로 마커를 버릴 때 감정이 어긋난다 — 상태 없는 쪽이 안 깨진다.
+    ⛔ 값을 화이트리스트로 막지 않는다 — 클라가 모르는 값을 neutral 로 떨어뜨린다.
+    """
+
+    type: Literal["sentence"] = "sentence"
+    turn_id: str
+    seq: int
+    emotion: str
+    text: str
+    server_bytes: int
+
+
 class CascadeTurnStart(BaseModel):
     """비버 턴 시작 — **캐스케이드 전용**(Live 의 `ServerTurnStart` 를 안 건드린다).
 
@@ -439,6 +468,7 @@ CascadeServerMessage = Annotated[
         # 비버(서버 출력) 턴. ⚠ turn_start 만 캐스케이드 전용이다(표정 한 칸 때문 —
         # Live 모델에 필드를 더하면 Live 출력이 바뀐다). 나머지는 normalcall 과 같은 모델을
         # 재사용한다 — 앱의 재생 상태기계가 묶여 있어 의미를 바꾸면 안 된다(클라 제약 #1).
+        CascadeSentenceMarker,
         CascadeTurnStart,
         ServerTurnEnd,
         ServerOutputTranscript,

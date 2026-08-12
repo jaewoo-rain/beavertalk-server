@@ -75,6 +75,7 @@ from domains.learning.realtime.cascade_protocol import (
     ServerAudioCancel,
     ServerCascadeReady,
     ServerTurnEnd,
+    CascadeSentenceMarker,
     CascadeTurnStart,
     ServerUserTurnEnd,
     ServerUserTurnStart,
@@ -106,6 +107,9 @@ from domains.learning.realtime.protocol import AecHint, ServerCallEnded, ServerE
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SAMPLE_RATE = 16000
+# 이어갈 값이 없을 때의 표정. ⚠ 폴백일 뿐 **정책이 아니다** — 태그가 없으면 직전 값을
+# 이어간다(`_sentence_emotion`). 첫 구간에만 이 값으로 시작한다.
+_DEFAULT_EMOTION = "neutral"
 _EOS = object()  # 큐 종료 센티널
 _RMS_STRIDE = 8  # 에너지 계산 표본 간격(전 샘플을 돌 필요 없다 — 게이트용 근사면 충분)
 # 유령 턴 판정의 여유 — 같은 발화의 꼬리 전사는 앞 턴의 끝과 사실상 같은 지점을 가리킨다.
@@ -172,6 +176,9 @@ class _OpenSegment:
 
     text: str
     language: str
+    # ⭐ 이 구간의 표정(문장 단위). **이미 carry-forward 가 끝난 값**이다 — 클라에 규칙을
+    #   넘기지 않는다(취소로 마커를 버릴 때 클라 상태가 어긋나기 때문).
+    emotion: str
     queue: Any                 # asyncio.Queue[bytes | None] — None = 이 구간 끝
     task: Any                  # 벤더 → 큐 펌프(취소하면 선행분이 통째로 버려진다)
     report: dict
@@ -899,6 +906,9 @@ class CascadeSession:
         #     `_backstop_s()` 가 백스톱을 통화 길이보다 항상 뒤로 잡는다.
         self._call_duration_s = call_service.FREE_CALL_DURATION_S
         self._farewell_started = False   # 작별을 이미 시작했다(두 번 하지 않는다)
+        # 문장 단위 감정: 직전 구간의 값(태그가 없으면 이어간다) + 이 턴에서 보낸 구간 순번.
+        self._last_emotion = _DEFAULT_EMOTION
+        self._segment_seq = 0
         # 종료 태그 — 지시문과 시드가 **같은 값**을 써야 모델이 그 문구를 시스템 지시로 읽는다.
         self._close_tag = new_close_tag()
         # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
@@ -2404,6 +2414,21 @@ class CascadeSession:
         self.state = TurnState.BEAVER_SPEAKING
         return await self.beaver.begin(self._reply_emotion)
 
+    def _sentence_emotion(self, sentence: str) -> str:
+        """이 문장의 표정 — 태그가 있으면 그 값, **없으면 직전 값을 이어간다**.
+
+        ⭐ 실측 근거(2026-08-12): 모델은 **문장마다** 태그를 붙이지 않는다. **감정이 바뀌는
+          지점에만** 붙인다 — `<happy> 안녕! 비버예요. 반가워요! <neutral> 준비 됐나요?`
+          처럼 run(연속 구간) 단위로 준다. 그래서 태그 없는 문장은 **누락이 아니라 연속**이다.
+        ⛔ 여기서 `neutral` 로 떨어뜨리면 위 예의 표정이 happy→neutral→neutral 로 **문장마다
+          튄다.** 모델 의도는 happy 3문장 유지다.
+        ⚠ 이어갈 값이 없는 첫 구간에서만 기본값(neutral)으로 시작한다.
+        """
+        tag = detect_emotion(sentence)
+        if tag:
+            self._last_emotion = tag
+        return self._last_emotion
+
     async def _speak(self, sentence: str) -> int:
         """문장 하나를 **언어 구간별로** 합성해 송출한다.
 
@@ -2423,21 +2448,23 @@ class CascadeSession:
         # ⭐ **한 음성이 두 언어를 다 읽는 엔진**은 구간을 안 나눈다 — 요청 수와 구간 침묵이
         #   같이 준다(429 에도 유리). ⛔ 기본은 나눈다: 안 나눴을 때 한국어 발음이 어떻게 되는지
         #   **미확인**이라 귀로 확인하기 전엔 기본을 바꾸지 않는다.
+        emotion = self._sentence_emotion(sentence)
         if self._single_voice():
             logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 마커=%s",
                         self._tts_engine, marker_state)
             return await self._speak_one(strip_markers(sentence).strip(),
-                                         self._locale)
+                                         self._locale, emotion)
         logger.info(
             "cascade 언어구간: %d개 %s 마커=%s",
             len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
         )
         if len(segments) <= 1:
             return await self._speak_one(strip_markers(sentence).strip(),
-                                         self._locale)
-        return await self._speak_segments(segments)
+                                         self._locale, emotion)
+        return await self._speak_segments(segments, emotion)
 
-    async def _speak_segments(self, segments: list[tuple[str, str]]) -> int:
+    async def _speak_segments(self, segments: list[tuple[str, str]],
+                              emotion: str = _DEFAULT_EMOTION) -> int:
         """구간들을 **순서대로** 송출하되, 뒤 구간의 합성은 **미리 시작**한다.
 
         ⛔ 순서는 절대 유지된다 — 합성이 먼저 끝났다고 먼저 내보내면 말이 뒤섞인다.
@@ -2455,7 +2482,7 @@ class CascadeSession:
                 while index < len(segments) and len(opening) < depth:
                     text, language = segments[index]
                     index += 1
-                    segment = await self._open_segment(text, language)
+                    segment = await self._open_segment(text, language, emotion)
                     if segment is not None:
                         opening.append(segment)
                 if not opening:
@@ -2468,9 +2495,10 @@ class CascadeSession:
                 segment.task.cancel()
         return sent
 
-    async def _speak_one(self, sentence: str, language: str) -> int:
+    async def _speak_one(self, sentence: str, language: str,
+                         emotion: str = _DEFAULT_EMOTION) -> int:
         """구간 하나를 합성해 송출한다(열기 → 보내기). 보낸 바이트 수를 돌려준다."""
-        segment = await self._open_segment(sentence, language)
+        segment = await self._open_segment(sentence, language, emotion)
         if segment is None:
             return 0
         return await self._send_segment(segment)
@@ -2491,7 +2519,8 @@ class CascadeSession:
         finally:
             queue.put_nowait(None)
 
-    async def _open_segment(self, sentence: str, language: str) -> _OpenSegment | None:
+    async def _open_segment(self, sentence: str, language: str,
+                            emotion: str = _DEFAULT_EMOTION) -> _OpenSegment | None:
         """구간 하나의 **합성을 시작**한다(아직 소리는 안 나간다). 빈 구간이면 None.
 
         원가의 문자 수는 **여기서** 센다 — 과금은 우리가 텍스트를 넘긴 순간 일어나므로,
@@ -2505,7 +2534,7 @@ class CascadeSession:
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
         align: dict = {}          # 이 요청에서 홀수 조각이 몇 개였나(벤더가 격자를 지키나)
-        stream = await self._open_vendor_stream(sentence, language, report)
+        stream = await self._open_vendor_stream(sentence, language, report, emotion)
         # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_head` 는 조각을 통째로 버리고
         #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
         #   **뒤따르는 바이트가 반 표본씩 밀린다**(소리가 통째로 잡음이 된다).
@@ -2517,10 +2546,11 @@ class CascadeSession:
         # ⚠ 세션 TaskGroup 에 붙이지 않는다 — 여기서 난 실패가 **통화 전체를 무너뜨리면** 안
         #   된다(R5). 대신 소유자(`_speak`)가 finally 에서 반드시 취소한다.
         task = asyncio.create_task(self._pump_segment(stream, queue))
-        return _OpenSegment(sentence, language, queue, task, report, align, trim,
+        return _OpenSegment(sentence, language, emotion, queue, task, report, align, trim,
                             time.monotonic())
 
-    async def _open_vendor_stream(self, sentence: str, language: str, report: dict) -> Any:
+    async def _open_vendor_stream(self, sentence: str, language: str, report: dict,
+                                  emotion: str = _DEFAULT_EMOTION) -> Any:
         """벤더 호출 — ✓ 이건 성질이 아니라 **어느 어댑터를 부르느냐**다(구글 SDK vs HTTP,
         인자 자체가 다르다). 조절값이 아니므로 성질 표로 안 옮긴다."""
         if self._tts_engine == _OPENAI_TTS_CHOICE:
@@ -2528,7 +2558,7 @@ class CascadeSession:
             #   조용히 다른 소리가 나면 A/B 가 거짓말이 된다).
             return openai_tts.synthesize_stream(
                 sentence,
-                instructions=self._style_prompt(),   # ⭐ 감정 태그가 여기로 들어간다
+                instructions=self._style_prompt(emotion),   # ⭐ **그 구간의** 감정이 들어간다
                 report=report,
             )
         # ⭐ 이 통화에서 이미 429 를 맞았으면 **Gemini 를 다시 찌르지 않는다**(세션 단위 백오프).
@@ -2549,7 +2579,7 @@ class CascadeSession:
             allow_gemini=allow_gemini,
             engine=self._profile().google_engine,
             speaking_rate=self._note_rate(language),
-            style_prompt=self._style_prompt(),
+            style_prompt=self._style_prompt(emotion),
         )
 
     async def _send_segment(self, segment: _OpenSegment) -> int:
@@ -2565,6 +2595,9 @@ class CascadeSession:
                     return
                 if first_at < 0:
                     first_at = time.monotonic()
+                    # ⭐ **여기가 그 자리다** — 이 구간의 첫 오디오가 나가기 **직전**.
+                    #   미리 보내지 않는다(프론트가 마커를 오디오 큐에 위치로 꽂는다).
+                    await self._send_sentence_marker(segment)
                 yield item
 
         try:
@@ -2632,7 +2665,7 @@ class CascadeSession:
             f"{lang}:{rate:.2f}" for lang, rate in sorted(self._reply_rates.items())
         )
 
-    def _style_prompt(self) -> str | None:
+    def _style_prompt(self, emotion: str | None = None) -> str | None:
         """이 대답에 쓸 스타일 문구 — **감정 태그 → 고정 문구**(없으면 서버 기본값).
 
         ⛔ 문구는 `EMOTION_STYLES` 표에서만 나온다. LLM 이 스타일 문장을 지어내면 같은 감정도
@@ -2643,7 +2676,9 @@ class CascadeSession:
         """
         if self._tts_style is not None:
             return self._tts_style              # 데모 화면이 직접 고른 값이 이긴다
-        return emotion_style(self._reply_emotion)
+        # ⭐ **그 구간의 감정**이 온다(문장 단위, 2026-08-12). 안 오면 이 대답의 첫 감정 —
+        #   예전(대답 1건당 하나) 동작이라 호출부가 안 넘겨도 그대로 돈다.
+        return emotion_style(emotion or self._reply_emotion)
 
     def _note_stray_tag(self, text: str) -> None:
         """대사 맨 앞에 **집합 밖 태그**가 왔으면 그 사실을 남긴다(소리로는 이미 안 나간다).
@@ -3162,6 +3197,26 @@ class CascadeSession:
             await asyncio.sleep(0.2)
         await self._safe(ServerCallEnded(call_id=str(self._call_id or ""), reason="duration"))
         raise _Stop
+
+    async def _send_sentence_marker(self, segment: _OpenSegment) -> None:
+        """구간 마커 — 표정 + **자막**을 그 구간 오디오 앞에 끼운다.
+
+        ⛔ 캐스케이드는 지금까지 **비버 자막을 한 번도 안 보냈다**(Live 는 보낸다) —
+          사용자가 비버 말을 글로 못 봤다. 프레임을 둘로 나누지 않고 여기서 같이 낸다:
+          같은 사실(어느 문장을 지금 말하나)의 출처가 둘이면 반드시 어긋난다.
+        ⚠ `text` 는 **실제로 소리 나가는 문장**이다 — 태그 제거·꼬리 버림이 끝난 값
+          (`_open_segment` 가 그렇게 만들어 둔다). 자막이 소리와 다르면 안 된다.
+        ⚠ `server_bytes` 는 이 구간 **직전까지** 그 턴에서 보낸 누적이다 — 프론트 원장과
+          정수로 대조하는 교차검증용이고, 순서가 주 키다.
+        """
+        await self._safe(CascadeSentenceMarker(
+            turn_id=self.beaver.turn_id or "",
+            seq=self._segment_seq,
+            emotion=segment.emotion,
+            text=segment.text,
+            server_bytes=self.beaver.sent_bytes,
+        ))
+        self._segment_seq += 1
 
     def _reply_busy(self) -> bool:
         """비버가 아직 말하는(또는 만드는) 중인가."""
