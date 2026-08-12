@@ -18,7 +18,9 @@ from fastapi.concurrency import run_in_threadpool
 from starlette.websockets import WebSocketState
 
 from core.supabase_auth import verify_token
+from domains.account.service.member_service import MemberService
 from domains.learning.realtime.cascade_session import run_cascade
+from domains.learning.service import normalcall_service as svc
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,17 +32,44 @@ _WS_CLOSE_POLICY_VIOLATION = 1008
 async def ws_cascade_stream(websocket: WebSocket) -> None:
     """캐스케이드 턴 감지 WS — 마이크 PCM16/16k → STT v2 → 턴 시작/종료 판정 에코."""
     token = websocket.query_params.get("token") or ""
+    session_factory = getattr(websocket.app.state, "session_factory", None)
     auth_user = await run_in_threadpool(verify_token, token) if token else None
-    if auth_user is None:
+    # ⛔ **회원을 못 풀면 통화를 안 연다**(Live 와 같은 규율). 누구 통화인지 모르면 기록도
+    #   못 남기고, 남겨도 주인이 없다. DB 준비물이 없을 때도 같다.
+    if auth_user is None or session_factory is None:
         with contextlib.suppress(Exception):
             await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
         return
 
     await websocket.accept()
+
+    # auth uuid → member find-or-create → (member_id, 학습 대상 언어). DB 는 threadpool.
+    # ⭐ **Live 와 같은 함수·같은 자리**다(`ws_router.ws_call_stream`). 두 경로가 다른 방식으로
+    #   회원을 풀면 통화 기록의 주인이 갈린다.
+    # ⚠ 학습 대상 언어를 여기서 같이 꺼내는 이유도 Live 와 같다 — 세션이 캐릭터·프롬프트를
+    #   조회하기 **전에** 언어를 알아야 하는데, 그러자고 DB 를 한 번 더 타면 첫 발화가 늦어진다.
+    try:
+        member_id, member_target_language = await svc.run_db(
+            session_factory,
+            lambda db: (
+                lambda m: (m.member_id, m.target_language)
+            )(MemberService(db).find_or_create_by_auth(auth_user.uid, auth_user.email)),
+        )
+    except Exception as exc:  # noqa: BLE001 - 회원 해석 실패는 통화를 열지 않는다
+        logger.warning("cascade WS: 회원 해석 실패 — 통화를 열지 않는다: %s", str(exc)[:200])
+        with contextlib.suppress(Exception):
+            await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
+        return
     try:
         # LLM 클라이언트는 서버가 켜질 때 만들어 app.state 에 둔다(normalcall 과 같은 규율).
         # 없으면 비버는 말하지 않고 **턴 감지만** 돈다 — 키 부재로 통화가 죽지 않는다(R5).
-        await run_cascade(websocket, getattr(websocket.app.state, "genai_client", None))
+        await run_cascade(
+            websocket,
+            getattr(websocket.app.state, "genai_client", None),
+            session_factory=session_factory,
+            member_id=member_id,
+            member_target_language=member_target_language,
+        )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선(이 세션만 실패, 서버는 계속)
         logger.exception("ws_cascade_stream 처리 중 예외: %s", exc)
     finally:

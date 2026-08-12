@@ -374,7 +374,13 @@ class Settings(BaseSettings):
     # __이렇게__ 감싸 오면 서버가 그 경계로 잘라 **구간마다 그 언어로** 읽는다.
     # ⚠ 데모엔 회원이 없어 둘 다 env 다(실서비스는 member.language / target_language 가 준다).
     # 기본값은 둘 다 ko → 마커가 있어도 같은 언어라 **지금 동작과 같다**(안전한 기본값).
-    CASCADE_TTS_LANGUAGE: str = "ko"             # 기본(모국어) 구간을 읽을 언어
+    # ⭐⭐ **학습자 모국어 = 비버가 설명·리액션에 쓰는 언어**(2026-08-12 단일화).
+    #   예전엔 같은 뜻이 `CASCADE_PERSONA_LOCALE`(기본 en)과 여기(기본 ko) **두 곳에 다른
+    #   기본값**으로 있었다 — 페르소나는 영어로 설명한다면서 TTS 는 한국어 음성으로 읽는
+    #   조합이 만들어진다. DB 를 붙이면서 **이 값 하나로 모은다**(세션이 `_locale` 로 확정).
+    #   ⚠ 기본을 en 으로 바꾼 이유: 배포 env 가 이미 en 이고(demo-api), 페르소나 기본도 en 이라
+    #     **둘 중 en 쪽이 실제로 돌던 값**이다. 학습자는 외국인이다.
+    CASCADE_TTS_LANGUAGE: str = "en"             # 모국어 구간을 읽을 언어(= 페르소나 locale)
     CASCADE_TTS_TARGET_LANGUAGE: str = "ko"      # __마커__ 안쪽을 읽을 언어
     CASCADE_TTS_TARGET_LANGUAGE_LABEL: str = "한국어"   # 프롬프트에 넣을 이름(예: "영어")
     CASCADE_TTS_VOICE: str = "Aoede"             # Chirp3-HD 음성명(Live 캐릭터 voice 와 같은 이름 체계)
@@ -385,7 +391,18 @@ class Settings(BaseSettings):
     #   (CASCADE_TTS_SPEAKING_RATE)가 빠르게 잡으면 **다음 사람이 어느 게 진짜인지 못 가린다.**
     #   난이도(쉬운 단어·짧은 문장)만 맡는다.
     CASCADE_PERSONA_LEVEL: str = "아주 쉬운 단어와 짧은 문장으로 말한다."
+    # ⚠ **더 이상 안 쓴다**(2026-08-12). 모국어는 `CASCADE_TTS_LANGUAGE` 하나로 모았다 —
+    #   env 호환을 위해 남겨 두지만 코드가 읽지 않는다. 값을 바꿔도 아무 일도 안 일어난다.
     CASCADE_PERSONA_LOCALE: str = "en"
+    # ── DB 연결(2026-08-12): 데모 전용 **덮어쓰기**. 비어 있으면 DB 값이 이긴다 ──
+    # ⛔ 위 세 값(`CASCADE_TTS_VOICE`·`CASCADE_TTS_LANGUAGE`·`CASCADE_PERSONA_LOCALE`)을
+    #   덮어쓰기로 쓰면 안 된다 — **배포 env 에 이미 값이 들어 있어서**(demo-api:
+    #   CASCADE_TTS_VOICE=Sulafat, CASCADE_TTS_LANGUAGE=en …) DB 캐릭터·언어가 **영영 안 먹는다.**
+    #   그 셋은 **DB 가 없을 때의 기본값**이고, 실험용 덮어쓰기는 아래 세 개다(기본 빈 값).
+    #   ⚠ 데모 화면에는 음색·언어 선택 UI 가 없다(2026-08-12 확인) — 실험은 env 로만 한다.
+    CASCADE_TTS_VOICE_OVERRIDE: str = ""          # 캐릭터 음색을 무시하고 이 음성으로
+    CASCADE_LOCALE_OVERRIDE: str = ""             # 회원 모국어를 무시하고 이 언어로
+    CASCADE_TARGET_LANGUAGE_OVERRIDE: str = ""    # 학습 대상 언어를 무시하고 이 언어로
     # ── 마이크 상시 개방 (barge-in 의 전제) ──
     # ⛔ 기본 OFF. 지금 클라의 '비버 발화 중 마이크 닫기' 게이팅이 **자기-대화 루프의 유일한
     #   방어선**이다. 안드로이드에서 플랫폼 AEC 가 사실상 안 걸리기 때문인데, 원인이 **세 곳**

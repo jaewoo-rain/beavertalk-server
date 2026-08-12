@@ -57,6 +57,7 @@ from core.audio import trim_silence_edges
 from core import stt as stt_mod
 from core import tts
 from core.config import settings
+from core.languages import normalize_locale, resolve_language
 from core.persona_prompt import build_system_instruction, seed_opening
 from core.stt import (
     SPEECH_BEGIN,
@@ -97,6 +98,7 @@ from domains.learning.realtime.cascade_reply import (
     strip_markers,
 )
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
+from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import AecHint, ServerError, ServerPong
 
 logger = logging.getLogger(__name__)
@@ -840,8 +842,40 @@ class CascadeSession:
     ⚠ LLM 클라이언트가 없으면 **턴 감지까지만** 돈다(비버가 말하지 않는다 — R5).
     """
 
-    def __init__(self, transport: CascadeTransport, genai_client: Any = None) -> None:
+    def __init__(
+        self,
+        transport: CascadeTransport,
+        genai_client: Any = None,
+        *,
+        session_factory: Any = None,
+        member_id: int | None = None,
+        member_target_language: str | None = None,
+    ) -> None:
         self.transport = transport
+        # ── DB 연결(설계 20260812_1620) ──────────────────────────────────────
+        # ⛔ 셋 다 **없어도 돈다**(데모·테스트). 없으면 env 기본값으로 예전처럼 간다 — DB 가
+        #   빠졌다고 통화가 죽으면 안 된다(R5). 있으면 Live 와 **같은 함수**로 같은 기록을 남긴다.
+        self._session_factory = session_factory
+        self._member_id = member_id
+        self._member_target_language = member_target_language
+        self._character_id: int | None = None
+        self._call_id: int | None = None
+        # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
+        # 조회 실패면 None → env 기본값 경로 그대로(로그로 드러낸다).
+        self._setup: dict | None = None
+        # ⭐⭐ **이 통화의 언어는 여기 두 값이 전부다**(2026-08-12 사장님 지시).
+        #   `_locale`  = 비버가 **설명·리액션**에 쓸 언어(학습자 모국어)
+        #   `_target_*`= 비버가 **가르칠** 언어(학습 대상)
+        #   ⛔ 예전엔 같은 뜻의 값이 **네 곳**에 흩어져 있었다(페르소나 locale·페르소나 대상
+        #     라벨·TTS 구간 언어·TTS 대상 언어). 흩어져 있으면 **반드시 갈린다** — 실제로
+        #     "설명은 영어인데 TTS 는 다른 언어로 읽는" 조합이 만들어질 수 있었다.
+        #   ⇒ 세션 시작에 **한 번** 정하고(`_resolve_languages`), 이후 전부 이 값을 읽는다.
+        #   ⚠ STT 는 여기서 안 정한다 — **자동 감지가 실측상 최선**이다(41개 언어 39/41).
+        self._locale = (settings.CASCADE_TTS_LANGUAGE or "en").strip()
+        self._target_code = (settings.CASCADE_TTS_TARGET_LANGUAGE or "ko").strip()
+        self._target_label = (settings.CASCADE_TTS_TARGET_LANGUAGE_LABEL or "한국어").strip()
+        self._voice: str | None = None      # 캐릭터 음색(로스터 이름). None = 서버 기본값
+        self._voice_warned = False          # OpenAI 음색 미적용 경고는 통화당 한 번
         # 비버가 말하려면 LLM 클라이언트가 있어야 한다. 없으면 **턴 감지까지만** 돈다 —
         # 키가 없다고 통화가 죽으면 안 된다(R5).
         self._genai_client = genai_client
@@ -1005,6 +1039,12 @@ class CascadeSession:
             self._apply_aec_hint(None)
             pending_audio = first.audio
         self._sample_rate = sample_rate
+
+        # ⭐ **DB 조회는 STT 개시보다 먼저**다. 페르소나(설명 언어·캐릭터)와 학습 대상 언어가
+        #   정해져야 선톡 첫 문장이 옳은 언어로 나간다 — 뒤에 두면 첫 발화가 env 기본값으로
+        #   나가고, 그건 "모든 학습자에게 같은 언어로 인사하는" 지금 결함 그대로다.
+        #   ⚠ Live 도 같은 순서다(run_call: 캐릭터·setup → 통화 행 → 세션 open).
+        await self._load_call_context()
 
         stream = stt_mod.make_stt_v2_stream(sample_rate, self._stt_language_codes())
         # ⭐ **무슨 언어로 듣고 있는지 로그만 보고 알 수 있어야 한다**(2026-08-08). 지금까지는
@@ -2109,7 +2149,7 @@ class CascadeSession:
             return None, -1, 0
 
         segments = split_by_language(
-            text, settings.CASCADE_TTS_LANGUAGE, settings.CASCADE_TTS_TARGET_LANGUAGE
+            text, self._locale, self._target_code
         )
         marker_state = _marker_state(text)
         self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
@@ -2186,7 +2226,7 @@ class CascadeSession:
                 stream = await tts.synthesize_stream(
                     text,
                     language=language,
-                    voice=settings.CASCADE_TTS_VOICE,
+                    voice=self._tts_voice(),
                     engine=tts.GEMINI_ENGINE,
                     speaking_rate=self._note_rate(language),
                     style_prompt=self._style_prompt(),
@@ -2311,7 +2351,7 @@ class CascadeSession:
         마커가 없으면(또는 짝이 안 맞으면) 통째로 기본 언어로 나간다(설계 폴백).
         """
         segments = split_by_language(
-            sentence, settings.CASCADE_TTS_LANGUAGE, settings.CASCADE_TTS_TARGET_LANGUAGE
+            sentence, self._locale, self._target_code
         )
         # ⭐ **마커가 실제로 걸렸는지**를 로그로 남긴다. 이게 없으면 실험이 성립하지 않는다 —
         #   폴백이 조용해서(마커를 안 써도 통째 재생돼 소리는 정상) "끊김이 줄었다"는 판단이
@@ -2326,14 +2366,14 @@ class CascadeSession:
             logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 마커=%s",
                         self._tts_engine, marker_state)
             return await self._speak_one(strip_markers(sentence).strip(),
-                                         settings.CASCADE_TTS_LANGUAGE)
+                                         self._locale)
         logger.info(
             "cascade 언어구간: %d개 %s 마커=%s",
             len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
         )
         if len(segments) <= 1:
             return await self._speak_one(strip_markers(sentence).strip(),
-                                         settings.CASCADE_TTS_LANGUAGE)
+                                         self._locale)
         return await self._speak_segments(segments)
 
     async def _speak_segments(self, segments: list[tuple[str, str]]) -> int:
@@ -2443,7 +2483,7 @@ class CascadeSession:
         return await tts.synthesize_stream(
             sentence,
             language=language,
-            voice=settings.CASCADE_TTS_VOICE,
+            voice=self._tts_voice(),
             report=report,
             allow_gemini=allow_gemini,
             engine=self._profile().google_engine,
@@ -2842,6 +2882,102 @@ class CascadeSession:
             dropped_turns, dropped_chars, limit, len(self._history), total,
         )
 
+    def _resolve_languages(self) -> None:
+        """이 통화의 **모국어·학습 대상 언어**를 정한다 — 우선순위 **env > DB > 기본값**.
+
+        ⭐ 사장님 지시(2026-08-12): "stt는 자동으로 되지만 통화는 어떤 언어로 해야 할지
+          알아야 하니까 locale 언어랑 target language 받아와야 해."
+        ⛔ env 를 **먼저** 보는 이유: 사장님이 데모 화면에서 언어를 바꿔 실험하신다. dev
+          override 를 남기라는 지시가 있었다(음색과 같은 우선순위).
+        ⚠ 값이 하나뿐인 곳(라벨)은 대상 코드에서 **파생**시킨다 — 코드와 라벨을 따로 받으면
+          그 둘이 갈린다(같은 계열의 사고를 이 프로젝트에서 이미 여러 번 겪었다).
+        """
+        # 학습 대상: 라우터가 DB(member.target_language)에서 꺼내 넘겨준 값 — Live 와 같은 경로.
+        override_target = (settings.CASCADE_TARGET_LANGUAGE_OVERRIDE or '').strip()
+        if self._member_target_language and not override_target:
+            spec = resolve_language(self._member_target_language)
+            if spec is not None:
+                self._target_code, self._target_label = spec.code, spec.label
+            else:
+                logger.warning(
+                    "cascade: 미지원 target_language(%s) → 서버 기본(%s) 폴백",
+                    self._member_target_language, self._target_code,
+                )
+        # 모국어: 캐릭터 setup 의 locale(회원 언어). 없으면 env 기본값 그대로.
+        if override_target:
+            spec = resolve_language(override_target)
+            if spec is not None:
+                self._target_code, self._target_label = spec.code, spec.label
+        setup_locale = (self._setup or {}).get("locale")
+        override_locale = (settings.CASCADE_LOCALE_OVERRIDE or '').strip()
+        if override_locale:
+            self._locale = normalize_locale(override_locale) or override_locale
+        elif setup_locale:
+            self._locale = normalize_locale(setup_locale) or setup_locale
+        logger.info(
+            "cascade 언어: 모국어=%s 학습대상=%s(%s) 출처=%s · STT=자동감지(고정)",
+            self._locale, self._target_code, self._target_label,
+            "DB" if (self._setup or self._member_target_language) else "env 기본값",
+        )
+
+    async def _load_call_context(self) -> None:
+        """캐릭터·프롬프트 입력·음색을 **Live 와 같은 함수**로 읽는다(설계 §1).
+
+        ⛔ 실패해도 통화는 계속된다(R5) — env 기본 페르소나로 가고 그 사실을 로그로 남긴다.
+          "설명 언어가 틀린 통화"가 "통화 불가"보다 낫다.
+        """
+        if self._session_factory is None or self._member_id is None:
+            self._resolve_languages()      # 데모 경로 — env 기본값으로 확정만 한다
+            return
+        try:
+            self._character_id = await svc.run_db(
+                self._session_factory,
+                lambda db: svc.resolve_call_character(db, self._member_id, None),
+            )
+            # ⚠ 언어 스코프가 필요하다 — 학습 대상 언어로 레벨·커리큘럼을 고른다.
+            spec = resolve_language(self._member_target_language or self._target_code)
+            code = spec.code if spec else self._target_code
+            self._setup = await svc.run_db(
+                self._session_factory,
+                lambda db: svc.load_call_setup(db, self._member_id, self._character_id, code),
+            )
+        except Exception as exc:  # noqa: BLE001 - R5
+            logger.warning(
+                "cascade: 통화 설정 조회 실패 — env 기본 페르소나로 계속한다: %s", str(exc)[:200]
+            )
+            self._setup = None
+        self._resolve_languages()
+        self._voice = (self._setup or {}).get("voice") or None
+        logger.info(
+            "cascade 캐릭터: member=%s character=%s 음색=%s 레벨프로파일=%s",
+            self._member_id, self._character_id, self._voice or "서버 기본값",
+            "있음" if (self._setup or {}).get("level_profile") else "없음",
+        )
+
+    def _tts_voice(self) -> str | None:
+        """이 통화의 TTS 음색 — **env override > DB 캐릭터 > 언어 기본**.
+
+        ⭐ 로스터(프리빌트 30종)는 **Gemini Live 캐릭터 voice 와 같다**(`core/tts.py`), 그래서
+          DB 값이 Gemini-TTS·Chirp 에 그대로 먹는다(문자열 형식은 `_resolve_voice` 가 만든다).
+        ⛔ OpenAI TTS 는 로스터가 **아예 다르다**(nova·alloy…). 대응표의 근거가 없어
+          **서버 기본값으로 가고 그 사실을 로그로 남긴다** — 조용히 틀린 음성을 쓰면
+          "캐릭터 목소리가 이상하다"를 아무도 설명 못 한다(사장님 결정: OpenAI 는 보류).
+        """
+        override = (settings.CASCADE_TTS_VOICE_OVERRIDE or "").strip()
+        if override:
+            return override
+        if self._voice and self._tts_engine == _OPENAI_TTS_CHOICE:
+            if not self._voice_warned:
+                self._voice_warned = True
+                logger.warning(
+                    "cascade 캐릭터 음색 미적용(%s) — OpenAI 는 음성 로스터가 달라 대응표가 없다. "
+                    "서버 기본값으로 간다", self._voice,
+                )
+            return None
+        # DB 캐릭터 음색이 없으면 서버 기본값(env). ⚠ 이 값은 **덮어쓰기가 아니다** —
+        #   배포 env 에 값이 들어 있어 덮어쓰기로 쓰면 DB 가 영영 안 먹는다(config 주석).
+        return self._voice or (settings.CASCADE_TTS_VOICE or "").strip() or None
+
     def _system_instruction(self) -> str:
         """페르소나는 **새로 만들지 않는다** — normalcall 과 같은 조립기를 쓴다(설계 §1-2).
 
@@ -2850,13 +2986,15 @@ class CascadeSession:
         normalcall 과 같은 값으로 바꾼다).
         """
         if self._system_cache is None:
+            setup = self._setup or {}
+            # ⭐ **DB 값이 있으면 그게 이긴다.** 없으면 예전 데모 기본값 그대로(R5).
             self._system_cache = build_system_instruction(
-                role=settings.CASCADE_PERSONA_ROLE,
-                personality=settings.CASCADE_PERSONA_PERSONALITY,
-                level_profile=settings.CASCADE_PERSONA_LEVEL,
-                locale=settings.CASCADE_PERSONA_LOCALE,
-                interests=[],
-                target_language=settings.CASCADE_TTS_TARGET_LANGUAGE_LABEL,
+                role=setup.get("role") or settings.CASCADE_PERSONA_ROLE,
+                personality=setup.get("personality") or settings.CASCADE_PERSONA_PERSONALITY,
+                level_profile=setup.get("level_profile") or settings.CASCADE_PERSONA_LEVEL,
+                locale=self._locale,
+                interests=setup.get("interests") or [],
+                target_language=self._target_label,
                 # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
                 #   출력이 바이트 동일하게 유지된다.
                 language_marker=True,
@@ -3066,8 +3204,8 @@ class CascadeSession:
         # ⭐ **언어별 배속**(데모 화면). 화면은 서버의 언어 코드를 모르므로 '설명/한국어'로
         #   보내고, 여기서 이 통화의 실제 코드에 얹는다. 범위 밖·숫자 아님은 거절한다.
         for key, language in (
-            ("speakingRateNative", settings.CASCADE_TTS_LANGUAGE),
-            ("speakingRateTarget", settings.CASCADE_TTS_TARGET_LANGUAGE),
+            ("speakingRateNative", self._locale),
+            ("speakingRateTarget", self._target_code),
         ):
             raw = ctrl.get(key)
             if raw is None:
@@ -3110,13 +3248,17 @@ class CascadeSession:
           말한다. 한쪽만 들으면 다른 쪽은 **통째로 사라진다**(2026-08-08 실통화: 영어 발화
           5회 연속 36초가 text='' 로 닫혔다). 이건 데모 버그가 아니라 제품 결함이다 —
           우리 사용자는 외국인이다.
-        ⚠ **지금은 데모 경로다.** 회원의 모국어(`member.language`)로 배선하는 건 계약을 정하고
-          따로 간다. 여기서는 실험이 가능하도록 env 두 개에서 끌어온다.
+        ⭐ 2026-08-12: **회원 DB 에서 온다**(세션의 `_target_code`/`_locale`). 예전엔 env 두 개라
+          모든 학습자가 같은 언어로 취급됐다.
+        ⛔⛔ 그렇다고 **STT 에 언어를 지정하는 건 아니다.** 코드를 **둘** 넘기면 OpenAI 어댑터는
+          `language` 를 **안 싣는다**(= 자동 감지). 실측이 그 편을 지지한다 — 자동 감지가
+          41개 언어 중 39개를 맞혔고, `language` 를 미지정/en/ko 로 바꿔 재도 결과가 같았다.
+          여기 값은 **우리 의도의 기록**이고 벤더에 강제되는 값이 아니다.
         학습 언어를 먼저 적는다 — 문서가 순서에 의미를 부여하지는 않지만(REST 레퍼런스는
         "most likely language detected" 라고만 한다), 이 통화의 주 언어가 무엇인지 우리 의도를
         코드에 남긴다. 벤더 문서의 권고("bare minimum")대로 2개까지만 쓴다.
         """
-        return [settings.CASCADE_TTS_TARGET_LANGUAGE, settings.CASCADE_TTS_LANGUAGE]
+        return [self._target_code, self._locale]
 
     def _apply_aec_hint(self, aec: Any) -> None:
         """start.aec 로 **세션별** barge-in 정책을 정한다 — 에너지 게이트를 켤지 끌지.
@@ -3192,12 +3334,29 @@ class CascadeSession:
             logger.error("캐스케이드 pump 오류: %r", real.exceptions)
 
 
-async def run_cascade(websocket: WebSocket, genai_client: Any = None) -> None:
+async def run_cascade(
+    websocket: WebSocket,
+    genai_client: Any = None,
+    *,
+    session_factory: Any = None,
+    member_id: int | None = None,
+    member_target_language: str | None = None,
+) -> None:
     """WS 캐스케이드 세션 구동(라우터에서 accept 후 위임). 소켓 정리까지 책임.
 
     genai_client 가 None 이면 비버는 말하지 않고 턴 감지만 돈다(P0 동작 — R5).
+
+    ⭐ DB 인자 3종은 **Live 의 `run_call` 과 같은 모양**이다(설계 §1). 없으면(데모·테스트)
+      예전처럼 env 기본값으로 돈다 — 통화가 죽지 않는다(R5).
+    ⛔ `session_factory` 를 전역에서 import 하지 않고 **인자로 받는다**: Live 가 그렇고,
+      테스트가 가짜 팩토리를 넣을 수 있어야 한다.
     """
-    session = CascadeSession(WsCascadeTransport(websocket), genai_client)
+    session = CascadeSession(
+        WsCascadeTransport(websocket), genai_client,
+        session_factory=session_factory,
+        member_id=member_id,
+        member_target_language=member_target_language,
+    )
     try:
         await session.run()
     finally:
