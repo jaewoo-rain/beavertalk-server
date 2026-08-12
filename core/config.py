@@ -403,6 +403,11 @@ class Settings(BaseSettings):
     # 통화중 세그먼트 **점진 저장** 주기(초). Live 와 같은 1분 — 긴 통화·크래시 내성이 목적이다
     # (통화가 죽어도 그때까지의 전사·오디오가 남는다). ⛔ 크게 잡으면 그만큼 잃는다.
     CASCADE_SEGMENT_FLUSH_S: float = 60.0
+    # ⭐ 작별 여유(초) — 시간이 됐을 때 **비버가 인사를 마칠** 시간이다. 이 시간이 지나면
+    #   더 안 기다리고 닫는다(무한정 매달리면 세션이 안 끝난다).
+    #   ⚠ 실측 근거: 대답 하나가 첫소리 ~3초 + 오디오 9~11초라 20초면 한 번은 마친다.
+    #   ⛔ 절대 백스톱은 이 값만큼 **뒤로 밀린다**(`_backstop_s`) — 작별 도중에 죽이면 안 된다.
+    CASCADE_FAREWELL_GRACE_S: float = 20.0
     CASCADE_TTS_VOICE_OVERRIDE: str = ""          # 캐릭터 음색을 무시하고 이 음성으로
     CASCADE_LOCALE_OVERRIDE: str = ""             # 회원 모국어를 무시하고 이 언어로
     CASCADE_TARGET_LANGUAGE_OVERRIDE: str = ""    # 학습 대상 언어를 무시하고 이 언어로

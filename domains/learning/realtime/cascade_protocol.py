@@ -40,6 +40,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 # normalcall 과 의미가 같은 메시지는 재사용한다(중복 정의 금지).
 from domains.learning.realtime.protocol import (
     ClientPing,
+    ServerCallEnded,
     ServerError,
     ServerOutputTranscript,
     ServerPong,
@@ -52,6 +53,7 @@ __all__ = [
     "BEAVER_FRAME_INTERVAL_MS",
     "CascadeClientMessage",
     "CascadeServerMessage",
+    "ServerCallEnded",
     "ClientCascadeStart",
     "ClientCascadeStop",
     "ClientPing",
@@ -416,6 +418,10 @@ CascadeServerMessage = Annotated[
         ServerTurnStart,
         ServerTurnEnd,
         ServerOutputTranscript,
+        # 통화 종료 통지 — **normalcall 과 같은 모델**이다(앱이 이미 아는 프레임).
+        # ⚠ union 에 없으면 직렬화가 다른 타입으로 폴백돼 경고가 나고, 클라가 받는 모양도
+        #   보장되지 않는다(실제로 그 경고를 보고 넣었다).
+        ServerCallEnded,
         ServerError,
         ServerPong,
     ],

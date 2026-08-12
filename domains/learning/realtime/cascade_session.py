@@ -58,7 +58,7 @@ from core import stt as stt_mod
 from core import tts
 from core.config import settings
 from core.languages import normalize_locale, resolve_language
-from core.persona_prompt import build_system_instruction, seed_opening
+from core.persona_prompt import build_system_instruction, new_close_tag, seed_opening
 from core.stt import (
     SPEECH_BEGIN,
     SPEECH_END,
@@ -97,9 +97,11 @@ from domains.learning.realtime.cascade_reply import (
     strip_emotion_tags,
     strip_markers,
 )
+from domains.learning.realtime.call_session import _close_seed as live_close_seed
 from domains.learning.realtime.cascade_usage import CascadeUsage, log_usage_summary
+from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
-from domains.learning.realtime.protocol import AecHint, ServerError, ServerPong
+from domains.learning.realtime.protocol import AecHint, ServerCallEnded, ServerError, ServerPong
 
 logger = logging.getLogger(__name__)
 
@@ -883,6 +885,14 @@ class CascadeSession:
         self._persisted = 0          # 이미 DB 에 저장한 세그먼트 수
         self._next_turn_index = 1
         self._cur_user_pcm = bytearray()   # 열린 사용자 턴의 마이크 오디오(저장용)
+        # ⭐⭐ **이 통화의 길이**(초) — 구독 플랜이 정한다(Free 5분 / Pro·Max 15분).
+        #   ⛔ 절대 백스톱(`CASCADE_SESSION_MAX_S`)과 **다른 층**이다: 이건 정상 종료(작별)이고
+        #     백스톱은 "펌프가 멈췄을 때 죽이는" 마지막 방어선이다. 겹치면 안 되므로
+        #     `_backstop_s()` 가 백스톱을 통화 길이보다 항상 뒤로 잡는다.
+        self._call_duration_s = call_service.FREE_CALL_DURATION_S
+        self._farewell_started = False   # 작별을 이미 시작했다(두 번 하지 않는다)
+        # 종료 태그 — 지시문과 시드가 **같은 값**을 써야 모델이 그 문구를 시스템 지시로 읽는다.
+        self._close_tag = new_close_tag()
         # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
         # 조회 실패면 None → env 기본값 경로 그대로(로그로 드러낸다).
         self._setup: dict | None = None
@@ -1104,10 +1114,12 @@ class CascadeSession:
         #   ⚠ 감싸는 구간은 **STT 스트림이 열린 뒤**다. 그 앞(첫 메시지 대기)은 STT·LLM 이 아직
         #     안 돌아 **과금이 0** 이고, 유휴 소켓은 플랫폼 타임아웃이 맡는다.
         # 바닥은 0·음수 방어용이다(정책이 아니다) — 값 자체는 설정이 정한다.
-        backstop_s = max(1.0, float(settings.CASCADE_SESSION_MAX_S))
+        backstop_s = self._backstop_s()
         try:
             async with asyncio.timeout(backstop_s), asyncio.TaskGroup() as tg:
                 self._tg = tg  # [dev 훅] 가짜 비버 태스크를 같은 그룹에 붙이기 위해
+                # ⭐ 통화 시계 — 플랜 시간이 되면 작별하고 닫는다(정상 종료).
+                tg.create_task(self._watch_call_clock(), name="cascade-clock")
                 if self._call_id is not None:
                     # ⭐ 통화중 점진 저장 — 통화가 죽어도 그때까지의 기록은 남는다(Live 와 같다).
                     tg.create_task(self._flush_loop(), name="cascade-flush")
@@ -3065,12 +3077,96 @@ class CascadeSession:
             "DB" if (self._setup or self._member_target_language) else "env 기본값",
         )
 
+    async def _resolve_call_duration(self) -> None:
+        """이 통화의 길이 — **env 강제값 > 구독 플랜 > Free**(Live 와 같은 우선순위).
+
+        ⛔ 새 규칙을 만들지 않는다. Live 도 `NORMAL_CALL_DURATION_S`(전 회원 강제)를 먼저 보고
+          없으면 `call_service.call_duration_s_for_member`(플랜)를 부른다 — 같은 순서·같은 함수.
+        ⚠ R5: 플랜 조회가 실패하면 **Free(5분)로 떨어진다.** 모르면 짧은 쪽이 안전하다 —
+          길게 줬다 원가가 새는 것보다 낫다(`call_duration_s_for_member` 자신도 같은 방침).
+        """
+        forced = settings.NORMAL_CALL_DURATION_S
+        if forced is not None:
+            self._call_duration_s = float(forced)
+            logger.info("cascade 통화 길이: %.0f초(env 강제값)", self._call_duration_s)
+            return
+        if self._session_factory is None or self._member_id is None:
+            logger.info("cascade 통화 길이: %.0f초(Free — 회원 정보 없음)", self._call_duration_s)
+            return
+        try:
+            self._call_duration_s = float(await svc.run_db(
+                self._session_factory,
+                lambda db: call_service.call_duration_s_for_member(db, self._member_id),
+            ))
+        except Exception as exc:  # noqa: BLE001 - R5
+            self._call_duration_s = call_service.FREE_CALL_DURATION_S
+            logger.warning(
+                "cascade 통화 길이: 플랜 조회 실패 → Free(%.0f초)로 간다: %s",
+                self._call_duration_s, str(exc)[:200],
+            )
+            return
+        logger.info("cascade 통화 길이: %.0f초(구독 플랜)", self._call_duration_s)
+
+    def _backstop_s(self) -> float:
+        """세션 절대 백스톱 — ⛔ **정상 종료보다 항상 뒤**여야 한다.
+
+        둘은 다른 층이다(정상 작별 vs 펌프 정지 방어). 백스톱이 먼저 오면 작별을 못 하고
+        통화가 뚝 끊긴다 — 이 시계를 넣은 목적 자체가 깨진다.
+        ⚠ env 로 통화 길이를 20분 넘게 강제할 수 있으므로 **상수로 두면 안 된다.**
+        """
+        # ⛔ 여기에 숨은 바닥값을 넣지 마라 — 상수가 코드에 박히면 그게 정책처럼 보이고
+        #   테스트도 못 줄인다(이 프로젝트에서 이미 겪었다). 여유는 설정 하나가 정한다.
+        floor = max(1.0, float(settings.CASCADE_SESSION_MAX_S))
+        return max(floor, self._call_duration_s + max(0.0, settings.CASCADE_FAREWELL_GRACE_S))
+
+    def _close_seed(self) -> str:
+        """작별 지시문 — ⛔ **Live 와 같은 문구**(persona_prompt 가 소유). 새로 쓰지 않는다.
+
+        새로 쓰면 두 경로의 마무리가 갈리고, "Live 는 자연스러운데 캐스케이드는 로봇 같다"가 된다.
+        """
+        return live_close_seed(self._close_tag)
+
+    async def _watch_call_clock(self) -> None:
+        """통화 시계 — 시간이 되면 **작별을 시킨다**(뚝 끊지 않는다).
+
+        ⭐ 주입 방식(캐스케이드 설계): 선톡과 **같은 파이프**로 대답 하나를 만든다.
+          Live 는 살아 있는 Live 세션에 시드를 밀어 넣지만, 캐스케이드는 매 턴 LLM 을 새로
+          부르므로 "시드를 사용자 발화 자리에 넣어 대답을 만들게" 하는 게 기존 배관 그대로다
+          (`seed_opening()` 이 이미 그 방식으로 선톡을 만든다 — **새 파이프가 아니다**).
+        ⚠ 비버가 말하는 중이면 그 턴이 끝난 뒤에 낸다 — 겹쳐 말하면 불변식 I1 위반이다.
+        ⛔ 마감(usage·통화행)은 여기서 하지 않는다. `run()` 의 finally 가 이미 그 일을 한다 —
+          두 곳에서 마감하면 한 통화가 두 번 저장된다.
+        """
+        await asyncio.sleep(max(1.0, self._call_duration_s))
+        logger.info("cascade 통화 시간 종료(%.0f초) → 작별 시드 주입", self._call_duration_s)
+        grace = max(0.0, float(settings.CASCADE_FAREWELL_GRACE_S))
+        deadline = time.monotonic() + grace
+        while self._reply_busy() and time.monotonic() < deadline:
+            await asyncio.sleep(0.2)
+        if not self._farewell_started:
+            self._farewell_started = True
+            await self._start_reply(self._close_seed(), is_greeting=True)
+        # 작별이 다 나갈 때까지 기다렸다가 닫는다(중간에 끊으면 뚝 끊기는 것과 같다).
+        deadline = time.monotonic() + grace
+        while self._reply_busy() and time.monotonic() < deadline:
+            await asyncio.sleep(0.2)
+        await self._safe(ServerCallEnded(call_id=str(self._call_id or ""), reason="duration"))
+        raise _Stop
+
+    def _reply_busy(self) -> bool:
+        """비버가 아직 말하는(또는 만드는) 중인가."""
+        return self._reply_task is not None and not self._reply_task.done()
+
     async def _load_call_context(self) -> None:
         """캐릭터·프롬프트 입력·음색을 **Live 와 같은 함수**로 읽는다(설계 §1).
 
         ⛔ 실패해도 통화는 계속된다(R5) — env 기본 페르소나로 가고 그 사실을 로그로 남긴다.
           "설명 언어가 틀린 통화"가 "통화 불가"보다 낫다.
         """
+        # ⛔ 통화 길이는 **DB 유무와 무관하게** 정한다 — env 강제값(NORMAL_CALL_DURATION_S)은
+        #   회원이 없어도 유효하고, 없으면 Free 로 떨어진다. 이걸 DB 가지 안에 두면
+        #   데모·테스트에서 시계가 영영 20분(백스톱)이 된다.
+        await self._resolve_call_duration()
         if self._session_factory is None or self._member_id is None:
             self._resolve_languages()      # 데모 경로 — env 기본값으로 확정만 한다
             return
@@ -3157,6 +3253,8 @@ class CascadeSession:
                 locale=self._locale,
                 interests=setup.get("interests") or [],
                 target_language=self._target_label,
+                # ⛔ 시드와 **같은 태그**여야 모델이 그 문구를 시스템 지시로 읽는다.
+                close_tag=self._close_tag,
                 # ⭐ 마커 표기 규칙을 켠다(캐스케이드 전용). normalcall 은 기본값 False 라
                 #   출력이 바이트 동일하게 유지된다.
                 language_marker=True,
