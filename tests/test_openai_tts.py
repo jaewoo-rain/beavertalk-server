@@ -170,11 +170,11 @@ async def test_emotion_becomes_instructions(monkeypatch):
     monkeypatch.setattr(cs.openai_tts, "synthesize_stream", _stream)
     session = cs.CascadeSession(_Sink())
     session._tts_engine = "openai-tts"
-    session._reply_emotion = "칭찬"
+    session._reply_emotion = "happy"
     await session.beaver.begin()
     sent = await session._speak_one("아주 좋아요", "ko")
     assert sent > 0
-    assert seen[0]["instructions"] == cs.EMOTION_STYLES["칭찬"]
+    assert seen[0]["instructions"] == cs.EMOTION_STYLES["happy"]
 
 
 # ── ④ 마커 분할은 env 로 켜고 끈다 ─────────────────────────────────────────

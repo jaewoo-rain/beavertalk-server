@@ -7,7 +7,7 @@
 
 왜 그런 게 오나(가설 — 프롬프트는 이번 범위 밖): `core/persona_prompt.py` 가
 `[공부 모드]` `[대화 모드]` `[학습자 수준]` 처럼 **대괄호를 구획 라벨로** 쓴다. 같은
-프롬프트가 "대사 맨 앞에 `[칭찬]` 을 붙여라"라고도 하니 모델이 그 자리에 모드 이름을 넣는다.
+프롬프트가 "대사 맨 앞에 `<happy>` 을 붙여라"라고도 하니 모델이 그 자리에 모드 이름을 넣는다.
 
 여기서 고정하는 성질:
   ① 집합 밖 토큰이 **TTS 로 넘어가는 텍스트에 안 남는다**
@@ -52,8 +52,8 @@ def test_several_stray_tokens_in_a_row_are_all_removed():
 
 def test_a_stray_token_next_to_a_real_emotion_tag():
     """③과 겹치는 자리 — 감정은 살고 라벨만 사라진다."""
-    assert cr.strip_emotion_tags("[대화] [칭찬] 잘했어요!") == "잘했어요!"
-    assert cr.detect_emotion("[대화] [칭찬] 잘했어요!") == "칭찬"
+    assert cr.strip_emotion_tags("[대화] <happy> 잘했어요!") == "잘했어요!"
+    assert cr.detect_emotion("[대화] <happy> 잘했어요!") == "happy"
 
 
 @pytest.mark.asyncio
@@ -106,10 +106,10 @@ def test_a_known_emotion_is_not_reported_as_dropped():
     """③ 집합 안 태그는 감정으로 쓰인다 — 버린 게 아니다."""
     session = cs.CascadeSession(_Sink())
     session._tts_engine = "gemini-tts"          # 스타일을 받는 엔진(미적용 꼬리표가 안 붙는다)
-    session._reply_emotion = "칭찬"
-    session._note_stray_tag("[칭찬] 잘했어요!")
+    session._reply_emotion = "happy"
+    session._note_stray_tag("<happy> 잘했어요!")
     assert session._dropped_tag == ""
-    assert session._emotion_log() == "감정=칭찬"
+    assert session._emotion_log() == "감정=happy"
 
 
 # ── ④ 정상 대사는 안 건드린다 ──────────────────────────────────────────────
@@ -137,7 +137,7 @@ def test_read_stray_tag_only_answers_when_the_bracket_is_closed():
     """⚠ 스트리밍은 조각으로 온다 — `[대화` 까지만 왔을 때 성급히 판정하면 안 된다."""
     assert cr.read_stray_tag("[대화") is None
     assert cr.read_stray_tag("[대화] 안녕") == "대화"
-    assert cr.read_stray_tag("[칭찬] 잘했어요") is None, "집합 안은 버린 태그가 아니다"
+    assert cr.read_stray_tag("<happy> 잘했어요") is None, "집합 안은 버린 태그가 아니다"
 
 
 # ── ⚠ 대괄호가 없는 경우: **지우지 않고 세기만** ───────────────────────────

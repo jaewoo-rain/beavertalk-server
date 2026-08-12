@@ -53,6 +53,7 @@ __all__ = [
     "BEAVER_FRAME_INTERVAL_MS",
     "CascadeClientMessage",
     "CascadeServerMessage",
+    "CascadeTurnStart",
     "ServerCallEnded",
     "ClientCascadeStart",
     "ClientCascadeStop",
@@ -244,6 +245,28 @@ CascadeClientMessage = Annotated[
 
 
 # ────────────────────────────── 서버 → 클라이언트 ──────────────────────────────
+class CascadeTurnStart(BaseModel):
+    """비버 턴 시작 — **캐스케이드 전용**(Live 의 `ServerTurnStart` 를 안 건드린다).
+
+    ⭐ 왜 따로 두나(2026-08-12): 프론트가 이 프레임에 **표정 한 칸**을 원한다. 그런데
+      `ServerTurnStart` 는 Live 와 공용이라, 거기에 필드를 더하면 **Live 가 보내는 JSON 도**
+      바뀐다(`"emotion":null` 이 붙는다). Live 출력 무변경은 이 프로젝트의 규율이므로
+      캐스케이드만 자기 모델을 갖는다 — `type` 은 같아서 클라 입장에선 같은 프레임이다.
+
+    ⚠ 프론트 요구: 별도 프레임이 아니라 **turn_start 한 칸**. 그쪽 선행버퍼가 900ms(적응형
+      최대 1200)라 turn_start 부터 첫 소리까지 여유가 있고, 별도 프레임이면 **순서 보장을
+      또 따져야** 하기 때문이다.
+    ⛔ 값을 **화이트리스트로 막지 않는다**(프론트 요청). "모르는 값이 와도 우리는 안 깨진다
+      (neutral 로 떨어뜨린다). 나중에 집합을 늘려도 구버전 앱이 안 죽는다."
+      ⇒ 서버가 새 감정을 추가할 때 **클라 배포를 기다릴 필요가 없다**.
+    """
+
+    type: Literal["turn_start"] = "turn_start"
+    turn_id: str
+    # 이 턴의 표정(클라 아바타 어휘: neutral·happy·surprised·sad·angry). 모르면 None.
+    emotion: str | None = None
+
+
 class ServerCascadeReady(BaseModel):
     """세션 준비 완료 + **지금 어떤 엔진·정책으로 도는지**.
 
@@ -413,9 +436,10 @@ CascadeServerMessage = Annotated[
         ServerBeaverPreparing,
         ServerAudioCancel,
         ServerTestCancelReport,
-        # 비버(서버 출력) 턴 — normalcall 과 **같은 모델을 재사용**한다. 앱의 재생 상태기계가
-        # 이 두 메시지에 묶여 있어 의미를 바꾸면 안 된다(클라 제약 #1).
-        ServerTurnStart,
+        # 비버(서버 출력) 턴. ⚠ turn_start 만 캐스케이드 전용이다(표정 한 칸 때문 —
+        # Live 모델에 필드를 더하면 Live 출력이 바뀐다). 나머지는 normalcall 과 같은 모델을
+        # 재사용한다 — 앱의 재생 상태기계가 묶여 있어 의미를 바꾸면 안 된다(클라 제약 #1).
+        CascadeTurnStart,
         ServerTurnEnd,
         ServerOutputTranscript,
         # 통화 종료 통지 — **normalcall 과 같은 모델**이다(앱이 이미 아는 프레임).

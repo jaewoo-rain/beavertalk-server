@@ -75,7 +75,7 @@ from domains.learning.realtime.cascade_protocol import (
     ServerAudioCancel,
     ServerCascadeReady,
     ServerTurnEnd,
-    ServerTurnStart,
+    CascadeTurnStart,
     ServerUserTurnEnd,
     ServerUserTurnStart,
     ServerInputPartial,
@@ -694,8 +694,14 @@ class BeaverOutput:
         return self._records.get(turn_id)
 
     # ── 턴 수명 ──
-    async def begin(self) -> str:
-        """비버 턴 시작 — **오디오보다 먼저** turn_start 를 낸다(I2)."""
+    async def begin(self, emotion: str | None = None) -> str:
+        """비버 턴 시작 — **오디오보다 먼저** turn_start 를 낸다(I2).
+
+        ⭐ `emotion` 은 클라 아바타 표정이다(프론트 요구: **turn_start 한 칸**). 첫 소리보다
+          먼저 나가므로 클라가 표정을 미리 바꿀 여유가 있다(그쪽 선행버퍼 900ms).
+        ⛔ 값을 검사하지 않는다 — 클라가 모르는 값을 neutral 로 떨어뜨린다(프론트 계약).
+          서버가 집합을 늘릴 때 **클라 배포를 기다리지 않기 위해서**다.
+        """
         if self._cur is not None:
             raise InvariantError("이미 열린 비버 턴이 있다(중첩 금지)")
         self._turn_seq += 1
@@ -706,7 +712,9 @@ class BeaverOutput:
         while len(self._order) > self._HISTORY_MAX:
             self._records.pop(self._order.pop(0), None)
         await self._transport.send_event(
-            json.loads(cascade_server_adapter.dump_json(ServerTurnStart(turn_id=turn_id)).decode())
+            json.loads(cascade_server_adapter.dump_json(
+                CascadeTurnStart(turn_id=turn_id, emotion=emotion)
+            ).decode())
         )
         return turn_id
 
@@ -2391,8 +2399,10 @@ class CascadeSession:
         )
 
     async def _begin_beaver_turn(self) -> str:
+        # ⚠ 감정은 **대답 맨 앞 태그**라 첫 조각이 오면 이미 정해져 있다(`detect_emotion`).
+        #   아직 없으면 None 으로 보낸다 — 클라가 neutral 로 그린다.
         self.state = TurnState.BEAVER_SPEAKING
-        return await self.beaver.begin()
+        return await self.beaver.begin(self._reply_emotion)
 
     async def _speak(self, sentence: str) -> int:
         """문장 하나를 **언어 구간별로** 합성해 송출한다.
