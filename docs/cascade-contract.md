@@ -239,6 +239,15 @@ keepalive 핑(서버는 pong 응답).
 | `platform` | `str` |  | `""` |
 | `audio_route` | `str` |  | `""` |
 
+### `route_change`  (ClientRouteChange)
+
+통화 **도중** 출력 장치가 바뀌었다(2026-08-12 프론트 구현 완료).
+
+| 필드 | 타입 | 필수 | 기본값 |
+|---|---|---|---|
+| `aec` | `AecHint | null` |  | `null` |
+| `uplink_bytes` | `int` |  | `0` |
+
 ### `start`  (ClientCascadeStart)
 
 세션 시작(오디오 전에 1회). 마이크 규격 + AEC 힌트 — 인증은 소켓 쿼리 토큰이 한다.

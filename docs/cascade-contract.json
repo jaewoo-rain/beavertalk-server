@@ -738,6 +738,27 @@
       ]
     },
     {
+      "wire_type": "route_change",
+      "model": "ClientRouteChange",
+      "doc": "통화 **도중** 출력 장치가 바뀌었다(2026-08-12 프론트 구현 완료).",
+      "fields": [
+        {
+          "name": "aec",
+          "type": "AecHint | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "uplink_bytes",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        }
+      ]
+    },
+    {
       "wire_type": "start",
       "model": "ClientCascadeStart",
       "doc": "세션 시작(오디오 전에 1회). 마이크 규격 + AEC 힌트 — 인증은 소켓 쿼리 토큰이 한다.",

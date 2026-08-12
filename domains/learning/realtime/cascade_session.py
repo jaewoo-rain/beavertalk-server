@@ -72,6 +72,7 @@ from domains.learning.realtime.cascade_protocol import (
     BEAVER_FRAME_INTERVAL_MS,
     ServerBeaverPreparing,
     ClientPlaybackProgress,
+    ClientRouteChange,
     ClientTestBeaver,
     ServerAudioCancel,
     ServerCascadeReady,
@@ -1244,6 +1245,8 @@ class CascadeSession:
                     raise _Stop
                 if ctype == "ping":
                     await self._safe(ServerPong(t=ctrl.get("t")))
+                elif ctype == "route_change":
+                    self._on_route_change(ctrl)
                 elif ctype == "playback_progress":
                     await self._on_playback_progress(ctrl)
                 elif ctype == "__test_beaver":   # dev 훅(가짜 비버 오디오)
@@ -3725,6 +3728,34 @@ class CascadeSession:
         코드에 남긴다. 벤더 문서의 권고("bare minimum")대로 2개까지만 쓴다.
         """
         return [self._target_code, self._locale]
+
+    def _on_route_change(self, ctrl: dict) -> None:
+        """통화 **도중** 출력 장치가 바뀌었다 — AEC 정책을 다시 태운다.
+
+        ⛔ **같은 함수를 다시 부른다**(`_apply_aec_hint`). 새 판정을 만들면 시작(`start.aec`)과
+          도중이 갈리고, 그때부터 "어느 쪽이 진짜인지" 아무도 못 말한다.
+        ⛔ **진행 중인 턴을 깨지 않는다.** 정책은 다음 판정부터 적용된다 — 말하는 중에
+          게이트를 갈아끼우면 그 턴의 판정 근거가 중간에 바뀌어 barge-in 이 반쯤 적용된다.
+          (불변식 영역이라 깨야 할 이유가 생기면 근거를 올리고 바꾼다.)
+        ⚠ 이 프레임은 **안 올 수 있다**(클라 콜백 등록 실패 시 조용히 없다). 보조 신호일 뿐이라
+          안 와도 동작은 예전 그대로여야 한다.
+        """
+        try:
+            change = ClientRouteChange.model_validate(ctrl)
+        except ValidationError as exc:
+            # ⛔ 거절이 아니라 무시다 — 진단 프레임 하나 때문에 통화가 흔들리면 안 된다(R5).
+            logger.warning("cascade route_change 형식 오류(무시) — %s", exc)
+            return
+        before_mode, before_gate = self._aec_mode, self._energy_gate
+        self._apply_aec_hint(change.aec.model_dump() if change.aec is not None else None)
+        route = (change.aec.route if change.aec is not None else "") or "미상"
+        logger.info(
+            "cascade 라우트 변경: %s → %s · 게이트 %s → %s · 라우트=%s · 업링크=%d바이트(%.1f초)"
+            " — 진행 중인 턴은 그대로, 다음 판정부터 적용",
+            before_mode, self._aec_mode,
+            "on" if before_gate else "off", "on" if self._energy_gate else "off",
+            route, change.uplink_bytes, change.uplink_bytes / 32000.0,
+        )
 
     def _apply_aec_hint(self, aec: Any) -> None:
         """start.aec 로 **세션별** barge-in 정책을 정한다 — 에너지 게이트를 켤지 끌지.

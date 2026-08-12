@@ -279,14 +279,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     media_type="text/html",
                 )
 
-        @app.get("/__calldemo", include_in_schema=False)
-        def call_demo() -> FileResponse:
-            """통화→문장추출→복습 발음평가 전 과정 데모 HTML."""
-            return FileResponse(
-                Path(__file__).parent / "scripts" / "call_demo.html",
-                media_type="text/html",
-            )
-
         @app.post("/__dev/level-reset", include_in_schema=False)
         def dev_level_reset(member: CurrentAdmin, db: DbSession) -> dict:
             """[dev] 레벨 관련 상태 완전 초기화 — 재테스트용 백지화.

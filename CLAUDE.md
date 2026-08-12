@@ -66,7 +66,9 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 ## 테스트 / 검증
 - **파이썬은 반드시 conda env**: `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q` (base 파이썬엔 의존성 없음). 한글 출력이 콘솔에서 깨지면 스크립트가 **UTF-8 파일로 쓰게 하고 Read** 로 확인.
 - `pytest` (tests/). `scripts/smoke_*.py` 는 **실행 중 서버에 실제 요청**하는 수동 점검(파이테스트 아님).
-- API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 데모: `/__calldemo`(언어 데모 — 레벨 무관) · `/__levelcalldemo`(레벨테스트·힌트 체험).
+- API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 데모: `/__levelcalldemo`(레벨테스트·힌트 체험) · `/__cascadedemo`(캐스케이드 통화).
+  ⚠ `/__calldemo` 는 **삭제했다**(2026-08-12) — `scripts/call_demo.html` 이 `aaa14b6` 에서
+  지워진 뒤로 라우트만 남아 **계속 500** 이었다. 참조는 문서뿐이었고 코드·프론트는 0건.
 
 ## 운영 (dev — 상세는 docs/plans/2026-07-09-level-system-build.md 배포 노트)
 - **Cloud Run 서비스**: `beavertalk-app-test-api`(구코드) / `beavertalk-app-demo-api`(레벨 시스템 신코드). 프로젝트 `bt-dev-web-01`, 리전 `asia-northeast3`, **둘 다 같은 dev Supabase DB**(마이그레이션·시드 적용됨).

@@ -63,6 +63,7 @@ __all__ = [
     "ClientCascadeStop",
     "ClientPing",
     "ClientPlaybackProgress",
+    "ClientRouteChange",
     "ClientTestBeaver",
     "ClientTestCancel",
     "ClientTestEvent",
@@ -133,6 +134,38 @@ class ClientCascadeStop(BaseModel):
     """세션 정상 종료 요청."""
 
     type: Literal["stop"] = "stop"
+
+
+class ClientRouteChange(BaseModel):
+    """통화 **도중** 출력 장치가 바뀌었다(2026-08-12 프론트 구현 완료).
+
+    ⭐ 무엇을 푸나: `start.aec` 는 **세션 시작 스냅샷**이고 그것도 재생 개통 전 값이다.
+      통화 중 이어폰을 뽑으면 서버는 계속 `headset` 을 믿는데 실제 출력은 **스피커폰**
+      (에코 최악)이다 — 정확히 그 전이가 안 잡혔다.
+
+    ⛔⛔ **이 프레임은 안 올 수 있다.** 클라가 콜백 등록에 실패하면 **조용히 통지 없이**
+      통화가 계속 돈다(진단이 통화를 죽이면 안 된다는 그쪽 원칙). 그래서:
+        · `route_change` 가 안 온다 ≠ 라우트가 안 바뀌었다. **보조 신호**다.
+        · ⭐ **한 번도 안 와도 동작이 예전과 완전히 같아야 한다**(회귀로 박았다).
+          필수로 가정하면 콜백 등록에 실패한 기기에서 **정책이 굳는다**.
+
+    ⚠ 정밀도 한계(프론트 명시):
+      · 보고가 **5~15ms(≈480바이트) 늦다** — 플랫폼 콜백은 "바뀌었다"만 주고 결과 라우트는
+        한 번 더 조회해야 한다. 실제 전환 지점은 보고값보다 그만큼 **앞**이다.
+        ⇒ 경계에서 딱 잘라 판단하지 마라.
+      · iOS 는 **통화 시작 직후 짧은 창**을 못 잡는다 — 그 구간은 `start.aec` 가 유일한 근거다.
+
+    Attributes:
+        aec: **`start.aec` 와 같은 객체**다. ⛔ 새 필드를 만들지 말고 같은 처리를 다시 태운다 —
+            두 곳으로 갈라지면 시작과 도중이 어긋난다.
+        uplink_bytes: 이 변경 **직전까지** 클라가 실제로 소켓에 쓴 마이크 PCM 누적.
+            PCM16/16k mono = **32,000 B/s 고정**이라 바이트↔ms 는 산수다(`ms = bytes / 32`).
+            ⚠ 게이팅으로 **버린 프레임은 안 센다** — 서버가 받지 못한 것이라 포함하면 어긋난다.
+    """
+
+    type: Literal["route_change"] = "route_change"
+    aec: AecHint | None = None
+    uplink_bytes: int = 0
 
 
 class ClientPlaybackProgress(BaseModel):
@@ -245,6 +278,7 @@ CascadeClientMessage = Annotated[
         ClientCascadeStop,
         ClientPing,
         ClientPlaybackProgress,
+        ClientRouteChange,
         ClientTestSay,
         ClientTestEvent,
         ClientTestBeaver,
