@@ -28,6 +28,8 @@ import logging
 import time
 from typing import Any, AsyncIterator
 
+from core.languages import normalize_locale
+
 from core.audio import upsample_16k_to_24k
 from core.config import settings
 from core.stt import SPEECH_BEGIN, SPEECH_END, STREAM_ERROR, TRANSCRIPT, SttV2Event
@@ -45,6 +47,34 @@ def is_configured() -> bool:
     return bool((settings.GPT_API_KEY or "").strip())
 
 
+def openai_language_codes(codes: list[str] | None) -> list[str]:
+    """⭐⭐ **벤더별 언어 코드 변환은 여기 한 곳이다**(2026-08-13 통화 사망 버그).
+
+    두 벤더가 **정반대를 요구한다** — 그게 이 사고의 뿌리였다:
+        Google STT v2   **BCP-47**(`en-US`). 지역이 없으면 거절 → `core/stt.py` 가 지역 없는
+                        코드를 **폐기**한다("인식 언어 코드 폐기 ['ja']").
+        OpenAI Realtime **ISO-639-1**(`en`). 지역이 붙으면 거절한다:
+                        "Invalid value: 'en-US'. Supported values are: 'af','ar',…"
+
+    🔴 실제로 통화가 죽었다(에뮬, **1.4초 만에**): `ja` 가 폐기돼 목록이 `['en-US']` **1개**가
+      됐고, 아래 규칙이 그 값을 **그대로** OpenAI 에 넘겼다 → 거절 → error 프레임 → 앱이
+      스낵바를 띄우고 통화를 끊었다.
+    ⚠ **간헐적이라 더 나쁘다**: 목록이 2개면 `None`(자동감지)이 나가 정상이다. **1개로
+      좁아질 때만** 터진다 — 재현이 안 돼 원인 불명으로 남기 딱 좋은 모양이었다.
+
+    ⛔ 새 변환 함수를 만들지 않았다 — `normalize_locale`("ko-KR"→"ko")이 **이미 있다**.
+    ⚠ 정규화하면 **중복이 생긴다**(`['en-US','en-GB']` → `['en','en']`). 합친다.
+      그러면 1개가 되는데, 그건 **자동감지를 잃는 것이 아니라 사실 그대로다** — 두 항목이
+      가리키던 언어가 하나였을 뿐이다. OpenAI 에 `en` 을 주는 편이 자동감지보다 정확하다.
+    """
+    out: list[str] = []
+    for raw in codes or []:
+        code = normalize_locale(raw)
+        if code and code not in out:
+            out.append(code)
+    return out
+
+
 def vendor_name() -> str:
     """원가 벤더 문자열 = **실제로 돈 모델 ID**(단가가 모델마다 다르다)."""
     return _VENDOR_PREFIX + (settings.OPENAI_STT_MODEL or "gpt-4o-mini-transcribe").strip()
@@ -60,7 +90,13 @@ class OpenAiRealtimeSttStream:
         self._sample_rate = sample_rate
         # ⚠ OpenAI 는 `language` 를 **하나만** 받는다 — 다국어는 "안 넣기"가 유일한 방법이다
         #   (선정기준 §4-2). 그래서 코드가 여러 개면 아예 지정하지 않는다.
-        self._language = (language_codes or [None])[0] if len(language_codes or []) == 1 else None
+        # ⛔ **반드시 ISO-639-1 로 바꿔서** 넣는다. 호출부가 주는 목록은 Google 용 BCP-47
+        #   (`en-US`)이고, 그대로 넘기면 OpenAI 가 거절해 **통화가 죽는다**(위 함수 주석).
+        wanted = openai_language_codes(language_codes)
+        self._language = wanted[0] if len(wanted) == 1 else None
+        if language_codes and list(language_codes) != wanted:
+            # 조용히 바꾸지 않는다 — 무엇을 받아 무엇으로 보냈는지 남긴다.
+            logger.info("[stt-openai] 언어 코드 정규화 %s → %s", list(language_codes), wanted)
         self._ws: Any = None
         self._closed = False
         self._sent_ms = 0.0
@@ -192,7 +228,14 @@ class OpenAiRealtimeSttStream:
             return [SttV2Event(kind=TRANSCRIPT, text=text, is_final=True)] if text else []
         if kind == "error":
             detail = (msg.get("error") or {}).get("message") or "unknown"
-            # ⛔ 벤더 에러 본문에 키가 실릴 일은 없지만, 길이를 잘라 남긴다.
+            # ⛔⛔ **서버가 먼저 알아야 한다.** 지금까지 이 거절은 서버 로그에 WARNING 한 줄
+            #   없이 error 프레임으로만 나갔다 — 앱은 스낵바를 띄우고 통화를 끊는데 서버는
+            #   조용했다(2026-08-13 통화 사망 버그를 못 본 이유가 이것이다).
+            #   ⛔ 벤더 에러 본문에 키가 실릴 일은 없지만, 길이를 잘라 남긴다.
+            logger.warning(
+                "[stt-openai] 벤더 거절 — %s (언어=%s). 이 통화는 여기서 끊긴다",
+                str(detail)[:200], self._language or "자동감지",
+            )
             return [SttV2Event(kind=STREAM_ERROR, detail=str(detail)[:200])]
         return []
 
