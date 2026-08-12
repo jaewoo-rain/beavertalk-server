@@ -18,6 +18,7 @@ from domains.commerce.repository.character_repository import CharacterRepository
 from domains.commerce.repository.member_character_repository import (
     MemberCharacterRepository,
 )
+from domains.commerce.service import entitlements
 from domains.commerce.schemas.character import (
     CharacterDetail,
     CharacterSummary,
@@ -47,21 +48,32 @@ class CharacterService:
     ) -> list[CharacterSummary]:
         characters = self.char_repo.list(limit=limit, offset=offset)
         owned = self.mc_repo.owned_character_ids(member_id)  # 한 번에 소유 id 집합
-        return [self._to_summary(c, c.character_id in owned) for c in characters]
+        # 구독 판정은 회원당 1회 — 카탈로그 길이만큼 구독 행을 다시 읽지 않는다.
+        all_unlocked = entitlements.has_all_characters(self.db, member_id)
+        return [
+            self._to_summary(c, c.character_id in owned, all_unlocked)
+            for c in characters
+        ]
 
     def get_character(self, member_id: int, character_id: int) -> CharacterDetail:
         c = self.char_repo.get(character_id)
         if c is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "캐릭터를 찾을 수 없습니다.")
         owned = self.mc_repo.get(member_id, character_id) is not None
+        unlocked, source = self._unlock(
+            owned, entitlements.has_all_characters(self.db, member_id)
+        )
         discount = self.active_discount(c)
         return CharacterDetail(
             character_id=c.character_id,
+            product_key=c.product_key,
             name=c.name,
             image_url=c.image_url,
             price=c.price,
             effective_price=discount.discount_price if discount else c.price,
             is_owned=owned,
+            is_unlocked=unlocked,
+            unlock_source=source,
             description=c.description,
             background_story=c.story,
             gender=c.gender,
@@ -106,13 +118,31 @@ class CharacterService:
         d = self.active_discount(character)
         return d.discount_price if d else character.price
 
-    def _to_summary(self, c: Character, owned: bool) -> CharacterSummary:
+    @staticmethod
+    def _unlock(owned: bool, all_unlocked: bool) -> tuple[bool, Optional[str]]:
+        """(쓸 수 있는가, 무엇이 열어줬나).
+
+        ⛔ 소유가 구독보다 **먼저**다. 둘 다 해당하면 "owned" 로 답한다 — 구독을 끊어도
+          그 캐릭터는 남는다는 게 사실이고, 앱이 해지 경고에서 이 캐릭터를 빼야 한다.
+          순서를 뒤집으면 산 캐릭터까지 "해지하면 사라짐"으로 표시된다.
+        """
+        if owned:
+            return True, "owned"
+        if all_unlocked:
+            return True, "subscription"
+        return False, None
+
+    def _to_summary(
+        self, c: Character, owned: bool, all_unlocked: bool = False
+    ) -> CharacterSummary:
         # 할인 1회 조회로 실가와 카운트다운 재료를 함께 채운다. active_discount 는 이미
         # 로드된 c.discount_events 를 순회할 뿐이라 추가 쿼리가 없다(effective_price 를
         # 따로 부르면 같은 순회를 두 번 한다).
         discount = self.active_discount(c)
+        unlocked, source = self._unlock(owned, all_unlocked)
         return CharacterSummary(
             character_id=c.character_id,
+            product_key=c.product_key,
             name=c.name,
             image_url=c.image_url,
             description=c.description,
@@ -122,5 +152,7 @@ class CharacterService:
             price=c.price,
             effective_price=discount.discount_price if discount else c.price,
             is_owned=owned,
+            is_unlocked=unlocked,
+            unlock_source=source,
             active_discount=DiscountOut.model_validate(discount) if discount else None,
         )

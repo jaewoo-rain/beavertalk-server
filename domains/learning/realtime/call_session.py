@@ -55,13 +55,14 @@ from google import genai
 from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
-from core import gemini_analysis
+from core import audio, gemini_analysis
 from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
 from core.config import Settings, settings as _settings
 from core.languages import (
     DEFAULT_LANGUAGE,
     LanguageSpec,
     SUPPORTED_LANGUAGES,
+    count_target_script_chars,
     normalize_locale,
     resolve_language,
 )
@@ -76,6 +77,7 @@ from core.persona_prompt import (
     CONTROL_TAG,
     build_leveltest_instruction,
     build_continue_reminder,
+    build_reground_brief,
     build_reground_reminder,
     build_system_instruction,
     close_seed_leveltest,
@@ -105,18 +107,46 @@ from domains.learning.realtime.protocol import (
 
 logger = logging.getLogger(__name__)
 
-# 통화 길이: 기본 5분 경과 시 종료 시드(정상 작별 시작), 백스톱(강제 종료). 1분마다 중간 저장.
-CALL_DURATION_S = 300.0          # 기본 통화 길이(5분). 레벨 데모는 start.duration_min 으로 3~15분 override
+# 통화 길이: 경과 시 종료 시드(정상 작별 시작), 백스톱(강제 종료). 1분마다 중간 저장.
+#
+# 일반 통화 길이의 소스는 **구독 플랜**이다(Free 5분 / Pro·Max 15분 —
+# call_service.CALL_DURATION_S_BY_PLAN). 아래 상수는 그 위에 얹는 **전 회원 강제값**으로,
+# env(NORMAL_CALL_DURATION_S)가 있을 때만 값이 있다(없으면 None → 플랜이 결정).
+# ⚠ 테스트는 이 모듈 속성을 monkeypatch 한다 — 값이 박히면 플랜 조회를 건너뛰므로
+#   종전과 동일하게 동작한다(짧은 시계로 통화를 끝내는 회귀 테스트들이 그 경로다).
+CALL_DURATION_S: Optional[float] = _settings.NORMAL_CALL_DURATION_S
 # 레벨테스트(Phase 1): 인-콜 판정·주입 없이 비버 자율 진행. 종료는 3분 하드캡(이 시계) 또는
 # 무음 3단/GoAway 가 종료 파이프로 우아하게 몬다(R5 안전망 — 서버는 통화중 질문을 주입하지 않음).
 LEVELTEST_MAX_S = 180.0          # 레벨테스트 하드캡(3분) — call_duration_s 의 base
 # 연결 자체 한계 ~10분(S2)을 선점: 서버가 GoAway/연결종료로 뚝 끊기 전에 우리가 먼저
 # 우아하게 마무리하도록 540s(9분)로 하향. 정상 5분 통화는 이 상한에 닿지 않아 무영향.
 ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백스톱, 연결 ~10분 선점)
+# ── 세션 재연결(15분 통화) ──────────────────────────────────────────────────
+# ⭐ 압축은 **세션**(오디오 15분) 한계만 풀고 **연결 수명(~10분)** 은 못 푼다. 둘은 별개다.
+#   15분 통화 = Live 연결 2개 이상이라는 뜻이고, 그래서 세대 루프가 필요하다.
+#
+# 스왑 트리거는 GoAway 가 **아니라** 이 시계다. GoAway 는 언제 올지·time_left 형식이
+# 무엇인지 우리가 못 정하는 반면, 시계는 결정적이라 테스트가 발화시킬 수 있다. GoAway 는
+# 보조 트리거, 스트림 종료는 폴백.
+SESSION_ROTATE_AT_S = 480.0      # 세션 하나가 사는 최대 시간(8분). 연결 ~10분을 120s 선점
+MAX_RECONNECTS = 4               # 통화당 재연결 상한(15분 = 스왑 2회면 충분, 여유 2회)
+RECONNECT_MIN_REMAINING_S = 45.0 # 통화 잔여가 이보다 짧으면 재연결하지 않고 그냥 마무리
+SWAP_FLAP_GUARD_S = 30.0         # 직전 스왑 후 이 시간 안에는 재스왑 금지(플래핑 방어)
 SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
 #                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
 FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 주기(1분)
+# 국적 추론(_trigger_nationality)용으로 붙잡아 두는 **user 원음 상한**(초).
+#
+# 🧒 왜 상한이 필요한가: 예전엔 통화 오디오 전체(비버+학습자)를 state.segments 안에 통화가
+#   끝날 때까지 들고 있었다. DB 저장(flush)이 끝나도 안 놓아줬다 — 15분 통화면 통화당
+#   30~50MB 가 계속 RAM 에 앉아 있고, Cloud Run 인스턴스 하나가 받을 수 있는 동시 통화 수를
+#   그대로 깎아먹는다. 그런데 저장이 끝난 뒤에도 그 바이트가 실제로 필요한 곳은 **딱 하나**,
+#   통화후 국적 추론뿐이고 그건 user 원음만 쓴다. 그래서 저장 직후 비버 PCM 은 전량 놓아주고,
+#   user PCM 은 이 상한만큼만 따로 이어붙여 보관한다(나머지는 놓아준다).
+# 60초 = 호출 게이트(NATIONALITY_MIN_SPEECH_S, 기본 10초)의 6배라 추론 표본은 넉넉하고,
+# 16k·PCM16 기준 약 1.9MB 로 고정된다(통화가 길어져도 안 자란다).
+NATIONALITY_PCM_MAX_S = 60.0
 # 무음 3단 넛지(A2): 클라 마이크는 상시 스트리밍이라 무음을 오디오 부재로 못 잰다 —
 # 무음 = 마지막 활동(학습자 in_tr / 비버 turn_end / 넛지) 이후 경과. 비버 idle(turn_id None)일 때만
 # 카운트하고, 각 단계는 "직전 활동 이후" 신선한 무음을 잰다(비버 발화 직후 넛지 폭발 방지).
@@ -140,17 +170,35 @@ LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 대상 언어 산출 실패(answer_in_targ
 # 종료 판정 사이드카(C): 매 답변마다 전체 전사를 LLM에 넣어 "지금 끝내도 되나(should_end)" 판정 —
 # 등반 실패(정체·막힘)를 맥락으로 조기 종료. 시간 플로어·최소 답변 충족 후에만 반영.
 LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 시작하는 최소 답변 수(성급한 종료 방지)
-# 단발 재접지: 통화 중간(길이의 이 비율 시점)에 캐릭터를 딱 1회 되박아 누적 드리프트 완화.
-REGROUND_AT_FRACTION = 0.5
-# 후반 재접지 지점(길이 비율). 중반(0.5)은 캐릭터 톤을 되살리고, 여기서는 **대화를 계속
-# 끌고 가라**고 되박는다 — 목적이 다르므로 문구도 다르다(build_continue_reminder).
+# ── 재접지(단계 3: 시각 비율 → 압축 신호 통합) ────────────────────────────
+# 🧒 재접지 = 대화가 길어지면 AI 가 캐릭터·규칙·지금까지 한 얘기를 조금씩 잊는데(드리프트),
+#   중간중간 짧게 되박아 주는 것. 옛날엔 "통화 길이의 50%·80% 지점"이라는 **시계**로 넣었다.
 #
-# 왜 필요한가: 시작 지시문에 종료 규약이 있어도 40턴쯤 지나면 흐려진다. 실측 5분 통화
-# 12건 중 3건이 서버 종료 신호보다 4~16턴 먼저 마무리에 들어갔다(call=836 "조심히
-# 들어가!" 12턴 전 / call=744 "오늘은 여기까지" 16턴 전 / call=782 "슬슬 마무리할
-# 시간이다" 4턴 전). 중반 재접지는 캐릭터 톤만 다루므로 여기에 닿지 않았다.
-# 0.8 = 5분 통화의 4분 지점 — 관측된 드리프트 시작(4분대)보다 앞선다.
-REGROUND_LATE_AT_FRACTION = 0.8
+# 왜 시계를 버리나: 진짜로 기억을 지우는 건 시간이 아니라 **컨텍스트 압축**이다. 압축은
+#   trigger_tokens 에 닿는 순간 오래된 대화부터 버리는데, 그 시점은 통화마다 다르다(말이
+#   많으면 빨리, 적으면 늦게). 시계로 맞추면 압축과 어긋나 "이미 잊은 뒤에 되박는" 일이 생긴다.
+#
+# 3층 구조(우선순위):
+#   ① 선제 arm  — prompt_token_count 가 ARM_RATIO × trigger 를 넘으면 = 압축 임박.
+#                 압축 **직전**에 얹은 요약은 컨텍스트 최신단이라 그 압축을 반드시 살아남는다.
+#   ② 사후 감지 — prompt 가 직전 최고치 대비 급감 = 압축이 이미 일어났다. ①이 유저 침묵으로
+#                 얹히지 못한 채 지나간 경우의 보정.
+#   ③ 시간 폴백 — usage_metadata 가 아예 안 오는 환경(필드 미제공·모킹)에서도 돌아야 한다.
+#                 마지막 주입 이후 GAP 경과면 arm(R5 — 자동으로 옛 시간 기반 동작으로 강등).
+REGROUND_ARM_RATIO = 0.85        # 압축 임박 판정(× LIVE_CTX_TRIGGER_TOKENS)
+# 사후 감지 비율. ⚠ 0.75 로 잡지 마라 — 현행 16000/12000 은 낙차가 정확히 0.75 라
+#   경계에 걸리고, 압축이 target 보다 조금 위에서 멈추면(턴 경계 컷) 그대로 미탐이 된다.
+#   실질 방어선은 절대 낙차(DROP_MIN_TOKENS)이고 이 비율은 "큰 컨텍스트의 작은 요동" 배제용.
+REGROUND_DROP_RATIO = 0.85
+REGROUND_DROP_MIN_TOKENS = 2000  # 잡음 배제 — 이만큼은 떨어져야 압축(작은 요동은 무시)
+REGROUND_MIN_GAP_S = 60.0        # 연속 주입 최소 간격(같은 압축 주기에 두 번 얹지 않기)
+REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
+# 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
+#   5분(300s) → 120s → 2회 = 옛 0.5·0.8 지점 2회와 실질 동일(5분 하위호환)
+#   15분(900s) → 240s → 3회 + 압축 arm ≈ 6회 = 0.40회/분(5분과 같은 빈도)
+REGROUND_GAP_DIVISOR = 2.5
+REGROUND_GAP_MIN_S = 120.0
+REGROUND_GAP_MAX_S = 240.0
 # 재접지 모드 스위치(이상 시 코드 한 줄로 하드닝 폴백):
 #   "on_user_turn" — 신방식: arm 후 유저 발화 시작(첫 in_tr) 시 그 턴에 얹기(turn_complete=False).
 #                    비버가 [유저발화+리마인더]에 1회 응답 → 이중발화·종료오염 제거 목표.
@@ -288,13 +336,17 @@ def _resolve_call_duration(
     duration_min 없음 → base(콜타입 기본값). prod 에서 override 오면 무시+warning
     (실서비스는 통화 길이를 클라가 못 정한다 — 오남용/버그 방지). non-prod 는 3~15분 클램프.
 
-    base: 콜타입별 기본 통화 길이. None(미지정)이면 일반 통화 기본값 CALL_DURATION_S 를
-    **런타임에** 읽는다(테스트 monkeypatch 반영 — 리터럴 기본값으로 박으면 def-time 에
-    고정돼 monkeypatch 가 안 먹는다). 레벨테스트는 base=LEVELTEST_MAX_S 로 3분 캡을 준다.
-    하위호환: base 미지정 → 일반 경로 반환 바이트 동일.
+    base: 콜타입별 기본 통화 길이. 호출부가 정한다 — 일반 통화는 플랜별 길이(또는 env
+    강제값), 레벨테스트는 LEVELTEST_MAX_S(3분 캡). None(미지정)이면 env 강제값을
+    **런타임에** 읽고(테스트 monkeypatch 반영 — 리터럴 기본값으로 박으면 def-time 에
+    고정돼 monkeypatch 가 안 먹는다), 그것도 없으면 Free 길이로 떨어진다.
     """
     if base is None:
-        base = CALL_DURATION_S
+        base = (
+            CALL_DURATION_S
+            if CALL_DURATION_S is not None
+            else call_service.FREE_CALL_DURATION_S
+        )
     if duration_min is None:
         return base
     if settings.ENV == "prod":
@@ -310,13 +362,28 @@ class HintOut(BaseModel):
     examples: list[HintExample]
 
 
+class RegroundOut(BaseModel):
+    """재접지 사이드카 구조화 출력 — **문장이 아니라 슬롯만** 받는다.
+
+    ⛔ 여기에 문장 필드를 추가하지 마라. 사이드카가 문장을 만들면 그 문장이 곧 프롬프트가
+      되고, "LLM 생성 0, 순수 조립"(persona_prompt 규율)이 재접지 경로에서만 무너진다.
+      서버가 준 목록에서 **번호**를 고르고, 화제는 짧은 명사구 한 조각만 준다.
+    """
+
+    mode: str = ""            # "study" | "chat" | "" (제안일 뿐 — 채택은 서버가 판정)
+    mode_quote: str = ""      # 모드 전환 근거 인용. 전사에 **실재해야** 채택된다
+    covered: list[int] = []   # 서버가 준 목록의 번호(1-base)
+    topic: str = ""           # 지금 대화 흐름 한 조각(짧은 명사구)
+
+
 class _CallState:
     """두 펌프가 공유하는 통화 상태(세그먼트 누적 + 시계 + 종료 플래그)."""
 
     __slots__ = (
         "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
         "seed_sent_ts",
-        "playback_done_event", "segments", "persisted_count",
+        "playback_done_event", "segments", "persisted_count", "nationality_pcm",
+        "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
@@ -326,9 +393,17 @@ class _CallState:
         "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "continue_reminder", "continue_injected",
+        # 재접지 통합(단계 3) — 압축 신호 관측 + 사이드카 + 모드 sticky
+        "reground_count", "last_reground_ts", "reground_arm_reason",
+        "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
+        "call_mode", "usage_prompt_peak", "usage_prompt_max", "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
+        # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
+        # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
+        "resume_handle", "session_epoch", "reconnects", "swap_requested", "last_swap_ts",
+        "usage_log", "usage_dropped",
     )
 
     def __init__(self) -> None:
@@ -339,6 +414,14 @@ class _CallState:
         # 자기낭독 안전망: 이번 비버 턴에 제어 태그가 섞였는지 / 재개 시드를 몇 번 넣었는지.
         self.tag_leak_seen = False
         self.resume_sent = 0
+        # 세션 재개 핸들. 서버가 주기적으로 밀어주고, 우리는 최신 것만 들고 있다가
+        # 재연결에 쓴다. ⚠ resumable=False 로 온 갱신은 **덮어쓰지 않는다** — 그 시점
+        # 상태(모델 생성 중·tool 실행 중)로 재개하면 데이터가 유실된다.
+        self.resume_handle: Optional[str] = None
+        self.session_epoch = 0        # 이 통화에서 몇 번째 연결인가(1부터)
+        self.reconnects = 0           # 실제 스왑 횟수(상한 MAX_RECONNECTS)
+        self.swap_requested = False   # 시계/GoAway 가 세우고, 펌프가 깨끗한 경계에서 실행
+        self.last_swap_ts: Optional[float] = None
         self.turn_id: Optional[str] = None
         self.call_start_ts: Optional[float] = None
         self.should_close = False
@@ -350,6 +433,12 @@ class _CallState:
         self.playback_done_event = asyncio.Event()
         self.segments: list[dict] = []
         self.persisted_count = 0  # 이미 DB 에 저장한 세그먼트 수(점진 flush 커서)
+        # 저장이 끝난 세그먼트에서 회수해 둔 user 원음(국적 추론 전용, NATIONALITY_PCM_MAX_S 상한).
+        # ⚠ 이게 있어야 세그먼트 PCM 을 flush 직후 놓아줄 수 있다 — 상세는 _release_persisted_pcm.
+        self.nationality_pcm = bytearray()
+        # 종료 요청 신호(TaskGroup **밖**의 사이드카 → 시계워처). 사이드카가 죽은 세션을 잡고
+        # 직접 종료 시드를 주입하던 경로를 이 이벤트로 대체했다(_band_observe_sidecar 참조).
+        self.close_requested = asyncio.Event()
         self.cur_user_pcm = bytearray()
         self.cur_user_text: list[str] = []
         self.cur_beaver_pcm = bytearray()
@@ -375,9 +464,11 @@ class _CallState:
         # silence_stage: 0=무넛지, 1=1단 주입됨, 2=2단 주입됨(3단은 직접 종료 시드 주입).
         self.last_activity_ts: Optional[float] = None
         self.silence_stage: int = 0
-        # 통화 길이(초). 기본 CALL_DURATION_S. 데모/dev 는 start.duration_min 으로 3~15분
-        # override(run_call 에서 세팅). _watch_call_clock 이 모듈 상수 대신 이 값을 본다.
-        self.call_duration_s: float = CALL_DURATION_S
+        # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
+        # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
+        # 이 값을 본다. 여기 기본값은 run_call 을 안 거치는 펌프 단위 테스트용 안전값이라
+        # 플랜을 모르는 상태의 보수적 선택(Free 길이 또는 env 강제값)으로 둔다.
+        self.call_duration_s: float = _resolve_call_duration(_settings, None)
         # 무음 3단 캐던스 + 1단 넛지 시드(콜타입별 — run_call 이 꽂는다). 기본은 일반 통화 값.
         # _watch_idle 은 모듈 상수 대신 이 필드를 본다(레벨테스트만 짧은 캐던스로 override).
         self.idle_nudge1_s: float = IDLE_NUDGE1_S
@@ -396,6 +487,36 @@ class _CallState:
         self.reground_pending: bool = False
         self.reground_injected: bool = False
         self.user_turn_open: bool = False
+        # ── 재접지 통합(단계 3) ──
+        # reground_count: 이번 통화에 실제로 얹은 횟수(상한 REGROUND_MAX_PER_CALL).
+        #   ⚠ reground_injected(1회성 불리언)를 이걸로 대체한다 — 옛 게이트는 중반 재접지가
+        #     얹히면 True 로 굳어 **후반 리마인더가 영원히 안 얹혔다**(실측 결함).
+        # last_reground_ts: 마지막 주입 시각(최소 간격·시간 폴백 기준).
+        # reground_arm_reason: 이번 arm 의 근거("compress"/"post-compress"/"time") — 로그·테스트용.
+        # reground_ctx: 재접지 사이드카 {client, model, instruction}. None = 사이드카 비활성.
+        # reground_items: 사이드카에 번호로 떠먹일 학습 항목 라벨(서버가 소유하는 목록).
+        # reground_persona: (role, personality) — 문구 조립 재료.
+        # call_mode: 공부/대화 모드. **서버가 sticky 로 소유**하고, 사이드카 제안은 전사에
+        #   실재하는 인용이 증명될 때만 받아들인다(AI 는 증인, 코드가 심판).
+        self.reground_count: int = 0
+        self.last_reground_ts: Optional[float] = None
+        self.reground_arm_reason: str = ""
+        self.reground_ctx: Optional[dict] = None
+        self.reground_items: list[str] = []
+        self.reground_tasks: set[asyncio.Task] = set()
+        self.reground_persona: tuple[str, str] = ("", "")
+        self.call_mode: str = "chat"
+        # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
+        # ⚠ peak 와 max 는 **다른 값이다.**
+        #   usage_prompt_peak — 압축 사이클 peak. 압축될 때마다 바닥에서 다시 센다.
+        #     낙차를 재는 기준선이자 재접지 arm 게이트의 입력이라 반드시 리셋돼야 한다.
+        #   usage_prompt_max  — 통화 전체 최대치. **절대 리셋 없음**(단조증가).
+        #     DB(call.usage_peak_prompt)로 가는 건 이쪽이다. 압축 트리거 하향 실험이
+        #     "이 통화가 실제로 몇 토큰까지 갔나"를 물으므로. 예전엔 사이클 peak 가
+        #     저장돼 call 909 에서 13,355(DB) vs 15,904(실제)로 어긋났다.
+        self.usage_prompt_peak: int = 0
+        self.usage_prompt_max: int = 0
+        self.compression_seen: int = 0
         # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
         # band_client: judge_leveltest_turn 에 넘길 genai.Client(사이드카가 참조).
@@ -416,6 +537,12 @@ class _CallState:
         self.band_tasks: set[asyncio.Task] = set()
         # 종료 판정 사이드카(C)용 전체 전사 누적 — "Q: … / A: …" 턴별. 종료 판정관이 맥락으로 읽는다.
         self.leveltest_transcript: list[str] = []
+        # ── 원가 계기판(Phase 0) ──
+        # usage_log: Gemini Live 가 메시지마다 실어 보내는 과금 계측(usage_metadata)의 시계열.
+        #   지금껏 이 값을 읽지 않아 통화 원가가 추정치뿐이었다. 통화 종료 시 1줄로 방출하고
+        #   버린다(DB 저장 없음 — 관측 단계). usage_dropped: 상한 초과로 버린 개수.
+        self.usage_log: list[dict] = []
+        self.usage_dropped: int = 0
 
 
 class _ClientDisconnect(Exception):
@@ -424,6 +551,47 @@ class _ClientDisconnect(Exception):
 
 class _CallFinished(Exception):
     """통화 정상 종료(작별 후/백스톱) 내부 신호."""
+
+
+class _SessionSwap(Exception):
+    """Live 연결을 갈아끼워야 한다는 내부 신호(통화는 계속된다).
+
+    ⚠ _CallFinished 와 헷갈리지 마라 — 이건 **통화 종료가 아니다**. 세대 루프가 잡아서
+      새 연결을 열고 대화를 이어간다. 종료가 스왑보다 항상 우선이므로, should_close 나
+      close_seed_sent 가 서 있으면 이 신호를 올리지 않는다.
+    """
+
+
+def _release_persisted_pcm(state: _CallState, upto: int) -> int:
+    """저장이 끝난 세그먼트 [0, upto) 의 PCM 바이트를 놓아준다. 해제한 바이트 수를 반환.
+
+    🧒 통화 오디오는 무겁다(비버 출력 24kHz·학습자 입력 16kHz, 둘 다 16bit). 15분 통화면
+      다 합쳐 수십 MB 다. 예전엔 DB 저장이 끝난 뒤에도 이 바이트가 state.segments 안에
+      그대로 남아 통화가 끝날 때까지 메모리를 잡고 있었다(저장 커서 persisted_count 만
+      올렸다). 저장이 끝난 오디오는 이미 스토리지에 있으니 서버가 계속 들고 있을 이유가 없다.
+
+    ⚠ 딱 하나 예외: 통화후 **국적 추론**은 학습자(user) 원음을 다시 읽는다. 그래서 놓아주기
+      전에 user PCM 만 nationality_pcm 으로 옮겨 담는다 — 단 NATIONALITY_PCM_MAX_S 상한까지만.
+      추론 게이트가 10초라 60초면 표본은 충분하고, 보관량이 통화 길이와 무관하게 고정된다.
+
+    ⚠ 오디오 업로드 경로와 충돌하지 않는다: 점진 flush(upload_audio=True)는 저장 시점에
+      업로드까지 끝내고, 최종 persist(upload_audio=False)는 save_segments 가 pending 목록에
+      **바이트 사본**을 떠 가므로 후행 업로드가 여기 원본에 의존하지 않는다.
+
+    호출 규약: 반드시 저장이 성공한 뒤에만, 저장된 구간까지만 부른다(upto <= persisted_count).
+    통화 종료 뒤 마지막 회수만 예외로 전체 구간을 부른다(그 시점엔 아무도 원본을 안 읽는다).
+    """
+    limit = int(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES * NATIONALITY_PCM_MAX_S)
+    freed = 0
+    for seg in state.segments[:upto]:
+        pcm = seg.get("pcm")
+        if not pcm:
+            continue
+        if seg["role"] == "user" and len(state.nationality_pcm) < limit:
+            state.nationality_pcm.extend(pcm[: limit - len(state.nationality_pcm)])
+        freed += len(pcm)
+        seg["pcm"] = b""
+    return freed
 
 
 def _flush_user_segment(state: _CallState) -> None:
@@ -439,6 +607,38 @@ def _flush_user_segment(state: _CallState) -> None:
     state.cur_user_text = []
 
 
+def _reading_speed_line(text: str, audio_bytes: int) -> str:
+    """비버 발화 1건의 **읽기 속도** — 캐스케이드의 `읽기=…` 와 같은 잣대로 낸다.
+
+    ⛔ 바이트→초는 `core.audio.output_audio_s` **하나**를 쓴다. 두 경로가 각자 계산하면
+      비교 자체가 무의미해진다(그게 이 계측의 유일한 목적이다).
+    ⚠ 분자는 `len(text)` — 캐스케이드도 같은 규칙(문장 전체 길이)이라 그대로 맞춘다.
+      공백·문장부호가 섞이지만 **두 쪽이 같은 방식으로 섞이므로** 비교는 성립한다.
+
+    언어 구분: Live 는 마커를 안 쓰므로 **문자 종류**로 가른다
+    (`core.languages` 의 스크립트 표 — 레벨테스트가 쓰는 것과 같은 잣대다).
+    한 발화가 한 언어에 90% 이상 쏠렸을 때만 그 언어로 이름표를 붙이고, 섞였으면 `mixed`
+    로 낸다 — 섞인 발화는 **어느 언어가 몇 초를 썼는지 알 수 없기 때문**이다(오디오는
+    통짜 하나다). ⛔ 모르면 아는 척하지 않는다. 전체 값만으로도 판단은 된다.
+    """
+    audio_s = audio.output_audio_s(audio_bytes)
+    chars = len(text or "")
+    if audio_s <= 0 or chars <= 0:
+        return "읽기=측정불가(소리 %.1f초 글자 %d)" % (audio_s, chars)
+    ko = count_target_script_chars(text, "ko")
+    latin = count_target_script_chars(text, "en")
+    script_total = ko + latin
+    label = "mixed"
+    if script_total:
+        if ko >= script_total * 0.9:
+            label = "ko"
+        elif latin >= script_total * 0.9:
+            label = "en"
+    return "읽기=%.1f자per초 [%s:%d자/%.1f초] (한글 %d 라틴 %d)" % (
+        chars / audio_s, label, chars, audio_s, ko, latin,
+    )
+
+
 def _flush_beaver_segment(state: _CallState) -> None:
     if not state.cur_beaver_pcm and not state.cur_beaver_text:
         return
@@ -450,6 +650,12 @@ def _flush_beaver_segment(state: _CallState) -> None:
         text = _CONTROL_TAG_RE.sub("", text)
     text = text.strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
+    # ⭐ **말하기 속도 실측**(2026-08-10). 사장님: "라이브에서는 속도가 딱 좋아" — 그러니
+    #   Live 값이 캐스케이드 TTS 의 **목표 숫자**가 된다. 지금은 "몇 자per초가 정상인가"에
+    #   근거가 없어서, 느리다는 판정이 귀에만 있고 숫자로 못 옮겨진다.
+    #   ⛔ 계측만이다. 흐름·버퍼는 건드리지 않는다(R4) — 이미 있는 pcm/전사의 **길이만** 센다.
+    logger.info("🦫 BEAVER[t%d] %s", state.next_turn_index,
+                _reading_speed_line(text, len(state.cur_beaver_pcm)))
     # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
     # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
     if state.band_observe and text:
@@ -460,6 +666,232 @@ def _flush_beaver_segment(state: _CallState) -> None:
     state.next_turn_index += 1
     state.cur_beaver_pcm = bytearray()
     state.cur_beaver_text = []
+
+
+# --------------------------------------------------------------------------- #
+# 원가 계기판(Phase 0) — Live usage_metadata 수집·방출
+# --------------------------------------------------------------------------- #
+# 통화당 적재 상한. 15분 통화·이상 상황에서 메모리·로그가 폭주하지 않게 한다.
+# 초과분은 개수만 세고 버린다(요약의 Σ 가 과소가 되지만, dropped 로 드러난다).
+_USAGE_LOG_MAX = 400
+
+
+def _modality_pairs(details) -> list[tuple[str, int]]:
+    """ModalityTokenCount 리스트를 (모달리티명, 토큰수) 튜플로 정규화한다.
+
+    modality 는 SDK enum(MediaModality) 이라 .name 을 우선 쓰고, 문자열이면 그대로 쓴다.
+    필드가 없거나 형태가 다르면 조용히 건너뛴다 — 계측이 통화를 죽이면 안 된다.
+    """
+    out: list[tuple[str, int]] = []
+    for m in details or []:
+        mod = getattr(m, "modality", None)
+        name = getattr(mod, "name", None) or (str(mod) if mod is not None else "UNKNOWN")
+        count = getattr(m, "token_count", None)
+        if count:
+            out.append((name, int(count)))
+    return out
+
+
+def _observe_compression(state: _CallState, prompt) -> None:
+    """prompt_token_count 시계열로 **컨텍스트 압축**을 관측한다(재접지 트리거의 눈).
+
+    🧒 Live 는 "압축했다"는 이벤트를 안 준다(전 필드를 다 뒤졌다). 유일한 단서가 매 턴
+      실려 오는 입력 토큰 수다 — 대화가 쌓이면 계속 늘다가, 압축이 일어나면 **뚝 떨어진다**.
+      그 톱니를 보고 추론하는 게 여기다.
+
+    두 신호를 세운다:
+      - 임박(선제): 최고치가 ARM_RATIO × trigger 를 넘었다 → 곧 압축된다.
+      - 발생(사후): 최고치 대비 급감했다 → 방금 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우).
+
+    ⚠ 미탐(주입 누락)은 무해하고 오탐(불필요 주입)은 이중발화 위험이라, 임계는 미탐 쪽으로
+      보수적으로 잡는다 — 절대 낙차(DROP_MIN_TOKENS)까지 함께 요구한다.
+    판정 결과는 플래그가 아니라 상태값(peak·compression_seen)으로만 남긴다. arm 여부는
+    워처가 이 값을 읽어 정한다(관측과 결정의 분리).
+    """
+    if not prompt:
+        return
+    p = int(prompt)
+    # 통화 전체 최대치는 압축과 무관하게 여기서만 갱신한다(아래 리셋에 걸리지 않는 자리).
+    if p > state.usage_prompt_max:
+        state.usage_prompt_max = p
+    peak = state.usage_prompt_peak
+    if p > peak:
+        state.usage_prompt_peak = p
+        return
+    # 급감 = 압축. 비율과 절대 낙차를 **둘 다** 만족해야 한다(작은 요동 배제).
+    if peak - p >= REGROUND_DROP_MIN_TOKENS and p <= peak * REGROUND_DROP_RATIO:
+        state.compression_seen += 1
+        state.usage_prompt_peak = p  # 새 사이클의 바닥에서 다시 센다
+        logger.info(
+            "normalcall: 컨텍스트 압축 감지 #%d (prompt %d → %d)",
+            state.compression_seen, peak, p,
+        )
+
+
+def _record_usage(state: _CallState, um) -> None:
+    """Live usage_metadata 1건을 시계열에 적재한다(예외 전량 흡수, R5).
+
+    🧒 왜 이걸 모으나: Live API 는 비버가 한 턴 말할 때마다 **그때까지의 대화 전체**를
+      입력으로 다시 과금한다. 통화가 길어질수록 매 턴의 입력값이 커지는 구조라, 통화
+      원가의 대부분이 여기서 나온다. 그런데 서버가 이 숫자를 여태 한 번도 안 봤다 —
+      가장 비싼 항목이 가장 안 보이는 상태였다. 여기서 그걸 받아 적는다.
+
+    ⚠ 이 값이 "메시지별 증분"인지 "세션 누적"인지는 서버가 정하고 문서로 확정되지
+      않았다. 그래서 해석하지 않고 원본 그대로 시계열에 쌓아, 종료 로그가 Σ(합)과
+      last(마지막 값)를 **둘 다** 내보내게 한다 — 단조증가면 누적, 톱니면 증분이다.
+      같은 시계열이 "컨텍스트 압축이 실제로 발동하는가"도 함께 답한다.
+    """
+    try:
+        # 압축 관측은 적재 상한과 무관하게 계속 돈다 — 상한을 넘긴 긴 통화야말로 압축이
+        # 가장 활발한 구간이라, 여기서 끊으면 재접지가 후반부터 눈이 먼다.
+        _observe_compression(state, getattr(um, "prompt_token_count", None))
+        if len(state.usage_log) >= _USAGE_LOG_MAX:
+            state.usage_dropped += 1
+            return
+        t: Optional[float] = None
+        if state.call_start_ts is not None:
+            t = round(asyncio.get_running_loop().time() - state.call_start_ts, 1)
+        state.usage_log.append({
+            "t": t,                               # 통화 시계 기준 경과초(첫 턴 전이면 None)
+            "turn": state.next_turn_index,        # 이 시점의 세그먼트 커서(턴 진행도 근사)
+            "prompt": getattr(um, "prompt_token_count", None),
+            "resp": getattr(um, "response_token_count", None),
+            "total": getattr(um, "total_token_count", None),
+            "thoughts": getattr(um, "thoughts_token_count", None),
+            "cached": getattr(um, "cached_content_token_count", None),
+            "tool_in": getattr(um, "tool_use_prompt_token_count", None),
+            "in_detail": _modality_pairs(getattr(um, "prompt_tokens_details", None)),
+            "out_detail": _modality_pairs(getattr(um, "response_tokens_details", None)),
+        })
+    except Exception as exc:  # noqa: BLE001 - 계측 실패가 통화를 죽이면 안 된다(R5)
+        logger.debug("normalcall usage: 적재 실패(무시): %s", exc)
+
+
+def _usage_summary(state: _CallState) -> Optional[dict]:
+    """usage 시계열을 요약 1건으로 접는다(순수 함수 — 로그와 DB 의 **단일 소스**).
+
+    로그 줄과 영속화(call.usage_*)가 서로 다른 계산을 하면 "로그엔 이렇게 찍혔는데 DB 엔
+    다른 값"이 된다. 그래서 계산은 여기 한 곳에만 두고, 로그는 이 결과를 문자열로 만들고
+    DB 는 같은 결과를 컬럼에 넣는다.
+
+    usage 가 한 건도 없으면 None — 호출부가 "계측 미수신"으로 분기한다(0 토큰과 구별).
+    """
+    log = state.usage_log
+    if not log:
+        return None
+
+    def _s(key: str) -> int:
+        return sum(int(e[key] or 0) for e in log)
+
+    in_mod: dict[str, int] = {}
+    out_mod: dict[str, int] = {}
+    for e in log:
+        for name, cnt in e["in_detail"]:
+            in_mod[name] = in_mod.get(name, 0) + cnt
+        for name, cnt in e["out_detail"]:
+            out_mod[name] = out_mod.get(name, 0) + cnt
+
+    times = [e["t"] for e in log if e["t"] is not None]
+    last = log[-1]
+    # 단조성: total 이 한 번도 줄지 않으면 누적 의심, 줄었으면 증분 확정(+압축 발동 신호).
+    totals = [int(e["total"] or 0) for e in log]
+    monotonic = all(b >= a for a, b in zip(totals, totals[1:]))
+    return {
+        "msgs": len(log),
+        "dropped": state.usage_dropped,
+        "t_first": times[0] if times else None,
+        "t_last": times[-1] if times else None,
+        "sum_prompt": _s("prompt"), "sum_resp": _s("resp"),
+        "sum_thoughts": _s("thoughts"), "sum_total": _s("total"),
+        "last_prompt": last["prompt"], "last_total": last["total"],
+        "monotonic": monotonic,
+        "in_mod": in_mod, "out_mod": out_mod,
+        # 압축·재연결 관측(원가 추이와 함께 봐야 의미가 있는 값들).
+        # ⚠ peak_prompt 는 **통화 전체 최대치**(단조증가)다. 압축마다 리셋되는 사이클 peak 는
+        #   cycle_peak 로 따로 낸다 — DB 에 사이클 peak 를 넣었더니 "이 통화가 몇 토큰까지
+        #   갔나"를 못 보게 됐던 게 call 909(13,355 vs 실제 15,904)에서 드러났다.
+        "peak_prompt": state.usage_prompt_max,
+        "cycle_peak": state.usage_prompt_peak,
+        "compressions": state.compression_seen,
+        "epochs": state.session_epoch, "reconnects": state.reconnects,
+    }
+
+
+def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -> None:
+    """통화 종료 시 usage 요약을 로그로 방출한다(요약 1줄 + 선택 시계열 1줄).
+
+    ⛔ 이 줄의 형식을 바꾸지 마라. `key=value` 로 못박아 둔 덕에 Cloud Logging 로그 기반
+    메트릭이 **코드 변경 0줄**로 숫자를 뽑아가고 있고, 조사도 이 줄을 grep 해서 한다.
+    영속화(2단계)가 붙은 뒤에도 로그는 그대로다 — DB 는 30일 이후를 위한 것이고,
+    로그는 지금 당장 보기 위한 것이라 둘 다 필요하다.
+    """
+    s = _usage_summary(state)
+    if s is None:
+        # usage 가 한 건도 안 왔다 = 필드 미제공이거나 모킹 세션. 원인 추적용으로만 남긴다.
+        logger.info("normalcall usage: call_id=%s type=%s msgs=0 (usage_metadata 미수신)",
+                    call_id, call_type)
+        return
+    in_mod, out_mod = s["in_mod"], s["out_mod"]
+
+    logger.info(
+        "normalcall usage: call_id=%s type=%s msgs=%d dropped=%d t=[%s..%s] "
+        "sum_prompt=%d sum_resp=%d sum_thoughts=%d sum_total=%d "
+        "last_prompt=%s last_total=%s monotonic=%s "
+        "sum_in=%s sum_out=%s",
+        call_id, call_type, s["msgs"], s["dropped"],
+        f"{s['t_first']:.1f}" if s["t_first"] is not None else "?",
+        f"{s['t_last']:.1f}" if s["t_last"] is not None else "?",
+        s["sum_prompt"], s["sum_resp"], s["sum_thoughts"], s["sum_total"],
+        s["last_prompt"], s["last_total"], s["monotonic"],
+        # 모달리티 분해 — 오디오/텍스트 단가가 6배 차이라 이게 있어야 원가가 계산된다.
+        ",".join(f"{k}={v}" for k, v in sorted(in_mod.items())) or "-",
+        ",".join(f"{k}={v}" for k, v in sorted(out_mod.items())) or "-",
+    )
+
+    if s["sum_thoughts"]:
+        # 🧒 이 줄이 보이면 원가 산식이 낡았다는 뜻이다. Live 원가는 모달리티 4항만 곱하고
+        #   사고 토큰을 안 더한다 — 지금 모델(비-사고 native-audio)이 사고를 안 해서
+        #   0 이라는 전제 위에 서 있는 계산이다. 사고형 모델로 갈아탔거나 모델이 조용히
+        #   바뀌었으면 그 전제가 깨지고 **원가가 과소 계상된다.**
+        #   확인할 것: 모달리티 분해(sum_out)가 이 토큰을 이미 품는지. 안 품으면
+        #   estimate_usage_cost_usd 에 out_text 단가로 더해라(주석에 근거 있음).
+        logger.warning(
+            "normalcall usage: call_id=%s 사고 토큰 %d 관측 — Live 원가 산식이 이 값을 "
+            "안 세고 있다(과소 계상 가능). estimate_usage_cost_usd 주석 참조",
+            call_id, s["sum_thoughts"],
+        )
+
+    if _settings.LIVE_USAGE_TRACE:
+        # 시계열 상세: 압축 발동 판정용(톱니 = 발동, 단조증가 = 미발동).
+        trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in state.usage_log)
+        logger.info("normalcall usage trace: call_id=%s t:prompt/total %s", call_id, trace)
+
+
+async def _persist_usage(db_session_factory, state: _CallState, call_id: int | None) -> None:
+    """usage 요약을 통화 행에 남긴다(원가 계기판 2단계 — 로그 30일 보존을 넘기기 위해).
+
+    ⛔ 통화 경로가 아니다. 통화 루프가 끝난 뒤 붙는 부가 작업이라, 실패해도 전사 저장·분석·
+      통화 종료는 그대로 간다(R5). 그래서 _persist_remaining 과 **트랜잭션을 나눈다** —
+      한 트랜잭션에 묶으면 usage 오류 하나가 통화 기록을 같이 죽인다.
+    ⛔ usage 가 한 건도 없으면 **아무것도 쓰지 않는다.** NULL 로 남아야 "계측 안 됨"과
+      "정말 0 토큰"이 구별된다.
+    """
+    if call_id is None:
+        return
+    summary = _usage_summary(state)
+    if summary is None:
+        return
+    try:
+        await svc.run_db(
+            db_session_factory,
+            # ⛔ 엔진 태그는 **반드시** 넘긴다. 이게 비면 나중에 캐스케이드 행과 섞여
+            #   "어느 엔진의 원가인지" 되짚을 수 없게 된다(계약: models/call.py usage_engine).
+            lambda db: svc.save_call_usage(
+                db, call_id, summary, engine=svc.ENGINE_LIVE_GEMINI
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001 - 계기판 저장 실패가 통화를 죽이면 안 된다(R5)
+        logger.warning("normalcall usage: 영속화 실패(무시) call_id=%s: %s", call_id, exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -658,7 +1090,9 @@ async def run_call(
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
-        # 단발 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"): DB 캐릭터 3필드를 중간에 1회 되박음.
+        # 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"). 통합 재접지는 캐릭터 3필드에
+        # 맥락 슬롯을 얹어 조립하므로(build_reground_brief) 페르소나 원재료를 그대로 넘긴다.
+        # 아래 두 문자열은 하위호환(legacy 문구 · 기존 테스트 계약)용으로 계속 만든다.
         if REGROUND_MODE != "off":
             reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
             continue_reminder = build_continue_reminder(setup["role"], setup["personality"])
@@ -677,8 +1111,22 @@ async def run_call(
     state = _CallState()
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
-    state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(중간 1회 재접지)
-    state.continue_reminder = continue_reminder  # 후반 1회(대화 지속)
+    state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
+    state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
+    if call_type != "level_test" and REGROUND_MODE != "off":
+        # 재접지 통합(단계 3): 문구 조립 재료 + 사이드카에 번호로 떠먹일 항목 목록 + 모드 시드.
+        # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
+        #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
+        state.reground_persona = (setup["role"] or "", setup["personality"] or "")
+        state.reground_items = [
+            str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
+        ][:10]
+        state.call_mode = "study" if state.reground_items else "chat"
+        state.reground_ctx = {
+            "client": client,
+            "model": settings.JUDGE_MODEL,
+            "instruction": _reground_instruction(state.reground_items, target_language),
+        }
     # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
     # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
     live_tools = None
@@ -702,7 +1150,19 @@ async def run_call(
         state.band_client = client
         state.band_target_language = target_language  # (멀티랭귀지) 판정관 대상 언어
     else:
-        state.call_duration_s = _resolve_call_duration(settings, duration_override)
+        # 일반 통화 길이 = 구독 플랜(Free 5분 / Pro·Max 15분). env 강제값이 있으면 그게
+        # 이긴다 — dev/demo 에서 구독 없이 15분 경로를 밟기 위한 탈출구이고, 테스트가
+        # monkeypatch 하는 지점도 여기다(값이 박히면 DB 조회 자체를 건너뛴다).
+        if CALL_DURATION_S is not None:
+            plan_duration_s = CALL_DURATION_S
+        else:
+            plan_duration_s = await svc.run_db(
+                db_session_factory,
+                lambda db: call_service.call_duration_s_for_member(db, member_id),
+            )
+        state.call_duration_s = _resolve_call_duration(
+            settings, duration_override, base=plan_duration_s
+        )
         state.idle_nudge1_s = IDLE_NUDGE1_S
         state.idle_nudge2_s = IDLE_NUDGE2_S
         state.idle_close_s = IDLE_CLOSE_S
@@ -738,7 +1198,10 @@ async def run_call(
     # 절대 백스톱: 기본은 ABSOLUTE_CALL_TIMEOUT_S(540s, 연결 ~10분 선점). 단 데모가 통화 길이를
     # 길게 잡으면(예: 15분) 이 상한이 시계보다 먼저 떨어져 통화를 잘라버린다 — 그래서 선택 길이
     # +마무리 여유를 하한으로 삼아 시계가 정상 종료할 시간을 준다. 짧은/기본 통화는 그대로 540s.
-    # ⚠ 10분 초과 선택은 Gemini 연결 한계(~10분)로 GoAway/연결종료가 먼저 올 수 있다(데모 한정 감수).
+    # ⭐ 2026-08-04: 예전엔 "10분 초과 선택은 연결 한계로 GoAway 가 먼저 올 수 있다(감수)"였다.
+    #   이제 세대 루프가 연결을 갈아끼우므로 통화 길이와 연결 수명이 분리됐다 — 연결 수명은
+    #   SESSION_ROTATE_AT_S 가, 통화 전체는 이 백스톱이 각각 지킨다. 이 상한은 없애면 안 된다:
+    #   재연결이 생긴 뒤로는 버그 하나가 곧 무한 세션(= 무한 과금)이 될 수 있다.
     absolute_timeout = max(
         ABSOLUTE_CALL_TIMEOUT_S, state.call_duration_s + SEED_TO_HANGUP_S + 30.0
     )
@@ -759,7 +1222,9 @@ async def run_call(
                 tools=live_tools,
             )
     except TimeoutError:
-        logger.warning("normalcall 통화 상한(%.0fs) 초과 — 강제 종료", ABSOLUTE_CALL_TIMEOUT_S)
+        # ⚠ 상수가 아니라 **실제 적용된** 상한을 찍는다 — 데모/장통화는 값이 다른데
+        #   상수를 찍으면 로그가 거짓말을 한다(15분 통화에서 952s 인데 540s 로 보인다).
+        logger.warning("normalcall 통화 상한(%.0fs) 초과 — 강제 종료", absolute_timeout)
     except _ClientDisconnect:
         logger.info("normalcall 클라 연결 종료")
     except _CallFinished:
@@ -787,8 +1252,18 @@ async def run_call(
         # Phase 2: 미완 밴드 관측 사이드카 전량 취소(통화 종료 후 뒤늦은 관측·종료 시도 방지).
         for t in list(state.band_tasks):
             t.cancel()
+        # 단계 3: 미완 재접지 브리프 사이드카 전량 취소(끝난 통화의 문구를 만들 이유가 없다).
+        for t in list(state.reground_tasks):
+            t.cancel()
         _flush_user_segment(state)
         _flush_beaver_segment(state)
+        # 원가 계기판(Phase 0): 어떤 경로로 끝나든(정상 작별·클라 끊김·백스톱·예외) 딱 한 번
+        # 방출한다. 로그가 통화후 파이프라인을 막지 않게 예외는 전량 흡수(R5).
+        with contextlib.suppress(Exception):
+            _log_usage_summary(state, call_id, call_type)
+        # 2단계(영속화): 로그는 30일이면 사라진다. 원가 추이를 계속 보려면 행에 남아야 한다.
+        # 예외는 함수 안에서 흡수한다(R5) — 통화 기록·분석과 트랜잭션을 나눠 둔 이유.
+        await _persist_usage(db_session_factory, state, call_id)
         # P2.6: 전사(텍스트) 선저장 — 오디오 MP3 변환·업로드(~9s)는 pending 으로 분리.
         pending_audio = await _persist_remaining(db_session_factory, state, call_id, member_id)
         # 분석 태스크를 먼저 생성(분석 우선 착수) → 오디오 업로드는 병렬 후행.
@@ -801,11 +1276,15 @@ async def run_call(
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
-        # 요구5: 국적 추론 훅(fire-and-forget) — user 턴 in-memory PCM 을 넘긴다. 통화 루프
-        # 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
+        # 마지막 회수·해제(B1): 아직 안 놓아준 세그먼트의 PCM 을 여기서 전부 정리한다.
+        # 이 시점 이후 원본을 읽는 코드는 없다 — 오디오 후행 업로드는 save_segments 가 뜬
+        # 사본(pending_audio)을 쓰고, 국적 추론은 아래 nationality_pcm 을 쓴다.
+        _release_persisted_pcm(state, len(state.segments))
+        # 요구5: 국적 추론 훅(fire-and-forget) — 통화 내내 회수해 둔 user 원음을 넘긴다. 통화
+        # 루프 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
         _trigger_nationality(
             db_session_factory, call_id, member_id,
-            user_pcm=[s["pcm"] for s in state.segments if s["role"] == "user" and s.get("pcm")],
+            user_pcm=bytes(state.nationality_pcm),
         )
         await _finish_call(client_ws, state, call_id)
 
@@ -962,12 +1441,15 @@ def _trigger_audio_upload(
 
 
 def _trigger_nationality(
-    db_session_factory, call_id: int, member_id: int, user_pcm: list[bytes]
+    db_session_factory, call_id: int, member_id: int, user_pcm: bytes
 ) -> None:
     """user 턴 음성으로 국적을 추론해 프로필을 갱신하는 훅을 백그라운드 task 로 띄운다(요구5).
 
     _trigger_audio_upload 와 100% 동일 패턴(GC 방지 강참조 + done 콜백). 예외는 전량
     흡수 — 국적 추론 실패는 통화·분석에 무손상(R5). 매 통화(레벨테스트 포함)에서 돈다.
+
+    user_pcm: 통화 내내 회수해 둔 학습자 원음(_release_persisted_pcm 이 이어붙인 단일 바이트열,
+    NATIONALITY_PCM_MAX_S 상한). 비면 아무것도 하지 않는다.
 
     🧒 왜 GCS(클라우드 저장소)에서 오디오를 도로 내려받지 않고, 통화 중 메모리에 쌓아둔
       user PCM(원음 조각들)을 바로 쓰나? 이유 셋:
@@ -991,7 +1473,7 @@ def _trigger_nationality(
 
     async def _run() -> None:
         try:
-            pcm = b"".join(user_pcm)
+            pcm = bytes(user_pcm)
             total_s = len(pcm) / (INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)
             if total_s < _settings.NATIONALITY_MIN_SPEECH_S:
                 logger.debug(
@@ -1047,9 +1529,63 @@ async def _run_session(
     factory 에 아예 넘기지 않아 기존 세션 팩토리 시그니처(system_instruction/voice)와 바이트 동일
     (테스트의 가짜 팩토리도 무손상). 값이 있을 때만 tools= 를 흘려 open_session 이 config 에 주입.
     """
+    while True:
+        try:
+            await _run_one_generation(
+                client_ws,
+                state=state,
+                system_instruction=system_instruction,
+                voice=voice,
+                seed_text=seed_text,
+                settings=settings,
+                client=client,
+                live_session_factory=live_session_factory,
+                db_session_factory=db_session_factory,
+                call_id=call_id,
+                member_id=member_id,
+                tools=tools,
+            )
+            return
+        except _SessionSwap:
+            # 세대 교체. 여기까지 왔다는 건 펌프가 **깨끗한 턴 경계**에서 올렸다는 뜻이다
+            # (비버 idle + 유저 턴 닫힘 + 종료 미진행). 이전 TaskGroup 은 이미 완전히
+            # 끝났고 세션도 __aexit__ 로 닫혔다 — 세션이 세대의 지역 변수라 별칭이 남을
+            # 수 없다(좀비 방지가 구조로 보장된다).
+            state.reconnects += 1
+            state.last_swap_ts = asyncio.get_running_loop().time()
+            state.swap_requested = False
+            logger.info(
+                "normalcall: 세션 스왑 #%d (epoch=%d → %d, handle=%s)",
+                state.reconnects, state.session_epoch, state.session_epoch + 1,
+                "있음" if state.resume_handle else "없음",
+            )
+            continue
+
+
+async def _run_one_generation(
+    client_ws,
+    *,
+    state: _CallState,
+    system_instruction: str,
+    voice: str,
+    seed_text: str,
+    settings: Settings,
+    client: genai.Client,
+    live_session_factory: SessionFactory,
+    db_session_factory: sessionmaker,
+    call_id: int,
+    member_id: int,
+    tools: Optional[list] = None,
+) -> None:
+    """연결 1개 = TaskGroup 1세대. 스왑이 필요하면 _SessionSwap 을 올린다."""
+    state.session_epoch += 1
     factory_kwargs = {"system_instruction": system_instruction, "voice": voice}
     if tools is not None:
         factory_kwargs["tools"] = tools
+    # 재개 세대에만 핸들을 넘긴다 — 1세대는 종전과 완전히 동일한 호출이라 기존 가짜
+    # 팩토리(엄격 시그니처)가 그대로 돈다.
+    if state.resume_handle:
+        factory_kwargs["resume_handle"] = state.resume_handle
     async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
@@ -1069,21 +1605,112 @@ async def _run_session(
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
                 tg.create_task(_watch_call_clock(state, session), name="nc-clock")
                 tg.create_task(_watch_idle(session, state), name="nc-idle")
-                tg.create_task(_reground_once(session, state), name="nc-reground")
+                tg.create_task(_reground_watch(session, state), name="nc-reground")
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
+                tg.create_task(_watch_session_rotate(state), name="nc-rotate")
                 # 선톡 트리거: AI 에게 먼저 오프닝 한마디를 던져 "네가 먼저 인사하며 시작해"라고
                 # 시동을 건다. 이걸 안 하면 둘 다 서로 말하기만 기다려 통화가 조용히 멈춘다.
-                await session.send_text_turn(seed_text)  # 선톡 트리거
-        # 🧒 except* 는 TaskGroup 전용 문법(ExceptionGroup 해체). 펌프 중 하나가 우리가 정한
-        #   '정상 종료 신호'로 죽으면, TaskGroup 은 그걸 여러 예외를 담는 봉투(그룹)로 감싸서
-        #   던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=클라가
-        #   끊음)만 골라 홑겹 예외로 다시 던진다 → run_call 의 except 가 사람이 읽기 쉽게 처리.
-        except* _CallFinished:
-            raise _CallFinished()
-        except* _ClientDisconnect:
-            raise _ClientDisconnect()
+                # ⛔ 재개 세대에는 절대 보내지 마라 — 재개는 대화가 이어지는 것이지 새로
+                #   시작하는 게 아니다. 다시 보내면 비버가 통화 중간에 또 인사한다.
+                #   재개 후에는 학습자 마이크가 계속 흐르므로 VAD 가 다음 턴을 열어준다.
+                if state.session_epoch == 1:
+                    await session.send_text_turn(seed_text)  # 선톡 트리거
+        # 🧒 TaskGroup 은 일꾼이 죽으면 그 예외들을 여러 개 담는 **봉투(ExceptionGroup)** 로
+        #   감싸 던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=
+        #   클라가 끊음, _SessionSwap=연결 교체)를 홑겹 예외로 다시 던진다 → 호출부의 평범한
+        #   except 가 사람이 읽기 쉽게 처리한다.
+        #
+        # ⛔ except* 절을 여러 개 쓰지 마라(B4). except* 는 매치되는 절을 **전부** 실행하고,
+        #   절들이 던진 예외를 다시 그룹으로 묶어 올린다 — 즉 신호가 둘 이상 섞인 봉투에서
+        #   `except* A` / `except* B` 를 나란히 쓰면 결과가 ExceptionGroup([A, B]) 이 되어
+        #   호출부의 `except _CallFinished` / `except _SessionSwap` 이 **아무것도 못 잡는다**.
+        #   특히 [_SessionSwap + _CallFinished] 조합은 스왑이 통째로 실패해 통화가 오류로
+        #   끝난다. 그래서 봉투를 직접 받아 우선순위로 딱 하나만 고른다.
+        except BaseExceptionGroup as eg:
+            signal = _pick_call_signal(eg)
+            if signal is None:
+                raise
+            raise signal
+
+
+# 통화 신호 우선순위(B4). ⛔ 순서가 곧 규칙이다 — **종료 > 클라 끊김 > 스왑**.
+# 종료가 걸린 봉투를 스왑으로 처리하면 이미 끝난 통화가 되살아나고, 클라가 이미 끊었는데
+# 스왑하면 아무도 없는 통화에 새 연결을 연다.
+_CALL_SIGNALS: tuple[type[Exception], ...] = (_CallFinished, _ClientDisconnect, _SessionSwap)
+
+
+def _pick_call_signal(eg: BaseExceptionGroup) -> Optional[Exception]:
+    """TaskGroup 봉투에서 통화 신호 하나를 우선순위로 골라 돌려준다(없으면 None).
+
+    신호가 아닌 예외(진짜 오류)가 같이 들어 있으면 여기서 로그로 남긴다 — 신호를 홑겹으로
+    올리면서 봉투를 버리기 때문에, 안 남기면 그 오류가 조용히 사라진다.
+    """
+    for sig in _CALL_SIGNALS:
+        if eg.subgroup(sig) is None:
+            continue
+        rest = eg.split(sig)[1]  # 이 신호를 뺀 나머지(다른 신호 + 진짜 오류)
+        if rest is not None and rest.split(_CALL_SIGNALS)[1] is not None:
+            logger.warning(
+                "normalcall: 통화 신호(%s)와 함께 올라온 예외(무시하지 않고 기록만): %r",
+                sig.__name__, rest.split(_CALL_SIGNALS)[1],
+            )
+        return sig()
+    return None
+
+
+def _swap_eligible(state: _CallState) -> bool:
+    """지금 세션을 갈아끼워도 되는가(요청 여부와 무관한 '자격' 판정).
+
+    ⛔ 종료가 스왑보다 항상 우선이다. 마무리 중에 연결을 갈면 작별이 통째로 날아간다.
+    ⛔ 핸들이 없으면 갈지 않는다 — 재개가 아니라 기억 상실이 된다. 차라리 지금 연결을
+      쓰다가 저쪽이 끊으면 기존 종료 파이프로 우아하게 마무리하는 편이 낫다.
+    """
+    if state.should_close or state.close_seed_sent:
+        return False
+    if not state.resume_handle:
+        return False
+    if state.reconnects >= MAX_RECONNECTS:
+        return False
+    loop = asyncio.get_running_loop()
+    # 플래핑 방어: 재연결이 곧바로 또 끊기는 상황에서 무한 왕복을 막는다. 예산(횟수)보다
+    # 이 시간 가드가 실질 방어선이다 — 예산은 정상 통화에선 안 닿는다.
+    if state.last_swap_ts is not None and loop.time() - state.last_swap_ts < SWAP_FLAP_GUARD_S:
+        return False
+    # 통화가 곧 끝나면 갈 이유가 없다. 남은 시간이 짧은데 갈면 재연결 비용만 쓰고
+    # 바로 작별하게 된다.
+    if state.call_start_ts is not None:
+        remaining = state.call_duration_s - (loop.time() - state.call_start_ts)
+        if remaining < RECONNECT_MIN_REMAINING_S:
+            return False
+    return True
+
+
+async def _watch_session_rotate(state: _CallState) -> None:
+    """세션 수명(SESSION_ROTATE_AT_S)이 차면 스왑을 요청한다.
+
+    🧒 Gemini 연결은 ~10분쯤 살고 저쪽에서 끊는다. 끊긴 뒤에 대응하면 이미 대화가 잘린
+      뒤라, 그 전에 우리가 먼저 갈아끼운다. 요청만 세워두고 **실제 교체는 펌프가 깨끗한
+      턴 경계에서** 한다 — 말하는 도중에 갈면 문장이 잘린다.
+
+    ⚠ 이 워처는 세대마다 새로 뜬다. 그래서 기준 시각은 통화 시작이 아니라 **이 세대가
+      시작한 시각**이다.
+    """
+    if MAX_RECONNECTS <= 0:  # 킬스위치: 0 이면 재연결 기능 자체가 없던 것과 동일
+        return
+    loop = asyncio.get_running_loop()
+    epoch_started = loop.time()
+    while True:
+        await asyncio.sleep(1.0)
+        if loop.time() - epoch_started < SESSION_ROTATE_AT_S:
+            continue
+        if not _swap_eligible(state):
+            # 자격이 없으면(종료 임박·핸들 없음·예산 소진) 조용히 물러난다. 이 세대는
+            # 그대로 살다가 저쪽이 끊으면 기존 종료 파이프가 받는다.
+            return
+        state.swap_requested = True
+        return
 
 
 async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, member_id: int) -> None:
@@ -1099,7 +1726,13 @@ async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, m
                 db_session_factory, lambda db: svc.save_segments(db, call_id, new, member_id)
             )
             state.persisted_count = target
-            logger.info("normalcall: 점진 flush %d개(누적 %d) call_id=%s", len(new), target, call_id)
+            # ⭐ 저장이 끝났으니 PCM 을 놓아준다(B1). 안 놓으면 통화 오디오 전체가 통화
+            #   내내 RAM 에 남아 15분 통화 하나가 30~50MB 를 물고 있게 된다.
+            freed = _release_persisted_pcm(state, target)
+            logger.info(
+                "normalcall: 점진 flush %d개(누적 %d) call_id=%s pcm해제=%dKB",
+                len(new), target, call_id, freed // 1024,
+            )
         except Exception as exc:  # noqa: BLE001 - flush 실패는 다음 주기/종료시 재시도
             logger.warning("normalcall: 점진 flush 실패(무시): %s", exc)
 
@@ -1345,14 +1978,18 @@ def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
     return state.total_answers >= LEVELTEST_BAND_MAX_ANSWERS
 
 
-def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None:
+def _spawn_band_observe(state: _CallState) -> None:
     """유저 답변 1건을 조용히 밴드 관측하는 사이드카를 띄운다(무주입 — should_close 만).
 
     ⛔ 격리(R4/R5): 2펌프 경로의 추가 비용은 create_task 1회뿐. 분류 LLM 콜은 백그라운드
     사이드카에서 일어나며, 느리거나 실패해도 통화 무영향(관측 1건 누락일 뿐 — 3분캡/무음이
-    백스톱). ★ 질문 주입 코드 없음: 사이드카는 천장 도달 시 종료 시드만 주입한다.
+    백스톱). ★ 질문 주입 코드 없음: 사이드카는 천장 도달 시 종료를 **요청**만 한다.
     band_awaiting 1회 가드로 동시 1건만(진행중이면 이 답변은 관측 스킵 — 다음 답변에 재개).
     호출 시점은 _flush_user_segment **이전**이어야 한다(cur_user_text 가 비워지기 전 캡처).
+
+    ⛔ session 을 넘기지 않는다(B2). 이 태스크는 TaskGroup **밖**이라 세대(연결)보다 오래
+      살 수 있는데, 세션은 세대의 지역 변수다 — 잡고 있으면 세션 교체 후 **죽은 세션**에
+      주입하게 된다. 세션에 손대는 일은 전부 세대 안(펌프·워처)에서만 한다.
     """
     if not state.band_observe or state.band_awaiting or state.should_close:
         return  # 종료 진행중이면 관측 불필요(m4: LLM 콜 낭비 방지)
@@ -1361,7 +1998,7 @@ def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None
         return  # 무발화 턴(오프닝 등) — 관측 대상 아님
     state.band_awaiting = True  # create_task 전 선점(동시 1건 가드)
     task = asyncio.create_task(
-        _band_observe_sidecar(session, state, answer, state.last_beaver_question),
+        _band_observe_sidecar(state, answer, state.last_beaver_question),
         name="normalcall-band-observe",
     )
     state.band_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
@@ -1369,17 +2006,22 @@ def _spawn_band_observe(session: LiveSessionProtocol, state: _CallState) -> None
 
 
 async def _band_observe_sidecar(
-    session: LiveSessionProtocol, state: _CallState, answer: str, prior_question: str
+    state: _CallState, answer: str, prior_question: str
 ) -> None:
-    """답변 1건 종료 판정 → 종료 트리거면 종료 시드 주입(백그라운드, R5).
+    """답변 1건 종료 판정 → 종료 트리거면 종료를 **요청**한다(백그라운드, R5).
 
     judge_leveltest_turn 이 (answer_in_target, should_end) 를 준다(밴드 정밀분류 없음 — 최종
     레벨은 통화후 판정관 몫). 세 종료 트리거 중 하나면 종료:
       ① should_end(판정관 등반실패 감지) — 시간 플로어 & 최소 답변(END_JUDGE_MIN) 충족 시.
       ② 비화자 결정론 컷 — answer_in_target=False 연속 NONSPEAKER_MAX — 시간 플로어 충족 시.
       ③ 하드 턴캡(_band_ceiling_reached) — total_answers >= MAX_ANSWERS(무한 관측 방지).
-    어느 트리거든 should_close 를 세우고, 비버 idle & 유저 응답 대기 없음이면 종료 시드를 직접
-    주입한다(발화중/유저턴 열림이면 펌프의 다음 깨끗한 turn_end + 시계워처 백스톱이 주입).
+    어느 트리거든 should_close 를 세우고 close_requested 를 깨운다. **실제 종료 시드 주입은
+    세대 안의 워처·펌프가 한다** — 비버 idle & 유저 응답 대기 없음이면 시계워처가 즉시,
+    발화중이면 펌프가 다음 깨끗한 turn_end 에서 주입한다.
+
+    ⛔ 세션을 직접 잡지 않는다(B2). 이 태스크는 TaskGroup 밖이라 세션 교체보다 오래 살 수
+      있어서, 예전처럼 session 을 캡처해 _inject_close_seed 를 부르면 **죽은 세션에 주입**하는
+      유일한 경로가 된다. 신호만 넘기고 주입은 살아 있는 세대에 맡긴다.
     ★ 질문 주입 없음. 예외·CancelledError 처리는 힌트 사이드카와 동일(취소 재전파, 그 외 흡수).
     """
     answer_in_target = False
@@ -1437,22 +2079,11 @@ async def _band_observe_sidecar(
     # 종료 트리거 → 종료 파이프 합류(새 종료 경로 없음). 이미 종료 진행중이면 양보.
     if state.should_close or state.close_seed_sent:
         return
-    state.should_close = True
+    _request_close(state)
     logger.info(
         "normalcall: 레벨테스트 종료 트리거(턴캡=%s 비화자컷=%s 판정종료=%s) → 종료 플래그",
         hard_cap, nonspeaker_cut, judge_end,
     )
-    # 종료 레이스 가드(시계워처와 동일): 비버 idle & 유저 응답 대기 없음이면 직접 주입,
-    # 아니면 펌프 turn_end(should_close 경로)/시계워처 백스톱이 주입한다. ★ 질문 주입 아님.
-    # M1(시니어): 세션 종료 레이스에 종료 시드 send_text_turn 이 던지면 미회수 태스크 예외로
-    # 새어 "exception never retrieved" 로그가 남으므로 여기서 흡수(취소는 재전파).
-    if state.turn_id is None and not state.user_turn_open:
-        try:
-            await _inject_close_seed(session, state)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - 종료중 주입 실패는 백스톱이 마무리(R5)
-            logger.warning("normalcall: 밴드 천장 종료 시드 주입 실패(무시): %s", exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -1530,14 +2161,43 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
     async for event in session.events():
         event_count += 1
 
+        # 원가 계기판(Phase 0): 과금 계측은 대화 이벤트가 아니다 — 적재만 하고 즉시 continue.
+        # _forward_event 로 내려보내지 않으므로 턴 상태기계·barge-in·무음 시계·종료 규약
+        # 어디에도 닿지 않는다(R4). 클라로 나가는 것도 없다(WS 프로토콜 불변).
+        if event.kind == "usage":
+            _record_usage(state, event.usage)
+            continue
+
         # A3 GoAway: 서버가 곧 연결을 닫겠다는 예고(연결 ~10분 한계, S2). 뚝 끊기기 전에
         # 우리가 먼저 우아하게 마무리한다 — 기존 종료 파이프에 합류: should_close 를 세우고,
         # idle 이면 즉시 짧은 작별 시드를 주입(발화중이면 펌프가 turn_end 에서 주입).
         if event.kind == "go_away":
-            logger.warning("normalcall: GoAway 수신(time_left=%s) → 종료 절차", event.time_left)
-            state.should_close = True
-            if state.turn_id is None:
-                await _inject_close_seed(session, state)
+            # 재연결이 가능하면 종료가 아니라 **연결 교체**로 받는다(통화는 계속된다).
+            # 자격이 없으면(핸들 없음·예산 소진·종료 임박) 종전대로 우아한 마무리 —
+            # 이 폴백이 없으면 아무도 작별을 안 넣는 死구간이 된다.
+            if _swap_eligible(state):
+                logger.info(
+                    "normalcall: GoAway 수신(time_left=%s) → 세션 교체 예약", event.time_left
+                )
+                state.swap_requested = True
+            else:
+                logger.warning(
+                    "normalcall: GoAway 수신(time_left=%s) → 종료 절차(재연결 불가)",
+                    event.time_left,
+                )
+                state.should_close = True
+                if state.turn_id is None:
+                    await _inject_close_seed(session, state)
+            continue
+
+        # 세션 재개 핸들 갱신. resumable=False 는 "지금 상태로는 재개 불가"(모델 생성 중·
+        # tool 실행 중)라는 뜻이라 **덮어쓰지 않는다** — 그 상태로 재개하면 데이터가 유실된다.
+        if event.kind == "resume_update":
+            if event.resumable and event.resume_handle:
+                first = state.resume_handle is None
+                state.resume_handle = event.resume_handle
+                if first:
+                    logger.info("normalcall: 세션 재개 핸들 수신(epoch=%d)", state.session_epoch)
             continue
 
         # 재접지 얹기(on_user_turn): "첫 in_tr"(유저 발화 시작) 판별은 _forward_event 가
@@ -1549,7 +2209,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         if turn_started:
             # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
             # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
-            _spawn_band_observe(session, state)
+            _spawn_band_observe(state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
@@ -1560,20 +2220,29 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 state.close_reply_started = True
 
         # ── 재접지 "유저 발화 턴에 얹기"(on_user_turn) ──
-        # arm 됐고(reground_pending) 아직 안 얹었으면, 유저 발화 턴에 리마인더를 turn_complete=False
-        # 로 얹어 비버가 [유저발화+리마인더]에 1회 응답하게 한다(이중발화·잔류 제거 목표).
+        # arm 됐으면(reground_pending) 유저 발화 턴에 리마인더를 turn_complete=False 로 얹어
+        # 비버가 [유저발화+리마인더]에 1회 응답하게 한다(이중발화·잔류 제거 목표).
         # ⛔ 가드①(핵심 안전): should_close/close_seed_sent 면 절대 안 얹음 — 종료 근처 늦은
-        #    in_tr 이 작별 턴을 오염(174/178 재발)하는 것을 원천 차단. ②1회만(reground_injected).
+        #    in_tr 이 작별 턴을 오염(174/178 재발)하는 것을 원천 차단.
+        # ⛔ 가드②: 대기 중인 arm 하나당 정확히 1회(reground_pending 을 await 전에 내린다).
+        #    ⚠ 옛 게이트(reground_injected, 통화당 1회성)를 쓰지 마라 — 중반 재접지가 얹히면
+        #      True 로 굳어 **후반 리마인더가 영영 안 얹혔다**. 횟수 상한은 arm 쪽(_reground_due)이
+        #      REGROUND_MAX_PER_CALL 로 건다.
         if (REGROUND_MODE == "on_user_turn" and event.kind == "in_tr"
-                and state.reground_pending and not state.reground_injected
+                and state.reground_pending and state.reground_reminder
                 and not state.should_close and not state.close_seed_sent):
             attach_now = in_tr_first if REGROUND_ATTACH_AT == "first" else bool(event.is_final)
             if attach_now:
-                state.reground_injected = True   # await 전 선점(단일 소유권)
-                state.reground_pending = False
+                state.reground_pending = False    # await 전 선점(단일 소유권)
+                state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
+                state.reground_count += 1
+                state.last_reground_ts = asyncio.get_running_loop().time()
                 try:
                     await session.send_reground(state.reground_reminder, turn_complete=False)
-                    logger.info("normalcall: 재접지 얹기(유저 발화 턴, at=%s, tc=False)", REGROUND_ATTACH_AT)
+                    logger.info(
+                        "normalcall: 재접지 얹기(유저 발화 턴, 근거=%s, %d회째, at=%s, tc=False)",
+                        state.reground_arm_reason, state.reground_count, REGROUND_ATTACH_AT,
+                    )
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
@@ -1599,7 +2268,21 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
                 #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
                 await _inject_resume_seed(session, state)
+            elif state.swap_requested and not state.user_turn_open and _swap_eligible(state):
+                # ⭐ 세션 교체는 **여기서만** 일어난다. 비버가 방금 말을 마쳤고(turn_id 는
+                # _forward_event 가 이미 None 으로 내렸다) 유저 턴도 닫힌 깨끗한 경계다.
+                # 이 조건이 곧 "클라가 turn_end 를 이미 받았다"는 뜻이기도 하다 — 안 그러면
+                # 클라의 barge-in off 게이트가 열린 턴을 붙잡아 마이크가 영구히 막힌다.
+                logger.info("normalcall: 턴 경계 도달 → 세션 교체 실행(epoch=%d)", state.session_epoch)
+                raise _SessionSwap()
 
+    # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
+    # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
+    if _swap_eligible(state):
+        logger.warning(
+            "normalcall: Live 스트림이 예고 없이 종료 → 세션 교체 시도 events=%d", event_count
+        )
+        raise _SessionSwap()
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
 
@@ -1705,6 +2388,18 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         logger.warning("normalcall: 대화 재개 시드 주입 실패(무시): %s", exc)
 
 
+def _request_close(state: _CallState) -> None:
+    """통화를 마무리해 달라고 **요청**한다(TaskGroup 밖 사이드카 전용, 세션 무접촉).
+
+    should_close 플래그 + close_requested 이벤트를 함께 세운다. 플래그만 세워도 워처들이
+    다음 폴링(0.2s)에 알아채지만, 이벤트를 같이 깨우면 시계워처가 **즉시** 종료 시드 주입
+    단계로 넘어간다 — 예전에 사이드카가 세션을 직접 잡고 주입해 벌었던 지연차(B2)를
+    죽은 세션 참조 없이 되돌려준다. 주입 자체는 언제나 살아 있는 세대(워처·펌프)의 몫.
+    """
+    state.should_close = True
+    state.close_requested.set()
+
+
 async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) -> None:
     """종료 시드를 정확히 1회만 주입한다(펌프·워처 공용, 단일 소유권 가드).
 
@@ -1744,7 +2439,10 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
         # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지(최대 절대백스톱) 매달린다.
         if state.should_close:
             break
-        await asyncio.sleep(0.2)
+        # 폴링 0.2s 유지 + 종료 요청이 오면 즉시 깨어난다(_request_close). TaskGroup 밖
+        # 사이드카가 세션을 직접 잡지 않고도 지연 없이 종료 시드를 내보내게 하는 통로(B2).
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(state.close_requested.wait(), 0.2)
     state.should_close = True
     logger.info("normalcall: %.0fs 경과/조기신호 → 종료 플래그", state.call_duration_s)
 
@@ -1843,94 +2541,242 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     return True
 
 
-async def _arm_late_continue(state: _CallState) -> None:
-    """후반(REGROUND_LATE_AT_FRACTION) 지점에서 **대화 지속** 리마인더를 한 번 더 arm.
+def _reground_gap_s(state: _CallState) -> float:
+    """시간 폴백 간격 — clamp(통화길이 / 2.5, 120s, 240s).
 
-    중반 재접지와 같은 상태기계(reground_pending)를 재사용하고 문구만 갈아끼운다 —
-    펌프는 "무엇을" 얹는지 모른 채 reground_reminder 를 얹을 뿐이라, 여기서 그 슬롯을
-    후반 문구로 교체한다. 상태기계를 하나 더 만들면 둘이 같은 턴에 겹칠 수 있다.
-
-    종료가 이미 걸렸으면(should_close) 아무것도 하지 않는다 — 마무리를 방해하면 안 된다.
-    후반 문구가 없으면(레벨테스트 등) 조용히 끝낸다(R5).
+    5분 통화는 120s(2회)로 옛 시각 트리거(0.5·0.8 지점 2회)와 실질 동일하고, 15분은
+    240s(3회) + 압축 arm 으로 합계 ≈ 6회 = 분당 0.40회. **빈도는 5분과 같다** —
+    통화가 길어졌다고 재접지가 촘촘해지지 않게 분당으로 맞춘 값이다.
     """
-    if not state.continue_reminder or state.continue_injected:
-        return
-    if state.call_start_ts is None:
-        return
-    loop = asyncio.get_running_loop()
-    fire_at = state.call_start_ts + state.call_duration_s * REGROUND_LATE_AT_FRACTION
-    while loop.time() < fire_at:
-        if state.should_close:
-            return
-        await asyncio.sleep(0.2)
-    if state.should_close:
-        return
-    # 중반 리마인더가 아직 안 얹혔으면(유저가 계속 말이 없었다) 덮어쓰지 않는다 —
-    # 한 턴에 두 리마인더가 겹치면 비버 응답이 장황해진다.
-    if state.reground_pending:
-        logger.info("normalcall: 후반 재접지 생략(중반 리마인더가 아직 대기 중)")
-        return
-    state.reground_reminder = state.continue_reminder
+    return max(REGROUND_GAP_MIN_S, min(REGROUND_GAP_MAX_S,
+                                       state.call_duration_s / REGROUND_GAP_DIVISOR))
+
+
+def _reground_due(state: _CallState, now: float) -> str:
+    """지금 재접지를 arm 해야 하는가 — 근거 문자열(빈 문자열이면 아니다).
+
+    ⛔ 종료가 최우선이다. 마무리 중에 되박으면 작별이 오염된다(174/178 재발).
+    ⛔ 이미 대기 중(reground_pending)이면 새로 세우지 않는다 — 한 턴에 두 리마인더가
+      겹치면 비버 응답이 장황해지고, 유저 발화 하나에 서버 텍스트 500 토큰이 붙는다.
+    """
+    if state.should_close or state.close_seed_sent or state.reground_pending:
+        return ""
+    if state.reground_count >= REGROUND_MAX_PER_CALL:
+        return ""
+    # 최소 간격: 같은 압축 주기 안에서 두 번 얹지 않는다.
+    if state.last_reground_ts is not None and now - state.last_reground_ts < REGROUND_MIN_GAP_S:
+        return ""
+    trigger = _settings.LIVE_CTX_TRIGGER_TOKENS
+    # ① 선제 — 압축 임박(컨텍스트가 트리거의 85%까지 찼다). 압축 직전에 얹은 요약은
+    #    최신단에 있어 그 압축을 살아남는다.
+    if state.usage_prompt_peak >= trigger * REGROUND_ARM_RATIO:
+        return "compress"
+    # ② 사후 — 이미 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우의 보정).
+    if state.compression_seen > state.reground_count:
+        return "post-compress"
+    # ③ 시간 폴백 — usage 가 안 오는 환경에서도 옛 동작만큼은 보장한다(R5).
+    base = state.last_reground_ts or state.call_start_ts
+    if base is not None and now - base >= _reground_gap_s(state):
+        return "time"
+    return ""
+
+
+def _arm_reground(state: _CallState, reason: str) -> None:
+    """재접지를 arm 한다 — 문구는 **지금 당장 조립 가능한 것**으로 먼저 채운다.
+
+    사이드카(맥락 슬롯 채우기)를 기다리지 않는 이유: 유저가 말을 시작하는 순간이 얹을
+    자리인데, LLM 을 기다리면 그 자리를 놓친다. 그래서 캐릭터 기본 문구로 즉시 arm 하고,
+    사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
+    """
+    role, personality = state.reground_persona
+    state.reground_reminder = build_reground_brief(
+        role, personality, mode=state.call_mode,
+    )
     state.reground_pending = True
-    state.continue_injected = True
-    logger.info("normalcall: 후반 재접지 arm(대화 지속 — 다음 유저 발화 턴에 얹음)")
+    state.reground_arm_reason = reason
+    logger.info(
+        "normalcall: 재접지 arm(근거=%s, %d/%d회, 압축감지=%d, peak=%d)",
+        reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
+        state.compression_seen, state.usage_prompt_peak,
+    )
 
 
-async def _reground_once(session: LiveSessionProtocol, state: _CallState) -> None:
-    """통화 중간(길이의 REGROUND_AT_FRACTION 지점)에 캐릭터를 딱 1회 되박는다(누적 드리프트 완화).
+async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> None:
+    """재접지 arm 워처 — 압축 신호(주) + 시간 폴백(보조)으로 통화당 N회 arm 한다.
 
-    🧒 왜 '재접지(re-grounding)'가 필요한가: AI 는 대화가 길어질수록 처음에 준 캐릭터 설정
-      (선생님 역할·성격·규칙)을 조금씩 잊고 톤이 흐려진다(이걸 '드리프트'라 한다 — 배가 닻줄이
-      느슨해져 원래 자리에서 슬슬 밀려나듯). 그래서 통화 중간쯤(기본 50% 지점)에 캐릭터를
-      한 번 살짝 다시 심어 톤을 되살린다.
-    🧒 왜 캐릭터 3필드(역할/성격/규칙)만 넣고, 처음 준 전체 프롬프트를 통째로 다시 안 넣나:
-      전체 프롬프트는 아주 길어서(레벨·이력·학습재료까지) 다시 넣으면 무겁고, AI 가 그걸
-      '새 지시'로 오해해 갑자기 이상하게 다시 인사하거나 같은 말을 두 번 하는(이중발화) 사고가
-      난다. 그래서 톤을 되살리는 데 꼭 필요한 최소한(성격 3필드)만 가볍게 되박는다.
+    🧒 재접지 = 대화가 길어져 AI 가 캐릭터·맥락을 잊기 전에 짧게 되박아 주는 것.
+      옛날엔 "통화의 50%·80% 지점"이라는 시계로 넣었는데, 진짜로 기억을 지우는 건 시간이
+      아니라 **컨텍스트 압축**이다(오래된 대화부터 버린다). 그래서 압축 시점에 맞춰 넣는다.
 
-    REGROUND_MODE 로 방식이 갈린다:
-      - "off": 아무것도 안 함(하드닝만 — 폴백).
-      - "legacy_idle": fire_at 에 비버 idle & 무음 넛지 없음이면 send_reground(turn_complete=True).
-                       비버가 별도 응답(이중발화). 회귀 대비 보존.
-      - "on_user_turn": fire_at 에 **arm 만**(reground_pending=True). 실제 얹기는 펌프가 다음 유저
-                        발화 턴에서 수행(turn_complete=False). 이 태스크는 send_reground 를 호출하지
-                        않는다 → 시각 판정(태스크)과 얹기 실행(펌프) 관심사 분리.
-    비활성(reground_reminder None = 레벨테스트 등)이면 즉시 종료. 종료 우선(should_close → arm 취소).
+    ⛔ 얹는 건 이 태스크가 아니다. 여기서는 arm 만 세우고, 실제 주입은 펌프가 다음 유저
+      발화 턴에 turn_complete=False 로 얹는다(기존 경로 승계 — 새 주입 경로를 만들지 않는다).
+    ⚠ 이 태스크는 세대마다 새로 뜬다(세션 재연결). 상태는 _CallState 에 살아 있으므로
+      횟수·마지막 주입 시각이 그대로 이어진다 — 스왑이 재접지를 되살리지 않는다.
     """
-    if REGROUND_MODE == "off" or not state.reground_reminder:
+    # 비활성 조건: 모드 off, 또는 되박을 재료가 아예 없음(레벨테스트가 여기 해당).
+    if REGROUND_MODE == "off" or (
+        not state.reground_persona[0] and not state.reground_reminder
+    ):
         return
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
-        await asyncio.sleep(0.2)
-    fire_at = state.call_start_ts + state.call_duration_s * REGROUND_AT_FRACTION
-    while loop.time() < fire_at:
-        if state.should_close:  # 종료 우선 — arm 취소
-            return
-        await asyncio.sleep(0.2)
-    if state.should_close:
-        return
-
-    if REGROUND_MODE == "on_user_turn":
-        state.reground_pending = True  # 주입은 펌프가(유저 발화 턴에 얹기), 여기선 arm 만
-        logger.info("normalcall: 재접지 arm(다음 유저 발화 턴에 얹음)")
-        await _arm_late_continue(state)
-        return
-
-    # legacy_idle: 즉시 주입(비버 idle & 무음 넛지 없음일 때만), turn_complete=True.
-    while True:
-        await asyncio.sleep(0.2)
         if state.should_close:
             return
-        if state.turn_id is not None or state.silence_stage > 0:
+        await asyncio.sleep(0.2)
+
+    while True:
+        await asyncio.sleep(0.2)
+        if state.should_close or state.close_seed_sent:
+            return  # 종료 우선 — 남은 arm 은 버린다
+        reason = _reground_due(state, loop.time())
+        if not reason:
             continue
-        try:
-            await session.send_reground(state.reground_reminder, turn_complete=True)
-            logger.info("normalcall: 캐릭터 재접지 1회 주입(legacy_idle, tc=True)")
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
-            logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
+        if REGROUND_MODE == "legacy_idle":
+            await _reground_legacy_inject(session, state)
+            continue
+        _arm_reground(state, reason)
+        _spawn_reground_sidecar(state)
+
+
+async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallState) -> None:
+    """구방식 폴백(legacy_idle): 비버 idle 일 때 별도 완결 턴으로 주입(이중발화 감수).
+
+    on_user_turn 병합이 Gemini 미보장이라, 실기기에서 이중발화가 보이면 코드 한 줄
+    (REGROUND_MODE)로 여기로 되돌린다. 회귀 대비로 남긴다.
+    """
+    if state.turn_id is not None or state.silence_stage > 0:
         return
+    role, personality = state.reground_persona
+    text = state.reground_reminder or build_reground_brief(
+        role, personality, mode=state.call_mode
+    )
+    try:
+        await session.send_reground(text, turn_complete=True)
+        state.reground_count += 1
+        state.last_reground_ts = asyncio.get_running_loop().time()
+        logger.info("normalcall: 캐릭터 재접지 주입(legacy_idle, tc=True)")
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
+        logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
+
+
+def _reground_instruction(items: list[str], target_language: str) -> str:
+    """재접지 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
+
+    항목을 **번호로 떠먹인다**: 사이드카는 목록에서 고르기만 하면 되므로 자유 서술이 없고,
+    서버는 돌아온 번호를 자기 목록으로 되짚어 라벨을 얻는다(환각이 들어올 자리가 없다).
+    """
+    listing = "\n".join(f"{i}. {label}" for i, label in enumerate(items, 1)) or "(없음)"
+    return (
+        f"너는 {target_language} 회화 통화의 상태 요약기다. 아래 대화 일부를 읽고 "
+        "JSON 슬롯만 채워라. **문장을 만들지 마라.**\n"
+        f"[항목 목록]\n{listing}\n"
+        "- covered: 위 목록 중 대화에서 **이미 실제로 다뤄진** 항목의 번호만. 없으면 빈 배열.\n"
+        "- topic: 지금 대화가 흐르고 있는 화제를 짧은 명사구 하나로(최대 12자). "
+        "확실하지 않으면 빈 문자열.\n"
+        "- mode: 학습 항목을 가르치는 흐름이면 \"study\", 자유 대화면 \"chat\".\n"
+        "- mode_quote: mode 판단의 근거가 된 **대화 원문 그대로**의 짧은 인용. "
+        "지어내지 마라 — 원문에 없는 인용은 무시된다."
+    )
+
+
+def _transcript_tail(state: _CallState, turns: int = 12) -> str:
+    """사이드카에 넘길 최근 전사 꼬리(오디오 아님 — 텍스트만).
+
+    통화 전체를 넣지 않는 이유: 재접지가 필요한 건 **지금 흐름**이고, 전체를 넣으면
+    사이드카 입력이 통화만큼 커져 원가가 통화와 함께 자란다(재접지가 비싸지면 안 된다).
+    """
+    lines = [
+        f"{'학습자' if s['role'] == 'user' else '선생님'}: {s['text']}"
+        for s in state.segments[-turns:]
+        if (s.get("text") or "").strip()
+    ]
+    return "\n".join(lines)
+
+
+def _apply_mode_proposal(state: _CallState, proposed: str, quote: str, tail: str) -> None:
+    """모드는 **서버가 sticky 로 소유**한다 — 사이드카 제안은 인용이 증명될 때만 채택.
+
+    🧒 왜 그냥 안 믿나: 압축이 통화 초반을 삼키면 사이드카는 "지금 보이는 몇 턴"만 보고
+      모드를 다르게 부를 수 있다(공부하던 통화를 잡담으로 오인). 그때마다 모드가 흔들리면
+      비버가 통화 중간에 성격이 바뀐 것처럼 군다. 그래서 **전사에 실제로 있는 말**로
+      전환이 증명될 때만 바꾼다 — AI 는 증인이고, 판단은 코드가 한다(레벨 시스템 관통원칙 ①).
+    """
+    if proposed not in ("study", "chat") or proposed == state.call_mode:
+        return
+    q = (quote or "").strip()
+    if len(q) < 4 or q not in tail:      # 원문에 없는 인용 = 환각 → 기각
+        logger.info("normalcall: 재접지 모드 전환 제안 기각(인용 미검증) %s→%s",
+                    state.call_mode, proposed)
+        return
+    logger.info("normalcall: 재접지 모드 전환 채택 %s→%s (인용: %.20s)",
+                state.call_mode, proposed, q)
+    state.call_mode = proposed
+
+
+def _spawn_reground_sidecar(state: _CallState) -> None:
+    """arm 직후 맥락 슬롯을 채우는 사이드카를 띄운다(논블로킹 — 얹기를 막지 않는다).
+
+    ⛔ 격리(R4/R5): 2펌프 경로 밖에서만 돈다. 느리거나 실패하면 arm 때 조립해 둔 기본
+    문구가 그대로 얹힌다(재접지가 사라지지 않는다). 비활성(reground_ctx None)이면 무동작.
+    """
+    ctx = state.reground_ctx
+    if ctx is None or state.should_close:
+        return
+    task = asyncio.create_task(_reground_sidecar(state), name="normalcall-reground-brief")
+    state.reground_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
+    task.add_done_callback(state.reground_tasks.discard)
+
+
+async def _reground_sidecar(state: _CallState) -> None:
+    """대기 중인 재접지 문구를 맥락 슬롯(다룬 항목·화제·모드)으로 업그레이드한다.
+
+    ⛔ 문장 조립은 여기서 하지 않는다 — build_reground_brief(persona_prompt)가 한다.
+      이 함수가 하는 일은 "슬롯을 받아 검증하고 넘기기"뿐이다. 종료 어휘 denylist 도
+      조립 함수 안에 있어, 어느 경로로 슬롯이 들어와도 같은 방어를 통과한다.
+    """
+    ctx = state.reground_ctx
+    tail = _transcript_tail(state)
+    if ctx is None or not tail:
+        return
+    try:
+        result = await gemini_analysis.generate_structured(
+            ctx["client"], ctx["model"],
+            system_instruction=ctx["instruction"],
+            prompt=tail,
+            schema=RegroundOut,
+            temperature=0.0,
+            thinking_budget=0,
+        )
+        if result is None:
+            return
+        _apply_mode_proposal(
+            state, getattr(result, "mode", "") or "", getattr(result, "mode_quote", "") or "", tail
+        )
+        items = state.reground_items
+        covered = [
+            items[n - 1] for n in (getattr(result, "covered", None) or [])
+            if isinstance(n, int) and 1 <= n <= len(items)
+        ]
+        # 이미 얹혔거나 종료 구간이면 업그레이드는 무의미하다(다음 arm 때 새로 받는다).
+        if not state.reground_pending or state.should_close or state.close_seed_sent:
+            return
+        role, personality = state.reground_persona
+        state.reground_reminder = build_reground_brief(
+            role, personality,
+            mode=state.call_mode,
+            covered=covered,
+            topic=getattr(result, "topic", "") or "",
+        )
+        logger.info(
+            "normalcall: 재접지 브리프 업그레이드(mode=%s covered=%d topic=%s)",
+            state.call_mode, len(covered), (getattr(result, "topic", "") or "")[:12],
+        )
+    except asyncio.CancelledError:
+        raise  # 취소(통화 종료)는 정상 경로
+    except Exception as exc:  # noqa: BLE001 - 실패 시 기본 문구가 얹힌다(R5)
+        logger.warning("normalcall: 재접지 사이드카 실패(무시 — 기본 문구 사용): %s", exc)
 
 
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date as _date, datetime, time as _time, timedelta, timezone
 from typing import Sequence
 
@@ -32,6 +33,9 @@ from domains.learning.schemas.call import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 def _avg(values: list) -> float | None:
     nums = [v for v in values if v is not None]
     return round(sum(nums) / len(nums), 1) if nums else None
@@ -46,6 +50,33 @@ def _avg(values: list) -> float | None:
 # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
 DAILY_CALL_LIMIT: dict[str, int] = {"normal": 1, "level_test": 1}
 
+# 3티어 재편(2026-08-04): 플랜별 한도. 빈 dict = 무제한.
+# Free(플랜 없음)만 하루 1회고, Pro·Max 는 무제한이다(기획서 §1).
+#
+# ⚠ 지금은 **실동작 변화가 없다** — 유료구매가 임시차단돼 유료 회원이 0명이다.
+#   결제가 붙는 날 "Pro 결제했는데 하루 1회"로 나가지 않도록 배선만 미리 해둔다.
+DAILY_CALL_LIMIT_BY_PLAN: dict[str | None, dict[str, int]] = {
+    None: DAILY_CALL_LIMIT,   # Free
+    "pro": {},                # 무제한
+    "max": {},                # 무제한
+}
+
+# ── 플랜별 통화 길이(초) ───────────────────────────────────────────────── #
+# 앱 카피가 이미 계약이다(`app_en.arb`) — 여기 숫자는 그 문구에서 왔다:
+#   Free "One 5-minute voice call a day" / Pro "Unlimited calls. 15 minutes each."
+# Max 는 "Everything in Pro" + 영상통화라 **길이는 Pro 와 같다**(차별점이 길이가 아니다).
+#
+# ⛔ 앱 문구와 이 값이 어긋나면 결제한 사람의 통화가 광고보다 짧게 끊긴다 — 이 도메인에서
+#   가장 비싼 종류의 불일치라, 문구를 바꿀 땐 이 표도 같이 바꾼다.
+# ⚠ 레벨테스트는 이 표에 없다. 3분 하드캡(LEVELTEST_MAX_S)은 측정 설계지 상품 혜택이
+#   아니라서 플랜을 타면 안 된다.
+CALL_DURATION_S_BY_PLAN: dict[str | None, float] = {
+    None: 300.0,    # Free — 5분
+    "pro": 900.0,   # 15분
+    "max": 900.0,   # 15분(Pro 상위집합)
+}
+FREE_CALL_DURATION_S = CALL_DURATION_S_BY_PLAN[None]
+
 
 def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, datetime]:
     """클라 로컬 하루 → UTC 반열린 구간 [start, end).
@@ -59,6 +90,32 @@ def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, d
         tzinfo=timezone.utc
     )
     return start_utc, start_utc + timedelta(days=1)
+
+
+def effective_plan(db: Session, member_id: int) -> str | None:
+    """지금 **실제로 혜택이 열려 있는** 플랜. Free 면 None.
+
+    판정 본체는 commerce 로 옮겼다(`service/entitlements.py`) — 재료가 구독 행이고,
+    캐릭터 잠금 해제도 같은 판정을 쓰기 때문이다. 두 도메인이 각자 규칙을 쓰면
+    "통화는 되는데 캐릭터는 잠김" 같은 어긋남이 난다. 여기 이름은 호출부 보존용.
+    """
+    from domains.commerce.service import entitlements
+
+    return entitlements.effective_plan(db, member_id)
+
+
+def call_duration_s_for_member(db: Session, member_id: int) -> float:
+    """이 회원의 일반 통화 길이(초). Free 5분 / Pro·Max 15분.
+
+    ⛔ 일일 한도(is_daily_limit_reached)와 달리 **환경으로 끄지 않는다.** 한도는 켜두면
+      개발이 막히지만(하루 1회), 길이는 짧아질 뿐이고 dev 에서 15분을 밟아야 할 땐
+      `NORMAL_CALL_DURATION_S` 로 전 회원 강제하는 탈출구가 따로 있다. 여기서 ENV 로
+      또 분기하면 "dev 에선 플랜 경로가 한 번도 안 도는" 죽은 코드가 된다.
+
+    실패는 Free 로 떨어뜨린다(R5) — effective_plan 과 같은 방침. 모르면 짧게 주는 편이
+    안전하다(길게 줬다 원가가 새는 것보다 낫다).
+    """
+    return CALL_DURATION_S_BY_PLAN.get(effective_plan(db, member_id), FREE_CALL_DURATION_S)
 
 
 def is_daily_limit_reached(
@@ -81,9 +138,11 @@ def is_daily_limit_reached(
     """
     if settings.ENV != "prod":
         return False
-    limit = DAILY_CALL_LIMIT.get(call_type)
+    limit = DAILY_CALL_LIMIT_BY_PLAN.get(effective_plan(db, member_id), DAILY_CALL_LIMIT).get(
+        call_type
+    )
     if not limit:
-        return False  # 한도가 정의되지 않은 콜타입은 막지 않는다
+        return False  # 한도가 없는 플랜(유료) 또는 정의되지 않은 콜타입은 막지 않는다
     now_local = datetime.now(timezone.utc) + timedelta(minutes=tz_offset_min)
     start_utc, end_utc = daily_window_utc(now_local.date(), tz_offset_min)
     return CallRepository(db).has_call_in_window(

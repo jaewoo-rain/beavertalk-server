@@ -30,9 +30,14 @@ from domains.commerce.schemas.iap import PurchaseItem
 from domains.commerce.service import iap_catalog
 from domains.commerce.service.iap_service import IapService
 
-BIBI = "im.beavertalk.character.bibi"
-POPO = "im.beavertalk.character.popo"
-PRO = "im.beavertalk.pro.monthly"
+# 3티어 재편(2026-08-04): 상품 ID 스킴을 앱(`IapProductIds`)과 같은 `bt_*` 로 통일.
+# 캐릭터는 이름이 아니라 character.product_key(불변 슬러그)로 식별한다.
+BIBI = "bt_character_bibi"
+POPO = "bt_character_popo"
+PRO = "bt_pro_monthly"
+PRO_YEARLY = "bt_pro_yearly"
+MAX = "bt_max_monthly"
+MAX_YEARLY = "bt_max_yearly"
 
 
 @pytest.fixture()
@@ -78,22 +83,54 @@ def _mid(db):
 # --------------------------------------------------------------------------- #
 # 1) 상품 매핑 — id 하드코딩 금지(환경마다 character_id 가 다르다)
 # --------------------------------------------------------------------------- #
-def test_product_maps_by_name_not_hardcoded_id(db):
+def test_product_maps_by_product_key_not_hardcoded_id(db):
+    """상품 ID 는 product_key(불변 슬러그)로 푼다 — character_id 도 name 도 아니다.
+
+    character_id 는 dev/prod 가 다르고(prod 2·9·10·11 / dev 2·3·4·5), name 은 바뀔 수
+    있는데 **스토어 상품 ID 는 영구 불변**이라 둘 다 영구 식별자로 못 쓴다.
+    """
     ref = iap_catalog.resolve(db, BIBI)
     assert ref is not None and ref.kind == "character"
     bibi = db.query(Character).filter_by(name="BIBI").one()
     assert ref.character_id == bibi.character_id
+    assert bibi.product_key == "bibi"  # name 에서 자동 파생
 
 
-def test_subscription_product_maps(db):
-    ref = iap_catalog.resolve(db, PRO)
+def test_product_key_survives_rename(db):
+    """이름을 바꿔도 상품 ID 는 그대로 — 이 컬럼의 존재 이유."""
+    bibi = db.query(Character).filter_by(name="BIBI").one()
+    bibi.name = "비비 (개명)"
+    db.commit()
+
+    ref = iap_catalog.resolve(db, BIBI)
+    assert ref is not None and ref.character_id == bibi.character_id
+
+
+@pytest.mark.parametrize(
+    "pid,plan,period",
+    [
+        (PRO, "pro", "monthly"),
+        (PRO_YEARLY, "pro", "yearly"),
+        (MAX, "max", "monthly"),
+        (MAX_YEARLY, "max", "yearly"),
+    ],
+)
+def test_subscription_products_map_to_plan_and_period(db, pid, plan, period):
+    """구독 4종이 plan × 주기로 풀린다. 앱 IapProductIds 와 같은 문자열이어야 한다."""
+    ref = iap_catalog.resolve(db, pid)
     assert ref is not None and ref.kind == "subscription"
     assert ref.character_id is None
+    assert (ref.plan, ref.billing_period) == (plan, period)
 
 
 @pytest.mark.parametrize(
     "pid",
-    ["im.beavertalk.character.nosuch", "wat", "im.beavertalk.pro.yearly"],
+    [
+        "bt_character_nosuch",
+        "wat",
+        "im.beavertalk.pro.monthly",  # 구 스킴은 더 이상 안 받는다
+        "bt_pro_weekly",              # 정의되지 않은 주기
+    ],
 )
 def test_unknown_product_is_404(db, pid):
     with pytest.raises(HTTPException) as ex:

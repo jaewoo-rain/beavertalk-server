@@ -61,6 +61,11 @@ def _configure_logging() -> None:
         "domains.learning.realtime",  # 통화 WS/세션(전사·타이밍)
         "domains.learning.service",   # 통화후 분석·체크판·레벨 판정
         "domains.push",               # 예약전화 발송
+        # ⭐ core.* 외부 어댑터(STT·TTS·Gemini). 이게 빠져 있어서 캐스케이드 TTS 가 문장마다
+        #   실패하는데도 그 원인(400 Unsupported audio encoding)이 로그에 안 떴다 — 세션 쪽
+        #   "첫소리=-1ms" 만 보고 거꾸로 추적해야 했다. 어댑터가 왜 실패했는지는 어댑터가
+        #   가장 잘 안다. 여기 로그 호출도 수십 개뿐이라 비용은 무시할 수준이다.
+        "core",
     ):
         lg = logging.getLogger(name)
         lg.handlers.clear()
@@ -243,8 +248,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(push_router, prefix=API_PREFIX)
 
     # ── (dev 전용) 통화 데모 콘솔 ──
-    # 운영(prod)에는 노출하지 않는다. 같은 오리진으로 서빙하므로 CORS 불필요.
+    # ⛔ **"dev 전용"은 의도이지 현실이 아니다.** 실서비스(app-api)의 ENV 는 "prod" 가 아니라
+    #   **"test"** 다(2026-08-07 실측: 운영 /health → {"status":"ok","env":"test"}). 그래서
+    #   아래 조건은 **운영에서도 참**이고 이 블록은 실서비스에 마운트된다.
+    #   같은 사실을 이미 알고 있었으면서(아래 구독 도구 주석 참조) 캐스케이드에는 2차 방어를
+    #   안 붙였다. 옛 주석("prod 에는 마운트조차 하지 않는다")을 1차 자료로 읽은 클라 쪽이
+    #   "prod 백엔드면 소켓이 안 열린다"를 **안전장치로 세는** 일까지 벌어졌다 —
+    #   틀린 주석이 남의 설계 판단이 됐다. 그래서 문구를 사실로 바꾼다.
+    #   ENV 값을 바로잡는 게 근본이지만 같은 조건을 쓰는 다른 블록이 동시에 닫히므로
+    #   영향 범위를 잰 뒤 별건으로 한다(docs/20260807_0510_dev블록-노출-사실관계.md).
     if settings.ENV != "prod":
+        # 캐스케이드(STT→LLM→TTS) 실험 경로 — WS /api/v1/cascade/stream.
+        # ⭐ **전용 스위치로 한 번 더 막는다.** ENV 게이트가 깨져 있으므로 그것에 기대지
+        #   않는다 — 기본값 False 라 아무 데도 안 열리고, 켠 곳에서만 열린다.
+        #   위험은 미인증 공개가 아니다(verify_token 이 있다). **인증된 아무 계정이나 세션을
+        #   열 수 있고 LLM·TTS 가 실제로 돈다는 것**이다. call_id·DB 연동이 없어 누가 얼마나
+        #   썼는지 사후 추적도 안 되고, dev 훅(__test_beaver)까지 같이 열린다.
+        # ⚠ **demo-api 에는 CASCADE_ENABLED=true 를 넣어야 데모가 산다.** 코드만 배포하고
+        #   env 를 안 넣으면 /__cascadedemo 가 즉시 404 다(배포와 같이 나가야 한다).
+        if settings.CASCADE_ENABLED:
+            from domains.learning.realtime.cascade_router import router as cascade_router
+
+            app.include_router(cascade_router, prefix=API_PREFIX)
+
+            @app.get("/__cascadedemo", include_in_schema=False)
+            def cascade_demo() -> FileResponse:
+                """캐스케이드 턴 감지 최소루프 데모 HTML(마이크 → STT v2 → 턴 판정 에코)."""
+                return FileResponse(
+                    Path(__file__).parent / "scripts" / "cascade_demo.html",
+                    media_type="text/html",
+                )
 
         @app.get("/__calldemo", include_in_schema=False)
         def call_demo() -> FileResponse:
@@ -297,6 +330,120 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 },
             }
 
+        @app.post("/__dev/subscription-state", include_in_schema=False)
+        def dev_subscription_state(
+            body: dict, member: CurrentAdmin, db: DbSession
+        ) -> dict:
+            """[dev] 내 구독을 원하는 **상태 8종**으로 만든다 — 프론트 화면 확인용.
+
+            🧒 왜 목데이터가 아니라 이건가: 응답에 가짜 값을 섞으면 ① 실제 사용자가
+              가짜 상태를 받을 수 있고 ② "진짜냐 목이냐"를 가리는 분기가 응답 경로에
+              영구히 남는다. 여기서는 **DB 행만** 원하는 모양으로 만든다 — 그러면
+              resolve_status 진짜 코드가 돌고 앱은 진짜 wire 를 받는다.
+
+            trial·grace·on_hold 는 원래 스토어만 채울 수 있는 값인데, 컬럼이 생겼으므로
+            여기서 세팅하면 8종 전부 실제 경로로 나온다(결제 연동 전 유일한 확인 수단).
+
+            ⚠ 항상 source='manual' 로 남긴다 — 결제가 붙는 날 이 행들이 진짜 유료로
+              둔갑하면 안 된다(iap_receipt.is_stub 과 같은 이유).
+            ⛔ CurrentAdmin 으로 막는다. 실서비스(app-api)의 ENV 는 "prod" 가 아니라
+              "test" 라 이 블록이 실서비스에도 노출되기 때문(위 할인 도구와 같은 이유).
+
+            body: {"state": "grace", "plan": "max", "email": "tester@x.com"}
+              - plan 기본 pro
+              - 대상은 member_id 또는 email 로 지정. 둘 다 없으면 **호출한 본인**.
+
+            ⭐ 대상 지정이 왜 필요한가: 이 엔드포인트는 관리자만 부를 수 있는데, 화면을
+              확인할 프론트 테스터는 보통 일반 계정이다. 대상을 못 고르면 정작 확인이
+              필요한 계정의 상태를 못 바꾼다.
+            """
+            from datetime import datetime, timedelta, timezone
+
+            from sqlalchemy import delete as sa_delete
+
+            from domains.account.models.member import Member as M
+            from domains.commerce.models.subscribe import Subscribe
+
+            state = str(body.get("state") or "").strip()
+            plan = str(body.get("plan") or "pro").strip()
+            valid = {
+                "free", "trial", "active_pro", "active_max",
+                "grace", "on_hold", "ending", "expired",
+            }
+            if state not in valid:
+                return {"error": f"state 는 {sorted(valid)} 중 하나"}
+            if plan not in {"pro", "max"}:
+                return {"error": "plan 은 pro | max"}
+
+            # 대상 회원 결정 — 미지정이면 본인.
+            target = None
+            if body.get("member_id") is not None:
+                target = db.get(M, int(body["member_id"]))
+            elif body.get("email"):
+                target = (
+                    db.query(M)
+                    .filter(M.email == str(body["email"]).strip(),
+                            M.deleted_at.is_(None))
+                    .one_or_none()
+                )
+            else:
+                target = member
+            if target is None:
+                return {"error": "대상 회원을 찾을 수 없습니다(member_id | email)."}
+
+            mid = target.member_id
+            now = datetime.now(timezone.utc)
+            # 기존 행을 전부 지우고 1건만 남긴다 — 다중 활성 행이 있으면 어느 것이
+            # 이겼는지 헷갈려 화면 확인이 무의미해진다.
+            deleted = db.execute(
+                sa_delete(Subscribe).where(Subscribe.member_id == mid)
+            ).rowcount
+            if state == "free":
+                db.commit()
+                return {
+                    "member_id": mid, "email": target.email,
+                    "state": "free", "deleted": deleted,
+                }
+
+            # active_pro/active_max 는 plan 이 상태에 이미 들어 있다.
+            if state == "active_max":
+                plan = "max"
+            elif state == "active_pro":
+                plan = "pro"
+            elif state == "trial":
+                plan = "max"  # 앱은 체험을 Max 로 취급(subscription_state.dart)
+
+            row = Subscribe(
+                member_id=mid,
+                start_date=now - timedelta(days=5),
+                # expired 만 과거 만료, ending 은 해지했지만 기간이 남은 상태.
+                end_date=now - timedelta(days=1) if state == "expired"
+                else now + timedelta(days=15),
+                price=None,
+                is_activate=False if state == "ending" else True,
+                plan=plan,
+                billing_period="monthly",
+                product_id=None,
+                source="manual",  # ⭐ 가짜 표식 — 정산에서 걸러야 한다
+                is_trial=state == "trial",
+                billing_state=(
+                    "grace" if state == "grace"
+                    else "on_hold" if state == "on_hold"
+                    else "ok"
+                ),
+                retrying_until=now + timedelta(days=7) if state == "grace" else None,
+                paused_since=now - timedelta(days=3) if state == "on_hold" else None,
+            )
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return {
+                "member_id": mid, "email": target.email,
+                "state": state, "plan": plan,
+                "subscribe_id": row.subscribe_id, "deleted": deleted,
+                "hint": "그 계정으로 GET /subscriptions/status 확인",
+            }
+
         # ── 할인 이벤트 운영 도구 ────────────────────────────────────────── #
         # ⚠ 실서비스(app-api)의 ENV 는 "prod" 가 아니라 "test" 라 이 블록이 **실서비스에도
         #   노출된다**. 그래서 환경 게이트에 기대지 않고 **member.role == "admin"**
@@ -345,6 +492,51 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not token:
                 return JSONResponse({"detail": "로그인 실패"}, status_code=401)
             return JSONResponse({"access_token": token, "email": email})
+
+        @app.post("/__dev/signup", include_in_schema=False)
+        def dev_signup(body: dict) -> JSONResponse:
+            """[dev] 이메일·비밀번호로 **계정을 만들고 바로 토큰까지** 준다(데모 전용).
+
+            왜 필요한가: 레벨테스트 데모는 "레벨 없는 새 계정"이 있어야 자동 판단 경로를
+            제대로 밟는다. 그래서 가입 버튼이 있었는데, 그게 페이지에서 **Supabase 를 직접**
+            부르는 유일한 이유였다. 서버가 대신 만들어 주면 페이지에서 Supabase 의존이
+            통째로 사라지고, **서버가 토큰을 검증하는 그 프로젝트에** 계정이 생긴다 —
+            프로젝트가 어긋나 로그인 후 전부 401 이 나던 사고가 구조적으로 불가능해진다.
+
+            service key 로 만들기 때문에 **이메일 확인 절차를 건너뛴다**(email_confirm=True).
+            이미 있는 계정이면 만들지 않고 로그인만 한다.
+            권한 상승이 아니다 — 이메일·비밀번호를 아는 사람이 자기 토큰을 받는 것뿐이고,
+            애초에 non-prod 에서만 마운트된다.
+            """
+            client = supabase_client.get_client()
+            if client is None:
+                return JSONResponse(
+                    {"detail": "Supabase 미설정(SUPABASE_URL/SERVICE_KEY)"}, status_code=503
+                )
+            email = (body.get("email") or "").strip()
+            password = body.get("password") or ""
+            if not email or not password:
+                return JSONResponse({"detail": "email·password 필요"}, status_code=400)
+            created = False
+            try:
+                client.auth.admin.create_user(
+                    {"email": email, "password": password, "email_confirm": True}
+                )
+                created = True
+            except Exception as exc:  # noqa: BLE001 - 이미 있으면 로그인으로 진행
+                logger.info("dev_signup: 생성 건너뜀 email=%s: %s", email, exc)
+            try:
+                res = client.auth.sign_in_with_password(
+                    {"email": email, "password": password}
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("dev_signup: 로그인 실패 email=%s: %s", email, exc)
+                return JSONResponse({"detail": "가입은 됐으나 로그인 실패"}, status_code=401)
+            session = getattr(res, "session", None)
+            token = getattr(session, "access_token", None) if session else None
+            if not token:
+                return JSONResponse({"detail": "로그인 실패"}, status_code=401)
+            return JSONResponse({"access_token": token, "email": email, "created": created})
 
         # ── 회원 권한(롤) 관리 ──────────────────────────────────────────── #
         @app.get("/__roles", include_in_schema=False)

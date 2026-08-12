@@ -13,7 +13,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
+import logging
 
 import pytest
 from sqlalchemy import Integer, create_engine
@@ -621,7 +623,8 @@ def test_resolve_call_duration_clamps_and_defaults():
     from types import SimpleNamespace
     dev = SimpleNamespace(ENV="dev")
     prod = SimpleNamespace(ENV="prod")
-    base = cs.CALL_DURATION_S
+    # base 미지정 → env 강제값(CALL_DURATION_S), 그것도 없으면 Free 길이로 떨어진다.
+    base = cs.CALL_DURATION_S if cs.CALL_DURATION_S is not None else 300.0
     assert cs._resolve_call_duration(dev, None) == base       # 미지정 → 기본
     assert cs._resolve_call_duration(dev, 3) == 180.0         # 하한
     assert cs._resolve_call_duration(dev, 15) == 900.0        # 상한
@@ -677,16 +680,27 @@ async def _run_with_fake(fake, session_factory, seeded):
     return ws
 
 
+def _arm_fast(monkeypatch):
+    """시간 폴백 간격을 짧게 — 옛 REGROUND_AT_FRACTION 이 하던 "곧 arm" 을 새 기계로.
+
+    ⚠ 값(간격)만 바꾼다. 검증하는 계약("arm 후 첫 in_tr 에 turn_complete=False 로 얹힌다")은
+      그대로다 — 마스터플랜 §6 이 말한 "당시 구현 파라미터는 뒤집어도, 사고는 보존".
+    """
+    monkeypatch.setattr(cs, "REGROUND_GAP_MIN_S", 0.05)
+    monkeypatch.setattr(cs, "REGROUND_GAP_MAX_S", 0.05)
+    monkeypatch.setattr(cs, "REGROUND_MIN_GAP_S", 0.05)
+
+
 @pytest.mark.asyncio
 async def test_reground_on_user_turn_attaches_once(session_factory, seeded, monkeypatch):
     """on_user_turn: arm 후 유저 발화 시작(첫 in_tr)에 리마인더가 turn_complete=False 로 딱 1회
     얹힌다. 같은 턴 두 번째 in_tr 은 재주입 없음. send_text_turn(종료/무음)와 분리."""
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
     monkeypatch.setattr(cs, "REGROUND_ATTACH_AT", "first")
-    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)  # fire_at ≈ 통화 시작 직후
+    _arm_fast(monkeypatch)
 
     async def wait_arm(f):
-        await asyncio.sleep(0.5)  # _reground_once 가 arm(reground_pending) 할 시간
+        await asyncio.sleep(0.5)  # _reground_watch 가 arm(reground_pending) 할 시간
     fake = _RegroundFake([
         LiveEvent(kind="out_tr", text="안녕"),   # 비버 오프닝 → call_start_ts 세팅
         LiveEvent(kind="turn_end"),
@@ -700,7 +714,9 @@ async def test_reground_on_user_turn_attaches_once(session_factory, seeded, monk
     assert len(fake.regrounds) == 1, "재접지 얹기가 정확히 1회가 아님"
     text, tc = fake.regrounds[0]
     assert tc is False, "on_user_turn 은 turn_complete=False 여야 함(유저 턴에 얹기)"
-    assert "캐릭터답게 한마디" in text, "재접지 문구가 행동 지시 리마인더가 아님"
+    # 통합 브리프는 "학습자가 방금 한 말에 먼저 반응하고"로 시작해야 한다 — 이게 없으면
+    # 250 토큰짜리 주입이 사용자의 한마디를 밀어내고 비버가 주입에 응답한다(문맥 없는 화제 전환).
+    assert "먼저" in text and "반응" in text, "브리프가 '유저 먼저' 지시로 시작하지 않는다"
     assert not any(text == t for t in fake.sent_text_turns), "재접지가 send_text_turn 로 샜다"
 
 
@@ -709,7 +725,7 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
     """핵심 안전(가드①): 종료 시드(close_seed_sent) 이후 늦은 유저 in_tr 에는 재접지를 얹지
     않는다 — 작별 턴 오염(174/178 재발) 방지."""
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
-    monkeypatch.setattr(cs, "REGROUND_AT_FRACTION", 0.001)
+    _arm_fast(monkeypatch)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 곧 종료(_watch_call_clock)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     close_seen = asyncio.Event()
@@ -731,6 +747,235 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
     fake = Fake([])  # script 미사용(events override)
     await _run_with_fake(fake, session_factory, seeded)
     assert fake.regrounds == [], "종료 구간에서 재접지가 얹혔다(가드① 위반 — 작별 오염 위험)"
+
+
+@pytest.mark.asyncio
+async def test_reground_survives_session_swap_without_flooding(monkeypatch):
+    """세션 교체로 워처가 다시 떠도 재접지 횟수·간격이 세대를 건너 유지된다.
+
+    ⚠ 왜 이 테스트가 있나(실측 회귀): 세션 재연결이 들어오면서 _run_one_generation 이
+      세대마다 재접지 워처를 새로 띄운다. 상태(_CallState)는 세대를 건너 살기 때문에,
+      워처가 자기 지역 변수로 "몇 번 넣었나"를 세면 스왑마다 리셋돼 재접지가 폭주하거나
+      (옛 구현처럼) 이미 얹힌 것이 되살아나 다음 arm 을 통째로 삼킨다. de0133b 가 그 사례다.
+
+    새 기계에서 그 방어는 **상태에 있는 횟수·마지막 주입 시각**이다. 스왑 직후(간격 미충족)
+    엔 arm 되지 않고, 간격이 지나면 다시 arm 된다.
+    """
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    monkeypatch.setattr(cs, "REGROUND_MIN_GAP_S", 60.0)
+
+    now = asyncio.get_running_loop().time()
+    state = cs._CallState()
+    state.call_duration_s = 900.0
+    state.call_start_ts = now - 500.0
+    state.reground_count = 1          # 1세대에서 이미 1회 얹혔다
+    state.last_reground_ts = now - 5.0
+
+    assert cs._reground_due(state, now) == "", "스왑 직후 최소 간격 안에서 재arm 됐다(폭주)"
+    # 간격이 지나면 시간 폴백이 다시 arm 한다(후반 방어가 살아 있다).
+    later = now + cs._reground_gap_s(state) + 1.0
+    assert cs._reground_due(state, later) == "time"
+
+
+def test_five_minute_call_still_regrounds_without_any_compression():
+    """⛔ Free 5분 통화는 **압축이 영영 안 걸린다** — 그래도 재접지는 받아야 한다.
+
+    실측: 5분 통화의 최대 컨텍스트는 약 11,000 토큰인데 압축 트리거는 16,000 이다.
+    즉 압축 신호(①선제 ②사후)는 5분 통화에서 **한 번도 뜨지 않는다**. 트리거를 압축 신호로만
+    갈아끼웠다면 Free 사용자는 재접지를 통째로 잃었을 것이다 — 그래서 시간 폴백(③)이
+    "usage 가 안 올 때의 R5 안전망"이 아니라 **5분 통화의 정규 경로**다.
+    근거: docs/20260805_1830_압축-트리거-하향-논증.md §1
+    """
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    now = 1000.0
+    state = cs._CallState()
+    state.call_duration_s = 300.0
+    state.call_start_ts = now
+    state.usage_prompt_peak = 11000            # 5분 통화의 실측 최대 컨텍스트
+
+    # 전제: 이 컨텍스트는 압축 arm 임계(0.85×trigger)에 닿지 않는다.
+    assert state.usage_prompt_peak < trigger * cs.REGROUND_ARM_RATIO, \
+        "테스트 전제 붕괴 — 5분 통화가 압축 임계에 닿는다면 이 테스트를 다시 설계하라"
+
+    gap = cs._reground_gap_s(state)
+    assert gap == 120.0, f"5분 통화 폴백 간격이 120s 가 아니다: {gap}"
+    assert cs._reground_due(state, now + gap - 1) == "", "간격 전에 arm 됐다"
+    assert cs._reground_due(state, now + gap + 1) == "time", \
+        "5분 통화가 재접지를 통째로 잃었다(압축 신호 전용 트리거 회귀)"
+
+    # 5분 동안 2회 — 옛 시각 트리거(0.5·0.8 지점 2회)와 실질 동일하다.
+    state.reground_count, state.last_reground_ts = 1, now + gap
+    assert cs._reground_due(state, now + 2 * gap + 1) == "time"
+    state.reground_count, state.last_reground_ts = 2, now + 2 * gap
+    assert cs._reground_due(state, now + 300) == "", "5분 통화에서 3회째가 arm 됐다(과주입)"
+
+
+@pytest.mark.asyncio
+async def test_late_reminder_actually_attaches_not_just_arms(session_factory, seeded, monkeypatch):
+    """⛔ 통화 하나에 재접지가 **2회 이상 실제로 얹힌다**(arm 만이 아니라).
+
+    옛 기계의 실측 결함: 펌프 게이트가 `not reground_injected`(통화당 1회성)라, 중반
+    재접지가 얹히는 순간 True 로 굳어 **후반 "대화를 더 끌고 가라" 리마인더가 영원히
+    안 얹혔다.** 후반 재접지는 비버가 서버 종료 신호보다 4~16턴 먼저 작별하는 실측
+    3건(call 836/744/782)을 막으려고 넣은 방어인데, 정작 정상 통화에서 죽어 있었다.
+    기존 테스트가 못 잡은 이유는 단언이 "arm 됐는가"까지였기 때문 — 여기서는 **얹힌
+    문구의 개수**를 센다.
+    """
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    _arm_fast(monkeypatch)
+
+    async def pause(_f):
+        await asyncio.sleep(0.3)   # 다음 arm 이 설 시간(간격 0.05s)
+
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+        pause,
+        LiveEvent(kind="in_tr", text="네", is_final=True),      # 1회차 얹기
+        LiveEvent(kind="out_tr", text="그래"),
+        LiveEvent(kind="turn_end"),
+        pause,
+        LiveEvent(kind="in_tr", text="좋아요", is_final=True),   # 2회차 얹기
+        LiveEvent(kind="out_tr", text="응"),
+        LiveEvent(kind="turn_end"),
+    ])
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert len(fake.regrounds) >= 2, \
+        f"재접지가 통화당 1회로 굳었다(후반 드리프트 방어 소실): {len(fake.regrounds)}회"
+    assert all(tc is False for _t, tc in fake.regrounds), "얹기가 완결 턴으로 샜다"
+
+
+# --- 재접지 통합: 압축 신호 트리거 ------------------------------------------ #
+def _fresh_state(duration=900.0, now=1000.0):
+    st = cs._CallState()
+    st.call_duration_s = duration
+    st.call_start_ts = now
+    return st
+
+
+def test_arm_fires_before_compression_not_after():
+    """① 선제 arm: 컨텍스트가 트리거의 85%에 닿으면 **압축이 오기 전에** arm 한다.
+
+    압축 직전에 얹은 요약은 컨텍스트 최신단이라 그 압축을 살아남는다. 압축을 감지한 **뒤**
+    주입하면 '이미 잊은 채로 1~2턴'이 뜬다 — 그래서 임박 신호가 본체다.
+    """
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    st = _fresh_state()
+    st.usage_prompt_peak = int(trigger * 0.5)
+    assert cs._reground_due(st, 1001.0) == "", "절반밖에 안 찼는데 arm 됐다"
+    st.usage_prompt_peak = int(trigger * cs.REGROUND_ARM_RATIO) + 1
+    assert cs._reground_due(st, 1001.0) == "compress", "압축 임박인데 arm 이 안 섰다"
+
+
+def test_compression_detected_from_prompt_drop():
+    """② 사후 감지: prompt 급감이 압축이다(Live 는 압축 이벤트를 주지 않는다).
+
+    ⚠ 미탐(주입 누락)은 무해하고 오탐(불필요 주입)은 이중발화 위험이라, 비율과 절대 낙차를
+      **둘 다** 만족할 때만 압축으로 센다.
+    """
+    st = _fresh_state()
+    for p in (4000, 9000, 16000):               # 트리거(16k)까지 차오른다
+        cs._observe_compression(st, p)
+    assert st.compression_seen == 0 and st.usage_prompt_peak == 16000
+
+    cs._observe_compression(st, 15200)          # 작은 요동 — 압축 아님(낙차 800)
+    assert st.compression_seen == 0, "잡음을 압축으로 셌다(오탐)"
+
+    cs._observe_compression(st, 12000)          # 16k → target 12k: 실제 압축 모양
+    assert st.compression_seen == 1, "현행 16000/12000 압축을 못 봤다(미탐)"
+    assert st.usage_prompt_peak == 12000, "새 사이클 바닥에서 다시 세지 않는다"
+    assert cs._reground_due(st, 1001.0) == "post-compress"
+
+
+def test_close_wins_over_reground_arm():
+    """⛔ 종료가 최우선 — 마무리 구간에서는 어떤 근거로도 arm 하지 않는다(작별 오염 방지)."""
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    st = _fresh_state()
+    st.usage_prompt_peak = trigger             # 압축 임박(가장 강한 근거)
+    assert cs._reground_due(st, 1001.0) == "compress"
+    st.should_close = True
+    assert cs._reground_due(st, 1001.0) == "", "종료 중인데 재접지가 arm 됐다"
+    st.should_close, st.close_seed_sent = False, True
+    assert cs._reground_due(st, 1001.0) == "", "종료 시드 주입 후에 재접지가 arm 됐다"
+    st.close_seed_sent = False
+    st.reground_count = cs.REGROUND_MAX_PER_CALL
+    assert cs._reground_due(st, 1001.0) == "", "통화당 상한을 넘겨 arm 됐다"
+
+
+# --- 재접지 통합: 사이드카는 문장을 만들지 않는다 ---------------------------- #
+def test_brief_drops_closing_vocabulary_slots():
+    """⛔ 최대 신규 위험: 학습자의 "이제 그만할래요"가 슬롯에 실려 **다시 주입**되는 경로.
+
+    태그를 분리해도 소용없다 — 어휘만으로 같은 일이 난다(실측 call 683: 재접지 30초 뒤 작별).
+    방어는 프롬프트가 아니라 코드다: 조립 직전에 종료 어휘가 걸린 슬롯을 통째로 버린다.
+    적대적 페이로드를 넣어 결과에 안 나오는지 단언한다.
+    """
+    from core.persona_prompt import build_reground_brief
+
+    out = build_reground_brief(
+        "선생님", "다정함",
+        mode="chat",
+        covered=["인사말", "이제 그만할래요", "오늘은 여기까지 마무리", "숫자 세기"],
+        topic="슬슬 작별할 시간",
+    )
+    for poison in ("그만", "마무리", "작별", "여기까지"):
+        assert poison not in out, f"종료 어휘가 재접지 주입문에 실렸다: {poison}"
+    # 걸린 원소만 버리고 멀쩡한 것은 남는다(전량 폐기가 아니다).
+    assert "인사말" in out and "숫자 세기" in out
+    # 종료 어휘를 **금지문으로도** 쓰지 않는다 — 금지 예시가 씨앗이 된 전례가 있다.
+    assert "끝내지" not in out and "종료" not in out
+
+
+def test_brief_leads_with_react_to_user_first():
+    """주입은 약 250 토큰으로 사용자의 한마디보다 크다 — '유저에게 먼저 반응' 지시가 앞에 없으면
+    비버가 유저를 무시하고 주입 텍스트에 응답한다(문맥 없는 화제 전환)."""
+    from core.persona_prompt import build_reground_brief
+
+    out = build_reground_brief("선생님", "다정함")
+    head = out[:120]
+    assert "먼저" in head and "반응" in head, f"'유저 먼저'가 앞에 없다: {head}"
+
+
+def test_mode_is_sticky_unless_quote_is_verified():
+    """모드는 서버가 소유한다 — 사이드카 제안은 **전사에 실재하는 인용**으로만 뒤집힌다.
+
+    압축이 통화 초반을 삼키면 사이드카는 최근 몇 턴만 보고 모드를 다르게 부른다. 그때마다
+    바뀌면 비버가 통화 중간에 성격이 바뀐 것처럼 군다(AI 는 증인, 코드가 심판).
+    """
+    tail = "학습자: 그냥 편하게 얘기해요\n선생님: 좋아"
+    st = cs._CallState()
+    st.call_mode = "study"
+
+    cs._apply_mode_proposal(st, "chat", "", tail)                      # 인용 없음
+    assert st.call_mode == "study"
+    cs._apply_mode_proposal(st, "chat", "문법 공부하고 싶어요", tail)   # 전사에 없는 인용(환각)
+    assert st.call_mode == "study", "검증되지 않은 인용으로 모드가 바뀌었다"
+    cs._apply_mode_proposal(st, "말하기", "그냥 편하게 얘기해요", tail)  # 모르는 값
+    assert st.call_mode == "study"
+
+    cs._apply_mode_proposal(st, "chat", "그냥 편하게 얘기해요", tail)    # 실재 인용
+    assert st.call_mode == "chat", "인용이 증명됐는데 모드가 안 바뀌었다"
+
+
+@pytest.mark.asyncio
+async def test_reground_sidecar_failure_keeps_default_brief(monkeypatch):
+    """R5: 사이드카가 죽어도 arm 때 조립해 둔 기본 문구가 그대로 남는다(재접지가 사라지지 않는다)."""
+    async def _boom(*a, **k):
+        raise RuntimeError("sidecar down")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _boom)
+
+    st = cs._CallState()
+    st.reground_persona = ("선생님", "다정함")
+    st.reground_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": 0, "role": "user", "text": "안녕하세요", "pcm": b""}]
+    cs._arm_reground(st, "time")
+    before = st.reground_reminder
+
+    await cs._reground_sidecar(st)   # 예외를 흡수해야 한다
+
+    assert st.reground_pending is True and st.reground_reminder == before
 
 
 @pytest.mark.asyncio
@@ -1998,3 +2243,1223 @@ async def test_limit_checked_with_routed_call_type_and_client_tz(
     assert seen["call_type"] == "level_test"
     assert seen["tz"] == 540
     assert seen["member_id"] == seeded["member_id"]
+
+
+# --------------------------------------------------------------------------- #
+# 세션 재연결(15분 통화) — 세대 루프 불변식
+#
+# ⚠ 이 묶음이 지키는 핵심: 세대 루프에서 **워처 태스크는 재생성되는데 상태(_CallState)는
+#   살아남는다**. 그래서 (a) 세대를 건너 유지돼야 할 것이 리셋되지 않고 (b) 1회성 동작이
+#   세대마다 반복되지 않아야 한다. de0133b(재접지 재arm → 후반 리마인더 생략)가 첫 사례였다.
+# --------------------------------------------------------------------------- #
+def _pause(seconds: float):
+    """events() 스크립트 중간에 끼우는 대기 — 회전 시계가 스왑을 요청할 시간을 준다."""
+    async def _inner(_fake):
+        await asyncio.sleep(seconds)
+    return _inner
+
+
+class _GenFake:
+    """한 세대(연결 1개)의 가짜 Live 세션 — 세대별 스크립트를 받는다."""
+
+    def __init__(self, script, epoch: int):
+        self._script = script
+        self.epoch = epoch
+        self.sent_audio: list[bytes] = []
+        self.sent_text_turns: list[str] = []
+        self.regrounds: list[tuple[str, bool]] = []
+        self.closed = False
+
+    async def send_audio(self, pcm16_16k: bytes) -> None:
+        self.sent_audio.append(pcm16_16k)
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        self.regrounds.append((text, turn_complete))
+
+    async def events(self):
+        for item in self._script:
+            if callable(item):
+                await item(self)
+            else:
+                yield item
+
+
+class _ReconnectingFactory:
+    """세대마다 새 _GenFake 를 만드는 팩토리 — 팩토리 kwargs 를 세대별로 기록한다.
+
+    ⚠ **kwargs 로 받는다. 기존 가짜 팩토리들은 (system_instruction, voice) 엄격 시그니처라
+      resume_handle 이 붙는 순간 TypeError 로 죽는다. 그러면 "재연결 경로는 테스트가 한 번도
+      안 타는 죽은 경로"가 된다 — tools 인자에서 이미 겪은 실수라 반복하지 않는다.
+    """
+
+    def __init__(self, scripts):
+        self._scripts = scripts
+        self.sessions: list[_GenFake] = []
+        self.kwargs: list[dict] = []
+
+    def __call__(self, client, settings, **kw):
+        import contextlib as _cl
+
+        @_cl.asynccontextmanager
+        async def _cm():
+            epoch = len(self.sessions) + 1
+            script = self._scripts[min(epoch - 1, len(self._scripts) - 1)]
+            sess = _GenFake(script, epoch)
+            self.sessions.append(sess)
+            self.kwargs.append(dict(kw))
+            try:
+                yield sess
+            finally:
+                sess.closed = True
+
+        return _cm()
+
+
+async def _run_reconnecting(factory, session_factory, seeded):
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+    return ws
+
+
+def _swap_ready(monkeypatch):
+    """스왑이 결정론적으로 딱 1회 일어나도록 시계를 낮춘다(테스트가 발화시킨다).
+
+    ⚠ SWAP_FLAP_GUARD_S 는 0 으로 만들지 마라. 스트림 종료 폴백("저쪽이 예고 없이 끊으면
+      교체")이 있어서, 가드를 끄면 재개된 세션이 또 끝날 때마다 예산(MAX_RECONNECTS)을
+      소진할 때까지 왕복한다 — 실제로 이 테스트를 쓰다가 5세대까지 가는 걸 봤다.
+      즉 무한 왕복을 실제로 막는 건 예산 횟수가 아니라 이 시간 가드다. 그 사실 자체를
+      여기서 값으로 고정한다(가드를 없애면 위 테스트들이 세대 수로 잡아낸다).
+    """
+    monkeypatch.setattr(cs, "SESSION_ROTATE_AT_S", 0.15)
+    monkeypatch.setattr(cs, "SWAP_FLAP_GUARD_S", 5.0)
+    monkeypatch.setattr(cs, "RECONNECT_MIN_REMAINING_S", 0.0)
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 30.0)
+
+
+def _gen_with_handle(handles):
+    """1세대 스크립트 — 핸들 몇 개를 주고, 대기 뒤 턴 경계를 만들어 스왑을 유도한다."""
+    script = [LiveEvent(kind="out_tr", text="안녕"), LiveEvent(kind="turn_end")]
+    script += handles
+    script += [
+        _pause(0.4),
+        LiveEvent(kind="out_tr", text="이어서"),
+        LiveEvent(kind="turn_end"),
+    ]
+    return script
+
+
+_GEN2 = [LiveEvent(kind="out_tr", text="계속"), LiveEvent(kind="turn_end")]
+
+
+@pytest.mark.asyncio
+async def test_reconnect_reuses_latest_handle(session_factory, seeded, monkeypatch):
+    """핸들 보관·재사용 + resumable=False 는 덮어쓰지 않는다.
+
+    ⛔ resumable=False 는 "지금 상태로는 재개 불가"(모델이 생성 중이거나 tool 실행 중)라는
+      뜻이다. 그 시점 핸들로 재개하면 데이터가 유실된다(SDK proto 주석). 덮어쓰면 안 된다.
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle([
+        LiveEvent(kind="resume_update", resume_handle="h1", resumable=True),
+        LiveEvent(kind="resume_update", resume_handle="h2", resumable=True),
+        LiveEvent(kind="resume_update", resume_handle="h_bad", resumable=False),
+    ])
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 2, f"세대가 2개가 아님: {len(factory.sessions)}"
+    assert "resume_handle" not in factory.kwargs[0], "1세대에 핸들을 넘겼다(새 세션이어야 함)"
+    got = factory.kwargs[1].get("resume_handle")
+    assert got == "h2", f"2세대가 최신 유효 핸들을 못 받았다: {got}"
+
+
+@pytest.mark.asyncio
+async def test_reconnect_does_not_resend_opening_seed(session_factory, seeded, monkeypatch):
+    """⛔ 선톡 시드는 1세대만. 재개 세대에 다시 보내면 비버가 통화 중간에 또 인사한다.
+
+    재개는 대화가 이어지는 것이지 새로 시작하는 게 아니다. 실기기 검증에서 가장 걱정했던
+    실패 모드라 코드로 못박는다(발생하면 15분화 자체를 보류해야 하는 종류였다).
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle(
+        [LiveEvent(kind="resume_update", resume_handle="h1", resumable=True)]
+    )
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 2
+    assert len(factory.sessions[0].sent_text_turns) >= 1, "1세대에 선톡 시드가 안 갔다"
+    assert factory.sessions[1].sent_text_turns == [], (
+        f"재개 세대에 시드가 다시 갔다(비버 재인사 유발): {factory.sessions[1].sent_text_turns}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_reconnect_closes_previous_session(session_factory, seeded, monkeypatch):
+    """좀비 미잔존 — 이전 세대 세션이 반드시 닫힌다.
+
+    세션은 세대의 지역 변수로만 존재하므로 별칭이 남을 수 없다는 설계를 실제로 확인한다.
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle(
+        [LiveEvent(kind="resume_update", resume_handle="h1", resumable=True)]
+    )
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 2
+    assert factory.sessions[0].closed is True, "1세대 세션이 안 닫혔다(좀비)"
+
+
+@pytest.mark.asyncio
+async def test_no_swap_without_handle(session_factory, seeded, monkeypatch):
+    """⛔ 핸들이 없으면 갈지 않는다 — 재개가 아니라 기억 상실이 된다.
+
+    차라리 현재 연결을 쓰다가 저쪽이 끊으면 기존 종료 파이프로 우아하게 마무리하는 편이
+    낫다. 이 가드가 없으면 재연결이 "대화를 통째로 잊는 기능"이 된다.
+    """
+    _swap_ready(monkeypatch)
+    gen1 = _gen_with_handle([])  # resume_update 를 한 번도 안 준다
+    factory = _ReconnectingFactory([gen1, _GEN2])
+    await _run_reconnecting(factory, session_factory, seeded)
+
+    assert len(factory.sessions) == 1, (
+        f"핸들이 없는데 세션을 갈았다(기억 상실): 세대 {len(factory.sessions)}개"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# (h) 원가 계기판(Phase 0) — Live usage_metadata 관측
+class _FakeModality:
+    """types.ModalityTokenCount 흉내 — modality 는 enum 이라 .name 을 갖는다."""
+
+    def __init__(self, name: str, count: int):
+        self.modality = type("_M", (), {"name": name})()
+        self.token_count = count
+
+
+class _FakeUsage:
+    """types.UsageMetadata 흉내(필요 필드만)."""
+
+    def __init__(self, prompt, resp, total, *, in_audio=0, in_text=0, out_audio=0):
+        self.prompt_token_count = prompt
+        self.response_token_count = resp
+        self.total_token_count = total
+        self.thoughts_token_count = 0
+        self.cached_content_token_count = None
+        self.tool_use_prompt_token_count = None
+        self.prompt_tokens_details = [
+            _FakeModality("AUDIO", in_audio), _FakeModality("TEXT", in_text)
+        ]
+        self.response_tokens_details = [_FakeModality("AUDIO", out_audio)]
+
+
+class _UsageWS:
+    """펌프가 쓰는 최소 WS 인터페이스."""
+
+    def __init__(self):
+        self.sent_text: list[str] = []
+        self.sent_bytes: list[bytes] = []
+
+    async def send_text(self, text):
+        self.sent_text.append(text)
+
+    async def send_bytes(self, data):
+        self.sent_bytes.append(data)
+
+
+class _ScriptedSession:
+    """주어진 LiveEvent 리스트를 그대로 흘리고 소진되는 가짜 Live 세션."""
+
+    def __init__(self, script):
+        self._script = list(script)
+        self.sent_text_turns: list[str] = []
+
+    async def send_audio(self, pcm16_16k: bytes) -> None: ...
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+
+    async def events(self):
+        for e in self._script:
+            yield e
+
+
+_USAGE_CONVO = [
+    LiveEvent(kind="out_tr", text="안녕"),
+    LiveEvent(kind="audio", audio=b"\x00\x00"),
+    LiveEvent(kind="turn_end"),
+    LiveEvent(kind="in_tr", text="네", is_final=True),
+    LiveEvent(kind="out_tr", text="좋아요"),
+    LiveEvent(kind="audio", audio=b"\x11\x11"),
+    LiveEvent(kind="turn_end"),
+]
+
+
+async def _drain(script):
+    """펌프를 스크립트로 끝까지 돌리고 (state, ws) 를 돌려준다."""
+    state = cs._CallState()
+    ws = _UsageWS()
+    with pytest.raises(cs._CallFinished):
+        await cs._pump_gemini_to_client(ws, _ScriptedSession(script), state)
+    return state, ws
+
+
+@pytest.mark.asyncio
+async def test_usage_events_do_not_disturb_turn_state():
+    """⛔ R4 불변식: usage 이벤트를 아무리 섞어도 턴 상태기계·세그먼트·클라 전송이
+    바뀌지 않는다. usage 는 _forward_event 에 도달하지 않고 적재 후 continue 되므로,
+    usage 를 넣은 통화와 뺀 통화의 관측 가능한 결과가 **완전히 동일**해야 한다.
+    """
+    control, ws_ctl = await _drain(_USAGE_CONVO)
+
+    # 같은 대화에 usage 를 매 이벤트 사이에 끼워 넣는다(최악 케이스).
+    noisy: list = []
+    for i, ev in enumerate(_USAGE_CONVO):
+        noisy.append(LiveEvent(kind="usage", usage=_FakeUsage(
+            100 * (i + 1), 5, 200 * (i + 1), in_audio=90 * (i + 1), in_text=10 * (i + 1),
+        )))
+        noisy.append(ev)
+    treated, ws_trt = await _drain(noisy)
+
+    # 세그먼트(역할·턴인덱스·텍스트)와 클라로 나간 바이트/텍스트가 바이트 동일해야 한다.
+    def _shape(s):
+        return [(x["turn_index"], x["role"], x["text"]) for x in s.segments]
+
+    assert _shape(treated) == _shape(control), "usage 가 세그먼트/턴 인덱스를 오염시켰다"
+    assert treated.next_turn_index == control.next_turn_index
+    assert ws_trt.sent_bytes == ws_ctl.sent_bytes, "usage 가 오디오 전달을 바꿨다"
+
+    # turn_id 는 통화마다 새로 뽑는 난수라 값 자체는 다르다 — 메시지의 종류·순서·나머지
+    # 필드가 같은지를 본다(그게 클라가 실제로 보는 프로토콜이다).
+    def _msgs(w):
+        out = []
+        for t in w.sent_text:
+            d = json.loads(t)
+            d.pop("turn_id", None)
+            out.append(d)
+        return out
+
+    assert _msgs(ws_trt) == _msgs(ws_ctl), "usage 가 클라 제어 메시지를 바꿨다"
+    # 그러면서 계측은 전량 적재됐다.
+    assert control.usage_log == [], "usage 없는 통화인데 적재됐다"
+    assert len(treated.usage_log) == len(_USAGE_CONVO)
+    assert treated.usage_log[0]["prompt"] == 100
+    assert treated.usage_log[0]["in_detail"] == [("AUDIO", 90), ("TEXT", 10)], \
+        "모달리티 분해가 유실됐다 — 오디오/텍스트 단가가 6배 차라 이게 없으면 원가 계산 불가"
+
+
+@pytest.mark.asyncio
+async def test_record_usage_graceful_on_unknown_shape():
+    """R5: usage_metadata 의 형태가 바뀌거나 필드가 없어도 죽지 않는다(로그만 비고 통화 정상)."""
+    state, _ = await _drain([
+        LiveEvent(kind="usage", usage=object()),   # 필드 전무
+        LiveEvent(kind="usage", usage=None),       # 값 없음
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+    ])
+    assert len(state.usage_log) == 2, "이형 usage 가 적재를 건너뛰거나 예외를 냈다"
+    assert state.usage_log[0]["prompt"] is None
+    assert state.usage_log[0]["in_detail"] == []
+    # 요약 방출도 죽지 않아야 한다.
+    cs._log_usage_summary(state, 1, "normal")
+
+
+@pytest.mark.asyncio
+async def test_usage_log_capped(monkeypatch):
+    """상한: 이상 상황(15분 통화·폭주)에서 메모리·로그가 무한히 자라지 않는다."""
+    monkeypatch.setattr(cs, "_USAGE_LOG_MAX", 3)
+    state, _ = await _drain(
+        [LiveEvent(kind="usage", usage=_FakeUsage(10, 1, 11)) for _ in range(10)]
+    )
+    assert len(state.usage_log) == 3
+    assert state.usage_dropped == 7
+
+
+def test_usage_summary_line_is_parseable():
+    """요약 줄은 key=value 로 못박는다 — 나중에 Cloud Logging 로그 기반 메트릭이
+    코드 변경 0줄로 여기서 숫자를 뽑아갈 수 있어야 한다. 또한 Σ와 last 를 **둘 다**
+    내보내야 usage_metadata 가 증분인지 누적인지 실측으로 판별할 수 있다."""
+    import logging
+
+    state = cs._CallState()
+    state.call_start_ts = None
+    state.usage_log = [
+        {"t": 1.0, "turn": 0, "prompt": 100, "resp": 10, "total": 110, "thoughts": 0,
+         "cached": None, "tool_in": None,
+         "in_detail": [("AUDIO", 90), ("TEXT", 10)], "out_detail": [("AUDIO", 10)]},
+        {"t": 5.0, "turn": 2, "prompt": 300, "resp": 20, "total": 320, "thoughts": 0,
+         "cached": None, "tool_in": None,
+         "in_detail": [("AUDIO", 280), ("TEXT", 20)], "out_detail": [("AUDIO", 20)]},
+    ]
+
+    records: list[str] = []
+
+    class _Cap(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    h = _Cap()
+    cs.logger.addHandler(h)
+    prev_level = cs.logger.level
+    cs.logger.setLevel(logging.INFO)  # 루트 기본은 WARNING — INFO 요약이 핸들러에 안 온다
+    try:
+        cs._log_usage_summary(state, 42, "normal")
+    finally:
+        cs.logger.removeHandler(h)
+        cs.logger.setLevel(prev_level)
+
+    line = next(r for r in records if r.startswith("normalcall usage:"))
+    for token in (
+        "call_id=42", "type=normal", "msgs=2", "dropped=0",
+        "sum_prompt=400",      # Σ — 증분 해석일 때의 재과금 항
+        "last_prompt=300", "last_total=320",  # last — 누적 해석일 때의 값
+        "monotonic=True",      # 단조증가 = 누적 의심 / 압축 미발동
+        "AUDIO=370", "TEXT=30",  # 모달리티 분해(오디오·텍스트 단가 6배 차 → 원가 계산 필수)
+    ):
+        assert token in line, f"요약 줄에 {token} 없음: {line}"
+
+
+@pytest.mark.asyncio
+async def test_usage_summary_emitted_on_every_exit_path(session_factory, seeded):
+    """통화가 어떤 경로로 끝나든 요약이 정확히 1회 방출된다(run_call finally 경유)."""
+    import logging
+
+    records: list[str] = []
+
+    class _Cap(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    h = _Cap()
+    cs.logger.addHandler(h)
+    prev_level = cs.logger.level
+    cs.logger.setLevel(logging.INFO)  # 루트 기본은 WARNING — INFO 요약이 핸들러에 안 온다
+    try:
+        fake = _RegroundFake([
+            LiveEvent(kind="usage", usage=_FakeUsage(1000, 50, 1050, in_audio=900, in_text=100)),
+            LiveEvent(kind="out_tr", text="안녕"),
+            LiveEvent(kind="audio", audio=b"\x00\x00"),
+            LiveEvent(kind="turn_end"),
+            LiveEvent(kind="usage", usage=_FakeUsage(2000, 60, 2060, in_audio=1800, in_text=200)),
+        ])
+        await _run_with_fake(fake, session_factory, seeded)
+    finally:
+        cs.logger.removeHandler(h)
+        cs.logger.setLevel(prev_level)
+
+    summaries = [r for r in records if r.startswith("normalcall usage:")]
+    assert len(summaries) == 1, f"요약이 1회가 아님({len(summaries)}회)"
+    assert "msgs=2" in summaries[0]
+    assert "sum_prompt=3000" in summaries[0]
+    assert "AUDIO=2700" in summaries[0]
+
+
+# --------------------------------------------------------------------------- #
+# (i) 플랜별 통화 길이 — 일반 통화만, 레벨테스트는 3분 하드캡 유지
+# --------------------------------------------------------------------------- #
+def _spy_duration(monkeypatch) -> list:
+    """_resolve_call_duration 이 받은 base 를 순서대로 기록한다(마지막이 실제 채택값)."""
+    seen: list = []
+    orig = cs._resolve_call_duration
+
+    def spy(settings, duration_min, base=None):
+        seen.append(base)
+        return orig(settings, duration_min, base=base)
+
+    monkeypatch.setattr(cs, "_resolve_call_duration", spy)
+    return seen
+
+
+@pytest.mark.asyncio
+async def test_normal_call_duration_comes_from_plan(session_factory, seeded, monkeypatch):
+    """env 강제값이 없으면 일반 통화 길이는 **구독 플랜**이 정한다(Free 5분 / Pro·Max 15분)."""
+    monkeypatch.setattr(cs, "CALL_DURATION_S", None)   # prod 상태(강제 없음)
+    monkeypatch.setattr(
+        cs.call_service, "call_duration_s_for_member", lambda db, mid: 900.0
+    )
+    seen = _spy_duration(monkeypatch)
+    await _run_with_fake(_RegroundFake([LiveEvent(kind="turn_end")]), session_factory, seeded)
+    assert seen[-1] == 900.0, f"플랜 길이가 안 잡혔다: {seen}"
+
+
+@pytest.mark.asyncio
+async def test_env_duration_overrides_plan_and_skips_lookup(
+    session_factory, seeded, monkeypatch
+):
+    """⛔ env 강제값이 있으면 플랜 조회를 **아예 안 한다**.
+
+    dev/demo 에서 구독 없는 계정으로 15분을 밟는 탈출구다. 조회를 하면서 값만 버리면
+    구독 테이블이 깨졌을 때 통화가 같이 죽는다 — 안 부르는 것이 요점이다.
+    """
+    monkeypatch.setattr(cs, "CALL_DURATION_S", 900.0)
+
+    def _boom(db, mid):
+        raise AssertionError("env 강제값이 있는데 플랜을 조회했다")
+
+    monkeypatch.setattr(cs.call_service, "call_duration_s_for_member", _boom)
+    seen = _spy_duration(monkeypatch)
+    await _run_with_fake(_RegroundFake([LiveEvent(kind="turn_end")]), session_factory, seeded)
+    assert seen[-1] == 900.0
+
+
+@pytest.mark.asyncio
+async def test_level_test_duration_ignores_plan(session_factory, seeded, monkeypatch):
+    """⛔ 레벨테스트 3분 하드캡은 상품 혜택이 아니라 측정 설계다 — 플랜을 타면 안 된다.
+
+    Max 회원의 레벨테스트가 15분이 되면 판정 재료가 통째로 달라진다(레벨 비교 불가).
+    """
+    monkeypatch.setattr(cs, "CALL_DURATION_S", None)
+
+    def _boom(db, mid):
+        raise AssertionError("레벨테스트가 플랜 길이를 조회했다")
+
+    monkeypatch.setattr(cs.call_service, "call_duration_s_for_member", _boom)
+    seen = _spy_duration(monkeypatch)
+
+    import contextlib as _cl
+
+    fake = _RegroundFake([LiveEvent(kind="turn_end")])
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kw):
+        yield fake
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"],
+                              "call_type": "level_test"})}],
+        hang=True,
+    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+    assert seen[-1] == cs.LEVELTEST_MAX_S, f"레벨테스트 base 가 3분캡이 아니다: {seen}"
+
+
+# --------------------------------------------------------------------------- #
+# (n) 기존 결함 회귀 (마스터플랜 20260804_1930 §4)
+# --------------------------------------------------------------------------- #
+# 15분 통화와 별개로 원래 있던 결함들이다. 5분에선 증상이 작아 안 보였고,
+# 15분·세션 재연결이 붙는 순간 각각 메모리·죽은 세션·거짓 신호로 드러난다.
+
+_SEC = cs.INPUT_SAMPLE_RATE * cs.SAMPLE_WIDTH_BYTES  # user PCM 1초치 바이트 수
+
+
+def _seg(idx: int, role: str, pcm: bytes, text: str = "말") -> dict:
+    return {"turn_index": idx, "role": role, "text": text, "pcm": pcm}
+
+
+@contextlib.asynccontextmanager
+async def _fixed_factory(fake):
+    """세대와 무관하게 같은 가짜 세션을 돌려주는 팩토리(**kwargs 수용)."""
+    yield fake
+
+
+def _factory_for(fake):
+    def _f(client, settings, **kw):
+        return _fixed_factory(fake)
+
+    return _f
+
+
+# --- B1: flush 후 통화 오디오가 RAM 에서 실제로 놓아지는가 -------------------- #
+def test_release_frees_pcm_and_keeps_user_audio():
+    """저장이 끝난 세그먼트의 PCM 은 놓아주되, 국적 추론용 user 원음은 회수해 둔다.
+
+    ⛔ 두 요구가 동시에 지켜져야 한다 — 그냥 지우면 통화후 국적 추론이 깨지고,
+      안 지우면 통화 오디오 전체가 통화 내내 RAM 에 남는다(B1).
+    """
+    state = cs._CallState()
+    state.segments = [
+        _seg(0, "user", b"\x01\x02" * _SEC),          # 2초치
+        _seg(1, "beaver", b"\x03\x04" * _SEC * 3),
+        _seg(2, "user", b"\x05\x06" * _SEC),
+    ]
+    before = sum(len(s["pcm"]) for s in state.segments)
+
+    freed = cs._release_persisted_pcm(state, len(state.segments))
+
+    assert freed == before
+    assert sum(len(s["pcm"]) for s in state.segments) == 0, "flush 후에도 PCM 이 남아 있다"
+    # user 원음만, 순서대로 이어붙어 회수됐다(비버 출력은 회수 대상이 아니다).
+    assert bytes(state.nationality_pcm) == b"\x01\x02" * _SEC + b"\x05\x06" * _SEC
+
+
+def test_release_only_touches_persisted_range():
+    """아직 저장 안 된 구간(upto 밖)은 건드리지 않는다 — 저장 전에 놓으면 기록이 유실된다."""
+    state = cs._CallState()
+    state.segments = [_seg(0, "user", b"\xaa" * 100), _seg(1, "beaver", b"\xbb" * 100)]
+    cs._release_persisted_pcm(state, 1)
+    assert state.segments[0]["pcm"] == b""
+    assert state.segments[1]["pcm"] == b"\xbb" * 100, "미저장 세그먼트의 PCM 을 놓아버렸다"
+
+
+def test_nationality_buffer_is_capped():
+    """보관량이 통화 길이와 무관하게 상한에 고정된다 — 15분 통화가 메모리를 못 키운다."""
+    state = cs._CallState()
+    chunk = b"\x00\x01" * (_SEC * 40)  # 40초치 × 3턴 = 120초
+    state.segments = [_seg(i, "user", chunk) for i in range(3)]
+    cs._release_persisted_pcm(state, 3)
+    assert len(state.nationality_pcm) == int(_SEC * cs.NATIONALITY_PCM_MAX_S)
+    assert sum(len(s["pcm"]) for s in state.segments) == 0
+
+
+@pytest.mark.asyncio
+async def test_periodic_flush_releases_pcm(session_factory, seeded, monkeypatch):
+    """점진 flush 가 돌고 나면 그 구간 PCM 이 실제로 사라진다(단위가 아니라 실제 경로)."""
+    monkeypatch.setattr(cs, "FLUSH_INTERVAL_S", 0.01)
+    call_id = await svc.run_db(
+        session_factory,
+        lambda db: svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal"),
+    )
+    state = cs._CallState()
+    state.segments = [_seg(0, "user", b"\x11\x22" * _SEC),
+                      _seg(1, "beaver", b"\x33\x44" * _SEC)]
+
+    task = asyncio.create_task(
+        cs._periodic_flush(session_factory, state, call_id, seeded["member_id"])
+    )
+    for _ in range(300):
+        if state.persisted_count == 2:
+            break
+        await asyncio.sleep(0.01)
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+    assert state.persisted_count == 2, "점진 flush 가 저장하지 못했다(테스트 전제 붕괴)"
+    assert sum(len(s["pcm"]) for s in state.segments) == 0, \
+        "저장이 끝났는데 PCM 이 그대로 남아 있다(B1 재발)"
+    assert bytes(state.nationality_pcm) == b"\x11\x22" * _SEC, "user 원음 회수가 안 됐다"
+
+
+@pytest.mark.asyncio
+async def test_call_end_releases_pcm_but_still_feeds_nationality(
+    session_factory, seeded, monkeypatch
+):
+    """통화 1건 끝까지: 종료 시점에 세그먼트 PCM 은 0, 국적 추론은 user 원음을 받는다."""
+    captured: dict = {}
+    orig = cs._persist_remaining
+
+    async def _spy(dbf, state, call_id, member_id):
+        captured["state"] = state
+        return await orig(dbf, state, call_id, member_id)
+
+    monkeypatch.setattr(cs, "_persist_remaining", _spy)
+
+    got: list[bytes] = []
+    monkeypatch.setattr(
+        cs, "_trigger_nationality",
+        lambda dbf, call_id, member_id, user_pcm: got.append(user_pcm),
+    )
+
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+        LiveEvent(kind="in_tr", text="네 안녕하세요", is_final=True),
+        LiveEvent(kind="out_tr", text="반가워"),   # 비버 응답 시작 → user 세그먼트 확정
+        LiveEvent(kind="turn_end"),
+    ])
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+        {"type": "websocket.receive", "bytes": b"\x07\x08" * 512},  # 학습자 원음
+    ])
+
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=_factory_for(fake))
+    await _wait_analysis_tasks()
+
+    state = captured["state"]
+    assert sum(len(s["pcm"]) for s in state.segments) == 0, \
+        "통화가 끝났는데 세그먼트 PCM 이 남아 있다(B1 재발)"
+    assert got and isinstance(got[0], bytes), "국적 추론 훅이 바이트를 못 받았다"
+    assert got[0] == b"\x07\x08" * 512, "국적 추론용 user 원음이 유실됐다"
+
+
+# --- B2: TaskGroup 밖 사이드카가 죽은 세션을 잡지 않는가 --------------------- #
+@pytest.mark.asyncio
+async def test_band_sidecar_requests_close_without_a_session(monkeypatch):
+    """종료 판정 사이드카는 **세션을 받지 않는다** — 신호만 세운다.
+
+    ⛔ 예전엔 session 을 캡처해 _inject_close_seed 를 직접 불렀다. 이 태스크는 TaskGroup
+      밖이라 세션 교체보다 오래 살 수 있어서, 세션이 갈린 뒤엔 **죽은 세션에 주입**하는
+      유일한 경로였다(B2). 이 호출이 session 인자 없이 성립하는 것 자체가 회귀 방어다.
+    """
+    monkeypatch.setattr(cs, "LEVELTEST_BAND_TIME_FLOOR_S", 0.0)
+    monkeypatch.setattr(cs, "LEVELTEST_END_JUDGE_MIN_ANSWERS", 1)
+    fake, _rec = _fake_band(True, end_after=1)
+    monkeypatch.setattr(cs.svc, "judge_leveltest_turn", fake)
+
+    state = cs._CallState()
+    state.band_observe = True
+    state.call_start_ts = asyncio.get_running_loop().time() - 100.0
+
+    await cs._band_observe_sidecar(state, "저는 서울에 살아요", "어디 살아요?")
+
+    assert state.should_close, "종료 트리거가 섰는데 should_close 가 안 섰다"
+    assert state.close_requested.is_set(), "세대(워처)를 깨우는 신호가 안 섰다"
+
+
+@pytest.mark.asyncio
+async def test_close_request_is_injected_by_the_live_generation():
+    """사이드카가 요청만 해도, **살아 있는 세대**의 시계워처가 종료 시드를 넣는다.
+
+    B2 의 대체 경로가 실제로 작동하는지(그리고 폴링 지연에 묻히지 않는지) 검증한다.
+    """
+    state = cs._CallState()
+    state.call_start_ts = asyncio.get_running_loop().time()
+    state.call_duration_s = 30.0          # 시계로는 아직 한참 남았다
+    sess = _RegroundFake([])
+
+    watcher = asyncio.create_task(cs._watch_call_clock(state, sess))
+    await asyncio.sleep(0)                # 워처가 대기 상태로 들어가게
+    cs._request_close(state)              # 사이드카가 하는 일 전부
+
+    for _ in range(100):
+        if sess.sent_text_turns:
+            break
+        await asyncio.sleep(0.01)
+    watcher.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await watcher
+
+    assert state.close_seed in sess.sent_text_turns, \
+        "종료 요청이 살아 있는 세션의 종료 시드 주입으로 이어지지 않았다"
+
+
+# --- B4: 한 봉투에 신호가 둘 들어와도 재그룹화되지 않는가 -------------------- #
+def test_pick_call_signal_priority():
+    """우선순위 종료 > 클라 끊김 > 스왑. 신호가 없으면 None(봉투를 그대로 올린다)."""
+    def _pick(*excs):
+        return cs._pick_call_signal(ExceptionGroup("tg", list(excs)))
+
+    assert isinstance(_pick(cs._CallFinished(), cs._ClientDisconnect()), cs._CallFinished)
+    assert isinstance(_pick(cs._SessionSwap(), cs._CallFinished()), cs._CallFinished)
+    assert isinstance(_pick(cs._SessionSwap(), cs._ClientDisconnect()), cs._ClientDisconnect)
+    assert isinstance(_pick(cs._SessionSwap()), cs._SessionSwap)
+    assert isinstance(_pick(cs._SessionSwap(), ValueError("x")), cs._SessionSwap)
+    assert _pick(ValueError("x")) is None
+
+
+async def _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen: dict):
+    """monkeypatch 된 두 워처가 각각 신호를 던진다 → **한 봉투에 신호 2개**.
+
+    ⚠ events() 는 끝나지 않게 매달아 둔다. 스트림이 끝나면 펌프가 스스로 _CallFinished 를
+      올려 봉투에 신호가 하나 더 섞이고, 그러면 "둘 중 무엇이 이기는가"를 못 재게 된다.
+    ⚠ 봉투에 실제로 뭐가 담겼는지 seen 에 기록한다 — 호출부가 그걸 단언해야 이 테스트가
+      "신호 1개짜리 쉬운 경우"로 조용히 약해지는 것을 막는다.
+    """
+    orig = cs._pick_call_signal
+
+    def _spy(eg):
+        seen["types"] = sorted(type(e).__name__ for e in eg.exceptions)
+        return orig(eg)
+
+    monkeypatch.setattr(cs, "_pick_call_signal", _spy)
+    fake = _RegroundFake([lambda f: asyncio.Event().wait()])
+    await cs._run_session(
+        FakeWebSocket([], hang=True),
+        state=cs._CallState(),
+        system_instruction="지시문",
+        voice="Fenrir",
+        seed_text="시작",
+        settings=app_settings,
+        client=object(),
+        live_session_factory=_factory_for(fake),
+        db_session_factory=session_factory,
+        call_id=1,
+        member_id=seeded["member_id"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_two_signals_do_not_regroup_into_an_exception_group(
+    session_factory, seeded, monkeypatch
+):
+    """⛔ 두 신호가 같은 TaskGroup 봉투에 담겨도 **홑겹 신호 하나**가 올라온다.
+
+    except* 절을 나열하면 매치되는 절이 전부 실행돼 결과가 ExceptionGroup([A, B]) 이 되고,
+    호출부의 `except _CallFinished` / `except _SessionSwap` 이 아무것도 못 잡는다(B4).
+    특히 [_SessionSwap + _CallFinished] 조합은 스왑이 통째로 실패해 통화가 오류로 끝난다.
+    """
+    async def _swap(state):                       # nc-rotate 자리
+        raise cs._SessionSwap()
+
+    async def _finish(session, state):            # nc-reground 자리
+        raise cs._CallFinished()
+
+    monkeypatch.setattr(cs, "_watch_session_rotate", _swap)
+    monkeypatch.setattr(cs, "_reground_watch", _finish)
+
+    seen: dict = {}
+    with pytest.raises(cs._CallFinished):         # 종료가 스왑을 이긴다
+        await _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen)
+    assert seen["types"] == ["_CallFinished", "_SessionSwap"], \
+        f"봉투에 신호가 2개 담기지 않았다(테스트 전제 붕괴): {seen}"
+
+
+@pytest.mark.asyncio
+async def test_disconnect_wins_over_swap(session_factory, seeded, monkeypatch):
+    """클라가 이미 끊었으면 스왑하지 않는다 — 아무도 없는 통화에 새 연결을 열면 안 된다."""
+    async def _swap(state):
+        raise cs._SessionSwap()
+
+    async def _disconnect(session, state):
+        raise cs._ClientDisconnect()
+
+    monkeypatch.setattr(cs, "_watch_session_rotate", _swap)
+    monkeypatch.setattr(cs, "_reground_watch", _disconnect)
+
+    seen: dict = {}
+    with pytest.raises(cs._ClientDisconnect):
+        await _run_session_with_two_signals(session_factory, seeded, monkeypatch, seen)
+    assert seen["types"] == ["_ClientDisconnect", "_SessionSwap"], \
+        f"봉투에 신호가 2개 담기지 않았다(테스트 전제 붕괴): {seen}"
+
+
+# --------------------------------------------------------------------------- #
+# (o) 원가 계기판 2단계 — usage 영속화
+# --------------------------------------------------------------------------- #
+# Cloud Logging 보존이 30일이라 그 뒤엔 원가 근거가 사라진다. 통화 행에 남긴다.
+# ⛔ 통화 경로가 아니다 — 저장이 실패해도 통화·전사·분석은 그대로 가야 한다(R5).
+
+def _usage_state(entries, dropped: int = 0):
+    """(prompt, total, in_audio, in_text, out_audio) 튜플로 usage_log 를 만든다."""
+    st = cs._CallState()
+    st.usage_dropped = dropped
+    for i, (prompt, total, ia, it, oa) in enumerate(entries):
+        st.usage_log.append({
+            "t": float(i), "turn": i, "prompt": prompt, "resp": 10, "total": total,
+            "thoughts": 0, "cached": None, "tool_in": None,
+            "in_detail": [("AUDIO", ia), ("TEXT", it)],
+            "out_detail": [("AUDIO", oa)],
+        })
+        st.usage_prompt_peak = max(st.usage_prompt_peak, prompt)
+        st.usage_prompt_max = max(st.usage_prompt_max, prompt)
+    return st
+
+
+def test_usage_summary_aggregates_modalities():
+    """요약이 로그와 DB 의 단일 소스 — 모달리티 4항·총합·최대 컨텍스트가 정확해야 한다."""
+    st = _usage_state([(1000, 1100, 900, 100, 40), (2500, 2700, 2300, 200, 60)])
+    s = cs._usage_summary(st)
+    assert s["msgs"] == 2
+    assert s["in_mod"] == {"AUDIO": 3200, "TEXT": 300}
+    assert s["out_mod"] == {"AUDIO": 100}
+    assert s["sum_total"] == 3800
+    assert s["peak_prompt"] == 2500, "최대 컨텍스트가 안 잡혔다(압축·트리거 판단의 핵심 지표)"
+    assert cs._usage_summary(cs._CallState()) is None, "usage 0건은 None(=계측 미수신)이어야 한다"
+
+
+def test_save_call_usage_writes_columns_and_json(session_factory, seeded):
+    """집계 컬럼 + 원본 JSON 이 함께 저장된다. 컬럼으로 뺀 4종 외 모달리티는 JSON 으로 흘러간다."""
+    db = session_factory()
+    try:
+        call_id = svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal")
+        summary = {
+            "msgs": 5, "dropped": 2, "sum_total": 9999, "peak_prompt": 15844,
+            "monotonic": False, "last_prompt": 11695, "last_total": 12000,
+            "sum_prompt": 50000, "sum_resp": 900, "sum_thoughts": 0,
+            "t_first": 0.1, "t_last": 899.0, "compressions": 1, "epochs": 2, "reconnects": 1,
+            "in_mod": {"AUDIO": 300628, "TEXT": 245338, "VIDEO": 7},
+            "out_mod": {"AUDIO": 17600, "TEXT": 440},
+        }
+        assert svc.save_call_usage(db, call_id, summary) is True
+
+        call = db.get(Call, call_id)
+        assert (call.usage_in_audio, call.usage_in_text) == (300628, 245338)
+        assert (call.usage_out_audio, call.usage_out_text) == (17600, 440)
+        assert call.usage_msgs == 5 and call.usage_total == 9999
+        assert call.usage_peak_prompt == 15844
+        # 상한 초과로 버린 개수도 남아야 한다 — Σ가 과소라는 사실이 드러나야 하니까.
+        assert call.usage_json["dropped"] == 2
+        assert call.usage_json["compressions"] == 1 and call.usage_json["reconnects"] == 1
+        # 컬럼 없는 모달리티는 스키마 변경 없이 JSON 으로 받는다.
+        assert call.usage_json["in_other"] == {"VIDEO": 7}
+        assert "out_other" not in call.usage_json
+    finally:
+        db.close()
+
+
+def test_save_call_usage_unknown_call_is_silent(session_factory):
+    """없는 통화면 조용히 False — 계기판 때문에 예외를 올릴 이유가 없다."""
+    db = session_factory()
+    try:
+        assert svc.save_call_usage(db, 999999, {"msgs": 1, "in_mod": {}, "out_mod": {}}) is False
+    finally:
+        db.close()
+
+
+def test_estimate_cost_matches_hand_calculation():
+    """원가는 저장하지 않고 매번 곱한다 — 그 산식이 손계산과 맞는지."""
+    cost = svc.estimate_usage_cost_usd(
+        in_audio=1_000_000, in_text=1_000_000, out_audio=1_000_000, out_text=1_000_000
+    )
+    assert round(cost, 6) == round(3.00 + 0.50 + 12.00 + 2.00, 6)
+    # 실측 call 890 규모(모달리티 합 546k)를 넣어도 자릿수가 맞는지.
+    assert 0 < svc.estimate_usage_cost_usd(in_audio=300628, in_text=245338) < 1.5
+
+
+@pytest.mark.asyncio
+async def test_call_persists_usage_and_survives_save_failure(
+    session_factory, seeded, monkeypatch
+):
+    """통화 1건 끝까지: usage 가 행에 남는다. 그리고 저장이 터져도 통화는 정상 종료된다(R5)."""
+    def _convo():
+        return [
+            LiveEvent(kind="usage",
+                      usage=_FakeUsage(1200, 30, 1400, in_audio=1000, in_text=200)),
+            LiveEvent(kind="out_tr", text="안녕"),
+            LiveEvent(kind="usage",
+                      usage=_FakeUsage(2400, 40, 2700, in_audio=2100, in_text=300)),
+            LiveEvent(kind="turn_end"),
+        ]
+
+    await _run_with_fake(_RegroundFake(_convo()), session_factory, seeded)
+
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.usage_msgs == 2, "usage 가 통화 행에 안 남았다"
+        assert call.usage_in_audio == 3100 and call.usage_in_text == 500
+        assert call.usage_peak_prompt == 2400
+        assert call.status in ("analyzing", "done")
+    finally:
+        db.close()
+
+    # 저장이 터지는 경우 — 통화는 그대로 끝나야 한다(전사·상태 무손상).
+    def _boom(db, call_id, summary, **kw):
+        raise RuntimeError("usage table gone")
+
+    monkeypatch.setattr(svc, "save_call_usage", _boom)
+    await _run_with_fake(_RegroundFake(_convo()), session_factory, seeded)
+
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.status in ("analyzing", "done"), "usage 저장 실패가 통화를 죽였다(R5 위반)"
+        assert call.usage_msgs is None, "저장이 실패했는데 값이 남았다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_call_without_usage_leaves_columns_null(session_factory, seeded):
+    """usage 미수신 통화(모킹 세션·Live 실패)는 NULL 로 남는다 — '계측 안 됨'과 '0 토큰'의 구별."""
+    await _run_with_fake(
+        _RegroundFake([LiveEvent(kind="out_tr", text="안녕"), LiveEvent(kind="turn_end")]),
+        session_factory, seeded,
+    )
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.usage_msgs is None and call.usage_json is None
+        assert call.status in ("analyzing", "done")
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# (p) 원가 계기판 3단계 — 엔진 구분(usage_engine) + peak 의미 수정
+# --------------------------------------------------------------------------- #
+# Live 와 캐스케이드가 같은 컬럼에 섞이면 AVG(원가) 가 두 엔진의 평균이 돼, 캐스케이드
+# 프로젝트의 유일한 목적("정말 싼가")을 데이터로 증명할 수 없게 된다.
+# 그리고 usage_peak_prompt 는 압축마다 리셋되는 사이클 peak 를 담고 있었다(call 909:
+# DB 13,355 vs 실제 15,904) — 압축 트리거 하향 실험이 바로 그 숫자를 본다.
+
+def test_engine_tag_follows_the_contract():
+    """엔진 태그 조립 — cascade-impl 과 공유하는 계약 문자열이라 한 글자도 어긋나면 안 된다."""
+    assert svc.ENGINE_LIVE_GEMINI == "live:gemini-native-audio"
+    assert svc.build_engine_tag(
+        "cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
+    ) == "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd"
+    # STT 를 갈아끼워도 같은 컬럼에서 갈라진다(스키마 변경 없이).
+    assert svc.build_engine_tag(
+        "cascade", "whisper", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
+    ) == "cascade:whisper+gemini-2.5-flash+cloud-tts-chirp3-hd"
+    # 폴백으로 한 다리가 빠지면 빈 칸이 아니라 그냥 빠진다("a++b" 같은 쓰레기 방지).
+    assert svc.build_engine_tag("cascade", "whisper", "", "cloud-tts-chirp3-hd") \
+        == "cascade:whisper+cloud-tts-chirp3-hd"
+
+
+@pytest.mark.asyncio
+async def test_live_call_stamps_its_engine(session_factory, seeded):
+    """⛔ Live 통화는 **반드시** 엔진 태그를 남긴다 — 비면 나중에 되짚을 방법이 없다."""
+    await _run_with_fake(
+        _RegroundFake([
+            LiveEvent(kind="usage", usage=_FakeUsage(1200, 30, 1400, in_audio=1000, in_text=200)),
+            LiveEvent(kind="out_tr", text="안녕"),
+            LiveEvent(kind="turn_end"),
+        ]),
+        session_factory, seeded,
+    )
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.usage_engine == "live:gemini-native-audio", \
+            "Live 통화에 엔진 태그가 안 남았다 — 캐스케이드와 섞이면 구별 불가"
+    finally:
+        db.close()
+
+
+def test_cascade_summary_keeps_column_contract_and_vendors(session_factory, seeded):
+    """캐스케이드 규약: 오디오 컬럼 0, 텍스트 컬럼 = LLM 토큰, STT·TTS 는 usage_json.vendors."""
+    db = session_factory()
+    try:
+        call_id = svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal")
+        engine = svc.build_engine_tag(
+            "cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
+        )
+        summary = {
+            "msgs": 40, "sum_total": 44200, "peak_prompt": 5200,
+            "in_mod": {"TEXT": 41000}, "out_mod": {"TEXT": 3200},
+            "vendors": {
+                "stt": {"vendor": "google-stt-v2", "audio_s": 902.4},
+                "llm": {"vendor": "gemini-2.5-flash", "in_text": 41000, "out_text": 3200},
+                "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 8400},
+            },
+        }
+        assert svc.save_call_usage(db, call_id, summary, engine=engine) is True
+
+        call = db.get(Call, call_id)
+        assert call.usage_engine == engine
+        # 오디오 토큰은 0 — 캐스케이드 LLM 은 오디오를 안 받는다(NULL 아님: 0 은 사실이다).
+        assert (call.usage_in_audio, call.usage_out_audio) == (0, 0)
+        assert (call.usage_in_text, call.usage_out_text) == (41000, 3200)
+        # 초·문자는 토큰 컬럼에 못 들어간다 — JSON 에 원형 그대로.
+        assert call.usage_json["vendors"]["tts"]["chars"] == 8400
+        assert call.usage_json["vendors"]["stt"]["audio_s"] == 902.4
+    finally:
+        db.close()
+
+
+def test_cost_depends_on_engine_not_just_tokens():
+    """같은 토큰 수라도 엔진이 다르면 원가가 다르다 — 엔진을 모르고 계산하면 조용히 틀린다."""
+    live, unknown = svc.estimate_call_cost_usd(
+        svc.ENGINE_LIVE_GEMINI, in_text=1_000_000, out_text=1_000_000
+    )
+    assert unknown == []
+    assert round(live, 6) == round(0.50 + 2.00, 6), "Live 텍스트 단가"
+
+    casc, unknown = svc.estimate_call_cost_usd(
+        "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd",
+        in_text=1_000_000, out_text=1_000_000,
+        usage_json={"vendors": {
+            "llm": {"vendor": "gemini-2.5-flash", "in_text": 1_000_000, "out_text": 1_000_000},
+        }},
+    )
+    assert unknown == []
+    assert round(casc, 6) == round(0.30 + 2.50, 6), "캐스케이드 LLM 단가"
+    assert live != casc, "엔진이 달라도 같은 값이 나오면 컬럼이 섞인 걸 못 잡는다"
+
+    # engine 이 NULL(계기판 이전 통화)이면 Live 로 본다 — 캐스케이드는 이 컬럼 이후에만 있다.
+    assert svc.estimate_call_cost_usd(None, in_text=1_000_000)[0] == \
+        svc.estimate_usage_cost_usd(in_text=1_000_000)
+
+
+def test_cascade_cost_matches_hand_calculation_and_flags_unknown_vendors():
+    """세 다리 합산이 손계산과 맞고, 모르는 벤더는 **조용히 0 원이 되지 않는다.**"""
+    cost, unknown = svc.estimate_cascade_cost_usd({
+        "stt": {"vendor": "google-stt-v2", "audio_s": 900.0},
+        "llm": {"vendor": "gemini-2.5-flash", "in_text": 41_000, "out_text": 3_200},
+        "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 8_400},
+    })
+    expected = (
+        900.0 * (0.016 / 60)
+        + (41_000 * 0.30 + 3_200 * 2.50) / 1_000_000
+        + 8_400 * (30.0 / 1_000_000)
+    )
+    assert unknown == [] and round(cost, 8) == round(expected, 8)
+
+    # 모르는 벤더 → 값이 0 이 아니라 "미상"으로 드러나야 한다. 조용히 0 이면
+    # "캐스케이드가 공짜"라는 그럴듯한 거짓말이 통계에 섞인다.
+    # ⭐ 원가에 실리는 문자열은 **모델 ID** 다(`_tts_vendor()`). 표에 없는 모델이 오면
+    #   조용히 0 원이 아니라 **미상으로 드러나야** 한다 — 검증된 단가가 없는 벤더에 근거 없는
+    #   숫자를 넣느니 모른다고 말하는 쪽이 맞다(274044a 의 교훈). 엔진이 바뀌어도 남는 성질이다.
+    for model in ("some-new-tts-2026", "another-vendor-hd"):
+        cost2, unknown2 = svc.estimate_cascade_cost_usd({
+            "tts": {"vendor": model, "chars": 8_400},
+        })
+        assert cost2 == 0.0 and unknown2 == [f"tts:{model}"], model
+
+
+def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
+    """call 909 재현 — 압축이 여러 번 나도 DB 로 가는 값은 **통화 전체 최대치**여야 한다.
+
+    실제로 저장됐던 값 13,355 는 마지막 압축 사이클의 최고치였고, 통화가 실제로 도달한
+    최대는 15,904 였다. 압축 트리거 하향(16k→12k) 실험이 보는 게 후자다.
+    """
+    st = cs._CallState()
+    for p in (8_000, 15_904, 11_500, 13_355, 9_000):   # 압축 톱니 두 번
+        cs._observe_compression(st, p)
+    assert st.compression_seen >= 1, "압축이 감지되지 않으면 이 테스트가 무의미하다"
+    assert st.usage_prompt_max == 15_904
+    assert st.usage_prompt_peak < st.usage_prompt_max, "사이클 peak 는 리셋돼 더 작아야 한다"
+
+    st.usage_log.append({
+        "t": 1.0, "turn": 0, "prompt": 9_000, "resp": 10, "total": 9_100,
+        "thoughts": 0, "cached": None, "tool_in": None,
+        "in_detail": [], "out_detail": [],
+    })
+    s = cs._usage_summary(st)
+    assert s["peak_prompt"] == 15_904, "DB 로 가는 값이 사이클 peak 면 트리거 튜닝을 못 한다"
+    assert s["cycle_peak"] == st.usage_prompt_peak, "사이클 peak 도 참고용으로 남아야 한다"
+
+
+def test_compression_detection_and_arm_still_use_the_cycle_peak():
+    """⛔ 관측값을 하나 더 세웠을 뿐 — 압축 감지·재접지 arm 동작은 무변경이어야 한다(R4)."""
+    st = cs._CallState()
+    cs._observe_compression(st, 16_000)
+    cs._observe_compression(st, 12_000)          # 압축 1회
+    assert st.compression_seen == 1
+
+    # 사후·시간 폴백 두 경로를 닫아 두고 ①선제 arm 만 본다.
+    st.call_start_ts = 0.0
+    st.reground_count = 1        # 압축 1회는 이미 소비 → ② post-compress 안 걸림
+    st.last_reground_ts = 100.0  # 최소간격(60s) 충족, 시간 폴백(120s) 미충족
+    now = 180.0
+    # 압축 직후엔 사이클 peak 가 바닥이라 arm 이 안 걸려야 한다.
+    # (전체 최대치 16,000 을 봤다면 16,000 ≥ 13,600 이라 걸렸을 것이다.)
+    assert cs._reground_due(st, now) == "", "리셋된 사이클 peak 가 아니라 전체 최대치를 보고 있다"
+    # 다시 차오르면 선제 arm.
+    cs._observe_compression(st, int(16_000 * cs.REGROUND_ARM_RATIO) + 1)
+    assert cs._reground_due(st, now) == "compress"
+
+
+def test_cascade_output_cost_includes_thinking_tokens():
+    """사고 토큰은 출력 단가로 과금되는데 응답 본문(candidates)엔 안 들어온다.
+
+    ⛔ out_text 만 세면 낸 돈의 일부가 통계에서 사라지고, 하필 그 통계가
+      "캐스케이드가 Live 보다 싼가"의 근거가 된다.
+    """
+    base = {"llm": {"vendor": "gemini-2.5-flash", "in_text": 10_000, "out_text": 2_000}}
+    thinking = {"llm": {**base["llm"], "thoughts": 1_500}}
+
+    cost_base, _ = svc.estimate_cascade_cost_usd(base)
+    cost_thinking, unknown = svc.estimate_cascade_cost_usd(thinking)
+
+    assert unknown == []
+    # 늘어난 만큼이 정확히 사고 토큰 × 출력 단가여야 한다.
+    assert round(cost_thinking - cost_base, 10) == round(1_500 * 2.50 / 1_000_000, 10)
+    # 손계산 전체.
+    assert round(cost_thinking, 10) == round(
+        (10_000 * 0.30 + (2_000 + 1_500) * 2.50) / 1_000_000, 10
+    )
+    # 사고 토큰만 온 경우도(출력 본문 0) 원가가 잡혀야 한다 — 게이트에서 안 빠지는지.
+    only, _ = svc.estimate_cascade_cost_usd(
+        {"llm": {"vendor": "gemini-2.5-flash", "thoughts": 1_000}}
+    )
+    assert round(only, 10) == round(1_000 * 2.50 / 1_000_000, 10)
+
+
+def test_live_thinking_tokens_raise_a_warning_not_a_silent_undercount(caplog):
+    """Live 산식은 사고 토큰을 안 센다(근거는 estimate_usage_cost_usd 주석) — 대신 경고를 남긴다.
+
+    지금 모델(gemini-live-2.5-flash-native-audio)은 사고를 안 해서 0 이라는 전제 위에 선
+    계산이다. 그 전제가 깨지는 순간(사고형 모델 전환 등) 조용히 과소 계상되면 안 된다.
+    """
+    st = _usage_state([(1000, 1100, 900, 100, 40)])
+    st.usage_log[0]["thoughts"] = 0
+    with caplog.at_level(logging.WARNING):
+        cs._log_usage_summary(st, 1, "normal")
+    assert not [r for r in caplog.records if "사고 토큰" in r.getMessage()], \
+        "사고 토큰이 0 인데 경고가 났다"
+
+    caplog.clear()
+    st.usage_log[0]["thoughts"] = 320
+    with caplog.at_level(logging.WARNING):
+        cs._log_usage_summary(st, 1, "normal")
+    warned = [r for r in caplog.records if "사고 토큰" in r.getMessage()]
+    assert warned and warned[0].levelno == logging.WARNING, \
+        "사고 토큰이 관측됐는데 아무 신호도 안 나온다(조용한 과소 계상)"
+
+
+def test_gemini_tts_is_priced_by_audio_seconds_not_characters():
+    """Gemini-TTS 는 **출력 오디오 토큰**(1초=25tok) 과금이다 — 문자 수로 계산하면 틀린다."""
+    cost, unknown = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 450.0},
+    })
+    assert unknown == []
+    assert round(cost, 8) == round(450.0 * 25 * 10.00 / 1_000_000, 8)
+
+    # pro 는 flash 의 2배 단가 — 모델별로 갈라야 "어느 걸 들었나"와 원가가 맞는다.
+    pro, _ = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-pro-tts", "audio_s": 450.0},
+    })
+    assert round(pro, 8) == round(cost * 2, 8), "flash/pro 를 뭉개면 원가가 어긋난다"
+
+    # 가격표(Gemini API) 이름도 알아둔다 — 우리 경로로는 안 오지만 다른 경로로 올 수 있다.
+    for name in ("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"):
+        _, unk = svc.estimate_cascade_cost_usd({"tts": {"vendor": name, "audio_s": 10.0}})
+        assert unk == [], f"{name} 이 미상으로 빠진다"
+
+
+def test_every_cloud_tts_model_name_is_priced():
+    """⛔ **실제로 들어오는 건 Cloud TTS 이름이다.** 하나라도 빠지면 그 통화가 원가 표본에서 사라진다.
+
+    같은 모델인데 API 마다 이름이 다르다(Cloud TTS 'gemini-2.5-flash-tts' vs Gemini API
+    'gemini-2.5-flash-preview-tts'). 가격 페이지 이름만 코드에 남기면 **동작은 하는데 값이
+    안 잡히는** 조용한 실패가 된다 — LINEAR16 과 같은 종류의 함정이다.
+    """
+    assert svc.CLOUD_TTS_GEMINI_MODELS, "Cloud TTS 모델 목록이 비었다"
+    for name in svc.CLOUD_TTS_GEMINI_MODELS:
+        cost, unk = svc.estimate_cascade_cost_usd({"tts": {"vendor": name, "audio_s": 10.0}})
+        assert unk == [], f"{name} 이 미상으로 빠진다 — 그 통화 원가가 통째로 사라진다"
+        assert cost > 0, f"{name} 이 0 원으로 계산된다"
+
+
+def test_audio_seconds_win_over_characters_for_token_billed_tts():
+    """chars 가 같이 와도 **초를 쓴다.** 문자 단가를 곱하면 조용히 틀린 값이 나온다."""
+    only_secs, _ = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0},
+    })
+    both, unknown = svc.estimate_cascade_cost_usd({
+        # 실제 캐스케이드 요약은 chars 와 audio_s 를 **둘 다** 싣는다.
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0, "chars": 6000},
+    })
+    assert unknown == []
+    assert both == only_secs, "chars 가 섞여 들어와 계산이 오염됐다"
+    # 문자 단가($30/1M)로 계산했다면 나왔을 값과 달라야 한다(같으면 잘못된 경로를 탄 것).
+    assert round(both, 8) != round(6000 * 30.0 / 1_000_000, 8)
+
+
+def test_token_billed_tts_without_audio_seconds_is_flagged_not_guessed():
+    """⛔ chars 만 오면 **추정하지 않는다.** 문자→초 환산은 말하는 속도에 따라 배로 틀린다."""
+    cost, unknown = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "chars": 6000},
+    })
+    assert cost == 0.0
+    assert unknown and "audio_s" in unknown[0], "왜 못 쟀는지가 안 드러난다"
+
+    # 반대로 문자 과금 엔진은 chars 로 정상 계산된다(기존 동작 무변경).
+    chirp, unk = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 6000},
+    })
+    assert unk == [] and round(chirp, 8) == round(6000 * 30.0 / 1_000_000, 8)
+
+    # 초는 왔는데 모르는 벤더 → 조용히 0 원이 되면 안 된다.
+    _, unk2 = svc.estimate_cascade_cost_usd({"tts": {"vendor": "무명TTS", "audio_s": 100.0}})
+    assert unk2 == ["tts:무명TTS"]
+
+
+def test_gemini_tts_input_text_tokens_are_added_when_present():
+    """입력 텍스트 토큰은 선택이지만, 오면 더한다(출력 대비 1% 미만이라 없어도 무방)."""
+    base, _ = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0},
+    })
+    withtext, unknown = svc.estimate_cascade_cost_usd({
+        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0, "in_text": 1_500},
+    })
+    assert unknown == []
+    assert round(withtext - base, 10) == round(1_500 * 0.50 / 1_000_000, 10)

@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeaverTalk · 캐스케이드 턴 감지 데모</title>
+<style>
+  :root { --bg:#121217; --card:#181A20; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
+          --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF7070; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,Segoe UI,Pretendard,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:20px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .muted { color:var(--sub); font-size:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .step { font-size:12px; color:var(--pri); font-weight:700; letter-spacing:.4px; }
+  input, select { background:#0e0f13; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:8px 10px; }
+  button { background:var(--pri); color:#08110d; border:0; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer; }
+  button.sec { background:#2a2e38; color:var(--txt); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .log { background:#0e0f13; border:1px solid var(--line); border-radius:8px; padding:10px; height:160px; overflow:auto; font-size:12px; font-family:ui-monospace,Consolas,monospace; }
+  .ok { color:var(--good); } .err { color:var(--bad); } .w { color:var(--warn); }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--good); } .dot.talk { background:var(--warn); }
+  table { width:100%; border-collapse:collapse; margin-top:6px; font-size:13px; }
+  table td, table th { padding:5px 6px; border-bottom:1px solid var(--line); text-align:left; }
+  table th { color:var(--sub); font-weight:700; font-size:12px; }
+  .big { font-size:26px; font-weight:800; color:var(--pri); }
+  .banner { padding:10px 12px; border-radius:8px; margin:10px 0; display:none; }
+  .banner.fake { display:block; background:#3a2a10; border:1px solid var(--warn); color:#ffd479; }
+  .live { min-height:44px; padding:8px 10px; background:#0e0f13; border:1px solid var(--line); border-radius:8px; }
+  .tip { border-left:3px solid var(--pri); padding:6px 10px; background:#0e0f13; border-radius:6px; margin:8px 0; }
+  .kv { display:inline-block; min-width:150px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎙 캐스케이드 — 턴 감지 최소루프</h1>
+  <div class="muted">
+    마이크(PCM16/16k) → WS → <b>STT v2</b> → 턴 시작·종료 판정 → 텍스트 에코.
+    <b>2026-08-07부터 비버가 실제로 대답한다</b> — 말이 끝나면 LLM(Gemini)이 답을 쓰고 Cloud TTS 가
+    문장 단위로 합성해 바로 들려준다. 말하는 중에 끼어들면 서버가 즉시 끊는다(barge-in).
+    아직 빠진 것: 페르소나는 데모 기본값(캐릭터·레벨 DB 미연결), 통화 기록·분석 저장 없음.
+    (STEP 3 의 440Hz 톤은 <b>가짜</b> 오디오 — 취소 배관만 따로 재는 용도라 그대로 둔다.)
+    설계: <code>docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md</code>
+  </div>
+
+  <div id="fakeBanner" class="banner">
+    ⚠ <b>페이크 STT</b>로 돌고 있다 — 실제 인식이 아니다(크레덴셜 부재/STT_V2_FAKE).
+    아래 "dev 훅"으로 상태기계·프로토콜만 검증할 수 있다.
+  </div>
+
+  <!-- STEP 0 로그인 -->
+  <div class="card">
+    <div class="step">STEP 0 · 로그인 (STT 는 과금이 있어 인증 필수)</div>
+    <div class="row" style="margin:8px 0">
+      <input id="email" placeholder="이메일" value="test@naver.com" style="width:220px" />
+      <input id="pw" placeholder="비밀번호" value="11111111" type="password" style="width:140px" />
+      <button id="loginBtn">로그인</button>
+      <span id="who" class="muted"></span>
+    </div>
+    <div class="muted">서버의 <code>/__dev/login</code> 을 쓴다 — 배포 환경마다 Supabase 프로젝트가 달라도 어긋나지 않는다.</div>
+  </div>
+
+  <!-- STEP 1 세션 -->
+  <div class="card">
+    <div class="step">STEP 1 · 마이크 세션</div>
+    <div class="row" style="margin:8px 0">
+      <button id="startBtn" disabled>🎤 시작</button>
+      <button id="stopBtn" class="sec" disabled>정지</button>
+      <span><span id="dot" class="dot"></span><span id="stat">대기</span></span>
+      <span id="engine" class="muted"></span>
+      <span id="prep" class="muted"></span>
+      <span id="clock" class="muted"></span>
+    </div>
+    <div class="row" style="margin:8px 0; gap:12px; flex-wrap:wrap">
+      <span class="muted">TTS 엔진</span>
+      <select id="ttsEngine" title="통화를 시작할 때 정해진다. 통화 중에는 안 바뀐다.">
+        <option value="chirp3-hd">Chirp3-HD (기본 · 빠름)</option>
+        <option value="gemini-tts">Gemini-TTS · 실시간 (끊길 수 있음)</option>
+        <option value="gemini-batch">Gemini-TTS · 전체 합성 후 재생 (안 끊김 · 20초+ 대기)</option>
+        <option value="openai-tts">OpenAI · gpt-4o-mini-tts (감정 지시 · 한 음성이 두 언어)</option>
+      </select>
+      <!-- ⭐ 드롭다운(0.75/1.0/1.25…)이던 것을 직접 입력으로 바꿨다 — 1.1·1.15 같은 값을
+           못 넣어서 귀로 값을 찾는 실험의 해상도가 눈금에 갇혀 있었다.
+           ⭐⭐ 그리고 **언어별로 나눴다**: 하나의 값으로는 둘을 못 맞춘다. 같은 언어끼리 본
+           실측 — 한국어 Live 7.7 vs Gemini 6.2~7.4(거의 맞음) / 영어 Chirp 19.6 vs
+           Gemini 12.0(1.6배 느림). 하나를 1.6 으로 올리면 한국어가 11.8 이 되어 **학습자가
+           따라 말하는 부분**이 Live 보다 훨씬 빨라진다. -->
+      <span class="muted">속도(설명)</span>
+      <input id="rateNative" type="number" step="0.05" min="0.25" max="2.0"
+             style="width:76px" placeholder="서버값"
+             title="설명 언어(영어 등) 구간의 배속. 비우면 서버값. 범위 0.25~2.0" />
+      <span class="muted">속도(한국어)</span>
+      <input id="rateTarget" type="number" step="0.05" min="0.25" max="2.0"
+             style="width:76px" placeholder="서버값"
+             title="배우는 언어(한국어) 구간의 배속. 비우면 서버값. 범위 0.25~2.0" />
+      <input id="stylePrompt" style="width:260px" placeholder="감정 지시(비우면 서버값) — Gemini 전용"
+             title="Gemini-TTS 만 이 문구를 쓴다. Chirp3-HD 는 감정 제어가 없다." />
+    </div>
+    <div class="muted" style="margin:0 0 6px">
+      ⚠ <b>Chirp3-HD 가 기본</b>이다 — 실측(같은 44자 문장): Chirp 합성 1.5초/실시간 4.5배속,
+      Gemini 6.9초/<b>1.3배속</b>. Gemini 는 합성이 재생 속도를 겨우 따라잡아 버퍼가 안 쌓이고,
+      거기에 <b>분당 요청 10회</b> 쿼터가 겹친다(초과하면 이 통화는 Chirp 으로 고정된다).
+      선택은 <b>통화 시작 시점</b>에 서버로 간다.
+      기본 엔진으로 간다(로그에 이유가 남는다). v3 는 감정 태그를 쓰지만 공식 문서가
+      실시간에는 flash 를 권한다.
+      <br>⭐ <b>전체 합성 후 재생</b>: 대답을 통째로 만든 뒤 한 번에 들려준다. 말이 끝나고
+      <b>20초 넘게 조용할 수 있지만 끊기지 않는다</b> — 소리 자체(감정·발음)를 판정하기 위한 모드다.
+      기다리는 동안 아래에 진행 상황이 뜬다.
+    </div>
+    <div class="muted" style="margin-bottom:6px">현재 전사(부분/최종):</div>
+    <div id="live" class="live muted">…</div>
+    <div class="row" style="margin-top:10px">
+      <span class="muted">로컬 VAD 임계(RMS·측정 전용, 판정에 관여 안 함)</span>
+      <input id="vadTh" value="0.012" style="width:80px" />
+      <span id="vadNow" class="muted"></span>
+    </div>
+  </div>
+
+  <!-- STEP 2 결과 -->
+  <div class="card">
+    <div class="step">STEP 2 · 턴 기록 (이 표가 결론이다)</div>
+    <div class="row" style="margin:8px 0">
+      <div><div class="muted">턴 수</div><div id="mTurns" class="big">0</div></div>
+      <div style="margin-left:24px"><div class="muted">감지지연 중앙값</div><div id="mMedian" class="big">-</div></div>
+      <div style="margin-left:24px"><div class="muted">파이프라인 지연(중앙값)</div><div id="mPipe" class="big">-</div></div>
+      <div style="margin-left:24px"><div class="muted">잔여 오버헤드(중앙값)</div><div id="mOver" class="big">-</div></div>
+      <div style="margin-left:24px"><div class="muted">롤오버 갭(최대)</div><div id="mGap" class="big">-</div></div>
+    </div>
+    <div class="tip muted">
+      <b>감지지연</b> = <code>user_turn_end 도착 − 로컬 VAD 가 본 마지막 유성 프레임</code>.
+      여기에는 세 항이 겹쳐 있다 — <b>침묵 임계</b>(<span id="thNote">800</span>ms, 서버 타이머)
+      + <b>파이프라인 지연</b>(STT v2 는 서울·도쿄 리전이 없어 global/us 태평양 왕복이 붙는다)
+      + 나머지. 표에서 셋을 분리해 보여준다.
+      판정 기준: 생각하느라 3초 쉬어도 안 끊기고, 감지지연 ≤ 1.2s.
+    </div>
+    <table id="tbl">
+      <thead><tr><th>#</th><th>턴 시작</th><th>턴 종료</th><th>발화</th><th>감지지연</th><th>파이프라인</th><th>잔여오버헤드</th><th>시작지연</th><th>전사</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- 취소 배관 검증 -->
+  <div class="card">
+    <div class="step">STEP 3 · 취소 배관 검증 (barge-in 플래그와 무관 · P1 없이)</div>
+    <div class="muted" style="margin:6px 0">
+      가짜 비버 오디오(440Hz 톤)를 <b>실시간 레이트</b>로 흘린 뒤 버튼으로 끊는다.
+      <b>STT 음성 감지를 타지 않는다</b> — 서버가 직접 <code>audio_cancel</code> 을 쏘므로
+      <code>CASCADE_MIC_ALWAYS_OPEN</code> 이 꺼져 있어도(AEC 정비 전이라 켤 수 없다) 취소 경로만 잴 수 있다.
+    </div>
+    <div class="row" style="margin:8px 0">
+      <button id="beaverBtn" class="sec" disabled>🔊 가짜 비버 5초 재생</button>
+      <button id="cancelBtn" disabled style="background:var(--bad); color:#fff">✋ 지금 끊기 (audio_cancel)</button>
+      <label class="muted"><input type="checkbox" id="toneChk" checked /> 톤(끄면 무음)</label>
+      <span id="beaverStat" class="muted"></span>
+    </div>
+    <div class="row" style="margin:8px 0">
+      <div><div class="muted">측정 횟수</div><div id="cRuns" class="big">0</div></div>
+      <div style="margin-left:24px">
+        <div class="muted">클라 정지 중앙값 <b>(hal_drained · 판정용)</b></div>
+        <div id="cHal" class="big">-</div>
+      </div>
+      <div style="margin-left:24px">
+        <div class="muted">clear_returned 중앙값 <span class="w">(하한 · 참고용)</span></div>
+        <div id="cClear" class="big">-</div>
+      </div>
+      <div style="margin-left:24px">
+        <div class="muted">강등률 <span class="muted">(clear_returned / 전체)</span></div>
+        <div id="cDemote" class="big">-</div>
+      </div>
+    </div>
+    <div class="tip muted" style="border-left-color:var(--warn)">
+      ⚠ <b>강등률만 보고 판정하지 마라 — 높은 게 정상일 수 있다.</b>
+      강등 조건은 클라의 <code>write_in_flight</code> 인데, 그 플래그가 서 있는 시간의 대부분은
+      <code>AudioTrack.write(WRITE_BLOCKING)</code> <b>그 자체</b>다(수십 ms). 그건 재생을 실시간에
+      맞추는 정상 동작이고, <b>그 구간의 강등은 맞는 판정</b>이다(진짜 write 중이라 실제 무음은 나중이다).
+      <div style="margin-top:6px">
+        · <b>50~70% 강등</b> → 정상일 가능성이 크다. write 체류 비중을 반영할 뿐이다<br>
+        · <b>iOS · 타임스탬프 미지원 라우트</b> → <b>100% 강등이 당연하다</b>(HAL 잔량을 잴 방법이 없다)<br>
+        · <b>결함 신호는 강등률이 아니다</b> — <code>platform=android</code> + 잔량을 잴 수 있는
+          라우트인데도 <b>15회를 넘겨 hal_drained 가 0건</b>인 경우다. 그건 플래그가 비정상적으로
+          오래 서 있다는 뜻이라 클라에 알려야 한다
+      </div>
+    </div>
+    <div class="row" style="display:none">
+    </div>
+    <div id="cVerdict" class="tip muted">아직 측정 없음.</div>
+    <table id="cTbl">
+      <thead><tr><th>#</th><th>턴</th><th>환경</th><th>왕복(⚠포함)</th><th>클라 정지</th><th>측정 지점</th><th>네트워크</th><th>버려짐</th><th>절단 결과</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="cancelReport" class="muted" style="margin-top:8px"></div>
+  </div>
+
+  <!-- dev 훅 -->
+  <div class="card">
+    <div class="step">DEV 훅 · 페이크 STT 구동 (크레덴셜 없이 상태기계 검증)</div>
+    <div class="row" style="margin:8px 0">
+      <button id="hBegin" class="sec" disabled>speech_begin</button>
+      <input id="hText" value="안녕하세요 저는 학생이에요" style="width:260px" />
+      <button id="hSay" class="sec" disabled>전사 주입(final)</button>
+      <button id="hEnd" class="sec" disabled>speech_end</button>
+      <button id="hTurn" class="sec" disabled>가짜 턴 1회(자동)</button>
+    </div>
+    <div class="muted">페이크 모드에서는 로컬 VAD 기준점이 없어 감지지연이 의미 없다(표에 "-"로 표시).</div>
+  </div>
+
+  <div class="card">
+    <div class="step">로그</div>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let token = null, ws = null, actx = null, mic = null, proc = null, gain0 = null;
+let t0 = 0, engine = 'fake', silenceMs = 800;
+let turns = [], maxGap = 0;
+let lastVoicedAt = 0, firstVoicedAt = 0, voiced = false, turnOpenAt = 0;
+let clockTimer = null;
+
+const sendCtl = o => { if (ws && ws.readyState===1) ws.send(JSON.stringify(o)); };
+const apiBase = () => location.origin;
+function wsBase() { const u = new URL(apiBase()); return (u.protocol === 'https:' ? 'wss' : 'ws') + '://' + u.host; }
+function log(html, cls='') { const d=$('#log'); d.innerHTML += `<div class="${cls}">${html}</div>`; d.scrollTop=d.scrollHeight; }
+function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+const nowMs = () => performance.now();
+
+/* ---------- 로그인 (서버 대행 — 환경마다 Supabase 프로젝트가 달라도 맞는다) ---------- */
+$('#loginBtn').onclick = async () => {
+  $('#who').textContent = '로그인 중…';
+  try {
+    const r = await fetch(apiBase() + '/__dev/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: $('#email').value.trim(), password: $('#pw').value }),
+    });
+    if (!r.ok) { $('#who').textContent = '❌ 로그인 실패 ' + r.status; return; }
+    const d = await r.json();
+    token = d.access_token;
+    $('#who').innerHTML = `<span class="ok">✅ ${esc(d.email)}</span>`;
+    $('#startBtn').disabled = false;
+  } catch (e) { $('#who').textContent = '❌ ' + e; }
+};
+
+/* ---------- 오디오 유틸 (level_call_demo 와 동일 규격: PCM16/16k) ---------- */
+function downsample(f32, inRate, outRate) {
+  if (outRate === inRate) return f32;
+  const ratio = inRate/outRate, n = Math.round(f32.length/ratio), out = new Float32Array(n);
+  let pos = 0;
+  for (let i=0;i<n;i++){ const next=Math.round((i+1)*ratio); let s=0,c=0; for(let j=pos;j<next&&j<f32.length;j++){s+=f32[j];c++;} out[i]=c?s/c:0; pos=next; }
+  return out;
+}
+function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.length;i++){let s=Math.max(-1,Math.min(1,f32[i]));o[i]=s<0?s*0x8000:s*0x7FFF;} return o; }
+function rms(f32){ let s=0; for (let i=0;i<f32.length;i++) s+=f32[i]*f32[i]; return Math.sqrt(s/f32.length); }
+
+/* ---------- 세션 ---------- */
+$('#startBtn').onclick = start;
+$('#stopBtn').onclick = () => { if (ws && ws.readyState===1) { try { ws.send(JSON.stringify({type:'stop'})); } catch {} ws.close(); } };
+
+async function start() {
+  turns = []; maxGap = 0; renderTable(); $('#log').innerHTML=''; $('#live').textContent='…';
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1, echoCancellation:true, noiseSuppression:true} }); }
+  catch(e) { alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  const src = actx.createMediaStreamSource(mic);
+  proc = actx.createScriptProcessor(4096,1,1);
+  gain0 = actx.createGain(); gain0.gain.value = 0;   // 자기 소리 되울림 방지
+  src.connect(proc); proc.connect(gain0); gain0.connect(actx.destination);
+
+  ws = new WebSocket(`${wsBase()}/api/v1/cascade/stream?token=${token}`);
+  ws.binaryType = 'arraybuffer';
+  $('#dot').className='dot'; $('#stat').textContent='연결 중…';
+
+  ws.onopen = () => {
+    // 브라우저는 캡처·재생을 같은 엔진이 소유해 AEC 가 실제로 걸린다(echoCancellation:true).
+    // ⚠ 그래서 이 데모의 barge-in 결과는 **실기기 판정 근거가 되지 않는다**(조사 §3-6).
+    // ⛔ dev 데모 한정 편의다 — 클라가 서버 기본값을 덮는다. 앱이 캐스케이드를 타게 되면
+    //   이 통로를 열어 두면 안 된다(엔진마다 단가·쿼터가 달라 원가 통제가 클라로 넘어간다).
+    // ⛔ 서버에 쓰레기를 보내지 않는다 — 숫자가 아니거나 문서 범위[0.25, 2.0] 밖이면
+    //   **필드를 아예 빼고**(=서버값) 진행한다. 비운 경우와 같은 동작이다.
+    const readRate = (id, label) => {
+      const raw = $(id).value.trim();
+      if (raw === '') return null;
+      const v = parseFloat(raw);
+      if (Number.isFinite(v) && v >= 0.25 && v <= 2.0) return v;
+      log(`⚠ ${label} 속도 '${raw}' 는 0.25~2.0 범위 밖이다 — 서버값으로 진행한다`);
+      return null;
+    };
+    const rateNative = readRate('#rateNative', '설명');
+    const rateTarget = readRate('#rateTarget', '한국어');
+    const rateLog = [
+      rateNative === null ? null : `설명 ${rateNative}x`,
+      rateTarget === null ? null : `한국어 ${rateTarget}x`,
+    ].filter(Boolean).join(' / ');
+    const style = $('#stylePrompt').value.trim();
+    ws.send(JSON.stringify({
+      type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' },
+      ttsEngine: $('#ttsEngine').value,
+      ...(rateNative === null ? {} : { speakingRateNative: rateNative }),
+      ...(rateTarget === null ? {} : { speakingRateTarget: rateTarget }),
+      ...(style ? { stylePrompt: style } : {}),
+    }));
+    log(`🔊 TTS 엔진=${$('#ttsEngine').value}${rateLog ? ' 속도='+rateLog : ''}`);
+    t0 = nowMs();
+    $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
+    $('#startBtn').disabled=true; $('#stopBtn').disabled=false;
+    ['#hBegin','#hSay','#hEnd','#hTurn','#beaverBtn','#cancelBtn'].forEach(s => $(s).disabled=false);
+    clockTimer = setInterval(() => { $('#clock').textContent = `· ${((nowMs()-t0)/1000).toFixed(1)}s`; }, 200);
+  };
+
+  proc.onaudioprocess = (e) => {
+    if (!ws || ws.readyState!==1) return;
+    const buf = e.inputBuffer.getChannelData(0);
+    // 로컬 VAD — **측정 전용**. 턴 판정은 서버(STT v2 endpointing)만 한다(D2).
+    const level = rms(buf), th = parseFloat($('#vadTh').value) || 0.012;
+    $('#vadNow').textContent = `현재 RMS ${level.toFixed(4)}`;
+    if (level >= th) {
+      if (!voiced) { voiced = true; firstVoicedAt = nowMs(); }
+      lastVoicedAt = nowMs();
+    } else if (voiced && nowMs() - lastVoicedAt > 400) {
+      voiced = false;  // 유성 구간 종료(다음 발화의 시작점을 다시 잡기 위해)
+    }
+    ws.send(toPCM16(downsample(buf, actx.sampleRate, 16000)).buffer);
+  };
+
+  ws.onmessage = onMsg;
+  ws.onclose = () => {
+    $('#dot').className='dot'; $('#stat').textContent='종료';
+    if (clockTimer) { clearInterval(clockTimer); clockTimer=null; }
+    cleanup();
+  };
+  ws.onerror = () => log('⚠️ WS 오류', 'err');
+}
+
+function cleanup() {
+  try { proc && proc.disconnect(); } catch {}
+  if (proc) proc.onaudioprocess = null;
+  if (mic) mic.getTracks().forEach(t => t.stop());
+  if (actx) { try { actx.close(); } catch {} actx = null; }
+  $('#startBtn').disabled=false; $('#stopBtn').disabled=true;
+  ['#hBegin','#hSay','#hEnd','#hTurn','#beaverBtn','#cancelBtn'].forEach(s => $(s).disabled=true);
+}
+
+/* ---------- 비버 오디오 재생(PCM24k) + 취소 배관 계측 ----------
+   클라 규칙 두 줄(설계 4-2):
+     (1) audio_cancel 을 받으면 재생 중지 + 큐 폐기 + drop=true
+     (2) 다음 turn_start 에서 drop=false. 그 사이 도착한 바이너리는 디코드 없이 버린다.
+   WS 는 한 연결 내 순서를 보장하므로 그 구간 = 취소된 턴의 잔여로 유일하게 식별된다. */
+const BEAVER_RATE = 24000, BEAVER_BPS = BEAVER_RATE * 2;   // 48,000 bytes/s
+let bTurnId = null, bDrop = false, bSources = [], bBytes = 0, bStartT = 0, bPlayT = 0;
+let droppedFrames = 0, oddFrames = 0, badFrames = 0;
+
+function beaverReset(turnId) {
+  bTurnId = turnId; bDrop = false; bSources = []; bBytes = 0; bStartT = 0; bPlayT = 0; droppedFrames = 0;
+  oddFrames = 0; badFrames = 0;
+}
+function playBeaverChunk(buf) {
+  if (bDrop) { droppedFrames++; return; }        // (2) 취소 잔여 — 디코드조차 하지 않는다
+  if (!actx || bTurnId === null) return;
+  // ⛔ 홀수 길이면 Int16Array 가 RangeError 를 던진다 — 예전엔 그 예외가 위에서 먹혀
+  //   **조각 하나가 아무 흔적 없이 사라졌다**(28.5ms 구멍이 초당 열댓 번). 서버가 표본
+  //   경계를 지키는 게 정답이고(I6), 여기서는 **소리 없이 사라지지 않게** 잘라 쓰고 센다.
+  //   ⚠ 1바이트를 버리면 그 조각 안에서 반 표본이 어긋나지만, 통째로 버리는 것보다 낫다.
+  //     이 숫자가 0 이 아니면 **서버가 불변식을 어기고 있다는 뜻**이다.
+  if (buf.byteLength % 2) { oddFrames++; buf = buf.slice(0, buf.byteLength - 1); }
+  if (!buf.byteLength) return;
+  const i16 = new Int16Array(buf), f32 = new Float32Array(i16.length);
+  for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 0x8000;
+  const ab = actx.createBuffer(1, f32.length, BEAVER_RATE);
+  ab.getChannelData(0).set(f32);
+  const node = actx.createBufferSource();
+  node.buffer = ab; node.connect(actx.destination);
+  const now = actx.currentTime;
+  if (bPlayT < now) bPlayT = now;                // 언더런이면 지금부터
+  if (!bStartT) bStartT = bPlayT;
+  node.start(bPlayT); bPlayT += ab.duration;
+  bSources.push(node);
+  bBytes += buf.byteLength;
+}
+function beaverStopNow() {
+  // 실제로 스피커로 나간 양 = (지금 - 재생 시작)을 바이트로. AudioContext 클럭은 오디오
+  // 하드웨어 기반이라 JS 타이머 외삽과 다르다 → source="native" 로 보고한다.
+  const playedSec = bStartT ? Math.max(0, Math.min(actx.currentTime - bStartT, bBytes / BEAVER_BPS)) : 0;
+  for (const n of bSources) { try { n.stop(); } catch {} try { n.disconnect(); } catch {} }
+  bSources = [];
+  return Math.floor(playedSec * BEAVER_BPS);
+}
+
+$('#beaverBtn').onclick = () => {
+  sendCtl({ type:'__test_beaver', seconds:5, tone:$('#toneChk').checked, sentence_ms:1000 });
+  $('#beaverStat').textContent = '요청 보냄…';
+};
+$('#cancelBtn').onclick = () => {
+  sendCtl({ type:'__test_cancel', reason:'barge_in' });
+  $('#beaverStat').textContent = '취소 요청 보냄…';
+};
+
+/* ---------- 서버 메시지 ---------- */
+function onMsg(ev) {
+  if (ev.data instanceof ArrayBuffer) {
+    // ⛔ **조용히 죽지 않는다.** 여기서 예외가 나면 그 조각은 재생도, bBytes 가산도,
+    //   bPlayT 전진도 없이 사라진다 — 진행도까지 작게 보고돼 이력 절단이 같이 틀어진다.
+    //   하루 넘게 못 찾은 이유가 정확히 이 침묵이었다.
+    try { playBeaverChunk(ev.data); }
+    catch (e) { badFrames++; console.warn('비버 오디오 조각 처리 실패', ev.data.byteLength, e); }
+    return;
+  }
+  let m; try { m = JSON.parse(ev.data); } catch { return; }
+  if (m.type === 'ready') {
+    engine = m.engine; silenceMs = m.turn_silence_ms;
+    $('#engine').textContent = `엔진 ${m.engine} · 침묵임계 ${m.turn_silence_ms}ms(서버 타이머) · ${m.language} · ${m.sample_rate}Hz · barge-in ${m.bargein_confirm}/${m.bargein_min_ms}ms`;
+    $('#thNote').textContent = m.turn_silence_ms;
+    if (m.engine === 'fake') $('#fakeBanner').className = 'banner fake';
+    log(`ready — engine=${m.engine} turn_silence=${m.turn_silence_ms}ms (서버 자체 타이머)`, 'ok');
+  }
+  else if (m.type === 'user_turn_start') {
+    turnOpenAt = nowMs();
+    $('#dot').className='dot talk'; $('#stat').textContent='사용자 발화 중';
+    // 시작지연 = turn_start 도착 − 로컬 VAD 가 본 첫 유성 프레임
+    const startLag = (voiced && firstVoicedAt) ? Math.round(turnOpenAt - firstVoicedAt) : null;
+    turns.push({ id:m.turn_id, startMs:m.at_ms, startLag, text:'' });
+    log(`▶ ${m.turn_id} 턴 시작 (서버 ${m.at_ms}ms)`);
+    renderTable();
+  }
+  else if (m.type === 'input_transcript') {
+    $('#live').className = 'live';
+    $('#live').textContent = (m.final ? '✔ ' : '… ') + m.text;
+  }
+  else if (m.type === 'user_turn_end') {
+    const arrived = nowMs();
+    const t = turns.find(x => x.id === m.turn_id) || turns[turns.length-1];
+    if (t) {
+      t.endMs = m.at_ms; t.speechMs = m.speech_ms; t.endLagMs = m.end_lag_ms; t.text = m.text;
+      t.pipeMs = m.pipeline_lag_ms; t.reason = m.reason;
+      // 감지지연 — 로컬 VAD 기준점이 있어야 의미가 있다(페이크 모드에선 null).
+      t.detectMs = (engine !== 'fake' && lastVoicedAt) ? Math.round(arrived - lastVoicedAt) : null;
+      // 오버헤드 = 감지지연 − 침묵임계 − 파이프라인(리전 왕복+인식). 셋을 분리해 봐야
+      // 무엇을 고칠지 안다(임계를 줄일 문제인가, 리전을 옮길 문제인가).
+      t.overMs = (t.detectMs !== null) ? t.detectMs - silenceMs - (m.pipeline_lag_ms||0) : null;
+    }
+    $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
+    $('#live').textContent = '✔ ' + (m.text || '(빈 전사)');
+    log(`■ ${m.turn_id} 턴 종료(${m.reason}) — 발화 ${m.speech_ms}ms · 파이프라인지연 ${m.pipeline_lag_ms}ms · "${esc(m.text)}"`, 'ok');
+    renderTable();
+  }
+  else if (m.type === 'stt_rollover') {
+    maxGap = Math.max(maxGap, m.gap_ms);
+    log(`↻ STT 스트림 롤오버 (${m.reason}) — 오디오 공백 ${m.gap_ms}ms · 버퍼 리플레이됨`, 'w');
+    renderTable();
+  }
+  else if (m.type === 'beaver_preparing') {
+    // 배치 모드는 합성이 끝날 때까지 소리가 안 난다 — 침묵을 설명하지 않으면 "끊겼나?" 가 된다.
+    // ⚠ 이 구간에는 **끼어들기가 안 걸린다**(아직 소리가 안 나갔으니 끊을 것도 없다).
+    //   그 사실을 안 보여주면 사장님이 "왜 안 끊기지?"로 헤맨다.
+    const label = m.stage === 'llm'
+      ? '비버가 대답을 생각하는 중… · 지금은 끼어들 수 없어요'
+      : `비버가 목소리를 만드는 중… 구간 ${m.index}/${m.total} `
+        + `(${(m.elapsed_ms/1000).toFixed(1)}s) · 지금은 끼어들 수 없어요`;
+    $('#prep').textContent = '⏳ ' + label;
+    log('⏳ ' + label);
+  }
+  else if (m.type === 'turn_start') {          // 비버 턴 시작 — 오디오보다 먼저 온다(불변식 I2)
+    beaverReset(m.turn_id);
+    $('#beaverStat').innerHTML = `<span class="ok">🔊 비버 턴 ${esc(m.turn_id)} 재생 중</span>`;
+    $('#prep').textContent = '';
+    log(`🔊 turn_start ${m.turn_id} (오디오 시작)`);
+  }
+  else if (m.type === 'turn_end') {
+    // ⭐ 사라진 조각을 **눈에 보이게** 남긴다. 0 이 아니면 서버가 표본 경계(I6)를 어겼거나
+    //   클라가 조각을 못 다뤘다는 뜻이다 — 예전엔 이 숫자가 없어서 증상만 들렸다.
+    const lost = (oddFrames ? ` ⚠홀수조각 ${oddFrames}` : '') + (badFrames ? ` ⛔처리실패 ${badFrames}` : '');
+    $('#beaverStat').textContent = `비버 턴 ${m.turn_id} 정상 종료${lost}`;
+    if (lost) log(`⚠ 이 턴에서 온전히 못 쓴 오디오 조각:${lost}`);
+    log(`🔇 turn_end ${m.turn_id} (마지막 바이트 뒤에 도착 = 정상)`);
+    bTurnId = null;
+  }
+  else if (m.type === 'audio_cancel') {
+    // (1) 즉시 정지 + 폐기. 여기서부터 다음 turn_start 까지 오는 바이너리는 전부 버린다.
+    const gotAt = nowMs();
+    const playedBytes = beaverStopNow();
+    bDrop = true;
+    const clientStopMs = Math.round(nowMs() - gotAt);   // 앱이 조용해지기까지(클라 자체)
+    // stop_measure: 브라우저도 하드웨어 버퍼 잔량까지는 모른다(stop() 은 다음 렌더 퀀텀에
+    // 걸린다) → 정직하게 clear_returned = **하한**으로 보고한다. 실제 무음은 이보다 늦다.
+    sendCtl({ type:'playback_progress', turn_id:m.turn_id, epoch:m.epoch,
+              played_server_bytes:playedBytes, source:'native', sampled_at:'stop',
+              client_stop_ms:clientStopMs, stop_measure:'clear_returned',
+              platform:'web', audio_route:'browser' });
+    log(`✋ audio_cancel ${m.turn_id} → 정지·폐기, 재생 ${playedBytes}B 보고(클라 자체 ${clientStopMs}ms)`, 'w');
+  }
+  else if (m.type === '__test_cancel_report') { showCancelReport(m); }
+  else if (m.type === 'error') { log(`error ${m.code}: ${esc(m.message)}`, 'err'); }
+}
+
+/* ---------- 취소 배관 리포트 ---------- */
+/* ⚠ 같은 기기·같은 세션 안에서도 턴마다 stop_measure 가 달라질 수 있다(getTimestamp 미가용,
+   라우트 변경 직후, iOS 는 전부 clear_returned). 그래서 턴별로 남기고, 통계는 **측정 지점별로
+   갈라서** 낸다 — 하한과 실측을 섞어 중앙값을 내면 판정이 뒤엉킨다. */
+const cancelRuns = [];
+
+/* hal_drained 가 0건일 때의 해석 — **라우트를 아는지에 따라 결론이 갈린다.**
+   원인이 둘인데(① 그 라우트가 타임스탬프를 지원 안 함 ② 플래그가 비정상적으로 오래 서 있음)
+   와이어만으로는 못 가른다. 그래서 **가를 수 있는 조건일 때만** 결함을 의심하고, 라우트를
+   모르면 판정을 보류한다 — 못 읽은 라우트를 speaker 로 오해하면 틀린 전제로 결론이 난다. */
+function zeroDiagnosis() {
+  const androids = cancelRuns.filter(r => r.platform === 'android');
+  if (!androids.length) {
+    return `이 기기·라우트에서는 HAL 잔량을 잴 방법이 없는 것이다(iOS 이거나 타임스탬프 미지원
+            라우트) — <b>결함이 아니라 발견</b>이다. 그대로 보고하면 된다.`;
+  }
+  const routes = [...new Set(androids.map(r => r.audio_route).filter(Boolean))];
+  if (!routes.length) {
+    return `<b class="w">판정 보류 — android 인데 라우트가 불명이다.</b>
+            '지원 안 하는 라우트'인지 '플래그가 오래 서 있는 결함'인지 <b>가릴 수 없다.</b>
+            라우트를 읽을 수 있게 하거나, <b>이어폰을 꽂았다 빼며 재측정</b>하시라 —
+            라우트가 바뀌었는데도 계속 0건이면 결함 쪽이다.`;
+  }
+  if (routes.length >= 2) {
+    return `<b class="err">결함 의심 — android 에서 서로 다른 라우트(${routes.map(esc).join(', ')})
+            ${routes.length}종 전부 0건이다.</b> 라우트 미지원으로는 설명이 안 된다.
+            표의 '환경' 열과 함께 클라에 전달하시라.`;
+  }
+  return `android · 라우트 <b>${esc(routes[0])}</b> 에서만 0건이다. <b>다른 라우트로 바꿔
+          재측정하면 갈린다</b> — 이어폰을 꽂고(또는 빼고) 다시 해보시라. 거기서 hal_drained 가
+          잡히면 이 라우트가 타임스탬프를 지원 안 하는 것이고, 거기서도 0건이면 결함 쪽이다.`;
+}
+
+function renderCancelStats() {
+  const body = $('#cTbl').querySelector('tbody');
+  body.innerHTML = cancelRuns.map((r, i) => {
+    const lb = r.client_stop_is_lower_bound;
+    const cs = r.client_stop_ms >= 0 ? `${lb ? '≥ ' : ''}${r.client_stop_ms}ms` : '-';
+    const net = r.network_ms >= 0 ? `${lb ? '≤ ' : ''}${r.network_ms}ms` : '-';
+    // ⚠ 빈 문자열을 공백으로 두면 'speaker' 와 구별이 안 간다 — **불명이라고 말해야 한다.**
+    // 클라가 준 문자열은 그대로 넣지 않는다(모르는 값이 와도 화면이 안 깨지게 이스케이프).
+    const plat = r.platform ? esc(r.platform) : '<span class="w">불명</span>';
+    const route = r.audio_route ? esc(r.audio_route) : '<span class="w">라우트 불명</span>';
+    const envs = `${plat}/${route}`;
+    return `<tr><td>${i + 1}</td><td>${esc(r.turn_id)}</td><td class="muted">${envs}</td><td>${r.rtt_ms}ms</td>` +
+      `<td class="${lb ? 'w' : 'ok'}">${cs}</td><td class="muted">${esc(r.stop_measure)}</td>` +
+      `<td>${net}</td><td>${r.unplayed_ms}ms</td>` +
+      `<td>${r.accepted ? esc(r.spoken_text) : `<span class="err">${esc(r.note)}</span>`}</td></tr>`;
+  }).join('');
+
+  const hal = cancelRuns.filter(r => !r.client_stop_is_lower_bound && r.client_stop_ms >= 0)
+                        .map(r => r.client_stop_ms);
+  const clr = cancelRuns.filter(r => r.client_stop_is_lower_bound && r.client_stop_ms >= 0)
+                        .map(r => r.client_stop_ms);
+  $('#cRuns').textContent = cancelRuns.length;
+  $('#cHal').textContent = hal.length ? median(hal) + 'ms' : '-';
+  $('#cClear').textContent = clr.length ? '≥ ' + median(clr) + 'ms' : '-';
+
+  const total = cancelRuns.length;
+  $('#cDemote').textContent = total ? Math.round(clr.length / total * 100) + '%' : '-';
+
+  // ⭐ 판정 기준은 '몇 번 눌렀나'가 아니라 **hal_drained 표본이 몇 건 모였나**다.
+  //   강등 빈도는 기기·라우트·타이밍에 따라 달라지므로 고정 횟수는 의미를 잃는다
+  //   (10번 눌러도 hal_drained 가 1건일 수 있다). 화면이 몇 건 더 필요한지 직접 말한다.
+  const NEED = 5;
+  const v = $('#cVerdict');
+  if (!hal.length) {
+    v.className = 'tip muted';
+    v.innerHTML = `<b>판정 불가 — hal_drained 표본 0건</b>` +
+      (clr.length ? ` (clear_returned ${clr.length}건은 <b>하한</b>이라 판정에 쓰지 않는다).` : '.') +
+      ` 몇 번 더 끊어 보시라.` +
+      (total >= 15 ? ` <b class="w">⚠ ${total}회를 눌렀는데도 0건이면 그 자체가 결과다</b> — ` +
+        zeroDiagnosis() : '');
+  } else if (hal.length < NEED) {
+    v.className = 'tip muted';
+    v.innerHTML = `<b>표본 부족 — hal_drained ${hal.length}/${NEED}건.</b> ` +
+      `${NEED - hal.length}번 더 잡히면 판정한다(중앙값은 표본이 몇 개는 돼야 흔들리지 않는다). ` +
+      `<span class="muted">지금까지 ${total}회 중 ${clr.length}회가 하한으로 강등됐다.</span>`;
+  } else {
+    const med = median(hal), lo = Math.min(...hal), hi = Math.max(...hal);
+    const pass = med <= 120;
+    v.className = 'tip';
+    v.innerHTML = `<b class="${pass ? 'ok' : 'err'}">${pass ? '✅ 합격' : '❌ 목표 초과'}</b> — ` +
+      `hal_drained ${hal.length}건 중앙값 <b>${med}ms</b> (범위 ${lo}~${hi}ms · 목표 50~120ms). ` +
+      (clr.length ? `<span class="w">clear_returned ${clr.length}건은 하한이라 제외했다.</span>` : '');
+  }
+}
+
+function showCancelReport(m) {
+  cancelRuns.push(m);
+  renderCancelStats();
+  const net = m.network_ms >= 0 ? `${m.network_ms}ms` : '<span class="muted">분리 불가</span>';
+  const lb  = m.client_stop_is_lower_bound;
+  const cs  = m.client_stop_ms >= 0
+      ? (lb ? `<b>≥ ${m.client_stop_ms}ms</b> <span class="w">(하한 — 실제 무음은 이보다 늦다)</span>`
+            : `<b>${m.client_stop_ms}ms</b> <span class="ok">(실제 무음 시각)</span>`)
+      : '<span class="muted">미보고</span>';
+  $('#cancelReport').innerHTML = `
+    <table>
+      <tr><th colspan="2">취소 배관 실측 — 턴 ${esc(m.turn_id)}</th></tr>
+      <tr><td>왕복 지연 <b>(⚠ 네트워크 왕복 포함)</b><div class="muted">서버가 audio_cancel 을 쓴 시각 → playback_progress 도착</div></td>
+          <td><b class="${m.rtt_ms<=200?'ok':'err'}">${m.rtt_ms}ms</b></td></tr>
+      <tr><td><b>클라 자체 정지 시간</b><div class="muted">앱이 audio_cancel 을 받고 조용해지기까지 — <b>목표 50~120ms</b>
+          <br>측정 지점: <code>${esc(m.stop_measure)}</code>${lb ? ' — 하드웨어 잔량 미포함이라 <b>합격 판정에 그대로 쓰면 안 된다</b>' : ''}</div></td>
+          <td>${cs}</td></tr>
+      <tr><td>네트워크 왕복(추정)<div class="muted">왕복 − 클라 자체${lb ? ' · 클라 값이 하한이라 이 값은 <b>상한</b>이다' : ''}</div></td><td>${lb && m.network_ms >= 0 ? '≤ ' : ''}${net}</td></tr>
+      <tr><td>보낸 양 / 재생된 양</td><td>${m.sent_bytes}B / ${m.played_server_bytes}B</td></tr>
+      <tr><td>버려진 양(안 들린 소리)</td><td><b>${m.unplayed_ms}ms</b></td></tr>
+      <tr><td>원장 절단 결과<div class="muted">실제로 들린 데까지의 대사만 이력에 남는다</div></td>
+          <td>${m.accepted ? `<b class="ok">"${esc(m.spoken_text)}"</b>` : `<span class="err">반영 안 됨 — ${esc(m.note)}</span>`}</td></tr>
+      <tr><td>보고 형식</td><td class="muted">source=${esc(m.source)} · sampled_at=${esc(m.sampled_at)}</td></tr>
+    </table>`;
+  log(`📋 취소 리포트: 왕복 ${m.rtt_ms}ms(포함) · 클라 ${lb?'≥':''}${m.client_stop_ms}ms(${esc(m.stop_measure)}) · 버려짐 ${m.unplayed_ms}ms · 절단 "${esc(m.spoken_text)}"`, 'ok');
+}
+
+/* ---------- 표 ---------- */
+function median(a) { if (!a.length) return null; const s=[...a].sort((x,y)=>x-y); const h=Math.floor(s.length/2);
+  return s.length%2 ? s[h] : Math.round((s[h-1]+s[h])/2); }
+
+function renderTable() {
+  const body = $('#tbl').querySelector('tbody');
+  body.innerHTML = turns.map((t,i) => {
+    const det = t.detectMs != null ? `<b class="${t.detectMs<=1200?'ok':'err'}">${t.detectMs}ms</b>` : '-';
+    const ovr = t.overMs != null ? `${t.overMs}ms` : '-';
+    const sl = t.startLag != null ? `${t.startLag}ms` : '-';
+    return `<tr><td>${i+1}</td><td>${(t.startMs/1000).toFixed(2)}s</td>` +
+      `<td>${t.endMs!=null ? (t.endMs/1000).toFixed(2)+'s' : '<span class="w">진행중</span>'}</td>` +
+      `<td>${t.speechMs!=null ? t.speechMs+'ms' : '-'}</td><td>${det}</td>` +
+      `<td>${t.pipeMs!=null ? t.pipeMs+'ms' : '-'}</td><td>${ovr}</td><td>${sl}</td>` +
+      `<td>${esc(t.text||'')}</td></tr>`;
+  }).join('');
+  $('#mTurns').textContent = turns.length;
+  const dets = turns.filter(t=>t.detectMs!=null).map(t=>t.detectMs);
+  const ovs = turns.filter(t=>t.overMs!=null).map(t=>t.overMs);
+  const pipes = turns.filter(t=>t.pipeMs!=null).map(t=>t.pipeMs);
+  $('#mPipe').textContent = pipes.length ? median(pipes)+'ms' : '-';
+  $('#mMedian').textContent = dets.length ? median(dets)+'ms' : '-';
+  $('#mOver').textContent = ovs.length ? median(ovs)+'ms' : '-';
+  $('#mGap').textContent = maxGap ? maxGap+'ms' : '-';
+}
+
+/* ---------- dev 훅 (페이크 STT 구동) ---------- */
+$('#hBegin').onclick = () => sendCtl({type:'__test_event', event:'speech_begin'});
+$('#hEnd').onclick   = () => sendCtl({type:'__test_event', event:'speech_end'});
+$('#hSay').onclick   = () => sendCtl({type:'__test_say', text:$('#hText').value});
+$('#hTurn').onclick  = async () => {
+  sendCtl({type:'__test_event', event:'speech_begin'});
+  await new Promise(r=>setTimeout(r,400));
+  sendCtl({type:'__test_say', text:$('#hText').value});
+  await new Promise(r=>setTimeout(r,200));
+  sendCtl({type:'__test_event', event:'speech_end'});
+};
+</script>
+</body>
+</html>

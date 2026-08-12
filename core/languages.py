@@ -10,7 +10,7 @@
 - `has_curriculum` : 커리큘럼 데이터(learning_item/level profile)가 시드돼 있나.
                      True(ko·ja)면 정식 코스(검출/증거/힌트/레벨 프로파일 주입). False 는 **회화 전용**.
                      시드(parse_<lang>.py + seed) 후 True 로 뒤집는다.
-- `leveltest`      : 언어별 레벨테스트 대본·루브릭·사다리 앵커가 준비됐나(ko·ja True).
+- `leveltest`      : 언어별 레벨테스트 대본·루브릭·사다리 앵커가 준비됐나(**6개 언어 모두 True**).
 
 새 언어 = 여기 1행 + DB 시드 + 콘텐츠. 코드 분기는 추가하지 않는다(관통 원칙).
 """

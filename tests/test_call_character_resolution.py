@@ -155,3 +155,75 @@ def test_never_raises_when_no_characters_exist(db):
     db.query(Character).delete()
     db.commit()
     assert resolve_call_character(db, mid) == 1
+
+
+# --------------------------------------------------------------------------- #
+# 5) Max 구독 — 카탈로그 전체가 열린다(소유 없이도 통화 가능)
+# --------------------------------------------------------------------------- #
+# ⛔ 여기서 지키는 것: Max 는 **접근**을 열지 소유를 주지 않는다. member_character 행이
+#    생기면 해지 후에도 영구 소유가 되어 되돌릴 수 없다.
+def _subscribe(db, member_id: int, plan: str, *, days: int = 30,
+               is_activate: bool = True, billing_state: str = "ok") -> None:
+    from datetime import timedelta
+
+    from domains.commerce.models.subscribe import Subscribe
+
+    now = datetime.now(timezone.utc)
+    db.add(Subscribe(
+        member_id=member_id, plan=plan, start_date=now,
+        end_date=now + timedelta(days=days), is_activate=is_activate,
+        billing_state=billing_state, is_trial=False, source="manual",
+    ))
+    db.commit()
+
+
+def test_max_can_call_unowned_selected_character(db):
+    """★ Max 회원은 안 산 캐릭터를 대표로 걸어도 그 캐릭터로 통화한다."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "max")
+    assert resolve_call_character(db, mid) == _cid(db, "BIBI")
+
+
+def test_max_unlock_creates_no_ownership_row(db):
+    """⛔ 통화를 열어줬다고 소유 행이 생기면 안 된다 — 해지해도 안 잠기게 된다."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "max")
+    resolve_call_character(db, mid)
+    owned = db.query(MemberCharacter).filter_by(member_id=mid).all()
+    assert [o.character_id for o in owned] == [_cid(db, "BABA")], "소유 행이 늘었다"
+
+
+def test_pro_does_not_unlock_characters(db):
+    """Pro 는 길이·횟수만 연다. 캐릭터는 Max 전용이라 종전대로 폴백한다."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "pro")
+    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+
+
+def test_expired_max_relocks_characters(db):
+    """★ 해지·만료하면 다시 잠긴다 — 앱의 downgradeWarning 이 약속한 동작."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "max", days=-1)   # 어제 끝난 구독
+    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+
+
+def test_grace_max_keeps_characters(db):
+    """grace(결제 재시도 중)는 접근 유지 — 카드 갱신하는 며칠 동안 뺏으면 안 된다."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "max", billing_state="grace")
+    assert resolve_call_character(db, mid) == _cid(db, "BIBI")
+
+
+def test_on_hold_max_relocks_characters(db):
+    """on_hold(유예도 끝남)는 접근 차단 — grace 와의 비대칭이 요점이다."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "max", billing_state="on_hold")
+    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+
+
+def test_max_still_honors_alarm_character(db):
+    """Max 라도 수신통화는 알람 캐릭터가 이긴다(해석 순서 불변)."""
+    mid = _member(db, selected="BIBI", owns=())
+    _subscribe(db, mid, "max")
+    _dispatched(db, mid, "Rara", "call-max-1")
+    assert resolve_call_character(db, mid, "call-max-1") == _cid(db, "Rara")
