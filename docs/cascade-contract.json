@@ -1,0 +1,775 @@
+{
+  "server_to_client": [
+    {
+      "wire_type": "__test_cancel_report",
+      "model": "ServerTestCancelReport",
+      "doc": "[dev 훅] 취소 배관 **실측 리포트** — 데모 화면이 이걸 표로 띄운다.",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "rtt_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "client_stop_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
+          "name": "client_stop_is_lower_bound",
+          "type": "bool",
+          "required": false,
+          "default": true,
+          "alias": null
+        },
+        {
+          "name": "stop_measure",
+          "type": "str",
+          "required": false,
+          "default": "clear_returned",
+          "alias": null
+        },
+        {
+          "name": "platform",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "audio_route",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "network_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
+          "name": "sent_bytes",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "played_server_bytes",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "unplayed_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "spoken_text",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "source",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "sampled_at",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "accepted",
+          "type": "bool",
+          "required": false,
+          "default": true,
+          "alias": null
+        },
+        {
+          "name": "note",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "audio_cancel",
+      "model": "ServerAudioCancel",
+      "doc": "(P1) **지금 재생 중이거나 버퍼에 쌓인 이 턴 오디오를 즉시 버려라.**",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "epoch",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "reason",
+          "type": "str",
+          "required": false,
+          "default": "barge_in",
+          "alias": null
+        },
+        {
+          "name": "report_progress",
+          "type": "bool",
+          "required": false,
+          "default": true,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "beaver_preparing",
+      "model": "ServerBeaverPreparing",
+      "doc": "비버가 **대답을 만드는 중**임을 알린다(배치 합성 전용).",
+      "fields": [
+        {
+          "name": "stage",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "index",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "total",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "elapsed_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "call_ended",
+      "model": "CascadeCallEnded",
+      "doc": "통화 종료 통지 — **캐스케이드 전용**(Live 의 `ServerCallEnded` 를 안 건드린다).",
+      "fields": [
+        {
+          "name": "call_id",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "reason",
+          "type": "str",
+          "required": false,
+          "default": "client",
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "error",
+      "model": "ServerError",
+      "doc": "",
+      "fields": [
+        {
+          "name": "code",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "message",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "recoverable",
+          "type": "bool",
+          "required": false,
+          "default": true,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "input_transcript",
+      "model": "ServerInputPartial",
+      "doc": "사용자 발화 부분/최종 전사.",
+      "fields": [
+        {
+          "name": "text",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "final",
+          "type": "bool",
+          "required": false,
+          "default": false,
+          "alias": null
+        },
+        {
+          "name": "turn_id",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "output_transcript",
+      "model": "ServerOutputTranscript",
+      "doc": "",
+      "fields": [
+        {
+          "name": "text",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "pong",
+      "model": "ServerPong",
+      "doc": "",
+      "fields": [
+        {
+          "name": "t",
+          "type": "int | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "ready",
+      "model": "ServerCascadeReady",
+      "doc": "세션 준비 완료 + **지금 어떤 엔진·정책으로 도는지**.",
+      "fields": [
+        {
+          "name": "engine",
+          "type": "str",
+          "required": false,
+          "default": "fake",
+          "alias": null
+        },
+        {
+          "name": "turn_silence_ms",
+          "type": "int",
+          "required": false,
+          "default": 800,
+          "alias": null
+        },
+        {
+          "name": "sample_rate",
+          "type": "int",
+          "required": false,
+          "default": 16000,
+          "alias": null
+        },
+        {
+          "name": "language",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "bargein_confirm",
+          "type": "str",
+          "required": false,
+          "default": "immediate",
+          "alias": null
+        },
+        {
+          "name": "bargein_min_ms",
+          "type": "int",
+          "required": false,
+          "default": 200,
+          "alias": null
+        },
+        {
+          "name": "mic_always_open",
+          "type": "bool",
+          "required": false,
+          "default": false,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "sentence",
+      "model": "CascadeSentenceMarker",
+      "doc": "구간 마커 — **그 구간 오디오 바로 앞**에 인밴드로 끼운다(2026-08-12 프론트 합의).",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "seq",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "emotion",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "text",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "server_bytes",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "stt_rollover",
+      "model": "ServerSttRollover",
+      "doc": "내부 STT 스트림 교체 통지(진단 전용 — 턴 판정과 무관).",
+      "fields": [
+        {
+          "name": "reason",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "gap_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "turn_end",
+      "model": "ServerTurnEnd",
+      "doc": "",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "turn_start",
+      "model": "CascadeTurnStart",
+      "doc": "비버 턴 시작 — **캐스케이드 전용**(Live 의 `ServerTurnStart` 를 안 건드린다).",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "emotion",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "user_turn_end",
+      "model": "ServerUserTurnEnd",
+      "doc": "**사용자** 턴 종료(SPEECH_ACTIVITY_END + 최종 전사 대기). 비버 턴의 turn_end 와 다르다.",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "text",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "at_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "speech_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "silence_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "pipeline_lag_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "end_lag_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "reason",
+          "type": "str",
+          "required": false,
+          "default": "silence",
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "user_turn_start",
+      "model": "ServerUserTurnStart",
+      "doc": "**사용자** 턴 시작(SPEECH_ACTIVITY_BEGIN). barge-in 은 이 신호가 트리거다.",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "at_ms",
+          "type": "int",
+          "required": true,
+          "default": null,
+          "alias": null
+        }
+      ]
+    }
+  ],
+  "client_to_server": [
+    {
+      "wire_type": "__test_beaver",
+      "model": "ClientTestBeaver",
+      "doc": "[dev 훅] **가짜 비버 오디오**를 실시간 레이트로 흘려 달라(취소 배관 검증용).",
+      "fields": [
+        {
+          "name": "seconds",
+          "type": "float",
+          "required": false,
+          "default": 5.0,
+          "alias": null
+        },
+        {
+          "name": "tone",
+          "type": "bool",
+          "required": false,
+          "default": true,
+          "alias": null
+        },
+        {
+          "name": "sentence_ms",
+          "type": "int",
+          "required": false,
+          "default": 1000,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "__test_cancel",
+      "model": "ClientTestCancel",
+      "doc": "[dev 훅] 지금 흐르는 가짜 비버 턴을 **끊어라**(= barge-in 과 같은 취소 배관).",
+      "fields": [
+        {
+          "name": "reason",
+          "type": "str",
+          "required": false,
+          "default": "barge_in",
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "__test_event",
+      "model": "ClientTestEvent",
+      "doc": "[dev 훅] 페이크 STT 에 음성활동 이벤트를 주입.",
+      "fields": [
+        {
+          "name": "event",
+          "type": "Literal[speech_begin, speech_end]",
+          "required": true,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "__test_say",
+      "model": "ClientTestSay",
+      "doc": "[dev 훅] 페이크 STT 에 최종 전사를 주입(크레덴셜 0 으로 상태기계 검증).",
+      "fields": [
+        {
+          "name": "text",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "ping",
+      "model": "ClientPing",
+      "doc": "keepalive 핑(서버는 pong 응답).",
+      "fields": [
+        {
+          "name": "t",
+          "type": "int | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "playback_progress",
+      "model": "ClientPlaybackProgress",
+      "doc": "(P1) **실제로 재생한 양.** audio_cancel 직후 1회, 또는 턴 재생 완료 시.",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": true,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "epoch",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "played_server_bytes",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "played_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "discarded_ms",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "source",
+          "type": "str",
+          "required": false,
+          "default": "estimate",
+          "alias": null
+        },
+        {
+          "name": "sampled_at",
+          "type": "str",
+          "required": false,
+          "default": "stop",
+          "alias": null
+        },
+        {
+          "name": "odd_frames",
+          "type": "int",
+          "required": false,
+          "default": 0,
+          "alias": null
+        },
+        {
+          "name": "client_stop_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
+          "name": "stop_measure",
+          "type": "str",
+          "required": false,
+          "default": "clear_returned",
+          "alias": null
+        },
+        {
+          "name": "platform",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "audio_route",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        }
+      ]
+    },
+    {
+      "wire_type": "start",
+      "model": "ClientCascadeStart",
+      "doc": "세션 시작(오디오 전에 1회). 마이크 규격 + AEC 힌트 — 인증은 소켓 쿼리 토큰이 한다.",
+      "fields": [
+        {
+          "name": "sampleRate",
+          "type": "int",
+          "required": false,
+          "default": 16000,
+          "alias": "sampleRate"
+        },
+        {
+          "name": "language",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "aec",
+          "type": "AecHint | null",
+          "required": false,
+          "default": null,
+          "alias": null
+        },
+        {
+          "name": "ttsEngine",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": "ttsEngine"
+        },
+        {
+          "name": "speakingRate",
+          "type": "float | null",
+          "required": false,
+          "default": null,
+          "alias": "speakingRate"
+        },
+        {
+          "name": "stylePrompt",
+          "type": "str | null",
+          "required": false,
+          "default": null,
+          "alias": "stylePrompt"
+        }
+      ]
+    },
+    {
+      "wire_type": "stop",
+      "model": "ClientCascadeStop",
+      "doc": "세션 정상 종료 요청.",
+      "fields": []
+    }
+  ]
+}

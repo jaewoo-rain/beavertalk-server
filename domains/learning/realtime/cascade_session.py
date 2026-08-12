@@ -912,6 +912,7 @@ class CascadeSession:
         self._segment_seq = 0
         # 이 세션이 **왜** 끝났나 — 종료 통지의 reason 이 된다(기본은 사용자 종료).
         self._end_reason = "client"
+        self._odd_frames_warned = False   # I6 경고는 통화당 한 번(도배 방지)
         # 종료 태그 — 지시문과 시드가 **같은 값**을 써야 모델이 그 문구를 시스템 지시로 읽는다.
         self._close_tag = new_close_tag()
         # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
@@ -2483,7 +2484,7 @@ class CascadeSession:
         return await self._speak_segments(segments, emotion)
 
     async def _speak_segments(self, segments: list[tuple[str, str]],
-                              emotion: str = _DEFAULT_EMOTION) -> int:
+                              emotion: str | None = None) -> int:
         """구간들을 **순서대로** 송출하되, 뒤 구간의 합성은 **미리 시작**한다.
 
         ⛔ 순서는 절대 유지된다 — 합성이 먼저 끝났다고 먼저 내보내면 말이 뒤섞인다.
@@ -2515,7 +2516,7 @@ class CascadeSession:
         return sent
 
     async def _speak_one(self, sentence: str, language: str,
-                         emotion: str = _DEFAULT_EMOTION) -> int:
+                         emotion: str | None = None) -> int:
         """구간 하나를 합성해 송출한다(열기 → 보내기). 보낸 바이트 수를 돌려준다."""
         segment = await self._open_segment(sentence, language, emotion)
         if segment is None:
@@ -2539,7 +2540,7 @@ class CascadeSession:
             queue.put_nowait(None)
 
     async def _open_segment(self, sentence: str, language: str,
-                            emotion: str = _DEFAULT_EMOTION) -> _OpenSegment | None:
+                            emotion: str | None = None) -> _OpenSegment | None:
         """구간 하나의 **합성을 시작**한다(아직 소리는 안 나간다). 빈 구간이면 None.
 
         원가의 문자 수는 **여기서** 센다 — 과금은 우리가 텍스트를 넘긴 순간 일어나므로,
@@ -2565,11 +2566,14 @@ class CascadeSession:
         # ⚠ 세션 TaskGroup 에 붙이지 않는다 — 여기서 난 실패가 **통화 전체를 무너뜨리면** 안
         #   된다(R5). 대신 소유자(`_speak`)가 finally 에서 반드시 취소한다.
         task = asyncio.create_task(self._pump_segment(stream, queue))
+        # ⚠ 구간 감정이 안 넘어오면(직접 호출·데모 훅) **이 대답의 감정**을 쓴다 —
+        #   하드코딩 기본값으로 덮으면 예전 동작(대답 1건당 하나)이 조용히 바뀐다.
+        emotion = emotion or self._reply_emotion or _DEFAULT_EMOTION
         return _OpenSegment(sentence, language, emotion, queue, task, report, align, trim,
                             time.monotonic())
 
     async def _open_vendor_stream(self, sentence: str, language: str, report: dict,
-                                  emotion: str = _DEFAULT_EMOTION) -> Any:
+                                  emotion: str | None = None) -> Any:
         """벤더 호출 — ✓ 이건 성질이 아니라 **어느 어댑터를 부르느냐**다(구글 SDK vs HTTP,
         인자 자체가 다르다). 조절값이 아니므로 성질 표로 안 옮긴다."""
         if self._tts_engine == _OPENAI_TTS_CHOICE:
@@ -3453,6 +3457,17 @@ class CascadeSession:
         except ValidationError as exc:
             logger.warning("cascade playback_progress 형식 오류(무시) — %s", exc)
             return
+        # ⛔ **I6 위반의 유일한 외부 증인**(2026-08-12). 우리가 짝수 바이트를 보장하는데
+        #   클라가 홀수를 셌다면 그 사이 어딘가에서 정렬이 깨진 것이다. 클라 큐는 홀수가
+        #   와도 이어붙어 재생이 안 깨지므로 **자연 신호가 없다** — 이 숫자가 유일하다.
+        #   ⚠ 구버전 클라는 안 보낸다(기본 0) → 조용히 넘어간다(R5).
+        if progress.odd_frames and not self._odd_frames_warned:
+            self._odd_frames_warned = True
+            logger.warning(
+                "cascade ⚠⚠ 클라가 **홀수 길이 오디오 프레임 %d개**를 받았다(불변식 I6 위반). "
+                "서버 정렬(sample_aligned)을 안 타는 경로가 있다 — turn=%s",
+                progress.odd_frames, progress.turn_id,
+            )
         # [dev 훅] 취소 배관 실측: audio_cancel 을 쓴 시각 → 이 메시지가 도착한 시각.
         # 클라가 말한 '폐기 실효지연 50~120ms'의 실측치다(지금까지는 추정이었다).
         rtt_ms = 0

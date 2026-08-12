@@ -240,3 +240,53 @@ async def test_a_normal_response_does_not_warn(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING):
         await session._speak_one("가" * 20, "ko")
     assert not [r for r in caplog.records if "너무 짧다" in r.getMessage()], caplog.text
+
+
+# ── ⑥ 클라가 세어 보내는 홀수 프레임 — I6 의 **유일한 외부 증인** ─────────
+@pytest.mark.asyncio
+async def test_the_client_reported_odd_frames_are_logged(caplog):
+    """⛔ 우리가 짝수를 보장하는데 클라가 홀수를 셌다면 **그 사이에서 정렬이 깨진 것**이다.
+
+    클라 큐는 홀수가 와도 이어붙어 재생이 안 깨진다 — **자연 신호가 없다.** 그래서 클라가
+    세어 보내고, 서버는 그걸 보고 경고한다. 이 숫자가 없으면 소리만 조금씩 상한 채 아무도 모른다.
+    """
+    import logging
+
+    session = cs.CascadeSession(_Recorder())
+    turn_id = await session.beaver.begin()
+    with caplog.at_level(logging.WARNING):
+        await session._on_playback_progress({
+            "type": "playback_progress", "turn_id": turn_id,
+            "played_server_bytes": 0, "odd_frames": 3,
+        })
+    assert any("홀수 길이 오디오 프레임 3개" in r.getMessage() for r in caplog.records), caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_client_without_the_field_is_silent(caplog):
+    """⚠ 구버전 클라는 안 보낸다 — 기본 0 이고 **조용히 넘어간다**(R5)."""
+    import logging
+
+    session = cs.CascadeSession(_Recorder())
+    turn_id = await session.beaver.begin()
+    with caplog.at_level(logging.WARNING):
+        await session._on_playback_progress({
+            "type": "playback_progress", "turn_id": turn_id, "played_server_bytes": 0,
+        })
+    assert not [r for r in caplog.records if "홀수 길이" in r.getMessage()]
+
+
+@pytest.mark.asyncio
+async def test_the_odd_frame_warning_fires_once_per_call(caplog):
+    """⚠ 진행도는 턴마다 온다 — 매번 찍으면 로그가 도배된다."""
+    import logging
+
+    session = cs.CascadeSession(_Recorder())
+    turn_id = await session.beaver.begin()
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            await session._on_playback_progress({
+                "type": "playback_progress", "turn_id": turn_id,
+                "played_server_bytes": 0, "odd_frames": 5,
+            })
+    assert len([r for r in caplog.records if "홀수 길이" in r.getMessage()]) == 1
