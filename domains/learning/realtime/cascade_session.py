@@ -2123,9 +2123,16 @@ class CascadeSession:
             pending: list[str] = []
             # ⭐ 단계 전환을 **한 번씩만** 알린다(아래 _flush_batch·llm 프레임).
             tts_announced = False
+            # ⭐⭐ **배치 경계의 와이어 공백**(2026-08-13). 클라가 "SERVER GAP 2435ms
+            #   mid-utterance" 를 보고했는데 **서버에 이 값을 재는 계측이 없었다.**
+            #   구간 사이 공백은 `대기N.NNs` 로 보이지만, **묶음과 묶음 사이**(다음 문장들의
+            #   LLM 생성 + TTS 왕복)는 아무 데도 안 남았다. 페이서엔 필러가 없어서 그 시간
+            #   동안 **와이어가 그냥 조용하다** — 클라 큐가 그만큼 굶는다.
+            batch_gaps: list[float] = []
+            last_sent_at = 0.0
 
             async def _flush_batch() -> None:
-                nonlocal turn_id, first_audio_ms, spoken_chars, pending, tts_announced
+                nonlocal turn_id, first_audio_ms, spoken_chars, pending, tts_announced, last_sent_at
                 if not pending:
                     return
                 text_batch, pending = " ".join(pending), []
@@ -2139,9 +2146,13 @@ class CascadeSession:
                         stage="tts", index=1, total=0,
                         elapsed_ms=int((time.monotonic() - began) * 1000),
                     ))
+                if last_sent_at:
+                    # 앞 묶음을 다 보낸 뒤 여기까지 = **아무것도 안 나간 시간**이다.
+                    batch_gaps.append(time.monotonic() - last_sent_at)
                 turn_id = turn_id or await self._begin_beaver_turn()
                 first_audio_at = self.beaver.first_audio_at
                 sent = await self._speak(text_batch)
+                last_sent_at = time.monotonic()
                 if sent and first_audio_ms < 0:
                     # ⭐ 첫 바이트가 **실제로 나간 시각**을 원장에서 받는다. 여기(=배치 전량
                     #   송출 완료) 시각을 쓰면 페이서 대기가 '첫소리'에 통째로 들어간다.
@@ -2250,7 +2261,7 @@ class CascadeSession:
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
                 "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 문장모델=%s tts=%s "
-                "언어분할=%s gemini호출=%d %s %s %s",
+                "언어분할=%s gemini호출=%d %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
@@ -2270,6 +2281,9 @@ class CascadeSession:
                 self._tts_gemini_calls, "고정" if self._tts_gemini_off else "-",
                 self._tts_request_log(),
                 self._reading_summary(None),
+                # ⭐ **묶음 사이 공백** — 0.25초를 넘으면 클라가 `SERVER GAP mid-utterance` 로
+                #   본다(그 창이 클라 판정 기준이다). 여기서 안 보이면 원인을 영영 못 가른다.
+                self._batch_gap_log(batch_gaps),
             )
         except asyncio.CancelledError:
             # ⚠ 우리가 건 취소(barge-in)는 여기서 흡수하고 정상 종료한다 — 이 태스크는 세션
@@ -2516,6 +2530,20 @@ class CascadeSession:
                 "벤더가 도중에 끊었을 수 있다. 엔진=%s",
                 chars, audio_s, chars / audio_s, self._tts_vendor(),
             )
+
+    @staticmethod
+    def _batch_gap_log(gaps: list[float]) -> str:
+        """묶음과 묶음 사이 **아무것도 안 나간 시간** — 클라의 `SERVER GAP` 과 짝이다.
+
+        ⛔ 페이서에는 **필러가 없다**(`_pace` 는 앞설 때 재우기만 한다). 그래서 우리가 보낼
+          것이 없는 동안 와이어는 **그냥 조용하다** — 선행버퍼(1.5초)를 넘기면 클라가 굶는다.
+        ⚠ 구간 사이 공백은 `대기N.NNs` 로 이미 보인다. 이 값은 **그것과 다른 자리**다:
+          다음 문장 묶음을 만드는 시간(LLM 생성 + TTS 왕복)이라 계측이 아예 없었다.
+        """
+        big = [g for g in gaps if g >= 0.25]     # 클라 판정 창(250ms)과 같은 기준
+        if not big:
+            return "묶음공백=-"
+        return "묶음공백=[%s]" % ", ".join(f"{g:.2f}s" for g in big)
 
     def _tts_request_log(self) -> str:
         """이 대답의 **요청별** (글자·오디오 초). 요청 수와 절단이 한 줄에서 보인다."""

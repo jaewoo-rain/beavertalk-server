@@ -136,3 +136,18 @@ def test_the_snapshot_runs_after_the_client_start_is_applied():
     assert seq.index("receive") < seq.index("_log_config_snapshot"), (
         "클라 start 를 받기 전에 찍는다 — 엔진이 바뀌면 찍은 값이 거짓이 된다"
     )
+
+
+# ── 묶음 사이 공백 — 클라의 `SERVER GAP` 과 짝이 되는 서버 값 ─────────────
+def test_the_batch_gap_uses_the_same_window_as_the_client():
+    """⭐ 클라가 `SERVER GAP … mid-utterance` 로 판정하는 창(250ms)과 **같은 기준**이다.
+
+    ⛔ 기준이 다르면 양쪽 로그를 맞대 볼 수 없다 — 그게 이 값을 넣는 유일한 이유다.
+    ⚠ 작은 공백까지 다 찍으면 줄만 길어진다(정상 통화에도 수십 개가 있다).
+    """
+    assert cs.CascadeSession._batch_gap_log([]) == "묶음공백=-"
+    assert cs.CascadeSession._batch_gap_log([0.05, 0.2, 0.24]) == "묶음공백=-", (
+        "판정 창보다 작은 공백까지 찍었다 — 신호가 잡음에 묻힌다"
+    )
+    line = cs.CascadeSession._batch_gap_log([0.05, 2.435, 0.49])
+    assert "2.44s" in line and "0.49s" in line and "0.05s" not in line, line
