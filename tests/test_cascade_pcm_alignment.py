@@ -135,6 +135,7 @@ async def test_alignment_happens_before_silence_trimming(monkeypatch):
     ⚠ 홀수 여부만 봐서는 이걸 못 잡는다(밀려도 길이는 짝수다). **바이트 위치**를 본다.
     """
     recorder = _Recorder()
+    # ⚠ 절단이 켜진 엔진을 **명시**한다(서버 기본값에 딸려가면 전제가 소리 없이 바뀐다).
     monkeypatch.setattr(cs.settings, "CASCADE_TTS_TRIM_ENGINES", "chirp3-hd")
     silence = bytes(3001)                        # ⭐ 홀수 침묵 — 절단이 통째로 버릴 조각
     payload = [bytes([(i + 1) * 40] * 1369) for i in range(3)]   # 실제 관측과 같은 홀수 조각
@@ -147,6 +148,7 @@ async def test_alignment_happens_before_silence_trimming(monkeypatch):
     monkeypatch.setattr(cs.tts, "synthesize_stream",
                         lambda *a, **kw: _wrap(_stream(*a, **kw)))
     session = cs.CascadeSession(recorder)
+    session._tts_engine = "chirp3-hd"
     await session.beaver.begin()
     assert session._trim_silence() is True, "이 시험의 전제(절단 켜짐)가 깨졌다"
     await session._speak_one("문장", "ko")
@@ -210,7 +212,9 @@ async def test_a_truncated_vendor_response_is_reported(monkeypatch, caplog):
     import logging
 
     async def _stream(text, **kwargs):
-        yield bytes(14400)                          # 0.30초 — 100자짜리 문장에 비해 불가능
+        # ⚠ **0 으로 채우면 안 된다** — 서버 기본(Gemini)은 침묵 절단이 켜져 있어 통째로
+        #   버려지고, 그러면 이 시험이 재려는 것(잘린 응답 경고)에 닿지도 못한다.
+        yield bytes([40]) * 14400                   # 0.30초 — 100자짜리 문장에 비해 불가능
 
     monkeypatch.setattr(cs.tts, "synthesize_stream",
                         lambda *a, **kw: _wrap(_stream(*a, **kw)))
@@ -227,7 +231,7 @@ async def test_a_normal_response_does_not_warn(monkeypatch, caplog):
     import logging
 
     async def _stream(text, **kwargs):
-        yield bytes(48000 * 2)                      # 2초 — 20자면 10자/초(정상)
+        yield bytes([40]) * (48000 * 2)             # 2초 — 20자면 10자/초(정상)
 
     monkeypatch.setattr(cs.tts, "synthesize_stream",
                         lambda *a, **kw: _wrap(_stream(*a, **kw)))

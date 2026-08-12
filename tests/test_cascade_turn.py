@@ -815,7 +815,7 @@ async def test_hook_rejects_estimated_progress_with_reason(fake_v2, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_hook_pacing_is_realtime(fake_v2):
+async def test_hook_pacing_is_realtime(fake_v2, monkeypatch):
     """페이싱이 살아 있다 — 0.6초 분량은 실제로 그만큼 걸려서 나간다(I3).
 
     산수: 100ms 프레임 6장, 허용 선행 lead=200ms → 앞의 두 장은 그냥 나가고 나머지는
@@ -830,6 +830,12 @@ async def test_hook_pacing_is_realtime(fake_v2):
     """
     import time as _time
 
+    # ⚠ **선행버퍼를 엔진 기본값에 맡기지 않는다**(2026-08-12). 서버 기본이 Gemini 로 바뀌면서
+    #   lead 가 1500ms 가 됐고, 0.6초 분량은 그 안에 통째로 들어가 **페이싱이 안 걸린다**.
+    #   여기서 지키려는 성질은 "실시간만큼 기다리나"이므로 lead 를 시험이 직접 정한다.
+    import domains.learning.realtime.cascade_session as _cs
+
+    monkeypatch.setattr(_cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
     transport = _HookTransport(
         [_ctl(type="start"), _ctl(type="__test_beaver", seconds=0.6, tone=False, sentence_ms=200)],
         wait_for="turn_end",

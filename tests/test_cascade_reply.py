@@ -152,6 +152,11 @@ def reply_rig(monkeypatch):
     # 선톡이 먼저 돌면 그 대답이 첫 비버 턴이 되어 검사 대상이 흐려진다 — 선톡 자체는
     # 전용 테스트(test_greeting_speaks_first)에서 본다.
     monkeypatch.setattr(cs.settings, "CASCADE_GREETING", False)
+    # ⭐ **엔진을 명시한다**(2026-08-12). 이 파일의 시험들은 Chirp 의 묶음 규칙(첫 문장 단독
+    #   송출·묶음 160자)을 고정한 것인데, 서버 기본값이 Gemini 로 바뀌면서 그 전제가 소리 없이
+    #   깨졌다(첫 문장 단독이 없어져 tts 호출 수가 달라진다). 기본값이 무엇인지는
+    #   `test_tts_engine_switch.py` 가 따로 못박는다 — 여기서는 **엔진을 고정하고** 배관만 본다.
+    monkeypatch.setattr(cs.settings, "CASCADE_TTS_ENGINE", "chirp3-hd")
     stt_mod.get_speech_v2_client.cache_clear()
 
     state = {"chat": None, "tts_calls": [], "chunk_delay": 0.0, "chunks": 2}

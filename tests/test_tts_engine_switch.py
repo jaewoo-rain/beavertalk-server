@@ -4,7 +4,9 @@
 env 하나로 왔다갔다 하고, 느리면 1분 안에 되돌린다.
 
 여기서 못박는 것:
-  ① 기본은 Chirp3-HD 다 — 스위치를 안 켜면 지금 동작 그대로(감정 지시도 안 보낸다)
+  ① **서버 기본은 Gemini-TTS 다**(2026-08-12 사장님 결정 "지금 좋아 잘돼"). 앱이 붙으면
+     이 값이 곧 실서비스 소리라, 기본이 무엇인지는 회귀로 계속 못박혀 있어야 한다.
+     ⚠ Chirp 를 고르면 예전 동작 그대로다(모델 지정도, 감정 지시도 없다).
   ② gemini 를 켜면 **모델 id 가 요청에 실리고** 감정 지시(prompt)가 함께 간다
   ③ ⭐ gemini 가 실패하면 **Chirp3-HD 로 폴백하되 조용히 하지 않는다**(WARNING + report)
      — 조용한 폴백은 "제미나이가 느리다"를 "제미나이인 줄 알았는데 Chirp 였다"로 만든다
@@ -82,8 +84,12 @@ def rig(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_default_stays_on_chirp3(rig):
-    """① 스위치를 안 켜면 지금 동작 그대로 — 모델 지정도, 감정 지시도 없다."""
+async def test_choosing_chirp_keeps_the_old_behaviour(rig):
+    """Chirp 를 고르면 예전 동작 그대로 — 모델 지정도, 감정 지시도 없다.
+
+    ⚠ 이건 **기본값 검증이 아니다**(엔진을 명시로 넘긴다). 기본값은 아래 회귀가 본다 —
+      2026-08-12 까지 이 시험의 이름이 `default` 여서 기본값이 검증되는 줄 알았다.
+    """
     client = rig(_FakeClient(), CASCADE_TTS_ENGINE="chirp3-hd")
     report: dict = {}
     audio = await _drain(await tts.synthesize_stream("안녕하세요", report=report))
@@ -91,6 +97,35 @@ async def test_default_stays_on_chirp3(rig):
     assert _voice_of(client).model_name == ""      # Chirp3-HD 는 model_name 을 안 쓴다
     assert _input_of(client).prompt == ""          # 감정 지시는 Gemini 전용
     assert report["engine"] == tts.CHIRP3_ENGINE
+
+
+def test_the_server_default_is_gemini():
+    """⭐ **서버 기본값 = Gemini-TTS.** 클라가 아무 말 안 하면 이 소리가 나간다.
+
+    ⛔ 값 하나만 보지 않는다 — 그 기본을 골랐을 때 **실제로 Gemini 로 도는지**까지 본다
+      (기본값만 바꾸고 성질 표를 안 옮기면 조용히 Chirp 이 난다).
+    ⚠ 되돌리려면 env 로 "chirp3-hd" 를 넣으면 끝이다 — 쿼터(429) 위험 때문에 그 길은 열어 둔다.
+    """
+    import domains.learning.realtime.cascade_session as cs
+    from core.config import settings
+
+    assert settings.CASCADE_TTS_ENGINE == "gemini-tts"
+
+    class _Sink:
+        async def send_event(self, event: dict) -> None:
+            return None
+
+        async def send_audio(self, frame: bytes) -> None:
+            return None
+
+        async def receive(self):
+            raise AssertionError
+
+    session = cs.CascadeSession(_Sink())
+    assert session._tts_engine == "gemini-tts", "기본값이 세션에 안 실린다"
+    assert session._profile().google_engine == tts.GEMINI_ENGINE
+    assert session._profile().takes_style is True, "감정 지시가 안 나간다"
+    assert session._tts_vendor() == "gemini-2.5-flash-tts"
 
 
 @pytest.mark.asyncio
@@ -211,3 +246,58 @@ def test_rates_start_unchanged_until_measured():
     assert live.CASCADE_TTS_SPEAKING_RATE_GEMINI == 1.0
     # 문서 범위 [0.25, 2.0] 안에 있어야 한다(벗어나면 요청이 거절된다)
     assert 0.25 <= live.CASCADE_TTS_SPEAKING_RATE_GEMINI <= 2.0
+
+
+# ── ⑥ 폴백은 **통화 요약에도** 남는다(2026-08-12) ──────────────────────────
+def test_a_quota_fallback_is_counted_in_the_call_summary():
+    """⛔ 폴백이 나면 **통화 중에 목소리가 바뀐다.** 사장님은 그걸 소리로만 아신다.
+
+    지금까지는 그 순간의 WARNING 한 줄뿐이라, 통화가 끝난 뒤 "그 통화에서 몇 번 바뀌었나"를
+    답할 수 없었다. Gemini 를 **기본**으로 쓰기로 한 이상(쿼터가 있는 유일한 엔진) 이 숫자가
+    요약에 있어야 한다.
+    """
+    from domains.learning.realtime.cascade_usage import CascadeUsage, format_usage_line
+
+    usage = CascadeUsage()
+    usage.record_tts("안녕하세요", vendor="gemini-2.5-flash-tts")
+    usage.record_tts_audio(48000)
+    assert usage.summary()["vendors"]["tts"]["fallbacks"] == 0
+
+    usage.record_tts("", vendor="gemini-2.5-flash-tts", failed=True)
+    usage.record_tts_fallback()
+    usage.record_tts_fallback()
+    summary = usage.summary()
+    assert summary["vendors"]["tts"]["fallbacks"] == 2
+    assert "tts_fallbacks=2" in format_usage_line(summary), format_usage_line(summary)
+
+
+@pytest.mark.asyncio
+async def test_the_session_counts_the_fallback_where_it_actually_happens(monkeypatch):
+    """⭐ 세는 자리는 **폴백을 실제로 감지하는 곳**이어야 한다(따로 세면 갈린다)."""
+    import domains.learning.realtime.cascade_session as cs
+
+    class _Sink:
+        async def send_event(self, event: dict) -> None:
+            return None
+
+        async def send_audio(self, frame: bytes) -> None:
+            return None
+
+        async def receive(self):
+            raise AssertionError
+
+    async def _stream(text, **kwargs):
+        report = kwargs.get("report")
+        if report is not None:
+            report.update({"engine": tts.CHIRP3_ENGINE,
+                           "fallback_from": "gemini-2.5-flash-tts", "quota": True})
+
+        async def _gen():
+            yield b"\x01\x00" * 240
+        return _gen()
+
+    monkeypatch.setattr(cs.tts, "synthesize_stream", _stream)
+    session = cs.CascadeSession(_Sink())
+    await session.beaver.begin()
+    await session._speak_one("안녕하세요", "ko")
+    assert session.usage.summary()["vendors"]["tts"]["fallbacks"] == 1
