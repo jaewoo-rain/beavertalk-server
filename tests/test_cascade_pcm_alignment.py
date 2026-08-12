@@ -129,7 +129,7 @@ async def test_a_single_stray_byte_never_becomes_a_frame():
 async def test_alignment_happens_before_silence_trimming(monkeypatch):
     """⛔ **정렬이 침묵 절단보다 먼저**여야 한다.
 
-    `_trim_head` 는 침묵 조각을 **통째로 버린다**. 그 조각이 홀수면 버려진 바이트 수도
+    `_trim_edges` 는 침묵 조각을 **통째로 버린다**. 그 조각이 홀수면 버려진 바이트 수도
     홀수라, 남은 스트림이 **반 표본 밀린 채** 시작한다 — 그러면 이후 모든 표본이
     [앞 표본의 상위, 뒤 표본의 하위]로 잘못 짝지어져 **소리 전체가 잡음**이 된다.
     ⚠ 홀수 여부만 봐서는 이걸 못 잡는다(밀려도 길이는 짝수다). **바이트 위치**를 본다.

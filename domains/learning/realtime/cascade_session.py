@@ -2679,7 +2679,7 @@ class CascadeSession:
         report: dict = {}
         align: dict = {}          # 이 요청에서 홀수 조각이 몇 개였나(벤더가 격자를 지키나)
         stream = await self._open_vendor_stream(sentence, language, report, emotion)
-        # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_head` 는 조각을 통째로 버리고
+        # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_edges` 는 조각을 통째로 버리고
         #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
         #   **뒤따르는 바이트가 반 표본씩 밀린다**(소리가 통째로 잡음이 된다).
         stream = sample_aligned(stream, align)
