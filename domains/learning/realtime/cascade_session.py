@@ -927,6 +927,9 @@ class CascadeSession:
         # 문장 단위 감정: 직전 구간의 값(태그가 없으면 이어간다) + 이 턴에서 보낸 구간 순번.
         self._last_emotion = _DEFAULT_EMOTION
         self._segment_seq = 0
+        # 이 대답에서 **실제로 내보낸 자막(구간 마커) 수**. ⛔ `_segment_seq` 를 쓰면 안 된다 —
+        # 그건 턴 안에서 계속 커지는 **클라 계약값**이라 대답별 개수가 안 나온다.
+        self._sentence_markers = 0
         # 이 세션이 **왜** 끝났나 — 종료 통지의 reason 이 된다(기본은 사용자 종료).
         self._end_reason = "client"
         self._odd_frames_warned = False   # I6 경고는 통화당 한 번(도배 방지)
@@ -2048,6 +2051,7 @@ class CascadeSession:
         self._tts_engines.clear()
         self._marker_seen.clear()
         self._reply_spans.clear()
+        self._sentence_markers = 0
         self._dropped_tag = ""
         self._tts_odd_chunks.clear()
         self._tts_waits.clear()
@@ -2107,11 +2111,13 @@ class CascadeSession:
                 # ⚠ 이력에는 **실제로 말한 것만**(버린 꼬리 제외).
                 self._remember_beaver(turn_id, strip_emotion_tags(self._batch_spoken))
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d%s 문장모델=%s tts=%s %s %s",
+                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d%s 자막=%d개 "
+                    "문장모델=%s tts=%s %s %s",
                     "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                     self._emotion_log(), self._rate_log(), spoken_chars,
                     "(상한잘림 꼬리%d자버림)" % len(self._batch_dropped)
                     if self._batch_dropped else ("(상한잘림)" if chat.truncated else ""),
+                    self._sentence_markers,
                     settings.CASCADE_LLM_MODEL,
                     "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                     self._tts_request_log(),
@@ -2160,13 +2166,17 @@ class CascadeSession:
             # ⭐ TTS 엔진을 같이 찍는다 — 이 줄만 보고 A/B(첫소리 지연)를 가를 수 있어야 한다.
             #   폴백이 일어나면 실제로 소리를 낸 엔진이 여기 남는다(의도한 엔진이 아니라).
             logger.info(
-                "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 문장모델=%s tts=%s 마커=%s "
-                "gemini호출=%d %s %s %s",
+                "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 문장모델=%s tts=%s "
+                "언어분할=%s gemini호출=%d %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
                 "(상한잘림 꼬리%d자버림)" % len(dropped) if dropped else
                 ("(상한잘림)" if chat.truncated else ""),
+                # ⭐ **자막이 실제로 나갔나**(구간 마커 수). 0 이면 클라가 자막을 못 받는다 —
+                #   지금까지 이 값이 없어 "자막이 안 뜬다"를 서버 로그로 못 갈랐다.
+                #   ⚠ 아래 `언어분할=` 과 다른 것이다(그건 `__마커__` 언어 구간 상태).
+                self._sentence_markers,
                 settings.CASCADE_LLM_MODEL,
                 "+".join(sorted(self._tts_engines)) or self._tts_vendor(),
                 ",".join(f"{k}{v}" for k, v in sorted(self._marker_seen.items())) or "-",
@@ -3350,6 +3360,7 @@ class CascadeSession:
             server_bytes=self.beaver.sent_bytes,
         ))
         self._segment_seq += 1
+        self._sentence_markers += 1
 
     def _reply_busy(self) -> bool:
         """비버가 아직 말하는(또는 만드는) 중인가."""

@@ -211,3 +211,35 @@ def test_an_unknown_emotion_is_not_blocked():
 
     assert CascadeSentenceMarker(turn_id="b1", seq=0, emotion="excited",
                                  text="야호", server_bytes=0).emotion == "excited"
+
+
+# ── 🔴 자막이 **나갔는지 로그로** 알 수 있어야 한다(2026-08-12) ────────────
+@pytest.mark.asyncio
+async def test_the_reply_line_reports_how_many_subtitles_went_out(monkeypatch, caplog):
+    """⛔ 사장님이 폰으로 통화하셨는데 **자막이 나갔는지 서버 로그로 못 갈랐다.**
+
+    `_send_sentence_marker` 가 전송만 하고 아무 기록도 안 남겼기 때문이다. 대답 줄에 개수를
+    싣는다 — 0 이면 클라가 자막을 못 받은 것이고, 그때 원인을 서버/클라로 가를 수 있다.
+    ⚠ 구간별 줄을 새로 만들지 않는다(통화당 로그가 폭발한다) — **기존 요약 줄**에 한 칸이다.
+    """
+    import logging
+
+    session = _session(monkeypatch)
+    await session.beaver.begin()
+    with caplog.at_level(logging.INFO):
+        await session._speak("<happy> 안녕하세요!")
+        await session._speak("<sad> 아쉽네요.")
+    assert session._sentence_markers == 2
+
+
+def test_the_subtitle_count_has_a_different_name_from_the_language_split():
+    """⛔ `마커=` 는 **언어분할**(`__마커__`) 표시다 — 이름이 겹치면 다음 사람이 헷갈린다.
+
+    (그 계열의 오독이 오늘만 여러 번 있었다.)
+    """
+    import inspect
+
+    src = inspect.getsource(cs.CascadeSession._run_reply)
+    assert "자막=%d개" in src, "자막 개수가 대답 줄에 없다"
+    assert "언어분할=" in src, "언어분할 표시가 사라졌다"
+    assert "마커=%s" not in src, "옛 이름이 남아 자막과 헷갈린다"
