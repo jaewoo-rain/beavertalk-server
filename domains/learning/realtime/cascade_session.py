@@ -928,6 +928,12 @@ class CascadeSession:
         # 방금 닫은 턴(유령 턴 차단 — 같은 발화가 턴 2개가 되는 것을 막는다)
         self._closed_turn_id: str | None = None
         self._closed_end_offset_ms = -1
+        # 앞 조각(벤더 VAD 가 쪼갠 같은 발화의 앞부분) — 이 턴 텍스트 앞에 붙는다.
+        self._turn_carry = ""
+        # ⛔ **speech_end 로만** 갱신한다. 이어붙임 판정의 기준점이라, 아무 이벤트나 찍는
+        #   `_last_voice_offset_ms` 를 쓰면 **잡음 speech_begin 이 자기 자신을 기준으로 삼아**
+        #   매번 '이어짐'이 되고 카운트다운이 영영 안 걸린다(차 안에서 턴이 안 닫힌다).
+        self._last_speech_end_offset_ms = -1
         self._closed_text = ""
         self._closed_at = 0.0
         # barge-in 에코 2차 방어(세션 단위 — 기기/라우트마다 달라야 한다)
@@ -1251,6 +1257,8 @@ class CascadeSession:
 
     # ── 전이 ──
     async def _on_speech_begin(self, event: SttV2Event) -> None:
+        # ⚠ `_mark_voice` 가 오프셋을 덮으므로 **직전 값을 먼저** 집는다(이어붙임 판정 재료).
+        prev_offset_ms = self._last_speech_end_offset_ms
         self._speech_active = True
         self._mark_voice(event)
         if self.state in (TurnState.BEAVER_SPEAKING, TurnState.THINKING):
@@ -1264,8 +1272,19 @@ class CascadeSession:
             #   진짜로 말을 이어가면 **새 전사가 도착해 다시 건다**(그게 정상 경로다).
             if not self._turn_has_text():
                 self._close_at = None  # 아직 글자 없음 = 진짜 발화 시작을 기다리는 중
+            elif self._is_same_utterance(event, prev_offset_ms):
+                # ⭐ 벤더 VAD 가 **한 발화를 쪼갠 것**이다(실측 간격 84ms). 여기서 카운트다운을
+                #   안 풀면 앞 조각만으로 턴이 닫히고, 뒤 조각이 새 턴이 되어 **만들던 대답을
+                #   버리고 다시 만든다** — 그게 "응답이 느리다"의 정체였다.
+                self._close_at = None
+                logger.info(
+                    "cascade 같은 발화 이어짐(간격 %dms) — 턴 %s 를 계속 연다",
+                    max(0, event.offset_ms - prev_offset_ms), self._turn_id,
+                )
             return
+        carry = self._carry_over_text(event)
         await self._open_turn(event.at)
+        self._turn_carry = carry
 
     async def _on_transcript(self, event: SttV2Event) -> None:
         # 보류해 둔 barge-in 이 있으면 **여기가 확정 지점**이다 — 잡음은 전사를 못 만든다.
@@ -1314,6 +1333,9 @@ class CascadeSession:
 
     async def _on_speech_end(self, event: SttV2Event) -> None:
         self._speech_active = False
+        if event.offset_ms >= 0:
+            # 이어붙임의 기준점 — 벤더가 **말이 끝났다고 선언한** 오디오 시각.
+            self._last_speech_end_offset_ms = event.offset_ms
         self._mark_voice(event)
         # ⛔ **턴이 열려 있나만 본다.** 예전엔 `state == USER_SPEAKING` 도 요구했는데,
         #   `_open_turn` 은 비버가 말하는 중이면 **일부러 상태를 안 뺏는다**(barge-in 겹침 허용).
@@ -1323,6 +1345,45 @@ class CascadeSession:
         if self._turn_id is None:
             return  # 열린 턴이 없으면 무시(스트림 시작 직후의 잔여 이벤트 등)
         self._arm_close_timer(event)
+
+    def _is_same_utterance(self, event: SttV2Event, prev_offset_ms: int) -> bool:
+        """이 발화 시작이 **직전 발화 끝에 이어지는가**(= 벤더 VAD 가 쪼갠 한 문장인가).
+
+        ⛔ 기준점은 **speech_end 오프셋뿐**이다(호출부가 넘긴다). 진짜 갈림은 벤더가
+          `speech_stopped → speech_started` 쌍을 낸 자리이고, **잡음은 그 짝이 없다** —
+          전사만 온 뒤 튀는 speech_begin 을 이어짐으로 보면 카운트다운이 매번 풀려
+          차 안에서 턴이 영영 안 닫힌다(그 회귀가 이 조건을 지킨다).
+        ⛔ 판정은 **오디오 시각**으로만 한다. 도착 시각(벽시계)은 벤더 지연이 섞여 못 쓴다 —
+          실측에서 두 번째 조각의 speech_started 가 오디오상 84ms 뒤인데 **벽시계로는 453ms**
+          뒤에 왔다. 그걸로 재면 잡음과 구분이 안 된다.
+        ⛔ 오프셋이 없으면(페이크·구 엔진) **잇지 않는다** — 모르는 값으로 발화를 합치면
+          진짜 두 번째 발화를 삼킨다(그게 더 나쁘다).
+        """
+        gap_max = max(0, settings.CASCADE_SPEECH_MERGE_GAP_MS)
+        if gap_max <= 0 or event.offset_ms < 0 or prev_offset_ms < 0:
+            return False
+        gap = event.offset_ms - prev_offset_ms
+        return 0 <= gap <= gap_max
+
+    def _carry_over_text(self, event: SttV2Event) -> str:
+        """방금 닫힌 턴이 **같은 발화의 앞부분**이면 그 텍스트를 새 턴으로 넘긴다.
+
+        ⛔ 안 넘기면 비버가 **문장의 뒤 절반에만** 답한다("영 한국어 공부하자" 만 보고 답).
+          실통화에서 만들던 대답을 버리고 새로 만든 그 대답이 정확히 그 상태였다.
+        ⚠ 조건은 셋 다 만족해야 한다: 방금 닫혔다(유예 창) · 텍스트가 있었다 ·
+          오디오 간격이 이어붙임 범위 안이다.
+        """
+        if not self._closed_text or self._closed_at <= 0.0:
+            return ""
+        if (time.monotonic() - self._closed_at) * 1000.0 > max(0, settings.CASCADE_STALE_FINAL_MS):
+            return ""
+        if not self._is_same_utterance(event, self._last_speech_end_offset_ms):
+            return ""
+        logger.info(
+            "cascade 같은 발화 이어붙임(간격 %dms) — 직전 턴 %s 의 말을 새 턴 앞에 붙인다",
+            max(0, event.offset_ms - self._last_speech_end_offset_ms), self._closed_turn_id,
+        )
+        return self._closed_text
 
     def _is_stale_tail(self, event: SttV2Event) -> bool:
         """방금 닫은 턴의 **꼬리**인가 — 그렇다면 새 턴을 열지 않는다(유령 턴 차단).
@@ -1429,6 +1490,7 @@ class CascadeSession:
         #   ⛔ 새 술어를 만들지 않는다 — 두 곳이 갈리면 또 구멍이 생긴다. 같은 `_beaver_unheard()`
         #   를 **더 이른 시점에** 한 번 재서 그 턴에 붙여 둔다.
         self._turn_beaver_unheard = self._beaver_unheard()
+        self._turn_carry = ""        # 호출부가 이어붙임이라고 판단하면 연 뒤에 채운다
         self._turn_began_at = at
         self._finals = []
         self._partial = ""
@@ -1455,6 +1517,9 @@ class CascadeSession:
         text = " ".join(t.strip() for t in self._finals if t.strip())
         if not text and self._partial.strip():
             text = self._partial.strip()  # 최종이 안 왔으면 마지막 부분 전사로 대체
+        if self._turn_carry:
+            # 벤더 VAD 가 쪼갠 앞 조각을 도로 붙인다 — 비버는 **문장 전체**에 답해야 한다.
+            text = f"{self._turn_carry} {text}".strip()
         speech_ms = int(max(0.0, end_at - self._turn_began_at) * 1000)
         await self._safe(
             ServerUserTurnEnd(
