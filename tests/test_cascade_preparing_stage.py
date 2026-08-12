@@ -36,12 +36,19 @@ def _stage_of(call) -> str:
     return getattr(kw.value, "value", "") if kw else ""
 
 
-def test_streaming_reply_announces_both_stages():
-    """⭐ 스트리밍 경로(`_run_reply`)가 두 단계를 **각각 한 번씩** 낸다."""
+def test_streaming_reply_announces_each_stage_once():
+    """⭐ 스트리밍 경로(`_run_reply`)가 각 단계를 **한 번씩** 낸다.
+
+    ⭐ `llm_done` 이 2026-08-13 에 추가됐다(프론트 요청 A). 그전엔 `llm`(시작)과 `tts`(첫
+      합성)뿐이라 **LLM 이 얼마나 걸렸는지** 클라가 못 봤다 — LLM·TTS·STT 확정 지연이 한
+      덩어리였다. 세 값이 있으면 갈린다.
+    ⚠ `llm_done` 은 `tts` 보다 **뒤일 수 있다**(우리는 첫 문장이 나오면 바로 말하고 LLM 은
+      계속 생성한다). 그래서 순서는 `llm` 이 맨 앞이라는 것만 못박는다.
+    """
     stages = [_stage_of(c) for c in _preparing_calls(cs.CascadeSession._run_reply)]
-    assert stages.count("llm") == 1, f"llm 단계 알림이 {stages.count('llm')}회다 — {stages}"
-    assert stages.count("tts") == 1, f"tts 단계 알림이 {stages.count('tts')}회다(도배) — {stages}"
-    assert stages.index("llm") < stages.index("tts"), "순서가 뒤집혔다 — 단계 해석이 반대가 된다"
+    for name in ("llm", "tts", "llm_done"):
+        assert stages.count(name) == 1, f"{name} 단계 알림이 {stages.count(name)}회다 — {stages}"
+    assert stages.index("llm") == 0, f"생성 시작 알림이 맨 앞이 아니다 — {stages}"
 
 
 def test_tts_stage_is_guarded_so_it_fires_once_per_reply():

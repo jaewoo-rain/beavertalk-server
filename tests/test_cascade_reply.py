@@ -843,9 +843,10 @@ async def test_batch_mode_is_gemini_only(reply_rig, monkeypatch):
     assert session._batch_spoken == "", "Chirp 이 배치 경로를 탔다"
     assert session._batch_synthesizing is False
     prep = [e for e in transport.events if e.get("type") == "beaver_preparing"]
-    # 스트리밍 경로의 단계 알림은 **정확히 2건**(llm 1 · tts 1)이다 — 배치처럼 구간마다 나가면
-    # 훨씬 많아진다. 개수로도 두 모드가 갈린다.
-    assert [e["stage"] for e in prep] == ["llm", "tts"], prep
+    # 스트리밍 경로의 단계 알림은 **단계당 1건**이다(llm → tts → llm_done) — 배치처럼
+    # 구간마다 나가면 훨씬 많아진다. 개수로도 두 모드가 갈린다.
+    # ⚠ `llm_done` 은 2026-08-13 추가(프론트가 LLM 소요를 갈라 보기 위해).
+    assert [e["stage"] for e in prep] == ["llm", "tts", "llm_done"], prep
 
 
 @pytest.mark.asyncio

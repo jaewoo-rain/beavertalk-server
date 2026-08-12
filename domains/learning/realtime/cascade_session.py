@@ -997,6 +997,10 @@ class CascadeSession:
         self._batch_dropped = ""
         # 요청별 홀수 조각 수 — 0 이 아니면 벤더가 PCM16 표본 경계를 안 지킨다는 증거다.
         self._tts_odd_chunks: list[int] = []
+        # ⭐ 구간마다 **앞뒤 침묵을 몇 ms 걷어냈나**(2026-08-13). 로컬에선 TTS 키가 없어
+        #   벤더 오디오를 못 재므로, **실통화가 이 값을 답한다.** 0 이 계속 나오면 절단이
+        #   안 도는 것이고, 큰 값이 나오면 벤더 패딩이 그만큼 있었다는 뜻이다.
+        self._tts_trims: list[tuple[int, int]] = []
         # 요청별 **첫 소리를 기다린 시간** — 구간 사이에 소리가 빈 시간이다(선행 합성의 성적표).
         self._tts_waits: list[float] = []
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
@@ -2064,6 +2068,7 @@ class CascadeSession:
         self._sentence_markers = 0
         self._dropped_tag = ""
         self._tts_odd_chunks.clear()
+        self._tts_trims.clear()
         self._tts_waits.clear()
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
         # ⭐ 이 대답의 감정(대답 1건당 **하나**). 문장마다 바꾸면 구간이 쪼개져 TTS 호출이
@@ -2191,6 +2196,16 @@ class CascadeSession:
                     capped = True
                     await stream.aclose()
                     break
+            # ⭐ **LLM 이 끝난 시각**(프론트 요청 A, 2026-08-13). 지금까지는 `llm`(시작)과
+            #   `tts`(첫 합성)뿐이라 클라가 "LLM 이 얼마나 걸렸나"를 못 봤다 — LLM·TTS·STT
+            #   확정 지연이 한 덩어리로 보였다. 같은 프레임·같은 필드에 **단계 이름만** 더한다
+            #   (프론트는 모르는 값을 무시하므로 클라 변경 0).
+            #   ⚠ 이 시각은 첫소리보다 **뒤일 수 있다** — 우리는 첫 문장이 나오는 즉시 말을
+            #     시작하고 LLM 은 그 뒤로도 계속 생성한다. 그게 정상이고, 그 사실이 이 두 값의
+            #     차이로 처음 보인다.
+            await self._safe(ServerBeaverPreparing(
+                stage="llm_done", elapsed_ms=int((time.monotonic() - began) * 1000),
+            ))
             tail = buffer.flush()
             dropped = ""
             if tail and capped:
@@ -2459,7 +2474,8 @@ class CascadeSession:
         return await speak_stream(self.beaver, _gen(), label)
 
     def _note_tts_request(self, language: str, chars: int, sent: int,
-                          align: dict | None = None, wait_s: float = 0.0) -> None:
+                          align: dict | None = None, wait_s: float = 0.0,
+                          report: dict | None = None) -> None:
         """합성 요청 1건의 결과를 남긴다 — **잘렸으면 여기서 드러난다.**
 
         ⛔ 어댑터엔 완결성 검사가 없다. 실제로 status 200 인데 14.5초짜리 문장이 **0.30초만
@@ -2471,6 +2487,8 @@ class CascadeSession:
         """
         self._reply_spans.append((language, chars, sent))
         self._tts_odd_chunks.append(int((align or {}).get("odd", 0)))
+        self._tts_trims.append((int((report or {}).get("trim_head_ms", 0)),
+                                int((report or {}).get("trim_tail_ms", 0))))
         self._tts_waits.append(max(0.0, wait_s))
         audio_s = audio.output_audio_s(sent)
         if chars and audio_s > 0 and chars / audio_s > _IMPOSSIBLE_CHARS_PER_S:
@@ -2486,12 +2504,15 @@ class CascadeSession:
             return "요청=-"
         odd, waits = self._tts_odd_chunks, self._tts_waits
         return "요청=[%s]" % ", ".join(
-            "%d자·%.2fs%s%s" % (
+            "%d자·%.2fs%s%s%s" % (
                 chars, audio.output_audio_s(sent),
                 # ⭐ **구간 간 공백** — 이 구간의 첫 소리를 기다린 시간이다. 언어가 바뀔 때
                 #   들리던 그 끊김이 이 값이고, 선행 합성이 먹히면 0 에 가까워진다.
                 "·대기%.2fs" % waits[i] if i < len(waits) and waits[i] >= 0.05 else "",
                 "·홀수%d" % odd[i] if i < len(odd) and odd[i] else "",
+                # ⭐ 걷어낸 침묵(앞/뒤 ms) — 0 이면 안 걷어냈다는 뜻이다.
+                "·침묵-%d/%dms" % self._tts_trims[i]
+                if i < len(self._tts_trims) and any(self._tts_trims[i]) else "",
             )
             for i, (_, chars, sent) in enumerate(self._reply_spans)
         )
@@ -2664,7 +2685,7 @@ class CascadeSession:
         stream = sample_aligned(stream, align)
         trim = self._trim_silence()
         if trim:
-            stream = self._trim_head(stream)
+            stream = self._trim_edges(stream, report)
         queue: asyncio.Queue = asyncio.Queue()
         # ⚠ 세션 TaskGroup 에 붙이지 않는다 — 여기서 난 실패가 **통화 전체를 무너뜨리면** 안
         #   된다(R5). 대신 소유자(`_speak`)가 finally 에서 반드시 취소한다.
@@ -2740,7 +2761,8 @@ class CascadeSession:
         self.usage.record_tts_audio(sent)
         if sent:
             self._tts_engines.add(report.get("engine") or self._tts_vendor())
-            self._note_tts_request(segment.language, len(segment.text), sent, align, wait_s)
+            self._note_tts_request(segment.language, len(segment.text), sent, align, wait_s,
+                                   report)
         else:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 열 때 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
@@ -2897,28 +2919,60 @@ class CascadeSession:
         names = {n.strip() for n in (settings.CASCADE_TTS_TRIM_ENGINES or "").split(",")}
         return bool(engine) and engine in names
 
-    async def _trim_head(self, stream: Any) -> Any:
-        """스트림 **앞쪽** 침묵을 흘려보내지 않고 걷어낸다.
+    async def _trim_edges(self, stream: Any, report: dict | None = None) -> Any:
+        """스트림 **앞뒤** 침묵을 흘려보내지 않고 걷어낸다.
 
-        ⭐ 지연이 늘지 않는다 — 붙들고 있는 것이 **침묵**이라 사용자가 듣는 시점은 그대로다
-          (오히려 첫 소리가 빨라진다). 꼬리는 `speak_stream` 이 이미 들고 있는 마지막 조각에서
-          처리한다(거기도 추가 버퍼가 없다).
+        ⭐ 지연이 늘지 않는다 — 붙들고 있는 것이 **침묵뿐**이라 사용자가 듣는 시점은 그대로다
+          (오히려 첫 소리가 빨라진다).
+
+        ⭐⭐ **꼬리도 여기서 잡는다**(2026-08-13). 예전엔 `speak_stream` 이 **마지막 조각**
+          하나만 잘랐다 — 꼬리 침묵이 그 조각보다 길면 나머지는 그대로 나갔다. 우리는 문장×언어로
+          잘게 쪼개므로 그 잔여가 **구간마다** 붙는다(짧은 구간일수록 자per초가 나빠지는 모양과
+          맞는다: 39자 5.7자per초 vs 5자 3.4자per초).
+          방법은 머리와 같다 — **침묵 조각은 붙들고 있다가**, 소리가 다시 오면 **그대로 흘려보내고**
+          (말 사이 쉼이므로 지워선 안 된다), 스트림이 끝나면 그때 버린다. 붙드는 건 침묵이라
+          **오디오 지연은 0** 이다.
+        ⚠ `keep_tail_ms` 만큼은 남긴다 — 구간이 딱 붙으면 기계처럼 들린다(고치려는 게 "AI 티"다).
+        ⚠ 판정은 `has_audible_signal` 이다. 아주 작은 소리(끝의 여린 음절)를 침묵으로 볼 수
+          있는데, 그때도 **뒤에 소리가 오면 그대로 나간다**. 위험은 맨 끝 한 조각뿐이고 그건
+          남기는 keep_tail 이 덮는다.
+        ⛔ `trim_silence_edges` 의 반환값으로 판별하면 안 된다 — 전부 침묵이면 **그대로**
+          돌려주는 규약이라(멀쩡한 오디오 보호) 침묵을 소리로 오인한다.
         """
-        trimmed = False
+        keep_ms = max(0, settings.CASCADE_TTS_TRIM_KEEP_MS)
+        keep_bytes = int(keep_ms * BEAVER_BYTES_PER_MS) // 2 * 2   # I6: 항상 짝수
+        started = False
+        held: list[bytes] = []          # 끝이면 버릴 수도 있는 **침묵 조각**들
+        dropped_head = dropped_tail = 0
         async for chunk in stream:
             if not chunk:
                 continue
-            if not trimmed:
-                # ⛔ `trim_silence_edges` 의 반환값으로 판별하면 안 된다 — 전부 침묵이면
-                #   **그대로** 돌려주는 규약이라(멀쩡한 오디오 보호) 침묵을 소리로 오인한다.
+            if not started:
                 if not audio.has_audible_signal(chunk):
-                    continue                 # 통째로 침묵인 조각은 버린다
-                trimmed = True               # 소리가 시작됐다 — 이후 조각은 그대로 흘린다
-                yield trim_silence_edges(
-                    chunk, keep_head_ms=max(0, settings.CASCADE_TTS_TRIM_KEEP_MS), tail=False
-                )
+                    dropped_head += len(chunk)
+                    continue             # 통째로 침묵인 조각은 버린다
+                started = True           # 소리가 시작됐다
+                cut = trim_silence_edges(chunk, keep_head_ms=keep_ms, tail=False)
+                dropped_head += len(chunk) - len(cut)
+                yield cut
                 continue
+            if not audio.has_audible_signal(chunk):
+                held.append(chunk)       # 말 사이일 수도 있다 — 아직 판단하지 않는다
+                continue
+            for silent in held:          # 말 사이였다 ⇒ 지연 0 으로 그대로 흘린다
+                yield silent
+            held.clear()
             yield chunk
+        if held:
+            # 스트림이 끝났다 ⇒ 붙들고 있던 것은 **꼬리 침묵**이다. 자연스러운 틈만 남긴다.
+            tail = b"".join(held)
+            keep = tail[:keep_bytes]
+            dropped_tail += len(tail) - len(keep)
+            if keep:
+                yield keep
+        if report is not None:
+            report["trim_head_ms"] = round(dropped_head / BEAVER_BYTES_PER_MS)
+            report["trim_tail_ms"] = round(dropped_tail / BEAVER_BYTES_PER_MS)
 
     def _profile(self) -> _TtsProfile:
         """이 세션 엔진의 성질(표 한 곳)."""
