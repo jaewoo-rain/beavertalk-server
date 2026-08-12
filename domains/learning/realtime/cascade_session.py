@@ -3482,6 +3482,12 @@ class CascadeSession:
                 level_profile=setup.get("level_profile") or settings.CASCADE_PERSONA_LEVEL,
                 locale=self._locale,
                 interests=setup.get("interests") or [],
+                # ⭐ 학습자 이름 — **DB(member.name)** 에서 온다(2026-08-12). Live 는 이미
+                #   `name=setup["name"]` 을 넘기고 있었고 캐스케이드만 빠져 있었다. 안 넘기면
+                #   프롬프트의 이름 자리에 폴백 문자열 "학습자"가 들어가 비버가 사람을 그렇게
+                #   부른다. ⚠ 이름이 없을 수 있다(소셜 가입·미입력) — `None` 이면 조립기가
+                #   예전과 **바이트 동일한** 문자열을 만든다(폴백이 원래 그 값이다).
+                name=setup.get("name"),
                 target_language=self._target_label,
                 # ⛔ 시드와 **같은 태그**여야 모델이 그 문구를 시스템 지시로 읽는다.
                 close_tag=self._close_tag,
