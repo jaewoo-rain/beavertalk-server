@@ -2507,6 +2507,7 @@ class CascadeSession:
           건 재계량이 아니라 **벤더 이름 정정**이다.
         """
         self.usage.record_tts("", vendor=report["fallback_from"], failed=True)
+        self.usage.record_tts_fallback()
         engine = report.get("engine")
         if engine:
             self.usage.retag_tts(engine)

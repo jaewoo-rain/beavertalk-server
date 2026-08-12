@@ -102,6 +102,9 @@ class TtsUsage:
     calls_failed: int = 0     # 실패 호출의 과금 여부는 문서 미확인 → 문자에 안 더한다
     chars: int = 0
     chars_unheard: int = 0    # 합성했지만 barge-in 으로 못 들려준 문자(돈은 나갔다)
+    # ⭐ 쿼터(429)로 **다른 엔진으로 내려간 횟수**. 사장님은 목소리가 바뀐 걸 소리로만 아신다 —
+    #   통화가 끝난 뒤 "그 통화에서 몇 번 바뀌었나"를 숫자로 답할 수 있어야 한다.
+    fallbacks: int = 0
     # ⭐ 내보낸 오디오 바이트(PCM16/24k mono). **Gemini-TTS 는 문자가 아니라 출력 오디오
     #   토큰으로 과금한다**(1초 = 25tok) — 같은 문장도 천천히 읽으면 더 비싸다. 문자↔초
     #   환산은 말하는 속도에 따라 배로 틀리므로 **초를 실측**해서 넘긴다.
@@ -160,6 +163,10 @@ class CascadeUsage:
         except Exception as exc:  # noqa: BLE001 - R5
             self.errors += 1
             logger.warning("cascade usage: LLM 계측 실패(무시) — %s", exc)
+
+    def record_tts_fallback(self) -> None:
+        """쿼터 등으로 **엔진이 바뀌었다**(목소리가 바뀐다). 통화당 횟수를 센다."""
+        self.tts.fallbacks += 1
 
     def record_tts(self, text: str, vendor: str = "", failed: bool = False) -> None:
         """TTS 합성 1건. **API 에 실제로 넘긴 문자열**의 길이를 센다(core/tts.py 는 strip 해서 보낸다).
@@ -263,6 +270,7 @@ class CascadeUsage:
             tts = {
                 "vendor": self.tts.vendor, "calls": self.tts.calls,
                 "calls_failed": self.tts.calls_failed,
+                "fallbacks": self.tts.fallbacks,
                 "chars": self.tts.chars, "chars_unheard": self.tts.chars_unheard,
                 # ⭐ 오디오 초 — Gemini-TTS 단가의 기준이다(문자 아님). PCM16/24k mono 라
                 #   바이트 ÷ 48,000 이고, 이건 추정이 아니라 우리가 내보낸 실측이다.
@@ -303,7 +311,8 @@ def format_usage_line(summary: dict) -> str:
         f"llm_calls={llm['calls']} "
         f"tts_chars={tts['chars']} tts_audio_s={tts['audio_s']} "
         f"tts_unheard={tts['chars_unheard']} tts_calls={tts['calls']} "
-        f"tts_failed={tts['calls_failed']} err={summary.get('errors', 0)}"
+        f"tts_failed={tts['calls_failed']} tts_fallbacks={tts.get('fallbacks', 0)} "
+        f"err={summary.get('errors', 0)}"
     )
 
 
