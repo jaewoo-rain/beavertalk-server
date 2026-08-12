@@ -400,6 +400,9 @@ class Settings(BaseSettings):
     #   CASCADE_TTS_VOICE=Sulafat, CASCADE_TTS_LANGUAGE=en …) DB 캐릭터·언어가 **영영 안 먹는다.**
     #   그 셋은 **DB 가 없을 때의 기본값**이고, 실험용 덮어쓰기는 아래 세 개다(기본 빈 값).
     #   ⚠ 데모 화면에는 음색·언어 선택 UI 가 없다(2026-08-12 확인) — 실험은 env 로만 한다.
+    # 통화중 세그먼트 **점진 저장** 주기(초). Live 와 같은 1분 — 긴 통화·크래시 내성이 목적이다
+    # (통화가 죽어도 그때까지의 전사·오디오가 남는다). ⛔ 크게 잡으면 그만큼 잃는다.
+    CASCADE_SEGMENT_FLUSH_S: float = 60.0
     CASCADE_TTS_VOICE_OVERRIDE: str = ""          # 캐릭터 음색을 무시하고 이 음성으로
     CASCADE_LOCALE_OVERRIDE: str = ""             # 회원 모국어를 무시하고 이 언어로
     CASCADE_TARGET_LANGUAGE_OVERRIDE: str = ""    # 학습 대상 언어를 무시하고 이 언어로

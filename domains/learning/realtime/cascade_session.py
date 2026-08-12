@@ -522,6 +522,9 @@ class _TurnRecord:
     cancelled: bool = False
     epoch: int = 0
     ledger: list[SpokenChunk] = field(default_factory=list)
+    # 이 턴에서 내보낸 오디오 원본(통화 기록 저장용). 저장하면 비운다 — 안 비우면 15분
+    # 통화의 비버 음성 전체가 통화 내내 RAM 에 남는다(Live 가 겪고 고친 자리다).
+    pcm: bytearray = field(default_factory=bytearray)
 
 
 class _ReplyTiming:
@@ -705,6 +708,18 @@ class BeaverOutput:
         )
         return turn_id
 
+    def take_pcm(self, turn_id: str | None = None) -> bytes:
+        """이 턴에서 **실제로 내보낸 오디오**를 통째로 꺼낸다(꺼내면 비운다 — 메모리).
+
+        ⭐ 통화 기록에 남길 비버 음성이다. 원장이 이미 바이트를 세고 있으므로 **같은 자리**에서
+          모은다 — 따로 모으면 두 숫자가 갈린다(이 프로젝트에서 여러 번 겪었다).
+        """
+        record = self._record(turn_id)
+        if record is None:
+            return b""
+        pcm, record.pcm = bytes(record.pcm), bytearray()
+        return pcm
+
     async def send(self, pcm: bytes, text: str = "") -> None:
         """오디오 청크 1개 송출 + 원장 기록 + 페이싱(I1·I3).
 
@@ -740,6 +755,9 @@ class BeaverOutput:
         self._cur.ledger.append(
             SpokenChunk(start_byte=start, end_byte=self._cur.sent_bytes, text=text)
         )
+        # 통화 기록용 원본(저장하면 비운다 — `take_pcm`). ⛔ 여기 말고 다른 데서 모으면
+        # 원장 바이트와 갈린다.
+        self._cur.pcm.extend(pcm)
         await self._transport.send_audio(pcm)
 
     async def end(self) -> None:
@@ -860,6 +878,11 @@ class CascadeSession:
         self._member_target_language = member_target_language
         self._character_id: int | None = None
         self._call_id: int | None = None
+        # 통화 기록(Live 와 같은 계약: {turn_index, role, text, pcm}). 점진 저장 커서까지.
+        self._segments: list[dict] = []
+        self._persisted = 0          # 이미 DB 에 저장한 세그먼트 수
+        self._next_turn_index = 1
+        self._cur_user_pcm = bytearray()   # 열린 사용자 턴의 마이크 오디오(저장용)
         # DB 에서 읽은 통화 설정(캐릭터 role·personality·voice·locale·레벨 프로파일·흥미).
         # 조회 실패면 None → env 기본값 경로 그대로(로그로 드러낸다).
         self._setup: dict | None = None
@@ -1085,6 +1108,9 @@ class CascadeSession:
         try:
             async with asyncio.timeout(backstop_s), asyncio.TaskGroup() as tg:
                 self._tg = tg  # [dev 훅] 가짜 비버 태스크를 같은 그룹에 붙이기 위해
+                if self._call_id is not None:
+                    # ⭐ 통화중 점진 저장 — 통화가 죽어도 그때까지의 기록은 남는다(Live 와 같다).
+                    tg.create_task(self._flush_loop(), name="cascade-flush")
                 tg.create_task(self._pump_in(stream, pending_audio))
                 tg.create_task(self._pump_stt(stream))
                 tg.create_task(self._pump_turn())
@@ -1120,12 +1146,15 @@ class CascadeSession:
             # 그 스트림의 과금 계측이 세션 누계로 넘어오기 때문이다(core/stt.py _absorb_usage).
             # 계측 전 구간이 예외를 흡수하므로 여기서 통화가 죽을 일은 없다(R5).
             self.usage.record_stt(stream, stt_mod.stt_v2_engine_name())
-            log_usage_summary(
-                self.usage,
-                duration_s=time.monotonic() - self._t0,
-                turns=self._turn_seq,
+            duration_s = time.monotonic() - self._t0
+            summary = log_usage_summary(
+                self.usage, duration_s=duration_s, turns=self._turn_seq,
             )
             self._log_bargein_summary()
+            # ⭐ 통화 기록 마무리 — 남은 세그먼트 + 원가 + 상태 전환(Live 와 같은 함수).
+            #   ⛔ **원가 요약은 한 번만 만든다**: 로그로 나간 그 객체를 그대로 저장한다.
+            #     두 번 계산하면 로그와 DB 의 숫자가 갈린다(그러면 어느 쪽도 못 믿는다).
+            await self._finalize_call(summary, duration_s)
 
     # ── ① client → STT ──
     async def _pump_in(self, stream: Any, pending_audio: bytes | None) -> None:
@@ -1156,6 +1185,10 @@ class CascadeSession:
             if inb.kind == "audio" and inb.audio:
                 # 오디오 타임라인을 서버가 직접 센다 — 턴 타이머와 지연 계측의 기준자다.
                 self._audio_ms += len(inb.audio) / (self._sample_rate * 2) * 1000.0
+                if self._turn_id is not None and self._call_id is not None:
+                    # ⭐ 턴이 열려 있는 동안만 모은다 — 통화 내내 모으면 침묵까지 저장한다.
+                    #   ⚠ 통화 기록을 남길 때만(call_id 있음) 모은다: 데모는 메모리만 먹는다.
+                    self._cur_user_pcm.extend(inb.audio)
                 if settings.CASCADE_BARGEIN_RMS > 0:
                     # ⭐ **에너지도 오디오 시각과 함께** 남긴다(2026-08-07, 오늘 세 번째 '두 시계').
                     #   예전엔 '지금 프레임의 RMS' 한 값만 들고 있었는데, barge-in 판정은
@@ -1584,6 +1617,12 @@ class CascadeSession:
             max(0.0, now - self._last_voice_at) if self._last_voice_at else -1.0,
             "yes" if _looks_unfinished(text) else "no", text,
         )
+        # ⭐ 통화 기록(사용자) — Live 와 같은 계약. 텍스트가 **확정된 자리**에서 남긴다.
+        #   ⛔ 빈 턴은 안 남긴다(위 로그가 '빈 턴'으로 따로 남는다). 오디오는 여기서 비운다 —
+        #     안 비우면 다음 턴에 남의 소리가 붙는다.
+        user_pcm, self._cur_user_pcm = bytes(self._cur_user_pcm), bytearray()
+        if text:
+            self._add_segment("user", text, user_pcm)
         # 유령 턴 차단용 기록 — **닫은 턴의 끝**을 오디오 시각으로 남긴다(_is_stale_tail).
         self._closed_turn_id = self._turn_id
         self._closed_end_offset_ms = self._last_voice_offset_ms
@@ -2741,15 +2780,115 @@ class CascadeSession:
             return text, ""
         return kept, tail
 
+    def _add_segment(self, role: str, text: str, pcm: bytes) -> None:
+        """통화 기록 한 줄 — **Live 와 같은 계약**(`save_segments` 가 그대로 받는다).
+
+        ⛔ 전사도 오디오도 없으면 넣지 않는다(빈 행은 분석에 잡음만 준다).
+        """
+        if self._call_id is None:
+            return
+        text = (text or "").strip()
+        if not text and not pcm:
+            return
+        self._segments.append(
+            {"turn_index": self._next_turn_index, "role": role, "text": text, "pcm": pcm}
+        )
+        self._next_turn_index += 1
+
+    def _record_beaver_segment(self, turn_id: str | None, text: str) -> None:
+        """비버 발화 1건을 기록에 넣는다 — **들린 데까지**의 텍스트 + 그 턴의 오디오."""
+        pcm = self.beaver.take_pcm(turn_id) if turn_id else b""
+        self._add_segment("beaver", strip_markers(strip_emotion_tags(text or "")), pcm)
+
+    async def _persist_segments(self, *, final: bool = False) -> None:
+        """아직 저장 안 한 세그먼트를 저장한다(Live 의 점진 flush 와 같은 규약).
+
+        ⛔ 실패해도 통화는 계속된다 — 다음 주기나 종료 때 **커서가 그대로라 재시도**된다(R5).
+        ⚠ 종료 저장은 `upload_audio=False` 다: 전사 행을 먼저 커밋해 분석이 오디오 변환·업로드를
+          기다리지 않는다(Live P2.6 과 같은 이유).
+        """
+        if self._call_id is None or self._session_factory is None or self._member_id is None:
+            return
+        new = self._segments[self._persisted:]
+        if not new:
+            return
+        target = self._persisted + len(new)
+        try:
+            await svc.run_db(
+                self._session_factory,
+                lambda db: svc.save_segments(
+                    db, self._call_id, new, self._member_id, upload_audio=not final
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001 - R5
+            logger.warning("cascade: 세그먼트 저장 실패(다음에 재시도) — %s", str(exc)[:200])
+            return
+        self._persisted = target
+        freed = 0
+        for seg in self._segments[:target]:
+            freed += len(seg.get("pcm") or b"")
+            seg["pcm"] = b""       # ⭐ 저장했으니 놓아준다(안 놓으면 통화 내내 RAM 을 문다)
+        logger.info(
+            "cascade 기록: %s %d개(누적 %d) call_id=%s pcm해제=%dKB",
+            "최종 저장" if final else "점진 flush", len(new), target, self._call_id, freed // 1024,
+        )
+
+    async def _finalize_call(self, summary: dict | None, duration_s: float) -> None:
+        """통화 종료 저장 — 세그먼트 마무리 → 원가 → 상태(Live 의 종료 경로와 같은 순서).
+
+        ⛔ 전부 R5 다 — 하나가 실패해도 나머지를 시도하고, 실패는 로그로만 남긴다.
+          통화는 이미 끝났으므로 여기서 예외를 올려 봐야 아무도 못 살린다.
+        """
+        if self._call_id is None:
+            return
+        await self._persist_segments(final=True)
+        if summary is not None:
+            try:
+                saved = await svc.run_db(
+                    self._session_factory,
+                    lambda db: svc.save_call_usage(
+                        db, self._call_id, summary, engine=self.usage.engine()
+                    ),
+                )
+                if not saved:
+                    logger.warning("cascade: 원가 저장 대상 통화 없음 call_id=%s", self._call_id)
+            except Exception as exc:  # noqa: BLE001 - R5
+                logger.warning("cascade: 원가 저장 실패(무시) — %s", str(exc)[:200])
+        try:
+            await svc.run_db(
+                self._session_factory,
+                lambda db: svc.finalize_call(
+                    db, self._call_id, total_time=int(max(0.0, duration_s)), status="analyzing"
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001 - R5
+            logger.warning("cascade: 통화 종료 처리 실패(무시) — %s", str(exc)[:200])
+        logger.info(
+            "cascade 통화 저장 완료: call_id=%s 세그먼트=%d 길이=%d초",
+            self._call_id, self._persisted, int(max(0.0, duration_s)),
+        )
+
+    async def _flush_loop(self) -> None:
+        """통화중 주기적 점진 저장 — 긴 통화·크래시 내성(Live 와 같은 주기)."""
+        while True:
+            await asyncio.sleep(max(5.0, settings.CASCADE_SEGMENT_FLUSH_S))
+            await self._persist_segments()
+
     def _remember_beaver(self, turn_id: str | None, generated: str) -> None:
         """이력에는 **실제로 들린 데까지**만 남긴다(설계 §5).
 
         끊기지 않은 턴은 생성 전체가 곧 들린 말이다. 끊긴 턴은 원장이 답을 안다.
         """
         if turn_id is None or not generated.strip():
+            # ⚠ 이력엔 안 남겨도 **오디오는 나갔을 수 있다** — 그 턴의 PCM 은 비워 둔다
+            #   (안 비우면 다음 턴 기록에 남의 소리가 붙는다).
+            if turn_id is not None:
+                self.beaver.take_pcm(turn_id)
             return
         self._history.append({"role": "model", "text": generated.strip()})
         self._trim_history()
+        # ⭐ 통화 기록도 **같은 자리**에서 남긴다 — 이력과 기록이 갈리면 분석이 다른 말을 본다.
+        self._record_beaver_segment(turn_id, generated)
 
     def _on_reply_cancelled(self, turn_id: str | None, generated: str) -> None:
         """barge-in 으로 끊긴 대답 — 들린 데까지만 이력에 남기고, 못 들려준 문자를 원가에 센다."""
@@ -2761,6 +2900,12 @@ class CascadeSession:
         if spoken:
             self._history.append({"role": "model", "text": f"{spoken} …(사용자가 끼어들어 끊김)"})
             self._trim_history()
+            # ⭐ 기록에도 **들린 데까지만**. 안 들린 뒤쪽을 저장하면 분석이 사용자가 못 들은
+            #   말을 학습 문장으로 삼는다(설계 §5 와 같은 규율).
+            self._record_beaver_segment(turn_id, spoken)
+        elif turn_id is not None:
+            # 하나도 안 들렸다 — 그 오디오는 기록에도 안 남긴다(아무도 못 들은 소리다).
+            self.beaver.take_pcm(turn_id)
         unheard = max(0, len(generated.strip()) - len(spoken))
         if unheard:
             self.usage.record_tts_unheard(unheard)
@@ -2948,6 +3093,23 @@ class CascadeSession:
             self._setup = None
         self._resolve_languages()
         self._voice = (self._setup or {}).get("voice") or None
+        # ⭐ 통화 행 — **Live 와 같은 함수**. call_type 은 항상 normal 이다(사장님: 레벨테스트는
+        #   나중에). ⛔ 실패해도 통화는 계속된다(call_id=None → 기록만 못 남긴다 — R5).
+        try:
+            self._call_id = await svc.run_db(
+                self._session_factory,
+                lambda db: svc.create_call(
+                    db, self._member_id, self._character_id, "normal",
+                    target_language=self._target_code,
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001 - R5
+            logger.warning("cascade: 통화 행 생성 실패 — 기록 없이 계속한다: %s", str(exc)[:200])
+            self._call_id = None
+        if (self._setup or {}).get("needs_level_test"):
+            # ⚠ 레벨 미확정이지만 캐스케이드는 **레벨테스트를 안 돌린다**(사장님 결정).
+            #   Live 라면 여기서 라우팅이 갈린다 — 그 차이를 로그로 드러낸다.
+            logger.info("cascade: 레벨 미확정이지만 call_type=normal 로 진행(레벨테스트 미지원)")
         logger.info(
             "cascade 캐릭터: member=%s character=%s 음색=%s 레벨프로파일=%s",
             self._member_id, self._character_id, self._voice or "서버 기본값",
