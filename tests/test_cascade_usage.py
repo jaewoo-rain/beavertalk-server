@@ -319,3 +319,104 @@ async def test_fake_stream_counts_audio_length(monkeypatch):
     usage.record_stt(stream, engine="fake")
     stt = usage.summary()["vendors"]["stt"]
     assert stt["audio_s"] == 1.0 and stt["billed_msgs"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# ⑦ 문장 상한으로 끊긴 회차의 토큰 메우기 (2026-08-13)
+#
+# 실통화 6건에서 LLM 회차의 60~87% 가 토큰 없이 끝났다. 벤더 탓이 아니라 우리 탓이다 —
+# 문장 상한을 채우면 `stream.aclose()` 로 끊는데 Gemini 는 usage 를 마지막 조각에만 싣는다.
+# ⇒ 원가가 약 2.5배 과소집계되고 있었다. 여기서 못박는 것:
+#   · 빈 회차를 **같은 통화의 실측 회차**로 메우나 (추가 호출 0)
+#   · 평균이 아니라 **가까운 회차**를 쓰나 (프롬프트는 이력이 쌓이며 단조 증가한다)
+#   · 실측이 하나도 없으면 **추정하지 않고** unknown 으로 남기나
+#   · 실측과 추정이 **끝까지 갈라져** 보이나 (숫자만 보고 실측으로 읽지 않게)
+# --------------------------------------------------------------------------- #
+def _measured(prompt: int, out: int, total: int | None = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        prompt_token_count=prompt, candidates_token_count=out,
+        thoughts_token_count=0, cached_content_token_count=0,
+        total_token_count=total if total is not None else prompt + out,
+    )
+
+
+def test_capped_turn_is_filled_from_a_measured_turn():
+    """상한에서 끊긴 회차도 원가에 잡힌다 — in 은 근접 실측, out 은 글자→토큰 비율."""
+    usage = CascadeUsage()
+    usage.record_llm(_measured(1_000, 50), vendor="gemini-2.5-flash", out_chars=100)
+    usage.record_llm(None, vendor="gemini-2.5-flash", out_chars=200)   # 상한에서 끊김
+    llm = usage.summary()["vendors"]["llm"]
+
+    # 실측은 실측대로 남는다.
+    assert (llm["in_text_measured"], llm["out_text_measured"]) == (1_000, 50)
+    # 추정: in = 근접 실측(1,000) · out = 50/100자 × 200자 = 100
+    assert (llm["in_text_est"], llm["out_text_est"]) == (1_000, 100)
+    assert llm["est_calls"] == 1
+    # 합계가 원가가 쓸 값이다.
+    assert (llm["in_text"], llm["out_text"]) == (2_000, 150)
+    # 메웠으므로 '모른다'로 남는 건 없다.
+    assert llm["unknown"] == 0
+
+
+def test_estimate_uses_the_nearest_turn_not_the_average():
+    """⭐ 프롬프트는 이력이 쌓이며 **단조 증가**한다 — 평균으로 메우면 초반 과대·후반 과소다.
+
+    실측 0=1,000 / 4=9,000 사이에 미상 3회(1·2·3)를 두면 두 방식이 갈린다:
+      평균  (1,000+9,000)/2 = 5,000 × 3회 = **15,000**
+      근접  1→1,000(거리 1) · 2→동점이라 앞쪽 1,000 · 3→9,000(거리 1) = **11,000**
+    ⇒ 값이 다르므로 이 단언은 "근접을 쓴다"를 실제로 못박는다.
+    """
+    usage = CascadeUsage()
+    usage.record_llm(_measured(1_000, 10), out_chars=10)   # 0 실측(작다)
+    usage.record_llm(None, out_chars=10)                   # 1 미상 → 0 이 가깝다
+    usage.record_llm(None, out_chars=10)                   # 2 미상 → 3 이 가깝다
+    usage.record_llm(None, out_chars=10)                   # 3 미상 → 4 가 가깝다
+    usage.record_llm(_measured(9_000, 10), out_chars=10)   # 4 실측(크다)
+    llm = usage.summary()["vendors"]["llm"]
+
+    # 근접: 1→1,000 · 2→9,000(거리 2 vs 2 동점이면 앞쪽=1,000) · 3→9,000
+    #   ⇒ 1,000 + 1,000 + 9,000 = 11,000. 평균(5,000×3=15,000)과 **다른 값**이어야 한다.
+    assert llm["in_text_est"] == 11_000
+    assert llm["est_calls"] == 3
+
+
+def test_no_measured_turn_means_no_estimate():
+    """⛔ 근거 없는 숫자를 만드느니 '모른다'로 남긴다 — 이 기능의 존재 이유다."""
+    usage = CascadeUsage()
+    usage.record_llm(None, vendor="gemini-2.5-flash", out_chars=300)
+    usage.record_llm(None, vendor="gemini-2.5-flash", out_chars=300)
+    llm = usage.summary()["vendors"]["llm"]
+    assert (llm["in_text"], llm["out_text"]) == (0, 0)
+    assert llm["est_calls"] == 0
+    assert llm["unknown"] == 2          # 끝내 못 메운 건 그대로 드러난다
+
+
+def test_all_measured_is_unchanged():
+    """회귀 — 상한이 안 걸린 통화는 예전과 **바이트 단위로 같은** 숫자여야 한다."""
+    usage = CascadeUsage()
+    usage.record_llm(_measured(1_000, 50), out_chars=100)
+    usage.record_llm(_measured(1_200, 60), out_chars=120)
+    s = usage.summary()
+    assert (s["in_text"], s["out_text"]) == (2_200, 110)
+    assert s["vendors"]["llm"]["est_calls"] == 0
+    assert "llm_est=" not in format_usage_line(s)     # 추정이 없으면 칸도 안 뜬다
+
+
+def test_log_line_always_shows_that_an_estimate_was_mixed_in():
+    """⚠ 합계만 보고 실측으로 읽으면 안 된다 — 추정이 섞이면 **항상** 보이게."""
+    usage = CascadeUsage()
+    usage.record_llm(_measured(1_000, 50), out_chars=100)
+    usage.record_llm(None, out_chars=200)
+    line = format_usage_line(usage.summary())
+    assert "llm_in=2000" in line and "llm_out=150" in line
+    assert "llm_est=1콜(in+1000 out+100)" in line
+
+
+def test_summary_is_idempotent():
+    """⛔ 로그와 DB 가 같은 숫자를 봐야 한다 — 두 번 만들어도 추정이 불어나지 않는다."""
+    usage = CascadeUsage()
+    usage.record_llm(_measured(1_000, 50), out_chars=100)
+    usage.record_llm(None, out_chars=200)
+    first = usage.summary()
+    second = usage.summary()
+    assert first == second

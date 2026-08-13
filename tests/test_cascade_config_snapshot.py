@@ -53,9 +53,48 @@ def test_the_snapshot_is_one_line_with_every_condition(monkeypatch, caplog):
         session._log_config_snapshot()
 
     line = _line(caplog)
-    for token in ("llm=", "@asia-northeast3", "tts=", "문장상한=3", "힌트=off",
-                  "마이크상시=on", "bargein(", "confirm=", "침묵=", "선행버퍼=", "세션상한="):
+    for token in ("llm=", "@asia-northeast3", "추론=", "토큰상한=", "tts=", "문장상한=3",
+                  "힌트=off", "마이크상시=on", "bargein(", "confirm=", "침묵=", "선행버퍼=",
+                  "세션상한="):
         assert token in line, (token, line)
+
+
+# ── 추론·토큰상한 — **정말 0 으로 돌았나**(2026-08-13) ────────────────────────
+def _snapshot(monkeypatch, caplog, **over) -> str:
+    for k, v in over.items():
+        monkeypatch.setattr(cs.settings, k, v)
+    session = cs.CascadeSession(_Sink(), object())
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="domains.learning.realtime.cascade_session"):
+        session._log_config_snapshot()
+    return _line(caplog)
+
+
+def test_thinking_off_is_visible(monkeypatch, caplog):
+    """⭐ 값이 안 보이면 **0 인지 아무도 모른다.**
+
+    ⛔ 이건 A유형(안 보내는데 아무도 몰랐다)의 설정판이다. 추론 토큰은 출력 단가로 과금되고
+      첫 소리를 늦추는데, 우리는 코드 기본값만 보고 "0 이겠지"라고 말해 왔다 — env 가 덮을
+      수 있고 실제로 덮고 있는 값이 있다(bargein 임계는 배포값이 코드 기본값과 다르다).
+    """
+    assert "추론=off" in _snapshot(monkeypatch, caplog, CASCADE_LLM_THINKING_BUDGET=0)
+
+
+def test_a_thinking_budget_shows_the_number(monkeypatch, caplog):
+    """켜져 있으면 **몇인지**가 보인다 — 켜짐/꺼짐만으로는 원가를 못 읽는다."""
+    assert "추론=512" in _snapshot(monkeypatch, caplog, CASCADE_LLM_THINKING_BUDGET=512)
+
+
+def test_the_model_default_is_not_disguised_as_off(monkeypatch, caplog):
+    """⛔ None(모델 기본값)을 `off` 로 적으면 **거짓말**이다 — 그때 추론은 돌 수도 있다."""
+    line = _snapshot(monkeypatch, caplog, CASCADE_LLM_THINKING_BUDGET=None)
+    assert "추론=모델기본" in line and "추론=off" not in line, line
+
+
+def test_the_token_cap_is_visible(monkeypatch, caplog):
+    """토큰 상한은 이제 **안전망**이다 — 그 값이 보여야 `상한잘림` 을 해석할 수 있다."""
+    assert "토큰상한=200" in _snapshot(monkeypatch, caplog, CASCADE_LLM_MAX_OUTPUT_TOKENS=200)
+    assert "토큰상한=없음" in _snapshot(monkeypatch, caplog, CASCADE_LLM_MAX_OUTPUT_TOKENS=0)
 
 
 def test_the_snapshot_reflects_changes(monkeypatch, caplog):

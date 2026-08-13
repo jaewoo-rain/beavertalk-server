@@ -199,6 +199,47 @@ def test_first_sound_breakdown_sums_to_the_total():
     assert 750 + 250 + 1000 + 250 == 2250    # 합 = 첫소리(대기열은 첫소리 **밖**이다)
 
 
+# ── 묶음대기 — **벤더도 송출도 아닌 우리 정책**(2026-08-13) ──────────────────
+def test_the_batch_wait_is_split_out_of_the_send_bucket():
+    """⭐⭐ 첫 문장이 준비된 뒤 **요청을 걸기까지**를 따로 낸다.
+
+    ⛔ 왜 필요한가: 짧은 대답은 묶음(400자)이 안 차서 **LLM 스트림이 끝난 뒤에야** 첫 TTS
+      요청이 나간다. 그 시간은 벤더 탓도 송출 탓도 아닌 **묶음 정책**인데, 지금까지 `송출`
+      안에 뭉쳐 있었다 — 벤더 옆에 붙어 있으면 엉뚱한 곳(벤더 교체)을 파게 된다.
+    ⚠ 이 값을 보기 전에 첫문장 단독송출을 켜면 안 된다(껐던 이유가 실측이다).
+    """
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.mark_request(101.25)          # 첫 문장 뒤 500ms 만에 요청을 걸었다
+    t.vendor_ms = 1000
+    t.mark_audio(102.5)
+    line = t.summary()
+    assert "묶음대기 500" in line, line
+    # 송출 = 전체 − 묶음대기 − 벤더. 예전 같으면 이 250 이 750 으로 보였다.
+    assert "벤더 1000" in line and "송출 250" in line, line
+    assert 500 + 1000 + 250 == 1750    # 문장완성 이후 구간의 합
+
+
+def test_an_unmeasured_batch_wait_says_so():
+    """⛔ 못 잰 회차는 **0 이 아니라 `?`** 다 — 0 은 "즉시 걸었다"로 읽힌다(조용한 기본값)."""
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.vendor_ms = 240
+    t.mark_audio(101.25)
+    line = t.summary()
+    assert "묶음대기 ?" in line, line
+    # 못 쟀다고 다른 항목이 오염되면 안 된다 — 예전과 같은 값이어야 한다.
+    assert "벤더 240" in line and "송출 260" in line, line
+
+
+def test_the_request_mark_keeps_the_first_one():
+    """구간이 여럿이어도 **첫 요청**이 기준이다(뒤 구간은 앞 소리 뒤로 숨는다)."""
+    t = cs._ReplyTiming(began=100.0)
+    t.mark_request(100.5)
+    t.mark_request(101.5)
+    assert t.request_at == 100.5
+
+
 def test_first_sound_is_honest_when_no_audio_went_out():
     """소리가 안 나갔으면 0 이 아니라 '없음'이다 — 0 은 '즉시 나갔다'로 읽힌다."""
     t = cs._ReplyTiming(began=100.0)

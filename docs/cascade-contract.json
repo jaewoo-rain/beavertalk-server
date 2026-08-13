@@ -792,6 +792,13 @@
           "alias": "sampleRate"
         },
         {
+          "name": "channels",
+          "type": "int",
+          "required": false,
+          "default": 1,
+          "alias": null
+        },
+        {
           "name": "language",
           "type": "str | null",
           "required": false,

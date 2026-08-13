@@ -264,6 +264,7 @@ keepalive 핑(서버는 pong 응답).
 | 필드 | 타입 | 필수 | 기본값 |
 |---|---|---|---|
 | `sampleRate` | `int` |  | `16000` |
+| `channels` | `int` |  | `1` |
 | `language` | `str | null` |  | `null` |
 | `aec` | `AecHint | null` |  | `null` |
 | `ttsEngine` | `str | null` |  | `null` |

@@ -98,6 +98,20 @@ class LlmUsage:
     unknown: int = 0
     total: int = 0
 
+    # ⭐⭐ **추정 보정**(2026-08-13). 위 `unknown` 이 실통화에서 60~87% 였다 — 원인은 우리다:
+    #   문장 상한을 채우면 `stream.aclose()` 로 끊는데(cascade_session), Gemini 는
+    #   `usage_metadata` 를 **마지막 조각에만** 싣는다 ⇒ 상한이 잘 걸릴수록 장부가 더 빈다.
+    #   ⛔ 끊는 걸 되돌리지 않는다 — 그건 상한의 목적(원가·지연 절감)을 없앤다.
+    #   ⇒ 대신 **같은 통화의 실측 회차로** 메운다(추가 API 호출 0·비용 0).
+    #   ⛔ 실측과 **절대 한 칸에 안 섞는다** — 아래 est_* 는 끝까지 따로 산다.
+    est_in: int = 0
+    est_out: int = 0
+    est_calls: int = 0
+    # 회차별 표본 {"in": 토큰|None, "out": 토큰|None, "out_chars": 생성 글자수}.
+    # ⭐ **리스트 순서가 곧 턴 순서다** — 프롬프트는 이력이 쌓이며 단조 증가하므로,
+    #   "가까운 회차"로 메우는 것이 평균으로 메우는 것보다 정확하다.
+    samples: list = field(default_factory=list)
+
 
 @dataclass
 class TtsUsage:
@@ -149,25 +163,37 @@ class CascadeUsage:
             self.errors += 1
             logger.warning("cascade usage: STT 계측 수집 실패(무시) — %s", exc)
 
-    def record_llm(self, usage_metadata: Any, vendor: str = "") -> None:
+    def record_llm(self, usage_metadata: Any, vendor: str = "", out_chars: int = 0) -> None:
         """LLM 응답 1건의 usage_metadata 를 누적한다(대답 배관이 호출한다).
 
         필드는 Live 경로와 같다. 없는 필드는 0 으로 흡수한다 — 모델·SDK 가 바뀌어도
         **한 필드가 사라졌다고 통화가 죽지는 않게**.
+
+        Args:
+            out_chars: 이 회차가 **실제로 생성한 글자수**(`chat.text`). 벤더가 토큰을 안 준
+                회차를 나중에 메우는 유일한 단서다 — 토큰은 못 받아도 글자는 우리가 받았다.
         """
         try:
             if vendor:
                 self.llm.vendor = vendor
             self.llm.calls += 1
+            in_tok = int(_attr(usage_metadata, "prompt_token_count"))
+            out_tok = int(_attr(usage_metadata, "candidates_token_count"))
+            # ⭐ 표본은 **성공·실패 모두** 남긴다 — 빈 회차가 어디 있었는지 알아야 메운다.
+            self.llm.samples.append({
+                "in": in_tok or None, "out": out_tok or None,
+                "out_chars": max(0, int(out_chars or 0)),
+            })
             if usage_metadata is None or getattr(usage_metadata, "total_token_count", None) is None:
                 # ⚠ 이 호출의 토큰은 **모른다**(스트림 조기 종료 등). 세어서 드러낸다.
+                #   ⭐ 요약에서 메울 수 있으면 메우고, 그때 `unknown` 은 **못 메운 것만** 남는다.
                 self.llm.unknown += 1
-                logger.warning(
-                    "cascade usage: LLM 토큰을 못 받았다(usage=%s) — 이 호출은 원가에서 빠진다",
-                    "없음" if usage_metadata is None else "필드 없음",
+                logger.info(
+                    "cascade usage: LLM 토큰 미수신(usage=%s, 생성 %d자) — 요약에서 추정으로 메운다",
+                    "없음" if usage_metadata is None else "필드 없음", out_chars or 0,
                 )
-            self.llm.in_text += int(_attr(usage_metadata, "prompt_token_count"))
-            self.llm.out_text += int(_attr(usage_metadata, "candidates_token_count"))
+            self.llm.in_text += in_tok
+            self.llm.out_text += out_tok
             self.llm.thoughts += int(_attr(usage_metadata, "thoughts_token_count"))
             self.llm.cached += int(_attr(usage_metadata, "cached_content_token_count"))
             self.llm.total += int(_attr(usage_metadata, "total_token_count"))
@@ -244,6 +270,43 @@ class CascadeUsage:
             parts.append(self.tts.vendor or "tts")
         return f"{MODE}:" + ("+".join(parts) if parts else "none")
 
+    def _estimate_missing(self) -> None:
+        """토큰을 못 받은 회차를 **같은 통화의 실측 회차로** 메운다(추정 열은 따로 둔다).
+
+        왜 필요한가 — 실통화에서 LLM 회차의 60~87% 가 토큰 없이 끝났다. 원인은 벤더가 아니라
+        우리다: 문장 상한을 채우면 스트림을 끊는데 Gemini 는 usage 를 **마지막 조각에만** 준다.
+        그대로 두면 원가 장부가 약 2.5배 과소집계된다(실측 23콜 중 9콜만 세고 있었다).
+
+        어떻게 메우나
+          입력  **가장 가까운 실측 회차의 prompt_token_count**. 평균이 아니라 근접값을 쓰는
+                이유: 프롬프트는 대화 이력이 쌓이며 **단조 증가**한다 — 평균은 초반을 과대,
+                후반을 과소 추정한다. 동점이면 **앞쪽**(더 작은 값)을 택한다: 과대계상보다
+                과소계상이 덜 위험하냐가 아니라, **추정이 실측을 넘어서지 않게** 하는 쪽이다.
+          출력  같은 통화의 **글자→토큰 비율** × 그 회차가 생성한 글자수. 비율을 통화 안에서
+                뽑는 이유: 언어(한국어/영어)마다 글자당 토큰이 배로 다르다.
+
+        ⛔ 실측이 **한 건도 없으면 아무것도 추정하지 않는다.** 근거가 없는 숫자를 만드느니
+          `unknown` 으로 비워 두는 게 낫다 — 이 함수의 존재 이유가 "조용히 0으로 먹지 않기"다.
+        ⛔ 멱등이다(요약을 두 번 만들어도 값이 안 불어난다) — 로그와 DB 가 같은 객체를 본다.
+        """
+        self.llm.est_in = self.llm.est_out = self.llm.est_calls = 0
+        samples = self.llm.samples
+        measured = [(i, s["in"]) for i, s in enumerate(samples) if s["in"]]
+        if not measured:
+            return
+        # 글자→토큰 비율: **입출력 둘 다 실린 회차**에서만 뽑는다(짝이 안 맞으면 비율이 아니다).
+        chars = sum(s["out_chars"] for s in samples if s["out"] and s["out_chars"])
+        toks = sum(s["out"] for s in samples if s["out"] and s["out_chars"])
+        per_char = (toks / chars) if chars > 0 else 0.0
+        for idx, s in enumerate(samples):
+            if s["in"]:
+                continue
+            # min 은 동점에서 **먼저 온 것**을 남긴다 = 앞쪽 회차(더 작은 프롬프트).
+            _, near_in = min(measured, key=lambda p: abs(p[0] - idx))
+            self.llm.est_in += near_in
+            self.llm.est_out += int(round(s["out_chars"] * per_char))
+            self.llm.est_calls += 1
+
     def summary(self, duration_s: float | None = None, turns: int | None = None) -> dict | None:
         """계약 모양의 요약 1건. 아무것도 못 모았으면 None(호출부가 '미수집'으로 분기).
 
@@ -273,13 +336,22 @@ class CascadeUsage:
                 "billed_msgs": self.stt.billed_msgs,
                 "streams": self.stt.streams,
             }
+            # ⭐ 빈 회차를 메운다. **여기 한 번만** 부른다 — 요약이 원가의 단일 소스이므로.
+            self._estimate_missing()
+            in_total = self.llm.in_text + self.llm.est_in
+            out_total = self.llm.out_text + self.llm.est_out
             llm = {
                 "vendor": self.llm.vendor, "calls": self.llm.calls,
-                "in_text": self.llm.in_text, "out_text": self.llm.out_text,
+                # ⚠ 여기 `in_text`/`out_text` 는 **실측+추정**이다(원가는 이걸 써야 맞다).
+                #   ⛔ 그래도 실측은 잃지 않는다 — `*_measured`/`*_est` 로 언제든 되가른다.
+                "in_text": in_total, "out_text": out_total,
+                "in_text_measured": self.llm.in_text, "out_text_measured": self.llm.out_text,
+                "in_text_est": self.llm.est_in, "out_text_est": self.llm.est_out,
+                "est_calls": self.llm.est_calls,
                 "thoughts": self.llm.thoughts, "cached": self.llm.cached,
-                # ⭐ 토큰을 못 받은 호출 수 — 0 이 아니면 **원가가 그만큼 과소집계**다.
+                # ⭐ **끝내 못 메운** 호출 수 — 0 이 아니면 그만큼은 여전히 과소집계다.
                 #   조용히 비는 것보다 세는 게 낫다(errors 와 같은 규율).
-                "unknown": self.llm.unknown,
+                "unknown": max(0, self.llm.unknown - self.llm.est_calls),
             }
             tts = {
                 "vendor": self.tts.vendor, "calls": self.tts.calls,
@@ -293,9 +365,10 @@ class CascadeUsage:
             return {
                 "engine": self.engine(),
                 # 컬럼 대응 4항 — 캐스케이드 LLM 은 오디오를 안 받는다(계약).
-                "in_text": self.llm.in_text, "out_text": self.llm.out_text,
+                "in_text": in_total, "out_text": out_total,
                 "in_audio": 0, "out_audio": 0,
-                "total": self.llm.total,
+                # ⚠ total 도 추정을 얹는다 — 위 두 값과 다른 근거로 계산하면 장부가 갈린다.
+                "total": self.llm.total + self.llm.est_in + self.llm.est_out,
                 "vendors": {"stt": stt, "llm": llm, "tts": tts},
                 "dur_s": round(duration_s, 1) if duration_s is not None else None,
                 "turns": turns,
@@ -323,6 +396,10 @@ def format_usage_line(summary: dict) -> str:
         f"stt_billed_msgs={stt['billed_msgs']} "
         f"llm_in={llm['in_text']} llm_out={llm['out_text']} llm_thoughts={llm['thoughts']} "
         f"llm_calls={llm['calls']} "
+        # ⚠ 2026-08-13 부터 위 llm_in/llm_out 은 **실측+추정**이다(그 전 값은 과소집계였다).
+        #   추정이 섞였으면 **항상 이 두 칸이 함께 뜬다** — 숫자만 보고 실측으로 읽지 않게.
+        + (f"llm_est={llm.get('est_calls', 0)}콜(in+{llm.get('in_text_est', 0)} "
+           f"out+{llm.get('out_text_est', 0)}) " if llm.get("est_calls") else "")
         + (f"⚠llm_unknown={llm['unknown']} " if llm.get("unknown") else "")
         + 
         f"tts_chars={tts['chars']} tts_audio_s={tts['audio_s']} "

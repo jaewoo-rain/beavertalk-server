@@ -161,6 +161,13 @@ _LAG_SANITY_MS = 3000
 # 오프셋이 우리 카운터보다 살짝 앞설 수는 있다(우리가 센 바이트와 엔진이 받은 바이트의 미세한
 # 시차). 이만큼은 정상으로 본다.
 _OFFSET_FUTURE_TOLERANCE_MS = 500
+# ⭐ **오디오 시계 자기점검**(2026-08-13). 받은 바이트로 계산한 초가 통화 경과보다 이만큼 크면
+#   우리가 가정한 규격(레이트·채널)이 틀렸다는 뜻이다 — 실시간 마이크는 실시간보다 빠를 수 없다.
+#   ⛔ **위쪽만 본다.** 아래쪽(적게 옴)은 정상이다: 마이크 상시개방이 꺼져 있으면 비버가 말하는
+#     동안 클라가 아예 안 보낸다. 양쪽을 다 경고하면 정상 통화가 매번 시끄러워진다.
+#   1.5 근거: 규격이 틀리면 배수로 어긋난다(2배·3배). 1.5 는 그 아래 어디에도 안 걸린다.
+_AUDIO_CLOCK_RATIO_MAX = 1.5
+_AUDIO_CLOCK_MIN_MS = 10_000    # 표본이 이만큼 쌓인 뒤에 본다(개시 직후의 버스트는 무의미)
 # barge-in 에너지 이력: 이만큼의 오디오를 (시각, RMS)로 들고 있다가 **이벤트가 가리키는
 # 시각**에서 찾아본다. 파이프라인 지연(실측 0.8~0.9초)보다 넉넉해야 한다.
 _RMS_HISTORY_MS = 4000
@@ -213,14 +220,18 @@ class _PreparedBatch:
       한다 — 안 그러면 끊은 뒤에 소리가 더 나온다(I3).
     """
 
-    __slots__ = ("text", "segments", "emotion", "first")
+    __slots__ = ("text", "segments", "emotion", "first", "opened_at")
 
     def __init__(self, text: str, segments: list[tuple[str, str]],
-                 emotion: str | None, first: "_OpenSegment | None") -> None:
+                 emotion: str | None, first: "_OpenSegment | None",
+                 opened_at: float = 0.0) -> None:
         self.text = text
         self.segments = segments
         self.emotion = emotion
         self.first = first
+        # ⭐ **합성을 시작한 시각**(2026-08-13). 앞 묶음이 끝나기 **얼마나 전에** 시작했는지가
+        #   곧 선행 합성의 성적표다 — 그 여유가 벤더 왕복보다 짧으면 차액이 그대로 공백이 된다.
+        self.opened_at = opened_at
 
     def cancel(self) -> None:
         if self.first is not None:
@@ -596,7 +607,7 @@ class _ReplyTiming:
       앞 대답이 흐르는 동안은 애초에 `_run_reply` 가 시작되지 않는다(대기열).
     """
 
-    __slots__ = ("began", "queued_ms", "chunk_at", "sentence_at", "audio_at",
+    __slots__ = ("began", "queued_ms", "chunk_at", "sentence_at", "request_at", "audio_at",
                  "batch_at", "vendor_ms", "batch_audio_ms")
 
     def __init__(self, began: float, queued_ms: int = 0) -> None:
@@ -604,6 +615,11 @@ class _ReplyTiming:
         self.queued_ms = max(0, queued_ms)
         self.chunk_at = 0.0
         self.sentence_at = 0.0
+        # ⭐ **첫 TTS 요청을 건 시각**(2026-08-13). 이게 없으면 "첫 문장이 준비된 뒤 요청까지"가
+        #   `송출` 안에 뭉쳐 보인다 — 지금 그 자리는 묶음 정책이 먹는 시간이다(짧은 대답은
+        #   묶음이 안 차서 **LLM 스트림이 끝난 뒤에야** 첫 요청이 나간다). 벤더 탓이 아닌데
+        #   벤더 옆에 붙어 있으면 엉뚱한 곳을 고치게 된다.
+        self.request_at = 0.0
         self.audio_at = 0.0        # 첫 바이트가 **클라로 나간** 시각(사용자가 듣기 시작한 때)
         self.batch_at = 0.0        # 첫 배치가 **전량** 나간 시각(페이서가 실시간으로 흘린다)
         self.vendor_ms = -1        # 벤더가 첫 오디오를 주기까지(report["ttfb_ms"])
@@ -620,6 +636,11 @@ class _ReplyTiming:
         """첫 바이트가 나간 시각. 인자로 **원장이 기록한 실제 시각**을 받는다."""
         self.mark_sentence()
         self.audio_at = self.audio_at or at or time.monotonic()
+
+    def mark_request(self, at: float) -> None:
+        """첫 합성 요청을 **건 시각** — 벤더 왕복의 출발점이다(도착점은 `vendor_ms`)."""
+        if at and not self.request_at:
+            self.request_at = at
 
     def mark_batch(self, audio_ms: int = 0) -> None:
         """첫 배치 전량 송출 완료 — 여기까지가 예전 `TTS` 항목이었다."""
@@ -644,13 +665,17 @@ class _ReplyTiming:
             return "첫소리=없음(소리가 한 조각도 안 나갔다)"
         ms = lambda a, b: int(max(0.0, a - b) * 1000)  # noqa: E731
         vendor = ms(self.audio_at, self.sentence_at) if self.vendor_ms < 0 else self.vendor_ms
+        # ⭐ **묶음대기** = 첫 문장이 준비된 뒤 첫 요청을 걸기까지. 벤더도 송출도 아닌 **우리 정책**이다.
+        #   ⚠ 못 잰 회차는 0 이 아니라 `?` 다 — 모르는 값을 0 으로 적으면 그 항목이 없는 것처럼 보인다.
+        asked = ms(self.request_at, self.sentence_at) if self.request_at else 0
         line = (
-            "첫소리=%dms(대기열 %d + LLM첫조각 %d + 문장완성 %d + 벤더 %d + 송출 %d)"
+            "첫소리=%dms(대기열 %d + LLM첫조각 %d + 문장완성 %d + 묶음대기 %s + 벤더 %d + 송출 %d)"
             % (self.first_sound_ms, self.queued_ms,
                ms(self.chunk_at, self.began),
                ms(self.sentence_at, self.chunk_at),
+               str(asked) if self.request_at else "?",
                vendor,
-               max(0, ms(self.audio_at, self.sentence_at) - max(0, vendor)))
+               max(0, ms(self.audio_at, self.sentence_at) - asked - max(0, vendor)))
         )
         if self.batch_at:
             line += " 첫배치=%dms(오디오 %dms 페이서 %dms)" % (
@@ -759,6 +784,12 @@ class BeaverOutput:
             raise InvariantError("이미 열린 비버 턴이 있다(중첩 금지)")
         self._turn_seq += 1
         turn_id = f"b{self._turn_seq}"
+        # ⛔⛔ **턴 밖의 조용함은 공백이 아니다**(2026-08-13). 안 지우면 앞 턴의 마지막
+        #   프레임부터 이 턴의 첫 프레임까지 — 즉 **사용자가 말하고 생각하던 시간**이 통째로
+        #   공백으로 잡힌다. 실제로 `293.09s` 가 찍혔다: 조용한 통화의 유휴였다.
+        #   ⚠ 지표가 유휴와 결함을 못 가르면 **그 지표는 못 읽는다.** 우리가 재려는 것은
+        #     "비버가 말하는 중에 소리가 끊겼나"이고, 그건 **턴 안에서만** 뜻이 있다.
+        self._last_send_at = 0.0
         self._cur = _TurnRecord(turn_id=turn_id, started_at=self._now())
         self._records[turn_id] = self._cur
         self._order.append(turn_id)
@@ -1060,10 +1091,15 @@ class CascadeSession:
         self._tts_trims: list[tuple[int, int]] = []
         # 요청별 **첫 소리를 기다린 시간** — 구간 사이에 소리가 빈 시간이다(선행 합성의 성적표).
         self._tts_waits: list[float] = []
+        # 요청별 **선행**(송출보다 얼마나 먼저 걸었나) — `_tts_waits`(결과)와 짝이다.
+        self._tts_leads: list[float] = []
+        # 묶음별 (선행 여유 ms, 벤더 왕복 ms) — 남은 공백의 **원인**을 가르는 짝이다.
+        self._batch_leads: list[tuple[int, int]] = []
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
         self._tts_gemini_off = False
         self._tts_gemini_calls = 0
         self._tts_ttfb_ms = -1
+        self._tts_asked_at = 0.0    # 이 대답의 **첫** 합성 요청을 건 시각(첫소리 분해용)
         self._reply_emotion: str | None = None
         # barge-in 보류 상태(전사 확인 대기 마감 시각) / 끊겨서 못 들려준 대답
         self._bargein_at: float | None = None
@@ -1082,7 +1118,21 @@ class CascadeSession:
         self._t0 = time.monotonic()
         self._sid = "s%d" % next(_session_seq)
         self._sample_rate = _DEFAULT_SAMPLE_RATE
+        # ⭐ **클라가 선언했나, 우리가 가정했나**(2026-08-13). 이 구분이 없어서 반나절을 태웠다:
+        #   `stt_audio_s/dur_s` 가 2.00배로 나와 "에뮬 마이크가 2배"라는 결론까지 갔는데
+        #   프론트가 HAL 에서 재니 1.002배였다. **그 사이를 가를 값이 서버 로그에 없었다.**
+        self._rate_declared = False
+        self._channels = 1          # ⛔ 서버는 모노만 처리한다(다운믹스 없음)
         self._audio_ms = 0.0        # 클라에서 받아 STT 로 흘린 오디오 총량(오디오 타임라인)
+        self._audio_clock_warned = False   # 오디오 시계 경고는 통화당 한 번(도배 금지)
+        # ⭐⭐ **speech_end 도착 → 최종 전사 도착**(2026-08-13). 앵커를 VAD 로 옮길 수 있는지는
+        #   오직 이 값이 답한다: 옮기면 남는 안전망이 바닥값(CASCADE_TURN_MIN_WAIT_MS) 하나뿐이라
+        #   **바닥 ≥ 이 지연**이어야 성립한다. ⛔ 중앙값이 아니라 **p95** 로 봐야 한다 —
+        #   중앙값으로 정하면 꼬리에서 턴이 말한 채로 빈 채 닫힌다(2026-08-07 그 결함이다).
+        #   ⚠ 지금 근거로 쓰이는 723~870ms 는 **Google STT v2** 시절 값이다(openai 어댑터는
+        #     사흘 뒤에 태어났다 — 92d8c10). 지금 엔진에서는 잰 적이 없다.
+        self._speech_end_at = 0.0
+        self._final_lag_ms = -1     # -1 = 이 턴에서 못 쟀다(0 으로 먹지 않는다)
         # 턴 누적
         self._turn_seq = 0
         self._turn_id: str | None = None
@@ -1172,11 +1222,27 @@ class CascadeSession:
                 logger.warning("cascade start: sample_rate 해석 실패(%r) → %dHz 로 진행",
                                raw, _DEFAULT_SAMPLE_RATE)
                 sample_rate = _DEFAULT_SAMPLE_RATE
+            self._rate_declared = raw is not None
             if sample_rate != _DEFAULT_SAMPLE_RATE:
                 logger.warning(
                     "cascade start: 클라 sample_rate=%dHz 가 서버 기대(%dHz)와 다르다 — STT 는 "
                     "이 값으로 설정하지만 오디오 타임라인·지연 계측이 이 값에 의존한다",
                     sample_rate, _DEFAULT_SAMPLE_RATE,
+                )
+            # ⛔ 채널은 **1 만 처리한다.** 스테레오가 오면 바이트가 2배라 오디오 타임라인이
+            #   정확히 2배로 늘고, 그러면 턴 타이머·barge-in 최소지속·원가 초가 **전부 같이**
+            #   틀어진다. 다운믹스를 안 하므로 STT 도 잡음을 듣는다. 조용히 두면 안 되는 값이다.
+            try:
+                self._channels = max(1, int(ctrl.get("channels") or 1))
+            except (TypeError, ValueError):
+                logger.warning("cascade start: channels 해석 실패(%r) → 1 로 진행",
+                               ctrl.get("channels"))
+                self._channels = 1
+            if self._channels != 1:
+                logger.warning(
+                    "cascade start: 클라 channels=%d — 서버는 **모노만** 처리한다(다운믹스 없다). "
+                    "오디오 타임라인이 %d배로 늘어 턴 타이머·barge-in·원가 초가 같이 틀어진다",
+                    self._channels, self._channels,
                 )
             self._apply_tts_choice(ctrl)
             self._apply_aec_hint(ctrl.get("aec"))
@@ -1331,6 +1397,7 @@ class CascadeSession:
             if inb.kind == "audio" and inb.audio:
                 # 오디오 타임라인을 서버가 직접 센다 — 턴 타이머와 지연 계측의 기준자다.
                 self._audio_ms += len(inb.audio) / (self._sample_rate * 2) * 1000.0
+                self._check_audio_clock()
                 if self._turn_id is not None and self._call_id is not None:
                     # ⭐ 턴이 열려 있는 동안만 모은다 — 통화 내내 모으면 침묵까지 저장한다.
                     #   ⚠ 통화 기록을 남길 때만(call_id 있음) 모은다: 데모는 메모리만 먹는다.
@@ -1529,6 +1596,11 @@ class CascadeSession:
             if event.text:
                 self._finals.append(event.text)
             self._partial = ""
+            if self._speech_end_at:
+                # ⭐ **speech_end 뒤 첫 최종 전사**만 잰다 — 우리가 기다리는 게 그것이다.
+                #   재고 나면 출발점을 지운다(뒤따르는 최종 전사가 낡은 기준으로 재지 않게).
+                self._final_lag_ms = int(max(0.0, event.at - self._speech_end_at) * 1000)
+                self._speech_end_at = 0.0
         else:
             self._partial = event.text
         self._mark_voice(event)
@@ -1554,6 +1626,8 @@ class CascadeSession:
 
     async def _on_speech_end(self, event: SttV2Event) -> None:
         self._speech_active = False
+        # 전사 확정 지연의 **출발점**. 여기부터 최종 전사가 도착하기까지가 그 값이다.
+        self._speech_end_at = event.at
         if event.offset_ms >= 0:
             # 이어붙임의 기준점 — 벤더가 **말이 끝났다고 선언한** 오디오 시각.
             self._last_speech_end_offset_ms = event.offset_ms
@@ -1659,6 +1733,34 @@ class CascadeSession:
             # 걸러져 이 분기에 들어오지 않는다) — 그래서 이 지연값은 계측으로 믿을 수 있다.
             self._pipeline_lag_ms = int(max(0.0, self._audio_ms - event.offset_ms))
 
+    def _check_audio_clock(self) -> None:
+        """⭐⭐ **우리가 가정한 오디오 규격이 맞나** — 통화당 한 번, 틀렸을 때만 시끄럽다.
+
+        ⛔ 왜 필요한가(2026-08-13, 반나절): `stt_audio_s/dur_s` 가 2.00배로 나와서 "에뮬
+          마이크가 2배"라는 결론까지 갔는데, 프론트가 HAL 에서 재니 1.002배였다. 규격이
+          틀리면 **오디오 초·턴 타이머·barge-in 최소지속·원가 초가 전부 같이** 틀어지는데,
+          서버 로그만 보면 영원히 모른다. 판정은 간단하다: **실시간 마이크는 실시간보다
+          빠를 수 없다.** 넘으면 우리 자(레이트·채널)가 틀린 것이다.
+        ⚠ 이 검사는 값을 **고치지 않는다** — 고칠 쪽은 클라이고, 서버는 드러내기만 한다.
+        """
+        if self._audio_clock_warned or self._audio_ms < _AUDIO_CLOCK_MIN_MS:
+            return
+        elapsed_ms = (time.monotonic() - self._t0) * 1000.0
+        if elapsed_ms <= 0:
+            return
+        ratio = self._audio_ms / elapsed_ms
+        if ratio <= _AUDIO_CLOCK_RATIO_MAX:
+            return
+        self._audio_clock_warned = True
+        logger.warning(
+            "cascade ⚠ 오디오 시계가 안 맞는다: 받은 오디오 %.1f초 / 통화 경과 %.1f초 = %.2f배 "
+            "(가정 %dHz/%dch %s). 실시간보다 빠를 수 없다 — 규격 가정이 틀렸을 가능성이 크다. "
+            "오디오 초·턴 타이머·barge-in·원가가 **같이** 틀어진다",
+            self._audio_ms / 1000.0, elapsed_ms / 1000.0, ratio,
+            self._sample_rate, self._channels,
+            "클라 선언" if self._rate_declared else "서버 가정(클라 미전송)",
+        )
+
     def _arm_idle_watchdog(self) -> None:
         """열린 턴의 **무활동 마감**을 지금부터 다시 센다(턴이 없으면 아무것도 안 한다)."""
         if self._turn_id is None:
@@ -1713,6 +1815,8 @@ class CascadeSession:
         self._turn_beaver_unheard = self._beaver_unheard()
         self._turn_carry = ""        # 호출부가 이어붙임이라고 판단하면 연 뒤에 채운다
         self._turn_began_at = at
+        self._speech_end_at = 0.0
+        self._final_lag_ms = -1      # 턴마다 새로 잰다(앞 턴 값이 새 턴에 묻어가면 안 된다)
         self._finals = []
         self._partial = ""
         self._close_at = None
@@ -1757,10 +1861,16 @@ class CascadeSession:
         # ⭐ `열림`·`마지막음성`을 같이 남긴다(2026-08-08). u7(열린 지 얼마 안 된 턴이
         #   reason=max 로 닫혔다) 같은 사건을 **로그만으로** 가르려면 이 둘이 있어야 한다 —
         #   지금까지 턴이 언제 열렸는지가 로그에 없어 사후 재구성이 불가능했다.
+        # ⭐ `전사확정=` 은 **speech_end 도착 → 최종 전사 도착**이다(2026-08-13). 앵커를 VAD 로
+        #   옮길 수 있는지가 이 값 하나에 달렸다 — 옮기면 안전망이 바닥값 하나뿐이라
+        #   **바닥 ≥ 이 지연(p95)** 이어야 한다. -1 은 못 쟀다는 뜻이다(0 이 아니다).
+        #   ⚠ 같은 줄의 `pipeline_lag_ms` 와 짝이다: 지금 STT(openai)는 전사에 offset 을 안
+        #     실으므로 그 값은 **순수 VAD 지연** = 앵커를 옮겼을 때 뺄 몫이다.
         logger.info(
             "cascade turn: %s/%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d "
-            "열림=%.1f초전 마지막음성=%.1f초전 미완=%s text=%r",
+            "전사확정=%dms 열림=%.1f초전 마지막음성=%.1f초전 미완=%s text=%r",
             self._sid, self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms,
+            self._final_lag_ms,
             max(0.0, now - self._turn_began_at),
             max(0.0, now - self._last_voice_at) if self._last_voice_at else -1.0,
             "yes" if _looks_unfinished(text) else "no", text,
@@ -2128,7 +2238,10 @@ class CascadeSession:
         self._tts_odd_chunks.clear()
         self._tts_trims.clear()
         self._tts_waits.clear()
+        self._tts_leads.clear()
+        self._batch_leads.clear()
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
+        self._tts_asked_at = 0.0    # 그 요청을 **건** 시각(둘 사이가 벤더 왕복이다)
         # ⭐ 이 대답의 감정(대답 1건당 **하나**). 문장마다 바꾸면 구간이 쪼개져 TTS 호출이
         #   늘고, 분당 상한이 10 인데 대답 하나가 이미 3~6회다(429 가 1순위 제약이다).
         self._reply_emotion = None
@@ -2191,19 +2304,25 @@ class CascadeSession:
                   우리가 당한 그 유형이 또 생긴다. 반드시 남기고, **다음 묶음은 계속 간다**(R5).
                 """
                 nonlocal turn_id, first_audio_ms, spoken_chars, wasted_chars
+                prev_done = 0.0
                 if prev is not None:
                     try:
                         await prev
                     except asyncio.CancelledError:
                         prep.cancel()
                         raise                      # 뒤 묶음도 같이 죽는다(의도)
+                    # ⭐ 앞 묶음이 **다 나간 시각**. 여기부터 이 묶음의 첫 소리까지가 공백이다.
+                    prev_done = time.monotonic()
                 try:
                     turn_id = turn_id or await self._begin_beaver_turn()
                     first_audio_at = self.beaver.first_audio_at
+                    opened = prep.first          # 취소가 지우기 전에 잡아 둔다(계측용)
                     sent = await self._speak_prepared(prep)
+                    self._note_batch_lead(prep, prev_done, opened)
                     if sent and first_audio_ms < 0:
                         # ⭐ 첫 바이트가 **실제로 나간 시각**을 원장에서 받는다.
                         timing.mark_audio(first_audio_at or self.beaver.first_audio_at)
+                        timing.mark_request(self._tts_asked_at)
                         timing.vendor_ms = self._tts_ttfb_ms
                         timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
                         first_audio_ms = timing.first_sound_ms
@@ -2354,7 +2473,7 @@ class CascadeSession:
                 #   가짓수 1 이지만 **폴백하면 바뀐다**("지금 안 변한다"와 "영영 안 변한다"는
                 #   다르다 — 폴백이 일어난 날 아무것도 안 남으면 안 된다).
                 "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
-                "언어분할=%s gemini호출=%d %s %s %s %s %s",
+                "언어분할=%s gemini호출=%d %s %s %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
@@ -2378,6 +2497,8 @@ class CascadeSession:
                 #     대기가 0 이 되는데 **소리는 여전히 안 나갈 수 있다** — 그러면 값만
                 #     좋아진 척한다. 굶는 쪽은 클라이고 클라가 보는 건 **프레임 간격**이다.
                 self._batch_gap_log(self.beaver.wire_gaps),
+                # ⭐ **왜 남았나** — 위가 결과(공백)면 이건 원인이다(선행 여유 vs 벤더 왕복).
+                self._lead_log(),
                 # ⚠ 미리 만들었는데 못 쓴 글자 — 선행 합성의 **대가**다(원가만 나갔다).
                 "선행폐기=%d자" % wasted_chars if wasted_chars else "선행폐기=-",
             )
@@ -2391,7 +2512,13 @@ class CascadeSession:
             logger.info("cascade 대답 송출 중단(턴이 이미 닫힘) turn=%s", turn_id)
         finally:
             self._batch_synthesizing = False
-            self.usage.record_llm(chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL)
+            # ⭐ 생성 글자수를 같이 넘긴다(2026-08-13). 문장 상한에서 `stream.aclose()` 로
+            #   끊은 회차는 벤더 토큰이 **영영 안 온다**(usage 는 마지막 조각에만 실린다).
+            #   ⇒ 토큰은 못 받아도 **글자는 우리가 받았다** — 요약이 그걸로 메운다.
+            self.usage.record_llm(
+                chat.usage_metadata, vendor=settings.CASCADE_LLM_MODEL,
+                out_chars=len(chat.text or ""),
+            )
             self._settle_reply_state(seq)
             await self._drain_pending_user_text()
 
@@ -2542,6 +2669,7 @@ class CascadeSession:
             sent = await self._speak_pcm(pcm, label)
             if sent and first_audio_ms < 0:
                 timing.mark_audio(self.beaver.first_audio_at)
+                timing.mark_request(self._tts_asked_at)
                 timing.vendor_ms = self._tts_ttfb_ms
                 timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
                 first_audio_ms = timing.first_sound_ms
@@ -2557,6 +2685,7 @@ class CascadeSession:
         if not text:
             return b""
         chunks: list[bytes] = []
+        self._tts_asked_at = self._tts_asked_at or time.monotonic()   # 배치 경로도 같은 기준자
         try:
             async with asyncio.timeout(max(1.0, budget_s)):
                 stream = await tts.synthesize_stream(
@@ -2604,7 +2733,7 @@ class CascadeSession:
 
     def _note_tts_request(self, language: str, chars: int, sent: int,
                           align: dict | None = None, wait_s: float = 0.0,
-                          report: dict | None = None) -> None:
+                          report: dict | None = None, lead_s: float = 0.0) -> None:
         """합성 요청 1건의 결과를 남긴다 — **잘렸으면 여기서 드러난다.**
 
         ⛔ 어댑터엔 완결성 검사가 없다. 실제로 status 200 인데 14.5초짜리 문장이 **0.30초만
@@ -2619,6 +2748,10 @@ class CascadeSession:
         self._tts_trims.append((int((report or {}).get("trim_head_ms", 0)),
                                 int((report or {}).get("trim_tail_ms", 0))))
         self._tts_waits.append(max(0.0, wait_s))
+        # ⭐ **이 요청이 얼마나 미리 나갔나**(2026-08-13). `대기` 가 결과(공백)라면 이건 원인의
+        #   절반이다 — 나머지 절반은 벤더 왕복이고, 대략 `대기 ≈ 왕복 − 선행` 이다.
+        #   선행이 0 에 가까우면 우리가 늦게 건 것이고, 선행이 큰데도 대기가 크면 벤더가 느린 것이다.
+        self._tts_leads.append(max(0.0, lead_s))
         audio_s = audio.output_audio_s(sent)
         if chars and audio_s > 0 and chars / audio_s > _IMPOSSIBLE_CHARS_PER_S:
             logger.warning(
@@ -2626,6 +2759,37 @@ class CascadeSession:
                 "벤더가 도중에 끊었을 수 있다. 엔진=%s",
                 chars, audio_s, chars / audio_s, self._tts_vendor(),
             )
+
+    def _note_batch_lead(self, prep: "_PreparedBatch", prev_done: float,
+                         opened: "_OpenSegment | None") -> None:
+        """⭐⭐ **선행이 실제로 얼마나 앞섰나** — 남은 공백의 원인을 여기서 가른다(2026-08-13).
+
+        선행 합성을 넣고도 `와이어공백` 이 1.2~1.4초 남았다. 결과(공백)만 있고 **왜 늦었는지**가
+        없어서 후보 셋을 못 갈랐다:
+            (a) 선행 시작이 늦다   (b) 벤더 왕복이 선행보다 길다   (c) 묶을 문장이 아직 없다
+        그래서 두 숫자를 남긴다:
+            여유 = (앞 묶음이 다 나간 시각) − (이 묶음 합성을 시작한 시각)
+            그 여유에서 **벤더 왕복을 빼면** 곧 공백이다 ⇒ `여유 − 벤더` 가 음수면 그만큼 빈다.
+        ⛔ 첫 묶음은 대상이 아니다(앞이 없다 — 그건 `첫소리` 가 담당한다).
+        ⚠ 벤더 왕복을 못 받은 회차는 **버린다**(0 으로 세면 "벤더가 즉시 줬다"가 되어 원인이
+          선행 쪽으로 잘못 기운다).
+        """
+        if prev_done <= 0.0 or prep.opened_at <= 0.0 or opened is None:
+            return
+        ttfb = (opened.report or {}).get("ttfb_ms")
+        if ttfb is None:
+            return
+        lead_ms = int((prev_done - prep.opened_at) * 1000)
+        self._batch_leads.append((lead_ms, int(ttfb)))
+
+    def _lead_log(self) -> str:
+        """묶음별 `여유−벤더`(초). 음수 = **그만큼 소리가 빈다**(선행이 왕복을 못 덮었다)."""
+        if not self._batch_leads:
+            return "선행여유=-"
+        return "선행여유=[%s]" % ", ".join(
+            "%+.2fs(선행%.2f/벤더%.2f)" % ((lead - ttfb) / 1000.0, lead / 1000.0, ttfb / 1000.0)
+            for lead, ttfb in self._batch_leads
+        )
 
     @staticmethod
     def _batch_gap_log(gaps: list[float]) -> str:
@@ -2645,13 +2809,16 @@ class CascadeSession:
         """이 대답의 **요청별** (글자·오디오 초). 요청 수와 절단이 한 줄에서 보인다."""
         if not self._reply_spans:
             return "요청=-"
-        odd, waits = self._tts_odd_chunks, self._tts_waits
+        odd, waits, leads = self._tts_odd_chunks, self._tts_waits, self._tts_leads
         return "요청=[%s]" % ", ".join(
-            "%d자·%.2fs%s%s%s" % (
+            "%d자·%.2fs%s%s%s%s" % (
                 chars, audio.output_audio_s(sent),
                 # ⭐ **구간 간 공백** — 이 구간의 첫 소리를 기다린 시간이다. 언어가 바뀔 때
                 #   들리던 그 끊김이 이 값이고, 선행 합성이 먹히면 0 에 가까워진다.
                 "·대기%.2fs" % waits[i] if i < len(waits) and waits[i] >= 0.05 else "",
+                # ⭐ **원인의 절반** — 이 요청을 송출보다 얼마나 먼저 걸었나. 위 `대기` 가 큰데
+                #   이 값이 작으면 우리가 늦게 건 것이고, 이 값이 큰데도 대기가 크면 벤더가 느리다.
+                "·선행%.2fs" % leads[i] if i < len(leads) and leads[i] >= 0.05 else "",
                 "·홀수%d" % odd[i] if i < len(odd) and odd[i] else "",
                 # ⭐ 걷어낸 침묵(앞/뒤 ms) — 0 이면 안 걷어냈다는 뜻이다.
                 "·침묵-%d/%dms" % self._tts_trims[i]
@@ -2726,12 +2893,13 @@ class CascadeSession:
           429 를 이미 겪은 자리라 늘리지 않는다.
         ⚠ 여기서 하는 일은 **요청을 거는 것**이지 오디오를 받는 게 아니다(빠르다).
         """
+        opened_at = time.monotonic()
         segments, emotion = self._split_for_speak(sentence)
         first = None
         if segments:
             text, language = segments[0]
             first = await self._open_segment(text, language, emotion)
-        return _PreparedBatch(sentence, segments, emotion, first)
+        return _PreparedBatch(sentence, segments, emotion, first, opened_at)
 
     async def _speak_prepared(self, prep: _PreparedBatch) -> int:
         """준비된 묶음을 송출한다(첫 구간은 이미 열려 있다)."""
@@ -2849,6 +3017,9 @@ class CascadeSession:
         self.usage.record_tts(sentence, vendor=self._tts_vendor())
         report: dict = {}
         align: dict = {}          # 이 요청에서 홀수 조각이 몇 개였나(벤더가 격자를 지키나)
+        # ⭐ **요청을 거는 순간**을 이 대답에서 한 번만 남긴다 — 첫소리의 `묶음대기` 가 이 값으로
+        #   갈린다(첫 문장 준비 → 여기까지가 우리 정책, 여기부터 첫 오디오까지가 벤더).
+        self._tts_asked_at = self._tts_asked_at or time.monotonic()
         stream = await self._open_vendor_stream(sentence, language, report, emotion)
         # ⛔ 정렬이 **침묵 절단보다 먼저**다. `_trim_edges` 는 조각을 통째로 버리고
         #   `trim_silence_edges` 는 표본 단위로 자르는데, 들어온 조각이 홀수면 그 순간
@@ -2929,11 +3100,13 @@ class CascadeSession:
         # 이 구간이 소리를 낼 때까지 **페이서에 줄 게 없던 시간** — 언어가 바뀔 때 들리던
         # 그 공백이 이 값이다(선행 합성이 먹히면 0 에 가까워진다).
         wait_s = max(0.0, (first_at - wait_at)) if first_at > 0 else 0.0
+        # ⭐ 이 구간을 **송출보다 얼마나 먼저 열었나**(= 선행 합성이 실제로 번 시간).
+        lead_s = max(0.0, wait_at - segment.opened_at) if segment.opened_at else 0.0
         self.usage.record_tts_audio(sent)
         if sent:
             self._tts_engines.add(report.get("engine") or self._tts_vendor())
             self._note_tts_request(segment.language, len(segment.text), sent, align, wait_s,
-                                   report)
+                                   report, lead_s)
         else:
             # 오디오가 한 조각도 안 나왔다 = 합성 실패. 건수만 따로 센다(문자는 열 때 이미).
             self.usage.record_tts("", vendor=self._tts_vendor(), failed=True)
@@ -3591,11 +3764,22 @@ class CascadeSession:
           **찍은 값과 실제가 다르다**(그게 이 줄을 넣는 이유와 정반대가 된다).
         """
         lead = self.beaver.lead_ms
+        # ⭐ **추론·토큰상한도 싣는다**(2026-08-13). 값이 안 보이면 "정말 0 으로 돌았나"를
+        #   아무도 답할 수 없다 — env 가 덮을 수 있고, 실제로 덮고 있는 값이 있다(bargein).
+        #   이건 A유형(안 보내는데 아무도 몰랐다)의 설정판이다.
+        budget = settings.CASCADE_LLM_THINKING_BUDGET
         logger.info(
-            "cascade 설정: %s llm=%s@%s tts=%s 문장상한=%s 힌트=%s 마이크상시=%s "
-            "bargein(rms=%.3f min=%dms confirm=%s) 침묵=%dms 선행버퍼=%s 세션상한=%ds",
+            "cascade 설정: %s 오디오=%dHz/%dch(%s) llm=%s@%s 추론=%s 토큰상한=%s tts=%s "
+            "문장상한=%s 힌트=%s 마이크상시=%s bargein(rms=%.3f min=%dms confirm=%s) "
+            "침묵=%dms 선행버퍼=%s 세션상한=%ds",
             self._sid,
+            # ⭐ **가정인지 선언인지까지** 적는다 — 값만 적으면 "16000" 이 클라가 말한 건지
+            #   우리가 찍은 건지 알 수 없고, 그 구분이 없어서 오늘 반나절을 태웠다.
+            self._sample_rate, self._channels,
+            "선언" if self._rate_declared else "가정",
             settings.CASCADE_LLM_MODEL, self._llm_location or "미상",
+            "off" if budget == 0 else ("모델기본" if budget is None else budget),
+            settings.CASCADE_LLM_MAX_OUTPUT_TOKENS or "없음",
             self._tts_engine or tts.CHIRP3_ENGINE,
             self._max_sentences() or "없음",
             "on" if settings.CASCADE_HINT_ENABLED else "off",

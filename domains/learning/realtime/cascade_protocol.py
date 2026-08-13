@@ -115,6 +115,11 @@ class ClientCascadeStart(BaseModel):
 
     type: Literal["start"] = "start"
     sample_rate: int = Field(default=16000, alias="sampleRate")
+    # ⭐ **채널 수**(2026-08-13). 서버는 여태 모노를 **가정만** 했고 클라는 선언할 방법이
+    #   없었다 — 그래서 "가정이 틀렸나"를 물을 수조차 없었다. 기본 1 이라 지금 클라의 출력
+    #   바이트는 그대로다(클라 변경 0). ⛔ 서버는 스테레오를 **처리하지 못한다**(다운믹스
+    #   없음) — 값이 1 이 아니면 오디오 타임라인·STT 가 통째로 틀어지므로 경고를 남긴다.
+    channels: int = Field(default=1)
     language: str | None = None  # 미전송이면 서버 설정(STT_V2_LANGUAGE→STT_LANGUAGE)
     aec: AecHint | None = None
     # ── TTS 선택 (⛔ **dev 데모 한정 편의**) ──
