@@ -772,6 +772,13 @@ class BeaverOutput:
         #   `SERVER GAP … mid-utterance` 와 같은 것을 서버 쪽에서 재는 값이다.
         #   대답마다 비우고(대답 줄에 찍는다), 여기 값이 크면 **클라가 굶는다**.
         self.wire_gaps: list[float] = []
+        # ⭐⭐ **페이서가 일부러 붙든 시간**(2026-08-14). 위와 **전혀 다른 것**이다:
+        #   와이어공백 = 보낼 게 없어서 빈 시간(**클라가 굶는다**)
+        #   페이서보류 = 보낼 게 있는데 우리가 붙든 시간(**클라 버퍼가 이미 찼다** = 정상)
+        #   ⛔ 예전엔 둘을 합쳐 `와이어공백` 하나로 쟀다(시각을 `_pace()` **뒤**에 찍었다).
+        #     벤더 조각이 크면 페이서가 그 길이만큼 자는데, 그게 통째로 "공백"으로 잡혔다 —
+        #     5.5초짜리 값이 결함인지 정상 페이싱인지 **구분할 수 없었다.**
+        self.paced_holds: list[float] = []
         self._last_send_at = 0.0
         self._turn_seq = 0
         self._epoch = 0
@@ -879,6 +886,9 @@ class BeaverOutput:
             pcm = pcm[:-1]
             if not pcm:
                 return
+        # ⭐ **페이서에 들어가기 전 시각**. 여기까지가 "보낼 게 없던 시간"이고, 여기부터가
+        #   "있는데 우리가 붙든 시간"이다. 이 한 줄이 굶김과 정상 페이싱을 가른다.
+        arrived = self._now()
         await self._pace()
         # ⛔ **여기서 다시 본다**(2026-08-11 QA 발견4). 위 `_pace()` 는 최대 lead_ms 만큼 자고,
         #   그 사이 다른 태스크의 `cancel()` 이 `_cur` 를 None 으로 만들 수 있다. 재확인이 없으면
@@ -905,9 +915,13 @@ class BeaverOutput:
         #   ⚠ 판정 창은 클라와 같은 250ms(그 아래는 정상 페이싱이라 안 센다).
         now = self._now()
         if self._last_send_at > 0:
-            idle = now - self._last_send_at
-            if idle >= 0.25:
-                self.wire_gaps.append(idle)
+            # ⛔ **둘을 나눠 센다.** 합치면 5.5초가 결함인지 정상인지 영영 못 가른다.
+            starve = arrived - self._last_send_at      # 보낼 게 없었다 = 클라가 굶는다
+            paced = now - arrived                      # 있는데 붙들었다 = 클라 버퍼가 찼다
+            if starve >= 0.25:
+                self.wire_gaps.append(starve)
+            if paced >= 0.25:
+                self.paced_holds.append(paced)
         self._last_send_at = now
         await self._transport.send_audio(pcm)
 
@@ -1138,6 +1152,8 @@ class CascadeSession:
         self._tts_waits: list[float] = []
         # 요청별 **선행**(송출보다 얼마나 먼저 걸었나) — `_tts_waits`(결과)와 짝이다.
         self._tts_leads: list[float] = []
+        # 글자 교차검증이 순번을 고친 횟수(이 대답에서). 0 = 마커가 지켜졌다.
+        self._lang_fixes = 0
         # 묶음별 (선행 여유 ms, 벤더 왕복 ms) — 남은 공백의 **원인**을 가르는 짝이다.
         self._batch_leads: list[tuple[int, int]] = []
         # 429 백오프는 **세션 단위**다(프로세스 전역이면 쿼터가 회복돼도 영영 Chirp 이다).
@@ -2339,6 +2355,7 @@ class CascadeSession:
         self._tts_waits.clear()
         self._tts_leads.clear()
         self._batch_leads.clear()
+        self._lang_fixes = 0
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
         self._tts_asked_at = 0.0    # 그 요청을 **건** 시각(둘 사이가 벤더 왕복이다)
         # ⭐ 이 대답의 감정(대답 1건당 **하나**). 문장마다 바꾸면 구간이 쪼개져 TTS 호출이
@@ -2380,6 +2397,7 @@ class CascadeSession:
             #   LLM 생성 + TTS 왕복)는 아무 데도 안 남았다. 페이서엔 필러가 없어서 그 시간
             #   동안 **와이어가 그냥 조용하다** — 클라 큐가 그만큼 굶는다.
             self.beaver.wire_gaps.clear()
+            self.beaver.paced_holds.clear()
             # ⭐⭐ **묶음 선행 합성**(2026-08-13, 설계 `docs/20260813_0430_…`).
             #   송출을 태스크로 돌리고 **체인으로 순서를 지킨다**. 그러면 이 루프가 LLM 을
             #   계속 읽고, 다음 묶음이 준비되는 즉시 **TTS 요청을 건다** — 앞 묶음이 재생되는
@@ -2572,7 +2590,7 @@ class CascadeSession:
                 #   가짓수 1 이지만 **폴백하면 바뀐다**("지금 안 변한다"와 "영영 안 변한다"는
                 #   다르다 — 폴백이 일어난 날 아무것도 안 남으면 안 된다).
                 "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
-                "언어분할=%s gemini호출=%d %s %s %s %s %s %s",
+                "언어분할=%s gemini호출=%d %s %s %s %s %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
@@ -2596,8 +2614,12 @@ class CascadeSession:
                 #     대기가 0 이 되는데 **소리는 여전히 안 나갈 수 있다** — 그러면 값만
                 #     좋아진 척한다. 굶는 쪽은 클라이고 클라가 보는 건 **프레임 간격**이다.
                 self._batch_gap_log(self.beaver.wire_gaps),
+                # ⭐ **짝으로 읽는 값** — 여기가 크고 위가 작으면 끊긴 게 아니라 앞서 보낸 것이다.
+                self._paced_log(self.beaver.paced_holds),
                 # ⭐ **왜 남았나** — 위가 결과(공백)면 이건 원인이다(선행 여유 vs 벤더 왕복).
                 self._lead_log(),
+                # ⭐ 글자가 순번을 고친 횟수. 0 이면 마커가 지켜진 것이고, 크면 프롬프트를 봐야 한다.
+                "언어보정=%d건" % self._lang_fixes if self._lang_fixes else "언어보정=-",
                 # ⚠ 미리 만들었는데 못 쓴 글자 — 선행 합성의 **대가**다(원가만 나갔다).
                 "선행폐기=%d자" % wasted_chars if wasted_chars else "선행폐기=-",
             )
@@ -2891,6 +2913,18 @@ class CascadeSession:
         )
 
     @staticmethod
+    def _paced_log(holds: list[float]) -> str:
+        """페이서가 **일부러** 붙든 시간. ⛔ 이건 결함이 아니다 — 클라 버퍼가 찼다는 뜻이다.
+
+        ⚠ 옆의 `와이어공백` 과 **짝으로만** 읽어라. 큰 값이 여기 있고 와이어공백이 작으면
+          "끊긴 게 아니라 앞서 보낸 것"이고, 반대면 진짜로 굶은 것이다.
+        """
+        big = [h for h in holds if h >= 0.25]
+        if not big:
+            return "페이서보류=-"
+        return "페이서보류=[%s]" % ", ".join(f"{h:.2f}s" for h in big)
+
+    @staticmethod
     def _batch_gap_log(gaps: list[float]) -> str:
         """**아무것도 안 나간 시간** — 클라의 `SERVER GAP mid-utterance` 와 짝이다.
 
@@ -3010,23 +3044,37 @@ class CascadeSession:
 
     def _split_for_speak(self, sentence: str) -> tuple[list[tuple[str, str]], str | None]:
         """언어 분할 + 마커 로그 + 감정 판정 — `_speak`/`_prepare_batch` 의 공통 앞부분."""
-        segments = split_by_language(sentence, self._locale, self._target_code)
+        # ⭐ 글자 교차검증이 **몇 번 고쳤나**를 걷는다(2026-08-14). 0 이면 마커가 잘 지켜지고
+        #   있다는 뜻이고, 크면 프롬프트 쪽도 손봐야 한다는 신호다 — 세지 않으면 못 가른다.
+        lang_stats: dict = {}
+        segments = split_by_language(sentence, self._locale, self._target_code, lang_stats)
         marker_state = _marker_state(sentence)
         self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
         emotion = self._sentence_emotion(sentence)
         if self._single_voice():
+            # ⚠ 여기서는 교차검증 결과를 **안 쓴다**(음성이 하나뿐이라 고를 게 없다). 그래서
+            #   `언어보정` 도 안 센다 — 안 쓴 보정을 세면 그 숫자가 거짓말이 된다.
             logger.info("cascade 언어구간: 분할 안 함(단일 음성 엔진 %s) 언어마커=%s",
                         self._tts_engine, marker_state)
             text = strip_markers(sentence).strip()
             return ([(text, self._locale)] if text else []), emotion
+        self._lang_fixes += int(lang_stats.get("fixed", 0))
         logger.info(
             # ⚠ **`언어마커=`** 다(`자막=`·문장 마커와 다른 것이다).
-            "cascade 언어구간: %d개 %s 언어마커=%s",
+            "cascade 언어구간: %d개 %s 언어마커=%s%s",
             len(segments), "/".join(lang for _, lang in segments) or "-", marker_state,
+            # ⭐ 순번이 틀려서 글자가 고친 자리 — 여기가 "영어를 한국어 발음으로 읽던" 그 지점이다.
+            " 언어보정=%d건" % lang_stats["fixed"] if lang_stats.get("fixed") else "",
         )
         if len(segments) <= 1:
+            # ⛔⛔ **여기가 ③ 의 자리였다**(2026-08-14). 구간이 하나면 `split_by_language` 가
+            #   정한 언어를 **버리고** `self._locale`(모국어)로 덮어쓰고 있었다. 그래서 마커가
+            #   없는 대답 — 실측 25턴 중 5건 — 은 통째로 en 으로 나갔고, **그 안의 한국어가
+            #   영어 발음으로** 읽혔다. 교차검증을 넣어도 이 줄이 도로 지웠을 것이다.
+            #   ⚠ 텍스트는 예전 그대로 쓴다(구두점만 남은 문장의 동작을 안 바꾼다).
             text = strip_markers(sentence).strip()
-            return ([(text, self._locale)] if text else []), emotion
+            lang = segments[0][1] if segments else self._locale
+            return ([(text, lang)] if text else []), emotion
         return segments, emotion
 
     async def _speak(self, sentence: str) -> int:

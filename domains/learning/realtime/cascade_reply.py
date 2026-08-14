@@ -206,13 +206,21 @@ class SentenceBuffer:
 MARKER = "__"
 
 
-def split_by_language(text: str, base_lang: str, target_lang: str) -> list[tuple[str, str]]:
+def split_by_language(text: str, base_lang: str, target_lang: str,
+                      stats: dict | None = None) -> list[tuple[str, str]]:
     """마커 경계로 잘라 [(문자열, 언어)] 로 만든다. 마커는 **여기서 사라진다**.
 
     폴백이 중요하다: 모델이 마커를 안 쓰면(또는 짝이 안 맞으면) 잘리지 않고 통째로
-    base_lang 으로 나간다 — **마커 준수에 전부를 걸지 않는다.** 그 경우 문자 체계로
-    고르는 판정을 얹을 수 있는데(후보가 둘뿐이라 판정이 아니라 고르기다), 지금은 그
-    자리만 열어 두고 단순 폴백을 쓴다.
+    base_lang 으로 나간다 — **마커 준수에 전부를 걸지 않는다.**
+
+    ⭐⭐ **그리고 글자로 교차검증한다**(2026-08-14). 여기 "그 자리만 열어 두고"라고 적어 둔
+      판정을 채운 것이다. 순번(홀짝)만으로 언어를 정하면 모델이 마커를 **반대로** 감싸는 순간
+      영어가 한국어 음성으로 나간다 — 사장님 실측: "영어로만 말할 때 한국어 발음으로 말하는
+      때가 꽤 있었다." 반대 방향도 같이 있었다(마커 없음 5건 = 한국어가 영어 발음으로).
+    ⛔ 새 언어감지기를 만드는 게 아니다. 후보가 **둘뿐**이라 판정이 아니라 **고르기**다.
+      확실할 때만 고치고 **애매하면 순번을 그대로 둔다**(고르기가 틀리면 더 나쁘다).
+    ⚠ `stats["fixed"]` 에 고친 횟수를 남긴다 — 0 이면 이 가설이 틀린 것이고, 크면 프롬프트
+      쪽도 손봐야 한다는 신호다. **세지 않으면 어느 쪽인지 영영 모른다.**
     """
     if not text:
         return []
@@ -220,7 +228,10 @@ def split_by_language(text: str, base_lang: str, target_lang: str) -> list[tuple
     if len(chunks) % 2 == 0:
         # 짝이 안 맞는다 = 모델이 규칙을 반만 지켰다. 자르지 않고 통째로 낸다(말이 사라지는
         # 것보다 낫다). 마커만 지운다.
-        return [(text.replace(MARKER, "").strip(), base_lang)]
+        # ⚠ 이 경로도 교차검증을 탄다 — 실측에서 `마커 없음` 이 5건이었고 그게 전부 base(en)
+        #   로 나갔다. 통째로 한국어인 대답이 영어 발음으로 읽힌 자리가 바로 여기다.
+        return _cross_check([(text.replace(MARKER, "").strip(), base_lang)],
+                            base_lang, target_lang, stats)
     out: list[tuple[str, str]] = []
     orphan = ""      # 아직 붙일 앞 구간이 없는 조각(첫 조각이 구두점일 때)
     for i, chunk in enumerate(chunks):
@@ -245,6 +256,56 @@ def split_by_language(text: str, base_lang: str, target_lang: str) -> list[tuple
     if orphan and out:
         # 끝까지 붙일 곳을 못 찾은 조각(입력이 구두점으로 시작해 그 뒤가 전부 비었던 경우)
         out[0] = (f"{orphan}{out[0][0]}", out[0][1])
+    return _cross_check(out, base_lang, target_lang, stats)
+
+
+# ── 글자 교차검증 — 순번이 틀렸을 때 **확실한 경우만** 고친다 ─────────────────
+_HANGUL_MIN_RATIO = 0.6      # 이 이상이 한글이면 "한국어다"라고 말할 수 있다
+
+
+def _is_korean(code: str) -> bool:
+    return (code or "").strip().lower().startswith("ko")
+
+
+def _hangul_ratio(text: str) -> float:
+    """글자(=letter) 중 한글 비율. 글자가 하나도 없으면 -1(판정 불가).
+
+    ⛔ 숫자·기호는 분모에서 뺀다. "2024!" 같은 조각을 한글 0% 로 세면 **언어를 바꿔 버린다**.
+    ⚠ 한글은 **유일하다** — 라틴·한자·가나와 코드포인트가 겹치지 않는다. 그래서 후보가
+      한국어와 그 외 하나뿐일 때 이 비율은 고르기의 근거로 충분하다(감지기가 아니다).
+    """
+    letters = [ch for ch in text if ch.isalpha()]
+    if not letters:
+        return -1.0
+    hangul = sum(1 for ch in letters if "가" <= ch <= "힣" or "ᄀ" <= ch <= "ᇿ")
+    return hangul / len(letters)
+
+
+def _cross_check(pieces: list[tuple[str, str]], base_lang: str, target_lang: str,
+                 stats: dict | None) -> list[tuple[str, str]]:
+    """순번으로 정한 언어를 **글자로** 교차검증한다. 확실할 때만 고친다.
+
+    ⛔ 두 후보 중 **정확히 하나가 한국어**일 때만 돈다. 둘 다거나 둘 다 아니면 고를 근거가
+      없다(한글 유무로는 vi/en 을 못 가른다) — 그때는 손대지 않는다.
+    """
+    ko_side = _is_korean(base_lang) + _is_korean(target_lang)
+    if ko_side != 1:
+        return pieces
+    other = target_lang if _is_korean(base_lang) else base_lang
+    korean = base_lang if _is_korean(base_lang) else target_lang
+    out = []
+    for text, lang in pieces:
+        ratio = _hangul_ratio(text)
+        fixed = lang
+        if ratio < 0:
+            pass                                   # 숫자·기호뿐 — 판정 불가, 순번을 믿는다
+        elif ratio == 0.0 and _is_korean(lang):
+            fixed = other                          # 한글이 **하나도** 없는데 한국어로 읽을 뻔했다
+        elif ratio >= _HANGUL_MIN_RATIO and not _is_korean(lang):
+            fixed = korean                         # 대부분 한글인데 외국어 발음으로 읽을 뻔했다
+        if fixed != lang and stats is not None:
+            stats["fixed"] = stats.get("fixed", 0) + 1
+        out.append((text, fixed))
     return out
 
 

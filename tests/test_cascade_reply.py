@@ -1088,10 +1088,18 @@ def test_short_but_real_utterances_survive():
 
 
 def test_leading_punctuation_attaches_forward():
-    """앞 구간이 없으면(첫 조각이 구두점) **뒤에** 붙인다 — 버리지는 않는다."""
+    """앞 구간이 없으면(첫 조각이 구두점) **뒤에** 붙인다 — 버리지는 않는다.
+
+    ⚠ 2026-08-14: 기대값의 **언어**를 바꿨다. 예전에는 `("…좋아요", "en")` 이었다 — 순번이
+      그렇게 정했기 때문이다. 그런데 "좋아요"는 한글이라 en 음성으로 읽으면 발음이 깨진다.
+      글자 교차검증이 그걸 ko 로 고친다(그게 그 기능의 목적이다).
+      ⛔ 이 시험의 주제는 **구두점이 뒤에 붙는가**이지 언어가 아니다 — 텍스트를 따로 못박는다.
+    """
     from domains.learning.realtime.cascade_reply import split_by_language
 
-    assert split_by_language("…__좋아요__", "ko", "en") == [("…좋아요", "en")]
+    out = split_by_language("…__좋아요__", "ko", "en")
+    assert [text for text, _ in out] == ["…좋아요"], out
+    assert out == [("…좋아요", "ko")], out
 
 
 def test_marker_only_punctuation_input_makes_no_segment():

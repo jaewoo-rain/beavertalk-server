@@ -93,6 +93,49 @@ async def test_a_gap_inside_a_turn_is_still_caught():
 
 
 @pytest.mark.asyncio
+async def test_a_pacer_hold_is_not_counted_as_starvation():
+    """⭐⭐ **보낼 게 있는데 우리가 붙든 시간은 공백이 아니다**(2026-08-14).
+
+    ⛔ 예전엔 시각을 `_pace()` **뒤**에 찍어서 페이서 수면이 통째로 `와이어공백` 이 됐다.
+      벤더가 큰 조각을 주면 페이서가 그 길이만큼 자는데, 그동안 **클라 버퍼는 가득 차 있다** —
+      끊긴 게 아니라 앞서 보낸 것이다. 5.5초짜리 값이 결함인지 정상인지 못 가르던 이유다.
+    ⚠ 그래서 이제 둘을 나눠 센다: `와이어공백`(굶김) / `페이서보류`(정상).
+    """
+    clock = _Clock()
+    beaver = cs.BeaverOutput(_Transport(), now=clock.now, sleep=clock.sleep)
+    beaver.lead_ms = 0                       # 선행 0 = 실시간보다 앞서면 곧바로 잰다
+    one_second = b"\x00" * int(cs.BEAVER_BYTES_PER_MS * 1000)
+
+    await beaver.begin()
+    await beaver.send(one_second)            # 1초치를 즉시 보냈다(아직 0초 경과)
+    await beaver.send(one_second)            # 페이서가 ~1초를 잔다 — 붙든 것이지 빈 게 아니다
+
+    assert beaver.wire_gaps == [], f"페이서 수면을 굶김으로 셌다 — {beaver.wire_gaps}"
+    assert [round(h, 1) for h in beaver.paced_holds] == [1.0], beaver.paced_holds
+
+
+@pytest.mark.asyncio
+async def test_starvation_and_pacing_are_told_apart_in_the_same_turn():
+    """⛔ 한 턴 안에 둘 다 있을 수 있다 — 합쳐 놓으면 어느 쪽이 5.5초인지 모른다."""
+    clock = _Clock()
+    beaver = cs.BeaverOutput(_Transport(), now=clock.now, sleep=clock.sleep)
+    beaver.lead_ms = 0
+    one_second = b"\x00" * int(cs.BEAVER_BYTES_PER_MS * 1000)
+    frame = b"\x00" * 960
+
+    await beaver.begin()
+    await beaver.send(frame)
+    clock.t += 2.0                           # 합성이 안 와서 2초 빈다 = 진짜 굶김
+    # ⚠ 굶은 뒤에는 **뒤처져 있어서** 페이서가 안 재운다(그게 맞다). 다시 앞설 만큼 보내야
+    #   붙드는 게 나온다 — 이 순서가 실통화의 모양이다(늦게 온 조각을 몰아 보낸다).
+    for _ in range(4):
+        await beaver.send(one_second)
+
+    assert [round(g, 1) for g in beaver.wire_gaps] == [2.0], beaver.wire_gaps
+    assert beaver.paced_holds and beaver.paced_holds[0] >= 0.25, beaver.paced_holds
+
+
+@pytest.mark.asyncio
 async def test_normal_pacing_is_not_a_gap():
     """판정 창(250ms) 아래는 정상 페이싱이다 — 세면 신호가 잡음에 묻힌다."""
     clock = _Clock()
@@ -136,6 +179,13 @@ def test_a_positive_margin_means_the_prefetch_covered_the_round_trip():
     session = cs.CascadeSession(_Transport(), object())
     session._batch_leads = [(2_000, 900)]
     assert "+1.10s" in session._lead_log()
+
+
+def test_the_paced_log_reads_as_a_pair_with_the_gap_log():
+    """⚠ 두 값은 **짝으로만** 읽는다 — 페이서보류가 크고 와이어공백이 작으면 정상이다."""
+    assert cs.CascadeSession._paced_log([]) == "페이서보류=-"
+    assert cs.CascadeSession._paced_log([0.1, 0.24]) == "페이서보류=-"
+    assert "5.54s" in cs.CascadeSession._paced_log([5.54, 0.1])
 
 
 def test_no_second_batch_means_no_margin():
