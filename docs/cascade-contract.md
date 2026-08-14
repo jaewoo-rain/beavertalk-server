@@ -228,6 +228,7 @@
 |---|---|---|---|
 | `turn_id` | `str` |  | `""` |
 | `audible_ms` | `int` |  | `-1` |
+| `speech_to_sound_ms` | `int` |  | `-1` |
 | `turn_start_ms` | `int` |  | `-1` |
 | `cushion_ms` | `int` |  | `-1` |
 | `estimated` | `bool` |  | `false` |

@@ -666,6 +666,13 @@
           "alias": null
         },
         {
+          "name": "speech_to_sound_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
           "name": "turn_start_ms",
           "type": "int",
           "required": false,

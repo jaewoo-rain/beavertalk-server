@@ -813,6 +813,17 @@ class BeaverOutput:
             return 0.0
         return self._cur.first_audio_at
 
+    def first_audio_at_of(self, turn_id: str) -> float:
+        """**그 턴**의 첫 오디오가 나간 시각(0 = 아직·모르는 턴).
+
+        ⚠ `first_audio_at`(현재 턴)과 다르다 — 클라 계기는 그 턴이 **아직 재생 중일 때** 오고,
+          지난 턴을 물을 수도 있다. 원장이 턴별로 살아 있으니 그걸 그대로 쓴다.
+        """
+        record = self._records.get(turn_id)
+        if record is None or record.first_audio_at < 0:
+            return 0.0
+        return record.first_audio_at
+
     def ledger(self, turn_id: str | None = None) -> list[SpokenChunk]:
         record = self._record(turn_id)
         return list(record.ledger) if record else []
@@ -1208,6 +1219,11 @@ class CascadeSession:
         # ⭐ 비버 턴 id → 서버가 잰 **첫소리 ms**. 클라 계기(`client_timing`)와 조인할 키다.
         #   ⛔ 로그로만 찍고 버리면 조인이 불가능하다 — 클라 메시지는 그 뒤에 온다.
         self._first_sound_ms: dict[str, int] = {}
+        # ⭐⭐ 비버 턴 id → **그 대답이 시작된 시각**. 위 값은 묶음을 다 보낸 뒤에야 채워지는데
+        #   클라 계기는 **첫 소리에** 온다 ⇒ 그 시점엔 위가 비어 있어 조인이 100% 실패했다
+        #   (2026-08-15 실통화 전 턴 `짝없음`). 이 값이 있으면 물어본 자리에서 바로 계산된다.
+        self._reply_began_at: dict[str, float] = {}
+        self._reply_began = 0.0     # 지금 만들고 있는 대답의 시작 시각(턴이 열릴 때 위로 묶인다)
         # 턴 누적
         self._turn_seq = 0
         self._turn_id: str | None = None
@@ -1872,6 +1888,24 @@ class CascadeSession:
         while len(self._first_sound_ms) > _FIRST_SOUND_HISTORY:
             self._first_sound_ms.pop(next(iter(self._first_sound_ms)))
 
+    def _server_first_sound(self, turn_id: str) -> int:
+        """그 턴의 **서버 첫소리 ms** — 없으면 **지금 계산해서라도** 낸다.
+
+        ⛔⛔ 이 폴백이 이 기능의 전부다(2026-08-15). 원래는 `_note_first_sound` 가 채워 두길
+          기대했는데, 그건 **묶음을 다 보낸 뒤**에야 돈다(`_speak_prepared` 가 실시간 페이싱으로
+          재생 길이만큼 걸린다). 클라 계기는 **첫 소리에** 오므로 그때는 항상 비어 있었다 —
+          실통화에서 짝없음이 **100%** 였던 이유다. 값이 없어서가 아니라 **아직 안 적혔을 뿐**이다.
+        ⇒ 대답 시작 시각과 원장의 첫 오디오 시각이 둘 다 있으면 그 자리에서 뺀다.
+        """
+        cached = self._first_sound_ms.get(turn_id, -1)
+        if cached >= 0:
+            return cached
+        began = self._reply_began_at.get(turn_id, 0.0)
+        first_at = self.beaver.first_audio_at_of(turn_id)
+        if began <= 0.0 or first_at <= 0.0:
+            return -1
+        return int(max(0.0, first_at - began) * 1000)
+
     def _on_client_timing(self, ctrl: dict) -> None:
         """클라가 **실제로 들린 시각**을 보내 왔다 — 서버 값과 빼서 **한 줄로** 남긴다.
 
@@ -1887,7 +1921,7 @@ class CascadeSession:
             logger.info("cascade 클라계기 무시(해석 실패) — %s", str(exc)[:120])
             return
         turn_id = payload.turn_id.strip()
-        server_ms = self._first_sound_ms.get(turn_id, -1) if turn_id else -1
+        server_ms = self._server_first_sound(turn_id) if turn_id else -1
         # ⛔ **조용히 버리지 않는다.** 짝을 못 찾은 것도 사실이고, 그 사실이 안 보이면
         #   "값이 안 쌓인다"를 원인 없이 겪는다(오늘 여러 번 밟은 계열이다).
         if server_ms < 0:
@@ -1901,9 +1935,14 @@ class CascadeSession:
             logger.info("cascade 클라계기 무시: turn=%s 들림 값이 없다(구버전 클라)", turn_id)
             return
         logger.info(
-            "cascade 클라계기: %s 들림=%dms 서버첫소리=%dms 클라몫=%dms "
+            "cascade 클라계기: %s 들림=%dms%s 서버첫소리=%dms 클라몫=%dms "
             "(쿠션 %s · turn_start %s · %s)",
-            turn_id, payload.audible_ms, server_ms, payload.audible_ms - server_ms,
+            turn_id, payload.audible_ms,
+            # ⭐ **사용자가 입을 연 순간부터** 잰 값 — 사장님이 실제로 기다리는 시간이다.
+            #   ⚠ 못 쟀으면(-1) 이 칸을 **아예 안 찍는다**. 없음과 0 은 다르다.
+            " 말시작→첫소리=%dms" % payload.speech_to_sound_ms
+            if payload.speech_to_sound_ms >= 0 else "",
+            server_ms, payload.audible_ms - server_ms,
             "%d" % payload.cushion_ms if payload.cushion_ms >= 0 else "-",
             "%d" % payload.turn_start_ms if payload.turn_start_ms >= 0 else "-",
             # ⚠ 추정치가 실측과 같은 표에 섞이면 안 된다 — 줄에서 바로 갈리게 한다.
@@ -2430,6 +2469,7 @@ class CascadeSession:
         turn_id: str | None = None
         spoken_chars = 0
         began = time.monotonic()
+        self._reply_began = began     # 비버 턴이 열릴 때 그 턴에 묶인다(클라 계기 조인용)
         timing = _ReplyTiming(began, self._reply_queued_ms)
         self._reply_queued_ms = 0
         first_audio_ms = -1
@@ -3053,7 +3093,15 @@ class CascadeSession:
         # ⚠ 감정은 **대답 맨 앞 태그**라 첫 조각이 오면 이미 정해져 있다(`detect_emotion`).
         #   아직 없으면 None 으로 보낸다 — 클라가 neutral 로 그린다.
         self.state = TurnState.BEAVER_SPEAKING
-        return await self.beaver.begin(self._reply_emotion)
+        turn_id = await self.beaver.begin(self._reply_emotion)
+        # ⭐⭐ **이 턴의 대답이 언제 시작됐나**를 여기서 묶는다(2026-08-15). 클라 계기는 첫
+        #   소리에 오는데, 그때 `첫소리` 는 **아직 계산되지 않았다**(그건 묶음을 다 보낸 뒤에
+        #   나온다 — 그게 짝없음 100% 의 원인이었다). 이 값이 있으면 클라가 물어본 순간에
+        #   **그 자리에서** 계산할 수 있다.
+        self._reply_began_at[turn_id] = self._reply_began
+        while len(self._reply_began_at) > _FIRST_SOUND_HISTORY:
+            self._reply_began_at.pop(next(iter(self._reply_began_at)))
+        return turn_id
 
     def _sentence_emotion(self, sentence: str) -> str:
         """이 문장의 표정 — 태그가 있으면 그 값, **없으면 직전 값을 이어간다**.

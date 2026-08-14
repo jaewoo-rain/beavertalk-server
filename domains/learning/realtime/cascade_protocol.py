@@ -265,8 +265,15 @@ class ClientCascadeTiming(BaseModel):
 
     type: Literal["client_timing"] = "client_timing"
     turn_id: str = ""
-    # user_turn_end 수신 → **첫 소리가 실제로 난 시각**. 사용자가 기다린 시간이다.
+    # user_turn_end 수신 → **첫 소리가 실제로 난 시각**.
+    # ⚠ 원점이 **서버가 "말 끝났다"고 알린 시각**이라, 그 앞의 침묵판정·전송·전사·우리대기
+    #   (합쳐 ~1.1초)가 통째로 빠져 있다. 사용자 체감과 이 값이 갈리는 이유가 그것이다.
     audible_ms: int = -1
+    # ⭐⭐ **사용자가 입을 연 순간부터** 첫 소리까지(2026-08-15 사장님 지시: "마이크 인식되는
+    #   순간부터 시간 재도록"). 클라 로컬 VAD 의 첫 유성 프레임이 원점이다.
+    #   ⇒ 이게 **사장님이 실제로 기다리는 시간**이고, 위 `audible_ms` 는 그 부분집합이다.
+    #   ⚠ -1 = 못 쟀음. ⛔ 0 으로 채우지 마라 — 0 은 "즉시 났다"로 읽힌다.
+    speech_to_sound_ms: int = -1
     # user_turn_end 수신 → turn_start 도착(클라가 이미 쓰던 자 — 같이 받아 맞춰 본다).
     turn_start_ms: int = -1
     cushion_ms: int = -1

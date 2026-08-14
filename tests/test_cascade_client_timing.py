@@ -100,6 +100,47 @@ def test_an_unmatched_turn_is_logged_not_swallowed(caplog):
     assert "b99" in line and "3370" in line, line
 
 
+# ── 🔴 짝없음 100% 였던 자리 — 값이 없어서가 아니라 **아직 안 적혀서**였다 ──────
+class _FakeBeaver:
+    """원장만 흉내낸다 — 그 턴의 첫 오디오가 **언제** 나갔나."""
+
+    def __init__(self, at: float = 0.0) -> None:
+        self._at = at
+
+    def first_audio_at_of(self, turn_id: str) -> float:
+        return self._at if turn_id == "b12" else 0.0
+
+
+def test_the_join_works_while_the_reply_is_still_playing(caplog):
+    """⭐⭐ 실통화에서 **짝없음이 100%** 였다. 원인은 순서다.
+
+    서버는 `첫소리` 를 **묶음을 다 보낸 뒤**에 적는다(`_speak_prepared` 가 실시간 페이싱으로
+    재생 길이만큼 걸린다). 그런데 클라 계기는 **첫 소리에** 온다 ⇒ 그때 값은 항상 비어 있었다.
+    ⇒ 값이 없어서가 아니라 **아직 안 적혔을 뿐**이다. 물어본 자리에서 계산하면 짝이 맞는다.
+    """
+    session = _session()
+    session._reply_began_at["b12"] = 1000.0
+    # ⚠ 2진수로 정확히 떨어지는 값을 쓴다 — 2.3 은 int() 절삭으로 2299 가 된다.
+    session.beaver = _FakeBeaver(at=1002.25)         # 첫 소리는 2.25초 뒤에 나갔다
+    assert "b12" not in session._first_sound_ms, "이 시험의 전제(아직 안 적혔다)가 깨졌다"
+
+    _feed(session, caplog, turn_id="b12", audible_ms=2645)
+
+    line = _line(caplog)
+    assert "서버첫소리=2250ms" in line and "클라몫=395ms" in line, line
+
+
+def test_a_turn_that_never_made_a_sound_is_still_unmatched(caplog):
+    """⛔ 폴백이 생겼다고 **아무 턴이나 맞춰 주면** 안 된다 — 소리가 안 난 턴은 여전히 짝없음이다."""
+    session = _session()
+    session._reply_began_at["b12"] = 1000.0
+    session.beaver = _FakeBeaver(at=0.0)             # 첫 오디오가 한 조각도 안 나갔다
+
+    _feed(session, caplog, turn_id="b12", audible_ms=2645)
+
+    assert "짝없음" in _line(caplog, "cascade 클라계기 짝없음")
+
+
 def test_a_cancelled_turn_has_no_server_value():
     """소리가 안 나간 턴은 애초에 보관되지 않는다(음수는 안 담는다)."""
     session = _session()
@@ -115,6 +156,35 @@ def test_the_history_is_bounded():
     assert len(session._first_sound_ms) == cs._FIRST_SOUND_HISTORY
     assert "b0" not in session._first_sound_ms, "오래된 것부터 밀려야 한다"
     assert f"b{cs._FIRST_SOUND_HISTORY + 4}" in session._first_sound_ms
+
+
+# ── 말시작→첫소리 — 사장님이 실제로 기다리는 시간 ──────────────────────────
+def test_the_speech_to_sound_column_is_shown(caplog):
+    """⭐⭐ 사장님 지시: **"마이크 인식되는 순간부터 시간 재도록 해야할듯"**.
+
+    `들림` 의 원점은 **서버가 "말 끝났다"고 알린 시각**이라, 그 앞의 침묵판정·전송·전사·
+    우리대기(~1.1초)가 통째로 빠져 있다. 체감 "4~5초" vs 지표 "2.8초" 의 차이가 그것이다.
+    """
+    session = _session()
+    session._note_first_sound("b58", 2270)
+
+    _feed(session, caplog, turn_id="b58", audible_ms=3370, speech_to_sound_ms=4531)
+
+    line = _line(caplog)
+    assert "말시작→첫소리=4531ms" in line, line
+    assert "들림=3370ms" in line and "클라몫=1100ms" in line, line
+
+
+def test_an_unmeasured_speech_to_sound_is_omitted_entirely(caplog):
+    """⛔ 못 쟀으면 그 칸을 **아예 안 찍는다** — `-1ms` 도 `0ms` 도 표를 오염시킨다."""
+    session = _session()
+    session._note_first_sound("b58", 2270)
+
+    _feed(session, caplog, turn_id="b58", audible_ms=3370)     # 필드 없음(구버전 클라)
+
+    line = _line(caplog)
+    assert "말시작" not in line, line
+    assert "들림=3370ms 서버첫소리=2270ms" in line, "칸을 빼면서 나머지가 어긋났다"
 
 
 # ── ④ 추정치는 섞이지 않는다 ────────────────────────────────────────────────
