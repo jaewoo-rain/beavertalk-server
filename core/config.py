@@ -482,7 +482,11 @@ class Settings(BaseSettings):
     # 기본값은 **보수적으로**(막는 쪽) 잡는다 — 클라 에코 측정 리그 실측이 나오면 그 값으로
     # 조인다. 전부 env 라 재빌드 없이 바뀐다.
     CASCADE_BARGEIN_CONFIRM: str = "transcript"  # 'immediate' | 'transcript'(세션값으로 덮임)
-    CASCADE_BARGEIN_MIN_MS: int = 200
+    # ⛔ `CASCADE_BARGEIN_MIN_MS`(최소 지속)는 **2026-08-14 에 삭제했다.** 0 으로 끄지 않고
+    #   지운 이유는 성능이 아니라 **혼선 제거**다 — "0 으로 꺼둔 관문"이 남아 있으면 다음
+    #   사람이 이유도 모르고 되올린다. 삭제 사유는 `_bargein_allowed` 안의 주석에 있다
+    #   (요지: 전사 2글자 확인이 상위 호환인데, 그 관문이 **확인보다 먼저 돌아 무력화**했다).
+    #   ⚠ Cloud Run env 에 남아 있어도 무해하다(`extra="ignore"`). 다만 같이 지우는 게 맞다.
     # ⭐ **비버가 실제로 들리고 있을 때만** 끊는다(2026-08-07 45분 통화에서 나온 결함).
     #   사용자가 한 글자도 못 들었으면 끼어든 게 아니다 — 끊어봐야 멈출 소리가 없고(이득 0)
     #   준비한 대답만 사라진다(손실 큼). 관측: 취소 14건 중 7건이 '들린글자=0' 이었고 그 뒤가
@@ -504,8 +508,9 @@ class Settings(BaseSettings):
     # 하던 말을 이어서 한다 — 침묵으로 끝내지 않는다.
     # ⚠ 주석이 **다른 설정을 설명하고 있었다**(2026-08-11 QA 발견7). 실제 용도는 이것이다:
     #   barge-in 으로 **끊긴 대답을 이어 말할 유예**. 이 시간을 넘기면 포기한다
-    #   (`_resume_interrupted`). 잘못된 주석이 설명하던 값은 `CASCADE_BARGEIN_MIN_MS` 다 —
-    #   그대로 뒀으면 barge-in 을 튜닝하려는 사람이 **이어 말하기를 끄게** 된다.
+    #   (`_resume_interrupted`). 잘못된 주석이 설명하던 값은 최소지속 관문(그때의
+    #   `CASCADE_BARGEIN_MIN_MS`, 2026-08-14 삭제)이었다 — 그대로 뒀으면 barge-in 을
+    #   튜닝하려는 사람이 **이어 말하기를 끄게** 된다.
     CASCADE_RESUME_WINDOW_MS: int = 8000
     CASCADE_BARGEIN_MIN_CHARS: int = 2           # transcript 확인 모드에서 요구할 최소 글자수
     # ⭐⭐ **이 게이트의 일은 '사용자가 말했나'가 아니라 '이게 비버 자기 목소리인가'다**

@@ -412,7 +412,9 @@ class ServerCascadeReady(BaseModel):
     sample_rate: int = 16000
     language: str = ""
     bargein_confirm: str = "immediate"  # 이 세션의 barge-in 확인 정책(AEC 힌트로 결정)
-    bargein_min_ms: int = 200           # 에코 2차 방어 — 최소 지속
+    # ⛔ `bargein_min_ms` 는 **2026-08-14 에 뺐다** — 서버에서 그 관문 자체를 삭제했기 때문이다
+    #   (사유는 `cascade_session._bargein_allowed` 주석). 안 쓰는 값을 계약에 남겨 두면
+    #   클라가 그걸 보고 정책을 추측한다. ⚠ 플러터는 이 필드를 읽지 않았다(`lib/` 0건 확인).
     # 마이크 상시 개방 여부. False 면 클라가 비버 발화 중 마이크를 닫으므로 barge-in 이
     # 사실상 발동하지 않는다(그 상태에서도 통화는 정상 성립해야 한다). 자세한 이유는
     # core/config.py 의 CASCADE_MIC_ALWAYS_OPEN 주석.

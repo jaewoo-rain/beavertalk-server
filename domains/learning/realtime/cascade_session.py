@@ -1244,7 +1244,6 @@ class CascadeSession:
         # barge-in 판정 계측(관측 전용) — 보류 시각·그때 에너지 / 판정별 에너지 표본.
         self._bargein_pending_at = 0.0
         self._bargein_pending_rms = 0.0
-        self._bargein_blind = 0      # 오프셋이 없어 최소지속을 못 잰 횟수(관측 — 로그 폭발 방지)
         self._bargein_obs: list[tuple[str, float]] = []
         # 비버 출력(TTS 송출·원장·페이서). LLM 이 없어 소리를 안 내는 세션에서도, 클라가
         # 되보내는 playback_progress 를 **턴별 원장에 대조**하려면 지금부터 있어야 한다.
@@ -1363,7 +1362,6 @@ class CascadeSession:
                 sample_rate=sample_rate,
                 language=settings.STT_V2_LANGUAGE or settings.STT_LANGUAGE,
                 bargein_confirm=self._bargein_confirm,
-                bargein_min_ms=settings.CASCADE_BARGEIN_MIN_MS,
                 mic_always_open=settings.CASCADE_MIC_ALWAYS_OPEN,
             )
         )
@@ -1582,8 +1580,9 @@ class CascadeSession:
 
         오염값 하나가 **세 곳을 동시에** 망가뜨리기 때문에 여기 한 곳에서 막는다:
           ① 계측(pipeline_lag) ② 침묵 타이머 remain(=0 이 되어 턴이 즉시 닫힌다 — 결함 B 재발)
-          ③ barge-in 최소 지속 게이트(audio_ms − offset >= min_ms 가 **무조건 참**이 된다.
-             마이크 상시개방을 켜면 이게 곧바로 드러난다 — 잔여 에코 한 번에 비버가 끊긴다)
+          ③ barge-in 에너지 게이트(`_rms_at` 이 그 오프셋 부근에서 에너지를 찾는다 — 엉뚱한
+             지점을 보면 진짜 발화가 조용한 것으로 잡힌다)
+        ⚠ 예전엔 ③ 자리에 최소 지속 게이트가 있었다. 그 관문은 2026-08-14 에 삭제했다.
         """
         if event.offset_ms < 0:
             return
@@ -2036,11 +2035,12 @@ class CascadeSession:
         Android 재생은 USAGE_MEDIA 라 AEC 기준 경로 밖이어서 사실상 AEC 가 안 걸린다.
         그 상태로 speech_begin 하나에 비버를 끊으면 **비버가 자기 목소리에 끊긴다.**
 
-        관문 2개(설계 §3):
-          ① 최소 지속 — 순간 튐으로 발동 금지(CASCADE_BARGEIN_MIN_MS, 기본 150ms)
+        살아 있는 관문(설계 §3 + 이후 실측):
+          ⓪ 비버가 실제로 들렸나(CASCADE_BARGEIN_MIN_AUDIBLE_MS)
+          ① 에너지 — 잔여 에코 2차 방어(AEC 를 선언한 세션에서는 안 돈다)
           ② confirm=transcript — 비어있지 않은 전사가 최소 글자수 이상 나와야 인정
-        ①은 지금 구현하고, ②는 P1(TTS 연결)에서 재생 구간과 함께 붙인다. 세션 단위 값이라
-        `start.aec` 힌트로 기기·라우트마다 다르게 잡는다(이어폰이면 immediate).
+        ⛔ 예전 "최소 지속" 관문은 **삭제했다**(2026-08-14) — 아래 그 자리의 주석을 봐라.
+        세션 단위 값이라 `start.aec` 힌트로 기기·라우트마다 다르게 잡는다(이어폰이면 immediate).
         """
         # ⭐ ⓪-1 **비버가 실제로 들리고 있나.** 사용자가 한 글자도 못 들었으면 끼어든 게
         #   아니다 — 그냥 기다리다 소리를 낸 것이다. 끊어봐야 멈출 소리가 없고(이득 0),
@@ -2095,29 +2095,20 @@ class CascadeSession:
                 )
                 self._note_bargein("기각-에너지", rms)
                 return False
-        # ② 최소 지속 — 순간 튐으로 비버를 끊지 않는다. **오디오 시각으로만 판정한다.**
-        #   ⛔⛔ 예전엔 오디오 시각으로 못 재면 `await asyncio.sleep(200ms)` 로 기다렸다.
-        #     이 함수는 `_on_speech_begin` → `_handle` → **`_pump_turn` 본체**에서 돈다 —
-        #     그 200ms 동안 `_close_at`·`_turn_deadline`·`_turn_idle_at`·`_bargein_at`
-        #     **네 시계가 전부 멈춘다.** 게다가 오프셋이 -1 이면 조건이 **항상 참**이라
-        #     `speech_begin` 마다 잤고, 지금 기본 STT(openai)는 전사에 오프셋을 안 싣는다
-        #     = **기본 구성에서 상시 발생**이었다(2026-08-11 QA 발견5).
-        #   ⭐ 지금은 기다릴 이유도 약하다: 보류로 넘어가도 **끊지는 않는다**(전사가 와야 끊는다).
-        #     그래서 못 재면 **관문을 통과시키고 전사 확인에 맡긴다.** 대신 그 사실을 로그로 남긴다.
-        min_ms = max(0, settings.CASCADE_BARGEIN_MIN_MS)
-        if min_ms > 0 and event.offset_ms >= 0:
-            if (self._audio_ms - event.offset_ms) < min_ms:
-                logger.info("cascade barge-in 기각 — 최소 지속 %dms 미달(에코/잡음 추정)", min_ms)
-                self._note_bargein("기각-지속", rms)
-                return False
-        elif min_ms > 0:
-            # ⚠ 판정 재료가 없다 — **기다리지 않는다**(펌프가 멈춘다). 전사 게이트가 결정한다.
-            self._bargein_blind += 1
-            if self._bargein_blind == 1:
-                logger.info(
-                    "cascade barge-in 최소지속 판정 불가(오프셋 미상) — 기다리지 않고 "
-                    "전사 확인에 맡긴다. 이 통화에서 처음이다"
-                )
+        # ⛔⛔ **② 최소 지속 관문은 2026-08-14 에 삭제했다. 0 으로 끈 게 아니라 지웠다.**
+        #   되살리고 싶어지면 아래 셋을 먼저 읽어라 — 셋 다 그때도 유효하다:
+        #   1. **논리적 잉여다.** 아래 ③ 전사 2글자 확인이 "사람이 말했다"를 더 직접 증명한다.
+        #      에코는 소리는 내도 **글자를 못 만든다.**
+        #   2. 🔴 **그 확인을 무력화했다.** 이 관문이 ③보다 **먼저** 돌고 `return False` 하면
+        #      `_bargein_at` 이 안 잡힌다 ⇒ 나중에 두 글자가 와도 **끊을 대상이 없다.**
+        #      앞 관문이 뒤 관문을 죽이는 구조였다.
+        #   3. **이름과 실제가 달랐다.** `audio_ms − offset < min_ms` 는 "사용자가 400ms
+        #      말했다"가 아니라 **"speech_begin 이후 오디오가 400ms 흘렀다"** 다 — 발화 길이가
+        #      아니라 파이프라인 흐름을 재고 있었다.
+        #   ⭐ 코드가 이미 절반은 인정하고 있었다: 못 잴 때는 통과시키고 전사 확인에 맡기면서,
+        #     잴 수 있을 때만 기각했다 — 논리가 반쪽만 적용돼 있었다.
+        #   ⚠ 실측 12시간 `기각-지속` **0건**. 해를 끼치기 전에 지운 것이다.
+        #   ⇒ **되살리려면 ③ 전사 확인 뒤로 옮겨라.** 앞에 두면 같은 무력화가 재발한다.
         # ③ 전사 확인 — **설계에 있다고 적어 두고 P1 에서 안 붙였던 관문**이다(2026-08-07).
         #   그동안 barge-in 은 에너지+지속만으로 발동했고, 기침·키보드·숨소리가 전부 통과했다.
         #   여기서 True 를 돌려주면 즉시 취소되므로, transcript 모드는 **판정을 미룬다**:
@@ -3917,7 +3908,10 @@ class CascadeSession:
         budget = settings.CASCADE_LLM_THINKING_BUDGET
         logger.info(
             "cascade 설정: %s 오디오=%dHz/%dch(%s) llm=%s@%s 추론=%s 토큰상한=%s tts=%s "
-            "문장상한=%s 힌트=%s 마이크상시=%s bargein(rms=%.3f min=%dms confirm=%s) "
+            # ⚠ `들림=` 은 예전 `min=`(최소 지속) 자리다 — 그 관문은 삭제했고(2026-08-14),
+            #   지금 남은 시간 관문은 **"비버가 얼마나 들렸나"** 하나뿐이다. 이름을 그대로
+            #   두면 사라진 관문이 아직 있는 것처럼 읽힌다.
+            "문장상한=%s 힌트=%s 마이크상시=%s bargein(rms=%.3f 들림=%dms confirm=%s) "
             "침묵=%dms+벤더%s 병합gap=%dms 선행버퍼=%s 세션상한=%ds",
             self._sid,
             # ⭐ **가정인지 선언인지까지** 적는다 — 값만 적으면 "16000" 이 클라가 말한 건지
@@ -3931,7 +3925,7 @@ class CascadeSession:
             self._max_sentences() or "없음",
             "on" if settings.CASCADE_HINT_ENABLED else "off",
             "on" if settings.CASCADE_MIC_ALWAYS_OPEN else "off",
-            settings.CASCADE_BARGEIN_RMS, settings.CASCADE_BARGEIN_MIN_MS,
+            settings.CASCADE_BARGEIN_RMS, settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS,
             self._bargein_confirm,
             # ⭐ **벤더 침묵창은 우리 임계 앞에 얹혀 있다** — 둘을 붙여 찍는다. 따로 찍으면
             #   다음 사람이 또 800ms 만 보고 "왜 1.3초를 기다리지?"를 처음부터 파게 된다.

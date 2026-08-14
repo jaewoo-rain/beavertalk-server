@@ -275,7 +275,6 @@ async def test_barge_in_cancels_reply_without_killing_session(reply_rig, monkeyp
     """
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     # 비버가 **실제로 들리고 있는** 상태를 만든다(2026-08-07 관문 ⓪-1). 클라 버퍼 추정을
     # 0 으로 두고 임계를 낮춰, 몇 프레임만 나가도 '들렸다'가 되게 한다.
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
@@ -314,7 +313,6 @@ async def test_inaudible_beaver_is_not_cancelled(reply_rig, monkeypatch):
     """⭐ 비버가 아직 안 들리면 잡음으로 죽이지 않는다 — 끊어봐야 멈출 소리가 없다."""
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 300)
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 600)  # 기본값 — 아직 안 들린다
@@ -341,7 +339,6 @@ async def test_transcript_confirm_rejects_noise(reply_rig, monkeypatch):
     """③ 전사 확인 관문 — 소리만 나고 전사가 없으면 비버를 끊지 않는다(설계엔 있었고 구현이 없었다)."""
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "transcript")
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 20)
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
@@ -863,7 +860,6 @@ async def test_batch_mode_ignores_bargein_while_synthesizing(reply_rig, monkeypa
 
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
 
     async def _slow_tts(text, **kwargs):

@@ -72,6 +72,15 @@
       <span><span id="dot" class="dot"></span><span id="stat">대기</span></span>
       <span id="engine" class="muted"></span>
       <span id="prep" class="muted"></span>
+      <!-- ⭐ 지터 쿠션 — 앱과 **같은 조건**으로 맞추는 손잡이. 통화 중에 바꿔도 다음 턴부터 먹는다.
+           300 = 실기기 앱과 동일(call_channel.dart:98) · 0 = 이 페이지의 예전 동작(끊긴다) -->
+      <span class="muted" title="비버 턴 첫 조각을 이만큼 뒤로 밀어 버퍼를 쌓는다. 0이면 조각이 조금만 늦어도 소리가 끊긴다. 앱과 비교할 때는 반드시 300으로 맞춰라.">지터 쿠션</span>
+      <select id="cushion" style="width:110px">
+        <option value="300" selected>300ms (앱과 동일)</option>
+        <option value="0">0ms (예전 동작)</option>
+        <option value="150">150ms</option>
+        <option value="500">500ms</option>
+      </select>
       <span id="clock" class="muted"></span>
     </div>
     <div class="row" style="margin:8px 0; gap:12px; flex-wrap:wrap">
@@ -125,6 +134,8 @@
     <div class="row" style="margin:8px 0">
       <div><div class="muted">턴 수</div><div id="mTurns" class="big">0</div></div>
       <div style="margin-left:24px"><div class="muted">감지지연 중앙값</div><div id="mMedian" class="big">-</div></div>
+      <!-- ⭐ 앱과 맞대는 숫자. 말끝 → 첫 소리가 **실제로 나는** 시각까지다(도착 아님). -->
+      <div style="margin-left:24px"><div class="muted">응답 중앙값(말끝→첫소리)</div><div id="mResp" class="big">-</div></div>
       <div style="margin-left:24px"><div class="muted">파이프라인 지연(중앙값)</div><div id="mPipe" class="big">-</div></div>
       <div style="margin-left:24px"><div class="muted">잔여 오버헤드(중앙값)</div><div id="mOver" class="big">-</div></div>
       <div style="margin-left:24px"><div class="muted">롤오버 갭(최대)</div><div id="mGap" class="big">-</div></div>
@@ -261,6 +272,9 @@ $('#stopBtn').onclick = () => { if (ws && ws.readyState===1) { try { ws.send(JSO
 
 async function start() {
   turns = []; maxGap = 0; renderTable(); $('#log').innerHTML=''; $('#live').textContent='…';
+  // ⛔ 통화마다 표본을 비운다. 안 비우면 **쿠션을 바꿔 다시 걸어도 앞 통화 값이 중앙값에 섞여**
+  //   0 ↔ 300 비교가 통째로 무의미해진다(이 페이지를 고친 이유가 그 비교다).
+  respAll.length = 0; respT0 = 0; $('#mResp').textContent = '-';
   try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1, echoCancellation:true, noiseSuppression:true} }); }
   catch(e) { alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
   actx = new (window.AudioContext||window.webkitAudioContext)();
@@ -352,6 +366,29 @@ const BEAVER_RATE = 24000, BEAVER_BPS = BEAVER_RATE * 2;   // 48,000 bytes/s
 let bTurnId = null, bDrop = false, bSources = [], bBytes = 0, bStartT = 0, bPlayT = 0;
 let droppedFrames = 0, oddFrames = 0, badFrames = 0;
 
+/* ---------- ⭐ 응답시간 계기 + 지터 쿠션 (2026-08-14) ----------
+   재는 것: **서버가 "네 말 끝났다"(user_turn_end) 를 보낸 순간 → 비버 첫 소리가 실제로 나는 순간.**
+
+   ⛔ 왜 화면에 쿠션 손잡이를 두나: 앱과 이 페이지를 비교하려면 **같은 조건**이어야 한다.
+     이 페이지는 원래 쿠션이 0 이라 앱보다 빨랐는데, 그건 실력이 아니라 **버퍼를 안 쌓은 대가**였다
+     (그래서 끊겼다). 손잡이를 두면 재배포 없이 0 ↔ 300 을 한자리에서 비교할 수 있다.
+   ⚠ 응답시간을 비교할 때는 **반드시 앱과 같은 값(300)** 으로 놓고 재라. 0 으로 잰 값을
+     앱 숫자와 같은 표에 올리면 오늘 우리가 여러 번 당한 그 함정이다(다른 자로 잰 값). */
+function cushionMs() { return Math.max(0, parseInt($('#cushion').value, 10) || 0); }
+let respT0 = 0;              // user_turn_end 를 받은 시각(ms). 0 = 대기 중 아님
+const respAll = [];          // 이 통화 전체 표본 — 한 턴만 보고 판정하지 않으려고 모은다
+function respArm() { respT0 = nowMs(); }
+function respMark(soundAtMs) {
+  if (!respT0) return;                              // 턴당 1회(첫 조각)만
+  const ms = Math.round(soundAtMs - respT0);
+  respT0 = 0;
+  respAll.push(ms);
+  const s = [...respAll].sort((a, b) => a - b);
+  const med = s[Math.floor(s.length / 2)];
+  $('#mResp').textContent = `${med}ms`;
+  log(`⏱ 응답 ${ms}ms (말끝→첫소리 · 쿠션 ${cushionMs()}ms) — ${respAll.length}턴 중앙값 ${med}ms`, 'ok');
+}
+
 function beaverReset(turnId) {
   bTurnId = turnId; bDrop = false; bSources = []; bBytes = 0; bStartT = 0; bPlayT = 0; droppedFrames = 0;
   oddFrames = 0; badFrames = 0;
@@ -373,10 +410,23 @@ function playBeaverChunk(buf) {
   const node = actx.createBufferSource();
   node.buffer = ab; node.connect(actx.destination);
   const now = actx.currentTime;
-  if (bPlayT < now) bPlayT = now;                // 언더런이면 지금부터
+  // ⭐ **지터 쿠션**(2026-08-14). 턴 첫 조각을 이만큼 뒤로 밀어 두면 뒤 조각이 늦어도 그 여유
+  //   안에서 흡수된다. 쿠션 0 이면 조각이 조금만 늦어도 소리가 말라 **매 조각 끊긴다** —
+  //   이 페이지가 원래 그랬고, 그래서 실기기 앱은 캐스케이드에서 300ms 를 쓴다
+  //   (`call_channel.dart:98  prebufferMs => isCascade ? 300 : 900`).
+  // ⛔ **중간 언더런에는 다시 안 건다.** 거기서 또 밀면 이미 끊긴 말이 더 늦어질 뿐이다.
+  //   쿠션은 턴 시작에서만 값을 한다.
+  const first = !bPlayT;
+  if (first) bPlayT = now + cushionMs() / 1000;
+  else if (bPlayT < now) bPlayT = now;
   if (!bStartT) bStartT = bPlayT;
-  node.start(bPlayT); bPlayT += ab.duration;
+  const startAt = bPlayT;
+  node.start(startAt); bPlayT = startAt + ab.duration;
   bSources.push(node);
+  // ⭐ 이 턴의 **첫 소리가 실제로 나는 시각**으로 응답시간을 닫는다.
+  // ⛔ 도착 시각으로 닫지 않는다 — 그러면 쿠션이 지표에서 사라져 **0 과 300 이 같아 보인다.**
+  //   지금 우리가 가리려는 게 정확히 그 차이다.
+  if (first) respMark(nowMs() + (startAt - now) * 1000);
   bBytes += buf.byteLength;
 }
 function beaverStopNow() {
@@ -410,7 +460,9 @@ function onMsg(ev) {
   let m; try { m = JSON.parse(ev.data); } catch { return; }
   if (m.type === 'ready') {
     engine = m.engine; silenceMs = m.turn_silence_ms;
-    $('#engine').textContent = `엔진 ${m.engine} · 침묵임계 ${m.turn_silence_ms}ms(서버 타이머) · ${m.language} · ${m.sample_rate}Hz · barge-in ${m.bargein_confirm}/${m.bargein_min_ms}ms`;
+    // ⚠ `bargein_min_ms` 는 계약에서 **뺐다**(2026-08-14) — 서버에서 최소지속 관문 자체를
+    //    지웠기 때문이다. 없는 필드를 그리면 `undefined` 가 화면에 뜬다.
+    $('#engine').textContent = `엔진 ${m.engine} · 침묵임계 ${m.turn_silence_ms}ms(서버 타이머) · ${m.language} · ${m.sample_rate}Hz · barge-in ${m.bargein_confirm}`;
     $('#thNote').textContent = m.turn_silence_ms;
     if (m.engine === 'fake') $('#fakeBanner').className = 'banner fake';
     log(`ready — engine=${m.engine} turn_silence=${m.turn_silence_ms}ms (서버 자체 타이머)`, 'ok');
@@ -430,6 +482,7 @@ function onMsg(ev) {
   }
   else if (m.type === 'user_turn_end') {
     const arrived = nowMs();
+    respArm();   // ⭐ 응답시간의 **시작점**. 끝점은 첫 소리가 실제로 나는 시각(playBeaverChunk).
     const t = turns.find(x => x.id === m.turn_id) || turns[turns.length-1];
     if (t) {
       t.endMs = m.at_ms; t.speechMs = m.speech_ms; t.endLagMs = m.end_lag_ms; t.text = m.text;

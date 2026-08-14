@@ -122,7 +122,6 @@
 | `sample_rate` | `int` |  | `16000` |
 | `language` | `str` |  | `""` |
 | `bargein_confirm` | `str` |  | `"immediate"` |
-| `bargein_min_ms` | `int` |  | `200` |
 | `mic_always_open` | `bool` |  | `false` |
 
 ### `sentence`  (CascadeSentenceMarker)
