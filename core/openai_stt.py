@@ -122,6 +122,14 @@ class OpenAiRealtimeSttStream:
         }
         if self._language:
             transcription["language"] = self._language
+        # ⭐⭐ **침묵창을 명시한다**(2026-08-14). 지금까지는 안 보내고 벤더 기본값에 맡겼는데,
+        #   그 값이 우리 턴 침묵(800ms) **앞에 통째로 얹혀** 있었다(실측 근거는 config 주석).
+        #   ⛔ 안 보내면 그 값이 얼마인지 **로그로도 알 수 없다** — 조용한 기본값의 전형이다.
+        #   ⚠ 0 이면 예전처럼 안 보낸다(벤더 기본값으로 되돌아간다).
+        turn_detection: dict[str, Any] = {"type": "server_vad"}
+        silence_ms = max(0, int(settings.OPENAI_STT_SILENCE_MS or 0))
+        if silence_ms:
+            turn_detection["silence_duration_ms"] = silence_ms
         await self._ws.send(json.dumps({
             "type": "session.update",
             "session": {
@@ -129,13 +137,14 @@ class OpenAiRealtimeSttStream:
                 "audio": {"input": {
                     "format": {"type": "audio/pcm", "rate": _SEND_RATE},
                     "transcription": transcription,
-                    "turn_detection": {"type": "server_vad"},
+                    "turn_detection": turn_detection,
                 }},
             },
         }))
         self._reader = asyncio.create_task(self._read_loop())
-        logger.info("[stt-openai] 연결 — 모델=%s 언어=%s (%dHz 로 올려 보낸다)",
-                    transcription["model"], self._language or "자동감지", _SEND_RATE)
+        logger.info("[stt-openai] 연결 — 모델=%s 언어=%s 침묵창=%s (%dHz 로 올려 보낸다)",
+                    transcription["model"], self._language or "자동감지",
+                    "%dms" % silence_ms if silence_ms else "벤더기본(미지정)", _SEND_RATE)
 
     async def close(self) -> None:
         # ⭐ **닫기 전에 무음을 조금 흘린다** — 안 그러면 마지막 발화가 통째로 사라진다.

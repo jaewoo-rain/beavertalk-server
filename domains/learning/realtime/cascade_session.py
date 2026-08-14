@@ -3918,7 +3918,7 @@ class CascadeSession:
         logger.info(
             "cascade 설정: %s 오디오=%dHz/%dch(%s) llm=%s@%s 추론=%s 토큰상한=%s tts=%s "
             "문장상한=%s 힌트=%s 마이크상시=%s bargein(rms=%.3f min=%dms confirm=%s) "
-            "침묵=%dms 선행버퍼=%s 세션상한=%ds",
+            "침묵=%dms+벤더%s 병합gap=%dms 선행버퍼=%s 세션상한=%ds",
             self._sid,
             # ⭐ **가정인지 선언인지까지** 적는다 — 값만 적으면 "16000" 이 클라가 말한 건지
             #   우리가 찍은 건지 알 수 없고, 그 구분이 없어서 오늘 반나절을 태웠다.
@@ -3933,7 +3933,14 @@ class CascadeSession:
             "on" if settings.CASCADE_MIC_ALWAYS_OPEN else "off",
             settings.CASCADE_BARGEIN_RMS, settings.CASCADE_BARGEIN_MIN_MS,
             self._bargein_confirm,
+            # ⭐ **벤더 침묵창은 우리 임계 앞에 얹혀 있다** — 둘을 붙여 찍는다. 따로 찍으면
+            #   다음 사람이 또 800ms 만 보고 "왜 1.3초를 기다리지?"를 처음부터 파게 된다.
+            #   ⚠ 병합 gap 도 같이 싣는다: 이 셋은 **한 묶음으로만 읽을 수 있다**
+            #     (허용 쉼 = 병합gap + 벤더침묵, 그리고 그것이 임계를 넘으면 안 된다).
             self._silence_ms,
+            "%dms" % settings.OPENAI_STT_SILENCE_MS if settings.OPENAI_STT_SILENCE_MS
+            else "기본(미지정)",
+            settings.CASCADE_SPEECH_MERGE_GAP_MS,
             "%dms" % lead if lead is not None else "서버공통",
             int(settings.CASCADE_SESSION_MAX_S),
         )
