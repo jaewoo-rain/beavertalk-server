@@ -280,6 +280,51 @@ class _TtsProfile:
     google_engine: str | None
 
 
+@dataclass(frozen=True)
+class _SttProfile:
+    """이 STT 엔진의 **전사 도착 성질**. ⛔ 분기에서 엔진 이름을 비교하지 말고 여기를 봐라.
+
+    ⚠ 키가 **접두사**인 이유: 실제로 돈 벤더 문자열은 모델 ID 를 포함한다
+      (`openai-gpt-4o-mini-transcribe`). 완전일치로 두면 **모델을 바꾸는 순간 조용히 표에서
+      빠져** 앵커가 꺼지고, 아무도 모른 채 턴이 다시 느려진다.
+
+    Attributes:
+        prefix: 실제로 돈 벤더 문자열의 앞머리(빈 문자열 = 폴백 성질).
+        anchor_on_speech_end: **턴 종료 시계를 speech_end 오프셋에 건다.**
+            ⭐ 전사에 오프셋이 없는 엔진에서 유일한 위치 정보가 speech_end 다. 켜면 임계값
+              (800ms)을 **안 건드리고** 파이프라인 지연만큼 앞당긴다 — 문장을 자를 위험이 없다.
+            ⛔ 켜도 되는 조건은 하나다: **바닥값 ≥ 이 엔진의 전사 도착 지연(p95).**
+              안 그러면 글자가 오기 전에 턴이 닫힌다(2026-08-07 그 결함).
+        final_after_end_ms: speech_end 뒤 최종 전사가 오기까지(실측 **p95**) = 이 엔진의 바닥값.
+    """
+
+    prefix: str
+    anchor_on_speech_end: bool
+    final_after_end_ms: int
+
+
+# ⭐ openai: 사장님 실기기 408초 통화 15표본 — 중앙값 320ms · **p95 430ms** · 최대 603ms.
+#   바닥 450ms 는 그 p95 위다. ⚠ 최대 603ms 는 덮지 못한다 — 그때는 빈 턴으로 닫히고 늦은
+#   전사가 새 턴을 연다(대답은 나간다. `_is_stale_tail` 의 빈 턴 수용 경로).
+#   ⛔ 그 꼬리까지 덮으려고 바닥을 600 으로 올리면 **이득이 사라진다**(버는 게 320ms 다).
+# ⛔ google: **앵커를 쓰지 않는다.** 2026-08-07 실측이 그 엔진 것이고(전사 723~870ms >
+#   VAD 291~348ms), 지금도 그 성질이 유효한지 잰 적이 없다. R5 폴백으로 살아 있는 경로라
+#   모르는 채로 켜면 그 통화만 조용히 깨진다.
+_STT_PROFILES: tuple[_SttProfile, ...] = (
+    _SttProfile("openai-", anchor_on_speech_end=True, final_after_end_ms=450),
+)
+_STT_FALLBACK_PROFILE = _SttProfile("", anchor_on_speech_end=False, final_after_end_ms=0)
+
+
+def _stt_profile_for(vendor: str) -> _SttProfile:
+    """벤더 문자열 → 성질. 모르는 엔진은 **앵커 없이**(현행 그대로) 간다."""
+    name = (vendor or "").strip().lower()
+    for profile in _STT_PROFILES:
+        if profile.prefix and name.startswith(profile.prefix):
+            return profile
+    return _STT_FALLBACK_PROFILE
+
+
 _TTS_PROFILES: dict[str, _TtsProfile] = {
     # Chirp: TTFB 165~212ms — 왕복이 짧아 첫 문장 단독이 **이득**이다(첫 소리가 빨라진다).
     _CHIRP_CHOICE: _TtsProfile(
@@ -1133,6 +1178,13 @@ class CascadeSession:
         #     사흘 뒤에 태어났다 — 92d8c10). 지금 엔진에서는 잰 적이 없다.
         self._speech_end_at = 0.0
         self._final_lag_ms = -1     # -1 = 이 턴에서 못 쟀다(0 으로 먹지 않는다)
+        # ⭐ **이 턴의 '말 끝난 지점'**(오디오 시각). 앵커가 이 값을 쓴다 — 세션 전역
+        #   `_last_speech_end_offset_ms`(이어붙임 판정용)와 **다른 것**이다: 그건 턴을 넘어
+        #   살아남고, 이건 턴마다 지워진다. 섞으면 앞 턴의 지점으로 이번 턴을 재게 된다.
+        self._turn_end_offset_ms = -1
+        self._anchor_saved_ms = 0   # 앵커가 이 턴에서 실제로 앞당긴 시간(0 = 못 벌었다)
+        # 실제로 돈 STT 벤더(스트림이 말해 준다 — 설정이 아니라 **결과**다. 폴백이 있다).
+        self._stt_vendor = ""
         # 턴 누적
         self._turn_seq = 0
         self._turn_id: str | None = None
@@ -1274,6 +1326,18 @@ class CascadeSession:
             logger.exception("캐스케이드 STT v2 개시 실패")
             await self._safe(ServerError(code="stt_start_failed", message=str(exc), recoverable=False))
             return
+
+        # ⭐ **실제로 돈 엔진을 여기서 굳힌다**(설정이 아니라 `start()` 의 결과다 — 키가 없거나
+        #   개시가 실패하면 스트림이 조용히 google 로 폴백한다). 턴 종료 앵커를 켤지가 이 값에
+        #   달렸으므로, 설정으로 판단하면 **폴백된 통화에서 잘못된 앵커**가 켜진다.
+        self._stt_vendor = getattr(stream, "vendor", "") or ""
+        profile = self._stt_profile()
+        logger.info(
+            "cascade stt 엔진: %s 벤더=%s 턴앵커=%s%s",
+            self._sid, self._stt_vendor or "미상",
+            "speech_end" if profile.anchor_on_speech_end else "전사(현행)",
+            " 바닥=%dms" % profile.final_after_end_ms if profile.anchor_on_speech_end else "",
+        )
 
         self._t0 = time.monotonic()
         await self._safe(
@@ -1631,6 +1695,9 @@ class CascadeSession:
         if event.offset_ms >= 0:
             # 이어붙임의 기준점 — 벤더가 **말이 끝났다고 선언한** 오디오 시각.
             self._last_speech_end_offset_ms = event.offset_ms
+            # ⭐ 턴 종료 시계의 **앵커**. 위와 값은 같아도 수명이 다르다(이건 턴과 함께 죽는다).
+            if self._turn_id is not None:
+                self._turn_end_offset_ms = event.offset_ms
         self._mark_voice(event)
         # ⛔ **턴이 열려 있나만 본다.** 예전엔 `state == USER_SPEAKING` 도 요구했는데,
         #   `_open_turn` 은 비버가 말하는 중이면 **일부러 상태를 안 뺏는다**(barge-in 겹침 허용).
@@ -1768,6 +1835,10 @@ class CascadeSession:
             return
         self._turn_idle_at = time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
 
+    def _stt_profile(self) -> _SttProfile:
+        """이 통화에서 **실제로 돈** STT 엔진의 성질(설정이 아니라 스트림이 말한 값)."""
+        return _stt_profile_for(self._stt_vendor)
+
     def _turn_has_text(self) -> bool:
         """이 턴에서 **글자가 한 번이라도 나왔나** — 전사 기준 판정의 전제다."""
         return bool(self._finals) or bool(self._partial.strip())
@@ -1787,19 +1858,45 @@ class CascadeSession:
 
         그래서 바닥(CASCADE_TURN_MIN_WAIT_MS)을 둔다 — 지연이 임계를 넘어도 **최종 전사가
         도착할 시간은 항상 남긴다.** 지연이 임계보다 작을 때의 동작은 예전과 같다.
+
+        ⭐⭐ **2026-08-13: 그 부결의 근거가 다른 벤더 것이었다.** 위 723~870ms 는 Google STT v2
+        실측이고, `core/openai_stt.py` 는 그 **사흘 뒤**에 태어났다(92d8c10). 지금 기본 엔진에서
+        다시 재니(408초 실통화 15표본) **중앙값 320ms · p95 430ms** 였다 — VAD 지연(중앙 170ms)
+        보다 크지만 **바닥값으로 덮을 수 있는 크기**다. ⇒ 그 엔진에서만 앵커를 켠다.
+        ⛔ 켜는 판단은 **엔진 성질 표**(`_SttProfile`)가 한다. 이름으로 분기하지 않는다.
+
+        ⚠ **전사 이벤트도 같은 앵커를 쓴다.** 안 그러면 이득이 0 이다: 이 엔진의 전사에는
+          오프셋이 없어서, 최종 전사가 도착할 때 시계가 **거기서 다시 800ms** 로 밀린다 —
+          speech_end 에서 아무리 앞당겨도 뒤에 온 전사가 도로 늦춘다. 우리가 기다리는 침묵은
+          **말이 끝난 지점**부터지 전사가 도착한 시각부터가 아니다.
         """
+        profile = self._stt_profile()
         already_ms = 0.0
-        # ⭐ **VAD 이벤트의 오프셋으로는 빼지 않는다**(2026-08-07). 두 시계가 다르기 때문이다:
-        #   우리가 기다리는 건 **최종 전사**인데, 그 지연(실측 723~870ms)이 VAD 이벤트 지연
-        #   (실측 291~348ms)보다 훨씬 크다. VAD 기준으로 300ms 를 빼고 500ms 만 기다리면
-        #   전사는 그 뒤에 도착하고, 그 턴은 **말을 했는데 빈 채로** 닫힌다(u2/u4/u7/u9 —
-        #   speech_ms 가 1~4초인데 text=''). 전사 오프셋일 때만 빼는 게 맞다.
+        anchor_ms, by_vad = -1, False
         if event.offset_ms >= 0 and event.kind == TRANSCRIPT:
-            already_ms = max(0.0, self._audio_ms - event.offset_ms)
+            anchor_ms = event.offset_ms
+        elif profile.anchor_on_speech_end:
+            if event.kind == SPEECH_END and event.offset_ms >= 0:
+                anchor_ms, by_vad = event.offset_ms, True
+            elif self._turn_end_offset_ms >= 0:
+                # 이 턴에서 벤더가 알려준 **말 끝난 지점**(전사 이벤트가 여기로 온다).
+                anchor_ms, by_vad = self._turn_end_offset_ms, True
+        if anchor_ms >= 0:
+            already_ms = max(0.0, self._audio_ms - anchor_ms)
         threshold_ms = self._silence_ms if silence_ms is None else max(0, silence_ms)
         remain_s = max(0.0, (threshold_ms - already_ms) / 1000.0)
-        floor_s = max(0, settings.CASCADE_TURN_MIN_WAIT_MS) / 1000.0
-        self._close_at = time.monotonic() + max(remain_s, floor_s)
+        floor_ms = max(0, settings.CASCADE_TURN_MIN_WAIT_MS)
+        # ⛔ 엔진 바닥값은 **최종 전사를 아직 기다리는 동안만** 건다. 글자가 이미 손에 들어온
+        #   뒤에는 더 기다릴 이유가 없다 — 거기서도 걸면 앵커로 번 시간을 바닥이 도로 먹는다.
+        if profile.anchor_on_speech_end and not (event.kind == TRANSCRIPT and event.is_final):
+            floor_ms = max(floor_ms, profile.final_after_end_ms)
+        wait_s = max(remain_s, floor_ms / 1000.0)
+        # ⭐ **앵커가 실제로 번 시간.** 예측(산수 320ms)을 적어 두고 검증하지 않으면 오늘 우리가
+        #   반복한 그 실수가 된다 — 값이 0 이면 앵커는 켜졌는데 아무것도 못 벌고 있는 것이다.
+        self._anchor_saved_ms = (
+            int(max(0.0, threshold_ms / 1000.0 - wait_s) * 1000) if by_vad else 0
+        )
+        self._close_at = time.monotonic() + wait_s
 
     async def _open_turn(self, at: float) -> None:
         self._turn_seq += 1
@@ -1817,6 +1914,8 @@ class CascadeSession:
         self._turn_began_at = at
         self._speech_end_at = 0.0
         self._final_lag_ms = -1      # 턴마다 새로 잰다(앞 턴 값이 새 턴에 묻어가면 안 된다)
+        self._turn_end_offset_ms = -1
+        self._anchor_saved_ms = 0
         self._finals = []
         self._partial = ""
         self._close_at = None
@@ -1868,9 +1967,9 @@ class CascadeSession:
         #     실으므로 그 값은 **순수 VAD 지연** = 앵커를 옮겼을 때 뺄 몫이다.
         logger.info(
             "cascade turn: %s/%s reason=%s speech_ms=%d silence_ms=%d pipeline_lag_ms=%d "
-            "전사확정=%dms 열림=%.1f초전 마지막음성=%.1f초전 미완=%s text=%r",
+            "전사확정=%dms 앵커절약=%dms 열림=%.1f초전 마지막음성=%.1f초전 미완=%s text=%r",
             self._sid, self._turn_id, reason, speech_ms, self._silence_ms, self._pipeline_lag_ms,
-            self._final_lag_ms,
+            self._final_lag_ms, self._anchor_saved_ms,
             max(0.0, now - self._turn_began_at),
             max(0.0, now - self._last_voice_at) if self._last_voice_at else -1.0,
             "yes" if _looks_unfinished(text) else "no", text,
