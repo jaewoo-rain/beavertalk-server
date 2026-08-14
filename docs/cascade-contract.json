@@ -647,6 +647,48 @@
       ]
     },
     {
+      "wire_type": "client_timing",
+      "model": "ClientCascadeTiming",
+      "doc": "클라가 **실제로 들린 시각**을 알려준다 — 비버 턴 하나당 1건(2026-08-15).",
+      "fields": [
+        {
+          "name": "turn_id",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "alias": null
+        },
+        {
+          "name": "audible_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
+          "name": "turn_start_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
+          "name": "cushion_ms",
+          "type": "int",
+          "required": false,
+          "default": -1,
+          "alias": null
+        },
+        {
+          "name": "estimated",
+          "type": "bool",
+          "required": false,
+          "default": false,
+          "alias": null
+        }
+      ]
+    },
+    {
       "wire_type": "ping",
       "model": "ClientPing",
       "doc": "keepalive 핑(서버는 pong 응답).",

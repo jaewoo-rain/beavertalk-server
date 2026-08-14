@@ -71,6 +71,7 @@ from core.stt import (
 from domains.learning.realtime.cascade_protocol import (
     BEAVER_FRAME_INTERVAL_MS,
     ServerBeaverPreparing,
+    ClientCascadeTiming,
     ClientPlaybackProgress,
     ClientRouteChange,
     ClientTestBeaver,
@@ -168,6 +169,9 @@ _OFFSET_FUTURE_TOLERANCE_MS = 500
 #   1.5 근거: 규격이 틀리면 배수로 어긋난다(2배·3배). 1.5 는 그 아래 어디에도 안 걸린다.
 _AUDIO_CLOCK_RATIO_MAX = 1.5
 _AUDIO_CLOCK_MIN_MS = 10_000    # 표본이 이만큼 쌓인 뒤에 본다(개시 직후의 버스트는 무의미)
+# 클라 계기와 조인하려고 들고 있는 **비버 턴별 서버 첫소리**의 개수 상한.
+# 클라 메시지는 그 턴이 끝난 직후에 오므로 몇 개면 충분하다 — 15분치를 들고 있을 이유가 없다.
+_FIRST_SOUND_HISTORY = 8
 # barge-in 에너지 이력: 이만큼의 오디오를 (시각, RMS)로 들고 있다가 **이벤트가 가리키는
 # 시각**에서 찾아본다. 파이프라인 지연(실측 0.8~0.9초)보다 넉넉해야 한다.
 _RMS_HISTORY_MS = 4000
@@ -1201,6 +1205,9 @@ class CascadeSession:
         self._anchor_saved_ms = 0   # 앵커가 이 턴에서 실제로 앞당긴 시간(0 = 못 벌었다)
         # 실제로 돈 STT 벤더(스트림이 말해 준다 — 설정이 아니라 **결과**다. 폴백이 있다).
         self._stt_vendor = ""
+        # ⭐ 비버 턴 id → 서버가 잰 **첫소리 ms**. 클라 계기(`client_timing`)와 조인할 키다.
+        #   ⛔ 로그로만 찍고 버리면 조인이 불가능하다 — 클라 메시지는 그 뒤에 온다.
+        self._first_sound_ms: dict[str, int] = {}
         # 턴 누적
         self._turn_seq = 0
         self._turn_id: str | None = None
@@ -1463,6 +1470,8 @@ class CascadeSession:
                     self._on_route_change(ctrl)
                 elif ctype == "playback_progress":
                     await self._on_playback_progress(ctrl)
+                elif ctype == "client_timing":
+                    self._on_client_timing(ctrl)
                 elif ctype == "__test_beaver":   # dev 훅(가짜 비버 오디오)
                     await self._start_fake_beaver(ctrl)
                 elif ctype == "__test_cancel":   # dev 훅(취소 배관)
@@ -1849,6 +1858,57 @@ class CascadeSession:
             self._turn_idle_at = None
             return
         self._turn_idle_at = time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
+
+    def _note_first_sound(self, turn_id: str | None, first_sound_ms: int) -> None:
+        """이 비버 턴의 **서버 첫소리**를 보관한다 — 클라 계기와 조인할 유일한 키다.
+
+        ⛔ 로그로만 찍고 버리면 조인이 **불가능**하다. 클라 메시지는 대답이 끝난 **뒤에**
+          오므로, 그때 서버 값이 남아 있어야 뺄셈이 성립한다.
+        ⚠ 상한을 둔다 — 15분 통화의 모든 턴을 들고 있을 이유가 없다(클라 계기는 곧 온다).
+        """
+        if not turn_id or first_sound_ms < 0:
+            return
+        self._first_sound_ms[turn_id] = first_sound_ms
+        while len(self._first_sound_ms) > _FIRST_SOUND_HISTORY:
+            self._first_sound_ms.pop(next(iter(self._first_sound_ms)))
+
+    def _on_client_timing(self, ctrl: dict) -> None:
+        """클라가 **실제로 들린 시각**을 보내 왔다 — 서버 값과 빼서 **한 줄로** 남긴다.
+
+        ⭐⭐ 이 뺄셈이 목적이다: `클라몫 = 들림 − 서버첫소리`. 오늘까지 이 값을 추정만 하고
+          **한 번도 못 쟀다**(표본이 사장님 손에 달려 있었다). 이제 통화마다 자동으로 쌓인다.
+        ⛔ 뺄셈을 **사람이 하게 두지 않는다.** 두 숫자만 찍으면 로그를 읽을 때마다 손으로
+          빼야 하고, 그러면 아무도 안 본다.
+        ⚠ R5: 여기서 나는 어떤 실패도 통화를 죽이지 않는다. **계측이 통화를 죽이면 안 된다.**
+        """
+        try:
+            payload = ClientCascadeTiming.model_validate(ctrl)
+        except Exception as exc:  # noqa: BLE001 - 구버전·깨진 메시지도 통화는 산다(R5)
+            logger.info("cascade 클라계기 무시(해석 실패) — %s", str(exc)[:120])
+            return
+        turn_id = payload.turn_id.strip()
+        server_ms = self._first_sound_ms.get(turn_id, -1) if turn_id else -1
+        # ⛔ **조용히 버리지 않는다.** 짝을 못 찾은 것도 사실이고, 그 사실이 안 보이면
+        #   "값이 안 쌓인다"를 원인 없이 겪는다(오늘 여러 번 밟은 계열이다).
+        if server_ms < 0:
+            logger.info(
+                "cascade 클라계기 짝없음: turn=%s 들림=%dms — 그 턴의 서버 첫소리가 없다"
+                "(취소된 턴이거나 소리가 안 나갔거나 id 가 어긋났다)",
+                turn_id or "미상", payload.audible_ms,
+            )
+            return
+        if payload.audible_ms < 0:
+            logger.info("cascade 클라계기 무시: turn=%s 들림 값이 없다(구버전 클라)", turn_id)
+            return
+        logger.info(
+            "cascade 클라계기: %s 들림=%dms 서버첫소리=%dms 클라몫=%dms "
+            "(쿠션 %s · turn_start %s · %s)",
+            turn_id, payload.audible_ms, server_ms, payload.audible_ms - server_ms,
+            "%d" % payload.cushion_ms if payload.cushion_ms >= 0 else "-",
+            "%d" % payload.turn_start_ms if payload.turn_start_ms >= 0 else "-",
+            # ⚠ 추정치가 실측과 같은 표에 섞이면 안 된다 — 줄에서 바로 갈리게 한다.
+            "⚠추정" if payload.estimated else "실측",
+        )
 
     def _stt_profile(self) -> _SttProfile:
         """이 통화에서 **실제로 돈** STT 엔진의 성질(설정이 아니라 스트림이 말한 값)."""
@@ -2434,6 +2494,8 @@ class CascadeSession:
                         timing.vendor_ms = self._tts_ttfb_ms
                         timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
                         first_audio_ms = timing.first_sound_ms
+                        # ⭐ 클라 계기와 조인할 값 — **여기서 보관하지 않으면 조인이 불가능하다.**
+                        self._note_first_sound(turn_id, first_audio_ms)
                     spoken_chars += len(prep.text)
                 except asyncio.CancelledError:
                     prep.cancel()
@@ -2785,6 +2847,7 @@ class CascadeSession:
                 timing.vendor_ms = self._tts_ttfb_ms
                 timing.mark_batch(int(sent / BEAVER_BYTES_PER_MS))
                 first_audio_ms = timing.first_sound_ms
+                self._note_first_sound(turn_id, first_audio_ms)
             if sent:
                 self._reply_spans.append((language, len(label), sent))
             spoken += len(seg_text)

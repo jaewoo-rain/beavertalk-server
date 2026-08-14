@@ -220,6 +220,18 @@
 |---|---|---|---|
 | `text` | `str` |  | `""` |
 
+### `client_timing`  (ClientCascadeTiming)
+
+클라가 **실제로 들린 시각**을 알려준다 — 비버 턴 하나당 1건(2026-08-15).
+
+| 필드 | 타입 | 필수 | 기본값 |
+|---|---|---|---|
+| `turn_id` | `str` |  | `""` |
+| `audible_ms` | `int` |  | `-1` |
+| `turn_start_ms` | `int` |  | `-1` |
+| `cushion_ms` | `int` |  | `-1` |
+| `estimated` | `bool` |  | `false` |
+
 ### `ping`  (ClientPing)
 
 keepalive 핑(서버는 pong 응답).

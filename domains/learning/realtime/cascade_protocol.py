@@ -62,6 +62,7 @@ __all__ = [
     "ServerHint",
     "ClientCascadeStart",
     "ClientCascadeStop",
+    "ClientCascadeTiming",
     "ClientPing",
     "ClientPlaybackProgress",
     "ClientRouteChange",
@@ -246,6 +247,33 @@ class ClientTestSay(BaseModel):
     text: str = ""
 
 
+class ClientCascadeTiming(BaseModel):
+    """클라가 **실제로 들린 시각**을 알려준다 — 비버 턴 하나당 1건(2026-08-15).
+
+    ⭐⭐ 목적은 평균이 아니라 **뺄셈**이다. 서버는 자기가 첫 소리를 **언제 보냈는지** 알고
+      (`첫소리=2270ms`), 클라는 그게 **언제 실제로 났는지** 안다. 둘을 빼면 지금까지
+      추정만 하고 **한 번도 못 잰** 값이 나온다:
+
+          클라 재생 몫 = audible_ms − 서버 첫소리
+
+    ⛔ 그래서 **턴 단위**여야 한다. 통화 끝에 평균만 받으면 짝을 못 맞춰 뺄셈이 성립하지 않는다.
+    ⛔ `turn_id` 는 **비버 턴 id**(`b58`)다 — 사용자 턴이 아니다. 서버가 `첫소리` 를 잰 턴이
+      그것이라, 그 키로 조인해야 두 값이 같은 사건을 가리킨다.
+    ⚠ R5: 이 메시지가 **안 와도, 필드가 없어도** 통화는 그대로 돈다(구버전 클라가 붙는다).
+      계측이 통화를 죽이면 안 된다 — 전부 기본값을 두고 처리 실패는 흡수한다.
+    """
+
+    type: Literal["client_timing"] = "client_timing"
+    turn_id: str = ""
+    # user_turn_end 수신 → **첫 소리가 실제로 난 시각**. 사용자가 기다린 시간이다.
+    audible_ms: int = -1
+    # user_turn_end 수신 → turn_start 도착(클라가 이미 쓰던 자 — 같이 받아 맞춰 본다).
+    turn_start_ms: int = -1
+    cushion_ms: int = -1
+    # ⚠ True = 네이티브 잔량을 못 받아 **추정**한 값. 실측과 같은 표에 섞으면 안 된다.
+    estimated: bool = False
+
+
 class ClientTestEvent(BaseModel):
     """[dev 훅] 페이크 STT 에 음성활동 이벤트를 주입."""
 
@@ -285,6 +313,7 @@ CascadeClientMessage = Annotated[
         ClientPing,
         ClientPlaybackProgress,
         ClientRouteChange,
+        ClientCascadeTiming,
         ClientTestSay,
         ClientTestEvent,
         ClientTestBeaver,
