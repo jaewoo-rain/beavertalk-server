@@ -87,7 +87,46 @@ _configure_logging()
 logger = logging.getLogger(__name__)
 
 
-def _create_genai_client(settings: Settings, location: str | None = None) -> Any | None:
+def _keepalive_http_options(seconds: float) -> Any | None:
+    """커넥션을 **살려 두는** HttpOptions(0 이하면 None = 예전 동작).
+
+    ⭐ 왜: 턴마다 TLS 를 새로 맺는 데 ~185ms 를 쓰고 있었다(페어드 A/B 8쌍 전부 개선).
+    ⛔ 이 값이 **실제로 먹는지**는 설치된 SDK 가 정한다. google-genai 2.10 은
+      `async_client_args` 를 `httpx.AsyncClient(**args)` 로 그대로 넘기지만(`_api_client.py`
+      828~833 — 설치된 소스로 확인), **aiohttp 가 설치돼 있으면 async 경로가 aiohttp 로
+      바뀌고 이 인자는 `ssl` 말고는 전부 무시된다**(`_use_aiohttp`). 지금 이 환경에는
+      aiohttp 가 없다. ⇒ 나중에 누가 aiohttp 를 끌어오면 **이 설정이 조용히 죽는다.**
+      그래서 그 경우 **부팅 로그로 시끄럽게** 알린다(조용한 무효화를 만들지 않는다).
+    """
+    if seconds <= 0:
+        return None
+    try:
+        import httpx
+        from google.genai.types import HttpOptions
+        from google.genai import _api_client as genai_api_client
+    except Exception as exc:  # noqa: BLE001 - 미설치·시그니처 변경이면 그냥 안 쓴다(R5)
+        logger.warning("cascade LLM: keepalive 미적용(모듈/시그니처 없음) — %s", exc)
+        return None
+    if getattr(genai_api_client, "has_aiohttp", False):
+        # ⛔ 조용히 안 먹는 상태를 만들지 않는다 — 오늘 하루 우리를 가장 많이 태운 유형이다.
+        logger.warning(
+            "cascade LLM: ⚠ aiohttp 가 설치돼 있어 keepalive(httpx limits)가 **안 먹는다**. "
+            "aiohttp 를 빼거나 aiohttp 용 커넥터로 다시 붙여라"
+        )
+        return None
+    return HttpOptions(
+        async_client_args={
+            "limits": httpx.Limits(
+                max_keepalive_connections=8,
+                max_connections=32,
+                keepalive_expiry=seconds,
+            )
+        }
+    )
+
+
+def _create_genai_client(settings: Settings, location: str | None = None,
+                         http_options: Any | None = None) -> Any | None:
     """normalcall 용 genai.Client 를 생성한다(실패 시 None — 통화만 비활성, 앱은 정상).
 
     `location` 을 주면 그 리전으로 만든다(기본은 `GCP_LOCATION`). 리전만 다른 **두 번째**
@@ -118,16 +157,19 @@ def _create_genai_client(settings: Settings, location: str | None = None) -> Any
                 "normalcall: Vertex genai 클라이언트 생성 project=%s location=%s model=%s",
                 settings.GCP_PROJECT, where, settings.GEMINI_LIVE_MODEL,
             )
+            extra = {"http_options": http_options} if http_options is not None else {}
             return genai.Client(
                 vertexai=True,
                 project=settings.GCP_PROJECT,
                 location=where,
                 credentials=creds,
+                **extra,
             )
         if not settings.GEMINI_API_KEY:
             logger.warning("normalcall: GEMINI_API_KEY 없음 → genai 비활성(통화 불가).")
             return None
-        return genai.Client(api_key=settings.GEMINI_API_KEY)
+        extra = {"http_options": http_options} if http_options is not None else {}
+        return genai.Client(api_key=settings.GEMINI_API_KEY, **extra)
     except Exception as exc:  # noqa: BLE001 - 미설치/인증/임의 예외 graceful
         logger.warning("normalcall: genai 클라이언트 생성 실패 → 비활성: %s", exc)
         return None
@@ -154,15 +196,34 @@ def _create_cascade_client(
     """
     base = (settings.GCP_LOCATION or "").strip()
     where = (settings.CASCADE_LLM_LOCATION or "").strip()
+    http_options = _keepalive_http_options(settings.CASCADE_LLM_KEEPALIVE_S)
     if not where or where == base:
-        return default_client, base
-    client = _create_genai_client(settings, location=where)
+        # ⭐⭐ **keepalive 를 켜면 리전이 같아도 객체를 따로 만든다**(2026-08-15). 안 그러면
+        #   Live 와 같은 클라이언트를 쓰게 되고, 그러면 ①Live 의 커넥션 정책까지 바꾸거나
+        #   ②캐스케이드에 아무 효과가 없거나 둘 중 하나다 — 둘 다 안 된다.
+        #   ⚠ 지금 배포에 `CASCADE_LLM_LOCATION` 이 없을 수 있고, 그때 여기로 온다.
+        #     리전이 같아도 **커넥션 정책이 다르다**는 이유만으로 객체를 가르는 것이다.
+        if http_options is None:
+            return default_client, base
+        client = _create_genai_client(settings, location=base, http_options=http_options)
+        if client is None:
+            logger.warning("cascade LLM: keepalive 클라이언트 생성 실패 → 기본 클라이언트로 계속")
+            return default_client, base
+        logger.info(
+            "cascade LLM: 대답 전용 클라이언트(리전 동일 %s) keepalive=%.0fs — Live 와 분리했다",
+            base, settings.CASCADE_LLM_KEEPALIVE_S,
+        )
+        return client, base
+    client = _create_genai_client(settings, location=where, http_options=http_options)
     if client is None:
         logger.warning(
             "cascade LLM: %s 리전 클라이언트 생성 실패 → 기본 리전(%s)으로 계속한다", where, base,
         )
         return default_client, base
-    logger.info("cascade LLM: 대답 전용 클라이언트 location=%s (Live 는 %s 그대로)", where, base)
+    logger.info(
+        "cascade LLM: 대답 전용 클라이언트 location=%s keepalive=%s (Live 는 %s 그대로)",
+        where, "%.0fs" % settings.CASCADE_LLM_KEEPALIVE_S if http_options else "off", base,
+    )
     # ⚠ **실제로 만들어진 리전**을 돌려준다(설정값이 아니라) — 폴백이 일어났는데 설정값을
     #   찍으면 로그가 거짓말을 한다. 통화 로그가 이 값을 그대로 쓴다.
     return client, where

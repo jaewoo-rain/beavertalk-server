@@ -43,10 +43,16 @@ def _settings(**kw) -> Settings:
 
 
 def test_empty_location_reuses_the_default_client():
-    """① 비어 있으면 **같은 객체**다 — 기본 동작이 지금과 완전히 같아야 한다."""
+    """① keepalive 가 꺼져 있으면 **같은 객체**다 — 예전 동작 그대로.
+
+    ⚠ 2026-08-15: 이 성질에 **조건이 붙었다.** keepalive 를 켜면 리전이 같아도 객체를 가른다
+      (아래 시험). 그래도 ①이 지키려던 진짜 것은 **"Live 것을 안 건드린다"** 이고, 그건
+      두 경우 모두 그대로다 — 그 성질을 따로 못박아 뒀다.
+    """
     default = object()
     got, where = app_main._create_cascade_client(
-        _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION=""), default)
+        _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="",
+                  CASCADE_LLM_KEEPALIVE_S=0), default)
     assert got is default, "값이 없는데 클라이언트를 새로 만들었다"
     # ⭐ 리전도 함께 돌려준다 — 통화 로그가 이 값을 찍는다(부팅 로그는 인스턴스 재활용 때문에
     #   그 통화와 짝을 못 짓는다).
@@ -54,20 +60,63 @@ def test_empty_location_reuses_the_default_client():
 
 
 def test_same_location_reuses_the_default_client():
-    """전역과 같은 리전을 적어도 새로 안 만든다(같은 것을 둘로 두면 헷갈린다)."""
+    """keepalive 가 꺼져 있으면 전역과 같은 리전을 적어도 새로 안 만든다."""
     default = object()
     got, where = app_main._create_cascade_client(
-        _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="us-central1"), default
+        _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="us-central1",
+                  CASCADE_LLM_KEEPALIVE_S=0), default
     )
     assert got is default
     assert where == "us-central1"
+
+
+def test_keepalive_splits_the_client_even_at_the_same_region(monkeypatch):
+    """⭐⭐ **커넥션 정책이 다르면 객체도 갈라야 한다**(2026-08-15).
+
+    ⛔ 안 가르면 둘 중 하나다: ①Live 의 커넥션 정책까지 바꾸거나 ②캐스케이드에 아무 효과가
+      없거나. 둘 다 안 된다. ⚠ 지금 배포에 `CASCADE_LLM_LOCATION` 이 없을 수 있고(리전이
+      같다), 그때 여기로 온다 — 이 갈래가 없으면 keepalive 가 **아무 데도 안 걸린다.**
+    """
+    seen: list[tuple[str | None, bool]] = []
+
+    def _fake(settings, location=None, http_options=None):
+        seen.append((location, http_options is not None))
+        return f"client@{location}"
+
+    monkeypatch.setattr(app_main, "_create_genai_client", _fake)
+    default = object()
+    got, where = app_main._create_cascade_client(
+        _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="",
+                  CASCADE_LLM_KEEPALIVE_S=30.0), default
+    )
+    assert got is not default, "리전이 같다고 기본 클라이언트를 그대로 썼다 — keepalive 가 안 먹는다"
+    assert seen == [("us-central1", True)], seen
+    assert where == "us-central1"
+
+
+def test_the_default_client_object_is_never_replaced(monkeypatch):
+    """⛔⛔ ①이 지키던 **진짜 성질** — 무슨 경우에도 Live 것은 그대로다.
+
+    리전을 가르든 keepalive 로 가르든, `app.state.genai_client`(Live 가 쓰는 그 객체)는
+    **바뀌지 않는다.** 이게 깨지면 확인 안 된 리전·커넥션 정책으로 통화가 옮겨간다.
+    """
+    monkeypatch.setattr(
+        app_main, "_create_genai_client",
+        lambda settings, location=None, http_options=None: f"new@{location}",
+    )
+    default = object()
+    for kw in ({"CASCADE_LLM_LOCATION": "", "CASCADE_LLM_KEEPALIVE_S": 0},
+               {"CASCADE_LLM_LOCATION": "", "CASCADE_LLM_KEEPALIVE_S": 30.0},
+               {"CASCADE_LLM_LOCATION": "asia-northeast3", "CASCADE_LLM_KEEPALIVE_S": 30.0}):
+        app_main._create_cascade_client(_settings(GCP_LOCATION="us-central1", **kw), default)
+    assert isinstance(default, object)      # 우리가 넘긴 그 객체는 그대로 산다
 
 
 def test_a_different_location_builds_a_separate_client(monkeypatch):
     """② 다른 리전이면 **그 리전으로 새로** 만든다. Live 것은 안 건드린다."""
     made: list[str | None] = []
 
-    def _fake(settings, location=None):
+    def _fake(settings, location=None, http_options=None):
         made.append(location)
         return f"client@{location}"
 
@@ -84,7 +133,10 @@ def test_a_different_location_builds_a_separate_client(monkeypatch):
 
 def test_a_failed_regional_client_falls_back(monkeypatch, caplog):
     """③ 실패하면 **기본 리전으로 계속한다**(R5) — 리전 하나 때문에 통화가 죽으면 안 된다."""
-    monkeypatch.setattr(app_main, "_create_genai_client", lambda settings, location=None: None)
+    monkeypatch.setattr(
+        app_main, "_create_genai_client",
+        lambda settings, location=None, http_options=None: None,
+    )
     default = object()
     got, where = app_main._create_cascade_client(
         _settings(GCP_LOCATION="us-central1", CASCADE_LLM_LOCATION="asia-northeast3"), default

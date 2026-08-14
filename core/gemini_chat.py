@@ -68,6 +68,17 @@ class ChatStream:
         except Exception as exc:  # noqa: BLE001 - 중도 실패도 흡수(이미 말한 데까지는 유효)
             self.failed = True
             logger.warning("cascade llm: 스트림 중단(무시) — %s", exc)
+            return
+        # ⛔⛔ **아무것도 안 왔는데 조용히 끝나는 경우**(2026-08-15). 스트림은 정상적으로
+        #   열리고 정상적으로 닫혔는데 텍스트가 0 이면, 호출부는 그냥 말을 안 한다 —
+        #   사용자에겐 **먹통**이고 로그에는 아무 흔적이 없다. 커넥션을 오래 재사용하면
+        #   (keepalive) 벤더/GFE 가 유휴 커넥션을 끊는 자리가 여기라, 이 줄이 없으면
+        #   그 사고가 나도 **못 찾는다.** 예외가 아니므로 `failed` 는 세우지 않는다.
+        if not self.text:
+            logger.warning(
+                "cascade llm: ⚠ **빈 스트림** — 개시·종료 모두 정상인데 텍스트가 0 자다"
+                "(이 턴은 비버가 말을 안 한다). 커넥션 재사용/쿼터/안전필터를 의심해라"
+            )
 
 
 def open_chat_stream(

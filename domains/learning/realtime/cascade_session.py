@@ -657,7 +657,7 @@ class _ReplyTiming:
     """
 
     __slots__ = ("began", "queued_ms", "chunk_at", "sentence_at", "request_at", "audio_at",
-                 "batch_at", "vendor_ms", "batch_audio_ms")
+                 "batch_at", "vendor_ms", "batch_audio_ms", "notified_at", "closed_at")
 
     def __init__(self, began: float, queued_ms: int = 0) -> None:
         self.began = began
@@ -673,6 +673,11 @@ class _ReplyTiming:
         self.batch_at = 0.0        # 첫 배치가 **전량** 나간 시각(페이서가 실시간으로 흘린다)
         self.vendor_ms = -1        # 벤더가 첫 오디오를 주기까지(report["ttfb_ms"])
         self.batch_audio_ms = 0    # 첫 배치의 오디오 길이
+        # ⭐ `LLM첫조각` 안에 **우리 WS 전송 1건**이 들어 있다(`beaver_preparing`). 크기를
+        #   몰라서 844ms 를 통째로 "LLM 이 느리다"로 읽고 있었다.
+        self.notified_at = 0.0
+        # ⭐ 문장 상한에서 `stream.aclose()` 로 벤더 스트림을 닫는 데 걸린 시간(`묶음대기` 안).
+        self.closed_at = 0.0
 
     def mark_chunk(self) -> None:
         self.chunk_at = self.chunk_at or time.monotonic()
@@ -685,6 +690,14 @@ class _ReplyTiming:
         """첫 바이트가 나간 시각. 인자로 **원장이 기록한 실제 시각**을 받는다."""
         self.mark_sentence()
         self.audio_at = self.audio_at or at or time.monotonic()
+
+    def mark_notified(self) -> None:
+        """`beaver_preparing(llm)` WS 전송이 **끝난** 시각 — 이 전송은 `LLM첫조각` 안에 있다."""
+        self.notified_at = self.notified_at or time.monotonic()
+
+    def mark_closed(self) -> None:
+        """문장 상한에서 벤더 스트림을 **닫은** 시각(`묶음대기` 안에 들어 있다)."""
+        self.closed_at = self.closed_at or time.monotonic()
 
     def mark_request(self, at: float) -> None:
         """첫 합성 요청을 **건 시각** — 벤더 왕복의 출발점이다(도착점은 `vendor_ms`)."""
@@ -731,6 +744,16 @@ class _ReplyTiming:
                 ms(self.batch_at, self.began), self.batch_audio_ms,
                 ms(self.batch_at, self.audio_at),
             )
+        # ⭐ **큰 항목 안에 숨은 우리 몫**(2026-08-15). 둘 다 다른 칸에 이미 포함돼 있다 —
+        #   빼서 세지 마라. 여기 값이 크면 원인이 벤더가 아니라 **우리 배관**이라는 뜻이다.
+        #   ⚠ 못 잰 회차는 아예 안 찍는다(0 으로 찍으면 "없었다"로 읽힌다).
+        inner = []
+        if self.notified_at:
+            inner.append("WS알림 %dms" % ms(self.notified_at, self.began))
+        if self.closed_at and self.sentence_at:
+            inner.append("스트림닫기 %dms" % ms(self.closed_at, self.sentence_at))
+        if inner:
+            line += " [내부: %s]" % " · ".join(inner)
         return line
 
 
@@ -1412,7 +1435,12 @@ class CascadeSession:
                 #   스타트를 흡수한다: 실측에서 첫 대답만 9971ms 였고 그다음은 2.6~3.0초였다.
                 #   사용자가 마이크를 허용하고 자세를 잡는 사이에 그 10초가 인사말에 실린다.
                 if settings.CASCADE_GREETING:
-                    await self._start_reply(seed_opening(), is_greeting=True)
+                    # ⭐ **배우는 언어를 넘긴다**(2026-08-15). 인자를 안 넘기면 `seed_opening`
+                    #   기본값이 "한국어"라, 다른 언어를 배우는 학습자에게도 "한국어 공부할래?"
+                    #   로 첫인사를 했다. Live 는 넘기고 있었다(`call_session.py:1091`).
+                    await self._start_reply(
+                        seed_opening(self._target_label), is_greeting=True
+                    )
         except* _Stop:
             pass  # 정상 종료(클라 stop / 스트림 끝 / disconnect)
         except* TimeoutError:
@@ -2578,9 +2606,10 @@ class CascadeSession:
                 # ⚠ 이력에는 **실제로 말한 것만**(버린 꼬리 제외).
                 self._remember_beaver(turn_id, strip_emotion_tags(self._batch_spoken))
                 logger.info(
-                    "cascade 대답%s(배치): turn=%s %s %s %s 글자=%d%s 자막=%d개 "
+                    "cascade 대답%s(배치): turn=%s %s %s %s %s 글자=%d%s 자막=%d개 "
                     "tts=%s %s %s",
                     "(선톡)" if is_greeting else "", turn_id, timing.summary(),
+                    self._llm_tokens_log(chat.usage_metadata),
                     self._emotion_log(), self._rate_log(), spoken_chars,
                     "(상한잘림 꼬리%d자버림)" % len(self._batch_dropped)
                     if self._batch_dropped else ("(상한잘림)" if chat.truncated else ""),
@@ -2596,6 +2625,9 @@ class CascadeSession:
             await self._safe(ServerBeaverPreparing(
                 stage="llm", elapsed_ms=int((time.monotonic() - began) * 1000),
             ))
+            # ⭐ **이 WS 전송이 `LLM첫조각` 안에 들어 있다**(2026-08-15). 844ms 중 얼마인지
+            #   몰라서 "LLM 이 느리다"로 뭉뚱그려 읽고 있었다. 크면 벤더가 아니라 우리 소켓이다.
+            timing.mark_notified()
             # ⭐⭐ **문장 개수가 길이를 정한다**(2026-08-12 사장님 "응답은 1~4문장이야").
             #   토큰으로 자르면 문장 중간에서 끊겨 꼬리를 버렸다(call 938: 99자 = 말한 것의 4배).
             #   ⛔ 새 파서를 만들지 않는다 — **이미 쓰는 `SentenceBuffer` 를 종료 조건으로도**
@@ -2634,6 +2666,9 @@ class CascadeSession:
                     #     통째로 사라진다.
                     capped = True
                     await stream.aclose()
+                    # ⭐ 상한에서 스트림을 닫는 데 걸린 시간 — `묶음대기`(82ms) 안에 이게 얼마나
+                    #   들어 있는지 몰랐다. 벤더 스트림 종료가 느리면 여기가 곧 첫소리 지연이다.
+                    timing.mark_closed()
                     break
             # ⭐ **LLM 이 끝난 시각**(프론트 요청 A, 2026-08-13). 지금까지는 `llm`(시작)과
             #   `tts`(첫 합성)뿐이라 클라가 "LLM 이 얼마나 걸렸나"를 못 봤다 — LLM·TTS·STT
@@ -2682,9 +2717,11 @@ class CascadeSession:
                 #   통화 시작의 `cascade 설정:` 줄에 이미 있다. ⛔ `tts=` 는 남긴다:
                 #   가짓수 1 이지만 **폴백하면 바뀐다**("지금 안 변한다"와 "영영 안 변한다"는
                 #   다르다 — 폴백이 일어난 날 아무것도 안 남으면 안 된다).
-                "cascade 대답%s: turn=%s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
+                "cascade 대답%s: turn=%s %s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
                 "언어분할=%s gemini호출=%d %s %s %s %s %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
+                # ⭐ prefill 이 `LLM첫조각` 의 얼마인지는 이 값 없이는 못 본다.
+                self._llm_tokens_log(chat.usage_metadata),
                 self._emotion_log(), self._rate_log(), spoken_chars,
                 # ⭐ **잘렸다는 사실이 보여야 한다.** 조용히 잘리면 "왜 말이 이상하지"를 못 찾는다.
                 # ⭐ **끝난 이유를 구분한다.** 문장 상한은 정상 종료고, 토큰 상한은 병리다
@@ -2996,6 +3033,22 @@ class CascadeSession:
             return
         lead_ms = int((prev_done - prep.opened_at) * 1000)
         self._batch_leads.append((lead_ms, int(ttfb)))
+
+    @staticmethod
+    def _llm_tokens_log(usage: Any) -> str:
+        """이 대답의 **입력·캐시 토큰** — prefill 이 첫조각 지연의 얼마인지 보려면 이게 있어야 한다.
+
+        ⛔ **없는 회차는 `-` 다.** 0 으로 찍으면 "입력이 0 이었다"는 거짓말이 되고, 그 표로
+          "프롬프트는 범인이 아니다"라는 결론을 내리게 된다. 문장 상한에서 스트림을 일찍
+          닫은 회차는 벤더 토큰이 **영영 안 온다**(usage 는 마지막 조각에만 실린다).
+        """
+        def _pick(name: str) -> str:
+            value = getattr(usage, name, None) if usage is not None else None
+            return str(int(value)) if isinstance(value, (int, float)) else "-"
+
+        return "입력=%s토큰 캐시=%s토큰" % (
+            _pick("prompt_token_count"), _pick("cached_content_token_count"),
+        )
 
     def _lead_log(self) -> str:
         """묶음별 `여유−벤더`(초). 음수 = **그만큼 소리가 빈다**(선행이 왕복을 못 덮었다)."""
@@ -4307,6 +4360,13 @@ class CascadeSession:
                 #   부른다. ⚠ 이름이 없을 수 있다(소셜 가입·미입력) — `None` 이면 조립기가
                 #   예전과 **바이트 동일한** 문자열을 만든다(폴백이 원래 그 값이다).
                 name=setup.get("name"),
+                # ⭐⭐ **이건 결손이 아니라 틀린 내용의 주입이었다**(2026-08-15). 안 넘기면
+                #   조립기 기본값 `"beginner"` 가 들어가 `_LANG_POLICY` 가 초급 언어정책을
+                #   고른다 — 왕초보도 고급자도 **전원 초급 정책**을 받고 있었다.
+                #   ⚠ 값은 이미 손에 있었다: `load_call_setup` 이 `lang_band` 를 담아 준다
+                #     (`normalcall_service.py:296` = `mastery_repository.band_of(...)`).
+                #     Live 는 넘기고 있었고(`call_session.py:1088`) 캐스케이드만 빠져 있었다.
+                lang_band=setup.get("lang_band", "beginner"),
                 target_language=self._target_label,
                 # ⛔ 시드와 **같은 태그**여야 모델이 그 문구를 시스템 지시로 읽는다.
                 close_tag=self._close_tag,

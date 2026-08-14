@@ -232,6 +232,49 @@ def test_an_unmeasured_batch_wait_says_so():
     assert "벤더 240" in line and "송출 260" in line, line
 
 
+def test_the_hidden_inner_costs_are_shown_when_measured():
+    """⭐ 큰 항목 **안에 숨은 우리 몫**을 드러낸다(2026-08-15).
+
+    `LLM첫조각`(844ms) 안에는 우리 WS 전송이 1건 들어 있고, `묶음대기`(82ms) 안에는 벤더
+    스트림을 닫는 시간이 들어 있다. 크기를 몰라서 둘 다 "벤더가 느리다"로 읽히고 있었다.
+    ⛔ 이 값들은 다른 칸에 **이미 포함돼 있다** — 빼서 세면 이중 계산이 된다(그래서 `[내부: …]`).
+    """
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.mark_notified()
+    t.notified_at = 100.125
+    t.mark_closed()
+    t.closed_at = 100.875
+    t.vendor_ms = 240
+    t.mark_audio(101.25)
+    line = t.summary()
+    assert "[내부: WS알림 125ms · 스트림닫기 125ms]" in line, line
+
+
+def test_unmeasured_inner_costs_are_omitted():
+    """⛔ 못 잰 회차는 **아예 안 찍는다** — `0ms` 로 찍으면 "없었다"로 읽힌다."""
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.vendor_ms = 240
+    t.mark_audio(101.25)
+    assert "[내부:" not in t.summary(), t.summary()
+
+
+def test_the_token_log_never_reports_missing_usage_as_zero():
+    """⛔⛔ **usage 가 없는 회차는 `-` 다.** 0 으로 찍으면 "입력이 0 이었다"는 거짓말이 되고,
+    그 표로 "프롬프트는 범인이 아니다"라는 **틀린 결론**을 내리게 된다.
+
+    ⚠ 문장 상한에서 스트림을 일찍 닫은 회차는 벤더 토큰이 영영 안 온다(usage 는 마지막
+      조각에만 실린다) — 즉 이건 드문 경우가 아니라 **자주 있는 경우**다.
+    """
+    from types import SimpleNamespace
+
+    assert cs.CascadeSession._llm_tokens_log(None) == "입력=-토큰 캐시=-토큰"
+    assert cs.CascadeSession._llm_tokens_log(SimpleNamespace()) == "입력=-토큰 캐시=-토큰"
+    usage = SimpleNamespace(prompt_token_count=3100, cached_content_token_count=0)
+    assert cs.CascadeSession._llm_tokens_log(usage) == "입력=3100토큰 캐시=0토큰"
+
+
 def test_the_request_mark_keeps_the_first_one():
     """구간이 여럿이어도 **첫 요청**이 기준이다(뒤 구간은 앞 소리 뒤로 숨는다)."""
     t = cs._ReplyTiming(began=100.0)
