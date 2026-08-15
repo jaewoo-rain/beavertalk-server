@@ -377,7 +377,18 @@ let droppedFrames = 0, oddFrames = 0, badFrames = 0;
 function cushionMs() { return Math.max(0, parseInt($('#cushion').value, 10) || 0); }
 let respT0 = 0;              // user_turn_end 를 받은 시각(ms). 0 = 대기 중 아님
 const respAll = [];          // 이 통화 전체 표본 — 한 턴만 보고 판정하지 않으려고 모은다
-function respArm() { respT0 = nowMs(); }
+// ⭐⭐ **원점을 하나 더 잡는다**(2026-08-15, 사장님 지시: "마이크 인식되는 순간부터 재라").
+//   `respT0` 는 **서버가 「말 끝났다」고 알린 시각**이지 사용자가 입을 다문 시각이 아니다.
+//   그 앞에 침묵판정·전송·전사가 통째로 숨어 있어서(≈1.1초), 사용자가 느끼는 시간과
+//   우리 지표가 어긋난다 — 사장님 체감 "4~5초" vs 우리 지표 "2.8초"의 정체가 이것이다.
+// ⇒ 로컬 VAD 가 본 **첫 유성 프레임**을 같이 들고 있다가 함께 보낸다.
+let respSpeechT0 = 0;
+function respArm() {
+  respT0 = nowMs();
+  // ⚠ `firstVoicedAt` 은 유성 구간이 끝나면(400ms 무음) 다음 발화에서 다시 잡힌다.
+  //   `user_turn_end` 시점엔 이미 그 리셋이 지났을 수 있으므로 **여기서 굳혀 둔다.**
+  respSpeechT0 = firstVoicedAt || 0;
+}
 function respMark(soundAtMs) {
   if (!respT0) return;                              // 턴당 1회(첫 조각)만
   const ms = Math.round(soundAtMs - respT0);
@@ -386,7 +397,25 @@ function respMark(soundAtMs) {
   const s = [...respAll].sort((a, b) => a - b);
   const med = s[Math.floor(s.length / 2)];
   $('#mResp').textContent = `${med}ms`;
-  log(`⏱ 응답 ${ms}ms (말끝→첫소리 · 쿠션 ${cushionMs()}ms) — ${respAll.length}턴 중앙값 ${med}ms`, 'ok');
+  // ⭐ 사용자가 **실제로 기다린 시간** — 입을 연 순간부터. 없으면 -1(0 으로 채우지 않는다).
+  const fromSpeech = respSpeechT0 ? Math.round(soundAtMs - respSpeechT0) : -1;
+  respSpeechT0 = 0;
+  log(`⏱ 응답 ${ms}ms (말끝→첫소리 · 쿠션 ${cushionMs()}ms)`
+      + (fromSpeech > 0 ? ` · <b>말시작→첫소리 ${fromSpeech}ms</b>` : '')
+      + ` — ${respAll.length}턴 중앙값 ${med}ms`, 'ok');
+  // ⭐⭐ **서버로도 보낸다**(2026-08-15). 앱은 이미 보내는데 이 페이지만 화면에 찍고 말아서,
+  //   웹 vs 앱 비교를 할 때마다 사람이 화면을 읽어 알려 줘야 했다. 그 왕복이 병목이었다.
+  // ⛔ 사람에게 숫자를 물어보지 않는다 — 통화만 하면 서버 로그에 남아야 한다.
+  // ⚠ `turn_id` 는 **비버 턴**이어야 서버가 자기 `첫소리` 와 짝을 맞춘다(계약 그대로).
+  //   `estimated:false` — 이 페이지는 AudioContext 스케줄 시각이라 추정이 아니라 실측이다.
+  if (bTurnId) {
+    sendCtl({ type: 'client_timing', turn_id: bTurnId,
+              audible_ms: ms, cushion_ms: cushionMs(), estimated: false,
+              // ⚠ 서버가 아직 이 필드를 모르면 **조용히 무시된다**(pydantic 기본). 무해하다.
+              speech_to_sound_ms: fromSpeech });
+  } else {
+    log('client_timing 미전송 — 비버 turn_id 가 없다(서버가 조인 못 함)', 'w');
+  }
 }
 
 function beaverReset(turnId) {
