@@ -130,6 +130,21 @@ def detect_emotion(text: str) -> str | None:
     return m.group(1) if m else None
 
 
+def read_emotion_tags(text: str) -> list[str]:
+    """대사에 **몇 개의** 감정 태그가 나왔나 — ⛔ 관측 전용(판정은 안 바꾼다, 2026-08-16).
+
+    ⭐ 왜 필요한가: 실측 `감정=` 분포가 24시간 68턴 중 **neutral 55(80%)** 였다. 그런데
+      `detect_emotion` 은 **첫 태그만** 읽는다 ⇒ 모델이 `<neutral> … <happy> …` 를 냈다면
+      neutral 만 남고 뒤는 **사라진다.**
+      ⇒ **"모델이 원래 하나만 낸다"와 "우리가 뒤를 버린다"를 지금은 못 가른다.**
+        문장별 감정을 만들지 말지가 이 구분 하나에 달렸다.
+    ⛔ 그래서 세기만 한다. `detect_emotion` 도 `_sentence_emotion` 도 안 건드린다 —
+      판정과 계측을 같이 바꾸면 무엇이 바뀐 건지 못 가린다.
+    ⛔ 대사 원문은 여전히 안 남긴다(개인정보) — **태그 이름만** 낸다.
+    """
+    return _EMOTION_TAG_RE.findall(text or "")
+
+
 def strip_emotion_tags(text: str) -> str:
     """TTS 로 넘어가기 전에 태그를 **전부** 걷어낸다.
 
@@ -198,21 +213,6 @@ class SentenceBuffer:
             space = self._buf.rfind(" ", 0, _MAX_SENTENCE_CHARS)
             return space + 1 if space >= _MIN_SENTENCE_CHARS else _MAX_SENTENCE_CHARS
         return 0
-
-
-def split_sentences(text: str) -> list[str]:
-    """완성된 텍스트를 문장으로 쪼갠다 — ⛔ **새 규칙을 만들지 않는다.**
-
-    스트리밍 경로가 쓰는 `SentenceBuffer` 를 그대로 돌린다. "무엇이 한 문장인가"의 출처가
-    둘이 되면 자막(문장 마커)과 대답 길이 판정이 **다른 문장**을 세게 된다.
-    ⚠ 끝에 종결부호가 없는 꼬리도 버리지 않고 마지막 문장으로 낸다(`flush`).
-    """
-    buffer = SentenceBuffer()
-    out = [s for s in buffer.push(text or "")]
-    tail = buffer.flush()
-    if tail.strip():
-        out.append(tail)
-    return [s for s in out if s.strip()]
 
 
 # 언어 마커 — 비버가 **타깃 언어로 말하는 부분**을 감싼다: "오늘은 __How are you?__ 를 배울까?"
