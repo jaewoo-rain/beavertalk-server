@@ -307,3 +307,133 @@ def test_the_subtitle_count_has_a_different_name_from_the_language_split():
             and "문장마커" not in ln and ln.strip().startswith(('"', "'", "#", "f'", 'f"'))
             and not ln.strip().startswith("#")]
     assert not bare, f"맨 `마커=` 가 남아 자막과 헷갈린다: {bare}"
+
+
+# ── ⭐⭐ 문장별 감정 (2026-08-16 사장님: "문장별 감정 전달해줘서 영상통화때 쓰려고") ──
+#
+# 지금까지는 **묶음 하나 = 감정 하나**였다. 실측: 대답 길이 중앙 71자인데 묶음 임계가 400자라
+# 대답 전체가 한 묶음이고, `_EMOTION_TAG_RE.search` 는 **첫 태그만** 읽는다 ⇒ 뒤의 `<sad>` 는
+# 통째로 버려졌다. 로그에도 `자막=3개 감정=neutral` 로 그대로 보였다.
+#
+# ⛔ TTS 를 문장별로 쪼개는 길(목소리 톤까지 문장별)은 **채택되지 않았다** — 짧은 문장이
+#   단독 구간이 되면 그 뒤에 벤더 왕복(819ms)이 통째로 공백이 된다. 그래서 소리는 지금대로
+#   두고 **마커만** 문장 단위로 낸다.
+
+
+@pytest.mark.asyncio
+async def test_three_sentences_in_one_segment_get_three_markers(monkeypatch):
+    """⭐⭐ 한 구간(=한 TTS 요청) 안에 문장이 셋이면 마커도 **셋**이다."""
+    session = _session(monkeypatch)
+    await session.beaver.begin()
+    await session._speak("안녕하세요 반가워요. 오늘 기분은 어때요? 저는 아주 좋아요.")
+
+    markers = session.transport.markers()
+    assert [m["text"] for m in markers] == [
+        "안녕하세요 반가워요.", "오늘 기분은 어때요?", "저는 아주 좋아요.",
+    ], markers
+    assert [m["seq"] for m in markers] == [0, 1, 2], markers
+
+
+@pytest.mark.asyncio
+async def test_each_sentence_carries_its_own_emotion(monkeypatch):
+    """⭐⭐ **이게 이 작업의 전부다** — 문장마다 그 문장의 표정이 실린다.
+
+    예전에는 첫 태그 하나가 묶음 전체를 덮어 `<sad>` 가 버려졌다.
+    """
+    session = _session(monkeypatch)
+    await session.beaver.begin()
+    await session._speak("<happy> 잘했어요! <sad> 그런데 아쉽네요. 다시 해볼까요?")
+
+    markers = session.transport.markers()
+    assert [m["emotion"] for m in markers] == ["happy", "sad", "sad"], markers
+
+
+@pytest.mark.asyncio
+async def test_a_tagless_sentence_inherits_the_previous_one(monkeypatch):
+    """④ carry-forward 는 **문장 단위로도** 그대로다 — 규칙은 안 바꿨다(실측 근거가 있다).
+
+    모델은 문장마다 태그를 붙이지 않고 **감정이 바뀌는 지점에만** 붙인다.
+    """
+    session = _session(monkeypatch)
+    await session.beaver.begin()
+    await session._speak("<happy> 첫 문장입니다. 두 번째 문장입니다. 세 번째 문장입니다.")
+
+    assert [m["emotion"] for m in session.transport.markers()] == ["happy"] * 3
+
+
+@pytest.mark.asyncio
+async def test_the_first_marker_still_precedes_the_first_audio(monkeypatch):
+    """⛔ ③ 문장이 여럿이어도 **첫 마커는 첫 오디오보다 먼저**다(순서가 주 키다)."""
+    session = _session(monkeypatch)
+    await session.beaver.begin()
+    await session._speak("첫 문장입니다. 두 번째 문장입니다. 세 번째 문장입니다.")
+
+    kinds = [k for k, _ in session.transport.log]
+    assert kinds[0] == "event", session.transport.log
+
+
+@pytest.mark.asyncio
+async def test_marker_bytes_never_go_backwards(monkeypatch):
+    """⛔ `server_bytes` 는 **단조 증가**다 — 프론트가 연속 마커의 차분으로 길이를 잡는다.
+
+    음수 차분이 나오면 프론트는 그걸 **새 턴**으로 읽는다(계약 주석).
+    """
+    session = _session(monkeypatch, chunks_by_text={"첫 문장입니다. 두 번째 문장입니다. 세 번째 문장입니다.": 48_000})
+    await session.beaver.begin()
+    await session._speak("첫 문장입니다. 두 번째 문장입니다. 세 번째 문장입니다.")
+
+    seen = [m["server_bytes"] for m in session.transport.markers()]
+    assert seen == sorted(seen), seen
+
+
+@pytest.mark.asyncio
+async def test_one_sentence_behaves_exactly_as_before(monkeypatch):
+    """⚠ 문장이 하나면 **예전과 완전히 같다** — 추정이 끼어드는 건 두 번째 문장부터다."""
+    session = _session(monkeypatch)
+    await session.beaver.begin()
+    await session._speak("<happy> 잘하셨어요!")
+
+    markers = session.transport.markers()
+    assert len(markers) == 1 and markers[0]["server_bytes"] == 0, markers
+    assert markers[0]["text"] == "잘하셨어요!" and markers[0]["emotion"] == "happy"
+
+
+@pytest.mark.asyncio
+async def test_no_sentence_is_ever_dropped(monkeypatch):
+    """⛔ 추정이 길게 잡혀도 마커가 **사라지지 않는다** — 남으면 구간 끝에서라도 보낸다.
+
+    자막·표정이 없어지는 것보다 조금 늦는 편이 낫다(프론트는 순서대로 꽂는다).
+    """
+    text = "첫 문장입니다. 두 번째 문장입니다. 세 번째 문장입니다. 네 번째 문장입니다."
+    session = _session(monkeypatch, chunks_by_text={text: 480})
+    await session.beaver.begin()
+    await session._speak(text)
+
+    assert len(session.transport.markers()) == 4, session.transport.markers()
+
+
+def test_the_sentence_split_reuses_the_streaming_one():
+    """⛔ **새 분할기를 만들지 않는다** — "무엇이 한 문장인가"의 출처는 하나여야 한다.
+
+    둘이 되면 자막(문장 마커)과 대답 길이 판정(문장 상한)이 **다른 문장**을 세게 된다.
+    """
+    import inspect
+
+    src = inspect.getsource(cr.split_sentences)
+    assert "SentenceBuffer" in src, "문장 분할이 SentenceBuffer 를 안 쓴다"
+    assert cr.split_sentences("첫 문장입니다. 둘째 문장입니다! 셋째 문장입니다?") == [
+        "첫 문장입니다.", "둘째 문장입니다!", "셋째 문장입니다?",
+    ]
+    # ⚠ 종결부호 없는 꼬리도 버리지 않는다(마지막 문장이 사라지면 자막이 빈다).
+    assert cr.split_sentences("종결부호가 없는 꼬리") == ["종결부호가 없는 꼬리"]
+    # ⚠ 너무 짧은 조각은 **안 쪼갠다**(스트리밍 규칙 그대로 — 최소 8자). 마커가 잘게
+    #   쪼개지지 않는 쪽이라 이 기능에도 유리하다.
+    assert cr.split_sentences("네. 응.") == ["네. 응."]
+
+
+def test_the_drift_log_shows_the_estimate_error():
+    """⚠ 위치가 **추정**이면 그 오차가 보여야 한다 — 안 보이면 "자막이 늦네"를 원인 없이 겪는다."""
+    session = cs.CascadeSession(_Wire(), object())
+    assert session._marker_drift_log() == "자막오차=-"
+    session._marker_drifts = [12, -8]
+    assert session._marker_drift_log() == "자막오차=[+12%, -8%]"

@@ -200,6 +200,21 @@ class SentenceBuffer:
         return 0
 
 
+def split_sentences(text: str) -> list[str]:
+    """완성된 텍스트를 문장으로 쪼갠다 — ⛔ **새 규칙을 만들지 않는다.**
+
+    스트리밍 경로가 쓰는 `SentenceBuffer` 를 그대로 돌린다. "무엇이 한 문장인가"의 출처가
+    둘이 되면 자막(문장 마커)과 대답 길이 판정이 **다른 문장**을 세게 된다.
+    ⚠ 끝에 종결부호가 없는 꼬리도 버리지 않고 마지막 문장으로 낸다(`flush`).
+    """
+    buffer = SentenceBuffer()
+    out = [s for s in buffer.push(text or "")]
+    tail = buffer.flush()
+    if tail.strip():
+        out.append(tail)
+    return [s for s in out if s.strip()]
+
+
 # 언어 마커 — 비버가 **타깃 언어로 말하는 부분**을 감싼다: "오늘은 __How are you?__ 를 배울까?"
 # 따옴표를 안 쓰는 이유는 persona_prompt 가 이미 따옴표를 두 용도로 쓰기 때문이다(대사 인용 /
 # 특정 표현만 타깃으로 들려주기). __ 는 자연 문장에 안 나오고 마크다운 굵게 문법이라 모델이 잘 지킨다.

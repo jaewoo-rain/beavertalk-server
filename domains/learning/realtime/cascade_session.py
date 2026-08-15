@@ -100,6 +100,7 @@ from domains.learning.realtime.cascade_reply import (
     sample_aligned,
     speak_stream,
     split_by_language,
+    split_sentences as _split_sentences,
     strip_emotion_tags,
     strip_markers,
 )
@@ -172,6 +173,10 @@ _AUDIO_CLOCK_MIN_MS = 10_000    # 표본이 이만큼 쌓인 뒤에 본다(개�
 # 클라 계기와 조인하려고 들고 있는 **비버 턴별 서버 첫소리**의 개수 상한.
 # 클라 메시지는 그 턴이 끝난 직후에 오므로 몇 개면 충분하다 — 15분치를 들고 있을 이유가 없다.
 _FIRST_SOUND_HISTORY = 8
+# 문장 마커 위치 추정의 **출발값**(글자당 바이트). 24kHz·16bit = 48,000 B/s 이고 실측 읽기
+# 속도가 8~12자/초라 4,000~6,000 B/자 사이다. 첫 구간만 이 값을 쓰고, 그다음부터는 그 통화에서
+# 실제로 들린 속도로 갈아탄다. ⚠ 상수 하나로 두 언어를 맞출 수 없어서 **배우는 값**으로 뒀다.
+_DEFAULT_BYTES_PER_CHAR = 5_000.0
 # barge-in 에너지 이력: 이만큼의 오디오를 (시각, RMS)로 들고 있다가 **이벤트가 가리키는
 # 시각**에서 찾아본다. 파이프라인 지연(실측 0.8~0.9초)보다 넉넉해야 한다.
 _RMS_HISTORY_MS = 4000
@@ -215,6 +220,12 @@ class _OpenSegment:
     align: dict
     trim: bool
     opened_at: float
+    # ⭐⭐ 이 구간 안의 **문장들**(태그를 뗀 텍스트, 그 문장의 감정) — 2026-08-16.
+    #   한 구간에 문장이 여럿이면 마커도 문장 수만큼 나간다. 비면 구간 전체가 마커 하나다
+    #   (`_speak` 직접 호출·데모 훅처럼 문장을 안 쪼갠 경로).
+    #   ⛔ TTS 요청은 **여전히 구간 단위**다 — 문장별로 쪼개면 짧은 문장 뒤에 벤더 왕복이
+    #     통째로 공백이 된다(그래서 사장님이 그 안을 안 고르셨다).
+    sentences: list[tuple[str, str]] = field(default_factory=list)
 
 
 class _PreparedBatch:
@@ -1190,6 +1201,11 @@ class CascadeSession:
         self._tts_waits: list[float] = []
         # 요청별 **선행**(송출보다 얼마나 먼저 걸었나) — `_tts_waits`(결과)와 짝이다.
         self._tts_leads: list[float] = []
+        # ⭐ 문장 마커를 꽂을 위치를 추정하는 자 — 언어별 **글자당 바이트**(이 통화 실측).
+        #   첫 구간만 기본값을 쓰고 그다음부터는 방금 들린 속도로 스스로 고친다.
+        self._bytes_per_char: dict[str, float] = {}
+        self._marker_drifts: list[int] = []      # 그 추정이 얼마나 틀렸나(%)
+        self._marker_emotions: list[str] = []    # 이 대답에서 실제로 나간 표정들(순서대로)
         # 글자 교차검증이 순번을 고친 횟수(이 대답에서). 0 = 마커가 지켜졌다.
         self._lang_fixes = 0
         # 묶음별 (선행 여유 ms, 벤더 왕복 ms) — 남은 공백의 **원인**을 가르는 짝이다.
@@ -2472,6 +2488,8 @@ class CascadeSession:
         self._tts_trims.clear()
         self._tts_waits.clear()
         self._tts_leads.clear()
+        self._marker_drifts.clear()
+        self._marker_emotions.clear()
         self._batch_leads.clear()
         self._lang_fixes = 0
         self._tts_ttfb_ms = -1      # 이 대답의 **첫** 합성 요청이 첫 오디오를 받기까지
@@ -2718,7 +2736,7 @@ class CascadeSession:
                 #   가짓수 1 이지만 **폴백하면 바뀐다**("지금 안 변한다"와 "영영 안 변한다"는
                 #   다르다 — 폴백이 일어난 날 아무것도 안 남으면 안 된다).
                 "cascade 대답%s: turn=%s %s %s %s %s 글자=%d%s 자막=%d개 tts=%s "
-                "언어분할=%s gemini호출=%d %s %s %s %s %s %s %s %s",
+                "언어분할=%s gemini호출=%d %s %s %s %s %s %s %s %s %s",
                 "(선톡)" if is_greeting else "", turn_id, timing.summary(),
                 # ⭐ prefill 이 `LLM첫조각` 의 얼마인지는 이 값 없이는 못 본다.
                 self._llm_tokens_log(chat.usage_metadata),
@@ -2750,6 +2768,8 @@ class CascadeSession:
                 self._lead_log(),
                 # ⭐ 글자가 순번을 고친 횟수. 0 이면 마커가 지켜진 것이고, 크면 프롬프트를 봐야 한다.
                 "언어보정=%d건" % self._lang_fixes if self._lang_fixes else "언어보정=-",
+                # ⭐ 문장 마커 위치는 **추정**이다 — 얼마나 틀렸는지 같이 보여야 읽을 수 있다.
+                self._marker_drift_log(),
                 # ⚠ 미리 만들었는데 못 쓴 글자 — 선행 합성의 **대가**다(원가만 나갔다).
                 "선행폐기=%d자" % wasted_chars if wasted_chars else "선행폐기=-",
             )
@@ -3205,7 +3225,11 @@ class CascadeSession:
         segments = split_by_language(sentence, self._locale, self._target_code, lang_stats)
         marker_state = _marker_state(sentence)
         self._marker_seen[marker_state] = self._marker_seen.get(marker_state, 0) + 1
-        emotion = self._sentence_emotion(sentence)
+        # ⚠ **여기서는 상태를 안 바꾼다**(2026-08-16). 예전엔 `_sentence_emotion(묶음전체)` 를
+        #   불러 carry-forward 를 묶음의 **마지막 태그**까지 밀어 버렸다. 문장별 감정을 붙인
+        #   지금 그러면 첫 문장이 **뒤 문장의 표정**을 물려받는다. 이 값은 turn_start 아바타용
+        #   미리보기일 뿐이고, 진짜 이어붙임은 `_open_segment` 가 문장 순서대로 돌린다.
+        emotion = detect_emotion(sentence) or self._last_emotion
         if self._single_voice():
             # ⚠ 여기서는 교차검증 결과를 **안 쓴다**(음성이 하나뿐이라 고를 게 없다). 그래서
             #   `언어보정` 도 안 센다 — 안 쓴 보정을 세면 그 숫자가 거짓말이 된다.
@@ -3313,6 +3337,16 @@ class CascadeSession:
         """
         # ⛔ **감정 태그는 절대 소리로 나가지 않는다.** 여기가 벤더로 나가기 직전의 마지막
         #   길목이다(`__마커__` 와 같은 급의 요구 — `?` 를 "쿼스천마크"로 읽던 사고 계열이다).
+        # ⭐⭐ **문장별 감정**(2026-08-16 사장님: "문장별 감정 전달해줘서 영상통화때 쓰려고").
+        #   ⛔ 태그를 떼기 **전에** 쪼갠다 — 떼고 나면 어느 문장이 어떤 표정이었는지 사라진다.
+        #   ⛔ 새 분할기를 만들지 않는다: "무엇이 한 문장인가"의 출처는 `SentenceBuffer` 하나다.
+        #   ⚠ carry-forward 는 여기서 **순서대로** 돈다(구간은 index 순으로 열리고 그 안은
+        #     문장 순이다) — 규칙 자체는 안 바꿨다(실측 근거가 있는 규칙이다).
+        sentences: list[tuple[str, str]] = []
+        for raw in _split_sentences(sentence):
+            spoken = strip_emotion_tags(raw).strip()
+            if spoken:
+                sentences.append((spoken, self._sentence_emotion(raw)))
         sentence = strip_emotion_tags(sentence).strip()
         if not sentence:
             return None
@@ -3338,7 +3372,7 @@ class CascadeSession:
         #   하드코딩 기본값으로 덮으면 예전 동작(대답 1건당 하나)이 조용히 바뀐다.
         emotion = emotion or self._reply_emotion or _DEFAULT_EMOTION
         return _OpenSegment(sentence, language, emotion, queue, task, report, align, trim,
-                            time.monotonic())
+                            time.monotonic(), sentences)
 
     async def _open_vendor_stream(self, sentence: str, language: str, report: dict,
                                   emotion: str | None = None) -> Any:
@@ -3378,22 +3412,42 @@ class CascadeSession:
         wait_at = time.monotonic()
         first_at = -1.0
 
+        # ⭐⭐ **문장 경계에서 마커를 끼워 넣는다**(2026-08-16). 미리 몰아 보내지 않는다 —
+        #   프론트는 마커가 **도착한 순간의 큐 위치**에 꽂아 두고 재생이 거기 닿을 때 얼굴을
+        #   바꾼다. 그래서 "그 문장 차례에" 보내야 표정이 그 문장에서 바뀐다.
+        #   ⛔ 정확한 경계 바이트는 **알 수 없다** — TTS 는 구간 하나에 오디오 하나를 주고
+        #     정렬 정보를 안 준다. 쪼개서 물어보는 길(문장별 요청)은 사장님이 안 고르셨다.
+        #     ⇒ 글자 비율로 **추정**하고, 그 추정이 얼마나 틀렸는지 로그로 드러낸다.
+        plan = self._marker_plan(segment)
+        marker_idx = 0
+        base_bytes = self.beaver.sent_bytes
+
         async def _buffered():
-            nonlocal first_at
+            nonlocal first_at, marker_idx
             while True:
                 item = await segment.queue.get()
                 if item is None:
                     return
                 if first_at < 0:
                     first_at = time.monotonic()
-                    # ⭐ **여기가 그 자리다** — 이 구간의 첫 오디오가 나가기 **직전**.
-                    #   미리 보내지 않는다(프론트가 마커를 오디오 큐에 위치로 꽂는다).
-                    await self._send_sentence_marker(segment)
+                # ⭐ 첫 문장은 **첫 오디오 직전**(예전과 같은 자리), 뒤 문장은 그 차례에.
+                sent_here = self.beaver.sent_bytes - base_bytes
+                while marker_idx < len(plan) and plan[marker_idx][0] <= sent_here:
+                    text, emotion = plan[marker_idx][1], plan[marker_idx][2]
+                    marker_idx += 1
+                    await self._send_sentence_marker(segment, text, emotion)
                 yield item
 
         try:
             sent = await speak_stream(self.beaver, _buffered(), segment.text,
                                       trim_tail=segment.trim)
+            # ⛔ 추정이 길게 잡혀 남은 문장이 있으면 **여기서라도 보낸다.** 자막·표정이
+            #   사라지는 것보다 조금 늦는 편이 낫다(프론트는 순서대로 꽂는다).
+            while marker_idx < len(plan):
+                await self._send_sentence_marker(segment, plan[marker_idx][1],
+                                                 plan[marker_idx][2])
+                marker_idx += 1
+            self._note_marker_drift(segment, sent, plan)
         finally:
             # ⛔ 취소로 빠져나가도 **미리 받아 둔 것까지 같이 버린다** — 안 그러면 끊은 뒤에
             #   소리가 더 난다(오늘 고친 "삭제돼야 하는데 계속 나온다"가 그 종류다).
@@ -3522,8 +3576,12 @@ class CascadeSession:
             if self._dropped_tag:
                 return "감정=없음(버린태그:%s)" % self._dropped_tag[:12]
             return "감정=없음"
+        # ⭐ **문장별 감정이 실제로 도는지**는 목록으로만 보인다(2026-08-16). 턴당 하나만
+        #   찍으면 같은 값 3개인지 서로 다른 3개인지 구분이 안 된다 — 그게 이 기능의 전부다.
+        detail = ("=[%s]" % ",".join(self._marker_emotions)
+                  if len(self._marker_emotions) > 1 else "")
         if self._profile().takes_style:
-            return "감정=%s" % self._reply_emotion
+            return "감정=%s%s" % (self._reply_emotion, detail)
         # 미적용이면 **실제로 도는 엔진 이름**을 적는다(빈 값이면 서버 기본값 = Chirp).
         return "감정=%s(미적용:%s)" % (self._reply_emotion, self._tts_vendor())
 
@@ -4190,7 +4248,56 @@ class CascadeSession:
         self._end_reason = "duration"
         raise _Stop
 
-    async def _send_sentence_marker(self, segment: _OpenSegment) -> None:
+    def _marker_plan(self, segment: _OpenSegment) -> list[tuple[int, str, str]]:
+        """이 구간에서 **언제(누적 바이트) 어떤 마커를 낼지** — (경계, 자막, 감정) 목록.
+
+        ⛔ 경계는 **추정**이다. TTS 는 구간 하나에 오디오 하나를 주고 문장 정렬을 안 준다 —
+          정확히 알려면 문장별로 따로 요청해야 하는데(그 안은 채택되지 않았다), 그러면 짧은
+          문장 뒤에 벤더 왕복이 통째로 공백이 된다.
+        ⚠ 첫 문장의 경계는 **항상 0** 이다 ⇒ 구간이 문장 하나면 예전과 **완전히 같은 동작**이다
+          (첫 오디오 직전에 마커 하나). 추정이 끼어드는 건 두 번째 문장부터다.
+        ⚠ 글자당 바이트는 **이 통화에서 실측한 값**을 언어별로 쓴다(없으면 기본값). 같은 언어·
+          같은 음성·같은 배속이라 구간 안에서는 거의 선형이다.
+        """
+        sentences = segment.sentences or [(segment.text, segment.emotion)]
+        if len(sentences) <= 1:
+            return [(0, sentences[0][0], sentences[0][1])] if sentences else []
+        bpc = self._bytes_per_char.get(segment.language, _DEFAULT_BYTES_PER_CHAR)
+        plan: list[tuple[int, str, str]] = []
+        chars = 0
+        for text, emotion in sentences:
+            plan.append((int(chars * bpc), text, emotion))
+            chars += len(text)
+        return plan
+
+    def _note_marker_drift(self, segment: _OpenSegment, sent: int,
+                           plan: list[tuple[int, str, str]]) -> None:
+        """추정이 얼마나 틀렸나 — 그리고 **다음 구간을 위해 배운다**.
+
+        ⛔ 추정으로 위치를 잡았으면 그 오차가 보여야 한다. 안 보이면 "자막이 좀 늦네"를
+          원인 없이 겪는다(오늘 하루 우리가 반복해 밟은 자리다).
+        ⚠ 참값(진짜 문장 경계)은 **모른다** — 그래서 재는 것은 "구간 전체 길이를 얼마나 맞췄나"다.
+          그게 틀린 만큼 문장 경계도 같은 비율로 틀어진다.
+        """
+        chars = sum(len(t) for t, _ in (segment.sentences or []))
+        if sent <= 0 or chars <= 0:
+            return
+        actual = sent / chars
+        if len(plan) > 1:
+            before = self._bytes_per_char.get(segment.language, _DEFAULT_BYTES_PER_CHAR)
+            self._marker_drifts.append(int(round((before / actual - 1.0) * 100)))
+        # ⭐ 다음 구간은 이 통화에서 **실제로 들린 속도**로 추정한다(첫 구간만 기본값이다).
+        self._bytes_per_char[segment.language] = actual
+
+    def _marker_drift_log(self) -> str:
+        """`자막오차=[+12%, -8%]` — 양수면 **늦게** 꽂았다는 뜻이다(추정이 길었다)."""
+        if not self._marker_drifts:
+            return "자막오차=-"
+        return "자막오차=[%s]" % ", ".join("%+d%%" % d for d in self._marker_drifts)
+
+    async def _send_sentence_marker(self, segment: _OpenSegment,
+                                    text: str | None = None,
+                                    emotion: str | None = None) -> None:
         """구간 마커 — 표정 + **자막**을 그 구간 오디오 앞에 끼운다.
 
         ⛔ 캐스케이드는 지금까지 **비버 자막을 한 번도 안 보냈다**(Live 는 보낸다) —
@@ -4204,12 +4311,15 @@ class CascadeSession:
         await self._safe(CascadeSentenceMarker(
             turn_id=self.beaver.turn_id or "",
             seq=self._segment_seq,
-            emotion=segment.emotion,
-            text=segment.text,
+            emotion=emotion or segment.emotion,
+            text=segment.text if text is None else text,
             server_bytes=self.beaver.sent_bytes,
         ))
         self._segment_seq += 1
         self._sentence_markers += 1
+        # ⭐ 이 대답에서 **실제로 나간 표정들** — 턴당 하나만 찍던 `감정=` 으로는 문장별 감정이
+        #   도는지 안 도는지 알 수가 없다(같은 값이 3개여도 보이지 않는다).
+        self._marker_emotions.append(emotion or segment.emotion)
 
     def _reply_busy(self) -> bool:
         """비버가 아직 말하는(또는 만드는) 중인가."""
