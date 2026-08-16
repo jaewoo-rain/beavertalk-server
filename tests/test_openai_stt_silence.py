@@ -208,3 +208,50 @@ def test_the_adapter_logger_reaches_cloud_logging():
     src = inspect.getsource(app_main._configure_logging)
     assert '"core"' in src, "core 어댑터 로그가 Cloud Logging 핸들러 목록에서 빠졌다"
     assert __import__("core.openai_stt", fromlist=["x"]).logger.name.startswith("core.")
+
+
+# ── ⛔ 설정 거절로 **통화를 죽이지 않는다** (2026-08-16) ─────────────────────
+#
+# 지금까지 벤더 `error` 는 전부 `STREAM_ERROR` 로 올라갔고, 세션은 그걸 받으면 **무조건**
+# 통화를 종료한다(`cascade_session.py` 의 `raise _Stop`). 그런데 세션 설정 거절은 **커넥션을
+# 안 죽인다** — 그 `session.update` 만 버려지고 스트림은 그대로 산다.
+# ⇒ 벤더는 계속 돌 수 있는데 **우리가 먼저 끊고 있었다.**
+# ⚠ 설정이 안 먹은 채 도는 것은 "느려짐"이지 "통화 불가"가 아니다. 끊는 쪽이 훨씬 나쁘다.
+
+
+def test_a_session_config_rejection_does_not_kill_the_call():
+    """⛔⛔ 설정 거절은 **이벤트를 안 올린다** — 세션이 그걸 받으면 통화를 끊기 때문이다."""
+    msg = {"type": "error", "error": {
+        "code": "invalid_value",
+        "message": "Turn detection is not supported for this transcription model.",
+        "param": "session.audio.input.turn_detection",
+    }}
+    assert _stream()._translate(msg) == [], "설정 거절로 통화를 죽인다"
+
+
+def test_other_errors_still_end_the_stream():
+    """⛔ 전부 살리면 **진짜 스트림 death 를 놓친다.** 그 밖의 오류는 지금처럼 죽인다."""
+    from core.stt import STREAM_ERROR
+
+    msg = {"type": "error", "error": {"code": "server_error", "message": "boom"}}
+    events = _stream()._translate(msg)
+    assert len(events) == 1 and events[0].kind == STREAM_ERROR
+
+
+def test_the_log_stops_claiming_the_call_dies_when_it_does_not(caplog):
+    """⚠ 문구가 사실과 맞아야 한다 — 예전엔 무조건 "여기서 끊긴다"라고 단정했다."""
+    cfg = {"type": "error", "error": {
+        "code": "invalid_value", "message": "nope",
+        "param": "session.audio.input.turn_detection"}}
+    other = {"type": "error", "error": {"code": "server_error", "message": "boom"}}
+
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        _stream()._translate(cfg)
+    line = [r.getMessage() for r in caplog.records if "벤더 거절" in r.getMessage()][0]
+    assert "통화는 계속한다" in line and "끊긴다" not in line, line
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        _stream()._translate(other)
+    line = [r.getMessage() for r in caplog.records if "벤더 거절" in r.getMessage()][0]
+    assert "이 통화는 여기서 끊긴다" in line, line

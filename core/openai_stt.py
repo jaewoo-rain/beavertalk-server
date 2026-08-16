@@ -288,14 +288,23 @@ class OpenAiRealtimeSttStream:
             #   ⛔ 예전 문구는 무조건 "이 통화는 여기서 끊긴다"라고 **단정**했다. 앞의 경우엔
             #     그게 사실이 아니다 — 로그가 단정하면 다음 사람이 엉뚱한 곳을 판다.
             param = str(err.get("param") or "")
+            # ⛔⛔ **설정 거절로 통화를 죽이지 않는다**(2026-08-16). 지금까지는 벤더 `error` 를
+            #   전부 `STREAM_ERROR` 로 올렸고, 세션은 그걸 받으면 **무조건 통화를 종료**한다
+            #   (`cascade_session.py` 의 `raise _Stop`). 그런데 세션 설정 거절은 **커넥션을
+            #   안 죽인다** — 그 `session.update` 만 버려지고 스트림은 그대로 산다.
+            #   ⇒ 벤더는 계속 돌 수 있는데 **우리가 먼저 끊고 있었다.**
+            #   ⚠ 설정이 안 먹은 채 도는 것은 "느려짐"이지 "통화 불가"가 아니다. 끊는 쪽이 훨씬 나쁘다.
+            # ⛔ 그 밖의 오류는 **지금처럼 죽인다** — 전부 살리면 진짜 스트림 death 를 놓친다.
+            config_reject = param.startswith("session.")
             logger.warning(
-                "[stt-openai] 벤더 거절 — %s (code=%s param=%s 언어=%s)%s",
+                "[stt-openai] 벤더 거절 — %s (code=%s param=%s 언어=%s) %s",
                 str(detail)[:200], err.get("code") or "-", param or "-",
                 self._language or "자동감지",
-                # ⛔ 설정 거절이면 **그 설정이 안 먹은 채로 돌고 있다**는 뜻이다.
-                " ⚠ 세션 설정이 통째로 미적용됐다 — 벤더 기본값으로 돌고 있다"
-                if param.startswith("session.") else "",
+                "⚠ 세션 설정이 통째로 미적용됐다 — 벤더 기본값으로 돌고 있다(통화는 계속한다)"
+                if config_reject else "이 통화는 여기서 끊긴다",
             )
+            if config_reject:
+                return []
             return [SttV2Event(kind=STREAM_ERROR, detail=str(detail)[:200])]
         return []
 
