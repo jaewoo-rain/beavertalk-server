@@ -9,11 +9,11 @@
     - fast-track: 5조건 1통화 승격(미확정) → 게이트(G2) 미산입 → 다음 통화 E2 확정 /
       F만 2통화 → PRACTICING(2.0) 복귀.
     - evaluate_level_up: D12 게이트 분모 문법(+L1 청크) 전용(어휘 UNSEEN 무관 승급) /
-      D15 게이트 = G1&&G2&&G4&&G5(체류 G3 폐지 — G2 미충족 stay·G5 일수 잠금 stay) /
+      게이트 = **G1 && G2 뿐**(2026-08-16 사장님 지시로 G4·G5 제거 — 관측만 남는다) /
       승급 시 korean_level+1 + history(gate_snapshot, gate_scope="grammar_chunk") /
       같은 trigger 재호출 멱등 / k=13 스킵.
-    - grandfathering: ≤k−2 mastered(placement) / k−1 introduced / non-core 어휘 행
-      미생성 / 기존 observed 행 미덮음 / placement history + 멱등.
+    - 레벨 배정: **건너뛴 레벨은 기록 0**(2026-08-16 grandfathering 제거) / 기존 관측 행
+      보존 / 하락 시 mastered→introduced 강등 / 상승 시 무변경 / placement history 유지.
 
 기대값 소스: 스크래치패드 smoke_mastery.py(수동 점검 — 전 파트 통과 확인 후 이식).
 DB 는 인메모리 sqlite(BigInteger+Identity PK → Integer 치환 — tests/test_level_test_call.py
@@ -480,13 +480,18 @@ def test_fast_track_and_levelup_pipeline(env):
     assert r2 == {"result": "skipped", "reason": "already_evaluated"}, r2
     assert db.get(Member, mid).korean_level == 2
 
-    # ── G5 잠금(D15 — 일수만): 승급 직후 재판정은 일수 미달 stay ──
+    # ── ⛔ G5 는 이제 **판정에 안 쓴다**(2026-08-16 사장님 지시). 그래도 stay 다 ──
+    #    ⚠ 예전엔 이 자리가 "일수 미달이라 stay"였다. 지금 stay 하는 **이유가 다르다**:
+    #      승급 직후 새 레벨 항목엔 증거가 0 이라 **G1 이 막는다.**
+    #      ⇒ 시험이 통과하는 것만 보고 "G5 가 아직 산다"고 읽으면 안 된다. 이유를 못박는다.
     call4 = _new_call(env, status="done")
     r4 = mastery_service.evaluate_level_up(db, mid, trigger_call_id=call4.call_id)
     db.commit()
     assert r4["result"] == "stay", r4
-    g5 = r4["snapshot"]["g5"]
-    assert g5["pass"] is False and g5["days_required"] == 7, g5  # 초급 승급 직후 0일 < 7일
+    snap4 = r4["snapshot"]
+    assert snap4["g1"]["pass"] is False, "이제 막는 것은 G1 이다(G5 가 아니다)"
+    g5 = snap4["g5"]
+    assert g5["pass"] is False and g5["enforced"] is False, g5  # 기록은 하되 판정엔 안 쓴다
 
 
 def test_evaluate_skips_at_max_level(env):
@@ -850,3 +855,133 @@ def test_the_history_row_is_still_the_single_source_of_level_entry(env):
 def test_the_old_name_still_points_at_the_same_function():
     """⚠ 이름만 남기고 동작이 다르면 안 된다 — 별칭으로 묶었다."""
     assert mastery_service.apply_grandfathering is mastery_service.record_placement
+
+
+# --------------------------------------------------------------------------- #
+# (7) ⛔ 승급 게이트는 **G1 ∧ G2 뿐** (2026-08-16 사장님 지시 "G4, G5는 빼주라")
+# --------------------------------------------------------------------------- #
+#
+# ⚠ 예전 성질을 **뒤집어** 다시 쓴 것이다(지운 게 아니다). 그리고 대가를 여기 박아 둔다:
+#     G4 제거 → **계속 틀려도(F비율이 높아도) 승급한다**
+#     G5 제거 → **하루에 여러 레벨을 올라갈 수 있다**(체류 일수 조건이 없다)
+# ⚠ D15 는 G5 를 **일부러 남겼었다**("연쇄 승급 방지 안전핀"). 그 안전핀을 뺀 것이므로,
+#   연쇄 승급이 실제로 관측되면 여기부터 의심해라.
+
+
+def _gate_ready_member(env, *, level: int = 1):
+    """L1 청크 4개에 **관측 증거**를 채워 G1·G2 를 통과시킨 회원(게이트 판정 직전 상태)."""
+    db = env["db"]
+    m = Member(language="en", korean_level=level, onboarding_completed=True,
+               auth_user_id=f"auth-gate-{level}-{id(env) % 10000}",
+               created_at=NOW - timedelta(days=30))
+    db.add(m)
+    db.flush()
+    for item in (env["c1"], env["c2"], env["c3"], env["c4"]):
+        db.add(MemberItemProgress(
+            member_id=m.member_id, item_id=item.item_id, status="mastered",
+            score=5.0, provenance="observed",
+            repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
+            first_seen_at=NOW, last_seen_at=NOW, mastered_at=NOW,
+        ))
+    db.flush()
+    return m
+
+
+def test_promotion_needs_only_g1_and_g2(env):
+    """⭐ 승급 조건은 **둘뿐**이다 — G4·G5 가 빠져도 G1·G2 만 채우면 오른다."""
+    db = env["db"]
+    m = _gate_ready_member(env)
+    call = _new_call(env, status="done")
+    db.commit()
+
+    r = mastery_service.evaluate_level_up(db, m.member_id, trigger_call_id=call.call_id)
+    db.commit()
+
+    assert r["result"] == "promoted" and r["to_level"] == 2, r
+    assert r["snapshot"]["g1"]["pass"] and r["snapshot"]["g2"]["pass"]
+
+
+def test_a_high_failure_ratio_no_longer_blocks(env):
+    """⛔ **계속 틀려도 승급한다** — G4 를 뺀 대가다. 그 사실을 성질로 못박는다.
+
+    (예전 성질: "최근 증거통화의 F비율이 문턱 이상이면 stay")
+    """
+    db = env["db"]
+    m = _gate_ready_member(env)
+    # 최근 증거통화에 F 를 잔뜩 심는다 — 예전이라면 G4 가 막았을 상태.
+    for n in range(3):
+        c = Call(member_id=m.member_id, character_id=env["ch"].character_id,
+                 call_date=NOW, status="done")
+        db.add(c)
+        db.flush()
+        for item in (env["c1"], env["c2"], env["c3"], env["c4"]):
+            db.add(ItemEvidence(
+                member_id=m.member_id, language="ko", item_id=item.item_id,
+                call_id=c.call_id, grade_raw="F", grade_final="F",
+                verified=True, score_delta=-1.0, created_at=NOW,
+            ))
+    db.flush()
+    call = _new_call(env, status="done")
+    db.commit()
+
+    r = mastery_service.evaluate_level_up(db, m.member_id, trigger_call_id=call.call_id)
+    db.commit()
+
+    assert r["result"] == "promoted", r
+    g4 = r["snapshot"]["g4"]
+    assert g4["enforced"] is False, "G4 가 아직 판정에 쓰인다"
+    assert g4["f_count"] > 0, "이 시험의 전제(F 가 쌓였다)가 깨졌다"
+
+
+def test_zero_days_in_level_no_longer_blocks(env):
+    """⛔ **체류 0일이어도 승급한다** — G5 를 뺀 대가다(연쇄 승급 방지 안전핀이 없다)."""
+    db = env["db"]
+    m = _gate_ready_member(env)
+    # 방금 게이트 승급으로 이 레벨에 들어왔다 = 체류 0일. 예전엔 G5 가 막았다.
+    db.add(MemberLevelHistory(
+        member_id=m.member_id, language="ko", from_level=0, to_level=1,
+        reason="gate_promotion", trigger_call_id=None, created_at=NOW,
+    ))
+    db.flush()
+    call = _new_call(env, status="done")
+    db.commit()
+
+    r = mastery_service.evaluate_level_up(db, m.member_id, trigger_call_id=call.call_id)
+    db.commit()
+
+    assert r["result"] == "promoted", r
+    g5 = r["snapshot"]["g5"]
+    assert g5["days"] == 0 and g5["pass"] is False and g5["enforced"] is False, g5
+
+
+def test_the_removed_gates_are_still_recorded(env):
+    """⭐ **관측은 계속한다** — 이게 "빼길 잘했나"를 나중에 되물을 유일한 자료다.
+
+    ⛔ 키를 지우면 과거 스냅샷과 모양이 달라져 비교가 통째로 끊긴다. 그래서 남기고
+      `enforced=False` 로 **판정에 안 쓴다는 사실**을 같이 기록한다.
+    """
+    db = env["db"]
+    m = _gate_ready_member(env)
+    call = _new_call(env, status="done")
+    db.commit()
+
+    snap = mastery_service.evaluate_level_up(
+        db, m.member_id, trigger_call_id=call.call_id)["snapshot"]
+
+    for key in ("g4", "g5"):
+        assert key in snap, f"{key} 기록이 사라졌다 — 과거 스냅샷과 비교가 끊긴다"
+        assert snap[key]["enforced"] is False
+        assert "threshold" in snap[key] or "days_required" in snap[key]
+
+
+def test_the_decision_never_reads_the_removed_gates():
+    """⛔⛔ 판정 분기에 **다시 들어가면** 시험이 먼저 실패한다.
+
+    ⚠ 사장님 지시로 뺀 것이다. 되살리려면 그 대가(위 두 시험)를 먼저 읽어라.
+    """
+    import inspect
+
+    src = inspect.getsource(mastery_service.evaluate_level_up)
+    decision = [ln for ln in src.splitlines() if "if not (" in ln and "g1_pass" in ln]
+    assert decision, "승급 판정 분기를 못 찾았다(모양이 바뀌었으면 이 시험도 고쳐라)"
+    assert decision[0].strip() == "if not (g1_pass and g2_pass):", decision

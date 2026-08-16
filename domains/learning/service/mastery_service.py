@@ -71,9 +71,23 @@ PLACEMENT_MASTERED_SCORE = 3.0
 PLACEMENT_INTRODUCED_SCORE = 1.0
 PLACEMENT_DEMOTE_SCORE = 1.0     # placement 는 실증거 F 1건에 즉시 굴복(⑩)
 
-# 레벨업 게이트 파라미터 — 밴드별(mechanics ⑦ 표). G4 는 "미만" 비교.
+# 레벨업 게이트 파라미터 — 밴드별(mechanics ⑦ 표).
 # D12: G1/G2 는 문법(+L1 청크) 전용 — 어휘용 파라미터 없음(어휘는 게이트 미산입).
-# D15: 체류 게이트(G3) 폐지 — G1/G2 와 이중 규제. G5 는 일수만(연쇄 승급 방지 안전핀).
+# D15: 체류 게이트(G3) 폐지 — G1/G2 와 이중 규제.
+#
+# ⛔⛔ **2026-08-16: G4·G5 를 판정에서 뺐다(사장님 지시 "G4, G5는 빼주라").**
+#   승급은 이제 **G1 ∧ G2** 뿐이다. 아래 `g4`·`g5_days` 는 **관측 전용으로만 남는다** —
+#   스냅샷에 "그때 이 문턱이었으면 통과했나"를 계속 기록해, 나중에 "빼길 잘했나"를
+#   **데이터로** 되물을 수 있게 한다. ⛔ 판정 분기에 다시 넣지 마라(회귀가 막는다).
+#
+# ⚠ **빼면 이렇게 된다 — 다음 사람이 "왜 이렇게 쉽게 올라가지"로 헤매지 않게 적는다:**
+#   · G4 제거 → **계속 틀려도(F비율이 높아도) 승급한다.**
+#   · G5 제거 → **하루에 여러 레벨을 올라갈 수 있다**(체류 일수 조건이 없다).
+#     ⚠ 다만 실제 위험은 문서가 말한 것보다 작다: 승급 직후 **새 레벨 항목엔 증거가 0** 이라
+#       G1(배움 90%)이 곧바로 막는다. 그리고 `evaluate_level_up` 은 trigger_call 당 멱등이라
+#       **한 통화에 최대 1레벨**이다. 그래도 "작다"이지 "없다"는 아니다.
+#   ⚠ D15 는 G5 를 **일부러 남겼다**("연쇄 승급 방지 안전핀" — master-plan D15 원문).
+#     그 안전핀을 뺀 것이므로, 연쇄 승급이 실제로 관측되면 **여기부터 의심해라.**
 _BAND_GATES: dict[str, dict] = {
     "survival": dict(g1=0.90, g2=0.50, g4=0.35, g5_days=3),
     "beginner": dict(g1=0.90, g2=0.55, g4=0.30, g5_days=7),
@@ -513,11 +527,12 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     g2_ratio = mastered_confirmed / denom
     g1_pass = g1_ratio >= params["g1"]
     g2_pass = g2_ratio >= params["g2"]
-    g4_pass = ev_total < G4_MIN_EVIDENCE or f_ratio < params["g4"]
-    # G5 잠금 — 게이트 승급 직후에만 적용(D15: 일수만 — 연쇄 승급 방지 안전핀)
-    g5_pass = True
+    # ⛔ **아래 둘은 판정에 안 쓴다**(2026-08-16 사장님 지시로 제거). 스냅샷에만 남긴다 —
+    #   "그 문턱이었으면 통과했나"를 계속 기록해야 나중에 되물을 수 있다.
+    g4_would_pass = ev_total < G4_MIN_EVIDENCE or f_ratio < params["g4"]
+    g5_would_pass = True
     if latest is not None and latest.reason == "gate_promotion":
-        g5_pass = days_in_level >= params["g5_days"]
+        g5_would_pass = days_in_level >= params["g5_days"]
 
     snapshot = {
         "level": k,
@@ -530,19 +545,27 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
         "placement_excluded": len(prog_map) - len(counted),
         "g1": {"ratio": round(g1_ratio, 4), "threshold": params["g1"], "pass": g1_pass},
         "g2": {"ratio": round(g2_ratio, 4), "threshold": params["g2"], "pass": g2_pass},
+        # ⛔ 아래 둘은 **관측 전용**이다(2026-08-16 — 판정에서 뺐다). 모양을 유지하는 이유:
+        #   과거 스냅샷과 **비교 가능해야** "빼길 잘했나"를 나중에 되물을 수 있다. 그래서
+        #   키를 지우지 않고 `enforced=False` 를 붙여 **판정에 안 쓴다는 사실**을 같이 기록한다.
         "g4": {
             "f_count": f_count, "evidence_total": ev_total,
-            "ratio": round(f_ratio, 4), "threshold": params["g4"], "pass": g4_pass,
+            "ratio": round(f_ratio, 4), "threshold": params["g4"],
+            "pass": g4_would_pass, "enforced": False,
         },
         "g5": {
             "entry_reason": entry_reason, "days": days_in_level,
-            "days_required": params["g5_days"], "pass": g5_pass,
+            "days_required": params["g5_days"],
+            "pass": g5_would_pass, "enforced": False,
         },
         "fast_track_auto_confirmed": auto_confirmed,
         "evaluated_at": now.isoformat(),
     }
 
-    if not (g1_pass and g2_pass and g4_pass and g5_pass):
+    # ⛔⛔ **승급 조건은 G1 ∧ G2 뿐이다**(2026-08-16 사장님 지시 "G4, G5는 빼주라").
+    #   G4(F비율)·G5(체류 일수)는 위 스냅샷에 **기록만** 되고 여기서 안 본다.
+    #   ⚠ 되살리려면 그 대가를 먼저 읽어라(파일 상단 `_BAND_GATES` 주석).
+    if not (g1_pass and g2_pass):
         return {"result": "stay", "snapshot": snapshot}
 
     # ② 항상 +1 — 단일 트랜잭션(호출부 commit)에 레벨 + history 합류.
