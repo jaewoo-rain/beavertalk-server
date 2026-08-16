@@ -454,23 +454,44 @@ def _parse_rate_map(raw: str) -> dict[str, float]:
     return out
 
 
-def _looks_unfinished(text: str) -> bool:
-    """이 발화가 **문장 중간에 잘린 것으로 보이나** — ⛔ 관측 전용이다.
+def _unfinished_kind(text: str) -> str:
+    """문장 중간에 잘린 것으로 보이나 — **어느 규칙이 잡았는지**까지 돌려준다("" / "ko" / "en").
 
-    사장님 아이디어("작고 빠른 LLM 으로 문장이 끝났는지 확인")는 오바가 아니라 업계의 smart
-    turn detection 이다. 다만 **큰 구멍(전사 기준 종료)을 먼저 막고, 실제로 얼마나 자주
-    잘리는지 세어 본 뒤** 붙일지 정한다. 그 카운트를 위한 값이라 **판정에는 절대 쓰지 않는다.**
+    ⛔⛔ **관측 전용이다.** 판정에는 절대 쓰지 않는다(이 값을 분기에 넣는 순간, 규칙 기반
+      오탐이 사용자 말을 자르기 시작한다).
 
-    한국어는 조사·연결어미로 끝나면 미완 신호다("제가", "그런데", "~고", "~는데", "~서").
-    ⚠ 규칙 기반이라 완벽하지 않다 — 그래서 동작을 바꾸지 않고 **세기만** 한다.
+    사장님 아이디어("작고 빠른 LLM 으로 문장이 끝났는지 확인")는 업계의 smart turn detection
+    이다. 붙일지는 **얼마나 자주 잘리는지 세어 본 뒤** 정한다 — 그 카운트를 위한 값이다.
+
+    ⭐⭐ **영어 신호를 더한 이유**(2026-08-16). 예전 목록은 **전부 한국어 조사·연결어미**였다.
+      그런데 우리 학습자는 code-switching 규칙상 **모국어 90% + 한국어 10%** 로 말한다
+      (배포 `CASCADE_TTS_LANGUAGE=en`). ⇒ "I want to..." 하다 끊긴 발화는 **구조적으로 한 건도
+      안 잡혔다.** 실측 `미완=yes 2.1%` 는 "잘림이 적다"가 아니라 **"한국어로 말하다 끊긴
+      경우가 적다"** 였을 수 있다 — 그 숫자로 PTT 도입을 정할 뻔했다.
+
+    ⚠ **두 목록은 비교 방식이 다르다. 합치지 마라.**
+      · 한국어: `endswith` — 조사가 앞말에 **붙는다**("제가", "학교에서").
+      · 영어: **단어 단위 완전 일치** — `endswith("in")` 이면 "Korean" 도 잡힌다(확실한 오탐).
+    ⚠ 언어 판별기를 새로 만들지 않았다. 두 규칙은 **문자 체계가 겹치지 않아** 저절로 갈린다
+      (한글 조사가 라틴 단어에 붙을 일이 없고 그 반대도 없다).
     """
     tail = (text or "").strip().rstrip("\"'’”)]}")
     if not tail:
-        return False
+        return ""
     if tail[-1] in "?!.。！？…":
-        return False                      # 종결부호가 있으면 끝난 문장으로 본다
+        return ""                         # 종결부호가 있으면 끝난 문장으로 본다(영어도 같다)
     last = tail.split()[-1] if tail.split() else tail
-    return any(last.endswith(suffix) for suffix in _UNFINISHED_TAILS)
+    if any(last.endswith(suffix) for suffix in _UNFINISHED_TAILS):
+        return "ko"
+    # ⚠ 꼬리 구두점만 떼고 본다(", and," 처럼 쉼표로 끝나면 오히려 미완 신호가 강하다).
+    #   ⛔ 종결부호는 위에서 이미 걸렀으므로 여기서 지워도 판정이 안 뒤집힌다.
+    word = last.strip(",;:·…-–—\"'’”)]}").lower()
+    return "en" if word in _UNFINISHED_TAILS_EN else ""
+
+
+def _looks_unfinished(text: str) -> bool:
+    """위 판정의 bool 판(기존 호출부·회귀 호환). ⛔ 여전히 **관측 전용**이다."""
+    return bool(_unfinished_kind(text))
 
 
 # 조사·연결어미(끝나면 뒤에 말이 더 온다는 신호). ⚠ 관측 전용 목록이다.
@@ -479,6 +500,25 @@ _UNFINISHED_TAILS = (
     "고", "며", "면서", "는데", "은데", "ㄴ데", "서", "니까", "지만", "거나", "든지",
     "그리고", "그런데", "그래서", "하지만", "왜냐하면",
 )
+
+# ⭐ 영어 미완 신호 — ⛔ **단어 단위 완전 일치**로만 쓴다(위 한국어 목록과 비교 방식이 다르다).
+#   `endswith` 로 쓰면 "Korean"이 `in` 에, "that's"가 `at` 에 걸린다 — 전부 오탐이다.
+# ⚠ 소문자로 비교한다(STT 가 대문자로 줄 수도, 소문자로 줄 수도 있다).
+# ⚠ "want to"·"going to" 같은 구는 **넣지 않는다** — 어차피 `to` 로 끝나므로 이미 잡힌다.
+#   구 단위를 넣으면 목록에 같은 사실이 두 번 들어가고, 그때부터 둘이 어긋나기 시작한다.
+# ⛔ 개수를 늘릴 때는 **오탐을 먼저 생각해라**: 여기 걸리는 낱말은 영어 문장의 **끝에 오면
+#   거의 항상 말이 더 온다**는 것이어야 한다. "no"·"yes"·"okay" 처럼 단독으로 완결인 말은 금지.
+_UNFINISHED_TAILS_EN = frozenset({
+    # 관사·전치사
+    "a", "an", "the", "to", "of", "in", "on", "at", "for", "with", "from", "about",
+    # 접속사
+    "and", "but", "or", "because", "so", "if", "when", "that",
+    # 조동사·be
+    "is", "are", "was", "were", "am", "be", "can", "will", "would", "should", "could",
+    "have", "has", "had", "do", "does", "did",
+    # 대명사·소유격(끝에 오면 목적어·명사가 더 온다)
+    "i", "my", "your", "his", "her", "their", "our", "its",
+})
 
 
 def _marker_state(text: str) -> str:
@@ -2115,7 +2155,9 @@ class CascadeSession:
             self._final_lag_ms, self._anchor_saved_ms,
             max(0.0, now - self._turn_began_at),
             max(0.0, now - self._last_voice_at) if self._last_voice_at else -1.0,
-            "yes" if _looks_unfinished(text) else "no", text,
+            # ⭐ **어느 규칙이 잡았는지**까지 찍는다(2026-08-16). `yes/no` 만으로는 "영어는
+            #   잡히긴 하는 건가"를 다음에 또 못 가른다 — 그게 이번에 숫자를 못 쓰게 된 이유다.
+            ("yes(%s)" % _unfinished_kind(text)) if _looks_unfinished(text) else "no", text,
         )
         # ⭐ 통화 기록(사용자) — Live 와 같은 계약. 텍스트가 **확정된 자리**에서 남긴다.
         #   ⛔ 빈 턴은 안 남긴다(위 로그가 '빈 턴'으로 따로 남는다). 오디오는 여기서 비운다 —
