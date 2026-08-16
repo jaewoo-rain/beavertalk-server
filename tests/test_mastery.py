@@ -3,6 +3,8 @@
 검증 대상:
     - _verify_detections 5규칙: 후보 밖 폐기 / 전사 부재 quote 폐기 / 에코 E3→E1 강등 /
       4자 미만·단독 발화 강등 / 동일 정규화 인용 중복 1건.
+      ⭐ 2026-08-16: **단독 발화 강등은 chunk 제외**(통문장은 통째가 정답) — 갈리는 것이
+      오직 kind 임을 고정한 짝 시험 + 청크에도 4자 미만·에코는 그대로 문다는 짝.
     - 상태 전이: E1→introduced / E2→practicing / D14(성공 산출 E2·E3 3회 — 2회 불가,
       2통화·2일 분산 + E3≥1) / chunk 2회 특례 / **마지막이 F 여도 승격**(2026-08-16 ④ 제거)
       — 다만 F 가 점수를 통과선 아래로 끌면 ①이 그대로 막는다(짝 시험).
@@ -184,7 +186,7 @@ def test_verify_detections_five_rules(env):
         D(item_id=c2.item_id, evidence="E3", quote="감사합니다 정말 감사합니다"),  # ③ 에코
         D(item_id=c1.item_id, evidence="E3", quote="안녕하세요 저는 밥을 좋아해요"),  # 유지 E3
         D(item_id=c1.item_id, evidence="E3", quote="안녕하세요 저는 밥을  좋아해요"),  # ⑤ 중복
-        D(item_id=c3.item_id, evidence="E3", quote="이거 주세요"),                 # ④ 단독 발화
+        D(item_id=c3.item_id, evidence="E3", quote="이거 주세요"),                 # 청크 단독 발화
         D(item_id=c4.item_id, evidence="E2", quote="좋아"),                        # ④ 4자 미만
     ]
     verified = svc._verify_detections(
@@ -195,9 +197,67 @@ def test_verify_detections_five_rules(env):
     assert len(verified) == 4, f"검증 통과 4건 기대, {len(verified)}"
     assert by[(c2.item_id, "E3")].grade_final == "E1"  # ③ 에코 강등
     assert by[(c1.item_id, "E3")].grade_final == "E3"  # 정상 E3 보존
-    assert by[(c3.item_id, "E3")].grade_final == "E1"  # ④ 단독 발화 강등
+    # ⛔ 2026-08-16 뒤집음: 청크의 단독 발화는 **강등하지 않는다**(통문장은 통째가 정답).
+    #   c3 는 chunk 라 원판정 E3 그대로다. 비-chunk 단독 발화 강등은 아래 전용 시험이 지킨다.
+    assert by[(c3.item_id, "E3")].grade_final == "E3"
     assert by[(c4.item_id, "E2")].grade_final == "E1"  # ④ 4자 미만 강등
     assert all(v.grade_raw in ("E2", "E3") for v in verified)  # 원판정 보존
+
+
+def test_solo_utterance_demotion_skips_chunks_only(env):
+    """④ 단독 발화 강등: 단어·문법엔 걸고 **통문장엔 안 건다**(2026-08-16).
+
+    같은 조건(인용 == 원문, 4자 이상, 직전 비버 턴에 없음)을 kind 만 바꿔 두 번 통과시킨다
+    — 갈리는 것이 오직 kind 임을 고정한다. 후보는 dict 계약이라 DB 행이 필요 없다.
+    """
+    db, member = env["db"], env["member"]
+    call = _new_call(env)
+    db.commit()
+
+    surface = "책상이 있어요"
+    cands = [
+        {"item_id": 8001, "kind": "vocab", "surface": surface, "injected": False},
+        {"item_id": 8002, "kind": "chunk", "surface": surface, "injected": False},
+    ]
+    rows = [
+        {"turn_index": 0, "role": "beaver", "content": "다음 걸 해 볼까요"},
+        {"turn_index": 1, "role": "user", "content": surface},
+    ]
+    D = svc.ItemDetection
+    verified = svc._verify_detections(
+        db, call.call_id, member.member_id,
+        [D(item_id=8001, evidence="E2", quote=surface),
+         D(item_id=8002, evidence="E2", quote=surface)],
+        cands, rows,
+    )
+    by = {v.item_id: v for v in verified}
+    assert by[8001].grade_final == "E1"   # 단어 — 항목만 덜렁 말한 것은 따라말하기
+    assert by[8002].grade_final == "E2"   # 통문장 — 통째로 말한 것이 곧 산출
+    assert all(v.grade_raw == "E2" for v in verified)   # 원판정은 둘 다 보존
+
+
+def test_chunks_still_lose_the_four_char_and_echo_guards(env):
+    """청크 면제는 ④ '단독 발화' 한 줄뿐 — 4자 미만(④)과 에코(③)는 그대로 문다."""
+    db, member = env["db"], env["member"]
+    call = _new_call(env)
+    db.commit()
+
+    cands = [{"item_id": 8003, "kind": "chunk", "surface": "네", "injected": False},
+             {"item_id": 8004, "kind": "chunk", "surface": "밥을 먹었어요", "injected": False}]
+    rows = [
+        {"turn_index": 0, "role": "beaver", "content": "밥을 먹었어요 라고 해 보세요"},
+        {"turn_index": 1, "role": "user", "content": "네 밥을 먹었어요"},
+    ]
+    D = svc.ItemDetection
+    verified = svc._verify_detections(
+        db, call.call_id, member.member_id,
+        [D(item_id=8003, evidence="E2", quote="네"),               # ④ 4자 미만
+         D(item_id=8004, evidence="E3", quote="밥을 먹었어요")],    # ③ 직전 비버 턴 에코
+        cands, rows,
+    )
+    by = {v.item_id: v for v in verified}
+    assert by[8003].grade_final == "E1"
+    assert by[8004].grade_final == "E1"
 
 
 # --------------------------------------------------------------------------- #

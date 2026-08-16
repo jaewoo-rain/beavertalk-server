@@ -1246,6 +1246,7 @@ def _verify_detections(
         ② quote 가 USER 전사에 부재(공백 정규화 부분일치) → 폐기 (환각 차단)
         ③ E3 인데 직전 2 BEAVER 턴에 그 항목/인용 포함 → E1 강등 (앵무새 방어)
         ④ quote 유효 글자(letter/digit) 4자 미만 또는 항목 단독 발화(E2/E3) → E1 강등
+           (⛔ 단독 발화 강등은 **chunk 제외** — 통문장은 단독 발화가 정답이다. 아래 주석)
         ④' 힌트 열람 직후 USER 턴의 E2/E3 → E1 강등 (D16 오염 방지 — 아래 참조)
         ⑤ 동일 정규화 인용 중복(항목 내) → 1건
     grade_raw(원판정)/grade_final(강등 반영) 모두 보존. db 는 시그니처 계약 유지용 —
@@ -1326,7 +1327,26 @@ def _verify_detections(
                 grade = "E1"
         if grade in ("E2", "E3"):  # ④ 4자 미만·항목 단독 발화 → E1
             alnum = sum(1 for ch in d.quote if ch.isalnum())
-            if alnum < 4 or norm_quote == norm_surface:
+            # ⛔ 2026-08-16: **단독 발화 강등을 chunk 에는 걸지 않는다**(사장님 라인 결정).
+            #   L1 통문장은 "통째로 말하기"가 학습 목표 그 자체라 단독 발화가 곧 정답이다.
+            #   ⚠ 실측이 결정타였다(운영 DB item_evidence 502건): 청크 산출(E2/E3) 원판정
+            #     16건 중 7건이 강등됐는데, 강등 여부를 가른 것이 **문장부호**였다 —
+            #     normalize_text 는 공백만 지우므로 surface '안녕하세요?' 에 대해 STT 가
+            #     '안녕하세요.' 로 찍으면 생존, '안녕하세요?' 로 찍으면 강등. 즉 규칙이
+            #     의도대로가 아니라 **STT 우연**으로 작동하고 있었다.
+            #   ⛔ 정규화가 문장부호까지 지우게 고치는 쪽은 함정이다 — 그러면 청크 산출이
+            #     전멸하고 L1 은 영영 마스터가 안 된다.
+            #   ⭐ 왜 안전한가(코드로 확인함): 진짜 앵무새 방어는 위의 ③이다 —
+            #     `if grade == "E3"` 가지에서 **직전 2 BEAVER 턴**에 surface 또는 quote 가
+            #     들어 있으면 E1 로 내린다. ④를 빼도 "비버가 방금 말한 걸 그대로 따라한
+            #     E3"는 ③이 계속 막는다. 그리고 마스터는 ①(score≥3.0)·②(서로 다른 통화
+            #     2회 && 다른 날 2일)에 여전히 묶여 있어 한 통화로는 절대 못 딴다.
+            #   ⚠ 남는 구멍은 **에코 E2** 다 — ③은 E3 에만 걸리므로, 비버가 방금 들려준
+            #     통문장을 따라 말한 것을 분석 LLM 이 E2 로 라벨하면 이제 살아남는다.
+            #     실측상 LLM 은 따라말하기를 압도적으로 E1 로 본다(청크 E1 54 : E2 6)이라
+            #     현재 크기는 작다. ⇒ **청크 E2 비율이 갑자기 뛰면 여기부터 의심해라.**
+            solo_demote = cand.get("kind") != "chunk"
+            if alnum < 4 or (solo_demote and norm_quote == norm_surface):
                 grade = "E1"
         if grade in ("E2", "E3") and turn_index in hinted_user_turns:
             grade = "E1"  # ④' D16: 힌트 열람 직후 발화 — 모방 수준으로만 인정
