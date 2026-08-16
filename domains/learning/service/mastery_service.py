@@ -435,9 +435,13 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     승급은 문법(+L1 청크) 전용 — D12: G1/G2 분모(list_gate_items)에 어휘가 없다.
     어휘 증거·상태는 계속 쌓이지만 승급 판정엔 산입하지 않는다.
 
-    게이트 = G1(배움) && G2(잘씀) && G4(오류율) && G5(승급 후 일수 잠금) — D15 로
-    체류 게이트(G3) 폐지. G4 의 창은 "최근 5 증거통화"(item_evidence 에 행이 있는
-    distinct call, 최신순 — 분모 <10 이면 pass).
+    ⛔ **게이트 = G1(배움) && G2(잘씀) 뿐이다**(2026-08-16 사장님 지시로 G4·G5 제거).
+    G4(오류율)·G5(승급 후 일수 잠금)는 **스냅샷에 기록만** 되고 판정엔 안 쓴다
+    (`enforced: False`). 체류 게이트(G3)는 그 전에 D15 로 폐지됐다.
+    ⚠ 되살리려면 대가를 먼저 읽어라(파일 상단 `_BAND_GATES` 주석) — G4 제거로
+      계속 틀려도 승급하고, G5 제거로 하루에 여러 레벨을 올라갈 수 있다.
+    참고: G4 의 창은 "최근 5 증거통화"(item_evidence 에 행이 있는 distinct call,
+    최신순 — 분모 <10 이면 pass). 관측값이므로 계산은 그대로 돈다.
 
     멱등 3중: ⓪ history 에 trigger_call_id 존재 → 스킵(UNIQUE 멱등 키)
              ① member FOR UPDATE(동시 분석 경합 방지) ② 항상 +1(다단 승급 금지).
