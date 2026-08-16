@@ -4,7 +4,7 @@
     - pick_study_items: L1 구성(청크 3+어휘 1, 문법 0) / 초급 구성(복습≤2+문법 1+어휘
       나머지, 예비 25 전부 vocab) / SEL2·SEL3 제외(F 는 즉시 재출제) /
       미소화 introduced 이월 선두 / 브리지 믹스(복습 확대+이전 레벨 우선).
-      ⭐ L1 전용(2026-08-16): 복습 포함 **총 10개 전부 청크**, 시드 부족 시 짧아짐(R5),
+      ⭐ L1 전용(2026-08-16): 복습 포함 **총 30개 전부 청크**, 시드 부족 시 짧아짐(R5),
       다른 밴드 불변(예비 25 = 어휘).
     - bridge_or_struggle_ratio: 진입 후 증거통화 <3 → 0.7(신규·승급 직후) / 기본 0.3.
       (D15 — "유효통화" 폐지: 통화 수 파생값은 item_evidence 의 distinct call 기반.)
@@ -261,7 +261,7 @@ def prod_env(session_factory):
     근거: assets/level/curriculum_v2/{vocab,grammar}.json 의 최소 level_no 가 2 다
     (청크만 level_no=1). 이 사실이 깨지면 L1 study 가 다시 어휘를 물게 되므로
     아래 테스트들이 그 전제를 함께 지킨다.
-    L1 청크 12 / L2 문법 2 + core 어휘 30(예비 25 상한을 실제로 때리는 수).
+    L1 청크 35(30 을 채우고도 남는 수) / L2 문법 2 + core 어휘 30(예비 25 상한을 실제로 때리는 수).
     """
     db = session_factory()
     db.add(Level(language="ko", level_no=1, profile="생존"))
@@ -274,7 +274,7 @@ def prod_env(session_factory):
         db.flush()
         items[key] = it
 
-    for i in range(1, 13):
+    for i in range(1, 36):
         add(f"c{i}", kind="chunk", band=1, level_no=1, seq_no=i,
             surface=f"청크{i} 주세요", explanation=f"청크{i} 설명")
     for i in range(1, 3):
@@ -299,25 +299,25 @@ def _kinds(picked):
     return [e["study_kind"] for e in picked]
 
 
-def test_l1_study_is_exactly_ten_and_all_chunks(prod_env):
-    """⭐ L1 통화의 study 항목은 **정확히 10개이고 전부 청크**다(중복 없음)."""
+def test_l1_study_is_exactly_thirty_and_all_chunks(prod_env):
+    """⭐ L1 통화의 study 항목은 **정확히 30개이고 전부 청크**다(중복 없음)."""
     db = prod_env["db"]
     picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
                                    review_slots=1, bridge_prev_ratio=0.7)
 
-    assert len(picked) == repo.SURVIVAL_STUDY_TOTAL == 10
+    assert len(picked) == repo.SURVIVAL_STUDY_TOTAL == 30
     assert set(_kinds(picked)) == {"chunk"}, _kinds(picked)
     assert all(e["item"].kind == "chunk" for e in picked)
     ids = [e["item"].item_id for e in picked]
     assert len(set(ids)) == len(ids)          # 본편·예비 중복 금지
     # 본편 구성은 안 건드렸다 — 앞 3개가 본편, 나머지가 예비.
-    assert [e["slot"] for e in picked] == ["main"] * 3 + ["reserve"] * 7
+    assert [e["slot"] for e in picked] == ["main"] * 3 + ["reserve"] * 27
     assert [e["item"].surface for e in picked] == \
-        [f"청크{i} 주세요" for i in range(1, 11)]   # seq 순
+        [f"청크{i} 주세요" for i in range(1, 31)]   # seq 순
 
 
-def test_l1_total_stays_ten_when_review_takes_a_slot(prod_env):
-    """복습이 본편을 한 칸 먹어도 **총합은 그대로 10** — '3+7' 하드코딩이 아니다."""
+def test_l1_total_stays_thirty_when_review_takes_a_slot(prod_env):
+    """복습이 본편을 한 칸 먹어도 **총합은 그대로 30** — 본편·예비 비율을 안 박았다."""
     db, items = prod_env["db"], prod_env["items"]
     db.add(MemberItemProgress(
         member_id=prod_env["m1"].member_id, item_id=items["c1"].item_id,
@@ -327,19 +327,19 @@ def test_l1_total_stays_ten_when_review_takes_a_slot(prod_env):
 
     picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
                                    review_slots=1, bridge_prev_ratio=0.7)
-    assert len(picked) == 10
+    assert len(picked) == 30
     assert _kinds(picked)[0] == "review"      # 복습 1(c1)
     assert set(_kinds(picked)[1:]) == {"chunk"}
     assert all(e["item"].kind == "chunk" for e in picked)
     ids = [e["item"].item_id for e in picked]
     assert len(set(ids)) == len(ids)          # 복습으로 나간 c1 이 예비에 또 오면 안 된다
-    assert [e["slot"] for e in picked] == ["main"] * 4 + ["reserve"] * 6
+    assert [e["slot"] for e in picked] == ["main"] * 4 + ["reserve"] * 26
 
 
 def test_l1_shrinks_when_chunk_seed_runs_out(prod_env):
-    """R5 — 청크를 거의 다 배운 회원이면 **죽지 말고 짧아진다**(10개 억지로 못 채움)."""
+    """R5 — 청크를 거의 다 배운 회원이면 **죽지 말고 짧아진다**(30개 억지로 못 채움)."""
     db, items = prod_env["db"], prod_env["items"]
-    for i in range(1, 10):                    # c1~c9 마스터 → 신규 풀은 c10~c12 뿐
+    for i in range(1, 33):                    # c1~c32 마스터 → 신규 풀은 c33~c35 뿐
         db.add(MemberItemProgress(
             member_id=prod_env["m1"].member_id, item_id=items[f"c{i}"].item_id,
             status="mastered", score=3.0, provenance="observed",
@@ -349,7 +349,7 @@ def test_l1_shrinks_when_chunk_seed_runs_out(prod_env):
     picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
                                    review_slots=1, bridge_prev_ratio=0.7)
     assert [(e["slot"], e["item"].surface) for e in picked] == [
-        ("main", "청크10 주세요"), ("main", "청크11 주세요"), ("main", "청크12 주세요")]
+        ("main", "청크33 주세요"), ("main", "청크34 주세요"), ("main", "청크35 주세요")]
 
 
 def test_other_bands_reserve_is_still_25_vocab(prod_env):

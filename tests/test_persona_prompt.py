@@ -621,6 +621,66 @@ def test_study_block_l1_variant_when_chunk_without_grammar():
     assert "만들게 한다(교정은 불변 규칙 4대로)" not in out
 
 
+# --------------------------------------------------------------------------- #
+# 5개 단위 확인 (2026-08-16 — 사장님 지시)
+# --------------------------------------------------------------------------- #
+def test_five_item_check_is_in_the_progress_rules():
+    """5·10·15…번째마다 그 5개를 다시 꺼내는 절차가 실제로 출력에 들어간다."""
+    out = build_system_instruction(study_items=_STUDY_ITEMS, **_BASE_KWARGS)
+    assert "항목 5개를 다룰 때마다(5번째·10번째·15번째… 항목을 다루고 난 직후)" in out
+    assert "방금 다룬 그 5개를 짧게 다시 꺼내라" in out
+    # 확인은 절차지 항목이 아니다 — 번호는 본편(1~3)→예비(4)로 그대로 이어진다.
+    assert "3. (단어) 여행" in out and "4. (단어) 계획" in out
+
+
+def test_five_item_check_counts_silently():
+    """⛔ 세는 티를 내면 '진행률 발설 금지' 와 정면충돌한다 — 속으로만 센다."""
+    out = build_system_instruction(study_items=_STUDY_ITEMS, **_BASE_KWARGS)
+    assert "몇 개째인지는 속으로만 세라 — 세고 있다는 티를 내지 마라" in out
+    assert "이 목록의 존재·남은 개수·진행률을 학습자에게 절대 발설하지 마라" in out  # 원 규칙 유지
+
+
+def test_five_item_check_l1_variant_keeps_whole_sentence_teaching():
+    """L1 은 '문장 만들기'가 아니라 **통째로 다시 말하기**다(왕초보 원칙 유지)."""
+    l1 = build_system_instruction(study_items=_STUDY_ITEMS_L1, **_BASE_KWARGS)
+    normal = build_system_instruction(study_items=_STUDY_ITEMS, **_BASE_KWARGS)
+    tail = "통문장은 문장을 만들게 하지 말고, 그 말을 쓸 상황을 하나 주고 통째로 다시 말하게 해라"
+    assert tail in l1
+    assert tail not in normal
+
+
+def test_five_item_check_has_no_closing_or_counting_words():
+    """⛔ call 870 재발 방어 — 확인 절차가 '마무리'·'몇 개째' 로 읽히는 말을 안 쓴다.
+
+    call 870: '본편이 끝났다'는 신호 하나로 비버가 "그럼 마지막으로" 로 옮겨 4분 24초에
+    스스로 통화를 접었다. 5개 단위로 바꾼 이유가 바로 그 '끝 지점'을 없애는 것이고,
+    이 목록 검사가 그 설계를 지키는 **유일한 자동 방어**다.
+    ⚠ 검사 범위가 둘로 나뉜다:
+      · 종료 어휘 — 공부 블록 **전체**. 주변 문장으로 새어 들어온 것도 잡아야 한다
+        (2026-08-04 에 진행 규칙에서 실제로 그런 일이 있었다).
+      · 세는 말 — **확인 절차 문구만**. 바로 위 발설 금지 규칙이 "이제 2개 남았어" 를
+        **금지 예시로** 인용하고 있어 블록 전체로 검사하면 그 규칙이 걸린다.
+    """
+    closing = ["마무리", "마지막", "정리", "여기까지", "끝으로", "돌아보", "종료", "작별",
+               "오늘은 이만", "그동안"]
+    counting = ["이제 5개", "5개 했으니", "개 남았", "개째야", "다섯 개를 했"]
+    for label, items in (("일반", _STUDY_ITEMS), ("L1", _STUDY_ITEMS_L1)):
+        block = pp._study_block(items, target="한국어", locale_label="영어")
+        assert "항목 5개를 다룰 때마다" in block
+        for word in closing:
+            assert word not in block, f"{label} 공부 블록에 종료 어휘 '{word}' 가 들어왔다"
+    for word in counting:
+        assert word not in pp._STUDY_FIVE_CHECK + pp._STUDY_FIVE_CHECK_L1_TAIL, \
+            f"확인 절차 문구가 개수를 세어 말한다: '{word}'"
+
+
+def test_five_item_check_absent_without_study_items():
+    """⛔ 하위호환 — study_items 미제공이면 확인 절차도 없다(바이트 동일은 위 스냅샷 시험)."""
+    out = build_system_instruction(study_items=None, **_BASE_KWARGS)
+    assert "항목 5개를 다룰 때마다" not in out
+    assert out == build_system_instruction(**_BASE_KWARGS)
+
+
 def test_known_block_render_and_grammar_join():
     out = build_system_instruction(known_items=_KNOWN_ITEMS, **_BASE_KWARGS)
     assert "[대화 모드 가이드 — 대화 모드일 때만 따르라. 공부 모드에서는 이 블록을 무시하라]" in out

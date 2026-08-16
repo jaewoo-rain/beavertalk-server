@@ -242,9 +242,12 @@ def load_default_candidates(
 #   `level_no == level_no` 정확일치라 L1 회원의 예비 25(어휘)는 **항상 빈 리스트**였다.
 #   그래서 L1 은 본편 3~4개만 들고 통화에 들어갔다. L1 에 존재하는 재료는 청크 46 뿐이므로
 #   남은 자리를 청크로 채운다(총 SURVIVAL_STUDY_TOTAL 개). ⛔ 본편 구성은 그대로다.
+#   ⭐ 같은 날 10 → **30** 으로 올렸다(사장님 지시 "1단계도 chunk 30개로"). 다른 밴드의
+#   총량(본편 5 + 예비 25 = 30)과 같은 수다 — L1 만 적게 줄 이유가 없다. 재료는 청크 46개라
+#   충분하고, 모자라면 짧아진다(R5). 지시문 비용은 항목 20개 ≈ +600 토큰(위 계산과 동일).
 STUDY_MAIN_TOTAL = 5
 STUDY_RESERVE_TOTAL = 25
-SURVIVAL_STUDY_TOTAL = 10     # ⭐ L1 전용 — 본편+예비 합계(복습 포함). 전부 청크.
+SURVIVAL_STUDY_TOTAL = 30     # ⭐ L1 전용 — 본편+예비 합계(복습 포함). 전부 청크.
 _SURVIVAL_CHUNKS = 3          # L1 본편 = 청크 3 + 어휘 1(문법 0)
 _SURVIVAL_VOCAB_CAP = 1
 _INTERMEDIATE_VOCAB_CAP = 3   # 중급 본편 어휘 상한 3
