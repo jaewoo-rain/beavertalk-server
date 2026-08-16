@@ -2,8 +2,10 @@
 
 검증 대상:
     - pick_study_items: L1 구성(청크 3+어휘 1, 문법 0) / 초급 구성(복습≤2+문법 1+어휘
-      나머지, 본편 5+예비 5 전부 vocab) / SEL2·SEL3 제외(F 는 즉시 재출제) /
+      나머지, 예비 25 전부 vocab) / SEL2·SEL3 제외(F 는 즉시 재출제) /
       미소화 introduced 이월 선두 / 브리지 믹스(복습 확대+이전 레벨 우선).
+      ⭐ L1 전용(2026-08-16): 복습 포함 **총 10개 전부 청크**, 시드 부족 시 짧아짐(R5),
+      다른 밴드 불변(예비 25 = 어휘).
     - bridge_or_struggle_ratio: 진입 후 증거통화 <3 → 0.7(신규·승급 직후) / 기본 0.3.
       (D15 — "유효통화" 폐지: 통화 수 파생값은 item_evidence 의 distinct call 기반.)
     - promotion_pending: gate_promotion 직후 True → 증거통화 1회 후 False.
@@ -224,11 +226,14 @@ def test_promotion_pending_true_then_false_after_evidence_call(env):
 # (7) pick_study_items
 # --------------------------------------------------------------------------- #
 def test_pick_study_items_survival_l1(env):
-    """L1(A): 본편 = 청크 3(seq 순) + 어휘 1, 문법 0 / 예비 = 남은 어휘 전부 다음 순번.
+    """L1(A): 본편 = 청크 3(seq 순) + 어휘 1, 문법 0 / 예비 = **청크**(2026-08-16).
 
-    ⚠ 예비 상한은 STUDY_RESERVE_TOTAL(25)이지만 이 시드는 L1 어휘가 v1~v8 뿐이라
-      본편이 v1 을 쓰고 남는 v2~v8 = 7개가 전부 예비로 온다. 즉 여기서 7 은 상한이
-      아니라 **시드가 정한 수**다 — 상한을 다시 조정해도 이 테스트는 안 흔들린다.
+    ⚠ 이 시드는 L1 어휘 v1~v8 을 갖고 있지만 **실서비스 커리큘럼엔 L1 어휘가 없다**
+      (vocab.json 최소 level_no=2). 그래서 여기 본편의 '어휘 1' 은 실서비스에선 안
+      나온다 — 본편 구성 자체가 안 변했다는 것만 여기서 지킨다(⛔ 본편 불가침).
+      "정확히 10개 전부 청크" 는 실서비스 모양(L1 어휘 0)인 prod_env 쪽에서 지킨다.
+    ⚠ 예비가 청크 1개뿐인 것은 상한이 아니라 **시드가 청크 4개뿐이기 때문**이다
+      (R5 — 재료가 모자라면 죽지 말고 짧아진다).
     """
     db = env["db"]
     pa = repo.pick_study_items(db, env["mA"].member_id, 1,
@@ -241,8 +246,138 @@ def test_pick_study_items_survival_l1(env):
     assert [e["item"].surface for e in main[:3]] == \
         ["청크1 주세요", "청크2 주세요", "청크3 주세요"]
     assert main[3]["item"].surface == "단어v1"
-    assert [e["study_kind"] for e in reserve] == ["vocab"] * 7
-    assert [e["item"].surface for e in reserve] == [f"단어v{i}" for i in range(2, 9)]
+    # 예비는 더 이상 어휘가 아니다 — 남은 청크(c4)가 온다. v2~v8 은 안 나온다.
+    assert [(e["study_kind"], e["item"].surface) for e in reserve] == \
+        [("chunk", "청크4 주세요")]
+
+
+# --------------------------------------------------------------------------- #
+# (7-b) L1 예비를 청크로 채운다 (2026-08-16) — 실서비스 커리큘럼 모양으로 시드
+# --------------------------------------------------------------------------- #
+@pytest.fixture()
+def prod_env(session_factory):
+    """실서비스 모양 시드 — **L1 에는 청크만 있고 어휘·문법이 없다**.
+
+    근거: assets/level/curriculum_v2/{vocab,grammar}.json 의 최소 level_no 가 2 다
+    (청크만 level_no=1). 이 사실이 깨지면 L1 study 가 다시 어휘를 물게 되므로
+    아래 테스트들이 그 전제를 함께 지킨다.
+    L1 청크 12 / L2 문법 2 + core 어휘 30(예비 25 상한을 실제로 때리는 수).
+    """
+    db = session_factory()
+    db.add(Level(language="ko", level_no=1, profile="생존"))
+    db.add(Level(language="ko", level_no=2, profile="초급"))
+    items: dict[str, LearningItem] = {}
+
+    def add(key, **kw):
+        it = LearningItem(source_key=key, language="ko", assign_rule="test_v1", **kw)
+        db.add(it)
+        db.flush()
+        items[key] = it
+
+    for i in range(1, 13):
+        add(f"c{i}", kind="chunk", band=1, level_no=1, seq_no=i,
+            surface=f"청크{i} 주세요", explanation=f"청크{i} 설명")
+    for i in range(1, 3):
+        add(f"g{i}", kind="grammar", band=1, level_no=2, seq_no=i, surface=f"-문법{i}",
+            textbook_code="basic_a",
+            examples=f'["문법{i} 예문을 봤어요."]', explanation=f"문법{i} 설명")
+    for i in range(1, 31):
+        add(f"w{i}", kind="vocab", band=1, level_no=2, topik_grade=1, is_core=True,
+            priority_rank=i, surface=f"단어w{i}", gen_examples=f'["단어w{i} 예문이에요."]')
+
+    m1 = Member(language="en", korean_level=1, onboarding_completed=True,
+                auth_user_id="auth-P1")
+    m2 = Member(language="en", korean_level=2, onboarding_completed=True,
+                auth_user_id="auth-P2")
+    db.add_all([m1, m2])
+    db.commit()
+    yield {"db": db, "items": items, "m1": m1, "m2": m2}
+    db.close()
+
+
+def _kinds(picked):
+    return [e["study_kind"] for e in picked]
+
+
+def test_l1_study_is_exactly_ten_and_all_chunks(prod_env):
+    """⭐ L1 통화의 study 항목은 **정확히 10개이고 전부 청크**다(중복 없음)."""
+    db = prod_env["db"]
+    picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+
+    assert len(picked) == repo.SURVIVAL_STUDY_TOTAL == 10
+    assert set(_kinds(picked)) == {"chunk"}, _kinds(picked)
+    assert all(e["item"].kind == "chunk" for e in picked)
+    ids = [e["item"].item_id for e in picked]
+    assert len(set(ids)) == len(ids)          # 본편·예비 중복 금지
+    # 본편 구성은 안 건드렸다 — 앞 3개가 본편, 나머지가 예비.
+    assert [e["slot"] for e in picked] == ["main"] * 3 + ["reserve"] * 7
+    assert [e["item"].surface for e in picked] == \
+        [f"청크{i} 주세요" for i in range(1, 11)]   # seq 순
+
+
+def test_l1_total_stays_ten_when_review_takes_a_slot(prod_env):
+    """복습이 본편을 한 칸 먹어도 **총합은 그대로 10** — '3+7' 하드코딩이 아니다."""
+    db, items = prod_env["db"], prod_env["items"]
+    db.add(MemberItemProgress(
+        member_id=prod_env["m1"].member_id, item_id=items["c1"].item_id,
+        status="practicing", score=1.0, provenance="observed",
+        first_seen_at=NOW - timedelta(days=5), last_used_at=NOW - timedelta(days=5)))
+    db.commit()
+
+    picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+    assert len(picked) == 10
+    assert _kinds(picked)[0] == "review"      # 복습 1(c1)
+    assert set(_kinds(picked)[1:]) == {"chunk"}
+    assert all(e["item"].kind == "chunk" for e in picked)
+    ids = [e["item"].item_id for e in picked]
+    assert len(set(ids)) == len(ids)          # 복습으로 나간 c1 이 예비에 또 오면 안 된다
+    assert [e["slot"] for e in picked] == ["main"] * 4 + ["reserve"] * 6
+
+
+def test_l1_shrinks_when_chunk_seed_runs_out(prod_env):
+    """R5 — 청크를 거의 다 배운 회원이면 **죽지 말고 짧아진다**(10개 억지로 못 채움)."""
+    db, items = prod_env["db"], prod_env["items"]
+    for i in range(1, 10):                    # c1~c9 마스터 → 신규 풀은 c10~c12 뿐
+        db.add(MemberItemProgress(
+            member_id=prod_env["m1"].member_id, item_id=items[f"c{i}"].item_id,
+            status="mastered", score=3.0, provenance="observed",
+            mastered_at=NOW - timedelta(days=3), first_seen_at=NOW - timedelta(days=9)))
+    db.commit()
+
+    picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+    assert [(e["slot"], e["item"].surface) for e in picked] == [
+        ("main", "청크10 주세요"), ("main", "청크11 주세요"), ("main", "청크12 주세요")]
+
+
+def test_other_bands_reserve_is_still_25_vocab(prod_env):
+    """⛔ 다른 밴드는 안 변했다 — L2 예비는 여전히 **어휘 25**(청크 0)."""
+    db = prod_env["db"]
+    picked = repo.pick_study_items(db, prod_env["m2"].member_id, 2,
+                                   review_slots=2, bridge_prev_ratio=0.3)
+    reserve = [e for e in picked if e["slot"] == "reserve"]
+    main = [e for e in picked if e["slot"] == "main"]
+
+    assert len(reserve) == repo.STUDY_RESERVE_TOTAL == 25
+    assert set(_kinds(reserve)) == {"vocab"}
+    assert _kinds(main) == ["grammar", "vocab", "vocab", "vocab", "vocab"]
+    assert not any(e["item"].kind == "chunk" for e in picked)
+
+
+def test_curriculum_has_no_level1_vocab_or_grammar():
+    """위 전제의 원본 확인 — 커리큘럼 자산의 어휘·문법은 level_no 2 부터다."""
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "assets/level/curriculum_v2"
+    for name in ("vocab.json", "grammar.json"):
+        levels = {i.get("level_no") for i in json.loads(
+            (root / name).read_text(encoding="utf-8"))["items"]}
+        assert 1 not in levels, name
+    chunks = json.loads((root / "survival_chunks.json").read_text(encoding="utf-8"))
+    assert chunks["level_no"] == 1 and chunks["count"] >= repo.SURVIVAL_STUDY_TOTAL
 
 
 def test_pick_study_items_beginner_mix_and_sel_filters(env):
@@ -295,8 +430,21 @@ def test_carryover_introduced_leads_new_pool(env):
     main_vocab = [e["item"].surface for e in pa
                   if e["slot"] == "main" and e["study_kind"] == "vocab"]
     assert main_vocab == ["단어v3"], main_vocab  # 이월 선두(priority 3 이지만 최우선)
-    reserve = [e["item"].surface for e in pa if e["slot"] == "reserve"]
-    assert reserve[0] == "단어v1"  # 이월 소진 후엔 priority 순
+
+    # "이월 소진 후엔 priority 순" 은 어휘 예비에서 본다 — L1 예비는 이제 청크라
+    # (2026-08-16) 관측 자리를 L2 회원으로 옮겼다. 성질 자체는 그대로다.
+    db.add(MemberItemProgress(
+        member_id=env["mB"].member_id, item_id=env["items"]["w5"].item_id,
+        status="introduced", score=0.25, provenance="observed",
+        first_seen_at=NOW - timedelta(days=1), last_seen_at=NOW - timedelta(days=1),
+    ))
+    db.commit()
+    pb = repo.pick_study_items(db, env["mB"].member_id, 2, review_slots=2,
+                               bridge_prev_ratio=0.3)
+    vocab = [e["item"].surface for e in pb if e["item"].kind == "vocab"
+             and e["study_kind"] != "review"]
+    assert vocab[0] == "단어w5"                     # 이월 선두
+    assert vocab[1:] == [f"단어w{i}" for i in (2, 3, 4, 6, 7, 8)]  # 이후 priority 순
 
 
 # --------------------------------------------------------------------------- #

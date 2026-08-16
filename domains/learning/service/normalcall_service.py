@@ -467,7 +467,7 @@ def _load_study_materials(
         else _REVIEW_SLOTS_BY_BAND[band]
     )
 
-    # ② 공부 로드 10 (본편 5 + 예비 5)
+    # ② 공부 로드 30 (본편 5 + 예비 25) — L1 만 총 10(전부 청크, 2026-08-16)
     picked = mastery_repository.pick_study_items(
         db, member_id, level_no, review_slots=review_slots, bridge_prev_ratio=ratio,
         language=language,

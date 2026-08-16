@@ -235,8 +235,16 @@ def load_default_candidates(
 # 비용: 항목 20개 추가 ≈ 지시문 +600 토큰. 지시문은 매 턴 재처리되지만 텍스트 단가라
 #   15분 통화 기준 +$0.02 수준으로 무시 가능하다. 그리고 지시문은 컨텍스트 압축에
 #   밀리지 않으므로(sliding window 는 system_instruction 을 건너뛴다) 통화 내내 유지된다.
+#
+# ⭐ 2026-08-16: **L1(생존회화)만은 예비도 청크다**(사장님 지시 "레벨 1일때만 chunk로 10개
+#   준비해"). 이유는 재료가 실제로 0개였기 때문이다 — 커리큘럼 어휘·문법은 level_no 2 부터
+#   시작하고(`assets/level/curriculum_v2/vocab.json` 최소 2), `_pick_new_items` 는
+#   `level_no == level_no` 정확일치라 L1 회원의 예비 25(어휘)는 **항상 빈 리스트**였다.
+#   그래서 L1 은 본편 3~4개만 들고 통화에 들어갔다. L1 에 존재하는 재료는 청크 46 뿐이므로
+#   남은 자리를 청크로 채운다(총 SURVIVAL_STUDY_TOTAL 개). ⛔ 본편 구성은 그대로다.
 STUDY_MAIN_TOTAL = 5
 STUDY_RESERVE_TOTAL = 25
+SURVIVAL_STUDY_TOTAL = 10     # ⭐ L1 전용 — 본편+예비 합계(복습 포함). 전부 청크.
 _SURVIVAL_CHUNKS = 3          # L1 본편 = 청크 3 + 어휘 1(문법 0)
 _SURVIVAL_VOCAB_CAP = 1
 _INTERMEDIATE_VOCAB_CAP = 3   # 중급 본편 어휘 상한 3
@@ -441,6 +449,8 @@ def pick_study_items(
 
     밴드별 본편 구성: L1 = 청크 3+어휘 1(문법 0) / 초급 = 복습 0~2+문법 1+어휘 2~4 /
     중급 = 어휘 상한 3 / 고급 = 복습 0~1+문법 1+어휘 3~4. 예비 25 는 전부 어휘(다음 순번).
+    ⭐ L1(survival)만 예외 — 예비도 청크이고, 복습 포함 **총 SURVIVAL_STUDY_TOTAL 개**로
+    맞춘다(L1 커리큘럼에 어휘·문법이 없어 예비 어휘가 늘 0개였다 — 상수 주석 참조).
     제외 필터: SEL1(MASTERED — 신규 풀이 미학습 한정이라 자연 충족) / SEL2 / SEL3.
 
     Returns:
@@ -458,12 +468,20 @@ def pick_study_items(
     )
     out: list[dict] = [{"slot": "main", "study_kind": "review", "item": i} for i in reviews]
 
+    survival_reserve: list[LearningItem] = []
     if band == "survival":
+        # ⭐ L1 은 본편·예비를 **한 번에** 뽑아 슬라이싱한다(어휘 경로와 같은 모양) —
+        #   두 번 뽑으면 같은 청크가 본편·예비에 겹칠 수 있다. 복습 항목은 practicing 이고
+        #   신규 풀은 progress 없음/introduced 라 서로 겹치지 않는다.
         chunks = _pick_new_items(
-            db, member_id, level_no, "chunk", _SURVIVAL_CHUNKS,
+            db, member_id, level_no, "chunk", SURVIVAL_STUDY_TOTAL,
             exclude_ids=cooldown, language=language,
         )
-        out += [{"slot": "main", "study_kind": "chunk", "item": i} for i in chunks]
+        out += [
+            {"slot": "main", "study_kind": "chunk", "item": i}
+            for i in chunks[:_SURVIVAL_CHUNKS]
+        ]
+        survival_reserve = chunks[_SURVIVAL_CHUNKS:]
     else:
         # 신규 문법 정확히 1개(2개 금지 — 항목당 75~90초).
         grammars = _pick_new_items(
@@ -479,15 +497,27 @@ def pick_study_items(
         vocab_want = min(vocab_want, _INTERMEDIATE_VOCAB_CAP)
     vocab_want = max(0, vocab_want)
 
+    # 예비: L1 은 청크(위에서 이미 뽑아 뒀다), 그 외 밴드는 어휘 25.
+    reserve_want = 0 if band == "survival" else STUDY_RESERVE_TOTAL
+
     vocabs = _pick_new_items(
         db, member_id, level_no, "vocab",
-        vocab_want + STUDY_RESERVE_TOTAL, exclude_ids=cooldown, language=language,
+        vocab_want + reserve_want, exclude_ids=cooldown, language=language,
     )
     out += [{"slot": "main", "study_kind": "vocab", "item": i} for i in vocabs[:vocab_want]]
     out += [
         {"slot": "reserve", "study_kind": "vocab", "item": i}
-        for i in vocabs[vocab_want : vocab_want + STUDY_RESERVE_TOTAL]
+        for i in vocabs[vocab_want : vocab_want + reserve_want]
     ]
+
+    if band == "survival":
+        # 총 SURVIVAL_STUDY_TOTAL 개가 되게 채운다 — "3+7" 을 박지 않는다(복습이 들어오면
+        # 본편이 4~5개가 되고 예비는 그만큼 줄어든다). 청크가 모자라면 그냥 짧아진다(R5).
+        want = max(0, SURVIVAL_STUDY_TOTAL - len(out))
+        out += [
+            {"slot": "reserve", "study_kind": "chunk", "item": i}
+            for i in survival_reserve[:want]
+        ]
     return out
 
 
