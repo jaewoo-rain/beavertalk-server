@@ -858,13 +858,21 @@ _CLOSING_WORDS = (
 )
 
 
+# covered 상한 — 브리프가 길어지면 유저 한마디를 덮는다(docstring 의 250 토큰 경고 참조).
+# ⚠ 호출부 로그가 "몇 개가 실제로 실렸나"를 찍을 때 같은 수를 봐야 하므로 공개 상수다.
+REGROUND_COVERED_CAP = 4
+
+
+def is_closing_slot(text: Optional[str]) -> bool:
+    """이 슬롯이 종료 어휘 denylist 에 걸리는가(호출부 로깅용 — 판정은 여기 하나뿐)."""
+    s = (text or "").strip().lower()
+    return bool(s) and any(w in s for w in _CLOSING_WORDS)
+
+
 def _drop_if_closing(text: Optional[str]) -> str:
     """종료 어휘가 섞인 슬롯은 버린다(부분 마스킹 아님 — 원소 단위 폐기)."""
     s = (text or "").strip()
-    if not s:
-        return ""
-    low = s.lower()
-    return "" if any(w in low for w in _CLOSING_WORDS) else s
+    return "" if is_closing_slot(s) else s
 
 
 def build_reground_brief(
@@ -891,11 +899,23 @@ def build_reground_brief(
 
     covered: 이미 다룬 학습 항목 라벨. 압축이 초반을 삼켜도 **같은 걸 처음부터 다시 가르치는
       반복**(마스터플랜 D4)을 막는 재료다. topic: 지금 대화 흐름 한 조각.
-    둘 다 종료 어휘 denylist 를 통과한 것만 실린다(걸리면 그 원소만 빠지고 나머지는 나간다).
+
+    ## ⛔ denylist 는 **topic 에만** 건다 — covered 에는 안 건다(2026-08-17)
+    ⚠ 걸었더니 **L1 작별 인사가 통째로 사라졌다.** denylist 에 "안녕히"·"다음에" 가 있고
+      L1 생존 청크에 "안녕히 가세요"·"안녕히 계세요" 가 있다. 실측:
+      covered=['안녕히 가세요','안녕히 계세요','또 봐요'] → 출력 "이미 다룬 것: 또 봐요".
+      ⇒ 압축 뒤 비버가 **이미 가르친 작별 인사를 처음부터 다시 가르친다** — D4 가 막으려던
+      그 반복이 하필 L1 핵심 항목에서만 일어났다.
+    ⭐ 왜 covered 는 안 걸어도 되나(출처가 다르다): covered 원소는 사이드카가 만든 문장이
+      아니라 **서버가 소유하는 학습 항목 라벨**(state.reground_items)이고, 사이드카는
+      거기서 **번호만** 고른다(호출부가 1..len 범위까지 검증). 학습자의 "그만할래요"가
+      covered 로 흘러들 **경로 자체가 없다.**
+    ⛔ topic 은 반대다 — 사이드카가 자유 문자열로 만든다. call 683(재접지 30초 뒤 작별)이
+      난 자리가 거기다. **topic 의 denylist 는 절대 빼지 마라.**
     """
     parts = [p.strip() for p in (role, personality) if p and p.strip()]
     body = " / ".join(parts) if parts else "너의 캐릭터"
-    safe_covered = [c for c in (_drop_if_closing(c) for c in (covered or [])) if c][:4]
+    safe_covered = [c.strip() for c in (covered or []) if c and c.strip()][:REGROUND_COVERED_CAP]
     safe_topic = _drop_if_closing(topic)
 
     out = [

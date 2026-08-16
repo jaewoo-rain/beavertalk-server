@@ -888,6 +888,37 @@ def test_compression_detected_from_prompt_drop():
     assert cs._reground_due(st, 1001.0) == "post-compress"
 
 
+def test_compression_threshold_follows_the_settings(monkeypatch):
+    """⛔ 문턱은 **설정에서 파생**된다 — 절대 토큰으로 박으면 설정을 내릴 때 눈이 먼다.
+
+    실측 call 1045(prod 8000/7000): 7,659 → 7,165. 낙차 494 는 옛 절대 문턱 2000 에도,
+    옛 peak 대비 0.85(=1,149 필요)에도 못 미쳐 `compressions=0` 이었다 — 압축은 실제로
+    돌았는데(monotonic=false·재연결 0·last_prompt≈target) 계측만 못 봤다.
+    """
+    monkeypatch.setattr(cs._settings, "LIVE_CTX_TRIGGER_TOKENS", 8000, raising=False)
+    monkeypatch.setattr(cs._settings, "LIVE_CTX_TARGET_TOKENS", 7000, raising=False)
+
+    st = _fresh_state()
+    for p in (3000, 6000, 7659):
+        cs._observe_compression(st, p)
+    cs._observe_compression(st, 7165)           # 실측 낙차 494
+    assert st.compression_seen == 1, "prod 설정(8000/7000)의 실제 압축을 또 놓쳤다"
+
+    # 잡음은 여전히 배제된다(기대 낙차 1000 의 40% = 400 미만).
+    st2 = _fresh_state()
+    for p in (3000, 6000, 7659):
+        cs._observe_compression(st2, p)
+    cs._observe_compression(st2, 7500)          # 낙차 159
+    assert st2.compression_seen == 0, "잡음을 압축으로 셌다(오탐)"
+
+    # 압축이 일어날 수 없는 자리(작은 컨텍스트)의 급감도 압축이 아니다.
+    st3 = _fresh_state()
+    for p in (2000, 3000):
+        cs._observe_compression(st3, p)
+    cs._observe_compression(st3, 2400)          # 낙차 600 > 400 이지만 peak 가 트리거 근처가 아니다
+    assert st3.compression_seen == 0, "트리거 근처도 아닌데 압축으로 셌다"
+
+
 def test_close_wins_over_reground_arm():
     """⛔ 종료가 최우선 — 마무리 구간에서는 어떤 근거로도 arm 하지 않는다(작별 오염 방지)."""
     trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
@@ -904,27 +935,46 @@ def test_close_wins_over_reground_arm():
 
 
 # --- 재접지 통합: 사이드카는 문장을 만들지 않는다 ---------------------------- #
-def test_brief_drops_closing_vocabulary_slots():
+def test_brief_drops_closing_vocabulary_in_the_free_slot():
     """⛔ 최대 신규 위험: 학습자의 "이제 그만할래요"가 슬롯에 실려 **다시 주입**되는 경로.
 
     태그를 분리해도 소용없다 — 어휘만으로 같은 일이 난다(실측 call 683: 재접지 30초 뒤 작별).
     방어는 프롬프트가 아니라 코드다: 조립 직전에 종료 어휘가 걸린 슬롯을 통째로 버린다.
-    적대적 페이로드를 넣어 결과에 안 나오는지 단언한다.
+    ⚠ 이 방어가 사는 곳은 **topic(사이드카가 자유 문자열로 만드는 슬롯)** 이다. covered 는
+      출처가 달라 뺐다(아래 짝 시험) — 그러니 여기가 유일한 방어선이고 절대 빼지 마라.
     """
     from core.persona_prompt import build_reground_brief
 
     out = build_reground_brief(
-        "선생님", "다정함",
-        mode="chat",
-        covered=["인사말", "이제 그만할래요", "오늘은 여기까지 마무리", "숫자 세기"],
-        topic="슬슬 작별할 시간",
+        "선생님", "다정함", mode="chat",
+        covered=["인사말", "숫자 세기"],
+        topic="슬슬 작별할 시간이라 이제 그만할래요",
     )
-    for poison in ("그만", "마무리", "작별", "여기까지"):
+    for poison in ("그만", "작별", "슬슬"):
         assert poison not in out, f"종료 어휘가 재접지 주입문에 실렸다: {poison}"
-    # 걸린 원소만 버리고 멀쩡한 것은 남는다(전량 폐기가 아니다).
+    # 걸린 슬롯만 버리고 나머지는 그대로 나간다(전량 폐기가 아니다).
     assert "인사말" in out and "숫자 세기" in out
     # 종료 어휘를 **금지문으로도** 쓰지 않는다 — 금지 예시가 씨앗이 된 전례가 있다.
     assert "끝내지" not in out and "종료" not in out
+
+
+def test_covered_labels_keep_l1_farewell_chunks():
+    """⛔ 2026-08-17 뒤집음 — covered 에는 denylist 를 걸지 않는다.
+
+    걸었을 때 무슨 일이 났나: denylist 에 "안녕히"·"다음에" 가 있고 L1 생존 청크에
+    "안녕히 가세요"·"안녕히 계세요" 가 있어서 **3개 중 1개만 살아남았다**(실측 재현).
+    ⇒ 압축 뒤 비버가 이미 가르친 작별 인사를 처음부터 다시 가르친다 — D4 가 막으려던
+      반복이 하필 L1 핵심 항목에서만 일어났다(call 1045).
+    ⭐ 안전한 이유: covered 원소는 사이드카가 만든 문장이 아니라 서버가 소유하는 학습
+      항목 라벨(state.reground_items)이고, 사이드카는 거기서 번호만 고른다.
+    """
+    from core.persona_prompt import build_reground_brief
+
+    labels = ["안녕히 가세요", "안녕히 계세요", "또 봐요", "다음에 봐요"]
+    out = build_reground_brief("선생님", "다정함", mode="study", covered=labels, topic="")
+    for label in labels:
+        assert label in out, f"L1 작별 청크가 버려졌다: {label}"
+    assert "이미 다룬 것: " + " / ".join(labels) in out
 
 
 def test_brief_leads_with_react_to_user_first():

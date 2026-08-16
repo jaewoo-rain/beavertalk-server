@@ -75,12 +75,14 @@ from core.gemini_live import (
 from core.persona_prompt import (
     _LOCALE_LABEL,
     CONTROL_TAG,
+    REGROUND_COVERED_CAP,
     build_leveltest_instruction,
     build_continue_reminder,
     build_reground_brief,
     build_reground_reminder,
     build_system_instruction,
     close_seed_leveltest,
+    is_closing_slot,
     new_close_tag,
     seed_leveltest_opening,
     seed_opening,
@@ -186,11 +188,23 @@ LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 �
 #   ③ 시간 폴백 — usage_metadata 가 아예 안 오는 환경(필드 미제공·모킹)에서도 돌아야 한다.
 #                 마지막 주입 이후 GAP 경과면 arm(R5 — 자동으로 옛 시간 기반 동작으로 강등).
 REGROUND_ARM_RATIO = 0.85        # 압축 임박 판정(× LIVE_CTX_TRIGGER_TOKENS)
-# 사후 감지 비율. ⚠ 0.75 로 잡지 마라 — 현행 16000/12000 은 낙차가 정확히 0.75 라
-#   경계에 걸리고, 압축이 target 보다 조금 위에서 멈추면(턴 경계 컷) 그대로 미탐이 된다.
-#   실질 방어선은 절대 낙차(DROP_MIN_TOKENS)이고 이 비율은 "큰 컨텍스트의 작은 요동" 배제용.
-REGROUND_DROP_RATIO = 0.85
-REGROUND_DROP_MIN_TOKENS = 2000  # 잡음 배제 — 이만큼은 떨어져야 압축(작은 요동은 무시)
+# 사후 감지 문턱. **절대 토큰이 아니라 압축 낙차(trigger − target)에서 파생**한다.
+#
+# ⛔⛔ 2026-08-17: 여기 절대값(2000)과 peak 대비 비율(0.85)이 **둘 다 눈이 멀어 있었다.**
+#   두 값 다 16000/12000 시절에 맞춰져 있었는데 prod 가 8000/7000 으로 내려가면서
+#   낙차 상한이 1000 이 됐다 ⇒ 2000 은 **영원히 못 넘고**, 실측 낙차 494 는 peak 대비
+#   0.936 이라 0.85 문턱도 못 넘는다. 실측 call 1045: 7,659 → 7,165(낙차 494),
+#   `compressions=0`. 압축은 **실제로 돌았다**(monotonic=false·재연결 0·last_prompt≈target).
+#   ⇒ 설정을 바꿀 때마다 같이 안 움직이는 상수는 계측을 조용히 죽인다.
+#
+# 새 규칙 두 개(둘 다 만족해야 압축):
+#   ① 그럴듯함 — peak 가 ARM_RATIO × trigger 이상. 압축이 **일어날 수 있는 자리**였나.
+#      (예전 "peak 대비 0.85" 자리를 대신한다. 작은 컨텍스트의 요동을 여기서 자른다.)
+#   ② 낙차 — 기대 낙차(trigger − target)의 DROP_MIN_RATIO 이상 떨어졌다.
+# ⚠ 0.4 의 근거: 실측 낙차/기대 낙차 = 494/1000 = 0.49 다(압축이 target 보다 조금 위에서
+#   멈춘다 — 턴 경계 컷). 그 아래로 여유를 두되 절반보다는 낮게. 16000/12000 에 대입하면
+#   1600 이라 옛 2000 과 같은 자리대다 — 잡음 배제라는 원래 목적을 유지한다.
+REGROUND_DROP_MIN_RATIO = 0.4
 REGROUND_MIN_GAP_S = 60.0        # 연속 주입 최소 간격(같은 압축 주기에 두 번 얹지 않기)
 REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
 # 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
@@ -718,8 +732,12 @@ def _observe_compression(state: _CallState, prompt) -> None:
     if p > peak:
         state.usage_prompt_peak = p
         return
-    # 급감 = 압축. 비율과 절대 낙차를 **둘 다** 만족해야 한다(작은 요동 배제).
-    if peak - p >= REGROUND_DROP_MIN_TOKENS and p <= peak * REGROUND_DROP_RATIO:
+    # 급감 = 압축. ①압축이 일어날 수 있는 자리였나 ②기대 낙차의 일정 비율 이상 떨어졌나
+    # — 둘 다 만족해야 한다(작은 요동 배제). 문턱은 설정에서 파생된다(위 상수 주석).
+    trigger = _settings.LIVE_CTX_TRIGGER_TOKENS
+    plausible = peak >= trigger * REGROUND_ARM_RATIO
+    drop_min = max(0, trigger - _settings.LIVE_CTX_TARGET_TOKENS) * REGROUND_DROP_MIN_RATIO
+    if plausible and peak - p >= drop_min:
         state.compression_seen += 1
         state.usage_prompt_peak = p  # 새 사이클의 바닥에서 다시 센다
         logger.info(
@@ -2790,15 +2808,21 @@ async def _reground_sidecar(state: _CallState) -> None:
         if not state.reground_pending or state.should_close or state.close_seed_sent:
             return
         role, personality = state.reground_persona
+        topic = getattr(result, "topic", "") or ""
         state.reground_reminder = build_reground_brief(
             role, personality,
             mode=state.call_mode,
             covered=covered,
-            topic=getattr(result, "topic", "") or "",
+            topic=topic,
         )
+        # ⛔ **실린 개수**를 찍는다 — 예전엔 입력 개수를 찍었다. covered 에 denylist 가
+        #   걸려 있던 시절(∼2026-08-17) 3개 중 1개만 실려도 로그는 covered=3 이라
+        #   아무도 못 봤다(call 1045). 버려진 슬롯은 조용히 넘어가면 안 된다.
+        dropped = " topic=버림" if is_closing_slot(topic) else ""
         logger.info(
-            "normalcall: 재접지 브리프 업그레이드(mode=%s covered=%d topic=%s)",
-            state.call_mode, len(covered), (getattr(result, "topic", "") or "")[:12],
+            "normalcall: 재접지 브리프 업그레이드(mode=%s covered=%d/%d topic=%s%s)",
+            state.call_mode, min(len(covered), REGROUND_COVERED_CAP), len(covered),
+            topic[:12], dropped,
         )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로
