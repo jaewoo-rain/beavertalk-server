@@ -958,6 +958,10 @@ def save_call_usage(
         "sum_prompt": summary.get("sum_prompt"),
         "sum_resp": summary.get("sum_resp"),
         "sum_thoughts": summary.get("sum_thoughts"),
+        # ⭐ 캐시된 컨텍스트 토큰(2026-08-16). ⛔ 원가식엔 **안 쓴다** — 값이 나온 뒤에 정한다.
+        #   ⚠ 벤더가 필드를 안 준 통화는 `None` 이다(0 으로 접으면 "캐시 0"과 구별이 안 된다).
+        #   로그는 30일이면 사라지므로 여기 남겨야 **추이**를 볼 수 있다.
+        "sum_cached": summary.get("sum_cached"),
         "t_first": summary.get("t_first"),
         "t_last": summary.get("t_last"),
         "compressions": summary.get("compressions"),
