@@ -6,6 +6,8 @@
       미소화 introduced 이월 선두 / 브리지 믹스(복습 확대+이전 레벨 우선).
       ⭐ L1 전용(2026-08-16): 복습 포함 **총 30개 전부 청크**, 시드 부족 시 짧아짐(R5),
       다른 밴드 불변(예비 25 = 어휘).
+      ⭐ 신규 고갈 시 복습 채움(2026-08-16): 신규가 먼저·모자란 만큼 복습·그래도 모자라면
+      짧아짐 / 미확정 fast-track 재노출 / 다음 레벨 미혼입.
     - bridge_or_struggle_ratio: 진입 후 증거통화 <3 → 0.7(신규·승급 직후) / 기본 0.3.
       (D15 — "유효통화" 폐지: 통화 수 파생값은 item_evidence 의 distinct call 기반.)
     - promotion_pending: gate_promotion 직후 True → 증거통화 1회 후 False.
@@ -366,6 +368,103 @@ def test_other_bands_reserve_is_still_25_vocab(prod_env):
     assert not any(e["item"].kind == "chunk" for e in picked)
 
 
+# --------------------------------------------------------------------------- #
+# (7-c) 신규가 마르면 복습으로 채운다 + 미확정 fast-track 재노출 (2026-08-16)
+# --------------------------------------------------------------------------- #
+def _prog(db, member_id, item, status, *, days_ago=5, **kw):
+    db.add(MemberItemProgress(
+        member_id=member_id, item_id=item.item_id, status=status,
+        score=kw.pop("score", 1.0), provenance=kw.pop("provenance", "observed"),
+        first_seen_at=NOW - timedelta(days=9),
+        last_used_at=NOW - timedelta(days=days_ago), **kw))
+
+
+def test_reviews_fill_the_gap_when_new_items_dry_up(prod_env):
+    """⭐ 청크를 거의 다 배운 L1 회원도 **30개를 받는다** — 1~3개로 떨어지지 않는다.
+
+    c1~c30 을 practicing 으로 만들면 신규 풀은 c31~c35(5개)뿐이다. 예전이면 6개짜리
+    리스트가 나갔다("다 배웠는데 재료가 없다" — 가짜 mastered 갇힘과 결과가 같다).
+    """
+    db, items, m1 = prod_env["db"], prod_env["items"], prod_env["m1"]
+    for i in range(1, 31):
+        _prog(db, m1.member_id, items[f"c{i}"], "practicing", days_ago=40 - i)
+    db.commit()
+
+    picked = repo.pick_study_items(db, m1.member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+    assert len(picked) == 30
+    ids = [e["item"].item_id for e in picked]
+    assert len(set(ids)) == len(ids)                       # 채움이 중복을 만들면 안 된다
+    assert all(e["item"].kind == "chunk" for e in picked)   # L1 은 여전히 전부 청크
+
+
+def test_new_items_come_before_the_review_filler(prod_env):
+    """⛔ 순서 — 배울 게 있으면 **신규가 먼저** 들어간다(뒤집히면 옛것만 돈다)."""
+    db, items, m1 = prod_env["db"], prod_env["items"], prod_env["m1"]
+    for i in range(1, 31):
+        _prog(db, m1.member_id, items[f"c{i}"], "practicing", days_ago=40 - i)
+    db.commit()
+
+    picked = repo.pick_study_items(db, m1.member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+    kinds = _kinds(picked)
+    last_new = max(i for i, k in enumerate(kinds) if k == "chunk")
+    filler = [i for i, k in enumerate(kinds) if k == "review"][1:]  # [0]=앞 복습 슬롯
+    assert filler, "복습 채움이 하나도 없다"
+    assert last_new < min(filler), kinds
+    # 신규 5개(c31~c35)가 전부 들어갔다 — 채움이 신규를 밀어내지 않았다.
+    assert {e["item"].surface for e in picked if e["study_kind"] == "chunk"} == \
+        {f"청크{i} 주세요" for i in range(31, 36)}
+
+
+def test_unconfirmed_fast_track_items_come_back_for_review(prod_env):
+    """⭐ 미확정 fast-track(mastered·confirmed_at NULL)은 **복습 대상**이다.
+
+    설계가 재노출을 전제하는데(노출 2회 F → 복귀 / 14일 무F → 자동확정) 선별이 재노출을
+    안 주면 "14일간 F 없음"이 공허하게 참이 된다 — 물어본 적이 없으니 틀릴 기회도 없다.
+    ⚠ 짝: **확정된** fast-track 과 보통 mastered 는 안 나온다(리텐션은 대화 유도 몫).
+    """
+    db, items, m1 = prod_env["db"], prod_env["items"], prod_env["m1"]
+    _prog(db, m1.member_id, items["c1"], "mastered", days_ago=30,   # 미확정 fast-track
+          provenance="fast_track", score=3.0)
+    _prog(db, m1.member_id, items["c2"], "mastered", days_ago=29,   # 확정 fast-track
+          provenance="fast_track", score=3.0,
+          fast_track_confirmed_at=NOW - timedelta(days=1))
+    _prog(db, m1.member_id, items["c3"], "mastered", days_ago=28,   # 보통 mastered
+          provenance="observed", score=3.5)
+    for i in range(4, 36):                    # 나머지는 practicing — 신규 풀을 비운다
+        _prog(db, m1.member_id, items[f"c{i}"], "practicing", days_ago=40 - i)
+    db.commit()
+
+    picked = repo.pick_study_items(db, m1.member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+    surfaces = {e["item"].surface for e in picked}
+    assert "청크1 주세요" in surfaces, "미확정 fast-track 이 다시 안 나온다(유령 상태)"
+    assert "청크2 주세요" not in surfaces, "확정된 fast-track 까지 끌어왔다"
+    assert "청크3 주세요" not in surfaces, "보통 mastered 까지 끌어왔다"
+
+
+def test_the_review_filler_never_pulls_the_next_level(prod_env):
+    """⛔ 다음 레벨을 당겨오지 않는다 — L1 채움에 L2 항목이 섞이면 왕초보 판별이 깨진다.
+
+    persona_prompt 의 `is_l1 = "grammar" not in kinds and "chunk" in kinds` 가 L2 문법
+    하나로 뒤집혀 왕초보 변형 문구가 통째로 사라진다. 그래서 리스트가 짧아지는 쪽을 택했다.
+    """
+    db, items, m1 = prod_env["db"], prod_env["items"], prod_env["m1"]
+    for i in range(1, 36):
+        _prog(db, m1.member_id, items[f"c{i}"], "practicing", days_ago=40 - i)
+    for key in ("w1", "w2", "g1"):            # 상위 레벨에도 진행 이력이 있는 회원
+        _prog(db, m1.member_id, items[key], "practicing", days_ago=1)
+    db.commit()
+
+    picked = repo.pick_study_items(db, m1.member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.7)
+    assert picked, "채움이 통째로 죽었다"
+    assert all(e["item"].level_no == 1 for e in picked), \
+        [(e["item"].surface, e["item"].level_no) for e in picked]
+    assert all(e["item"].kind == "chunk" for e in picked)
+
+
 def test_curriculum_has_no_level1_vocab_or_grammar():
     """위 전제의 원본 확인 — 커리큘럼 자산의 어휘·문법은 level_no 2 부터다."""
     import json
@@ -400,7 +499,11 @@ def test_pick_study_items_beginner_mix_and_sel_filters(env):
     assert [e["item"].surface for e in main if e["study_kind"] == "vocab"] == \
         ["단어w2", "단어w3"]
     # 예비 = w4~w8 (core 만 — non-core '논코어단어' 미출현)
-    assert [e["item"].surface for e in reserve] == [f"단어w{i}" for i in range(4, 9)]
+    #        + ⭐ 신규가 마른 뒤 복습 채움(2026-08-16): 남은 practicing 은 g3 하나뿐이다
+    #          (v2·w1 은 앞 복습 슬롯이 이미 썼다). 시드가 작아 30 은 못 채우고 여기서 끝난다.
+    assert [e["item"].surface for e in reserve] == \
+        [f"단어w{i}" for i in range(4, 9)] + ["-문법3"]
+    assert [e["study_kind"] for e in reserve] == ["vocab"] * 5 + ["review"]
     assert all(e["item"].is_core for e in pb if e["item"].kind == "vocab")
 
 

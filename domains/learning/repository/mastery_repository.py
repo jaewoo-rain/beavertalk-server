@@ -395,40 +395,61 @@ def _pick_new_items(
 
 def _pick_review_items(
     db: Session, member_id: int, level_no: int, *, limit: int, prefer_previous: bool,
-    language: str = "ko",
+    language: str = "ko", exclude_ids: set[int] | frozenset[int] = frozenset(),
 ) -> list[LearningItem]:
-    """복습 선별 — practicing && level_no<=내레벨, last_used_at 오래된 순.
+    """복습 선별 — practicing(+미확정 fast-track) && level_no<=내레벨, 오래된 순.
 
     감쇠점수 정렬은 P3 — P0 정책은 "감쇠 없이 오래된 순". 브리지/버벅임
     (prefer_previous=True)이면 이전 레벨(level_no<k) 항목을 먼저 채운다(⑨ 비중 확대).
     (멀티랭귀지) learning_item.language 로 대상 언어 항목만.
+
+    ## ⭐ 2026-08-16: **미확정 fast-track 을 복습 풀에 넣는다** (버그 수정)
+    fast-track 승격은 status=MASTERED 로 올리되 `fast_track_confirmed_at` 이 NULL 인
+    **미확정** 상태를 남긴다. 그런데 그 항목은 신규 풀에선 mastered 라 빠지고, 복습
+    풀에선 practicing 이 아니라 빠지고, 승급 게이트 G2 에서도 미확정이라 빠졌다 —
+    **세 곳 어디에도 없는 유령**이었다.
+    ⛔ 설계는 재노출을 전제한다: `FAST_TRACK_FAIL_EXPOSURES = 2`("노출 기회 2회 F만 →
+      PRACTICING 복귀")·14일 무F 자동확정. 한 번도 안 물어보면 "14일간 F 없음"이
+      **공허하게 참**이 된다 — 틀릴 기회조차 없었으니까. 재노출이 있어야 자동확정이
+      비로소 검사가 된다.
+    ⚠ **확정된** mastered 는 여기 넣지 마라 — 리텐션 불시 점검은 pick_chat_targets 몫이다.
+    ⚠ placement 행은 provenance 조건으로 자연 배제된다(fast_track 만 추가로 허용).
     """
     if limit <= 0:
         return []
 
+    reviewable = or_(
+        MemberItemProgress.status == "practicing",
+        and_(
+            MemberItemProgress.status == "mastered",
+            MemberItemProgress.provenance == "fast_track",
+            MemberItemProgress.fast_track_confirmed_at.is_(None),
+        ),
+    )
+
     def fetch(level_cond, n: int) -> list[LearningItem]:
         if n <= 0:
             return []
-        return list(
-            db.scalars(
-                select(LearningItem)
-                .join(
-                    MemberItemProgress,
-                    MemberItemProgress.item_id == LearningItem.item_id,
-                )
-                .where(
-                    MemberItemProgress.member_id == member_id,
-                    MemberItemProgress.status == "practicing",
-                    LearningItem.language == language,
-                    level_cond,
-                )
-                .order_by(
-                    MemberItemProgress.last_used_at.asc().nulls_first(),
-                    MemberItemProgress.progress_id.asc(),
-                )
-                .limit(n)
-            ).all()
+        stmt = (
+            select(LearningItem)
+            .join(
+                MemberItemProgress,
+                MemberItemProgress.item_id == LearningItem.item_id,
+            )
+            .where(
+                MemberItemProgress.member_id == member_id,
+                reviewable,
+                LearningItem.language == language,
+                level_cond,
+            )
         )
+        if exclude_ids:
+            stmt = stmt.where(LearningItem.item_id.not_in(list(exclude_ids)))
+        stmt = stmt.order_by(
+            MemberItemProgress.last_used_at.asc().nulls_first(),
+            MemberItemProgress.progress_id.asc(),
+        ).limit(n)
+        return list(db.scalars(stmt).all())
 
     if prefer_previous and level_no > 1:
         prev = fetch(LearningItem.level_no < level_no, limit)
@@ -521,6 +542,32 @@ def pick_study_items(
             {"slot": "reserve", "study_kind": "chunk", "item": i}
             for i in survival_reserve[:want]
         ]
+
+    # ⭐ 2026-08-16: **신규가 마르면 남은 칸을 복습으로 메운다.**
+    # ⛔ 순서를 지켜라 — ①신규 먼저(배울 게 있으면 배우는 게 우선) ②모자란 만큼 복습
+    #   ③그래도 모자라면 짧아진다(진짜 신규 회원 — 정상). 반대로 하면 새 걸 안 배우고
+    #   옛것만 돈다. 그래서 이 채움은 **위의 신규 선별이 전부 끝난 뒤**에만 돈다.
+    # ⚠ 앞쪽 복습 슬롯(review_slots — 밴드 상한 0~2)과 **별개다**. 그건 "지난 통화분을
+    #   먼저 짚는" 설계고 이건 "빈 칸 메우기"다. 한 변수로 합치지 마라.
+    # ⚠ 왜 필요한가: L1 은 청크가 46개뿐이라 두어 통화면 대부분 practicing 으로 넘어가고
+    #   그때 재료가 1~3개로 떨어진다. 아침에 고친 "가짜 mastered 로 갇힘"과 **결과가 같다**
+    #   (그땐 안 배웠는데 재료 0, 이번엔 다 배워서 재료 0).
+    # ⛔ **다음 레벨 항목을 당겨오지 마라**(사장님 제안 → 검토 후 반대·동의받음). 두 가지 이유:
+    #   ① L1 통화에 L2 문법이 하나라도 섞이면 persona_prompt 의 왕초보 판별
+    #      (`is_l1 = "grammar" not in kinds and "chunk" in kinds`)이 깨져 **왕초보 변형
+    #      문구가 통째로 사라진다** — 생존회화 학습자에게 문법 용어를 쓰기 시작한다.
+    #   ② 복습이 30을 못 채울 만큼 mastered 가 많으면 그 회원은 **이미 승급 조건(G2)에
+    #      닿아 있다** — 다음 레벨은 당겨오는 게 아니라 승급으로 가는 것이다.
+    target = SURVIVAL_STUDY_TOTAL if band == "survival" else (
+        STUDY_MAIN_TOTAL + STUDY_RESERVE_TOTAL
+    )
+    if len(out) < target:
+        filler = _pick_review_items(
+            db, member_id, level_no,
+            limit=target - len(out), prefer_previous=False, language=language,
+            exclude_ids={e["item"].item_id for e in out},
+        )
+        out += [{"slot": "reserve", "study_kind": "review", "item": i} for i in filler]
     return out
 
 
