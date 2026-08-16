@@ -66,6 +66,14 @@ def _configure_logging() -> None:
         #   "첫소리=-1ms" 만 보고 거꾸로 추적해야 했다. 어댑터가 왜 실패했는지는 어댑터가
         #   가장 잘 안다. 여기 로그 호출도 수십 개뿐이라 비용은 무시할 수준이다.
         "core",
+        # ⭐ **부팅·lifespan 판정이 여기서 나온다**(2026-08-13). 이게 빠져 있어서
+        #   "cascade LLM: 대답 전용 클라이언트 location=…" 가 **한 줄도 안 떴고**, 리전이
+        #   실제로 갈렸는지를 로그로 확인할 방법이 없었다. 폴백 경고도 같이 조용했다.
+        #   ⚠ 바로 위 `core` 주석과 **같은 실수**다 — 그때는 어댑터가 조용했고 이번엔
+        #     우리 자신의 확인 수단이 조용했다. "로그가 없다 = 안 돈다"로 읽으면 틀린다.
+        #   ⚠ 호출 수는 부팅당 몇 줄뿐이라(클라이언트 생성·리전·FCM) 도배 위험이 없다.
+        "__main__",
+        "main",
     ):
         lg = logging.getLogger(name)
         lg.handlers.clear()
@@ -79,8 +87,50 @@ _configure_logging()
 logger = logging.getLogger(__name__)
 
 
-def _create_genai_client(settings: Settings) -> Any | None:
+def _keepalive_http_options(seconds: float) -> Any | None:
+    """커넥션을 **살려 두는** HttpOptions(0 이하면 None = 예전 동작).
+
+    ⭐ 왜: 턴마다 TLS 를 새로 맺는 데 ~185ms 를 쓰고 있었다(페어드 A/B 8쌍 전부 개선).
+    ⛔ 이 값이 **실제로 먹는지**는 설치된 SDK 가 정한다. google-genai 2.10 은
+      `async_client_args` 를 `httpx.AsyncClient(**args)` 로 그대로 넘기지만(`_api_client.py`
+      828~833 — 설치된 소스로 확인), **aiohttp 가 설치돼 있으면 async 경로가 aiohttp 로
+      바뀌고 이 인자는 `ssl` 말고는 전부 무시된다**(`_use_aiohttp`). 지금 이 환경에는
+      aiohttp 가 없다. ⇒ 나중에 누가 aiohttp 를 끌어오면 **이 설정이 조용히 죽는다.**
+      그래서 그 경우 **부팅 로그로 시끄럽게** 알린다(조용한 무효화를 만들지 않는다).
+    """
+    if seconds <= 0:
+        return None
+    try:
+        import httpx
+        from google.genai.types import HttpOptions
+        from google.genai import _api_client as genai_api_client
+    except Exception as exc:  # noqa: BLE001 - 미설치·시그니처 변경이면 그냥 안 쓴다(R5)
+        logger.warning("cascade LLM: keepalive 미적용(모듈/시그니처 없음) — %s", exc)
+        return None
+    if getattr(genai_api_client, "has_aiohttp", False):
+        # ⛔ 조용히 안 먹는 상태를 만들지 않는다 — 오늘 하루 우리를 가장 많이 태운 유형이다.
+        logger.warning(
+            "cascade LLM: ⚠ aiohttp 가 설치돼 있어 keepalive(httpx limits)가 **안 먹는다**. "
+            "aiohttp 를 빼거나 aiohttp 용 커넥터로 다시 붙여라"
+        )
+        return None
+    return HttpOptions(
+        async_client_args={
+            "limits": httpx.Limits(
+                max_keepalive_connections=8,
+                max_connections=32,
+                keepalive_expiry=seconds,
+            )
+        }
+    )
+
+
+def _create_genai_client(settings: Settings, location: str | None = None,
+                         http_options: Any | None = None) -> Any | None:
     """normalcall 용 genai.Client 를 생성한다(실패 시 None — 통화만 비활성, 앱은 정상).
+
+    `location` 을 주면 그 리전으로 만든다(기본은 `GCP_LOCATION`). 리전만 다른 **두 번째**
+    클라이언트가 필요해서 열어 둔 인자다 — 자세한 이유는 `_create_cascade_client`.
 
     USE_VERTEX=True 면 서비스계정 키(설정 경로 → 프로젝트 루트 gcp_key.json 폴백)로
     Vertex 클라이언트를, 아니면 GEMINI_API_KEY 로 AI Studio 클라이언트를 만든다.
@@ -102,23 +152,81 @@ def _create_genai_client(settings: Settings) -> Any | None:
             creds = service_account.Credentials.from_service_account_file(
                 key_path, scopes=["https://www.googleapis.com/auth/cloud-platform"]
             )
+            where = (location or settings.GCP_LOCATION or "").strip()
             logger.info(
                 "normalcall: Vertex genai 클라이언트 생성 project=%s location=%s model=%s",
-                settings.GCP_PROJECT, settings.GCP_LOCATION, settings.GEMINI_LIVE_MODEL,
+                settings.GCP_PROJECT, where, settings.GEMINI_LIVE_MODEL,
             )
+            extra = {"http_options": http_options} if http_options is not None else {}
             return genai.Client(
                 vertexai=True,
                 project=settings.GCP_PROJECT,
-                location=settings.GCP_LOCATION,
+                location=where,
                 credentials=creds,
+                **extra,
             )
         if not settings.GEMINI_API_KEY:
             logger.warning("normalcall: GEMINI_API_KEY 없음 → genai 비활성(통화 불가).")
             return None
-        return genai.Client(api_key=settings.GEMINI_API_KEY)
+        extra = {"http_options": http_options} if http_options is not None else {}
+        return genai.Client(api_key=settings.GEMINI_API_KEY, **extra)
     except Exception as exc:  # noqa: BLE001 - 미설치/인증/임의 예외 graceful
         logger.warning("normalcall: genai 클라이언트 생성 실패 → 비활성: %s", exc)
         return None
+
+
+def _create_cascade_client(
+    settings: Settings, default_client: Any | None
+) -> tuple[Any | None, str]:
+    """캐스케이드 **대답 LLM 전용** 클라이언트 — 리전만 다르다.
+
+    ⛔ 왜 따로 만드나: `genai.Client` 는 lifespan 이 한 번 만들어 **Live·캐스케이드·분석이
+      전부 공유**한다. 그래서 `GCP_LOCATION` 을 서울로 바꾸면 **Live 도 같이 옮겨간다**.
+      Live 네이티브 오디오(`gemini-live-2.5-flash-native-audio`)의 서울 지원 여부는
+      **확인하지 못했다** — bidi WebSocket 이라 단순 호출로 못 재고, 모델 GET 은 어느
+      리전에서든 404 라 가용성 판정에 못 쓴다. 확인 안 된 채 전역을 옮기면 **통화가 죽는다**.
+      ⇒ 교체가 아니라 **추가**다. `app.state.genai_client` 는 그대로 둔다.
+    ⚠ 값이 없으면 **기본 클라이언트를 그대로 재사용**한다(객체를 하나 더 만들지 않는다) —
+      기본 동작이 지금과 **완전히 같아야** 한다.
+    ⚠ 실패해도 기본 클라이언트로 떨어진다(R5) — 리전 하나 때문에 통화가 죽으면 안 된다.
+    ⚠ 토큰 만료(1008)는 **여기 해당 없다**: 그건 Live 의 **WS connect** 가 만료 토큰을 그대로
+      보내서 났고(`gemini_live._ensure_fresh_credentials` 주석), 캐스케이드 대답은 REST
+      (`generate_content_stream`)라 **요청마다 갱신**된다. 그래도 같은 SA creds 를 공유하므로
+      갱신이 일어나면 두 클라이언트가 함께 이득을 본다.
+    """
+    base = (settings.GCP_LOCATION or "").strip()
+    where = (settings.CASCADE_LLM_LOCATION or "").strip()
+    http_options = _keepalive_http_options(settings.CASCADE_LLM_KEEPALIVE_S)
+    if not where or where == base:
+        # ⭐⭐ **keepalive 를 켜면 리전이 같아도 객체를 따로 만든다**(2026-08-15). 안 그러면
+        #   Live 와 같은 클라이언트를 쓰게 되고, 그러면 ①Live 의 커넥션 정책까지 바꾸거나
+        #   ②캐스케이드에 아무 효과가 없거나 둘 중 하나다 — 둘 다 안 된다.
+        #   ⚠ 지금 배포에 `CASCADE_LLM_LOCATION` 이 없을 수 있고, 그때 여기로 온다.
+        #     리전이 같아도 **커넥션 정책이 다르다**는 이유만으로 객체를 가르는 것이다.
+        if http_options is None:
+            return default_client, base
+        client = _create_genai_client(settings, location=base, http_options=http_options)
+        if client is None:
+            logger.warning("cascade LLM: keepalive 클라이언트 생성 실패 → 기본 클라이언트로 계속")
+            return default_client, base
+        logger.info(
+            "cascade LLM: 대답 전용 클라이언트(리전 동일 %s) keepalive=%.0fs — Live 와 분리했다",
+            base, settings.CASCADE_LLM_KEEPALIVE_S,
+        )
+        return client, base
+    client = _create_genai_client(settings, location=where, http_options=http_options)
+    if client is None:
+        logger.warning(
+            "cascade LLM: %s 리전 클라이언트 생성 실패 → 기본 리전(%s)으로 계속한다", where, base,
+        )
+        return default_client, base
+    logger.info(
+        "cascade LLM: 대답 전용 클라이언트 location=%s keepalive=%s (Live 는 %s 그대로)",
+        where, "%.0fs" % settings.CASCADE_LLM_KEEPALIVE_S if http_options else "off", base,
+    )
+    # ⚠ **실제로 만들어진 리전**을 돌려준다(설정값이 아니라) — 폴백이 일어났는데 설정값을
+    #   찍으면 로그가 거짓말을 한다. 통화 로그가 이 값을 그대로 쓴다.
+    return client, where
 
 
 @contextlib.asynccontextmanager
@@ -129,6 +237,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
+    # ⭐ 캐스케이드 **대답 전용**(리전만 다를 수 있다). 값이 없으면 위 객체를 그대로 재사용한다.
+    #   ⚠ 리전을 **함께** 받아 둔다 — 부팅 로그는 인스턴스가 재활용되면 한참 전 것이라 못
+    #     찾는다. 통화 로그가 이 값을 찍어야 "그 통화가 어느 리전으로 돌았나"가 그 통화
+    #     안에서 닫힌다(원가·지연을 통화 단위로 비교하려면 필수다).
+    app.state.cascade_llm_client, app.state.cascade_llm_location = _create_cascade_client(
+        settings, app.state.genai_client
+    )
     from core import fcm
 
     fcm.warmup()  # 예약전화 FCM 워밍업(실패해도 무시 — 발송만 비활성)
@@ -278,14 +393,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     Path(__file__).parent / "scripts" / "cascade_demo.html",
                     media_type="text/html",
                 )
-
-        @app.get("/__calldemo", include_in_schema=False)
-        def call_demo() -> FileResponse:
-            """통화→문장추출→복습 발음평가 전 과정 데모 HTML."""
-            return FileResponse(
-                Path(__file__).parent / "scripts" / "call_demo.html",
-                media_type="text/html",
-            )
 
         @app.post("/__dev/level-reset", include_in_schema=False)
         def dev_level_reset(member: CurrentAdmin, db: DbSession) -> dict:

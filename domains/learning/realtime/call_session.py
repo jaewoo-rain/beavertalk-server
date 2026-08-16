@@ -803,6 +803,15 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "t_last": times[-1] if times else None,
         "sum_prompt": _s("prompt"), "sum_resp": _s("resp"),
         "sum_thoughts": _s("thoughts"), "sum_total": _s("total"),
+        # ⭐⭐ **캐시된 컨텍스트 토큰**(2026-08-16). 여태 적재만 하고 **버리고 있었다.**
+        #   왜 이게 지금 제일 값진 한 줄인가: `Σ(in_audio)` 는 **같은 오디오를 매 요청 다시 실은**
+        #   값이다(call 1026: 59회). 벤더가 그 재전송분을 **캐시로 할인하는지**에 따라 라이브
+        #   원가가 통째로 달라지는데, 우리는 그 답이 될 필드를 받아 놓고 안 봤다.
+        #   ⇒ 설계 문서가 미해결로 남긴 "재개가 컨텍스트를 재과금하는가"의 첫 단서다.
+        #   ⛔ **관측만이다.** 원가식은 안 건드린다 — 값이 나온 뒤에 정한다.
+        #   ⚠ 벤더가 이 필드를 **한 번도 안 준** 통화는 `None` 이다. 0 으로 접으면
+        #     "캐시가 0 이었다"와 "필드를 안 줬다"가 구별되지 않는다(이 프로젝트 규약).
+        "sum_cached": _s("cached") if any(e["cached"] is not None for e in log) else None,
         "last_prompt": last["prompt"], "last_total": last["total"],
         "monotonic": monotonic,
         "in_mod": in_mod, "out_mod": out_mod,
@@ -815,6 +824,17 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "compressions": state.compression_seen,
         "epochs": state.session_epoch, "reconnects": state.reconnects,
     }
+
+
+def _ratio_pct(part: int | None, whole: int | None) -> str:
+    """`part/whole` 을 퍼센트 문자열로 — 못 재면 `-` 다(0% 로 찍지 않는다).
+
+    ⛔ 0% 와 "모른다"는 다르다. 캐시 필드를 안 주는 통화를 0% 로 세면 **평균이 조용히 내려가고**,
+      그 표로 "캐시는 안 돈다"는 틀린 결론을 내리게 된다.
+    """
+    if part is None or not whole:
+        return "-"
+    return "%.1f%%" % (part * 100.0 / whole)
 
 
 def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -> None:
@@ -836,12 +856,19 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
     logger.info(
         "normalcall usage: call_id=%s type=%s msgs=%d dropped=%d t=[%s..%s] "
         "sum_prompt=%d sum_resp=%d sum_thoughts=%d sum_total=%d "
+        "sum_cached=%s cached_ratio=%s "
         "last_prompt=%s last_total=%s monotonic=%s "
         "sum_in=%s sum_out=%s",
         call_id, call_type, s["msgs"], s["dropped"],
         f"{s['t_first']:.1f}" if s["t_first"] is not None else "?",
         f"{s['t_last']:.1f}" if s["t_last"] is not None else "?",
         s["sum_prompt"], s["sum_resp"], s["sum_thoughts"], s["sum_total"],
+        # ⭐ **비율이 답이다.** 절대값만으로는 "캐시가 도는가"를 못 읽는다 — `sum_prompt` 와
+        #   같은 축(Σ)으로 세서 나눈다. 높으면 재전송분이 할인되고 있다는 뜻이고, 그러면
+        #   지금 원가식이 **과대**다. 0 이면 지금 식이 그대로 맞다.
+        #   ⚠ 필드를 안 준 통화는 `-` 다(0 으로 찍으면 "캐시가 없었다"는 거짓 표본이 된다).
+        "-" if s["sum_cached"] is None else s["sum_cached"],
+        _ratio_pct(s["sum_cached"], s["sum_prompt"]),
         s["last_prompt"], s["last_total"], s["monotonic"],
         # 모달리티 분해 — 오디오/텍스트 단가가 6배 차이라 이게 있어야 원가가 계산된다.
         ",".join(f"{k}={v}" for k, v in sorted(in_mod.items())) or "-",

@@ -278,6 +278,14 @@ async def test_backstop_closes_a_stuck_session_through_the_normal_path(monkeypat
     import domains.learning.realtime.cascade_session as cs
 
     caplog.set_level("INFO")
+    # ⚠ 백스톱은 이제 **정상 종료(통화 시계)보다 뒤**다 — 그래서 이 시험은 시계 자체가
+    #   멈춘 상황을 만든다. 그게 백스톱이 존재하는 이유이기도 하다("못 본 게 또 있다").
+    async def _stuck_clock(self):
+        await asyncio.sleep(60)
+
+    monkeypatch.setattr(cs.CascadeSession, "_watch_call_clock", _stuck_clock)
+    monkeypatch.setattr(cs.settings, "NORMAL_CALL_DURATION_S", 0.05)
+    monkeypatch.setattr(cs.settings, "CASCADE_FAREWELL_GRACE_S", 0.1)
     monkeypatch.setattr(cs.settings, "CASCADE_SESSION_MAX_S", 0.3)
     monkeypatch.setattr(cs.settings, "CASCADE_GREETING", False)
     monkeypatch.setattr(stt_mod.settings, "STT_V2_FAKE", True)

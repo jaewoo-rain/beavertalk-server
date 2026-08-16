@@ -144,7 +144,10 @@ def test_keep_margin_is_a_natural_pause_not_zero():
 async def test_stream_head_trim_drops_silent_chunks_without_delaying_sound(monkeypatch):
     """⭐ 앞쪽 침묵 조각은 **버린다** — 붙들고 있는 게 침묵이라 듣는 시점은 그대로다.
 
-    (오히려 첫 소리가 빨라진다. 지연이 생기는 쪽은 '꼬리를 붙드는 것'이라 그건 안 한다.)
+    (오히려 첫 소리가 빨라진다.)
+    ⚠ 2026-08-13: 함수 이름이 `_trim_head` → `_trim_edges` 로 바뀌었다. **꼬리도 같은 방식으로**
+      걷어내게 넓혔기 때문이다 — 침묵만 붙들었다가 소리가 오면 그대로 흘리므로 여기서도
+      지연은 0 이다(꼬리 쪽 성질은 tests/test_cascade_trim_edges.py 가 본다).
     """
     session = cs.CascadeSession(_Sink())
     session._tts_engine = "gemini-tts"
@@ -154,7 +157,7 @@ async def test_stream_head_trim_drops_silent_chunks_without_delaying_sound(monke
         yield _silence(200) + _tone(100)
         yield _tone(200)
 
-    out = [chunk async for chunk in session._trim_head(_src())]
+    out = [chunk async for chunk in session._trim_edges(_src())]
     assert len(out) == 2, "침묵 조각이 그대로 흘렀다"
     assert _ms(b"".join(out)) < 800
     assert _tone(200) in b"".join(out), "말소리가 사라졌다"

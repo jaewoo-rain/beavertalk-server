@@ -120,7 +120,10 @@ async def test_ready_reports_engine_and_threshold(fake_v2):
     ready = transport.first("ready")
     assert ready["engine"] == "fake"
     assert ready["turn_silence_ms"] == stt_mod.settings.CASCADE_TURN_SILENCE_MS
-    assert ready["bargein_min_ms"] == stt_mod.settings.CASCADE_BARGEIN_MIN_MS
+    assert ready["bargein_confirm"] == "transcript"
+    # ⛔ **사라진 필드는 사라진 채로 못박는다**(2026-08-14). 서버에서 최소지속 관문을 지웠으니
+    #   계약에도 없어야 한다 — 안 쓰는 값을 남겨 두면 클라가 그걸 보고 정책을 추측한다.
+    assert "bargein_min_ms" not in ready, ready
 
 
 @pytest.mark.asyncio

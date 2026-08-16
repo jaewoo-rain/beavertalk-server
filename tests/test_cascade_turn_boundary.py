@@ -404,6 +404,106 @@ def test_unfinished_sentence_is_observed_not_enforced():
     assert _looks_unfinished("") is False
 
 
+# ── ⭐ 영어 미완 신호 (2026-08-16) — 이게 없어서 숫자를 못 썼다 ──────────────
+#
+# 실측 `미완=yes 8/379(2.1%)` 로 PTT 도입을 정하려던 참이었는데, 목록이 **전부 한국어
+# 조사·연결어미**였다. 우리 학습자는 code-switching 규칙상 **모국어 90% + 한국어 10%** 로
+# 말한다(배포 `CASCADE_TTS_LANGUAGE=en`) ⇒ "I want to..." 하다 끊긴 발화는 **구조적으로 한
+# 건도 안 잡혔다.** 2.1% 는 "잘림이 적다"가 아니라 "한국어로 말하다 끊긴 경우가 적다"였다.
+#
+# ⛔ 여전히 **관측 전용**이다 — 어떤 분기에도 안 들어간다.
+
+
+def test_english_mid_sentence_tails_are_caught():
+    """⭐ 영어로 말하다 끊긴 발화를 잡는다 — 이게 이 작업의 전부다."""
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    for text in ("I want to", "Can you tell me about", "I went to the",
+                 "because", "My favorite food is", "and"):
+        assert _unfinished_kind(text) == "en", text
+
+
+def test_finished_english_sentences_are_not_caught():
+    """⛔ 완결 문장을 미완으로 세면 그 통계로 **PTT 를 도입하는** 잘못된 결정을 하게 된다."""
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    for text in ("I like kimchi", "Thank you", "That sounds good",
+                 "I want to eat kimchi.", "Yes", "Okay"):
+        assert _unfinished_kind(text) == "", text
+
+
+def test_english_matching_is_word_level_not_suffix():
+    """⛔⛔ **오탐 방지가 핵심이다.** `endswith` 로 쓰면 "Korean" 이 `in` 에 걸린다.
+
+    두 목록은 비교 방식이 다르다(한국어=endswith, 영어=단어 완전일치). 합치면 이 시험이 깨진다.
+    """
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    for text in ("I study Korean",      # "Korean" ← in
+                 "Please sit on the mat",   # "mat" ← at  (그리고 완결이다)
+                 "This is my cat",      # "cat" ← at
+                 "I like ramen",        # "ramen" ← am
+                 "Let's go to the store"):
+        assert _unfinished_kind(text) == "", text
+
+
+def test_the_two_rules_are_reported_separately():
+    """⭐ 어느 규칙이 잡았는지 구분한다 — 안 그러면 "영어는 잡히는 건가?"를 또 못 가른다."""
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    assert _unfinished_kind("어제 학교에서") == "ko"
+    assert _unfinished_kind("I went to") == "en"
+    assert _unfinished_kind("안녕하세요") == ""
+
+
+def test_a_trailing_comma_still_counts():
+    """쉼표로 끝나면 오히려 미완 신호가 강하다 — 꼬리 구두점은 떼고 본다."""
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    assert _unfinished_kind("I like kimchi and,") == "en"
+
+
+def test_case_is_ignored():
+    """⚠ STT 가 대문자로 줄 수도 소문자로 줄 수도 있다."""
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    assert _unfinished_kind("I went TO") == "en"
+    assert _unfinished_kind("i think that") == "en"
+
+
+def test_a_period_ends_the_sentence_in_english_too():
+    """⚠ 기존 종결부호 조기반환은 그대로다 — 영어도 마침표가 있으면 끝난 문장이다."""
+    from domains.learning.realtime.cascade_session import _unfinished_kind
+
+    assert _unfinished_kind("I want to.") == ""
+    assert _unfinished_kind("Really?") == ""
+
+
+def test_the_english_list_has_no_standalone_answers():
+    """⛔ 단독으로 완결인 낱말은 목록에 있으면 안 된다 — 전부 오탐이 된다."""
+    from domains.learning.realtime.cascade_session import _UNFINISHED_TAILS_EN
+
+    for word in ("yes", "no", "okay", "ok", "sure", "thanks", "hello", "bye"):
+        assert word not in _UNFINISHED_TAILS_EN, word
+
+
+def test_it_is_still_observation_only():
+    """⛔⛔ **판정에 쓰이면 안 된다.** 규칙 기반 오탐이 사용자 말을 자르기 시작한다."""
+    import inspect
+
+    import domains.learning.realtime.cascade_session as cs
+
+    src = inspect.getsource(cs)
+    uses = [ln.strip() for ln in src.splitlines()
+            if ("_looks_unfinished(" in ln or "_unfinished_kind(" in ln)
+            and "def " not in ln and not ln.strip().startswith("#")]
+    # 허용되는 자리는 **둘뿐**이다: bool 판 껍데기, 그리고 로그 한 줄.
+    #   ⇒ 새 분기(`if _looks_unfinished(...)`)나 대입이 생기면 여기서 걸린다.
+    allowed = ("return bool(_unfinished_kind(text))",)
+    stray = [u for u in uses if u not in allowed and "yes" not in u]
+    assert not stray, f"관측값이 로그 밖에서 쓰인다(판정에 새어 들어갔다): {stray}"
+
+
 # ── STT 가 통째로 조용해지면 턴이 스스로 닫힌다 (2026-08-10 실통화) ─────────
 #   07:23:45 barge-in 보류 → 49 안전망 확정 → **30초 로그 한 줄 없음** → 사장님이 끊으셨다
 #   ("내 턴이라면서 시작 안 해. 0.8초 이상 말 안 하면 넘어가야 하는데 안 넘어가.")

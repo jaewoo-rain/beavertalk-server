@@ -44,8 +44,8 @@ def test_tags_are_stripped_before_tts(emotion):
 
 def test_tags_are_stripped_anywhere_not_just_the_front():
     """규약은 '맨 앞'이지만 **어디 있든** 걷어낸다 — LLM 이 규약을 어겨도 소리는 안 나간다."""
-    out = cr.strip_emotion_tags("잘했어요! [칭찬] 다음은 [질문] 이거예요")
-    assert "[칭찬]" not in out and "[질문]" not in out
+    out = cr.strip_emotion_tags("잘했어요! <happy> 다음은 <surprised> 이거예요")
+    assert "<happy>" not in out and "<surprised>" not in out
 
 
 @pytest.mark.asyncio
@@ -63,8 +63,8 @@ async def test_speak_one_never_sends_a_tag_to_the_vendor(monkeypatch):
     monkeypatch.setattr(cs.tts, "synthesize_stream", _tts)
     session = cs.CascadeSession(_Sink())
     await session.beaver.begin()
-    await session._speak_one("[칭찬] 아주 좋아요", "en")
-    assert asked and all("[칭찬]" not in t for t in asked), asked
+    await session._speak_one("<happy> 아주 좋아요", "en")
+    assert asked and all("<happy>" not in t for t in asked), asked
 
 
 # ── ② 집합 밖·누락 → 기본 스타일 ───────────────────────────────────────────
@@ -74,14 +74,14 @@ def test_unknown_or_missing_tag_falls_back_quietly():
     assert cr.detect_emotion("그냥 대사") is None            # 누락
     assert cr.emotion_style(None) is None
     assert cr.emotion_style("화남") is None
-    assert cr.emotion_style("칭찬") == cr.EMOTION_STYLES["칭찬"]
+    assert cr.emotion_style("happy") == cr.EMOTION_STYLES["happy"]
 
 
 def test_session_style_is_the_table_value_or_the_server_default():
     session = cs.CascadeSession(_Sink())
     assert session._style_prompt() is None                   # 감정 없음 → 서버 기본값
-    session._reply_emotion = "격려"
-    assert session._style_prompt() == cr.EMOTION_STYLES["격려"]
+    session._reply_emotion = "happy"
+    assert session._style_prompt() == cr.EMOTION_STYLES["happy"]
     session._tts_style = "직접 고른 문구"                     # 데모 화면 지정이 이긴다
     assert session._style_prompt() == "직접 고른 문구"
 
@@ -119,17 +119,17 @@ def test_the_set_stays_small_and_teacherly():
 def test_emotion_log_tells_the_truth_for_every_engine(engine, applied):
     """⛔⛔ **로그가 거짓말을 하면 사람이 잘못 판단한다.**
 
-    실통화 원문: `tts=openai-gpt-4o-mini-tts` 인데 `감정=인사(미적용:cloud-tts-chirp3-hd)`.
+    실통화 원문: `tts=openai-gpt-4o-mini-tts` 인데 `감정=happy(미적용:cloud-tts-chirp3-hd)`.
     감정은 실제로 들어가고 있었고(instructions) **로그만 틀렸다.** 그걸 보고 "감정이 안
     걸리는구나"라고 판단하면 멀쩡한 기능을 다시 만들게 된다.
     ⚠ 미적용일 때 찍는 엔진 이름도 **실제로 도는 엔진**이어야 한다(예전엔 하드코딩이었다).
     """
     session = cs.CascadeSession(_Sink())
     session._tts_engine = engine
-    session._reply_emotion = "칭찬"
+    session._reply_emotion = "happy"
     line = session._emotion_log()
     if applied:
-        assert line == "감정=칭찬", line
+        assert line == "감정=happy", line
     else:
         assert "미적용" in line and session._tts_vendor() in line, line
 
@@ -155,10 +155,10 @@ def test_style_engine_set_is_defined_in_one_place():
 
 
 def test_the_old_bracket_form_is_still_accepted():
-    """⚠ 모델이 규약을 어기고 `[칭찬]` 을 뱉을 때 **안 받으면 손해만 본다** —
+    """⚠ 모델이 규약을 어기고 `<happy>` 을 뱉을 때 **안 받으면 손해만 본다** —
     감정을 잃고 그 글자가 소리로 나간다. 어차피 걷어내므로 받는 쪽이 안전하다."""
-    assert cr.detect_emotion("[칭찬] 잘했어요!") == "칭찬"
-    assert cr.strip_emotion_tags("[칭찬] 잘했어요!").strip() == "잘했어요!"
+    assert cr.detect_emotion("<happy> 잘했어요!") == "happy"
+    assert cr.strip_emotion_tags("<happy> 잘했어요!").strip() == "잘했어요!"
 
 
 def test_chirp_branch_still_passes_an_empty_style():

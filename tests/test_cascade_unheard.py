@@ -88,7 +88,7 @@ async def test_unheard_reply_is_discarded_and_new_utterance_answered():
     await session._start_reply("지금 몇 시야")
     assert running.cancelled() or running.done(), "죽은 대답이 계속 돈다"
     assert group.started == 1, "새 발화가 답을 못 받았다"
-    assert session._pending_user_text == "", "버렸는데 대기열에도 남겼다(두 번 답한다)"
+    assert session._pending_user_texts == [], "버렸는데 대기열에도 남겼다(두 번 답한다)"
     assert session.state == TurnState.THINKING
 
 
@@ -103,7 +103,7 @@ async def test_heard_reply_keeps_the_queue():
     await session._start_reply("지금 몇 시야")
     assert not running.cancelled(), "듣고 있는 대답을 죽였다"
     assert group.started == 0
-    assert session._pending_user_text == "지금 몇 시야", "발화를 통째로 버렸다"
+    assert session._pending_user_texts == ["지금 몇 시야"], "발화를 통째로 버렸다"
     running.cancel()
 
 
@@ -133,7 +133,7 @@ async def test_batch_synthesis_is_not_discarded():
     session._batch_synthesizing = True
     await session._start_reply("여보세요")
     assert not running.cancelled()
-    assert session._pending_user_text == "여보세요"
+    assert session._pending_user_texts == ["여보세요"]
     running.cancel()
 
 
@@ -199,6 +199,90 @@ def test_first_sound_breakdown_sums_to_the_total():
     assert 750 + 250 + 1000 + 250 == 2250    # 합 = 첫소리(대기열은 첫소리 **밖**이다)
 
 
+# ── 묶음대기 — **벤더도 송출도 아닌 우리 정책**(2026-08-13) ──────────────────
+def test_the_batch_wait_is_split_out_of_the_send_bucket():
+    """⭐⭐ 첫 문장이 준비된 뒤 **요청을 걸기까지**를 따로 낸다.
+
+    ⛔ 왜 필요한가: 짧은 대답은 묶음(400자)이 안 차서 **LLM 스트림이 끝난 뒤에야** 첫 TTS
+      요청이 나간다. 그 시간은 벤더 탓도 송출 탓도 아닌 **묶음 정책**인데, 지금까지 `송출`
+      안에 뭉쳐 있었다 — 벤더 옆에 붙어 있으면 엉뚱한 곳(벤더 교체)을 파게 된다.
+    ⚠ 이 값을 보기 전에 첫문장 단독송출을 켜면 안 된다(껐던 이유가 실측이다).
+    """
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.mark_request(101.25)          # 첫 문장 뒤 500ms 만에 요청을 걸었다
+    t.vendor_ms = 1000
+    t.mark_audio(102.5)
+    line = t.summary()
+    assert "묶음대기 500" in line, line
+    # 송출 = 전체 − 묶음대기 − 벤더. 예전 같으면 이 250 이 750 으로 보였다.
+    assert "벤더 1000" in line and "송출 250" in line, line
+    assert 500 + 1000 + 250 == 1750    # 문장완성 이후 구간의 합
+
+
+def test_an_unmeasured_batch_wait_says_so():
+    """⛔ 못 잰 회차는 **0 이 아니라 `?`** 다 — 0 은 "즉시 걸었다"로 읽힌다(조용한 기본값)."""
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.vendor_ms = 240
+    t.mark_audio(101.25)
+    line = t.summary()
+    assert "묶음대기 ?" in line, line
+    # 못 쟀다고 다른 항목이 오염되면 안 된다 — 예전과 같은 값이어야 한다.
+    assert "벤더 240" in line and "송출 260" in line, line
+
+
+def test_the_hidden_inner_costs_are_shown_when_measured():
+    """⭐ 큰 항목 **안에 숨은 우리 몫**을 드러낸다(2026-08-15).
+
+    `LLM첫조각`(844ms) 안에는 우리 WS 전송이 1건 들어 있고, `묶음대기`(82ms) 안에는 벤더
+    스트림을 닫는 시간이 들어 있다. 크기를 몰라서 둘 다 "벤더가 느리다"로 읽히고 있었다.
+    ⛔ 이 값들은 다른 칸에 **이미 포함돼 있다** — 빼서 세면 이중 계산이 된다(그래서 `[내부: …]`).
+    """
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.mark_notified()
+    t.notified_at = 100.125
+    t.mark_closed()
+    t.closed_at = 100.875
+    t.vendor_ms = 240
+    t.mark_audio(101.25)
+    line = t.summary()
+    assert "[내부: WS알림 125ms · 스트림닫기 125ms]" in line, line
+
+
+def test_unmeasured_inner_costs_are_omitted():
+    """⛔ 못 잰 회차는 **아예 안 찍는다** — `0ms` 로 찍으면 "없었다"로 읽힌다."""
+    t = cs._ReplyTiming(began=100.0)
+    t.chunk_at, t.sentence_at = 100.5, 100.75
+    t.vendor_ms = 240
+    t.mark_audio(101.25)
+    assert "[내부:" not in t.summary(), t.summary()
+
+
+def test_the_token_log_never_reports_missing_usage_as_zero():
+    """⛔⛔ **usage 가 없는 회차는 `-` 다.** 0 으로 찍으면 "입력이 0 이었다"는 거짓말이 되고,
+    그 표로 "프롬프트는 범인이 아니다"라는 **틀린 결론**을 내리게 된다.
+
+    ⚠ 문장 상한에서 스트림을 일찍 닫은 회차는 벤더 토큰이 영영 안 온다(usage 는 마지막
+      조각에만 실린다) — 즉 이건 드문 경우가 아니라 **자주 있는 경우**다.
+    """
+    from types import SimpleNamespace
+
+    assert cs.CascadeSession._llm_tokens_log(None) == "입력=-토큰 캐시=-토큰"
+    assert cs.CascadeSession._llm_tokens_log(SimpleNamespace()) == "입력=-토큰 캐시=-토큰"
+    usage = SimpleNamespace(prompt_token_count=3100, cached_content_token_count=0)
+    assert cs.CascadeSession._llm_tokens_log(usage) == "입력=3100토큰 캐시=0토큰"
+
+
+def test_the_request_mark_keeps_the_first_one():
+    """구간이 여럿이어도 **첫 요청**이 기준이다(뒤 구간은 앞 소리 뒤로 숨는다)."""
+    t = cs._ReplyTiming(began=100.0)
+    t.mark_request(100.5)
+    t.mark_request(101.5)
+    assert t.request_at == 100.5
+
+
 def test_first_sound_is_honest_when_no_audio_went_out():
     """소리가 안 나갔으면 0 이 아니라 '없음'이다 — 0 은 '즉시 나갔다'로 읽힌다."""
     t = cs._ReplyTiming(began=100.0)
@@ -252,7 +336,7 @@ async def test_unheard_at_speech_start_wins_over_audible_at_close():
     await session._start_reply("Let's go to the 한국어 공부하자")
     assert running.cancelled() or running.done(), "낡은 대답을 끝까지 재생한다"
     assert group.started == 1
-    assert session._pending_user_text == ""
+    assert session._pending_user_texts == []
 
 
 @pytest.mark.asyncio
@@ -265,7 +349,7 @@ async def test_audible_at_speech_start_still_queues():
     session._turn_beaver_unheard = session._beaver_unheard()
     await session._start_reply("잠깐만요")
     assert not running.cancelled()
-    assert session._pending_user_text == "잠깐만요"
+    assert session._pending_user_texts == ["잠깐만요"]
     running.cancel()
 
 
@@ -281,18 +365,25 @@ async def test_open_turn_records_the_moment_speech_started():
 
 
 @pytest.mark.asyncio
-async def test_queue_answers_only_the_last_utterance():
-    """⭐ 밀린 발화가 2건 이상이면 **마지막 것만** 답한다(사장님 선택 ①).
+async def test_queue_keeps_every_utterance_and_answers_once():
+    """⭐⭐ **판단이 뒤집힌 자리다.** 밀린 발화는 **다 모아 두고, 한 번만** 답한다.
 
-    지금은 단순 대입이라 우연히 그렇다 — 누가 리스트로 바꾸면 조용히 "순서대로 다 답함"이
-    되고, 사용자는 이미 지나간 질문의 답을 줄줄이 듣는다.
+    2026-08-08 에는 "마지막 것만 답한다"였다(단순 대입이라 앞말이 덮였다). 2026-08-12
+    사장님 실통화(call 937)에서 그 대가가 드러났다 — 앞말 "안녕하세요."가 사라졌고, 그런데도
+    소비는 하나씩이라 비버가 **연달아 두 번** 답했다. 사장님 결정은 **A(합친다)** 다.
+
+    ⛔ 원래 이 테스트가 막으려던 것("순서대로 줄줄이 답함")은 그대로 막는다 — 답은 **1회**다.
+      바뀐 것은 "앞말을 버려서" 1회를 만드느냐, "합쳐서" 1회를 만드느냐다.
+    합치기 자체의 회귀는 tests/test_cascade_pending_merge.py 에 있다.
     """
     session, group, running = await _rig(audible_ms=5_000)
     session._turn_beaver_unheard = False
     await session._start_reply("첫 번째 질문")
     await session._start_reply("두 번째 질문")
     await session._start_reply("세 번째 질문")
-    assert session._pending_user_text == "세 번째 질문"
+    assert session._pending_user_texts == ["첫 번째 질문", "두 번째 질문", "세 번째 질문"], (
+        "밀린 발화를 버렸다 — 사용자가 한 말이 조용히 사라진다"
+    )
     assert group.started == 0
     running.cancel()
 

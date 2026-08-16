@@ -191,8 +191,17 @@ def test_engine_default_is_openai_with_google_as_the_safety_net():
 
 
 def test_single_language_is_passed_but_multi_is_left_to_auto_detect():
-    """⚠ OpenAI 는 `language` 를 **하나만** 받는다 — 다국어는 '안 넣기'가 유일한 방법이다."""
-    assert oai.OpenAiRealtimeSttStream(16_000, ["ko-KR"])._language == "ko-KR"
+    """⚠ OpenAI 는 `language` 를 **하나만** 받는다 — 다국어는 '안 넣기'가 유일한 방법이다.
+
+    ⛔⛔ **이 테스트가 버그를 못박고 있었다**(2026-08-13). 예전엔 `_language == "ko-KR"` 을
+      기대했는데, OpenAI 는 **ISO-639-1** 만 받는다 — `ko-KR` 을 보내면 거절하고
+      **통화가 죽는다**("Invalid value: 'en-US'. Supported values are: 'af',…").
+      기대값이 벤더 계약이 아니라 **우리 구현**을 베껴 쓴 탓이다. 그래서 통화가 1.4초 만에
+      죽을 때까지 아무도 몰랐다.
+    ⇒ 의도("하나면 지정, 여럿이면 자동감지")는 그대로 두고 **값을 벤더 계약에 맞춘다**.
+      정규화 자체의 성질은 `tests/test_openai_stt_language.py` 가 본다.
+    """
+    assert oai.OpenAiRealtimeSttStream(16_000, ["ko-KR"])._language == "ko"
     assert oai.OpenAiRealtimeSttStream(16_000, ["ko-KR", "en-US"])._language is None
     assert oai.OpenAiRealtimeSttStream(16_000, [])._language is None
 

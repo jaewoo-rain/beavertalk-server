@@ -28,6 +28,8 @@ import logging
 import time
 from typing import Any, AsyncIterator
 
+from core.languages import normalize_locale
+
 from core.audio import upsample_16k_to_24k
 from core.config import settings
 from core.stt import SPEECH_BEGIN, SPEECH_END, STREAM_ERROR, TRANSCRIPT, SttV2Event
@@ -37,12 +39,78 @@ logger = logging.getLogger(__name__)
 REALTIME_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
 # ⚠ `OpenAI-Beta: realtime=v1` 헤더는 **폐기됐다** — 붙이면 4000 으로 거절된다(2026-08-10 실측).
 _SEND_RATE = 24_000          # 벤더가 받는 유일한 PCM 레이트(16000 은 거절된다)
+# ⛔ **치명이 아닌 벤더 오류 코드**(2026-08-16 스파이크에서 실제로 받은 것). 커넥션이 살아 있고
+#   다음 발화가 정상으로 도는데, 여기 없으면 우리가 통화를 죽인다.
+#   · `input_audio_buffer_commit_empty` — "지금 커밋할 오디오가 없다". PTT 는 **릴리즈마다
+#     commit 을 보내므로**, 눌렀다 100ms 안에 떼는 정상 조작에서 이게 난다.
+# ⚠ **좁게 연다.** 벤더 error 를 통째로 비치명으로 뒤집으면 진짜 스트림 death 를 놓친다 —
+#   새 사례가 나오면 **실제로 받은 코드만** 하나씩 더해라(추측으로 넣지 마라).
+_NON_FATAL_CODES = frozenset({"input_audio_buffer_commit_empty"})
 _VENDOR_PREFIX = "openai-"
 
 
 def is_configured() -> bool:
     """키가 있나. ⛔ 키 값은 로그·예외 어디에도 싣지 않는다."""
     return bool((settings.GPT_API_KEY or "").strip())
+
+
+def openai_language_codes(codes: list[str] | None) -> list[str]:
+    """⭐⭐ **벤더별 언어 코드 변환은 여기 한 곳이다**(2026-08-13 통화 사망 버그).
+
+    두 벤더가 **정반대를 요구한다** — 그게 이 사고의 뿌리였다:
+        Google STT v2   **BCP-47**(`en-US`). 지역이 없으면 거절 → `core/stt.py` 가 지역 없는
+                        코드를 **폐기**한다("인식 언어 코드 폐기 ['ja']").
+        OpenAI Realtime **ISO-639-1**(`en`). 지역이 붙으면 거절한다:
+                        "Invalid value: 'en-US'. Supported values are: 'af','ar',…"
+
+    🔴 실제로 통화가 죽었다(에뮬, **1.4초 만에**): `ja` 가 폐기돼 목록이 `['en-US']` **1개**가
+      됐고, 아래 규칙이 그 값을 **그대로** OpenAI 에 넘겼다 → 거절 → error 프레임 → 앱이
+      스낵바를 띄우고 통화를 끊었다.
+    ⚠ **간헐적이라 더 나쁘다**: 목록이 2개면 `None`(자동감지)이 나가 정상이다. **1개로
+      좁아질 때만** 터진다 — 재현이 안 돼 원인 불명으로 남기 딱 좋은 모양이었다.
+
+    ⛔ 새 변환 함수를 만들지 않았다 — `normalize_locale`("ko-KR"→"ko")이 **이미 있다**.
+    ⚠ 정규화하면 **중복이 생긴다**(`['en-US','en-GB']` → `['en','en']`). 합친다.
+      그러면 1개가 되는데, 그건 **자동감지를 잃는 것이 아니라 사실 그대로다** — 두 항목이
+      가리키던 언어가 하나였을 뿐이다. OpenAI 에 `en` 을 주는 편이 자동감지보다 정확하다.
+    """
+    out: list[str] = []
+    for raw in codes or []:
+        code = normalize_locale(raw)
+        if code and code not in out:
+            out.append(code)
+    return out
+
+
+def _session_summary(session: Any) -> str:
+    """서버가 **확정한** 세션에서 우리가 알아야 할 셋만 뽑는다.
+
+    ⭐ 셋인 이유:
+      · `model` — 우리가 고른 전사 모델이 맞나
+      · `turn_detection` — 타입 + `silence_duration_ms`. **이 값이 우리 지연에 그대로 붙는다**
+        (안 먹으면 벤더 기본 500ms 로 돌고, 우리 800ms 위에 얹혀 총 1.3초가 된다)
+      · `noise_reduction` — **우리는 안 보낸다.** 벤더 기본이 뭔지 문서에 없어서, 확정값을
+        보는 것이 유일한 확인 수단이다(5분 지연 폭증 보고가 있는 기능이라 알아야 한다)
+    ⚠ 전문을 찍지 않는다 — 길고 매 통화 나온다. 그리고 전사 텍스트가 섞일 여지를 안 만든다.
+    """
+    audio_in = ((session or {}).get("audio") or {}).get("input") or {}
+    model = ((audio_in.get("transcription") or {}).get("model")
+             or (session or {}).get("model") or "-")
+    turn = audio_in.get("turn_detection")
+    if isinstance(turn, dict):
+        turn_txt = "%s(silence=%s)" % (
+            turn.get("type") or "-",
+            turn.get("silence_duration_ms", "미지정(벤더기본)"),
+        )
+    else:
+        # ⛔ None 이면 **턴 감지가 아예 꺼진 것**이다 — 우리가 보낸 설정이 버려졌다는 신호다.
+        turn_txt = "없음(⚠ 우리가 보낸 turn_detection 이 안 먹었다)"
+    noise = audio_in.get("noise_reduction")
+    if isinstance(noise, dict):
+        noise_txt = noise.get("type") or "(타입없음)"
+    else:
+        noise_txt = "없음" if noise is None else str(noise)[:24]
+    return "model=%s turn_detection=%s noise_reduction=%s" % (model, turn_txt, noise_txt)
 
 
 def vendor_name() -> str:
@@ -60,7 +128,13 @@ class OpenAiRealtimeSttStream:
         self._sample_rate = sample_rate
         # ⚠ OpenAI 는 `language` 를 **하나만** 받는다 — 다국어는 "안 넣기"가 유일한 방법이다
         #   (선정기준 §4-2). 그래서 코드가 여러 개면 아예 지정하지 않는다.
-        self._language = (language_codes or [None])[0] if len(language_codes or []) == 1 else None
+        # ⛔ **반드시 ISO-639-1 로 바꿔서** 넣는다. 호출부가 주는 목록은 Google 용 BCP-47
+        #   (`en-US`)이고, 그대로 넘기면 OpenAI 가 거절해 **통화가 죽는다**(위 함수 주석).
+        wanted = openai_language_codes(language_codes)
+        self._language = wanted[0] if len(wanted) == 1 else None
+        if language_codes and list(language_codes) != wanted:
+            # 조용히 바꾸지 않는다 — 무엇을 받아 무엇으로 보냈는지 남긴다.
+            logger.info("[stt-openai] 언어 코드 정규화 %s → %s", list(language_codes), wanted)
         self._ws: Any = None
         self._closed = False
         self._sent_ms = 0.0
@@ -86,6 +160,14 @@ class OpenAiRealtimeSttStream:
         }
         if self._language:
             transcription["language"] = self._language
+        # ⭐⭐ **침묵창을 명시한다**(2026-08-14). 지금까지는 안 보내고 벤더 기본값에 맡겼는데,
+        #   그 값이 우리 턴 침묵(800ms) **앞에 통째로 얹혀** 있었다(실측 근거는 config 주석).
+        #   ⛔ 안 보내면 그 값이 얼마인지 **로그로도 알 수 없다** — 조용한 기본값의 전형이다.
+        #   ⚠ 0 이면 예전처럼 안 보낸다(벤더 기본값으로 되돌아간다).
+        turn_detection: dict[str, Any] = {"type": "server_vad"}
+        silence_ms = max(0, int(settings.OPENAI_STT_SILENCE_MS or 0))
+        if silence_ms:
+            turn_detection["silence_duration_ms"] = silence_ms
         await self._ws.send(json.dumps({
             "type": "session.update",
             "session": {
@@ -93,13 +175,14 @@ class OpenAiRealtimeSttStream:
                 "audio": {"input": {
                     "format": {"type": "audio/pcm", "rate": _SEND_RATE},
                     "transcription": transcription,
-                    "turn_detection": {"type": "server_vad"},
+                    "turn_detection": turn_detection,
                 }},
             },
         }))
         self._reader = asyncio.create_task(self._read_loop())
-        logger.info("[stt-openai] 연결 — 모델=%s 언어=%s (%dHz 로 올려 보낸다)",
-                    transcription["model"], self._language or "자동감지", _SEND_RATE)
+        logger.info("[stt-openai] 연결 — 모델=%s 언어=%s 침묵창=%s (%dHz 로 올려 보낸다)",
+                    transcription["model"], self._language or "자동감지",
+                    "%dms" % silence_ms if silence_ms else "벤더기본(미지정)", _SEND_RATE)
 
     async def close(self) -> None:
         # ⭐ **닫기 전에 무음을 조금 흘린다** — 안 그러면 마지막 발화가 통째로 사라진다.
@@ -176,6 +259,14 @@ class OpenAiRealtimeSttStream:
           '지금까지의 전체'라, item 별로 이어 붙여서 낸다.
         """
         kind = msg.get("type") or ""
+        if kind == "session.updated":
+            # ⭐⭐ **우리가 보낸 설정이 실제로 먹었는지 확인하는 유일한 계기판**(2026-08-16).
+            #   벤더는 미지원 필드가 하나라도 있으면 그 `session.update` 를 **통째로 버리는데
+            #   커넥션은 안 죽는다** ⇒ 조용히 기본값으로 돈다. 그러면 `silence_duration_ms=300`
+            #   이 안 먹고 벤더 기본 **500ms** 로 도는데(문서 확인) 우리는 **알 방법이 없었다.**
+            #   ⇒ 지연이 200ms 늘어난 채로 며칠을 재고 있었을 수도 있다.
+            logger.info("[stt-openai] 세션 확정 — %s", _session_summary(msg.get("session")))
+            return []
         if kind == "input_audio_buffer.speech_started":
             return [SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(msg.get("audio_start_ms", -1)))]
         if kind == "input_audio_buffer.speech_stopped":
@@ -191,8 +282,40 @@ class OpenAiRealtimeSttStream:
             text = msg.get("transcript") or ""
             return [SttV2Event(kind=TRANSCRIPT, text=text, is_final=True)] if text else []
         if kind == "error":
-            detail = (msg.get("error") or {}).get("message") or "unknown"
-            # ⛔ 벤더 에러 본문에 키가 실릴 일은 없지만, 길이를 잘라 남긴다.
+            err = msg.get("error") or {}
+            detail = err.get("message") or "unknown"
+            # ⛔⛔ **서버가 먼저 알아야 한다.** 지금까지 이 거절은 서버 로그에 WARNING 한 줄
+            #   없이 error 프레임으로만 나갔다 — 앱은 스낵바를 띄우고 통화를 끊는데 서버는
+            #   조용했다(2026-08-13 통화 사망 버그를 못 본 이유가 이것이다).
+            #   ⛔ 벤더 에러 본문에 키가 실릴 일은 없지만, 길이를 잘라 남긴다.
+            # ⚠ **`param`·`code` 를 같이 남긴다**(2026-08-16). 거절에는 두 종류가 있다:
+            #     · 세션 설정 거절(`param="session.…"`) — 그 `session.update` 만 버려지고
+            #       **커넥션은 산다**. 즉 우리는 **기본값으로 돌고 있는 것**이다.
+            #     · 그 밖 — 스트림 자체가 못 쓰게 된 경우.
+            #   ⛔ 예전 문구는 무조건 "이 통화는 여기서 끊긴다"라고 **단정**했다. 앞의 경우엔
+            #     그게 사실이 아니다 — 로그가 단정하면 다음 사람이 엉뚱한 곳을 판다.
+            param = str(err.get("param") or "")
+            # ⛔⛔ **설정 거절로 통화를 죽이지 않는다**(2026-08-16). 지금까지는 벤더 `error` 를
+            #   전부 `STREAM_ERROR` 로 올렸고, 세션은 그걸 받으면 **무조건 통화를 종료**한다
+            #   (`cascade_session.py` 의 `raise _Stop`). 그런데 세션 설정 거절은 **커넥션을
+            #   안 죽인다** — 그 `session.update` 만 버려지고 스트림은 그대로 산다.
+            #   ⇒ 벤더는 계속 돌 수 있는데 **우리가 먼저 끊고 있었다.**
+            #   ⚠ 설정이 안 먹은 채 도는 것은 "느려짐"이지 "통화 불가"가 아니다. 끊는 쪽이 훨씬 나쁘다.
+            # ⛔ 그 밖의 오류는 **지금처럼 죽인다** — 전부 살리면 진짜 스트림 death 를 놓친다.
+            # ⭐ **좁게 연다**(2026-08-16 결정 ⓐ). 새 사례가 나오면 그때 하나씩 더한다 —
+            #   벤더 error 를 통째로 비치명으로 뒤집으면 **진짜 스트림 death 를 놓친다.**
+            code = str(err.get("code") or "")
+            config_reject = param.startswith("session.") or code in _NON_FATAL_CODES
+            logger.warning(
+                "[stt-openai] 벤더 거절 — %s (code=%s param=%s 언어=%s) %s",
+                str(detail)[:200], err.get("code") or "-", param or "-",
+                self._language or "자동감지",
+                "⚠ 세션 설정이 통째로 미적용됐다 — 벤더 기본값으로 돌고 있다(통화는 계속한다)"
+                if config_reject else "이 통화는 여기서 끊긴다",
+            )
+            if config_reject:
+                # ⚠ 비치명으로 넘길 때도 **위 WARNING 은 이미 남겼다** — 조용히 삼키지 않는다.
+                return []
             return [SttV2Event(kind=STREAM_ERROR, detail=str(detail)[:200])]
         return []
 

@@ -59,7 +59,8 @@ class _Sink:
 def _session(monkeypatch, *, rms: float, aec=None) -> tuple[CascadeSession, list]:
     """비버가 말하는 중이고 사용자가 소리를 냈다 — barge-in 판정 직전 상태."""
     monkeypatch.setattr(settings, "CASCADE_MIC_ALWAYS_OPEN", True)
-    monkeypatch.setattr(settings, "CASCADE_BARGEIN_MIN_MS", 0)
+    # ⚠ 예전엔 여기서 최소지속 관문을 0 으로 껐다. 그 관문은 2026-08-14 에 **삭제**됐다 —
+    #   끌 것이 없으니 이 줄도 사라졌다(사유는 `_bargein_allowed` 주석).
     session = CascadeSession(_Sink())
     session._apply_aec_hint(aec)
     session.state = TurnState.BEAVER_SPEAKING
@@ -117,6 +118,66 @@ def test_pending_window_outlives_normal_transcript_delay():
         "전사가 도착하기 전에 보류가 만료된다 — 진짜 끼어들기가 죽는다"
     )
     assert settings.CASCADE_BARGEIN_PENDING_MS > LIVE_TRANSCRIPT_CONFIRM_MS * 4
+
+
+# ── ⓐ-2 최소지속 관문을 지운 자리(2026-08-14) ──────────────────────────────
+@pytest.mark.asyncio
+async def test_a_very_recent_speech_start_still_reaches_the_transcript_gate(monkeypatch):
+    """⭐⭐ **지운 관문이 뒤 관문을 죽이고 있었다** — 그게 이 삭제의 핵심 근거다.
+
+    예전 ② 최소 지속 관문은 `audio_ms − offset < 400ms` 면 **`return False`** 했다. 그러면
+    `_bargein_at` 이 안 잡히고, 나중에 두 글자가 와도 **끊을 대상이 없다** — 앞 관문이 뒤
+    관문(전사 확인)을 무력화하는 구조였다. 증상은 「짧게 끼어들면 안 끊긴다」로 나타나
+    원인 찾기가 어렵다.
+    ⇒ 이제 speech_begin 이 방금 시작한 지점을 가리켜도 **보류로 넘어가고**, 전사가 결정한다.
+    """
+    session, cuts = _session(monkeypatch, rms=0.02)
+    # 방금 말을 시작했다(오디오가 50ms 밖에 안 흘렀다) — 예전이라면 여기서 통째로 기각됐다.
+    just_now = SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(session._audio_ms - 50))
+
+    await session._on_speech_begin(just_now)
+
+    assert session._bargein_at is not None, "짧게 시작했다고 전사 확인 기회조차 없앴다"
+    assert not cuts, "보류 시점에는 아직 안 끊는다(전사가 결정한다)"
+    assert not [o for o, _ in session._bargein_obs if o == "기각-지속"], session._bargein_obs
+
+    await session._on_transcript(
+        SttV2Event(kind=TRANSCRIPT, text="잠깐만요", offset_ms=int(session._audio_ms))
+    )
+    assert len(cuts) == 1, "두 글자가 왔는데도 못 끊었다 — 무력화가 남아 있다"
+
+
+@pytest.mark.asyncio
+async def test_a_short_blip_without_words_still_never_cuts(monkeypatch):
+    """⛔ 지운 관문이 지키려던 성질은 **그대로 살아 있다** — 다만 지키는 주체가 다르다.
+
+    「순간 튐으로 비버를 끊지 않는다」는 이제 **에너지 게이트 + 전사 확인**이 지킨다.
+    소리만 짧게 나고 글자가 안 오면 보류는 유효기간에 **기각**으로 끝난다.
+    ⚠ 이 시험이 있는 한 "에코 방어가 약해졌다"는 걱정에 코드로 답할 수 있다.
+    """
+    session, cuts = _session(monkeypatch, rms=0.02)
+    await session._on_speech_begin(
+        SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(session._audio_ms - 50))
+    )
+    # 글자는 끝내 안 온다(기침·키보드·잔여 에코).
+    await asyncio.sleep(LIVE_PIPELINE_LAG_MS * 2 / 1000.0)
+
+    assert not cuts, "글자 없이 짧은 소리로 끊겼다"
+
+
+def test_the_min_duration_gate_is_gone_not_disabled(monkeypatch):
+    """⛔ **0 으로 끈 게 아니라 지웠다.** 설정이 남아 있으면 다음 사람이 이유도 모르고 되올린다.
+
+    ⚠ 이 시험의 주제는 값이 아니라 **부재**다 — 오늘 우리가 `silence_duration_ms` 에서
+      당한 게 정확히 그 계열이다(아무도 설정한 적 없는 값을 아무도 모르고 있었다).
+    """
+    assert not hasattr(settings, "CASCADE_BARGEIN_MIN_MS"), (
+        "삭제한 관문의 설정이 되살아났다 — 되살리려면 전사 확인 **뒤로** 옮겨라"
+    )
+    # 살아 있는 방어 셋은 그대로다.
+    assert settings.CASCADE_BARGEIN_MIN_AUDIBLE_MS > 0
+    assert settings.CASCADE_BARGEIN_RMS > 0
+    assert settings.CASCADE_BARGEIN_MIN_CHARS >= 1
 
 
 # ── ⓑ STT 장애 안전망 ────────────────────────────────────────────────────────

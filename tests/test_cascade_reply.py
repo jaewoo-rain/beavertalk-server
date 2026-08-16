@@ -275,7 +275,6 @@ async def test_barge_in_cancels_reply_without_killing_session(reply_rig, monkeyp
     """
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     # 비버가 **실제로 들리고 있는** 상태를 만든다(2026-08-07 관문 ⓪-1). 클라 버퍼 추정을
     # 0 으로 두고 임계를 낮춰, 몇 프레임만 나가도 '들렸다'가 되게 한다.
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
@@ -314,7 +313,6 @@ async def test_inaudible_beaver_is_not_cancelled(reply_rig, monkeypatch):
     """⭐ 비버가 아직 안 들리면 잡음으로 죽이지 않는다 — 끊어봐야 멈출 소리가 없다."""
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 300)
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 600)  # 기본값 — 아직 안 들린다
@@ -341,7 +339,6 @@ async def test_transcript_confirm_rejects_noise(reply_rig, monkeypatch):
     """③ 전사 확인 관문 — 소리만 나고 전사가 없으면 비버를 끊지 않는다(설계엔 있었고 구현이 없었다)."""
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "transcript")
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_AUDIBLE_MS", 20)
     monkeypatch.setattr(cs.settings, "CASCADE_CLIENT_BUFFER_MS", 0)
@@ -565,9 +562,11 @@ async def test_marker_state_is_logged_for_every_sentence(reply_rig, monkeypatch,
         await session._speak("반쪽만 __지켰다")                         # 짝 안 맞음
     lines = [r.getMessage() for r in caplog.records if "언어구간" in r.getMessage()]
     assert len(lines) == 3, lines
-    assert "3개 ko/en/ko 마커=있음" in lines[0]
-    assert "마커=없음" in lines[1]
-    assert "마커=짝안맞음" in lines[2]
+    # ⚠ 이름이 `마커=` → **`언어마커=`** 로 바뀌었다(2026-08-13) — `자막=`(문장 마커 수)와
+    #   겹쳐 실제로 혼동이 났다. 세는 것도 뜻도 다른 두 값이라 이름을 갈랐다.
+    assert "3개 ko/en/ko 언어마커=있음" in lines[0]
+    assert "언어마커=없음" in lines[1]
+    assert "언어마커=짝안맞음" in lines[2]
     # 통화 내용이 로그로 새지 않는다
     assert all("How are you" not in line for line in lines), lines
     assert session._marker_seen == {"있음": 1, "없음": 1, "짝안맞음": 1}
@@ -825,14 +824,28 @@ async def test_batch_mode_splits_by_language_and_joins(reply_rig, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_batch_mode_is_gemini_only(reply_rig, monkeypatch):
-    """⛔ Chirp 은 지금 방식(문장 단위 스트리밍) 그대로다 — 배치는 Gemini 전용이다."""
+    """⛔ Chirp 은 지금 방식(**문장 단위 스트리밍**) 그대로다 — 배치는 Gemini 전용이다.
+
+    ⚠ 2026-08-12 판정 기준이 바뀌었다. 예전엔 `beaver_preparing` **부재**로 "배치가 아님"을
+      확인했는데, 그 프레임이 이제 스트리밍 경로에도 나간다(프론트 요청 — 단계가 갈려야
+      LLM 이 느린지 TTS 가 느린지 답한다). 프레임 유무는 더 이상 모드의 증거가 아니다.
+    ⇒ **모드 자체를 직접 본다**: 배치는 전체를 다 만든 뒤 한 번에 합성하므로 그 상태 플래그와
+      배치 산물(`_batch_spoken`)이 남는다. Chirp 은 그 자리를 지나지 않는다.
+    """
     transport = _Transport([
         _ctl(type="start", ttsEngine="chirp3-hd"),
         _ctl(type="__test_say", text="안녕"),
         _ctl(type="__test_event", event=SPEECH_END),
     ])
-    await asyncio.wait_for(CascadeSession(transport, genai_client=object()).run(), timeout=5)
-    assert "beaver_preparing" not in transport.types(), transport.events
+    session = CascadeSession(transport, genai_client=object())
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert session._batch_spoken == "", "Chirp 이 배치 경로를 탔다"
+    assert session._batch_synthesizing is False
+    prep = [e for e in transport.events if e.get("type") == "beaver_preparing"]
+    # 스트리밍 경로의 단계 알림은 **단계당 1건**이다(llm → tts → llm_done) — 배치처럼
+    # 구간마다 나가면 훨씬 많아진다. 개수로도 두 모드가 갈린다.
+    # ⚠ `llm_done` 은 2026-08-13 추가(프론트가 LLM 소요를 갈라 보기 위해).
+    assert [e["stage"] for e in prep] == ["llm", "tts", "llm_done"], prep
 
 
 @pytest.mark.asyncio
@@ -847,7 +860,6 @@ async def test_batch_mode_ignores_bargein_while_synthesizing(reply_rig, monkeypa
 
     monkeypatch.setattr(cs.settings, "CASCADE_MIC_ALWAYS_OPEN", True)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_RMS", 0.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_MIN_MS", 0)
     monkeypatch.setattr(cs.settings, "CASCADE_BARGEIN_CONFIRM", "immediate")
 
     async def _slow_tts(text, **kwargs):
@@ -918,7 +930,10 @@ def test_synthesis_speed_is_only_claimed_where_it_can_be_measured():
     sec = int(cs.BEAVER_BYTES_PER_MS * 1000)
     session._reply_spans = [("ko", 40, sec * 4)]
 
-    assert "합성배속=측정불가" in session._reading_summary(None)      # 실시간
+    # ⚠ 2026-08-13: 실시간에서는 그 문구를 **아예 안 쓴다**(예전엔 `합성배속=측정불가(...)` 를
+    #   찍었는데 **모든 줄에 항상 같은 문구**라 정보가 0 이고 줄만 길어졌다). 성질은 그대로다 —
+    #   못 재는 곳에서 숫자를 만들지 않는다.
+    assert "합성배속" not in session._reading_summary(None)           # 실시간 = 침묵
     assert "합성배속=2.00x" in session._reading_summary(2.0)          # 배치(오디오 4초 / 합성 2초)
 
 
@@ -948,8 +963,14 @@ async def test_both_modes_log_the_same_reading_fields(reply_rig, monkeypatch, ca
         lines.append(next(r.getMessage() for r in caplog.records
                           if r.getMessage().startswith("cascade 대답")))
     for line in lines:
-        for field in ("들린글자=", "오디오=", "읽기=", "합성배속="):
+        # ⚠ `합성배속=` 은 **공통 필드가 아니다**(배치에서만 잴 수 있다) — 2026-08-13 에
+        #   실시간 쪽의 "측정불가" 문구를 없앴다. 공통이어야 하는 건 아래 셋이다.
+        for field in ("들린글자=", "오디오=", "읽기="):
             assert field in line, (field, line)
+    assert "합성배속" not in lines[0], "실시간에서 못 재는 값을 주장했다"
+    # ⚠ 배치 쪽은 여기서 안 본다 — 이 리그의 가짜 오디오는 합성 시간이 0 이라 "잴 수 있는
+    #   경우"가 아니다. 배치에서 값이 실제로 붙는지는 위 단위 시험이 본다
+    #   (`test_synthesis_speed_is_only_claimed_where_it_can_be_measured`).
 
 
 # --------------------------------------------------------------------------- #
@@ -1063,10 +1084,18 @@ def test_short_but_real_utterances_survive():
 
 
 def test_leading_punctuation_attaches_forward():
-    """앞 구간이 없으면(첫 조각이 구두점) **뒤에** 붙인다 — 버리지는 않는다."""
+    """앞 구간이 없으면(첫 조각이 구두점) **뒤에** 붙인다 — 버리지는 않는다.
+
+    ⚠ 2026-08-14: 기대값의 **언어**를 바꿨다. 예전에는 `("…좋아요", "en")` 이었다 — 순번이
+      그렇게 정했기 때문이다. 그런데 "좋아요"는 한글이라 en 음성으로 읽으면 발음이 깨진다.
+      글자 교차검증이 그걸 ko 로 고친다(그게 그 기능의 목적이다).
+      ⛔ 이 시험의 주제는 **구두점이 뒤에 붙는가**이지 언어가 아니다 — 텍스트를 따로 못박는다.
+    """
     from domains.learning.realtime.cascade_reply import split_by_language
 
-    assert split_by_language("…__좋아요__", "ko", "en") == [("…좋아요", "en")]
+    out = split_by_language("…__좋아요__", "ko", "en")
+    assert [text for text, _ in out] == ["…좋아요"], out
+    assert out == [("…좋아요", "ko")], out
 
 
 def test_marker_only_punctuation_input_makes_no_segment():

@@ -88,6 +88,18 @@ def _base_locale(lang: str | None) -> str:
     return lang.strip().replace("_", "-").split("-")[0].lower() or "en"
 
 
+def character_display_name(db: Session, character_id: int) -> str | None:
+    """캐릭터 표시 이름 — 통화 시작 통지에 실어 보낸다(캐스케이드 `call_started`).
+
+    ⭐ 왜 id 만으로 부족한가: 프론트는 **이름**으로 화면 자산을 고르는데 **캐릭터 id 가
+      환경마다 다르다**(prod 9=Popo / dev 3=Popo). id 만 주면 클라가 이름으로 되짚어야 하고,
+      그 매핑이 틀리면 얼굴이 조용히 어긋난다.
+    ⚠ 행이 없으면 None 이다 — 부르는 쪽은 그래도 id 를 보낸다(R5).
+    """
+    ch = db.get(Character, character_id)
+    return (ch.name or None) if ch else None
+
+
 def resolve_call_character(
     db: Session, member_id: int, inbound_call_id: Optional[str] = None
 ) -> int:
@@ -946,6 +958,10 @@ def save_call_usage(
         "sum_prompt": summary.get("sum_prompt"),
         "sum_resp": summary.get("sum_resp"),
         "sum_thoughts": summary.get("sum_thoughts"),
+        # ⭐ 캐시된 컨텍스트 토큰(2026-08-16). ⛔ 원가식엔 **안 쓴다** — 값이 나온 뒤에 정한다.
+        #   ⚠ 벤더가 필드를 안 준 통화는 `None` 이다(0 으로 접으면 "캐시 0"과 구별이 안 된다).
+        #   로그는 30일이면 사라지므로 여기 남겨야 **추이**를 볼 수 있다.
+        "sum_cached": summary.get("sum_cached"),
         "t_first": summary.get("t_first"),
         "t_last": summary.get("t_last"),
         "compressions": summary.get("compressions"),

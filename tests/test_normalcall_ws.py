@@ -3463,3 +3463,95 @@ def test_gemini_tts_input_text_tokens_are_added_when_present():
     })
     assert unknown == []
     assert round(withtext - base, 10) == round(1_500 * 0.50 / 1_000_000, 10)
+
+
+# ── ⭐ 캐시된 컨텍스트 토큰 (2026-08-16) — 여태 받아서 **버리고 있었다** ──────
+#
+# `Σ(in_audio)` 는 **같은 오디오를 매 요청 다시 실은** 값이다(call 1026: 59회 재전송).
+# 벤더가 그 재전송분을 **캐시로 할인하는지**에 따라 라이브 원가가 통째로 달라지는데,
+# 우리는 그 답이 될 필드(`cached_content_token_count`)를 `usage_log` 에 적재만 하고
+# 요약·로그·DB 어디에도 안 내보내고 있었다.
+# ⇒ 설계 문서가 미해결로 남긴 "재개가 컨텍스트를 재과금하는가"의 첫 단서다.
+# ⛔ **관측만이다.** 원가식은 안 건드린다 — 값이 나온 뒤에 정한다.
+
+
+def _usage_state_cached(rows):
+    """(prompt, cached) 시계열로 상태를 만든다 — 나머지 필드는 이 시험의 관심사가 아니다."""
+    st = cs._CallState()
+    st.call_start_ts = None
+    for prompt, cached in rows:
+        st.usage_log.append({
+            "t": None, "turn": 0, "prompt": prompt, "resp": 0,
+            "total": prompt, "thoughts": 0, "cached": cached, "tool_in": None,
+            "in_detail": [("AUDIO", prompt)], "out_detail": [],
+        })
+    return st
+
+
+def test_cached_tokens_are_summed_on_the_same_axis():
+    """⚠ `sum_prompt` 와 **같은 축(Σ)** 으로 세야 비율이 뜻을 갖는다."""
+    s = cs._usage_summary(_usage_state_cached([(1000, 400), (3000, 2000)]))
+    assert s["sum_cached"] == 2400 and s["sum_prompt"] == 4000
+
+
+def test_a_vendor_that_never_sends_the_field_is_not_zero():
+    """⛔⛔ **0 과 "모른다"는 다르다.** 안 준 통화를 0 으로 접으면 평균이 조용히 내려가고,
+    그 표로 "캐시는 안 돈다"는 **틀린 결론**을 내리게 된다."""
+    s = cs._usage_summary(_usage_state_cached([(1000, None), (3000, None)]))
+    assert s["sum_cached"] is None, "필드 미제공을 0 으로 접었다"
+
+    # 한 건이라도 값이 오면 그때부터는 숫자다(그 회차만 세면 된다).
+    s2 = cs._usage_summary(_usage_state_cached([(1000, None), (3000, 500)]))
+    assert s2["sum_cached"] == 500
+
+
+def test_the_ratio_is_the_answer_and_never_fakes_zero():
+    """⭐ **비율이 답이다** — 절대값만으로는 캐시가 도는지 못 읽는다.
+
+    ⛔ 못 재는 경우를 `0.0%` 로 찍으면 그것도 거짓 표본이다.
+    """
+    assert cs._ratio_pct(2400, 4000) == "60.0%"
+    assert cs._ratio_pct(0, 4000) == "0.0%"      # 진짜 0 은 0 이다(캐시가 안 돈 것)
+    assert cs._ratio_pct(None, 4000) == "-"      # 필드 미제공
+    assert cs._ratio_pct(2400, 0) == "-"         # 분모 없음
+    assert cs._ratio_pct(2400, None) == "-"
+
+
+def test_the_log_line_carries_cached_and_ratio():
+    """로그 줄은 `key=value` 계약이다 — 메트릭이 코드 변경 0줄로 여기서 뽑아간다."""
+    import logging
+
+    st = _usage_state_cached([(1000, 400), (3000, 2000)])
+    records: list[str] = []
+
+    class _Cap(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    h = _Cap()
+    cs.logger.addHandler(h)
+    prev = cs.logger.level
+    cs.logger.setLevel(logging.INFO)
+    try:
+        cs._log_usage_summary(st, 7, "normal")
+    finally:
+        cs.logger.removeHandler(h)
+        cs.logger.setLevel(prev)
+
+    line = next(r for r in records if r.startswith("normalcall usage:"))
+    assert "sum_cached=2400" in line and "cached_ratio=60.0%" in line, line
+
+
+def test_the_cost_formula_is_untouched():
+    """⛔⛔ **관측만이다.** 캐시 값이 원가식에 새어 들어가면 값이 나오기도 전에 원가가 바뀐다.
+
+    ⚠ 그리고 지금 식은 **맞다**(2026-08-16 확정): `sum_prompt` 가 `last_prompt` 의 38배인 것은
+      결함이 아니라 요청을 그만큼 한 결과다. 물리 상한(Σ 출력오디오 ÷ 통화초 = 5.7~15.2 토큰per초)이
+      그걸 확정했다 — 반대 가설이면 8.5분 통화에서 비버가 6.6초 말한 게 된다.
+    """
+    import inspect
+
+    import domains.learning.service.normalcall_service as svc
+
+    src = inspect.getsource(svc.estimate_usage_cost_usd)
+    assert "cached" not in src, "원가식이 캐시 토큰을 쓰기 시작했다 — 관측 단계에서 멈춰야 한다"

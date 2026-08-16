@@ -195,8 +195,17 @@ def test_build_system_instruction_snapshot_byte_identical():
 
 
 def test_invariants_template_byte_identical_to_frozen_original():
-    """템플릿 자체도 동결 원본과 동일(한국어 위주 전환 후 기준으로 재동결)."""
-    assert pp._INVARIANTS_TEMPLATE == _ORIG_INVARIANTS_TEMPLATE
+    """템플릿 자체도 동결 원본과 동일(한국어 위주 전환 후 기준으로 재동결).
+
+    ⚠ 2026-08-13: 응답 길이 문구의 숫자가 `{max_sentences}` 자리표시자가 됐다(서버 상한과
+      **같은 숫자**여야 해서 — 손으로 쓴 숫자가 두 곳에 있으면 모순이 재발한다).
+      그래서 비교는 **기본값을 채운 뒤**에 한다. 이러면 성질이 하나 더 붙는다:
+      **상한이 기본(4)이면 문자열이 예전과 한 바이트도 다르지 않다** = Live 무변경.
+    """
+    rendered = pp._INVARIANTS_TEMPLATE.replace(
+        "{max_sentences}", str(pp._DEFAULT_MAX_SENTENCES)
+    )
+    assert rendered == _ORIG_INVARIANTS_TEMPLATE
 
 
 def test_close_protocol_constant_matches_original_paragraph():
