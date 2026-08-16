@@ -39,6 +39,13 @@ logger = logging.getLogger(__name__)
 REALTIME_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
 # ⚠ `OpenAI-Beta: realtime=v1` 헤더는 **폐기됐다** — 붙이면 4000 으로 거절된다(2026-08-10 실측).
 _SEND_RATE = 24_000          # 벤더가 받는 유일한 PCM 레이트(16000 은 거절된다)
+# ⛔ **치명이 아닌 벤더 오류 코드**(2026-08-16 스파이크에서 실제로 받은 것). 커넥션이 살아 있고
+#   다음 발화가 정상으로 도는데, 여기 없으면 우리가 통화를 죽인다.
+#   · `input_audio_buffer_commit_empty` — "지금 커밋할 오디오가 없다". PTT 는 **릴리즈마다
+#     commit 을 보내므로**, 눌렀다 100ms 안에 떼는 정상 조작에서 이게 난다.
+# ⚠ **좁게 연다.** 벤더 error 를 통째로 비치명으로 뒤집으면 진짜 스트림 death 를 놓친다 —
+#   새 사례가 나오면 **실제로 받은 코드만** 하나씩 더해라(추측으로 넣지 마라).
+_NON_FATAL_CODES = frozenset({"input_audio_buffer_commit_empty"})
 _VENDOR_PREFIX = "openai-"
 
 
@@ -295,7 +302,10 @@ class OpenAiRealtimeSttStream:
             #   ⇒ 벤더는 계속 돌 수 있는데 **우리가 먼저 끊고 있었다.**
             #   ⚠ 설정이 안 먹은 채 도는 것은 "느려짐"이지 "통화 불가"가 아니다. 끊는 쪽이 훨씬 나쁘다.
             # ⛔ 그 밖의 오류는 **지금처럼 죽인다** — 전부 살리면 진짜 스트림 death 를 놓친다.
-            config_reject = param.startswith("session.")
+            # ⭐ **좁게 연다**(2026-08-16 결정 ⓐ). 새 사례가 나오면 그때 하나씩 더한다 —
+            #   벤더 error 를 통째로 비치명으로 뒤집으면 **진짜 스트림 death 를 놓친다.**
+            code = str(err.get("code") or "")
+            config_reject = param.startswith("session.") or code in _NON_FATAL_CODES
             logger.warning(
                 "[stt-openai] 벤더 거절 — %s (code=%s param=%s 언어=%s) %s",
                 str(detail)[:200], err.get("code") or "-", param or "-",
@@ -304,6 +314,7 @@ class OpenAiRealtimeSttStream:
                 if config_reject else "이 통화는 여기서 끊긴다",
             )
             if config_reject:
+                # ⚠ 비치명으로 넘길 때도 **위 WARNING 은 이미 남겼다** — 조용히 삼키지 않는다.
                 return []
             return [SttV2Event(kind=STREAM_ERROR, detail=str(detail)[:200])]
         return []

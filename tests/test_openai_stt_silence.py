@@ -255,3 +255,26 @@ def test_the_log_stops_claiming_the_call_dies_when_it_does_not(caplog):
         _stream()._translate(other)
     line = [r.getMessage() for r in caplog.records if "벤더 거절" in r.getMessage()][0]
     assert "이 통화는 여기서 끊긴다" in line, line
+
+
+def test_an_empty_commit_does_not_kill_the_call(caplog):
+    """⭐ 결정 ⓐ — `input_audio_buffer_commit_empty` 는 **치명이 아니다**(스파이크 실측).
+
+    ⛔ PTT 는 **릴리즈마다 commit 을 보낸다.** 눌렀다 100ms 안에 떼는 **정상 조작**에서 이
+      에러가 나는데, 그때 통화를 죽이면 사용자는 오조작 한 번에 통화를 잃는다.
+    ⚠ `param` 이 **없다**(None) — 그래서 "session. 으로 시작하면"이라는 규칙만으로는 못 걸렀다.
+    """
+    msg = {"type": "error", "error": {
+        "code": "input_audio_buffer_commit_empty", "param": None,
+        "message": "Error committing input audio buffer: buffer too small.",
+    }}
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        assert _stream()._translate(msg) == [], "정상 조작으로 통화가 죽는다"
+
+    # ⛔ 비치명이라고 **조용히 삼키지 않는다** — 안 남기면 다음 사람이 못 찾는다.
+    assert [r for r in caplog.records if "벤더 거절" in r.getMessage()], caplog.text
+
+
+def test_the_non_fatal_list_stays_narrow():
+    """⛔ **좁게 연다.** 통째로 뒤집으면 진짜 스트림 death 를 놓친다 — 실제로 받은 코드만 더한다."""
+    assert mod._NON_FATAL_CODES == frozenset({"input_audio_buffer_commit_empty"})
