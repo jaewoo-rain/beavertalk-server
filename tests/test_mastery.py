@@ -546,10 +546,19 @@ def test_gate_denominator_is_grammar_only_d12(env):
 
 
 # --------------------------------------------------------------------------- #
-# (6) grandfathering (smoke PART 4 이식)
+# (6) 레벨 배정 — ⛔ grandfathering 은 **없앴다**(2026-08-16)
 # --------------------------------------------------------------------------- #
-def test_grandfathering_placement_rows_and_history(env):
-    """≤k−2 mastered·k−1 introduced·non-core 미생성·기존 observed 보존·placement 멱등."""
+def test_placement_creates_no_rows_for_skipped_levels(env):
+    """⛔⛔ **건너뛴 레벨은 기록 0이다.** 예전엔 ≤k−2 mastered / k−1 introduced 를 찍었다.
+
+    ⚠ 기대값이 뒤집힌 것은 숫자를 맞춘 게 아니라 **성질이 바뀐 것**이다:
+      *"레벨이 처음 3이면 배운 거 0으로 해야 함. 레벨 1·2를 배웠다고 처리하면 안 돼."*(사장님)
+
+    그 장치가 **양쪽으로** 틀렸다는 게 실측으로 확인됐다:
+      · 하락 후: L1 이 전부 mastered 라 고를 재료가 0 → `teaching_plan=0` → 증거 0 → **영원히 갇힘**
+      · 배정 직후: placement 가 게이트 분자가 되어 **첫 통화에 승급**(#247·#249)
+    ⇒ 값 조정이 아니라 제거가 답이다. ⭐ 기존 관측 행은 그대로 보존된다(아래).
+    """
     db = env["db"]
     c1, v_ext = env["c1"], env["v_ext"]
 
@@ -570,31 +579,25 @@ def test_grandfathering_placement_rows_and_history(env):
     ))
     db.flush()
 
-    gf = mastery_service.apply_grandfathering(
+    gf = mastery_service.record_placement(
         db, m3.member_id, 3, trigger_call_id=lt_call.call_id, from_level=None
     )
     m3.korean_level = 3
     db.commit()
 
-    # ≤1(청크 4 중 기존 c1 제외 3) → mastered / k−1=2(문법1+core 어휘1) → introduced
-    assert gf == {"mastered": 3, "introduced": 2}, gf
+    # ⛔ 하위 레벨 행을 **하나도** 만들지 않는다.
+    assert gf == {"mastered": 0, "introduced": 0, "demoted": 0}, gf
 
+    # ⭐ 기존 관측 행은 그대로다 — 제거가 "학습 기록을 지운다"는 뜻이 아니다.
     p_c1 = _progress(db, m3.member_id, c1)
-    assert p_c1.status == "practicing" and p_c1.provenance == "observed", "기존 행 덮어씀"
-    assert not mastery_repository.get_progress_map(db, m3.member_id, [v_ext.item_id]), \
-        "non-core 어휘에 placement 행이 생기면 안 됨"
+    assert p_c1.status == "practicing" and p_c1.provenance == "observed", "기존 행이 바뀌었다"
 
-    # placement 행들의 상태·provenance 스팟체크
-    others = mastery_repository.get_progress_map(
+    made = mastery_repository.get_progress_map(
         db, m3.member_id,
         [env["c2"].item_id, env["c3"].item_id, env["c4"].item_id,
-         env["g1"].item_id, env["v_core"].item_id],
+         env["g1"].item_id, env["v_core"].item_id, v_ext.item_id],
     )
-    assert all(p.provenance == "placement" for p in others.values())
-    assert {others[env["c2"].item_id].status, others[env["c3"].item_id].status,
-            others[env["c4"].item_id].status} == {"mastered"}
-    assert others[env["g1"].item_id].status == "introduced"
-    assert others[env["v_core"].item_id].status == "introduced"
+    assert not made, f"건너뛴 레벨에 행이 생겼다: {made}"
 
     hist3 = mastery_repository.get_latest_history(db, m3.member_id)
     assert (hist3.reason == "placement" and hist3.to_level == 3
@@ -749,3 +752,101 @@ def test_language_scoped_levelup_writes_member_language_level(env):
     assert db.get(Member, m.member_id).korean_level is None
     hist = mastery_repository.get_latest_history(db, m.member_id, "ja")
     assert hist.reason == "gate_promotion" and hist.language == "ja"
+
+
+# --------------------------------------------------------------------------- #
+# (6-2) 레벨이 **내려갈 때** — 마스터를 되돌린다 (2026-08-16 사장님 설계)
+# --------------------------------------------------------------------------- #
+def test_a_lower_placement_demotes_mastered_to_introduced(env):
+    """⭐⭐ *"레벨1로 내려가면 레벨1·2는 배운 흔적은 있는데 **마스터는 안 된 걸로**"*(사장님)
+
+    ⇒ 행을 **지우지 않는다**(배운 흔적은 남는다). 상태·점수만 되돌려 **복습**으로 돈다.
+    ⛔ `item_evidence` 는 안 건드린다 — append-only 감사 로그다. 증거는 "그때 이렇게 말했다"는
+      **사실**이고, 강등이 그 사실을 지우는 게 아니다.
+    """
+    db = env["db"]
+    m = Member(language="en", korean_level=3, onboarding_completed=True, auth_user_id="auth-dn")
+    db.add(m)
+    db.flush()
+    # 진짜로 올라가며 마스터한 항목(observed) + 아직 연습 중인 항목
+    db.add(MemberItemProgress(
+        member_id=m.member_id, item_id=env["c1"].item_id, status="mastered",
+        score=5.0, provenance="observed",
+        repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
+        first_seen_at=NOW, last_seen_at=NOW, mastered_at=NOW,
+    ))
+    db.add(MemberItemProgress(
+        member_id=m.member_id, item_id=env["c2"].item_id, status="practicing",
+        score=2.0, provenance="observed",
+        repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
+        first_seen_at=NOW, last_seen_at=NOW,
+    ))
+    db.flush()
+
+    out = mastery_service.record_placement(db, m.member_id, 1, from_level=3, language="ko")
+    db.commit()
+
+    assert out["demoted"] == 1, out
+    p1 = _progress(db, m.member_id, env["c1"])
+    assert p1.status == "introduced", "마스터가 안 풀렸다 — 복습 대상이 안 된다"
+    assert p1.score == 0.0 and p1.mastered_at is None, "점수·마스터 시각이 남아 거짓말한다"
+    # ⚠ practicing 은 이미 복습 대상이라 그대로 둔다(건드릴 이유가 없다).
+    p2 = _progress(db, m.member_id, env["c2"])
+    assert p2.status == "practicing" and p2.score == 2.0
+
+
+def test_going_up_never_touches_existing_records(env):
+    """⛔ *"3에서 5로 올라가면 3 배운 건 그대로 놔두고 4는 0으로 기록해."*(사장님)
+
+    올라갈 때 강등이 걸리면 **진짜로 배운 기록이 날아간다.** 방향을 반드시 본다.
+    """
+    db = env["db"]
+    m = Member(language="en", korean_level=3, onboarding_completed=True, auth_user_id="auth-up")
+    db.add(m)
+    db.flush()
+    db.add(MemberItemProgress(
+        member_id=m.member_id, item_id=env["c1"].item_id, status="mastered",
+        score=5.0, provenance="observed",
+        repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
+        first_seen_at=NOW, last_seen_at=NOW, mastered_at=NOW,
+    ))
+    db.flush()
+
+    out = mastery_service.record_placement(db, m.member_id, 5, from_level=3, language="ko")
+    db.commit()
+
+    assert out["demoted"] == 0, out
+    p1 = _progress(db, m.member_id, env["c1"])
+    assert p1.status == "mastered" and p1.score == 5.0, "올라가는데 기록을 건드렸다"
+
+
+def test_the_first_placement_has_no_direction_and_demotes_nothing(env):
+    """⚠ 첫 배정은 `from_level=None` 이다 — 방향을 모르니 **아무것도 안 한다.**"""
+    db = env["db"]
+    m = Member(language="en", korean_level=None, onboarding_completed=True, auth_user_id="auth-1st")
+    db.add(m)
+    db.flush()
+
+    out = mastery_service.record_placement(db, m.member_id, 3, from_level=None, language="ko")
+    db.commit()
+
+    assert out == {"mastered": 0, "introduced": 0, "demoted": 0}, out
+
+
+def test_the_history_row_is_still_the_single_source_of_level_entry(env):
+    """⚠ 행 생성을 없앴다고 **이력까지 없애면 안 된다** — "레벨 진입 시각"의 단일 소스다."""
+    db = env["db"]
+    m = Member(language="en", korean_level=None, onboarding_completed=True, auth_user_id="auth-h")
+    db.add(m)
+    db.flush()
+
+    mastery_service.record_placement(db, m.member_id, 4, from_level=2, language="ko")
+    db.commit()
+
+    hist = mastery_repository.get_latest_history(db, m.member_id)
+    assert hist.reason == "placement" and hist.to_level == 4 and hist.from_level == 2
+
+
+def test_the_old_name_still_points_at_the_same_function():
+    """⚠ 이름만 남기고 동작이 다르면 안 된다 — 별칭으로 묶었다."""
+    assert mastery_service.apply_grandfathering is mastery_service.record_placement

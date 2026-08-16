@@ -568,9 +568,9 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
 
 
 # --------------------------------------------------------------------------- #
-# grandfathering (mechanics ⑩ — 레벨테스트 배정 직후 체크판 초기화)
+# 레벨 배정 기록 (2026-08-16 — grandfathering 을 **없앴다**)
 # --------------------------------------------------------------------------- #
-def apply_grandfathering(
+def record_placement(
     db: Session,
     member_id: int,
     level_no: int,
@@ -579,60 +579,50 @@ def apply_grandfathering(
     from_level: Optional[int] = None,
     language: str = "ko",
 ) -> dict:
-    """레벨 k 배정 시 하위 레벨 항목을 placement 로 선반영한다(commit 은 호출부).
+    """레벨테스트 배정을 **기록만** 한다 — 건너뛴 레벨의 항목은 **만들지 않는다**(commit 은 호출부).
 
-    - ≤k−2 항목 → MASTERED(placement, score 3.0) / k−1 → INTRODUCED(placement, score 1.0)
-      / ≥k → UNSEEN(행 없음). placement 는 기존 행을 덮지 않는다(행 부재 시만 insert) —
-      실증거(observed)가 이미 있으면 그것이 우선.
-    - 범위 판단(구현 결정): ⑩ 은 "≤k−2 전 항목"이라 하지만 non-core 어휘(노출 풀)까지
-      행을 만들면 k=13 기준 ~9천 행 insert 가 된다. 행 부재=UNSEEN 이 기본이므로
-      **grammar 전체+chunk+core 어휘만** 행을 생성한다(D12 로 어휘가 게이트에서 빠진
-      뒤에도 core 어휘 placement 는 유지 — 복습·재교육 방지 목적, 승급 판정과 무관).
-      grammar 는 45 초과 '선택 문법'도 포함(재교육 방지 — 재활용 풀).
+    ## ⛔ 왜 grandfathering 을 없앴나 (2026-08-16 사장님 설계 · 실서비스 DB 로 확정)
+    *"레벨이 처음 3이면 배운 거 0으로 해야 함. 레벨 1·2를 배웠다고 처리하면 안 돼."*
+
+    실측(member 20, 영어):
+        L1 청크 46개 전부 mastered · 그 46개의 증거 **0건** — 한 번도 배운 적이 없다.
+        07-31 레벨테스트 3 배정 → L1·L2 자동 mastered
+        08-06 재배정으로 1 로 하락 → L1 재료가 이미 다 mastered → **고를 게 0개**
+        ⇒ `teaching_plan=0` → 프롬프트에 항목 블록 없음 → 검출 0 → 증거 0 → 승급 불가
+        ⇒ **영원히 갇힌다.**
+    ⭐ 같은 장치의 **반대 사고**도 이미 기록돼 있다(`evaluate_level_up` 주석): placement 가
+      게이트 분자가 되어 **첫 통화가 끝나자마자 승급**(#247·#249).
+      ⇒ 한 장치가 양쪽으로 다 틀렸다. 값을 조정하는 게 아니라 **없애는 게 맞다.**
+
+    ## 승급이 안 깨지는 근거(코드로 확인)
+    `list_gate_items` 는 `LearningItem.level_no == level_no` — **현재 레벨만** 본다. 게이트는
+    하위 레벨 행을 애초에 안 세고, 그 위에 `provenance != placement` 가 또 걸려 있다.
+    ⇒ 하위 레벨 행을 안 만들어도 승급 판정의 **입력이 그대로**다.
+    ⚠ `known_grammar`·`pick_chat_targets` 도 이미 placement 를 뺀다 — 프롬프트도 안 바뀐다.
+
+    ## 레벨이 **내려갈 때**만 하는 일
+    진짜로 올라갔던 회원이 재배정으로 낮아지면, 그 레벨 이하의 `mastered` 를 `introduced` 로
+    되돌린다(점수 0). *"배운 흔적은 있는데 마스터는 안 된 걸로 → 복습만 하는 형태."*
+    ⛔ 올라갈 때는 **아무것도 안 한다** — 3→5 면 레벨3 기록 그대로, 레벨4는 안 만든다.
+    ⛔ `item_evidence` 는 안 건드린다(append-only 감사 로그) — 증거는 "그때 이렇게 말했다"는
+      **사실**이고 강등이 그 사실을 지우는 게 아니다. 강등 사유는 `member_level_history`
+      (reason='placement', from_level > to_level)가 남긴다.
+
     - member_level_history 에 reason='placement' 1행 기록(trigger_call_id=해당 통화) —
       이 행이 "레벨 진입 시각"의 단일 소스가 된다.
 
     Returns:
-        {"mastered": 생성 행 수, "introduced": 생성 행 수}.
+        {"mastered": 0, "introduced": 0, "demoted": 되돌린 행 수}.
+        ⚠ mastered/introduced 는 **항상 0** 이다(호출부 호환 — 값이 뚝 떨어지는 게 정상이다).
     """
     now = datetime.now(timezone.utc)
-    existing = mastery_repository.existing_progress_item_ids(db, member_id)
 
-    created_mastered = 0
-    if level_no >= 3:  # k-2 >= 1 일 때만 대상 존재
-        for item_id in mastery_repository.list_grandfather_item_ids(
-            db, max_level=level_no - 2, language=language
-        ):
-            if item_id in existing:
-                continue
-            db.add(
-                MemberItemProgress(
-                    member_id=member_id, item_id=item_id,
-                    status="mastered", provenance="placement",
-                    score=PLACEMENT_MASTERED_SCORE,
-                    repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
-                    first_seen_at=now, last_seen_at=now, mastered_at=now,
-                )
-            )
-            created_mastered += 1
-
-    created_introduced = 0
-    if level_no >= 2:  # k-1 >= 1
-        for item_id in mastery_repository.list_grandfather_item_ids(
-            db, exact_level=level_no - 1, language=language
-        ):
-            if item_id in existing:
-                continue
-            db.add(
-                MemberItemProgress(
-                    member_id=member_id, item_id=item_id,
-                    status="introduced", provenance="placement",
-                    score=PLACEMENT_INTRODUCED_SCORE,
-                    repeat_count=0, prompted_count=0, spontaneous_count=0, miss_count=0,
-                    first_seen_at=now, last_seen_at=now,
-                )
-            )
-            created_introduced += 1
+    # ⭐ 레벨이 **내려간** 경우에만 되돌린다. 올라가거나 같으면 아무것도 안 한다.
+    demoted = 0
+    if from_level is not None and level_no < from_level:
+        demoted = mastery_repository.demote_mastered_to_introduced(
+            db, member_id, max_level=from_level, language=language
+        )
 
     db.add(
         MemberLevelHistory(
@@ -646,10 +636,17 @@ def apply_grandfathering(
         )
     )
     logger.info(
-        "grandfathering: member=%s level=%d mastered=%d introduced=%d",
-        member_id, level_no, created_mastered, created_introduced,
+        # ⚠ 예전 `grandfathering:` 줄의 mastered/introduced 가 **사라졌다**. 원가·지표가
+        #   뚝 떨어져 보이면 결함이 아니라 이 제거의 결과다 — 위 docstring 참조.
+        "레벨 배정: member=%s %s→%d 강등=%d행 (grandfathering 없음 — 건너뛴 레벨은 기록 0)",
+        member_id, from_level if from_level is not None else "?", level_no, demoted,
     )
-    return {"mastered": created_mastered, "introduced": created_introduced}
+    return {"mastered": 0, "introduced": 0, "demoted": demoted}
+
+
+# ⚠ 옛 이름 — 아직 이 이름을 쓰는 호출부·시험이 있어 남겨 둔다. **하는 일은 위와 같다**
+#   (하위 레벨 행을 만들지 않는다). 이름만 남기고 동작이 다르면 안 되므로 별칭으로 묶는다.
+apply_grandfathering = record_placement
 
 
 # --------------------------------------------------------------------------- #

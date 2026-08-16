@@ -892,6 +892,41 @@ def existing_progress_item_ids(db: Session, member_id: int) -> set[int]:
     )
 
 
+def demote_mastered_to_introduced(
+    db: Session, member_id: int, *, max_level: int, language: str = "ko"
+) -> int:
+    """레벨이 **내려갔을 때** 그 레벨 이하의 `mastered` 를 `introduced` 로 되돌린다.
+
+    ⭐ 사장님 설계(2026-08-16): *"레벨1부터 해서 레벨3까지 올라갔으면 레벨1 기록은 다 있겠지?
+      근데 여기서 레벨1로 내려가면 레벨1·2는 **배운 흔적은 있는데 마스터는 안 된 걸로** 처리하는
+      거지. **한 번 배운다고 마스터 처리하는 건 아니지 않아?** 그렇게 해서 복습만 하는 형태로."*
+    ⇒ 행을 **지우지 않는다**(배운 흔적은 남는다). 상태와 점수만 되돌려 복습 대상으로 돌린다.
+
+    ⛔ `item_evidence` 는 **건드리지 않는다** — append-only 감사 로그다(CLAUDE.md).
+      증거는 "그때 실제로 이렇게 말했다"는 사실이고, 강등은 그 사실을 지우는 게 아니다.
+    ⚠ `mastered_at` 도 비운다 — 상태가 mastered 가 아닌데 그 시각이 남아 있으면 거짓말이다.
+    ⚠ 되돌리는 것은 **mastered 뿐**이다. practicing/introduced 는 이미 복습 대상이라 그대로 둔다.
+
+    Returns: 되돌린 행 수.
+    """
+    item_ids = select(LearningItem.item_id).where(
+        LearningItem.language == language,
+        LearningItem.level_no <= max_level,
+    )
+    rows = list(db.scalars(
+        select(MemberItemProgress).where(
+            MemberItemProgress.member_id == member_id,
+            MemberItemProgress.status == "mastered",
+            MemberItemProgress.item_id.in_(item_ids),
+        )
+    ).all())
+    for prog in rows:
+        prog.status = "introduced"
+        prog.score = 0.0
+        prog.mastered_at = None
+    return len(rows)
+
+
 def list_grandfather_item_ids(
     db: Session, *, max_level: Optional[int] = None, exact_level: Optional[int] = None,
     language: str = "ko",

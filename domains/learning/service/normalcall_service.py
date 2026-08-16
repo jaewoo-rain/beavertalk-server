@@ -2119,9 +2119,11 @@ def _save_level_assessment(
     call.assessment_note = result.reasoning
     call.summary = result.summary
     call.status = "done"
-    # grandfathering(P2, mechanics ⑩): ≤k−2 → MASTERED(placement) / k−1 → INTRODUCED /
-    # ≥k → UNSEEN(행 없음) + history(reason='placement') — 레벨 배정과 같은 커밋에 합류.
-    mastery_service.apply_grandfathering(
+    # ⭐ 레벨 배정 기록(2026-08-16 — grandfathering **제거**): 건너뛴 레벨의 항목을 만들지
+    #   않는다. "레벨이 처음 3이면 배운 거 0" — 안 만들면 배정 직후 승급(#247)도, 하락 후
+    #   재료 0(member 20)도 같이 사라진다. 내려갈 때만 mastered→introduced 로 되돌린다.
+    #   history(reason='placement')는 그대로 남는다 — 레벨 배정과 같은 커밋에 합류.
+    mastery_service.record_placement(
         db, member_id, level_no, trigger_call_id=call_id, from_level=prior_level,
         language=language,
     )
