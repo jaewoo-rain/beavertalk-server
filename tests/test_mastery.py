@@ -4,7 +4,8 @@
     - _verify_detections 5규칙: 후보 밖 폐기 / 전사 부재 quote 폐기 / 에코 E3→E1 강등 /
       4자 미만·단독 발화 강등 / 동일 정규화 인용 중복 1건.
     - 상태 전이: E1→introduced / E2→practicing / D14(성공 산출 E2·E3 3회 — 2회 불가,
-      2통화·2일 분산 + E3≥1) / chunk 2회 특례 / 최근 증거 F 면 승격 불가.
+      2통화·2일 분산 + E3≥1) / chunk 2회 특례 / **마지막이 F 여도 승격**(2026-08-16 ④ 제거)
+      — 다만 F 가 점수를 통과선 아래로 끌면 ①이 그대로 막는다(짝 시험).
     - 통화당 상한: 항목 순증 +2.0 / MASTERED 승격 caps(문법 2) / 신규 INTRODUCED 8.
     - fast-track: 5조건 1통화 승격(미확정) → 게이트(G2) 미산입 → 다음 통화 E2 확정 /
       F만 2통화 → PRACTICING(2.0) 복귀.
@@ -200,7 +201,7 @@ def test_verify_detections_five_rules(env):
 
 
 # --------------------------------------------------------------------------- #
-# (2) 상태 전이 — introduced / practicing / D14 / chunk 특례 / 최근 F
+# (2) 상태 전이 — introduced / practicing / D14 / chunk 특례 / F 와 점수
 # --------------------------------------------------------------------------- #
 def test_e1_creates_introduced_and_e2_promotes_practicing(env):
     """UNSEEN + E1 → introduced(전이 없음) / UNSEEN + E2 → practicing(즉시 전이)."""
@@ -279,8 +280,16 @@ def test_chunk_two_production_special_case(env):
     assert p_gg.status == "practicing", f"문법이 2회로 승격됨(D14 위반): {p_gg.status}"
 
 
-def test_recent_f_blocks_mastery(env):
-    """④ 최근 증거가 F 면 다른 4조건이 전부 충족돼도 승격 불가."""
+def test_a_final_f_no_longer_blocks_mastery(env):
+    """⛔ **틀린 채로 끝난 통화에서도 마스터가 확정된다** — ④를 뺀 대가다(2026-08-16 사장님 지시).
+
+    ⚠ 성질을 **뒤집어** 다시 쓴 것이다(지운 게 아니다). 예전 성질: "최근 증거가 F 면 승격 불가".
+
+    ⭐ 그리고 이 시험이 **왜 score 를 4.0 으로 올려 놓고 시작하는지**가 핵심이다:
+      F 는 점수 −1.0 이라 score 가 3.0 아래로 떨어지면 **①이 여전히 막는다.**
+      ⇒ ④ 제거의 실질 효과는 "score 가 넉넉한 항목이 한 번 틀렸다고 마스터가 미뤄지지
+        않는다"이지 **"틀려도 무조건 마스터"가 아니다.** 그 경계를 아래 시험이 짝으로 지킨다.
+    """
     db, mid, g = env["db"], env["member"].member_id, env["g1"]
 
     call1 = _new_call(env, when=NOW - timedelta(days=1))
@@ -301,8 +310,40 @@ def test_recent_f_blocks_mastery(env):
     db.commit()
 
     p = _progress(db, mid, g)
-    assert p.status == "practicing", f"최근 F 인데 승격됨: {p.status}"
-    assert abs(p.score - 3.0) < 1e-9  # 2.0 + (1.0+1.0 순증상한) - 1.0
+    # ⭐ score 3.0 = ① 통과선에 **정확히** 걸친다(2.0 + 순증상한 2.0 − F 1.0).
+    assert abs(p.score - 3.0) < 1e-9
+    assert p.status == "mastered", f"마지막이 F 라고 아직 막는다: {p.status}"
+
+
+def test_an_f_that_drops_the_score_still_blocks(env):
+    """⭐⭐ **F 가 무해해진 게 아니다** — score 를 3.0 아래로 끌면 ①이 그대로 막는다.
+
+    ⛔ 위 시험과 **짝**이다. 둘 중 하나만 보면 "이제 틀려도 다 마스터된다"로 잘못 읽는다.
+      ④를 뺀 뒤 F 의 주 방어선은 **점수**다.
+    """
+    db, mid, g = env["db"], env["member"].member_id, env["g1"]
+
+    call1 = _new_call(env, when=NOW - timedelta(days=1))
+    mastery_service.apply_evidence(db, mid, call1.call_id, [
+        _ve(g, "E3", "비가 오면 집에 있어요", 0),
+        _ve(g, "E2", "주말이 되면 뭐 해요", 2),
+    ])
+    db.commit()
+    _backdate_call_evidence(db, call1.call_id, NOW - timedelta(days=1))
+
+    # call2: 성공 산출은 채우되 F 를 **두 번** — score 가 3.0 아래로 내려간다.
+    call2 = _new_call(env)
+    mastery_service.apply_evidence(db, mid, call2.call_id, [
+        _ve(g, "E2", "피곤하면 일찍 자요", 0),
+        _ve(g, "E3", "심심하면 전화해 주세요", 2),
+        _ve(g, "F", "배고프으면 이라고 잘못 말했어요", 4),
+        _ve(g, "F", "또 배고프으면 이라고 했어요", 6),
+    ])
+    db.commit()
+
+    p = _progress(db, mid, g)
+    assert p.score < 3.0, f"이 시험의 전제(점수가 통과선 아래)가 깨졌다: {p.score}"
+    assert p.status == "practicing", f"점수가 모자란데 마스터됐다: {p.status}"
 
 
 # --------------------------------------------------------------------------- #
