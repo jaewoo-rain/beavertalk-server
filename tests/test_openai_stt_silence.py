@@ -105,3 +105,106 @@ async def test_the_default_is_not_left_to_the_vendor(monkeypatch, caplog):
 
     line = [r.getMessage() for r in caplog.records if "[stt-openai] 연결" in r.getMessage()]
     assert line and "벤더기본(미지정)" in line[0], caplog.text
+
+
+# ── ⭐ 세션 확정 응답 — **우리가 보낸 게 먹었는지 확인하는 유일한 계기판**(2026-08-16) ──
+#
+# 벤더는 미지원 필드가 하나라도 있으면 그 `session.update` 를 **통째로 버리는데 커넥션은
+# 안 죽는다** ⇒ 조용히 기본값으로 돈다. 실증(커뮤니티 보고, WebSocket `?intent=transcription`):
+#   {"type":"error","code":"invalid_value",
+#    "message":"Turn detection is not supported for this transcription model.",
+#    "param":"session.audio.input.turn_detection"}   ← 커넥션 유지됨
+# ⇒ 그러면 `silence_duration_ms=300` 이 안 먹고 벤더 기본 **500ms**(문서 확인)로 돈다.
+#   우리 800ms 위에 얹혀 총 1.3초 — **지연이 200ms 늘어난 채로 재고 있었을 수 있다.**
+
+
+def _stream():
+    """소켓 없이 `_translate` 만 돌린다(과금·불안정 0)."""
+    return mod.OpenAiRealtimeSttStream(16_000, ["en-US"])
+
+
+def test_the_confirmed_session_is_logged(caplog):
+    """⭐⭐ 서버가 확정한 값을 남긴다 — 이게 없으면 안 먹은 걸 **영영 못 본다**."""
+    msg = {"type": "session.updated", "session": {"audio": {"input": {
+        "transcription": {"model": "gpt-4o-mini-transcribe"},
+        "turn_detection": {"type": "server_vad", "silence_duration_ms": 300},
+    }}}}
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        assert _stream()._translate(msg) == []          # 우리 계약 이벤트는 안 만든다
+
+    line = [r.getMessage() for r in caplog.records if "세션 확정" in r.getMessage()]
+    assert line, caplog.text
+    assert "model=gpt-4o-mini-transcribe" in line[0]
+    assert "server_vad(silence=300)" in line[0], line[0]
+
+
+def test_a_dropped_turn_detection_is_visible(caplog):
+    """⛔ 우리가 보낸 `turn_detection` 이 **버려졌으면** 그게 보여야 한다."""
+    msg = {"type": "session.updated", "session": {"audio": {"input": {
+        "transcription": {"model": "gpt-4o-mini-transcribe"},
+    }}}}
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        _stream()._translate(msg)
+
+    line = [r.getMessage() for r in caplog.records if "세션 확정" in r.getMessage()][0]
+    assert "안 먹었다" in line, line
+
+
+def test_the_vendor_default_noise_reduction_becomes_visible(caplog):
+    """⭐ `noise_reduction` 은 **우리가 안 보낸다** — 벤더 기본이 뭔지 문서에 없다.
+
+    확정값을 보는 것이 유일한 확인 수단이고, 5분 지연 폭증 보고가 있는 기능이라 알아야 한다.
+    """
+    for value, expect in (({"type": "near_field"}, "near_field"), (None, "없음")):
+        caplog.clear()
+        msg = {"type": "session.updated", "session": {"audio": {"input": {
+            "noise_reduction": value,
+        }}}}
+        with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+            _stream()._translate(msg)
+        line = [r.getMessage() for r in caplog.records if "세션 확정" in r.getMessage()][0]
+        assert "noise_reduction=%s" % expect in line, line
+
+
+def test_a_config_rejection_says_it_is_still_running_on_defaults(caplog):
+    """⛔⛔ **로그가 단정하면 안 된다.** 설정 거절은 커넥션을 안 죽인다 — 기본값으로 도는 것이다.
+
+    예전 문구는 무조건 "이 통화는 여기서 끊긴다"였다. 그게 사실이 아닌 경우가 있고, 그러면
+    다음 사람이 엉뚱한 곳을 판다.
+    """
+    msg = {"type": "error", "error": {
+        "code": "invalid_value",
+        "message": "Turn detection is not supported for this transcription model.",
+        "param": "session.audio.input.turn_detection",
+    }}
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        _stream()._translate(msg)
+
+    line = [r.getMessage() for r in caplog.records if "벤더 거절" in r.getMessage()][0]
+    assert "param=session.audio.input.turn_detection" in line, line
+    assert "code=invalid_value" in line, line
+    assert "미적용" in line and "기본값으로 돌고 있다" in line, line
+
+
+def test_a_non_config_error_does_not_claim_defaults(caplog):
+    """⚠ 설정 거절이 아닌 오류에 "기본값으로 돈다"를 붙이면 그것도 거짓말이다."""
+    msg = {"type": "error", "error": {"code": "server_error", "message": "boom"}}
+    with caplog.at_level(logging.INFO, logger="core.openai_stt"):
+        _stream()._translate(msg)
+
+    line = [r.getMessage() for r in caplog.records if "벤더 거절" in r.getMessage()][0]
+    assert "미적용" not in line, line
+
+
+def test_the_adapter_logger_reaches_cloud_logging():
+    """⚠ `core/*` 로그가 안 뜨던 시절이 있었다 — 지금은 핸들러 목록에 `core` 가 있다.
+
+    ⛔ 이 계기판은 **Cloud Logging 에 떠야** 의미가 있다. 목록에서 빠지면 여기서 걸린다.
+    """
+    import inspect
+
+    import main as app_main
+
+    src = inspect.getsource(app_main._configure_logging)
+    assert '"core"' in src, "core 어댑터 로그가 Cloud Logging 핸들러 목록에서 빠졌다"
+    assert __import__("core.openai_stt", fromlist=["x"]).logger.name.startswith("core.")

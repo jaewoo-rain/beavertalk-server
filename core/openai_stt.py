@@ -75,6 +75,37 @@ def openai_language_codes(codes: list[str] | None) -> list[str]:
     return out
 
 
+def _session_summary(session: Any) -> str:
+    """서버가 **확정한** 세션에서 우리가 알아야 할 셋만 뽑는다.
+
+    ⭐ 셋인 이유:
+      · `model` — 우리가 고른 전사 모델이 맞나
+      · `turn_detection` — 타입 + `silence_duration_ms`. **이 값이 우리 지연에 그대로 붙는다**
+        (안 먹으면 벤더 기본 500ms 로 돌고, 우리 800ms 위에 얹혀 총 1.3초가 된다)
+      · `noise_reduction` — **우리는 안 보낸다.** 벤더 기본이 뭔지 문서에 없어서, 확정값을
+        보는 것이 유일한 확인 수단이다(5분 지연 폭증 보고가 있는 기능이라 알아야 한다)
+    ⚠ 전문을 찍지 않는다 — 길고 매 통화 나온다. 그리고 전사 텍스트가 섞일 여지를 안 만든다.
+    """
+    audio_in = ((session or {}).get("audio") or {}).get("input") or {}
+    model = ((audio_in.get("transcription") or {}).get("model")
+             or (session or {}).get("model") or "-")
+    turn = audio_in.get("turn_detection")
+    if isinstance(turn, dict):
+        turn_txt = "%s(silence=%s)" % (
+            turn.get("type") or "-",
+            turn.get("silence_duration_ms", "미지정(벤더기본)"),
+        )
+    else:
+        # ⛔ None 이면 **턴 감지가 아예 꺼진 것**이다 — 우리가 보낸 설정이 버려졌다는 신호다.
+        turn_txt = "없음(⚠ 우리가 보낸 turn_detection 이 안 먹었다)"
+    noise = audio_in.get("noise_reduction")
+    if isinstance(noise, dict):
+        noise_txt = noise.get("type") or "(타입없음)"
+    else:
+        noise_txt = "없음" if noise is None else str(noise)[:24]
+    return "model=%s turn_detection=%s noise_reduction=%s" % (model, turn_txt, noise_txt)
+
+
 def vendor_name() -> str:
     """원가 벤더 문자열 = **실제로 돈 모델 ID**(단가가 모델마다 다르다)."""
     return _VENDOR_PREFIX + (settings.OPENAI_STT_MODEL or "gpt-4o-mini-transcribe").strip()
@@ -221,6 +252,14 @@ class OpenAiRealtimeSttStream:
           '지금까지의 전체'라, item 별로 이어 붙여서 낸다.
         """
         kind = msg.get("type") or ""
+        if kind == "session.updated":
+            # ⭐⭐ **우리가 보낸 설정이 실제로 먹었는지 확인하는 유일한 계기판**(2026-08-16).
+            #   벤더는 미지원 필드가 하나라도 있으면 그 `session.update` 를 **통째로 버리는데
+            #   커넥션은 안 죽는다** ⇒ 조용히 기본값으로 돈다. 그러면 `silence_duration_ms=300`
+            #   이 안 먹고 벤더 기본 **500ms** 로 도는데(문서 확인) 우리는 **알 방법이 없었다.**
+            #   ⇒ 지연이 200ms 늘어난 채로 며칠을 재고 있었을 수도 있다.
+            logger.info("[stt-openai] 세션 확정 — %s", _session_summary(msg.get("session")))
+            return []
         if kind == "input_audio_buffer.speech_started":
             return [SttV2Event(kind=SPEECH_BEGIN, offset_ms=int(msg.get("audio_start_ms", -1)))]
         if kind == "input_audio_buffer.speech_stopped":
@@ -236,14 +275,26 @@ class OpenAiRealtimeSttStream:
             text = msg.get("transcript") or ""
             return [SttV2Event(kind=TRANSCRIPT, text=text, is_final=True)] if text else []
         if kind == "error":
-            detail = (msg.get("error") or {}).get("message") or "unknown"
+            err = msg.get("error") or {}
+            detail = err.get("message") or "unknown"
             # ⛔⛔ **서버가 먼저 알아야 한다.** 지금까지 이 거절은 서버 로그에 WARNING 한 줄
             #   없이 error 프레임으로만 나갔다 — 앱은 스낵바를 띄우고 통화를 끊는데 서버는
             #   조용했다(2026-08-13 통화 사망 버그를 못 본 이유가 이것이다).
             #   ⛔ 벤더 에러 본문에 키가 실릴 일은 없지만, 길이를 잘라 남긴다.
+            # ⚠ **`param`·`code` 를 같이 남긴다**(2026-08-16). 거절에는 두 종류가 있다:
+            #     · 세션 설정 거절(`param="session.…"`) — 그 `session.update` 만 버려지고
+            #       **커넥션은 산다**. 즉 우리는 **기본값으로 돌고 있는 것**이다.
+            #     · 그 밖 — 스트림 자체가 못 쓰게 된 경우.
+            #   ⛔ 예전 문구는 무조건 "이 통화는 여기서 끊긴다"라고 **단정**했다. 앞의 경우엔
+            #     그게 사실이 아니다 — 로그가 단정하면 다음 사람이 엉뚱한 곳을 판다.
+            param = str(err.get("param") or "")
             logger.warning(
-                "[stt-openai] 벤더 거절 — %s (언어=%s). 이 통화는 여기서 끊긴다",
-                str(detail)[:200], self._language or "자동감지",
+                "[stt-openai] 벤더 거절 — %s (code=%s param=%s 언어=%s)%s",
+                str(detail)[:200], err.get("code") or "-", param or "-",
+                self._language or "자동감지",
+                # ⛔ 설정 거절이면 **그 설정이 안 먹은 채로 돌고 있다**는 뜻이다.
+                " ⚠ 세션 설정이 통째로 미적용됐다 — 벤더 기본값으로 돌고 있다"
+                if param.startswith("session.") else "",
             )
             return [SttV2Event(kind=STREAM_ERROR, detail=str(detail)[:200])]
         return []
