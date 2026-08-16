@@ -3786,6 +3786,55 @@ class CascadeSession:
             "cascade 통화 저장 완료: call_id=%s 세그먼트=%d 길이=%d초",
             self._call_id, self._persisted, int(max(0.0, duration_s)),
         )
+        self._trigger_analysis()
+
+    def _trigger_analysis(self) -> None:
+        """⭐⭐ **통화후 분석을 띄운다** — 이게 없어서 캐스케이드 통화가 통째로 멈춰 있었다.
+
+        실측(2026-08-16, 공유 DB): 캐스케이드 통화 **61건 전부** `analyzing` 에서 안 벗어났고
+        문장·증거가 **0건**이었다. 전사만 쌓이고 표현 추출·항목 검출·체크판 증거·레벨업이
+        **아무것도 안 돌았다.** 상태를 `analyzing` 으로 바꿔 놓고 분석하는 사람이 없었다.
+
+        ⭐ **Live 의 `_trigger_analysis` 를 그대로 쓴다**(새로 안 쓴다):
+          ① GC 방지 집합(`_analysis_tasks`)·done 콜백·`call_type` 디스패치가 이미 거기 있다
+          ② 두 경로가 갈리면 **한쪽만 고쳐지는** 사고가 난다(이 프로젝트에서 여러 번 겪었다)
+        ⛔ **세션 TaskGroup 에 붙이면 안 된다** — 통화가 끝나며 취소된다. 저쪽은 모듈 전역
+          태스크라 세션이 죽어도 산다(그래서 재사용이 더 맞다).
+        ⚠ 호출 시점은 `_persist_segments(final=True)` **뒤**다 — 분석이 읽을 전사가 이미
+          커밋돼 있어야 한다(`_load_dialog_rows` 가 `call_raw_data` 를 읽는다).
+        ⚠ `target_language` 는 **라벨**("한국어")이다 — 코드("ko")를 넘기면 분석 루브릭이
+          그 언어로 안 걸린다(Live 도 `spec.label` 을 넘긴다).
+        ⛔ 클라이언트는 **기본**(`_genai_client`)이다. 서울 리전 클라이언트(`_llm_client`)는
+          대답 전용이고, 분석 모델(JUDGE_MODEL)의 그 리전 가용성은 확인한 적이 없다.
+        ⚠ R5: 여기서 나는 어떤 실패도 통화 종료를 막지 않는다 — 통화는 이미 끝났다.
+        """
+        if self._call_id is None or self._session_factory is None or self._member_id is None:
+            logger.info("cascade 분석 생략: 기록이 없는 통화다(call_id=%s)", self._call_id)
+            return
+        if self._genai_client is None:
+            # graceful degradation(R5) — 키가 없으면 분석만 못 한다. 통화 기록은 남아 있다.
+            logger.warning("cascade 분석 생략: genai 클라이언트가 없다 call_id=%s", self._call_id)
+            return
+        try:
+            # ⚠ 지연 import — 모듈 최상단에서 끌어오면 realtime 안에서 순환이 생긴다.
+            from domains.learning.realtime import call_session as live
+
+            live._trigger_analysis(
+                self._call_id, self._genai_client, settings, self._session_factory,
+                self._locale,
+                target_language=self._target_label, locale_label=None,
+                call_type="normal", member_id=self._member_id,
+                candidates=(self._setup or {}).get("candidates"),
+                # 힌트가 꺼져 있으면 열람 마커가 없다(D16 강등이 없을 뿐 나머지는 그대로 돈다).
+                hinted_from_turn_index=None,
+            )
+            logger.info(
+                "cascade 분석 착수: call_id=%s 대상언어=%s 후보=%d개 힌트마커=없음",
+                self._call_id, self._target_label,
+                len((self._setup or {}).get("candidates") or []),
+            )
+        except Exception as exc:  # noqa: BLE001 - R5: 분석 실패로 통화 종료가 죽으면 안 된다
+            logger.exception("cascade 분석 착수 실패(통화는 정상 종료) — %s", exc)
 
     async def _flush_loop(self) -> None:
         """통화중 주기적 점진 저장 — 긴 통화·크래시 내성(Live 와 같은 주기)."""
