@@ -333,10 +333,13 @@ async def test_hint_task_created_cancelled_and_pushed(session_factory, seeded, m
     q1_cancelled = asyncio.Event()
 
     async def _hint_generate(client, model, *, system_instruction, prompt, schema,
-                             temperature=0.2, thinking_budget=None):
+                             temperature=0.2, thinking_budget=None, usage=None):
         if schema is not HintOut:  # 통화후 분석 콜은 기본 스텁과 동일(None)
             return None
         assert thinking_budget == 0 and "한국어 학습 힌트" in system_instruction
+        # ⭐ 힌트 사이드카도 **원가 계기판을 들고 나간다**(2026-08-17). 이 인자가 빠지면
+        #   통화중 LLM 몫이 다시 통째로 안 세어진다 — 여기서 붙잡는다.
+        assert usage is not None, "힌트 사이드카가 usage 수집기 없이 나갔다"
         if "이름" in prompt:  # 질문1 힌트 — 영원히 미완(취소 검증 대상)
             q1_started.set()
             try:

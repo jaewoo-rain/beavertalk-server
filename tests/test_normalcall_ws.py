@@ -1792,8 +1792,11 @@ def _fake_band(in_target=True, end_after=None):
     rec: dict = {"n": 0, "args": []}
 
     async def _f(client, *, transcript=None, latest_answer, prior_question=None,
-                 target_language="한국어"):
+                 target_language="한국어", usage=None):
         rec["n"] += 1
+        # ⭐ 원가 계기판(2026-08-17) — 레벨테스트 턴 판정도 LLM 콜이라 수집기를 들고 나가야
+        #   한다. 인자가 빠지면 통화중 LLM 몫이 다시 안 세어지므로 여기서 붙잡는다.
+        rec["usage_seen"] = usage is not None
         rec["args"].append((latest_answer, prior_question))
         if in_target == "raise":
             raise RuntimeError("turn judge down")
@@ -1878,6 +1881,7 @@ async def test_band_hard_turn_cap_closes(session_factory, seeded, monkeypatch):
 
     assert rec["n"] >= 10, f"하드 턴캡(MAX=10) 도달 전 종료됨: {rec['n']}"
     assert rec["args"][0][0].startswith("저는 서울에 살아요"), "판정에 유저 답변이 캡처되지 않음"
+    assert rec["usage_seen"], "턴 판정 사이드카가 원가 수집기 없이 나갔다(통화중 LLM 몫 유실)"
     assert any(_CLOSE_MARK in t for t in sess.sent_text_turns), \
         "하드 턴캡 도달했는데 종료 시드(CLOSE_SEED_LEVELTEST) 미주입"
     assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \

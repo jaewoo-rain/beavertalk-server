@@ -37,6 +37,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.gemini_analysis import LlmUsage as SidecarUsage
+
 logger = logging.getLogger(__name__)
 
 MODE = "cascade"
@@ -137,6 +139,9 @@ class CascadeUsage:
     stt: SttUsage = field(default_factory=SttUsage)
     llm: LlmUsage = field(default_factory=LlmUsage)
     tts: TtsUsage = field(default_factory=TtsUsage)
+    # ⭐ 통화중 LLM 사이드카(동적 힌트 등) — **대답 배관(llm)과 다른 그릇**이다.
+    #   같은 모델을 쓰지만 다른 목적이고, 섞으면 "대답 1턴당 토큰"이 오염된다.
+    sidecars: SidecarUsage = field(default_factory=SidecarUsage)
     errors: int = 0          # 계측 자체가 실패한 횟수(조용히 비는 것보다 세는 게 낫다)
 
     # ── 수집 ──
@@ -315,7 +320,8 @@ class CascadeUsage:
           - "sent_audio"        : 우리가 흘린 오디오 길이(벤더 값이 안 실렸을 때의 폴백)
         """
         try:
-            if not (self.stt.collected or self.llm.calls or self.tts.calls or self.tts.calls_failed):
+            if not (self.stt.collected or self.llm.calls or self.tts.calls
+                    or self.tts.calls_failed or self.sidecars.calls):
                 return None
             # ⭐ 2026-08-07 실통화로 **판정 완료**: total_billed_duration 은 응답마다의 증분이
             #   아니라 **누적값이 반복해 실린다.** 실측(통화 104초): max=102.0s 가 실제 오디오와
@@ -338,6 +344,7 @@ class CascadeUsage:
             }
             # ⭐ 빈 회차를 메운다. **여기 한 번만** 부른다 — 요약이 원가의 단일 소스이므로.
             self._estimate_missing()
+            sidecars = self.sidecars.as_dict()
             in_total = self.llm.in_text + self.llm.est_in
             out_total = self.llm.out_text + self.llm.est_out
             llm = {
@@ -370,6 +377,9 @@ class CascadeUsage:
                 # ⚠ total 도 추정을 얹는다 — 위 두 값과 다른 근거로 계산하면 장부가 갈린다.
                 "total": self.llm.total + self.llm.est_in + self.llm.est_out,
                 "vendors": {"stt": stt, "llm": llm, "tts": tts},
+                # 사이드카 몫은 vendors 밖이다 — 엔진(3다리)이 아니라 **엔진 무관** 곁가지고,
+                # 원가도 engine 분기 위에서 더해진다(estimate_side_llm_cost_usd).
+                **({"sidecars": sidecars} if sidecars else {}),
                 "dur_s": round(duration_s, 1) if duration_s is not None else None,
                 "turns": turns,
                 "errors": self.errors,

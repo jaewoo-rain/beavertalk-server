@@ -136,7 +136,11 @@ def main() -> None:
     from core.config import settings
     from domains.account.models.member import Member
     from domains.learning.models.call import Call
-    from domains.learning.service.normalcall_service import estimate_call_cost_usd
+    from domains.learning.service.normalcall_service import (
+        SIDE_USAGE_KEYS,
+        estimate_call_cost_usd,
+        estimate_side_llm_cost_usd,
+    )
 
     print(f"DB: {which}")
     trigger, target, src = _live_ctx_settings(settings)
@@ -164,7 +168,7 @@ def main() -> None:
 
         hdr = (f"{'call':>5} {'날짜':<16} {'길이':>7} {'엔진':<9} "
                f"{'최대컨텍스트':>12} {'압축':>4} {'재연결':>6} "
-               f"{'총토큰':>9} {'원가$':>9} {'분당$':>8}")
+               f"{'총토큰':>9} {'원가$':>9} {'곁가지$':>9} {'분당$':>8}")
         print(hdr)
         print("-" * len(hdr))
 
@@ -180,6 +184,13 @@ def main() -> None:
                 out_audio=c.usage_out_audio or 0, out_text=c.usage_out_text or 0,
                 usage_json=uj,
             )
+            # ⭐ 곁가지(통화중 사이드카 + 통화후 분석) 몫을 **따로** 보여준다 —
+            #   위 cost 에 이미 포함돼 있지만, 얼마가 엔진 밖에서 나갔는지 안 보이면
+            #   "Live 5분 $0.19" 같은 반쪽 숫자로 다시 읽힌다(2026-08-17).
+            #   ⚠ 안 잰 통화는 '-' 다. 0 으로 찍으면 "곁가지가 공짜"로 읽힌다.
+            side, _side_unknown = estimate_side_llm_cost_usd(uj)
+            has_side = any(k in uj for k in SIDE_USAGE_KEYS)
+            side_s = f"{side:.4f}" if has_side else "-"
             engine = (c.usage_engine or "live?").split(":")[0]
             per_min = cost / (secs / 60) if secs else 0.0
             date = c.call_date.strftime("%m-%d %H:%M") if c.call_date else "-"
@@ -201,7 +212,7 @@ def main() -> None:
                   f"{peak_s:>12}{flag} "
                   f"{('-' if comp is None else str(comp)):>4} "
                   f"{('-' if recon is None else str(recon)):>6} "
-                  f"{total_s:>9} {cost:>9.4f} {per_min:>8.4f}")
+                  f"{total_s:>9} {cost:>9.4f} {side_s:>9} {per_min:>8.4f}")
             if unknown:
                 print(f"      ⚠ 단가 미상: {', '.join(unknown)}")
             if secs > 0:
@@ -215,6 +226,8 @@ def main() -> None:
             print(f"{m:>4}분 {len(v):>6} {avg:>11.4f} {avg / m:>9.4f}")
 
         print("\n⚠ 원가는 estimate_call_cost_usd 한 곳에서만 나온다(직접 곱셈 없음).")
+        print("⚠ '곁가지$' 는 원가에 **포함된** 값이다(중복 아님) — 통화중 사이드카·통화후 "
+              "분석 몫. '-' 는 그 통화가 곁가지를 **안 잰** 통화라는 뜻이다(2026-08-17 이전).")
         print("⚠ '최대컨텍스트'가 trigger 미만이면 압축은 **한 번도 안 돈다**"
               " — compressions=0 이 그 증거다.")
     finally:

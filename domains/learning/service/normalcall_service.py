@@ -811,6 +811,56 @@ LLM_TOKEN_PRICE_USD = {
 }
 
 
+def _llm_tokens_cost_usd(entry: dict | None) -> tuple[float, str | None]:
+    """LLM 토큰 묶음 1건의 원가. 반환 (원가, **모르는 벤더 이름 또는 None**).
+
+    ⛔ LLM 토큰 원가식은 여기 하나뿐이다. 캐스케이드의 LLM 다리도, 통화중 사이드카도,
+      통화후 분석도 전부 이 함수를 탄다 — 같은 계산을 두 벌 두면 한쪽만 고쳐지고
+      두 숫자가 조용히 갈라진다.
+    ⛔ out_text + thoughts 다. 둘을 더하는 건 실수가 아니다 — **빼면 원가가 과소 계상된다.**
+      gemini-2.5-flash 는 사고(thinking) 토큰을 **출력 단가로 과금**하는데, 그 토큰은
+      응답 본문(candidates)에 들어오지 않는다. out_text 만 세면 낸 돈의 일부가 통계에서
+      사라지고, 하필 그 통계가 "캐스케이드가 Live 보다 싼가"의 근거로 쓰인다.
+      (Vertex 기준. AI Studio 는 candidates 에 사고 토큰이 포함돼 나오므로, 만약
+       거기로 옮기면 이 덧셈이 이중계상이 된다 — 그때 다시 판단해라.)
+    ⭐ 출력 단가가 입력의 8배다($2.50 vs $0.30/1M) — out 을 빠뜨리면 크게 틀린다.
+    """
+    e = entry or {}
+    if not (e.get("in_text") or e.get("out_text") or e.get("thoughts")):
+        return 0.0, None
+    price = LLM_TOKEN_PRICE_USD.get(e.get("vendor"))
+    if price is None:
+        return 0.0, str(e.get("vendor"))
+    out_billable = int(e.get("out_text") or 0) + int(e.get("thoughts") or 0)
+    return (
+        int(e.get("in_text") or 0) * price["in_text"] + out_billable * price["out_text"]
+    ) / 1_000_000, None
+
+
+# usage_json 안의 **엔진 무관** LLM 사용량 키. Live 통화든 캐스케이드 통화든 이 콜들은
+# 똑같이 돈다(통화중 사이드카 / 통화후 분석) — 그래서 engine 분기 **안이 아니라 위**에서 더한다.
+SIDE_USAGE_KEYS = ("sidecars", "analysis")
+
+
+def estimate_side_llm_cost_usd(usage_json: dict | None) -> tuple[float, list[str]]:
+    """Live·캐스케이드 **양쪽 공통**인 LLM 곁가지 원가(통화중 사이드카 + 통화후 분석).
+
+    🧒 왜 따로 있나: `call.usage_*` 는 Live 세션(또는 캐스케이드 3다리)만 담는다. 그런데
+      통화 1건에는 동적 힌트·재접지 브리프·레벨테스트 턴 판정(통화중)과 문장 추출·검출·
+      레벨 판정(통화후)이 더 돈다. 이 몫이 빠진 숫자가 "5분 $0.19" 로 보고됐다.
+    ⚠ 과거 통화에는 이 키들이 아예 없다 — 그러면 0 이고 원가는 **예전 값 그대로** 나온다
+      (하위호환). ⛔ 그때의 0 은 "공짜"가 아니라 **안 잰 통화**라는 뜻이다.
+    """
+    total = 0.0
+    unknown: list[str] = []
+    for key in SIDE_USAGE_KEYS:
+        cost, vendor_unknown = _llm_tokens_cost_usd((usage_json or {}).get(key))
+        total += cost
+        if vendor_unknown:
+            unknown.append(f"{key}:{vendor_unknown}")
+    return total, unknown
+
+
 def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
     """캐스케이드 원가(USD)를 usage_json.vendors 에서 계산한다.
 
@@ -839,23 +889,10 @@ def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
         else:
             total += float(stt["audio_s"]) * price
 
-    llm = v.get("llm") or {}
-    if llm.get("in_text") or llm.get("out_text") or llm.get("thoughts"):
-        price = LLM_TOKEN_PRICE_USD.get(llm.get("vendor"))
-        if price is None:
-            unknown.append(f"llm:{llm.get('vendor')}")
-        else:
-            # ⛔ out_text + thoughts 다. 둘을 더하는 건 실수가 아니다 — **빼면 원가가 과소 계상된다.**
-            #   gemini-2.5-flash 는 사고(thinking) 토큰을 **출력 단가로 과금**하는데, 그 토큰은
-            #   응답 본문(candidates)에 들어오지 않는다. out_text 만 세면 낸 돈의 일부가 통계에서
-            #   사라지고, 하필 그 통계가 "캐스케이드가 Live 보다 싼가"의 근거로 쓰인다.
-            #   (Vertex 기준. AI Studio 는 candidates 에 사고 토큰이 포함돼 나오므로, 만약
-            #    거기로 옮기면 이 덧셈이 이중계상이 된다 — 그때 다시 판단해라.)
-            out_billable = int(llm.get("out_text") or 0) + int(llm.get("thoughts") or 0)
-            total += (
-                int(llm.get("in_text") or 0) * price["in_text"]
-                + out_billable * price["out_text"]
-            ) / 1_000_000
+    llm_cost, llm_unknown = _llm_tokens_cost_usd(v.get("llm"))
+    total += llm_cost
+    if llm_unknown:
+        unknown.append(f"llm:{llm_unknown}")
 
     tts = v.get("tts") or {}
     tts_vendor = tts.get("vendor")
@@ -904,12 +941,19 @@ def estimate_call_cost_usd(
 
     engine 이 NULL(계기판 이전 통화)이면 Live 로 본다 — 캐스케이드는 이 컬럼이 생긴 뒤에만
     존재하므로, NULL 은 전부 Live 통화다.
+
+    ⭐ 2026-08-17: **엔진 몫 + 곁가지 몫**이다. 사이드카·통화후 분석은 엔진과 무관하게
+      (Live 든 캐스케이드든) 돌기 때문에 engine 분기 **안이 아니라 위**에서 더한다.
+      ⛔ 새 산식을 만들지 마라 — 원가의 유일한 입구는 계속 이 함수다.
     """
     if engine and engine.startswith("cascade:"):
-        return estimate_cascade_cost_usd((usage_json or {}).get("vendors"))
-    return estimate_usage_cost_usd(
-        in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text
-    ), []
+        base, unknown = estimate_cascade_cost_usd((usage_json or {}).get("vendors"))
+    else:
+        base, unknown = estimate_usage_cost_usd(
+            in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text
+        ), []
+    side, side_unknown = estimate_side_llm_cost_usd(usage_json)
+    return base + side, unknown + side_unknown
 
 
 def save_call_usage(
@@ -973,11 +1017,57 @@ def save_call_usage(
         # 캐스케이드 다리별 사용량(STT 초·TTS 문자·LLM 토큰). 단위가 토큰이 아니라
         # 컬럼에 못 들어가는 값들이다 — 원가는 estimate_cascade_cost_usd 가 여기서 계산한다.
         **({"vendors": summary["vendors"]} if summary.get("vendors") else {}),
+        # ⭐ 통화중 사이드카(힌트·재접지·레벨테스트 턴 판정)의 LLM 토큰. ⛔ Live 컬럼
+        #   (usage_in_text 등)에 **섞지 마라** — 단가가 다르고, 섞으면 두 엔진 비교가
+        #   오염된다. 원가는 estimate_call_cost_usd 가 engine 분기 **위**에서 더한다.
+        **({"sidecars": summary["sidecars"]} if summary.get("sidecars") else {}),
         **({"in_other": extra_in} if extra_in else {}),
         **({"out_other": extra_out} if extra_out else {}),
     }
     db.commit()  # R3 — 쓰기는 service 가 명시적으로 커밋
     return True
+
+
+def add_call_usage_extra(db: Session, call_id: int, key: str, entry: dict | None) -> bool:
+    """usage_json 에 곁가지 사용량 1건을 **나중에** 얹는다(통화후 분석 몫). 썼으면 True.
+
+    🧒 왜 UPDATE 인가: 통화중 usage 는 통화가 끝나는 순간 저장되는데, 통화후 분석은
+      **그 뒤에** 돈다. 같은 저장 경로에 몰면 분석 몫이 통째로 유실된다(시점이 다르다).
+
+    ⛔ JSONB 는 제자리 변경(dict 를 그냥 mutate)으로는 더티가 안 잡힌다 — **새 dict 를
+      대입**해야 UPDATE 가 나간다. 여기서 실수하면 값이 조용히 안 써진다.
+    ⛔ R5: 통화가 없거나 entry 가 비면 조용히 False. 계기판 때문에 분석이 죽으면 안 된다.
+    ⚠ 같은 키가 이미 있으면 **덮어쓴다** — 분석 재시도는 같은 통화를 다시 다 도는 것이라
+      누적이 아니라 최신값이 맞다(재시도 중복 계상 방지).
+    """
+    if not entry:
+        return False
+    call = db.get(Call, call_id)
+    if call is None:
+        return False
+    call.usage_json = {**(call.usage_json or {}), key: entry}
+    db.commit()  # R3
+    return True
+
+
+async def _save_analysis_usage(session_factory, call_id: int, usage) -> None:
+    """통화후 분석 LLM 몫을 usage_json.analysis 에 얹는다(비동기 경로 공용 — R5).
+
+    ⛔ 어떤 실패도 삼킨다. 계기판이 분석을 죽이면 안 된다 — 원가를 못 재는 것과
+      분석 결과를 통째로 잃는 것은 비교 대상이 아니다.
+    ⚠ 통화 usage 행이 아직 없으면(라이브 계측 미수신) usage_json 은 NULL 이었다가
+      여기서 analysis 키 하나만 있는 dict 가 된다 — 그 편이 유실보다 낫다.
+    """
+    try:
+        entry = usage.as_dict() if usage is not None else None
+        if not entry:
+            return
+        await run_db(
+            session_factory,
+            lambda db: add_call_usage_extra(db, call_id, "analysis", entry),
+        )
+    except Exception as exc:  # noqa: BLE001 - R5
+        logger.warning("normalcall usage: 분석 몫 기록 실패(무시) call_id=%s: %s", call_id, exc)
 
 
 def set_status(db: Session, call_id: int, status: str) -> None:
@@ -1559,11 +1649,13 @@ async def analyze_call(
             instruction = instruction + "\n" + _DETECTION_INSTRUCTION
             prompt = prompt + "\n\n" + _candidate_table(cands)
 
+        analysis_usage = gemini_analysis.LlmUsage()
         result = await gemini_analysis.generate_structured(
             client,
             settings_obj.JUDGE_MODEL,
             system_instruction=instruction,
             prompt=prompt,
+            usage=analysis_usage,
             # 후보 0개면 detections 없는 스키마 — 기존 분석 출력 무변화(하위호환)
             schema=CallAnalysis if cands else _CallAnalysisBase,
             # 추론 예산 상한 명시. 미지정이면 모델 기본값(동적 thinking)이 켜져 추론 토큰이
@@ -1574,6 +1666,8 @@ async def analyze_call(
             # (대조군: 통화중 사이드카들은 지연이 우선이라 thinking_budget=0.)
             thinking_budget=512,
         )
+        # ⛔ 결과 판정 **전에** 남긴다 — 실패해도 그 콜의 토큰은 이미 과금됐다.
+        await _save_analysis_usage(session_factory, call_id, analysis_usage)
         if result is None:
             logger.warning("normalcall 분석: _analyze 실패 → failed call_id=%s", call_id)
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
@@ -2234,6 +2328,7 @@ async def analyze_level_test_call(
         # 판정관은 자기가 속은 걸 모르므로 입력에서 지우는 편이 확실하다.
         dialog = _strip_non_target_user_lines(dialog, _lang_code)
 
+        lt_usage = gemini_analysis.LlmUsage()
         result = await gemini_analysis.generate_structured(
             client,
             settings_obj.JUDGE_MODEL,
@@ -2244,7 +2339,9 @@ async def analyze_level_test_call(
             prompt=f"[통화 전사]\n{dialog.strip()}",
             schema=LevelAssessment,
             temperature=0.0,
+            usage=lt_usage,
         )
+        await _save_analysis_usage(session_factory, call_id, lt_usage)
         if result is None:
             logger.warning("leveltest 판정: LLM 실패 → failed·미저장 call_id=%s", call_id)
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
@@ -2429,6 +2526,7 @@ async def judge_leveltest_turn(
     latest_answer: str,
     prior_question: str | None = None,
     target_language: str = "한국어",
+    usage: gemini_analysis.LlmUsage | None = None,
 ) -> tuple[bool, bool]:
     """종료 판정 전용 사이드카(1콜): (answer_in_target, should_end).
 
@@ -2442,6 +2540,7 @@ async def judge_leveltest_turn(
         transcript: 지금까지 누적된 Q/A 전사(이번 최신 발화 이전까지 — 맥락용).
         latest_answer: 학습자가 방금 한 발화(대상 언어, in_tr 전사).
         prior_question: 직전 비버 질문(문맥용, 선택).
+        usage: 토큰 수집기(원가 계기판). 안 넘기면 종전과 동일하다.
 
     Returns:
         (answer_in_target, should_end).
@@ -2469,6 +2568,7 @@ async def judge_leveltest_turn(
             ),
             schema=LeveltestTurnRead,
             temperature=0.0,
+            usage=usage,
             thinking_budget=0,  # 통화중 실시간 사이드카 — 지연 최소화(추론 비활성).
         )
     except Exception as exc:  # noqa: BLE001 - 사이드카는 어떤 예외도 흡수(R5)

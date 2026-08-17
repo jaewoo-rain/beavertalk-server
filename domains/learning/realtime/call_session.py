@@ -417,7 +417,7 @@ class _CallState:
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
         "resume_handle", "session_epoch", "reconnects", "swap_requested", "last_swap_ts",
-        "usage_log", "usage_dropped",
+        "usage_log", "usage_dropped", "sidecar_usage",
     )
 
     def __init__(self) -> None:
@@ -557,6 +557,10 @@ class _CallState:
         #   버린다(DB 저장 없음 — 관측 단계). usage_dropped: 상한 초과로 버린 개수.
         self.usage_log: list[dict] = []
         self.usage_dropped: int = 0
+        # sidecar_usage: 통화중 LLM 사이드카(동적 힌트·재접지 브리프·레벨테스트 턴 판정)의
+        #   토큰. ⛔ Live usage 와 **다른 그릇**이다 — 단가가 다르고, 섞으면 두 엔진
+        #   비교가 오염된다. usage_json.sidecars 로 따로 나간다.
+        self.sidecar_usage = gemini_analysis.LlmUsage()
 
 
 class _ClientDisconnect(Exception):
@@ -841,6 +845,11 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "cycle_peak": state.usage_prompt_peak,
         "compressions": state.compression_seen,
         "epochs": state.session_epoch, "reconnects": state.reconnects,
+        # ⭐ 통화중 LLM 사이드카 몫(힌트·재접지·레벨테스트 턴 판정). 한 번도 안 돌았으면
+        #   None 이라 저장에서 통째로 빠진다 — "0 원"이 아니라 "안 돌았다"는 뜻이다.
+        # ⚠ 여기 실리려면 Live usage 가 1건이라도 있어야 한다(위 `if not log: return None`).
+        #   Live 계측이 통째로 없는 통화는 원가 행 자체가 안 생기므로 같이 없는 게 맞다.
+        "sidecars": state.sidecar_usage.as_dict(),
     }
 
 
@@ -1223,6 +1232,10 @@ async def run_call(
             "client": client,
             "model": settings.JUDGE_MODEL,
             "instruction": _hint_instruction(label, target_language),
+            # 원가 계기판 — 힌트 사이드카는 state 를 안 받으므로 ctx 에 수집기를 실어 보낸다
+            # (시그니처를 안 바꾼다). ⚠ 여러 힌트 태스크가 같은 객체에 더한다 — 단일
+            # 이벤트루프라 GIL 밖 경합이 없다(락 불요).
+            "usage": state.sidecar_usage,
         }
 
     logger.info(
@@ -1985,6 +1998,7 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
             schema=HintOut,
             temperature=0.3,
             thinking_budget=0,
+            usage=ctx.get("usage"),   # 원가 계기판 — 없으면 종전과 동일
         )
         # getattr 방어: generate_structured 실패(None)·이형 응답 모두 조용히 미표시.
         raw = getattr(result, "examples", None) if result is not None else None
@@ -2078,6 +2092,7 @@ async def _band_observe_sidecar(
             latest_answer=answer,
             prior_question=prior_question,
             target_language=state.band_target_language,
+            usage=state.sidecar_usage,   # 원가 계기판(레벨테스트 턴 판정도 LLM 콜이다)
         )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로 — 재전파
@@ -2793,6 +2808,7 @@ async def _reground_sidecar(state: _CallState) -> None:
             schema=RegroundOut,
             temperature=0.0,
             thinking_budget=0,
+            usage=state.sidecar_usage,
         )
         if result is None:
             return

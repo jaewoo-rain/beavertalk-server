@@ -3942,6 +3942,7 @@ class CascadeSession:
                 ctx["client"], ctx["model"],
                 system_instruction=ctx["instruction"], prompt=question,
                 schema=HintOut, temperature=0.3, thinking_budget=0,
+                usage=self.usage.sidecars,   # 원가 계기판 — 대답 배관과 다른 그릇에 쌓인다
             )
             raw = getattr(result, "examples", None) if result is not None else None
             examples = [
