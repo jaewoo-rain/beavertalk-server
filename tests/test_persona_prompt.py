@@ -681,6 +681,125 @@ def test_five_item_check_absent_without_study_items():
     assert out == build_system_instruction(**_BASE_KWARGS)
 
 
+# --------------------------------------------------------------------------- #
+# 왕초보 판별은 **밴드**가 정한다 (2026-08-17)
+# --------------------------------------------------------------------------- #
+_STUDY_ITEMS_ALL_REVIEW = [
+    {"slot": "main", "kind": "vocab", "state": "review", "obj": "얼마예요?",
+     "ex": None, "des": None},
+    {"slot": "reserve", "kind": "vocab", "state": "again", "obj": "안녕히 가세요",
+     "ex": None, "des": None},
+]
+
+# 유형 × 상태 — 세 상태가 한 목록에 다 들어간 경우.
+_STUDY_ITEMS_STATES = [
+    {"slot": "main", "kind": "chunk", "state": "review", "obj": "안녕히 가세요",
+     "ex": None, "des": None},
+    {"slot": "main", "kind": "chunk", "state": "again", "obj": "아니에요",
+     "ex": None, "des": None},
+    {"slot": "main", "kind": "chunk", "state": "new", "obj": "하나 둘 셋",
+     "ex": None, "des": None},
+]
+
+
+def test_type_and_state_are_two_separate_labels():
+    """⭐ 항목 줄에 **유형·상태**가 둘 다 실린다 — 한 칸에 섞으면 놓을 자리가 없는 상태가 생긴다.
+
+    실측(member 20, ko L1): 청크 46개 중 미학습 0 / introduced 23 / practicing 22.
+    '한 번 들었지만 아직 못 하는' 23개를 놓을 칸이 없어 계속 '신규'로 나갔고, 신규 절차는
+    정의상 E1(모방)만 만든다(call 1053 증거: E1 7 · E3 1 · **E2 0**).
+    """
+    out = build_system_instruction(
+        study_items=_STUDY_ITEMS_STATES, lang_band="survival", **_BASE_KWARGS
+    )
+    assert "1. (통문장·복습) 안녕히 가세요" in out
+    assert "2. (통문장·다시) 아니에요" in out
+    assert "3. (통문장·새로) 하나 둘 셋" in out
+    # 상태별 시작 절차(합 — 유형×상태 곱셈 금지)
+    assert "상태별 시작(항목 뒤 라벨):" in out
+    assert "- 새로: 위 유형별 절차대로 가르쳐라" in out
+    assert "- 다시: 먼저 물어봐라. 못 하면 상황 힌트를 한 번 주고 다시 물어라." in out
+    assert "- 복습: 먼저 물어봐라. 못 하면 정답을 한 번 들려주고 한 번 따라 말하게 한 뒤" in out
+
+
+def test_state_labels_do_not_trip_the_closing_denylist():
+    """⛔ 라벨이 종료 어휘면 라벨만으로 통화가 끝난다 — 세 낱말 다 denylist 밖이어야 한다."""
+    for word in pp._STUDY_STATE_LABEL.values():
+        assert not pp.is_closing_slot(word), word
+        assert len(word) <= 2, f"라벨이 길다(항목 30줄에 곱해진다): {word}"
+
+
+def test_items_without_a_state_render_the_old_way():
+    """⚠ 하위호환 — state 없는 옛 dict 는 유형만 찍는다(데모·저장된 픽스처)."""
+    out = build_system_instruction(study_items=_STUDY_ITEMS, **_BASE_KWARGS)
+    assert "1. (복습) V-았어요/었어요" in out and "·" not in out.split("본편:")[1][:40]
+
+
+def test_state_labels_cost_almost_nothing_in_prompt_length():
+    """⭐ 지시문 순증 상한 — 항목 30개에서 **300자 이내**(프롬프트가 터지면 지시가 꼬인다).
+
+    비교 대상은 같은 30항목을 **state 없이**(=이 변경 전 모양) 렌더한 지시문이다.
+    라벨 3자 × 30줄 + 상태별 시작 절차가 순증의 전부이고, 그 대신 유형 목록에서 옛
+    '- 복습:' 줄이 빠졌다(유형이 아니라 상태였다).
+    """
+    items = [
+        {"slot": "main" if i < 5 else "reserve", "kind": "chunk",
+         "state": ("new", "again", "review")[i % 3], "obj": f"문장{i}",
+         "ex": None, "des": None}
+        for i in range(30)
+    ]
+    legacy = [{k: v for k, v in it.items() if k != "state"} for it in items]
+    with_states = build_system_instruction(
+        study_items=items, lang_band="survival", **_BASE_KWARGS
+    )
+    without = build_system_instruction(
+        study_items=legacy, lang_band="survival", **_BASE_KWARGS
+    )
+    delta = len(with_states) - len(without)
+    assert 0 < delta <= 300, f"지시문 순증 {delta}자 — 300자 상한을 넘었다"
+
+
+def test_survival_band_keeps_the_beginner_variant_without_any_chunk_item():
+    """⛔⛔ L1 청크를 다 건드린 회원(미학습 0)도 왕초보 모드가 켜져 있어야 한다.
+
+    이월분을 'review' 로 옳게 라벨하면 목록에 chunk 가 한 개도 안 남는다. 옛 판별은
+    거기서 False 로 뒤집혀 왕초보 문구·절차·5단위 L1 꼬리가 통째로 꺼졌다 —
+    생존회화도 안 되는 학습자에게 조사·어미 용어가 나가기 시작한다.
+    """
+    out = build_system_instruction(
+        study_items=_STUDY_ITEMS_ALL_REVIEW, lang_band="survival", **_BASE_KWARGS
+    )
+    assert "이 학습자는 한국어 왕초보다" in out
+    assert "유형별 절차(왕초보):" in out
+    assert "통문장은 문장을 만들게 하지 말고" in out       # 5단위 확인의 L1 꼬리
+    assert "만들게 한다(교정은 불변 규칙 4대로)" not in out  # 일반 문법 절차는 여전히 없다
+
+
+def test_a_higher_band_does_not_get_the_beginner_variant():
+    """짝 — 밴드가 survival 이 아니면 왕초보 변형은 안 켜진다(항목이 복습뿐이어도)."""
+    out = build_system_instruction(
+        study_items=_STUDY_ITEMS_ALL_REVIEW, lang_band="beginner", **_BASE_KWARGS
+    )
+    assert "왕초보" not in out
+
+
+def test_the_old_kind_based_check_still_works_without_a_band():
+    """⚠ 밴드를 안 넘기는 호출부(데모 등)는 옛 판별로 폴백한다 — 동작이 안 바뀐다."""
+    out = build_system_instruction(study_items=_STUDY_ITEMS_L1, **_BASE_KWARGS)
+    assert "이 학습자는 한국어 왕초보다" in out
+
+
+def test_review_procedure_guarantees_at_least_an_imitation():
+    """⭐ 못 답해도 **따라 말하게** 한다 — 안 그러면 E1 조차 안 쌓인다.
+
+    복습 절차가 '정답을 들려주고 넘어가라'로 끝나면, 이월분이 복습으로 바뀐 뒤
+    왕초보가 계속 못 답할 때 증거가 **0** 이 된다(예전엔 최소 E1 은 쌓였다).
+    """
+    for band, items in (("survival", _STUDY_ITEMS_L1), ("beginner", _STUDY_ITEMS)):
+        out = build_system_instruction(study_items=items, lang_band=band, **_BASE_KWARGS)
+        assert "한 번 따라 말하게 한 뒤" in out, band
+
+
 def test_known_block_render_and_grammar_join():
     out = build_system_instruction(known_items=_KNOWN_ITEMS, **_BASE_KWARGS)
     assert "[대화 모드 가이드 — 대화 모드일 때만 따르라. 공부 모드에서는 이 블록을 무시하라]" in out

@@ -434,7 +434,11 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
     item: LearningItem = entry["item"]
     return {
         "slot": entry["slot"],
-        "kind": entry["study_kind"],  # review/grammar/vocab/chunk (persona 유형 라벨)
+        "kind": entry["study_kind"],  # grammar/vocab/chunk (유형 축)
+        # ⭐ 상태 축(2026-08-17) — new/again/review. persona 가 유형과 함께 읽어
+        #   "통문장·다시" 로 렌더하고, 상태별 시작 절차를 고른다. 없으면 persona 가
+        #   옛 렌더로 폴백한다(하위호환).
+        "state": entry.get("state"),
         "obj": item.surface,
         "ex": mastery_repository.first_example(item),
         "des": _study_des(item, locale),

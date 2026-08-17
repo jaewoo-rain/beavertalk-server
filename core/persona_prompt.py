@@ -253,10 +253,41 @@ def _history_block(history: object | None) -> str:
 # 리터럴 중괄호 제약이 없다(_PROMOTION_NOTICE_TEMPLATE 만 .format — 중괄호 금지).
 # =========================================================================== #
 
-# study_items[*].kind → 항목 줄의 유형 라벨.
+# study_items[*].kind → 항목 줄의 **유형** 라벨.
+# ⚠ "review" 는 옛 계약(유형·상태가 한 칸에 섞여 있던 시절)의 잔재다 — 상태를 따로 받는
+#   지금은 안 쓰이지만, state 없는 옛 호출부(데모·저장된 픽스처)를 위해 남긴다.
 _STUDY_KIND_LABEL: dict[str, str] = {
     "review": "복습", "grammar": "문법", "vocab": "단어", "chunk": "통문장",
 }
+
+# study_items[*].state → 항목 줄의 **상태** 라벨(2026-08-17).
+#
+# 🧒 왜 축을 둘로 갈랐나: 예전엔 한 칸에 유형(문법·단어·통문장)과 상태(복습)를 섞어 넣어서,
+#   "한 번 들었지만 아직 못 하는" 항목을 놓을 자리가 없었다. 그래서 그 항목이 **'신규'로**
+#   나갔고, 신규 절차는 "들려주고 따라 말하게"라 정의상 E1(모방)만 만든다. 마스터는
+#   E2/E3 산출을 요구하므로, 46개를 다 건드리고도 mastered 1개인 상태가 나왔다(member 20,
+#   call 1053 증거 8건: E1 7 · E3 1 · **E2 0**).
+# ⭐ 낱말 고른 기준: ①두 글자로 짧다(항목 30줄에 곱해진다) ②서로 안 헷갈린다
+#   ③종료 어휘 denylist(_CLOSING_WORDS)에 안 걸린다 — 라벨이 통화를 끝내면 안 된다.
+_STUDY_STATE_LABEL: dict[str, str] = {
+    "new": "새로", "again": "다시", "review": "복습",
+}
+
+# 상태별 **시작 방법**. ⛔ 유형×상태로 절차를 곱하지 마라(3×3=9개면 지시문이 터진다) —
+#   유형별 절차(무엇을)와 상태별 시작(어떻게 시작)의 **합**으로 쓴다.
+# ⭐ '다시'에만 힌트 한 번을 주는 이유: 한 번만 들은 항목은 못 할 확률이 높다. 그냥 물으면
+#   답을 못 해 결국 따라말하기(E1)로 떨어진다. 힌트로 끌어올려 **E2(유도)를 만들** 기회를
+#   준다 — 이 설계 전체의 목적이 그것이다.
+# ⚠ '복습'의 마지막 한 구절("한 번 따라 말하게 한 뒤")은 **E1 하한 보장**이다. 없으면
+#   계속 못 답하는 왕초보에게서 증거가 0 이 된다(예전엔 최소 E1 은 쌓였다).
+_STUDY_STATE_PROCEDURE = (
+    "상태별 시작(항목 뒤 라벨):\n"
+    "- 새로: 위 유형별 절차대로 가르쳐라(처음 듣는 것이다).\n"
+    "- 다시: 먼저 물어봐라. 못 하면 상황 힌트를 한 번 주고 다시 물어라. 그래도 못 하면 "
+    "유형별 절차대로 가르쳐라.\n"
+    "- 복습: 먼저 물어봐라. 못 하면 정답을 한 번 들려주고 한 번 따라 말하게 한 뒤 넘어가라. "
+    "오래 머물지 마라."
+)
 
 # 예비 슬롯 진입 조건 문구(본편 완료 + [시스템] 미도착) — 종료 규약과 충돌하지 않게
 # "종료 신호가 오면 즉시 규약을 따르라"를 진행 규칙에서 다시 못박는다.
@@ -292,13 +323,13 @@ _STUDY_FIVE_CHECK_L1_TAIL = (
 )
 
 
-def _study_procedure(is_l1: bool, *, target: str, locale_label: str) -> str:
-    """공부 모드 유형별 절차(mechanics ④). L1(문법 없음+청크 있음)이면 왕초보 변형."""
-    recall = (
-        f'- 복습: 회상 질문을 하나 던져라(예: {locale_label}로 "지난번에 배운 그거, '
-        f'{target}로 어떻게 말하지?"). 답하면 바로 다음 항목으로(반응은 네 캐릭터대로), 못 하면 정답을 '
-        "한 번만 또박또박 들려주고 다음 항목으로 넘어가라. 복습에 오래 머물지 마라."
-    )
+def _study_procedure(is_l1: bool, *, target: str) -> str:
+    """공부 모드 절차(mechanics ④) — **유형별(무엇을) + 상태별(어떻게 시작)의 합**.
+
+    ⛔ 옛 '- 복습:' 줄은 여기서 뺐다(2026-08-17). 그건 유형이 아니라 **상태**였고, 유형
+      목록에 끼워 두면 "통문장인데 복습"인 항목이 어느 줄을 따라야 하는지 모호해진다.
+      회상 질문은 이제 _STUDY_STATE_PROCEDURE 의 '다시'·'복습'이 소유한다.
+    """
     if is_l1:
         return "\n".join([
             "유형별 절차(왕초보):",
@@ -307,11 +338,10 @@ def _study_procedure(is_l1: bool, *, target: str, locale_label: str) -> str:
             f'마라 — "{target}에서는 그냥 이렇게 말한다"로 충분하다.',
             "- 단어: ① 뜻을 알려 주고 ② 단어를 또박또박 따라 말하게 "
             "③ 가능하면 오늘의 통문장에 끼워 한 번 더 통째로 따라 말하게 해라.",
-            recall,
+            _STUDY_STATE_PROCEDURE,
         ])
     return "\n".join([
         "유형별 절차:",
-        recall,
         "- 문법: ① 뜻·쓰임을 1~2문장 설명 ② 예문을 또박또박 들려주고 "
         "따라 말하게 ③ 학습자의 흥미를 반영한 즉석 예문을 하나 더 만들어 따라 말하게 "
         '④ 응용 질문(예: "너는 주말에 뭐 하고 싶어?")을 던져 학습자가 자기 문장을 직접 '
@@ -322,13 +352,20 @@ def _study_procedure(is_l1: bool, *, target: str, locale_label: str) -> str:
         "- 통문장: ① 언제 쓰는 말인지 짧게 설명 ② 통문장을 천천히 "
         "또박또박 들려주고 2번 따라 말하게 ③ 문법·조사를 분해해 설명하지 마라 — 통째로 "
         "익히게 한다.",
+        _STUDY_STATE_PROCEDURE,
     ])
 
 
 def _render_study_item(n: int, item: dict) -> str:
-    """항목 한 줄 렌더: `{n}. ({유형라벨}) {obj}` + 예문/참고 꼬리."""
+    """항목 한 줄 렌더: `{n}. ({유형}·{상태}) {obj}` + 예문/참고 꼬리.
+
+    ⚠ state 가 없으면 유형만 찍는다 — 옛 호출부(데모·저장된 픽스처) 하위호환.
+    """
     kind = item.get("kind")
     label = _STUDY_KIND_LABEL.get(kind, str(kind or "항목"))
+    state = _STUDY_STATE_LABEL.get(item.get("state") or "")
+    if state:
+        label = f"{label}·{state}"
     line = f"{n}. ({label}) {item.get('obj')}"
     ex = item.get("ex")
     line += f' — 예문: "{ex}"' if ex else " — 예문은 네가 즉석에서 만들라"
@@ -338,12 +375,23 @@ def _render_study_item(n: int, item: dict) -> str:
     return line
 
 
-def _study_block(study_items: list[dict], *, target: str, locale_label: str) -> str:
+def _study_block(
+    study_items: list[dict], *, target: str, locale_label: str, lang_band: str = "",
+) -> str:
     """공부 모드 체크판 블록(mechanics ②④). 본편→예비 순서, 진행 규칙 포함."""
     main = [it for it in study_items if it.get("slot") != "reserve"]
     reserve = [it for it in study_items if it.get("slot") == "reserve"]
     kinds = {it.get("kind") for it in study_items}
-    is_l1 = "grammar" not in kinds and "chunk" in kinds  # L1 왕초보 변형 판별
+    # ⛔⛔ L1 왕초보 변형 판별 — **밴드가 1순위다**(2026-08-17).
+    #   예전엔 항목 종류만 봤다(`"grammar" not in kinds and "chunk" in kinds`). 그런데
+    #   L1 청크를 이미 다 건드린 회원(실측 member 20: 미학습 청크 0개)은 목록이 전부
+    #   '복습' 으로 나가면서 **kinds 에서 chunk 가 사라진다** ⇒ 판별이 False 로 뒤집혀
+    #   왕초보 문구·왕초보 절차·5단위 확인의 L1 꼬리가 **통째로 꺼졌다.**
+    #   ⇒ 생존회화도 안 되는 학습자에게 비버가 조사·어미 용어를 쓰기 시작한다.
+    #   ⭐ lang_band 는 `mastery_repository.band_of(level_no)` 다 — 레벨과 **같은 축**이고
+    #     L1 이 곧 "survival" 이다(코드로 확인함). 그래서 항목 구성이 어떻게 변하든 안 흔들린다.
+    #   ⚠ 옛 판별은 **폴백으로 남긴다** — 밴드를 안 넘기는 호출부(데모 등)의 동작을 지킨다.
+    is_l1 = lang_band == "survival" or ("grammar" not in kinds and "chunk" in kinds)
 
     lines = ["\n[오늘의 공부 항목 — 공부 모드일 때만 따르라. 대화 모드에서는 이 블록을 무시하라]"]
     if is_l1:
@@ -365,7 +413,7 @@ def _study_block(study_items: list[dict], *, target: str, locale_label: str) -> 
             n += 1
             lines.append(_render_study_item(n, it))
     lines.append("")
-    lines.append(_study_procedure(is_l1, target=target, locale_label=locale_label))
+    lines.append(_study_procedure(is_l1, target=target))
     lines.append("")
     lines.append(
         "학습자가 어려워하면: 같은 항목은 최대 2번까지만 다시 시도해라. 그래도 어려워하면 "
@@ -513,8 +561,9 @@ def build_system_instruction(
         locale_label: 모국어 라벨 오버라이드(기본 None → _LOCALE_LABEL 조회). 데모 전용(예: ko→"한국어").
         study_items: 공부 모드 체크판 항목(본편 5+예비 5, mechanics ②). 각 dict 는
             {slot: "main"|"reserve", kind: "grammar"|"vocab"|"chunk"|"review",
-             obj: str, ex: str|None, des: str|None}. kind 에 grammar 가 없고 chunk 가
-            있으면 L1 왕초보 변형 블록을 쓴다.
+             obj: str, ex: str|None, des: str|None}.
+            ⚠ L1 왕초보 변형은 **lang_band == "survival"** 이면 켜진다(2026-08-17).
+            밴드를 안 넘기면 옛 판별(grammar 없음 + chunk 있음)로 폴백한다.
         known_items: 대화 모드 가이드(mechanics ③) —
             {grammar: list[str](≤40 soft 범위, 빈 리스트면 레벨 프로파일 폴백 문구),
              targets: [{obj, ex, hint}](유도 표현 3~5)}.
@@ -571,7 +620,10 @@ def build_system_instruction(
         f"\n[학습자 흥미·소재] {interests_text}",
     ]
     if study_items:
-        parts.append(_study_block(study_items, target=target_language, locale_label=locale_label))
+        parts.append(_study_block(
+            study_items, target=target_language, locale_label=locale_label,
+            lang_band=lang_band,
+        ))
     if known_items:
         parts.append(_known_block(known_items, target=target_language, locale_label=locale_label))
     topics = [t for t in (recent_topics or []) if t]

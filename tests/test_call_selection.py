@@ -8,6 +8,8 @@
       다른 밴드 불변(예비 25 = 어휘).
       ⭐ 신규 고갈 시 복습 채움(2026-08-16): 신규가 먼저·모자란 만큼 복습·그래도 모자라면
       짧아짐 / 미확정 fast-track 재노출 / 다음 레벨 미혼입.
+      ⭐ 라벨 두 축(2026-08-17): study_kind=유형(항상 item.kind) / state=상태
+      (new=행 없음 · again=introduced · review=practicing·미확정 fast-track).
     - bridge_or_struggle_ratio: 진입 후 증거통화 <3 → 0.7(신규·승급 직후) / 기본 0.3.
       (D15 — "유효통화" 폐지: 통화 수 파생값은 item_evidence 의 distinct call 기반.)
     - promotion_pending: gate_promotion 직후 True → 증거통화 1회 후 False.
@@ -301,6 +303,11 @@ def _kinds(picked):
     return [e["study_kind"] for e in picked]
 
 
+def _states(picked):
+    """⭐ 2026-08-17: 라벨이 두 축이 됐다 — study_kind=유형, state=상태."""
+    return [e["state"] for e in picked]
+
+
 def test_l1_study_is_exactly_thirty_and_all_chunks(prod_env):
     """⭐ L1 통화의 study 항목은 **정확히 30개이고 전부 청크**다(중복 없음)."""
     db = prod_env["db"]
@@ -330,8 +337,9 @@ def test_l1_total_stays_thirty_when_review_takes_a_slot(prod_env):
     picked = repo.pick_study_items(db, prod_env["m1"].member_id, 1,
                                    review_slots=1, bridge_prev_ratio=0.7)
     assert len(picked) == 30
-    assert _kinds(picked)[0] == "review"      # 복습 1(c1)
-    assert set(_kinds(picked)[1:]) == {"chunk"}
+    assert _states(picked)[0] == "review"     # 복습 1(c1 — practicing)
+    assert set(_states(picked)[1:]) == {"new"}
+    assert set(_kinds(picked)) == {"chunk"}   # 유형 축은 전부 통문장 그대로
     assert all(e["item"].kind == "chunk" for e in picked)
     ids = [e["item"].item_id for e in picked]
     assert len(set(ids)) == len(ids)          # 복습으로 나간 c1 이 예비에 또 오면 안 된다
@@ -407,13 +415,13 @@ def test_new_items_come_before_the_review_filler(prod_env):
 
     picked = repo.pick_study_items(db, m1.member_id, 1,
                                    review_slots=1, bridge_prev_ratio=0.7)
-    kinds = _kinds(picked)
-    last_new = max(i for i, k in enumerate(kinds) if k == "chunk")
-    filler = [i for i, k in enumerate(kinds) if k == "review"][1:]  # [0]=앞 복습 슬롯
+    states = _states(picked)
+    last_new = max(i for i, k in enumerate(states) if k == "new")
+    filler = [i for i, k in enumerate(states) if k == "review"][1:]  # [0]=앞 복습 슬롯
     assert filler, "복습 채움이 하나도 없다"
-    assert last_new < min(filler), kinds
+    assert last_new < min(filler), states
     # 신규 5개(c31~c35)가 전부 들어갔다 — 채움이 신규를 밀어내지 않았다.
-    assert {e["item"].surface for e in picked if e["study_kind"] == "chunk"} == \
+    assert {e["item"].surface for e in picked if e["state"] == "new"} == \
         {f"청크{i} 주세요" for i in range(31, 36)}
 
 
@@ -440,6 +448,9 @@ def test_unconfirmed_fast_track_items_come_back_for_review(prod_env):
                                    review_slots=1, bridge_prev_ratio=0.7)
     surfaces = {e["item"].surface for e in picked}
     assert "청크1 주세요" in surfaces, "미확정 fast-track 이 다시 안 나온다(유령 상태)"
+    # ⭐ status 는 mastered 지만 라벨은 **복습**이다 — 검증이 목적이라 반드시 물어봐야 한다.
+    assert [(e["study_kind"], e["state"]) for e in picked
+            if e["item"].surface == "청크1 주세요"] == [("chunk", "review")]
     assert "청크2 주세요" not in surfaces, "확정된 fast-track 까지 끌어왔다"
     assert "청크3 주세요" not in surfaces, "보통 mastered 까지 끌어왔다"
 
@@ -465,6 +476,74 @@ def test_the_review_filler_never_pulls_the_next_level(prod_env):
     assert all(e["item"].kind == "chunk" for e in picked)
 
 
+# --------------------------------------------------------------------------- #
+# (7-d) 이미 배운 항목을 '신규'라 부르지 않는다 (2026-08-17)
+# --------------------------------------------------------------------------- #
+def test_carryover_items_are_labelled_review_not_new(prod_env):
+    """⭐ introduced 이월분은 **review**, 미학습만 chunk 다.
+
+    라벨이 절차를 고르고 절차가 등급을 정한다 — '신규' 절차는 "들려주고 따라 말하게"라
+    정의상 E1(모방)이고, E1 은 마스터 조건 ③(E2/E3 산출)에 안 들어간다. 실측(member 20,
+    ko L1): 청크 46개를 다 건드렸는데 mastered 1개였고 미학습 청크는 0개였다.
+    """
+    db, items, m1 = prod_env["db"], prod_env["items"], prod_env["m1"]
+    for i in (1, 2):                       # c1·c2 만 한 번 배운 상태(미소화 이월)
+        _prog(db, m1.member_id, items[f"c{i}"], "introduced", days_ago=3, score=1.0)
+    db.commit()
+
+    picked = repo.pick_study_items(db, m1.member_id, 1,
+                                   review_slots=0, bridge_prev_ratio=0.3)
+    by_surface = {e["item"].surface: (e["study_kind"], e["state"]) for e in picked}
+    # ⭐ 두 축: 유형은 셋 다 통문장 그대로, 갈리는 것은 **상태**다.
+    assert by_surface["청크1 주세요"] == ("chunk", "again"), "이미 들은 것을 '새로'라 부른다"
+    assert by_surface["청크2 주세요"] == ("chunk", "again")
+    assert by_surface["청크3 주세요"] == ("chunk", "new"), "미학습까지 상태가 바뀌었다"
+    # ⚠ 선별 자체는 안 변한다 — 개수도 자리도 그대로고 라벨만 옳아진다.
+    assert len(picked) == repo.SURVIVAL_STUDY_TOTAL
+    assert [e["slot"] for e in picked][:3] == ["main"] * 3
+
+
+def test_a_member_who_learned_everything_still_gets_the_beginner_variant(prod_env):
+    """⛔⛔ 함정 방어 — **미학습이 0개인 회원도 왕초보 모드가 켜져 있어야 한다.**
+
+    이월분을 review 로 바꾸면 그런 회원의 목록엔 chunk 가 한 개도 안 남는다. 옛 판별
+    (`"grammar" not in kinds and "chunk" in kinds`)은 그때 False 로 뒤집혀 왕초보 문구·
+    절차·5단위 L1 꼬리가 통째로 꺼졌다 — 생존회화도 안 되는 학습자에게 문법 용어가 나간다.
+    """
+    from core import persona_prompt as pp
+
+    db, items, m1 = prod_env["db"], prod_env["items"], prod_env["m1"]
+    for i in range(1, 36):                 # 46개를 다 건드린 회원(미학습 0)
+        _prog(db, m1.member_id, items[f"c{i}"], "introduced", days_ago=40 - i, score=1.0)
+    db.commit()
+
+    picked = repo.pick_study_items(db, m1.member_id, 1,
+                                   review_slots=1, bridge_prev_ratio=0.3)
+    assert {e["state"] for e in picked} == {"again"}, "전제 붕괴 — 미학습이 0개여야 한다"
+
+    dtos = [{"slot": e["slot"], "kind": e["study_kind"], "state": e["state"],
+             "obj": e["item"].surface, "ex": None, "des": None} for e in picked]
+    block = pp._study_block(dtos, target="한국어", locale_label="영어",
+                            lang_band=repo.band_of(1))
+    assert "왕초보" in block, "미학습 0개 회원에게 왕초보 모드가 꺼졌다"
+    assert "문법 용어(조사·어미·활용·시제 같은 말)를 절대" in block
+    assert "유형별 절차(왕초보):" in block
+    assert "통문장은 문장을 만들게 하지 말고" in block   # 5단위 확인의 L1 꼬리
+    assert "(통문장·다시)" in block                     # 두 축이 함께 실린다
+
+    # ⛔ 함정의 본체: 목록에 chunk 가 **한 개도 없어도** 밴드가 왕초보를 지켜야 한다.
+    #   (L1 어휘가 시드되는 날이 오면 실제로 이 모양이 된다 — 옛 판별은 그때 무너진다.)
+    vocab_only = [{"slot": "main", "kind": "vocab", "state": "again",
+                   "obj": "단어", "ex": None, "des": None}]
+    assert "왕초보" in pp._study_block(
+        vocab_only, target="한국어", locale_label="영어", lang_band="survival"
+    ), "밴드가 survival 인데 항목 구성 때문에 왕초보가 꺼졌다"
+    # 밴드를 안 넘기면 옛 판별로 폴백한다(데모 등 — 종전 동작 유지).
+    assert "왕초보" not in pp._study_block(
+        vocab_only, target="한국어", locale_label="영어"
+    )
+
+
 def test_curriculum_has_no_level1_vocab_or_grammar():
     """위 전제의 원본 확인 — 커리큘럼 자산의 어휘·문법은 level_no 2 부터다."""
     import json
@@ -488,22 +567,31 @@ def test_pick_study_items_beginner_mix_and_sel_filters(env):
     main = [e for e in pb if e["slot"] == "main"]
     reserve = [e for e in pb if e["slot"] == "reserve"]
 
+    # ⛔ 2026-08-17: 라벨이 **두 축**이 됐다 — study_kind=유형(항상 item.kind),
+    #   state=상태(new/again/review). 라벨이 절차를 고르고 절차가 등급을 정하므로,
+    #   이미 배운 것을 '새로'라 부르면 따라말하기(E1)만 쌓여 마스터가 영영 안 된다.
+    #   ⚠ **선별 자체는 그대로다** — 자리도 순서도 안 변했고 라벨만 옳아졌다.
     assert [e["study_kind"] for e in main] == \
-        ["review", "review", "grammar", "vocab", "vocab"], \
+        ["vocab", "vocab", "grammar", "vocab", "vocab"], \
         [(e["study_kind"], e["item"].surface) for e in main]
+    assert [e["state"] for e in main] == \
+        ["review", "review", "again", "new", "new"], \
+        [(e["state"], e["item"].surface) for e in main]
     # 복습 = last_used 오래된 순 v2 → w1
     assert [e["item"].surface for e in main[:2]] == ["단어v2", "단어w1"]
-    # 문법 = g2 (SEL3: g1 은 직전 성공 쿨다운 제외 / g2 는 직전 F → 즉시 재출제·이월 선두)
-    assert [e["item"].surface for e in main if e["study_kind"] == "grammar"] == ["-문법2"]
-    # 어휘 = SEL2(선발화단어 rank 0) 제외, priority 순 w2 → w3
-    assert [e["item"].surface for e in main if e["study_kind"] == "vocab"] == \
+    # 문법 자리 = g2 (SEL3: g1 은 직전 성공 쿨다운 제외 / g2 는 직전 F → 즉시 재출제·이월 선두)
+    assert main[2]["item"].surface == "-문법2"
+    # 신규 어휘 = SEL2(선발화단어 rank 0) 제외, priority 순 w2 → w3
+    # ⚠ 앞쪽 복습 슬롯(v2·w1)도 유형은 vocab 이라 **상태**로 갈라야 한다(두 축).
+    assert [e["item"].surface for e in main if e["state"] == "new"] == \
         ["단어w2", "단어w3"]
     # 예비 = w4~w8 (core 만 — non-core '논코어단어' 미출현)
     #        + ⭐ 신규가 마른 뒤 복습 채움(2026-08-16): 남은 practicing 은 g3 하나뿐이다
     #          (v2·w1 은 앞 복습 슬롯이 이미 썼다). 시드가 작아 30 은 못 채우고 여기서 끝난다.
     assert [e["item"].surface for e in reserve] == \
         [f"단어w{i}" for i in range(4, 9)] + ["-문법3"]
-    assert [e["study_kind"] for e in reserve] == ["vocab"] * 5 + ["review"]
+    assert [e["study_kind"] for e in reserve] == ["vocab"] * 5 + ["grammar"]
+    assert [e["state"] for e in reserve] == ["new"] * 5 + ["review"]
     assert all(e["item"].is_core for e in pb if e["item"].kind == "vocab")
 
 
@@ -513,8 +601,8 @@ def test_pick_study_items_bridge_mix_prefers_previous_level(env):
     pb2 = repo.pick_study_items(db, env["mB"].member_id, 2,
                                 review_slots=3, bridge_prev_ratio=0.7)
     main = [e for e in pb2 if e["slot"] == "main"]
-    assert [e["study_kind"] for e in main[:3]] == ["review"] * 3, \
-        [(e["study_kind"], e["item"].surface) for e in main]
+    assert [e["state"] for e in main[:3]] == ["review"] * 3, \
+        [(e["state"], e["item"].surface) for e in main]
     assert main[0]["item"].surface == "단어v2"  # 이전 레벨(L1) 우선
     assert {e["item"].surface for e in main[:3]} == {"단어v2", "단어w1", "-문법3"}
 
@@ -530,9 +618,13 @@ def test_carryover_introduced_leads_new_pool(env):
     db.commit()
 
     pa = repo.pick_study_items(db, mA.member_id, 1, review_slots=1, bridge_prev_ratio=0.3)
+    # ⛔ 2026-08-17: 순서(이월이 신규 풀 선두)는 그대로고, 바뀐 것은 **라벨**이다 —
+    #   유형은 vocab 그대로이고 상태가 'again'(프롬프트 라벨 '단어·다시')이 된다.
     main_vocab = [e["item"].surface for e in pa
-                  if e["slot"] == "main" and e["study_kind"] == "vocab"]
+                  if e["slot"] == "main" and e["item"].kind == "vocab"]
     assert main_vocab == ["단어v3"], main_vocab  # 이월 선두(priority 3 이지만 최우선)
+    assert [(e["study_kind"], e["state"]) for e in pa
+            if e["item"].surface == "단어v3"] == [("vocab", "again")]
 
     # "이월 소진 후엔 priority 순" 은 어휘 예비에서 본다 — L1 예비는 이제 청크라
     # (2026-08-16) 관측 자리를 L2 회원으로 옮겼다. 성질 자체는 그대로다.
@@ -544,8 +636,11 @@ def test_carryover_introduced_leads_new_pool(env):
     db.commit()
     pb = repo.pick_study_items(db, env["mB"].member_id, 2, review_slots=2,
                                bridge_prev_ratio=0.3)
-    vocab = [e["item"].surface for e in pb if e["item"].kind == "vocab"
-             and e["study_kind"] != "review"]
+    # ⚠ 이월분(w5)도 이제 라벨이 'review' 라 kind 로는 못 가른다(2026-08-17).
+    #   앞쪽 복습 슬롯(v2·w1)만 이름으로 제외하고 **신규 풀 순서**를 본다.
+    front = {"단어v2", "단어w1"}
+    vocab = [e["item"].surface for e in pb
+             if e["item"].kind == "vocab" and e["item"].surface not in front]
     assert vocab[0] == "단어w5"                     # 이월 선두
     assert vocab[1:] == [f"단어w{i}" for i in (2, 3, 4, 6, 7, 8)]  # 이후 priority 순
 
@@ -576,9 +671,12 @@ def test_load_call_setup_full_materials(env):
     # + P2.5 확장 {item_id, roman}(teaching_plan 카드 재료 — persona 는 미사용 키 무시)
     si = setup["study_items"]
     assert si is not None and set(si[0]) == {
-        "slot", "kind", "obj", "ex", "des", "item_id", "roman"
+        "slot", "kind", "state", "obj", "ex", "des", "item_id", "roman"
     }
-    assert si[2]["kind"] == "grammar" and si[2]["obj"] == "-문법2"
+    # ⛔ 2026-08-17: 이 자리의 문법(g2)은 introduced 이월분 — 유형은 grammar 그대로고
+    #   상태가 'again'(프롬프트 라벨 '문법·다시')이다. DTO 가 두 축을 그대로 싣는다.
+    assert si[2]["kind"] == "grammar" and si[2]["state"] == "again"
+    assert si[2]["obj"] == "-문법2"
     assert si[2]["ex"] == "문법2 예문을 봤어요." and si[2]["des"] == "문법2 설명"
     assert isinstance(si[2]["item_id"], int) and si[2]["roman"] is None  # 문법엔 roman 없음
 

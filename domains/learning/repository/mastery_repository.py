@@ -478,7 +478,8 @@ def pick_study_items(
     제외 필터: SEL1(MASTERED — 신규 풀이 미학습 한정이라 자연 충족) / SEL2 / SEL3.
 
     Returns:
-        [{"slot": "main"|"reserve", "study_kind": "review"|"grammar"|"vocab"|"chunk",
+        [{"slot": "main"|"reserve", "study_kind": "grammar"|"vocab"|"chunk",
+          "state": "new"|"again"|"review",   # ⭐ 유형과 **별개 축**(2026-08-17)
           "item": LearningItem}] — 본편(복습→[L1 청크|문법]→어휘)→예비 순서. 시드/진행
         데이터가 부족하면 짧아지거나 빈 리스트(호출부가 None 처리 — R5).
     """
@@ -490,7 +491,7 @@ def pick_study_items(
         limit=review_slots, prefer_previous=bridge_prev_ratio >= 0.5,
         language=language,
     )
-    out: list[dict] = [{"slot": "main", "study_kind": "review", "item": i} for i in reviews]
+    out: list[dict] = [{"slot": "main", "study_kind": i.kind, "item": i} for i in reviews]
 
     survival_reserve: list[LearningItem] = []
     if band == "survival":
@@ -567,8 +568,51 @@ def pick_study_items(
             limit=target - len(out), prefer_previous=False, language=language,
             exclude_ids={e["item"].item_id for e in out},
         )
-        out += [{"slot": "reserve", "study_kind": "review", "item": i} for i in filler]
+        out += [{"slot": "reserve", "study_kind": i.kind, "item": i} for i in filler]
+
+    _annotate_state(db, member_id, out)
     return out
+
+
+# 프롬프트에 실리는 **학습 상태** 축(유형 축과 별개). DB status → 이 세 값으로 접는다.
+STUDY_STATE_NEW = "new"          # 행 없음 — 진짜 처음이다
+STUDY_STATE_AGAIN = "again"      # introduced — 한 번 들었다(못 할 확률이 높다)
+STUDY_STATE_REVIEW = "review"    # practicing / 미확정 fast-track — 말해본 적 있다
+
+
+def _annotate_state(db: Session, member_id: int, picked: list[dict]) -> None:
+    """항목마다 **학습 상태**를 붙인다(2026-08-17 사장님 지시). 제자리 수정.
+
+    🧒 무엇이 문제였나: 라벨 한 칸에 **유형과 상태가 섞여** 있었다
+      (`review`=상태 / `grammar·vocab·chunk`=유형). 그래서 introduced(한 번 들은 것)를
+      놓을 자리가 없어 **'신규'로 흘렸고**, 프롬프트에서 라벨이 절차를 고르고 절차가
+      등급을 정한다:
+        신규 절차 = "들려주고 2번 따라 말하게" → 정의상 **E1(모방)**
+        복습 절차 = "먼저 물어봐라"            → 답하면 **E2(유도)**
+      마스터 조건 ③은 E2/E3 산출이 필요하고 E1 은 안 센다.
+      ⇒ 실측(member 20, ko L1): 청크 46개 중 UNSEEN 0 / INTRODUCED 23 / PRACTICING 22 /
+        MASTERED 1. 미학습이 0개인데 계속 '신규'로 나갔다(call 1053 증거: E1 7·E3 1·**E2 0**).
+      ⭐ 비버는 지시대로 했다. 잘못은 **라벨**이다.
+    ⛔ 그래서 축을 둘로 갈랐다 — study_kind 는 이제 **항상 유형**(item.kind)이고,
+      상태는 이 함수가 붙이는 state 다. 프롬프트는 "통문장·다시" 처럼 둘을 함께 읽는다.
+    ⚠ status=mastered 인데 목록에 있는 경우가 **실제로 있다** — 미확정 fast-track 이다
+      (어제 유령 수정으로 복습 풀에 넣었다). 검증이 목적이므로 반드시 물어봐야 해서
+      **복습**으로 본다.
+    ⚠ slot 은 안 건드린다. 쿼리는 1회(get_progress_map)뿐이다.
+    """
+    if not picked:
+        return
+    rows = get_progress_map(db, member_id, [e["item"].item_id for e in picked])
+    for e in picked:
+        prog = rows.get(e["item"].item_id)
+        status = getattr(prog, "status", None) if prog is not None else None
+        if prog is None:
+            e["state"] = STUDY_STATE_NEW
+        elif status == "introduced":
+            e["state"] = STUDY_STATE_AGAIN
+        else:
+            # practicing · mastered(미확정 fast-track) — 둘 다 "말해본 적 있다".
+            e["state"] = STUDY_STATE_REVIEW
 
 
 def pick_chat_targets(
