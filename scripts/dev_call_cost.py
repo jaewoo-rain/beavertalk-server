@@ -139,7 +139,7 @@ def main() -> None:
     from domains.learning.service.normalcall_service import (
         SIDE_USAGE_KEYS,
         estimate_call_cost_usd,
-        estimate_side_llm_cost_usd,
+        estimate_side_cost_usd,
     )
 
     print(f"DB: {which}")
@@ -188,7 +188,7 @@ def main() -> None:
             #   위 cost 에 이미 포함돼 있지만, 얼마가 엔진 밖에서 나갔는지 안 보이면
             #   "Live 5분 $0.19" 같은 반쪽 숫자로 다시 읽힌다(2026-08-17).
             #   ⚠ 안 잰 통화는 '-' 다. 0 으로 찍으면 "곁가지가 공짜"로 읽힌다.
-            side, _side_unknown = estimate_side_llm_cost_usd(uj)
+            side, _side_unknown = estimate_side_cost_usd(uj)
             has_side = any(k in uj for k in SIDE_USAGE_KEYS)
             side_s = f"{side:.4f}" if has_side else "-"
             engine = (c.usage_engine or "live?").split(":")[0]

@@ -378,7 +378,7 @@ class CascadeUsage:
                 "total": self.llm.total + self.llm.est_in + self.llm.est_out,
                 "vendors": {"stt": stt, "llm": llm, "tts": tts},
                 # 사이드카 몫은 vendors 밖이다 — 엔진(3다리)이 아니라 **엔진 무관** 곁가지고,
-                # 원가도 engine 분기 위에서 더해진다(estimate_side_llm_cost_usd).
+                # 원가도 engine 분기 위에서 더해진다(estimate_side_cost_usd).
                 **({"sidecars": sidecars} if sidecars else {}),
                 "dur_s": round(duration_s, 1) if duration_s is not None else None,
                 "turns": turns,

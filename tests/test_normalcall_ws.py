@@ -1265,6 +1265,42 @@ async def test_status_done_before_tts_completes(session_factory, seeded, monkeyp
 
 
 @pytest.mark.asyncio
+async def test_review_sentence_tts_is_recorded_in_usage(session_factory, seeded, monkeypatch):
+    """⭐ 통화후 문장 TTS 가 **원가 계기판에 실린다**(2026-08-17).
+
+    실측 call 1046: 복습 문장 8개가 합성됐는데 원가는 0원이었다 — 계기판이 "다 센다"고
+    거짓말하던 자리다. 합성이 실제로 성공한 만큼만 문자수가 쌓이고, 그 값이
+    estimate_call_cost_usd 에 반영되는지까지 한 번에 본다.
+    ⚠ 단위는 **문자**다(Chirp3-HD = 문자 과금). 토큰으로 재려 하면 안 된다.
+    """
+    from core import tts as tts_mod
+
+    call_id = _seed_call_with_dialog(session_factory, seeded)
+
+    async def _ok_tts(*_a, **_k):
+        return b"\x00" * 100, "audio/mpeg"
+
+    monkeypatch.setattr(svc.tts, "synthesize", _ok_tts)
+    await svc.analyze_call(call_id, object(), app_settings, session_factory, locale="en")
+
+    db = session_factory()
+    try:
+        call = db.get(Call, call_id)
+        entry = (call.usage_json or {}).get("tts")
+        assert entry, "문장 TTS 몫이 usage_json 에 안 남았다(다시 0원으로 잡힌다)"
+        assert entry["vendor"] == tts_mod.CHIRP3_ENGINE
+        assert entry["calls"] == 1 and entry["chars"] == len("안녕하세요")
+        # ⛔ LLM 키와 섞이지 않는다(단위가 다르다).
+        assert "tts" not in svc.SIDE_LLM_KEYS
+        cost, unknown = svc.estimate_call_cost_usd(
+            call.usage_engine, usage_json=call.usage_json
+        )
+        assert cost > 0 and unknown == []
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
 async def test_post_done_mastery_failure_keeps_done(session_factory, seeded,
                                                     monkeypatch, caplog):
     """P2.6 (b): done 이후 체크판 단계 예외 → status=done 유지 + 경고 로그(무손상)."""
@@ -3218,6 +3254,10 @@ async def test_call_without_usage_leaves_columns_null(session_factory, seeded):
     db = session_factory()
     try:
         call = db.query(Call).order_by(Call.call_id.desc()).first()
+        # ⚠ 2026-08-17: 곁가지 몫(분석·문장 TTS)이 usage_json 에 UPDATE 로 얹히게 됐다.
+        #   그래도 **돈이 안 나간 통화는 여전히 NULL** 이어야 한다 — 이 스텁 통화는 분석
+        #   페이크가 토큰을 안 주고 TTS 도 전부 실패하므로 쓸 것이 없다. 실패만으로 행을
+        #   만들면 "계측 안 됨"과 "잰 결과 0원"의 구별이 깨진다.
         assert call.usage_msgs is None and call.usage_json is None
         assert call.status in ("analyzing", "done")
     finally:

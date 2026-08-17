@@ -1,4 +1,4 @@
-"""곁가지 LLM 원가 계기판 — 사이드카·통화후 분석 토큰 수집과 원가 반영 (과금 0).
+"""곁가지 원가 계기판 — 사이드카·통화후 분석(LLM)·복습 문장 TTS 의 수집과 원가 반영 (과금 0).
 
 여기서 못박는 것:
   ① `generate_structured(usage=...)` 를 **안 넘기면 종전과 동일**하고, 넘기면 토큰이 쌓인다
@@ -8,6 +8,8 @@
   ④ 사이드카가 0회면 usage_json 에 키 자체가 안 생긴다(0 과 "안 돌았다"를 구별)
   ⑤ ⛔ R5 — 수집이 망가져도(응답 이형·usage 없음) 호출은 그대로 결과를 돌려준다
   ⑥ 통화후 몫은 **이미 저장된 usage 행에 UPDATE** 로 얹힌다(시점이 달라 유실되던 자리)
+  ⑦ ⛔ 복습 문장 TTS 는 **단위가 다르다**(문자 과금) — LLM 키와 섞지 않고, 토큰 과금
+     엔진이면 audio_s 없이는 **미상으로 드러낸다**(조용한 0 금지)
 
 ⛔ 실 API 를 부르지 않는다 — 페이크 응답으로 계약만 고정한다.
 """
@@ -90,7 +92,7 @@ def test_a_dead_call_is_marked_but_costs_nothing():
     assert u.as_dict() == {
         "vendor": "", "calls": 0, "in_text": 0, "out_text": 0, "thoughts": 0, "failures": 1,
     }
-    assert svc.estimate_side_llm_cost_usd({"sidecars": u.as_dict()}) == (0.0, [])
+    assert svc.estimate_side_cost_usd({"sidecars": u.as_dict()}) == (0.0, [])
 
 
 def test_collection_never_breaks_the_call(caplog):
@@ -106,16 +108,16 @@ def test_collection_never_breaks_the_call(caplog):
 # --------------------------------------------------------------------------- #
 def test_output_tokens_actually_move_the_cost():
     """⭐ 출력 단가가 입력의 8배($2.50 vs $0.30) — in 만 세면 크게 틀린다."""
-    in_only, _ = svc.estimate_side_llm_cost_usd(
+    in_only, _ = svc.estimate_side_cost_usd(
         {"analysis": {"vendor": "gemini-2.5-flash", "in_text": 1_000_000, "out_text": 0}}
     )
-    out_only, _ = svc.estimate_side_llm_cost_usd(
+    out_only, _ = svc.estimate_side_cost_usd(
         {"analysis": {"vendor": "gemini-2.5-flash", "in_text": 0, "out_text": 1_000_000}}
     )
     assert in_only == pytest.approx(0.30)
     assert out_only == pytest.approx(2.50)
     # 사고 토큰도 출력 단가다(응답 본문에 안 들어오지만 과금된다).
-    with_thoughts, _ = svc.estimate_side_llm_cost_usd(
+    with_thoughts, _ = svc.estimate_side_cost_usd(
         {"analysis": {"vendor": "gemini-2.5-flash", "out_text": 0, "thoughts": 1_000_000}}
     )
     assert with_thoughts == pytest.approx(2.50)
@@ -160,9 +162,72 @@ def test_old_calls_without_the_new_keys_cost_exactly_what_they_did():
         assert without[1] == with_empty[1]
 
 
+# --------------------------------------------------------------------------- #
+# ⑦ 통화후 문장 TTS — 단위가 다르다(문자 vs 토큰)
+# --------------------------------------------------------------------------- #
+def test_review_sentence_tts_actually_costs_money():
+    """⭐ 복습 문장 TTS 가 원가에 **실제로 반영**된다(실측 call 1046: 8문장이 0원이었다).
+
+    이 경로는 Cloud TTS Chirp3-HD(MP3)라 **문자 과금**이다 — $30/1M 자.
+    """
+    from core import tts as tts_mod
+
+    cost, unknown = svc.estimate_side_cost_usd(
+        {"tts": {"vendor": tts_mod.CHIRP3_ENGINE, "calls": 8, "chars": 1_000_000}}
+    )
+    assert cost == pytest.approx(30.0) and unknown == []
+    assert svc.estimate_side_cost_usd(
+        {"tts": {"vendor": tts_mod.CHIRP3_ENGINE, "calls": 8, "chars": 400}}
+    )[0] > 0
+
+
+def test_a_token_billed_tts_engine_without_audio_seconds_is_unknown_not_zero():
+    """⛔ 토큰 과금 엔진(Gemini-TTS)에 chars 를 쓰면 안 된다 — 못 재면 **드러낸다**.
+
+    말하는 속도에 따라 문자→오디오초가 배로 틀리므로, chars 로 환산하면 그럴듯한
+    거짓 숫자가 나온다. 조용한 0 도 금지다(캐스케이드 규율과 같은 자리).
+    """
+    vendor = next(iter(svc.TTS_TOKEN_PRICE_USD_PER_1M))
+    cost, unknown = svc.estimate_side_cost_usd(
+        {"tts": {"vendor": vendor, "calls": 3, "chars": 5000}}
+    )
+    assert cost == 0.0
+    assert unknown and unknown[0].startswith(f"tts:{vendor}"), unknown
+    # audio_s 가 있으면 정상 계산된다(같은 함수, 같은 규율).
+    priced, none_unknown = svc.estimate_side_cost_usd(
+        {"tts": {"vendor": vendor, "audio_s": 60}}
+    )
+    assert priced > 0 and none_unknown == []
+
+
+def test_tts_rides_on_top_of_the_engine_cost_too():
+    """곁가지 TTS 도 engine 분기 **위**에서 더해진다(Live·캐스케이드 공통)."""
+    from core import tts as tts_mod
+
+    side = {"tts": {"vendor": tts_mod.CHIRP3_ENGINE, "calls": 1, "chars": 1_000_000}}
+    base, _ = svc.estimate_call_cost_usd("live:gemini-native-audio", in_text=1000)
+    with_tts, unknown = svc.estimate_call_cost_usd(
+        "live:gemini-native-audio", in_text=1000, usage_json=side
+    )
+    assert with_tts == pytest.approx(base + 30.0) and unknown == []
+
+
+def test_the_cascade_tts_leg_still_prices_the_same_way():
+    """⛔ 산식을 하나로 합쳤다 — 캐스케이드 TTS 다리의 값이 안 변해야 한다(회귀)."""
+    from core import tts as tts_mod
+
+    leg = {"vendors": {"tts": {"vendor": tts_mod.CHIRP3_ENGINE, "chars": 1_000_000}}}
+    cost, unknown = svc.estimate_cascade_cost_usd(leg["vendors"])
+    assert cost == pytest.approx(30.0) and unknown == []
+    # 토큰 과금 엔진의 "audio_s 없음" 문구도 그대로 남아 있어야 한다.
+    vendor = next(iter(svc.TTS_TOKEN_PRICE_USD_PER_1M))
+    _, tok_unknown = svc.estimate_cascade_cost_usd({"tts": {"vendor": vendor, "chars": 10}})
+    assert tok_unknown and "audio_s 없음" in tok_unknown[0]
+
+
 def test_an_unknown_vendor_is_reported_not_swallowed():
     """모르는 벤더를 조용히 0원으로 먹으면 '곁가지가 공짜'라는 거짓말이 된다."""
-    cost, unknown = svc.estimate_side_llm_cost_usd(
+    cost, unknown = svc.estimate_side_cost_usd(
         {"sidecars": {"vendor": "gpt-9", "in_text": 100, "out_text": 100}}
     )
     assert cost == 0.0 and unknown == ["sidecars:gpt-9"]

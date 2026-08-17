@@ -837,27 +837,78 @@ def _llm_tokens_cost_usd(entry: dict | None) -> tuple[float, str | None]:
     ) / 1_000_000, None
 
 
-# usage_json 안의 **엔진 무관** LLM 사용량 키. Live 통화든 캐스케이드 통화든 이 콜들은
-# 똑같이 돈다(통화중 사이드카 / 통화후 분석) — 그래서 engine 분기 **안이 아니라 위**에서 더한다.
-SIDE_USAGE_KEYS = ("sidecars", "analysis")
+def _tts_cost_usd(entry: dict | None) -> tuple[float, list[str]]:
+    """TTS 사용량 1건의 원가. 반환 (원가, 미상 목록).
+
+    ⛔ TTS 원가식도 여기 하나뿐이다 — 캐스케이드의 TTS 다리도, 통화후 문장 TTS 도 이 함수를
+      탄다. **과금 단위가 엔진마다 다르다**는 판정이 이 함수의 핵심이고, 그걸 두 벌 두면
+      한쪽이 반드시 틀린다.
+    ⛔ 토큰 과금 엔진(Gemini-TTS)에 chars 를 쓰지 마라 — 문자→오디오초 환산은 말하는
+      속도에 따라 배로 틀린다(그럴듯한 거짓 숫자). audio_s 가 없으면 **미상으로 드러낸다.**
+    ⚠ 반대로 문자 과금 엔진(Chirp3-HD)은 chars 가 **정답**이다 — 거기에 audio_s 를 요구하면
+      MP3 를 디코딩해야 알 수 있는 값을 이유 없이 요구하는 셈이 된다.
+    """
+    tts = entry or {}
+    total = 0.0
+    unknown: list[str] = []
+    tts_vendor = tts.get("vendor")
+    tok_price = TTS_TOKEN_PRICE_USD_PER_1M.get(tts_vendor)
+    if tok_price is not None:
+        # ── 토큰 과금 엔진(Gemini-TTS) ──
+        secs = tts.get("audio_s")
+        if not secs:
+            # 잴 수 없으면 잰 척하지 않는다 — 무엇이 없어서 못 쟀는지까지 남긴다.
+            unknown.append(f"tts:{tts_vendor}(audio_s 없음 — 토큰 과금이라 chars 로 못 잰다)")
+        else:
+            out_tok = float(secs) * GEMINI_TTS_TOKENS_PER_AUDIO_S
+            # 입력 텍스트 토큰은 선택 — 있으면 더한다. 없어도 무시할 만하다
+            # (오디오 출력 대비 1% 미만: 6,000자 ≈ 1,500tok × $0.5/1M ≈ $0.0008).
+            total += (
+                out_tok * tok_price["out_audio"]
+                + int(tts.get("in_text") or 0) * tok_price["in_text"]
+            ) / 1_000_000
+    elif tts.get("chars"):
+        # ── 문자 과금 엔진(Chirp3-HD 등) ──
+        price = TTS_PRICE_USD_PER_CHAR.get(tts_vendor)
+        if price is None:
+            unknown.append(f"tts:{tts_vendor}")
+        else:
+            total += int(tts["chars"]) * price
+    elif tts.get("audio_s"):
+        # 초는 왔는데 벤더를 모른다 — 조용히 넘기지 않는다.
+        unknown.append(f"tts:{tts_vendor}")
+    return total, unknown
 
 
-def estimate_side_llm_cost_usd(usage_json: dict | None) -> tuple[float, list[str]]:
-    """Live·캐스케이드 **양쪽 공통**인 LLM 곁가지 원가(통화중 사이드카 + 통화후 분석).
+# usage_json 안의 **엔진 무관** 곁가지 사용량 키. Live 통화든 캐스케이드 통화든 이것들은
+# 똑같이 돈다 — 그래서 engine 분기 **안이 아니라 위**에서 더한다.
+# ⛔ 단위가 다르므로 **키를 섞지 마라**: LLM 키는 토큰, TTS 키는 문자(또는 오디오 초)다.
+SIDE_LLM_KEYS = ("sidecars", "analysis")
+SIDE_TTS_KEYS = ("tts",)
+SIDE_USAGE_KEYS = SIDE_LLM_KEYS + SIDE_TTS_KEYS   # "이 통화가 곁가지를 쟀나" 판정용
+
+
+def estimate_side_cost_usd(usage_json: dict | None) -> tuple[float, list[str]]:
+    """Live·캐스케이드 **양쪽 공통**인 곁가지 원가(사이드카 + 통화후 분석 + 통화후 문장 TTS).
 
     🧒 왜 따로 있나: `call.usage_*` 는 Live 세션(또는 캐스케이드 3다리)만 담는다. 그런데
-      통화 1건에는 동적 힌트·재접지 브리프·레벨테스트 턴 판정(통화중)과 문장 추출·검출·
-      레벨 판정(통화후)이 더 돈다. 이 몫이 빠진 숫자가 "5분 $0.19" 로 보고됐다.
+      통화 1건에는 동적 힌트·재접지 브리프·레벨테스트 턴 판정(통화중), 문장 추출·검출·
+      레벨 판정(통화후), 그리고 **복습 문장 TTS**(통화후)가 더 돈다. 이 몫이 빠진 숫자가
+      "5분 $0.19" 로 보고됐다.
     ⚠ 과거 통화에는 이 키들이 아예 없다 — 그러면 0 이고 원가는 **예전 값 그대로** 나온다
       (하위호환). ⛔ 그때의 0 은 "공짜"가 아니라 **안 잰 통화**라는 뜻이다.
     """
     total = 0.0
     unknown: list[str] = []
-    for key in SIDE_USAGE_KEYS:
+    for key in SIDE_LLM_KEYS:
         cost, vendor_unknown = _llm_tokens_cost_usd((usage_json or {}).get(key))
         total += cost
         if vendor_unknown:
             unknown.append(f"{key}:{vendor_unknown}")
+    for key in SIDE_TTS_KEYS:
+        cost, tts_unknown = _tts_cost_usd((usage_json or {}).get(key))
+        total += cost
+        unknown += tts_unknown
     return total, unknown
 
 
@@ -894,35 +945,9 @@ def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
     if llm_unknown:
         unknown.append(f"llm:{llm_unknown}")
 
-    tts = v.get("tts") or {}
-    tts_vendor = tts.get("vendor")
-    tok_price = TTS_TOKEN_PRICE_USD_PER_1M.get(tts_vendor)
-    if tok_price is not None:
-        # ── 토큰 과금 엔진(Gemini-TTS) ──
-        # ⛔ chars 가 같이 와도 **쓰지 않는다.** 문자 수는 이 엔진의 과금 단위가 아니고,
-        #   문자→오디오초 환산은 말하는 속도에 따라 배로 틀린다(그럴듯한 거짓 숫자가 된다).
-        secs = tts.get("audio_s")
-        if not secs:
-            # 잴 수 없으면 잰 척하지 않는다 — 무엇이 없어서 못 쟀는지까지 남긴다.
-            unknown.append(f"tts:{tts_vendor}(audio_s 없음 — 토큰 과금이라 chars 로 못 잰다)")
-        else:
-            out_tok = float(secs) * GEMINI_TTS_TOKENS_PER_AUDIO_S
-            # 입력 텍스트 토큰은 선택 — 있으면 더한다. 없어도 무시할 만하다
-            # (오디오 출력 대비 1% 미만: 6,000자 ≈ 1,500tok × $0.5/1M ≈ $0.0008).
-            total += (
-                out_tok * tok_price["out_audio"]
-                + int(tts.get("in_text") or 0) * tok_price["in_text"]
-            ) / 1_000_000
-    elif tts.get("chars"):
-        # ── 문자 과금 엔진(Chirp3-HD 등) ──
-        price = TTS_PRICE_USD_PER_CHAR.get(tts_vendor)
-        if price is None:
-            unknown.append(f"tts:{tts_vendor}")
-        else:
-            total += int(tts["chars"]) * price
-    elif tts.get("audio_s"):
-        # 초는 왔는데 벤더를 모른다 — 조용히 넘기지 않는다.
-        unknown.append(f"tts:{tts_vendor}")
+    tts_cost, tts_unknown = _tts_cost_usd(v.get("tts"))
+    total += tts_cost
+    unknown += tts_unknown
 
     return total, unknown
 
@@ -952,7 +977,7 @@ def estimate_call_cost_usd(
         base, unknown = estimate_usage_cost_usd(
             in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text
         ), []
-    side, side_unknown = estimate_side_llm_cost_usd(usage_json)
+    side, side_unknown = estimate_side_cost_usd(usage_json)
     return base + side, unknown + side_unknown
 
 
@@ -1068,6 +1093,36 @@ async def _save_analysis_usage(session_factory, call_id: int, usage) -> None:
         )
     except Exception as exc:  # noqa: BLE001 - R5
         logger.warning("normalcall usage: 분석 몫 기록 실패(무시) call_id=%s: %s", call_id, exc)
+
+
+async def _save_tts_usage(
+    session_factory, call_id: int, chars: int, calls: int, failed: int
+) -> None:
+    """통화후 **문장 TTS** 사용량을 usage_json.tts 에 얹는다(R5 — 어떤 실패도 삼킨다).
+
+    ⛔ LLM 키(sidecars/analysis)와 **섞지 않는다** — 단위가 다르다(문자 vs 토큰).
+      원가 계산도 _tts_cost_usd 가 따로 맡는다(엔진별 과금 단위 판정이 거기 있다).
+    ⚠ **성공한 합성이 하나도 없으면 아무것도 안 쓴다**(실패만 있어도 마찬가지). 실패는 과금이
+      0 이라 원가 정보가 없는데, 그걸 쓰면 usage_json 이 NULL 이 아니게 되어 "계측 안 됨"과
+      "잰 결과 0원"의 구별이 깨진다(그 구별이 이 프로젝트의 규약이다). 실패 횟수는 성공이
+      하나라도 있을 때 calls_failed 로 함께 남고, 아니면 경고 로그에만 남는다.
+    ⚠ vendor 는 실제로 돈 엔진 이름을 그대로 쓴다(core.tts.CHIRP3_ENGINE). 하드코딩된
+      문자열을 여기 또 적으면 엔진이 바뀔 때 단가표와 조용히 어긋난다.
+    """
+    try:
+        if not (chars or calls):
+            return
+        entry = {
+            "vendor": tts.CHIRP3_ENGINE,
+            "calls": calls,
+            "chars": chars,
+            **({"calls_failed": failed} if failed else {}),
+        }
+        await run_db(
+            session_factory, lambda db: add_call_usage_extra(db, call_id, "tts", entry)
+        )
+    except Exception as exc:  # noqa: BLE001 - R5
+        logger.warning("normalcall usage: 문장 TTS 몫 기록 실패(무시) call_id=%s: %s", call_id, exc)
 
 
 def set_status(db: Session, call_id: int, status: str) -> None:
@@ -1701,6 +1756,13 @@ async def analyze_call(
         # 통화 캐릭터 목소리 — 두 축을 함께.
         # 문장 단위 graceful — 한 문장 실패가 나머지 문장·체크판을 막지 않는다.
         call_voice = await run_db(session_factory, lambda db: _voice_for_call(db, call_id))
+        # ⭐ 원가 계기판(2026-08-17) — 이 루프가 통화당 문장 수만큼 **과금되는 합성**을 돈다.
+        #   여태 한 글자도 안 세고 있었다(실측 call 1046: 문장 8개 합성 → 원가 0원으로 잡힘).
+        #   ⛔ 단위는 **문자**다: 이 경로는 Cloud TTS Chirp3-HD(MP3)이고 그 엔진은 문자 과금이다.
+        #     (토큰 과금 엔진 Gemini-TTS 는 audio_s 가 있어야 하고 chars 로는 못 잰다 —
+        #      판정은 _tts_cost_usd 한 곳이 한다. 여기서 새 산식을 만들지 않는다.)
+        #   ⚠ 실패한 합성은 chars 에 안 넣는다(과금 안 됨). 대신 몇 번 실패했는지는 남긴다.
+        tts_chars = tts_calls = tts_failed = 0
         for sentence_id, korean in pending:
             try:
                 # 언어(_lang_code: 라벨/코드→ISO) + 캐릭터 음색(call_voice) 두 축.
@@ -1708,7 +1770,10 @@ async def analyze_call(
                     korean, _lang_code(target_language), voice=call_voice
                 )  # None 가능(비활성/실패)
                 if not synthesized:
+                    tts_failed += 1
                     continue
+                tts_calls += 1
+                tts_chars += len((korean or "").strip())
                 audio, content_type = synthesized
                 ext = "mp3" if content_type == "audio/mpeg" else "wav"
                 path = f"tts/{call_id}/{sentence_id}.{ext}"
@@ -1721,10 +1786,12 @@ async def analyze_call(
                         session_factory, lambda db, sid=sentence_id, u=url: _set_sentence_tts(db, sid, u)
                     )
             except Exception as exc:  # noqa: BLE001 - 문장 단위 흡수(온디맨드 폴백 존재)
+                tts_failed += 1
                 logger.warning(
                     "normalcall TTS: 실패(무시 — 온디맨드 폴백) sentence=%s call_id=%s (%s)",
                     sentence_id, call_id, exc,
                 )
+        await _save_tts_usage(session_factory, call_id, tts_chars, tts_calls, tts_failed)
 
         # 체크판 파이프라인(검증→증거→전이→레벨업) — 사용자 노출과 무관(D2)한 후행
         # 단계. 단일 commit 원자성은 _apply_call_mastery 내부에서 그대로 유지.
