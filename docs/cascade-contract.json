@@ -801,6 +801,18 @@
       ]
     },
     {
+      "wire_type": "ptt_press",
+      "model": "ClientPttPress",
+      "doc": "⭐ 버튼을 **눌렀다** — 사용자 턴을 연다(PTT 전용).",
+      "fields": []
+    },
+    {
+      "wire_type": "ptt_release",
+      "model": "ClientPttRelease",
+      "doc": "⭐ 버튼을 **뗐다** — 사용자 턴을 닫는다. 이 순간이 곧 `commit` 이다(PTT 전용).",
+      "fields": []
+    },
+    {
       "wire_type": "route_change",
       "model": "ClientRouteChange",
       "doc": "통화 **도중** 출력 장치가 바뀌었다(2026-08-12 프론트 구현 완료).",
@@ -853,6 +865,13 @@
           "required": false,
           "default": null,
           "alias": null
+        },
+        {
+          "name": "turnControl",
+          "type": "str",
+          "required": false,
+          "default": "vad",
+          "alias": "turnControl"
         },
         {
           "name": "ttsEngine",

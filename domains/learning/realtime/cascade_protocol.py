@@ -64,6 +64,8 @@ __all__ = [
     "ClientCascadeStop",
     "ClientCascadeTiming",
     "ClientPing",
+    "ClientPttPress",
+    "ClientPttRelease",
     "ClientPlaybackProgress",
     "ClientRouteChange",
     "ClientTestBeaver",
@@ -123,6 +125,16 @@ class ClientCascadeStart(BaseModel):
     channels: int = Field(default=1)
     language: str | None = None  # 미전송이면 서버 설정(STT_V2_LANGUAGE→STT_LANGUAGE)
     aec: AecHint | None = None
+    # ⭐⭐ **턴 경계를 누가 정하나**(2026-08-18 사장님 결정 — PTT).
+    #     "vad"(기본) = 지금까지처럼 벤더 VAD + 서버 침묵 타이머가 정한다
+    #     "ptt"       = **버튼이 정한다.** 벤더 VAD 를 끄고(turn_detection:null) 릴리즈마다
+    #                   `input_audio_buffer.commit` 을 보내 우리가 경계를 찍는다
+    #   ⛔ **`Literal` 로 화이트리스트를 걸지 않는다**(플랜 §9). 걸면 모르는 값 하나로
+    #     **start 메시지 전체가 거부**되어 통화가 아예 안 열린다. 모르는 값은 보수적인 쪽
+    #     (vad)으로 해석한다 — 구버전·오타 클라가 조용히 예전 동작으로 떨어진다.
+    #   ⛔ 낱말이 `mode` 가 아닌 이유: 와이어에서 `mode` 는 이미 `AecHint.mode` 가 점유했다.
+    #   ⚠ 미전송이면 "vad" ⇒ **지금 클라의 출력 바이트는 그대로다**(클라 변경 0).
+    turn_control: str = Field(default="vad", alias="turnControl")
     # ── TTS 선택 (⛔ **dev 데모 한정 편의**) ──
     # 사장님이 화면에서 엔진을 골라 A/B 하시려고 연 통로다. env 를 고치고 새 리비전을 띄우는
     # 왕복 없이 통화마다 바꿔 들으실 수 있다.
@@ -240,6 +252,27 @@ class ClientPlaybackProgress(BaseModel):
     audio_route: str = ""   # 'speaker' | 'headset' | 'receiver' | 'bt_a2dp' | … (자유)
 
 
+class ClientPttPress(BaseModel):
+    """⭐ 버튼을 **눌렀다** — 사용자 턴을 연다(PTT 전용).
+
+    ⛔ 이 프레임이 **반드시 있어야 한다.** `turn_detection: null` 에서는 벤더가
+      `speech_started` 도 부분 전사도 안 보내므로, 지금 턴을 여는 트리거 두 개
+      (`_on_speech_begin` · `_on_transcript`)가 **둘 다 안 온다** — 누름 신호가 없으면
+      턴이 한 번도 안 열리고 통화가 조용히 멈춘다.
+    ⭐ 겸하는 역할이 하나 더 있다: **즉시 barge-in**. 지금은 비버를 끊으려면 에너지·전사
+      확인 사다리를 지나 최대 3.5초가 걸리는데(`CASCADE_BARGEIN_PENDING_MS`), 버튼은
+      추측이 아니라 **선언**이라 그 자리에서 끊는다.
+    """
+
+    type: Literal["ptt_press"] = "ptt_press"
+
+
+class ClientPttRelease(BaseModel):
+    """⭐ 버튼을 **뗐다** — 사용자 턴을 닫는다. 이 순간이 곧 `commit` 이다(PTT 전용)."""
+
+    type: Literal["ptt_release"] = "ptt_release"
+
+
 class ClientTestSay(BaseModel):
     """[dev 훅] 페이크 STT 에 최종 전사를 주입(크레덴셜 0 으로 상태기계 검증)."""
 
@@ -321,6 +354,8 @@ CascadeClientMessage = Annotated[
         ClientPlaybackProgress,
         ClientRouteChange,
         ClientCascadeTiming,
+        ClientPttPress,
+        ClientPttRelease,
         ClientTestSay,
         ClientTestEvent,
         ClientTestBeaver,

@@ -124,8 +124,14 @@ class OpenAiRealtimeSttStream:
     인터페이스는 `RollingSttV2Stream` 과 같다: start / push_audio / events / close / usage.
     """
 
-    def __init__(self, sample_rate: int, language_codes: list[str] | None = None) -> None:
+    def __init__(self, sample_rate: int, language_codes: list[str] | None = None,
+                 *, manual_commit: bool = False) -> None:
         self._sample_rate = sample_rate
+        # ⭐⭐ **PTT 세션인가**(2026-08-18 사장님 결정). True 면 `turn_detection: null` 을 보내고
+        #   턴 경계를 `input_audio_buffer.commit` 으로 **우리가** 정한다.
+        #   ⛔ 기본 False — 마이크 상시개방 캐스케이드는 벤더 VAD 가 있어야 돈다. 상시로 켜지 않는다.
+        #   ⚠ False 일 때 이 클래스가 벤더에 보내는 바이트는 **예전과 완전히 같다**(회귀가 지킨다).
+        self._manual_commit = bool(manual_commit)
         # ⚠ OpenAI 는 `language` 를 **하나만** 받는다 — 다국어는 "안 넣기"가 유일한 방법이다
         #   (선정기준 §4-2). 그래서 코드가 여러 개면 아예 지정하지 않는다.
         # ⛔ **반드시 ISO-639-1 로 바꿔서** 넣는다. 호출부가 주는 목록은 Google 용 BCP-47
@@ -138,6 +144,18 @@ class OpenAiRealtimeSttStream:
         self._ws: Any = None
         self._closed = False
         self._sent_ms = 0.0
+        # ⭐⭐ **commit → transcription.completed 계측**(2026-08-18 사장님 지시). 지금까지 이
+        #   구간은 800ms 침묵 타이머 **밑에 숨어** 같이 흘렀다. 침묵을 없애면 맨몸으로 드러나고,
+        #   이건 대기가 아니라 **벤더가 글자를 만드는 시간**이라 우리가 못 없앤다.
+        #   ⛔ 값 하나로 단정하지 마라 — **오디오 길이와의 상관**이 증거다:
+        #     가설A 흘리며 전사 → 길이와 무관하게 짧다   ⇒ 목표 R 1.8초 달성
+        #     가설B commit 뒤 일괄 → 길이에 비례한다     ⇒ 다음 표적은 LLM 이 아니라 STT 벤더 교체
+        #   ⚠ 여기서 잰다(세션이 아니라) — 우리 큐 홉이 안 섞인 **순수 벤더 왕복**이다.
+        self._commit_at = 0.0            # 마지막 commit 을 보낸 시각(0 = 대기 중 아님)
+        self._commit_audio_ms = 0.0      # 그 commit 시점의 누적 오디오 ms
+        self._prev_commit_audio_ms = 0.0 # 직전 commit 시점 — 둘의 차가 **이 턴 오디오 길이**
+        self.last_commit_lag_ms = -1     # 세션이 턴 로그에 실을 수 있게 남긴다(-1 = 못 쟀다)
+        self.last_commit_audio_ms = -1
         self._partial: dict[str, str] = {}   # item_id → 지금까지 받은 부분 전사
         self._q: asyncio.Queue[SttV2Event | None] = asyncio.Queue()
         self._reader: asyncio.Task | None = None
@@ -164,10 +182,19 @@ class OpenAiRealtimeSttStream:
         #   그 값이 우리 턴 침묵(800ms) **앞에 통째로 얹혀** 있었다(실측 근거는 config 주석).
         #   ⛔ 안 보내면 그 값이 얼마인지 **로그로도 알 수 없다** — 조용한 기본값의 전형이다.
         #   ⚠ 0 이면 예전처럼 안 보낸다(벤더 기본값으로 되돌아간다).
-        turn_detection: dict[str, Any] = {"type": "server_vad"}
-        silence_ms = max(0, int(settings.OPENAI_STT_SILENCE_MS or 0))
-        if silence_ms:
-            turn_detection["silence_duration_ms"] = silence_ms
+        # ⭐⭐ **PTT 는 벤더 VAD 를 통째로 끈다**(2026-08-18). `null` 이면 벤더는 **commit 을
+        #   받을 때만** 전사한다 ⇒ 침묵창 300ms 가 소멸하고 턴 경계가 버튼이 된다.
+        #   ⛔ 스파이크(20260816_1749 §2)에서 이 모델이 `null` + 수동 commit 을 **에러 0건**으로
+        #     받는 것을 실제 응답으로 확인했다. 문서 인용이 아니다.
+        turn_detection: dict[str, Any] | None
+        silence_ms = 0
+        if self._manual_commit:
+            turn_detection = None
+        else:
+            turn_detection = {"type": "server_vad"}
+            silence_ms = max(0, int(settings.OPENAI_STT_SILENCE_MS or 0))
+            if silence_ms:
+                turn_detection["silence_duration_ms"] = silence_ms
         await self._ws.send(json.dumps({
             "type": "session.update",
             "session": {
@@ -182,7 +209,8 @@ class OpenAiRealtimeSttStream:
         self._reader = asyncio.create_task(self._read_loop())
         logger.info("[stt-openai] 연결 — 모델=%s 언어=%s 침묵창=%s (%dHz 로 올려 보낸다)",
                     transcription["model"], self._language or "자동감지",
-                    "%dms" % silence_ms if silence_ms else "벤더기본(미지정)", _SEND_RATE)
+                    "수동커밋(turn_detection=null)" if self._manual_commit
+                    else ("%dms" % silence_ms if silence_ms else "벤더기본(미지정)"), _SEND_RATE)
 
     async def close(self) -> None:
         # ⭐ **닫기 전에 무음을 조금 흘린다** — 안 그러면 마지막 발화가 통째로 사라진다.
@@ -239,6 +267,45 @@ class OpenAiRealtimeSttStream:
             self._q.put_nowait(SttV2Event(kind=STREAM_ERROR,
                                           detail=f"push_audio 실패: {str(exc)[:160]}"))
 
+    async def commit(self) -> bool:
+        """⭐ 버퍼를 **지금 확정한다** — PTT 의 턴 경계(`turn_detection: null` 전용).
+
+        ⛔ **VAD 세션에서는 아무것도 안 한다.** 거기서 보내면 벤더가 item 을 하나 더 만들어
+          기존 경로의 전사 개수가 바뀐다 — "VAD 경로는 바이트 단위로 불변"을 깨는 자리다.
+        ⚠ 반환값은 "보냈나"다. 세션은 이 값으로 **전사를 기다릴지**를 정한다 — 안 보냈는데
+          기다리면 상한(1.5초)을 통째로 헛대기한다.
+        ⚠ R5: 전송 실패가 통화를 죽이지 않는다. 못 보냈으면 False 로 알리고 세션이 턴을 닫는다.
+        """
+        if not self._manual_commit or self._closed or self._ws is None:
+            return False
+        try:
+            await self._ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[stt-openai] commit 전송 실패 — 이 턴은 전사를 못 받는다: %s",
+                           str(exc)[:120])
+            return False
+        self._commit_at = time.monotonic()
+        self._prev_commit_audio_ms, self._commit_audio_ms = self._commit_audio_ms, self._sent_ms
+        return True
+
+    def _note_commit_done(self, chars: int) -> None:
+        """commit 한 건이 전사로 돌아왔다 — **왕복 ms 와 그 턴 오디오 길이를 같은 줄에** 남긴다.
+
+        ⭐ 두 값이 한 줄에 있어야 가설 A/B 를 **로그만 보고** 가른다. 따로 찍으면 사람이 손으로
+          짝을 맞춰야 하고, 그러면 아무도 안 본다(이 프로젝트가 여러 번 밟은 계열이다).
+        """
+        if not self._commit_at:
+            return
+        lag_ms = int(max(0.0, time.monotonic() - self._commit_at) * 1000)
+        audio_ms = int(max(0.0, self._commit_audio_ms - self._prev_commit_audio_ms))
+        self._commit_at = 0.0
+        self.last_commit_lag_ms, self.last_commit_audio_ms = lag_ms, audio_ms
+        logger.info(
+            "[stt-openai] commit→전사 확정: %dms (이 턴 오디오 %dms, 글자 %d) — "
+            "길이와 무관하면 가설A(흘리며 전사), 비례하면 가설B(commit 뒤 일괄)",
+            lag_ms, audio_ms, chars,
+        )
+
     # ── 출력 ──
     async def _read_loop(self) -> None:
         try:
@@ -280,7 +347,14 @@ class OpenAiRealtimeSttStream:
             item = str(msg.get("item_id") or "")
             self._partial.pop(item, None)
             text = msg.get("transcript") or ""
-            return [SttV2Event(kind=TRANSCRIPT, text=text, is_final=True)] if text else []
+            self._note_commit_done(len(text))
+            # ⭐⭐ **PTT 에서는 빈 전사도 올린다**(2026-08-18). 아무 말 없이 눌렀다 떼면 벤더는
+            #   빈 `completed` 를 주는데, 그걸 여기서 버리면 세션에 **이벤트가 0건**이라
+            #   상한(1.5초)을 통째로 헛대기한 뒤에야 턴이 닫힌다 — 정상 조작에서 나는 지연이다.
+            #   ⛔ VAD 경로는 예전 그대로 버린다(빈 final 이 새로 흐르면 턴 판정이 바뀐다).
+            if text or self._manual_commit:
+                return [SttV2Event(kind=TRANSCRIPT, text=text, is_final=True)]
+            return []
         if kind == "error":
             err = msg.get("error") or {}
             detail = err.get("message") or "unknown"
