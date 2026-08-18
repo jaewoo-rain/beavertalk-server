@@ -3649,3 +3649,166 @@ def test_the_cost_formula_is_untouched():
 
     src = inspect.getsource(svc.estimate_usage_cost_usd)
     assert "cached" not in src, "원가식이 캐시 토큰을 쓰기 시작했다 — 관측 단계에서 멈춰야 한다"
+
+
+# --------------------------------------------------------------------------- #
+# (z) 표정 마커 — 동작 회귀 (2026-08-19)
+#   ⚠ 계약·모델 단위 회귀는 tests/test_live_face_spike.py 에 있다. 여기는 **실제로 흘러
+#     나가는가**를 본다(하네스가 이 파일에 있어서 여기 둔다).
+# --------------------------------------------------------------------------- #
+class _FaceLiveSession(FakeLiveSession):
+    """`set_face` 를 부르는 비버. 스크립트: 표정 → 말 → 같은 표정(중복) → 다른 표정."""
+
+    def __init__(self, script):
+        super().__init__()
+        self._script = script
+        self.tool_responses: list[tuple] = []
+
+    async def send_tool_response(self, fn_id, fn_name, *, resume: bool = False) -> None:
+        self.tool_responses.append((fn_id, fn_name, resume))
+
+    async def events(self):
+        for emo in self._script:
+            if emo == "__audio":
+                yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            elif emo == "__turn_end":
+                yield LiveEvent(kind="turn_end")
+            else:
+                yield LiveEvent(kind="tool_call", fn_name="set_face",
+                                fn_id="fc1", fn_args={"emotion": emo})
+
+
+def _face_factory(holder, script):
+    import contextlib
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+        sess = _FaceLiveSession(script)
+        holder["session"] = sess
+        holder["tools"] = tools
+        yield sess
+
+    return _factory
+
+
+async def _run_face_call(monkeypatch, session_factory, seeded, script, *, on: bool):
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", on, raising=False)
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+    frames = [json.loads(t) for t in ws.sent_text]
+    return [f for f in frames if f.get("type") == "sentence"], holder
+
+
+@pytest.mark.asyncio
+async def test_face_markers_flow_and_duplicates_are_dropped(
+        monkeypatch, session_factory, seeded):
+    """⭐ 표정이 프레임으로 나가고, **같은 값 연속은 안 나간다.**
+
+    실측(2026-08-18, 28호출): 7회(25%)가 같은 값 연속이었다(`surprised → surprised`).
+    프론트는 상태를 안 들고 오는 대로 적용하므로 같은 값을 또 보내면 **영상 컨트롤러를
+    헛되이 흔든다** — 하드 디코더가 2~3개 한계라(sync_avatar.dart:21) 공짜가 아니다.
+    """
+    script = ["happy", "__audio", "happy", "__turn_end", "sad", "__audio", "__turn_end"]
+    markers, holder = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=True)
+
+    assert [m["emotion"] for m in markers] == ["happy", "sad"], markers
+    assert [m["seq"] for m in markers] == [1, 2], "seq 는 통화 스코프로 이어져야 한다"
+    assert all(m["text"] == "" for m in markers), "자막 경로를 건드리면 안 된다"
+    # ⛔ 응답은 매 호출마다 **resume=True** 로 돌려준다(중복이라 프레임을 안 보낸 것도).
+    #   안 그러면 모델이 다시 말하지 않는다(2026-08-18 실측).
+    assert len(holder["session"].tool_responses) == 3
+    assert all(r[2] is True for r in holder["session"].tool_responses)
+
+
+@pytest.mark.asyncio
+async def test_the_first_marker_precedes_the_audio_on_the_wire(
+        monkeypatch, session_factory, seeded):
+    """⛔⛔ **순서가 주 키다.** 마커는 그 감정이 붙을 오디오보다 **앞서** 나가야 한다.
+
+    프론트는 마커를 도착 시점에 반영하지 않고 오디오 봉투 위치에 꽂아 두었다가
+    (`at:_envAdded`) 재생이 그 지점에 닿을 때 터뜨린다. 그래서 서버가 지킬 것은 순서 하나다.
+    ⚠ 이때 턴은 **아직 안 열려 있다** — 모델이 말하기 전에 표정을 정하기 때문이다
+      (실측 27/28 이 오디오 0.00초 지점). `turn_id` 가 비어도 나가야 한다.
+    """
+    script = ["happy", "__audio", "__turn_end"]
+    holder: dict = {}
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+
+    # 와이어에 실제로 나간 순서: sentence 마커가 turn_start 보다 **먼저**여야 한다
+    # (turn_start 는 첫 오디오가 연다 ⇒ 마커가 그보다 앞이면 오디오보다도 앞이다).
+    types = [json.loads(t).get("type") for t in ws.sent_text]
+    assert "sentence" in types, types
+    assert types.index("sentence") < types.index("turn_start"), types
+
+
+@pytest.mark.asyncio
+async def test_no_face_frames_when_the_switch_is_off(
+        monkeypatch, session_factory, seeded):
+    """⛔ 꺼지면 **프레임이 한 건도 안 나간다** — 기존 통화의 와이어가 그대로다.
+
+    ⚠ 도구를 안 선언하므로 모델이 부를 일도 없다. 이 시험은 그 **두 겹**을 다 본다:
+      tools 가 None 이고, 설령 이벤트가 와도 프레임이 안 나간다.
+    """
+    script = ["happy", "__audio", "__turn_end"]
+    markers, holder = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=False)
+    assert markers == []
+    assert holder["tools"] is None, "꺼졌는데 도구를 선언했다"
+
+
+@pytest.mark.asyncio
+async def test_a_non_face_tool_call_never_becomes_a_face_marker(
+        monkeypatch, session_factory, seeded):
+    """⛔⛔ **레벨테스트 종료 신호가 표정으로 둔갑하면 안 된다.**
+
+    이 분기는 `tool_call` 전체를 받는데 이 프로젝트에는 표정 말고
+    `leveltest_ceiling_reached` 도 있다(지금은 안 쓰지만 배관은 살아 있다).
+    이름을 안 보면 그 호출이 마커가 되고, `resume=True` 까지 붙어 **작별 대본 주입과
+    부딪힌다**(그 tool 은 SILENT 여야 한다).
+    """
+    class _OtherToolSession(_FaceLiveSession):
+        async def events(self):
+            yield LiveEvent(kind="tool_call", fn_name="leveltest_ceiling_reached",
+                            fn_id="fc9", fn_args={})
+            yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            yield LiveEvent(kind="turn_end")
+
+    import contextlib
+
+    holder: dict = {}
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+        sess = _OtherToolSession([])
+        holder["session"] = sess
+        yield sess
+
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=_factory)
+    await _wait_analysis_tasks()
+
+    frames = [json.loads(t) for t in ws.sent_text]
+    assert [f for f in frames if f.get("type") == "sentence"] == []
+    # 응답은 돌려주되 **SILENT**(resume=False) 여야 한다.
+    assert holder["session"].tool_responses == [("fc9", "leveltest_ceiling_reached", False)]

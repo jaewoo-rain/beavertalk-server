@@ -99,6 +99,7 @@ from domains.learning.realtime.protocol import (
     ServerInputTranscript,
     ServerMessage,
     ServerOutputTranscript,
+    ServerSentenceMarker,
     ServerPong,
     ServerTeachingPlan,
     ServerTurnEnd,
@@ -400,7 +401,8 @@ class _CallState:
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
         "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
-        "face_calls",   # 표정 계측 스파이크 — 이 통화에서 set_face 가 몇 번 불렸나
+        # 표정(set_face) — 호출 수 · 마커 seq · 마지막으로 **보낸** 값(중복 억제 기준)
+        "face_calls", "face_seq", "face_last",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -460,7 +462,9 @@ class _CallState:
         self.cur_beaver_pcm = bytearray()
         self.cur_beaver_text: list[str] = []
         self.next_turn_index = 0
-        self.face_calls = 0        # 표정 계측 스파이크(꺼져 있으면 영원히 0)
+        self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
+        self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
+        self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -2239,34 +2243,72 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _record_usage(state, event.usage)
             continue
 
-        # ⭐⭐ 표정 계측 스파이크(2026-08-18). **usage 와 같은 규율** — 적재만 하고 즉시
-        #   continue 한다. `_forward_event` 로 안 내려보내므로 턴 상태기계·barge-in·무음
-        #   시계·종료 규약 어디에도 안 닿는다(R4). 클라로 나가는 것도 없다.
-        #   ⛔ 여기서 다루는 이유: `send_tool_response` 에 `session` 이 필요한데
-        #     `_forward_event(client_ws, event, state)` 에는 세션이 없다.
+        # ⭐⭐ **표정**(2026-08-19). native-audio 는 출력이 곧 소리라 감정을 텍스트 태그로
+        #   시키면 그대로 낭독한다(`_EMOTION_TAG_RULE` 이 Live 에 금지된 이유) ⇒ 표정은
+        #   **function-call 로만** 나올 수 있다. 그걸 받아 클라로 마커 프레임을 흘린다.
         #
-        # ⭐ **`턴누적오디오`가 이 스파이크의 답이다.** 프론트는 시계가 아니라 **오디오
-        #   위치**로 표정을 터뜨린다(마커를 봉투에 꽂아 두고 재생이 그 지점에 닿을 때 반영).
-        #   그래서 알아야 할 건 "이 호출이 그 문장 오디오보다 앞에 왔나"이고 그 값이 이것이다.
-        #     0 에 가까움 → ✅ 말하기 전에 불렀다. 순서대로 흘리면 자동으로 맞는다
-        #     크다        → ⛔ 이미 말한 뒤다. 표정이 그만큼 늦는다 → 설계를 다시 봐야 한다
-        #   24kHz·16bit·mono = 48,000 B/s 고정이라 바이트를 초로 바로 환산한다.
+        # ⛔ **여기서 다루는 이유**: `send_tool_response` 에 `session` 이 필요한데
+        #   `_forward_event(client_ws, event, state)` 에는 세션이 없다. 그리고 `usage` 와 같은
+        #   규율로 즉시 continue 한다 — `_forward_event` 로 안 내려가므로 턴 상태기계·
+        #   barge-in·무음 시계·종료 규약 어디에도 안 닿는다(R4).
+        #
+        # ⭐⭐ **순서가 전부다.** 프론트는 이 프레임을 도착 시점에 반영하지 않고 오디오 봉투에
+        #   위치로 꽂아 두었다가(`at:_envAdded`) 재생이 그 지점에 닿을 때 터뜨린다. 그래서
+        #   서버가 지킬 것은 "그 감정이 붙을 오디오 **앞에** 흘린다" 하나뿐이다 — Live 는
+        #   Gemini→클라 펌프가 하나라 받은 순서가 그대로 나가 자동으로 지켜진다.
+        #   ⚠ 실측(2026-08-18, 28호출): 27/28 이 그 턴 오디오 **0.00초** 지점에 왔다.
+        #     즉 모델은 **말하기 전에** 표정을 정한다. 이 설계의 성립 조건이 그것이었다.
         if event.kind == "tool_call":
+            # ⛔⛔ **어느 tool 인지 반드시 가른다**(2026-08-19, 회귀가 잡았다).
+            #   이 분기는 `tool_call` 전체를 받는데, 이 프로젝트에는 표정 말고도
+            #   `leveltest_ceiling_reached` 가 있다(지금은 안 쓰지만 배관은 살아 있다).
+            #   이름을 안 보면 **레벨테스트 종료 신호가 표정 마커로 둔갑한다.**
+            # ⛔ 스위치도 같이 본다. 꺼져 있으면 도구를 선언조차 안 하지만, "꺼짐 = 와이어
+            #   무변화"는 **두 겹으로** 지킨다 — 선언과 소비 중 한쪽만 고치는 사고가 이
+            #   프로젝트에서 반복됐다.
+            # ⚠ `_settings` 다 — 이 모듈은 `settings as _settings` 로 받는다(:60). 펌프에는
+            #   `settings` 파라미터가 없어서 그 이름을 쓰면 **NameError 로 펌프가 죽는다**
+            #   (회귀가 잡았다: 마커가 0건이고 통화가 즉시 끝났다).
+            is_face = event.fn_name == "set_face" and bool(_settings.LIVE_FACE_SPIKE)
             state.face_calls += 1
+            emotion = str((event.fn_args or {}).get("emotion") or "").strip() if is_face else ""
+            secs = len(state.cur_beaver_pcm) / 48000.0   # 24kHz·16bit·mono = 48,000 B/s
+            # ⭐ **직전과 같으면 안 보낸다.** 실측 28회 중 7회(25%)가 같은 값 연속이었다
+            #   (`surprised → surprised`). 프론트는 상태를 안 들고 오는 대로 적용하므로
+            #   같은 값을 또 보내면 **영상 컨트롤러를 헛되이 흔든다** — 하드 디코더가 2~3개
+            #   한계라(sync_avatar.dart:21) 이 낭비가 공짜가 아니다.
+            #   ⛔ `turn_id` 로 리셋하지 않는다. 표정은 턴을 넘어 유지되는 상태다 —
+            #     턴마다 비우면 다음 턴 첫 마커가 항상 중복으로 나간다.
+            duplicate = emotion == state.face_last
+            # ⛔⛔ **턴이 열렸는지로 막지 않는다.** 모델은 말하기 **전에** 표정을 정하므로
+            #   (실측 27/28 이 오디오 0.00초 지점) 이 시점에 `state.turn_id` 는 대개 **None**
+            #   이다. 여기서 걸러내면 마커가 거의 전부 사라진다.
+            #   ⚠ 그렇다고 여기서 턴을 새로 열면 더 나쁘다 — `_forward_event` 의
+            #     `turn_started` 가 영영 False 가 되어 **학습자 발화 확정·통화 시계 시작**이
+            #     통째로 건너뛰어진다(R4). 턴은 오디오/전사가 연다. 우리는 앞서갈 뿐이다.
+            if emotion and not duplicate:
+                state.face_seq += 1
+                await _send_json(client_ws, ServerSentenceMarker(
+                    turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
+                ))
+                state.face_last = emotion
             logger.info(
-                "normalcall 표정스파이크: %s(%s) 턴누적오디오=%.2f초 이번통화 %d번째 직전전사=%r",
-                event.fn_name, (event.fn_args or {}).get("emotion"),
-                len(state.cur_beaver_pcm) / 48000.0, state.face_calls,
+                "normalcall 표정: %s(%s) 턴누적오디오=%.2f초 %d번째 %s 직전전사=%r",
+                event.fn_name, emotion or "?", secs, state.face_calls,
+                "중복(안 보냄)" if duplicate else
+                ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
             )
-            # ⛔ 응답은 돌려준다 — NON_BLOCKING 이라 기다리진 않지만 안 주면 모델 쪽에 미완
-            #   호출이 남는다. SILENT 라 이 응답이 추가 발화를 유발하지 않는다.
+            # ⛔ 응답은 돌려준다 — 안 주면 모델 쪽에 미완 호출이 남는다.
             try:
-                # ⛔ `resume=True` 없으면 **모델이 다시 말하지 않는다**(실측). 자세한 근거는
-                #   gemini_live.send_tool_response 주석. 표정은 부르고 계속 말해야 한다.
-                await session.send_tool_response(event.fn_id, event.fn_name, resume=True)
-            except Exception as exc:   # noqa: BLE001 — 계측이 통화를 죽이면 안 된다(R5)
-                logger.warning("normalcall 표정스파이크: tool 응답 실패(무시) — %s", exc)
+                # ⛔ 표정은 `resume=True` 여야 한다 — 없으면 **모델이 다시 말하지 않는다**
+                #   (2026-08-18 실측: 4턴 내내 tool 은 부르는데 대답이 0건이었다).
+                #   ⚠ 다른 tool 은 SILENT 그대로다. 레벨테스트 종료 신호는 이어 말할 필요가
+                #     없고, 오히려 생성을 촉구하면 작별 대본 주입과 부딪힌다.
+                await session.send_tool_response(
+                    event.fn_id, event.fn_name, resume=is_face)
+            except Exception as exc:   # noqa: BLE001 — 표정이 통화를 죽이면 안 된다(R5)
+                logger.warning("normalcall 표정: tool 응답 실패(무시) — %s", exc)
             continue
 
         # A3 GoAway: 서버가 곧 연결을 닫겠다는 예고(연결 ~10분 한계, S2). 뚝 끊기기 전에
