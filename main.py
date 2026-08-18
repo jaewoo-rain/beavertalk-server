@@ -801,6 +801,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             db.commit()
             return {"deleted": 1}
 
+        @app.get("/__enginedemo", include_in_schema=False)
+        def engine_demo() -> FileResponse:
+            """엔진 선택 통화 데모 — "얘기할래(Live) / 공부할래(PTT 캐스케이드)" 를 웹에서 고른다.
+
+            ⭐ 왜 새 페이지인가(2026-08-18): 기존 데모 둘은 엔진이 하나씩 박혀 있다
+              (level_call_demo → /calls/stream, cascade_demo → /cascade/stream).
+              사장님이 플러터 대신 웹으로 테스트하기로 해서, **같은 화면에서 골라 붙는** 자리가 필요했다.
+
+            ⭐ 릴리즈지연 R(버튼 뗀 시각 → 첫 소리)을 화면에서 잰다 — PTT 단일경로 전환의
+              착수 조건이 "R 을 아무도 안 쟀다"이고(docs/20260816_1804_PTT-단일경로-전환-계획.md §0),
+              이 페이지가 그 자다.
+
+            ⚠ 이 게이트는 `ENV != "prod"` 인데 **실서비스(app-api)의 ENV 가 'test'** 라
+              거기서도 열린다(`/__levelcalldemo` 가 지금 그렇다). 인증은 필요하지만 공개 URL 이다.
+
+            ⛔ 라우트와 파일은 **같은 커밋**이어야 한다 — /__calldemo 가 라우트만 남고 파일이
+              없어 500 이 났던 전례가 있다(tests/test_cascade_gate.py:77).
+            """
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "engine_demo.html",
+                media_type="text/html",
+            )
+
         @app.get("/__levelcalldemo", include_in_schema=False)
         def level_call_demo() -> FileResponse:
             """레벨테스트·멀티랭귀지 통화 데모 HTML — 판정·저장까지 실동작(레벨을 실제로 덮어씀).

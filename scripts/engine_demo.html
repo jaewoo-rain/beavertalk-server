@@ -1,0 +1,330 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>비버톡 — 엔진 선택 통화</title>
+<!--
+  엔진 선택 데모 — "얘기할래(Live) / 공부할래(PTT 캐스케이드)" 를 웹에서 고른다.
+
+  왜 만들었나(2026-08-18): 사장님이 플러터 대신 **웹으로** 통화 테스트를 하기로 했다.
+  기존 데모 둘은 엔진이 하나씩 박혀 있다 —
+    level_call_demo.html  → /calls/stream    (Live 전용)
+    cascade_demo.html     → /cascade/stream  (캐스케이드 전용)
+  같은 화면에서 **골라서** 붙어야 두 엔진을 나란히 비교할 수 있다.
+
+  ⛔ 인증은 서버가 발급한다(/__dev/login). Supabase URL 을 하드코딩하지 않는다 —
+     그러면 배포마다 프로젝트가 달라져 로그인 후 전부 401/403 이 나고, 서버 ERROR 로그는
+     0건이라 원인이 안 보인다(2026-08 실측 사고).
+
+  ⭐ 릴리즈지연 R 을 잰다 — PTT 버튼을 뗀 시각 → 첫 소리까지. PTT 단일경로 전환의
+     착수 조건이 "R 을 아무도 안 쟀다" 이고, 이 화면이 그 자다.
+-->
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --ink:#e8ecf3; --dim:#9aa4b6;
+    --live:#4a9eff; --ptt:#ffb84a; --ok:#3ddc84; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px;background:var(--bg);color:var(--ink);
+       font:14px/1.6 ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif}
+  h1{font-size:18px;margin:0 0 4px}
+  .muted{color:var(--dim);font-size:12px}
+  .wrap{max-width:940px;margin:0 auto;display:grid;gap:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select{background:#0d1017;color:var(--ink);border:1px solid var(--line);
+               border-radius:6px;padding:7px 9px;font:inherit}
+  button{background:#232833;color:var(--ink);border:1px solid var(--line);
+         border-radius:6px;padding:8px 14px;font:inherit;cursor:pointer}
+  button:hover:not(:disabled){border-color:#3a4252}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .pick{flex:1;min-width:200px;padding:18px;text-align:left;border-radius:10px}
+  .pick b{display:block;font-size:15px;margin-bottom:3px}
+  .pick.live{border-color:var(--live)} .pick.live b{color:var(--live)}
+  .pick.ptt{border-color:var(--ptt)}  .pick.ptt b{color:var(--ptt)}
+  .pick[aria-pressed="true"]{background:#1e2430;box-shadow:inset 0 0 0 1px currentColor}
+  #talk{width:100%;padding:26px;font-size:17px;font-weight:600;border-radius:12px;
+        background:#2a2118;border-color:var(--ptt);color:var(--ptt);touch-action:none;user-select:none}
+  #talk.on{background:var(--ptt);color:#1a1205}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px}
+  .stat{background:#0d1017;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .stat i{display:block;font-style:normal;color:var(--dim);font-size:11px}
+  .stat b{font-size:17px;font-variant-numeric:tabular-nums}
+  #log{background:#0a0c11;border:1px solid var(--line);border-radius:8px;padding:10px;
+       height:280px;overflow:auto;font:12px/1.55 ui-monospace,Menlo,Consolas,monospace;
+       white-space:pre-wrap;word-break:break-all}
+  .l-in{color:#8fd0ff} .l-out{color:#ffd79a} .l-err{color:var(--err)} .l-ok{color:var(--ok)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px}
+  .dot.on{background:var(--ok)}
+  .hide{display:none}
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>🦫 엔진 선택 통화</h1>
+    <div class="muted">
+      얘기할래 → <code>/calls/stream</code>(Live) · 공부할래 → <code>/cascade/stream</code>(PTT 캐스케이드)
+    </div>
+  </div>
+
+  <!-- ① 로그인 -->
+  <div class="panel">
+    <div class="row">
+      <input id="email" placeholder="이메일" style="flex:1;min-width:180px">
+      <input id="pw" type="password" placeholder="비밀번호" style="flex:1;min-width:150px">
+      <button id="loginBtn">로그인</button>
+      <span id="who" class="muted">미인증</span>
+    </div>
+    <div class="muted" style="margin-top:6px">
+      서버의 <code>/__dev/login</code> 을 쓴다 — 배포마다 Supabase 프로젝트가 달라도 어긋나지 않는다.
+    </div>
+  </div>
+
+  <!-- ② 엔진 선택 -->
+  <div class="panel">
+    <div class="muted" style="margin-bottom:8px">어떻게 할까요?</div>
+    <div class="row">
+      <button class="pick live" id="pickLive" aria-pressed="true">
+        <b>🗣 얘기할래</b><span class="muted">Live · 마이크 상시 · 끼어들기 없음</span>
+      </button>
+      <button class="pick ptt" id="pickPtt" aria-pressed="false">
+        <b>📚 공부할래</b><span class="muted">PTT 캐스케이드 · 버튼 꾹 눌러 말하기</span>
+      </button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="muted">캐릭터 <input id="cid" value="1" style="width:56px"></label>
+      <label class="muted">모국어
+        <select id="loc"><option value="en">en</option><option value="ko">ko</option>
+        <option value="ja">ja</option><option value="zh">zh</option></select>
+      </label>
+      <label class="muted">길이(분) <input id="dur" value="5" style="width:56px"></label>
+      <button id="callBtn" disabled>📞 통화 시작</button>
+      <button id="hangBtn" disabled>⏹ 끊기</button>
+      <span><span class="dot" id="dot"></span><span id="stat" class="muted">대기</span></span>
+    </div>
+  </div>
+
+  <!-- ③ PTT 버튼 -->
+  <div class="panel hide" id="pttPanel">
+    <button id="talk">🎤 꾹 눌러 말하기</button>
+    <div class="muted" style="margin-top:8px">
+      누르는 동안만 마이크가 서버로 갑니다. 떼면 그 자리에서 턴이 끝납니다.
+      <b>R</b> = 뗀 시각 → 첫 소리.
+    </div>
+  </div>
+
+  <!-- ④ 상태 -->
+  <div class="panel">
+    <div class="stats">
+      <div class="stat"><i>엔진</i><b id="sEngine">—</b></div>
+      <div class="stat"><i>call_id</i><b id="sCall">—</b></div>
+      <div class="stat"><i>경과</i><b id="sElapsed">0:00</b></div>
+      <div class="stat"><i>내 턴</i><b id="sTurns">0</b></div>
+      <div class="stat"><i>R 중앙값</i><b id="sR">—</b></div>
+      <div class="stat"><i>마지막 R</i><b id="sRLast">—</b></div>
+    </div>
+  </div>
+
+  <!-- ⑤ 로그 -->
+  <div class="panel">
+    <div class="row" style="margin-bottom:8px">
+      <b style="font-size:13px">로그</b>
+      <button id="clearBtn" style="margin-left:auto;padding:4px 10px;font-size:12px">비우기</button>
+    </div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const nowMs = () => performance.now();
+function apiBase(){ return location.origin; }
+function wsBase(){ const u = new URL(apiBase()); return (u.protocol==='https:'?'wss':'ws')+'://'+u.host; }
+
+let token = null, ws = null, engine = 'live';
+let actx = null, micStream = null, srcNode = null, procNode = null;
+let playT = 0, t0 = 0, elapsedTimer = null;
+let pttHeld = false, releasedAt = 0, awaitingFirstAudio = false;
+let turns = 0; const rs = [];
+
+function log(msg, cls){
+  const el = document.createElement('div');
+  if (cls) el.className = 'l-'+cls;
+  const t = t0 ? ((nowMs()-t0)/1000).toFixed(1).padStart(5) : '  0.0';
+  el.textContent = `[${t}s] ${msg}`;
+  $('#log').appendChild(el); $('#log').scrollTop = 1e9;
+}
+
+/* ---------- 로그인 ---------- */
+$('#loginBtn').onclick = async () => {
+  try{
+    const r = await fetch(apiBase()+'/__dev/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email:$('#email').value, password:$('#pw').value }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    token = d.access_token;
+    $('#who').textContent = '인증됨';
+    $('#who').style.color = 'var(--ok)';
+    $('#callBtn').disabled = false;
+    log('로그인 성공', 'ok');
+  }catch(e){ log('로그인 실패: '+e.message, 'err'); }
+};
+
+/* ---------- 엔진 선택 ---------- */
+function setEngine(v){
+  engine = v;
+  $('#pickLive').setAttribute('aria-pressed', String(v==='live'));
+  $('#pickPtt').setAttribute('aria-pressed', String(v==='cascade'));
+  $('#pttPanel').classList.toggle('hide', v!=='cascade');
+  $('#sEngine').textContent = v==='live' ? 'Live' : 'PTT';
+}
+$('#pickLive').onclick = () => setEngine('live');
+$('#pickPtt').onclick  = () => setEngine('cascade');
+
+/* ---------- 오디오 ---------- */
+function downsample(buf, from, to){
+  if (to === from) return buf;
+  const ratio = from/to, out = new Float32Array(Math.round(buf.length/ratio));
+  for (let i=0;i<out.length;i++){
+    const s = Math.floor(i*ratio), e = Math.min(Math.floor((i+1)*ratio), buf.length);
+    let sum=0, n=0; for (let j=s;j<e;j++){ sum+=buf[j]; n++; }
+    out[i] = n ? sum/n : 0;
+  }
+  return out;
+}
+function toPCM16(f32){
+  const o = new Int16Array(f32.length);
+  for (let i=0;i<f32.length;i++){ const s=Math.max(-1,Math.min(1,f32[i])); o[i]=s<0?s*0x8000:s*0x7fff; }
+  return o;
+}
+function playPCM24k(buf){
+  // ⚠ 서버 출력은 PCM16/24k 로 고정이다(core/audio.OUTPUT_SAMPLE_RATE). 두 엔진 공통.
+  const i16 = new Int16Array(buf), f32 = new Float32Array(i16.length);
+  for (let i=0;i<i16.length;i++) f32[i] = i16[i]/0x8000;
+  const ab = actx.createBuffer(1, f32.length, 24000);
+  ab.getChannelData(0).set(f32);
+  const n = actx.createBufferSource(); n.buffer = ab; n.connect(actx.destination);
+  const t = actx.currentTime; if (playT < t) playT = t;
+  n.start(playT); playT += ab.duration;
+}
+
+/* ---------- 통화 ---------- */
+$('#callBtn').onclick = async () => {
+  if (!token) return;
+  turns = 0; rs.length = 0; playT = 0; t0 = nowMs();
+  $('#sTurns').textContent='0'; $('#sR').textContent='—'; $('#sRLast').textContent='—';
+  $('#sCall').textContent='—';
+
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  micStream = await navigator.mediaDevices.getUserMedia({
+    audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+  });
+  srcNode = actx.createMediaStreamSource(micStream);
+  procNode = actx.createScriptProcessor(2048, 1, 1);
+  srcNode.connect(procNode); procNode.connect(actx.destination);
+
+  const path = engine==='live' ? '/api/v1/calls/stream' : '/api/v1/cascade/stream';
+  ws = new WebSocket(`${wsBase()}${path}?token=${token}`);
+  ws.binaryType = 'arraybuffer';
+  log(`연결 → ${path}`, 'out');
+
+  ws.onopen = () => {
+    $('#dot').className='dot on'; $('#stat').textContent='통화 중';
+    $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
+    // ⛔ 두 엔진의 start 계약이 다르다. 한쪽 모양을 다른 쪽에 보내면 조용히 무시되거나 거절된다.
+    const msg = engine==='live'
+      ? { type:'start', character_id:+$('#cid').value||1, locale:$('#loc').value,
+          duration_min:+$('#dur').value||5 }
+      : { type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' } };
+    ws.send(JSON.stringify(msg));
+    log('→ start '+JSON.stringify(msg), 'out');
+    startElapsed();
+  };
+
+  procNode.onaudioprocess = (e) => {
+    if (!ws || ws.readyState!==1) return;
+    // ⭐ PTT: 누른 동안만 업링크. Live 는 상시(끼어들기가 서버에서 꺼져 있다).
+    if (engine==='cascade' && !pttHeld) return;
+    ws.send(toPCM16(downsample(e.inputBuffer.getChannelData(0), actx.sampleRate, 16000)).buffer);
+  };
+
+  ws.onmessage = (ev) => {
+    if (ev.data instanceof ArrayBuffer){
+      if (awaitingFirstAudio){
+        awaitingFirstAudio = false;
+        const r = Math.round(nowMs() - releasedAt);
+        rs.push(r);
+        const sorted = [...rs].sort((a,b)=>a-b);
+        $('#sRLast').textContent = r+'ms';
+        $('#sR').textContent = sorted[Math.floor(sorted.length/2)]+'ms';
+        log(`⏱ R = ${r}ms (뗀 뒤 첫 소리)`, 'ok');
+      }
+      playPCM24k(ev.data); return;
+    }
+    let m; try{ m = JSON.parse(ev.data); }catch{ return; }
+    if (m.type==='call_started' || m.type==='call_ended'){
+      if (m.call_id) $('#sCall').textContent = m.call_id;
+    }
+    if (m.type==='error') log('⚠ '+(m.code||'')+' '+(m.message||''), 'err');
+    else if (m.type!=='audio_cancel') log('← '+JSON.stringify(m).slice(0,220), 'in');
+  };
+
+  ws.onclose = (e) => {
+    $('#dot').className='dot'; $('#stat').textContent=`종료 (code ${e.code})`;
+    $('#callBtn').disabled=false; $('#hangBtn').disabled=true;
+    stopElapsed(); cleanup();
+    log(`연결 종료 code=${e.code} reason=${e.reason||'—'}`, e.code===1000?'':'err');
+  };
+  ws.onerror = () => log('⚠ WS 오류', 'err');
+};
+
+$('#hangBtn').onclick = () => { try{ ws && ws.close(); }catch{} };
+$('#clearBtn').onclick = () => { $('#log').textContent=''; };
+
+function cleanup(){
+  try{ procNode && (procNode.onaudioprocess=null, procNode.disconnect()); }catch{}
+  try{ srcNode && srcNode.disconnect(); }catch{}
+  try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch{}
+  try{ actx && actx.close(); }catch{}
+  procNode=srcNode=micStream=actx=null; pttHeld=false; $('#talk').classList.remove('on');
+}
+
+/* ---------- PTT 버튼 ---------- */
+// ⚠ 지금은 **클라가 업링크를 게이팅**한다. 서버 turn_detection 은 아직 server_vad 라
+//   뗀 뒤에도 벤더 침묵 타이머(800ms)가 돈다 — 그래서 R 에 그 값이 섞여 있다.
+//   ptt-impl 이 turn_detection:null 로 바꾸면 그 몫이 빠진다. **비교의 기준선이 지금 값이다.**
+function hold(on){
+  if (!ws || ws.readyState!==1 || engine!=='cascade') return;
+  if (on === pttHeld) return;
+  pttHeld = on;
+  $('#talk').classList.toggle('on', on);
+  if (on){ log('🎤 눌림 — 업링크 열림', 'out'); }
+  else {
+    releasedAt = nowMs(); awaitingFirstAudio = true;
+    turns++; $('#sTurns').textContent = String(turns);
+    log('🎤 뗌 — 업링크 닫힘, 응답 대기', 'out');
+    // ⛔ user_turn_end 를 여기서 보내지 않는다. 서버가 그 타입을 받는지 확인 전이다 —
+    //   모르는 타입을 보내면 조용히 무시되거나 파싱 에러로 통화가 끊길 수 있다.
+    //   (PTT 서버측 전환 때 계약을 정하고 그때 붙인다.)
+  }
+}
+const talk = $('#talk');
+talk.addEventListener('pointerdown', e => { e.preventDefault(); talk.setPointerCapture(e.pointerId); hold(true); });
+talk.addEventListener('pointerup',   () => hold(false));
+talk.addEventListener('pointercancel',() => hold(false));
+window.addEventListener('keydown', e => { if (e.code==='Space' && !e.repeat){ e.preventDefault(); hold(true); } });
+window.addEventListener('keyup',   e => { if (e.code==='Space'){ e.preventDefault(); hold(false); } });
+
+/* ---------- 경과 ---------- */
+function startElapsed(){
+  const s = Date.now();
+  elapsedTimer = setInterval(() => {
+    const d = Math.floor((Date.now()-s)/1000);
+    $('#sElapsed').textContent = `${Math.floor(d/60)}:${String(d%60).padStart(2,'0')}`;
+  }, 500);
+}
+function stopElapsed(){ clearInterval(elapsedTimer); elapsedTimer=null; }
+
+setEngine('live');
+</script>
