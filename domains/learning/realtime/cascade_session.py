@@ -132,6 +132,25 @@ _DEFAULT_SAMPLE_RATE = 16000
 # 이어간다(`_sentence_emotion`). 첫 구간에만 이 값으로 시작한다.
 _DEFAULT_EMOTION = "neutral"
 _EOS = object()  # 큐 종료 센티널
+
+
+@dataclass
+class _PttMark:
+    """버튼 신호를 **STT 이벤트와 같은 큐로** 흘린다(2026-08-18).
+
+    ⛔⛔ 왜 큐를 거치나 — 턴 상태를 고치는 주인은 **`_pump_turn` 하나**여야 한다. 버튼은
+      `_pump_in`(다른 태스크)으로 들어오는데, 거기서 곧장 `_open_turn`/`_close_turn` 을
+      부르면 두 태스크가 같은 턴 상태를 동시에 고친다 — 오늘 하루에만 다섯 건 났던 상태
+      굳음 계열의 **새로운 원천**을 만드는 것이다.
+    ⭐ 반대로 `commit` 은 **`_pump_in` 에서 보내야 한다**(여기서 만들 때 이미 보냈다):
+      오디오와 제어가 같은 소켓·같은 태스크라 `[append][append][commit]` 순서가 보존된다.
+      큐로 넘겼다가 보내면 아직 안 밀어낸 오디오를 commit 이 **추월해** 발화 꼬리가 잘린다.
+    """
+
+    kind: str                 # "press" | "release"
+    at: float                 # time.monotonic()
+    held_ms: int = 0          # 이 hold 동안 STT 로 흘린 오디오(ms)
+    committed: bool = False   # commit 을 실제로 보냈나(= 전사를 기다릴 것인가)
 _RMS_STRIDE = 8  # 에너지 계산 표본 간격(전 샘플을 돌 필요 없다 — 게이트용 근사면 충분)
 # 유령 턴 판정의 여유 — 같은 발화의 꼬리 전사는 앞 턴의 끝과 사실상 같은 지점을 가리킨다.
 # 200ms 는 "새 발화라면 최소 이만큼은 뒤여야 한다"는 하한(사람이 그보다 빨리 새 말을 시작하면
@@ -1288,6 +1307,20 @@ class CascadeSession:
         #   (2026-08-15 실통화 전 턴 `짝없음`). 이 값이 있으면 물어본 자리에서 바로 계산된다.
         self._reply_began_at: dict[str, float] = {}
         self._reply_began = 0.0     # 지금 만들고 있는 대답의 시작 시각(턴이 열릴 때 위로 묶인다)
+        # ── PTT(누르고 말하기) — 2026-08-18 사장님 결정 ⓐ ──
+        # ⭐⭐ **턴 경계를 버튼이 정한다.** True 면 아래 다섯이 **경로 자체를 안 탄다**(값 조정이
+        #   아니다): 벤더 침묵창 300 · 서버 침묵 800 · 발화 재봉합 500 · 전사정지 1500 ·
+        #   STT idle 5000. ⛔ 남기는 안전망은 `CASCADE_TURN_MAX_S`(30초) 하나다 — 버튼이 눌린
+        #   채 굳는 경우가 있다.
+        # ⚠ False 가 기본이라 **VAD 경로는 바이트 단위로 지금과 같다**(회귀가 증명한다).
+        self._ptt = False
+        self._ptt_held = False           # 지금 버튼이 눌려 있나(중복 누름·중복 뗌 방어)
+        self._ptt_released_at = 0.0      # ⭐ PTT 의 '말끝'. speech_ms 가 이 값으로 계산된다
+        # 릴리즈 후 최종 전사를 기다리는 마감(None = 안 기다리는 중). ⭐ 이것이
+        # `_turn_idle_at`(5초 워치독)의 PTT 판 치환이다 — hold 중엔 STT 이벤트가 0건이라
+        # 그 워치독을 그대로 두면 **쥐고 있는 턴을 서버가 닫는다.**
+        self._ptt_final_at: float | None = None
+        self._ptt_audio_at_press = 0.0   # 누른 순간의 누적 오디오 ms(hold 길이 계산용)
         # 턴 누적
         self._turn_seq = 0
         self._turn_id: str | None = None
@@ -1398,6 +1431,14 @@ class CascadeSession:
                     "오디오 타임라인이 %d배로 늘어 턴 타이머·barge-in·원가 초가 같이 틀어진다",
                     self._channels, self._channels,
                 )
+            # ⭐⭐ **턴 경계의 주인을 여기서 정한다**(2026-08-18). 스트림을 열기 **전**이어야
+            #   한다 — 이 값이 벤더에 보낼 `turn_detection` 을 가른다.
+            #   ⛔ 화이트리스트를 걸지 않는다: 모르는 값은 **보수적인 쪽(vad)** 으로 읽는다.
+            #     구버전 클라가 이 필드를 아예 안 보내면 당연히 vad 다(클라 변경 0).
+            raw_tc = str(ctrl.get("turnControl") or ctrl.get("turn_control") or "vad").strip()
+            self._ptt = raw_tc.lower() == "ptt"
+            if raw_tc.lower() not in ("ptt", "vad"):
+                logger.info("cascade start: 모르는 turnControl=%r → vad 로 읽는다", raw_tc)
             self._apply_tts_choice(ctrl)
             self._apply_aec_hint(ctrl.get("aec"))
         elif first.kind == "audio":
@@ -1412,7 +1453,24 @@ class CascadeSession:
         #   ⚠ Live 도 같은 순서다(run_call: 캐릭터·setup → 통화 행 → 세션 open).
         await self._load_call_context()
 
-        stream = stt_mod.make_stt_v2_stream(sample_rate, self._stt_language_codes())
+        # ⛔ **PTT 가 아니면 인자를 아예 안 넘긴다.** `manual_commit=False` 를 넘겨도 동작은
+        #   같지만, 호출 서명이 바뀌면 "VAD 경로는 바이트 단위로 불변"이 깨진다 — 실제로
+        #   기존 회귀 5건이 2인자 페이크를 쓰고 있어 곧바로 드러났다. PTT 는 **덧붙이기**여야 한다.
+        stream = stt_mod.make_stt_v2_stream(
+            sample_rate, self._stt_language_codes(),
+            **({"manual_commit": True} if self._ptt else {}),
+        )
+        # ⭐ **이 통화가 어느 체제로 도는지 한 줄로 드러낸다.** 없으면 "왜 침묵 타이머가 안
+        #   걸리지"를 로그만 보고 못 가른다 — 이 프로젝트가 여러 번 밟은 계열이다.
+        if self._ptt:
+            logger.info(
+                "cascade 턴경계: %s **PTT(버튼)** — 벤더VAD·서버침묵(%dms)·재봉합(%dms)·"
+                "전사정지(%dms)·STTidle(%.0fs) 전부 우회. 남는 안전망은 턴상한 %d초뿐",
+                self._sid, settings.CASCADE_TURN_SILENCE_MS,
+                settings.CASCADE_SPEECH_MERGE_GAP_MS,
+                settings.CASCADE_TURN_TRANSCRIPT_SILENCE_MS,
+                settings.CASCADE_TURN_IDLE_S, settings.CASCADE_TURN_MAX_S,
+            )
         # ⭐ **무슨 언어로 듣고 있는지 로그만 보고 알 수 있어야 한다**(2026-08-08). 지금까지는
         #   코드를 읽고 env 를 조회해야 알 수 있었고, 그래서 "영어가 안 들린다"를 실통화 5건이
         #   빈 턴으로 닫힌 뒤에야 찾았다.
@@ -1557,6 +1615,8 @@ class CascadeSession:
                     await self._on_playback_progress(ctrl)
                 elif ctype == "client_timing":
                     self._on_client_timing(ctrl)
+                elif ctype in ("ptt_press", "ptt_release"):
+                    await self._on_ptt_signal(stream, ctype)
                 elif ctype == "__test_beaver":   # dev 훅(가짜 비버 오디오)
                     await self._start_fake_beaver(ctrl)
                 elif ctype == "__test_cancel":   # dev 훅(취소 배관)
@@ -1586,6 +1646,51 @@ class CascadeSession:
                         self._rms_log.popleft()
                 await stream.push_audio(inb.audio)
 
+    async def _on_ptt_signal(self, stream: Any, ctype: str) -> None:
+        """버튼 신호를 받는다 — **commit 만 여기서 보내고, 턴은 큐로 넘긴다**(_PttMark 주석).
+
+        ⛔ 여기서 `_open_turn`/`_close_turn` 을 부르면 `_pump_turn` 과 **두 태스크가 같은 턴
+          상태를 고친다.** 오늘까지 그 계열 결함이 다섯 건이었다 — 새로 만들지 않는다.
+        """
+        if not self._ptt:
+            # ⚠ 조용히 버리지 않는다. 클라가 `turnControl:"ptt"` 를 안 보내고 버튼만 누르면
+            #   **턴이 한 번도 안 열려** 통화가 조용히 멈춘다 — 원인이 안 보이는 종류다.
+            logger.warning(
+                "cascade ⚠ %s 를 받았지만 이 세션은 VAD 다 — 무시한다. 클라가 start 에 "
+                "turnControl='ptt' 를 안 보냈다(그대로 두면 버튼이 아무 일도 안 한다)", ctype,
+            )
+            return
+        now = time.monotonic()
+        if ctype == "ptt_press":
+            if self._ptt_held:
+                return           # 중복 누름(터치 튐) — 열린 턴을 그대로 둔다
+            self._ptt_held = True
+            self._ptt_audio_at_press = self._audio_ms
+            await self._q.put(_PttMark(kind="press", at=now))
+            return
+        if not self._ptt_held:
+            return               # 누른 적 없는 뗌(재연결·중복) — 무시
+        self._ptt_held = False
+        held_ms = int(max(0.0, self._audio_ms - self._ptt_audio_at_press))
+        committed = False
+        if held_ms < max(0, settings.CASCADE_PTT_MIN_HOLD_MS):
+            # ⭐ 벤더가 직접 말한 바닥이다("Expected at least 100ms of audio"). 보내 봐야
+            #   commit_empty 만 돌아오고 **전사는 영영 안 온다** ⇒ 상한 1.5초를 헛대기한다.
+            logger.info("cascade ptt: 너무 짧게 뗐다(오디오 %dms) — commit 없이 닫는다", held_ms)
+        else:
+            # ⭐⭐ **여기가 벤더 소켓의 순서 보장 지점이다.** 바로 위에서 같은 태스크가
+            #   `push_audio` 를 await 했으므로 벤더는 `[append…][commit]` 을 순서대로 받는다.
+            commit = getattr(stream, "commit", None)
+            if commit is not None:
+                try:
+                    committed = bool(await commit())
+                except Exception as exc:  # noqa: BLE001 - R5: 계측·전송 실패가 통화를 안 죽인다
+                    logger.warning("cascade ptt: commit 실패(무시하고 턴은 닫는다) — %s",
+                                   str(exc)[:120])
+        await self._q.put(
+            _PttMark(kind="release", at=now, held_ms=held_ms, committed=committed)
+        )
+
     # ── ② STT → 큐 (읽기 전용) ──
     async def _pump_stt(self, stream: Any) -> None:
         try:
@@ -1603,7 +1708,7 @@ class CascadeSession:
             # 닫히면 END 는 발송되지 않는다) 턴이 열린 채 굳는다.
             deadlines = [
                 d for d in (self._close_at, self._turn_deadline, self._turn_idle_at,
-                            self._bargein_at)
+                            self._bargein_at, self._ptt_final_at)
                 if d is not None
             ]
             timeout = max(0.0, min(deadlines) - now) if deadlines else None
@@ -1632,6 +1737,17 @@ class CascadeSession:
                         self._bargein_pending_rms,
                     )
                     continue
+                # ⭐ PTT: 릴리즈 후 최종 전사가 **끝내 안 왔다.** 안전망이라 정상 통화는
+                #   여기 안 닿는다 — 닿았으면 벤더가 답을 안 준 것이고, 그 사실이 턴 사유로
+                #   남아야 한다(reason 이 ptt_release 와 갈려야 원인을 가른다).
+                if self._ptt_final_at is not None and woke >= self._ptt_final_at - _DEADLINE_EPS_S:
+                    self._ptt_final_at = None
+                    logger.warning(
+                        "cascade ⚠ ptt: 릴리즈 뒤 %dms 안에 최종 전사가 안 왔다 — 빈 채로 닫는다",
+                        max(0, settings.CASCADE_PTT_FINAL_WAIT_MS),
+                    )
+                    await self._close_turn("ptt_no_final")
+                    continue
                 # 침묵 타이머 만료 = 턴 종료. **이 판정이 캐스케이드의 심장이다.**
                 if self._close_at is not None and woke >= self._close_at - _DEADLINE_EPS_S:
                     await self._close_turn("silence")
@@ -1658,7 +1774,41 @@ class CascadeSession:
             if item is _EOS:
                 self._end_reason = "stream_end"
                 raise _Stop
+            if isinstance(item, _PttMark):
+                await self._handle_ptt(item)
+                continue
             await self._handle(item)
+
+    async def _handle_ptt(self, mark: _PttMark) -> None:
+        """버튼 신호로 턴을 열고 닫는다 — **턴 상태를 고치는 곳은 여기 한 곳이다.**"""
+        if mark.kind == "press":
+            # ⭐⭐ 버튼은 추측이 아니라 **선언**이다 — 비버가 들리는 중이면 그 자리에서 끊는다.
+            #   VAD 경로는 ⓪들림 → ①에너지 → ②전사확인 보류(최대 3,500ms) 사다리를 지나야
+            #   하는데, 그 사다리가 존재하는 이유는 "이게 사람인가 에코인가"를 **추측**해야
+            #   하기 때문이다. 버튼은 그 질문 자체를 없앤다.
+            # ⛔ THINKING(아직 소리가 안 났다)에서는 끊지 않는다 — 그 경우는 턴이 닫힐 때
+            #   `_start_reply` → `_discard_unheard_reply` 가 이미 정확히 처리한다(검증된 경로를
+            #   두고 새 경로를 만들지 않는다).
+            if self.state == TurnState.BEAVER_SPEAKING:
+                await self._on_barge_in(SttV2Event(kind=SPEECH_BEGIN, at=mark.at))
+            if self._turn_id is None:
+                await self._open_turn(mark.at)
+            return
+        # ── 릴리즈 ──
+        self._ptt_released_at = mark.at
+        if self._turn_id is None:
+            return                    # 누름이 유실된 뗌 — 닫을 턴이 없다
+        if not mark.committed:
+            # commit 을 안/못 보냈다 ⇒ 기다려도 새 전사가 안 온다. 그 자리에서 닫는다.
+            #   · ptt_short   너무 짧게 떼서 우리가 안 보냈다(정상 조작)
+            #   · ptt_release 수동 커밋이 없는 엔진(구글 폴백) — 전사는 알아서 흐른다
+            short = mark.held_ms < max(0, settings.CASCADE_PTT_MIN_HOLD_MS)
+            await self._close_turn("ptt_short" if short else "ptt_release")
+            return
+        # ⭐⭐ **새 지연이 숨는 유일한 자리.** 정상 경로는 `_on_transcript` 가 전사를 받는
+        #   즉시 닫으므로 이 마감엔 안 닿는다. 실지연은 `[stt-openai] commit→전사 확정:` 줄이
+        #   말한다 — 이 상수(1.5초)를 실지연으로 읽으면 안 된다.
+        self._ptt_final_at = mark.at + max(0.1, settings.CASCADE_PTT_FINAL_WAIT_MS / 1000.0)
 
     def _sanitize_offset(self, event: SttV2Event) -> None:
         """⭐ 상식 밖 오프셋은 **미상(-1)으로 거절한다** — 결함 A(2026-08-07 확정).
@@ -1694,6 +1844,11 @@ class CascadeSession:
 
     async def _handle(self, event: SttV2Event) -> None:
         self._sanitize_offset(event)
+        if self._ptt and event.kind in (SPEECH_BEGIN, SPEECH_END):
+            # ⛔⛔ PTT 에서 턴 경계의 주인은 **버튼 하나다.** OpenAI 는 turn_detection:null 이라
+            #   이 이벤트를 아예 안 보내지만, **구글 폴백은 계속 보낸다** — 그걸 타면 침묵
+            #   타이머가 되살아나 버튼과 **두 주인**이 되고, 버튼을 쥐고 있는데 턴이 닫힌다.
+            return
         if event.kind == SPEECH_BEGIN:
             await self._on_speech_begin(event)
         elif event.kind == TRANSCRIPT:
@@ -1761,6 +1916,14 @@ class CascadeSession:
         #   사장님 증상이 정확히 이것이었다: "전사는 되는데 대답이 없어."
         #   기각의 의미는 "비버를 끊지 않는다"지 "사용자 말을 무시한다"가 아니다.
         if self._turn_id is None:
+            if self._ptt:
+                # ⛔⛔ **PTT 에서는 전사가 턴을 열지 않는다.** 이 5줄이 유령 턴의 뿌리였다:
+                #   서버 타이머가 닫은 뒤 늦게 온 전사가 IDLE 에서 새 턴을 열어 같은 말이
+                #   턴 2개가 됐다. 버튼만 턴을 열면 그 병이 **구조적으로 불가능**해지고,
+                #   `_is_stale_tail`(유령 턴 차단 40줄)도 함께 필요 없어진다.
+                logger.info("cascade ptt: 턴이 닫힌 뒤 온 전사 — 버린다: %r",
+                            (event.text or "").strip()[:40])
+                return
             if self._is_stale_tail(event):
                 return
             # 방어: VAD BEGIN 없이 전사가 먼저 오는 엔진/설정도 있다. 전사를 턴 시작으로 본다.
@@ -1790,6 +1953,14 @@ class CascadeSession:
         #     글자가 아직 없다  → 예전대로 VAD 기준(엔진이 "말하는 중"이면 안 닫는다)
         #     글자가 나온 뒤부터 → **전사 정지 기준**(VAD 가 활성이어도 닫는다)
         #   = "말을 시작한 뒤부터는 잡음이 무의미해진다".
+        if self._ptt:
+            # ⭐⭐ **PTT 의 턴 종료 = 릴리즈 + 전사 도착.** 침묵(800)·전사정지(1500) 타이머는
+            #   경로 자체를 안 탄다. ⛔ `_ptt_final_at` 이 None 이면 아직 안 뗀 것이다 —
+            #   누른 채 중간 전사가 와도 **턴을 닫지 않는다**(그게 버튼의 뜻이다).
+            if event.is_final and self._ptt_final_at is not None:
+                self._ptt_final_at = None
+                await self._close_turn("ptt_release")
+            return
         if not self._speech_active:
             self._arm_close_timer(event)
         elif self._turn_has_text():
@@ -1939,7 +2110,11 @@ class CascadeSession:
 
     def _arm_idle_watchdog(self) -> None:
         """열린 턴의 **무활동 마감**을 지금부터 다시 센다(턴이 없으면 아무것도 안 한다)."""
-        if self._turn_id is None:
+        if self._turn_id is None or self._ptt:
+            # ⛔⛔ PTT 에서 이 워치독을 그대로 두면 **쥐고 있는 턴을 서버가 닫는다**: hold 중엔
+            #   STT 이벤트가 0건이라(전사는 commit 뒤에만 온다) 5초면 무조건 만료다.
+            #   실측에서 8턴 중 4턴이 `reason=stt_idle`·7.6초였던 그 시계다.
+            #   ⇒ PTT 판 치환은 `_ptt_final_at`(릴리즈 **후에만** 건다)이다.
             self._turn_idle_at = None
             return
         self._turn_idle_at = time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
@@ -2105,7 +2280,11 @@ class CascadeSession:
         self._turn_deadline = at + max(5, settings.CASCADE_TURN_MAX_S)
         # ⛔ **여는 순간 마감 시계를 건다.** 침묵·전사 타이머는 각각 speech_end·전사가 와야
         #   걸리는데, STT 가 조용해지면 **둘 다 안 온다**. 그때 유일하게 남는 시계다.
-        self._turn_idle_at = time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
+        # ⛔ PTT 는 이 시계를 안 건다(위 `_arm_idle_watchdog` 주석) — 버튼이 주인이다.
+        self._turn_idle_at = (
+            None if self._ptt
+            else time.monotonic() + max(0.5, settings.CASCADE_TURN_IDLE_S)
+        )
         # ⛔ 비버가 말하는 중이면 **상태를 뺏지 않는다.** 마이크가 열려 있으면 사용자 턴과
         #   비버 턴은 겹칠 수 있다(그게 barge-in 이 가능한 이유다). 여기서 상태를 덮으면
         #   비버 쪽 취소·종료 경로가 자기 상태를 잃는다.
@@ -2117,10 +2296,16 @@ class CascadeSession:
     async def _close_turn(self, reason: str = "silence") -> None:
         if self._turn_id is None:
             self._close_at = None
+            self._ptt_final_at = None
             return
         now = time.monotonic()
         # 실제 발화가 끝난 시각 = 마지막 음성 활동 시각(침묵 임계 이전).
-        end_at = self._last_voice_at or now
+        # ⭐⭐ **PTT 의 말끝은 릴리즈다**(2026-08-18). `_last_voice_at` 은 STT 이벤트 **도착
+        #   시각**인데, PTT 에서는 VAD 이벤트가 아예 없고 전사는 commit 뒤에나 오므로
+        #   ①릴리즈보다 한참 뒤이거나 ②빈 턴이면 **아예 안 채워진다.**
+        #   ⇒ 그대로 두면 `speech_ms` 가 **에러 없이 0** 이 되어 통화 기록과 A/B 기준선
+        #     (플랜 §8 'turn 당 speech_ms 분포')이 조용히 죽는다. 로그가 거짓말하는 종류다.
+        end_at = (self._ptt_released_at or now) if self._ptt else (self._last_voice_at or now)
         text = " ".join(t.strip() for t in self._finals if t.strip())
         if not text and self._partial.strip():
             text = self._partial.strip()  # 최종이 안 왔으면 마지막 부분 전사로 대체
@@ -2182,6 +2367,7 @@ class CascadeSession:
         self._close_at = None
         self._turn_deadline = None
         self._turn_idle_at = None
+        self._ptt_final_at = None
         self._finals = []
         self._partial = ""
         # 비버가 말하는 중이었다면 그 상태를 그대로 둔다(위 _open_turn 과 같은 이유).

@@ -558,6 +558,15 @@ class FakeSttV2Stream:
     async def push_audio(self, pcm: bytes) -> None:
         self._sent_ms += len(pcm) / (self._sample_rate * 2) * 1000.0
 
+    async def commit(self) -> bool:
+        """PTT 턴 경계(페이크) — ⭐ 벤더처럼 **받았다고만** 답한다.
+
+        전사는 테스트가 `feed_test` 로 넣는다. 이 메서드가 없으면 세션의
+        `getattr(stream, "commit", None)` 이 None 을 집어 **페이크 위에서 PTT 경로를 아예
+        못 태운다**(회귀가 검증할 대상이 사라진다).
+        """
+        return True
+
     def feed_test(self, text: str) -> None:
         if text:
             self._q.put_nowait(SttV2Event(kind=TRANSCRIPT, text=text, is_final=True))
@@ -914,6 +923,18 @@ class FallbackSttStream:
         if self._cur is not None:
             await self._cur.close()
 
+    async def commit(self) -> bool:
+        """PTT 턴 경계를 1차 엔진에 내린다.
+
+        ⛔⛔ 이 전달을 빼면 **PTT 가 조용히 죽는다**: 이 래퍼는 메서드를 하나씩 명시 전달하는
+          구조라, 없으면 세션의 `getattr(stream, "commit", None)` 이 None 을 집어 commit 이
+          영영 안 나가고 — `turn_detection: null` 에서는 **전사도 영영 안 온다.**
+        ⚠ 폴백(구글)에는 수동 커밋 개념이 없다 ⇒ False. 세션은 그 값을 보고 전사를 기다리지
+          않는다(구글은 전사를 알아서 흘리므로 버튼이 턴 경계라는 성질은 그대로다).
+        """
+        fn = getattr(self._cur, "commit", None)
+        return bool(await fn()) if fn is not None else False
+
     def feed_test(self, text: str) -> None:
         if hasattr(self._cur, "feed_test"):
             self._cur.feed_test(text)
@@ -926,10 +947,16 @@ class FallbackSttStream:
         return self._cur.usage() if hasattr(self._cur, "usage") else {}
 
 
-def make_stt_v2_stream(sample_rate: int = 16000, language_codes: Any = None) -> Any:
+def make_stt_v2_stream(sample_rate: int = 16000, language_codes: Any = None,
+                       *, manual_commit: bool = False) -> Any:
     """캐스케이드용 STT v2 스트림(롤오버 포함). 크레덴셜 없으면 페이크로 폴백(R5).
 
     반환 객체 인터페이스: start / push_audio / feed_test / feed_test_event / events / close.
+
+    ⭐ `manual_commit` = **PTT 세션**(2026-08-18). 벤더 VAD 를 끄고 턴 경계를 `commit` 으로
+      우리가 정한다. ⛔ **OpenAI 에서만 의미가 있다** — 구글엔 수동 커밋 개념이 없어 인자가
+      조용히 무시되고 예전처럼 돈다. 그래도 PTT 는 죽지 않는다: 구글은 전사를 계속 흘리므로
+      버튼이 턴 경계를 정하는 성질은 그대로다(R5 — 키가 빠졌다고 기능이 죽으면 안 된다).
 
     ⭐ `language_codes` 는 **여러 개**를 받는다(2026-08-08). 지금까지 한 개(ko-KR)만 넣어서
       **사용자가 모국어로 말하면 전사가 통째로 사라졌다** — 실통화에서 영어 발화 5회 연속
@@ -960,7 +987,9 @@ def make_stt_v2_stream(sample_rate: int = 16000, language_codes: Any = None) -> 
         logger.warning("[stt] openai 선택됐지만 키가 없다(GPT_API_KEY) → google 로 진행")
         return _google()
     return FallbackSttStream(
-        lambda: openai_stt.OpenAiRealtimeSttStream(sample_rate, codes), _google, "openai"
+        lambda: openai_stt.OpenAiRealtimeSttStream(
+            sample_rate, codes, manual_commit=manual_commit),
+        _google, "openai"
     )
 
 

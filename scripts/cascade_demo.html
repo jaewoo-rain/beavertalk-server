@@ -121,6 +121,31 @@
     </div>
     <div class="muted" style="margin-bottom:6px">현재 전사(부분/최종):</div>
     <div id="live" class="live muted">…</div>
+    <!-- ⭐⭐ PTT(누르고 말하기) — 2026-08-18 사장님 결정 ⓐ -->
+    <div class="row" style="margin-top:10px; padding:8px; border:1px solid #444; border-radius:6px">
+      <label><input type="checkbox" id="pttChk" /> <b>PTT(누르고 말하기)</b></label>
+      <span class="muted" style="margin-left:8px">
+        켜면 start 에 <code>turnControl:"ptt"</code> 를 보낸다 — 서버가 벤더 VAD 를 끄고
+        <b>버튼이 턴 경계</b>가 된다. ⛔ 통화 시작 <b>전</b>에 골라라(세션 값이다).
+      </span>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button id="pttBtn" disabled style="min-width:260px; min-height:64px; font-size:17px;
+              touch-action:none; user-select:none; -webkit-user-select:none">
+        🎤 꾹 눌러서 말하기
+      </button>
+      <span id="pttStat" class="muted" style="margin-left:10px">PTT 꺼짐</span>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <div><div class="muted">릴리즈 지연 R 중앙값<br><span style="font-size:11px">말끝(로컬VAD) → 버튼 뗌</span></div><div id="mRel" class="big">-</div></div>
+      <div style="margin-left:20px"><div class="muted">R 표본 / 음수(=말하는 중에 뗌)</div><div id="mRelN" class="big">-</div></div>
+      <div style="margin-left:20px"><div class="muted">필요 그레이스 G<br><span style="font-size:11px">−p5(R) — 잘림을 막을 최소값</span></div><div id="mGrace" class="big">-</div></div>
+    </div>
+    <div class="muted" style="margin:4px 0 0 0">
+      ⚠ R 은 <b>로컬 VAD 임계에 민감하다</b>(꼬리 무성음이 임계 아래로 떨어지면 R 이 과대해진다).
+      임계를 바꿔 가며 값이 크게 흔들리면 그 측정은 결정적이지 않다.
+      ⭐ 마이크는 항상 열려 있어(계속 녹음+버리기) <b>뗀 뒤의 말도 관측된다</b> — 그래서 R 이 음수로도 나온다.
+    </div>
     <div class="row" style="margin-top:10px">
       <span class="muted">로컬 VAD 임계(RMS·측정 전용, 판정에 관여 안 함)</span>
       <input id="vadTh" value="0.012" style="width:80px" />
@@ -230,6 +255,9 @@ let token = null, ws = null, actx = null, mic = null, proc = null, gain0 = null;
 let t0 = 0, engine = 'fake', silenceMs = 800;
 let turns = [], maxGap = 0;
 let lastVoicedAt = 0, firstVoicedAt = 0, voiced = false, turnOpenAt = 0;
+// ⭐ PTT — 세션 값(통화 시작 때 굳는다) · 지금 눌려 있나 · 릴리즈 지연 R 표본
+let pttOn = false, pttHeld = false;
+const relAll = [];
 let clockTimer = null;
 
 const sendCtl = o => { if (ws && ws.readyState===1) ws.send(JSON.stringify(o)); };
@@ -266,6 +294,58 @@ function downsample(f32, inRate, outRate) {
 function toPCM16(f32){ const o=new Int16Array(f32.length); for(let i=0;i<f32.length;i++){let s=Math.max(-1,Math.min(1,f32[i]));o[i]=s<0?s*0x8000:s*0x7FFF;} return o; }
 function rms(f32){ let s=0; for (let i=0;i<f32.length;i++) s+=f32[i]*f32[i]; return Math.sqrt(s/f32.length); }
 
+/* ---------- ⭐ PTT 버튼 (2026-08-18) ----------
+   ⛔ `click`/`GestureDetector` 류를 안 쓴다. 포인터 이벤트 + setPointerCapture 라
+     손가락이 버튼 밖으로 미끄러져도 **뗌이 반드시 우리에게 온다** — 안 그러면 마이크가
+     열린 채 붙잡히는 상태가 구조적으로 가능해진다.
+   ⭐ 릴리즈 지연 R 을 **뗀 뒤 600ms 기다렸다가** 잰다: 사람이 마지막 음절을 발음하는 **중에**
+     손을 떼면 그 말은 릴리즈 **뒤에** 로컬 VAD 에 잡힌다. 즉시 재면 R 은 영원히 양수라
+     "일찍 뗐다"를 **한 건도 못 본다**(그게 우리가 제일 알고 싶은 값인데도). */
+const PTT_SETTLE_MS = 600;
+
+function renderRelease() {
+  const n = relAll.length;
+  if (!n) { $('#mRel').textContent = '-'; $('#mRelN').textContent = '-'; $('#mGrace').textContent = '-'; return; }
+  const sorted = [...relAll].sort((a, b) => a - b);
+  const neg = relAll.filter(v => v < 0).length;
+  const p5 = sorted[Math.floor(0.05 * (n - 1))];
+  $('#mRel').textContent = `${sorted[Math.floor(n / 2)]}ms`;
+  $('#mRelN').textContent = `${n} / ${neg}`;
+  // G = 잘림을 막을 최소 그레이스. p5 가 음수면 그 절댓값만큼 더 보내야 한다.
+  $('#mGrace').textContent = `${Math.max(0, -p5)}ms`;
+}
+
+function pttPress(e) {
+  if (!pttOn || pttHeld || !ws || ws.readyState !== 1) return;
+  e.preventDefault();
+  try { $('#pttBtn').setPointerCapture(e.pointerId); } catch {}
+  pttHeld = true;
+  $('#pttBtn').textContent = '🔴 말하는 중… (떼면 보낸다)';
+  sendCtl({ type: 'ptt_press' });
+}
+
+function pttRelease(e) {
+  if (!pttHeld) return;
+  if (e) e.preventDefault();
+  pttHeld = false;
+  const at = nowMs();
+  sendCtl({ type: 'ptt_release' });
+  $('#pttBtn').textContent = '🎤 꾹 눌러서 말하기';
+  setTimeout(() => {
+    if (!lastVoicedAt) return;
+    const r = Math.round(at - lastVoicedAt);   // 음수 = 말하는 중에 뗐다
+    relAll.push(r);
+    renderRelease();
+    log(`⏱ 릴리즈 지연 R=${r}ms ${r < 0 ? '(⚠ 말하는 중에 뗐다 — 이만큼 그레이스가 필요하다)' : ''}`);
+  }, PTT_SETTLE_MS);
+}
+
+$('#pttBtn').addEventListener('pointerdown', pttPress);
+$('#pttBtn').addEventListener('pointerup', pttRelease);
+$('#pttBtn').addEventListener('pointercancel', pttRelease);
+// ⚠ 창을 벗어난 채 떼는 경우까지 받는다(포인터 캡처가 놓치는 가장자리).
+window.addEventListener('blur', () => pttRelease(null));
+
 /* ---------- 세션 ---------- */
 $('#startBtn').onclick = start;
 $('#stopBtn').onclick = () => { if (ws && ws.readyState===1) { try { ws.send(JSON.stringify({type:'stop'})); } catch {} ws.close(); } };
@@ -275,6 +355,9 @@ async function start() {
   // ⛔ 통화마다 표본을 비운다. 안 비우면 **쿠션을 바꿔 다시 걸어도 앞 통화 값이 중앙값에 섞여**
   //   0 ↔ 300 비교가 통째로 무의미해진다(이 페이지를 고친 이유가 그 비교다).
   respAll.length = 0; respT0 = 0; $('#mResp').textContent = '-';
+  // ⛔ PTT 는 **세션 값**이다 — 통화 도중 바꿔도 서버는 안 듣는다. 여기서 한 번 굳힌다.
+  pttOn = $('#pttChk').checked; pttHeld = false;
+  relAll.length = 0; renderRelease();
   try { mic = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1, echoCancellation:true, noiseSuppression:true} }); }
   catch(e) { alert('마이크 권한 필요 (localhost/https 에서만 동작): '+e); return; }
   actx = new (window.AudioContext||window.webkitAudioContext)();
@@ -311,6 +394,8 @@ async function start() {
     const style = $('#stylePrompt').value.trim();
     ws.send(JSON.stringify({
       type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' },
+      // ⛔ 낱말이 mode 가 아닌 이유: 와이어에서 mode 는 이미 aec.mode 가 점유했다.
+      ...(pttOn ? { turnControl:'ptt' } : {}),
       ttsEngine: $('#ttsEngine').value,
       ...(rateNative === null ? {} : { speakingRateNative: rateNative }),
       ...(rateTarget === null ? {} : { speakingRateTarget: rateTarget }),
@@ -321,6 +406,11 @@ async function start() {
     $('#dot').className='dot on'; $('#stat').textContent='듣는 중';
     $('#startBtn').disabled=true; $('#stopBtn').disabled=false;
     ['#hBegin','#hSay','#hEnd','#hTurn','#beaverBtn','#cancelBtn'].forEach(s => $(s).disabled=false);
+    $('#pttBtn').disabled = !pttOn;
+    $('#pttStat').textContent = pttOn
+      ? 'PTT 켜짐 — 버튼이 턴 경계다(서버 침묵 타이머 없음)'
+      : 'PTT 꺼짐 — 서버 VAD 가 턴을 닫는다';
+    if (pttOn) log('🎤 PTT 세션 — turnControl=ptt 를 보냈다. 서버 로그의 「cascade 턴경계:」 줄을 확인해라');
     clockTimer = setInterval(() => { $('#clock').textContent = `· ${((nowMs()-t0)/1000).toFixed(1)}s`; }, 200);
   };
 
@@ -328,14 +418,27 @@ async function start() {
     if (!ws || ws.readyState!==1) return;
     const buf = e.inputBuffer.getChannelData(0);
     // 로컬 VAD — **측정 전용**. 턴 판정은 서버(STT v2 endpointing)만 한다(D2).
-    const level = rms(buf), th = parseFloat($('#vadTh').value) || 0.012;
-    $('#vadNow').textContent = `현재 RMS ${level.toFixed(4)}`;
-    if (level >= th) {
-      if (!voiced) { voiced = true; firstVoicedAt = nowMs(); }
-      lastVoicedAt = nowMs();
-    } else if (voiced && nowMs() - lastVoicedAt > 400) {
-      voiced = false;  // 유성 구간 종료(다음 발화의 시작점을 다시 잡기 위해)
+    // ⭐⭐ **서브블록으로 잰다**(2026-08-18). 콜백 한 덩이(4096샘플)는 48k 에서 **85ms** 라
+    //   릴리즈 지연 R 을 320ms 판정에 쓰기엔 눈금이 너무 굵다 — 판정폭의 1/4 이 오차다.
+    //   512샘플(≈10.7ms)로 쪼개면 그 오차가 사라진다. 비용은 무시할 수준이다.
+    const th = parseFloat($('#vadTh').value) || 0.012;
+    const frameMs = buf.length / actx.sampleRate * 1000, endAt = nowMs();
+    let level = 0;
+    for (let off = 0; off < buf.length; off += 512) {
+      const sub = buf.subarray(off, Math.min(off + 512, buf.length));
+      const lv = rms(sub); if (lv > level) level = lv;
+      if (lv >= th) {
+        const at = endAt - frameMs + (off + sub.length) / actx.sampleRate * 1000;
+        if (!voiced) { voiced = true; firstVoicedAt = at; }
+        lastVoicedAt = at;
+      }
     }
+    $('#vadNow').textContent = `현재 RMS ${level.toFixed(4)}`;
+    if (voiced && nowMs() - lastVoicedAt > 400) voiced = false;
+    // ⭐⭐ PTT: **누른 동안만 업링크.** 마이크 캡처(위 VAD)는 계속 돈다 — 뗀 뒤의 말까지
+    //   봐야 R 이 **음수로** 나오고, 그 음수가 곧 필요한 그레이스 G 다.
+    //   ⚠ 캡처와 전송은 다른 층이다(ⓐ 계속 녹음 + 버리기). 여기서 끊는 건 전송뿐이다.
+    if (pttOn && !pttHeld) return;
     ws.send(toPCM16(downsample(buf, actx.sampleRate, 16000)).buffer);
   };
 

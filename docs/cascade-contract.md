@@ -260,6 +260,20 @@ keepalive 핑(서버는 pong 응답).
 | `platform` | `str` |  | `""` |
 | `audio_route` | `str` |  | `""` |
 
+### `ptt_press`  (ClientPttPress)
+
+⭐ 버튼을 **눌렀다** — 사용자 턴을 연다(PTT 전용).
+
+| 필드 | 타입 | 필수 | 기본값 |
+|---|---|---|---|
+
+### `ptt_release`  (ClientPttRelease)
+
+⭐ 버튼을 **뗐다** — 사용자 턴을 닫는다. 이 순간이 곧 `commit` 이다(PTT 전용).
+
+| 필드 | 타입 | 필수 | 기본값 |
+|---|---|---|---|
+
 ### `route_change`  (ClientRouteChange)
 
 통화 **도중** 출력 장치가 바뀌었다(2026-08-12 프론트 구현 완료).
@@ -279,6 +293,7 @@ keepalive 핑(서버는 pong 응답).
 | `channels` | `int` |  | `1` |
 | `language` | `str | null` |  | `null` |
 | `aec` | `AecHint | null` |  | `null` |
+| `turnControl` | `str` |  | `"vad"` |
 | `ttsEngine` | `str | null` |  | `null` |
 | `speakingRate` | `float | null` |  | `null` |
 | `stylePrompt` | `str | null` |  | `null` |

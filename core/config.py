@@ -258,6 +258,21 @@ class Settings(BaseSettings):
     #   **같은 발화로 턴을 하나 더 연다**(실통화 u2/u3·u16/u17…). 바닥을 둬서 최종 전사를
     #   기다릴 시간을 항상 남긴다.
     CASCADE_TURN_MIN_WAIT_MS: int = 250
+    # ── PTT(누르고 말하기) — 2026-08-18 사장님 결정 ⓐ ──────────────────────────
+    # ⭐⭐ **릴리즈 후 최종 전사를 기다리는 상한.** `turn_detection: null` 에서는 commit 을
+    #   보내야 벤더가 전사를 만들고, 그 왕복이 끝나야 턴 텍스트가 확정된다 — 그 전에 닫으면
+    #   `_close_turn` 이 **빈 텍스트**로 닫혀 LLM 이 안 불리고 비버가 침묵한다.
+    #   ⛔ 이건 **대기 정책이 아니라 안전망**이다. 정상 경로는 전사가 오는 즉시 닫히므로
+    #     여기 안 닿는다 — 닿았다면 벤더가 응답을 안 준 것이고 로그에 reason=ptt_no_final 로
+    #     남는다. 그래서 실측 p95(430ms)보다 **넉넉히** 잡는다.
+    #   ⚠ 이 값을 실지연으로 오해하지 마라. 실지연은 `[stt-openai] commit→전사 확정:` 줄이다.
+    CASCADE_PTT_FINAL_WAIT_MS: int = 1500
+    # ⭐ **commit 을 보낼 최소 오디오**. 벤더가 직접 말한 값이다(스파이크 §4 실제 응답):
+    #   "buffer too small. Expected at least 100ms of audio, but buffer only has 0.00ms".
+    #   ⛔ 눌렀다 100ms 안에 떼는 것은 **정상 조작 안에 있다**(오조작·오타). 그때 commit 을
+    #     보내면 `input_audio_buffer_commit_empty` 만 돌아오고 **전사는 영영 안 온다** ⇒ 위
+    #     상한 1.5초를 통째로 헛대기한다. 아예 안 보내고 그 자리에서 빈 턴으로 닫는다.
+    CASCADE_PTT_MIN_HOLD_MS: int = 100
     # 방금 닫은 턴의 **꼬리 전사**로 새 턴을 열지 않는 유예. 이 창 안에서 닫힌 턴의 끝보다
     # 앞선 오디오를 가리키는 최종 전사는 이미 낸 턴의 잔여물이다(유령 턴 차단).
     CASCADE_STALE_FINAL_MS: int = 1500
