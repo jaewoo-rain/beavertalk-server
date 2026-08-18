@@ -1017,10 +1017,16 @@ async def test_pacer_uses_the_session_lead(reply_rig, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_gemini_does_not_send_the_first_sentence_alone(reply_rig, monkeypatch):
-    """짧은 요청은 Gemini 에 특히 불리하다(고정 오버헤드 ≈1.3초) — 첫 문장도 묶는다.
+async def test_gemini_now_sends_the_first_sentence_alone_like_chirp(reply_rig, monkeypatch):
+    """⭐ **2026-08-18 뒤집힘** — 사장님 지시로 Gemini 도 첫 문장을 단독 발사한다.
 
-    ⛔ Chirp 은 지금대로 첫 문장을 단독 즉시 송출한다(그쪽은 오버헤드가 작다).
+    옛 규칙과 그 근거는 이랬다: *"짧은 요청은 Gemini 에 특히 불리하다(고정 오버헤드
+    ≈1.3초) — 첫 문장도 묶는다."* 그 근거가 무너진 이유는 **묶음이 안 차기 때문**이다 —
+    상한 400자에 실측 대답 60~120자라, 첫 요청이 "묶음이 참"이 아니라 **"LLM 스트림이
+    끝남"** 으로만 나갔다. 즉 묶어서 얻은 게 없고 `묶음대기`(82~254ms)만 첫소리에 실렸다.
+
+    ⚠ 위험은 남아 있다(첫 배치가 선행버퍼 1500ms 보다 짧으면 페이서가 굶는다).
+      끊기면 되돌린다 — 그때는 이 시험을 **지우지 말고 이름과 기대값을 되돌려라.**
     """
     def _open(client, model, **kwargs):
         chat = _FakeChat(["첫 번째 문장입니다. ", "두 번째 문장입니다. ", "세 번째 문장입니다."])
@@ -1030,7 +1036,8 @@ async def test_gemini_does_not_send_the_first_sentence_alone(reply_rig, monkeypa
     monkeypatch.setattr(cs.gemini_chat, "open_chat_stream", _open)
     monkeypatch.setattr(cs.settings, "CASCADE_TTS_BATCH_CHARS_GEMINI", 1000)
 
-    for engine, expected_calls in (("gemini-tts", 1), ("chirp3-hd", 2)):
+    # ⚠ 이제 **둘 다 2회**다 — 첫 문장 1회 + 나머지 묶음 1회.
+    for engine, expected_calls in (("gemini-tts", 2), ("chirp3-hd", 2)):
         reply_rig["tts_calls"].clear()
         transport = _Transport([
             _ctl(type="start", ttsEngine=engine),

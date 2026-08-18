@@ -364,7 +364,16 @@ _TTS_PROFILES: dict[str, _TtsProfile] = {
     tts.GEMINI_ENGINE: _TtsProfile(
         "CASCADE_TTS_BATCH_CHARS_GEMINI", "CASCADE_TTS_LEAD_MS_GEMINI",
         "CASCADE_TTS_SPEAKING_RATE_GEMINI",
-        solo_first_sentence=False, takes_style=True,
+        # ⭐⭐ **False → True**(2026-08-18 사장님 지시 "첫문장 먼저보내기 해보고 끊기면 말할게").
+        #   왜 지금 켜나: 묶음이 **절대 안 차기 때문**이다. 묶음 상한은 400자인데 실측 대답이
+        #   60~120자다 ⇒ 첫 요청이 "묶음이 참" 이 아니라 **"LLM 스트림이 끝남"** 으로만 나간다.
+        #   그래서 `묶음대기` 가 첫소리 분해에 82~254ms 로 잡히고 있었다. 단독 발사면 0 이 된다.
+        #   ⚠ 위 규칙("왕복이 길면 손해")이 경고한 위험은 **그대로 살아 있다** — 첫 문장이 짧으면
+        #     그 오디오가 선행버퍼(CASCADE_TTS_LEAD_MS_GEMINI=1500ms)보다 짧아 페이서가
+        #     굶는다. 그러면 이득이 0 이거나 **소리가 끊긴다.**
+        #   ⇒ 사장님이 귀로 판정하신다. 끊기면 되돌리거나 선행버퍼를 같이 내린다.
+        #     ⛔ 되돌릴 때 이 주석을 지우지 마라 — 왜 시도했는지가 사라지면 또 시도한다.
+        solo_first_sentence=True, takes_style=True,
         # ⚠ 2 로 올린다(2026-08-12 정정). 처음엔 "분당 10회 상한이라 미리 열면 상한을 빨리
         #   태운다"고 1로 뒀는데, **그 논리가 틀렸다**: 상한은 분당 **요청 수**이고 선행 합성은
         #   같은 구간을 1~2초 **일찍** 부를 뿐 요청 수를 늘리지 않는다. 분당 총량은 그대로다.
@@ -2918,9 +2927,18 @@ class CascadeSession:
                 # 상한에서 끊었을 때 남은 것은 **N+1번째 문장의 앞부분**이다 — 말하지 않는다.
                 #   ⚠ 토큰 상한 때와 달리 여기서 버리는 양은 문장 시작 몇 글자다(그게 요점이다).
                 dropped, tail = tail.strip(), ""
-            if tail and chat.truncated and (spoken_chars or pending):
+            if tail and chat.truncated and (spoken_chars or pending or first_batch_out):
                 # ⛔ 상한에 걸린 대답의 꼬리는 **미완성 문장**이다 — 말하지 않는다.
                 #   (아직 아무것도 못 말했으면 그 꼬리라도 낸다 — 침묵보다 낫다.)
+                # ⭐⭐ **`first_batch_out` 이 조건에 있어야 한다**(2026-08-18, 단독 발사를 켜다 터짐).
+                #   이 가드가 묻는 것은 "이미 말한 게 있나"인데, 원래 그걸 **`pending` 으로**
+                #   대신 읽고 있었다 — 첫 문장이 묶음에 남아 있는 게 당연했기 때문이다.
+                #   ⛔ 단독 발사를 켜니 첫 문장이 곧바로 나가며 `pending` 이 비었고,
+                #     `spoken_chars` 는 **송출 태스크 안에서** 올라가(:2805 create_task)
+                #     이 시점엔 아직 0이다 ⇒ 둘 다 거짓 ⇒ **미완성 꼬리가 소리로 나갔다.**
+                #     회귀가 잡았다: "그리고 저는" 이 발화됐고 이력에도 들어갔다.
+                #   ⇒ `first_batch_out` 은 `_flush_batch` 안에서 **동기로** 서는 유일한 깃발이라
+                #     비동기 경합이 없다. 질문의 정확한 답이다.
                 dropped, tail = tail.strip(), ""
             if tail:
                 pending.append(tail)

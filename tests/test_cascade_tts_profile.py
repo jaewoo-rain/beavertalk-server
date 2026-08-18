@@ -73,11 +73,29 @@ def test_short_roundtrip_engine_keeps_solo_first_sentence():
     assert cs._TTS_PROFILES[cs._CHIRP_CHOICE].solo_first_sentence is True
 
 
-@pytest.mark.parametrize("choice", [cs.tts.GEMINI_ENGINE, cs._GEMINI_BATCH_CHOICE,
-                                    cs._OPENAI_TTS_CHOICE])
+@pytest.mark.parametrize("choice", [cs._GEMINI_BATCH_CHOICE, cs._OPENAI_TTS_CHOICE])
 def test_slow_roundtrip_engines_do_not_send_the_first_sentence_alone(choice):
-    """왕복이 긴 엔진은 묶어서 낸다 — 안 그러면 첫 배치가 버퍼보다 짧아 **끊긴다**."""
+    """왕복이 긴 엔진은 묶어서 낸다 — 안 그러면 첫 배치가 버퍼보다 짧아 **끊긴다**.
+
+    ⚠ **Gemini 실시간은 2026-08-18 에 이 목록에서 빠졌다**(아래 시험 참조). 남은 둘은
+      그대로다 — 한 엔진의 판단을 나머지에 옮기지 않는다.
+    """
     assert cs._TTS_PROFILES[choice].solo_first_sentence is False
+
+
+def test_gemini_realtime_sends_the_first_sentence_alone_by_decision():
+    """⭐ **사장님 지시로 켠 시험이다**(2026-08-18) — "첫문장 먼저보내기 해보고 끊기면 말할게".
+
+    왜 켰나: 묶음 상한이 400자인데 실측 대답이 60~120자라 **묶음이 절대 안 찬다**
+    ⇒ 첫 요청이 "묶음이 참"이 아니라 **"LLM 스트림이 끝남"** 으로만 나갔고, 그 대기가
+    `묶음대기` 82~254ms 로 첫소리에 잡혔다. 단독 발사면 그게 0 이 된다.
+
+    ⚠ 위 시험이 경고한 위험은 **그대로 살아 있다** — 첫 문장이 짧으면 그 오디오가
+      선행버퍼(1500ms)보다 짧아 페이서가 굶는다. 끊기면 되돌린다.
+    ⛔ 되돌릴 때 이 시험을 **지우지 말고 뒤집어라**(위 목록에 gemini 를 도로 넣는다).
+      왜 시도했는지가 사라지면 다음 사람이 또 시도한다.
+    """
+    assert cs._TTS_PROFILES[cs.tts.GEMINI_ENGINE].solo_first_sentence is True
 
 
 def test_solo_first_sentence_is_read_from_the_profile_not_the_engine_name():

@@ -208,7 +208,14 @@ def _reply_paths():
     ]
 
 
-@pytest.mark.parametrize("name,src", _reply_paths())
+# ⛔ **ids 를 반드시 준다**(2026-08-18). 안 주면 pytest 가 `src`(함수 소스 전문 ~20KB)를
+#   노드 ID 로 삼고, 그걸 `PYTEST_CURRENT_TEST` **환경변수**에 넣는다 —
+#   윈도우 상한이 32,767자라 소스가 조금만 길어지면 setup/teardown 이 통째로
+#   `ValueError: the environment variable is longer than 32767 characters` 로 죽는다.
+#   ⚠ 테스트는 통과하는데 **에러로 잡히는** 모양이라 원인이 안 보인다(실제로 겪었다:
+#     주석 8줄을 늘렸더니 넘었다). 소스 길이가 회귀를 깨는 건 말이 안 된다.
+@pytest.mark.parametrize("name,src", _reply_paths(),
+                         ids=lambda v: v if isinstance(v, str) and len(v) < 40 else "")
 def test_every_reply_path_drains_the_queue(name, src):
     """⛔ **모든 대답 경로가 대기열을 배수해야 한다.**
 
@@ -218,7 +225,14 @@ def test_every_reply_path_drains_the_queue(name, src):
     assert "_drain_pending_user_text" in src, f"{name} 경로가 대기열을 안 비운다"
 
 
-@pytest.mark.parametrize("name,src", _reply_paths())
+# ⛔ **ids 를 반드시 준다**(2026-08-18). 안 주면 pytest 가 `src`(함수 소스 전문 ~20KB)를
+#   노드 ID 로 삼고, 그걸 `PYTEST_CURRENT_TEST` **환경변수**에 넣는다 —
+#   윈도우 상한이 32,767자라 소스가 조금만 길어지면 setup/teardown 이 통째로
+#   `ValueError: the environment variable is longer than 32767 characters` 로 죽는다.
+#   ⚠ 테스트는 통과하는데 **에러로 잡히는** 모양이라 원인이 안 보인다(실제로 겪었다:
+#     주석 8줄을 늘렸더니 넘었다). 소스 길이가 회귀를 깨는 건 말이 안 된다.
+@pytest.mark.parametrize("name,src", _reply_paths(),
+                         ids=lambda v: v if isinstance(v, str) and len(v) < 40 else "")
 def test_every_reply_path_settles_state_with_a_generation_guard(name, src):
     """⛔ 상태 되돌리기는 **한 곳**(`_settle_reply_state`)을 거친다.
 
