@@ -236,7 +236,9 @@ $('#callBtn').onclick = async () => {
     const msg = engine==='live'
       ? { type:'start', character_id:+$('#cid').value||1, locale:$('#loc').value,
           duration_min:+$('#dur').value||5 }
-      : { type:'start', sampleRate:16000, aec:{ mode:'hw', route:'browser' } };
+      // ⭐ turnControl:'ptt' — 벤더 VAD 를 끄고(turn_detection:null) 버튼이 턴 경계가 된다.
+      //   ⚠ 낱말이 mode 가 아닌 이유: 와이어에서 mode 는 AecHint.mode 가 이미 점유했다.
+      : { type:'start', sampleRate:16000, turnControl:'ptt', aec:{ mode:'hw', route:'browser' } };
     ws.send(JSON.stringify(msg));
     log('→ start '+JSON.stringify(msg), 'out');
     startElapsed();
@@ -287,30 +289,32 @@ function cleanup(){
   try{ srcNode && srcNode.disconnect(); }catch{}
   try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch{}
   try{ actx && actx.close(); }catch{}
-  clearTimeout(tailTimer); tailTimer=null;
   procNode=srcNode=micStream=actx=null; pttHeld=false; $('#talk').classList.remove('on');
 }
 
 /* ---------- PTT 버튼 ---------- */
-// ⛔⛔ **버튼을 떼도 업링크를 뚝 끊으면 안 된다** (2026-08-18 실측으로 확인).
-//   서버 STT 는 아직 `turn_detection: server_vad` 다 — 발화 끝을 **무음을 들어서** 판정한다.
-//   그런데 뗀 순간 오디오를 0 으로 만들면 들을 무음 자체가 없어서 VAD 가 안 터지고,
-//   응답이 통째로 늦어진다(사장님 실측: "PTT 가 기존 캐스케이드보다 훨씬 느리다").
+// ⚠ **왜 한 번 틀렸었는지 남긴다**(2026-08-18). 처음엔 버튼을 떼며 업링크를 뚝 끊었다.
+//   그때 서버 STT 는 `turn_detection: server_vad` 라 발화 끝을 **무음을 들어서** 판정했는데,
+//   들을 무음 자체가 없어지니 VAD 가 안 터졌다. 턴이 STT idle 5초 워치독으로 닫혀
+//   R 이 **7.6초**가 됐다(사장님 실측: "PTT 가 기존 캐스케이드보다 훨씬 느리다").
 //
-//   서버 자신도 같은 이유로 통화 끝에 무음을 흘린다 —
-//   `core/openai_stt.py:187` "닫기 전에 무음을 조금 흘린다 — 안 그러면 마지막 발화가
-//   통째로 사라진다. 실측(2026-08-10): 그냥 끊으면 전사 2건, 꼬리 무음 1.5초를 붙이면 3건."
+//   서버 자신도 같은 이유로 통화 끝에 무음을 흘렸다 —
+//   `core/openai_stt.py:187` "닫기 전에 무음을 조금 흘린다 — 안 그러면 마지막 발화가 사라진다".
 //
-//   ⇒ 뗀 뒤 **무음 프레임을 잠깐 더 보낸다.** 길이는 서버 침묵창(OPENAI_STT_SILENCE_MS=300)
-//     보다 넉넉히 잡는다. 이건 우회가 아니라 **지금 서버 계약에 맞는 올바른 클라 동작**이다.
-//   ⚠ ptt-impl 이 `turn_detection: null` 로 바꾸면 이 꼬리가 **불필요해진다**(버튼이 곧 경계).
-//     그때 이 블록을 지운다 — 그리고 그 차이가 곧 PTT 전환의 순이득이다.
-const PTT_TAIL_MS = 500;
-let tailTimer = null;
-
-function sendSilence(ms){
+// ⭐⭐ **그 꼬리 무음을 지웠다**(2026-08-18). 서버가 `turnControl:'ptt'` 를 받으면
+//   `turn_detection: null` 로 붙어 **벤더 VAD 가 통째로 꺼진다.** 그러면 벤더는 무음을
+//   듣고 말끝을 추측하지 않고, `input_audio_buffer.commit` 을 받을 때만 전사한다.
+//   ⇒ 무음을 흘릴 이유가 사라졌다. 버튼이 곧 경계다.
+//
+// ⛔ `ptt_press` 는 **없으면 안 된다.** VAD 를 끄면 벤더가 `speech_started` 도 부분 전사도
+//   안 보내서 서버가 턴을 여는 트리거 두 개가 **둘 다 안 온다** — 누름 신호가 없으면 턴이
+//   한 번도 안 열리고 통화가 조용히 멈춘다(cascade_protocol.py ClientPttPress 주석).
+//
+// ⭐ 그리고 누름은 **즉시 barge-in** 을 겸한다. 지금까지 비버를 끊으려면 에너지·전사 확인
+//   사다리를 최대 3.5초 지나야 했는데, 버튼은 추측이 아니라 **선언**이라 그 자리에서 끊는다.
+function sendCtl(type){
   if (!ws || ws.readyState!==1) return;
-  ws.send(new Int16Array(Math.round(16000 * ms / 1000)).buffer);   // PCM16 무음 @16k
+  ws.send(JSON.stringify({ type }));
 }
 
 function hold(on){
@@ -319,24 +323,13 @@ function hold(on){
   pttHeld = on;
   $('#talk').classList.toggle('on', on);
   if (on){
-    clearTimeout(tailTimer); tailTimer = null;
-    log('🎤 눌림 — 업링크 열림', 'out');
+    sendCtl('ptt_press');
+    log('🎤 눌림 — 턴 열림(즉시 barge-in)', 'out');
   } else {
     releasedAt = nowMs(); awaitingFirstAudio = true;
     turns++; $('#sTurns').textContent = String(turns);
-    // 꼬리 무음 — 20ms 씩 나눠 보낸다(한 번에 큰 덩어리를 밀면 벤더가 한 프레임으로 읽는다).
-    let sent = 0;
-    const step = () => {
-      if (pttHeld || !ws || ws.readyState!==1) return;
-      sendSilence(20); sent += 20;
-      if (sent < PTT_TAIL_MS) tailTimer = setTimeout(step, 20);
-      else { tailTimer = null; log(`🎤 뗌 — 꼬리 무음 ${PTT_TAIL_MS}ms 전송 완료, 응답 대기`, 'out'); }
-    };
-    log('🎤 뗌 — 업링크 닫힘', 'out');
-    step();
-    // ⛔ user_turn_end 를 여기서 보내지 않는다. 서버가 그 타입을 받는지 확인 전이다 —
-    //   모르는 타입을 보내면 조용히 무시되거나 파싱 에러로 통화가 끊길 수 있다.
-    //   (PTT 서버측 전환 때 계약을 정하고 그때 붙인다.)
+    sendCtl('ptt_release');   // ⭐ 이 순간이 곧 commit 이다. 무음 꼬리도 대기도 없다
+    log('🎤 뗌 — commit, 응답 대기', 'out');
   }
 }
 const talk = $('#talk');
