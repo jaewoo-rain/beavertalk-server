@@ -235,7 +235,8 @@ class GeminiLiveSession:
         )
 
     async def send_tool_response(
-        self, fn_id: Optional[str], fn_name: Optional[str]
+        self, fn_id: Optional[str], fn_name: Optional[str],
+        *, resume: bool = False,
     ) -> None:
         """NON_BLOCKING function-call 에 대한 형식적 응답을 되돌린다.
 
@@ -252,7 +253,20 @@ class GeminiLiveSession:
                     id=fn_id,
                     name=fn_name,
                     response={"result": "ok"},
-                    scheduling=types.FunctionResponseScheduling.SILENT,
+                    # ⭐⭐ **`resume` 가 없으면 모델이 다시 말하지 않는다**(2026-08-18 실측).
+                    #   SILENT = "맥락에만 넣고 **생성을 트리거하지 않는다**". 레벨테스트는
+                    #   그게 맞았다(그 호출의 목적이 **통화를 끝내는 것**이라 이어 말할 필요가
+                    #   없었다). 그런데 표정 tool 은 부르고 **계속 말해야** 한다.
+                    #   ⛔ 실측: set_face 를 4턴 내내 불렀는데 **첫 턴 말고는 대답이 0건**이었다
+                    #     (사장님: "AI가 대답을 안 하는데?"). 모델은 호출 뒤 응답을 기다렸고,
+                    #     우리가 SILENT 로 "생성하지 마"라고 답한 셈이다.
+                    #   ⇒ WHEN_IDLE = "맥락에 넣고, **진행 중 생성을 끊지 않으면서** 생성을
+                    #     촉구한다". INTERRUPT 는 하던 말을 자르므로 쓰지 않는다.
+                    #   ⚠ 기본은 SILENT 그대로 — 레벨테스트 경로의 바이트가 안 바뀐다.
+                    scheduling=(
+                        types.FunctionResponseScheduling.WHEN_IDLE if resume
+                        else types.FunctionResponseScheduling.SILENT
+                    ),
                 )
             ]
         )

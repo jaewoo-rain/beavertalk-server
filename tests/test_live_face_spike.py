@@ -74,3 +74,37 @@ def test_live_config_without_tools_is_unchanged():
     assert build_live_config(
         system_instruction="x", voice="Leda", tools=[SET_FACE_TOOL]
     ).tools == [SET_FACE_TOOL]
+
+
+def test_the_face_response_resumes_generation_but_leveltest_stays_silent():
+    """⛔⛔ **이걸 틀리면 비버가 말을 안 한다**(2026-08-18 실측으로 배웠다).
+
+    `SILENT` = "맥락에만 넣고 **생성을 트리거하지 않는다**".
+    레벨테스트는 그게 맞다 — 그 호출의 목적이 **통화를 끝내는 것**이라 이어 말할 필요가 없다.
+    표정은 정반대다: 부르고 **계속 말해야** 한다.
+
+    실측: set_face 를 4턴 내내 불렀는데 **첫 턴 말고는 대답이 0건**이었다
+    (사장님: "AI가 대답을 안 하는데?"). 모델이 호출 뒤 응답을 기다렸는데 우리가
+    "생성하지 마"라고 답한 셈이다.
+
+    ⚠ `INTERRUPT` 는 안 된다 — 하던 말을 자른다.
+    """
+    import google.genai.types as types
+
+    from core.gemini_live import GeminiLiveSession
+
+    sent = []
+
+    class _FakeSession:
+        async def send_tool_response(self, *, function_responses):
+            sent.extend(function_responses)
+
+    import asyncio
+
+    live = GeminiLiveSession(_FakeSession())
+
+    asyncio.run(live.send_tool_response("id1", "leveltest_ceiling_reached"))
+    assert sent[-1].scheduling == types.FunctionResponseScheduling.SILENT
+
+    asyncio.run(live.send_tool_response("id2", "set_face", resume=True))
+    assert sent[-1].scheduling == types.FunctionResponseScheduling.WHEN_IDLE

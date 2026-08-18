@@ -2262,7 +2262,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             # ⛔ 응답은 돌려준다 — NON_BLOCKING 이라 기다리진 않지만 안 주면 모델 쪽에 미완
             #   호출이 남는다. SILENT 라 이 응답이 추가 발화를 유발하지 않는다.
             try:
-                await session.send_tool_response(event.fn_id, event.fn_name)
+                # ⛔ `resume=True` 없으면 **모델이 다시 말하지 않는다**(실측). 자세한 근거는
+                #   gemini_live.send_tool_response 주석. 표정은 부르고 계속 말해야 한다.
+                await session.send_tool_response(event.fn_id, event.fn_name, resume=True)
             except Exception as exc:   # noqa: BLE001 — 계측이 통화를 죽이면 안 된다(R5)
                 logger.warning("normalcall 표정스파이크: tool 응답 실패(무시) — %s", exc)
             continue
