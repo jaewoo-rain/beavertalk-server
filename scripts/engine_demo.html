@@ -287,23 +287,53 @@ function cleanup(){
   try{ srcNode && srcNode.disconnect(); }catch{}
   try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch{}
   try{ actx && actx.close(); }catch{}
+  clearTimeout(tailTimer); tailTimer=null;
   procNode=srcNode=micStream=actx=null; pttHeld=false; $('#talk').classList.remove('on');
 }
 
 /* ---------- PTT 버튼 ---------- */
-// ⚠ 지금은 **클라가 업링크를 게이팅**한다. 서버 turn_detection 은 아직 server_vad 라
-//   뗀 뒤에도 벤더 침묵 타이머(800ms)가 돈다 — 그래서 R 에 그 값이 섞여 있다.
-//   ptt-impl 이 turn_detection:null 로 바꾸면 그 몫이 빠진다. **비교의 기준선이 지금 값이다.**
+// ⛔⛔ **버튼을 떼도 업링크를 뚝 끊으면 안 된다** (2026-08-18 실측으로 확인).
+//   서버 STT 는 아직 `turn_detection: server_vad` 다 — 발화 끝을 **무음을 들어서** 판정한다.
+//   그런데 뗀 순간 오디오를 0 으로 만들면 들을 무음 자체가 없어서 VAD 가 안 터지고,
+//   응답이 통째로 늦어진다(사장님 실측: "PTT 가 기존 캐스케이드보다 훨씬 느리다").
+//
+//   서버 자신도 같은 이유로 통화 끝에 무음을 흘린다 —
+//   `core/openai_stt.py:187` "닫기 전에 무음을 조금 흘린다 — 안 그러면 마지막 발화가
+//   통째로 사라진다. 실측(2026-08-10): 그냥 끊으면 전사 2건, 꼬리 무음 1.5초를 붙이면 3건."
+//
+//   ⇒ 뗀 뒤 **무음 프레임을 잠깐 더 보낸다.** 길이는 서버 침묵창(OPENAI_STT_SILENCE_MS=300)
+//     보다 넉넉히 잡는다. 이건 우회가 아니라 **지금 서버 계약에 맞는 올바른 클라 동작**이다.
+//   ⚠ ptt-impl 이 `turn_detection: null` 로 바꾸면 이 꼬리가 **불필요해진다**(버튼이 곧 경계).
+//     그때 이 블록을 지운다 — 그리고 그 차이가 곧 PTT 전환의 순이득이다.
+const PTT_TAIL_MS = 500;
+let tailTimer = null;
+
+function sendSilence(ms){
+  if (!ws || ws.readyState!==1) return;
+  ws.send(new Int16Array(Math.round(16000 * ms / 1000)).buffer);   // PCM16 무음 @16k
+}
+
 function hold(on){
   if (!ws || ws.readyState!==1 || engine!=='cascade') return;
   if (on === pttHeld) return;
   pttHeld = on;
   $('#talk').classList.toggle('on', on);
-  if (on){ log('🎤 눌림 — 업링크 열림', 'out'); }
-  else {
+  if (on){
+    clearTimeout(tailTimer); tailTimer = null;
+    log('🎤 눌림 — 업링크 열림', 'out');
+  } else {
     releasedAt = nowMs(); awaitingFirstAudio = true;
     turns++; $('#sTurns').textContent = String(turns);
-    log('🎤 뗌 — 업링크 닫힘, 응답 대기', 'out');
+    // 꼬리 무음 — 20ms 씩 나눠 보낸다(한 번에 큰 덩어리를 밀면 벤더가 한 프레임으로 읽는다).
+    let sent = 0;
+    const step = () => {
+      if (pttHeld || !ws || ws.readyState!==1) return;
+      sendSilence(20); sent += 20;
+      if (sent < PTT_TAIL_MS) tailTimer = setTimeout(step, 20);
+      else { tailTimer = null; log(`🎤 뗌 — 꼬리 무음 ${PTT_TAIL_MS}ms 전송 완료, 응답 대기`, 'out'); }
+    };
+    log('🎤 뗌 — 업링크 닫힘', 'out');
+    step();
     // ⛔ user_turn_end 를 여기서 보내지 않는다. 서버가 그 타입을 받는지 확인 전이다 —
     //   모르는 타입을 보내면 조용히 무시되거나 파싱 에러로 통화가 끊길 수 있다.
     //   (PTT 서버측 전환 때 계약을 정하고 그때 붙인다.)
