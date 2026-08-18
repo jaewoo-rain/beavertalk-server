@@ -224,6 +224,20 @@ _EMOTION_TAG_RULE = """
   **그 감정에 맞는 목소리로 읽는다.**"""
 
 
+# ⭐ 라이브 표정 신호(2026-08-18 계측 스파이크). **텍스트 태그가 아니다** —
+#   native-audio 는 쓰는 족족 낭독하므로(_EMOTION_TAG_RULE 이 Live 에 금지된 이유),
+#   표정은 **function-call** 로만 나갈 수 있다.
+# ⛔ 말 구조를 고정하지 않는다("반응 먼저, 설명 나중" 같은 틀을 강요하지 않는다).
+#   대사가 틀에 박히고 문장상한과도 부딪힌다. 여기서 정하는 건 **타이밍뿐**이다.
+_FACE_TOOL_RULE = """
+[표정]
+- 네 표정이 **바뀔 때만** `set_face` 를 불러라. 그 말을 하기 **직전에** 부른다.
+- 표정이 그대로면 부르지 마라. 안 부르면 이전 표정이 유지된다.
+- 고를 수 있는 값: neutral, happy, surprised, sad, angry
+- ⛔ 이건 소리가 아니다. 도구를 부르는 것이지 **말하는 게 아니다** — 표정 이름을
+  소리 내어 읽지 마라."""
+
+
 def _history_block(history: object | None) -> str:
     """최근 이력을 압축 블록으로 만든다(없으면 빈 문자열).
 
@@ -535,6 +549,7 @@ def build_system_instruction(
     max_sentences: int | None = None,
     language_marker: bool = False,
     emotion_tags: tuple[str, ...] = (),
+    face_tool: bool = False,
 ) -> str:
     """normalcall Live 세션용 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -650,6 +665,10 @@ def build_system_instruction(
         parts.append(
             _EMOTION_TAG_RULE.format(tags=" ".join(f"<{t}>" for t in emotion_tags))
         )
+    if face_tool:
+        # ⛔ 옵트인. 기본 False 에서는 이 블록이 안 붙어 **기존 호출부 출력이 바이트 동일**하다
+        #   (스냅샷 회귀가 그걸 지킨다). Live 스파이크만 True 로 켠다.
+        parts.append(_FACE_TOOL_RULE)
     if language_marker:
         # ⛔ 옵트인이다. 기본값(False)에서는 이 블록이 안 붙어 **기존 호출부의 출력이
         #   바이트 동일**하다(스냅샷 테스트가 그걸 지킨다).

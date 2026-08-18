@@ -47,6 +47,36 @@ LEVELTEST_DONE_TOOL = types.Tool(
     ]
 )
 
+# ⭐ 표정 신호용 function-call(2026-08-18 계측 스파이크).
+# native-audio 는 모델 출력이 **곧 소리**라 텍스트 태그를 쓰면 그대로 낭독한다
+# (persona_prompt.py 가 emotion_tags 를 Live 에 금지한 이유가 그것이다).
+# tool-call 은 소리가 아닌 유일한 통로다 — 레벨테스트가 같은 벽에서 먼저 쓴 수법이다.
+# NON_BLOCKING: 서버 응답을 안 기다린다 → 호출이 발화를 끊지 않는다.
+# ⚠ 값 집합은 **클라 아바타 어휘 5종**과 같다(커밋 d1139d8 "매핑 계층을 만들지 않는다").
+SET_FACE_TOOL = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="set_face",
+            description=(
+                "네 표정이 바뀔 때 호출한다. 그 말을 하기 **직전에** 부른다. "
+                "표정이 그대로면 부르지 않는다."
+            ),
+            behavior=types.Behavior.NON_BLOCKING,
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "emotion": types.Schema(
+                        type=types.Type.STRING,
+                        enum=["neutral", "happy", "surprised", "sad", "angry"],
+                        description="지금부터의 표정.",
+                    )
+                },
+                required=["emotion"],
+            ),
+        )
+    ]
+)
+
 LiveEventKind = Literal[
     "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call",
     "usage", "resume_update",
@@ -64,6 +94,10 @@ class LiveEvent:
     time_left: Optional[str] = None    # kind=="go_away": 서버 종료 예고 timeLeft(있으면)
     fn_name: Optional[str] = None      # kind=="tool_call": 호출된 function 이름
     fn_id: Optional[str] = None        # kind=="tool_call": function_call id(send_tool_response 매칭용)
+    # ⭐ kind=="tool_call": 인자(2026-08-18). 지금까지 tool 이 **인자 없는 것 하나**뿐이라
+    #   이 칸이 없었다. set_face 는 emotion 을 받으므로 필요하다.
+    #   ⚠ 기본 None → 기존 소비측(없다) · 회귀 무영향.
+    fn_args: Optional[dict] = None
     usage: Optional[Any] = None        # kind=="usage": SDK UsageMetadata 원본(어댑터는 해석 안 함)
     # kind=="resume_update": 세션 재개 핸들. resumable=False 면 지금 시점 상태로는 재개할 수
     # 없다는 뜻이라(모델 생성 중·tool 실행 중) **핸들을 덮어쓰면 안 된다**.
@@ -283,6 +317,8 @@ class GeminiLiveSession:
                             kind="tool_call",
                             fn_name=getattr(fc, "name", None),
                             fn_id=getattr(fc, "id", None),
+                            # ⚠ SDK 가 dict 로 준다. 어댑터는 **해석하지 않는다**(도메인 몫).
+                            fn_args=dict(getattr(fc, "args", None) or {}),
                         )
 
                 server_content = getattr(response, "server_content", None)

@@ -68,6 +68,7 @@ from core.languages import (
 )
 from core.gemini_live import (
     DEFAULT_VOICE,
+    SET_FACE_TOOL,
     LiveEvent,
     LiveSessionProtocol,
     open_session,
@@ -399,6 +400,7 @@ class _CallState:
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
         "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
+        "face_calls",   # 표정 계측 스파이크 — 이 통화에서 set_face 가 몇 번 불렸나
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -458,6 +460,7 @@ class _CallState:
         self.cur_beaver_pcm = bytearray()
         self.cur_beaver_text: list[str] = []
         self.next_turn_index = 0
+        self.face_calls = 0        # 표정 계측 스파이크(꺼져 있으면 영원히 0)
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -1141,6 +1144,8 @@ async def run_call(
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
             lang_band=setup.get("lang_band", "beginner"),
             close_tag=close_tag,
+            # ⭐ 계측 스파이크(2026-08-18). 꺼져 있으면 지시문이 **바이트 동일**하다.
+            face_tool=bool(settings.LIVE_FACE_SPIKE),
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
@@ -1184,6 +1189,12 @@ async def run_call(
     # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
     # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
     live_tools = None
+    # ⭐ 표정 계측 스파이크 — 이 스위치가 켜진 통화만 `set_face` 를 받는다(2026-08-18).
+    #   ⛔ 기능이 아니다. 클라로 아무것도 안 보내고 화면도 안 바뀐다 — **로그만** 남긴다.
+    #   ⚠ 이게 `live_tools` 의 **첫 실사용**이다. 지금까지 항상 None 이라 "모델이 tool 을
+    #     부른다"를 이 프로젝트에서 아무도 본 적이 없다. 그래서 재는 것이다.
+    if settings.LIVE_FACE_SPIKE:
+        live_tools = [SET_FACE_TOOL]
     if call_type == "level_test":
         # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
         # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
@@ -2226,6 +2237,34 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         # 어디에도 닿지 않는다(R4). 클라로 나가는 것도 없다(WS 프로토콜 불변).
         if event.kind == "usage":
             _record_usage(state, event.usage)
+            continue
+
+        # ⭐⭐ 표정 계측 스파이크(2026-08-18). **usage 와 같은 규율** — 적재만 하고 즉시
+        #   continue 한다. `_forward_event` 로 안 내려보내므로 턴 상태기계·barge-in·무음
+        #   시계·종료 규약 어디에도 안 닿는다(R4). 클라로 나가는 것도 없다.
+        #   ⛔ 여기서 다루는 이유: `send_tool_response` 에 `session` 이 필요한데
+        #     `_forward_event(client_ws, event, state)` 에는 세션이 없다.
+        #
+        # ⭐ **`턴누적오디오`가 이 스파이크의 답이다.** 프론트는 시계가 아니라 **오디오
+        #   위치**로 표정을 터뜨린다(마커를 봉투에 꽂아 두고 재생이 그 지점에 닿을 때 반영).
+        #   그래서 알아야 할 건 "이 호출이 그 문장 오디오보다 앞에 왔나"이고 그 값이 이것이다.
+        #     0 에 가까움 → ✅ 말하기 전에 불렀다. 순서대로 흘리면 자동으로 맞는다
+        #     크다        → ⛔ 이미 말한 뒤다. 표정이 그만큼 늦는다 → 설계를 다시 봐야 한다
+        #   24kHz·16bit·mono = 48,000 B/s 고정이라 바이트를 초로 바로 환산한다.
+        if event.kind == "tool_call":
+            state.face_calls += 1
+            logger.info(
+                "normalcall 표정스파이크: %s(%s) 턴누적오디오=%.2f초 이번통화 %d번째 직전전사=%r",
+                event.fn_name, (event.fn_args or {}).get("emotion"),
+                len(state.cur_beaver_pcm) / 48000.0, state.face_calls,
+                ("".join(state.cur_beaver_text))[-40:],
+            )
+            # ⛔ 응답은 돌려준다 — NON_BLOCKING 이라 기다리진 않지만 안 주면 모델 쪽에 미완
+            #   호출이 남는다. SILENT 라 이 응답이 추가 발화를 유발하지 않는다.
+            try:
+                await session.send_tool_response(event.fn_id, event.fn_name)
+            except Exception as exc:   # noqa: BLE001 — 계측이 통화를 죽이면 안 된다(R5)
+                logger.warning("normalcall 표정스파이크: tool 응답 실패(무시) — %s", exc)
             continue
 
         # A3 GoAway: 서버가 곧 연결을 닫겠다는 예고(연결 ~10분 한계, S2). 뚝 끊기기 전에

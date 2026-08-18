@@ -266,6 +266,15 @@ class Settings(BaseSettings):
     #     여기 안 닿는다 — 닿았다면 벤더가 응답을 안 준 것이고 로그에 reason=ptt_no_final 로
     #     남는다. 그래서 실측 p95(430ms)보다 **넉넉히** 잡는다.
     #   ⚠ 이 값을 실지연으로 오해하지 마라. 실지연은 `[stt-openai] commit→전사 확정:` 줄이다.
+    # ── 라이브 표정 계측 스파이크(2026-08-18) ─────────────────────────────
+    # ⛔ **기능이 아니다. 계측이다.** 켜면 Live 세션에 `set_face` tool 을 선언하고
+    #   프롬프트 한 줄을 붙여, 모델이 그걸 **부르기는 하는지 / 말보다 먼저 부르는지**를
+    #   로그로만 남긴다. 클라로 아무것도 안 보내고 화면도 안 바뀐다.
+    # ⚠ 왜 스파이크가 필요한가: tool-call 배관은 지어져 있지만(gemini_live.py) `live_tools`
+    #   가 **항상 None** 이라 실사용 0회다 — "모델이 부른다"를 아무도 본 적이 없다.
+    #   문서로는 못 정한다. 통화 한 번이 답이다.
+    # ⛔ 기본 False. 꺼져 있으면 Live config·프롬프트가 **바이트 동일**(회귀가 지킨다).
+    LIVE_FACE_SPIKE: bool = False
     CASCADE_PTT_FINAL_WAIT_MS: int = 1500
     # ⭐ **commit 을 보낼 최소 오디오**. 벤더가 직접 말한 값이다(스파이크 §4 실제 응답):
     #   "buffer too small. Expected at least 100ms of audio, but buffer only has 0.00ms".
