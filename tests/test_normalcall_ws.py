@@ -3812,3 +3812,63 @@ async def test_a_non_face_tool_call_never_becomes_a_face_marker(
     assert [f for f in frames if f.get("type") == "sentence"] == []
     # 응답은 돌려주되 **SILENT**(resume=False) 여야 한다.
     assert holder["session"].tool_responses == [("fc9", "leveltest_ceiling_reached", False)]
+
+
+@pytest.mark.asyncio
+async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded):
+    """⛔⛔ **폭주 차단기** — 소리 없이 계속 부르면 응답을 SILENT 로 돌린다.
+
+    실측 사고(2026-08-19): `WHEN_IDLE` 은 "하던 일 끝나면 재개"인데 턴 사이에는 할 일이
+    없어 **즉시 재개**한다. 그런데 재개한 모델이 또 `set_face` 를 부른다 ⇒ 무한 루프.
+    **32초에 89회, 그동안 발화 0건.** 사용자가 4번 말했는데 통화가 통째로 죽어 있었다.
+
+    ⚠ 프롬프트로도 눌렀지만("한 턴에 한 번") **모델이 안 지키면 그대로 재발한다.**
+      지시는 부탁이고 이건 계약이다 — 그래서 서버가 끊는다.
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
+    # 소리 한 조각 없이 감정만 6회(값도 계속 바꿔 중복 억제에 안 걸리게 한다)
+    script = ["happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+
+    markers = [json.loads(t) for t in ws.sent_text
+               if json.loads(t).get("type") == "sentence"]
+    # 3회까지만 나가고 그 뒤는 끊긴다.
+    assert len(markers) == 3, markers
+    resumes = [r[2] for r in holder["session"].tool_responses]
+    assert resumes[:3] == [True, True, True]
+    assert all(r is False for r in resumes[3:6]), "차단 뒤에도 재개를 촉구했다 — 루프가 안 끊긴다"
+
+
+@pytest.mark.asyncio
+async def test_audio_clears_the_storm_counter(monkeypatch, session_factory, seeded):
+    """⭐ 소리가 나오면 차단기가 풀린다 — 정상 통화가 오래가도 안 막힌다.
+
+    ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 **사이**에서 나므로 턴 경계로 풀면
+      차단기가 매번 풀려 무력해진다.
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
+    script = ["happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+
+    markers = [json.loads(t) for t in ws.sent_text
+               if json.loads(t).get("type") == "sentence"]
+    assert len(markers) == 5, "오디오가 카운터를 안 풀었다"
+    assert all(r[2] is True for r in holder["session"].tool_responses)

@@ -403,6 +403,8 @@ class _CallState:
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         # 표정(set_face) — 호출 수 · 마커 seq · 마지막으로 **보낸** 값(중복 억제 기준)
         "face_calls", "face_seq", "face_last",
+        # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
+        "face_streak",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -465,6 +467,7 @@ class _CallState:
         self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
         self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
+        self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -2271,6 +2274,17 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   (회귀가 잡았다: 마커가 0건이고 통화가 즉시 끝났다).
             is_face = event.fn_name == "set_face" and bool(_settings.LIVE_FACE_SPIKE)
             state.face_calls += 1
+            if is_face:
+                state.face_streak += 1
+            # ⭐⭐ **폭주 차단기**(2026-08-19 실측 사고: 32초에 89회, 그동안 발화 0건).
+            #   `WHEN_IDLE` 은 "하던 일 끝나면 재개"인데 턴 사이에는 **할 일이 없어 즉시
+            #   재개**한다. 그런데 재개한 모델이 또 `set_face` 를 부른다 ⇒ 무한 루프.
+            #   ⇒ 소리 없이 N회를 넘기면 **SILENT 로 답한다**(= 재개를 촉구하지 않는다).
+            #   ⚠ 프롬프트로도 눌렀지만(한 턴 한 번) **모델이 안 지키면 그대로 재발**한다.
+            #     지시는 부탁이고, 이건 계약이다.
+            runaway = is_face and state.face_streak > max(1, _settings.LIVE_FACE_MAX_CONSECUTIVE)
+            if runaway:
+                is_face = False      # 마커도 보내지 않고, 아래 응답도 SILENT 로 내려간다
             emotion = str((event.fn_args or {}).get("emotion") or "").strip() if is_face else ""
             secs = len(state.cur_beaver_pcm) / 48000.0   # 24kHz·16bit·mono = 48,000 B/s
             # ⭐ **직전과 같으면 안 보낸다.** 실측 28회 중 7회(25%)가 같은 값 연속이었다
@@ -2295,6 +2309,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             logger.info(
                 "normalcall 표정: %s(%s) 턴누적오디오=%.2f초 %d번째 %s 직전전사=%r",
                 event.fn_name, emotion or "?", secs, state.face_calls,
+                "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
                 "중복(안 보냄)" if duplicate else
                 ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
@@ -2451,6 +2466,10 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
         if event.audio:
+            # ⭐ 소리가 나왔다 = 모델이 정상으로 돌아왔다 ⇒ 표정 폭주 카운터를 푼다.
+            #   ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 사이에서 나므로
+            #     턴 경계로 풀면 차단기가 영영 안 걸리거나 매번 풀린다.
+            state.face_streak = 0
             await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
