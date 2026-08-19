@@ -80,13 +80,19 @@
 
   <!-- ② 엔진 선택 -->
   <div class="panel">
-    <div class="muted" style="margin-bottom:8px">어떻게 할까요?</div>
+    <div class="muted" style="margin-bottom:8px">
+      <b>엔진</b>을 고른다 — 공부/대화 모드는 통화 <b>안에서</b> 비버가 묻는다("공부할래, 수다 떨래?").
+    </div>
     <div class="row">
+      <!-- ⛔ 이 버튼은 **엔진 선택**이지 공부/대화 모드가 아니다(2026-08-19 정정).
+           예전 라벨이 '얘기할래 / 공부할래' 였는데, 그건 통화 **안에서** 비버가 묻는
+           질문의 문구다("공부할래, 수다 떨래?"). 같은 낱말을 두 층위에 쓰니
+           "공부하려면 어느 버튼?" 이 안 풀렸다 — 사장님이 실제로 그걸 물으셨다. -->
       <button class="pick live" id="pickLive" aria-pressed="true">
-        <b>🗣 얘기할래</b><span class="muted">Live · 마이크 상시 · 끼어들기 없음</span>
+        <b>🗣 Live</b><span class="muted">마이크 상시 · 끼어들기 없음 · 이어하기 지원</span>
       </button>
       <button class="pick ptt" id="pickPtt" aria-pressed="false">
-        <b>📚 공부할래</b><span class="muted">PTT 캐스케이드 · 버튼 꾹 눌러 말하기</span>
+        <b>📚 PTT 캐스케이드</b><span class="muted">버튼 꾹 눌러 말하기 · 이어하기 없음</span>
       </button>
     </div>
     <div class="row" style="margin-top:10px">
