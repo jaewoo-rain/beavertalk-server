@@ -515,6 +515,9 @@ def _load_study_materials(
 # ⭐⭐ 이어하기 유효시간(2026-08-19 사장님 결정). "이어서" 를 누를 수 있는 창.
 #   ⚠ 짧으면 화장실 다녀온 사이 끊기고, 길면 30분 뒤 돌아와 이어서 어색해진다.
 RESUME_TTL_S = 300.0
+# ⭐ 이어하기 브리프에 실을 대화 발췌의 글자 예산. 프롬프트가 이미 ~5,000 토큰이라
+#   여기에 통화 전체를 넣으면 조각3에서 두 배가 된다. 1,200자 ≈ 400~600토큰.
+_RESUME_EXCERPT_CHARS = 1200
 
 
 def resume_call(
@@ -620,24 +623,58 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
     #   결과는 맞힌 쪽이다. 둘 다 실으면 비버가 모순된 지시를 받는다.
     weak = [w for w in weak if w not in strong]
 
-    # ⚠ 컬럼 이름은 `content` 다(`text` 가 아니다 — 2026-08-19 실측에서 이걸 틀려
-    #   브리프가 통째로 실패했고, 비버가 조각2에서 **다시 인사했다**).
-    last = (
+    # ⭐⭐ **대화 발췌** — 브리프의 알맹이다(2026-08-19 사장님: "저 요약은 엄청 짧잖아.
+    #   최소한 어떤 이야기했는지들을 같이 넘겨야하잖아").
+    #   ⛔ `call.summary` 만으로는 부족하다. 실측값이 `'Practicing goodbyes and favorite
+    #     food'` — 큰 그림일 뿐 **무슨 말을 했는지가 없다.** 비버가 "내가 뭐 좋아한다고
+    #     했지?"에 답하려면 그 말 자체가 있어야 한다.
+    #   ⛔ 마지막 N턴만 자르는 것도 안 된다. 실측(call 1085): 학습자가 김치찌개를 말한 건
+    #     t6 인데 마지막 4턴 창은 t15~t18 이다 — 비버가 t14 에서 **우연히** 되풀이해서
+    #     살았다. 그 우연이 없으면 통째로 사라진다.
+    #   ⇒ **최신 쪽부터 글자수 예산까지** 담는다. 예산 안에서는 오래된 것도 살아남는다.
+    #
+    # ⚠ 컬럼 이름은 `content` 다(`text` 가 아니다 — 이걸 틀려 브리프가 통째로 실패했고
+    #   비버가 조각2에서 다시 인사했다).
+    rows = (
         db.query(CallRawData.content, CallRawData.role)
         .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
         .order_by(CallRawData.turn_index.desc())
-        .limit(4)
         .all()
     )
-    # ⭐ 화자를 붙인다 — "누가 무슨 말을 하다 말았나"가 맥락이다. 문장만 나열하면
-    #   비버가 자기 말을 학습자 말로 오해한다.
-    topic = " / ".join(
-        "%s: %s" % ("나" if (r or "") == "beaver" else "학습자", (c or "").strip())
-        for c, r in reversed(last) if c and c.strip()
-    )[:300]
+    excerpt, used = [], 0
+    for content, role in rows:
+        line = (content or "").strip()
+        # ⛔ 빈 턴(무음)과 **잘린 꼬리**를 거른다. 끊는 순간 비버가 말하다 만 조각
+        #   ("I'm sorry,")을 "하던 얘기"로 주면 비버가 그 상황을 이어받으려 한다.
+        if len(line) < 3:
+            continue
+        who = "나" if (role or "") == "beaver" else "학습자"
+        piece = "%s: %s" % (who, line[:160])
+        if used + len(piece) > _RESUME_EXCERPT_CHARS:
+            break
+        excerpt.append(piece)
+        used += len(piece)
+    excerpt.reverse()          # 시간 순으로 되돌린다(읽는 순서가 대화 순서여야 한다)
+    topic = " / ".join(excerpt) or None
+
+    # ⭐ 학습자가 **실제로 한 말** — "내가 뭐 좋아한다고 했지?" 류에 가장 직접적인 재료다.
+    #   통화후 분석이 뽑아 둔 것이라 추가 비용이 0이다.
+    said = [
+        r[0].strip() for r in
+        db.query(Sentence.korean_sentence)
+        .filter(Sentence.call_id == call_id, Sentence.korean_sentence.isnot(None))
+        .order_by(Sentence.sentence_id).limit(8).all()
+        if r[0] and r[0].strip()
+    ]
+    # ⭐ 한 줄 요약(LLM). 짧지만 **오래된 화제까지** 담는 유일한 값이라 같이 준다.
+    #   ⚠ 분석이 fire-and-forget 이라 조각1→2 에서는 아직 없을 수 있다(실측: 요약 완성이
+    #     이어하기보다 1초 늦었다). 없으면 발췌만으로 간다 — 그래서 둘 다 넘긴다.
+    summary = (
+        db.query(Call.summary).filter(Call.call_id == call_id).scalar() or ""
+    ).strip() or None
     return {
         "covered": covered[:12], "strong": strong[:6], "weak": weak[:6],
-        "topic": topic or None, "curious": None,
+        "topic": topic, "said": said, "summary": summary, "curious": None,
     }
 
 

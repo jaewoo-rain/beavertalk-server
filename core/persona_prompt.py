@@ -956,6 +956,8 @@ def build_resume_brief(
     strong: Optional[list[str]] = None,
     weak: Optional[list[str]] = None,
     topic: Optional[str] = None,
+    said: Optional[list[str]] = None,
+    summary: Optional[str] = None,
     curious: Optional[str] = None,
 ) -> str:
     """⭐ 이어하기 브리프 — 조각이 바뀔 때 비버에게 주는 **유일한** 맥락(LLM 생성 0, 순수 조립).
@@ -975,8 +977,15 @@ def build_resume_brief(
       조각 경계는 종료가 아니고, 그 낱말이 프롬프트에 있으면 비버가 마무리하려 든다.
     """
     lines: list[str] = ["[지금까지]"]
+    if summary:
+        # ⚠ 한 줄이라 큰 그림뿐이다("Practicing goodbyes and favorite food"). 그래도
+        #   **오래된 화제까지 담는 유일한 값**이라 발췌 앞에 둔다.
+        lines.append("- 이번 통화의 흐름: %s" % summary.strip())
+    if said:
+        # ⭐ 학습자가 **직접 한 말**. "내가 뭐 좋아한다고 했지?" 류에 답하려면 이게 있어야 한다.
+        lines.append("- 학습자가 한 말: %s" % " / ".join(s for s in said if s)[:400])
     if topic:
-        lines.append("- 방금까지 이런 얘기를 하고 있었다: %s" % topic.strip())
+        lines.append("- 방금까지 오간 대화:\n%s" % topic.strip())
     if covered:
         lines.append("- 오늘 이미 다룬 것: %s" % ", ".join(c for c in covered if c)[:300])
     if strong:
