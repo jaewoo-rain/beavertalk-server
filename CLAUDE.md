@@ -38,6 +38,7 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - **graceful degradation**: `genai_client` None 이면 통화만 비활성, 앱은 정상 기동. 외부 연동(발음/이메일/소셜/Storage)도 키 없으면 스텁·폴백.
 
 ### 프롬프트 규율
+- ⭐ **프롬프트를 만지기 전 `docs/prompts/README.md` 를 먼저 읽는다**(정본 — 카탈로그·엔진 차이·튜닝 원칙·되돌리면 안 되는 지뢰밭·결정 로그). 같은 폴더에 노션 원문 5종이 보존돼 있다(노션은 로그인 필요라 도구로 못 읽는다). 프롬프트를 고치면 그 §8 결정 로그에 적는다.
 - `core/persona_prompt.build_system_instruction` : **LLM 생성 0, 순수 문자열 조립**. 불변식 템플릿 + 캐릭터(role/personality/rules) + 레벨 프로파일 + 흥미 + 이력.
 - code-switching: 일반 통화는 **한국어 10% + 모국어 90%**. ⚠ **레벨테스트 콜은 이 규칙을 뒤집는다**(안내·리액션=모국어, 측정 질문=한국어). 통화 종료 시점은 서버만 결정("[시스템]" 종료 시드 전엔 비버가 먼저 작별 금지).
 - `core/*.py` 어댑터는 도메인/DB 를 모른다. system_instruction·voice 는 realtime 이 조립해 넘긴다.
