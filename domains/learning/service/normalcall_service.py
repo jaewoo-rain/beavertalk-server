@@ -440,6 +440,9 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
         #   "통문장·다시" 로 렌더하고, 상태별 시작 절차를 고른다. 없으면 persona 가
         #   옛 렌더로 폴백한다(하위호환).
         "state": entry.get("state"),
+        # ⭐ **오늘 손댔나**(2026-08-19). 상태 축은 평생 상태라 "오늘 배운 것"과 "3주 전에
+        #   배운 것"을 못 가른다 — 5개 단위 확인이 오늘 것을 고르려면 이 칸이 필요하다.
+        "today": bool(entry.get("today")),
         "obj": item.surface,
         "ex": mastery_repository.first_example(item),
         "des": _study_des(item, locale),
