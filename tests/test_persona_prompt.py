@@ -1113,3 +1113,38 @@ def test_close_protocol_has_no_meta_explanation():
     out = build_system_instruction(**_BASE_KWARGS)
     assert "시간을 세지" not in out
     assert "통화 길이를 모른다" not in out
+
+
+# --------------------------------------------------------------------------- #
+# 이어하기 시드 (2026-08-19)
+# --------------------------------------------------------------------------- #
+def test_the_resume_seed_never_asks_the_mode_question_again():
+    """⛔⛔ 조각2에서 "공부할래 수다 떨래?"를 **다시 물으면 안 된다.**
+
+    실측(call 1087): 이어했는데 비버가 처음과 같은 질문을 다시 했다.
+        조각1 t1 : "Hey jaewoo! Ready to study Korean today, or just chat in Korean?"
+        조각2 t8 : "Hey, jaewoo! Ready to study Korean today, or would you rather..."
+    원인은 `seed_opening` 이 그대로 나간 것이다. 지시문의 브리프에 "인사하지 마라"가 있어도
+    **시드가 이긴다** — 시드는 직접 명령이고 지시문은 배경이기 때문이다.
+    """
+    from core.persona_prompt import seed_opening, seed_resume
+
+    resume = seed_resume("한국어")
+    assert "수다" not in resume, resume          # 모드 질문 문구
+    assert "인사부터" not in resume, resume
+    assert "인사하지 말고" in resume
+    assert "다시 묻지 마라" in resume
+
+    # ⛔ 첫 통화 시드는 **그대로**여야 한다 — 거기서는 인사와 모드 질문이 맞다.
+    opening = seed_opening("한국어")
+    assert "수다" in opening and "인사" in opening
+
+
+def test_the_resume_seed_does_not_mention_the_disconnect():
+    """⛔ "끊겼다 이어졌다"를 비버가 말하면 **끊김이 두 번 일어난다.**
+
+    사용자는 이미 자기가 버튼을 눌러 이었다는 걸 안다.
+    """
+    from core.persona_prompt import seed_resume
+
+    assert "끊겼다 이어졌다는 말은 하지 마라" in seed_resume()

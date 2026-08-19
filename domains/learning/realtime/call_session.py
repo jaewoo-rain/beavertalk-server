@@ -79,6 +79,7 @@ from core.persona_prompt import (
     REGROUND_COVERED_CAP,
     build_leveltest_instruction,
     build_resume_brief,
+    seed_resume,
     build_continue_reminder,
     build_reground_brief,
     build_reground_reminder,
@@ -1274,6 +1275,13 @@ async def run_call(
                         slots.get("topic"), len(slots.get("learner_facts") or []),
                     )
             brief = build_resume_brief(**mats)
+            # ⛔⛔ **시드를 갈아야 한다 — 지시문만으로는 안 진다**(2026-08-19 실측 call 1087).
+            #   `seed_opening` 은 "짧게 인사부터 하고, 오늘 공부할래 수다 떨래?를 물어라" 다.
+            #   조각2 에서 그게 그대로 나가자 비버가 방금 하던 대화를 버리고 **처음으로
+            #   돌아갔다**(t8 이 t1 과 같은 질문). 브리프에 "인사하지 마라"가 있어도 소용없다 —
+            #   **시드는 직접 명령이고 지시문은 배경**이라 시드가 이긴다.
+            #   ⚠ 브리프 유무와 무관하게 간다: 브리프가 비어도 "다시 묻기"는 막아야 한다.
+            seed_text = seed_resume(target_language)
             if brief:
                 system_instruction = system_instruction + "\n\n" + brief
                 logger.info(
