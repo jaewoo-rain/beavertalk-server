@@ -670,8 +670,12 @@ def test_load_call_setup_full_materials(env):
     # study_items — persona 스키마 {slot, kind, obj, ex, des}
     # + P2.5 확장 {item_id, roman}(teaching_plan 카드 재료 — persona 는 미사용 키 무시)
     si = setup["study_items"]
+    # ⚠ 2026-08-19: `this_call` 이 추가됐다 — "이 통화(조각 체인)에서 이미 다뤘나".
+    #   상태 축(새로/다시/복습)은 **평생 상태**라 방금 것과 3주 전 것을 못 가른다.
+    #   ⛔ 상태값에 섞지 않고 **별도 칸**인 이유: 섞으면 "이 통화에서 처음 배운 것"을
+    #     표현할 자리가 사라진다(유형·상태를 한 칸에 넣었다 겪은 그 실수다).
     assert si is not None and set(si[0]) == {
-        "slot", "kind", "state", "obj", "ex", "des", "item_id", "roman"
+        "slot", "kind", "state", "this_call", "obj", "ex", "des", "item_id", "roman"
     }
     # ⛔ 2026-08-17: 이 자리의 문법(g2)은 introduced 이월분 — 유형은 grammar 그대로고
     #   상태가 'again'(프롬프트 라벨 '문법·다시')이다. DTO 가 두 축을 그대로 싣는다.

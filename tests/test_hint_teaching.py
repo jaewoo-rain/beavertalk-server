@@ -271,7 +271,10 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
     """normal 통화 + study_items 있으면 start 직후 teaching_plan 1회 push(핫패스 밖)."""
     real_setup = svc.load_call_setup
 
-    def _setup_with_items(db, member_id, character_id, language="ko"):
+    # ⚠ 2026-08-19: `chain_call_id` 가 추가됐다(이어하기 — "이 통화에서 이미 다뤘나" 판정).
+    #   ⛔ 가짜가 **kw 를 흡수**해야 한다. 인자를 하나 늘릴 때마다 가짜가 깨지면, 다음 사람이
+    #     그때마다 이 파일을 고치거나 시험을 지운다 — 후자가 더 흔하고 더 나쁘다.
+    def _setup_with_items(db, member_id, character_id, language="ko", **_kw):
         out = real_setup(db, member_id, character_id, language)
         out["study_items"] = [
             {"slot": "main", "kind": "chunk", "obj": "안녕하세요?", "ex": None,
