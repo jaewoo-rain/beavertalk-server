@@ -1894,6 +1894,8 @@ def _apply_call_mastery(
     candidates: list[dict],
     dialog_rows: list[dict],
     hinted_from_turn_index: set[int] | None = None,
+    # ⭐ 이어하기 조각의 시작 턴 — 멱등 가드를 이 조각 범위로 좁히는 데 쓴다.
+    since_turn_index: int | None = None,
 ) -> dict:
     """검증→증거·상태전이→레벨업을 **한 세션·단일 commit** 으로 수행(⑤ 4~7단계).
 
@@ -1907,8 +1909,14 @@ def _apply_call_mastery(
         logger.warning("normalcall 체크판: member 부재 → 스킵 member_id=%s", member_id)
         return {"verified": 0, "discarded": len(detections), "evidence": None, "levelup": None}
     # 리뷰 M4: 같은 call 의 증거가 이미 있으면 재적립 금지(분석 재시도 대비 멱등 가드).
-    if mastery_repository.has_call_evidence(db, call_id):
-        logger.warning("normalcall 체크판: call_id=%s 증거 기존재 → 스킵(이중 적립 방지)", call_id)
+    # ⭐ 이어하기 조각은 **그 조각의 턴 범위**로 묻는다 — 조각들이 같은 call_id 를 쓰므로
+    #   call 단위로 물으면 조각1의 증거 때문에 조각2가 통째로 스킵된다(실측 call 1093).
+    #   같은 조각을 두 번 분석하면 여전히 막힌다(원래 목적은 그대로다).
+    if mastery_repository.has_call_evidence(db, call_id, since_turn_index):
+        logger.warning(
+            "normalcall 체크판: call_id=%s 증거 기존재(turn>=%s) → 스킵(이중 적립 방지)",
+            call_id, since_turn_index or 0,
+        )
         return {"verified": 0, "discarded": 0, "evidence": None, "levelup": None}
 
     verified = _verify_detections(
@@ -2194,6 +2202,7 @@ async def analyze_call(
                     lambda db: _apply_call_mastery(
                         db, call_id, member_id, detections, cands, verify_rows,
                         hinted_from_turn_index=hinted_from_turn_index,
+                        since_turn_index=since_turn_index,
                     ),
                 )
                 logger.info(

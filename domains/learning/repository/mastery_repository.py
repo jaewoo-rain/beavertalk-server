@@ -920,11 +920,25 @@ def get_member_for_update(db: Session, member_id: int) -> Optional[Member]:
     )
 
 
-def has_call_evidence(db: Session, call_id: int) -> bool:
-    """해당 통화의 증거가 이미 적립됐는지 — 분석 재실행 이중 적립 방지(리뷰 M4)."""
-    return db.scalar(
-        select(ItemEvidence.evidence_id).where(ItemEvidence.call_id == call_id).limit(1)
-    ) is not None
+def has_call_evidence(db: Session, call_id: int, since_turn_index: int | None = None) -> bool:
+    """이 통화의 증거가 이미 적립됐는지 — 분석 재실행 이중 적립 방지(리뷰 M4).
+
+    ⭐⭐ **`since_turn_index` 는 이어하기 때문에 생겼다**(2026-08-19 실측 사고).
+      조각들이 **같은 call_id 를 공유**하므로(이어하기 설계), 조각1이 증거를 남기면
+      call_id 기준 가드가 조각2를 **통째로 스킵**한다:
+          WARNING 체크판: call_id=1093 증거 기존재 → 스킵(이중 적립 방지)
+          체크판: 검출 3→검증 0, 증거 None
+      사장님이 조각2에서 정확히 말했는데 진도가 하나도 안 쌓였다.
+
+    ⇒ 이어하기 조각은 **그 조각의 턴 범위**로 묻는다: "turn_index >= N 에 이미 증거가 있나".
+      같은 조각을 두 번 분석하면 여전히 막히고(원래 목적 유지), 다음 조각은 통과한다.
+    ⚠ `turn_index` 가 NULL 인 옛 증거는 범위 판정에서 빠진다 — 그 행들은 이어하기 이전
+      통화의 것이라 조각 경계와 무관하다(막을 이유가 없다).
+    """
+    q = select(ItemEvidence.evidence_id).where(ItemEvidence.call_id == call_id)
+    if since_turn_index:
+        q = q.where(ItemEvidence.turn_index >= since_turn_index)
+    return db.scalar(q.limit(1)) is not None
 
 
 def get_history_by_trigger(db: Session, trigger_call_id: int) -> Optional[MemberLevelHistory]:
