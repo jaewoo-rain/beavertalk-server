@@ -793,6 +793,9 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
         "duration_min": None,
         "tz_offset_min": None,
         "inbound_call_id": None,
+        # ⚠ 2026-08-19: 이어하기 필드. 기본값이 있어 **기존 언패킹은 안 깨진다**(그 파일
+        #   독스트링이 정한 규율) — 다만 `_asdict()` 전량 비교는 이렇게 따라와야 한다.
+        "continues_call_id": None,
     }
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)

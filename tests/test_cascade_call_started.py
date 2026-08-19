@@ -118,11 +118,22 @@ def test_announced_before_call_id_like_live():
         )
 
 
-def test_live_model_is_untouched():
-    """⛔ Live 의 `ServerCallStarted` 에 필드를 더하지 않았다 — 더하면 Live 출력이 바뀐다."""
+def test_live_model_is_not_changed_by_cascade_work():
+    """⛔ **캐스케이드 작업이 Live 프레임을 건드리면 안 된다** — 그게 이 시험의 목적이다.
+
+    ⚠ 2026-08-19: Live 에 `call_id` 가 **의도적으로** 추가됐다(이어하기). 캐스케이드가
+      흘러들어온 게 아니라, 클라가 다음 조각에서 `continues_call_id` 로 돌려줄 번호가
+      필요해서 Live 계약을 **일부러** 넓힌 것이다(커밋 cf5cdae).
+      ⇒ 시험을 지우지 않고 **기대값을 갱신**한다. 지우면 "캐스케이드가 Live 를 오염시켰나"를
+        묻는 감시가 통째로 사라진다 — 그 질문은 여전히 유효하다.
+    ⛔ 다음에 이 시험이 깨지면 먼저 물어라: **의도한 Live 변경인가, 캐스케이드가 샌 것인가.**
+      후자면 고쳐야 할 것은 시험이 아니라 코드다.
+    """
     assert ServerCallStarted(character_id=3).model_dump() == {
-        "type": "call_started", "character_id": 3,
+        "type": "call_started", "character_id": 3, "call_id": None,
     }
+    # ⚠ 캐스케이드 모델에는 `call_id` 가 없다 — 캐스케이드는 조각 개념이 없다.
+    assert "call_id" not in CascadeCallStarted(character_id=3).model_dump()
     # 캐스케이드 전용 모델만 이름을 갖는다. wire type 은 같다(클라 변경 0).
     assert CascadeCallStarted(character_id=3).type == ServerCallStarted(character_id=3).type
     assert CascadeCallStarted(character_id=3, name="Popo").model_dump() == {

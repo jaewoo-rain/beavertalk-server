@@ -226,7 +226,8 @@ def _load_member_character(
 
 
 def load_call_setup(
-    db: Session, member_id: int, character_id: int, language: str = "ko"
+    db: Session, member_id: int, character_id: int, language: str = "ko",
+    *, chain_call_id: int | None = None,
 ) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
@@ -271,7 +272,8 @@ def load_call_setup(
     if member_found and korean_level is not None:
         try:
             materials = _load_study_materials(
-                db, member_id, level_no, base["locale"], language
+                db, member_id, level_no, base["locale"], language,
+                chain_call_id=chain_call_id,
             )
         except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행
             logger.exception(
@@ -440,9 +442,11 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
         #   "통문장·다시" 로 렌더하고, 상태별 시작 절차를 고른다. 없으면 persona 가
         #   옛 렌더로 폴백한다(하위호환).
         "state": entry.get("state"),
-        # ⭐ **오늘 손댔나**(2026-08-19). 상태 축은 평생 상태라 "오늘 배운 것"과 "3주 전에
-        #   배운 것"을 못 가른다 — 5개 단위 확인이 오늘 것을 고르려면 이 칸이 필요하다.
-        "today": bool(entry.get("today")),
+        # ⭐ **이 통화에서 손댔나**(2026-08-19). 상태 축은 평생 상태라 "방금 다룬 것"과
+        #   "3주 전에 배운 것"을 못 가른다 — 5개 단위 확인이 방금 것을 고르려면 이 칸이 필요하다.
+        #   ⛔ 범위는 '오늘'이 아니라 **이 통화(조각 체인)** 다. 하루에 두 번 통화하면
+        #     서로 다른 통화이므로 섞이면 안 된다(사장님 정정).
+        "this_call": bool(entry.get("this_call")),
         "obj": item.surface,
         "ex": mastery_repository.first_example(item),
         "des": _study_des(item, locale),
@@ -452,7 +456,8 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
 
 
 def _load_study_materials(
-    db: Session, member_id: int, level_no: int, locale: str, language: str = "ko"
+    db: Session, member_id: int, level_no: int, locale: str, language: str = "ko",
+    *, chain_call_id: int | None = None,
 ) -> dict:
     """체크판 통화 재료를 1회에 선별한다(mechanics ① 3-b~e — 통화 중 DB 접근 0).
 
@@ -478,7 +483,7 @@ def _load_study_materials(
     # ② 공부 로드 30 (본편 5 + 예비 25) — L1 만 총 10(전부 청크, 2026-08-16)
     picked = mastery_repository.pick_study_items(
         db, member_id, level_no, review_slots=review_slots, bridge_prev_ratio=ratio,
-        language=language,
+        language=language, chain_call_id=chain_call_id,
     )
     study_items = [_study_item_dto(e, locale) for e in picked] or None
 
@@ -653,6 +658,33 @@ def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
         db.commit()
 
 
+async def build_resume_context(
+    call_id: int, client, settings_obj: Settings, session_factory: sessionmaker,
+) -> None:
+    """⭐ 다음 조각이 쓸 요약을 만들어 저장한다 — **통화후 분석과 나란히** 돈다.
+
+    ⛔ 예전에는 `analyze_call` 안에서 분석이 끝난 **뒤에** 돌렸다. 요약 LLM 자체는 1초인데
+      앞의 분석 5초를 통째로 기다려서 이어하기 준비가 7초 걸렸다(실측 2026-08-19):
+        08:41:54 저장 → 08:41:59 분석 done(+5s) → 08:42:00 요약(+6s)
+    ⭐ 요약이 필요한 것은 **전사뿐**이고 전사는 저장 시점에 이미 DB 에 있다. 분석을 기다릴
+      이유가 없다 — 따로 띄우면 둘이 동시에 돈다.
+    ⚠ 실패해도 아무것도 안 깨진다. 이어하기가 즉석 생성으로 내려갈 뿐이다(R5).
+    """
+    try:
+        tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
+        slots = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
+        if not slots:
+            return
+        await run_db(session_factory, lambda db: _save_resume_context(db, call_id, slots))
+        logger.info(
+            "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
+            slots.get("topic"), len(slots.get("learner_facts") or []),
+            slots.get("pending"), call_id,
+        )
+    except Exception as exc:  # noqa: BLE001 — R5
+        logger.warning("normalcall 이어하기 요약 실패(즉석 생성으로 폴백) — %s", exc)
+
+
 async def summarize_for_resume_text(client, model: str, tail: str) -> dict | None:
     """조각이 끝날 때 **다음 조각이 쓸 요약**을 만든다(LLM 1회).
 
@@ -681,6 +713,30 @@ async def summarize_for_resume_text(client, model: str, tail: str) -> dict | Non
         ][:5],
         "pending": (getattr(out, "pending", "") or "").strip()[:40],
     }
+
+
+def resume_context_is_fresh(db: Session, call_id: int) -> bool:
+    """저장된 이어하기 요약이 **지금 전사까지 반영한 것인가.**
+
+    ⛔⛔ `resume_context` 가 "있다"만 보면 안 된다(2026-08-19 실측). 조각2가 끝난 직후에는
+      **조각1 때 만든 요약**이 그대로 남아 있어 즉시 `ready=true` 가 뜬다 — 사장님 실측:
+      "두 번째에서는 0.4초 만에 이어하기가 준비됐네."
+      그러면 버튼은 열리는데 정작 이어할 때는 낡은 걸 버리고 즉석 생성을 돌린다.
+      **게이트가 막으려던 지연이 그대로 나고, 게이트는 거짓말을 한 셈이 된다.**
+
+    ⇒ 만든 시점의 턴 수(`turns`)와 지금 턴 수를 비교한다. `resume_materials` 가 쓰는 것과
+      **같은 판정**이어야 한다 — 두 곳이 다른 기준을 쓰면 "준비됐다는데 느린" 상태가 산다.
+    """
+    raw = db.query(Call.resume_context).filter(Call.call_id == call_id).scalar()
+    if not raw:
+        return False
+    try:
+        import json as _json
+
+        seen = (_json.loads(raw) or {}).get("turns")
+    except (ValueError, TypeError):
+        return False
+    return isinstance(seen, int) and seen >= next_turn_index(db, call_id)
 
 
 def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
@@ -1838,6 +1894,8 @@ def _apply_call_mastery(
     candidates: list[dict],
     dialog_rows: list[dict],
     hinted_from_turn_index: set[int] | None = None,
+    # ⭐ 이어하기 조각의 시작 턴 — 멱등 가드를 이 조각 범위로 좁히는 데 쓴다.
+    since_turn_index: int | None = None,
 ) -> dict:
     """검증→증거·상태전이→레벨업을 **한 세션·단일 commit** 으로 수행(⑤ 4~7단계).
 
@@ -1851,8 +1909,14 @@ def _apply_call_mastery(
         logger.warning("normalcall 체크판: member 부재 → 스킵 member_id=%s", member_id)
         return {"verified": 0, "discarded": len(detections), "evidence": None, "levelup": None}
     # 리뷰 M4: 같은 call 의 증거가 이미 있으면 재적립 금지(분석 재시도 대비 멱등 가드).
-    if mastery_repository.has_call_evidence(db, call_id):
-        logger.warning("normalcall 체크판: call_id=%s 증거 기존재 → 스킵(이중 적립 방지)", call_id)
+    # ⭐ 이어하기 조각은 **그 조각의 턴 범위**로 묻는다 — 조각들이 같은 call_id 를 쓰므로
+    #   call 단위로 물으면 조각1의 증거 때문에 조각2가 통째로 스킵된다(실측 call 1093).
+    #   같은 조각을 두 번 분석하면 여전히 막힌다(원래 목적은 그대로다).
+    if mastery_repository.has_call_evidence(db, call_id, since_turn_index):
+        logger.warning(
+            "normalcall 체크판: call_id=%s 증거 기존재(turn>=%s) → 스킵(이중 적립 방지)",
+            call_id, since_turn_index or 0,
+        )
         return {"verified": 0, "discarded": 0, "evidence": None, "levelup": None}
 
     verified = _verify_detections(
@@ -1947,6 +2011,7 @@ async def analyze_call(
     member_id: int | None = None,
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
+    since_turn_index: int | None = None,
 ) -> None:
     """통화 전사를 분석해 표현·요약을 저장하고 표현별 TTS 를 합성한다(전체 graceful).
 
@@ -1966,6 +2031,30 @@ async def analyze_call(
     try:
         dialog_rows = await run_db(session_factory, lambda db: _load_dialog_rows(db, call_id))
         dialog = _dialog_from_rows(dialog_rows)
+        # ⭐⭐ **검증은 이 조각의 턴만 본다**(2026-08-19 실측 사고). 요약·표현 추출은 전체를
+        #   그대로 쓴다 — `dialog` 는 안 건드린다.
+        #   ⛔ 왜 좁혀야 하나(call 1090): 조각2 분석이 전사 **전체**를 다시 보면서
+        #     ① 조각1에서 이미 증거가 된 항목이 다시 검출돼 중복(게이트 ⑤)으로 폐기되고
+        #     ② 조각1의 비버 발화가 "직전 2 BEAVER 턴"(게이트 ③)에 들어와 **자발(E3)이
+        #        앵무새로 몰린다.**
+        #     실제로: t11 비버가 정답을 말했고, t14 는 정답 없이 물었고, t15 학습자가
+        #     맞혔다 — **진짜 자발인데** t11 때문에 E1 로 내려가고 결국 증거 0건이 됐다.
+        #     사장님이 조각2에서 4개를 정확히 말했는데 진도가 하나도 안 쌓였다.
+        #   ⇒ 조각 경계 이후 턴만 넘기면 ①②가 **동시에** 풀린다: 인용이 새 USER 턴에
+        #     없으면 게이트 ②가 알아서 거르고, 비버 행도 이 조각 것만 남는다.
+        #   ⚠ 조각 경계를 넘는 앵무새는 못 잡는다(조각1 끝에 정답을 말하고 조각2 첫 턴에
+        #     따라 하는 경우). 그 사이엔 통화가 끊기고 사용자가 버튼을 눌렀다 — 그걸
+        #     따라읽기로 보는 게 오히려 틀렸다.
+        verify_rows = dialog_rows
+        if since_turn_index:
+            verify_rows = [
+                r for r in dialog_rows
+                if (r.get("turn_index") or 0) >= since_turn_index
+            ]
+            logger.info(
+                "normalcall 분석: 검증 범위 turn>=%d (%d/%d행) call_id=%s",
+                since_turn_index, len(verify_rows), len(dialog_rows), call_id,
+            )
         if not dialog.strip():
             logger.info("normalcall 분석: 전사 없음 → done(빈 결과) call_id=%s", call_id)
             await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
@@ -2047,30 +2136,6 @@ async def analyze_call(
             "normalcall 분석: mode=%s 표현 %d개 → done call_id=%s",
             result.detected_mode, len(pending), call_id,
         )
-        # ⭐⭐ **다음 조각이 쓸 요약을 지금 만든다**(2026-08-19). 이어하기 시점에 돌리면
-        #   "이어서" 를 누른 사용자가 그만큼 기다린다 — 여기서 만들어 두면 **지연 0** 이다.
-        #   ⛔ 원문 전사를 넘기는 게 아니라 **슬롯**(topic·learner_facts·pending)이다.
-        #     원문을 그대로 주면 비버가 그 안에서 사실을 다시 찾아야 하고, 길수록 못 찾는다.
-        #   ⚠ 실패해도 통화 결과에는 영향이 없다 — 이어하기가 발췌 폴백으로 내려갈 뿐이다.
-        try:
-            rows = await run_db(
-                session_factory, lambda db: _resume_transcript(db, call_id)
-            )
-            slots = await summarize_for_resume_text(
-                client, settings_obj.JUDGE_MODEL, rows
-            )
-            if slots:
-                await run_db(
-                    session_factory,
-                    lambda db: _save_resume_context(db, call_id, slots),
-                )
-                logger.info(
-                    "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
-                    slots.get("topic"), len(slots.get("learner_facts") or []),
-                    slots.get("pending"), call_id,
-                )
-        except Exception as exc:  # noqa: BLE001 — R5
-            logger.warning("normalcall 이어하기 요약 실패(발췌로 폴백) — %s", exc)
     except Exception as exc:  # noqa: BLE001 - done 이전(전사/LLM/저장) 실패 → failed
         logger.exception("normalcall 분석: 예외 → failed call_id=%s (%s)", call_id, exc)
         try:
@@ -2135,8 +2200,9 @@ async def analyze_call(
                 mastery = await run_db(
                     session_factory,
                     lambda db: _apply_call_mastery(
-                        db, call_id, member_id, detections, cands, dialog_rows,
+                        db, call_id, member_id, detections, cands, verify_rows,
                         hinted_from_turn_index=hinted_from_turn_index,
+                        since_turn_index=since_turn_index,
                     ),
                 )
                 logger.info(

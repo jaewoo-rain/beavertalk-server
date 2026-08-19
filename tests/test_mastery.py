@@ -1086,3 +1086,44 @@ def test_the_decision_never_reads_the_removed_gates():
     decision = [ln for ln in src.splitlines() if "if not (" in ln and "g1_pass" in ln]
     assert decision, "승급 판정 분기를 못 찾았다(모양이 바뀌었으면 이 시험도 고쳐라)"
     assert decision[0].strip() == "if not (g1_pass and g2_pass):", decision
+
+
+def test_the_idempotency_guard_does_not_block_the_next_fragment(env):
+    """⛔⛔ **재시도 방지 가드가 이어하기 조각2를 막던 것**(2026-08-19 실측 call 1093).
+
+    조각들은 **같은 call_id 를 공유**한다(이어하기 설계). 그래서 `call_id` 단위 가드는
+    조각1이 증거를 남기는 순간 조각2를 통째로 스킵한다:
+        WARNING 체크판: call_id=1093 증거 기존재 → 스킵(이중 적립 방지)
+        체크판: 검출 3→검증 0, 증거 None
+    사장님이 조각2에서 정확히 말했는데 진도가 하나도 안 쌓였다.
+
+    ⇒ 조각 범위(turn_index)로 물으면 원래 목적(같은 조각 재분석 차단)은 그대로이면서
+      다음 조각은 통과한다.
+    """
+    from domains.learning.models.item_evidence import ItemEvidence
+    from domains.learning.repository import mastery_repository as repo
+
+    db = env["db"]
+    call = _new_call(env)
+    mid, iid = env["member"].member_id, env["c1"].item_id
+    db.add(ItemEvidence(
+        member_id=mid, language="ko", item_id=iid, call_id=call.call_id, turn_index=3,
+        grade_raw="E2", grade_final="E2", verified=True, score_delta=1.0,
+    ))
+    db.commit()
+
+    # 같은 조각(turn 0~) 을 다시 분석하면 여전히 막힌다 — 원래 목적.
+    assert repo.has_call_evidence(db, call.call_id) is True
+    assert repo.has_call_evidence(db, call.call_id, 0) is True
+
+    # ⭐ 다음 조각(turn>=10)에는 아직 증거가 없다 → 통과해야 한다.
+    assert repo.has_call_evidence(db, call.call_id, 10) is False
+
+    # 그 조각에서 증거가 생기면 그 조각의 재분석은 막힌다.
+    db.add(ItemEvidence(
+        member_id=mid, language="ko", item_id=env["c2"].item_id,
+        call_id=call.call_id, turn_index=12,
+        grade_raw="E2", grade_final="E2", verified=True, score_delta=1.0,
+    ))
+    db.commit()
+    assert repo.has_call_evidence(db, call.call_id, 10) is True

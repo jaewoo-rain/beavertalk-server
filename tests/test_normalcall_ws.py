@@ -4076,3 +4076,174 @@ def test_a_summary_without_a_turn_count_is_treated_as_stale(session_factory, see
         assert _svc.resume_materials(db, cid, "ko")["topic"] is None
     finally:
         db.close()
+
+
+def test_resume_status_is_not_fooled_by_a_stale_summary(session_factory, seeded):
+    """⛔⛔ **"있다"가 아니라 "최신인가"** — 낡은 요약에 게이트가 속으면 안 된다.
+
+    실측(2026-08-19): 조각2가 끝난 직후 `ready` 가 **0.4초 만에** true 가 됐다.
+    조각1 때 만든 요약이 그대로 남아 있어서 `bool(resume_context)` 가 즉시 참이었다.
+    ⇒ 버튼은 열리는데 정작 이어할 때는 낡은 걸 버리고 즉석 생성을 돌린다.
+      **게이트가 막으려던 지연이 그대로 나고, 게이트가 거짓말을 한 셈이 된다.**
+
+    ⚠ `resume_materials` 와 **같은 판정**이어야 한다 — 두 곳이 다른 기준을 쓰면
+      "준비됐다는데 느린" 상태가 계속 산다. 그래서 한 함수(resume_context_is_fresh)로 모았다.
+    """
+    from domains.learning.models.call_raw_data import CallRawData
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        for i in range(4):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="말 %d" % i))
+        db.commit()
+        _svc._save_resume_context(db, cid, {"topic": "된장찌개"})
+        assert _svc.resume_context_is_fresh(db, cid) is True
+
+        # 조각이 더 진행됐다 → 저장된 요약은 낡았다.
+        for i in range(4, 9):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="새 말 %d" % i))
+        db.commit()
+        assert _svc.resume_context_is_fresh(db, cid) is False, "낡은 요약에 속았다"
+
+        # ⛔ 요약이 아예 없는 것도 당연히 false 다.
+        cid2 = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        assert _svc.resume_context_is_fresh(db, cid2) is False
+    finally:
+        db.close()
+
+
+def test_only_the_new_fragment_is_verified(monkeypatch, session_factory, seeded):
+    """⛔⛔ 조각2 검증이 **전사 전체**를 보면 진도가 하나도 안 쌓인다.
+
+    실측 사고(call 1090): 사장님이 조각2에서 `잘 부탁드립니다`·`이거 주세요`·
+    `화장실이 어디예요?` 를 정확히 말했는데 **검출 4건이 전부 폐기**됐다.
+      ① 조각1에서 이미 증거가 된 항목이 다시 검출돼 중복(게이트 ⑤)으로 폐기
+      ② 조각1의 비버 발화가 "직전 2 BEAVER 턴"(게이트 ③)에 들어와 **자발이 앵무새로** 몰림
+         t11 비버가 정답을 말했고, t14 는 정답 없이 물었고, t15 학습자가 맞혔다 —
+         **진짜 자발인데** t11 때문에 E1 로 내려갔다.
+
+    ⇒ 조각 경계 이후 턴만 검증에 넘기면 ①②가 동시에 풀린다.
+    ⚠ 요약·표현 추출은 **전체**를 그대로 본다 — 좁히는 것은 검증뿐이다(그러지 않으면
+      call.summary 가 조각2만 요약한 값으로 덮인다).
+    """
+    from domains.learning.service import normalcall_service as _svc
+
+    rows = [
+        {"turn_index": 0, "role": "beaver", "content": "'잘 부탁드립니다' 따라해 볼래?"},
+        {"turn_index": 1, "role": "user", "content": "잘 부탁드립니다"},
+        {"turn_index": 2, "role": "beaver", "content": "이번엔 뭐라고 할까?"},
+        {"turn_index": 3, "role": "user", "content": "잘 부탁드립니다"},
+    ]
+    seen: dict = {}
+    monkeypatch.setattr(_svc, "_load_dialog_rows", lambda db, cid: rows)
+
+    # 경계가 2 면 검증에 넘어가는 것은 turn 2·3 뿐 — 비버가 정답을 말한 turn 0 은 빠진다.
+    scoped = [r for r in rows if (r.get("turn_index") or 0) >= 2]
+    assert [r["turn_index"] for r in scoped] == [2, 3]
+    beaver_texts = [r["content"] for r in scoped if r["role"] == "beaver"]
+    assert all("잘 부탁드립니다" not in t for t in beaver_texts), (
+        "앵무새 게이트가 이전 조각의 정답 발화를 보고 있다 — 자발이 E1 로 몰린다"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# (x) ⭐ 이어하기 **통합** — 조각1 → 조각2 를 실제로 이어 돌린다 (2026-08-19)
+#
+# ⛔⛔ 이 시험이 없어서 사장님이 결함 3건을 **손으로** 찾으셨다:
+#       ① 조각2 증거 0건        (멱등 가드가 call_id 단위였다)
+#       ② 게이트가 0.4초에 열림 (낡은 요약을 최신으로 봤다)
+#       ③ 비버가 다시 인사      (seed_opening 이 그대로 나갔다)
+#     셋 다 **조각2에서만** 드러난다. 부품 단위 시험은 전부 통과했는데 이어 붙이니 깨졌다.
+#     ⇒ 길이가 곧 커버리지가 아니다. 12분짜리 스위트가 129개의 **한 조각짜리** 통화를
+#       돌리는 동안, 두 조각짜리는 **한 번도** 안 돌았다.
+# --------------------------------------------------------------------------- #
+def _two_turn_factory(holder, said: str):
+    """비버가 한 번 묻고 학습자가 한 번 답하는 최소 세션."""
+    import contextlib
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+        sess = FakeLiveSession()
+
+        async def _events():
+            yield LiveEvent(kind="out_tr", text="자, 따라 해 볼까?")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            yield LiveEvent(kind="in_tr", text=said)
+            yield LiveEvent(kind="turn_end")
+
+        sess.events = _events
+        holder.setdefault("instructions", []).append(system_instruction)
+        holder["session"] = sess
+        yield sess
+
+    return _factory
+
+
+async def _one_fragment(session_factory, seeded, *, said: str, continues=None):
+    """조각 하나를 돌린다. 이어하기면 `continues` 에 직전 call_id 를 준다.
+
+    ⚠ 시드 회원은 **Free(조각 1개)** 라 그대로면 이어하기가 정상적으로 거절된다 —
+      그게 올바른 정책이다. 조각 로직을 보려면 Pro 상당(3개)을 줘야 한다.
+      ⭐ 이 함정을 시험이 먼저 밟았다는 게 통합 시험의 값어치다(정책과 배관을 같이 태운다).
+    """
+    holder: dict = {}
+    start = {"type": "start", "character_id": seeded["character_id"]}
+    if continues is not None:
+        start["continues_call_id"] = str(continues)
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps(start)}])
+    cs.call_service.call_fragments_for_member = lambda db, mid: 3   # Pro 상당
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_two_turn_factory(holder, said))
+    await _wait_analysis_tasks()
+    frames = [json.loads(t) for t in ws.sent_text]
+    started = next((f for f in frames if f.get("type") == "call_started"), {})
+    return started.get("call_id"), holder
+
+
+@pytest.mark.asyncio
+async def test_two_fragments_share_one_call_and_keep_appending(
+        session_factory, seeded):
+    """⭐ 조각2가 **같은 행에 이어 쓰는지**를 끝까지 돌려서 본다.
+
+    ⛔ 부품 시험으로는 못 잡는다 — `resume_call` 도 `next_turn_index` 도 각각은 맞았는데,
+      이어 붙이면 멱등 가드·낡은 요약·시드가 조각2에서만 어긋났다.
+    """
+    cid1, h1 = await _one_fragment(session_factory, seeded, said="안녕하세요")
+    assert cid1, "call_started 가 call_id 를 안 실었다 — 이어할 번호가 없다"
+
+    cid2, h2 = await _one_fragment(
+        session_factory, seeded, said="감사합니다", continues=cid1)
+    assert cid2 == cid1, "조각2가 새 통화를 만들었다 — 목록·분석이 갈린다"
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 1, "행이 둘이면 이어하기가 아니다"
+        call = db.query(Call).one()
+        assert call.fragment_count == 2
+
+        # ⛔ 턴 인덱스가 이어져야 한다. 0 부터 다시 매기면 같은 행에서 **조용히 충돌**한다.
+        idxs = [r.turn_index for r in
+                db.query(CallRawData).order_by(CallRawData.turn_index).all()]
+        assert idxs == sorted(idxs) and len(idxs) == len(set(idxs)), idxs
+        assert max(idxs) >= 2, idxs
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_the_resume_fragment_does_not_greet_again(session_factory, seeded):
+    """⛔ 조각2 지시문은 **이어하기 시드**를 써야 한다 — 안 그러면 처음처럼 인사한다.
+
+    실측(call 1087): 조각2 첫 마디가 조각1 첫 마디와 **글자까지 같았다.**
+    브리프에 "인사하지 마라"가 있어도 소용없다 — 시드가 직접 명령이라 그게 이긴다.
+    """
+    cid1, _ = await _one_fragment(session_factory, seeded, said="안녕하세요")
+    _, h2 = await _one_fragment(
+        session_factory, seeded, said="감사합니다", continues=cid1)
+
+    si = (h2.get("instructions") or [""])[0]
+    assert "[지금까지]" in si, "이어하기 브리프가 지시문에 안 붙었다"
+    assert "처음 만난 것처럼 인사하지 말고" in si

@@ -405,6 +405,8 @@ class _CallState:
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         # 표정(set_face) — 호출 수 · 마커 seq · 마지막으로 **보낸** 값(중복 억제 기준)
         "face_calls", "face_seq", "face_last",
+        # ⭐ 이어하기 조각의 시작 턴 인덱스(0=첫 조각). 통화후 **검증 범위**의 기준이다.
+        "resume_from_turn",
         # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
         "face_streak",
         "close_seed",
@@ -472,6 +474,7 @@ class _CallState:
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
         self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
         self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
+        self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -1070,7 +1073,13 @@ async def run_call(
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
     setup = await svc.run_db(
         db_session_factory,
-        lambda db: svc.load_call_setup(db, member_id, character_id, spec.code),
+        # ⭐ 이어하기면 체인의 call_id 를 넘긴다 — 선별이 "이 통화에서 이미 다뤘나"를
+        #   라벨로 붙일 수 있게(조각들이 같은 행을 쓰므로 이 하나로 정확히 표현된다).
+        #   ⚠ 아직 검증 전 값이다. 남의 id 를 넣어도 무해하다 — `last_call_id` 는 **이 회원의**
+        #     progress 행에 있는 값이라, 그 회원이 실제로 그 통화를 하지 않았으면 안 맞는다.
+        lambda db: svc.load_call_setup(
+            db, member_id, character_id, spec.code, chain_call_id=continues_call_id
+        ),
     )
     # 읽기 쪽 방어: 저장 시 정규화(MemberService)를 넣었지만, 과거 데이터·다른 경로로 들어온
     # "ko-KR" 이 남아 있으면 _LOCALE_LABEL 조회가 미스나 **영어로 폴백**한다(실측 3건).
@@ -1236,6 +1245,8 @@ async def run_call(
         state.next_turn_index = await svc.run_db(
             db_session_factory, lambda db: svc.next_turn_index(db, call_id)
         )
+        # ⭐ 검증 범위의 기준. 이 턴 앞은 **이전 조각**이고, 그건 이미 그때 판정됐다.
+        state.resume_from_turn = state.next_turn_index
         logger.info("normalcall 이어하기: 턴 인덱스 %d 부터 이어서 기록", state.next_turn_index)
         # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
         #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
@@ -1469,6 +1480,8 @@ async def run_call(
             candidates=setup.get("candidates") if call_type == "normal" else None,
             # D16: 힌트 열람 마커(in-memory) — 크래시 유실 시 과크레딧 1회 허용.
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
+            # ⭐ 이어하기면 **이 조각이 시작한 턴**부터만 검증한다(근거는 analyze_call 주석).
+            since_turn_index=state.resume_from_turn or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
         # 마지막 회수·해제(B1): 아직 안 놓아준 세그먼트의 PCM 을 여기서 전부 정리한다.
@@ -1490,6 +1503,9 @@ def _trigger_analysis(
     call_type: str = "normal", member_id: int | None = None,
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
+    # ⭐ 이어하기 조각의 **시작 턴 인덱스**. 있으면 검증(증거 판정)을 그 뒤 턴으로 좁힌다.
+    #   ⚠ 요약·표현 추출은 전체를 그대로 본다 — 좁히는 것은 검증뿐이다.
+    since_turn_index: int | None = None,
 ) -> None:
     """통화후 분석을 백그라운드 task 로 띄운다(non-blocking, GC 방지 보관).
 
@@ -1512,10 +1528,28 @@ def _trigger_analysis(
             locale=locale, target_language=target_language, locale_label=locale_label,
             member_id=member_id, candidates=candidates,
             hinted_from_turn_index=hinted_from_turn_index,
+            # ⭐ 이어하기 조각이면 **이 조각의 턴만** 검증한다(근거는 analyze_call 주석).
+            since_turn_index=since_turn_index,
         )
     task = asyncio.create_task(coro, name=f"normalcall-analysis-{call_id}")
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
+
+    # ⭐⭐ **이어하기 요약은 분석과 나란히 돈다**(2026-08-19 실측: 준비까지 7초 걸렸다).
+    #   전에는 `analyze_call` **안에서, 분석이 끝난 뒤에** 돌렸다. 그래서 요약 LLM 자체는
+    #   1초인데 앞의 분석 5초를 통째로 기다렸다:
+    #     08:41:54 저장 → 08:41:59 분석 done(+5s) → 08:42:00 요약(+6s)
+    #   ⇒ 요약이 필요한 것은 **전사뿐**이고 전사는 저장 시점에 이미 DB 에 있다.
+    #     분석을 기다릴 이유가 없다. 따로 띄우면 둘이 동시에 돈다.
+    #   ⚠ 레벨테스트는 조각 개념이 없으므로 안 만든다.
+    #   ⚠ 실패해도 아무것도 안 깨진다 — 이어하기가 즉석 생성으로 내려갈 뿐이다(R5).
+    if call_type != "level_test":
+        summary_task = asyncio.create_task(
+            svc.build_resume_context(call_id, client, settings, db_session_factory),
+            name=f"normalcall-resume-summary-{call_id}",
+        )
+        _analysis_tasks.add(summary_task)
+        summary_task.add_done_callback(_on_analysis_done)
 
 
 def trigger_reanalysis(
