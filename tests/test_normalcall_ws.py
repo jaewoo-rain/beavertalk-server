@@ -4076,3 +4076,39 @@ def test_a_summary_without_a_turn_count_is_treated_as_stale(session_factory, see
         assert _svc.resume_materials(db, cid, "ko")["topic"] is None
     finally:
         db.close()
+
+
+def test_resume_status_is_not_fooled_by_a_stale_summary(session_factory, seeded):
+    """⛔⛔ **"있다"가 아니라 "최신인가"** — 낡은 요약에 게이트가 속으면 안 된다.
+
+    실측(2026-08-19): 조각2가 끝난 직후 `ready` 가 **0.4초 만에** true 가 됐다.
+    조각1 때 만든 요약이 그대로 남아 있어서 `bool(resume_context)` 가 즉시 참이었다.
+    ⇒ 버튼은 열리는데 정작 이어할 때는 낡은 걸 버리고 즉석 생성을 돌린다.
+      **게이트가 막으려던 지연이 그대로 나고, 게이트가 거짓말을 한 셈이 된다.**
+
+    ⚠ `resume_materials` 와 **같은 판정**이어야 한다 — 두 곳이 다른 기준을 쓰면
+      "준비됐다는데 느린" 상태가 계속 산다. 그래서 한 함수(resume_context_is_fresh)로 모았다.
+    """
+    from domains.learning.models.call_raw_data import CallRawData
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        for i in range(4):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="말 %d" % i))
+        db.commit()
+        _svc._save_resume_context(db, cid, {"topic": "된장찌개"})
+        assert _svc.resume_context_is_fresh(db, cid) is True
+
+        # 조각이 더 진행됐다 → 저장된 요약은 낡았다.
+        for i in range(4, 9):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="새 말 %d" % i))
+        db.commit()
+        assert _svc.resume_context_is_fresh(db, cid) is False, "낡은 요약에 속았다"
+
+        # ⛔ 요약이 아예 없는 것도 당연히 false 다.
+        cid2 = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        assert _svc.resume_context_is_fresh(db, cid2) is False
+    finally:
+        db.close()

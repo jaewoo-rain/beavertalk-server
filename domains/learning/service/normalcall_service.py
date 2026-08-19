@@ -715,6 +715,30 @@ async def summarize_for_resume_text(client, model: str, tail: str) -> dict | Non
     }
 
 
+def resume_context_is_fresh(db: Session, call_id: int) -> bool:
+    """저장된 이어하기 요약이 **지금 전사까지 반영한 것인가.**
+
+    ⛔⛔ `resume_context` 가 "있다"만 보면 안 된다(2026-08-19 실측). 조각2가 끝난 직후에는
+      **조각1 때 만든 요약**이 그대로 남아 있어 즉시 `ready=true` 가 뜬다 — 사장님 실측:
+      "두 번째에서는 0.4초 만에 이어하기가 준비됐네."
+      그러면 버튼은 열리는데 정작 이어할 때는 낡은 걸 버리고 즉석 생성을 돌린다.
+      **게이트가 막으려던 지연이 그대로 나고, 게이트는 거짓말을 한 셈이 된다.**
+
+    ⇒ 만든 시점의 턴 수(`turns`)와 지금 턴 수를 비교한다. `resume_materials` 가 쓰는 것과
+      **같은 판정**이어야 한다 — 두 곳이 다른 기준을 쓰면 "준비됐다는데 느린" 상태가 산다.
+    """
+    raw = db.query(Call.resume_context).filter(Call.call_id == call_id).scalar()
+    if not raw:
+        return False
+    try:
+        import json as _json
+
+        seen = (_json.loads(raw) or {}).get("turns")
+    except (ValueError, TypeError):
+        return False
+    return isinstance(seen, int) and seen >= next_turn_index(db, call_id)
+
+
 def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
     """이어하기 브리프의 **재료**를 모은다 — ⭐ 대부분은 LLM 이 아니라 DB 가 안다.
 

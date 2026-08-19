@@ -113,7 +113,13 @@ def get_resume_status(call_id: int, member: CurrentMember, db: DbSession) -> dic
     used = call.fragment_count or 1
     total = call_service.call_fragments_for_member(db, member.member_id)
     return {
-        "ready": bool(call.resume_context),
+        # ⛔ **"있다"가 아니라 "최신인가"** 다(2026-08-19 실측). 조각2 직후에는 조각1 때 만든
+        #   요약이 남아 있어 `bool()` 로는 즉시 true 가 뜬다 — 사장님: "두 번째에서는
+        #   0.4초 만에 이어하기가 준비됐네." 버튼은 열리는데 정작 이어할 때는 낡은 걸 버리고
+        #   즉석 생성을 돌려서, **게이트가 막으려던 지연이 그대로 난다.**
+        #   ⚠ `resume_materials` 와 **같은 판정**을 써야 한다(한 함수로 모았다) — 두 곳이
+        #     다른 기준을 쓰면 "준비됐다는데 느린" 상태가 계속 산다.
+        "ready": svc.resume_context_is_fresh(db, call_id),
         "can_resume": used < total and (call.call_type or "normal") == "normal",
         "fragment_count": used,
         "max_fragments": total,
