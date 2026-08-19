@@ -1,0 +1,98 @@
+# GitHub Actions 배포 — dev → demo-api / main → app-api
+#
+# ⛔⛔ **마이그레이션은 여기서 돌리지 않는다**(2026-08-19 사장님 결정).
+#   app-api·demo-api·test-api 가 **같은 Supabase DB** 를 쓴다. dev 배포가 실서비스
+#   데이터에 닿는다는 뜻이다. 코드 배포는 자동화하되 스키마 변경은 사람 손에 남긴다 —
+#   되돌리기 어려운 쪽이 그쪽이다.
+#   ⚠ 모델을 바꾼 PR 이 머지되면 **배포 전에** 사람이 `alembic upgrade head` 를 돌려야 한다.
+#     안 그러면 새 코드가 없는 컬럼을 읽고 통화가 전부 죽는다(2026-08-19 실제로 겪었다).
+#
+# ⚠ 설정 절차는 docs/20260819_1900_CI-깃허브액션-배포-설정.md 에 있다.
+name: deploy
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+# ⛔ 같은 브랜치의 배포가 겹치면 나중 것이 이긴다는 보장이 없다 — 앞선 실행을 취소한다.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # ⚠ 앱은 import 시점에 DB URL 을 요구한다(core/config.py). 실제로 붙지는 않는다.
+      #   ⛔ 진짜 DB 를 주지 마라 — CI 가 실서비스에 붙는다.
+      - name: pytest
+        env:
+          PYTHONIOENCODING: utf-8
+          DATABASE_URL_POOL: postgresql+psycopg2://u:p@localhost:5432/x
+          DATABASE_URL_DIRECT: postgresql+psycopg2://u:p@localhost:5432/x
+        run: pytest tests/ -q
+
+  deploy:
+    # PR 에서는 배포하지 않는다(테스트만).
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    # ⭐ main 은 실서비스다. GitHub Environments 에 `production` 을 만들고
+    #   Required reviewers 를 걸면 **사람이 승인해야** 배포된다(권장).
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    permissions:
+      contents: read
+      id-token: write   # ⛔ WIF 에 필요하다. 없으면 인증이 조용히 실패한다.
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⭐ 키 파일이 없다 — GitHub 이 GCP 에 직접 인증한다(WIF).
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: 대상 결정
+        id: target
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "service=${{ secrets.SERVICE_PROD }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "service=${{ secrets.SERVICE_DEV }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ⛔ `--source` 직배포는 "Container import failed" 로 실패한다(scripts/deploy_demo.sh
+      #   주석에 기록된 실측). builds submit 으로 이미지를 만든 뒤 그 이미지로 배포한다.
+      - name: 빌드
+        run: |
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/cloud-run-source-deploy/${{ steps.target.outputs.service }}:${{ github.sha }}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          gcloud builds submit --tag "$IMAGE" --project "${{ secrets.GCP_PROJECT }}"
+
+      # ⛔ `--image` 만 바꾼다. env·시크릿·서비스계정은 **건드리지 않는다** —
+      #   여기서 지정하면 콘솔에서 손으로 넣은 값이 조용히 지워진다.
+      - name: 배포
+        run: |
+          gcloud run deploy "${{ steps.target.outputs.service }}" \
+            --image "$IMAGE" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --project "${{ secrets.GCP_PROJECT }}" \
+            --quiet
+
+      - name: 헬스체크
+        run: |
+          URL=$(gcloud run services describe "${{ steps.target.outputs.service }}" \
+            --region "${{ secrets.GCP_REGION }}" --project "${{ secrets.GCP_PROJECT }}" \
+            --format="value(status.url)")
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+          echo "health=$CODE ($URL)"
+          # ⛔ 배포가 "성공"인데 앱이 죽어 있으면 아무도 모른다 — 여기서 실패시킨다.
+          [ "$CODE" = "200" ]
