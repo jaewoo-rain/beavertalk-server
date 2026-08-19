@@ -40,7 +40,14 @@ jobs:
           PYTHONIOENCODING: utf-8
           DATABASE_URL_POOL: postgresql+psycopg2://u:p@localhost:5432/x
           DATABASE_URL_DIRECT: postgresql+psycopg2://u:p@localhost:5432/x
-        run: pytest tests/ -q
+        # ⛔ `pytest` 가 아니라 **`python -m pytest`** 다. 둘의 차이가 CI 를 죽였다
+        #   (2026-08-19, run 32241177013 — 86건 전부 `ModuleNotFoundError: No module
+        #   named 'core'`):
+        #     `pytest`          → sys.path 에 **저장소 루트가 없다** → core/db 임포트 실패
+        #     `python -m pytest`→ 현재 디렉터리를 sys.path 에 넣는다 → 통과
+        #   ⚠ 로컬에서 안 드러난 이유도 이것이다 — CLAUDE.md 의 테스트 명령이 원래
+        #     `python -m pytest` 라서 사람은 늘 되는 쪽으로 돌리고 있었다.
+        run: python -m pytest tests/ -q
 
   deploy:
     # PR 에서는 배포하지 않는다(테스트만).
