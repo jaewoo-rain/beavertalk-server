@@ -4019,3 +4019,60 @@ async def test_call_started_carries_the_call_id(session_factory, seeded):
         assert str(db.query(Call).one().call_id) == started[0]["call_id"]
     finally:
         db.close()
+
+
+def test_a_stale_resume_summary_is_discarded(session_factory, seeded):
+    """⛔⛔ **낡은 요약을 최신인 줄 알고 쓰면 조각 하나가 통째로 빠진다.**
+
+    사장님 지적(2026-08-19): "이전에 요약본이 있으면 그대로 넣는다고? 그럼 요약한 다음
+    뒤에 나온 내용들은 어떻게 되는 건데?"
+
+    요약은 조각이 끝날 때 **fire-and-forget** 으로 만들어진다. 그래서 조각2 분석이 끝나기
+    전에 조각3을 이으면 저장된 것은 **조각1까지만 본 요약**이다. 그대로 쓰면 조각2 대화가
+    사라진다 — 그리고 "슬롯이 있으면 즉석 생성을 건너뛴다"는 규칙 때문에 **조용히** 사라진다.
+
+    ⇒ 만든 시점의 턴 수를 같이 저장하고, 뒤처지면 버린다(호출부가 다시 만든다).
+    """
+    from domains.learning.models.call_raw_data import CallRawData
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        for i in range(4):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="말 %d" % i))
+        db.commit()
+
+        _svc._save_resume_context(db, cid, {"topic": "된장찌개", "learner_facts": ["된장찌개 좋아함"]})
+        assert _svc.resume_materials(db, cid, "ko")["topic"] == "된장찌개", "최신인데 버렸다"
+
+        # 조각이 더 진행됐다 → 저장된 요약은 이제 낡았다.
+        for i in range(4, 8):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="새 말 %d" % i))
+        db.commit()
+
+        mats = _svc.resume_materials(db, cid, "ko")
+        assert mats["topic"] is None, "낡은 요약을 그대로 썼다 — 조각 하나가 빠진다"
+        assert mats["facts"] is None
+    finally:
+        db.close()
+
+
+def test_a_summary_without_a_turn_count_is_treated_as_stale(session_factory, seeded):
+    """⚠ `turns` 가 없는 것은 이 필드 **도입 전에** 저장된 요약이다.
+
+    최신인지 알 수 없으므로 낡은 것으로 본다 — 모르면 다시 만드는 편이 안전하다.
+    """
+    import json
+
+    from domains.learning.models.call import Call as _Call
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        db.get(_Call, cid).resume_context = json.dumps({"topic": "옛날 요약"})
+        db.commit()
+        assert _svc.resume_materials(db, cid, "ko")["topic"] is None
+    finally:
+        db.close()

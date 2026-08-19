@@ -634,12 +634,19 @@ def _resume_transcript(db: Session, call_id: int) -> str:
 
 
 def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
-    """다음 조각이 쓸 요약 슬롯을 저장한다."""
+    """다음 조각이 쓸 요약 슬롯을 저장한다.
+
+    ⭐⭐ **몇 턴까지 본 요약인지 같이 박는다**(`turns`). 이게 없으면 낡은 요약을 최신인 줄
+      알고 쓴다 — 조각2 분석이 끝나기 전에 조각3을 이으면 **조각2 대화가 통째로 빠진다.**
+      (사장님 지적 2026-08-19: "요약한 다음 뒤에 나온 내용들은 어떻게 되는 건데?")
+    """
     import json as _json
 
     call = db.get(Call, call_id)
     if call is not None:
-        call.resume_context = _json.dumps(slots, ensure_ascii=False)
+        payload = dict(slots)
+        payload["turns"] = next_turn_index(db, call_id)
+        call.resume_context = _json.dumps(payload, ensure_ascii=False)
         db.commit()
 
 
@@ -767,6 +774,21 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
 
             slots = _json.loads(raw_ctx) or {}
         except (ValueError, TypeError):
+            slots = {}
+        # ⛔⛔ **낡은 요약을 최신인 줄 알고 쓰면 안 된다.** 요약은 조각이 끝날 때
+        #   fire-and-forget 으로 만들어지므로, 조각2 분석이 끝나기 전에 조각3을 이으면
+        #   저장된 것은 **조각1까지만 본 요약**이다 — 그대로 쓰면 조각2가 통째로 빠진다.
+        #   ⇒ 만든 시점의 턴 수와 지금 턴 수를 비교해 **뒤처지면 버린다.**
+        #     버리면 호출부가 즉석 생성으로 내려가 최신으로 다시 만든다.
+        #   ⚠ `turns` 가 없는 것은 이 필드 도입 **전에** 저장된 요약이다. 최신인지 알 수
+        #     없으므로 낡은 것으로 취급한다(모르면 다시 만드는 편이 안전하다).
+        seen = slots.get("turns")
+        now_turns = next_turn_index(db, call_id)
+        if not isinstance(seen, int) or seen < now_turns:
+            logger.info(
+                "normalcall 이어하기 요약: 낡음(%s턴까지 → 지금 %d턴) — 다시 만든다 call_id=%s",
+                seen, now_turns, call_id,
+            )
             slots = {}
 
     # ⭐ 한 줄 요약(LLM). 짧지만 **오래된 화제까지** 담는 유일한 값이라 같이 준다.
