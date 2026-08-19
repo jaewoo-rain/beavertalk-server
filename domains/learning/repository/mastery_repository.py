@@ -603,6 +603,16 @@ def _annotate_state(db: Session, member_id: int, picked: list[dict]) -> None:
     if not picked:
         return
     rows = get_progress_map(db, member_id, [e["item"].item_id for e in picked])
+    # ⭐⭐ **오늘 다뤘나**(2026-08-19 사장님 지시). 상태 라벨(새로/다시/복습)은 **평생 상태**라
+    #   "오늘 배운 것"과 "3주 전에 배운 것"이 똑같이 `복습` 으로 나간다. 그러면 5개 단위
+    #   확인(_STUDY_FIVE_CHECK)이 **오늘 다룬 것을 못 고른다** — 특히 통화가 조각으로 나뉘거나
+    #   하루에 여러 통화를 하면(Pro·Max) 비버는 아까 뭘 했는지 알 방법이 없다.
+    #   ⛔ 사장님 지시: "이전에 배웠던 걸 오늘 이야기했더라도 복습 시간에는 다뤄야 해."
+    #     ⇒ 기준은 **상태가 아니라 오늘 손댔는지**다. `last_seen_at` 하나로 판정한다.
+    #   ⚠ 하루 경계는 UTC 가 아니라 **클라 로컬**이어야 맞다(외국인 학습자라 타임존이 제각각).
+    #     지금 이 함수엔 tz 가 안 들어온다 — v1 은 UTC 로 간다. 시차가 큰 사용자는 경계
+    #     근처에서 하루가 어긋날 수 있고, 그때는 라벨이 하나 덜 붙을 뿐 통화는 정상이다.
+    today = datetime.now(timezone.utc).date()
     for e in picked:
         prog = rows.get(e["item"].item_id)
         status = getattr(prog, "status", None) if prog is not None else None
@@ -613,6 +623,11 @@ def _annotate_state(db: Session, member_id: int, picked: list[dict]) -> None:
         else:
             # practicing · mastered(미확정 fast-track) — 둘 다 "말해본 적 있다".
             e["state"] = STUDY_STATE_REVIEW
+        seen = getattr(prog, "last_seen_at", None) if prog is not None else None
+        if seen is not None:
+            if seen.tzinfo is None:
+                seen = seen.replace(tzinfo=timezone.utc)
+            e["today"] = seen.date() == today
 
 
 def pick_chat_targets(

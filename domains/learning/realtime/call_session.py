@@ -78,6 +78,8 @@ from core.persona_prompt import (
     CONTROL_TAG,
     REGROUND_COVERED_CAP,
     build_leveltest_instruction,
+    build_resume_brief,
+    seed_resume,
     build_continue_reminder,
     build_reground_brief,
     build_reground_reminder,
@@ -99,6 +101,7 @@ from domains.learning.realtime.protocol import (
     ServerInputTranscript,
     ServerMessage,
     ServerOutputTranscript,
+    ServerSentenceMarker,
     ServerPong,
     ServerTeachingPlan,
     ServerTurnEnd,
@@ -400,7 +403,10 @@ class _CallState:
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
         "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
-        "face_calls",   # 표정 계측 스파이크 — 이 통화에서 set_face 가 몇 번 불렸나
+        # 표정(set_face) — 호출 수 · 마커 seq · 마지막으로 **보낸** 값(중복 억제 기준)
+        "face_calls", "face_seq", "face_last",
+        # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
+        "face_streak",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -414,6 +420,8 @@ class _CallState:
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
+        # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
+        "is_leveltest",
         "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
@@ -460,7 +468,10 @@ class _CallState:
         self.cur_beaver_pcm = bytearray()
         self.cur_beaver_text: list[str] = []
         self.next_turn_index = 0
-        self.face_calls = 0        # 표정 계측 스파이크(꺼져 있으면 영원히 0)
+        self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
+        self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
+        self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
+        self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -544,6 +555,9 @@ class _CallState:
         # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(사이드카의 prior_question 문맥).
         # band_tasks: 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
         self.band_observe: bool = False
+        # ⛔ 레벨테스트는 **길이 시계로 끝나야 한다**(3분 하드캡은 측정 설계다). 조각·프론트
+        #   종료 소유권과 무관하다 — 이 값이 그 두 세계를 가른다.
+        self.is_leveltest: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
@@ -564,6 +578,18 @@ class _CallState:
         #   토큰. ⛔ Live usage 와 **다른 그릇**이다 — 단가가 다르고, 섞으면 두 엔진
         #   비교가 오염된다. usage_json.sidecars 로 따로 나간다.
         self.sidecar_usage = gemini_analysis.LlmUsage()
+
+
+def _as_int(v) -> int | None:
+    """와이어에서 온 값을 int 로. 못 읽으면 None(호출부가 폴백한다).
+
+    ⚠ 프론트가 call_id 를 **문자열로** 보낸다("1234"). 여기서 안 받아 주면 이어하기가
+      조용히 안 되고, 원인은 로그에 안 남는다.
+    """
+    try:
+        return int(str(v).strip()) if v is not None and str(v).strip() else None
+    except (TypeError, ValueError):
+        return None
 
 
 class _ClientDisconnect(Exception):
@@ -990,6 +1016,9 @@ async def run_call(
         target_override = start.target_language
         call_type_override = start.call_type
         duration_override = start.duration_min
+        # ⭐ 이어하기 — 클라가 보내는 값은 문자열일 수 있다("1234"). 못 읽으면 조용히 무시하고
+        #   새 통화로 간다(거절이 아니라 폴백 — 이어하기가 안 된다고 통화를 막으면 더 나쁘다).
+        continues_call_id = _as_int(start.continues_call_id)
     except _ClientDisconnect:
         logger.info("normalcall: start 수신 전 클라 종료")
         return
@@ -1033,8 +1062,9 @@ async def run_call(
             "normalcall: start.character_id(%s) 무시 — 서버 결정 %s (inbound=%s)",
             client_character_id, character_id, inbound_call_id,
         )
-    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
-    await _send_json(client_ws, ServerCallStarted(character_id=character_id))
+    # ⚠ `call_started` 는 여기서 보내지 않는다 — **통화 행이 아직 없어서 call_id 를 못 싣는다**
+    #   (아래 3) 에서 만든다). 클라는 그 번호를 다음 조각의 `continues_call_id` 로 돌려줘야
+    #   하므로 **번호가 실린 뒤에** 보낸다. 여전히 오디오보다 먼저다(계약 유지).
 
     # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
@@ -1159,15 +1189,108 @@ async def run_call(
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
 
-    # 3) 통화 행 생성(call_type + target_language 코드 기록).
-    call_id = await svc.run_db(
-        db_session_factory,
-        lambda db: svc.create_call(
-            db, member_id, character_id, call_type, target_language=spec.code
-        ),
+    # 3) 통화 행 — ⭐ **이어하기면 새로 만들지 않고 그 행에 계속 쓴다**(2026-08-19).
+    #    행이 하나면 통화 목록·통화후 분석·발음 점수·일일 한도가 저절로 하나로 묶인다.
+    #    ⚠ 검증(본인 통화·TTL 5분·조각 상한)은 서비스가 한다. 어긋나면 None 을 돌려주고
+    #      여기서 **새 통화로 폴백**한다 — 이어하기 실패가 통화 실패가 되면 안 된다.
+    call_id = None
+    resume_reason = ""
+    resumed = False
+    if continues_call_id is not None and call_type == "normal":
+        max_fragments = await svc.run_db(
+            db_session_factory,
+            lambda db: call_service.call_fragments_for_member(db, member_id),
+        )
+        call_id, resume_reason = await svc.run_db(
+            db_session_factory,
+            lambda db: svc.resume_call(
+                db, member_id, continues_call_id, max_fragments=max_fragments
+            ),
+        )
+        resumed = call_id is not None
+        logger.info(
+            "normalcall 이어하기: continues=%s → %s (%s)",
+            continues_call_id, "call_id=%d" % call_id if resumed else "새 통화로 폴백",
+            resume_reason,
+        )
+    if call_id is None:
+        call_id = await svc.run_db(
+            db_session_factory,
+            lambda db: svc.create_call(
+                db, member_id, character_id, call_type, target_language=spec.code
+            ),
+        )
+
+    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
+    # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
+    #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
+    await _send_json(
+        client_ws, ServerCallStarted(character_id=character_id, call_id=str(call_id))
     )
 
     state = _CallState()
+    if resumed:
+        # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
+        #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
+        #   충돌이 조용히 난다 — 새 행이었으면 안 났을 사고다).
+        state.next_turn_index = await svc.run_db(
+            db_session_factory, lambda db: svc.next_turn_index(db, call_id)
+        )
+        logger.info("normalcall 이어하기: 턴 인덱스 %d 부터 이어서 기록", state.next_turn_index)
+        # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
+        #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
+        #   ⛔ "이어서 할게요" 를 시키지 않는다 — 그러면 끊김이 두 번 일어난다.
+        #     브리프 마지막 줄이 **첫 행동을 지정**한다(금지가 아니라 지정).
+        try:
+            mats = await svc.run_db(
+                db_session_factory, lambda db: svc.resume_materials(db, call_id, spec.code)
+            )
+            # ⭐⭐ **슬롯이 아직 없으면 지금 만든다**(2026-08-19 실측 사고).
+            #   조각 종료 시점 생성은 fire-and-forget 이라 이어하기가 그걸 **앞지른다**:
+            #     07:00:48 저장 → 07:00:51 이어하기(슬롯 없음) → 07:00:53 요약 완성
+            #   그때 발췌 폴백을 탔고, 짧은 통화라 **비버의 첫 인사가 발췌 맨 앞**에 왔다.
+            #   ⇒ 비버가 그걸 요약이 아니라 **대본으로 읽어** 글자까지 똑같이 다시 인사했다
+            #     (t10 == t1). 원문을 주면 따라 한다 — 그게 원문 덤프의 진짜 위험이다.
+            #   ⚠ 여기서 LLM 을 한 번 더 부르지만 **체감 지연은 0에 가깝다**: Live 세션을
+            #     여는 데만 2초가 걸리고(실측 07:00:51→07:00:53) 요약은 thinking 0 · 짧은
+            #     전사라 그보다 빠르다.
+            if not mats.get("topic") and not mats.get("facts") and client is not None:
+                tail = await svc.run_db(
+                    db_session_factory, lambda db: svc._resume_transcript(db, call_id)
+                )
+                slots = await svc.summarize_for_resume_text(
+                    client, settings.JUDGE_MODEL, tail
+                )
+                if slots:
+                    mats["topic"] = slots.get("topic") or None
+                    mats["facts"] = slots.get("learner_facts") or None
+                    mats["pending"] = slots.get("pending") or None
+                    mats["excerpt"] = None      # ⛔ 슬롯이 생겼으면 발췌는 안 보낸다
+                    await svc.run_db(
+                        db_session_factory,
+                        lambda db: svc._save_resume_context(db, call_id, slots),
+                    )
+                    logger.info(
+                        "normalcall 이어하기 요약(즉석): 화제=%r 사실 %d개",
+                        slots.get("topic"), len(slots.get("learner_facts") or []),
+                    )
+            brief = build_resume_brief(**mats)
+            # ⛔⛔ **시드를 갈아야 한다 — 지시문만으로는 안 진다**(2026-08-19 실측 call 1087).
+            #   `seed_opening` 은 "짧게 인사부터 하고, 오늘 공부할래 수다 떨래?를 물어라" 다.
+            #   조각2 에서 그게 그대로 나가자 비버가 방금 하던 대화를 버리고 **처음으로
+            #   돌아갔다**(t8 이 t1 과 같은 질문). 브리프에 "인사하지 마라"가 있어도 소용없다 —
+            #   **시드는 직접 명령이고 지시문은 배경**이라 시드가 이긴다.
+            #   ⚠ 브리프 유무와 무관하게 간다: 브리프가 비어도 "다시 묻기"는 막아야 한다.
+            seed_text = seed_resume(target_language)
+            if brief:
+                system_instruction = system_instruction + "\n\n" + brief
+                logger.info(
+                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 화제=%s",
+                    len(mats["covered"]), len(mats["strong"]), len(mats["weak"]),
+                    (mats["topic"] or "")[:30] or "없음",
+                )
+        except Exception as exc:   # noqa: BLE001 — 브리프 실패가 통화를 막으면 안 된다(R5)
+            logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
@@ -1196,6 +1319,9 @@ async def run_call(
     if settings.LIVE_FACE_SPIKE:
         live_tools = [SET_FACE_TOOL]
     if call_type == "level_test":
+        # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은
+        #   상품 혜택이 아니라 **측정 설계**라, 클라가 언제 닫든 서버가 캡에서 끝내야 한다.
+        state.is_leveltest = True
         # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
         # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
         # 넛지는 이 한 값(state.call_duration_s)으로 흡수한다(무수정).
@@ -1824,6 +1950,11 @@ class StartParams(NamedTuple):
     tz_offset_min: int | None = None
     # 수신통화(알람)일 때만. 서버가 푸시로 내려준 통화 id 를 앱이 되돌려준 값.
     inbound_call_id: str | None = None
+    # ⭐ 이어하기 — 직전 조각의 call_id. ⚠ **기본값을 준다**(맨 뒤에 붙인 이유이기도 하다):
+    #   기존 호출부·테스트가 이 필드를 안 넘겨도 안 깨진다(NamedTuple 규율, 위 독스트링).
+    #   ⛔ 프론트가 문자열로 보낸다("1234") — 여기서는 **원문 그대로** 들고, int 변환은
+    #     호출부(_as_int)가 한다. 파싱 실패를 이 자리에서 삼키면 원인이 로그에 안 남는다.
+    continues_call_id: str | int | None = None
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -1878,6 +2009,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         duration_min=getattr(cm, "duration_min", None),
                         tz_offset_min=getattr(cm, "tz_offset_min", None),
                         inbound_call_id=getattr(cm, "inbound_call_id", None),
+                        continues_call_id=getattr(cm, "continues_call_id", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc
@@ -2239,34 +2371,84 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _record_usage(state, event.usage)
             continue
 
-        # ⭐⭐ 표정 계측 스파이크(2026-08-18). **usage 와 같은 규율** — 적재만 하고 즉시
-        #   continue 한다. `_forward_event` 로 안 내려보내므로 턴 상태기계·barge-in·무음
-        #   시계·종료 규약 어디에도 안 닿는다(R4). 클라로 나가는 것도 없다.
-        #   ⛔ 여기서 다루는 이유: `send_tool_response` 에 `session` 이 필요한데
-        #     `_forward_event(client_ws, event, state)` 에는 세션이 없다.
+        # ⭐⭐ **표정**(2026-08-19). native-audio 는 출력이 곧 소리라 감정을 텍스트 태그로
+        #   시키면 그대로 낭독한다(`_EMOTION_TAG_RULE` 이 Live 에 금지된 이유) ⇒ 표정은
+        #   **function-call 로만** 나올 수 있다. 그걸 받아 클라로 마커 프레임을 흘린다.
         #
-        # ⭐ **`턴누적오디오`가 이 스파이크의 답이다.** 프론트는 시계가 아니라 **오디오
-        #   위치**로 표정을 터뜨린다(마커를 봉투에 꽂아 두고 재생이 그 지점에 닿을 때 반영).
-        #   그래서 알아야 할 건 "이 호출이 그 문장 오디오보다 앞에 왔나"이고 그 값이 이것이다.
-        #     0 에 가까움 → ✅ 말하기 전에 불렀다. 순서대로 흘리면 자동으로 맞는다
-        #     크다        → ⛔ 이미 말한 뒤다. 표정이 그만큼 늦는다 → 설계를 다시 봐야 한다
-        #   24kHz·16bit·mono = 48,000 B/s 고정이라 바이트를 초로 바로 환산한다.
+        # ⛔ **여기서 다루는 이유**: `send_tool_response` 에 `session` 이 필요한데
+        #   `_forward_event(client_ws, event, state)` 에는 세션이 없다. 그리고 `usage` 와 같은
+        #   규율로 즉시 continue 한다 — `_forward_event` 로 안 내려가므로 턴 상태기계·
+        #   barge-in·무음 시계·종료 규약 어디에도 안 닿는다(R4).
+        #
+        # ⭐⭐ **순서가 전부다.** 프론트는 이 프레임을 도착 시점에 반영하지 않고 오디오 봉투에
+        #   위치로 꽂아 두었다가(`at:_envAdded`) 재생이 그 지점에 닿을 때 터뜨린다. 그래서
+        #   서버가 지킬 것은 "그 감정이 붙을 오디오 **앞에** 흘린다" 하나뿐이다 — Live 는
+        #   Gemini→클라 펌프가 하나라 받은 순서가 그대로 나가 자동으로 지켜진다.
+        #   ⚠ 실측(2026-08-18, 28호출): 27/28 이 그 턴 오디오 **0.00초** 지점에 왔다.
+        #     즉 모델은 **말하기 전에** 표정을 정한다. 이 설계의 성립 조건이 그것이었다.
         if event.kind == "tool_call":
+            # ⛔⛔ **어느 tool 인지 반드시 가른다**(2026-08-19, 회귀가 잡았다).
+            #   이 분기는 `tool_call` 전체를 받는데, 이 프로젝트에는 표정 말고도
+            #   `leveltest_ceiling_reached` 가 있다(지금은 안 쓰지만 배관은 살아 있다).
+            #   이름을 안 보면 **레벨테스트 종료 신호가 표정 마커로 둔갑한다.**
+            # ⛔ 스위치도 같이 본다. 꺼져 있으면 도구를 선언조차 안 하지만, "꺼짐 = 와이어
+            #   무변화"는 **두 겹으로** 지킨다 — 선언과 소비 중 한쪽만 고치는 사고가 이
+            #   프로젝트에서 반복됐다.
+            # ⚠ `_settings` 다 — 이 모듈은 `settings as _settings` 로 받는다(:60). 펌프에는
+            #   `settings` 파라미터가 없어서 그 이름을 쓰면 **NameError 로 펌프가 죽는다**
+            #   (회귀가 잡았다: 마커가 0건이고 통화가 즉시 끝났다).
+            is_face = event.fn_name == "set_face" and bool(_settings.LIVE_FACE_SPIKE)
             state.face_calls += 1
+            if is_face:
+                state.face_streak += 1
+            # ⭐⭐ **폭주 차단기**(2026-08-19 실측 사고: 32초에 89회, 그동안 발화 0건).
+            #   `WHEN_IDLE` 은 "하던 일 끝나면 재개"인데 턴 사이에는 **할 일이 없어 즉시
+            #   재개**한다. 그런데 재개한 모델이 또 `set_face` 를 부른다 ⇒ 무한 루프.
+            #   ⇒ 소리 없이 N회를 넘기면 **SILENT 로 답한다**(= 재개를 촉구하지 않는다).
+            #   ⚠ 프롬프트로도 눌렀지만(한 턴 한 번) **모델이 안 지키면 그대로 재발**한다.
+            #     지시는 부탁이고, 이건 계약이다.
+            runaway = is_face and state.face_streak > max(1, _settings.LIVE_FACE_MAX_CONSECUTIVE)
+            if runaway:
+                is_face = False      # 마커도 보내지 않고, 아래 응답도 SILENT 로 내려간다
+            emotion = str((event.fn_args or {}).get("emotion") or "").strip() if is_face else ""
+            secs = len(state.cur_beaver_pcm) / 48000.0   # 24kHz·16bit·mono = 48,000 B/s
+            # ⭐ **직전과 같으면 안 보낸다.** 실측 28회 중 7회(25%)가 같은 값 연속이었다
+            #   (`surprised → surprised`). 프론트는 상태를 안 들고 오는 대로 적용하므로
+            #   같은 값을 또 보내면 **영상 컨트롤러를 헛되이 흔든다** — 하드 디코더가 2~3개
+            #   한계라(sync_avatar.dart:21) 이 낭비가 공짜가 아니다.
+            #   ⛔ `turn_id` 로 리셋하지 않는다. 표정은 턴을 넘어 유지되는 상태다 —
+            #     턴마다 비우면 다음 턴 첫 마커가 항상 중복으로 나간다.
+            duplicate = emotion == state.face_last
+            # ⛔⛔ **턴이 열렸는지로 막지 않는다.** 모델은 말하기 **전에** 표정을 정하므로
+            #   (실측 27/28 이 오디오 0.00초 지점) 이 시점에 `state.turn_id` 는 대개 **None**
+            #   이다. 여기서 걸러내면 마커가 거의 전부 사라진다.
+            #   ⚠ 그렇다고 여기서 턴을 새로 열면 더 나쁘다 — `_forward_event` 의
+            #     `turn_started` 가 영영 False 가 되어 **학습자 발화 확정·통화 시계 시작**이
+            #     통째로 건너뛰어진다(R4). 턴은 오디오/전사가 연다. 우리는 앞서갈 뿐이다.
+            if emotion and not duplicate:
+                state.face_seq += 1
+                await _send_json(client_ws, ServerSentenceMarker(
+                    turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
+                ))
+                state.face_last = emotion
             logger.info(
-                "normalcall 표정스파이크: %s(%s) 턴누적오디오=%.2f초 이번통화 %d번째 직전전사=%r",
-                event.fn_name, (event.fn_args or {}).get("emotion"),
-                len(state.cur_beaver_pcm) / 48000.0, state.face_calls,
+                "normalcall 표정: %s(%s) 턴누적오디오=%.2f초 %d번째 %s 직전전사=%r",
+                event.fn_name, emotion or "?", secs, state.face_calls,
+                "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
+                "중복(안 보냄)" if duplicate else
+                ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
             )
-            # ⛔ 응답은 돌려준다 — NON_BLOCKING 이라 기다리진 않지만 안 주면 모델 쪽에 미완
-            #   호출이 남는다. SILENT 라 이 응답이 추가 발화를 유발하지 않는다.
+            # ⛔ 응답은 돌려준다 — 안 주면 모델 쪽에 미완 호출이 남는다.
             try:
-                # ⛔ `resume=True` 없으면 **모델이 다시 말하지 않는다**(실측). 자세한 근거는
-                #   gemini_live.send_tool_response 주석. 표정은 부르고 계속 말해야 한다.
-                await session.send_tool_response(event.fn_id, event.fn_name, resume=True)
-            except Exception as exc:   # noqa: BLE001 — 계측이 통화를 죽이면 안 된다(R5)
-                logger.warning("normalcall 표정스파이크: tool 응답 실패(무시) — %s", exc)
+                # ⛔ 표정은 `resume=True` 여야 한다 — 없으면 **모델이 다시 말하지 않는다**
+                #   (2026-08-18 실측: 4턴 내내 tool 은 부르는데 대답이 0건이었다).
+                #   ⚠ 다른 tool 은 SILENT 그대로다. 레벨테스트 종료 신호는 이어 말할 필요가
+                #     없고, 오히려 생성을 촉구하면 작별 대본 주입과 부딪힌다.
+                await session.send_tool_response(
+                    event.fn_id, event.fn_name, resume=is_face)
+            except Exception as exc:   # noqa: BLE001 — 표정이 통화를 죽이면 안 된다(R5)
+                logger.warning("normalcall 표정: tool 응답 실패(무시) — %s", exc)
             continue
 
         # A3 GoAway: 서버가 곧 연결을 닫겠다는 예고(연결 ~10분 한계, S2). 뚝 끊기기 전에
@@ -2409,6 +2591,10 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
         if event.audio:
+            # ⭐ 소리가 나왔다 = 모델이 정상으로 돌아왔다 ⇒ 표정 폭주 카운터를 푼다.
+            #   ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 사이에서 나므로
+            #     턴 경계로 풀면 차단기가 영영 안 걸리거나 매번 풀린다.
+            state.face_streak = 0
             await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
@@ -2526,26 +2712,64 @@ async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) ->
 # 통화 시계 워처 + 종료
 # --------------------------------------------------------------------------- #
 async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> None:
-    """경과 감시: CALL_DURATION_S 경과 → should_close, 이후 종료 시드 주입을 보장하고 하드 백스톱.
+    """종료 신호를 기다렸다가 시드 주입을 보장하고 하드 백스톱을 건다.
 
-    ⭐ RC1(소강 스타베이션) 방지: 5분 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서
+    ⛔⛔ **2026-08-19 임시 — 길이 만료는 프론트가 소유한다.** 예전에는 이 워처가
+      `call_duration_s` 경과를 직접 재서 종료를 시작했다. 지금은 조각 경계를 프론트가
+      잡으므로(5분에 소켓 닫기) 그 루프를 껐다. 근거·복구 방법은 아래 본문 주석에 있다.
+      ⇒ 이 워처가 반응하는 신호는 이제 **GoAway · 무음 3단 · 사이드카 종료요청**뿐이다.
+
+    ⭐ RC1(소강 스타베이션) 방지: 종료 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서
     시드를 주입하지만, 소강(idle, turn_id None) 구간이면 turn_end 가 오지 않아 시드가 영영
     안 나간다. 그래서 워처가 idle 을 감지하면 직접 주입한다(작별 없는 무음 종료 방지).
     """
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
-    while loop.time() - state.call_start_ts < state.call_duration_s:
-        # T2: 조기종료(tool 신호/GoAway/무음3단)가 캡 이전에 should_close 를 세우면 즉시
-        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지(최대 절대백스톱) 매달린다.
-        if state.should_close:
+
+    # ⛔⛔⛔ **임시: 종료 타이밍을 프론트가 잡는다**(2026-08-19 사장님 지시) ⛔⛔⛔
+    #
+    #   조각(6분)은 이제 **서버 시계가 아니라 프론트가** 끝낸다 — 5분에 "이어서
+    #   하시겠습니까?"를 띄우고 **소켓을 닫는다**. 서버는 그 닫힘을 `_ClientDisconnect`
+    #   로 받아 저장·분석까지 정상으로 돈다(실측 call 1078: "클라 연결 종료" → "저장 완료").
+    #
+    #   ⭐ 그리고 그게 조각 설계와 **맞다**: 조각 1·2 의 경계에서 비버가 작별을 하면 안 된다
+    #     (이어하기 설계 §8 "무음 컷 — 주입 0"). 소켓만 닫으면 주입이 0이라 자동으로 그렇게 된다.
+    #
+    # ⚠ **되돌리기: `LIVE_CALL_END_OWNER="server"`** 하나면 예전 동작이 그대로 살아난다.
+    #   코드를 주석으로 지우지 않은 이유는 그 설정의 주석에 적어 뒀다(회귀 3건이 걸려 있다).
+    #
+    # ⛔ **안 끈 것 — 이건 길이가 아니라 안전이다:**
+    #   ① `ABSOLUTE_CALL_TIMEOUT_S`(540초) 절대 백스톱(run_call 의 asyncio.timeout).
+    #      **프론트가 영영 안 닫아도 9분에 끝난다.** 무한 과금 방어.
+    #   ② GoAway · 무음 3단 · 사이드카 `_request_close` — 길이와 무관한 종료 사유.
+    #   ③ 아래 시드 주입·백스톱 — should_close 가 서면 그대로 돈다.
+    #
+    # ⚠ **마지막 조각의 작별은 지금 아무도 안 한다.** 프론트가 3번째도 그냥 닫으면 비버가
+    #   인사 없이 끊긴다. 이어하기 본구현에서 서버가 "마지막 조각"을 알게 되면 그때
+    #   시드를 되살린다(설계 §8 표: 조각3 = 기존 종료 시드 무수정).
+    # ⛔⛔ **레벨테스트는 스위치를 안 탄다**(회귀가 잡았다: band 사이드카 폴백 시험이 캡을
+    #   기다리다 타임아웃). 3분 하드캡은 상품 혜택이 아니라 **측정 설계**라 클라가 언제
+    #   닫든 서버가 캡에서 끝내야 한다. 조각·이어하기는 일반 통화의 개념이다.
+    client_owns_end = (
+        not state.is_leveltest
+        and (_settings.LIVE_CALL_END_OWNER or "").strip().lower() == "client"
+    )
+    while not state.should_close:
+        # T2: 조기종료(GoAway/무음3단/사이드카)가 캡 이전에 should_close 를 세우면 즉시
+        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지 매달린다.
+        if not client_owns_end and loop.time() - state.call_start_ts >= state.call_duration_s:
             break
         # 폴링 0.2s 유지 + 종료 요청이 오면 즉시 깨어난다(_request_close). TaskGroup 밖
         # 사이드카가 세션을 직접 잡지 않고도 지연 없이 종료 시드를 내보내게 하는 통로(B2).
         with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(state.close_requested.wait(), 0.2)
     state.should_close = True
-    logger.info("normalcall: %.0fs 경과/조기신호 → 종료 플래그", state.call_duration_s)
+    logger.info(
+        "normalcall: 종료 플래그(%s)",
+        "프론트 소유 — 신호 수신" if client_owns_end
+        else "%.0fs 경과/조기신호" % state.call_duration_s,
+    )
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.
     # ⭐ 종료 레이스(call 197): 유저가 5분 직전 마지막에 말하면 "유저 발화 끝~비버 응답 시작"

@@ -68,10 +68,14 @@ async def test_the_duration_comes_from_the_plan(monkeypatch, plan_s):
 
 
 def test_the_plan_table_is_the_live_one():
-    """⛔ 표를 캐스케이드가 따로 갖지 않는다 — 갈리면 두 경로의 과금 규칙이 달라진다."""
-    assert call_service.CALL_DURATION_S_BY_PLAN[None] == 300.0
-    assert call_service.CALL_DURATION_S_BY_PLAN["pro"] == 900.0
-    assert call_service.FREE_CALL_DURATION_S == 300.0
+    """⛔ 표를 캐스케이드가 따로 갖지 않는다 — 갈리면 두 경로의 과금 규칙이 달라진다.
+
+    ⭐ 2026-08-19 재편: 길이는 **플랜 무관 상수**(조각 6분)가 됐고, 플랜은 조각 수를
+      가른다. 캐스케이드는 조각 개념이 없으므로 길이만 같으면 된다.
+    """
+    assert call_service.CALL_DURATION_S_BY_PLAN[None] == call_service.CALL_FRAGMENT_S
+    assert call_service.CALL_DURATION_S_BY_PLAN["pro"] == call_service.CALL_FRAGMENT_S
+    assert call_service.FREE_CALL_DURATION_S == call_service.CALL_FRAGMENT_S
 
 
 @pytest.mark.asyncio

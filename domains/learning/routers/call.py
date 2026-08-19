@@ -20,9 +20,11 @@ from domains.learning.schemas.pronunciation import (
     PronunciationReport,
 )
 from domains.learning.schemas.pronunciation_report import LearningSummaryOut
+from domains.learning.models.call import Call
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import pronunciation_report_service as report_svc
 from domains.learning.service import pronunciation_service as pron_svc
+from domains.learning.service import call_service
 from domains.learning.service.call_service import CallService
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -83,6 +85,41 @@ def get_daily_status(
     정적 경로라 `/{call_id}` 보다 먼저 선언(라우트 순서로 의도 명확화).
     """
     return CallService(db).daily_status(member.member_id, date, tz_offset)
+
+
+@router.get("/{call_id}/resume-status")
+def get_resume_status(call_id: int, member: CurrentMember, db: DbSession) -> dict:
+    """⭐ **이 통화를 지금 이어도 되나** — 클라가 "이어서" 버튼을 열 시점을 정하는 값.
+
+    ## 왜 폴링인가(서버가 밀어주지 않고)
+    조각을 끝내는 주체가 **클라**다 — 5분에 소켓을 닫는다. 그 순간 서버는 밀어 줄 통로가
+    없다(소켓이 이미 없다). 그래서 클라가 물어본다.
+
+    ## `ready` 가 뜻하는 것
+    다음 조각에 넘길 **요약 슬롯이 준비됐다**(`call.resume_context`).
+    ⛔ 이게 없을 때 이어하면 서버가 원문 발췌로 폴백하는데, 실측(call 1086) 그때
+      **비버가 발췌를 대본으로 읽어 첫 인사를 글자까지 똑같이 반복했다.**
+      그래서 사장님 지시(2026-08-19): "요약이 제대로 되어야지만 버튼이 활성화되도록".
+    ⚠ 서버에도 즉석 생성 폴백이 있으므로 `ready=false` 에 이어도 **동작은 한다** —
+      다만 통화 시작이 그만큼 늦고 품질이 흔들린다. 이 값은 그걸 피하라는 신호다.
+
+    ## `can_resume`
+    조각 상한(Free 1 / Pro·Max 3)이 남았나. ⛔ 본인 통화가 아니면 404 다 —
+    남의 통화 상태를 조회로 떠보지 못하게 한다.
+    """
+    call = db.get(Call, call_id)
+    if call is None or call.member_id != member.member_id:
+        raise HTTPException(status_code=404, detail="통화를 찾을 수 없습니다")
+    used = call.fragment_count or 1
+    total = call_service.call_fragments_for_member(db, member.member_id)
+    return {
+        "ready": bool(call.resume_context),
+        "can_resume": used < total and (call.call_type or "normal") == "normal",
+        "fragment_count": used,
+        "max_fragments": total,
+        # ⚠ 분석이 아직 도는 중인지 — 클라가 "요약 준비 중" 을 보여줄 수 있게.
+        "analyzing": (call.status or "") in ("ongoing", "analyzing"),
+    }
 
 
 @router.get("/{call_id}/pronunciation", response_model=PronunciationReport)

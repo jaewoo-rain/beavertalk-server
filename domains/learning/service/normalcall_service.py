@@ -19,7 +19,7 @@ from typing import Callable, Literal, Optional, TypeVar
 from fastapi.concurrency import run_in_threadpool
 from google import genai
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core import curriculum_hints, gemini_analysis, storage, tts
@@ -41,6 +41,7 @@ from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.service import entitlements
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
+from domains.learning.service import call_service
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.level import Level
@@ -439,6 +440,9 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
         #   "통문장·다시" 로 렌더하고, 상태별 시작 절차를 고른다. 없으면 persona 가
         #   옛 렌더로 폴백한다(하위호환).
         "state": entry.get("state"),
+        # ⭐ **오늘 손댔나**(2026-08-19). 상태 축은 평생 상태라 "오늘 배운 것"과 "3주 전에
+        #   배운 것"을 못 가른다 — 5개 단위 확인이 오늘 것을 고르려면 이 칸이 필요하다.
+        "today": bool(entry.get("today")),
         "obj": item.surface,
         "ex": mastery_repository.first_example(item),
         "des": _study_des(item, locale),
@@ -508,6 +512,308 @@ def _load_study_materials(
         "known_items": known_items,
         "promotion_notice": mastery_repository.promotion_pending(db, member_id, language),  # ⑧
         "candidates": candidates or None,
+    }
+
+
+# ⭐⭐ 이어하기 유효시간(2026-08-19 사장님 결정). "이어서" 를 누를 수 있는 창.
+#   ⚠ 짧으면 화장실 다녀온 사이 끊기고, 길면 30분 뒤 돌아와 이어서 어색해진다.
+RESUME_TTL_S = 300.0
+# ⭐ 이어하기 브리프에 실을 대화 발췌의 글자 예산. 프롬프트가 이미 ~5,000 토큰이라
+#   여기에 통화 전체를 넣으면 조각3에서 두 배가 된다. 1,200자 ≈ 400~600토큰.
+_RESUME_EXCERPT_CHARS = 1200
+
+
+def resume_call(
+    db: Session, member_id: int, continues_call_id: int, *, max_fragments: int,
+) -> tuple[int | None, str]:
+    """이어하기 요청을 검증하고 **그 통화 행을 그대로 돌려준다**(새로 만들지 않는다).
+
+    ⭐ 조각을 새 행으로 만들지 않는 이유: 목록·분석·발음 점수·한도가 전부 `call_id`
+      기준이다. 행이 하나면 **묶을 게 없다** — 15분 대화가 저절로 1건이다.
+      (설계 초안의 `root_call_id` 묶기보다 싸고, 놓칠 자리가 적다.)
+
+    ⛔ 검증 3가지. 하나라도 어긋나면 이어하지 않고 **새 통화로 떨어진다**(거절이 아니라
+      폴백이다 — 이어하기가 안 된다고 통화를 막으면 그게 더 나쁘다):
+        ① 본인 통화인가      — 남의 call_id 를 들고 와도 통과하면 안 된다
+        ② TTL 안인가          — 마지막 조각이 끝난 지 5분 이내
+        ③ 조각 상한 안인가    — Free 1 / Pro·Max 3
+
+    Returns:
+        (call_id, 사유). call_id 가 None 이면 이어하기 불가(호출부가 새 통화를 만든다).
+    """
+    call = db.query(Call).filter(Call.call_id == continues_call_id).first()
+    if call is None:
+        return None, "없는 통화"
+    if call.member_id != member_id:
+        # ⛔ 남의 통화에 내 발화를 이어 붙이는 것을 막는다. 로그에 남긴다(탐지용).
+        return None, "본인 통화 아님"
+    if (call.call_type or "normal") != "normal":
+        # 레벨테스트는 조각 개념이 없다(3분 하드캡은 측정 설계다).
+        return None, "일반 통화 아님"
+
+    last = call.call_date
+    if last is not None:
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - last).total_seconds()
+        # ⚠ `call_date` 는 **시작 시각**이라 조각 길이(6분)만큼 이미 흘러 있다.
+        #   TTL 은 "조각이 끝난 뒤"부터 재야 하므로 조각 길이를 얹어 준다.
+        if elapsed > RESUME_TTL_S + call_service.CALL_FRAGMENT_S:
+            return None, "유효시간 초과(%.0fs)" % elapsed
+
+    used = call.fragment_count or 1
+    if used >= max_fragments:
+        return None, "조각 상한(%d/%d)" % (used, max_fragments)
+
+    call.fragment_count = used + 1
+    # ⚠ `call_date` 를 갱신한다 — 다음 조각의 TTL 기준이 되어야 한다. 통화 "시작" 시각이
+    #   밀리지만, 이 값의 소비처는 목록 정렬과 TTL 이고 둘 다 최신이 맞다.
+    call.call_date = datetime.now(timezone.utc)
+    call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다
+    db.commit()
+    return call.call_id, "조각 %d/%d" % (call.fragment_count, max_fragments)
+
+
+def next_turn_index(db: Session, call_id: int) -> int:
+    """이 통화에 이미 저장된 턴 수 — 이어하기에서 `turn_index` 를 **이어서** 매긴다.
+
+    ⛔ 0 부터 다시 매기면 조각2의 첫 턴이 조각1의 첫 턴을 덮어쓰거나 순서가 섞인다.
+      전사·증거가 전부 이 인덱스로 정렬된다.
+    """
+    return int(
+        db.query(func.count(CallRawData.call_raw_data_id))
+        .filter(CallRawData.call_id == call_id)
+        .scalar() or 0
+    )
+
+
+class ResumeOut(BaseModel):
+    """이어하기 요약 사이드카의 구조화 출력 — ⛔ **문장이 아니라 슬롯만** 받는다.
+
+    ⛔ 여기에 문장 필드를 추가하지 마라. 사이드카가 문장을 만들면 그 문장이 곧 프롬프트가
+      되고, "LLM 생성 0, 순수 조립"(persona_prompt 규율)이 이어하기 경로에서만 무너진다.
+      `RegroundOut` 이 같은 이유로 같은 모양을 하고 있다 — 그 규율을 여기도 따른다.
+
+    ⭐ `learner_facts` 가 이 설계의 핵심이다. 사장님 시나리오("내가 뭐 좋아한다고 했지?")는
+      **문장이 아니라 사실**을 묻는 것이라 슬롯으로 정확히 표현된다. 원문을 통째로 넘기면
+      비버가 그 안에서 사실을 다시 찾아야 하고, 길어질수록 못 찾는다.
+    """
+
+    topic: str = ""                    # 하던 얘기 — 짧은 명사구
+    learner_facts: list[str] = []      # 학습자에 대해 알게 된 것(짧은 구)
+    pending: str = ""                  # 하다 만 것 — 짧은 구
+
+
+_RESUME_SUMMARY_INSTRUCTION = (
+    "너는 회화 통화의 상태 요약기다. 아래 대화를 읽고 JSON 슬롯만 채워라. "
+    "**문장을 만들지 마라.**\n"
+    "- topic: 대화가 흐르던 화제를 짧은 명사구 하나로(최대 15자). 없으면 빈 문자열.\n"
+    "- learner_facts: 이 대화에서 **학습자에 대해 알게 된 사실**을 짧은 구로(각 20자 이내, "
+    "최대 5개). 예: \"김치찌개를 좋아함\". ⛔ 대화에 근거가 없으면 넣지 마라.\n"
+    "- pending: 끝내지 못하고 하던 중이던 것을 짧은 구로(최대 20자). 없으면 빈 문자열."
+)
+
+
+def _learner_only(excerpt: str | None) -> str | None:
+    """발췌에서 **학습자 발화만** 남긴다 — 비버 대사는 따라 할 대본이 된다."""
+    if not excerpt:
+        return None
+    kept = [p for p in excerpt.split(" / ") if p.startswith("학습자:")]
+    return " / ".join(kept) or None
+
+
+def _resume_transcript(db: Session, call_id: int) -> str:
+    """이 통화의 전사를 요약기에 넣을 한 덩어리로. ⛔ DB 접근만(async 없음 — run_db 안이다)."""
+    rows = (
+        db.query(CallRawData.content, CallRawData.role)
+        .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
+        .order_by(CallRawData.turn_index)
+        .all()
+    )
+    return "\n".join(
+        "%s: %s" % ("비버" if (r or "") == "beaver" else "학습자", (c or "").strip())
+        for c, r in rows if c and len(c.strip()) >= 3
+    )[-4000:]
+
+
+def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
+    """다음 조각이 쓸 요약 슬롯을 저장한다.
+
+    ⭐⭐ **몇 턴까지 본 요약인지 같이 박는다**(`turns`). 이게 없으면 낡은 요약을 최신인 줄
+      알고 쓴다 — 조각2 분석이 끝나기 전에 조각3을 이으면 **조각2 대화가 통째로 빠진다.**
+      (사장님 지적 2026-08-19: "요약한 다음 뒤에 나온 내용들은 어떻게 되는 건데?")
+    """
+    import json as _json
+
+    call = db.get(Call, call_id)
+    if call is not None:
+        payload = dict(slots)
+        payload["turns"] = next_turn_index(db, call_id)
+        call.resume_context = _json.dumps(payload, ensure_ascii=False)
+        db.commit()
+
+
+async def summarize_for_resume_text(client, model: str, tail: str) -> dict | None:
+    """조각이 끝날 때 **다음 조각이 쓸 요약**을 만든다(LLM 1회).
+
+    ⛔ 이어하기 시점에 돌리면 통화 시작이 그만큼 늦는다. 조각이 끝날 때 미리 만들어
+      DB 에 두면 "이어서" 를 누른 사용자는 **지연 0** 이다.
+    ⚠ 실패해도 조용히 None — 요약이 없다고 이어하기가 막히면 안 된다(호출부가 폴백한다).
+    """
+    if not tail:
+        return None
+    try:
+        out = await gemini_analysis.generate_structured(
+            client, model,
+            system_instruction=_RESUME_SUMMARY_INSTRUCTION,
+            prompt=tail, schema=ResumeOut, temperature=0.0, thinking_budget=0,
+        )
+    except Exception as exc:  # noqa: BLE001 — 요약 실패가 분석을 죽이면 안 된다(R5)
+        logger.warning("normalcall 이어하기 요약 실패(무시) — %s", exc)
+        return None
+    if out is None:
+        return None
+    return {
+        "topic": (getattr(out, "topic", "") or "").strip()[:30],
+        "learner_facts": [
+            f.strip()[:30] for f in (getattr(out, "learner_facts", None) or [])
+            if isinstance(f, str) and f.strip()
+        ][:5],
+        "pending": (getattr(out, "pending", "") or "").strip()[:40],
+    }
+
+
+def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
+    """이어하기 브리프의 **재료**를 모은다 — ⭐ 대부분은 LLM 이 아니라 DB 가 안다.
+
+    | 항목            | 출처 |
+    |-----------------|------|
+    | 이미 다룬 것    | ✅ `item_evidence`(이 통화) — 증거가 원본이다 |
+    | 잘 해낸 것      | ✅ 등급 E2(유도)·E3(자발) |
+    | 헷갈려 하는 것  | ✅ 등급 F(오류) |
+    | 무슨 얘기 중이었나 | ⚠ 전사 마지막 턴 — LLM 없이 원문을 그대로 쓴다 |
+
+    ⛔ LLM 에 "뭘 배웠나"를 묻지 않는다. 증거가 이미 정답을 갖고 있고, 물으면 환각이 섞인다.
+      (관통 원칙 ②: 증거가 원본, 나머지는 파생 계산.)
+    ⚠ `curious`(궁금해했던 것)는 지금 안 채운다 — 그건 대화에서만 나오고 LLM 이 필요하다.
+      v1 은 DB 재료만으로 간다. 값어치가 확인되면 그때 사이드카를 붙인다.
+    """
+    from domains.learning.models.item_evidence import ItemEvidence
+    from domains.learning.models.learning_item import LearningItem
+
+    rows = (
+        db.query(ItemEvidence.grade_final, LearningItem.surface)
+        .join(LearningItem, LearningItem.item_id == ItemEvidence.item_id)
+        .filter(ItemEvidence.call_id == call_id, ItemEvidence.language == language)
+        .order_by(ItemEvidence.evidence_id)
+        .all()
+    )
+    covered, strong, weak = [], [], []
+    for grade, title in rows:
+        if not title:
+            continue
+        if title not in covered:
+            covered.append(title)
+        if grade in ("E2", "E3") and title not in strong:
+            strong.append(title)
+        elif grade == "F" and title not in weak:
+            weak.append(title)
+    # ⚠ 잘 해낸 것에 들어간 항목은 '헷갈림'에서 뺀다 — 한 통화에서 틀렸다 맞혔으면
+    #   결과는 맞힌 쪽이다. 둘 다 실으면 비버가 모순된 지시를 받는다.
+    weak = [w for w in weak if w not in strong]
+
+    # ⭐⭐ **대화 발췌** — 브리프의 알맹이다(2026-08-19 사장님: "저 요약은 엄청 짧잖아.
+    #   최소한 어떤 이야기했는지들을 같이 넘겨야하잖아").
+    #   ⛔ `call.summary` 만으로는 부족하다. 실측값이 `'Practicing goodbyes and favorite
+    #     food'` — 큰 그림일 뿐 **무슨 말을 했는지가 없다.** 비버가 "내가 뭐 좋아한다고
+    #     했지?"에 답하려면 그 말 자체가 있어야 한다.
+    #   ⛔ 마지막 N턴만 자르는 것도 안 된다. 실측(call 1085): 학습자가 김치찌개를 말한 건
+    #     t6 인데 마지막 4턴 창은 t15~t18 이다 — 비버가 t14 에서 **우연히** 되풀이해서
+    #     살았다. 그 우연이 없으면 통째로 사라진다.
+    #   ⇒ **최신 쪽부터 글자수 예산까지** 담는다. 예산 안에서는 오래된 것도 살아남는다.
+    #
+    # ⚠ 컬럼 이름은 `content` 다(`text` 가 아니다 — 이걸 틀려 브리프가 통째로 실패했고
+    #   비버가 조각2에서 다시 인사했다).
+    rows = (
+        db.query(CallRawData.content, CallRawData.role)
+        .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
+        .order_by(CallRawData.turn_index.desc())
+        .all()
+    )
+    excerpt, used = [], 0
+    for content, role in rows:
+        line = (content or "").strip()
+        # ⛔ 빈 턴(무음)과 **잘린 꼬리**를 거른다. 끊는 순간 비버가 말하다 만 조각
+        #   ("I'm sorry,")을 "하던 얘기"로 주면 비버가 그 상황을 이어받으려 한다.
+        if len(line) < 3:
+            continue
+        who = "나" if (role or "") == "beaver" else "학습자"
+        piece = "%s: %s" % (who, line[:160])
+        if used + len(piece) > _RESUME_EXCERPT_CHARS:
+            break
+        excerpt.append(piece)
+        used += len(piece)
+    excerpt.reverse()          # 시간 순으로 되돌린다(읽는 순서가 대화 순서여야 한다)
+    topic = " / ".join(excerpt) or None
+
+    # ⭐ 학습자가 **실제로 한 말** — "내가 뭐 좋아한다고 했지?" 류에 가장 직접적인 재료다.
+    #   통화후 분석이 뽑아 둔 것이라 추가 비용이 0이다.
+    said = [
+        r[0].strip() for r in
+        db.query(Sentence.korean_sentence)
+        .filter(Sentence.call_id == call_id, Sentence.korean_sentence.isnot(None))
+        .order_by(Sentence.sentence_id).limit(8).all()
+        if r[0] and r[0].strip()
+    ]
+    # ⭐⭐ **1순위: 조각 종료 때 만들어 둔 슬롯**(topic·learner_facts·pending).
+    #   원문을 그대로 주는 것보다 낫다 — 비버가 사실을 다시 찾을 필요가 없다.
+    #   ⚠ 분석이 fire-and-forget 이라 조각1→2 에서는 아직 없을 수 있다(실측: 요약 완성이
+    #     이어하기보다 1초 늦었다). 그때만 아래 발췌 폴백으로 내려간다.
+    slots = {}
+    raw_ctx = db.query(Call.resume_context).filter(Call.call_id == call_id).scalar()
+    if raw_ctx:
+        try:
+            import json as _json
+
+            slots = _json.loads(raw_ctx) or {}
+        except (ValueError, TypeError):
+            slots = {}
+        # ⛔⛔ **낡은 요약을 최신인 줄 알고 쓰면 안 된다.** 요약은 조각이 끝날 때
+        #   fire-and-forget 으로 만들어지므로, 조각2 분석이 끝나기 전에 조각3을 이으면
+        #   저장된 것은 **조각1까지만 본 요약**이다 — 그대로 쓰면 조각2가 통째로 빠진다.
+        #   ⇒ 만든 시점의 턴 수와 지금 턴 수를 비교해 **뒤처지면 버린다.**
+        #     버리면 호출부가 즉석 생성으로 내려가 최신으로 다시 만든다.
+        #   ⚠ `turns` 가 없는 것은 이 필드 도입 **전에** 저장된 요약이다. 최신인지 알 수
+        #     없으므로 낡은 것으로 취급한다(모르면 다시 만드는 편이 안전하다).
+        seen = slots.get("turns")
+        now_turns = next_turn_index(db, call_id)
+        if not isinstance(seen, int) or seen < now_turns:
+            logger.info(
+                "normalcall 이어하기 요약: 낡음(%s턴까지 → 지금 %d턴) — 다시 만든다 call_id=%s",
+                seen, now_turns, call_id,
+            )
+            slots = {}
+
+    # ⭐ 한 줄 요약(LLM). 짧지만 **오래된 화제까지** 담는 유일한 값이라 같이 준다.
+    #   ⚠ 분석이 fire-and-forget 이라 조각1→2 에서는 아직 없을 수 있다(실측: 요약 완성이
+    #     이어하기보다 1초 늦었다). 없으면 발췌만으로 간다 — 그래서 둘 다 넘긴다.
+    summary = (
+        db.query(Call.summary).filter(Call.call_id == call_id).scalar() or ""
+    ).strip() or None
+    # ⛔ **슬롯이 있으면 발췌를 안 보낸다.** 둘 다 보내면 프롬프트가 두 배가 되고,
+    #   요약본과 원문이 어긋날 때 비버가 어느 쪽을 믿을지 모른다.
+    return {
+        "covered": covered[:12], "strong": strong[:6], "weak": weak[:6],
+        "topic": slots.get("topic") or None,
+        "pending": slots.get("pending") or None,
+        "facts": slots.get("learner_facts") or None,
+        # ⛔⛔ **폴백 발췌에서 비버 발화를 뺀다**(2026-08-19 실측). 비버의 첫 인사가 발췌
+        #   맨 앞에 오자 비버가 그걸 **대본으로 읽어 글자까지 똑같이 다시 인사했다.**
+        #   학습자 발화만 남기면 따라 할 대본이 없다.
+        #   ⚠ 애초에 이 폴백은 호출부가 즉석 요약으로 대체한다 — 여기 남은 건 그것마저
+        #     실패했을 때의 마지막 그물이다.
+        "excerpt": None if slots else _learner_only(topic),
+        "said": said, "summary": summary, "curious": None,
     }
 
 
@@ -1741,6 +2047,30 @@ async def analyze_call(
             "normalcall 분석: mode=%s 표현 %d개 → done call_id=%s",
             result.detected_mode, len(pending), call_id,
         )
+        # ⭐⭐ **다음 조각이 쓸 요약을 지금 만든다**(2026-08-19). 이어하기 시점에 돌리면
+        #   "이어서" 를 누른 사용자가 그만큼 기다린다 — 여기서 만들어 두면 **지연 0** 이다.
+        #   ⛔ 원문 전사를 넘기는 게 아니라 **슬롯**(topic·learner_facts·pending)이다.
+        #     원문을 그대로 주면 비버가 그 안에서 사실을 다시 찾아야 하고, 길수록 못 찾는다.
+        #   ⚠ 실패해도 통화 결과에는 영향이 없다 — 이어하기가 발췌 폴백으로 내려갈 뿐이다.
+        try:
+            rows = await run_db(
+                session_factory, lambda db: _resume_transcript(db, call_id)
+            )
+            slots = await summarize_for_resume_text(
+                client, settings_obj.JUDGE_MODEL, rows
+            )
+            if slots:
+                await run_db(
+                    session_factory,
+                    lambda db: _save_resume_context(db, call_id, slots),
+                )
+                logger.info(
+                    "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
+                    slots.get("topic"), len(slots.get("learner_facts") or []),
+                    slots.get("pending"), call_id,
+                )
+        except Exception as exc:  # noqa: BLE001 — R5
+            logger.warning("normalcall 이어하기 요약 실패(발췌로 폴백) — %s", exc)
     except Exception as exc:  # noqa: BLE001 - done 이전(전사/LLM/저장) 실패 → failed
         logger.exception("normalcall 분석: 예외 → failed call_id=%s (%s)", call_id, exc)
         try:
@@ -1812,7 +2142,11 @@ async def analyze_call(
                 logger.info(
                     "normalcall 체크판: 검출 %d→검증 %d, 증거 %s, 레벨업 %s call_id=%s",
                     len(detections), mastery["verified"],
-                    mastery["evidence"], mastery["levelup"].get("result"), call_id,
+                    # ⚠ 검출 0건이면 `evidence`·`levelup` 이 **None** 이다(위 조기 반환 2곳).
+                    #   무조건 `.get()` 을 부르면 여기서 터지고, 잡히는 자리가 "체크판 실패"라
+                    #   원인이 검출 로직처럼 보인다 — 실제로는 **로그 줄이 범인**이다.
+                    #   실측(2026-08-19 call 1085 조각2): 'NoneType' object has no attribute 'get'
+                    mastery["evidence"], (mastery["levelup"] or {}).get("result"), call_id,
                 )
             except Exception as exc:  # noqa: BLE001 - 체크판 실패는 분석을 죽이지 않음
                 logger.exception(

@@ -66,6 +66,23 @@ class Call(Base, TimestampMixin):
     mode: Mapped[Optional[str]] = mapped_column(
         Text, comment="감지된 통화 모드(conversation/study/unknown)",
     )
+    # ⭐⭐ **이어하기 조각 수**(2026-08-19). 한 통화가 6분 조각 몇 개로 이루어졌나.
+    #   ⛔ 조각을 **새 행으로 만들지 않는다** — 같은 행에 계속 쓴다. 그래야 목록·분석·
+    #     발음 점수·일일 한도가 조각별로 갈리지 않는다(행이 하나면 묶을 게 없다).
+    #   ⇒ 이 컬럼은 "몇 번 이었나"만 센다. Free 는 1, Pro·Max 는 최대 3.
+    #   ⚠ 기본 1 — 이어하기 없는 통화도 조각 1개다(0 이 아니다). 기존 행도 1로 채워진다.
+    # ⭐⭐ **다음 조각이 쓸 요약**(2026-08-19). 조각이 끝날 때 사이드카가 채운다.
+    #   ⛔ 원문 전사가 아니다 — 슬롯 JSON 이다(topic · learner_facts · pending).
+    #     원문을 그대로 넘기면 비버가 그 안에서 사실을 다시 찾아야 하고, 길수록 못 찾는다.
+    #   ⚠ 이어하기 시점이 아니라 **조각 종료 시점**에 만든다. 그래야 "이어서" 를 누른
+    #     사용자가 기다리지 않는다(지연 0).
+    resume_context: Mapped[Optional[str]] = mapped_column(
+        Text, comment="다음 조각용 요약 슬롯(JSON) — 이어하기 브리프 재료",
+    )
+    fragment_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1"),
+        comment="이어하기 조각 수(1=이어하기 없음)",
+    )
     call_type: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'normal'"),
         comment="통화 종류(normal/level_test)",

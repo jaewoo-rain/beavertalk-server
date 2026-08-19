@@ -344,6 +344,11 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     안 와서 시드가 영영 안 나가고 무음 백스톱으로 뚝 끊겼다. 이제 워처가 idle 을 감지해 직접 주입한다.
     """
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소(빠른 테스트)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleThenClose:
@@ -414,6 +419,11 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
     펌프(should_close 경로)가 깨끗한 idle 에 시드 주입 → 비버가 시드에 작별.
     """
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
@@ -505,6 +515,11 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     monkeypatch.setattr(cs, "IDLE_CLOSE_S", 0.2)
     # 5분 시계는 무음보다 훨씬 뒤에 오도록 크게(무음 경로가 먼저 종료를 주도).
     monkeypatch.setattr(cs, "CALL_DURATION_S", 100.0)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleForever:
@@ -624,7 +639,11 @@ def test_resolve_call_duration_clamps_and_defaults():
     dev = SimpleNamespace(ENV="dev")
     prod = SimpleNamespace(ENV="prod")
     # base 미지정 → env 강제값(CALL_DURATION_S), 그것도 없으면 Free 길이로 떨어진다.
-    base = cs.CALL_DURATION_S if cs.CALL_DURATION_S is not None else 300.0
+    # ⚠ 하드코딩 300.0 이었다 — 2026-08-19 조각 재편으로 Free 길이가 360(6분)이 됐다.
+    #   숫자를 다시 박지 않고 **출처를 따라간다**(표가 바뀌면 시험도 같이 움직인다).
+    from domains.learning.service.call_service import FREE_CALL_DURATION_S
+
+    base = cs.CALL_DURATION_S if cs.CALL_DURATION_S is not None else FREE_CALL_DURATION_S
     assert cs._resolve_call_duration(dev, None) == base       # 미지정 → 기본
     assert cs._resolve_call_duration(dev, 3) == 180.0         # 하한
     assert cs._resolve_call_duration(dev, 15) == 900.0        # 상한
@@ -727,6 +746,11 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
     _arm_fast(monkeypatch)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 곧 종료(_watch_call_clock)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     close_seen = asyncio.Event()
 
@@ -1708,6 +1732,11 @@ async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypat
     """일반 통화는 레벨테스트 경로와 무관 — 서버가 '[다음]' 질문을 주입하지 않고,
     일반 종료 시드('통화 시간이 다 됐다')로 정상 종료(레벨테스트 종료 시드 누수 없음)."""
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
@@ -1757,6 +1786,11 @@ async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monke
     """T-회귀: 일반 통화는 tool-use 무관 — send_tool_response 미호출, 일반 종료 시드
     ('통화 시간이 다 됐다') + 정상 작별. 레벨테스트 시드는 나오면 안 된다."""
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
@@ -2433,6 +2467,11 @@ def _swap_ready(monkeypatch):
     monkeypatch.setattr(cs, "SWAP_FLAP_GUARD_S", 5.0)
     monkeypatch.setattr(cs, "RECONNECT_MIN_REMAINING_S", 0.0)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 30.0)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
 
 
 def _gen_with_handle(handles):
@@ -3649,3 +3688,391 @@ def test_the_cost_formula_is_untouched():
 
     src = inspect.getsource(svc.estimate_usage_cost_usd)
     assert "cached" not in src, "원가식이 캐시 토큰을 쓰기 시작했다 — 관측 단계에서 멈춰야 한다"
+
+
+# --------------------------------------------------------------------------- #
+# (z) 표정 마커 — 동작 회귀 (2026-08-19)
+#   ⚠ 계약·모델 단위 회귀는 tests/test_live_face_spike.py 에 있다. 여기는 **실제로 흘러
+#     나가는가**를 본다(하네스가 이 파일에 있어서 여기 둔다).
+# --------------------------------------------------------------------------- #
+class _FaceLiveSession(FakeLiveSession):
+    """`set_face` 를 부르는 비버. 스크립트: 표정 → 말 → 같은 표정(중복) → 다른 표정."""
+
+    def __init__(self, script):
+        super().__init__()
+        self._script = script
+        self.tool_responses: list[tuple] = []
+
+    async def send_tool_response(self, fn_id, fn_name, *, resume: bool = False) -> None:
+        self.tool_responses.append((fn_id, fn_name, resume))
+
+    async def events(self):
+        for emo in self._script:
+            if emo == "__audio":
+                yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            elif emo == "__turn_end":
+                yield LiveEvent(kind="turn_end")
+            else:
+                yield LiveEvent(kind="tool_call", fn_name="set_face",
+                                fn_id="fc1", fn_args={"emotion": emo})
+
+
+def _face_factory(holder, script):
+    import contextlib
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+        sess = _FaceLiveSession(script)
+        holder["session"] = sess
+        holder["tools"] = tools
+        yield sess
+
+    return _factory
+
+
+async def _run_face_call(monkeypatch, session_factory, seeded, script, *, on: bool):
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", on, raising=False)
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+    frames = [json.loads(t) for t in ws.sent_text]
+    return [f for f in frames if f.get("type") == "sentence"], holder
+
+
+@pytest.mark.asyncio
+async def test_face_markers_flow_and_duplicates_are_dropped(
+        monkeypatch, session_factory, seeded):
+    """⭐ 표정이 프레임으로 나가고, **같은 값 연속은 안 나간다.**
+
+    실측(2026-08-18, 28호출): 7회(25%)가 같은 값 연속이었다(`surprised → surprised`).
+    프론트는 상태를 안 들고 오는 대로 적용하므로 같은 값을 또 보내면 **영상 컨트롤러를
+    헛되이 흔든다** — 하드 디코더가 2~3개 한계라(sync_avatar.dart:21) 공짜가 아니다.
+    """
+    script = ["happy", "__audio", "happy", "__turn_end", "sad", "__audio", "__turn_end"]
+    markers, holder = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=True)
+
+    assert [m["emotion"] for m in markers] == ["happy", "sad"], markers
+    assert [m["seq"] for m in markers] == [1, 2], "seq 는 통화 스코프로 이어져야 한다"
+    assert all(m["text"] == "" for m in markers), "자막 경로를 건드리면 안 된다"
+    # ⛔ 응답은 매 호출마다 **resume=True** 로 돌려준다(중복이라 프레임을 안 보낸 것도).
+    #   안 그러면 모델이 다시 말하지 않는다(2026-08-18 실측).
+    assert len(holder["session"].tool_responses) == 3
+    assert all(r[2] is True for r in holder["session"].tool_responses)
+
+
+@pytest.mark.asyncio
+async def test_the_first_marker_precedes_the_audio_on_the_wire(
+        monkeypatch, session_factory, seeded):
+    """⛔⛔ **순서가 주 키다.** 마커는 그 감정이 붙을 오디오보다 **앞서** 나가야 한다.
+
+    프론트는 마커를 도착 시점에 반영하지 않고 오디오 봉투 위치에 꽂아 두었다가
+    (`at:_envAdded`) 재생이 그 지점에 닿을 때 터뜨린다. 그래서 서버가 지킬 것은 순서 하나다.
+    ⚠ 이때 턴은 **아직 안 열려 있다** — 모델이 말하기 전에 표정을 정하기 때문이다
+      (실측 27/28 이 오디오 0.00초 지점). `turn_id` 가 비어도 나가야 한다.
+    """
+    script = ["happy", "__audio", "__turn_end"]
+    holder: dict = {}
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+
+    # 와이어에 실제로 나간 순서: sentence 마커가 turn_start 보다 **먼저**여야 한다
+    # (turn_start 는 첫 오디오가 연다 ⇒ 마커가 그보다 앞이면 오디오보다도 앞이다).
+    types = [json.loads(t).get("type") for t in ws.sent_text]
+    assert "sentence" in types, types
+    assert types.index("sentence") < types.index("turn_start"), types
+
+
+@pytest.mark.asyncio
+async def test_no_face_frames_when_the_switch_is_off(
+        monkeypatch, session_factory, seeded):
+    """⛔ 꺼지면 **프레임이 한 건도 안 나간다** — 기존 통화의 와이어가 그대로다.
+
+    ⚠ 도구를 안 선언하므로 모델이 부를 일도 없다. 이 시험은 그 **두 겹**을 다 본다:
+      tools 가 None 이고, 설령 이벤트가 와도 프레임이 안 나간다.
+    """
+    script = ["happy", "__audio", "__turn_end"]
+    markers, holder = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=False)
+    assert markers == []
+    assert holder["tools"] is None, "꺼졌는데 도구를 선언했다"
+
+
+@pytest.mark.asyncio
+async def test_a_non_face_tool_call_never_becomes_a_face_marker(
+        monkeypatch, session_factory, seeded):
+    """⛔⛔ **레벨테스트 종료 신호가 표정으로 둔갑하면 안 된다.**
+
+    이 분기는 `tool_call` 전체를 받는데 이 프로젝트에는 표정 말고
+    `leveltest_ceiling_reached` 도 있다(지금은 안 쓰지만 배관은 살아 있다).
+    이름을 안 보면 그 호출이 마커가 되고, `resume=True` 까지 붙어 **작별 대본 주입과
+    부딪힌다**(그 tool 은 SILENT 여야 한다).
+    """
+    class _OtherToolSession(_FaceLiveSession):
+        async def events(self):
+            yield LiveEvent(kind="tool_call", fn_name="leveltest_ceiling_reached",
+                            fn_id="fc9", fn_args={})
+            yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            yield LiveEvent(kind="turn_end")
+
+    import contextlib
+
+    holder: dict = {}
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+        sess = _OtherToolSession([])
+        holder["session"] = sess
+        yield sess
+
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=_factory)
+    await _wait_analysis_tasks()
+
+    frames = [json.loads(t) for t in ws.sent_text]
+    assert [f for f in frames if f.get("type") == "sentence"] == []
+    # 응답은 돌려주되 **SILENT**(resume=False) 여야 한다.
+    assert holder["session"].tool_responses == [("fc9", "leveltest_ceiling_reached", False)]
+
+
+@pytest.mark.asyncio
+async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded):
+    """⛔⛔ **폭주 차단기** — 소리 없이 계속 부르면 응답을 SILENT 로 돌린다.
+
+    실측 사고(2026-08-19): `WHEN_IDLE` 은 "하던 일 끝나면 재개"인데 턴 사이에는 할 일이
+    없어 **즉시 재개**한다. 그런데 재개한 모델이 또 `set_face` 를 부른다 ⇒ 무한 루프.
+    **32초에 89회, 그동안 발화 0건.** 사용자가 4번 말했는데 통화가 통째로 죽어 있었다.
+
+    ⚠ 프롬프트로도 눌렀지만("한 턴에 한 번") **모델이 안 지키면 그대로 재발한다.**
+      지시는 부탁이고 이건 계약이다 — 그래서 서버가 끊는다.
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
+    # 소리 한 조각 없이 감정만 6회(값도 계속 바꿔 중복 억제에 안 걸리게 한다)
+    script = ["happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+
+    markers = [json.loads(t) for t in ws.sent_text
+               if json.loads(t).get("type") == "sentence"]
+    # 3회까지만 나가고 그 뒤는 끊긴다.
+    assert len(markers) == 3, markers
+    resumes = [r[2] for r in holder["session"].tool_responses]
+    assert resumes[:3] == [True, True, True]
+    assert all(r is False for r in resumes[3:6]), "차단 뒤에도 재개를 촉구했다 — 루프가 안 끊긴다"
+
+
+@pytest.mark.asyncio
+async def test_audio_clears_the_storm_counter(monkeypatch, session_factory, seeded):
+    """⭐ 소리가 나오면 차단기가 풀린다 — 정상 통화가 오래가도 안 막힌다.
+
+    ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 **사이**에서 나므로 턴 경계로 풀면
+      차단기가 매번 풀려 무력해진다.
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
+    script = ["happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_face_factory(holder, script))
+    await _wait_analysis_tasks()
+
+    markers = [json.loads(t) for t in ws.sent_text
+               if json.loads(t).get("type") == "sentence"]
+    assert len(markers) == 5, "오디오가 카운터를 안 풀었다"
+    assert all(r[2] is True for r in holder["session"].tool_responses)
+
+
+# --------------------------------------------------------------------------- #
+# (y) 이어하기 (2026-08-19)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_start_accepts_continues_call_id_without_crashing(
+        session_factory, seeded, monkeypatch):
+    """⛔⛔ **와이어 필드가 StartParams 까지 실제로 도착하는가.**
+
+    실제 사고(2026-08-19 배포): `ClientStart` 에만 필드를 넣고 `StartParams`(서버 내부
+    NamedTuple)에 안 넣어서 **모든 통화가 즉시 죽었다** —
+        AttributeError: 'StartParams' object has no attribute 'continues_call_id'
+    ⚠ 와이어 모델과 내부 튜플이 **다른 타입**이라 한쪽만 고쳐도 임포트·문법은 통과한다.
+      잡히는 자리는 여기(run_call 을 실제로 태우는 시험)뿐이다.
+    """
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({
+             "type": "start",
+             "character_id": seeded["character_id"],
+             # 없는 통화 id → 이어하기는 실패하지만 **통화는 정상으로 열려야 한다**(폴백).
+             "continues_call_id": "999999",
+         })},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+
+    db = session_factory()
+    try:
+        calls = db.query(Call).all()
+        assert len(calls) == 1, "이어하기 실패가 통화 자체를 막았다"
+        assert calls[0].fragment_count == 1
+    finally:
+        db.close()
+
+
+def test_resume_is_rejected_for_someone_elses_call(session_factory, seeded):
+    """⛔ 남의 call_id 를 들고 와도 이어지면 안 된다 — 내 발화가 남의 통화에 붙는다."""
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        other = _svc.create_call(db, seeded["member_id"] + 999, seeded["character_id"])
+        got, why = _svc.resume_call(
+            db, seeded["member_id"], other, max_fragments=3)
+        assert got is None, why
+        assert "본인" in why
+    finally:
+        db.close()
+
+
+def test_resume_stops_at_the_fragment_cap(session_factory, seeded):
+    """⛔ 조각 상한(Free 1 / Pro·Max 3)을 넘으면 이어지지 않는다.
+
+    ⚠ 상한을 안 걸면 6분 조각을 무한히 이어 붙일 수 있다 — 통화 하나가 영영 안 끝난다.
+    """
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        # 1 → 2 → 3 까지는 된다.
+        for expect in (2, 3):
+            got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+            assert got == cid, why
+            assert db.query(Call).get(cid).fragment_count == expect
+        # 4번째는 막힌다.
+        got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+        assert got is None and "상한" in why, why
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_call_started_carries_the_call_id(session_factory, seeded):
+    """⛔⛔ 클라는 **이 번호로** 다음 조각을 잇는다 — 없으면 이어하기가 시작조차 못 한다.
+
+    실제 사고(2026-08-19): `call_started` 에 `character_id` 만 있어서 화면이 통화 번호를
+    영영 못 받았다. 사장님: "이어할 번호가 없다고 나오는데?"
+
+    ⚠ `call_ended` 에도 번호가 있지만 **그것만으로는 부족하다**: 끊기 버튼은 클라가 소켓을
+      먼저 닫으므로 그 프레임이 도착하지 않는다. 그래서 **시작할 때** 줘야 한다.
+    ⚠ 그리고 이 프레임은 **통화 행이 만들어진 뒤에** 나가야 한다(그 전엔 번호가 없다).
+    """
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+
+    started = [json.loads(t) for t in ws.sent_text
+               if json.loads(t).get("type") == "call_started"]
+    assert started, [json.loads(t).get("type") for t in ws.sent_text]
+    assert started[0].get("call_id"), started[0]
+
+    db = session_factory()
+    try:
+        assert str(db.query(Call).one().call_id) == started[0]["call_id"]
+    finally:
+        db.close()
+
+
+def test_a_stale_resume_summary_is_discarded(session_factory, seeded):
+    """⛔⛔ **낡은 요약을 최신인 줄 알고 쓰면 조각 하나가 통째로 빠진다.**
+
+    사장님 지적(2026-08-19): "이전에 요약본이 있으면 그대로 넣는다고? 그럼 요약한 다음
+    뒤에 나온 내용들은 어떻게 되는 건데?"
+
+    요약은 조각이 끝날 때 **fire-and-forget** 으로 만들어진다. 그래서 조각2 분석이 끝나기
+    전에 조각3을 이으면 저장된 것은 **조각1까지만 본 요약**이다. 그대로 쓰면 조각2 대화가
+    사라진다 — 그리고 "슬롯이 있으면 즉석 생성을 건너뛴다"는 규칙 때문에 **조용히** 사라진다.
+
+    ⇒ 만든 시점의 턴 수를 같이 저장하고, 뒤처지면 버린다(호출부가 다시 만든다).
+    """
+    from domains.learning.models.call_raw_data import CallRawData
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        for i in range(4):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="말 %d" % i))
+        db.commit()
+
+        _svc._save_resume_context(db, cid, {"topic": "된장찌개", "learner_facts": ["된장찌개 좋아함"]})
+        assert _svc.resume_materials(db, cid, "ko")["topic"] == "된장찌개", "최신인데 버렸다"
+
+        # 조각이 더 진행됐다 → 저장된 요약은 이제 낡았다.
+        for i in range(4, 8):
+            db.add(CallRawData(call_id=cid, turn_index=i, role="user", content="새 말 %d" % i))
+        db.commit()
+
+        mats = _svc.resume_materials(db, cid, "ko")
+        assert mats["topic"] is None, "낡은 요약을 그대로 썼다 — 조각 하나가 빠진다"
+        assert mats["facts"] is None
+    finally:
+        db.close()
+
+
+def test_a_summary_without_a_turn_count_is_treated_as_stale(session_factory, seeded):
+    """⚠ `turns` 가 없는 것은 이 필드 **도입 전에** 저장된 요약이다.
+
+    최신인지 알 수 없으므로 낡은 것으로 본다 — 모르면 다시 만드는 편이 안전하다.
+    """
+    import json
+
+    from domains.learning.models.call import Call as _Call
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        db.get(_Call, cid).resume_context = json.dumps({"topic": "옛날 요약"})
+        db.commit()
+        assert _svc.resume_materials(db, cid, "ko")["topic"] is None
+    finally:
+        db.close()

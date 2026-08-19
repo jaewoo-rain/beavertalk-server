@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from domains.account.models.member import Member
@@ -240,7 +241,25 @@ def apply_evidence(
         prev_last_call = prog.last_call_id
 
         # ── 점수·카운터·증거 append (순증 +2.0/통화, 클램프 0~6) ──
-        net_gain = 0.0
+        # ⛔⛔ **0 에서 시작하면 안 된다**(2026-08-19 이어하기). 이 함수는 **분석 1회**마다
+        #   도는데, 이어하기는 한 통화(call_id 동일)를 **조각마다 분석**한다 ⇒ 0 부터
+        #   다시 세면 게이밍 방어가 조각 수만큼 뚫린다: 2.0 이 아니라 **6.0** 까지 오른다.
+        #   같은 문장을 18분 반복하면 원래 막히던 게 3배로 오르고, `item_evidence` 는
+        #   append-only 라 그렇게 들어간 점수는 **영구히 남는다.**
+        # ⭐ 이미 준 몫을 DB 에서 되읽는다 — 증거가 **원본**이라 정확하다(파생 플래그 불필요).
+        #   ⚠ 양수만 더한다. 캡이 막는 것은 **순증**이고, F(-1.0)까지 상계하면 오류를 낼수록
+        #     상한이 늘어나는 거꾸로 된 유인이 생긴다.
+        net_gain = float(
+            db.query(func.coalesce(func.sum(ItemEvidence.score_delta), 0.0))
+            .filter(
+                ItemEvidence.member_id == member_id,
+                ItemEvidence.language == language,
+                ItemEvidence.call_id == call_id,
+                ItemEvidence.item_id == item_id,
+                ItemEvidence.score_delta > 0,
+            )
+            .scalar() or 0.0
+        )
         for ev in evs:
             delta = SCORE_DELTA.get(ev.grade_final, 0.0)
             if delta > 0:

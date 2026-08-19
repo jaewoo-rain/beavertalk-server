@@ -108,3 +108,55 @@ def test_the_face_response_resumes_generation_but_leveltest_stays_silent():
 
     asyncio.run(live.send_tool_response("id2", "set_face", resume=True))
     assert sent[-1].scheduling == types.FunctionResponseScheduling.WHEN_IDLE
+
+
+# ── 마커 프레임(2026-08-19 본편) ─────────────────────────────────────────────
+def test_the_marker_carries_no_text_so_the_subtitle_path_is_untouched():
+    """⛔ `text` 는 항상 빈 문자열이다.
+
+    프론트 `_fireDueMarkers` 가 `if (m.text.isNotEmpty)` 로 자막을 가른다 ⇒ 비워 보내면
+    자막 로직을 아예 안 탄다. Live 자막은 지금처럼 `output_transcript` 로 **먼저** 뜬다
+    (2026-08-19 사장님 결정: "자막은 지금처럼 먼저 보여줘야지").
+    ⚠ 여기에 텍스트를 채우면 Live 자막이 **두 시계로 갈린다.**
+    """
+    from domains.learning.realtime.protocol import ServerSentenceMarker
+
+    m = ServerSentenceMarker(seq=1, emotion="happy")
+    assert m.text == ""
+    assert m.type == "sentence"
+
+
+def test_the_marker_survives_a_turn_that_has_not_opened_yet():
+    """⛔⛔ **턴이 없어도 나가야 한다.**
+
+    모델은 말하기 **전에** 표정을 정한다 — 실측 28호출 중 27회가 그 턴 오디오 **0.00초**
+    지점이었다. 그 시점의 `state.turn_id` 는 대개 None 이다. `turn_id` 를 필수로 두면
+    프레임이 **거의 전부 사라진다.**
+
+    ⚠ 그렇다고 여기서 턴을 새로 열면 더 나쁘다 — `_forward_event` 의 `turn_started` 가
+      영영 False 가 되어 **학습자 발화 확정·통화 시계 시작**이 통째로 건너뛰어진다(R4).
+    """
+    from domains.learning.realtime.protocol import ServerSentenceMarker
+
+    assert ServerSentenceMarker(seq=1, emotion="sad").turn_id == ""
+
+
+def test_an_unknown_emotion_is_forwarded_not_dropped():
+    """⛔ 화이트리스트로 막지 않는다 — 클라가 모르는 값을 neutral 로 떨어뜨린다.
+
+    ⭐ 그래서 서버가 감정을 늘려도 **앱 배포를 기다릴 필요가 없다**(프론트 `knownLabel` 주석).
+    막아 버리면 그 성질이 죽는다.
+    """
+    from domains.learning.realtime.protocol import ServerSentenceMarker
+
+    assert ServerSentenceMarker(seq=1, emotion="excited").emotion == "excited"
+
+
+def test_the_marker_is_in_the_live_server_union():
+    """와이어 유니온에 들어 있어야 클라 계약 문서·검증이 이 프레임을 안다."""
+    import typing
+
+    from domains.learning.realtime.protocol import ServerMessage, ServerSentenceMarker
+
+    members = typing.get_args(typing.get_args(ServerMessage)[0])
+    assert ServerSentenceMarker in members

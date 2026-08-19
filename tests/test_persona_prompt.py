@@ -1113,3 +1113,75 @@ def test_close_protocol_has_no_meta_explanation():
     out = build_system_instruction(**_BASE_KWARGS)
     assert "시간을 세지" not in out
     assert "통화 길이를 모른다" not in out
+
+
+# --------------------------------------------------------------------------- #
+# 이어하기 시드 (2026-08-19)
+# --------------------------------------------------------------------------- #
+def test_the_resume_seed_never_asks_the_mode_question_again():
+    """⛔⛔ 조각2에서 "공부할래 수다 떨래?"를 **다시 물으면 안 된다.**
+
+    실측(call 1087): 이어했는데 비버가 처음과 같은 질문을 다시 했다.
+        조각1 t1 : "Hey jaewoo! Ready to study Korean today, or just chat in Korean?"
+        조각2 t8 : "Hey, jaewoo! Ready to study Korean today, or would you rather..."
+    원인은 `seed_opening` 이 그대로 나간 것이다. 지시문의 브리프에 "인사하지 마라"가 있어도
+    **시드가 이긴다** — 시드는 직접 명령이고 지시문은 배경이기 때문이다.
+    """
+    from core.persona_prompt import seed_opening, seed_resume
+
+    resume = seed_resume("한국어")
+    assert "수다" not in resume, resume          # 모드 질문 문구
+    assert "인사부터" not in resume, resume
+    assert "인사하지 말고" in resume
+    assert "다시 묻지 마라" in resume
+
+    # ⛔ 첫 통화 시드는 **그대로**여야 한다 — 거기서는 인사와 모드 질문이 맞다.
+    opening = seed_opening("한국어")
+    assert "수다" in opening and "인사" in opening
+
+
+def test_the_resume_seed_does_not_mention_the_disconnect():
+    """⛔ "끊겼다 이어졌다"를 비버가 말하면 **끊김이 두 번 일어난다.**
+
+    사용자는 이미 자기가 버튼을 눌러 이었다는 걸 안다.
+    """
+    from core.persona_prompt import seed_resume
+
+    assert "끊겼다 이어졌다는 말은 하지 마라" in seed_resume()
+
+
+# --------------------------------------------------------------------------- #
+# '오늘' 라벨 (2026-08-19)
+# --------------------------------------------------------------------------- #
+def test_an_item_touched_today_is_marked():
+    """⭐ 상태 축(새로/다시/복습)은 **평생 상태**라 오늘 것과 3주 전 것을 못 가른다.
+
+    사장님 지시(2026-08-19): "이전에 배웠던 걸 오늘 이야기했더라도 복습 시간에는 다뤄야 해."
+    ⇒ 기준은 상태가 아니라 **오늘 손댔는지**다. 그래서 상태값이 아니라 별도 표식이다.
+    """
+    from core.persona_prompt import _render_study_item
+
+    today = _render_study_item(1, {"kind": "chunk", "state": "review",
+                                   "today": True, "obj": "안녕하세요"})
+    assert "(통문장·복습·오늘)" in today, today
+
+    # ⛔ 안 붙는 경우 — 라벨이 늘 붙으면 신호가 죽는다.
+    old = _render_study_item(1, {"kind": "chunk", "state": "review", "obj": "안녕하세요"})
+    assert "오늘" not in old, old
+    fresh = _render_study_item(1, {"kind": "grammar", "state": "new", "obj": "-았/었어요"})
+    assert fresh.startswith("1. (문법·새로)"), fresh
+
+
+def test_the_five_check_tells_the_beaver_what_today_means():
+    """⛔ 라벨만 붙이고 **무엇을 하라는 말이 없으면** 비버가 알아서 한다.
+
+    실제로 `잘 해낸 것`·`헷갈려 하는 것` 에는 지시가 있는데 `다룬 것` 에는 없어서,
+    처음부터 다시 가르칠지 건너뛸지가 복불복이었다.
+    """
+    from core.persona_prompt import _STUDY_FIVE_CHECK
+
+    assert "'오늘'이 붙은 항목" in _STUDY_FIVE_CHECK
+    assert "처음부터 다시 설명하지 말고" in _STUDY_FIVE_CHECK
+    assert "짧게 물어 확인만" in _STUDY_FIVE_CHECK
+    # ⭐ 사장님 지시의 핵심 — 이전에 배운 것도 오늘 다뤘으면 대상이다.
+    assert "이전에 배운 것이어도" in _STUDY_FIVE_CHECK

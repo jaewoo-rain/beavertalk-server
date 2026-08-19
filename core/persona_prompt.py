@@ -71,6 +71,32 @@ def seed_opening(target_language: str = "한국어") -> str:
     )
 
 
+def seed_resume(target_language: str = "한국어") -> str:
+    """⭐ **이어하기 조각의 시작 시드** — 인사도 모드 질문도 시키지 않는다(2026-08-19).
+
+    ⛔ `seed_opening` 을 그대로 쓰면 안 된다. 그 시드는 "짧게 인사부터 하고, 오늘 공부할래
+      수다 떨래?를 물어라" 인데, 조각2에서 그대로 나가면 **방금 하던 대화를 버리고 처음으로
+      돌아간다.** 실측(call 1087):
+        조각1 t1 : "Hey jaewoo! Ready to study Korean today, or just chat in Korean?"
+        조각2 t8 : "Hey, jaewoo! Ready to study Korean today, or would you rather..."
+      지시문의 브리프에 "인사하지 마라"가 있어도 **시드가 이긴다** — 시드는 직접 명령이고
+      지시문은 배경이기 때문이다. 그래서 시드 자체를 갈아야 한다.
+
+    ⭐ 금지가 아니라 **첫 행동 지정**이다. "인사하지 마라"는 안 지켜지고 "이렇게 시작해라"는
+      지켜진다(브리프 마지막 줄과 같은 규율).
+    ⛔ 통화가 끊겼다 이어졌다는 사실을 언급시키지 않는다 — 사용자는 이미 안다. 비버까지
+      그걸 말하면 끊김이 두 번 일어난다.
+    """
+    return (
+        "[통화 이어감] 학습자와 하던 대화가 잠깐 멈췄다가 지금 다시 이어진다. "
+        "⛔ 인사하지 말고, 오늘 무엇을 할지도 다시 묻지 마라 — 이미 정해져 있다. "
+        "[지금까지] 에 적힌 흐름을 그대로 이어서 **바로 다음 말**을 해라. "
+        f"하던 것이 있으면 그것부터 이어가고, 없으면 방금 화제로 자연스럽게 {target_language} "
+        "연습을 계속해라. 통화가 끊겼다 이어졌다는 말은 하지 마라. "
+        "이 [통화 이어감] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라."
+    )
+
+
 SEED_OPENING = seed_opening()  # 하위호환 상수(기본 한국어). 데모는 seed_opening(target) 사용.
 
 # ── 서버 → 비버 제어 태그 ──────────────────────────────────────────────── #
@@ -231,8 +257,12 @@ _EMOTION_TAG_RULE = """
 #   대사가 틀에 박히고 문장상한과도 부딪힌다. 여기서 정하는 건 **타이밍뿐**이다.
 _FACE_TOOL_RULE = """
 [표정]
-- 네 표정이 **바뀔 때만** `set_face` 를 불러라. 그 말을 하기 **직전에** 부른다.
-- 표정이 그대로면 부르지 마라. 안 부르면 이전 표정이 유지된다.
+- 네 표정이 **바뀔 때만** `set_face` 를 불러라. 표정이 그대로면 부르지 마라 —
+  안 부르면 이전 표정이 그대로 유지된다.
+- ⛔⛔ **한 턴에 최대 한 번.** 이미 불렀으면 다시 부르지 말고 **곧바로 말을 이어가라.**
+  같은 표정을 두 번 부르는 것은 아무 의미가 없다.
+- ⛔ **표정을 부르는 것으로 차례를 끝내지 마라.** 부른 뒤에는 **반드시 말을 해야 한다.**
+  도구만 부르고 입을 다물면 학습자는 아무것도 못 듣는다.
 - 고를 수 있는 값: neutral, happy, surprised, sad, angry
 - ⛔ 이건 소리가 아니다. 도구를 부르는 것이지 **말하는 게 아니다** — 표정 이름을
   소리 내어 읽지 마라."""
@@ -326,6 +356,9 @@ _STUDY_RESERVE_HEADER = "이어서(본편을 끝내면 여기서 계속):"
 #   단 같은 통화에서 **똑같은 인용은 ⑤ 중복 규칙으로 1건**이라 그대로 따라 읽히기만 하면
 #   증거가 늘지 않는다 — 상황을 바꿔 다시 말하게 하는 형태로 쓴 이유다.
 _STUDY_FIVE_CHECK = (
+    "- ★ 라벨에 '오늘'이 붙은 항목은 **오늘 이미 다룬 것**이다(이 통화 앞부분이거나 오늘 다른 "
+    "통화). 처음부터 다시 설명하지 말고 **짧게 물어 확인만** 해라 — 이전에 배운 것이어도 "
+    "오늘 다뤘으면 확인 대상이다.\n"
     "- 항목 5개를 다룰 때마다(5번째·10번째·15번째… 항목을 다루고 난 직후) 방금 다룬 그 5개를 "
     "짧게 다시 꺼내라: 한 개당 간단한 질문 하나 또는 짧은 문장 하나면 된다. 확인이 지나면 곧바로 "
     "다음 번호 항목으로 이어 간다 — 여기서 멈추지 마라. 몇 개째인지는 속으로만 세라 — 세고 있다는 "
@@ -380,6 +413,15 @@ def _render_study_item(n: int, item: dict) -> str:
     state = _STUDY_STATE_LABEL.get(item.get("state") or "")
     if state:
         label = f"{label}·{state}"
+    # ⭐⭐ **오늘 손댄 것**(2026-08-19 사장님 지시). 상태 축(새로/다시/복습)은 **평생 상태**라
+    #   "오늘 배운 것"과 "3주 전에 배운 것"이 똑같이 `복습` 으로 나간다. 그러면 5개 단위
+    #   확인이 오늘 것을 못 고른다 — 조각이 나뉘거나 하루에 여러 통화면(Pro·Max) 비버는
+    #   아까 뭘 했는지 알 방법이 없다.
+    #   ⛔ 사장님: "이전에 배웠던 걸 오늘 이야기했더라도 복습 시간에는 다뤄야 해."
+    #     ⇒ 기준은 상태가 아니라 **오늘 손댔는지**다. 그래서 별도 표식이지 상태값이 아니다.
+    #   ⚠ 두 글자를 넘기지 않는다 — 이 라벨은 항목 30줄에 곱해진다.
+    if item.get("today"):
+        label = f"{label}·오늘"
     line = f"{n}. ({label}) {item.get('obj')}"
     ex = item.get("ex")
     line += f' — 예문: "{ex}"' if ex else " — 예문은 네가 즉석에서 만들라"
@@ -944,6 +986,75 @@ def _drop_if_closing(text: Optional[str]) -> str:
     """종료 어휘가 섞인 슬롯은 버린다(부분 마스킹 아님 — 원소 단위 폐기)."""
     s = (text or "").strip()
     return "" if is_closing_slot(s) else s
+
+
+def build_resume_brief(
+    *,
+    covered: Optional[list[str]] = None,
+    strong: Optional[list[str]] = None,
+    weak: Optional[list[str]] = None,
+    topic: Optional[str] = None,
+    pending: Optional[str] = None,
+    facts: Optional[list[str]] = None,
+    excerpt: Optional[str] = None,
+    said: Optional[list[str]] = None,
+    summary: Optional[str] = None,
+    curious: Optional[str] = None,
+) -> str:
+    """⭐ 이어하기 브리프 — 조각이 바뀔 때 비버에게 주는 **유일한** 맥락(LLM 생성 0, 순수 조립).
+
+    ## ⛔ 비버는 조각이 바뀐 걸 몰라야 한다
+    "이어서 할게요" 같은 말을 시키지 않는다. 사용자는 이미 끊긴 걸 아는데 비버까지
+    그걸 말하면 **끊김이 두 번 일어난다.** 비버는 그냥 하던 얘기를 계속하면 된다.
+    ⛔ 그렇다고 아무것도 안 주면 다시 인사한다(call 870 — 비버가 처음 만난 것처럼 굴었다).
+      그래서 "인사하지 마라"가 아니라 **첫 행동을 지정한다**(아래 마지막 줄).
+
+    ## ⭐ 대부분은 LLM 이 만든 게 아니다
+    `covered`·`strong`·`weak` 는 **DB 가 아는 사실**이다(선별된 항목, 증거 등급).
+    LLM 에 물어보면 오히려 틀린다(환각). LLM 이 필요한 것은 `topic`·`curious` 뿐 —
+    "무슨 얘기 하다 말았나"와 "뭘 궁금해했나"는 대화에서만 나온다.
+
+    ⛔ **종료·시간·작별을 한 글자도 쓰지 않는다** — build_reground_brief 와 같은 규율이다.
+      조각 경계는 종료가 아니고, 그 낱말이 프롬프트에 있으면 비버가 마무리하려 든다.
+    """
+    lines: list[str] = ["[지금까지]"]
+    if summary:
+        # ⚠ 한 줄이라 큰 그림뿐이다("Practicing goodbyes and favorite food"). 그래도
+        #   **오래된 화제까지 담는 유일한 값**이라 발췌 앞에 둔다.
+        lines.append("- 이번 통화의 흐름: %s" % summary.strip())
+    if said:
+        # ⭐ 학습자가 **직접 한 말**. "내가 뭐 좋아한다고 했지?" 류에 답하려면 이게 있어야 한다.
+        lines.append("- 학습자가 한 말: %s" % " / ".join(s for s in said if s)[:400])
+    if topic:
+        lines.append("- 하던 얘기: %s" % topic.strip())
+    if facts:
+        # ⭐ 사장님 시나리오("내가 뭐 좋아한다고 했지?")가 여기서 답해진다 — 문장이 아니라
+        #   **사실**이라 비버가 찾을 필요 없이 바로 쓴다.
+        lines.append("- 학습자에 대해 알게 된 것: %s" % ", ".join(f for f in facts if f)[:300])
+    if pending:
+        lines.append("- 하다 만 것: %s" % pending.strip())
+    if excerpt:
+        # ⚠ 폴백 경로다(요약 슬롯이 아직 없을 때만). 원문이라 길고 정확도가 낮다.
+        lines.append("- 방금까지 오간 대화:\n%s" % excerpt.strip())
+    if covered:
+        lines.append("- 오늘 이미 다룬 것: %s" % ", ".join(c for c in covered if c)[:300])
+    if strong:
+        lines.append("- 학습자가 **잘 해낸 것**(다시 가르치지 마라): %s"
+                     % ", ".join(x for x in strong if x)[:200])
+    if weak:
+        lines.append("- 아직 **헷갈려 하는 것**(여기를 더 도와라): %s"
+                     % ", ".join(x for x in weak if x)[:200])
+    if curious:
+        lines.append("- 학습자가 궁금해했던 것: %s" % curious.strip()[:200])
+    if len(lines) == 1:
+        return ""     # 줄 게 없으면 아무것도 주지 않는다(빈 껍데기 주입 금지)
+    # ⛔ 이 마지막 줄이 핵심이다. 금지가 아니라 **첫 행동 지정**이다 —
+    #   "인사하지 마라"는 안 지켜지고, "이렇게 시작해라"는 지켜진다.
+    lines.append(
+        "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라. "
+        "통화가 끊겼다 이어졌다는 사실은 언급하지 마라."
+    )
+    return "\n".join(lines)
 
 
 def build_reground_brief(

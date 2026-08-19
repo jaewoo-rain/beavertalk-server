@@ -76,6 +76,15 @@ class ClientStart(BaseModel):
     """
 
     type: Literal["start"] = "start"
+    # ⭐⭐ **이어하기**(2026-08-19). 직전 조각의 call_id 를 그대로 돌려준다.
+    #   ⛔ 서버는 **새 통화 행을 만들지 않고 그 행에 계속 쓴다** — 목록·분석·발음 점수가
+    #     조각별로 갈리지 않게 하는 가장 싼 방법이다(행이 하나면 묶을 게 없다).
+    #   ⚠ 이름이 설계문서의 `resume_call_id` 가 아닌 이유: **프론트가 이미 이 이름으로
+    #     보내고 있다.** 서버가 맞추면 앱 배포가 필요 없다.
+    #   ⚠ 타입이 str 인 이유도 같다 — 프론트가 문자열로 보낸다("1234"). 서버가 int 로 바꾼다.
+    #   ⛔ 검증은 서버 몫이다: 본인 통화인가 · TTL(5분) 안인가 · 조각 상한을 안 넘겼나.
+    #     남의 call_id 를 들고 와도 통과하면 안 된다.
+    continues_call_id: str | int | None = None
     character_id: int | None = None
     inbound_call_id: str | None = None
     locale: str | None = None
@@ -135,6 +144,51 @@ class ServerOutputTranscript(BaseModel):
     turn_id: str
 
 
+class ServerSentenceMarker(BaseModel):
+    """⭐ 표정 마커 — **오디오 사이에 인밴드로** 끼운다(2026-08-19).
+
+    ## 왜 필요한가
+    native-audio 는 모델 출력이 **곧 소리**라 감정을 텍스트 태그로 시키면 그대로 낭독한다
+    (`persona_prompt._EMOTION_TAG_RULE` 이 Live 에 금지된 이유). 그래서 표정은
+    **function-call**(`set_face`)로만 나올 수 있고, 그걸 클라에 실어 주는 프레임이 이것이다.
+
+    ## ⛔ `type` 이 `"sentence"` 인 이유 — 클라에 이미 이 배관이 있다
+    프론트는 이 프레임을 **도착 시점에 반영하지 않는다.** 오디오 봉투에 위치로 꽂아 두고
+    (`at:_envAdded`) 재생이 그 지점에 닿을 때 터뜨린다 — 버퍼가 1.2초든 0.3초든 소리와
+    맞는다. 새 타입을 만들면 그 배관을 다시 지어야 하고 **클라 배포가 필요해진다.**
+    ⇒ 이름이 `sentence` 인 것은 캐스케이드 유산이지만, **계약이 이미 서 있는 자리**다.
+
+    ## ⛔ `text` 는 항상 빈 문자열이다
+    프론트 `_fireDueMarkers` 가 `if (m.text.isNotEmpty)` 로 자막을 가른다 ⇒ 비워 보내면
+    **자막 로직을 아예 안 탄다.** Live 자막은 지금처럼 `output_transcript` 로 먼저 뜬다
+    (2026-08-19 사장님 결정: "자막은 지금처럼 먼저 보여줘야지").
+    ⚠ 그래서 Live 에서는 **표정만 오디오 시계**로 옮겨가고 자막은 생성 속도 그대로다.
+      둘이 어긋나 보일 수 있으나 **퇴보가 아니다** — 표정은 좋아지고 자막은 그대로다.
+
+    ## ⛔ `server_bytes` 를 안 싣는 이유
+    프론트가 위치를 **자기가 받은 만큼**으로 정한다(`at:_envAdded`). 이 값은 자막 타자기
+    속도 계산 전용이라 `text` 가 비면 쓰이지 않는다. 프로토콜 규약도 같은 말을 한다 —
+    *"`server_bytes` 는 주 키가 아니다 — **순서가 주 키다**"*.
+    ⇒ 서버가 지켜야 할 것은 **순서 하나**다. Live 는 Gemini→클라 펌프가 하나라 자동이다.
+
+    ⛔ 값을 화이트리스트로 막지 않는다 — 클라가 모르는 값을 neutral 로 떨어뜨린다.
+      서버가 감정을 늘려도 **앱 배포를 기다릴 필요가 없다**(프론트 `knownLabel` 주석).
+    """
+
+    type: Literal["sentence"] = "sentence"
+    # ⛔ **빈 문자열일 수 있다.** 모델은 말하기 **전에** 표정을 정하므로(실측 27/28 이
+    #   그 턴 오디오 0.00초 지점) 이 프레임이 나갈 때 턴이 아직 안 열려 있다.
+    #   ⚠ 그렇다고 여기서 턴을 새로 열면 안 된다 — `_forward_event` 의 `turn_started`
+    #     신호가 죽어 **학습자 발화 확정과 통화 시계 시작이 통째로 건너뛰어진다**(R4).
+    #   ⚠ 프론트 `_onSentenceMarker` 는 이 필드를 **읽지 않는다**(text·emotion·seq·
+    #     server_bytes 만 읽는다). 위치는 순서가 정한다.
+    turn_id: str = ""
+    seq: int
+    emotion: str
+    # ⛔ 항상 "". 위 주석 참조 — 채우면 Live 자막이 두 시계로 갈린다.
+    text: str = ""
+
+
 class ServerInputTranscript(BaseModel):
     type: Literal["input_transcript"] = "input_transcript"
     text: str
@@ -166,6 +220,14 @@ class ServerCallStarted(BaseModel):
 
     type: Literal["call_started"] = "call_started"
     character_id: int
+    # ⭐⭐ **이 통화의 번호**(2026-08-19 이어하기). 클라가 다음 조각에서 `continues_call_id`
+    #   로 돌려줘야 하는 바로 그 값이다.
+    #   ⛔ `call_ended` 에도 있지만 **그것만으로는 부족하다**: 사용자가 끊기를 누르면 클라가
+    #     소켓을 먼저 닫아 `call_ended` 가 도착하지 않는다 ⇒ 이어할 번호를 영영 못 받는다.
+    #     그래서 **시작할 때** 준다.
+    #   ⚠ 기본 None — 구버전 클라는 미지 필드를 무시하고, 이 필드를 안 채우는 경로(있다면)도
+    #     그대로 돈다. 값이 없다고 통화가 막히면 안 된다.
+    call_id: str | None = None
 
 
 class ServerError(BaseModel):
@@ -264,6 +326,7 @@ ServerMessage = Annotated[
     Union[
         ServerTurnStart,
         ServerOutputTranscript,
+        ServerSentenceMarker,
         ServerInputTranscript,
         ServerTurnEnd,
         ServerCallEnded,
