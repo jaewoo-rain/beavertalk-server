@@ -1070,7 +1070,13 @@ async def run_call(
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
     setup = await svc.run_db(
         db_session_factory,
-        lambda db: svc.load_call_setup(db, member_id, character_id, spec.code),
+        # ⭐ 이어하기면 체인의 call_id 를 넘긴다 — 선별이 "이 통화에서 이미 다뤘나"를
+        #   라벨로 붙일 수 있게(조각들이 같은 행을 쓰므로 이 하나로 정확히 표현된다).
+        #   ⚠ 아직 검증 전 값이다. 남의 id 를 넣어도 무해하다 — `last_call_id` 는 **이 회원의**
+        #     progress 행에 있는 값이라, 그 회원이 실제로 그 통화를 하지 않았으면 안 맞는다.
+        lambda db: svc.load_call_setup(
+            db, member_id, character_id, spec.code, chain_call_id=continues_call_id
+        ),
     )
     # 읽기 쪽 방어: 저장 시 정규화(MemberService)를 넣었지만, 과거 데이터·다른 경로로 들어온
     # "ko-KR" 이 남아 있으면 _LOCALE_LABEL 조회가 미스나 **영어로 폴백**한다(실측 3건).

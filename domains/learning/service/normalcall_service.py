@@ -226,7 +226,8 @@ def _load_member_character(
 
 
 def load_call_setup(
-    db: Session, member_id: int, character_id: int, language: str = "ko"
+    db: Session, member_id: int, character_id: int, language: str = "ko",
+    *, chain_call_id: int | None = None,
 ) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
@@ -271,7 +272,8 @@ def load_call_setup(
     if member_found and korean_level is not None:
         try:
             materials = _load_study_materials(
-                db, member_id, level_no, base["locale"], language
+                db, member_id, level_no, base["locale"], language,
+                chain_call_id=chain_call_id,
             )
         except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행
             logger.exception(
@@ -440,9 +442,11 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
         #   "통문장·다시" 로 렌더하고, 상태별 시작 절차를 고른다. 없으면 persona 가
         #   옛 렌더로 폴백한다(하위호환).
         "state": entry.get("state"),
-        # ⭐ **오늘 손댔나**(2026-08-19). 상태 축은 평생 상태라 "오늘 배운 것"과 "3주 전에
-        #   배운 것"을 못 가른다 — 5개 단위 확인이 오늘 것을 고르려면 이 칸이 필요하다.
-        "today": bool(entry.get("today")),
+        # ⭐ **이 통화에서 손댔나**(2026-08-19). 상태 축은 평생 상태라 "방금 다룬 것"과
+        #   "3주 전에 배운 것"을 못 가른다 — 5개 단위 확인이 방금 것을 고르려면 이 칸이 필요하다.
+        #   ⛔ 범위는 '오늘'이 아니라 **이 통화(조각 체인)** 다. 하루에 두 번 통화하면
+        #     서로 다른 통화이므로 섞이면 안 된다(사장님 정정).
+        "this_call": bool(entry.get("this_call")),
         "obj": item.surface,
         "ex": mastery_repository.first_example(item),
         "des": _study_des(item, locale),
@@ -452,7 +456,8 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
 
 
 def _load_study_materials(
-    db: Session, member_id: int, level_no: int, locale: str, language: str = "ko"
+    db: Session, member_id: int, level_no: int, locale: str, language: str = "ko",
+    *, chain_call_id: int | None = None,
 ) -> dict:
     """체크판 통화 재료를 1회에 선별한다(mechanics ① 3-b~e — 통화 중 DB 접근 0).
 
@@ -478,7 +483,7 @@ def _load_study_materials(
     # ② 공부 로드 30 (본편 5 + 예비 25) — L1 만 총 10(전부 청크, 2026-08-16)
     picked = mastery_repository.pick_study_items(
         db, member_id, level_no, review_slots=review_slots, bridge_prev_ratio=ratio,
-        language=language,
+        language=language, chain_call_id=chain_call_id,
     )
     study_items = [_study_item_dto(e, locale) for e in picked] or None
 
