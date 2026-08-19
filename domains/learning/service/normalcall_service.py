@@ -620,14 +620,21 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
     #   결과는 맞힌 쪽이다. 둘 다 실으면 비버가 모순된 지시를 받는다.
     weak = [w for w in weak if w not in strong]
 
+    # ⚠ 컬럼 이름은 `content` 다(`text` 가 아니다 — 2026-08-19 실측에서 이걸 틀려
+    #   브리프가 통째로 실패했고, 비버가 조각2에서 **다시 인사했다**).
     last = (
-        db.query(CallRawData.text)
-        .filter(CallRawData.call_id == call_id, CallRawData.text.isnot(None))
+        db.query(CallRawData.content, CallRawData.role)
+        .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
         .order_by(CallRawData.turn_index.desc())
-        .limit(2)
+        .limit(4)
         .all()
     )
-    topic = " / ".join(t[0].strip() for t in reversed(last) if t[0] and t[0].strip())[:200]
+    # ⭐ 화자를 붙인다 — "누가 무슨 말을 하다 말았나"가 맥락이다. 문장만 나열하면
+    #   비버가 자기 말을 학습자 말로 오해한다.
+    topic = " / ".join(
+        "%s: %s" % ("나" if (r or "") == "beaver" else "학습자", (c or "").strip())
+        for c, r in reversed(last) if c and c.strip()
+    )[:300]
     return {
         "covered": covered[:12], "strong": strong[:6], "weak": weak[:6],
         "topic": topic or None, "curious": None,
@@ -1935,7 +1942,11 @@ async def analyze_call(
                 logger.info(
                     "normalcall 체크판: 검출 %d→검증 %d, 증거 %s, 레벨업 %s call_id=%s",
                     len(detections), mastery["verified"],
-                    mastery["evidence"], mastery["levelup"].get("result"), call_id,
+                    # ⚠ 검출 0건이면 `evidence`·`levelup` 이 **None** 이다(위 조기 반환 2곳).
+                    #   무조건 `.get()` 을 부르면 여기서 터지고, 잡히는 자리가 "체크판 실패"라
+                    #   원인이 검출 로직처럼 보인다 — 실제로는 **로그 줄이 범인**이다.
+                    #   실측(2026-08-19 call 1085 조각2): 'NoneType' object has no attribute 'get'
+                    mastery["evidence"], (mastery["levelup"] or {}).get("result"), call_id,
                 )
             except Exception as exc:  # noqa: BLE001 - 체크판 실패는 분석을 죽이지 않음
                 logger.exception(
