@@ -658,6 +658,33 @@ def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
         db.commit()
 
 
+async def build_resume_context(
+    call_id: int, client, settings_obj: Settings, session_factory: sessionmaker,
+) -> None:
+    """⭐ 다음 조각이 쓸 요약을 만들어 저장한다 — **통화후 분석과 나란히** 돈다.
+
+    ⛔ 예전에는 `analyze_call` 안에서 분석이 끝난 **뒤에** 돌렸다. 요약 LLM 자체는 1초인데
+      앞의 분석 5초를 통째로 기다려서 이어하기 준비가 7초 걸렸다(실측 2026-08-19):
+        08:41:54 저장 → 08:41:59 분석 done(+5s) → 08:42:00 요약(+6s)
+    ⭐ 요약이 필요한 것은 **전사뿐**이고 전사는 저장 시점에 이미 DB 에 있다. 분석을 기다릴
+      이유가 없다 — 따로 띄우면 둘이 동시에 돈다.
+    ⚠ 실패해도 아무것도 안 깨진다. 이어하기가 즉석 생성으로 내려갈 뿐이다(R5).
+    """
+    try:
+        tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
+        slots = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
+        if not slots:
+            return
+        await run_db(session_factory, lambda db: _save_resume_context(db, call_id, slots))
+        logger.info(
+            "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
+            slots.get("topic"), len(slots.get("learner_facts") or []),
+            slots.get("pending"), call_id,
+        )
+    except Exception as exc:  # noqa: BLE001 — R5
+        logger.warning("normalcall 이어하기 요약 실패(즉석 생성으로 폴백) — %s", exc)
+
+
 async def summarize_for_resume_text(client, model: str, tail: str) -> dict | None:
     """조각이 끝날 때 **다음 조각이 쓸 요약**을 만든다(LLM 1회).
 
@@ -2052,30 +2079,6 @@ async def analyze_call(
             "normalcall 분석: mode=%s 표현 %d개 → done call_id=%s",
             result.detected_mode, len(pending), call_id,
         )
-        # ⭐⭐ **다음 조각이 쓸 요약을 지금 만든다**(2026-08-19). 이어하기 시점에 돌리면
-        #   "이어서" 를 누른 사용자가 그만큼 기다린다 — 여기서 만들어 두면 **지연 0** 이다.
-        #   ⛔ 원문 전사를 넘기는 게 아니라 **슬롯**(topic·learner_facts·pending)이다.
-        #     원문을 그대로 주면 비버가 그 안에서 사실을 다시 찾아야 하고, 길수록 못 찾는다.
-        #   ⚠ 실패해도 통화 결과에는 영향이 없다 — 이어하기가 발췌 폴백으로 내려갈 뿐이다.
-        try:
-            rows = await run_db(
-                session_factory, lambda db: _resume_transcript(db, call_id)
-            )
-            slots = await summarize_for_resume_text(
-                client, settings_obj.JUDGE_MODEL, rows
-            )
-            if slots:
-                await run_db(
-                    session_factory,
-                    lambda db: _save_resume_context(db, call_id, slots),
-                )
-                logger.info(
-                    "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
-                    slots.get("topic"), len(slots.get("learner_facts") or []),
-                    slots.get("pending"), call_id,
-                )
-        except Exception as exc:  # noqa: BLE001 — R5
-            logger.warning("normalcall 이어하기 요약 실패(발췌로 폴백) — %s", exc)
     except Exception as exc:  # noqa: BLE001 - done 이전(전사/LLM/저장) 실패 → failed
         logger.exception("normalcall 분석: 예외 → failed call_id=%s (%s)", call_id, exc)
         try:

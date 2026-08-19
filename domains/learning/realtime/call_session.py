@@ -1523,6 +1523,22 @@ def _trigger_analysis(
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
 
+    # ⭐⭐ **이어하기 요약은 분석과 나란히 돈다**(2026-08-19 실측: 준비까지 7초 걸렸다).
+    #   전에는 `analyze_call` **안에서, 분석이 끝난 뒤에** 돌렸다. 그래서 요약 LLM 자체는
+    #   1초인데 앞의 분석 5초를 통째로 기다렸다:
+    #     08:41:54 저장 → 08:41:59 분석 done(+5s) → 08:42:00 요약(+6s)
+    #   ⇒ 요약이 필요한 것은 **전사뿐**이고 전사는 저장 시점에 이미 DB 에 있다.
+    #     분석을 기다릴 이유가 없다. 따로 띄우면 둘이 동시에 돈다.
+    #   ⚠ 레벨테스트는 조각 개념이 없으므로 안 만든다.
+    #   ⚠ 실패해도 아무것도 안 깨진다 — 이어하기가 즉석 생성으로 내려갈 뿐이다(R5).
+    if call_type != "level_test":
+        summary_task = asyncio.create_task(
+            svc.build_resume_context(call_id, client, settings, db_session_factory),
+            name=f"normalcall-resume-summary-{call_id}",
+        )
+        _analysis_tasks.add(summary_task)
+        summary_task.add_done_callback(_on_analysis_done)
+
 
 def trigger_reanalysis(
     settings: Settings,
