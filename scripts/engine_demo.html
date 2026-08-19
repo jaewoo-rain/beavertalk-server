@@ -102,8 +102,6 @@
            ⛔ **버튼을 막지 않는다.** 되는지 여부는 서버가 정하고(본인·TTL 5분·조각 상한),
               안 되면 조용히 새 통화로 떨어진다. 클라가 미리 막으면 "왜 못 누르지"만 남고
               **거절 사유를 볼 기회가 사라진다** — 이 화면의 목적은 그 사유를 보는 것이다. -->
-      <label class="muted">이을 call_id
-        <input id="contId" placeholder="비우면 직전" style="width:96px"></label>
       <button id="contBtn" title="이 call_id 로 이어 붙는다(비우면 직전 통화)">▶ 이어하기</button>
       <span><span class="dot" id="dot"></span><span id="stat" class="muted">대기</span></span>
     </div>
@@ -230,10 +228,8 @@ $('#callBtn').onclick = async () => {
 $('#contBtn').onclick = async () => {
   // ⭐ 직전 call_id 로 이어 붙는다. 되는지 여부는 **서버가 정한다**(본인·TTL 5분·조각 상한).
   //   안 되면 서버가 조용히 새 통화로 떨어뜨리므로, 화면은 `call_id` 가 그대로인지로 가른다.
-  const typed = ($('#contId').value || '').trim();
-  const target = typed || lastCallId;
-  if (!target){ log('이을 call_id 가 없다 — 통화를 한 번 하거나 번호를 직접 넣어라', 'err'); return; }
-  resumeFrom = target;
+  if (!lastCallId){ log('이을 통화가 없다 — 통화를 한 번 시작해야 번호가 생긴다', 'err'); return; }
+  resumeFrom = lastCallId;
   log(`▶ 이어하기 시도 — continues_call_id=${resumeFrom}`, 'out');
   await startCall();
 };
@@ -314,7 +310,6 @@ async function startCall(){
         $('#sFrag').textContent = String(fragNo);
         $('#sCall').textContent = m.call_id;
         lastCallId = m.call_id;            // 끊고 나서 이어하기의 대상이 된다
-        $('#contId').placeholder = '비우면 ' + m.call_id;
       }
     }
     if (m.type==='error') log('⚠ '+(m.code||'')+' '+(m.message||''), 'err');

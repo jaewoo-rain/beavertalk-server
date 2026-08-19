@@ -1061,8 +1061,9 @@ async def run_call(
             "normalcall: start.character_id(%s) 무시 — 서버 결정 %s (inbound=%s)",
             client_character_id, character_id, inbound_call_id,
         )
-    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
-    await _send_json(client_ws, ServerCallStarted(character_id=character_id))
+    # ⚠ `call_started` 는 여기서 보내지 않는다 — **통화 행이 아직 없어서 call_id 를 못 싣는다**
+    #   (아래 3) 에서 만든다). 클라는 그 번호를 다음 조각의 `continues_call_id` 로 돌려줘야
+    #   하므로 **번호가 실린 뒤에** 보낸다. 여전히 오디오보다 먼저다(계약 유지).
 
     # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
@@ -1218,6 +1219,13 @@ async def run_call(
                 db, member_id, character_id, call_type, target_language=spec.code
             ),
         )
+
+    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
+    # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
+    #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
+    await _send_json(
+        client_ws, ServerCallStarted(character_id=character_id, call_id=str(call_id))
+    )
 
     state = _CallState()
     if resumed:

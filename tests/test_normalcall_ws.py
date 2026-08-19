@@ -3986,3 +3986,36 @@ def test_resume_stops_at_the_fragment_cap(session_factory, seeded):
         assert got is None and "상한" in why, why
     finally:
         db.close()
+
+
+@pytest.mark.asyncio
+async def test_call_started_carries_the_call_id(session_factory, seeded):
+    """⛔⛔ 클라는 **이 번호로** 다음 조각을 잇는다 — 없으면 이어하기가 시작조차 못 한다.
+
+    실제 사고(2026-08-19): `call_started` 에 `character_id` 만 있어서 화면이 통화 번호를
+    영영 못 받았다. 사장님: "이어할 번호가 없다고 나오는데?"
+
+    ⚠ `call_ended` 에도 번호가 있지만 **그것만으로는 부족하다**: 끊기 버튼은 클라가 소켓을
+      먼저 닫으므로 그 프레임이 도착하지 않는다. 그래서 **시작할 때** 줘야 한다.
+    ⚠ 그리고 이 프레임은 **통화 행이 만들어진 뒤에** 나가야 한다(그 전엔 번호가 없다).
+    """
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+
+    started = [json.loads(t) for t in ws.sent_text
+               if json.loads(t).get("type") == "call_started"]
+    assert started, [json.loads(t).get("type") for t in ws.sent_text]
+    assert started[0].get("call_id"), started[0]
+
+    db = session_factory()
+    try:
+        assert str(db.query(Call).one().call_id) == started[0]["call_id"]
+    finally:
+        db.close()

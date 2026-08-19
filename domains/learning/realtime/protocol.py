@@ -220,6 +220,14 @@ class ServerCallStarted(BaseModel):
 
     type: Literal["call_started"] = "call_started"
     character_id: int
+    # ⭐⭐ **이 통화의 번호**(2026-08-19 이어하기). 클라가 다음 조각에서 `continues_call_id`
+    #   로 돌려줘야 하는 바로 그 값이다.
+    #   ⛔ `call_ended` 에도 있지만 **그것만으로는 부족하다**: 사용자가 끊기를 누르면 클라가
+    #     소켓을 먼저 닫아 `call_ended` 가 도착하지 않는다 ⇒ 이어할 번호를 영영 못 받는다.
+    #     그래서 **시작할 때** 준다.
+    #   ⚠ 기본 None — 구버전 클라는 미지 필드를 무시하고, 이 필드를 안 채우는 경로(있다면)도
+    #     그대로 돈다. 값이 없다고 통화가 막히면 안 된다.
+    call_id: str | None = None
 
 
 class ServerError(BaseModel):
