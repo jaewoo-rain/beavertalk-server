@@ -81,16 +81,37 @@ jobs:
 
       # ⛔ `--source` 직배포는 "Container import failed" 로 실패한다(scripts/deploy_demo.sh
       #   주석에 기록된 실측). builds submit 으로 이미지를 만든 뒤 그 이미지로 배포한다.
+      # ⛔⛔ `--async` 로 던지고 **우리가 기다린다**(2026-08-19).
+      #   그냥 `builds submit` 도, `--suppress-logs` 를 붙여도 gcloud 가 빌드 상태를 폴링하다
+      #   로그 접근에서 막혀 exit 1 을 낸다:
+      #     "This tool can only stream logs if you are Viewer/Owner of the project"
+      #   ⭐ 빌드 자체는 **성공한다.** 즉 "배포 실패"가 아니라 "관측 실패"인데 종료 코드가
+      #     같아서 구분이 안 된다.
+      #
+      # ⛔ `roles/logging.viewer` 를 주면 풀린다. 하지만 그러면 배포 계정이 **프로젝트의 모든
+      #   로그**를 읽는다 — 우리 로그에는 **사용자 전사**가 들어 있고 이 저장소는 PUBLIC 이다.
+      #   워크플로가 털리면 그게 그대로 유출 경로가 된다. **로그를 보려고 그 위험을 지지 않는다.**
+      # ⇒ 비동기로 던지고 상태만 물어본다. `builds.editor` 에 이미 조회 권한이 있다.
+      #   빌드 로그는 Cloud Build 콘솔에서 본다.
       - name: 빌드
         run: |
           IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/cloud-run-source-deploy/${{ steps.target.outputs.service }}:${{ github.sha }}"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-          # ⛔ `--suppress-logs` 가 필요하다(2026-08-19, run 32242629756).
-          #   빌드는 **성공하는데** gcloud 가 로그를 스트리밍하려다 실패하고 exit 1 을 낸다:
-          #     "This tool can only stream logs if you are Viewer/Owner of the project"
-          #   배포 계정에 Viewer 를 주면 풀리지만, **로그를 보려고 프로젝트 전체 읽기 권한을
-          #   주는 건 과하다.** 로그는 Cloud Build 콘솔에서 본다.
-          gcloud builds submit --tag "$IMAGE" --project "${{ secrets.GCP_PROJECT }}"             --suppress-logs
+          BUILD_ID=$(gcloud builds submit --tag "$IMAGE"             --project "${{ secrets.GCP_PROJECT }}" --async --format="value(id)")
+          echo "build=$BUILD_ID"
+          # ⚠ 상한을 둔다. 없으면 빌드가 매달릴 때 잡이 6시간을 태운다.
+          for _ in $(seq 1 120); do
+            STATUS=$(gcloud builds describe "$BUILD_ID"               --project "${{ secrets.GCP_PROJECT }}" --format="value(status)")
+            case "$STATUS" in
+              SUCCESS) echo "빌드 성공"; exit 0 ;;
+              FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED|EXPIRED)
+                echo "빌드 실패: $STATUS"
+                echo "로그: https://console.cloud.google.com/cloud-build/builds/$BUILD_ID?project=${{ secrets.GCP_PROJECT }}"
+                exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "빌드 대기 20분 초과 — 중단"; exit 1
 
       # ⛔ `--image` 만 바꾼다. env·시크릿·서비스계정은 **건드리지 않는다** —
       #   여기서 지정하면 콘솔에서 손으로 넣은 값이 조용히 지워진다.
