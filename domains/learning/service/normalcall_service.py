@@ -584,6 +584,87 @@ def next_turn_index(db: Session, call_id: int) -> int:
     )
 
 
+class ResumeOut(BaseModel):
+    """이어하기 요약 사이드카의 구조화 출력 — ⛔ **문장이 아니라 슬롯만** 받는다.
+
+    ⛔ 여기에 문장 필드를 추가하지 마라. 사이드카가 문장을 만들면 그 문장이 곧 프롬프트가
+      되고, "LLM 생성 0, 순수 조립"(persona_prompt 규율)이 이어하기 경로에서만 무너진다.
+      `RegroundOut` 이 같은 이유로 같은 모양을 하고 있다 — 그 규율을 여기도 따른다.
+
+    ⭐ `learner_facts` 가 이 설계의 핵심이다. 사장님 시나리오("내가 뭐 좋아한다고 했지?")는
+      **문장이 아니라 사실**을 묻는 것이라 슬롯으로 정확히 표현된다. 원문을 통째로 넘기면
+      비버가 그 안에서 사실을 다시 찾아야 하고, 길어질수록 못 찾는다.
+    """
+
+    topic: str = ""                    # 하던 얘기 — 짧은 명사구
+    learner_facts: list[str] = []      # 학습자에 대해 알게 된 것(짧은 구)
+    pending: str = ""                  # 하다 만 것 — 짧은 구
+
+
+_RESUME_SUMMARY_INSTRUCTION = (
+    "너는 회화 통화의 상태 요약기다. 아래 대화를 읽고 JSON 슬롯만 채워라. "
+    "**문장을 만들지 마라.**\n"
+    "- topic: 대화가 흐르던 화제를 짧은 명사구 하나로(최대 15자). 없으면 빈 문자열.\n"
+    "- learner_facts: 이 대화에서 **학습자에 대해 알게 된 사실**을 짧은 구로(각 20자 이내, "
+    "최대 5개). 예: \"김치찌개를 좋아함\". ⛔ 대화에 근거가 없으면 넣지 마라.\n"
+    "- pending: 끝내지 못하고 하던 중이던 것을 짧은 구로(최대 20자). 없으면 빈 문자열."
+)
+
+
+def _resume_transcript(db: Session, call_id: int) -> str:
+    """이 통화의 전사를 요약기에 넣을 한 덩어리로. ⛔ DB 접근만(async 없음 — run_db 안이다)."""
+    rows = (
+        db.query(CallRawData.content, CallRawData.role)
+        .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
+        .order_by(CallRawData.turn_index)
+        .all()
+    )
+    return "\n".join(
+        "%s: %s" % ("비버" if (r or "") == "beaver" else "학습자", (c or "").strip())
+        for c, r in rows if c and len(c.strip()) >= 3
+    )[-4000:]
+
+
+def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
+    """다음 조각이 쓸 요약 슬롯을 저장한다."""
+    import json as _json
+
+    call = db.get(Call, call_id)
+    if call is not None:
+        call.resume_context = _json.dumps(slots, ensure_ascii=False)
+        db.commit()
+
+
+async def summarize_for_resume_text(client, model: str, tail: str) -> dict | None:
+    """조각이 끝날 때 **다음 조각이 쓸 요약**을 만든다(LLM 1회).
+
+    ⛔ 이어하기 시점에 돌리면 통화 시작이 그만큼 늦는다. 조각이 끝날 때 미리 만들어
+      DB 에 두면 "이어서" 를 누른 사용자는 **지연 0** 이다.
+    ⚠ 실패해도 조용히 None — 요약이 없다고 이어하기가 막히면 안 된다(호출부가 폴백한다).
+    """
+    if not tail:
+        return None
+    try:
+        out = await gemini_analysis.generate_structured(
+            client, model,
+            system_instruction=_RESUME_SUMMARY_INSTRUCTION,
+            prompt=tail, schema=ResumeOut, temperature=0.0, thinking_budget=0,
+        )
+    except Exception as exc:  # noqa: BLE001 — 요약 실패가 분석을 죽이면 안 된다(R5)
+        logger.warning("normalcall 이어하기 요약 실패(무시) — %s", exc)
+        return None
+    if out is None:
+        return None
+    return {
+        "topic": (getattr(out, "topic", "") or "").strip()[:30],
+        "learner_facts": [
+            f.strip()[:30] for f in (getattr(out, "learner_facts", None) or [])
+            if isinstance(f, str) and f.strip()
+        ][:5],
+        "pending": (getattr(out, "pending", "") or "").strip()[:40],
+    }
+
+
 def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
     """이어하기 브리프의 **재료**를 모은다 — ⭐ 대부분은 LLM 이 아니라 DB 가 안다.
 
@@ -666,15 +747,35 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
         .order_by(Sentence.sentence_id).limit(8).all()
         if r[0] and r[0].strip()
     ]
+    # ⭐⭐ **1순위: 조각 종료 때 만들어 둔 슬롯**(topic·learner_facts·pending).
+    #   원문을 그대로 주는 것보다 낫다 — 비버가 사실을 다시 찾을 필요가 없다.
+    #   ⚠ 분석이 fire-and-forget 이라 조각1→2 에서는 아직 없을 수 있다(실측: 요약 완성이
+    #     이어하기보다 1초 늦었다). 그때만 아래 발췌 폴백으로 내려간다.
+    slots = {}
+    raw_ctx = db.query(Call.resume_context).filter(Call.call_id == call_id).scalar()
+    if raw_ctx:
+        try:
+            import json as _json
+
+            slots = _json.loads(raw_ctx) or {}
+        except (ValueError, TypeError):
+            slots = {}
+
     # ⭐ 한 줄 요약(LLM). 짧지만 **오래된 화제까지** 담는 유일한 값이라 같이 준다.
     #   ⚠ 분석이 fire-and-forget 이라 조각1→2 에서는 아직 없을 수 있다(실측: 요약 완성이
     #     이어하기보다 1초 늦었다). 없으면 발췌만으로 간다 — 그래서 둘 다 넘긴다.
     summary = (
         db.query(Call.summary).filter(Call.call_id == call_id).scalar() or ""
     ).strip() or None
+    # ⛔ **슬롯이 있으면 발췌를 안 보낸다.** 둘 다 보내면 프롬프트가 두 배가 되고,
+    #   요약본과 원문이 어긋날 때 비버가 어느 쪽을 믿을지 모른다.
     return {
         "covered": covered[:12], "strong": strong[:6], "weak": weak[:6],
-        "topic": topic, "said": said, "summary": summary, "curious": None,
+        "topic": slots.get("topic") or None,
+        "pending": slots.get("pending") or None,
+        "facts": slots.get("learner_facts") or None,
+        "excerpt": None if slots else topic,     # 폴백 — 슬롯이 없을 때만
+        "said": said, "summary": summary, "curious": None,
     }
 
 
@@ -1908,6 +2009,30 @@ async def analyze_call(
             "normalcall 분석: mode=%s 표현 %d개 → done call_id=%s",
             result.detected_mode, len(pending), call_id,
         )
+        # ⭐⭐ **다음 조각이 쓸 요약을 지금 만든다**(2026-08-19). 이어하기 시점에 돌리면
+        #   "이어서" 를 누른 사용자가 그만큼 기다린다 — 여기서 만들어 두면 **지연 0** 이다.
+        #   ⛔ 원문 전사를 넘기는 게 아니라 **슬롯**(topic·learner_facts·pending)이다.
+        #     원문을 그대로 주면 비버가 그 안에서 사실을 다시 찾아야 하고, 길수록 못 찾는다.
+        #   ⚠ 실패해도 통화 결과에는 영향이 없다 — 이어하기가 발췌 폴백으로 내려갈 뿐이다.
+        try:
+            rows = await run_db(
+                session_factory, lambda db: _resume_transcript(db, call_id)
+            )
+            slots = await summarize_for_resume_text(
+                client, settings_obj.JUDGE_MODEL, rows
+            )
+            if slots:
+                await run_db(
+                    session_factory,
+                    lambda db: _save_resume_context(db, call_id, slots),
+                )
+                logger.info(
+                    "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
+                    slots.get("topic"), len(slots.get("learner_facts") or []),
+                    slots.get("pending"), call_id,
+                )
+        except Exception as exc:  # noqa: BLE001 — R5
+            logger.warning("normalcall 이어하기 요약 실패(발췌로 폴백) — %s", exc)
     except Exception as exc:  # noqa: BLE001 - done 이전(전사/LLM/저장) 실패 → failed
         logger.exception("normalcall 분석: 예외 → failed call_id=%s (%s)", call_id, exc)
         try:

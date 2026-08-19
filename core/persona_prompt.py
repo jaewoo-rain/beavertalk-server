@@ -956,6 +956,9 @@ def build_resume_brief(
     strong: Optional[list[str]] = None,
     weak: Optional[list[str]] = None,
     topic: Optional[str] = None,
+    pending: Optional[str] = None,
+    facts: Optional[list[str]] = None,
+    excerpt: Optional[str] = None,
     said: Optional[list[str]] = None,
     summary: Optional[str] = None,
     curious: Optional[str] = None,
@@ -985,7 +988,16 @@ def build_resume_brief(
         # ⭐ 학습자가 **직접 한 말**. "내가 뭐 좋아한다고 했지?" 류에 답하려면 이게 있어야 한다.
         lines.append("- 학습자가 한 말: %s" % " / ".join(s for s in said if s)[:400])
     if topic:
-        lines.append("- 방금까지 오간 대화:\n%s" % topic.strip())
+        lines.append("- 하던 얘기: %s" % topic.strip())
+    if facts:
+        # ⭐ 사장님 시나리오("내가 뭐 좋아한다고 했지?")가 여기서 답해진다 — 문장이 아니라
+        #   **사실**이라 비버가 찾을 필요 없이 바로 쓴다.
+        lines.append("- 학습자에 대해 알게 된 것: %s" % ", ".join(f for f in facts if f)[:300])
+    if pending:
+        lines.append("- 하다 만 것: %s" % pending.strip())
+    if excerpt:
+        # ⚠ 폴백 경로다(요약 슬롯이 아직 없을 때만). 원문이라 길고 정확도가 낮다.
+        lines.append("- 방금까지 오간 대화:\n%s" % excerpt.strip())
     if covered:
         lines.append("- 오늘 이미 다룬 것: %s" % ", ".join(c for c in covered if c)[:300])
     if strong:
