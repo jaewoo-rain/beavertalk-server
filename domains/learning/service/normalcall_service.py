@@ -2003,6 +2003,7 @@ async def analyze_call(
     member_id: int | None = None,
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
+    since_turn_index: int | None = None,
 ) -> None:
     """통화 전사를 분석해 표현·요약을 저장하고 표현별 TTS 를 합성한다(전체 graceful).
 
@@ -2022,6 +2023,30 @@ async def analyze_call(
     try:
         dialog_rows = await run_db(session_factory, lambda db: _load_dialog_rows(db, call_id))
         dialog = _dialog_from_rows(dialog_rows)
+        # ⭐⭐ **검증은 이 조각의 턴만 본다**(2026-08-19 실측 사고). 요약·표현 추출은 전체를
+        #   그대로 쓴다 — `dialog` 는 안 건드린다.
+        #   ⛔ 왜 좁혀야 하나(call 1090): 조각2 분석이 전사 **전체**를 다시 보면서
+        #     ① 조각1에서 이미 증거가 된 항목이 다시 검출돼 중복(게이트 ⑤)으로 폐기되고
+        #     ② 조각1의 비버 발화가 "직전 2 BEAVER 턴"(게이트 ③)에 들어와 **자발(E3)이
+        #        앵무새로 몰린다.**
+        #     실제로: t11 비버가 정답을 말했고, t14 는 정답 없이 물었고, t15 학습자가
+        #     맞혔다 — **진짜 자발인데** t11 때문에 E1 로 내려가고 결국 증거 0건이 됐다.
+        #     사장님이 조각2에서 4개를 정확히 말했는데 진도가 하나도 안 쌓였다.
+        #   ⇒ 조각 경계 이후 턴만 넘기면 ①②가 **동시에** 풀린다: 인용이 새 USER 턴에
+        #     없으면 게이트 ②가 알아서 거르고, 비버 행도 이 조각 것만 남는다.
+        #   ⚠ 조각 경계를 넘는 앵무새는 못 잡는다(조각1 끝에 정답을 말하고 조각2 첫 턴에
+        #     따라 하는 경우). 그 사이엔 통화가 끊기고 사용자가 버튼을 눌렀다 — 그걸
+        #     따라읽기로 보는 게 오히려 틀렸다.
+        verify_rows = dialog_rows
+        if since_turn_index:
+            verify_rows = [
+                r for r in dialog_rows
+                if (r.get("turn_index") or 0) >= since_turn_index
+            ]
+            logger.info(
+                "normalcall 분석: 검증 범위 turn>=%d (%d/%d행) call_id=%s",
+                since_turn_index, len(verify_rows), len(dialog_rows), call_id,
+            )
         if not dialog.strip():
             logger.info("normalcall 분석: 전사 없음 → done(빈 결과) call_id=%s", call_id)
             await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
@@ -2167,7 +2192,7 @@ async def analyze_call(
                 mastery = await run_db(
                     session_factory,
                     lambda db: _apply_call_mastery(
-                        db, call_id, member_id, detections, cands, dialog_rows,
+                        db, call_id, member_id, detections, cands, verify_rows,
                         hinted_from_turn_index=hinted_from_turn_index,
                     ),
                 )

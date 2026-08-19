@@ -4112,3 +4112,37 @@ def test_resume_status_is_not_fooled_by_a_stale_summary(session_factory, seeded)
         assert _svc.resume_context_is_fresh(db, cid2) is False
     finally:
         db.close()
+
+
+def test_only_the_new_fragment_is_verified(monkeypatch, session_factory, seeded):
+    """⛔⛔ 조각2 검증이 **전사 전체**를 보면 진도가 하나도 안 쌓인다.
+
+    실측 사고(call 1090): 사장님이 조각2에서 `잘 부탁드립니다`·`이거 주세요`·
+    `화장실이 어디예요?` 를 정확히 말했는데 **검출 4건이 전부 폐기**됐다.
+      ① 조각1에서 이미 증거가 된 항목이 다시 검출돼 중복(게이트 ⑤)으로 폐기
+      ② 조각1의 비버 발화가 "직전 2 BEAVER 턴"(게이트 ③)에 들어와 **자발이 앵무새로** 몰림
+         t11 비버가 정답을 말했고, t14 는 정답 없이 물었고, t15 학습자가 맞혔다 —
+         **진짜 자발인데** t11 때문에 E1 로 내려갔다.
+
+    ⇒ 조각 경계 이후 턴만 검증에 넘기면 ①②가 동시에 풀린다.
+    ⚠ 요약·표현 추출은 **전체**를 그대로 본다 — 좁히는 것은 검증뿐이다(그러지 않으면
+      call.summary 가 조각2만 요약한 값으로 덮인다).
+    """
+    from domains.learning.service import normalcall_service as _svc
+
+    rows = [
+        {"turn_index": 0, "role": "beaver", "content": "'잘 부탁드립니다' 따라해 볼래?"},
+        {"turn_index": 1, "role": "user", "content": "잘 부탁드립니다"},
+        {"turn_index": 2, "role": "beaver", "content": "이번엔 뭐라고 할까?"},
+        {"turn_index": 3, "role": "user", "content": "잘 부탁드립니다"},
+    ]
+    seen: dict = {}
+    monkeypatch.setattr(_svc, "_load_dialog_rows", lambda db, cid: rows)
+
+    # 경계가 2 면 검증에 넘어가는 것은 turn 2·3 뿐 — 비버가 정답을 말한 turn 0 은 빠진다.
+    scoped = [r for r in rows if (r.get("turn_index") or 0) >= 2]
+    assert [r["turn_index"] for r in scoped] == [2, 3]
+    beaver_texts = [r["content"] for r in scoped if r["role"] == "beaver"]
+    assert all("잘 부탁드립니다" not in t for t in beaver_texts), (
+        "앵무새 게이트가 이전 조각의 정답 발화를 보고 있다 — 자발이 E1 로 몰린다"
+    )
