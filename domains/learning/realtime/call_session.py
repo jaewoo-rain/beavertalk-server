@@ -1905,6 +1905,11 @@ class StartParams(NamedTuple):
     tz_offset_min: int | None = None
     # 수신통화(알람)일 때만. 서버가 푸시로 내려준 통화 id 를 앱이 되돌려준 값.
     inbound_call_id: str | None = None
+    # ⭐ 이어하기 — 직전 조각의 call_id. ⚠ **기본값을 준다**(맨 뒤에 붙인 이유이기도 하다):
+    #   기존 호출부·테스트가 이 필드를 안 넘겨도 안 깨진다(NamedTuple 규율, 위 독스트링).
+    #   ⛔ 프론트가 문자열로 보낸다("1234") — 여기서는 **원문 그대로** 들고, int 변환은
+    #     호출부(_as_int)가 한다. 파싱 실패를 이 자리에서 삼키면 원인이 로그에 안 남는다.
+    continues_call_id: str | int | None = None
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -1959,6 +1964,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         duration_min=getattr(cm, "duration_min", None),
                         tz_offset_min=getattr(cm, "tz_offset_min", None),
                         inbound_call_id=getattr(cm, "inbound_call_id", None),
+                        continues_call_id=getattr(cm, "continues_call_id", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc

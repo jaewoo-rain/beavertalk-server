@@ -3911,3 +3911,78 @@ async def test_audio_clears_the_storm_counter(monkeypatch, session_factory, seed
                if json.loads(t).get("type") == "sentence"]
     assert len(markers) == 5, "오디오가 카운터를 안 풀었다"
     assert all(r[2] is True for r in holder["session"].tool_responses)
+
+
+# --------------------------------------------------------------------------- #
+# (y) 이어하기 (2026-08-19)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_start_accepts_continues_call_id_without_crashing(
+        session_factory, seeded, monkeypatch):
+    """⛔⛔ **와이어 필드가 StartParams 까지 실제로 도착하는가.**
+
+    실제 사고(2026-08-19 배포): `ClientStart` 에만 필드를 넣고 `StartParams`(서버 내부
+    NamedTuple)에 안 넣어서 **모든 통화가 즉시 죽었다** —
+        AttributeError: 'StartParams' object has no attribute 'continues_call_id'
+    ⚠ 와이어 모델과 내부 튜플이 **다른 타입**이라 한쪽만 고쳐도 임포트·문법은 통과한다.
+      잡히는 자리는 여기(run_call 을 실제로 태우는 시험)뿐이다.
+    """
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({
+             "type": "start",
+             "character_id": seeded["character_id"],
+             # 없는 통화 id → 이어하기는 실패하지만 **통화는 정상으로 열려야 한다**(폴백).
+             "continues_call_id": "999999",
+         })},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+
+    db = session_factory()
+    try:
+        calls = db.query(Call).all()
+        assert len(calls) == 1, "이어하기 실패가 통화 자체를 막았다"
+        assert calls[0].fragment_count == 1
+    finally:
+        db.close()
+
+
+def test_resume_is_rejected_for_someone_elses_call(session_factory, seeded):
+    """⛔ 남의 call_id 를 들고 와도 이어지면 안 된다 — 내 발화가 남의 통화에 붙는다."""
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        other = _svc.create_call(db, seeded["member_id"] + 999, seeded["character_id"])
+        got, why = _svc.resume_call(
+            db, seeded["member_id"], other, max_fragments=3)
+        assert got is None, why
+        assert "본인" in why
+    finally:
+        db.close()
+
+
+def test_resume_stops_at_the_fragment_cap(session_factory, seeded):
+    """⛔ 조각 상한(Free 1 / Pro·Max 3)을 넘으면 이어지지 않는다.
+
+    ⚠ 상한을 안 걸면 6분 조각을 무한히 이어 붙일 수 있다 — 통화 하나가 영영 안 끝난다.
+    """
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        # 1 → 2 → 3 까지는 된다.
+        for expect in (2, 3):
+            got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+            assert got == cid, why
+            assert db.query(Call).get(cid).fragment_count == expect
+        # 4번째는 막힌다.
+        got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+        assert got is None and "상한" in why, why
+    finally:
+        db.close()
