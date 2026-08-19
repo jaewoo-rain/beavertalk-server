@@ -102,7 +102,8 @@
            ⛔ **버튼을 막지 않는다.** 되는지 여부는 서버가 정하고(본인·TTL 5분·조각 상한),
               안 되면 조용히 새 통화로 떨어진다. 클라가 미리 막으면 "왜 못 누르지"만 남고
               **거절 사유를 볼 기회가 사라진다** — 이 화면의 목적은 그 사유를 보는 것이다. -->
-      <button id="contBtn" title="이 call_id 로 이어 붙는다(비우면 직전 통화)">▶ 이어하기</button>
+      <button id="contBtn" disabled title="요약이 준비되면 열린다">▶ 이어하기</button>
+      <span id="contWhy" class="muted"></span>
       <span><span class="dot" id="dot"></span><span id="stat" class="muted">대기</span></span>
     </div>
   </div>
@@ -256,6 +257,7 @@ async function startCall(){
   ws.onopen = () => {
     $('#dot').className='dot on'; $('#stat').textContent='통화 중';
     $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
+    stopPoll(); $('#contBtn').disabled = true; $('#contWhy').textContent = '';
     // ⛔ 두 엔진의 start 계약이 다르다. 한쪽 모양을 다른 쪽에 보내면 조용히 무시되거나 거절된다.
     const msg = engine==='live'
       ? Object.assign(
@@ -319,6 +321,7 @@ async function startCall(){
   ws.onclose = (e) => {
     $('#dot').className='dot'; $('#stat').textContent=`종료 (code ${e.code})`;
     $('#callBtn').disabled=false; $('#hangBtn').disabled=true;
+    pollResumeReady();          // 끊겼다 → 요약이 준비되면 이어하기를 연다
     stopElapsed(); cleanup();
     log(`연결 종료 code=${e.code} reason=${e.reason||'—'}`, e.code===1000?'':'err');
   };
@@ -326,6 +329,56 @@ async function startCall(){
 }
 
 $('#hangBtn').onclick = () => { try{ ws && ws.close(); }catch{} };
+
+// ⭐⭐ **요약이 준비돼야 이어하기를 연다**(사장님 지시 2026-08-19).
+//   ⛔ 서버가 밀어 줄 수 없다 — 조각을 끝내는 건 클라이고, 그 순간 소켓이 이미 닫혀 있다.
+//     그래서 클라가 물어본다(폴링).
+//   ⚠ 준비 전에 이어하면 서버가 원문 발췌로 폴백하는데, 실측(call 1086) 그때
+//     **비버가 발췌를 대본으로 읽어 첫 인사를 글자까지 똑같이 반복했다.**
+let pollTimer = null;
+function stopPoll(){ clearInterval(pollTimer); pollTimer = null; }
+
+function pollResumeReady(){
+  stopPoll();
+  if (!lastCallId) return;
+  const started = nowMs();
+  const tick = async () => {
+    try{
+      const r = await fetch(`${apiBase()}/api/v1/calls/${lastCallId}/resume-status`,
+                           { headers:{ Authorization:'Bearer '+token } });
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      const d = await r.json();
+      if (!d.can_resume){
+        stopPoll();
+        $('#contWhy').textContent = `이어하기 불가 (조각 ${d.fragment_count}/${d.max_fragments})`;
+        return;
+      }
+      if (d.ready){
+        stopPoll();
+        $('#contBtn').disabled = false;
+        $('#contWhy').textContent = `요약 준비됨 · 조각 ${d.fragment_count}/${d.max_fragments}`;
+        log(`✅ 이어하기 준비 완료 (${((nowMs()-started)/1000).toFixed(1)}s)`, 'ok');
+        return;
+      }
+      $('#contWhy').textContent = d.analyzing ? '요약 만드는 중…' : '대기 중…';
+      // ⚠ 영원히 돌지 않는다. 30초면 분석이 실패한 것이고, 그때는 열어 준다 —
+      //   서버에 즉석 생성 폴백이 있으므로 **못 쓰는 것보다 낫다.**
+      if (nowMs() - started > 30000){
+        stopPoll();
+        $('#contBtn').disabled = false;
+        $('#contWhy').textContent = '요약 없이 진행(품질 저하 가능)';
+        log('⚠ 요약 대기 30초 초과 — 서버 즉석 생성에 맡기고 연다', 'err');
+      }
+    }catch(e){
+      stopPoll();
+      $('#contBtn').disabled = false;
+      $('#contWhy').textContent = '상태 확인 실패 — 그냥 열었다';
+      log('⚠ resume-status 실패: '+e.message, 'err');
+    }
+  };
+  tick();
+  pollTimer = setInterval(tick, 700);
+}
 $('#clearBtn').onclick = () => { $('#log').textContent=''; };
 
 function cleanup(){
