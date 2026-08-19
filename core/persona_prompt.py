@@ -950,6 +950,54 @@ def _drop_if_closing(text: Optional[str]) -> str:
     return "" if is_closing_slot(s) else s
 
 
+def build_resume_brief(
+    *,
+    covered: Optional[list[str]] = None,
+    strong: Optional[list[str]] = None,
+    weak: Optional[list[str]] = None,
+    topic: Optional[str] = None,
+    curious: Optional[str] = None,
+) -> str:
+    """⭐ 이어하기 브리프 — 조각이 바뀔 때 비버에게 주는 **유일한** 맥락(LLM 생성 0, 순수 조립).
+
+    ## ⛔ 비버는 조각이 바뀐 걸 몰라야 한다
+    "이어서 할게요" 같은 말을 시키지 않는다. 사용자는 이미 끊긴 걸 아는데 비버까지
+    그걸 말하면 **끊김이 두 번 일어난다.** 비버는 그냥 하던 얘기를 계속하면 된다.
+    ⛔ 그렇다고 아무것도 안 주면 다시 인사한다(call 870 — 비버가 처음 만난 것처럼 굴었다).
+      그래서 "인사하지 마라"가 아니라 **첫 행동을 지정한다**(아래 마지막 줄).
+
+    ## ⭐ 대부분은 LLM 이 만든 게 아니다
+    `covered`·`strong`·`weak` 는 **DB 가 아는 사실**이다(선별된 항목, 증거 등급).
+    LLM 에 물어보면 오히려 틀린다(환각). LLM 이 필요한 것은 `topic`·`curious` 뿐 —
+    "무슨 얘기 하다 말았나"와 "뭘 궁금해했나"는 대화에서만 나온다.
+
+    ⛔ **종료·시간·작별을 한 글자도 쓰지 않는다** — build_reground_brief 와 같은 규율이다.
+      조각 경계는 종료가 아니고, 그 낱말이 프롬프트에 있으면 비버가 마무리하려 든다.
+    """
+    lines: list[str] = ["[지금까지]"]
+    if topic:
+        lines.append("- 방금까지 이런 얘기를 하고 있었다: %s" % topic.strip())
+    if covered:
+        lines.append("- 오늘 이미 다룬 것: %s" % ", ".join(c for c in covered if c)[:300])
+    if strong:
+        lines.append("- 학습자가 **잘 해낸 것**(다시 가르치지 마라): %s"
+                     % ", ".join(x for x in strong if x)[:200])
+    if weak:
+        lines.append("- 아직 **헷갈려 하는 것**(여기를 더 도와라): %s"
+                     % ", ".join(x for x in weak if x)[:200])
+    if curious:
+        lines.append("- 학습자가 궁금해했던 것: %s" % curious.strip()[:200])
+    if len(lines) == 1:
+        return ""     # 줄 게 없으면 아무것도 주지 않는다(빈 껍데기 주입 금지)
+    # ⛔ 이 마지막 줄이 핵심이다. 금지가 아니라 **첫 행동 지정**이다 —
+    #   "인사하지 마라"는 안 지켜지고, "이렇게 시작해라"는 지켜진다.
+    lines.append(
+        "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라. "
+        "통화가 끊겼다 이어졌다는 사실은 언급하지 마라."
+    )
+    return "\n".join(lines)
+
+
 def build_reground_brief(
     role: str,
     personality: str,

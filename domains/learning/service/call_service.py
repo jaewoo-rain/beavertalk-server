@@ -70,10 +70,37 @@ DAILY_CALL_LIMIT_BY_PLAN: dict[str | None, dict[str, int]] = {
 #   가장 비싼 종류의 불일치라, 문구를 바꿀 땐 이 표도 같이 바꾼다.
 # ⚠ 레벨테스트는 이 표에 없다. 3분 하드캡(LEVELTEST_MAX_S)은 측정 설계지 상품 혜택이
 #   아니라서 플랜을 타면 안 된다.
+# ⭐⭐ **2026-08-19 재편: 길이가 아니라 조각 수가 플랜을 가른다**(사장님 지시).
+#   전: Free 한 통화 5분 / Pro·Max 한 통화 15분
+#   후: **모두 한 조각 6분**, Free 는 조각 1개 / Pro·Max 는 3개(= 최대 18분)
+#   ⇒ 15분 대화가 소켓 하나가 아니라 **6분 조각의 연쇄**로 이루어진다.
+#
+# ⚠ **6분인 이유**(5분이 아니라): 조각 경계는 **프론트가 정한다** — 5분에 "이어서
+#   하시겠습니까?" 를 띄우고 소켓을 닫는다. 서버 시계는 그 뒤에 오는 **백스톱**이라
+#   넉넉해야 한다. 5분으로 딱 맞추면 클라 지연·왕복 한 번에 서버가 먼저 끊어
+#   비버 말이 잘린다.
+# ⚠ 백스톱과의 관계도 확인했다: absolute_timeout = max(540, 360+22+30) = **540 그대로**다.
+#   조각을 8분 이상으로 올렸다면 이 관계가 뒤집혔을 것이다.
+#
+# ⛔⛔ **앱 문구가 아직 옛 계약이다** — `app_en.arb` 의 Pro "Unlimited calls. 15 minutes
+#   each." 는 이제 사실이 아니다(한 번에 15분이 아니라 6분×3). 아래 원래 경고가 그대로
+#   적용된다: 문구와 값이 어긋나면 결제한 사람의 통화가 광고보다 짧게 끊긴다.
+#   ⇒ 프론트에 문구 변경을 요청해야 한다(서버만 고쳐서는 못 닫는 구멍이다).
+CALL_FRAGMENT_S = 360.0     # 조각 하나의 서버측 상한(6분) — 플랜 무관
+
+# 플랜별 **조각 수**. 빈 dict 아님 — 모르는 플랜은 Free 로 떨어뜨린다(R5).
+CALL_FRAGMENTS_BY_PLAN: dict[str | None, int] = {
+    None: 1,     # Free — 6분 한 조각
+    "pro": 3,    # 최대 18분
+    "max": 3,    # Pro 상위집합 — 길이는 같다(차별점이 길이가 아니다)
+}
+FREE_CALL_FRAGMENTS = CALL_FRAGMENTS_BY_PLAN[None]
+
+# ⚠ 하위호환: 호출부가 아직 "이 회원의 통화 길이"를 묻는다. 조각 길이가 곧 그 답이다.
 CALL_DURATION_S_BY_PLAN: dict[str | None, float] = {
-    None: 300.0,    # Free — 5분
-    "pro": 900.0,   # 15분
-    "max": 900.0,   # 15분(Pro 상위집합)
+    None: CALL_FRAGMENT_S,
+    "pro": CALL_FRAGMENT_S,
+    "max": CALL_FRAGMENT_S,
 }
 FREE_CALL_DURATION_S = CALL_DURATION_S_BY_PLAN[None]
 
@@ -104,8 +131,23 @@ def effective_plan(db: Session, member_id: int) -> str | None:
     return entitlements.effective_plan(db, member_id)
 
 
+def call_fragments_for_member(db: Session, member_id: int) -> int:
+    """이 회원이 한 통화에서 이을 수 있는 **조각 수**. Free 1 / Pro·Max 3.
+
+    ⭐ 2026-08-19 재편의 축이다 — 플랜이 가르는 것은 **길이가 아니라 조각 수**다.
+      조각 하나는 누구에게나 6분이고, Pro·Max 는 그걸 3번까지 잇는다.
+    ⚠ 실패는 Free(1)로 떨어뜨린다(R5). 모르면 짧게 주는 편이 안전하다.
+    """
+    return CALL_FRAGMENTS_BY_PLAN.get(effective_plan(db, member_id), FREE_CALL_FRAGMENTS)
+
+
 def call_duration_s_for_member(db: Session, member_id: int) -> float:
-    """이 회원의 일반 통화 길이(초). Free 5분 / Pro·Max 15분.
+    """이 회원의 일반 통화 길이(초) = **조각 하나의 길이**. 전 플랜 6분.
+
+    ⚠ 2026-08-19 이전에는 이 값이 플랜을 갈랐다(Free 5분 / Pro·Max 15분). 지금은
+      플랜을 가르는 것이 `call_fragments_for_member`(조각 수)이고 이 값은 상수다.
+      ⛔ 그래도 이 함수를 지우지 않는다 — 호출부가 "이 통화 세션이 몇 초짜리냐"를
+        묻는 자리는 그대로 남아 있고, 그 답이 곧 조각 길이다.
 
     ⛔ 일일 한도(is_daily_limit_reached)와 달리 **환경으로 끄지 않는다.** 한도는 켜두면
       개발이 막히지만(하루 1회), 길이는 짧아질 뿐이고 dev 에서 15분을 밟아야 할 땐

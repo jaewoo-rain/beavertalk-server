@@ -344,6 +344,11 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     안 와서 시드가 영영 안 나가고 무음 백스톱으로 뚝 끊겼다. 이제 워처가 idle 을 감지해 직접 주입한다.
     """
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소(빠른 테스트)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleThenClose:
@@ -414,6 +419,11 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
     펌프(should_close 경로)가 깨끗한 idle 에 시드 주입 → 비버가 시드에 작별.
     """
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
@@ -505,6 +515,11 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     monkeypatch.setattr(cs, "IDLE_CLOSE_S", 0.2)
     # 5분 시계는 무음보다 훨씬 뒤에 오도록 크게(무음 경로가 먼저 종료를 주도).
     monkeypatch.setattr(cs, "CALL_DURATION_S", 100.0)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleForever:
@@ -624,7 +639,11 @@ def test_resolve_call_duration_clamps_and_defaults():
     dev = SimpleNamespace(ENV="dev")
     prod = SimpleNamespace(ENV="prod")
     # base 미지정 → env 강제값(CALL_DURATION_S), 그것도 없으면 Free 길이로 떨어진다.
-    base = cs.CALL_DURATION_S if cs.CALL_DURATION_S is not None else 300.0
+    # ⚠ 하드코딩 300.0 이었다 — 2026-08-19 조각 재편으로 Free 길이가 360(6분)이 됐다.
+    #   숫자를 다시 박지 않고 **출처를 따라간다**(표가 바뀌면 시험도 같이 움직인다).
+    from domains.learning.service.call_service import FREE_CALL_DURATION_S
+
+    base = cs.CALL_DURATION_S if cs.CALL_DURATION_S is not None else FREE_CALL_DURATION_S
     assert cs._resolve_call_duration(dev, None) == base       # 미지정 → 기본
     assert cs._resolve_call_duration(dev, 3) == 180.0         # 하한
     assert cs._resolve_call_duration(dev, 15) == 900.0        # 상한
@@ -727,6 +746,11 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
     _arm_fast(monkeypatch)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 곧 종료(_watch_call_clock)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     close_seen = asyncio.Event()
 
@@ -1708,6 +1732,11 @@ async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypat
     """일반 통화는 레벨테스트 경로와 무관 — 서버가 '[다음]' 질문을 주입하지 않고,
     일반 종료 시드('통화 시간이 다 됐다')로 정상 종료(레벨테스트 종료 시드 누수 없음)."""
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
@@ -1757,6 +1786,11 @@ async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monke
     """T-회귀: 일반 통화는 tool-use 무관 — send_tool_response 미호출, 일반 종료 시드
     ('통화 시간이 다 됐다') + 정상 작별. 레벨테스트 시드는 나오면 안 된다."""
     monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
@@ -2433,6 +2467,11 @@ def _swap_ready(monkeypatch):
     monkeypatch.setattr(cs, "SWAP_FLAP_GUARD_S", 5.0)
     monkeypatch.setattr(cs, "RECONNECT_MIN_REMAINING_S", 0.0)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 30.0)
+    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
+    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
+    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
+    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
+    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
 
 
 def _gen_with_handle(handles):

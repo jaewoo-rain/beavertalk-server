@@ -76,6 +76,15 @@ class ClientStart(BaseModel):
     """
 
     type: Literal["start"] = "start"
+    # ⭐⭐ **이어하기**(2026-08-19). 직전 조각의 call_id 를 그대로 돌려준다.
+    #   ⛔ 서버는 **새 통화 행을 만들지 않고 그 행에 계속 쓴다** — 목록·분석·발음 점수가
+    #     조각별로 갈리지 않게 하는 가장 싼 방법이다(행이 하나면 묶을 게 없다).
+    #   ⚠ 이름이 설계문서의 `resume_call_id` 가 아닌 이유: **프론트가 이미 이 이름으로
+    #     보내고 있다.** 서버가 맞추면 앱 배포가 필요 없다.
+    #   ⚠ 타입이 str 인 이유도 같다 — 프론트가 문자열로 보낸다("1234"). 서버가 int 로 바꾼다.
+    #   ⛔ 검증은 서버 몫이다: 본인 통화인가 · TTL(5분) 안인가 · 조각 상한을 안 넘겼나.
+    #     남의 call_id 를 들고 와도 통과하면 안 된다.
+    continues_call_id: str | int | None = None
     character_id: int | None = None
     inbound_call_id: str | None = None
     locale: str | None = None

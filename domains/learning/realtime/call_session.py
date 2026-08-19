@@ -78,6 +78,7 @@ from core.persona_prompt import (
     CONTROL_TAG,
     REGROUND_COVERED_CAP,
     build_leveltest_instruction,
+    build_resume_brief,
     build_continue_reminder,
     build_reground_brief,
     build_reground_reminder,
@@ -418,6 +419,8 @@ class _CallState:
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
+        # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
+        "is_leveltest",
         "last_beaver_question", "band_tasks", "band_target_language",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
@@ -551,6 +554,9 @@ class _CallState:
         # last_beaver_question: 직전 flush 된 비버 발화 스냅샷(사이드카의 prior_question 문맥).
         # band_tasks: 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
         self.band_observe: bool = False
+        # ⛔ 레벨테스트는 **길이 시계로 끝나야 한다**(3분 하드캡은 측정 설계다). 조각·프론트
+        #   종료 소유권과 무관하다 — 이 값이 그 두 세계를 가른다.
+        self.is_leveltest: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
@@ -571,6 +577,18 @@ class _CallState:
         #   토큰. ⛔ Live usage 와 **다른 그릇**이다 — 단가가 다르고, 섞으면 두 엔진
         #   비교가 오염된다. usage_json.sidecars 로 따로 나간다.
         self.sidecar_usage = gemini_analysis.LlmUsage()
+
+
+def _as_int(v) -> int | None:
+    """와이어에서 온 값을 int 로. 못 읽으면 None(호출부가 폴백한다).
+
+    ⚠ 프론트가 call_id 를 **문자열로** 보낸다("1234"). 여기서 안 받아 주면 이어하기가
+      조용히 안 되고, 원인은 로그에 안 남는다.
+    """
+    try:
+        return int(str(v).strip()) if v is not None and str(v).strip() else None
+    except (TypeError, ValueError):
+        return None
 
 
 class _ClientDisconnect(Exception):
@@ -997,6 +1015,9 @@ async def run_call(
         target_override = start.target_language
         call_type_override = start.call_type
         duration_override = start.duration_min
+        # ⭐ 이어하기 — 클라가 보내는 값은 문자열일 수 있다("1234"). 못 읽으면 조용히 무시하고
+        #   새 통화로 간다(거절이 아니라 폴백 — 이어하기가 안 된다고 통화를 막으면 더 나쁘다).
+        continues_call_id = _as_int(start.continues_call_id)
     except _ClientDisconnect:
         logger.info("normalcall: start 수신 전 클라 종료")
         return
@@ -1166,15 +1187,65 @@ async def run_call(
         if inject_materials and setup.get("study_items"):
             teaching_items = _teaching_plan_items(setup["study_items"])
 
-    # 3) 통화 행 생성(call_type + target_language 코드 기록).
-    call_id = await svc.run_db(
-        db_session_factory,
-        lambda db: svc.create_call(
-            db, member_id, character_id, call_type, target_language=spec.code
-        ),
-    )
+    # 3) 통화 행 — ⭐ **이어하기면 새로 만들지 않고 그 행에 계속 쓴다**(2026-08-19).
+    #    행이 하나면 통화 목록·통화후 분석·발음 점수·일일 한도가 저절로 하나로 묶인다.
+    #    ⚠ 검증(본인 통화·TTL 5분·조각 상한)은 서비스가 한다. 어긋나면 None 을 돌려주고
+    #      여기서 **새 통화로 폴백**한다 — 이어하기 실패가 통화 실패가 되면 안 된다.
+    call_id = None
+    resume_reason = ""
+    resumed = False
+    if continues_call_id is not None and call_type == "normal":
+        max_fragments = await svc.run_db(
+            db_session_factory,
+            lambda db: call_service.call_fragments_for_member(db, member_id),
+        )
+        call_id, resume_reason = await svc.run_db(
+            db_session_factory,
+            lambda db: svc.resume_call(
+                db, member_id, continues_call_id, max_fragments=max_fragments
+            ),
+        )
+        resumed = call_id is not None
+        logger.info(
+            "normalcall 이어하기: continues=%s → %s (%s)",
+            continues_call_id, "call_id=%d" % call_id if resumed else "새 통화로 폴백",
+            resume_reason,
+        )
+    if call_id is None:
+        call_id = await svc.run_db(
+            db_session_factory,
+            lambda db: svc.create_call(
+                db, member_id, character_id, call_type, target_language=spec.code
+            ),
+        )
 
     state = _CallState()
+    if resumed:
+        # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
+        #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
+        #   충돌이 조용히 난다 — 새 행이었으면 안 났을 사고다).
+        state.next_turn_index = await svc.run_db(
+            db_session_factory, lambda db: svc.next_turn_index(db, call_id)
+        )
+        logger.info("normalcall 이어하기: 턴 인덱스 %d 부터 이어서 기록", state.next_turn_index)
+        # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
+        #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
+        #   ⛔ "이어서 할게요" 를 시키지 않는다 — 그러면 끊김이 두 번 일어난다.
+        #     브리프 마지막 줄이 **첫 행동을 지정**한다(금지가 아니라 지정).
+        try:
+            mats = await svc.run_db(
+                db_session_factory, lambda db: svc.resume_materials(db, call_id, spec.code)
+            )
+            brief = build_resume_brief(**mats)
+            if brief:
+                system_instruction = system_instruction + "\n\n" + brief
+                logger.info(
+                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 화제=%s",
+                    len(mats["covered"]), len(mats["strong"]), len(mats["weak"]),
+                    (mats["topic"] or "")[:30] or "없음",
+                )
+        except Exception as exc:   # noqa: BLE001 — 브리프 실패가 통화를 막으면 안 된다(R5)
+            logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
@@ -1203,6 +1274,9 @@ async def run_call(
     if settings.LIVE_FACE_SPIKE:
         live_tools = [SET_FACE_TOOL]
     if call_type == "level_test":
+        # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은
+        #   상품 혜택이 아니라 **측정 설계**라, 클라가 언제 닫든 서버가 캡에서 끝내야 한다.
+        state.is_leveltest = True
         # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
         # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
         # 넛지는 이 한 값(state.call_duration_s)으로 흡수한다(무수정).
@@ -2587,26 +2661,64 @@ async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) ->
 # 통화 시계 워처 + 종료
 # --------------------------------------------------------------------------- #
 async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> None:
-    """경과 감시: CALL_DURATION_S 경과 → should_close, 이후 종료 시드 주입을 보장하고 하드 백스톱.
+    """종료 신호를 기다렸다가 시드 주입을 보장하고 하드 백스톱을 건다.
 
-    ⭐ RC1(소강 스타베이션) 방지: 5분 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서
+    ⛔⛔ **2026-08-19 임시 — 길이 만료는 프론트가 소유한다.** 예전에는 이 워처가
+      `call_duration_s` 경과를 직접 재서 종료를 시작했다. 지금은 조각 경계를 프론트가
+      잡으므로(5분에 소켓 닫기) 그 루프를 껐다. 근거·복구 방법은 아래 본문 주석에 있다.
+      ⇒ 이 워처가 반응하는 신호는 이제 **GoAway · 무음 3단 · 사이드카 종료요청**뿐이다.
+
+    ⭐ RC1(소강 스타베이션) 방지: 종료 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서
     시드를 주입하지만, 소강(idle, turn_id None) 구간이면 turn_end 가 오지 않아 시드가 영영
     안 나간다. 그래서 워처가 idle 을 감지하면 직접 주입한다(작별 없는 무음 종료 방지).
     """
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
-    while loop.time() - state.call_start_ts < state.call_duration_s:
-        # T2: 조기종료(tool 신호/GoAway/무음3단)가 캡 이전에 should_close 를 세우면 즉시
-        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지(최대 절대백스톱) 매달린다.
-        if state.should_close:
+
+    # ⛔⛔⛔ **임시: 종료 타이밍을 프론트가 잡는다**(2026-08-19 사장님 지시) ⛔⛔⛔
+    #
+    #   조각(6분)은 이제 **서버 시계가 아니라 프론트가** 끝낸다 — 5분에 "이어서
+    #   하시겠습니까?"를 띄우고 **소켓을 닫는다**. 서버는 그 닫힘을 `_ClientDisconnect`
+    #   로 받아 저장·분석까지 정상으로 돈다(실측 call 1078: "클라 연결 종료" → "저장 완료").
+    #
+    #   ⭐ 그리고 그게 조각 설계와 **맞다**: 조각 1·2 의 경계에서 비버가 작별을 하면 안 된다
+    #     (이어하기 설계 §8 "무음 컷 — 주입 0"). 소켓만 닫으면 주입이 0이라 자동으로 그렇게 된다.
+    #
+    # ⚠ **되돌리기: `LIVE_CALL_END_OWNER="server"`** 하나면 예전 동작이 그대로 살아난다.
+    #   코드를 주석으로 지우지 않은 이유는 그 설정의 주석에 적어 뒀다(회귀 3건이 걸려 있다).
+    #
+    # ⛔ **안 끈 것 — 이건 길이가 아니라 안전이다:**
+    #   ① `ABSOLUTE_CALL_TIMEOUT_S`(540초) 절대 백스톱(run_call 의 asyncio.timeout).
+    #      **프론트가 영영 안 닫아도 9분에 끝난다.** 무한 과금 방어.
+    #   ② GoAway · 무음 3단 · 사이드카 `_request_close` — 길이와 무관한 종료 사유.
+    #   ③ 아래 시드 주입·백스톱 — should_close 가 서면 그대로 돈다.
+    #
+    # ⚠ **마지막 조각의 작별은 지금 아무도 안 한다.** 프론트가 3번째도 그냥 닫으면 비버가
+    #   인사 없이 끊긴다. 이어하기 본구현에서 서버가 "마지막 조각"을 알게 되면 그때
+    #   시드를 되살린다(설계 §8 표: 조각3 = 기존 종료 시드 무수정).
+    # ⛔⛔ **레벨테스트는 스위치를 안 탄다**(회귀가 잡았다: band 사이드카 폴백 시험이 캡을
+    #   기다리다 타임아웃). 3분 하드캡은 상품 혜택이 아니라 **측정 설계**라 클라가 언제
+    #   닫든 서버가 캡에서 끝내야 한다. 조각·이어하기는 일반 통화의 개념이다.
+    client_owns_end = (
+        not state.is_leveltest
+        and (_settings.LIVE_CALL_END_OWNER or "").strip().lower() == "client"
+    )
+    while not state.should_close:
+        # T2: 조기종료(GoAway/무음3단/사이드카)가 캡 이전에 should_close 를 세우면 즉시
+        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지 매달린다.
+        if not client_owns_end and loop.time() - state.call_start_ts >= state.call_duration_s:
             break
         # 폴링 0.2s 유지 + 종료 요청이 오면 즉시 깨어난다(_request_close). TaskGroup 밖
         # 사이드카가 세션을 직접 잡지 않고도 지연 없이 종료 시드를 내보내게 하는 통로(B2).
         with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(state.close_requested.wait(), 0.2)
     state.should_close = True
-    logger.info("normalcall: %.0fs 경과/조기신호 → 종료 플래그", state.call_duration_s)
+    logger.info(
+        "normalcall: 종료 플래그(%s)",
+        "프론트 소유 — 신호 수신" if client_owns_end
+        else "%.0fs 경과/조기신호" % state.call_duration_s,
+    )
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.
     # ⭐ 종료 레이스(call 197): 유저가 5분 직전 마지막에 말하면 "유저 발화 끝~비버 응답 시작"

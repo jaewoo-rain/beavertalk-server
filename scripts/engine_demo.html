@@ -98,6 +98,9 @@
       <label class="muted">길이(분) <input id="dur" value="5" style="width:56px"></label>
       <button id="callBtn" disabled>📞 통화 시작</button>
       <button id="hangBtn" disabled>⏹ 끊기</button>
+      <!-- ⭐ 이어하기 — 끊고 나서 이 버튼을 누르면 직전 call_id 로 이어 붙는다.
+           서버가 새 통화 행을 만들지 않고 그 행에 계속 쓴다(목록·분석이 1건). -->
+      <button id="contBtn" disabled title="직전 call_id 로 이어 붙는다">▶ 이어하기</button>
       <span><span class="dot" id="dot"></span><span id="stat" class="muted">대기</span></span>
     </div>
   </div>
@@ -116,6 +119,7 @@
     <div class="stats">
       <div class="stat"><i>엔진</i><b id="sEngine">—</b></div>
       <div class="stat"><i>call_id</i><b id="sCall">—</b></div>
+      <div class="stat"><i>조각</i><b id="sFrag">—</b></div>
       <div class="stat"><i>경과</i><b id="sElapsed">0:00</b></div>
       <div class="stat"><i>내 턴</i><b id="sTurns">0</b></div>
       <div class="stat"><i>R 중앙값</i><b id="sR">—</b></div>
@@ -141,6 +145,8 @@ function apiBase(){ return location.origin; }
 function wsBase(){ const u = new URL(apiBase()); return (u.protocol==='https:'?'wss':'ws')+'://'+u.host; }
 
 let token = null, ws = null, engine = 'live';
+// ⭐ 이어하기 대상 call_id. 통화가 끝나면 채워지고, '이어하기' 로 시작하면 실려 나간다.
+let resumeFrom = null, lastCallId = null, fragNo = 0;
 let actx = null, micStream = null, srcNode = null, procNode = null;
 let playT = 0, t0 = 0, elapsedTimer = null;
 let pttHeld = false, releasedAt = 0, awaitingFirstAudio = false;
@@ -211,6 +217,22 @@ function playPCM24k(buf){
 
 /* ---------- 통화 ---------- */
 $('#callBtn').onclick = async () => {
+  // ⛔ '통화 시작' 은 언제나 **새 통화**다. 직전 통화를 잇고 싶으면 '이어하기' 를 쓴다.
+  //   둘을 한 버튼으로 묶으면 "왜 이어졌지/왜 안 이어졌지"를 화면만 보고 못 가른다.
+  resumeFrom = null;
+  await startCall();
+};
+
+$('#contBtn').onclick = async () => {
+  // ⭐ 직전 call_id 로 이어 붙는다. 되는지 여부는 **서버가 정한다**(본인·TTL 5분·조각 상한).
+  //   안 되면 서버가 조용히 새 통화로 떨어뜨리므로, 화면은 `call_id` 가 그대로인지로 가른다.
+  if (!lastCallId){ log('이어할 통화가 없다 — 먼저 한 통화를 끝내라', 'err'); return; }
+  resumeFrom = lastCallId;
+  log(`▶ 이어하기 시도 — continues_call_id=${resumeFrom}`, 'out');
+  await startCall();
+};
+
+async function startCall(){
   if (!token) return;
   turns = 0; rs.length = 0; playT = 0; t0 = nowMs();
   $('#sTurns').textContent='0'; $('#sR').textContent='—'; $('#sRLast').textContent='—';
@@ -234,8 +256,13 @@ $('#callBtn').onclick = async () => {
     $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
     // ⛔ 두 엔진의 start 계약이 다르다. 한쪽 모양을 다른 쪽에 보내면 조용히 무시되거나 거절된다.
     const msg = engine==='live'
-      ? { type:'start', character_id:+$('#cid').value||1, locale:$('#loc').value,
-          duration_min:+$('#dur').value||5 }
+      ? Object.assign(
+          { type:'start', character_id:+$('#cid').value||1, locale:$('#loc').value,
+            duration_min:+$('#dur').value||5 },
+          // ⭐ 이어하기: 직전 call_id 를 실어 보낸다. 서버가 검증(본인·TTL 5분·조각 상한)해서
+          //   되면 그 행에 계속 쓰고, 안 되면 **조용히 새 통화**로 떨어진다(거절 아님).
+          //   ⛔ 첫 통화에는 필드 자체를 안 보낸다 — null 을 보내면 의도가 흐려진다.
+          resumeFrom ? { continues_call_id: String(resumeFrom) } : {})
       // ⭐ turnControl:'ptt' — 벤더 VAD 를 끄고(turn_detection:null) 버튼이 턴 경계가 된다.
       //   ⚠ 낱말이 mode 가 아닌 이유: 와이어에서 mode 는 AecHint.mode 가 이미 점유했다.
       : { type:'start', sampleRate:16000, turnControl:'ptt', aec:{ mode:'hw', route:'browser' } };
@@ -266,7 +293,23 @@ $('#callBtn').onclick = async () => {
     }
     let m; try{ m = JSON.parse(ev.data); }catch{ return; }
     if (m.type==='call_started' || m.type==='call_ended'){
-      if (m.call_id) $('#sCall').textContent = m.call_id;
+      if (m.call_id){
+        // ⭐ **이어졌나 아닌가를 여기서 가른다.** 서버가 이어하기를 거절하면 조용히 새 통화로
+        //   떨어지므로(설계상 폴백), call_id 가 그대로면 이어진 것이고 바뀌면 새 통화다.
+        if (resumeFrom && String(m.call_id) === String(resumeFrom)){
+          fragNo += 1;
+          log(`✅ 이어짐 — call_id=${m.call_id} 유지, 조각 ${fragNo}`, 'ok');
+        } else if (resumeFrom){
+          fragNo = 1;
+          log(`⚠ 이어하기 거절됨 — 새 call_id=${m.call_id} (서버 로그에 사유)`, 'err');
+        } else {
+          fragNo = 1;
+        }
+        $('#sFrag').textContent = String(fragNo);
+        $('#sCall').textContent = m.call_id;
+        lastCallId = m.call_id;            // 끊고 나서 이어하기의 대상이 된다
+        $('#contBtn').disabled = false;
+      }
     }
     if (m.type==='error') log('⚠ '+(m.code||'')+' '+(m.message||''), 'err');
     else if (m.type!=='audio_cancel') log('← '+JSON.stringify(m).slice(0,220), 'in');
@@ -279,7 +322,7 @@ $('#callBtn').onclick = async () => {
     log(`연결 종료 code=${e.code} reason=${e.reason||'—'}`, e.code===1000?'':'err');
   };
   ws.onerror = () => log('⚠ WS 오류', 'err');
-};
+}
 
 $('#hangBtn').onclick = () => { try{ ws && ws.close(); }catch{} };
 $('#clearBtn').onclick = () => { $('#log').textContent=''; };

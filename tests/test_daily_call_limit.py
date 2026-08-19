@@ -16,6 +16,9 @@ import pytest
 from core.config import settings as app_settings
 from domains.learning.service.call_service import (
     CALL_DURATION_S_BY_PLAN,
+    CALL_FRAGMENTS_BY_PLAN,
+    CALL_FRAGMENT_S,
+    call_fragments_for_member,
     DAILY_CALL_LIMIT,
     call_duration_s_for_member,
     daily_window_utc,
@@ -158,35 +161,77 @@ def test_unknown_call_type_is_not_limited(patched_repo):
 
 
 # --------------------------------------------------------------------------- #
-# 4) 플랜별 통화 길이 — Free 5분 / Pro·Max 15분
+# 4) 플랜별 혜택 — ⭐ 2026-08-19 재편: **길이가 아니라 조각 수**가 플랜을 가른다
 # --------------------------------------------------------------------------- #
-# ⛔ 앱 카피(`app_en.arb`)가 계약이다: Free "One 5-minute voice call a day",
-#    Pro "Unlimited calls. 15 minutes each." 여기 숫자가 그 문구보다 짧으면 결제한
-#    사람의 통화가 광고보다 일찍 끊긴다.
-def test_plan_duration_table_matches_app_copy():
-    assert CALL_DURATION_S_BY_PLAN[None] == 300.0    # Free 5분
-    assert CALL_DURATION_S_BY_PLAN["pro"] == 900.0   # 15분
-    assert CALL_DURATION_S_BY_PLAN["max"] == 900.0   # Max 는 "Everything in Pro" — 길이 동일
+# 전: Free 한 통화 5분 / Pro·Max 한 통화 15분
+# 후: 조각은 누구나 **6분**, Free 는 1개 / Pro·Max 는 3개(= 최대 18분)
+#
+# ⛔⛔ **앱 카피가 아직 옛 계약이다.** `app_en.arb` 의 Pro "Unlimited calls.
+#    **15 minutes each**" 는 이제 사실이 아니다 — 한 번에 15분이 아니라 6분×3 이다.
+#    이 시험의 원래 목적이 "앱 문구와 서버 값의 드리프트 잡기"였으므로, 숫자만 바꿔서
+#    통과시키면 그 감시가 죽는다. ⇒ **프론트 문구 변경이 남은 일**임을 여기 남긴다.
+#    (서버만 고쳐서는 못 닫는 구멍이다 — 결제한 사람이 보는 약속은 앱 화면에 있다.)
+def test_the_plan_splits_on_fragment_count_not_length():
+    """⭐ 조각 길이는 **플랜 무관 상수**이고, 플랜은 조각 수를 정한다."""
+    assert CALL_FRAGMENT_S == 360.0
+    assert CALL_DURATION_S_BY_PLAN[None] == CALL_FRAGMENT_S
+    assert CALL_DURATION_S_BY_PLAN["pro"] == CALL_FRAGMENT_S
+    assert CALL_DURATION_S_BY_PLAN["max"] == CALL_FRAGMENT_S
+
+    assert CALL_FRAGMENTS_BY_PLAN[None] == 1     # Free — 한 조각
+    assert CALL_FRAGMENTS_BY_PLAN["pro"] == 3    # 최대 18분
+    assert CALL_FRAGMENTS_BY_PLAN["max"] == 3    # Pro 상위집합 — 길이는 같다
+
+
+def test_the_fragment_is_longer_than_the_client_boundary():
+    """⛔ 조각(6분)은 클라 경계(5분)보다 **넉넉해야** 한다.
+
+    조각 경계는 **프론트가 정한다** — 5분에 "이어서 하시겠습니까?"를 띄우고 소켓을 닫는다.
+    서버 시계는 그 뒤에 오는 **백스톱**이다. 5분으로 딱 맞추면 클라 지연·왕복 한 번에
+    서버가 먼저 끊어 **비버 말이 잘린다.**
+    """
+    CLIENT_BOUNDARY_S = 300.0
+    assert CALL_FRAGMENT_S > CLIENT_BOUNDARY_S
+
+
+def test_the_fragment_never_outlives_the_absolute_backstop():
+    """⛔⛔ 조각이 절대 백스톱을 밀어내면 **무한 과금 방어가 사라진다.**
+
+    `absolute_timeout = max(ABSOLUTE_CALL_TIMEOUT_S, 조각 + SEED_TO_HANGUP_S + 30)`
+    이므로, 조각이 커지면 어느 순간 백스톱이 **조각을 따라 늘어난다**. 6분에서는
+    max(540, 360+22+30) = 540 으로 백스톱이 이긴다. 8분 이상이면 뒤집힌다.
+    ⚠ 조각 길이를 올릴 땐 이 시험이 먼저 깨져야 한다.
+    """
+    from domains.learning.realtime.call_session import (
+        ABSOLUTE_CALL_TIMEOUT_S, SEED_TO_HANGUP_S,
+    )
+
+    assert CALL_FRAGMENT_S + SEED_TO_HANGUP_S + 30.0 <= ABSOLUTE_CALL_TIMEOUT_S
 
 
 @pytest.mark.parametrize(
     "state,plan,expected",
     [
-        ("free", None, 300.0),
-        ("active_pro", "pro", 900.0),
-        ("active_max", "max", 900.0),
-        # grace(결제 재시도 중)는 **접근 유지** — 길이를 뺏으면 카드 갱신하는 동안
+        ("free", None, 1),
+        ("active_pro", "pro", 3),
+        ("active_max", "max", 3),
+        # grace(결제 재시도 중)는 **접근 유지** — 혜택을 뺏으면 카드 갱신하는 동안
         # 통화가 짧아진다. ending(해지했지만 기간 남음)도 같다.
-        ("grace", "max", 900.0),
-        ("ending", "pro", 900.0),
-        ("trial", "max", 900.0),
-        # on_hold(유예도 끝남)·expired 는 접근 없음 → Free 길이.
-        ("on_hold", "max", 300.0),
-        ("expired", None, 300.0),
+        ("grace", "max", 3),
+        ("ending", "pro", 3),
+        ("trial", "max", 3),
+        # on_hold(유예도 끝남)·expired 는 접근 없음 → Free 혜택.
+        ("on_hold", "max", 1),
+        ("expired", None, 1),
     ],
 )
-def test_duration_follows_effective_plan(monkeypatch, state, plan, expected):
-    """길이는 구독 **상태**가 여는 플랜을 따른다 — resolve_status 를 재사용한다."""
+def test_fragments_follow_effective_plan(monkeypatch, state, plan, expected):
+    """⭐ **조각 수**가 구독 상태가 여는 플랜을 따른다 — resolve_status 를 재사용한다.
+
+    ⚠ 2026-08-19 이전에는 이 시험의 축이 **길이**였다. 재편으로 길이가 상수가 되면서
+      혜택을 나르는 값이 조각 수로 옮겨갔다 — 시험도 그 축으로 따라간다.
+      ⛔ 지우지 않고 옮긴 이유: 지키려던 성질("결제 상태가 혜택을 연다")은 그대로다.
+    """
     from domains.commerce.service.subscription_status import ResolvedStatus
 
     monkeypatch.setattr(
@@ -200,15 +245,17 @@ def test_duration_follows_effective_plan(monkeypatch, state, plan, expected):
         "domains.commerce.repository.subscribe_repository.SubscribeRepository",
         lambda _db: type("_R", (), {"list_by_member": lambda self, _m: [object()]})(),
     )
-    assert call_duration_s_for_member(None, 1) == expected
+    assert call_fragments_for_member(None, 1) == expected
 
 
-def test_duration_falls_back_to_free_when_lookup_fails():
-    """R5: 구독 조회가 죽어도 통화는 열린다 — 모르면 짧게(Free) 준다.
+def test_fragments_fall_back_to_free_when_lookup_fails():
+    """R5: 구독 조회가 죽어도 통화는 열린다 — 모르면 짧게(Free=1조각) 준다.
 
     db=None 이면 SubscribeRepository 가 터진다. 그게 여기서 원하는 상황이다.
+    ⚠ 길이는 이제 상수라 이 자리에서 물을 게 없다 — 떨어질 수 있는 값은 조각 수뿐이다.
     """
-    assert call_duration_s_for_member(None, 1) == 300.0
+    assert call_fragments_for_member(None, 1) == 1
+    assert call_duration_s_for_member(None, 1) == CALL_FRAGMENT_S
 
 
 @pytest.mark.parametrize("env", ["dev", "test", "prod"])
@@ -219,4 +266,5 @@ def test_duration_is_not_gated_by_env(monkeypatch, env):
     dev 에서 15분이 필요하면 NORMAL_CALL_DURATION_S 로 전 회원 강제하는 탈출구를 쓴다.
     """
     monkeypatch.setattr(app_settings, "ENV", env)
-    assert call_duration_s_for_member(None, 1) == 300.0
+    assert call_duration_s_for_member(None, 1) == CALL_FRAGMENT_S
+    assert call_fragments_for_member(None, 1) == 1

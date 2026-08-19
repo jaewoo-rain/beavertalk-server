@@ -19,7 +19,7 @@ from typing import Callable, Literal, Optional, TypeVar
 from fastapi.concurrency import run_in_threadpool
 from google import genai
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core import curriculum_hints, gemini_analysis, storage, tts
@@ -41,6 +41,7 @@ from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.service import entitlements
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
+from domains.learning.service import call_service
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.level import Level
@@ -508,6 +509,128 @@ def _load_study_materials(
         "known_items": known_items,
         "promotion_notice": mastery_repository.promotion_pending(db, member_id, language),  # ⑧
         "candidates": candidates or None,
+    }
+
+
+# ⭐⭐ 이어하기 유효시간(2026-08-19 사장님 결정). "이어서" 를 누를 수 있는 창.
+#   ⚠ 짧으면 화장실 다녀온 사이 끊기고, 길면 30분 뒤 돌아와 이어서 어색해진다.
+RESUME_TTL_S = 300.0
+
+
+def resume_call(
+    db: Session, member_id: int, continues_call_id: int, *, max_fragments: int,
+) -> tuple[int | None, str]:
+    """이어하기 요청을 검증하고 **그 통화 행을 그대로 돌려준다**(새로 만들지 않는다).
+
+    ⭐ 조각을 새 행으로 만들지 않는 이유: 목록·분석·발음 점수·한도가 전부 `call_id`
+      기준이다. 행이 하나면 **묶을 게 없다** — 15분 대화가 저절로 1건이다.
+      (설계 초안의 `root_call_id` 묶기보다 싸고, 놓칠 자리가 적다.)
+
+    ⛔ 검증 3가지. 하나라도 어긋나면 이어하지 않고 **새 통화로 떨어진다**(거절이 아니라
+      폴백이다 — 이어하기가 안 된다고 통화를 막으면 그게 더 나쁘다):
+        ① 본인 통화인가      — 남의 call_id 를 들고 와도 통과하면 안 된다
+        ② TTL 안인가          — 마지막 조각이 끝난 지 5분 이내
+        ③ 조각 상한 안인가    — Free 1 / Pro·Max 3
+
+    Returns:
+        (call_id, 사유). call_id 가 None 이면 이어하기 불가(호출부가 새 통화를 만든다).
+    """
+    call = db.query(Call).filter(Call.call_id == continues_call_id).first()
+    if call is None:
+        return None, "없는 통화"
+    if call.member_id != member_id:
+        # ⛔ 남의 통화에 내 발화를 이어 붙이는 것을 막는다. 로그에 남긴다(탐지용).
+        return None, "본인 통화 아님"
+    if (call.call_type or "normal") != "normal":
+        # 레벨테스트는 조각 개념이 없다(3분 하드캡은 측정 설계다).
+        return None, "일반 통화 아님"
+
+    last = call.call_date
+    if last is not None:
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - last).total_seconds()
+        # ⚠ `call_date` 는 **시작 시각**이라 조각 길이(6분)만큼 이미 흘러 있다.
+        #   TTL 은 "조각이 끝난 뒤"부터 재야 하므로 조각 길이를 얹어 준다.
+        if elapsed > RESUME_TTL_S + call_service.CALL_FRAGMENT_S:
+            return None, "유효시간 초과(%.0fs)" % elapsed
+
+    used = call.fragment_count or 1
+    if used >= max_fragments:
+        return None, "조각 상한(%d/%d)" % (used, max_fragments)
+
+    call.fragment_count = used + 1
+    # ⚠ `call_date` 를 갱신한다 — 다음 조각의 TTL 기준이 되어야 한다. 통화 "시작" 시각이
+    #   밀리지만, 이 값의 소비처는 목록 정렬과 TTL 이고 둘 다 최신이 맞다.
+    call.call_date = datetime.now(timezone.utc)
+    call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다
+    db.commit()
+    return call.call_id, "조각 %d/%d" % (call.fragment_count, max_fragments)
+
+
+def next_turn_index(db: Session, call_id: int) -> int:
+    """이 통화에 이미 저장된 턴 수 — 이어하기에서 `turn_index` 를 **이어서** 매긴다.
+
+    ⛔ 0 부터 다시 매기면 조각2의 첫 턴이 조각1의 첫 턴을 덮어쓰거나 순서가 섞인다.
+      전사·증거가 전부 이 인덱스로 정렬된다.
+    """
+    return int(
+        db.query(func.count(CallRawData.call_raw_data_id))
+        .filter(CallRawData.call_id == call_id)
+        .scalar() or 0
+    )
+
+
+def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
+    """이어하기 브리프의 **재료**를 모은다 — ⭐ 대부분은 LLM 이 아니라 DB 가 안다.
+
+    | 항목            | 출처 |
+    |-----------------|------|
+    | 이미 다룬 것    | ✅ `item_evidence`(이 통화) — 증거가 원본이다 |
+    | 잘 해낸 것      | ✅ 등급 E2(유도)·E3(자발) |
+    | 헷갈려 하는 것  | ✅ 등급 F(오류) |
+    | 무슨 얘기 중이었나 | ⚠ 전사 마지막 턴 — LLM 없이 원문을 그대로 쓴다 |
+
+    ⛔ LLM 에 "뭘 배웠나"를 묻지 않는다. 증거가 이미 정답을 갖고 있고, 물으면 환각이 섞인다.
+      (관통 원칙 ②: 증거가 원본, 나머지는 파생 계산.)
+    ⚠ `curious`(궁금해했던 것)는 지금 안 채운다 — 그건 대화에서만 나오고 LLM 이 필요하다.
+      v1 은 DB 재료만으로 간다. 값어치가 확인되면 그때 사이드카를 붙인다.
+    """
+    from domains.learning.models.item_evidence import ItemEvidence
+    from domains.learning.models.learning_item import LearningItem
+
+    rows = (
+        db.query(ItemEvidence.grade_final, LearningItem.surface)
+        .join(LearningItem, LearningItem.item_id == ItemEvidence.item_id)
+        .filter(ItemEvidence.call_id == call_id, ItemEvidence.language == language)
+        .order_by(ItemEvidence.evidence_id)
+        .all()
+    )
+    covered, strong, weak = [], [], []
+    for grade, title in rows:
+        if not title:
+            continue
+        if title not in covered:
+            covered.append(title)
+        if grade in ("E2", "E3") and title not in strong:
+            strong.append(title)
+        elif grade == "F" and title not in weak:
+            weak.append(title)
+    # ⚠ 잘 해낸 것에 들어간 항목은 '헷갈림'에서 뺀다 — 한 통화에서 틀렸다 맞혔으면
+    #   결과는 맞힌 쪽이다. 둘 다 실으면 비버가 모순된 지시를 받는다.
+    weak = [w for w in weak if w not in strong]
+
+    last = (
+        db.query(CallRawData.text)
+        .filter(CallRawData.call_id == call_id, CallRawData.text.isnot(None))
+        .order_by(CallRawData.turn_index.desc())
+        .limit(2)
+        .all()
+    )
+    topic = " / ".join(t[0].strip() for t in reversed(last) if t[0] and t[0].strip())[:200]
+    return {
+        "covered": covered[:12], "strong": strong[:6], "weak": weak[:6],
+        "topic": topic or None, "curious": None,
     }
 
 

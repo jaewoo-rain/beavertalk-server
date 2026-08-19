@@ -66,6 +66,15 @@ class Call(Base, TimestampMixin):
     mode: Mapped[Optional[str]] = mapped_column(
         Text, comment="감지된 통화 모드(conversation/study/unknown)",
     )
+    # ⭐⭐ **이어하기 조각 수**(2026-08-19). 한 통화가 6분 조각 몇 개로 이루어졌나.
+    #   ⛔ 조각을 **새 행으로 만들지 않는다** — 같은 행에 계속 쓴다. 그래야 목록·분석·
+    #     발음 점수·일일 한도가 조각별로 갈리지 않는다(행이 하나면 묶을 게 없다).
+    #   ⇒ 이 컬럼은 "몇 번 이었나"만 센다. Free 는 1, Pro·Max 는 최대 3.
+    #   ⚠ 기본 1 — 이어하기 없는 통화도 조각 1개다(0 이 아니다). 기존 행도 1로 채워진다.
+    fragment_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1"),
+        comment="이어하기 조각 수(1=이어하기 없음)",
+    )
     call_type: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'normal'"),
         comment="통화 종류(normal/level_test)",
