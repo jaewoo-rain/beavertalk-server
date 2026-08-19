@@ -29,7 +29,10 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -r requirements.txt
+      # ⛔ 테스트 의존성은 **따로** 산다(requirements-dev.txt). 런타임에 섞으면 Cloud Run
+      #   이미지에 pytest 가 들어간다 — 크기도 문제지만 운영 컨테이너에 테스트 도구가
+      #   사는 것 자체가 공격면이다.
+      - run: pip install -r requirements.txt -r requirements-dev.txt
       # ⚠ 앱은 import 시점에 DB URL 을 요구한다(core/config.py). 실제로 붙지는 않는다.
       #   ⛔ 진짜 DB 를 주지 마라 — CI 가 실서비스에 붙는다.
       - name: pytest

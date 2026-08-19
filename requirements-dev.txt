@@ -1,0 +1,11 @@
+# 테스트 전용 의존성 — ⛔ 런타임(requirements.txt)과 **섞지 않는다**.
+#
+# ⚠ 섞으면 Cloud Run 이미지에 pytest 가 들어간다. 이미지가 커지고, 운영 컨테이너에
+#   테스트 도구가 사는 것 자체가 공격면이다.
+# ⭐ 그런데 CI 에는 필요하다 — `pytest: command not found` 로 첫 실행이 실패했다
+#   (2026-08-19, run 32241012710). 그래서 파일을 나눠 CI 에서만 설치한다.
+#
+# 버전은 로컬 conda 환경(beavertalk-server)과 맞춘다. 여기가 갈리면 "로컬은 통과,
+# CI 는 실패"가 나고 원인이 안 보인다.
+pytest==9.1.1
+pytest-asyncio==1.4.0
