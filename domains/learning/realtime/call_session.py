@@ -1244,6 +1244,35 @@ async def run_call(
             mats = await svc.run_db(
                 db_session_factory, lambda db: svc.resume_materials(db, call_id, spec.code)
             )
+            # ⭐⭐ **슬롯이 아직 없으면 지금 만든다**(2026-08-19 실측 사고).
+            #   조각 종료 시점 생성은 fire-and-forget 이라 이어하기가 그걸 **앞지른다**:
+            #     07:00:48 저장 → 07:00:51 이어하기(슬롯 없음) → 07:00:53 요약 완성
+            #   그때 발췌 폴백을 탔고, 짧은 통화라 **비버의 첫 인사가 발췌 맨 앞**에 왔다.
+            #   ⇒ 비버가 그걸 요약이 아니라 **대본으로 읽어** 글자까지 똑같이 다시 인사했다
+            #     (t10 == t1). 원문을 주면 따라 한다 — 그게 원문 덤프의 진짜 위험이다.
+            #   ⚠ 여기서 LLM 을 한 번 더 부르지만 **체감 지연은 0에 가깝다**: Live 세션을
+            #     여는 데만 2초가 걸리고(실측 07:00:51→07:00:53) 요약은 thinking 0 · 짧은
+            #     전사라 그보다 빠르다.
+            if not mats.get("topic") and not mats.get("facts") and client is not None:
+                tail = await svc.run_db(
+                    db_session_factory, lambda db: svc._resume_transcript(db, call_id)
+                )
+                slots = await svc.summarize_for_resume_text(
+                    client, settings.JUDGE_MODEL, tail
+                )
+                if slots:
+                    mats["topic"] = slots.get("topic") or None
+                    mats["facts"] = slots.get("learner_facts") or None
+                    mats["pending"] = slots.get("pending") or None
+                    mats["excerpt"] = None      # ⛔ 슬롯이 생겼으면 발췌는 안 보낸다
+                    await svc.run_db(
+                        db_session_factory,
+                        lambda db: svc._save_resume_context(db, call_id, slots),
+                    )
+                    logger.info(
+                        "normalcall 이어하기 요약(즉석): 화제=%r 사실 %d개",
+                        slots.get("topic"), len(slots.get("learner_facts") or []),
+                    )
             brief = build_resume_brief(**mats)
             if brief:
                 system_instruction = system_instruction + "\n\n" + brief

@@ -611,6 +611,14 @@ _RESUME_SUMMARY_INSTRUCTION = (
 )
 
 
+def _learner_only(excerpt: str | None) -> str | None:
+    """발췌에서 **학습자 발화만** 남긴다 — 비버 대사는 따라 할 대본이 된다."""
+    if not excerpt:
+        return None
+    kept = [p for p in excerpt.split(" / ") if p.startswith("학습자:")]
+    return " / ".join(kept) or None
+
+
 def _resume_transcript(db: Session, call_id: int) -> str:
     """이 통화의 전사를 요약기에 넣을 한 덩어리로. ⛔ DB 접근만(async 없음 — run_db 안이다)."""
     rows = (
@@ -774,7 +782,12 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
         "topic": slots.get("topic") or None,
         "pending": slots.get("pending") or None,
         "facts": slots.get("learner_facts") or None,
-        "excerpt": None if slots else topic,     # 폴백 — 슬롯이 없을 때만
+        # ⛔⛔ **폴백 발췌에서 비버 발화를 뺀다**(2026-08-19 실측). 비버의 첫 인사가 발췌
+        #   맨 앞에 오자 비버가 그걸 **대본으로 읽어 글자까지 똑같이 다시 인사했다.**
+        #   학습자 발화만 남기면 따라 할 대본이 없다.
+        #   ⚠ 애초에 이 폴백은 호출부가 즉석 요약으로 대체한다 — 여기 남은 건 그것마저
+        #     실패했을 때의 마지막 그물이다.
+        "excerpt": None if slots else _learner_only(topic),
         "said": said, "summary": summary, "curious": None,
     }
 
