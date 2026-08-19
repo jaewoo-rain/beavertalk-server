@@ -4146,3 +4146,104 @@ def test_only_the_new_fragment_is_verified(monkeypatch, session_factory, seeded)
     assert all("잘 부탁드립니다" not in t for t in beaver_texts), (
         "앵무새 게이트가 이전 조각의 정답 발화를 보고 있다 — 자발이 E1 로 몰린다"
     )
+
+
+# --------------------------------------------------------------------------- #
+# (x) ⭐ 이어하기 **통합** — 조각1 → 조각2 를 실제로 이어 돌린다 (2026-08-19)
+#
+# ⛔⛔ 이 시험이 없어서 사장님이 결함 3건을 **손으로** 찾으셨다:
+#       ① 조각2 증거 0건        (멱등 가드가 call_id 단위였다)
+#       ② 게이트가 0.4초에 열림 (낡은 요약을 최신으로 봤다)
+#       ③ 비버가 다시 인사      (seed_opening 이 그대로 나갔다)
+#     셋 다 **조각2에서만** 드러난다. 부품 단위 시험은 전부 통과했는데 이어 붙이니 깨졌다.
+#     ⇒ 길이가 곧 커버리지가 아니다. 12분짜리 스위트가 129개의 **한 조각짜리** 통화를
+#       돌리는 동안, 두 조각짜리는 **한 번도** 안 돌았다.
+# --------------------------------------------------------------------------- #
+def _two_turn_factory(holder, said: str):
+    """비버가 한 번 묻고 학습자가 한 번 답하는 최소 세션."""
+    import contextlib
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+        sess = FakeLiveSession()
+
+        async def _events():
+            yield LiveEvent(kind="out_tr", text="자, 따라 해 볼까?")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            yield LiveEvent(kind="in_tr", text=said)
+            yield LiveEvent(kind="turn_end")
+
+        sess.events = _events
+        holder.setdefault("instructions", []).append(system_instruction)
+        holder["session"] = sess
+        yield sess
+
+    return _factory
+
+
+async def _one_fragment(session_factory, seeded, *, said: str, continues=None):
+    """조각 하나를 돌린다. 이어하기면 `continues` 에 직전 call_id 를 준다.
+
+    ⚠ 시드 회원은 **Free(조각 1개)** 라 그대로면 이어하기가 정상적으로 거절된다 —
+      그게 올바른 정책이다. 조각 로직을 보려면 Pro 상당(3개)을 줘야 한다.
+      ⭐ 이 함정을 시험이 먼저 밟았다는 게 통합 시험의 값어치다(정책과 배관을 같이 태운다).
+    """
+    holder: dict = {}
+    start = {"type": "start", "character_id": seeded["character_id"]}
+    if continues is not None:
+        start["continues_call_id"] = str(continues)
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps(start)}])
+    cs.call_service.call_fragments_for_member = lambda db, mid: 3   # Pro 상당
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"],
+                   live_session_factory=_two_turn_factory(holder, said))
+    await _wait_analysis_tasks()
+    frames = [json.loads(t) for t in ws.sent_text]
+    started = next((f for f in frames if f.get("type") == "call_started"), {})
+    return started.get("call_id"), holder
+
+
+@pytest.mark.asyncio
+async def test_two_fragments_share_one_call_and_keep_appending(
+        session_factory, seeded):
+    """⭐ 조각2가 **같은 행에 이어 쓰는지**를 끝까지 돌려서 본다.
+
+    ⛔ 부품 시험으로는 못 잡는다 — `resume_call` 도 `next_turn_index` 도 각각은 맞았는데,
+      이어 붙이면 멱등 가드·낡은 요약·시드가 조각2에서만 어긋났다.
+    """
+    cid1, h1 = await _one_fragment(session_factory, seeded, said="안녕하세요")
+    assert cid1, "call_started 가 call_id 를 안 실었다 — 이어할 번호가 없다"
+
+    cid2, h2 = await _one_fragment(
+        session_factory, seeded, said="감사합니다", continues=cid1)
+    assert cid2 == cid1, "조각2가 새 통화를 만들었다 — 목록·분석이 갈린다"
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 1, "행이 둘이면 이어하기가 아니다"
+        call = db.query(Call).one()
+        assert call.fragment_count == 2
+
+        # ⛔ 턴 인덱스가 이어져야 한다. 0 부터 다시 매기면 같은 행에서 **조용히 충돌**한다.
+        idxs = [r.turn_index for r in
+                db.query(CallRawData).order_by(CallRawData.turn_index).all()]
+        assert idxs == sorted(idxs) and len(idxs) == len(set(idxs)), idxs
+        assert max(idxs) >= 2, idxs
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_the_resume_fragment_does_not_greet_again(session_factory, seeded):
+    """⛔ 조각2 지시문은 **이어하기 시드**를 써야 한다 — 안 그러면 처음처럼 인사한다.
+
+    실측(call 1087): 조각2 첫 마디가 조각1 첫 마디와 **글자까지 같았다.**
+    브리프에 "인사하지 마라"가 있어도 소용없다 — 시드가 직접 명령이라 그게 이긴다.
+    """
+    cid1, _ = await _one_fragment(session_factory, seeded, said="안녕하세요")
+    _, h2 = await _one_fragment(
+        session_factory, seeded, said="감사합니다", continues=cid1)
+
+    si = (h2.get("instructions") or [""])[0]
+    assert "[지금까지]" in si, "이어하기 브리프가 지시문에 안 붙었다"
+    assert "처음 만난 것처럼 인사하지 말고" in si
