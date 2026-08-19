@@ -1295,10 +1295,18 @@ async def run_call(
             seed_text = seed_resume(target_language)
             if brief:
                 system_instruction = system_instruction + "\n\n" + brief
+                # ⚠ `사실`·`하던것`·`발췌` 를 같이 찍는다(2026-08-19). 전에는 DB 기반 셋만
+                #   찍어서, 요약이 `사실 3개` 를 만들었는데 브리프 로그는 `다룬 0 · 잘함 0 ·
+                #   헷갈림 0` 이라 **아무것도 안 들어간 것처럼 보였다.** 관측 구멍이었다.
+                #   ⭐ `발췌` 는 폴백을 탔는지를 가른다 — 붙어 있으면 요약이 없었다는 뜻이다.
                 logger.info(
-                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 화제=%s",
+                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 사실 %d · "
+                    "화제=%s · 하던것=%s%s",
                     len(mats["covered"]), len(mats["strong"]), len(mats["weak"]),
+                    len(mats.get("facts") or []),
                     (mats["topic"] or "")[:30] or "없음",
+                    (mats.get("pending") or "")[:30] or "없음",
+                    " · ⚠발췌폴백" if mats.get("excerpt") else "",
                 )
         except Exception as exc:   # noqa: BLE001 — 브리프 실패가 통화를 막으면 안 된다(R5)
             logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
