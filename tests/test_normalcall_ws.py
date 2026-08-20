@@ -3667,7 +3667,10 @@ async def test_face_markers_flow_and_duplicates_are_dropped(
     프론트는 상태를 안 들고 오는 대로 적용하므로 같은 값을 또 보내면 **영상 컨트롤러를
     헛되이 흔든다** — 하드 디코더가 2~3개 한계라(sync_avatar.dart:21) 공짜가 아니다.
     """
-    script = ["happy", "__audio", "happy", "__turn_end", "sad", "__audio", "__turn_end"]
+    # ⚠ 2026-08-20: **첫 인사 턴의 set_face 는 서버가 버린다.** 그래서 스크립트가
+    #   인사 턴(오디오+turn_end)을 먼저 흘려보낸 뒤에 표정을 부른다 — 실제 통화의
+    #   모양과 같다(비버가 인사하고, 학습자가 답하고, 그 다음 턴부터 표정).
+    script = ["__audio", "__turn_end", "happy", "__audio", "happy", "__turn_end", "sad", "__audio", "__turn_end"]
     markers, holder = await _run_face_call(
         monkeypatch, session_factory, seeded, script, on=True)
 
@@ -3689,8 +3692,11 @@ async def test_the_first_marker_precedes_the_audio_on_the_wire(
     (`at:_envAdded`) 재생이 그 지점에 닿을 때 터뜨린다. 그래서 서버가 지킬 것은 순서 하나다.
     ⚠ 이때 턴은 **아직 안 열려 있다** — 모델이 말하기 전에 표정을 정하기 때문이다
       (실측 27/28 이 오디오 0.00초 지점). `turn_id` 가 비어도 나가야 한다.
+    ⚠ 2026-08-20: 첫 인사 턴의 set_face 는 서버가 버리므로(인사 중복 방지), 스크립트가
+      인사 턴을 먼저 한 번 흘려보낸 뒤에 표정을 부른다. 이 시험이 보는 것은 **순서**이지
+      "첫 호출이 나가는가"가 아니다.
     """
-    script = ["happy", "__audio", "__turn_end"]
+    script = ["__audio", "__turn_end", "happy", "__audio", "__turn_end"]
     holder: dict = {}
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     ws = FakeWebSocket([
@@ -3702,11 +3708,14 @@ async def test_the_first_marker_precedes_the_audio_on_the_wire(
                    live_session_factory=_face_factory(holder, script))
     await _wait_analysis_tasks()
 
-    # 와이어에 실제로 나간 순서: sentence 마커가 turn_start 보다 **먼저**여야 한다
-    # (turn_start 는 첫 오디오가 연다 ⇒ 마커가 그보다 앞이면 오디오보다도 앞이다).
+    # 와이어에 실제로 나간 순서: sentence 마커가 **자기 턴의** turn_start 보다 먼저여야
+    # 한다(turn_start 는 첫 오디오가 연다 ⇒ 마커가 그보다 앞이면 오디오보다도 앞이다).
+    # ⛔ 첫 turn_start 와 비교하지 마라 — 그건 **인사 턴** 것이고 마커보다 앞이다.
+    #   봐야 할 것은 "마커 **뒤에** 그 턴의 turn_start 가 오는가"다.
     types = [json.loads(t).get("type") for t in ws.sent_text]
     assert "sentence" in types, types
-    assert types.index("sentence") < types.index("turn_start"), types
+    i = types.index("sentence")
+    assert "turn_start" in types[i:], types  # 마커가 자기 오디오보다 앞이다
 
 
 @pytest.mark.asyncio
@@ -3782,7 +3791,8 @@ async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
     # 소리 한 조각 없이 감정만 6회(값도 계속 바꿔 중복 억제에 안 걸리게 한다)
-    script = ["happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
+    # ⚠ 첫 인사 턴을 먼저 소비한다(위 시험 주석 참조) — 그래야 폭주 차단기만 잰다.
+    script = ["__audio", "__turn_end", "happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
     holder: dict = {}
     ws = FakeWebSocket([
         {"type": "websocket.receive",
@@ -3820,7 +3830,8 @@ async def test_audio_clears_the_storm_counter(monkeypatch, session_factory, seed
     """
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
-    script = ["happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
+    # ⚠ 첫 인사 턴을 먼저 소비한다(위 시험 주석 참조).
+    script = ["__audio", "__turn_end", "happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
     holder: dict = {}
     ws = FakeWebSocket([
         {"type": "websocket.receive",

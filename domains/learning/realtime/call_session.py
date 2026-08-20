@@ -407,6 +407,11 @@ class _CallState:
         "face_first_audio_at", "face_first_tr_at",
         # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
         "face_streak",
+        # ⭐ 이 조각에서 **비버가 마친 턴 수**. 첫 인사 턴 판정에 쓴다(0 이면 인사 중).
+        #   ⛔ next_turn_index 로 대신하지 마라 — 그건 학습자 세그먼트도 같이 세고,
+        #     무음이면 flush 자체가 생략돼(pcm·text 둘 다 비면 early-return) 값이 어긋난다.
+        #     실제로 그 오차 때문에 회귀가 깨졌다(2026-08-20).
+        "beaver_turns",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -468,6 +473,7 @@ class _CallState:
         self.cur_beaver_pcm = bytearray()
         self.cur_beaver_text: list[str] = []
         self.next_turn_index = 0
+        self.beaver_turns = 0
         self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
         self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
@@ -706,6 +712,7 @@ def _flush_beaver_segment(state: _CallState) -> None:
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
     state.next_turn_index += 1
+    state.beaver_turns += 1
     state.cur_beaver_pcm = bytearray()
     state.cur_beaver_text = []
 
@@ -2408,13 +2415,29 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   ⛔ `turn_id` 로 리셋하지 않는다. 표정은 턴을 넘어 유지되는 상태다 —
             #     턴마다 비우면 다음 턴 첫 마커가 항상 중복으로 나간다.
             duplicate = emotion == state.face_last
+            # ⛔⛔ **첫 인사 턴의 호출은 버린다**(2026-08-20 실측).
+            #   프롬프트에 "첫 인사에서는 부르지 마라"를 넣었는데 **모델이 안 지켰다**
+            #   (call 1117: 5.60초 지점에서 호출). 그리고 지시문이 예고한 그대로,
+            #   인사가 한 턴 안에서 **글자까지 똑같이 두 번** 나갔다:
+            #     "여보세요! What do you want to do today? ...여보세요! What do you ..."
+            #     [en:144자/11.3초]  ← 첫 문장 끝(5.6초)에서 호출 → 그 뒤 반복
+            #   ⭐ 지시는 부탁이고 이건 계약이다 — 폭주 차단기와 같은 규율이다.
+            #     서버가 버리면 마커도 안 나가고 모델 설득에 기대지 않아도 된다.
+            #
+            #   ⚠ 판정 기준: 이 조각에서 **비버가 아직 한 턴도 못 마쳤나**(beaver_turns==0).
+            #     ⛔ next_turn_index 로 재지 마라 — 학습자 세그먼트도 같이 세는데 무음이면
+            #       flush 가 생략돼 값이 어긋난다(회귀가 실제로 깨졌다).
+            #   ⭐ 이어하기 조각은 beaver_turns 가 0 에서 시작하지만 **인사 자체가 없다**
+            #     (이어하기 규약: 조각 경계에서 주입 0). 첫 응답이 곧 본론이라 한 턴만
+            #     늦게 붙는 셈이고, 인사 중복이라는 병이 없으므로 대가가 작다.
+            opening = state.beaver_turns == 0
             # ⛔⛔ **턴이 열렸는지로 막지 않는다.** 모델은 말하기 **전에** 표정을 정하므로
             #   (실측 27/28 이 오디오 0.00초 지점) 이 시점에 `state.turn_id` 는 대개 **None**
             #   이다. 여기서 걸러내면 마커가 거의 전부 사라진다.
             #   ⚠ 그렇다고 여기서 턴을 새로 열면 더 나쁘다 — `_forward_event` 의
             #     `turn_started` 가 영영 False 가 되어 **학습자 발화 확정·통화 시계 시작**이
             #     통째로 건너뛰어진다(R4). 턴은 오디오/전사가 연다. 우리는 앞서갈 뿐이다.
-            if emotion and not duplicate:
+            if emotion and not duplicate and not opening:
                 state.face_seq += 1
                 await _send_json(client_ws, ServerSentenceMarker(
                     turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
@@ -2424,6 +2447,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 "normalcall 표정: %s(%s) 턴누적오디오=%.2f초 %d번째 %s 직전전사=%r",
                 event.fn_name, emotion or "?", secs, state.face_calls,
                 "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
+                "⛔첫인사턴(버림)" if (emotion and opening) else
                 "중복(안 보냄)" if duplicate else
                 ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
