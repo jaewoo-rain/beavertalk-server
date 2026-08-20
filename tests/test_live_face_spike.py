@@ -51,18 +51,30 @@ def test_the_face_rule_never_asks_for_a_spoken_tag():
     assert "소리 내어 읽지 마라" in rule
 
 
-def test_the_face_tool_is_non_blocking_and_matches_the_client_vocabulary():
-    """⭐ NON_BLOCKING 이어야 호출이 발화를 안 끊는다.
+def test_the_face_tool_is_blocking_and_matches_the_client_vocabulary():
+    """⛔⛔ **behavior 를 지정하지 않는다 = 기본 블로킹**(2026-08-20 A안).
+
+    공식문서: "Function calling executes **sequentially by default**, meaning execution
+    pauses until the results of each function call are available." ⇒ 기본이 표준 경로다.
+
+    여기 있던 `NON_BLOCKING` 은 **쓰이지도 않는 LEVELTEST_DONE_TOOL 에서 복사해 온 것**
+    이었고, 그것이 실패 셋을 전부 만들었다:
+      · SILENT    → "생성하지 마"로 답한 셈 ⇒ 4턴 내내 대답 0건
+      · WHEN_IDLE → 턴 사이엔 할 일이 없어 즉시 재개 ⇒ 32초에 89회 폭주
+      · INTERRUPT → 하던 말을 자른다(미시도)
+    세 값 다 "모델은 기다리는데 우리는 안 기다린다고 선언한 상태"의 증상이다.
+
+    ⛔ 이 단언을 NON_BLOCKING 으로 되돌리려거든 위 문서 인용부터 반박해라. 그리고
+      되돌린다면 send_tool_response 의 scheduling 분기도 **같이** 살려야 한다 —
+      한쪽만 고치면 증상이 위 셋 중 하나로 정확히 재발한다.
 
     그리고 값 집합은 **클라 아바타 어휘 5종**과 같아야 한다 — 커밋 d1139d8 이
     "매핑 계층을 만들지 않는다"로 정한 축이다. 여기가 갈리면 서버가 보낸 표정을
     클라가 조용히 neutral 로 떨어뜨린다.
     """
-    import google.genai.types as types
-
     fn = SET_FACE_TOOL.function_declarations[0]
     assert fn.name == "set_face"
-    assert fn.behavior == types.Behavior.NON_BLOCKING
+    assert fn.behavior is None, "표정 tool 은 기본(블로킹)이어야 한다"
     assert set(fn.parameters.properties["emotion"].enum) == {
         "neutral", "happy", "surprised", "sad", "angry"
     }
@@ -76,7 +88,7 @@ def test_live_config_without_tools_is_unchanged():
     ).tools == [SET_FACE_TOOL]
 
 
-def test_the_face_response_resumes_generation_but_leveltest_stays_silent():
+def test_the_face_response_omits_scheduling_but_leveltest_stays_silent():
     """⛔⛔ **이걸 틀리면 비버가 말을 안 한다**(2026-08-18 실측으로 배웠다).
 
     `SILENT` = "맥락에만 넣고 **생성을 트리거하지 않는다**".
@@ -106,7 +118,17 @@ def test_the_face_response_resumes_generation_but_leveltest_stays_silent():
     asyncio.run(live.send_tool_response("id1", "leveltest_ceiling_reached"))
     assert sent[-1].scheduling == types.FunctionResponseScheduling.SILENT
 
-    asyncio.run(live.send_tool_response("id2", "set_face", resume=True))
+    # ⛔⛔ 표정은 이제 **blocking** 이다 — scheduling 을 아예 안 붙인다(2026-08-20).
+    #   scheduling 은 NON_BLOCKING 응답을 "언제 맥락에 넣고 생성을 촉구할지" 고르는 칸이다.
+    #   블로킹에서는 모델이 이미 이 응답을 기다리므로 **도착 자체가 재개**다. 여기에
+    #   SILENT/WHEN_IDLE 을 얹으면 기다리는 모델에게 "생성하지 마"/"할 일 없으면 또 해"를
+    #   덧대는 꼴이 되고, 그게 위 함수 docstring 이 적은 실패 셋이다.
+    asyncio.run(live.send_tool_response("id2", "set_face", blocking=True))
+    assert sent[-1].scheduling is None, "블로킹 응답에 scheduling 을 붙이면 안 된다"
+
+    # ⚠ 레벨테스트 경로(blocking=False)는 **바이트 동일**이어야 한다 — 위 SILENT 단언과
+    #   이 줄이 그 불변식을 양쪽에서 잡는다.
+    asyncio.run(live.send_tool_response("id3", "leveltest_ceiling_reached", resume=True))
     assert sent[-1].scheduling == types.FunctionResponseScheduling.WHEN_IDLE
 
 

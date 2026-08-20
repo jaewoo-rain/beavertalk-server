@@ -51,8 +51,22 @@ LEVELTEST_DONE_TOOL = types.Tool(
 # native-audio 는 모델 출력이 **곧 소리**라 텍스트 태그를 쓰면 그대로 낭독한다
 # (persona_prompt.py 가 emotion_tags 를 Live 에 금지한 이유가 그것이다).
 # tool-call 은 소리가 아닌 유일한 통로다 — 레벨테스트가 같은 벽에서 먼저 쓴 수법이다.
-# NON_BLOCKING: 서버 응답을 안 기다린다 → 호출이 발화를 끊지 않는다.
 # ⚠ 값 집합은 **클라 아바타 어휘 5종**과 같다(커밋 d1139d8 "매핑 계층을 만들지 않는다").
+#
+# ⛔⛔ **`behavior` 를 지정하지 않는다 = 기본 블로킹**(2026-08-20 A안). 공식문서:
+#     "Function calling executes **sequentially by default**, meaning execution pauses
+#      until the results of each function call are available."
+#   ⇒ 기본(블로킹)이 표준 경로다. 모델은 우리 응답을 **기다렸다가** 이어서 말한다.
+#
+#   ⭐ 이 한 줄이 지금까지의 실패 셋을 전부 설명한다. 여기 있던 `NON_BLOCKING` 은
+#     **쓰이지도 않는 LEVELTEST_DONE_TOOL 에서 복사해 온 것**이었다:
+#       · SILENT   → "생성하지 마" 로 답한 셈 ⇒ 4턴 내내 대답 0건
+#       · WHEN_IDLE→ 턴 사이엔 할 일이 없어 즉시 재개 ⇒ 32초에 89회 폭주
+#       · INTERRUPT→ 하던 말을 자른다(미시도)
+#     세 값 전부 "모델은 기다리는데 우리는 안 기다린다고 선언한 상태"의 증상이다.
+#   ⛔ 되돌리려거든 위 문서 인용부터 반박해라. `NON_BLOCKING` 을 다시 붙이면
+#     send_tool_response 의 scheduling 분기도 같이 살려야 한다 — 한쪽만 고치면
+#     증상이 위 셋 중 하나로 정확히 재발한다.
 SET_FACE_TOOL = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
@@ -61,7 +75,6 @@ SET_FACE_TOOL = types.Tool(
                 "네 표정이 바뀔 때 호출한다. 그 말을 하기 **직전에** 부른다. "
                 "표정이 그대로면 부르지 않는다."
             ),
-            behavior=types.Behavior.NON_BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
@@ -236,9 +249,18 @@ class GeminiLiveSession:
 
     async def send_tool_response(
         self, fn_id: Optional[str], fn_name: Optional[str],
-        *, resume: bool = False,
+        *, resume: bool = False, blocking: bool = False,
     ) -> None:
-        """NON_BLOCKING function-call 에 대한 형식적 응답을 되돌린다.
+        """function-call 에 대한 형식적 응답을 되돌린다.
+
+        ⛔⛔ **blocking=True 면 `scheduling` 을 아예 안 붙인다**(2026-08-20 A안).
+        `scheduling` 은 NON_BLOCKING 호출의 응답을 "언제 맥락에 넣고 생성을 촉구할지"
+        고르는 칸이다. 기본(블로킹) 호출에서는 모델이 이미 이 응답을 **기다리고 있으므로**
+        응답이 도착하는 것 자체가 재개다 — 여기에 SILENT/WHEN_IDLE 을 얹으면 기다리는
+        모델에게 "생성하지 마"/"할 일 없으면 또 해"를 덧대는 꼴이 된다. 그게 표정 tool 이
+        세 번 실패한 이유다(SET_FACE_TOOL 위 주석의 증상 3종).
+        ⚠ blocking=False 경로(레벨테스트)는 **바이트 동일**하다 — 회귀가 지킨다.
+
 
         레벨테스트 조기종료 tool(leveltest_ceiling_reached) 처럼 서버 판단만 필요하고
         결과 payload 가 없는 호출에 쓴다. scheduling=SILENT 로 이 응답이 추가 발화를
@@ -263,10 +285,10 @@ class GeminiLiveSession:
                     #   ⇒ WHEN_IDLE = "맥락에 넣고, **진행 중 생성을 끊지 않으면서** 생성을
                     #     촉구한다". INTERRUPT 는 하던 말을 자르므로 쓰지 않는다.
                     #   ⚠ 기본은 SILENT 그대로 — 레벨테스트 경로의 바이트가 안 바뀐다.
-                    scheduling=(
+                    **({} if blocking else {"scheduling": (
                         types.FunctionResponseScheduling.WHEN_IDLE if resume
                         else types.FunctionResponseScheduling.SILENT
-                    ),
+                    )}),
                 )
             ]
         )

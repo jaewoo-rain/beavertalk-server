@@ -3612,8 +3612,12 @@ class _FaceLiveSession(FakeLiveSession):
         self._script = script
         self.tool_responses: list[tuple] = []
 
-    async def send_tool_response(self, fn_id, fn_name, *, resume: bool = False) -> None:
-        self.tool_responses.append((fn_id, fn_name, resume))
+    async def send_tool_response(self, fn_id, fn_name, *,
+                                 resume: bool = False, blocking: bool = False) -> None:
+        # ⛔ 2026-08-20: 표정은 `blocking=True` 로 온다(scheduling 미부착). 이 fake 가
+        #   인자를 못 받으면 call_session 의 except 가 TypeError 를 삼켜 **기록이 0건**이
+        #   되고, 시험은 "응답을 아예 안 보냈다"로 잘못 읽힌다(실제로 그렇게 깨졌다).
+        self.tool_responses.append((fn_id, fn_name, blocking))
 
     async def events(self):
         for emo in self._script:
@@ -3758,7 +3762,9 @@ async def test_a_non_face_tool_call_never_becomes_a_face_marker(
 
     frames = [json.loads(t) for t in ws.sent_text]
     assert [f for f in frames if f.get("type") == "sentence"] == []
-    # 응답은 돌려주되 **SILENT**(resume=False) 여야 한다.
+    # 응답은 돌려주되 표정이 아니므로 **blocking=False**(= SILENT 경로) 여야 한다.
+    #   ⚠ 세 번째 칸의 뜻이 resume → blocking 으로 바뀌었다(2026-08-20). 값은 그대로 False:
+    #     레벨테스트 종료 신호는 예나 지금이나 이어 말할 필요가 없다.
     assert holder["session"].tool_responses == [("fc9", "leveltest_ceiling_reached", False)]
 
 
@@ -3791,9 +3797,18 @@ async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded
                if json.loads(t).get("type") == "sentence"]
     # 3회까지만 나가고 그 뒤는 끊긴다.
     assert len(markers) == 3, markers
-    resumes = [r[2] for r in holder["session"].tool_responses]
-    assert resumes[:3] == [True, True, True]
-    assert all(r is False for r in resumes[3:6]), "차단 뒤에도 재개를 촉구했다 — 루프가 안 끊긴다"
+    # ⛔⛔ **블로킹 전환(2026-08-20)으로 이 차단기의 힘이 줄었다 — 시험이 그걸 기록한다.**
+    #   예전엔 차단 뒤 `SILENT` 로 답해 재개를 안 촉구하는 것이 루프를 실제로 끊었다.
+    #   지금은 scheduling 을 안 붙이므로 그 손잡이가 없고, **남은 효과는 마커 억제뿐**이다
+    #   (위 `len(markers) == 3` 이 그것이다 — 클라는 3회까지만 흔들린다).
+    #   ⭐ 그래도 블로킹에서는 폭주 자체가 구조적으로 어렵다: 모델이 우리 응답을 기다리므로
+    #     "응답 없이 89회를 쏟아내는" 그 경로가 성립하지 않는다.
+    #   ⇒ 실측 전까지 차단기는 남겨 둔다. 이 단언은 **응답을 빠짐없이 돌려준다**를 지킨다 —
+    #     블로킹에서 응답을 빠뜨리면 모델이 멈춰 통화가 그 자리에서 얼어붙는다.
+    blockings = [r[2] for r in holder["session"].tool_responses]
+    assert len(blockings) == 6, blockings
+    assert blockings[:3] == [True, True, True]
+    assert blockings[3:6] == [False, False, False], "차단된 호출은 표정으로 안 친다"
 
 
 @pytest.mark.asyncio

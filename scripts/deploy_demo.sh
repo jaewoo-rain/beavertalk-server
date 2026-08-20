@@ -26,11 +26,23 @@ IMG="asia-northeast3-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/${SERVICE
 echo "[1/3] 빌드: ${TAG}"
 gcloud builds submit --region "$REGION" --project "$PROJECT" --tag "$IMG" --quiet
 
+# ⭐ 선택: 배포하면서 환경변수를 얹는다(2026-08-20).
+#   예) EXTRA_ENV=LIVE_FACE_SPIKE=true SERVICE=beavertalk-app-api scripts/deploy_demo.sh v3
+#   ⛔⛔ **`--set-env-vars` 를 쓰지 마라 — 기존 env 를 통째로 갈아치운다.**
+#     이 서비스의 env 에는 DB·Gemini·Vertex 설정이 들어 있어서, 한 번 날리면 통화가
+#     전부 죽고 무엇이 있었는지도 남지 않는다. `--update-env-vars` 는 **병합**이다.
+#   ⚠ 시크릿(--set-secrets)은 별개 축이라 이 인자가 안 건드린다.
+ENV_ARGS=()
+if [[ -n "${EXTRA_ENV:-}" ]]; then
+  echo "  env 추가(병합): ${EXTRA_ENV}"
+  ENV_ARGS=(--update-env-vars "${EXTRA_ENV}")
+fi
+
 echo "[2/3] 배포"
 # --timeout=3600: Cloud Run 요청 타임아웃(기본 300s=5분)은 WS 통화에도 걸려 5분 통화가
 #   작별 직전 소켓째 끊긴다(실측 call 195: 298s 문장 중간 절단). 통화 WS 는 하나의 긴 요청이므로
 #   상한을 최대(3600s=60분)로 올려 서버 시계(종료 시드·작별)가 온전히 돌게 한다.
-gcloud run deploy "$SERVICE" --image "$IMG" --region "$REGION" --project "$PROJECT" --timeout=3600 --quiet
+gcloud run deploy "$SERVICE" --image "$IMG" --region "$REGION" --project "$PROJECT"   --timeout=3600 "${ENV_ARGS[@]}" --quiet
 
 echo "[3/3] 헬스체크"
 printf 'health:%s  ' "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/health")"

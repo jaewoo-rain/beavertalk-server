@@ -2386,9 +2386,16 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             # ⭐⭐ **폭주 차단기**(2026-08-19 실측 사고: 32초에 89회, 그동안 발화 0건).
             #   `WHEN_IDLE` 은 "하던 일 끝나면 재개"인데 턴 사이에는 **할 일이 없어 즉시
             #   재개**한다. 그런데 재개한 모델이 또 `set_face` 를 부른다 ⇒ 무한 루프.
-            #   ⇒ 소리 없이 N회를 넘기면 **SILENT 로 답한다**(= 재개를 촉구하지 않는다).
+            #   ⇒ 소리 없이 N회를 넘기면 **마커를 안 보낸다**.
             #   ⚠ 프롬프트로도 눌렀지만(한 턴 한 번) **모델이 안 지키면 그대로 재발**한다.
             #     지시는 부탁이고, 이건 계약이다.
+            #   ⛔⛔ **블로킹 전환(2026-08-20)으로 이 차단기의 힘이 줄었다 — 알고 써라.**
+            #     예전엔 "SILENT 로 답해 재개를 안 촉구한다"가 폭주를 실제로 끊었다. 지금은
+            #     scheduling 을 안 붙이므로 그 손잡이가 없고, 남은 효과는 **마커 억제뿐**이다
+            #     (클라는 안 흔들리지만 모델은 계속 부를 수 있다).
+            #     ⭐ 그래도 블로킹에서는 폭주 자체가 구조적으로 어렵다: 모델이 우리 응답을
+            #       기다리므로 응답 없이 89회를 쏟아내는 그 경로가 성립하지 않는다.
+            #       ⇒ 실측으로 확인하기 전까지 차단기는 **남겨 둔다**. 지우지 마라.
             runaway = is_face and state.face_streak > max(1, _settings.LIVE_FACE_MAX_CONSECUTIVE)
             if runaway:
                 is_face = False      # 마커도 보내지 않고, 아래 응답도 SILENT 로 내려간다
@@ -2422,13 +2429,17 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 ("".join(state.cur_beaver_text))[-40:],
             )
             # ⛔ 응답은 돌려준다 — 안 주면 모델 쪽에 미완 호출이 남는다.
+            #   ⭐⭐ 블로킹에서는 이게 **더 강한 의무**다. 모델이 이 응답을 기다리며 멈춰
+            #     있으므로, 안 주면 통화가 그 자리에서 얼어붙는다. except 로 삼키더라도
+            #     로그는 반드시 남긴다(아래 warning).
             try:
-                # ⛔ 표정은 `resume=True` 여야 한다 — 없으면 **모델이 다시 말하지 않는다**
-                #   (2026-08-18 실측: 4턴 내내 tool 은 부르는데 대답이 0건이었다).
-                #   ⚠ 다른 tool 은 SILENT 그대로다. 레벨테스트 종료 신호는 이어 말할 필요가
-                #     없고, 오히려 생성을 촉구하면 작별 대본 주입과 부딪힌다.
+                # ⛔⛔ **표정은 blocking 이다**(2026-08-20 A안). 선언에서 `behavior` 를
+                #   빼 기본(순차 실행)으로 돌렸으므로, 응답에 `scheduling` 을 얹지 않는다.
+                #   응답 도착 자체가 재개다 — 자세한 근거는 gemini_live.SET_FACE_TOOL 주석.
+                #   ⚠ 레벨테스트 종료 신호는 예전 그대로 SILENT 다(blocking=False).
+                #     이어 말할 필요가 없고, 생성을 촉구하면 작별 대본 주입과 부딪힌다.
                 await session.send_tool_response(
-                    event.fn_id, event.fn_name, resume=is_face)
+                    event.fn_id, event.fn_name, blocking=is_face)
             except Exception as exc:   # noqa: BLE001 — 표정이 통화를 죽이면 안 된다(R5)
                 logger.warning("normalcall 표정: tool 응답 실패(무시) — %s", exc)
             continue
