@@ -13,8 +13,13 @@ set -euo pipefail
 
 PROJECT=bt-dev-web-01
 REGION=asia-northeast3
-SERVICE=beavertalk-app-demo-api
-BASE=https://beavertalk-app-demo-api-333511894671.asia-northeast3.run.app
+# ⭐ 대상 서비스를 env 로 고를 수 있다(2026-08-20). 기본은 demo 그대로다.
+#   ⚠ 사장님이 자기 개발용으로 app-api 를 쓰신다 — 그쪽에 수동 배포할 일이 생겼다.
+#   ⛔ 스크립트를 복제하지 않는다. 두 벌이 되면 한쪽만 고쳐지고, 이 파일에 적힌 함정
+#     (멀티매니페스트 회피·--source 실패)이 다른 쪽에서 되살아난다.
+#   예) SERVICE=beavertalk-app-api scripts/deploy_demo.sh v2
+SERVICE="${SERVICE:-beavertalk-app-demo-api}"
+BASE="https://${SERVICE}-333511894671.asia-northeast3.run.app"
 TAG="${1:-demo-$(date +%s)}"
 IMG="asia-northeast3-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/${SERVICE}:${TAG}"
 
