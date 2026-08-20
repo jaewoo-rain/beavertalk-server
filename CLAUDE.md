@@ -62,6 +62,13 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - **R5. graceful degradation 유지.** 외부 키/서비스 부재로 앱 전체가 죽으면 안 된다 — 해당 기능만 비활성/스텁.
 - **R6. 비밀·파괴적 작업 확인.** JWT_SECRET·서비스계정 키·`.env`·prod 배포·마이그레이션 다운그레이드 등은 사용자 확인 또는 명시적 위임이 있을 때만.
 - **R7. CEO 오케스트레이터 전권.** `/beavertalk-dev`(CEO 스킬)가 분해·소집·통합·검증·기록을 총괄한다.
+- **R8. 끝나면 알린다 (herdr 판넬에서 일할 때).** 별도 판넬/탭에서 위임받아 일하는 에이전트는 **오케스트레이터를 스스로 깨워야 한다** — 오케스트레이터는 자기 판넬에 입력이 들어와야 도는 구조라 남을 감시하지 못한다. `herdr agent prompt <오케스트레이터 이름> "<보고>"` 로 밀어 넣는다(백엔드 판넬은 보통 `bt-back`).
+  - **보고하는 때는 3가지뿐**: ①판단이 필요한 **결론**이 나온 즉시(모아서 보내지 말 것 — 늦으면 다른 탭이 틀린 전제로 간다) ②**막혔을 때**(추측으로 밀지 말 것) ③**맡은 일이 끝났을 때**.
+  - **보고하지 않는 것**: 중간 진행 상황 중계, 지시 복창. 노이즈다.
+  - **형식**: `[탭이름] 한 줄 결론` / `근거:` / `문서: docs/...` / `필요한 결정:`(없으면 "없음").
+  - 보고 후 답을 기다리며 멈추지 않는다. **답 없이 갈 수 있는 일이 남았으면 계속한다.**
+  - ⛔ **하위 에이전트의 보고를 검증 없이 그대로 올리지 않는다.** 코드 주장(파일·필드·동작)은 자기 눈으로 확인한 뒤 올린다 — 중계된 오류는 상위에서 걸러지지 않으면 그대로 설계 결정이 된다.
+  - ⛔ **사실 확인에서 멈추지 말고 그 사실이 무엇을 의미하는지까지 확인한다.** 목록·수치가 맞아도 해석이 틀리면 결론이 뒤집힌다(예: "브랜치 X에 수정이 없다"는 참이어도 X가 main의 조상이면 백포트 대상이 아니다). **수치 인용 시 출처를 파일:행으로 남긴다 — 코드 주석·설계문서는 1차 자료가 아니다.**
 
 ## 테스트 / 검증
 - **파이썬은 반드시 conda env**: `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q` (base 파이썬엔 의존성 없음). 한글 출력이 콘솔에서 깨지면 스크립트가 **UTF-8 파일로 쓰게 하고 Read** 로 확인.
@@ -71,7 +78,10 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
   지워진 뒤로 라우트만 남아 **계속 500** 이었다. 참조는 문서뿐이었고 코드·프론트는 0건.
 
 ## 운영 (dev — 상세는 docs/plans/2026-07-09-level-system-build.md 배포 노트)
-- **Cloud Run 서비스**: `beavertalk-app-test-api`(구코드) / `beavertalk-app-demo-api`(레벨 시스템 신코드). 프로젝트 `bt-dev-web-01`, 리전 `asia-northeast3`, **둘 다 같은 dev Supabase DB**(마이그레이션·시드 적용됨).
+- **Cloud Run 서비스**: `beavertalk-app-test-api`(구코드) / `beavertalk-app-demo-api`(레벨 시스템 신코드). 프로젝트 `bt-dev-web-01`, 리전 `asia-northeast3`.
+- ⛔ **DB 는 분리돼 있지 않다.** `beavertalk-app-api`(실서비스)·`demo-api`·`test-api` **셋 다 같은 Supabase 프로젝트**(`ppllscbfdvebsmdatpnc`)와 **같은 시크릿**(`beavertalk-app-db-pool`)을 쓴다 — 2026-08-05 `gcloud run services describe` 로 확인. 코드만 분리돼 있고 **데이터는 공유다**(의도된 구성 — 데모로 실제 계정·데이터를 봐야 하므로). 따라서 **demo-api 에서 한 통화·실험은 실서비스 DB 에 기록된다.**
+  - `.env.local` 이 가리키는 별도 DB(`wbxyhgkmhfbjvqmxlgrh`)는 **배포된 서비스 어디도 쓰지 않는다**(마이그레이션도 뒤처져 있음). 로컬 전용.
+  - ⚠ `.env` = **운영** / `.env.local` = 로컬 dev — **이름과 반대다.** `core/config.py` 가 `('.env', '.env.local')` 순으로 읽어 **뒤가 이긴다**. `.env` 만 읽는 스크립트·도구는 실서비스에 붙는다.
 - **배포**: `scripts/deploy_demo.sh [태그]` — `builds submit --tag`(멀티매니페스트 회피) → 그 이미지로 deploy → 헬스체크. `--source` 직접 배포는 "Container import failed" 로 실패.
 - **`.gcloudignore` 는 `.dockerignore` 와 별개 유지**(gitignore 변경이 빌드 업로드를 오염시키지 않게). `.gitignore` 에 `scripts/` 넣지 말 것.
 - **dev 도구**: `scripts/dev_levelup_seed.py <이메일>`(승급 직전 시딩), `scripts/dev_inspect_call.py <call_id>`(전사·문장·증거·레벨 덤프), `POST /__dev/level-reset`(레벨 백지화).
