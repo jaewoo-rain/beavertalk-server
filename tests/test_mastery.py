@@ -280,6 +280,51 @@ def test_e1_creates_introduced_and_e2_promotes_practicing(env):
     assert s["introduced"] == 2 and s["practicing"] == 1
 
 
+def test_mastered_by_three_prompted_without_spontaneous(env):
+    """⭐⭐ 2026-08-20 사장님 지시 — **자발(E3) 없이 유도(E2) 3회면 문법도 mastered.**
+
+    지시 원문: "자발이 안되면 유도로 3번이상 말하면 통과로 하자".
+    이전엔 문법·어휘에 "산출 3회 **그중 E3≥1**" 이 붙어 있어, 유도만 쌓인 학습자는
+    영원히 mastered 가 못 됐다(chunk 는 원래 특례라 해당 없음 — 그래서 L1 회원에겐
+    이 변경이 아무것도 안 바꾼다. 이 시험이 문법 항목 g1 을 쓰는 이유다).
+
+    ⛔ 이 시험이 지키는 건 "E3 를 요구하지 않는다" 하나다. 산출 3회·2통화·2일은
+      그대로 요구한다 — 그건 게이밍 방어라 같이 풀리면 안 된다.
+    ⚠ 이 완화가 기대는 안전핀(힌트 열람 → E1 강등)은 현재 **프론트가 hint_used 를
+      안 보내서 데이터가 안 들어온다**(call 1101: 힌트 10회 / hint_used 0회).
+      mastery_service._mastered_conditions_met docstring 참조.
+    """
+    db, mid, g = env["db"], env["member"].member_id, env["g1"]
+
+    # call1(어제): E2 2회 — 서로 다른 인용이라 ⑤ 중복에 안 걸린다
+    call1 = _new_call(env, when=NOW - timedelta(days=1))
+    mastery_service.apply_evidence(db, mid, call1.call_id, [
+        _ve(g, "E2", "비가 오면 집에 있어요", 0),
+    ])
+    db.commit()
+    _backdate_call_evidence(db, call1.call_id, NOW - timedelta(days=1))
+
+    # call2(오늘): E2 → 산출 2회 · 2통화 · 2일 이지만 아직 3회가 아니다
+    call2 = _new_call(env)
+    mastery_service.apply_evidence(db, mid, call2.call_id, [
+        _ve(g, "E2", "주말이 되면 뭐 해요", 1),
+    ])
+    db.commit()
+    p = _progress(db, mid, g)
+    assert p.status == "practicing", f"산출 2회로 승격되면 안 됨: {p.status}"
+
+    # call3: E2 → 산출 3회. **E3 는 한 건도 없다.** 그래도 mastered 여야 한다.
+    call3 = _new_call(env)
+    mastery_service.apply_evidence(db, mid, call3.call_id, [
+        _ve(g, "E2", "피곤하면 일찍 자요", 0),
+    ])
+    db.commit()
+    p = _progress(db, mid, g)
+    assert p.spontaneous_count == 0, "전제 붕괴 — 이 시험은 자발 0 이어야 의미가 있다"
+    assert p.prompted_count == 3
+    assert p.status == "mastered", "자발 없이 유도 3회면 통과해야 한다(2026-08-20)"
+
+
 def test_mastered_requires_three_productions_d14(env):
     """D14: 성공 산출(E2/E3) 2회로는 mastered 불가 — 3회(2통화·2일, E3≥1)면 승격."""
     db, mid, g = env["db"], env["member"].member_id, env["g1"]

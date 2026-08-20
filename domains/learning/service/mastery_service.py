@@ -411,8 +411,27 @@ def _mastered_conditions_met(
     today,
 ) -> bool:
     """MASTERED **3조건**(⑥): ①score≥3.0 ②성공증거 2통화·2일 분산 ③성공 산출(E2/E3)
-    3회 이상(D14 — 따라말하기 E1 미산입), 그중 E3≥1 (chunk 특례: 2회·E2 인정 — E3 불요,
-    L1 생존 레벨은 짧은 설계). 증거 로그 집계로 판정.
+    3회 이상(D14 — 따라말하기 E1 미산입). chunk 특례: 2회(L1 생존 레벨은 짧은 설계).
+    증거 로그 집계로 판정.
+
+    ## ⛔ "그중 E3(자발) ≥ 1" 을 **뺐다** (2026-08-20 사장님 지시)
+    지시 원문: *"자발이 안되면 유도로 3번이상 말하면 통과로 하자"*.
+    ⇒ 이제 산출 3회의 **구성은 묻지 않는다**. 유도(E2) 3회로도 통과한다.
+    ⚠ chunk 는 원래 E3 불요였으므로 **이 변경은 문법·어휘에만 듣는다.** L1(청크 46개)
+      회원의 레벨업 게이트는 전부 chunk 라 실측상 아무것도 안 바뀐다.
+
+    ### ⛔⛔ 이 변경이 기대는 안전핀이 **지금 데이터를 못 받는다**
+    D16 설계는 "화면 힌트를 열람한 직후 발화는 E1 로 강등"(normalcall_service ④')이고,
+    자발 요구를 뺀 지금 **부풀이를 막는 것은 사실상 그것 하나뿐이다.** 그런데:
+
+        call 1101 실측 — 서버가 보낸 힌트 10회 / 클라가 보낸 hint_used **0회**
+
+    서버 배관(protocol.ClientHintUsed → call_session._record_hint_used →
+    hinted_from_turn_index)은 전부 살아 있는데 **프론트가 신호를 안 보낸다.**
+    ⇒ 화면의 정답을 읽은 발화가 유도(E2)로 인정될 수 있고, item_evidence 는
+      **append-only 라 그렇게 들어간 증거는 지울 수 없다.**
+    ⭐ 프론트에 hint_used 를 붙이는 것이 이 변경의 **미결 선행조건**이다. 붙기 전까지
+      "유도 3회 통과"는 안전핀 없이 도는 상태다 — 되살릴 때 여기부터 읽어라.
 
     ## ⛔ ④ "최근 증거 ≠ F" 는 **뺐다**(2026-08-16 사장님 지시)
     ⚠ **대가**: **틀린 채로 끝난 통화에서도 마스터가 확정된다.** 마지막 발화가 F 여도
@@ -452,11 +471,6 @@ def _mastered_conditions_met(
     min_productions = 2 if kind == "chunk" else MASTERED_MIN_PRODUCTIONS
     if e2plus < min_productions:
         return False
-    if kind != "chunk":
-        e3 = sum(1 for r in prior if r.grade_final == "E3")
-        e3 += sum(1 for ev in evs if ev.grade_final == "E3")
-        if e3 < 1:
-            return False
     return True
 
 
