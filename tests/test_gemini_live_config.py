@@ -144,3 +144,38 @@ def test_safety_relaxes_only_harassment():
         types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
     ):
         assert by_cat[cat] == types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
+
+
+def test_vertex_only_fields_are_omitted_on_the_api_key_path(monkeypatch):
+    """⛔⛔ **Vertex 전용 필드를 AI Studio 경로에 넘기면 통화가 안 열린다.**
+
+    실측(2026-08-20): AI Studio 로 바꾸자 연결 즉시 죽었다 —
+      `1007 Invalid JSON payload received. Unknown name "safetySettings" at 'setup':
+       Cannot find field.`  (call 1115·1116, msgs=0)
+
+    같은 함정이 이미 하나 있었다 — `session_resumption.transparent` 도 Vertex 전용이라
+    api_key 경로에 넘기면 SDK 가 ValueError 를 던진다. 백엔드를 갈아탈 때 이 파일에서
+    봐야 할 곳이 그 둘이고, 이 시험이 둘을 한꺼번에 잡는다.
+
+    ⚠ 값 자체를 지운 게 아니다. Vertex 에서는 그대로 실린다(아래 후반부) — 거친 페르소나의
+      면박·욕설 허용이 거기 걸려 있다.
+    """
+    from core import gemini_live as gl
+
+    # ── AI Studio 경로: 둘 다 빠져야 한다 ──
+    monkeypatch.setattr(gl.settings, "USE_VERTEX", False, raising=False)
+    monkeypatch.setattr(gl.settings, "LIVE_SESSION_RESUMPTION", True, raising=False)
+    cfg = gl.build_live_config(system_instruction="x", voice="Leda")
+    assert cfg.safety_settings is None, "AI Studio 에 safetySettings 를 보내면 1007 이다"
+    assert cfg.session_resumption is not None
+    assert cfg.session_resumption.transparent is None, "transparent 는 Vertex 전용이다"
+
+    # ── Vertex 경로: 그대로 실린다 ──
+    monkeypatch.setattr(gl.settings, "USE_VERTEX", True, raising=False)
+    cfg2 = gl.build_live_config(system_instruction="x", voice="Leda")
+    assert cfg2.safety_settings and len(cfg2.safety_settings) == 4
+    assert cfg2.session_resumption.transparent is True
+    # ⭐ HARASSMENT 만 완화 — 페르소나가 여기 걸려 있으니 값도 못박는다.
+    hara = [s for s in cfg2.safety_settings
+            if s.category.name.endswith("HARASSMENT")]
+    assert hara and hara[0].threshold.name == "BLOCK_ONLY_HIGH"

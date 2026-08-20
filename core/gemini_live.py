@@ -192,6 +192,28 @@ class LiveSessionProtocol(Protocol):
     def events(self) -> AsyncIterator[LiveEvent]: ...
 
 
+# Live 안전설정 — 거친 페르소나(트래시토커) 면박·욕설 허용을 위해 HARASSMENT 만 완화하고
+# 혐오·성·위험은 엄격 유지한다. ⚠ **Vertex 전용**이다(build_live_config 주석 참조).
+_LIVE_SAFETY = [
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    ),
+]
+
+
 def build_live_config(
     *,
     system_instruction: str,
@@ -252,24 +274,17 @@ def build_live_config(
                 target_tokens=settings.LIVE_CTX_TARGET_TOKENS
             ),
         ),
-        safety_settings=[
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            ),
-        ],
+        # ⛔⛔ **AI Studio 는 setup 에서 safetySettings 를 안 받는다**(2026-08-20 실측).
+        #   실패 원문: `1007 Invalid JSON payload received. Unknown name "safetySettings"
+        #   at 'setup': Cannot find field.` → 통화가 **연결 즉시** 죽는다(msgs=0).
+        #   ⚠ `transparent` 와 **똑같은 함정**이다(위 :226) — Vertex 전용 필드를 api_key
+        #     경로에 그대로 넘기면 세션이 안 열린다. 백엔드를 바꿀 때 이 파일에서 봐야 할
+        #     곳이 그 둘이다.
+        #   ⭐ 값 자체는 그대로 둔다: 거친 페르소나(트래시토커)의 면박·욕설을 허용하려고
+        #     HARASSMENT 만 완화하고 혐오·성·위험은 엄격 유지한다. AI Studio 에서는 그
+        #     완화가 안 걸리므로, 그쪽으로 운영을 옮길 거면 **페르소나가 검열되는지 먼저
+        #     확인**해야 한다(미검증).
+        **({"safety_settings": _LIVE_SAFETY} if settings.USE_VERTEX else {}),
     )
 
 
