@@ -436,6 +436,16 @@ class GeminiLiveSession:
                             try:
                                 await self.send_tool_response(fn_id, fn_name)
                                 acked = True
+                                # ⭐⭐ **계측이다. 지우지 마라**(2026-08-20).
+                                #   이 줄이 없어서 R1 판정이 반쪽이 났다 — "즉시 ack 경로로
+                                #   갔는지"를 로그로 확인할 수단이 없었고, 어댑터가 답했든
+                                #   call_session 이 답했든 겉보기 동작이 같아 구별이 안 됐다.
+                                #   ⇒ 어느 경로로 · 어떤 scheduling 으로 답했는지를 남긴다.
+                                sched = _face_scheduling()
+                                logger.info(
+                                    "Live tool 즉시응답: %s scheduling=%s",
+                                    fn_name, sched.value if sched else "(미부착)",
+                                )
                             except Exception as exc:  # noqa: BLE001 — 통화를 죽이지 않는다
                                 logger.warning(
                                     "Live tool 즉시 응답 실패(소비측이 재시도) — %s", exc
