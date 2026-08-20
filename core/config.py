@@ -31,6 +31,20 @@ class Settings(BaseSettings):
     DATABASE_URL_DIRECT: str | None = None
 
     ENV: str = "dev"
+    # ⭐⭐ **일일 통화 한도만 따로 켜는 스위치**(2026-08-20 사장님 지시).
+    #   ⛔ 왜 ENV 로 안 하나: `ENV=prod` 는 한도만 켜는 스위치가 아니다. 같은 값이 dev
+    #     데모 라우트(`/__levelcalldemo`·`/__enginedemo`, main.py:375)를 닫고 통화 세션의
+    #     prod 가드(call_session.py:366)도 같이 켠다. 한도 하나 켜자고 개발용 데모 페이지를
+    #     닫게 되는데, app-api 는 사장님 개발 서버라 그게 곤란하다.
+    #   ⇒ 축을 나눈다. 이 값이 True 면 ENV 와 무관하게 한도가 돈다.
+    #
+    #   ⚠ **prod 는 이 값과 무관하게 계속 돈다**(`or settings.ENV == "prod"`). 회귀 없음 —
+    #     실서비스에서 이 플래그를 안 켰다고 한도가 풀리면 그게 사고다.
+    #   ⛔⛔ **켜면 Free 는 하루 1통화에서 잠긴다.** 원래 주석이 적어둔 그대로다:
+    #     "테스트하다 하루가 잠기면 개발이 안 된다." 사장님 계정(member 20)은 플랜이
+    #     없어 Free 이므로, app-api 에 켜면 **하루 한 통화 뒤 본인 테스트가 막힌다.**
+    #     ⇒ 프론트 검증용으로 켤 곳은 demo-api 쪽이 맞다. 켤 위치를 정하고 켜라.
+    DAILY_LIMIT_ENFORCED: bool = False
 
     # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
     # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).

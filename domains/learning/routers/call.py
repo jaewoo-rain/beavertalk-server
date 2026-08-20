@@ -77,11 +77,48 @@ def get_pronunciation_summary(
 def get_daily_status(
     date: str, member: CurrentMember, db: DbSession, tz_offset: int = 0
 ) -> dict:
-    """'오늘 통화함' 파생 체크(저장 컬럼·일일 초기화 없음 — call 에서 계산).
+    """⭐ **오늘 더 통화할 수 있나** — 통화를 시작하기 전 클라의 1차 검증.
 
     - date: 클라이언트 로컬 날짜 "YYYY-MM-DD"(사용자가 '오늘'이라 여기는 날, 필수).
     - tz_offset: 클라이언트 UTC 오프셋(분, 동쪽 +). KST=540. 미지정 시 0(UTC).
-    유효 = 그 로컬 하루 안 10초+ 통화(done/analyzing). 응답 {date, called_today}.
+      ⚠ 외국인 학습자라 타임존이 제각각이다 — 하루 경계를 서버가 고정하지 않는다.
+
+    ```
+    {
+      "date": "2026-08-20",
+      "called_today":        true,    # 사실 — 오늘 일반 통화를 했나
+      "level_test_today":    false,   # 사실 — 오늘 레벨테스트를 했나
+      "can_call_normal":     true,    # ⭐ 판정 — 서버가 지금 거절할지
+      "can_call_level_test": true,    # ⭐ 판정
+      "max_fragments":       1        # ⭐ 이 회원이 이을 수 있는 조각 수(Free 1 / Pro·Max 3)
+    }
+    ```
+
+    ## ⛔ `called_today` 와 `can_call_normal` 은 다른 축이다
+    앞은 **사실**이고 뒤는 **판정**이다. `called_today=true` 일 때 Free 는 못 하고
+    Pro 는 할 수 있다 — 같은 사실에서 결론이 반대로 갈린다. 그래서 판정을 클라가
+    조합하게 두지 않고 서버가 내린다(서버 거절과 **같은 함수**를 부른다).
+
+    ## ⚠ 지금 `can_call_*` 은 항상 true 다
+    `is_daily_limit_reached` 가 `ENV != "prod"` 에서 즉시 False 를 돌려주고,
+    app-api 의 ENV 는 `'test'` 다. **버그가 아니라 사실의 반영**이다 — 이 필드의 계약은
+    "한도를 계산해 준다"가 아니라 "**서버가 지금 거절할지**"다. 한도를 실제로 켜면
+    이 값이 저절로 바뀌고 클라는 고칠 게 없다.
+
+    ## ⛔ `can_call_*` 은 `date` 가 아니라 서버의 **'지금'** 을 본다
+    `date` 는 `called_today`·`level_test_today`(사실) 축이 소유한다. 판정 축은
+    `is_daily_limit_reached` 가 `datetime.now()` 로 창을 잡는다.
+    ⭐ **이게 맞는 동작이다**: 서버 거절은 통화를 거는 **그 순간** 일어나므로, 판정이
+      '지금'을 봐야 거절과 같은 답이 된다. `date` 를 따르게 만들면 "어제 날짜로 물으면
+      된다고 한다"가 되어 두 값이 갈린다 — 이 엔드포인트가 막으려던 바로 그 사고다.
+    ⇒ 클라는 **오늘 날짜로만** 물어야 한다. 과거 날짜 조회는 `called_today` 만 유효하다.
+
+    ## 통화 **중** 연장은 여기가 아니다
+    5분 뒤 "이어서" 는 `GET /{call_id}/resume-status` 가 소유한다
+    (`ready`·`can_resume`·`fragment_count`·`max_fragments`).
+    ⚠ 양쪽 `max_fragments` 는 **같은 함수**(call_fragments_for_member)에서 온다 —
+      한쪽만 고치면 시작 화면과 연장 화면이 다른 말을 한다.
+
     정적 경로라 `/{call_id}` 보다 먼저 선언(라우트 순서로 의도 명확화).
     """
     return CallService(db).daily_status(member.member_id, date, tz_offset)
