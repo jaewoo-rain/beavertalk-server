@@ -2433,13 +2433,15 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #     있으므로, 안 주면 통화가 그 자리에서 얼어붙는다. except 로 삼키더라도
             #     로그는 반드시 남긴다(아래 warning).
             try:
-                # ⛔⛔ **표정은 blocking 이다**(2026-08-20 A안). 선언에서 `behavior` 를
-                #   빼 기본(순차 실행)으로 돌렸으므로, 응답에 `scheduling` 을 얹지 않는다.
-                #   응답 도착 자체가 재개다 — 자세한 근거는 gemini_live.SET_FACE_TOOL 주석.
-                #   ⚠ 레벨테스트 종료 신호는 예전 그대로 SILENT 다(blocking=False).
-                #     이어 말할 필요가 없고, 생성을 촉구하면 작별 대본 주입과 부딪힌다.
-                await session.send_tool_response(
-                    event.fn_id, event.fn_name, blocking=is_face)
+                # ⛔⛔ **어댑터가 이미 답했으면 또 보내지 않는다**(2026-08-20).
+                #   표정 tool 의 응답은 `gemini_live.events()` 가 **파싱 즉시** 보낸다 —
+                #   여기까지 오는 동안 위쪽에서 클라 WS 마커 전송(await)과 로깅이 끼는데,
+                #   그 지연이 응답을 턴 밖으로 밀어내 "두 번 말하기"를 만들었다.
+                #   ⛔ 같은 fn_id 에 두 번 답하면 그 자체가 새 입력이 된다. 반드시 가른다.
+                #   ⚠ 레벨테스트 종료 신호는 즉시 ack 대상이 아니라 여기서 보낸다(SILENT).
+                if not getattr(event, "auto_acked", False):
+                    await session.send_tool_response(
+                        event.fn_id, event.fn_name, blocking=is_face)
             except Exception as exc:   # noqa: BLE001 — 표정이 통화를 죽이면 안 된다(R5)
                 logger.warning("normalcall 표정: tool 응답 실패(무시) — %s", exc)
             continue

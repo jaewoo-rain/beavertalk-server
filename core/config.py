@@ -309,6 +309,16 @@ class Settings(BaseSettings):
     #     9분에 끝난다. 그게 무한 과금 방어이고, 종료 소유권과 별개 축이다.
     LIVE_CALL_END_OWNER: str = "client"
     LIVE_FACE_SPIKE: bool = False
+    # ⭐ 표정 tool 응답의 `scheduling`. 빈 문자열(기본) = **안 붙인다**.
+    #   값: "" | SILENT | WHEN_IDLE | INTERRUPT
+    #   ⛔ 왜 스위치인가 — 문서로 정할 수 없어서다. SDK types.py:164 는 scheduling 이
+    #     "NON_BLOCKING 에만 적용, 그 외 무시, 기본 WHEN_IDLE" 이라 하고, types.py:306 은
+    #     "현재는 non-blocking 만 지원" 이라 한다. 우리 선언(behavior 미지정)이 어느 쪽으로
+    #     해석되는지 **벤더 문서에 답이 없다.** 그래서 재는 수밖에 없고, 잴 때마다 재빌드하면
+    #     한 변형에 10분씩 든다.
+    #   ⚠ INTERRUPT 는 "하던 말을 자른다"라서 위험해 보이지만, 우리 tool 은 실측상 **항상
+    #     오디오 0.00초에** 온다 — 자를 말이 아직 없다. 그래서 후보에서 빼지 않았다.
+    LIVE_FACE_TOOL_SCHEDULING: str = ""
     # ⭐⭐ **폭주 차단기**(2026-08-19 실측 사고). 소리 한 조각도 없이 `set_face` 가 이만큼
     #   연달아 오면 그 뒤로는 **마커를 안 보낸다**.
     #   ⛔⛔ **2026-08-20 블로킹 전환으로 이 차단기의 힘이 줄었다.** 예전엔 차단 뒤 응답을

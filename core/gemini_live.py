@@ -71,9 +71,14 @@ SET_FACE_TOOL = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
             name="set_face",
+            # ⭐ R1(2026-08-20): 선언 설명도 **동시성**으로 맞춘다. 지시문만 고치고 여기를
+            #   두면 두 곳이 다른 말을 한다 — 모델은 둘 다 읽는다.
+            #   ⚠ 공식 모범 사례: "Function and Parameter Descriptions: Be clear and
+            #     specific." 그래서 **무엇을 하지 않는지**(소리가 아니다)까지 적는다.
             description=(
-                "네 표정이 바뀔 때 호출한다. 그 말을 하기 **직전에** 부른다. "
-                "표정이 그대로면 부르지 않는다."
+                "표정이 바뀔 때, 그 말을 하면서 **함께** 호출한다. 이 호출은 말을 대신하지 "
+                "않는다 — 호출과 발화를 같은 차례에 동시에 낸다. 표정이 그대로면 "
+                "호출하지 않는다. 첫 인사에서는 호출하지 않는다."
             ),
             parameters=types.Schema(
                 type=types.Type.OBJECT,
@@ -81,7 +86,10 @@ SET_FACE_TOOL = types.Tool(
                     "emotion": types.Schema(
                         type=types.Type.STRING,
                         enum=["neutral", "happy", "surprised", "sad", "angry"],
-                        description="지금부터의 표정.",
+                        description=(
+                            "지금부터의 표정. neutral=평소, happy=기쁨·칭찬, "
+                            "surprised=놀람, sad=안타까움, angry=화남."
+                        ),
                     )
                 },
                 required=["emotion"],
@@ -89,6 +97,58 @@ SET_FACE_TOOL = types.Tool(
         )
     ]
 )
+
+# ⭐ **즉시 응답할 tool 이름.** 어댑터가 선언을 소유하므로 여기서 안다.
+#   ⚠ 레벨테스트 종료 tool 은 넣지 않는다 — 그건 "통화를 끝내라"는 신호라 늦어도 되고,
+#     생성을 촉구하면 작별 대본 주입과 부딪힌다(기존 SILENT 경로 유지).
+_AUTO_ACK_TOOLS = frozenset({"set_face"})
+
+
+def _face_scheduling() -> Optional[types.FunctionResponseScheduling]:
+    """표정 tool 응답의 scheduling. **env 로 바꾼다**(재빌드 없이 변형을 시험하려고).
+
+    ⚠ SDK 규약(types.py:164): scheduling 은 "**NON_BLOCKING 호출에만 적용, 그 외 무시.
+      기본 WHEN_IDLE**". 그리고 Behavior 독스트링(types.py:306)은 "**현재는 non-blocking
+      만 지원**"이라 우리 선언(behavior 미지정)이 어느 쪽으로 해석되는지 확정할 수 없다.
+      ⇒ 문서로 못 정한다. 값을 바꿔가며 **재는** 수밖에 없어서 스위치로 뺐다.
+
+    빈 문자열(기본) = scheduling 을 **아예 안 붙인다**.
+    """
+    raw = (settings.LIVE_FACE_TOOL_SCHEDULING or "").strip().upper()
+    if not raw:
+        return None
+    # ⛔ **허용 목록으로 검사한다. enum 생성자로 검증하지 마라**(2026-08-20, 회귀가 잡았다).
+    #   SDK 의 CaseInSensitiveEnum 은 모르는 값에 **예외를 안 던진다** — 경고만 내고
+    #   가짜 멤버를 만들어 준다(`_common.py:651`). try/except ValueError 로는 못 거른다.
+    #   그대로 두면 오타 난 env 값이 **그대로 API 로 나간다.**
+    known = {m.value for m in types.FunctionResponseScheduling}
+    if raw not in known:
+        logger.warning(
+            "LIVE_FACE_TOOL_SCHEDULING 값이 이상하다(무시하고 미부착): %r — 가능: %s",
+            raw, sorted(known),
+        )
+        return None
+    return types.FunctionResponseScheduling(raw)
+
+
+def _scheduling_kwargs(
+    fn_name: Optional[str], *, resume: bool, blocking: bool
+) -> dict:
+    """FunctionResponse 에 실을 scheduling(있으면) 하나를 고른다.
+
+    ⛔ 축이 셋으로 늘어서 분기를 한곳에 모았다. 흩어 두면 "선언은 A인데 응답은 B" 라는
+      **반쪽 수정**이 난다 — 이 프로젝트가 표정 tool 에서 이미 세 번 겪은 실패 모양이다.
+    """
+    if fn_name in _AUTO_ACK_TOOLS:
+        sched = _face_scheduling()
+        return {} if sched is None else {"scheduling": sched}
+    if blocking:
+        return {}
+    return {"scheduling": (
+        types.FunctionResponseScheduling.WHEN_IDLE if resume
+        else types.FunctionResponseScheduling.SILENT
+    )}
+
 
 LiveEventKind = Literal[
     "audio", "in_tr", "out_tr", "interrupted", "turn_end", "go_away", "tool_call",
@@ -111,6 +171,9 @@ class LiveEvent:
     #   이 칸이 없었다. set_face 는 emotion 을 받으므로 필요하다.
     #   ⚠ 기본 None → 기존 소비측(없다) · 회귀 무영향.
     fn_args: Optional[dict] = None
+    # ⭐ kind=="tool_call": 어댑터가 **이미 응답을 보냈다**(2026-08-20). 소비측은 또 보내지
+    #   않는다 — 같은 fn_id 에 두 번 답하면 그 자체가 새 입력이 된다.
+    auto_acked: bool = False
     usage: Optional[Any] = None        # kind=="usage": SDK UsageMetadata 원본(어댑터는 해석 안 함)
     # kind=="resume_update": 세션 재개 핸들. resumable=False 면 지금 시점 상태로는 재개할 수
     # 없다는 뜻이라(모델 생성 중·tool 실행 중) **핸들을 덮어쓰면 안 된다**.
@@ -285,10 +348,7 @@ class GeminiLiveSession:
                     #   ⇒ WHEN_IDLE = "맥락에 넣고, **진행 중 생성을 끊지 않으면서** 생성을
                     #     촉구한다". INTERRUPT 는 하던 말을 자르므로 쓰지 않는다.
                     #   ⚠ 기본은 SILENT 그대로 — 레벨테스트 경로의 바이트가 안 바뀐다.
-                    **({} if blocking else {"scheduling": (
-                        types.FunctionResponseScheduling.WHEN_IDLE if resume
-                        else types.FunctionResponseScheduling.SILENT
-                    )}),
+                    **_scheduling_kwargs(fn_name, resume=resume, blocking=blocking),
                 )
             ]
         )
@@ -349,12 +409,44 @@ class GeminiLiveSession:
                 tool_call = getattr(response, "tool_call", None)
                 if tool_call is not None:
                     for fc in getattr(tool_call, "function_calls", None) or []:
+                        fn_name = getattr(fc, "name", None)
+                        fn_id = getattr(fc, "id", None)
+                        # ⭐⭐ **파싱하자마자 즉시 응답한다**(2026-08-20). yield 하기 전이다.
+                        #
+                        #   ⛔ 왜: SDK 규약이 "function call 은 **턴을 이어가는** 것"이다 —
+                        #     live.py:437 "When the returned message is function call, user
+                        #     must call `send` with the function response **to continue the
+                        #     turn**." 그런데 receive() 는 turn_complete 에서 break 로 죽고
+                        #     (live.py:457), native-audio 는 **오디오 0초짜리 tool call 을
+                        #     side-effect 로 보고 turnComplete 를 같이 보낸다**
+                        #     (google/adk-python#4902 실측). 응답이 그 뒤에 도착하면 고아가
+                        #     되어 서버가 **새 입력으로 소비 → 추가 생성**한다. 그게 사장님이
+                        #     들으신 "두 번 말하기"다(livekit/agents#4554, 같은 모델·Vertex).
+                        #
+                        #   ⛔ 예전엔 여기서 yield 만 하고 응답은 call_session 이 보냈는데,
+                        #     그 사이에 **클라 WS 마커 전송(await)과 로깅**이 끼어 있었다.
+                        #     그 지연이 고아를 만든다. 공식 예제는 tool_call 을 본 그 자리에서
+                        #     바로 답한다(ai.google.dev/gemini-api/docs/live-api/tools).
+                        #
+                        #   ⚠ 어댑터가 tool 이름을 아는 것은 규율 위반이 아니다 — 이 파일이
+                        #     SET_FACE_TOOL 선언을 소유한다. **해석(감정값)은 여전히 도메인 몫**
+                        #     이고 여기서는 형식적 ack 만 보낸다.
+                        acked = False
+                        if fn_name in _AUTO_ACK_TOOLS:
+                            try:
+                                await self.send_tool_response(fn_id, fn_name)
+                                acked = True
+                            except Exception as exc:  # noqa: BLE001 — 통화를 죽이지 않는다
+                                logger.warning(
+                                    "Live tool 즉시 응답 실패(소비측이 재시도) — %s", exc
+                                )
                         yield LiveEvent(
                             kind="tool_call",
-                            fn_name=getattr(fc, "name", None),
-                            fn_id=getattr(fc, "id", None),
+                            fn_name=fn_name,
+                            fn_id=fn_id,
                             # ⚠ SDK 가 dict 로 준다. 어댑터는 **해석하지 않는다**(도메인 몫).
                             fn_args=dict(getattr(fc, "args", None) or {}),
+                            auto_acked=acked,
                         )
 
                 server_content = getattr(response, "server_content", None)

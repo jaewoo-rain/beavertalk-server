@@ -182,3 +182,147 @@ def test_the_marker_is_in_the_live_server_union():
 
     members = typing.get_args(typing.get_args(ServerMessage)[0])
     assert ServerSentenceMarker in members
+
+
+# ── 즉시 ack (2026-08-20 "두 번 말하기" 수정) ────────────────────────────────
+def test_the_adapter_answers_set_face_before_yielding_it():
+    """⛔⛔ **응답은 tool_call 을 본 그 자리에서 나가야 한다.**
+
+    SDK 규약(live.py:437): "When the returned message is function call, user must call
+    `send` with the function response **to continue the turn**." 즉 function call 은
+    턴을 **이어가는** 것이다. 그런데 receive() 는 turn_complete 에서 break 로 죽고
+    (live.py:457), native-audio 는 오디오 0초짜리 tool call 에 turnComplete 를 같이
+    보낸다(google/adk-python#4902 실측). 응답이 그 뒤에 도착하면 고아가 되어 서버가
+    **새 입력으로 소비 → 추가 생성**한다.
+
+    실측(call 1103): set_face 1회당 비버 턴이 정확히 2개씩, 11턴 전부. 두 번째도 실제
+    PCM 3.4~5.8초를 동반했고(usage msgs=11 이 1턴=1생성을 확증) 입력 토큰 원가가
+    초당 1.65배로 뛰었다. 같은 증상이 같은 모델·Vertex 로 공개 보고돼 있다
+    (livekit/agents#4554, 미해결 종료).
+
+    ⛔ 예전엔 events() 가 yield 만 하고 call_session 이 응답했는데, 그 사이에 **클라 WS
+      마커 전송(await) + 로깅**이 끼어 있었다. 이 시험은 그 순서가 되돌아오는 것을 막는다.
+    """
+    import asyncio
+
+    from core.gemini_live import GeminiLiveSession
+
+    order = []
+
+    class _FC:
+        name, id, args = "set_face", "fc1", {"emotion": "happy"}
+
+    class _ToolCall:
+        function_calls = [_FC()]
+
+    class _Msg:
+        tool_call = _ToolCall()
+        server_content = None
+        data = None
+
+    class _FakeSession:
+        def __init__(self):
+            self._sent = 0
+
+        async def send_tool_response(self, *, function_responses):
+            order.append("ack")
+            self._sent += 1
+
+        async def receive(self):
+            yield _Msg()
+
+    live = GeminiLiveSession(_FakeSession())
+
+    async def _run():
+        async for ev in live.events():
+            if ev.kind == "tool_call":
+                order.append("yield")
+                # ⭐ yield 시점에 **이미** 응답이 나가 있어야 한다.
+                assert order == ["ack", "yield"], order
+                assert ev.auto_acked is True, "소비측이 또 보내면 새 입력이 된다"
+                return
+
+    asyncio.run(_run())
+    assert order == ["ack", "yield"]
+
+
+def test_face_scheduling_is_switchable_without_a_rebuild(monkeypatch):
+    """⭐ scheduling 을 env 로 고른다 — 문서로 정할 수 없어서 재는 수밖에 없다.
+
+    SDK types.py:164 는 "NON_BLOCKING 에만 적용, 그 외 무시, 기본 WHEN_IDLE" 이라 하고
+    types.py:306 은 "현재는 non-blocking 만 지원" 이라 한다. 우리 선언(behavior 미지정)이
+    어느 쪽으로 해석되는지 **벤더 문서에 답이 없다.**
+    ⚠ 잘못된 값은 통화를 죽이지 말고 조용히 무시해야 한다(R5).
+    """
+    import asyncio
+
+    import google.genai.types as types
+
+    from core import gemini_live as gl
+
+    sent = []
+
+    class _FakeSession:
+        async def send_tool_response(self, *, function_responses):
+            sent.extend(function_responses)
+
+    live = gl.GeminiLiveSession(_FakeSession())
+
+    # 기본(빈 문자열) = scheduling 미부착
+    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "", raising=False)
+    asyncio.run(live.send_tool_response("i", "set_face"))
+    assert sent[-1].scheduling is None
+
+    # 값을 주면 그 값이 실린다
+    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "INTERRUPT", raising=False)
+    asyncio.run(live.send_tool_response("i", "set_face"))
+    assert sent[-1].scheduling == types.FunctionResponseScheduling.INTERRUPT
+
+    # ⚠ 이상한 값은 무시하고 미부착으로 떨어진다 — 통화가 죽으면 안 된다
+    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "NONSENSE", raising=False)
+    asyncio.run(live.send_tool_response("i", "set_face"))
+    assert sent[-1].scheduling is None
+
+    # ⚠ 레벨테스트 경로는 이 스위치에 안 흔들린다 — 예전 그대로 SILENT
+    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "INTERRUPT", raising=False)
+    asyncio.run(live.send_tool_response("i", "leveltest_ceiling_reached"))
+    assert sent[-1].scheduling == types.FunctionResponseScheduling.SILENT
+
+
+def test_the_face_rule_demands_simultaneity_not_sequence():
+    """⛔⛔ **"부른 뒤에 말한다" 로 되돌리지 마라** — 그게 두 번 말하기의 뿌리다.
+
+    옛 문구는 "부른 뒤에는 반드시 말을 해야 한다"였다. 순차를 가르친 것이고 모델이
+    그대로 했다 — 실측 call 1103 의 함수 호출은 **전부 오디오 0.00초**에 왔다(말하기
+    전에 부르고 턴을 닫았다). native-audio 는 그런 무오디오 호출을 side-effect 로 보고
+    turnComplete 를 같이 보내며(google/adk-python#4902), 그 뒤 도착한 응답이 새 입력으로
+    소비돼 **두 번째 발화**를 만든다(livekit/agents#4554, 같은 모델·Vertex, 미해결).
+    11턴 전부 두 번 말했고 입력 토큰 원가가 초당 1.65배가 됐다.
+
+    ⇒ 호출이 **발화의 일부**여야 턴이 안 쪼개진다. 이 시험은 그 계약을 지킨다.
+    ⚠ 문구를 다듬는 것은 자유지만 **"동시"의 의미가 사라지면 안 된다.**
+    """
+    rule = pp._FACE_TOOL_RULE
+    assert "동시에" in rule, "동시성 지시가 사라졌다 — 순차로 되돌아갔다"
+    assert "부르면서 말한다" in rule
+    # ⛔ 옛 순차 문구가 되살아나지 않았는지
+    assert "부른 뒤에는" not in rule, "순차 문구가 되돌아왔다"
+    # ⭐ 첫 인사 금지 — 두 출처가 독립적으로 같은 말을 했다(커뮤니티 "첫 호출은 항상 실패",
+    #   adk#4902 "인사 턴 중복률 100%"). 우리 실측도 set_face #1 이 인사 턴이었다.
+    assert "첫 인사에서는 부르지 마라" in rule
+    # ⚠ 실패 조건을 명시한다 — 커뮤니티가 이 모델로 20개 함수를 안정화한 처방의 일부다.
+    assert "실패 조건" in rule
+
+
+def test_the_declaration_and_the_prompt_tell_the_same_story():
+    """⚠ 모델은 **둘 다** 읽는다 — 선언 설명과 지시문이 다른 말을 하면 안 된다.
+
+    지시문만 "동시에"로 고치고 선언 설명에 "직전에"가 남아 있으면 모델이 어느 쪽을
+    따를지 알 수 없다. 이 프로젝트는 "선언과 소비 중 한쪽만 고치는" 사고를 이미 겪었다.
+    """
+    from core.gemini_live import SET_FACE_TOOL
+
+    desc = SET_FACE_TOOL.function_declarations[0].description or ""
+    assert "함께" in desc and "동시에" in desc, desc
+    assert "직전" not in desc, "선언 설명에 옛 순차 문구가 남아 있다"
+    assert "첫 인사에서는 호출하지 않는다" in desc
