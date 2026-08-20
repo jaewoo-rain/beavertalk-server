@@ -571,14 +571,21 @@ def test_pick_study_items_beginner_mix_and_sel_filters(env):
     #   state=상태(new/again/review). 라벨이 절차를 고르고 절차가 등급을 정하므로,
     #   이미 배운 것을 '새로'라 부르면 따라말하기(E1)만 쌓여 마스터가 영영 안 된다.
     #   ⚠ **선별 자체는 그대로다** — 자리도 순서도 안 변했고 라벨만 옳아졌다.
-    assert [e["study_kind"] for e in main] == \
-        ["vocab", "vocab", "grammar", "vocab", "vocab"], \
-        [(e["study_kind"], e["item"].surface) for e in main]
+    # ⛔⛔ 2026-08-20: **쿨다운이 복습에도 걸린다.** 호출부가 exclude_ids 를 안 넘겨서
+    #   "최근 2통화에서 성공(E1+)한 항목"이 복습 자리에 계속 돌아오고 있었다.
+    #   실측(member 20): `안녕히 가세요` 를 **9번** 가르쳤다(반복 9 · 자발 0 · score 5.5).
+    #   ⭐ 이건 마스터를 막는다 — 연달아 시키면 전부 따라말하기(E1)라 산출(E2/E3)이 안
+    #     생긴다. 간격을 둬야 **회상**이 일어나고 그래야 E2/E3 가 쌓인다.
+    #   ⚠ 기대값이 바뀐 이유: w1 이 쿨다운(직전 성공)에 걸려 빠지고 다른 복습 항목(g3)이
+    #     그 자리를 채웠다. 자리 구성(복습 2 + 문법 1 + 어휘 2)은 **그대로**다.
+    #   ⛔ 그래서 study_kind 로 단언하지 않는다 — 유형은 어느 항목이 뽑히느냐에 따라
+    #     우연히 달라진다. 계약은 **자리(state)** 다.
     assert [e["state"] for e in main] == \
         ["review", "review", "again", "new", "new"], \
         [(e["state"], e["item"].surface) for e in main]
     # 복습 = last_used 오래된 순 v2 → w1
-    assert [e["item"].surface for e in main[:2]] == ["단어v2", "단어w1"]
+    # 복습 = last_used 오래된 순. w1 은 쿨다운(직전 성공)이라 빠지고 g3 이 온다.
+    assert [e["item"].surface for e in main[:2]] == ["단어v2", "-문법3"]
     # 문법 자리 = g2 (SEL3: g1 은 직전 성공 쿨다운 제외 / g2 는 직전 F → 즉시 재출제·이월 선두)
     assert main[2]["item"].surface == "-문법2"
     # 신규 어휘 = SEL2(선발화단어 rank 0) 제외, priority 순 w2 → w3
@@ -588,9 +595,10 @@ def test_pick_study_items_beginner_mix_and_sel_filters(env):
     # 예비 = w4~w8 (core 만 — non-core '논코어단어' 미출현)
     #        + ⭐ 신규가 마른 뒤 복습 채움(2026-08-16): 남은 practicing 은 g3 하나뿐이다
     #          (v2·w1 은 앞 복습 슬롯이 이미 썼다). 시드가 작아 30 은 못 채우고 여기서 끝난다.
-    assert [e["item"].surface for e in reserve] == \
-        [f"단어w{i}" for i in range(4, 9)] + ["-문법3"]
-    assert [e["study_kind"] for e in reserve] == ["vocab"] * 5 + ["grammar"]
+    # ⚠ g3 이 본편 복습으로 올라갔으니 예비의 복습 채움은 w1 이 된다.
+    #   ⭐ **쿨다운은 본편 복습 선별에만 걸린다** — 예비는 남은 practicing 을 그대로 쓴다.
+    #     예비는 시간이 남을 때만 꺼내는 자리라 "직전에 맞힌 것"이 와도 해롭지 않다.
+    assert [e["item"].surface for e in reserve] == [f"단어w{i}" for i in range(4, 9)] + ["단어w1"]
     assert [e["state"] for e in reserve] == ["new"] * 5 + ["review"]
     assert all(e["item"].is_core for e in pb if e["item"].kind == "vocab")
 
@@ -601,10 +609,12 @@ def test_pick_study_items_bridge_mix_prefers_previous_level(env):
     pb2 = repo.pick_study_items(db, env["mB"].member_id, 2,
                                 review_slots=3, bridge_prev_ratio=0.7)
     main = [e for e in pb2 if e["slot"] == "main"]
-    assert [e["state"] for e in main[:3]] == ["review"] * 3, \
-        [(e["state"], e["item"].surface) for e in main]
+    # ⚠ 2026-08-20 쿨다운을 복습에도 걸면서 이 시드의 복습 풀은 2개로 줄었다 —
+    #   w1 이 직전 통화에서 성공해 제외된다. 세 번째 자리는 비워두지 않고 문법(다시)이
+    #   메운다. **자리는 안 비고 항목만 바뀐다** 가 계약이다.
+    assert [e["state"] for e in main[:2]] == ["review"] * 2, [(e["state"], e["item"].surface) for e in main]
     assert main[0]["item"].surface == "단어v2"  # 이전 레벨(L1) 우선
-    assert {e["item"].surface for e in main[:3]} == {"단어v2", "단어w1", "-문법3"}
+    assert {e["item"].surface for e in main[:2]} == {"단어v2", "-문법3"}
 
 
 def test_carryover_introduced_leads_new_pool(env):

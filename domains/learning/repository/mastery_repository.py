@@ -489,10 +489,19 @@ def pick_study_items(
     band = band_of(level_no, language)
     cooldown = _sel3_cooldown_item_ids(db, member_id, language)
 
+    # ⛔⛔ **쿨다운을 복습에도 건다**(2026-08-20 실측 사고). 함수는 `exclude_ids` 를 받게
+    #   되어 있는데(:398) 호출부가 **안 넘기고 있었다.** 신규 풀 3곳(청크·문법·어휘)에는
+    #   전부 넘기면서 복습만 빠졌다.
+    #   ⇒ 방금 성공한 항목이 다음 통화에 **또 최상단**으로 온다. 정렬이 "오래된 순"이라도
+    #     practicing 이 34개뿐이면 금방 다시 1등이 되기 때문이다.
+    #   실측(member 20): `안녕히 가세요` 를 **9번** 가르쳤다(반복=9 · 자발=0 · score 5.5).
+    #     사장님: "지금 계속 동일한 거 가르치는 거 같은데 기분 탓인가?" — 기분 탓이 아니었다.
+    #   ⚠ 쿨다운은 "최근 2통화에서 성공(E1+)했고 F 없는 항목"이다. 틀린 항목은 그대로
+    #     다시 나온다(즉시 재출제) — 막는 것은 **맞힌 것의 반복**뿐이다.
     reviews = _pick_review_items(
         db, member_id, level_no,
         limit=review_slots, prefer_previous=bridge_prev_ratio >= 0.5,
-        language=language,
+        language=language, exclude_ids=cooldown,
     )
     out: list[dict] = [{"slot": "main", "study_kind": i.kind, "item": i} for i in reviews]
 
