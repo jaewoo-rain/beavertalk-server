@@ -134,10 +134,6 @@ ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백�
 # 스왑 트리거는 GoAway 가 **아니라** 이 시계다. GoAway 는 언제 올지·time_left 형식이
 # 무엇인지 우리가 못 정하는 반면, 시계는 결정적이라 테스트가 발화시킬 수 있다. GoAway 는
 # 보조 트리거, 스트림 종료는 폴백.
-SESSION_ROTATE_AT_S = 480.0      # 세션 하나가 사는 최대 시간(8분). 연결 ~10분을 120s 선점
-MAX_RECONNECTS = 4               # 통화당 재연결 상한(15분 = 스왑 2회면 충분, 여유 2회)
-RECONNECT_MIN_REMAINING_S = 45.0 # 통화 잔여가 이보다 짧으면 재연결하지 않고 그냥 마무리
-SWAP_FLAP_GUARD_S = 30.0         # 직전 스왑 후 이 시간 안에는 재스왑 금지(플래핑 방어)
 SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
 #                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
@@ -428,7 +424,10 @@ class _CallState:
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
-        "resume_handle", "session_epoch", "reconnects", "swap_requested", "last_swap_ts",
+        # ⚠ `resume_handle`·`session_epoch` 는 남는다 — Gemini 가 주는 재개 핸들과 세대 번호는
+        #   로그·관측에 쓰인다. ⛔ 스왑 상태(reconnects/swap_requested/last_swap_ts)는
+        #   재연결 기계와 함께 사라졌다(2026-08-19).
+        "resume_handle", "session_epoch",
         "usage_log", "usage_dropped", "sidecar_usage",
     )
 
@@ -445,9 +444,6 @@ class _CallState:
         # 상태(모델 생성 중·tool 실행 중)로 재개하면 데이터가 유실된다.
         self.resume_handle: Optional[str] = None
         self.session_epoch = 0        # 이 통화에서 몇 번째 연결인가(1부터)
-        self.reconnects = 0           # 실제 스왑 횟수(상한 MAX_RECONNECTS)
-        self.swap_requested = False   # 시계/GoAway 가 세우고, 펌프가 깨끗한 경계에서 실행
-        self.last_swap_ts: Optional[float] = None
         self.turn_id: Optional[str] = None
         self.call_start_ts: Optional[float] = None
         self.should_close = False
@@ -602,14 +598,6 @@ class _ClientDisconnect(Exception):
 class _CallFinished(Exception):
     """통화 정상 종료(작별 후/백스톱) 내부 신호."""
 
-
-class _SessionSwap(Exception):
-    """Live 연결을 갈아끼워야 한다는 내부 신호(통화는 계속된다).
-
-    ⚠ _CallFinished 와 헷갈리지 마라 — 이건 **통화 종료가 아니다**. 세대 루프가 잡아서
-      새 연결을 열고 대화를 이어간다. 종료가 스왑보다 항상 우선이므로, should_close 나
-      close_seed_sent 가 서 있으면 이 신호를 올리지 않는다.
-    """
 
 
 def _release_persisted_pcm(state: _CallState, upto: int) -> int:
@@ -876,7 +864,7 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "peak_prompt": state.usage_prompt_max,
         "cycle_peak": state.usage_prompt_peak,
         "compressions": state.compression_seen,
-        "epochs": state.session_epoch, "reconnects": state.reconnects,
+        "epochs": state.session_epoch, "reconnects": 0,
         # ⭐ 통화중 LLM 사이드카 몫(힌트·재접지·레벨테스트 턴 판정). 한 번도 안 돌았으면
         #   None 이라 저장에서 통째로 빠진다 — "0 원"이 아니라 "안 돌았다"는 뜻이다.
         # ⚠ 여기 실리려면 Live usage 가 1건이라도 있어야 한다(위 `if not log: return None`).
@@ -1295,10 +1283,18 @@ async def run_call(
             seed_text = seed_resume(target_language)
             if brief:
                 system_instruction = system_instruction + "\n\n" + brief
+                # ⚠ `사실`·`하던것`·`발췌` 를 같이 찍는다(2026-08-19). 전에는 DB 기반 셋만
+                #   찍어서, 요약이 `사실 3개` 를 만들었는데 브리프 로그는 `다룬 0 · 잘함 0 ·
+                #   헷갈림 0` 이라 **아무것도 안 들어간 것처럼 보였다.** 관측 구멍이었다.
+                #   ⭐ `발췌` 는 폴백을 탔는지를 가른다 — 붙어 있으면 요약이 없었다는 뜻이다.
                 logger.info(
-                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 화제=%s",
+                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 사실 %d · "
+                    "화제=%s · 하던것=%s%s",
                     len(mats["covered"]), len(mats["strong"]), len(mats["weak"]),
+                    len(mats.get("facts") or []),
                     (mats["topic"] or "")[:30] or "없음",
+                    (mats.get("pending") or "")[:30] or "없음",
+                    " · ⚠발췌폴백" if mats.get("excerpt") else "",
                 )
         except Exception as exc:   # noqa: BLE001 — 브리프 실패가 통화를 막으면 안 된다(R5)
             logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
@@ -1406,7 +1402,7 @@ async def run_call(
     # +마무리 여유를 하한으로 삼아 시계가 정상 종료할 시간을 준다. 짧은/기본 통화는 그대로 540s.
     # ⭐ 2026-08-04: 예전엔 "10분 초과 선택은 연결 한계로 GoAway 가 먼저 올 수 있다(감수)"였다.
     #   이제 세대 루프가 연결을 갈아끼우므로 통화 길이와 연결 수명이 분리됐다 — 연결 수명은
-    #   SESSION_ROTATE_AT_S 가, 통화 전체는 이 백스톱이 각각 지킨다. 이 상한은 없애면 안 된다:
+    #   지금은 세대가 하나뿐이라 통화 전체를 이 백스톱만이 지킨다. 없애면 안 된다:
     #   재연결이 생긴 뒤로는 버그 하나가 곧 무한 세션(= 무한 과금)이 될 수 있다.
     absolute_timeout = max(
         ABSOLUTE_CALL_TIMEOUT_S, state.call_duration_s + SEED_TO_HANGUP_S + 30.0
@@ -1758,37 +1754,36 @@ async def _run_session(
     factory 에 아예 넘기지 않아 기존 세션 팩토리 시그니처(system_instruction/voice)와 바이트 동일
     (테스트의 가짜 팩토리도 무손상). 값이 있을 때만 tools= 를 흘려 open_session 이 config 에 주입.
     """
-    while True:
-        try:
-            await _run_one_generation(
-                client_ws,
-                state=state,
-                system_instruction=system_instruction,
-                voice=voice,
-                seed_text=seed_text,
-                settings=settings,
-                client=client,
-                live_session_factory=live_session_factory,
-                db_session_factory=db_session_factory,
-                call_id=call_id,
-                member_id=member_id,
-                tools=tools,
-            )
-            return
-        except _SessionSwap:
-            # 세대 교체. 여기까지 왔다는 건 펌프가 **깨끗한 턴 경계**에서 올렸다는 뜻이다
-            # (비버 idle + 유저 턴 닫힘 + 종료 미진행). 이전 TaskGroup 은 이미 완전히
-            # 끝났고 세션도 __aexit__ 로 닫혔다 — 세션이 세대의 지역 변수라 별칭이 남을
-            # 수 없다(좀비 방지가 구조로 보장된다).
-            state.reconnects += 1
-            state.last_swap_ts = asyncio.get_running_loop().time()
-            state.swap_requested = False
-            logger.info(
-                "normalcall: 세션 스왑 #%d (epoch=%d → %d, handle=%s)",
-                state.reconnects, state.session_epoch, state.session_epoch + 1,
-                "있음" if state.resume_handle else "없음",
-            )
-            continue
+    # ⛔⛔ **세대 루프를 없앴다**(2026-08-19, 이어하기 설계 §8-b 사장님 지시).
+    #   15분 통화를 한 세션으로 버티려고 만든 재연결 기계였는데, 조각이 6분이면
+    #   **사장(死藏) 코드**다. 실측(라이브 56건):
+    #       재연결 0회  53건  길이 0~508초
+    #       재연결 1회   3건  길이 496·512·536초   ← 전부 8분 이상
+    #       ⭐ 5분 30초 이하 48건 중 재연결 발생: **0건**
+    #   난 3건은 정확히 `SESSION_ROTATE_AT_S=480`(8분) 회전 시계가 돈 것이다.
+    #
+    # ⭐⭐ **이어하기가 재연결을 대체한다.** GoAway 가 4분에 와도 재연결로 살릴 필요가 없다 —
+    #   조각을 거기서 끝내고 "이어서 하시겠습니까?"를 띄우면 사용자가 새 세션으로 잇는다.
+    #   이어하기가 하는 일이 정확히 그것이다.
+    #
+    # ⚠ 같이 사라진 것: `_SessionSwap` · `_watch_session_rotate` · `_swap_eligible` ·
+    #   SESSION_ROTATE_AT_S / MAX_RECONNECTS / RECONNECT_MIN_REMAINING_S / SWAP_FLAP_GUARD_S.
+    #   ⛔ `resume_handle` 수신은 **남긴다** — 세션 재개 핸들은 Gemini 가 주는 것이고
+    #     로그·관측에 쓰인다. 다만 그걸로 다시 붙는 경로가 없어졌을 뿐이다.
+    await _run_one_generation(
+        client_ws,
+        state=state,
+        system_instruction=system_instruction,
+        voice=voice,
+        seed_text=seed_text,
+        settings=settings,
+        client=client,
+        live_session_factory=live_session_factory,
+        db_session_factory=db_session_factory,
+        call_id=call_id,
+        member_id=member_id,
+        tools=tools,
+    )
 
 
 async def _run_one_generation(
@@ -1806,7 +1801,11 @@ async def _run_one_generation(
     member_id: int,
     tools: Optional[list] = None,
 ) -> None:
-    """연결 1개 = TaskGroup 1세대. 스왑이 필요하면 _SessionSwap 을 올린다."""
+    """연결 1개 = TaskGroup 1세대.
+
+    ⚠ 예전엔 스왑이 필요하면 `_SessionSwap` 을 올려 호출부가 새 세대를 열었다. 조각이 6분이
+      되면서 그 경로가 죽었고(설계 §8-b), 지금은 **세대가 언제나 하나**다.
+    """
     state.session_epoch += 1
     factory_kwargs = {"system_instruction": system_instruction, "voice": voice}
     if tools is not None:
@@ -1838,7 +1837,6 @@ async def _run_one_generation(
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
-                tg.create_task(_watch_session_rotate(state), name="nc-rotate")
                 # 선톡 트리거: AI 에게 먼저 오프닝 한마디를 던져 "네가 먼저 인사하며 시작해"라고
                 # 시동을 건다. 이걸 안 하면 둘 다 서로 말하기만 기다려 통화가 조용히 멈춘다.
                 # ⛔ 재개 세대에는 절대 보내지 마라 — 재개는 대화가 이어지는 것이지 새로
@@ -1848,14 +1846,13 @@ async def _run_one_generation(
                     await session.send_text_turn(seed_text)  # 선톡 트리거
         # 🧒 TaskGroup 은 일꾼이 죽으면 그 예외들을 여러 개 담는 **봉투(ExceptionGroup)** 로
         #   감싸 던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=
-        #   클라가 끊음, _SessionSwap=연결 교체)를 홑겹 예외로 다시 던진다 → 호출부의 평범한
+        #   클라가 끊음)를 홑겹 예외로 다시 던진다 → 호출부의 평범한
         #   except 가 사람이 읽기 쉽게 처리한다.
         #
         # ⛔ except* 절을 여러 개 쓰지 마라(B4). except* 는 매치되는 절을 **전부** 실행하고,
         #   절들이 던진 예외를 다시 그룹으로 묶어 올린다 — 즉 신호가 둘 이상 섞인 봉투에서
         #   `except* A` / `except* B` 를 나란히 쓰면 결과가 ExceptionGroup([A, B]) 이 되어
-        #   호출부의 `except _CallFinished` / `except _SessionSwap` 이 **아무것도 못 잡는다**.
-        #   특히 [_SessionSwap + _CallFinished] 조합은 스왑이 통째로 실패해 통화가 오류로
+        #   호출부의 `except _CallFinished` 가 **아무것도 못 잡는다**. 통화가 오류로
         #   끝난다. 그래서 봉투를 직접 받아 우선순위로 딱 하나만 고른다.
         except BaseExceptionGroup as eg:
             signal = _pick_call_signal(eg)
@@ -1867,7 +1864,7 @@ async def _run_one_generation(
 # 통화 신호 우선순위(B4). ⛔ 순서가 곧 규칙이다 — **종료 > 클라 끊김 > 스왑**.
 # 종료가 걸린 봉투를 스왑으로 처리하면 이미 끝난 통화가 되살아나고, 클라가 이미 끊었는데
 # 스왑하면 아무도 없는 통화에 새 연결을 연다.
-_CALL_SIGNALS: tuple[type[Exception], ...] = (_CallFinished, _ClientDisconnect, _SessionSwap)
+_CALL_SIGNALS: tuple[type[Exception], ...] = (_CallFinished, _ClientDisconnect)
 
 
 def _pick_call_signal(eg: BaseExceptionGroup) -> Optional[Exception]:
@@ -1887,59 +1884,6 @@ def _pick_call_signal(eg: BaseExceptionGroup) -> Optional[Exception]:
             )
         return sig()
     return None
-
-
-def _swap_eligible(state: _CallState) -> bool:
-    """지금 세션을 갈아끼워도 되는가(요청 여부와 무관한 '자격' 판정).
-
-    ⛔ 종료가 스왑보다 항상 우선이다. 마무리 중에 연결을 갈면 작별이 통째로 날아간다.
-    ⛔ 핸들이 없으면 갈지 않는다 — 재개가 아니라 기억 상실이 된다. 차라리 지금 연결을
-      쓰다가 저쪽이 끊으면 기존 종료 파이프로 우아하게 마무리하는 편이 낫다.
-    """
-    if state.should_close or state.close_seed_sent:
-        return False
-    if not state.resume_handle:
-        return False
-    if state.reconnects >= MAX_RECONNECTS:
-        return False
-    loop = asyncio.get_running_loop()
-    # 플래핑 방어: 재연결이 곧바로 또 끊기는 상황에서 무한 왕복을 막는다. 예산(횟수)보다
-    # 이 시간 가드가 실질 방어선이다 — 예산은 정상 통화에선 안 닿는다.
-    if state.last_swap_ts is not None and loop.time() - state.last_swap_ts < SWAP_FLAP_GUARD_S:
-        return False
-    # 통화가 곧 끝나면 갈 이유가 없다. 남은 시간이 짧은데 갈면 재연결 비용만 쓰고
-    # 바로 작별하게 된다.
-    if state.call_start_ts is not None:
-        remaining = state.call_duration_s - (loop.time() - state.call_start_ts)
-        if remaining < RECONNECT_MIN_REMAINING_S:
-            return False
-    return True
-
-
-async def _watch_session_rotate(state: _CallState) -> None:
-    """세션 수명(SESSION_ROTATE_AT_S)이 차면 스왑을 요청한다.
-
-    🧒 Gemini 연결은 ~10분쯤 살고 저쪽에서 끊는다. 끊긴 뒤에 대응하면 이미 대화가 잘린
-      뒤라, 그 전에 우리가 먼저 갈아끼운다. 요청만 세워두고 **실제 교체는 펌프가 깨끗한
-      턴 경계에서** 한다 — 말하는 도중에 갈면 문장이 잘린다.
-
-    ⚠ 이 워처는 세대마다 새로 뜬다. 그래서 기준 시각은 통화 시작이 아니라 **이 세대가
-      시작한 시각**이다.
-    """
-    if MAX_RECONNECTS <= 0:  # 킬스위치: 0 이면 재연결 기능 자체가 없던 것과 동일
-        return
-    loop = asyncio.get_running_loop()
-    epoch_started = loop.time()
-    while True:
-        await asyncio.sleep(1.0)
-        if loop.time() - epoch_started < SESSION_ROTATE_AT_S:
-            continue
-        if not _swap_eligible(state):
-            # 자격이 없으면(종료 임박·핸들 없음·예산 소진) 조용히 물러난다. 이 세대는
-            # 그대로 살다가 저쪽이 끊으면 기존 종료 파이프가 받는다.
-            return
-        state.swap_requested = True
-        return
 
 
 async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, member_id: int) -> None:
@@ -2489,22 +2433,17 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         # 우리가 먼저 우아하게 마무리한다 — 기존 종료 파이프에 합류: should_close 를 세우고,
         # idle 이면 즉시 짧은 작별 시드를 주입(발화중이면 펌프가 turn_end 에서 주입).
         if event.kind == "go_away":
-            # 재연결이 가능하면 종료가 아니라 **연결 교체**로 받는다(통화는 계속된다).
-            # 자격이 없으면(핸들 없음·예산 소진·종료 임박) 종전대로 우아한 마무리 —
-            # 이 폴백이 없으면 아무도 작별을 안 넣는 死구간이 된다.
-            if _swap_eligible(state):
-                logger.info(
-                    "normalcall: GoAway 수신(time_left=%s) → 세션 교체 예약", event.time_left
-                )
-                state.swap_requested = True
-            else:
-                logger.warning(
-                    "normalcall: GoAway 수신(time_left=%s) → 종료 절차(재연결 불가)",
-                    event.time_left,
-                )
-                state.should_close = True
-                if state.turn_id is None:
-                    await _inject_close_seed(session, state)
+            # ⭐ 예전엔 "재연결이 가능하면 연결 교체" 갈래가 있었다. 재연결 기계가 사라지면서
+            #   (설계 §8-b) 이제 GoAway 는 **언제나 우아한 마무리**로 간다.
+            # ⚠ 조각 설계에서는 그게 오히려 맞다: GoAway 가 4분에 와도 조각을 거기서 끝내고
+            #   "이어서 하시겠습니까?"를 띄우면 사용자가 새 세션으로 잇는다 — 이어하기가
+            #   재연결이 하던 일을 그대로 한다.
+            logger.warning(
+                "normalcall: GoAway 수신(time_left=%s) → 종료 절차", event.time_left,
+            )
+            state.should_close = True
+            if state.turn_id is None:
+                await _inject_close_seed(session, state)
             continue
 
         # 세션 재개 핸들 갱신. resumable=False 는 "지금 상태로는 재개 불가"(모델 생성 중·
@@ -2585,21 +2524,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
                 #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
                 await _inject_resume_seed(session, state)
-            elif state.swap_requested and not state.user_turn_open and _swap_eligible(state):
-                # ⭐ 세션 교체는 **여기서만** 일어난다. 비버가 방금 말을 마쳤고(turn_id 는
-                # _forward_event 가 이미 None 으로 내렸다) 유저 턴도 닫힌 깨끗한 경계다.
-                # 이 조건이 곧 "클라가 turn_end 를 이미 받았다"는 뜻이기도 하다 — 안 그러면
-                # 클라의 barge-in off 게이트가 열린 턴을 붙잡아 마이크가 영구히 막힌다.
-                logger.info("normalcall: 턴 경계 도달 → 세션 교체 실행(epoch=%d)", state.session_epoch)
-                raise _SessionSwap()
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
-    if _swap_eligible(state):
-        logger.warning(
-            "normalcall: Live 스트림이 예고 없이 종료 → 세션 교체 시도 events=%d", event_count
-        )
-        raise _SessionSwap()
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
 

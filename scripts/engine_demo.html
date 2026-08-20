@@ -2,20 +2,19 @@
 <meta charset="utf-8">
 <title>비버톡 — 엔진 선택 통화</title>
 <!--
-  엔진 선택 데모 — "얘기할래(Live) / 공부할래(PTT 캐스케이드)" 를 웹에서 고른다.
+  라이브 통화 데모 — **이어하기(6분 조각 × 3)** 를 웹에서 검증한다.
 
   왜 만들었나(2026-08-18): 사장님이 플러터 대신 **웹으로** 통화 테스트를 하기로 했다.
-  기존 데모 둘은 엔진이 하나씩 박혀 있다 —
-    level_call_demo.html  → /calls/stream    (Live 전용)
-    cascade_demo.html     → /cascade/stream  (캐스케이드 전용)
-  같은 화면에서 **골라서** 붙어야 두 엔진을 나란히 비교할 수 있다.
+  ⚠ 원래는 엔진 선택(Live / PTT 캐스케이드) 화면이었는데, 2026-08-19 사장님 결정으로
+    **라이브만 쓰기로** 하면서 캐스케이드 쪽을 들어냈다. 그 코드가 필요해지면
+    `scripts/cascade_demo.html` 이 그대로 남아 있다.
 
   ⛔ 인증은 서버가 발급한다(/__dev/login). Supabase URL 을 하드코딩하지 않는다 —
      그러면 배포마다 프로젝트가 달라져 로그인 후 전부 401/403 이 나고, 서버 ERROR 로그는
      0건이라 원인이 안 보인다(2026-08 실측 사고).
 
-  ⭐ 릴리즈지연 R 을 잰다 — PTT 버튼을 뗀 시각 → 첫 소리까지. PTT 단일경로 전환의
-     착수 조건이 "R 을 아무도 안 쟀다" 이고, 이 화면이 그 자다.
+  ⭐ 이어하기가 됐는지는 **call_id 가 그대로인지**로 가른다. 서버는 이어하기가 안 되면
+     조용히 새 통화로 떨어뜨리므로(설계상 폴백), 화면에서 그것 말고는 알 방법이 없다.
 -->
 <style>
   :root{
@@ -36,14 +35,6 @@
          border-radius:6px;padding:8px 14px;font:inherit;cursor:pointer}
   button:hover:not(:disabled){border-color:#3a4252}
   button:disabled{opacity:.4;cursor:not-allowed}
-  .pick{flex:1;min-width:200px;padding:18px;text-align:left;border-radius:10px}
-  .pick b{display:block;font-size:15px;margin-bottom:3px}
-  .pick.live{border-color:var(--live)} .pick.live b{color:var(--live)}
-  .pick.ptt{border-color:var(--ptt)}  .pick.ptt b{color:var(--ptt)}
-  .pick[aria-pressed="true"]{background:#1e2430;box-shadow:inset 0 0 0 1px currentColor}
-  #talk{width:100%;padding:26px;font-size:17px;font-weight:600;border-radius:12px;
-        background:#2a2118;border-color:var(--ptt);color:var(--ptt);touch-action:none;user-select:none}
-  #talk.on{background:var(--ptt);color:#1a1205}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px}
   .stat{background:#0d1017;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
   .stat i{display:block;font-style:normal;color:var(--dim);font-size:11px}
@@ -59,9 +50,9 @@
 
 <div class="wrap">
   <div>
-    <h1>🦫 엔진 선택 통화</h1>
+    <h1>🦫 라이브 통화 · 이어하기</h1>
     <div class="muted">
-      얘기할래 → <code>/calls/stream</code>(Live) · 공부할래 → <code>/cascade/stream</code>(PTT 캐스케이드)
+      <code>/calls/stream</code> — Gemini Live. 6분 조각을 <b>이어하기</b>로 잇는다(최대 3조각).
     </div>
   </div>
 
@@ -78,24 +69,9 @@
     </div>
   </div>
 
-  <!-- ② 엔진 선택 -->
+  <!-- ② 통화 설정 -->
   <div class="panel">
-    <div class="muted" style="margin-bottom:8px">
-      <b>엔진</b>을 고른다 — 공부/대화 모드는 통화 <b>안에서</b> 비버가 묻는다("공부할래, 수다 떨래?").
-    </div>
     <div class="row">
-      <!-- ⛔ 이 버튼은 **엔진 선택**이지 공부/대화 모드가 아니다(2026-08-19 정정).
-           예전 라벨이 '얘기할래 / 공부할래' 였는데, 그건 통화 **안에서** 비버가 묻는
-           질문의 문구다("공부할래, 수다 떨래?"). 같은 낱말을 두 층위에 쓰니
-           "공부하려면 어느 버튼?" 이 안 풀렸다 — 사장님이 실제로 그걸 물으셨다. -->
-      <button class="pick live" id="pickLive" aria-pressed="true">
-        <b>🗣 Live</b><span class="muted">마이크 상시 · 끼어들기 없음 · 이어하기 지원</span>
-      </button>
-      <button class="pick ptt" id="pickPtt" aria-pressed="false">
-        <b>📚 PTT 캐스케이드</b><span class="muted">버튼 꾹 눌러 말하기 · 이어하기 없음</span>
-      </button>
-    </div>
-    <div class="row" style="margin-top:10px">
       <label class="muted">캐릭터 <input id="cid" value="1" style="width:56px"></label>
       <label class="muted">모국어
         <select id="loc"><option value="en">en</option><option value="ko">ko</option>
@@ -104,29 +80,15 @@
       <label class="muted">길이(분) <input id="dur" value="5" style="width:56px"></label>
       <button id="callBtn" disabled>📞 통화 시작</button>
       <button id="hangBtn" disabled>⏹ 끊기</button>
-      <!-- ⭐ 이어하기 — 서버가 새 통화 행을 만들지 않고 그 행에 계속 쓴다(목록·분석이 1건).
-           ⛔ **버튼을 막지 않는다.** 되는지 여부는 서버가 정하고(본인·TTL 5분·조각 상한),
-              안 되면 조용히 새 통화로 떨어진다. 클라가 미리 막으면 "왜 못 누르지"만 남고
-              **거절 사유를 볼 기회가 사라진다** — 이 화면의 목적은 그 사유를 보는 것이다. -->
       <button id="contBtn" disabled title="요약이 준비되면 열린다">▶ 이어하기</button>
       <span id="contWhy" class="muted"></span>
       <span><span class="dot" id="dot"></span><span id="stat" class="muted">대기</span></span>
     </div>
   </div>
 
-  <!-- ③ PTT 버튼 -->
-  <div class="panel hide" id="pttPanel">
-    <button id="talk">🎤 꾹 눌러 말하기</button>
-    <div class="muted" style="margin-top:8px">
-      누르는 동안만 마이크가 서버로 갑니다. 떼면 그 자리에서 턴이 끝납니다.
-      <b>R</b> = 뗀 시각 → 첫 소리.
-    </div>
-  </div>
-
   <!-- ④ 상태 -->
   <div class="panel">
     <div class="stats">
-      <div class="stat"><i>엔진</i><b id="sEngine">—</b></div>
       <div class="stat"><i>call_id</i><b id="sCall">—</b></div>
       <div class="stat"><i>조각</i><b id="sFrag">—</b></div>
       <div class="stat"><i>경과</i><b id="sElapsed">0:00</b></div>
@@ -153,12 +115,12 @@ const nowMs = () => performance.now();
 function apiBase(){ return location.origin; }
 function wsBase(){ const u = new URL(apiBase()); return (u.protocol==='https:'?'wss':'ws')+'://'+u.host; }
 
-let token = null, ws = null, engine = 'live';
+let token = null, ws = null;
 // ⭐ 이어하기 대상 call_id. 통화가 끝나면 채워지고, '이어하기' 로 시작하면 실려 나간다.
 let resumeFrom = null, lastCallId = null, fragNo = 0;
 let actx = null, micStream = null, srcNode = null, procNode = null;
 let playT = 0, t0 = 0, elapsedTimer = null;
-let pttHeld = false, releasedAt = 0, awaitingFirstAudio = false;
+let releasedAt = 0, awaitingFirstAudio = false;
 let turns = 0; const rs = [];
 
 function log(msg, cls){
@@ -186,16 +148,6 @@ $('#loginBtn').onclick = async () => {
   }catch(e){ log('로그인 실패: '+e.message, 'err'); }
 };
 
-/* ---------- 엔진 선택 ---------- */
-function setEngine(v){
-  engine = v;
-  $('#pickLive').setAttribute('aria-pressed', String(v==='live'));
-  $('#pickPtt').setAttribute('aria-pressed', String(v==='cascade'));
-  $('#pttPanel').classList.toggle('hide', v!=='cascade');
-  $('#sEngine').textContent = v==='live' ? 'Live' : 'PTT';
-}
-$('#pickLive').onclick = () => setEngine('live');
-$('#pickPtt').onclick  = () => setEngine('cascade');
 
 /* ---------- 오디오 ---------- */
 function downsample(buf, from, to){
@@ -255,7 +207,7 @@ async function startCall(){
   procNode = actx.createScriptProcessor(2048, 1, 1);
   srcNode.connect(procNode); procNode.connect(actx.destination);
 
-  const path = engine==='live' ? '/api/v1/calls/stream' : '/api/v1/cascade/stream';
+  const path = '/api/v1/calls/stream';
   ws = new WebSocket(`${wsBase()}${path}?token=${token}`);
   ws.binaryType = 'arraybuffer';
   log(`연결 → ${path}`, 'out');
@@ -265,17 +217,13 @@ async function startCall(){
     $('#callBtn').disabled=true; $('#hangBtn').disabled=false;
     stopPoll(); $('#contBtn').disabled = true; $('#contWhy').textContent = '';
     // ⛔ 두 엔진의 start 계약이 다르다. 한쪽 모양을 다른 쪽에 보내면 조용히 무시되거나 거절된다.
-    const msg = engine==='live'
-      ? Object.assign(
-          { type:'start', character_id:+$('#cid').value||1, locale:$('#loc').value,
-            duration_min:+$('#dur').value||5 },
-          // ⭐ 이어하기: 직전 call_id 를 실어 보낸다. 서버가 검증(본인·TTL 5분·조각 상한)해서
-          //   되면 그 행에 계속 쓰고, 안 되면 **조용히 새 통화**로 떨어진다(거절 아님).
-          //   ⛔ 첫 통화에는 필드 자체를 안 보낸다 — null 을 보내면 의도가 흐려진다.
-          resumeFrom ? { continues_call_id: String(resumeFrom) } : {})
-      // ⭐ turnControl:'ptt' — 벤더 VAD 를 끄고(turn_detection:null) 버튼이 턴 경계가 된다.
-      //   ⚠ 낱말이 mode 가 아닌 이유: 와이어에서 mode 는 AecHint.mode 가 이미 점유했다.
-      : { type:'start', sampleRate:16000, turnControl:'ptt', aec:{ mode:'hw', route:'browser' } };
+    const msg = Object.assign(
+      { type:'start', character_id:+$('#cid').value||1, locale:$('#loc').value,
+        duration_min:+$('#dur').value||5 },
+      // ⭐ 이어하기: 직전 call_id 를 실어 보낸다. 서버가 검증(본인·TTL 5분·조각 상한)해서
+      //   되면 그 행에 계속 쓰고, 안 되면 **조용히 새 통화**로 떨어진다(거절 아님).
+      //   ⛔ 첫 통화에는 필드 자체를 안 보낸다 — null 을 보내면 의도가 흐려진다.
+      resumeFrom ? { continues_call_id: String(resumeFrom) } : {});
     ws.send(JSON.stringify(msg));
     log('→ start '+JSON.stringify(msg), 'out');
     startElapsed();
@@ -284,7 +232,6 @@ async function startCall(){
   procNode.onaudioprocess = (e) => {
     if (!ws || ws.readyState!==1) return;
     // ⭐ PTT: 누른 동안만 업링크. Live 는 상시(끼어들기가 서버에서 꺼져 있다).
-    if (engine==='cascade' && !pttHeld) return;
     ws.send(toPCM16(downsample(e.inputBuffer.getChannelData(0), actx.sampleRate, 16000)).buffer);
   };
 
@@ -392,55 +339,10 @@ function cleanup(){
   try{ srcNode && srcNode.disconnect(); }catch{}
   try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch{}
   try{ actx && actx.close(); }catch{}
-  procNode=srcNode=micStream=actx=null; pttHeld=false; $('#talk').classList.remove('on');
+  procNode=srcNode=micStream=actx=null;
 }
 
 /* ---------- PTT 버튼 ---------- */
-// ⚠ **왜 한 번 틀렸었는지 남긴다**(2026-08-18). 처음엔 버튼을 떼며 업링크를 뚝 끊었다.
-//   그때 서버 STT 는 `turn_detection: server_vad` 라 발화 끝을 **무음을 들어서** 판정했는데,
-//   들을 무음 자체가 없어지니 VAD 가 안 터졌다. 턴이 STT idle 5초 워치독으로 닫혀
-//   R 이 **7.6초**가 됐다(사장님 실측: "PTT 가 기존 캐스케이드보다 훨씬 느리다").
-//
-//   서버 자신도 같은 이유로 통화 끝에 무음을 흘렸다 —
-//   `core/openai_stt.py:187` "닫기 전에 무음을 조금 흘린다 — 안 그러면 마지막 발화가 사라진다".
-//
-// ⭐⭐ **그 꼬리 무음을 지웠다**(2026-08-18). 서버가 `turnControl:'ptt'` 를 받으면
-//   `turn_detection: null` 로 붙어 **벤더 VAD 가 통째로 꺼진다.** 그러면 벤더는 무음을
-//   듣고 말끝을 추측하지 않고, `input_audio_buffer.commit` 을 받을 때만 전사한다.
-//   ⇒ 무음을 흘릴 이유가 사라졌다. 버튼이 곧 경계다.
-//
-// ⛔ `ptt_press` 는 **없으면 안 된다.** VAD 를 끄면 벤더가 `speech_started` 도 부분 전사도
-//   안 보내서 서버가 턴을 여는 트리거 두 개가 **둘 다 안 온다** — 누름 신호가 없으면 턴이
-//   한 번도 안 열리고 통화가 조용히 멈춘다(cascade_protocol.py ClientPttPress 주석).
-//
-// ⭐ 그리고 누름은 **즉시 barge-in** 을 겸한다. 지금까지 비버를 끊으려면 에너지·전사 확인
-//   사다리를 최대 3.5초 지나야 했는데, 버튼은 추측이 아니라 **선언**이라 그 자리에서 끊는다.
-function sendCtl(type){
-  if (!ws || ws.readyState!==1) return;
-  ws.send(JSON.stringify({ type }));
-}
-
-function hold(on){
-  if (!ws || ws.readyState!==1 || engine!=='cascade') return;
-  if (on === pttHeld) return;
-  pttHeld = on;
-  $('#talk').classList.toggle('on', on);
-  if (on){
-    sendCtl('ptt_press');
-    log('🎤 눌림 — 턴 열림(즉시 barge-in)', 'out');
-  } else {
-    releasedAt = nowMs(); awaitingFirstAudio = true;
-    turns++; $('#sTurns').textContent = String(turns);
-    sendCtl('ptt_release');   // ⭐ 이 순간이 곧 commit 이다. 무음 꼬리도 대기도 없다
-    log('🎤 뗌 — commit, 응답 대기', 'out');
-  }
-}
-const talk = $('#talk');
-talk.addEventListener('pointerdown', e => { e.preventDefault(); talk.setPointerCapture(e.pointerId); hold(true); });
-talk.addEventListener('pointerup',   () => hold(false));
-talk.addEventListener('pointercancel',() => hold(false));
-window.addEventListener('keydown', e => { if (e.code==='Space' && !e.repeat){ e.preventDefault(); hold(true); } });
-window.addEventListener('keyup',   e => { if (e.code==='Space'){ e.preventDefault(); hold(false); } });
 
 /* ---------- 경과 ---------- */
 function startElapsed(){
@@ -452,5 +354,4 @@ function startElapsed(){
 }
 function stopElapsed(){ clearInterval(elapsedTimer); elapsedTimer=null; }
 
-setEngine('live');
 </script>
