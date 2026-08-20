@@ -403,6 +403,8 @@ class _CallState:
         "face_calls", "face_seq", "face_last",
         # ⭐ 이어하기 조각의 시작 턴 인덱스(0=첫 조각). 통화후 **검증 범위**의 기준이다.
         "resume_from_turn",
+        # ⭐ 표정 v2 계측 — 이 턴에서 오디오·전사가 **각각 처음 온 시각**(monotonic).
+        "face_first_audio_at", "face_first_tr_at",
         # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
         "face_streak",
         "close_seed",
@@ -471,6 +473,8 @@ class _CallState:
         self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
         self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
         self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
+        self.face_first_audio_at = 0.0   # 표정 v2 계측(턴마다 리셋)
+        self.face_first_tr_at = 0.0
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -2556,6 +2560,13 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             #   ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 사이에서 나므로
             #     턴 경계로 풀면 차단기가 영영 안 걸리거나 매번 풀린다.
             state.face_streak = 0
+            # ⭐⭐ **표정 v2 계측**(2026-08-20). tool-call 이 3번 실패해서 남은 길은
+            #   "출력 전사로 감정을 뽑아 그 자리에 마커를 끼우는 것"인데, 그게 성립하려면
+            #   **전사가 그 오디오보다 먼저 와야** 한다(프론트가 마커를 오디오 위치에 꽂는다).
+            #   ⛔ 이건 문서로 못 정한다. 두 이벤트가 같은 펌프를 지나므로 도착 시각을
+            #     재면 바로 답이 나온다. 그 한 숫자가 v2 설계의 성립 여부를 정한다.
+            if not state.face_first_audio_at:
+                state.face_first_audio_at = asyncio.get_running_loop().time()
             await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
@@ -2576,6 +2587,8 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
         text = event.text or ""
+        if not state.face_first_tr_at and (text or "").strip():
+            state.face_first_tr_at = asyncio.get_running_loop().time()
         await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=state.turn_id))
         if text:
             state.cur_beaver_text.append(text)
@@ -2583,6 +2596,23 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
 
     elif event.kind == "turn_end":
         turn_id = state.turn_id or _new_turn_id()
+        # ⭐⭐ **표정 v2 의 성립 조건을 한 줄로 답한다**(2026-08-20).
+        #   프론트는 마커를 **오디오 위치**에 꽂는다(at:_envAdded → 재생이 닿을 때 반영).
+        #   그러니 전사에서 감정을 뽑아 마커를 끼우려면 **전사가 그 오디오보다 먼저** 와야 한다.
+        #     음수(전사가 먼저)  → ✅ v2 성립. 전사 자리에 마커를 끼우면 소리와 맞는다
+        #     양수(오디오가 먼저) → ⛔ 표정이 그만큼 늦는다. 다른 길을 찾아야 한다
+        #   ⚠ 두 이벤트는 **같은 펌프**를 순서대로 지나므로(:2549 audio · :2573 out_tr)
+        #     이 차이가 곧 Gemini 가 준 순서다 — 우리 큐가 섞은 값이 아니다.
+        if state.face_first_audio_at or state.face_first_tr_at:
+            a, t = state.face_first_audio_at, state.face_first_tr_at
+            logger.info(
+                "normalcall 표정계측: turn=%s 전사-오디오=%s (전사=%s 오디오=%s)",
+                turn_id,
+                "%+.0fms" % ((t - a) * 1000) if (a and t) else "한쪽만",
+                "있음" if t else "없음", "있음" if a else "없음",
+            )
+        state.face_first_audio_at = 0.0
+        state.face_first_tr_at = 0.0
         await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
         state.last_turn_id = turn_id  # D16: 방금 끝난 턴 id 보존(힌트 태스크 재료)
         state.turn_id = None
