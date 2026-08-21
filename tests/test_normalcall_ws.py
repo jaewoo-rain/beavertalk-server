@@ -3623,6 +3623,12 @@ class _FaceLiveSession(FakeLiveSession):
         for emo in self._script:
             if emo == "__audio":
                 yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            elif emo == "__user":
+
+                # ⭐ 학습자 발화. 첫 인사 턴 억제를 푸는 유일한 신호다(2026-08-21).
+
+                yield LiveEvent(kind="in_tr", text="네", is_final=True)
+
             elif emo == "__audio_long":
                 # ⭐ 첫 인사 턴 문턱(48,000B = 1초)을 확실히 넘기는 한 덩어리.
                 yield LiveEvent(kind="audio", audio=bytes(96_000))
@@ -3673,7 +3679,7 @@ async def test_face_markers_flow_and_duplicates_are_dropped(
     # ⚠ 2026-08-20: **첫 인사 턴의 set_face 는 서버가 버린다.** 그래서 스크립트가
     #   인사 턴(오디오+turn_end)을 먼저 흘려보낸 뒤에 표정을 부른다 — 실제 통화의
     #   모양과 같다(비버가 인사하고, 학습자가 답하고, 그 다음 턴부터 표정).
-    script = ["__audio", "__turn_end", "happy", "__audio", "happy", "__turn_end", "sad", "__audio", "__turn_end"]
+    script = ["__audio", "__turn_end", "__user", "happy", "__audio", "happy", "__turn_end", "sad", "__audio", "__turn_end"]
     markers, holder = await _run_face_call(
         monkeypatch, session_factory, seeded, script, on=True)
 
@@ -3699,7 +3705,7 @@ async def test_the_first_marker_precedes_the_audio_on_the_wire(
       인사 턴을 먼저 한 번 흘려보낸 뒤에 표정을 부른다. 이 시험이 보는 것은 **순서**이지
       "첫 호출이 나가는가"가 아니다.
     """
-    script = ["__audio", "__turn_end", "happy", "__audio", "__turn_end"]
+    script = ["__audio", "__turn_end", "__user", "happy", "__audio", "__turn_end"]
     holder: dict = {}
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     ws = FakeWebSocket([
@@ -3798,7 +3804,8 @@ async def test_a_long_opening_turn_still_gets_its_markers(
     """
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     # ⚠ __audio 한 조각은 16바이트뿐이라 문턱(48,000B)을 못 넘는다. 충분히 흘린다.
-    script = ["__audio_long", "happy", "__audio", "__turn_end"]
+    # ⚠ 학습자가 말한 뒤라야 마커가 나간다(2026-08-21 계약).
+    script = ["__audio_long", "__user", "happy", "__audio", "__turn_end"]
     markers, _ = await _run_face_call(
         monkeypatch, session_factory, seeded, script, on=True)
     assert [m["emotion"] for m in markers] == ["happy"], markers
@@ -3834,7 +3841,7 @@ async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded
     monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
     # 소리 한 조각 없이 감정만 6회(값도 계속 바꿔 중복 억제에 안 걸리게 한다)
     # ⚠ 첫 인사 턴을 먼저 소비한다(위 시험 주석 참조) — 그래야 폭주 차단기만 잰다.
-    script = ["__audio", "__turn_end", "happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
+    script = ["__audio", "__turn_end", "__user", "happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
     holder: dict = {}
     ws = FakeWebSocket([
         {"type": "websocket.receive",
@@ -3873,7 +3880,7 @@ async def test_audio_clears_the_storm_counter(monkeypatch, session_factory, seed
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
     # ⚠ 첫 인사 턴을 먼저 소비한다(위 시험 주석 참조).
-    script = ["__audio", "__turn_end", "happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
+    script = ["__audio", "__turn_end", "__user", "happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
     holder: dict = {}
     ws = FakeWebSocket([
         {"type": "websocket.receive",

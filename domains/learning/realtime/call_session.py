@@ -310,13 +310,6 @@ SessionFactory = Callable[..., AsyncContextManager[LiveSessionProtocol]]
 _analysis_tasks: set[asyncio.Task] = set()
 
 
-# ⭐ "첫 인사 턴" 판정의 오디오 문턱 — 이만큼 소리가 나간 뒤의 호출은 인사 중복을
-#   만들 수 없다(24kHz·16bit = 48,000 B/s 이므로 1.0초).
-#   ⛔ 0 으로 낮추지 마라 — 인사 중복 사고(call 1117)가 정확히 0.00초 호출이었다.
-#   ⛔ 크게 올리지도 마라 — 긴 첫 턴의 중간 마커가 다시 버려진다(call 1120).
-_FACE_OPENING_MAX_BYTES = 48_000
-
-
 def _new_turn_id() -> str:
     return uuid.uuid4().hex[:12]
 
@@ -414,7 +407,10 @@ class _CallState:
         "face_first_audio_at", "face_first_tr_at",
         # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
         "face_streak",
-        # ⭐ 이 조각에서 **비버가 마친 턴 수**. 첫 인사 턴 판정에 쓴다(0 이면 인사 중).
+        # ⭐ 학습자가 이 통화에서 **한 번이라도 말했나**. 첫 인사 턴 판정의 기준이다.
+        #   ⛔ 인사 턴은 정의상 학습자 발화 **이전**이다 — 그래서 이 한 값이 정확히 가른다.
+        "learner_spoke",
+        # ⭐ 이 조각에서 **비버가 마친 턴 수**. (지금은 로그·진단용)
         #   ⛔ next_turn_index 로 대신하지 마라 — 그건 학습자 세그먼트도 같이 세고,
         #     무음이면 flush 자체가 생략돼(pcm·text 둘 다 비면 early-return) 값이 어긋난다.
         #     실제로 그 오차 때문에 회귀가 깨졌다(2026-08-20).
@@ -481,6 +477,7 @@ class _CallState:
         self.cur_beaver_text: list[str] = []
         self.next_turn_index = 0
         self.beaver_turns = 0
+        self.learner_spoke = False
         self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
         self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
@@ -2431,25 +2428,23 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   ⭐ 지시는 부탁이고 이건 계약이다 — 폭주 차단기와 같은 규율이다.
             #     서버가 버리면 마커도 안 나가고 모델 설득에 기대지 않아도 된다.
             #
-            #   ⚠ 판정 기준 **두 겹**이다: ①비버가 아직 한 턴도 못 마쳤고(beaver_turns==0)
-            #     ②이 턴에 **소리가 아직 거의 안 나갔다**(누적 오디오 < 1초).
+            #   ⚠ 판정 기준: **학습자가 아직 한 마디도 안 했나.**
+            #     인사 턴은 정의상 학습자 발화 **이전**이다 — 이 한 값이 정확히 가른다.
             #
-            #   ⛔⛔ ②를 빠뜨렸다가 실측 사고가 났다(2026-08-21, call 1120). 모델이
-            #     turn_complete 를 한 번도 안 보내고 **50초를 혼자 떠든** 통화에서,
-            #     beaver_turns 가 영영 0 이라 7.68·11.48·16.20·32.88·47.56초 지점의
-            #     마커 **다섯 개가 전부 버려졌다.** 첫 조건만으로는 "턴이 안 끝나면
-            #     영원히 인사 턴"이 된다.
+            #   ⛔⛔ 앞서 두 기준이 각각 실패했다. 되돌리지 마라:
+            #     · `beaver_turns == 0` 만  → 모델이 turn_complete 없이 50초를 혼자 떠들면
+            #       (call 1120) 영원히 인사 턴이라 중간 마커 5개가 전부 버려졌다.
+            #     · + "소리 1초 미만" 을 얹음 → 이번엔 인사 턴의 **8.60초** 지점 호출이
+            #       통과했고(call 1121) 그 직후 인사가 글자까지 똑같이 반복됐다.
+            #       ⇒ 인사 중복은 호출 **위치와 무관하게** 첫 턴이면 일어난다.
             #
-            #   ⭐ 왜 오디오로 재는가 — 막으려던 병이 정확히 그것이기 때문이다. 인사가
-            #     두 번 나간 사고는 **소리가 나가기 전에** 온 호출이 턴을 먹어서 생겼다
-            #     (call 1117: 0.00초 호출 → 인사가 글자까지 똑같이 반복). 이미 소리가
-            #     흐르는 중에 온 호출은 그 병을 만들 수 없다.
-            #   ⚠ next_turn_index 로 재지 마라 — 학습자 세그먼트도 같이 세는데 무음이면
-            #     flush 가 생략돼 값이 어긋난다(회귀가 실제로 깨졌다).
-            #   ⭐ 이어하기 조각은 beaver_turns 가 0 에서 시작하지만 **인사 자체가 없다**
-            #     (이어하기 규약: 조각 경계에서 주입 0). 첫 응답이 곧 본론이다.
-            opening = (state.beaver_turns == 0
-                       and len(state.cur_beaver_pcm) < _FACE_OPENING_MAX_BYTES)
+            #   ⭐ 그래서 위치가 아니라 **대화가 시작됐는가**로 가른다. call 1121 의
+            #     8.60초 호출은 학습자 발화 전이라 버려지고, call 1120 처럼 학습자가 말한
+            #     뒤의 긴 턴 중간 호출은 살아난다. 두 사고를 동시에 막는 유일한 기준이다.
+            #   ⭐ 이어하기 조각도 자연히 맞다 — 거기엔 인사가 없고, 첫 조각에서 이미
+            #     말한 학습자라도 **조각마다 새 세션**이라 첫 응답 전까지는 억제된다.
+            #     조각 첫 턴 하나를 잃지만 인사 중복 위험이 0 이라 대가가 작다.
+            opening = not state.learner_spoke
             # ⛔⛔ **턴이 열렸는지로 막지 않는다.** 모델은 말하기 **전에** 표정을 정하므로
             #   (실측 27/28 이 오디오 0.00초 지점) 이 시점에 `state.turn_id` 는 대개 **None**
             #   이다. 여기서 걸러내면 마커가 거의 전부 사라진다.
@@ -2632,6 +2627,8 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         state.last_activity_ts = asyncio.get_running_loop().time()
         state.silence_stage = 0  # 발화 재개 → 넛지 단계 리셋
         state.user_turn_open = True  # 유저 발화 턴 열림(비버 turn_start 시 flush 에서 False)
+        # ⭐ 학습자가 말했다 = 인사 구간이 끝났다. 표정 마커를 이제부터 내보낸다.
+        state.learner_spoke = True
         await _send_json(client_ws, ServerInputTranscript(text=text))
         if text:
             state.cur_user_text.append(text)
