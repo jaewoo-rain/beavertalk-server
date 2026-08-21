@@ -3623,6 +3623,9 @@ class _FaceLiveSession(FakeLiveSession):
         for emo in self._script:
             if emo == "__audio":
                 yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            elif emo == "__audio_long":
+                # ⭐ 첫 인사 턴 문턱(48,000B = 1초)을 확실히 넘기는 한 덩어리.
+                yield LiveEvent(kind="audio", audio=bytes(96_000))
             elif emo == "__turn_end":
                 yield LiveEvent(kind="turn_end")
             else:
@@ -3775,6 +3778,45 @@ async def test_a_non_face_tool_call_never_becomes_a_face_marker(
     #   ⚠ 세 번째 칸의 뜻이 resume → blocking 으로 바뀌었다(2026-08-20). 값은 그대로 False:
     #     레벨테스트 종료 신호는 예나 지금이나 이어 말할 필요가 없다.
     assert holder["session"].tool_responses == [("fc9", "leveltest_ceiling_reached", False)]
+
+
+@pytest.mark.asyncio
+async def test_a_long_opening_turn_still_gets_its_markers(
+        monkeypatch, session_factory, seeded):
+    """⛔⛔ **턴이 안 끝나도 마커가 살아야 한다** (2026-08-21 실측 사고, call 1120).
+
+    모델이 `turn_complete` 를 한 번도 안 보내고 **50초를 혼자 떠든** 통화가 있었다.
+    그때 "첫 인사 턴 억제"가 `beaver_turns == 0` 하나로만 판정하고 있어서,
+    7.68 · 11.48 · 16.20 · 32.88 · 47.56초 지점의 마커 **다섯 개가 전부 버려졌다.**
+    턴이 안 끝나면 영원히 인사 턴이 되는 구조였다.
+
+    ⭐ 고친 기준: 인사 중복 사고(call 1117)는 **소리가 나가기 전에** 온 호출이 턴을
+      먹어서 생겼다. 이미 소리가 흐르는 중에 온 호출은 그 병을 만들 수 없다.
+      그래서 오디오 1초를 문턱으로 둔다.
+
+    이 시험은 **turn_end 없이** 오디오를 흘린 뒤 표정을 부른다 — 사고와 같은 모양이다.
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    # ⚠ __audio 한 조각은 16바이트뿐이라 문턱(48,000B)을 못 넘는다. 충분히 흘린다.
+    script = ["__audio_long", "happy", "__audio", "__turn_end"]
+    markers, _ = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=True)
+    assert [m["emotion"] for m in markers] == ["happy"], markers
+
+
+@pytest.mark.asyncio
+async def test_the_greeting_call_before_any_audio_is_still_dropped(
+        monkeypatch, session_factory, seeded):
+    """⛔ 반대쪽 — **소리 전에** 온 첫 호출은 여전히 버린다(인사 중복 방어).
+
+    call 1117 에서 인사가 한 턴 안에서 글자까지 똑같이 두 번 나갔다. 그 호출은
+    턴누적오디오=0.00초 였다. 문턱을 0 으로 낮추면 그 사고가 되살아난다.
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    script = ["happy", "__audio", "__turn_end"]
+    markers, _ = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=True)
+    assert markers == [], markers
 
 
 @pytest.mark.asyncio

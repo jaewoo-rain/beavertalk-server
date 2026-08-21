@@ -133,8 +133,18 @@ def test_tools_default_none_keeps_general_call_bytes_identical():
     assert _cfg(tools=[LEVELTEST_DONE_TOOL]).tools == [LEVELTEST_DONE_TOOL]
 
 
-def test_safety_relaxes_only_harassment():
-    """거친 페르소나(트래시토커) 면박 허용은 HARASSMENT 만 — 혐오·성·위험은 엄격 유지."""
+def test_safety_relaxes_only_harassment(monkeypatch):
+    """거친 페르소나(트래시토커) 면박 허용은 HARASSMENT 만 — 혐오·성·위험은 엄격 유지.
+
+    ⛔ **USE_VERTEX 를 명시적으로 켜고 잰다**(2026-08-20). 안전설정은 Vertex 전용이라
+      api_key 경로에서는 아예 안 실린다(그쪽에 보내면 1007 로 세션이 안 열린다 —
+      test_vertex_only_fields_are_omitted_on_the_api_key_path 참조).
+      ⚠ 이 시험이 개발자 `.env` 의 USE_VERTEX 값에 따라 붙었다 떨어졌다 하면 안 된다.
+        실제로 `.env` 를 AI Studio 로 바꾸자 이 시험이 깨졌다.
+    """
+    from core import gemini_live as _gl
+
+    monkeypatch.setattr(_gl.settings, "USE_VERTEX", True, raising=False)
     by_cat = {s.category: s.threshold for s in _cfg().safety_settings}
     assert by_cat[types.HarmCategory.HARM_CATEGORY_HARASSMENT] == \
         types.HarmBlockThreshold.BLOCK_ONLY_HIGH
