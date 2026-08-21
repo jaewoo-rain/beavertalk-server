@@ -405,6 +405,10 @@ class _CallState:
         "resume_from_turn",
         # ⭐ 표정 v2 계측 — 이 턴에서 오디오·전사가 **각각 처음 온 시각**(monotonic).
         "face_first_audio_at", "face_first_tr_at",
+        # ⭐ 학습자 in_tr 이 마지막으로 온 시각 — 체감 지연 계측의 기준점.
+        #   ⛔ last_activity_ts 로 대신하지 마라. 그건 **비버 turn_end 도** 갱신해서
+        #     "학습자가 말을 끝낸 시각"이 아니다.
+        "learner_last_tr_at",
         # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
         "face_streak",
         # ⭐ 학습자가 이 통화에서 **한 번이라도 말했나**. 첫 인사 턴 판정의 기준이다.
@@ -485,6 +489,7 @@ class _CallState:
         self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
         self.face_first_audio_at = 0.0   # 표정 v2 계측(턴마다 리셋)
         self.face_first_tr_at = 0.0
+        self.learner_last_tr_at: Optional[float] = None
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -2618,6 +2623,20 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             #     재면 바로 답이 나온다. 그 한 숫자가 v2 설계의 성립 여부를 정한다.
             if not state.face_first_audio_at:
                 state.face_first_audio_at = asyncio.get_running_loop().time()
+                # ⭐⭐ **체감 지연 계측**(2026-08-21). 학습자가 말을 끝낸 뒤 비버의 첫
+                #   소리가 나오기까지. 이 앱에서 "느리다"의 정의가 정확히 이것이다.
+                #   ⛔ 로그에서 역산하려 하지 마라 — "턴 종료 − 오디오 길이"로 재면
+                #     **음수가 나온다**(입력 전사가 늦게 와서 학습자 발화 시각이 뒤로
+                #     밀린다). 실제로 그렇게 재다 5.8초 음수가 나왔다.
+                #   ⚠ 백엔드 비교의 근거가 된다: 오프라인 실측은 1턴에서 Vertex 0.9초
+                #     vs AI Studio 6.5초였는데, 2턴 이후는 하네스 적체로 판정 못 했다.
+                if state.learner_last_tr_at is not None:
+                    logger.info(
+                        "normalcall 응답지연: %.2f초 (학습자 발화 끝 → 비버 첫 소리) turn=%s",
+                        state.face_first_audio_at - state.learner_last_tr_at,
+                        state.turn_id or "-",
+                    )
+                    state.learner_last_tr_at = None   # 턴당 한 번만
             await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
@@ -2625,6 +2644,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         text = event.text or ""
         # A2: 입력 전사 = 학습자 활동 → 무음 시계 리셋 + 넛지 단계 원복(발화 재개).
         state.last_activity_ts = asyncio.get_running_loop().time()
+        state.learner_last_tr_at = state.last_activity_ts
         state.silence_stage = 0  # 발화 재개 → 넛지 단계 리셋
         state.user_turn_open = True  # 유저 발화 턴 열림(비버 turn_start 시 flush 에서 False)
         # ⭐ 학습자가 말했다 = 인사 구간이 끝났다. 표정 마커를 이제부터 내보낸다.
