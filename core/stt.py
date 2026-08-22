@@ -308,6 +308,14 @@ _STT_LANGUAGE_ALIASES: dict[str, str] = {"en": "en-US", "ko": "ko-KR"}
 _BCP47_RE = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z]{4})?-([A-Za-z]{2}|\d{3})$")
 
 
+# ⛔⛔ **이 함수는 캐스케이드 전용이 아니다 — 지울 때 같이 지우지 마라**(2026-08-20).
+#   쓰는 곳 셋: ①캐스케이드 STT ②발음 챌린지(`stt_session.py` → `/pron/stt/ws`)
+#   ③⭐ **라이브 통화**(`call_session._input_language_codes` → Gemini Live 입력 전사 언어 힌트).
+#   라이브가 여기 기댄 이유: 입력 전사를 힌트 없이 열어 뒀더니 짧은 한국어가 다른 언어로
+#   찍혔는데(실측 call_id=1097: "다"→`套`, "아주"→`और च`), **캐스케이드가 2026-08-08 에
+#   똑같은 결함을 이미 겪고** 이 변환을 만들어 뒀다. 표를 하나 더 만들면 같은 질문에 답이 둘이 된다.
+#   ⚠ `_STT_LANGUAGE_ALIASES` 에 언어를 채우면 **세 경로가 같이** 좋아진다(라이브 포함).
+#   기록: docs/20260813_0040_캐스케이드-데모잔재-정리목록.md §2-b
 def normalize_language_codes(codes: Any, fallback: str = "") -> list[str]:
     """언어 코드 목록을 **벤더가 받을 수 있는 모양**으로 다듬는다.
 

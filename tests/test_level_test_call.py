@@ -205,7 +205,7 @@ def make_live_factory(session_holder):
     import contextlib
 
     @contextlib.asynccontextmanager
-    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+    async def _factory(client, settings, *, system_instruction, voice, tools=None, **_kw):
         sess = FakeLiveSession()
         session_holder["session"] = sess
         session_holder["system_instruction"] = system_instruction

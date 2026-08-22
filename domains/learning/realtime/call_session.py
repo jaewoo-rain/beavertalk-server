@@ -90,6 +90,7 @@ from core.persona_prompt import (
     seed_leveltest_opening,
     seed_opening,
 )
+from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import (
@@ -337,6 +338,38 @@ def _resolve_target_language(settings: Settings, override: Optional[str]) -> Lan
     return spec
 
 
+def _input_language_codes(target_code: str, locale: str) -> list[str]:
+    """입력 전사에 **들릴 언어**를 알려 줄 BCP-47 목록(학습 언어 + 모국어). 없으면 빈 목록.
+
+    ⭐ 왜(2026-08-20): 힌트 없이 자동 감지에 맡겼더니 짧은 발화가 통째로 다른 언어로 찍혔다
+      — 실측 call_id=1097(ko 학습/en 모국어): "피우다"→`フィウダ` · "다"→`套` ·
+      "아주"→`और च` · 짧은 응답→`für 10`·`kumite`·`Sí.`.
+      이 전사는 CallRawData 로 **저장**돼 이어하기 요약·통화후 문장 추출·증거 인용 검증이
+      읽는다 ⇒ 화면이 아니라 **데이터** 문제다.
+
+    ⛔ 매핑을 새로 만들지 않고 `core.stt.normalize_language_codes` 를 그대로 쓴다. 그쪽은
+      "검증한 코드만 매핑하고 모르는 건 버린다"는 규율을 이미 담고 있다(en-US·ko-KR 만
+      확인됨). 표를 하나 더 만들면 같은 질문에 답이 둘이 된다.
+      ⚠ 이름이 STT 라 "캐스케이드 물건"으로 보이지만 아니다 — `core/stt.py` 는 발음
+      챌린지(`/pron/stt/ws`)도 쓴다. 캐스케이드를 지울 때 **같이 지우면 라이브가 깨진다**
+      (그쪽 함수에 경고를 박아 뒀다 · docs/20260813_0040_캐스케이드-데모잔재-정리목록.md §2-b).
+
+    ⛔⛔ **하나라도 매핑이 안 되면 통째로 포기한다**(빈 목록 = 자동 감지 = 종전 동작).
+      부분 힌트가 무힌트보다 나쁘기 때문이다 — 일본어 학습자(ja 미매핑)에게 모국어
+      `en-US` 하나만 얹으면 일본어 발화를 영어로 알아들으라고 시키는 꼴이 된다.
+      ⇒ 지금 실제로 힌트가 붙는 조합은 ko·en 이고, 나머지 언어는 **오늘과 완전히 같다.**
+    """
+    wanted = [target_code] + ([locale] if locale and locale != target_code else [])
+    mapped = normalize_language_codes(wanted)
+    if len(mapped) != len(wanted):
+        logger.info(
+            "normalcall: 입력 전사 언어 힌트 생략(target=%s locale=%s → %s) — 부분 힌트는 "
+            "무힌트보다 나쁘다", target_code, locale, mapped,
+        )
+        return []
+    return mapped
+
+
 # 데모/dev 통화 길이 override 범위(분). 사장님 요청: 레벨 데모에서 3~15분 선택.
 DEMO_DURATION_MIN_MINUTES = 3
 DEMO_DURATION_MAX_MINUTES = 15
@@ -421,6 +454,8 @@ class _CallState:
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
         "last_beaver_question", "band_tasks", "band_target_language",
+        # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
+        "input_language_codes",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
@@ -561,6 +596,8 @@ class _CallState:
         self.band_awaiting: bool = False
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
         self.band_target_language: str = _DEFAULT_TARGET_LABEL
+        # 입력 전사에 들릴 언어(학습 언어 + 모국어). 빈 목록 = 힌트 없음(자동 감지).
+        self.input_language_codes: list[str] = []
         self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
         self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
@@ -1300,6 +1337,8 @@ async def run_call(
             logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
+    if settings.LIVE_INPUT_LANGUAGE_CODES:
+        state.input_language_codes = _input_language_codes(spec.code, locale)
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
     state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
     if call_type != "level_test" and REGROUND_MODE != "off":
@@ -1814,6 +1853,10 @@ async def _run_one_generation(
     # 팩토리(엄격 시그니처)가 그대로 돈다.
     if state.resume_handle:
         factory_kwargs["resume_handle"] = state.resume_handle
+    # ⛔ tools·resume_handle 과 같은 규율 — **값이 있을 때만** 넘긴다. 항상 넘기면 엄격한
+    #   시그니처를 가진 테스트용 가짜 팩토리가 전부 깨진다.
+    if state.input_language_codes:
+        factory_kwargs["input_language_codes"] = state.input_language_codes
     async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도

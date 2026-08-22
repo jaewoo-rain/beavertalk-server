@@ -177,3 +177,40 @@ def test_degrade_is_idempotent():
     assert stream._degrade_languages("테스트") is True
     assert stream._degrade_languages("테스트") is False
     assert stream.language_codes == ["ko-KR"]
+
+
+# ── ④ 라이브 통화 입력 전사 언어 힌트 (2026-08-20) ──────────────────────────
+# ⛔⛔ **여기부터는 캐스케이드가 아니라 라이브 회귀다.** 파일 이름 때문에 캐스케이드
+#   테스트로 보이지만 아니다 — 캐스케이드 코드를 정리할 때 **이 절은 지우지 마라**
+#   (라이브 테스트 파일로 옮기는 건 좋다).
+#   기록: docs/20260813_0040_캐스케이드-데모잔재-정리목록.md §2-b
+# 같은 결함이 **라이브 쪽에도** 있었다. 캐스케이드는 2026-08-08 에 고쳤는데(위),
+# Gemini Live 의 입력 전사는 여전히 언어 힌트 없이 열려 있었다.
+# 실측 call_id=1097(ko 학습 / en 모국어) — 학습자가 한국어를 따라 말했는데:
+#     "피우다"→`フィウダ`  "다"→`套`  "아주"→`और च`  짧은 응답→`für 10`·`kumite`·`Sí.`
+# ⛔ 이 전사는 CallRawData 로 저장돼 이어하기 요약·통화후 문장 추출·증거 인용 검증이 읽는다.
+def test_live_call_hints_both_target_and_native_language():
+    """라이브도 학습 언어 + 모국어를 같이 듣는다 — 순서는 학습 언어 먼저."""
+    from domains.learning.realtime.call_session import _input_language_codes
+
+    assert _input_language_codes("ko", "en") == ["ko-KR", "en-US"]
+
+
+def test_live_call_dedupes_when_target_equals_native():
+    """학습 언어와 모국어가 같으면 한 개다(중복 힌트는 의미가 없다)."""
+    from domains.learning.realtime.call_session import _input_language_codes
+
+    assert _input_language_codes("ko", "ko") == ["ko-KR"]
+
+
+def test_live_call_gives_up_entirely_when_any_code_is_unmapped():
+    """⛔⛔ **부분 힌트는 무힌트보다 나쁘다** — 하나라도 못 만들면 통째로 포기한다.
+
+    `ja` 는 아직 검증된 매핑이 없다(_STT_LANGUAGE_ALIASES). 여기서 모국어 `en-US` 만
+    남겨 보내면, **일본어 발화를 영어로 알아들으라고 시키는** 꼴이 된다. 빈 목록은
+    "힌트 없음"이고 그건 종전 동작(자동 감지)이다 — 안전한 쪽으로 떨어진다.
+    """
+    from domains.learning.realtime.call_session import _input_language_codes
+
+    assert _input_language_codes("ja", "en") == []
+    assert _input_language_codes("ko", "vi") == []

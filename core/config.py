@@ -101,6 +101,12 @@ class Settings(BaseSettings):
     #   깨진다). 드리프트 완화를 위해 재접지를 넣었던 이력이 있으니, 값을 바꿀 때는
     #   반드시 실기기 통화 전사로 망각 여부를 확인할 것. env 로 뺀 이유가 그것이다 —
     #   재빌드 없이 gcloud run services update 로 바꿔가며 관측하라.
+    # 입력 전사에 **들릴 언어**를 힌트로 준다(학습 언어 + 모국어 2개). 끄면 종전처럼
+    # 자동 감지 — 짧은 한국어가 통째로 다른 언어로 찍혔다(실측 call_id=1097:
+    # "다"→`套`, "아주"→`और च`). 그 전사는 DB 에 저장돼 통화후 분석이 읽으므로 데이터 문제다.
+    # ⛔ 킬스위치인 이유: 이 필드는 Live **세션 setup** 에 실린다. 백엔드가 거절하면
+    #   통화가 열리지 않는다 — 재배포 없이 `gcloud run services update` 로 끌 수 있어야 한다(R5).
+    LIVE_INPUT_LANGUAGE_CODES: bool = True
     LIVE_CTX_TRIGGER_TOKENS: int = 16000  # 압축 발동 임계
     LIVE_CTX_TARGET_TOKENS: int = 12000   # 압축 후 유지량(trigger 보다 작아야 한다)
     # 세션 재개(session_resumption). 15분 통화의 전제 — 압축은 **세션**(오디오 15분) 한계만

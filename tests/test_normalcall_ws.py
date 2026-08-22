@@ -193,7 +193,7 @@ def make_live_factory(session_holder):
     import contextlib
 
     @contextlib.asynccontextmanager
-    async def _factory(client, settings, *, system_instruction, voice):
+    async def _factory(client, settings, *, system_instruction, voice, **_kw):
         sess = FakeLiveSession()
         session_holder["session"] = sess
         session_holder["system_instruction"] = system_instruction
@@ -380,7 +380,7 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     holder: dict = {}
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         s = IdleThenClose()
         holder["s"] = s
         yield s
@@ -470,7 +470,7 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
     holder: dict = {}
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         s = UserSpeaksThenClose()
         holder["s"] = s
         yield s
@@ -552,7 +552,7 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     holder: dict = {}
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         s = IdleForever()
         holder["s"] = s
         yield s
@@ -685,7 +685,7 @@ async def _run_with_fake(fake, session_factory, seeded):
     holder = {"s": fake}
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         yield fake
 
     ws = FakeWebSocket(
@@ -1085,7 +1085,7 @@ async def test_go_away_triggers_graceful_close(session_factory, seeded, monkeypa
     holder: dict = {}
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         s = GoAwayThenBye()
         holder["s"] = s
         yield s
@@ -3630,7 +3630,7 @@ def _face_factory(holder, script):
     import contextlib
 
     @contextlib.asynccontextmanager
-    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+    async def _factory(client, settings, *, system_instruction, voice, tools=None, **_kw):
         sess = _FaceLiveSession(script)
         holder["session"] = sess
         holder["tools"] = tools
@@ -3743,7 +3743,7 @@ async def test_a_non_face_tool_call_never_becomes_a_face_marker(
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
 
     @contextlib.asynccontextmanager
-    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+    async def _factory(client, settings, *, system_instruction, voice, tools=None, **_kw):
         sess = _OtherToolSession([])
         holder["session"] = sess
         yield sess
@@ -4073,7 +4073,7 @@ def _two_turn_factory(holder, said: str):
     import contextlib
 
     @contextlib.asynccontextmanager
-    async def _factory(client, settings, *, system_instruction, voice, tools=None):
+    async def _factory(client, settings, *, system_instruction, voice, tools=None, **_kw):
         sess = FakeLiveSession()
 
         async def _events():
