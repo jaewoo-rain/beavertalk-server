@@ -309,6 +309,16 @@ class Settings(BaseSettings):
     #     9분에 끝난다. 그게 무한 과금 방어이고, 종료 소유권과 별개 축이다.
     LIVE_CALL_END_OWNER: str = "client"
     LIVE_FACE_SPIKE: bool = False
+    # ⭐⭐ **지시문 분할 주입**(2026-08-23). 켜면 setup 에는 짧은 코어만 싣고, 나머지
+    #   페르소나는 인사 턴이 끝난 뒤 통화 중에 조각으로 밀어넣는다.
+    #   ⛔ 왜 필요한가 — `gemini-2.5-flash-native-audio-preview-09-2025`(AI Studio)는
+    #     **긴 지시문 + function tool 이 같은 setup 에 있으면 100% 1011 로 죽는다.**
+    #     같은 시간대 라운드로빈 실측: 전부 setup 에 → 0/8 · 분할 주입 → 14/14(무음턴 0/70).
+    #     벤더 티켓 googleapis/python-genai#1832 가 열려 있다(우리 모델·조합 그대로).
+    #   ⚠ 기본 False — 꺼져 있으면 system_instruction 이 **종전과 바이트 동일**이고
+    #     주입 호출도 0건이라 회귀 무영향이다. 표정(LIVE_FACE_SPIKE)과 **별개 축**으로
+    #     둔다: 표정만 끄는 것으로는 분할 회귀를 못 끈다.
+    LIVE_PERSONA_INJECT: bool = False
     # ⭐ 표정 tool 응답의 `scheduling`. 빈 문자열(기본) = **안 붙인다**.
     #   값: "" | SILENT | WHEN_IDLE | INTERRUPT
     #   ⛔ 왜 스위치인가 — 문서로 정할 수 없어서다. SDK types.py:164 는 scheduling 이

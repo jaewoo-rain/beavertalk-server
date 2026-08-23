@@ -186,8 +186,15 @@ class LiveSessionProtocol(Protocol):
     """realtime 브리지가 의존하는 Live 세션 인터페이스(모킹 확장점)."""
 
     async def send_audio(self, pcm16_16k: bytes) -> None: ...
+    # ⚠ 아래 두 선언은 실제 구현의 kwarg 까지 맞춘 것이다(2026-08-23 정정). 종전 선언은
+    #   `send_reground(self, text)` 라 실구현(`turn_complete` 있음)과 어긋나 있었고,
+    #   runtime_checkable Protocol 은 시그니처를 검사하지 않아 조용히 방치됐다.
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None: ...
     async def send_text_turn(self, text: str) -> None: ...
-    async def send_reground(self, text: str) -> None: ...
+    # ⭐ 페르소나 조각 주입 전용 통로(2026-08-23). send_reground 와 **일부러 나눴다** —
+    #   같은 메서드를 쓰면 재접지 회귀 3건의 관측 채널이 오염된다
+    #   (tests/test_normalcall_ws.py:733 `len(fake.regrounds) == 1` 등).
+    async def send_persona(self, text: str) -> None: ...
     async def send_tool_response(self, fn_id: Optional[str], fn_name: Optional[str]) -> None: ...
     def events(self) -> AsyncIterator[LiveEvent]: ...
 
@@ -323,6 +330,26 @@ class GeminiLiveSession:
         await self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
             turn_complete=turn_complete,
+        )
+
+    async def send_persona(self, text: str) -> None:
+        """페르소나 조각을 **컨텍스트에만 적재**한다(생성 트리거 없음).
+
+        ⛔ `turn_complete=False` 가 핵심이다. 이건 "지금 열린 유저 턴에 병합" 이 아니라
+          **"이 콘텐츠는 턴을 완결시키지 않는다"** 는 뜻이다(공식 live-guide: incremental
+          updates 로 *establish session context* 하는 그 용법). 그래서 비버가 이 조각에
+          곧바로 대답하지 않고, 다음에 턴을 완결시키는 것(학습자 발화의 VAD 종료 · 넛지 ·
+          종료 시드)에 함께 실려 들어간다.
+        ⛔ `send_text_turn`(turn_complete=True)으로 보내지 마라 — 별도 비버 턴이 생겨
+          "설명문에 대답하는 비버"가 된다(legacy_idle 재접지의 이중발화와 같은 모양).
+        ⛔ 본문 앞에 `CONTROL_TAG` 를 붙이는 것은 **호출부 책임**이다. 그래야 비버가 낭독해도
+          `_CONTROL_TAG_RE` 안전망이 저장본에서 걷어낸다.
+        ⚠ 오디오 VAD 턴과 client_content 의 병합은 벤더 공식 보장이 아니다(send_reground
+          독스트링의 같은 경고) — 실측으로만 확인된다.
+        """
+        await self._session.send_client_content(
+            turns=types.Content(role="user", parts=[types.Part(text=text)]),
+            turn_complete=False,
         )
 
     async def send_tool_response(

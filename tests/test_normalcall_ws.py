@@ -4243,3 +4243,214 @@ async def test_the_resume_fragment_does_not_greet_again(session_factory, seeded,
     si = (h2.get("instructions") or [""])[0]
     assert "[지금까지]" in si, "이어하기 브리프가 지시문에 안 붙었다"
     assert "처음 만난 것처럼 인사하지 말고" in si
+
+
+# =========================================================================== #
+# 지시문 분할 주입 (2026-08-23) — LIVE_PERSONA_INJECT
+# =========================================================================== #
+#
+# ⛔ 왜 있나: 2.5 native-audio 는 **긴 지시문 + function tool 이 같은 setup 에 있으면
+#   100% 1011 로 죽는다**(라운드로빈 실측 0/8). setup 을 짧은 코어로 줄이면 붙는다.
+#
+# ⛔⛔ **주입 자리는 유저가 말을 시작한 뒤(첫 in_tr)다.** 처음엔 turn_end(비버 idle)에
+#   얹었다가 실통화 call 1142/1143 이 **둘 다 1011** 로 죽었다 — turn_complete=False 로
+#   열어 둔 턴에 마이크 무음이 계속 흘러드는 창이 원인이었다. 그때 오프라인 하네스는
+#   주입 직후 **즉시** 오디오를 넣어 그 창이 0초라 14/14 로 통과했다.
+#   ⇒ 그래서 아래 시험들은 반드시 **in_tr 이벤트로** 주입을 몬다. turn_end 만으로 도는
+#     시나리오를 쓰면 그때의 실수를 그대로 반복한다.
+
+
+class _PersonaFake(_RegroundFake):
+    """페르소나 주입 전용 채널을 **따로** 기록한다.
+
+    ⛔ send_reground 와 섞어 세면 재접지 회귀 3건의 관측 채널이 오염된다
+      (test_reground_on_user_turn_attaches_once 의 len(regrounds) == 1 등).
+    """
+
+    def __init__(self, script):
+        super().__init__(script)
+        self.personas: list[str] = []
+
+    async def send_persona(self, text: str) -> None:
+        self.personas.append(text)
+
+
+def _persona_on(monkeypatch):
+    monkeypatch.setattr(app_settings, "LIVE_PERSONA_INJECT", True, raising=False)
+
+
+def _greet_then_user(n_user_turns: int = 1):
+    """인사 턴 → (유저 발화 + 비버 응답) × n. 실통화 이벤트 순서 그대로."""
+    script = [LiveEvent(kind="out_tr", text="여보세요"), LiveEvent(kind="turn_end")]
+    for i in range(n_user_turns):
+        script += [
+            LiveEvent(kind="in_tr", text="안녕%d" % i, is_final=False),   # ← 여기서 주입
+            LiveEvent(kind="in_tr", text="요", is_final=True),
+            LiveEvent(kind="out_tr", text="네"),
+            LiveEvent(kind="turn_end"),
+        ]
+    return script
+
+
+@pytest.mark.asyncio
+async def test_no_persona_is_injected_before_the_learner_speaks(
+    session_factory, seeded, monkeypatch
+):
+    """⛔ 인사 턴이 끝나도 유저가 말하기 전에는 조각이 나가지 않는다.
+
+    이게 call 1142/1143 을 죽인 그 실수다 — 비버 idle 구간에 주입해 놓으면 마이크 무음만
+    흘러드는 창이 생긴다.
+    """
+    _persona_on(monkeypatch)
+    seen: dict = {}
+
+    async def snapshot(f):
+        seen["before_user"] = len(f.personas)
+
+    fake = _PersonaFake([
+        LiveEvent(kind="out_tr", text="여보세요"),
+        LiveEvent(kind="turn_end"),
+        snapshot,                                                  # 비버 idle — 유저 침묵
+        LiveEvent(kind="in_tr", text="안녕", is_final=False),        # 여기서 비로소 주입
+        LiveEvent(kind="in_tr", text="하세요", is_final=True),
+        LiveEvent(kind="out_tr", text="네"),
+        LiveEvent(kind="turn_end"),
+    ])
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert seen["before_user"] == 0, "유저가 말하기 전에 조각이 나갔다(1142/1143 재발)"
+    assert len(fake.personas) >= 1, "유저가 말했는데 조각이 안 나갔다"
+
+
+@pytest.mark.asyncio
+async def test_only_the_first_in_tr_of_a_turn_injects(session_factory, seeded, monkeypatch):
+    """같은 턴의 두 번째 in_tr 에는 또 얹지 않는다 — 한 발화에 두 조각이 겹치면 유저의
+    한마디가 서버 텍스트에 밀린다."""
+    _persona_on(monkeypatch)
+    fake = _PersonaFake(_greet_then_user(1))
+    await _run_with_fake(fake, session_factory, seeded)
+    assert len(fake.personas) == 1, "한 유저 턴에 조각이 %d개 나갔다" % len(fake.personas)
+
+
+@pytest.mark.asyncio
+async def test_persona_chunks_never_leak_into_other_channels(
+    session_factory, seeded, monkeypatch
+):
+    """⛔ send_text_turn(turn_complete=True)으로 새면 별도 비버 턴이 생겨 이중발화가 된다."""
+    _persona_on(monkeypatch)
+    fake = _PersonaFake(_greet_then_user(2))
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert fake.personas, "조각이 하나도 안 나갔다"
+    for chunk in fake.personas:
+        assert chunk not in fake.sent_text_turns, "조각이 send_text_turn 으로 샜다"
+        assert chunk not in [t for t, _tc in fake.regrounds], "조각이 재접지 채널로 샜다"
+
+
+@pytest.mark.asyncio
+async def test_persona_and_reground_do_not_share_a_counter(
+    session_factory, seeded, monkeypatch
+):
+    """⭐ 채널 분리의 증명 — 조각이 나가도 regrounds 는 오염되지 않는다."""
+    _persona_on(monkeypatch)
+    fake = _PersonaFake(_greet_then_user(2))
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert fake.personas, "조각이 안 나갔다"
+    assert fake.regrounds == [], "페르소나 주입이 재접지 채널을 오염시켰다"
+
+
+@pytest.mark.asyncio
+async def test_each_chunk_is_sent_at_most_once(session_factory, seeded, monkeypatch):
+    """조각은 FIFO 로 한 번씩만 — 유저 턴이 많아도 같은 조각이 두 번 나가지 않는다."""
+    _persona_on(monkeypatch)
+    fake = _PersonaFake(_greet_then_user(6))
+    await _run_with_fake(fake, session_factory, seeded)
+
+    assert fake.personas, "조각이 안 나갔다"
+    assert len(fake.personas) == len(set(fake.personas)), "같은 조각이 두 번 나갔다"
+
+
+@pytest.mark.asyncio
+async def test_a_session_without_send_persona_still_completes_the_call(
+    session_factory, seeded, monkeypatch
+):
+    """⭐ R5 — 구형 가짜 세션(새 메서드 없음)에서도 통화가 완주한다.
+
+    이 파일의 fake 대부분이 send_persona 를 모른다. 그것 때문에 통화가 죽으면 안 되고,
+    다음 사람이 fake 를 새로 만들어도 안 터져야 한다.
+    """
+    _persona_on(monkeypatch)
+    fake = _RegroundFake(_greet_then_user(1))       # ← send_persona 가 **없는** 구형 fake
+    ws = await _run_with_fake(fake, session_factory, seeded)
+    assert any("call_ended" in t for t in ws.sent_text), "통화가 정상 종료되지 않았다"
+
+
+@pytest.mark.asyncio
+async def test_a_failing_chunk_injection_never_kills_the_call(
+    session_factory, seeded, monkeypatch
+):
+    """주입 예외는 삼킨다(R5). 결과는 밋밋한 비버이지 통화 불가가 아니다."""
+    _persona_on(monkeypatch)
+
+    class Boom(_PersonaFake):
+        async def send_persona(self, text: str) -> None:
+            raise RuntimeError("주입 실패 재현")
+
+    fake = Boom(_greet_then_user(2))
+    ws = await _run_with_fake(fake, session_factory, seeded)
+    assert any("call_ended" in t for t in ws.sent_text), "주입 실패가 통화를 죽였다"
+
+
+@pytest.mark.asyncio
+async def test_the_switch_off_sends_no_persona_at_all(session_factory, seeded, monkeypatch):
+    """⛔ 기본 off 에서는 주입 0건이고 지시문이 종전 그대로다 — 회귀 무영향의 근거."""
+    monkeypatch.setattr(app_settings, "LIVE_PERSONA_INJECT", False, raising=False)
+    holder: dict = {}
+    import contextlib as _cl
+    fake = _PersonaFake(_greet_then_user(1))
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        holder["si"] = system_instruction
+        yield fake
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+
+    assert fake.personas == [], "스위치가 꺼졌는데 조각이 나갔다"
+    assert "[불변 규칙" in holder["si"], "스위치 off 인데 setup 지시문이 잘렸다"
+
+
+@pytest.mark.asyncio
+async def test_the_switch_on_puts_only_the_core_in_setup(session_factory, seeded, monkeypatch):
+    """켜면 setup 이 짧은 코어로 바뀐다 — 이게 1011 을 피하는 유일한 장치다."""
+    _persona_on(monkeypatch)
+    holder: dict = {}
+    import contextlib as _cl
+    fake = _PersonaFake(_greet_then_user(1))
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        holder["si"] = system_instruction
+        yield fake
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+        hang=True,
+    )
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+
+    si = holder["si"]
+    assert len(si) <= cs.LIVE_SETUP_MAX_CHARS, "setup 코어가 상한 초과: %d자" % len(si)
+    assert "[불변 규칙" not in si, "setup 에 전체 지시문이 그대로 실렸다"
+    assert "이어가라" in si, "종료 규약이 코어에서 빠졌다"

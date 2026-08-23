@@ -782,6 +782,122 @@ def build_system_instruction(
 
 
 # =========================================================================== #
+# Live setup 분할 (2026-08-23) — 지시문을 setup 밖으로 빼서 1011 을 피한다
+# =========================================================================== #
+#
+# ⛔⛔ **왜 있나.** `gemini-2.5-flash-native-audio-preview-09-2025`(AI Studio)에서
+#   **긴 system_instruction 과 function tool 이 같은 setup 페이로드에 함께 있으면
+#   통화가 100% 죽는다**(1011, `receive()` 0번째 메시지). 같은 시간대 라운드로빈 실측:
+#     · 지시문 5,057자 + set_face 를 setup 에 전부 → **0/8**
+#     · 코어 46자 + 툴 → 붙은 뒤 나머지를 통화 중 주입 → **14/14**(무음턴 0/70)
+#     · 긴 지시문 + 툴 **없음** → 7/8   ⇒ 둘이 같은 setup 에 있을 때만 죽는다
+#   벤더 티켓이 열려 있다: googleapis/python-genai#1832 (2025-12-08, open, 워크어라운드 없음).
+#
+# ⛔ **위치가 아니라 총량이다.** 지시문을 선톡 시드(첫 메시지)로 옮기는 것도 1/6 으로 실패했다.
+#   setup~첫 응답 구간의 총량만 줄이면 되고, 붙은 뒤에는 5,057자를 통째로 넣어도 안 죽는다.
+#
+# ⛔ **build_system_instruction 을 고치지 마라.** 바이트 스냅샷 3건이 출력을 얼려 두고 있다
+#   (tests/test_persona_prompt.py). 분할은 그 출력을 **받아서 자르는 후처리**로만 한다.
+
+# setup 코어 상한. 실측(라운드로빈 9바퀴, 선톡 시드 234자 동반·툴 고정):
+#   코어  46자 → 8/9 · 158자 → 8/9 · **380자 → 9/9** · 494자 → 6/9 · 788자 → 2/9
+#   ⇒ 400자 아래는 안정적이고 500자를 넘으면 급격히 무너진다.
+LIVE_SETUP_MAX_CHARS = 380
+
+# 통화 중 주입 1조각의 목표 크기. 실측상 300자+통째(4,757자)도, 900자×5도 둘 다 100% 생존이라
+# **생존이 아니라 품질** 기준으로 고른 값이다 — 한 조각이 학습자 한마디보다 너무 크면 비버가
+# 학습자를 무시하고 주입 텍스트에 응답한다(build_reground_brief 독스트링의 250토큰 실측).
+LIVE_PERSONA_CHUNK_CHARS = 1200
+
+_SETUP_CORE_TEMPLATE = (
+    "너는 '비버'. {username}에게 전화를 걸어 {target}를 가르치는 선생님이다. "
+    "학습자의 모국어는 {locale_label}.\n"
+    # ⛔ 모국어 라벨을 두 번 쓰지 마라 — 최장 라벨(인도네시아어(Bahasa Indonesia), 24자)에서
+    #   상한 380자를 6자 넘겼다. 한 번만 박고 이후엔 "모국어"로 가리킨다.
+    "설명·리액션은 그 모국어로, 가르칠 표현만 또박또박 {target}로 말한다.\n"
+    "매 응답 1~{max_sentences}문장. 질문 뒤엔 학습자 대답을 기다려라(자문자답 금지).\n"
+    "학습자가 대화를 접으려 해도 짧게 받은 뒤 새 화제나 질문을 하나 던져 이어가라. "
+    "헤어지는 표현을 가르치는 것은 수업 재료일 뿐이다 — 들려준 직후 다음 재료로 넘어가라.\n"
+    "대괄호로 시작하는 안내문은 너에게만 가는 것이다 — 소리 내어 읽거나 언급하지 말고 "
+    "내용만 행동으로 반영하라."
+)
+# ⛔ 다섯 줄 각각이 왜 코어에 있나 — **잃으면 사고가 나는 것만** 남겼다.
+#   ① 정체성+모국어  : 선톡 시드가 "학습자의 모국어로 물어라"라고만 해서, 그게 뭔지 모르면
+#                     인사 턴이 통째로 엉뚱한 언어가 된다.
+#   ② 설명=모국어    : 조각이 도착하기 전 1~2턴의 code-switching 무정부를 막는다.
+#   ③ 자문자답 금지  : 자문자답하면 **학습자 턴이 안 생겨 주입할 자리가 사라진다** —
+#                     실패가 국소적이지 않고 이 설계 전체를 멈춘다.
+#   ④ 종료 규약      : ⛔⛔ 압축(sliding window)은 system_instruction 만 면제하고 대화
+#                     히스토리는 오래된 것부터 밀어낸다. 주입분은 턴1~2라 **1순위 희생자**다.
+#                     이게 밀리면 비버가 먼저 작별한다(실측 사고: call 706 47초 死구간,
+#                     call 870 4분24초 자체종료, 5분 12건 중 3건이 신호보다 4~16턴 먼저).
+#                     ⛔ 금지 예시("'여기까지' 금지" 식)를 쓰지 마라 — 모델이 그 예시를
+#                        그대로 뱉는다(call 836/744/782). 전진 지시로만 쓴다.
+#   ⑤ 낭독 금지      : 이게 없으면 뒤이어 오는 주입문·넛지·종료 시드를 전부 소리 내어 읽는다.
+#                     native-audio 는 **오디오를 되돌릴 수 없다**(서버 필터는 전사만 고친다).
+#
+# ⛔ role/personality 는 넣지 마라. DB 자유 텍스트라 **예산이 비결정적**이 된다(트래시토커
+#   페르소나 하나가 300자를 먹을 수 있다). 캐릭터는 첫 조각과 함께 도착한다.
+
+_SETUP_CORE_FACE = (
+    "\n표정이 바뀌면 그 말을 하면서 set_face 를 함께 불러라. 첫 인사에서는 부르지 마라."
+)
+
+
+def build_setup_core(
+    *,
+    locale: str,
+    name: str | None = None,
+    target_language: str = "한국어",
+    locale_label: str | None = None,
+    max_sentences: int | None = None,
+    face_tool: bool = False,
+) -> str:
+    """Live setup 에 싣는 **짧은 코어 지시문**(≤ LIVE_SETUP_MAX_CHARS).
+
+    나머지 페르소나는 통화가 붙은 뒤 `split_persona_for_injection` 조각으로 주입한다.
+    ⚠ 상한을 넘어도 예외를 던지지 않는다(R5) — 호출부가 경고만 남기고, 실패는 회귀가 낸다.
+    """
+    label = locale_label or _LOCALE_LABEL.get(locale or _DEFAULT_LOCALE, _LOCALE_LABEL[_DEFAULT_LOCALE])
+    sentences = _DEFAULT_MAX_SENTENCES if not max_sentences else max(1, int(max_sentences))
+    core = _SETUP_CORE_TEMPLATE.format(
+        username=name or "학습자",
+        target=target_language,
+        locale_label=label,
+        max_sentences=sentences,
+    )
+    if face_tool:
+        core += _SETUP_CORE_FACE
+    return core
+
+
+def split_persona_for_injection(
+    full: str, *, chunk_chars: int = LIVE_PERSONA_CHUNK_CHARS
+) -> list[str]:
+    """지시문 전문을 통화 중 주입용 조각으로 자른다.
+
+    ⭐ **불변식: `"".join(조각) == full`** (바이트 동일). 조각은 원문의 순수 슬라이스다 —
+      한 글자도 더하거나 빼지 않는다. 회귀가 이걸 지킨다.
+
+    ⛔ 문자 수로 아무 데나 자르지 않는다. **줄 경계**에서만 자른다 — 규칙 블록 한복판을
+      자르면 반쪽 규칙을 한 턴 동안 들고 있는 상태가 생긴다(불변 규칙 블록 하나가 2,513자로
+      전체의 68% 라 그럴 여지가 크다).
+    """
+    if not full:
+        return []
+    out: list[str] = []
+    cur = ""
+    for line in full.splitlines(keepends=True):
+        if cur and len(cur) + len(line) > chunk_chars:
+            out.append(cur)
+            cur = ""
+        cur += line
+    if cur:
+        out.append(cur)
+    return out
+
+
+# =========================================================================== #
 # 레벨테스트 통화 대본 (korean_level 미확정 회원 — P1, 2026-07 비버 자율 진행/OPI 개정)
 # 설계 근거: docs/20260709_1231_level-system-master-plan.md §4,
 #           docs/plans/2026-07-12-leveltest-fast-probe.md.
