@@ -412,7 +412,7 @@ class _CallState:
         # ⭐ 학습자 in_tr 이 마지막으로 온 시각 — 체감 지연 계측의 기준점.
         #   ⛔ last_activity_ts 로 대신하지 마라. 그건 **비버 turn_end 도** 갱신해서
         #     "학습자가 말을 끝낸 시각"이 아니다.
-        "learner_last_tr_at",
+        "learner_last_tr_at", "learner_first_tr_at",
         # ⭐ 소리 없이 연달아 온 set_face 수 — 폭주 차단기의 기준(오디오가 흐르면 0)
         "face_streak",
         # ⭐ 학습자가 이 통화에서 **한 번이라도 말했나**. 첫 인사 턴 판정의 기준이다.
@@ -503,6 +503,7 @@ class _CallState:
         self.persona_fail = 0                # 현재 조각의 연속 실패 수(무한 왕복 방지)
         self.persona_turn = ""               # 이번 턴에 이미 주입했나(턴당 1조각)
         self.learner_last_tr_at: Optional[float] = None
+        self.learner_first_tr_at: Optional[float] = None
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
         self.last_turn_id: Optional[str] = None
@@ -2726,13 +2727,32 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
                 #     밀린다). 실제로 그렇게 재다 5.8초 음수가 나왔다.
                 #   ⚠ 백엔드 비교의 근거가 된다: 오프라인 실측은 1턴에서 Vertex 0.9초
                 #     vs AI Studio 6.5초였는데, 2턴 이후는 하네스 적체로 판정 못 했다.
-                if state.learner_last_tr_at is not None:
+                #   ⛔⛔ **끝기준 하나만 찍지 마라 — 3.1 에서 무너진다**(2026-08-24 실측).
+                #     `learner_last_tr_at` 은 매 in_tr 마다 갱신되는데, 3.1 은 학습자
+                #     전사의 **마지막 조각을 자기 응답과 같이** 내보낸다. 그래서 끝기준이
+                #     4ms 로 붙어 `응답지연: 0.00초` 가 5턴 내내 찍혔다 — 즉답이 아니라
+                #     **기준점이 사라진 것**이다(2.5 는 전사가 350~1856ms 먼저 왔다).
+                #   ⇒ 시작기준(학습자 첫 전사)을 같이 찍는다. 학습자 발화 길이가 섞이지만
+                #     **무너지지 않는다** — 두 값을 같이 봐야 해석이 된다.
+                if state.learner_first_tr_at is not None or state.learner_last_tr_at is not None:
+                    since_start = (
+                        state.face_first_audio_at - state.learner_first_tr_at
+                        if state.learner_first_tr_at is not None else float("nan")
+                    )
+                    since_end = (
+                        state.face_first_audio_at - state.learner_last_tr_at
+                        if state.learner_last_tr_at is not None else float("nan")
+                    )
+                    # 끝기준이 0 에 붙었다 = 전사가 응답과 같이 왔다 = 그 숫자는 못 믿는다.
+                    collapsed = since_end == since_end and since_end < 0.05
                     logger.info(
-                        "normalcall 응답지연: %.2f초 (학습자 발화 끝 → 비버 첫 소리) turn=%s",
-                        state.face_first_audio_at - state.learner_last_tr_at,
+                        "normalcall 응답지연: 시작기준 %.2f초 · 끝기준 %.2f초%s turn=%s",
+                        since_start, since_end,
+                        " ⛔끝기준 무의미(전사가 응답과 동시 도착)" if collapsed else "",
                         state.turn_id or "-",
                     )
-                    state.learner_last_tr_at = None   # 턴당 한 번만
+                    state.learner_last_tr_at = None    # 턴당 한 번만
+                    state.learner_first_tr_at = None
             await client_ws.send_bytes(event.audio)  # forward 먼저(반응성 우선) → 그 다음 버퍼 누적
             state.cur_beaver_pcm.extend(event.audio)
 
@@ -2740,6 +2760,10 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         text = event.text or ""
         # A2: 입력 전사 = 학습자 활동 → 무음 시계 리셋 + 넛지 단계 원복(발화 재개).
         state.last_activity_ts = asyncio.get_running_loop().time()
+        # ⭐ 시작기준 앵커 — 이 학습자 턴의 **첫** 전사에서만 찍는다(끝기준과 짝).
+        #   `user_turn_open` 은 바로 아래에서 True 가 되므로 여기서 보면 아직 이전 값이다.
+        if not state.user_turn_open:
+            state.learner_first_tr_at = state.last_activity_ts
         state.learner_last_tr_at = state.last_activity_ts
         state.silence_stage = 0  # 발화 재개 → 넛지 단계 리셋
         state.user_turn_open = True  # 유저 발화 턴 열림(비버 turn_start 시 flush 에서 False)
