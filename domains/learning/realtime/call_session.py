@@ -81,6 +81,7 @@ from core.persona_prompt import (
     build_leveltest_instruction,
     build_resume_brief,
     build_setup_core,
+    seed_opening_lean,
     split_persona_for_injection,
     seed_resume,
     build_continue_reminder,
@@ -449,6 +450,7 @@ class _CallState:
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
         "persona_parts", "persona_sent", "persona_total", "persona_fail",
+        "persona_turn",
     )
 
     def __init__(self) -> None:
@@ -499,6 +501,7 @@ class _CallState:
         self.persona_sent = 0                # 실제로 나간 조각 수
         self.persona_total = 0               # 원래 조각 수(종료 요약용)
         self.persona_fail = 0                # 현재 조각의 연속 실패 수(무한 왕복 방지)
+        self.persona_turn = ""               # 이번 턴에 이미 주입했나(턴당 1조각)
         self.learner_last_tr_at: Optional[float] = None
         # ── P2.5(D16) 동적 힌트 사이드카 ──
         # last_turn_id: 방금 끝난 비버 턴 id(턴 종료 시 turn_id 가 None 으로 리셋되므로 별도 보존).
@@ -1459,6 +1462,11 @@ async def run_call(
         )
         state.persona_parts = split_persona_for_injection(full_instruction)
         state.persona_total = len(state.persona_parts)
+        # ⭐ 선톡 시드도 가볍게 간다(2026-08-23). 시드는 setup~첫 응답 총량에 들고, 인사가
+        #   길수록 그 중간에 set_face 가 불려 **인사가 처음부터 반복된다**(call 1144: 13.7초
+        #   인사 중 8.60초에 호출 → 중복). ⛔ 이어하기 시드(seed_resume)는 건드리지 않는다.
+        if not state.resume_from_turn:
+            seed_text = seed_opening_lean(target_language)
         if len(system_instruction) > LIVE_SETUP_MAX_CHARS:
             # ⛔ 절대 raise 하지 마라(R5) — 통화를 죽이는 것보다 위험을 안고 붙는 게 낫다.
             #   실패는 회귀 테스트가 낸다.
@@ -2365,6 +2373,11 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                 raise _ClientDisconnect()
             data = message.get("bytes")
             # 오디오 프레임 & 비버 idle(turn_id None)일 때만 AI 로 전달 = barge-in off 의 관문.
+            # ⛔ 첫 비버 턴 전에 마이크를 막아 보았다가 **되돌렸다**(2026-08-23).
+            #   ①1011 을 하나도 못 줄였고(실서비스 4/4 그대로 사망)
+            #   ②`cur_user_pcm` 이 안 쌓여 통화후 국적 추론이 죽었다
+            #     (test_call_end_releases_pcm_but_still_feeds_nationality 가 잡았다).
+            #   지금 게이트는 종전대로 barge-in off 하나뿐이다.
             if data and state.turn_id is None:
                 await session.send_audio(data)
                 state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
@@ -2625,9 +2638,23 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         #     그 창을 없애려면 유저 턴이 이미 열린 뒤(첫 in_tr)에 얹어야 한다 — 기존 재접지가
         #     같은 이유로 같은 자리를 쓴다(on_user_turn).
         #   ⚠ 크기 문제가 아니다: 죽을 때 sum_prompt=1609 로 아주 작았다.
-        if (event.kind == "in_tr" and in_tr_first and state.persona_parts
+        # ⭐⭐ **페르소나 조각은 '비버가 말하는 동안'에만 주입한다**(2026-08-23 실서비스 실측).
+        #   ⛔ 이 자리를 두 번 틀렸다. 실측이 셋 다 같은 것을 가리킨다:
+        #       turn_end 에 주입(call 1142/1143)  → 마이크가 막 재개돼 무음이 흐름  ⛔ 사망
+        #       첫 in_tr 에 주입(call 1150~1154)   → 학습자 음성이 한창 흐름        ⛔ 사망
+        #       오프라인 하네스(주입 시점 오디오 0) → 14/14                          ✅ 생존
+        #     ⇒ **오디오가 흐르는 동안 client_content 를 밀어넣으면 죽는다.**
+        #   ⭐ 안전한 창은 barge-in off 가 만들어 준다: 비버 발화중(`turn_id` 가 서 있음)에는
+        #     `:2316` 게이트가 마이크를 **한 바이트도 안 보낸다**. 그 구간이 유일하게 조용하다.
+        #   ⚠ 첫 인사 턴은 건너뛴다(beaver_turns >= 1) — 인사 도중 주입은 인사를 다시
+        #     시작하게 만든다(set_face 가 같은 자리에서 일으킨 사고와 같은 모양).
+        if (event.kind == "out_tr" and state.persona_parts
+                and state.turn_id is not None                 # 비버 발화중 = 마이크 닫힘
+                and state.beaver_turns >= 1                   # 인사 턴은 건너뛴다
+                and state.persona_turn != state.turn_id       # 한 턴에 한 조각만
                 and not state.should_close and not state.close_seed_sent
                 and not state.reground_pending):
+            state.persona_turn = state.turn_id                # await 전 선점(단일 소유권)
             await _inject_persona_part(session, state)
 
         if event.kind == "turn_end":
