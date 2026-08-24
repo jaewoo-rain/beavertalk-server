@@ -4454,3 +4454,125 @@ async def test_the_switch_on_puts_only_the_core_in_setup(session_factory, seeded
     assert len(si) <= cs.LIVE_SETUP_MAX_CHARS, "setup 코어가 상한 초과: %d자" % len(si)
     assert "[불변 규칙" not in si, "setup 에 전체 지시문이 그대로 실렸다"
     assert "이어가라" in si, "종료 규약이 코어에서 빠졌다"
+
+from domains.learning.realtime.protocol import client_adapter
+
+
+# =========================================================================== #
+# 클라 계측 배치 (2026-08-24) — client_diag / client_timing
+# =========================================================================== #
+#
+# ⛔ 왜 있나: Live 유니온에 `user_turn_end`·`client_timing` 이 없어(캐스케이드에만 있다)
+#   **프론트의 응답시간 계기가 라이브에서 한 번도 안 돌았다.** 돌았어도 서버가
+#   `제어 메시지 무시` 로 버렸다. 그 둘을 같이 고친 것이 이 배관이다.
+# ⛔⛔ 여기서 지키는 계약은 하나다: **계측이 통화를 죽이지 않는다.**
+#   깨진 배치·미지 필드·폭주 어느 것도 통화를 끊으면 안 된다(R5).
+
+
+def _diag_msg(**kw):
+    """client_diag 프레임 한 건(기본값 채움)."""
+    base = {"type": "client_diag", "seq": 1, "anchor_epoch_ms": 0,
+            "level": "summary", "dropped": 0, "events": []}
+    base.update(kw)
+    return json.dumps(base)
+
+
+@pytest.mark.asyncio
+async def test_a_diag_batch_is_accepted_and_logged(session_factory, seeded, caplog):
+    """정상 배치가 파싱되고 로그로 나간다 — 이게 안 되면 계측이 통째로 죽는다."""
+    caplog.set_level(logging.INFO, logger="domains.learning.realtime.call_session")
+    st = cs._CallState()
+    msg = client_adapter.validate_python(json.loads(_diag_msg(
+        seq=3, level="full",
+        events=[{"e": "audible1", "t": 83060, "turn": "b12"},
+                {"e": "mk_fire", "t": 83080, "seq": 7, "emo": 1}])))
+    cs._record_client_diag(st, msg)
+
+    assert st.diag_batches == 1
+    assert st.diag_events == 2
+    assert any("normalcall 계측: batch=1" in r.message for r in caplog.records), \
+        "계측 배치가 로그로 안 나갔다"
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_event_field_never_kills_the_batch(session_factory, seeded):
+    """⛔⛔ events 를 discriminated union 으로 만들면 안 되는 이유의 회귀.
+
+    클라가 필드 하나를 늘렸다고 **배치 전체가 거부되면** 그 통화의 계측이 통째로 사라진다.
+    앱 배포보다 서버 스키마가 먼저 굳는 사고를 여기서 막는다.
+    """
+    msg = client_adapter.validate_python(json.loads(_diag_msg(
+        events=[{"e": "brand_new_event", "훗날_추가된_필드": [1, 2, 3], "nested": {"a": 1}}])))
+    st = cs._CallState()
+    cs._record_client_diag(st, msg)          # 예외 없이 통과해야 한다
+    assert st.diag_events == 1
+
+
+def test_a_broken_diag_frame_is_swallowed_not_raised():
+    """깨진 프레임은 삼킨다 — `_handle_client_control` 의 기존 규율과 같다."""
+    st = cs._CallState()
+
+    class Bad:
+        type = "client_diag"
+
+        @property
+        def events(self):
+            raise RuntimeError("깨진 프레임 재현")
+
+    cs._record_client_diag(st, Bad())        # raise 하면 실패
+    assert st.diag_events == 0
+
+
+def test_a_runaway_client_cannot_flood_the_log():
+    """⛔ 폭주하는 앱 한 대가 그 시간대의 **다른 통화 진단을 묻으면** 안 된다."""
+    st = cs._CallState()
+    msg = client_adapter.validate_python(json.loads(_diag_msg(events=[{"e": "x"}])))
+    for _ in range(cs._DIAG_MAX_BATCHES + 5):
+        cs._record_client_diag(st, msg)
+    assert st.diag_events == cs._DIAG_MAX_BATCHES, \
+        "배치 상한을 넘겨 받았다(로그 폭주 방어 실패)"
+
+
+def test_oversized_events_are_clipped_not_dropped():
+    """상한은 **깎는 것**이지 버리는 게 아니다 — 조용한 손실을 만들지 않는다."""
+    st = cs._CallState()
+    huge = {"e": "x", "long": "가" * 500}
+    huge.update({f"k{i}": i for i in range(80)})
+    msg = client_adapter.validate_python(json.loads(_diag_msg(events=[huge])))
+    cs._record_client_diag(st, msg)
+    assert st.diag_events == 1
+
+
+def test_a_client_reported_drop_is_raised_to_warning(caplog):
+    """⛔ 클라가 버렸다고 알려 왔는데 서버가 조용하면 손실이 영영 안 보인다."""
+    caplog.set_level(logging.INFO, logger="domains.learning.realtime.call_session")
+    st = cs._CallState()
+    msg = client_adapter.validate_python(json.loads(_diag_msg(dropped=17)))
+    cs._record_client_diag(st, msg)
+    assert st.diag_dropped == 17
+    assert any(r.levelno >= logging.WARNING and "dropped=17" in r.message
+               for r in caplog.records), "클라 손실이 warning 으로 안 올라갔다"
+
+
+def test_client_timing_is_no_longer_discarded():
+    """⛔ 이 타입이 Live 유니온에 없어서 서버가 버리고 있었다(2026-08-24 발견)."""
+    msg = client_adapter.validate_python({
+        "type": "client_timing", "turn_id": "b7",
+        "first_audio_ms": 120, "audible_ms": 980, "cushion_ms": 900, "measured": True})
+    assert msg.type == "client_timing"
+    cs._record_client_timing(cs._CallState(), msg)   # 예외 없이
+
+
+def test_pong_carries_server_clock():
+    """⭐ 클라가 시계 오프셋을 잡는 근거. 없으면 계측이 기기 시계 위에만 놓인다."""
+    from domains.learning.realtime.protocol import ServerPong
+    assert "s" in ServerPong.model_fields
+    assert ServerPong(t=1).s is None                 # 기본 None(구버전 무영향)
+
+
+def test_call_started_can_carry_the_diag_level():
+    """⛔ 계측 레벨의 주인은 서버다 — 앱 배포 없이 끌 수 있어야 한다."""
+    from domains.learning.realtime.protocol import ServerCallStarted
+    f = ServerCallStarted(character_id=1)
+    assert f.diag is None                            # 기본 None = 클라 기본값(summary) 유지
+    assert ServerCallStarted(character_id=1, diag="off").diag == "off"

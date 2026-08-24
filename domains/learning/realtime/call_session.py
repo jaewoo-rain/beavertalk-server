@@ -47,6 +47,7 @@ import contextlib
 import json
 import logging
 import re
+import time
 import uuid
 from typing import NamedTuple, AsyncContextManager, Callable, Optional
 
@@ -450,6 +451,7 @@ class _CallState:
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
         "persona_parts", "persona_sent", "persona_total", "persona_fail",
+        "diag_batches", "diag_events", "diag_dropped",
         "persona_turn",
     )
 
@@ -502,6 +504,9 @@ class _CallState:
         self.persona_total = 0               # 원래 조각 수(종료 요약용)
         self.persona_fail = 0                # 현재 조각의 연속 실패 수(무한 왕복 방지)
         self.persona_turn = ""               # 이번 턴에 이미 주입했나(턴당 1조각)
+        self.diag_batches = 0                # 클라 계측 배치 수(상한 방어·요약)
+        self.diag_events = 0                 # 받은 이벤트 총수
+        self.diag_dropped = 0                # 클라가 상한으로 버린 총수
         self.learner_last_tr_at: Optional[float] = None
         self.learner_first_tr_at: Optional[float] = None
         # ── P2.5(D16) 동적 힌트 사이드카 ──
@@ -1535,6 +1540,13 @@ async def run_call(
         # 방출한다. 로그가 통화후 파이프라인을 막지 않게 예외는 전량 흡수(R5).
         with contextlib.suppress(Exception):
             _log_usage_summary(state, call_id, call_type)
+        # ⭐ 클라 계측이 실제로 왔는지 통화당 1줄. **0 이면 앱이 안 보낸 것**이고, 왔는데
+        #   숫자가 이상하면 앱 문제다 — 그 둘을 가르는 유일한 줄이다.
+        if state.diag_batches or state.diag_events:
+            logger.info(
+                "normalcall 계측요약: call_id=%s batches=%d events=%d dropped=%d",
+                call_id, state.diag_batches, state.diag_events, state.diag_dropped,
+            )
         # ⭐ 페르소나 주입 결과를 통화당 1줄로 남긴다. ⛔ 지우지 마라 — 주입 실패는 **조용한**
         #   품질 저하다. 이 줄이 없으면 아무도 모르고 "요즘 비버가 이상해"만 남는다.
         if state.persona_total:
@@ -2132,6 +2144,97 @@ def _hint_instruction(locale_label: str, target_language: str = "한국어") -> 
     )
 
 
+# 클라 계측 배치 방어 상한. ⛔ 클라를 믿지 않는다 — 폭주하는 앱 한 대가 로그를 먹으면
+#   그 시간대의 **다른 통화 진단이 통째로 묻힌다**.
+_DIAG_MAX_EVENTS = 200          # 배치당 이벤트 수
+_DIAG_MAX_KEYS = 24             # 이벤트 dict 의 키 수
+_DIAG_MAX_STR = 64              # 문자열 값 길이
+_DIAG_MAX_BATCHES = 40          # 통화당 배치 수(넘으면 조용히 버린다)
+
+
+def _clip_diag_event(ev: object) -> dict | None:
+    """이벤트 dict 하나를 상한 안으로 깎는다. dict 가 아니면 버린다."""
+    if not isinstance(ev, dict):
+        return None
+    out: dict = {}
+    for k, v in list(ev.items())[:_DIAG_MAX_KEYS]:
+        key = str(k)[:_DIAG_MAX_STR]
+        if isinstance(v, str):
+            out[key] = v[:_DIAG_MAX_STR]
+        elif isinstance(v, (int, float, bool)) or v is None:
+            out[key] = v
+        else:
+            out[key] = str(v)[:_DIAG_MAX_STR]   # 중첩 구조는 안 받는다
+    return out
+
+
+def _record_client_diag(state: _CallState, msg) -> None:
+    """⭐ 클라 계측 배치를 로그로 흘린다(2026-08-24). 저장·응답 없음.
+
+    ## 왜 서버가 이걸 받아야 하나
+    체감 지연·표정 발화 시각·재생 대조는 **클라에만 있는 값**이다. 3.1 은 학습자 전사를
+    자기 응답과 같이 내보내서 서버 쪽 원점이 무너졌다(응답지연 끝기준 0.00초 사태).
+
+    ## ⛔ 규율
+    - **응답하지 않는다**(hint_used 와 같은 규율 — ack 불요).
+    - **예외를 통화로 새게 하지 않는다**(R5). 계측이 통화를 죽이면 본말전도다.
+    - 배치 `seq` 의 구멍은 **유실**이다. 그대로 로그에 남겨 나중에 셀 수 있게 한다.
+    - 클라가 버린 수(`dropped`)가 0 이 아니면 **경고로 올린다** — 조용한 손실 금지.
+
+    ## ⚠ 형식을 바꾸지 마라
+    `key=value` 로 못 박아 둔 덕에 Cloud Logging 로그 기반 메트릭이 코드 변경 0줄로
+    숫자를 뽑아간다(`normalcall usage:` 줄과 같은 규율).
+    """
+    try:
+        state.diag_batches += 1
+        if state.diag_batches > _DIAG_MAX_BATCHES:
+            if state.diag_batches == _DIAG_MAX_BATCHES + 1:   # 한 번만 알린다
+                logger.warning(
+                    "normalcall 계측: 배치 상한(%d) 초과 — 이후 무시 seq=%s",
+                    _DIAG_MAX_BATCHES, getattr(msg, "seq", None),
+                )
+            return
+        raw = list(getattr(msg, "events", None) or [])[:_DIAG_MAX_EVENTS]
+        events = [e for e in (_clip_diag_event(x) for x in raw) if e]
+        dropped = int(getattr(msg, "dropped", 0) or 0)
+        state.diag_events += len(events)
+        state.diag_dropped += dropped
+        line = json.dumps(
+            {
+                "seq": getattr(msg, "seq", None),
+                "level": getattr(msg, "level", None),
+                "anchor": getattr(msg, "anchor_epoch_ms", None),
+                "dropped": dropped,
+                "events": events,
+            },
+            ensure_ascii=False, separators=(",", ":"),
+        )
+        (logger.warning if dropped else logger.info)(
+            "normalcall 계측: batch=%d n=%d dropped=%d %s",
+            state.diag_batches, len(events), dropped, line,
+        )
+    except Exception as exc:  # noqa: BLE001 - 계측 실패는 통화 무영향(R5)
+        logger.warning("normalcall 계측: 배치 처리 실패(무시): %s", exc)
+
+
+def _record_client_timing(state: _CallState, msg) -> None:
+    """클라 실측 타이밍 1건.
+
+    ⛔ 이 타입이 Live 유니온에 **없어서** 지금까지 서버가 버리고 있었다(2026-08-24 발견).
+      클라는 보내고 있었는데 `제어 메시지 무시` 로 삼켜졌다.
+    """
+    try:
+        logger.info(
+            "normalcall 클라타이밍: turn=%s first_audio=%sms audible=%sms "
+            "cushion=%sms measured=%s",
+            getattr(msg, "turn_id", None), getattr(msg, "first_audio_ms", None),
+            getattr(msg, "audible_ms", None), getattr(msg, "cushion_ms", None),
+            getattr(msg, "measured", None),
+        )
+    except Exception as exc:  # noqa: BLE001 - R5
+        logger.warning("normalcall 클라타이밍: 처리 실패(무시): %s", exc)
+
+
 def _record_hint_used(state: _CallState, msg) -> None:
     """hint_used 적재(응답·저장 없음 — in-memory, mechanics ⑬).
 
@@ -2398,11 +2501,20 @@ async def _handle_client_control(client_ws, text: str, state: _CallState) -> Non
         logger.warning("normalcall 제어 메시지 무시: %s", exc)
         return
     if msg.type == "ping":
-        await _send_json(client_ws, ServerPong(t=getattr(msg, "t", None)))
+        # ⭐ 서버 epoch ms 를 같이 준다 — 클라가 NTP 식으로 시계 오프셋을 잡아 계측
+        #   이벤트를 서버 시계 위에 올린다(protocol.ServerPong.s 참조).
+        await _send_json(client_ws, ServerPong(
+            t=getattr(msg, "t", None),
+            s=int(time.time() * 1000),
+        ))
     elif msg.type == "playback_done":
         state.playback_done_event.set()
     elif msg.type == "hint_used":
         _record_hint_used(state, msg)  # 적재만(응답 불요, D16)
+    elif msg.type == "client_diag":
+        _record_client_diag(state, msg)  # 적재만(응답 불요 — hint_used 와 같은 규율)
+    elif msg.type == "client_timing":
+        _record_client_timing(state, msg)
 
 
 # --------------------------------------------------------------------------- #

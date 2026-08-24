@@ -126,8 +126,64 @@ class ClientHintUsed(BaseModel):
     stage: int | None = None
 
 
+class ClientDiag(BaseModel):
+    """⭐ 클라 계측 배치(2026-08-24) — 통화 중 여러 번, 종료 직전 1회.
+
+    ## 왜 필요한가 — 서버는 체감 지연을 **잴 수 없다**
+    `gemini-3.1-flash-live-preview` 는 학습자 전사의 마지막 조각을 **자기 응답과 같이**
+    내보낸다. 그래서 "학습자가 말을 끝낸 시각"이 서버에 안 남는다(실측: 5분 통화 12턴
+    전부 끝기준 0.00초). 그 원점은 **클라의 로컬 VAD** 에만 있다.
+
+    ## ⛔ 이게 없어서 지금까지 아무것도 못 봤다
+    ① Live 유니온에 `user_turn_end`·`client_timing` 이 없어(캐스케이드에만 있다)
+       프론트의 응답시간 계기가 **라이브에서 한 번도 안 돌았다**.
+    ② 돌았어도 서버가 버렸다 — `client_timing` 이 이 유니온에 없어 `_handle_client_control`
+       이 "제어 메시지 무시" 로 삼킨다.
+
+    ## ⛔⛔ `events` 를 discriminated union 으로 만들지 마라
+    클라가 필드 하나를 늘리면 pydantic 이 **배치 전체를 거부**해 그 통화의 계측이 통째로
+    사라진다. `ClientPlaybackProgress.source` 가 Literal 을 안 쓰는 것과 같은 이유다.
+    ⇒ 서버는 dict 를 그대로 받아 로그로 흘린다. 스키마 진화를 앱 배포에 묶지 않는다.
+
+    ## ⚠ R5
+    안 와도, 깨져 와도 통화는 그대로 돈다. 처리 실패는 흡수하고 응답하지 않는다
+    (`hint_used` 와 같은 규율 — ack 불요).
+
+    Attributes:
+        seq: 배치 번호(통화 스코프, 1부터). **구멍이 곧 유실**이라 서버가 셀 수 있다.
+        anchor_epoch_ms: 이벤트 `t`(상대 ms)의 원점. 첫 배치에만 의미가 있다.
+        level: 'summary' | 'full'. 그룹 키로만 쓴다(검증하지 않는다).
+        dropped: 클라가 상한으로 버린 건수. 0 이 아니면 서버가 경고한다 —
+            **조용한 손실을 만들지 않기 위한 필드다.**
+        events: 이벤트 dict 목록. 스키마는 클라가 소유한다.
+    """
+
+    type: Literal["client_diag"] = "client_diag"
+    seq: int = 0
+    anchor_epoch_ms: int = 0
+    level: str = "summary"
+    dropped: int = 0
+    events: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ClientTiming(BaseModel):
+    """클라 실측 타이밍 1건(캐스케이드와 같은 모양 — 이름만 공용화).
+
+    ⛔ 이 타입이 Live 유니온에 **없어서** 클라가 보내던 것을 서버가 버리고 있었다
+    (2026-08-24 발견). 필드는 캐스케이드 `ClientCascadeTiming` 과 맞춘다.
+    """
+
+    type: Literal["client_timing"] = "client_timing"
+    turn_id: str | None = None
+    first_audio_ms: int | None = None
+    audible_ms: int | None = None
+    cushion_ms: int | None = None
+    measured: bool | None = None
+
+
 ClientMessage = Annotated[
-    Union[ClientStart, ClientPlaybackDone, ClientPing, ClientHintUsed],
+    Union[ClientStart, ClientPlaybackDone, ClientPing, ClientHintUsed,
+          ClientDiag, ClientTiming],
     Field(discriminator="type"),
 ]
 
@@ -228,6 +284,10 @@ class ServerCallStarted(BaseModel):
     #   ⚠ 기본 None — 구버전 클라는 미지 필드를 무시하고, 이 필드를 안 채우는 경로(있다면)도
     #     그대로 돈다. 값이 없다고 통화가 막히면 안 된다.
     call_id: str | None = None
+    # ⭐ 클라 계측 레벨(2026-08-24). "off" | "summary" | "full".
+    #   ⛔ **주인은 서버다** — 앱 배포 없이 끌 수 있어야 한다. 계측이 통화를 흔드는 것이
+    #     관측되면 그날 env 하나로 끈다. 클라 기본값은 "summary" 이고 이 값이 이긴다.
+    diag: str | None = None
 
 
 class ServerError(BaseModel):
@@ -274,6 +334,11 @@ class AecHint(BaseModel):
 class ServerPong(BaseModel):
     type: Literal["pong"] = "pong"
     t: int | None = None
+    # ⭐ 서버 epoch ms(2026-08-24). 클라가 `ping{t:T0}` → `pong{t:T0, s:S}` → 수신 T1 로
+    #   `offset = S - (T0+T1)/2` 를 잡는다(NTP 식). 그러면 **클라의 모든 계측 이벤트가
+    #   서버 시계 위에 놓여** 서버 로그와 한 축에 겹쳐 그릴 수 있다.
+    #   ⚠ keepalive 는 15초마다 이미 돈다 — 새 트래픽 0. 구버전 클라는 미지 필드를 무시한다.
+    s: int | None = None
 
 
 class TeachingItem(BaseModel):
