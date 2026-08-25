@@ -126,11 +126,15 @@ def test_live_model_is_not_changed_by_cascade_work():
       필요해서 Live 계약을 **일부러** 넓힌 것이다(커밋 cf5cdae).
       ⇒ 시험을 지우지 않고 **기대값을 갱신**한다. 지우면 "캐스케이드가 Live 를 오염시켰나"를
         묻는 감시가 통째로 사라진다 — 그 질문은 여전히 유효하다.
+    ⚠ 2026-08-25: `diag` 가 **의도적으로** 추가됐다(클라 계측 레벨). 이것도 캐스케이드가
+      흘러든 게 아니라 Live 쪽 필요다 — 계측을 **앱 재배포 없이 서버에서 끄는** 스위치가
+      필요했다. 계측이 통화를 방해할 때 그것 말고는 탈출구가 없다.
+      ⇒ 같은 규율: 시험을 지우지 않고 기대값을 갱신한다.
     ⛔ 다음에 이 시험이 깨지면 먼저 물어라: **의도한 Live 변경인가, 캐스케이드가 샌 것인가.**
       후자면 고쳐야 할 것은 시험이 아니라 코드다.
     """
     assert ServerCallStarted(character_id=3).model_dump() == {
-        "type": "call_started", "character_id": 3, "call_id": None,
+        "type": "call_started", "character_id": 3, "call_id": None, "diag": None,
     }
     # ⚠ 캐스케이드 모델에는 `call_id` 가 없다 — 캐스케이드는 조각 개념이 없다.
     assert "call_id" not in CascadeCallStarted(character_id=3).model_dump()

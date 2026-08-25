@@ -319,6 +319,21 @@ class Settings(BaseSettings):
     #     주입 호출도 0건이라 회귀 무영향이다. 표정(LIVE_FACE_SPIKE)과 **별개 축**으로
     #     둔다: 표정만 끄는 것으로는 분할 회귀를 못 끈다.
     LIVE_PERSONA_INJECT: bool = False
+
+    # ── 클라 계측 레벨 ── "off" | "summary" | "full"
+    #
+    # ⭐ **주인이 서버인 이유**: 계측은 통화와 같은 소켓을 쓴다. 그게 문제를 일으켰을 때
+    #   앱 재배포를 기다려야 한다면 탈출구가 없는 것이다. 여기서 "off" 로 두면 클라가
+    #   `call_started.diag` 를 보고 **버퍼조차 채우지 않는다**.
+    # ⚠ 구버전 앱은 이 값을 모른다 — 자기 기본값(summary)으로 돈다. 상한·전송 창은
+    #   클라가 스스로 지키므로 폭주하지 않는다.
+    #
+    # "summary" = 뼈대만(턴·마커·언더런·타이밍). "full" = 거기에 주기 롤업·영상 내부 상태.
+    # ⭐ 지금 기본이 "full" 인 것은 **의도한 것**이다 — 이 계기를 만든 이유가 「웃다가 갑자기
+    #   멈춘다」이고, 그 증상은 전부 영상 내부(`vid_*`)에서 일어난다. summary 로 두면
+    #   정작 보려던 것이 안 온다. 5분 통화 기준 수백 건이라 부담은 없다.
+    #   조사가 끝나면 "summary" 로 내린다.
+    LIVE_DIAG_LEVEL: str = "full"
     # ⭐ 표정 tool 응답의 `scheduling`. 빈 문자열(기본) = **안 붙인다**.
     #   값: "" | SILENT | WHEN_IDLE | INTERRUPT
     #   ⛔ 왜 스위치인가 — 문서로 정할 수 없어서다. SDK types.py:164 는 scheduling 이

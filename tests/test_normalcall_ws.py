@@ -4555,12 +4555,37 @@ def test_a_client_reported_drop_is_raised_to_warning(caplog):
 
 
 def test_client_timing_is_no_longer_discarded():
-    """⛔ 이 타입이 Live 유니온에 없어서 서버가 버리고 있었다(2026-08-24 발견)."""
+    """⛔ 이 타입이 Live 유니온에 없어서 서버가 버리고 있었다(2026-08-24 발견).
+
+    ⚠ 프레임은 **프론트가 실제로 보내는 그대로**다(`normalcall_controller._sendClientTiming`).
+      지어낸 이름으로 쓰면 이 테스트는 통과하면서 실서비스에선 계속 버려진다 — 실제로
+      한 번 그랬다.
+    """
     msg = client_adapter.validate_python({
-        "type": "client_timing", "turn_id": "b7",
-        "first_audio_ms": 120, "audible_ms": 980, "cushion_ms": 900, "measured": True})
+        "type": "client_timing", "turn_id": "b7", "audible_ms": 980,
+        "turn_start_ms": 300, "cushion_ms": 900, "estimated": False,
+        "speech_to_sound_ms": 2100})
     assert msg.type == "client_timing"
+    assert msg.speech_to_sound_ms == 2100, "사장님이 기다리는 그 값이 안 실렸다"
     cs._record_client_timing(cs._CallState(), msg)   # 예외 없이
+
+
+def test_live_and_cascade_timing_never_drift_apart():
+    """⛔⛔ 이 회귀가 없어서 밟은 사고 그 자체 (2026-08-25).
+
+    Live `ClientTiming` 을 만들 때 `first_audio_ms`·`measured` 라는 **없는 이름**을 지어
+    넣었다. 유니온에 넣어 살렸다고 생각한 값이 pydantic `extra=ignore` 에 걸려 조용히 한 번
+    더 버려졌고, 서버 로그는 `first_audio=None` 을 찍으며 **정상처럼 보였다.**
+
+    ⇒ 클라는 두 엔진에 **같은 프레임**을 보낸다. 두 모델의 필드 집합이 갈라지는 순간
+      한쪽 엔진의 계측이 소리 없이 죽는다. 그 갈라짐을 여기서 실패로 만든다.
+    """
+    from domains.learning.realtime.protocol import ClientTiming
+    from domains.learning.realtime.cascade_protocol import ClientCascadeTiming
+
+    assert set(ClientTiming.model_fields) == set(ClientCascadeTiming.model_fields), (
+        "Live/캐스케이드 client_timing 필드가 갈라졌다 — 한쪽 계측이 조용히 죽는다"
+    )
 
 
 def test_pong_carries_server_clock():
@@ -4568,6 +4593,19 @@ def test_pong_carries_server_clock():
     from domains.learning.realtime.protocol import ServerPong
     assert "s" in ServerPong.model_fields
     assert ServerPong(t=1).s is None                 # 기본 None(구버전 무영향)
+
+
+def test_the_server_actually_sends_the_diag_level():
+    """⛔ 필드만 만들어 두고 **아무도 안 채우던** 상태의 회귀 (2026-08-25).
+
+    `diag` 를 안 실으면 클라는 자기 기본값으로 돈다 — 그러면 "끄는 스위치는 서버에 있다"가
+    거짓이 되고, 계측이 통화를 방해할 때 **앱 재배포 말고는 탈출구가 없다.**
+    """
+    import inspect
+    from domains.learning.realtime import call_session as _cs
+    src = inspect.getsource(_cs)
+    assert "diag=settings.LIVE_DIAG_LEVEL" in src,         "call_started 가 계측 레벨을 안 싣는다 — 서버가 끌 수 없다"
+    assert app_settings.LIVE_DIAG_LEVEL in ("off", "summary", "full")
 
 
 def test_call_started_can_carry_the_diag_level():

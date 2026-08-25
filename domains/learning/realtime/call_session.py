@@ -1261,7 +1261,15 @@ async def run_call(
     # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
     #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
     await _send_json(
-        client_ws, ServerCallStarted(character_id=character_id, call_id=str(call_id))
+        client_ws,
+        ServerCallStarted(
+            character_id=character_id,
+            call_id=str(call_id),
+            # ⛔ 이 값을 안 실으면 클라는 자기 기본값으로 돈다 — 그러면 "끄는 스위치가
+            #   서버에 있다"는 말이 거짓이 된다. 필드만 만들어 두고 아무도 안 채우던
+            #   상태를 여기서 닫는다(2026-08-25).
+            diag=settings.LIVE_DIAG_LEVEL,
+        ),
     )
 
     state = _CallState()
@@ -2222,14 +2230,22 @@ def _record_client_timing(state: _CallState, msg) -> None:
 
     ⛔ 이 타입이 Live 유니온에 **없어서** 지금까지 서버가 버리고 있었다(2026-08-24 발견).
       클라는 보내고 있었는데 `제어 메시지 무시` 로 삼켜졌다.
+
+    ⭐ 읽는 법 — 이 줄 하나로 **뺄셈**이 성립한다:
+        클라 재생 몫 = audible − (같은 turn 의 서버 `첫소리`)
+        사용자 체감    = 입벌림기준  ⇐ ⭐ 사장님이 실제로 기다리는 시간
+      `입벌림기준` 이 -1 이면 클라 VAD 가 그 턴의 원점을 못 잡은 것이다(추정 아님, 부재).
     """
     try:
         logger.info(
-            "normalcall 클라타이밍: turn=%s first_audio=%sms audible=%sms "
-            "cushion=%sms measured=%s",
-            getattr(msg, "turn_id", None), getattr(msg, "first_audio_ms", None),
-            getattr(msg, "audible_ms", None), getattr(msg, "cushion_ms", None),
-            getattr(msg, "measured", None),
+            "normalcall 클라타이밍: turn=%s 입벌림기준=%sms audible=%sms "
+            "turn_start=%sms cushion=%sms%s",
+            getattr(msg, "turn_id", None),
+            getattr(msg, "speech_to_sound_ms", None),
+            getattr(msg, "audible_ms", None),
+            getattr(msg, "turn_start_ms", None),
+            getattr(msg, "cushion_ms", None),
+            " ⚠추정(네이티브 잔량 없음)" if getattr(msg, "estimated", False) else "",
         )
     except Exception as exc:  # noqa: BLE001 - R5
         logger.warning("normalcall 클라타이밍: 처리 실패(무시): %s", exc)

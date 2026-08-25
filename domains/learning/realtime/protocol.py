@@ -170,15 +170,26 @@ class ClientTiming(BaseModel):
     """클라 실측 타이밍 1건(캐스케이드와 같은 모양 — 이름만 공용화).
 
     ⛔ 이 타입이 Live 유니온에 **없어서** 클라가 보내던 것을 서버가 버리고 있었다
-    (2026-08-24 발견). 필드는 캐스케이드 `ClientCascadeTiming` 과 맞춘다.
+    (2026-08-24 발견).
+
+    ⛔⛔ 필드 이름을 **여기서 새로 짓지 마라.** 처음 이 모델을 만들 때 `first_audio_ms`·
+      `measured` 라는 없는 이름을 써서, 유니온에 넣어 살렸다고 생각한 값이 pydantic 의
+      `extra=ignore` 에 걸려 **한 번 더 조용히 버려졌다**(2026-08-25 발견). 이름의 주인은
+      이미 보내고 있는 클라와 `ClientCascadeTiming` 이다 — 그쪽과 글자까지 같아야 한다.
     """
 
     type: Literal["client_timing"] = "client_timing"
-    turn_id: str | None = None
-    first_audio_ms: int | None = None
-    audible_ms: int | None = None
-    cushion_ms: int | None = None
-    measured: bool | None = None
+    turn_id: str = ""
+    # 서버가 "말 끝났다"고 알린 시각 → **첫 소리가 실제로 난 시각**.
+    audible_ms: int = -1
+    # ⭐ **사용자가 입을 연 순간**부터 첫 소리까지 — 클라 로컬 VAD 의 첫 유성 프레임이 원점.
+    #   ⇒ 사장님이 실제로 기다리는 시간이고, `audible_ms` 는 그 부분집합이다.
+    #   ⚠ -1 = 못 쟀음. ⛔ 0 으로 채우지 마라 — 0 은 "즉시 났다"로 읽힌다.
+    speech_to_sound_ms: int = -1
+    turn_start_ms: int = -1
+    cushion_ms: int = -1
+    # ⚠ True = 네이티브 잔량을 못 받아 **추정**한 값. 실측과 같은 표에 섞으면 안 된다.
+    estimated: bool = False
 
 
 ClientMessage = Annotated[
