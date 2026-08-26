@@ -2656,9 +2656,15 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                     turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
                 ))
                 state.face_last = emotion
+            # ⛔ `turn=` 를 뺀 채로 오래 굴렸다. 그래서 「이 마커가 의도한 턴에 떴는가」를
+            #   **판정할 수 없었다** — 클라 계측에는 마커가 언제 화면에 떴는지가 남는데
+            #   서버에는 그것이 어느 턴 것인지가 안 남아, 두 줄을 조인할 키가 없었다.
+            #   ⚠ 빈 문자열이면 **호출 시점에 열린 턴이 없었다**는 뜻이다(모델은 말하기
+            #     전에 부르므로 정상적으로 자주 그렇다). 그 사실 자체가 판정 재료다.
             logger.info(
-                "normalcall 표정: %s(%s) 턴누적오디오=%.2f초 %d번째 %s 직전전사=%r",
-                event.fn_name, emotion or "?", secs, state.face_calls,
+                "normalcall 표정: %s(%s) turn=%s 턴누적오디오=%.2f초 %d번째 %s 직전전사=%r",
+                event.fn_name, emotion or "?", state.turn_id or "(열린 턴 없음)",
+                secs, state.face_calls,
                 "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
                 "⛔첫인사턴(버림)" if (emotion and opening) else
                 "중복(안 보냄)" if duplicate else
@@ -2698,6 +2704,22 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             state.should_close = True
             if state.turn_id is None:
                 await _inject_close_seed(session, state)
+            continue
+
+        # ⛔ `interrupted` 를 **아무 분기도 안 받고 있었다**(2026-08-26 확인).
+        #   어댑터는 만들어 낸다(`gemini_live.py:520`) — 소비만 0이다. 그러니 예외도
+        #   경고도 없이 조용히 사라진다. 그게 위험한 이유:
+        #     모델이 자기 턴을 버렸는데 **클라 큐에는 그 오디오가 남아 있다.**
+        #     barge-in off 라 우리가 끊는 일은 없지만, 모델이 스스로 끊을 수는 있다.
+        #     그러면 비버가 **버려진 문장을 계속 말한다.**
+        # ⭐ 다만 **한 번도 관측된 적이 없다.** 본 적 없는 것에 처리기를 짓지 않는다 —
+        #   먼저 보이게 만든다. 이 줄이 실제로 찍히면 그때 처방을 고른다.
+        if event.kind == "interrupted":
+            logger.warning(
+                "normalcall ⛔interrupted: 모델이 자기 턴을 버렸다 turn=%s "
+                "(클라 큐에 남은 오디오는 그대로 재생된다 — 처리기 없음)",
+                state.turn_id or "(열린 턴 없음)",
+            )
             continue
 
         # 세션 재개 핸들 갱신. resumable=False 는 "지금 상태로는 재개 불가"(모델 생성 중·
