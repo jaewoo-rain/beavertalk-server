@@ -115,33 +115,6 @@ SET_FACE_TOOL = types.Tool(
 _AUTO_ACK_TOOLS = frozenset({"set_face"})
 
 
-def _face_scheduling() -> Optional[types.FunctionResponseScheduling]:
-    """표정 tool 응답의 scheduling. **env 로 바꾼다**(재빌드 없이 변형을 시험하려고).
-
-    ⚠ SDK 규약(types.py:164): scheduling 은 "**NON_BLOCKING 호출에만 적용, 그 외 무시.
-      기본 WHEN_IDLE**". 그리고 Behavior 독스트링(types.py:306)은 "**현재는 non-blocking
-      만 지원**"이라 우리 선언(behavior 미지정)이 어느 쪽으로 해석되는지 확정할 수 없다.
-      ⇒ 문서로 못 정한다. 값을 바꿔가며 **재는** 수밖에 없어서 스위치로 뺐다.
-
-    빈 문자열(기본) = scheduling 을 **아예 안 붙인다**.
-    """
-    raw = (settings.LIVE_FACE_TOOL_SCHEDULING or "").strip().upper()
-    if not raw:
-        return None
-    # ⛔ **허용 목록으로 검사한다. enum 생성자로 검증하지 마라**(2026-08-20, 회귀가 잡았다).
-    #   SDK 의 CaseInSensitiveEnum 은 모르는 값에 **예외를 안 던진다** — 경고만 내고
-    #   가짜 멤버를 만들어 준다(`_common.py:651`). try/except ValueError 로는 못 거른다.
-    #   그대로 두면 오타 난 env 값이 **그대로 API 로 나간다.**
-    known = {m.value for m in types.FunctionResponseScheduling}
-    if raw not in known:
-        logger.warning(
-            "LIVE_FACE_TOOL_SCHEDULING 값이 이상하다(무시하고 미부착): %r — 가능: %s",
-            raw, sorted(known),
-        )
-        return None
-    return types.FunctionResponseScheduling(raw)
-
-
 def _scheduling_kwargs(
     fn_name: Optional[str], *, resume: bool, blocking: bool
 ) -> dict:
@@ -150,9 +123,19 @@ def _scheduling_kwargs(
     ⛔ 축이 셋으로 늘어서 분기를 한곳에 모았다. 흩어 두면 "선언은 A인데 응답은 B" 라는
       **반쪽 수정**이 난다 — 이 프로젝트가 표정 tool 에서 이미 세 번 겪은 실패 모양이다.
     """
+    # ⛔⛔ **표정 tool 에는 scheduling 을 안 붙인다.** 예전엔 env 스위치
+    #   (`LIVE_FACE_TOOL_SCHEDULING`)로 값을 바꿔가며 **재려고** 만든 자리였는데,
+    #   실서비스 env 에 `SILENT` 이 박힌 채로 남아 사고를 냈다(2026-08-26):
+    #     모델이 턴 밖에서 set_face 를 부른다 → 우리가 SILENT("생성하지 마")로 답한다
+    #     → `interrupted` (모델이 그 턴을 버린다) → 비버 턴이 5.6초 더 열려 있다
+    #     → 그 창에 들어온 **학습자 첫 발화가 버려진다** → 사용자가 두 번 말해야 한다
+    #   실측(call 15:21): 첫 발화 1.68초 → 무응답 → 4.1초 뒤 재발화 → 그제서야 응답.
+    #   전사에도 남았다: `USER[t6]: 안녕히 계세요.안녕히 계세요.`
+    #   ⇒ 스위치를 **없앤다.** 측정용 손잡이가 실서비스 설정으로 굳는 사고를 다시
+    #     만들지 않는다. 값이 필요해지면 그때 코드로 명시한다.
+    #   ⚠ SILENT 는 이미 한 번 사고를 냈다(d6f5efc: "4턴 내내 대답 0건").
     if fn_name in _AUTO_ACK_TOOLS:
-        sched = _face_scheduling()
-        return {} if sched is None else {"scheduling": sched}
+        return {}
     if blocking:
         return {}
     return {"scheduling": (
@@ -493,8 +476,8 @@ class GeminiLiveSession:
                                 #   이 줄이 없어서 R1 판정이 반쪽이 났다 — "즉시 ack 경로로
                                 #   갔는지"를 로그로 확인할 수단이 없었고, 어댑터가 답했든
                                 #   call_session 이 답했든 겉보기 동작이 같아 구별이 안 됐다.
-                                #   ⇒ 어느 경로로 · 어떤 scheduling 으로 답했는지를 남긴다.
-                                sched = _face_scheduling()
+                                #   ⇒ 어느 경로로 답했는지를 남긴다.
+                                sched = None
                                 logger.info(
                                     "Live tool 즉시응답: %s scheduling=%s",
                                     fn_name, sched.value if sched else "(미부착)",

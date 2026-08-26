@@ -255,13 +255,27 @@ def test_the_adapter_answers_set_face_before_yielding_it():
     assert order == ["ack", "yield"]
 
 
-def test_face_scheduling_is_switchable_without_a_rebuild(monkeypatch):
-    """⭐ scheduling 을 env 로 고른다 — 문서로 정할 수 없어서 재는 수밖에 없다.
+def test_the_face_tool_never_carries_scheduling(monkeypatch):
+    """⛔⛔ **표정 응답에 scheduling 을 붙이지 마라.** 되돌리면 사고가 재발한다.
 
-    SDK types.py:164 는 "NON_BLOCKING 에만 적용, 그 외 무시, 기본 WHEN_IDLE" 이라 하고
-    types.py:306 은 "현재는 non-blocking 만 지원" 이라 한다. 우리 선언(behavior 미지정)이
-    어느 쪽으로 해석되는지 **벤더 문서에 답이 없다.**
-    ⚠ 잘못된 값은 통화를 죽이지 말고 조용히 무시해야 한다(R5).
+    예전엔 `LIVE_FACE_TOOL_SCHEDULING` env 스위치로 값을 바꿔가며 **재는** 자리였다
+    (문서로 정할 수 없어서 — SDK types.py:164 와 :306 이 서로 다른 말을 한다).
+    그런데 그 측정용 손잡이가 **실서비스 env 에 `SILENT` 로 박힌 채 굳었고**, 그것이
+    사고를 냈다(2026-08-26 실측):
+
+        모델이 턴 밖에서 set_face 를 부른다(턴누적오디오=0.00초)
+          → 우리가 SILENT("생성하지 마")로 답한다
+          → `interrupted` — 모델이 그 턴을 버린다
+          → 비버 턴이 오디오 종료 후 **5.6초를 더 열려 있다**
+          → 그 창에 들어온 학습자 첫 발화가 버려진다
+          → **사용자가 두 번 말해야 응답이 온다**
+
+    전사에 그대로 남았다: `USER[t6]: 안녕히 계세요.안녕히 계세요.`
+    계측에도: voice_on 67.2초 → voice_off(1.68초) → 무응답 → 73.0초 재발화 → 76.1초 응답.
+
+    ⚠ SILENT 는 이미 한 번 사고를 냈던 값이다(d6f5efc: "4턴 내내 대답 0건").
+    ⭐ 스위치를 없앤 이유: **측정용 손잡이가 설정으로 굳는 것**을 막는다. 값이 필요해지면
+      그때 코드로 명시하고, 그 근거를 여기 적는다.
     """
     import asyncio
 
@@ -277,23 +291,14 @@ def test_face_scheduling_is_switchable_without_a_rebuild(monkeypatch):
 
     live = gl.GeminiLiveSession(_FakeSession())
 
-    # 기본(빈 문자열) = scheduling 미부착
-    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "", raising=False)
     asyncio.run(live.send_tool_response("i", "set_face"))
-    assert sent[-1].scheduling is None
+    assert sent[-1].scheduling is None, "표정 응답에 scheduling 이 붙었다"
 
-    # 값을 주면 그 값이 실린다
-    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "INTERRUPT", raising=False)
-    asyncio.run(live.send_tool_response("i", "set_face"))
-    assert sent[-1].scheduling == types.FunctionResponseScheduling.INTERRUPT
+    # ⚠ env 로 되살릴 수 없어야 한다 — 스위치가 정말 사라졌는지 본다.
+    assert not hasattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING"),         "스위치가 남아 있다 — 다시 설정으로 굳을 수 있다"
 
-    # ⚠ 이상한 값은 무시하고 미부착으로 떨어진다 — 통화가 죽으면 안 된다
-    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "NONSENSE", raising=False)
-    asyncio.run(live.send_tool_response("i", "set_face"))
-    assert sent[-1].scheduling is None
-
-    # ⚠ 레벨테스트 경로는 이 스위치에 안 흔들린다 — 예전 그대로 SILENT
-    monkeypatch.setattr(gl.settings, "LIVE_FACE_TOOL_SCHEDULING", "INTERRUPT", raising=False)
+    # ⛔ 레벨테스트 경로는 **그대로 SILENT** 다. 그 호출의 목적은 통화를 끝내는 것이라
+    #   이어 말할 필요가 없다 — 표정과 정반대다(d6f5efc 가 가른 축).
     asyncio.run(live.send_tool_response("i", "leveltest_ceiling_reached"))
     assert sent[-1].scheduling == types.FunctionResponseScheduling.SILENT
 
