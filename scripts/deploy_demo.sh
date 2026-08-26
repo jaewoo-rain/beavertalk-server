@@ -38,6 +38,18 @@ if [[ -n "${EXTRA_ENV:-}" ]]; then
   ENV_ARGS=(--update-env-vars "${EXTRA_ENV}")
 fi
 
+# ⭐ 선택: 배포하면서 환경변수를 **지운다**(2026-08-27).
+#   예) REMOVE_ENV=LIVE_FACE_TOOL_SCHEDULING SERVICE=beavertalk-app-api scripts/deploy_demo.sh v4
+#   ⛔ 왜 필요한가 — 코드에서 설정을 없앨 때 **env 는 따로 안 지워진다.** `extra="ignore"`
+#     라 앱은 안 죽지만, 다음 사람이 `describe` 로 보면 여전히 살아 있는 것처럼 보인다.
+#     실제로 `LIVE_FACE_TOOL_SCHEDULING=SILENT` 이 그렇게 남아 사고를 냈다.
+#   ⚠ `--update-env-vars` 와 같이 쓸 수 있다(축이 다르다). 지우는 쪽이 우선이라
+#     같은 키를 양쪽에 넣지 마라.
+if [[ -n "${REMOVE_ENV:-}" ]]; then
+  echo "  env 삭제: ${REMOVE_ENV}"
+  ENV_ARGS+=(--remove-env-vars "${REMOVE_ENV}")
+fi
+
 echo "[2/3] 배포"
 # --timeout=3600: Cloud Run 요청 타임아웃(기본 300s=5분)은 WS 통화에도 걸려 5분 통화가
 #   작별 직전 소켓째 끊긴다(실측 call 195: 298s 문장 중간 절단). 통화 WS 는 하나의 긴 요청이므로
