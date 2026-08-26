@@ -9,8 +9,14 @@ sad·surprised·angry 는 영원히 안 떴다. ⇒ **매핑 계층을 만들지
   캐릭터면 angry 가 될 수도 있잖아." ⇒ 5종 **전부 살아 있어야** 하고, 고르는 기준은
   **캐릭터 성격**이다. 감정 문구에 캐릭터 색(다정한 선생님)을 넣으면 그걸 덮어쓴다.
 
+⚠ 2026-08-26: 클라가 `laugh` 를 6번째로 그리기 시작했다(Live 표정 tool). 캐스케이드는
+  **따라가지 않았다** — 여기 감정은 LLM 텍스트 태그에서 오고 그 어휘를 늘리는 것은
+  별개 판단이다. ⇒ ① 의 관계가 「같다」에서 **「클라가 그릴 수 있는 것만 보낸다」**로
+  바뀐다. 그 방향이 지켜야 할 성질이다 — 반대로 클라가 못 그리는 값을 보내면 조용히
+  neutral 로 떨어진다.
+
 여기서 고정하는 성질:
-  ① 감정은 **클라 5종과 정확히 같다**(더도 덜도 아니다)
+  ① 감정은 **클라가 그리는 것의 부분집합**이다(못 그리는 값을 보내지 않는다)
   ② `turn_start` 에 실린다 — ⛔ **Live 출력은 안 바뀐다**
   ③ 모르는 값이 와도 서버가 안 죽는다(화이트리스트로 막지 않는다)
   ④ 감정 문구에 **캐릭터 색이 없다**(캐릭터는 페르소나가 넣는다)
@@ -28,8 +34,12 @@ from domains.learning.realtime.cascade_protocol import (
     cascade_server_adapter,
 )
 
-# 클라가 그리는 표정(`avatar_view.dart:11-15`) — 서버 집합은 이것과 같아야 한다.
-CLIENT_FACES = ["neutral", "happy", "surprised", "sad", "angry"]
+# 캐스케이드가 보내는 표정. ⛔ **클라가 그릴 수 있는 것만** 있어야 한다.
+#   클라 어휘(`avatar_view.dart`)는 이보다 넓다 — `laugh` 가 Live 전용으로 더 있다.
+CASCADE_FACES = ["neutral", "happy", "surprised", "sad", "angry"]
+
+# 클라가 실제로 그리는 전체 어휘. 위 목록은 이것의 **부분집합**이어야 한다.
+CLIENT_DRAWABLE = {"neutral", "happy", "surprised", "sad", "angry", "laugh"}
 
 
 class _Sink:
@@ -49,7 +59,9 @@ class _Sink:
 # ── ① 집합 ─────────────────────────────────────────────────────────────────
 def test_the_emotion_set_matches_the_client_faces_exactly():
     """⛔ **매핑 계층을 만들지 않는다.** 서버 어휘 = 클라 어휘여야 그게 가능하다."""
-    assert list(cr.EMOTION_STYLES) == CLIENT_FACES
+    assert list(cr.EMOTION_STYLES) == CASCADE_FACES
+    # ⛔ 클라가 못 그리는 값을 보내면 화면에서 조용히 사라진다.
+    assert set(cr.EMOTION_STYLES) <= CLIENT_DRAWABLE
 
 
 def test_no_emotion_is_suppressed_in_the_prompt():
@@ -64,7 +76,7 @@ def test_no_emotion_is_suppressed_in_the_prompt():
         role="r", personality="p", level_profile="l", locale="en", interests=[],
         emotion_tags=tuple(cr.EMOTION_STYLES),
     )
-    for face in CLIENT_FACES:
+    for face in CASCADE_FACES:
         assert f"<{face}>" in prompt, face
     for banned in ("거의 안 쓴다", "쓰지 마라 — sad", "angry 는 쓰지"):
         assert banned not in prompt, banned

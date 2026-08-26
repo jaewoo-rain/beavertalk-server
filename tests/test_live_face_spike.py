@@ -68,16 +68,25 @@ def test_the_face_tool_is_blocking_and_matches_the_client_vocabulary():
       되돌린다면 send_tool_response 의 scheduling 분기도 **같이** 살려야 한다 —
       한쪽만 고치면 증상이 위 셋 중 하나로 정확히 재발한다.
 
-    그리고 값 집합은 **클라 아바타 어휘 5종**과 같아야 한다 — 커밋 d1139d8 이
+    그리고 값 집합은 **클라 아바타 어휘**와 같아야 한다 — 커밋 d1139d8 이
     "매핑 계층을 만들지 않는다"로 정한 축이다. 여기가 갈리면 서버가 보낸 표정을
     클라가 조용히 neutral 로 떨어뜨린다.
+
+    ⭐ 2026-08-26: `laugh` 가 6번째로 들어왔다. 자산(`laugh.mp4`)은 2026-08-09 의
+      11종 세트에 **처음부터 5캐릭터 전부** 있었는데 배선이 없어 3.5MB 가 안 쓰이고
+      실려 나가던 상태였다. happy(미소)와 **다른 축**이다 — 박장대소.
     """
     fn = SET_FACE_TOOL.function_declarations[0]
     assert fn.name == "set_face"
     assert fn.behavior is None, "표정 tool 은 기본(블로킹)이어야 한다"
     assert set(fn.parameters.properties["emotion"].enum) == {
-        "neutral", "happy", "surprised", "sad", "angry"
+        "neutral", "happy", "surprised", "sad", "angry", "laugh"
     }
+    # ⛔ 값마다 **상황**이 붙어 있어야 한다. 실측(call 1206·1207)에서 자산이 멀쩡한
+    #   surprised·angry 가 0건이었다 — 설명이 낱말 하나라 모델이 자기 대사와 못 이었다.
+    desc = fn.parameters.properties["emotion"].description or ""
+    for label in ("neutral", "happy", "surprised", "sad", "angry", "laugh"):
+        assert f"{label}=" in desc, f"{label} 에 상황 설명이 없다 — 안 불릴 값이 된다"
 
 
 def test_live_config_without_tools_is_unchanged():
