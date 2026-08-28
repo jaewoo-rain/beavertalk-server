@@ -171,3 +171,42 @@ def test_the_face_rule_appears_only_when_the_tool_is_on():
     assert "set_face" not in off
     assert "set_face" in on
     assert on.startswith(off), "표정 규칙은 코어 뒤에 덧붙기만 해야 한다"
+
+
+# --------------------------------------------------------------------------- #
+# 두 턴 규약 (2026-08-28) — 첫 턴 선톡+tool, 두째 턴에 페르소나 **전문 한 번에**
+# --------------------------------------------------------------------------- #
+
+def test_the_persona_goes_in_as_one_piece_by_default():
+    """기본값은 **자르지 않는다**. 조각이 1개여야 한다.
+
+    ⛔ 왜 회귀가 필요한가 — 쪼개면 학습자가 N번 말할 때까지 비버가 반쪽이다.
+      실통화가 그보다 나쁜 것을 보여줬다: 통화가 끝나도록 **다 못 넣는다**
+      (call 1241 조각 2/8 미완 · call 1242 조각 6/9 미완). 캐릭터 성격·레벨
+      프로파일·학습 진도가 영영 안 들어간 채 5분이 끝난다.
+    """
+    full = pp.build_system_instruction(**_HEAVY_KW)
+    chunks = pp.split_persona_for_injection(full)
+    assert len(chunks) == 1, (
+        f"페르소나가 {len(chunks)}조각으로 쪼개졌다 — 두 턴 규약이 깨졌다"
+    )
+    assert chunks[0] == full, "1조각인데 원문과 다르다 — 지시문이 유실됐다"
+
+
+def test_the_chunk_size_knob_still_splits_when_asked():
+    """되돌릴 손잡이는 살아 있어야 한다 — 양수를 주면 예전처럼 쪼갠다.
+
+    ⚠ 3.1 에서 전문 1회 주입이 위험한 것으로 밝혀지면 env 로 되돌린다.
+      그때 코드를 다시 고치는 게 아니라 값 하나만 바꿔야 한다.
+    """
+    full = pp.build_system_instruction(**_HEAVY_KW)
+    chunks = pp.split_persona_for_injection(full, chunk_chars=1200)
+    assert len(chunks) > 1, "1200자로 잘랐는데 안 쪼개졌다 — 손잡이가 죽었다"
+    assert "".join(chunks) == full, "쪼갠 뒤 합쳤는데 원문이 아니다"
+
+
+def test_zero_and_negative_both_mean_do_not_split():
+    """0 과 음수를 **같게** 다룬다 — env 오타(-1)가 조용히 다른 동작이 되면 안 된다."""
+    full = pp.build_system_instruction(**_HEAVY_KW)
+    assert pp.split_persona_for_injection(full, chunk_chars=0) == [full]
+    assert pp.split_persona_for_injection(full, chunk_chars=-1) == [full]

@@ -4614,3 +4614,83 @@ def test_call_started_can_carry_the_diag_level():
     f = ServerCallStarted(character_id=1)
     assert f.diag is None                            # 기본 None = 클라 기본값(summary) 유지
     assert ServerCallStarted(character_id=1, diag="off").diag == "off"
+
+
+# --------------------------------------------------------------------------- #
+# 벙어리 인사 재시드 (2026-08-27) — 실측 6/11 통화에서 첫 인사가 소리 없이 끝났다
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_mute_greeting_is_reseeded_once(session_factory, seeded):
+    """첫 인사 턴이 **오디오 0바이트**로 끝나면 선톡 시드를 한 번 더 보낸다.
+
+    ⛔ 왜 회귀가 필요한가 — 이건 R4(통화 오프닝) 변경이다. 조건이 하나만 어긋나도
+      ① 인사가 두 번 나오거나 ② 벙어리가 그대로 남는다. 둘 다 사용자가 겪는다.
+
+    실측 근거(app-api, 2026-08-25~27): 연결→첫 턴 완료가 0.68~0.97초면 오디오 0.0초,
+    6.63~9.70초면 오디오 5.8~9.0초. 겹치는 구간이 없다. 6/11 이 벙어리였다.
+    """
+    import contextlib
+
+    holder: dict = {}
+
+    class MuteGreetingSession(FakeLiveSession):
+        """첫 턴은 오디오 없이 끝내고, 재시드가 오면 그때 소리를 낸다."""
+
+        async def events(self):
+            # ① 벙어리 인사 — 전사만 오고 오디오 0바이트로 turn_end
+            yield LiveEvent(kind="out_tr", text="Hey! 공부할래?")
+            yield LiveEvent(kind="turn_end")
+            # ② 재시드가 실제로 왔는지 확인한 뒤 정상 인사를 낸다
+            assert len(self.sent_text_turns) == 2, (
+                "벙어리 턴 뒤에 재시드가 안 왔다 — "
+                f"sent={self.sent_text_turns}"
+            )
+            yield LiveEvent(kind="out_tr", text="Hey! 공부할래?")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            yield LiveEvent(kind="turn_end")
+
+    @contextlib.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice):
+        sess = MuteGreetingSession()
+        holder["session"] = sess
+        yield sess
+
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=_factory,
+    )
+    await _wait_analysis_tasks()
+
+    sent = holder["session"].sent_text_turns
+    # 선톡 1회 + 재시드 1회 = 2회. **3회면 안 된다**(두 번째 턴도 소리가 났으므로).
+    assert len(sent) == 2, f"재시드가 1회여야 한다 — sent={sent}"
+    assert sent[0] == sent[1], "재시드는 **같은 시드**를 다시 보낸다"
+
+
+@pytest.mark.asyncio
+async def test_normal_greeting_is_not_reseeded(session_factory, seeded):
+    """소리가 난 인사에는 재시드를 **안 보낸다**.
+
+    ⛔ 이 단언이 없으면 재시드가 정상 통화에도 걸려 비버가 인사를 두 번 한다 —
+      §8 에서 세 번 고쳤던 바로 그 증상을 우리 손으로 다시 만드는 것이다.
+    """
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"],
+        live_session_factory=make_live_factory(holder),
+    )
+    await _wait_analysis_tasks()
+    # FakeLiveSession 은 첫 턴에 audio 를 낸다 ⇒ 시드는 선톡 1회뿐이어야 한다.
+    assert len(holder["session"].sent_text_turns) == 1, (
+        "정상 인사에 재시드가 걸렸다 — 비버가 인사를 두 번 한다"
+    )

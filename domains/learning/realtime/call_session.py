@@ -424,6 +424,8 @@ class _CallState:
         #     무음이면 flush 자체가 생략돼(pcm·text 둘 다 비면 early-return) 값이 어긋난다.
         #     실제로 그 오차 때문에 회귀가 깨졌다(2026-08-20).
         "beaver_turns",
+        # ⭐ 벙어리 인사를 다시 시드했는가(통화당 1회). 아래 재시드 자리 참조.
+        "greeting_reseeded",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -447,6 +449,8 @@ class _CallState:
         #   로그·관측에 쓰인다. ⛔ 스왑 상태(reconnects/swap_requested/last_swap_ts)는
         #   재연결 기계와 함께 사라졌다(2026-08-19).
         "resume_handle", "session_epoch",
+        # ⭐ 이 조각의 선톡 시드 원문(벙어리 인사 재시드용).
+        "seed_text",
         "usage_log", "usage_dropped", "sidecar_usage",
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
@@ -468,6 +472,7 @@ class _CallState:
         # 상태(모델 생성 중·tool 실행 중)로 재개하면 데이터가 유실된다.
         self.resume_handle: Optional[str] = None
         self.session_epoch = 0        # 이 통화에서 몇 번째 연결인가(1부터)
+        self.seed_text = ""
         self.turn_id: Optional[str] = None
         self.call_start_ts: Optional[float] = None
         self.should_close = False
@@ -491,6 +496,7 @@ class _CallState:
         self.cur_beaver_text: list[str] = []
         self.next_turn_index = 0
         self.beaver_turns = 0
+        self.greeting_reseeded = False
         self.learner_spoke = False
         self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
@@ -1474,7 +1480,9 @@ async def run_call(
             target_language=target_language,
             face_tool=bool(settings.LIVE_FACE_SPIKE),
         )
-        state.persona_parts = split_persona_for_injection(full_instruction)
+        state.persona_parts = split_persona_for_injection(
+            full_instruction, chunk_chars=settings.LIVE_PERSONA_CHUNK_CHARS
+        )
         state.persona_total = len(state.persona_parts)
         # ⭐ 선톡 시드도 가볍게 간다(2026-08-23). 시드는 setup~첫 응답 총량에 들고, 인사가
         #   길수록 그 중간에 set_face 가 불려 **인사가 처음부터 반복된다**(call 1144: 13.7초
@@ -1908,6 +1916,8 @@ async def _run_one_generation(
       되면서 그 경로가 죽었고(설계 §8-b), 지금은 **세대가 언제나 하나**다.
     """
     state.session_epoch += 1
+    # ⭐ 선톡 시드를 state 에 남긴다 — 벙어리 인사 재시드(아래 펌프)가 같은 문장을 쓴다.
+    state.seed_text = seed_text
     factory_kwargs = {"system_instruction": system_instruction, "voice": voice}
     if tools is not None:
         factory_kwargs["tools"] = tools
@@ -2780,39 +2790,56 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
                     logger.warning("normalcall: 재접지 얹기 실패(무시): %s", exc)
 
-        # ⭐⭐ **페르소나 조각은 '유저가 말을 시작한 뒤'에 얹는다**(2026-08-23 실통화 정정).
-        #   ⛔ 처음엔 turn_end(비버 idle)에 얹었다가 실통화 call 1142/1143 이 **둘 다 1011**
-        #     로 죽었다. 죽은 자리가 정확히 "조각 주입 → 4초 뒤 학습자 발화" 였다.
-        #     오프라인 하네스는 주입 직후 **즉시** 오디오를 넣어서 그 4초가 없었고, 그래서
-        #     14/14 로 통과했다 — 하네스가 못 잡은 구간이다.
-        #   ⇒ turn_complete=False 로 열어 둔 턴에 **마이크 무음이 계속 흘러드는 동안** 죽는다.
-        #     그 창을 없애려면 유저 턴이 이미 열린 뒤(첫 in_tr)에 얹어야 한다 — 기존 재접지가
-        #     같은 이유로 같은 자리를 쓴다(on_user_turn).
-        #   ⚠ 크기 문제가 아니다: 죽을 때 sum_prompt=1609 로 아주 작았다.
-        # ⭐⭐ **페르소나 조각은 '비버가 말하는 동안'에만 주입한다**(2026-08-23 실서비스 실측).
-        #   ⛔ 이 자리를 두 번 틀렸다. 실측이 셋 다 같은 것을 가리킨다:
-        #       turn_end 에 주입(call 1142/1143)  → 마이크가 막 재개돼 무음이 흐름  ⛔ 사망
-        #       첫 in_tr 에 주입(call 1150~1154)   → 학습자 음성이 한창 흐름        ⛔ 사망
-        #       오프라인 하네스(주입 시점 오디오 0) → 14/14                          ✅ 생존
-        #     ⇒ **오디오가 흐르는 동안 client_content 를 밀어넣으면 죽는다.**
-        #   ⭐ 안전한 창은 barge-in off 가 만들어 준다: 비버 발화중(`turn_id` 가 서 있음)에는
-        #     `:2316` 게이트가 마이크를 **한 바이트도 안 보낸다**. 그 구간이 유일하게 조용하다.
-        #   ⚠ 첫 인사 턴은 건너뛴다(beaver_turns >= 1) — 인사 도중 주입은 인사를 다시
-        #     시작하게 만든다(set_face 가 같은 자리에서 일으킨 사고와 같은 모양).
-        if (event.kind == "out_tr" and state.persona_parts
-                and state.turn_id is not None                 # 비버 발화중 = 마이크 닫힘
+        # ⭐⭐ **페르소나는 학습자가 말하는 그 턴에 얹는다** — 재접지와 **같은 자리·같은 규율**
+        #   (2026-08-28 사장님 지시로 정정). 바로 위 재접지 블록과 나란히 두는 것이 핵심이다.
+        #
+        # ## ⛔ 왜 옮겼나 — 비버 발화 중 주입이 3.1 에서 매 턴을 죽였다
+        #
+        #   2026-08-28 실통화(call 1242, INJECT=true):
+        #     09:19:18.914  조각 1/9 주입(1173자)
+        #     09:19:19.041  ⛔interrupted — 모델이 자기 턴을 버렸다   (127ms 뒤)
+        #     09:19:19.061  BEAVER: "Great choice! Let's"  ← 여기서 잘림
+        #   6회 주입 → **6회 전부 interrupted**. 비버 대사가 "Right on!" · "learn this
+        #   first." · "after me:" 처럼 토막나 통화가 못 쓸 상태가 됐다.
+        #
+        #   ⚠ **크기 문제가 아니다.** 같은 1,173자가 2.5 에서는 5회 주입에 96초 완주였다
+        #     (call 1144). 3.1 은 비버가 말하는 도중의 client_content 를 **끼어들기로 본다.**
+        #
+        # ## ⭐ 왜 이 자리는 사는가 — 재접지가 이미 증명했다
+        #
+        #   `send_reground`(turn_complete=False)가 **같은 in_tr 자리**에서 3.1 로 돌고 있고
+        #   interrupted 가 0건이다(2026-08-27 실통화 4회: 03:16:48 · 03:17:50 · 03:19:01 …).
+        #   차이는 `turn_complete` 가 아니라 **언제 넣느냐**다:
+        #     학습자 턴에 얹으면  → [학습자 발화 + 텍스트]가 한 턴 → 비버가 1회 응답  ✅
+        #     비버 발화 중에 넣으면 → 하던 말을 끊는다                                  ⛔
+        #
+        # ⛔ 주석에 남은 «첫 in_tr 주입은 call 1150~1154 를 1011 로 죽였다» 는 **2.5 의 사실**
+        #   이다. 3.1 에서는 재접지가 같은 자리에서 멀쩡하다 — 전제가 바뀌었다.
+        #
+        # ⚠ 한 턴에 재접지와 페르소나를 **둘 다 얹지 않는다.** 위 블록이 `reground_pending`
+        #   을 이미 내렸으면 이번 턴은 재접지 몫이고, 페르소나는 다음 학습자 턴을 기다린다.
+        #   (두 텍스트가 한 턴에 겹치면 비버가 어느 쪽에 답하는지 알 수 없다.)
+        # ⛔ `persona_turn != turn_id` 가드를 여기 쓰지 마라 — **죽은 가드**가 된다.
+        #   그건 비버 턴(out_tr) 자리를 위한 것이었다. 학습자 발화 시점에는 비버가 이미
+        #   말을 마쳤으므로 `state.turn_id` 가 대개 `None` 이고, 한 번 주입하면
+        #   `persona_turn`(=None) == `turn_id`(=None) 이 되어 **그 뒤로 영영 막힌다.**
+        #   ⇒ 「턴당 1회」는 `in_tr_first` 가 이미 보장한다(유저 턴의 첫 전사에서만 참).
+        if (event.kind == "in_tr" and in_tr_first and state.persona_parts
                 and state.beaver_turns >= 1                   # 인사 턴은 건너뛴다
-                and state.persona_turn != state.turn_id       # 한 턴에 한 조각만
                 and not state.should_close and not state.close_seed_sent
-                and not state.reground_pending):
-            state.persona_turn = state.turn_id                # await 전 선점(단일 소유권)
+                and not state.reground_pending):              # 재접지가 이 턴을 쓰면 양보
             await _inject_persona_part(session, state)
 
         if event.kind == "turn_end":
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
             # ⭐ 자기낭독 안전망: flush 전(누적 텍스트가 살아 있을 때) 태그 누출을 판정한다.
             _detect_tag_leak(state)
+            # ⭐ flush 가 비우기 **전에** 이 턴의 오디오 양을 잰다(아래 재시드 판정 재료).
+            turn_pcm_bytes = len(state.cur_beaver_pcm)
             _flush_beaver_segment(state)
+            # ⭐⭐ **벙어리 인사 재시드**(2026-08-27 실측). 자세한 근거는 아래 함수 주석.
+            if _greeting_was_mute(state, turn_pcm_bytes):
+                await _reseed_greeting(session, state)
             if state.close_seed_sent:
                 # ⭐ 작별 턴이 실제로 시작됐을 때만 종료. 그 전(빈 turn_end — 이전 활동 잔여)
                 # 이면 무시하고 작별을 기다린다(조기 종료로 작별 인사 잘림 방지). 작별이 끝내
@@ -2836,6 +2863,90 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
+
+
+def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
+    """방금 끝난 턴이 **소리 없는 첫 인사**였나.
+
+    ## 무엇을 보고 판정하나
+
+    선톡 시드로 시작한 **첫 비버 턴**이 오디오 한 바이트 없이 끝났으면 벙어리다.
+    학습자는 자막만 보고 아무 소리도 못 듣는다.
+
+    ## ⛔ 실측 (2026-08-25~27, app-api 통화 11건)
+
+        연결됨 → 첫 턴 완료
+          벙어리  0.68 · 0.69 · 0.71 · 0.72 · 0.72 · 0.97초   → 오디오 0.0초
+          정상    6.63 · 8.20 · 8.22 · 8.52 · 9.70초          → 오디오 5.8~9.0초
+        겹치는 구간이 없다. 발생률 6/11.
+
+    벙어리 턴은 **109자 전사가 한 덩어리로** 오고 44ms 뒤 turn_complete 가 붙는다.
+    정상이면 전사가 조각 14개로 2초에 걸쳐 오고 그동안 오디오가 흐른다.
+
+    ⚠ 배제한 것(전부 로그 근거):
+      · set_face 아니다 — 그 시각 tool 호출 0건(첫 호출은 11초 뒤)
+      · interrupted 아니다 — 해당 구간 경고 0건
+      · 글자 수 아니다 — 벙어리 99~116자 / 정상 100~158자로 겹친다
+      · 우리 배관 아니다 — usage 가 `sum_resp=0 sum_out=-`. 흘릴 바이트가 없었다
+
+    ⇒ **원인은 아직 모른다.** 벤더가 오디오 없는 턴을 돌려준다는 것까지가 확정이다.
+      원인 규명과 **별개로** 증상을 끊는다.
+
+    ## ⭐ 왜 재시드가 통할 것이라 보나
+
+    같은 세션에서 **첫 턴만** 벙어리고 그다음 턴은 멀쩡하다:
+
+        call 1210  t1 오디오 0.0초 ⛔ → t3 오디오 6.5초 ✅
+        call 1211  t1 벙어리 → 이후 240초 오디오 3,343토큰 정상
+        call 1224  t1 벙어리 → 이후 185초 오디오 2,377토큰 정상
+
+    세션이 망가진 게 아니라 시드로 연 그 한 턴만 비었다.
+    ⚠ 다만 t3 는 **학습자 음성**이 연 턴이고 재시드는 텍스트 턴이라 같은 종류가
+      아니다 — 근거지 증명이 아니다. 실통화가 판정한다.
+
+    ## ⛔ 새로 걸어도 안 낫는다 — 그래서 서버가 고쳐야 한다
+
+        16:04:03 걸기 → 벙어리 → 끊음 / 16:04:22 다시 걸기 → 또 벙어리
+    실측 3쌍이 3번 다 그랬다. "다시 걸어보세요"는 답이 아니다.
+    """
+    return (
+        state.session_epoch == 1        # 재개 세대엔 선톡 자체가 없다
+        and not state.greeting_reseeded  # 통화당 1회
+        and not state.learner_spoke      # 학습자가 말했으면 인사 구간이 아니다
+        and state.beaver_turns == 1      # 방금 끝난 것이 첫 비버 턴
+        and turn_pcm_bytes == 0          # 그 턴에 소리가 없었다
+        and not state.should_close
+        and not state.close_seed_sent
+        and bool(state.seed_text)
+    )
+
+
+async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> None:
+    """벙어리로 끝난 첫 인사를 **같은 시드로 한 번 더** 부른다.
+
+    ⭐ 원가가 거의 0이다 — 벙어리 턴은 출력 토큰이 0으로 청구된다(`sum_resp=0`).
+      실패해도 잃는 게 없고, 성공하면 학습자가 인사를 듣는다.
+
+    ⛔ **`turn_complete=True` 여야 한다**(= [send_text_turn]). 이 파일이 실통화 4건으로
+      못박아 둔 것은 «`turn_complete=False` 로 열어 둔 턴에 마이크 무음이 흘러드는 동안
+      1011 로 죽는다»이다(call 1142/1143/1150~1154). 완결 턴은 그 창을 안 만든다 —
+      종료 시드([_inject_close_seed])가 **같은 자리(turn_end)에서 매 통화** 그렇게
+      주입되고 있고 사고가 없다. 그 전례 위에 선다.
+
+    ⚠ [state.beaver_turns] 는 건드리지 않는다. 재시드가 만든 턴도 «인사 턴»이라
+      표정 마커 억제([state.learner_spoke] 기준)가 그대로 걸려야 한다.
+    """
+    state.greeting_reseeded = True  # await 전 선점 — 재진입해도 두 번 안 보낸다
+    try:
+        await session.send_text_turn(state.seed_text)
+        logger.warning(
+            "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 1회 "
+            "turns=%d epoch=%d", state.beaver_turns, state.session_epoch,
+        )
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — 재시드 실패로 통화를 죽이지 않는다(R5)
+        logger.warning("normalcall: 인사 재시드 실패(무시): %s", exc)
 
 
 async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool:

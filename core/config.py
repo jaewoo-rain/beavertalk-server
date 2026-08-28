@@ -319,6 +319,13 @@ class Settings(BaseSettings):
     #     주입 호출도 0건이라 회귀 무영향이다. 표정(LIVE_FACE_SPIKE)과 **별개 축**으로
     #     둔다: 표정만 끄는 것으로는 분할 회귀를 못 끈다.
     LIVE_PERSONA_INJECT: bool = False
+    # ⭐ 페르소나 주입 1조각의 크기. **0 = 자르지 않는다(전문 1조각)** — 기본이자 규약이다.
+    #   첫 턴 = 선톡 + 표정 tool, 두째 턴 = 페르소나 전문 한 번에(2026-08-28 사장님 지시).
+    #   ⛔ 쪼개면 학습자가 N번 말할 때까지 비버가 반쪽이고, 실통화에서 통화가 끝나도록
+    #     다 못 넣었다(call 1241 조각 2/8 · call 1242 조각 6/9 미완).
+    #   ⚠ 되돌릴 손잡이로만 둔다 — 3.1 에서 전문 1회 주입이 위험하면 1200 으로 되돌린다.
+    #     자세한 실측은 `core/persona_prompt.LIVE_PERSONA_CHUNK_CHARS` 주석.
+    LIVE_PERSONA_CHUNK_CHARS: int = 0
 
     # ── 클라 계측 레벨 ── "off" | "summary" | "full"
     #
