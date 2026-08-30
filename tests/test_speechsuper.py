@@ -14,7 +14,9 @@ import core.speechsuper as ss
 
 def _assert_contract(out: dict) -> None:
     """반환 계약(키/타입) 검증."""
-    assert set(out.keys()) == {"evaluation", "char_scores", "phonemes"}
+    assert set(out.keys()) == {
+        "evaluation", "char_scores", "phonemes", "phoneme_misses",
+    }
     ev = out["evaluation"]
     assert set(ev.keys()) == {"total_score", "pronunciation", "fluency", "rhythm"}
     for v in ev.values():
@@ -30,6 +32,14 @@ def _assert_contract(out: dict) -> None:
         assert isinstance(p["phoneme"], str)
         assert isinstance(p["alpha"], str)
         assert isinstance(p["pronunciation"], int)
+    # phoneme_misses 도 항상 존재(리스트). char_index 는 char_scores 범위 안이어야 한다 —
+    # 벗어나면 앱이 엉뚱한 글자에 조음 도해를 붙인다.
+    assert isinstance(out["phoneme_misses"], list)
+    for m in out["phoneme_misses"]:
+        assert set(m.keys()) == {"char_index", "expected"}
+        assert isinstance(m["char_index"], int)
+        assert 0 <= m["char_index"] < len(out["char_scores"])
+        assert isinstance(m["expected"], str) and m["expected"]
 
 
 def test_fallback_no_audio_url():
@@ -195,3 +205,126 @@ def test_call_failure_falls_back(monkeypatch):
     monkeypatch.setattr(ss, "_load_audio", boom)
     out = ss.assess_pronunciation("안녕", "https://example.com/a.wav")
     _assert_contract(out)  # 스텁 결과
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# phoneme_misses — 조음 도해의 근거 (2026-08-30 신설)
+# ──────────────────────────────────────────────────────────────────────────
+def _w(word, score, phonemes=None):
+    d = {"word": word, "scores": {"overall": score}}
+    if phonemes is not None:
+        d["phonemes"] = phonemes
+    return d
+
+
+def test_phoneme_misses_detects_substitution():
+    """sound_like 가 phone 과 다르면 치환 — 그 자모를 낸다."""
+    result = {
+        "overall": 70,
+        "words": [
+            _w("달", 40, [
+                {"phoneme": "T", "alpha": "ㄷ", "pronunciation": 90},
+                {"phoneme": "A", "alpha": "ㅏ", "pronunciation": 95},
+                {"phoneme": "L", "alpha": "ㄹ", "pronunciation": 10, "sound_like": "N"},
+            ]),
+        ],
+    }
+    out = ss._map_result("달", result)
+    assert out["phoneme_misses"] == [{"char_index": 0, "expected": "ㄹ"}]
+
+
+def test_phoneme_misses_ignores_normal_and_deletion():
+    """정상(phone == sound_like)과 탈락(sound_like == "-")은 담지 않는다."""
+    result = {
+        "overall": 90,
+        "words": [
+            _w("가", 90, [
+                {"phoneme": "K", "alpha": "ㄱ", "pronunciation": 99, "sound_like": "K"},
+                {"phoneme": "A", "alpha": "ㅏ", "pronunciation": 20, "sound_like": "-"},
+            ]),
+        ],
+    }
+    assert ss._map_result("가", result)["phoneme_misses"] == []
+
+
+def test_phoneme_misses_char_index_matches_char_scores():
+    """★ 가장 깨지기 쉬운 지점 — char_index 가 char_scores 와 같은 자를 써야 한다."""
+    result = {
+        "overall": 60,
+        "words": [
+            _w("안", 100, [{"phoneme": "A", "alpha": "ㅏ", "pronunciation": 97}]),
+            _w("녕", 30, [
+                {"phoneme": "N", "alpha": "ㄴ", "pronunciation": 5, "sound_like": "L"},
+            ]),
+            _w("하", 90, [{"phoneme": "H", "alpha": "ㅎ", "pronunciation": 92}]),
+        ],
+    }
+    out = ss._map_result("안녕하", result)
+    assert [c["char"] for c in out["char_scores"]] == ["안", "녕", "하"]
+    (miss,) = out["phoneme_misses"]
+    assert miss == {"char_index": 1, "expected": "ㄴ"}
+    # 인덱스가 가리키는 글자가 실제로 그 글자여야 한다.
+    assert out["char_scores"][miss["char_index"]]["char"] == "녕"
+
+
+def test_phoneme_misses_skips_unscored_word_like_char_scores():
+    """점수 없는 word 는 char_scores 가 버린다 — 인덱스도 같이 건너뛰어야 한다."""
+    result = {
+        "overall": 50,
+        "words": [
+            {"word": "가", "phonemes": [{"phoneme": "K", "alpha": "ㄱ",
+                                        "pronunciation": 10, "sound_like": "T"}]},
+            _w("나", 40, [
+                {"phoneme": "N", "alpha": "ㄴ", "pronunciation": 8, "sound_like": "L"},
+            ]),
+        ],
+    }
+    out = ss._map_result("가나", result)
+    # 첫 word 는 점수가 없어 char_scores 에서 빠진다 → "나" 가 인덱스 0 이다.
+    assert [c["char"] for c in out["char_scores"]] == ["나"]
+    assert out["phoneme_misses"] == [{"char_index": 0, "expected": "ㄴ"}]
+
+
+def test_phoneme_misses_falls_back_to_score_when_no_sound_like():
+    """sound_like 가 없으면 판정 근거가 없다 → 점수로 본다(「하」=미달)."""
+    result = {
+        "overall": 60,
+        "words": [
+            _w("바", 40, [
+                {"phoneme": "P", "alpha": "ㅂ", "pronunciation": 12},   # 하 → 미달
+                {"phoneme": "A", "alpha": "ㅏ", "pronunciation": 88},   # 상 → 정상
+            ]),
+        ],
+    }
+    assert ss._map_result("바", result)["phoneme_misses"] == [
+        {"char_index": 0, "expected": "ㅂ"}
+    ]
+
+
+def test_phoneme_misses_excludes_stub_phonemes():
+    """phoneme 이 빈 문자열이면 스텁 응답이다 — 통째로 제외한다(서버 규약)."""
+    result = {
+        "overall": 50,
+        "words": [
+            _w("가", 40, [{"phoneme": "", "alpha": "초성 ㄱ", "pronunciation": 10}]),
+        ],
+    }
+    assert ss._map_result("가", result)["phoneme_misses"] == []
+
+
+def test_phoneme_misses_empty_when_word_lists_disagree():
+    """words[] 와 점수 목록의 길이가 어긋나면 인덱스를 믿을 수 없다 → 아무것도 안 낸다."""
+    # dict 가 아닌 항목이 섞이면 _extract_word_scores 가 그 항목을 빼 길이가 달라진다.
+    result = {"overall": 50, "words": [
+        "깨진항목",
+        _w("나", 40, [{"phoneme": "N", "alpha": "ㄴ", "pronunciation": 5,
+                      "sound_like": "L"}]),
+    ]}
+    assert ss._map_result("나", result)["phoneme_misses"] == []
+
+
+def test_stub_has_empty_phoneme_misses():
+    """스텁은 alpha 가 라벨("받침 ㄹ")이라 도해 키로 못 쓴다 — 계약만 맞추고 비운다."""
+    out = ss._stub_assess("안녕하세요")
+    assert out["phoneme_misses"] == []
+    assert out["phonemes"]  # 소리별 정확도 리포트는 여전히 채운다

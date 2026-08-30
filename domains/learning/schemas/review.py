@@ -29,6 +29,18 @@ class CharScoreOut(BaseModel):
     grade: str         # 상/중/하
 
 
+class PhonemeMissOut(BaseModel):
+    """틀린 자모 1건 — 조음 도해가 「어느 소리를 보여줄지」의 근거.
+
+    char_index 는 **char_scores 와 같은 기준**(공백 제외 0-기준)이다. 앱이 이 값으로
+    두 배열을 맞춘다 — 어긋나면 엉뚱한 글자에 도해가 붙는다.
+    actual(실제로 낸 소리)은 아직 안 싣는다. 앱은 없어도 목표 도해 한 컷으로 동작한다.
+    """
+
+    char_index: int    # char_scores 의 인덱스(공백 제외 0-기준)
+    expected: str      # 목표 자모(예: "ㄹ")
+
+
 class PronScoreOut(BaseModel):
     total_score: int
     pronunciation: int
@@ -46,3 +58,5 @@ class ReviewFeedback(BaseModel):
     voice_url: Optional[str]
     evaluation: PronScoreOut
     char_scores: list[CharScoreOut]
+    # 채점 엔진이 자모를 못 주면 빈 목록 — 앱은 종전대로 동작한다(계약이 이미 열려 있음).
+    phoneme_misses: list[PhonemeMissOut] = []

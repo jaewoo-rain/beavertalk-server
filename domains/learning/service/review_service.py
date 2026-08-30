@@ -158,4 +158,6 @@ class ReviewService:
             voice_url=review.voice_url,
             evaluation=evaluation,
             char_scores=fb.get("char_scores", []),
+            # 이 필드가 생기기 전의 복습 행에는 없다 → 빈 목록(앱은 종전 동작).
+            phoneme_misses=fb.get("phoneme_misses", []),
         )
