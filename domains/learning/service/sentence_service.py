@@ -50,9 +50,18 @@ class SentenceService:
         """
         sentence = self._get_owned(member_id, sentence_id)
 
-        # 1) idempotent: 이미 음성이 있으면 재합성 없이 그대로.
+        # 1) idempotent: 이미 음성이 있으면 재합성 없이 **재서명만** 한다.
+        #    ⛔ sentence.voice_url 을 그대로 돌려주지 마라. 저장값은 object key 이고,
+        #    재생 URL 은 서명이 붙는 파생물이다 — 예전에 URL 을 통째로 저장한 탓에
+        #    만료된 서명이 영구 반환됐다(2026-08-30 실측: 생성 7일 뒤 전부 재생 불가).
         if sentence.voice_url:
-            return SentenceTtsOut(sentence_id=sentence_id, voice_url=sentence.voice_url)
+            url = self._playback_url(sentence.voice_url)
+            if not url:
+                raise HTTPException(
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                    "오디오를 재생할 수 없습니다.",
+                )
+            return SentenceTtsOut(sentence_id=sentence_id, voice_url=url)
 
         # 2) 합성 대상 텍스트 검증.
         korean = (sentence.korean_sentence or "").strip()
@@ -86,23 +95,32 @@ class SentenceService:
             )
         audio, content_type = synthesized
 
-        # 5) public 버킷 업로드(기존 분석 파이프라인과 동일한 key 규칙).
+        # 5) 업로드(기존 분석 파이프라인과 동일한 key 규칙).
         ext = "mp3" if content_type == "audio/mpeg" else "wav"
         path = f"tts/{call_id}/{sentence_id}.{ext}"
         key = storage.upload(settings.SUPABASE_BUCKET_SAMPLES, path, audio, content_type)
-        url = storage.public_url(settings.SUPABASE_BUCKET_SAMPLES, key) if key else None
-        if not url:
+        if not key:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "오디오 저장에 실패했습니다.",
             )
 
-        # 6) voice_url 저장(동기 세션). 재조회로 stale 회피 후 커밋.
+        # 6) voice_url 에 **object key** 저장(동기 세션). 재조회로 stale 회피 후 커밋.
+        #    서명은 파생물이라 담지 않는다 — core/storage.py 의 계약이다.
+        #    서명이 실패해도 key 는 남겨 다음 요청이 재시도할 수 있게 한다.
         fresh = self.db.get(Sentence, sentence_id)
         if fresh is not None:
-            fresh.voice_url = url
+            fresh.voice_url = key
             self.db.commit()
         logger.info("on-demand TTS: sentence_id=%s 합성 완료 → %s", sentence_id, path)
+
+        # 7) 응답은 지금 서명한 URL.
+        url = self._playback_url(key)
+        if not url:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "오디오를 재생할 수 없습니다.",
+            )
         return SentenceTtsOut(sentence_id=sentence_id, voice_url=url)
 
     def soft_delete(self, member_id: int, sentence_id: int) -> None:
@@ -124,13 +142,20 @@ class SentenceService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "발화를 찾을 수 없습니다.")
         return sentence
 
+    @staticmethod
+    def _playback_url(stored: str | None) -> str | None:
+        """저장값(object key) → 지금 서명한 재생 URL. 과거의 전체 URL 행도 흡수한다."""
+        return storage.playback_url(
+            settings.SUPABASE_BUCKET_SAMPLES, stored, settings.GCS_SIGNED_URL_TTS_TTL,
+        )
+
     def _to_out(self, s: Sentence) -> SentenceOut:
         return SentenceOut(
             sentence_id=s.sentence_id,
             korean_sentence=s.korean_sentence,
             native_sentence=s.native_sentence,
             locale=s.locale,
-            voice_url=s.voice_url,
+            voice_url=self._playback_url(s.voice_url),
             is_bookmarked=s.is_bookmarked,
             evaluation=EvaluationOut.model_validate(s.evaluation) if s.evaluation else None,
         )

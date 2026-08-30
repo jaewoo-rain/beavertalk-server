@@ -17,6 +17,7 @@ from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.sentence import Sentence
+from core import storage
 from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
 from domains.learning.schemas.call import (
@@ -346,7 +347,11 @@ class CallService:
             korean_sentence=s.korean_sentence,
             native_sentence=s.native_sentence,
             locale=s.locale,
-            voice_url=s.voice_url,
+            # ⛔ 저장값을 그대로 내보내지 마라 — object key 이지 재생 URL 이 아니다.
+            voice_url=storage.playback_url(
+                settings.SUPABASE_BUCKET_SAMPLES, s.voice_url,
+                settings.GCS_SIGNED_URL_TTS_TTL,
+            ),
             is_bookmarked=s.is_bookmarked,
             evaluation=EvaluationOut.model_validate(s.evaluation) if s.evaluation else None,
         )

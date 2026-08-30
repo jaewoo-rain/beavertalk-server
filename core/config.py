@@ -632,6 +632,9 @@ class Settings(BaseSettings):
     # voice_url=None(graceful). 아래 두 상수는 이제 버킷명이 아니라 **버킷 내 폴더 prefix**.
     GCS_AUDIO_BUCKET: str = "beavertalk-app-audio"       # bt-dev-web-01, asia-northeast3, 비공개
     GCS_SIGNED_URL_PUBLIC_TTL: int = 604800              # public_url 대체 signed URL 만료(7일)
+    # 문장 TTS 재생 URL 만료(6시간). 매 요청 재서명하므로 길게 잡을 이유가 없다 —
+    # 유출된 URL 이 살아 있는 시간을 줄인다. 캐릭터 프리뷰(PUBLIC_TTL)와 분리한다.
+    GCS_SIGNED_URL_TTS_TTL: int = 21600
     SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # prefix: 캐릭터·TTS(장기 서명)
     SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # prefix: 통화·연습 녹음(단기 서명)
 
