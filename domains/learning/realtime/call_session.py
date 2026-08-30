@@ -2790,46 +2790,6 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
                     logger.warning("normalcall: 재접지 얹기 실패(무시): %s", exc)
 
-        # ⭐⭐ **페르소나는 학습자가 말하는 그 턴에 얹는다** — 재접지와 **같은 자리·같은 규율**
-        #   (2026-08-28 사장님 지시로 정정). 바로 위 재접지 블록과 나란히 두는 것이 핵심이다.
-        #
-        # ## ⛔ 왜 옮겼나 — 비버 발화 중 주입이 3.1 에서 매 턴을 죽였다
-        #
-        #   2026-08-28 실통화(call 1242, INJECT=true):
-        #     09:19:18.914  조각 1/9 주입(1173자)
-        #     09:19:19.041  ⛔interrupted — 모델이 자기 턴을 버렸다   (127ms 뒤)
-        #     09:19:19.061  BEAVER: "Great choice! Let's"  ← 여기서 잘림
-        #   6회 주입 → **6회 전부 interrupted**. 비버 대사가 "Right on!" · "learn this
-        #   first." · "after me:" 처럼 토막나 통화가 못 쓸 상태가 됐다.
-        #
-        #   ⚠ **크기 문제가 아니다.** 같은 1,173자가 2.5 에서는 5회 주입에 96초 완주였다
-        #     (call 1144). 3.1 은 비버가 말하는 도중의 client_content 를 **끼어들기로 본다.**
-        #
-        # ## ⭐ 왜 이 자리는 사는가 — 재접지가 이미 증명했다
-        #
-        #   `send_reground`(turn_complete=False)가 **같은 in_tr 자리**에서 3.1 로 돌고 있고
-        #   interrupted 가 0건이다(2026-08-27 실통화 4회: 03:16:48 · 03:17:50 · 03:19:01 …).
-        #   차이는 `turn_complete` 가 아니라 **언제 넣느냐**다:
-        #     학습자 턴에 얹으면  → [학습자 발화 + 텍스트]가 한 턴 → 비버가 1회 응답  ✅
-        #     비버 발화 중에 넣으면 → 하던 말을 끊는다                                  ⛔
-        #
-        # ⛔ 주석에 남은 «첫 in_tr 주입은 call 1150~1154 를 1011 로 죽였다» 는 **2.5 의 사실**
-        #   이다. 3.1 에서는 재접지가 같은 자리에서 멀쩡하다 — 전제가 바뀌었다.
-        #
-        # ⚠ 한 턴에 재접지와 페르소나를 **둘 다 얹지 않는다.** 위 블록이 `reground_pending`
-        #   을 이미 내렸으면 이번 턴은 재접지 몫이고, 페르소나는 다음 학습자 턴을 기다린다.
-        #   (두 텍스트가 한 턴에 겹치면 비버가 어느 쪽에 답하는지 알 수 없다.)
-        # ⛔ `persona_turn != turn_id` 가드를 여기 쓰지 마라 — **죽은 가드**가 된다.
-        #   그건 비버 턴(out_tr) 자리를 위한 것이었다. 학습자 발화 시점에는 비버가 이미
-        #   말을 마쳤으므로 `state.turn_id` 가 대개 `None` 이고, 한 번 주입하면
-        #   `persona_turn`(=None) == `turn_id`(=None) 이 되어 **그 뒤로 영영 막힌다.**
-        #   ⇒ 「턴당 1회」는 `in_tr_first` 가 이미 보장한다(유저 턴의 첫 전사에서만 참).
-        if (event.kind == "in_tr" and in_tr_first and state.persona_parts
-                and state.beaver_turns >= 1                   # 인사 턴은 건너뛴다
-                and not state.should_close and not state.close_seed_sent
-                and not state.reground_pending):              # 재접지가 이 턴을 쓰면 양보
-            await _inject_persona_part(session, state)
-
         if event.kind == "turn_end":
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
             # ⭐ 자기낭독 안전망: flush 전(누적 텍스트가 살아 있을 때) 태그 누출을 판정한다.
@@ -2838,7 +2798,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             turn_pcm_bytes = len(state.cur_beaver_pcm)
             _flush_beaver_segment(state)
             # ⭐⭐ **벙어리 인사 재시드**(2026-08-27 실측). 자세한 근거는 아래 함수 주석.
-            if _greeting_was_mute(state, turn_pcm_bytes):
+            reseeded_now = _greeting_was_mute(state, turn_pcm_bytes)
+            if reseeded_now:
                 await _reseed_greeting(session, state)
             if state.close_seed_sent:
                 # ⭐ 작별 턴이 실제로 시작됐을 때만 종료. 그 전(빈 turn_end — 이전 활동 잔여)
@@ -2855,9 +2816,47 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
                 #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
                 await _inject_resume_seed(session, state)
-            # ⛔ 페르소나 조각을 여기(turn_end)서 얹지 마라 — 실통화 1142/1143 이 둘 다 1011 로
-            #   죽었다. 비버 idle 구간은 유저 턴이 아직 안 열려 있어서, 주입해 놓고 마이크
-            #   무음만 흘러드는 창이 생긴다. 주입은 위쪽 `in_tr && in_tr_first` 에서 한다.
+            # ⭐⭐ **페르소나는 비버가 말을 마친 직후에 넣는다**(2026-08-31 실측으로 세 번째 정정).
+            #
+            # ## ⛔ 왜 여기여야 하나 — `turn=` 이 갈림길이다
+            #
+            #   3.1 은 `client_content` 를 밀어넣으면 `interrupted` 를 보낸다. 그런데
+            #   **해로운 경우와 무해한 경우가 갈린다** — 그때 열린 비버 턴이 있느냐다:
+            #     interrupted turn=(열린 턴 없음)  → 버릴 턴이 없다. **아무것도 안 잘린다**
+            #     interrupted turn=c8bc8b1b719e    → ⛔ 그 턴이 통째로 버려진다
+            #
+            #   실측(2026-08-30):
+            #     재접지 5회 → 전부 `turn=(열린 턴 없음)` → 다음 비버 발화 124자 온전  ✅
+            #     페르소나 2회 → 전부 `turn=<실제 id>` → "Great choice!"(13자)로 잘림  ⛔
+            #
+            # ## ⛔ `in_tr` 은 답이 아니다 — 그 시점엔 이미 늦다
+            #
+            #   3.1 은 학습자 전사를 **자기 응답과 동시에** 내보낸다(로그가 직접 말한다:
+            #   `⛔끝기준 무의미(전사가 응답과 동시 도착)`). 실측 call 1247:
+            #     16:29:15.781  👤 user: Study Korean today   ← 전사가 여기서 처음 온다
+            #     16:29:15.782  페르소나 주입
+            #     16:29:15.783  🦫 beaver: "Great choice!"    ← 비버 턴이 이미 열렸다
+            #     16:29:15.854  ⛔interrupted turn=c8bc…      ← 그 턴이 죽는다
+            #   ⇒ 「학습자가 말하는 동안」은 **서버가 알 수 없다.** 비버 발화 종료부터
+            #     전사 도착까지 4초가 통째로 깜깜하다. `in_tr` 을 기다리면 항상 늦는다.
+            #
+            # ## ⚠ 여기는 2.5 에서 통화를 죽였던 자리다
+            #
+            #   call 1142/1143 이 둘 다 1011 로 사망했고, 사인은 «주입해 놓고 마이크 무음이
+            #   계속 흘러드는 창»이었다. ⛔ 그건 **2.5 의 사실**이다 — 3.1 은 실패 모양이
+            #   1011 이 아니라 interrupted 로 바뀌었고, 이 자리에서는 `turn_id` 가 None 이라
+            #   그 interrupted 가 무해하다(위 재접지 5/5 가 같은 조건에서 증명).
+            #   ⇒ 3.1 에서 재확인이 필요한 변경이다. 죽으면 즉시 되돌려라.
+            #
+            # ⚠ 종료 구간(should_close·close_seed_sent)에서는 위 분기가 먼저 잡아 여기 안 온다.
+            # ⛔ 재시드와 **같은 턴에 겹치지 않는다.** 둘 다 client_content 라, 한 순간에
+            #   두 번 밀어넣으면 어느 쪽이 그 턴을 죽였는지 로그로 못 가른다.
+            #   ⇒ 재시드가 이 턴을 썼으면 페르소나는 다음 turn_end 를 기다린다.
+            if (state.persona_parts and state.beaver_turns >= 1
+                    and not reseeded_now
+                    and not state.should_close and not state.close_seed_sent
+                    and not state.reground_pending):   # 재접지가 대기 중이면 양보
+                await _inject_persona_part(session, state)
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
