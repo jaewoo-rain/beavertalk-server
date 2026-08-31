@@ -1032,6 +1032,40 @@ def test_mode_is_sticky_unless_quote_is_verified():
     assert st.call_mode == "chat", "인용이 증명됐는데 모드가 안 바뀌었다"
 
 
+def test_mode_switch_ignores_beavers_own_words():
+    """⛔ 모드 전환 근거는 **학습자 발화**여야 한다 — 비버 자기 말은 증거가 못 된다.
+
+    2026-08-31 실측: demo-api 통화 세 건이 전부 비버 자기 문장으로 뒤집혔다.
+      1253 study→chat (인용: 무슨 음악을 들어요?)              ← 비버 t35
+      1255 study→chat (인용: What other spicy foo)             ← 비버 t31
+      1256 study→chat (인용: 혹시 한국 음식 좋아하는 거 있어?)  ← 비버 t21
+    학습자는 "공부할래"라고 한 뒤 모드를 바꾸자고 한 적이 한 번도 없다. 비버가 잡담으로
+    흐르면 그 흐른 말이 증거가 되고, 서버가 chat 으로 확정하면 이후 재접지마다 "지금처럼
+    편한 대화를 계속 이어가라"가 꽂혀 되돌아올 길이 막힌다.
+    """
+    st = cs._CallState()
+    st.call_mode = "study"
+    st.segments = [
+        {"role": "user", "text": "공부할래요"},
+        {"role": "beaver", "text": "무슨 음악을 들어요?"},
+    ]
+
+    user_only = cs._transcript_tail(st, only_user=True)
+    assert "공부할래요" in user_only
+    assert "무슨 음악을 들어요?" not in user_only, "비버 발화가 학습자 전용 꼬리에 샜다"
+
+    # 비버 자기 말을 근거로 낸 제안 → 기각돼야 한다
+    cs._apply_mode_proposal(st, "chat", "무슨 음악을 들어요?", user_only)
+    assert st.call_mode == "study", "비버 자기 말로 모드가 바뀌었다"
+
+    # 학습자가 실제로 말했으면 → 바뀐다(기존 계약 유지)
+    st.segments.append({"role": "user", "text": "그냥 얘기하고 싶어요"})
+    cs._apply_mode_proposal(
+        st, "chat", "그냥 얘기하고 싶어요", cs._transcript_tail(st, only_user=True)
+    )
+    assert st.call_mode == "chat", "학습자 발화 인용인데 모드가 안 바뀌었다"
+
+
 @pytest.mark.asyncio
 async def test_reground_sidecar_failure_keeps_default_brief(monkeypatch):
     """R5: 사이드카가 죽어도 arm 때 조립해 둔 기본 문구가 그대로 남는다(재접지가 사라지지 않는다)."""

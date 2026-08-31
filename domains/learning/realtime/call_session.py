@@ -3081,7 +3081,7 @@ def _reground_instruction(items: list[str], target_language: str) -> str:
     )
 
 
-def _transcript_tail(state: _CallState, turns: int = 12) -> str:
+def _transcript_tail(state: _CallState, turns: int = 12, *, only_user: bool = False) -> str:
     """사이드카에 넘길 최근 전사 꼬리(오디오 아님 — 텍스트만).
 
     통화 전체를 넣지 않는 이유: 재접지가 필요한 건 **지금 흐름**이고, 전체를 넣으면
@@ -3091,6 +3091,7 @@ def _transcript_tail(state: _CallState, turns: int = 12) -> str:
         f"{'학습자' if s['role'] == 'user' else '선생님'}: {s['text']}"
         for s in state.segments[-turns:]
         if (s.get("text") or "").strip()
+        and not (only_user and s["role"] != "user")
     ]
     return "\n".join(lines)
 
@@ -3152,8 +3153,21 @@ async def _reground_sidecar(state: _CallState) -> None:
         )
         if result is None:
             return
+        # ⛔⛔ 인용 검증은 **학습자 줄에서만** 한다(2026-08-31 실측). 예전엔 전사 전체를
+        #   넘겨서 **비버 자기 말이 전환 근거가 됐다** — 세 통 연속 그랬다:
+        #     1253 study→chat (인용: 무슨 음악을 들어요?)             ← 비버 t35
+        #     1255 study→chat (인용: What other spicy foo)            ← 비버 t31
+        #     1256 study→chat (인용: 혹시 한국 음식 좋아하는 거 있어?) ← 비버 t21
+        #   학습자는 "공부할래"라고 한 뒤 모드를 바꾸자고 한 적이 한 번도 없다. 비버가
+        #   잡담으로 흐르면 → 그 흐른 말이 증거가 되고 → 서버가 chat 으로 확정하고 →
+        #   이후 재접지마다 "지금처럼 편한 대화를 계속 이어가라"가 꽂혀 **되돌아올 길이
+        #   막힌다.** 자기가 흘린 걸 자기가 증거로 삼는 되먹임 고리다.
+        # ⭐ 모드를 바꾸는 건 **학습자의 의사**다(불변 규칙 1: "학습자가 도중에 모드를
+        #   바꾸고 싶다고 명시하면 따라가라"). 그러니 증거도 학습자 발화여야 한다.
         _apply_mode_proposal(
-            state, getattr(result, "mode", "") or "", getattr(result, "mode_quote", "") or "", tail
+            state, getattr(result, "mode", "") or "",
+            getattr(result, "mode_quote", "") or "",
+            _transcript_tail(state, only_user=True),
         )
         items = state.reground_items
         covered = [
