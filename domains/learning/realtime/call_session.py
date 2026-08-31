@@ -2628,11 +2628,13 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             state.turn_id = _new_turn_id()
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
-            # 🔬 이 턴이 열린 시각. turn_end 에서 절단 판정에 쓴다.
-            state.diag_turn_open_ts = asyncio.get_running_loop().time()
-            state.diag_last_audio_ts = None
-            state.diag_audio_bytes = 0
         if event.audio:
+            # 🔬 ⛔ 턴이 열리는 경로는 **둘**이다(audio / out_tr). 자막이 먼저 오는 통화가
+            #   대부분이라 audio 분기에서만 초기화하면 영영 리셋이 안 된다(2026-08-31 실측:
+            #   공백이 매 턴 7~17초로 찍히고 누적 바이트가 단조증가했다). ⇒ "아직 안 열렸으면
+            #   지금 연다"로 바꾸고, 실제 리셋은 turn_end 가 소유한다.
+            if state.diag_turn_open_ts is None:
+                state.diag_turn_open_ts = asyncio.get_running_loop().time()
             # 🔬 조각 간 공백 — 이벤트 루프 블로킹/모델 스톨을 가른다. 임계 넘을 때만 찍는다.
             _now = asyncio.get_running_loop().time()
             if state.diag_last_audio_ts is not None:
@@ -2695,6 +2697,8 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
                            turn_id, state.diag_audio_bytes,
                            state.diag_audio_bytes / 48000.0, _el, state.diag_interrupts)
         state.diag_turn_open_ts = None
+        state.diag_last_audio_ts = None
+        state.diag_audio_bytes = 0
         state.turn_id = None
         # ⭐ 무음 시계 리셋: 비버가 방금 말을 멈췄다 = 여기서부터 무음이 시작된다.
         # (안 하면 시계가 통화 시작부터 흘러 비버의 긴 발화 직후 넛지가 즉시 터진다.)
