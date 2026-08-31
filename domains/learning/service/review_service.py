@@ -131,9 +131,19 @@ class ReviewService:
 
     def list_reviews(self, member_id: int, sentence_id: int) -> list[ReviewOut]:
         self._get_owned_sentence(member_id, sentence_id)
-        return [ReviewOut.model_validate(r) for r in self.repo.list_by_sentence(sentence_id)]
+        return [
+            ReviewOut.model_validate(r).model_copy(
+                update={"voice_url": self._recording_url(r.voice_url)},
+            )
+            for r in self.repo.list_by_sentence(sentence_id)
+        ]
 
     # ── 내부 ──
+    @staticmethod
+    def _recording_url(stored: str | None) -> str | None:
+        """녹음 저장값(object key) → 지금 서명한 재생 URL. 과거의 전체 URL 도 흡수한다."""
+        return storage.playback_url(settings.SUPABASE_BUCKET_RECORDINGS, stored)
+
     def _get_owned_sentence(self, member_id: int, sentence_id: int) -> Sentence:
         sentence = self.sentence_repo.get(sentence_id)
         if (
@@ -155,7 +165,8 @@ class ReviewService:
             sentence_id=review.sentence_id,
             korean_sentence=sentence.korean_sentence,
             native_sentence=sentence.native_sentence,
-            voice_url=review.voice_url,
+            # ⛔ 저장값은 object key 다 — 그대로 내보내면 앱이 재생하지 못한다.
+            voice_url=self._recording_url(review.voice_url),
             evaluation=evaluation,
             char_scores=fb.get("char_scores", []),
             # 이 필드가 생기기 전의 복습 행에는 없다 → 빈 목록(앱은 종전 동작).

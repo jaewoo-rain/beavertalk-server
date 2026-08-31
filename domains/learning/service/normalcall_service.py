@@ -1981,12 +1981,16 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     return pending
 
 
-def _set_sentence_tts(db: Session, sentence_id: int, url: str) -> None:
-    """표현(Sentence)의 TTS 음성 URL 을 저장한다(public 버킷 재생 URL)."""
+def _set_sentence_tts(db: Session, sentence_id: int, key: str) -> None:
+    """표현(Sentence)의 TTS **object key** 를 저장한다.
+
+    ⛔ 재생 URL(서명 포함)을 저장하지 않는다 — 서명은 만료되는 파생물이라
+    저장하면 그 시점에 박제된다. 읽는 쪽이 매 요청 조립한다.
+    """
     s = db.get(Sentence, sentence_id)
     if s is None:
         return
-    s.voice_url = url
+    s.voice_url = key
     db.commit()
 
 
@@ -2179,10 +2183,13 @@ async def analyze_call(
                 key = storage.upload(
                     settings_obj.SUPABASE_BUCKET_SAMPLES, path, audio, content_type
                 )
-                url = storage.public_url(settings_obj.SUPABASE_BUCKET_SAMPLES, key) if key else None
-                if url:
+                # ⛔ 서명 URL 을 저장하지 마라. 여기가 DB 에 쌓인 만료 URL 의 출처였다 —
+                #   public_url() 은 7일 서명이라 저장해 두면 7일 뒤 전부 재생 불가가 된다
+                #   (2026-08-31 실측: 08-14 서명이 08-31 응답에 그대로 나왔다).
+                #   DB 엔 object key 만 담고 URL 은 읽을 때 조립한다(core/storage.py 계약).
+                if key:
                     await run_db(
-                        session_factory, lambda db, sid=sentence_id, u=url: _set_sentence_tts(db, sid, u)
+                        session_factory, lambda db, sid=sentence_id, k=key: _set_sentence_tts(db, sid, k)
                     )
             except Exception as exc:  # noqa: BLE001 - 문장 단위 흡수(온디맨드 폴백 존재)
                 tts_failed += 1

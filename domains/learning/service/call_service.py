@@ -263,7 +263,15 @@ class CallService:
             feedback=call.feedback,  # 요구1: 격려 한마디(/result 만 노출)
             rating=call.rating,
             average=average,
-            sentences=[CallResultSentence.model_validate(s) for s in active],
+            # ⛔ model_validate 는 ORM 의 voice_url(=object key)을 **그대로** 옮긴다.
+            #   여기가 학습 결과 화면의 「원어민」 음원 출처라, 갈아 끼우지 않으면
+            #   만료된 서명 URL 이 그대로 나가 재생이 죽는다(2026-08-31 실측).
+            sentences=[
+                CallResultSentence.model_validate(s).model_copy(
+                    update={"voice_url": self._sample_url(s.voice_url)},
+                )
+                for s in active
+            ],
         )
 
     def daily_status(self, member_id: int, local_date: str, tz_offset_min: int) -> dict:
@@ -303,7 +311,12 @@ class CallService:
     def get_raw(self, member_id: int, call_id: int) -> list[RawDataOut]:
         call = self.repo.get_with_raw(call_id)
         self._assert_owner(call, member_id)
-        return [RawDataOut.model_validate(r) for r in call.raw_data]
+        return [
+            RawDataOut.model_validate(r).model_copy(
+                update={"voice_url": self._recording_url(r.voice_url)},
+            )
+            for r in call.raw_data
+        ]
 
     def update_rating(self, member_id: int, call_id: int, rating: int) -> CallSummary:
         call = self.repo.get_detail(call_id)
@@ -340,6 +353,18 @@ class CallService:
 
     def _to_summary(self, call: Call) -> CallSummary:
         return CallSummary(**self._summary_fields(call))
+
+    @staticmethod
+    def _sample_url(stored: str | None) -> str | None:
+        """문장 TTS(표준발음) 저장값 → 지금 서명한 재생 URL."""
+        return storage.playback_url(
+            settings.SUPABASE_BUCKET_SAMPLES, stored, settings.GCS_SIGNED_URL_TTS_TTL,
+        )
+
+    @staticmethod
+    def _recording_url(stored: str | None) -> str | None:
+        """통화 원본 녹음 저장값 → 지금 서명한 재생 URL(단기)."""
+        return storage.playback_url(settings.SUPABASE_BUCKET_RECORDINGS, stored)
 
     def _to_sentence(self, s: Sentence) -> SentenceOut:
         return SentenceOut(
