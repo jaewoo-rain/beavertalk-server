@@ -3854,8 +3854,16 @@ async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded
 
     markers = [json.loads(t) for t in ws.sent_text
                if json.loads(t).get("type") == "sentence"]
-    # 3회까지만 나가고 그 뒤는 끊긴다.
-    assert len(markers) == 3, markers
+    # ⭐⭐ **1회만 나간다 — 3회가 아니다**(2026-08-31 갱신).
+    #   폭주 스크립트는 정의상 «소리 없이 연달아»라, 여섯 호출이 **전부 같은 오디오
+    #   자리(pcm=0)** 에 꽂힌다. 새로 들어온 「같은 자리 겹침 방지」가 차단기보다 먼저
+    #   걸러 앞엣것 하나만 남긴다.
+    #   ⇒ 이 시험의 기대값이 3 → 1 로 내려간 것은 **퇴행이 아니라 강화**다. 예전엔 3개를
+    #     보냈지만 클라에서는 어차피 같은 봉투에 꽂혀 마지막 하나만 보였다(call 1252 실측:
+    #     마커 8개 중 화면에 뜬 것 3개). 이제 보낼 때부터 하나다.
+    #   ⚠ 차단기 자체는 그대로 살아 있다 — 아래 `blockings` 단언이 그것을 지킨다.
+    assert len(markers) == 1, markers
+    assert markers[0]["emotion"] == "happy", "겹침 방지는 **앞엣것**을 남긴다"
     # ⛔⛔ **블로킹 전환(2026-08-20)으로 이 차단기의 힘이 줄었다 — 시험이 그걸 기록한다.**
     #   예전엔 차단 뒤 `SILENT` 로 답해 재개를 안 촉구하는 것이 루프를 실제로 끊었다.
     #   지금은 scheduling 을 안 붙이므로 그 손잡이가 없고, **남은 효과는 마커 억제뿐**이다
@@ -3880,7 +3888,15 @@ async def test_audio_clears_the_storm_counter(monkeypatch, session_factory, seed
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
     # ⚠ 첫 인사 턴을 먼저 소비한다(위 시험 주석 참조).
-    script = ["__audio", "__turn_end", "__user", "happy", "sad", "__audio", "angry", "happy", "sad", "__audio", "__turn_end"]
+    # ⛔⛔ **호출 사이마다 소리를 넣는다**(2026-08-31 갱신). 새로 들어온 「같은 자리 겹침
+    #   방지」는 소리 없이 연달아 온 마커를 앞엣것만 남기고 버린다. 옛 스크립트는 소리
+    #   없이 붙은 호출이 섞여 있어서, 이 시험이 재려던 «차단기가 오디오로 풀리는가» 가
+    #   아니라 **겹침 방지에 걸려** 실패했다.
+    #   ⇒ 축을 분리한다. 겹침 방지는 전용 시험이 따로 본다
+    #     (test_two_faces_at_the_same_audio_slot_keep_the_first).
+    script = ["__audio", "__turn_end", "__user",
+              "happy", "__audio", "sad", "__audio", "angry", "__audio",
+              "happy", "__audio", "sad", "__audio", "__turn_end"]
     holder: dict = {}
     ws = FakeWebSocket([
         {"type": "websocket.receive",
@@ -4693,4 +4709,58 @@ async def test_normal_greeting_is_not_reseeded(session_factory, seeded):
     # FakeLiveSession 은 첫 턴에 audio 를 낸다 ⇒ 시드는 선톡 1회뿐이어야 한다.
     assert len(holder["session"].sent_text_turns) == 1, (
         "정상 인사에 재시드가 걸렸다 — 비버가 인사를 두 번 한다"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# 같은 자리 겹침 (2026-08-31) — 소리 없이 연달아 부르면 마커가 서로를 덮는다
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_two_faces_at_the_same_audio_slot_keep_the_first(
+        monkeypatch, session_factory, seeded):
+    """소리 한 바이트 없이 연달아 오면 **먼저 온 것만** 나간다.
+
+    ## ⛔ 왜 필요한가 — 마커 8개 중 3개만 화면에 떴다
+
+    프론트는 마커를 **오디오 봉투 번호**에 꽂는다(`at=_envAdded`). 소리가 안 나간 사이에
+    두 번 부르면 꽂히는 자리가 같아지고, 같은 밀리초에 둘 다 터져 뒤엣것이 앞엣것을
+    **즉시 덮는다.** 실측(call 1252):
+
+        09:57:44.667  set_face(happy)   턴누적오디오=0.00초  seq=3
+        09:57:44.668  set_face(neutral) 턴누적오디오=0.00초  seq=4
+        클라: mk_fire seq=3 · seq=4 가 같은 t=103.32 → vid_emo 0건
+
+    ⭐ **먼저 온 것을 남긴다.** 짝은 거의 항상 `<감정> → neutral` 이라(모델이 표정을
+      켜고 곧바로 되돌린다) 마지막을 쓰면 neutral 만 남아 아무 표정도 안 뜬다.
+    """
+    # 인사 턴을 흘려보낸 뒤(학습자 발화로 억제 해제), 소리 없이 happy→neutral 연속.
+    markers, _ = await _run_face_call(
+        monkeypatch, session_factory, seeded,
+        ["__audio_long", "__turn_end", "__user", "happy", "neutral"],
+        on=True,
+    )
+    emos = [m["emotion"] for m in markers]
+    assert emos == ["happy"], (
+        f"같은 자리 짝에서 앞엣것만 남아야 한다 — 실제 {emos}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_face_after_real_audio_is_not_swallowed(
+        monkeypatch, session_factory, seeded):
+    """⛔ 자리가 **벌어지면** 둘 다 나가야 한다 — 겹침 방지가 과잉이면 안 된다.
+
+    call 1121(2026-08-21)이 문장별 표정이 실제로 되는 것을 보여줬다:
+        seq2 happy@0.00초 → seq3 neutral@7.32초   같은 턴, 위치가 갈라짐
+    그때는 둘 다 화면에 떴다. 그 동작을 죽이지 않는다.
+    """
+    markers, _ = await _run_face_call(
+        monkeypatch, session_factory, seeded,
+        ["__audio_long", "__turn_end", "__user", "happy", "__audio", "neutral"],
+        on=True,
+    )
+    emos = [m["emotion"] for m in markers]
+    assert emos == ["happy", "neutral"], (
+        f"소리가 흐른 뒤의 마커까지 삼켰다 — 실제 {emos}"
     )

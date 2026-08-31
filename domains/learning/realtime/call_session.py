@@ -405,7 +405,7 @@ class _CallState:
         "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         # 표정(set_face) — 호출 수 · 마커 seq · 마지막으로 **보낸** 값(중복 억제 기준)
-        "face_calls", "face_seq", "face_last",
+        "face_calls", "face_seq", "face_last", "face_last_pcm",
         # ⭐ 이어하기 조각의 시작 턴 인덱스(0=첫 조각). 통화후 **검증 범위**의 기준이다.
         "resume_from_turn",
         # ⭐ 표정 v2 계측 — 이 턴에서 오디오·전사가 **각각 처음 온 시각**(monotonic).
@@ -501,6 +501,9 @@ class _CallState:
         self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
         self.face_last = ""        # 마지막으로 **보낸** 감정. 같으면 안 보낸다
+        # ⭐ 마지막으로 마커를 **보낸** 시점의 턴 오디오 바이트. 같은 자리 겹침을 가른다.
+        #   -1 = 아직 이 통화에서 보낸 적 없음.
+        self.face_last_pcm = -1
         self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
         self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
         self.face_first_audio_at = 0.0   # 표정 v2 계측(턴마다 리셋)
@@ -748,6 +751,12 @@ def _flush_beaver_segment(state: _CallState) -> None:
     state.next_turn_index += 1
     state.beaver_turns += 1
     state.cur_beaver_pcm = bytearray()
+    # ⛔ **여기서 같이 비운다.** `face_last_pcm` 은 `cur_beaver_pcm` 의 길이를 재는 값이라,
+    #   버퍼가 0으로 돌아가는데 이 값이 남으면 **다음 턴의 0 과 이전 턴의 0 이 같은 자리로
+    #   착각**된다 ⇒ 새 턴의 첫 마커가 「같은자리」로 조용히 버려진다.
+    #   회귀가 잡았다(test_face_markers_flow_and_duplicates_are_dropped: sad 가 사라졌다).
+    #   ⚠ 두 값이 같은 전제를 나눠 가지므로 **비우는 자리도 하나**여야 한다.
+    state.face_last_pcm = -1
     state.cur_beaver_text = []
 
 
@@ -2660,12 +2669,36 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   ⚠ 그렇다고 여기서 턴을 새로 열면 더 나쁘다 — `_forward_event` 의
             #     `turn_started` 가 영영 False 가 되어 **학습자 발화 확정·통화 시계 시작**이
             #     통째로 건너뛰어진다(R4). 턴은 오디오/전사가 연다. 우리는 앞서갈 뿐이다.
-            if emotion and not duplicate and not opening:
+            # ⭐⭐ **같은 자리에 두 번 꽂지 않는다**(2026-08-31 실측).
+            #
+            #   프론트는 마커를 **오디오 봉투 번호**에 꽂는다(`at=_envAdded`). 그러니 소리가
+            #   한 바이트도 안 나간 사이에 두 번 부르면 **꽂히는 자리가 같아진다.**
+            #   그러면 같은 밀리초에 둘 다 터지고, 뒤엣것이 앞엣것을 **즉시 덮는다**.
+            #
+            #   실측(call 1252):
+            #     09:57:44.667  set_face(happy)   턴누적오디오=0.00초  seq=3
+            #     09:57:44.668  set_face(neutral) 턴누적오디오=0.00초  seq=4   ← 0.5ms 뒤
+            #     클라: mk_fire seq=3 · seq=4 가 **같은 t=103.32** → vid_emo 0건
+            #   ⇒ 마커 8개가 나갔는데 화면에 뜬 것은 **3개뿐**이었다.
+            #
+            # ⭐ **먼저 온 것을 남긴다 — 마지막 것이 아니다.** 짝은 거의 항상
+            #   `<감정> → neutral` 이라(모델이 표정을 켜고 곧바로 되돌린다), 마지막을 쓰면
+            #   **neutral 만 남아 아무 표정도 안 뜬다.** 보여줄 값은 앞엣것이다.
+            #   ⚠ 뒤엣것을 버려도 손해가 없다: 다음에 소리가 흐른 뒤 부르면 그때 나간다.
+            #
+            # ⛔ `duplicate`(같은 값 억제)와는 **다른 축**이다. 저건 값이 같을 때, 이건
+            #   값이 달라도 **자리가 같을 때**다. 둘 다 필요하다.
+            same_slot = (
+                state.face_last_pcm >= 0
+                and len(state.cur_beaver_pcm) == state.face_last_pcm
+            )
+            if emotion and not duplicate and not opening and not same_slot:
                 state.face_seq += 1
                 await _send_json(client_ws, ServerSentenceMarker(
                     turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
                 ))
                 state.face_last = emotion
+                state.face_last_pcm = len(state.cur_beaver_pcm)
             # ⛔ `turn=` 를 뺀 채로 오래 굴렸다. 그래서 「이 마커가 의도한 턴에 떴는가」를
             #   **판정할 수 없었다** — 클라 계측에는 마커가 언제 화면에 떴는지가 남는데
             #   서버에는 그것이 어느 턴 것인지가 안 남아, 두 줄을 조인할 키가 없었다.
@@ -2678,6 +2711,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
                 "⛔첫인사턴(버림)" if (emotion and opening) else
                 "중복(안 보냄)" if duplicate else
+                "⛔같은자리(앞엣것 유지)" if (emotion and same_slot) else
                 ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
             )
