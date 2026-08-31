@@ -479,6 +479,8 @@ class _CallState:
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
         "last_beaver_question", "band_tasks", "band_target_language",
+        # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
+        "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
         # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
         "input_language_codes",
         "leveltest_transcript",
@@ -505,6 +507,13 @@ class _CallState:
         self.resume_handle: Optional[str] = None
         self.session_epoch = 0        # 이 통화에서 몇 번째 연결인가(1부터)
         self.turn_id: Optional[str] = None
+        # 🔬 턴 절단 진단(임시). diag_turn_open_ts: 이번 비버 턴이 열린 loop.time().
+        #   diag_last_audio_ts: 마지막 오디오 조각 도착 시각(조각 간 공백 계측).
+        #   diag_audio_bytes: 이번 턴 누적 오디오 바이트. diag_interrupts: 인터럽트 누적.
+        self.diag_turn_open_ts: Optional[float] = None
+        self.diag_last_audio_ts: Optional[float] = None
+        self.diag_audio_bytes: int = 0
+        self.diag_interrupts: int = 0
         self.call_start_ts: Optional[float] = None
         self.should_close = False
         self.close_seed_sent = False
@@ -2619,7 +2628,20 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             state.turn_id = _new_turn_id()
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
+            # 🔬 이 턴이 열린 시각. turn_end 에서 절단 판정에 쓴다.
+            state.diag_turn_open_ts = asyncio.get_running_loop().time()
+            state.diag_last_audio_ts = None
+            state.diag_audio_bytes = 0
         if event.audio:
+            # 🔬 조각 간 공백 — 이벤트 루프 블로킹/모델 스톨을 가른다. 임계 넘을 때만 찍는다.
+            _now = asyncio.get_running_loop().time()
+            if state.diag_last_audio_ts is not None:
+                _gap = _now - state.diag_last_audio_ts
+                if _gap >= 1.0:
+                    logger.warning("🔬 오디오 공백 %.2fs (턴 %s, 누적 %dB)",
+                                   _gap, state.turn_id, state.diag_audio_bytes)
+            state.diag_last_audio_ts = _now
+            state.diag_audio_bytes += len(event.audio)
             # ⭐ 소리가 나왔다 = 모델이 정상으로 돌아왔다 ⇒ 표정 폭주 카운터를 푼다.
             #   ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 사이에서 나므로
             #     턴 경계로 풀면 차단기가 영영 안 걸리거나 매번 풀린다.
@@ -2649,10 +2671,30 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             state.cur_beaver_text.append(text)
             logger.info("normalcall 🦫 beaver: %s", text)
 
+    elif event.kind == "interrupted":
+        # 🔬 ⭐ Gemini 가 "이 턴 취소됐다"고 알려주는 신호다. 지금까지 **어느 분기에도 안 걸려
+        #   조용히 버려지고 있었다**(2026-08-31 확인). 턴 절단의 원인을 가르는 결정적 신호라
+        #   우선 로그만 남긴다.
+        # ⛔ 클라로 내보내지 않는다 — WS 프로토콜(protocol.py 판별 유니온)을 바꾸면 구버전
+        #   앱이 깨진다. 계측이 먼저고 조치는 그다음이다(R4/R5).
+        state.diag_interrupts += 1
+        _open = state.diag_turn_open_ts
+        _el = (asyncio.get_running_loop().time() - _open) if _open else -1.0
+        logger.warning("🔬 INTERRUPTED #%d (턴 %s, 경과 %.2fs, 오디오 %dB)",
+                       state.diag_interrupts, state.turn_id, _el, state.diag_audio_bytes)
+
     elif event.kind == "turn_end":
         turn_id = state.turn_id or _new_turn_id()
         await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
         state.last_turn_id = turn_id  # D16: 방금 끝난 턴 id 보존(힌트 태스크 재료)
+        # 🔬 절단 판정 — 오디오가 유난히 짧게 끝난 턴을 서버가 스스로 표시한다.
+        #   PCM24k mono 16bit = 48,000 B/s ⇒ 1초 미만 = 48,000B 미만.
+        if state.diag_turn_open_ts is not None and 0 < state.diag_audio_bytes < 48000:
+            _el = asyncio.get_running_loop().time() - state.diag_turn_open_ts
+            logger.warning("🔬 턴 절단 의심: 턴 %s 오디오 %dB(%.2fs분) 벽시계 %.2fs 인터럽트누적=%d",
+                           turn_id, state.diag_audio_bytes,
+                           state.diag_audio_bytes / 48000.0, _el, state.diag_interrupts)
+        state.diag_turn_open_ts = None
         state.turn_id = None
         # ⭐ 무음 시계 리셋: 비버가 방금 말을 멈췄다 = 여기서부터 무음이 시작된다.
         # (안 하면 시계가 통화 시작부터 흘러 비버의 긴 발화 직후 넛지가 즉시 터진다.)
