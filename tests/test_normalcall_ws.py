@@ -3839,6 +3839,9 @@ async def test_a_face_call_storm_is_cut_off(monkeypatch, session_factory, seeded
     """
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
     monkeypatch.setattr(app_settings, "LIVE_FACE_MAX_CONSECUTIVE", 3, raising=False)
+    # ⚠ 같은 자리 관문을 **켜고** 잰다(기본 꺼짐, 2026-09-01). 폭주는 정의상 같은 자리라
+    #   관문이 켜져 있으면 그것이 차단기보다 먼저 걸러 1개만 남는다.
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SLOT_MERGE", True, raising=False)
     # 소리 한 조각 없이 감정만 6회(값도 계속 바꿔 중복 억제에 안 걸리게 한다)
     # ⚠ 첫 인사 턴을 먼저 소비한다(위 시험 주석 참조) — 그래야 폭주 차단기만 잰다.
     script = ["__audio", "__turn_end", "__user", "happy", "sad", "angry", "happy", "sad", "angry", "__audio", "__turn_end"]
@@ -4531,6 +4534,8 @@ async def test_two_faces_at_the_same_audio_slot_keep_the_first(
       켜고 곧바로 되돌린다) 마지막을 쓰면 neutral 만 남아 아무 표정도 안 뜬다.
     """
     # 인사 턴을 흘려보낸 뒤(학습자 발화로 억제 해제), 소리 없이 happy→neutral 연속.
+    # ⚠ 관문은 **기본 꺼짐**이다 — env 로 켜야 합친다(2026-09-01).
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SLOT_MERGE", True, raising=False)
     markers, _ = await _run_face_call(
         monkeypatch, session_factory, seeded,
         ["__audio_long", "__turn_end", "__user", "happy", "neutral"],
@@ -4539,6 +4544,26 @@ async def test_two_faces_at_the_same_audio_slot_keep_the_first(
     emos = [m["emotion"] for m in markers]
     assert emos == ["happy"], (
         f"같은 자리 짝에서 앞엣것만 남아야 한다 — 실제 {emos}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_slot_merge_is_off_by_default(monkeypatch, session_factory, seeded):
+    """⛔ **기본은 안 합친다** — 둘 다 내보낸다.
+
+    씹힘을 관측한 통화(call 1252, 마커 8 → 화면 3)는 `LIVE_PERSONA_INJECT=true` 구간이라
+    지시문 낭독·자문자답이 같이 나던 **이미 망가진 상태**였다. 주입을 걷어낸 뒤에도
+    씹히는지 다시 재야 하므로, 관문은 끈 채로 두고 로그로만 관측한다.
+    ⇒ 재서 씹히면 env 한 줄로 켠다(재빌드 불필요).
+    """
+    markers, _ = await _run_face_call(
+        monkeypatch, session_factory, seeded,
+        ["__audio_long", "__turn_end", "__user", "happy", "neutral"],
+        on=True,
+    )
+    emos = [m["emotion"] for m in markers]
+    assert emos == ["happy", "neutral"], (
+        f"관문이 꺼졌는데 마커를 삼켰다 — 실제 {emos}"
     )
 
 

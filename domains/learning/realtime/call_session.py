@@ -2637,10 +2637,15 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #
             # ⛔ `duplicate`(같은 값 억제)와는 **다른 축**이다. 저건 값이 같을 때, 이건
             #   값이 달라도 **자리가 같을 때**다. 둘 다 필요하다.
-            same_slot = (
+            # ⚠ 관문은 **env 로 끈 채 시작한다**(LIVE_FACE_SLOT_MERGE=False). 위 실측이
+            #   INJECT=true 구간 것이라 전제가 달라졌다 — 지금도 씹히는지 다시 재고,
+            #   씹히면 켠다. 끈 상태에서도 아래 로그가 「같은 자리였다」를 남기므로
+            #   **관문을 켜지 않고도 판정할 수 있다.**
+            same_slot_seen = (
                 state.face_last_pcm >= 0
                 and len(state.cur_beaver_pcm) == state.face_last_pcm
             )
+            same_slot = same_slot_seen and bool(_settings.LIVE_FACE_SLOT_MERGE)
             if emotion and not duplicate and not opening and not same_slot:
                 state.face_seq += 1
                 await _send_json(client_ws, ServerSentenceMarker(
@@ -2661,6 +2666,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 "⛔첫인사턴(버림)" if (emotion and opening) else
                 "중복(안 보냄)" if duplicate else
                 "⛔같은자리(앞엣것 유지)" if (emotion and same_slot) else
+                "⚠같은자리(관문 꺼짐·그대로 보냄 seq=%d)" % state.face_seq
+                if (emotion and same_slot_seen) else
                 ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
             )
