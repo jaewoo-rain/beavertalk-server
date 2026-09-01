@@ -367,3 +367,52 @@ def test_the_face_rule_allows_per_sentence_changes_and_demands_a_return():
     assert "평소로 돌아올 때도 반드시 불러라(neutral)" in rule
     # ⛔ 폭주 방어는 유지 — 이것까지 풀면 89회 사고가 되살아난다.
     assert "소리 없이 연달아 부르지 마라" in rule
+
+
+# --------------------------------------------------------------------------- #
+# tool 낭독 정화 (2026-09-01) — 비버가 set_face 를 「글자로」 뱉는다
+# --------------------------------------------------------------------------- #
+
+import pytest as _pytest
+
+
+@_pytest.mark.parametrize("raw, want", [
+    # 실측 그대로. 셋 다 같은 통화에서 나왔거나(09-01) 08-26 로그에 있다.
+    ("set_face{emotion:sad}", ""),
+    ("set_face{emotion:neutral}}아, 친구", "아, 친구"),
+    # ⭐ 값과 대사가 **붙어 버린** 변형. 감정 이름까지만 물고 대사는 살린다 —
+    #   여기서 욕심내 «괄호부터 끝까지» 지우면 학습자 문장이 통째로 사라진다.
+    ("response:set_face{emotion:laughWhoa, asking about me?", "Whoa, asking about me?"),
+    ("`set_face(emotion='laugh')`", ""),
+    ("`set_face{emotion:happyAlright, let's", "Alright, let's"),
+    # ⚠ 멀쩡한 대사는 **한 글자도** 안 건드린다.
+    ("Hey jaewoo! What's up?", "Hey jaewoo! What's up?"),
+    ("우리 set_face 얘기는 하지 말자", "우리 set_face 얘기는 하지 말자"),  # 괄호가 없으면 그대로
+    ("", ""),
+])
+def test_the_face_echo_is_stripped_from_the_line(raw, want):
+    """비버가 tool 호출을 대사에 섞어 말하면 걷어낸다.
+
+    ## ⛔ 왜 필요한가 — 자막이 더러워지고 그 턴이 벙어리가 된다
+
+    모델이 `set_face` 를 함수로 부르지 않고 **글자로** 뱉는다. 그러면 `tool_call`
+    이벤트가 안 오고(로그에 `Live tool 즉시응답` 이 없다) 그 문자열이 자막에 찍힌다.
+    실측(09-01 23:00~23:01):
+
+        🦫 beaver: set_face{emotion:sad}
+        BEAVER[t7] 읽기=측정불가(소리 0.0초 글자 21)   ⛔ 그 턴이 통째로 벙어리
+        … 12초 침묵 … 👤 USER[t8]: 여보세요.           ← 사장님이 부르셨다
+
+    ⚠ 표정은 이미 못 쓴다(함수가 안 불렸으니 마커도 없다). 여기서 하는 일은
+      **자막·저장본 오염을 막는 것**뿐이다.
+    ⛔ 닫는 괄호를 요구하지 않는다 — 실측이 `}` · `}}` · 아예 없음으로 제각각이다.
+    """
+    from domains.learning.realtime.call_session import _strip_face_echo
+    assert _strip_face_echo(raw).strip() == want
+
+
+def test_a_line_without_the_word_is_returned_untouched():
+    """`set_face` 라는 글자가 없으면 **정규식을 아예 안 돌린다** — 매 조각마다 도는 자리다."""
+    from domains.learning.realtime.call_session import _strip_face_echo
+    s = "안녕하세요! 오늘 뭐 했어요? (웃음) [메모] {중괄호}"
+    assert _strip_face_echo(s) is s, "원본 객체를 그대로 돌려줘야 한다(빠른 경로)"

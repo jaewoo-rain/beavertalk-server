@@ -288,6 +288,43 @@ _NUDGE_SEED_1_LEVELTEST = (
 # 안쪽 길이는 40자로 묶는다(대괄호 두 개가 멀리 떨어져 문장을 통째로 삼키는 것 방지).
 _CONTROL_TAG_RE = re.compile(r"\[[^\]]{0,40}\]")
 
+# ⭐⭐ **비버가 tool 호출을 「글자로」 뱉는 것**을 걷어낸다(2026-09-01 실측).
+#
+#   모델이 `set_face` 를 함수로 부르지 않고 **대사에 섞어 말한다.** 그러면
+#   `tool_call` 이벤트가 안 오고(로그에 `Live tool 즉시응답` 이 없다), 그 문자열이
+#   그대로 자막에 찍힌다. 실측(call 09-01 23:00~23:01):
+#
+#       🦫 beaver: set_face{emotion:sad}
+#       BEAVER[t7] 읽기=측정불가(소리 0.0초 글자 21)      ⛔ 그 턴이 통째로 벙어리
+#       … 12초 침묵 … 👤 USER[t8]: 여보세요.              ← 사장님이 부르셨다
+#       🦫 beaver: set_face{emotion:neutral}}아, 친구      ⛔ 중괄호가 두 개, 대사가 이어붙음
+#
+#   ⚠ **표정은 이미 못 쓴다** — 함수가 안 불렸으니 마커도 없다. 여기서 하는 일은
+#     「자막이 더러워지는 것」과 「저장본이 오염되는 것」을 막는 것뿐이다.
+#   ⚠ INJECT 와 무관하다. 2026-08-26(INJECT 이전)에도 같은 무늬가 있었다:
+#     `response:set_face{emotion:laughWhoa, asking about me…`
+#
+#   ⛔ 닫는 괄호를 요구하지 않는다 — 실측이 `{emotion:sad}` · `{emotion:neutral}}` ·
+#     `{emotion:laughWhoa` 처럼 **제각각**이다. 여는 괄호부터 «닫는 괄호 또는 공백»
+#     까지를 최소 일치로 지우고, 남은 닫는 괄호는 뒤에서 정리한다.
+#   ⛔⛔ **대사를 먹지 않는 것이 최우선이다.** 닫는 괄호가 없는 변형
+#     (`{emotion:laughWhoa, asking about me?`)에서 «괄호부터 끝까지»로 지우면
+#     학습자에게 보여야 할 문장이 통째로 사라진다 — 오염보다 나쁘다.
+#     ⇒ 안쪽은 **감정 이름이 될 만한 것까지만** 문다: 값은 영문 소문자 낱말 하나다
+#       (neutral·happy·surprised·sad·angry·laugh). 그 뒤에 붙은 글자는 대사다.
+_FACE_ECHO_RE = re.compile(
+    r"`?\s*(?:response\s*:\s*)?set_face\s*"
+    r"[({\[]\s*(?:emotion\s*[:=]\s*)?['\"]?[a-z_]{0,12}['\"]?\s*[)}\]]*\s*`?"
+)
+
+
+def _strip_face_echo(text: str) -> str:
+    """대사에 섞인 `set_face{...}` 를 걷어낸다. 없으면 원문 그대로 반환한다."""
+    if "set_face" not in text:
+        return text
+    return _FACE_ECHO_RE.sub("", text)
+
+
 # 통화당 재개 시드 주입 상한(무한 루프 방지).
 # 2 → 6: 탐지가 이름 화이트리스트에서 "맨 앞 대괄호 전부"로 넓어져 잡히는 빈도가 오른다.
 # 상한을 넘기면 서버가 되돌리기를 포기해 통화가 死구간으로 끝난다 — 옛 상한 2 는 30일간
@@ -722,6 +759,9 @@ def _flush_beaver_segment(state: _CallState) -> None:
     # (자막은 이미 나간 뒤라 손대지 않는다 — 조각 단위라 부분 마스킹이 더 이상해진다.)
     if _CONTROL_TAG_RE.search(text):
         text = _CONTROL_TAG_RE.sub("", text)
+    # ⭐ 조각 경계에 걸쳐 쪼개진 tool 낭독은 여기서 잡힌다 — 이 시점엔 턴 전체가 이어져 있다.
+    #   (자막 경로는 조각 단위라 못 잡는 것이 있다. 두 겹으로 거른다.)
+    text = _strip_face_echo(text)
     text = text.strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
     # ⭐ **말하기 속도 실측**(2026-08-10). 사장님: "라이브에서는 속도가 딱 좋아" — 그러니
@@ -2991,6 +3031,13 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         text = event.text or ""
         if not state.face_first_tr_at and (text or "").strip():
             state.face_first_tr_at = asyncio.get_running_loop().time()
+        # ⛔ **자막으로 나가기 전에** tool 낭독을 걷어낸다(2026-09-01). 여기서 안 막으면
+        #   `set_face{emotion:sad}` 가 화면에 그대로 뜬다 — 사장님이 실제로 보셨다.
+        #   ⚠ 전사는 조각으로 오므로 한 조각 안에 온전히 들어온 것만 잡힌다. 조각 경계에
+        #     걸쳐 쪼개진 것은 못 잡는다 — 그건 아래 저장 경로가 한 번 더 거른다.
+        text = _strip_face_echo(text)
+        if not text:
+            return turn_started   # 낭독만 있던 조각 — 빈 자막을 보내지 않는다
         await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=state.turn_id))
         if text:
             state.cur_beaver_text.append(text)
