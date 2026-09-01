@@ -66,9 +66,9 @@ def get_pronunciation_summary(
 
     정적 경로라 `/{call_id}` 보다 먼저 선언한다(pronunciation-history 와 같은 이유).
 
-    ⚠ 지금 값의 출처는 스텁이다 — SpeechSuper 계정 만료(errId 41030)로 실채점이
-    폴백된다. 배선은 미리 만들어 두고, 벤더가 살아나면 이 경로 그대로 진짜 점수가
-    채워진다(스키마·계산 변경 없음).
+    ⭐ 값의 출처는 **SpeechSuper 실채점**이다(2026-08-28 재연동 확인). 만료됐던 동안
+    스텁으로 버티다가, 벤더가 살아나자 이 경로 그대로 진짜 점수가 채워졌다 —
+    스키마·계산은 한 줄도 안 바꿨다. 폴백 규율은 그대로 살아 있다(R5).
     """
     return pron_svc.get_pronunciation_summary(db, member.member_id, sessions)
 

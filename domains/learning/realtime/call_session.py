@@ -78,12 +78,8 @@ from core.persona_prompt import (
     _LOCALE_LABEL,
     CONTROL_TAG,
     REGROUND_COVERED_CAP,
-    LIVE_SETUP_MAX_CHARS,
     build_leveltest_instruction,
     build_resume_brief,
-    build_setup_core,
-    seed_opening_lean,
-    split_persona_for_injection,
     seed_resume,
     build_continue_reminder,
     build_reground_brief,
@@ -454,9 +450,7 @@ class _CallState:
         "usage_log", "usage_dropped", "sidecar_usage",
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
-        "persona_parts", "persona_sent", "persona_total", "persona_fail",
         "diag_batches", "diag_events", "diag_dropped",
-        "persona_turn",
     )
 
     def __init__(self) -> None:
@@ -508,11 +502,6 @@ class _CallState:
         self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
         self.face_first_audio_at = 0.0   # 표정 v2 계측(턴마다 리셋)
         self.face_first_tr_at = 0.0
-        self.persona_parts: list[str] = []   # 아직 안 보낸 페르소나 조각(FIFO)
-        self.persona_sent = 0                # 실제로 나간 조각 수
-        self.persona_total = 0               # 원래 조각 수(종료 요약용)
-        self.persona_fail = 0                # 현재 조각의 연속 실패 수(무한 왕복 방지)
-        self.persona_turn = ""               # 이번 턴에 이미 주입했나(턴당 1조각)
         self.diag_batches = 0                # 클라 계측 배치 수(상한 방어·요약)
         self.diag_events = 0                 # 받은 이벤트 총수
         self.diag_dropped = 0                # 클라가 상한으로 버린 총수
@@ -1476,39 +1465,6 @@ async def run_call(
     absolute_timeout = max(
         ABSOLUTE_CALL_TIMEOUT_S, state.call_duration_s + SEED_TO_HANGUP_S + 30.0
     )
-    # ⭐⭐ **지시문 분할**(2026-08-23) — setup 에는 짧은 코어만 싣고 나머지 페르소나는
-    #   붙은 뒤 통화 중에 조각으로 밀어넣는다. 여기가 유일한 갈림길이다.
-    #   ⛔ 반드시 이어하기 브리프 append(:1315) **뒤**여야 한다 — 브리프까지 조각에 실린다.
-    #     코어에 넣으면 380자 예산을 뚫는다.
-    #   ⚠ 레벨테스트는 제외한다(tool 을 안 붙이므로 분할할 이유가 없고, 첫 2턴이 측정 구간).
-    if settings.LIVE_PERSONA_INJECT and call_type != "level_test":
-        full_instruction = system_instruction
-        system_instruction = build_setup_core(
-            locale=locale,
-            name=setup["name"],
-            target_language=target_language,
-            face_tool=bool(settings.LIVE_FACE_SPIKE),
-        )
-        state.persona_parts = split_persona_for_injection(
-            full_instruction, chunk_chars=settings.LIVE_PERSONA_CHUNK_CHARS
-        )
-        state.persona_total = len(state.persona_parts)
-        # ⭐ 선톡 시드도 가볍게 간다(2026-08-23). 시드는 setup~첫 응답 총량에 들고, 인사가
-        #   길수록 그 중간에 set_face 가 불려 **인사가 처음부터 반복된다**(call 1144: 13.7초
-        #   인사 중 8.60초에 호출 → 중복). ⛔ 이어하기 시드(seed_resume)는 건드리지 않는다.
-        if not state.resume_from_turn:
-            seed_text = seed_opening_lean(target_language)
-        if len(system_instruction) > LIVE_SETUP_MAX_CHARS:
-            # ⛔ 절대 raise 하지 마라(R5) — 통화를 죽이는 것보다 위험을 안고 붙는 게 낫다.
-            #   실패는 회귀 테스트가 낸다.
-            logger.warning(
-                "normalcall 페르소나: setup 코어가 상한 초과 %d자 > %d — 1011 위험",
-                len(system_instruction), LIVE_SETUP_MAX_CHARS,
-            )
-        logger.info(
-            "normalcall 페르소나: 분할 setup=%d자 조각=%d개/%d자",
-            len(system_instruction), state.persona_total, len(full_instruction),
-        )
     try:
         async with asyncio.timeout(absolute_timeout):
             await _run_session(
@@ -1574,13 +1530,6 @@ async def run_call(
             )
         # ⭐ 페르소나 주입 결과를 통화당 1줄로 남긴다. ⛔ 지우지 마라 — 주입 실패는 **조용한**
         #   품질 저하다. 이 줄이 없으면 아무도 모르고 "요즘 비버가 이상해"만 남는다.
-        if state.persona_total:
-            done = state.persona_sent >= state.persona_total
-            (logger.info if done else logger.warning)(
-                "normalcall 페르소나: call_id=%s 조각 %d/%d %s",
-                call_id, state.persona_sent, state.persona_total,
-                "주입완료" if done else "⛔미완(남은 %d)" % len(state.persona_parts),
-            )
         # 2단계(영속화): 로그는 30일이면 사라진다. 원가 추이를 계속 보려면 행에 남아야 한다.
         # 예외는 함수 안에서 흡수한다(R5) — 통화 기록·분석과 트랜잭션을 나눠 둔 이유.
         await _persist_usage(db_session_factory, state, call_id)
@@ -2850,47 +2799,6 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
                 #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
                 await _inject_resume_seed(session, state)
-            # ⭐⭐ **페르소나는 비버가 말을 마친 직후에 넣는다**(2026-08-31 실측으로 세 번째 정정).
-            #
-            # ## ⛔ 왜 여기여야 하나 — `turn=` 이 갈림길이다
-            #
-            #   3.1 은 `client_content` 를 밀어넣으면 `interrupted` 를 보낸다. 그런데
-            #   **해로운 경우와 무해한 경우가 갈린다** — 그때 열린 비버 턴이 있느냐다:
-            #     interrupted turn=(열린 턴 없음)  → 버릴 턴이 없다. **아무것도 안 잘린다**
-            #     interrupted turn=c8bc8b1b719e    → ⛔ 그 턴이 통째로 버려진다
-            #
-            #   실측(2026-08-30):
-            #     재접지 5회 → 전부 `turn=(열린 턴 없음)` → 다음 비버 발화 124자 온전  ✅
-            #     페르소나 2회 → 전부 `turn=<실제 id>` → "Great choice!"(13자)로 잘림  ⛔
-            #
-            # ## ⛔ `in_tr` 은 답이 아니다 — 그 시점엔 이미 늦다
-            #
-            #   3.1 은 학습자 전사를 **자기 응답과 동시에** 내보낸다(로그가 직접 말한다:
-            #   `⛔끝기준 무의미(전사가 응답과 동시 도착)`). 실측 call 1247:
-            #     16:29:15.781  👤 user: Study Korean today   ← 전사가 여기서 처음 온다
-            #     16:29:15.782  페르소나 주입
-            #     16:29:15.783  🦫 beaver: "Great choice!"    ← 비버 턴이 이미 열렸다
-            #     16:29:15.854  ⛔interrupted turn=c8bc…      ← 그 턴이 죽는다
-            #   ⇒ 「학습자가 말하는 동안」은 **서버가 알 수 없다.** 비버 발화 종료부터
-            #     전사 도착까지 4초가 통째로 깜깜하다. `in_tr` 을 기다리면 항상 늦는다.
-            #
-            # ## ⚠ 여기는 2.5 에서 통화를 죽였던 자리다
-            #
-            #   call 1142/1143 이 둘 다 1011 로 사망했고, 사인은 «주입해 놓고 마이크 무음이
-            #   계속 흘러드는 창»이었다. ⛔ 그건 **2.5 의 사실**이다 — 3.1 은 실패 모양이
-            #   1011 이 아니라 interrupted 로 바뀌었고, 이 자리에서는 `turn_id` 가 None 이라
-            #   그 interrupted 가 무해하다(위 재접지 5/5 가 같은 조건에서 증명).
-            #   ⇒ 3.1 에서 재확인이 필요한 변경이다. 죽으면 즉시 되돌려라.
-            #
-            # ⚠ 종료 구간(should_close·close_seed_sent)에서는 위 분기가 먼저 잡아 여기 안 온다.
-            # ⛔ 재시드와 **같은 턴에 겹치지 않는다.** 둘 다 client_content 라, 한 순간에
-            #   두 번 밀어넣으면 어느 쪽이 그 턴을 죽였는지 로그로 못 가른다.
-            #   ⇒ 재시드가 이 턴을 썼으면 페르소나는 다음 turn_end 를 기다린다.
-            if (state.persona_parts and state.beaver_turns >= 1
-                    and not reseeded_now
-                    and not state.should_close and not state.close_seed_sent
-                    and not state.reground_pending):   # 재접지가 대기 중이면 양보
-                await _inject_persona_part(session, state)
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
@@ -3170,45 +3078,6 @@ _PERSONA_PRE_NEXT = (
 #   비버가 낭독해도 _CONTROL_TAG_RE 안전망이 저장본에서 걷어낸다.
 
 
-async def _inject_persona_part(session, state: _CallState) -> None:
-    """페르소나 조각 1개를 컨텍스트에만 적재한다(생성 트리거 없음).
-
-    ⛔ **왜 setup 이 아니라 여기인가.** 2.5 native-audio 는 긴 지시문과 function tool 이
-      같은 setup 페이로드에 있으면 100% 1011 로 죽는다(라운드로빈 실측 0/8 vs 분할 14/14).
-      죽는 구간은 setup~첫 응답뿐이라, 그 구간만 가볍게 넘기면 그 뒤엔 5,057자를 통째로
-      넣어도 안 죽는다.
-
-    ⛔ 실패해도 통화를 죽이지 않는다(R5). 결과는 '밋밋한 비버'이지 통화 불가가 아니다.
-      다만 **조용한 품질 저하**라 로그를 크게 남긴다 — 없으면 아무도 모른다.
-    ⚠ 구형 가짜 세션은 `send_persona` 가 없다(AttributeError). 그것도 삼킨다 — 회귀 하네스가
-      새 메서드를 몰라도 통화는 완주해야 한다.
-    """
-    part = state.persona_parts[0]
-    pre = _PERSONA_PRE_FIRST if state.persona_sent == 0 else _PERSONA_PRE_NEXT
-    try:
-        await session.send_persona(pre + part)
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:  # noqa: BLE001 - 주입 실패는 통화 무영향(R5)
-        state.persona_fail += 1
-        logger.warning(
-            "normalcall 페르소나: 주입 실패(무시) 조각 %d/%d 시도 %d/%d — %s",
-            state.persona_sent + 1, state.persona_total,
-            state.persona_fail, _PERSONA_PART_MAX_RETRY, exc,
-        )
-        if state.persona_fail >= _PERSONA_PART_MAX_RETRY:
-            state.persona_parts.pop(0)   # 이 조각은 포기하고 다음으로 — 무한 왕복 금지
-            state.persona_fail = 0
-        return
-    state.persona_parts.pop(0)
-    state.persona_sent += 1
-    state.persona_fail = 0
-    logger.info(
-        "normalcall 페르소나: 조각 %d/%d 주입(%d자, 남은 %d)",
-        state.persona_sent, state.persona_total, len(part), len(state.persona_parts),
-    )
-
-
 def _request_close(state: _CallState) -> None:
     """통화를 마무리해 달라고 **요청**한다(TaskGroup 밖 사이드카 전용, 세션 무접촉).
 
@@ -3237,17 +3106,6 @@ async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) ->
     if state.close_seed_sent:
         return
     state.close_seed_sent = True  # await 전에 선점 → 이중 주입 방지
-    # ⛔ 아직 안 나간 페르소나 조각은 **버린다.** 통화가 끝나가는데 규칙을 새로 넣을 이유가
-    #   없고, 종료 시드는 turn_complete=True 라 pending 조각이 있으면 서버가 둘을 한 유저
-    #   턴으로 묶어 **작별이 설명문에 오염된다**(174/178 과 같은 모양).
-    #   ⚠ 현실적으로 겹치는 경로가 있다: 학습자가 처음부터 무응답이면 무음 3단이 82초에
-    #     종료 시드를 낸다 — 그때 조각이 아직 pending 이다.
-    if state.persona_parts:
-        logger.info(
-            "normalcall 페르소나: 종료 진입 — 남은 조각 %d개 폐기(주입 %d/%d)",
-            len(state.persona_parts), state.persona_sent, state.persona_total,
-        )
-        state.persona_parts.clear()
     state.seed_sent_ts = asyncio.get_running_loop().time()
     await session.send_text_turn(state.close_seed)  # 콜타입별 시드(normal/레벨테스트)
     logger.info("normalcall: 종료 시드 주입")
@@ -3430,13 +3288,6 @@ def _reground_due(state: _CallState, now: float) -> str:
       겹치면 비버 응답이 장황해지고, 유저 발화 하나에 서버 텍스트 500 토큰이 붙는다.
     """
     if state.should_close or state.close_seed_sent or state.reground_pending:
-        return ""
-    # ⛔ 페르소나가 아직 다 안 들어갔으면 재접지를 arm 하지 않는다. 그 전의 재접지는 '복구'가
-    #   아니라 **중복 주입**이고, 한 유저 턴에 [브리프 + 페르소나 조각]이 겹치면 학습자의
-    #   한마디가 서버 텍스트에 밀려 비버가 주입문에 응답한다.
-    #   ⚠ 실제로 겹친다: 선제 arm 임계가 trigger×0.85(운영 8000 → 6,800)인데 실통화 턴당
-    #     prompt 가 6,000~9,500 이라 초반 몇 턴 만에 넘는다.
-    if state.persona_parts:
         return ""
     if state.reground_count >= REGROUND_MAX_PER_CALL:
         return ""

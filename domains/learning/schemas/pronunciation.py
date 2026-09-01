@@ -47,9 +47,13 @@ class PronunciationReport(BaseModel):
 class PronSummaryOut(BaseModel):
     """마이페이지 발음 분석 카드 — 최근 N세션 평균.
 
-    ⚠ 값의 출처가 지금은 **스텁**이다. SpeechSuper 계정이 만료(errId 41030)라
-    실채점이 스텁 폴백으로 떨어지고 있다. 배선은 지금 만들어 두고 벤더가 살아나면
-    같은 경로로 진짜 점수가 채워지게 한다 — 스키마·계산은 그대로다.
+    ⭐ 값의 출처는 **SpeechSuper 실채점**이다(2026-08-28 확인). 계정 만료(errId 41030)로
+    한동안 스텁 폴백이었는데 재연동됐다 — 실측: `sent.eval.kr` 호출 성공, overall 93 ·
+    pronunciation 94 · fluency 87 · rhythm 87, words 13개 · phonemes 30개(`phoneme` 에 실제
+    자모값). 설계대로 **스키마·계산은 한 줄도 안 바꾸고** 값만 진짜로 바뀌었다.
+    ⚠ 키가 없거나 벤더가 죽으면 `core.speechsuper` 가 **조용히 스텁으로 되돌아간다**
+      (예외를 안 던진다). 그래서 「점수가 나온다」는 실채점의 증거가 아니다 —
+      가르려면 `_stub_assess` 와 대조하거나 `phoneme` 필드가 빈 문자열인지 봐라.
 
     Attributes:
         sessions: 평균에 실제로 들어간 통화 수(요청한 N 이하). 0이면 아직 발음
