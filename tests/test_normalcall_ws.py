@@ -4585,3 +4585,33 @@ async def test_a_face_after_real_audio_is_not_swallowed(
     assert emos == ["happy", "neutral"], (
         f"소리가 흐른 뒤의 마커까지 삼켰다 — 실제 {emos}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# 재접지 모드 env 화 (2026-09-02) — 끄고 재는 실험에 재빌드가 들지 않게
+# --------------------------------------------------------------------------- #
+
+def test_the_reground_mode_comes_from_settings():
+    """모드는 **설정에서 온다** — 상수로 되돌리지 마라.
+
+    ⛔ 왜 env 여야 하나: `interrupted` 의 원인을 가르려면 재접지를 **끄고** 통화해야 하는데,
+      상수면 그 실험 한 번에 재빌드·재배포(5~6분)가 든다.
+    ⚠ 상관만으로는 못 가른다 — 재접지는 우리가 넣어 시각이 정확하고, 압축은 usage 급감으로
+      사후 추론이라 부정확하다. 같은 잣대로 비교하면 정확한 쪽이 원인처럼 보인다.
+      ⇒ 상관이 아니라 **대조**로 판정한다.
+    """
+    import domains.learning.realtime.call_session as cs
+    assert cs.REGROUND_MODE == app_settings.LIVE_REGROUND_MODE
+
+
+@pytest.mark.parametrize("bad", ["ON_USER_TURN", "disabled", "", "true"])
+def test_an_unknown_reground_mode_is_refused_at_startup(bad):
+    """⛔ 오타는 **기동 시점에** 막는다.
+
+    모르는 값을 조용히 두면 `REGROUND_MODE != "off"` 갈래가 전부 참이 되어
+    「끈 줄 알았는데 도는」 상태가 된다 — 대조 실험이 통째로 무의미해진다.
+    """
+    import pydantic
+    from core.config import Settings
+    with pytest.raises((ValueError, pydantic.ValidationError)):
+        Settings(LIVE_REGROUND_MODE=bad)

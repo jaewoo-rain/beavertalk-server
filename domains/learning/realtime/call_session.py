@@ -220,7 +220,9 @@ REGROUND_GAP_MAX_S = 240.0
 #                    ⚠ 오디오 턴+텍스트 병합은 Gemini 미보장 → 실측 검증 대상(T7).
 #   "legacy_idle"  — 구방식: duration/2 idle 에 send_reground(turn_complete=True) 별도 응답(이중발화).
 #   "off"          — 재접지 전면 비활성 = 하드닝만(가장 안전한 폴백).
-REGROUND_MODE = "on_user_turn"
+# ⭐ env 로 바꾼다(`LIVE_REGROUND_MODE`) — 끄고 재는 실험에 재빌드가 들지 않게
+#   (2026-09-02). 기본값은 종전과 같다.
+REGROUND_MODE = _settings.LIVE_REGROUND_MODE
 # on_user_turn 얹기 시점: "first"(유저 발화 초입, 권장) / "final"(is_final 직후 — 병합이 초입서
 # 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
 REGROUND_ATTACH_AT = "first"

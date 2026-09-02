@@ -309,6 +309,16 @@ class Settings(BaseSettings):
     #     9분에 끝난다. 그게 무한 과금 방어이고, 종료 소유권과 별개 축이다.
     LIVE_CALL_END_OWNER: str = "client"
     LIVE_FACE_SPIKE: bool = False
+    # ⭐ 재접지 모드. "on_user_turn" | "legacy_idle" | "off"
+    #   ⛔ **왜 env 로 뺐나**(2026-09-02) — `interrupted` 의 원인을 가르려면 재접지를 **끄고**
+    #     통화해 봐야 하는데, 상수라 그 실험 한 번에 재빌드·재배포(5~6분)가 들었다.
+    #   ⚠ 지금 상관만으로는 못 가른다: 재접지는 **우리가 넣어 시각이 정확**하고, 압축은
+    #     usage 급감으로 **사후 추론**이라 시각이 부정확하다. 정확한 신호와 부정확한 신호를
+    #     같은 잣대로 비교하면 정확한 쪽이 원인처럼 보인다.
+    #     ⇒ 상관이 아니라 **대조**로 판정한다: 끄고도 interrupted 가 남으면 압축이 원인,
+    #       사라지면 재접지가 원인이다.
+    #   ⚠ 모드 뜻은 `domains/learning/realtime/call_session.REGROUND_MODE` 주석 참조.
+    LIVE_REGROUND_MODE: str = "on_user_turn"
     # ⭐ 같은 오디오 자리에 꽂히는 표정 마커를 **하나로 합칠까**(2026-09-01).
     #   프론트는 마커를 오디오 봉투 번호에 꽂으므로, 소리가 안 나간 사이 두 번 부르면
     #   자리가 같아져 뒤엣것이 앞엣것을 즉시 덮는다 — 그러면 표정이 안 보인다.
@@ -745,6 +755,21 @@ class Settings(BaseSettings):
         # 운영(prod)에서 기본 JWT 시크릿이면 기동 차단(시크릿 교체 누락 사고 방지)
         if self.ENV == "prod" and self.JWT_SECRET == _DEV_JWT_SECRET:
             raise ValueError("운영(ENV=prod)에서는 JWT_SECRET 을 반드시 교체해야 합니다.")
+        return self
+
+    @model_validator(mode="after")
+    def _guard_reground_mode(self) -> "Settings":
+        """재접지 모드 오타를 **기동 시점에** 잡는다.
+
+        ⛔ 모르는 값을 조용히 두면 `REGROUND_MODE != "off"` 갈래가 전부 참이 되어
+          「끈 줄 알았는데 도는」 상태가 된다. 그러면 대조 실험이 통째로 무의미해진다.
+        """
+        allowed = {"on_user_turn", "legacy_idle", "off"}
+        if self.LIVE_REGROUND_MODE not in allowed:
+            raise ValueError(
+                f"LIVE_REGROUND_MODE 는 {sorted(allowed)} 중 하나여야 합니다 "
+                f"(받은 값: {self.LIVE_REGROUND_MODE!r})."
+            )
         return self
 
     @model_validator(mode="after")
