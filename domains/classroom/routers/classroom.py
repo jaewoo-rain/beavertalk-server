@@ -27,6 +27,7 @@ from domains.classroom.schemas.classroom import (
     WeakItemOut,
 )
 from domains.classroom.service.classroom_service import ClassroomService
+from domains.classroom.service.conversation_goal import conversation_target_ids
 from domains.classroom.service.summary_service import SummaryService
 
 router = APIRouter(prefix="/console", tags=["console"])
@@ -216,6 +217,9 @@ def chapter_preview(grade: int, chapter: int, member: CurrentMember, db: DbSessi
     svc = ClassroomService(db)
     svc.require_teacher(member)
     items = svc.chapter_items(grade, chapter)
+    # ★ `core` 는 전역 `is_core` 가 아니라 **이 챕터 안의 회화 목표**다.
+    #   과제 생성과 같은 헬퍼를 쓴다 — 갈리면 교사가 센 수와 실제 목표 수가 달라진다.
+    core_ids = set(conversation_target_ids(items))
     return {
         "grade": grade,
         "chapter": chapter,
@@ -226,7 +230,7 @@ def chapter_preview(grade: int, chapter: int, member: CurrentMember, db: DbSessi
                 "seq": i.seq_no,
                 "surface": i.surface,
                 "example": vocab_example(i),
-                "core": bool(i.is_core),
+                "core": i.item_id in core_ids,
             }
             for i in items
         ],

@@ -28,7 +28,9 @@ from sqlalchemy.orm import Session
 from domains.classroom.models.assignment import Assignment
 from domains.classroom.models.classroom_member import ClassroomMember
 from domains.classroom.models.submission import Submission
+from domains.classroom.service.conversation_goal import conversation_target_ids
 from domains.learning.models.item_evidence import ItemEvidence
+from domains.learning.models.learning_item import LearningItem
 
 # 「썼다」로 세는 등급. E1(모방)은 세지 않는다 — 비버가 방금 한 말을 따라한 것은
 # 사용이 아니다(`06` §4). E0·F 도 당연히 제외.
@@ -94,6 +96,22 @@ def used_item_ids(db: Session, call_id: int, member_id: int) -> set[int]:
     return {item_id for item_id, grade in db.execute(stmt).all() if grade in USED_GRADES}
 
 
+def conversation_goal_ids(db: Session, assignment: Assignment) -> set[int]:
+    """이 과제의 **회화 목표** 항목 id.
+
+    ⛔ 과제의 목표 문장 전체(최대 40)가 아니다. 회화는 통화 한 번에 40개를 다 쓰라는
+       뜻이 아니므로 우선순위 상위 N개만 목표로 센다(`conversation_goal.py`).
+
+    ★ 과제 생성 때 이미 같은 정의로 `conversation_total` 을 넣어 두지만, 여기서 다시
+      계산한다 — 과제 생성 후에 참여한 학습자는 제출 행이 없어 그 값을 못 물려받는다.
+    """
+    ids = _target_ids(assignment)
+    if not ids:
+        return set()
+    rows = db.scalars(select(LearningItem).where(LearningItem.item_id.in_(ids))).all()
+    return set(conversation_target_ids(rows))
+
+
 def link_call(db: Session, member_id: int, call_id: int) -> list[dict]:
     """통화 1건을 진행 중인 회화 과제들에 묶는다. **커밋하지 않는다.**
 
@@ -110,9 +128,13 @@ def link_call(db: Session, member_id: int, call_id: int) -> list[dict]:
     linked: list[dict] = []
     for assignment, cm in open_assignments_for(db, member_id, "conversation"):
         targets = _target_ids(assignment)
-        met = used & targets
-        if not met:
-            continue  # 이 과제의 목표를 하나도 안 썼다
+        if not (used & targets):
+            continue  # 이 과제의 문장을 하나도 안 썼다 — 이 통화는 이 과제와 무관하다
+
+        # ★ 귀속은 목표 문장 전체로 판단하고, **점수는 회화 목표(상위 N)로만** 센다.
+        #   좁혀서 귀속까지 막으면 실제로 한 통화가 「안 했다」로 남는다.
+        goal = conversation_goal_ids(db, assignment)
+        met = used & goal
 
         sub = _submission_for(db, assignment.assignment_id, cm.classroom_member_id)
         if sub is None:
@@ -125,7 +147,9 @@ def link_call(db: Session, member_id: int, call_id: int) -> list[dict]:
             db.add(sub)
 
         sub.conversation_met = len(met)
-        sub.conversation_total = len(targets)
+        # ⛔ `len(targets)`(=40) 를 쓰던 자리다. 과제 생성 때 넣은 값과 정의가 갈려
+        #    첫 통화 뒤에 분모가 11 에서 40 으로 바뀌어 있었다.
+        sub.conversation_total = len(goal)
         sub.call_id = call_id
         sub.status = "done"
         sub.completed_at = sub.completed_at or _now()
@@ -133,7 +157,7 @@ def link_call(db: Session, member_id: int, call_id: int) -> list[dict]:
             {
                 "assignment_id": assignment.assignment_id,
                 "met": len(met),
-                "of": len(targets),
+                "of": len(goal),
             }
         )
     return linked

@@ -28,6 +28,7 @@ from domains.classroom.schemas.classroom import (
     JoinIn,
     RosterMemberUpdate,
 )
+from domains.classroom.service.conversation_goal import conversation_target_ids
 from domains.learning.models.learning_item import LearningItem
 
 # 손글씨로 옮겨 적을 때 서로 오인되는 글자를 뺀다: I·O·0·1 (05 §3).
@@ -306,11 +307,14 @@ class ClassroomService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="해당 챕터에 학습 항목이 없습니다."
             )
         excluded = set(data.excluded_item_ids)
-        target_ids = [i.item_id for i in items if i.item_id not in excluded]
+        targets = [i for i in items if i.item_id not in excluded]
+        target_ids = [i.item_id for i in targets]
         if not target_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="문장을 모두 제외할 수는 없습니다."
             )
+        # 회화 목표는 **뺀 것을 빼고** 센다 — 교사가 뺀 문장을 시키면 안 된다.
+        conversation_total = len(conversation_target_ids(targets))
 
         assignment = Assignment(
             classroom_id=room.classroom_id,
@@ -334,7 +338,7 @@ class ClassroomService:
                     classroom_member_id=cm.classroom_member_id,
                     status="not_started",
                     speaking_total=len(target_ids),
-                    conversation_total=sum(1 for i in items if i.is_core),
+                    conversation_total=conversation_total,
                 )
             )
         self.db.commit()

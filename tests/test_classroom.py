@@ -39,6 +39,10 @@ from domains.classroom.service.classroom_service import (
     ClassroomService,
     vocab_example,
 )
+from domains.classroom.service.conversation_goal import (
+    CONVERSATION_TARGET_N,
+    conversation_target_ids,
+)
 from domains.learning.models.learning_item import LearningItem
 
 NOW = datetime.now(timezone.utc)
@@ -612,9 +616,56 @@ def test_call_evidence_marks_the_assignment_done(env):
     sub = db.query(Submission).filter(Submission.assignment_id == a.assignment_id).one()
     assert sub.status == "done"
     assert sub.conversation_met == 2
-    assert sub.conversation_total == len(targets)
+    # ⛔ 예전에는 여기서 `len(targets)`(=40) 를 기대했다. 과제 생성이 넣는 값과 정의가
+    #    갈려 첫 통화 뒤에 분모가 바뀌고 있었다. 지금은 양쪽 다 회화 목표 수다.
+    assert sub.conversation_total == CONVERSATION_TARGET_N
     assert sub.call_id == call.call_id
     assert sub.completed_at is not None
+
+
+def test_conversation_denominator_does_not_change_after_the_first_call(env):
+    """생성 때 넣은 분모와 통화 뒤 분모가 같아야 한다.
+
+    갈리면 교사 화면에서 `회화 2 / 10` 이 통화 한 번에 `2 / 40` 으로 튄다.
+    """
+    from domains.classroom.service import submission_service
+
+    db, _, learner, cm, a = _conversation_setup(env)
+    before = (
+        db.query(Submission)
+        .filter(Submission.assignment_id == a.assignment_id)
+        .filter(Submission.classroom_member_id == cm.classroom_member_id)
+        .one()
+        .conversation_total
+    )
+    targets = _targets(a)
+    call = _call(db, learner)
+    _evidence(db, learner, call, targets[0], "E3")
+    submission_service.link_call(db, learner.member_id, call.call_id)
+    db.commit()
+
+    sub = (
+        db.query(Submission)
+        .filter(Submission.assignment_id == a.assignment_id)
+        .filter(Submission.classroom_member_id == cm.classroom_member_id)
+        .one()
+    )
+    assert before == sub.conversation_total == CONVERSATION_TARGET_N
+
+
+def test_conversation_goal_is_never_zero(env):
+    """핵심 0 챕터가 사라진다 — 이 산정 변경의 목적이다.
+
+    `is_core` 로 세던 시절에는 챕터당 0~20 으로 흔들리고 0 이 나왔다.
+    그 챕터에서는 회화 과제가 `0 / 0` 이 됐다.
+    """
+    db, _teacher, _learners = env
+    items = ClassroomService(db).chapter_items(1, 1)
+    # 픽스처는 3의 배수만 is_core 다 — 옛 정의로는 챕터마다 수가 흔들린다.
+    assert len(conversation_target_ids(items)) == CONVERSATION_TARGET_N
+    assert conversation_target_ids([]) == []
+    # 항목이 N 보다 적으면 있는 만큼만. 0 이 아니다.
+    assert len(conversation_target_ids(items[:4])) == 4
 
 
 def test_imitation_does_not_count_as_use(env):
