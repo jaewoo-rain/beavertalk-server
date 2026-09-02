@@ -1932,12 +1932,25 @@ def _apply_call_mastery(
     levelup = mastery_service.evaluate_level_up(
         db, member_id, trigger_call_id=call_id, language=call_language,
     )
+
+    # B2B 과제 배선 — 증거가 적립된 뒤라야 셀 수 있으므로 여기서 접는다.
+    # 같은 커밋에 담아 「증거는 들어갔는데 제출은 안 잡힌」 상태를 남기지 않는다.
+    # 기관 반에 속하지 않은 회원은 빈 목록이라 비용이 사실상 0이다.
+    linked: list[dict] = []
+    try:
+        from domains.classroom.service import submission_service  # 지연 임포트(순환 회피)
+
+        linked = submission_service.link_call(db, member_id, call_id)
+    except Exception:  # noqa: BLE001 — 과제 배선 실패가 통화 분석을 죽이면 안 된다(R5)
+        logger.exception("B2B 제출 배선 실패 call_id=%s member_id=%s", call_id, member_id)
+
     db.commit()
     return {
         "verified": len(verified),
         "discarded": len(detections) - len(verified),
         "evidence": evidence_summary,
         "levelup": levelup,
+        "assignments": linked,
     }
 
 

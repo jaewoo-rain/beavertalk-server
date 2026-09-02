@@ -77,6 +77,17 @@ class Member(Base, TimestampMixin):
         Text, nullable=False, server_default=text("'user'"),
         comment="권한(user|admin) — /__dev 운영 도구 접근 제어",
     )
+
+    # B2B 교사 콘솔 접근 권한.
+    #
+    # ⛔ 위 `role` 에 'teacher' 를 더하지 않는다 — 두 축이 다르다.
+    #    `role` 은 **운영 도구** 축(user|admin)이고 이것은 **제품** 축이다.
+    #    한 컬럼에 담으면 「관리자이면서 교사」인 계정을 표현할 수 없다.
+    #    교사 전용 테이블도 만들지 않는다(`02_기능정의.md` 절감 #1) — 불리언 하나로 끝난다.
+    is_teacher: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false"),
+        comment="B2B 교사 콘솔 접근 권한(기존 회원은 전부 false)",
+    )
     is_auto_payment: Mapped[Optional[bool]] = mapped_column(Boolean, comment="정기구독 여부")
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false"),
