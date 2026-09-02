@@ -602,7 +602,11 @@ def test_study_block_render_and_rule1_swap():
     assert "통화가 계속되면" not in out, "재료 소진을 조건절로 되돌렸다(call 870 재발 경로)"
     assert "최대 2번까지만 다시 시도해라" in out
     # 일반(비 L1) 절차 — 문법 절차 존재(교정은 규칙4로 위임), 왕초보 변형 아님
-    assert "유형별 절차:" in out
+    assert "유형별 절차" in out
+    # ⭐ 2026-09-01: 절차를 ①②에서 자른다(불변 규칙 5 와의 충돌 제거).
+    #   ⛔ 헤더 전문을 박지 마라 — 문구를 다듬을 때마다 깨진다. 계약만 본다.
+    assert "다음 차례" in out, "③④를 다음 차례로 미루는 규약이 사라졌다"
+    assert "여기서 멈추" in out, "①②에서 멈추라는 지시가 사라졌다"
     assert "만들게 한다(교정은 불변 규칙 4대로)" in out
     assert "왕초보" not in out
     # 규칙 1 교체판 적용(기본판 불릿은 사라짐)
@@ -614,7 +618,8 @@ def test_study_block_render_and_rule1_swap():
 def test_study_block_l1_variant_when_chunk_without_grammar():
     out = build_system_instruction(study_items=_STUDY_ITEMS_L1, **_BASE_KWARGS)
     assert "이 학습자는 한국어 왕초보다" in out
-    assert "유형별 절차(왕초보):" in out
+    assert "유형별 절차(왕초보" in out
+    assert "여기서 멈추" in out, "왕초보 절차도 ①②에서 멈춰야 한다"
     assert "문법 용어(조사·어미·활용·시제 같은 말)를 절대" in out
     assert "1. (통문장) 얼마예요?" in out
     # 일반판 문법 절차는 없어야 한다(왕초보는 문법 절차 자체가 없음)
@@ -778,7 +783,8 @@ def test_survival_band_keeps_the_beginner_variant_without_any_chunk_item():
         study_items=_STUDY_ITEMS_ALL_REVIEW, lang_band="survival", **_BASE_KWARGS
     )
     assert "이 학습자는 한국어 왕초보다" in out
-    assert "유형별 절차(왕초보):" in out
+    assert "유형별 절차(왕초보" in out
+    assert "여기서 멈추" in out, "왕초보 절차도 ①②에서 멈춰야 한다"
     assert "통문장은 문장을 만들게 하지 말고" in out       # 5단위 확인의 L1 꼬리
     assert "만들게 한다(교정은 불변 규칙 4대로)" not in out  # 일반 문법 절차는 여전히 없다
 
