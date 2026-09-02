@@ -110,6 +110,10 @@ class AssignmentOut(BaseModel):
     activities: list[Activity]
     due_at: datetime
     closed_at: Optional[datetime]
+    # 콘솔이 「마감 전날 알림 보냄」 배지를 **조건부로** 켜는 근거다.
+    # 없으면 배지를 하드코딩하게 되고, 안 보낸 알림을 보냈다고 말하게 된다.
+    reminder_sent_at: Optional[datetime] = None
+    manual_reminder_sent_at: Optional[datetime] = None
     completed: int = 0
     total: int = 0
     avg_speaking: Optional[float] = None

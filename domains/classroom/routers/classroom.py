@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 from core.deps import CurrentMember, DbSession, GenaiClient
 from domains.classroom.schemas.classroom import (
@@ -26,6 +28,7 @@ from domains.classroom.schemas.classroom import (
     SubmissionOut,
     WeakItemOut,
 )
+from domains.classroom.service import reminder_service
 from domains.classroom.service.classroom_service import ClassroomService
 from domains.classroom.service.conversation_goal import conversation_target_ids
 from domains.classroom.service.summary_service import SummaryService
@@ -148,6 +151,19 @@ def remove_learner(
 
 
 # ── 과제 ──
+# ── 반 단위 집계(홈 한 판) ──
+@router.get("/classrooms/{classroom_id}/overview")
+def classroom_overview(classroom_id: int, member: CurrentMember, db: DbSession) -> dict:
+    """홈 화면의 상태 분포·최근 활동·학습자 누적을 한 번에 준다.
+
+    이게 없으면 콘솔이 과제 수만큼 결과 API 를 부른다.
+    """
+    svc = ClassroomService(db)
+    svc.require_teacher(member)
+    room = svc.owned(classroom_id, member)
+    return svc.classroom_overview(room)
+
+
 @router.get("/classrooms/{classroom_id}/assignments", response_model=list[AssignmentOut])
 def list_assignments(classroom_id: int, member: CurrentMember, db: DbSession) -> list[AssignmentOut]:
     svc = ClassroomService(db)
@@ -203,6 +219,37 @@ def assignment_result(
         reteach=weak,
         least_used=[],
     )
+
+
+# ── 미수행 알림 보내기 ──
+@router.post("/classrooms/{classroom_id}/assignments/{assignment_id}/remind")
+def remind_assignment(
+    classroom_id: int, assignment_id: int, member: CurrentMember, db: DbSession
+):
+    """아직 안 한 학습자에게 알림 1회.
+
+    하루 1회 제한은 **서버가 건다.** 클라이언트에 두면 다른 브라우저·다른 교사가 우회한다.
+    이미 보냈으면 409 와 함께 언제 보냈는지를 준다.
+    """
+    svc = ClassroomService(db)
+    svc.require_teacher(member)
+    room = svc.owned(classroom_id, member)
+    assignment = svc.get_assignment(classroom_id, assignment_id)
+
+    if not reminder_service.claim_today(db, assignment):
+        db.refresh(assignment)
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=jsonable_encoder(
+                {
+                    "detail": "already_sent_today",
+                    "sent_at": assignment.manual_reminder_sent_at,
+                }
+            ),
+        )
+
+    db.refresh(assignment)
+    return reminder_service.send_manual_reminder(db, room, assignment)
 
 
 # ── 챕터 미리보기(과제 만들기 화면) ──

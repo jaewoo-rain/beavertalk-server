@@ -75,7 +75,13 @@ class Assignment(Base, TimestampMixin):
         DateTime(timezone=True), nullable=False, comment="마감 시각"
     )
     reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), comment="마감 전날 알림 발송 시각"
+        DateTime(timezone=True), comment="마감 전날 자동 알림 발송 시각"
+    )
+    # ⛔ 위 컬럼과 합치지 마라. 교사가 손으로 보내는 알림은 **자동 알림과 별개**로
+    #    한 번 더 나간다(콘솔 D8 문안이 그렇게 약속한다). 한 칸을 공유하면 손으로
+    #    보낸 순간 마감 전날 자동 알림이 사라진다.
+    manual_reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), comment="교사가 손으로 보낸 알림의 마지막 발송 시각"
     )
     closed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), comment="마감 처리 시각(NULL=진행 중)"

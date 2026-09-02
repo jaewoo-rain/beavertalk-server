@@ -105,7 +105,14 @@ def upgrade() -> None:
         sa.Column("target_item_ids", sa.Text(), nullable=False, comment="출제 시점 항목 스냅샷"),
         sa.Column("grammar_items", sa.Text(), nullable=True, comment="문법 표제 스냅샷(교재 예문 제외)"),
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("reminder_sent_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "reminder_sent_at", sa.DateTime(timezone=True), nullable=True,
+            comment="마감 전날 자동 알림 발송 시각",
+        ),
+        sa.Column(
+            "manual_reminder_sent_at", sa.DateTime(timezone=True), nullable=True,
+            comment="교사가 손으로 보낸 알림의 마지막 발송 시각(자동과 별개 칸)",
+        ),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),

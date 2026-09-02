@@ -785,3 +785,232 @@ def test_speaking_result_fills_weak_items(env):
     weak = svc.weak_items(a)
     assert {w["surface"] for w in weak} == {i.surface for i in failed}
     assert all(w["of"] == 1 for w in weak)
+
+
+# ── 반 단위 집계 (`/console/classrooms/{id}/overview`) ───────────────────
+
+
+def test_overview_counts_status_without_calling_per_assignment(env):
+    """홈 한 판을 1콜로 채운다 — 과제마다 결과 API 를 부르지 않기 위한 것이다."""
+    db, teacher, learners = env
+    svc = ClassroomService(db)
+    room = svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    for i, l in enumerate(learners):
+        _join(svc, l, room, name=f"N{i}")
+    a = svc.create_assignment(
+        room, AssignmentCreate(grade=1, chapter=1, activities=["conversation"], due_at=DUE)
+    )
+
+    ov = svc.classroom_overview(room)
+
+    assert ov["assignment_count"] == 1
+    # 명단 전원에게 미수행 행이 미리 깔린다
+    assert ov["status_totals"] == {"not_started": 3, "in_progress": 0, "done": 0}
+    # sqlite 는 timestamptz 를 naive 로 돌려준다 — 마감은 값만 본다.
+    assert [
+        {k: v for k, v in row.items() if k != "due_at"} for row in ov["per_assignment"]
+    ] == [{"assignment_id": a.assignment_id, "completed": 0, "total": 3}]
+    assert ov["per_assignment"][0]["due_at"] is not None
+    assert ov["recent"] == []
+    assert len(ov["learner_totals"]) == 3
+
+
+def test_overview_keeps_last_seen_null_for_someone_who_never_called(env):
+    """🔴 null 을 0 이나 현재 시각으로 채우지 않는다.
+
+    「한 번도 안 들어온 사람」과 「오늘 들어온 사람」이 구별돼야 한다.
+    콘솔에서 실제로 났던 버그다 — 가장 손이 필요한 사람이 미접속 필터에서 빠졌다.
+    """
+    db, teacher, learners = env
+    svc = ClassroomService(db)
+    room = svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    called = _join(svc, learners[0], room, name="통화함")
+    silent = _join(svc, learners[1], room, name="한번도")
+    _call(db, learners[0])
+
+    totals = {t["classroom_member_id"]: t for t in svc.classroom_overview(room)["learner_totals"]}
+
+    assert totals[called.classroom_member_id]["last_seen_at"] is not None
+    assert totals[silent.classroom_member_id]["last_seen_at"] is None
+
+
+def test_overview_does_not_count_unfinished_before_the_due_date_as_missed(env):
+    """마감 전 과제를 「놓쳤다」로 세면 낸 그날 전원이 미수행자가 된다."""
+    db, teacher, learners = env
+    svc = ClassroomService(db)
+    room = svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    cm = _join(svc, learners[0], room, name="Mai")
+    svc.create_assignment(
+        room, AssignmentCreate(grade=1, chapter=1, activities=["speaking"], due_at=DUE)
+    )
+    past = svc.create_assignment(
+        room, AssignmentCreate(grade=1, chapter=2, activities=["speaking"], due_at=NOW - timedelta(days=1))
+    )
+
+    totals = {t["classroom_member_id"]: t for t in svc.classroom_overview(room)["learner_totals"]}
+
+    assert past.assignment_id  # 마감이 지난 과제 1건 — 위에서 그렇게 만들었다
+    assert totals[cm.classroom_member_id]["missed"] == 1
+    assert totals[cm.classroom_member_id]["done"] == 0
+
+
+def test_overview_recent_is_newest_first_and_capped(env):
+    """최근 활동은 완료된 것만, 최신순 20건이다."""
+    db, teacher, learners = env
+    svc = ClassroomService(db)
+    room = svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    cm = _join(svc, learners[0], room, name="Mai")
+    a = svc.create_assignment(
+        room, AssignmentCreate(grade=1, chapter=1, activities=["speaking"], due_at=DUE)
+    )
+    sub = (
+        db.query(Submission)
+        .filter(Submission.assignment_id == a.assignment_id)
+        .filter(Submission.classroom_member_id == cm.classroom_member_id)
+        .one()
+    )
+    sub.status = "done"
+    sub.completed_at = NOW
+    db.commit()
+
+    ov = svc.classroom_overview(room)
+
+    assert ov["status_totals"]["done"] == 1
+    assert [r["roster_name"] for r in ov["recent"]] == ["Mai"]
+    assert ov["recent"][0]["assignment_id"] == a.assignment_id
+
+
+# ── 미수행 알림 (`POST …/assignments/{id}/remind`) ───────────────────────
+
+
+def _token(db, member, platform="android_fcm", *, valid=True):
+    from domains.push.models.device_token import DeviceToken
+
+    t = DeviceToken(
+        member_id=member.member_id,
+        platform=platform,
+        token=f"tok-{member.member_id}-{platform}",
+        is_valid=valid,
+    )
+    db.add(t)
+    db.commit()
+    return t
+
+
+def _remind_setup(env):
+    db, teacher, learners = env
+    svc = ClassroomService(db)
+    room = svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    cms = [_join(svc, l, room, name=f"N{i}") for i, l in enumerate(learners)]
+    a = svc.create_assignment(
+        room, AssignmentCreate(grade=1, chapter=1, activities=["speaking"], due_at=DUE)
+    )
+    return db, svc, room, a, learners, cms
+
+
+def test_reminder_can_be_claimed_once_a_day(env):
+    """하루 1회 제한은 서버가 건다 — 클라이언트에 두면 다른 브라우저가 우회한다."""
+    from domains.classroom.service import reminder_service
+
+    db, _, _, a, *_ = _remind_setup(env)
+
+    assert reminder_service.claim_today(db, a) is True
+    db.refresh(a)
+    first = a.manual_reminder_sent_at
+    assert first is not None
+    # 같은 날 두 번째는 못 잡는다
+    assert reminder_service.claim_today(db, a) is False
+    db.refresh(a)
+    assert a.manual_reminder_sent_at == first
+
+
+def test_reminder_can_be_sent_again_the_next_day(env):
+    from domains.classroom.service import reminder_service
+
+    db, _, _, a, *_ = _remind_setup(env)
+    a.manual_reminder_sent_at = NOW - timedelta(days=1)
+    db.commit()
+
+    assert reminder_service.claim_today(db, a) is True
+
+
+def test_reminder_does_not_touch_the_automatic_slot(env):
+    """자동 알림과 별개다. 한 칸을 공유하면 손으로 보낸 순간 자동 알림이 사라진다."""
+    from domains.classroom.service import reminder_service
+
+    db, _, _, a, *_ = _remind_setup(env)
+    reminder_service.claim_today(db, a)
+    db.refresh(a)
+
+    assert a.manual_reminder_sent_at is not None
+    assert a.reminder_sent_at is None
+
+
+def test_reminder_skips_learners_who_already_did_it(env):
+    from domains.classroom.service import reminder_service
+
+    db, _, _, a, _learners, cms = _remind_setup(env)
+    done = (
+        db.query(Submission)
+        .filter(Submission.assignment_id == a.assignment_id)
+        .filter(Submission.classroom_member_id == cms[0].classroom_member_id)
+        .one()
+    )
+    done.status = "done"
+    db.commit()
+
+    pending = reminder_service.pending_learners(db, a)
+
+    assert cms[0].classroom_member_id not in {cm.classroom_member_id for cm in pending}
+    assert len(pending) == 2
+
+
+def test_reminder_separates_no_device_from_unreachable_platform(env, monkeypatch):
+    """🔴 ios_voip 만 있는 사람을 「기기 없음」으로 뭉치면 안 된다.
+
+    앱은 깔았는데 우리가 못 보내는 것이다 — VoIP 토큰으로는 숙제 알림을 못 띄운다.
+    """
+    from core import fcm
+    from domains.classroom.service import reminder_service
+
+    db, _, room, a, learners, _cms = _remind_setup(env)
+    _token(db, learners[0], "android_fcm")
+    _token(db, learners[1], "ios_voip")
+    # learners[2] 는 토큰이 없다
+
+    calls: list[dict] = []
+
+    def fake_send(**kw):
+        calls.append(kw)
+        return fcm.FcmSendResult(sent=len(kw["tokens"]))
+
+    monkeypatch.setattr(fcm, "send_notification", fake_send)
+    reminder_service.claim_today(db, a)
+    db.refresh(a)
+    out = reminder_service.send_manual_reminder(db, room, a)
+
+    assert out["sent"] == 1
+    assert out["skipped_unreachable_platform"] == 1
+    assert out["skipped_no_device"] == 1
+    assert out["sent_at"] is not None
+    # 착신 페이로드와 섞이지 않는다 — 이 경로로 보내면 학습자 폰이 울린다
+    assert calls[0]["data"]["type"] == "homework_reminder"
+
+
+def test_reminder_invalidates_dead_tokens(env, monkeypatch):
+    from core import fcm
+    from domains.push.models.device_token import DeviceToken
+    from domains.classroom.service import reminder_service
+
+    db, _, room, a, learners, _cms = _remind_setup(env)
+    t = _token(db, learners[0], "android_fcm")
+
+    monkeypatch.setattr(
+        fcm, "send_notification", lambda **kw: fcm.FcmSendResult(sent=0, dead_tokens=list(kw["tokens"]))
+    )
+    reminder_service.claim_today(db, a)
+    db.refresh(a)
+    out = reminder_service.send_manual_reminder(db, room, a)
+
+    assert out["sent"] == 0
+    assert db.get(DeviceToken, t.device_token_id).is_valid is False

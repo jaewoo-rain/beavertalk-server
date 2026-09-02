@@ -29,6 +29,7 @@ from domains.classroom.schemas.classroom import (
     RosterMemberUpdate,
 )
 from domains.classroom.service.conversation_goal import conversation_target_ids
+from domains.learning.models.call import Call
 from domains.learning.models.learning_item import LearningItem
 
 # 손글씨로 옮겨 적을 때 서로 오인되는 글자를 뺀다: I·O·0·1 (05 §3).
@@ -46,6 +47,18 @@ CURRICULUM_LANGUAGE = "ko"
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """naive 를 UTC 로 본다.
+
+    Postgres 는 timestamptz 를 aware 로 주지만 테스트의 sqlite 는 naive 로 준다.
+    비교 전에 한 번 거쳐야 `can't compare offset-naive and offset-aware` 를 안 만난다
+    (`mastery_service` 와 같은 규약).
+    """
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 
 def generate_join_code(db: Session, *, attempts: int = 20) -> str:
@@ -449,6 +462,124 @@ class ClassroomService:
             "avg_conversation": avg([s.conversation_met for s in done]),
             "speaking_total": len(target_ids),
             "conversation_total": core_total or 0,
+        }
+
+    def classroom_overview(self, room: Classroom, *, recent_limit: int = 20) -> dict:
+        """반 단위 집계 — 홈 화면 한 판을 **1콜**로 채운다.
+
+        콘솔은 이걸 쓰기 전까지 상태 분포와 최근 활동을 **과제 수만큼** 호출해서 만들었다.
+        반이 커질수록 그대로 느려진다. 추이·증감·진도는 `list_assignments` 1콜로 되므로
+        여기에 넣지 않는다 — 이미 되는 것을 옮기면 계약만 늘어난다.
+
+        🔴 `last_seen_at` 은 **null 을 그대로 내린다.** 0 이나 현재 시각으로 채우지 마라 —
+           「한 번도 안 들어온 사람」과 「오늘 들어온 사람」이 구별돼야 한다. 콘솔에서 실제로
+           났던 버그다(가장 손이 필요한 사람이 미접속 필터에서 빠졌다).
+        """
+        assignments = self.list_assignments(room.classroom_id)
+        by_id = {a.assignment_id: a for a in assignments}
+
+        rows = list(
+            self.db.execute(
+                select(Submission, ClassroomMember)
+                .join(
+                    ClassroomMember,
+                    Submission.classroom_member_id == ClassroomMember.classroom_member_id,
+                )
+                .where(ClassroomMember.classroom_id == room.classroom_id)
+            )
+        )
+
+        status_totals = {"not_started": 0, "in_progress": 0, "done": 0}
+        per_assignment: dict[int, dict] = {
+            a.assignment_id: {
+                "assignment_id": a.assignment_id,
+                "completed": 0,
+                "total": 0,
+                "due_at": a.due_at,
+            }
+            for a in assignments
+        }
+        learner: dict[int, dict] = {}
+        now = _now()
+
+        for sub, cm in rows:
+            if sub.status in status_totals:
+                status_totals[sub.status] += 1
+
+            slot = per_assignment.get(sub.assignment_id)
+            if slot is not None:
+                slot["total"] += 1
+                if sub.status == "done":
+                    slot["completed"] += 1
+
+            acc = learner.setdefault(
+                cm.classroom_member_id,
+                {
+                    "classroom_member_id": cm.classroom_member_id,
+                    "done": 0,
+                    "missed": 0,
+                    "last_seen_at": None,
+                },
+            )
+            if sub.status == "done":
+                acc["done"] += 1
+            else:
+                # 미수행은 **마감이 지난 것만** 센다. 아직 기한이 남은 과제를 「놓쳤다」고
+                # 세면 과제를 낸 그날 전원이 미수행자로 보인다.
+                due = _aware(by_id[sub.assignment_id].due_at) if sub.assignment_id in by_id else None
+                if due is not None and due < now:
+                    acc["missed"] += 1
+
+        # 명단에 있으나 제출 행이 하나도 없는 학습자도 자리를 준다(0 과 부재는 다르다).
+        roster = self.roster(room.classroom_id)
+        for cm in roster:
+            learner.setdefault(
+                cm.classroom_member_id,
+                {
+                    "classroom_member_id": cm.classroom_member_id,
+                    "done": 0,
+                    "missed": 0,
+                    "last_seen_at": None,
+                },
+            )
+
+        # 마지막 접속 = 마지막 통화 시각. 과제 수행이 아니라 **앱 사용**이 기준이다.
+        # 반 가입만 하고 앱 계정이 아직 안 붙은 명단(member_id 없음)은 null 로 남는다.
+        member_ids = [cm.member_id for cm in roster if cm.member_id is not None]
+        if member_ids:
+            seen = dict(
+                self.db.execute(
+                    select(Call.member_id, func.max(Call.created_at))
+                    .where(Call.member_id.in_(member_ids))
+                    .group_by(Call.member_id)
+                ).all()
+            )
+            for cm in roster:
+                if cm.member_id in seen:
+                    learner[cm.classroom_member_id]["last_seen_at"] = seen[cm.member_id]
+
+        recent = sorted(
+            (
+                {
+                    "classroom_member_id": cm.classroom_member_id,
+                    "roster_name": cm.roster_name,
+                    "assignment_id": sub.assignment_id,
+                    "status": sub.status,
+                    "completed_at": sub.completed_at,
+                }
+                for sub, cm in rows
+                if sub.completed_at is not None
+            ),
+            key=lambda r: _aware(r["completed_at"]),
+            reverse=True,
+        )[:recent_limit]
+
+        return {
+            "assignment_count": len(assignments),
+            "status_totals": status_totals,
+            "per_assignment": [per_assignment[a.assignment_id] for a in assignments],
+            "recent": recent,
+            "learner_totals": [learner[cm.classroom_member_id] for cm in roster],
         }
 
     def weak_items(self, assignment: Assignment, limit: int = 3) -> list[dict]:
