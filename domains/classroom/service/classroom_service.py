@@ -309,6 +309,69 @@ class ClassroomService:
         items = self.chapter_items(grade, chapter)
         return f"{items[0].surface} ~ {items[-1].surface}" if items else ""
 
+    def assignment_member(self, assignment: Assignment, member: Member) -> ClassroomMember:
+        """과제가 속한 반의 **현재 명단원**인지 확인하고 그 행을 준다.
+
+        나간 사람(`left_at`)은 통과시키지 않는다 — 동의를 철회한 학습자의 제출을
+        받으면 교사 화면에 다시 나타난다.
+        """
+        cm = self.db.scalar(
+            select(ClassroomMember).where(
+                ClassroomMember.classroom_id == assignment.classroom_id,
+                ClassroomMember.member_id == member.member_id,
+                ClassroomMember.left_at.is_(None),
+            )
+        )
+        if cm is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="이 반의 학습자가 아닙니다."
+            )
+        return cm
+
+    def assignment_items(
+        self, assignment: Assignment, locale: Optional[str] = None
+    ) -> list[LearningItem]:
+        """과제가 출제한 문장들 — **출제 시점 스냅샷 순서 그대로**.
+
+        `target_item_ids` 는 교사가 낸 순서다. id 로 다시 정렬하면 교사가 뺀 문장의
+        자리가 메워지며 순서가 바뀐다.
+        """
+        try:
+            ids = json.loads(assignment.target_item_ids or "[]")
+        except (TypeError, ValueError):
+            ids = []
+        if not ids:
+            return []
+        rows = self.db.scalars(
+            select(LearningItem).where(LearningItem.item_id.in_(ids))
+        ).all()
+        by_id = {r.item_id: r for r in rows}
+        return [by_id[i] for i in ids if i in by_id]
+
+    @staticmethod
+    def item_meaning(item: LearningItem, locale: Optional[str]) -> Optional[str]:
+        """항목의 뜻을 요청 로케일로. 없으면 영어, 그것도 없으면 None.
+
+        🔴 **적재율이 0% 일 수 있다**(`meanings` 는 LLM 생성분이고 병합 스크립트를
+        돌려야 채워진다). 비면 화면이 뜻 없이 그려지도록 None 을 준다 — 여기서
+        surface 로 대신 채우면 학습자가 「뜻 = 단어」를 보게 된다.
+        """
+        if not locale:
+            locale = "en"
+        try:
+            parsed = json.loads(item.meanings or "{}")
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(parsed, dict):
+            return None
+        # `en-US` 처럼 지역이 붙어 와도 언어축으로 떨어뜨린다.
+        base = locale.replace("_", "-").split("-")[0].lower()
+        for key in (locale, base, "en"):
+            value = parsed.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
     def create_assignment(self, room: Classroom, data: AssignmentCreate) -> Assignment:
         if room.archived_at is not None:
             raise HTTPException(
@@ -339,6 +402,7 @@ class ClassroomService:
                 self._grammar_surfaces(data.grade, data.chapter), ensure_ascii=False
             ),
             due_at=data.due_at,
+            workbook_url=(data.workbook_url or None),
         )
         self.db.add(assignment)
         self.db.flush()

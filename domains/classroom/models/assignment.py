@@ -86,6 +86,12 @@ class Assignment(Base, TimestampMixin):
     closed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), comment="마감 처리 시각(NULL=진행 중)"
     )
+    # 워크북은 앱 안에서 열지 않는다 — 교사가 올린 PDF 의 외부 링크(Google Drive 등)를
+    # 그대로 보관하고 앱은 브라우저로 넘긴다. 뷰어를 들이면 30 로케일 폰트가 따라온다.
+    # ⛔ 서버가 파일을 보관하지 않으므로 접근권한은 링크 주인(교사)의 책임이다.
+    workbook_url: Mapped[Optional[str]] = mapped_column(
+        Text, comment="워크북 PDF 외부 링크(교사가 입력)"
+    )
 
     classroom: Mapped["Classroom"] = relationship(
         back_populates="assignments", lazy="select"

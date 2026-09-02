@@ -13,6 +13,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from domains.learning.schemas.review import CharScoreOut, PronScoreOut
+
 Activity = Literal["speaking", "conversation", "workbook"]
 
 
@@ -88,6 +90,7 @@ class AssignmentCreate(BaseModel):
     activities: list[Activity] = Field(min_length=1)
     due_at: datetime
     excluded_item_ids: list[int] = Field(default_factory=list)
+    workbook_url: Optional[str] = Field(default=None, max_length=2000)
 
     @field_validator("activities")
     @classmethod
@@ -110,6 +113,7 @@ class AssignmentOut(BaseModel):
     activities: list[Activity]
     due_at: datetime
     closed_at: Optional[datetime]
+    workbook_url: Optional[str] = None
     # 콘솔이 「마감 전날 알림 보냄」 배지를 **조건부로** 켜는 근거다.
     # 없으면 배지를 하드코딩하게 되고, 안 보낸 알림을 보냈다고 말하게 된다.
     reminder_sent_at: Optional[datetime] = None
@@ -154,6 +158,47 @@ class AssignmentResultOut(BaseModel):
 
 
 # ── 학습자 참여(앱 쪽) ──
+class AssignmentItemOut(BaseModel):
+    """학습자가 읽을 문장 1개 — A7 발음 과제의 재료."""
+
+    item_id: int
+    seq: Optional[int] = None
+    surface: str
+    example: Optional[str] = None
+    meaning: Optional[str] = None
+    is_core: bool = False
+
+
+class AssignmentItemsOut(BaseModel):
+    """과제의 출제 문장 묶음.
+
+    🔴 `example` 은 `vocab_example()` 을 거친 값만 담는다 — `kind='grammar'` 의
+       `examples` 는 교재 저작물이라 내려보내면 안 된다.
+    """
+
+    assignment_id: int
+    grade: int
+    chapter: int
+    chapter_range: str = ""
+    closed: bool = False
+    items: list[AssignmentItemOut] = Field(default_factory=list)
+
+
+class ItemScoreOut(BaseModel):
+    """무상태 채점 결과 — 저장하지 않는다.
+
+    `ReviewFeedback` 을 쓰지 않는 이유: 그쪽은 `review_id`·`sentence_id` 를 요구한다.
+    과제 채점은 행을 만들지 않으므로 줄 id 가 없다. 억지로 만들면 `sentence.call_id`
+    가 NOT NULL 이라 **통화 행부터 지어내야 한다**(`13_앱숙제_구현계획.md` §7-1).
+    """
+
+    item_id: int
+    ref_text: str
+    passed: bool
+    evaluation: PronScoreOut
+    char_scores: list[CharScoreOut] = Field(default_factory=list)
+
+
 class JoinPreviewOut(BaseModel):
     """A2 반 확인 — 코드만으로 보여줄 수 있는 최소 정보."""
 

@@ -1010,6 +1010,10 @@ async def run_call(
         # ⭐ 이어하기 — 클라가 보내는 값은 문자열일 수 있다("1234"). 못 읽으면 조용히 무시하고
         #   새 통화로 간다(거절이 아니라 폴백 — 이어하기가 안 된다고 통화를 막으면 더 나쁘다).
         continues_call_id = _as_int(start.continues_call_id)
+        # ⭐ 과제 통화 — 이 통화가 수행하는 숙제의 과제 id. 못 읽으면 조용히 무시한다
+        #   (평소 통화로 진행). 검증은 재료 선별 쪽에서 한다 — 남의 과제 id 는 그 반
+        #   명단에 없어서 빈 목표로 떨어지고, 통화는 평소 선별로 이어진다.
+        assignment_id = _as_int(start.assignment_id)
     except _ClientDisconnect:
         logger.info("normalcall: start 수신 전 클라 종료")
         return
@@ -1066,7 +1070,8 @@ async def run_call(
         #   ⚠ 아직 검증 전 값이다. 남의 id 를 넣어도 무해하다 — `last_call_id` 는 **이 회원의**
         #     progress 행에 있는 값이라, 그 회원이 실제로 그 통화를 하지 않았으면 안 맞는다.
         lambda db: svc.load_call_setup(
-            db, member_id, character_id, spec.code, chain_call_id=continues_call_id
+            db, member_id, character_id, spec.code,
+            chain_call_id=continues_call_id, assignment_id=assignment_id,
         ),
     )
     # 읽기 쪽 방어: 저장 시 정규화(MemberService)를 넣었지만, 과거 데이터·다른 경로로 들어온
@@ -1933,6 +1938,10 @@ class StartParams(NamedTuple):
     #   ⛔ 프론트가 문자열로 보낸다("1234") — 여기서는 **원문 그대로** 들고, int 변환은
     #     호출부(_as_int)가 한다. 파싱 실패를 이 자리에서 삼키면 원인이 로그에 안 남는다.
     continues_call_id: str | int | None = None
+    # ⭐ 과제 통화 — 이 통화가 수행하는 숙제의 과제 id.
+    #   기본값을 주는 이유는 `continues_call_id` 와 같다: 이 필드를 안 넘기는 기존
+    #   호출부·테스트가 안 깨진다. 원문 그대로 들고 int 변환은 호출부(_as_int)가 한다.
+    assignment_id: str | int | None = None
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -1988,6 +1997,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         tz_offset_min=getattr(cm, "tz_offset_min", None),
                         inbound_call_id=getattr(cm, "inbound_call_id", None),
                         continues_call_id=getattr(cm, "continues_call_id", None),
+                        assignment_id=getattr(cm, "assignment_id", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc

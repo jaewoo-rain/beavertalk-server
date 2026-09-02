@@ -39,6 +39,9 @@ from domains.alarm.models.alarm import Alarm
 from domains.commerce.models.character import Character
 from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.service import entitlements
+from domains.classroom.models.assignment import Assignment
+from domains.classroom.models.classroom_member import ClassroomMember
+from domains.classroom.service.conversation_goal import conversation_target_ids
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.service import call_service
@@ -227,7 +230,7 @@ def _load_member_character(
 
 def load_call_setup(
     db: Session, member_id: int, character_id: int, language: str = "ko",
-    *, chain_call_id: int | None = None,
+    *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
@@ -273,7 +276,7 @@ def load_call_setup(
         try:
             materials = _load_study_materials(
                 db, member_id, level_no, base["locale"], language,
-                chain_call_id=chain_call_id,
+                chain_call_id=chain_call_id, assignment_id=assignment_id,
             )
         except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행
             logger.exception(
@@ -455,9 +458,54 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
     }
 
 
+def _assignment_targets(
+    db: Session, member_id: int, assignment_id: int, language: str
+) -> list[LearningItem]:
+    """과제의 회화 목표 항목. 자격이 없으면 **빈 목록**을 준다(통화는 그대로 진행).
+
+    검증 두 가지를 여기서 한다.
+      1. 그 과제가 속한 반의 **현재 명단원**인가(나간 사람 제외).
+      2. 언어축이 맞는가 — 커리큘럼은 언어별이라 다른 언어 통화에 한국어 목표를
+         주입하면 안 된다.
+
+    목표 선정은 `conversation_target_ids` 한 곳에서만 한다. 교사 콘솔이 센 수와
+    학습자가 받는 목표가 갈리면 「10개라며 왜 7개만 나오나」가 된다.
+    """
+    if language != "ko":
+        return []
+    assignment = db.get(Assignment, assignment_id)
+    if assignment is None or assignment.closed_at is not None:
+        return []
+    member_ok = db.scalar(
+        select(ClassroomMember.classroom_member_id).where(
+            ClassroomMember.classroom_id == assignment.classroom_id,
+            ClassroomMember.member_id == member_id,
+            ClassroomMember.left_at.is_(None),
+        )
+    )
+    if member_ok is None:
+        return []
+    try:
+        ids = json.loads(assignment.target_item_ids or "[]")
+    except (TypeError, ValueError):
+        return []
+    if not ids:
+        return []
+    rows = list(
+        db.scalars(
+            select(LearningItem).where(
+                LearningItem.item_id.in_(ids),
+                LearningItem.language == language,
+            )
+        )
+    )
+    goal_ids = set(conversation_target_ids(rows))
+    return [r for r in rows if r.item_id in goal_ids]
+
+
 def _load_study_materials(
     db: Session, member_id: int, level_no: int, locale: str, language: str = "ko",
-    *, chain_call_id: int | None = None,
+    *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
     """체크판 통화 재료를 1회에 선별한다(mechanics ① 3-b~e — 통화 중 DB 접근 0).
 
@@ -489,7 +537,16 @@ def _load_study_materials(
 
     # ③ 대화 모드 가이드 — 아는 문법 soft 범위 + 유도 표현(freetalking 미션 힌트)
     grammar = mastery_repository.known_grammar(db, member_id, language)
-    target_items = mastery_repository.pick_chat_targets(db, member_id, level_no, language)
+    # 과제 통화면 유도 표현을 **과제 목표로 갈아끼운다.** 평소 선별(pick_chat_targets)은
+    # 회원의 진도에서 고르지만, 과제는 교사가 낸 챕터를 써야 한다.
+    # 자격이 없거나 목표가 비면 평소 선별로 되돌아간다 — 통화를 막지 않는다.
+    target_items = []
+    if assignment_id is not None:
+        target_items = _assignment_targets(db, member_id, assignment_id, language)
+    if not target_items:
+        target_items = mastery_repository.pick_chat_targets(
+            db, member_id, level_no, language
+        )
     targets = []
     for it in target_items:
         ex = mastery_repository.first_example(it)

@@ -1014,3 +1014,151 @@ def test_reminder_invalidates_dead_tokens(env, monkeypatch):
 
     assert out["sent"] == 0
     assert db.get(DeviceToken, t.device_token_id).is_valid is False
+
+
+# ── A7 발음 과제: 문장 목록 · 뜻 · 워크북 링크 ────────────────────────────
+def _room_with_assignment(db, teacher, learner, **kw):
+    """반 + 학습자 1명 참여 + 과제 1건."""
+    svc = ClassroomService(db)
+    room = svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    svc.join(
+        learner,
+        JoinIn(join_code=room.join_code, roster_name="응웬", share_consent=True),
+    )
+    assignment = svc.create_assignment(
+        room,
+        AssignmentCreate(
+            grade=1, chapter=1, activities=["speaking"], due_at=DUE, **kw
+        ),
+    )
+    return svc, room, assignment
+
+
+def test_assignment_items_keep_the_snapshot_order(env):
+    """출제 시점 순서 그대로다 — id 로 다시 정렬하면 교사가 뺀 자리가 메워진다."""
+    db, teacher, learners = env
+    svc, _, assignment = _room_with_assignment(
+        db, teacher, learners[0], excluded_item_ids=[]
+    )
+    snapshot = json.loads(assignment.target_item_ids)
+    got = [i.item_id for i in svc.assignment_items(assignment)]
+    assert got == snapshot
+
+
+def test_assignment_items_drop_the_excluded_ones(env):
+    db, teacher, learners = env
+    db_svc = ClassroomService(db)
+    room = db_svc.create_classroom(teacher, ClassroomCreate(name="A반", target_grade=1))
+    chapter = db_svc.chapter_items(1, 1)
+    dropped = chapter[0].item_id
+    assignment = db_svc.create_assignment(
+        room,
+        AssignmentCreate(
+            grade=1,
+            chapter=1,
+            activities=["speaking"],
+            due_at=DUE,
+            excluded_item_ids=[dropped],
+        ),
+    )
+    ids = [i.item_id for i in db_svc.assignment_items(assignment)]
+    assert dropped not in ids
+    assert len(ids) == len(chapter) - 1
+
+
+def test_assignment_member_rejects_outsiders_and_leavers(env):
+    """나간 사람은 통과시키지 않는다 — 동의를 철회한 학습자의 제출을 받으면 안 된다."""
+    db, teacher, learners = env
+    svc, room, assignment = _room_with_assignment(db, teacher, learners[0])
+
+    with pytest.raises(HTTPException) as e:
+        svc.assignment_member(assignment, learners[1])
+    assert e.value.status_code == 403
+
+    cm = svc.assignment_member(assignment, learners[0])
+    svc.remove_from_class(cm)
+    with pytest.raises(HTTPException) as e2:
+        svc.assignment_member(assignment, learners[0])
+    assert e2.value.status_code == 403
+
+
+def test_item_meaning_falls_back_locale_then_english_then_none(env):
+    db, _, _ = env
+    item = db.query(LearningItem).filter(LearningItem.kind == "vocab").first()
+    item.meanings = json.dumps({"en": "word", "vi": "từ"}, ensure_ascii=False)
+
+    assert ClassroomService.item_meaning(item, "vi") == "từ"
+    # `en-US` 처럼 지역이 붙어도 언어축으로 떨어진다.
+    assert ClassroomService.item_meaning(item, "en-US") == "word"
+    # 없는 로케일은 영어로 떨어진다.
+    assert ClassroomService.item_meaning(item, "km") == "word"
+
+    item.meanings = None
+    # 🔴 비면 None 이다. surface 로 메우면 학습자가 「뜻 = 단어」를 본다.
+    assert ClassroomService.item_meaning(item, "en") is None
+
+
+def test_workbook_url_is_stored_on_the_assignment(env):
+    db, teacher, learners = env
+    _, _, assignment = _room_with_assignment(
+        db, teacher, learners[0], workbook_url="https://drive.example/x.pdf"
+    )
+    assert assignment.workbook_url == "https://drive.example/x.pdf"
+
+
+def test_workbook_url_defaults_to_none(env):
+    db, teacher, learners = env
+    _, _, assignment = _room_with_assignment(db, teacher, learners[0])
+    assert assignment.workbook_url is None
+
+
+# ── S3 회화 목표 주입: 과제 통화가 교사가 낸 챕터를 쓰는가 ────────────────
+def test_assignment_targets_use_the_conversation_goal(env):
+    """과제 통화의 유도 표현 = `conversation_target_ids` 가 고른 것과 같다.
+
+    교사 콘솔이 센 수와 학습자가 받는 목표가 갈리면 「10개라며 왜 7개만 나오나」가 된다.
+    """
+    from domains.learning.service.normalcall_service import _assignment_targets
+
+    db, teacher, learners = env
+    svc, _, assignment = _room_with_assignment(db, teacher, learners[0])
+
+    items = svc.assignment_items(assignment)
+    expected = set(conversation_target_ids(items))
+    got = {
+        i.item_id
+        for i in _assignment_targets(db, learners[0].member_id, assignment.assignment_id, "ko")
+    }
+    assert got == expected
+    assert len(got) == min(CONVERSATION_TARGET_N, len(items))
+
+
+def test_assignment_targets_are_empty_for_outsiders(env):
+    """남의 과제 id 를 들고 와도 목표가 새지 않는다 — 통화는 평소 선별로 이어진다."""
+    from domains.learning.service.normalcall_service import _assignment_targets
+
+    db, teacher, learners = env
+    _, _, assignment = _room_with_assignment(db, teacher, learners[0])
+    assert _assignment_targets(db, learners[1].member_id, assignment.assignment_id, "ko") == []
+
+
+def test_assignment_targets_are_empty_when_closed_or_other_language(env):
+    from domains.learning.service.normalcall_service import _assignment_targets
+
+    db, teacher, learners = env
+    _, _, assignment = _room_with_assignment(db, teacher, learners[0])
+    member_id = learners[0].member_id
+
+    # 커리큘럼은 언어별이다 — 일본어 통화에 한국어 목표를 주입하지 않는다.
+    assert _assignment_targets(db, member_id, assignment.assignment_id, "ja") == []
+
+    assignment.closed_at = NOW
+    db.commit()
+    assert _assignment_targets(db, member_id, assignment.assignment_id, "ko") == []
+
+
+def test_assignment_targets_are_empty_for_unknown_assignment(env):
+    from domains.learning.service.normalcall_service import _assignment_targets
+
+    db, _, learners = env
+    assert _assignment_targets(db, learners[0].member_id, 999_999, "ko") == []
