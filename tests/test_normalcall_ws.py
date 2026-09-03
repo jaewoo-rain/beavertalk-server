@@ -1066,6 +1066,21 @@ def test_mode_switch_ignores_beavers_own_words():
     assert st.call_mode == "chat", "학습자 발화 인용인데 모드가 안 바뀌었다"
 
 
+def test_reground_instruction_asks_for_requested_mode_not_current_flow():
+    """⛔ mode 는 '지금 흐름'이 아니라 **학습자가 말로 요청한 모드**다(2026-09-03).
+
+    8/31 에 인용을 학습자 줄로 좁혔는데도 구멍이 남았다 — 지시문이 mode 를 "학습 항목을
+    가르치는 흐름 / 자유 대화"로 정의하니, 비버가 잡담으로 흐르면 학습자는 **그 잡담에
+    대답만 해도** 그 대답이 학습자 줄에 실재하는 chat 증거가 됐다. 증인에게 던지는 질문
+    자체를 바꾼다 — 요청이 없으면 빈 문자열, 빈 값은 _apply_mode_proposal 첫 관문이 기각한다.
+    """
+    ins = cs._reground_instruction(["V-았어요/었어요", "여행"], "한국어")
+    assert "학습자가 말로 요청한" in ins
+    assert "빈 문자열" in ins
+    assert "학습자 발화 원문 그대로" in ins
+    assert "학습 항목을 가르치는 흐름이면" not in ins, "옛 정의('지금 흐름')로 되돌렸다"
+
+
 @pytest.mark.asyncio
 async def test_reground_sidecar_failure_keeps_default_brief(monkeypatch):
     """R5: 사이드카가 죽어도 arm 때 조립해 둔 기본 문구가 그대로 남는다(재접지가 사라지지 않는다)."""
