@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from core import curriculum_hints, gemini_analysis, storage, tts
+from core import b2b_client, curriculum_hints, gemini_analysis, storage, tts
 from core.audio import (
     INPUT_SAMPLE_RATE,
     OUTPUT_SAMPLE_RATE,
@@ -227,7 +227,7 @@ def _load_member_character(
 
 def load_call_setup(
     db: Session, member_id: int, character_id: int, language: str = "ko",
-    *, chain_call_id: int | None = None,
+    *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
@@ -273,7 +273,7 @@ def load_call_setup(
         try:
             materials = _load_study_materials(
                 db, member_id, level_no, base["locale"], language,
-                chain_call_id=chain_call_id,
+                chain_call_id=chain_call_id, assignment_id=assignment_id,
             )
         except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행
             logger.exception(
@@ -455,9 +455,43 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
     }
 
 
+def _conversation_targets(
+    db: Session, member_id: int, level_no: int, language: str,
+    assignment_id: int | None,
+) -> list[LearningItem]:
+    """대화 유도 표현. **과제 목표가 있으면 그것으로 갈아끼운다.**
+
+    숙제의 회화 활동은 「교사가 낸 챕터의 표현을 실제로 써 봤는가」를 본다. 통화가
+    평소 선별로 돌면 학습자가 그 표현을 쓸 이유가 통화 안에 없고, 결과적으로
+    `conversation_met` 이 구조적으로 낮게 나와 **교사 화면이 「안 했다」로 읽는다.**
+
+    목표 산정은 B2B 서비스가 한다(`conversation_target_ids` 한 곳). 이 서버가 직접
+    세면 교사가 센 수와 학습자가 받는 목표가 갈린다.
+
+    ⛔ 목표를 못 받으면 **평소 선별로 되돌아간다.** 통화를 막지 않는다 — 이 값은
+       통화의 성립 조건이 아니라 재료다. B2B 장애가 전화 자체를 끊으면 안 된다.
+    """
+    ids = b2b_client.conversation_goal_item_ids(
+        member_id, assignment_id=assignment_id, language=language
+    )
+    if ids:
+        rows = db.scalars(
+            select(LearningItem).where(
+                LearningItem.item_id.in_(ids),
+                LearningItem.language == language,
+            )
+        ).all()
+        if rows:
+            # 저쪽이 정한 순서를 지킨다 — 우선순위 앞선 것이 먼저 유도돼야 한다.
+            by_id = {r.item_id: r for r in rows}
+            return [by_id[i] for i in ids if i in by_id]
+
+    return mastery_repository.pick_chat_targets(db, member_id, level_no, language)
+
+
 def _load_study_materials(
     db: Session, member_id: int, level_no: int, locale: str, language: str = "ko",
-    *, chain_call_id: int | None = None,
+    *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
     """체크판 통화 재료를 1회에 선별한다(mechanics ① 3-b~e — 통화 중 DB 접근 0).
 
@@ -489,7 +523,7 @@ def _load_study_materials(
 
     # ③ 대화 모드 가이드 — 아는 문법 soft 범위 + 유도 표현(freetalking 미션 힌트)
     grammar = mastery_repository.known_grammar(db, member_id, language)
-    target_items = mastery_repository.pick_chat_targets(db, member_id, level_no, language)
+    target_items = _conversation_targets(db, member_id, level_no, language, assignment_id)
     targets = []
     for it in target_items:
         ex = mastery_repository.first_example(it)
