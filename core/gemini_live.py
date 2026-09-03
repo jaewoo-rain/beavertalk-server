@@ -221,6 +221,7 @@ def build_live_config(
     voice: str = DEFAULT_VOICE,
     tools: Optional[list[types.Tool]] = None,
     resume_handle: Optional[str] = None,
+    input_language_codes: Optional[list[str]] = None,
 ) -> types.LiveConnectConfig:
     """normalcall 용 LiveConnectConfig 구성.
 
@@ -238,7 +239,22 @@ def build_live_config(
 
     ⚠ transparent 는 Vertex 전용이라 USE_VERTEX 일 때만 켠다 — api_key 폴백 경로에 그대로
       넘기면 SDK 가 ValueError 를 던져 통화가 아예 안 열린다(R5 위반).
+
+    input_language_codes: 입력 전사에 "무슨 언어가 들릴 것인가"를 알려 주는 BCP-47 목록
+      (학습 언어 + 모국어). ⭐ **None/빈 값이면 필드를 아예 안 실어 종전과 바이트 동일**이다
+      — 하위호환·스냅샷 무영향이 이 기본값에 걸려 있다. 값을 만드는 쪽은 호출부(realtime)의
+      `_input_language_codes()` 이고, 이 어댑터는 도메인을 모른다(코드 정규화는 core.stt 소유).
+      ⛔ 출력 전사에는 넘기지 않는다. 비버 발화 전사는 멀쩡했고(실측 call_id=1097),
+        멀쩡한 쪽을 같이 건드리면 회귀가 나도 어느 쪽 탓인지 못 가린다.
     """
+    # ⛔ 값이 없으면 **인자 자체를 넣지 않는다**(빈 생성자 그대로). language_codes=None 을
+    #   넘겨도 직렬화 결과는 같겠지만, "종전과 바이트 동일"을 pydantic 의 exclude_none
+    #   동작에 의존시키지 않는다 — SDK 가 바뀌면 조용히 깨질 자리다.
+    input_transcription = (
+        types.AudioTranscriptionConfig(language_codes=list(input_language_codes))
+        if input_language_codes
+        else types.AudioTranscriptionConfig()
+    )
     session_resumption = None
     if settings.LIVE_SESSION_RESUMPTION:
         session_resumption = types.SessionResumptionConfig(
@@ -252,7 +268,7 @@ def build_live_config(
         response_modalities=["AUDIO"],
         tools=tools,
         session_resumption=session_resumption,
-        input_audio_transcription=types.AudioTranscriptionConfig(),
+        input_audio_transcription=input_transcription,
         output_audio_transcription=types.AudioTranscriptionConfig(),
         system_instruction=system_instruction,
         speech_config=types.SpeechConfig(
@@ -575,11 +591,13 @@ async def open_session(
     voice: str = DEFAULT_VOICE,
     tools: Optional[list[types.Tool]] = None,
     resume_handle: Optional[str] = None,
+    input_language_codes: Optional[list[str]] = None,
 ) -> AsyncIterator[GeminiLiveSession]:
     """normalcall Gemini Live 세션을 열고 래퍼를 yield 하는 async 컨텍스트 매니저.
 
     config 는 build_live_config 가 구성, system_instruction/voice 는 호출부(realtime)가 조립.
     tools 기본 None → 일반 통화 무영향. 레벨테스트만 [LEVELTEST_DONE_TOOL] 을 넘긴다.
+    input_language_codes 기본 None → 입력 전사는 종전대로 자동 감지(바이트 동일).
 
     ⚠ 통화 1건 = 세션 1개가 **아니다**(2026-08-04부터). Gemini 연결 수명이 ~10분이라
       15분 통화는 연결을 갈아끼워야 한다. call_session 의 세대 루프가 이 컨텍스트 매니저를
@@ -591,6 +609,7 @@ async def open_session(
         voice=voice,
         tools=tools,
         resume_handle=resume_handle,
+        input_language_codes=input_language_codes,
     )
     # ⭐ Live 토큰 만료 방어: genai.Client 는 lifespan 이 한 번 만들어 인스턴스 수명 내내
     # 공유한다. 그 SA access token 은 ~1시간 만료인데, REST(분석·TTS)는 요청마다 갱신돼

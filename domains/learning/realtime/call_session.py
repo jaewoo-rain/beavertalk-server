@@ -96,6 +96,7 @@ from core.persona_prompt import (
     seed_leveltest_opening,
     seed_opening,
 )
+from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import (
@@ -244,10 +245,35 @@ _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 
 # normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.close_seed_leveltest(대본 소유자).
 # close_tag 는 통화별 난수 태그(new_close_tag) — system_instruction 과 **반드시 같은 값**.
+#
+# ⛔⛔ **"이 턴은 예외다" 줄을 빼지 마라**(2026-08-22, 실측 call_id=1137·1097).
+#   이 시드는 시스템 지시문과 **정면으로 싸운다**:
+#     · 규칙 2 는 라벨부터 "대화 지속(**매우 중요**)" 이고 "곧바로 새 화제나 질문을
+#       하나 던져 이어가라" 고 한다.
+#     · 규칙 3 [착지] 는 "맨 끝을 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라)".
+#     · 이 시드는 정반대 — "질문 시작하지 말고 평서문으로 작별해라".
+#   시스템 지시문 2개 vs 대화 중간 턴 1개다. 우선순위를 안 적어 주면 모델이 진 쪽을
+#   고른다 — 실측 두 가지 실패가 **같은 원인**이었다:
+#     call 1097: 질문 던져놓고 곧장 "Whatever. I'm busy." (둘을 반반 따름)
+#     call 1137: **아무 말도 안 함**(응답 1토큰) → 서버가 작별을 기다리다
+#                SEED_TO_HANGUP_S 백스톱으로 강제 종료 → 사용자에겐 무음 종료.
+#   ⇒ 우선순위를 **여기서** 선언한다. "반드시 소리 내어" 는 침묵 실패용 안전판이다.
+#
+#   ⛔ 규칙 2(_RULE_CLOSE_PROTOCOL)에 예외절을 다는 걸로 고치지 마라 —
+#     docs/prompts/README.md §4 지뢰밭 첫 줄이다. 지시문에 종료 개념을 넣으면 모델이
+#     그걸 **수단 삼아 혼자 통화를 끊는다**(call 706·852·870). 시드는 서버가 보낼
+#     때만 존재하므로 여기에 쓰면 모델이 스스로 만들어낼 수 없다.
+#   ⚠ 규칙 원문을 그대로 옮겨 적지 않고 **기능으로 가리켰다**("이어가기·질문 착지
+#     규칙") — 리터럴은 소리로 새어나갈 씨앗이 된다(원칙 2, call 782).
+#   ⚠ 테스트 다수가 "통화 시간이 다 됐다" 를 시드 식별 앵커로 쓴다 — 그 문장은 그대로
+#     두고 뒤에 삽입했다.
 def _close_seed(close_tag: str) -> str:
     return (
         f"{close_tag} (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
-        "통화 시간이 다 됐다. 학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
+        "통화 시간이 다 됐다. "
+        "이 턴은 예외다. 대화를 이어가는 것은 지금 네 일이 아니고, 이어가기·질문 착지 "
+        "규칙보다 이 지시가 앞선다. 반드시 소리 내어 작별을 말하고 끝내라. "
+        "학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
         "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'는 취지로 작별해라 "
         "— 작별 말투는 네 캐릭터 그대로(억지로 따뜻하게·공손하게 만들지 마라). "
         "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
@@ -389,6 +415,38 @@ def _resolve_target_language(settings: Settings, override: Optional[str]) -> Lan
     return spec
 
 
+def _input_language_codes(target_code: str, locale: str) -> list[str]:
+    """입력 전사에 **들릴 언어**를 알려 줄 BCP-47 목록(학습 언어 + 모국어). 없으면 빈 목록.
+
+    ⭐ 왜(2026-08-20): 힌트 없이 자동 감지에 맡겼더니 짧은 발화가 통째로 다른 언어로 찍혔다
+      — 실측 call_id=1097(ko 학습/en 모국어): "피우다"→`フィウダ` · "다"→`套` ·
+      "아주"→`और च` · 짧은 응답→`für 10`·`kumite`·`Sí.`.
+      이 전사는 CallRawData 로 **저장**돼 이어하기 요약·통화후 문장 추출·증거 인용 검증이
+      읽는다 ⇒ 화면이 아니라 **데이터** 문제다.
+
+    ⛔ 매핑을 새로 만들지 않고 `core.stt.normalize_language_codes` 를 그대로 쓴다. 그쪽은
+      "검증한 코드만 매핑하고 모르는 건 버린다"는 규율을 이미 담고 있다(en-US·ko-KR 만
+      확인됨). 표를 하나 더 만들면 같은 질문에 답이 둘이 된다.
+      ⚠ 이름이 STT 라 "캐스케이드 물건"으로 보이지만 아니다 — `core/stt.py` 는 발음
+      챌린지(`/pron/stt/ws`)도 쓴다. 캐스케이드를 지울 때 **같이 지우면 라이브가 깨진다**
+      (그쪽 함수에 경고를 박아 뒀다 · docs/20260813_0040_캐스케이드-데모잔재-정리목록.md §2-b).
+
+    ⛔⛔ **하나라도 매핑이 안 되면 통째로 포기한다**(빈 목록 = 자동 감지 = 종전 동작).
+      부분 힌트가 무힌트보다 나쁘기 때문이다 — 일본어 학습자(ja 미매핑)에게 모국어
+      `en-US` 하나만 얹으면 일본어 발화를 영어로 알아들으라고 시키는 꼴이 된다.
+      ⇒ 지금 실제로 힌트가 붙는 조합은 ko·en 이고, 나머지 언어는 **오늘과 완전히 같다.**
+    """
+    wanted = [target_code] + ([locale] if locale and locale != target_code else [])
+    mapped = normalize_language_codes(wanted)
+    if len(mapped) != len(wanted):
+        logger.info(
+            "normalcall: 입력 전사 언어 힌트 생략(target=%s locale=%s → %s) — 부분 힌트는 "
+            "무힌트보다 나쁘다", target_code, locale, mapped,
+        )
+        return []
+    return mapped
+
+
 # 데모/dev 통화 길이 override 범위(분). 사장님 요청: 레벨 데모에서 3~15분 선택.
 DEMO_DURATION_MIN_MINUTES = 3
 DEMO_DURATION_MAX_MINUTES = 15
@@ -489,6 +547,10 @@ class _CallState:
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
         "last_beaver_question", "band_tasks", "band_target_language",
+        # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
+        "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
+        # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
+        "input_language_codes",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
@@ -519,6 +581,13 @@ class _CallState:
         self.session_epoch = 0        # 이 통화에서 몇 번째 연결인가(1부터)
         self.seed_text = ""
         self.turn_id: Optional[str] = None
+        # 🔬 턴 절단 진단(임시). diag_turn_open_ts: 이번 비버 턴이 열린 loop.time().
+        #   diag_last_audio_ts: 마지막 오디오 조각 도착 시각(조각 간 공백 계측).
+        #   diag_audio_bytes: 이번 턴 누적 오디오 바이트. diag_interrupts: 인터럽트 누적.
+        self.diag_turn_open_ts: Optional[float] = None
+        self.diag_last_audio_ts: Optional[float] = None
+        self.diag_audio_bytes: int = 0
+        self.diag_interrupts: int = 0
         self.call_start_ts: Optional[float] = None
         self.should_close = False
         self.close_seed_sent = False
@@ -652,6 +721,8 @@ class _CallState:
         self.band_awaiting: bool = False
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
         self.band_target_language: str = _DEFAULT_TARGET_LABEL
+        # 입력 전사에 들릴 언어(학습 언어 + 모국어). 빈 목록 = 힌트 없음(자동 감지).
+        self.input_language_codes: list[str] = []
         self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
         self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
@@ -1409,6 +1480,8 @@ async def run_call(
             logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
     # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
+    if settings.LIVE_INPUT_LANGUAGE_CODES:
+        state.input_language_codes = _input_language_codes(spec.code, locale)
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
     state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
     if call_type != "level_test" and REGROUND_MODE != "off":
@@ -1941,6 +2014,10 @@ async def _run_one_generation(
     # 팩토리(엄격 시그니처)가 그대로 돈다.
     if state.resume_handle:
         factory_kwargs["resume_handle"] = state.resume_handle
+    # ⛔ tools·resume_handle 과 같은 규율 — **값이 있을 때만** 넘긴다. 항상 넘기면 엄격한
+    #   시그니처를 가진 테스트용 가짜 팩토리가 전부 깨진다.
+    if state.input_language_codes:
+        factory_kwargs["input_language_codes"] = state.input_language_codes
     async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
@@ -2786,10 +2863,21 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         # ⭐ 다만 **한 번도 관측된 적이 없다.** 본 적 없는 것에 처리기를 짓지 않는다 —
         #   먼저 보이게 만든다. 이 줄이 실제로 찍히면 그때 처방을 고른다.
         if event.kind == "interrupted":
+            # ⛔⛔ **분기가 두 개면 안 된다**(2026-09-03 dev 병합). dev 가 같은 신호를
+            #   `_forward_event` 안에도 달았는데, 이 분기가 `continue` 하므로 그쪽은
+            #   **영원히 도달 불가**였다 — 죽은 계측은 "재고 있다"는 착각만 만든다.
+            #   그래서 그쪽을 지우고 dev 가 세던 값을 여기로 옮겼다.
+            #   (`diag_interrupts` 는 아래 「턴 절단 의심」 판정이 읽는다 — 안 옮기면
+            #    그 판정이 언제나 0을 본다.)
+            state.diag_interrupts += 1
+            _open = state.diag_turn_open_ts
+            _el = (asyncio.get_running_loop().time() - _open) if _open else -1.0
             logger.warning(
-                "normalcall ⛔interrupted: 모델이 자기 턴을 버렸다 turn=%s "
+                "normalcall ⛔interrupted #%d: 모델이 자기 턴을 버렸다 turn=%s "
+                "(경과 %.2fs, 오디오 %dB) "
                 "(클라 큐에 남은 오디오는 그대로 재생된다 — 처리기 없음)",
-                state.turn_id or "(열린 턴 없음)",
+                state.diag_interrupts, state.turn_id or "(열린 턴 없음)",
+                _el, state.diag_audio_bytes,
             )
             continue
 
@@ -3004,6 +3092,21 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
         if event.audio:
+            # 🔬 ⛔ 턴이 열리는 경로는 **둘**이다(audio / out_tr). 자막이 먼저 오는 통화가
+            #   대부분이라 audio 분기에서만 초기화하면 영영 리셋이 안 된다(2026-08-31 실측:
+            #   공백이 매 턴 7~17초로 찍히고 누적 바이트가 단조증가했다). ⇒ "아직 안 열렸으면
+            #   지금 연다"로 바꾸고, 실제 리셋은 turn_end 가 소유한다.
+            if state.diag_turn_open_ts is None:
+                state.diag_turn_open_ts = asyncio.get_running_loop().time()
+            # 🔬 조각 간 공백 — 이벤트 루프 블로킹/모델 스톨을 가른다. 임계 넘을 때만 찍는다.
+            _now = asyncio.get_running_loop().time()
+            if state.diag_last_audio_ts is not None:
+                _gap = _now - state.diag_last_audio_ts
+                if _gap >= 1.0:
+                    logger.warning("🔬 오디오 공백 %.2fs (턴 %s, 누적 %dB)",
+                                   _gap, state.turn_id, state.diag_audio_bytes)
+            state.diag_last_audio_ts = _now
+            state.diag_audio_bytes += len(event.audio)
             # ⭐ 소리가 나왔다 = 모델이 정상으로 돌아왔다 ⇒ 표정 폭주 카운터를 푼다.
             #   ⛔ 턴 경계가 아니라 **오디오**로 푼다. 폭주는 턴 사이에서 나므로
             #     턴 경계로 풀면 차단기가 영영 안 걸리거나 매번 풀린다.
@@ -3151,6 +3254,16 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         state.face_first_tr_at = 0.0
         await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
         state.last_turn_id = turn_id  # D16: 방금 끝난 턴 id 보존(힌트 태스크 재료)
+        # 🔬 절단 판정 — 오디오가 유난히 짧게 끝난 턴을 서버가 스스로 표시한다.
+        #   PCM24k mono 16bit = 48,000 B/s ⇒ 1초 미만 = 48,000B 미만.
+        if state.diag_turn_open_ts is not None and 0 < state.diag_audio_bytes < 48000:
+            _el = asyncio.get_running_loop().time() - state.diag_turn_open_ts
+            logger.warning("🔬 턴 절단 의심: 턴 %s 오디오 %dB(%.2fs분) 벽시계 %.2fs 인터럽트누적=%d",
+                           turn_id, state.diag_audio_bytes,
+                           state.diag_audio_bytes / 48000.0, _el, state.diag_interrupts)
+        state.diag_turn_open_ts = None
+        state.diag_last_audio_ts = None
+        state.diag_audio_bytes = 0
         state.turn_id = None
         # ⭐ 무음 시계 리셋: 비버가 방금 말을 멈췄다 = 여기서부터 무음이 시작된다.
         # (안 하면 시계가 통화 시작부터 흘러 비버의 긴 발화 직후 넛지가 즉시 터진다.)
@@ -3610,7 +3723,7 @@ def _reground_instruction(items: list[str], target_language: str) -> str:
     )
 
 
-def _transcript_tail(state: _CallState, turns: int = 12) -> str:
+def _transcript_tail(state: _CallState, turns: int = 12, *, only_user: bool = False) -> str:
     """사이드카에 넘길 최근 전사 꼬리(오디오 아님 — 텍스트만).
 
     통화 전체를 넣지 않는 이유: 재접지가 필요한 건 **지금 흐름**이고, 전체를 넣으면
@@ -3620,6 +3733,7 @@ def _transcript_tail(state: _CallState, turns: int = 12) -> str:
         f"{'학습자' if s['role'] == 'user' else '선생님'}: {s['text']}"
         for s in state.segments[-turns:]
         if (s.get("text") or "").strip()
+        and not (only_user and s["role"] != "user")
     ]
     return "\n".join(lines)
 
@@ -3681,8 +3795,21 @@ async def _reground_sidecar(state: _CallState) -> None:
         )
         if result is None:
             return
+        # ⛔⛔ 인용 검증은 **학습자 줄에서만** 한다(2026-08-31 실측). 예전엔 전사 전체를
+        #   넘겨서 **비버 자기 말이 전환 근거가 됐다** — 세 통 연속 그랬다:
+        #     1253 study→chat (인용: 무슨 음악을 들어요?)             ← 비버 t35
+        #     1255 study→chat (인용: What other spicy foo)            ← 비버 t31
+        #     1256 study→chat (인용: 혹시 한국 음식 좋아하는 거 있어?) ← 비버 t21
+        #   학습자는 "공부할래"라고 한 뒤 모드를 바꾸자고 한 적이 한 번도 없다. 비버가
+        #   잡담으로 흐르면 → 그 흐른 말이 증거가 되고 → 서버가 chat 으로 확정하고 →
+        #   이후 재접지마다 "지금처럼 편한 대화를 계속 이어가라"가 꽂혀 **되돌아올 길이
+        #   막힌다.** 자기가 흘린 걸 자기가 증거로 삼는 되먹임 고리다.
+        # ⭐ 모드를 바꾸는 건 **학습자의 의사**다(불변 규칙 1: "학습자가 도중에 모드를
+        #   바꾸고 싶다고 명시하면 따라가라"). 그러니 증거도 학습자 발화여야 한다.
         _apply_mode_proposal(
-            state, getattr(result, "mode", "") or "", getattr(result, "mode_quote", "") or "", tail
+            state, getattr(result, "mode", "") or "",
+            getattr(result, "mode_quote", "") or "",
+            _transcript_tail(state, only_user=True),
         )
         items = state.reground_items
         covered = [

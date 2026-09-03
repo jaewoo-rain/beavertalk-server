@@ -38,6 +38,7 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - **graceful degradation**: `genai_client` None 이면 통화만 비활성, 앱은 정상 기동. 외부 연동(발음/이메일/소셜/Storage)도 키 없으면 스텁·폴백.
 
 ### 프롬프트 규율
+- ⭐ **프롬프트를 만지기 전 `docs/prompts/README.md` 를 먼저 읽는다**(정본 — 카탈로그·엔진 차이·튜닝 원칙·되돌리면 안 되는 지뢰밭·결정 로그). 같은 폴더에 노션 원문 5종이 보존돼 있다(노션은 로그인 필요라 도구로 못 읽는다). 프롬프트를 고치면 그 §8 결정 로그에 적는다.
 - `core/persona_prompt.build_system_instruction` : **LLM 생성 0, 순수 문자열 조립**. 불변식 템플릿 + 캐릭터(role/personality/rules) + 레벨 프로파일 + 흥미 + 이력.
 - code-switching: 일반 통화는 **한국어 10% + 모국어 90%**. ⚠ **레벨테스트 콜은 이 규칙을 뒤집는다**(안내·리액션=모국어, 측정 질문=한국어). 통화 종료 시점은 서버만 결정("[시스템]" 종료 시드 전엔 비버가 먼저 작별 금지).
 - `core/*.py` 어댑터는 도메인/DB 를 모른다. system_instruction·voice 는 realtime 이 조립해 넘긴다.
@@ -71,7 +72,7 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
   - ⛔ **사실 확인에서 멈추지 말고 그 사실이 무엇을 의미하는지까지 확인한다.** 목록·수치가 맞아도 해석이 틀리면 결론이 뒤집힌다(예: "브랜치 X에 수정이 없다"는 참이어도 X가 main의 조상이면 백포트 대상이 아니다). **수치 인용 시 출처를 파일:행으로 남긴다 — 코드 주석·설계문서는 1차 자료가 아니다.**
 
 ## 테스트 / 검증
-- **파이썬은 반드시 conda env**: `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q` (base 파이썬엔 의존성 없음). 한글 출력이 콘솔에서 깨지면 스크립트가 **UTF-8 파일로 쓰게 하고 Read** 로 확인.
+- **파이썬은 반드시 conda env**: `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q` (base 파이썬엔 의존성 없음). ⚠ **`.env` 가 없는 PC 에선 `DATABASE_URL_POOL` 더미를 준다** — `core/config.py` 가 import 시점에 `Settings()` 를 만들어 없으면 **79개가 수집 단계에서 죽는다**(실제 접속은 안 한다): `DATABASE_URL_POOL="postgresql+psycopg2://u:p@localhost:5432/dummy"`. ⛔ **전체 회귀를 동시에 두 번 돌리지 마라** — 통화 타이밍 테스트가 부하에 흔들려 실패 목록이 매번 바뀜다(약 9분 소요). 한글 출력이 콘솔에서 깨지면 스크립트가 **UTF-8 파일로 쓰게 하고 Read** 로 확인.
 - `pytest` (tests/). `scripts/smoke_*.py` 는 **실행 중 서버에 실제 요청**하는 수동 점검(파이테스트 아님).
 - API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 데모: `/__levelcalldemo`(레벨테스트·힌트 체험) · `/__cascadedemo`(캐스케이드 통화).
   ⚠ `/__calldemo` 는 **삭제했다**(2026-08-12) — `scripts/call_demo.html` 이 `aaa14b6` 에서

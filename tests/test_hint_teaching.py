@@ -299,7 +299,7 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
             yield LiveEvent(kind="turn_end")
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         yield OneTurn()
 
     ws = FakeWebSocket([
@@ -399,7 +399,7 @@ async def test_hint_task_created_cancelled_and_pushed(session_factory, seeded, m
             # 제너레이터 종료 → _CallFinished(정상 종료 경로)
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         yield TwoQuestions()
 
     await run_call(ws, app_settings, object(), session_factory,
@@ -456,7 +456,7 @@ async def test_no_hint_task_for_non_question_turn(session_factory, seeded, monke
             yield LiveEvent(kind="turn_end")
 
     @_cl.asynccontextmanager
-    async def factory(client, settings, *, system_instruction, voice):
+    async def factory(client, settings, *, system_instruction, voice, **_kw):
         yield Statement()
 
     # (a) 레벨1: 사이드카 활성이지만 평서 턴 → 태스크 미생성

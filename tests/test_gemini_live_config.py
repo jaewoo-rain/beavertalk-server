@@ -189,3 +189,25 @@ def test_vertex_only_fields_are_omitted_on_the_api_key_path(monkeypatch):
     hara = [s for s in cfg2.safety_settings
             if s.category.name.endswith("HARASSMENT")]
     assert hara and hara[0].threshold.name == "BLOCK_ONLY_HIGH"
+
+# --------------------------------------------------------------------------- #
+# 6. 입력 전사 언어 힌트 (2026-08-20)
+# --------------------------------------------------------------------------- #
+# 왜: 힌트 없이 자동 감지에 맡겼더니 짧은 발화가 통째로 다른 언어로 찍혔다
+#   (실측 call_id=1097 — "다"→`套`, "아주"→`और च`, 짧은 응답→`für 10`).
+#   그 전사는 CallRawData 로 **저장**돼 통화후 문장 추출·증거 인용 검증이 읽는다.
+def test_input_language_codes_default_none_keeps_bytes_identical():
+    """미전달이면 종전과 동일 — 언어 힌트 필드가 실리지 않는다(하위호환)."""
+    cfg = _cfg()
+    assert cfg.input_audio_transcription is not None, "입력 전사 자체는 늘 켜져 있어야 한다"
+    assert cfg.input_audio_transcription.language_codes is None
+    # 빈 목록도 '힌트 없음'이다 — 호출부가 모르는 코드만 받아 빈 목록이 될 수 있다.
+    assert _cfg(input_language_codes=[]).input_audio_transcription.language_codes is None
+
+
+def test_input_language_codes_are_passed_through():
+    """값을 주면 입력 전사에만 실린다 — 출력 전사는 건드리지 않는다."""
+    cfg = _cfg(input_language_codes=["ko-KR", "en-US"])
+    assert cfg.input_audio_transcription.language_codes == ["ko-KR", "en-US"]
+    assert cfg.output_audio_transcription.language_codes is None, \
+        "비버 발화 전사는 멀쩡했다 — 같이 건드리면 회귀 원인을 못 가린다"
