@@ -416,3 +416,292 @@ def test_a_line_without_the_word_is_returned_untouched():
     from domains.learning.realtime.call_session import _strip_face_echo
     s = "안녕하세요! 오늘 뭐 했어요? (웃음) [메모] {중괄호}"
     assert _strip_face_echo(s) is s, "원본 객체를 그대로 돌려줘야 한다(빠른 경로)"
+
+
+# --------------------------------------------------------------------------- #
+# 재접지 통로 (2026-09-02) — client_content 는 생성을 끊는다
+# --------------------------------------------------------------------------- #
+
+@_pytest.mark.asyncio
+async def test_reground_uses_realtime_input_not_client_content(monkeypatch):
+    """`turn_complete=False` 재접지는 **realtime 통로**로 나간다.
+
+    ## ⛔ 왜 바꿨나 — client_content 는 설계상 생성을 끊는다
+
+    SDK 원문(`types.py:20271`, 벤더가 proto 에서 생성):
+        "A message here will interrupt any current model generation."
+    `interrupted` 필드(`:19319`): "a **client message** has interrupted..."
+    ⇒ `turn_complete` 와 무관하다. 실측 재접지 64회 중 43회에 interrupted 가 따라왔고,
+      그중 6회는 열린 턴이 있어 대사가 8~31자에서 잘렸다.
+
+    ## ⛔ 3.1 에서는 금지된 용법이다
+    공식 문서가 모델별로 갈라 놨다 — 3.1 은 "send_client_content is **only** supported
+    for seeding initial context history … use send_realtime_input instead".
+    """
+    import core.gemini_live as gl
+
+    monkeypatch.setattr(gl.settings, "LIVE_REGROUND_TRANSPORT", "realtime", raising=False)
+    calls = {"realtime": [], "client": []}
+
+    class FakeSession:
+        async def send_realtime_input(self, **kw):
+            calls["realtime"].append(kw)
+
+        async def send_client_content(self, **kw):
+            calls["client"].append(kw)
+
+    s = gl.GeminiLiveSession.__new__(gl.GeminiLiveSession)
+    s._session = FakeSession()
+    await s.send_reground("리마인더", turn_complete=False)
+
+    assert calls["realtime"] == [{"text": "리마인더"}], calls
+    assert calls["client"] == [], "client_content 로 샜다 — 그게 턴을 끊는 통로다"
+
+
+@_pytest.mark.asyncio
+async def test_a_completing_reground_still_uses_client_content(monkeypatch):
+    """⛔ `turn_complete=True` 는 **client_content 를 그대로 쓴다.**
+
+    RealtimeInput 에는 `turn_complete` 개념이 없다 — 턴 경계가 사용자 활동에서 오지
+    우리가 정하지 않는다. "지금 답해라"를 요구하는 호출부(`legacy_idle`)는 그 뜻이
+    사라지므로 옛 통로를 유지해야 한다.
+    """
+    import core.gemini_live as gl
+
+    monkeypatch.setattr(gl.settings, "LIVE_REGROUND_TRANSPORT", "realtime", raising=False)
+    calls = {"realtime": [], "client": []}
+
+    class FakeSession:
+        async def send_realtime_input(self, **kw):
+            calls["realtime"].append(kw)
+
+        async def send_client_content(self, **kw):
+            calls["client"].append(kw)
+
+    s = gl.GeminiLiveSession.__new__(gl.GeminiLiveSession)
+    s._session = FakeSession()
+    await s.send_reground("작별 리마인더", turn_complete=True)
+
+    assert calls["realtime"] == [], "완결 턴을 realtime 으로 보냈다 — 답을 못 받는다"
+    assert len(calls["client"]) == 1
+
+
+def test_the_transport_switch_can_go_back(monkeypatch):
+    """⚠ 되돌릴 수 있어야 한다 — realtime text 의 거동이 미검증이다.
+
+    조용히 적재되지 않고 **즉시 응답을 촉발**하면 이중발화가 난다. 그때 재빌드 없이
+    env 한 줄로 옛 통로로 돌아갈 수 있어야 한다.
+    """
+    import pydantic
+    from core.config import Settings
+    assert Settings(LIVE_REGROUND_TRANSPORT="client_content").LIVE_REGROUND_TRANSPORT == "client_content"
+    with _pytest.raises((ValueError, pydantic.ValidationError)):
+        Settings(LIVE_REGROUND_TRANSPORT="realtime_input")   # 오타
+
+
+# --------------------------------------------------------------------------- #
+# 재접지 얹는 **자리** (2026-09-02) — 전사는 늦은 보고서다
+# --------------------------------------------------------------------------- #
+#
+# ## 왜 자리를 옮겼나
+#
+# 실측(2026-09-02 통화, 재접지 82회 전수):
+#     얹기 82회 → 0.5초 안에 interrupted 43회(52%)
+#                → 그중 비버 턴이 열려 있던 것 6회 = **말이 잘렸다**
+# 한 건을 밀리초로 펼치면:
+#     09:50:57.387 얹기 → .390 비버 턴 시작(3ms) → .456 interrupted
+#
+# 원인은 우리 로그가 매 턴 스스로 찍고 있었다:
+#     "응답지연: ⛔끝기준 무의미(전사가 응답과 동시 도착)"
+# ⇒ Gemini 는 자기 전사를 우리한테 보내주는 걸 기다렸다 답을 만들지 않는다.
+#   전사와 비버 답이 **같이 온다.** 그래서 전사로는 "사용자가 말하는 중"과
+#   "비버가 답하는 중"을 구분할 수 없다.
+#
+# ⭐ 마이크 프레임은 다르다 — **도착 자체가 비버 침묵의 증거**다:
+#     클라 `_micGated`            비버 발화중(+꼬리)엔 프레임을 안 보낸다
+#     서버 `state.turn_id is None` 그때만 Gemini 로 넘긴다
+
+import core.audio as _audio
+
+
+def _pcm(rms_target: float, n: int = 320) -> bytes:
+    """정규화 RMS 가 대략 [rms_target] 인 PCM16 프레임."""
+    v = int(rms_target * 32768)
+    return b"".join(int(v).to_bytes(2, "little", signed=True) for _ in range(n))
+
+
+def test_frame_rms_separates_silence_from_speech():
+    """임계(0.02)가 침묵과 발화를 실제로 가르는가 — 판정의 바닥."""
+    assert _audio.frame_rms(_pcm(0.0)) == 0.0
+    assert _audio.frame_rms(_pcm(0.002)) < 0.02   # 잔잡음
+    assert _audio.frame_rms(_pcm(0.20)) > 0.02    # 사람 목소리
+    assert _audio.frame_rms(b"") == 0.0           # 빈 프레임에 안 죽는다
+
+
+def _mk_state(monkeypatch):
+    import domains.learning.realtime.call_session as cs
+    st = cs._CallState.__new__(cs._CallState)
+    st.reground_pending = True
+    st.reground_reminder = "너는 비버다"
+    st.reground_injected = False
+    st.reground_count = 0
+    st.last_reground_ts = None
+    st.reground_arm_reason = "compress"
+    st.should_close = False
+    st.close_seed_sent = False
+    st.turn_id = None
+    return cs, st
+
+
+class _RecordingSession:
+    def __init__(self):
+        self.sent = []
+
+    async def send_reground(self, text, *, turn_complete=True):
+        self.sent.append((text, turn_complete))
+
+
+@_pytest.mark.asyncio
+async def test_silent_mic_frame_does_not_attach_reground(monkeypatch):
+    """⛔ 침묵에 얹으면 **비버가 쪽지만 보고 혼자 말한다.**
+
+    클라는 마이크를 상시 보낸다 — 클라 VAD 는 계측 전용이고 전송을 안 거른다
+    (`normalcall_controller.dart:2447`). 그래서 서버가 직접 봐야 한다.
+    """
+    cs, st = _mk_state(monkeypatch)
+    sess = _RecordingSession()
+    await cs._maybe_attach_reground_on_mic(sess, st, _pcm(0.001))
+    assert sess.sent == [], "침묵에 얹었다"
+    assert st.reground_pending is True, "대기가 풀렸다 — 이 arm 이 통째로 유실된다"
+
+
+@_pytest.mark.asyncio
+async def test_voiced_mic_frame_attaches_once(monkeypatch):
+    """사람이 입을 열면 얹고, **arm 하나당 정확히 1회**만 얹는다."""
+    cs, st = _mk_state(monkeypatch)
+    sess = _RecordingSession()
+    loud = _pcm(0.20)
+    await cs._maybe_attach_reground_on_mic(sess, st, loud)
+    await cs._maybe_attach_reground_on_mic(sess, st, loud)   # 다음 프레임
+    await cs._maybe_attach_reground_on_mic(sess, st, loud)   # 그 다음
+    assert sess.sent == [("너는 비버다", False)], sess.sent
+    assert st.reground_count == 1
+
+
+@_pytest.mark.asyncio
+async def test_closing_call_never_attaches(monkeypatch):
+    """⛔ 종료 근처에서는 절대 안 얹는다 — 작별 턴이 오염된다(174/178 재발)."""
+    cs, st = _mk_state(monkeypatch)
+    st.should_close = True
+    sess = _RecordingSession()
+    await cs._maybe_attach_reground_on_mic(sess, st, _pcm(0.20))
+    assert sess.sent == []
+
+    cs2, st2 = _mk_state(monkeypatch)
+    st2.close_seed_sent = True
+    sess2 = _RecordingSession()
+    await cs2._maybe_attach_reground_on_mic(sess2, st2, _pcm(0.20))
+    assert sess2.sent == []
+
+
+def test_attach_point_can_go_back_to_the_transcript():
+    """⚠ 옛 자리로 되돌릴 수 있어야 한다 — 재빌드 없이 env 한 줄로."""
+    import pydantic
+    from core.config import Settings
+    assert Settings(LIVE_REGROUND_ATTACH_AT="first").LIVE_REGROUND_ATTACH_AT == "first"
+    assert Settings(LIVE_REGROUND_ATTACH_AT="final").LIVE_REGROUND_ATTACH_AT == "final"
+    with _pytest.raises((ValueError, pydantic.ValidationError)):
+        Settings(LIVE_REGROUND_ATTACH_AT="in_tr")   # 오타
+
+
+# --------------------------------------------------------------------------- #
+# 벙어리 인사 자막 (2026-09-03, call 1281) — 소리 없는 인사를 화면에 그리지 마라
+# --------------------------------------------------------------------------- #
+#
+# ⛔ 증상: 사장님 — "자기가 말하고 그거 그대로 다시 듣는다".
+#   실제로는 ①벙어리 인사의 **자막만** 뜨고 ②재시드가 같은 인사를 **소리와 함께**
+#   다시 한다. 클라는 새 turn_start 에서 자막을 리셋하므로 같은 문장이 두 번 그려진다.
+#
+# ⭐ 감지는 옳았다 — 연결 0.85초 만에 0바이트로 끝났고 문서화된 벙어리 서명 그대로다.
+#   고칠 것은 감지가 아니라 **소리를 확인하기도 전에 그린 것**이다.
+
+
+def _greeting_state(**over):
+    import domains.learning.realtime.call_session as cs
+    st = cs._CallState.__new__(cs._CallState)
+    st.session_epoch = 1
+    st.greeting_reseeded = False
+    st.learner_spoke = False
+    st.beaver_turns = 0
+    st.face_first_audio_at = 0.0
+    st.greeting_held_text = []
+    # `_greeting_was_mute` 쪽이 추가로 보는 것들(종료 구간이면 재시드하지 않는다)
+    st.should_close = False
+    st.close_seed_sent = False
+    st.seed_text = "안녕! 오늘 뭐 할까?"
+    for k, v in over.items():
+        setattr(st, k, v)
+    return cs, st
+
+
+def test_greeting_subtitle_is_held_until_sound_arrives():
+    """소리가 아직 없는 첫 인사 자막은 붙잡는다."""
+    cs, st = _greeting_state()
+    assert cs._greeting_subtitle_on_hold(st) is True
+
+
+def test_subtitle_flows_the_moment_sound_arrives():
+    """⭐ 소리가 한 바이트라도 오면 즉시 푼다 — 벙어리가 아니라는 뜻이다.
+
+    ⚠ 비용이 0에 가깝다는 근거: 실측 111건 중 110건이 오디오가 전사보다 0~2ms
+      **먼저** 온다(`+0ms` 53 · `+1ms` 55 · `+2ms` 2). 붙잡는 순간이 거의 없다.
+    """
+    cs, st = _greeting_state(face_first_audio_at=123.456)
+    assert cs._greeting_subtitle_on_hold(st) is False
+
+
+def test_hold_never_applies_once_the_learner_has_spoken():
+    """⛔ 통화 중 자막까지 붙잡으면 안 된다 — 인사 구간에만 건다."""
+    cs, st = _greeting_state(learner_spoke=True)
+    assert cs._greeting_subtitle_on_hold(st) is False
+
+
+def test_hold_does_not_apply_to_the_reseeded_turn():
+    """⛔ 재시드가 만든 턴은 붙잡지 않는다 — 그 턴이 진짜 소리 나는 인사다.
+
+    붙잡으면 사용자가 자막을 영영 못 본다(재시드는 통화당 1회뿐이라 구제가 없다).
+    """
+    cs, st = _greeting_state(greeting_reseeded=True)
+    assert cs._greeting_subtitle_on_hold(st) is False
+
+
+def test_hold_does_not_apply_after_the_first_turn_ends():
+    """첫 비버 턴이 끝난 뒤(`beaver_turns >= 1`)엔 인사 구간이 아니다."""
+    cs, st = _greeting_state(beaver_turns=1)
+    assert cs._greeting_subtitle_on_hold(st) is False
+
+
+def test_hold_does_not_apply_to_resumed_sessions():
+    """재개 세대(`session_epoch > 1`)엔 선톡 자체가 없다."""
+    cs, st = _greeting_state(session_epoch=2)
+    assert cs._greeting_subtitle_on_hold(st) is False
+
+
+def test_hold_and_mute_detection_agree_on_the_same_turn():
+    """⛔⛔ **두 판정의 전제가 어긋나면 구멍이 난다.**
+
+    붙잡기는 «재시드할 턴»에서만 일어나야 한다. 어긋나면 재시드는 안 하는데 자막만
+    사라져 사용자가 인사를 통째로 못 본다.
+
+    같은 상태에서 «진행 중이면 붙잡고 / 그 턴이 0바이트로 끝나면 재시드한다» 가
+    성립하는지 본다 — 다른 점은 `beaver_turns` 하나뿐이어야 한다(진행중 0 → 종료 1).
+    """
+    cs, st = _greeting_state()
+    assert cs._greeting_subtitle_on_hold(st) is True
+    st.beaver_turns = 1                      # 그 턴이 끝났다
+    assert cs._greeting_was_mute(st, 0) is True, "붙잡아 놓고 재시드를 안 하면 인사가 사라진다"
+    # 소리가 있었으면 둘 다 아니어야 한다
+    cs2, st2 = _greeting_state(face_first_audio_at=1.0)
+    assert cs2._greeting_subtitle_on_hold(st2) is False
+    st2.beaver_turns = 1
+    assert cs2._greeting_was_mute(st2, 48000) is False

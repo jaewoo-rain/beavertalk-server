@@ -319,6 +319,58 @@ class Settings(BaseSettings):
     #       사라지면 재접지가 원인이다.
     #   ⚠ 모드 뜻은 `domains/learning/realtime/call_session.REGROUND_MODE` 주석 참조.
     LIVE_REGROUND_MODE: str = "on_user_turn"
+    # ⭐⭐ 재접지를 **어느 통로로** 보낼까. "client_content" | "realtime"
+    #
+    #   ⛔ 왜 필요한가 — `client_content` 는 **설계상** 진행 중 생성을 끊는다.
+    #     SDK 원문(types.py:20271, 벤더가 proto 에서 생성한 문서):
+    #       "A message here will interrupt any current model generation."
+    #     그리고 `interrupted` 필드(:19319): "a **client message** has interrupted..."
+    #     ⇒ `turn_complete` 값과 무관하다. 우리 실측 43/43 은 버그가 아니라 스펙이다.
+    #
+    #   ⛔ 게다가 3.1 에서는 **금지된 용법**이다. 공식 문서가 모델별로 갈라 놨다:
+    #       3.1: "send_client_content is only supported for seeding initial context
+    #             history. To send text updates during the conversation,
+    #             use send_realtime_input instead"
+    #       2.5: 대화 중 사용 가능
+    #     ⇒ 모델을 옮기며 규약이 바뀐 것을 우리가 못 따라갔다.
+    #
+    #   ⭐ "realtime" 은 `send_realtime_input(text=...)` 을 쓴다. RealtimeInput 은
+    #     "can be sent continuously **without interruption to model generation**" 로
+    #     규정된다. SDK 2.10.0 에 이미 있다(live.py:250) — 업그레이드 불필요.
+    #     ⚠ `realtime_input_config`(setup config)와 **다른 축**이다 — 그건 안 건드린다.
+    #       무음 버그 불변식(gemini_live.py:229)이 무사하다.
+    #
+    #   ⚠ **미검증**: realtime text 가 조용히 적재되는지, 즉시 응답을 촉발하는지 문서가
+    #     침묵한다. 촉발하면 이중발화가 난다 — 그래서 스위치로 두고 실측한다.
+    LIVE_REGROUND_TRANSPORT: str = "realtime"
+    # ⭐⭐ 재접지를 **언제** 얹을까. "mic_open" | "first" | "final"
+    #
+    #   ⛔ 왜 바꿨나 — `in_tr`(입력 전사)은 **늦게 오는 보고서**다.
+    #     실측(2026-09-02 통화, 82회 전수):
+    #         재접지 얹기 82회 → 0.5초 안에 interrupted 43회(52%)
+    #                          → 그중 비버 턴이 열려 있던 것 6회 = 말이 잘렸다
+    #     한 건을 밀리초로 펼치면:
+    #         09:50:57.387 얹기 → .390 비버 턴 시작(3ms) → .456 interrupted
+    #     우리 로그가 매 턴 스스로 찍고 있던 문장이 원인이다:
+    #         "응답지연: ⛔끝기준 무의미(전사가 응답과 동시 도착)"
+    #     ⇒ Gemini 는 자기 전사를 우리한테 보내주는 걸 기다렸다 답을 만들지 않는다.
+    #       **전사와 비버 답이 같이 온다.** 그래서 전사를 보고는 "사용자가 말하는 중"과
+    #       "비버가 답하는 중"을 구분할 수 없다.
+    #
+    #   ⭐ "mic_open" — 업링크 마이크 프레임에 얹는다. 이게 더 나은 이유는 **지연이 없어서가
+    #     아니라, 도착 자체가 비버 침묵의 증거이기 때문**이다:
+    #         클라  `_micGated`          — 비버 발화중(+꼬리)엔 프레임을 아예 안 보낸다
+    #         서버  `state.turn_id is None` — 그때만 Gemini 로 넘긴다
+    #     ⇒ 프레임이 이 자리에 도착했다 = 양쪽이 각각 "비버는 안 말한다"를 보증했다.
+    #       끊을 것이 없는 자리다.
+    #   ⚠ 클라는 마이크를 **상시** 보낸다(목소리일 때만이 아니다 — 클라 VAD 는 계측 전용,
+    #     `normalcall_controller.dart:2447` 주석). 그래서 서버가 RMS 로 발화를 직접 본다.
+    #     안 그러면 침묵에 쪽지가 나가 비버가 혼자 말한다.
+    LIVE_REGROUND_ATTACH_AT: str = "mic_open"
+    # 서버측 발화 판정 임계(정규화 RMS). 클라 `_voicedRmsThreshold` 실측값과 **같은 수**다
+    # (`normalcall_controller.dart:420`) — 두 쪽이 갈라지면 같은 소리를 두고 다르게 판정한다.
+    # ⚠ 이 계산은 `reground_pending` 일 때만 돈다(핫패스 보호, R4).
+    LIVE_REGROUND_VOICE_RMS: float = 0.02
     # ⭐ 같은 오디오 자리에 꽂히는 표정 마커를 **하나로 합칠까**(2026-09-01).
     #   프론트는 마커를 오디오 봉투 번호에 꽂으므로, 소리가 안 나간 사이 두 번 부르면
     #   자리가 같아져 뒤엣것이 앞엣것을 즉시 덮는다 — 그러면 표정이 안 보인다.
@@ -764,6 +816,18 @@ class Settings(BaseSettings):
         ⛔ 모르는 값을 조용히 두면 `REGROUND_MODE != "off"` 갈래가 전부 참이 되어
           「끈 줄 알았는데 도는」 상태가 된다. 그러면 대조 실험이 통째로 무의미해진다.
         """
+        attach_ats = {"mic_open", "first", "final"}
+        if self.LIVE_REGROUND_ATTACH_AT not in attach_ats:
+            raise ValueError(
+                f"LIVE_REGROUND_ATTACH_AT 는 {sorted(attach_ats)} 중 하나여야 합니다 "
+                f"(받은 값: {self.LIVE_REGROUND_ATTACH_AT!r})."
+            )
+        transports = {"client_content", "realtime"}
+        if self.LIVE_REGROUND_TRANSPORT not in transports:
+            raise ValueError(
+                f"LIVE_REGROUND_TRANSPORT 는 {sorted(transports)} 중 하나여야 합니다 "
+                f"(받은 값: {self.LIVE_REGROUND_TRANSPORT!r})."
+            )
         allowed = {"on_user_turn", "legacy_idle", "off"}
         if self.LIVE_REGROUND_MODE not in allowed:
             raise ValueError(

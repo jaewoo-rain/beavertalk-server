@@ -57,7 +57,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
 from core import audio, gemini_analysis
-from core.audio import INPUT_SAMPLE_RATE, SAMPLE_WIDTH_BYTES, pcm16_to_wav
+from core.audio import (
+    INPUT_SAMPLE_RATE,
+    SAMPLE_WIDTH_BYTES,
+    frame_rms,
+    pcm16_to_wav,
+)
 from core.config import Settings, settings as _settings
 from core.languages import (
     DEFAULT_LANGUAGE,
@@ -223,9 +228,16 @@ REGROUND_GAP_MAX_S = 240.0
 # ⭐ env 로 바꾼다(`LIVE_REGROUND_MODE`) — 끄고 재는 실험에 재빌드가 들지 않게
 #   (2026-09-02). 기본값은 종전과 같다.
 REGROUND_MODE = _settings.LIVE_REGROUND_MODE
-# on_user_turn 얹기 시점: "first"(유저 발화 초입, 권장) / "final"(is_final 직후 — 병합이 초입서
-# 깨질 때의 대안). Gemini 전문가: final 은 VAD 턴이 이미 닫혀 더 위험 → 기본 first.
-REGROUND_ATTACH_AT = "first"
+# ⭐ 어느 통로로 나갔는지 **로그에 남긴다** — 두 통로의 `interrupted` 발생률을 로그만으로
+#   비교하려면 통화마다 이 값이 찍혀 있어야 한다(env 로 바뀌므로 코드만 봐선 모른다).
+REGROUND_TRANSPORT = _settings.LIVE_REGROUND_TRANSPORT
+# 재접지 얹기 시점. ⭐ env 로 바꾼다(`LIVE_REGROUND_ATTACH_AT`) — 자리를 바꿔 재는 실험에
+#   재빌드가 들지 않게(2026-09-02). 상세한 근거는 그 설정의 주석에 있다.
+#   "mic_open"(기본) — 업링크 마이크 프레임. **도착 자체가 비버 침묵의 증거**다.
+#   "first"/"final"  — 옛 자리(입력 전사). ⛔ 전사는 비버 답과 **같이 오는 늦은 보고서**라
+#                      얹는 순간 비버가 이미 입을 연 뒤일 수 있다(실측 82회 중 6회 잘림).
+REGROUND_ATTACH_AT = _settings.LIVE_REGROUND_ATTACH_AT
+REGROUND_VOICE_RMS = _settings.LIVE_REGROUND_VOICE_RMS
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
 _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
@@ -444,7 +456,7 @@ class _CallState:
         # ⭐ 이어하기 조각의 시작 턴 인덱스(0=첫 조각). 통화후 **검증 범위**의 기준이다.
         "resume_from_turn",
         # ⭐ 표정 v2 계측 — 이 턴에서 오디오·전사가 **각각 처음 온 시각**(monotonic).
-        "face_first_audio_at", "face_first_tr_at",
+        "face_first_audio_at", "face_first_tr_at", "greeting_held_text",
         # ⭐ 학습자 in_tr 이 마지막으로 온 시각 — 체감 지연 계측의 기준점.
         #   ⛔ last_activity_ts 로 대신하지 마라. 그건 **비버 turn_end 도** 갱신해서
         #     "학습자가 말을 끝낸 시각"이 아니다.
@@ -539,6 +551,10 @@ class _CallState:
         self.face_last_pcm = -1
         self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
         self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
+        # ⭐ 첫 인사 턴에서 **소리가 오기 전에 도착한 자막 조각**을 붙잡아 둔다.
+        #   소리가 오면 즉시 흘리고, 벙어리로 끝나면 그대로 버린다(유령 자막 방지).
+        #   근거는 `_greeting_subtitle_on_hold` 주석.
+        self.greeting_held_text: list[str] = []
         self.face_first_audio_at = 0.0   # 표정 v2 계측(턴마다 리셋)
         self.face_first_tr_at = 0.0
         self.diag_batches = 0                # 클라 계측 배치 수(상한 방어·요약)
@@ -2167,7 +2183,15 @@ def _hint_instruction(locale_label: str, target_language: str = "한국어") -> 
 _DIAG_MAX_EVENTS = 200          # 배치당 이벤트 수
 _DIAG_MAX_KEYS = 24             # 이벤트 dict 의 키 수
 _DIAG_MAX_STR = 64              # 문자열 값 길이
-_DIAG_MAX_BATCHES = 40          # 통화당 배치 수(넘으면 조용히 버린다)
+# ⭐ 통화당 배치 수. 클라가 **5초마다 1배치**를 보내므로 곧 «커버하는 통화 길이»다.
+#   ⛔ 40 이면 **200초에서 계측이 조용히 죽는다.** 그런데 사장님 증상(음성·영상 띄엄띄엄)은
+#     1~2분부터 시작해 **후반으로 갈수록 심해진다** — 즉 문제가 가장 심한 구간이 서버에
+#     한 건도 안 남는다. 실제로 이번 조사에서 200초 이후 `ping_ms`·`q` 를 못 봐서
+#     debug 로그캣에 의존해야 했다.
+#   ⇒ 200 = 약 16분. 5분 통화(+이어하기 조각)를 끝까지 덮는다.
+#   ⚠ 상한 자체는 유지한다 — 폭주하는 앱 한 대가 그 시간대 다른 통화 진단을 묻는 것을
+#     막는 것이 이 상한의 목적이고, 그 목적은 그대로다.
+_DIAG_MAX_BATCHES = 200
 
 
 def _clip_diag_event(ev: object) -> dict | None:
@@ -2509,6 +2533,11 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
             #     (test_call_end_releases_pcm_but_still_feeds_nationality 가 잡았다).
             #   지금 게이트는 종전대로 barge-in off 하나뿐이다.
             if data and state.turn_id is None:
+                # ⭐ 재접지를 **오디오보다 먼저** 넣는다 — 대화에 [쪽지][사용자말] 순으로
+                #   앉아야 비버가 둘을 묶어 한 번 답한다(사장님 요구: "따로 넣지 말고
+                #   사용자가 말하는 타이밍에 같이"). 뒤에 넣으면 말이 끊긴 뒤에 붙는다.
+                if REGROUND_MODE == "on_user_turn" and REGROUND_ATTACH_AT == "mic_open":
+                    await _maybe_attach_reground_on_mic(session, state, data)
                 await session.send_audio(data)
                 state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
                 continue
@@ -2802,25 +2831,14 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         #    ⚠ 옛 게이트(reground_injected, 통화당 1회성)를 쓰지 마라 — 중반 재접지가 얹히면
         #      True 로 굳어 **후반 리마인더가 영영 안 얹혔다**. 횟수 상한은 arm 쪽(_reground_due)이
         #      REGROUND_MAX_PER_CALL 로 건다.
-        if (REGROUND_MODE == "on_user_turn" and event.kind == "in_tr"
-                and state.reground_pending and state.reground_reminder
-                and not state.should_close and not state.close_seed_sent):
+        # ⛔ 옛 자리(입력 전사)다. `mic_open` 에서는 **안 돈다** — 전사는 비버 답과 같이
+        #   오는 늦은 보고서라 얹는 순간 비버가 이미 입을 연 뒤일 수 있다(실측 6/82 잘림).
+        #   되돌릴 길로만 남긴다(`LIVE_REGROUND_ATTACH_AT=first|final`).
+        if (REGROUND_MODE == "on_user_turn" and REGROUND_ATTACH_AT in ("first", "final")
+                and event.kind == "in_tr"):
             attach_now = in_tr_first if REGROUND_ATTACH_AT == "first" else bool(event.is_final)
             if attach_now:
-                state.reground_pending = False    # await 전 선점(단일 소유권)
-                state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
-                state.reground_count += 1
-                state.last_reground_ts = asyncio.get_running_loop().time()
-                try:
-                    await session.send_reground(state.reground_reminder, turn_complete=False)
-                    logger.info(
-                        "normalcall: 재접지 얹기(유저 발화 턴, 근거=%s, %d회째, at=%s, tc=False)",
-                        state.reground_arm_reason, state.reground_count, REGROUND_ATTACH_AT,
-                    )
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
-                    logger.warning("normalcall: 재접지 얹기 실패(무시): %s", exc)
+                await _attach_reground(session, state, f"전사·{REGROUND_ATTACH_AT}")
 
         if event.kind == "turn_end":
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
@@ -2853,6 +2871,32 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
+
+
+def _greeting_subtitle_on_hold(state: _CallState) -> bool:
+    """지금 온 자막 조각을 **붙잡아야 하나** — 첫 인사 턴이고 아직 소리가 없을 때만.
+
+    ⛔ 왜 필요한가(2026-09-03, call 1281): 벙어리 인사는 **자막만 뜨고 소리가 없다.**
+      그다음 재시드가 같은 인사를 소리와 함께 다시 한다 ⇒ 사장님 눈에는 «말한 걸 또
+      말한다»로 보인다. 감지는 옳았고(연결 0.85초·0바이트 = 문서화된 벙어리 서명),
+      틀린 것은 **소리를 확인하기도 전에 화면에 그린 것**이다.
+
+    ⚠ 전제를 `_greeting_was_mute` 와 **일부러 맞춘다** — 그쪽이 재시드할 턴에서만
+      붙잡아야 한다. 둘이 어긋나면 재시드는 안 하는데 자막만 사라지는 구멍이 난다.
+      다른 점은 하나뿐이다: 저쪽은 **끝난 턴**을 보므로 `beaver_turns == 1`,
+      이쪽은 **진행 중인 턴**을 보므로 `beaver_turns == 0` 이다(:795 에서 턴 끝에 +1).
+
+    ⚠ 비용: 실측 111건 중 110건이 오디오가 전사보다 **0~2ms 먼저** 온다
+      (`+0ms` 53 · `+1ms` 55 · `+2ms` 2, 최대 `+29ms` 1건). 정상 턴에서는 붙잡는
+      순간이 거의 없다. 그리고 인사 구간에만 걸리므로 통화 중 자막은 영향이 없다.
+    """
+    return (
+        state.session_epoch == 1          # 재개 세대엔 선톡 자체가 없다
+        and not state.greeting_reseeded   # 이미 재시드했으면 그 턴은 진짜 소리가 난다
+        and not state.learner_spoke       # 학습자가 말했으면 인사 구간이 아니다
+        and state.beaver_turns == 0       # 아직 첫 비버 턴이 안 끝났다
+        and not state.face_first_audio_at  # ⭐ 이 턴에 소리가 한 바이트도 안 왔다
+    )
 
 
 def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
@@ -3040,6 +3084,38 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         text = _strip_face_echo(text)
         if not text:
             return turn_started   # 낭독만 있던 조각 — 빈 자막을 보내지 않는다
+        # ⭐⭐ **벙어리 인사의 자막은 내보내지 않는다**(2026-09-03 실측, call 1281).
+        #
+        #   ⛔ 증상: 사장님이 "자기가 말하고 그거 그대로 다시 듣는다"고 하셨다. 실제로는
+        #     ①벙어리 인사의 **자막만** 뜨고(소리 없음) ②재시드가 같은 인사를 **소리와 함께**
+        #     다시 하는 것이었다. 클라는 새 turn_start 에서 자막을 리셋하므로 같은 문장이
+        #     두 번 그려진다 ⇒ 말한 걸 또 말하는 것으로 보인다.
+        #
+        #   ⭐ 판정 자체는 옳았다 — 연결 0.85초 만에 0바이트로 끝났고, 이건 문서화된
+        #     벙어리 서명 그대로다(벙어리 0.68~0.97초 / 정상 6.63~9.70초, 겹침 없음).
+        #     고칠 것은 감지가 아니라 **아직 소리를 못 들은 인사를 화면에 먼저 그린 것**이다.
+        #
+        #   ⇒ 첫 인사 턴에 한해 **오디오 첫 바이트가 오기 전의 자막을 붙잡는다.**
+        #     소리가 오면 붙잡아 둔 것을 즉시 흘리고 그 뒤로는 평소대로 스트리밍한다.
+        #     벙어리로 끝나면 붙잡은 채로 버려진다 — 유령 자막이 안 뜬다.
+        #
+        #   ⚠ 비용이 0에 가깝다는 근거: 실측 111건 중 110건이 **오디오가 전사보다
+        #     0~2ms 먼저** 온다(`전사-오디오=+0ms` 53건 · `+1ms` 55건 · `+2ms` 2건).
+        #     즉 정상 턴에서는 붙잡는 순간이 아예 없거나 2ms다. 최대값도 29ms 1건뿐.
+        #   ⚠ 인사 구간에만 건다 — `learner_spoke` 이후엔 이 경로를 안 탄다. 통화 중
+        #     자막이 늦어지는 일은 없다.
+        if _greeting_subtitle_on_hold(state):
+            state.greeting_held_text.append(text)
+            state.cur_beaver_text.append(text)   # 저장·분석은 그대로 받는다
+            logger.info("normalcall 🦫 beaver(자막보류·소리대기): %s", text)
+            return turn_started
+        if state.greeting_held_text:
+            # 소리가 왔다 = 벙어리가 아니다 ⇒ 붙잡아 둔 자막을 한 번에 흘린다.
+            held = "".join(state.greeting_held_text)
+            state.greeting_held_text.clear()
+            await _send_json(
+                client_ws, ServerOutputTranscript(text=held, turn_id=state.turn_id)
+            )
         await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=state.turn_id))
         if text:
             state.cur_beaver_text.append(text)
@@ -3062,6 +3138,15 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
                 "%+.0fms" % ((t - a) * 1000) if (a and t) else "한쪽만",
                 "있음" if t else "없음", "있음" if a else "없음",
             )
+        # ⛔ 붙잡아 둔 인사 자막은 **여기서 버린다.** 소리가 왔다면 위에서 이미 흘렀고,
+        #   안 왔다면 그게 벙어리 턴이라 화면에 그리면 안 된다(재시드가 다시 말한다).
+        #   다음 턴으로 새면 엉뚱한 턴에 옛 인사가 붙는다.
+        if state.greeting_held_text:
+            logger.info(
+                "normalcall: 벙어리 인사 자막 %d조각 폐기(소리 없이 턴 종료) turn=%s",
+                len(state.greeting_held_text), turn_id,
+            )
+            state.greeting_held_text.clear()
         state.face_first_audio_at = 0.0
         state.face_first_tr_at = 0.0
         await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
@@ -3334,6 +3419,66 @@ def _reground_gap_s(state: _CallState) -> float:
     """
     return max(REGROUND_GAP_MIN_S, min(REGROUND_GAP_MAX_S,
                                        state.call_duration_s / REGROUND_GAP_DIVISOR))
+
+
+async def _attach_reground(session: LiveSessionProtocol, state: _CallState, where: str) -> None:
+    """대기 중인 재접지를 지금 얹는다. **두 자리(마이크/전사)가 이 한 곳을 공유한다.**
+
+    ⛔ 가드를 여기 모아 둔 이유 — 자리가 늘 때마다 가드를 베껴 쓰면 언젠가 하나가 빠진다.
+      이 프로젝트가 이미 겪은 실패다(`build_system_instruction` 인자 누락 3회).
+    ⛔ 가드①(핵심 안전): should_close/close_seed_sent 면 절대 안 얹는다 — 종료 근처에
+      얹으면 작별 턴이 오염된다(174/178 재발).
+    ⛔ 가드②: 대기 중인 arm 하나당 정확히 1회. `reground_pending` 을 await **전에** 내린다.
+      ⚠ 옛 게이트(`reground_injected`, 통화당 1회성)를 쓰지 마라 — 중반에 한 번 얹히면
+        True 로 굳어 **후반 리마인더가 영영 안 얹혔다**. 횟수 상한은 arm 쪽이 건다.
+    """
+    if not (state.reground_pending and state.reground_reminder):
+        return
+    if state.should_close or state.close_seed_sent:
+        return
+    state.reground_pending = False    # await 전 선점(단일 소유권)
+    state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
+    state.reground_count += 1
+    state.last_reground_ts = asyncio.get_running_loop().time()
+    try:
+        await session.send_reground(state.reground_reminder, turn_complete=False)
+        logger.info(
+            "normalcall: 재접지 얹기(자리=%s, 근거=%s, %d회째, tc=False, 통로=%s, 비버턴=%s)",
+            where, state.reground_arm_reason, state.reground_count,
+            REGROUND_TRANSPORT, state.turn_id or "(열린 턴 없음)",
+        )
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
+        logger.warning("normalcall: 재접지 얹기 실패(무시): %s", exc)
+
+
+async def _maybe_attach_reground_on_mic(
+    session: LiveSessionProtocol, state: _CallState, data: bytes,
+) -> None:
+    """업링크 마이크 프레임에 재접지를 얹는다 — **비버가 확실히 침묵인 자리.**
+
+    ## 왜 이 자리인가
+    이 함수가 불리는 지점은 `data and state.turn_id is None` 을 이미 통과했다. 그리고
+    클라는 비버 발화중(+소리 꼬리)엔 프레임을 **아예 안 보낸다**(`_micGated`).
+    ⇒ **프레임이 여기 있다 = 클라·서버가 각각 "비버는 안 말한다"를 보증했다.**
+      끊을 것이 없으므로 `interrupted` 가 나도 버릴 턴이 없다.
+
+    ## ⛔ 그런데 "프레임이 왔다"가 "사람이 말한다"는 아니다
+    클라는 마이크를 **상시** 보낸다 — 클라에도 VAD 가 있지만 계측 전용이고 전송을 안 거른다
+    (`normalcall_controller.dart:2447` 주석이 못박아 뒀다). 침묵 프레임에 얹으면 비버가
+    쪽지만 보고 **혼자 말한다.** 그래서 서버가 RMS 로 직접 본다.
+
+    ⚠ **핫패스다**(초당 45~90프레임). RMS 는 `reground_pending` 일 때만 계산한다 —
+      대기 중이 아닐 때의 비용은 불린 검사 하나다(R4).
+    """
+    if not (state.reground_pending and state.reground_reminder):
+        return
+    if state.should_close or state.close_seed_sent:
+        return
+    if frame_rms(data) < REGROUND_VOICE_RMS:
+        return  # 아직 침묵 — 사람이 입을 열 때까지 들고 기다린다
+    await _attach_reground(session, state, "마이크")
 
 
 def _reground_due(state: _CallState, now: float) -> str:

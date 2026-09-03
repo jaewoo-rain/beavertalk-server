@@ -149,8 +149,14 @@ class FakeWebSocket:
         self.client_state = WebSocketState.CONNECTED
 
     async def receive(self) -> dict:
-        if self._incoming:
-            return self._incoming.pop(0)
+        while self._incoming:
+            item = self._incoming.pop(0)
+            # ⭐ 호출가능이면 **지연·부수효과**로 본다(Gemini 쪽 _RegroundFake 와 같은 관용).
+            #   마이크 프레임을 "arm 이 선 뒤"에 흘려보내려면 시간을 표현할 수 있어야 한다.
+            if callable(item):
+                await item()
+                continue
+            return item
         if self._hang:  # 클라 발화 없는 소강 구간 재현 — 취소될 때까지 대기
             await asyncio.Event().wait()
         return {"type": "websocket.disconnect"}
@@ -846,6 +852,11 @@ async def test_late_reminder_actually_attaches_not_just_arms(session_factory, se
     문구의 개수**를 센다.
     """
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    # ⛔ 이 테스트는 **옛 자리(입력 전사)** 를 지킨다 — 되돌릴 길이 살아 있는지 보는 것이다.
+    #   기본 자리는 2026-09-02 에 "mic_open" 으로 옮겼다(전사는 비버 답과 같이 오는 늦은
+    #   보고서라 얹는 순간 비버가 이미 입을 연 뒤일 수 있다 — 실측 82회 중 6회 잘림).
+    #   새 자리의 같은 성질은 test_reground_attaches_twice_on_mic_frames 가 지킨다.
+    monkeypatch.setattr(cs, "REGROUND_ATTACH_AT", "first")
     _arm_fast(monkeypatch)
 
     async def pause(_f):
@@ -867,6 +878,71 @@ async def test_late_reminder_actually_attaches_not_just_arms(session_factory, se
 
     assert len(fake.regrounds) >= 2, \
         f"재접지가 통화당 1회로 굳었다(후반 드리프트 방어 소실): {len(fake.regrounds)}회"
+    assert all(tc is False for _t, tc in fake.regrounds), "얹기가 완결 턴으로 샜다"
+
+
+@pytest.mark.asyncio
+async def test_reground_attaches_twice_on_mic_frames(session_factory, seeded, monkeypatch):
+    """⛔ **새 자리(마이크 프레임)에서도** 통화당 재접지가 2회 이상 실제로 얹힌다.
+
+    ## 왜 자리를 옮겼나
+    옛 자리는 입력 전사(`in_tr`)였는데, 그건 **늦게 오는 보고서**다. 실측(2026-09-02,
+    재접지 82회 전수): 얹기 직후 0.5초 안에 `interrupted` 43회(52%), 그중 비버 턴이
+    열려 있던 것 6회 = 대사가 잘렸다. 한 건을 밀리초로 펼치면
+        09:50:57.387 얹기 → .390 비버 턴 시작(3ms) → .456 interrupted
+    원인은 우리 로그가 매 턴 찍고 있었다: "⛔끝기준 무의미(전사가 응답과 동시 도착)".
+    ⇒ Gemini 는 전사를 우리한테 보내주는 걸 기다렸다 답을 만들지 않는다.
+
+    ⭐ 마이크 프레임은 다르다 — **도착 자체가 비버 침묵의 증거**다(클라 `_micGated` +
+      서버 `turn_id is None`). 끊을 것이 없는 자리다.
+
+    ⚠ 이 테스트가 지키는 것은 옛 테스트와 **같은 성질**이다 — 통화당 1회로 굳지 않는가.
+      그 결함(`reground_injected` 를 게이트로 쓴 것)이 후반 드리프트 방어를 죽였었다.
+    """
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    monkeypatch.setattr(cs, "REGROUND_ATTACH_AT", "mic_open")
+    _arm_fast(monkeypatch)
+
+    # 정규화 RMS 가 임계(0.02)를 확실히 넘는 프레임 = "사람이 입을 열었다"
+    loud = b"".join((6000).to_bytes(2, "little", signed=True) for _ in range(320))
+    quiet = bytes(640)   # 완전한 침묵 — 여기에 얹으면 비버가 혼자 말한다
+
+    async def wait_for_arm():
+        await asyncio.sleep(0.35)   # arm 워처가 설 시간(간격 0.05s)
+
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive",
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+         wait_for_arm,
+         {"type": "websocket.receive", "bytes": quiet},   # 침묵 — 얹히면 안 된다
+         {"type": "websocket.receive", "bytes": loud},    # 1회차
+         wait_for_arm,
+         {"type": "websocket.receive", "bytes": loud},    # 2회차
+         ],
+        hang=True,
+    )
+
+    async def hold(_f):
+        await asyncio.sleep(2.0)   # 마이크 프레임이 흐르는 동안 Gemini 펌프를 살려 둔다
+
+    # ⛔ 비버 턴이 한 번은 있어야 한다 — `call_start_ts`(첫 turn_start)가 서야 arm 워처가
+    #   돈다(`_reground_watch` 가 그 값을 기다린다). 없으면 재접지가 영원히 arm 되지 않는다.
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="안녕"),
+        LiveEvent(kind="turn_end"),
+        hold,
+    ])
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, *, system_instruction, voice):
+        yield fake
+
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+
+    assert len(fake.regrounds) >= 2,         f"마이크 자리에서 재접지가 통화당 1회로 굳었다: {len(fake.regrounds)}회"
     assert all(tc is False for _t, tc in fake.regrounds), "얹기가 완결 턴으로 샜다"
 
 

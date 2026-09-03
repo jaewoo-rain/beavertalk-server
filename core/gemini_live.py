@@ -321,6 +321,31 @@ class GeminiLiveSession:
           ⚠ 오디오 VAD 턴 + client_content 병합은 Gemini 공식 보장 아님(미정의) → 실측 검증 필요.
           반드시 종료 구간 밖(should_close/close_seed_sent 아님)에서만 호출(늦은 얹기=작별 오염).
         """
+        # ⭐⭐ **통로를 가른다**(2026-09-02). `LIVE_REGROUND_TRANSPORT` 참조.
+        #
+        #   ⛔ `client_content` 는 **설계상** 진행 중 생성을 끊는다 — SDK 원문(types.py:20271):
+        #     "A message here will interrupt any current model generation."
+        #     `turn_complete` 와 무관하다. 실측 재접지 64회 중 43회에 `interrupted` 가
+        #     따라왔고, 그중 6회는 열린 턴이 있어 **비버 대사가 8~31자에서 잘렸다**
+        #     ("Not bad!" · "Right. What" · "Alright, study mode then! Let's").
+        #
+        #   ⛔ 그리고 3.1 에서는 금지된 용법이다. 공식 문서가 모델별로 갈라 놨다 —
+        #     3.1 은 "send_client_content is **only** supported for seeding initial
+        #     context history … use send_realtime_input instead".
+        #
+        #   ⭐ RealtimeInput 은 "can be sent continuously **without interruption to
+        #     model generation**" 이다. 그게 우리가 원하는 성질이다.
+        #
+        #   ⚠ **되돌릴 수 있게 둘 다 남긴다** — realtime text 가 조용히 적재되는지,
+        #     즉시 응답을 촉발하는지 문서가 침묵한다. 촉발하면 이중발화가 난다.
+        #     실측이 나쁘면 env 한 줄로 `client_content` 로 돌아간다(재빌드 불필요).
+        #   ⚠ `turn_complete` 는 realtime 경로에 **해당 개념이 없다.** RealtimeInput 의
+        #     턴 경계는 사용자 활동(발화 종료)에서 오지 우리가 정하지 않는다.
+        #     ⇒ `turn_complete=True` 로 "지금 답해라"를 요구하는 호출부
+        #       (`legacy_idle`)는 그 뜻이 사라지므로 **client_content 를 그대로 쓴다**.
+        if settings.LIVE_REGROUND_TRANSPORT == "realtime" and not turn_complete:
+            await self._session.send_realtime_input(text=text)
+            return
         await self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
             turn_complete=turn_complete,

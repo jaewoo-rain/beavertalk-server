@@ -61,6 +61,31 @@ def _window_rms(pcm: bytes, start: int, end: int) -> float:
     return (total / n) ** 0.5 if n else 0.0
 
 
+def frame_rms(pcm: bytes, *, stride: int = 8) -> float:
+    """PCM16 프레임의 정규화 RMS(0~1). "지금 사람이 말하고 있나"의 게이트용.
+
+    ⚠ [_window_rms] 와 달리 **표본을 건너뛴다**(stride). 게이트 판정에 정밀도는 필요 없고,
+      부르는 자리가 통화 업링크(초당 45~90프레임)라 전 샘플을 도는 비용을 못 낸다.
+    ⚠ 파이썬 3.13 에서 audioop 이 제거돼 순수 파이썬으로 잰다.
+
+    ⛔ `cascade_session._frame_rms` 가 같은 계산을 따로 갖고 있다(같은 stride·같은 산식).
+      임계나 산식을 손보면 **두 곳을 같이** 봐라 — 한쪽만 고치면 두 엔진의 발화 판정이
+      말없이 갈라진다.
+    """
+    n = len(pcm) // 2
+    if n == 0:
+        return 0.0
+    total = 0.0
+    count = 0
+    for i in range(0, n, stride):
+        sample = int.from_bytes(pcm[i * 2 : i * 2 + 2], "little", signed=True)
+        total += sample * sample
+        count += 1
+    if not count:
+        return 0.0
+    return (total / count) ** 0.5 / 32768.0
+
+
 def upsample_16k_to_24k(pcm: bytes) -> bytes:
     """PCM16 16kHz → 24kHz. **2:3 정수비**라 부동소수 리샘플러가 필요 없다.
 
