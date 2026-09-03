@@ -1001,6 +1001,30 @@ def test_covered_labels_keep_l1_farewell_chunks():
     assert "이미 다룬 것: " + " / ".join(labels) in out
 
 
+def test_brief_does_not_order_an_interest_question_in_study_mode():
+    """⛔⛔ 재접지 주입문의 **마지막 줄**이 공부 통화에서 잡담을 지시하고 있었다(2026-09-03).
+
+    옛 문구는 모드와 무관하게 "학습자가 흥미를 느낄 새 질문을 하나 던져 대화를 더 끌고
+    가라"였다. 실측 3통이 전부 **재접지 주입 직후** 이탈했고, 이탈 질문이 셋 다 취향 질문이다:
+      1284 얹기 03:17:13 → t11 "혹시 꽃을 피우는 걸 본 적 있어?"
+      1286 얹기 04:12:33 → t9  "Do you like gardening?"
+      1287 얹기 04:44:27 → t9  "qlqj는 무슨 과일을 좋아해요?"
+    ⭐ 시스템 지시문(규칙 1·3·공부 블록)을 세 번 고쳐도 안 먹은 이유가 이것이다 — 경쟁
+      상대가 시스템 지시문이 아니라 **방금 대화에 꽂힌 턴**이었다.
+    ⛔ 대화 모드 문구는 **바이트 그대로** 둔다(그쪽에선 흥미 질문이 옳은 행동이다).
+    """
+    from core.persona_prompt import build_reground_brief
+
+    study = build_reground_brief("선생님", "다정함", mode="study")
+    assert "흥미를 느낄 새 질문" not in study, "공부 재접지가 여전히 흥미 질문을 지시한다"
+    assert "소리 내어 말하게 하는 요청" in study
+    # 전진 지시 성질 유지(금지어만 남기면 마무리 드리프트를 못 막는다)
+    assert "이어가라" in study
+
+    chat = build_reground_brief("선생님", "다정함", mode="chat")
+    assert "학습자가 흥미를 느낄 새 질문을 하나 던져 대화를 더 끌고 가라" in chat
+
+
 def test_brief_leads_with_react_to_user_first():
     """주입은 약 250 토큰으로 사용자의 한마디보다 크다 — '유저에게 먼저 반응' 지시가 앞에 없으면
     비버가 유저를 무시하고 주입 텍스트에 응답한다(문맥 없는 화제 전환)."""
