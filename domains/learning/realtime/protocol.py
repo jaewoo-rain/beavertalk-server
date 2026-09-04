@@ -85,6 +85,15 @@ class ClientStart(BaseModel):
     #   ⛔ 검증은 서버 몫이다: 본인 통화인가 · TTL(5분) 안인가 · 조각 상한을 안 넘겼나.
     #     남의 call_id 를 들고 와도 통과하면 안 된다.
     continues_call_id: str | int | None = None
+    # (선택) 이 통화가 수행하는 **과제 id**. 숙제 상세의 회화 카드에서 시작한
+    # 통화만 보낸다. 서버는 그 과제의 목표 표현을 대화 유도에 주입한다.
+    #
+    # ⛔ 검증은 **B2B 서비스**가 한다 — 남의 과제 id 를 들고 와도 그 반 명단에
+    #    없으면 빈 목표가 온다(통화는 그대로 진행). 통화를 막지 않는 이유는 이
+    #    값이 통화의 **성립 조건이 아니라 재료**이기 때문이다.
+    # ⚠ 타입이 str 도 받는 이유는 `continues_call_id` 와 같다 — 앱이 문자열로
+    #    보내도 서버가 int 로 바꾼다.
+    assignment_id: str | int | None = None
     character_id: int | None = None
     inbound_call_id: str | None = None
     locale: str | None = None

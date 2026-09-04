@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     SPEECH_SUPER_SECRET_KEY: str | None = None
     SPEECH_SUPER_CORETYPE: str = "sent.eval.kr"  # 한국어 문장 평가
 
+    # ── B2B 교실 서비스 (2026-09-02 분리) ──
+    # 과제 통화의 회화 목표를 여기에 묻는다. 교실 테이블은 이 서버가 읽지 않는다.
+    # ⛔ 둘 중 하나라도 비면 조회를 건너뛰고 **평소 선별로 통화가 진행된다** —
+    #    막지 않는다. 회화 목표는 통화의 성립 조건이 아니라 재료다.
+    B2B_API_BASE_URL: str | None = None
+    B2B_SERVICE_TOKEN: str | None = None
+
     # ── 국적 분류 (외부 오디오 국적 추론 API) ──
     # 미설정이면 core.nationality 가 조용히 비활성(None 반환) — 통화·분석 무영향(R5).
     NATIONALITY_API_URL: str | None = None      # 예: http://<tailscale-host>:<port>
