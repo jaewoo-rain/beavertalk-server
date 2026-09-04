@@ -124,6 +124,51 @@ CALL_DURATION_S_BY_PLAN: dict[str | None, float] = {
 FREE_CALL_DURATION_S = CALL_DURATION_S_BY_PLAN[None]
 
 
+# ── 플랜별 통화 종류: 영상(표정 O) vs 음성(표정 X) ──────────────────────────
+# ⭐ 사장님 지시(2026-09-04): "max 만 영상통화. free·pro 는 모두 음성통화.
+#   모델 가르는 이유는 원가 절감."
+#
+# ⛔ **빈 dict 아님 · 모르는 플랜은 Free 로 떨어뜨린다**(R5, 위 조각 표와 같은 규율).
+#   "모르면 싸게 준다"가 안전하다 — 잘못 열어 원가가 새는 것보다 낫다.
+# ⛔ 판정은 `effective_plan` **하나로만** 간다. 상태(state)와 플랜(plan)은 다른 축이라
+#   (grace/on_hold/ending 은 직전 플랜을 유지한다) 상태 문자열을 직접 보면 앱과 갈라진다.
+CALL_VIDEO_BY_PLAN: dict[str | None, bool] = {
+    None: False,   # Free — 음성
+    "pro": False,  # Pro  — 음성
+    "max": True,   # Max  — 영상(표정)
+}
+
+# 플랜별 Live 모델. 표정을 쓰는 영상통화만 3.1 로 간다.
+# ⚠ 값 자체는 `settings` 가 갖는다 — 모델 id 를 두 곳에 적으면 언젠가 갈라진다.
+CALL_LIVE_MODEL_BY_PLAN: dict[str | None, str] = {
+    None: "voice", "pro": "voice", "max": "video",
+}
+
+
+def call_video_for(db: Session, member_id: int) -> bool:
+    """이 회원이 **영상통화(표정)** 대상인가. 모르면 False(음성).
+
+    ⚠ 이 값이 곧 `face_tool` 이다 — 표정 도구를 지시문·세션에 실을지가 여기서 갈린다.
+      실측: 도구를 빼면 지시문이 1,058자(≈423토큰) 준다. Live 는 매 턴 전액 재과금이라
+      20메시지 통화면 그 몫만 ≈8,460토큰이다(통화 1289 기준).
+    """
+    return CALL_VIDEO_BY_PLAN.get(effective_plan(db, member_id), CALL_VIDEO_BY_PLAN[None])
+
+
+def live_model_for(db: Session, member_id: int) -> str:
+    """이 회원의 통화에 쓸 Live 모델 id. 모르면 음성 모델.
+
+    ⛔ 모델 id 문자열을 여기서 쓰지 마라 — settings 가 원본이다(`LIVE_MODEL_VOICE/VIDEO`).
+    ⚠ 설정이 비어 있으면 종전 `GEMINI_LIVE_MODEL` 로 떨어진다(하위호환 — 플랜 기능을
+      끄고 싶으면 두 설정을 비우면 종전 동작 그대로다).
+    """
+    kind = CALL_LIVE_MODEL_BY_PLAN.get(
+        effective_plan(db, member_id), CALL_LIVE_MODEL_BY_PLAN[None]
+    )
+    picked = settings.LIVE_MODEL_VIDEO if kind == "video" else settings.LIVE_MODEL_VOICE
+    return picked or settings.GEMINI_LIVE_MODEL
+
+
 def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, datetime]:
     """클라 로컬 하루 → UTC 반열린 구간 [start, end).
 

@@ -550,7 +550,7 @@ class _CallState:
         # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
         "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
         # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
-        "input_language_codes",
+        "input_language_codes", "live_model",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
@@ -723,6 +723,9 @@ class _CallState:
         self.band_target_language: str = _DEFAULT_TARGET_LABEL
         # 입력 전사에 들릴 언어(학습 언어 + 모국어). 빈 목록 = 힌트 없음(자동 감지).
         self.input_language_codes: list[str] = []
+        # ⭐ 이 통화에 쓸 Live 모델(플랜에서 갈린다). None 이면 어댑터 기본값.
+        #   Max=영상(3.1·표정) / Free·Pro=음성(2.5·표정없음) — call_service.live_model_for
+        self.live_model: str | None = None
         self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
         self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
@@ -1132,8 +1135,19 @@ async def _persist_usage(db_session_factory, state: _CallState, call_id: int | N
             db_session_factory,
             # ⛔ 엔진 태그는 **반드시** 넘긴다. 이게 비면 나중에 캐스케이드 행과 섞여
             #   "어느 엔진의 원가인지" 되짚을 수 없게 된다(계약: models/call.py usage_engine).
+            # ⭐⭐ **모델을 태그에 싣는다**(2026-09-04). 플랜에 따라 2.5/3.1 이 갈리는데
+            #   종전 태그(`live:gemini-native-audio`)는 모델을 안 담아 **두 모델의 통화가
+            #   같은 문자열로 섞였다** — "2.5 로 내린 게 얼마 아꼈나"를 DB 로 못 묻는다.
+            #   ⛔ `ENGINE_LIVE_GEMINI` 상수는 **안 건드린다** — 캐스케이드와 공유하는
+            #     계약이고, 원가 분기가 `startswith("cascade:")` 라 접두사만 지키면 된다.
+            #   ⇒ `build_engine_tag("live", <모델id>)` = "live:gemini-3.1-flash-live-preview"
+            #   ⚠ 모델을 모르면(재개 세대 등) 종전 상수로 떨어진다 — 값이 비는 것보다 낫다.
             lambda db: svc.save_call_usage(
-                db, call_id, summary, engine=svc.ENGINE_LIVE_GEMINI
+                db, call_id, summary,
+                engine=(
+                    svc.build_engine_tag("live", state.live_model)
+                    if state.live_model else svc.ENGINE_LIVE_GEMINI
+                ),
             ),
         )
     except Exception as exc:  # noqa: BLE001 - 계기판 저장 실패가 통화를 죽이면 안 된다(R5)
@@ -1309,6 +1323,10 @@ async def run_call(
     # 이 통화 전용 종료 태그(난수). ⚠ system_instruction 과 종료 시드가 **같은 값**을 써야
     # 한다 — 어긋나면 비버가 종료 신호를 못 알아보고 작별 없이 백스톱으로 끊긴다.
     close_tag = new_close_tag()
+    # ⭐ 플랜에서 고를 Live 모델. **두 분기 앞에서** 선언한다 — 레벨테스트 경로는 아래
+    #   플랜 분기를 안 타므로, 여기 없으면 state 대입에서 UnboundLocalError 가 난다.
+    #   ⚠ None 이면 어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작 그대로).
+    live_model: str | None = None
     if call_type == "level_test":
         # 레벨테스트 대본 — 레벨/이력 슬롯 없는 전용 셋업(회원당 사실상 1회라 재조회 비용 수용).
         lt_setup = await svc.run_db(
@@ -1332,6 +1350,30 @@ async def run_call(
         # 재료를 주입하지 않는다(무의미). ko 는 has_curriculum=True 라 기존 경로 그대로.
         inject_materials = spec.has_curriculum
         level_profile = setup["level_profile"] if inject_materials else ""
+        # ⭐⭐ **플랜이 통화 종류를 정한다**(2026-09-04 사장님 지시).
+        #   Max → 영상통화(표정 O · 3.1) / Free·Pro → 음성통화(표정 X · 2.5)
+        #   ⛔ 판정은 `effective_plan` 을 쓰는 두 함수 하나씩으로만 간다 — 상태(state)와
+        #     플랜(plan)은 다른 축이라(grace/on_hold/ending 은 직전 플랜을 유지) 상태
+        #     문자열을 직접 보면 앱(`impliedTier`)과 판정이 갈린다.
+        #   ⚠ 실패는 Free 로 떨어진다(R5) — 모르면 싸게 주는 편이 안전하다.
+        # ⛔ DB 는 이 자리에 `db` 로 없다 — 이 함수는 동기 세션을 직접 안 들고
+        #   `svc.run_db(db_session_factory, lambda db: ...)` 로 스레드풀에 넘긴다
+        #   (위 resolve_call_character·load_call_setup 과 같은 규약). 안 지키면 NameError 다.
+        # ⚠ 한 번의 run_db 로 **둘을 같이** 읽는다 — 두 번 부르면 그 사이 구독이 바뀔 때
+        #   «영상은 주는데 모델은 음성» 같은 어긋난 조합이 나온다.
+        wants_video, live_model = await svc.run_db(
+            db_session_factory,
+            lambda db: (
+                call_service.call_video_for(db, member_id),
+                call_service.live_model_for(db, member_id),
+            ),
+        )
+        # ⛔ `state` 는 **아직 없다**(1457행에서 만들어진다). 여기선 지역변수로 들고
+        #   있다가 state 가 생긴 뒤에 싣는다 — 여기서 대입하면 UnboundLocalError 다.
+        logger.info(
+            "normalcall 플랜분기: 영상=%s 모델=%s (표정차단기=%s)",
+            wants_video, live_model, settings.LIVE_FACE_SPIKE,
+        )
         system_instruction = build_system_instruction(
             role=setup["role"],
             personality=setup["personality"],
@@ -1347,8 +1389,16 @@ async def run_call(
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
             lang_band=setup.get("lang_band", "beginner"),
             close_tag=close_tag,
-            # ⭐ 계측 스파이크(2026-08-18). 꺼져 있으면 지시문이 **바이트 동일**하다.
-            face_tool=bool(settings.LIVE_FACE_SPIKE),
+            # ⭐⭐ **플랜이 표정을 정한다**(2026-09-04). Max=영상통화(표정 O) /
+            #   Free·Pro=음성통화(표정 X). 판정은 `call_service.call_video_for` 하나로 간다
+            #   — 상태(state)와 플랜(plan)은 다른 축이라 상태 문자열을 직접 보면 앱과 갈라진다.
+            #
+            #   ⛔ `LIVE_FACE_SPIKE` 는 이제 **비상 차단기**다. 켜져 있어도 플랜이 아니면
+            #     안 준다. 반대로 끄면 Max 도 못 받는다(사고 시 전원 차단용).
+            #     ⚠ 의미가 바뀌었다 — 예전엔 "표정 기능 자체의 on/off" 였다.
+            #   ⚠ 표정을 빼면 지시문이 1,058자(≈423토큰) 준다(실측). Live 는 매 턴 전액
+            #     재과금이라 20메시지 통화면 그 몫만 ≈8,460 토큰이다(통화 1289 기준).
+            face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video,
         )
         seed_text = seed_opening(target_language)
         voice = setup["voice"]
@@ -1410,6 +1460,10 @@ async def run_call(
     )
 
     state = _CallState()
+    # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
+    #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
+    #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
+    state.live_model = live_model
     if resumed:
         # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
         #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
@@ -2022,6 +2076,11 @@ async def _run_one_generation(
     #   시그니처를 가진 테스트용 가짜 팩토리가 전부 깨진다.
     if state.input_language_codes:
         factory_kwargs["input_language_codes"] = state.input_language_codes
+    # ⭐ 플랜별 모델(2026-09-04). 위와 **같은 규율** — 값이 있을 때만 넘긴다.
+    #   ⛔ 항상 넘기면 엄격한 시그니처를 가진 테스트용 가짜 팩토리가 전부 깨진다.
+    #   ⚠ 고르는 곳은 `call_service.live_model_for` 하나다. 여기선 실어 나르기만 한다.
+    if state.live_model:
+        factory_kwargs["model"] = state.live_model
     async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도

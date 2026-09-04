@@ -106,6 +106,18 @@ class Settings(BaseSettings):
     GCP_LOCATION: str = "us-central1"              # Vertex 리전
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
     GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
+    # ⭐⭐ **플랜별 모델**(2026-09-04). 영상통화(Max)만 표정을 쓰므로 그 모델만 3.1 로 간다.
+    #
+    #   Free·Pro → 음성통화 → 표정 없음 → VOICE 모델
+    #   Max      → 영상통화 → 표정 있음 → VIDEO 모델
+    #
+    #   ⛔ `GEMINI_LIVE_MODEL` 은 **폐기하지 않는다** — 아래 둘이 비어 있을 때의 폴백이고,
+    #     레벨테스트·캐스케이드 등 플랜을 모르는 호출부가 아직 그것을 본다. 두 값을 다
+    #     비워 두면 종전 동작 그대로다(하위호환).
+    #   ⚠ 값을 여기서 고르지 마라 — 고르는 곳은 `call_service.live_model_for()` 하나다.
+    #     두 곳에서 고르면 언젠가 갈라진다.
+    LIVE_MODEL_VOICE: str = "gemini-live-2.5-flash-native-audio"
+    LIVE_MODEL_VIDEO: str = "gemini-3.1-flash-live-preview"
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
 
     # Live 컨텍스트 압축(build_live_config). trigger 에 닿으면 target 만 남기고 오래된

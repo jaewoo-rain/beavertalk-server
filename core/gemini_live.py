@@ -592,12 +592,18 @@ async def open_session(
     tools: Optional[list[types.Tool]] = None,
     resume_handle: Optional[str] = None,
     input_language_codes: Optional[list[str]] = None,
+    model: Optional[str] = None,
 ) -> AsyncIterator[GeminiLiveSession]:
     """normalcall Gemini Live 세션을 열고 래퍼를 yield 하는 async 컨텍스트 매니저.
 
     config 는 build_live_config 가 구성, system_instruction/voice 는 호출부(realtime)가 조립.
     tools 기본 None → 일반 통화 무영향. 레벨테스트만 [LEVELTEST_DONE_TOOL] 을 넘긴다.
     input_language_codes 기본 None → 입력 전사는 종전대로 자동 감지(바이트 동일).
+    model 기본 None → `settings.GEMINI_LIVE_MODEL`(종전 동작 그대로).
+
+    ⭐ model 을 **인자로** 받는 이유(2026-09-04): 플랜에 따라 모델이 갈린다
+      (Max=영상 3.1 / Free·Pro=음성 2.5). 어댑터는 도메인을 모르므로 **고르는 일은
+      호출부(realtime)가 하고 여기는 받기만 한다** — system_instruction·voice 와 같은 규율.
 
     ⚠ 통화 1건 = 세션 1개가 **아니다**(2026-08-04부터). Gemini 연결 수명이 ~10분이라
       15분 통화는 연결을 갈아끼워야 한다. call_session 의 세대 루프가 이 컨텍스트 매니저를
@@ -618,9 +624,10 @@ async def open_session(
     # connect 직전에 공유 creds 가 만료됐으면 강제로 새 토큰을 발급한다. api_key(AI Studio)
     # 클라이언트엔 _credentials 가 없어 자동으로 건너뛴다(graceful).
     await _ensure_fresh_credentials(client)
-    logger.info("normalcall Live 연결 시도: model=%s voice=%s", settings.GEMINI_LIVE_MODEL, voice)
+    live_model = model or settings.GEMINI_LIVE_MODEL
+    logger.info("normalcall Live 연결 시도: model=%s voice=%s", live_model, voice)
     async with client.aio.live.connect(
-        model=settings.GEMINI_LIVE_MODEL,
+        model=live_model,
         config=config,
     ) as raw_session:
         logger.info("normalcall Live 세션 연결됨")

@@ -3398,8 +3398,10 @@ async def test_live_call_stamps_its_engine(session_factory, seeded):
     db = session_factory()
     try:
         call = db.query(Call).order_by(Call.call_id.desc()).first()
-        assert call.usage_engine == "live:gemini-native-audio", \
+        assert call.usage_engine, \
             "Live 통화에 엔진 태그가 안 남았다 — 캐스케이드와 섞이면 구별 불가"
+        assert call.usage_engine.startswith("live:"), \
+            f"접두사가 깨지면 원가가 캐스케이드 단가로 샌다: {call.usage_engine!r}"
     finally:
         db.close()
 
