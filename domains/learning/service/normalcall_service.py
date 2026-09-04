@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from core import curriculum_hints, gemini_analysis, storage, tts
+from core import b2b_client, curriculum_hints, gemini_analysis, storage, tts
 from core.audio import (
     INPUT_SAMPLE_RATE,
     OUTPUT_SAMPLE_RATE,
@@ -227,7 +227,7 @@ def _load_member_character(
 
 def load_call_setup(
     db: Session, member_id: int, character_id: int, language: str = "ko",
-    *, chain_call_id: int | None = None,
+    *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
@@ -273,7 +273,7 @@ def load_call_setup(
         try:
             materials = _load_study_materials(
                 db, member_id, level_no, base["locale"], language,
-                chain_call_id=chain_call_id,
+                chain_call_id=chain_call_id, assignment_id=assignment_id,
             )
         except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행
             logger.exception(
@@ -455,9 +455,87 @@ def _study_item_dto(entry: dict, locale: str) -> dict:
     }
 
 
+def _assignment_materials(
+    db: Session, member_id: int, locale: str, language: str, assignment_id: int,
+) -> dict:
+    """숙제 통화 재료 — **교사가 낸 챕터만 본다. 학습자 상태를 하나도 읽지 않는다.**
+
+    평소 통화와 갈라 둔 이유는 숙제가 개인 커리큘럼이 아니기 때문이다. 교사는 「3급
+    5과를 해 오라」고 냈는데 통화가 학습자의 간격반복 큐로 돌면 학습자마다 다른 것을
+    하게 되고, 교사 화면의 수치끼리 비교가 성립하지 않는다.
+
+    ⛔ 여기서 빼는 네 가지는 전부 **학습자 축**이다 — 숙련도 기반 공부 선별 · 아는 문법
+       soft 범위 · 승급 대기 알림 · 기본 검출 후보. 평소 통화는 이것들을 그대로 쓴다
+       (`_load_study_materials`). 두 경로가 섞이면 「반의 숙제」가 다시 개인화된다.
+
+    목표 산정은 B2B 가 한다(`conversation_target_ids` 한 곳). 이 함수는 그 결과를
+    프롬프트 스키마로 옮기기만 한다 — 여기서 다시 고르면 교사가 센 수와 갈린다.
+
+    Returns:
+        `_load_study_materials` 와 같은 네 칸. 과제를 못 받으면 `_EMPTY_MATERIALS` 다.
+        ⛔ **평소 선별로 되돌리지 않는다** — 되돌리면 숙제 통화가 개인 커리큘럼에
+        다시 붙는다. 주입 없는 평범한 대화가 되는 편이 낫다.
+    """
+    ids = b2b_client.conversation_goal_item_ids(
+        member_id, assignment_id=assignment_id, language=language
+    )
+    if not ids:
+        return _EMPTY_MATERIALS
+
+    rows = db.scalars(
+        select(LearningItem).where(
+            LearningItem.item_id.in_(ids),
+            LearningItem.language == language,
+        )
+    ).all()
+    by_id = {r.item_id: r for r in rows}
+    # 교사가 낸 순서를 지킨다 — id 로 다시 정렬하면 학습자와 교사가 다른 순서를 본다.
+    items = [by_id[i] for i in ids if i in by_id]
+    if not items:
+        return _EMPTY_MATERIALS
+
+    study_items = []
+    targets = []
+    for n, item in enumerate(items):
+        ex = mastery_repository.first_example(item)
+        study_items.append({
+            # ⚠ slot 은 번호가 아니라 "main"|"reserve" 다 — persona 가 이 값으로 본편과
+            #   예비를 가른다. 전부 main 으로 주면 한 통화에 10개를 다 밀어 넣게 된다.
+            "slot": "main" if n < mastery_repository.STUDY_MAIN_TOTAL else "reserve",
+            "kind": item.kind,
+            # 상태 축(new/again/review)은 학습자별 이력이라 숙제에는 없다. persona 가
+            # None 이면 옛 렌더로 폴백한다.
+            "state": None,
+            "this_call": False,
+            "obj": item.surface,
+            "ex": ex,
+            "des": _study_des(item, locale),
+            "item_id": item.item_id,
+            "roman": _study_roman(item),
+        })
+        targets.append({
+            "obj": item.surface,
+            "ex": ex,
+            "hint": curriculum_hints.hint_for(item.surface, ex),
+        })
+
+    return {
+        "study_items": study_items,
+        # grammar 는 비운다 — 「아는 문법」은 학습자 숙련도에서 나오는 값이다.
+        "known_items": {"grammar": None, "targets": targets},
+        # 승급은 개인 커리큘럼 축이다. 숙제 통화에서 알리지 않는다.
+        "promotion_notice": False,
+        # 검출 후보도 과제 항목뿐이다 — 기본 후보(`load_default_candidates`)는 학습자 축이다.
+        "candidates": [
+            mastery_repository.to_candidate(item, injected=True) for item in items
+        ],
+    }
+
+
+
 def _load_study_materials(
     db: Session, member_id: int, level_no: int, locale: str, language: str = "ko",
-    *, chain_call_id: int | None = None,
+    *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
     """체크판 통화 재료를 1회에 선별한다(mechanics ① 3-b~e — 통화 중 DB 접근 0).
 
@@ -471,6 +549,10 @@ def _load_study_materials(
         select(LearningItem.item_id).where(LearningItem.language == language).limit(1)
     ) is None:
         return _EMPTY_MATERIALS
+
+    # ⭐ 숙제 통화는 여기서 갈라선다 — 아래 선별은 전부 학습자 상태를 읽는다.
+    if assignment_id is not None:
+        return _assignment_materials(db, member_id, locale, language, assignment_id)
 
     # ⑨ 복습 비중 → 복습 슬롯 수(브리지·버벅임 시 확대).
     ratio = mastery_repository.bridge_or_struggle_ratio(db, member_id, language)
