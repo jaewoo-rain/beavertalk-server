@@ -110,6 +110,7 @@
 | 필드 | 타입 | 필수 | 기본값 |
 |---|---|---|---|
 | `t` | `int | null` |  | `null` |
+| `s` | `int | null` |  | `null` |
 
 ### `ready`  (ServerCascadeReady)
 

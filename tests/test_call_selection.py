@@ -527,7 +527,9 @@ def test_a_member_who_learned_everything_still_gets_the_beginner_variant(prod_en
                             lang_band=repo.band_of(1))
     assert "왕초보" in block, "미학습 0개 회원에게 왕초보 모드가 꺼졌다"
     assert "문법 용어(조사·어미·활용·시제 같은 말)를 절대" in block
-    assert "유형별 절차(왕초보):" in block
+    # ⚠ 라벨에 «한 차례에 ①②까지만» 이 붙었다(2026-09-01, 비버 턴 중앙값 13.8초→7.4초).
+    #   여기서 지킬 것은 «왕초보 절차 블록이 실린다» 이지 라벨의 정확한 글자가 아니다.
+    assert "유형별 절차(왕초보" in block
     assert "통문장은 문장을 만들게 하지 말고" in block   # 5단위 확인의 L1 꼬리
     assert "(통문장·다시)" in block                     # 두 축이 함께 실린다
 

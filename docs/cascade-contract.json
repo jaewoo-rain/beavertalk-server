@@ -340,6 +340,13 @@
           "required": false,
           "default": null,
           "alias": null
+        },
+        {
+          "name": "s",
+          "type": "int | null",
+          "required": false,
+          "default": null,
+          "alias": null
         }
       ]
     },
