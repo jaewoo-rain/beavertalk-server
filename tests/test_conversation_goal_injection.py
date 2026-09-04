@@ -226,3 +226,30 @@ def test_토큰을_헤더로_싣고_과제로_좁힌다(monkeypatch):
     assert seen["url"] == "http://b2b/api/v1/internal/members/72/conversation-goals"
     assert seen["params"]["assignment_id"] == 41
     assert seen["headers"]["X-Service-Token"] == "s3cret"
+
+
+# --------------------------------------------------------------------------- #
+# 과제 통화의 언어 — 2026-09-04
+#
+# 09-04 실기기에서 회화 과제 통화가 **조용히 아무 일도 안 했다**(call_id=1290).
+# 계정의 학습 언어가 일본어라 비버가 "오늘 일본어 공부할래…" 로 열었고, B2B 는
+# 언어가 다르면 목표를 빈 배열로 돌려주므로 교사가 낸 표현 10개 중 0건이 실렸다.
+# 교사 화면에는 영원히 「미수행」으로 남는다 — 로그도 안 남는다(호출은 성공했다).
+# --------------------------------------------------------------------------- #
+
+
+def test_과제_통화는_반_커리큘럼_언어로_건다():
+    from domains.learning.realtime.call_session import _call_target_language
+
+    assert _call_target_language("ja", 2) == "ko"
+    assert _call_target_language(None, 2) == "ko"
+    assert _call_target_language("ko", 2) == "ko"
+
+
+def test_평소_통화는_학습자_언어_그대로다():
+    """⛔ 이 예외는 과제 통화에만 걸린다. 평소 통화까지 ko 로 끌면 다국어가 죽는다."""
+    from domains.learning.realtime.call_session import _call_target_language
+
+    assert _call_target_language("ja", None) == "ja"
+    assert _call_target_language("fr", None) == "fr"
+    assert _call_target_language(None, None) is None
