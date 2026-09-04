@@ -56,7 +56,7 @@ from google import genai
 from pydantic import BaseModel
 from sqlalchemy.orm import sessionmaker
 
-from core import audio, gemini_analysis
+from core import audio, b2b_client, gemini_analysis
 from core.audio import (
     INPUT_SAMPLE_RATE,
     SAMPLE_WIDTH_BYTES,
@@ -413,6 +413,34 @@ def _resolve_target_language(settings: Settings, override: Optional[str]) -> Lan
             )
         spec = resolve_language(settings.DEFAULT_TARGET_LANGUAGE) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
     return spec
+
+
+def _call_target_language(
+    member_target_language: Optional[str], assignment_id: Optional[int]
+) -> Optional[str]:
+    """이 통화가 진행될 학습 대상 언어(코드). 과제 통화만 예외다.
+
+    평소 통화는 `member.target_language` 가 **단일 소스**다(위 `run_call` 주석).
+    ⭐ **과제 통화는 반 커리큘럼 언어로 건다**(2026-09-04 사용자 결정).
+
+    학습자가 앱을 일본어 학습으로 두고 있어도 교사가 낸 것은 한국어 과제다.
+    예전에는 통화가 학습자 언어로 걸렸고, B2B 는 언어가 다르면 목표를 빈 배열로
+    돌려주므로(설계대로) **주입이 조용히 0건**이 됐다 — 통화는 평범한 일본어 대화가
+    되고 교사 화면에는 영원히 「미수행」으로 남았다(2026-09-04 실측 call_id=1290:
+    첫마디가 "오늘 일본어 공부할래…" 였고 목표 10개 중 0건이 실렸다).
+
+    ⛔ 평소 통화는 건드리지 않는다 — `assignment_id` 가 실린 통화에만 걸린다.
+    ⚠ 그 언어의 레벨이 없는 학습자는 레벨테스트로 라우팅된다(기존 규칙 그대로).
+    """
+    if assignment_id is None:
+        return member_target_language
+    if member_target_language != b2b_client.CURRICULUM_LANGUAGE:
+        logger.info(
+            "normalcall: 과제 통화(assignment_id=%s) — 언어를 %s 로 고정"
+            " (member.target_language=%s)",
+            assignment_id, b2b_client.CURRICULUM_LANGUAGE, member_target_language,
+        )
+    return b2b_client.CURRICULUM_LANGUAGE
 
 
 def _input_language_codes(target_code: str, locale: str) -> list[str]:
@@ -1224,7 +1252,8 @@ async def run_call(
             "normalcall: start.target_language(%s) 무시 — DB(member.target_language=%s) 사용",
             target_override, member_target_language,
         )
-    spec = _resolve_target_language(settings, member_target_language)
+    call_target_language = _call_target_language(member_target_language, assignment_id)
+    spec = _resolve_target_language(settings, call_target_language)
     target_language = spec.label
 
     # 통화 캐릭터는 **서버가 정한다** — start.character_id 는 무시한다.

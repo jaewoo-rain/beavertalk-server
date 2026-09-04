@@ -30,9 +30,19 @@ logger = logging.getLogger(__name__)
 # ⛔ 늘리지 마라 — 늦게 오는 목표보다 제때 걸리는 전화가 낫다.
 _TIMEOUT = httpx.Timeout(connect=1.0, read=2.0, write=2.0, pool=1.0)
 
+#: 교실 커리큘럼의 언어. B2B 는 한국어 교육기관용이고, 저쪽 `CURRICULUM_LANGUAGE`
+#: 와 같은 값이어야 한다 — 다르면 저쪽이 목표를 빈 배열로 돌려준다.
+#:
+#: 🔴 **과제 통화의 언어이기도 하다**(`call_session.run_call`). 학습자가 앱을 다른
+#:    언어 학습으로 두고 있어도 교사가 낸 과제는 한국어다.
+CURRICULUM_LANGUAGE = "ko"
+
 
 def conversation_goal_item_ids(
-    member_id: int, *, assignment_id: int | None = None, language: str = "ko"
+    member_id: int,
+    *,
+    assignment_id: int | None = None,
+    language: str = CURRICULUM_LANGUAGE,
 ) -> list[int]:
     """이 학습자가 지금 통화에서 써야 할 목표 항목 id.
 
