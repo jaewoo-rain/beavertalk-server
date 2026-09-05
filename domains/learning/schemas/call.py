@@ -124,6 +124,26 @@ class CallResultSentence(BaseModel):
     is_bookmarked: Optional[bool]
 
 
+class CallResultUsedItem(BaseModel):
+    """이 통화에서 학습자가 **스스로 쓴** 커리큘럼 항목 1건.
+
+    ⭐ 2026-09-04 신설. 「학습한 표현」(`sentences`)은 asked·corrected·drilled 셋만
+      세는데, 자유대화를 매끄럽게 하면 셋 다 해당이 없어 결과 화면이 통째로 빈다
+      (실측 call 1294 — 학습자가 한국어로 잘 말했는데 표현 0개).
+      그런데 같은 통화에서 체크판은 항목을 잡아 두고 있었다. **데이터는 있고 화면이
+      안 쓰던 것**이라, 있는 값을 그대로 보여 준다.
+
+    ⛔ 새로 만들지 않는다. `item_evidence` 의 검증 통과분(`verified`)만 옮긴다 —
+       인용은 학습자 발화 원문이고 서버 게이트가 이미 대조했다.
+    """
+
+    item_id: int
+    #: 항목 표면형(예: `가다`).
+    surface: str
+    #: 학습자가 실제로 한 말. 없으면 None — 지어내지 않는다.
+    quote: Optional[str] = None
+
+
 class CallResult(BaseModel):
     """통화 종료 후 결과 화면 — 평균 점수 + 사용된 문장 전체."""
 
@@ -134,3 +154,5 @@ class CallResult(BaseModel):
     rating: Optional[int]
     average: ScoreAverage
     sentences: list[CallResultSentence]
+    #: 이 통화에서 스스로 쓴 커리큘럼 항목. 없으면 빈 배열 — 화면이 칸을 안 그린다.
+    used_items: list[CallResultUsedItem] = []
