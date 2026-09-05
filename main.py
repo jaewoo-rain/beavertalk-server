@@ -36,6 +36,7 @@ from domains.alarm.routers import router as alarm_router
 from domains.commerce.routers import router as commerce_router
 from domains.learning.routers import router as learning_router
 from domains.push.routers import router as push_router
+from domains.classroom.routers import router as classroom_router
 
 API_PREFIX = "/api/v1"
 
@@ -361,6 +362,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(alarm_router, prefix=API_PREFIX)
     app.include_router(learning_router, prefix=API_PREFIX)
     app.include_router(push_router, prefix=API_PREFIX)
+    app.include_router(classroom_router, prefix=API_PREFIX)
 
     # ── (dev 전용) 통화 데모 콘솔 ──
     # ⛔ **"dev 전용"은 의도이지 현실이 아니다.** 실서비스(app-api)의 ENV 는 "prod" 가 아니라

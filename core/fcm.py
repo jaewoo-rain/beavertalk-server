@@ -1,4 +1,4 @@
-"""FCM data-only 발송 어댑터(firebase-admin). 키 없으면 graceful 비활성(앱은 정상).
+"""FCM 발송 어댑터(firebase-admin). 키 없으면 graceful 비활성(앱은 정상).
 
 storage.py/speechsuper.py 규율: DB/도메인을 모르는 순수 어댑터. 서비스계정
 미설정·firebase-admin 미설치·임의 예외를 모두 흡수하고, 발송만 비활성화한다.
@@ -106,4 +106,48 @@ def send_incoming_call(
                 logger.info("FCM 토큰 폐기: %s…", tok[:12])
             else:
                 logger.warning("FCM 발송 실패(일시) %s…: %s", tok[:12], exc)
+    return result
+
+
+def send_notification(
+    *, tokens, title: str, body: str, data: dict[str, str] | None = None
+) -> FcmSendResult:
+    """표시형 알림 멀티캐스트.
+
+    ⛔ `send_incoming_call` 과 섞지 마라. 그쪽은 data-only 라 앱이 CallKit/전화 UI 를 띄운다.
+       숙제 알림을 그 경로로 보내면 학습자 폰이 **울린다.**
+
+    ★ notification 메시지인 이유 — data-only 는 앱이 죽어 있으면 안 뜬다. 알림은 앱을
+      안 열고 있는 사람에게 닿아야 의미가 있다.
+    """
+    app = _ensure_app()
+    if app is None or not tokens:
+        return FcmSendResult()
+    from firebase_admin import messaging
+
+    msg = messaging.MulticastMessage(
+        tokens=list(tokens),
+        notification=messaging.Notification(title=title, body=body),
+        data=dict(data or {}),
+        # 알림은 급하지 않다 — 착신(high)과 달리 normal 로 보낸다.
+        android=messaging.AndroidConfig(priority="normal", ttl=timedelta(hours=12)),
+    )
+    try:
+        resp = messaging.send_each_for_multicast(msg, app=app)
+    except Exception as exc:  # noqa: BLE001 - 발송 실패 graceful
+        logger.warning("FCM 알림 발송 실패: %s", exc)
+        return FcmSendResult()
+    result = FcmSendResult()
+    for tok, r in zip(tokens, resp.responses):
+        if r.success:
+            result.sent += 1
+        else:
+            exc = r.exception
+            if isinstance(
+                exc, (messaging.UnregisteredError, messaging.SenderIdMismatchError)
+            ):
+                result.dead_tokens.append(tok)
+                logger.info("FCM 토큰 폐기: %s…", tok[:12])
+            else:
+                logger.warning("FCM 알림 실패(일시) %s…: %s", tok[:12], exc)
     return result

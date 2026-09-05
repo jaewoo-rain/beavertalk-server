@@ -42,4 +42,11 @@ from domains.alarm.models.schedule import Schedule  # noqa: F401
 from domains.push.models.device_token import DeviceToken  # noqa: F401
 from domains.push.models.push_dispatch_log import PushDispatchLog  # noqa: F401
 
+# classroom (B2B 교사 콘솔)
+from domains.classroom.models.classroom import Classroom  # noqa: F401
+from domains.classroom.models.classroom_member import ClassroomMember  # noqa: F401
+from domains.classroom.models.assignment import Assignment  # noqa: F401
+from domains.classroom.models.submission import Submission  # noqa: F401
+from domains.classroom.models.call_summary_translation import CallSummaryTranslation  # noqa: F401
+
 __all__ = ["Base"]
