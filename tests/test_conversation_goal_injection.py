@@ -253,3 +253,40 @@ def test_평소_통화는_학습자_언어_그대로다():
     assert _call_target_language("ja", None) == "ja"
     assert _call_target_language("fr", None) == "fr"
     assert _call_target_language(None, None) is None
+
+
+# --------------------------------------------------------------------------- #
+# 숙제 통화 길이 — 2026-09-04 사장님 지시 「무조건 5분」
+#
+# 교사가 낸 과제는 반 전체가 같은 조건이어야 한다. 학습자마다 구독이 달라 통화
+# 길이가 갈리면 교사 화면의 수치끼리 비교가 성립하지 않는다.
+# --------------------------------------------------------------------------- #
+
+
+def test_숙제_통화는_5분_하드캡이다():
+    from domains.learning.realtime.call_session import HOMEWORK_CALL_DURATION_S
+
+    assert HOMEWORK_CALL_DURATION_S == 300.0
+
+
+def test_5분_캡은_절대_백스톱을_안_건드린다():
+    """R4 불변식 — 백스톱 540초는 그대로여야 한다."""
+    from domains.learning.realtime.call_session import (
+        ABSOLUTE_CALL_TIMEOUT_S,
+        HOMEWORK_CALL_DURATION_S,
+        SEED_TO_HANGUP_S,
+    )
+
+    backstop = max(ABSOLUTE_CALL_TIMEOUT_S, HOMEWORK_CALL_DURATION_S + SEED_TO_HANGUP_S + 30.0)
+    assert backstop == ABSOLUTE_CALL_TIMEOUT_S == 540.0
+
+
+def test_숙제_통화만_캡을_받는다():
+    """평소 통화는 종전 경로(플랜·env)를 그대로 탄다 — 소스가 그 조건을 명시한다."""
+    import inspect
+
+    from domains.learning.realtime import call_session
+
+    src = inspect.getsource(call_session.run_call)
+    assert "if assignment_id is not None:" in src
+    assert "state.call_duration_s = HOMEWORK_CALL_DURATION_S" in src
