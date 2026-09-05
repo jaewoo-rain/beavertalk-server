@@ -32,6 +32,81 @@ class SentenceService:
         self.db.refresh(sentence)
         return self._to_out(sentence)
 
+    def save_from_hint(
+        self, member_id: int, call_id: int, korean: str, native: str
+    ) -> SentenceOut:
+        """통화 중 힌트를 즐겨찾기에 담는다 — 🔖 를 누른 그 순간 1행을 만든다.
+
+        ## ⭐ 저장하면 기존 즐겨찾기와 **완전히 같은 행**이 된다
+        `Sentence` 는 `call_id` 만 필수고 나머지는 선택이다. 통화 분석이 만드는 행과
+        다른 것은 `source_type` 값 하나뿐이다(기존 asked/corrected/drilled + hint).
+        ⇒ 목록·해제·문장 TTS·복습·발음평가가 **특별 취급 없이** 그대로 붙는다.
+
+        ## ⛔ 중복은 에러가 아니라 재사용이다
+        같은 힌트를 두 번 담아도 행은 하나여야 한다. 연타·재진입이 흔한 UI(🔖 버튼)라
+        막지 않으면 목록이 같은 문장으로 더러워진다. 두 번째 호출도 **200 에 같은
+        sentence_id** 를 돌려준다 — 프론트가 실패로 다루면 안 된다.
+
+        ⚠ 소유 검증은 **404 로** 낸다(403 아님) — `_get_owned` 와 같은 규율이다.
+          "남의 것"이라고 알려 주면 그 통화의 존재가 새어 나간다.
+        """
+        # ── 1) 소유 검증: 남의 통화에 문장을 심을 수 없다 ──────────────────
+        call = self.db.get(Call, call_id)
+        if call is None or call.member_id != member_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "통화를 찾을 수 없습니다.")
+
+        korean = (korean or "").strip()
+        native = (native or "").strip()
+        if not korean:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "담을 문장이 없습니다."
+            )
+
+        # ── 2) 중복이면 그 행을 담고 끝낸다(새로 만들지 않는다) ────────────
+        # ⚠ 키가 (call_id, korean) 이다. 같은 통화에서 같은 한국어 문장이면 같은 힌트로 본다.
+        #   ⛔ source_type 도 함께 건다 — 분석이 만든 같은 문장이 있어도 그건 별개 행이다
+        #     (출처가 다르고, 그쪽은 사용자가 실제로 말한 것이다).
+        dup = (
+            self.db.query(Sentence)
+            .filter(
+                Sentence.call_id == call_id,
+                Sentence.korean_sentence == korean,
+                Sentence.source_type == "hint",
+                Sentence.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if dup is not None:
+            if not dup.is_bookmarked:
+                dup.is_bookmarked = True
+                self.db.commit()
+                self.db.refresh(dup)
+            return self._to_out(dup)
+
+        # ── 3) 저장 ────────────────────────────────────────────────────────
+        # ⭐ locale 은 **회원에서** 뽑는다. 통화 분석과 같은 함수를 써야 표기가 안 갈린다
+        #   (normalcall_service.py:203 `_base_locale(member.language)`).
+        from domains.account.models.member import Member as _Member
+        from domains.learning.service.normalcall_service import _base_locale
+
+        member = self.db.get(_Member, member_id)
+        sentence = Sentence(
+            call_id=call_id,
+            korean_sentence=korean,
+            native_sentence=native or None,
+            locale=_base_locale(member.language if member else None),
+            source_type="hint",
+            is_bookmarked=True,
+        )
+        self.db.add(sentence)
+        self.db.commit()   # ⚠ 쓰기는 service 가 커밋한다(R3)
+        self.db.refresh(sentence)
+        logger.info(
+            "sentence: 힌트 담기 member=%s call=%s sentence=%s",
+            member_id, call_id, sentence.sentence_id,
+        )
+        return self._to_out(sentence)
+
     def list_bookmarks(self, member_id: int) -> list[SentenceOut]:
         return [self._to_out(s) for s in self.repo.list_bookmarked(member_id)]
 

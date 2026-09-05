@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, Form, UploadFile, status
 from core.deps import CurrentMember, DbSession, GenaiClient
 from domains.learning.schemas.call import SentenceOut
 from domains.learning.schemas.review import ReviewCreate, ReviewFeedback, ReviewOut
-from domains.learning.schemas.sentence import SentenceBookmarkUpdate, SentenceTtsOut
+from domains.learning.schemas.sentence import SentenceFromHintIn, SentenceBookmarkUpdate, SentenceTtsOut
 from domains.learning.service.review_service import ReviewService
 from domains.learning.service.sentence_service import SentenceService
 
@@ -32,6 +32,28 @@ def my_bookmarks(member: CurrentMember, db: DbSession) -> list[SentenceOut]:
 def delete_sentence(sentence_id: int, member: CurrentMember, db: DbSession) -> None:
     """문장 소프트 삭제(행 보존, 읽기에서 제외)."""
     SentenceService(db).soft_delete(member.member_id, sentence_id)
+
+
+@router.post(
+    "/sentences/from-hint",
+    response_model=SentenceOut,
+    status_code=status.HTTP_200_OK,
+)
+def save_sentence_from_hint(
+    data: SentenceFromHintIn, member: CurrentMember, db: DbSession
+) -> SentenceOut:
+    """통화 중 힌트를 즐겨찾기에 담는다 — 🔖 를 누른 그 순간 문장이 생긴다.
+
+    ⛔ 힌트가 뜰 때는 저장하지 않는다. 안 담을 문장까지 미리 쌓는 것이 낭비라서다.
+    ⛔ **중복은 에러가 아니다** — 같은 힌트를 두 번 담으면 200 에 **같은 sentence_id**
+      가 온다(행은 하나다). 프론트가 실패로 다루면 안 된다.
+    ⚠ 남의 `call_id` 면 404 다(403 아님 — 그 통화의 존재를 알려 주지 않는다).
+
+    `roman`·`locale` 은 받지 않는다. locale 은 서버가 회원에서 뽑는다.
+    """
+    return SentenceService(db).save_from_hint(
+        member.member_id, data.call_id, data.korean, data.native
+    )
 
 
 @router.post("/sentences/{sentence_id}/tts", response_model=SentenceTtsOut)
