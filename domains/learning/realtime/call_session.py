@@ -131,6 +131,9 @@ CALL_DURATION_S: Optional[float] = _settings.NORMAL_CALL_DURATION_S
 # 레벨테스트(Phase 1): 인-콜 판정·주입 없이 비버 자율 진행. 종료는 3분 하드캡(이 시계) 또는
 # 무음 3단/GoAway 가 종료 파이프로 우아하게 몬다(R5 안전망 — 서버는 통화중 질문을 주입하지 않음).
 LEVELTEST_MAX_S = 180.0          # 레벨테스트 하드캡(3분) — call_duration_s 의 base
+# 숙제 통화 하드캡(5분). 플랜·env·클라 override 를 **전부** 무시한다 —
+# 교사가 낸 과제는 반 전체가 같은 조건이어야 하기 때문이다(2026-09-04 사장님 지시).
+HOMEWORK_CALL_DURATION_S = 300.0
 # 연결 자체 한계 ~10분(S2)을 선점: 서버가 GoAway/연결종료로 뚝 끊기 전에 우리가 먼저
 # 우아하게 마무리하도록 540s(9분)로 하향. 정상 5분 통화는 이 상한에 닿지 않아 무영향.
 ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백스톱, 연결 ~10분 선점)
@@ -1637,6 +1640,15 @@ async def run_call(
         state.call_duration_s = _resolve_call_duration(
             settings, duration_override, base=plan_duration_s
         )
+        # ⭐ **숙제 통화는 무조건 5분이다**(2026-09-04 사장님 지시).
+        #
+        #   플랜도 env 강제값도 클라 override 도 이기지 못한다. 교사가 낸 과제는 반
+        #   전체가 같은 조건이어야 하고, 학습자마다 구독이 달라 통화 길이가 갈리면
+        #   교사 화면의 수치끼리 비교가 성립하지 않는다.
+        #   ⛔ 늘리지 마라. 늘리려면 반 단위 설정이 먼저 있어야 한다.
+        #   ⚠ 절대 백스톱은 안 바뀐다 — max(540, 300+22+30) = 540 그대로다(R4 불변식).
+        if assignment_id is not None:
+            state.call_duration_s = HOMEWORK_CALL_DURATION_S
         state.idle_nudge1_s = IDLE_NUDGE1_S
         state.idle_nudge2_s = IDLE_NUDGE2_S
         state.idle_close_s = IDLE_CLOSE_S

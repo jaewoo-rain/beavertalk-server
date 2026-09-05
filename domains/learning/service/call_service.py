@@ -11,11 +11,14 @@ from datetime import date as _date, datetime, time as _time, timedelta, timezone
 from typing import Sequence
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
+from domains.learning.models.item_evidence import ItemEvidence
+from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.sentence import Sentence
 from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
@@ -24,6 +27,7 @@ from domains.learning.schemas.call import (
     CallCreate,
     CallDetail,
     CallResult,
+    CallResultUsedItem,
     CallResultSentence,
     CallSummary,
     EvaluationOut,
@@ -373,7 +377,44 @@ class CallService:
             rating=call.rating,
             average=average,
             sentences=[CallResultSentence.model_validate(s) for s in active],
+            used_items=self._used_items(member_id, call_id),
         )
+
+    #: 「썼다」로 세는 등급. **E1(모방)은 뺀다** — 비버가 방금 한 말을 따라한 것은
+    #: 사용이 아니다. 그쪽은 「학습한 표현」의 `drilled` 가 이미 담는다.
+    #: ⛔ 숙제 회화 점수와 **같은 축**이다(b2b `USED_GRADES`). 갈리면 앱이 보여준 것과
+    #:    교사 화면 숫자가 다른 말을 한다.
+    _USED_GRADES = ("E2", "E3")
+
+    def _used_items(self, member_id: int, call_id: int) -> list[CallResultUsedItem]:
+        """이 통화에서 **스스로 쓴** 항목. 검증 통과분만 옮긴다.
+
+        ⛔ 여기서 만들어내는 값이 없다 — 표면형은 커리큘럼, 인용은 학습자 발화 원문이고
+           서버 검증 게이트가 이미 대조했다(`verified`).
+        ★ 같은 항목이 두 번 잡힐 수 있다(E3 는 통화당 2건까지 허용). **처음 것만** 남긴다 —
+          같은 낱말이 화면에 두 번 뜨면 세어 보게 된다.
+        """
+        rows = self.db.execute(
+            select(ItemEvidence.item_id, ItemEvidence.learner_quote, LearningItem.surface)
+            .join(LearningItem, LearningItem.item_id == ItemEvidence.item_id)
+            .where(
+                ItemEvidence.call_id == call_id,
+                ItemEvidence.member_id == member_id,
+                ItemEvidence.verified.is_(True),
+                ItemEvidence.grade_final.in_(self._USED_GRADES),
+            )
+            .order_by(ItemEvidence.evidence_id)
+        ).all()
+        seen: set[int] = set()
+        out: list[CallResultUsedItem] = []
+        for item_id, quote, surface in rows:
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            out.append(
+                CallResultUsedItem(item_id=item_id, surface=surface, quote=quote)
+            )
+        return out
 
     def daily_status(self, member_id: int, local_date: str, tz_offset_min: int) -> dict:
         """'오늘 통화함' 파생 체크 — member 컬럼/일일 초기화 없이 call 에서 계산.
