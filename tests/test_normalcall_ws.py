@@ -4766,3 +4766,130 @@ def test_an_unknown_reground_mode_is_refused_at_startup(bad):
     from core.config import Settings
     with pytest.raises((ValueError, pydantic.ValidationError)):
         Settings(LIVE_REGROUND_MODE=bad)
+
+
+# --------------------------------------------------------------------------- #
+# 일일 한도 × 이어하기 (2026-09-06)
+# --------------------------------------------------------------------------- #
+#
+# ⛔ 한도 판정은 «오늘 성립한 통화가 하나라도 있나»(EXISTS)이고, 성립 기준이 «학습자가
+#   한 번이라도 말했나» 다. 그러면 15분 체인이 조각1에서 죽는다:
+#       조각1  5분 통화 → 학습자가 말함 → "오늘 통화함" 성립
+#       조각2  접속     → "이미 통화했네" → 거절
+#   **체인 전체가 1통화** 인데(사장님 결정: "pro랑 max는 체인으로 15분 연달아서가 1통화")
+#   조각1이 그 1통화를 다 써 버린다. 광고는 15분인데 5분에 끊긴다.
+#
+# ⚠ 지금은 한도가 꺼져 있어(ENV='test') 이 사고가 안 보인다. **켜는 순간 드러난다.**
+#   그래서 이 시험이 필요하다 — 켜기 전에 안전망을 먼저 깐다.
+
+
+def _start_incoming_resume(seeded, continues_call_id):
+    """이어하기 start 프레임 — 프론트가 쓰는 필드명 그대로(`continues_call_id`)."""
+    return {
+        "type": "websocket.receive",
+        "text": json.dumps({
+            "type": "start",
+            "character_id": seeded["character_id"],
+            "continues_call_id": str(continues_call_id),   # ⚠ 프론트는 문자열로 보낸다
+        }),
+    }
+
+
+@pytest.mark.asyncio
+async def test_resume_skips_the_daily_limit(session_factory, seeded, monkeypatch):
+    """⛔⛔ **이어하기는 한도 검사를 건너뛴다** — 안 그러면 15분 체인이 5분에 죽는다.
+
+    한도를 «항상 초과» 로 고정해도, `continues_call_id` 가 있으면 통화가 열려야 한다.
+    """
+    monkeypatch.setattr(app_settings, "ENV", "prod")   # 한도 켜기
+    calls = {"limit_checked": 0}
+
+    def _always_over(*a, **k):
+        calls["limit_checked"] += 1
+        return True
+
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", _always_over)
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming_resume(seeded, 12345)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert not [e for e in errors if e.get("code") == "DAILY_LIMIT"], \
+        "이어하기인데 한도로 거절했다 — 15분 체인이 조각1에서 죽는다"
+    assert calls["limit_checked"] == 0, "이어하기면 한도 검사를 아예 안 해야 한다"
+    assert opened["n"] == 1, "통화가 안 열렸다"
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_call_still_hits_the_daily_limit(session_factory, seeded, monkeypatch):
+    """⚠ 반대 방향도 못박는다 — `continues_call_id` 가 **없으면** 한도가 그대로 돈다.
+
+    건너뛰기가 지나쳐 한도 자체를 무력화하면, 그건 «하루 1통화» 계약이 사라진 것이다.
+    """
+    monkeypatch.setattr(app_settings, "ENV", "prod")
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", lambda *a, **k: True)
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming(seeded)], hang=True)   # 이어하기 아님
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "DAILY_LIMIT", "새 통화인데 한도가 안 걸렸다"
+    assert opened["n"] == 0
+
+
+@pytest.mark.asyncio
+async def test_the_fragment_cap_is_what_stops_abuse(session_factory, seeded, monkeypatch):
+    """⭐ 한도를 건너뛰어도 **조각 상한이 남용을 막는다** — 그게 이 설계의 안전망이다.
+
+    `resume_call` 이 `fragment_count >= max_fragments` 면 거절한다. Free 는 상한이 1이라
+    아예 못 잇고, Pro·Max 도 3조각에서 멈춘다. ⇒ 이어하기를 무한 반복할 수 없다.
+
+    ⚠ 거절은 «통화 실패» 가 아니라 **새 통화로 폴백**이다. 그 폴백은 한도 검사를 이미
+      지난 뒤라 통화 자체는 열린다 — 다만 앞 대화를 못 잇는다.
+    """
+    monkeypatch.setattr(app_settings, "ENV", "prod")
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", lambda *a, **k: False)
+    # Free 를 흉내낸다: 조각 상한 1
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda *a, **k: 1)
+
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming_resume(seeded, 999999)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    db = session_factory()
+    try:
+        calls = db.query(Call).all()
+        assert len(calls) == 1, "폴백으로 새 통화 1건이 열려야 한다"
+        assert (calls[0].fragment_count or 1) == 1, "상한 1인데 조각이 늘었다"
+    finally:
+        db.close()

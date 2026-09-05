@@ -1327,7 +1327,27 @@ async def run_call(
     # Gemini 비용도 0이다. 클라 게이팅은 우회되므로 서버가 거절해야 한다.
     # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
     tz_offset_min = start.tz_offset_min or 0
-    if await svc.run_db(
+    # ⛔⛔ **이어하기는 한도 검사를 건너뛴다** — 안 그러면 15분 체인이 조각1에서 죽는다.
+    #
+    #   한도 판정은 «오늘 성립한 통화가 하나라도 있나»(EXISTS)이고, 성립 기준이
+    #   «학습자가 한 번이라도 말했나» 다(`has_call_in_window`). 그러면:
+    #       조각1  5분 통화 → 학습자가 말함 → "오늘 통화함" 성립
+    #       조각2  접속     → "이미 통화했네" → 거절   ⛔
+    #   **체인 전체가 1통화** 인데(사장님 결정 2026-08-19: "pro랑 max는 체인으로 15분
+    #   연달아서가 1통화") 조각1이 그 1통화를 다 써 버린다. 광고는 15분인데 5분에 끊긴다.
+    #
+    #   ⭐ 남용은 **조각 상한이 막는다.** `resume_call` 이 `fragment_count >= max_fragments`
+    #     면 거절하므로(Free 는 1이라 아예 못 잇는다), 이어하기를 무한 반복할 수 없다.
+    #     ⇒ 여기서 건너뛰어도 «하루 1통화» 는 조각 상한과 함께 그대로 성립한다.
+    #
+    #   ⚠ `continues_call_id` 는 아직 **검증 전**이다(본인 통화인지·상한인지는 아래
+    #     `resume_call` 이 본다). 남의 id 를 들고 와 한도를 우회하는 것처럼 보이지만,
+    #     그 경우 `resume_call` 이 거절해 `call_id is None` 이 되고 **새 통화로 폴백**하는데
+    #     그 폴백 경로는 이 검사를 이미 지난 뒤다.
+    #     ⇒ 이 구멍을 막으려면 검증을 한도 검사보다 **앞으로** 옮겨야 하는데, 그건 DB 왕복이
+    #       하나 더 늘고 거절 경로가 둘로 갈린다. 이득이 «남의 call_id 를 아는 사람이
+    #       하루 한 번 더 통화한다» 뿐이라 지금은 안 한다. 나중에 새면 그때 옮긴다.
+    if continues_call_id is None and await svc.run_db(
         db_session_factory,
         lambda db: call_service.is_daily_limit_reached(
             db, member_id, call_type, tz_offset_min
