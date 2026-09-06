@@ -20,6 +20,7 @@ from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.item_evidence import ItemEvidence
 from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.sentence import Sentence
+from core import storage
 from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
 from domains.learning.schemas.call import (
@@ -376,7 +377,15 @@ class CallService:
             feedback=call.feedback,  # 요구1: 격려 한마디(/result 만 노출)
             rating=call.rating,
             average=average,
-            sentences=[CallResultSentence.model_validate(s) for s in active],
+            # ⛔ `model_validate` 는 ORM 의 voice_url(=object key)을 **그대로** 옮긴다.
+            #   여기가 학습 결과 화면의 「원어민」 음원 출처라, 갈아 끼우지 않으면
+            #   key 가 그대로 나가 재생이 죽는다(옛 행은 만료된 서명 URL 이 나갔다).
+            sentences=[
+                CallResultSentence.model_validate(s).model_copy(
+                    update={"voice_url": self._sample_url(s.voice_url)},
+                )
+                for s in active
+            ],
             used_items=self._used_items(member_id, call_id),
         )
 
@@ -479,7 +488,12 @@ class CallService:
     def get_raw(self, member_id: int, call_id: int) -> list[RawDataOut]:
         call = self.repo.get_with_raw(call_id)
         self._assert_owner(call, member_id)
-        return [RawDataOut.model_validate(r) for r in call.raw_data]
+        return [
+            RawDataOut.model_validate(r).model_copy(
+                update={"voice_url": self._recording_url(r.voice_url)},
+            )
+            for r in call.raw_data
+        ]
 
     def update_rating(self, member_id: int, call_id: int, rating: int) -> CallSummary:
         call = self.repo.get_detail(call_id)
@@ -523,7 +537,23 @@ class CallService:
             korean_sentence=s.korean_sentence,
             native_sentence=s.native_sentence,
             locale=s.locale,
-            voice_url=s.voice_url,
+            voice_url=self._sample_url(s.voice_url),
             is_bookmarked=s.is_bookmarked,
             evaluation=EvaluationOut.model_validate(s.evaluation) if s.evaluation else None,
         )
+
+    @staticmethod
+    def _sample_url(stored: str | None) -> str | None:
+        """문장 TTS(표준발음) 저장값 → **지금 서명한** 재생 URL.
+
+        ⛔ DB 값을 그대로 내보내지 마라 — 저장된 URL 을 돌려주면 서명이 만료된 뒤
+        영구히 재생 불가가 된다. `storage.object_key` 가 옛 URL 도 key 로 되짚는다.
+        """
+        return storage.playback_url(
+            settings.SUPABASE_BUCKET_SAMPLES, stored, settings.GCS_SIGNED_URL_TTS_TTL,
+        )
+
+    @staticmethod
+    def _recording_url(stored: str | None) -> str | None:
+        """통화 원본 녹음 저장값 → 지금 서명한 재생 URL(단기 기본값)."""
+        return storage.playback_url(settings.SUPABASE_BUCKET_RECORDINGS, stored)

@@ -125,9 +125,26 @@ class SentenceService:
         """
         sentence = self._get_owned(member_id, sentence_id)
 
-        # 1) idempotent: 이미 음성이 있으면 재합성 없이 그대로.
+        # 1) idempotent: 이미 음성이 있으면 재합성 없이 **재서명만** 한다.
+        #    ⛔⛔ `sentence.voice_url` 을 그대로 돌려주지 마라. 저장값은 **object key**
+        #      이고 재생 URL 은 서명이 붙는 **파생물**이다.
+        #      예전엔 URL 을 통째로 저장하고 그대로 돌려줬는데, `public_url` 이
+        #      7일짜리 서명(`GCS_SIGNED_URL_PUBLIC_TTL`)이라 **7일 뒤 그 문장의
+        #      표준발음이 영구히 안 나왔다.** 재합성 분기(`if voice_url:`)를 이미
+        #      지나쳐서 스스로 회복하지도 못한다.
+        #    ⭐ `core/storage.py:83` 이 애초에 그 계약을 적어 뒀다 —
+        #      "호출부는 이 key 를 DB(voice_url)에 저장하고, 재생 시 signed_url 로
+        #      조립한다". review·call_raw_data 는 지키는데 여기만 안 지켰다.
         if sentence.voice_url:
-            return SentenceTtsOut(sentence_id=sentence_id, voice_url=sentence.voice_url)
+            url = self._playback_url(sentence.voice_url)
+            if not url:
+                # 서명 실패는 일시적일 수 있다(자격증명 갱신 중 등). key 는 남겨 두어
+                # 다음 요청이 재시도하게 하고, 지금은 재생 불가만 알린다.
+                raise HTTPException(
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                    "오디오를 재생할 수 없습니다.",
+                )
+            return SentenceTtsOut(sentence_id=sentence_id, voice_url=url)
 
         # 2) 합성 대상 텍스트 검증.
         korean = (sentence.korean_sentence or "").strip()
@@ -161,24 +178,44 @@ class SentenceService:
             )
         audio, content_type = synthesized
 
-        # 5) public 버킷 업로드(기존 분석 파이프라인과 동일한 key 규칙).
+        # 5) 업로드(기존 분석 파이프라인과 동일한 key 규칙). 반환은 **object key** 다.
         ext = "mp3" if content_type == "audio/mpeg" else "wav"
         path = f"tts/{call_id}/{sentence_id}.{ext}"
         key = storage.upload(settings.SUPABASE_BUCKET_SAMPLES, path, audio, content_type)
-        url = storage.public_url(settings.SUPABASE_BUCKET_SAMPLES, key) if key else None
-        if not url:
+        if not key:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "오디오 저장에 실패했습니다.",
             )
 
-        # 6) voice_url 저장(동기 세션). 재조회로 stale 회피 후 커밋.
+        # 6) `voice_url` 에 **object key** 를 저장한다(동기 세션). 재조회로 stale 회피.
+        #    ⛔ 서명은 담지 않는다 — 만료되는 값을 영구 컬럼에 넣는 것이 이 버그였다.
+        #    ⚠ 서명이 실패해도 key 는 남긴다. 그래야 다음 요청이 재서명으로 회복한다.
         fresh = self.db.get(Sentence, sentence_id)
         if fresh is not None:
-            fresh.voice_url = url
+            fresh.voice_url = key
             self.db.commit()
         logger.info("on-demand TTS: sentence_id=%s 합성 완료 → %s", sentence_id, path)
+
+        # 7) 응답은 **지금 서명한** URL.
+        url = self._playback_url(key)
+        if not url:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "오디오를 재생할 수 없습니다.",
+            )
         return SentenceTtsOut(sentence_id=sentence_id, voice_url=url)
+
+    @staticmethod
+    def _playback_url(stored: str | None) -> str | None:
+        """저장값(key, 또는 **옛 행의 전체 URL**) → 지금 서명한 재생 URL.
+
+        ⭐ `storage.object_key` 가 옛 URL 에서 key 를 되짚으므로 **이관이 필요 없다** —
+        고치기 전에 저장된 행도 읽는 순간 재서명돼 되살아난다.
+        """
+        return storage.playback_url(
+            settings.SUPABASE_BUCKET_SAMPLES, stored, settings.GCS_SIGNED_URL_TTS_TTL,
+        )
 
     def soft_delete(self, member_id: int, sentence_id: int) -> None:
         """문장 소프트 삭제 — 행은 남기고 deleted_at 만 기록(읽기에서 제외됨)."""
@@ -205,7 +242,8 @@ class SentenceService:
             korean_sentence=s.korean_sentence,
             native_sentence=s.native_sentence,
             locale=s.locale,
-            voice_url=s.voice_url,
+            # ⛔ ORM 값(object key)을 그대로 내보내지 마라 — 클라가 key 를 재생하려 든다.
+            voice_url=self._playback_url(s.voice_url),
             is_bookmarked=s.is_bookmarked,
             evaluation=EvaluationOut.model_validate(s.evaluation) if s.evaluation else None,
         )

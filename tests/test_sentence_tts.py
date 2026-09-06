@@ -2,8 +2,8 @@
 
 검증 대상:
     POST /api/v1/sentences/{sentence_id}/tts
-    - 신규 합성 → 200 + voice_url 저장.
-    - idempotent: voice_url 이 이미 있으면 재합성 없이 그대로 반환.
+    - 신규 합성 → 200 + **object key** 저장(URL 이 아니다).
+    - idempotent: voice_url 이 이미 있으면 재합성 없이 **재서명**해 반환.
     - 빈 korean_sentence → 422.
     - genai client None → 503.
     - 합성 실패(None) → 503.
@@ -93,7 +93,13 @@ def seeded(session_factory):
                       native_sentence="hi", locale="en", evaluation=Evaluation())
         s2 = Sentence(call_id=call.call_id, korean_sentence="고맙습니다",
                       native_sentence="thanks", locale="en",
-                      voice_url="https://existing/url.mp3", evaluation=Evaluation())
+                      # 과거에 **전체 URL 을 저장한 행**(2026-08-30 실측 형태).
+                      # 백필 전에도 읽는 즉시 재서명돼야 한다.
+                      voice_url=(
+                          "https://storage.googleapis.com/beavertalk-app-audio"
+                          "/voice-samples/tts/992/820.mp3?X-Goog-Expires=604800"
+                      ),
+                      evaluation=Evaluation())
         s3 = Sentence(call_id=call.call_id, korean_sentence="   ",
                       native_sentence="", locale="en", evaluation=Evaluation())
         db.add_all([s1, s2, s3])
@@ -117,7 +123,7 @@ def mock_tts_ok(monkeypatch):
     monkeypatch.setattr(ssvc.tts, "synthesize", _fake_tts)
     monkeypatch.setattr(ssvc.storage, "upload", lambda *a, **k: "tts/1/1.mp3")
     monkeypatch.setattr(
-        ssvc.storage, "public_url", lambda *a, **k: "https://stub/tts.mp3"
+        ssvc.storage, "playback_url", lambda *a, **k: "https://stub/tts.mp3"
     )
 
 
@@ -134,9 +140,14 @@ def _hdr(auth="auth-member"):
     return {"Authorization": f"Bearer {auth}"}
 
 
-def test_tts_new_synthesis_returns_url_and_persists(
+def test_tts_new_synthesis_returns_url_and_persists_key(
     session_factory, seeded, mock_tts_ok
 ):
+    """응답은 서명 URL, **DB 에 남는 것은 object key**.
+
+    ⛔ 여기서 URL 을 저장하면 서명이 만료된 뒤 영구히 재생 불가가 된다
+    (2026-08-30 운영 결함). 이 단언이 그 회귀를 막는 자리다.
+    """
     app = _build_app(session_factory)
     client = TestClient(app)
     sid = seeded["s1"]
@@ -149,19 +160,27 @@ def test_tts_new_synthesis_returns_url_and_persists(
 
     db = session_factory()
     try:
-        assert db.get(Sentence, sid).voice_url == "https://stub/tts.mp3"
+        assert db.get(Sentence, sid).voice_url == "tts/1/1.mp3"
     finally:
         db.close()
 
 
-def test_tts_idempotent_returns_existing_without_resynth(
+def test_tts_idempotent_resigns_instead_of_echoing_stored_url(
     session_factory, seeded, monkeypatch
 ):
-    # 합성이 호출되면 실패하도록 → 호출 안 됨을 보장.
+    """재합성은 안 하되 **저장값을 그대로 돌려주지도 않는다.**
+
+    s2 는 과거에 전체 URL 을 저장한 행이다. 응답은 그 문자열이 아니라
+    key 를 되짚어 **지금 서명한** URL 이어야 한다.
+    """
     async def _boom(*_a, **_k):
         raise AssertionError("재합성하면 안 됨")
 
     monkeypatch.setattr(ssvc.tts, "synthesize", _boom)
+    # playback_url 은 진짜를 쓰고 서명 단계만 스텁 — 정규화 경로를 실제로 태운다.
+    monkeypatch.setattr(
+        ssvc.storage, "signed_url", lambda bucket, key, ttl: f"https://resigned/{key}"
+    )
 
     app = _build_app(session_factory)
     client = TestClient(app)
@@ -169,7 +188,8 @@ def test_tts_idempotent_returns_existing_without_resynth(
 
     r = client.post(f"/api/v1/sentences/{sid}/tts", headers=_hdr())
     assert r.status_code == 200
-    assert r.json()["voice_url"] == "https://existing/url.mp3"
+    # 저장된 만료 URL 이 그대로 새어 나오면 실패한다.
+    assert r.json()["voice_url"] == "https://resigned/tts/992/820.mp3"
 
 
 def test_tts_empty_korean_returns_422(session_factory, seeded, mock_tts_ok):
@@ -196,7 +216,6 @@ def test_tts_upload_failure_returns_503(session_factory, seeded, monkeypatch):
 
     monkeypatch.setattr(ssvc.tts, "synthesize", _ok)
     monkeypatch.setattr(ssvc.storage, "upload", lambda *a, **k: None)
-    monkeypatch.setattr(ssvc.storage, "public_url", lambda *a, **k: None)
     app = _build_app(session_factory)
     client = TestClient(app)
     r = client.post(f"/api/v1/sentences/{seeded['s1']}/tts", headers=_hdr())

@@ -2075,12 +2075,16 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     return pending
 
 
-def _set_sentence_tts(db: Session, sentence_id: int, url: str) -> None:
-    """표현(Sentence)의 TTS 음성 URL 을 저장한다(public 버킷 재생 URL)."""
+def _set_sentence_tts(db: Session, sentence_id: int, key: str) -> None:
+    """표현(Sentence)의 TTS **object key** 를 저장한다.
+
+    ⛔ 서명 URL 이 아니라 key 다. 재생 URL 은 읽을 때 조립한다
+    (`SentenceService._playback_url`). 예전엔 여기 URL 을 담아 7일 뒤 죽었다.
+    """
     s = db.get(Sentence, sentence_id)
     if s is None:
         return
-    s.voice_url = url
+    s.voice_url = key
     db.commit()
 
 
@@ -2273,10 +2277,14 @@ async def analyze_call(
                 key = storage.upload(
                     settings_obj.SUPABASE_BUCKET_SAMPLES, path, audio, content_type
                 )
-                url = storage.public_url(settings_obj.SUPABASE_BUCKET_SAMPLES, key) if key else None
-                if url:
+                # ⛔ **object key 를 저장한다.** 서명 URL 을 넣으면 7일 뒤 만료되고
+                #   (`public_url` 이 GCS_SIGNED_URL_PUBLIC_TTL 짜리 서명이다), 온디맨드
+                #   경로는 `voice_url` 이 있으면 재합성을 건너뛰므로 **스스로 회복하지
+                #   못한다.** 여기가 대량 생산처라 한 통화가 문장 여러 개를 한꺼번에
+                #   그렇게 만든다. 계약은 `core/storage.py:83`.
+                if key:
                     await run_db(
-                        session_factory, lambda db, sid=sentence_id, u=url: _set_sentence_tts(db, sid, u)
+                        session_factory, lambda db, sid=sentence_id, k=key: _set_sentence_tts(db, sid, k)
                     )
             except Exception as exc:  # noqa: BLE001 - 문장 단위 흡수(온디맨드 폴백 존재)
                 tts_failed += 1

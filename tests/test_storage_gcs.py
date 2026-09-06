@@ -178,3 +178,53 @@ def test_signed_url_swallows_exception(fake_bucket, monkeypatch):
 
     monkeypatch.setattr(fake_bucket, "blob", boom)
     assert storage.signed_url("voice-recordings", "a.mp3") is None
+
+
+# --------------------------------------------------------------------------- #
+# object_key / playback_url — 저장값 정규화 (2026-08-30 서명 만료 결함 대응)
+# --------------------------------------------------------------------------- #
+def test_object_key_passthrough_for_plain_key():
+    # 정상 행은 이미 key 다 — 손대지 않는다.
+    assert storage.object_key("voice-samples", "tts/992/820.mp3") == "tts/992/820.mp3"
+
+
+def test_object_key_none_and_empty():
+    assert storage.object_key("voice-samples", None) is None
+    assert storage.object_key("voice-samples", "") is None
+
+
+def test_object_key_extracts_from_gcs_signed_url():
+    # 운영에서 실제로 저장돼 있던 형태(만료된 V4 서명 URL).
+    url = (
+        "https://storage.googleapis.com/beavertalk-app-audio"
+        "/voice-samples/tts/992/820.mp3"
+        "?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=604800"
+    )
+    assert storage.object_key("voice-samples", url) == "tts/992/820.mp3"
+
+
+def test_object_key_extracts_from_legacy_supabase_url():
+    # GCS 이전(2026-07-15) 이전 세대의 URL 도 같은 규칙으로 풀린다.
+    url = "https://proj.supabase.co/storage/v1/object/public/voice-samples/tts/1/2.mp3"
+    assert storage.object_key("voice-samples", url) == "tts/1/2.mp3"
+
+
+def test_object_key_without_prefix_strips_bucket_only():
+    # prefix 가 경로에 없으면 버킷명만 걷어낸다(방어적 폴백).
+    url = "https://storage.googleapis.com/beavertalk-app-audio/orphan/3.mp3"
+    assert storage.object_key("voice-samples", url) == "orphan/3.mp3"
+
+
+def test_playback_url_resigns_stored_url(fake_bucket):
+    # ★ 회귀 방어선 — 저장된 URL 을 그대로 돌려주면 안 된다. 매번 새로 서명한다.
+    stored = (
+        "https://storage.googleapis.com/beavertalk-app-audio"
+        "/voice-samples/tts/992/820.mp3?X-Goog-Expires=604800"
+    )
+    url = storage.playback_url("voice-samples", stored, 3600)
+    assert url == "https://signed.example/voice-samples/tts/992/820.mp3"
+    assert url != stored
+
+
+def test_playback_url_none_when_no_value(fake_bucket):
+    assert storage.playback_url("voice-samples", None) is None
