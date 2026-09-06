@@ -36,4 +36,9 @@ class SentenceFromHintIn(BaseModel):
 
     call_id: int
     korean: str = Field(min_length=1, max_length=500)
-    native: str = Field(min_length=1, max_length=500)
+    # ⚠ **선택이다**(2026-09-06 프론트 지적으로 완화). 처음엔 필수(min_length=1)로 뒀는데,
+    #   사이드카 모델이 뜻을 빼먹으면 빈 값이 와서 **담기 자체가 실패**했다.
+    #   ⛔ 뜻이 없다고 못 담게 하는 것은 과하다 — 한국어 문장만 있어도 담을 값이 있고,
+    #     기존 분석 문장도 `native_sentence` 가 선택이다(models/sentence.py:31).
+    #   ⇒ 없으면 `native_sentence=None` 으로 저장한다. 화면은 뜻 없이 한국어만 보여준다.
+    native: str | None = Field(default=None, max_length=500)

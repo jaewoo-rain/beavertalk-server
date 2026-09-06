@@ -235,9 +235,26 @@ def test_anonymous_is_401(session_factory):
     assert r.status_code == 401
 
 
+def test_a_hint_without_a_meaning_can_still_be_saved(session_factory):
+    """⭐ `native` 는 **선택**이다(2026-09-06 프론트 지적).
+
+    처음엔 필수로 뒀는데, 사이드카 모델이 뜻을 빼먹으면 빈 값이 와서 **담기 자체가
+    실패**했다. 뜻이 없다고 못 담게 하는 것은 과하다 — 한국어 문장만 있어도 담을 값이
+    있고, 기존 분석 문장도 `native_sentence` 가 선택이다.
+    """
+    ids = _seed(session_factory)
+    c = TestClient(_build_app(session_factory))
+
+    for body in ({"call_id": ids["call_id"], "korean": "안녕"},
+                 {"call_id": ids["call_id"], "korean": "고마워", "native": ""}):
+        r = c.post(URL, json=body, headers=_hdr())
+        assert r.status_code == 200, f"뜻 없는 힌트를 거절했다: {body}"
+        assert r.json()["native_sentence"] is None
+        assert r.json()["is_bookmarked"] is True
+
+
 @pytest.mark.parametrize("bad", [
-    {"call_id": 1, "korean": "", "native": "hi"},
-    {"call_id": 1, "korean": "안녕"},                 # native 누락
+    {"call_id": 1, "korean": "", "native": "hi"},     # korean 은 여전히 필수
     {"korean": "안녕", "native": "hi"},               # call_id 누락
 ])
 def test_bad_payload_is_422(session_factory, bad):
