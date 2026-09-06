@@ -573,7 +573,8 @@ class _CallState:
         # 재접지 통합(단계 3) — 압축 신호 관측 + 사이드카 + 모드 sticky
         "reground_count", "last_reground_ts", "reground_arm_reason",
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
-        "call_mode", "usage_prompt_peak", "usage_prompt_max", "compression_seen",
+        "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
@@ -734,6 +735,11 @@ class _CallState:
         #     저장돼 call 909 에서 13,355(DB) vs 15,904(실제)로 어긋났다.
         self.usage_prompt_peak: int = 0
         self.usage_prompt_max: int = 0
+        #   usage_prompt_floor — 이 통화의 **바닥**(대화 0줄일 때의 prompt). 첫 usage 1건으로
+        #     고정한다. 시스템 지시문 + teaching_plan + 도구 정의라 통화 내내 매 턴 다시 실린다.
+        #     ⭐ 재접지 arm 이 "컨텍스트가 찼나"를 물을 때 재야 하는 건 **바닥 위에 쌓인 대화**지
+        #     바닥 자체가 아니다(2026-09-06). 0 이면 아직 첫 usage 전 = 게이트 비활성.
+        self.usage_prompt_floor: int = 0
         self.compression_seen: int = 0
         # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
@@ -955,6 +961,11 @@ def _observe_compression(state: _CallState, prompt) -> None:
     if not prompt:
         return
     p = int(prompt)
+    # 바닥은 **첫 1건으로 고정**한다 — 이 시점의 prompt 가 곧 지시문 크기다(대화 0줄).
+    # ⛔ min() 으로 계속 낮추지 않는다. 압축 후 값이 바닥보다 낮게 찍히는 순간이 있는데
+    #   그걸 바닥으로 삼으면 기준이 통화 중에 흔들려 arm 이 다시 눈멀게 된다.
+    if state.usage_prompt_floor == 0:
+        state.usage_prompt_floor = p
     # 통화 전체 최대치는 압축과 무관하게 여기서만 갱신한다(아래 리셋에 걸리지 않는 자리).
     if p > state.usage_prompt_max:
         state.usage_prompt_max = p
@@ -3737,9 +3748,22 @@ def _reground_due(state: _CallState, now: float) -> str:
     if state.last_reground_ts is not None and now - state.last_reground_ts < REGROUND_MIN_GAP_S:
         return ""
     trigger = _settings.LIVE_CTX_TRIGGER_TOKENS
-    # ① 선제 — 압축 임박(컨텍스트가 트리거의 85%까지 찼다). 압축 직전에 얹은 요약은
-    #    최신단에 있어 그 압축을 살아남는다.
-    if state.usage_prompt_peak >= trigger * REGROUND_ARM_RATIO:
+    # ① 선제 — 압축 임박. 압축 직전에 얹은 요약은 최신단에 있어 그 압축을 살아남는다.
+    #
+    # ⛔⛔ 2026-09-06: 여기는 **바닥 위에 쌓인 대화**를 재야 한다. 예전엔 절대값이었다
+    #   (`peak >= trigger * 0.85`). 그런데 지시문이 커지면서 바닥이 임계를 통째로 넘겼다 —
+    #   실측 통화 1310·1324: 트리거 8,000 × 0.85 = 6,800 인데 **통화 시작 8초의 peak 가
+    #   6,937 / 7,194**. 대화가 한 줄도 없는데 조건이 참이라 재접지가 통화 내내 상시 발동했고,
+    #   학습자가 답하는 도중에 브리프가 얹혀 비버가 첫인사를 다시 하거나 과제를 버렸다
+    #   (QA #1~3, `docs/20260906_1820_재접지-상시발동-원인과-처방.md`).
+    #   ⇒ 주석이 원래 말하던 "컨텍스트가 **찼다**"의 뜻대로, 바닥을 빼고 **남은 자리**로 잰다.
+    #
+    # ⚠ 바닥이 트리거를 이미 먹었으면(room <= 0) ①을 **끈다**. 그 통화는 임박을 예고할
+    #   여유 자체가 없다 — 켜두면 예전처럼 상시 참이다. 압축은 실제로 돌 테니 ②사후 감지가
+    #   받는다(미탐은 무해, 오탐은 이중발화 — 원래 설계도 미탐 쪽으로 보수적이다).
+    floor = state.usage_prompt_floor
+    room = trigger - floor
+    if floor and room > 0 and state.usage_prompt_peak - floor >= room * REGROUND_ARM_RATIO:
         return "compress"
     # ② 사후 — 이미 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우의 보정).
     if state.compression_seen > state.reground_count:
@@ -3765,9 +3789,11 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     state.reground_pending = True
     state.reground_arm_reason = reason
     logger.info(
-        "normalcall: 재접지 arm(근거=%s, %d/%d회, 압축감지=%d, peak=%d)",
+        "normalcall: 재접지 arm(근거=%s, %d/%d회, 압축감지=%d, peak=%d, 바닥=%d, 대화=%d)",
         reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
         state.compression_seen, state.usage_prompt_peak,
+        state.usage_prompt_floor,
+        max(0, state.usage_prompt_peak - state.usage_prompt_floor),
     )
 
 

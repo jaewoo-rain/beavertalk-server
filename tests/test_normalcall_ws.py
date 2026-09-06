@@ -962,10 +962,56 @@ def test_arm_fires_before_compression_not_after():
     """
     trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
     st = _fresh_state()
-    st.usage_prompt_peak = int(trigger * 0.5)
+    floor = 1500                                 # 첫 usage 1건이 바닥을 고정한다
+    cs._observe_compression(st, floor)
+    room = trigger - floor                       # 대화가 들어갈 수 있는 자리
+    st.usage_prompt_peak = floor + int(room * 0.5)
     assert cs._reground_due(st, 1001.0) == "", "절반밖에 안 찼는데 arm 됐다"
-    st.usage_prompt_peak = int(trigger * cs.REGROUND_ARM_RATIO) + 1
+    st.usage_prompt_peak = floor + int(room * cs.REGROUND_ARM_RATIO) + 1
     assert cs._reground_due(st, 1001.0) == "compress", "압축 임박인데 arm 이 안 섰다"
+
+
+def test_arm_ignores_instruction_floor(monkeypatch):
+    """⛔ 회귀: **지시문만으로** arm 되면 안 된다(2026-09-06 QA #1).
+
+    실측 통화 1310·1324 — 트리거 8,000 × 0.85 = 6,800 인데 통화 시작 8초의 prompt 가
+    6,937 / 7,194 이었다. 대화가 한 줄도 없는데 옛 절대값 조건이 참이라 재접지가 첫 턴부터
+    상시 발동했고, 학습자가 답하는 도중에 브리프가 얹혀 비버가 첫인사를 다시 했다.
+    """
+    monkeypatch.setattr(cs._settings, "LIVE_CTX_TRIGGER_TOKENS", 8000)
+    st = _fresh_state()
+    cs._observe_compression(st, 7194)            # 실측 바닥(지시문 + teaching_plan 30 + 도구)
+    assert st.usage_prompt_floor == 7194
+    assert cs._reground_due(st, 1001.0) == "", "대화 0줄인데 arm 됐다(바닥을 대화로 셌다)"
+
+    # 남은 자리(806)의 85% 를 대화가 채우면 그때는 arm 한다.
+    st.usage_prompt_peak = 7194 + int(806 * cs.REGROUND_ARM_RATIO) + 1
+    assert cs._reground_due(st, 1001.0) == "compress", "자리가 찼는데 arm 이 안 섰다"
+
+
+def test_arm_disabled_when_floor_eats_trigger(monkeypatch):
+    """바닥이 트리거를 이미 넘으면 ①선제를 끈다 — 예고할 여유 자체가 없다.
+
+    켜두면 조건이 상시 참이라 옛 버그가 그대로 재현된다. 압축은 실제로 돌 테니 ②사후가 받는다
+    (미탐은 무해, 오탐은 이중발화 — 원래 설계도 미탐 쪽으로 보수적이다).
+    """
+    monkeypatch.setattr(cs._settings, "LIVE_CTX_TRIGGER_TOKENS", 8000)
+    st = _fresh_state()
+    cs._observe_compression(st, 9000)            # 바닥 > 트리거
+    st.usage_prompt_peak = 12000
+    assert cs._reground_due(st, 1001.0) == "", "여유가 없는데 ①이 arm 했다"
+
+    st.compression_seen = 1                      # 실제 압축이 돌면 ②가 받는다
+    assert cs._reground_due(st, 1001.0) == "post-compress"
+
+
+def test_floor_is_pinned_to_first_usage():
+    """바닥은 첫 1건으로 **고정**한다 — min() 으로 계속 낮추면 기준이 통화 중에 흔들린다."""
+    st = _fresh_state()
+    cs._observe_compression(st, 7194)
+    cs._observe_compression(st, 15000)
+    cs._observe_compression(st, 6800)            # 압축 직후 바닥보다 낮게 찍히는 순간
+    assert st.usage_prompt_floor == 7194, "바닥이 통화 중에 내려앉았다"
 
 
 def test_compression_detected_from_prompt_drop():
@@ -1023,6 +1069,7 @@ def test_close_wins_over_reground_arm():
     """⛔ 종료가 최우선 — 마무리 구간에서는 어떤 근거로도 arm 하지 않는다(작별 오염 방지)."""
     trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
     st = _fresh_state()
+    cs._observe_compression(st, 1500)          # 바닥 고정(arm 은 바닥 위 대화를 잰다)
     st.usage_prompt_peak = trigger             # 압축 임박(가장 강한 근거)
     assert cs._reground_due(st, 1001.0) == "compress"
     st.should_close = True
@@ -3512,7 +3559,9 @@ def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
 
 def test_compression_detection_and_arm_still_use_the_cycle_peak():
     """⛔ 관측값을 하나 더 세웠을 뿐 — 압축 감지·재접지 arm 동작은 무변경이어야 한다(R4)."""
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
     st = cs._CallState()
+    cs._observe_compression(st, 1_500)           # 바닥(지시문). arm 은 이 위의 대화를 잰다
     cs._observe_compression(st, 16_000)
     cs._observe_compression(st, 12_000)          # 압축 1회
     assert st.compression_seen == 1
@@ -3525,8 +3574,9 @@ def test_compression_detection_and_arm_still_use_the_cycle_peak():
     # 압축 직후엔 사이클 peak 가 바닥이라 arm 이 안 걸려야 한다.
     # (전체 최대치 16,000 을 봤다면 16,000 ≥ 13,600 이라 걸렸을 것이다.)
     assert cs._reground_due(st, now) == "", "리셋된 사이클 peak 가 아니라 전체 최대치를 보고 있다"
-    # 다시 차오르면 선제 arm.
-    cs._observe_compression(st, int(16_000 * cs.REGROUND_ARM_RATIO) + 1)
+    # 다시 차오르면 선제 arm — 문턱은 **바닥 위 남은 자리**의 85% 다.
+    room = trigger - st.usage_prompt_floor
+    cs._observe_compression(st, st.usage_prompt_floor + int(room * cs.REGROUND_ARM_RATIO) + 1)
     assert cs._reground_due(st, now) == "compress"
 
 
