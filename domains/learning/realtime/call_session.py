@@ -215,7 +215,27 @@ REGROUND_ARM_RATIO = 0.85        # 압축 임박 판정(× LIVE_CTX_TRIGGER_TOKE
 #   멈춘다 — 턴 경계 컷). 그 아래로 여유를 두되 절반보다는 낮게. 16000/12000 에 대입하면
 #   1600 이라 옛 2000 과 같은 자리대다 — 잡음 배제라는 원래 목적을 유지한다.
 REGROUND_DROP_MIN_RATIO = 0.4
-REGROUND_MIN_GAP_S = 60.0        # 연속 주입 최소 간격(같은 압축 주기에 두 번 얹지 않기)
+# 연속 주입 최소 간격. 압축 1회당 1회 arm 을 **여기가 최종적으로 조인다.**
+#
+# ⛔⛔ 2026-09-06: 60 → 150. 압축이 통화당 몇 번 도는지는 우리가 못 정한다 —
+#   실측 통화 1324 는 5분에 **6회**였다(8,079→7,096 / 15,130→7,481 / … 매 턴 경계마다).
+#   바닥(지시문)이 트리거의 90% 라 모든 턴 경계에서 "트리거 초과"가 참이기 때문이다.
+#   ⇒ 압축마다 얹으면 5분에 5~6회, 그것도 전부 `자리=마이크`(학습자가 말을 꺼내는 순간)라
+#   말허리를 자른다(QA #2 — 답하는 도중 다른 항목으로 점프). 재접지는 **드리프트 보정**이지
+#   턴 진행 장치가 아니다.
+#   ⇒ 5분 2회 / 15분 6회로 조인다. 잊는 건 여전하지만 **끊는 횟수**를 절반 이하로 줄인다.
+#   ⚠ 이 값을 되돌리려면 압축 횟수부터 줄여라(트리거 상향 — docs/20260906_1820_* §5-C).
+REGROUND_MIN_GAP_S = 150.0
+# 프롬프트에 실을 **예비** 학습항목 상한(본편은 전량). 화면 카드(teaching_plan)는 이 값과
+# 무관하게 선별분 전량이 간다 — 두 소비처가 갈라져 있다(주입 1449행 / 카드 1476행).
+#
+# ⭐ 왜 가르나(2026-09-06): 선별은 예비를 25개 준다(mastery_repository.STUDY_RESERVE_TOTAL).
+#   그런데 Live 는 **매 턴 프롬프트 전액 재과금**이라, 5분 통화에서 4~5개밖에 안 쓰는 예비
+#   25개를 20턴 내내 다시 실어 나른다. 실측 렌더 — 예비 25개 = 1,512자(지시문의 16.2%),
+#   5개로 줄이면 1,205자(≈900~1,200토큰) 감소. 턴당 원가의 약 10% 다.
+# ⚠ 화면은 안 바뀐다. 카드가 줄면 학습자가 "오늘 할 게 줄었다"고 읽는데 그건 사실이 아니다.
+# ⚠ 15분 통화(이어하기)에서 예비 5개가 모자란지는 **아직 안 쟀다**. 모자라면 여기만 올린다.
+PROMPT_RESERVE_MAX = 5
 REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
 # 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
 #   5분(300s) → 120s → 2회 = 옛 0.5·0.8 지점 2회와 실질 동일(5분 하위호환)
@@ -1446,7 +1466,7 @@ async def run_call(
             name=setup["name"],
             history=setup["history"],
             target_language=target_language,
-            study_items=setup.get("study_items") if inject_materials else None,
+            study_items=_prompt_study_items(setup.get("study_items")) if inject_materials else None,
             known_items=setup.get("known_items") if inject_materials else None,
             recent_topics=setup.get("recent_topics") if inject_materials else None,
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
@@ -2343,6 +2363,25 @@ async def _read_initial_start(client_ws) -> StartParams:
 # --------------------------------------------------------------------------- #
 # P2.5: teaching_plan + 동적 힌트 사이드카 (D16 — mechanics ⑪·⑬)
 # --------------------------------------------------------------------------- #
+def _prompt_study_items(study_items: list[dict] | None) -> list[dict] | None:
+    """프롬프트에 실을 학습항목 — 본편 전량 + 예비 앞에서 PROMPT_RESERVE_MAX 개.
+
+    ⛔ 화면 카드(_teaching_plan_items)는 이걸 쓰지 않는다. 카드는 선별분 전량이 가야 한다.
+    ⚠ 순서를 지킨다 — 선별이 낸 순서가 곧 우선순위다(뒤에서 자르면 그 순위가 보존된다).
+    """
+    if not study_items:
+        return study_items
+    out = []
+    reserve_taken = 0
+    for it in study_items:
+        if it.get("slot") == "reserve":
+            if reserve_taken >= PROMPT_RESERVE_MAX:
+                continue
+            reserve_taken += 1
+        out.append(it)
+    return out
+
+
 def _teaching_plan_items(study_items: list[dict]) -> list[TeachingItem]:
     """study_items(persona 스키마 + item_id/roman) → teaching_plan 카드 항목(P2.5).
 

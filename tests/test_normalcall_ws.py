@@ -834,8 +834,12 @@ def test_five_minute_call_still_regrounds_without_any_compression():
         "5분 통화가 재접지를 통째로 잃었다(압축 신호 전용 트리거 회귀)"
 
     # 5분 동안 2회 — 옛 시각 트리거(0.5·0.8 지점 2회)와 실질 동일하다.
+    # ⚠ 2회째를 정하는 건 폴백 간격(120s)이 아니라 **최소 간격**이다(2026-09-06 D: 150s).
+    #   둘 중 큰 쪽이 이긴다 — 상수에서 파생시켜 어느 쪽을 바꿔도 이 계약이 안 깨지게 둔다.
     state.reground_count, state.last_reground_ts = 1, now + gap
-    assert cs._reground_due(state, now + 2 * gap + 1) == "time"
+    second = now + gap + max(gap, cs.REGROUND_MIN_GAP_S) + 1
+    assert cs._reground_due(state, second) == "time"
+    assert second - now < state.call_duration_s,         "2회째가 통화 밖으로 밀렸다 — 5분 통화가 재접지를 1회로 잃는다"
     state.reground_count, state.last_reground_ts = 2, now + 2 * gap
     assert cs._reground_due(state, now + 300) == "", "5분 통화에서 3회째가 arm 됐다(과주입)"
 
@@ -1003,6 +1007,41 @@ def test_arm_disabled_when_floor_eats_trigger(monkeypatch):
 
     st.compression_seen = 1                      # 실제 압축이 돌면 ②가 받는다
     assert cs._reground_due(st, 1001.0) == "post-compress"
+
+
+def test_prompt_drops_extra_reserve_but_cards_keep_all():
+    """B: 프롬프트엔 예비를 잘라 싣고, **화면 카드는 선별분 전량**이 간다(2026-09-06).
+
+    Live 는 매 턴 프롬프트 전액 재과금이라 5분에 4~5개 쓰는 예비 25개를 20턴 내내 다시
+    실어 나르는 게 원가의 10% 였다. ⛔ 그렇다고 카드를 줄이면 학습자가 "오늘 할 게 줄었다"고
+    읽는데 그건 사실이 아니다 — 두 소비처를 가른다.
+    """
+    items = (
+        [{"slot": "main", "obj": f"m{i}", "item_id": i, "kind": "grammar"} for i in range(5)]
+        + [{"slot": "reserve", "obj": f"r{i}", "item_id": 100 + i, "kind": "vocab"} for i in range(25)]
+    )
+    trimmed = cs._prompt_study_items(items)
+    assert [it["obj"] for it in trimmed] == (
+        [f"m{i}" for i in range(5)] + [f"r{i}" for i in range(cs.PROMPT_RESERVE_MAX)]
+    ), "본편이 잘렸거나 선별 순서가 뒤집혔다"
+    assert len(cs._teaching_plan_items(items)) == 30, "화면 카드까지 줄었다(프론트 영향)"
+    assert cs._prompt_study_items(None) is None and cs._prompt_study_items([]) == []
+
+
+def test_reground_min_gap_caps_injections_in_a_5min_call():
+    """D: 압축 횟수는 우리가 못 정하니 **얹는 간격**으로 조인다(2026-09-06).
+
+    실측 통화 1324 — 5분에 압축 6회, 재접지 5회, 전부 `자리=마이크`(학습자가 말을 꺼내는
+    순간)라 말허리를 잘랐다(QA #2). 재접지는 드리프트 보정이지 턴 진행 장치가 아니다.
+    """
+    assert 300.0 / cs.REGROUND_MIN_GAP_S <= 2.0, "5분 통화에 3회 이상 얹힌다"
+    st = _fresh_state(duration=300.0, now=0.0)
+    cs._observe_compression(st, 7194)
+    st.compression_seen = 6                      # 압축은 계속 돈다(바닥이 트리거의 90%)
+    st.reground_count = 1
+    st.last_reground_ts = 0.0
+    assert cs._reground_due(st, 100.0) == "", "최소 간격 안인데 또 얹었다"
+    assert cs._reground_due(st, cs.REGROUND_MIN_GAP_S + 1.0) == "post-compress",         "간격이 지났는데 압축 보정이 안 나갔다"
 
 
 def test_floor_is_pinned_to_first_usage():
@@ -3568,9 +3607,11 @@ def test_compression_detection_and_arm_still_use_the_cycle_peak():
 
     # 사후·시간 폴백 두 경로를 닫아 두고 ①선제 arm 만 본다.
     st.call_start_ts = 0.0
+    st.call_duration_s = 900.0   # 시간 폴백 간격 240s — 아래 now 가 그 안에 들어오게
     st.reground_count = 1        # 압축 1회는 이미 소비 → ② post-compress 안 걸림
-    st.last_reground_ts = 100.0  # 최소간격(60s) 충족, 시간 폴백(120s) 미충족
-    now = 180.0
+    st.last_reground_ts = 100.0
+    # 최소간격은 충족시키고 시간 폴백은 미충족으로 둔다 — 상수에서 파생시켜 둘이 같이 움직인다.
+    now = 100.0 + cs.REGROUND_MIN_GAP_S + 1.0
     # 압축 직후엔 사이클 peak 가 바닥이라 arm 이 안 걸려야 한다.
     # (전체 최대치 16,000 을 봤다면 16,000 ≥ 13,600 이라 걸렸을 것이다.)
     assert cs._reground_due(st, now) == "", "리셋된 사이클 peak 가 아니라 전체 최대치를 보고 있다"
