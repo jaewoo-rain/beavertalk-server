@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     GCP_PROJECT: str | None = None                 # Vertex 프로젝트 ID
     GCP_LOCATION: str = "us-central1"              # Vertex 리전
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
-    GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"  # 통화(실시간 음성)
+    GEMINI_LIVE_MODEL: str = "gemini-2.5-flash-native-audio-preview-12-2025"  # 통화(실시간 음성)
     # ⭐⭐ **플랜별 모델**(2026-09-04). 영상통화(Max)만 표정을 쓰므로 그 모델만 3.1 로 간다.
     #
     #   Free·Pro → 음성통화 → 표정 없음 → VOICE 모델
@@ -116,7 +116,20 @@ class Settings(BaseSettings):
     #     비워 두면 종전 동작 그대로다(하위호환).
     #   ⚠ 값을 여기서 고르지 마라 — 고르는 곳은 `call_service.live_model_for()` 하나다.
     #     두 곳에서 고르면 언젠가 갈라진다.
-    LIVE_MODEL_VOICE: str = "gemini-live-2.5-flash-native-audio"
+    #   ⛔⛔ **모델 이름을 손으로 짓지 마라.** 2026-08-24~09-07 동안 여기에
+    #     `gemini-live-2.5-flash-native-audio` 가 박혀 있었는데 **그런 모델이 없다.**
+    #     낱말 순서가 뒤집힌 오타였고, 그 결과 **Free·Pro 는 통화가 통째로 안 됐다** —
+    #     1008 policy violation 으로 세션이 열리자마자 닫혔다. Max 는 VIDEO(3.1)라
+    #     멀쩡해서 **2주 동안 아무도 몰랐다.**
+    #   ⭐ 실재하는 이름은 API 에 물어서 확인한다(2026-09-07 실측, bidiGenerateContent 지원):
+    #       gemini-2.5-flash-native-audio-latest           최신 자동 추종
+    #       gemini-2.5-flash-native-audio-preview-09-2025
+    #       gemini-2.5-flash-native-audio-preview-12-2025  ← 채택(최신 고정판)
+    #       gemini-3.1-flash-live-preview                  VIDEO 가 쓰는 것
+    #     `-latest` 를 안 쓴 이유: 구글이 바꾸면 **통보 없이** 통화 품질이 바뀐다.
+    #   ⚠ 바꿀 땐 `tests/test_live_model_name.py` 가 형태를 잠근다. 그래도 **실제 존재
+    #     여부는 배포 전에 API 로 확인해라** — 테스트는 오프라인이라 그것까진 못 본다.
+    LIVE_MODEL_VOICE: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     LIVE_MODEL_VIDEO: str = "gemini-3.1-flash-live-preview"
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
 
