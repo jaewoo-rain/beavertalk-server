@@ -3933,6 +3933,52 @@ def _transcript_tail(state: _CallState, turns: int = 12, *, only_user: bool = Fa
     return "\n".join(lines)
 
 
+# 모드 전환 인용에서 찾는 두 축 — **주제어**(무엇을)와 **요청어**(해 달라)를 **둘 다** 요구한다.
+# ⛔ 한쪽만 보면 드릴 복창이 그대로 통과한다: 1325 의 학습자 줄 "친구하고 이야기를 해요."는
+#   비버가 시켜서 따라 말한 문장인데 주제어 '이야기'를 갖고 있다. **요청어가 함께** 있어야
+#   요청이다. 반대로 요청어만 보면 "I want to run in Korea."(1325 t2)가 통과한다 — 실제로
+#   통과했고, 그게 이 관문이 생긴 이유다.
+_MODE_TOPIC_WORDS: dict[str, tuple[str, ...]] = {
+    "chat": ("얘기", "이야기", "수다", "talk", "chat", "conversation"),
+    "study": ("공부", "배우", "연습", "가르", "학습",
+              "study", "learn", "practice", "teach", "lesson"),
+}
+_MODE_REQUEST_WORDS: tuple[str, ...] = (
+    "싶", "할래", "하자", "그만", "말고", "그냥", "대신", "줘", "주세요", "주라",
+    "want", "let's", "lets", "just", "rather", "instead", "stop", "can we", "could we",
+)
+
+
+def _quote_requests_mode(quote: str, proposed: str) -> bool:
+    """인용이 **그 모드를 요청하는 말**인가(관문② — 관문①은 인용의 실재 검사).
+
+    🧒 왜 필요한가: 관문①은 "이 문장이 전사에 있나"만 본다. 있으면 통과다 — **문장의 뜻은
+      한 글자도 안 본다.** 그래서 판정 사이드카가 아무 학습자 줄이나 근거로 갖다 붙여도
+      막을 방법이 없었다. 지어낸 인용(환각)만 막히고, 있는 말을 잘못 읽는 **과독**은 그대로
+      통과한다.
+
+    ## 2026-09-07 통화 1325 — 이 관문이 없어서 난 사고
+    비버 t1 "learning 할래, 그냥 chat 할래?" → 학습자 답이 STT 에 **"I want to run in
+    Korea."** 로 적혔다(learn→run). 사이드카는 이 줄을 근거로 `chat` 을 냈고, 인용이 전사에
+    실재하니 **+34초에 study→chat 이 채택**됐다. 비버는 소리를 듣고 제대로 드릴을 돌리고
+    있었는데 서버 모드만 뒤집힌 것이다. 그 뒤 2회째 재접지에 chat 문구가 실려 통화 마지막
+    96초가 여행 잡담으로 갔다.
+    ⛔ 되돌릴 길도 없었다 — 15:59 에 사이드카가 스스로 낸 chat→study 정정은 인용을 최근
+      12턴에서 못 찾아 기각됐다(그때는 드릴만 흐르고 있었다). **들어가긴 쉽고 나오긴
+      불가능한 문**이라, 들어가는 쪽을 조인다.
+
+    ⭐ 왜 "드릴 진행 중이면 뒤집지 마라"(서버 관측 게이트)를 **안 넣었나**: 이 관문을 통과
+      하려면 이미 요청어가 있어야 한다. 드릴 복창은 요청어가 없어 여기서 걸리므로 그 게이트는
+      막을 게 없고, 반대로 학습자가 드릴 도중 "그만하고 얘기해요"라고 한 **정당한 전환**만
+      막는다(불변 규칙 1 위반). 잡을 건 없고 놓칠 것만 생기는 관문은 넣지 않는다.
+    """
+    q = (quote or "").lower()
+    return (
+        any(t in q for t in _MODE_TOPIC_WORDS.get(proposed, ()))
+        and any(r in q for r in _MODE_REQUEST_WORDS)
+    )
+
+
 def _apply_mode_proposal(state: _CallState, proposed: str, quote: str, tail: str) -> None:
     """모드는 **서버가 sticky 로 소유**한다 — 사이드카 제안은 인용이 증명될 때만 채택.
 
@@ -3955,9 +4001,13 @@ def _apply_mode_proposal(state: _CallState, proposed: str, quote: str, tail: str
     if proposed not in ("study", "chat") or proposed == state.call_mode:
         return
     q = (quote or "").strip()
-    if len(q) < 4 or q not in tail:      # 원문에 없는 인용 = 환각 → 기각
+    if len(q) < 4 or q not in tail:      # 관문① 원문에 없는 인용 = 환각 → 기각
         logger.info("normalcall: 재접지 모드 전환 제안 기각(인용 미검증) %s→%s",
                     state.call_mode, proposed)
+        return
+    if not _quote_requests_mode(q, proposed):   # 관문② 있는 말을 잘못 읽은 것 = 과독 → 기각
+        logger.info("normalcall: 재접지 모드 전환 제안 기각(요청 표현 없음) %s→%s (인용: %.30s)",
+                    state.call_mode, proposed, q)
         return
     logger.info("normalcall: 재접지 모드 전환 채택 %s→%s (인용: %.20s)",
                 state.call_mode, proposed, q)

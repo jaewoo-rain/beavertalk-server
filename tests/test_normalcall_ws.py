@@ -1252,6 +1252,73 @@ def test_mode_switch_ignores_beavers_own_words():
     assert st.call_mode == "chat", "학습자 발화 인용인데 모드가 안 바뀌었다"
 
 
+def test_mode_switch_needs_a_request_not_just_a_real_sentence():
+    """⛔⛔ 2026-09-07 통화 1325 — **실재하는 인용**만으로는 부족하다(관문② 신설).
+
+    비버 t1 "learning 할래, 그냥 chat 할래?" → 학습자 답이 STT 에 "I want to run in
+    Korea." 로 적혔다(learn→run). 사이드카가 이 줄을 근거로 chat 을 냈고, 인용이 전사에
+    **실재하므로 관문①을 통과** → +34초에 study→chat 채택 → 2회째 재접지에 chat 문구가
+    실려 통화 마지막 96초가 여행 잡담이 됐다.
+    ⭐ 관문①이 막는 건 환각(지어낸 인용)뿐이다. 있는 말을 잘못 읽는 **과독**은 뜻을 봐야
+      막힌다 — 주제어(얘기/공부…) + 요청어(싶/그만/그냥…) 둘 다.
+    """
+    tail = """학습자: I want to run in Korea.
+학습자: 그만하고 그냥 얘기해요"""
+    st = cs._CallState()
+    st.call_mode = "study"
+
+    # 실재하지만 **요청이 아닌** 줄 → 기각(1325 재현)
+    cs._apply_mode_proposal(st, "chat", "I want to run in Korea.", tail)
+    assert st.call_mode == "study", "요청이 아닌 문장으로 모드가 뒤집혔다(1325 재발)"
+
+    # 진짜 요청 → 채택(불변 규칙 1: 모드를 정하는 건 학습자다)
+    cs._apply_mode_proposal(st, "chat", "그만하고 그냥 얘기해요", tail)
+    assert st.call_mode == "chat", "학습자가 명시로 요청했는데 모드가 안 바뀌었다"
+
+
+def test_drill_repetition_is_not_a_mode_request():
+    """⛔ 비버가 시켜서 따라 말한 문장이 전환 근거가 되면 안 된다.
+
+    1325 의 학습자 줄 "친구하고 이야기를 해요."는 **드릴 복창**이다. 주제어('이야기')만 보면
+    통과하므로 요청어를 함께 요구한다. 반대로 "가르쳐 주세요"처럼 요청이 분명하면 통과한다.
+    """
+    tail = """학습자: 친구하고 이야기를 해요.
+학습자: 한국어 좀 가르쳐 주세요"""
+    st = cs._CallState()
+    st.call_mode = "study"
+
+    cs._apply_mode_proposal(st, "chat", "친구하고 이야기를 해요.", tail)
+    assert st.call_mode == "study", "드릴 복창이 모드 전환 근거가 됐다"
+
+    st.call_mode = "chat"
+    cs._apply_mode_proposal(st, "study", "한국어 좀 가르쳐 주세요", tail)
+    assert st.call_mode == "study", "명시 요청인데 study 로 안 돌아왔다"
+
+
+def test_chat_brief_leaves_exactly_one_thing_to_answer():
+    """⛔ 2026-09-07 통화 1325 — 쪽지 하나가 한 턴에 **요청 2개**를 만들었다.
+
+      t33 "「아내와 남편이 같이 살아요.」 Repeat that. And by the way, do you have any
+           travel plans coming up?"
+      t34 학습자: "No."          ← 질문에만 답하고 따라 말하기를 버렸다
+      t35 비버가 다시 시킴       ← 왕복 23초 낭비
+
+    첫 줄("방금 한 말에 먼저 반응")은 못 건드린다(그게 없으면 학습자를 무시한다). 그래서
+    **마지막에 도착점 한 줄**을 놓는다. ⛔ 금지문이 아니라 도착 상태로 쓴다(원칙 2).
+    """
+    from core.persona_prompt import build_reground_brief
+
+    chat = build_reground_brief("선생님", "다정함", mode="chat")
+    assert "학습자가 이번 턴에 답할 것은 그 질문 하나여야 한다." in chat
+    for seed in ("따라 말하기", "같이 내지 마라", "동시에"):
+        assert seed not in chat, f"금지 예시가 씨앗으로 실렸다: {seed}"
+
+    # 공부 판은 **바이트 그대로** — 09-03 실측으로 검증된 문구다.
+    study = build_reground_brief("선생님", "다정함", mode="study")
+    assert "흥미를 느낄 새 질문" not in study
+    assert "이번 턴에 답할 것은" not in study
+
+
 def test_reground_instruction_asks_for_requested_mode_not_current_flow():
     """⛔ mode 는 '지금 흐름'이 아니라 **학습자가 말로 요청한 모드**다(2026-09-03).
 
