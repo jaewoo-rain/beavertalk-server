@@ -1379,6 +1379,11 @@ async def run_call(
     #   플랜 분기를 안 타므로, 여기 없으면 state 대입에서 UnboundLocalError 가 난다.
     #   ⚠ None 이면 어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작 그대로).
     live_model: str | None = None
+    # ⭐ [live_model] 과 **같은 이유로** 분기 앞에서 잡는다 — 레벨테스트는 플랜 분기를
+    #   안 타므로 여기 없으면 아래 tool 게이트에서 UnboundLocalError 가 난다.
+    #   ⚠ 기본 False(=음성통화)다. 모르면 **도구를 안 싣는 쪽**이 안전하다 —
+    #     싣는 쪽으로 틀리면 2.5 세션이 1011 로 죽는다(아래 :1625 주석).
+    wants_video: bool = False
     if call_type == "level_test":
         # 레벨테스트 대본 — 레벨/이력 슬롯 없는 전용 셋업(회원당 사실상 1회라 재조회 비용 수용).
         lt_setup = await svc.run_db(
@@ -1622,7 +1627,18 @@ async def run_call(
     #     ⚠ 레벨테스트에 표정을 넣으려면 일반 통화와 같은 분할이 필요한데, 첫 2턴이 곧
     #       0단·1단 **측정 구간**이라 페르소나 미완성 구간이 그대로 측정 오염이 된다.
     #       일반 통화에서 검증한 뒤 별건으로 다룬다.
-    if settings.LIVE_FACE_SPIKE and call_type != "level_test":
+    # ⛔⛔ **`wants_video` 를 빼지 마라.** 2026-09-04 플랜 분기가 표정을 Max 전용으로
+    #   가를 때 **지시문 쪽(:1457)만 고치고 여기를 안 고쳤다.** 그래서 Free·Pro(2.5)
+    #   세션 setup 에도 `set_face` 선언이 실렸다 — 지시문은 표정을 안 시키니 사람 눈엔
+    #   "표정 없음"으로 보이는데, 와이어에는 tool 이 나간다.
+    #   ⇒ 그 조합이 2026-09-07 에 **Free·Pro 통화를 전부 죽였다**(1011 internal error,
+    #     사용자 첫 발화 직후). 이 저장소가 이미 실측으로 못박아 둔 사망 조건이다:
+    #       영문 무인자 5툴                        30/30 생존
+    #       현행 SET_FACE_TOOL(한국어 설명+enum)    0/21 전부 1011   (CODEX_RESULT_1011.md)
+    #       긴 지시문 + set_face 를 setup 에        0/8             (커밋 05462f8)
+    #   ⚠ 두 조건이 **같은 값**이어야 한다 — 한쪽만 고치면 "지시문엔 없는데 tool 은 있는"
+    #     이 상태로 조용히 돌아온다. 회귀 `test_plan_call_split.py` 가 이 자리를 잠근다.
+    if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test":
         live_tools = [SET_FACE_TOOL]
     if call_type == "level_test":
         # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은

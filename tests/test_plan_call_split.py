@@ -110,6 +110,72 @@ def test_face_spike_is_now_a_kill_switch_not_a_feature_flag():
 
 
 # --------------------------------------------------------------------------- #
+# 3-b. ⛔ 표정 게이트가 **두 곳**이다 — 둘이 갈라지면 2.5 통화가 죽는다
+# --------------------------------------------------------------------------- #
+
+def _call_session_source() -> str:
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parents[1]
+            / "domains" / "learning" / "realtime" / "call_session.py"
+            ).read_text(encoding="utf-8")
+
+
+def test_both_face_gates_check_the_plan():
+    """⛔⛔ **실제로 일어난 사고를 잠근다**(2026-09-07).
+
+    표정은 두 자리에서 갈린다:
+
+        지시문   face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video
+        세션 tool if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test"
+
+    9/4 플랜 분기가 **지시문만 고치고 tool 자리를 안 고쳤다.** 그래서 Free·Pro(2.5)
+    세션 setup 에 `set_face` 선언이 실렸고, 지시문은 표정을 안 시키니 사람 눈엔
+    "표정 없음"으로 보였다. 와이어에는 나가고 있었다.
+
+    ⇒ 그 조합이 **Free·Pro 통화를 전부 죽였다** — 1011 internal error, 사용자 첫 발화
+      직후. 이 저장소 실측: 현행 SET_FACE_TOOL 은 2.5 에서 **0/21 전부 1011**
+      (`CODEX_RESULT_1011.md`), 긴 지시문+tool 은 **0/8**(커밋 `05462f8`).
+
+    ⚠ 앞의 진리표 시험(위)은 **식을 스스로 만들어 검증하는 동어반복**이라 이 자리를
+      못 잡았다. 그래서 여기서는 **소스를 읽는다** — `test_alembic_include_name.py` 와
+      같은 규율이다(실제로 안 돌아가는 방어는 시험이 아니다).
+    """
+    src = _call_session_source()
+
+    # ① 지시문 쪽
+    assert "face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video" in src, (
+        "지시문의 표정 게이트가 바뀌었다 — 아래 tool 게이트와 같은 식인지 확인하라"
+    )
+
+    # ② 세션 tool 쪽 — ⛔ 여기에 `wants_video` 가 빠지는 것이 그 사고였다
+    gate = 'if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test":'
+    assert gate in src, (
+        "세션 tool 게이트에 `wants_video` 가 없다. "
+        "⛔ 그러면 Free·Pro(2.5) setup 에 set_face 가 실려 통화가 1011 로 죽는다. "
+        "두 게이트는 **같은 조건**이어야 한다."
+    )
+
+
+def test_the_tool_list_starts_empty():
+    """⭐ 기본이 «도구 없음» 이어야 한다.
+
+    모르면 안 싣는 쪽이 안전하다 — 싣는 쪽으로 틀리면 2.5 세션이 죽는다.
+    """
+    src = _call_session_source()
+    assert "live_tools = None" in src, "live_tools 기본값이 None 이 아니다"
+
+
+def test_wants_video_is_initialized_before_the_branch():
+    """⚠ 레벨테스트는 플랜 분기를 안 탄다 — 초기화가 없으면 UnboundLocalError 다.
+
+    그리고 기본값은 **False**(음성)여야 한다. True 로 두면 레벨테스트 세션에
+    도구가 실린다.
+    """
+    src = _call_session_source()
+    assert "wants_video: bool = False" in src,         "wants_video 가 분기 앞에서 False 로 초기화되지 않았다"
+
+
+# --------------------------------------------------------------------------- #
 # 4. 실측 가능성 — 모델이 통화 행에 남아야 한다
 # --------------------------------------------------------------------------- #
 
