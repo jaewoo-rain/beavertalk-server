@@ -834,8 +834,12 @@ def test_five_minute_call_still_regrounds_without_any_compression():
         "5분 통화가 재접지를 통째로 잃었다(압축 신호 전용 트리거 회귀)"
 
     # 5분 동안 2회 — 옛 시각 트리거(0.5·0.8 지점 2회)와 실질 동일하다.
+    # ⚠ 2회째를 정하는 건 폴백 간격(120s)이 아니라 **최소 간격**이다(2026-09-06 D: 150s).
+    #   둘 중 큰 쪽이 이긴다 — 상수에서 파생시켜 어느 쪽을 바꿔도 이 계약이 안 깨지게 둔다.
     state.reground_count, state.last_reground_ts = 1, now + gap
-    assert cs._reground_due(state, now + 2 * gap + 1) == "time"
+    second = now + gap + max(gap, cs.REGROUND_MIN_GAP_S) + 1
+    assert cs._reground_due(state, second) == "time"
+    assert second - now < state.call_duration_s,         "2회째가 통화 밖으로 밀렸다 — 5분 통화가 재접지를 1회로 잃는다"
     state.reground_count, state.last_reground_ts = 2, now + 2 * gap
     assert cs._reground_due(state, now + 300) == "", "5분 통화에서 3회째가 arm 됐다(과주입)"
 
@@ -962,10 +966,91 @@ def test_arm_fires_before_compression_not_after():
     """
     trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
     st = _fresh_state()
-    st.usage_prompt_peak = int(trigger * 0.5)
+    floor = 1500                                 # 첫 usage 1건이 바닥을 고정한다
+    cs._observe_compression(st, floor)
+    room = trigger - floor                       # 대화가 들어갈 수 있는 자리
+    st.usage_prompt_peak = floor + int(room * 0.5)
     assert cs._reground_due(st, 1001.0) == "", "절반밖에 안 찼는데 arm 됐다"
-    st.usage_prompt_peak = int(trigger * cs.REGROUND_ARM_RATIO) + 1
+    st.usage_prompt_peak = floor + int(room * cs.REGROUND_ARM_RATIO) + 1
     assert cs._reground_due(st, 1001.0) == "compress", "압축 임박인데 arm 이 안 섰다"
+
+
+def test_arm_ignores_instruction_floor(monkeypatch):
+    """⛔ 회귀: **지시문만으로** arm 되면 안 된다(2026-09-06 QA #1).
+
+    실측 통화 1310·1324 — 트리거 8,000 × 0.85 = 6,800 인데 통화 시작 8초의 prompt 가
+    6,937 / 7,194 이었다. 대화가 한 줄도 없는데 옛 절대값 조건이 참이라 재접지가 첫 턴부터
+    상시 발동했고, 학습자가 답하는 도중에 브리프가 얹혀 비버가 첫인사를 다시 했다.
+    """
+    monkeypatch.setattr(cs._settings, "LIVE_CTX_TRIGGER_TOKENS", 8000)
+    st = _fresh_state()
+    cs._observe_compression(st, 7194)            # 실측 바닥(지시문 + teaching_plan 30 + 도구)
+    assert st.usage_prompt_floor == 7194
+    assert cs._reground_due(st, 1001.0) == "", "대화 0줄인데 arm 됐다(바닥을 대화로 셌다)"
+
+    # 남은 자리(806)의 85% 를 대화가 채우면 그때는 arm 한다.
+    st.usage_prompt_peak = 7194 + int(806 * cs.REGROUND_ARM_RATIO) + 1
+    assert cs._reground_due(st, 1001.0) == "compress", "자리가 찼는데 arm 이 안 섰다"
+
+
+def test_arm_disabled_when_floor_eats_trigger(monkeypatch):
+    """바닥이 트리거를 이미 넘으면 ①선제를 끈다 — 예고할 여유 자체가 없다.
+
+    켜두면 조건이 상시 참이라 옛 버그가 그대로 재현된다. 압축은 실제로 돌 테니 ②사후가 받는다
+    (미탐은 무해, 오탐은 이중발화 — 원래 설계도 미탐 쪽으로 보수적이다).
+    """
+    monkeypatch.setattr(cs._settings, "LIVE_CTX_TRIGGER_TOKENS", 8000)
+    st = _fresh_state()
+    cs._observe_compression(st, 9000)            # 바닥 > 트리거
+    st.usage_prompt_peak = 12000
+    assert cs._reground_due(st, 1001.0) == "", "여유가 없는데 ①이 arm 했다"
+
+    st.compression_seen = 1                      # 실제 압축이 돌면 ②가 받는다
+    assert cs._reground_due(st, 1001.0) == "post-compress"
+
+
+def test_prompt_drops_extra_reserve_but_cards_keep_all():
+    """B: 프롬프트엔 예비를 잘라 싣고, **화면 카드는 선별분 전량**이 간다(2026-09-06).
+
+    Live 는 매 턴 프롬프트 전액 재과금이라 5분에 4~5개 쓰는 예비 25개를 20턴 내내 다시
+    실어 나르는 게 원가의 10% 였다. ⛔ 그렇다고 카드를 줄이면 학습자가 "오늘 할 게 줄었다"고
+    읽는데 그건 사실이 아니다 — 두 소비처를 가른다.
+    """
+    items = (
+        [{"slot": "main", "obj": f"m{i}", "item_id": i, "kind": "grammar"} for i in range(5)]
+        + [{"slot": "reserve", "obj": f"r{i}", "item_id": 100 + i, "kind": "vocab"} for i in range(25)]
+    )
+    trimmed = cs._prompt_study_items(items)
+    assert [it["obj"] for it in trimmed] == (
+        [f"m{i}" for i in range(5)] + [f"r{i}" for i in range(cs.PROMPT_RESERVE_MAX)]
+    ), "본편이 잘렸거나 선별 순서가 뒤집혔다"
+    assert len(cs._teaching_plan_items(items)) == 30, "화면 카드까지 줄었다(프론트 영향)"
+    assert cs._prompt_study_items(None) is None and cs._prompt_study_items([]) == []
+
+
+def test_reground_min_gap_caps_injections_in_a_5min_call():
+    """D: 압축 횟수는 우리가 못 정하니 **얹는 간격**으로 조인다(2026-09-06).
+
+    실측 통화 1324 — 5분에 압축 6회, 재접지 5회, 전부 `자리=마이크`(학습자가 말을 꺼내는
+    순간)라 말허리를 잘랐다(QA #2). 재접지는 드리프트 보정이지 턴 진행 장치가 아니다.
+    """
+    assert 300.0 / cs.REGROUND_MIN_GAP_S <= 2.0, "5분 통화에 3회 이상 얹힌다"
+    st = _fresh_state(duration=300.0, now=0.0)
+    cs._observe_compression(st, 7194)
+    st.compression_seen = 6                      # 압축은 계속 돈다(바닥이 트리거의 90%)
+    st.reground_count = 1
+    st.last_reground_ts = 0.0
+    assert cs._reground_due(st, 100.0) == "", "최소 간격 안인데 또 얹었다"
+    assert cs._reground_due(st, cs.REGROUND_MIN_GAP_S + 1.0) == "post-compress",         "간격이 지났는데 압축 보정이 안 나갔다"
+
+
+def test_floor_is_pinned_to_first_usage():
+    """바닥은 첫 1건으로 **고정**한다 — min() 으로 계속 낮추면 기준이 통화 중에 흔들린다."""
+    st = _fresh_state()
+    cs._observe_compression(st, 7194)
+    cs._observe_compression(st, 15000)
+    cs._observe_compression(st, 6800)            # 압축 직후 바닥보다 낮게 찍히는 순간
+    assert st.usage_prompt_floor == 7194, "바닥이 통화 중에 내려앉았다"
 
 
 def test_compression_detected_from_prompt_drop():
@@ -1023,6 +1108,7 @@ def test_close_wins_over_reground_arm():
     """⛔ 종료가 최우선 — 마무리 구간에서는 어떤 근거로도 arm 하지 않는다(작별 오염 방지)."""
     trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
     st = _fresh_state()
+    cs._observe_compression(st, 1500)          # 바닥 고정(arm 은 바닥 위 대화를 잰다)
     st.usage_prompt_peak = trigger             # 압축 임박(가장 강한 근거)
     assert cs._reground_due(st, 1001.0) == "compress"
     st.should_close = True
@@ -1164,6 +1250,73 @@ def test_mode_switch_ignores_beavers_own_words():
         st, "chat", "그냥 얘기하고 싶어요", cs._transcript_tail(st, only_user=True)
     )
     assert st.call_mode == "chat", "학습자 발화 인용인데 모드가 안 바뀌었다"
+
+
+def test_mode_switch_needs_a_request_not_just_a_real_sentence():
+    """⛔⛔ 2026-09-07 통화 1325 — **실재하는 인용**만으로는 부족하다(관문② 신설).
+
+    비버 t1 "learning 할래, 그냥 chat 할래?" → 학습자 답이 STT 에 "I want to run in
+    Korea." 로 적혔다(learn→run). 사이드카가 이 줄을 근거로 chat 을 냈고, 인용이 전사에
+    **실재하므로 관문①을 통과** → +34초에 study→chat 채택 → 2회째 재접지에 chat 문구가
+    실려 통화 마지막 96초가 여행 잡담이 됐다.
+    ⭐ 관문①이 막는 건 환각(지어낸 인용)뿐이다. 있는 말을 잘못 읽는 **과독**은 뜻을 봐야
+      막힌다 — 주제어(얘기/공부…) + 요청어(싶/그만/그냥…) 둘 다.
+    """
+    tail = """학습자: I want to run in Korea.
+학습자: 그만하고 그냥 얘기해요"""
+    st = cs._CallState()
+    st.call_mode = "study"
+
+    # 실재하지만 **요청이 아닌** 줄 → 기각(1325 재현)
+    cs._apply_mode_proposal(st, "chat", "I want to run in Korea.", tail)
+    assert st.call_mode == "study", "요청이 아닌 문장으로 모드가 뒤집혔다(1325 재발)"
+
+    # 진짜 요청 → 채택(불변 규칙 1: 모드를 정하는 건 학습자다)
+    cs._apply_mode_proposal(st, "chat", "그만하고 그냥 얘기해요", tail)
+    assert st.call_mode == "chat", "학습자가 명시로 요청했는데 모드가 안 바뀌었다"
+
+
+def test_drill_repetition_is_not_a_mode_request():
+    """⛔ 비버가 시켜서 따라 말한 문장이 전환 근거가 되면 안 된다.
+
+    1325 의 학습자 줄 "친구하고 이야기를 해요."는 **드릴 복창**이다. 주제어('이야기')만 보면
+    통과하므로 요청어를 함께 요구한다. 반대로 "가르쳐 주세요"처럼 요청이 분명하면 통과한다.
+    """
+    tail = """학습자: 친구하고 이야기를 해요.
+학습자: 한국어 좀 가르쳐 주세요"""
+    st = cs._CallState()
+    st.call_mode = "study"
+
+    cs._apply_mode_proposal(st, "chat", "친구하고 이야기를 해요.", tail)
+    assert st.call_mode == "study", "드릴 복창이 모드 전환 근거가 됐다"
+
+    st.call_mode = "chat"
+    cs._apply_mode_proposal(st, "study", "한국어 좀 가르쳐 주세요", tail)
+    assert st.call_mode == "study", "명시 요청인데 study 로 안 돌아왔다"
+
+
+def test_chat_brief_leaves_exactly_one_thing_to_answer():
+    """⛔ 2026-09-07 통화 1325 — 쪽지 하나가 한 턴에 **요청 2개**를 만들었다.
+
+      t33 "「아내와 남편이 같이 살아요.」 Repeat that. And by the way, do you have any
+           travel plans coming up?"
+      t34 학습자: "No."          ← 질문에만 답하고 따라 말하기를 버렸다
+      t35 비버가 다시 시킴       ← 왕복 23초 낭비
+
+    첫 줄("방금 한 말에 먼저 반응")은 못 건드린다(그게 없으면 학습자를 무시한다). 그래서
+    **마지막에 도착점 한 줄**을 놓는다. ⛔ 금지문이 아니라 도착 상태로 쓴다(원칙 2).
+    """
+    from core.persona_prompt import build_reground_brief
+
+    chat = build_reground_brief("선생님", "다정함", mode="chat")
+    assert "학습자가 이번 턴에 답할 것은 그 질문 하나여야 한다." in chat
+    for seed in ("따라 말하기", "같이 내지 마라", "동시에"):
+        assert seed not in chat, f"금지 예시가 씨앗으로 실렸다: {seed}"
+
+    # 공부 판은 **바이트 그대로** — 09-03 실측으로 검증된 문구다.
+    study = build_reground_brief("선생님", "다정함", mode="study")
+    assert "흥미를 느낄 새 질문" not in study
+    assert "이번 턴에 답할 것은" not in study
 
 
 def test_reground_instruction_asks_for_requested_mode_not_current_flow():
@@ -3512,21 +3665,26 @@ def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
 
 def test_compression_detection_and_arm_still_use_the_cycle_peak():
     """⛔ 관측값을 하나 더 세웠을 뿐 — 압축 감지·재접지 arm 동작은 무변경이어야 한다(R4)."""
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
     st = cs._CallState()
+    cs._observe_compression(st, 1_500)           # 바닥(지시문). arm 은 이 위의 대화를 잰다
     cs._observe_compression(st, 16_000)
     cs._observe_compression(st, 12_000)          # 압축 1회
     assert st.compression_seen == 1
 
     # 사후·시간 폴백 두 경로를 닫아 두고 ①선제 arm 만 본다.
     st.call_start_ts = 0.0
+    st.call_duration_s = 900.0   # 시간 폴백 간격 240s — 아래 now 가 그 안에 들어오게
     st.reground_count = 1        # 압축 1회는 이미 소비 → ② post-compress 안 걸림
-    st.last_reground_ts = 100.0  # 최소간격(60s) 충족, 시간 폴백(120s) 미충족
-    now = 180.0
+    st.last_reground_ts = 100.0
+    # 최소간격은 충족시키고 시간 폴백은 미충족으로 둔다 — 상수에서 파생시켜 둘이 같이 움직인다.
+    now = 100.0 + cs.REGROUND_MIN_GAP_S + 1.0
     # 압축 직후엔 사이클 peak 가 바닥이라 arm 이 안 걸려야 한다.
     # (전체 최대치 16,000 을 봤다면 16,000 ≥ 13,600 이라 걸렸을 것이다.)
     assert cs._reground_due(st, now) == "", "리셋된 사이클 peak 가 아니라 전체 최대치를 보고 있다"
-    # 다시 차오르면 선제 arm.
-    cs._observe_compression(st, int(16_000 * cs.REGROUND_ARM_RATIO) + 1)
+    # 다시 차오르면 선제 arm — 문턱은 **바닥 위 남은 자리**의 85% 다.
+    room = trigger - st.usage_prompt_floor
+    cs._observe_compression(st, st.usage_prompt_floor + int(room * cs.REGROUND_ARM_RATIO) + 1)
     assert cs._reground_due(st, now) == "compress"
 
 

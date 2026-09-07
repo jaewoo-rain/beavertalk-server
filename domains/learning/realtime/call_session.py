@@ -215,7 +215,27 @@ REGROUND_ARM_RATIO = 0.85        # 압축 임박 판정(× LIVE_CTX_TRIGGER_TOKE
 #   멈춘다 — 턴 경계 컷). 그 아래로 여유를 두되 절반보다는 낮게. 16000/12000 에 대입하면
 #   1600 이라 옛 2000 과 같은 자리대다 — 잡음 배제라는 원래 목적을 유지한다.
 REGROUND_DROP_MIN_RATIO = 0.4
-REGROUND_MIN_GAP_S = 60.0        # 연속 주입 최소 간격(같은 압축 주기에 두 번 얹지 않기)
+# 연속 주입 최소 간격. 압축 1회당 1회 arm 을 **여기가 최종적으로 조인다.**
+#
+# ⛔⛔ 2026-09-06: 60 → 150. 압축이 통화당 몇 번 도는지는 우리가 못 정한다 —
+#   실측 통화 1324 는 5분에 **6회**였다(8,079→7,096 / 15,130→7,481 / … 매 턴 경계마다).
+#   바닥(지시문)이 트리거의 90% 라 모든 턴 경계에서 "트리거 초과"가 참이기 때문이다.
+#   ⇒ 압축마다 얹으면 5분에 5~6회, 그것도 전부 `자리=마이크`(학습자가 말을 꺼내는 순간)라
+#   말허리를 자른다(QA #2 — 답하는 도중 다른 항목으로 점프). 재접지는 **드리프트 보정**이지
+#   턴 진행 장치가 아니다.
+#   ⇒ 5분 2회 / 15분 6회로 조인다. 잊는 건 여전하지만 **끊는 횟수**를 절반 이하로 줄인다.
+#   ⚠ 이 값을 되돌리려면 압축 횟수부터 줄여라(트리거 상향 — docs/20260906_1820_* §5-C).
+REGROUND_MIN_GAP_S = 150.0
+# 프롬프트에 실을 **예비** 학습항목 상한(본편은 전량). 화면 카드(teaching_plan)는 이 값과
+# 무관하게 선별분 전량이 간다 — 두 소비처가 갈라져 있다(주입 1449행 / 카드 1476행).
+#
+# ⭐ 왜 가르나(2026-09-06): 선별은 예비를 25개 준다(mastery_repository.STUDY_RESERVE_TOTAL).
+#   그런데 Live 는 **매 턴 프롬프트 전액 재과금**이라, 5분 통화에서 4~5개밖에 안 쓰는 예비
+#   25개를 20턴 내내 다시 실어 나른다. 실측 렌더 — 예비 25개 = 1,512자(지시문의 16.2%),
+#   5개로 줄이면 1,205자(≈900~1,200토큰) 감소. 턴당 원가의 약 10% 다.
+# ⚠ 화면은 안 바뀐다. 카드가 줄면 학습자가 "오늘 할 게 줄었다"고 읽는데 그건 사실이 아니다.
+# ⚠ 15분 통화(이어하기)에서 예비 5개가 모자란지는 **아직 안 쟀다**. 모자라면 여기만 올린다.
+PROMPT_RESERVE_MAX = 5
 REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
 # 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
 #   5분(300s) → 120s → 2회 = 옛 0.5·0.8 지점 2회와 실질 동일(5분 하위호환)
@@ -573,7 +593,8 @@ class _CallState:
         # 재접지 통합(단계 3) — 압축 신호 관측 + 사이드카 + 모드 sticky
         "reground_count", "last_reground_ts", "reground_arm_reason",
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
-        "call_mode", "usage_prompt_peak", "usage_prompt_max", "compression_seen",
+        "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
@@ -734,6 +755,11 @@ class _CallState:
         #     저장돼 call 909 에서 13,355(DB) vs 15,904(실제)로 어긋났다.
         self.usage_prompt_peak: int = 0
         self.usage_prompt_max: int = 0
+        #   usage_prompt_floor — 이 통화의 **바닥**(대화 0줄일 때의 prompt). 첫 usage 1건으로
+        #     고정한다. 시스템 지시문 + teaching_plan + 도구 정의라 통화 내내 매 턴 다시 실린다.
+        #     ⭐ 재접지 arm 이 "컨텍스트가 찼나"를 물을 때 재야 하는 건 **바닥 위에 쌓인 대화**지
+        #     바닥 자체가 아니다(2026-09-06). 0 이면 아직 첫 usage 전 = 게이트 비활성.
+        self.usage_prompt_floor: int = 0
         self.compression_seen: int = 0
         # ── 레벨테스트 Phase 2: 종료 판정 전용 사이드카('끝낼까 말까'만 — 밴드 정밀분류 없음) ──
         # band_observe: 관측 활성(레벨테스트만 run_call 이 True). False → 전 경로 무동작(일반 통화 무영향).
@@ -955,6 +981,11 @@ def _observe_compression(state: _CallState, prompt) -> None:
     if not prompt:
         return
     p = int(prompt)
+    # 바닥은 **첫 1건으로 고정**한다 — 이 시점의 prompt 가 곧 지시문 크기다(대화 0줄).
+    # ⛔ min() 으로 계속 낮추지 않는다. 압축 후 값이 바닥보다 낮게 찍히는 순간이 있는데
+    #   그걸 바닥으로 삼으면 기준이 통화 중에 흔들려 arm 이 다시 눈멀게 된다.
+    if state.usage_prompt_floor == 0:
+        state.usage_prompt_floor = p
     # 통화 전체 최대치는 압축과 무관하게 여기서만 갱신한다(아래 리셋에 걸리지 않는 자리).
     if p > state.usage_prompt_max:
         state.usage_prompt_max = p
@@ -1440,7 +1471,7 @@ async def run_call(
             name=setup["name"],
             history=setup["history"],
             target_language=target_language,
-            study_items=setup.get("study_items") if inject_materials else None,
+            study_items=_prompt_study_items(setup.get("study_items")) if inject_materials else None,
             known_items=setup.get("known_items") if inject_materials else None,
             recent_topics=setup.get("recent_topics") if inject_materials else None,
             promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
@@ -2348,6 +2379,25 @@ async def _read_initial_start(client_ws) -> StartParams:
 # --------------------------------------------------------------------------- #
 # P2.5: teaching_plan + 동적 힌트 사이드카 (D16 — mechanics ⑪·⑬)
 # --------------------------------------------------------------------------- #
+def _prompt_study_items(study_items: list[dict] | None) -> list[dict] | None:
+    """프롬프트에 실을 학습항목 — 본편 전량 + 예비 앞에서 PROMPT_RESERVE_MAX 개.
+
+    ⛔ 화면 카드(_teaching_plan_items)는 이걸 쓰지 않는다. 카드는 선별분 전량이 가야 한다.
+    ⚠ 순서를 지킨다 — 선별이 낸 순서가 곧 우선순위다(뒤에서 자르면 그 순위가 보존된다).
+    """
+    if not study_items:
+        return study_items
+    out = []
+    reserve_taken = 0
+    for it in study_items:
+        if it.get("slot") == "reserve":
+            if reserve_taken >= PROMPT_RESERVE_MAX:
+                continue
+            reserve_taken += 1
+        out.append(it)
+    return out
+
+
 def _teaching_plan_items(study_items: list[dict]) -> list[TeachingItem]:
     """study_items(persona 스키마 + item_id/roman) → teaching_plan 카드 항목(P2.5).
 
@@ -3753,9 +3803,22 @@ def _reground_due(state: _CallState, now: float) -> str:
     if state.last_reground_ts is not None and now - state.last_reground_ts < REGROUND_MIN_GAP_S:
         return ""
     trigger = _settings.LIVE_CTX_TRIGGER_TOKENS
-    # ① 선제 — 압축 임박(컨텍스트가 트리거의 85%까지 찼다). 압축 직전에 얹은 요약은
-    #    최신단에 있어 그 압축을 살아남는다.
-    if state.usage_prompt_peak >= trigger * REGROUND_ARM_RATIO:
+    # ① 선제 — 압축 임박. 압축 직전에 얹은 요약은 최신단에 있어 그 압축을 살아남는다.
+    #
+    # ⛔⛔ 2026-09-06: 여기는 **바닥 위에 쌓인 대화**를 재야 한다. 예전엔 절대값이었다
+    #   (`peak >= trigger * 0.85`). 그런데 지시문이 커지면서 바닥이 임계를 통째로 넘겼다 —
+    #   실측 통화 1310·1324: 트리거 8,000 × 0.85 = 6,800 인데 **통화 시작 8초의 peak 가
+    #   6,937 / 7,194**. 대화가 한 줄도 없는데 조건이 참이라 재접지가 통화 내내 상시 발동했고,
+    #   학습자가 답하는 도중에 브리프가 얹혀 비버가 첫인사를 다시 하거나 과제를 버렸다
+    #   (QA #1~3, `docs/20260906_1820_재접지-상시발동-원인과-처방.md`).
+    #   ⇒ 주석이 원래 말하던 "컨텍스트가 **찼다**"의 뜻대로, 바닥을 빼고 **남은 자리**로 잰다.
+    #
+    # ⚠ 바닥이 트리거를 이미 먹었으면(room <= 0) ①을 **끈다**. 그 통화는 임박을 예고할
+    #   여유 자체가 없다 — 켜두면 예전처럼 상시 참이다. 압축은 실제로 돌 테니 ②사후 감지가
+    #   받는다(미탐은 무해, 오탐은 이중발화 — 원래 설계도 미탐 쪽으로 보수적이다).
+    floor = state.usage_prompt_floor
+    room = trigger - floor
+    if floor and room > 0 and state.usage_prompt_peak - floor >= room * REGROUND_ARM_RATIO:
         return "compress"
     # ② 사후 — 이미 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우의 보정).
     if state.compression_seen > state.reground_count:
@@ -3781,9 +3844,11 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     state.reground_pending = True
     state.reground_arm_reason = reason
     logger.info(
-        "normalcall: 재접지 arm(근거=%s, %d/%d회, 압축감지=%d, peak=%d)",
+        "normalcall: 재접지 arm(근거=%s, %d/%d회, 압축감지=%d, peak=%d, 바닥=%d, 대화=%d)",
         reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
         state.compression_seen, state.usage_prompt_peak,
+        state.usage_prompt_floor,
+        max(0, state.usage_prompt_peak - state.usage_prompt_floor),
     )
 
 
@@ -3884,6 +3949,52 @@ def _transcript_tail(state: _CallState, turns: int = 12, *, only_user: bool = Fa
     return "\n".join(lines)
 
 
+# 모드 전환 인용에서 찾는 두 축 — **주제어**(무엇을)와 **요청어**(해 달라)를 **둘 다** 요구한다.
+# ⛔ 한쪽만 보면 드릴 복창이 그대로 통과한다: 1325 의 학습자 줄 "친구하고 이야기를 해요."는
+#   비버가 시켜서 따라 말한 문장인데 주제어 '이야기'를 갖고 있다. **요청어가 함께** 있어야
+#   요청이다. 반대로 요청어만 보면 "I want to run in Korea."(1325 t2)가 통과한다 — 실제로
+#   통과했고, 그게 이 관문이 생긴 이유다.
+_MODE_TOPIC_WORDS: dict[str, tuple[str, ...]] = {
+    "chat": ("얘기", "이야기", "수다", "talk", "chat", "conversation"),
+    "study": ("공부", "배우", "연습", "가르", "학습",
+              "study", "learn", "practice", "teach", "lesson"),
+}
+_MODE_REQUEST_WORDS: tuple[str, ...] = (
+    "싶", "할래", "하자", "그만", "말고", "그냥", "대신", "줘", "주세요", "주라",
+    "want", "let's", "lets", "just", "rather", "instead", "stop", "can we", "could we",
+)
+
+
+def _quote_requests_mode(quote: str, proposed: str) -> bool:
+    """인용이 **그 모드를 요청하는 말**인가(관문② — 관문①은 인용의 실재 검사).
+
+    🧒 왜 필요한가: 관문①은 "이 문장이 전사에 있나"만 본다. 있으면 통과다 — **문장의 뜻은
+      한 글자도 안 본다.** 그래서 판정 사이드카가 아무 학습자 줄이나 근거로 갖다 붙여도
+      막을 방법이 없었다. 지어낸 인용(환각)만 막히고, 있는 말을 잘못 읽는 **과독**은 그대로
+      통과한다.
+
+    ## 2026-09-07 통화 1325 — 이 관문이 없어서 난 사고
+    비버 t1 "learning 할래, 그냥 chat 할래?" → 학습자 답이 STT 에 **"I want to run in
+    Korea."** 로 적혔다(learn→run). 사이드카는 이 줄을 근거로 `chat` 을 냈고, 인용이 전사에
+    실재하니 **+34초에 study→chat 이 채택**됐다. 비버는 소리를 듣고 제대로 드릴을 돌리고
+    있었는데 서버 모드만 뒤집힌 것이다. 그 뒤 2회째 재접지에 chat 문구가 실려 통화 마지막
+    96초가 여행 잡담으로 갔다.
+    ⛔ 되돌릴 길도 없었다 — 15:59 에 사이드카가 스스로 낸 chat→study 정정은 인용을 최근
+      12턴에서 못 찾아 기각됐다(그때는 드릴만 흐르고 있었다). **들어가긴 쉽고 나오긴
+      불가능한 문**이라, 들어가는 쪽을 조인다.
+
+    ⭐ 왜 "드릴 진행 중이면 뒤집지 마라"(서버 관측 게이트)를 **안 넣었나**: 이 관문을 통과
+      하려면 이미 요청어가 있어야 한다. 드릴 복창은 요청어가 없어 여기서 걸리므로 그 게이트는
+      막을 게 없고, 반대로 학습자가 드릴 도중 "그만하고 얘기해요"라고 한 **정당한 전환**만
+      막는다(불변 규칙 1 위반). 잡을 건 없고 놓칠 것만 생기는 관문은 넣지 않는다.
+    """
+    q = (quote or "").lower()
+    return (
+        any(t in q for t in _MODE_TOPIC_WORDS.get(proposed, ()))
+        and any(r in q for r in _MODE_REQUEST_WORDS)
+    )
+
+
 def _apply_mode_proposal(state: _CallState, proposed: str, quote: str, tail: str) -> None:
     """모드는 **서버가 sticky 로 소유**한다 — 사이드카 제안은 인용이 증명될 때만 채택.
 
@@ -3906,9 +4017,13 @@ def _apply_mode_proposal(state: _CallState, proposed: str, quote: str, tail: str
     if proposed not in ("study", "chat") or proposed == state.call_mode:
         return
     q = (quote or "").strip()
-    if len(q) < 4 or q not in tail:      # 원문에 없는 인용 = 환각 → 기각
+    if len(q) < 4 or q not in tail:      # 관문① 원문에 없는 인용 = 환각 → 기각
         logger.info("normalcall: 재접지 모드 전환 제안 기각(인용 미검증) %s→%s",
                     state.call_mode, proposed)
+        return
+    if not _quote_requests_mode(q, proposed):   # 관문② 있는 말을 잘못 읽은 것 = 과독 → 기각
+        logger.info("normalcall: 재접지 모드 전환 제안 기각(요청 표현 없음) %s→%s (인용: %.30s)",
+                    state.call_mode, proposed, q)
         return
     logger.info("normalcall: 재접지 모드 전환 채택 %s→%s (인용: %.20s)",
                 state.call_mode, proposed, q)
