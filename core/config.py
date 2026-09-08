@@ -116,11 +116,21 @@ class Settings(BaseSettings):
     #     비워 두면 종전 동작 그대로다(하위호환).
     #   ⚠ 값을 여기서 고르지 마라 — 고르는 곳은 `call_service.live_model_for()` 하나다.
     #     두 곳에서 고르면 언젠가 갈라진다.
-    #   ⛔⛔ **모델 이름을 손으로 짓지 마라.** 2026-08-24~09-07 동안 여기에
-    #     `gemini-live-2.5-flash-native-audio` 가 박혀 있었는데 **그런 모델이 없다.**
-    #     낱말 순서가 뒤집힌 오타였고, 그 결과 **Free·Pro 는 통화가 통째로 안 됐다** —
-    #     1008 policy violation 으로 세션이 열리자마자 닫혔다. Max 는 VIDEO(3.1)라
-    #     멀쩡해서 **2주 동안 아무도 몰랐다.**
+    #   ⛔⛔ **모델 이름과 `USE_VERTEX` 는 반드시 같이 움직인다** — 백엔드마다 이름이 다르다.
+    #     ⚠⚠ 2026-09-08 정정: 여기 예전 주석이 이 사고를 «오타» 로, `docs/QUEUE.md` Q15 가
+    #       «구글이 모델을 내렸다» 로 적어 뒀는데 **둘 다 틀렸다.**
+    #       `gemini-live-2.5-flash-native-audio` 는 **Vertex 이름**이고 지금도 살아 있다
+    #       (2026-09-08 실측: Vertex bt-dev-web-01/us-central1 에서 정상 응답).
+    #     진짜 원인: demo-api 리비전 `00265-br2`(2026-09-06 01:21)에서 `USE_VERTEX` 가
+    #       true → false 로 뒤집혔는데 **모델 이름을 안 바꿨다.** AI Studio 에 그 이름이
+    #       없으니 1008 로 세션이 열리자마자 닫혔고, 그게 **Free·Pro 통화 2주 장애**다.
+    #       Max 는 VIDEO(3.1)라 멀쩡해서 아무도 몰랐다.
+    #       (app-api 는 8/20 `00072-msj` 에서 같은 전환을 하며 이름도 같이 바꿔 무사했다.)
+    #   ⭐ 두 백엔드는 이름이 **서로 전혀 안 통한다**(2026-09-08 실측):
+    #       Vertex(us-central1)  gemini-live-2.5-flash-native-audio        ✅ 유일하게 열림
+    #                            gemini-2.5-flash-native-audio-preview-*   ⛔ 1008
+    #                            gemini-3.1-flash-live-preview             ⛔ 1008 (3.1 은 Vertex 에 없다)
+    #       AI Studio            gemini-live-2.5-flash-native-audio        ⛔ 1008
     #   ⭐ 실재하는 이름은 API 에 물어서 확인한다(2026-09-07 실측, bidiGenerateContent 지원):
     #       gemini-2.5-flash-native-audio-latest           최신 자동 추종
     #       gemini-2.5-flash-native-audio-preview-09-2025
@@ -131,6 +141,23 @@ class Settings(BaseSettings):
     #     여부는 배포 전에 API 로 확인해라** — 테스트는 오프라인이라 그것까진 못 본다.
     LIVE_MODEL_VOICE: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     LIVE_MODEL_VIDEO: str = "gemini-3.1-flash-live-preview"
+
+    # ⭐⭐ **플랜별 백엔드**(2026-09-08). 같은 2.5 가 Vertex 에서 2.5배 빠르다 — 실측:
+    #     Vertex   gemini-live-2.5-flash-native-audio             중앙 1.15초 (n=18)
+    #     AIStudio gemini-2.5-flash-native-audio-preview-09-2025  중앙 2.82초 (n=20)
+    #     AIStudio gemini-3.1-flash-live-preview                  중앙 1.30초 (n=20)
+    #   맨몸 세션(지시문·도구·압축 전부 없음)으로 쟀고, 실제 통화 로그와 값이 거의 같다
+    #   (맨몸 2.82초 ≈ 실통화 2.51초) ⇒ **우리 코드가 더하는 지연은 ≈0, 백엔드 차이다.**
+    #
+    # ⛔ **이름과 백엔드는 한 묶음이다.** 두 백엔드는 모델 이름이 서로 안 통하고(위 :119),
+    #   3.1 은 Vertex 에 아예 없다 ⇒ Max(영상)는 AI Studio 를 벗어날 수 없다. 혼합이 필수다.
+    # ⚠ 비워 두면 위 `LIVE_MODEL_VOICE/VIDEO` + 전역 `USE_VERTEX` 로 떨어진다
+    #   (= 종전 동작 그대로). 되돌리기는 이 두 값을 지우는 것으로 끝난다.
+    LIVE_VOICE_BACKEND: str = ""      # "vertex" | "studio" | "" (=전역 USE_VERTEX 따름)
+    LIVE_VIDEO_BACKEND: str = ""      # 〃
+    LIVE_MODEL_VOICE_VERTEX: str = "gemini-live-2.5-flash-native-audio"
+    LIVE_MODEL_VIDEO_VERTEX: str = ""  # ⛔ 3.1 은 Vertex 에 없다 — 비워 둔다(실측 1008)
+
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
 
     # Live 컨텍스트 압축(build_live_config). trigger 에 닿으면 target 만 남기고 오래된

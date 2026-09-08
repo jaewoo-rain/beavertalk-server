@@ -222,6 +222,7 @@ def build_live_config(
     tools: Optional[list[types.Tool]] = None,
     resume_handle: Optional[str] = None,
     input_language_codes: Optional[list[str]] = None,
+    vertex: Optional[bool] = None,
 ) -> types.LiveConnectConfig:
     """normalcall 용 LiveConnectConfig 구성.
 
@@ -255,6 +256,14 @@ def build_live_config(
         if input_language_codes
         else types.AudioTranscriptionConfig()
     )
+    # ⭐⭐ **백엔드는 전역이 아니라 이 통화의 것이다**(2026-09-08). 플랜마다 백엔드가
+    #   갈리므로(Free·Pro=Vertex / Max=AI Studio) 전역 `USE_VERTEX` 를 보면 **모든 통화에
+    #   같은 답**을 준다 — 한쪽에 맞추면 다른 쪽이 죽는다.
+    #   ⚠ 기본 None = 전역 설정 그대로라 기존 호출부·스냅샷은 **바이트 동일**이다.
+    #   ⛔ 아래 두 필드(transparent · safety_settings)가 Vertex 전용이고, AI Studio 에
+    #     넘기면 세션이 **열리지도 않는다**(각각 ValueError / 1007). 이 파일에서 백엔드를
+    #     갈아탈 때 봐야 할 곳은 그 둘뿐이다.
+    is_vertex = settings.USE_VERTEX if vertex is None else vertex
     session_resumption = None
     if settings.LIVE_SESSION_RESUMPTION:
         session_resumption = types.SessionResumptionConfig(
@@ -262,7 +271,7 @@ def build_live_config(
             # transparent=True 면 서버가 last_consumed_client_message_index 를 같이 준다
             # (재연결 시 미소비 오디오만 골라 재전송하기 위한 값). 지금은 재연결을 안 하므로
             # 관측 목적으로만 켠다 — 인덱스가 실제로 오는지 봐야 재연결 설계를 확정한다.
-            transparent=True if settings.USE_VERTEX else None,
+            transparent=True if is_vertex else None,
         )
     return types.LiveConnectConfig(
         response_modalities=["AUDIO"],
@@ -301,7 +310,7 @@ def build_live_config(
         #     HARASSMENT 만 완화하고 혐오·성·위험은 엄격 유지한다. AI Studio 에서는 그
         #     완화가 안 걸리므로, 그쪽으로 운영을 옮길 거면 **페르소나가 검열되는지 먼저
         #     확인**해야 한다(미검증).
-        **({"safety_settings": _LIVE_SAFETY} if settings.USE_VERTEX else {}),
+        **({"safety_settings": _LIVE_SAFETY} if is_vertex else {}),
     )
 
 
@@ -593,6 +602,7 @@ async def open_session(
     resume_handle: Optional[str] = None,
     input_language_codes: Optional[list[str]] = None,
     model: Optional[str] = None,
+    vertex: Optional[bool] = None,
 ) -> AsyncIterator[GeminiLiveSession]:
     """normalcall Gemini Live 세션을 열고 래퍼를 yield 하는 async 컨텍스트 매니저.
 
@@ -616,6 +626,9 @@ async def open_session(
         tools=tools,
         resume_handle=resume_handle,
         input_language_codes=input_language_codes,
+        # ⭐ 이 통화의 백엔드. 호출부(realtime)가 client 와 model 과 **같이** 고른다 —
+        #   셋이 한 묶음이라야 어긋나지 않는다(model 인자와 같은 규율).
+        vertex=vertex,
     )
     # ⭐ Live 토큰 만료 방어: genai.Client 는 lifespan 이 한 번 만들어 인스턴스 수명 내내
     # 공유한다. 그 SA access token 은 ~1시간 만료인데, REST(분석·TTS)는 요청마다 갱신돼
@@ -625,7 +638,12 @@ async def open_session(
     # 클라이언트엔 _credentials 가 없어 자동으로 건너뛴다(graceful).
     await _ensure_fresh_credentials(client)
     live_model = model or settings.GEMINI_LIVE_MODEL
-    logger.info("normalcall Live 연결 시도: model=%s voice=%s", live_model, voice)
+    # ⚠ 라벨은 **인자만** 보고 만든다 — 여기 `settings` 는 호출부가 넘긴 객체라
+    #   테스트의 가짜 네임스페이스일 수 있다(속성을 읽으면 AttributeError).
+    #   None 은 "전역 설정을 따른다"는 뜻이고, 실제 분기는 build_live_config 가 한다.
+    backend_label = "전역" if vertex is None else ("vertex" if vertex else "studio")
+    logger.info("normalcall Live 연결 시도: model=%s voice=%s backend=%s",
+                live_model, voice, backend_label)
     async with client.aio.live.connect(
         model=live_model,
         config=config,

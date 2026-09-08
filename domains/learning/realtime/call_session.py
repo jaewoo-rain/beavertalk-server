@@ -602,7 +602,7 @@ class _CallState:
         # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
         "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
         # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
-        "input_language_codes", "live_model",
+        "input_language_codes", "live_model", "live_vertex",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
@@ -783,6 +783,9 @@ class _CallState:
         # ⭐ 이 통화에 쓸 Live 모델(플랜에서 갈린다). None 이면 어댑터 기본값.
         #   Max=영상(3.1·표정) / Free·Pro=음성(2.5·표정없음) — call_service.live_model_for
         self.live_model: str | None = None
+        # ⭐ 이 통화의 백엔드(2026-09-08). True=Vertex / False=AI Studio / None=전역 설정.
+        #   ⛔ `live_model` 과 **한 묶음**이다 — 따로 정해지면 어긋난 조합이 되고 1008 이다.
+        self.live_vertex: bool | None = None
         self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
         self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
@@ -1415,6 +1418,10 @@ async def run_call(
     #   ⚠ 기본 False(=음성통화)다. 모르면 **도구를 안 싣는 쪽**이 안전하다 —
     #     싣는 쪽으로 틀리면 2.5 세션이 1011 로 죽는다(아래 :1625 주석).
     wants_video: bool = False
+    # ⭐ [live_model]·[wants_video] 와 **같은 이유로** 분기 앞에서 잡는다.
+    #   ⚠ None = 전역 `USE_VERTEX` 그대로(종전 동작). 레벨테스트는 사장님 결정으로
+    #     AI Studio 3.1 을 쓰므로 아래 :level_test 분기에서 명시로 덮는다.
+    live_vertex: bool | None = None
     if call_type == "level_test":
         # 레벨테스트 대본 — 레벨/이력 슬롯 없는 전용 셋업(회원당 사실상 1회라 재조회 비용 수용).
         lt_setup = await svc.run_db(
@@ -1433,6 +1440,25 @@ async def run_call(
         # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
         seed_text = seed_leveltest_opening(target_language)
         voice = lt_setup["voice"]
+        # ⭐⭐ **레벨테스트는 AI Studio 3.1 로 명시한다**(2026-09-08 사장님 결정).
+        #   ⛔ 예전엔 아무것도 안 정해 `settings.GEMINI_LIVE_MODEL` 폴백으로 흘렀는데,
+        #     그 값은 **AI Studio 이름**이다. 통화 백엔드가 플랜별로 갈리면서 전역
+        #     `USE_VERTEX` 를 켜는 날이 오면 「Vertex 클라이언트 + AI Studio 모델명」이
+        #     되어 **1008 로 죽는다** — 2026-09-06 Free·Pro 2주 장애와 같은 모양이다.
+        #     레벨테스트는 플랜 분기를 안 타므로 아무도 못 보고 지나간다. 그래서 못박는다.
+        #   ⚠ 3.1 인 이유: 레벨테스트는 학습자 발화를 판정하는 통화라 응답 지연·안정성이
+        #     곧 측정 품질이다(2.5 는 루프 7%·1011 관측). 원가보다 정확도가 먼저다.
+        _lt_client = getattr(
+            getattr(getattr(client_ws, "app", None), "state", None),
+            "genai_client_studio", None,
+        )
+        if _lt_client is not None:
+            client, live_vertex = _lt_client, False
+            live_model = settings.LIVE_MODEL_VIDEO or settings.GEMINI_LIVE_MODEL
+        logger.info(
+            "normalcall 레벨테스트: 백엔드=studio 모델=%s (명시 고정)",
+            live_model or settings.GEMINI_LIVE_MODEL,
+        )
     else:
         # 커리큘럼 없는 언어(spec.has_curriculum=False, 회화 전용)는 레벨 프로파일·체크판
         # 재료를 주입하지 않는다(무의미). ko 는 has_curriculum=True 라 기존 경로 그대로.
@@ -1449,18 +1475,39 @@ async def run_call(
         #   (위 resolve_call_character·load_call_setup 과 같은 규약). 안 지키면 NameError 다.
         # ⚠ 한 번의 run_db 로 **둘을 같이** 읽는다 — 두 번 부르면 그 사이 구독이 바뀔 때
         #   «영상은 주는데 모델은 음성» 같은 어긋난 조합이 나온다.
-        wants_video, live_model = await svc.run_db(
+        wants_video, (live_backend, live_model) = await svc.run_db(
             db_session_factory,
             lambda db: (
                 call_service.call_video_for(db, member_id),
-                call_service.live_model_for(db, member_id),
+                # ⭐⭐ **백엔드와 모델을 한 함수에서 같이 고른다**(2026-09-08).
+                #   따로 물으면 어긋나고, 어긋나면 1008 로 통화가 통째로 죽는다 —
+                #   2026-09-06 demo-api 가 USE_VERTEX 만 뒤집고 이름을 안 바꿔 2주 죽었다.
+                call_service.live_engine_for(db, member_id),
             ),
         )
+        # ⭐ 그 백엔드의 클라이언트로 갈아탄다. 없으면 **모델까지 같이 되돌린다**(R5) —
+        #   클라이언트만 되돌리고 이름을 두면 그게 정확히 9/6 사고의 재현이다.
+        _picked = getattr(
+            getattr(getattr(client_ws, "app", None), "state", None),
+            "genai_client_%s" % live_backend, None,
+        )
+        if _picked is not None:
+            client, live_vertex = _picked, (live_backend == call_service.BACKEND_VERTEX)
+        else:
+            live_vertex = None
+            fallback = (settings.LIVE_MODEL_VIDEO if wants_video
+                        else settings.LIVE_MODEL_VOICE) or settings.GEMINI_LIVE_MODEL
+            if fallback != live_model:
+                logger.warning(
+                    "normalcall 플랜분기: %s 클라이언트 없음 → 기본 클라이언트로 되돌린다"
+                    " (모델도 %s → %s)", live_backend, live_model, fallback,
+                )
+                live_model = fallback
         # ⛔ `state` 는 **아직 없다**(1457행에서 만들어진다). 여기선 지역변수로 들고
         #   있다가 state 가 생긴 뒤에 싣는다 — 여기서 대입하면 UnboundLocalError 다.
         logger.info(
-            "normalcall 플랜분기: 영상=%s 모델=%s (표정차단기=%s)",
-            wants_video, live_model, settings.LIVE_FACE_SPIKE,
+            "normalcall 플랜분기: 영상=%s 백엔드=%s 모델=%s (표정차단기=%s)",
+            wants_video, live_backend, live_model, settings.LIVE_FACE_SPIKE,
         )
         system_instruction = build_system_instruction(
             role=setup["role"],
@@ -1552,6 +1599,7 @@ async def run_call(
     #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
     #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
     state.live_model = live_model
+    state.live_vertex = live_vertex
     if resumed:
         # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
         #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
@@ -2189,6 +2237,12 @@ async def _run_one_generation(
     #   ⚠ 고르는 곳은 `call_service.live_model_for` 하나다. 여기선 실어 나르기만 한다.
     if state.live_model:
         factory_kwargs["model"] = state.live_model
+    # ⭐ 이 통화의 백엔드(2026-09-08). 위와 **같은 규율** — None 이면 안 넘긴다.
+    #   ⛔ 항상 넘기면 엄격한 시그니처를 가진 테스트용 가짜 팩토리가 전부 깨진다.
+    #   ⚠ 이 값이 `build_live_config` 의 safety_settings·transparent 를 가른다. 틀리면
+    #     세션이 **열리지도 않는다**(AI Studio 에 Vertex 전용 필드 → 1007).
+    if state.live_vertex is not None:
+        factory_kwargs["vertex"] = state.live_vertex
     async with live_session_factory(client, settings, **factory_kwargs) as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도

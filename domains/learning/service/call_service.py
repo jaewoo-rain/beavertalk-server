@@ -165,12 +165,51 @@ def live_model_for(db: Session, member_id: int) -> str:
     ⛔ 모델 id 문자열을 여기서 쓰지 마라 — settings 가 원본이다(`LIVE_MODEL_VOICE/VIDEO`).
     ⚠ 설정이 비어 있으면 종전 `GEMINI_LIVE_MODEL` 로 떨어진다(하위호환 — 플랜 기능을
       끄고 싶으면 두 설정을 비우면 종전 동작 그대로다).
+
+    ⭐ 백엔드까지 같이 필요하면 `live_engine_for()` 를 써라 — 모델과 백엔드를 **따로**
+      물으면 그 사이에 어긋난 조합이 나온다(2026-09-06 장애가 정확히 그것이다).
+    """
+    return live_engine_for(db, member_id)[1]
+
+
+# ⭐⭐ **플랜별 백엔드**(2026-09-08). 같은 2.5 가 Vertex 에서 2.5배 빠르다(config.py 실측표).
+# ⛔ 3.1 은 Vertex 에 없다(실측 1008) ⇒ 영상(Max)은 AI Studio 를 벗어날 수 없다. 혼합이 필수.
+# ⚠ 값 자체는 `settings` 가 갖는다 — 위 CALL_LIVE_MODEL_BY_PLAN 과 같은 규율이다.
+#   이 표는 "voice/video 중 어느 쪽인가"만 담고, 그 쪽의 (백엔드, 모델)은 settings 가 정한다.
+BACKEND_VERTEX = "vertex"
+BACKEND_STUDIO = "studio"
+
+
+def live_engine_for(db: Session, member_id: int) -> tuple[str, str]:
+    """이 회원의 통화에 쓸 **(백엔드, 모델 id)**. 모르면 음성 쪽.
+
+    ⛔⛔ **둘을 한 함수에서 같이 고른다.** 따로 고르면 언젠가 어긋나고, 어긋나면
+      1008 로 통화가 통째로 죽는다 — 2026-09-06 demo-api `00265-br2` 가 `USE_VERTEX` 만
+      뒤집고 모델 이름을 안 바꿔서 **Free·Pro 통화가 2주 죽었다.** 그 사고를 구조로 막는다.
+
+    ⚠ 하위호환: 새 설정(`LIVE_*_BACKEND` / `LIVE_MODEL_*_VERTEX`)이 비어 있으면
+      **종전 그대로** — 전역 `USE_VERTEX` 를 따르고 모델은 `LIVE_MODEL_VOICE/VIDEO` 다.
+      되돌리기는 그 값들을 지우는 것으로 끝난다(코드 배포 불필요).
     """
     kind = CALL_LIVE_MODEL_BY_PLAN.get(
         effective_plan(db, member_id), CALL_LIVE_MODEL_BY_PLAN[None]
     )
-    picked = settings.LIVE_MODEL_VIDEO if kind == "video" else settings.LIVE_MODEL_VOICE
-    return picked or settings.GEMINI_LIVE_MODEL
+    is_video = kind == "video"
+    default_backend = BACKEND_VERTEX if settings.USE_VERTEX else BACKEND_STUDIO
+    backend = (
+        (settings.LIVE_VIDEO_BACKEND if is_video else settings.LIVE_VOICE_BACKEND) or ""
+    ).strip().lower() or default_backend
+
+    if backend == BACKEND_VERTEX:
+        picked = (settings.LIVE_MODEL_VIDEO_VERTEX if is_video
+                  else settings.LIVE_MODEL_VOICE_VERTEX)
+        # ⛔ Vertex 를 지정했는데 그쪽 모델 이름이 없으면 **백엔드를 되돌린다**(R5).
+        #   여기서 AI Studio 이름을 Vertex 로 보내면 1008 이다 — 통화가 죽느니 느린 게 낫다.
+        if not picked:
+            backend = BACKEND_STUDIO
+    if backend != BACKEND_VERTEX:
+        picked = settings.LIVE_MODEL_VIDEO if is_video else settings.LIVE_MODEL_VOICE
+    return backend, (picked or settings.GEMINI_LIVE_MODEL)
 
 
 def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, datetime]:

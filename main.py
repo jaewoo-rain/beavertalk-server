@@ -126,7 +126,8 @@ def _keepalive_http_options(seconds: float) -> Any | None:
 
 
 def _create_genai_client(settings: Settings, location: str | None = None,
-                         http_options: Any | None = None) -> Any | None:
+                         http_options: Any | None = None,
+                         use_vertex: bool | None = None) -> Any | None:
     """normalcall 용 genai.Client 를 생성한다(실패 시 None — 통화만 비활성, 앱은 정상).
 
     `location` 을 주면 그 리전으로 만든다(기본은 `GCP_LOCATION`). 리전만 다른 **두 번째**
@@ -135,11 +136,16 @@ def _create_genai_client(settings: Settings, location: str | None = None,
     USE_VERTEX=True 면 서비스계정 키(설정 경로 → 프로젝트 루트 gcp_key.json 폴백)로
     Vertex 클라이언트를, 아니면 GEMINI_API_KEY 로 AI Studio 클라이언트를 만든다.
     google-genai 미설치·키 부재·인증 실패 등 어떤 사유로도 None 을 반환한다(graceful).
+
+    ⭐ `use_vertex` 를 주면 전역 `settings.USE_VERTEX` 대신 그 값으로 만든다(2026-09-08).
+      플랜별로 백엔드가 갈리기 때문이다 — Free·Pro=Vertex(2.5, 1.15초) / Max=AI Studio(3.1).
+      ⚠ **기본 None = 전역 설정 그대로**라 기존 호출부는 동작이 완전히 같다.
     """
     try:
         from google import genai
 
-        if settings.USE_VERTEX:
+        want_vertex = settings.USE_VERTEX if use_vertex is None else use_vertex
+        if want_vertex:
             from google.oauth2 import service_account
 
             key_path = settings.GOOGLE_APPLICATION_CREDENTIALS
@@ -237,6 +243,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
+    # ⭐⭐ **플랜별 백엔드용 통화 전용 클라이언트 2개**(2026-09-08).
+    #   ⛔ 기본(`genai_client`)의 의미는 **바꾸지 않는다** — 캐스케이드·통화후 분석·
+    #     레벨테스트가 전부 그것을 보고 있어서, 기본을 건드리면 통화와 무관한 것들이
+    #     같이 움직인다. `_create_cascade_client` 가 세운 «교체가 아니라 추가» 규율 그대로다.
+    #   ⚠ 만들기 실패(키 부재 등)면 None 이고, 통화는 기본 클라이언트로 떨어진다(R5) —
+    #     백엔드 하나 때문에 통화가 죽으면 안 된다.
+    app.state.genai_client_vertex = _create_genai_client(settings, use_vertex=True)
+    app.state.genai_client_studio = _create_genai_client(settings, use_vertex=False)
+    logger.info(
+        "normalcall 백엔드 클라이언트: 기본=%s vertex=%s studio=%s",
+        "OK" if app.state.genai_client else "없음",
+        "OK" if app.state.genai_client_vertex else "없음",
+        "OK" if app.state.genai_client_studio else "없음",
+    )
     # ⭐ 캐스케이드 **대답 전용**(리전만 다를 수 있다). 값이 없으면 위 객체를 그대로 재사용한다.
     #   ⚠ 리전을 **함께** 받아 둔다 — 부팅 로그는 인스턴스가 재활용되면 한참 전 것이라 못
     #     찾는다. 통화 로그가 이 값을 찍어야 "그 통화가 어느 리전으로 돌았나"가 그 통화
