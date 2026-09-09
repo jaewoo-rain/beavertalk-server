@@ -1163,6 +1163,45 @@ def test_covered_labels_keep_l1_farewell_chunks():
     assert "이미 다룬 것: " + " / ".join(labels) in out
 
 
+def test_the_mode_gate_accepts_a_plain_korean_request_to_switch():
+    """⛔ 2026-09-09 통화 1366 — 관문②가 **정당한 전환 요청을 기각했다.**
+
+        06:51:28  USER[t26]: 우리 이제 한국어로 대화해 보자.
+        06:52:09  재접지 모드 전환 제안 기각(요청 표현 없음) study→chat
+
+    두 축이 다 빗나갔다: 주제어에 "대화" 가 없었고, 요청어의 "하자" 는 "대화해 보자" 에
+    연속 부분문자열로 존재하지 않는다(대·화·해·보·자). 09-07 메모의 경고
+    ("관문②가 좁으면 진짜 요청도 기각된다")가 그대로 실현된 자리다.
+    ⭐ 비버는 소리를 듣고 제대로 대화로 넘어갔다 — 틀린 건 서버 모드 라벨뿐이었다.
+      피해가 0이었던 건 학습자가 40초 만에 스스로 공부로 돌아왔기 때문이고, 5분 내내
+      대화를 원했다면 재접지가 매번 학습 쪽으로 끌어당겼을 것이다(불변 규칙 1 위반).
+    """
+    assert cs._quote_requests_mode("우리 이제 한국어로 대화해 보자.", "chat"),         "1366 t26 이 여전히 기각된다"
+    for line in ("그만하고 그냥 얘기해요", "한국어로 얘기하고 싶어요", "let's just talk"):
+        assert cs._quote_requests_mode(line, "chat"), f"정당한 chat 요청이 막혔다: {line}"
+    assert cs._quote_requests_mode("다시 공부하자", "study")
+
+    # ⚠ **아직 못 잡는 것을 여기 남긴다** — 어휘 목록 방식의 구조적 한계다.
+    #   "수다 떨자" 는 주제어(수다)는 있는데 요청어("떨자")가 목록에 없어 기각된다.
+    #   ⛔ 실측 없이 넓히지 않는다(09-07 규율) — 이 문장은 아직 통화에서 나온 적이 없다.
+    #     실제로 기각 로그에 찍히면 그때 넣는다.
+    assert not cs._quote_requests_mode("수다 떨자", "chat")
+
+
+def test_widening_the_gate_did_not_reopen_the_1325_hole():
+    """⛔⛔ 어휘를 넓혀도 **1325 사고는 그대로 막혀야 한다.**
+
+    "I want to run in Korea."(STT 가 learn→run 으로 적은 줄)는 요청어(want)만 있고
+    **주제어가 없어서** 걸린 것이다. 주제어를 늘려도 통과하지 못한다.
+    드릴 복창은 반대로 주제어만 있고 요청어가 없어 막힌다. **두 축을 다 요구하는 설계가
+    지키는 것이 이것이다** — 한 축만 보면 둘 중 하나가 반드시 뚫린다.
+    """
+    assert not cs._quote_requests_mode("I want to run in Korea.", "chat")      # 1325 t2 실측
+    assert not cs._quote_requests_mode("친구하고 이야기를 해요.", "chat")        # 드릴 복창
+    assert not cs._quote_requests_mode("길 옆에 나무가 있어요.", "chat")
+    assert not cs._quote_requests_mode("저는 밤에 잠을 안 자요.", "study")
+
+
 def test_face_tool_json_fragment_is_stripped_from_the_saved_turn():
     """⛔ 2026-09-09 통화 1365 — 표정 도구 **인자 JSON 의 꼬리**가 대사로 샜다.
 
