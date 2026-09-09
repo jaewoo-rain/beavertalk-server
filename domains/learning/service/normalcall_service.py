@@ -2840,6 +2840,37 @@ async def analyze_level_test_call(
         _lang_code = _spec.code if _spec else "ko"
         user_chars = _user_char_total(dialog, _lang_code)
         if user_chars < _MIN_LEVELTEST_USER_CHARS:
+            # ⛔⛔ **이미 레벨이 있으면 쓰지 않는다**(2026-09-09, 통화 1367·1368).
+            #
+            #   실측: 제대로 된 레벨테스트(1367, 답변 8개/106초)가 끝나고 **판정이 11초
+            #   뒤에** 레벨 2 를 박았는데, 그 사이(4초 전) 시작된 통화가 `korean_level is
+            #   None` 이라 **또 레벨테스트로 라우팅**됐다(call_session.py:1432). 사장님이
+            #   5초 만에 나갔고, 그 중단된 통화의 표본 미달 판정이 **3초 뒤 레벨 1 을 써서
+            #   레벨 2 를 덮었다.** 이후 통화가 L1 생존 청크 커리큘럼을 받았다.
+            #
+            #       07:40:38  band=a1 → 레벨 2 배정 (sample=sufficient) call_id=1367
+            #       07:40:41  USER ko 발화 0자(<20) → 최하 레벨 1 배정·done call_id=1368
+            #
+            #   ⭐ 아래 "갇힘"이 성립하려면 **레벨이 없어야 한다** — request_level_retest 가
+            #     member_language_level 행을 지우고 가기 때문이다(mastery_service.py:738).
+            #     그래서 조건을 **레벨 유무**로 가르면 두 요구가 동시에 만족된다:
+            #       레벨 있음 → 안 쓴다(덮어쓰기 방지)   레벨 없음 → 지금처럼 배정(갇힘 방지)
+            #   ⛔ 언어 스코프를 지킨다 — ko 레벨이 있다고 ja 레벨테스트를 건너뛰면 안 된다.
+            #     판정은 needs_level_test 가 쓰는 **바로 그 함수**로 한다(두 기준이 갈리면
+            #     "레벨은 있는데 계속 레벨테스트로 라우팅" 같은 어긋남이 난다).
+            existing_level = await run_db(
+                session_factory,
+                lambda db: mastery_repository.get_language_level(db, member_id, _lang_code),
+            )
+            if existing_level is not None:
+                logger.info(
+                    "leveltest 판정: 표본 미달(%s %d자)이지만 레벨 %d 이 이미 있다 → "
+                    "덮어쓰지 않고 done call_id=%s member=%s",
+                    _lang_code, user_chars, existing_level, call_id, member_id,
+                )
+                await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
+                return
+
             # 표본 미달 → **최하 레벨 배정**(LLM 콜 없이).
             #
             # ⛔ 미저장으로 되돌리지 마라. 옛 동작은 status=done + 레벨 미기록이었는데,

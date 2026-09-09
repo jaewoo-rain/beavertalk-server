@@ -649,6 +649,47 @@ async def test_assigns_lowest_level_when_user_speech_under_threshold(
 
 
 @pytest.mark.asyncio
+async def test_short_retest_does_not_overwrite_an_existing_level(
+    session_factory, seeded, monkeypatch
+):
+    """⛔⛔ 2026-09-09 통화 1367·1368 — **중단된 레벨테스트가 확정 레벨을 덮어썼다.**
+
+    제대로 된 레벨테스트(1367, 답변 8개/106초)가 끝나고 판정이 **11초 뒤에** 레벨 2 를
+    박았는데, 그 사이(4초 전) 시작된 통화가 `korean_level is None` 이라 또 레벨테스트로
+    라우팅됐다(call_session.py:1432). 5초 만에 나간 그 통화의 표본 미달 판정이 3초 뒤
+    레벨 1 을 써서 **레벨 2 를 덮었다**:
+
+        07:40:38  band=a1 → 레벨 2 배정 (sample=sufficient) call_id=1367
+        07:40:41  USER ko 발화 0자(<20) → 최하 레벨 1 배정·done call_id=1368
+
+    이후 통화(1370)가 L1 생존 청크 커리큘럼을 받았다 — 실제 판정은 A1(레벨 2)인데.
+    ⭐ 라우팅 중복(A)은 이번 범위 밖이다. 그것이 남아 있어도 **덮어쓰기만 막으면**
+      화면이 한 번 더 뜨는 불편일 뿐 데이터는 안 망가진다.
+    """
+    call_id = _seed_level_test_call(
+        session_factory, seeded["member_l3"], seeded["character_id"],
+        user_lines=["안녕"],  # 2자 < 20자 — 1368 과 같은 모양(사실상 중단)
+    )
+    mock = AsyncMock(return_value=_assessment())
+    monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)
+
+    await svc.analyze_level_test_call(
+        call_id, object(), app_settings, session_factory,
+        member_id=seeded["member_l3"], locale="en",
+    )
+
+    mock.assert_not_called()
+    db = session_factory()
+    try:
+        assert db.get(Member, seeded["member_l3"]).korean_level == 3,             "중단된 레벨테스트가 기존 레벨을 덮어썼다"
+        call = db.get(Call, call_id)
+        assert call.status == "done"       # 오류가 아니다 — 쓸 것이 없을 뿐
+        assert call.assessed_level is None  # 중단한 테스트엔 결과가 없다
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
 async def test_llm_failure_marks_failed_and_keeps_level_unset(
     session_factory, seeded, monkeypatch
 ):
