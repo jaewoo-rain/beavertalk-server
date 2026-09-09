@@ -593,6 +593,7 @@ class _CallState:
         # 재접지 통합(단계 3) — 압축 신호 관측 + 사이드카 + 모드 sticky
         "reground_count", "last_reground_ts", "reground_arm_reason",
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
+        "covered_nums",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -734,6 +735,8 @@ class _CallState:
         # reground_arm_reason: 이번 arm 의 근거("compress"/"post-compress"/"time") — 로그·테스트용.
         # reground_ctx: 재접지 사이드카 {client, model, instruction}. None = 사이드카 비활성.
         # reground_items: 사이드카에 번호로 떠먹일 학습 항목 라벨(서버가 소유하는 목록).
+        # covered_nums: **서버가 누적 소유하는** "이미 다룬 항목" 번호(1-base, append-only).
+        #   ⛔ 사이드카에 맡기지 않는다 — 2026-09-09 통화 1360 참조(아래 _note_covered_items).
         # reground_persona: (role, personality) — 문구 조립 재료.
         # call_mode: 공부/대화 모드. **서버가 sticky 로 소유**하고, 사이드카 제안은 전사에
         #   실재하는 인용이 증명될 때만 받아들인다(AI 는 증인, 코드가 심판).
@@ -742,6 +745,7 @@ class _CallState:
         self.reground_arm_reason: str = ""
         self.reground_ctx: Optional[dict] = None
         self.reground_items: list[str] = []
+        self.covered_nums: list[int] = []
         self.reground_tasks: set[asyncio.Task] = set()
         self.reground_persona: tuple[str, str] = ("", "")
         self.call_mode: str = "chat"
@@ -902,6 +906,49 @@ def _reading_speed_line(text: str, audio_bytes: int) -> str:
     )
 
 
+def _note_covered_items(state: _CallState, beaver_text: str) -> None:
+    """방금 끝난 **비버 발화**에서 학습 항목 라벨을 찾아 `covered_nums` 에 누적한다.
+
+    🧒 왜 서버가 직접 세나: "비버가 이 항목을 다뤘나"는 LLM 판단이 필요 없다. 전사는
+      서버에 다 있고 항목 라벨도 서버가 소유한다(`state.reground_items`) — **문자열 대조로
+      끝난다.** AI 는 증인이고 판정은 코드가 한다(레벨 시스템 관통원칙 ①③).
+
+    ## 2026-09-09 통화 1360 — 이걸 사이드카에 맡겨서 난 사고
+    재접지 쪽지의 "이미 다룬 것" 을 사이드카가 골랐다. 사이드카는 **최근 12턴 창**
+    (`_transcript_tail`)만 보고, 실린 개수 상한도 4개였다(`REGROUND_COVERED_CAP`).
+    ⇒ 7개를 드릴한 시점에 `covered=3/3` 이 나갔다(04:55:32).
+    ⇒ 17초 뒤 압축이 초반을 9,219토큰 지우자(#4 16372→7153), 비버에게 남은 **유일한
+      "무엇을 했나" 증거가 그 부분 목록**이 됐다. 목록에 없던 불·동안·피우다는 **안 한 것**이
+      되고, 58초 뒤 비버가 *"Now let's move on to something else"* 라면서 **1번 항목 "불"로
+      되감았다**(t39). 마지막 91초(30%)가 이미 한 것이었고 비버는 그걸 몰랐다.
+    ⇒ 창이 좁아서 난 일이므로 창을 넓히는 게 아니라 **출처를 통화 전체를 아는 쪽(서버)으로
+      옮긴다.** 압축과 무관해지고, 사이드카를 기다릴 필요도 없어진다(첫 arm 부터 실린다).
+
+    ⛔ **학습자 발화는 보지 않는다.** "다뤘다"는 가르친 쪽의 사실이다. 학습자가 우연히 낸
+      단어를 "가르쳤다"로 치면 **아직 안 가르친 항목을 잃는다**. 1360 실측으로 비버 발화만
+      봐도 충분하다 — 비버는 드릴할 때 항상 라벨을 그대로 인용했다(`Repeat after me: "불"`
+      · `Next word: "동안"`) ⇒ 7항목 7개 다 잡힌다.
+    ⛔ 어간·조사 정규화를 하지 않는다(라벨 전체가 들어있는지만 본다). 미검출은 "한 번 더
+      가르친다"로 끝나지만, 오검출은 **가르칠 기회를 영영 없앤다.** 보수적인 쪽으로 간다.
+
+    append-only 다 — 한 번 들어간 번호는 빠지지 않는다(증거가 원본, 나머지는 파생 계산).
+    """
+    if not beaver_text or not state.reground_items:
+        return
+    for idx, label in enumerate(state.reground_items, start=1):
+        label = (label or "").strip()
+        if not label or idx in state.covered_nums:
+            continue
+        if label in beaver_text:
+            state.covered_nums.append(idx)
+
+
+def _covered_labels(state: _CallState) -> list[str]:
+    """`covered_nums` → 브리프에 실을 라벨 목록(순서 = 다룬 순서)."""
+    items = state.reground_items
+    return [items[n - 1] for n in state.covered_nums if 1 <= n <= len(items)]
+
+
 def _flush_beaver_segment(state: _CallState) -> None:
     if not state.cur_beaver_pcm and not state.cur_beaver_text:
         return
@@ -926,6 +973,9 @@ def _flush_beaver_segment(state: _CallState) -> None:
     # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
     if state.band_observe and text:
         state.last_beaver_question = text
+    # ⭐ 재접지 쪽지의 "이미 다룬 것" 을 여기서 **서버가 누적한다**(2026-09-09, 통화 1360).
+    #   턴이 확정되는 유일한 자리라 압축·사이드카와 무관하게 통화 전체를 센다.
+    _note_covered_items(state, text)
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
@@ -3892,8 +3942,12 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
     """
     role, personality = state.reground_persona
+    # ⭐ covered 를 **여기서부터** 싣는다(2026-09-09). 예전엔 사이드카가 돌아와야 실렸는데,
+    #   얹기 자리가 "마이크"라 학습자가 빨리 답하면 사이드카가 못 따라온다 — 통화 1360 의
+    #   1회째는 arm→얹기가 **1.18초**였고 사이드카는 1.4초라 결과가 조용히 버려졌다
+    #   (`if not state.reground_pending: return`). 서버 누적이면 기다릴 게 없다.
     state.reground_reminder = build_reground_brief(
-        role, personality, mode=state.call_mode,
+        role, personality, mode=state.call_mode, covered=_covered_labels(state),
     )
     state.reground_pending = True
     state.reground_arm_reason = reason
@@ -3953,7 +4007,7 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
         return
     role, personality = state.reground_persona
     text = state.reground_reminder or build_reground_brief(
-        role, personality, mode=state.call_mode
+        role, personality, mode=state.call_mode, covered=_covered_labels(state)
     )
     try:
         await session.send_reground(text, turn_complete=True)
@@ -4137,11 +4191,14 @@ async def _reground_sidecar(state: _CallState) -> None:
             getattr(result, "mode_quote", "") or "",
             _transcript_tail(state, only_user=True),
         )
+        # ⭐ 사이드카 covered 는 **서버 누적에 합집합으로 얹는다**(2026-09-09) — 버리지
+        #   않는 이유: 비버가 라벨과 다른 말로 다룬 경우(`_note_covered_items` 의 문자열
+        #   대조가 놓치는 자리)를 사이드카가 잡아줄 수 있다. 빼지는 않는다(append-only).
         items = state.reground_items
-        covered = [
-            items[n - 1] for n in (getattr(result, "covered", None) or [])
-            if isinstance(n, int) and 1 <= n <= len(items)
-        ]
+        for n in (getattr(result, "covered", None) or []):
+            if isinstance(n, int) and 1 <= n <= len(items) and n not in state.covered_nums:
+                state.covered_nums.append(n)
+        covered = _covered_labels(state)
         # 이미 얹혔거나 종료 구간이면 업그레이드는 무의미하다(다음 arm 때 새로 받는다).
         if not state.reground_pending or state.should_close or state.close_seed_sent:
             return

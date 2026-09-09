@@ -1163,6 +1163,77 @@ def test_covered_labels_keep_l1_farewell_chunks():
     assert "이미 다룬 것: " + " / ".join(labels) in out
 
 
+def test_covered_is_accumulated_by_the_server_across_the_whole_call():
+    """⛔ 2026-09-09 통화 1360 — "이미 다룬 것"이 **부분 목록**이라 커리큘럼이 되감겼다.
+
+    사이드카가 최근 12턴 창만 보고 골랐고 상한도 4개였다 ⇒ 7항목을 드릴한 시점에
+    `covered=3/3` 이 나갔다. 17초 뒤 압축이 초반을 9,219토큰 지우자(#4 16372→7153) 그
+    부분 목록이 비버의 **유일한 "무엇을 했나" 증거**가 됐고, 목록에 없던 불·동안·피우다는
+    "안 한 것"이 됐다. 58초 뒤 t39 가 *"Now let's move on to something else"* 라면서 1번
+    항목 "불"로 되감았다 — 마지막 91초(30%)가 이미 한 것이었다.
+    ⇒ 창을 넓히는 게 아니라 **출처를 통화 전체를 아는 서버로** 옮겼다. 여기서 지킨다.
+    """
+    state = cs._CallState()
+    state.reground_items = ["불", "동안", "피우다", "길", "손", "이야기", "아내"]
+
+    # 1360 의 실제 비버 드릴 문구(t3·t9·t13) 그대로.
+    for line in (
+        'Repeat after me: "불".',
+        'Next word: "동안". Say it!',
+        'Next word: "피우다". Repeat it!',
+    ):
+        state.cur_beaver_text = [line]
+        cs._flush_beaver_segment(state)
+
+    assert state.covered_nums == [1, 2, 3],         f"비버가 드릴한 항목이 서버 누적에 안 잡혔다: {state.covered_nums}"
+    assert cs._covered_labels(state) == ["불", "동안", "피우다"]
+
+    # ⭐ 압축이 초반을 지워도 누적은 안 줄어든다(append-only) — 이게 되감기를 막는 성질이다.
+    state.compression_seen = 4
+    state.cur_beaver_text = ['Next word: "길". Say it!']
+    cs._flush_beaver_segment(state)
+    assert state.covered_nums == [1, 2, 3, 4], "압축 뒤 누적이 사라졌다 — 되감기 회귀"
+
+
+def test_covered_ignores_what_only_the_learner_said():
+    """⛔ "다뤘다"는 **가르친 쪽**의 사실이다 — 학습자 발화로는 채우지 않는다.
+
+    학습자가 우연히 낸 단어를 "가르쳤다"로 치면 아직 안 가르친 항목을 영영 잃는다.
+    미검출은 "한 번 더 가르친다"로 끝나지만 오검출은 되돌릴 길이 없다 — 보수적인 쪽으로 간다.
+    """
+    state = cs._CallState()
+    state.reground_items = ["불", "동안", "피우다"]
+
+    state.cur_user_text = ["불 동안 피우다"]      # 학습자가 셋 다 말했다
+    cs._flush_user_segment(state)
+    assert state.covered_nums == [],         f"학습자 발화가 '다룸'으로 잡혔다: {state.covered_nums}"
+
+    state.cur_beaver_text = ['Repeat after me: "불".']
+    cs._flush_beaver_segment(state)
+    assert state.covered_nums == [1], "비버가 가르친 항목은 잡혀야 한다"
+
+
+def test_the_first_reground_carries_covered_without_waiting_for_the_sidecar():
+    """⛔ 1회째 재접지가 **빈손으로** 나가던 자리(2026-09-09, 통화 1360).
+
+    얹기 자리가 "마이크"(학습자 발화 시작)라 학습자가 빨리 답하면 사이드카를 못 기다린다:
+    1360 의 arm1 04:52:59.79 → 얹기 04:53:00.97 = **1.18초**, 사이드카는 1.4초(arm2 실측)라
+    결과가 `if not state.reground_pending: return` 으로 조용히 버려졌다(로그도 안 남는다).
+    ⇒ covered 를 서버가 누적하면 기다릴 게 없다. **arm 시점에 이미 안다.**
+    """
+    state = cs._CallState()
+    state.reground_persona = ("선생님", "다정함")
+    state.call_mode = "study"
+    state.reground_items = ["불", "동안"]
+    state.cur_beaver_text = ['Repeat after me: "불".']
+    cs._flush_beaver_segment(state)
+
+    cs._arm_reground(state, "compress")
+
+    assert state.reground_pending
+    assert "이미 다룬 것: 불" in (state.reground_reminder or ""),         f"첫 재접지가 covered 없이 나갔다: {state.reground_reminder!r}"
+
+
 def test_brief_does_not_order_an_interest_question_in_study_mode():
     """⛔⛔ 재접지 주입문의 **마지막 줄**이 공부 통화에서 잡담을 지시하고 있었다(2026-09-03).
 
