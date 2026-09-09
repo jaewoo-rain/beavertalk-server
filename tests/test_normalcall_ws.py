@@ -1163,6 +1163,47 @@ def test_covered_labels_keep_l1_farewell_chunks():
     assert "이미 다룬 것: " + " / ".join(labels) in out
 
 
+def test_face_tool_json_fragment_is_stripped_from_the_saved_turn():
+    """⛔ 2026-09-09 통화 1365 — 표정 도구 **인자 JSON 의 꼬리**가 대사로 샜다.
+
+    09-01 무늬와 다르다. 그때는 함수를 **안 부르고** 통째로 말해버려서 `set_face` 글자가
+    남아 있었다. 1365 는 호출이 **정상이었고**(`Live tool 즉시응답: set_face`, 05:59:32)
+    인자의 뒷토막만 말 채널로 새어 t5 의 **첫 조각**으로 나갔다:
+
+        05:59:46.712  🦫 beaver: :"happy"}
+        05:59:55.404  BEAVER[t5]: :"happy"}Not bad, you actually know it! ...
+
+    옛 필터 둘이 다 비껴갔다 — `_CONTROL_TAG_RE` 는 [대괄호]만 보고, `_strip_face_echo` 는
+    첫 줄이 `if "set_face" not in text` 라 글자 없는 파편은 즉시 통과했다.
+    빈도는 표정 호출 22번 중 1번(≈5%).
+    """
+    # 1365 t5 실측 그대로.
+    assert cs._strip_face_echo(':"happy"}Not bad, you actually know it!').strip() ==         "Not bad, you actually know it!"
+    assert cs._strip_face_echo('{"emotion":"sad"}Whoa there.').strip() == "Whoa there."
+    assert cs._strip_face_echo('"laugh"}HAHAHA!').strip() == "HAHAHA!"
+
+    # ⛔ 09-01 무늬는 그대로 걸려야 한다(회귀).
+    assert cs._strip_face_echo("set_face{emotion:sad}").strip() == ""
+    assert cs._strip_face_echo("set_face{emotion:neutral}}아, 친구").strip() == "아, 친구"
+
+
+def test_face_filter_never_eats_real_dialogue():
+    """⛔⛔ **대사를 먹지 않는 것이 최우선**이다 — 오염보다 나쁘다.
+
+    그래서 파편 규칙을 두 겹으로 좁혔다: ①값이 닫힌 어휘여야 하고(gemini_live 의 enum 과
+    같은 목록) ②**닫는 중괄호를 요구한다.** 따옴표 친 낱말 뒤에 `}` 가 오는 문장은 자연
+    발화에 없다 — 그게 앵커다.
+    """
+    for line in (
+        "I'm so happy today!",
+        'She said "happy" and left.',
+        "Are you sad? 슬퍼요?",
+        "불을 켜고 책을 읽어요.",
+        "That's a laugh.",
+    ):
+        assert cs._strip_face_echo(line) == line, f"대사를 먹었다: {line!r}"
+
+
 def test_covered_is_accumulated_by_the_server_across_the_whole_call():
     """⛔ 2026-09-09 통화 1360 — "이미 다룬 것"이 **부분 목록**이라 커리큘럼이 되감겼다.
 

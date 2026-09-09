@@ -381,11 +381,39 @@ _FACE_ECHO_RE = re.compile(
 )
 
 
+# ⭐ **두 번째 무늬 — 함수는 제대로 불렸는데 인자 JSON 의 꼬리만 샌다**(2026-09-09, 통화 1365).
+#   위 무늬(09-01)는 "함수를 안 부르고 통째로 말해버린" 것이라 `set_face` 라는 글자가 남아
+#   있었다. 이번 건 다르다 — 호출은 정상이었고(`Live tool 즉시응답: set_face`, 05:59:32),
+#   그 **인자의 뒷토막만** 말 채널로 새어 t5 의 **첫 조각**으로 나갔다:
+#
+#       05:59:46.712  🦫 beaver: :"happy"}                    ← 조각 하나가 통째로 이것
+#       05:59:55.404  BEAVER[t5]: :"happy"}Not bad, you actually know it! ...
+#
+#   ⛔ 옛 필터가 둘 다 비껴간다: `_CONTROL_TAG_RE` 는 [대괄호]만 보고, `_strip_face_echo`
+#     는 첫 줄이 `if "set_face" not in text` 라 **글자가 없는 파편**은 즉시 통과했다.
+#   빈도: 1365 에서 표정 호출 22번 중 1번(≈5%). 같은 날 1360 엔 없었다.
+#
+#   ⛔⛔ 여기서도 **대사를 먹지 않는 것이 최우선**이다. 그래서 두 겹으로 좁힌다:
+#     ① 값이 **닫힌 어휘**여야 한다(neutral·happy·surprised·sad·angry·laugh — gemini_live 의
+#        enum 과 같은 목록). 임의 낱말을 물지 않는다.
+#     ② **닫는 중괄호를 요구한다.** 이게 진짜 앵커다 — 따옴표 친 낱말 뒤에 `}` 가 오는
+#        문장은 자연 발화에 없다. 반대로 위 09-01 무늬는 닫는 괄호가 제각각이라 요구하지
+#        않았다(거기선 `set_face` 글자가 앵커였다). **앵커가 다르니 규칙도 다르다.**
+_FACE_JSON_TAIL_RE = re.compile(
+    r"""\{?\s*(?:"?emotion"?\s*)?:?\s*["'](?:neutral|happy|surprised|sad|angry|laugh)["']\s*\}+"""
+)
+
+
 def _strip_face_echo(text: str) -> str:
-    """대사에 섞인 `set_face{...}` 를 걷어낸다. 없으면 원문 그대로 반환한다."""
-    if "set_face" not in text:
-        return text
-    return _FACE_ECHO_RE.sub("", text)
+    """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**을 걷어낸다.
+
+    둘은 무늬가 다르다 — 위 두 주석 블록 참조. 해당 없으면 원문 그대로 반환한다.
+    """
+    if "set_face" in text:
+        text = _FACE_ECHO_RE.sub("", text)
+    if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다
+        text = _FACE_JSON_TAIL_RE.sub("", text)
+    return text
 
 
 # 통화당 재개 시드 주입 상한(무한 루프 방지).
