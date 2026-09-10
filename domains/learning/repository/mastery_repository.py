@@ -644,6 +644,88 @@ def _annotate_state(db: Session, member_id: int, picked: list[dict],
             e["this_call"] = getattr(prog, "last_call_id", None) == chain_call_id
 
 
+# --------------------------------------------------------------------------- #
+# 표현학습 코스 선별 (2026-09-10 — 기획 §2-4)
+# --------------------------------------------------------------------------- #
+# ⭐ **개수는 변수다**(사장님: "유동적으로 바뀔 수 있으니 변수로"). 그리고 `n` 을 인자로도
+#   받는다 — Free 는 5분에 6~8개밖에 못 도는데 지시문엔 18개가 다 실리고, Live 는 **매 턴
+#   컨텍스트 전체를 재과금**하므로 도달 못 할 12개의 토큰을 통화 내내 낸다.
+#   ⛔ 지금은 **플랜별로 다른 값을 주지 않는다**(사장님 미결). 전 경로가 18로 부른다 —
+#     자리만 열어 둔다.
+EXPRESSION_ITEMS_PER_CALL = 18
+# ⛔ 이 숫자는 **여기 한 곳에서만** 정한다. 프롬프트(`core/prompts/expression._procedure`)는
+#   호출부를 통해 이 값을 받는다 — 손으로 쓴 같은 숫자가 두 곳에 있으면 어느 게 진짜인지
+#   아무도 모른다(docs/prompts/README.md 원칙 3).
+EXPRESSION_QUIZ_GROUP = 3
+
+
+def pick_expression_items(
+    db: Session,
+    member_id: int,
+    level_no: int,
+    *,
+    language: str = "ko",
+    n: int = EXPRESSION_ITEMS_PER_CALL,
+) -> list[LearningItem]:
+    """표현학습 통화에서 가르칠 표현 n 개(순수 SELECT — commit 없음, R3).
+
+    ## 규칙은 두 줄이 전부다
+    ```
+    WHERE  quiz_passed_at IS NULL        ← 통과한 건 절대 다시 안 나온다(완료의 유일한 기준)
+    ORDER BY (drilled_at IS NULL), random()
+    ```
+    ⭐ 사장님의 *"못한 거 + 그다음 것까지 해서 18개"* 가 이 두 줄로 **자동 성립**한다 —
+      `quiz_passed_at IS NULL` 이 풀을 만들고, `drilled_at IS NULL` 정렬이 «드릴은 했는데
+      못 끝낸 것» 을 앞으로 올린다. 별도 큐도, 이월 플래그도 필요 없다.
+
+    ## ⛔ 코호트를 고정하지 않는다 (2026-09-10 codex QA 로 정정)
+    초판 계획은 «조각2가 조각1과 **같은 18개**를 본다» 를 전제로 «이 통화에서 다룬 것은
+    통과했어도 포함» 을 넣으려 했다. 그 전제가 **거짓이다** — 조각2는 새 WebSocket = 새
+    `_CallState` 라 선별이 다시 돌고, 정렬에 `random()` 이 있어 목록도 번호도 옮겨간다.
+    목록을 고정하려면 코호트를 저장해야 하는데 테이블이 늘고 «매번 랜덤»(D14)과 충돌한다.
+    ⇒ 고정하지 않는다. 통과분은 그냥 풀에서 빠지고, 연속성은 위 정렬 1번 항이 만든다.
+    ⚠ 그래서 이 함수는 `chain_call_id` 를 **받지 않는다.** 넣지 마라.
+
+    ## ⚠ 안 건드리는 것
+    `pick_study_items`(본편 5 + 예비 25)는 **한 줄도 안 건드린다** — `normal` 통화가 계속
+    그걸 쓴다. 두 코스는 선별부터 갈라진다.
+
+    Args:
+        level_no: 이 회원의 레벨. ⛔ `<=` 가 아니라 **정확일치**다 — 표현학습은 «이 레벨을
+            전부 통과하면 승급»(D12)이라 분모가 그 레벨 항목 집합이어야 한다. 이전 레벨을
+            섞으면 분모가 흐려진다(복습 선별과 반대 방향이다).
+        n: 이번 통화에 실을 개수. 기본 EXPRESSION_ITEMS_PER_CALL.
+
+    Returns:
+        LearningItem 목록(최대 n). 풀이 n 보다 적으면 **짧게** 준다 — 빈 리스트여도
+        호출부가 통화를 막지 않는다(R5).
+    """
+    if n <= 0:
+        return []
+    prog = aliased(MemberItemProgress)
+    stmt = (
+        select(LearningItem)
+        .outerjoin(
+            prog,
+            and_(prog.item_id == LearningItem.item_id, prog.member_id == member_id),
+        )
+        .where(
+            LearningItem.language == language,
+            LearningItem.level_no == level_no,
+            # ⚠ 행이 없으면(미학습) NULL 이라 조건이 참이다 — 희소 테이블의 규약 그대로.
+            prog.quiz_passed_at.is_(None),
+        )
+        .order_by(
+            # ① 드릴했는데 못 끝낸 것 먼저(0), 새 것 나중(1)
+            case((prog.drilled_at.is_(None), 1), else_=0),
+            # ② 같은 묶음 안에서는 랜덤 — 사장님: "동일 레벨에서는 섞여도 된다"(D14)
+            func.random(),
+        )
+        .limit(n)
+    )
+    return list(db.scalars(stmt).all())
+
+
 def pick_chat_targets(
     db: Session, member_id: int, level_no: int, language: str = "ko"
 ) -> list[LearningItem]:

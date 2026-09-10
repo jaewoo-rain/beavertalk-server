@@ -302,6 +302,54 @@ def load_call_setup(
     }
 
 
+# ⭐ 재수출 — 퀴즈 묶음 크기는 `mastery_repository` 가 소유하고 realtime 은 **서비스를 통해**
+#   받는다. 레이어 방향(realtime → service → repository)을 지키면서 숫자의 출처는 한 곳으로
+#   묶는다. ⛔ call_session 에 3 을 손으로 쓰지 마라(프롬프트 원칙 3 — 숫자도 한 곳에서만).
+EXPRESSION_QUIZ_GROUP = mastery_repository.EXPRESSION_QUIZ_GROUP
+
+
+def load_expression_items(
+    db: Session,
+    member_id: int,
+    level_no: int,
+    locale: str,
+    language: str = "ko",
+    *,
+    n: int = mastery_repository.EXPRESSION_ITEMS_PER_CALL,
+) -> list[dict]:
+    """표현학습 통화에 실을 표현 n 개를 DTO 로 준다(LLM 0 — 선별 쿼리 1회).
+
+    ⭐ 캐릭터·레벨 프로파일·흥미는 다시 안 읽는다 — `load_call_setup` 이 이미 갖고 있다
+      (run_call 이 그 dict 를 그대로 쓴다). 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다.
+
+    Returns:
+        `[{item_id, obj, des, ex, quiz_passed}]` — `core/prompts/expression` 의
+        `build_expression_instruction(items=...)` 스키마와 1:1.
+        ⚠ `quiz_passed` 는 **항상 False** 로 나간다. 선별이 이미 통과분을 빼기 때문이다
+          (`pick_expression_items` 의 `quiz_passed_at IS NULL`). 이 칸이 True 가 되는 건
+          **같은 조각 안에서** 방금 맞힌 것을 표시할 때뿐이고, 그 값은 DB 가 아니라
+          런타임 상태(`_CallState`)에서 온다. 칸을 지금 두는 이유는 그 자리가 여기라서다.
+        선별 결과가 0건이면 빈 리스트 — 호출부가 통화를 막지 않는다(R5).
+
+    ⚠ 예문(`ex`)은 **있을 때만** 붙는다. L1 생존 청크는 `examples` 가 전 언어에서 0개인데,
+      청크는 표면형 자체가 문장이라 예문 없이 가르칠 수 있다(프롬프트 `_render_item` 이
+      꼬리를 생략한다).
+    """
+    items = mastery_repository.pick_expression_items(
+        db, member_id, level_no, language=language, n=n
+    )
+    return [
+        {
+            "item_id": it.item_id,
+            "obj": it.surface,
+            "des": _study_des(it, locale),
+            "ex": mastery_repository.first_example(it),
+            "quiz_passed": False,
+        }
+        for it in items
+    ]
+
+
 def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dict:
     """레벨테스트 통화 셋업 — 레벨을 모르는 상태 전제라 level_profile/history 없음.
 

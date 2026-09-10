@@ -93,8 +93,19 @@ def patched_repo(monkeypatch):
 
 
 def test_limits_are_one_each():
-    """지시: 레벨테스트 1회 + 일반 통화 1회."""
-    assert DAILY_CALL_LIMIT == {"normal": 1, "level_test": 1}
+    """지시: 레벨테스트 1회 + 일반 통화 1회. 코스 2종(2026-09-10)도 같은 1회.
+
+    ⚠⚠ **표현학습·프리토킹 값은 사장님 확인 사항이다**(2026-09-10 추가). 코스를 가르면
+      «하루 1통화» 의 뜻이 «통화 1번» 인지 «코스마다 1번» 인지가 갈리는데, 그건 상품 결정이다.
+      이 값이면 Free 가 하루 **3통화**를 하게 된다(normal 1 + 표현학습 1 + 프리토킹 1).
+    ⛔ 그래도 **표에서 빼면 안 된다** — `is_daily_limit_reached` 가 «정의되지 않은 콜타입은
+      막지 않는다» 로 떨어져 두 코스가 통째로 **무제한**이 된다. Live 는 통화당 원가가
+      나가므로 «무제한» 쪽이 «값이 아직 미확정» 보다 훨씬 위험하다.
+    ⇒ 이 시험은 **누락을 막는 것**이 임무다. 값을 바꾸려면 여기서 바꾼다.
+    """
+    assert DAILY_CALL_LIMIT == {
+        "normal": 1, "level_test": 1, "expression": 1, "freetalk": 1,
+    }
 
 
 def test_normal_blocked_after_normal(patched_repo):

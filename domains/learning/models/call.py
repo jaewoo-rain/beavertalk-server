@@ -85,7 +85,9 @@ class Call(Base, TimestampMixin):
     )
     call_type: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'normal'"),
-        comment="통화 종류(normal/level_test)",
+        # ⭐ 2026-09-10: expression(표현학습)·freetalk(프리토킹) 추가. TEXT 라 **스키마
+        #   변경이 아니다** — 값 목록은 앱 계층이 소유한다(call.status 컨벤션 그대로).
+        comment="통화 종류(normal/level_test/expression/freetalk)",
     )
     assessed_level: Mapped[Optional[int]] = mapped_column(
         Integer, comment="레벨테스트 판정 결과(1~13, level_test 전용)",

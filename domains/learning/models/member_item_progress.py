@@ -53,6 +53,11 @@ class MemberItemProgress(Base, TimestampMixin):
         UniqueConstraint("member_id", "item_id", name="uq_member_item"),
         # 통화 재료 선별(상태별 최근 사용순 — 복습·유도 큐)
         Index("ix_mip_member_status_used", "member_id", "status", "last_used_at"),
+        # 표현학습 선별(2026-09-10): 회원의 «아직 퀴즈를 통과 못 한» 행을 고른다.
+        # ⚠ 이 인덱스가 커버하는 건 **회원 스코프 + 통과 여부**까지다. 실제 선별은
+        #   learning_item 을 언어·레벨로 좁힌 뒤 이 행을 LEFT JOIN 하므로, 여기서 줄여야
+        #   하는 건 «이 회원의 행» 이다(항목 1.1만 행 × 회원 수).
+        Index("ix_mip_member_quiz", "member_id", "quiz_passed_at"),
     )
 
     progress_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -123,6 +128,37 @@ class MemberItemProgress(Base, TimestampMixin):
         BigInteger,
         ForeignKey("call.call_id", ondelete="SET NULL", name="fk_mip_last_call"),
         comment="최근 증거 통화",
+    )
+
+    # ── 표현학습 코스(2026-09-10) — 퀴즈 통과·드릴 시각 ─────────────────────
+    # ⭐⭐ **표현학습의 진도는 이 3컬럼이 전부다.** 위의 등급·카운터 사슬(status·score·
+    #   repeat/prompted/spontaneous/miss)은 이 코스에서 **역할이 없다** — 승급이
+    #   «그 레벨 전체 퀴즈 통과» 로 갈아탔기 때문이다(기획 D12). 안 쓰기만 하고 지우지는
+    #   않는다: item_evidence 는 append-only 감사 로그고, normal 통화가 아직 그 사슬 위에서
+    #   돌며, 마이페이지 레벨 카드·상위 N% 가 이 행을 읽는다.
+    #
+    # ⛔ **노출 «횟수» 컬럼을 만들지 마라**(사장님 정정 2026-09-10). 기준이 3회가 아니라
+    #   **1회**다 ⇒ 재는 것이 «몇 번»이 아니라 «했나/안 했나»이고, 그건 timestamp 하나로
+    #   끝난다. 카운터를 두면 연속 접기 알고리즘까지 딸려 온다.
+    #
+    # ⭐ 새 테이블을 안 만든 이유: 이 테이블이 이미 **회원×항목 1행**이라 조각·통화·날짜와
+    #   무관하게 진도가 이어진다. 그래서 «다음날 통화에서도 그대로 이어진다» 가 공짜다.
+    quiz_passed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="표현학습 퀴즈 통과 시각(NULL=미통과) — 완료 판정의 유일한 기준",
+    )
+    # ⚠ 이 값은 **선별 정렬**에만 쓴다(드릴했는데 못 끝낸 것을 다음 통화 앞으로).
+    #   완료 판정은 위 quiz_passed_at 하나가 소유한다 — 두 기준을 만들지 마라.
+    drilled_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="표현학습에서 마지막으로 드릴한 시각(NULL=한 번도 안 꺼냄)",
+    )
+    # ⚠ 통화가 지워져도 진도는 남아야 한다 — 위 first_call_id/last_call_id 와 **같은
+    #   SET NULL 규약**을 따른다(진도는 통화의 부속물이 아니다).
+    drilled_call_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("call.call_id", ondelete="SET NULL", name="fk_mip_drilled_call"),
+        comment="마지막으로 드릴한 통화(되짚기용)",
     )
 
     # ── 단방향 최소 relationship — Member.progress 역컬렉션 금지(N+1 방지) ──

@@ -96,6 +96,16 @@ from core.persona_prompt import (
     seed_leveltest_opening,
     seed_opening,
 )
+from core.prompts.expression import (
+    NUDGE_SEED_1_EXPRESSION,
+    build_expression_instruction,
+    seed_expression_opening,
+)
+from core.prompts.freetalk import (
+    NUDGE_SEED_1_FREETALK,
+    build_freetalk_instruction,
+    seed_freetalk_opening,
+)
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import normalcall_service as svc
@@ -622,6 +632,15 @@ class _CallState:
         "reground_count", "last_reground_ts", "reground_arm_reason",
         "reground_ctx", "reground_items", "reground_tasks", "reground_persona",
         "covered_nums",
+        # ── 표현학습 코스(2026-09-10) ──
+        # expr_items: 이번 통화에서 다룰 표현 [{item_id, obj, des, ex, quiz_passed}].
+        #   ⭐ **빈/참이 곧 «이 통화가 표현학습인가» 의 게이트**다 — 별도 플래그를 만들지
+        #     마라(레벨 시스템 관통원칙 ② — 증거가 원본, 나머지는 파생).
+        # expr_quiz_pass / expr_quiz_fail: 퀴즈 판정 결과(item_id 집합). fail 이 오답퀴즈의 재료다.
+        # ⛔ **`expr_drilled` 를 만들지 않았다.** 그건 이미 `covered_nums` 다 —
+        #   `_note_covered_items` 가 채우고 `_covered_labels` 가 라벨로 되짚는다.
+        #   같은 사실을 두 곳에 두면 반드시 갈라진다.
+        "expr_items", "expr_quiz_pass", "expr_quiz_fail",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -776,6 +795,15 @@ class _CallState:
         self.covered_nums: list[int] = []
         self.reground_tasks: set[asyncio.Task] = set()
         self.reground_persona: tuple[str, str] = ("", "")
+        # ── 표현학습 진도(서버 소유) ──
+        # ⭐⭐ **압축이 이 설계의 최대 적이다.** 컨텍스트 압축은 오래된 대화부터 지우므로
+        #   통화 초반에 가르친 것이 제일 먼저 사라진다(실측 통화 1360: 압축 #4 가 9,219
+        #   토큰을 지우자 비버가 1번 항목으로 되감았고 마지막 91초가 반복이었다).
+        #   ⇒ 진도를 **LLM 의 기억에 맡기지 않는다.** 이 세 값은 파이썬 메모리 + DB 라
+        #     압축과 완전히 무관하다.
+        self.expr_items: list[dict] = []
+        self.expr_quiz_pass: set[int] = set()
+        self.expr_quiz_fail: set[int] = set()
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -894,6 +922,10 @@ def _flush_user_segment(state: _CallState) -> None:
         return
     text = "".join(state.cur_user_text).strip()
     logger.info("👤 USER[t%d]: %s", state.next_turn_index, text or "(무음/전사없음)")
+    # ⭐ 표현학습에서는 **학습자가 말했을 때** 그 항목을 다룬 것이 된다 — 비버는 모국어로
+    #   묻고 정답을 말하지 않기 때문이다. `normal` 통화에서는 이 호출이 즉시 되돌아간다
+    #   (게이트는 `state.expr_items` — 함수 독스트링 참조).
+    _note_covered_items(state, text, source="user")
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
@@ -934,8 +966,10 @@ def _reading_speed_line(text: str, audio_bytes: int) -> str:
     )
 
 
-def _note_covered_items(state: _CallState, beaver_text: str) -> None:
-    """방금 끝난 **비버 발화**에서 학습 항목 라벨을 찾아 `covered_nums` 에 누적한다.
+def _note_covered_items(
+    state: _CallState, text: str, *, source: str = "beaver",
+) -> None:
+    """방금 끝난 발화에서 학습 항목 라벨을 찾아 `covered_nums` 에 누적한다.
 
     🧒 왜 서버가 직접 세나: "비버가 이 항목을 다뤘나"는 LLM 판단이 필요 없다. 전사는
       서버에 다 있고 항목 라벨도 서버가 소유한다(`state.reground_items`) — **문자열 대조로
@@ -960,14 +994,31 @@ def _note_covered_items(state: _CallState, beaver_text: str) -> None:
       가르친다"로 끝나지만, 오검출은 **가르칠 기회를 영영 없앤다.** 보수적인 쪽으로 간다.
 
     append-only 다 — 한 번 들어간 번호는 빠지지 않는다(증거가 원본, 나머지는 파생 계산).
+
+    ## ⭐⭐ 2026-09-10 — 표현학습만 **학습자 발화까지** 본다 (사장님 결정)
+    위의 «비버만 본다» 규율은 **일반 통화 전제**였다. 표현학습은 흐름이 반대다 — 비버가
+    모국어로 묻고 **정답을 말하지 않는다**:
+
+        비버   : "헤어질 때 뭐라고 하지?"    ← 라벨이 안 나온다
+        학습자 : "안녕히 가세요"              ← 여기서만 나온다
+
+    비버만 보면 그 항목이 영원히 «안 다룬 것» 이 되고, 다음 통화에 또 나온다.
+
+    ⛔ **`normal` 통화의 동작은 한 바이트도 안 바뀐다.** 게이트는 `state.expr_items` 하나다 —
+      그게 비어 있으면 학습자 발화는 통째로 무시된다. 일반 통화에서 학습자 발화를 세면 위
+      경고(«우연히 낸 단어를 가르쳤다로 친다»)가 그대로 되살아난다.
+    ⚠ 표현학습에는 그 위험이 없다: 여기서 학습자가 라벨을 말했다는 것은 **그 항목을 실제로
+      산출했다**는 뜻이고, 그게 정확히 우리가 세려는 사건이다. 자유대화와 전제가 다르다.
     """
-    if not beaver_text or not state.reground_items:
+    if source == "user" and not state.expr_items:
+        return  # ⛔ 일반 통화는 비버만 본다(9638a26 규율 그대로)
+    if not text or not state.reground_items:
         return
     for idx, label in enumerate(state.reground_items, start=1):
         label = (label or "").strip()
         if not label or idx in state.covered_nums:
             continue
-        if label in beaver_text:
+        if label in text:
             state.covered_nums.append(idx)
 
 
@@ -1420,8 +1471,22 @@ async def run_call(
     #   걸렸고 ② 환경마다 동작이 갈리면 **테스트한 경로와 배포된 경로가 달라진다**
     #   (학습 언어 버그가 정확히 그렇게 살아남았다) ③ 재측정 허용 여부는 제품 규칙이지
     #   서버가 어디 떠 있느냐의 문제가 아니다. 레벨 재측정은 환경과 무관하게 허용한다.
+    #
+    # ⭐ 2026-09-10: 코스 2종(expression·freetalk)이 늘었다. 둘은 **명시로만** 들어온다 —
+    #   홈 화면 버튼이 정하는 것이지 서버가 추측할 값이 아니다. 그래서 아래 자동 라우팅
+    #   (else 절)은 한 글자도 안 바꿨다.
     if call_type_override is not None:
         call_type = call_type_override
+        # ⛔ 표현학습은 **커리큘럼이 있는 언어**에서만 성립한다 — 가르칠 항목이 커리큘럼에서
+        #   나오기 때문이다(`pick_expression_items`). 회화 전용 신 언어에서 명시로 들어오면
+        #   항목 0개로 «표현 목록이 빈 표현학습» 이 되므로 normal 로 강등한다(레벨테스트
+        #   미지원 언어와 **같은 규율**). ⚠ freetalk 은 항목을 안 쓰므로 이 게이트가 없다.
+        if call_type == "expression" and not spec.has_curriculum:
+            logger.warning(
+                "normalcall: 커리큘럼 없는 언어(target=%s)에서 call_type=expression 명시 "
+                "→ normal 강등(가르칠 항목이 0개다) member=%s", spec.code, member_id,
+            )
+            call_type = "normal"
         if call_type == "level_test" and not spec.leveltest:
             logger.warning(
                 "normalcall: 레벨테스트 미지원 언어(target=%s) 통화에서 call_type=level_test 명시 "
@@ -1472,16 +1537,19 @@ async def run_call(
         with contextlib.suppress(Exception):
             await _send_json(client_ws, ServerError(
                 code="DAILY_LIMIT",
-                message=(
-                    "오늘의 레벨테스트를 이미 사용했어요."
-                    if call_type == "level_test"
-                    else "오늘의 통화를 이미 사용했어요."
-                ),
+                message={
+                    "level_test": "오늘의 레벨테스트를 이미 사용했어요.",
+                    "expression": "오늘의 표현학습을 이미 사용했어요.",
+                    "freetalk": "오늘의 프리토킹을 이미 사용했어요.",
+                }.get(call_type, "오늘의 통화를 이미 사용했어요."),
                 recoverable=False,
             ))
         return
 
     teaching_items: list[TeachingItem] = []  # P2.5 teaching_plan(normal + 재료 있을 때만)
+    # ⭐ 표현학습이 이번 통화에서 다룰 표현(선별 결과). 다른 콜타입에서는 **빈 리스트**이고,
+    #   그 빈/참이 곧 «이 통화가 표현학습인가» 의 런타임 게이트가 된다(state.expr_items).
+    expr_items: list[dict] = []
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
     continue_reminder: str | None = None   # 후반 재접지(대화 지속) — 일반 통화만
     # 이 통화 전용 종료 태그(난수). ⚠ system_instruction 과 종료 시드가 **같은 값**을 써야
@@ -1587,33 +1655,79 @@ async def run_call(
             "normalcall 플랜분기: 영상=%s 백엔드=%s 모델=%s (표정차단기=%s)",
             wants_video, live_backend, live_model, settings.LIVE_FACE_SPIKE,
         )
-        system_instruction = build_system_instruction(
-            role=setup["role"],
-            personality=setup["personality"],
-            level_profile=level_profile,
-            locale=locale,
-            interests=setup["interests"],
-            name=setup["name"],
-            history=setup["history"],
-            target_language=target_language,
-            study_items=_prompt_study_items(setup.get("study_items")) if inject_materials else None,
-            known_items=setup.get("known_items") if inject_materials else None,
-            recent_topics=setup.get("recent_topics") if inject_materials else None,
-            promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
-            lang_band=setup.get("lang_band", "beginner"),
-            close_tag=close_tag,
-            # ⭐⭐ **플랜이 표정을 정한다**(2026-09-04). Max=영상통화(표정 O) /
-            #   Free·Pro=음성통화(표정 X). 판정은 `call_service.call_video_for` 하나로 간다
-            #   — 상태(state)와 플랜(plan)은 다른 축이라 상태 문자열을 직접 보면 앱과 갈라진다.
-            #
-            #   ⛔ `LIVE_FACE_SPIKE` 는 이제 **비상 차단기**다. 켜져 있어도 플랜이 아니면
-            #     안 준다. 반대로 끄면 Max 도 못 받는다(사고 시 전원 차단용).
-            #     ⚠ 의미가 바뀌었다 — 예전엔 "표정 기능 자체의 on/off" 였다.
-            #   ⚠ 표정을 빼면 지시문이 1,058자(≈423토큰) 준다(실측). Live 는 매 턴 전액
-            #     재과금이라 20메시지 통화면 그 몫만 ≈8,460 토큰이다(통화 1289 기준).
-            face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video,
-        )
-        seed_text = seed_opening(target_language)
+        # ⭐⭐ **여기서부터 코스별로 갈린다.** 위 플랜 분기(영상·백엔드·모델)는 세 코스가
+        #   그대로 **공유**한다 — 표현학습·프리토킹도 Max 면 영상, Free·Pro 면 음성이다.
+        #   ⛔ 레벨테스트만 이 블록 밖에 있다(자기 백엔드를 명시로 고정한다).
+        if call_type == "expression":
+            # ⚠ 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다 — 캐릭터·레벨 프로파일·
+            #   흥미는 위 `setup`(load_call_setup)이 이미 갖고 있다.
+            # ⚠ 레벨 미확정이면 2(Basic A)로 폴백한다 — load_call_setup 의 폴백과 같은 값.
+            expr_items = await svc.run_db(
+                db_session_factory,
+                lambda db: svc.load_expression_items(
+                    db, member_id, setup.get("korean_level") or 2, locale, spec.code,
+                ),
+            )
+            system_instruction = build_expression_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                level_profile=level_profile,
+                locale=locale,
+                interests=setup["interests"],
+                name=setup["name"],
+                items=expr_items,
+                quiz_group=svc.EXPRESSION_QUIZ_GROUP,
+                target_language=target_language,
+                close_tag=close_tag,
+            )
+            seed_text = seed_expression_opening(target_language)
+            logger.info(
+                "normalcall 표현학습: 표현 %d개 선별(퀴즈 %d개마다) level=%s",
+                len(expr_items), svc.EXPRESSION_QUIZ_GROUP, setup.get("korean_level"),
+            )
+        elif call_type == "freetalk":
+            # ⛔ 학습 항목을 **하나도** 싣지 않는다(D8). 주제 선정·배운 표현 활용은 미기획이라
+            #   페르소나와 캐릭터로만 대화한다. 레벨 프로파일은 싣는다 — 항목은 안 줘도
+            #   «어느 난이도로 말할지»는 알아야 초보에게 고급 문장이 안 나간다.
+            system_instruction = build_freetalk_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                level_profile=level_profile,
+                locale=locale,
+                interests=setup["interests"],
+                name=setup["name"],
+                target_language=target_language,
+                close_tag=close_tag,
+            )
+            seed_text = seed_freetalk_opening(target_language)
+        else:
+            system_instruction = build_system_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                level_profile=level_profile,
+                locale=locale,
+                interests=setup["interests"],
+                name=setup["name"],
+                history=setup["history"],
+                target_language=target_language,
+                study_items=_prompt_study_items(setup.get("study_items")) if inject_materials else None,
+                known_items=setup.get("known_items") if inject_materials else None,
+                recent_topics=setup.get("recent_topics") if inject_materials else None,
+                promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
+                lang_band=setup.get("lang_band", "beginner"),
+                close_tag=close_tag,
+                # ⭐⭐ **플랜이 표정을 정한다**(2026-09-04). Max=영상통화(표정 O) /
+                #   Free·Pro=음성통화(표정 X). 판정은 `call_service.call_video_for` 하나로 간다
+                #   — 상태(state)와 플랜(plan)은 다른 축이라 상태 문자열을 직접 보면 앱과 갈라진다.
+                #
+                #   ⛔ `LIVE_FACE_SPIKE` 는 이제 **비상 차단기**다. 켜져 있어도 플랜이 아니면
+                #     안 준다. 반대로 끄면 Max 도 못 받는다(사고 시 전원 차단용).
+                #     ⚠ 의미가 바뀌었다 — 예전엔 "표정 기능 자체의 on/off" 였다.
+                #   ⚠ 표정을 빼면 지시문이 1,058자(≈423토큰) 준다(실측). Live 는 매 턴 전액
+                #     재과금이라 20메시지 통화면 그 몫만 ≈8,460 토큰이다(통화 1289 기준).
+                face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video,
+            )
+            seed_text = seed_opening(target_language)
         voice = setup["voice"]
         # 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"). 통합 재접지는 캐릭터 3필드에
         # 맥락 슬롯을 얹어 조립하므로(build_reground_brief) 페르소나 원재료를 그대로 넘긴다.
@@ -1622,7 +1736,11 @@ async def run_call(
             reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
             continue_reminder = build_continue_reminder(setup["role"], setup["personality"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
-        if inject_materials and setup.get("study_items"):
+        # ⛔ **normal 에만 보낸다**(2026-09-10). `setup["study_items"]` 는 `pick_study_items`
+        #   가 고른 «일반 통화의 오늘 항목» 이라, 표현학습·프리토킹에 그대로 보내면 화면에
+        #   **이번 통화에서 다루지 않을 카드**가 뜬다. 표현학습의 카드는 자기 선별 결과로
+        #   따로 보내야 하고, 그건 결과 화면과 함께 뒤에서 다룬다(T12).
+        if inject_materials and setup.get("study_items") and call_type == "normal":
             teaching_items = _teaching_plan_items(setup["study_items"])
 
     # 3) 통화 행 — ⭐ **이어하기면 새로 만들지 않고 그 행에 계속 쓴다**(2026-08-19).
@@ -1754,6 +1872,9 @@ async def run_call(
     state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
     if settings.LIVE_INPUT_LANGUAGE_CODES:
         state.input_language_codes = _input_language_codes(spec.code, locale)
+    # ⭐ 표현학습 진도를 state 에 싣는다 — 이 리스트가 비어 있지 않다는 것 자체가
+    #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
+    state.expr_items = expr_items
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
     state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
     if call_type != "level_test" and REGROUND_MODE != "off":
@@ -1761,10 +1882,23 @@ async def run_call(
         # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
         #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
         state.reground_persona = (setup["role"] or "", setup["personality"] or "")
-        state.reground_items = [
-            str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
-        ][:10]
-        state.call_mode = "study" if state.reground_items else "chat"
+        if expr_items:
+            # ⭐ 표현학습: 검출 목록이 곧 **오늘의 표현 전량**이다.
+            # ⛔⛔ **여기서 [:10] 로 자르지 마라.** 자르면 11~18번이 «비버가 다뤄도 서버는
+            #   모르는» 항목이 되고, 그건 영원히 «안 가르친 것» 으로 남아 다음 통화에 또
+            #   나온다(그리고 재접지 쪽지가 «이미 다룬 것» 에서 빠뜨려 되감기를 부른다 —
+            #   통화 1360 이 정확히 부분 목록 때문에 난 사고다).
+            # ⚠ `REGROUND_COVERED_CAP`(10)은 **쪽지에 몇 개를 적을지**의 상한이지 검출
+            #   상한이 아니다 — 검출은 18개 전부 돈다. 두 숫자를 섞지 마라.
+            state.reground_items = [str(it["obj"]) for it in expr_items if it.get("obj")]
+            state.call_mode = "study"
+        else:
+            # ⚠ `normal` 은 **한 글자도 안 바뀐다** — 상한 10 은 일반 통화의 계약이다
+            #   (공급원 study_items 가 본편 5 + 예비라 10 이면 사실상 전량이다).
+            state.reground_items = [
+                str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
+            ][:10]
+            state.call_mode = "study" if state.reground_items else "chat"
         state.reground_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
@@ -1842,10 +1976,21 @@ async def run_call(
         #   ⚠ 절대 백스톱은 안 바뀐다 — max(540, 300+22+30) = 540 그대로다(R4 불변식).
         if assignment_id is not None:
             state.call_duration_s = HOMEWORK_CALL_DURATION_S
+        # ⭐ 캐던스(60/+10/+12)는 세 코스가 **같다**(기획 §2-9 임계표) — 값은 일반과 같게
+        #   두고 **1단 시드 문구만** 코스별로 가른다. 실통화로 재본 뒤 조정한다.
+        #   ⛔ 표현학습에서 1단을 줄이고 싶어지면 레벨테스트 전례를 먼저 봐라 — 25초로
+        #     줄였다가 "생각 중에 넛지가 끼어들었다"로 60초로 되돌렸다(LEVELTEST_IDLE_NUDGE1_S).
+        #     드릴은 학습자가 문장을 떠올리는 시간이다.
         state.idle_nudge1_s = IDLE_NUDGE1_S
         state.idle_nudge2_s = IDLE_NUDGE2_S
         state.idle_close_s = IDLE_CLOSE_S
-        state.nudge_seed_1 = _NUDGE_SEED_1
+        # ⛔⛔ 표현학습에 일반 1단 시드("가볍게 새 화제로")를 쓰면 **그 항목을 건너뛴다.**
+        #   여기서 무음은 «대화가 끊겼다»가 아니라 «학습자가 지금 항목을 못 하고 있다»다.
+        #   ⚠ 2단·3단은 공통으로 둔다 — "거기 있어?"와 작별은 코스와 무관하다.
+        state.nudge_seed_1 = {
+            "expression": NUDGE_SEED_1_EXPRESSION,
+            "freetalk": NUDGE_SEED_1_FREETALK,
+        }.get(call_type, _NUDGE_SEED_1)
 
     # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
     # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성

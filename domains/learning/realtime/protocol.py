@@ -98,7 +98,11 @@ class ClientStart(BaseModel):
     inbound_call_id: str | None = None
     locale: str | None = None
     target_language: str | None = None
-    call_type: Literal["normal", "level_test"] | None = None
+    # ⭐ 2026-09-10: 통화 코스가 둘 늘었다(기획 D1·D18) — 홈 화면 버튼 2개가 각각
+    #   `expression`(표현학습) · `freetalk`(프리토킹)로 명시해 들어온다.
+    #   ⛔ **자동 라우팅 대상이 아니다.** 서버가 저절로 고르는 건 여전히 level_test/normal
+    #     둘뿐이다 — 어느 코스를 할지는 학습자가 버튼으로 정한다.
+    call_type: Literal["normal", "level_test", "expression", "freetalk"] | None = None
     duration_min: int | None = None
     tz_offset_min: int | None = None
 
