@@ -665,3 +665,171 @@ def test_a_prior_beaver_turn_containing_the_answer_does_not_block_the_result() -
     cs._flush_beaver_segment(st)                    # 직전 비버 발화에 정답이 있다
     cs._apply_expression_progress(st, _FakeProgress(drilled=[1], passed=[1]))
     assert st.expr_quiz_pass == {1}, "앵무새 필터가 되살아나 정상 통과를 막았다"
+
+
+# --------------------------------------------------------------------------- #
+# ⛔⛔ P1-2 — 동음이의: identity 는 표면형이 아니라 item_id 다 (자산에 91그룹 실재)
+# --------------------------------------------------------------------------- #
+def test_homographs_are_tracked_separately() -> None:
+    """⛔⛔ 같은 레벨에 **동일 표면형이 91그룹** 있다(vocab.json 전수 스캔 — 「개」·「네」·「눈」…).
+
+    표면형으로 되짚으면 한쪽만 다뤄도 **두 항목에 함께** 진도가 찍히고, `quiz_passed_at` 은
+    **되돌릴 수 없다** — 엉뚱한 항목이 영구히 «완료» 가 된다.
+    """
+    st = _state([(11, "개"), (22, "개")])       # 뜻이 다른 두 항목, 같은 표면형
+    st.covered_nums = [1]                       # 1번만 다뤘다
+    assert cs._expr_covered_ids(st) == [11], "동음이의 두 항목에 함께 찍혔다"
+
+
+def test_the_sidecar_list_carries_meaning_so_homographs_can_be_told_apart() -> None:
+    """⭐ 표면형만 주면 목록이 «1. 개 / 2. 개» 라 **LLM 도 가를 수 없다.**
+
+    ⚠ 로더가 뜻·예문을 이미 갖고 있다 — 추가 조회 없이 실을 수 있다.
+    """
+    out = cs._expression_progress_instruction(
+        [{"obj": "개", "des": "a dog", "ex": "개가 있어요"},
+         {"obj": "개", "des": "counter", "ex": "사과 두 개"}],
+        "한국어",
+    )
+    assert "1. 개 — 뜻: a dog" in out and "2. 개 — 뜻: counter" in out
+
+
+def test_the_next_label_uses_item_id_not_the_surface() -> None:
+    """⛔ 표면형 집합으로 «했나» 를 물으면 동음이의 한쪽만 다뤄도 **둘 다 완료로 보인다** —
+    안 다룬 항목이 next 후보에서 사라진다.
+    """
+    st = _state([(11, "개"), (22, "개"), (33, "물")])
+    st.reground_persona = ("선생님", "다정함")
+    st.covered_nums = [1]                        # 11번만 다뤘다
+    cs._arm_reground(st, "time")
+    assert "다음에 다룰 표현: 개" in st.reground_reminder, st.reground_reminder
+
+
+# --------------------------------------------------------------------------- #
+# ⛔⛔ P1-3 — 낱말 경계: 「선물」이 「물」로 잡히면 안 된다
+# --------------------------------------------------------------------------- #
+def test_a_word_inside_another_word_is_not_covered() -> None:
+    """⛔⛔ 옛 대조는 `label in text` 라 항목 「물」에 "어제 **선물**을 받았어요" 가 잡혔다.
+
+    ⇒ 그 항목이 «완료» 로 처리돼 **가르치지도 않고 건너뛰고**, DB 엔 drilled 로 남는다.
+    ⚠ 같은 결함을 이미 통과(pass) 경로에서 한 번 걷어냈는데 **대조(covered) 경로에 그대로
+      남아 있었다.** L2 이상은 90%가 어휘이고 대부분 1~2글자라 여기가 주 무대다.
+    """
+    st = _state([(1, "물")])
+    cs._note_covered_items(st, "어제 선물을 받았어요", source="user")
+    assert st.covered_nums == [], "「선물」이 「물」로 잡혔다"
+
+
+@pytest.mark.parametrize("text", ["물을 주세요", "저는 물이 좋아요", "물"])
+def test_the_word_with_a_particle_is_still_covered(text: str) -> None:
+    """⭐ 조사·어미는 **뒤에 붙는다** — 그건 그대로 잡아야 한다(안 그러면 검출이 죽는다)."""
+    st = _state([(1, "물")])
+    cs._note_covered_items(st, text, source="user")
+    assert st.covered_nums == [1], text
+
+
+def test_a_normal_call_keeps_the_plain_substring_match() -> None:
+    """⛔ `normal` 의 대조 규칙은 **안 바뀐다** — 바꾸면 그 통화의 covered 폭이 달라져
+    재접지 쪽지가 같이 바뀐다(그 경로는 손대지 않는다).
+    """
+    st = cs._CallState()                      # expr_items 가 비어 있다 = 일반 통화
+    st.reground_items = ["물"]
+    cs._note_covered_items(st, "어제 선물을 받았어요")
+    assert st.covered_nums == [1], "일반 통화의 생짜 대조가 바뀌었다"
+
+
+# --------------------------------------------------------------------------- #
+# ⛔ P1-4 — 쪽지가 한 arm 늦지 않는다 · 재접지 스위치와 진도 판정은 다른 축이다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_a_late_verdict_upgrades_the_pending_note() -> None:
+    """⛔ arm 때 만든 쪽지를 그대로 두면 **판정이 한 arm 늦게 실린다** — 「아직 틀린 표현」
+    (오답퀴즈 재료)이 다음 주기까지 빈다.
+    """
+    st = _state([(1, BYE), (2, PRICE)])
+    st.reground_persona = ("선생님", "다정함")
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    cs._arm_reground(st, "time")
+    assert "아직 틀린 표현" not in st.reground_reminder      # 아직 판정 0회
+
+    async def _verdict(client, model, **kw):
+        return _FakeProgress(drilled=[1, 2], failed=[2])
+
+    st.segments = [{"turn_index": 0, "role": "user", "text": "음"}]
+    with mock.patch.object(cs.gemini_analysis, "generate_structured", _verdict):
+        await cs._expression_progress_sidecar(st)
+    assert "아직 틀린 표현" in st.reground_reminder, "쪽지가 업그레이드되지 않았다"
+    assert PRICE in st.reground_reminder
+
+
+@pytest.mark.asyncio
+async def test_an_already_attached_note_is_not_rewritten() -> None:
+    """⚠ 이미 얹힌 쪽지는 손대지 않는다 — 다음 arm 이 새로 만든다."""
+    st = _state([(1, BYE)])
+    st.reground_persona = ("선생님", "다정함")
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    cs._arm_reground(st, "time")
+    st.reground_pending = False                              # 얹힘
+    before = st.reground_reminder
+
+    async def _verdict(client, model, **kw):
+        return _FakeProgress(failed=[1])
+
+    st.segments = [{"turn_index": 0, "role": "user", "text": "음"}]
+    with mock.patch.object(cs.gemini_analysis, "generate_structured", _verdict):
+        await cs._expression_progress_sidecar(st)
+    assert st.reground_reminder == before
+
+
+def test_the_legacy_idle_path_uses_the_expression_note() -> None:
+    """⛔ legacy_idle 은 일반 브리프를 보냈다 — «다룬 것» 한 칸뿐이라 오답퀴즈 재료가 빠진다."""
+    st = _state([(1, BYE), (2, PRICE)])
+    st.reground_persona = ("선생님", "다정함")
+    st.expr_quiz_fail.add(2)
+    note = cs._build_expression_note(st)
+    assert "아직 틀린 표현" in note and PRICE in note
+
+
+def test_progress_judging_is_not_bound_to_the_reground_switch() -> None:
+    """⛔⛔ 진도 판정 스폰이 재접지 루프 안에 있어, 스위치를 내리면 **진도가 통째로 죽었다.**
+
+    ⇒ 루프의 비활성 조건이 표현학습을 예외로 두고, 판정은 모드보다 **먼저** 돈다.
+    ⚠ 재접지를 끄는 것과 진도 판정을 끄는 것은 **다른 결정**이다.
+    """
+    import inspect
+
+    src = inspect.getsource(cs._reground_watch)
+    # ① 비활성 게이트가 표현학습을 예외로 둔다 — 안 그러면 off 하나로 진도가 통째로 죽는다
+    assert "if not state.expr_items and (" in src, "off 에서 표현학습도 같이 죽는다"
+    # ② 루프 안에서 판정이 **모드 분기보다 먼저** 온다
+    #   ⚠ `.index` 를 쓰면 게이트에 있는 첫 «off» 를 잡는다 — 루프 본문만 잘라서 본다.
+    body = src[src.index("while True:"):]
+    spawn = body.index("_spawn_expression_progress(state)")
+    assert spawn < body.index('REGROUND_MODE == "off"'), "off 가 판정을 건너뛴다"
+    assert spawn < body.index('REGROUND_MODE == "legacy_idle"'), "legacy_idle 이 판정을 건너뛴다"
+
+
+# --------------------------------------------------------------------------- #
+# ⛔ P2 — 승급이 자기복구를 한다(후보 0개여도 판정은 돈다)
+# --------------------------------------------------------------------------- #
+def test_promotion_still_runs_when_nothing_is_left_to_write(env) -> None:
+    """⛔⛔ «다 뗐는데 레벨은 옛것» 상태에서 선별이 빈 목록을 준다 ⇒ 쓸 것이 없다.
+
+    옛 코드는 그때 곧장 반환해 **승급 판정에 영영 못 닿았다** — 한 번 이 상태가 되면
+    다음 통화로도 절대 안 풀린다.
+    """
+    db, ids = env["db"], [i.item_id for i in env["items"]]
+    # 전량 통과 상태를 만들되 레벨은 그대로 둔다(승급이 아직 안 찍힌 상태)
+    for iid in ids:
+        db.add(MemberItemProgress(
+            member_id=env["member_id"], item_id=iid, status="introduced", score=0.0,
+            quiz_passed_at=NOW - timedelta(days=1),
+            provenance=mastery_service.PROVENANCE_EXPRESSION,
+        ))
+    db.commit()
+    stats = svc.save_expression_progress(
+        db, env["member_id"], env["call_id"], drilled_ids=[], passed_ids=[],
+    )
+    assert stats["levelup"]["result"] == "promoted", stats["levelup"]
+    db.expire_all()
+    assert db.get(Member, env["member_id"]).korean_level == 2

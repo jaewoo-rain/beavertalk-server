@@ -38,7 +38,6 @@ from core.prompts.common import (
     CONTROL_TAG,
     DEFAULT_MAX_SENTENCES,
     PERSONA_TAIL,
-    REGROUND_COVERED_CAP,
     RULE_CLOSE_PROTOCOL,
     RULE_NONVERBAL_SOUND,
     RULE_OFF_TOPIC,
@@ -351,7 +350,20 @@ def build_expression_reground_brief(
     """
     parts = [p.strip() for p in (role, personality) if p and p.strip()]
     body = " / ".join(parts) if parts else "너의 캐릭터"
-    clean = lambda xs: [x.strip() for x in (xs or []) if x and x.strip()][:REGROUND_COVERED_CAP]
+
+    # ⛔⛔ **자르지 마라.** 한때 여기에 `[:REGROUND_COVERED_CAP]`(=10)이 걸려 있었다 —
+    #   일반 쪽지의 상한을 그대로 물어온 것이다. 18개를 다 다뤄도 쪽지엔 1~10 만 남았다:
+    #     · 전부 오답이면 **오답퀴즈 재료 8개가 통째로 빠진다**
+    #     · 전부 완료면 next_label 도 안 나와, 압축 뒤 모델에게는 «10개가 전부» 로 보인다
+    #   ⇒ 그게 정확히 통화 1360 의 «부분 목록이 되감기를 만든다» 이고, 이 코스는 **그걸
+    #     막으려고** 만든 것이다. 일반 쪽지의 상한 계약과 **분리한다.**
+    #
+    # ⚠⚠ **같은 결함을 두 번 잡았다.** 첫 번째는 호출부의 `[:10]` 슬라이스였고, 이번엔
+    #   **공용 상수를 물고** 되살아났다. 그때 붙인 시험이 «10개로 잘린다» 를 **정답으로
+    #   박제**해서, 회귀 1,087개가 전부 통과하고도 못 잡았다. ⇒ 시험을 뜻을 뒤집어 다시 썼다
+    #   («n개를 넣으면 n개가 나온다»). 상한을 다시 넣으면 그 시험이 깨진다.
+    # ⚠ 길이는 항목 수가 이미 묶는다(EXPRESSION_ITEMS_PER_CALL). 여기서 또 자를 이유가 없다.
+    clean = lambda xs: [x.strip() for x in (xs or []) if x and x.strip()]
     drilled_s, passed_s, failed_s = clean(drilled), clean(passed), clean(failed)
 
     out = [

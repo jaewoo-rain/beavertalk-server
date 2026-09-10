@@ -55,3 +55,36 @@ def normalize(text: str | None) -> str:
     """
     s = unicodedata.normalize("NFC", (text or "").strip())
     return _PUNCT_RE.sub("", s).lower()
+
+
+def mentions(text: str | None, label: str | None) -> bool:
+    """전사에 그 항목이 **실제로 나왔나**(대조 전용 — 판정이 아니다).
+
+    ## ⛔⛔ 부분문자열 하나로 끝내지 마라 — 이 설계가 이미 이름 붙인 실패다
+    옛 대조는 `label in text` 였다. 그러면:
+
+        항목 「물」  ·  학습자 발화 "어제 **선물**을 받았어요"   → 다뤘다로 잡힌다  ⛔
+
+    ⇒ 그 항목이 «완료» 로 처리돼 **가르치지도 않고 건너뛰고**, DB 엔 drilled 로 남는다.
+      L2 이상 커리큘럼의 90%가 어휘이고 그중 대부분이 1~2글자라, 여기가 **주 무대**다.
+    ⚠⚠ 같은 결함을 이미 한 번 걷어냈다 — «정답 `물` 에 "저는 물을 좋아해요" 가 통과» 는
+      **통과(pass) 경로**의 이야기였고, 그때 그 경로만 고치고 **대조(covered) 경로에는
+      그대로 남겨 뒀다.** 두 경로가 같은 결함을 나눠 갖고 있었다.
+
+    ## 그래서 낱말 경계를 요구한다
+    · 여러 어절 항목(「안녕히 가세요」)  → 정규화 후 **부분문자열**. 어절 경계가 이미 있다
+    · 한 어절 항목(「물」·「가다」)      → 어절 하나가 그 항목으로 **시작**해야 한다
+      ⭐ 한국어 조사·어미는 **뒤에 붙는다**(물→물을·물이) ⇒ `startswith` 가 그걸 그대로 잡고,
+        앞에 붙은 「선물」은 걸러낸다. 접두 결합어를 놓치는 대신 오검출을 없애는 쪽이다.
+    ⚠ **미검출은 안전하고 오검출은 아니다** — 못 잡으면 한 번 더 가르치면 되지만, 잘못 잡으면
+      **가르칠 기회가 영영 사라진다**(`_note_covered_items` 독스트링의 보수성 규율 그대로).
+    """
+    lab = normalize(label)
+    if not lab:
+        return False
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    if len((label or "").split()) > 1:
+        return lab in normalize(raw)
+    return any(normalize(w).startswith(lab) for w in raw.split())

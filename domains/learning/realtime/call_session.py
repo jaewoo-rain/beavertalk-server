@@ -1054,16 +1054,19 @@ def _note_covered_items(
         return  # ⛔ 일반 통화는 비버만 본다(9638a26 규율 그대로)
     if not text or not state.reground_items:
         return
-    # ⭐ 표현학습만 **정규화 대조**를 함께 쓴다 — 전사는 띄어쓰기·문장부호가 흔들려서
-    #   («이거 얼마예요?» ↔ «이거 얼마예요») 생짜 비교가 조용히 놓친다.
-    #   ⛔ `normal` 은 **생짜 비교 그대로** 다 — 여기서 정규화를 켜면 일반 통화의 covered
-    #     검출 폭이 넓어져 재접지 쪽지가 바뀐다(그 경로는 손대지 않는다).
-    norm_text = quiz_judge.normalize(text) if state.expr_items else ""
+    # ⭐ 표현학습만 **낱말 경계 대조**를 쓴다(`quiz_judge.mentions`).
+    #   ⛔ 생짜 `label in text` 는 항목 「물」에 "어제 **선물**을 받았어요" 를 잡는다 ⇒ 그
+    #     항목이 완료로 처리돼 **가르치지도 않고 건너뛴다.** L2 이상은 90%가 어휘이고
+    #     대부분 1~2글자라 여기가 주 무대다(근거·규율은 `mentions` 독스트링).
+    #   ⛔ `normal` 은 **생짜 비교 그대로** 다 — 여기서 대조 규칙을 바꾸면 일반 통화의
+    #     covered 검출 폭이 달라져 재접지 쪽지가 바뀐다(그 경로는 손대지 않는다).
+    expr = bool(state.expr_items)
     for idx, label in enumerate(state.reground_items, start=1):
         label = (label or "").strip()
         if not label or idx in state.covered_nums:
             continue
-        if label in text or (norm_text and quiz_judge.normalize(label) in norm_text):
+        hit = quiz_judge.mentions(text, label) if expr else (label in text)
+        if hit:
             state.covered_nums.append(idx)
 
 
@@ -1098,14 +1101,30 @@ class ExpressionProgressOut(BaseModel):
     failed: list[int] = []
 
 
-def _expression_progress_instruction(items: list[str], target_language: str) -> str:
+def _expression_progress_instruction(items: list[dict], target_language: str) -> str:
     """진도 판정 사이드카 지시문(순수 문자열 조립 — LLM 생성 0).
 
     ⛔ 항목을 **번호로 떠먹인다**(`_reground_instruction` 과 같은 규율).
     ⚠ 세 갈래의 뜻을 분명히 적는다 — «다뤘다»(비버가 꺼냈다)와 «맞췄다»(학습자가 스스로
       냈다)를 섞으면 드릴 복창이 통과로 세어져 옛 설계의 사고가 그대로 돌아온다.
+
+    ## ⛔⛔ 표면형만 주지 마라 — **동음이의가 실제로 91그룹 있다**
+    `assets/level/curriculum_v2/vocab.json` 전수 스캔(2026-09-10): **같은 레벨에 같은 표면형**이
+    91그룹이다(레벨2 「개」·「네」·「눈」, 레벨3 「들다」…). 표면형만 실으면 목록이
+    «1. 개 / 2. 개» 가 되어 **LLM 이 어느 뜻인지 알 수 없다.**
+    ⇒ 뜻(des)·예문(ex)을 같이 싣는다. 로더가 이미 갖고 있어 추가 조회가 없다.
+    ⚠ 서버 쪽 identity 는 **표면형이 아니라 item_id** 다 — 표면형 역매핑을 어디에도 남기지
+      마라(그러면 두 항목에 함께 진도가 찍히고, `quiz_passed_at` 은 **되돌릴 수 없다**).
     """
-    listing = "\n".join(f"{i}. {label}" for i, label in enumerate(items, 1)) or "(없음)"
+    rows = []
+    for i, it in enumerate(items, 1):
+        row = f"{i}. {it.get('obj')}"
+        if it.get("des"):
+            row += f" — 뜻: {it['des']}"
+        if it.get("ex"):
+            row += ' — 예문: "%s"' % it["ex"]
+        rows.append(row)
+    listing = chr(10).join(rows) or "(없음)"
     return (
         f"너는 {target_language} 표현학습 통화의 진도 판정기다. 아래 대화 전사를 읽고 "
         "각 항목이 어떻게 됐는지 **번호로만** 분류해라. 문장을 만들지 마라.\n"
@@ -1223,6 +1242,11 @@ async def _expression_progress_sidecar(state: _CallState) -> None:
             return
         before = (len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail))
         _apply_expression_progress(state, result)
+        # ⭐ 아직 안 얹힌 쪽지는 **지금 진도로 다시 조립한다** — 안 하면 이 판정이 다음 arm
+        #   까지 쪽지에 안 실려 「아직 틀린 표현」(오답퀴즈 재료)이 한 주기 늦는다.
+        #   ⚠ 이미 얹혔거나 종료 구간이면 손대지 않는다(다음 arm 이 새로 만든다).
+        if state.reground_pending and not (state.should_close or state.close_seed_sent):
+            state.reground_reminder = _build_expression_note(state)
         logger.info(
             "normalcall 표현학습 진도 판정: 다룬 %d→%d · 맞춘 %d→%d · 틀린 %d→%d (%d회째)",
             before[0], len(state.covered_nums),
@@ -1268,6 +1292,24 @@ async def _final_expression_progress(state: _CallState) -> None:
         (loop.time() - t0) * 1000.0, EXPR_FINAL_JUDGE_TIMEOUT_S * 1000.0,
         " — ⚠초과, 있는 것만 저장" if over else "",
     )
+
+
+def _expr_covered_ids(state: _CallState) -> list[int]:
+    """이 통화에서 **다룬 항목의 item_id**(순서 = 다룬 순서).
+
+    ⛔⛔ **표면형으로 되짚지 마라.** `covered_nums` 는 `state.reground_items` 의 번호이고
+      그 목록은 `expr_items` 와 **같은 순서**로 만들어진다 ⇒ 번호로 곧장 item_id 가 나온다.
+      한때 «라벨 목록 → surface set → 그 표면형을 가진 항목» 으로 되짚었는데, 같은 레벨에
+      **동일 표면형이 91그룹**(assets/level/curriculum_v2/vocab.json 전수 스캔)이라
+      **두 항목에 함께** 진도가 찍혔다. `quiz_passed_at` 은 되돌릴 수 없다 — 엉뚱한 항목이
+      영구히 «완료» 가 된다.
+    """
+    items = state.expr_items
+    return [
+        int(items[n - 1]["item_id"])
+        for n in state.covered_nums
+        if 1 <= n <= len(items) and items[n - 1].get("item_id") is not None
+    ]
 
 
 def _expr_labels(state: _CallState, ids: set[int]) -> list[str]:
@@ -2152,12 +2194,12 @@ async def run_call(
         state.expr_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            # ⛔ **필터하지 마라.** 돌아온 번호를 되짚는 목록(`state.expr_items`)과 **같은
-            #   리스트**여야 한다 — 한쪽만 거르면 번호가 밀려 엉뚱한 항목이 통과로 찍힌다.
-            #   빈 표면형은 선별(`load_expression_items`)이 이미 뺐다.
-            "instruction": _expression_progress_instruction(
-                [str(it["obj"]) for it in expr_items], target_language,
-            ),
+            # ⛔ **필터하거나 표면형만 뽑지 마라.** 돌아온 번호를 되짚는 목록
+            #   (`state.expr_items`)과 **같은 리스트**여야 한다 — 한쪽만 거르면 번호가 밀려
+            #   엉뚱한 항목이 통과로 찍힌다. 빈 표면형은 선별이 이미 뺐다.
+            # ⭐ dict 를 통째로 넘긴다 — 뜻·예문이 있어야 **동음이의**(같은 레벨 91그룹 실재)를
+            #   LLM 이 가른다. 표면형만 주면 목록이 «1. 개 / 2. 개» 가 된다.
+            "instruction": _expression_progress_instruction(expr_items, target_language),
         }
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
     state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
@@ -2395,7 +2437,9 @@ async def run_call(
         #   여기 한 곳에서 딱 한 번 쓴다. finally 인 이유는 위 뒤처리와 같다.
         #   ⚠ 커밋이 실패해도 통화는 이미 끝났다 — 예외를 흡수하고 로그만 남긴다(R5).
         #     잃는 것은 이번 조각의 진도뿐이고, 그 항목은 다음 통화에 다시 나온다.
-        if state.expr_items and call_id is not None:
+        # ⛔ 게이트가 `expr_items` 면 **레벨을 다 뗀 회원이 승급을 못 받는다** — 선별이 빈
+        #   목록을 주는 그 상태가 정확히 «다 뗐다» 이기 때문이다. 콜타입으로 판정한다.
+        if call_type == "expression" and call_id is not None:
             # ⭐⭐ **순서가 계약이다**(사장님 지시 2026-09-10):
             #     ① 마지막 판정 LLM  ② state 갱신  ③ DB 쓰기  ④ 조각2 가 DB 에서 뽑는다
             #   ⛔ ①을 빼면 **마지막 arm 이후 구간이 판정 없이 버려지고**, 그 구간에서 맞힌
@@ -2404,11 +2448,11 @@ async def run_call(
             #     쓰고 진행한다. 이 함수는 예외를 밖으로 안 내보낸다(R5).
             await _final_expression_progress(state)
             try:
-                covered = set(_covered_labels(state))
-                drilled = [
-                    int(i["item_id"]) for i in state.expr_items
-                    if i.get("item_id") is not None and str(i.get("obj") or "") in covered
-                ]
+                # ⛔⛔ **표면형으로 되짚지 마라** — 같은 레벨에 동일 표면형이 91그룹 실재한다
+                #   (assets/level/curriculum_v2/vocab.json 전수 스캔). surface set 으로 역매핑하면
+                #   **두 항목에 함께** drilled/quiz_passed_at 이 찍히고, 그건 되돌릴 수 없다.
+                drilled = _expr_covered_ids(state)
+                drilled_set = set(drilled)
                 # ⭐ 결과 화면 스냅샷 — **이 통화의 사실**이라 통화 행에 적는다.
                 #   ⛔ 진도 행으로 되짚으면 나중 통화가 `drilled_call_id` 를 덮어써서
                 #     지난 결과가 조용히 사라진다(재드릴은 선별상 정상 경로다).
@@ -2424,7 +2468,7 @@ async def run_call(
                     for i in state.expr_items
                     if i.get("item_id") is not None
                     and (
-                        str(i.get("obj") or "") in covered
+                        int(i["item_id"]) in drilled_set
                         or int(i["item_id"]) in state.expr_quiz_pass
                     )
                 ]
@@ -4485,6 +4529,30 @@ def _reground_due(state: _CallState, now: float) -> str:
     return ""
 
 
+def _build_expression_note(state: _CallState) -> str:
+    """표현학습 재접지 쪽지를 **지금 진도로** 조립한다(arm·사이드카가 공유).
+
+    ⛔ arm 때 한 번 만들고 끝내면 **쪽지가 항상 한 arm 늦는다** — 사이드카가 그 arm 의 판정을
+      돌려줘도 이미 만든 문자열은 그대로라, 「아직 틀린 표현」 칸이 다음 arm 까지 빈다
+      (= 오답퀴즈가 한 주기 늦게 시작한다). 일반 판에는 있던 «돌아오면 업그레이드» 가
+      이 경로엔 없었다.
+    ⇒ 두 곳이 **같은 함수**를 부르고, 사이드카는 아직 안 얹힌 쪽지를 다시 조립한다.
+    """
+    role, personality = state.reground_persona
+    drilled = _covered_labels(state)
+    passed = _expr_labels(state, state.expr_quiz_pass)
+    failed = _expr_labels(state, state.expr_quiz_fail)
+    # ⭐ 다음에 다룰 것 = 아직 통과도 드릴도 안 된 가장 앞 항목(서버가 안다).
+    #   ⛔ 표면형 집합으로 «했나» 를 묻지 마라 — 동음이의(91그룹 실재)면 한쪽만 다뤄도
+    #     **둘 다 완료로 보여** 안 다룬 항목이 next 후보에서 사라진다. identity 는 item_id 다.
+    done_ids = set(_expr_covered_ids(state)) | state.expr_quiz_pass
+    nxt = next((str(i["obj"]) for i in state.expr_items
+                if i.get("obj") and int(i.get("item_id") or -1) not in done_ids), None)
+    return build_expression_reground_brief(
+        role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
+    )
+
+
 def _arm_reground(state: _CallState, reason: str) -> None:
     """재접지를 arm 한다 — 문구는 **지금 당장 조립 가능한 것**으로 먼저 채운다.
 
@@ -4500,22 +4568,13 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     #     새 배관을 만들면 «비버가 혼자 두 번 말하거나 말하다 마는» 버그 방어를 처음부터
     #     다시 지어야 한다.
     if state.expr_items:
-        drilled = _covered_labels(state)
-        passed = _expr_labels(state, state.expr_quiz_pass)
-        failed = _expr_labels(state, state.expr_quiz_fail)
-        # ⭐ 다음에 다룰 것 = 아직 통과도 드릴도 안 된 가장 앞 항목(서버가 안다).
-        done = set(passed) | set(drilled)
-        nxt = next((str(i["obj"]) for i in state.expr_items
-                    if i.get("obj") and str(i["obj"]) not in done), None)
-        state.reground_reminder = build_expression_reground_brief(
-            role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
-        )
+        state.reground_reminder = _build_expression_note(state)
         state.reground_pending = True
         state.reground_arm_reason = reason
         logger.info(
             "normalcall 재접지 arm(표현학습, 근거=%s, %d/%d회, 드릴 %d · 통과 %d · 오답 %d)",
             reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
-            len(drilled), len(passed), len(failed),
+            len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail),
         )
         return
     # ⭐ covered 를 **여기서부터** 싣는다(2026-09-09). 예전엔 사이드카가 돌아와야 실렸는데,
@@ -4549,8 +4608,13 @@ async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> No
       횟수·마지막 주입 시각이 그대로 이어진다 — 스왑이 재접지를 되살리지 않는다.
     """
     # 비활성 조건: 모드 off, 또는 되박을 재료가 아예 없음(레벨테스트가 여기 해당).
-    if REGROUND_MODE == "off" or (
-        not state.reground_persona[0] and not state.reground_reminder
+    # ⛔⛔ **표현학습은 예외다.** 이 루프가 진도 판정 사이드카의 유일한 스폰 지점이라,
+    #   여기서 되돌아가면 `LIVE_REGROUND_MODE=off` 하나로 **학습 진도가 통째로 죽는다**
+    #   (판정이 조각 끝 1회로 줄고, 쪽지의 맞힌/틀린 칸이 통화 내내 빈다).
+    #   ⇒ 재접지를 끄는 것과 진도 판정을 끄는 것은 **다른 결정**이다. 스위치는 앞의 것만 끈다.
+    if not state.expr_items and (
+        REGROUND_MODE == "off"
+        or (not state.reground_persona[0] and not state.reground_reminder)
     ):
         return
     loop = asyncio.get_running_loop()
@@ -4566,19 +4630,20 @@ async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> No
         reason = _reground_due(state, loop.time())
         if not reason:
             continue
+        # ⭐⭐ **진도 판정은 재접지 모드와 무관하게 먼저 돈다**(2026-09-10 QA).
+        #   옛 배선은 legacy_idle 이 여기서 바로 빠져 사이드카가 **0회**였고, off 는 루프
+        #   자체가 안 돌았다 — 스위치 하나로 표현학습 진도가 사라졌다.
+        _spawn_expression_progress(state)
+        if REGROUND_MODE == "off":
+            # 재접지는 끈 채로 판정 주기만 유지한다(다음 `_reground_due` 의 기준점).
+            state.last_reground_ts = loop.time()
+            continue
         if REGROUND_MODE == "legacy_idle":
             await _reground_legacy_inject(session, state)
             continue
         _arm_reground(state, reason)
-        # ⭐ 코스별로 다른 사이드카가 뜬다 — 표현학습은 «진도 세 갈래»(전사 판정), 일반은
-        #   «맥락 슬롯»(mode·topic). 각 함수가 자기 게이트로 되돌아가므로 여기선 둘 다 부른다.
-        # ⛔⛔ **이 자리가 표현학습 «통화 중» 판정의 유일한 스폰 지점이다.**
-        #   `LIVE_REGROUND_MODE` 를 off·legacy_idle 로 내리면 이 루프가 안 돌거나 다른 가지로
-        #   빠져 **통화 중 진도 판정이 0회**가 되고, 판정이 조각 끝 1회로 줄어든다
-        #   (재접지 쪽지의 «맞힌/틀린» 칸도 통화 내내 빈다).
-        #   ⚠ 기본값이 on_user_turn 이라 운영은 안전하다 — 그래도 **끌 수 있는 스위치**이므로
-        #     끄기 전에 이 대가를 알아야 한다(같은 경고를 그 설정 옆에도 적어 뒀다).
-        _spawn_expression_progress(state)
+        # ⚠ 표현학습 진도 판정은 **위에서 이미** 띄웠다(모드와 무관하게 돌아야 하므로).
+        #   여기서는 일반 통화의 «맥락 슬롯» 사이드카만 부른다 — 자기 게이트로 되돌아간다.
         _spawn_reground_sidecar(state)
 
 
@@ -4591,9 +4656,14 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
     if state.turn_id is not None or state.silence_stage > 0:
         return
     role, personality = state.reground_persona
-    text = state.reground_reminder or build_reground_brief(
-        role, personality, mode=state.call_mode, covered=_covered_labels(state)
-    )
+    # ⭐ 표현학습이면 **자기 쪽지**를 쓴다 — 일반 브리프는 «다룬 것» 한 칸뿐이라 오답퀴즈
+    #   재료(「아직 틀린 표현」)가 통째로 빠진다.
+    if state.expr_items:
+        text = _build_expression_note(state)
+    else:
+        text = state.reground_reminder or build_reground_brief(
+            role, personality, mode=state.call_mode, covered=_covered_labels(state)
+        )
     try:
         await session.send_reground(text, turn_complete=True)
         state.reground_count += 1

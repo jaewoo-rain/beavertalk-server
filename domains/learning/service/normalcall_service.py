@@ -443,13 +443,16 @@ def save_expression_progress(
     Returns:
         {"drilled": n, "passed": n, "levelup": dict|None} — 기록된 수 + 승급 판정 결과.
     """
+    # ⛔⛔ **여기서 조기 반환하지 마라 — 승급이 자기복구를 못 하게 된다.**
+    #   «현 레벨을 전부 뗐는데 member.korean_level 은 옛 레벨» 상태가 되면 선별이 빈 목록을
+    #   돌려주고(통과분을 빼므로), 그러면 쓸 것도 없다. 옛 코드는 그때 곧장 반환해서
+    #   **승급 판정에 영영 못 닿았다** ⇒ 다음 통화로도 절대 안 풀린다.
+    #   ⇒ 쓸 것이 없어도 **판정은 한 번 돈다**(아래 flush → promote 는 그대로 탄다).
     ids = {int(i) for i in drilled_ids} | {int(i) for i in passed_ids}
-    if not ids and not snapshot:
-        return {"drilled": 0, "passed": 0}
     now = datetime.now(timezone.utc)
     passed = {int(i) for i in passed_ids}
 
-    rows = {
+    rows = {} if not ids else {
         r.item_id: r
         for r in db.scalars(
             select(MemberItemProgress).where(

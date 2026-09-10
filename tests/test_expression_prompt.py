@@ -414,18 +414,44 @@ def test_reground_brief_survives_empty_progress() -> None:
     assert brief.startswith(common.CONTROL_TAG) and len(brief) > 50
 
 
-def test_reground_brief_caps_the_label_list() -> None:
-    many = [f"항목{i}" for i in range(30)]
-    brief = build_expression_reground_brief(BASE["role"], BASE["personality"], drilled=many)
-    assert "항목9" in brief and "항목10" not in brief
+def test_the_note_carries_every_item_never_a_truncated_list() -> None:
+    """⛔⛔ **뜻을 뒤집어 다시 쓴 시험이다.** 옛 시험은 「10개로 잘린다」를 **정답으로 박제**해서
+    회귀 1,087개가 전부 통과하고도 절단 버그를 못 잡았다.
+
+    표현학습 쪽지는 일반 쪽지의 상한(`REGROUND_COVERED_CAP`=10)과 **계약이 다르다** —
+    18개를 다뤘으면 18개가 다 실려야 한다:
+      · 전부 오답이면 잘린 8개가 곧 **빠진 오답퀴즈 재료**다
+      · 전부 완료면 next_label 도 안 나와 압축 뒤 모델에게 «10개가 전부» 로 보인다
+    ⇒ 그게 통화 1360 의 «부분 목록이 되감기를 만든다» 이고, 이 코스는 그걸 막으려고 만든 것이다.
+
+    ⚠⚠ 같은 결함을 **두 번** 잡았다(호출부 `[:10]` → 공용 상수). 상한을 다시 넣으면 여기서 터진다.
+    """
+    many = [f"항목{i:02d}" for i in range(18)]
+    brief = build_expression_reground_brief(
+        BASE["role"], BASE["personality"], drilled=many, failed=many,
+    )
+    for label in many:
+        assert label in brief, f"쪽지에서 {label} 이 잘렸다"
+
+
+def test_the_note_is_not_bound_by_the_generic_cap() -> None:
+    """⛔ 일반 쪽지 상한을 이 코스에 **다시 물리지 마라.** 두 계약은 분리돼 있다."""
+    from core.prompts import expression as ex
+
+    assert not hasattr(ex, "REGROUND_COVERED_CAP"), "일반 상한이 다시 딸려 들어왔다"
+    many = [f"항목{i:02d}" for i in range(common.REGROUND_COVERED_CAP + 5)]
+    brief = build_expression_reground_brief(BASE["role"], BASE["personality"], passed=many)
+    assert many[-1] in brief
 
 
 def test_reground_cap_is_owned_by_common_not_duplicated() -> None:
-    """⛔ 숫자는 한 곳에서만(원칙 3). 코스마다 따로 적으면 언젠가 갈라진다."""
-    import core.persona_prompt as pp
-    from core.prompts import expression as ex
+    """⛔ 숫자는 한 곳에서만(원칙 3). 코스마다 따로 적으면 언젠가 갈라진다.
 
-    assert ex.REGROUND_COVERED_CAP is common.REGROUND_COVERED_CAP
+    ⚠ 이 상한은 **일반 통화 쪽지**의 것이다 — 표현학습 쪽지는 그 계약을 따르지 않는다
+      (`test_the_note_is_not_bound_by_the_generic_cap`). 소유권만 여기서 확인한다.
+    """
+    import core.persona_prompt as pp
+
     assert pp.REGROUND_COVERED_CAP is common.REGROUND_COVERED_CAP
 
 
