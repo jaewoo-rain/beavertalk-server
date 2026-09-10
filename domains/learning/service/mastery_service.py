@@ -33,11 +33,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from domains.account.models.member import Member
 from domains.learning.models.item_evidence import ItemEvidence
+from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.member_level_history import MemberLevelHistory
 from domains.learning.repository import mastery_repository
@@ -112,6 +113,13 @@ GATE_PARAMS: dict[int, dict] = {lv: _BAND_GATES[_band_of(lv)] for lv in range(1,
 
 G4_MIN_EVIDENCE = 10  # G4 분모 <10 이면 pass(표본 부족)
 MAX_LEVEL = 13
+
+# ⭐ 표현학습이 만든 진행 행의 출처 표시(2026-09-10). placement 와 같은 성질이다 —
+#   «이 사슬(등급·숙달·승급 게이트)의 증거가 아니다» 를 뜻한다.
+# ⛔ 이 값을 `observed` 로 바꾸지 마라. 그 순간 표현학습 드릴이 normal 통화의 G1 분자가 된다.
+# ⚠ 값의 소유자는 여기다 — `normalcall_service.save_expression_progress` 가 이걸 import 해 쓴다
+#   (문자열을 두 곳에 적으면 언젠가 갈라진다).
+PROVENANCE_EXPRESSION = "expression"
 
 _SUCCESS_GRADES = ("E1", "E2", "E3")  # 성공 증거(비F, E0 노출 제외)
 
@@ -340,7 +348,9 @@ def apply_evidence(
             )
             if has_e2plus or two_call_e1:
                 prog.status = "practicing"
-                if prog.provenance == "placement":
+                # ⭐ 표현학습이 만든 행도 여기서 승격된다 — 이 사슬의 실증거가 붙었으니
+                #   더 이상 «표시만 있는 행» 이 아니다(placement 와 같은 규율).
+                if prog.provenance in ("placement", PROVENANCE_EXPRESSION):
                     prog.provenance = "observed"
                 summary["practicing"] += 1
 
@@ -549,7 +559,19 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
     #
     #   올바르게 배정된 레벨에서는 이 조건이 아무것도 바꾸지 않는다 — grandfathering 은
     #   ≥k 를 건드리지 않으므로 레벨 k 의 게이트 항목엔 placement 가 애초에 없다.
-    counted = [p for p in prog_map.values() if p.provenance != "placement"]
+    # ⛔⛔ **표현학습이 만든 행도 세지 마라**(2026-09-10). 그 코스는 이 사슬을 쓰지 않는다
+    #   (승급이 «그 레벨 전체 퀴즈 통과» 로 갈아탔다 — D12). 그런데 진도를 남기려면
+    #   `member_item_progress` 행이 필요하고, 그 행의 status 기본값이 'introduced' 라
+    #   **그대로 두면 G1 분자에 산입된다** — 표현학습으로 드릴만 한 항목이 «배웠다» 로
+    #   세어져 normal 통화의 승급을 앞당긴다. 두 사슬이 한 컬럼에서 섞이는 자리다.
+    #   ⇒ `provenance='expression'` 로 표시해 두고 여기서 제외한다. placement 와 같은
+    #     성질이다 — «선별·진도용 표시» 이지 이 사슬의 증거가 아니다.
+    #   ⭐ 실증거가 붙으면 placement 처럼 observed 로 승격된다(apply_evidence) ⇒ 이 조건은
+    #     정확히 «이 사슬의 증거가 없는 것» 만 걸러낸다.
+    counted = [
+        p for p in prog_map.values()
+        if p.provenance not in ("placement", PROVENANCE_EXPRESSION)
+    ]
     introduced_plus = sum(
         1 for p in counted if p.status in ("introduced", "practicing", "mastered")
     )
@@ -640,6 +662,73 @@ def evaluate_level_up(db: Session, member_id: int, trigger_call_id: int, languag
         member_id, k, k + 1, trigger_call_id, g1_ratio, g2_ratio,
     )
     return {"result": "promoted", "from_level": k, "to_level": k + 1, "snapshot": snapshot}
+
+
+# --------------------------------------------------------------------------- #
+# 표현학습 승급 (D12 — «그 레벨 전체 퀴즈 통과»)
+# --------------------------------------------------------------------------- #
+def expression_level_complete(
+    db: Session, member_id: int, level_no: int, language: str = "ko"
+) -> bool:
+    """그 레벨의 표현을 **전부 뗐나**(D12). 판정 기준은 `quiz_passed_at` 하나다.
+
+    ⛔ 옛 게이트(G1·G2·등급·숙달)를 여기에 섞지 마라 — 표현학습은 그 사슬을 쓰지 않는다.
+      두 기준이 공존하면 «어느 쪽으로 올라간 레벨인가» 를 아무도 못 말한다.
+    ⚠ 항목이 0개면 **False** 다. 커리큘럼 미시드를 «다 뗐다» 로 읽으면 빈 레벨을 타고
+      끝까지 올라간다(같은 방어가 `evaluate_level_up` 의 `no_gate_items` 에도 있다).
+    """
+    total = db.scalar(
+        select(func.count(LearningItem.item_id)).where(
+            LearningItem.language == language, LearningItem.level_no == level_no
+        )
+    ) or 0
+    if not total:
+        return False
+    return mastery_repository.count_expression_remaining(
+        db, member_id, level_no, language=language
+    ) == 0
+
+
+def promote_by_expression(
+    db: Session, member_id: int, trigger_call_id: int, language: str = "ko"
+) -> dict:
+    """표현학습 승급 — 그 레벨을 다 뗐으면 +1(commit 은 호출부 — R3).
+
+    ⛔ **멱등이다.** 같은 `trigger_call_id` 로 두 번 불려도 한 번만 올린다 — 조각이 여럿이라
+      한 통화에서 여러 번 불릴 수 있다(`member_level_history` 의 기존 행을 본다).
+    ⚠ 최고 레벨에서는 안 올린다.
+    """
+    k = mastery_repository.get_language_level(db, member_id, language)
+    if k is None:
+        return {"result": "stay", "reason": "no_level"}
+    if k >= MAX_LEVEL:
+        return {"result": "stay", "reason": "max_level", "level": k}
+    if not expression_level_complete(db, member_id, k, language):
+        return {"result": "stay", "reason": "level_incomplete", "level": k}
+    # ⛔ 멱등 검사는 **UNIQUE 제약과 같은 기준**이어야 한다 — `uq_mlh_trigger_call` 이
+    #   `trigger_call_id` **단독**이라, reason 까지 좁혀 물으면 «검사는 통과하는데 INSERT 가
+    #   IntegrityError» 가 난다(그 통화가 다른 이유로 이미 승급했을 때).
+    dup = db.scalar(
+        select(MemberLevelHistory.history_id).where(
+            MemberLevelHistory.trigger_call_id == trigger_call_id,
+        )
+    )
+    if dup is not None:
+        return {"result": "stay", "reason": "already_promoted", "level": k}
+
+    mastery_repository.upsert_language_level(db, member_id, language, k + 1)
+    db.add(
+        MemberLevelHistory(
+            member_id=member_id, language=language, from_level=k, to_level=k + 1,
+            reason="expression_complete", trigger_call_id=trigger_call_id,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    logger.info(
+        "표현학습 레벨업: member=%s %d→%d (trigger_call=%s, 전량 통과)",
+        member_id, k, k + 1, trigger_call_id,
+    )
+    return {"result": "promoted", "from_level": k, "to_level": k + 1}
 
 
 # --------------------------------------------------------------------------- #

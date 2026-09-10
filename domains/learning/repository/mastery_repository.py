@@ -726,6 +726,34 @@ def pick_expression_items(
     return list(db.scalars(stmt).all())
 
 
+def count_expression_remaining(
+    db: Session, member_id: int, level_no: int, *, language: str = "ko"
+) -> int:
+    """그 레벨에서 **아직 퀴즈를 안 뗀** 항목 수(순수 SELECT).
+
+    ⭐ `pick_expression_items` 와 **같은 조건**이다 — 선별이 뽑을 게 없다는 것과 레벨을
+      다 뗐다는 것이 어긋나면 안 된다. 그래서 필터를 여기 한 번 더 쓰되 **같은 두 줄**을 쓴다.
+    ⚠ 0 = 그 레벨 전량 통과(승급 조건 — D12). 그 판정은 `mastery_service` 가 한다.
+    """
+    prog = aliased(MemberItemProgress)
+    return int(
+        db.scalar(
+            select(func.count(LearningItem.item_id))
+            .select_from(LearningItem)
+            .outerjoin(
+                prog,
+                and_(prog.item_id == LearningItem.item_id, prog.member_id == member_id),
+            )
+            .where(
+                LearningItem.language == language,
+                LearningItem.level_no == level_no,
+                prog.quiz_passed_at.is_(None),
+            )
+        )
+        or 0
+    )
+
+
 def pick_chat_targets(
     db: Session, member_id: int, level_no: int, language: str = "ko"
 ) -> list[LearningItem]:

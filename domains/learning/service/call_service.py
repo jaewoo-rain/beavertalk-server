@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date as _date, datetime, time as _time, timedelta, timezone
 from typing import Sequence
@@ -19,7 +20,6 @@ from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.item_evidence import ItemEvidence
 from domains.learning.models.learning_item import LearningItem
-from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.sentence import Sentence
 from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
@@ -436,35 +436,42 @@ class CallService:
         )
 
     def _quiz_items(self, member_id: int, call: Call) -> list[CallResultQuizItem]:
-        """표현학습 퀴즈 결과 — **이 통화에서 드릴한 항목**과 통과 여부.
+        """표현학습 퀴즈 결과 — **그 통화에 적힌 스냅샷**을 그대로 읽는다.
 
-        ⭐ 원본은 `member_item_progress` 다(통화 종료 시 서버가 커밋한다). 별도 표를 두지
-          않는 이유는 그 행이 이미 «회원×항목 1행» 이라, 이 통화를 가리키는
-          `drilled_call_id` 하나로 «이번 통화에서 다룬 것» 이 정확히 뽑히기 때문이다.
+        ⛔⛔ **진도 행으로 되짚지 마라**(2026-09-10 QA 로 잡힌 결함). `member_item_progress`
+          는 회원×항목 1행이라 `drilled_call_id` 를 **나중 통화가 덮어쓴다**:
 
-        ⚠ `quiz_passed_at` 이 **이 통화보다 앞선** 항목은 안 나온다 — 그건 지난 통화에서
-          뗀 것이고, 이번 통화 결과가 아니다. 판정 기준은 «드릴을 이 통화에서 했나» 다.
-        ⛔ 다른 콜타입에서는 조인이 0행이라 빈 배열이다(추가 분기가 필요 없다).
+            통화 A  「물」 드릴 → 오답        (drilled_call_id = A)
+            통화 B  「물」 다시 드릴 → 통과   (drilled_call_id = B)
+            ⇒ A 의 결과 화면에서 「물」이 **사라진다**
+
+          그리고 선별이 «드릴했는데 못 끝낸 것» 을 다음 통화 맨 앞에 놓으므로 재드릴은
+          예외가 아니라 **정상 경로**다 ⇒ 어제 결과를 오늘 열면 **틀린 항목만 증발하고
+          통과 항목만 남는다.** 조용히 틀리는 종류의 버그다.
+
+        ⭐ 그래서 «이 통화에서 무엇을 했나» 는 통화 종료 시점에 `call.expression_result` 로
+          적어 둔다(`summary`·`resume_context` 와 같은 성질 — 통화의 사실이다).
+        ⚠ 옛 통화·크래시로 스냅샷이 없으면 빈 배열이다(R5 — 화면이 칸을 안 그린다).
+          ⛔ 진도 행 폴백을 넣지 마라. 위 이유로 **틀린 값**을 보여주게 된다.
         """
-        if (call.call_type or "normal") != "expression":
+        raw = call.expression_result
+        if not raw:
             return []
-        rows = self.db.execute(
-            select(
-                MemberItemProgress.item_id,
-                LearningItem.surface,
-                MemberItemProgress.quiz_passed_at,
-            )
-            .join(LearningItem, LearningItem.item_id == MemberItemProgress.item_id)
-            .where(
-                MemberItemProgress.member_id == member_id,
-                MemberItemProgress.drilled_call_id == call.call_id,
-            )
-            .order_by(MemberItemProgress.progress_id)
-        ).all()
-        return [
-            CallResultQuizItem(item_id=iid, surface=surface, passed=passed_at is not None)
-            for iid, surface, passed_at in rows
-        ]
+        try:
+            rows = json.loads(raw)
+        except (ValueError, TypeError):
+            logger.warning("표현학습 결과 스냅샷 파싱 실패 call_id=%s", call.call_id)
+            return []
+        out: list[CallResultQuizItem] = []
+        for r in rows if isinstance(rows, list) else []:
+            if not isinstance(r, dict) or not r.get("surface"):
+                continue
+            out.append(CallResultQuizItem(
+                item_id=int(r.get("item_id") or 0),
+                surface=str(r["surface"]),
+                passed=bool(r.get("passed")),
+            ))
+        return out
 
     #: 「썼다」로 세는 등급. **E1(모방)은 뺀다** — 비버가 방금 한 말을 따라한 것은
     #: 사용이 아니다. 그쪽은 「학습한 표현」의 `drilled` 가 이미 담는다.

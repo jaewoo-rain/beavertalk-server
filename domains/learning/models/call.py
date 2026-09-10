@@ -79,6 +79,14 @@ class Call(Base, TimestampMixin):
     resume_context: Mapped[Optional[str]] = mapped_column(
         Text, comment="다음 조각용 요약 슬롯(JSON) — 이어하기 브리프 재료",
     )
+    # ⭐⭐ **표현학습 결과 스냅샷**(2026-09-10). `[{item_id, surface, passed}, ...]`.
+    #   ⛔ 진도의 원본이 아니다 — 그건 `member_item_progress` 다. 이건 «이 통화에서 무엇을
+    #     했나» 라는 **통화의 사실**이고, `summary`·`resume_context` 와 같은 성질이다.
+    #   ⚠ 되짚기로는 못 만든다: 같은 항목을 다음 통화가 다시 드릴하면 `drilled_call_id` 가
+    #     덮여 **지난 통화의 결과가 조용히 사라진다**(재드릴은 선별상 정상 경로다).
+    expression_result: Mapped[Optional[str]] = mapped_column(
+        Text, comment="표현학습 퀴즈 결과 스냅샷(JSON 배열) — 결과 화면 전용 파생값",
+    )
     fragment_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("1"),
         comment="이어하기 조각 수(1=이어하기 없음)",

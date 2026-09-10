@@ -324,12 +324,12 @@ def load_expression_items(
       (run_call 이 그 dict 를 그대로 쓴다). 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다.
 
     Returns:
-        `[{item_id, obj, des, ex, quiz_passed}]` — `core/prompts/expression` 의
+        `[{item_id, obj, des, ex}]` — `core/prompts/expression` 의
         `build_expression_instruction(items=...)` 스키마와 1:1.
-        ⚠ `quiz_passed` 는 **항상 False** 로 나간다. 선별이 이미 통과분을 빼기 때문이다
-          (`pick_expression_items` 의 `quiz_passed_at IS NULL`). 이 칸이 True 가 되는 건
-          **같은 조각 안에서** 방금 맞힌 것을 표시할 때뿐이고, 그 값은 DB 가 아니라
-          런타임 상태(`_CallState`)에서 온다. 칸을 지금 두는 이유는 그 자리가 여기라서다.
+        ⛔ **`quiz_passed` 칸을 다시 만들지 마라**(2026-09-10 QA 로 제거). 선별이
+          `quiz_passed_at IS NULL` 로 통과분을 **풀에서 빼므로** 이 목록에 들어온 항목은
+          정의상 전부 미통과다 ⇒ 그 칸은 어느 조각에서도 True 가 되지 않았고, 그걸 읽던
+          프롬프트 분기는 **죽은 코드**였다(동작은 우연히 맞았다).
         선별 결과가 0건이면 빈 리스트 — 호출부가 통화를 막지 않는다(R5).
 
     ⚠ 예문(`ex`)은 **있을 때만** 붙는다. L1 생존 청크는 `examples` 가 전 언어에서 0개인데,
@@ -345,7 +345,6 @@ def load_expression_items(
             "obj": it.surface,
             "des": _study_des(it, locale),
             "ex": mastery_repository.first_example(it),
-            "quiz_passed": False,
         }
         for it in items
     ]
@@ -358,6 +357,8 @@ def save_expression_progress(
     *,
     drilled_ids: list[int],
     passed_ids: list[int],
+    snapshot: list[dict] | None = None,
+    language: str = "ko",
 ) -> dict:
     """표현학습 진도를 기록한다 — **쓰기이므로 여기서 커밋한다**(R3).
 
@@ -372,15 +373,28 @@ def save_expression_progress(
 
     ⛔ 상태·점수·카운터(status/score/repeat_count…)는 **건드리지 않는다.** 표현학습은 그
       사슬을 쓰지 않는다(D12) — 여기서 만지면 normal 통화의 숙달 판정과 섞인다.
-    ⚠ 행이 없으면 만든다(희소 테이블 — 행 부재 = 미학습). 이때 status 는 모델 기본값
-      'introduced' 가 들어간다: 표현학습은 그 값을 안 읽지만, 마이페이지 레벨 카드는
-      이 행의 존재를 세므로 «드릴했는데 행이 없는» 상태를 남기지 않는 편이 맞다.
+    ⚠ 행이 없으면 만든다(희소 테이블 — 행 부재 = 미학습).
+    ⛔⛔ **새로 만드는 행은 `provenance='expression'` 이다**(2026-09-10 QA). 기본값
+      'observed' 로 두면 status 기본값('introduced')과 합쳐져 **옛 승급 게이트 G1 의
+      분자에 산입된다** — 표현학습으로 드릴만 한 항목이 «배웠다» 로 세어져
+      normal 통화의 승급을 앞당긴다. 두 사슬이 한 컴럼에서 섞이는 자리다
+      (`mastery_service` 의 G1 필터가 이 값을 제외한다).
+    ⚠ **이미 있는 행의 provenance 는 안 건드린다** — normal 통화가 쌓아 둔 출처를
+      표현학습이 덮으면 반대 방향으로 사슬이 깨진다.
+
+    Args:
+        snapshot: 결과 화면용 스냅샷 `[{item_id, surface, passed}]`. `call.expression_result`
+            에 **그대로** 적는다.
+            ⭐ 왜 따로 적나 — 진도 행으로 되짚으면 **나중 통화가 지난 결과를 지운다**
+              (`drilled_call_id` 를 덮어쓴다). 재드릴은 선별상 정상 경로라
+              그대로 두면 **틀린 항목만 증발하고 통과 항목만 남는다.**
+            ⚠ None 이면 안 쓴다(기존 행을 지우지 않는다).
 
     Returns:
-        {"drilled": n, "passed": n} — 실제로 기록된 수(로그·시험용).
+        {"drilled": n, "passed": n, "levelup": dict|None} — 기록된 수 + 승급 판정 결과.
     """
     ids = {int(i) for i in drilled_ids} | {int(i) for i in passed_ids}
-    if not ids:
+    if not ids and not snapshot:
         return {"drilled": 0, "passed": 0}
     now = datetime.now(timezone.utc)
     passed = {int(i) for i in passed_ids}
@@ -394,20 +408,54 @@ def save_expression_progress(
             )
         ).all()
     }
+    drilled = {int(i) for i in drilled_ids}
     n_drilled = n_passed = 0
     for item_id in ids:
         row = rows.get(item_id)
         if row is None:
-            row = MemberItemProgress(member_id=member_id, item_id=item_id)
+            # ⛔ provenance 를 명시한다 — 기본값('observed')은 옛 승급 게이트에 산입된다.
+            row = MemberItemProgress(
+                member_id=member_id, item_id=item_id,
+                provenance=mastery_service.PROVENANCE_EXPRESSION,
+            )
             db.add(row)
         row.drilled_at = now
         row.drilled_call_id = call_id
-        n_drilled += 1
+        # ⚠ 드릴한 것만 센다. 예전엔 통과만 된 id 까지 세서 로그 수치가 살짜 불었다.
+        if item_id in drilled:
+            n_drilled += 1
         if item_id in passed and row.quiz_passed_at is None:
             row.quiz_passed_at = now
             n_passed += 1
+    if snapshot:
+        # ⚠ 실패해도 진도는 살려야 한다 — 스냅샷은 화면용 파생값이다(R5).
+        call = db.get(Call, call_id)
+        if call is not None:
+            call.expression_result = json.dumps(snapshot, ensure_ascii=False)
+
+    # ⭐⭐ **표현학습 승급은 여기다**(D12 — 그 레벨 전체 퀴즈 통과).
+    #   ⛔ 호출 지점을 옮기지 마라. 승급 판정은 «방금 쓴 quiz_passed_at» 을 읽어야 하므로
+    #     **이 커밋 안**이어야 한다 — 밖으로 빼면 «다 뗐는데 다음 통화에야 오른다» 가 된다.
+    #   ⚠ 조각이 여럿이라 한 통화에서 여러 번 불린다 ⇒ `promote_by_expression` 이
+    #     trigger_call_id 로 **멱등**이다(같은 통화에서 두 번 안 올린다).
+    #   ⚠ 승급 실패가 진도 저장을 막으면 안 된다 — 예외를 흡수한다(R5).
+    # ⛔⛔ **flush 가 반드시 먼저다.** 세션이 `autoflush=False` 라(db/session.py:27)
+    #   방금 찍은 `quiz_passed_at` 이 아직 DB 에 안 보인다 ⇒ 아래 승급 판정이 «아직 남았다»
+    #   로 읽어 **레벨이 영원히 안 오른다.** 회귀가 이걸 잡았다(운영도 같은 설정이다).
+    db.flush()
+
+    levelup = None
+    try:
+        level_no = mastery_repository.get_language_level(db, member_id, language)
+        if level_no is not None:
+            levelup = mastery_service.promote_by_expression(
+                db, member_id, trigger_call_id=call_id, language=language
+            )
+    except Exception:  # noqa: BLE001 - 승급 실패가 진도를 막으면 안 된다
+        logger.exception("표현학습 승급 판정 실패(무시) member=%s call=%s", member_id, call_id)
+
     db.commit()
-    return {"drilled": n_drilled, "passed": n_passed}
+    return {"drilled": n_drilled, "passed": n_passed, "levelup": levelup}
 
 
 def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dict:
@@ -2104,6 +2152,8 @@ def _apply_call_mastery(
     hinted_from_turn_index: set[int] | None = None,
     # ⭐ 이어하기 조각의 시작 턴 — 멱등 가드를 이 조각 범위로 좁히는 데 쓴다.
     since_turn_index: int | None = None,
+    # ⭐ 표현학습·프리토킹은 옛 승급 사슬을 쓰지 않는다(기획 §5) — 호출부가 명시한다.
+    skip_level_up: bool = False,
 ) -> dict:
     """검증→증거·상태전이→레벨업을 **한 세션·단일 commit** 으로 수행(⑤ 4~7단계).
 
@@ -2137,8 +2187,22 @@ def _apply_call_mastery(
         db, member_id, call_id, verified, language=call_language,
     )
 
-    levelup = mastery_service.evaluate_level_up(
-        db, member_id, trigger_call_id=call_id, language=call_language,
+    # ⛔⛔ **표현학습·프리토킹은 승급 판정을 돌리지 않는다**(2026-09-10 QA — 기획 §5).
+    #   이 게이트는 «이번 통화의 증거» 가 아니라 **기존 progress 상태**로 판정한다. 그래서
+    #   검출을 아예 안 한 통화가 **트리거가 되어** 옛 기준으로 승급이 찍힌다. 승급하면
+    #   korean_level 이 바뀌고, `pick_expression_items` 는 레벨 **정확일치**라 표현학습의
+    #   커리큘럼 분모가 통째로 갈아탄다 — D12(«그 레벨 전체 퀴즈 통과»)와 **다른 기준으로**
+    #   레벨이 오르는 것이다. ⇒ 두 코스는 이 사슬을 «안 쓰기만» 한다.
+    #
+    # ⛔ **«후보가 0개인가» 로 판정하지 마라**(그렇게 썼다가 회귀가 잡았다). `normal` 통화도
+    #   후보가 빈 경우가 정상으로 존재하고(`test_fast_track_and_levelup_pipeline`), 그때는
+    #   승급이 **돌아야 한다.** 판정 기준은 «후보 유무» 가 아니라 **«이 콜타입이 이 사슬을
+    #   쓰는가»** 다 — 그건 호출부만 안다. 그래서 명시 플래그로 받는다.
+    levelup = (
+        None if skip_level_up
+        else mastery_service.evaluate_level_up(
+            db, member_id, trigger_call_id=call_id, language=call_language,
+        )
     )
     db.commit()
     return {
@@ -2220,6 +2284,8 @@ async def analyze_call(
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
     since_turn_index: int | None = None,
+    # ⭐ 표현학습·프리토킹 — 옛 승급 사슬 미사용(기획 §5). 호출부가 명시한다.
+    skip_level_up: bool = False,
 ) -> None:
     """통화 전사를 분석해 표현·요약을 저장하고 표현별 TTS 를 합성한다(전체 graceful).
 
@@ -2411,6 +2477,7 @@ async def analyze_call(
                         db, call_id, member_id, detections, cands, verify_rows,
                         hinted_from_turn_index=hinted_from_turn_index,
                         since_turn_index=since_turn_index,
+                        skip_level_up=skip_level_up,
                     ),
                 )
                 logger.info(

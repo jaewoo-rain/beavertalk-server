@@ -217,8 +217,9 @@ def test_the_dto_matches_the_prompt_schema(env) -> None:
     rows = svc.load_expression_items(env["db"], env["member_id"], 1, "en", "ko", n=3)
     assert len(rows) == 3
     for r in rows:
-        assert set(r) == {"item_id", "obj", "des", "ex", "quiz_passed"}
-        assert r["quiz_passed"] is False, "선별이 이미 통과분을 뺐다 — 항상 False 로 나간다"
+        # ⛔ `quiz_passed` 칸을 되살리지 마라 — 선별이 통과분을 풀에서 빼므로 이 목록은
+        #   정의상 전부 미통과다. 그 칸을 읽던 프롬프트 분기는 죽은 코드였다(2026-09-10 QA).
+        assert set(r) == {"item_id", "obj", "des", "ex"}
         assert r["obj"].startswith("청크")
         # ⚠ L1 청크는 예문이 없다. 그 상태로도 실려야 한다(프롬프트가 꼬리를 생략한다).
         assert r["ex"] is None

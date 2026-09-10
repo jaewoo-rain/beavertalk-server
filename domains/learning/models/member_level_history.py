@@ -49,8 +49,13 @@ from db.base import Base
 class MemberLevelHistory(Base):
     __tablename__ = "member_level_history"
     __table_args__ = (
+        # ⭐ 2026-09-10: `expression_complete` 추가 — 표현학습 승급(D12, «그 레벨 전체 퀴즈
+        #   통과»)은 옛 게이트(`gate_promotion`)와 **다른 기준**이라 이름을 갈라야 한다.
+        #   ⛔ gate_promotion 으로 뭉뚱그리면 «어느 기준으로 오른 레벨인가» 를 나중에 아무도
+        #     못 말한다 — 두 사슬이 공존하는 동안 그건 감사 불가능이라는 뜻이다.
         CheckConstraint(
-            "reason IN ('placement', 'gate_promotion', 'remeasure_up', 'remeasure_down', 'manual')",
+            "reason IN ('placement', 'gate_promotion', 'remeasure_up', 'remeasure_down',"
+            " 'manual', 'expression_complete')",
             name="ck_mlh_reason",
         ),
         UniqueConstraint("trigger_call_id", name="uq_mlh_trigger_call"),

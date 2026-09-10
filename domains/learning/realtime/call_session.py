@@ -250,6 +250,34 @@ REGROUND_MIN_GAP_S = 150.0
 # ⚠ 15분 통화(이어하기)에서 예비 5개가 모자란지는 **아직 안 쟀다**. 모자라면 여기만 올린다.
 PROMPT_RESERVE_MAX = 5
 REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
+# 표현학습 퀴즈 판정 사이드카의 통화당 상한(폭주 방지).
+# ⚠ 15분 통화의 학습자 턴이 대략 40~60개인데, 그중 사이드카가 도는 것은 «통과도 복창도
+#   아닌 답» 뿐이다(대부분의 턴은 코드가 LLM 0 으로 끊는다). 24 면 정상 흐름을 안 자르고
+#   딴소리가 이어질 때만 걸린다. ⇒ 실통화로 실제 호출 수를 재고 조정한다.
+# 표현학습 진도 판정 사이드카의 통화당 상한(폭주 방지).
+# ⚠ 정상 흐름은 «재접지 arm 마다 1회 + 조각 끝 1회» 라 최대 9회다(arm 상한이 8).
+#   12 는 그 위의 여유이고, 넘으면 코드가 멈춘다 — 미판정은 «통과 안 함» 이라 안전한 방향이다.
+EXPR_PROGRESS_MAX_PER_CALL = 12
+# 사이드카에 넘길 전사 길이 상한(글자). 넘으면 **뒤에서** 자른다.
+# ⚠ 앞이 잘려도 진도는 안 잃는다 — 결과가 state 에 합집합으로 쌓이므로 앞 구간은 이전
+#   판정이 이미 담았다. 15분 통화 전사가 대략 6~10k 자라 12,000 이면 사실상 전량이다.
+EXPR_TRANSCRIPT_MAX_CHARS = 12000
+# ⭐⭐ **조각 끝 마지막 판정의 상한**(초). 늦으면 있는 것만 쓰고 진행한다.
+#   ⛔ 없애지 마라 — 무한정 기다리면 LLM 이 죽었을 때 **조각2 가 안 열린다.** 통화가 멈추는
+#     게 진도 하나보다 나쁘다(R5).
+#
+# ⛔⛔ **조각 경계의 빈 시간은 «놀고 있는» 시간이 아니다**(2026-09-10 정정). 그 구간에서
+#   이어하기 요약이 fire-and-forget 으로 돌고 있고, **그 경합에서 이미 한 번 졌다** —
+#   위 :2062 주석의 실측이 그것이다(07:00:48 저장 → 07:00:51 이어하기 → 07:00:53 요약 완성).
+#   그 코드가 «슬롯이 없으면 즉석 생성» 보정을 갖고 있다는 사실 자체가 경합의 증거다.
+#
+#   ⚠ 여기서 저장이 늦으면 **조각2 의 선별이 옛 DB 를 읽어 같은 항목을 또 가르친다** —
+#     우리가 고치려던 바로 그 증상이다. 최악 사례 간격이 3초였으므로:
+#         1.2초 상한 → 여유 1.8초   (2.0초였다면 여유 1.0초뿐)
+#     실측 이어하기 요약이 1.0~1.4초라 판정도 그 언저리다 ⇒ 정상 흐름은 상한 안에 든다.
+#   ⚠ 최악 사례의 피해는 **데이터 오염이 아니라 재드릴 1회**다(재드릴은 선별상 정상 경로 —
+#     `save_expression_progress` 주석). 그래서 상한 + 회귀로 가고 진행한다.
+EXPR_FINAL_JUDGE_TIMEOUT_S = 1.2
 # 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
 #   5분(300s) → 120s → 2회 = 옛 0.5·0.8 지점 2회와 실질 동일(5분 하위호환)
 #   15분(900s) → 240s → 3회 + 압축 arm ≈ 6회 = 0.40회/분(5분과 같은 빈도)
@@ -578,18 +606,6 @@ class HintOut(BaseModel):
     examples: list[HintExample]
 
 
-class QuizOut(BaseModel):
-    """퀴즈 판정 사이드카 구조화 출력 — **번호와 참/거짓만** 받는다.
-
-    ⛔ 문장 필드를 추가하지 마라. 사이드카가 문장을 만들면 그 문장이 곧 프롬프트가 되고,
-      "LLM 생성 0, 순수 조립" 규율이 이 경로에서만 무너진다(RegroundOut 과 같은 이유).
-    ⚠ item_no 0 = "후보 중 어느 것도 아니다"(호출부가 버린다).
-    """
-
-    item_no: int = 0
-    correct: bool = False
-
-
 class RegroundOut(BaseModel):
     """재접지 사이드카 구조화 출력 — **문장이 아니라 슬롯만** 받는다.
 
@@ -655,9 +671,11 @@ class _CallState:
         # ⛔ **`expr_drilled` 를 만들지 않았다.** 그건 이미 `covered_nums` 다 —
         #   `_note_covered_items` 가 채우고 `_covered_labels` 가 라벨로 되짚는다.
         #   같은 사실을 두 곳에 두면 반드시 갈라진다.
-        # expr_ctx: 퀴즈 판정 사이드카 {client, model, instruction}. None = 비활성(R5).
+        # expr_ctx: 진도 판정 사이드카 {client, model, instruction}. None = 비활성(R5).
         # expr_tasks: 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
+        # expr_sidecar_calls: 이 통화의 진도 판정 사이드카 호출 수(상한 방어).
         "expr_items", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
+        "expr_sidecar_calls",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -823,6 +841,7 @@ class _CallState:
         self.expr_quiz_fail: set[int] = set()
         self.expr_ctx: Optional[dict] = None
         self.expr_tasks: set[asyncio.Task] = set()
+        self.expr_sidecar_calls: int = 0
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1042,164 +1061,206 @@ def _note_covered_items(
 
 
 # --------------------------------------------------------------------------- #
-# 표현학습 퀴즈 판정 (기획 §2-6 · T8)
+# 표현학습 진도 판정 — **LLM 이 판정하고 파이썬이 쓴다** (기획 §2-6 재설계, 2026-09-10)
 # --------------------------------------------------------------------------- #
-# ⭐⭐ **«어느 문항의 답인가» 를 따로 풀지 않는다**(사장님 결정 2026-09-10).
-#   퀴즈의 정답은 **항목 표면형 그 자체**(D15)라, 학습자가 낸 말을 항목들과 대조하면
-#   «몇 번 문항의 답인가» 와 «맞았나» 가 **한 번에** 나온다. 순서 문제(판정 전에 대응부터)가
-#   애초에 생기지 않는다.
+# ⛔⛔ **문자열에 «퀴즈 통과» 결정권을 다시 주지 마라**(사장님 결정). 옛 설계는 정규화
+#   정확일치·포함·공통 어절로 통과/오답을 끊었는데, 두 가지가 반드시 따라왔다:
+#     ① 포함 통과가 진도를 부풀린다 — 정답 `물` 에 "저는 물을 좋아해요" 가 통과했다.
+#        L2~L13 의 90%가 어휘(낱말 1개)라 그 낱말이 든 아무 문장이나 통과가 된다.
+#     ② 드릴 복창과 퀴즈 정답을 문자열로 못 가른다 — 앵무새 창을 1턴으로 두면 재시도
+#        경로가 새고, 2턴으로 넓히면 **정상 퀴즈가 막힌다**(codex QA 가 대본으로 증명).
+#   ⇒ 필요한 것은 «지금 몇 번 문항의 어느 단계인가» 이고, 그건 **전사를 읽어야** 안다.
 #
-# ⛔⛔ **앵무새 관문** — 이게 없으면 «따라 말하기» 가 전부 퀴즈 통과가 된다.
-#   드릴은 «또박또박 들려주고 따라 말하게» 이므로, 학습자가 항목을 그대로 말하는 순간이
-#   통화에 수없이 많다. 그걸 통과로 세면 **아무도 퀴즈를 안 풀고 레벨이 오른다.**
-#   ⇒ 직전 비버 발화에 그 표면형이 **있었으면** 따라 말하기(=드릴)로 보고 통과를 안 준다.
-#     없었으면 학습자가 스스로 꺼낸 것이다 — 그게 퀴즈 정답이다.
-#   ⭐ 통화후 분석의 «직전 2 BEAVER 턴» 앵무새 게이트와 **같은 발상**이다(검증된 규율).
-#   ⚠ 이 관문 덕분에 «퀴즈 구간인지» 를 따로 감지할 필요가 없다 — 감지하려면 비버의
-#     진행을 추측해야 하고 그건 못 한다.
-def _judge_quiz_answer(state: _CallState, answer: str, prior_beaver: str) -> list[int]:
-    """학습자 답 1건을 항목들과 대조한다(순수 — LLM 0). 통과분은 즉시 state 에 기록.
+# ⭐ 그래서 사이드카가 **전사 + 항목 목록**을 받아 세 갈래를 한 번에 돌려준다:
+#     다룬 것(drilled) · 맞춘 것(passed) · 틀린 것(failed)
+#   «어느 문항의 답인가» 를 따로 풀 필요가 없다 — LLM 이 비버 질문과 학습자 답을 **짝으로**
+#   보므로 «고마울 때 뭐라고 해?» → 「감사합니다」 를 스스로 대응시킨다.
+# ⛔ tool 을 쓰지 않는다(사장님 결정) — 안 될 경우가 많다(SET_FACE_TOOL + AI Studio 2.5 = 0/21 1011).
+# ⛔ 새 상태기계·순서 카운터를 짜지 않는다 — 그 정보는 전사 안에 이미 있다.
 
-    Returns:
-        판정이 **애매한** 항목의 item_id 목록(사이드카가 뜻을 봐야 하는 것). 빈 목록이면
-        사이드카를 부를 이유가 없다.
+
+class ExpressionProgressOut(BaseModel):
+    """표현학습 진도 사이드카 출력 — **번호만** 받는다.
+
+    ⛔ 문장 필드를 추가하지 마라(RegroundOut 과 같은 이유). 서버가 준 목록에서 번호를
+      고르게 하고, 서버는 그 번호를 자기 목록으로 되짚는다 — 환각이 들어올 자리가 없다.
     """
-    prior = quiz_judge.normalize(prior_beaver)
-    unknown: list[int] = []
-    for it in state.expr_items:
-        item_id = it.get("item_id")
-        surface = str(it.get("obj") or "")
-        if item_id is None or not surface or int(item_id) in state.expr_quiz_pass:
-            continue
-        verdict = quiz_judge.judge(answer, surface)
-        if verdict == quiz_judge.PASS:
-            if quiz_judge.normalize(surface) in prior:
-                continue  # ⛔ 방금 들은 걸 따라 한 것이다 — 드릴이지 퀴즈 통과가 아니다
-            state.expr_quiz_pass.add(int(item_id))
-            state.expr_quiz_fail.discard(int(item_id))
-            logger.info("normalcall 표현학습: 퀴즈 통과 item=%s «%s» (LLM 0)", item_id, surface)
-        elif verdict == quiz_judge.UNKNOWN:
-            unknown.append(int(item_id))
-    return unknown
+
+    drilled: list[int] = []
+    passed: list[int] = []
+    failed: list[int] = []
 
 
-def _apply_quiz_verdict(state: _CallState, item_id: int, correct: bool, prior_beaver: str) -> None:
-    """사이드카 판정을 반영한다 — **앵무새 관문을 여기서도 통과해야 한다.**
+def _expression_progress_instruction(items: list[str], target_language: str) -> str:
+    """진도 판정 사이드카 지시문(순수 문자열 조립 — LLM 생성 0).
 
-    ⛔ 사이드카는 뜻만 본다. «방금 비버가 말한 걸 따라 했다» 는 사정을 모르므로, 코드가
-      한 번 더 건다(관문이 한 곳에만 있으면 다른 경로로 새어 들어온다).
+    ⛔ 항목을 **번호로 떠먹인다**(`_reground_instruction` 과 같은 규율).
+    ⚠ 세 갈래의 뜻을 분명히 적는다 — «다뤘다»(비버가 꺼냈다)와 «맞췄다»(학습자가 스스로
+      냈다)를 섞으면 드릴 복창이 통과로 세어져 옛 설계의 사고가 그대로 돌아온다.
     """
-    item = next((i for i in state.expr_items if int(i.get("item_id") or -1) == item_id), None)
-    if item is None:
-        return
-    surface = str(item.get("obj") or "")
-    if correct:
-        if surface and quiz_judge.normalize(surface) in quiz_judge.normalize(prior_beaver):
-            return
+    listing = "\n".join(f"{i}. {label}" for i, label in enumerate(items, 1)) or "(없음)"
+    return (
+        f"너는 {target_language} 표현학습 통화의 진도 판정기다. 아래 대화 전사를 읽고 "
+        "각 항목이 어떻게 됐는지 **번호로만** 분류해라. 문장을 만들지 마라.\n"
+        f"[항목 목록]\n{listing}\n"
+        "- drilled: 선생님이 그 표현을 **꺼내 가르친** 항목. 설명하거나 들려주거나 "
+        "따라 말하게 시켰으면 포함한다.\n"
+        "- passed: 학습자가 **스스로 떠올려 맞힌** 항목. 선생님이 방금 정답을 말해 준 것을 "
+        "그대로 따라 말한 것은 **포함하지 마라** — 그건 연습이지 맞힌 게 아니다.\n"
+        "- failed: 학습자가 답할 차례였는데 **틀렸거나 못 답한** 항목.\n"
+        "⚠ 한 항목이 drilled 이면서 passed 일 수 있다(가르치고 나중에 맞혔다). "
+        "passed 와 failed 에 같은 번호를 동시에 넣지는 마라 — 마지막 결과 하나만 골라라.\n"
+        "⚠ 목록에 없는 번호를 지어내지 마라. 확실하지 않으면 빈 배열로 둬라."
+    )
+
+
+def _apply_expression_progress(state: _CallState, result: object) -> None:
+    """사이드카 결과를 state 에 **합집합으로** 얹는다(append-only).
+
+    ⛔ 빼지 않는다 — 한 번 «다뤘다/맞췄다» 가 된 것은 되돌리지 않는다(증거가 원본,
+      나머지는 파생 계산). 늦게 온 판정이 앞선 판정을 지우면 진도가 흔들린다.
+    ⚠ **서버 목록 밖 번호는 버린다**(환각 방어 — 재접지 covered 와 같은 규율).
+    ⚠ `passed` 가 이긴다 — 통과는 취소되는 사건이 아니다(D12, 강등 없음).
+    """
+    items = state.expr_items
+
+    def _ids(raw) -> list[int]:
+        out: list[int] = []
+        for n in (raw or []):
+            if isinstance(n, int) and 1 <= n <= len(items):
+                item_id = items[n - 1].get("item_id")
+                if item_id is not None:
+                    out.append(int(item_id))
+        return out
+
+    by_id = {
+        int(i["item_id"]): n
+        for n, i in enumerate(items, 1) if i.get("item_id") is not None
+    }
+    for item_id in _ids(getattr(result, "drilled", None)):
+        num = by_id.get(item_id)
+        # ⭐ 문자열 검출(_note_covered_items)과 **합집합**이다(9638a26 규율) — 비버가 라벨과
+        #   다른 말로 가르친 경우를 LLM 이 보완한다.
+        if num is not None and num not in state.covered_nums:
+            state.covered_nums.append(num)
+    for item_id in _ids(getattr(result, "passed", None)):
         state.expr_quiz_pass.add(item_id)
         state.expr_quiz_fail.discard(item_id)
-    elif item_id not in state.expr_quiz_pass:
-        # ⭐ 오답은 **오답퀴즈의 재료**다(기획 ⑥ — 이 통화에서 틀린 것만 다시 낸다).
-        #   ⚠ 이미 통과한 항목을 오답으로 내리지 않는다 — 통과가 이긴다(강등 없음, D12).
-        state.expr_quiz_fail.add(item_id)
-    logger.info(
-        "normalcall 표현학습: 사이드카 판정 item=%s «%s» → %s",
-        item_id, surface, "통과" if correct else "오답",
-    )
+    for item_id in _ids(getattr(result, "failed", None)):
+        if item_id not in state.expr_quiz_pass:
+            state.expr_quiz_fail.add(item_id)
 
 
-def _quiz_instruction(target_language: str, locale_label: str) -> str:
-    """퀴즈 판정 사이드카 지시문(순수 문자열 조립 — LLM 생성 0).
+def _expression_transcript(state: _CallState) -> str:
+    """이 조각의 전사 전체(역할 표시). ⛔ Gemini 컨텍스트 압축과 **무관하다** — 서버가 갖고 있다.
 
-    ⛔ 후보를 **번호로 떠먹인다** — 사이드카는 목록에서 고르기만 하고, 서버가 그 번호를
-      자기 목록으로 되짚는다(환각이 들어올 자리가 없다). `_reground_instruction` 과 같은 규율.
-    ⚠ 문장을 만들게 하지 않는다. 돌려받는 것은 번호와 참/거짓뿐이다.
+    ⚠ 너무 길면 **뒤에서 자른다**(비용·지연 방어). 앞이 잘려도 진도는 안 잃는다 —
+      결과가 `state` 에 **합집합**으로 쌓이므로 앞 구간은 이전 판정이 이미 담았다.
+    ⚠ 아직 flush 안 된 현재 버퍼도 담는다 — 조각 끝 판정이 **꼬리를 놓치면 안 된다**.
     """
-    return (
-        f"너는 {target_language} 학습 통화의 채점기다. 학습자의 모국어는 {locale_label}다.\n"
-        "선생님이 방금 한 말과 학습자의 대답, 그리고 후보 표현 목록을 준다. "
-        "학습자가 **어느 후보를 말하려 한 것인지** 번호로 고르고, 그 표현으로서 "
-        "**뜻이 맞는지** 판정해라.\n"
-        "- item_no: 후보 번호. 어느 것도 아니면 0.\n"
-        "- correct: 뜻이 맞으면 true, 다른 뜻이면 false.\n"
-        "⛔ 글자가 비슷한 것과 뜻이 같은 것은 다르다. 한두 글자 차이로 **뜻이 반대가 되는** "
-        "표현이 있다 — 반드시 뜻으로 판정해라.\n"
-        "⛔ 설명하지 마라. 두 칸만 채운다."
-    )
+    lines: list[str] = []
+    for seg in state.segments:
+        text = (seg.get("text") or "").strip()
+        if text:
+            lines.append(("선생님: " if seg.get("role") == "beaver" else "학습자: ") + text)
+    tail_beaver = "".join(state.cur_beaver_text).strip()
+    tail_user = "".join(state.cur_user_text).strip()
+    if tail_beaver:
+        lines.append("선생님: " + tail_beaver)
+    if tail_user:
+        lines.append("학습자: " + tail_user)
+    out = "\n".join(lines)
+    return out[-EXPR_TRANSCRIPT_MAX_CHARS:] if len(out) > EXPR_TRANSCRIPT_MAX_CHARS else out
 
 
-def _spawn_quiz_sidecar(state: _CallState, answer: str, prior: str, unknown: list[int]) -> None:
-    """애매한 판정만 사이드카로 넘긴다(논블로킹 — 2펌프 경로의 비용은 create_task 1회).
+def _spawn_expression_progress(state: _CallState) -> None:
+    """진도 판정 사이드카를 띄운다(논블로킹 — 2펌프 경로의 비용은 create_task 1회).
 
     ⛔ 격리(R4/R5): 느리거나 실패해도 통화는 그대로다 — 그 항목이 미판정으로 남을 뿐이고,
       미판정은 «통과 안 함» 이라 다음 통화에 다시 나온다(안전한 방향).
-    ⭐ **묶어서 나중에 던지지 않는다.** 애매한 순간 즉시 던지므로, 오답퀴즈 시점에는 이미
-      결과가 서 있다. 기획의 «3문항 직후 미리 던져라» 가 노린 것이 이것이고, 이쪽이 더 이르다
-      (arm→얹기 1.18초 vs 사이드카 1.4초로 결과가 버려진 전례 — 통화 1360).
+    ⚠ 통화당 상한을 둔다 — 재접지 arm 이 최대 8회라 정상 흐름은 그 안에 들지만,
+      폭주는 상한이 막는다.
     """
     ctx = state.expr_ctx
-    if ctx is None or not unknown or state.should_close:
+    if ctx is None or not state.expr_items or state.should_close:
         return
+    if state.expr_sidecar_calls >= EXPR_PROGRESS_MAX_PER_CALL:
+        return
+    state.expr_sidecar_calls += 1
     task = asyncio.create_task(
-        _quiz_sidecar(state, answer, prior, list(unknown)), name="normalcall-quiz-judge",
+        _expression_progress_sidecar(state), name="normalcall-expr-progress",
     )
     state.expr_tasks.add(task)  # 강참조(GC 방지)
     task.add_done_callback(state.expr_tasks.discard)
 
 
-async def _quiz_sidecar(
-    state: _CallState, answer: str, prior: str, unknown: list[int],
-) -> None:
-    """애매한 답 1건의 뜻을 판정한다(백그라운드 — 예외 전량 흡수, R5)."""
+async def _expression_progress_sidecar(state: _CallState) -> None:
+    """전사를 읽어 진도 세 갈래를 받아 state 에 얹는다(예외 전량 흡수 — R5)."""
     ctx = state.expr_ctx
     if ctx is None:
         return
-    by_no = {n: iid for n, iid in enumerate(unknown, start=1)}
-    labels = {int(i.get("item_id") or -1): str(i.get("obj") or "") for i in state.expr_items}
-    listing = "\n".join(f"{n}. {labels.get(iid, '')}" for n, iid in by_no.items())
-    prompt = (
-        f"[선생님이 방금 한 말]\n{prior[:400] or '(없음)'}\n\n"
-        f"[학습자의 대답]\n{answer[:200]}\n\n"
-        f"[후보 표현]\n{listing}"
-    )
+    transcript = _expression_transcript(state)
+    if not transcript:
+        return
     try:
         result = await gemini_analysis.generate_structured(
             ctx["client"], ctx["model"],
             system_instruction=ctx["instruction"],
-            prompt=prompt,
-            schema=QuizOut,
+            prompt=f"[대화 전사]\n{transcript}",
+            schema=ExpressionProgressOut,
             temperature=0.0,
             thinking_budget=0,
             usage=state.sidecar_usage,
         )
         if result is None:
             return
-        no = int(getattr(result, "item_no", 0) or 0)
-        # ⛔ 서버 목록 밖 번호는 **버린다**(환각 방어 — 재접지 covered 와 같은 규율).
-        if no not in by_no:
-            return
-        _apply_quiz_verdict(state, by_no[no], bool(getattr(result, "correct", False)), prior)
+        before = (len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail))
+        _apply_expression_progress(state, result)
+        logger.info(
+            "normalcall 표현학습 진도 판정: 다룬 %d→%d · 맞춘 %d→%d · 틀린 %d→%d (%d회째)",
+            before[0], len(state.covered_nums),
+            before[1], len(state.expr_quiz_pass),
+            before[2], len(state.expr_quiz_fail),
+            state.expr_sidecar_calls,
+        )
     except asyncio.CancelledError:
         raise  # 취소(통화 종료)는 정상 경로
     except Exception as exc:  # noqa: BLE001 - 판정 실패는 미판정일 뿐 통화 무영향(R5)
-        logger.warning("normalcall 퀴즈 사이드카 실패(무시 — 미판정으로 둔다): %s", exc)
+        logger.warning("normalcall 표현학습 진도 판정 실패(무시): %s", exc)
 
 
-def _judge_and_spawn_quiz(state: _CallState) -> None:
-    """방금 끝난 학습자 답을 판정하고, 애매한 것만 사이드카로 넘긴다(펌프에서 호출).
+async def _final_expression_progress(state: _CallState) -> None:
+    """⭐⭐ **조각 끝 마지막 판정** — DB 쓰기 **전에** 한 번 더 돌린다(사장님 지시).
 
-    ⚠ 표현학습이 아니면(=`expr_items` 가 비면) 즉시 되돌아간다 — 다른 콜타입의 펌프 비용은
-      불린 검사 하나다(R4 — 핫패스에 무게를 더하지 않는다).
+    ⛔ 이게 없으면 **마지막 arm 이후 구간이 판정 없이 버려진다.** 그 구간에서 맞힌 항목이
+      «못 한 것» 으로 남아 조각2 가 그것들을 다시 가르친다.
+
+    ## ⛔⛔ 쓰기를 LLM 에 걸지 않는다
+    timeout·예외·None 어느 쪽이든 **즉시 되돌아가고**, 호출부는 있는 것만 저장한다(R5).
+    이 함수는 예외를 밖으로 내보내지 않는다 — 저장 경로가 이 함수의 성패에 묶이면
+    LLM 이 죽는 날 **조각2 가 안 열린다.**
+    ⚠ 조각 경계는 이어하기 요약과 경합한다(EXPR_FINAL_JUDGE_TIMEOUT_S 주석) — 그래서
+      상한이 짧고, 소요를 **로그로 남긴다.** 그 줄이 경합을 나중에 실측할 유일한 근거다.
+    ⚠ `_spawn_*` 의 통화당 상한을 거치지 않는다 — 마지막 1회는 반드시 돌아야 한다.
     """
-    if not state.expr_items:
+    if state.expr_ctx is None or not state.expr_items:
         return
-    answer = "".join(state.cur_user_text).strip()
-    if not answer:
-        return
-    prior = state.last_beaver_question or ""
-    unknown = _judge_quiz_answer(state, answer, prior)
-    if unknown:
-        _spawn_quiz_sidecar(state, answer, prior, unknown)
+    loop = asyncio.get_running_loop()
+    t0 = loop.time()
+    over = False
+    try:
+        await asyncio.wait_for(
+            _expression_progress_sidecar(state), timeout=EXPR_FINAL_JUDGE_TIMEOUT_S,
+        )
+    except (TimeoutError, asyncio.TimeoutError):
+        over = True
+    except Exception as exc:  # noqa: BLE001 - 저장을 막으면 안 된다(R5)
+        logger.warning("normalcall 표현학습: 마지막 판정 실패(무시): %s", exc)
+    logger.info(
+        "normalcall 표현학습 마지막 판정: %.0fms (상한 %.0fms%s)",
+        (loop.time() - t0) * 1000.0, EXPR_FINAL_JUDGE_TIMEOUT_S * 1000.0,
+        " — ⚠초과, 있는 것만 저장" if over else "",
+    )
 
 
 def _expr_labels(state: _CallState, ids: set[int]) -> list[str]:
@@ -1238,9 +1299,7 @@ def _flush_beaver_segment(state: _CallState) -> None:
                 _reading_speed_line(text, len(state.cur_beaver_pcm)))
     # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
     # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
-    # ⭐ 표현학습도 직전 비버 발화가 필요하다 — «학습자가 스스로 꺼냈나, 방금 들은 걸
-    #   따라 했나» 를 가르는 유일한 재료다(_judge_quiz_answer 의 앵무새 관문).
-    if (state.band_observe or state.expr_items) and text:
+    if state.band_observe and text:
         state.last_beaver_question = text
     # ⭐ 재접지 쪽지의 "이미 다룬 것" 을 여기서 **서버가 누적한다**(2026-09-09, 통화 1360).
     #   턴이 확정되는 유일한 자리라 압축·사이드카와 무관하게 통화 전체를 센다.
@@ -2086,8 +2145,8 @@ async def run_call(
         state.expr_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            "instruction": _quiz_instruction(
-                target_language, _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
+            "instruction": _expression_progress_instruction(
+                [str(it["obj"]) for it in expr_items if it.get("obj")], target_language,
             ),
         }
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
@@ -2097,7 +2156,15 @@ async def run_call(
         # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
         #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
         state.reground_persona = (setup["role"] or "", setup["personality"] or "")
-        if expr_items:
+        if call_type in ("expression", "freetalk"):
+            # ⛔⛔ **두 코스는 normal 의 학습 항목 기계를 물려받지 않는다**(2026-09-10 QA).
+            #   게이트를 `expr_items` 로 두면 두 경우가 아래 else 로 떨어진다:
+            #     · 프리토킹 — 항목이 애초에 0개인데(D8) `study_items[:10]` 을 물고
+            #       call_mode='study' 가 된다 ⇒ 재접지 쪽지가 «학습 항목을 대화에서 쓰게
+            #       하라» 로 나가는데 지시문엔 그 항목이 **하나도 없다.**
+            #     · 표현학습 — 그 레벨을 전량 통과해 풀이 비면 «표현 0개짜리 표현학습» 이
+            #       normal 항목을 물고 돈다.
+            #   ⇒ 판정은 **콜타입**으로 한다. 항목 유무는 그 다음 문제다.
             # ⭐ 표현학습: 검출 목록이 곧 **오늘의 표현 전량**이다.
             # ⛔⛔ **여기서 [:10] 로 자르지 마라.** 자르면 11~18번이 «비버가 다뤄도 서버는
             #   모르는» 항목이 되고, 그건 영원히 «안 가르친 것» 으로 남아 다음 통화에 또
@@ -2106,7 +2173,9 @@ async def run_call(
             # ⚠ `REGROUND_COVERED_CAP`(10)은 **쪽지에 몇 개를 적을지**의 상한이지 검출
             #   상한이 아니다 — 검출은 18개 전부 돈다. 두 숫자를 섞지 마라.
             state.reground_items = [str(it["obj"]) for it in expr_items if it.get("obj")]
-            state.call_mode = "study"
+            # ⚠ 항목이 0개면(프리토킹 · 전량 통과한 표현학습) 'chat' 이다 — 'study' 로
+            #   굳히면 쪽지가 없는 항목을 가리킨다.
+            state.call_mode = "study" if state.reground_items else "chat"
         else:
             # ⚠ `normal` 은 **한 글자도 안 바뀐다** — 상한 10 은 일반 통화의 계약이다
             #   (공급원 study_items 가 본편 5 + 예비라 10 이면 사실상 전량이다).
@@ -2317,22 +2386,44 @@ async def run_call(
         #   ⚠ 커밋이 실패해도 통화는 이미 끝났다 — 예외를 흡수하고 로그만 남긴다(R5).
         #     잃는 것은 이번 조각의 진도뿐이고, 그 항목은 다음 통화에 다시 나온다.
         if state.expr_items and call_id is not None:
+            # ⭐⭐ **순서가 계약이다**(사장님 지시 2026-09-10):
+            #     ① 마지막 판정 LLM  ② state 갱신  ③ DB 쓰기  ④ 조각2 가 DB 에서 뽑는다
+            #   ⛔ ①을 빼면 **마지막 arm 이후 구간이 판정 없이 버려지고**, 그 구간에서 맞힌
+            #     항목을 조각2 가 다시 가르친다.
+            #   ⛔ 그렇다고 쓰기를 ①에 **걸지 않는다** — 상한(1.2초) 안에 안 오면 있는 것만
+            #     쓰고 진행한다. 이 함수는 예외를 밖으로 안 내보낸다(R5).
+            await _final_expression_progress(state)
             try:
+                covered = set(_covered_labels(state))
                 drilled = [
                     int(i["item_id"]) for i in state.expr_items
-                    if i.get("item_id") is not None
-                    and str(i.get("obj") or "") in set(_covered_labels(state))
+                    if i.get("item_id") is not None and str(i.get("obj") or "") in covered
+                ]
+                # ⭐ 결과 화면 스냅샷 — **이 통화의 사실**이라 통화 행에 적는다.
+                #   ⛔ 진도 행으로 되짚으면 나중 통화가 `drilled_call_id` 를 덮어써서
+                #     지난 결과가 조용히 사라진다(재드릴은 선별상 정상 경로다).
+                snapshot = [
+                    {
+                        "item_id": int(i["item_id"]),
+                        "surface": str(i.get("obj") or ""),
+                        "passed": int(i["item_id"]) in state.expr_quiz_pass,
+                    }
+                    for i in state.expr_items
+                    if i.get("item_id") is not None and str(i.get("obj") or "") in covered
                 ]
                 stats = await svc.run_db(
                     db_session_factory,
                     lambda db: svc.save_expression_progress(
                         db, member_id, call_id,
                         drilled_ids=drilled, passed_ids=sorted(state.expr_quiz_pass),
+                        snapshot=snapshot, language=spec.code,
                     ),
                 )
                 logger.info(
-                    "normalcall 표현학습 진도 저장: 드릴 %d · 통과 %d (오답 %d — 이 통화 한정)",
+                    "normalcall 표현학습 진도 저장: 드릴 %d · 통과 %d (오답 %d — 이 통화 한정)"
+                    " · 승급 %s",
                     stats["drilled"], stats["passed"], len(state.expr_quiz_fail),
+                    (stats.get("levelup") or {}).get("result", "판정없음"),
                 )
             except Exception as exc:  # noqa: BLE001 - 진도 유실일 뿐 통화는 끝났다(R5)
                 logger.warning("normalcall 표현학습 진도 저장 실패(무시): %s", exc)
@@ -2427,6 +2518,10 @@ def _trigger_analysis(
             hinted_from_turn_index=hinted_from_turn_index,
             # ⭐ 이어하기 조각이면 **이 조각의 턴만** 검증한다(근거는 analyze_call 주석).
             since_turn_index=since_turn_index,
+            # ⛔ 두 코스는 옛 승급 사슬을 쓰지 않는다(기획 §5) — 판정도 안 돈다.
+            #   ⚠ «후보가 0인가» 로 판정하면 안 된다: normal 도 후보가 빈 경우가 정상이고
+            #     그때는 승급이 돌아야 한다. 아는 것은 **콜타입뿐**이라 여기서 명시한다.
+            skip_level_up=call_type in ("expression", "freetalk"),
         )
     task = asyncio.create_task(coro, name=f"normalcall-analysis-{call_id}")
     _analysis_tasks.add(task)
@@ -3638,9 +3733,6 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
             # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
             _spawn_band_observe(state)
-            # ⭐ 표현학습 퀴즈 판정도 **flush 전에** 캡처한다(위와 같은 이유 —
-            #   `cur_user_text` 가 비워지기 전에 답변을 봐야 한다). 비활성이면 즉시 되돌아간다.
-            _judge_and_spawn_quiz(state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
@@ -4461,6 +4553,9 @@ async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> No
             await _reground_legacy_inject(session, state)
             continue
         _arm_reground(state, reason)
+        # ⭐ 코스별로 다른 사이드카가 뜬다 — 표현학습은 «진도 세 갈래»(전사 판정), 일반은
+        #   «맥락 슬롯»(mode·topic). 각 함수가 자기 게이트로 되돌아가므로 여기선 둘 다 부른다.
+        _spawn_expression_progress(state)
         _spawn_reground_sidecar(state)
 
 
@@ -4630,7 +4725,10 @@ def _spawn_reground_sidecar(state: _CallState) -> None:
     #   ② 줄 게 없다 — 이 사이드카가 채우는 슬롯은 mode(공부/대화)와 topic(대화 흐름)인데,
     #     표현학습엔 모드 축이 없고(D1) 화제는 항목이 정한다. 진도는 서버가 이미 갖고 있다.
     #   ⇒ 안 부르는 것이 옳고, 덤으로 통화당 LLM 호출이 최대 8회 준다.
-    if state.expr_items:
+    # ⚠ 게이트가 `expr_items` 가 아니라 **`reground_items` 부재**인 이유: 프리토킹도 이
+    #   사이드카가 필요 없다(항목이 0개라 covered 로 고를 것이 없고, 모드 축도 없다).
+    #   ⇒ «떠먹일 목록이 없으면 부르지 않는다» 하나로 세 경우를 다 덮는다.
+    if state.expr_items or not state.reground_items:
         return
     task = asyncio.create_task(_reground_sidecar(state), name="normalcall-reground-brief")
     state.reground_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소

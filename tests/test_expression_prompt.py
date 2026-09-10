@@ -1,7 +1,7 @@
 """표현학습·프리토킹 대본 조립 시험 (외부 의존 0, DB/LLM 없음).
 
 무엇을 지키나:
-  ① 항목이 **전부** 실린다 · 청크는 예문 없이도 실린다 · 조각2 의 «통과» 표식
+  ① 항목이 **전부** 실린다 · 청크는 예문 없이도 실린다 · 조각 승계는 «목록 그 자체»
   ② ⛔ 힌트 문구가 **없다**(D7 — 화면 UI 자체를 없앤다)
   ③ ⛔ 종료 개념이 대본에 **한 글자도** 없다(call 706·852·870)
   ④ ⛔ 규칙 번호 5·6·7 이 유지된다 — 규칙 6·7 이 본문에서 "규칙 5"를 인용한다
@@ -32,9 +32,9 @@ QUIZ_GROUP = 3
 
 # L1 생존 청크는 예문(ex)이 없다 — 실측(mastery_repository.first_example → None).
 ITEMS = [
-    {"obj": "안녕히 가세요", "des": "헤어질 때", "ex": None, "quiz_passed": False},
-    {"obj": "이거 얼마예요?", "des": "값을 물을 때", "ex": None, "quiz_passed": False},
-    {"obj": "가다", "des": "to go", "ex": "학교에 가요", "quiz_passed": False},
+    {"obj": "안녕히 가세요", "des": "헤어질 때", "ex": None},
+    {"obj": "이거 얼마예요?", "des": "값을 물을 때", "ex": None},
+    {"obj": "가다", "des": "to go", "ex": "학교에 가요"},
 ]
 
 BASE = dict(
@@ -92,50 +92,38 @@ def test_quiz_group_number_comes_from_the_caller_not_a_literal() -> None:
 # --------------------------------------------------------------------------- #
 # 조각2·3 — 진도 승계 (D17: 서버 상태를 지시문에 주입, 사이드카 0)
 # --------------------------------------------------------------------------- #
-def test_passed_items_are_marked_and_the_start_point_is_named() -> None:
-    items = [
-        {**ITEMS[0], "quiz_passed": True},
-        {**ITEMS[1], "quiz_passed": True},
-        {**ITEMS[2], "quiz_passed": False},
-    ]
-    out = _expr(items=items)
-    # ⚠ 표식은 줄 **끝**에 붙는다(뜻·예문 꼬리 뒤) — 줄 단위로 본다.
-    by_num = {ln.split(".", 1)[0]: ln for ln in out.splitlines() if ln[:1].isdigit()}
-    assert by_num["1"].endswith("(통과)") and "안녕히 가세요" in by_num["1"]
-    assert by_num["2"].endswith("(통과)") and "이거 얼마예요?" in by_num["2"]
-    assert not by_num["3"].endswith("(통과)"), "미통과 항목에 표식이 붙었다"
-    assert "(통과) 표시가 없는 가장 앞 항목부터" in out
+def test_the_list_itself_is_the_remaining_work() -> None:
+    """⛔⛔ «(통과)» 표식은 **없다**(2026-09-10 QA 로 제거). 그 표식은 어느 조각에서도
+    출력되지 않았다 — 선별이 `quiz_passed_at IS NULL` 로 통과분을 **풀에서 빼므로** 목록에
+    들어오는 항목은 정의상 전부 미통과다.
 
-
-def test_no_progress_marker_on_the_first_fragment() -> None:
+    ⭐ 그래서 조각 승계는 표식이 아니라 **목록 그 자체**가 한다. 이 시험은 죽은 분기가
+      되살아나는 것을 막는다.
+    """
     out = _expr()
     assert "(통과)" not in out
+    for n, item in enumerate(ITEMS, 1):
+        assert f"{n}. {item['obj']}" in out
 
 
-def test_continuation_is_pointed_by_marker_never_by_item_number() -> None:
-    """⛔⛔ 번호로 «1~7 은 통과» 라고 쓰면 **거짓말이 된다**(2026-09-10 codex QA 정정).
+def test_the_prompt_never_points_at_progress_by_item_number() -> None:
+    """⛔⛔ 번호로 «1~7 은 통과» 라고 쓰면 **거짓말이 된다**(codex QA 정정).
 
     조각2는 새 WebSocket = 새 `_CallState` 라 선별이 **다시 돈다**. 선별이 random 이라
     목록이 조각1과 같지 않고 번호도 옮겨간다 — 코호트를 저장하지 않기로 했기 때문이다.
-    ⇒ 지시문은 «어느 번호» 가 아니라 **«표시가 없는 것부터»** 로 말해야 목록이 매번
-      달라져도 항상 참이다. 연속성은 선별 정렬이 만든다.
+    ⇒ 지시문은 진도를 **번호로 가리키면 안 된다.** 연속성은 선별 정렬이 만든다.
     """
-    items = [
-        {**ITEMS[0], "quiz_passed": True},
-        {**ITEMS[1], "quiz_passed": False},
-        {**ITEMS[2], "quiz_passed": True},
-    ]
-    out = _expr(items=items)
-    assert "(통과) 표시가 없는 가장 앞 항목부터" in out
-    # 번호로 진도를 가리키는 문구가 있으면 안 된다.
+    out = _expr()
     # ⚠ «1~» 같은 넓은 토큰을 쓰지 마라 — 공유 규칙 5 의 "1~4문장" 에 걸린다.
-    for banned in ("1, 3", "번까지 통과", "가장 앞 번호", "번부터 시작"):
-        assert banned not in out, f"번호로 진도를 가리켰다: {banned}"
+    for banned in ("1, 3", "번까지 통과", "가장 앞 번호", "번부터 시작", "(통과)"):
+        assert banned not in out, f"번호·표식으로 진도를 가리켰다: {banned}"
 
 
-def test_resume_seed_also_points_by_marker_not_number() -> None:
+def test_resume_seed_points_at_the_head_of_the_list() -> None:
+    """조각2 시드는 «맨 앞부터» 다 — 목록이 이미 «남은 일» 이라 그 문장이 항상 참이다."""
     seed = seed_expression_resume("한국어")
-    assert "(통과) 표시가 없는 가장 앞 항목" in seed
+    assert "맨 앞 항목부터" in seed
+    assert "(통과)" not in seed
     assert "번호" not in seed
 
 
@@ -356,7 +344,7 @@ def test_expression_resume_seed_does_not_greet_or_re_ask() -> None:
     """⛔ 시드가 지시문을 이긴다(call 1087) — 이어하기는 시드 자체를 갈아야 한다."""
     seed = seed_expression_resume("한국어")
     assert "인사하지 말고" in seed
-    assert "(통과) 표시가 없는 가장 앞 항목" in seed
+    assert "맨 앞 항목부터" in seed
 
 
 def test_freetalk_opening_is_in_the_target_language() -> None:

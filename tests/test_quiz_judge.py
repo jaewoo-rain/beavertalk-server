@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-"""표현학습 퀴즈 판정 회귀 — 순수 함수, LLM 0 (기획 §2-6 · §7).
+"""표현학습 문자열 정규화 회귀 — **판정 함수는 없다** (기획 §2-6 재설계, 2026-09-10).
 
-무엇을 지키나:
-  ① 정규화 정확일치 → PASS, **LLM 0회**
-  ② 공통 어절 0 → FAIL, **LLM 0회**
-  ③ ⛔ `안녕히 계세요` vs 정답 `안녕히 가세요` 는 ①도 ②도 **아니다** → UNKNOWN(뜻을 봐야 한다)
-  ④ 조사·어미를 잘라내지 않는다 — 자르면 ③의 두 문장이 **같아진다**
+## ⛔ 이 파일이 지키는 첫 번째 계약: «판정기가 돌아오지 않는다»
 
-⚠ 명세 §7 은 ③ 쌍의 **최종 판정이 오답**이길 요구한다. 그 최종 판정은 사이드카(LLM)가
-  하므로, 여기서는 «①이 통과를 안 준다 + ②가 오답을 안 준다 + 그래서 LLM 에 간다» 세
-  갈래로 나눠 못박는다. 사이드카가 오답이라 답하면 오답이 되는 배선은 호출부 시험이 본다.
+한때 여기 3갈래 판정기(정확일치→통과 / 공통 어절 0→오답 / 그 사이→LLM)가 있었다.
+**설계째 걷어냈다**(사장님 결정) — 문자열에 통과 결정권을 주면:
+  ① 포함 통과가 진도를 부풀린다(정답 `물` 에 "저는 물을 좋아해요" 가 통과)
+  ② 드릴 복창과 퀴즈 정답을 못 가른다(1턴 창은 새고, 2턴 창은 정상 퀴즈를 막는다)
+⇒ 판정은 전사를 읽는 LLM 이 하고, 파이썬은 그 결과를 검증해 쓴다.
+
+그래서 이 파일은 이제 **정규화 하나**와 **모듈이 순수한가**만 본다.
 """
 
 from __future__ import annotations
+
+import unicodedata
 
 import pytest
 
@@ -20,115 +22,91 @@ from domains.learning.service import quiz_judge as qj
 
 
 # --------------------------------------------------------------------------- #
-# ① 정확일치 — LLM 0
+# ⛔ 판정 함수가 다시 생기지 않는다
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize(
-    "answer,correct",
-    [
-        ("안녕히 가세요", "안녕히 가세요"),          # 그대로
-        ("안녕히가세요", "안녕히 가세요"),            # 띄어쓰기 다름(전사가 자주 틀린다)
-        ("안녕히 가세요.", "안녕히 가세요"),          # 문장부호
-        ("  안녕히  가세요 !! ", "안녕히 가세요"),    # 공백·부호 범벅
-        ("이거 얼마예요?", "이거 얼마예요?"),
-    ],
-)
-def test_exact_match_after_normalization_passes(answer: str, correct: str) -> None:
-    assert qj.judge(answer, correct) == qj.PASS
+@pytest.mark.parametrize("gone", ["judge", "PASS", "FAIL", "UNKNOWN", "_EXTRA_CHARS_MAX"])
+def test_the_string_judge_is_gone_and_stays_gone(gone: str) -> None:
+    """⛔⛔ 되살리지 마라 — 위 ①②가 그대로 돌아온다.
 
-
-def test_the_answer_may_carry_filler_around_the_expression() -> None:
-    """학습자는 "음... 안녕히 가세요!" 처럼 말한다 — 정답 전체가 들어 있으면 낸 것이다."""
-    assert qj.judge("음... 안녕히 가세요!", "안녕히 가세요") == qj.PASS
-
-
-def test_saying_only_a_part_is_not_a_pass() -> None:
-    """⛔ 반대 방향은 통과가 아니다 — 정답이 답을 품는 건 **일부만** 말한 것이다."""
-    assert qj.judge("안녕히", "안녕히 가세요") != qj.PASS
-
-
-# --------------------------------------------------------------------------- #
-# ② 공통 어절 0 — LLM 0
-# --------------------------------------------------------------------------- #
-@pytest.mark.parametrize(
-    "answer,correct",
-    [
-        ("모르겠어요", "안녕히 가세요"),
-        ("I don't know", "이거 얼마예요?"),
-        ("사과 주세요", "학교에 가요"),
-    ],
-)
-def test_no_shared_word_is_a_fail(answer: str, correct: str) -> None:
-    assert qj.judge(answer, correct) == qj.FAIL
-
-
-def test_an_empty_answer_is_a_fail() -> None:
-    """무음·전사 실패 — 산출이 0 이면 통과가 아니다."""
-    for empty in ("", "   ", None):
-        assert qj.judge(empty, "안녕히 가세요") == qj.FAIL
-
-
-# --------------------------------------------------------------------------- #
-# ③ ⛔ 이 파일의 핵심 — 뜻이 반대인 한 글자 차이
-# --------------------------------------------------------------------------- #
-def test_the_opposite_greeting_is_not_decided_by_code() -> None:
-    """⛔⛔ `안녕히 계세요`(남는 사람에게) ↔ `안녕히 가세요`(가는 사람에게).
-
-    두 글자 차이인데 **뜻이 반대다.** 유사도 잣대로는 «거의 맞음» 이 나오지만 오답이다.
-    ⇒ 코드는 여기서 **판정하지 않는다.** 세 갈래를 각각 못박는다:
-      · ①이 통과를 주면 안 된다     (정확일치가 아니다)
-      · ②가 오답을 주면 안 된다     (`안녕히` 가 공통 어절이다)
-      · 그래서 UNKNOWN 이어야 한다   (사이드카가 뜻을 본다)
+    ⚠ «작은 예외 하나만» 이 위험한 자리다. 정확일치만 통과시켜도 드릴 복창이 곧바로
+      통과로 세어진다(복창은 정의상 정확일치다).
     """
-    v = qj.judge("안녕히 계세요", "안녕히 가세요")
-    assert v != qj.PASS, "①이 통과를 줬다 — 뜻이 반대인 답이 정답이 된다"
-    assert v != qj.FAIL, "②가 오답을 줬다 — 뜻을 볼 기회를 잃는다"
-    assert v == qj.UNKNOWN
+    assert not hasattr(qj, gone), f"문자열 판정기가 돌아왔다: {gone}"
 
 
-def test_stems_and_endings_are_not_stripped() -> None:
-    """⛔ 어간 추출·조사 제거를 넣지 마라 — 위 두 문장의 차이가 **어미에 있다.**
+# --------------------------------------------------------------------------- #
+# 정규화 — 대조가 전사 잡음에 안 흔들리게
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("안녕히 가세요", "안녕히가세요"),
+        ("  안녕히  가세요 !! ", "안녕히가세요"),
+        ("이거 얼마예요?", "이거얼마예요"),
+        ("Hello, World!", "helloworld"),
+    ],
+)
+def test_spacing_and_punctuation_are_stripped(raw: str, expected: str) -> None:
+    assert qj.normalize(raw) == expected
 
-    자르는 순간 `안녕히가` 와 `안녕히계` 가... 더 나쁘게는 `안녕히` 로 **같아지고**,
-    정확일치가 통과를 준다. 정규화는 공백·문장부호까지다.
+
+def test_decomposed_hangul_is_folded() -> None:
+    """⚠ 전사가 자모 분해형(NFD)으로 오면 눈에 같은 글자가 코드포인트로 다르다.
+
+    NFC 를 안 걸면 대조가 **조용히** 실패한다 — 비버가 가르친 항목을 «안 다룬 것» 으로 센다.
+    """
+    nfd = unicodedata.normalize("NFD", "안녕히 가세요")
+    assert nfd != "안녕히 가세요"                      # 실제로 다른 문자열이다(전제 확인)
+    assert qj.normalize(nfd) == qj.normalize("안녕히 가세요")
+
+
+def test_endings_are_never_stripped() -> None:
+    """⛔ 조사·어미를 잘라내지 마라.
+
+    `안녕히 가세요`(가는 사람에게) ↔ `안녕히 계세요`(남는 사람에게)는 두 글자 차이인데
+    **뜻이 반대다.** 어미를 지우면 두 문장이 **같아지고**, 이 함수를 쓰는 대조가 곧바로 틀린다.
     """
     assert qj.normalize("안녕히 가세요") != qj.normalize("안녕히 계세요")
 
 
-@pytest.mark.parametrize(
-    "answer,correct",
-    [
-        ("학교에 갔어요", "학교에 가요"),      # 시제만 다르다
-        ("이거 얼마예요", "이거 얼마에요"),    # 맞춤법 흔들림
-        ("밥을 먹어요", "밥을 먹었어요"),
-    ],
-)
-def test_close_but_not_equal_goes_to_the_sidecar(answer: str, correct: str) -> None:
-    assert qj.judge(answer, correct) == qj.UNKNOWN
-
-
-# --------------------------------------------------------------------------- #
-# 서버 쪽 결손 — 학습자를 틀렸다고 하지 않는다
-# --------------------------------------------------------------------------- #
-def test_a_missing_correct_answer_is_unknown_not_fail() -> None:
-    """⛔ 정답이 비어 있는 건 **우리 잘못**이다. 그걸로 학습자를 오답 처리하면 안 된다."""
+def test_empty_input_is_safe() -> None:
     for empty in ("", "   ", None):
-        assert qj.judge("안녕히 가세요", empty) == qj.UNKNOWN
+        assert qj.normalize(empty) == ""
 
 
-def test_unicode_decomposed_input_still_matches() -> None:
-    """⚠ 전사가 자모 분해형(NFD)으로 올 수 있다 — 눈에 같은데 코드포인트가 다르다.
+# --------------------------------------------------------------------------- #
+# ⛔ 순수성 — **import 그래프로** 잰다 (소스 grep 이 아니다)
+# --------------------------------------------------------------------------- #
+def test_the_module_pulls_in_nothing_but_the_standard_library() -> None:
+    """⛔⛔ **소스 문자열 grep 으로 재지 마라**(2026-09-10 codex QA).
 
-    NFC 를 안 걸면 정확일치가 **조용히** 실패하고, 맞힌 답이 사이드카로 새어 비용이 난다.
+    처음엔 `getsource` 에 "genai"·"Session" 같은 낱말이 없는지만 봤는데, 그건 **import
+    그래프를 못 본다** — 한 단계만 건너뛰어도 무거운 의존이 들어와도 통과한다.
+    ⇒ 실제로 **파일을 직접 로드해**(패키지 __init__ 우회) 무엇이 딸려 오는지 센다.
+
+    ⚠ 알려진 사실: `domains/learning/service/__init__.py` 가 CallService 를 eager import 해서
+      **`from domains.learning.service import quiz_judge` 로 부르면** SQLAlchemy·settings 가
+      통째로 붙는다(실측 640 모듈, DATABASE_URL_POOL 없으면 ValidationError).
+      그건 **패키지 진입점의 성질**이지 이 모듈의 성질이 아니다 — 이 시험이 그 둘을 가른다.
     """
-    import unicodedata
+    import subprocess
+    import sys
 
-    nfd = unicodedata.normalize("NFD", "안녕히 가세요")
-    assert nfd != "안녕히 가세요"          # 실제로 다른 문자열이다(전제 확인)
-    assert qj.judge(nfd, "안녕히 가세요") == qj.PASS
-
-
-def test_the_judge_never_calls_out(monkeypatch) -> None:
-    """⛔ 이 모듈은 LLM·DB 를 **모른다**(어댑터 순수성). import 만으로도 그게 보여야 한다."""
-    src = __import__("inspect").getsource(qj)
-    for banned in ("genai", "gemini", "Session", "db.", "requests", "httpx"):
-        assert banned not in src, f"판정기가 밖을 본다: {banned}"
+    script = (
+        "import importlib.util, sys, pathlib\n"
+        "p = pathlib.Path('domains/learning/service/quiz_judge.py')\n"
+        "spec = importlib.util.spec_from_file_location('qj_isolated', p)\n"
+        "m = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(m)\n"
+        "heavy = [n for n in ('sqlalchemy','pydantic','fastapi','google','core.config')\n"
+        "         if n in sys.modules]\n"
+        "print('HEAVY=' + ','.join(heavy))\n"
+        "print('NORM=' + m.normalize(' 가 세 요! '))\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, encoding="utf-8",
+    )
+    assert out.returncode == 0, "정규화 모듈이 단독으로 뜨지 않는다:\n" + out.stderr[-800:]
+    heavy = next(l for l in out.stdout.splitlines() if l.startswith("HEAVY="))
+    assert heavy == "HEAVY=", "정규화 모듈이 무거운 의존을 끌어온다: " + heavy
+    assert "NORM=가세요" in out.stdout

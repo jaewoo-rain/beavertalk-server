@@ -13,7 +13,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
+from unittest import mock
 
 import pytest
 from sqlalchemy import Integer, create_engine
@@ -31,6 +33,7 @@ from domains.learning.models.member_item_progress import MemberItemProgress
 
 import domains.learning.realtime.call_session as cs
 import domains.learning.service.normalcall_service as svc
+from domains.learning.service import mastery_service
 from domains.learning.service.call_service import CallService
 
 NOW = datetime.now(timezone.utc)
@@ -47,103 +50,126 @@ def _state(items: list[tuple[int, str]]) -> cs._CallState:
 
 
 # --------------------------------------------------------------------------- #
-# ①⛔⛔ 앵무새 관문
+# ⛔⛔ 판정은 LLM 이 한다 — 문자열은 통과를 주지 않는다 (2026-09-10 재설계)
 # --------------------------------------------------------------------------- #
-def test_repeating_what_the_beaver_just_said_is_not_a_pass() -> None:
-    """⛔⛔ 드릴은 «또박또박 들려주고 따라 말하게» 다 — 학습자가 항목을 그대로 말하는
-    순간이 통화에 수없이 많다. 그걸 통과로 세면 **아무도 퀴즈를 안 풀고 레벨이 오른다.**
+class _FakeProgress:
+    """사이드카 구조화 출력 흉내 — 번호 목록 세 갈래."""
+
+    def __init__(self, drilled=(), passed=(), failed=()):
+        self.drilled = list(drilled)
+        self.passed = list(passed)
+        self.failed = list(failed)
+
+
+def test_a_repeated_answer_is_never_marked_passed_by_code() -> None:
+    """⛔⛔ **문자열이 통과를 주지 않는다** — 이 파일의 첫 계약이다.
+
+    드릴은 «들려주고 따라 말하게» 라 학습자가 항목을 **그대로** 말하는 순간이 통화에
+    수없이 많다. 옛 설계는 그걸 문자열로 걸러 보려다 두 번 실패했다(1턴 창은 재시도에서
+    새고, 2턴 창은 정상 퀴즈를 막았다).
+    ⇒ 이제 펌프는 답을 **판정하지 않는다.** 따라 말한 답이 흘러도 통과가 안 찍힌다.
     """
     st = _state([(1, BYE)])
-    unknown = cs._judge_quiz_answer(st, BYE, prior_beaver=f'따라 해봐: "{BYE}"')
-    assert st.expr_quiz_pass == set(), "따라 말하기가 퀴즈 통과로 셌다"
-    assert unknown == []
-
-
-def test_saying_it_on_your_own_is_a_pass() -> None:
-    """비버가 모국어로 묻고 정답을 말하지 않았다 = 학습자가 스스로 꺼낸 것이다."""
-    st = _state([(1, BYE)])
-    cs._judge_quiz_answer(st, BYE, prior_beaver="How do you say goodbye to someone leaving?")
-    assert st.expr_quiz_pass == {1}
-
-
-def test_the_parrot_gate_looks_at_the_whole_prior_turn() -> None:
-    """⚠ 비버가 문장 속에 섞어 말해도 앵무새다 — 부분 문자열로 본다."""
-    st = _state([(1, BYE)])
-    cs._judge_quiz_answer(st, BYE, prior_beaver=f"자, {BYE} 라고 말해 볼까? 준비됐어?")
-    assert st.expr_quiz_pass == set()
-
-
-def test_a_pass_is_not_re_judged(monkeypatch) -> None:
-    """이미 통과한 항목은 다시 보지 않는다 — 사이드카 비용도 안 낸다."""
-    st = _state([(1, BYE)])
-    st.expr_quiz_pass.add(1)
-    assert cs._judge_quiz_answer(st, "안녕히 계세요", prior_beaver="") == []
-
-
-# --------------------------------------------------------------------------- #
-# ② 세 갈래
-# --------------------------------------------------------------------------- #
-def test_an_unrelated_answer_costs_no_llm() -> None:
-    st = _state([(1, BYE), (2, PRICE)])
-    assert cs._judge_quiz_answer(st, "모르겠어요", prior_beaver="") == []
-    assert st.expr_quiz_pass == set()
-
-
-def test_a_near_miss_goes_to_the_sidecar() -> None:
-    """⛔ `안녕히 계세요` 는 뜻이 반대다 — 코드가 판정하지 않고 넘긴다."""
-    st = _state([(1, BYE), (2, PRICE)])
-    unknown = cs._judge_quiz_answer(st, "안녕히 계세요", prior_beaver="")
-    assert unknown == [1], "애매한 항목만 사이드카로 가야 한다"
-    assert st.expr_quiz_pass == set()
-
-
-def test_nothing_is_judged_outside_the_expression_course() -> None:
-    """⚠ 다른 콜타입의 펌프 비용은 불린 검사 하나다(R4)."""
-    st = cs._CallState()          # expr_items 가 비어 있다
+    st.cur_beaver_text = [f'따라 해봐: "{BYE}"']
+    cs._flush_beaver_segment(st)
     st.cur_user_text = [BYE]
-    cs._judge_and_spawn_quiz(st)  # 예외 없이 즉시 되돌아간다
-    assert st.expr_quiz_pass == set() and st.expr_quiz_fail == set()
+    cs._flush_user_segment(st)
+    assert st.expr_quiz_pass == set(), "문자열이 통과를 줬다 — 판정기가 돌아왔다"
 
 
-# --------------------------------------------------------------------------- #
-# ③ 사이드카 결과 반영
-# --------------------------------------------------------------------------- #
-def test_a_sidecar_pass_marks_the_item() -> None:
-    st = _state([(1, BYE)])
-    cs._apply_quiz_verdict(st, 1, correct=True, prior_beaver="")
-    assert st.expr_quiz_pass == {1} and st.expr_quiz_fail == set()
+def test_the_sidecar_result_is_what_marks_progress() -> None:
+    """⭐ 진도는 **사이드카 결과**로만 움직인다(다룬 것·맞춘 것·틀린 것)."""
+    st = _state([(1, BYE), (2, PRICE)])
+    cs._apply_expression_progress(st, _FakeProgress(drilled=[1, 2], passed=[1], failed=[2]))
+    assert st.covered_nums == [1, 2]
+    assert st.expr_quiz_pass == {1}
+    assert st.expr_quiz_fail == {2}
 
 
-def test_a_sidecar_fail_feeds_the_retry_quiz() -> None:
-    """⭐ 오답은 **이 통화 안에서** 다시 내는 재료다(기획 ⑥)."""
-    st = _state([(1, BYE)])
-    cs._apply_quiz_verdict(st, 1, correct=False, prior_beaver="")
-    assert st.expr_quiz_fail == {1} and st.expr_quiz_pass == set()
+def test_progress_is_a_union_never_a_replacement() -> None:
+    """⛔ 늦게 온 판정이 앞선 판정을 **지우면 안 된다**(증거가 원본, 나머지는 파생).
 
-
-def test_the_parrot_gate_also_guards_the_sidecar_result() -> None:
-    """⛔ 사이드카는 뜻만 본다 — «방금 들은 걸 따라 했다» 는 사정을 모른다.
-
-    관문이 한 곳에만 있으면 다른 경로로 새어 들어온다.
+    ⚠ 사이드카는 전사 뒷부분만 볼 수도 있다(길면 뒤에서 자른다) — 그때 앞 구간 결과가
+      사라지면 조각2 가 이미 뗀 것을 다시 가르친다.
     """
-    st = _state([(1, BYE)])
-    cs._apply_quiz_verdict(st, 1, correct=True, prior_beaver=f'"{BYE}" 따라 해봐')
-    assert st.expr_quiz_pass == set()
+    st = _state([(1, BYE), (2, PRICE)])
+    cs._apply_expression_progress(st, _FakeProgress(drilled=[1], passed=[1]))
+    cs._apply_expression_progress(st, _FakeProgress(drilled=[2], passed=[2]))
+    assert st.covered_nums == [1, 2] and st.expr_quiz_pass == {1, 2}
 
 
 def test_a_pass_is_never_demoted_by_a_later_fail() -> None:
     """통과가 이긴다 — 강등은 없다(D12)."""
     st = _state([(1, BYE)])
-    cs._apply_quiz_verdict(st, 1, correct=True, prior_beaver="")
-    cs._apply_quiz_verdict(st, 1, correct=False, prior_beaver="")
+    cs._apply_expression_progress(st, _FakeProgress(passed=[1]))
+    cs._apply_expression_progress(st, _FakeProgress(failed=[1]))
     assert st.expr_quiz_pass == {1} and st.expr_quiz_fail == set()
 
 
-def test_an_unknown_item_id_is_dropped() -> None:
-    """⛔ 서버 목록 밖 번호는 버린다(환각 방어 — 재접지 covered 와 같은 규율)."""
+def test_a_fail_is_the_retry_quiz_material() -> None:
+    """⭐ 오답은 **이 통화 안에서** 다시 내는 재료다(기획 ⑥).
+
+    ⚠ 옛 설계에서는 이 칸이 계속 비었다 — 코드가 «어느 문항의 오답인지» 를 몰랐기 때문이다.
+      사이드카가 전사를 읽으면서 그 대응이 풀렸다.
+    """
     st = _state([(1, BYE)])
-    cs._apply_quiz_verdict(st, 99, correct=True, prior_beaver="")
-    assert st.expr_quiz_pass == set() and st.expr_quiz_fail == set()
+    cs._apply_expression_progress(st, _FakeProgress(failed=[1]))
+    assert st.expr_quiz_fail == {1}
+
+
+@pytest.mark.parametrize("bad", [0, 99, -1, "1", None])
+def test_numbers_outside_the_server_list_are_dropped(bad) -> None:
+    """⛔ 환각 방어 — 서버 목록 밖 번호는 버린다(재접지 covered 와 같은 규율)."""
+    st = _state([(1, BYE)])
+    cs._apply_expression_progress(st, _FakeProgress(drilled=[bad], passed=[bad], failed=[bad]))
+    assert st.covered_nums == [] and st.expr_quiz_pass == set() and st.expr_quiz_fail == set()
+
+
+def test_the_sidecar_reads_the_whole_transcript_not_one_turn() -> None:
+    """⭐ 입력은 **전사 전체**다 — Gemini 컨텍스트 압축과 무관하게 서버가 갖고 있다.
+
+    ⚠ 아직 flush 안 된 꼬리도 담아야 한다. 조각 끝 판정이 마지막 왕복을 놓치면 그 구간에서
+      맞힌 항목이 «못 한 것» 으로 남는다.
+    """
+    st = _state([(1, BYE)])
+    st.segments = [
+        {"turn_index": 0, "role": "beaver", "text": "헤어질 때 뭐라고 하지?"},
+        {"turn_index": 1, "role": "user", "text": BYE},
+    ]
+    st.cur_beaver_text = ["잘했어!"]
+    st.cur_user_text = ["감사합니다"]
+    out = cs._expression_transcript(st)
+    assert "선생님: 헤어질 때 뭐라고 하지?" in out
+    assert "학습자: " + BYE in out
+    assert "선생님: 잘했어!" in out and "학습자: 감사합니다" in out
+
+
+def test_a_long_transcript_is_cut_from_the_front() -> None:
+    """⚠ 앞을 자른다 — 뒤(최근)가 판정에 필요하고, 앞 구간은 이전 판정이 이미 담았다."""
+    st = _state([(1, BYE)])
+    st.segments = [
+        {"turn_index": i, "role": "user", "text": "가" * 500} for i in range(60)
+    ] + [{"turn_index": 99, "role": "user", "text": "마지막말"}]
+    out = cs._expression_transcript(st)
+    assert len(out) <= cs.EXPR_TRANSCRIPT_MAX_CHARS
+    assert out.endswith("마지막말")
+
+
+def test_the_sidecar_is_capped_per_call() -> None:
+    """⚠ 정상 흐름은 arm 8회 + 조각 끝 1회다. 상한은 폭주만 막는다."""
+    st = _state([(1, BYE)])
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.expr_sidecar_calls = cs.EXPR_PROGRESS_MAX_PER_CALL
+    cs._spawn_expression_progress(st)
+    assert not st.expr_tasks
+
+
+def test_nothing_runs_outside_the_expression_course() -> None:
+    """⚠ 다른 콜타입의 비용은 불린 검사 하나다(R4)."""
+    st = cs._CallState()          # expr_items 가 비어 있다
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    cs._spawn_expression_progress(st)
+    assert not st.expr_tasks
 
 
 # --------------------------------------------------------------------------- #
@@ -228,7 +254,9 @@ def test_progress_is_written_for_drilled_and_passed(env) -> None:
         db, env["member_id"], env["call_id"],
         drilled_ids=ids[:2], passed_ids=[ids[0]],
     )
-    assert stats == {"drilled": 2, "passed": 1}
+    assert (stats["drilled"], stats["passed"]) == (2, 1)
+    # ⚠ 승급 판정도 같은 커밋 안에서 돈다 — 아직 남은 항목이 있으니 «stay» 다.
+    assert stats["levelup"]["result"] == "stay"
     rows = {r.item_id: r for r in db.query(MemberItemProgress).all()}
     assert set(rows) == set(ids[:2]), "드릴한 것만 행이 생겨야 한다"
     assert rows[ids[0]].quiz_passed_at is not None
@@ -289,8 +317,12 @@ def test_an_empty_progress_write_is_a_no_op(env) -> None:
 
 def test_the_result_screen_shows_the_quiz_outcome(env) -> None:
     db, ids = env["db"], [i.item_id for i in env["items"]]
-    svc.save_expression_progress(db, env["member_id"], env["call_id"],
-                                 drilled_ids=ids[:2], passed_ids=[ids[0]])
+    svc.save_expression_progress(
+        db, env["member_id"], env["call_id"],
+        drilled_ids=ids[:2], passed_ids=[ids[0]],
+        snapshot=[{"item_id": ids[0], "surface": BYE, "passed": True},
+                  {"item_id": ids[1], "surface": PRICE, "passed": False}],
+    )
     result = CallService(db).get_call_result(env["member_id"], env["call_id"])
     got = {q.surface: q.passed for q in result.quiz_items}
     assert got == {BYE: True, PRICE: False}
@@ -298,7 +330,7 @@ def test_the_result_screen_shows_the_quiz_outcome(env) -> None:
 
 
 def test_other_call_types_have_no_quiz_items(env) -> None:
-    """⛔ 다른 콜타입에서는 빈 배열이다 — 화면이 칸을 안 그린다."""
+    """⛔ 스냅샷이 없으면 빈 배열이다 — 화면이 칸을 안 그린다(옛 통화·크래시 포함)."""
     db = env["db"]
     env["call"].call_type = "normal"
     db.commit()
@@ -306,18 +338,40 @@ def test_other_call_types_have_no_quiz_items(env) -> None:
     assert result.quiz_items == []
 
 
-def test_quiz_items_only_cover_this_call(env) -> None:
-    """⚠ 지난 통화에서 뗀 항목은 이번 결과가 아니다 — 기준은 «이 통화에서 드릴했나» 다."""
+def test_a_later_call_never_erases_an_earlier_result(env) -> None:
+    """⛔⛔ 진도 행으로 되짚으면 **나중 통화가 지난 결과를 지운다**(2026-09-10 QA).
+
+        통화 A  「물」 드릴 → 오답        (drilled_call_id = A)
+        통화 B  「물」 다시 드릴 → 통과   (drilled_call_id = B 로 덮어쓴다)
+        ⇒ A 의 결과 화면에서 「물」이 **사라진다**
+
+    재드릴은 선별상 **정상 경로**다(«드릴했는데 못 끝낸 것» 이 다음 통화 맨 앞에 온다)
+    ⇒ 어제 결과를 오늘 열면 틀린 항목만 증발하고 통과 항목만 남는다. 조용히 틀리는 버그다.
+    ⭐ 그래서 결과는 **그 통화에 적힌 스냅샷**을 읽는다.
+    """
     db, ids = env["db"], [i.item_id for i in env["items"]]
-    db.add(MemberItemProgress(
-        member_id=env["member_id"], item_id=ids[2], status="introduced", score=0.0,
-        quiz_passed_at=NOW - timedelta(days=2), drilled_call_id=None,
-    ))
-    db.commit()
-    svc.save_expression_progress(db, env["member_id"], env["call_id"],
-                                 drilled_ids=[ids[0]], passed_ids=[ids[0]])
-    result = CallService(db).get_call_result(env["member_id"], env["call_id"])
-    assert [q.surface for q in result.quiz_items] == [BYE]
+    call_a = env["call_id"]
+    # 통화 A — 「안녕히 가세요」를 드릴했지만 못 뗐다
+    svc.save_expression_progress(
+        db, env["member_id"], call_a, drilled_ids=[ids[0]], passed_ids=[],
+        snapshot=[{"item_id": ids[0], "surface": BYE, "passed": False}],
+    )
+    # 통화 B — 같은 항목을 다시 드릴해서 뗐다(진도 행의 drilled_call_id 가 B 로 덮인다)
+    call_b = Call(member_id=env["member_id"], character_id=env["character_id"],
+                  call_date=NOW, status="done", call_type="expression")
+    db.add(call_b)
+    db.flush()
+    svc.save_expression_progress(
+        db, env["member_id"], call_b.call_id, drilled_ids=[ids[0]], passed_ids=[ids[0]],
+        snapshot=[{"item_id": ids[0], "surface": BYE, "passed": True}],
+    )
+    svc_a = CallService(db).get_call_result(env["member_id"], call_a)
+    svc_b = CallService(db).get_call_result(env["member_id"], call_b.call_id)
+    assert [(q.surface, q.passed) for q in svc_a.quiz_items] == [(BYE, False)], "A 의 결과가 지워졌다"
+    assert [(q.surface, q.passed) for q in svc_b.quiz_items] == [(BYE, True)]
+    # 진도 행은 최신 통화를 가리킨다 — 그래서 되짚기가 안 되는 것이다(전제 확인)
+    db.expire_all()
+    assert db.query(MemberItemProgress).one().drilled_call_id == call_b.call_id
 
 
 # --------------------------------------------------------------------------- #
@@ -337,3 +391,178 @@ def test_the_resume_gate_is_a_whitelist(env, call_type: str, ok: bool) -> None:
     db.commit()
     call_id, reason = svc.resume_call(db, env["member_id"], env["call_id"], max_fragments=3)
     assert (call_id is not None) is ok, reason
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ 조각 끝 순서 — 판정 → state → DB. 단, **쓰기를 LLM 에 걸지 않는다**
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_a_stalled_judgement_never_blocks_the_write() -> None:
+    """⛔⛔ 판정 LLM 이 멈춰도 진도는 **상한 안에** 저장돼야 한다.
+
+    조각 경계는 이어하기 요약과 **경합한다**(call_session.py:2062 실측: 저장 → 3초 뒤
+    조각2 접속 → 그 뒤 요약 완성 — 그 경합에서 이미 한 번 졌다). 저장이 조각2 의 읽기보다
+    늦으면 **조각2 가 같은 항목을 또 가르친다** — 우리가 고치려던 바로 그 증상이다.
+    ⇒ `wait_for` 상한을 넘기면 즉시 되돌아가고, 호출부는 있는 것만 쓴다(R5).
+    """
+    st = _state([(1, BYE)])
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+
+    async def _never(*_a, **_k):
+        await asyncio.Event().wait()      # 영원히 매달린다
+
+    with mock.patch.object(cs, "_expression_progress_sidecar", _never):
+        loop = asyncio.get_running_loop()
+        t0 = loop.time()
+        await cs._final_expression_progress(st)      # ⛔ 예외가 밖으로 나오면 안 된다
+        elapsed = loop.time() - t0
+    assert elapsed < cs.EXPR_FINAL_JUDGE_TIMEOUT_S + 0.5, "상한을 안 지켰다: %.2fs" % elapsed
+
+
+@pytest.mark.asyncio
+async def test_the_final_judgement_result_reaches_the_write() -> None:
+    """⭐ 마지막 판정이 통과 1건을 더 주면 그게 **저장 대상에 들어간다.**
+
+    ⛔ 이게 없으면 «마지막 arm 이후 구간» 이 판정 없이 버려지고, 그 구간에서 맞힌 항목을
+      조각2 가 다시 가르친다.
+    """
+    st = _state([(1, BYE)])
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+
+    async def _late_pass(state):
+        cs._apply_expression_progress(state, _FakeProgress(drilled=[1], passed=[1]))
+
+    with mock.patch.object(cs, "_expression_progress_sidecar", _late_pass):
+        await cs._final_expression_progress(st)
+    assert st.expr_quiz_pass == {1}, "마지막 판정 결과가 반영되지 않았다"
+    assert st.covered_nums == [1]
+
+
+@pytest.mark.asyncio
+async def test_a_failing_judgement_is_swallowed() -> None:
+    """⚠ 예외도 저장을 막으면 안 된다 — 통화가 멈추는 게 진도 하나보다 나쁘다(R5)."""
+    st = _state([(1, BYE)])
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+
+    async def _boom(*_a, **_k):
+        raise RuntimeError("사이드카 폭발")
+
+    with mock.patch.object(cs, "_expression_progress_sidecar", _boom):
+        await cs._final_expression_progress(st)     # 예외가 새면 이 시험이 실패한다
+
+
+@pytest.mark.asyncio
+async def test_the_final_judgement_is_skipped_outside_the_course() -> None:
+    st = cs._CallState()
+    await cs._final_expression_progress(st)          # 무동작·무예외
+
+
+# --------------------------------------------------------------------------- #
+# ⛔ F3 — 두 코스는 옛 승급 사슬을 건드리지 않는다 (기획 §5)
+# --------------------------------------------------------------------------- #
+def test_expression_rows_are_marked_so_the_old_gate_ignores_them(env) -> None:
+    """⛔⛔ 기본 provenance('observed') + status 기본값('introduced') 이면 그 행이 **옛 승급
+    게이트 G1 의 분자에 산입된다** — 표현학습으로 드릴만 한 항목이 «배웠다» 로 세어져
+    normal 통화의 승급을 앞당긴다. 두 사슬이 한 컬럼에서 섞이는 자리다.
+    """
+    db, iid = env["db"], env["items"][0].item_id
+    svc.save_expression_progress(db, env["member_id"], env["call_id"],
+                                 drilled_ids=[iid], passed_ids=[])
+    row = db.query(MemberItemProgress).one()
+    assert row.provenance == mastery_service.PROVENANCE_EXPRESSION
+
+
+def test_the_g1_numerator_excludes_expression_rows() -> None:
+    """⚠ 표시만 해 두고 게이트가 안 거르면 아무것도 안 고친 것이다 — 필터를 직접 본다."""
+    import inspect
+
+    src = inspect.getsource(mastery_service.evaluate_level_up)
+    assert 'p.provenance not in ("placement", PROVENANCE_EXPRESSION)' in src
+
+
+def test_an_expression_row_is_promoted_once_real_evidence_arrives(env) -> None:
+    """⭐ 실증거가 붙으면 placement 처럼 observed 로 승격된다 — 그래야 «증거 없는 것»만 걸린다."""
+    import inspect
+
+    src = inspect.getsource(mastery_service.apply_evidence)
+    assert 'prog.provenance in ("placement", PROVENANCE_EXPRESSION)' in src
+
+
+def test_level_up_is_skipped_for_the_two_courses() -> None:
+    """⛔ 이 게이트는 «이번 통화의 증거» 가 아니라 **기존 progress 상태**로 판정한다.
+
+    그래서 검출을 안 한 통화가 **트리거가 되어** 옛 기준으로 승급이 찍힌다. 승급하면
+    korean_level 이 바뀌고 `pick_expression_items` 는 레벨 **정확일치**라 커리큘럼 분모가
+    통째로 갈아탄다 — D12 와 다른 기준으로.
+
+    ⛔ 판정을 «후보가 0인가» 로 하면 안 된다(그렇게 썼다가 회귀가 잡았다) — `normal` 도
+      후보가 빈 경우가 정상이고 그때는 승급이 **돌아야 한다**. 기준은 **콜타입**이다.
+    """
+    import inspect
+
+    src = inspect.getsource(svc._apply_call_mastery)
+    assert "None if skip_level_up" in src, "두 코스에서도 승급 판정이 돈다"
+
+
+# --------------------------------------------------------------------------- #
+# ⛔ F4 — 두 코스가 normal 의 학습 항목 기계를 물려받지 않는다 (§2-1·D8)
+# --------------------------------------------------------------------------- #
+def test_the_generic_sidecar_is_off_when_there_is_no_item_list() -> None:
+    """⛔ 프리토킹은 항목이 0개다(D8) — 떠먹일 목록이 없으면 이 사이드카를 부를 이유가 없다.
+
+    ⚠ 게이트가 `expr_items` 뿐이면 프리토킹이 그대로 통과해 일반 사이드카가 계속 돈다.
+    """
+    st = cs._CallState()                      # 표현학습도 아니고 목록도 없다 = 프리토킹
+    st.reground_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    cs._spawn_reground_sidecar(st)
+    assert not st.reground_tasks
+
+
+def test_an_emptied_expression_list_does_not_fall_back_to_study_mode() -> None:
+    """⚠⚠ 그 레벨을 전량 통과하면 표현 목록이 빈다 — 그때 'study' 로 굳으면 쪽지가
+    **없는 항목**을 가리킨다.
+    """
+    st = cs._CallState()
+    st.expr_items = []
+    st.reground_items = []
+    st.call_mode = "study" if st.reground_items else "chat"
+    assert st.call_mode == "chat"
+
+
+# --------------------------------------------------------------------------- #
+# ⭐ 표현학습 승급 — «그 레벨 전체 퀴즈 통과»(D12)
+# --------------------------------------------------------------------------- #
+def test_the_level_is_not_complete_while_anything_remains(env) -> None:
+    db, ids = env["db"], [i.item_id for i in env["items"]]
+    svc.save_expression_progress(db, env["member_id"], env["call_id"],
+                                 drilled_ids=ids, passed_ids=ids[:2])
+    assert mastery_service.expression_level_complete(db, env["member_id"], 1) is False
+
+
+def test_passing_every_item_promotes_the_level(env) -> None:
+    """⭐ 완료 판정의 유일한 기준은 `quiz_passed_at` 이다 — 등급·숙달 사슬을 안 본다."""
+    db, ids = env["db"], [i.item_id for i in env["items"]]
+    stats = svc.save_expression_progress(db, env["member_id"], env["call_id"],
+                                         drilled_ids=ids, passed_ids=ids)
+    assert mastery_service.expression_level_complete(db, env["member_id"], 1) is True
+    assert stats["levelup"]["result"] == "promoted"
+    assert (stats["levelup"]["from_level"], stats["levelup"]["to_level"]) == (1, 2)
+    db.expire_all()
+    assert db.get(Member, env["member_id"]).korean_level == 2
+
+
+def test_promotion_is_idempotent_per_call(env) -> None:
+    """⛔ 조각이 여럿이라 한 통화에서 여러 번 불린다 — 두 번 올리면 안 된다."""
+    db, ids = env["db"], [i.item_id for i in env["items"]]
+    svc.save_expression_progress(db, env["member_id"], env["call_id"],
+                                 drilled_ids=ids, passed_ids=ids)
+    again = svc.save_expression_progress(db, env["member_id"], env["call_id"],
+                                         drilled_ids=ids, passed_ids=ids)
+    assert again["levelup"]["result"] == "stay"
+    db.expire_all()
+    assert db.get(Member, env["member_id"]).korean_level == 2
+
+
+def test_an_empty_curriculum_is_never_complete(env) -> None:
+    """⛔ 커리큘럼 미시드를 «다 뗐다» 로 읽으면 빈 레벨을 타고 끝까지 올라간다."""
+    assert mastery_service.expression_level_complete(env["db"], env["member_id"], 9) is False
