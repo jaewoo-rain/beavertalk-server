@@ -329,6 +329,67 @@ def test_detection_stays_append_only() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# ⑦ 힌트 제거(D7) · 통화후 분석 분기
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+@pytest.mark.parametrize("call_type", ["expression", "freetalk"])
+async def test_the_new_courses_have_no_hints(
+    session_factory, seeded, monkeypatch, call_type: str,
+) -> None:
+    """⛔ D7 — 화면 UI 자체를 없앤다. 서버가 push 안 하면 화면에 안 뜬다.
+
+    ⭐ 표현학습에서 특히 해롭다: 이 코스의 퀴즈는 «배운 표현 맞히기» 라 예시 답변을 띄우면
+      **정답을 그대로 보여주는 것**이 되어 판정이 무의미해진다.
+    """
+    spawned: list[str] = []
+    monkeypatch.setattr(cs, "_spawn_hint_task",
+                        lambda ws, st: spawned.append(st.hint_ctx and "on" or "off"))
+    await _run(session_factory, seeded, call_type, {})
+    assert "on" not in spawned
+
+
+@pytest.mark.asyncio
+async def test_normal_calls_still_get_hints(session_factory, seeded, monkeypatch) -> None:
+    """⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함)."""
+    seen: list[bool] = []
+    orig = cs._hint_instruction
+    monkeypatch.setattr(cs, "_hint_instruction",
+                        lambda *a, **k: (seen.append(True), orig(*a, **k))[1])
+    await _run(session_factory, seeded, None, {})
+    assert seen, "일반 통화의 힌트가 같이 꺼졌다"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("call_type", ["expression", "freetalk"])
+async def test_item_detection_is_off_but_analysis_still_runs(
+    session_factory, seeded, monkeypatch, call_type: str,
+) -> None:
+    """⛔⛔ 후보를 **빈 리스트**로 넘겨야 한다 — `None` 은 «안 준다» 가 아니라 «기본 후보를
+    대신 뽑아라» 다. None 으로 두면 끄려던 검출이 그대로 돈다(정확히 반대 결과).
+
+    ⭐ 그리고 분석 자체는 **반드시 돌아야 한다** — 안 돌면 결과 화면의 `sentences` 가
+      통째로 빈다(기획 §5).
+    """
+    seen: dict = {}
+
+    def _spy(*args, **kwargs):
+        seen["candidates"] = kwargs.get("candidates")
+        seen["hinted"] = kwargs.get("hinted_from_turn_index")
+        seen["called"] = True
+
+        async def _noop():
+            return None
+
+        return _noop()
+
+    monkeypatch.setattr(cs.svc, "analyze_call", _spy)
+    await _run(session_factory, seeded, call_type, {})
+    assert seen.get("called"), "통화후 분석이 아예 안 돌았다 — sentences 가 빈다"
+    assert seen["candidates"] == [], "None 이면 기본 후보가 뽑혀 검출이 그대로 돈다"
+    assert seen["hinted"] is None
+
+
+# --------------------------------------------------------------------------- #
 # ⑥ 일일 한도
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("call_type", ["normal", "level_test", "expression", "freetalk"])

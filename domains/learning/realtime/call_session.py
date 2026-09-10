@@ -99,7 +99,9 @@ from core.persona_prompt import (
 from core.prompts.expression import (
     NUDGE_SEED_1_EXPRESSION,
     build_expression_instruction,
+    build_expression_reground_brief,
     seed_expression_opening,
+    seed_expression_resume,
 )
 from core.prompts.freetalk import (
     NUDGE_SEED_1_FREETALK,
@@ -108,6 +110,7 @@ from core.prompts.freetalk import (
 )
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
+from domains.learning.service import quiz_judge
 from domains.learning.service import normalcall_service as svc
 from domains.learning.realtime.protocol import (
     HintExample,
@@ -575,6 +578,18 @@ class HintOut(BaseModel):
     examples: list[HintExample]
 
 
+class QuizOut(BaseModel):
+    """퀴즈 판정 사이드카 구조화 출력 — **번호와 참/거짓만** 받는다.
+
+    ⛔ 문장 필드를 추가하지 마라. 사이드카가 문장을 만들면 그 문장이 곧 프롬프트가 되고,
+      "LLM 생성 0, 순수 조립" 규율이 이 경로에서만 무너진다(RegroundOut 과 같은 이유).
+    ⚠ item_no 0 = "후보 중 어느 것도 아니다"(호출부가 버린다).
+    """
+
+    item_no: int = 0
+    correct: bool = False
+
+
 class RegroundOut(BaseModel):
     """재접지 사이드카 구조화 출력 — **문장이 아니라 슬롯만** 받는다.
 
@@ -640,7 +655,9 @@ class _CallState:
         # ⛔ **`expr_drilled` 를 만들지 않았다.** 그건 이미 `covered_nums` 다 —
         #   `_note_covered_items` 가 채우고 `_covered_labels` 가 라벨로 되짚는다.
         #   같은 사실을 두 곳에 두면 반드시 갈라진다.
-        "expr_items", "expr_quiz_pass", "expr_quiz_fail",
+        # expr_ctx: 퀴즈 판정 사이드카 {client, model, instruction}. None = 비활성(R5).
+        # expr_tasks: 사이드카 강참조(GC 방지) — run_call finally 가 전량 취소.
+        "expr_items", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -804,6 +821,8 @@ class _CallState:
         self.expr_items: list[dict] = []
         self.expr_quiz_pass: set[int] = set()
         self.expr_quiz_fail: set[int] = set()
+        self.expr_ctx: Optional[dict] = None
+        self.expr_tasks: set[asyncio.Task] = set()
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1022,6 +1041,175 @@ def _note_covered_items(
             state.covered_nums.append(idx)
 
 
+# --------------------------------------------------------------------------- #
+# 표현학습 퀴즈 판정 (기획 §2-6 · T8)
+# --------------------------------------------------------------------------- #
+# ⭐⭐ **«어느 문항의 답인가» 를 따로 풀지 않는다**(사장님 결정 2026-09-10).
+#   퀴즈의 정답은 **항목 표면형 그 자체**(D15)라, 학습자가 낸 말을 항목들과 대조하면
+#   «몇 번 문항의 답인가» 와 «맞았나» 가 **한 번에** 나온다. 순서 문제(판정 전에 대응부터)가
+#   애초에 생기지 않는다.
+#
+# ⛔⛔ **앵무새 관문** — 이게 없으면 «따라 말하기» 가 전부 퀴즈 통과가 된다.
+#   드릴은 «또박또박 들려주고 따라 말하게» 이므로, 학습자가 항목을 그대로 말하는 순간이
+#   통화에 수없이 많다. 그걸 통과로 세면 **아무도 퀴즈를 안 풀고 레벨이 오른다.**
+#   ⇒ 직전 비버 발화에 그 표면형이 **있었으면** 따라 말하기(=드릴)로 보고 통과를 안 준다.
+#     없었으면 학습자가 스스로 꺼낸 것이다 — 그게 퀴즈 정답이다.
+#   ⭐ 통화후 분석의 «직전 2 BEAVER 턴» 앵무새 게이트와 **같은 발상**이다(검증된 규율).
+#   ⚠ 이 관문 덕분에 «퀴즈 구간인지» 를 따로 감지할 필요가 없다 — 감지하려면 비버의
+#     진행을 추측해야 하고 그건 못 한다.
+def _judge_quiz_answer(state: _CallState, answer: str, prior_beaver: str) -> list[int]:
+    """학습자 답 1건을 항목들과 대조한다(순수 — LLM 0). 통과분은 즉시 state 에 기록.
+
+    Returns:
+        판정이 **애매한** 항목의 item_id 목록(사이드카가 뜻을 봐야 하는 것). 빈 목록이면
+        사이드카를 부를 이유가 없다.
+    """
+    prior = quiz_judge.normalize(prior_beaver)
+    unknown: list[int] = []
+    for it in state.expr_items:
+        item_id = it.get("item_id")
+        surface = str(it.get("obj") or "")
+        if item_id is None or not surface or int(item_id) in state.expr_quiz_pass:
+            continue
+        verdict = quiz_judge.judge(answer, surface)
+        if verdict == quiz_judge.PASS:
+            if quiz_judge.normalize(surface) in prior:
+                continue  # ⛔ 방금 들은 걸 따라 한 것이다 — 드릴이지 퀴즈 통과가 아니다
+            state.expr_quiz_pass.add(int(item_id))
+            state.expr_quiz_fail.discard(int(item_id))
+            logger.info("normalcall 표현학습: 퀴즈 통과 item=%s «%s» (LLM 0)", item_id, surface)
+        elif verdict == quiz_judge.UNKNOWN:
+            unknown.append(int(item_id))
+    return unknown
+
+
+def _apply_quiz_verdict(state: _CallState, item_id: int, correct: bool, prior_beaver: str) -> None:
+    """사이드카 판정을 반영한다 — **앵무새 관문을 여기서도 통과해야 한다.**
+
+    ⛔ 사이드카는 뜻만 본다. «방금 비버가 말한 걸 따라 했다» 는 사정을 모르므로, 코드가
+      한 번 더 건다(관문이 한 곳에만 있으면 다른 경로로 새어 들어온다).
+    """
+    item = next((i for i in state.expr_items if int(i.get("item_id") or -1) == item_id), None)
+    if item is None:
+        return
+    surface = str(item.get("obj") or "")
+    if correct:
+        if surface and quiz_judge.normalize(surface) in quiz_judge.normalize(prior_beaver):
+            return
+        state.expr_quiz_pass.add(item_id)
+        state.expr_quiz_fail.discard(item_id)
+    elif item_id not in state.expr_quiz_pass:
+        # ⭐ 오답은 **오답퀴즈의 재료**다(기획 ⑥ — 이 통화에서 틀린 것만 다시 낸다).
+        #   ⚠ 이미 통과한 항목을 오답으로 내리지 않는다 — 통과가 이긴다(강등 없음, D12).
+        state.expr_quiz_fail.add(item_id)
+    logger.info(
+        "normalcall 표현학습: 사이드카 판정 item=%s «%s» → %s",
+        item_id, surface, "통과" if correct else "오답",
+    )
+
+
+def _quiz_instruction(target_language: str, locale_label: str) -> str:
+    """퀴즈 판정 사이드카 지시문(순수 문자열 조립 — LLM 생성 0).
+
+    ⛔ 후보를 **번호로 떠먹인다** — 사이드카는 목록에서 고르기만 하고, 서버가 그 번호를
+      자기 목록으로 되짚는다(환각이 들어올 자리가 없다). `_reground_instruction` 과 같은 규율.
+    ⚠ 문장을 만들게 하지 않는다. 돌려받는 것은 번호와 참/거짓뿐이다.
+    """
+    return (
+        f"너는 {target_language} 학습 통화의 채점기다. 학습자의 모국어는 {locale_label}다.\n"
+        "선생님이 방금 한 말과 학습자의 대답, 그리고 후보 표현 목록을 준다. "
+        "학습자가 **어느 후보를 말하려 한 것인지** 번호로 고르고, 그 표현으로서 "
+        "**뜻이 맞는지** 판정해라.\n"
+        "- item_no: 후보 번호. 어느 것도 아니면 0.\n"
+        "- correct: 뜻이 맞으면 true, 다른 뜻이면 false.\n"
+        "⛔ 글자가 비슷한 것과 뜻이 같은 것은 다르다. 한두 글자 차이로 **뜻이 반대가 되는** "
+        "표현이 있다 — 반드시 뜻으로 판정해라.\n"
+        "⛔ 설명하지 마라. 두 칸만 채운다."
+    )
+
+
+def _spawn_quiz_sidecar(state: _CallState, answer: str, prior: str, unknown: list[int]) -> None:
+    """애매한 판정만 사이드카로 넘긴다(논블로킹 — 2펌프 경로의 비용은 create_task 1회).
+
+    ⛔ 격리(R4/R5): 느리거나 실패해도 통화는 그대로다 — 그 항목이 미판정으로 남을 뿐이고,
+      미판정은 «통과 안 함» 이라 다음 통화에 다시 나온다(안전한 방향).
+    ⭐ **묶어서 나중에 던지지 않는다.** 애매한 순간 즉시 던지므로, 오답퀴즈 시점에는 이미
+      결과가 서 있다. 기획의 «3문항 직후 미리 던져라» 가 노린 것이 이것이고, 이쪽이 더 이르다
+      (arm→얹기 1.18초 vs 사이드카 1.4초로 결과가 버려진 전례 — 통화 1360).
+    """
+    ctx = state.expr_ctx
+    if ctx is None or not unknown or state.should_close:
+        return
+    task = asyncio.create_task(
+        _quiz_sidecar(state, answer, prior, list(unknown)), name="normalcall-quiz-judge",
+    )
+    state.expr_tasks.add(task)  # 강참조(GC 방지)
+    task.add_done_callback(state.expr_tasks.discard)
+
+
+async def _quiz_sidecar(
+    state: _CallState, answer: str, prior: str, unknown: list[int],
+) -> None:
+    """애매한 답 1건의 뜻을 판정한다(백그라운드 — 예외 전량 흡수, R5)."""
+    ctx = state.expr_ctx
+    if ctx is None:
+        return
+    by_no = {n: iid for n, iid in enumerate(unknown, start=1)}
+    labels = {int(i.get("item_id") or -1): str(i.get("obj") or "") for i in state.expr_items}
+    listing = "\n".join(f"{n}. {labels.get(iid, '')}" for n, iid in by_no.items())
+    prompt = (
+        f"[선생님이 방금 한 말]\n{prior[:400] or '(없음)'}\n\n"
+        f"[학습자의 대답]\n{answer[:200]}\n\n"
+        f"[후보 표현]\n{listing}"
+    )
+    try:
+        result = await gemini_analysis.generate_structured(
+            ctx["client"], ctx["model"],
+            system_instruction=ctx["instruction"],
+            prompt=prompt,
+            schema=QuizOut,
+            temperature=0.0,
+            thinking_budget=0,
+            usage=state.sidecar_usage,
+        )
+        if result is None:
+            return
+        no = int(getattr(result, "item_no", 0) or 0)
+        # ⛔ 서버 목록 밖 번호는 **버린다**(환각 방어 — 재접지 covered 와 같은 규율).
+        if no not in by_no:
+            return
+        _apply_quiz_verdict(state, by_no[no], bool(getattr(result, "correct", False)), prior)
+    except asyncio.CancelledError:
+        raise  # 취소(통화 종료)는 정상 경로
+    except Exception as exc:  # noqa: BLE001 - 판정 실패는 미판정일 뿐 통화 무영향(R5)
+        logger.warning("normalcall 퀴즈 사이드카 실패(무시 — 미판정으로 둔다): %s", exc)
+
+
+def _judge_and_spawn_quiz(state: _CallState) -> None:
+    """방금 끝난 학습자 답을 판정하고, 애매한 것만 사이드카로 넘긴다(펌프에서 호출).
+
+    ⚠ 표현학습이 아니면(=`expr_items` 가 비면) 즉시 되돌아간다 — 다른 콜타입의 펌프 비용은
+      불린 검사 하나다(R4 — 핫패스에 무게를 더하지 않는다).
+    """
+    if not state.expr_items:
+        return
+    answer = "".join(state.cur_user_text).strip()
+    if not answer:
+        return
+    prior = state.last_beaver_question or ""
+    unknown = _judge_quiz_answer(state, answer, prior)
+    if unknown:
+        _spawn_quiz_sidecar(state, answer, prior, unknown)
+
+
+def _expr_labels(state: _CallState, ids: set[int]) -> list[str]:
+    """item_id 집합 → 표면형 목록(쪽지·로그용). 순서는 목록 순서 그대로."""
+    return [
+        str(i.get("obj")) for i in state.expr_items
+        if int(i.get("item_id") or -1) in ids and i.get("obj")
+    ]
+
+
 def _covered_labels(state: _CallState) -> list[str]:
     """`covered_nums` → 브리프에 실을 라벨 목록(순서 = 다룬 순서)."""
     items = state.reground_items
@@ -1050,7 +1238,9 @@ def _flush_beaver_segment(state: _CallState) -> None:
                 _reading_speed_line(text, len(state.cur_beaver_pcm)))
     # 레벨테스트 밴드 관측: 방금 끝난 비버 발화(직전 질문)를 스냅샷 — 다음 유저 답변 관측의
     # prior_question 문맥. band_observe=False(일반 통화)면 무동작.
-    if state.band_observe and text:
+    # ⭐ 표현학습도 직전 비버 발화가 필요하다 — «학습자가 스스로 꺼냈나, 방금 들은 걸
+    #   따라 했나» 를 가르는 유일한 재료다(_judge_quiz_answer 의 앵무새 관문).
+    if (state.band_observe or state.expr_items) and text:
         state.last_beaver_question = text
     # ⭐ 재접지 쪽지의 "이미 다룬 것" 을 여기서 **서버가 누적한다**(2026-09-09, 통화 1360).
     #   턴이 확정되는 유일한 자리라 압축·사이드카와 무관하게 통화 전체를 센다.
@@ -1750,7 +1940,10 @@ async def run_call(
     call_id = None
     resume_reason = ""
     resumed = False
-    if continues_call_id is not None and call_type == "normal":
+    # ⚠ 여기 목록과 `svc.resume_call` 의 화이트리스트는 **같은 뜻이어야 한다.** 한쪽만
+    #   넓히면 «관문은 통과했는데 서비스가 거절» 이 되어 조용히 새 통화로 떨어진다.
+    #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
+    if continues_call_id is not None and call_type in ("normal", "expression", "freetalk"):
         max_fragments = await svc.run_db(
             db_session_factory,
             lambda db: call_service.call_fragments_for_member(db, member_id),
@@ -1806,6 +1999,17 @@ async def run_call(
         # ⭐ 검증 범위의 기준. 이 턴 앞은 **이전 조각**이고, 그건 이미 그때 판정됐다.
         state.resume_from_turn = state.next_turn_index
         logger.info("normalcall 이어하기: 턴 인덱스 %d 부터 이어서 기록", state.next_turn_index)
+    # ⭐⭐ **표현학습의 조각 승계는 브리프가 아니라 «시드 + 목록»이 한다**(D17).
+    #   ⛔ 아래 `build_resume_brief` 를 타지 않는다 — 그건 «하던 대화를 이어가라» 이고,
+    #     표현학습에 필요한 것은 «(통과) 표시가 없는 가장 앞 항목부터» 다. 그리고 그 정보는
+    #     **이미 지시문 안에 있다**(선별이 통과분을 빼고 목록을 다시 만든다) — 사이드카도
+    #     JSON 도 필요 없다. 서버가 정답을 갖고 있다.
+    #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
+    #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
+    if resumed and call_type == "expression":
+        seed_text = seed_expression_resume(target_language)
+        logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개")
+    elif resumed:
         # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
         #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
         #   ⛔ "이어서 할게요" 를 시키지 않는다 — 그러면 끊김이 두 번 일어난다.
@@ -1875,6 +2079,17 @@ async def run_call(
     # ⭐ 표현학습 진도를 state 에 싣는다 — 이 리스트가 비어 있지 않다는 것 자체가
     #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
     state.expr_items = expr_items
+    if expr_items:
+        # ⭐ 퀴즈 판정 사이드카 — **애매할 때만** 부른다(정확일치·완전불일치는 코드가 끊는다).
+        #   ⚠ 힌트 사이드카와 같은 모델(JUDGE_MODEL)·같은 usage 그릇을 쓴다 — 원가가 한
+        #     칸에 모여야 «표현학습이 얼마나 더 드는가» 를 나중에 잴 수 있다.
+        state.expr_ctx = {
+            "client": client,
+            "model": settings.JUDGE_MODEL,
+            "instruction": _quiz_instruction(
+                target_language, _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
+            ),
+        }
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
     state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
     if call_type != "level_test" and REGROUND_MODE != "off":
@@ -1995,7 +2210,14 @@ async def run_call(
     # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
     # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
     # 프롬프트가 그 언어 커리큘럼에 맞춰져 있지 않아 무의미(R5). 상세는 mechanics ⑬.
-    enable_hints = spec.has_curriculum
+    # ⛔ **표현학습·프리토킹에는 힌트가 없다**(D7 — 사장님: 화면 UI 자체를 없앤다).
+    #   ⚠ 여기서 끄는 것이 곧 «화면에 안 뜬다» 다 — 힌트는 서버가 push 해야만 보이므로
+    #     ctx 를 안 만들면 사이드카도, ServerHint 프레임도, hint_used 강등도 전부 사라진다
+    #     (`_spawn_hint_task` 가 ctx None 이면 즉시 되돌아간다).
+    #   ⭐ 표현학습에서 힌트가 해로운 이유: 이 코스의 퀴즈는 «배운 표현을 맞히기» 라
+    #     예시 답변을 띄우면 **정답을 그대로 보여주는 것**이 된다. 판정이 무의미해진다.
+    #   ⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함).
+    enable_hints = spec.has_curriculum and call_type not in ("expression", "freetalk")
     if enable_hints:
         label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
         state.hint_ctx = {
@@ -2083,8 +2305,37 @@ async def run_call(
         # 단계 3: 미완 재접지 브리프 사이드카 전량 취소(끝난 통화의 문구를 만들 이유가 없다).
         for t in list(state.reground_tasks):
             t.cancel()
+        # ⚠ 퀴즈 판정 사이드카도 같이 취소한다. **DB 커밋보다 먼저** 취소되는 것이 맞다 —
+        #   통화가 끝난 뒤 도착한 판정은 이번 통화 결과에 못 실리고(아래 커밋이 이미 지났다),
+        #   그 항목은 미판정으로 남아 다음 통화에 다시 나온다(안전한 방향).
+        for t in list(state.expr_tasks):
+            t.cancel()
         _flush_user_segment(state)
         _flush_beaver_segment(state)
+        # ⭐⭐ **표현학습 진도 커밋** — 이 통화가 어떻게 끝났든(정상 작별·끊김·백스톱·예외)
+        #   여기 한 곳에서 딱 한 번 쓴다. finally 인 이유는 위 뒤처리와 같다.
+        #   ⚠ 커밋이 실패해도 통화는 이미 끝났다 — 예외를 흡수하고 로그만 남긴다(R5).
+        #     잃는 것은 이번 조각의 진도뿐이고, 그 항목은 다음 통화에 다시 나온다.
+        if state.expr_items and call_id is not None:
+            try:
+                drilled = [
+                    int(i["item_id"]) for i in state.expr_items
+                    if i.get("item_id") is not None
+                    and str(i.get("obj") or "") in set(_covered_labels(state))
+                ]
+                stats = await svc.run_db(
+                    db_session_factory,
+                    lambda db: svc.save_expression_progress(
+                        db, member_id, call_id,
+                        drilled_ids=drilled, passed_ids=sorted(state.expr_quiz_pass),
+                    ),
+                )
+                logger.info(
+                    "normalcall 표현학습 진도 저장: 드릴 %d · 통과 %d (오답 %d — 이 통화 한정)",
+                    stats["drilled"], stats["passed"], len(state.expr_quiz_fail),
+                )
+            except Exception as exc:  # noqa: BLE001 - 진도 유실일 뿐 통화는 끝났다(R5)
+                logger.warning("normalcall 표현학습 진도 저장 실패(무시): %s", exc)
         # 원가 계기판(Phase 0): 어떤 경로로 끝나든(정상 작별·클라 끊김·백스톱·예외) 딱 한 번
         # 방출한다. 로그가 통화후 파이프라인을 막지 않게 예외는 전량 흡수(R5).
         with contextlib.suppress(Exception):
@@ -2147,6 +2398,21 @@ def _trigger_analysis(
     hinted_from_turn_index(D16)는 항목 검출이 있는 analyze_call 에만 의미가 있다
     (레벨테스트 판정은 증거 적립이 없어 미전달).
     """
+    # ⭐⭐ **표현학습·프리토킹은 항목 검출을 끄고 돌린다**(2026-09-10, bt-back 승인).
+    #   ⛔ 문장 추출·요약은 **반드시 돌려야 한다** — 안 그러면 결과 화면의 `sentences` 가
+    #     통째로 빈다(기획 §5). 그래서 analyze_call 을 안 부르는 게 아니라 **후보를 0으로**
+    #     둔다(analyze_call 은 후보 0이면 검출 지시문·필드 자체를 생략한다).
+    #   ⚠ 왜 꺼야 하나: 두 코스는 옛 증거 사슬(등급 E0~E3/F · 숙달 전이 · 승급 게이트)을
+    #     쓰지 않는다(D12 — 승급이 «퀴즈 통과» 로 갈아탔다). 켜 두면 쓸모없는 LLM 몫을
+    #     내고 **엉뚱한 증거**가 쌓인다(표현학습의 드릴 복창이 E1 로 적립된다).
+    #   ⚠ `hinted_from_turn_index` 도 같이 끈다 — 두 코스엔 힌트가 없다(D7).
+    #   ⛔⛔ **`None` 이 아니라 빈 리스트다.** `analyze_call` 에서 `candidates=None` 은
+    #     «안 준다» 가 아니라 «기본 후보(practicing 18 + introduced 12)를 대신 뽑아라» 다
+    #     (normalcall_service.py 의 `if candidates is not None:` 분기). None 으로 두면
+    #     끄려던 검출이 그대로 돈다 — 정확히 반대 결과다.
+    if call_type in ("expression", "freetalk"):
+        candidates = []
+        hinted_from_turn_index = None
     if call_type == "level_test" and member_id is not None:
         coro = svc.analyze_level_test_call(
             call_id, client, settings, db_session_factory,
@@ -3372,6 +3638,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
             # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
             _spawn_band_observe(state)
+            # ⭐ 표현학습 퀴즈 판정도 **flush 전에** 캡처한다(위와 같은 이유 —
+            #   `cur_user_text` 가 비워지기 전에 답변을 봐야 한다). 비활성이면 즉시 되돌아간다.
+            _judge_and_spawn_quiz(state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
@@ -4115,6 +4384,31 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
     """
     role, personality = state.reground_persona
+    # ⭐⭐ **표현학습은 자기 쪽지를 쓴다.** 일반 브리프는 «이미 다룬 것» 한 칸뿐인데,
+    #   이 코스는 진도가 세 갈래다 — 드릴한 것 / 맞힌 것 / **틀린 것**. 마지막 칸이
+    #   오답퀴즈의 재료라, 그 줄이 없으면 오답 재출제가 아예 안 나간다(기획 ⑥).
+    #   ⛔ 얹는 배관은 **그대로**다(arm → 마이크 프레임 + RMS 2관문). 문구만 갈아 끼운다 —
+    #     새 배관을 만들면 «비버가 혼자 두 번 말하거나 말하다 마는» 버그 방어를 처음부터
+    #     다시 지어야 한다.
+    if state.expr_items:
+        drilled = _covered_labels(state)
+        passed = _expr_labels(state, state.expr_quiz_pass)
+        failed = _expr_labels(state, state.expr_quiz_fail)
+        # ⭐ 다음에 다룰 것 = 아직 통과도 드릴도 안 된 가장 앞 항목(서버가 안다).
+        done = set(passed) | set(drilled)
+        nxt = next((str(i["obj"]) for i in state.expr_items
+                    if i.get("obj") and str(i["obj"]) not in done), None)
+        state.reground_reminder = build_expression_reground_brief(
+            role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
+        )
+        state.reground_pending = True
+        state.reground_arm_reason = reason
+        logger.info(
+            "normalcall 재접지 arm(표현학습, 근거=%s, %d/%d회, 드릴 %d · 통과 %d · 오답 %d)",
+            reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
+            len(drilled), len(passed), len(failed),
+        )
+        return
     # ⭐ covered 를 **여기서부터** 싣는다(2026-09-09). 예전엔 사이드카가 돌아와야 실렸는데,
     #   얹기 자리가 "마이크"라 학습자가 빨리 답하면 사이드카가 못 따라온다 — 통화 1360 의
     #   1회째는 arm→얹기가 **1.18초**였고 사이드카는 1.4초라 결과가 조용히 버려졌다
@@ -4328,6 +4622,15 @@ def _spawn_reground_sidecar(state: _CallState) -> None:
     """
     ctx = state.reground_ctx
     if ctx is None or state.should_close:
+        return
+    # ⛔ **표현학습은 이 사이드카를 안 쓴다.** 두 가지 이유가 있다:
+    #   ① 덮어쓴다 — 이 사이드카는 돌아오면 `build_reground_brief`(일반 판)로 쪽지를 다시
+    #     조립한다. 그러면 방금 arm 이 만든 **표현학습 쪽지(드릴·통과·오답)가 통째로 사라지고**
+    #     오답퀴즈 재료가 없어진다.
+    #   ② 줄 게 없다 — 이 사이드카가 채우는 슬롯은 mode(공부/대화)와 topic(대화 흐름)인데,
+    #     표현학습엔 모드 축이 없고(D1) 화제는 항목이 정한다. 진도는 서버가 이미 갖고 있다.
+    #   ⇒ 안 부르는 것이 옳고, 덤으로 통화당 LLM 호출이 최대 8회 준다.
+    if state.expr_items:
         return
     task = asyncio.create_task(_reground_sidecar(state), name="normalcall-reground-brief")
     state.reground_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소

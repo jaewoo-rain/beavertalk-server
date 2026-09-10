@@ -45,6 +45,7 @@ from domains.learning.service import call_service
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.level import Level
+from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository import mastery_repository
 from domains.learning.service import mastery_service
@@ -348,6 +349,65 @@ def load_expression_items(
         }
         for it in items
     ]
+
+
+def save_expression_progress(
+    db: Session,
+    member_id: int,
+    call_id: int,
+    *,
+    drilled_ids: list[int],
+    passed_ids: list[int],
+) -> dict:
+    """표현학습 진도를 기록한다 — **쓰기이므로 여기서 커밋한다**(R3).
+
+    ⭐ 이 함수가 «다음 통화에서 이어진다» 를 만드는 자리다. `member_item_progress` 는
+      회원×항목 1행이라, 여기 찍힌 timestamp 가 조각·날짜와 무관하게 그대로 남는다.
+
+    ⛔ **되돌리지 않는다(단조).** 이미 `quiz_passed_at` 이 있는 항목을 다시 안 쓴다 —
+      «통과» 는 취소되는 사건이 아니고(강등 없음, D12), 덮어쓰면 통과 시각이 매 통화
+      갱신돼 «언제 뗐나» 를 잃는다.
+    ⚠ 반대로 `drilled_at`/`drilled_call_id` 는 **매번 갱신한다** — 그건 «마지막으로 꺼낸
+      때» 이고 선별 정렬(미완을 앞으로)이 그걸 읽는다.
+
+    ⛔ 상태·점수·카운터(status/score/repeat_count…)는 **건드리지 않는다.** 표현학습은 그
+      사슬을 쓰지 않는다(D12) — 여기서 만지면 normal 통화의 숙달 판정과 섞인다.
+    ⚠ 행이 없으면 만든다(희소 테이블 — 행 부재 = 미학습). 이때 status 는 모델 기본값
+      'introduced' 가 들어간다: 표현학습은 그 값을 안 읽지만, 마이페이지 레벨 카드는
+      이 행의 존재를 세므로 «드릴했는데 행이 없는» 상태를 남기지 않는 편이 맞다.
+
+    Returns:
+        {"drilled": n, "passed": n} — 실제로 기록된 수(로그·시험용).
+    """
+    ids = {int(i) for i in drilled_ids} | {int(i) for i in passed_ids}
+    if not ids:
+        return {"drilled": 0, "passed": 0}
+    now = datetime.now(timezone.utc)
+    passed = {int(i) for i in passed_ids}
+
+    rows = {
+        r.item_id: r
+        for r in db.scalars(
+            select(MemberItemProgress).where(
+                MemberItemProgress.member_id == member_id,
+                MemberItemProgress.item_id.in_(list(ids)),
+            )
+        ).all()
+    }
+    n_drilled = n_passed = 0
+    for item_id in ids:
+        row = rows.get(item_id)
+        if row is None:
+            row = MemberItemProgress(member_id=member_id, item_id=item_id)
+            db.add(row)
+        row.drilled_at = now
+        row.drilled_call_id = call_id
+        n_drilled += 1
+        if item_id in passed and row.quiz_passed_at is None:
+            row.quiz_passed_at = now
+            n_passed += 1
+    db.commit()
+    return {"drilled": n_drilled, "passed": n_passed}
 
 
 def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dict:
@@ -682,9 +742,15 @@ def resume_call(
     if call.member_id != member_id:
         # ⛔ 남의 통화에 내 발화를 이어 붙이는 것을 막는다. 로그에 남긴다(탐지용).
         return None, "본인 통화 아님"
-    if (call.call_type or "normal") != "normal":
-        # 레벨테스트는 조각 개념이 없다(3분 하드캡은 측정 설계다).
-        return None, "일반 통화 아님"
+    # ⭐ 2026-09-10: 표현학습·프리토킹도 조각을 잇는다(15분 = 5분 소켓 3개).
+    #   ⛔ **레벨테스트는 계속 막는다** — 조각 개념이 없다(3분 하드캡은 상품 혜택이 아니라
+    #     측정 설계다). 그래서 화이트리스트로 쓴다: 새 콜타입이 생겼을 때 **기본이 «막힘»**
+    #     이어야 안전하다(블랙리스트로 쓰면 새 타입이 조용히 조각을 잇는다).
+    #   ⚠ 표현학습에서 조각이 이어져야 하는 이유는 normal 과 다르다 — 진도가 이어져야
+    #     비버가 «(통과) 표시가 없는 가장 앞 항목» 부터 다시 시작한다(기획 §2-7·D17).
+    #     여기서 막히면 조각2가 **새 통화**가 되고, 그러면 turn_index 도 진도도 갈린다.
+    if (call.call_type or "normal") not in ("normal", "expression", "freetalk"):
+        return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "normal")
 
     last = call.call_date
     if last is not None:

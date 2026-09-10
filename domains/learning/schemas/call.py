@@ -144,6 +144,24 @@ class CallResultUsedItem(BaseModel):
     quote: Optional[str] = None
 
 
+class CallResultQuizItem(BaseModel):
+    """표현학습 통화에서 다룬 표현 1건과 그 퀴즈 결과.
+
+    ⭐ 2026-09-10 신설. 표현학습에서는 `used_items` 칸이 **빈다** — 그 칸은
+      `item_evidence` 의 검증 통과분을 옮기는데, 이 코스는 그 사슬을 쓰지 않는다
+      (승급이 «퀴즈 통과» 로 갈아탔다, D12). 대신 퀴즈 결과를 보여준다.
+
+    ⚠ `passed=False` 가 «틀렸다» 와 같지 않다 — «아직 못 뗐다» 다. 드릴만 하고 퀴즈까지
+      못 간 항목도 여기 False 로 온다(그 항목은 다음 통화 앞으로 온다).
+    """
+
+    item_id: int
+    #: 항목 표면형(예: `안녕히 가세요`).
+    surface: str
+    #: 이 통화에서 퀴즈를 통과했나.
+    passed: bool
+
+
 class CallResult(BaseModel):
     """통화 종료 후 결과 화면 — 평균 점수 + 사용된 문장 전체."""
 
@@ -156,3 +174,6 @@ class CallResult(BaseModel):
     sentences: list[CallResultSentence]
     #: 이 통화에서 스스로 쓴 커리큘럼 항목. 없으면 빈 배열 — 화면이 칸을 안 그린다.
     used_items: list[CallResultUsedItem] = []
+    #: ⭐ 표현학습 퀴즈 결과(맞은 것·아직 못 뗀 것). 다른 콜타입에서는 **빈 배열**이다.
+    #: ⚠ `used_items` 와 **동시에 차지 않는다** — 두 칸은 서로 다른 코스의 것이다.
+    quiz_items: list[CallResultQuizItem] = []
