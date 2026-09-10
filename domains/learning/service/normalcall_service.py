@@ -339,6 +339,11 @@ def load_expression_items(
     items = mastery_repository.pick_expression_items(
         db, member_id, level_no, language=language, n=n
     )
+    # ⛔⛔ **표면형이 빈 항목은 여기서 뺀다.** 사이드카에 주는 목록과 돌아온 번호를 되짚는
+    #   목록이 **같은 리스트**여야 하기 때문이다. 한쪽만 «obj 있는 것» 으로 걸러 두면 번호가
+    #   한 칸씩 밀려 **엉뚱한 항목이 통과로 찍힌다** — 조용히 틀리는 종류다.
+    #   ⚠ `surface` 는 NOT NULL 이라 지금 데이터엔 없다. 그래도 «지금은 없다» 로 두지 않는다 —
+    #     한 곳에서 거르면 그 위험이 **구조적으로** 사라진다.
     return [
         {
             "item_id": it.item_id,
@@ -347,7 +352,52 @@ def load_expression_items(
             "ex": mastery_repository.first_example(it),
         }
         for it in items
+        if (it.surface or "").strip()
     ]
+
+
+def _merge_expression_snapshot(
+    existing_raw: str | None, incoming: list[dict]
+) -> list[dict]:
+    """조각 스냅샷을 **item_id 기준 합집합**으로 병합한다(`passed` 는 OR).
+
+    ## ⛔⛔ 왜 덮어쓰면 안 되나 — «하필 통과한 것만» 사라진다
+    이어하기는 **같은 call 행**을 계속 쓰고, 조각2 는 선별을 **다시 돈다**. 그 선별은
+    `quiz_passed_at IS NULL` 로 거르므로 **조각1 에서 통과한 항목이 조각2 목록에 없다.**
+    ⇒ 조각2 스냅샷으로 덮으면 조각1 의 통과분이 결과 화면에서 **통째로 증발한다.**
+      학습자가 이룬 것만 정확히 지워지는, 제일 나쁜 방향의 손실이다. 조각3까지 가면
+      조각1·2 가 다 날아간다.
+
+    ⚠ **이건 `drilled_call_id` 덮어쓰기와 같은 실수의 «조각 축» 재발이다.** 그때는 통화 축을
+      고쳤는데(나중 통화가 지난 결과를 지운다) 같은 모양이 조각 축에서 되살아났다.
+      ⇒ 회귀도 **두 축을 각각** 잠근다(통화 간 / 조각 간).
+
+    ⭐ `passed` 는 **OR** 다 — 한 번 통과했으면 통과다(강등 없음, D12).
+    ⚠ 표면형은 **뒤에 온 것**을 쓴다(커리큘럼이 고쳐졌으면 최신이 맞다). 없으면 옛것을 지킨다.
+    ⚠ 깨진 JSON 은 없는 셈 친다 — 화면용 파생값이라 조용히 새로 쓰는 편이 낫다(R5).
+    """
+    merged: dict[int, dict] = {}
+    try:
+        old_rows = json.loads(existing_raw) if existing_raw else []
+    except (ValueError, TypeError):
+        old_rows = []
+    for rows in (old_rows if isinstance(old_rows, list) else [], incoming):
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            try:
+                item_id = int(r.get("item_id") or 0)
+            except (TypeError, ValueError):
+                continue
+            if not item_id:
+                continue
+            prev = merged.get(item_id)
+            merged[item_id] = {
+                "item_id": item_id,
+                "surface": str(r.get("surface") or (prev or {}).get("surface") or ""),
+                "passed": bool(r.get("passed")) or bool((prev or {}).get("passed")),
+            }
+    return list(merged.values())
 
 
 def save_expression_progress(
@@ -431,7 +481,10 @@ def save_expression_progress(
         # ⚠ 실패해도 진도는 살려야 한다 — 스냅샷은 화면용 파생값이다(R5).
         call = db.get(Call, call_id)
         if call is not None:
-            call.expression_result = json.dumps(snapshot, ensure_ascii=False)
+            call.expression_result = json.dumps(
+                _merge_expression_snapshot(call.expression_result, snapshot),
+                ensure_ascii=False,
+            )
 
     # ⭐⭐ **표현학습 승급은 여기다**(D12 — 그 레벨 전체 퀴즈 통과).
     #   ⛔ 호출 지점을 옮기지 마라. 승급 판정은 «방금 쓴 quiz_passed_at» 을 읽어야 하므로

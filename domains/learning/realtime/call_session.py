@@ -250,10 +250,6 @@ REGROUND_MIN_GAP_S = 150.0
 # ⚠ 15분 통화(이어하기)에서 예비 5개가 모자란지는 **아직 안 쟀다**. 모자라면 여기만 올린다.
 PROMPT_RESERVE_MAX = 5
 REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + 여유). 폭주 방지 하드캡
-# 표현학습 퀴즈 판정 사이드카의 통화당 상한(폭주 방지).
-# ⚠ 15분 통화의 학습자 턴이 대략 40~60개인데, 그중 사이드카가 도는 것은 «통과도 복창도
-#   아닌 답» 뿐이다(대부분의 턴은 코드가 LLM 0 으로 끊는다). 24 면 정상 흐름을 안 자르고
-#   딴소리가 이어질 때만 걸린다. ⇒ 실통화로 실제 호출 수를 재고 조정한다.
 # 표현학습 진도 판정 사이드카의 통화당 상한(폭주 방지).
 # ⚠ 정상 흐름은 «재접지 arm 마다 1회 + 조각 끝 1회» 라 최대 9회다(arm 상한이 8).
 #   12 는 그 위의 여유이고, 넘으면 코드가 멈춘다 — 미판정은 «통과 안 함» 이라 안전한 방향이다.
@@ -274,7 +270,13 @@ EXPR_TRANSCRIPT_MAX_CHARS = 12000
 #   ⚠ 여기서 저장이 늦으면 **조각2 의 선별이 옛 DB 를 읽어 같은 항목을 또 가르친다** —
 #     우리가 고치려던 바로 그 증상이다. 최악 사례 간격이 3초였으므로:
 #         1.2초 상한 → 여유 1.8초   (2.0초였다면 여유 1.0초뿐)
-#     실측 이어하기 요약이 1.0~1.4초라 판정도 그 언저리다 ⇒ 정상 흐름은 상한 안에 든다.
+#   ⛔ **«요약과 비슷할 테니 상한 안에 든다» 로 읽지 마라 — 그 논리는 틀렸다.** 실측 요약이
+#     1.0~1.4초인데 상한이 1.2초라 **상단이 이미 상한을 넘는다.** 게다가 이 사이드카의 입력은
+#     요약보다 크다(전사 전량 최대 12,000자) ⇒ **더 느릴 것으로 봐야 한다.**
+#   ⇒ 1.2초의 근거는 «판정이 그 안에 끝난다» 가 **아니라** «조각2 경합에 남길 여유» 다.
+#     상한을 넘는 것은 **예상된 정상 동작**이고, 그때 잃는 것은 «마지막 구간 판정» 하나다
+#     (재드릴 1회 — 선별상 정상 경로). 반대로 상한을 늘리면 저장이 조각2 의 읽기보다 늦어
+#     **같은 항목을 또 가르치는 일이 늘어난다.** 그래서 짧은 쪽으로 튼다.
 #   ⚠ 최악 사례의 피해는 **데이터 오염이 아니라 재드릴 1회**다(재드릴은 선별상 정상 경로 —
 #     `save_expression_progress` 주석). 그래서 상한 + 회귀로 가고 진행한다.
 EXPR_FINAL_JUDGE_TIMEOUT_S = 1.2
@@ -1052,11 +1054,16 @@ def _note_covered_items(
         return  # ⛔ 일반 통화는 비버만 본다(9638a26 규율 그대로)
     if not text or not state.reground_items:
         return
+    # ⭐ 표현학습만 **정규화 대조**를 함께 쓴다 — 전사는 띄어쓰기·문장부호가 흔들려서
+    #   («이거 얼마예요?» ↔ «이거 얼마예요») 생짜 비교가 조용히 놓친다.
+    #   ⛔ `normal` 은 **생짜 비교 그대로** 다 — 여기서 정규화를 켜면 일반 통화의 covered
+    #     검출 폭이 넓어져 재접지 쪽지가 바뀐다(그 경로는 손대지 않는다).
+    norm_text = quiz_judge.normalize(text) if state.expr_items else ""
     for idx, label in enumerate(state.reground_items, start=1):
         label = (label or "").strip()
         if not label or idx in state.covered_nums:
             continue
-        if label in text:
+        if label in text or (norm_text and quiz_judge.normalize(label) in norm_text):
             state.covered_nums.append(idx)
 
 
@@ -2145,8 +2152,11 @@ async def run_call(
         state.expr_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
+            # ⛔ **필터하지 마라.** 돌아온 번호를 되짚는 목록(`state.expr_items`)과 **같은
+            #   리스트**여야 한다 — 한쪽만 거르면 번호가 밀려 엉뚱한 항목이 통과로 찍힌다.
+            #   빈 표면형은 선별(`load_expression_items`)이 이미 뺐다.
             "instruction": _expression_progress_instruction(
-                [str(it["obj"]) for it in expr_items if it.get("obj")], target_language,
+                [str(it["obj"]) for it in expr_items], target_language,
             ),
         }
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
@@ -2402,6 +2412,9 @@ async def run_call(
                 # ⭐ 결과 화면 스냅샷 — **이 통화의 사실**이라 통화 행에 적는다.
                 #   ⛔ 진도 행으로 되짚으면 나중 통화가 `drilled_call_id` 를 덮어써서
                 #     지난 결과가 조용히 사라진다(재드릴은 선별상 정상 경로다).
+                # ⛔ 대상은 **covered ∪ 통과분**이다. covered 만 보면, 사이드카가 어떤 항목을
+                #   `passed` 에만 넣고 `drilled` 에 안 넣었을 때 **DB 엔 통과가 찍히는데 화면엔
+                #   안 나온다**(지시문이 그 조합을 막지 않는다 — 실제로 일어날 수 있다).
                 snapshot = [
                     {
                         "item_id": int(i["item_id"]),
@@ -2409,7 +2422,11 @@ async def run_call(
                         "passed": int(i["item_id"]) in state.expr_quiz_pass,
                     }
                     for i in state.expr_items
-                    if i.get("item_id") is not None and str(i.get("obj") or "") in covered
+                    if i.get("item_id") is not None
+                    and (
+                        str(i.get("obj") or "") in covered
+                        or int(i["item_id"]) in state.expr_quiz_pass
+                    )
                 ]
                 stats = await svc.run_db(
                     db_session_factory,
@@ -4555,6 +4572,12 @@ async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> No
         _arm_reground(state, reason)
         # ⭐ 코스별로 다른 사이드카가 뜬다 — 표현학습은 «진도 세 갈래»(전사 판정), 일반은
         #   «맥락 슬롯»(mode·topic). 각 함수가 자기 게이트로 되돌아가므로 여기선 둘 다 부른다.
+        # ⛔⛔ **이 자리가 표현학습 «통화 중» 판정의 유일한 스폰 지점이다.**
+        #   `LIVE_REGROUND_MODE` 를 off·legacy_idle 로 내리면 이 루프가 안 돌거나 다른 가지로
+        #   빠져 **통화 중 진도 판정이 0회**가 되고, 판정이 조각 끝 1회로 줄어든다
+        #   (재접지 쪽지의 «맞힌/틀린» 칸도 통화 내내 빈다).
+        #   ⚠ 기본값이 on_user_turn 이라 운영은 안전하다 — 그래도 **끌 수 있는 스위치**이므로
+        #     끄기 전에 이 대가를 알아야 한다(같은 경고를 그 설정 옆에도 적어 뒀다).
         _spawn_expression_progress(state)
         _spawn_reground_sidecar(state)
 

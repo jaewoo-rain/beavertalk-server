@@ -509,3 +509,25 @@ def test_resume_seed_carries_the_language_guard_like_the_opening_seed() -> None:
     for seed in (seed_expression_opening("한국어"), seed_expression_resume("한국어")):
         assert "모국어로" in seed
         assert "그 언어를 따라가지 마라" in seed
+
+
+# --------------------------------------------------------------------------- #
+# ⛔⛔ P0-3 — 마지막 1~2개도 퀴즈를 받아야 레벨을 뗄 수 있다
+# --------------------------------------------------------------------------- #
+def test_the_tail_of_the_list_still_gets_a_quiz() -> None:
+    """⛔⛔ 이 한 줄이 없으면 **레벨을 영원히 못 뗀다.**
+
+    퀴즈가 `quiz_group` 단위라 목록 끝에서 묶음이 안 차면 퀴즈가 안 나온다 ⇒ 그 항목의
+    `quiz_passed_at` 이 영원히 NULL 이고, 승급(«그 레벨 전량 통과», D12)이 **구조적으로
+    성립 불가**가 된다. 실측: L1 청크 46 = 18+18+10 → 끝에 1개가 남는다.
+    ⚠ 문구는 지워도 다른 시험이 안 깨진다 — 그래서 여기서 따로 잠근다.
+    """
+    out = _expr()
+    assert "남은 것만으로" in out
+    assert "개수가 모자란다고 건너뛰지 마라" in out
+
+
+def test_the_tail_rule_uses_the_callers_quiz_group() -> None:
+    """⛔ 숫자를 대본에 손으로 박지 마라 — 선별 상수와 두 곳이 되면 안 된다(원칙 3)."""
+    assert "목록 끝에서 3개가 안 남았으면" in _expr(quiz_group=3)
+    assert "목록 끝에서 5개가 안 남았으면" in _expr(quiz_group=5)

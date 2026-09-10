@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-"""표현학습 런타임 회귀 — 퀴즈 판정 배선 · 진도 커밋 · 결과 화면 (외부 의존 0).
+"""표현학습 런타임 회귀 — 진도 판정 배선 · 진도 커밋 · 결과 화면 (외부 의존 0).
 
 무엇을 지키나:
-  ① ⛔⛔ **앵무새 관문** — 방금 비버가 말한 걸 따라 한 것은 퀴즈 통과가 **아니다**
-     (이게 없으면 «따라 말하기» 가 전부 통과가 되어 아무도 퀴즈를 안 풀고 레벨이 오른다)
-  ② 스스로 꺼낸 답은 통과다 · 애매한 답만 사이드카로 간다 · 완전 불일치는 LLM 0
-  ③ 사이드카 결과 반영 — 서버 목록 밖 번호는 버린다 · 오답은 오답퀴즈 재료가 된다
-  ④ 진도 커밋이 **단조**다(통과 시각을 덮어쓰지 않는다) · 드릴 시각은 매번 갱신
-  ⑤ 결과 화면 quiz_items — 이 통화에서 드릴한 것만, 다른 콜타입은 빈 배열
+  ① ⛔⛔ **문자열은 통과를 주지 않는다** — 판정은 전사를 읽는 사이드카가 한다
+     (앵무새 관문·포함 규칙은 **없다**. 그 길이 왜 막혔는지는 quiz_judge 독스트링)
+  ② 사이드카 결과는 **합집합**으로 얹힌다 · 서버 목록 밖 번호는 버린다 · 통과가 이긴다
+  ③ ⭐ 직전 비버 발화가 정답을 포함해도 **결과는 그대로 반영된다**(앵무새 필터 부활 차단)
+  ④ 조각 끝 순서 — 판정 → state → DB. 단 **쓰기를 LLM 에 걸지 않는다**(상한·예외 흡수)
+  ⑤ 진도 커밋이 **단조**다 · 결과 화면은 통화 축·**조각 축** 양쪽에서 안 지워진다
   ⑥ 이어하기 관문이 expression 을 통과시키고 level_test 는 계속 막는다
+  ⑦ 표현학습 승급(D12) — 전량 통과 시 +1, trigger_call 당 멱등
 """
 
 from __future__ import annotations
@@ -566,3 +567,101 @@ def test_promotion_is_idempotent_per_call(env) -> None:
 def test_an_empty_curriculum_is_never_complete(env) -> None:
     """⛔ 커리큘럼 미시드를 «다 뗐다» 로 읽으면 빈 레벨을 타고 끝까지 올라간다."""
     assert mastery_service.expression_level_complete(env["db"], env["member_id"], 9) is False
+
+
+# --------------------------------------------------------------------------- #
+# ⛔⛔ P1 — 조각 축: 결과 화면이 «마지막 조각만» 남으면 안 된다
+# --------------------------------------------------------------------------- #
+def test_a_later_fragment_never_erases_an_earlier_fragments_result(env) -> None:
+    """⛔⛔ **하필 «통과한 것» 만 사라지는 사고다.**
+
+    이어하기는 **같은 call 행**을 계속 쓰고, 조각2 는 선별을 **다시 돈다.** 그 선별이
+    `quiz_passed_at IS NULL` 로 거르므로 **조각1 에서 통과한 항목이 조각2 목록에 없다.**
+    ⇒ 조각2 스냅샷으로 덮으면 학습자가 이룬 것만 정확히 지워진다(조각3까지 가면 1·2 가 다).
+
+    ⚠ 이건 `drilled_call_id` 덮어쓰기(통화 축)와 **같은 실수의 조각 축 재발**이다 —
+      그래서 두 축을 **각각** 잠근다. 통화 축 시험 하나로는 이 사고가 안 잡혔다.
+    """
+    db, ids = env["db"], [i.item_id for i in env["items"]]
+    call_id = env["call_id"]
+    # 조각1 — 2개 드릴, 1개 통과
+    svc.save_expression_progress(
+        db, env["member_id"], call_id, drilled_ids=ids[:2], passed_ids=[ids[0]],
+        snapshot=[{"item_id": ids[0], "surface": BYE, "passed": True},
+                  {"item_id": ids[1], "surface": PRICE, "passed": False}],
+    )
+    # 조각2 — **같은 call_id**. 선별이 통과분(ids[0])을 뺐으므로 목록에 없다.
+    svc.save_expression_progress(
+        db, env["member_id"], call_id, drilled_ids=[ids[2]], passed_ids=[ids[2]],
+        snapshot=[{"item_id": ids[2], "surface": "학교에 가요", "passed": True}],
+    )
+    result = CallService(db).get_call_result(env["member_id"], call_id)
+    got = {q.surface: q.passed for q in result.quiz_items}
+    assert got == {BYE: True, PRICE: False, "학교에 가요": True}, got
+
+
+def test_a_pass_in_an_earlier_fragment_survives_a_later_false(env) -> None:
+    """⭐ `passed` 는 **OR** 다 — 한 번 통과했으면 통과다(강등 없음, D12)."""
+    db, iid = env["db"], env["items"][0].item_id
+    call_id = env["call_id"]
+    svc.save_expression_progress(
+        db, env["member_id"], call_id, drilled_ids=[iid], passed_ids=[iid],
+        snapshot=[{"item_id": iid, "surface": BYE, "passed": True}],
+    )
+    svc.save_expression_progress(
+        db, env["member_id"], call_id, drilled_ids=[iid], passed_ids=[],
+        snapshot=[{"item_id": iid, "surface": BYE, "passed": False}],
+    )
+    result = CallService(db).get_call_result(env["member_id"], call_id)
+    assert [(q.surface, q.passed) for q in result.quiz_items] == [(BYE, True)]
+
+
+def test_a_broken_old_snapshot_does_not_lose_the_new_one(env) -> None:
+    """⚠ 깨진 JSON 은 없는 셈 친다 — 화면용 파생값이라 조용히 새로 쓰는 편이 낫다(R5)."""
+    db, iid = env["db"], env["items"][0].item_id
+    env["call"].expression_result = "{깨진 json"
+    db.commit()
+    svc.save_expression_progress(
+        db, env["member_id"], env["call_id"], drilled_ids=[iid], passed_ids=[iid],
+        snapshot=[{"item_id": iid, "surface": BYE, "passed": True}],
+    )
+    result = CallService(db).get_call_result(env["member_id"], env["call_id"])
+    assert [(q.surface, q.passed) for q in result.quiz_items] == [(BYE, True)]
+
+
+def test_the_snapshot_carries_a_pass_even_if_it_was_never_marked_drilled() -> None:
+    """⛔ 스냅샷 대상은 **covered ∪ 통과분**이다.
+
+    사이드카가 어떤 항목을 `passed` 에만 넣고 `drilled` 에 안 넣을 수 있다(지시문이 그
+    조합을 막지 않는다). covered 만 보면 **DB 엔 통과가 찍히는데 화면엔 안 나온다.**
+    """
+    st = _state([(1, BYE)])
+    st.expr_quiz_pass.add(1)          # covered_nums 는 비어 있다
+    covered = set(cs._covered_labels(st))
+    snapshot = [
+        {"item_id": int(i["item_id"]), "surface": str(i.get("obj") or ""),
+         "passed": int(i["item_id"]) in st.expr_quiz_pass}
+        for i in st.expr_items
+        if i.get("item_id") is not None
+        and (str(i.get("obj") or "") in covered or int(i["item_id"]) in st.expr_quiz_pass)
+    ]
+    assert snapshot == [{"item_id": 1, "surface": BYE, "passed": True}]
+
+
+# --------------------------------------------------------------------------- #
+# ③ ⭐ 앵무새 필터의 «반대편» — 되살리면 이 시험이 깨진다
+# --------------------------------------------------------------------------- #
+def test_a_prior_beaver_turn_containing_the_answer_does_not_block_the_result() -> None:
+    """⛔⛔ **앵무새 필터를 `_apply_expression_progress` 에 되살리지 마라.**
+
+    옛 설계가 그 필터로 두 번 막혔다 — 1턴 창은 재시도에서 새고, **2턴 창은 정상 퀴즈를
+    막았다**(B1 이 드릴이면 B2 퀴즈 정답이 차단된다). 그래서 필터를 통째로 걷어내고
+    판정을 전사 읽는 LLM 에 맡겼다.
+    ⇒ 여기서 **직전 비버 발화에 정답이 들어 있어도** 사이드카가 통과라 하면 통과다.
+      «안전을 위해» 필터를 다시 넣으면 이 시험이 깨진다 — 그게 이 시험의 존재 이유다.
+    """
+    st = _state([(1, BYE)])
+    st.cur_beaver_text = [f'따라 해봐: "{BYE}"']
+    cs._flush_beaver_segment(st)                    # 직전 비버 발화에 정답이 있다
+    cs._apply_expression_progress(st, _FakeProgress(drilled=[1], passed=[1]))
+    assert st.expr_quiz_pass == {1}, "앵무새 필터가 되살아나 정상 통과를 막았다"

@@ -383,6 +383,13 @@ class Settings(BaseSettings):
     #     ⇒ 상관이 아니라 **대조**로 판정한다: 끄고도 interrupted 가 남으면 압축이 원인,
     #       사라지면 재접지가 원인이다.
     #   ⚠ 모드 뜻은 `domains/learning/realtime/call_session.REGROUND_MODE` 주석 참조.
+    #
+    # ⛔⛔ **이 스위치를 내리면 표현학습 진도 판정이 같이 줄어든다**(2026-09-10). 그 코스의
+    #   «통화 중» 판정 사이드카는 재접지 arm 루프 안에서만 뜬다
+    #   (`call_session._reground_watch` → `_spawn_expression_progress`).
+    #   off·legacy_idle 로 내리면 통화 중 판정이 **0회**가 되어 판정이 조각 끝 1회로 줄고,
+    #   재접지 쪽지의 «맞힌/틀린» 칸이 통화 내내 빈다(= 오답퀴즈 재료가 없다).
+    #   ⚠ 재접지만 끄려고 내렸다가 학습 진도가 조용히 나빠지는 것을 막으려고 적어 둔다.
     LIVE_REGROUND_MODE: str = "on_user_turn"
     # ⭐⭐ 재접지를 **어느 통로로** 보낼까. "client_content" | "realtime"
     #
