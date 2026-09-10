@@ -110,3 +110,62 @@ def test_the_module_pulls_in_nothing_but_the_standard_library() -> None:
     heavy = next(l for l in out.stdout.splitlines() if l.startswith("HEAVY="))
     assert heavy == "HEAVY=", "정규화 모듈이 무거운 의존을 끌어온다: " + heavy
     assert "NORM=가세요" in out.stdout
+
+
+# --------------------------------------------------------------------------- #
+# ⛔⛔ 대조(mentions) — 이 결함은 **세 번** 모양을 바꿔 돌아왔다
+# --------------------------------------------------------------------------- #
+# ① 통과(pass) 경로   정답 「물」에 "저는 물을 좋아해요" 가 통과 → 걷어냄
+# ② 대조(covered) 경로 같은 결함이 남아 있었다("어제 선물을…")     → 낱말 경계 도입
+# ③ 접두 결합어        `startswith` 만으로는 「개나리」가 통과했다   → 조사 꼬리 화이트리스트
+# ⇒ 세 번째를 막는 건 시험뿐이다. **이 표를 지우지 마라.**
+# ⚠ 규율: **미검출은 안전하고 오검출은 아니다** — 못 잡으면 한 번 더 가르치면 되지만,
+#   잘못 잡으면 그 항목이 «완료» 로 처리돼 **가르칠 기회가 영영 사라진다.**
+@pytest.mark.parametrize(
+    "text,label,expected",
+    [
+        # ── 잡아야 한다: 정확 일치 + 조사가 붙은 꼴 ──
+        ("물 주세요", "물", True),
+        ("물을 마셔요", "물", True),
+        ("물이 차가워요", "물", True),
+        ("사과 한 개 주세요", "개", True),
+        ("가방을 들다", "들다", True),          # 원형 그대로
+        ("안녕히 가세요 조심히 들어가세요", "안녕히 가세요", True),   # 여러 어절
+        # ── 잡으면 안 된다: 뒤에 붙은 결합어 ──
+        ("어제 선물을 받았어요", "물", False),
+        ("함박눈이 와요", "눈", False),
+        # ── 잡으면 안 된다: **앞에 붙은** 결합어(③에서 새던 자리) ──
+        ("개나리가 피었어요", "개", False),
+        ("눈물이 났어요", "눈", False),
+        ("물건을 샀어요", "물", False),
+        ("말씀 감사합니다", "말", False),
+    ],
+)
+def test_mentions_requires_a_word_boundary(text: str, label: str, expected: bool) -> None:
+    assert qj.mentions(text, label) is expected
+
+
+def test_a_conjugated_verb_is_a_miss_not_a_false_hit() -> None:
+    """⚠ 활용은 어미를 **갈아치우므로** 여기서 안 잡힌다 — 그건 미검출이고 안전하다.
+
+    ⛔ 활용형까지 잡으려 들지 마라(어간 추출). 그 욕심이 정확히 오검출을 부른다 —
+      「들다」를 어간 「들」로 줄이는 순간 「들판」·「들것」이 딸려 온다.
+    """
+    assert qj.mentions("가방을 들었어요", "들다") is False
+
+
+def test_the_particle_list_stays_small() -> None:
+    """⛔ 이 목록이 길어질수록 접두 결합어가 다시 새어 들어온다.
+
+    ⚠ 활용 어미(-었어요·-습니다…)는 **일부러 없다** — 넣으면 어간 추출이 되고, 그건 이
+      모듈이 안 하기로 한 일이다.
+    """
+    assert "" in qj._PARTICLES                       # 정확 일치
+    for banned in ("었어요", "습니다", "나리", "물", "씀"):
+        assert banned not in qj._PARTICLES, f"오검출을 부르는 꼬리: {banned}"
+
+
+def test_mentions_is_safe_on_empty_input() -> None:
+    for empty in ("", "   ", None):
+        assert qj.mentions(empty, "물") is False
+        assert qj.mentions("물 주세요", empty) is False
