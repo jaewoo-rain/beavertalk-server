@@ -165,6 +165,9 @@ class CallResultQuizItem(BaseModel):
     #: 이 통화의 퀴즈에서 **틀렸나**(공개를 받았다). passed 면 항상 False(단조). 옛 스냅샷엔 없다 → False (T19).
     #: ⭐ 화면이 «퀴즈에서 틀림» 과 «아직 퀴즈 안 봄»(passed=False·failed=False) 을 가르는 유일한 칸이다.
     failed: bool = False
+    #: 이 통화에서 **복습으로 끼운 항목**인가(커리큘럼 2단계 cur_call.items 의 review). 옛 경로·옛 스냅샷은 항상 False.
+    #: 하네스가 «이번 차시 항목 / 복습 항목» 을 가른다(계획 §8). 앱은 무시해도 된다.
+    review: bool = False
 
 
 class CallResult(BaseModel):

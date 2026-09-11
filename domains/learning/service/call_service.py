@@ -23,6 +23,7 @@ from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.sentence import Sentence
 from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
+from domains.learning.repository import curriculum_repository as cur_repo
 from domains.learning.schemas.call import (
     CallCharacterBrief,
     CallCreate,
@@ -453,8 +454,16 @@ class CallService:
           적어 둔다(`summary`·`resume_context` 와 같은 성질 — 통화의 사실이다).
         ⚠ 옛 통화·크래시로 스냅샷이 없으면 빈 배열이다(R5 — 화면이 칸을 안 그린다).
           ⛔ 진도 행 폴백을 넣지 마라. 위 이유로 **틀린 값**을 보여주게 된다.
+        ⭐ 커리큘럼 2단계(2026-09-12, 계획 §8): cur 경로 통화는 스냅샷을 `cur_call.items` 에 적는다(같은 키 + role·drilled·review).
+          그 행이 있으면 **그것을 먼저** 읽고, 없으면(옛 통화) `call.expression_result` 로 간다. 두 곳을 합치지 않는다 — 한 통화는
+          한 경로로만 저장되기 때문(call_session state.cur_route).
         """
-        raw = call.expression_result
+        raw = None
+        cur_row = cur_repo.cur_call(self.db, call.call_id)
+        if cur_row is not None and cur_row.items:
+            raw = cur_row.items
+        else:
+            raw = call.expression_result
         if not raw:
             return []
         try:
@@ -473,6 +482,7 @@ class CallService:
                 meaning=(str(r["meaning"]) if r.get("meaning") else None),
                 passed=passed,
                 failed=(bool(r.get("failed")) and not passed),   # 단조 — 통과면 틀림이 아니다
+                review=bool(r.get("review")),                    # cur 경로만 값이 있다(옛 스냅샷 → False)
             ))
         return out
 

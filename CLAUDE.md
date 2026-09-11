@@ -85,7 +85,7 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
   - ⚠ `.env` = **운영** / `.env.local` = 로컬 dev — **이름과 반대다.** `core/config.py` 가 `('.env', '.env.local')` 순으로 읽어 **뒤가 이긴다**. `.env` 만 읽는 스크립트·도구는 실서비스에 붙는다.
 - **배포**: `scripts/deploy_demo.sh [태그]` — `builds submit --tag`(멀티매니페스트 회피) → 그 이미지로 deploy → 헬스체크. `--source` 직접 배포는 "Container import failed" 로 실패.
 - **`.gcloudignore` 는 `.dockerignore` 와 별개 유지**(gitignore 변경이 빌드 업로드를 오염시키지 않게). `.gitignore` 에 `scripts/` 넣지 말 것.
-- **dev 도구**: `scripts/dev_levelup_seed.py <이메일>`(승급 직전 시딩), `scripts/dev_inspect_call.py <call_id>`(전사·문장·증거·레벨 덤프), `POST /__dev/level-reset`(레벨 백지화).
+- **dev 도구**: `scripts/dev_levelup_seed.py <이메일>`(승급 직전 시딩), `scripts/dev_inspect_call.py <call_id>`(전사·문장·증거·레벨 덤프), `POST /__dev/level-reset`(레벨 백지화), `POST /__dev/cur-reset {member_id?, lesson_no?}`(커리큘럼 2단계 cur_* 백지화·포인터 이동, admin).
 
 ## 팀 / 오케스트레이션
 CEO 스킬 `.claude/skills/beavertalk-dev/`. 전문 에이전트는 `.claude/agents/`. 새 반복 역할은 일회성 프롬프트가 아니라 에이전트/스킬로 **영속화**한다.

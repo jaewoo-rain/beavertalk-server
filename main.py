@@ -18,7 +18,7 @@ import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -455,6 +455,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "deleted": {
                     "evidence": ev, "progress": pg, "history": hi, "language_level": ml,
                 },
+            }
+
+        @app.post("/__dev/cur-reset", include_in_schema=False)
+        def dev_cur_reset(member: CurrentAdmin, db: DbSession, body: dict | None = None) -> dict:
+            """[dev] 커리큘럼 2단계(cur_*) 상태 백지화 — 재테스트용. `/__dev/level-reset` 과 같은 관례(ENV 게이트 + CurrentAdmin).
+
+            body: {"member_id": 123, "lesson_no": 1}  — 둘 다 선택. member_id 없으면 **호출한 본인**, lesson_no 없으면 1.
+            그 회원의 cur_member_item / cur_member_lesson / cur_call 을 지우고 포인터(cur_member_progress)를 lesson_no 로 둔다.
+            call 행(통화 이력)은 보존한다(level-reset 과 같은 이유 — 감사 기록). 옛 체크판(level-reset 몫)은 건드리지 않는다.
+            ⛔ CurrentAdmin 으로 막는다 — 실서비스 ENV 가 "test" 라 이 블록이 실서비스에도 뜬다(아래 구독 도구와 같은 이유).
+            """
+            from domains.learning.service import curriculum_service as cur_svc
+
+            body = body or {}
+            target_id = int(body.get("member_id") or member.member_id)
+            try:
+                r = cur_svc.reset(db, target_id, body.get("lesson_no"))
+            except ValueError as exc:
+                raise HTTPException(status_code=404, detail=str(exc))
+            return {
+                "member_id": r["member_id"],
+                "lesson": {"no": r["lesson_no"], "code": r["lesson_code"]},
+                "deleted_calls": r["deleted_calls"],
             }
 
         @app.post("/__dev/subscription-state", include_in_schema=False)
