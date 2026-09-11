@@ -145,15 +145,31 @@ def test_the_sidecar_reads_the_whole_transcript_not_one_turn() -> None:
     assert "선생님: 잘했어!" in out and "학습자: 감사합니다" in out
 
 
-def test_a_long_transcript_is_cut_from_the_front() -> None:
-    """⚠ 앞을 자른다 — 뒤(최근)가 판정에 필요하고, 앞 구간은 이전 판정이 이미 담았다."""
+def test_a_long_transcript_is_cut_from_the_front_and_says_so() -> None:
+    """⚠ 앞을 자른다 — 뒤(최근)가 판정에 필요하다. **그러나 잘린 머리는 아무도 안 본 것이다.**
+
+    ⛔ 옛 시험은 «앞 절단 = 정답» 만 잠갔다 — 그게 결함을 허용했다(T14 반려 P2-A, codex): 사이드카가
+      앞을 잘라 놓고도 커서를 끝까지 밀어 잘린 세그먼트가 **영구히 미판정**이 됐다. 이제 창 함수가
+      «어디부터 담았나·잘랐나» 를 함께 돌려주고, 호출부는 잘렸으면 커서를 안 움직인다(아래 t14 시험).
+    """
     st = _state([(1, BYE)])
     st.segments = [
-        {"turn_index": i, "role": "user", "text": "가" * 500} for i in range(60)
+        {"turn_index": i, "role": "user", "text": f"[{i:02d}]" + "가" * 496} for i in range(60)
     ] + [{"turn_index": 99, "role": "user", "text": "마지막말"}]
-    out = cs._expression_transcript(st)
+    out, first_seen, cut = cs._expression_transcript_window(st)
     assert len(out) <= cs.EXPR_TRANSCRIPT_MAX_CHARS
     assert out.endswith("마지막말")
+    assert cut is True and first_seen > 0, "머리를 잘랐으면 그렇다고 말해야 커서가 거짓이 안 된다"
+    assert f"[{first_seen:02d}]" in out and f"[{first_seen - 1:02d}]" not in out
+    assert out.startswith("학습자: [%02d]" % first_seen), "세그먼트 단위로 잘라야 첫 줄이 온전하다"
+    assert cs._expression_transcript(st) == out          # 본문만 쓰는 호환 함수는 같은 글자다
+
+
+def test_a_short_transcript_is_not_cut() -> None:
+    st = _state([(1, BYE)])
+    st.segments = [{"turn_index": 0, "role": "user", "text": "짧다"}]
+    out, first_seen, cut = cs._expression_transcript_window(st)
+    assert out == "학습자: 짧다" and first_seen == 0 and cut is False
 
 
 def test_the_sidecar_is_capped_per_call() -> None:

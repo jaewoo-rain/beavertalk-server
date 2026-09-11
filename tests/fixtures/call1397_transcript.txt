@@ -24,7 +24,8 @@
 34:57 BEAVER: That's it! Now last one: how do you say "I'm from America"?
 35:09 👤 USER[t24]: 나는 미국 사람.
 35:09 BEAVER: Good! Just add '이에요' at the end. Say '저는 미국 사람이에요'. Can you try that?
-35:23 BEAVER: When you need help, you can say "Please help me." In Korean, that's '도와주세요'. Can you repeat that?
+35:22 👤 USER[t26]: 저는 미국 사람이에요.
+35:22 BEAVER: Awesome, you nailed it! Okay, new phrase. When you need help, you can say "Please help me." In Korean, that's '도와주세요'. Can you repeat that?
 35:39 👤 USER[t28]: 도도와 도도
 35:39 BEAVER: Good try, but not quite! It's '도와주세요'. Listen again and try to copy me exactly. '도와주세요'. Can you say that?
 35:54 👤 USER[t30]: 도와주세요.

@@ -49,7 +49,7 @@ import logging
 import re
 import time
 import uuid
-from typing import NamedTuple, AsyncContextManager, Callable, Optional
+from typing import Iterable, NamedTuple, AsyncContextManager, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 from google import genai
@@ -398,35 +398,48 @@ _CONTROL_TAG_RE = re.compile(r"\[[^\]]{0,40}\]")
 #   영어로 옮겨 "How do you say 'I'm from [Country]'?" 라고 말했는데, 위 정규식이 그걸 제어
 #   태그 누출로 잡아 **정상 문장을 자르고 복구 시드를 넣었다**(33:37). [Name]·[Place] 도 같다.
 #
-#   기준: 대괄호 안이 **영문 대문자로 시작하는 한 단어**([A-Z][A-Za-z]*)면 누출이 아니다.
-#   ⛔ 진짜 누출은 계속 잡혀야 한다 — «[공부 모드]»(한글) · «[시스템]»(한글) · «[통화종료:ab12]»
-#     (콜론·숫자) · «[Quiz Time]»(두 단어)는 이 패턴에 안 맞아 그대로 걸린다.
-#   ⚠ 왜 «한 단어 대문자 시작» 인가: 우리 제어 태그는 전부 한글이거나 콜론·숫자를 품는다.
-#     자리표시는 영어 명사 하나다. 두 집합이 겹치는 자리가 없다.
-_PLACEHOLDER_TAG_RE = re.compile(r"^\[[A-Z][A-Za-z]*\]$")
+#   기준은 **위치**다(T14 반려 P2-2, fable QA). 어휘 화이트리스트도, «대문자 한 단어» 모양만도 아니다:
+#     · 발명 태그는 발화 **맨 앞**에 온다 — call 870 «[마무리] 네. 수고하셨어요» ×8. 표현학습은 비버가
+#       영어로 말하니 같은 발명이 «[Closing] Bye!» «[Note] …» 꼴로 나온다 — 모양만 보면 자리표시와
+#       정확히 겹쳐 **빠진다.** 위치로 가른다: 맨 앞 대괄호는 무조건 누출이다.
+#     · 자리표시는 문장 **안**에 온다 — «I'm from [Country]». 안쪽이 영문 낱말(공백·아포스트로피
+#       허용)이면 자리표시로 보고 남긴다. 어휘를 미리 다 알 필요가 없다.
+#     · 한글·콜론·숫자를 품은 대괄호(«[공부 모드]» «[시스템]» «[통화종료:ab12]»)는 **어디에 있어도**
+#       누출이다 — 우리 제어 태그는 전부 이 꼴이고, 비버는 그걸 따옴표째 인용하며 읽는다
+#       (실측 '"[시스템]" 종료' — 위 «맨 앞으로 앵커하지 마라» 지뢰가 그 얘기다). 그래서 «맨 앞»
+#       판정은 따옴표·공백을 건너뛰고 본다: '"[Closing]" Bye' 도 맨 앞이다.
+_PLACEHOLDER_TAG_RE = re.compile(r"^\[[A-Za-z][A-Za-z' ]*\]$")
+_LEADING_JUNK_RE = re.compile(r"""^[\s"“”'‘’(]*""")
 
 
 def _is_placeholder_tag(tag: str) -> bool:
-    """`[Country]`·`[Name]` 처럼 커리큘럼 자리표시를 영어로 옮긴 것인가(누출이 아니다)."""
+    """`[Country]`·`[Your Name]` 처럼 **영문 낱말만** 든 대괄호인가(모양 검사 — 위치는 안 본다)."""
     return bool(_PLACEHOLDER_TAG_RE.match(tag))
 
 
+def _is_control_tag_leak(text: str, m: "re.Match[str]") -> bool:
+    """이 대괄호가 누출인가 — 모양이 영문 자리표시여도 **발화 맨 앞이면 누출**(발명 태그)."""
+    if not _is_placeholder_tag(m.group(0)):
+        return True
+    return m.start() == _LEADING_JUNK_RE.match(text).end()
+
+
 def _find_control_tag_leak(text: str) -> "re.Match[str] | None":
-    """제어 태그 누출을 찾는다 — **자리표시는 건너뛴다.**
+    """제어 태그 누출을 찾는다 — **문장 안의 자리표시는 건너뛴다.**
 
     ⚠ `_CONTROL_TAG_RE.search` 를 직접 쓰지 마라. 그러면 첫 대괄호가 자리표시일 때 거기서
       멈춰 뒤에 있는 진짜 누출을 놓치거나, 반대로 자리표시를 누출로 잡는다. 전부 훑는다.
     """
     for m in _CONTROL_TAG_RE.finditer(text):
-        if not _is_placeholder_tag(m.group(0)):
+        if _is_control_tag_leak(text, m):
             return m
     return None
 
 
 def _scrub_control_tags(text: str) -> str:
-    """저장본에서 제어 태그를 걷어낸다 — **자리표시는 남긴다**(그건 비버의 정상 대사다)."""
+    """저장본에서 제어 태그를 걷어낸다 — **문장 안의 자리표시는 남긴다**(그건 비버의 정상 대사다)."""
     return _CONTROL_TAG_RE.sub(
-        lambda m: m.group(0) if _is_placeholder_tag(m.group(0)) else "", text
+        lambda m: "" if _is_control_tag_leak(text, m) else m.group(0), text
     )
 
 # ⭐⭐ **비버가 tool 호출을 「글자로」 뱉는 것**을 걷어낸다(2026-09-01 실측).
@@ -713,8 +726,10 @@ class _CallState:
         # expr_sidecar_calls: 이 통화의 진도 판정 사이드카 호출 수(상한 방어).
         # expr_judged_upto: 통화 중 판정에 **이미 넘긴** 세그먼트 수(마지막 판정 입력 축소의 커서).
         # expr_phase: 사이드카가 본 마지막 구간("drill"|"quiz"|"") — 절단 시 머리에 보존·계측용.
+        # expr_phase_upto: 그 phase 를 낸 판정이 **어디까지 봤나**(세그먼트 수) — 늦게 도착한 옛 판정이
+        #   새 phase 를 되돌리지 못하게 세대를 묶는다(T14 반려 P2-B).
         "expr_items", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
-        "expr_sidecar_calls", "expr_judged_upto", "expr_phase",
+        "expr_sidecar_calls", "expr_judged_upto", "expr_phase", "expr_phase_upto",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -883,6 +898,7 @@ class _CallState:
         self.expr_sidecar_calls: int = 0
         self.expr_judged_upto: int = 0
         self.expr_phase: str = ""
+        self.expr_phase_upto: int = 0
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1147,9 +1163,28 @@ class ExpressionProgressOut(BaseModel):
 
 
 def _expression_progress_instruction(
-    items: list[dict], target_language: str, locale_label: str,
+    items: list[dict], target_language: str, locale_label: str, *,
+    covered_nums: "Iterable[int]" = (), passed_ids: "Iterable[int]" = (),
+    failed_ids: "Iterable[int]" = (),
 ) -> str:
     """진도 판정 사이드카 지시문(순수 문자열 조립 — LLM 생성 0). **T14 확정본**(2026-09-11).
+
+    ⭐⭐ **목록에 서버가 아는 사실을 붙인다**(T14 반려 P1, 2026-09-11 fable QA) — 그래서 이
+      지시문은 통화 시작에 한 번 만들어 두는 게 아니라 **판정마다 다시 조립한다**(순수 문자열,
+      비용 0). 이유:
+        마지막 판정 입력 = 직전 판정 이후 구간만(C1)
+        판정기 규칙        «알림 뒤라도 처음 나오는 항목은 드릴» · «퀴즈 시작 전에 drilled 였던 항목만 passed»
+      ⇒ 잘린 전사엔 앞서 드릴한 흔적이 없다 ⇒ 그 구간에 처음 나온 항목을 판정기가 **드릴로**
+        읽는다 ⇒ 드릴 정답은 passed 가 아니다 ⇒ **조각 마지막 퀴즈의 통과가 구조적으로 사라진다.**
+      재현: arm 이 항목 4~6 드릴 **직후**에 서고 → 판정 → 커서 이동 → 퀴즈2(4·5·6) → 통화 끝.
+      마지막 입력엔 퀴즈2 만 있다 → 4·5·6 «처음 나옴» → 드릴 → 통과 0. 1397 은 arm(35:23)이 드릴
+      4~6 **앞**에 서서 우연히 안 걸렸다. arm 주기(≥150초)와 퀴즈 주기(3항목≈90~120초)가 어긋나는
+      통화에서 반드시 난다. ⚠ C2 머리(«현재 구간: 퀴즈»)는 이걸 못 막는다 — 구간을 알려줘도
+      «처음 나오는 항목은 드릴» 이 이긴다.
+      ⇒ 항목 옆에 `(이미 드릴함 · 통과|오답)` 을 붙이고, 지시문에 «이 표시는 서버가 확인한 사실»
+        한 줄을 둔다. 관통 원칙 그대로다 — **서버가 원본, 판정기는 그 위에서 읽는다.**
+      ⛔ 축소 여부와 무관하게 **항상** 붙인다 — 통화중 판정도 잘린 전사(12k tail)를 받을 수 있다.
+      ⛔ 축소를 버리고 상한을 올리는 길은 안 간다 — 조각2 경합으로 문제가 옮겨갈 뿐이다.
 
     ## 왜 다시 썼나 — 첫 실통화(1397, 316초)에서 판정이 네 겹으로 틀렸다
         ① 앵무새를 통과로 셈(«따라 말한 것은 포함하지 마라» 한 줄을 무시)
@@ -1168,15 +1203,41 @@ def _expression_progress_instruction(
     ⚠ 영어 예시(quiz time / let's review)는 **여기엔** 있어도 된다 — 출력이 번호뿐이라
       리터럴이 대사로 새지 않는다. 비버 대본(core/prompts)에는 여전히 금지다.
     """
+    covered = set(covered_nums)                     # 번호(1-based) — covered_nums 규율
+    passed = {int(x) for x in passed_ids}           # item_id
+    failed = {int(x) for x in failed_ids}           # item_id
     rows = []
+    any_mark = False
     for i, it in enumerate(items, 1):
         row = f"{i}. {it.get('obj')}"
         if it.get("des"):
             row += f" — 뜻: {it['des']}"
         if it.get("ex"):
             row += ' — 예문: "%s"' % it["ex"]
+        # ⭐ 서버가 확인한 사실 — 표시가 없으면 «아직 안 다룸». passed 가 이긴다(강등 없음).
+        iid = it.get("item_id")
+        iid = int(iid) if iid is not None else None
+        marks: list[str] = []
+        if i in covered or (iid is not None and (iid in passed or iid in failed)):
+            marks.append("이미 드릴함")
+        if iid is not None and iid in passed:
+            marks.append("통과")
+        elif iid is not None and iid in failed:
+            marks.append("오답")
+        if marks:
+            row += "  (" + " · ".join(marks) + ")"
+            any_mark = True
         rows.append(row)
     listing = chr(10).join(rows) or "(없음)"
+    server_fact = (
+        "  ⚠ 항목 옆의 **(이미 드릴함)** 표시는 서버가 확인한 사실이다. 이 표시가 있는 항목은 이번 전사에 "
+        "처음 나와도 드릴이 아니라 **이미 배운 것을 다시 묻는 것**이다 — 퀴즈 구간이면 passed·failed 를 "
+        "판정해라. (통과)·(오답)은 지금까지의 결과다 — 이번 구간의 새 회차만 판정하고, (통과)를 failed 로 "
+        "되돌리지 마라."
+    ) if any_mark else (
+        "  ⚠ 항목 옆에 **(이미 드릴함)** 표시가 붙어 오면 그건 서버가 확인한 사실이다 — 그 항목은 이번 전사에 "
+        "처음 나와도 드릴이 아니라 이미 배운 것을 다시 묻는 것이다. 지금은 표시가 없다 = 아직 아무 항목도 안 다뤘다."
+    )
     L = locale_label
     return chr(10).join([
         f"너는 {target_language} 표현학습 통화의 진도 판정기다. 아래 대화 전사를 읽고 항목을 "
@@ -1195,7 +1256,8 @@ def _expression_progress_instruction(
         "    ② 퀴즈 종료를 알리거나, 아직 안 가르친 새 표현을 소개하면 퀴즈가 끝난다.",
         "    ③ 알림이 없어도 **이미 드릴한 여러 항목을 한 묶음 뒤에 차례로 다시 묻는 구조가 명백**하면 퀴즈다.",
         "       ⚠ 같은 항목을 가르치던 중의 «다시 해봐» 는 드릴 재시도다 — 퀴즈가 아니다.",
-        "       ⚠ 알림 뒤라도 **처음 나오는 항목**은 드릴이다.",
+        "       ⚠ 알림 뒤라도 **처음 나오는 항목**은 드릴이다 — 단, 목록에 (이미 드릴함) 표시가 있으면 예외다.",
+        server_fact,
         "    ④ 그래도 모호하면 **그 항목만** passed·failed 를 비워라. 다른 항목의 판정은 그대로 해라.",
         "  · 틀린 것을 따로 다시 내는 «오답 재출제» 도 퀴즈다.",
         "",
@@ -1272,8 +1334,36 @@ def _apply_expression_progress(state: _CallState, result: object) -> None:
             state.expr_quiz_fail.add(item_id)
 
 
+def _expression_judge_instruction(state: _CallState) -> str:
+    """판정마다 **현재 진도로** 지시문을 조립한다(T14 반려 P1) — 목록에 서버 사실이 붙는다.
+
+    ⛔ `expr_ctx["instruction"]` 같은 고정 문자열로 되돌리지 마라 — 잘린 전사에서 앞서 드릴한
+      항목이 «처음 나오는 항목=드릴» 로 읽혀 마지막 퀴즈의 통과가 사라진다(함수 docstring).
+    """
+    ctx = state.expr_ctx or {}
+    return _expression_progress_instruction(
+        state.expr_items,
+        ctx.get("target_language") or "한국어",
+        ctx.get("locale_label") or "학습자의 모국어",
+        covered_nums=state.covered_nums,
+        passed_ids=state.expr_quiz_pass,
+        failed_ids=state.expr_quiz_fail,
+    )
+
+
 def _expression_transcript(state: _CallState, *, since: int = 0) -> str:
-    """이 조각의 전사(역할 표시). ⛔ Gemini 컨텍스트 압축과 **무관하다** — 서버가 갖고 있다.
+    """`_expression_transcript_window` 의 본문만(시험·호환용). 커서를 움직일 쪽은 창 함수를 써라."""
+    return _expression_transcript_window(state, since=since)[0]
+
+
+def _expression_transcript_window(state: _CallState, *, since: int = 0) -> tuple[str, int, bool]:
+    """이 조각의 전사(역할 표시)와 **실제로 담은 범위**. ⛔ Gemini 컨텍스트 압축과 **무관하다** — 서버가 갖고 있다.
+
+    Returns:
+        (본문, 실제로 담은 첫 세그먼트 인덱스, 머리를 잘랐는가).
+        ⛔ 호출부는 «잘랐는가» 를 보고 커서를 정한다(T14 반려 P2-A, codex). 옛 코드는 앞을 잘라 놓고도
+          커서를 `len(segments)` 까지 밀어 **잘린 세그먼트가 영구히 미판정**이 됐다(30×500자 → 앞 sentinel
+          미포함인데 cursor=30/30). 안 본 머리 위로 커서를 넘기지 마라.
 
     Args:
         since: 이 세그먼트 번호부터 담는다(T14-C1). 마지막 판정은 **직전 통화중 판정 이후
@@ -1288,28 +1378,40 @@ def _expression_transcript(state: _CallState, *, since: int = 0) -> str:
       마지막 구간(`state.expr_phase`)을 입력 **머리에 한 줄**로 남긴다.
     ⚠ 아직 flush 안 된 현재 버퍼도 담는다 — 조각 끝 판정이 **꼬리를 놓치면 안 된다**.
     """
-    lines: list[str] = []
-    for seg in state.segments[since:]:
+    since = max(0, since)
+    # (세그먼트 인덱스, 줄) — 인덱스는 «어디까지 봤나» 를 세그먼트 단위로 되짚기 위해서다.
+    rows: list[tuple[int, str]] = []
+    for idx in range(since, len(state.segments)):
+        seg = state.segments[idx]
         text = (seg.get("text") or "").strip()
         if text:
-            lines.append(("선생님: " if seg.get("role") == "beaver" else "학습자: ") + text)
+            rows.append((idx, ("선생님: " if seg.get("role") == "beaver" else "학습자: ") + text))
+    tail: list[str] = []
     tail_beaver = "".join(state.cur_beaver_text).strip()
     tail_user = "".join(state.cur_user_text).strip()
     if tail_beaver:
-        lines.append("선생님: " + tail_beaver)
+        tail.append("선생님: " + tail_beaver)
     if tail_user:
-        lines.append("학습자: " + tail_user)
-    out = chr(10).join(lines)
-    cut = len(out) > EXPR_TRANSCRIPT_MAX_CHARS
-    if cut:
+        tail.append("학습자: " + tail_user)
+    total = sum(len(r[1]) + 1 for r in rows) + sum(len(t) + 1 for t in tail)
+    cut = False
+    # 상한을 넘으면 **세그먼트 단위로 머리를 버린다** — 뒤(최근)가 판정에 필요하다.
+    while rows and total > EXPR_TRANSCRIPT_MAX_CHARS + 1:
+        total -= len(rows[0][1]) + 1
+        rows.pop(0)
+        cut = True
+    first_seen = rows[0][0] if rows else len(state.segments)
+    out = chr(10).join([r[1] for r in rows] + tail)
+    if len(out) > EXPR_TRANSCRIPT_MAX_CHARS:            # 꼬리 버퍼 혼자 상한을 넘는 극단 — 글자로 자른다
         out = out[-EXPR_TRANSCRIPT_MAX_CHARS:]
-    # 앵커가 잘렸을 수 있는 경우(뒤에서 잘랐거나 중간부터 시작)에만 구간을 머리에 붙인다.
+        cut = True
+    # 앵커가 잘렸을 수 있는 경우(머리를 잘랐거나 중간부터 시작)에만 구간을 머리에 붙인다.
     if (cut or since > 0) and state.expr_phase in ("drill", "quiz"):
         head = "[앞 구간 생략 — 직전 판정 기준 현재 구간: %s]" % (
             "퀴즈" if state.expr_phase == "quiz" else "드릴"
         )
         out = head + chr(10) + out if out else head
-    return out
+    return out, first_seen, cut
 
 
 def _spawn_expression_progress(state: _CallState) -> None:
@@ -1343,14 +1445,17 @@ async def _expression_progress_sidecar(state: _CallState, *, since: int = 0) -> 
     if ctx is None:
         return
     # ⭐ 이 판정이 «어디까지» 봤는지 기록한다 — 마지막 판정은 여기서부터만 넣는다(C1).
-    upto = len(state.segments)
-    transcript = _expression_transcript(state, since=since)
+    #   ⛔ 커서는 **머리를 안 잘랐을 때만** 전진한다(P2-A). 잘렸으면 since..first_seen 구간을 아무도
+    #     안 봤다 — 커서를 그 위로 넘기면 그 세그먼트는 영구히 미판정이다. 그대로 두면 다음 판정 입력에
+    #     다시 들어간다(합집합이라 다시 봐도 해롭지 않다).
+    seen_end = len(state.segments)
+    transcript, first_seen, cut = _expression_transcript_window(state, since=since)
     if not transcript:
         return
     try:
         result = await gemini_analysis.generate_structured(
             ctx["client"], ctx["model"],
-            system_instruction=ctx["instruction"],
+            system_instruction=_expression_judge_instruction(state),
             prompt=f"[대화 전사]\n{transcript}",
             schema=ExpressionProgressOut,
             temperature=0.0,
@@ -1361,10 +1466,22 @@ async def _expression_progress_sidecar(state: _CallState, *, since: int = 0) -> 
             return
         before = (len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail))
         _apply_expression_progress(state, result)
-        state.expr_judged_upto = max(state.expr_judged_upto, upto)
+        if not cut:
+            state.expr_judged_upto = max(state.expr_judged_upto, seen_end)
+        else:
+            logger.warning(
+                "normalcall 표현학습 판정: 입력 절단(since=%d 첫포함=%d 끝=%d) — 커서 %d 유지, 안 본 머리는 다음 판정에 다시 들어간다",
+                since, first_seen, seen_end, state.expr_judged_upto,
+            )
         phase = str(getattr(result, "phase", "") or "")
-        if phase in ("drill", "quiz"):
-            state.expr_phase = phase
+        # ⛔ phase 는 **커서 세대와 묶는다**(P2-B, codex): 오래 걸린 옛 판정(@10 quiz)이 최신(@20 drill) 뒤에
+        #   도착하면 phase 가 quiz 로 역전돼 다음 머리에 거짓 «현재 구간» 이 붙는다 — LLM 오판 없이
+        #   유효한 판정 둘만으로 오염된다. 이 판정이 본 끝이 지금 기록된 끝보다 앞이면 안 건드린다.
+        # ⛔ 모호("")면 **지운다**(P2-1). 지난 값을 남기면 두 판정 전 구간이 «직전 판정 기준» 이라고
+        #   **거짓으로** 붙는다. 거짓 머리보다 머리 없음이 낫다.
+        if seen_end >= state.expr_phase_upto:
+            state.expr_phase = phase if phase in ("drill", "quiz") else ""
+            state.expr_phase_upto = seen_end
         # ⭐ T14-C3 **앵커 누락 계측** — «판정 안 된 항목 수» 와 «구간 판단» 을 함께 남긴다.
         #   드릴·통과·오답 어디에도 없는 항목이 많으면 앵커를 못 찾은 것일 확률이 높다.
         #   실통화에서 앵커 누락을 나중에 실측할 **유일한** 근거다 — 지우지 마라.
@@ -1374,8 +1491,8 @@ async def _expression_progress_sidecar(state: _CallState, *, since: int = 0) -> 
             if i.get("item_id") is not None and int(i["item_id"]) not in judged
         )
         logger.info(
-            "normalcall 표현학습 판정 계측: phase=%s 미판정=%d/%d since=%d 입력=%d자",
-            phase or "(모호)", unjudged, len(state.expr_items), since, len(transcript),
+            "normalcall 표현학습 판정 계측: phase=%s 미판정=%d/%d since=%d 입력=%d자 절단=%s",
+            phase or "(모호)", unjudged, len(state.expr_items), since, len(transcript), cut,
         )
         # ⭐ 아직 안 얹힌 쪽지는 **지금 진도로 다시 조립한다** — 안 하면 이 판정이 다음 arm
         #   까지 쪽지에 안 실려 「아직 틀린 표현」(오답퀴즈 재료)이 한 주기 늦는다.
@@ -2340,9 +2457,9 @@ async def run_call(
             #   엉뚱한 항목이 통과로 찍힌다. 빈 표면형은 선별이 이미 뺐다.
             # ⭐ dict 를 통째로 넘긴다 — 뜻·예문이 있어야 **동음이의**(같은 레벨 91그룹 실재)를
             #   LLM 이 가른다. 표면형만 주면 목록이 «1. 개 / 2. 개» 가 된다.
-            "instruction": _expression_progress_instruction(
-                expr_items, target_language, _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
-            ),
+            # ⛔ 지시문을 **여기서 굽지 않는다**(T14 반려 P1). 목록에 «이미 드릴함·통과·오답» 이
+            #   붙어야 해서 판정마다 `_expression_judge_instruction(state)` 가 현재 진도로 다시 조립한다.
+            "target_language": target_language,
         }
     state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
     state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)

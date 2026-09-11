@@ -11,12 +11,14 @@
 여기서 잠그는 것은 두 가지다:
   · 지시문에 **확정 규칙 문장**이 들어 있다(사장님 확정본 — 뜻을 바꾸면 여기서 터진다)
   · 서버 쪽 적용 규칙(단조성 · 구간 보류 · 입력 축소 · phase 보존 · 자리표시 예외)
+  · **목록에 서버 사실이 붙는다**(반려 P1 — 잘린 전사에서 «처음 나오는 항목=드릴» 이 이기지 않게)
 1397 전사는 픽스처로 박아 **기대 판정**(drilled={1..7} · passed={6} · failed={1,2,3,4,5})을
 문서화한다 — 실통화 재측정 때 같은 전사로 비교할 기준선이다.
 """
 
 from __future__ import annotations
 
+import asyncio
 import pathlib
 
 import pytest
@@ -72,6 +74,9 @@ def test_the_1397_transcript_fixture_is_present_and_readable() -> None:
     assert "quiz time" in text.lower()                 # 두 번째 퀴즈 앵커(t34)
     assert "let's see if you remember" in text.lower()  # 첫 퀴즈 앵커(t14)
     assert "[Country]" in text                          # C4 가 잡던 자리표시
+    # ⚠ 반려 P2-3: 첫 합본이 결손본이었다 — 항목3 «공개→복창» 회차(t25→t26→t27)가 빠져 있었다.
+    assert "USER[t26]: 저는 미국 사람이에요." in text
+    assert "Awesome, you nailed it! Okay, new phrase." in text
     assert EXPECTED_1397["passed"] == {6}
 
 
@@ -174,17 +179,81 @@ def test_an_ambiguous_item_left_empty_changes_nothing() -> None:
     assert cs._expr_covered_ids(st) == [1, 2]
 
 
-def test_the_1397_expected_verdict_applies_cleanly() -> None:
-    """기대 판정을 그대로 얹으면 서버 상태가 그 모양이 된다 — 실통화 비교의 목표 상태다."""
-    st = _state()
-    e = EXPECTED_1397
-    cs._apply_expression_progress(
-        st, _Out(drilled=sorted(e["drilled"]), passed=sorted(e["passed"]),
-                 failed=sorted(e["failed"]), phase="drill"),
+# --------------------------------------------------------------------------- #
+# P1 — 목록에 서버가 아는 사실이 붙는다 (이미 드릴함 · 통과 · 오답)
+# --------------------------------------------------------------------------- #
+def test_the_listing_carries_server_facts() -> None:
+    """⛔ 잘린 전사엔 앞서 드릴한 흔적이 없다 — 표시가 없으면 판정기가 «처음 나오는 항목=드릴»
+    로 읽어 마지막 퀴즈의 통과가 사라진다. 그래서 서버가 아는 것을 항목 옆에 붙인다.
+    """
+    out = cs._expression_progress_instruction(
+        ITEMS_1397, "한국어", "영어(English)",
+        covered_nums=[1, 2, 3], passed_ids={2}, failed_ids={1},
     )
-    assert set(cs._expr_covered_ids(st)) == e["drilled"]
-    assert st.expr_quiz_pass == e["passed"]
-    assert st.expr_quiz_fail == e["failed"]
+    lines = {l.split(". ", 1)[0]: l for l in out.splitlines() if l[:1].isdigit()}
+    assert lines["1"].endswith("(이미 드릴함 · 오답)")
+    assert lines["2"].endswith("(이미 드릴함 · 통과)")
+    assert lines["3"].endswith("(이미 드릴함)")
+    assert "(" not in lines["4"].split("— 뜻:")[-1], "안 다룬 항목엔 표시가 없어야 한다"
+    assert "표시는 서버가 확인한 사실이다" in out
+    assert "이미 배운 것을 다시 묻는 것**이다" in out
+
+
+def test_a_pass_or_fail_implies_drilled_even_without_covered_num() -> None:
+    """통과·오답은 퀴즈를 봤다는 뜻이다 — covered_nums 에 없어도 «이미 드릴함» 이 붙는다."""
+    out = cs._expression_progress_instruction(
+        ITEMS_1397, "한국어", "영어(English)", passed_ids={6},
+    )
+    assert "6. ◯◯이/가 뭐예요? — 뜻: What is ◯◯?  (이미 드릴함 · 통과)" in out
+
+
+def test_the_first_time_rule_yields_to_the_server_mark() -> None:
+    """«처음 나오는 항목은 드릴» 규칙 문장 자체에 예외가 달려 있다 — 표시가 이긴다."""
+    out = _instr()
+    assert "알림 뒤라도 **처음 나오는 항목**은 드릴이다 — 단, 목록에 (이미 드릴함) 표시가 있으면 예외다" in out
+
+
+@pytest.mark.asyncio
+async def test_the_judge_instruction_is_rebuilt_from_state_on_every_call(monkeypatch) -> None:
+    """⛔ 통화 시작에 구운 고정 지시문을 쓰면 표시가 영원히 비어 있다 — 판정마다 다시 조립한다.
+
+    재현(bt-back): arm 이 항목 4~6 드릴 **직후**에 서고 → 판정 → 커서 이동 → 퀴즈2(4·5·6) → 끝.
+    마지막 입력엔 퀴즈2 만 있다. 목록에 4·5·6 이 «이미 드릴함» 으로 실려야 통과가 살아남는다.
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "target_language": "한국어",
+                   "locale_label": "영어(English)"}
+    st.covered_nums = [1, 2, 3, 4, 5, 6]
+    st.expr_quiz_pass = {2}
+    st.expr_quiz_fail = {1, 3}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(12)]
+    st.expr_judged_upto = 9
+
+    seen: dict = {}
+
+    async def _capture(client, model, **kw):
+        seen["instruction"] = kw.get("system_instruction", "")
+        seen["prompt"] = kw.get("prompt", "")
+        return _Out(phase="quiz")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
+    await cs._final_expression_progress(st)
+    assert "발화8" not in seen["prompt"], "입력은 잘렸다(C1)"
+    ins = seen["instruction"]
+    assert "4. 도와주세요 — 뜻: Please help me  (이미 드릴함)" in ins
+    assert "5. 처음 뵙겠습니다 — 뜻: How do you do?  (이미 드릴함)" in ins
+    assert "6. ◯◯이/가 뭐예요? — 뜻: What is ◯◯?  (이미 드릴함)" in ins
+    assert "(이미 드릴함 · 통과)" in ins and "(이미 드릴함 · 오답)" in ins
+    assert "7. 네 — 뜻: yes / I see" in ins and "7. 네 — 뜻: yes / I see  (" not in ins
+
+
+def test_the_judge_instruction_falls_back_to_the_expression_ctx_labels() -> None:
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "target_language": "한국어",
+                   "locale_label": "영어(English)"}
+    ins = cs._expression_judge_instruction(st)
+    assert ins.startswith("너는 한국어 표현학습 통화의 진도 판정기다")
+    assert "영어(English)로 퀴즈·복습·테스트를 알리는 말" in ins
 
 
 # --------------------------------------------------------------------------- #
@@ -236,6 +305,112 @@ async def test_a_mid_call_judgement_advances_the_cursor(monkeypatch) -> None:
     assert st.expr_judged_upto == 5
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["timeout", "none", "raise"])
+async def test_a_failed_judgement_does_not_advance_the_cursor(monkeypatch, outcome: str) -> None:
+    """⛔ 대입을 try 위로 올리면 미판정 구간이 **영원히 잘린다** — 아무것도 안 깨지고 조용히 사라진다.
+    timeout·None·예외 어느 쪽이든 upto 는 그대로여야 다음 판정이 그 구간을 다시 본다.
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(6)]
+    st.expr_judged_upto = 2
+    st.expr_phase = "quiz"
+
+    async def _fail(client, model, **kw):
+        if outcome == "timeout":
+            await asyncio.sleep(5)
+        if outcome == "raise":
+            raise RuntimeError("boom")
+        return None
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _fail)
+    monkeypatch.setattr(cs, "EXPR_FINAL_JUDGE_TIMEOUT_S", 0.05)
+    await cs._final_expression_progress(st)
+    assert st.expr_judged_upto == 2, f"{outcome}: 판정이 안 됐는데 커서가 움직였다"
+    assert st.expr_phase == "quiz", f"{outcome}: 판정이 안 됐는데 구간이 바뀌었다"
+
+
+@pytest.mark.asyncio
+async def test_a_cut_input_does_not_advance_the_cursor(monkeypatch) -> None:
+    """⛔ 반려 P2-A(codex) — 첫 성공 판정 입력이 12k 를 넘으면 앞을 자르고도 커서를 끝까지 밀어
+    **잘린 세그먼트가 영구히 미판정**이었다(30×500자 → 앞 sentinel 미포함인데 cursor=30/30).
+    안 본 머리 위로 커서를 넘기지 마라 — 그대로 두면 다음 판정 입력에 다시 들어간다.
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": 0, "role": "user", "text": "SENTINEL"}] + [
+        {"turn_index": i, "role": "user", "text": "가" * 500} for i in range(1, 31)
+    ]
+    seen: dict = {}
+
+    async def _capture(client, model, **kw):
+        seen["prompt"] = kw.get("prompt", "")
+        return _Out(drilled=[1], phase="drill")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
+    await cs._expression_progress_sidecar(st)
+    assert "SENTINEL" not in seen["prompt"], "시험 전제 — 머리가 잘려야 한다"
+    assert st.expr_judged_upto == 0, "안 본 머리 위로 커서가 넘어갔다"
+    assert cs._expr_covered_ids(st) == [1], "판정 결과는 그대로 얹힌다 — 커서만 안 움직인다"
+    # 다음 판정(입력이 상한 안이면)은 처음부터 다시 본다
+    st.segments = st.segments[:3]
+    await cs._expression_progress_sidecar(st)
+    assert "SENTINEL" in seen["prompt"] and st.expr_judged_upto == 3
+
+
+@pytest.mark.asyncio
+async def test_a_late_old_judgement_does_not_roll_the_phase_back(monkeypatch) -> None:
+    """⛔ 반려 P2-B(codex) — 오래 걸린 snapshot@10(quiz) 이 최신 snapshot@20(drill) **뒤에** 도착하면
+    cursor=20 인데 phase=quiz 로 역전 → 다음 꼬리 머리에 거짓 «현재 구간: 퀴즈». LLM 오판 없이
+    유효한 판정 둘만으로 오염된다. phase 는 커서와 **같은 세대**로만 갱신한다(max-update).
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(10)]
+    gate = asyncio.Event()
+
+    async def _slow_then_fast(client, model, **kw):
+        if "발화19" not in kw.get("prompt", ""):     # 옛 판정(@10) — 새 판정이 끝날 때까지 기다린다
+            await gate.wait()
+            return _Out(phase="quiz")
+        return _Out(phase="drill")                     # 새 판정(@20)
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _slow_then_fast)
+    old = asyncio.create_task(cs._expression_progress_sidecar(st))
+    await asyncio.sleep(0)                             # 옛 판정이 전사를 잡고 LLM 대기에 들어간다
+    st.segments += [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(10, 20)]
+    await cs._expression_progress_sidecar(st)          # 새 판정이 먼저 끝난다
+    assert st.expr_judged_upto == 20 and st.expr_phase == "drill"
+    gate.set()
+    await old                                          # 옛 판정이 늦게 도착
+    assert st.expr_judged_upto == 20
+    assert st.expr_phase == "drill", "늦게 온 옛 판정이 phase 를 되돌렸다"
+    assert st.expr_phase_upto == 20
+
+
+@pytest.mark.asyncio
+async def test_with_no_mid_call_judgement_the_final_one_reads_the_whole_transcript(monkeypatch) -> None:
+    """통화중 판정 0회(짧은 통화·arm 미도달)면 마지막 판정이 **전사 전체**를 본다 — since=0.
+    ⚠ 엄밀히는 «12k 상한 안에서 전체» 다 — 넘으면 앞이 잘리고 커서는 안 움직인다(위 시험).
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(5)]
+    assert st.expr_judged_upto == 0
+
+    seen: dict = {}
+
+    async def _capture(client, model, **kw):
+        seen["prompt"] = kw.get("prompt", "")
+        return _Out(phase="drill")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
+    await cs._final_expression_progress(st)
+    assert all(f"발화{i}" in seen["prompt"] for i in range(5))
+    assert "[앞 구간 생략" not in seen["prompt"], "안 잘랐는데 머리가 붙었다"
+
+
 # --------------------------------------------------------------------------- #
 # C2 — 절단·커서 시작 시 «현재 구간» 을 머리에 보존
 # --------------------------------------------------------------------------- #
@@ -280,26 +455,61 @@ async def test_the_sidecar_remembers_the_last_phase(monkeypatch) -> None:
     assert st.expr_phase == "quiz"
 
 
+@pytest.mark.asyncio
+async def test_an_ambiguous_phase_clears_the_remembered_one(monkeypatch) -> None:
+    """⛔ 반려 P2-1 — 모호("")인데 지난 값을 남기면 두 판정 전 구간이 다음 입력 머리에
+    «직전 판정 기준» 이라고 **거짓으로** 붙는다. 거짓 머리보다 머리 없음이 낫다.
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.expr_phase = "quiz"
+    st.segments = [{"turn_index": 0, "role": "user", "text": "음"}]
+
+    async def _vague(client, model, **kw):
+        return _Out(phase="")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _vague)
+    await cs._expression_progress_sidecar(st)
+    assert st.expr_phase == ""
+    assert not cs._expression_transcript(st, since=1).startswith("[앞 구간 생략")
+
+
 # --------------------------------------------------------------------------- #
 # C4 — 자리표시 [Country] 는 누출이 아니다 · 진짜 누출은 계속 잡힌다
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("ok", ["How do you say 'I'm from [Country]'?", "[Name]!", "[Place] 가요"])
-def test_english_placeholders_are_not_control_tag_leaks(ok: str) -> None:
-    """⛔ 1397 33:37 — «[Country]» 를 누출로 잡아 정상 문장을 자르고 복구 시드를 넣었다."""
+@pytest.mark.parametrize("ok", [
+    "How do you say 'I'm from [Country]'?", "Say hi to [Name]!", "저는 [Place] 가요", "I'm [Your Name]",
+])
+def test_english_placeholders_inside_a_sentence_are_not_control_tag_leaks(ok: str) -> None:
+    """⛔ 1397 33:37 — «[Country]» 를 누출로 잡아 정상 문장을 자르고 복구 시드를 넣었다.
+    자리표시는 문장 **안**에 온다 — 어휘를 미리 알 필요 없이 위치로 가른다(반려 P2-2).
+    """
     assert cs._find_control_tag_leak(ok) is None
     assert cs._scrub_control_tags(ok) == ok
 
 
-@pytest.mark.parametrize("leak", ["[공부 모드] 시작", '"[시스템]" 통화가', "[통화종료:ab12] 안녕", "[Quiz Time] go"])
-def test_real_control_tags_are_still_caught(leak: str) -> None:
-    """⚠ 한글·콜론·숫자·두 단어는 자리표시 패턴에 안 맞아 그대로 걸린다 — 자기낭독 안전망 유지."""
+@pytest.mark.parametrize("leak", ["[Closing] Bye!", '"[Closing]" Bye', "[Note] see you", "[안내] 네"])
+def test_an_invented_tag_at_the_head_is_a_leak_even_if_it_looks_like_a_placeholder(leak: str) -> None:
+    """⛔ 반려 P2-2 — call 870 «[마무리] 네. 수고하셨어요» ×8 은 **없는 태그 발명**이었다. 표현학습은
+    비버가 영어로 말하니 같은 발명이 [Closing]·[Note] 꼴로 나온다 — 모양만 보면 자리표시와 겹친다.
+    발명 태그는 발화 **맨 앞**에 온다(따옴표째 인용해도 맨 앞이다). 맨 앞 대괄호는 무조건 누출.
+    """
+    assert cs._find_control_tag_leak(leak) is not None
+    assert "[" not in cs._scrub_control_tags(leak)
+
+
+@pytest.mark.parametrize("leak", [
+    "[공부 모드] 시작", '"[시스템]" 통화가', "[통화종료:ab12] 안녕", "[Quiz Time] go", "네. 다음은 [시스템] 종료",
+])
+def test_real_control_tags_are_still_caught_anywhere(leak: str) -> None:
+    """⚠ 한글·콜론·숫자를 품은 대괄호는 **어디에 있어도** 걸린다 — 자기낭독 안전망(call 706) 유지."""
     assert cs._find_control_tag_leak(leak) is not None
     assert "[" not in cs._scrub_control_tags(leak)
 
 
 def test_a_placeholder_does_not_hide_a_real_leak_behind_it() -> None:
     """⚠ `search` 를 그대로 썼다면 첫 대괄호(자리표시)에서 멈춰 뒤의 진짜 누출을 놓친다."""
-    m = cs._find_control_tag_leak("[Country] 라고 해봐. [시스템] 종료")
+    m = cs._find_control_tag_leak("Say [Country] 라고 해봐. [시스템] 종료")
     assert m is not None and m.group(0) == "[시스템]"
 
 
