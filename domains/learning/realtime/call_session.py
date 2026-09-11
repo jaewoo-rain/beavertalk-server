@@ -541,6 +541,8 @@ def _strip_face_echo(text: str) -> str:
 # 8건의 누출 중 3건에서 소진됐다(즉 3통화가 그 상태로 죽었다). 되돌리기는 텍스트 1회
 # 주입이라 비용이 거의 없으니, 무한 루프만 막을 정도로 넉넉히 둔다.
 _RESUME_MAX = 6
+# 태그가 섞인 턴이라도 소리가 이만큼 있고 본문이 남으면 «벙어리 턴» 이 아니다 — 재개 시드를 넣지 않는다(T17-1).
+TAG_LEAK_SPOKEN_MIN_S = 0.5
 _RESUME_SEED = (
     f"{CONTROL_TAG} 이 메시지는 소리내 읽지 마라. 통화는 아직 끝나지 않았다 — 방금 네 발화에 "
     "대사가 아닌 문구가 섞였거나 먼저 작별하려 했는데, 둘 다 하지 마라. 사과·설명·메타 발언 "
@@ -762,7 +764,7 @@ class _CallState:
         "expr_sidecar_calls",
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
         "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray",
-        "expr_covered_by_beaver", "expr_retry_cued",
+        "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -941,6 +943,7 @@ class _CallState:
         self.expr_quiz_stray: list[int] = []
         self.expr_covered_by_beaver: set[int] = set()
         self.expr_retry_cued: bool = False
+        self.expr_quiz_prev_num: Optional[int] = None   # 큐 직전 마지막 covered 번호 — 여는 B 의 공개 예외(T17-4)
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1052,6 +1055,26 @@ def _release_persisted_pcm(state: _CallState, upto: int) -> int:
         freed += len(pcm)
         seg["pcm"] = b""
     return freed
+
+
+def _on_learner_transcript_piece(state: _CallState, text: str) -> None:
+    """학습자 전사 조각(in_tr) 하나를 받는다 — 버퍼에 쌓고, **표현학습이면 조각 단위로 covered 를 잰다.**
+
+    ## T17-6 (통화 1405 ③ 괜찮아요) — 왜 flush 시점만으로는 안 되나
+    학습자가 「괜찮아요.」 라고 정확히 말했는데(서버 in_tr 그대로) DB 에 drilled 가 안 찍혔다. 시간표:
+        t78 B 영어 질문 → t79 U 「괜찮아요.」 → t80 B **빈 턴** → t81 U 「오케이.」 → t82 B
+    in_tr 은 비버 답과 같이 오는 늦은 보고서다(재접지 주석 «6/82 잘림» 과 같은 성질). t79 의 전사가 t80 의
+    turn_start(=flush) **뒤에** 도착하면 t81 의 전사와 한 버퍼에 남고, flush 는 `"".join` 이라
+    「괜찮아요.오케이.」 한 덩어리가 된다 → `mentions` 는 낱말 경계를 요구하므로(꼬리 «오케이» 는 조사가 아니다)
+    거짓 → 영영 covered 가 안 된다. 다른 항목이 다 drilled 인데 이것만 빠진 이유가 이것이다(로그·코드로 추적).
+    ⇒ 조각이 **도착하는 순간** 그 조각만으로 대조한다. 저장 텍스트(`"".join`)는 건드리지 않는다 — 일반 통화의
+      저장본이 바뀐다. flush 시점 대조는 그대로 두되 `idx in covered_nums` 로 멱등이다.
+    ⛔ 일반 통화는 한 바이트도 안 바뀐다 — `_note_covered_items(source="user")` 가 expr_items 게이트로 즉시 되돌아간다.
+    """
+    state.cur_user_text.append(text)
+    logger.info("normalcall 👤 user: %s", text)
+    if state.expr_items:
+        _note_covered_items(state, text, source="user")
 
 
 def _flush_user_segment(state: _CallState) -> None:
@@ -1242,7 +1265,8 @@ def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = Fa
     lead = "아까 틀린" if retry else "방금 배운"
     return (
         f"{CONTROL_TAG} 지금 퀴즈를 내라. {lead} {labels} {len(nums)}개를 한 문제씩 — {locale_label}로 뜻·상황을 주고 "
-        f"{target}로 말하게 하라. 정답을 먼저 말하지 마라. {len(nums)}개가 끝나면 다음 새 표현으로 넘어가라."
+        f"{target}로 말하게 하라. 정답을 먼저 말하지 마라. {len(nums)}개가 끝나면 다음 새 표현으로 넘어가라. "
+        "네 말에 대괄호나 '퀴즈 시작' 같은 단계 표시를 넣지 마라 — 그냥 말로 내라."
     )
 
 
@@ -1250,6 +1274,10 @@ def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool 
     """큐를 세운다 — 다음 학습자 발화 시작(마이크·RMS)에 얹힌다. 재접지 슬롯과 별개다."""
     state.expr_quiz_set = list(nums)
     state.expr_quizzed.update(nums)
+    # ⭐ T17-4 (1405 ② 진짜요) — 큐를 받은 **여는 비버 턴**이 직전 드릴 피드백(«polite form, 진짜요?»)과 퀴즈 시작을
+    #   한 턴에 담아 첫 사건이 공개→failed 가 됐다. 큐 직전 마지막 covered 항목을 기억해 두고, 여는 B 세그먼트에서
+    #   **그 항목의** 표면형만 공개로 세지 않는다(그 세그먼트만).
+    state.expr_quiz_prev_num = state.covered_nums[-1] if state.covered_nums else None
     if not retry:
         state.expr_quiz_seq += 1
     else:
@@ -1367,7 +1395,7 @@ def _server_judge_quiz(state: _CallState, span: list[tuple[int, str, str]], quiz
         if iid is None or not surface:
             continue
         verdict = ""
-        for _idx, role, text in span:
+        for idx, role, text in span:
             if not quiz_judge.mentions(text, surface):
                 continue
             if role == "user":
@@ -1375,6 +1403,8 @@ def _server_judge_quiz(state: _CallState, span: list[tuple[int, str, str]], quiz
                     verdict = "passed"
                     break
                 continue                       # 반말 산출(V4) — 사건이 아니다. 계속 훑는다(뒤에 공개가 오면 failed)
+            if idx == state.expr_quiz_open_seg and n == state.expr_quiz_prev_num:
+                continue                       # T17-4: 여는 B 의 직전 드릴 피드백 — 공개가 아니다(그 항목·그 세그먼트만)
             verdict = "failed"                 # 비버가 표면형을 말했다 = 공개
             break
         if verdict == "passed":
@@ -1427,6 +1457,8 @@ def _verify_stt_fallback(
         return False, "창 밖·U 아님"
     if answer_seg < state.expr_quiz_open_seg:
         return False, "창 밖"
+    if not quiz_judge.keeps_formality(by_idx[answer_seg][1], surface):
+        return False, "격식(반말)"             # T17-5: 1405 ④ 폴백이 「잘 부탁해」 를 passed 로 — 서버 판정과 같은 V4
     for i, role, text in span:
         if i >= answer_seg:
             break
@@ -4338,8 +4370,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         state.learner_spoke = True
         await _send_json(client_ws, ServerInputTranscript(text=text))
         if text:
-            state.cur_user_text.append(text)
-            logger.info("normalcall 👤 user: %s", text)
+            _on_learner_transcript_piece(state, text)
 
     elif event.kind == "out_tr":
         if state.turn_id is None:
@@ -4454,13 +4485,27 @@ def _detect_tag_leak(state: _CallState) -> None:
     """
     if state.should_close or state.close_seed_sent:
         return
-    match = _find_control_tag_leak("".join(state.cur_beaver_text), state.expr_tag_allow)
-    if match:
-        state.tag_leak_seen = True
-        logger.warning(
-            "normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독) — 대화 재개 시도: %r",
-            match.group(0),
+    text = "".join(state.cur_beaver_text)
+    match = _find_control_tag_leak(text, state.expr_tag_allow)
+    if not match:
+        return
+    # ⭐ T17-1 (통화 1406 t16~t21) — 비버가 «[퀴즈 시작]/[퀴즈 계속]» 같은 단계 표시를 **말하면서** 붙였다. 옛 코드는
+    #   태그가 보이면 무조건 재개 시드를 넣어 1.5초 간격으로 질문을 4번 연속 냈다(_RESUME_MAX 6 까지). 재개 시드는
+    #   원래 «태그를 낭독하느라 소리가 0초인 벙어리 턴»(call 706 · 위 안전망 주석) 용이다. 그 턴에 **소리가 있고**
+    #   태그를 뺀 본문이 남으면 비버는 대화를 하고 있는 것이다 — 저장본 스크럽만 하고 되돌리지 않는다.
+    audio_s = audio.output_audio_s(len(state.cur_beaver_pcm))
+    body = _scrub_control_tags(text, state.expr_tag_allow).strip()
+    if audio_s >= TAG_LEAK_SPOKEN_MIN_S and body:
+        logger.info(
+            "normalcall: 제어 태그 스크럽만(소리 %.1f초·본문 %d자 — 벙어리 턴이 아니라 재개 시드 생략): %r",
+            audio_s, len(body), match.group(0),
         )
+        return
+    state.tag_leak_seen = True
+    logger.warning(
+        "normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 %.1f초) — 대화 재개 시도: %r",
+        audio_s, match.group(0),
+    )
 
 
 async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -> None:

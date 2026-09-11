@@ -58,7 +58,11 @@ def normalize(text: str | None) -> str:
     ⚠ 소문자화는 한다(라틴 문자 답변·영어 라벨 대비).
     """
     s = unicodedata.normalize("NFC", (text or "").strip())
-    return _PUNCT_RE.sub("", s).lower()
+    s = _PUNCT_RE.sub("", s).lower()
+    # ⭐ T17-3 (통화 1405 ①, 매 통화 재현): STT 가 「어디예요」 를 「어디에요」 로 적는다 — 의미 불변 철자 변이라
+    #   양쪽을 같은 꼴로 맞춘다(비교 전용 정규화라 저장본은 안 바뀐다). ⛔ 다른 등가를 여기 늘리지 마라 —
+    #   「가세요/계세요」 처럼 뜻이 다른 쌍이 같아지는 순간 판정이 틀린다(bt-back: 이 1건만).
+    return s.replace("에요", "예요")
 
 
 # 한 어절 항목 뒤에 붙어도 «같은 낱말» 로 보는 꼬리(조사·어미). 빈 문자열 = 정확 일치.

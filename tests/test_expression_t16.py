@@ -537,3 +537,112 @@ def test_keeps_formality(text: str, surface: str, exp: bool) -> None:
 def test_stt_misspelling_is_pending_not_passed_by_string_match() -> None:
     """하네스 M — 「이거 주세요」→「이거 지세요」 3/3. 글자 대조는 거짓(미판정)이고, 폴백이 그 자리를 맡는다."""
     assert quiz_judge.mentions("이거 지세요", "이거 주세요") is False
+
+
+# --------------------------------------------------------------------------- #
+# T17 — 1405·1406 재측정 후속 6건
+# --------------------------------------------------------------------------- #
+def test_a_spoken_turn_with_a_tag_is_scrubbed_but_not_resumed() -> None:
+    """T17-1 (1406 t16~t21) — 비버가 «[퀴즈 시작]» 을 **말하면서** 붙였다. 옛 코드는 매 턴 재개 시드를 넣어 1.5초 간격으로
+    질문을 4번 연속 냈다. 소리가 있고 본문이 남으면 벙어리 턴이 아니다 — 스크럽만."""
+    st = _state()
+    st.cur_beaver_text = ["[퀴즈 시작] ", "How do you say hello?"]
+    st.cur_beaver_pcm = bytearray(b"\x00" * 48000)          # 1.0초(24kHz·16bit)
+    cs._detect_tag_leak(st)
+    assert st.tag_leak_seen is False
+    cs._flush_beaver_segment(st)
+    assert st.segments[-1]["text"] == "How do you say hello?", "저장본은 여전히 스크럽된다"
+
+
+def test_a_mute_tag_only_turn_still_gets_the_resume_seed() -> None:
+    """call 706 — 태그만 낭독하고 소리가 0 인 벙어리 턴은 옛 규칙 그대로 되돌린다."""
+    st = _state()
+    st.cur_beaver_text = ["[안내] 통화가 종료됩니다"]
+    st.cur_beaver_pcm = bytearray()
+    cs._detect_tag_leak(st)
+    assert st.tag_leak_seen is True
+    st2 = _state()
+    st2.cur_beaver_text = ["[퀴즈 계속]"]                     # 본문 없음 — 소리가 있어도 벙어리
+    st2.cur_beaver_pcm = bytearray(b"\x00" * 48000)
+    cs._detect_tag_leak(st2)
+    assert st2.tag_leak_seen is True
+
+
+def test_the_cue_tells_the_beaver_not_to_speak_stage_markers() -> None:
+    """T17-2 — 비버가 큐 양식(«[퀴즈 시작]»)을 흡수했다."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)
+    assert "네 말에 대괄호나 '퀴즈 시작' 같은 단계 표시를 넣지 마라 — 그냥 말로 내라" in st.expr_quiz_cue_pending
+
+
+def test_eyo_spelling_variant_is_equivalent_but_nothing_else_is() -> None:
+    """T17-3 (1405 ①, 매 통화 재현) — STT 「어디에요」↔「어디예요». ⛔ 등가는 이 1건뿐(가세요/계세요 규율)."""
+    assert quiz_judge.mentions("화장실이 어디에요", "화장실이 어디예요?") is True
+    assert quiz_judge.mentions("얼마에요?", "얼마예요?") is True
+    assert quiz_judge.mentions("안녕히 가세요", "안녕히 계세요") is False
+    assert quiz_judge.normalize("어디에요") == quiz_judge.normalize("어디예요")
+
+
+def test_the_opening_beaver_segment_may_echo_the_previous_drill_without_revealing() -> None:
+    """T17-4 (1405 ② 진짜요) — 큐를 받은 여는 비버 턴이 직전 드릴 피드백(«polite form, 진짜요?»)과 퀴즈 시작을 한 턴에
+    담았다. 그 항목·그 세그먼트만 공개로 세지 않는다."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"'):
+        _beaver(st, t)
+    _user(st, "저는 미국 사람이에요")                          # 3번이 큐 직전 마지막 covered
+    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_prev_num == 3
+    st.expr_quiz_cue_pending = None
+    st.expr_quiz_awaiting_open = True
+    cs._expression_quiz_open_on_beaver_turn(st)
+    open_seg = st.expr_quiz_open_seg
+    span = [
+        (open_seg, "beaver", 'Right, "저는 미국 사람이에요" — polite form. Now quiz time! How do you say I\'m from Korea?'),
+        (open_seg + 1, "user", "저는 한국 사람이에요"),
+        (open_seg + 2, "beaver", 'And "잘 부탁드립니다"? Say it.'),   # 여는 세그먼트가 아니다 → 공개
+    ]
+    res = cs._server_judge_quiz(st, span, [1, 2, 3])
+    assert res["passed"] == [3] and 13 in st.expr_quiz_pass
+    assert res["failed"] == [2]
+    # 여는 세그먼트라도 **다른** 항목의 표면형은 공개다
+    st2 = _state()
+    st2.expr_quiz_open_seg = 10
+    st2.expr_quiz_prev_num = 3
+    res2 = cs._server_judge_quiz(st2, [(10, "beaver", 'Quiz! Remember "이거 얼마예요?"'), (11, "user", "이거 얼마예요?")], [1])
+    assert res2["failed"] == [1]
+
+
+def test_the_fallback_rejects_an_informal_answer() -> None:
+    """T17-5 (1405 ④) — stt_fallback 이 반말 「잘 부탁해」 를 passed 로 썼다. 서버 판정과 같은 V4."""
+    st = _state()
+    span = _span([("B", "Please take care of me?"), ("U", "잘 부탁해"), ("B", "Good, next.")])
+    ok, why = cs._verify_stt_fallback(st, span, 2, 1)
+    assert not ok and "격식" in why
+    ok2, _ = cs._verify_stt_fallback(st, _span([("B", "Please take care of me?"), ("U", "잘 부탁드립니다"), ("B", "Next.")]), 2, 1)
+    assert ok2 is True, "정중형이면 격식 검사는 통과다"
+
+
+def test_a_late_transcript_piece_is_counted_on_arrival_not_only_at_flush() -> None:
+    """T17-6 (1405 ③ 괜찮아요) — in_tr 이 비버 turn_start 뒤에 늦게 와 다음 발화와 한 버퍼(「괜찮아요.오케이.」)로
+    flush 되면 낱말 경계 대조가 거짓이 된다. 조각이 도착하는 순간 그 조각으로 잰다."""
+    st = _state()
+    # 옛 경로 재현: 두 조각이 한 버퍼에 남아 "".join 으로 붙는다
+    st_old = _state()
+    st_old.cur_user_text = ["도와주세요.", "오케이."]
+    cs._flush_user_segment(st_old)
+    assert st_old.segments[-1]["text"] == "도와주세요.오케이."
+    assert 4 not in st_old.covered_nums, "시험 전제 — flush 시점 대조는 붙은 덩어리에서 실패한다"
+    # 새 경로: 조각 도착 시 대조
+    cs._on_learner_transcript_piece(st, "도와주세요.")
+    assert 4 in st.covered_nums
+    cs._on_learner_transcript_piece(st, "오케이.")
+    cs._flush_user_segment(st)
+    assert st.segments[-1]["text"] == "도와주세요.오케이.", "저장 텍스트는 그대로다(일반 통화 저장본 불변)"
+    assert st.covered_nums == [4]
+
+
+def test_transcript_pieces_do_not_count_in_a_normal_call() -> None:
+    st = cs._CallState()
+    st.reground_items = ["도와주세요"]
+    cs._on_learner_transcript_piece(st, "도와주세요.")
+    assert st.covered_nums == [] and st.cur_user_text == ["도와주세요."]
