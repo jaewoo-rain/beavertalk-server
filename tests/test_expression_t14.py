@@ -381,11 +381,41 @@ def test_no_boundary_line_when_there_is_no_context() -> None:
     assert cs.EXPR_WINDOW_BOUNDARY_LINE not in out
 
 
-def test_the_instruction_excludes_rounds_that_began_in_the_context_span() -> None:
+def test_the_instruction_splits_rounds_by_where_the_decisive_moment_is() -> None:
+    """⛔ 3차 반려 P1-A(codex) — «문맥 구간에서 **시작된** 회차는 판정하지 마라» 는 겹침의 목적을 스스로
+    부정했다: 커서=1·seg0 질문(위)·seg1 정답(아래)이면 그 정답이 보류되고 커서 2 → **영원히 안 읽힌다.**
+    회차의 결과는 정답 공개 또는 정답 산출 순간에 정해진다 — 그 순간이 어디 있느냐로 가른다.
+    """
     out = _instr()
     assert f"«{cs.EXPR_WINDOW_BOUNDARY_LINE}» 줄이 있으면 그 **위는 문맥**" in out
-    assert "문맥 구간에서 **시작된** 회차는 판정하지 마라 — 이미 판정됐다" in out
+    assert "문맥 구간(경계선 위)은 판정하지 마라 — 이미 판정됐다" in out
     assert "문맥 구간에서 (오답) 항목이 다시 보여도 새 회차가 아니다" in out
+    assert "문맥 구간에서 **시작된** 회차는 판정하지 마라" not in out, "옛 규칙이 남아 있다"
+
+
+def test_question_above_answer_below_is_judged() -> None:
+    """codex 가 잡은 정상 답 — 질문(위)·정답(아래): 결정적 순간이 아래 → 판정 대상. 규칙 문장에 그 예외가 있다."""
+    out = _instr()
+    assert ("단 **문맥 구간에 질문만 있고 학습자의 답이나 정답 공개가 이번 구간에 있으면**, 그 답을 판정해라"
+            in out)
+    # 창 모양: 질문이 경계선 위, 답이 아래 — 겹침이 이 쌍을 붙여 준다
+    st = _state()
+    st.segments = [
+        {"turn_index": 0, "role": "beaver", "text": "Quiz! How do you say Please help me?"},
+        {"turn_index": 1, "role": "user", "text": "도와주세요"},
+    ]
+    st.expr_judged_upto = 1
+    win, first_seen, cut = cs._expression_transcript_window(st, since=0, keep_from=1)
+    lines = win.splitlines()
+    k = lines.index(cs.EXPR_WINDOW_BOUNDARY_LINE)
+    assert lines[k - 1].startswith("선생님: Quiz!") and lines[k + 1] == "학습자: 도와주세요"
+
+
+def test_reveal_above_parrot_below_is_excluded() -> None:
+    """fable 이 잡은 앵무새 — 공개(위)·복창(아래): 결정적 순간이 위 → 제외."""
+    out = _instr()
+    assert ("문맥 구간에 이미 정답 공개나 정답 산출이 있는 회차는 이번 구간에 그 뒤 복창·반응이 보여도 다시 판정하지 마라"
+            in out)
 
 
 def test_the_rules_come_first_and_the_dynamic_listing_last() -> None:
@@ -413,6 +443,58 @@ def test_the_final_judge_timeout_is_two_seconds_with_its_reason_written_down() -
     assert "6.2k 자 → 1,201ms" in src and "여유 1.0초" in src
     assert "요약 1.0~1.4초" not in src.split("EXPR_FINAL_JUDGE_TIMEOUT_S = 2.0")[0].rsplit("# ⭐⭐ **조각 끝 마지막 판정의 상한**", 1)[-1], \
         "옛 근거(요약 소요 유추)가 상수 주석에 남아 있다"
+
+
+# --------------------------------------------------------------------------- #
+# P1-B — 커리큘럼 표기의 대괄호(«있어요[없어요]»)는 이 통화에선 누출이 아니다
+# --------------------------------------------------------------------------- #
+GRAMMAR_BRACKET_ITEMS = [
+    {"item_id": 101, "obj": "N이/가 있어요[없어요]", "des": "there is / isn't", "ex": None},
+    {"item_id": 102, "obj": "이거는[그거는, 저거는]N이에요/예요", "des": "this/that is N", "ex": None},
+]
+LINE = "오늘 표현은 N이/가 있어요[없어요]입니다"
+
+
+def test_curriculum_brackets_are_allowed_only_in_the_call_that_teaches_them() -> None:
+    """⛔ 3차 반려 P1-B(codex) — grammar.json 459 중 21 항목이 표면형에 대괄호를 쓴다. 비버가 읽으면 한글
+    대괄호 = 위치 무관 누출 → 저장 전사 훼손 + 재개 시드 주입. L2 문법을 가르치는 순간 터진다.
+    허용은 **이 통화의 항목에서 온 조각만** — 다른 통화에선 같은 문장이 그대로 누출이다.
+    """
+    allow = cs._expression_bracket_allowlist(GRAMMAR_BRACKET_ITEMS)
+    assert allow == frozenset({"[없어요]", "[그거는, 저거는]"})
+    assert cs._find_control_tag_leak(LINE, allow) is None
+    assert cs._scrub_control_tags(LINE, allow) == LINE
+    # 그 항목이 없는 통화(일반 통화·다른 레벨)에선 여전히 누출 — 안전망은 그대로다
+    assert cs._find_control_tag_leak(LINE) is not None
+    assert "[없어요]" not in cs._scrub_control_tags(LINE)
+
+
+def test_the_allowlist_does_not_open_the_door_for_real_tags() -> None:
+    allow = cs._expression_bracket_allowlist(GRAMMAR_BRACKET_ITEMS)
+    for leak in ("[안내] " + LINE, LINE + ' "[시스템]" 종료', "[통화종료:ab12] " + LINE, "[Closing] " + LINE):
+        m = cs._find_control_tag_leak(leak, allow)
+        assert m is not None and m.group(0) != "[없어요]", leak
+        assert "[없어요]" in cs._scrub_control_tags(leak, allow) and m.group(0) not in cs._scrub_control_tags(leak, allow)
+
+
+def test_the_state_carries_the_allowlist_into_the_leak_detector() -> None:
+    """검출기(`_detect_tag_leak`)와 저장 정화(`_flush_beaver_segment`)가 같은 허용 목록을 쓴다."""
+    st = cs._CallState()
+    st.expr_items = list(GRAMMAR_BRACKET_ITEMS)
+    st.expr_tag_allow = cs._expression_bracket_allowlist(st.expr_items)
+    st.cur_beaver_text = [LINE]
+    cs._detect_tag_leak(st)
+    assert st.tag_leak_seen is False, "커리큘럼 대괄호에 재개 시드가 들어갔다"
+    plain = cs._CallState()                        # 일반 통화 — 허용 목록 없음
+    plain.cur_beaver_text = [LINE]
+    cs._detect_tag_leak(plain)
+    assert plain.tag_leak_seen is True
+
+
+def test_a_fresh_state_has_an_empty_allowlist() -> None:
+    assert cs._CallState().expr_tag_allow == frozenset()
+    assert cs._expression_bracket_allowlist([]) == frozenset()
+    assert cs._expression_bracket_allowlist([{"obj": "도와주세요"}]) == frozenset()
 
 
 def test_overlap_is_dropped_before_the_must_see_region_and_is_not_a_cut() -> None:

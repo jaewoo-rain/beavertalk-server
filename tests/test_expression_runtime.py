@@ -447,7 +447,7 @@ async def test_the_final_judgement_result_reaches_the_write() -> None:
     st = _state([(1, BYE)])
     st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
 
-    async def _late_pass(state, **_kw):          # since= 를 받는다(입력 축소 — C1)
+    async def _late_pass(state):                 # 호출 형태는 (state) 하나다 — 인자가 늘면 여기서 깨져야 한다
         cs._apply_expression_progress(state, _FakeProgress(drilled=[1], passed=[1]))
 
     with mock.patch.object(cs, "_expression_progress_sidecar", _late_pass):

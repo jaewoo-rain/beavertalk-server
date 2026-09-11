@@ -271,8 +271,13 @@ EXPR_JUDGE_OVERLAP_SEGMENTS = 4
 # ⭐ 겹침과 이번 구간 사이의 **경계선**(2026-09-11, 2차 반려 P2). 없으면 판정기가 어디부터가 이번 구간인지
 #   모른다 — 겹침이 회차 중간에서 시작하면(창이 «복창(U)·승인(B)» 부터라 공개(B)가 창 밖) 판정기가
 #   «(오답) 항목을 학습자가 스스로 냈고 승인받았다, 공개는 없다» 로 읽어 **앵무새가 통과로 승격**된다.
-#   새는 방향이 통과뿐(강등은 서버가 막는다)이라 더 위험하다. 지시문의 «문맥 구간에서 시작된 회차는 판정하지
-#   마라» 가 이 줄을 가리킨다 — 둘을 함께 바꿔라.
+#   새는 방향이 통과뿐(강등은 서버가 막는다)이라 더 위험하다. 지시문의 «■ 문맥 구간» 규칙이 이 줄을
+#   가리킨다 — 둘을 함께 바꿔라.
+#   ⛔ 규칙은 «회차의 **시작** 위치» 가 아니라 «**결정적 순간**(정답 공개·정답 산출)의 위치» 로 가른다(3차 반려
+#     P1-A, codex). «시작된 회차는 판정하지 마라» 로 쓰면 겹침의 목적(질문이 위·답이 아래인 쌍을 붙이는 것)을
+#     스스로 부정한다 — 커서=1·seg0 질문·seg1 정답이면 그 정답이 보류되고 커서 2 로 넘어가 **영원히 안 읽힌다.**
+#       공개(위)·복창(아래)  → 결정적 순간이 위 → 건너뜀      (fable 앵무새)
+#       질문(위)·정답(아래)  → 결정적 순간이 아래 → 판정      (codex 정상 답)
 EXPR_WINDOW_BOUNDARY_LINE = "―― 여기부터 이번 구간 (위는 문맥) ――"
 # ⭐⭐ **조각 끝 마지막 판정의 상한**(초). 늦으면 있는 것만 쓰고 진행한다.
 #   ⛔ 없애지 마라 — 무한정 기다리면 LLM 이 죽었을 때 **조각2 가 안 열린다.** 통화가 멈추는
@@ -434,29 +439,50 @@ def _is_placeholder_tag(tag: str) -> bool:
     return bool(_PLACEHOLDER_TAG_RE.match(tag))
 
 
-def _is_control_tag_leak(text: str, m: "re.Match[str]") -> bool:
-    """이 대괄호가 누출인가 — 모양이 영문 자리표시여도 **발화 맨 앞이면 누출**(발명 태그)."""
+# ⭐ **커리큘럼 표기의 대괄호는 누출이 아니다**(3차 반려 P1-B, codex — bt-back 이 자산을 셌다: grammar.json
+#   459 항목 중 **21개**가 정상 표면형에 대괄호를 쓴다). «N이/가 있어요[없어요]» · «이거는[그거는, 저거는]N이에요/
+#   예요» · «N에 가요[와요]» · «N 앞[뒤, 옆]» · «N개[병, 잔, 그릇]» … 이게 obj 그대로 지시문에 실리고, 비버가
+#   읽으면 **한글 대괄호 = 위치 무관 누출**이라 저장 전사가 훼손되고 `tag_leak_seen` 으로 재개 시드까지 들어간다.
+#   L2 문법을 가르치는 순간 터진다(codex 재현: 「오늘 표현은 N이/가 있어요[없어요]입니다」 → `[없어요]` 삭제).
+#   ⇒ 허용 목록: **이번 통화 expr_items 표면형에 든 대괄호 조각**만 누출에서 뺀다(통화 시작에 집합으로 뽑아 state).
+#   ⛔ `[안내]`·종료 태그·맨 앞 발명 태그 방어는 그대로다 — 허용은 그 통화의 항목에서 온 조각만이다.
+#   ⚠ 커리큘럼 표기를 음성용으로 정규화하는 길(«있어요/없어요»)은 안 간다 — 가르치는 내용을 바꾸는 일이고
+#     korean-linguist 몫이다.
+def _expression_bracket_allowlist(items: "Iterable[dict]") -> frozenset[str]:
+    """이번 통화 항목 표면형(obj)에 든 `[…]` 조각 전부 — 누출 필터의 허용 목록."""
+    out: set[str] = set()
+    for it in items or ():
+        for m in _CONTROL_TAG_RE.finditer(str((it or {}).get("obj") or "")):
+            out.add(m.group(0))
+    return frozenset(out)
+
+
+def _is_control_tag_leak(text: str, m: "re.Match[str]", allow: frozenset[str] = frozenset()) -> bool:
+    """이 대괄호가 누출인가 — 모양이 영문 자리표시여도 **발화 맨 앞이면 누출**(발명 태그).
+    이번 통화 항목 표면형에서 온 조각(`allow`)은 어디에 있어도 누출이 아니다."""
+    if m.group(0) in allow:
+        return False
     if not _is_placeholder_tag(m.group(0)):
         return True
     return m.start() == _LEADING_JUNK_RE.match(text).end()
 
 
-def _find_control_tag_leak(text: str) -> "re.Match[str] | None":
-    """제어 태그 누출을 찾는다 — **문장 안의 자리표시는 건너뛴다.**
+def _find_control_tag_leak(text: str, allow: frozenset[str] = frozenset()) -> "re.Match[str] | None":
+    """제어 태그 누출을 찾는다 — **문장 안의 자리표시와 이번 통화의 커리큘럼 대괄호는 건너뛴다.**
 
     ⚠ `_CONTROL_TAG_RE.search` 를 직접 쓰지 마라. 그러면 첫 대괄호가 자리표시일 때 거기서
       멈춰 뒤에 있는 진짜 누출을 놓치거나, 반대로 자리표시를 누출로 잡는다. 전부 훑는다.
     """
     for m in _CONTROL_TAG_RE.finditer(text):
-        if _is_control_tag_leak(text, m):
+        if _is_control_tag_leak(text, m, allow):
             return m
     return None
 
 
-def _scrub_control_tags(text: str) -> str:
-    """저장본에서 제어 태그를 걷어낸다 — **문장 안의 자리표시는 남긴다**(그건 비버의 정상 대사다)."""
+def _scrub_control_tags(text: str, allow: frozenset[str] = frozenset()) -> str:
+    """저장본에서 제어 태그를 걷어낸다 — **문장 안의 자리표시·커리큘럼 대괄호는 남긴다**(비버의 정상 대사다)."""
     return _CONTROL_TAG_RE.sub(
-        lambda m: "" if _is_control_tag_leak(text, m) else m.group(0), text
+        lambda m: "" if _is_control_tag_leak(text, m, allow) else m.group(0), text
     )
 
 # ⭐⭐ **비버가 tool 호출을 「글자로」 뱉는 것**을 걷어낸다(2026-09-01 실측).
@@ -745,7 +771,7 @@ class _CallState:
         # expr_phase: 사이드카가 본 마지막 구간("drill"|"quiz"|"") — 절단 시 머리에 보존·계측용.
         # expr_phase_upto: 그 phase 를 낸 판정이 **어디까지 봤나**(세그먼트 수) — 늦게 도착한 옛 판정이
         #   새 phase 를 되돌리지 못하게 세대를 묶는다(T14 반려 P2-B).
-        "expr_items", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
+        "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "expr_sidecar_calls", "expr_judged_upto", "expr_phase", "expr_phase_upto",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
@@ -908,6 +934,7 @@ class _CallState:
         #   ⇒ 진도를 **LLM 의 기억에 맡기지 않는다.** 이 세 값은 파이썬 메모리 + DB 라
         #     압축과 완전히 무관하다.
         self.expr_items: list[dict] = []
+        self.expr_tag_allow: frozenset[str] = frozenset()   # 항목 표면형의 [대괄호] 조각 — 누출 필터 허용 목록
         self.expr_quiz_pass: set[int] = set()
         self.expr_quiz_fail: set[int] = set()
         self.expr_ctx: Optional[dict] = None
@@ -1308,8 +1335,10 @@ def _expression_progress_instruction(
         "■ 목록에 없는 번호를 지어내지 마라. 확실하지 않으면 그 항목의 passed·failed 를 비워라.",
         "",
         f"■ 문맥 구간 — 전사에 «{EXPR_WINDOW_BOUNDARY_LINE}» 줄이 있으면 그 **위는 문맥**이고 이미 판정된 구간이다.",
-        "  문맥 구간에서 **시작된** 회차는 판정하지 마라 — 이미 판정됐다. 문맥 구간에서 (오답) 항목이 다시 보여도 "
-        "새 회차가 아니다. 이번 구간에서 **새로 낸** 문항만 판정해라.",
+        "  문맥 구간(경계선 위)은 판정하지 마라 — 이미 판정됐다. 단 **문맥 구간에 질문만 있고 학습자의 답이나 정답 "
+        "공개가 이번 구간에 있으면**, 그 답을 판정해라 — 그 답이 이번 구간의 새 증거다.",
+        "  문맥 구간에 이미 정답 공개나 정답 산출이 있는 회차는 이번 구간에 그 뒤 복창·반응이 보여도 다시 판정하지 마라.",
+        "  문맥 구간에서 (오답) 항목이 다시 보여도 새 회차가 아니다.",
         "",
         "■ phase — 전사 **마지막 구간**이 드릴이면 \"drill\", 퀴즈면 \"quiz\", 모호하면 빈 문자열.",
         "",
@@ -1628,8 +1657,8 @@ def _flush_beaver_segment(state: _CallState) -> None:
     # 자기낭독 정화: 비버가 서버 제어 태그를 읽어버린 경우 저장본에서 걷어낸다. 통화후
     # 분석·문장 추출이 "[시스템] 통화가 종료되었습니다" 같은 걸 학습 문장으로 삼지 않게.
     # (자막은 이미 나간 뒤라 손대지 않는다 — 조각 단위라 부분 마스킹이 더 이상해진다.)
-    if _find_control_tag_leak(text):
-        text = _scrub_control_tags(text)
+    if _find_control_tag_leak(text, state.expr_tag_allow):
+        text = _scrub_control_tags(text, state.expr_tag_allow)
     # ⭐ 조각 경계에 걸쳐 쪼개진 tool 낭독은 여기서 잡힌다 — 이 시점엔 턴 전체가 이어져 있다.
     #   (자막 경로는 조각 단위라 못 잡는 것이 있다. 두 겹으로 거른다.)
     text = _strip_face_echo(text)
@@ -2482,6 +2511,8 @@ async def run_call(
     # ⭐ 표현학습 진도를 state 에 싣는다 — 이 리스트가 비어 있지 않다는 것 자체가
     #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
     state.expr_items = expr_items
+    # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
+    state.expr_tag_allow = _expression_bracket_allowlist(expr_items)
     if expr_items:
         # ⭐ 퀴즈 판정 사이드카 — **애매할 때만** 부른다(정확일치·완전불일치는 코드가 끊는다).
         #   ⚠ 힌트 사이드카와 같은 모델(JUDGE_MODEL)·같은 usage 그릇을 쓴다 — 원가가 한
@@ -4477,7 +4508,7 @@ def _detect_tag_leak(state: _CallState) -> None:
     """
     if state.should_close or state.close_seed_sent:
         return
-    match = _find_control_tag_leak("".join(state.cur_beaver_text))
+    match = _find_control_tag_leak("".join(state.cur_beaver_text), state.expr_tag_allow)
     if match:
         state.tag_leak_seen = True
         logger.warning(
