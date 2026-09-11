@@ -140,6 +140,10 @@ QUESTION_RE = re.compile(
     r"tell me|say it|give it a (shot|try)|try (it|saying|to say|that)|can you say|what was it|"
     r"what is it in|in korean|now say|just say|repeat after me|say that|say this|try again|one more time|"
     r"come on|go ahead|your turn)\b", re.I)
+# 비버가 직전 «정답» 을 받지 않았다는 신호(교정 어휘가 없어도) — 동음 후보 갈아타기 전용(1441: «What is that? We're talking about …»)
+REJECT_RE = re.compile(
+    r"\b(what (is|was) that|not (quite|it|right|that)|wrong|no,|nope|we'?re talking about|i mean|i asked|i said|"
+    r"properly|try again|again|that'?s not)\b", re.I)
 QUIZ_CLOSE_RE = re.compile(
     r"\b(done with the (quiz|test|review)|(quiz|test|review) is (over|done)|end of the (quiz|test)|"
     r"that'?s (it for|the end of) the (quiz|test)|no more quiz|back to (new|learning))\b", re.I)
@@ -305,6 +309,7 @@ class ItemRecord:
                                       #   (TTS 「이거 주세요」→STT 「이거 지세요」 처럼 보낸 것과 들린 것이 다르면 서버는 못 본다)
     rounds: list[QuizRound] = field(default_factory=list)
     beaver_said_correct_after_wrong: list[int] = field(default_factory=list)   # 거짓 칭찬 턴 번호
+    superseded_by: int = 0            # 오식별로 판명돼 다른 항목으로 대체됨(판정표·주기 계산에서 제외)
 
     @property
     def expected_passed(self) -> bool:
@@ -703,6 +708,12 @@ class Session:
         self.distractor_pool: list[str] = []      # cur: 이번 통화 목록 밖 같은 차시 표면형(없으면 DISTRACTORS)
         self.cancel_streak = 0                    # 비버 연속 턴으로 우리 발화가 취소된 횟수(연속) — 1 이상이면 다음 발화는 즉시
         self._last_reply_item: Optional[ItemRecord] = None
+        self.last_beaver_corrected = False        # 직전 «정답» 을 비버가 고쳤다(칭찬 없이) — 동음 후보 갈아타기 신호
+        self.last_beaver_end: float = 0.0         # 마지막 비버 turn_end 시각(now 기준) — 워치독용
+        self.last_spoke_at: float = -1.0          # 마지막으로 내가 소리를 낸 시각
+        self.last_beaver_text: str = ""           # 워치독이 «따라 하라» 문구를 볼 때 쓴다
+        self.watchdog_fires = 0
+        self.speak_errors = 0
 
     # ---- 유틸 -------------------------------------------------------------- #
     def now(self) -> float:
@@ -762,6 +773,8 @@ class Session:
             text = "".join(self.cur_text).strip()
             self.cur_turn_id = None
             self.cur_text = []
+            self.last_beaver_end = self.now()
+            self.last_beaver_text = text
             await self.on_beaver_turn(text, uplink)
         elif t == "call_ended":
             self.ended = True
@@ -801,6 +814,13 @@ class Session:
         new_item_cue = bool(NEW_ITEM_RE.search(text))
         is_question = bool(QUESTION_RE.search(text))
 
+        # ③ 비버가 직전 «정답» 을 고쳤나(칭찬 없이 교정 어휘) — 동음 후보 갈아타기·반복 금지에 쓴다
+        body0 = reaction_part(text)
+        whole0 = strip_quotes(text)
+        self.last_beaver_corrected = bool(self.last_learner is not None and self.last_learner.kind == "correct"
+                                          and len(self.since_learner) == 1
+                                          and (CORRECTION_RE.search(body0) or REJECT_RE.search(whole0))
+                                          and not (ACCEPT_RE.search(body0) or PRAISE_RE.search(body0)))
         # 거짓 칭찬 — 직전 학습자 답이 대본상 오답이면 이 턴의 칭찬을 본다
         if self.last_learner is not None and self.last_learner.kind in ("idk", "casual", "distractor") \
                 and len(self.since_learner) == 1:
@@ -836,7 +856,21 @@ class Session:
                     self.records[i].surface_heard = True
 
         # ③ 어느 항목인가
-        item_id, how = await self.identify(text, seg, revealed_ids, is_question, new_item_cue)
+        # (비버가 우리 오답 「이름요」 를 따옴표로 되풀이하므로 «현 항목이 언급됐다» 를 제외 조건으로 쓰지 않는다)
+        exclude = {self.current.item.item_id} if (self.last_beaver_corrected and self.current is not None and self.mode == "drill"
+                                                   and "(정정)" not in self.current.ident) else set()
+        item_id, how = await self.identify(text, seg, revealed_ids, is_question, new_item_cue, exclude=exclude)
+        if exclude and item_id and item_id != self.current.item.item_id and item_id not in self.records:
+            # 비버가 우리 «정답» 을 고치며 다른 뜻(예문·설명)을 댔고 그게 다른 미드릴 항목이다 → 처음 짚은 항목이 오식별이었다(1441 이름→명)
+            old = self.current
+            old.superseded_by = item_id
+            if old.item.item_id in self.drilled_order:
+                self.drilled_order.remove(old.item.item_id)
+            tags.append(f"오식별 정정: {old.item.surface}→{self.items[item_id].surface}")
+            self._start_item(item_id, turn, how + "(정정)", pre_reveal=item_id in mentioned)
+            item_id_started = True
+        else:
+            item_id_started = False
         if item_id:
             tags.append(f"→{self.items[item_id].surface}({how})")
         # «묻는 턴» = 물음표·명령형이 있거나, 항목의 **영어 뜻을 댔다**(끝이 잘린 턴 "if you want to say "X,"" 도 묻는 것이다)
@@ -850,7 +884,7 @@ class Session:
             tags.append("새항목예고(미식별)")
 
         if self.mode == "drill":
-            if item_id and item_id not in self.records:
+            if item_id and item_id not in self.records and not item_id_started:
                 self._start_item(item_id, turn, how, pre_reveal=item_id in mentioned)
             elif item_id and item_id in self.records and self.current and item_id != self.current.item.item_id \
                     and (is_question or item_id in revealed_ids):
@@ -927,7 +961,7 @@ class Session:
         return (it.example or it.surface), "ko"
 
     async def identify(self, text: str, seg: str, mentioned: list[int], is_question: bool,
-                       new_item_cue: bool) -> tuple[Optional[int], str]:
+                       new_item_cue: bool, exclude: set[int] | None = None) -> tuple[Optional[int], str]:
         # ⚠ `mentioned` 는 호출부가 **에코를 뺀** 표면형 목록(revealed_ids)을 준다 — 학습자가 방금 맞힌 답을 비버가
         #   되풀이한 것("You nailed it. 배고파요. Next…")을 공개로 읽으면 다음 항목 질문이 묻힌다(1403 t2).
         """어느 항목을 묻나 — ① 따옴표 안 영어 뜻 ② 따옴표 없는 여러 단어 구절 ③ 키워드(질문 턴만) ④ LLM 1회.
@@ -937,6 +971,8 @@ class Session:
           quiz   : 이 블록에서 아직 안 낸 드릴 항목 → 낸 것(재출제) → 미드릴(퀴즈 종료 감지)
         """
         drilled = [self.records[i].item for i in self.drilled_order]
+        # 오식별로 대체된 항목(superseded)은 후보에서 영구 제외 — 비버가 우리 오답(«name?»)을 되풀이해도 다시 잡히지 않게
+        dead = {iid for iid, r in self.records.items() if r.superseded_by}
         undrilled = [it for iid, it in self.items.items() if iid not in self.records]
         if self.mode == "quiz":
             pri = [c for c in drilled if c.item_id not in self.quiz_block_asked]
@@ -946,6 +982,9 @@ class Session:
             cur = [self.current.item] if self.current is not None else []
             order = cur + [c for c in undrilled if c not in cur] + [c for c in drilled if c not in cur]
             penalty = {c.item_id: 30 for c in drilled if c not in cur}   # 끝낸 항목은 감점 — 새 항목이 우선
+        exclude = (exclude or set()) | dead
+        if exclude:
+            order = [c for c in order if c.item_id not in exclude]
 
         quotes = [norm_en(q) for q in quoted_segments(text)]
         quotes = [q for q in quotes if q and re.search(r"[a-z]", q)]     # 한국어 인용(공개)은 제외
@@ -963,7 +1002,7 @@ class Session:
                 if q == phrase:
                     best = (300, f'quote="{q}"')
                     break
-                if len(q) >= 4 and (q in phrase or phrase in q):
+                if len(q) >= 4 and len(phrase) >= 4 and (q in phrase or phrase in q):   # 「저」=«i» 같은 한 글자 뜻이 아무 인용에나 걸리지 않게
                     best = max(best or (0, ""), (200 + min(len(q), 40), f'quote~"{q}"'))
                     continue
                 for kw in it.keywords:
@@ -1023,6 +1062,15 @@ class Session:
             return "Okay.", "en", "ack"
         p = rec.policy
         surface = rec.item.answer        # ⚠ 이름은 surface 지만 «말할 답» 이다 — 문법 항목은 예문(패턴 표기는 말할 수 없다)
+        pr = self.parrot_request(text)
+        if pr is not None:
+            # «Say 명» 처럼 표면형을 대고 따라 하라면 정책과 무관하게 복창한다(1441: 「명」 을 3턴 동안 안 따라 해 무음 종료)
+            if self.mode == "drill":
+                rec.drill_attempts += 1
+                rec.drill_answers.append("parrot")
+            elif rec.rounds:
+                rec.rounds[-1].answers.append("parrot")
+            return pr
         if not asked and not mentioned:
             # 묻지 않은 턴(앵커 선언·인사·감탄) — 학습자처럼 짧게 수긍만 한다
             return "Okay.", "en", "ack"
@@ -1050,6 +1098,10 @@ class Session:
                 rec.drill_answers.append("distractor")
                 return self.next_distractor(), "ko", "distractor"
             # 1·3·5·6: 첫 시도 정답. 비버가 먼저 공개했으면(선질문 위반) 그 답은 복창이다
+            if rec.drill_answers.count("correct") >= 2 and self.last_beaver_corrected:
+                # ③ 같은 «정답» 을 두 번 냈는데 비버가 두 번 다 고쳤다 — 항목을 잘못 짚었을 가능성이 크다(1441 이름↔명). 세 번 반복 대신 모른다고 해 공개를 받는다
+                rec.drill_answers.append("idk")
+                return IDK_EN, "en", "idk"
             kind = "parrot" if (rec.drill_revealed and rec.drill_attempts == 1) else "correct"
             rec.drill_answers.append(kind)
             return surface, "ko", kind
@@ -1105,6 +1157,7 @@ class Session:
                 self.spontaneous += 1
             self.log(f"👤 {reply}   [{kind}]")
             await uplink.speak(pcm)
+            self.last_spoke_at = self.now()
             self.cancel_streak = 0
             # ① 내 발화의 input_transcript 가 3초 안에 안 오면(한·두 음절 오디오를 Gemini 가 버린다 — 1437) 더 긴 형태로 한 번 더.
             #   비버가 이미 말을 시작했으면(turn_start) 들은 것이니 재발화하지 않는다.
@@ -1124,11 +1177,69 @@ class Session:
                     self.last_learner = t2
                     self.log(f"👤 {longer}   [{kind}·재발화 — 3초 안 전사 없음]")
                     await uplink.speak(await self.voice.pcm(longer, lang))
+                    self.last_spoke_at = self.now()
         except asyncio.CancelledError:
             if not spoke:
                 self.cancel_streak += 1
                 self.log(f"   (비버가 먼저 말해 발화 취소 ×{self.cancel_streak})")
             raise
+        except Exception as exc:  # noqa: BLE001 — ⛔ 태스크 예외는 소리 없이 죽는다(1441 61초 침묵 의심). 적고, 대신 아무 말이라도 한다
+            self.speak_errors += 1
+            self.errors.append(f"speak: {type(exc).__name__}: {exc}")
+            self.log(f"⛔ 발화 실패({type(exc).__name__}: {exc}) → 대체 발화")
+            with contextlib.suppress(Exception):
+                uplink.open = True
+                fb = self.add_turn("learner", IDK_EN, kind="idk")
+                fb.tags.append("대체발화(예외)")
+                self.last_learner = fb
+                self.since_learner = []
+                await uplink.speak(await self.voice.pcm(IDK_EN, "en"))
+                self.last_spoke_at = self.now()
+
+    async def watchdog(self, uplink: Uplink) -> None:
+        """①⛔ 무응답 방지 — 비버 turn_end 뒤 6초 동안 내가 소리를 안 냈으면(발화 태스크가 죽었든 취소됐든) 무조건 말한다.
+        «따라 하라» 문구(say/repeat + 표면형)면 그 표현(짧으면 X요)을, 아니면 «I don't know». 비버가 말하는 중이면 끝나기를 기다린다."""
+        try:
+            while not self.ended:
+                await asyncio.sleep(0.5)
+                if self.probe or self.course == "freetalk" or self.cur_turn_id is not None or self.last_beaver_end <= 0:
+                    continue
+                if self.now() - self.last_beaver_end < 6.0 or self.last_spoke_at >= self.last_beaver_end:
+                    continue
+                if self.pending_speak is not None and not self.pending_speak.done():
+                    self.pending_speak.cancel()
+                self.watchdog_fires += 1
+                reply, lang, kind = self.parrot_request(self.last_beaver_text) or (IDK_EN, "en", "idk")
+                self.log(f"⏱ 워치독 #{self.watchdog_fires}: 비버 turn_end 뒤 {self.now() - self.last_beaver_end:.1f}s 무발화 → 「{reply}」")
+                uplink.open = True
+                t = self.add_turn("learner", reply, kind=kind, item_id=self.current.item.item_id if self.current else 0)
+                t.tags.append("워치독")
+                self.last_learner = t
+                self.since_learner = []
+                try:
+                    await uplink.speak(await self.voice.pcm(reply, lang))
+                    self.last_spoke_at = self.now()
+                except Exception as exc:  # noqa: BLE001
+                    self.errors.append(f"watchdog speak: {exc}")
+        except asyncio.CancelledError:
+            raise
+
+    def parrot_request(self, text: str) -> Optional[tuple[str, str, str]]:
+        """② «Say X» / «Repeat after me: X» / «Try saying X» — X 가 목록 항목이면 그 항목의 답(짧으면 X요·문법은 예문)을 복창.
+        항목이 아니어도 따옴표 안 한국어면 그대로(한 음절이면 «X요»)."""
+        # 명령형 + 바로 따옴표 한국어(«Say "명"» · «Repeat after me: "…"» · «Try saying "명"»)만. «How do you say …?» 는 질문이지 복창 요청이 아니다.
+        if not text:
+            return None
+        m = re.search(r"\b(say|repeat(?: after me)?|try saying|say it like this|listen)\s*[:,]?\s*[\"“'‘]([^\"”'’]{1,60})[\"”'’]", text, re.I)
+        if not m or not re.search(r"[가-힣]", m.group(2)):
+            return None
+        q = m.group(2).strip().rstrip(".!?")
+        # (우리 오답을 «"이름요"? What is that?» 처럼 되풀이한 건 앞에 명령형이 없어 위 정규식에 안 걸린다)
+        hits = surfaces_in(q, self.items)
+        if hits:
+            it = self.items[hits[0]]
+            return it.answer, "ko", "parrot"
+        return (f"{q}요" if len(norm_ko(q)) <= 1 else q), "ko", "parrot"
 
 
 # --------------------------------------------------------------------------- #
@@ -1183,6 +1294,7 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
                     await ws.close()
 
         cut_task = asyncio.create_task(client_cut())
+        wd_task = asyncio.create_task(sess.watchdog(uplink))
         try:
             async for raw in ws:
                 if isinstance(raw, (bytes, bytearray)):
@@ -1204,7 +1316,7 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
             sess.errors.append(f"ws: {type(exc).__name__}: {exc}")
             sess.log(f"⛔ WS 종료 {type(exc).__name__}: {exc}")
         finally:
-            for t in (up_task, ka_task, cut_task, sess.pending_speak):
+            for t in (up_task, ka_task, cut_task, wd_task, sess.pending_speak):
                 if t is not None:
                     t.cancel()
     return sess
@@ -1357,6 +1469,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
              f"비버 턴 {sum(1 for t in sess.turns if t.role == 'beaver')} · 학습자 턴 {sum(1 for t in sess.turns if t.role == 'learner')} · "
              f"비버 오디오 {sess.beaver_audio_bytes / 48000:.0f}초 · LLM 폴백 {sess.picker.calls}회")
     L.append(f"- DB call: {sc.call_row} · 레벨(뒤) {sc.level_after}")
+    if sess.watchdog_fires or sess.speak_errors:
+        L.append(f"- ⚠ 하네스 워치독 발화 {sess.watchdog_fires}회 · 발화 태스크 예외 {sess.speak_errors}회 — 무응답 방지가 동작했다(원인은 §전사 태그 «워치독»·«대체발화»)")
     if sc.cur:
         c = sc.cur
         les = c.get("lesson") or {}
@@ -1398,6 +1512,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     L.append("|---|---|---|---|---|---|---|---|---|---|")
     res_by_id = {int(r.get("item_id", 0)): r for r in sc.expr_result if isinstance(r, dict)}
     judge_ok = True
+    sup = [r for r in sess.records.values() if r.superseded_by]
+    if sup:
+        L.append("- 오식별 정정 " + str(len(sup)) + "건(하네스가 처음 잘못 짚은 항목 — 판정표 제외): "
+                 + ", ".join(f"{r.item.surface}→{sess.items[r.superseded_by].surface}" for r in sup))
     for iid in sess.drilled_order:
         rec = sess.records[iid]
         row = sc.db_rows.get(iid, {})
@@ -1634,8 +1752,9 @@ def keywords_for(surface: str, en: str, kind: str) -> tuple[str, ...]:
     hint = _CHUNK_HINTS.get(norm_ko(surface))
     if hint:
         return hint[1]
-    base = norm_en(en)
-    kws = [k.strip() for k in re.split(r"[;,/]| or ", base) if len(k.strip()) >= 3]
+    # ⚠ 쉼표·세미콜론으로 **먼저** 가른 뒤 정규화한다 — norm_en 이 쉼표를 지워 «name, title» 이 «name title» 한 덩이가 됐다(1441 명↔이름)
+    parts = [norm_en(k) for k in re.split(r"[;,/]| or ", en or "")]
+    kws = [k for k in parts if len(k) >= 3 and k not in ("to be", "the")]
     return tuple(dict.fromkeys(kws))[:4]
 
 
