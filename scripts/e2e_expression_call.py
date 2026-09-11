@@ -1106,7 +1106,7 @@ QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"   # = call_session.EX
 # 서버는 한 퀴즈에 세 줄을 남긴다: «arm:»(묶음 찼다) → «얹기:»(다음 학습자 발화에 큐 전송) → «열림:»(다음 비버 turn_start).
 # 앵커와 대조할 순간은 **얹기** 다 — 모델이 큐를 받은 시각. arm 은 학습자가 말할 때까지 기다린다(대기=Ns 가 그 줄에 있다).
 QUIZ_CUE_STAGE = "얹기"
-QUIZ_CUE_MATCH_WINDOW_S = 60.0      # 큐 뒤 이 안에 난 앵커만 그 큐의 것으로 본다(다음 학습자 발화 시작에 얹히므로 보통 수 초)
+QUIZ_CUE_MATCH_WINDOW_S = 30.0      # 큐 뒤 이 안에 난 앵커만 그 큐의 것(실측 2.5 = 2~5s · 3.1 = 10~16s. 60s 는 다음 큐의 앵커를 훔쳤다 — 1420)
 _LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
 
 
@@ -1349,6 +1349,14 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             return sum(1 for ln in server_logs if needle in ln)
         L.append(f"- 재개 시드 주입 {_cnt('대화 재개 시드 주입(')}회 · 제어 태그 스크럽만(시드 생략) {_cnt('제어 태그 스크럽만')}회 · "
                  f"폴백 채택 {_cnt('provenance=stt_fallback')} · 폴백 기각 {_cnt('퀴즈 폴백 기각')} · 👤 user 조각 {_cnt('👤 user:')} · USER flush {_cnt('USER[t')}")
+        arms = [(re.search(r"근거=([^,]+)", ln), re.search(r"peak=(\d+)", ln), re.search(r"바닥=(\d+)", ln), re.search(r"대화=(\d+)", ln))
+                for ln in server_logs if "재접지 arm" in ln]
+        if arms:
+            L.append("- 재접지 arm: " + " · ".join(
+                f"{(a.group(1) if a else '?')} peak={(pk.group(1) if pk else '?')} 바닥={(fl.group(1) if fl else '?')} 대화={(dv.group(1) if dv else '?')}"
+                for a, pk, fl, dv in arms))
+        else:
+            L.append("- 재접지 arm 0회")
         L.append("```")
         L.extend(server_logs[:1000])
         L.append("```")

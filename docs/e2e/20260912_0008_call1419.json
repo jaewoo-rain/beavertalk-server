@@ -1,0 +1,2778 @@
+{
+ "call_id": 1419,
+ "duration_min": 5,
+ "end_reason": "done",
+ "errors": [],
+ "anchors": [
+  [
+   14,
+   4
+  ],
+  [
+   22,
+   5
+  ],
+  [
+   44,
+   8
+  ],
+  [
+   76,
+   14
+  ]
+ ],
+ "drilled_order": [
+  11126,
+  11109,
+  11124,
+  11107,
+  11096,
+  11102,
+  11129,
+  11116,
+  11125,
+  11117,
+  11122,
+  11120,
+  11133,
+  11098,
+  11104,
+  11127,
+  11097,
+  11123
+ ],
+ "quiz_cue_match": {
+  "pairs": [
+   [
+    1789138994.367914,
+    14,
+    5.1
+   ],
+   [
+    1789139056.809755,
+    44,
+    2.2
+   ],
+   [
+    1789139116.613532,
+    76,
+    3.0
+   ]
+  ],
+  "cues_without_anchor": [],
+  "anchors_without_cue": [
+   22
+  ],
+  "cues": [
+   [
+    1789138994.367914,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 6] 얹기=마이크 대기=3s 비버턴=(열린 턴 없음)"
+   ],
+   [
+    1789139056.809755,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[5, 4, 7] 얹기=마이크 대기=2s 비버턴=(열린 턴 없음)"
+   ],
+   [
+    1789139116.613532,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[8, 9, 10] 얹기=마이크 대기=1s 비버턴=(열린 턴 없음)"
+   ]
+  ]
+ },
+ "turns": [
+  {
+   "n": 0,
+   "role": "beaver",
+   "t": 4.9,
+   "wall": 1789138974.862,
+   "text": "Alright testfree, let's start with something simple. If you need help, how do you say that in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→도와주세요(kw:need help)",
+    "새항목#1 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 1,
+   "role": "learner",
+   "t": 5.7,
+   "wall": 1789138975.66,
+   "text": "도와주세요",
+   "kind": "correct",
+   "stt": "도와주세요.",
+   "tags": []
+  },
+  {
+   "n": 2,
+   "role": "beaver",
+   "t": 9.4,
+   "wall": 1789138979.368,
+   "text": "Right. Now, what if you just needed to say \"It's okay\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→괜찮아요(quote=\"it's okay\")",
+    "새항목#2 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 3,
+   "role": "learner",
+   "t": 10.2,
+   "wall": 1789138980.181,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 4,
+   "role": "beaver",
+   "t": 13.3,
+   "wall": 1789138983.347,
+   "text": "It's \"괜찮아요.\" Try saying that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:괜찮아요",
+    "→괜찮아요(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 5,
+   "role": "learner",
+   "t": 14.2,
+   "wall": 1789138984.155,
+   "text": "괜찮아요",
+   "kind": "parrot",
+   "stt": "괜찮아요.",
+   "tags": []
+  },
+  {
+   "n": 6,
+   "role": "beaver",
+   "t": 18.3,
+   "wall": 1789138988.306,
+   "text": "Good. And now imagine you want to ask \"How much is it?\" What do you say?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→얼마예요?(quote=\"how much is it\")",
+    "새항목#3 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 7,
+   "role": "learner",
+   "t": 19.1,
+   "wall": 1789138989.115,
+   "text": "얼마예요?",
+   "kind": "correct",
+   "stt": "얼마예요?",
+   "tags": []
+  },
+  {
+   "n": 8,
+   "role": "beaver",
+   "t": 22.7,
+   "wall": 1789138992.681,
+   "text": "Perfect. Now, what about saying \"I'm sorry\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→죄송합니다(quote=\"i'm sorry\")",
+    "새항목#4 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 9,
+   "role": "learner",
+   "t": 23.5,
+   "wall": 1789138993.5,
+   "text": "좋아요",
+   "kind": "distractor",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 10,
+   "role": "beaver",
+   "t": 24.4,
+   "wall": 1789138994.396,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 11,
+   "role": "learner",
+   "t": 25.2,
+   "wall": 1789138995.194,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "좋아요.",
+   "tags": []
+  },
+  {
+   "n": 12,
+   "role": "beaver",
+   "t": 26.7,
+   "wall": 1789138996.743,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 13,
+   "role": "learner",
+   "t": 27.5,
+   "wall": 1789138997.54,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 14,
+   "role": "beaver",
+   "t": 29.5,
+   "wall": 1789138999.469,
+   "text": "Alright, let's see if you remember. How do you say \"Please help me\" in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@4번째✖",
+    "→도와주세요(quote=\"please help me\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 15,
+   "role": "learner",
+   "t": 30.3,
+   "wall": 1789139000.276,
+   "text": "도와주세요",
+   "kind": "correct",
+   "stt": "도와주세요.",
+   "tags": []
+  },
+  {
+   "n": 16,
+   "role": "beaver",
+   "t": 33.4,
+   "wall": 1789139003.414,
+   "text": "And \"It's okay\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→괜찮아요(quote=\"it's okay\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 17,
+   "role": "learner",
+   "t": 34.2,
+   "wall": 1789139004.22,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 18,
+   "role": "beaver",
+   "t": 37.5,
+   "wall": 1789139007.48,
+   "text": "It's \"괜찮아요.\" What about \"How much is it?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:괜찮아요",
+    "→얼마예요?(quote=\"how much is it\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 19,
+   "role": "learner",
+   "t": 38.3,
+   "wall": 1789139008.281,
+   "text": "얼마야?",
+   "kind": "casual",
+   "stt": "얼마야?",
+   "tags": []
+  },
+  {
+   "n": 20,
+   "role": "beaver",
+   "t": 43.0,
+   "wall": 1789139012.969,
+   "text": "Close, but you need the polite form: \"얼마예요?\" Now, let's learn a new one. How do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:얼마예요?",
+    "→안녕하세요?(quote=\"hello\")",
+    "퀴즈끝→드릴",
+    "새항목#5 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 21,
+   "role": "learner",
+   "t": 43.8,
+   "wall": 1789139013.779,
+   "text": "안녕하세요?",
+   "kind": "correct",
+   "stt": "안녕하세요.",
+   "tags": []
+  },
+  {
+   "n": 22,
+   "role": "beaver",
+   "t": 47.4,
+   "wall": 1789139017.366,
+   "text": "Hey, we're still doing the quiz! How do you say \"How much is it?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@5번째✖",
+    "→얼마예요?(quote=\"how much is it\")",
+    "퀴즈회차2"
+   ]
+  },
+  {
+   "n": 23,
+   "role": "learner",
+   "t": 48.2,
+   "wall": 1789139018.161,
+   "text": "얼마야?",
+   "kind": "casual",
+   "stt": "얼마야?",
+   "tags": []
+  },
+  {
+   "n": 24,
+   "role": "beaver",
+   "t": 51.7,
+   "wall": 1789139021.672,
+   "text": "It's \"얼마예요.\" Say it like that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:얼마예요?",
+    "→얼마예요?(reveal)",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 25,
+   "role": "learner",
+   "t": 52.5,
+   "wall": 1789139022.477,
+   "text": "얼마예요?",
+   "kind": "parrot",
+   "stt": "얼마예요?",
+   "tags": []
+  },
+  {
+   "n": 26,
+   "role": "beaver",
+   "t": 55.9,
+   "wall": 1789139025.916,
+   "text": "There you go. Now, how do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→안녕하세요?(quote=\"hello\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 27,
+   "role": "learner",
+   "t": 56.7,
+   "wall": 1789139026.72,
+   "text": "맞아요",
+   "kind": "distractor",
+   "stt": "맞아.",
+   "tags": []
+  },
+  {
+   "n": 28,
+   "role": "beaver",
+   "t": 60.0,
+   "wall": 1789139029.95,
+   "text": "To say \"I'm sorry,\" you use \"죄송합니다.\" Can you try that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:죄송합니다",
+    "→죄송합니다(quote=\"i'm sorry\")",
+    "퀴즈회차1",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 29,
+   "role": "learner",
+   "t": 60.8,
+   "wall": 1789139030.757,
+   "text": "죄송합니다",
+   "kind": "parrot",
+   "stt": "죄송합니다.",
+   "tags": []
+  },
+  {
+   "n": 30,
+   "role": "beaver",
+   "t": 64.5,
+   "wall": 1789139034.507,
+   "text": "Good. Now, what about saying \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→안녕하세요?(quote=\"hello\")",
+    "퀴즈회차2"
+   ]
+  },
+  {
+   "n": 31,
+   "role": "learner",
+   "t": 65.3,
+   "wall": 1789139035.301,
+   "text": "알겠어요",
+   "kind": "distractor",
+   "stt": "알겠어요.",
+   "tags": []
+  },
+  {
+   "n": 32,
+   "role": "beaver",
+   "t": 67.8,
+   "wall": 1789139037.837,
+   "text": "How do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→안녕하세요?(quote=\"hello\")"
+   ]
+  },
+  {
+   "n": 33,
+   "role": "learner",
+   "t": 68.6,
+   "wall": 1789139038.636,
+   "text": "안녕하세요?",
+   "kind": "correct",
+   "stt": "안녕하세요.",
+   "tags": []
+  },
+  {
+   "n": 34,
+   "role": "beaver",
+   "t": 72.1,
+   "wall": 1789139042.113,
+   "text": "Nice. And when you're wrapping up, how do you say \"Have a good day\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→좋은 하루 보내세요(quote=\"have a good day\")",
+    "퀴즈끝→드릴",
+    "새항목#6 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 35,
+   "role": "learner",
+   "t": 72.9,
+   "wall": 1789139042.915,
+   "text": "좋은 하루 보내세요",
+   "kind": "correct",
+   "stt": "좋은 하루 보내세요.",
+   "tags": []
+  },
+  {
+   "n": 36,
+   "role": "beaver",
+   "t": 76.6,
+   "wall": 1789139046.609,
+   "text": "Impressive. You're doing well. How would you say \"I'm hungry\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→배고파요(quote=\"i'm hungry\")",
+    "새항목#7 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 37,
+   "role": "learner",
+   "t": 77.4,
+   "wall": 1789139047.421,
+   "text": "배고파요",
+   "kind": "correct",
+   "stt": "배고파요.",
+   "tags": []
+  },
+  {
+   "n": 38,
+   "role": "beaver",
+   "t": 80.9,
+   "wall": 1789139050.85,
+   "text": "There you go. Now, how about saying \"Really?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→진짜요?(quote=\"really\")",
+    "새항목#8 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 39,
+   "role": "learner",
+   "t": 81.6,
+   "wall": 1789139051.639,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 40,
+   "role": "beaver",
+   "t": 84.8,
+   "wall": 1789139054.799,
+   "text": "It's \"진짜요?\" Can you try that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:진짜요?",
+    "→진짜요?(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 41,
+   "role": "learner",
+   "t": 85.6,
+   "wall": 1789139055.597,
+   "text": "진짜요?",
+   "kind": "parrot",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 42,
+   "role": "beaver",
+   "t": 86.8,
+   "wall": 1789139056.839,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 43,
+   "role": "learner",
+   "t": 87.6,
+   "wall": 1789139057.636,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "진짜요?",
+   "tags": []
+  },
+  {
+   "n": 44,
+   "role": "beaver",
+   "t": 89.0,
+   "wall": 1789139059.0,
+   "text": "Okay, quiz time. How do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@8번째✖",
+    "→안녕하세요?(quote=\"hello\")",
+    "퀴즈회차3"
+   ]
+  },
+  {
+   "n": 45,
+   "role": "learner",
+   "t": 89.8,
+   "wall": 1789139059.8,
+   "text": "물 주세요",
+   "kind": "distractor",
+   "stt": "물 주세요.",
+   "tags": []
+  },
+  {
+   "n": 46,
+   "role": "beaver",
+   "t": 92.9,
+   "wall": 1789139062.948,
+   "text": "I said, \"How do you say 'Hello'?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→안녕하세요?(quote~\"how do you say 'hello'\")"
+   ]
+  },
+  {
+   "n": 47,
+   "role": "learner",
+   "t": 93.7,
+   "wall": 1789139063.741,
+   "text": "안녕하세요?",
+   "kind": "correct",
+   "stt": "안녕하세요.",
+   "tags": []
+  },
+  {
+   "n": 48,
+   "role": "beaver",
+   "t": 96.9,
+   "wall": 1789139066.904,
+   "text": "Right. And what about \"I'm sorry\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→죄송합니다(quote=\"i'm sorry\")",
+    "퀴즈회차2"
+   ]
+  },
+  {
+   "n": 49,
+   "role": "learner",
+   "t": 97.7,
+   "wall": 1789139067.714,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 50,
+   "role": "beaver",
+   "t": 101.1,
+   "wall": 1789139071.143,
+   "text": "It's \"죄송합니다.\" And finally, \"Have a good day\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:죄송합니다",
+    "→좋은 하루 보내세요(quote=\"have a good day\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 51,
+   "role": "learner",
+   "t": 101.9,
+   "wall": 1789139071.939,
+   "text": "좋은 하루 보내세요",
+   "kind": "correct",
+   "stt": "좋은 하루 보내세요.",
+   "tags": []
+  },
+  {
+   "n": 52,
+   "role": "beaver",
+   "t": 105.6,
+   "wall": 1789139075.558,
+   "text": "Almost! It's \"보내세요.\" Now, where is the bathroom?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→화장실이 어디예요?(phrase)",
+    "퀴즈끝→드릴",
+    "새항목#9 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 53,
+   "role": "learner",
+   "t": 106.4,
+   "wall": 1789139076.36,
+   "text": "화장실이 어디예요?",
+   "kind": "correct",
+   "stt": "화장실이 어디에요?",
+   "tags": []
+  },
+  {
+   "n": 54,
+   "role": "beaver",
+   "t": 110.2,
+   "wall": 1789139080.192,
+   "text": "Good. And what about saying \"It's delicious\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→맛있어요(quote=\"it's delicious\")",
+    "새항목#10 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 55,
+   "role": "learner",
+   "t": 111.0,
+   "wall": 1789139080.994,
+   "text": "잠시만요",
+   "kind": "distractor",
+   "stt": "잠시만요.",
+   "tags": []
+  },
+  {
+   "n": 56,
+   "role": "beaver",
+   "t": 114.4,
+   "wall": 1789139084.431,
+   "text": "\"It's delicious\" is \"맛있어요.\" Can you try that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:맛있어요",
+    "→맛있어요(quote=\"it's delicious\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 57,
+   "role": "learner",
+   "t": 115.2,
+   "wall": 1789139085.235,
+   "text": "또 봐요",
+   "kind": "distractor",
+   "stt": "또 뭐야?",
+   "tags": []
+  },
+  {
+   "n": 58,
+   "role": "beaver",
+   "t": 118.1,
+   "wall": 1789139088.114,
+   "text": "\"맛있어요.\" Can you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:맛있어요",
+    "→맛있어요(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 59,
+   "role": "learner",
+   "t": 118.9,
+   "wall": 1789139088.914,
+   "text": "어서 오세요",
+   "kind": "distractor",
+   "stt": "어서 오세요.",
+   "tags": []
+  },
+  {
+   "n": 60,
+   "role": "beaver",
+   "t": 122.4,
+   "wall": 1789139092.362,
+   "text": "I'm asking you to say \"It's delicious\" in Korean. It's \"맛있어요.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:맛있어요",
+    "→맛있어요(quote=\"it's delicious\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 61,
+   "role": "learner",
+   "t": 123.2,
+   "wall": 1789139093.16,
+   "text": "맛있어요",
+   "kind": "parrot",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 62,
+   "role": "beaver",
+   "t": 124.3,
+   "wall": 1789139094.283,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 63,
+   "role": "learner",
+   "t": 125.1,
+   "wall": 1789139095.08,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "맛있어요.",
+   "tags": []
+  },
+  {
+   "n": 64,
+   "role": "beaver",
+   "t": 127.9,
+   "wall": 1789139097.859,
+   "text": "Finally! You got it. Now, what about saying \"Please take good care of me\"? That's a tricky one.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→잘 부탁드립니다(quote=\"please take good care of me\")",
+    "새항목#11 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 65,
+   "role": "learner",
+   "t": 128.7,
+   "wall": 1789139098.661,
+   "text": "잘 부탁드립니다",
+   "kind": "correct",
+   "stt": "잘 부탁드립니다.",
+   "tags": []
+  },
+  {
+   "n": 66,
+   "role": "beaver",
+   "t": 132.8,
+   "wall": 1789139102.771,
+   "text": "Good job. And if you needed to ask \"What's your name\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→이름이 뭐예요?(quote=\"what's your name\")",
+    "새항목#12 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 67,
+   "role": "learner",
+   "t": 133.6,
+   "wall": 1789139103.561,
+   "text": "이름이 뭐예요?",
+   "kind": "correct",
+   "stt": "이름이 뭐예요?",
+   "tags": []
+  },
+  {
+   "n": 68,
+   "role": "beaver",
+   "t": 136.7,
+   "wall": 1789139106.729,
+   "text": "Nailed it. How about \"I didn't catch that\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→잘 못 들었어요(quote=\"i didn't catch that\")",
+    "새항목#13 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 69,
+   "role": "learner",
+   "t": 137.5,
+   "wall": 1789139107.541,
+   "text": "잘 못 들었어요",
+   "kind": "correct",
+   "stt": "잘 못 들었어요.",
+   "tags": []
+  },
+  {
+   "n": 70,
+   "role": "beaver",
+   "t": 141.0,
+   "wall": 1789139110.972,
+   "text": "Okay. And \"How have you been\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→잘 지냈어요?(quote=\"how have you been\")",
+    "새항목#14 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 71,
+   "role": "learner",
+   "t": 141.8,
+   "wall": 1789139111.78,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 72,
+   "role": "beaver",
+   "t": 145.0,
+   "wall": 1789139115.025,
+   "text": "It's \"잘 지냈어요?\" Try that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:잘 지냈어요?",
+    "→잘 지냈어요?(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 73,
+   "role": "learner",
+   "t": 145.8,
+   "wall": 1789139115.835,
+   "text": "잘 지냈어요?",
+   "kind": "parrot",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 74,
+   "role": "beaver",
+   "t": 146.6,
+   "wall": 1789139116.639,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 75,
+   "role": "learner",
+   "t": 147.4,
+   "wall": 1789139117.439,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "잘 지냈어요?",
+   "tags": []
+  },
+  {
+   "n": 76,
+   "role": "beaver",
+   "t": 149.6,
+   "wall": 1789139119.627,
+   "text": "Right. Okay, quiz time! How do you say \"I'm hungry\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@14번째✖",
+    "→배고파요(quote=\"i'm hungry\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 77,
+   "role": "learner",
+   "t": 150.4,
+   "wall": 1789139120.436,
+   "text": "배고파요",
+   "kind": "correct",
+   "stt": "배고파요.",
+   "tags": []
+  },
+  {
+   "n": 78,
+   "role": "beaver",
+   "t": 153.6,
+   "wall": 1789139123.641,
+   "text": "Good. And what about \"Really?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→진짜요?(quote=\"really\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 79,
+   "role": "learner",
+   "t": 154.4,
+   "wall": 1789139124.44,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 80,
+   "role": "beaver",
+   "t": 157.9,
+   "wall": 1789139127.88,
+   "text": "It's \"진짜요?\" And finally, \"Where is the bathroom?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:진짜요?",
+    "→화장실이 어디예요?(quote=\"where is the bathroom\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 81,
+   "role": "learner",
+   "t": 158.7,
+   "wall": 1789139128.676,
+   "text": "화장실이 어디야?",
+   "kind": "casual",
+   "stt": "화장실이 어디야?",
+   "tags": []
+  },
+  {
+   "n": 82,
+   "role": "beaver",
+   "t": 163.5,
+   "wall": 1789139133.474,
+   "text": "Careful, that's informal. It's \"화장실이 어디예요?\" Now, let's learn \"Thank you.\" How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:화장실이 어디예요?",
+    "→감사합니다(quote=\"thank you\")",
+    "퀴즈끝→드릴",
+    "새항목#15 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 83,
+   "role": "learner",
+   "t": 164.3,
+   "wall": 1789139134.275,
+   "text": "감사합니다",
+   "kind": "correct",
+   "stt": "감사합니다.",
+   "tags": []
+  },
+  {
+   "n": 84,
+   "role": "beaver",
+   "t": 168.7,
+   "wall": 1789139138.696,
+   "text": "You're welcome. Now, how would you get someone's attention? What's \"Excuse me!\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→여기요!(quote=\"excuse me\")",
+    "새항목#16 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 85,
+   "role": "learner",
+   "t": 169.5,
+   "wall": 1789139139.516,
+   "text": "안녕히 계세요",
+   "kind": "distractor",
+   "stt": "안녕히 계세요.",
+   "tags": []
+  },
+  {
+   "n": 86,
+   "role": "beaver",
+   "t": 173.5,
+   "wall": 1789139143.506,
+   "text": "To get someone's attention, you say \"여기요!\" Try that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:여기요!",
+    "→여기요!(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 87,
+   "role": "learner",
+   "t": 174.3,
+   "wall": 1789139144.3,
+   "text": "좋아요",
+   "kind": "distractor",
+   "stt": "좋아요.",
+   "tags": []
+  },
+  {
+   "n": 88,
+   "role": "beaver",
+   "t": 178.6,
+   "wall": 1789139148.572,
+   "text": "Great. And what about saying \"Nice to meet you\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "⛔거짓칭찬(Great)",
+    "→만나서 반갑습니다(quote=\"nice to meet you\")",
+    "새항목#17 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 89,
+   "role": "learner",
+   "t": 179.4,
+   "wall": 1789139149.381,
+   "text": "만나서 반갑습니다",
+   "kind": "correct",
+   "stt": "만나서 반갑습니다.",
+   "tags": []
+  },
+  {
+   "n": 90,
+   "role": "beaver",
+   "t": 183.1,
+   "wall": 1789139153.053,
+   "text": "Perfect. We've covered a lot today! Which of these phrases do you think you'll use most?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 91,
+   "role": "learner",
+   "t": 185.0,
+   "wall": 1789139155.035,
+   "text": "만나서 반갑습니다",
+   "kind": "correct",
+   "stt": "만나서 반갑습니다.",
+   "tags": []
+  },
+  {
+   "n": 92,
+   "role": "beaver",
+   "t": 189.2,
+   "wall": 1789139159.169,
+   "text": "I said, we've covered a lot. Which of these phrases do you think you'll use most?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 93,
+   "role": "learner",
+   "t": 191.2,
+   "wall": 1789139161.16,
+   "text": "만나서 반갑습니다",
+   "kind": "correct",
+   "stt": "만나서 반갑습니다.",
+   "tags": []
+  },
+  {
+   "n": 94,
+   "role": "beaver",
+   "t": 195.4,
+   "wall": 1789139165.404,
+   "text": "I'm asking which phrase you'll use most. \"만나서 반갑습니다\" is great for meeting someone. What about for saying \"thank you\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:만나서 반갑습니다",
+    "→감사합니다(quote=\"thank you\")",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 95,
+   "role": "learner",
+   "t": 197.1,
+   "wall": 1789139167.06,
+   "text": "고마워",
+   "kind": "casual",
+   "stt": "고마워.",
+   "tags": []
+  },
+  {
+   "n": 96,
+   "role": "beaver",
+   "t": 200.4,
+   "wall": 1789139170.4,
+   "text": "You're welcome. See you next time!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 97,
+   "role": "learner",
+   "t": 201.2,
+   "wall": 1789139171.199,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 98,
+   "role": "beaver",
+   "t": 203.8,
+   "wall": 1789139173.766,
+   "text": "Don't be late for the next lesson!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 99,
+   "role": "learner",
+   "t": 204.6,
+   "wall": 1789139174.575,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 100,
+   "role": "beaver",
+   "t": 207.4,
+   "wall": 1789139177.374,
+   "text": "We'll practice more next time. Bye!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 101,
+   "role": "learner",
+   "t": 208.2,
+   "wall": 1789139178.176,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 102,
+   "role": "beaver",
+   "t": 210.4,
+   "wall": 1789139180.403,
+   "text": "Get ready!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 103,
+   "role": "learner",
+   "t": 211.2,
+   "wall": 1789139181.214,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 104,
+   "role": "beaver",
+   "t": 213.4,
+   "wall": 1789139183.406,
+   "text": "Bye!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 105,
+   "role": "learner",
+   "t": 214.2,
+   "wall": 1789139184.214,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 106,
+   "role": "beaver",
+   "t": 216.4,
+   "wall": 1789139186.404,
+   "text": "Later!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 107,
+   "role": "learner",
+   "t": 217.2,
+   "wall": 1789139187.215,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 108,
+   "role": "beaver",
+   "t": 219.5,
+   "wall": 1789139189.507,
+   "text": "Catch ya later!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 109,
+   "role": "learner",
+   "t": 220.3,
+   "wall": 1789139190.3,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 110,
+   "role": "beaver",
+   "t": 222.7,
+   "wall": 1789139192.663,
+   "text": "Till next time!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 111,
+   "role": "learner",
+   "t": 223.5,
+   "wall": 1789139193.455,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 112,
+   "role": "beaver",
+   "t": 225.8,
+   "wall": 1789139195.841,
+   "text": "Don't forget what you learned!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 113,
+   "role": "learner",
+   "t": 226.7,
+   "wall": 1789139196.656,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 114,
+   "role": "beaver",
+   "t": 228.9,
+   "wall": 1789139198.912,
+   "text": "See you!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 115,
+   "role": "learner",
+   "t": 229.7,
+   "wall": 1789139199.7,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 116,
+   "role": "beaver",
+   "t": 232.0,
+   "wall": 1789139201.956,
+   "text": "Ciao!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 117,
+   "role": "learner",
+   "t": 232.8,
+   "wall": 1789139202.761,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 118,
+   "role": "beaver",
+   "t": 235.0,
+   "wall": 1789139205.013,
+   "text": "Bye then!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 119,
+   "role": "learner",
+   "t": 235.8,
+   "wall": 1789139205.816,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 120,
+   "role": "beaver",
+   "t": 238.1,
+   "wall": 1789139208.079,
+   "text": "Later, dude!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 121,
+   "role": "learner",
+   "t": 238.9,
+   "wall": 1789139208.881,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 122,
+   "role": "beaver",
+   "t": 241.2,
+   "wall": 1789139211.229,
+   "text": "Stay sharp!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 123,
+   "role": "learner",
+   "t": 242.0,
+   "wall": 1789139212.021,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 124,
+   "role": "beaver",
+   "t": 244.5,
+   "wall": 1789139214.484,
+   "text": "Adios!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 125,
+   "role": "learner",
+   "t": 245.3,
+   "wall": 1789139215.294,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 126,
+   "role": "beaver",
+   "t": 247.6,
+   "wall": 1789139217.621,
+   "text": "Catch ya!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 127,
+   "role": "learner",
+   "t": 248.4,
+   "wall": 1789139218.414,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 128,
+   "role": "beaver",
+   "t": 250.6,
+   "wall": 1789139220.631,
+   "text": "Outta here!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 129,
+   "role": "learner",
+   "t": 251.4,
+   "wall": 1789139221.42,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 130,
+   "role": "beaver",
+   "t": 253.9,
+   "wall": 1789139223.864,
+   "text": "See ya next time!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 131,
+   "role": "learner",
+   "t": 254.7,
+   "wall": 1789139224.659,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 132,
+   "role": "beaver",
+   "t": 256.9,
+   "wall": 1789139226.913,
+   "text": "Later!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 133,
+   "role": "learner",
+   "t": 257.7,
+   "wall": 1789139227.72,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 134,
+   "role": "beaver",
+   "t": 259.9,
+   "wall": 1789139229.878,
+   "text": "Bye!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 135,
+   "role": "learner",
+   "t": 260.7,
+   "wall": 1789139230.68,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 136,
+   "role": "beaver",
+   "t": 263.0,
+   "wall": 1789139233.036,
+   "text": "Adios!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 137,
+   "role": "learner",
+   "t": 263.8,
+   "wall": 1789139233.84,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 138,
+   "role": "beaver",
+   "t": 266.3,
+   "wall": 1789139236.288,
+   "text": "Catch ya later!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 139,
+   "role": "learner",
+   "t": 267.1,
+   "wall": 1789139237.081,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 140,
+   "role": "beaver",
+   "t": 269.3,
+   "wall": 1789139239.329,
+   "text": "Outta here!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 141,
+   "role": "learner",
+   "t": 270.1,
+   "wall": 1789139240.137,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 142,
+   "role": "beaver",
+   "t": 272.9,
+   "wall": 1789139242.855,
+   "text": "See ya!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 143,
+   "role": "learner",
+   "t": 273.7,
+   "wall": 1789139243.655,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 144,
+   "role": "beaver",
+   "t": 274.4,
+   "wall": 1789139244.419,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 145,
+   "role": "learner",
+   "t": 275.2,
+   "wall": 1789139245.22,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 146,
+   "role": "beaver",
+   "t": 276.9,
+   "wall": 1789139246.905,
+   "text": "Alright, alright, you got it. Now, how would you say \"This one, please\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→이거 주세요(quote=\"this one please\")",
+    "새항목#18 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 147,
+   "role": "learner",
+   "t": 277.7,
+   "wall": 1789139247.7,
+   "text": "이거 주세요",
+   "kind": "correct",
+   "stt": "이것이 세요.",
+   "tags": []
+  },
+  {
+   "n": 148,
+   "role": "beaver",
+   "t": 281.1,
+   "wall": 1789139251.051,
+   "text": "Right. And what about \"I'm sorry\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→죄송합니다(quote=\"i'm sorry\")",
+    "⛔앵커없는재출제/되감기(회차3)"
+   ]
+  },
+  {
+   "n": 149,
+   "role": "learner",
+   "t": 281.9,
+   "wall": 1789139251.857,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 150,
+   "role": "beaver",
+   "t": 285.1,
+   "wall": 1789139255.093,
+   "text": "It's \"괜찮아요.\" Try saying that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:괜찮아요",
+    "→괜찮아요(reveal)",
+    "⛔앵커없는재출제/되감기(회차2)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 151,
+   "role": "learner",
+   "t": 285.9,
+   "wall": 1789139255.895,
+   "text": "괜찮아요",
+   "kind": "parrot",
+   "stt": "괜찮아요?",
+   "tags": []
+  },
+  {
+   "n": 152,
+   "role": "beaver",
+   "t": 289.4,
+   "wall": 1789139259.383,
+   "text": "Good. Now, how do you ask how much something is?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→얼마예요?(kw:how much)",
+    "⛔앵커없는재출제/되감기(회차3)"
+   ]
+  },
+  {
+   "n": 153,
+   "role": "learner",
+   "t": 290.2,
+   "wall": 1789139260.177,
+   "text": "얼마야?",
+   "kind": "casual",
+   "stt": "얼마야?",
+   "tags": []
+  },
+  {
+   "n": 154,
+   "role": "beaver",
+   "t": 293.7,
+   "wall": 1789139263.735,
+   "text": "Almost. It's \"얼마예요?\" Can you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:얼마예요?",
+    "→얼마예요?(reveal)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 155,
+   "role": "learner",
+   "t": 294.5,
+   "wall": 1789139264.534,
+   "text": "얼마예요?",
+   "kind": "parrot",
+   "stt": "얼마예요?",
+   "tags": []
+  },
+  {
+   "n": 156,
+   "role": "beaver",
+   "t": 298.0,
+   "wall": 1789139267.952,
+   "text": "That's right. Now, how do you say \"I'm sorry\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→죄송합니다(quote=\"i'm sorry\")",
+    "⛔앵커없는재출제/되감기(회차4)"
+   ]
+  },
+  {
+   "n": 157,
+   "role": "learner",
+   "t": 298.8,
+   "wall": 1789139268.76,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 158,
+   "role": "beaver",
+   "t": 302.0,
+   "wall": 1789139271.956,
+   "text": "It's \"죄송합니다.\" Your turn.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:죄송합니다",
+    "→죄송합니다(reveal)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 159,
+   "role": "learner",
+   "t": 302.8,
+   "wall": 1789139272.76,
+   "text": "죄송합니다",
+   "kind": "parrot",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 160,
+   "role": "beaver",
+   "t": 304.0,
+   "wall": 1789139274.017,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 161,
+   "role": "learner",
+   "t": 304.8,
+   "wall": 1789139274.815,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "죄송합니다.",
+   "tags": []
+  },
+  {
+   "n": 162,
+   "role": "beaver",
+   "t": 306.2,
+   "wall": 1789139276.24,
+   "text": "Time's up! Later!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  }
+ ],
+ "records": {
+  "11126": {
+   "surface": "도와주세요",
+   "k": 1,
+   "policy": 1,
+   "ident": "kw:need help",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11109": {
+   "surface": "괜찮아요",
+   "k": 2,
+   "policy": 2,
+   "ident": "quote=\"it's okay\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11124": {
+   "surface": "얼마예요?",
+   "k": 3,
+   "policy": 3,
+   "ident": "quote=\"how much is it\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "casual"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "casual",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 3,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "casual",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11107": {
+   "surface": "죄송합니다",
+   "k": 4,
+   "policy": 4,
+   "ident": "quote=\"i'm sorry\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "distractor"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 3,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 4,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "idk",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11096": {
+   "surface": "안녕하세요?",
+   "k": 5,
+   "policy": 5,
+   "ident": "quote=\"hello\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "distractor"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "distractor",
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": true
+    },
+    {
+     "n": 3,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "distractor",
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": true
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11102": {
+   "surface": "좋은 하루 보내세요",
+   "k": 6,
+   "policy": 6,
+   "ident": "quote=\"have a good day\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11129": {
+   "surface": "배고파요",
+   "k": 7,
+   "policy": 1,
+   "ident": "quote=\"i'm hungry\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11116": {
+   "surface": "진짜요?",
+   "k": 8,
+   "policy": 2,
+   "ident": "quote=\"really\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11125": {
+   "surface": "화장실이 어디예요?",
+   "k": 9,
+   "policy": 3,
+   "ident": "phrase",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "casual"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11117": {
+   "surface": "맛있어요",
+   "k": 10,
+   "policy": 4,
+   "ident": "quote=\"it's delicious\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 4,
+   "drill_answers": [
+    "distractor",
+    "distractor",
+    "distractor",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11122": {
+   "surface": "잘 부탁드립니다",
+   "k": 11,
+   "policy": 5,
+   "ident": "quote=\"please take good care of me\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11120": {
+   "surface": "이름이 뭐예요?",
+   "k": 12,
+   "policy": 6,
+   "ident": "quote=\"what's your name\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11133": {
+   "surface": "잘 못 들었어요",
+   "k": 13,
+   "policy": 1,
+   "ident": "quote=\"i didn't catch that\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11098": {
+   "surface": "잘 지냈어요?",
+   "k": 14,
+   "policy": 2,
+   "ident": "quote=\"how have you been\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11104": {
+   "surface": "감사합니다",
+   "k": 15,
+   "policy": 3,
+   "ident": "quote=\"thank you\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "casual"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "11127": {
+   "surface": "여기요!",
+   "k": 16,
+   "policy": 4,
+   "ident": "quote=\"excuse me\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "distractor",
+    "distractor"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": [
+    88
+   ]
+  },
+  "11097": {
+   "surface": "만나서 반갑습니다",
+   "k": 17,
+   "policy": 5,
+   "ident": "quote=\"nice to meet you\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 3,
+   "drill_answers": [
+    "correct",
+    "correct",
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11123": {
+   "surface": "이거 주세요",
+   "k": 18,
+   "policy": 6,
+   "ident": "quote=\"this one please\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": false,
+   "rounds": [],
+   "false_praise_turns": []
+  }
+ },
+ "db": {
+  "rows": {
+   "11127": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11104": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11109": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11098": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11124": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11123": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11125": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11133": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11122": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11126": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": "2026-09-11T15:07:56.709536+00:00"
+   },
+   "11129": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": "2026-09-11T15:07:56.709536+00:00"
+   },
+   "11097": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11117": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11096": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": "2026-09-11T15:07:56.709536+00:00"
+   },
+   "11107": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11116": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11120": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": null
+   },
+   "11102": {
+    "drilled_call_id": 1419,
+    "drilled_at": "2026-09-11T15:07:56.709536+00:00",
+    "quiz_passed_at": "2026-09-11T15:07:56.709536+00:00"
+   }
+  },
+  "expression_result": [
+   {
+    "item_id": 11126,
+    "surface": "도와주세요",
+    "meaning": "Please help me.",
+    "passed": true,
+    "failed": false
+   },
+   {
+    "item_id": 11109,
+    "surface": "괜찮아요",
+    "meaning": "It's okay.",
+    "passed": false,
+    "failed": true
+   },
+   {
+    "item_id": 11107,
+    "surface": "죄송합니다",
+    "meaning": "I'm sorry.",
+    "passed": false,
+    "failed": true
+   },
+   {
+    "item_id": 11096,
+    "surface": "안녕하세요?",
+    "meaning": "Hello.",
+    "passed": true,
+    "failed": false
+   },
+   {
+    "item_id": 11124,
+    "surface": "얼마예요?",
+    "meaning": "How much is it?",
+    "passed": false,
+    "failed": true
+   },
+   {
+    "item_id": 11102,
+    "surface": "좋은 하루 보내세요",
+    "meaning": "Have a good day.",
+    "passed": true,
+    "failed": false
+   },
+   {
+    "item_id": 11129,
+    "surface": "배고파요",
+    "meaning": "I'm hungry.",
+    "passed": true,
+    "failed": false
+   },
+   {
+    "item_id": 11116,
+    "surface": "진짜요?",
+    "meaning": "Really?",
+    "passed": false,
+    "failed": true
+   },
+   {
+    "item_id": 11125,
+    "surface": "화장실이 어디예요?",
+    "meaning": "Where is the bathroom?",
+    "passed": false,
+    "failed": true
+   },
+   {
+    "item_id": 11117,
+    "surface": "맛있어요",
+    "meaning": "It's delicious.",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11122,
+    "surface": "잘 부탁드립니다",
+    "meaning": "Please take good care of me.",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11120,
+    "surface": "이름이 뭐예요?",
+    "meaning": "What's your name?",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11133,
+    "surface": "잘 못 들었어요",
+    "meaning": "I didn't catch that.",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11098,
+    "surface": "잘 지냈어요?",
+    "meaning": "How have you been?",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11104,
+    "surface": "감사합니다",
+    "meaning": "Thank you.",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11127,
+    "surface": "여기요!",
+    "meaning": "Excuse me!",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11097,
+    "surface": "만나서 반갑습니다",
+    "meaning": "Nice to meet you.",
+    "passed": false,
+    "failed": false
+   }
+  ],
+  "call": {
+   "call_type": "expression",
+   "status": "analyzing",
+   "total_time": 303,
+   "summary": null,
+   "usage_engine": "live:gemini-live-2.5-flash-native-audio",
+   "cost_usd": 0.7896,
+   "usage": {
+    "in_audio": 184663,
+    "in_text": 344559,
+    "out_audio": 5056,
+    "out_text": 1316
+   }
+  },
+  "level_after": 1
+ },
+ "server_logs": [
+  "2026-09-11T15:02:51.022523Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습: 표현 18개 선별(퀴즈 3개마다) level=1",
+  "2026-09-11T15:02:58.291476Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 도와주세요.",
+  "2026-09-11T15:02:58.646458Z\tINFO:domains.learning.realtime.call_session:👤 USER[t1]: 도와주세요.",
+  "2026-09-11T15:03:02.538269Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:03:02.917328Z\tINFO:domains.learning.realtime.call_session:👤 USER[t3]: I don't know.",
+  "2026-09-11T15:03:06.757382Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 괜찮아요.",
+  "2026-09-11T15:03:07.183660Z\tINFO:domains.learning.realtime.call_session:👤 USER[t5]: 괜찮아요.",
+  "2026-09-11T15:03:11.736136Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마예요?",
+  "2026-09-11T15:03:11.736296Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=1 항목=[1, 2, 6] retry=False covered=3",
+  "2026-09-11T15:03:12.116960Z\tINFO:domains.learning.realtime.call_session:👤 USER[t7]: 얼마예요?",
+  "2026-09-11T15:03:14.367914Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 6] 얹기=마이크 대기=3s 비버턴=(열린 턴 없음)",
+  "2026-09-11T15:03:16.780875Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 좋아요.",
+  "2026-09-11T15:03:18.107420Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:03:18.510041Z\tINFO:domains.learning.realtime.call_session:👤 USER[t9]: 좋아요.오케이.",
+  "2026-09-11T15:03:18.510312Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=1 open_seg=10 항목=[1, 2, 6]",
+  "2026-09-11T15:03:22.944258Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 도와주세요.",
+  "2026-09-11T15:03:23.350098Z\tINFO:domains.learning.realtime.call_session:👤 USER[t11]: 도와주세요.",
+  "2026-09-11T15:03:26.567251Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:03:26.934472Z\tINFO:domains.learning.realtime.call_session:👤 USER[t13]: I don't know.",
+  "2026-09-11T15:03:30.926442Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마야?",
+  "2026-09-11T15:03:31.333636Z\tINFO:domains.learning.realtime.call_session:👤 USER[t15]: 얼마야?",
+  "2026-09-11T15:03:36.057578Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕하세요.",
+  "2026-09-11T15:03:36.476413Z\tINFO:domains.learning.realtime.call_session:👤 USER[t17]: 안녕하세요.",
+  "2026-09-11T15:03:40.806295Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마야?",
+  "2026-09-11T15:03:41.236976Z\tINFO:domains.learning.realtime.call_session:👤 USER[t19]: 얼마야?",
+  "2026-09-11T15:03:44.956284Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마예요?",
+  "2026-09-11T15:03:45.367791Z\tINFO:domains.learning.realtime.call_session:👤 USER[t21]: 얼마예요?",
+  "2026-09-11T15:03:48.618670Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 맞아.",
+  "2026-09-11T15:03:49.141561Z\tINFO:domains.learning.realtime.call_session:👤 USER[t23]: 맞아.",
+  "2026-09-11T15:03:53.370225Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 죄송합니다.",
+  "2026-09-11T15:03:54.030849Z\tINFO:domains.learning.realtime.call_session:👤 USER[t25]: 죄송합니다.",
+  "2026-09-11T15:03:57.275692Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 알겠어요.",
+  "2026-09-11T15:03:57.735846Z\tINFO:domains.learning.realtime.call_session:👤 USER[t27]: 알겠어요.",
+  "2026-09-11T15:04:00.871456Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕하세요.",
+  "2026-09-11T15:04:01.284281Z\tINFO:domains.learning.realtime.call_session:👤 USER[t29]: 안녕하세요.",
+  "2026-09-11T15:04:05.326711Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 좋은 하루 보내세요.",
+  "2026-09-11T15:04:05.777774Z\tINFO:domains.learning.realtime.call_session:👤 USER[t31]: 좋은 하루 보내세요.",
+  "2026-09-11T15:04:09.898473Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 배고파요.",
+  "2026-09-11T15:04:10.283905Z\tINFO:domains.learning.realtime.call_session:👤 USER[t33]: 배고파요.",
+  "2026-09-11T15:04:13.986531Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:04:14.435928Z\tINFO:domains.learning.realtime.call_session:👤 USER[t35]: I don't know.",
+  "2026-09-11T15:04:15.078962Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=1 닫힘=밖 번호 2개 창=10~36(27세그) set=[1, 2, 6] passed=[1] failed=[2, 6] 미판정=[]",
+  "2026-09-11T15:04:15.079027Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=2 항목=[5, 4, 7] retry=False covered=8",
+  "2026-09-11T15:04:16.809755Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[5, 4, 7] 얹기=마이크 대기=2s 비버턴=(열린 턴 없음)",
+  "2026-09-11T15:04:18.151015Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 진짜요?",
+  "2026-09-11T15:04:18.507642Z\tINFO:domains.learning.realtime.call_session:👤 USER[t37]: 진짜요?",
+  "2026-09-11T15:04:18.507840Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=2 open_seg=38 항목=[5, 4, 7]",
+  "2026-09-11T15:04:22.247760Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 물 주세요.",
+  "2026-09-11T15:04:22.691666Z\tINFO:domains.learning.realtime.call_session:👤 USER[t39]: 물 주세요.",
+  "2026-09-11T15:04:26.026027Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕하세요.",
+  "2026-09-11T15:04:26.466661Z\tINFO:domains.learning.realtime.call_session:👤 USER[t41]: 안녕하세요.",
+  "2026-09-11T15:04:30.046928Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:04:30.443367Z\tINFO:domains.learning.realtime.call_session:👤 USER[t43]: I don't know.",
+  "2026-09-11T15:04:34.352615Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 좋은 하루 보내세요.",
+  "2026-09-11T15:04:34.731075Z\tINFO:domains.learning.realtime.call_session:👤 USER[t45]: 좋은 하루 보내세요.",
+  "2026-09-11T15:04:39.230406Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 화장실이 어디에요?",
+  "2026-09-11T15:04:39.576226Z\tINFO:domains.learning.realtime.call_session:👤 USER[t47]: 화장실이 어디에요?",
+  "2026-09-11T15:04:43.302849Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 잠시만요.",
+  "2026-09-11T15:04:43.689445Z\tINFO:domains.learning.realtime.call_session:👤 USER[t49]: 잠시만요.",
+  "2026-09-11T15:04:47.418205Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 또 뭐야?",
+  "2026-09-11T15:04:47.863461Z\tINFO:domains.learning.realtime.call_session:👤 USER[t51]: 또 뭐야?",
+  "2026-09-11T15:04:50.994855Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 어서 오세요.",
+  "2026-09-11T15:04:51.411244Z\tINFO:domains.learning.realtime.call_session:👤 USER[t53]: 어서 오세요.",
+  "2026-09-11T15:04:53.709627Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=time, 1/8회, 드릴 10 · 통과 1 · 오답 2, 압축감지=0, peak=6490, 바닥=3425, 대화=3065)",
+  "2026-09-11T15:04:54.169830Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=time, 1회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-11T15:04:55.941248Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 맛있어요.",
+  "2026-09-11T15:04:56.335278Z\tINFO:domains.learning.realtime.call_session:👤 USER[t55]: 맛있어요.",
+  "2026-09-11T15:05:01.730879Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 잘 부탁드립니다.",
+  "2026-09-11T15:05:02.125914Z\tINFO:domains.learning.realtime.call_session:👤 USER[t57]: 잘 부탁드립니다.",
+  "2026-09-11T15:05:05.977771Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이름이 뭐예요?",
+  "2026-09-11T15:05:06.341315Z\tINFO:domains.learning.realtime.call_session:👤 USER[t59]: 이름이 뭐예요?",
+  "2026-09-11T15:05:10.282048Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 잘 못 들었어요.",
+  "2026-09-11T15:05:10.699359Z\tINFO:domains.learning.realtime.call_session:👤 USER[t61]: 잘 못 들었어요.",
+  "2026-09-11T15:05:14.114079Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:05:14.580121Z\tINFO:domains.learning.realtime.call_session:👤 USER[t63]: I don't know.",
+  "2026-09-11T15:05:15.306972Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=2 닫힘=밖 번호 2개 창=38~64(27세그) set=[5, 4, 7] passed=[5, 7] failed=[4] 미판정=[]",
+  "2026-09-11T15:05:15.307077Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=3 항목=[8, 9, 10] retry=False covered=14",
+  "2026-09-11T15:05:16.613532Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[8, 9, 10] 얹기=마이크 대기=1s 비버턴=(열린 턴 없음)",
+  "2026-09-11T15:05:18.555569Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 잘 지냈어요?",
+  "2026-09-11T15:05:18.965717Z\tINFO:domains.learning.realtime.call_session:👤 USER[t65]: 잘 지냈어요?",
+  "2026-09-11T15:05:18.965870Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=3 open_seg=66 항목=[8, 9, 10]",
+  "2026-09-11T15:05:22.907413Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 배고파요.",
+  "2026-09-11T15:05:23.256813Z\tINFO:domains.learning.realtime.call_session:👤 USER[t67]: 배고파요.",
+  "2026-09-11T15:05:26.804081Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:05:27.193645Z\tINFO:domains.learning.realtime.call_session:👤 USER[t69]: I don't know.",
+  "2026-09-11T15:05:31.534125Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 화장실이 어디야?",
+  "2026-09-11T15:05:31.892176Z\tINFO:domains.learning.realtime.call_session:👤 USER[t71]: 화장실이 어디야?",
+  "2026-09-11T15:05:37.287540Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 감사합니다.",
+  "2026-09-11T15:05:37.698822Z\tINFO:domains.learning.realtime.call_session:👤 USER[t73]: 감사합니다.",
+  "2026-09-11T15:05:42.448138Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕히 계세요.",
+  "2026-09-11T15:05:42.866834Z\tINFO:domains.learning.realtime.call_session:👤 USER[t75]: 안녕히 계세요.",
+  "2026-09-11T15:05:47.632782Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 좋아요.",
+  "2026-09-11T15:05:48.015556Z\tINFO:domains.learning.realtime.call_session:👤 USER[t77]: 좋아요.",
+  "2026-09-11T15:05:51.505839Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 만나서 반갑습니다.",
+  "2026-09-11T15:05:51.893170Z\tINFO:domains.learning.realtime.call_session:👤 USER[t79]: 만나서 반갑습니다.",
+  "2026-09-11T15:05:57.168999Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 만나서 반갑습니다.",
+  "2026-09-11T15:05:57.696011Z\tINFO:domains.learning.realtime.call_session:👤 USER[t81]: 만나서 반갑습니다.",
+  "2026-09-11T15:06:03.307489Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 만나서 반갑습니다.",
+  "2026-09-11T15:06:03.754047Z\tINFO:domains.learning.realtime.call_session:👤 USER[t83]: 만나서 반갑습니다.",
+  "2026-09-11T15:06:09.529944Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 고마워.",
+  "2026-09-11T15:06:10.060455Z\tINFO:domains.learning.realtime.call_session:👤 USER[t85]: 고마워.",
+  "2026-09-11T15:06:13.105705Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:13.609640Z\tINFO:domains.learning.realtime.call_session:👤 USER[t87]: 오케이.",
+  "2026-09-11T15:06:16.493441Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:17.054554Z\tINFO:domains.learning.realtime.call_session:👤 USER[t89]: 오케이.",
+  "2026-09-11T15:06:20.093Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:20.457508Z\tINFO:domains.learning.realtime.call_session:👤 USER[t91]: 오케이.",
+  "2026-09-11T15:06:23.125340Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:23.490567Z\tINFO:domains.learning.realtime.call_session:👤 USER[t93]: 오케이.",
+  "2026-09-11T15:06:26.121437Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:26.477044Z\tINFO:domains.learning.realtime.call_session:👤 USER[t95]: 오케이.",
+  "2026-09-11T15:06:29.101970Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:29.514040Z\tINFO:domains.learning.realtime.call_session:👤 USER[t97]: 오케이.",
+  "2026-09-11T15:06:32.224892Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:32.644271Z\tINFO:domains.learning.realtime.call_session:👤 USER[t99]: 오케이.",
+  "2026-09-11T15:06:35.351325Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:35.742150Z\tINFO:domains.learning.realtime.call_session:👤 USER[t101]: 오케이.",
+  "2026-09-11T15:06:38.543980Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:38.935517Z\tINFO:domains.learning.realtime.call_session:👤 USER[t103]: 오케이.",
+  "2026-09-11T15:06:41.656997Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:41.997547Z\tINFO:domains.learning.realtime.call_session:👤 USER[t105]: 오케이.",
+  "2026-09-11T15:06:44.667301Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:45.032611Z\tINFO:domains.learning.realtime.call_session:👤 USER[t107]: 오케이.",
+  "2026-09-11T15:06:47.707950Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:48.106443Z\tINFO:domains.learning.realtime.call_session:👤 USER[t109]: 오케이.",
+  "2026-09-11T15:06:50.807972Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:51.207862Z\tINFO:domains.learning.realtime.call_session:👤 USER[t111]: 오케이.",
+  "2026-09-11T15:06:53.950484Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:54.508930Z\tINFO:domains.learning.realtime.call_session:👤 USER[t113]: 오케이.",
+  "2026-09-11T15:06:57.205658Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:06:57.628735Z\tINFO:domains.learning.realtime.call_session:👤 USER[t115]: 오케이.",
+  "2026-09-11T15:07:00.351522Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:00.673927Z\tINFO:domains.learning.realtime.call_session:👤 USER[t117]: 오케이.",
+  "2026-09-11T15:07:03.380717Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:03.766340Z\tINFO:domains.learning.realtime.call_session:👤 USER[t119]: 오케이.",
+  "2026-09-11T15:07:06.597662Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:06.939242Z\tINFO:domains.learning.realtime.call_session:👤 USER[t121]: 오케이.",
+  "2026-09-11T15:07:09.648118Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:09.983348Z\tINFO:domains.learning.realtime.call_session:👤 USER[t123]: 오케이.",
+  "2026-09-11T15:07:12.605182Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:13.008300Z\tINFO:domains.learning.realtime.call_session:👤 USER[t125]: 오케이.",
+  "2026-09-11T15:07:15.754441Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:16.139829Z\tINFO:domains.learning.realtime.call_session:👤 USER[t127]: 오케이.",
+  "2026-09-11T15:07:18.988182Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:19.420872Z\tINFO:domains.learning.realtime.call_session:👤 USER[t129]: 오케이.",
+  "2026-09-11T15:07:22.032216Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:22.741168Z\tINFO:domains.learning.realtime.call_session:👤 USER[t131]: 오케이.",
+  "2026-09-11T15:07:24.246775Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 2/8회, 드릴 17 · 통과 3 · 오답 3, 압축감지=3, peak=7421, 바닥=3425, 대화=3996)",
+  "2026-09-11T15:07:24.353387Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 2회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-11T15:07:25.578918Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:07:25.924935Z\tINFO:domains.learning.realtime.call_session:👤 USER[t133]: 오케이.",
+  "2026-09-11T15:07:30.306864Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이것이 세요.",
+  "2026-09-11T15:07:30.632548Z\tINFO:domains.learning.realtime.call_session:👤 USER[t135]: 이것이 세요.",
+  "2026-09-11T15:07:34.175225Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:07:34.611466Z\tINFO:domains.learning.realtime.call_session:👤 USER[t137]: I don't know.",
+  "2026-09-11T15:07:38.478853Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 괜찮아요?",
+  "2026-09-11T15:07:38.895172Z\tINFO:domains.learning.realtime.call_session:👤 USER[t139]: 괜찮아요?",
+  "2026-09-11T15:07:42.821438Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마야?",
+  "2026-09-11T15:07:43.223269Z\tINFO:domains.learning.realtime.call_session:👤 USER[t141]: 얼마야?",
+  "2026-09-11T15:07:47.014966Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마예요?",
+  "2026-09-11T15:07:47.404705Z\tINFO:domains.learning.realtime.call_session:👤 USER[t143]: 얼마예요?",
+  "2026-09-11T15:07:51.121592Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:07:51.543951Z\tINFO:domains.learning.realtime.call_session:👤 USER[t145]: I don't know.",
+  "2026-09-11T15:07:56.094210Z\tINFO:domains.learning.realtime.call_session:👤 USER[t147]: 죄송합니다.",
+  "2026-09-11T15:07:56.708549Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버·마지막): seq=3 창=66~끝(83세그) set=[8, 9, 10] passed=[8] failed=[9, 10] 미판정=[]",
+  "2026-09-11T15:07:56.708630Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 마지막 판정: 1ms (상한 2000ms)"
+ ]
+}
