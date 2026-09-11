@@ -727,3 +727,12 @@ def test_a_re_mention_of_an_already_covered_item_never_closes() -> None:
     _beaver(st, "Quiz! How much is it?")
     _beaver(st, 'You said "도와주세요" earlier — good. Now, how much is it?')   # 재언급
     assert st.expr_quiz_open is True and st.expr_quiz_stray == []
+
+
+# --------------------------------------------------------------------------- #
+# T21-B — 호출부는 live_model 에 "3.1" 이 들었는지 하나로만 대본 블록을 가른다
+# --------------------------------------------------------------------------- #
+def test_the_call_site_picks_the_model_family_from_live_model_only() -> None:
+    src = pathlib.Path(cs.__file__).read_text(encoding="utf-8")
+    assert 'model_family="3.1" if "3.1" in (live_model or "") else "2.5"' in src
+    assert src.count("model_family=") == 1, "모델 선택 로직을 대본 쪽에서 새로 만들지 않는다"

@@ -577,3 +577,47 @@ def test_expression_instruction_matches_the_t21a_baseline() -> None:
     want_sha, want_len = _EXPR_FROZEN
     assert len(out) == want_len, f"길이 {want_len} → {len(out)} ({len(out) - want_len:+d}자) — 대본이 바뀌었다"
     assert hashlib.sha256(out.encode("utf-8")).hexdigest() == want_sha, "길이는 같은데 내용이 다르다"
+
+
+# --------------------------------------------------------------------------- #
+# T21-B — 3.1 전용 말투 블록: 2.5 는 바이트 동일 · 3.1 은 규칙 5 바로 아래 한 블록
+# --------------------------------------------------------------------------- #
+def test_default_model_family_is_byte_identical_to_the_a_baseline() -> None:
+    """model_family 기본값("2.5")과 명시 "2.5" 는 A 기준 해시 그대로다 — 블록이 빈 문자열이라 한 바이트도 안 바뀐다."""
+    base = _expr()
+    assert _expr(model_family="2.5") == base
+    assert hashlib.sha256(base.encode("utf-8")).hexdigest() == _EXPR_FROZEN[0]
+    assert "[3.1 말투]" not in base
+
+
+def test_the_31_block_sits_right_under_rule_5_and_has_at_most_five_lines() -> None:
+    out = _expr(model_family="3.1")
+    assert "[3.1 말투]" in out
+    i5 = out.index("5. 응답 길이")
+    ib = out.index("[3.1 말투]")
+    i6 = out.index("6. 말이 아닌 소리")
+    assert i5 < ib < i6, "블록은 규칙 5 바로 아래, 규칙 6 앞이다"
+    block = out[ib:i6].strip().splitlines()
+    assert block[0] == "[3.1 말투]" and len(block) - 1 <= 5, "5줄 이내"
+    for expected in ("턴은 한두 문장", "다른 이름을 지어내지 마라", "두 번 쓰지 마라", "정중형이다 — 작별 인사도",
+                     "영어(English) 뜻을 따옴표로 묶어"):
+        assert expected in out, expected
+    # 나머지는 2.5 와 같다 — 블록만 끼워졌다
+    assert out.replace(out[ib:i6], "") == _expr()
+
+
+def test_the_31_block_carries_no_literal_examples() -> None:
+    """원칙 2 — 설계문의 괄호 예시(«Hey John»·«Don't expect a medal»·«다음에 또 해»)는 문서용이다."""
+    out = _expr(model_family="3.1")
+    for literal in ("Hey", "John", "medal", "다음에 또 해", "Bieber"):
+        assert literal not in out, literal
+
+
+def test_the_31_block_is_substituted_not_hardcoded() -> None:
+    out = build_expression_instruction(
+        role="시끄러운 옆집 비버", personality="거칠고 직설적이다.", level_profile="쉬운 문장으로 말한다.",
+        locale="ja", interests=[], name="Tester", target_language="프랑스어",
+        items=[{"obj": "Bonjour", "des": None, "ex": None}], quiz_group=QUIZ_GROUP, model_family="3.1",
+    )
+    assert "프랑스어로 말하는 모든 것은 정중형이다" in out and "일본어(日本語) 뜻을 따옴표로" in out
+    assert "한국어" not in out

@@ -139,6 +139,7 @@ _EXPRESSION_TEMPLATE = (
     + _RULE3_LANGUAGE + "\n"
     + _RULE4_CORRECTION + "\n"
     + RULE_RESPONSE_LENGTH + "\n"
+    + "{model_block}"                  # T21-B: 3.1 이면 «[3.1 말투]» 블록, 2.5 면 빈 문자열(바이트 동일)
     + RULE_NONVERBAL_SOUND + "\n"
     + RULE_OFF_TOPIC
 )
@@ -233,6 +234,7 @@ def build_expression_instruction(
     locale_label: str | None = None,
     close_tag: str = CLOSE_TAG_DEFAULT,
     max_sentences: int | None = None,
+    model_family: str = "2.5",
 ) -> str:
     """표현학습 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -247,6 +249,10 @@ def build_expression_instruction(
         close_tag: 이 통화의 종료 태그. ⚠ **출력에 실리지 않는다** — 지시문이 태그를
             보여주면 비버가 그대로 복사해 스스로 종료한다(call 852). 서버 전용이고,
             시그니처는 일반 통화와의 대칭을 위해 받는다.
+        model_family: "2.5"(기본) | "3.1". ⭐ T21-B — 3.1 이면 규칙 5 바로 아래 «[3.1 말투]» 한 블록을
+            더한다(하네스 1410·1411 관찰 5건에 1:1). 2.5 면 **A 기준과 바이트 동일**이다.
+            ⛔ 모델 선택은 여기서 하지 않는다 — 호출부가 `live_model` 에 "3.1" 이 들어 있는지 하나로 판단해 준다
+              (`call_service.live_engine_for` 가 고른 이름이 곧 사실이다).
 
     Returns:
         Gemini Live system_instruction 문자열.
@@ -267,6 +273,7 @@ def build_expression_instruction(
             personality=personality or "다정하고 편안한 말투",
             username=username,
             max_sentences=max_sentences,
+            model_block=_model_block(model_family, target=target_language, locale_label=label),
         ),
         f"\n[학습자 수준] {level_first}",
         "\n" + _items_block(items, target=target_language, locale_label=label),
@@ -274,6 +281,23 @@ def build_expression_instruction(
         "\n" + _CHARACTER_FRAME,
     ]
     return "\n".join(parts)
+
+
+# ⭐ T21-B — 3.1 전용 말투 블록. 같은 엔진·같은 대본이고 **이 블록 하나만** 모델에 따라 갈린다(설계문 §B-2).
+#   하네스 1410·1411(3.1) 관찰에 1:1: 독백 8~10초 · 이름 환각(«Hey John») · 문장·농담 재사용 · 반말 작별 · 뜻을 안 묶어 말함.
+#   ⛔ 리터럴 예시를 적지 마라(원칙 2 — 새어 나오고 멀티랭귀지에서 틀린다). 톤 처방도 없다(원칙 1 — 캐릭터 소유).
+#   ⚠ 첫 발화 8~10초·왕복 11초는 모델 지연이라 프롬프트로 못 줄인다 — 줄이는 건 «말 길이» 뿐. 그 차이를 하네스로 잰다.
+def _model_block(model_family: str, *, target: str, locale_label: str) -> str:
+    if "3.1" not in (model_family or ""):
+        return ""
+    return "\n".join([
+        "[3.1 말투]",
+        "- 턴은 한두 문장이다. 첫 인사도 한 문장 뒤 곧바로 첫 항목 질문으로.",
+        "- 학습자 이름은 위 [페르소나]에 적힌 대화상대 이름만 부른다 — 없으면 부르지 마라. 다른 이름을 지어내지 마라.",
+        "- 같은 문장·같은 농담을 두 번 쓰지 마라 — 반응은 매번 다르게.",
+        f"- {target}로 말하는 모든 것은 정중형이다 — 작별 인사도.",
+        f"- 뜻·상황을 줄 때는 {locale_label} 뜻을 따옴표로 묶어 말해라.",
+    ]) + "\n"
 
 
 def _first_sentence(text: str) -> str:

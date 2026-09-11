@@ -2329,6 +2329,9 @@ async def run_call(
                 quiz_group=svc.EXPRESSION_QUIZ_GROUP,
                 target_language=target_language,
                 close_tag=close_tag,
+                # ⭐ T21-B — 모델은 위 플랜 분기(live_engine_for)가 고른 그대로다. 여기선 그 이름에 "3.1" 이 들었는지
+                #   **하나**만 본다 — 대본의 «[3.1 말투]» 블록 유무가 갈릴 뿐, 모델 선택 로직은 건드리지 않는다.
+                model_family="3.1" if "3.1" in (live_model or "") else "2.5",
             )
             seed_text = seed_expression_opening(target_language)
             logger.info(
