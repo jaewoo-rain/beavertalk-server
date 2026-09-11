@@ -673,3 +673,57 @@ def test_server_judge_and_fallback_both_accept_the_spaced_polite_answer() -> Non
     assert res["passed"] == [1] and st.expr_quiz_pass == {21}
     ok, _ = cs._verify_stt_fallback(st, span, 1, 1)
     assert ok is True
+
+
+# --------------------------------------------------------------------------- #
+# T20 — 여는 비버 턴이 직전 드릴 항목을 공개해도 창을 닫지 않는다 (1410 seq=3)
+# --------------------------------------------------------------------------- #
+def _armed_and_open(st: cs._CallState) -> None:
+    st.expr_quiz_cue_pending = None
+    st.expr_quiz_awaiting_open = True
+    cs._expression_quiz_open_on_beaver_turn(st)
+
+
+def test_the_opening_turn_may_reveal_the_in_progress_drill_item_without_closing() -> None:
+    """1410 t40~t42: #10 을 영어로 소개(미covered) → 학습자 오답 → 큐 얹힘 → 여는 턴 «It's 괜찮아요. Now, quiz time again!».
+    옛 코드는 #10 을 «다음 항목 소개» 로 읽어 창 42~42 로 닫았다(뒤 40초 정답 유실)."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)                          # 1~3 covered → 큐 [1,2,3]
+    _beaver(st, "Now, how do you say Please help me?")   # #4 영어 소개 — 미covered
+    _user(st, "맞아요")                         # 오답 · 큐가 이 발화에 얹힘
+    _armed_and_open(st)
+    assert st.expr_quiz_drill_num == 4 and st.expr_quiz_open_seg == len(st.segments)
+    _beaver(st, 'Tsk. It\'s "도와주세요". Now, quiz time again! How do you say How much is it?')   # 여는 턴
+    assert st.expr_quiz_open is True, "여는 턴의 드릴 피드백에 창이 닫혔다"
+    assert 4 in st.covered_nums and st.expr_quiz_stray == []
+    _user(st, "이거 얼마예요?")
+    _beaver(st, "Right! And Please take good care of me?")
+    _user(st, "잘 부탁드립니다")
+    _beaver(st, 'Good. New phrase: "처음 뵙겠습니다"')   # #5 = 다음 항목 → 닫힘
+    assert st.expr_quiz_open is False and st.expr_quiz_pass == {11, 12}
+
+
+def test_the_opening_turn_that_introduces_a_truly_new_item_still_closes() -> None:
+    """여는 턴이 드릴 중이던 항목(#4)을 마무리하고 **그 다음 새 항목(#5)** 까지 소개하면 그건 닫힘이다."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)
+    _beaver(st, "How do you say Please help me?")
+    _user(st, "맞아요")
+    _armed_and_open(st)
+    _beaver(st, 'It\'s "도와주세요". Okay, new phrase: "처음 뵙겠습니다". Repeat.')
+    assert st.expr_quiz_open is False, "진짜 새 항목(#5) 소개는 여는 턴이라도 닫힘이다"
+
+
+def test_a_re_mention_of_an_already_covered_item_never_closes() -> None:
+    """열 때 이미 covered 였던 번호(학습자 발화로만 covered 된 것 포함)의 재언급은 새 소개가 아니다."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)
+    _user(st, "도와주세요")                      # #4 학습자 발화로만 covered
+    _armed_and_open(st)
+    assert 4 in st.expr_quiz_covered_at_open and 4 not in st.expr_covered_by_beaver
+    _beaver(st, "Quiz! How much is it?")
+    _beaver(st, 'You said "도와주세요" earlier — good. Now, how much is it?')   # 재언급
+    assert st.expr_quiz_open is True and st.expr_quiz_stray == []

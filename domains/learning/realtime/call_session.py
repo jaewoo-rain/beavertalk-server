@@ -765,6 +765,7 @@ class _CallState:
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
         "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray",
         "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
+        "expr_quiz_covered_at_open", "expr_quiz_drill_num",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -944,6 +945,8 @@ class _CallState:
         self.expr_covered_by_beaver: set[int] = set()
         self.expr_retry_cued: bool = False
         self.expr_quiz_prev_num: Optional[int] = None   # 큐 직전 마지막 covered 번호 — 여는 B 의 공개 예외(T17-4)
+        self.expr_quiz_covered_at_open: set[int] = set()   # 열 때 covered 였던 번호 — 재언급은 닫힘이 아니다(T20)
+        self.expr_quiz_drill_num: Optional[int] = None     # 열 때 아직 안 다룬 가장 앞 번호 = 드릴 중이던 항목(T20)
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1337,6 +1340,14 @@ def _expression_quiz_tick(state: _CallState, idx: int, *, source: str, text: str
         state.expr_covered_by_beaver.add(idx)
     if state.expr_quiz_open:
         # ⛔ 닫힘은 **비버 발화로** covered 된 번호만 본다(codex P1-1).
+        # ⛔ T20: 열 때 이미 covered 였던 번호는 새 소개가 아니다(재언급). 여는 세그먼트(아직 segments 에 안 들어간 여는 비버
+        #   턴 = len(segments) == open_seg)에서 큐 직전 드릴 중이던 항목(drill_num)의 표면형은 드릴 피드백이다 — 닫힘 트리거가
+        #   아니고 stray 도 아니다. 여는 턴이 그 밖의 **진짜 새 항목**을 소개하면 그건 그대로 ① 규칙을 탄다.
+        if source == "beaver" and idx in state.expr_quiz_covered_at_open:
+            return
+        opening = len(state.segments) == state.expr_quiz_open_seg
+        if source == "beaver" and opening and idx == state.expr_quiz_drill_num:
+            return
         if source == "beaver" and idx not in state.expr_quiz_set:
             state.expr_quiz_stray.append(idx)
             next_num = min((n for n in range(1, len(state.expr_items) + 1)
@@ -1357,6 +1368,15 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
         state.expr_quiz_open = True
         state.expr_quiz_open_seg = len(state.segments)
         state.expr_quiz_stray = []
+        # ⭐ T20 (1410 seq=3) — 여는 비버 턴은 «직전 드릴 피드백 + 퀴즈 시작» 이 한 턴에 오는 게 정상이다. 그 턴이 큐 직전에
+        #   드릴 중이던 항목(= 열 때 아직 안 다룬 가장 앞 번호)의 표면형을 공개하면(«It's 괜찮아요. Now, quiz time again!»)
+        #   옛 코드는 그걸 «다음 항목 소개» 로 읽어 창을 열자마자 닫았다(창 42~42, [6,7,8] 전부 미판정, 뒤 40초 정답 유실).
+        #   열 때 그 번호를 기억해 두고 여는 세그먼트에서는 닫힘 트리거로 안 쓴다. 열 때 이미 covered 였던 번호도 제외(T17-4 취지).
+        covered_now = set(state.covered_nums)
+        state.expr_quiz_covered_at_open = covered_now
+        state.expr_quiz_drill_num = next(
+            (n for n in range(1, len(state.expr_items) + 1) if n not in covered_now), None,
+        )
         logger.info("%s 열림: seq=%d open_seg=%d 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
                     state.expr_quiz_seq, state.expr_quiz_open_seg, state.expr_quiz_set)
 
