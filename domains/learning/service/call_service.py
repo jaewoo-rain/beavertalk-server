@@ -466,10 +466,13 @@ class CallService:
         for r in rows if isinstance(rows, list) else []:
             if not isinstance(r, dict) or not r.get("surface"):
                 continue
+            passed = bool(r.get("passed"))
             out.append(CallResultQuizItem(
                 item_id=int(r.get("item_id") or 0),
                 surface=str(r["surface"]),
-                passed=bool(r.get("passed")),
+                meaning=(str(r["meaning"]) if r.get("meaning") else None),
+                passed=passed,
+                failed=(bool(r.get("failed")) and not passed),   # 단조 — 통과면 틀림이 아니다
             ))
         return out
 

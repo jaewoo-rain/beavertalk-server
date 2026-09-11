@@ -1602,6 +1602,30 @@ async def _final_expression_progress(state: _CallState) -> None:
     )
 
 
+def _expression_result_snapshot(state: _CallState, drilled_set: set[int]) -> list[dict]:
+    """결과 화면 스냅샷 `[{item_id, surface, meaning, passed, failed}]` — covered ∪ 통과분(위 호출부 주석).
+
+    T19: `meaning`(선별 DTO 의 des — 화면에 모국어 뜻) · `failed`(이 통화 퀴즈에서 공개를 받았다). passed 면 failed=False(단조).
+    ⛔ JSON 키 이름은 플러터(flt-build)와 계약이다 — item_id · surface · meaning · passed · failed. 바꾸지 마라.
+    """
+    out: list[dict] = []
+    for i in state.expr_items:
+        if i.get("item_id") is None:
+            continue
+        iid = int(i["item_id"])
+        if iid not in drilled_set and iid not in state.expr_quiz_pass:
+            continue
+        passed = iid in state.expr_quiz_pass
+        out.append({
+            "item_id": iid,
+            "surface": str(i.get("obj") or ""),
+            "meaning": (str(i["des"]) if i.get("des") else None),
+            "passed": passed,
+            "failed": (iid in state.expr_quiz_fail) and not passed,
+        })
+    return out
+
+
 def _expr_covered_ids(state: _CallState) -> list[int]:
     """이 통화에서 **다룬 항목의 item_id**(순서 = 다룬 순서).
 
@@ -2766,19 +2790,7 @@ async def run_call(
                 # ⛔ 대상은 **covered ∪ 통과분**이다. covered 만 보면, 사이드카가 어떤 항목을
                 #   `passed` 에만 넣고 `drilled` 에 안 넣었을 때 **DB 엔 통과가 찍히는데 화면엔
                 #   안 나온다**(지시문이 그 조합을 막지 않는다 — 실제로 일어날 수 있다).
-                snapshot = [
-                    {
-                        "item_id": int(i["item_id"]),
-                        "surface": str(i.get("obj") or ""),
-                        "passed": int(i["item_id"]) in state.expr_quiz_pass,
-                    }
-                    for i in state.expr_items
-                    if i.get("item_id") is not None
-                    and (
-                        int(i["item_id"]) in drilled_set
-                        or int(i["item_id"]) in state.expr_quiz_pass
-                    )
-                ]
+                snapshot = _expression_result_snapshot(state, drilled_set)
                 stats = await svc.run_db(
                     db_session_factory,
                     lambda db: svc.save_expression_progress(

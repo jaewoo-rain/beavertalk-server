@@ -359,7 +359,7 @@ def load_expression_items(
 def _merge_expression_snapshot(
     existing_raw: str | None, incoming: list[dict]
 ) -> list[dict]:
-    """조각 스냅샷을 **item_id 기준 합집합**으로 병합한다(`passed` 는 OR).
+    """조각 스냅샷을 **item_id 기준 합집합**으로 병합한다(`passed` 는 OR · `failed` 는 OR 단 passed 면 False · `meaning` 은 최신).
 
     ## ⛔⛔ 왜 덮어쓰면 안 되나 — «하필 통과한 것만» 사라진다
     이어하기는 **같은 call 행**을 계속 쓰고, 조각2 는 선별을 **다시 돈다**. 그 선별은
@@ -392,10 +392,16 @@ def _merge_expression_snapshot(
             if not item_id:
                 continue
             prev = merged.get(item_id)
+            passed = bool(r.get("passed")) or bool((prev or {}).get("passed"))
             merged[item_id] = {
                 "item_id": item_id,
                 "surface": str(r.get("surface") or (prev or {}).get("surface") or ""),
-                "passed": bool(r.get("passed")) or bool((prev or {}).get("passed")),
+                # T19 — 화면에 모국어 뜻. 뒤에 온 것 우선, 없으면 옛것. 옛 스냅샷엔 없다(None).
+                "meaning": (r.get("meaning") or (prev or {}).get("meaning") or None),
+                "passed": passed,
+                # T19 — «퀴즈에서 틀림»(failed) 과 «아직 안 봄»(둘 다 False) 을 가른다. OR 로 모으되 **passed 면 False**(단조 —
+                #   조각1 오답 → 조각2 통과면 통과다). 옛 스냅샷 행엔 키가 없다 → False.
+                "failed": (bool(r.get("failed")) or bool((prev or {}).get("failed"))) and not passed,
             }
     return list(merged.values())
 
@@ -433,7 +439,7 @@ def save_expression_progress(
       표현학습이 덮으면 반대 방향으로 사슬이 깨진다.
 
     Args:
-        snapshot: 결과 화면용 스냅샷 `[{item_id, surface, passed}]`. `call.expression_result`
+        snapshot: 결과 화면용 스냅샷 `[{item_id, surface, meaning, passed, failed}]`. `call.expression_result`
             에 **그대로** 적는다.
             ⭐ 왜 따로 적나 — 진도 행으로 되짚으면 **나중 통화가 지난 결과를 지운다**
               (`drilled_call_id` 를 덮어쓴다). 재드릴은 선별상 정상 경로라

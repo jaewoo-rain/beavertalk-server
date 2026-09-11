@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
@@ -226,6 +227,24 @@ def test_the_result_screen_shows_the_quiz_outcome(env) -> None:
     got = {q.surface: q.passed for q in result.quiz_items}
     assert got == {BYE: True, PRICE: False}
     assert result.used_items == [], "표현학습에서는 이 칸이 빈다(옛 증거 사슬을 안 쓴다)"
+
+
+def test_the_result_api_carries_failed_and_meaning(env) -> None:
+    """T19 — 결과 API 응답 1건: failed 로 «틀림/아직 안 봄» 을 가르고 meaning 이 실린다. 옛 행은 failed=False·meaning=None."""
+    db, ids = env["db"], [i.item_id for i in env["items"]]
+    svc.save_expression_progress(
+        db, env["member_id"], env["call_id"],
+        drilled_ids=ids[:3], passed_ids=[ids[0]],
+        snapshot=[{"item_id": ids[0], "surface": BYE, "meaning": "goodbye", "passed": True, "failed": False},
+                  {"item_id": ids[1], "surface": PRICE, "meaning": "how much", "passed": False, "failed": True},
+                  {"item_id": ids[2], "surface": "학교에 가요", "passed": False}],                 # 옛 모양
+    )
+    result = CallService(db).get_call_result(env["member_id"], env["call_id"])
+    by = {q.surface: q for q in result.quiz_items}
+    assert (by[BYE].passed, by[BYE].failed, by[BYE].meaning) == (True, False, "goodbye")
+    assert (by[PRICE].passed, by[PRICE].failed, by[PRICE].meaning) == (False, True, "how much")
+    assert (by["학교에 가요"].passed, by["학교에 가요"].failed, by["학교에 가요"].meaning) == (False, False, None)
+    assert set(by[BYE].model_dump().keys()) >= {"item_id", "surface", "meaning", "passed", "failed"}, "플러터 계약 키"
 
 
 def test_other_call_types_have_no_quiz_items(env) -> None:
@@ -480,15 +499,44 @@ def test_the_snapshot_carries_a_pass_even_if_it_was_never_marked_drilled() -> No
     """
     st = _state([(1, BYE)])
     st.expr_quiz_pass.add(1)          # covered_nums 는 비어 있다
-    covered = set(cs._covered_labels(st))
-    snapshot = [
-        {"item_id": int(i["item_id"]), "surface": str(i.get("obj") or ""),
-         "passed": int(i["item_id"]) in st.expr_quiz_pass}
-        for i in st.expr_items
-        if i.get("item_id") is not None
-        and (str(i.get("obj") or "") in covered or int(i["item_id"]) in st.expr_quiz_pass)
+    snapshot = cs._expression_result_snapshot(st, set(cs._expr_covered_ids(st)))
+    assert snapshot == [{"item_id": 1, "surface": BYE, "meaning": None, "passed": True, "failed": False}]
+
+
+def test_the_snapshot_row_carries_meaning_and_failed() -> None:
+    """T19 — 화면이 «퀴즈에서 틀림» 과 «아직 퀴즈 안 봄» 을 가르고, 모국어 뜻을 보여준다."""
+    st = _state([(1, BYE), (2, PRICE), (3, "학교에 가요")])
+    st.expr_items[0]["des"] = "goodbye"
+    st.expr_items[1]["des"] = "how much"
+    st.covered_nums = [1, 2, 3]
+    st.expr_quiz_pass.add(1)
+    st.expr_quiz_fail.add(2)
+    rows = {r["item_id"]: r for r in cs._expression_result_snapshot(st, set(cs._expr_covered_ids(st)))}
+    assert rows[1] == {"item_id": 1, "surface": BYE, "meaning": "goodbye", "passed": True, "failed": False}
+    assert rows[2] == {"item_id": 2, "surface": PRICE, "meaning": "how much", "passed": False, "failed": True}
+    assert rows[3]["passed"] is False and rows[3]["failed"] is False, "아직 퀴즈 안 봄"
+    st.expr_quiz_fail.add(1)          # 통과와 오답이 둘 다 찍힌 상태(방어) — passed 가 이긴다
+    assert cs._expression_result_snapshot(st, {1})[0]["failed"] is False
+
+
+def test_snapshot_merge_keeps_passed_ors_failed_and_tolerates_old_rows() -> None:
+    """T19 병합 3면 — passed 우선 · failed OR · 옛 행(failed/meaning 없음)."""
+    old = json.dumps([
+        {"item_id": 1, "surface": BYE, "passed": False},                  # 옛 행 — failed/meaning 키 없음
+        {"item_id": 2, "surface": PRICE, "passed": False, "failed": True, "meaning": "how much"},
+        {"item_id": 3, "surface": "학교에 가요", "passed": True, "failed": False},
+    ])
+    incoming = [
+        {"item_id": 1, "surface": BYE, "meaning": "goodbye", "passed": False, "failed": True},
+        {"item_id": 2, "surface": PRICE, "meaning": "how much?", "passed": True, "failed": False},   # 조각2 에서 통과
+        {"item_id": 3, "surface": "학교에 가요", "meaning": None, "passed": False, "failed": True},  # 강등 시도
     ]
-    assert snapshot == [{"item_id": 1, "surface": BYE, "passed": True}]
+    merged = {r["item_id"]: r for r in svc._merge_expression_snapshot(old, incoming)}
+    assert merged[1] == {"item_id": 1, "surface": BYE, "meaning": "goodbye", "passed": False, "failed": True}
+    assert merged[2] == {"item_id": 2, "surface": PRICE, "meaning": "how much?", "passed": True, "failed": False}, "passed 가 failed 를 이긴다"
+    assert merged[3]["passed"] is True and merged[3]["failed"] is False, "통과는 되돌아가지 않는다"
+    only_old = {r["item_id"]: r for r in svc._merge_expression_snapshot(old, [])}
+    assert only_old[1]["failed"] is False and only_old[1]["meaning"] is None
 
 
 # --------------------------------------------------------------------------- #

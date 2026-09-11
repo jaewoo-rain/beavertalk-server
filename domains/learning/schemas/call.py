@@ -158,8 +158,13 @@ class CallResultQuizItem(BaseModel):
     item_id: int
     #: 항목 표면형(예: `안녕히 가세요`).
     surface: str
+    #: 학습자 모국어 뜻(선별 DTO 의 des). 옛 스냅샷엔 없다 → None (T19).
+    meaning: Optional[str] = None
     #: 이 통화에서 퀴즈를 통과했나.
     passed: bool
+    #: 이 통화의 퀴즈에서 **틀렸나**(공개를 받았다). passed 면 항상 False(단조). 옛 스냅샷엔 없다 → False (T19).
+    #: ⭐ 화면이 «퀴즈에서 틀림» 과 «아직 퀴즈 안 봄»(passed=False·failed=False) 을 가르는 유일한 칸이다.
+    failed: bool = False
 
 
 class CallResult(BaseModel):
