@@ -1020,6 +1020,19 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
                     await ws.send(json.dumps({"type": "ping", "t": int(time.time() * 1000)}))
 
         ka_task = asyncio.create_task(keepalive())
+
+        # ⭐ T23 (2026-09-12): 서버는 통화 길이로 끊지도 작별 시드도 넣지 않는다 — **앱이 소켓을 닫는다**(스위치 없음, 코드에서 삭제).
+        #   하네스도 클라이니 duration 에 닿으면 앱과 같은 무음 컷으로 소켓을 닫는다(안 닫으면 540s 백스톱까지 간다).
+        async def client_cut() -> None:
+            await asyncio.sleep(duration_min * 60)
+            if not sess.ended:
+                sess.ended = True
+                sess.end_reason = "client_cut"
+                sess.log(f"client_cut: {duration_min}분 도달 → 소켓 닫음(앱과 같은 무음 컷)")
+                with contextlib.suppress(Exception):
+                    await ws.close()
+
+        cut_task = asyncio.create_task(client_cut())
         try:
             async for raw in ws:
                 if isinstance(raw, (bytes, bytearray)):
@@ -1041,7 +1054,7 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
             sess.errors.append(f"ws: {type(exc).__name__}: {exc}")
             sess.log(f"⛔ WS 종료 {type(exc).__name__}: {exc}")
         finally:
-            for t in (up_task, ka_task, sess.pending_speak):
+            for t in (up_task, ka_task, cut_task, sess.pending_speak):
                 if t is not None:
                     t.cancel()
     return sess
@@ -1495,8 +1508,16 @@ def main() -> None:
         sess = asyncio.run(run_call(args.base, token, items, voice, picker, duration_min=args.duration,
                                     probe=False, verbose=args.verbose))
         ended = datetime.now(timezone.utc)
-        time.sleep(3)  # 저장은 call_ended 전에 끝나지만(call_session 2838→2892) 소켓 정리 여유
+        # owner=server 면 저장은 call_ended 전에 끝난다(call_session 2838→2892). owner=client(우리가 끊음)면 서버가
+        # 끊김을 감지한 뒤 저장하므로 **DB 에 이 통화의 드릴 행이 보일 때까지** 잠깐 기다린다(최대 30초).
         sc = read_db_outcome(sf, sess.call_id, items)
+        for _ in range(10):
+            saved = any(r.get("drilled_call_id") == sess.call_id for r in sc.db_rows.values()) \
+                or sc.call_row.get("status") in ("done", "analyzing")
+            if saved and sc.call_row.get("total_time"):
+                break
+            time.sleep(3)
+            sc = read_db_outcome(sf, sess.call_id, items)
         logs = fetch_server_logs(started, ended, args.service) if args.logs else None
         path, ok = score_and_report(sess, sc, items, duration_min=args.duration, run_no=run_no,
                                     server_logs=logs, out_dir=Path(args.out_dir))

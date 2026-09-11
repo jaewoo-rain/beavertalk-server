@@ -1,0 +1,2109 @@
+{
+ "call_id": 1426,
+ "duration_min": 5,
+ "end_reason": "done",
+ "errors": [],
+ "anchors": [],
+ "drilled_order": [
+  11102,
+  11124
+ ],
+ "quiz_cue_match": {
+  "pairs": [],
+  "cues_without_anchor": [],
+  "anchors_without_cue": [],
+  "cues": []
+ },
+ "turns": [
+  {
+   "n": 0,
+   "role": "beaver",
+   "t": 4.0,
+   "wall": 1789142177.764,
+   "text": "Alright testfree, let's start. How do you say \"Have a good day\" in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→좋은 하루 보내세요(quote=\"have a good day\")",
+    "새항목#1 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 1,
+   "role": "learner",
+   "t": 4.8,
+   "wall": 1789142178.562,
+   "text": "좋은 하루 보내세요",
+   "kind": "correct",
+   "stt": "좋은 하루 보내세요.",
+   "tags": []
+  },
+  {
+   "n": 2,
+   "role": "beaver",
+   "t": 9.1,
+   "wall": 1789142182.79,
+   "text": "Wow, you got that one right away. Whatever. Next one: how do you ask 'How much is it?'",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→얼마예요?(quote=\"how much is it\")",
+    "새항목#2 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 3,
+   "role": "learner",
+   "t": 9.9,
+   "wall": 1789142183.583,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 4,
+   "role": "beaver",
+   "t": 13.8,
+   "wall": 1789142187.514,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to ask the price. What do you say?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 5,
+   "role": "learner",
+   "t": 14.6,
+   "wall": 1789142188.317,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 6,
+   "role": "beaver",
+   "t": 18.8,
+   "wall": 1789142192.549,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask for \"How much is it?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(quote=\"how much is it\")"
+   ]
+  },
+  {
+   "n": 7,
+   "role": "learner",
+   "t": 19.6,
+   "wall": 1789142193.358,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 8,
+   "role": "beaver",
+   "t": 23.9,
+   "wall": 1789142197.631,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask \"How much is it?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(quote=\"how much is it\")"
+   ]
+  },
+  {
+   "n": 9,
+   "role": "learner",
+   "t": 24.7,
+   "wall": 1789142198.439,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 10,
+   "role": "beaver",
+   "t": 29.1,
+   "wall": 1789142202.868,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 11,
+   "role": "learner",
+   "t": 29.9,
+   "wall": 1789142203.662,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 12,
+   "role": "beaver",
+   "t": 33.8,
+   "wall": 1789142207.542,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 13,
+   "role": "learner",
+   "t": 34.6,
+   "wall": 1789142208.343,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 14,
+   "role": "beaver",
+   "t": 38.6,
+   "wall": 1789142212.364,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 15,
+   "role": "learner",
+   "t": 39.4,
+   "wall": 1789142213.156,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 16,
+   "role": "beaver",
+   "t": 43.9,
+   "wall": 1789142217.612,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask \"How much is it?\" in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(quote=\"how much is it\")"
+   ]
+  },
+  {
+   "n": 17,
+   "role": "learner",
+   "t": 44.7,
+   "wall": 1789142218.422,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 18,
+   "role": "beaver",
+   "t": 48.1,
+   "wall": 1789142221.847,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store আকারের",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 19,
+   "role": "learner",
+   "t": 48.9,
+   "wall": 1789142222.642,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 20,
+   "role": "beaver",
+   "t": 52.9,
+   "wall": 1789142226.661,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price of something. How do you ask in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 21,
+   "role": "learner",
+   "t": 53.7,
+   "wall": 1789142227.463,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 22,
+   "role": "beaver",
+   "t": 58.0,
+   "wall": 1789142231.738,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 23,
+   "role": "learner",
+   "t": 58.8,
+   "wall": 1789142232.543,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 24,
+   "role": "beaver",
+   "t": 63.3,
+   "wall": 1789142236.99,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 25,
+   "role": "learner",
+   "t": 64.1,
+   "wall": 1789142237.796,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 26,
+   "role": "beaver",
+   "t": 68.4,
+   "wall": 1789142242.081,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 27,
+   "role": "learner",
+   "t": 69.2,
+   "wall": 1789142242.879,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 28,
+   "role": "beaver",
+   "t": 72.6,
+   "wall": 1789142246.328,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 29,
+   "role": "learner",
+   "t": 73.4,
+   "wall": 1789142247.122,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 30,
+   "role": "beaver",
+   "t": 76.4,
+   "wall": 1789142250.118,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 31,
+   "role": "learner",
+   "t": 77.2,
+   "wall": 1789142250.917,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 32,
+   "role": "beaver",
+   "t": 81.1,
+   "wall": 1789142254.817,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you ask that in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 33,
+   "role": "learner",
+   "t": 81.9,
+   "wall": 1789142255.623,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 34,
+   "role": "beaver",
+   "t": 85.2,
+   "wall": 1789142258.937,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 35,
+   "role": "learner",
+   "t": 86.0,
+   "wall": 1789142259.743,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 36,
+   "role": "beaver",
+   "t": 89.0,
+   "wall": 1789142262.765,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 37,
+   "role": "learner",
+   "t": 89.8,
+   "wall": 1789142263.562,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 38,
+   "role": "beaver",
+   "t": 92.5,
+   "wall": 1789142266.225,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 39,
+   "role": "learner",
+   "t": 93.3,
+   "wall": 1789142267.022,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 40,
+   "role": "beaver",
+   "t": 97.5,
+   "wall": 1789142271.199,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 41,
+   "role": "learner",
+   "t": 98.3,
+   "wall": 1789142271.996,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 42,
+   "role": "beaver",
+   "t": 102.8,
+   "wall": 1789142276.487,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 43,
+   "role": "learner",
+   "t": 103.6,
+   "wall": 1789142277.282,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 44,
+   "role": "beaver",
+   "t": 106.9,
+   "wall": 1789142280.639,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 45,
+   "role": "learner",
+   "t": 107.7,
+   "wall": 1789142281.442,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 46,
+   "role": "beaver",
+   "t": 110.6,
+   "wall": 1789142284.287,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 47,
+   "role": "learner",
+   "t": 111.4,
+   "wall": 1789142285.082,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 48,
+   "role": "beaver",
+   "t": 113.8,
+   "wall": 1789142287.562,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 49,
+   "role": "beaver",
+   "t": 116.4,
+   "wall": 1789142290.093,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and want to know the price. How do you ask that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 50,
+   "role": "learner",
+   "t": 117.2,
+   "wall": 1789142290.902,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 51,
+   "role": "beaver",
+   "t": 118.0,
+   "wall": 1789142291.684,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 52,
+   "role": "learner",
+   "t": 118.8,
+   "wall": 1789142292.502,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 53,
+   "role": "beaver",
+   "t": 121.8,
+   "wall": 1789142295.48,
+   "text": "[오늘의 표현] 2번으로 넘어간다] So, you're in a store and you want to know the price. How do you say \"How much is it?\" in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→얼마예요?(quote=\"how much is it\")"
+   ]
+  },
+  {
+   "n": 54,
+   "role": "learner",
+   "t": 122.6,
+   "wall": 1789142296.278,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 55,
+   "role": "beaver",
+   "t": 126.2,
+   "wall": 1789142299.902,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 56,
+   "role": "learner",
+   "t": 127.0,
+   "wall": 1789142300.703,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 57,
+   "role": "beaver",
+   "t": 129.4,
+   "wall": 1789142303.15,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 58,
+   "role": "beaver",
+   "t": 131.2,
+   "wall": 1789142304.895,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 59,
+   "role": "learner",
+   "t": 132.0,
+   "wall": 1789142305.702,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 60,
+   "role": "beaver",
+   "t": 135.1,
+   "wall": 1789142308.806,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 61,
+   "role": "learner",
+   "t": 135.9,
+   "wall": 1789142309.599,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 62,
+   "role": "beaver",
+   "t": 138.3,
+   "wall": 1789142312.049,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 63,
+   "role": "beaver",
+   "t": 139.5,
+   "wall": 1789142313.245,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 64,
+   "role": "learner",
+   "t": 140.3,
+   "wall": 1789142314.037,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 65,
+   "role": "beaver",
+   "t": 140.8,
+   "wall": 1789142314.484,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 66,
+   "role": "beaver",
+   "t": 141.9,
+   "wall": 1789142315.665,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 67,
+   "role": "beaver",
+   "t": 143.1,
+   "wall": 1789142316.835,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 68,
+   "role": "learner",
+   "t": 143.9,
+   "wall": 1789142317.638,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 69,
+   "role": "beaver",
+   "t": 146.9,
+   "wall": 1789142320.597,
+   "text": "[오늘의 표현] 2번으로 넘어간다]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 70,
+   "role": "learner",
+   "t": 147.7,
+   "wall": 1789142321.398,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 71,
+   "role": "beaver",
+   "t": 150.1,
+   "wall": 1789142323.843,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 72,
+   "role": "learner",
+   "t": 150.9,
+   "wall": 1789142324.642,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 73,
+   "role": "beaver",
+   "t": 153.4,
+   "wall": 1789142327.136,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 74,
+   "role": "learner",
+   "t": 154.2,
+   "wall": 1789142327.922,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 75,
+   "role": "beaver",
+   "t": 156.7,
+   "wall": 1789142330.423,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 76,
+   "role": "learner",
+   "t": 157.5,
+   "wall": 1789142331.222,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 77,
+   "role": "beaver",
+   "t": 160.0,
+   "wall": 1789142333.684,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 78,
+   "role": "learner",
+   "t": 160.8,
+   "wall": 1789142334.482,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 79,
+   "role": "beaver",
+   "t": 163.3,
+   "wall": 1789142336.99,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 80,
+   "role": "learner",
+   "t": 164.1,
+   "wall": 1789142337.796,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 81,
+   "role": "beaver",
+   "t": 166.5,
+   "wall": 1789142340.206,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 82,
+   "role": "learner",
+   "t": 167.3,
+   "wall": 1789142341.002,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 83,
+   "role": "beaver",
+   "t": 169.7,
+   "wall": 1789142343.433,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 84,
+   "role": "learner",
+   "t": 170.5,
+   "wall": 1789142344.221,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 85,
+   "role": "beaver",
+   "t": 173.0,
+   "wall": 1789142346.67,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 86,
+   "role": "learner",
+   "t": 173.8,
+   "wall": 1789142347.479,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 87,
+   "role": "beaver",
+   "t": 176.2,
+   "wall": 1789142349.95,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 88,
+   "role": "learner",
+   "t": 177.0,
+   "wall": 1789142350.742,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 89,
+   "role": "beaver",
+   "t": 179.5,
+   "wall": 1789142353.202,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 90,
+   "role": "learner",
+   "t": 180.3,
+   "wall": 1789142354.002,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 91,
+   "role": "beaver",
+   "t": 182.8,
+   "wall": 1789142356.508,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 92,
+   "role": "learner",
+   "t": 183.6,
+   "wall": 1789142357.302,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 93,
+   "role": "beaver",
+   "t": 186.0,
+   "wall": 1789142359.766,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 94,
+   "role": "learner",
+   "t": 186.8,
+   "wall": 1789142360.562,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 95,
+   "role": "beaver",
+   "t": 189.3,
+   "wall": 1789142363.039,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 96,
+   "role": "learner",
+   "t": 190.1,
+   "wall": 1789142363.836,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 97,
+   "role": "beaver",
+   "t": 192.6,
+   "wall": 1789142366.311,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 98,
+   "role": "learner",
+   "t": 193.4,
+   "wall": 1789142367.116,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 99,
+   "role": "beaver",
+   "t": 196.4,
+   "wall": 1789142370.131,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 100,
+   "role": "learner",
+   "t": 197.2,
+   "wall": 1789142370.922,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 101,
+   "role": "beaver",
+   "t": 201.6,
+   "wall": 1789142375.328,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 102,
+   "role": "learner",
+   "t": 202.4,
+   "wall": 1789142376.122,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 103,
+   "role": "beaver",
+   "t": 204.9,
+   "wall": 1789142378.642,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 104,
+   "role": "learner",
+   "t": 205.7,
+   "wall": 1789142379.441,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 105,
+   "role": "beaver",
+   "t": 208.2,
+   "wall": 1789142381.958,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 106,
+   "role": "learner",
+   "t": 209.0,
+   "wall": 1789142382.758,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 107,
+   "role": "beaver",
+   "t": 211.5,
+   "wall": 1789142385.211,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 108,
+   "role": "learner",
+   "t": 212.3,
+   "wall": 1789142386.003,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 109,
+   "role": "beaver",
+   "t": 214.8,
+   "wall": 1789142388.563,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 110,
+   "role": "learner",
+   "t": 215.6,
+   "wall": 1789142389.362,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 111,
+   "role": "beaver",
+   "t": 218.1,
+   "wall": 1789142391.87,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 112,
+   "role": "learner",
+   "t": 218.9,
+   "wall": 1789142392.662,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 113,
+   "role": "beaver",
+   "t": 221.4,
+   "wall": 1789142395.103,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 114,
+   "role": "learner",
+   "t": 222.2,
+   "wall": 1789142395.902,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 115,
+   "role": "beaver",
+   "t": 224.7,
+   "wall": 1789142398.388,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 116,
+   "role": "learner",
+   "t": 225.5,
+   "wall": 1789142399.198,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 117,
+   "role": "beaver",
+   "t": 227.9,
+   "wall": 1789142401.635,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 118,
+   "role": "learner",
+   "t": 228.7,
+   "wall": 1789142402.439,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 119,
+   "role": "beaver",
+   "t": 231.2,
+   "wall": 1789142404.875,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 120,
+   "role": "learner",
+   "t": 232.0,
+   "wall": 1789142405.679,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 121,
+   "role": "beaver",
+   "t": 234.4,
+   "wall": 1789142408.118,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 122,
+   "role": "learner",
+   "t": 235.2,
+   "wall": 1789142408.917,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 123,
+   "role": "beaver",
+   "t": 237.6,
+   "wall": 1789142411.335,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 124,
+   "role": "learner",
+   "t": 238.4,
+   "wall": 1789142412.142,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 125,
+   "role": "beaver",
+   "t": 240.9,
+   "wall": 1789142414.65,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 126,
+   "role": "learner",
+   "t": 241.7,
+   "wall": 1789142415.442,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 127,
+   "role": "beaver",
+   "t": 244.2,
+   "wall": 1789142417.947,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 128,
+   "role": "learner",
+   "t": 245.0,
+   "wall": 1789142418.742,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 129,
+   "role": "beaver",
+   "t": 247.5,
+   "wall": 1789142421.191,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 130,
+   "role": "learner",
+   "t": 248.3,
+   "wall": 1789142421.998,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 131,
+   "role": "beaver",
+   "t": 250.7,
+   "wall": 1789142424.445,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 132,
+   "role": "learner",
+   "t": 251.5,
+   "wall": 1789142425.236,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 133,
+   "role": "beaver",
+   "t": 253.9,
+   "wall": 1789142427.664,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 134,
+   "role": "learner",
+   "t": 254.7,
+   "wall": 1789142428.462,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 135,
+   "role": "beaver",
+   "t": 257.2,
+   "wall": 1789142430.939,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 136,
+   "role": "learner",
+   "t": 258.0,
+   "wall": 1789142431.742,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 137,
+   "role": "beaver",
+   "t": 260.5,
+   "wall": 1789142434.205,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 138,
+   "role": "learner",
+   "t": 261.3,
+   "wall": 1789142435.001,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 139,
+   "role": "beaver",
+   "t": 263.8,
+   "wall": 1789142437.521,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 140,
+   "role": "learner",
+   "t": 264.6,
+   "wall": 1789142438.318,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 141,
+   "role": "beaver",
+   "t": 267.1,
+   "wall": 1789142440.804,
+   "text": "[오늘의 표현]",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  },
+  {
+   "n": 142,
+   "role": "learner",
+   "t": 267.9,
+   "wall": 1789142441.598,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 143,
+   "role": "beaver",
+   "t": 268.6,
+   "wall": 1789142442.363,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 144,
+   "role": "learner",
+   "t": 269.4,
+   "wall": 1789142443.157,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 145,
+   "role": "beaver",
+   "t": 271.4,
+   "wall": 1789142445.099,
+   "text": "Alright, alright. You're ready to shop! So, how do you ask in Korean for the price?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→얼마예요?(kw:the price)"
+   ]
+  },
+  {
+   "n": 146,
+   "role": "learner",
+   "t": 272.2,
+   "wall": 1789142445.9,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 147,
+   "role": "beaver",
+   "t": 276.6,
+   "wall": 1789142450.295,
+   "text": "Hahaha! What was that noise? You sound like you're choking! It's \"얼마예요?\" Try it again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:얼마예요?",
+    "→얼마예요?(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 148,
+   "role": "learner",
+   "t": 277.4,
+   "wall": 1789142451.103,
+   "text": "얼마예요?",
+   "kind": "parrot",
+   "stt": "얼마예요?",
+   "tags": []
+  },
+  {
+   "n": 149,
+   "role": "beaver",
+   "t": 309.8,
+   "wall": 1789142483.536,
+   "text": "Not bad.You did it. Now, how like that",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 150,
+   "role": "beaver",
+   "t": 311.5,
+   "wall": 1789142485.205,
+   "text": "[통화종료:6104] Alright, testfree, I'm done with this for now. Catch you later.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]"
+   ]
+  }
+ ],
+ "records": {
+  "11102": {
+   "surface": "좋은 하루 보내세요",
+   "k": 1,
+   "policy": 1,
+   "ident": "quote=\"have a good day\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "11124": {
+   "surface": "얼마예요?",
+   "k": 2,
+   "policy": 2,
+   "ident": "quote=\"how much is it\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 19,
+   "drill_answers": [
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  }
+ },
+ "db": {
+  "rows": {
+   "11104": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11109": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11127": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11098": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11124": {
+    "drilled_call_id": 1426,
+    "drilled_at": "2026-09-11T16:01:25.753316+00:00",
+    "quiz_passed_at": null
+   },
+   "11123": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11125": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11126": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11122": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11129": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11133": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11097": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11102": {
+    "drilled_call_id": 1426,
+    "drilled_at": "2026-09-11T16:01:25.753316+00:00",
+    "quiz_passed_at": null
+   },
+   "11107": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11116": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11117": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11120": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   },
+   "11096": {
+    "drilled_call_id": null,
+    "drilled_at": null,
+    "quiz_passed_at": null
+   }
+  },
+  "expression_result": [
+   {
+    "item_id": 11102,
+    "surface": "좋은 하루 보내세요",
+    "meaning": "Have a good day.",
+    "passed": false,
+    "failed": false
+   },
+   {
+    "item_id": 11124,
+    "surface": "얼마예요?",
+    "meaning": "How much is it?",
+    "passed": false,
+    "failed": false
+   }
+  ],
+  "call": {
+   "call_type": "expression",
+   "status": "done",
+   "total_time": 309,
+   "summary": "Asking for price",
+   "usage_engine": "live:gemini-live-2.5-flash-native-audio",
+   "cost_usd": 0.623,
+   "usage": {
+    "in_audio": 117731,
+    "in_text": 313417,
+    "out_audio": 8983,
+    "out_text": 1652
+   }
+  },
+  "level_after": 1
+ },
+ "server_logs": [
+  "2026-09-11T15:56:14.625684Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습: 표현 18개 선별(퀴즈 3개마다) level=1",
+  "2026-09-11T15:56:21.056006Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 좋은 하루 보내세요.",
+  "2026-09-11T15:56:21.518277Z\tINFO:domains.learning.realtime.call_session:👤 USER[t1]: 좋은 하루 보내세요.",
+  "2026-09-11T15:56:25.985179Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:26.401453Z\tINFO:domains.learning.realtime.call_session:👤 USER[t3]: I don't know.",
+  "2026-09-11T15:56:27.868218Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 4.8초·본문 80자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:56:30.705787Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:31.126854Z\tINFO:domains.learning.realtime.call_session:👤 USER[t5]: I don't know.",
+  "2026-09-11T15:56:32.903769Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 5.8초·본문 101자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:56:35.788363Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:36.198618Z\tINFO:domains.learning.realtime.call_session:👤 USER[t7]: I don't know.",
+  "2026-09-11T15:56:37.985327Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 5.9초·본문 97자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:56:40.834159Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:41.222651Z\tINFO:domains.learning.realtime.call_session:👤 USER[t9]: I don't know.",
+  "2026-09-11T15:56:43.222987Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 7.0초·본문 85자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:56:46.102561Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:46.645870Z\tINFO:domains.learning.realtime.call_session:👤 USER[t11]: I don't know.",
+  "2026-09-11T15:56:47.895997Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 4.3초·본문 90자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:56:50.732217Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:51.176535Z\tINFO:domains.learning.realtime.call_session:👤 USER[t13]: I don't know.",
+  "2026-09-11T15:56:52.718849Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 5.2초·본문 90자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:56:55.557669Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:56:55.959433Z\tINFO:domains.learning.realtime.call_session:👤 USER[t15]: I don't know.",
+  "2026-09-11T15:56:57.966187Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 7.1초·본문 108자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:00.827495Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:01.238313Z\tINFO:domains.learning.realtime.call_session:👤 USER[t17]: I don't know.",
+  "2026-09-11T15:57:02.203299Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.2초·본문 39자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:04.645758Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:57:05.098005Z\tINFO:domains.learning.realtime.call_session:👤 USER[t19]: 오케이.",
+  "2026-09-11T15:57:07.015356Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.7초·본문 103자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:09.846634Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:10.248900Z\tINFO:domains.learning.realtime.call_session:👤 USER[t21]: I don't know.",
+  "2026-09-11T15:57:12.092561Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.6초·본문 85자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:14.957167Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:15.578421Z\tINFO:domains.learning.realtime.call_session:👤 USER[t23]: I don't know.",
+  "2026-09-11T15:57:17.345218Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.1초·본문 85자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:20.378098Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:20.737778Z\tINFO:domains.learning.realtime.call_session:👤 USER[t25]: I don't know.",
+  "2026-09-11T15:57:22.436600Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 5.8초·본문 85자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:25.282114Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:25.692555Z\tINFO:domains.learning.realtime.call_session:👤 USER[t27]: I don't know.",
+  "2026-09-11T15:57:26.683607Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.3초·본문 32자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:29.107895Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:57:29.536813Z\tINFO:domains.learning.realtime.call_session:👤 USER[t29]: 오케이.",
+  "2026-09-11T15:57:30.473611Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.3초·본문 32자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:32.889486Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:57:33.368974Z\tINFO:domains.learning.realtime.call_session:👤 USER[t31]: 오케이.",
+  "2026-09-11T15:57:35.172570Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.5초·본문 95자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:38.041247Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:38.449656Z\tINFO:domains.learning.realtime.call_session:👤 USER[t33]: I don't know.",
+  "2026-09-11T15:57:39.293024Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.3초·본문 21자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:41.752876Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:57:42.171040Z\tINFO:domains.learning.realtime.call_session:👤 USER[t35]: 오케이.",
+  "2026-09-11T15:57:43.120824Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.3초·본문 32자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:45.595011Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:57:45.965783Z\tINFO:domains.learning.realtime.call_session:👤 USER[t37]: 오케이.",
+  "2026-09-11T15:57:46.581640Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 2.4초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:49.011389Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:57:49.657932Z\tINFO:domains.learning.realtime.call_session:👤 USER[t39]: 오케이.",
+  "2026-09-11T15:57:51.554716Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.2초·본문 85자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:54.573084Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:57:54.919920Z\tINFO:domains.learning.realtime.call_session:👤 USER[t41]: I don't know.",
+  "2026-09-11T15:57:56.843181Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.5초·본문 85자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:57:59.728606Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:58:00.076272Z\tINFO:domains.learning.realtime.call_session:👤 USER[t43]: I don't know.",
+  "2026-09-11T15:58:00.995549Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.6초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:03.450251Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:03.811994Z\tINFO:domains.learning.realtime.call_session:👤 USER[t45]: 오케이.",
+  "2026-09-11T15:58:04.644796Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.3초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:07.094487Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:07.488040Z\tINFO:domains.learning.realtime.call_session:👤 USER[t47]: 오케이.",
+  "2026-09-11T15:58:07.918808Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:07.919235Z\tINFO:domains.learning.realtime.call_session:normalcall: 대화 재개 시드 주입(1/6)",
+  "2026-09-11T15:58:10.450396Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 6.4초·본문 81자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:10.490628Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 1/8회, 드릴 1 · 통과 0 · 오답 0, 압축감지=0, peak=6155, 바닥=3425, 대화=2730)",
+  "2026-09-11T15:58:11.648874Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 1회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-11T15:58:12.042291Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #1 (prompt 6155 → 5346)",
+  "2026-09-11T15:58:13.311531Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:58:13.680867Z\tINFO:domains.learning.realtime.call_session:👤 USER[t50]: I don't know.",
+  "2026-09-11T15:58:15.836419Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 7.3초·본문 108자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:18.865964Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T15:58:19.328527Z\tINFO:domains.learning.realtime.call_session:👤 USER[t52]: I don't know.",
+  "2026-09-11T15:58:20.259617Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.7초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:22.679931Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:23.068111Z\tINFO:domains.learning.realtime.call_session:👤 USER[t54]: 오케이.",
+  "2026-09-11T15:58:23.506731Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:23.507215Z\tINFO:domains.learning.realtime.call_session:normalcall: 대화 재개 시드 주입(2/6)",
+  "2026-09-11T15:58:25.252419Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.7초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:27.684838Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:28.200748Z\tINFO:domains.learning.realtime.call_session:👤 USER[t57]: 오케이.",
+  "2026-09-11T15:58:29.163098Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.7초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:31.570373Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:31.967555Z\tINFO:domains.learning.realtime.call_session:👤 USER[t59]: 오케이.",
+  "2026-09-11T15:58:32.405855Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:32.406286Z\tINFO:domains.learning.realtime.call_session:normalcall: 대화 재개 시드 주입(3/6)",
+  "2026-09-11T15:58:33.602773Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:33.603243Z\tINFO:domains.learning.realtime.call_session:normalcall: 대화 재개 시드 주입(4/6)",
+  "2026-09-11T15:58:34.405902Z\tINFO:domains.learning.realtime.call_session:👤 USER[t62]: (무음/전사없음)",
+  "2026-09-11T15:58:34.842701Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:34.843144Z\tINFO:domains.learning.realtime.call_session:normalcall: 대화 재개 시드 주입(5/6)",
+  "2026-09-11T15:58:36.022734Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:36.023233Z\tINFO:domains.learning.realtime.call_session:normalcall: 대화 재개 시드 주입(6/6)",
+  "2026-09-11T15:58:37.193166Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:39.657194Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:40.017057Z\tINFO:domains.learning.realtime.call_session:👤 USER[t66]: 오케이.",
+  "2026-09-11T15:58:40.954608Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 3.7초·본문 10자 — 벙어리 턴이 아니라 재개 시드 생략): '[오늘의 표현]'",
+  "2026-09-11T15:58:43.400063Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:43.765108Z\tINFO:domains.learning.realtime.call_session:👤 USER[t68]: 오케이.",
+  "2026-09-11T15:58:44.201751Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:46.651887Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:47.061014Z\tINFO:domains.learning.realtime.call_session:👤 USER[t70]: 오케이.",
+  "2026-09-11T15:58:47.494623Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #2 (prompt 6389 → 5342)",
+  "2026-09-11T15:58:47.494879Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:49.944087Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:50.338261Z\tINFO:domains.learning.realtime.call_session:👤 USER[t72]: 오케이.",
+  "2026-09-11T15:58:50.780574Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:53.214965Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:53.600223Z\tINFO:domains.learning.realtime.call_session:👤 USER[t74]: 오케이.",
+  "2026-09-11T15:58:54.042745Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:56.493149Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:58:56.887819Z\tINFO:domains.learning.realtime.call_session:👤 USER[t76]: 오케이.",
+  "2026-09-11T15:58:57.348346Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:58:59.774044Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:00.131181Z\tINFO:domains.learning.realtime.call_session:👤 USER[t78]: 오케이.",
+  "2026-09-11T15:59:00.560494Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:03.030289Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:03.353353Z\tINFO:domains.learning.realtime.call_session:👤 USER[t80]: 오케이.",
+  "2026-09-11T15:59:03.791003Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:06.203708Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:06.583967Z\tINFO:domains.learning.realtime.call_session:👤 USER[t82]: 오케이.",
+  "2026-09-11T15:59:07.029038Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:09.483717Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:09.869492Z\tINFO:domains.learning.realtime.call_session:👤 USER[t84]: 오케이.",
+  "2026-09-11T15:59:10.309022Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:12.757928Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:13.120108Z\tINFO:domains.learning.realtime.call_session:👤 USER[t86]: 오케이.",
+  "2026-09-11T15:59:13.561266Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:16.063172Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:16.427554Z\tINFO:domains.learning.realtime.call_session:👤 USER[t88]: 오케이.",
+  "2026-09-11T15:59:16.867732Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:19.293381Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:19.698436Z\tINFO:domains.learning.realtime.call_session:👤 USER[t90]: 오케이.",
+  "2026-09-11T15:59:20.124501Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:22.582369Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:22.959307Z\tINFO:domains.learning.realtime.call_session:👤 USER[t92]: 오케이.",
+  "2026-09-11T15:59:23.398759Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:25.825553Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:26.223332Z\tINFO:domains.learning.realtime.call_session:👤 USER[t94]: 오케이.",
+  "2026-09-11T15:59:26.667459Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:29.082512Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:30.050469Z\tINFO:domains.learning.realtime.call_session:👤 USER[t96]: 오케이.",
+  "2026-09-11T15:59:30.489847Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:34.833546Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:35.243780Z\tINFO:domains.learning.realtime.call_session:👤 USER[t98]: 오케이.",
+  "2026-09-11T15:59:35.687483Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #3 (prompt 6356 → 5403)",
+  "2026-09-11T15:59:35.687742Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:38.151159Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:38.556826Z\tINFO:domains.learning.realtime.call_session:👤 USER[t100]: 오케이.",
+  "2026-09-11T15:59:38.998717Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:41.470381Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:41.858133Z\tINFO:domains.learning.realtime.call_session:👤 USER[t102]: 오케이.",
+  "2026-09-11T15:59:42.317743Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:44.721906Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:45.127226Z\tINFO:domains.learning.realtime.call_session:👤 USER[t104]: 오케이.",
+  "2026-09-11T15:59:45.570568Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:48.010137Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:48.448050Z\tINFO:domains.learning.realtime.call_session:👤 USER[t106]: 오케이.",
+  "2026-09-11T15:59:48.922115Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:51.362928Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:51.794039Z\tINFO:domains.learning.realtime.call_session:👤 USER[t108]: 오케이.",
+  "2026-09-11T15:59:52.230026Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:54.625876Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:55.026324Z\tINFO:domains.learning.realtime.call_session:👤 USER[t110]: 오케이.",
+  "2026-09-11T15:59:55.463159Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T15:59:57.933034Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T15:59:58.300662Z\tINFO:domains.learning.realtime.call_session:👤 USER[t112]: 오케이.",
+  "2026-09-11T15:59:58.747850Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:01.147251Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:01.555118Z\tINFO:domains.learning.realtime.call_session:👤 USER[t114]: 오케이.",
+  "2026-09-11T16:00:01.995329Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:04.429639Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:04.796225Z\tINFO:domains.learning.realtime.call_session:👤 USER[t116]: 오케이.",
+  "2026-09-11T16:00:05.233257Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:07.639872Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:08.042258Z\tINFO:domains.learning.realtime.call_session:👤 USER[t118]: 오케이.",
+  "2026-09-11T16:00:08.478270Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:10.885499Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:11.257273Z\tINFO:domains.learning.realtime.call_session:👤 USER[t120]: 오케이.",
+  "2026-09-11T16:00:11.695310Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:14.144241Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:14.517516Z\tINFO:domains.learning.realtime.call_session:👤 USER[t122]: 오케이.",
+  "2026-09-11T16:00:15.009450Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:17.424615Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:17.858852Z\tINFO:domains.learning.realtime.call_session:👤 USER[t124]: 오케이.",
+  "2026-09-11T16:00:18.307036Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #4 (prompt 6339 → 5379)",
+  "2026-09-11T16:00:18.307272Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:20.739840Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:21.118606Z\tINFO:domains.learning.realtime.call_session:👤 USER[t126]: 오케이.",
+  "2026-09-11T16:00:21.551332Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:23.975924Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:24.371873Z\tINFO:domains.learning.realtime.call_session:👤 USER[t128]: 오케이.",
+  "2026-09-11T16:00:24.805009Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:27.241433Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:27.587246Z\tINFO:domains.learning.realtime.call_session:👤 USER[t130]: 오케이.",
+  "2026-09-11T16:00:28.022850Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:30.446974Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:30.862869Z\tINFO:domains.learning.realtime.call_session:👤 USER[t132]: 오케이.",
+  "2026-09-11T16:00:31.299082Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:33.765759Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:34.111973Z\tINFO:domains.learning.realtime.call_session:👤 USER[t134]: 오케이.",
+  "2026-09-11T16:00:34.565443Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:37.031821Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:37.427748Z\tINFO:domains.learning.realtime.call_session:👤 USER[t136]: 오케이.",
+  "2026-09-11T16:00:37.881776Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:40.305182Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:40.738701Z\tINFO:domains.learning.realtime.call_session:👤 USER[t138]: 오케이.",
+  "2026-09-11T16:00:41.165483Z\tWARNING:domains.learning.realtime.call_session:normalcall: 제어 태그 누출 감지(비버가 지시문을 낭독, 소리 1.7초) — 대화 재개 시도: '[오늘의 표현]'",
+  "2026-09-11T16:00:41.832151Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=post-compress, 2/8회, 드릴 1 · 통과 0 · 오답 0, 압축감지=4, peak=5925, 바닥=3425, 대화=2500)",
+  "2026-09-11T16:00:42.371400Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=post-compress, 2회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-11T16:00:42.723569Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #5 (prompt 5925 → 5377)",
+  "2026-09-11T16:00:43.572101Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-11T16:00:43.974764Z\tINFO:domains.learning.realtime.call_session:👤 USER[t140]: 오케이.",
+  "2026-09-11T16:00:48.311276Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-11T16:00:48.698100Z\tINFO:domains.learning.realtime.call_session:👤 USER[t142]: I don't know.",
+  "2026-09-11T16:00:53.699850Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 얼마예요?",
+  "2026-09-11T16:00:54.036642Z\tINFO:domains.learning.realtime.call_session:👤 USER[t144]: 얼마예요?",
+  "2026-09-11T16:01:25.566629Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #6 (prompt 5646 → 3569)",
+  "2026-09-11T16:01:25.752101Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 마지막 판정: 0ms (상한 2000ms)",
+  "2026-09-11T16:01:25.858023Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 진도 저장: 드릴 2 · 통과 0 (오답 0 — 이 통화 한정) · 승급 stay"
+ ]
+}
