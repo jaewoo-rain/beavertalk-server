@@ -254,10 +254,20 @@ REGROUND_MAX_PER_CALL = 8        # 통화당 주입 상한(15분 예상 6회 + �
 # ⚠ 정상 흐름은 «재접지 arm 마다 1회 + 조각 끝 1회» 라 최대 9회다(arm 상한이 8).
 #   12 는 그 위의 여유이고, 넘으면 코드가 멈춘다 — 미판정은 «통과 안 함» 이라 안전한 방향이다.
 EXPR_PROGRESS_MAX_PER_CALL = 12
-# 사이드카에 넘길 전사 길이 상한(글자). 넘으면 **뒤에서** 자른다.
-# ⚠ 앞이 잘려도 진도는 안 잃는다 — 결과가 state 에 합집합으로 쌓이므로 앞 구간은 이전
-#   판정이 이미 담았다. 15분 통화 전사가 대략 6~10k 자라 12,000 이면 사실상 전량이다.
+# 사이드카에 넘길 전사 길이 상한(글자). 넘으면 **앞에서** 세그먼트 단위로 자른다.
+# ⚠ 잘린 머리 위로 커서를 넘기지 않는다(P2-A) — 그 구간은 다음 판정에 다시 들어간다.
+#   모든 판정이 «커서 이후 + 겹침» 만 넣으므로(아래) 실제로 여기 걸릴 일은 거의 없다.
 EXPR_TRANSCRIPT_MAX_CHARS = 12000
+# ⭐ **모든 판정(통화중·마지막)의 입력 = 커서 이후 구간 + 커서 앞 겹침 N 세그먼트**(2026-09-11, bt-back 결정).
+#   왜 통화중도 자르나: 마지막만 잘라 보내고 통화중은 전체를 보내면 두 경로가 **다른 판정기**가 된다.
+#   12k 절단이 실제로 걸리는 자리가 통화중(9분 근처)이었고, P1 로 목록이 서버 사실을 실으니
+#   «앞 문맥이 없어서 드릴로 오독» 은 막혔다.
+#   왜 겹치나: «문맥이 짧다» 의 실체는 **경계에 걸친 질문/답 쌍**이다 — 질문이 직전 창, 답이 이번 창이면
+#   판정기가 답만 본다. 4 세그먼트(≈ 비버 2 + 학습자 2 턴)가 그 쌍을 붙여 준다.
+#   겹친 구간을 두 번 판정해도 무해하다 — 단조성(failed→passed 만)이라 재판정이 강등을 못 만든다.
+#   ⛔ 겹침은 **입력에만** 붙는다 — 커서는 그대로 «본 끝» 까지 전진하고 뒤로 안 돈다.
+#   ⛔ 상한을 넘으면 겹침부터 버린다 — 본 구간(커서 이후)이 우선이다.
+EXPR_JUDGE_OVERLAP_SEGMENTS = 4
 # ⭐⭐ **조각 끝 마지막 판정의 상한**(초). 늦으면 있는 것만 쓰고 진행한다.
 #   ⛔ 없애지 마라 — 무한정 기다리면 LLM 이 죽었을 때 **조각2 가 안 열린다.** 통화가 멈추는
 #     게 진도 하나보다 나쁘다(R5).
@@ -1356,11 +1366,17 @@ def _expression_transcript(state: _CallState, *, since: int = 0) -> str:
     return _expression_transcript_window(state, since=since)[0]
 
 
-def _expression_transcript_window(state: _CallState, *, since: int = 0) -> tuple[str, int, bool]:
+def _expression_transcript_window(
+    state: _CallState, *, since: int = 0, keep_from: int | None = None,
+) -> tuple[str, int, bool]:
     """이 조각의 전사(역할 표시)와 **실제로 담은 범위**. ⛔ Gemini 컨텍스트 압축과 **무관하다** — 서버가 갖고 있다.
 
+    Args:
+        keep_from: 이 인덱스부터는 **꼭 봐야 하는** 구간(= 커서). since..keep_from 은 겹침이라 상한에
+            밀려 떨어져도 «잘랐다» 가 아니다. None 이면 since 부터 전부 꼭 봐야 하는 것으로 본다.
+
     Returns:
-        (본문, 실제로 담은 첫 세그먼트 인덱스, 머리를 잘랐는가).
+        (본문, 실제로 담은 첫 세그먼트 인덱스, 꼭 봐야 하는 구간을 잘랐는가).
         ⛔ 호출부는 «잘랐는가» 를 보고 커서를 정한다(T14 반려 P2-A, codex). 옛 코드는 앞을 잘라 놓고도
           커서를 `len(segments)` 까지 밀어 **잘린 세그먼트가 영구히 미판정**이 됐다(30×500자 → 앞 sentinel
           미포함인데 cursor=30/30). 안 본 머리 위로 커서를 넘기지 마라.
@@ -1379,6 +1395,7 @@ def _expression_transcript_window(state: _CallState, *, since: int = 0) -> tuple
     ⚠ 아직 flush 안 된 현재 버퍼도 담는다 — 조각 끝 판정이 **꼬리를 놓치면 안 된다**.
     """
     since = max(0, since)
+    keep_from = since if keep_from is None else max(since, keep_from)
     # (세그먼트 인덱스, 줄) — 인덱스는 «어디까지 봤나» 를 세그먼트 단위로 되짚기 위해서다.
     rows: list[tuple[int, str]] = []
     for idx in range(since, len(state.segments)):
@@ -1398,8 +1415,9 @@ def _expression_transcript_window(state: _CallState, *, since: int = 0) -> tuple
     # 상한을 넘으면 **세그먼트 단위로 머리를 버린다** — 뒤(최근)가 판정에 필요하다.
     while rows and total > EXPR_TRANSCRIPT_MAX_CHARS + 1:
         total -= len(rows[0][1]) + 1
-        rows.pop(0)
-        cut = True
+        idx, _ = rows.pop(0)
+        if idx >= keep_from:          # 겹침이 떨어진 건 절단이 아니다 — 본 구간이 우선이다
+            cut = True
     first_seen = rows[0][0] if rows else len(state.segments)
     out = chr(10).join([r[1] for r in rows] + tail)
     if len(out) > EXPR_TRANSCRIPT_MAX_CHARS:            # 꼬리 버퍼 혼자 상한을 넘는 극단 — 글자로 자른다
@@ -1435,21 +1453,23 @@ def _spawn_expression_progress(state: _CallState) -> None:
     task.add_done_callback(state.expr_tasks.discard)
 
 
-async def _expression_progress_sidecar(state: _CallState, *, since: int = 0) -> None:
+async def _expression_progress_sidecar(state: _CallState) -> None:
     """전사를 읽어 진도 세 갈래를 받아 state 에 얹는다(예외 전량 흡수 — R5).
 
-    Args:
-        since: 전사를 이 세그먼트부터 넣는다(마지막 판정의 입력 축소 — `_expression_transcript`).
+    입력은 **항상** «커서(expr_judged_upto) 이후 구간 + 커서 앞 겹침 EXPR_JUDGE_OVERLAP_SEGMENTS» 다 —
+    통화중·마지막 판정이 같은 창 규칙을 쓴다(상수 주석). 호출부가 since 를 정하지 않는다.
     """
     ctx = state.expr_ctx
     if ctx is None:
         return
-    # ⭐ 이 판정이 «어디까지» 봤는지 기록한다 — 마지막 판정은 여기서부터만 넣는다(C1).
-    #   ⛔ 커서는 **머리를 안 잘랐을 때만** 전진한다(P2-A). 잘렸으면 since..first_seen 구간을 아무도
-    #     안 봤다 — 커서를 그 위로 넘기면 그 세그먼트는 영구히 미판정이다. 그대로 두면 다음 판정 입력에
-    #     다시 들어간다(합집합이라 다시 봐도 해롭지 않다).
+    # ⭐ 이 판정이 «어디까지» 봤는지 기록한다 — 다음 판정은 거기서부터(겹침만큼 앞에서) 넣는다(C1).
+    #   ⛔ 커서는 **꼭 봐야 하는 구간을 안 잘랐을 때만** 전진한다(P2-A). 잘렸으면 cursor..first_seen 을
+    #     아무도 안 봤다 — 커서를 그 위로 넘기면 그 세그먼트는 영구히 미판정이다. 그대로 두면 다음 판정
+    #     입력에 다시 들어간다(합집합이라 다시 봐도 해롭지 않다). 겹침이 떨어진 건 절단이 아니다.
+    cursor = state.expr_judged_upto
+    since = max(0, cursor - EXPR_JUDGE_OVERLAP_SEGMENTS)
     seen_end = len(state.segments)
-    transcript, first_seen, cut = _expression_transcript_window(state, since=since)
+    transcript, first_seen, cut = _expression_transcript_window(state, since=since, keep_from=cursor)
     if not transcript:
         return
     try:
@@ -1491,8 +1511,8 @@ async def _expression_progress_sidecar(state: _CallState, *, since: int = 0) -> 
             if i.get("item_id") is not None and int(i["item_id"]) not in judged
         )
         logger.info(
-            "normalcall 표현학습 판정 계측: phase=%s 미판정=%d/%d since=%d 입력=%d자 절단=%s",
-            phase or "(모호)", unjudged, len(state.expr_items), since, len(transcript), cut,
+            "normalcall 표현학습 판정 계측: phase=%s 미판정=%d/%d 커서=%d since=%d 입력=%d자 절단=%s",
+            phase or "(모호)", unjudged, len(state.expr_items), cursor, since, len(transcript), cut,
         )
         # ⭐ 아직 안 얹힌 쪽지는 **지금 진도로 다시 조립한다** — 안 하면 이 판정이 다음 arm
         #   까지 쪽지에 안 실려 「아직 틀린 표현」(오답퀴즈 재료)이 한 주기 늦는다.
@@ -1532,11 +1552,11 @@ async def _final_expression_progress(state: _CallState) -> None:
     t0 = loop.time()
     over = False
     try:
-        # ⭐ T14-C1 **입력 축소** — 직전 통화중 판정 이후 구간만 넣는다. 전사 전체를 넣으면
+        # ⭐ T14-C1 **입력 축소** — 사이드카가 스스로 «커서 이후 + 겹침» 만 넣는다. 전사 전체를 넣으면
         #   새 지시문(옛것의 2배) 아래서 1397 처럼 상한을 넘긴다(1,201ms → 마지막 145초 미판정).
         #   앞 구간 결과는 state 에 합집합으로 이미 있다. 상한(1.2초)은 그대로다.
         await asyncio.wait_for(
-            _expression_progress_sidecar(state, since=state.expr_judged_upto),
+            _expression_progress_sidecar(state),
             timeout=EXPR_FINAL_JUDGE_TIMEOUT_S,
         )
     except (TimeoutError, asyncio.TimeoutError):

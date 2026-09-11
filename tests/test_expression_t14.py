@@ -226,8 +226,8 @@ async def test_the_judge_instruction_is_rebuilt_from_state_on_every_call(monkeyp
     st.covered_nums = [1, 2, 3, 4, 5, 6]
     st.expr_quiz_pass = {2}
     st.expr_quiz_fail = {1, 3}
-    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(12)]
-    st.expr_judged_upto = 9
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(16)]
+    st.expr_judged_upto = 13
 
     seen: dict = {}
 
@@ -238,7 +238,7 @@ async def test_the_judge_instruction_is_rebuilt_from_state_on_every_call(monkeyp
 
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
     await cs._final_expression_progress(st)
-    assert "발화8" not in seen["prompt"], "입력은 잘렸다(C1)"
+    assert "발화8" not in seen["prompt"], "입력은 잘렸다(C1 — 커서 13, 겹침 4 → 9부터)"
     ins = seen["instruction"]
     assert "4. 도와주세요 — 뜻: Please help me  (이미 드릴함)" in ins
     assert "5. 처음 뵙겠습니다 — 뜻: How do you do?  (이미 드릴함)" in ins
@@ -270,14 +270,15 @@ def test_the_transcript_can_start_from_a_cursor() -> None:
 
 
 @pytest.mark.asyncio
-async def test_the_final_judgement_only_sends_the_unjudged_tail(monkeypatch) -> None:
+async def test_the_final_judgement_only_sends_the_unjudged_tail_plus_overlap(monkeypatch) -> None:
     """⛔ 전사 전체를 넣으면 새 지시문(옛것의 2배) 아래서 1397 처럼 상한을 넘긴다
     (1,201ms → 마지막 145초 미판정). 앞 구간 결과는 state 에 합집합으로 이미 있다.
+    ⭐ 겹침 4 세그먼트(bt-back 결정): 경계에 걸친 질문/답 쌍을 붙여 준다 — 커서=9 → 입력은 5부터.
     """
     st = _state()
     st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(10)]
-    st.expr_judged_upto = 7                            # 통화 중 판정이 7개까지 봤다
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(12)]
+    st.expr_judged_upto = 9                            # 통화 중 판정이 9개까지 봤다
 
     seen: dict = {}
 
@@ -287,8 +288,82 @@ async def test_the_final_judgement_only_sends_the_unjudged_tail(monkeypatch) -> 
 
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
     await cs._final_expression_progress(st)
-    assert "발화7" in seen["prompt"] and "발화9" in seen["prompt"]
-    assert "발화6" not in seen["prompt"], "이미 판정한 구간이 다시 들어갔다"
+    assert all(f"발화{i}" in seen["prompt"] for i in range(5, 12)), "커서 이후 + 겹침 4"
+    assert "발화4" not in seen["prompt"], "겹침보다 앞이 다시 들어갔다"
+    assert st.expr_judged_upto == 12, "커서는 «본 끝» 까지 — 겹침이 커서를 뒤로 돌리지 않는다"
+
+
+@pytest.mark.asyncio
+async def test_a_mid_call_judgement_uses_the_same_window_as_the_final_one(monkeypatch) -> None:
+    """⭐ 통화중 판정도 «커서 이후 + 겹침» 이다 — 마지막만 잘라 보내면 두 경로가 다른 판정기가 된다.
+    12k 절단이 실제로 걸리던 자리가 통화중(9분 근처)이었다 — 이제 사실상 안 걸린다.
+    """
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(12)]
+    st.expr_judged_upto = 9
+    seen: dict = {}
+
+    async def _capture(client, model, **kw):
+        seen["prompt"] = kw.get("prompt", "")
+        return _Out(phase="drill")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
+    await cs._expression_progress_sidecar(st)
+    assert "발화5" in seen["prompt"] and "발화4" not in seen["prompt"]
+    assert st.expr_judged_upto == 12
+
+
+@pytest.mark.asyncio
+async def test_cursor_zero_means_from_the_start_without_overlap(monkeypatch) -> None:
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(3)]
+    seen: dict = {}
+
+    async def _capture(client, model, **kw):
+        seen["prompt"] = kw.get("prompt", "")
+        return _Out()
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
+    await cs._expression_progress_sidecar(st)
+    assert seen["prompt"].endswith("학습자: 발화0" + chr(10) + "학습자: 발화1" + chr(10) + "학습자: 발화2")
+    assert "[앞 구간 생략" not in seen["prompt"]
+
+
+@pytest.mark.asyncio
+async def test_rejudging_the_overlap_never_demotes_a_pass(monkeypatch) -> None:
+    """겹친 구간을 두 번 판정해도 무해하다 — 단조성(failed→passed 만)이라 재판정이 강등을 못 만든다."""
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(6)]
+    verdicts = iter([_Out(drilled=[2], passed=[2], phase="quiz"), _Out(drilled=[2], failed=[2], phase="quiz")])
+
+    async def _next(client, model, **kw):
+        return next(verdicts)
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _next)
+    await cs._expression_progress_sidecar(st)          # 1차: 2번 통과, 커서 6
+    st.segments += [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(6, 8)]
+    await cs._expression_progress_sidecar(st)          # 2차: 겹침(2~5) 포함 재판정이 2번을 오답이라 함
+    assert st.expr_quiz_pass == {2} and st.expr_quiz_fail == set()
+    assert st.expr_judged_upto == 8
+
+
+def test_overlap_is_dropped_before_the_must_see_region_and_is_not_a_cut() -> None:
+    """⛔ 상한을 넘으면 겹침부터 버린다 — 본 구간(커서 이후)이 우선이고, 겹침이 떨어진 건 절단이 아니다
+    (커서가 전진해야 한다). 반대로 커서 이후가 떨어지면 절단이다.
+    """
+    st = _state()
+    big = "가" * 2500
+    st.segments = [{"turn_index": i, "role": "user", "text": f"[{i}]" + big} for i in range(8)]
+    # 커서 4, 겹침 0~3: 커서 이후 4개(≈10k)가 상한 안이라 겹침만 전부 떨어진다 — 절단 아님
+    out, first_seen, cut = cs._expression_transcript_window(st, since=0, keep_from=4)
+    assert first_seen == 4 and "[3]" not in out and "[4]" in out
+    assert cut is False, "겹침이 떨어진 것을 절단으로 세면 커서가 영원히 멈춘다"
+    # keep_from 없이(전부 꼭 봐야 함) 같은 입력이면 절단이다
+    _, first_seen2, cut2 = cs._expression_transcript_window(st, since=0)
+    assert first_seen2 == first_seen and cut2 is True
 
 
 @pytest.mark.asyncio
