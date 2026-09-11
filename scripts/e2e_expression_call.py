@@ -1185,7 +1185,7 @@ def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str
            # ⭐ T17-6 «늦은 전사» 가설 확정용 — 학습자 전사 조각(«👤 user:») 과 턴 flush(«👤 USER[t..]») 를 시간순으로 같이 붙인다.
            #   재개 시드 주입·제어 태그 스크럽 줄도(T17-1 벙어리 턴 규칙).
            'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm" '
-           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지")')
+           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결")')
     try:
         out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "1000",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
@@ -1364,6 +1364,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                  f"폴백 채택 {_cnt('provenance=stt_fallback')} · 폴백 기각 {_cnt('퀴즈 폴백 기각')} · 👤 user 조각 {_cnt('👤 user:')} · USER flush {_cnt('USER[t')}")
         arms = [(re.search(r"근거=([^,]+)", ln), re.search(r"peak=(\d+)", ln), re.search(r"바닥=(\d+)", ln), re.search(r"대화=(\d+)", ln))
                 for ln in server_logs if "재접지 arm" in ln]
+        recon = [ln for ln in server_logs if "재연결" in ln]
+        L.append(f"- 재연결 로그 {len(recon)}줄"
+                 + ("".join("\n  - " + ln.split("call_session:")[-1][:160] for ln in recon[:10]) if recon else ""))
         comps = [re.search(r"압축 감지 #(\d+) \(prompt (\d+) → (\d+)\)", ln) for ln in server_logs]
         comps = [m for m in comps if m]
         L.append(f"- 컨텍스트 압축 감지 {len(comps)}회" + (": " + " · ".join(f"#{m.group(1)} {m.group(2)}→{m.group(3)}" for m in comps) if comps else ""))
