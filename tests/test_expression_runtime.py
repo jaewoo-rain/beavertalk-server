@@ -430,7 +430,7 @@ async def test_the_final_judgement_result_reaches_the_write() -> None:
     st = _state([(1, BYE)])
     st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
 
-    async def _late_pass(state):
+    async def _late_pass(state, **_kw):          # since= 를 받는다(입력 축소 — C1)
         cs._apply_expression_progress(state, _FakeProgress(drilled=[1], passed=[1]))
 
     with mock.patch.object(cs, "_expression_progress_sidecar", _late_pass):
@@ -689,7 +689,7 @@ def test_the_sidecar_list_carries_meaning_so_homographs_can_be_told_apart() -> N
     out = cs._expression_progress_instruction(
         [{"obj": "개", "des": "a dog", "ex": "개가 있어요"},
          {"obj": "개", "des": "counter", "ex": "사과 두 개"}],
-        "한국어",
+        "한국어", "영어(English)",
     )
     assert "1. 개 — 뜻: a dog" in out and "2. 개 — 뜻: counter" in out
 

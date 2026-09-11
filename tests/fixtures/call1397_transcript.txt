@@ -1,0 +1,47 @@
+32:34 👤 USER[t0]: (무음/전사없음)
+32:34 BEAVER: Hey jaewoo, let's talk! When you want to buy something, how do you ask "How much is it?" in Korean?
+32:44 👤 USER[t2]: 이거 얼마예요?
+32:44 BEAVER: Right. How about this one: when you meet someone new, you can say "Please take good care of me." How do you say that in Korean?
+32:56 👤 USER[t4]: Oh, I don't know that.
+32:56 BEAVER: It's okay, don't worry about it! Just listen and repeat after me: '잘 부탁드립니다'. Come on, give it a shot!
+33:09 👤 USER[t6]: 잘 받았다
+33:09 BEAVER: Almost! You're really close, but try to say '부탁드립니다' more clearly. Let's try one more time, say '잘 부탁드립니다'.
+33:25 👤 USER[t8]: 잘 부탁드립니다.
+33:25 BEAVER: Nice, you got it! Okay, now let's say you want to tell someone where you're from. How do you say "I'm from [Country]" in Korean? Try saying '저는 ◯◯ 사람이에요'. Just put your country in the blank!
+33:39 👤 USER[t10]: (무음/전사없음)
+33:39 BEAVER: What do you think? How would you say "I'm from America" in Korean?
+33:50 👤 USER[t12]: I'm from America.
+33:50 BEAVER: Good, but in Korean? Try to say '저는 미국 사람이에요'. Can you try that?
+34:05 👤 USER[t14]: 저는 미쿡 사람
+34:05 BEAVER: Yeah! That's perfect! Now, let's see if you remember what we learned. How do you ask "How much is it?" in Korean?
+34:22 👤 USER[t16]: 가격입니다.
+34:22 BEAVER: Ah, not quite! Remember we practiced '얼마예요?'. Come on, try saying that again.
+34:34 👤 USER[t18]: 얼마야?
+34:34 BEAVER: There you go! Now, let's try another one. How do you say "Please take good care of me"?
+34:45 👤 USER[t20]: I don't know that.
+34:45 BEAVER: That's alright! It was '잘 부탁드립니다'. Try saying that after me. '잘 부탁드립니다'. You can do it!
+34:57 👤 USER[t22]: 잘 부탁드립니다
+34:57 BEAVER: That's it! Now last one: how do you say "I'm from America"?
+35:09 👤 USER[t24]: 나는 미국 사람.
+35:09 BEAVER: Good! Just add '이에요' at the end. Say '저는 미국 사람이에요'. Can you try that?
+35:23 BEAVER: When you need help, you can say "Please help me." In Korean, that's '도와주세요'. Can you repeat that?
+35:39 👤 USER[t28]: 도도와 도도
+35:39 BEAVER: Good try, but not quite! It's '도와주세요'. Listen again and try to copy me exactly. '도와주세요'. Can you say that?
+35:54 👤 USER[t30]: 도와주세요.
+35:54 BEAVER: Got it. Now, let's try another one. When you meet someone for the first time, you can say "How do you do?". In Korean, that's '처음 뵙겠습니다'. Can you repeat that?
+36:23 👤 USER[t32]: 처음 뵙겠습니다.
+36:23 BEAVER: Right on! Next up, if you want to ask what something is, you can say "What is this?". In Korean, that's '◯◯이/가 뭐예요?'. Just put what you're asking in the blank. Can you try that?
+36:40 👤 USER[t34]: 어멈이가 뭐예요?
+36:40 BEAVER: Exactly! Okay, quiz time! How do you say "Please help me" in Korean?
+36:50 👤 USER[t36]: 도와줘.
+36:50 BEAVER: Almost, but make it more polite! Remember it was '도와주세요'. Can you try that again?
+37:01 👤 USER[t38]: 도와주세요.
+37:01 BEAVER: Good. Now, how do you say "How do you do?" in Korean?
+37:10 👤 USER[t40]: I don't know that.
+37:10 BEAVER: No worries! It was '처음 뵙겠습니다'. Come on, give it a shot! '처음 뵙겠습니다'.
+37:21 👤 USER[t42]: 처음 뵙겠습니다.
+37:21 BEAVER: Nice! And last one for the quiz: how do you say "What is this?" in Korean?
+37:30 👤 USER[t44]: 이게 뭐예요?
+37:30 BEAVER: You got it! Alright, new phrase. To say "yes" or "I see," you can say '네'. Super easy, right? Try saying that!
+37:43 👤 USER[t46]: 네.
+37:43 BEAVER: Alright, you got it. Hey, I gotta go, but you did great today! Keep practicing, and I'll call you later. Bye!
