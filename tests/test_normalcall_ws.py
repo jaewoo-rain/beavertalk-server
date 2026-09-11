@@ -16,6 +16,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import pathlib
 
 import pytest
 from sqlalchemy import Integer, create_engine
@@ -349,16 +350,13 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
     수정 전엔 시드 주입이 펌프의 turn_end 에만 걸려 있어, 첫 턴 후 비버가 idle 이면 turn_end 가
     안 와서 시드가 영영 안 나가고 무음 백스톱으로 뚝 끊겼다. 이제 워처가 idle 을 감지해 직접 주입한다.
     """
-    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소(빠른 테스트)
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
+    # ⛔ T23: 서버 길이 시계 종료는 코드에서 지웠다(프론트가 소켓을 닫는다). 이 시험이 지키던 성질(RC1 — 소강에서도 시드가
+    #   나간다)은 남는 종료 사유로 옮겨 잠근다: 여기서는 **GoAway 가 소강에 도착**한다(펌프가 idle 이면 즉시 주입).
+    #   사이드카 `_request_close` 경로(시계워처가 직접 주입)는 test_close_request_seed_is_injected_by_the_watcher_when_idle.
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleThenClose:
-        """첫 턴 후 idle → 종료 시드([통화종료:난수]) 수신 시에만 작별 턴 → 종료."""
+        """첫 턴 후 idle → GoAway → 종료 시드([통화종료:난수]) 수신 시에만 작별 턴 → 종료."""
 
         def __init__(self):
             self.sent_audio: list[bytes] = []
@@ -377,6 +375,8 @@ async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkey
             yield LiveEvent(kind="out_tr", text="안녕")
             yield LiveEvent(kind="audio", audio=b"\x00\x00")
             yield LiveEvent(kind="turn_end")
+            await asyncio.sleep(0.3)           # 소강(idle) 중에
+            yield LiveEvent(kind="go_away", time_left="10s")   # 저쪽 종료 예고 → should_close
             await self._closed.wait()          # idle(소강) — 종료 시드가 올 때까지 대기
             yield LiveEvent(kind="out_tr", text="잘 가요")
             yield LiveEvent(kind="audio", audio=b"\x22\x22")  # 작별 오디오
@@ -424,17 +424,14 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
     수정 후: user_turn_open 이면 워처가 양보 → 비버가 유저에 먼저 응답하고, 그 turn_end 에서
     펌프(should_close 경로)가 깨끗한 idle 에 시드 주입 → 비버가 시드에 작별.
     """
-    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3초로 축소
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
+    # ⛔ T23: 길이 시계 대신 **GoAway 가 «유저 발화 끝 ~ 비버 응답 시작» 빈틈에 도착**한다. 그 빈틈은 turn_id None 이지만
+    #   user_turn_open 이라 주입하면 안 된다 — GoAway 경로에도 같은 관문을 걸었다(T23). 시계워처 쪽 관문은
+    #   test_close_request_defers_while_the_user_turn_is_open 이 잠근다.
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
     class UserSpeaksThenClose:
-        """오프닝 후 유저가 말하고(=user_turn_open), 그 사이 5분 경과. 비버가 유저에 응답 →
+        """오프닝 후 유저가 말하고(=user_turn_open), 그 빈틈에 GoAway. 비버가 유저에 응답 →
         그 뒤에야 시드가 오고, 시드에 진짜 작별 턴을 방출한다."""
 
         def __init__(self):
@@ -457,10 +454,11 @@ async def test_close_seed_deferred_until_user_reply(session_factory, seeded, mon
             yield LiveEvent(kind="out_tr", text="안녕하세요")
             yield LiveEvent(kind="audio", audio=b"\x00\x00")
             yield LiveEvent(kind="turn_end")
-            # 유저가 5분 직전 말함 → user_turn_open=True
+            # 유저가 말함 → user_turn_open=True
             yield LiveEvent(kind="in_tr", text="네", is_final=True)
-            # 이 사이 0.3초(=5분)가 지나 종료 플래그가 뜬다. 워처는 유저 응답 대기 중이라
-            # 시드를 넣으면 안 된다(수정 전엔 여기서 넣어 다음 턴이 작별로 둔갑).
+            # 그 빈틈에 GoAway → should_close. 유저 응답 대기 중이라 시드를 넣으면 안 된다
+            # (수정 전엔 여기서 넣어 다음 턴이 작별로 둔갑 — call 197).
+            yield LiveEvent(kind="go_away", time_left="10s")
             await asyncio.sleep(0.6)
             # 비버가 '유저'에 응답(작별 아님) — 수정 전엔 이 턴이 작별로 오인돼 종료됨
             yield LiveEvent(kind="out_tr", text="그렇군요")
@@ -519,13 +517,7 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     monkeypatch.setattr(cs, "IDLE_NUDGE1_S", 0.2)
     monkeypatch.setattr(cs, "IDLE_NUDGE2_S", 0.2)
     monkeypatch.setattr(cs, "IDLE_CLOSE_S", 0.2)
-    # 5분 시계는 무음보다 훨씬 뒤에 오도록 크게(무음 경로가 먼저 종료를 주도).
-    monkeypatch.setattr(cs, "CALL_DURATION_S", 100.0)
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
+    # (T23: 서버 길이 시계 종료는 없다 — 무음 경로가 종료를 주도한다.)
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
 
     class IdleForever:
@@ -751,13 +743,7 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
     않는다 — 작별 턴 오염(174/178 재발) 방지."""
     monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
     _arm_fast(monkeypatch)
-    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 곧 종료(_watch_call_clock)
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
-    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)   # (T23: 종료는 GoAway 로 몬다 — 길이 시계 없음)
     close_seen = asyncio.Event()
 
     class Fake(_RegroundFake):
@@ -769,6 +755,8 @@ async def test_reground_skipped_near_close(session_factory, seeded, monkeypatch)
         async def events(self):
             yield LiveEvent(kind="out_tr", text="안녕")   # call_start_ts 세팅
             yield LiveEvent(kind="turn_end")
+            await asyncio.sleep(0.3)
+            yield LiveEvent(kind="go_away", time_left="10s")   # 종료 구간 시작
             await close_seen.wait()                        # should_close + close_seed_sent 이후
             yield LiveEvent(kind="in_tr", text="어 나 갈게")  # 늦은 유저 발화 → 재접지 금지
             yield LiveEvent(kind="out_tr", text="Bye!")    # 작별
@@ -2185,13 +2173,7 @@ async def test_tools_not_passed_for_either_call_type(session_factory, seeded, mo
 async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypatch):
     """일반 통화는 레벨테스트 경로와 무관 — 서버가 '[다음]' 질문을 주입하지 않고,
     일반 종료 시드('통화 시간이 다 됐다')로 정상 종료(레벨테스트 종료 시드 누수 없음)."""
-    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
-    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)   # (T23: 종료는 GoAway 로 몬다 — 길이 시계 없음)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
     class NormalIdleClose:
@@ -2217,6 +2199,7 @@ async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypat
             yield LiveEvent(kind="out_tr", text="그렇군요")
             yield LiveEvent(kind="audio", audio=b"\x11\x11")
             yield LiveEvent(kind="turn_end")
+            yield LiveEvent(kind="go_away", time_left="10s")   # T23: 종료는 GoAway 로
             await self._close.wait()
             yield LiveEvent(kind="out_tr", text="잘 가요")
             yield LiveEvent(kind="audio", audio=b"\x99\x99")
@@ -2239,13 +2222,7 @@ async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypat
 async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monkeypatch):
     """T-회귀: 일반 통화는 tool-use 무관 — send_tool_response 미호출, 일반 종료 시드
     ('통화 시간이 다 됐다') + 정상 작별. 레벨테스트 시드는 나오면 안 된다."""
-    monkeypatch.setattr(cs, "CALL_DURATION_S", 0.3)   # 5분 → 0.3s
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
-    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)   # (T23: 종료는 GoAway 로 몬다 — 길이 시계 없음)
     monkeypatch.setattr(cs, "REGROUND_MODE", "off")   # 재접지 격리(종료만 검증)
 
     class NormalIdleClose:
@@ -2270,6 +2247,7 @@ async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monke
             yield LiveEvent(kind="out_tr", text="안녕")
             yield LiveEvent(kind="audio", audio=b"\x00\x00")
             yield LiveEvent(kind="turn_end")
+            yield LiveEvent(kind="go_away", time_left="10s")   # T23: 종료는 GoAway 로
             await self._close.wait()
             yield LiveEvent(kind="out_tr", text="잘 가요")
             yield LiveEvent(kind="audio", audio=b"\x99\x99")
@@ -2917,15 +2895,9 @@ def _swap_ready(monkeypatch):
       즉 무한 왕복을 실제로 막는 건 예산 횟수가 아니라 이 시간 가드다. 그 사실 자체를
       여기서 값으로 고정한다(가드를 없애면 위 테스트들이 세대 수로 잡아낸다).
     """
-    monkeypatch.setattr(cs, "SESSION_ROTATE_AT_S", 0.15)
-    monkeypatch.setattr(cs, "SWAP_FLAP_GUARD_S", 5.0)
-    monkeypatch.setattr(cs, "RECONNECT_MIN_REMAINING_S", 0.0)
+    monkeypatch.setattr(cs, "SESSION_ROTATE_AT_S", 0.15, raising=False)   # 옛 회전 기계 상수 — 지금은 없다(무해)
+    monkeypatch.setattr(cs, "SWAP_FLAP_GUARD_S", 5.0, raising=False)
     monkeypatch.setattr(cs, "CALL_DURATION_S", 30.0)
-    # ⛔ 이 시험은 **길이 시계가 종료를 몬다**는 전제 위에 서 있다. 2026-08-19 부터
-    #   운영 기본값은 "client"(프론트가 소켓을 닫아 조각을 끝낸다)이므로 여기서 옛
-    #   소유권을 명시한다. ⚠ 이 시험들이 지키는 성질(RC1 소강 스타베이션 · call 197
-    #   종료 레이스)은 소유권과 무관하게 살아 있어야 해서 지우지 않고 옮겨 둔다.
-    monkeypatch.setattr(app_settings, "LIVE_CALL_END_OWNER", "server", raising=False)
 
 
 def _gen_with_handle(handles):
@@ -5203,3 +5175,93 @@ async def test_the_fragment_cap_is_what_stops_abuse(session_factory, seeded, mon
         assert (calls[0].fragment_count or 1) == 1, "상한 1인데 조각이 늘었다"
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# T23 — 서버 길이 시계 종료 삭제 뒤에도 시계워처가 지키는 성질(옛 길이 시계 시험에서 옮겨 온 회귀)
+#   RC1 소강 스타베이션 · call 197 종료 레이스 — 이제 `_request_close`(사이드카) 경로로 잠근다.
+#   레벨테스트 캡은 서버가 계속 잡는다(측정 설계 — 앱엔 레벨테스트 타이머가 없다).
+# --------------------------------------------------------------------------- #
+class _SeedSink:
+    def __init__(self):
+        self.sent_text_turns: list[str] = []
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+
+
+def _clock_state(*, leveltest: bool = False) -> cs._CallState:
+    st = cs._CallState()
+    st.call_start_ts = asyncio.get_running_loop().time()
+    st.call_duration_s = 300.0
+    st.is_leveltest = leveltest
+    return st
+
+
+@pytest.mark.asyncio
+async def test_close_request_seed_is_injected_by_the_watcher_when_idle(monkeypatch):
+    """RC1(소강 스타베이션): 사이드카가 종료를 요청했는데 비버가 idle 이면 turn_end 가 안 온다 — 워처가 직접 시드를 넣는다."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.4)
+    st = _clock_state()
+    sink = _SeedSink()
+    task = asyncio.create_task(cs._watch_call_clock(st, sink))
+    await asyncio.sleep(0.3)
+    assert not st.should_close and sink.sent_text_turns == [], "요청 전에 종료 플래그가 섰다(길이 시계가 살아 있다)"
+    cs._request_close(st)
+    await asyncio.sleep(0.3)
+    assert st.should_close and any(t.startswith("[통화종료") for t in sink.sent_text_turns), "소강에서 시드가 안 나갔다(RC1)"
+    with pytest.raises(cs._CallFinished):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_close_request_defers_while_the_user_turn_is_open(monkeypatch):
+    """call 197 종료 레이스: 유저 발화 끝 ~ 비버 응답 시작 빈틈(turn_id None · user_turn_open)엔 시드를 넣지 않는다."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 1.0)
+    st = _clock_state()
+    st.user_turn_open = True
+    sink = _SeedSink()
+    task = asyncio.create_task(cs._watch_call_clock(st, sink))
+    cs._request_close(st)
+    await asyncio.sleep(0.5)
+    assert sink.sent_text_turns == [], "유저 응답 대기 중에 시드를 넣었다(call 197 재발)"
+    st.user_turn_open = False                       # 비버가 유저에게 응답을 시작했다
+    await asyncio.sleep(0.5)
+    assert any(t.startswith("[통화종료") for t in sink.sent_text_turns)
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError, cs._CallFinished):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_the_watcher_never_closes_a_normal_call_by_length(monkeypatch):
+    """T23 핵심 — 일반·표현학습·프리토킹은 길이가 다 차도 서버가 끝내지 않는다(프론트가 소켓을 닫는다)."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.2)
+    st = _clock_state()
+    st.call_duration_s = 0.1                        # 이미 지났다
+    sink = _SeedSink()
+    task = asyncio.create_task(cs._watch_call_clock(st, sink))
+    await asyncio.sleep(0.6)
+    assert not task.done() and not st.should_close and sink.sent_text_turns == []
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_the_watcher_still_caps_a_leveltest_by_length(monkeypatch):
+    """레벨테스트만 예외 — 3분 캡(측정 설계)은 서버가 잡아 종료 시드·작별로 끝낸다."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.3)
+    st = _clock_state(leveltest=True)
+    st.call_duration_s = 0.1
+    sink = _SeedSink()
+    with pytest.raises(cs._CallFinished):
+        await asyncio.wait_for(cs._watch_call_clock(st, sink), timeout=3.0)
+    assert st.should_close and any(t.startswith("[통화종료") for t in sink.sent_text_turns)
+
+
+def test_the_end_owner_switch_is_gone():
+    """⛔ 되살리지 마라 — 운영 env 에 "server" 가 남아 5분마다 작별이 나갔던 그 스위치다."""
+    assert not hasattr(app_settings, "LIVE_CALL_END_OWNER")
+    src = pathlib.Path(cs.__file__).read_text(encoding="utf-8")
+    assert "LIVE_CALL_END_OWNER" not in src.replace("`LIVE_CALL_END_OWNER` 스위치로 남겨", "")

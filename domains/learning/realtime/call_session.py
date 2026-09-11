@@ -1,10 +1,11 @@
-"""normalcall 단일 양방향 브리지 — 5분 한국어 통화 본체(async 오케스트레이션).
+"""normalcall 단일 양방향 브리지 — 한국어 통화 본체(async 오케스트레이션).
 
 ────────────────────────────────────────────────────────────────────────────
 🧒 12살에게 큰 그림부터: 이 파일이 하는 일은 "전화 교환수"다.
   한쪽 끝엔 학습자(휴대폰 앱 = 클라이언트, 이하 '클라'), 다른 쪽 끝엔 비버 선생님을
   연기하는 AI(구글 Gemini Live). 이 파일은 두 사람 사이에 앉아서 목소리를 실시간으로
-  주고받게 이어준다. 그리고 5분이 지나면 "이제 시간 됐어요~" 하고 통화를 예쁘게 끊는다.
+  주고받게 이어준다. 통화 길이(5분 조각)가 차면 **앱이 소켓을 닫는다** — 서버는 길이로 끊지 않고(T23),
+  무음 3단·GoAway·사이드카 요청 때만 작별 시드로 예쁘게 마무리한다.
 
   왜 '실시간'이 어렵나? 전화는 내가 말하는 소리(클라→Gemini)와 상대가 말하는 소리
   (Gemini→클라)가 **동시에** 흘러야 자연스럽다. 한쪽씩 번갈아 하면 무전기처럼 뚝뚝
@@ -4224,7 +4225,10 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 "normalcall: GoAway 수신(time_left=%s) → 종료 절차", event.time_left,
             )
             state.should_close = True
-            if state.turn_id is None:
+            # ⭐ T23 — 종료 레이스(call 197) 관문을 여기도 건다: idle 이라도 **유저 턴이 열려 있으면**(유저가 말했고
+            #   비버가 아직 응답 전) 주입하지 않는다 — 그 빈틈에 넣으면 비버의 유저 응답이 작별로 둔갑한다.
+            #   그 경우는 비버가 응답한 뒤 turn_end 에서 펌프(should_close 경로)가, 소강이면 시계워처가 주입한다.
+            if state.turn_id is None and not state.user_turn_open:
                 await _inject_close_seed(session, state)
             continue
 
@@ -4757,53 +4761,42 @@ async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) ->
 # 통화 시계 워처 + 종료
 # --------------------------------------------------------------------------- #
 async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> None:
-    """종료 신호를 기다렸다가 시드 주입을 보장하고 하드 백스톱을 건다.
+    """종료 신호(should_close)를 기다렸다가 **작별 시드 주입을 보장**하고 하드 백스톱을 건다.
 
-    ⛔⛔ **2026-08-19 임시 — 길이 만료는 프론트가 소유한다.** 예전에는 이 워처가
-      `call_duration_s` 경과를 직접 재서 종료를 시작했다. 지금은 조각 경계를 프론트가
-      잡으므로(5분에 소켓 닫기) 그 루프를 껐다. 근거·복구 방법은 아래 본문 주석에 있다.
-      ⇒ 이 워처가 반응하는 신호는 이제 **GoAway · 무음 3단 · 사이드카 종료요청**뿐이다.
+    ⛔⛔ **서버는 통화 길이로 종료하지 않는다**(T23, 2026-09-12 사장님 결정 — 코드에서 지웠다).
+      길이 만료는 **프론트**가 소켓을 닫아 끝낸다(이어하기 설계 §8 «무음 컷 · 주입 0» — 조각 경계에서 비버가
+      작별하면 안 된다). 서버는 그 닫힘을 `_ClientDisconnect` 로 받아 저장·분석까지 정상으로 돈다(실측 call 1078).
+      2026-08-19 에 이 경로를 `LIVE_CALL_END_OWNER` 스위치로 남겨 뒀는데 운영 env 가 "server" 로 남아 **5분마다
+      작별이 나갔다** — 스위치와 길이 만료 분기를 함께 없앴다.
+      ⭐ **레벨테스트만 예외** — 3분 캡(`LEVELTEST_MAX_S`)은 상품 혜택이 아니라 **측정 설계**고, 앱엔 레벨테스트 전용
+        타이머가 없다(앱은 call_type 을 안 보내고 서버 D11 이 레벨테스트로 돌린다 · 앱 구간 타이머는 5분뿐 —
+        normalcall_controller.dart, bt-back 확인). 사장님 지시는 «5분 조각 경계의 작별» 제거지 측정 캡이 아니다.
+        그래서 `is_leveltest` 면 캡 경과 → 종료 시드 → 작별을 서버가 그대로 잡는다.
+      ⇒ 이 워처가 반응하는 신호는 **GoAway(펌프) · 무음 3단(_watch_idle) · 사이드카 _request_close**, 그리고 레벨테스트 캡이다.
+      ⛔ 절대 백스톱(`ABSOLUTE_CALL_TIMEOUT_S` 540초, run_call 의 asyncio.timeout)은 별개 축 — 프론트가 영영 안 닫아도
+        9분에 끝난다(무한 과금 방어). 여기서 지운 것과 무관하게 그대로 돈다.
+      ⚠ 마지막 조각의 작별은 지금 아무도 안 한다 — 프론트가 3번째도 그냥 닫으면 비버가 인사 없이 끊긴다. 서버가
+        «마지막 조각» 을 알게 되면 그때 시드를 되살린다(이어하기 설계 §8 표: 조각3 = 종료 시드 무수정).
 
-    ⭐ RC1(소강 스타베이션) 방지: 종료 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서
-    시드를 주입하지만, 소강(idle, turn_id None) 구간이면 turn_end 가 오지 않아 시드가 영영
-    안 나간다. 그래서 워처가 idle 을 감지하면 직접 주입한다(작별 없는 무음 종료 방지).
+    ## 남는 경로에 그대로 걸린 회귀(옛 길이 시계 경로에서 옮겨 왔다 — 시드 주입 경합 방어는 종료 사유와 무관하다)
+    ⭐ RC1(소강 스타베이션): 종료 마크가 비버 발화중에 떨어지면 펌프가 그 턴 끝(turn_end)에서 시드를 주입하지만,
+      소강(idle, turn_id None) 구간이면 turn_end 가 오지 않아 시드가 영영 안 나간다 → 워처가 idle 을 감지해 직접 주입한다
+      (작별 없는 무음 종료 방지). `_request_close` 로 should_close 가 서는 사이드카 경로가 정확히 이 모양이다.
+    ⭐ 종료 레이스(call 197): 유저가 마지막에 말하면 «유저 발화 끝 ~ 비버 응답 시작» 빈틈에도 turn_id 는 None 이라,
+      거기서 시드를 주입하면 비버의 유저 응답이 작별로 둔갑한다(close_reply_started 오설정 → 작별 없이 종료).
+      user_turn_open 이면 워처는 양보하고, 비버가 유저에게 먼저 응답한 뒤 그 turn_end 에서 펌프가 깨끗한 idle 에 주입한다.
+      GoAway 경로(펌프)도 같은 관문을 탄다(T23 에서 맞췄다).
+    ⭐ 무음 우선순위: should_close 가 서면 `_watch_idle` 은 즉시 물러난다(넛지가 작별을 덮지 않게).
     """
     loop = asyncio.get_running_loop()
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
 
-    # ⛔⛔⛔ **임시: 종료 타이밍을 프론트가 잡는다**(2026-08-19 사장님 지시) ⛔⛔⛔
-    #
-    #   조각(6분)은 이제 **서버 시계가 아니라 프론트가** 끝낸다 — 5분에 "이어서
-    #   하시겠습니까?"를 띄우고 **소켓을 닫는다**. 서버는 그 닫힘을 `_ClientDisconnect`
-    #   로 받아 저장·분석까지 정상으로 돈다(실측 call 1078: "클라 연결 종료" → "저장 완료").
-    #
-    #   ⭐ 그리고 그게 조각 설계와 **맞다**: 조각 1·2 의 경계에서 비버가 작별을 하면 안 된다
-    #     (이어하기 설계 §8 "무음 컷 — 주입 0"). 소켓만 닫으면 주입이 0이라 자동으로 그렇게 된다.
-    #
-    # ⚠ **되돌리기: `LIVE_CALL_END_OWNER="server"`** 하나면 예전 동작이 그대로 살아난다.
-    #   코드를 주석으로 지우지 않은 이유는 그 설정의 주석에 적어 뒀다(회귀 3건이 걸려 있다).
-    #
-    # ⛔ **안 끈 것 — 이건 길이가 아니라 안전이다:**
-    #   ① `ABSOLUTE_CALL_TIMEOUT_S`(540초) 절대 백스톱(run_call 의 asyncio.timeout).
-    #      **프론트가 영영 안 닫아도 9분에 끝난다.** 무한 과금 방어.
-    #   ② GoAway · 무음 3단 · 사이드카 `_request_close` — 길이와 무관한 종료 사유.
-    #   ③ 아래 시드 주입·백스톱 — should_close 가 서면 그대로 돈다.
-    #
-    # ⚠ **마지막 조각의 작별은 지금 아무도 안 한다.** 프론트가 3번째도 그냥 닫으면 비버가
-    #   인사 없이 끊긴다. 이어하기 본구현에서 서버가 "마지막 조각"을 알게 되면 그때
-    #   시드를 되살린다(설계 §8 표: 조각3 = 기존 종료 시드 무수정).
-    # ⛔⛔ **레벨테스트는 스위치를 안 탄다**(회귀가 잡았다: band 사이드카 폴백 시험이 캡을
-    #   기다리다 타임아웃). 3분 하드캡은 상품 혜택이 아니라 **측정 설계**라 클라가 언제
-    #   닫든 서버가 캡에서 끝내야 한다. 조각·이어하기는 일반 통화의 개념이다.
-    client_owns_end = (
-        not state.is_leveltest
-        and (_settings.LIVE_CALL_END_OWNER or "").strip().lower() == "client"
-    )
+    cap_hit = False
     while not state.should_close:
-        # T2: 조기종료(GoAway/무음3단/사이드카)가 캡 이전에 should_close 를 세우면 즉시
-        # 백스톱 관리로 진입 — 안 그러면 조기 close 후에도 캡까지 매달린다.
-        if not client_owns_end and loop.time() - state.call_start_ts >= state.call_duration_s:
+        # ⭐ 레벨테스트만 서버 캡(3분) — 위 docstring. 다른 콜타입은 길이로 끊지 않는다(프론트가 소켓을 닫는다).
+        if state.is_leveltest and loop.time() - state.call_start_ts >= state.call_duration_s:
+            cap_hit = True
             break
         # 폴링 0.2s 유지 + 종료 요청이 오면 즉시 깨어난다(_request_close). TaskGroup 밖
         # 사이드카가 세션을 직접 잡지 않고도 지연 없이 종료 시드를 내보내게 하는 통로(B2).
@@ -4812,8 +4805,8 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
     state.should_close = True
     logger.info(
         "normalcall: 종료 플래그(%s)",
-        "프론트 소유 — 신호 수신" if client_owns_end
-        else "%.0fs 경과/조기신호" % state.call_duration_s,
+        "레벨테스트 캡 %.0fs 경과" % state.call_duration_s if cap_hit
+        else "신호 수신 — GoAway·무음 3단·사이드카 중 하나(길이 만료는 프론트가 소켓을 닫는다)",
     )
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.

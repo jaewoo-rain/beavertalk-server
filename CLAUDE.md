@@ -33,7 +33,7 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 `domains/learning/realtime/` (`ws_router` → `call_session` → `core/gemini_live`).
 - **2펌프 + TaskGroup**: 클라→Gemini, Gemini→클라 동시 펌프. `asyncio.timeout` 절대 백스톱(540s/9분 — 연결 ~10분 선점). **barge-in off**(비버 발화중 마이크 미전송).
 - Gemini Live 네이티브 오디오. 세션 한계(압축 無): **오디오 15분 / 연결 자체 ~10분**(S2). **context window compression(sliding window)** 은 세션을 무제한으로 늘리고 오래된 오디오 토큰을 밀어내 **드리프트 완화·장기 통화 대비** — 5분 통화도 이 압축 위에서 돈다.
-- 시계: 5분(`CALL_DURATION_S`) 경과 → 종료 시드 주입(정상 작별), 540s 절대 백스톱, 무음 3단 넛지(in_tr 부재로 감지 → 재개→확인→종료 합류), GoAway 예고 시 조기 종료, 1분마다 점진 flush(크래시 내성).
+- 시계: **통화 길이 만료는 프론트가 소켓을 닫아 끝낸다**(이어하기 §8 «무음 컷·주입 0» — 서버 길이 시계 종료 경로와 `LIVE_CALL_END_OWNER` 스위치는 T23(2026-09-12)에 코드에서 삭제, 되살리지 마라). 서버 몫은 540s 절대 백스톱, 무음 3단 넛지(in_tr 부재로 감지 → 재개→확인→종료 합류), GoAway 예고 시 조기 종료, 사이드카 종료 요청, 1분마다 점진 flush(크래시 내성). `call_duration_s` 는 넛지 간격·재접지 주기·재연결 잔여시간의 기준으로만 남는다.
 - 오디오: 입력 PCM16/16k, 출력 PCM24k. WS **바이너리=오디오, 텍스트=JSON 제어**(discriminated union, `protocol.py`).
 - **graceful degradation**: `genai_client` None 이면 통화만 비활성, 앱은 정상 기동. 외부 연동(발음/이메일/소셜/Storage)도 키 없으면 스텁·폴백.
 
