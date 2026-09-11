@@ -163,12 +163,22 @@ def norm_ko(s: str) -> str:
 
 
 def has_surface(text: str, surface: str) -> bool:
-    return bool(surface) and norm_ko(surface) in norm_ko(text)
+    """표면형이 텍스트에 나왔나. ⚠ 두 음절 이하(「이」「제」「저」「명」)는 부분문자열이면 어느 문장에서든 걸린다(«생일이 언제예요?» 에 「이」) —
+    그 경우 서버와 같은 낱말 경계 매처(quiz_judge.mentions: 어절 = 표면형 + 조사 꼬리)를 쓴다. 긴 표면형은 정규화 부분일치."""
+    if not surface:
+        return False
+    if len(norm_ko(surface)) <= 2 and re.search(r"[가-힣]", surface):
+        try:
+            from domains.learning.service.quiz_judge import mentions as _mentions
+            return bool(_mentions(text, surface))
+        except Exception:  # noqa: BLE001 - 매처가 없으면 부분일치로
+            pass
+    return norm_ko(surface) in norm_ko(text)
 
 
 def surfaces_in(text: str, items: dict[int, "Item"]) -> list[int]:
-    """턴 안에 표면형이 실제로 나온 항목들(긴 것 우선 — 부분 포함 오탐 완화)."""
-    hits = [iid for iid, it in items.items() if has_surface(text, it.surface)]
+    """턴 안에 표면형(문법은 라벨 조각·예문 포함)이 실제로 나온 항목들(긴 것 우선 — 부분 포함 오탐 완화)."""
+    hits = [iid for iid, it in items.items() if any(has_surface(text, v) for v in getattr(it, "variants", [it.surface]))]
     return sorted(hits, key=lambda i: -len(items[i].surface))
 
 
@@ -231,10 +241,40 @@ class Item:
 
     @property
     def answer(self) -> str:
-        """학습자가 «정답» 으로 말할 문장 — 문법은 예문, 그 외는 표면형."""
+        """학습자가 «정답» 으로 말할 것.
+
+        ⚠ 한·두 음절을 혼자 말하지 않는다 — 1437 에서 「이」 를 세 번 말했는데 Gemini 입력 전사가 세 번 다 비었다(한 음절 오디오를 버린다).
+          · 문법(패턴 표기): 예문(연습 문장)
+          · 동사·형용사(…다): 「가다, 가다」 — 예문은 활용형(갈 거예요)이라 서버 매처가 못 알아본다
+          · 두 음절 이하 명사·대명사 등: 「{surface}요」 — 매처는 «요» 꼬리를 조사로 받아 알아본다(실측)
+          · 그 외: 표면형
+        """
         if self.kind == "grammar" and self.example:
             return self.example
+        core = norm_ko(self.surface)
+        if self.kind != "chunk" and len(core) <= 2:
+            if self.surface.endswith("다"):
+                return f"{self.surface}, {self.surface}"
+            return f"{self.surface}요"
         return self.surface
+
+    @property
+    def long_form(self) -> str:
+        """전사가 안 왔을 때 한 번 더 말하는 더 긴 형태 — 예문(있으면), 아니면 답을 두 번."""
+        if self.example and self.kind != "grammar":
+            return self.example
+        a = self.answer
+        return f"{a} {a}"
+
+    @property
+    def variants(self) -> list[str]:
+        """전사 대조용 표기들 — 문법은 라벨의 쉼표/슬래시 조각(«N입니까?»)과 예문도 그 항목이 나온 것으로 본다(서버도 예문 OR)."""
+        out = [self.surface]
+        if self.kind == "grammar":
+            out += [p_.strip() for p_ in re.split(r"[,/]", self.surface) if len(norm_ko(p_)) >= 3]
+            if self.example:
+                out.append(self.example)
+        return out
 
 
 @dataclass
@@ -661,6 +701,8 @@ class Session:
         self.notes: list[str] = []
         self._last_started: Optional[ItemRecord] = None   # 가장 최근 _start_item 한 항목(재출제 판별용)
         self.distractor_pool: list[str] = []      # cur: 이번 통화 목록 밖 같은 차시 표면형(없으면 DISTRACTORS)
+        self.cancel_streak = 0                    # 비버 연속 턴으로 우리 발화가 취소된 횟수(연속) — 1 이상이면 다음 발화는 즉시
+        self._last_reply_item: Optional[ItemRecord] = None
 
     # ---- 유틸 -------------------------------------------------------------- #
     def now(self) -> float:
@@ -852,6 +894,7 @@ class Session:
             uplink.open = True
             return
         self.pending_speak = asyncio.create_task(self._speak_later(reply_text, lang, kind, uplink))
+        self._last_reply_item = self.current
 
     async def on_freetalk_turn(self, text: str, uplink: Uplink) -> None:
         """프리토킹: 판정 없음. 비버 턴에 차시 표현이 나오는지·상황(situation)/상대(partner) 문구가 나오는지만 기록하고,
@@ -974,10 +1017,10 @@ class Session:
         """(말할 문장, 언어, 종류). 종류: correct|casual|idk|distractor|parrot."""
         rec = self.current
         if rec is None:
-            # 아직 항목을 못 잡았다 — 비버가 물었으면 모른다고 답해 공개를 유도한다(공개로 식별된다)
+            # 아직 항목을 못 잡았다 — 비버가 물었으면 모른다고 답해 공개를 유도한다(공개로 식별된다). 안 물었어도 침묵하지 않는다(1438).
             if QUESTION_RE.search(text):
                 return IDK_EN, "en", "idk"
-            return None, "", ""
+            return "Okay.", "en", "ack"
         p = rec.policy
         surface = rec.item.answer        # ⚠ 이름은 surface 지만 «말할 답» 이다 — 문법 항목은 예문(패턴 표기는 말할 수 없다)
         if not asked and not mentioned:
@@ -1047,22 +1090,44 @@ class Session:
         spoke = False
         try:
             pcm = await self.voice.pcm(reply, lang)
-            await asyncio.sleep(PRE_SPEECH_S)
+            # 비버가 턴을 연달아 내 우리 발화가 취소되기만 하면(1438: 3턴 혼잣말) 다음엔 쉬지 않고 바로 말한다
+            await asyncio.sleep(PRE_SPEECH_S if self.cancel_streak == 0 else 0.15)
             uplink.open = True
             spoke = True
             turn = self.add_turn("learner", reply, kind=kind, item_id=self.current.item.item_id if self.current else 0)
             self.last_learner = turn
             self.since_learner = []
-            if kind in ("correct", "parrot") and self.current is not None and \
-                    norm_ko(reply) in (norm_ko(self.current.item.surface), norm_ko(self.current.item.answer)):
+            if kind in ("correct", "parrot") and self.current is not None and (
+                    norm_ko(reply) in (norm_ko(self.current.item.surface), norm_ko(self.current.item.answer))
+                    or any(has_surface(reply, v) for v in self.current.item.variants)):
                 self.current.surface_uttered = True
             if kind == "correct":
                 self.spontaneous += 1
             self.log(f"👤 {reply}   [{kind}]")
             await uplink.speak(pcm)
+            self.cancel_streak = 0
+            # ① 내 발화의 input_transcript 가 3초 안에 안 오면(한·두 음절 오디오를 Gemini 가 버린다 — 1437) 더 긴 형태로 한 번 더.
+            #   비버가 이미 말을 시작했으면(turn_start) 들은 것이니 재발화하지 않는다.
+            if kind in ("correct", "parrot", "casual", "distractor") and lang == "ko":
+                for _ in range(30):
+                    await asyncio.sleep(0.1)
+                    if turn.stt or self.cur_turn_id is not None or self.ended:
+                        break
+                if not turn.stt and self.cur_turn_id is None and not self.ended:
+                    item = self.current.item if self.current is not None else None
+                    longer = item.long_form if item is not None else f"{reply} {reply}"
+                    if norm_ko(longer) == norm_ko(reply):
+                        longer = f"{reply}. {reply}."
+                    turn.tags.append("재발화(전사 없음)")
+                    t2 = self.add_turn("learner", longer, kind=kind, item_id=turn.item_id)
+                    t2.tags.append("재발화")
+                    self.last_learner = t2
+                    self.log(f"👤 {longer}   [{kind}·재발화 — 3초 안 전사 없음]")
+                    await uplink.speak(await self.voice.pcm(longer, lang))
         except asyncio.CancelledError:
             if not spoke:
-                self.log("   (비버가 먼저 말해 발화 취소)")
+                self.cancel_streak += 1
+                self.log(f"   (비버가 먼저 말해 발화 취소 ×{self.cancel_streak})")
             raise
 
 
@@ -1370,7 +1435,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     L.append("")
     unm = [r for r in sess.records.values() if not r.item.server_matchable]
     if unm:
-        L.append("- ⚠ 문법 템플릿 미인식 " + str(len(unm)) + "건 — quiz_judge.mentions 가 그 항목의 예문(하네스가 말하는 답)에서 템플릿을 못 알아본다: "
+        L.append("- ⚠ 서버 미인식 " + str(len(unm)) + "건 — 표면형 매처(quiz_judge.mentions)도 못 알아보고 예문도 없다: "
                  + ", ".join(f"「{r.item.surface}」←「{r.item.answer}」" for r in unm) + " → 서버는 이 항목을 drilled/passed 로 찍을 수 없다(커리큘럼 예문 또는 매처 수정 재료)")
     L.append("- 기대 drilled = 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔다(결정 6 «모국어 설명만으론 안 됨»). "
              "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
@@ -1621,7 +1686,9 @@ def load_cur_context(sf, member_id: int, lesson_no: int, *, n: int) -> dict:
                     kind=it.kind, example=ex, lesson_id=lesson_id, role=role, review=review, seq=seq)
         try:
             from domains.learning.service.quiz_judge import mentions as _mentions
-            item.server_matchable = bool(_mentions(item.answer, item.surface))
+            # 서버(cur 경로)는 표면형 매처 OR **예문 문장** 으로 문법을 알아본다(bt-back H3-③). 하네스는 문법 답으로 예문을 말하므로
+            # 예문이 있으면 인식된다. 둘 다 없을 때만 «미인식».
+            item.server_matchable = bool(_mentions(item.answer, item.surface)) or (item.kind == "grammar" and bool(item.example))
         except Exception:  # noqa: BLE001 - 판정 모듈이 없으면 «알아본다» 로 둔다
             item.server_matchable = True
         return item
