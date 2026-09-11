@@ -122,6 +122,7 @@ def build_freetalk_instruction(
     locale_label: str | None = None,
     close_tag: str = CLOSE_TAG_DEFAULT,
     max_sentences: int | None = None,
+    lesson: object | None = None,
 ) -> str:
     """프리토킹 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -129,6 +130,10 @@ def build_freetalk_instruction(
       말할지»는 알아야 한다. 그게 없으면 초보에게 고급 문장이 나간다.
     ⚠ `close_tag` 는 출력에 실리지 않는다(서버 전용 — 지시문이 태그를 보여주면 비버가
       복사해 스스로 종료한다, call 852). 시그니처 대칭을 위해 받는다.
+    ⭐ `lesson`(커리큘럼 2단계, 2026-09-12): `curriculum_service.CurFreetalkBrief` 모양(situation · partner · surfaces · probes).
+      None 이면 **출력 바이트 동일**(옛 경로·스냅샷). 있으면 «[이번 차시]» 블록 하나 — 상황·상대·그 차시에서 배운 표현(≤18,
+      «대화 중 자연스럽게 끌어내라, 가르치지 말고»)·유도 질문. 판정·퀴즈는 없다(계획 §2 프리토킹 — 판정 없음).
+      ⛔ 표현을 «가르치라» 고 쓰지 마라 — 그건 표현학습이다. 여기서 표현 목록은 대화 소재다.
     """
     max_sentences = DEFAULT_MAX_SENTENCES if not max_sentences else max(1, int(max_sentences))
     label = _locale_label(locale, locale_label)
@@ -147,4 +152,32 @@ def build_freetalk_instruction(
         f"\n[학습자 수준]\n{level_profile}",
         f"\n[학습자 흥미·소재] {interests_text}",
     ]
+    block = _lesson_block(lesson, target=target_language, locale_label=label)
+    if block:
+        parts.append("\n" + block)
     return "\n".join(parts)
+
+
+def _lesson_block(lesson: object | None, *, target: str, locale_label: str) -> str:
+    """«[이번 차시]» 블록(커리큘럼 2단계). lesson 이 None 이면 빈 문자열 — 호출부가 아무것도 붙이지 않는다(바이트 동일)."""
+    if lesson is None:
+        return ""
+    situation = (getattr(lesson, "situation", None) or "").strip()
+    partner = (getattr(lesson, "partner", None) or "").strip()
+    surfaces = [s for s in (getattr(lesson, "surfaces", None) or []) if isinstance(s, str) and s.strip()][:18]
+    probes = [p for p in (getattr(lesson, "probes", None) or []) if isinstance(p, str) and p.strip()]
+    lines = ["[이번 차시 — 이 상황으로 대화한다]"]
+    if situation:
+        lines.append(f"- 상황: {situation}")
+    if partner:
+        lines.append(f"- 상대: {partner} (상황 묘사다 — 네가 그 사람이 되라는 뜻이 아니다. 너는 여전히 [페르소나]의 인물이다)")
+    if surfaces:
+        lines.append(
+            "- 학습자가 이 차시에서 배운 표현: " + " · ".join(f"「{s}」" for s in surfaces)
+            + f" — 대화 중 학습자가 **자연스럽게 꺼내게** 상황을 만들어라. 가르치거나 따라 말하게 하지 마라. "
+            f"학습자가 쓰면 짧게 반응하고 대화를 이어가라. {target}로는 그 표현들과 네 짧은 반응만, 나머지는 {locale_label}로."
+        )
+    if probes:
+        lines.append("- 대화가 막히면 이런 질문으로 이끌어라(뜻만 참고해 네 말로): " + " / ".join(probes))
+    lines.append("- 퀴즈·테스트·채점은 없다 — 이 통화는 대화다.")
+    return "\n".join(lines)

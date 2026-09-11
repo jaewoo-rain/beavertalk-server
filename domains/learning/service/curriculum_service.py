@@ -129,6 +129,12 @@ def _dto(item: CurItem, lesson_id: int, role: str, *, seen_count: int, review: b
 
 
 # ── 진도 ─────────────────────────────────────────────────────────────────── #
+def available(db: Session, language: str = "ko") -> bool:
+    """cur 경로를 탈 수 있나 — 시드(cur_lesson no=1)가 있어야 한다. 없으면 호출부가 옛 경로로 떨어진다(R5 — 스위치만 켜진 빈 DB 에서
+    통화가 죽지 않게). 운영 DB 는 1단계에서 적재됐다."""
+    return repo.lesson_by_no(db, language, 1) is not None
+
+
 def ensure_progress(db: Session, member_id: int, language: str = "ko", *, for_update: bool = False) -> CurMemberProgress:
     """회원의 «지금 차시» 행 — 없으면 no=1 로 만든다(레벨테스트→시작 차시 연결은 별건). 만들면 commit."""
     prog = repo.current_progress(db, member_id, language, for_update=for_update)
@@ -239,13 +245,14 @@ def _snapshot_rows(items: Iterable[dict], drilled: set[int], passed: set[int], f
             "drilled": iid in drilled,
             "passed": ok,
             "failed": (iid in failed) and not ok,
+            "review": bool(d.get("review")),
         })
     return rows
 
 
 def merge_call_items(existing_raw: Optional[str], incoming: list[dict]) -> list[dict]:
-    """cur_call.items 병합(P1-5) — item_id 기준 합집합, passed/failed OR(단 passed 면 failed=False), 표면형·뜻은 최신, drilled OR.
-    옛 `_merge_expression_snapshot` 규칙 그대로 — 조각2 가 조각1 의 통과분을 지우지 않게."""
+    """cur_call.items 병합(P1-5) — item_id 기준 합집합, passed/failed OR(단 passed 면 failed=False), 표면형·뜻은 최신, drilled OR,
+    review OR(하네스가 복습 식별에 쓴다 — B3 §8). 옛 `_merge_expression_snapshot` 규칙 그대로 — 조각2 가 조각1 의 통과분을 지우지 않게."""
     merged: dict[int, dict] = {}
     for rows in (_json_list(existing_raw), incoming):
         for r in rows:
@@ -267,6 +274,7 @@ def merge_call_items(existing_raw: Optional[str], incoming: list[dict]) -> list[
                 "drilled": bool(r.get("drilled")) or bool(prev.get("drilled")),
                 "passed": passed,
                 "failed": (bool(r.get("failed")) or bool(prev.get("failed"))) and not passed,
+                "review": bool(r.get("review")) or bool(prev.get("review")),
             }
     return list(merged.values())
 

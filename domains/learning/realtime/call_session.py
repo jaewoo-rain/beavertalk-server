@@ -113,6 +113,7 @@ from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.service import normalcall_service as svc
+from domains.learning.service import curriculum_service as cur_svc
 from domains.learning.realtime.protocol import (
     HintExample,
     ServerCallEnded,
@@ -772,6 +773,8 @@ class _CallState:
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
+        # cur_route: 이 통화가 커리큘럼 2단계(cur_*) 경로를 탔다 — **시작 시점에 한 번** 정해지고 종료 저장은 이 플래그로만 분기(§6 ③).
+        "cur_route",
         "last_beaver_question", "band_tasks", "band_target_language",
         # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
         "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
@@ -979,6 +982,7 @@ class _CallState:
         # ⛔ 레벨테스트는 **길이 시계로 끝나야 한다**(3분 하드캡은 측정 설계다). 조각·프론트
         #   종료 소유권과 무관하다 — 이 값이 그 두 세계를 가른다.
         self.is_leveltest: bool = False
+        self.cur_route: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
@@ -2148,6 +2152,24 @@ async def run_call(
     else:
         call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "normal"
 
+    # ⭐⭐ 커리큘럼 2단계 경로(docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — **여기서 한 번** 정한다(§6 ③ 경로 고정).
+    #   표현학습·프리토킹·auto 이고 CUR_ENABLED 면 cur 경로: 재료는 cur_* 에서, 진도도 cur_* 에 쓴다. 이 결정은 state.cur_route 로
+    #   운반되고 종료 저장은 그 플래그로만 분기한다 — 종료 시점에 스위치를 다시 읽지 않는다(롤링 배포·되돌리기 중 한 통화가
+    #   두 경로에 갈라지지 않게, P1-6).
+    #   "auto"(§8): 서버가 코스를 정한다. 새 통화는 지금 차시 상태로(decide_course), 이어하기면 아래 open_call 이 그 통화의 cur_call
+    #   로 다시 정한다. 스위치가 꺼져 있으면 auto 는 옛 표현학습 경로로 떨어진다(죽지 않게).
+    cur_route = call_type in ("expression", "freetalk", "auto") and bool(settings.CUR_ENABLED)
+    if cur_route and not await svc.run_db(db_session_factory, lambda db: cur_svc.available(db, spec.code)):
+        # R5 — 스위치는 켜졌는데 시드가 없는 DB(로컬·시험)면 옛 경로로. 운영은 1단계에서 적재돼 있다.
+        logger.warning("normalcall cur: cur_lesson 시드 없음(language=%s) → 옛 경로로 폴백", spec.code)
+        cur_route = False
+    if call_type == "auto":
+        if cur_route:
+            call_type = await svc.run_db(db_session_factory, lambda db: cur_svc.decide_course(db, member_id))
+            logger.info("normalcall cur: auto → course=%s member=%s", call_type, member_id)
+        else:
+            call_type = "expression"
+
     # ── 일일 통화 한도 ─────────────────────────────────────────────────── #
     # 콜타입별로 따로 센다 — 레벨테스트를 썼어도 일반 통화 1회가 남는다.
     #
@@ -2310,7 +2332,12 @@ async def run_call(
         # ⭐⭐ **여기서부터 코스별로 갈린다.** 위 플랜 분기(영상·백엔드·모델)는 세 코스가
         #   그대로 **공유**한다 — 표현학습·프리토킹도 Max 면 영상, Free·Pro 면 음성이다.
         #   ⛔ 레벨테스트만 이 블록 밖에 있다(자기 백엔드를 명시로 고정한다).
-        if call_type == "expression":
+        if cur_route:
+            # ⭐ cur 경로 — 지시문은 **call 행이 생긴 뒤**(아래) 조립한다. cur_call INSERT 에 call_id 가 필요하고(P1-4), 선별·브리프는
+            #   그 open_call 의 결과(items/brief)로 만든다. 옛 경로(아래 elif 들)는 한 줄도 안 바뀐다 — CUR_ENABLED=false 면 그대로.
+            system_instruction = ""
+            seed_text = ""
+        elif call_type == "expression":
             # ⚠ 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다 — 캐릭터·레벨 프로파일·
             #   흥미는 위 `setup`(load_call_setup)이 이미 갖고 있다.
             # ⚠ 레벨 미확정이면 2(Basic A)로 폴백한다 — load_call_setup 의 폴백과 같은 값.
@@ -2408,6 +2435,7 @@ async def run_call(
     # ⚠ 여기 목록과 `svc.resume_call` 의 화이트리스트는 **같은 뜻이어야 한다.** 한쪽만
     #   넓히면 «관문은 통과했는데 서비스가 거절» 이 되어 조용히 새 통화로 떨어진다.
     #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
+    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 normal/expression/freetalk 이다.
     if continues_call_id is not None and call_type in ("normal", "expression", "freetalk"):
         max_fragments = await svc.run_db(
             db_session_factory,
@@ -2433,6 +2461,72 @@ async def run_call(
             ),
         )
 
+    # ⭐⭐ 커리큘럼 2단계 — call 행 직후(P1-4) cur_call «없으면» INSERT + 선별/브리프(§2·§7 P0). 이어하기(cur_call 있음)면
+    #   open_call 이 그 통화의 차시·코스로 재선별한다(resumed=True, INSERT 0, 잠금 검사 면제).
+    #   ⛔ 옛 경로는 이 블록을 타지 않는다(cur_route=False).
+    cur_open = None
+    if cur_route:
+        try:
+            cur_open = await svc.run_db(
+                db_session_factory,
+                lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, locale=locale),
+            )
+        except cur_svc.CourseLocked as exc:
+            # 프리토킹인데 그 차시 표현학습이 안 끝났다 — 거절하고 소켓을 닫는다. call 행은 **남기고 status=failed** 로 둔다
+            # (통화가 시작되지 않았다는 사실 기록 · 재분석 대상도 아니다 — analyze 는 세그먼트 0 이면 빈 결과).
+            logger.info("normalcall cur: COURSE_LOCKED member=%s call_id=%s %s", member_id, call_id, exc)
+            with contextlib.suppress(Exception):
+                await svc.run_db(db_session_factory, lambda db: svc.set_status(db, call_id, "failed"))
+            with contextlib.suppress(Exception):
+                await _send_json(client_ws, ServerError(
+                    code="COURSE_LOCKED",
+                    message=f"이 차시({exc.lesson_code})의 표현학습이 아직 끝나지 않았어요(status={exc.status}).",
+                    recoverable=False,
+                ))
+            with contextlib.suppress(Exception):
+                await client_ws.close(code=1008)
+            return
+        call_type = cur_open.course          # 이어하기면 cur_call 의 코스가 이긴다(§7 P0)
+        if cur_open.course == "expression":
+            expr_items = cur_open.items       # DTO: item_id·lesson_id·obj·des·ex·role·review — lesson_id 가 state 까지 살아간다(§6 ①)
+            system_instruction = build_expression_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                level_profile=level_profile,
+                locale=locale,
+                interests=setup["interests"],
+                name=setup["name"],
+                items=expr_items,
+                quiz_group=svc.EXPRESSION_QUIZ_GROUP,
+                target_language=target_language,
+                close_tag=close_tag,
+                model_family="3.1" if "3.1" in (live_model or "") else "2.5",
+            )
+            seed_text = seed_expression_opening(target_language)
+            logger.info(
+                "normalcall cur 표현학습: lesson=%s(no=%d) status=%s 항목 %d(복습 %d) 재개=%s call_id=%s",
+                cur_open.lesson.code, cur_open.lesson.no, cur_open.status, len(expr_items),
+                sum(1 for d in expr_items if d.get("review")), cur_open.resumed, call_id,
+            )
+        else:
+            system_instruction = build_freetalk_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                level_profile=level_profile,
+                locale=locale,
+                interests=setup["interests"],
+                name=setup["name"],
+                target_language=target_language,
+                close_tag=close_tag,
+                lesson=cur_open.brief,
+            )
+            seed_text = seed_freetalk_opening(target_language)
+            logger.info(
+                "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 표현 %d 재개=%s call_id=%s",
+                cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
+                len(cur_open.brief.surfaces) if cur_open.brief else 0, cur_open.resumed, call_id,
+            )
+
     # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
     # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
     #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
@@ -2445,10 +2539,13 @@ async def run_call(
             #   서버에 있다"는 말이 거짓이 된다. 필드만 만들어 두고 아무도 안 채우던
             #   상태를 여기서 닫는다(2026-08-25).
             diag=settings.LIVE_DIAG_LEVEL,
+            # ⭐ 커리큘럼 2단계(§8): cur 경로만 코스를 실는다 — 옛 경로는 None(직렬화에서 빠져 프레임 바이트 동일).
+            course=call_type if cur_route else None,
         ),
     )
 
     state = _CallState()
+    state.cur_route = cur_route
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
     #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
     #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
@@ -2732,6 +2829,9 @@ async def run_call(
     absolute_timeout = max(
         ABSOLUTE_CALL_TIMEOUT_S, state.call_duration_s + SEED_TO_HANGUP_S + 30.0
     )
+    # ⭐ 커리큘럼 2단계 프리토킹 완료 판정(§7 ⓑ) — 정상 종료 = 작별(_CallFinished) · 백스톱(TimeoutError) · 클라 컷(_ClientDisconnect).
+    #   예외로 끝난 통화(1006 미복구 등)만 비정상이다. 아래 except 들이 이 값을 세운다.
+    end_normal = False
     try:
         async with asyncio.timeout(absolute_timeout):
             await _run_session(
@@ -2752,10 +2852,13 @@ async def run_call(
         # ⚠ 상수가 아니라 **실제 적용된** 상한을 찍는다 — 데모/장통화는 값이 다른데
         #   상수를 찍으면 로그가 거짓말을 한다(15분 통화에서 952s 인데 540s 로 보인다).
         logger.warning("normalcall 통화 상한(%.0fs) 초과 — 강제 종료", absolute_timeout)
+        end_normal = True
     except _ClientDisconnect:
         logger.info("normalcall 클라 연결 종료")
+        end_normal = True
     except _CallFinished:
         logger.info("normalcall 통화 정상 종료")
+        end_normal = True
         if state.band_observe:
             logger.info(
                 "normalcall: 레벨테스트 종료판정 사이드카 종료 total_answers=%d nonspeaker_streak=%d "
@@ -2795,7 +2898,40 @@ async def run_call(
         #     잃는 것은 이번 조각의 진도뿐이고, 그 항목은 다음 통화에 다시 나온다.
         # ⛔ 게이트가 `expr_items` 면 **레벨을 다 뗀 회원이 승급을 못 받는다** — 선별이 빈
         #   목록을 주는 그 상태가 정확히 «다 뗐다» 이기 때문이다. 콜타입으로 판정한다.
-        if call_type == "expression" and call_id is not None:
+        if state.cur_route and call_id is not None:
+            # ⭐⭐ 커리큘럼 2단계 종료 저장(§2) — 경로 고정: 시작에 cur 를 탔으면 여기서도 cur 만(§6 ③). 옛 save_expression_progress·
+            #   promote_by_expression·call.expression_result 는 **부르지 않는다**(시험이 0회를 잠근다). 재분석(analyze_call)은 무수정.
+            if call_type == "expression":
+                await _final_expression_progress(state)          # 순서 계약 그대로: ① 마지막 판정 ② state ③ DB
+                try:
+                    drilled = _expr_covered_ids(state)
+                    snapshot = _expression_result_snapshot(state, set(drilled))
+                    for row in snapshot:                          # 결과 화면·하네스용 review 키(DTO 에서)
+                        row["review"] = bool(next((d.get("review") for d in state.expr_items
+                                                   if int(d.get("item_id") or -1) == row["item_id"]), False))
+                    stats = await svc.run_db(
+                        db_session_factory,
+                        lambda db: cur_svc.record_expression(
+                            db, call_id, items=state.expr_items, drilled_ids=drilled,
+                            passed_ids=sorted(state.expr_quiz_pass), failed_ids=sorted(state.expr_quiz_fail),
+                            snapshot=snapshot,
+                        ),
+                    )
+                    logger.info("normalcall cur 표현학습 저장: %s", stats if stats is not None else "no-op(이미 저장됨/cur_call 없음)")
+                except Exception as exc:  # noqa: BLE001 - 진도 유실일 뿐 통화는 끝났다(R5)
+                    logger.warning("normalcall cur 표현학습 저장 실패(무시): %s", exc)
+            elif call_type == "freetalk":
+                try:
+                    _loop = asyncio.get_running_loop()
+                    duration_s = (_loop.time() - state.call_start_ts) if state.call_start_ts is not None else 0.0
+                    res = await svc.run_db(
+                        db_session_factory,
+                        lambda db: cur_svc.complete_freetalk(db, call_id, duration_s=duration_s, normal_end=end_normal),
+                    )
+                    logger.info("normalcall cur 프리토킹 종료: %.0fs normal=%s → %s", duration_s, end_normal, res)
+                except Exception as exc:  # noqa: BLE001 (R5)
+                    logger.warning("normalcall cur 프리토킹 종료 처리 실패(무시): %s", exc)
+        elif call_type == "expression" and call_id is not None:
             # ⭐⭐ **순서가 계약이다**(사장님 지시 2026-09-10):
             #     ① 마지막 판정 LLM  ② state 갱신  ③ DB 쓰기  ④ 조각2 가 DB 에서 뽑는다
             #   ⛔ ①을 빼면 **마지막 arm 이후 구간이 판정 없이 버려지고**, 그 구간에서 맞힌

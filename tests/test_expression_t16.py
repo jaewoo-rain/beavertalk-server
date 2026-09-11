@@ -735,4 +735,5 @@ def test_a_re_mention_of_an_already_covered_item_never_closes() -> None:
 def test_the_call_site_picks_the_model_family_from_live_model_only() -> None:
     src = pathlib.Path(cs.__file__).read_text(encoding="utf-8")
     assert 'model_family="3.1" if "3.1" in (live_model or "") else "2.5"' in src
-    assert src.count("model_family=") == 1, "모델 선택 로직을 대본 쪽에서 새로 만들지 않는다"
+    # 옛 경로 + 커리큘럼 2단계(cur) 경로 — 두 호출부가 **같은 한 줄**을 쓴다. 다른 모양이 생기면 여기서 잡는다.
+    assert src.count("model_family=") == src.count('model_family="3.1" if "3.1" in (live_model or "") else "2.5"') == 2,         "모델 선택 로직을 대본 쪽에서 새로 만들지 않는다"

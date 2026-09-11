@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_serializer
 
 
 # ── 클라이언트 → 서버 ──
@@ -102,7 +102,9 @@ class ClientStart(BaseModel):
     #   `expression`(표현학습) · `freetalk`(프리토킹)로 명시해 들어온다.
     #   ⛔ **자동 라우팅 대상이 아니다.** 서버가 저절로 고르는 건 여전히 level_test/normal
     #     둘뿐이다 — 어느 코스를 할지는 학습자가 버튼으로 정한다.
-    call_type: Literal["normal", "level_test", "expression", "freetalk"] | None = None
+    # ⭐ "auto"(커리큘럼 2단계 §8, 2026-09-12) — 앱은 이것 하나만 보내고 서버가 cur_member_progress·cur_member_lesson.status 로
+    #   이번 통화가 표현학습인지 프리토킹인지 정한다(`call_started.course` 로 알린다). 명시 expression/freetalk 는 개발자도구·하네스용.
+    call_type: Literal["normal", "level_test", "expression", "freetalk", "auto"] | None = None
     duration_min: int | None = None
     tz_offset_min: int | None = None
 
@@ -312,9 +314,26 @@ class ServerCallStarted(BaseModel):
     #   ⛔ **주인은 서버다** — 앱 배포 없이 끌 수 있어야 한다. 계측이 통화를 흔드는 것이
     #     관측되면 그날 env 하나로 끈다. 클라 기본값은 "summary" 이고 이 값이 이긴다.
     diag: str | None = None
+    # ⭐ 커리큘럼 2단계(§8): 서버가 정한 코스. cur 경로 통화만 값이 있다 — 옛 경로·일반·레벨테스트는 None 이고,
+    #   None 은 직렬화에서 빠져 **프레임 바이트 동일**(구버전 클라 무해).
+    course: Literal["expression", "freetalk"] | None = None
+
+    @model_serializer(mode="wrap")
+    def _drop_null_course(self, handler):
+        # ⛔ 옛 경로 프레임 **바이트 동일** — course 가 None 이면 키 자체를 빼고 직렬화한다(다른 None 필드(call_id·diag)는
+        #   예전처럼 null 로 나간다 — 그 모양이 구버전 계약이다).
+        data = handler(self)
+        if isinstance(data, dict) and data.get("course") is None:
+            data.pop("course", None)
+        return data
 
 
 class ServerError(BaseModel):
+    """서버 거절/오류 통지. code 는 문자열 계약이다 — 클라가 분기한다:
+      DAILY_LIMIT      오늘 그 콜타입 한도 소진(recoverable=False)
+      COURSE_LOCKED    커리큘럼 2단계 — 프리토킹인데 그 차시 표현학습이 안 끝났다(recoverable=False, message 에 lesson_code·status).
+                       서버는 이 프레임을 보내고 소켓을 닫는다. 앱·하네스는 메시지를 표시한다(계획 §2 프리토킹).
+    """
     type: Literal["error"] = "error"
     code: str
     message: str
