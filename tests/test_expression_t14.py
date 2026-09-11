@@ -169,14 +169,14 @@ def test_a_placeholder_does_not_hide_a_real_leak_behind_it() -> None:
     "line",
     [
         # ① 퀴즈 앵커
-        "퀴즈를 시작한다는 말을 영어(English)로 먼저 해라",
-        "퀴즈를 마치고 새 표현으로 돌아갈 때도 영어(English)로 알려라",
+        # ① 퀴즈 앵커 — T16 부터 서버 큐가 열고 닫는다. T21-A 에서 «알림을 말로 해라» 문장은 뺐다(설계문 §A-2-1).
+        "지금 퀴즈를 내라» 고 알릴 때만 낸다",
         # ② 먼저 묻고 기다려라
-        "물은 뒤 **반드시 기다려라.**",
+        "물은 뒤 **반드시 기다려라** — 네가 던진 질문에 스스로 답하지 마라",
         "**다음 항목은 다시 먼저 물어라** — 답을 먼저 주지 마라",
         # ④ 공개 = 그 회차의 끝
         "**표현 전체나 그 어절을 말하지 마라.**",
-        "그 순간 그 문항은 틀린 것이고, 직후에 따라 말해도 바뀌지 않는다",
+        "정답을 들려준 뒤에는 '어떻게 말해요?' 로 되묻지 마라 — 따라 말하게만 해라",
         # ⑤ 격식
         "반말로 답하면 맞힌 게 아니다",
         "격식 표지(-요·-습니다·저)가 빠진 것은 아니다",
@@ -213,8 +213,8 @@ def test_the_nudge_gives_a_hint_in_a_quiz_and_a_model_in_a_drill() -> None:
 def test_the_give_up_path_never_says_correct() -> None:
     """T15-3 — 1398 t9: 3번째 시도 「잘 못 들었다」(반말·오답)에 극찬. 포기 경로에 «맞았다고 하지 마라» 가 없었다."""
     out = _script()
-    assert "다음 번호 항목으로 이어 가라 — **맞았다고 하지는 마라.** 캐릭터대로 넘기되 틀린 건 틀린 거다" in out
-    assert "항목 하나에 집착 금지 — 그리고 맞았다고 하지는 마라" in out
+    assert "짧게 넘기되 **맞았다고 하지는 마라** — 틀린 건 틀린 거다" in out      # [반응] 포기 경로
+    assert "다음 번호 항목으로 넘어가라 — **맞았다고 하지는 마라.**" in out      # [진행 절차] 포기 경로
 
 
 def test_expression_pre_arm_is_off_when_the_room_is_too_narrow_but_normal_is_unchanged() -> None:

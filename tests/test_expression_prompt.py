@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from core.prompts import common
@@ -73,9 +75,12 @@ def test_chunk_without_example_is_still_rendered_and_gets_no_example_tail() -> N
     assert "예문" not in out.split("[진행 절차]")[0].split("[오늘의 표현")[1]
 
 
-def test_item_with_example_shows_it() -> None:
-    out = _expr(items=[ITEMS[2]])
-    assert '예문: "학교에 가요"' in out
+def test_item_shows_meaning_or_else_example_not_both() -> None:
+    """T21-A — 뜻이 있으면 예문은 싣지 않는다(토큰). 뜻이 없을 때만 예문이 그 자리를 맡는다."""
+    out = _expr(items=[ITEMS[2]])                       # des + ex → 뜻만
+    assert "뜻: to go" in out and "예문:" not in out
+    out2 = _expr(items=[{"obj": "가다", "des": None, "ex": "학교에 가요"}])
+    assert '예문: "학교에 가요"' in out2
 
 
 def test_meaning_is_shown_when_present() -> None:
@@ -194,7 +199,7 @@ def test_after_the_material_runs_out_it_explains_then_makes_the_learner_produce(
     # ② 산출 — 학습자가 직접 만들어 말한다
     assert "학습자가 그중 하나를 넣은 문장을 직접 만들어 말하게 해라" in tail
     # ②' 그리고 거기서 멈추지 않는다 — 한 번 만들고 끝나면 그게 '끝' 신호가 된다(call 870)
-    assert "표현을 바꿔 가며 그렇게 계속 이어가라" in tail
+    assert "표현을 바꿔 가며 계속 이어가라" in tail
     # ③ 종료 어휘 0(위 금지 목록 + '정리' 계열)
     for banned in ("정리", "마무리", "마지막", "끝으로", "여기까지"):
         assert banned not in tail, f"종료로 미끄러지는 어휘: {banned}"
@@ -265,22 +270,18 @@ def test_target_and_locale_are_substituted_not_hardcoded(build: str) -> None:
     )
     assert "프랑스어" in out
     assert "일본어(日本語)" in out
-    # ⭐ 딱 한 자리는 «한국어» 가 나오는 것이 **맞다**: 항목 블록 머리의
-    #   "이 블록은 한국어로 적혀 있지만 적힌 언어는 네가 말할 언어와 무관하다".
-    #   지시문 자체가 한국어 산문이라는 **사실**을 말하는 문장이라 치환 대상이 아니다.
-    #   ⛔ 지우지 마라 — 이 처방이 없으면 비버가 그 블록을 읽는 턴에서 한국어로 뒤집힌다
-    #     (실측 1258·1259·1260·1261. 규칙에 같은 말을 세 번 더 써도 안 먹었다).
-    meta = "이 블록은 한국어로 적혀 있지만"
+    # ⭐ T21-A 부터 «한국어» 는 **한 자리도** 안 나온다. 옛 항목 블록 머리 «이 블록은 한국어로 적혀 있지만…» 은
+    #   «적힌 언어는 네가 말할 언어와 무관하다 — …» 로 압축했다(처방은 그대로 — 1258~1261 의 뒤집힘 방어 문장은 살아 있다).
     if build == "expr":
-        assert meta in out
-    assert "한국어" not in out.replace(meta, ""), "대상 언어가 하드코딩됐다"
+        assert "적힌 언어는 네가 말할 언어와 무관하다" in out, "1258~1261 뒤집힘 방어 문장이 사라졌다"
+    assert "한국어" not in out, "대상 언어가 하드코딩됐다"
 
 
 def test_explanations_are_ordered_in_the_learner_native_language() -> None:
     """설명·지시·반응은 **전부** 모국어 — 이 코스에는 밴드 발판이 없다."""
     out = _expr()
     assert "는 영어(English)로 한다" in out
-    assert "네 반응·지시는 계속 영어(English)로" in out
+    assert "네 반응·지시는 계속 영어(English)다 — 학습자 언어에 끌려가지 마라" in out
 
 
 # --------------------------------------------------------------------------- #
@@ -561,3 +562,18 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
     assert "지금 퀴즈를 내라» 고 알릴 때만 낸다" in out
     assert "스스로 퀴즈·복습·테스트를 시작하지 마라" in out
     assert "남은 것만으로" not in out and "목록 끝에서" not in out
+
+
+# --------------------------------------------------------------------------- #
+# T21-A 기준 해시 — 표현학습 지시문의 **새 기준**(2026-09-11 간소화판, ITEMS·BASE 조합)
+# --------------------------------------------------------------------------- #
+# ⛔ 이게 터지면 대본이 바뀐 것이다 — 의도한 변경이면 README §8 에 적고 여기 두 값을 갱신한다.
+#   일반 통화(build_system_instruction)의 94개 바이트 동일은 tests/test_prompt_common_snapshot.py 가 따로 지킨다.
+_EXPR_FROZEN = ("c4ee737015affeb4a7248976aa2e5dd5005de9cd4195d454e2c30c27a807926f", 3795)
+
+
+def test_expression_instruction_matches_the_t21a_baseline() -> None:
+    out = _expr()
+    want_sha, want_len = _EXPR_FROZEN
+    assert len(out) == want_len, f"길이 {want_len} → {len(out)} ({len(out) - want_len:+d}자) — 대본이 바뀌었다"
+    assert hashlib.sha256(out.encode("utf-8")).hexdigest() == want_sha, "길이는 같은데 내용이 다르다"
