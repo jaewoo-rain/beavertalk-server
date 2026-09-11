@@ -51,8 +51,8 @@ sys.path.insert(0, str(ROOT))
 DEFAULT_BASE = "https://beavertalk-app-demo-api-333511894671.asia-northeast3.run.app"
 WS_PATH = "/api/v1/calls/stream"
 DEFAULT_EMAIL = "testfree@gmail.com"
-DEFAULT_PASSWORD = "11111111"     # 브리프의 dev 테스트 계정(member 92). 다른 계정 금지.
-MEMBER_ID = 92
+DEFAULT_PASSWORD = "11111111"     # dev 테스트 계정(testfree=92 Free/2.5 · testmax=88 Max/3.1). 다른 계정 금지.
+MEMBER_ID = 0                     # ⛔ 하드코딩 아님 — main() 이 --email 로 DB(member.email)에서 찾아 채운다. 다른 계정 금지(사장님 20).
 LEVEL_NO = 1
 LANGUAGE = "ko"
 LOCALE = "en"
@@ -70,7 +70,7 @@ LEARNER_VOICE = "Charon"          # 비버 음색과 다르게(Chirp3-HD 로스�
 # --------------------------------------------------------------------------- #
 FIXED: dict[int, tuple[str, str, str, tuple[str, ...]]] = {
     11096: ("안녕하세요?", "Hello.", "안녕", ("hello", "greet someone", "say hi")),
-    11097: ("만나서 반갑습니다", "Nice to meet you.", "만나서 반가워", ("nice to meet", "glad to meet", "pleased to meet", "meet someone")),
+    11097: ("만나서 반갑습니다", "Nice to meet you.", "만나서 반가워", ("nice to meet", "glad to meet", "pleased to meet", "good to meet")),
     11098: ("잘 지냈어요?", "How have you been?", "잘 지냈어?", ("how have you been", "been doing", "how are you", "how's it going")),
     11102: ("좋은 하루 보내세요", "Have a good day.", "좋은 하루 보내", ("good day", "nice day", "great day", "have a good")),
     11104: ("감사합니다", "Thank you.", "고마워", ("thank",)),
@@ -306,6 +306,18 @@ class Tee:
     def flush(self) -> None:
         self.out.flush()
         self.f.flush()
+
+
+def resolve_member(db, email: str) -> int:
+    """이메일로 member_id. 탈퇴 안 한 활성 행 1개여야 한다 — 없거나 여럿이면 중단(엉뚱한 계정을 만지지 않게)."""
+    from sqlalchemy import select
+    from domains.account.models.member import Member
+
+    rows = db.scalars(select(Member).where(Member.email == email)).all()
+    rows = [m for m in rows if getattr(m, "deleted_at", None) is None] or rows
+    if len(rows) != 1:
+        sys.exit(f"⛔ email={email} 에 해당하는 member 가 {len(rows)}명 — 중단")
+    return int(rows[0].member_id)
 
 
 def load_items(db) -> dict[int, Item]:
@@ -1062,11 +1074,24 @@ def read_db_outcome(sf, call_id: Optional[int], items: dict[int, Item]) -> Score
             sc.db_rows[iid] = {"drilled_call_id": row.drilled_call_id, "drilled_at": row.drilled_at,
                                "quiz_passed_at": row.quiz_passed_at}
         if call_id:
-            r = db.execute(sql("SELECT call_type, status, total_time, expression_result, summary, usage_engine "
+            r = db.execute(sql("SELECT call_type, status, total_time, expression_result, summary, usage_engine, "
+                               "usage_json, usage_in_audio, usage_in_text, usage_out_audio, usage_out_text "
                                "FROM call WHERE call_id=:c"), {"c": call_id}).first()
             if r is not None:
                 sc.call_row = {"call_type": r[0], "status": r[1], "total_time": r[2], "summary": r[4],
                                "usage_engine": r[5]}
+                # 원가는 estimate_call_cost_usd 로만(계약 — call_usage_engine_contract)
+                try:
+                    from domains.learning.service import normalcall_service as _ns
+                    uj = r[6] if isinstance(r[6], dict) else (json.loads(r[6]) if r[6] else None)
+                    cost, unknown = _ns.estimate_call_cost_usd(
+                        r[5], in_audio=r[7] or 0, in_text=r[8] or 0, out_audio=r[9] or 0, out_text=r[10] or 0, usage_json=uj)
+                    sc.call_row["cost_usd"] = round(cost, 4)
+                    if unknown:
+                        sc.call_row["cost_unknown_vendors"] = unknown
+                    sc.call_row["usage"] = {"in_audio": r[7], "in_text": r[8], "out_audio": r[9], "out_text": r[10]}
+                except Exception as exc:  # noqa: BLE001 - 표시용
+                    sc.call_row["cost_usd"] = f"?({exc})"
                 try:
                     sc.expr_result = json.loads(r[3]) if r[3] else []
                 except ValueError:
@@ -1168,6 +1193,13 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
              f"비버 턴 {sum(1 for t in sess.turns if t.role == 'beaver')} · 학습자 턴 {sum(1 for t in sess.turns if t.role == 'learner')} · "
              f"비버 오디오 {sess.beaver_audio_bytes / 48000:.0f}초 · LLM 폴백 {sess.picker.calls}회")
     L.append(f"- DB call: {sc.call_row} · 레벨(뒤) {sc.level_after}")
+    first_b = next((t for t in sess.turns if t.role == "beaver"), None)
+    empty_b = [t for t in sess.turns if t.role == "beaver" and not t.text.strip()]
+    dbl = [t for i, t in enumerate(sess.turns) if t.role == "beaver" and i > 0 and sess.turns[i - 1].role == "beaver" and sess.turns[i - 1].text.strip() and t.text.strip()]
+    rep_b = [t for t in sess.turns if t.role == "beaver" and re.search(r"\b(\w{3,}(?: \w+){0,3})\b[,.!? ]+\1\b", t.text, re.I)]
+    L.append(f"- 엔진 관찰: usage_engine `{sc.call_row.get('usage_engine')}` · 원가 ${sc.call_row.get('cost_usd')} · "
+             f"첫 비버 발화 {first_b.t if first_b else float('nan'):.1f}s · 빈 비버 턴 {len(empty_b)} · 학습자 없이 연속 비버 턴 {len(dbl)} · "
+             f"같은 구절 반복 턴 {len(rep_b)}" + (" (" + ", ".join(f"t{t.n}" for t in rep_b[:8]) + ")" if rep_b else ""))
     if sess.errors:
         L.append(f"- ⛔ 오류: {sess.errors}")
     L.append("")
@@ -1397,6 +1429,16 @@ def main() -> None:
     from domains.learning.repository import mastery_repository as mr
     QUIZ_GROUP = int(mr.EXPRESSION_QUIZ_GROUP)
     sf = db_session_factory()
+    global MEMBER_ID
+    with sf() as db:
+        MEMBER_ID = resolve_member(db, args.email)
+        from domains.learning.service import call_service as _cs
+        try:
+            plan = _cs.effective_plan(db, MEMBER_ID)
+            engine = _cs.live_engine_for(db, MEMBER_ID)
+        except Exception as exc:  # noqa: BLE001 - 표시용
+            plan, engine = f"?({exc})", "?"
+    print(f"회원 {args.email} → member_id={MEMBER_ID} · 플랜={plan} · live_engine_for={engine}")
 
     if args.status:
         cmd_status(sf)
