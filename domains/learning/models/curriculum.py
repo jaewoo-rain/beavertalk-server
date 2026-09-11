@@ -233,6 +233,8 @@ class CurMemberItem(Base):
     last_quiz_call_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("call.call_id", ondelete="SET NULL", name="fk_cur_mi_last_quiz_call")
     )
+    # 2단계(b2d3e4f5a6c7): 목록에 실린 횟수 — 예문 회전(§11: seen_count % len(examples))과 복습 정렬 키(P1-2).
+    seen_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"), comment="목록에 실린 횟수 — 예문 회전·복습 정렬 키")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -258,4 +260,8 @@ class CurCall(Base):
         Text, comment='다룬 항목 JSON 배열 문자열 [{item_id, role, surface, meaning, drilled, passed, failed}]'
     )
     lesson_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # 2단계(b2d3e4f5a6c7): 종료 저장의 멱등 키 — record_expression 은 NULL 일 때만 쓰고 채운다(§6 ②).
+    recorded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), comment="종료 저장 완료 시각 — NULL 일 때만 record 가 쓴다(멱등 키)"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

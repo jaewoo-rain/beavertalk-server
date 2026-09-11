@@ -367,6 +367,13 @@ class Settings(BaseSettings):
     #   그 경로에 걸려 있던 회귀(RC1 소강 스타베이션 · call 197 종료 레이스 · 무음 우선순위)는 남는 경로로 옮겨 잠갔다
     #   (tests/test_normalcall_ws.py — «_request_close»·«GoAway» 판).
     LIVE_FACE_SPIKE: bool = False
+    # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고
+    #   진도를 쌓는다. false 면 옛 경로(learning_item 기반) 그대로 — 코드 배포 없이 되돌리기.
+    #   ⛔ 경로는 **통화 단위로 고정**된다(§6 ③·§7 P1-6): 이 값은 통화 **시작 시점**에만 읽고, cur_call 행이 생긴 통화는 끝까지
+    #     cur 경로(종료 저장·재분석·결과 조회가 «cur_call 존재 여부» 로 분기). 롤링 배포·되돌리기 중 한 통화가 두 경로에 갈라지지 않게.
+    CUR_ENABLED: bool = True
+    # 표현학습 한 통화에 싣는 항목 상한(§11: 안 배운 것 seq 순 → 부족분은 복습으로 채움). 옛 EXPRESSION_ITEMS_PER_CALL 과 별개.
+    CUR_ITEMS_PER_CALL: int = 18
     # ⭐ 재접지 모드. "on_user_turn" | "legacy_idle" | "off"
     #   ⛔ **왜 env 로 뺐나**(2026-09-02) — `interrupted` 의 원인을 가르려면 재접지를 **끄고**
     #     통화해 봐야 하는데, 상수라 그 실험 한 번에 재빌드·재배포(5~6분)가 들었다.
