@@ -396,8 +396,8 @@ def test_the_instruction_splits_rounds_by_where_the_decisive_moment_is() -> None
 def test_question_above_answer_below_is_judged() -> None:
     """codex 가 잡은 정상 답 — 질문(위)·정답(아래): 결정적 순간이 아래 → 판정 대상. 규칙 문장에 그 예외가 있다."""
     out = _instr()
-    assert ("단 **문맥 구간에 질문만 있고 학습자의 답이나 정답 공개가 이번 구간에 있으면**, 그 답을 판정해라"
-            in out)
+    assert ("단 **그 회차의 정답 공개도 정답 산출도 문맥 구간에 없으면**(질문·힌트·오답 시도만 있으면), 이번 구간의 "
+            "답을 판정해라" in out)
     # 창 모양: 질문이 경계선 위, 답이 아래 — 겹침이 이 쌍을 붙여 준다
     st = _state()
     st.segments = [
@@ -409,6 +409,17 @@ def test_question_above_answer_below_is_judged() -> None:
     lines = win.splitlines()
     k = lines.index(cs.EXPR_WINDOW_BOUNDARY_LINE)
     assert lines[k - 1].startswith("선생님: Quiz!") and lines[k + 1] == "학습자: 도와주세요"
+
+
+def test_question_plus_hint_above_answer_below_is_still_judged() -> None:
+    """⛔ fable 3차 P2 — «질문**만** 있고» 는 너무 좁았다: 질문+힌트(위)·정답(아래)이면 «질문만» 이 아니라서
+    보류 → 커서 지나감 → 그 통과 영구 누락. 힌트는 퀴즈의 정상 경로(결정 2)라 이 배치가 흔하다.
+    예외는 결정적 순간 정의 그대로 — «정답 공개도 정답 산출도 문맥 구간에 없으면» 판정한다.
+    """
+    out = _instr()
+    rule = next(l for l in out.splitlines() if "정답 공개도 정답 산출도 문맥 구간에 없으면" in l)
+    assert "힌트" in rule, "예외 문장이 힌트 경로를 안 덮는다"
+    assert "문맥 구간에 질문만 있고" not in out, "옛 좁은 문장이 남아 있다"
 
 
 def test_reveal_above_parrot_below_is_excluded() -> None:
