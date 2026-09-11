@@ -225,6 +225,9 @@ class Item:
     role: str = ""                    # cur_lesson_item.role: grammar | must | core | support
     review: bool = False              # 하네스 예측: 이번 통화에 «복습» 으로 실릴 후보
     seq: int = 0
+    # 서버 문자열 판정(quiz_judge.mentions — cur 경로도 T16 그대로, bt-back 결정 ①)이 «말할 답» 에서 이 항목을 알아보는가.
+    # 문법 템플릿(N은/는 …)은 예문에 따라 못 알아볼 수 있다 → False 면 서버는 drilled/passed 를 절대 못 찍는다(기대도 그렇게 둔다)
+    server_matchable: bool = True
 
     @property
     def answer(self) -> str:
@@ -1324,18 +1327,23 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         exp_drilled = rec.surface_uttered
         # 보낸 것과 들린 것이 다르면(STT) 서버는 표면형을 못 봤다 — drilled 은 어느 쪽이든 허용(~), 대신 표시한다
         stt_amb = exp_drilled and not rec.surface_heard
-        # ⚠ 문법 항목(cur kind=grammar): 패턴 표기(N은/는 N이에요)는 말할 수 없어 하네스는 예문을 말한다. 서버가 문법을 무엇으로
-        #   drilled/passed 로 세는지는 B1 몫 — 기준이 정해질 때까지 어느 쪽이든 ~ 로 받되 표에 «문법» 을 남긴다.
-        grammar_amb = rec.item.kind == "grammar"
+        # ⚠ 문법 항목: 하네스는 예문을 말한다. 서버 판정은 T16 그대로(quiz_judge.mentions 템플릿 인식 — 결정 ①)이므로
+        #   «서버가 그 예문에서 템플릿을 알아보는가» 를 같은 함수로 미리 계산했다(server_matchable). 못 알아보면 서버는
+        #   drilled/passed 를 못 찍는 게 정상 — 기대도 그렇게 두고 표에 «템플릿 미인식» 을 남긴다(커리큘럼 예문·매처 수정 재료).
+        unmatchable = not rec.item.server_matchable
+        if unmatchable:
+            exp_drilled = False
+            exp_passed = False
         exp_passed = rec.expected_passed
         rp = res_by_id.get(iid, {}).get("passed")
         amb = rec.expectation_ambiguous
-        drilled_ok = (db_drilled == exp_drilled) or stt_amb or grammar_amb
-        ok = drilled_ok and (amb or grammar_amb or db_passed == exp_passed)
+        stt_amb = stt_amb and not unmatchable
+        drilled_ok = (db_drilled == exp_drilled) or stt_amb
+        ok = drilled_ok and (amb or db_passed == exp_passed)
         judge_ok &= bool(ok)
-        exp_s = (("passed~" if (amb or grammar_amb) else "passed") if exp_passed else ("—~(문법)" if grammar_amb else "—"))
-        drilled_s = ("✔~(문법)" if grammar_amb else ("✔~(STT 불일치)" if stt_amb else "✔")) if exp_drilled else ("✖~(문법)" if grammar_amb else "✖(표면형 미출현)")
-        amb = amb or grammar_amb or (stt_amb and db_drilled != exp_drilled)
+        exp_s = ("passed~" if amb else "passed") if exp_passed else "—"
+        drilled_s = ("✔~(STT 불일치)" if stt_amb else "✔") if exp_drilled else ("✖(템플릿 미인식 — 서버 못 봄)" if unmatchable else "✖(표면형 미출현)")
+        amb = amb or (stt_amb and db_drilled != exp_drilled)
         L.append(f"| {rec.k} | {rec.item.surface} | {rec.policy} | {rec.ident} | {drilled_s} | {'✔' if db_drilled else '✖'} | "
                  f"{exp_s} | {'passed' if db_passed else '—'} | {rp} | {'~' if (ok and amb) else ('✔' if ok else '✖')} |")
     extra = [iid for iid, row in sc.db_rows.items() if row.get("drilled_call_id") == cid and iid not in sess.records]
@@ -1346,6 +1354,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                  f"{res_by_id.get(iid, {}).get('passed')} | ✖ 과검출 |")
     sc.judge_ok = judge_ok
     L.append("")
+    unm = [r for r in sess.records.values() if not r.item.server_matchable]
+    if unm:
+        L.append("- ⚠ 문법 템플릿 미인식 " + str(len(unm)) + "건 — quiz_judge.mentions 가 그 항목의 예문(하네스가 말하는 답)에서 템플릿을 못 알아본다: "
+                 + ", ".join(f"「{r.item.surface}」←「{r.item.answer}」" for r in unm) + " → 서버는 이 항목을 drilled/passed 로 찍을 수 없다(커리큘럼 예문 또는 매처 수정 재료)")
     L.append("- 기대 drilled = 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔다(결정 6 «모국어 설명만으론 안 됨»). "
              "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
     L.append("")
@@ -1590,9 +1602,15 @@ def load_cur_context(sf, member_id: int, lesson_no: int, *, n: int) -> dict:
             exs = []
         ex = exs[0] if isinstance(exs, list) and exs else ""
         ex = ex if isinstance(ex, str) else str(ex.get("ko") or ex.get("text") or "") if isinstance(ex, dict) else ""
-        return Item(it.item_id, it.surface, str(en), "" if it.kind == "grammar" else casual_for(it.surface),
+        item = Item(it.item_id, it.surface, str(en), "" if it.kind == "grammar" else casual_for(it.surface),
                     keywords_for(it.surface, str(en), it.kind),
                     kind=it.kind, example=ex, lesson_id=lesson_id, role=role, review=review, seq=seq)
+        try:
+            from domains.learning.service.quiz_judge import mentions as _mentions
+            item.server_matchable = bool(_mentions(item.answer, item.surface))
+        except Exception:  # noqa: BLE001 - 판정 모듈이 없으면 «알아본다» 로 둔다
+            item.server_matchable = True
+        return item
 
     items: dict[int, Item] = {}
     lesson_ids: set[int] = set()
