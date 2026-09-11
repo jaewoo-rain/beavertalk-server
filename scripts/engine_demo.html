@@ -78,6 +78,16 @@
         <option value="ja">ja</option><option value="zh">zh</option></select>
       </label>
       <label class="muted">길이(분) <input id="dur" value="5" style="width:56px"></label>
+      <!-- ⭐ 코스 — start 프레임의 `call_type` 이다(2026-09-10). 새 축이 아니라 기존 필드다.
+             (자동) = 필드를 **안 보낸다** ⇒ 서버가 판단(D11 자동 라우팅). 기존 동작 그대로.
+           ⛔ 소켓 경로는 세 코스 모두 /calls/stream 이다 — 통로(engine)와 다른 축이다. -->
+      <label class="muted">코스
+        <select id="course">
+          <option value="">(자동)</option>
+          <option value="expression">표현학습</option>
+          <option value="freetalk">프리토킹</option>
+        </select>
+      </label>
       <button id="callBtn" disabled>📞 통화 시작</button>
       <button id="hangBtn" disabled>⏹ 끊기</button>
       <button id="contBtn" disabled title="요약이 준비되면 열린다">▶ 이어하기</button>
@@ -223,7 +233,11 @@ async function startCall(){
       // ⭐ 이어하기: 직전 call_id 를 실어 보낸다. 서버가 검증(본인·TTL 5분·조각 상한)해서
       //   되면 그 행에 계속 쓰고, 안 되면 **조용히 새 통화**로 떨어진다(거절 아님).
       //   ⛔ 첫 통화에는 필드 자체를 안 보낸다 — null 을 보내면 의도가 흐려진다.
-      resumeFrom ? { continues_call_id: String(resumeFrom) } : {});
+      resumeFrom ? { continues_call_id: String(resumeFrom) } : {},
+      // ⭐ 코스 — 같은 규율이다. (자동)이면 **필드 자체를 안 보낸다.**
+      //   ⛔ 빈 문자열이나 "normal" 을 보내면 서버의 자동 라우팅(D11)을 덮어쓴다.
+      //     Literal 검증이라 오타는 조용히 무시되지 않고 **연결이 끊긴다**.
+      $('#course').value ? { call_type: $('#course').value } : {});
     ws.send(JSON.stringify(msg));
     log('→ start '+JSON.stringify(msg), 'out');
     startElapsed();
