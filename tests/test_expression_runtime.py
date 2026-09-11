@@ -51,24 +51,17 @@ def _state(items: list[tuple[int, str]]) -> cs._CallState:
 
 
 # --------------------------------------------------------------------------- #
-# ⛔⛔ 판정은 LLM 이 한다 — 문자열은 통과를 주지 않는다 (2026-09-10 재설계)
+# ⛔⛔ 드릴 구간의 문자열은 통과를 주지 않는다 (2026-09-10 재설계 · T16 에서도 그대로)
+#   ⚠ T16: passed/failed 는 **서버가 연 퀴즈 창 안에서만** 서버가 찾는다(tests/test_expression_t16.py).
+#     드릴 중 복창은 창 밖이라 여전히 통과가 안 된다 — 아래 시험이 그 경계를 지킨다.
 # --------------------------------------------------------------------------- #
-class _FakeProgress:
-    """사이드카 구조화 출력 흉내 — 번호 목록 세 갈래."""
-
-    def __init__(self, drilled=(), passed=(), failed=()):
-        self.drilled = list(drilled)
-        self.passed = list(passed)
-        self.failed = list(failed)
-
-
 def test_a_repeated_answer_is_never_marked_passed_by_code() -> None:
     """⛔⛔ **문자열이 통과를 주지 않는다** — 이 파일의 첫 계약이다.
 
     드릴은 «들려주고 따라 말하게» 라 학습자가 항목을 **그대로** 말하는 순간이 통화에
     수없이 많다. 옛 설계는 그걸 문자열로 걸러 보려다 두 번 실패했다(1턴 창은 재시도에서
     새고, 2턴 창은 정상 퀴즈를 막았다).
-    ⇒ 이제 펌프는 답을 **판정하지 않는다.** 따라 말한 답이 흘러도 통과가 안 찍힌다.
+    ⇒ 펌프는 드릴 중 답을 **판정하지 않는다.** 따라 말한 답이 흘러도 통과가 안 찍힌다(퀴즈 창이 안 열렸다).
     """
     st = _state([(1, BYE)])
     st.cur_beaver_text = [f'따라 해봐: "{BYE}"']
@@ -76,118 +69,6 @@ def test_a_repeated_answer_is_never_marked_passed_by_code() -> None:
     st.cur_user_text = [BYE]
     cs._flush_user_segment(st)
     assert st.expr_quiz_pass == set(), "문자열이 통과를 줬다 — 판정기가 돌아왔다"
-
-
-def test_the_sidecar_result_is_what_marks_progress() -> None:
-    """⭐ 진도는 **사이드카 결과**로만 움직인다(다룬 것·맞춘 것·틀린 것)."""
-    st = _state([(1, BYE), (2, PRICE)])
-    cs._apply_expression_progress(st, _FakeProgress(drilled=[1, 2], passed=[1], failed=[2]))
-    assert st.covered_nums == [1, 2]
-    assert st.expr_quiz_pass == {1}
-    assert st.expr_quiz_fail == {2}
-
-
-def test_progress_is_a_union_never_a_replacement() -> None:
-    """⛔ 늦게 온 판정이 앞선 판정을 **지우면 안 된다**(증거가 원본, 나머지는 파생).
-
-    ⚠ 사이드카는 전사 뒷부분만 볼 수도 있다(길면 뒤에서 자른다) — 그때 앞 구간 결과가
-      사라지면 조각2 가 이미 뗀 것을 다시 가르친다.
-    """
-    st = _state([(1, BYE), (2, PRICE)])
-    cs._apply_expression_progress(st, _FakeProgress(drilled=[1], passed=[1]))
-    cs._apply_expression_progress(st, _FakeProgress(drilled=[2], passed=[2]))
-    assert st.covered_nums == [1, 2] and st.expr_quiz_pass == {1, 2}
-
-
-def test_a_pass_is_never_demoted_by_a_later_fail() -> None:
-    """통과가 이긴다 — 강등은 없다(D12)."""
-    st = _state([(1, BYE)])
-    cs._apply_expression_progress(st, _FakeProgress(passed=[1]))
-    cs._apply_expression_progress(st, _FakeProgress(failed=[1]))
-    assert st.expr_quiz_pass == {1} and st.expr_quiz_fail == set()
-
-
-def test_a_fail_is_the_retry_quiz_material() -> None:
-    """⭐ 오답은 **이 통화 안에서** 다시 내는 재료다(기획 ⑥).
-
-    ⚠ 옛 설계에서는 이 칸이 계속 비었다 — 코드가 «어느 문항의 오답인지» 를 몰랐기 때문이다.
-      사이드카가 전사를 읽으면서 그 대응이 풀렸다.
-    """
-    st = _state([(1, BYE)])
-    cs._apply_expression_progress(st, _FakeProgress(failed=[1]))
-    assert st.expr_quiz_fail == {1}
-
-
-@pytest.mark.parametrize("bad", [0, 99, -1, "1", None])
-def test_numbers_outside_the_server_list_are_dropped(bad) -> None:
-    """⛔ 환각 방어 — 서버 목록 밖 번호는 버린다(재접지 covered 와 같은 규율)."""
-    st = _state([(1, BYE)])
-    cs._apply_expression_progress(st, _FakeProgress(drilled=[bad], passed=[bad], failed=[bad]))
-    assert st.covered_nums == [] and st.expr_quiz_pass == set() and st.expr_quiz_fail == set()
-
-
-def test_the_sidecar_reads_the_whole_transcript_not_one_turn() -> None:
-    """⭐ 입력은 **전사 전체**다 — Gemini 컨텍스트 압축과 무관하게 서버가 갖고 있다.
-
-    ⚠ 아직 flush 안 된 꼬리도 담아야 한다. 조각 끝 판정이 마지막 왕복을 놓치면 그 구간에서
-      맞힌 항목이 «못 한 것» 으로 남는다.
-    """
-    st = _state([(1, BYE)])
-    st.segments = [
-        {"turn_index": 0, "role": "beaver", "text": "헤어질 때 뭐라고 하지?"},
-        {"turn_index": 1, "role": "user", "text": BYE},
-    ]
-    st.cur_beaver_text = ["잘했어!"]
-    st.cur_user_text = ["감사합니다"]
-    out = cs._expression_transcript(st)
-    assert "선생님: 헤어질 때 뭐라고 하지?" in out
-    assert "학습자: " + BYE in out
-    assert "선생님: 잘했어!" in out and "학습자: 감사합니다" in out
-
-
-def test_a_long_transcript_is_cut_from_the_front_and_says_so() -> None:
-    """⚠ 앞을 자른다 — 뒤(최근)가 판정에 필요하다. **그러나 잘린 머리는 아무도 안 본 것이다.**
-
-    ⛔ 옛 시험은 «앞 절단 = 정답» 만 잠갔다 — 그게 결함을 허용했다(T14 반려 P2-A, codex): 사이드카가
-      앞을 잘라 놓고도 커서를 끝까지 밀어 잘린 세그먼트가 **영구히 미판정**이 됐다. 이제 창 함수가
-      «어디부터 담았나·잘랐나» 를 함께 돌려주고, 호출부는 잘린 구간을 **경고 로그에 세그먼트 번호로**
-      남긴다(2차 반려: 커서를 안 움직이면 커서 0 에서 영구 절단이라 손실을 1회로 한정하는 쪽으로).
-    """
-    st = _state([(1, BYE)])
-    st.segments = [
-        {"turn_index": i, "role": "user", "text": f"[{i:02d}]" + "가" * 496} for i in range(60)
-    ] + [{"turn_index": 99, "role": "user", "text": "마지막말"}]
-    out, first_seen, cut = cs._expression_transcript_window(st)
-    assert len(out) <= cs.EXPR_TRANSCRIPT_MAX_CHARS
-    assert out.endswith("마지막말")
-    assert cut is True and first_seen > 0, "머리를 잘랐으면 그렇다고 말해야 커서가 거짓이 안 된다"
-    assert f"[{first_seen:02d}]" in out and f"[{first_seen - 1:02d}]" not in out
-    assert out.startswith("학습자: [%02d]" % first_seen), "세그먼트 단위로 잘라야 첫 줄이 온전하다"
-    assert cs._expression_transcript(st) == out          # 본문만 쓰는 호환 함수는 같은 글자다
-
-
-def test_a_short_transcript_is_not_cut() -> None:
-    st = _state([(1, BYE)])
-    st.segments = [{"turn_index": 0, "role": "user", "text": "짧다"}]
-    out, first_seen, cut = cs._expression_transcript_window(st)
-    assert out == "학습자: 짧다" and first_seen == 0 and cut is False
-
-
-def test_the_sidecar_is_capped_per_call() -> None:
-    """⚠ 정상 흐름은 arm 8회 + 조각 끝 1회다. 상한은 폭주만 막는다."""
-    st = _state([(1, BYE)])
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-    st.expr_sidecar_calls = cs.EXPR_PROGRESS_MAX_PER_CALL
-    cs._spawn_expression_progress(st)
-    assert not st.expr_tasks
-
-
-def test_nothing_runs_outside_the_expression_course() -> None:
-    """⚠ 다른 콜타입의 비용은 불린 검사 하나다(R4)."""
-    st = cs._CallState()          # expr_items 가 비어 있다
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-    cs._spawn_expression_progress(st)
-    assert not st.expr_tasks
 
 
 # --------------------------------------------------------------------------- #
@@ -415,61 +296,6 @@ def test_the_resume_gate_is_a_whitelist(env, call_type: str, ok: bool) -> None:
 # ⭐⭐ 조각 끝 순서 — 판정 → state → DB. 단, **쓰기를 LLM 에 걸지 않는다**
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_a_stalled_judgement_never_blocks_the_write() -> None:
-    """⛔⛔ 판정 LLM 이 멈춰도 진도는 **상한 안에** 저장돼야 한다.
-
-    조각 경계는 이어하기 요약과 **경합한다**(call_session.py:2062 실측: 저장 → 3초 뒤
-    조각2 접속 → 그 뒤 요약 완성 — 그 경합에서 이미 한 번 졌다). 저장이 조각2 의 읽기보다
-    늦으면 **조각2 가 같은 항목을 또 가르친다** — 우리가 고치려던 바로 그 증상이다.
-    ⇒ `wait_for` 상한을 넘기면 즉시 되돌아가고, 호출부는 있는 것만 쓴다(R5).
-    """
-    st = _state([(1, BYE)])
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-
-    async def _never(*_a, **_k):
-        await asyncio.Event().wait()      # 영원히 매달린다
-
-    with mock.patch.object(cs, "_expression_progress_sidecar", _never):
-        loop = asyncio.get_running_loop()
-        t0 = loop.time()
-        await cs._final_expression_progress(st)      # ⛔ 예외가 밖으로 나오면 안 된다
-        elapsed = loop.time() - t0
-    assert elapsed < cs.EXPR_FINAL_JUDGE_TIMEOUT_S + 0.5, "상한을 안 지켰다: %.2fs" % elapsed
-
-
-@pytest.mark.asyncio
-async def test_the_final_judgement_result_reaches_the_write() -> None:
-    """⭐ 마지막 판정이 통과 1건을 더 주면 그게 **저장 대상에 들어간다.**
-
-    ⛔ 이게 없으면 «마지막 arm 이후 구간» 이 판정 없이 버려지고, 그 구간에서 맞힌 항목을
-      조각2 가 다시 가르친다.
-    """
-    st = _state([(1, BYE)])
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-
-    async def _late_pass(state):                 # 호출 형태는 (state) 하나다 — 인자가 늘면 여기서 깨져야 한다
-        cs._apply_expression_progress(state, _FakeProgress(drilled=[1], passed=[1]))
-
-    with mock.patch.object(cs, "_expression_progress_sidecar", _late_pass):
-        await cs._final_expression_progress(st)
-    assert st.expr_quiz_pass == {1}, "마지막 판정 결과가 반영되지 않았다"
-    assert st.covered_nums == [1]
-
-
-@pytest.mark.asyncio
-async def test_a_failing_judgement_is_swallowed() -> None:
-    """⚠ 예외도 저장을 막으면 안 된다 — 통화가 멈추는 게 진도 하나보다 나쁘다(R5)."""
-    st = _state([(1, BYE)])
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-
-    async def _boom(*_a, **_k):
-        raise RuntimeError("사이드카 폭발")
-
-    with mock.patch.object(cs, "_expression_progress_sidecar", _boom):
-        await cs._final_expression_progress(st)     # 예외가 새면 이 시험이 실패한다
-
-
-@pytest.mark.asyncio
 async def test_the_final_judgement_is_skipped_outside_the_course() -> None:
     st = cs._CallState()
     await cs._final_expression_progress(st)          # 무동작·무예외
@@ -668,22 +494,6 @@ def test_the_snapshot_carries_a_pass_even_if_it_was_never_marked_drilled() -> No
 # --------------------------------------------------------------------------- #
 # ③ ⭐ 앵무새 필터의 «반대편» — 되살리면 이 시험이 깨진다
 # --------------------------------------------------------------------------- #
-def test_a_prior_beaver_turn_containing_the_answer_does_not_block_the_result() -> None:
-    """⛔⛔ **앵무새 필터를 `_apply_expression_progress` 에 되살리지 마라.**
-
-    옛 설계가 그 필터로 두 번 막혔다 — 1턴 창은 재시도에서 새고, **2턴 창은 정상 퀴즈를
-    막았다**(B1 이 드릴이면 B2 퀴즈 정답이 차단된다). 그래서 필터를 통째로 걷어내고
-    판정을 전사 읽는 LLM 에 맡겼다.
-    ⇒ 여기서 **직전 비버 발화에 정답이 들어 있어도** 사이드카가 통과라 하면 통과다.
-      «안전을 위해» 필터를 다시 넣으면 이 시험이 깨진다 — 그게 이 시험의 존재 이유다.
-    """
-    st = _state([(1, BYE)])
-    st.cur_beaver_text = [f'따라 해봐: "{BYE}"']
-    cs._flush_beaver_segment(st)                    # 직전 비버 발화에 정답이 있다
-    cs._apply_expression_progress(st, _FakeProgress(drilled=[1], passed=[1]))
-    assert st.expr_quiz_pass == {1}, "앵무새 필터가 되살아나 정상 통과를 막았다"
-
-
 # --------------------------------------------------------------------------- #
 # ⛔⛔ P1-2 — 동음이의: identity 는 표면형이 아니라 item_id 다 (자산에 91그룹 실재)
 # --------------------------------------------------------------------------- #
@@ -696,19 +506,6 @@ def test_homographs_are_tracked_separately() -> None:
     st = _state([(11, "개"), (22, "개")])       # 뜻이 다른 두 항목, 같은 표면형
     st.covered_nums = [1]                       # 1번만 다뤘다
     assert cs._expr_covered_ids(st) == [11], "동음이의 두 항목에 함께 찍혔다"
-
-
-def test_the_sidecar_list_carries_meaning_so_homographs_can_be_told_apart() -> None:
-    """⭐ 표면형만 주면 목록이 «1. 개 / 2. 개» 라 **LLM 도 가를 수 없다.**
-
-    ⚠ 로더가 뜻·예문을 이미 갖고 있다 — 추가 조회 없이 실을 수 있다.
-    """
-    out = cs._expression_progress_instruction(
-        [{"obj": "개", "des": "a dog", "ex": "개가 있어요"},
-         {"obj": "개", "des": "counter", "ex": "사과 두 개"}],
-        "한국어", "영어(English)",
-    )
-    assert "1. 개 — 뜻: a dog" in out and "2. 개 — 뜻: counter" in out
 
 
 def test_the_next_label_uses_item_id_not_the_surface() -> None:
@@ -758,46 +555,6 @@ def test_a_normal_call_keeps_the_plain_substring_match() -> None:
 # --------------------------------------------------------------------------- #
 # ⛔ P1-4 — 쪽지가 한 arm 늦지 않는다 · 재접지 스위치와 진도 판정은 다른 축이다
 # --------------------------------------------------------------------------- #
-@pytest.mark.asyncio
-async def test_a_late_verdict_upgrades_the_pending_note() -> None:
-    """⛔ arm 때 만든 쪽지를 그대로 두면 **판정이 한 arm 늦게 실린다** — 「아직 틀린 표현」
-    (오답퀴즈 재료)이 다음 주기까지 빈다.
-    """
-    st = _state([(1, BYE), (2, PRICE)])
-    st.reground_persona = ("선생님", "다정함")
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-    cs._arm_reground(st, "time")
-    assert "아직 틀린 표현" not in st.reground_reminder      # 아직 판정 0회
-
-    async def _verdict(client, model, **kw):
-        return _FakeProgress(drilled=[1, 2], failed=[2])
-
-    st.segments = [{"turn_index": 0, "role": "user", "text": "음"}]
-    with mock.patch.object(cs.gemini_analysis, "generate_structured", _verdict):
-        await cs._expression_progress_sidecar(st)
-    assert "아직 틀린 표현" in st.reground_reminder, "쪽지가 업그레이드되지 않았다"
-    assert PRICE in st.reground_reminder
-
-
-@pytest.mark.asyncio
-async def test_an_already_attached_note_is_not_rewritten() -> None:
-    """⚠ 이미 얹힌 쪽지는 손대지 않는다 — 다음 arm 이 새로 만든다."""
-    st = _state([(1, BYE)])
-    st.reground_persona = ("선생님", "다정함")
-    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
-    cs._arm_reground(st, "time")
-    st.reground_pending = False                              # 얹힘
-    before = st.reground_reminder
-
-    async def _verdict(client, model, **kw):
-        return _FakeProgress(failed=[1])
-
-    st.segments = [{"turn_index": 0, "role": "user", "text": "음"}]
-    with mock.patch.object(cs.gemini_analysis, "generate_structured", _verdict):
-        await cs._expression_progress_sidecar(st)
-    assert st.reground_reminder == before
-
-
 def test_the_legacy_idle_path_uses_the_expression_note() -> None:
     """⛔ legacy_idle 은 일반 브리프를 보냈다 — «다룬 것» 한 칸뿐이라 오답퀴즈 재료가 빠진다."""
     st = _state([(1, BYE), (2, PRICE)])
@@ -805,25 +562,6 @@ def test_the_legacy_idle_path_uses_the_expression_note() -> None:
     st.expr_quiz_fail.add(2)
     note = cs._build_expression_note(st)
     assert "아직 틀린 표현" in note and PRICE in note
-
-
-def test_progress_judging_is_not_bound_to_the_reground_switch() -> None:
-    """⛔⛔ 진도 판정 스폰이 재접지 루프 안에 있어, 스위치를 내리면 **진도가 통째로 죽었다.**
-
-    ⇒ 루프의 비활성 조건이 표현학습을 예외로 두고, 판정은 모드보다 **먼저** 돈다.
-    ⚠ 재접지를 끄는 것과 진도 판정을 끄는 것은 **다른 결정**이다.
-    """
-    import inspect
-
-    src = inspect.getsource(cs._reground_watch)
-    # ① 비활성 게이트가 표현학습을 예외로 둔다 — 안 그러면 off 하나로 진도가 통째로 죽는다
-    assert "if not state.expr_items and (" in src, "off 에서 표현학습도 같이 죽는다"
-    # ② 루프 안에서 판정이 **모드 분기보다 먼저** 온다
-    #   ⚠ `.index` 를 쓰면 게이트에 있는 첫 «off» 를 잡는다 — 루프 본문만 잘라서 본다.
-    body = src[src.index("while True:"):]
-    spawn = body.index("_spawn_expression_progress(state)")
-    assert spawn < body.index('REGROUND_MODE == "off"'), "off 가 판정을 건너뛴다"
-    assert spawn < body.index('REGROUND_MODE == "legacy_idle"'), "legacy_idle 이 판정을 건너뛴다"
 
 
 # --------------------------------------------------------------------------- #

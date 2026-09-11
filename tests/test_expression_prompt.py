@@ -84,10 +84,13 @@ def test_meaning_is_shown_when_present() -> None:
 
 def test_quiz_group_number_comes_from_the_caller_not_a_literal() -> None:
     """⛔ 숫자를 대본에 손으로 박지 마라 — 선별 상수와 두 곳이 되면 안 된다(원칙 3)."""
-    # T15-1(통화 1398): 주기를 «번호» 에 묶는다 — 3·6·9… 번 항목을 끝낸 직후에만. 번호 열은 quiz_group 으로 생성.
-    assert "3·6·9… 번 항목을 끝낸 **직후에만** 낸다 — 방금 끝낸 그 묶음 3개를 한 문제씩" in _expr(quiz_group=3)
-    assert "5·10·15… 번 항목을 끝낸 **직후에만** 낸다 — 방금 끝낸 그 묶음 5개를 한 문제씩" in _expr(quiz_group=5)
-    assert "3·6·9" not in _expr(quiz_group=5) and "다룰 때마다" not in _expr(quiz_group=5)
+    # T16(2026-09-11): «언제» 는 서버 큐를 따르라는 한 줄이다 — 대본에 주기 숫자(3·6·9 / 3개마다)가 **없어야** 한다.
+    #   세는 것은 서버 몫(call_session `_expression_quiz_tick`, EXPRESSION_QUIZ_GROUP). quiz_group 인자는 유지
+    #   (로그·선별과 한 곳에서 오는 숫자) — 대본 문장에 숫자를 손으로 박지 않는다는 원칙 3 은 그대로다.
+    for g in (3, 5):
+        out = _expr(quiz_group=g)
+        assert "지금 퀴즈를 내라» 고 알릴 때만 낸다" in out
+        assert f"{g}·{2*g}·{3*g}" not in out and "다룰 때마다" not in out and f"{g}개 묶음" not in out
 
 
 # --------------------------------------------------------------------------- #
@@ -547,20 +550,14 @@ def test_resume_seed_carries_the_language_guard_like_the_opening_seed() -> None:
 # --------------------------------------------------------------------------- #
 # ⛔⛔ P0-3 — 마지막 1~2개도 퀴즈를 받아야 레벨을 뗄 수 있다
 # --------------------------------------------------------------------------- #
-def test_the_tail_of_the_list_still_gets_a_quiz() -> None:
-    """⛔⛔ 이 한 줄이 없으면 **레벨을 영원히 못 뗀다.**
+def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
+    """⛔⛔ P0-3 — 마지막 1~2개도 퀴즈를 받아야 레벨을 뗀다(L1 청크 46 = 18+18+10 → 끝에 1개).
 
-    퀴즈가 `quiz_group` 단위라 목록 끝에서 묶음이 안 차면 퀴즈가 안 나온다 ⇒ 그 항목의
-    `quiz_passed_at` 이 영원히 NULL 이고, 승급(«그 레벨 전량 통과», D12)이 **구조적으로
-    성립 불가**가 된다. 실측: L1 청크 46 = 18+18+10 → 끝에 1개가 남는다.
-    ⚠ 문구는 지워도 다른 시험이 안 깨진다 — 그래서 여기서 따로 잠근다.
+    T16 부터 이건 **서버**가 한다 — 전부 covered 인데 퀴즈에 안 오른 항목이 있으면 그것만으로 큐를 연다
+    (`tests/test_expression_t16.py::test_the_tail_gets_a_cue_even_below_the_group_size`). 대본엔 «언제» 가 큐를
+    따르라는 한 줄만 있고 꼬리 규칙 문장은 없어야 한다 — 비버가 스스로 세기 시작하면 1401~1404 가 돌아온다.
     """
     out = _expr()
-    assert "남은 것만으로" in out
-    assert "개수가 모자란다고 건너뛰지 마라" in out
-
-
-def test_the_tail_rule_uses_the_callers_quiz_group() -> None:
-    """⛔ 숫자를 대본에 손으로 박지 마라 — 선별 상수와 두 곳이 되면 안 된다(원칙 3)."""
-    assert "목록 끝에서 3개가 안 남았으면" in _expr(quiz_group=3)
-    assert "목록 끝에서 5개가 안 남았으면" in _expr(quiz_group=5)
+    assert "지금 퀴즈를 내라» 고 알릴 때만 낸다" in out
+    assert "스스로 퀴즈·복습·테스트를 시작하지 마라" in out
+    assert "남은 것만으로" not in out and "목록 끝에서" not in out

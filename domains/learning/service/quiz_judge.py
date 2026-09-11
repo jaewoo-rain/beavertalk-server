@@ -17,9 +17,13 @@
      ⇒ 고정 N턴으로는 드릴과 퀴즈를 가를 수 없다. 필요한 것은 «지금 몇 번 문항의 어느
        단계인가» 인데, 문자열은 그걸 볼 수 없다.
 
-⇒ **판정은 LLM 이, 쓰기는 파이썬이.** 사이드카가 전사를 읽고 «다룬 것·맞춘 것·틀린 것» 을
-  번호로 돌려주고(`call_session._spawn_expression_progress`), 파이썬은 그 결과를 검증해
-  DB 에 쓴다. 이 모듈에 판정 함수를 **다시 만들지 마라** — 위 ①②가 그대로 돌아온다.
+⇒ (2026-09-10) 판정은 LLM 이, 쓰기는 파이썬이 — 로 한 번 갔다가,
+⇒ **(2026-09-11 T16) 퀴즈 창을 서버가 연다.** 그러자 위 ①②가 사라졌다 — ①은 창 안 quiz_set 항목만 보니 «아무 문장»
+  이 통과할 자리가 없고, ②는 드릴이 창 밖이라 복창을 가를 필요가 없다. 그래서 창 **안에서는** 서버가 문자열로
+  passed/failed 를 찾는다(`call_session._server_judge_quiz` — 첫 사건 규칙: U 표면형+격식 → passed, B 표면형 → failed).
+  ⛔ 그래도 이 모듈은 여전히 **판정하지 않는다** — «이 발화에 그 표현이 있나»(`mentions`)·«격식 표지가 있나»
+  (`keeps_formality`) 라는 사실 확인만 준다. 창을 열고 닫고 사건 순서를 읽는 것은 call_session 의 상태기계다.
+  창 밖(드릴)에서 이 함수들로 통과를 만들지 마라 — 그 순간 ①②가 돌아온다.
 
 ## 그래서 여기 남은 것
 서버가 여전히 문자열로 하는 일은 **판단이 아니라 사실 확인** 하나다 —
@@ -111,6 +115,11 @@ def mentions(text: str | None, label: str | None) -> bool:
     raw = (text or "").strip()
     if not raw:
         return False
+    # ⭐ T16 — 자리표시·교체·대괄호가 든 표면형(「저는 ◯◯ 사람이에요」「N이/가 있어요[없어요]」)은 부분문자열로는
+    #   **영원히** 거짓이다 → covered 가 안 돼 3개가 안 차고 퀴즈 큐 자체가 안 열린다. 템플릿 대조로 간다
+    #   (`template_mentions`). 자리표시가 없는 라벨은 아래 기존 경로 그대로다.
+    if is_template(label):
+        return template_mentions(raw, label)
     if len((label or "").split()) > 1:
         return lab in normalize(raw)
     for word in raw.split():
@@ -118,3 +127,111 @@ def mentions(text: str | None, label: str | None) -> bool:
         if w.startswith(lab) and w[len(lab):] in _PARTICLES:
             return True
     return False
+
+
+# --------------------------------------------------------------------------- #
+# T16 — 파이썬 검증(V2·V4)의 순수 함수. ⛔ 판정이 아니다 — LLM 이 «passed» 라고 **제안한** 것을
+#   코드가 사실로 확인한다(레벨 시스템 관통원칙 ①: AI 는 증인, 판정은 코드). 이 함수들이 거짓이면
+#   그 항목은 **미판정**으로 남는다(failed 로 바꾸지 않는다 — 침묵 ≠ 오답).
+# --------------------------------------------------------------------------- #
+# 격식 표지 — 긴 것부터(«주세요» 가 «세요» 보다, «세요» 가 «요» 보다 앞). 표면형이 이걸로 끝나면 정중형이다.
+# bt-back 확정(T16 codex P1-3): 요(어요·아요·예요·세요·주세요 전부) / 니다(습니다·ㅂ니다) / 십시오 / 죠.
+_POLITE_MARKERS = ("니다", "십시오", "죠", "요")
+
+
+def polite_marker(surface: str | None) -> str | None:
+    """표면형 **마지막 어절의 종결 표지**(«요»·«니다»·«십시오»·«죠»), 없으면 None(명사·반말 항목·자리표시 주형).
+
+    ⚠ «◯◯이/가 뭐예요?» 처럼 자리표시·슬래시가 섞여도 **끝**만 본다 — 문장부호는 normalize 가 걷어낸다.
+    ⚠ 대괄호 대안(«가요[와요]»)은 떼고 본다 — 주형의 끝이 기준이다.
+    """
+    s = normalize(_BRACKET_RE.sub("", surface or ""))
+    for m in _POLITE_MARKERS:
+        if s.endswith(m):
+            return m
+    return None
+
+
+def keeps_formality(text: str | None, surface: str | None) -> bool:
+    """V4 — 표면형이 정중형이면 학습자 발화의 **어느 어절이 그 표지로 끝나야** 한다.
+
+    1397 «얼마야?»·«나는 미국 사람» / 1398 t9 「잘 못 들었다」 가 정답 반응을 받았다(B 유형). 지시문이
+    «반말은 passed 가 아니다» 라고 해도 LLM 이 어겼다 — 그래서 코드가 한 번 더 본다.
+    · 표면형이 반말/명사형이면 항상 참(볼 표지가 없다).
+    · «요» 표지는 **어절 끝**만 본다 — «요리»·«필요한» 의 «요» 는 표지가 아니다.
+    """
+    m = polite_marker(surface)
+    if m is None:
+        return True
+    for word in (text or "").split():
+        if normalize(word).endswith(m):
+            return True
+    return False
+
+
+# --------------------------------------------------------------------------- #
+# T16 V2 — **템플릿 인식 대조**. 표면형에 자리표시·교체·대괄호가 있으면 `mentions` 로는 영원히 거짓이다:
+#   「저는 ◯◯ 사람이에요」 ← "저는 미국 사람이에요"     정규화 부분문자열 «저는◯◯사람이에요» 는 어디에도 없다
+#   「◯◯이/가 뭐예요?」    ← "이게 뭐예요?"
+#   「N이/가 있어요[없어요]」← "물이 있어요"               (grammar.json 459 중 21 건이 대괄호, N/V/A 자리표시는 대부분)
+#   ⇒ V2 가 구조적으로 거짓 → 영구 미판정 → 그 레벨 전량 통과(D12)가 성립 불가(P0-3 과 같은 구멍).
+# 규칙: 자리표시 = 와일드카드 · 「이/가」류 교체 = (이|가) · 대괄호 [없어요] 는 **제거**(주형만 인정 — 「없어요」 로
+#   답하면 미판정, 안전한 방향) · 남는 고정 조각이 정규화 발화에 **순서대로** 있어야 참.
+# ⛔ 이 함수도 판정이 아니다 — LLM 이 passed 라고 제안한 세그먼트에 그 표현이 «실제로 있나» 만 본다.
+# --------------------------------------------------------------------------- #
+_BRACKET_RE = re.compile(r"\[[^\]]*\]")
+# 자리표시: ◯◯(개수 무관) · 홀로 선 라틴 대문자 토큰(N · V · A · Adj · S · N1 …) · «(누구)» 류 괄호 안 안내
+# ⚠ `` 를 쓰지 않는다 — 파이썬 유니코드 `` 는 한글도 단어 문자라 「N이」 의 N 뒤에 경계가 없다(라틴 자리표시가
+#   한글에 바로 붙는 게 커리큘럼 표기의 기본꼴이다). 라틴 글자에 안 둘러싸인 대문자 토큰이면 자리표시다.
+_PLACEHOLDER_RE = re.compile(r"◯+|(?<![A-Za-z])[A-Z][A-Za-z]{0,3}\d?(?![A-Za-z])|\([^)]*\)")
+# 조사 교체: 이/가 · 을/를 · 은/는 · 와/과 · 아/어 · (으)로 … — 슬래시 양쪽이 한글 1~2자
+# ⚠ 최대 3자 — 「N이에요/예요」 는 «이에요 | 예요» 교체다(2자로 자르면 «에요/예요» 가 되어 「사과예요」 를 놓친다).
+_ALT_RE = re.compile(r"([가-힣]{1,3})/([가-힣]{1,3})")
+
+
+def is_template(surface: str | None) -> bool:
+    """표면형에 자리표시·교체·대괄호가 있나 — 있으면 `mentions` 대신 `template_mentions` 를 써야 한다."""
+    s = surface or ""
+    return bool(_BRACKET_RE.search(s) or _PLACEHOLDER_RE.search(s) or _ALT_RE.search(s))
+
+
+def template_mentions(text: str | None, surface: str | None) -> bool:
+    """학습자 발화에 템플릿 표면형이 **채워진 꼴로** 들어 있나. 템플릿이 아니면 `mentions` 와 같다.
+    ⚠ `mentions` 가 템플릿이면 여기로 넘긴다 — covered 경로와 V2 가 **한 함수**다(두 경로가 갈리면 covered 는
+      되는데 V2 는 안 되는 항목이 생긴다)."""
+    if not is_template(surface):
+        return mentions(text, surface)
+    src = _BRACKET_RE.sub("", surface or "")
+    # 토큰화: 자리표시(와일드카드) / 교체 / 고정 글자 를 순서대로 정규식 조각으로
+    parts: list[str] = []
+    pos = 0
+    for m in sorted(list(_PLACEHOLDER_RE.finditer(src)) + list(_ALT_RE.finditer(src)), key=lambda m: m.start()):
+        if m.start() < pos:
+            continue
+        fixed = normalize(src[pos:m.start()])
+        if fixed:
+            parts.append(re.escape(fixed))
+        if _ALT_RE.fullmatch(m.group(0)):
+            a, b = normalize(m.group(1)), normalize(m.group(2))
+            alt = "(?:%s|%s)" % (re.escape(a), re.escape(b))
+            # 한 글자 조사 교체(이/가·을/를·은/는·와/과)는 **선택**으로 — 학습자는 「이게 뭐예요」(이것+이 축약)처럼
+            # 조사를 붙이거나 생략하거나 축약한다. 옳고 그름은 판정기 몫이고, 여기는 «그 표현이 있나» 만 본다.
+            if len(a) == 1 and len(b) == 1:
+                alt += "?"
+            parts.append(alt)
+        else:
+            parts.append(".*?")
+        pos = m.end()
+    fixed = normalize(src[pos:])
+    if fixed:
+        parts.append(re.escape(fixed))
+    fixed_parts = [p for p in parts if p != ".*?"]
+    if not fixed_parts:
+        return False                       # 전부 자리표시 — 확인할 글자가 없다(미판정)
+    pattern = "".join(parts)
+    # 앞뒤 와일드카드는 의미가 없다 — 그냥 부분문자열 탐색이다
+    while pattern.startswith(".*?"):
+        pattern = pattern[3:]
+    while pattern.endswith(".*?"):
+        pattern = pattern[:-3]
+    return re.search(pattern, normalize(text)) is not None

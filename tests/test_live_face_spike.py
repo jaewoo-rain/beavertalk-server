@@ -547,6 +547,7 @@ def _mk_state(monkeypatch):
     st.reground_count = 0
     st.last_reground_ts = None
     st.reground_arm_reason = "compress_imminent"
+    st.expr_quiz_cue_pending = None      # T16 — 퀴즈 큐 슬롯(재접지와 별개). 여기선 큐 없음
     st.should_close = False
     st.close_seed_sent = False
     st.turn_id = None
