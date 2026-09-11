@@ -54,7 +54,7 @@ def test_load_passes_invariants_and_is_idempotent(db: Session, seed):
 
     # 두 번째 적재 — 행 수가 늘지 않고, 은퇴 0
     before = {t: db.execute(text(f"SELECT COUNT(*) FROM {t}")).scalar()
-              for t in ("cur_item", "cur_lesson", "cur_lesson_item", "cur_topic", "cur_function", "cur_lesson_function")}
+              for t in ("cur_item", "cur_lesson", "cur_lesson_item", "cur_topic")}
     stats2 = load(db, seed, dry_run=False)
     db.commit()
     after = {t: db.execute(text(f"SELECT COUNT(*) FROM {t}")).scalar() for t in before}

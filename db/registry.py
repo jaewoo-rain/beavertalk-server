@@ -35,7 +35,7 @@ from domains.learning.models.member_level_history import MemberLevelHistory  # n
 from domains.learning.models.member_language_level import MemberLanguageLevel  # noqa: F401
 # learning — cur_* (주제별 커리큘럼 · 새 학습 체계, 2026-09-12)
 from domains.learning.models.curriculum import (  # noqa: F401
-    CurTopic, CurFunction, CurItem, CurLesson, CurLessonFunction, CurLessonItem,
+    CurTopic, CurItem, CurLesson, CurLessonItem,
     CurMemberProgress, CurMemberLesson, CurMemberItem, CurCall,
 )
 

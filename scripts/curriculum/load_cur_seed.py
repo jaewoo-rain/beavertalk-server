@@ -4,6 +4,8 @@
   레벨1 = 생존회화 청크 46 → 차시 3개(15·15·16) — 청크는 옛 learning_item(kind=chunk, ko) 에서 **한 번 복사**
   (새 경로가 옛 테이블을 읽는 유일한 자리다. 그 뒤로는 안 본다).
 
+⛔ 안 읽는 컬럼은 싣지 않는다(사장님 2026-09-12): 등급·CEFR·빈도·출처·기능(F코드)·모범 대화·성공 조건·가드레일은 시드 JSON 에만 남는다.
+
 규칙
   · cur_item 은 DELETE 하지 않는다 — 시드에서 빠진 항목은 retired_at 을 찍는다(회원 진도가 item_id 로 묶여 있다)
   · cur_lesson_item 은 차시 단위로 diff(삭제+삽입) — 한 트랜잭션
@@ -19,7 +21,6 @@ import argparse
 import io
 import json
 import os
-import re
 import sys
 from datetime import datetime, timezone
 
@@ -31,7 +32,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from core.config import settings  # noqa: E402
 import db.registry  # noqa: E402,F401  — 전 모델 등록(관계 매퍼가 Member·Call 을 찾는다)
 from domains.learning.models.curriculum import (  # noqa: E402
-    CurFunction, CurItem, CurLesson, CurLessonFunction, CurLessonItem, CurTopic,
+    CurItem, CurLesson, CurLessonItem, CurTopic,
 )
 
 LANG = "ko"
@@ -48,12 +49,6 @@ def _j(v) -> str | None:
     return None if v is None else json.dumps(v, ensure_ascii=False)
 
 
-def _headword_suffix(key: str) -> str | None:
-    parts = [p for p in re.split(r"[/·]", key) if p]
-    sufs = [m.group(1) for p in parts for m in [re.search(r"(\d{2})$", p)] if m]
-    return "/".join(sufs) if sufs else None
-
-
 def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
     now = datetime.now(timezone.utc)
     stats: dict[str, int] = {}
@@ -68,16 +63,7 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
         row.area, row.name, row.kind = t["area"], t["name"], TOPIC_KIND[t["kind"]]
         session.flush()
         topic_id[t["code"]] = row.topic_id
-    func_id: dict[str, int] = {}
-    for f in seed["functions"]:
-        row = session.scalar(select(CurFunction).where(CurFunction.code == f["code"]))
-        if row is None:
-            row = CurFunction(code=f["code"])
-            session.add(row)
-        row.name = f["name"]
-        session.flush()
-        func_id[f["code"]] = row.function_id
-    stats["topics"], stats["functions"] = len(topic_id), len(func_id)
+    stats["topics"] = len(topic_id)
 
     # 2. item — 어휘·문법(시드) + 청크(옛 learning_item 에서 한 번 복사) ─────────────
     existing = {(r.kind, r.key): r for r in session.scalars(select(CurItem).where(CurItem.language == LANG))}
@@ -101,21 +87,16 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
     stage_level = {s: i + 2 for i, s in enumerate(["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"])}
     for v in seed["vocab"]:
         upsert(
-            "vocab", v["key"], surface=v["headword"], headword_suffix=_headword_suffix(v["key"]),
+            "vocab", v["key"], surface=v["headword"],
             meanings=_j({"en": v["en"]}) if v.get("en") else None, pos=v.get("pos") or None,
-            guide=v.get("guide") or None, grade=v.get("grade") or None, cefr6=v.get("cefr6") or None,
-            stage=v.get("stage") or None, level_no=stage_level.get(v.get("stage"), 2),
+            guide=v.get("guide") or None, level_no=stage_level.get(v.get("stage"), 2),
             topic_id=topic_id.get(v.get("topic_code")), examples=_j(v.get("examples") or []),
-            freq=v.get("freq"),
         )
     for g in seed["grammar"]:
         upsert(
             "grammar", g["key"], surface=g["key"], meanings=_j({"en": g["en"]}) if g.get("en") else None,
-            stage=g.get("stage") or None, level_no=stage_level.get(g.get("stage"), 2),
-            function_id=func_id.get(g.get("function_code")), description=g.get("desc") or None,
-            notes=g.get("notes") or None, examples=_j(g.get("examples") or []),
-            textbook=g.get("textbook") or None, textbook_unit=g.get("textbook_unit") or None,
-            task_title=g.get("task_title") or None,
+            level_no=stage_level.get(g.get("stage"), 2), description=g.get("desc") or None,
+            examples=_j(g.get("examples") or []),
         )
     # 청크 — 옛 테이블에서 복사(결정 #13). 순서 = item_id(원 시드 순)
     chunks = session.execute(text(
@@ -143,9 +124,8 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
         ids = chunk_ids[pos:pos + n]
         pos += n
         lesson_rows.append(({
-            "no": i, "code": code, "level_no": 1, "stage": None, "topic_id": None, "part": "1/1",
-            "situation": situation, "partner": None, "grammar_kind": None, "opening": None, "probes": None,
-            "success": None, "guardrails": None, "dialogue": None, "functions": [],
+            "no": i, "code": code, "level_no": 1, "topic_id": None,
+            "situation": situation, "partner": None, "probes": None,
         }, [("chunk", iid) for iid in ids]))
     assert pos == 46
     for l in seed["lessons"]:
@@ -155,16 +135,13 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
             for k in keys:
                 items.append((role, item_id[(kind, k)]))
         lesson_rows.append(({
-            "no": l["no"] + len(CHUNK_LESSONS), "code": l["code"], "level_no": l["level_no"], "stage": l["stage"],
-            "topic_id": topic_id[l["topic_code"]], "part": l.get("part"), "situation": l["situation"],
-            "partner": l.get("partner"), "grammar_kind": l.get("grammar_kind"), "opening": l.get("opening"),
-            "probes": _j(l.get("probes") or []), "success": _j(l.get("success")), "guardrails": _j(l.get("guardrails") or []),
-            "dialogue": _j(l.get("dialogue") or []), "functions": l.get("functions") or [],
+            "no": l["no"] + len(CHUNK_LESSONS), "code": l["code"], "level_no": l["level_no"],
+            "topic_id": topic_id[l["topic_code"]], "situation": l["situation"],
+            "partner": l.get("partner"), "probes": _j(l.get("probes") or []),
         }, items))
 
     existing_lessons = {r.code: r for r in session.scalars(select(CurLesson).where(CurLesson.language == LANG))}
     for fields, items in lesson_rows:
-        funcs = fields.pop("functions")
         row = existing_lessons.get(fields["code"])
         if row is None:
             row = CurLesson(language=LANG, code=fields["code"])
@@ -176,13 +153,10 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
         session.flush()
         # 차시 단위 diff — 기존 행 전부 지우고 다시(한 트랜잭션 안)
         session.query(CurLessonItem).filter(CurLessonItem.lesson_id == row.lesson_id).delete()
-        session.query(CurLessonFunction).filter(CurLessonFunction.lesson_id == row.lesson_id).delete()
         seq = 0
         for role, iid in items:
             seq += 1
             session.add(CurLessonItem(lesson_id=row.lesson_id, item_id=iid, role=role, seq=seq))
-        for fc in funcs:
-            session.add(CurLessonFunction(lesson_id=row.lesson_id, function_id=func_id[fc]))
     session.flush()
     stats["lessons"] = len(lesson_rows)
 
@@ -191,7 +165,6 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
         return int(session.execute(text(sql)).scalar())
     checks = {
         "cur_topic 65": n("SELECT COUNT(*) FROM cur_topic") == 65,
-        "cur_function 30": n("SELECT COUNT(*) FROM cur_function") == 30,
         "cur_item 현역 11,144": n("SELECT COUNT(*) FROM cur_item WHERE retired_at IS NULL AND language='ko'") == 10636 + 462 + 46,
         "cur_lesson 491": n("SELECT COUNT(*) FROM cur_lesson WHERE language='ko'") == 491,
         "no 1..491 연속": n("SELECT COUNT(*) FROM cur_lesson WHERE language='ko' AND no BETWEEN 1 AND 491") == 491
@@ -200,7 +173,6 @@ def load(session: Session, seed: dict, *, dry_run: bool) -> dict:
         "어휘 전건 정확히 1차시": n("SELECT COUNT(*) FROM cur_lesson_item li JOIN cur_item i ON i.item_id=li.item_id WHERE i.kind='vocab'") == 10636
                           and n("SELECT COUNT(DISTINCT li.item_id) FROM cur_lesson_item li JOIN cur_item i ON i.item_id=li.item_id WHERE i.kind='vocab'") == 10636,
         "item_count = 실제": n("SELECT COUNT(*) FROM cur_lesson l WHERE l.item_count <> (SELECT COUNT(*) FROM cur_lesson_item li WHERE li.lesson_id=l.lesson_id)") == 0,
-        "lesson_function 행 = 시드 기능 합": n("SELECT COUNT(*) FROM cur_lesson_function") == sum(len(l.get("functions") or []) for l in seed["lessons"]),
     }
     stats["checks"] = checks
     return stats

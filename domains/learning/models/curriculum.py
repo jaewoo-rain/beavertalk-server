@@ -15,6 +15,8 @@
 컨벤션(기존 모델과 같다):
 - JSON 류는 TEXT(JSON 문자열) — 테스트가 sqlite 인메모리라 JSONB 금지(learning_item.py 와 같은 이유).
 - 상태 값 CHECK 는 영문 코드만(한글 CHECK 문자열은 인코딩 사고 지점 — 검수 P2).
+- ⛔ 안 읽는 컬럼은 싣지 않는다(사장님 2026-09-12 «쓸데없는 컬럼 정리»): 시드의 등급·CEFR·빈도·출처·기능(F코드)·
+  모범 대화·성공 조건·가드레일은 assets/curriculum_v3/cur_seed.json 에만 있다 — 필요해지면 컬럼을 추가하고 로더에 한 줄.
 - Member 쪽 컬렉션 relationship 은 두지 않는다(회원당 수천 행 — member_item_progress 의 교훈 그대로).
 - 비정규화는 `cur_lesson.item_count` 하나뿐(로더가 재계산). 드릴 수·레벨은 조인으로 센다(검수 P1-8).
 """
@@ -28,7 +30,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
-    Float,
     ForeignKey,
     Identity,
     Index,
@@ -39,7 +40,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.orm import Mapped, deferred, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base
 
@@ -69,20 +70,11 @@ class CurTopic(Base):
     kind: Mapped[str] = mapped_column(Text, nullable=False, comment="conv(회화) / support(지원)")
 
 
-class CurFunction(Base):
-    """기능 30. code F01~F30."""
-
-    __tablename__ = "cur_function"
-
-    function_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
-    code: Mapped[str] = mapped_column(Text, unique=True, nullable=False, comment="F01~F30")
-    name: Mapped[str] = mapped_column(Text, nullable=False, comment="기능명(서술·지정 …)")
-
-
 class CurItem(Base):
     """학습 항목 — 어휘 10,636 + 문법 462 + 청크 46 을 **한 테이블**에.
 
     - key: 시드의 정체성 키(어휘 `형01`·`호00/호01`, 문법 이름, 청크 문장). UNIQUE(language, kind, key) = 재적재 멱등 키.
+    - guide: 길잡이말 — 동형어 뜻을 가르는 유일한 단서(비버 설명 후보). description: 문법 설명.
     - surface: 판정·발화 표면형(어휘 = 첨자 뗀 표제어, 문법 = 주형, 청크 = 문장).
     - retired_at: 재적재로 빠진 항목은 **지우지 않고** 은퇴시킨다 — 회원 진도가 item_id 로 묶여 있어서(검수 P1-9).
     """
@@ -93,7 +85,6 @@ class CurItem(Base):
         CheckConstraint(_in("kind", ITEM_KINDS), name="ck_cur_item_kind"),
         CheckConstraint(f"level_no BETWEEN {LEVEL_MIN} AND {LEVEL_MAX}", name="ck_cur_item_level"),
         Index("ix_cur_item_topic", "topic_id"),
-        Index("ix_cur_item_function", "function_id"),
     )
 
     item_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -101,27 +92,15 @@ class CurItem(Base):
     kind: Mapped[str] = mapped_column(Text, nullable=False, comment="vocab / grammar / chunk")
     key: Mapped[str] = mapped_column(Text, nullable=False, comment="시드 정체성 키(어휘 표제어+첨자 · 문법 이름 · 청크 문장)")
     surface: Mapped[str] = mapped_column(Text, nullable=False, comment="판정·발화 표면형")
-    headword_suffix: Mapped[Optional[str]] = mapped_column(Text, comment="동형어 첨자(01 · 00/01) — 표시용")
     meanings: Mapped[Optional[str]] = mapped_column(Text, comment='로케일별 뜻 JSON 문자열 {"en": "..."}')
     pos: Mapped[Optional[str]] = mapped_column(Text, comment="품사(어휘)")
     guide: Mapped[Optional[str]] = mapped_column(Text, comment="길잡이말(동형어 뜻 고정)")
-    grade: Mapped[Optional[str]] = mapped_column(Text, comment="등급(1급~)")
-    cefr6: Mapped[Optional[str]] = mapped_column(Text, comment="CEFR 6단계")
-    stage: Mapped[Optional[str]] = mapped_column(Text, comment="원 배정 단계 A1~C4 (차시 단계와 다를 수 있음)")
     level_no: Mapped[int] = mapped_column(SmallInteger, nullable=False, comment="1=청크 · 2~13 = 원 단계")
     topic_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("cur_topic.topic_id", ondelete="RESTRICT", name="fk_cur_item_topic"), comment="어휘의 주제"
     )
-    function_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("cur_function.function_id", ondelete="RESTRICT", name="fk_cur_item_function"), comment="문법의 기능"
-    )
     description: Mapped[Optional[str]] = mapped_column(Text, comment="문법 설명")
-    notes: Mapped[Optional[str]] = mapped_column(Text, comment="문법 주의사항")
     examples: Mapped[Optional[str]] = mapped_column(Text, comment="예문 JSON 배열 문자열(최대 3)")
-    freq: Mapped[Optional[float]] = mapped_column(Float, comment="문장빈도")
-    textbook: Mapped[Optional[str]] = mapped_column(Text, comment="문법 출처 교재")
-    textbook_unit: Mapped[Optional[str]] = mapped_column(Text, comment="문법 출처 단원")
-    task_title: Mapped[Optional[str]] = mapped_column(Text, comment="문법 출처 과제목")
     retired_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), comment="재적재로 빠진 항목의 은퇴 시각(NULL=현역). 지우지 않는다"
     )
@@ -129,7 +108,7 @@ class CurItem(Base):
 
 
 class CurLesson(Base):
-    """차시 491 = 레벨1 생존회화 3 + A1~C4 488. `no` 가 곧 진도 순서(1..491)."""
+    """차시 491 = 레벨1 생존회화 3 + A1~C4 488. `no` 가 곧 진도 순서(1..491). probes = 프리토킹 유도 질문 후보(기록·후보)."""
 
     __tablename__ = "cur_lesson"
     __table_args__ = (
@@ -144,35 +123,14 @@ class CurLesson(Base):
     no: Mapped[int] = mapped_column(Integer, nullable=False, comment="진도 순서 1..491")
     code: Mapped[str] = mapped_column(Text, nullable=False, comment="L1-S01-1 · A1-T01-1 …")
     level_no: Mapped[int] = mapped_column(SmallInteger, nullable=False, comment="1~13")
-    stage: Mapped[Optional[str]] = mapped_column(Text, comment="A1~C4 (레벨1 은 NULL)")
     topic_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("cur_topic.topic_id", ondelete="RESTRICT", name="fk_cur_lesson_topic"), comment="레벨1 은 NULL"
     )
-    part: Mapped[Optional[str]] = mapped_column(Text, comment="분할 1/1 · 1/2 …")
     situation: Mapped[str] = mapped_column(Text, nullable=False, comment="프리토킹 상황명")
     partner: Mapped[Optional[str]] = mapped_column(Text, comment="상대역 — 상황 묘사용(비버가 되라는 뜻 아님)")
-    grammar_kind: Mapped[Optional[str]] = mapped_column(Text, comment="신규 / 이어 연습 (기록)")
-    opening: Mapped[Optional[str]] = mapped_column(Text, comment="프리토킹 여는 말(시드)")
     probes: Mapped[Optional[str]] = mapped_column(Text, comment="유도 질문 JSON 배열 문자열")
-    # 기록용 — 코드가 읽지 않는다(결정 #3·#5·#8). 매 통화 SELECT 에서 끌어오지 않게 deferred.
-    success: Mapped[Optional[str]] = deferred(mapped_column(Text, comment="ai_roles 성공 조건 JSON(기록용)"))
-    guardrails: Mapped[Optional[str]] = deferred(mapped_column(Text, comment="ai_roles 진행 규칙 JSON(기록용)"))
-    dialogue: Mapped[Optional[str]] = deferred(mapped_column(Text, comment="모범 대화 JSON(기록용)"))
     item_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"), comment="로더가 재계산")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-
-class CurLessonFunction(Base):
-    """차시 × 목표 기능 (N:M)."""
-
-    __tablename__ = "cur_lesson_function"
-
-    lesson_id: Mapped[int] = mapped_column(
-        ForeignKey("cur_lesson.lesson_id", ondelete="CASCADE", name="fk_cur_lf_lesson"), primary_key=True
-    )
-    function_id: Mapped[int] = mapped_column(
-        ForeignKey("cur_function.function_id", ondelete="RESTRICT", name="fk_cur_lf_function"), primary_key=True
-    )
 
 
 class CurLessonItem(Base):
