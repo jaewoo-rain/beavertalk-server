@@ -1066,17 +1066,23 @@ def read_db_outcome(sf, call_id: Optional[int], items: dict[int, Item]) -> Score
 # ⭐ T16 — 서버가 «[시스템] 지금 퀴즈» 큐를 얹어 퀴즈를 연다(docs/20260911_2000_표현학습-T16-…md §1). 그 로그 줄의
 #   시각과 비버의 앵커 턴(하네스가 문구로 잡은 것)을 대조해 «큐→앵커 지연» 과 «큐 없이 난 앵커» 를 센다.
 #   ⚠ 문구는 expr-build 가 정한다 — «normalcall 표현학습 퀴즈 큐» 로 시작하게 부탁했다. 구현 뒤 call_session.py 에서 확인해 맞춘다.
-QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
+QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"   # = call_session.EXPR_QUIZ_CUE_LOG_PREFIX (25c64fe 확인)
+# 서버는 한 퀴즈에 세 줄을 남긴다: «arm:»(묶음 찼다) → «얹기:»(다음 학습자 발화에 큐 전송) → «열림:»(다음 비버 turn_start).
+# 앵커와 대조할 순간은 **얹기** 다 — 모델이 큐를 받은 시각. arm 은 학습자가 말할 때까지 기다린다(대기=Ns 가 그 줄에 있다).
+QUIZ_CUE_STAGE = "얹기"
 QUIZ_CUE_MATCH_WINDOW_S = 60.0      # 큐 뒤 이 안에 난 앵커만 그 큐의 것으로 본다(다음 학습자 발화 시작에 얹히므로 보통 수 초)
 _LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
 
 
-def parse_quiz_cues(log_lines: list[str]) -> list[tuple[float, str]]:
-    """gcloud `value(timestamp,textPayload)` 줄들 → [(epoch, payload)] — 퀴즈 큐 줄만. 시각 없는 줄은 버린다."""
+def parse_quiz_cues(log_lines: list[str], stage: str = QUIZ_CUE_STAGE) -> list[tuple[float, str]]:
+    """gcloud `value(timestamp,textPayload)` 줄들 → [(epoch, payload)] — 퀴즈 큐 **해당 단계** 줄만. 시각 없는 줄은 버린다.
+
+    stage="" 이면 접두가 있는 줄 전부(arm·얹기·열림)."""
     out: list[tuple[float, str]] = []
+    needle = f"{QUIZ_CUE_LOG_PREFIX} {stage}" if stage else QUIZ_CUE_LOG_PREFIX
     for ln in log_lines or []:
         m = _LOG_TS_RE.match(ln.strip())
-        if not m or QUIZ_CUE_LOG_PREFIX not in m.group(2):
+        if not m or needle not in m.group(2):
             continue
         ts = m.group(1)
         try:
@@ -1121,13 +1127,15 @@ def match_quiz_cues(cues: list[tuple[float, str]], anchors: list[tuple[int, floa
 
 def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str) -> list[str]:
     """(선택) gcloud logging read — 표현학습 판정·arm 줄만."""
-    a = (call_started - timedelta(seconds=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # ⚠ 앞 여유를 크게 주면 **직전 통화의 꼬리**(마지막 판정·진도 저장·큐)가 섞여 큐 대조가 남의 큐를 짝짓는다(1406 에서 발생).
+    #   로그에 call_id 가 없어 시간으로만 가른다 — 통화 시작(WS 연결) 2초 전부터.
+    a = (call_started - timedelta(seconds=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
     b = (call_ended + timedelta(seconds=60)).strftime("%Y-%m-%dT%H:%M:%SZ")
     flt = (f'resource.type="cloud_run_revision" AND resource.labels.service_name="{service}" '
            f'AND timestamp>="{a}" AND timestamp<="{b}" '
            'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm")')
     try:
-        out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "200",
+        out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "400",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
                              capture_output=True, text=True, encoding="utf-8", timeout=120, shell=(os.name == "nt"))
         return [ln for ln in (out.stdout or "").splitlines() if ln.strip()] or [f"(로그 없음) {out.stderr[:200]}"]
@@ -1187,6 +1195,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     cue_match: dict | None = None
     if server_logs is not None:
         cues = parse_quiz_cues(server_logs)
+        if sess.turns:
+            # 이 통화 첫 턴보다 앞선 큐는 직전 통화의 것이다(gcloud 창이 시간으로만 갈리므로 한 번 더 거른다)
+            cues = [c for c in cues if c[0] >= sess.turns[0].wall - 15.0]
         anchor_walls = [(tn, sess.turns[tn].wall) for tn, _ in sess.anchors if 0 <= tn < len(sess.turns)]
         cue_match = match_quiz_cues(cues, anchor_walls)
         cue_match["cues"] = cues
@@ -1214,7 +1225,11 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             L.append(f"- 서버 퀴즈 큐 로그 0줄 (접두 «{QUIZ_CUE_LOG_PREFIX}») — T16 배포 전이거나 로그 문구가 다르다")
         else:
             delays = [d for _, _, d in cue_match["pairs"]]
-            L.append(f"- 서버 퀴즈 큐 {n_c}회 · 앵커로 이어진 큐 {len(cue_match['pairs'])} "
+            n_arm = len(parse_quiz_cues(server_logs, "arm"))
+            n_open = len(parse_quiz_cues(server_logs, "열림"))
+            L.append(f"- 서버 큐 단계: arm {n_arm} · 얹기 {n_c} · 열림 {n_open}" +
+                     (" ⚠ arm 뒤 얹기 안 됨 " + str(n_arm - n_c) if n_arm > n_c else ""))
+            L.append(f"- 서버 퀴즈 큐(얹기) {n_c}회 · 앵커로 이어진 큐 {len(cue_match['pairs'])} "
                      f"(지연 {', '.join(f'{d:.1f}s' for d in delays) or '—'}) · 큐 뒤 앵커 없음 {len(cue_match['cues_without_anchor'])} · "
                      f"큐 없이 난 앵커 {len(cue_match['anchors_without_cue'])}")
             for c_t in cue_match["cues_without_anchor"]:

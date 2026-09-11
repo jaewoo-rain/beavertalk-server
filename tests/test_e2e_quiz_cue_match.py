@@ -30,11 +30,11 @@ def _line(epoch: float, payload: str) -> str:
 
 def test_parse_quiz_cues_keeps_only_cue_lines_with_timestamps():
     lines = [
-        _line(T0 + 10, h.QUIZ_CUE_LOG_PREFIX + " 얹기(1회째, 묶음 1·2·3)"),
+        _line(T0 + 10, h.QUIZ_CUE_LOG_PREFIX + " 얹기: seq=1 항목=[1, 2, 3]"),
         _line(T0 + 11, "normalcall 표현학습 판정 계측: phase=drill"),          # 다른 표현학습 줄 — 큐 아님
         "(로그 없음) ",                                                          # 시각 없는 줄 — 버림
-        _line(T0 + 200, h.QUIZ_CUE_LOG_PREFIX + " 얹기(2회째, 묶음 4·5·6)"),
-        _line(T0 + 100, h.QUIZ_CUE_LOG_PREFIX + " 얹기(재출제)"),               # 순서 섞임 — 시간순 정렬
+        _line(T0 + 200, h.QUIZ_CUE_LOG_PREFIX + " 얹기: seq=2 항목=[4, 5, 6]"),
+        _line(T0 + 100, h.QUIZ_CUE_LOG_PREFIX + " 얹기: seq=2 항목=[2] retry"),               # 순서 섞임 — 시간순 정렬
     ]
     cues = h.parse_quiz_cues(lines)
     assert [round(t - T0) for t, _ in cues] == [10, 100, 200]
@@ -79,3 +79,16 @@ def test_one_anchor_is_not_reused_for_two_cues():
     m = h.match_quiz_cues(cues, anchors)
     assert m["pairs"] == [(T0 + 10.0, 8, 5.0)]
     assert m["cues_without_anchor"] == [T0 + 12.0]
+
+
+def test_only_attach_stage_lines_count_as_cues_by_default():
+    lines = [
+        _line(T0 + 1, h.QUIZ_CUE_LOG_PREFIX + " arm: seq=1 항목=[1, 2, 3] retry=False covered=3"),
+        _line(T0 + 4, h.QUIZ_CUE_LOG_PREFIX + " 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=3s 비버턴=(열린 턴 없음)"),
+        _line(T0 + 7, h.QUIZ_CUE_LOG_PREFIX + " 열림: seq=1 open_seg=12 항목=[1, 2, 3]"),
+    ]
+    cues = h.parse_quiz_cues(lines)
+    assert [round(t - T0) for t, _ in cues] == [4]                       # 얹기만
+    assert len(h.parse_quiz_cues(lines, "arm")) == 1
+    assert len(h.parse_quiz_cues(lines, "열림")) == 1
+    assert len(h.parse_quiz_cues(lines, "")) == 3
