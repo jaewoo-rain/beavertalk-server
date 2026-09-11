@@ -972,7 +972,8 @@ def test_arm_fires_before_compression_not_after():
     st.usage_prompt_peak = floor + int(room * 0.5)
     assert cs._reground_due(st, 1001.0) == "", "절반밖에 안 찼는데 arm 됐다"
     st.usage_prompt_peak = floor + int(room * cs.REGROUND_ARM_RATIO) + 1
-    assert cs._reground_due(st, 1001.0) == "compress", "압축 임박인데 arm 이 안 섰다"
+    # ⚠ 라벨은 «compress_imminent» — 임박 **산식**이다(T15-6, 통화 1398). 실제 압축 감지는 post-compress 만.
+    assert cs._reground_due(st, 1001.0) == "compress_imminent", "압축 임박인데 arm 이 안 섰다"
 
 
 def test_arm_ignores_instruction_floor(monkeypatch):
@@ -990,7 +991,7 @@ def test_arm_ignores_instruction_floor(monkeypatch):
 
     # 남은 자리(806)의 85% 를 대화가 채우면 그때는 arm 한다.
     st.usage_prompt_peak = 7194 + int(806 * cs.REGROUND_ARM_RATIO) + 1
-    assert cs._reground_due(st, 1001.0) == "compress", "자리가 찼는데 arm 이 안 섰다"
+    assert cs._reground_due(st, 1001.0) == "compress_imminent", "자리가 찼는데 arm 이 안 섰다"
 
 
 def test_arm_disabled_when_floor_eats_trigger(monkeypatch):
@@ -1110,7 +1111,7 @@ def test_close_wins_over_reground_arm():
     st = _fresh_state()
     cs._observe_compression(st, 1500)          # 바닥 고정(arm 은 바닥 위 대화를 잰다)
     st.usage_prompt_peak = trigger             # 압축 임박(가장 강한 근거)
-    assert cs._reground_due(st, 1001.0) == "compress"
+    assert cs._reground_due(st, 1001.0) == "compress_imminent"
     st.should_close = True
     assert cs._reground_due(st, 1001.0) == "", "종료 중인데 재접지가 arm 됐다"
     st.should_close, st.close_seed_sent = False, True
@@ -3836,7 +3837,7 @@ def test_compression_detection_and_arm_still_use_the_cycle_peak():
     # 다시 차오르면 선제 arm — 문턱은 **바닥 위 남은 자리**의 85% 다.
     room = trigger - st.usage_prompt_floor
     cs._observe_compression(st, st.usage_prompt_floor + int(room * cs.REGROUND_ARM_RATIO) + 1)
-    assert cs._reground_due(st, now) == "compress"
+    assert cs._reground_due(st, now) == "compress_imminent"
 
 
 def test_cascade_output_cost_includes_thinking_tokens():

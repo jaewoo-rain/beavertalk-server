@@ -84,9 +84,10 @@ def test_meaning_is_shown_when_present() -> None:
 
 def test_quiz_group_number_comes_from_the_caller_not_a_literal() -> None:
     """⛔ 숫자를 대본에 손으로 박지 마라 — 선별 상수와 두 곳이 되면 안 된다(원칙 3)."""
-    assert "표현 3개를 다룰 때마다" in _expr(quiz_group=3)
-    assert "표현 5개를 다룰 때마다" in _expr(quiz_group=5)
-    assert "3개를 다룰 때마다" not in _expr(quiz_group=5)
+    # T15-1(통화 1398): 주기를 «번호» 에 묶는다 — 3·6·9… 번 항목을 끝낸 직후에만. 번호 열은 quiz_group 으로 생성.
+    assert "3·6·9… 번 항목을 끝낸 **직후에만** 낸다 — 방금 끝낸 그 묶음 3개를 한 문제씩" in _expr(quiz_group=3)
+    assert "5·10·15… 번 항목을 끝낸 **직후에만** 낸다 — 방금 끝낸 그 묶음 5개를 한 문제씩" in _expr(quiz_group=5)
+    assert "3·6·9" not in _expr(quiz_group=5) and "다룰 때마다" not in _expr(quiz_group=5)
 
 
 # --------------------------------------------------------------------------- #

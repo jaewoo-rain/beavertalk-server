@@ -224,6 +224,7 @@ async def test_the_judge_instruction_is_rebuilt_from_state_on_every_call(monkeyp
     st.expr_ctx = {"client": object(), "model": "m", "target_language": "한국어",
                    "locale_label": "영어(English)"}
     st.covered_nums = [1, 2, 3, 4, 5, 6]
+    st.expr_covered_snapshot = [1, 2, 3, 4, 5, 6]        # 직전 판정 완료 시점 스냅샷(T15-4) — 표시의 원본
     st.expr_quiz_pass = {2}
     st.expr_quiz_fail = {1, 3}
     st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(16)]
@@ -796,6 +797,135 @@ def test_the_nudge_gives_a_hint_in_a_quiz_and_a_model_in_a_drill() -> None:
     """⑦ — 퀴즈 중 넛지가 정답을 들려주면 그 문항이 통째로 죽는다."""
     assert "퀴즈 중이면 정답 대신 힌트 하나만 주고" in NUDGE_SEED_1_EXPRESSION
     assert "드릴 중이면 한 번 더 들려준 뒤" in NUDGE_SEED_1_EXPRESSION
+
+
+# --------------------------------------------------------------------------- #
+# T15 — 통화 1398 감사 반영 (퀴즈 주기 · 포기 경로 · 공개 뒤 되묻기 · 표시 스냅샷 · arm 라벨/바닥)
+# --------------------------------------------------------------------------- #
+def test_the_quiz_section_says_when_once_and_how_below_it() -> None:
+    """T15-1·2 — 1398 에서 퀴즈가 매 항목 직후(t13·t23·t29) 나왔다. «어떻게» 5줄이 «언제» 1줄을 덮었다."""
+    out = _script()
+    quiz = out.split("[퀴즈]", 1)[1].split("[반응", 1)[0]
+    assert quiz.index("- 언제:") < quiz.index("- 어떻게:")
+    assert "그 사이(묶음이 아직 안 찼을 때)에는 퀴즈·복습·테스트를 **절대 시작하지 마라**" in quiz
+    assert "방금 끝낸 항목 하나를 '퀴즈' 라며 되묻는 것은 퀴즈가 아니라 드릴 재시도다" in quiz
+    assert "정답은 그 묶음에서 배운 표현이다" in quiz and "방금 다룬 그 표현 자체" not in out
+    assert "그 외엔 항상 3개 묶음이다" in quiz
+    # T14 확정 문장은 뜻 그대로 «어떻게» 아래에 있다(배치만 바뀜)
+    for kept in ("퀴즈를 시작한다는 말을 영어(English)로 먼저 해라", "**표현 전체나 그 어절을 말하지 마라.**",
+                 "직후에 따라 말해도 바뀌지 않는다", "이 통화 안에서 뒤에 한 번 더 낸다"):
+        assert kept in quiz, kept
+    assert "[진행 절차]" in out and out.index("[진행 절차]") < out.index("[퀴즈]")
+
+
+def test_the_give_up_path_never_says_correct() -> None:
+    """T15-3 — 1398 t9: 3번째 시도 「잘 못 들었다」(반말·오답)에 극찬. 포기 경로에 «맞았다고 하지 마라» 가 없었다."""
+    out = _script()
+    assert "다음 번호 항목으로 이어 가라 — **맞았다고 하지는 마라.** 캐릭터대로 넘기되 틀린 건 틀린 거다" in out
+    assert "항목 하나에 집착 금지 — 그리고 맞았다고 하지는 마라" in out
+
+
+def test_no_question_form_reask_after_a_reveal_on_both_sides() -> None:
+    """T15-5 — 1398 t17 «The word is 안녕하세요. Now tell me, how do you say Hello?» → 판정기가 새 문항으로 읽음."""
+    assert "정답을 들려준 뒤에는 '어떻게 말해요?' 로 되묻지 마라 — 따라 말하게만 해라" in _script()
+    ins = _instr()
+    assert "정답 공개와 같은 턴이나 바로 다음 턴의 되묻기는 **질문형이어도**(«어떻게 말해요?») 같은 회차다" in ins
+    assert "새 회차는 재출제 규칙뿐이다" in ins
+
+
+def test_marks_come_from_the_last_judgement_snapshot_not_live_detection() -> None:
+    """T15-4 — 1398 항목 6(t39-43): 표시가 «지금까지 검출» 이라 창 안 첫 드릴이 이미 드릴함으로 실려 판정기가
+    퀴즈로 읽고 오답을 찍었다. 표시는 **직전 판정 완료 시점 스냅샷**에서 만든다."""
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "target_language": "한국어", "locale_label": "영어(English)"}
+    st.expr_covered_snapshot = [1, 2, 3]       # 직전 판정 전에 드릴된 것
+    st.covered_nums = [1, 2, 3, 4]             # 4 는 이번 창 안에서 문자열 검출로 막 들어온 첫 드릴
+    ins = cs._expression_judge_instruction(st)
+    assert "3. 저는 ◯◯ 사람이에요 — 뜻: I'm from ◯◯  (이미 드릴함)" in ins
+    assert "4. 도와주세요 — 뜻: Please help me  (" not in ins, "창 안 첫 드릴 항목에 표시가 붙었다"
+
+
+@pytest.mark.asyncio
+async def test_the_snapshot_is_capture_time_covered_plus_this_judgements_drilled(monkeypatch) -> None:
+    """스냅샷 = 입력을 잡은 순간의 covered + 이번 판정의 drilled. 판정 도는 동안 검출된 항목은 섞이지 않는다."""
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.covered_nums = [1]
+    st.segments = [{"turn_index": 0, "role": "user", "text": "음"}]
+
+    async def _slow(client, model, **kw):
+        st.covered_nums.append(5)              # LLM 대기 중 다음 창의 첫 드릴이 검출됐다
+        return _Out(drilled=[1, 2], phase="drill")
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _slow)
+    await cs._expression_progress_sidecar(st)
+    assert st.expr_covered_snapshot == [1, 2], "판정 중 검출된 5 가 스냅샷에 섞였다"
+    assert st.covered_nums == [1, 5, 2]       # covered_nums 자체는 실시간 합집합 그대로
+    assert st.expr_snapshot_upto == 1
+
+
+@pytest.mark.asyncio
+async def test_a_late_old_judgement_does_not_roll_the_snapshot_back(monkeypatch) -> None:
+    st = _state()
+    st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(10)]
+    gate = asyncio.Event()
+
+    async def _slow_then_fast(client, model, **kw):
+        if "발화19" not in kw.get("prompt", ""):
+            await gate.wait()
+            return _Out(drilled=[1])
+        return _Out(drilled=[1, 2, 3])
+
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _slow_then_fast)
+    old = asyncio.create_task(cs._expression_progress_sidecar(st))
+    await asyncio.sleep(0)
+    st.segments += [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(10, 20)]
+    await cs._expression_progress_sidecar(st)
+    assert st.expr_covered_snapshot == [1, 2, 3]
+    gate.set()
+    await old
+    assert st.expr_covered_snapshot == [1, 2, 3], "늦게 온 옛 판정이 스냅샷을 되돌렸다"
+
+
+def test_a_fresh_state_has_no_marks_snapshot() -> None:
+    st = cs._CallState()
+    assert st.expr_covered_snapshot == [] and st.expr_snapshot_upto == 0
+
+
+def test_expression_pre_arm_is_off_when_the_room_is_too_narrow_but_normal_is_unchanged() -> None:
+    """T15-6 — 1398: 첫 arm 이 40초에 «근거=compress», 실제 압축은 3분 22초 뒤. T14 지시문이 바닥을 트리거에
+    붙여 room×0.85 가 대화 몇 턴 분량이 됐다. 표현학습은 room 이 하한보다 좁으면 ①을 끈다. 일반 통화는 그대로."""
+    trigger = cs._settings.LIVE_CTX_TRIGGER_TOKENS
+    floor = trigger - (cs.EXPR_REGROUND_MIN_ROOM_TOKENS - 500)     # room = 하한 − 500
+    for is_expr in (True, False):
+        st = cs._CallState()
+        st.call_start_ts = 1000.0
+        if is_expr:
+            st.expr_items = list(ITEMS_1397)
+        cs._observe_compression(st, floor)
+        st.usage_prompt_peak = trigger                                # 산식만 보면 임박
+        got = cs._reground_due(st, 1001.0)
+        if is_expr:
+            assert got == "", "표현학습: 좁은 room 에서 임박 산식이 발동했다(1398 40초 arm 재현)"
+        else:
+            assert got == "compress_imminent", "일반 통화 동작이 바뀌었다"
+    # room 이 넉넉하면 표현학습도 임박 산식이 산다
+    st = cs._CallState()
+    st.call_start_ts = 1000.0
+    st.expr_items = list(ITEMS_1397)
+    wide_floor = trigger - (cs.EXPR_REGROUND_MIN_ROOM_TOKENS + 2000)
+    cs._observe_compression(st, wide_floor)
+    st.usage_prompt_peak = trigger
+    assert cs._reground_due(st, 1001.0) == "compress_imminent"
+
+
+def test_the_imminence_label_is_distinct_from_actual_compression() -> None:
+    """계측 정직성 — «compress» 한 단어가 산식 발동과 실제 감지를 섞어 1398 감사를 헷갈리게 했다."""
+    src = pathlib.Path(cs.__file__).read_text(encoding="utf-8")
+    body = src.split("def _reground_due(", 1)[1].split("\ndef ", 1)[0]
+    assert 'return "compress_imminent"' in body and 'return "post-compress"' in body
+    assert 'return "compress"' not in body
 
 
 def test_the_beaver_script_still_has_no_example_lines() -> None:

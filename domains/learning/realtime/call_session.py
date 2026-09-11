@@ -211,6 +211,10 @@ LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 �
 #   ③ 시간 폴백 — usage_metadata 가 아예 안 오는 환경(필드 미제공·모킹)에서도 돌아야 한다.
 #                 마지막 주입 이후 GAP 경과면 arm(R5 — 자동으로 옛 시간 기반 동작으로 강등).
 REGROUND_ARM_RATIO = 0.85        # 압축 임박 판정(× LIVE_CTX_TRIGGER_TOKENS)
+# ⭐ T15-6 표현학습 전용: 바닥 위 남은 자리(trigger − floor)가 이보다 좁으면 ①임박 산식을 끈다(위 _reground_due
+#   주석). 1398 에서 첫 arm 이 40초에 섰다 — 40초 분량의 대화 토큰(입력 오디오 ≈ 수백~천 토큰)이 room×0.85 를
+#   넘었다는 뜻이라 room 이 대략 1,000~2,000 대였다는 역산. 그 두 배를 하한으로 둔다. 일반 통화엔 적용 안 됨.
+EXPR_REGROUND_MIN_ROOM_TOKENS = 3000
 # 사후 감지 문턱. **절대 토큰이 아니라 압축 낙차(trigger − target)에서 파생**한다.
 #
 # ⛔⛔ 2026-08-17: 여기 절대값(2000)과 peak 대비 비율(0.85)이 **둘 다 눈이 멀어 있었다.**
@@ -773,6 +777,7 @@ class _CallState:
         #   새 phase 를 되돌리지 못하게 세대를 묶는다(T14 반려 P2-B).
         "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "expr_sidecar_calls", "expr_judged_upto", "expr_phase", "expr_phase_upto",
+        "expr_covered_snapshot", "expr_snapshot_upto",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -943,6 +948,11 @@ class _CallState:
         self.expr_judged_upto: int = 0
         self.expr_phase: str = ""
         self.expr_phase_upto: int = 0
+        # ⭐ T15-4 «(이미 드릴함)» 표시의 원본 — **직전 판정 완료 시점 스냅샷**(1398 항목 6, t39-43: 표시가
+        #   «지금까지 검출» 이라 창 안 첫 드릴이 이미 드릴함으로 실려 판정기가 퀴즈로 읽고 오답을 찍었다).
+        #   covered_nums 는 문자열 검출로 실시간 늘어나 창 안의 첫 드릴까지 담는다 — 표시는 거기서 만들지 않는다.
+        self.expr_covered_snapshot: list[int] = []
+        self.expr_snapshot_upto: int = 0
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1329,6 +1339,8 @@ def _expression_progress_instruction(
         "  선생님의 «Good, but / Almost / Just add» 는 정답 반응이 아니다.",
         "",
         "■ 재출제 — 다른 문항으로 넘어갔다가 나중에 다시 묻거나, 오답 재출제 앵커 뒤에 묻는 것만 새 회차다.",
+        "  정답 공개와 같은 턴이나 바로 다음 턴의 되묻기는 **질문형이어도**(«어떻게 말해요?») 같은 회차다. "
+        "새 회차는 재출제 규칙뿐이다.",
         "  failed 였던 항목이 새 회차에서 맞으면 passed 로 바꿔라. **passed 를 failed 로 되돌리지는 마라.**",
         "  passed 와 failed 는 한 항목에 하나만. drilled 는 둘과 함께 있을 수 있다.",
         "",
@@ -1345,6 +1357,12 @@ def _expression_progress_instruction(
         "[항목 목록]",
         listing,
     ])
+
+
+def _result_nums(state: _CallState, raw) -> list[int]:
+    """판정 결과의 번호 목록 중 **서버 목록 안**의 것만(1-based) — 환각 번호는 버린다."""
+    n_items = len(state.expr_items)
+    return [n for n in (raw or []) if isinstance(n, int) and 1 <= n <= n_items]
 
 
 def _apply_expression_progress(state: _CallState, result: object) -> None:
@@ -1395,7 +1413,9 @@ def _expression_judge_instruction(state: _CallState) -> str:
         state.expr_items,
         ctx.get("target_language") or "한국어",
         ctx.get("locale_label") or "학습자의 모국어",
-        covered_nums=state.covered_nums,
+        # ⛔ covered_nums(실시간 검출)가 아니라 **직전 판정 스냅샷**이다(T15-4) — 이번 창 안에서 처음 드릴된
+        #   항목엔 표시가 없어야 판정기가 그걸 드릴로 읽는다.
+        covered_nums=state.expr_covered_snapshot,
         passed_ids=state.expr_quiz_pass,
         failed_ids=state.expr_quiz_fail,
     )
@@ -1518,6 +1538,9 @@ async def _expression_progress_sidecar(state: _CallState) -> None:
     cursor = state.expr_judged_upto
     since = max(0, cursor - EXPR_JUDGE_OVERLAP_SEGMENTS)
     seen_end = len(state.segments)
+    # ⭐ T15-4 스냅샷 재료는 **입력을 잡는 이 순간**의 covered_nums 다 — 판정이 도는 동안 문자열 검출이 더한
+    #   항목(다음 창의 첫 드릴)이 섞이면 안 된다. 판정 결과의 drilled 를 여기에 합쳐 «판정 완료 시점» 을 만든다.
+    covered_at_capture = list(state.covered_nums)
     transcript, first_seen, cut = _expression_transcript_window(state, since=since, keep_from=cursor)
     if not transcript:
         return
@@ -1535,6 +1558,14 @@ async def _expression_progress_sidecar(state: _CallState) -> None:
             return
         before = (len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail))
         _apply_expression_progress(state, result)
+        # ⭐ T15-4 «(이미 드릴함)» 스냅샷 = 입력 시점 covered + 이번 판정의 drilled. 세대 규칙은 phase 와 같다.
+        if seen_end >= state.expr_snapshot_upto:
+            snap = list(covered_at_capture)
+            for n in _result_nums(state, getattr(result, "drilled", None)):
+                if n not in snap:
+                    snap.append(n)
+            state.expr_covered_snapshot = snap
+            state.expr_snapshot_upto = seen_end
         if cut:
             logger.warning(
                 "normalcall 표현학습 판정: 입력 절단 — 세그먼트 %d~%d 미판정(상한 %d자에 밀림). 커서 %d→%d, 손실은 이 한 번이다",
@@ -4847,8 +4878,17 @@ def _reground_due(state: _CallState, now: float) -> str:
     #   받는다(미탐은 무해, 오탐은 이중발화 — 원래 설계도 미탐 쪽으로 보수적이다).
     floor = state.usage_prompt_floor
     room = trigger - floor
+    # ⭐ T15-6 표현학습은 **남은 자리가 너무 좁으면 ①을 끈다**(1398: 첫 arm 이 40초에 «근거=compress», 실제
+    #   압축은 3분 22초 뒤 52:45). T14 로 지시문이 커져 바닥이 트리거에 붙었고, room 의 85% 가 대화 몇 턴
+    #   분량이라 임박 산식이 통화 시작 직후 참이 된다 — 예고 가치가 없다. 위 «room <= 0 이면 끈다» 와 같은
+    #   논리의 연장이다: 압축은 실제로 돌 테니 ②사후 감지·③시간 폴백이 받는다(미탐은 무해).
+    #   ⛔ 일반 통화는 이 분기를 안 탄다(expr_items 게이트) — 동작 바이트 동일.
+    #   ⚠ 하한 값은 실측 1건(1398)으로 잡았다 — 그 통화의 바닥·peak 가 로그에 없어서(아래 arm 로그에 이번에
+    #     추가) 정확한 room 은 모른다. 다음 실통화의 «peak=·바닥=·대화=» 로 다시 정한다.
+    if state.expr_items and 0 < room < EXPR_REGROUND_MIN_ROOM_TOKENS:
+        room = 0
     if floor and room > 0 and state.usage_prompt_peak - floor >= room * REGROUND_ARM_RATIO:
-        return "compress"
+        return "compress_imminent"   # ⚠ 라벨: 임박 **산식**이다 — 실제 압축 감지는 아래 post-compress 만(T15-6)
     # ② 사후 — 이미 압축됐다(선제 arm 이 유저 침묵으로 못 얹힌 경우의 보정).
     if state.compression_seen > state.reground_count:
         return "post-compress"
@@ -4903,10 +4943,13 @@ def _arm_reground(state: _CallState, reason: str) -> None:
         state.reground_reminder = _build_expression_note(state)
         state.reground_pending = True
         state.reground_arm_reason = reason
+        # ⚠ peak·바닥·대화를 같이 남긴다(T15-6) — 1398 감사에서 이 세 값이 없어 room 을 역산해야 했다.
         logger.info(
-            "normalcall 재접지 arm(표현학습, 근거=%s, %d/%d회, 드릴 %d · 통과 %d · 오답 %d)",
+            "normalcall 재접지 arm(표현학습, 근거=%s, %d/%d회, 드릴 %d · 통과 %d · 오답 %d, 압축감지=%d, peak=%d, 바닥=%d, 대화=%d)",
             reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
             len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail),
+            state.compression_seen, state.usage_prompt_peak, state.usage_prompt_floor,
+            max(0, state.usage_prompt_peak - state.usage_prompt_floor),
         )
         return
     # ⭐ covered 를 **여기서부터** 싣는다(2026-09-09). 예전엔 사이드카가 돌아와야 실렸는데,

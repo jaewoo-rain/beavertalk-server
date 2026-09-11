@@ -546,7 +546,7 @@ def _mk_state(monkeypatch):
     st.reground_injected = False
     st.reground_count = 0
     st.last_reground_ts = None
-    st.reground_arm_reason = "compress"
+    st.reground_arm_reason = "compress_imminent"
     st.should_close = False
     st.close_seed_sent = False
     st.turn_id = None
