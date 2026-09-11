@@ -570,7 +570,7 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # --------------------------------------------------------------------------- #
 # ⛔ 이게 터지면 대본이 바뀐 것이다 — 의도한 변경이면 README §8 에 적고 여기 두 값을 갱신한다.
 #   일반 통화(build_system_instruction)의 94개 바이트 동일은 tests/test_prompt_common_snapshot.py 가 따로 지킨다.
-_EXPR_FROZEN = ("c2edb0b46a7968f545f9b220588bdd9245809069042dbad4c43a4b93121bdfd7", 3857)
+_EXPR_FROZEN = ("6a326cd9bcec8371e6a91cc8497eba4d1ed9fd44d1ab6d617b0f820b2c05aa46", 3890)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
