@@ -782,7 +782,7 @@ class _CallState:
         # ⚠ `resume_handle`·`session_epoch` 는 남는다 — Gemini 가 주는 재개 핸들과 세대 번호는
         #   로그·관측에 쓰인다. ⛔ 스왑 상태(reconnects/swap_requested/last_swap_ts)는
         #   재연결 기계와 함께 사라졌다(2026-08-19).
-        "resume_handle", "session_epoch",
+        "resume_handle", "session_epoch", "reconnects",
         # ⭐ 이 조각의 선톡 시드 원문(벙어리 인사 재시드용).
         "seed_text",
         "usage_log", "usage_dropped", "sidecar_usage",
@@ -804,6 +804,7 @@ class _CallState:
         # 상태(모델 생성 중·tool 실행 중)로 재개하면 데이터가 유실된다.
         self.resume_handle: Optional[str] = None
         self.session_epoch = 0        # 이 통화에서 몇 번째 연결인가(1부터)
+        self.reconnects = 0           # T22 — Gemini 쪽 끊김 뒤 같은 통화에 다시 붙인 횟수(usage_json "reconnects")
         self.seed_text = ""
         self.turn_id: Optional[str] = None
         # 🔬 턴 절단 진단(임시). diag_turn_open_ts: 이번 비버 턴이 열린 loop.time().
@@ -1883,7 +1884,7 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "peak_prompt": state.usage_prompt_max,
         "cycle_peak": state.usage_prompt_peak,
         "compressions": state.compression_seen,
-        "epochs": state.session_epoch, "reconnects": 0,
+        "epochs": state.session_epoch, "reconnects": state.reconnects,
         # ⭐ 통화중 LLM 사이드카 몫(힌트·재접지·레벨테스트 턴 판정). 한 번도 안 돌았으면
         #   None 이라 저장에서 통째로 빠진다 — "0 원"이 아니라 "안 돌았다"는 뜻이다.
         # ⚠ 여기 실리려면 Live usage 가 1건이라도 있어야 한다(위 `if not log: return None`).
@@ -3169,20 +3170,47 @@ async def _run_session(
     #   SESSION_ROTATE_AT_S / MAX_RECONNECTS / RECONNECT_MIN_REMAINING_S / SWAP_FLAP_GUARD_S.
     #   ⛔ `resume_handle` 수신은 **남긴다** — 세션 재개 핸들은 Gemini 가 주는 것이고
     #     로그·관측에 쓰인다. 다만 그걸로 다시 붙는 경로가 없어졌을 뿐이다.
-    await _run_one_generation(
-        client_ws,
-        state=state,
-        system_instruction=system_instruction,
-        voice=voice,
-        seed_text=seed_text,
-        settings=settings,
-        client=client,
-        live_session_factory=live_session_factory,
-        db_session_factory=db_session_factory,
-        call_id=call_id,
-        member_id=member_id,
-        tools=tools,
-    )
+    #
+    # ⭐ T22 (2026-09-12, 사장님 «대응이라도 해줘», docs/20260912_0010_통화-T22-…) — **Gemini 쪽 비정상 끊김(1006) 뒤
+    #   같은 통화에 한 번 더 붙는다.** 위 회전 기계와 다르다: 시계로 갈아끼우는 게 아니라 **저쪽이 끊었을 때만**, 통화당
+    #   1회, 앱 소켓이 살아 있을 때만이다(통화 1418: Vertex TCP 리셋 → ConnectionClosedError → APIError 1006 → 브리지 종료
+    #   → 앱엔 통화 끝. 08-25 이후 1건. 원인은 Google 측 — 우리는 복구만 한다).
+    #   ⛔ R4 무수정 — 2펌프·TaskGroup·백스톱(이 함수 바깥 asyncio.timeout 안에서 2세대도 돈다)·barge-in·종료 규약 그대로.
+    #     여기 더한 것은 «최대 2세대» 루프 하나다. 조건이 하나라도 아니면 예외를 그대로 올린다(저장 경로 무변경).
+    send_seed = True
+    while True:
+        try:
+            await _run_one_generation(
+                client_ws,
+                state=state,
+                system_instruction=system_instruction,
+                voice=voice,
+                seed_text=seed_text,
+                settings=settings,
+                client=client,
+                live_session_factory=live_session_factory,
+                db_session_factory=db_session_factory,
+                call_id=call_id,
+                member_id=member_id,
+                tools=tools,
+                send_seed=send_seed,
+            )
+            return
+        except BaseExceptionGroup as eg:
+            why = _reconnect_refusal(state, eg, asyncio.get_running_loop().time())
+            if why:
+                if _is_gemini_side_closure(eg):
+                    logger.warning("normalcall 재연결 안 함(%s) — 예외를 그대로 올린다: %r", why, eg)
+                raise
+            state.reconnects += 1
+            logger.warning(
+                "normalcall 재연결: Gemini 쪽 끊김(%r) → 같은 통화에 2세대를 연다(epoch %d→%d, 재연결 %d/%d, 세그먼트 %d)",
+                _leaf_exceptions(eg)[:1], state.session_epoch, state.session_epoch + 1,
+                state.reconnects, RECONNECT_MAX_PER_CALL, len(state.segments),
+            )
+            _reset_turn_state_for_reconnect(state)
+            seed_text = _reconnect_brief(state)
+            send_seed = True
 
 
 async def _run_one_generation(
@@ -3199,11 +3227,13 @@ async def _run_one_generation(
     call_id: int,
     member_id: int,
     tools: Optional[list] = None,
+    send_seed: bool = True,
 ) -> None:
     """연결 1개 = TaskGroup 1세대.
 
     ⚠ 예전엔 스왑이 필요하면 `_SessionSwap` 을 올려 호출부가 새 세대를 열었다. 조각이 6분이
-      되면서 그 경로가 죽었고(설계 §8-b), 지금은 **세대가 언제나 하나**다.
+      되면서 그 경로가 죽었고(설계 §8-b), 지금은 세대가 하나 — T22 부터는 **Gemini 쪽 끊김에만 최대 둘**이다.
+    send_seed: 이 세대의 첫 턴으로 `seed_text` 를 보낼지. 1세대는 선톡, T22 재연결 세대는 재개 브리프다.
     """
     state.session_epoch += 1
     # ⭐ 선톡 시드를 state 에 남긴다 — 벙어리 인사 재시드(아래 펌프)가 같은 문장을 쓴다.
@@ -3255,11 +3285,11 @@ async def _run_one_generation(
                 )
                 # 선톡 트리거: AI 에게 먼저 오프닝 한마디를 던져 "네가 먼저 인사하며 시작해"라고
                 # 시동을 건다. 이걸 안 하면 둘 다 서로 말하기만 기다려 통화가 조용히 멈춘다.
-                # ⛔ 재개 세대에는 절대 보내지 마라 — 재개는 대화가 이어지는 것이지 새로
-                #   시작하는 게 아니다. 다시 보내면 비버가 통화 중간에 또 인사한다.
-                #   재개 후에는 학습자 마이크가 계속 흐르므로 VAD 가 다음 턴을 열어준다.
-                if state.session_epoch == 1:
-                    await session.send_text_turn(seed_text)  # 선톡 트리거
+                # ⛔ 선톡 시드는 1세대만이다 — 다시 보내면 비버가 통화 중간에 또 인사한다.
+                #   T22 재연결 세대는 **재개 브리프**를 같은 자리에 1턴 보낸다(seed_text 가 그것이고 send_seed=True).
+                #   ⚠ `state.seed_text` 는 위에서 그 브리프로 바뀌지만, 벙어리 인사 재시드는 epoch==1 에만 걸린다.
+                if send_seed and seed_text:
+                    await session.send_text_turn(seed_text)  # 1세대: 선톡 트리거 / 재연결 세대: 재개 브리프
         # 🧒 TaskGroup 은 일꾼이 죽으면 그 예외들을 여러 개 담는 **봉투(ExceptionGroup)** 로
         #   감싸 던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=
         #   클라가 끊음)를 홑겹 예외로 다시 던진다 → 호출부의 평범한
@@ -3275,6 +3305,115 @@ async def _run_one_generation(
             if signal is None:
                 raise
             raise signal
+
+
+# ── T22 재연결 ──────────────────────────────────────────────────────────────── #
+RECONNECT_MAX_PER_CALL = 1          # 통화당 1회 — 두 번째 끊김은 그대로 종료(끊김이 연속이면 저쪽 장애다)
+RECONNECT_MIN_REMAINING_S = 20.0    # 남은 통화 시간이 이보다 짧으면 안 붙는다(붙여도 작별 시간뿐이다)
+# Gemini 쪽 끊김으로 보는 APIError 코드 — 1000 정상 종료 · 1006 abnormal closure(1418) · 1011 internal error
+_GEMINI_CLOSURE_CODES = frozenset({1000, 1006, 1011})
+
+
+def _leaf_exceptions(eg: BaseException) -> list[BaseException]:
+    """봉투를 끝까지 풀어 홑겹 예외 목록으로."""
+    if isinstance(eg, BaseExceptionGroup):
+        out: list[BaseException] = []
+        for e in eg.exceptions:
+            out.extend(_leaf_exceptions(e))
+        return out
+    return [eg]
+
+
+def _is_gemini_closure_leaf(exc: BaseException) -> bool:
+    """홑겹 예외 하나가 «Gemini 쪽 끊김» 인가(순수 함수).
+
+    잡는 것: `google.genai.errors.APIError`(code 1000/1006/1011 또는 메시지에 closure/closed) ·
+    `websockets.exceptions.ConnectionClosed*`(genai 가 쓰는 websockets 라이브러리) · `ConnectionResetError` · `OSError(errno 104)`.
+    ⛔ 앱 소켓 쪽(starlette `WebSocketDisconnect`, 우리 `_ClientDisconnect`, RuntimeError 등)은 거짓이다 — 앱 소켓이 끊긴 통화에
+      새 Gemini 연결을 열면 아무도 없는 통화가 된다.
+    ⚠ 한계: 타입으로 가른다. uvicorn 은 앱 소켓 끊김을 WebSocketDisconnect 로 감싸므로 websockets.ConnectionClosed 가 앱 쪽에서
+      올라오는 일은 없다(genai 만 그 라이브러리를 직접 쓴다).
+    """
+    try:
+        from google.genai import errors as _genai_errors
+        if isinstance(exc, _genai_errors.APIError):
+            code = getattr(exc, "code", None)
+            msg = str(exc).lower()
+            return code in _GEMINI_CLOSURE_CODES or "closure" in msg or "closed" in msg
+    except Exception:  # noqa: BLE001 - 라이브러리 부재는 분류만 좁힌다
+        pass
+    try:
+        from websockets.exceptions import ConnectionClosed as _WsClosed
+        if isinstance(exc, _WsClosed):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    if isinstance(exc, ConnectionResetError):
+        return True
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) == 104:
+        return True
+    return False
+
+
+def _is_gemini_side_closure(eg: BaseException) -> bool:
+    """봉투(또는 홑겹)의 예외가 **전부** Gemini 쪽 끊김인가 — 하나라도 다른 종류면 거짓(그건 진짜 오류다)."""
+    leaves = [e for e in _leaf_exceptions(eg) if not isinstance(e, asyncio.CancelledError)]
+    return bool(leaves) and all(_is_gemini_closure_leaf(e) for e in leaves)
+
+
+def _reconnect_refusal(state: _CallState, eg: BaseException, now: float) -> str:
+    """재연결을 **안 하는** 이유(빈 문자열이면 한다). 설계 §1 의 조건 ①~⑤."""
+    if not _is_gemini_side_closure(eg):
+        return "Gemini 쪽 끊김이 아님"
+    if state.should_close or state.close_seed_sent:
+        return "종료 구간"
+    if state.reconnects >= RECONNECT_MAX_PER_CALL:
+        return "통화당 상한(%d)" % RECONNECT_MAX_PER_CALL
+    remaining = state.call_duration_s - ((now - state.call_start_ts) if state.call_start_ts is not None else 0.0)
+    if remaining < RECONNECT_MIN_REMAINING_S:
+        return "남은 시간 %.0fs < %.0fs" % (remaining, RECONNECT_MIN_REMAINING_S)
+    return ""
+
+
+def _reset_turn_state_for_reconnect(state: _CallState) -> None:
+    """2세대 앞에서 **턴 상태만** 리셋한다 — 세그먼트·covered·퀴즈 상태·시계·재접지 카운터는 전부 유지.
+
+    열린 비버 턴이 있었으면 그 자막은 세그먼트로 flush 하고 버린다(이미 나간 오디오는 클라가 재생한다).
+    학습자 버퍼(pcm·전사)는 비운다 — 1세대 펌프가 죽어 있던 사이의 마이크 프레임은 버린다(v1).
+    """
+    if state.cur_beaver_text or state.cur_beaver_pcm:
+        _flush_beaver_segment(state)
+    state.cur_beaver_text = []
+    state.cur_beaver_pcm = bytearray()
+    state.cur_user_text = []
+    state.cur_user_pcm = bytearray()
+    state.turn_id = None
+    state.user_turn_open = False
+
+
+def _reconnect_brief(state: _CallState) -> str:
+    """2세대 첫 턴 — 재개 브리프(CONTROL_TAG 접두). 끊김을 사과하지 말고 하던 것을 그대로 이어가라.
+
+    표현학습: 재접지 쪽지 재료(드릴한 것·맞힌 것·틀린 것·다음 항목) + 퀴즈 창이 열려 있으면 남은 문항.
+    그 외: 마지막 비버 문장 한 줄(«직전 화제»). 큐 pending 이면 그대로 두면 다음 발화에 얹힌다.
+    """
+    head = (f"{CONTROL_TAG} 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고, 인사도 다시 하지 말고, "
+            "하던 것을 그대로 이어가라. ")
+    if state.expr_items:
+        body = _build_expression_note(state)
+        if state.expr_quiz_open and state.expr_quiz_set:
+            judged = state.expr_quiz_pass | state.expr_quiz_fail
+            remaining = [
+                state.reground_items[n - 1] for n in state.expr_quiz_set
+                if 1 <= n <= len(state.reground_items)
+                and int((state.expr_items[n - 1].get("item_id") or -1)) not in judged
+            ]
+            if remaining:
+                body += " 지금은 %s가 연 퀴즈 중이다 — 남은 문항: %s." % (
+                    CONTROL_TAG, " · ".join("«%s»" % r for r in remaining))
+        return head + body
+    last_beaver = next((s.get("text") for s in reversed(state.segments) if s.get("role") == "beaver" and s.get("text")), "")
+    return head + ("직전 화제: 네가 마지막으로 한 말은 «%s» 였다." % last_beaver if last_beaver else "")
 
 
 # 통화 신호 우선순위(B4). ⛔ 순서가 곧 규칙이다 — **종료 > 클라 끊김 > 스왑**.
