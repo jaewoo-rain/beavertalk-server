@@ -108,7 +108,7 @@ POLICY_NAMES = {
 # --------------------------------------------------------------------------- #
 QUIZ_RE = re.compile(
     r"\b(quiz|pop quiz|review|recap|let'?s see if you remember|see if you remember|"
-    r"remember what we (learned|practiced|covered)|test (you|time|what)|time to (test|check|review)|"
+    r"remember what we (learned|practiced|covered)|test (you|time|what)|(quick|little|short|small|mini) (test|check)|a test|let'?s test|time to (test|check|review)|"
     r"check (what|if) you (learned|remember)|퀴즈|복습)\b", re.I)
 NEW_ITEM_RE = re.compile(
     r"\b(new (phrase|expression|one|word)|next (one|phrase|expression)|another one|let'?s move on|"
@@ -116,7 +116,7 @@ NEW_ITEM_RE = re.compile(
 PRAISE_RE = re.compile(
     r"\b(perfect|nailed it|great( job)?|excellent|exactly|correct|you got it|there you go|right on|"
     r"well done|awesome|spot on|that'?s it|that'?s right|good job|nice(ly)?( done)?|yes!|bingo|brilliant|"
-    r"you did it|way to go|yep|yup|that'?s the one|good one|not bad)\b|(?:^|\s)(right|good|yes|okay)[.!]|맞아요|정답|잘했|완벽", re.I)
+    r"you did it|way to go|yep|yup|that'?s the one|good one|not bad)\b|(?:^|\s)(right|good|yes)[.!]|맞아요|정답|잘했|완벽", re.I)
 CORRECTION_RE = re.compile(
     r"\b(but|not quite|almost|close|nope|wrong|no,|not right|try again|one more (time|try)|remember|"
     r"polite|formal|add|missing|should be|it'?s actually|actually|instead|the word is|it was|"
@@ -127,9 +127,9 @@ QUESTION_RE = re.compile(
     r"tell me|say it|give it a (shot|try)|try (it|saying|to say|that)|can you say|what was it|"
     r"what is it in|in korean|now say|just say|repeat after me|say that|say this|try again|one more time|"
     r"come on|go ahead|your turn)\b", re.I)
-BRACKET_RE = re.compile(r"\[[^\[\]\n]{1,24}\]")   # [Country] 도 [전화 끊김] 도 — 대괄호가 소리로 나온 것 전부
+BRACKET_RE = re.compile(r"\[[^\[\]\n]{1,60}\]")   # [Country] 도 [전화 끊김] 도 — 대괄호가 소리로 나온 것 전부
 # «맞았다» 로 받아준 말 — 오답 뒤에 나오면 거짓 칭찬이다(1401 t18 "Close enough" 가 반말을 받아줬다)
-ACCEPT_RE = re.compile(r"\b(close enough|good enough|that works|i'?ll take it|fine, moving on|finally!?)\b", re.I)
+ACCEPT_RE = re.compile(r"\b(close enough|good enough|that works|i'?ll take it|fine, moving on)\b|\bfinally!", re.I)
 # 새 질문을 여는 문장 — 반응(칭찬·교정) 대조에서 뺀다
 QUESTION_LEAD_RE = re.compile(
     r"\b(how (do|would|can|about) you|how (do|would) you (say|ask)|what about|what if|what would|how about|"
@@ -229,6 +229,8 @@ class ItemRecord:
     drill_revealed: bool = False
     drill_answers: list[str] = field(default_factory=list)
     surface_uttered: bool = False     # 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔나 (= drilled 기대의 조건)
+    surface_heard: bool = False       # 서버가 «들은» 쪽 — 비버 공개, 또는 학습자 턴의 input_transcript 에 표면형이 있었다
+                                      #   (TTS 「이거 주세요」→STT 「이거 지세요」 처럼 보낸 것과 들린 것이 다르면 서버는 못 본다)
     rounds: list[QuizRound] = field(default_factory=list)
     beaver_said_correct_after_wrong: list[int] = field(default_factory=list)   # 거짓 칭찬 턴 번호
 
@@ -257,6 +259,7 @@ class Turn:
     tags: list[str] = field(default_factory=list)
     stt: str = ""                    # learner: 서버 input_transcript
     kind: str = ""                   # learner: correct|casual|idk|distractor|parrot|silence
+    item_id: int = 0                 # learner: 이 답이 향한 항목(STT 대조용)
     wall: float = 0.0                # epoch 초 — 서버 로그(gcloud timestamp)와 시간 대조용
 
 
@@ -650,6 +653,9 @@ class Session:
                 for tn in reversed(self.turns[-6:]):
                     if tn.role == "learner" and not tn.stt:
                         tn.stt = stt
+                        rec = self.records.get(tn.item_id)
+                        if rec is not None and has_surface(stt, rec.item.surface):
+                            rec.surface_heard = True
                         break
                 else:
                     if self.last_learner is not None:
@@ -722,6 +728,7 @@ class Session:
             for i in mentioned:
                 if i in self.records:
                     self.records[i].surface_uttered = True
+                    self.records[i].surface_heard = True
 
         # ③ 어느 항목인가
         item_id, how = await self.identify(text, seg, revealed_ids, is_question, new_item_cue)
@@ -946,7 +953,7 @@ class Session:
             await asyncio.sleep(PRE_SPEECH_S)
             uplink.open = True
             spoke = True
-            turn = self.add_turn("learner", reply, kind=kind)
+            turn = self.add_turn("learner", reply, kind=kind, item_id=self.current.item.item_id if self.current else 0)
             self.last_learner = turn
             self.since_learner = []
             if kind in ("correct", "parrot") and self.current is not None and norm_ko(reply) == norm_ko(self.current.item.surface):
@@ -1133,9 +1140,12 @@ def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str
     b = (call_ended + timedelta(seconds=60)).strftime("%Y-%m-%dT%H:%M:%SZ")
     flt = (f'resource.type="cloud_run_revision" AND resource.labels.service_name="{service}" '
            f'AND timestamp>="{a}" AND timestamp<="{b}" '
-           'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm")')
+           # ⭐ T17-6 «늦은 전사» 가설 확정용 — 학습자 전사 조각(«👤 user:») 과 턴 flush(«👤 USER[t..]») 를 시간순으로 같이 붙인다.
+           #   재개 시드 주입·제어 태그 스크럽 줄도(T17-1 벙어리 턴 규칙).
+           'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm" '
+           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그")')
     try:
-        out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "400",
+        out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "1000",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
                              capture_output=True, text=True, encoding="utf-8", timeout=120, shell=(os.name == "nt"))
         return [ln for ln in (out.stdout or "").splitlines() if ln.strip()] or [f"(로그 없음) {out.stderr[:200]}"]
@@ -1171,13 +1181,18 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         db_drilled = row.get("drilled_call_id") == cid
         db_passed = row.get("quiz_passed_at") is not None
         exp_drilled = rec.surface_uttered
+        # 보낸 것과 들린 것이 다르면(STT) 서버는 표면형을 못 봤다 — drilled 은 어느 쪽이든 허용(~), 대신 표시한다
+        stt_amb = exp_drilled and not rec.surface_heard
         exp_passed = rec.expected_passed
         rp = res_by_id.get(iid, {}).get("passed")
         amb = rec.expectation_ambiguous
-        ok = (db_drilled == exp_drilled) and (amb or db_passed == exp_passed)
+        drilled_ok = (db_drilled == exp_drilled) or stt_amb
+        ok = drilled_ok and (amb or db_passed == exp_passed)
         judge_ok &= bool(ok)
         exp_s = ("passed~" if amb else "passed") if exp_passed else "—"
-        L.append(f"| {rec.k} | {rec.item.surface} | {rec.policy} | {rec.ident} | {'✔' if exp_drilled else '✖(표면형 미출현)'} | {'✔' if db_drilled else '✖'} | "
+        drilled_s = ("✔~(STT 불일치)" if stt_amb else "✔") if exp_drilled else "✖(표면형 미출현)"
+        amb = amb or (stt_amb and db_drilled != exp_drilled)
+        L.append(f"| {rec.k} | {rec.item.surface} | {rec.policy} | {rec.ident} | {drilled_s} | {'✔' if db_drilled else '✖'} | "
                  f"{exp_s} | {'passed' if db_passed else '—'} | {rp} | {'~' if (ok and amb) else ('✔' if ok else '✖')} |")
     extra = [iid for iid, row in sc.db_rows.items() if row.get("drilled_call_id") == cid and iid not in sess.records]
     for iid in extra:
@@ -1293,9 +1308,13 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     L.append("")
 
     if server_logs is not None:
-        L.append("## 7. 서버 로그 (gcloud) — 마지막 판정 ms · arm")
+        L.append("## 7. 서버 로그 (gcloud) — 마지막 판정 ms · arm · 큐 · 학습자 전사 조각/flush · 재개 시드")
+        def _cnt(needle: str) -> int:
+            return sum(1 for ln in server_logs if needle in ln)
+        L.append(f"- 재개 시드 주입 {_cnt('대화 재개 시드 주입(')}회 · 제어 태그 스크럽만(시드 생략) {_cnt('제어 태그 스크럽만')}회 · "
+                 f"폴백 채택 {_cnt('provenance=stt_fallback')} · 폴백 기각 {_cnt('퀴즈 폴백 기각')} · 👤 user 조각 {_cnt('👤 user:')} · USER flush {_cnt('USER[t')}")
         L.append("```")
-        L.extend(server_logs[:200])
+        L.extend(server_logs[:1000])
         L.append("```")
         L.append("")
 
@@ -1329,7 +1348,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         "records": {str(iid): {"surface": r.item.surface, "k": r.k, "policy": r.policy, "ident": r.ident,
                                "intro_pre_reveal": r.intro_pre_reveal, "drill_attempts": r.drill_attempts,
                                "drill_answers": r.drill_answers, "drill_revealed": r.drill_revealed,
-                               "surface_uttered": r.surface_uttered,
+                               "surface_uttered": r.surface_uttered, "surface_heard": r.surface_heard,
                                "rounds": [{"n": x.n, "anchored": x.anchored, "revealed": x.revealed, "answers": x.answers,
                                            "spontaneous_correct": x.spontaneous_correct, "hint_path": x.hint_path} for x in r.rounds],
                                "false_praise_turns": r.beaver_said_correct_after_wrong}
