@@ -350,6 +350,71 @@ async def test_rejudging_the_overlap_never_demotes_a_pass(monkeypatch) -> None:
     assert st.expr_judged_upto == 8
 
 
+def test_the_window_marks_where_the_context_ends_and_this_span_begins() -> None:
+    """⛔ 2차 반려 P2 — 겹침이 회차 **중간**에서 시작하면 창이 «복창(U)·승인(B)» 부터라 공개(B)는 창 밖이다.
+    경계선이 없으면 판정기가 «(오답) 항목을 학습자가 스스로 냈고 승인받았다, 공개 없음» 으로 읽어 **앵무새가
+    통과로 승격**된다. 새는 방향이 통과뿐이라(강등은 서버가 막는다) 더 위험하다.
+    """
+    st = _state()
+    st.segments = [
+        {"turn_index": 0, "role": "beaver", "text": "How do you say Please help me?"},
+        {"turn_index": 1, "role": "user", "text": "음..."},
+        {"turn_index": 2, "role": "beaver", "text": "It's 도와주세요. Say it."},        # 공개 — 창 밖
+        {"turn_index": 3, "role": "user", "text": "도와주세요"},                        # 복창 — 겹침
+        {"turn_index": 4, "role": "beaver", "text": "Great!"},                          # 승인 — 겹침
+        {"turn_index": 5, "role": "beaver", "text": "Quiz time! How much is it?"},      # 이번 구간
+        {"turn_index": 6, "role": "user", "text": "이거 얼마예요?"},
+    ]
+    st.expr_judged_upto = 5
+    out, first_seen, cut = cs._expression_transcript_window(st, since=3, keep_from=5)
+    assert first_seen == 3 and cut is False
+    lines = out.splitlines()
+    k = lines.index(cs.EXPR_WINDOW_BOUNDARY_LINE)
+    assert lines[k - 1] == "선생님: Great!" and lines[k + 1].startswith("선생님: Quiz time!")
+    assert "도와주세요. Say it." not in out, "시험 전제 — 공개는 창 밖이다"
+
+
+def test_no_boundary_line_when_there_is_no_context() -> None:
+    st = _state()
+    st.segments = [{"turn_index": i, "role": "user", "text": f"발화{i}"} for i in range(3)]
+    out, _, _ = cs._expression_transcript_window(st, since=0, keep_from=0)
+    assert cs.EXPR_WINDOW_BOUNDARY_LINE not in out
+
+
+def test_the_instruction_excludes_rounds_that_began_in_the_context_span() -> None:
+    out = _instr()
+    assert f"«{cs.EXPR_WINDOW_BOUNDARY_LINE}» 줄이 있으면 그 **위는 문맥**" in out
+    assert "문맥 구간에서 **시작된** 회차는 판정하지 마라 — 이미 판정됐다" in out
+    assert "문맥 구간에서 (오답) 항목이 다시 보여도 새 회차가 아니다" in out
+
+
+def test_the_rules_come_first_and_the_dynamic_listing_last() -> None:
+    """⭐ 2차 반려 P1-1 — 목록(동적)이 두 번째 줄이면 표시가 바뀔 때마다 접두 100자부터 달라진다. 정적 접두가
+    판정마다 같아야 implicit caching 이 걸릴 여지가 생긴다. 효과는 측정 몫, 손해는 없다.
+    """
+    plain = cs._expression_progress_instruction(ITEMS_1397, "한국어", "영어(English)")
+    marked = cs._expression_progress_instruction(
+        ITEMS_1397, "한국어", "영어(English)", covered_nums=[1, 2], passed_ids={2}, failed_ids={1},
+    )
+    head_p, tail_p = plain.rsplit("[항목 목록]", 1)
+    head_m, tail_m = marked.rsplit("[항목 목록]", 1)
+    assert head_p == head_m, "정적 접두가 표시 유무로 달라졌다 — 캐시가 매번 깨진다"
+    assert tail_p != tail_m and "(이미 드릴함 · 통과)" in tail_m
+    assert plain.rstrip().endswith("7. 네 — 뜻: yes / I see"), "목록이 맨 끝이어야 한다"
+    assert "■ phase" in head_p, "규칙은 전부 목록 앞에"
+
+
+def test_the_final_judge_timeout_is_two_seconds_with_its_reason_written_down() -> None:
+    """2차 반려 P1-2 — 실측점 하나(6.2k=1.2s 초과)뿐이고 새 입력(≈6.4k)이 그보다 크다. 조각2 경합 최악 3초 중
+    여유 1초를 남기는 2.0초. 첫 실통화의 «마지막 판정 %.0fms» 로그를 보고 다시 정한다.
+    """
+    assert cs.EXPR_FINAL_JUDGE_TIMEOUT_S == 2.0
+    src = pathlib.Path(cs.__file__).read_text(encoding="utf-8")
+    assert "6.2k 자 → 1,201ms" in src and "여유 1.0초" in src
+    assert "요약 1.0~1.4초" not in src.split("EXPR_FINAL_JUDGE_TIMEOUT_S = 2.0")[0].rsplit("# ⭐⭐ **조각 끝 마지막 판정의 상한**", 1)[-1], \
+        "옛 근거(요약 소요 유추)가 상수 주석에 남아 있다"
+
+
 def test_overlap_is_dropped_before_the_must_see_region_and_is_not_a_cut() -> None:
     """⛔ 상한을 넘으면 겹침부터 버린다 — 본 구간(커서 이후)이 우선이고, 겹침이 떨어진 건 절단이 아니다
     (커서가 전진해야 한다). 반대로 커서 이후가 떨어지면 절단이다.
@@ -407,15 +472,17 @@ async def test_a_failed_judgement_does_not_advance_the_cursor(monkeypatch, outco
 
 
 @pytest.mark.asyncio
-async def test_a_cut_input_does_not_advance_the_cursor(monkeypatch) -> None:
-    """⛔ 반려 P2-A(codex) — 첫 성공 판정 입력이 12k 를 넘으면 앞을 자르고도 커서를 끝까지 밀어
-    **잘린 세그먼트가 영구히 미판정**이었다(30×500자 → 앞 sentinel 미포함인데 cursor=30/30).
-    안 본 머리 위로 커서를 넘기지 마라 — 그대로 두면 다음 판정 입력에 다시 들어간다.
+async def test_a_cut_input_limits_the_loss_to_once_and_logs_it(monkeypatch, caplog) -> None:
+    """⛔ 1차 반려 P2-A(codex) 는 «잘렸으면 커서 불전진» 이었다. 2차 반려(fable)가 그 잠복을 짚었다:
+    커서 0 에서 절단 → 다음도 since 0 → 창은 **앞에서만 커지므로** 잘린 머리는 어디에도 다시 들어가지 않고,
+    그 뒤 모든 판정이 12k 최대 입력 → 마지막 판정 확정 타임아웃. «다음 판정에 다시 들어간다» 는 거짓이었다.
+    ⇒ 커서는 «본 끝» 까지 간다 — 손실은 [커서, first_seen) **그 한 번**이고 경고 로그에 세그먼트 번호로 남는다.
+    ⚠ 도달성: 1397 = 316초에 3.4k ⇒ 12k ≈ 16분 — 5분 소켓에선 못 채운다(잠복). 싸서 고쳤다.
     """
     st = _state()
     st.expr_ctx = {"client": object(), "model": "m", "instruction": "i"}
     st.segments = [{"turn_index": 0, "role": "user", "text": "SENTINEL"}] + [
-        {"turn_index": i, "role": "user", "text": "가" * 500} for i in range(1, 31)
+        {"turn_index": i, "role": "user", "text": f"[{i:02d}]" + "가" * 496} for i in range(1, 31)
     ]
     seen: dict = {}
 
@@ -424,14 +491,19 @@ async def test_a_cut_input_does_not_advance_the_cursor(monkeypatch) -> None:
         return _Out(drilled=[1], phase="drill")
 
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _capture)
-    await cs._expression_progress_sidecar(st)
+    with caplog.at_level("WARNING", logger=cs.logger.name):
+        await cs._expression_progress_sidecar(st)
     assert "SENTINEL" not in seen["prompt"], "시험 전제 — 머리가 잘려야 한다"
-    assert st.expr_judged_upto == 0, "안 본 머리 위로 커서가 넘어갔다"
-    assert cs._expr_covered_ids(st) == [1], "판정 결과는 그대로 얹힌다 — 커서만 안 움직인다"
-    # 다음 판정(입력이 상한 안이면)은 처음부터 다시 본다
-    st.segments = st.segments[:3]
+    first_seen = next(i for i in range(1, 31) if f"[{i:02d}]" in seen["prompt"])
+    assert st.expr_judged_upto == 31, "커서는 «본 끝» 까지 — 손실을 한 번으로 한정한다"
+    assert cs._expr_covered_ids(st) == [1]
+    assert any(f"세그먼트 0~{first_seen - 1} 미판정" in r.getMessage() for r in caplog.records), \
+        "잘린 구간이 세그먼트 번호로 로그에 남아야 한다"
+    # 다음 판정은 «본 끝» 에서(겹침만큼 앞에서) 시작한다 — 다시 12k 가 아니다
+    st.segments += [{"turn_index": 31, "role": "user", "text": "다음"}]
     await cs._expression_progress_sidecar(st)
-    assert "SENTINEL" in seen["prompt"] and st.expr_judged_upto == 3
+    assert "SENTINEL" not in seen["prompt"] and "[26]" not in seen["prompt"]
+    assert "[27]" in seen["prompt"] and "다음" in seen["prompt"] and st.expr_judged_upto == 32
 
 
 @pytest.mark.asyncio

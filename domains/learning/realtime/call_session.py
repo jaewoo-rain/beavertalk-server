@@ -268,6 +268,12 @@ EXPR_TRANSCRIPT_MAX_CHARS = 12000
 #   ⛔ 겹침은 **입력에만** 붙는다 — 커서는 그대로 «본 끝» 까지 전진하고 뒤로 안 돈다.
 #   ⛔ 상한을 넘으면 겹침부터 버린다 — 본 구간(커서 이후)이 우선이다.
 EXPR_JUDGE_OVERLAP_SEGMENTS = 4
+# ⭐ 겹침과 이번 구간 사이의 **경계선**(2026-09-11, 2차 반려 P2). 없으면 판정기가 어디부터가 이번 구간인지
+#   모른다 — 겹침이 회차 중간에서 시작하면(창이 «복창(U)·승인(B)» 부터라 공개(B)가 창 밖) 판정기가
+#   «(오답) 항목을 학습자가 스스로 냈고 승인받았다, 공개는 없다» 로 읽어 **앵무새가 통과로 승격**된다.
+#   새는 방향이 통과뿐(강등은 서버가 막는다)이라 더 위험하다. 지시문의 «문맥 구간에서 시작된 회차는 판정하지
+#   마라» 가 이 줄을 가리킨다 — 둘을 함께 바꿔라.
+EXPR_WINDOW_BOUNDARY_LINE = "―― 여기부터 이번 구간 (위는 문맥) ――"
 # ⭐⭐ **조각 끝 마지막 판정의 상한**(초). 늦으면 있는 것만 쓰고 진행한다.
 #   ⛔ 없애지 마라 — 무한정 기다리면 LLM 이 죽었을 때 **조각2 가 안 열린다.** 통화가 멈추는
 #     게 진도 하나보다 나쁘다(R5).
@@ -275,21 +281,19 @@ EXPR_JUDGE_OVERLAP_SEGMENTS = 4
 # ⛔⛔ **조각 경계의 빈 시간은 «놀고 있는» 시간이 아니다**(2026-09-10 정정). 그 구간에서
 #   이어하기 요약이 fire-and-forget 으로 돌고 있고, **그 경합에서 이미 한 번 졌다** —
 #   위 :2062 주석의 실측이 그것이다(07:00:48 저장 → 07:00:51 이어하기 → 07:00:53 요약 완성).
-#   그 코드가 «슬롯이 없으면 즉석 생성» 보정을 갖고 있다는 사실 자체가 경합의 증거다.
+#   최악 사례 간격 **3초**. 여기서 저장이 늦으면 조각2 의 선별이 옛 DB 를 읽어 같은 항목을 또
+#   가르친다(재드릴 1회 — 선별상 정상 경로, 데이터 오염은 아니다).
 #
-#   ⚠ 여기서 저장이 늦으면 **조각2 의 선별이 옛 DB 를 읽어 같은 항목을 또 가르친다** —
-#     우리가 고치려던 바로 그 증상이다. 최악 사례 간격이 3초였으므로:
-#         1.2초 상한 → 여유 1.8초   (2.0초였다면 여유 1.0초뿐)
-#   ⛔ **«요약과 비슷할 테니 상한 안에 든다» 로 읽지 마라 — 그 논리는 틀렸다.** 실측 요약이
-#     1.0~1.4초인데 상한이 1.2초라 **상단이 이미 상한을 넘는다.** 게다가 이 사이드카의 입력은
-#     요약보다 크다(전사 전량 최대 12,000자) ⇒ **더 느릴 것으로 봐야 한다.**
-#   ⇒ 1.2초의 근거는 «판정이 그 안에 끝난다» 가 **아니라** «조각2 경합에 남길 여유» 다.
-#     상한을 넘는 것은 **예상된 정상 동작**이고, 그때 잃는 것은 «마지막 구간 판정» 하나다
-#     (재드릴 1회 — 선별상 정상 경로). 반대로 상한을 늘리면 저장이 조각2 의 읽기보다 늦어
-#     **같은 항목을 또 가르치는 일이 늘어난다.** 그래서 짧은 쪽으로 튼다.
-#   ⚠ 최악 사례의 피해는 **데이터 오염이 아니라 재드릴 1회**다(재드릴은 선별상 정상 경로 —
-#     `save_expression_progress` 주석). 그래서 상한 + 회귀로 가고 진행한다.
-EXPR_FINAL_JUDGE_TIMEOUT_S = 1.2
+# ## 왜 2.0초인가 (2026-09-11, T14 2차 반려 P1 — bt-back·fable)
+#   실측점은 **하나**다: 1397 에서 옛 지시문 2.3k + 전사 전체 3.9k ≈ **6.2k 자 → 1,201ms**.
+#   T14 뒤의 입력은 새 지시문 4.4k(fable 실측, 실제 뜻·예문 포함) + 창(커서 이후 + 겹침 4 ≈ 2.0k)
+#   ≈ **6.4k** — 전사에서 뺀 만큼(−1.9k)을 규칙 블록이 도로 먹었다(+2.1k). 초과 사례보다 크다.
+#   1.2초였던 근거(«축소해서 상한 안에 든다»)는 **수치로 안 선다.** 그래서:
+#         2.0초 상한 → 조각2 경합 최악 3초 중 **여유 1.0초**
+#   마지막 퀴즈 유실(1.2초면 **확정**)이 조각2 재드릴 위험(여유 1초)보다 비싸다 — 그게 T14 가
+#   없애려던 증상이다. 계측(«마지막 판정 %.0fms»)은 이미 있다 — **첫 실통화에서 그 줄을 보고 다시 정한다.**
+#   ⛔ «요약이 1.0~1.4초니 비슷하겠지» 같은 유추로 이 수치를 다시 만지지 마라 — 실측점만 근거다.
+EXPR_FINAL_JUDGE_TIMEOUT_S = 2.0
 # 시간 폴백 간격 = clamp(통화길이 / 2.5, 120s, 240s).
 #   5분(300s) → 120s → 2회 = 옛 0.5·0.8 지점 2회와 실질 동일(5분 하위호환)
 #   15분(900s) → 240s → 3회 + 압축 arm ≈ 6회 = 0.40회/분(5분과 같은 빈도)
@@ -418,6 +422,9 @@ _CONTROL_TAG_RE = re.compile(r"\[[^\]]{0,40}\]")
 #       누출이다 — 우리 제어 태그는 전부 이 꼴이고, 비버는 그걸 따옴표째 인용하며 읽는다
 #       (실측 '"[시스템]" 종료' — 위 «맨 앞으로 앵커하지 마라» 지뢰가 그 얘기다). 그래서 «맨 앞»
 #       판정은 따옴표·공백을 건너뛰고 본다: '"[Closing]" Bye' 도 맨 앞이다.
+#   ⚠ daec11a 주석의 «[Quiz Time] 은 두 단어라 걸린다» 보증은 **문장 안에서는 이제 없다** — 영문 다단어
+#     대괄호는 문장 안이면 자리표시([Your Name])로 통과한다(2차 반려 문서 항목). 실증은 없다. 옛 사고(706·870)는
+#     전부 **맨 앞·한글**이었고 그 둘은 그대로 걸린다. 다음 사람은 daec11a 주석을 믿지 마라.
 _PLACEHOLDER_TAG_RE = re.compile(r"^\[[A-Za-z][A-Za-z' ]*\]$")
 _LEADING_JUNK_RE = re.compile(r"""^[\s"“”'‘’(]*""")
 
@@ -1217,7 +1224,6 @@ def _expression_progress_instruction(
     passed = {int(x) for x in passed_ids}           # item_id
     failed = {int(x) for x in failed_ids}           # item_id
     rows = []
-    any_mark = False
     for i, it in enumerate(items, 1):
         row = f"{i}. {it.get('obj')}"
         if it.get("des"):
@@ -1236,24 +1242,22 @@ def _expression_progress_instruction(
             marks.append("오답")
         if marks:
             row += "  (" + " · ".join(marks) + ")"
-            any_mark = True
         rows.append(row)
     listing = chr(10).join(rows) or "(없음)"
+    # ⚠ 문구는 표시가 있든 없든 같다 — 이 문장은 규칙 블록(정적) 안에 있다.
     server_fact = (
         "  ⚠ 항목 옆의 **(이미 드릴함)** 표시는 서버가 확인한 사실이다. 이 표시가 있는 항목은 이번 전사에 "
         "처음 나와도 드릴이 아니라 **이미 배운 것을 다시 묻는 것**이다 — 퀴즈 구간이면 passed·failed 를 "
         "판정해라. (통과)·(오답)은 지금까지의 결과다 — 이번 구간의 새 회차만 판정하고, (통과)를 failed 로 "
-        "되돌리지 마라."
-    ) if any_mark else (
-        "  ⚠ 항목 옆에 **(이미 드릴함)** 표시가 붙어 오면 그건 서버가 확인한 사실이다 — 그 항목은 이번 전사에 "
-        "처음 나와도 드릴이 아니라 이미 배운 것을 다시 묻는 것이다. 지금은 표시가 없다 = 아직 아무 항목도 안 다뤘다."
+        "되돌리지 마라. 표시가 없는 항목은 아직 안 다룬 것이다."
     )
     L = locale_label
+    # ⭐ **배치 = 규칙(정적) 앞 · 항목 목록(동적) 뒤**(2026-09-11, 2차 반려 P1-1). 목록은 표시가 바뀔 때마다
+    #   달라진다 — 그게 두 번째 줄에 있으면 접두 100자부터 판정마다 다르다. 정적 접두가 같아야 implicit
+    #   caching 이 걸릴 여지가 생긴다. 효과는 측정 몫이고 손해는 없다. ⛔ 목록을 다시 앞으로 올리지 마라.
     return chr(10).join([
-        f"너는 {target_language} 표현학습 통화의 진도 판정기다. 아래 대화 전사를 읽고 항목을 "
-        "**번호로만** 분류해라. 문장을 만들지 마라.",
-        "[항목 목록]",
-        listing,
+        f"너는 {target_language} 표현학습 통화의 진도 판정기다. 대화 전사를 읽고 **맨 아래 [항목 목록]** 의 "
+        "항목을 **번호로만** 분류해라. 문장을 만들지 마라.",
         "",
         "판정은 두 가지뿐이다: **배웠는가(drilled)** / **맞췄는가(passed·failed)**.",
         "",
@@ -1303,7 +1307,14 @@ def _expression_progress_instruction(
         "",
         "■ 목록에 없는 번호를 지어내지 마라. 확실하지 않으면 그 항목의 passed·failed 를 비워라.",
         "",
+        f"■ 문맥 구간 — 전사에 «{EXPR_WINDOW_BOUNDARY_LINE}» 줄이 있으면 그 **위는 문맥**이고 이미 판정된 구간이다.",
+        "  문맥 구간에서 **시작된** 회차는 판정하지 마라 — 이미 판정됐다. 문맥 구간에서 (오답) 항목이 다시 보여도 "
+        "새 회차가 아니다. 이번 구간에서 **새로 낸** 문항만 판정해라.",
+        "",
         "■ phase — 전사 **마지막 구간**이 드릴이면 \"drill\", 퀴즈면 \"quiz\", 모호하면 빈 문자열.",
+        "",
+        "[항목 목록]",
+        listing,
     ])
 
 
@@ -1384,7 +1395,7 @@ def _expression_transcript_window(
     Args:
         since: 이 세그먼트 번호부터 담는다(T14-C1). 마지막 판정은 **직전 통화중 판정 이후
             구간만** 넣는다 — 새 지시문이 옛것의 2배라 전사 전체를 넣으면 1397 처럼 상한을
-            넘긴다(1,201ms > 1.2s → 마지막 145초가 미판정). 앞 구간의 결과는 state 에
+            넘긴다(1,201ms > 당시 상한 1.2s → 마지막 145초가 미판정). 앞 구간의 결과는 state 에
             **합집합**으로 이미 있다 — 그게 이 축소의 전제다.
 
     ⚠ 너무 길면 **뒤에서 자른다**(비용·지연 방어). 앞이 잘려도 진도는 안 잃는다 —
@@ -1419,7 +1430,12 @@ def _expression_transcript_window(
         if idx >= keep_from:          # 겹침이 떨어진 건 절단이 아니다 — 본 구간이 우선이다
             cut = True
     first_seen = rows[0][0] if rows else len(state.segments)
-    out = chr(10).join([r[1] for r in rows] + tail)
+    body = [r[1] for r in rows] + tail
+    if rows and rows[0][0] < keep_from:
+        # 겹침(문맥)이 실제로 들어갔을 때만 경계선을 꽂는다 — 이번 구간 첫 줄 바로 앞에.
+        pos = next((k for k, r in enumerate(rows) if r[0] >= keep_from), len(rows))
+        body.insert(pos, EXPR_WINDOW_BOUNDARY_LINE)
+    out = chr(10).join(body)
     if len(out) > EXPR_TRANSCRIPT_MAX_CHARS:            # 꼬리 버퍼 혼자 상한을 넘는 극단 — 글자로 자른다
         out = out[-EXPR_TRANSCRIPT_MAX_CHARS:]
         cut = True
@@ -1463,9 +1479,13 @@ async def _expression_progress_sidecar(state: _CallState) -> None:
     if ctx is None:
         return
     # ⭐ 이 판정이 «어디까지» 봤는지 기록한다 — 다음 판정은 거기서부터(겹침만큼 앞에서) 넣는다(C1).
-    #   ⛔ 커서는 **꼭 봐야 하는 구간을 안 잘랐을 때만** 전진한다(P2-A). 잘렸으면 cursor..first_seen 을
-    #     아무도 안 봤다 — 커서를 그 위로 넘기면 그 세그먼트는 영구히 미판정이다. 그대로 두면 다음 판정
-    #     입력에 다시 들어간다(합집합이라 다시 봐도 해롭지 않다). 겹침이 떨어진 건 절단이 아니다.
+    #   ⚠ 절단(꼭 봐야 하는 구간의 머리가 상한에 밀려 떨어짐)이면 cursor..first_seen 은 아무도 안 봤다.
+    #     ⛔ 그래도 커서는 «본 끝» 까지 간다(2026-09-11, 2차 반려 P2 잠복). 1차 고침은 커서를 **안 움직였는데**
+    #       그러면 커서 0 에서 절단 → 다음도 since 0 → 창은 앞에서만 커지므로 잘린 머리는 **어디에도 다시
+    #       들어가지 않고**, 그 뒤 모든 판정이 12k 최대 입력이 돼 마지막 판정이 확정 타임아웃이었다(«다음 판정에
+    #       다시 들어간다» 는 거짓이었다). 손실을 **그 한 번**으로 한정하고 미판정 구간을 로그에 남긴다.
+    #     겹침이 떨어진 건 절단이 아니다(keep_from). 도달성: 1397 = 316초에 3.4k ⇒ 12k ≈ 16분 — 5분 소켓에선
+    #     못 채운다. 잠복이지만 싸서 고쳤다.
     cursor = state.expr_judged_upto
     since = max(0, cursor - EXPR_JUDGE_OVERLAP_SEGMENTS)
     seen_end = len(state.segments)
@@ -1486,13 +1506,12 @@ async def _expression_progress_sidecar(state: _CallState) -> None:
             return
         before = (len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail))
         _apply_expression_progress(state, result)
-        if not cut:
-            state.expr_judged_upto = max(state.expr_judged_upto, seen_end)
-        else:
+        if cut:
             logger.warning(
-                "normalcall 표현학습 판정: 입력 절단(since=%d 첫포함=%d 끝=%d) — 커서 %d 유지, 안 본 머리는 다음 판정에 다시 들어간다",
-                since, first_seen, seen_end, state.expr_judged_upto,
+                "normalcall 표현학습 판정: 입력 절단 — 세그먼트 %d~%d 미판정(상한 %d자에 밀림). 커서 %d→%d, 손실은 이 한 번이다",
+                cursor, max(cursor, first_seen - 1), EXPR_TRANSCRIPT_MAX_CHARS, cursor, seen_end,
             )
+        state.expr_judged_upto = max(state.expr_judged_upto, seen_end)
         phase = str(getattr(result, "phase", "") or "")
         # ⛔ phase 는 **커서 세대와 묶는다**(P2-B, codex): 오래 걸린 옛 판정(@10 quiz)이 최신(@20 drill) 뒤에
         #   도착하면 phase 가 quiz 로 역전돼 다음 머리에 거짓 «현재 구간» 이 붙는다 — LLM 오판 없이
@@ -1554,7 +1573,7 @@ async def _final_expression_progress(state: _CallState) -> None:
     try:
         # ⭐ T14-C1 **입력 축소** — 사이드카가 스스로 «커서 이후 + 겹침» 만 넣는다. 전사 전체를 넣으면
         #   새 지시문(옛것의 2배) 아래서 1397 처럼 상한을 넘긴다(1,201ms → 마지막 145초 미판정).
-        #   앞 구간 결과는 state 에 합집합으로 이미 있다. 상한(1.2초)은 그대로다.
+        #   앞 구간 결과는 state 에 합집합으로 이미 있다. 상한은 EXPR_FINAL_JUDGE_TIMEOUT_S 주석.
         await asyncio.wait_for(
             _expression_progress_sidecar(state),
             timeout=EXPR_FINAL_JUDGE_TIMEOUT_S,
@@ -2724,7 +2743,7 @@ async def run_call(
             #     ① 마지막 판정 LLM  ② state 갱신  ③ DB 쓰기  ④ 조각2 가 DB 에서 뽑는다
             #   ⛔ ①을 빼면 **마지막 arm 이후 구간이 판정 없이 버려지고**, 그 구간에서 맞힌
             #     항목을 조각2 가 다시 가르친다.
-            #   ⛔ 그렇다고 쓰기를 ①에 **걸지 않는다** — 상한(1.2초) 안에 안 오면 있는 것만
+            #   ⛔ 그렇다고 쓰기를 ①에 **걸지 않는다** — 상한(EXPR_FINAL_JUDGE_TIMEOUT_S) 안에 안 오면 있는 것만
             #     쓰고 진행한다. 이 함수는 예외를 밖으로 안 내보낸다(R5).
             await _final_expression_progress(state)
             try:
