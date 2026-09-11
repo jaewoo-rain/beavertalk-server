@@ -1296,11 +1296,25 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         c = sc.cur
         les = c.get("lesson") or {}
         pre, post = c.get("me_pre") or {}, c.get("me_post") or {}
+        # ③ 목록 크기 정본: 서버 로그 «normalcall cur 표현학습: … 항목 N(복습 M)» > 통화 전 예측. 결과 행(다룬 것)은 참고
+        srv_n = srv_m = None
+        for ln in (server_logs or []):
+            m_ = re.search(r"cur 표현학습.*?항목\s*(\d+)\s*\(복습\s*(\d+)\)", ln)
+            if m_:
+                srv_n, srv_m = int(m_.group(1)), int(m_.group(2))
+        size_src = f"서버로그 목록 {srv_n}(복습 {srv_m})" if srv_n is not None else f"예측 새 {c.get('predicted_new')} · 복습 {c.get('predicted_review')}"
+        c["list_new"] = (srv_n - srv_m) if srv_n is not None else c.get("predicted_new")
+        c["list_review"] = srv_m if srv_n is not None else c.get("predicted_review")
         L.append(f"- **cur 차시** no={les.get('no')} {les.get('code')} · 통화 전 drilled {pre.get('items_drilled')}/{pre.get('items_total')} "
                  f"→ 후 {post.get('items_drilled')}/{post.get('items_total')} · status {pre.get('status')}→{post.get('status')} · "
-                 f"이번 통화 새 항목 {len(c.get('new_ids') or [])} · 복습 {len(c.get('review_ids') or [])}"
+                 f"이번 통화 목록 = {size_src} · 결과 행(다룬 것) 새 {len(c.get('new_ids') or [])} · 복습 {len(c.get('review_ids') or [])}"
                  f"{' (review 플래그 없음 → 통화 전 drilled 로 추정)' if c.get('review_estimated') else ''}"
                  f"{' · ⚠ API 오류: ' + str(c.get('api_error')) if c.get('api_error') else ''}")
+        # 누적 컬럼 단조 확인 — 이번 통화 passed 인 항목은 cur_member_item.quiz_passed_at 이 있어야 하고, 이전 통화 passed 가 지워지면 안 된다
+        cum = c.get("cum_rows") or {}
+        broke = [iid for iid, row in sc.db_rows.items() if row.get("quiz_passed_at") and iid in cum and cum[iid].get("quiz_passed_at") is None]
+        L.append(f"- 누적 컬럼(cur_member_item) 단조 확인: 이번 통화 passed {sum(1 for r in sc.db_rows.values() if r.get('quiz_passed_at'))}건 중 "
+                 f"누적 quiz_passed_at 없음 {len(broke)}건{' ⛔ ' + str(broke) if broke else ' ✔'} · 회원 누적 drilled {sum(1 for r in cum.values() if r.get('drilled_at'))} · passed {sum(1 for r in cum.values() if r.get('quiz_passed_at'))}")
     first_b = next((t for t in sess.turns if t.role == "beaver"), None)
     empty_b = [t for t in sess.turns if t.role == "beaver" and not t.text.strip()]
     dbl = [t for i, t in enumerate(sess.turns) if t.role == "beaver" and i > 0 and sess.turns[i - 1].role == "beaver" and sess.turns[i - 1].text.strip() and t.text.strip()]
@@ -1651,13 +1665,52 @@ def cur_status(api: CurApi) -> Optional[dict]:
     return me
 
 
-def cur_reset(api: CurApi, member_id: int, lesson_no: int, quiet: bool = False) -> bool:
-    """--reset / --fix-items 공용: 차시 고정. 옛 learning_item 고정(28개 passed) 대신 cur_member_* 초기화 + progress=lesson_no."""
+def cur_reset_db(sf, member_id: int, lesson_no: int) -> dict:
+    """DB 직접 초기화(--env-root 의 DATABASE_URL_POOL): cur_member_item·cur_member_lesson·cur_call(그 회원 통화) 삭제 +
+    cur_member_progress.lesson_id = (ko, no=lesson_no) — 없으면 INSERT. **이 회원 행만** 만진다."""
+    from sqlalchemy import delete, select
+    from domains.learning.models.call import Call
+    from domains.learning.models.curriculum import CurCall, CurLesson, CurMemberItem, CurMemberLesson, CurMemberProgress
+
+    with sf() as db:
+        lesson = db.scalar(select(CurLesson).where(CurLesson.no == lesson_no, CurLesson.language == LANGUAGE))
+        if lesson is None:
+            sys.exit(f"⛔ cur_lesson no={lesson_no} 가 없다")
+        my_calls = [c for c in db.scalars(select(Call.call_id).where(Call.member_id == member_id)).all()]
+        n_call = db.execute(delete(CurCall).where(CurCall.call_id.in_(my_calls))).rowcount if my_calls else 0
+        n_item = db.execute(delete(CurMemberItem).where(CurMemberItem.member_id == member_id)).rowcount
+        n_les = db.execute(delete(CurMemberLesson).where(CurMemberLesson.member_id == member_id)).rowcount
+        prog = db.scalar(select(CurMemberProgress).where(CurMemberProgress.member_id == member_id,
+                                                         CurMemberProgress.language == LANGUAGE))
+        if prog is None:
+            db.add(CurMemberProgress(member_id=member_id, language=LANGUAGE, lesson_id=lesson.lesson_id))
+            action = "INSERT"
+        else:
+            prog.lesson_id = lesson.lesson_id
+            action = "UPDATE"
+        db.commit()
+    return {"deleted": {"cur_call": n_call, "cur_member_item": n_item, "cur_member_lesson": n_les},
+            "progress": f"{action} lesson_id={lesson.lesson_id}(no={lesson_no})", "via": "db"}
+
+
+def cur_reset(api: CurApi, member_id: int, lesson_no: int, quiet: bool = False, sf=None) -> bool:
+    """--reset / --fix-items 공용: 차시 고정. API(/__dev/cur-reset) 먼저 — CurrentAdmin 게이트라 testfree 는 403 → DB 폴백.
+    (계정을 admin 으로 올리지 않는다 — 비밀번호가 공개 저장소에 있는 계정.)"""
     try:
         res = api.reset(member_id=member_id, lesson_no=lesson_no)
     except CurApiError as exc:
-        print(f"⛔ POST /__dev/cur-reset 실패: {exc}")
-        return False
+        if exc.status in (401, 403, 404) and sf is not None:
+            print(f"cur-reset: API {exc.status} → DB 직접 초기화로 폴백")
+            try:
+                res = cur_reset_db(sf, member_id, lesson_no)
+            except SystemExit:
+                raise
+            except Exception as exc2:  # noqa: BLE001
+                print(f"⛔ DB 초기화 실패: {exc2}")
+                return False
+        else:
+            print(f"⛔ POST /__dev/cur-reset 실패: {exc}")
+            return False
     if not quiet:
         print(f"cur-reset: member={member_id} lesson_no={lesson_no} → {res}")
     return True
@@ -1671,16 +1724,19 @@ def read_cur_outcome(sf, api: CurApi, call_id: Optional[int], ctx: dict, me_pre:
 
     sc = Score()
     sc.cur = {"lesson": ctx["lesson"], "me_pre": me_pre, "me_post": None, "quiz_items": [], "new_ids": [], "review_ids": [],
-              "review_estimated": False, "api_error": None}
+              "review_estimated": False, "api_error": None, "cum_rows": {},
+              # ③ 이번 통화 목록 크기는 통화 전 예측이 정본(결과 행은 «안 다룬 복습» 이 빠진다). --logs 면 서버 줄이 덮는다.
+              "predicted_new": len(ctx["predicted_new"]),
+              "predicted_review": min(max(CUR_ITEMS_PER_CALL - len(ctx["predicted_new"]), 0), len(ctx["review_pool"]))}
     with sf() as db:
         rows = db.scalars(select(CurMemberItem).where(CurMemberItem.member_id == MEMBER_ID)).all()
         for r in rows:
-            prev = sc.db_rows.get(r.item_id)
-            # 같은 item 이 여러 차시 행에 있으면 «이 통화가 쓴 행» 우선, 아니면 최신 갱신
-            if prev is None or r.drilled_call_id == call_id or (prev.get("drilled_call_id") != call_id and (r.updated_at or datetime.min) >= (prev.get("updated_at") or datetime.min)):
-                sc.db_rows[r.item_id] = {"drilled_call_id": r.drilled_call_id, "drilled_at": r.drilled_at,
-                                        "quiz_passed_at": r.quiz_passed_at, "quiz_failed_count": r.quiz_failed_count,
-                                        "lesson_id": r.lesson_id, "updated_at": r.updated_at}
+            prev = sc.cur["cum_rows"].get(r.item_id)
+            # 누적 컬럼(회원×차시×항목) — 판정 열이 아니라 «단조(되돌아가지 않음)» 확인용. 같은 item 이 여러 차시 행이면 최신 갱신
+            if prev is None or (r.updated_at or datetime.min) >= (prev.get("updated_at") or datetime.min):
+                sc.cur["cum_rows"][r.item_id] = {"drilled_call_id": r.drilled_call_id, "drilled_at": r.drilled_at,
+                                                "quiz_passed_at": r.quiz_passed_at, "quiz_failed_count": r.quiz_failed_count,
+                                                "lesson_id": r.lesson_id, "updated_at": r.updated_at}
         if call_id:
             r = db.execute(sql("SELECT call_type, status, total_time, summary, usage_engine, usage_json, usage_in_audio, usage_in_text, "
                                "usage_out_audio, usage_out_text FROM call WHERE call_id=:c"), {"c": call_id}).first()
@@ -1712,6 +1768,11 @@ def read_cur_outcome(sf, api: CurApi, call_id: Optional[int], ctx: dict, me_pre:
                 else:
                     is_review = iid in ctx["drilled_before"]           # 통화 전 이미 drilled 였던 항목 = 복습(추정)
                 (sc.cur["review_ids"] if is_review else sc.cur["new_ids"]).append(iid)
+                # ② **이번 통화 판정의 정본 = cur_call.items 스냅샷(= quiz_items)**: 목록에 있으면 이번 통화에 다뤘다(drilled),
+                #    passed/failed 도 이번 통화 것. 누적 컬럼(drilled_call_id 는 첫 통화 값)으로 보면 복습 항목이 전부 ✖ 로 보인다(1435).
+                sc.db_rows[iid] = {"drilled_call_id": call_id, "drilled_at": True,
+                                   "quiz_passed_at": True if q.get("passed") else None, "failed": bool(q.get("failed")),
+                                   "review": is_review, "lesson_id": None}
             sc.cur["review_estimated"] = not has_flag
         except CurApiError as exc:
             sc.cur["api_error"] = (sc.cur["api_error"] or "") + f" | result: {exc}"
@@ -1861,48 +1922,61 @@ def scenario_lesson_cycle(args, sf, api: CurApi, token: str, voice: Voice, picke
         print(f"  [{ '✔' if ok else '✖' }] {step}: 기대 {exp} / 실측 {got}")
 
     print(f"\n════════ 시나리오 lesson-cycle (차시 {lesson_no}) ════════")
-    ok0 = cur_reset(api, MEMBER_ID, lesson_no)
+    ok0 = cur_reset(api, MEMBER_ID, lesson_no, sf=sf)
     me0 = cur_status(api) or {}
+    reset_ok = ok0 and (me0.get("lesson") or {}).get("no") == lesson_no and (me0.get("items_drilled") in (0, None))
     add("reset", f"차시 no={lesson_no} · drilled 0 · status learning", f"no={(me0.get('lesson') or {}).get('no')} · drilled {me0.get('items_drilled')} · {me0.get('status')}",
-        ok0 and (me0.get("lesson") or {}).get("no") == lesson_no and (me0.get("items_drilled") in (0, None)))
+        reset_ok)
+    if not reset_ok:
+        # ⛔ 잘못된 차시로 통화 3건($1.3)을 태우지 않는다 — 여기서 멈춘다
+        print("⛔ reset 이 기대와 다르다 → 시나리오 중단(통화 안 함)")
+        _write_scenario_table(args, lesson_no, rows, [])
+        return 1
     total = me0.get("items_total") or 0
 
     sess1, sc1, _, _ = one_call(args, sf, api, token, voice, picker, course="expression", lesson_no=lesson_no, run_no=1)
-    n1 = len(sc1.cur.get("new_ids") or []); r1 = len(sc1.cur.get("review_ids") or [])
+    n1 = sc1.cur.get("list_new"); r1 = sc1.cur.get("list_review")          # 목록 크기(서버 로그 > 예측) — 결과 행이 아니다
     post1 = sc1.cur.get("me_post") or {}
     add("표현학습 1통", f"새 {min(CUR_ITEMS_PER_CALL, total)} · 복습 0 · drilled {min(CUR_ITEMS_PER_CALL, total)}/{total}",
         f"새 {n1} · 복습 {r1} · drilled {post1.get('items_drilled')}/{post1.get('items_total')} · 하네스 드릴 {len(sess1.drilled_order)} · 판정 {'✔' if sc1.judge_ok else '✖'}",
         n1 == min(CUR_ITEMS_PER_CALL, total) and r1 == 0)
 
     sess2, sc2, _, _ = one_call(args, sf, api, token, voice, picker, course="expression", lesson_no=lesson_no, run_no=2)
-    n2 = len(sc2.cur.get("new_ids") or []); r2 = len(sc2.cur.get("review_ids") or [])
+    n2 = sc2.cur.get("list_new"); r2 = sc2.cur.get("list_review")
     post2 = sc2.cur.get("me_post") or {}
     remain = max(total - min(CUR_ITEMS_PER_CALL, total), 0)
     add("표현학습 2통", f"새 {remain} · 복습 {max(CUR_ITEMS_PER_CALL - remain, 0)} · status expression_done",
         f"새 {n2} · 복습 {r2} · drilled {post2.get('items_drilled')}/{post2.get('items_total')} · status {post2.get('status')} · 판정 {'✔' if sc2.judge_ok else '✖'}",
         n2 == remain and r2 == max(CUR_ITEMS_PER_CALL - remain, 0) and post2.get("status") == "expression_done")
 
-    sess3, sc3, _, ok3 = one_call(args, sf, api, token, voice, picker, course="freetalk", lesson_no=lesson_no, run_no=3)
+    # ④ 프리토킹 **직전의 현재 차시** 를 /cur/me 로 잡아 둔다 — 프리토킹 뒤 포인터가 넘어가므로 상태는 이 차시로 본다(1436 은 차시 4 를 봐서 None)
+    me_ft = cur_status(api) or {}
+    ft_no = (me_ft.get("lesson") or {}).get("no") or lesson_no
+    ft_level = (me_ft.get("lesson") or {}).get("level_no")
+    sess3, sc3, _, ok3 = one_call(args, sf, api, token, voice, picker, course="freetalk", lesson_no=ft_no, run_no=3)
     post3 = sc3.cur.get("me_post") or {}
-    add("프리토킹 1통", "열림(잠금 아님) · 정상 종료", f"locked={sess3.locked} · 종료 {sess3.end_reason}", (not sess3.locked) and ok3)
+    add("프리토킹 1통", f"차시 {ft_no} 열림(잠금 아님) · 정상 종료", f"locked={sess3.locked} · 종료 {sess3.end_reason}", (not sess3.locked) and ok3)
     try:
-        lessons = api.lessons(level=(sc3.cur.get("lesson") or {}).get("level_no"))
-        st = next((l.get("status") for l in lessons if l.get("no") == lesson_no), None)
+        lessons = api.lessons(level=ft_level)
+        st = next((l.get("status") for l in lessons if l.get("no") == ft_no), None)
     except Exception as exc:  # noqa: BLE001
-        st, lessons = f"?({exc})", []
-    add("차시 상태", "freetalk_done", str(st), st == "freetalk_done")
-    add("/cur/me 다음 차시", f"no={lesson_no + 1}", f"no={(post3.get('lesson') or {}).get('no')} · status {post3.get('status')}",
-        (post3.get("lesson") or {}).get("no") == lesson_no + 1)
+        st = f"?({exc})"
+    add(f"차시 {ft_no} 상태", "freetalk_done", str(st), st == "freetalk_done")
+    add("/cur/me 다음 차시", f"no={ft_no + 1}", f"no={(post3.get('lesson') or {}).get('no')} · status {post3.get('status')}",
+        (post3.get("lesson") or {}).get("no") == ft_no + 1)
+    _write_scenario_table(args, lesson_no, rows, [sess1.call_id, sess2.call_id, sess3.call_id])
+    return 0 if all(d for _, _, _, d in rows) else 1
 
+
+def _write_scenario_table(args, lesson_no: int, rows: list, call_ids: list) -> None:
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
     path = out / f"{stamp}_scenario_lesson{lesson_no}.md"
     lines = [f"# 시나리오 lesson-cycle — 차시 {lesson_no} ({stamp})", "", "| 단계 | 기대 | 실측 | 판정 |", "|---|---|---|---|"]
     lines += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in rows]
-    lines += ["", f"통화: {sess1.call_id} · {sess2.call_id} · {sess3.call_id}"]
+    lines += ["", "통화: " + (" · ".join(str(c) for c in call_ids) or "(없음)")]
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"\n시나리오 표: {path}")
-    return 0 if all(d for _, _, _, d in rows) else 1
 
 
 # --------------------------------------------------------------------------- #
@@ -1964,7 +2038,7 @@ def main() -> None:
     if args.status:
         cur_status(api)
     if args.fix_items or args.reset:
-        if not cur_reset(api, MEMBER_ID, args.lesson):
+        if not cur_reset(api, MEMBER_ID, args.lesson, sf=sf):
             sys.exit(2)
         cur_status(api)
     if not (args.probe or args.runs or args.scenario):
@@ -1991,7 +2065,7 @@ def main() -> None:
     for run_no in range(1, args.runs + 1):
         print(f"\n════════ run {run_no}/{args.runs} · course={args.course} · lesson={args.lesson} ════════")
         if args.reset_each and not args.no_reset:
-            cur_reset(api, MEMBER_ID, args.lesson, quiet=False)
+            cur_reset(api, MEMBER_ID, args.lesson, quiet=False, sf=sf)
         sess, sc, path, ok = one_call(args, sf, api, token, voice, picker, course=args.course, lesson_no=args.lesson,
                                       run_no=run_no, expect_locked=args.expect_locked)
         runs_ok += int(ok)
