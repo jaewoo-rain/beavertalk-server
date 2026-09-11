@@ -257,6 +257,7 @@ class Turn:
     tags: list[str] = field(default_factory=list)
     stt: str = ""                    # learner: 서버 input_transcript
     kind: str = ""                   # learner: correct|casual|idk|distractor|parrot|silence
+    wall: float = 0.0                # epoch 초 — 서버 로그(gcloud timestamp)와 시간 대조용
 
 
 # --------------------------------------------------------------------------- #
@@ -616,7 +617,7 @@ class Session:
         print(line, flush=True)
 
     def add_turn(self, role: str, text: str, **kw) -> Turn:
-        t = Turn(len(self.turns), role, self.now(), text, **kw)
+        t = Turn(len(self.turns), role, self.now(), text, wall=time.time(), **kw)
         self.turns.append(t)
         return t
 
@@ -1062,6 +1063,62 @@ def read_db_outcome(sf, call_id: Optional[int], items: dict[int, Item]) -> Score
     return sc
 
 
+# ⭐ T16 — 서버가 «[시스템] 지금 퀴즈» 큐를 얹어 퀴즈를 연다(docs/20260911_2000_표현학습-T16-…md §1). 그 로그 줄의
+#   시각과 비버의 앵커 턴(하네스가 문구로 잡은 것)을 대조해 «큐→앵커 지연» 과 «큐 없이 난 앵커» 를 센다.
+#   ⚠ 문구는 expr-build 가 정한다 — «normalcall 표현학습 퀴즈 큐» 로 시작하게 부탁했다. 구현 뒤 call_session.py 에서 확인해 맞춘다.
+QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
+QUIZ_CUE_MATCH_WINDOW_S = 60.0      # 큐 뒤 이 안에 난 앵커만 그 큐의 것으로 본다(다음 학습자 발화 시작에 얹히므로 보통 수 초)
+_LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
+
+
+def parse_quiz_cues(log_lines: list[str]) -> list[tuple[float, str]]:
+    """gcloud `value(timestamp,textPayload)` 줄들 → [(epoch, payload)] — 퀴즈 큐 줄만. 시각 없는 줄은 버린다."""
+    out: list[tuple[float, str]] = []
+    for ln in log_lines or []:
+        m = _LOG_TS_RE.match(ln.strip())
+        if not m or QUIZ_CUE_LOG_PREFIX not in m.group(2):
+            continue
+        ts = m.group(1)
+        try:
+            dt = datetime.strptime(ts[:26], "%Y-%m-%dT%H:%M:%S.%f" if "." in ts else "%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            continue
+        out.append((dt.replace(tzinfo=timezone.utc).timestamp(), m.group(2)))
+    out.sort()
+    return out
+
+
+def match_quiz_cues(cues: list[tuple[float, str]], anchors: list[tuple[int, float]],
+                    window_s: float = QUIZ_CUE_MATCH_WINDOW_S) -> dict:
+    """큐(서버) ↔ 앵커(비버 문구) 시간 대조.
+
+    Args:
+        cues: [(epoch, payload)] 시간순.
+        anchors: [(turn_n, epoch)] — 하네스가 앵커로 본 비버 턴.
+    Returns:
+        {"pairs": [(cue_epoch, turn_n, delay_s)], "cues_without_anchor": [cue_epoch…],
+         "anchors_without_cue": [turn_n…]} — 큐 하나에 앵커 하나(큐 뒤 window 안, 시간순 첫 것).
+    """
+    pairs: list[tuple[float, int, float]] = []
+    used: set[int] = set()
+    lonely_cues: list[float] = []
+    for c_t, _ in cues:
+        hit = None
+        for tn, a_t in sorted(anchors, key=lambda x: x[1]):
+            if tn in used or a_t < c_t:
+                continue
+            if a_t - c_t <= window_s:
+                hit = (tn, a_t)
+            break
+        if hit is None:
+            lonely_cues.append(c_t)
+        else:
+            used.add(hit[0])
+            pairs.append((c_t, hit[0], round(hit[1] - c_t, 1)))
+    lonely_anchors = [tn for tn, _ in anchors if tn not in used]
+    return {"pairs": pairs, "cues_without_anchor": lonely_cues, "anchors_without_cue": lonely_anchors}
+
+
 def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str) -> list[str]:
     """(선택) gcloud logging read — 표현학습 판정·arm 줄만."""
     a = (call_started - timedelta(seconds=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1127,16 +1184,41 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     L.append("")
 
     # ── 퀴즈 주기 ──────────────────────────────────────────────── #
+    cue_match: dict | None = None
+    if server_logs is not None:
+        cues = parse_quiz_cues(server_logs)
+        anchor_walls = [(tn, sess.turns[tn].wall) for tn, _ in sess.anchors if 0 <= tn < len(sess.turns)]
+        cue_match = match_quiz_cues(cues, anchor_walls)
+        cue_match["cues"] = cues
     L.append("## 2. 퀴즈 주기 — 앵커가 3·6·9번째 항목 직후에만 났나")
     if not sess.anchors:
         L.append(f"- 앵커 0회 (드릴 {len(sess.drilled_order)}개) — " +
                  ("✖ 3개 이상 드릴했는데 퀴즈가 없었다" if len(sess.drilled_order) >= QUIZ_GROUP else "묶음이 안 차 판단 불가"))
         sc.period_ok = len(sess.drilled_order) < QUIZ_GROUP
     else:
+        cue_by_turn = {tn: (c_t, d) for c_t, tn, d in cue_match["pairs"]} if cue_match else {}
         for tn, cnt in sess.anchors:
             ok = cnt > 0 and cnt % QUIZ_GROUP == 0
             sc.period_ok &= ok
-            L.append(f"- 턴 {tn}: {cnt}번째 항목 뒤 {'✔' if ok else '✖'}")
+            if server_logs is None or not (cue_match and cue_match["cues"]):
+                cue_s = ""          # 로그를 안 붙였거나 큐 줄이 0(T16 전) — 열을 비운다(아래 요약 줄이 이유를 말한다)
+            elif tn in cue_by_turn:
+                cue_s = f" · 큐→앵커 {cue_by_turn[tn][1]:.1f}s"
+            else:
+                cue_s = " · ⛔큐 없이 난 앵커"
+            L.append(f"- 턴 {tn}: {cnt}번째 항목 뒤 {'✔' if ok else '✖'}{cue_s}")
+    if server_logs is not None:
+        # ⭐ T16 열 — 서버 큐(로그) ↔ 비버 앵커(문구) 대조. 큐 줄이 0이면 «구현 전이거나 문구가 다르다» 로 읽어라.
+        n_c = len(cue_match["cues"]) if cue_match else 0
+        if n_c == 0:
+            L.append(f"- 서버 퀴즈 큐 로그 0줄 (접두 «{QUIZ_CUE_LOG_PREFIX}») — T16 배포 전이거나 로그 문구가 다르다")
+        else:
+            delays = [d for _, _, d in cue_match["pairs"]]
+            L.append(f"- 서버 퀴즈 큐 {n_c}회 · 앵커로 이어진 큐 {len(cue_match['pairs'])} "
+                     f"(지연 {', '.join(f'{d:.1f}s' for d in delays) or '—'}) · 큐 뒤 앵커 없음 {len(cue_match['cues_without_anchor'])} · "
+                     f"큐 없이 난 앵커 {len(cue_match['anchors_without_cue'])}")
+            for c_t in cue_match["cues_without_anchor"]:
+                L.append(f"  - ⛔ 큐 {datetime.fromtimestamp(c_t, timezone.utc).strftime('%H:%M:%S')}Z 뒤 {QUIZ_CUE_MATCH_WINDOW_S:.0f}s 안에 비버가 퀴즈를 열지 않았다")
     quizzed = [sess.records[i] for i in sess.drilled_order if sess.records[i].quizzed]
     L.append(f"- 퀴즈에 오른 항목 {len(quizzed)}/{len(sess.drilled_order)}: " +
              ", ".join(f"{r.item.surface}(회차{len(r.rounds)}{'' if all(x.anchored for x in r.rounds) else '·앵커없음' + str(sum(1 for x in r.rounds if not x.anchored))})" for r in quizzed))
@@ -1225,7 +1307,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     raw = {
         "call_id": cid, "duration_min": duration_min, "end_reason": sess.end_reason, "errors": sess.errors,
         "anchors": sess.anchors, "drilled_order": sess.drilled_order,
-        "turns": [{"n": t.n, "role": t.role, "t": round(t.t, 1), "text": t.text, "kind": t.kind, "stt": t.stt, "tags": t.tags}
+        "quiz_cue_match": ({k: v for k, v in cue_match.items() if k != "cues"} | {"cues": [[t, p] for t, p in cue_match["cues"]]})
+        if cue_match else None,
+        "turns": [{"n": t.n, "role": t.role, "t": round(t.t, 1), "wall": round(t.wall, 3), "text": t.text, "kind": t.kind, "stt": t.stt, "tags": t.tags}
                   for t in sess.turns],
         "records": {str(iid): {"surface": r.item.surface, "k": r.k, "policy": r.policy, "ident": r.ident,
                                "intro_pre_reveal": r.intro_pre_reveal, "drill_attempts": r.drill_attempts,
