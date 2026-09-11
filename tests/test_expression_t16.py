@@ -646,3 +646,30 @@ def test_transcript_pieces_do_not_count_in_a_normal_call() -> None:
     st.reground_items = ["도와주세요"]
     cs._on_learner_transcript_piece(st, "도와주세요.")
     assert st.covered_nums == [] and st.cur_user_text == ["도와주세요."]
+
+
+# --------------------------------------------------------------------------- #
+# T18 — STT 가 어절 안에 공백을 넣어도(「반갑습니 다」) 격식 표지를 본다
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("text,surface,exp", [
+    ("만나서 반갑습니 다.", "만나서 반갑습니다", True),        # 1407 #7 — 어절 안 공백
+    ("만나서 반가워", "만나서 반갑습니다", False),             # 반말은 그대로 기각
+    ("이거 얼마 예요?", "이거 얼마예요?", True),
+    ("잘 부탁드립니 다. 오케이", "잘 부탁드립니다", True),     # 절 끝
+    ("요리 좋아", "도와주세요", False),                        # «요» 는 끝만
+    ("도와 주 세요", "도와주세요", True),
+])
+def test_keeps_formality_survives_intra_word_spaces(text: str, surface: str, exp: bool) -> None:
+    assert quiz_judge.keeps_formality(text, surface) is exp
+
+
+def test_server_judge_and_fallback_both_accept_the_spaced_polite_answer() -> None:
+    """서버 판정 V4 와 폴백 V4 가 같은 함수를 쓴다 — 둘 다 「반갑습니 다」 를 통과시킨다."""
+    st = _state()
+    st.expr_items = [{"item_id": 21, "obj": "만나서 반갑습니다", "des": "nice to meet you", "ex": None}]
+    st.reground_items = ["만나서 반갑습니다"]
+    span = _span([("B", "Nice to meet you?"), ("U", "만나서 반갑습니 다."), ("B", "Next.")])
+    res = cs._server_judge_quiz(st, span, [1])
+    assert res["passed"] == [1] and st.expr_quiz_pass == {21}
+    ok, _ = cs._verify_stt_fallback(st, span, 1, 1)
+    assert ok is True

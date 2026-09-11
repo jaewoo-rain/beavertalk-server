@@ -141,6 +141,8 @@ def mentions(text: str | None, label: str | None) -> bool:
 # 격식 표지 — 긴 것부터(«주세요» 가 «세요» 보다, «세요» 가 «요» 보다 앞). 표면형이 이걸로 끝나면 정중형이다.
 # bt-back 확정(T16 codex P1-3): 요(어요·아요·예요·세요·주세요 전부) / 니다(습니다·ㅂ니다) / 십시오 / 죠.
 _POLITE_MARKERS = ("니다", "십시오", "죠", "요")
+# 절 경계 — 문장부호로 가른다(normalize 는 부호를 지우므로 그 전에 갈라야 «절의 끝» 이 남는다).
+_CLAUSE_SPLIT_RE = re.compile(r"[.!?…~,;:]+")
 
 
 def polite_marker(surface: str | None) -> str | None:
@@ -167,8 +169,14 @@ def keeps_formality(text: str | None, surface: str | None) -> bool:
     m = polite_marker(surface)
     if m is None:
         return True
-    for word in (text or "").split():
-        if normalize(word).endswith(m):
+    raw = text or ""
+    # ⭐ T18 (통화 1407 #7) — STT 가 「만나서 반갑습니 다.」 처럼 **어절 안에 공백**을 넣는다. 원문 어절만 보면 어느 어절도
+    #   «니다» 로 끝나지 않아 자발 정답이 반말로 기각됐다. 그래서 세 겹으로 본다 — 원문 어절 끝 / 문장부호로 가른 절을
+    #   normalize(공백 제거·NFC)한 끝 / 전체를 normalize 한 끝. 어느 하나라도 표지로 끝나면 참.
+    #   ⚠ «요» 는 여전히 **끝**만 본다 — 「요리 좋아」 의 «요» 는 어디로 봐도 끝이 아니다.
+    candidates = list(raw.split()) + _CLAUSE_SPLIT_RE.split(raw) + [raw]
+    for c in candidates:
+        if normalize(c).endswith(m):
             return True
     return False
 
