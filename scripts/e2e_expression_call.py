@@ -127,6 +127,9 @@ QUESTION_RE = re.compile(
     r"tell me|say it|give it a (shot|try)|try (it|saying|to say|that)|can you say|what was it|"
     r"what is it in|in korean|now say|just say|repeat after me|say that|say this|try again|one more time|"
     r"come on|go ahead|your turn)\b", re.I)
+QUIZ_CLOSE_RE = re.compile(
+    r"\b(done with the (quiz|test|review)|(quiz|test|review) is (over|done)|end of the (quiz|test)|"
+    r"that'?s (it for|the end of) the (quiz|test)|no more quiz|back to (new|learning))\b", re.I)
 BRACKET_RE = re.compile(r"\[[^\[\]\n]{1,60}\]")   # [Country] 도 [전화 끊김] 도 — 대괄호가 소리로 나온 것 전부
 # «맞았다» 로 받아준 말 — 오답 뒤에 나오면 거짓 칭찬이다(1401 t18 "Close enough" 가 반말을 받아줬다)
 ACCEPT_RE = re.compile(r"\b(close enough|good enough|that works|i'?ll take it|fine, moving on)\b|\bfinally!", re.I)
@@ -692,7 +695,8 @@ class Session:
         if BRACKET_RE.search(text):
             tags.append("[대괄호]")
         mentioned = surfaces_in(text, self.items)
-        quiz_anchor = bool(QUIZ_RE.search(text))
+        # 퀴즈 «닫는» 선언("We're done with the quiz")은 앵커가 아니다 — 1409 t28 오탐
+        quiz_anchor = bool(QUIZ_RE.search(text)) and not QUIZ_CLOSE_RE.search(text)
         new_item_cue = bool(NEW_ITEM_RE.search(text))
         is_question = bool(QUESTION_RE.search(text))
 
