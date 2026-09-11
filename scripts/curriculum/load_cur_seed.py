@@ -29,6 +29,7 @@ from sqlalchemy import create_engine, select, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from core.config import settings  # noqa: E402
+import db.registry  # noqa: E402,F401  — 전 모델 등록(관계 매퍼가 Member·Call 을 찾는다)
 from domains.learning.models.curriculum import (  # noqa: E402
     CurFunction, CurItem, CurLesson, CurLessonFunction, CurLessonItem, CurTopic,
 )
