@@ -75,12 +75,11 @@ def test_chunk_without_example_is_still_rendered_and_gets_no_example_tail() -> N
     assert "예문" not in out.split("[진행 절차]")[0].split("[오늘의 표현")[1]
 
 
-def test_item_shows_meaning_or_else_example_not_both() -> None:
-    """T21-A — 뜻이 있으면 예문은 싣지 않는다(토큰). 뜻이 없을 때만 예문이 그 자리를 맡는다."""
-    out = _expr(items=[ITEMS[2]])                       # des + ex → 뜻만
-    assert "뜻: to go" in out and "예문:" not in out
-    out2 = _expr(items=[{"obj": "가다", "des": None, "ex": "학교에 가요"}])
-    assert '예문: "학교에 가요"' in out2
+def test_item_with_example_shows_it_alongside_the_meaning() -> None:
+    """D9 — 어휘·문법 모두 예문. 뜻이 있어도 예문은 싣는다(T21-A 의 «뜻이 있으면 생략» 은 fable 검수로 되돌림 —
+    문법 항목엔 예문이 유일한 문장 견본이다)."""
+    out = _expr(items=[ITEMS[2]])                       # des + ex → 둘 다
+    assert "뜻: to go" in out and '예문: "학교에 가요"' in out
 
 
 def test_meaning_is_shown_when_present() -> None:
@@ -282,6 +281,8 @@ def test_explanations_are_ordered_in_the_learner_native_language() -> None:
     out = _expr()
     assert "는 영어(English)로 한다" in out
     assert "네 반응·지시는 계속 영어(English)다 — 학습자 언어에 끌려가지 마라" in out
+    # 1258~1261 실측 처방 — 드리프트 복귀 한 문장(fable T21-A 검수로 복원)
+    assert "턴이 쌓일수록 리액션부터 한국어로 물든다 — 매 턴 첫 턴과 같은 비율로 돌아와라" in out
 
 
 # --------------------------------------------------------------------------- #
@@ -569,7 +570,7 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # --------------------------------------------------------------------------- #
 # ⛔ 이게 터지면 대본이 바뀐 것이다 — 의도한 변경이면 README §8 에 적고 여기 두 값을 갱신한다.
 #   일반 통화(build_system_instruction)의 94개 바이트 동일은 tests/test_prompt_common_snapshot.py 가 따로 지킨다.
-_EXPR_FROZEN = ("c4ee737015affeb4a7248976aa2e5dd5005de9cd4195d454e2c30c27a807926f", 3795)
+_EXPR_FROZEN = ("c2edb0b46a7968f545f9b220588bdd9245809069042dbad4c43a4b93121bdfd7", 3857)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
