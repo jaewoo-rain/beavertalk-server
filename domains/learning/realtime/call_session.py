@@ -320,64 +320,20 @@ REGROUND_VOICE_RMS = _settings.LIVE_REGROUND_VOICE_RMS
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
 _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 
-# normal 통화 전용 종료 시드. 레벨테스트는 persona_prompt.close_seed_leveltest(대본 소유자).
-# close_tag 는 통화별 난수 태그(new_close_tag) — system_instruction 과 **반드시 같은 값**.
-#
-# ⛔⛔ **"이 턴은 예외다" 줄을 빼지 마라**(2026-08-22, 실측 call_id=1137·1097).
-#   이 시드는 시스템 지시문과 **정면으로 싸운다**:
-#     · 규칙 2 는 라벨부터 "대화 지속(**매우 중요**)" 이고 "곧바로 새 화제나 질문을
-#       하나 던져 이어가라" 고 한다.
-#     · 규칙 3 [착지] 는 "맨 끝을 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라)".
-#     · 이 시드는 정반대 — "질문 시작하지 말고 평서문으로 작별해라".
-#   시스템 지시문 2개 vs 대화 중간 턴 1개다. 우선순위를 안 적어 주면 모델이 진 쪽을
-#   고른다 — 실측 두 가지 실패가 **같은 원인**이었다:
-#     call 1097: 질문 던져놓고 곧장 "Whatever. I'm busy." (둘을 반반 따름)
-#     call 1137: **아무 말도 안 함**(응답 1토큰) → 서버가 작별을 기다리다
-#                SEED_TO_HANGUP_S 백스톱으로 강제 종료 → 사용자에겐 무음 종료.
-#   ⇒ 우선순위를 **여기서** 선언한다. "반드시 소리 내어" 는 침묵 실패용 안전판이다.
-#
-#   ⛔ 규칙 2(_RULE_CLOSE_PROTOCOL)에 예외절을 다는 걸로 고치지 마라 —
-#     docs/prompts/README.md §4 지뢰밭 첫 줄이다. 지시문에 종료 개념을 넣으면 모델이
-#     그걸 **수단 삼아 혼자 통화를 끊는다**(call 706·852·870). 시드는 서버가 보낼
-#     때만 존재하므로 여기에 쓰면 모델이 스스로 만들어낼 수 없다.
-#   ⚠ 규칙 원문을 그대로 옮겨 적지 않고 **기능으로 가리켰다**("이어가기·질문 착지
-#     규칙") — 리터럴은 소리로 새어나갈 씨앗이 된다(원칙 2, call 782).
-#   ⚠ 테스트 다수가 "통화 시간이 다 됐다" 를 시드 식별 앵커로 쓴다 — 그 문장은 그대로
-#     두고 뒤에 삽입했다.
-def _close_seed(close_tag: str) -> str:
-    return (
-        f"{close_tag} (이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라 — 내용만 행동으로 반영하라.) "
-        "통화 시간이 다 됐다. "
-        "이 턴은 예외다. 대화를 이어가는 것은 지금 네 일이 아니고, 이어가기·질문 착지 "
-        "규칙보다 이 지시가 앞선다. 반드시 소리 내어 작별을 말하고 끝내라. "
-        "학습자의 마지막 말에 새로 답하거나 새 화제·질문을 시작하지 말고, "
-        "짧게 한마디로만 받아 준 뒤 자연스럽게 핑계를 대고 '다음에 또 하자'는 취지로 작별해라 "
-        "— 작별 말투는 네 캐릭터 그대로(억지로 따뜻하게·공손하게 만들지 마라). "
-        "작별 인사(평서문)로 끝내라 — 질문으로 끝내지 마라. 1~2문장. "
-        "★ 절대 대괄호 안 문구나 '통화가 종료'·'세션'·'종료' 같은 말을 입에 담지 마라 — 사람처럼 "
-        "평범하게 작별해라(로봇 같은 종료 멘트 금지)."
-    )
+# ⭐ 잠금 분리(2026-09-12): _NUDGE_SEED_1, _NUDGE_SEED_2, _NUDGE_SEED_1_LEVELTEST, _close_seed → core/prompts/locked/seeds.py 로 **이동**(복사 아님 — 바이트 그대로).
+from core.prompts.locked.seeds import (
+    expression_quiz_cue,
+    expression_quiz_fallback_instruction,
+    NUDGE_SEED_1_LEVELTEST,
+    NUDGE_SEED_1_NORMAL,
+    NUDGE_SEED_2_NORMAL,
+    close_seed_normal,
+)
+_NUDGE_SEED_1 = NUDGE_SEED_1_NORMAL
+_NUDGE_SEED_2 = NUDGE_SEED_2_NORMAL
+_NUDGE_SEED_1_LEVELTEST = NUDGE_SEED_1_LEVELTEST
+_close_seed = close_seed_normal
 
-
-# 무음 넛지 시드(A2). 종료 시드와 같은 파이프(send_text_turn)로 idle 에서만 주입한다.
-# ⛔ 접두어는 CONTROL_TAG(종료 아님) — 종료 태그와 절대 공유하지 마라. 옛날엔 둘 다
-#   "[시스템]" 이라 넛지가 종료 신호로 오독됐다(본문에 "작별하지 말고"라고 써놨는데도
-#   접두어가 이겼다). 근거: docs/20260727_1710_통화-조기종료-종료태그-분리와-안전망.md
-_NUDGE_SEED_1 = (
-    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
-    "가볍게 새 화제로 한 문장만 이어가라."
-)
-_NUDGE_SEED_2 = (
-    f"{CONTROL_TAG} 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 모국어로 "
-    "'거기 있어? 잘 들려?'를 한 번만 부드럽게 물어라."
-)
-# 레벨테스트 1단 넛지: 일반과 달리 '새 화제로 이어가라' 대신 **방금 질문을 다시 묻는다** —
-# 작별하지 말고 방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며 모국어로 다시 묻게 한다.
-_NUDGE_SEED_1_LEVELTEST = (
-    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
-    "방금 한 질문을 더 쉽게 바꾸거나 선택지를 주며(예/아니오 또는 둘 중 고르기) "
-    "모국어로 딱 한 번만 다시 물어라."
-)
 
 # ── 자기낭독 안전망(2026-07-27) ────────────────────────────────────────── #
 # 비버가 서버 제어 태그를 **소리 내어 읽으면**, 그 출력이 자기 컨텍스트에 남아 다음 턴에
@@ -1047,7 +1003,6 @@ class _CallFinished(Exception):
     """통화 정상 종료(작별 후/백스톱) 내부 신호."""
 
 
-
 def _release_persisted_pcm(state: _CallState, upto: int) -> int:
     """저장이 끝난 세그먼트 [0, upto) 의 PCM 바이트를 놓아준다. 해제한 바이트 수를 반환.
 
@@ -1287,12 +1242,7 @@ def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = Fa
     locale_label = ctx.get("locale_label") or "학습자의 모국어"
     target = ctx.get("target_language") or "한국어"
     labels = " ".join("«%s»" % state.reground_items[n - 1] for n in nums if 1 <= n <= len(state.reground_items))
-    lead = "아까 틀린" if retry else "방금 배운"
-    return (
-        f"{CONTROL_TAG} 지금 퀴즈를 내라. {lead} {labels} {len(nums)}개를 한 문제씩 — {locale_label}로 뜻·상황을 주고 "
-        f"{target}로 말하게 하라. 정답을 먼저 말하지 마라. {len(nums)}개가 끝나면 다음 새 표현으로 넘어가라. "
-        "네 말에 대괄호나 '퀴즈 시작' 같은 단계 표시를 넣지 마라 — 그냥 말로 내라."
-    )
+    return expression_quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target)   # 잠금: locked/seeds.py
 
 
 def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = False) -> None:
@@ -1487,17 +1437,7 @@ def _expression_quiz_fallback_instruction(state: _CallState, nums: list[int]) ->
         if it.get("ex"):
             row += ' — 예문: "%s"' % it["ex"]
         rows.append(row)
-    return chr(10).join([
-        f"너는 {target} 표현학습 퀴즈 전사의 보조 판정기다. 전사의 각 줄은 «B번호:»(선생님) 또는 «U번호:»(학습자)로 시작한다.",
-        "아래 항목은 서버가 전사에서 표현을 **글자로 찾지 못한** 것이다 — 받아쓰기(STT)가 표현을 조금 다르게 적었을 수 있다.",
-        "각 항목에 대해, 학습자가 **스스로**(선생님이 정답을 말해 주기 전에) 그 표현을 냈다고 볼 수 있는 U 줄이 있으면 그 번호를 "
-        "answer_seg 에 적어라. 없으면 null. 선생님이 정답을 먼저 말한 뒤 학습자가 따라 말한 것은 answer_seg 가 아니다.",
-        "⚠ 뜻이 다른 표현(예: 안녕히 가세요 / 안녕히 계세요)은 같은 표현이 아니다. 확실하지 않으면 null.",
-        "번호 외의 문장을 만들지 마라.",
-        "",
-        "[항목]",
-        chr(10).join(rows) or "(없음)",
-    ])
+    return expression_quiz_fallback_instruction(rows, target=target)   # 잠금: locked/seeds.py
 
 
 def _verify_stt_fallback(
@@ -3823,39 +3763,16 @@ def _hint_instruction(locale_label: str, target_language: str = "한국어", les
     return _hint_instruction_base(locale_label, target_language) + _hint_lesson_clause(lesson, target_language)
 
 
-def _hint_lesson_clause(lesson: object | None, target_language: str) -> str:
-    if lesson is None:
-        return ""
-    situation = (getattr(lesson, "situation", None) or "").strip()
-    items = [d for d in (getattr(lesson, "items", None) or []) if isinstance(d, dict) and (d.get("obj") or "").strip()]
-    words = [((d.get("ex") or "").strip() or d["obj"].strip()) if d.get("role") == "grammar" else d["obj"].strip() for d in items]
-    if not situation and not words:
-        return ""
-    parts = [" 지금 통화는"]
-    if situation:
-        parts.append(f" «{situation}» 상황의 역할극이다.")
-    if words:
-        parts.append(f" 학습자가 이 차시에서 배운 {target_language} 표현이 있다 — 질문에 맞는 것이 있으면 예시 답변에 **우선** 써라"
-                     f"(억지로 끼우지는 마라): " + " · ".join(words) + ".")
-    return "".join(parts)
+# ⭐ 잠금 분리(2026-09-12): _reground_instruction, _hint_lesson_clause, _hint_instruction_base → core/prompts/locked/reground.py 로 **이동**(복사 아님 — 바이트 그대로).
+from core.prompts.locked.reground import (
+    hint_instruction_base,
+    hint_lesson_clause,
+    reground_instruction,
+)
+_reground_instruction = reground_instruction
+_hint_lesson_clause = hint_lesson_clause
+_hint_instruction_base = hint_instruction_base
 
-
-def _hint_instruction_base(locale_label: str, target_language: str = "한국어") -> str:
-    t = target_language
-    roman_clause = (
-        "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
-        if t == "한국어"
-        else "roman 은 korean 의 발음을 로마자(라틴 문자)로 표기, "
-    )
-    return (
-        f"너는 {t} 학습 힌트 생성기다. 방금 선생님이 던진 질문(입력)에 학습자가 1인칭으로 "
-        "답할 수 있는 자연스러운 예시 답변을 examples 배열에 정확히 3개 만들어라. 세 개는 "
-        "서로 다른 내용·소재의 답이되, 전부 말로 바로 따라 할 수 있는 짧고 쉬운 구어체여야 "
-        "한다. 각 예시는 korean·roman·native 를 갖는다. "
-        f"korean 은 질문에 실제로 맞는 쉬운 {t} 1문장, "
-        + roman_clause
-        + f"native 는 {locale_label}로 옮긴 뜻."
-    )
 
 
 # 클라 계측 배치 방어 상한. ⛔ 클라를 믿지 않는다 — 폭주하는 앱 한 대가 로그를 먹으면
@@ -5470,28 +5387,6 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
         raise
     except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
         logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
-
-
-def _reground_instruction(items: list[str], target_language: str) -> str:
-    """재접지 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
-
-    항목을 **번호로 떠먹인다**: 사이드카는 목록에서 고르기만 하면 되므로 자유 서술이 없고,
-    서버는 돌아온 번호를 자기 목록으로 되짚어 라벨을 얻는다(환각이 들어올 자리가 없다).
-    """
-    listing = "\n".join(f"{i}. {label}" for i, label in enumerate(items, 1)) or "(없음)"
-    return (
-        f"너는 {target_language} 회화 통화의 상태 요약기다. 아래 대화 일부를 읽고 "
-        "JSON 슬롯만 채워라. **문장을 만들지 마라.**\n"
-        f"[항목 목록]\n{listing}\n"
-        "- covered: 위 목록 중 대화에서 **이미 실제로 다뤄진** 항목의 번호만. 없으면 빈 배열.\n"
-        "- topic: 지금 대화가 흐르고 있는 화제를 짧은 명사구 하나로(최대 12자). "
-        "확실하지 않으면 빈 문자열.\n"
-        "- mode: **학습자가 말로 요청한** 모드만 적어라 — 학습 항목을 다뤄 달라고 하면 \"study\", "
-        "공부 말고 그냥 얘기하자고 하면 \"chat\". 학습자가 그렇게 요청한 적이 없으면 **빈 문자열**로 둬라. "
-        "지금 대화가 어느 쪽으로 흐르는지를 묻는 게 아니다 — 선생님이 잡담으로 흘렀다는 사실은 mode 가 아니다.\n"
-        "- mode_quote: 그 요청이 담긴 **학습자 발화 원문 그대로**의 짧은 인용(선생님 말은 근거가 될 수 없다). "
-        "지어내지 마라 — 원문에 없는 인용은 무시된다."
-    )
 
 
 def _transcript_tail(state: _CallState, turns: int = 12, *, only_user: bool = False) -> str:

@@ -24,6 +24,9 @@ front/
 docs/
 tests/
 *.md
+# ⛔ 예외 — 편집 가능한 프롬프트 문구(core/prompts/editable/*.md)는 **런타임 자산**이다(2026-09-12 잠금/편집 분리).
+#   위 *.md 제외에 같이 걸리면 로더가 기본판(*.default.md)도 못 찾아 기동 자체가 죽는다. 두 파일(.dockerignore·.gcloudignore) 같이 유지.
+!core/prompts/editable/*.md
 
 # 로컬 커리큘럼 소스 원본(빌드에 불필요 — 2.4GB)
 level/

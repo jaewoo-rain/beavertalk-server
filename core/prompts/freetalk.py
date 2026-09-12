@@ -28,11 +28,9 @@
 
 from __future__ import annotations
 
-import re
-
 from core.prompts.common import (
     CLOSE_TAG_DEFAULT,
-    CONTROL_TAG,
+    CONTROL_TAG,  # noqa: F401 - 재수출(옛 호출부 호환; 문구는 locked/seeds·locked/expression 이 쓴다)
     DEFAULT_MAX_SENTENCES,
     PERSONA_TAIL,
     RULE_CLOSE_PROTOCOL,
@@ -41,6 +39,14 @@ from core.prompts.common import (
     RULE_RESPONSE_LENGTH,
     locale_label as _locale_label,
 )
+from core.prompts.editable_loader import section as _section
+from core.prompts.locked.freetalk import PROBE_NAME_RE, lesson_block
+
+
+def _ed(key: str) -> str:
+    """editable/freetalk.md 의 섹션(사람이 고치는 문구). 검사 실패 시 로더가 기본판으로 폴백한다."""
+    return _section("freetalk", key)
+
 
 
 # --------------------------------------------------------------------------- #
@@ -50,75 +56,54 @@ from core.prompts.common import (
 # ⚠ 첫 인사만 예외적으로 모국어를 허용할지 고민했지만 **하지 않았다**: 이 코스의 약속이
 #   «전부 학습 언어» 이고, 첫 턴에 모국어가 나가면 그 뒤로 계속 끌려간다(실측 계열: 규칙 3
 #   ★[학습자 언어에 끌려가지 마라]가 막으려는 바로 그 현상).
+# ⭐ 잠금/편집 분리(2026-09-12): 선톡 시드 말투는 editable/freetalk.md `seed_opening_old` / `seed_opening_lesson`(슬롯 {target}).
 def seed_freetalk_opening(target_language: str = "한국어") -> str:
-    return (
-        f"[통화 시작] 네가 학습자에게 먼저 전화를 건 상황이다. **{target_language}로** "
-        "짧게 인사하고, 곧바로 가벼운 화제 하나를 꺼내 질문 하나로 끝내라. "
-        "질문만 하고 학습자의 음성 대답을 기다려라. "
-        "이 [통화 시작] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라."
-    )
+    return _ed("seed_opening_old").format(target=target_language)
+
+
+def seed_freetalk_lesson_opening(target_language: str = "한국어") -> str:
+    return _ed("seed_opening_lesson").format(target=target_language)
 
 
 # ⭐ 차시판(커리큘럼 2단계 프리토킹) 선톡 — 역할극(계획 §10): «상대» 인물로서 첫 말을 건다(인사 + 상황 속 첫 질문 하나).
 # ⛔ 옛 `seed_freetalk_opening` 은 한 글자도 안 바뀐다(lesson=None 경로).
-def seed_freetalk_lesson_opening(target_language: str = "한국어") -> str:
-    return (
-        f"[통화 시작] 네가 학습자에게 먼저 전화를 건 상황이다. **{target_language}로** "
-        "[이번 차시]의 «상대» 인물로서 첫 말을 건다 — "
-        f"인사와 그 상황 속 첫 질문 하나를 {target_language}로 하고 멈춰 학습자의 음성 대답을 기다려라. "
-        "상황을 설명하거나 무엇을 할지 묻지 마라(이미 정해져 있다). "
-        f"이 안내문이 적힌 언어와 무관하게 네 말은 전부 {target_language}다. "
-        "이 [통화 시작] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라."
-    )
 
 
-# --------------------------------------------------------------------------- #
-# 무음 넛지 1단 (기획서 §2-9)
-# --------------------------------------------------------------------------- #
-# ⚠ 일반 통화와 **성격은 같고 언어만 다르다** — 새 화제로 이어가되 학습 언어로 한다.
-#   (표현학습과 달리 여기서는 «화제를 바꾸지 마라»가 필요 없다. 다룰 항목이 없다.)
-# ⛔ 접두어는 CONTROL_TAG(종료 아님) — 종료 태그와 절대 공유하지 마라(call_id=683).
-NUDGE_SEED_1_FREETALK = (
-    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
-    "학습 언어로 가볍게 새 화제 한 문장만 이어가라."
-)
-
-# ⭐ 차시판 무음 시드(계획 §3 «시드 3종» → §10 역할극). 차시 프리토킹에서 무음은 «대화가 끊겼다» 가 아니라 «방금 질문을 못 알아들었다» 다 —
-#   1단은 화제를 바꾸지 말고 **같은 질문을 더 쉽게**, 2단은 그 턴만 선생님으로 돌아와 모국어 뜻 + 학습 언어 문장 하나 → 학습 언어로 청함 → 다시 역할.
-#   (옛 경로·표현학습·일반의 1·2단 시드는 바이트 그대로 — 호출부가 state.nudge_seed_1/2 슬롯으로 코스별로 꽂는다.)
-# ⛔ 접두어는 CONTROL_TAG — 종료 태그와 공유 금지(call 683).
-NUDGE_SEED_1_FREETALK_LESSON = (
-    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고, 화제를 바꾸지 말고, "
-    "방금 한 질문을 더 쉬운 학습 언어로 바꿔(짧은 말, 쉬운 낱말, 또는 둘 중 고르기) 한 번만 다시 물어라."
-)
-NUDGE_SEED_2_FREETALK = (
-    f"{CONTROL_TAG} 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고, 화제를 바꾸지 마라. "
-    "이번 한 턴만 선생님으로 돌아와 학습자의 모국어로 방금 질문의 뜻과 학습자가 할 학습 언어 문장 하나를 통째로 들려준 뒤, "
-    "학습 언어로 그 문장을 말해 보라고 청해라. 다음 턴부터는 다시 그 인물로, 학습 언어다."
+# ⭐ 잠금 분리(2026-09-12): NUDGE_SEED_1_FREETALK, NUDGE_SEED_1_FREETALK_LESSON, NUDGE_SEED_2_FREETALK → core/prompts/locked/seeds.py 로 **이동**(복사 아님 — 바이트 그대로).
+from core.prompts.locked.seeds import (
+    NUDGE_SEED_1_FREETALK,
+    NUDGE_SEED_1_FREETALK_LESSON,
+    NUDGE_SEED_2_FREETALK,
 )
 
 
-def build_freetalk_reground_brief(situation: str, unused: list[str], *, target: str = "한국어") -> str:
-    """차시 프리토킹 전용 재접지 쪽지(계획 §3 «재접지» 문구). 120s 마다 호출부(call_session `_arm_reground`)가 얹는다.
-
-    ⭐ 왜 따로 있나: 일반 브리프(`persona_prompt.build_reground_brief` chat 모드)는 «흥미를 느낄 새 질문을 하나 던져» 라 상황을 깬다 —
-      프리토킹이 상황 밖 잡담으로 새는 1순위 원인이었다(계획 §2 재접지). 여기선 상황·역할 재확인 + «전부 학습 언어» + 아직 안 쓴 소재만.
-    ⚠ `unused` 는 판정이 아니다 — 이번 통화 비버 발화에 아직 안 나온 소재 몇 개(3~5). 비어 있으면 그 절을 뺀다. 카운트·정오 없음.
-    ⛔ 접두어는 CONTROL_TAG(종료 아님).
-    """
-    parts = [f"{CONTROL_TAG} 지금은 «{situation}» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. 전부 {target}로, 한 턴에 질문 하나."]
-    picks = [u for u in unused if isinstance(u, str) and u.strip()][:5]
-    if picks:
-        parts.append("아직 안 쓴 소재: " + " · ".join(picks) + ".")
-    parts.append("이 안내문은 읽지 말고 내용만 반영해라.")
-    return " ".join(parts)
+# ⭐ 잠금 분리(2026-09-12): build_freetalk_reground_brief → core/prompts/locked/reground.py 로 **이동**(복사 아님 — 바이트 그대로).
+from core.prompts.locked.reground import (
+    build_freetalk_reground_brief,
+)
 
 
 # ⛔ 리터럴 학습자 대사를 넣지 마라(원칙 4). 예전 초안은 «학습자가 "이거 어떻게 말해요?"라고
 #   물으면» 이라고 **한국어 대사를 박아** 뒀는데, 프랑스어 타깃 통화에도 그 한국어가 그대로
 #   실린다(call 1097 이 정확히 그 사고였다 — 박힌 한국어 예문 하나가 설명 언어를 뒤집었다).
 #   ⇒ 대사가 아니라 **질문의 성질**로 쓴다.
-_RULE1_COURSE = """1. 이 통화는 자유대화다. 학습자의 관심사로 화제를 골라 대화를 이어가라 — 가르치는 시간이 아니다. 학습자가 어떤 말을 {target}로 어떻게 하는지 물으면 알려 주고, 곧바로 대화로 돌아와라."""
+# ⭐ 잠금/편집 분리(2026-09-12) — 옛 경로 규칙 1·3·4·페르소나 문단은 editable/freetalk.md(`*_old`). 조립 결과 바이트 동일(기준 해시 시험).
+_RULE1_COURSE = _ed("rule1_old")
+_RULE3_LANGUAGE = _ed("rule3_old")
+_RULE4_CORRECTION = _ed("rule4_old")
+_FREETALK_TEMPLATE = (
+    _ed("persona_intro_old") + " " + PERSONA_TAIL + """
+
+[불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
+"""
+    + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n"
+    + _RULE3_LANGUAGE + "\n"
+    + _RULE4_CORRECTION + "\n"
+    + RULE_RESPONSE_LENGTH + "\n"
+    + RULE_NONVERBAL_SOUND + "\n"
+    + RULE_OFF_TOPIC
+)
+
 
 # ⭐⭐ 이 코스의 전부다: **전부 학습 언어**.
 # ⛔ 모국어 발판(밴드 정책)을 넣지 마라 — 그러면 일반 통화가 된다. 막힘 처방은 «모국어로
@@ -133,35 +118,6 @@ _RULE1_COURSE = """1. 이 통화는 자유대화다. 학습자의 관심사로 �
 #   ⚠ 예외를 조건절에서 떼지 마라("막히면 모국어로 도와라" 식의 무조건 허용). 조건이
 #     사라지면 모델은 그걸 상시 허가로 읽는다 — 회귀
 #     `test_freetalk_native_language_stays_a_stuck_only_exception` 이 이 자리를 잠근다.
-_RULE3_LANGUAGE = """3. 언어 사용 — 매우 중요:
-   - 이 통화는 처음부터 끝까지 {target}로 한다. 인사·질문·리액션·설명 전부 {target}다.
-   - 학습자가 막히면 {locale_label}로 풀어 주지 말고, **더 쉬운 {target}**로 바꿔 말해라 — 짧은 문장, 쉬운 낱말, 또는 {target}로 된 선택지 두 개. 그래도 대화가 멈추면 그때만 {locale_label}로 한 마디 거들고 곧바로 {target}로 돌아와라.
-   - 네 턴은 맨 끝을 {target} 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라). 학습자는 네 마지막 말의 언어로 답한다.
-   - 네가 던진 질문의 답을 같은 턴에 스스로 말하지 마라(자문자답 금지). 질문 뒤엔 조용히 기다려라.
-   - 학습자 차례를 {target} 산출 0으로 끝내지 마라."""
-
-_RULE4_CORRECTION = """4. 교정 스타일:
-   - 대화가 우선이다 — 교정은 한 번에 1개까지만, 뜻이 안 통할 때만. 사소한 것까지 잡는 과교정은 금지.
-   - 고칠 때는 올바른 {target} 표현을 단독으로 또박또박 한 번 들려주고 곧바로 대화를 이어가라 — 감싸는 말투는 네 캐릭터대로(공손한 "이렇게 말해요"를 강요하지 마라)."""
-
-_FREETALK_TEMPLATE = (
-    """너는 '비버' — 아래 [페르소나]의 인물이다. 그 인물로서 외국인 학습자에게 전화를 걸어 {target}로만 대화한다.
-
-[모국어] 학습자의 모국어는 {locale_label}다.
-
-[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}
-{target}로 대화하고 이따금 고쳐 주는 건 네가 하는 '일'일 뿐, 네 말투·성격은 오직 그 캐릭터다 — 통화가 길어져도 처음의 강도를 끝까지 유지하라. """
-    + PERSONA_TAIL + """
-
-[불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
-"""
-    + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n"
-    + _RULE3_LANGUAGE + "\n"
-    + _RULE4_CORRECTION + "\n"
-    + RULE_RESPONSE_LENGTH + "\n"
-    + RULE_NONVERBAL_SOUND + "\n"
-    + RULE_OFF_TOPIC
-)
 
 
 # =========================================================================== #
@@ -174,25 +130,13 @@ FREETALK_MAX_SENTENCES = 2
 # ⛔ 리터럴 학습자 대사 0(원칙 4 — call 1097) · 톤 부사 0(원칙 1) · 종료 어휘 0(원칙 5). 부탁은 «성질» 로만 쓴다.
 # ⭐ 역할극(§10, 2026-09-12 사장님 실통화 뒤): 옛 v1 «과제를 직접 던진다·너 자신으로 받는다·연기하지 마라» 를 뒤집었다 — 비버가 «상대» 인물이
 #   되어 그냥 대화한다. 과제·연습 어휘는 이 대본에서 0(시험이 잠근다).
-_RULE1_LESSON = """1. 이 통화는 아래 [이번 차시]의 상황을 {target}로 해 보는 **역할극**이다 — 너는 «상대»에 적힌 인물이 되어 그 상황 속에서 학습자와 그냥 대화한다. 연습을 시키거나 무엇을 말하라고 요구하지 마라. 설명·따라 말하기·정오 판정은 이 통화에 없다. 학습자가 뜻을 묻거나 막히면 **그 턴만 선생님으로 돌아와** 알려주고(아래 3) 다시 그 인물로 돌아가라. 네 턴은 그 인물의 질문 하나로 착지."""
-
-# ⭐ 예외는 «그 턴만 선생님으로» 이고 착지는 학습 언어 요청이다. 다음 턴부터 다시 역할·전부 학습 언어 — 학습자 언어에 끌려가지 마라(규칙 3 ★ 계열).
-_RULE3_LESSON = """3. 언어 사용 — 매우 중요:
-   - 이 통화는 처음부터 끝까지 {target}로 한다. 인사·질문·대답·리액션 전부 {target}다.
-   - 예외는 한 턴뿐이다. 학습자가 모르겠다고 하거나, 뜻을 묻거나, {locale_label}로 말하면 **그 턴만 선생님으로 돌아와** {locale_label}로 뜻을 한 문장으로 풀어 주고 학습자가 할 {target} 문장 **하나**를 통째로 들려준 뒤, 그 턴 끝에서 {target}로 그 문장을 말해 보라고 청해라 — 그 턴은 {target} 요청으로 끝내라. 다음 턴부터는 다시 그 인물로, 전부 {target}다 — 학습자 언어에 끌려가지 마라. 학습자가 또 그 언어로 말해도 그 언어로 되받지 말고 {target}로 청해라.
-   - 네 턴은 맨 끝을 {target} 질문·요청으로 착지시켜라(물음표로 끝내고 멈춰라). 네가 던진 질문의 답을 같은 턴에 스스로 말하지 마라. 학습자 차례를 {target} 산출 0으로 끝내지 마라."""
-
-# recast 만 — 명시 교정 0(linguist §5 · conv §5). 흐름 > 정확성.
-_RULE4_LESSON = """4. 교정 스타일: 따로 고쳐 주지 마라. 학습자 말에 틀린 데가 있으면 네 대답 안에 올바른 {target} 형태를 넣어 되받고 대화를 이어가라."""
-
+# ⭐ 잠금/편집 분리(2026-09-12) — 차시판 규칙 1·3·4·페르소나 문단·[이번 차시] 문장은 editable/freetalk.md(`*_lesson`, `lesson_*`),
+#   블록 구조(항목 렌더·probes 이름 치환·상대 폴백)는 잠금 locked/freetalk.py. 조립 결과 바이트 동일.
+_RULE1_LESSON = _ed("rule1_lesson")
+_RULE3_LESSON = _ed("rule3_lesson")
+_RULE4_LESSON = _ed("rule4_lesson")
 _FREETALK_LESSON_TEMPLATE = (
-    """너는 '비버' — 아래 [페르소나]의 인물이다. 그 인물로서 외국인 학습자에게 전화를 걸어 {target}로만 대화한다.
-
-[모국어] 학습자의 모국어는 {locale_label}다.
-
-[페르소나] 네 역할은 "{role}"다. 말투·성격: {personality}
-{target}로 역할극을 이끄는 건 네가 하는 '일'일 뿐, 네 말투·성격은 오직 그 캐릭터다 — 맡은 인물이 누구든 말투는 그대로고, 통화가 길어져도 처음의 강도를 끝까지 유지하라. """
-    + PERSONA_TAIL + """
+    _ed("persona_intro_lesson") + " " + PERSONA_TAIL + """
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 """
@@ -203,52 +147,24 @@ _FREETALK_LESSON_TEMPLATE = (
     + RULE_NONVERBAL_SOUND + "\n"
     + RULE_OFF_TOPIC
 )
-
-# probes 의 시드 고유명(«마이클 씨») → 학습자 이름. 이름 환각의 반대 방향 위험(T21-B)을 막는다. 한글·라틴 1~10자 + « 씨».
-_PROBE_NAME_RE = re.compile(r"[가-힣A-Za-z]{1,10} 씨")
+_PROBE_NAME_RE = PROBE_NAME_RE
 
 
 def _lesson_block_v1(lesson: object, *, username: str) -> str:
-    """«[이번 차시 — 이 상황을 역할극으로 대화한다]» 블록(계획 §3 → §10). items(obj·ex·role) 전부 — 문형은 «이름 — "예문"», 청크는 «표현», 어휘는 headword.
-
-    ⚠ items 가 없는 옛 브리프(surfaces 만)는 그 표면형을 «표현» 줄로 싣는다(호환). 문법 0 인 차시(레벨1 청크)는 «문형:» 줄이 없다.
-    ⚠ «상대» 가 없는 차시(레벨1 청크 — 상황 «처음 만난 사람과 인사하기»)는 «상황 속 상대» 를 비버가 맡는다고 한 줄 폴백(§10).
-    ⛔ «나머지는 모국어로» 류 모순 문구를 되살리지 마라 — 이 코스는 처음부터 끝까지 학습 언어다(규칙 3).
-    """
-    situation = (getattr(lesson, "situation", None) or "").strip()
-    partner = (getattr(lesson, "partner", None) or "").strip()
-    items = [d for d in (getattr(lesson, "items", None) or []) if isinstance(d, dict) and (d.get("obj") or "").strip()]
-    if not items:
-        items = [{"obj": s, "ex": None, "role": "chunk"}
-                 for s in (getattr(lesson, "surfaces", None) or []) if isinstance(s, str) and s.strip()]
-    probes = [_PROBE_NAME_RE.sub(f"{username} 씨", p.strip())
-              for p in (getattr(lesson, "probes", None) or []) if isinstance(p, str) and p.strip()]
-    grammar = [d for d in items if d.get("role") == "grammar"]
-    chunks = [d for d in items if d.get("role") == "chunk"]
-    vocab = [d for d in items if d.get("role") not in ("grammar", "chunk")]
-
-    lines = ["[이번 차시 — 이 상황을 역할극으로 대화한다]"]
-    if situation:
-        lines.append(f"- 상황: {situation}")
-    who = partner or "이 상황에서 학습자가 마주치는 사람(적힌 인물이 없다 — 상황에 맞게 네가 정한다)"
-    lines.append(
-        f"- 상대: {who} — **네가 이 사람이다.** 이 인물로서 말하고 묻고 답한다. 이름·나라 같은 인물 정보가 없으면 네가 정해서 "
-        "일관되게 유지하라. 말투·성격은 [페르소나] 그대로다."
+    """«[이번 차시 — 이 상황을 역할극으로 대화한다]» 블록 — 구조는 잠금(lesson_block), 문장은 편집 파일."""
+    return lesson_block(
+        lesson, username=username,
+        header=_ed("lesson_header"), partner_line=_ed("lesson_partner_line"), partner_fallback=_ed("lesson_partner_fallback"),
+        material_line=_ed("lesson_material_line"), probes_prefix=_ed("lesson_probes_prefix"),
     )
-    if items:
-        lines.append("- 소재: 이 차시의 표현이다. 네 말·질문·대답에 자연스럽게 섞어 써라. 문형은 이름을 말하지 말고 문장으로 써라.")
-        if grammar:
-            lines.append("  문형: " + " / ".join(
-                f"{d['obj'].strip()} — \"{str(d['ex']).strip()}\"" if (d.get("ex") or "").strip() else d["obj"].strip()
-                for d in grammar
-            ))
-        if chunks:
-            lines.append("  표현: " + " · ".join(d["obj"].strip() for d in chunks))
-        if vocab:
-            lines.append("  어휘: " + " · ".join(d["obj"].strip() for d in vocab))
-    if probes:
-        lines.append("- 대화가 막히면 이런 질문으로 이끌어라(뜻만 참고해 네 말로): " + " / ".join(probes))
-    return "\n".join(lines)
+
+
+# ⭐ 예외는 «그 턴만 선생님으로» 이고 착지는 학습 언어 요청이다. 다음 턴부터 다시 역할·전부 학습 언어 — 학습자 언어에 끌려가지 마라(규칙 3 ★ 계열).
+
+# recast 만 — 명시 교정 0(linguist §5 · conv §5). 흐름 > 정확성.
+
+
+# probes 의 시드 고유명(«마이클 씨») → 학습자 이름. 이름 환각의 반대 방향 위험(T21-B)을 막는다. 한글·라틴 1~10자 + « 씨».
 
 
 def _build_freetalk_lesson_instruction(

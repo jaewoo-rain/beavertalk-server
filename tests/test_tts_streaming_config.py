@@ -144,8 +144,9 @@ def test_teaching_prompt_still_says_slowly_and_clearly():
     무너진다.** 이건 TTS 목소리가 아니라 **LLM 에게 주는 교수법**이고, 학습자가 그걸 듣고 따라
     말한다("2번 따라 말하게" — 오늘 고친 에코 결함도 이 문장이 근거였다).
     """
-    import core.persona_prompt as pp
+    # ⭐ 2026-09-12 잠금/편집 분리 — 공부 절차 문장은 core/prompts/locked/normal.py 로 **이동**했다(persona_prompt 는 import 만).
+    from core.prompts.locked import normal as locked_normal
 
-    src = inspect.getsource(pp)
+    src = inspect.getsource(locked_normal)
     assert "천천히 또박또박" in src, "교수법 지시가 사라졌다 — TTS 스타일과 혼동한 것이다"
     assert "2번 따라 말하게" in src

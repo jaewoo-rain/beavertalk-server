@@ -19,6 +19,11 @@ from typing import Any, AsyncIterator, Literal, Optional, Protocol, runtime_chec
 
 from google import genai
 from google.genai import types
+from core.prompts.locked.face import (  # 표정 툴 선언 문구 — 규칙 블록(FACE_TOOL_RULE)과 같은 말을 해야 한다
+    SET_FACE_DESCRIPTION,
+    SET_FACE_EMOTION_DESCRIPTION,
+    SET_FACE_EMOTIONS,
+)
 
 from core.audio import INPUT_MIME_TYPE
 from core.config import Settings, settings
@@ -75,32 +80,19 @@ SET_FACE_TOOL = types.Tool(
             #   두면 두 곳이 다른 말을 한다 — 모델은 둘 다 읽는다.
             #   ⚠ 공식 모범 사례: "Function and Parameter Descriptions: Be clear and
             #     specific." 그래서 **무엇을 하지 않는지**(소리가 아니다)까지 적는다.
-            description=(
-                "표정이 바뀔 때, 그 말을 하면서 **함께** 호출한다. 이 호출은 말을 대신하지 "
-                "않는다 — 호출과 발화를 같은 차례에 동시에 낸다. 표정이 그대로면 "
-                "호출하지 않는다. 첫 인사에서는 호출하지 않는다."
-            ),
+            description=SET_FACE_DESCRIPTION,   # ⭐ 잠금 분리: core/prompts/locked/face.py
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
                     "emotion": types.Schema(
                         type=types.Type.STRING,
-                        enum=["neutral", "happy", "surprised", "sad", "angry", "laugh"],
+                        enum=list(SET_FACE_EMOTIONS),   # ⭐ 잠금 분리: core/prompts/locked/face.py (연구실 neutral 제거는 그 한 자리에서)
                         # ⭐ 설명이 곧 **불릴 확률**이다. 실측(call 1206·1207)에서 자산이
                         #   멀쩡히 있는 surprised·angry 가 **0건**이었다 — 설명이
                         #   "놀람"·"화남" 한 낱말이라 모델이 자기 대사와 잇지 못했다.
                         #   ⇒ 각 값에 **어떤 상황인지**를 붙인다. 특히 laugh 는 happy 와
                         #     헷갈리기 쉬워(둘 다 즐거움) 축이 다르다는 걸 못박는다.
-                        description=(
-                            "지금부터의 표정. "
-                            "neutral=평소로 돌아옴, "
-                            "happy=기쁨·칭찬(미소), "
-                            "surprised=예상 밖의 말에 놀람·감탄, "
-                            "sad=안타까움·아쉬움, "
-                            "angry=화남·짜증, "
-                            "laugh=박장대소. 크게 터져 웃는다 — 정말 웃겨서, 또는 "
-                            "면박을 주며 웃어젖힐 때. happy 의 미소와 다른 축이다."
-                        ),
+                        description=SET_FACE_EMOTION_DESCRIPTION,   # ⭐ 잠금 분리: core/prompts/locked/face.py
                     )
                 },
                 required=["emotion"],
