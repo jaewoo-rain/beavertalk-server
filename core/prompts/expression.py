@@ -161,8 +161,14 @@ def _render_item(n: int, item: dict) -> str:
       선별이 `quiz_passed_at IS NULL` 로 통과분을 **풀에서 아예 뺀다** ⇒ 목록에 들어오는
       항목은 정의상 전부 미통과다. 동작은 우연히 맞았지만 죽은 분기가 다음 사람을 속인다.
       ⭐ 조각 승계는 표식이 아니라 **목록 그 자체**가 한다 — 목록이 곧 «남은 일» 이다.
+
+    ⭐ 2026-09-12 «[문형]» 렌더(하네스 1438 턴2·3): 문법 항목의 표면형은 **문형 이름**(「N입니까?, N입니다」)인데 줄이
+      `1. N입니까?, N입니다 — 뜻: … — 예문: "…"` 이라 비버가 obj 를 «말할 표현» 으로 보고 'Repeat "N입니까?"' 를 시켰다.
+      cur DTO(`role == "grammar"`)면 `[문형]` 표식 + 예문 라벨을 «연습 문장» 으로 — 정답은 그 문장이다(판정은 예문 OR 라 잡힌다).
+      옛 DTO 엔 role 이 없다 → 키 부재면 지금 출력 그대로(바이트 동일). 어휘·청크는 role 이 있어도 그대로다.
     """
-    line = f"{n}. {item.get('obj')}"
+    grammar = _is_grammar(item)
+    line = f"{n}. [문형] {item.get('obj')}" if grammar else f"{n}. {item.get('obj')}"
     des = item.get("des")
     if des:
         line += f" — 뜻: {des}"
@@ -170,8 +176,13 @@ def _render_item(n: int, item: dict) -> str:
     #   문법 항목(«N이/가 있어요[없어요]»)엔 예문이 **유일한 문장 견본**이다. -60 토큰은 포기한다.
     ex = item.get("ex")
     if ex:
-        line += f' — 예문: "{ex}"'
+        line += f' — 연습 문장: "{ex}"' if grammar else f' — 예문: "{ex}"'
     return line
+
+
+def _is_grammar(item: dict) -> bool:
+    """cur DTO 의 role 이 "grammar" 인가(옛 DTO 는 role 키가 없어 항상 거짓 — 바이트 동일 보장)."""
+    return (item.get("role") or "") == "grammar"
 
 
 # ⛔ '마무리·마지막·정리·여기까지' 류 어휘를 절대 넣지 마라 — call 870 이 그 어휘 하나로
@@ -179,10 +190,12 @@ def _render_item(n: int, item: dict) -> str:
 _NEXT_TAIL = " 학습자가 해내면 이 항목은 끝이다 — 답에 짧게 반응하고 곧바로 다음 번호 항목으로 이어 가라."
 
 
-def _procedure(quiz_group: int, *, target: str, locale_label: str) -> str:
+def _procedure(quiz_group: int, *, target: str, locale_label: str, has_grammar: bool = False) -> str:
     """드릴 → 피드백 → 퀴즈 절차. (T21-A 간소화판 — 서버가 가져간 것은 뺐다)
 
     ⚠ `quiz_group` 은 **호출부가 준다**(기본값 없음) — 시그니처 호환. 대본엔 숫자를 박지 않는다(세는 것은 서버, T16).
+    ⭐ `has_grammar`(2026-09-12): 목록에 «[문형]» 항목이 하나라도 있을 때만 드릴 절에 한 문장(≈35 토큰) — 문형 이름이 아니라
+      연습 문장을 말하게 하라. 없으면(옛 DTO·어휘만) 출력 바이트 동일.
     ## T21-A 에서 뺀 것과 그 이유 (docs/20260911_2320_…-T21-… §A-2)
       · «속으로 세라» — 서버가 센다 · «퀴즈 알림을 말로 해라»·«퀴즈 끝나면 알려라» — 큐가 열고 서버가 닫는다 ·
         «틀린 건 뒤에 다시 낸다» — 서버가 오답 큐로 낸다 · 무음 3단 → 두 문장.
@@ -193,6 +206,8 @@ def _procedure(quiz_group: int, *, target: str, locale_label: str) -> str:
         "[진행 절차]",
         f"- 드릴: ① {locale_label}로 그 표현을 쓰는 상황을 아주 짧게 설명하고 ② {target}로 어떻게 말하는지 물어라 — "
         "**여기서 멈추고 학습자 말을 기다려라.**",
+        *(["- [문형] 항목은 문형 이름을 말하게 하지 말고 **연습 문장**을 상황에 맞게 말하게 해라 — 정답은 그 연습 문장이다. "
+           "퀴즈도 같다."] if has_grammar else []),
         "- 못 하거나 틀리면 정답을 또박또박 한 번 들려주고 따라 말하게 해라. 같은 항목은 **최대 2번까지만** 다시 시도한다. "
         "그래도 안 되면 짧게 반응만 하고 다음 번호 항목으로 넘어가라 — **맞았다고 하지는 마라.**"
         " 학습자가 해내면 짧게 반응하고 곧바로 다음 번호 항목으로 이어 가라.",
@@ -281,7 +296,8 @@ def build_expression_instruction(
         ),
         f"\n[학습자 수준] {level_first}",
         "\n" + _items_block(items, target=target_language, locale_label=label),
-        "\n" + _procedure(quiz_group, target=target_language, locale_label=label),
+        "\n" + _procedure(quiz_group, target=target_language, locale_label=label,
+                          has_grammar=any(_is_grammar(i) for i in items)),
         "\n" + _CHARACTER_FRAME,
     ]
     return "\n".join(parts)

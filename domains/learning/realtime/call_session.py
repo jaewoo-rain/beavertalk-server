@@ -1194,7 +1194,9 @@ def _note_covered_items(
         label = (label or "").strip()
         if not label or idx in state.covered_nums:
             continue
-        hit = quiz_judge.mentions(text, label) if expr else (label in text)
+        # ⭐ 2026-09-12 판정 보강 — 표현학습만 **예문 OR**(`item_mentioned`): 문법 주형(「V-아요/어요」)은 표면형으로는
+        #   발화에 나올 수 없고 비버·학습자는 예문(「나무가 타요.」)을 그대로 말한다. normal 은 생짜 비교 그대로.
+        hit = quiz_judge.item_mentioned(text, label, _item_example(state, idx, label)) if expr else (label in text)
         if hit:
             state.covered_nums.append(idx)
             if expr:
@@ -1413,6 +1415,16 @@ def _num_item(state: _CallState, n: int) -> tuple[int | None, str]:
     return (int(iid) if iid is not None else None), str(it.get("obj") or "")
 
 
+def _item_example(state: _CallState, n: int, surface: str | None = None) -> str | None:
+    """번호 → 선별 DTO 의 예문(`ex`). `surface` 를 주면 그 번호의 표면형과 **같을 때만** 돌려준다 — `reground_items` 는
+    `expr_items` 에서 obj 가 있는 것만 뽑아 만들어(호출부 주석) 이론상 번호가 어긋날 수 있다. 어긋나면 None(예문 OR 없이 옛 대조)."""
+    it = state.expr_items[n - 1] if 1 <= n <= len(state.expr_items) else {}
+    if surface is not None and str(it.get("obj") or "") != surface:
+        return None
+    ex = it.get("ex")
+    return str(ex) if isinstance(ex, str) and ex.strip() else None
+
+
 def _server_judge_quiz(state: _CallState, span: list[tuple[int, str, str]], quiz_set: list[int]) -> dict:
     """서버 검색 — 항목마다 창을 순서대로 훑어 **먼저 나오는 사건**으로 확정한다. 반환 {passed, failed, pending}(번호)."""
     out = {"passed": [], "failed": [], "pending": []}
@@ -1421,8 +1433,9 @@ def _server_judge_quiz(state: _CallState, span: list[tuple[int, str, str]], quiz
         if iid is None or not surface:
             continue
         verdict = ""
+        example = _item_example(state, n)          # 2026-09-12 판정 보강 — 예문 OR(표면형이 주형인 문법 항목)
         for idx, role, text in span:
-            if not quiz_judge.mentions(text, surface):
+            if not quiz_judge.item_mentioned(text, surface, example):
                 continue
             if role == "user":
                 if quiz_judge.keeps_formality(text, surface):
@@ -1478,6 +1491,7 @@ def _verify_stt_fallback(
 ) -> tuple[bool, str]:
     """폴백 제안 검증 — 3조건: 창 안 U · 그 앞 창 안 B 에 표면형 없음 · 그 다음 B 에도 표면형 없음(정정 없이 넘어갔다)."""
     _iid, surface = _num_item(state, n)
+    example = _item_example(state, n)          # 2026-09-12 판정 보강 — 예문 OR(비버가 예문을 말했으면 그것도 공개·정정이다)
     by_idx = {i: (role, text) for i, role, text in span}
     if not isinstance(answer_seg, int) or answer_seg not in by_idx or by_idx[answer_seg][0] != "user":
         return False, "창 밖·U 아님"
@@ -1488,11 +1502,11 @@ def _verify_stt_fallback(
     for i, role, text in span:
         if i >= answer_seg:
             break
-        if role == "beaver" and quiz_judge.mentions(text, surface):
+        if role == "beaver" and quiz_judge.item_mentioned(text, surface, example):
             return False, "앞 B 에 공개"
     for i, role, text in span:
         if i > answer_seg and role == "beaver":
-            if quiz_judge.mentions(text, surface):
+            if quiz_judge.item_mentioned(text, surface, example):
                 return False, "다음 B 가 정정"
             break
     return True, ""
@@ -2905,10 +2919,18 @@ async def run_call(
                 await _final_expression_progress(state)          # 순서 계약 그대로: ① 마지막 판정 ② state ③ DB
                 try:
                     drilled = _expr_covered_ids(state)
-                    snapshot = _expression_result_snapshot(state, set(drilled))
-                    for row in snapshot:                          # 결과 화면·하네스용 review 키(DTO 에서)
-                        row["review"] = bool(next((d.get("review") for d in state.expr_items
-                                                   if int(d.get("item_id") or -1) == row["item_id"]), False))
+                    drilled_set = set(drilled)
+                    snapshot = _expression_result_snapshot(state, drilled_set)
+                    # ⭐ cur_call.items 는 8키(item_id·role·surface·meaning·drilled·passed·failed·review)다 — 5키 스냅샷에 DTO 의
+                    #   role·review 와 drilled(=covered 집합 기준)를 여기서 채운다. 운영 1440 실측: 안 채우면 merge 가 role=None·
+                    #   drilled=false 기본값으로 저장해 하네스가 «드릴 안 했는데 통과» 로 읽었다. ⛔ snapshot=None 으로 넘기지 마라 —
+                    #   서비스 _snapshot_rows 는 items **전부**를 실어 결과 화면에 안 다룬 항목이 passed=false 로 뜬다.
+                    by_id = {int(d.get("item_id") or -1): d for d in state.expr_items}
+                    for row in snapshot:
+                        dto = by_id.get(row["item_id"]) or {}
+                        row["role"] = dto.get("role")
+                        row["drilled"] = row["item_id"] in drilled_set
+                        row["review"] = bool(dto.get("review"))
                     stats = await svc.run_db(
                         db_session_factory,
                         lambda db: cur_svc.record_expression(

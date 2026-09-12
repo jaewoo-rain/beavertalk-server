@@ -581,6 +581,43 @@ def test_expression_instruction_matches_the_t21a_baseline() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# 2026-09-12 «[문형]» 렌더 — cur DTO 의 role=="grammar" 만 문형 줄 + 절차 한 문장. 옛 DTO(role 없음)는 바이트 동일.
+# --------------------------------------------------------------------------- #
+_GRAMMAR_SENTENCE = "- [문형] 항목은 문형 이름을 말하게 하지 말고 **연습 문장**을 상황에 맞게 말하게 해라 — 정답은 그 연습 문장이다. 퀴즈도 같다."
+
+
+def test_old_dto_without_role_is_byte_identical_and_has_no_grammar_marker() -> None:
+    out = _expr()
+    assert hashlib.sha256(out.encode("utf-8")).hexdigest() == _EXPR_FROZEN[0]
+    assert "[문형]" not in out and "연습 문장" not in out
+
+
+def test_cur_dto_grammar_item_renders_the_form_marker_and_the_practice_sentence_label() -> None:
+    items = [
+        {"obj": "안녕히 가세요", "des": "헤어질 때", "ex": "안녕히 가세요.", "role": "chunk"},
+        {"obj": "N입니까?, N입니다", "des": "formal is/are", "ex": "저는 회사원입니다.", "role": "grammar"},
+        {"obj": "가다", "des": "to go", "ex": "학교에 가요", "role": "vocab"},
+    ]
+    out = _expr(items=items)
+    assert '2. [문형] N입니까?, N입니다 — 뜻: formal is/are — 연습 문장: "저는 회사원입니다."' in out
+    assert '1. 안녕히 가세요 — 뜻: 헤어질 때 — 예문: "안녕히 가세요."' in out       # 청크·어휘 줄은 그대로
+    assert '3. 가다 — 뜻: to go — 예문: "학교에 가요"' in out
+    assert out.count("[문형]") == 2, "목록 줄 1 + 절차 문장 1"
+    assert _GRAMMAR_SENTENCE in out
+    i_drill = out.index("- 드릴: ①")
+    i_sent = out.index(_GRAMMAR_SENTENCE)
+    i_wrong = out.index("- 못 하거나 틀리면")
+    assert i_drill < i_sent < i_wrong, "문형 문장은 드릴 절 첫 불릿 바로 아래"
+
+
+def test_cur_dto_without_any_grammar_item_is_identical_to_the_role_less_output() -> None:
+    """어휘·청크만 있는 cur 목록은 role 키가 있어도 옛 DTO 출력과 한 바이트도 다르지 않다 — 절차 문장도 없다."""
+    with_role = [{**i, "role": "chunk" if i["ex"] is None else "vocab"} for i in ITEMS]
+    assert _expr(items=with_role) == _expr()
+    assert _GRAMMAR_SENTENCE not in _expr(items=with_role)
+
+
+# --------------------------------------------------------------------------- #
 # T21-B — 3.1 전용 말투 블록: 2.5 는 바이트 동일 · 3.1 은 규칙 5 바로 아래 한 블록
 # --------------------------------------------------------------------------- #
 def test_default_model_family_is_byte_identical_to_the_a_baseline() -> None:

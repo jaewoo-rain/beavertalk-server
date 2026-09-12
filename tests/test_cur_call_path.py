@@ -217,6 +217,11 @@ async def test_auto_opens_an_expression_call_on_lesson_1_and_records_to_cur(sess
         assert all(r.seen_count == 1 for r in mine.values()) and len(mine) == 15, "목록 전부 seen_count+1"
         rows = json.loads(cc.items)
         assert {r["item_id"] for r in rows} == drilled and all("review" in r for r in rows)
+        # 운영 1440 실측 — role·drilled 가 None/false 로 저장되던 것. 8키 전부 실값(cur_call.items 계약, 하네스가 읽는다)
+        for r in rows:
+            assert set(r) == {"item_id", "role", "surface", "meaning", "drilled", "passed", "failed", "review"}, r
+            assert r["role"] == "chunk" and r["drilled"] is True and r["review"] is False, r
+            assert r["surface"] and r["passed"] is False and r["failed"] is False
         assert call.expression_result is None, "옛 결과 컬럼은 쓰지 않는다"
     finally:
         db.close()
