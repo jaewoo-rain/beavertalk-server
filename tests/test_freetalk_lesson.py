@@ -88,7 +88,7 @@ def test_other_courses_do_not_import_the_lesson_script() -> None:
                                       locale="en", interests=BASE["interests"], name="Tester")
     expr = build_expression_instruction(**BASE, items=[{"obj": "가다", "des": "to go", "ex": "학교에 가요"}], quiz_group=3)
     for out in (normal, expr):
-        assert "과제로 던진다" not in out and "직접 던지는 것" not in out and "너 자신으로서" not in out
+        assert "역할극으로 대화한다" not in out and "**역할극**이다" not in out and "네가 이 사람이다" not in out
 
 
 # --------------------------------------------------------------------------- #
@@ -97,13 +97,17 @@ def test_other_courses_do_not_import_the_lesson_script() -> None:
 def test_lesson_script_rule_anchors() -> None:
     out = _lesson()
     r1 = out.split("1. ", 1)[1].split("\n2. ", 1)[0]
-    assert "**직접 던지는 것**" in r1 and "**질문을 만들어야**" in r1 and "**너 자신으로서**" in r1
-    assert "다른 인물이 되어 연기하지 마라" in r1 and "설명·따라 말하기·정오 판정은 이 통화에 없다" in r1 and "한 턴에 과제 하나" in r1
+    # §10 역할극(2026-09-12 사장님 실통화 뒤) — 옛 v1 «과제를 직접 던진다·너 자신으로 받는다·연기하지 마라» 는 뒤집혔다
+    assert "**역할극**이다" in r1 and "«상대»에 적힌 인물이 되어" in r1 and "그냥 대화한다" in r1
+    assert "연습을 시키거나 무엇을 말하라고 요구하지 마라" in r1 and "설명·따라 말하기·정오 판정은 이 통화에 없다" in r1
+    assert "**그 턴만 선생님으로 돌아와**" in r1 and "다시 그 인물로 돌아가라" in r1 and "질문 하나로 착지" in r1
+    for gone in ("과제", "직접 던지는", "너 자신으로서", "연기하지 마라", "회화 연습"):
+        assert gone not in out, gone
     # v1 짧은 판 — 세부 절은 아직 없다(실측 뒤 한 절씩)
     assert "열린 질문" not in out and "이 예외는 한 번" not in out and "목록과 그보다 쉬운 것" not in out and "세지 마라" not in out
     r3 = out.split("3. 언어 사용", 1)[1].split("4. 교정 스타일", 1)[0]
-    assert "처음부터 끝까지 한국어로 한다" in r3 and "**그 턴만** 영어(English)로 뜻을 한 문장으로 풀어 주고" in r3
-    assert "한국어 문장 **하나**를 통째로 들려준 뒤" in r3 and "다음 턴부터는 다시 전부 한국어다 — 학습자 언어에 끌려가지 마라" in r3
+    assert "처음부터 끝까지 한국어로 한다" in r3 and "**그 턴만 선생님으로 돌아와** 영어(English)로 뜻을 한 문장으로 풀어 주고" in r3
+    assert "한국어 문장 **하나**를 통째로 들려준 뒤" in r3 and "다음 턴부터는 다시 그 인물로, 전부 한국어다 — 학습자 언어에 끌려가지 마라" in r3
     assert r3.count("영어(English)") == 2, "모국어가 열리는 자리는 예외 한 턴뿐"
     r4 = out.split("4. 교정 스타일", 1)[1].split("\n5. ", 1)[0]
     assert "따로 고쳐 주지 마라" in r4 and "올바른 한국어 형태를 넣어 되받고" in r4 and "\n" not in r4.strip()
@@ -118,14 +122,16 @@ def test_lesson_script_shared_rules_are_common_bytes_and_numbered_2_5_6_7() -> N
     assert common.PERSONA_TAIL.format(username="Tester") in out
     for n in ("1. ", "\n2. ", "\n3. ", "\n4. ", "\n5. ", "\n6. ", "\n7. "):
         assert n in out
-    assert "과제를 청하는 건 네가 하는 '일'일 뿐" in out
+    assert "역할극을 이끄는 건 네가 하는 '일'일 뿐" in out and "맡은 인물이 누구든 말투는 그대로" in out
 
 
 def test_lesson_block_lists_all_items_with_grammar_as_example_sentences() -> None:
     out = _lesson()
-    block = out.split("[이번 차시 — 이 상황을 과제로 던진다]", 1)[1]
+    block = out.split("[이번 차시 — 이 상황을 역할극으로 대화한다]", 1)[1]
     assert "- 상황: 처음 만난 반 친구와 이름과 나라 말하기" in block
-    assert "- 상대: 한국어 교실에서 처음 만난 반 친구 — 상황 묘사다. 너는 여전히 [페르소나]의 인물이고, 학습자의 말을 받는 것도 너 자신이다." in block
+    assert "- 상대: 한국어 교실에서 처음 만난 반 친구 — **네가 이 사람이다.** 이 인물로서 말하고 묻고 답한다." in block
+    assert "인물 정보가 없으면 네가 정해서 일관되게 유지하라. 말투·성격은 [페르소나] 그대로다." in block
+    assert "상황 묘사다" not in block
     assert "문형은 이름을 말하지 말고 문장으로 써라." in block
     assert '문형: 인사말 — "안녕히 계세요." / N은/는 N이에요/예요 — "생일이 언제예요?" / N입니까?, N입니다 — "저는 회사원입니다."' in block
     assert "어휘: 사람 · 나라" in block and "표현:" not in block
@@ -144,7 +150,9 @@ def test_lesson_block_without_grammar_has_no_form_line_and_chunks_go_under_expre
                                  items=[{"obj": "안녕하세요", "ex": None, "role": "chunk"}, {"obj": "감사합니다", "ex": None, "role": "chunk"}])
     out = _lesson(lesson=brief)
     assert "문형:" not in out and "어휘:" not in out and "표현: 안녕하세요 · 감사합니다" in out
-    assert "- 상대:" not in out and "대화가 막히면" not in out
+    # 상대 null(레벨1 청크) → «상황 속 상대» 를 비버가 맡는다는 폴백 한 줄
+    assert "- 상대: 이 상황에서 학습자가 마주치는 사람(적힌 인물이 없다 — 상황에 맞게 네가 정한다) — **네가 이 사람이다.**" in out
+    assert "대화가 막히면" not in out
 
 
 def test_lesson_script_has_no_literal_learner_lines_no_wrapup_words_no_tone_adverbs() -> None:
@@ -167,8 +175,9 @@ def test_lesson_script_never_renders_the_close_tag() -> None:
 # --------------------------------------------------------------------------- #
 def test_lesson_opening_seed_declares_the_situation_and_one_task_in_the_target_language() -> None:
     seed = ft.seed_freetalk_lesson_opening("한국어")
-    assert seed.startswith("[통화 시작]") and "**한국어로** 인사와 함께 [이번 차시]의 상황이 무엇인지 한 문장으로" in seed
-    assert "첫 과제 하나를 한국어로 던진 뒤 멈춰" in seed and "무엇을 할지 묻지 마라" in seed
+    assert seed.startswith("[통화 시작]") and "**한국어로** [이번 차시]의 «상대» 인물로서 첫 말을 건다" in seed
+    assert "인사와 그 상황 속 첫 질문 하나를 한국어로 하고 멈춰" in seed and "상황을 설명하거나 무엇을 할지 묻지 마라" in seed
+    assert "과제" not in seed
     assert "소리 내어 읽지 말고" in seed and "종료" not in seed and "작별" not in seed
 
 
@@ -178,15 +187,19 @@ def test_lesson_nudge_seeds_use_control_tag_and_keep_the_task(seed: str) -> None
     assert "작별하지 말고" in seed and "화제를 바꾸지" in seed and "새 화제" not in seed
 
 
-def test_lesson_nudge_1_is_easier_same_task_and_2_is_one_native_turn() -> None:
-    assert "방금 던진 과제를 학습 언어로 더 쉽게 바꿔" in ft.NUDGE_SEED_1_FREETALK_LESSON and "모국어" not in ft.NUDGE_SEED_1_FREETALK_LESSON
-    assert "이번 한 턴만 학습자의 모국어로" in ft.NUDGE_SEED_2_FREETALK and "다음 턴부터는 다시 학습 언어다" in ft.NUDGE_SEED_2_FREETALK
+def test_lesson_nudge_1_is_easier_same_question_and_2_is_one_teacher_turn() -> None:
+    assert "방금 한 질문을 더 쉬운 학습 언어로 바꿔" in ft.NUDGE_SEED_1_FREETALK_LESSON and "모국어" not in ft.NUDGE_SEED_1_FREETALK_LESSON
+    assert "이번 한 턴만 선생님으로 돌아와 학습자의 모국어로 방금 질문의 뜻" in ft.NUDGE_SEED_2_FREETALK
+    assert "다음 턴부터는 다시 그 인물로, 학습 언어다" in ft.NUDGE_SEED_2_FREETALK
+    for seed in (ft.NUDGE_SEED_1_FREETALK_LESSON, ft.NUDGE_SEED_2_FREETALK):
+        assert "과제" not in seed
 
 
 def test_reground_brief_restates_the_situation_and_lists_unused_material() -> None:
     b = ft.build_freetalk_reground_brief("처음 만난 반 친구와 이름과 나라 말하기", ["저는 회사원입니다.", "고향", "나라"], target="한국어")
     assert b.startswith(common.CONTROL_TAG)
-    assert "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 회화 연습이다. 전부 한국어로, 한 턴에 과제 하나." in b
+    assert "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. 전부 한국어로, 한 턴에 질문 하나." in b
+    assert "과제" not in b
     assert "아직 안 쓴 소재: 저는 회사원입니다. · 고향 · 나라." in b and b.endswith("이 안내문은 읽지 말고 내용만 반영해라.")
     assert "아직 안 쓴 소재" not in ft.build_freetalk_reground_brief("상황", [])
     assert ft.build_freetalk_reground_brief("상황", [f"s{i}" for i in range(9)]).count(" · ") == 4, "최대 5개"
@@ -222,7 +235,7 @@ def test_arm_reground_on_lesson_freetalk_uses_the_course_brief_not_the_chat_brie
     cs._arm_reground(st, "time")
     assert st.reground_pending is True and st.reground_arm_reason == "time"
     r = st.reground_reminder
-    assert r.startswith(common.CONTROL_TAG) and "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 회화 연습" in r
+    assert r.startswith(common.CONTROL_TAG) and "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 역할극" in r
     assert "아직 안 쓴 소재: 안녕히 계세요. · 생일이 언제예요? · 사람 · 나라." in r
     assert "흥미" not in r and "새 질문" not in r, "일반 잡담 브리프가 아니다"
     # 사이드카는 없다(reground_ctx None → 무동작)
@@ -236,7 +249,7 @@ def test_arm_reground_for_a_non_cur_freetalk_state_is_the_old_chat_brief() -> No
     st.reground_persona = ("선생님", "다정")
     st.call_mode = "chat"
     cs._arm_reground(st, "time")
-    assert "상황의 회화 연습" not in st.reground_reminder and st.reground_reminder.startswith(common.CONTROL_TAG)
+    assert "상황의 역할극" not in st.reground_reminder and st.reground_reminder.startswith(common.CONTROL_TAG)
 
 
 # --------------------------------------------------------------------------- #
@@ -402,7 +415,7 @@ async def test_lesson_freetalk_call_uses_course_slots_and_expression_call_does_n
     assert st.reground_pending is False and st.reground_count == 0
     assert all(common.CONTROL_TAG not in t for t in h["session"].sent_text_turns), "재접지·넛지 주입 0"
     assert h["session"].sent_text_turns[0] == ft.seed_freetalk_lesson_opening("한국어")
-    assert "[이번 차시 — 이 상황을 과제로 던진다]" in h["system_instruction"] and "1~2문장" in h["system_instruction"]
+    assert "[이번 차시 — 이 상황을 역할극으로 대화한다]" in h["system_instruction"] and "1~2문장" in h["system_instruction"]
     assert "[학습자 흥미" not in h["system_instruction"]
 
     # 표현학습(cur) 통화 — 공용 값 그대로

@@ -261,10 +261,11 @@ async def test_freetalk_opens_after_expression_done_with_lesson_block_and_comple
     assert _started(h2)["course"] == "freetalk"
     si = h2["system_instruction"]
     # 프리토킹 v1 차시판(2026-09-12-프리토킹-코스-대본 §3·§9) — 과제 대본 + [이번 차시] 소재 전부(청크 15) + 문장 수 2 + 차시판 선톡
-    assert "[이번 차시 — 이 상황을 과제로 던진다]" in si and lesson1.situation in si
-    assert "**직접 던지는 것**" in si and "**그 턴만**" in si and "다음 턴부터는 다시 전부 한국어다" in si
+    assert "[이번 차시 — 이 상황을 역할극으로 대화한다]" in si and lesson1.situation in si
+    assert "**역할극**이다" in si and "**그 턴만 선생님으로 돌아와**" in si and "다음 턴부터는 다시 그 인물로, 전부 한국어다" in si
+    assert "**네가 이 사람이다.**" in si and "과제" not in si
     assert all(s in si for s in surfaces) and "[학습자 흥미" not in si and "1~2문장" in si
-    assert h2["session"].sent_text_turns[0].startswith("[통화 시작]") and "[이번 차시]의 상황" in h2["session"].sent_text_turns[0]
+    assert h2["session"].sent_text_turns[0].startswith("[통화 시작]") and "«상대» 인물로서 첫 말을 건다" in h2["session"].sent_text_turns[0]
     db = session_factory()
     try:
         call = _last_call(db, m)
@@ -327,7 +328,7 @@ async def test_admin_force_course_opens_freetalk_on_the_locked_lesson_without_to
     monkeypatch.setattr(cs.cur_svc, "complete_freetalk", lambda *a, **k: (calls.__setitem__("complete", calls["complete"] + 1), real_complete(*a, **k))[1])
     h = await _run(session_factory, seeded, "freetalk", {}, script=[("B", "안녕하세요? 이름이 뭐예요?"), ("U", "저는 존이에요.")], extra={"force_course": True})
     assert _started(h)["course"] == "freetalk" and not any(f.get("type") == "error" for f in h["frames"])
-    assert "[이번 차시 — 이 상황을 과제로 던진다]" in h["system_instruction"] and lesson1.situation in h["system_instruction"]
+    assert "[이번 차시 — 이 상황을 역할극으로 대화한다]" in h["system_instruction"] and lesson1.situation in h["system_instruction"]
     db = session_factory()
     try:
         call = _last_call(db, m)
@@ -400,7 +401,7 @@ def test_freetalk_prompt_without_lesson_is_byte_identical():
     brief = cur.CurFreetalkBrief(situation="가게에서 부탁하기", partner="점원", surfaces=["이거 주세요", "얼마예요?"], probes=["뭐 사고 싶어요?"])
     with_block = build_freetalk_instruction(**base, lesson=brief)
     # 차시판은 **다른 대본**이다(규칙 1·3·4 코스판, 흥미 블록 없음) — 옛 출력의 접두가 아니다. 호환: items 없는 브리프는 surfaces 를 «표현» 줄로
-    assert "[이번 차시 — 이 상황을 과제로 던진다]" in with_block and "표현: 이거 주세요 · 얼마예요?" in with_block
+    assert "[이번 차시 — 이 상황을 역할극으로 대화한다]" in with_block and "표현: 이거 주세요 · 얼마예요?" in with_block
     assert "점원" in with_block and "뭐 사고 싶어요?" in with_block and "[학습자 흥미" not in with_block
 
 
