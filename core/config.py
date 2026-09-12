@@ -182,6 +182,10 @@ class Settings(BaseSettings):
     LIVE_INPUT_LANGUAGE_CODES: bool = True
     LIVE_CTX_TRIGGER_TOKENS: int = 16000  # 압축 발동 임계
     LIVE_CTX_TARGET_TOKENS: int = 12000   # 압축 후 유지량(trigger 보다 작아야 한다)
+    # ⛔ 3.1 Live 실측(2026-09-12 ctx-lab, docs/20260912_1630_3.1-압축-연구.md §4.2·§6): target 은 **턴 단위로 거칠게
+    #   양자화**된다 — target 4000 은 매 압축이 «마지막 유저 턴 1개» 착지(쪽지·큐 전부 퇴출), target 5000 도 5분에 1회
+    #   전면 퇴출(A→259). **7000/5000·6000/4000 은 사장님 결정으로 금지**(옵션으로도 안 연다). 운영은 8000/7000.
+    #   검증으로 막지는 않는다(실험 서비스에서 재기 위해) — 값을 바꾸려면 설정별 1통 실측이 규칙.
     # 세션 재개(session_resumption). 15분 통화의 전제 — 압축은 **세션**(오디오 15분) 한계만
     # 풀고 **연결 수명(~10분)** 은 못 푼다. 연결을 이어붙이려면 서버가 주는 핸들이 필요하다.
     # ⚠ 이 플래그는 **핸들을 받아 로깅만** 한다(단계 0 계측). 재연결 자체는 아직 없다 —
@@ -205,6 +209,15 @@ class Settings(BaseSettings):
     # 발동하는지(톱니 vs 단조증가)와 usage_metadata 가 증분인지 누적인지 판별하는 데 쓴다.
     # 조사 기간에만 gcloud run services update 로 켰다 끄는 값이라 env 로 뺐다.
     LIVE_USAGE_TRACE: bool = False
+    # ── 표정 툴 규칙 모드(2026-09-12 ctx-lab, docs/20260912_1630_3.1-압축-연구.md; 문구는 core/prompts/locked/face.py) ──
+    # 3.1 Live 는 blocking 함수콜(set_face)이 낀 턴을 **2회 추론**해 그 턴의 컨텍스트를 2배로 과금한다(비동기 함수콜
+    # 미지원 — 공식 문서). 표현학습은 24/25 턴이 툴 턴이라 5분 $0.56 이 나왔다. 호출 빈도가 곧 원가다.
+    #   "qual"(운영 기본, 사장님 결정 2026-09-12): 규칙 2줄 «감정이 드러나는 턴마다 — 같은 감정이어도 매번» /
+    #        «감정 없는 평범한 턴은 부르지 않는다(평소 얼굴 복귀는 자동)». enum 에 neutral 없음(앱이 클립 뒤 idle 복귀).
+    #        숫자 예산·반복 금지 없음. 표현학습·프리토킹 대본에도 [표정] 블록이 붙는다. 실측 1469: 툴 턴 50%·$0.450(−22%)·표정 과소 0.
+    #   "":   종전(매 변화·neutral 복귀 필수, 규칙은 일반 통화 대본에만) — 실측 96% 툴 턴·$0.576. 기록·되돌리기용.
+    #   "sparse"/"budget": 실험 기록용(1463 68% 실패 / 1465 14%·$0.314 이나 핀잔 턴 5곳 표정 누락 → 폐기).
+    LIVE_FACE_RULE_MODE: str = "qual"
     # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
     # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
     TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)

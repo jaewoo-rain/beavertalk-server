@@ -226,10 +226,22 @@ from core.prompts.locked.face import (
     EMOTION_TAG_RULE,
     FACE_TOOL_RULE,
     LANGUAGE_MARKER_RULE,
+    face_rule_for,
 )
 _EMOTION_TAG_RULE = EMOTION_TAG_RULE
-_FACE_TOOL_RULE = FACE_TOOL_RULE
+_FACE_TOOL_RULE = FACE_TOOL_RULE          # 운영(qual) 규칙 블록 — 옛 문구는 locked.face.FACE_TOOL_RULE_LEGACY
 _LANGUAGE_MARKER_RULE = LANGUAGE_MARKER_RULE
+
+
+def face_tool_rule() -> str:
+    """`LIVE_FACE_RULE_MODE` 에 맞는 [표정] 블록(운영 qual = FACE_TOOL_RULE).
+
+    ⭐ 2026-09-12 ctx-lab: 이 블록은 이제 **세 대본**(일반 `build_system_instruction(face_tool=)` · 표현학습 ·
+      프리토킹 `face_rule=`)에 같은 문구로 붙는다 — 그전엔 일반 통화에만 붙고 표현학습·프리토킹은 선언만 있어
+      모델이 매 턴 set_face 를 불렀다(1451: 24/25 턴, 2× 과금).
+    """
+    from core.config import settings  # 지연 import — 이 모듈은 순수 문자열 조립이라 모듈 상단에 두지 않는다
+    return face_rule_for(settings.LIVE_FACE_RULE_MODE)[0]
 
 
 # ⭐ 잠금 분리(2026-09-12): _history_block, _STUDY_KIND_LABEL, _STUDY_STATE_LABEL, _study_state_procedure, _STUDY_RESERVE_HEADER, _STUDY_FIVE_CHECK, _STUDY_FIVE_CHECK_L1_TAIL, _STUDY_NEXT_TAIL, _study_procedure, _render_study_item, _study_block, _KNOWN_GRAMMAR_FALLBACK, _known_block, _PROMOTION_NOTICE_TEMPLATE → core/prompts/locked/normal.py 로 **이동**(복사 아님 — 바이트 그대로).
@@ -428,7 +440,7 @@ def build_system_instruction(
     if face_tool:
         # ⛔ 옵트인. 기본 False 에서는 이 블록이 안 붙어 **기존 호출부 출력이 바이트 동일**하다
         #   (스냅샷 회귀가 그걸 지킨다). Live 스파이크만 True 로 켠다.
-        parts.append(_FACE_TOOL_RULE)
+        parts.append(face_tool_rule())
     if language_marker:
         # ⛔ 옵트인이다. 기본값(False)에서는 이 블록이 안 붙어 **기존 호출부의 출력이
         #   바이트 동일**하다(스냅샷 테스트가 그걸 지킨다).

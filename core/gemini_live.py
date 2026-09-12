@@ -23,6 +23,7 @@ from core.prompts.locked.face import (  # 표정 툴 선언 문구 — 규칙 �
     SET_FACE_DESCRIPTION,
     SET_FACE_EMOTION_DESCRIPTION,
     SET_FACE_EMOTIONS,
+    face_rule_for,
 )
 
 from core.audio import INPUT_MIME_TYPE
@@ -304,6 +305,31 @@ def build_live_config(
         #     확인**해야 한다(미검증).
         **({"safety_settings": _LIVE_SAFETY} if is_vertex else {}),
     )
+
+
+def _face_tool_from(description: str, emotion_description: str, emotions: tuple[str, ...]) -> types.Tool:
+    return types.Tool(function_declarations=[types.FunctionDeclaration(
+        name="set_face", description=description,
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={"emotion": types.Schema(
+                type=types.Type.STRING, enum=list(emotions), description=emotion_description)},
+            required=["emotion"],
+        ),
+    )])
+
+
+def set_face_tool() -> types.Tool:
+    """`LIVE_FACE_RULE_MODE` 에 맞는 표정 툴 선언. 운영(qual)은 SET_FACE_TOOL 그대로.
+
+    ⭐ 2026-09-12 ctx-lab: 3.1 은 blocking 함수콜 턴을 2회 추론(2× 과금)하므로 «언제 부르나» 문구가 곧 원가다.
+      문구·enum 은 core/prompts/locked/face.py 가 소유한다(`face_rule_for`). ""=옛 규칙(neutral 있음) / sparse·budget=실험 기록용.
+    """
+    mode = settings.LIVE_FACE_RULE_MODE
+    if mode == "qual":
+        return SET_FACE_TOOL
+    _rule, desc, emo_desc, emotions = face_rule_for(mode)
+    return _face_tool_from(desc, emo_desc, emotions)
 
 
 class GeminiLiveSession:
