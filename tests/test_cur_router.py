@@ -119,7 +119,8 @@ def test_me_for_a_new_member_is_lesson_1_learning_with_expression_open_and_freet
     assert body["status"] == "learning"
     assert body["items_total"] == 15 and body["items_drilled"] == 0
     assert body["open"] == {"expression": True, "freetalk": False}
-    assert set(body) == {"lesson", "status", "items_total", "items_drilled", "open"}
+    assert set(body) == {"lesson", "status", "items_total", "items_drilled", "open", "next_course"}
+    assert body["next_course"] == "expression"
     assert set(body["lesson"]) == {"no", "code", "level_no", "situation", "topic"}
     # 두 번 불러도 같은 답(멱등 — 포인터를 한 번만 만든다)
     assert client.get("/api/v1/cur/me", headers=hdr).json() == body
@@ -140,6 +141,7 @@ def test_me_reflects_progress_after_a_recorded_expression_call(client, db):
     assert body["status"] == "expression_done"
     assert body["items_drilled"] == 15
     assert body["open"] == {"expression": True, "freetalk": True}
+    assert body["next_course"] == "freetalk", "auto 로 걸면 프리토킹 — 홈 카드가 이 값을 보인다"
 
 
 # --------------------------------------------------------------------------- #

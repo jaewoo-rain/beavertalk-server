@@ -374,6 +374,8 @@ class Settings(BaseSettings):
     CUR_ENABLED: bool = True
     # 표현학습 한 통화에 싣는 항목 상한(§11: 안 배운 것 seq 순 → 부족분은 복습으로 채움). 옛 EXPRESSION_ITEMS_PER_CALL 과 별개.
     CUR_ITEMS_PER_CALL: int = 18
+    # 차시 프리토킹(cur 경로)만 무음 1단 임계(초). 왕초보 침묵 = «못 알아들음» — 60s 는 5분의 20%(계획 D-a 채택). 다른 코스는 60 유지.
+    FREETALK_IDLE_NUDGE1_S: float = 30.0
     # ⭐ 재접지 모드. "on_user_turn" | "legacy_idle" | "off"
     #   ⛔ **왜 env 로 뺐나**(2026-09-02) — `interrupted` 의 원인을 가르려면 재접지를 **끄고**
     #     통화해 봐야 하는데, 상수라 그 실험 한 번에 재빌드·재배포(5~6분)가 들었다.

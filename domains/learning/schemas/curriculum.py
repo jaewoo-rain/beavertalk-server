@@ -44,6 +44,8 @@ class CurMeOut(BaseModel):
     #: 그중 이 회원이 드릴까지 간 항목 수(cur_member_item.drilled_at). 진행률 = items_drilled / items_total.
     items_drilled: int
     open: CurOpenOut
+    #: auto 로 통화를 걸면 서버가 정할 코스(홈 «이번 통화» 카드). expression_done 이면 freetalk, 아니면 expression.
+    next_course: Literal["expression", "freetalk"]
 
 
 class CurLessonRowOut(BaseModel):

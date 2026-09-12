@@ -226,7 +226,7 @@ def test_drilling_all_30_completes_the_lesson_and_opens_freetalk(db):
     c3 = _call(db, m, "freetalk")
     o3 = cur.open_call(db, m, c3, "auto")
     assert o3.course == "freetalk" and o3.items == [] and o3.brief is not None
-    assert o3.brief.situation == lesson.situation and len(o3.brief.surfaces) == 18
+    assert o3.brief.situation == lesson.situation and len(o3.brief.surfaces) == 30 == len(o3.brief.items)   # 상한 18 폐기(프리토킹 v1)
     assert cur.complete_freetalk(db, c3, duration_s=200, normal_end=True) == {"freetalk_done": True, "moved": True}
     assert repo.current_progress(db, m).lesson_id == _lesson(db, "A1-T02-1").lesson_id
     assert repo.lesson_status(db, m, lesson.lesson_id).status == "freetalk_done"

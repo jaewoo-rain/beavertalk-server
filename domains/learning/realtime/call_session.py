@@ -50,7 +50,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Iterable, NamedTuple, AsyncContextManager, Callable, Optional
+from typing import Any, Iterable, NamedTuple, AsyncContextManager, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 from google import genai
@@ -105,8 +105,13 @@ from core.prompts.expression import (
     seed_expression_resume,
 )
 from core.prompts.freetalk import (
+    FREETALK_MAX_SENTENCES,
     NUDGE_SEED_1_FREETALK,
+    NUDGE_SEED_1_FREETALK_LESSON,
+    NUDGE_SEED_2_FREETALK,
     build_freetalk_instruction,
+    build_freetalk_reground_brief,
+    seed_freetalk_lesson_opening,
     seed_freetalk_opening,
 )
 from core.stt import normalize_language_codes
@@ -737,7 +742,11 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
-        "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1",
+        "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
+        # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
+        # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
+        #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
+        "cur_course", "freetalk_brief", "freetalk_target",
         "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "continue_reminder", "continue_injected",
@@ -892,6 +901,10 @@ class _CallState:
         self.idle_nudge2_s: float = IDLE_NUDGE2_S
         self.idle_close_s: float = IDLE_CLOSE_S
         self.nudge_seed_1: str = _NUDGE_SEED_1
+        self.nudge_seed_2: str = _NUDGE_SEED_2       # 2단도 슬롯 — 차시 프리토킹만 코스 문구, 나머지는 공용 상수 그대로
+        self.cur_course: str = ""
+        self.freetalk_brief: Any = None
+        self.freetalk_target: str = ""
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
         # 후반 재접지 문구(대화 지속). None = 비활성(레벨테스트 등).
@@ -2238,6 +2251,7 @@ async def run_call(
     # ⭐ 표현학습이 이번 통화에서 다룰 표현(선별 결과). 다른 콜타입에서는 **빈 리스트**이고,
     #   그 빈/참이 곧 «이 통화가 표현학습인가» 의 런타임 게이트가 된다(state.expr_items).
     expr_items: list[dict] = []
+    freetalk_brief = None                  # 차시 프리토킹(cur)만 CurFreetalkBrief — 재접지 쪽지 재료
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
     continue_reminder: str | None = None   # 후반 재접지(대화 지속) — 일반 통화만
     # 이 통화 전용 종료 태그(난수). ⚠ system_instruction 과 종료 시드가 **같은 값**을 써야
@@ -2523,22 +2537,27 @@ async def run_call(
                 sum(1 for d in expr_items if d.get("review")), cur_open.resumed, call_id,
             )
         else:
+            # ⭐ 차시 프리토킹 v1(계획 2026-09-12-프리토킹-코스-대본 §3·§9): 흥미 미주입 · 문장 수 2 · 차시판 선톡 시드.
             system_instruction = build_freetalk_instruction(
                 role=setup["role"],
                 personality=setup["personality"],
                 level_profile=level_profile,
                 locale=locale,
-                interests=setup["interests"],
+                interests=[],
                 name=setup["name"],
                 target_language=target_language,
                 close_tag=close_tag,
+                max_sentences=FREETALK_MAX_SENTENCES,
                 lesson=cur_open.brief,
             )
-            seed_text = seed_freetalk_opening(target_language)
+            seed_text = seed_freetalk_lesson_opening(target_language)
+            freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
             logger.info(
-                "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 표현 %d 재개=%s call_id=%s",
+                "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 소재 %d(문형 %d) 재개=%s call_id=%s",
                 cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
-                len(cur_open.brief.surfaces) if cur_open.brief else 0, cur_open.resumed, call_id,
+                len(cur_open.brief.items) if cur_open.brief else 0,
+                sum(1 for d in (cur_open.brief.items if cur_open.brief else []) if d.get("role") == "grammar"),
+                cur_open.resumed, call_id,
             )
 
     # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
@@ -2560,6 +2579,9 @@ async def run_call(
 
     state = _CallState()
     state.cur_route = cur_route
+    state.cur_course = call_type if cur_route else ""
+    state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
+    state.freetalk_target = target_language if freetalk_brief is not None else ""
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
     #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
     #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
@@ -2675,7 +2697,13 @@ async def run_call(
         # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
         #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
         state.reground_persona = (setup["role"] or "", setup["personality"] or "")
-        if call_type in ("expression", "freetalk"):
+        if cur_route and call_type == "freetalk":
+            # ⭐ 차시 프리토킹(2026-09-12): 일반 잡담 브리프(«흥미를 느낄 새 질문») 도, 항목 검출 기계도 안 쓴다 — 쪽지는
+            #   `_arm_reground` 가 `build_freetalk_reground_brief`(상황 + 아직 안 쓴 소재)로 만든다. 사이드카(reground_ctx)도 없다 —
+            #   모드 축(공부/대화)이 이 코스엔 없다. 옛 프리토킹(lesson=None)·표현학습·일반은 아래 그대로.
+            state.reground_items = []
+            state.call_mode = "chat"
+        elif call_type in ("expression", "freetalk"):
             # ⛔⛔ **두 코스는 normal 의 학습 항목 기계를 물려받지 않는다**(2026-09-10 QA).
             #   게이트를 `expr_items` 로 두면 두 경우가 아래 else 로 떨어진다:
             #     · 프리토킹 — 항목이 애초에 0개인데(D8) `study_items[:10]` 을 물고
@@ -2702,11 +2730,12 @@ async def run_call(
                 str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
             ][:10]
             state.call_mode = "study" if state.reground_items else "chat"
-        state.reground_ctx = {
-            "client": client,
-            "model": settings.JUDGE_MODEL,
-            "instruction": _reground_instruction(state.reground_items, target_language),
-        }
+        if not (cur_route and call_type == "freetalk"):
+            state.reground_ctx = {
+                "client": client,
+                "model": settings.JUDGE_MODEL,
+                "instruction": _reground_instruction(state.reground_items, target_language),
+            }
     # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
     # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
     live_tools = None
@@ -2794,6 +2823,12 @@ async def run_call(
             "expression": NUDGE_SEED_1_EXPRESSION,
             "freetalk": NUDGE_SEED_1_FREETALK,
         }.get(call_type, _NUDGE_SEED_1)
+        if cur_route and call_type == "freetalk":
+            # ⭐ 차시 프리토킹만(계획 §3 시드 3종·D-a): 1단 30s «같은 과제를 더 쉽게» · 2단 «그 턴만 모국어 뜻 + 학습 언어 문장 하나».
+            #   다른 코스의 임계·1단·2단은 위 값 그대로(바이트 동일).
+            state.idle_nudge1_s = float(settings.FREETALK_IDLE_NUDGE1_S)
+            state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
+            state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
 
     # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
     # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
@@ -5037,7 +5072,7 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
                 state.last_activity_ts = loop.time()
                 logger.info("normalcall: 무음 1단(%.0fs) → 넛지 주입", state.idle_nudge1_s)
         elif state.silence_stage == 1 and idle >= state.idle_nudge2_s:
-            if await _inject_nudge(session, state, _NUDGE_SEED_2):
+            if await _inject_nudge(session, state, state.nudge_seed_2):
                 state.silence_stage = 2
                 state.last_activity_ts = loop.time()
                 logger.info("normalcall: 무음 2단(+%.0fs) → 확인 넛지 주입", state.idle_nudge2_s)
@@ -5253,6 +5288,22 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
     """
     role, personality = state.reground_persona
+    if state.cur_route and state.cur_course == "freetalk" and state.freetalk_brief is not None:
+        # ⭐ 차시 프리토킹(2026-09-12) — 상황 재확인 + «전부 학습 언어» + 아직 안 쓴 소재 3~5개(판정 아님 — 비버 발화에 아직 안 나온 것).
+        #   배관은 그대로(arm → 마이크 프레임 + RMS 2관문), 문구만 다르다.
+        unused = _freetalk_unused_material(state)
+        state.reground_reminder = build_freetalk_reground_brief(
+            state.freetalk_brief.situation or "", unused,
+            target=(state.freetalk_target or "한국어"),
+        )
+        state.reground_pending = True
+        state.reground_arm_reason = reason
+        logger.info(
+            "normalcall 재접지 arm(차시 프리토킹, 근거=%s, %d/%d회, 미사용 소재 %d, 압축감지=%d, peak=%d, 바닥=%d)",
+            reason, state.reground_count + 1, REGROUND_MAX_PER_CALL, len(unused),
+            state.compression_seen, state.usage_prompt_peak, state.usage_prompt_floor,
+        )
+        return
     # ⭐⭐ **표현학습은 자기 쪽지를 쓴다.** 일반 브리프는 «이미 다룬 것» 한 칸뿐인데,
     #   이 코스는 진도가 세 갈래다 — 드릴한 것 / 맞힌 것 / **틀린 것**. 마지막 칸이
     #   오답퀴즈의 재료라, 그 줄이 없으면 오답 재출제가 아예 안 나간다(기획 ⑥).
@@ -5288,6 +5339,31 @@ def _arm_reground(state: _CallState, reason: str) -> None:
         state.usage_prompt_floor,
         max(0, state.usage_prompt_peak - state.usage_prompt_floor),
     )
+
+
+def _freetalk_unused_material(state: _CallState) -> list[str]:
+    """차시 프리토킹 재접지 재료 — 이번 통화 **비버 발화**에 아직 안 나온 소재(문형은 예문으로 적는다 — «이름을 말하지 말고 문장으로»).
+
+    ⚠ 판정이 아니다(계획 §2 «카운트·판정 없음») — 쪽지에 몇 개 적을지 고르는 것뿐. 대조는 `quiz_judge.item_mentioned`(표면형 OR 예문).
+    순서 = 차시 항목 순서. 호출부가 [:5] 로 자른다.
+    """
+    brief = state.freetalk_brief
+    items = list(getattr(brief, "items", None) or [])
+    if not items:
+        return []
+    said = " ".join(
+        [s.get("text") or "" for s in state.segments if s.get("role") == "beaver"] + ["".join(state.cur_beaver_text)]
+    )
+    out: list[str] = []
+    for d in items:
+        obj = (d.get("obj") or "").strip()
+        ex = (d.get("ex") or "").strip() or None
+        if not obj:
+            continue
+        if said and quiz_judge.item_mentioned(said, obj, ex):
+            continue
+        out.append(ex if (d.get("role") == "grammar" and ex) else obj)
+    return out
 
 
 async def _reground_watch(session: LiveSessionProtocol, state: _CallState) -> None:

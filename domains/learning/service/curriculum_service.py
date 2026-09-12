@@ -48,7 +48,6 @@ STATUS_FREETALK_DONE = "freetalk_done"
 # 프리토킹 «1회 = 완료» 하한(§7 ⓑ) — 3초 오접속이 그 차시의 유일한 프리토킹을 태우지 않게.
 FREETALK_MIN_DURATION_S = 60.0
 # 프리토킹 브리프에 싣는 그 차시 표현 상한(복습 유도용).
-FREETALK_BRIEF_SURFACES_MAX = 18
 
 
 class CourseLocked(Exception):
@@ -62,12 +61,17 @@ class CourseLocked(Exception):
 
 @dataclass
 class CurFreetalkBrief:
-    """프리토킹 지시문 재료(§2) — B2 가 `build_freetalk_instruction(lesson=…)` 에 넣는다. 지금은 dataclass 만."""
+    """프리토킹 지시문 재료 — `build_freetalk_instruction(lesson=…)` 에 넣는다(계획 2026-09-12-프리토킹-코스-대본 §5).
+
+    items: 차시 항목 **전부**(상한 없음) `[{obj, ex, role}]` — 문형(grammar)은 예문과 함께(«이름을 말하지 말고 문장으로»), ex 는
+      `_example(item, seen_count)` 회전. surfaces 는 호환용(obj 목록) — 새 코드는 items 를 본다.
+    """
 
     situation: str
     partner: Optional[str]
     surfaces: list[str] = field(default_factory=list)
     probes: list[str] = field(default_factory=list)
+    items: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -184,10 +188,22 @@ def select_items(db: Session, member_id: int, lesson_id: int, *, locale: str = "
     return out
 
 
-def _brief(db: Session, lesson: CurLesson) -> CurFreetalkBrief:
-    surfaces = [it.surface for _li, it in repo.lesson_items(db, lesson.lesson_id)][:FREETALK_BRIEF_SURFACES_MAX]
+def _brief(db: Session, lesson: CurLesson, member_id: Optional[int] = None) -> CurFreetalkBrief:
+    """차시 항목 전부를 소재로(상한 폐기 — 계획 §9 정정). member_id 가 있으면 예문을 seen_count 로 회전(표현학습과 같은 예문 순서)."""
+    mine = repo.member_item_map(db, member_id, lesson.lesson_id) if member_id is not None else {}
+    items: list[dict] = []
+    for li, it in repo.lesson_items(db, lesson.lesson_id):
+        rec = mine.get(it.item_id)
+        items.append({
+            "obj": it.surface,
+            "ex": _example(it, rec.seen_count if rec is not None else 0),
+            "role": li.role,
+        })
     probes = [p for p in _json_list(lesson.probes) if isinstance(p, str) and p.strip()]
-    return CurFreetalkBrief(situation=lesson.situation, partner=lesson.partner, surfaces=surfaces, probes=probes)
+    return CurFreetalkBrief(
+        situation=lesson.situation, partner=lesson.partner,
+        surfaces=[d["obj"] for d in items], probes=probes, items=items,
+    )
 
 
 def open_call(
@@ -204,7 +220,7 @@ def open_call(
         assert lesson is not None
         status = _status_of(db, member_id, lesson.lesson_id)
         items = select_items(db, member_id, lesson.lesson_id, locale=locale) if existing.course == COURSE_EXPRESSION else []
-        brief = _brief(db, lesson) if existing.course == COURSE_FREETALK else None
+        brief = _brief(db, lesson, member_id) if existing.course == COURSE_FREETALK else None
         logger.info("cur open_call: 조각 재개 call_id=%s lesson=%s course=%s 재선별=%d", call_id, lesson.code, existing.course, len(items))
         return CurCallOpen(lesson=lesson, course=existing.course, items=items, brief=brief, resumed=True, status=status)
 
@@ -222,7 +238,7 @@ def open_call(
     db.add(CurCall(call_id=call_id, lesson_id=lesson.lesson_id, course=course))
     db.commit()
     items = select_items(db, member_id, lesson.lesson_id, locale=locale) if course == COURSE_EXPRESSION else []
-    brief = _brief(db, lesson) if course == COURSE_FREETALK else None
+    brief = _brief(db, lesson, member_id) if course == COURSE_FREETALK else None
     logger.info(
         "cur open_call: call_id=%s member=%s lesson=%s(no=%d) course=%s status=%s 항목=%d(복습 %d)",
         call_id, member_id, lesson.code, lesson.no, course, status, len(items), sum(1 for d in items if d["review"]),
@@ -417,6 +433,8 @@ def me(db: Session, member_id: int, language: str = "ko") -> dict:
         "items_drilled": repo.drilled_count(db, member_id, lesson.lesson_id),
         # 표현학습은 언제나 열려 있다(복습 통화도 표현학습이다). 프리토킹은 그 차시 표현학습이 끝났고 아직 안 했을 때만.
         "open": {"expression": True, "freetalk": status == STATUS_EXPRESSION_DONE},
+        # ⭐ 홈 화면(사장님 ⑪) — auto 로 걸면 서버가 정할 코스. decide_course 와 같은 규칙(expression_done 이면 freetalk).
+        "next_course": decide_course(db, member_id, language),
     }
 
 
