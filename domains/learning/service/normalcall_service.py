@@ -1732,6 +1732,9 @@ def save_call_usage(
         **({"sidecars": summary["sidecars"]} if summary.get("sidecars") else {}),
         **({"in_other": extra_in} if extra_in else {}),
         **({"out_other": extra_out} if extra_out else {}),
+        # 압축 연구 계측(2026-09-12 ctx-lab): 텍스트 얹기 시계열 · 압축 감지 상세. 없으면 키 자체를 안 만든다.
+        **({"injects": summary["injects"]} if summary.get("injects") else {}),
+        **({"compress_events": summary["compress_events"]} if summary.get("compress_events") else {}),
     }
     db.commit()  # R3 — 쓰기는 service 가 명시적으로 커밋
     return True
