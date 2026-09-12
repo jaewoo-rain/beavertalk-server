@@ -84,6 +84,10 @@ class CurCallOpen:
     brief: Optional[CurFreetalkBrief]
     resumed: bool            # cur_call 이 이미 있었다(조각 재개) — INSERT 0
     status: str              # 그 차시의 회원 상태(learning / expression_done / freetalk_done)
+    # ⭐ 강제 프리토킹(admin QA 우회, 2026-09-12): 잠금을 건너 열렸다 → 종료 시 complete_freetalk 를 부르지 않는다(진도 무영향).
+    #   재개(조각2)에도 그대로 — 저장 컬럼 없이 «프리토킹인데 status 가 expression_done 이 아니다» 로 되짚는다(정상 프리토킹은 열릴 때
+    #   expression_done 이었고, 조각1 이 이미 끝냈으면 freetalk_done — 그때 complete 는 어차피 no-op).
+    forced: bool = False
 
 
 def _now() -> datetime:
@@ -207,12 +211,14 @@ def _brief(db: Session, lesson: CurLesson, member_id: Optional[int] = None) -> C
 
 
 def open_call(
-    db: Session, member_id: int, call_id: int, course: str, *, language: str = "ko", locale: str = "en",
+    db: Session, member_id: int, call_id: int, course: str, *, language: str = "ko", locale: str = "en", force: bool = False,
 ) -> CurCallOpen:
     """통화 시작 — cur_call «없으면» INSERT(P0-4·P1-4), 있으면 조각 재개(§7 P0: 잠금 면제·그 차시로 재선별).
 
     course: "expression" | "freetalk" | "auto"(§8 — 서버가 정한다).
     프리토킹인데 그 차시가 expression_done 이 아니면 CourseLocked(새 통화만 — 재개는 면제).
+    force(2026-09-12 QA 우회): course=="freetalk" 이고 **회원이 admin** 이면 잠금을 건너 지금 차시로 연다(CurCallOpen.forced=True —
+      호출부가 종료 훅을 건너 진도를 안 건드린다). admin 이 아니면 조용히 무시(잠금 그대로). auto·expression 엔 영향 없다.
     """
     existing = repo.cur_call(db, call_id)
     if existing is not None:
@@ -221,8 +227,10 @@ def open_call(
         status = _status_of(db, member_id, lesson.lesson_id)
         items = select_items(db, member_id, lesson.lesson_id, locale=locale) if existing.course == COURSE_EXPRESSION else []
         brief = _brief(db, lesson, member_id) if existing.course == COURSE_FREETALK else None
-        logger.info("cur open_call: 조각 재개 call_id=%s lesson=%s course=%s 재선별=%d", call_id, lesson.code, existing.course, len(items))
-        return CurCallOpen(lesson=lesson, course=existing.course, items=items, brief=brief, resumed=True, status=status)
+        forced = existing.course == COURSE_FREETALK and status != STATUS_EXPRESSION_DONE
+        logger.info("cur open_call: 조각 재개 call_id=%s lesson=%s course=%s 재선별=%d%s", call_id, lesson.code, existing.course, len(items),
+                    " 강제(진도 무영향)" if forced else "")
+        return CurCallOpen(lesson=lesson, course=existing.course, items=items, brief=brief, resumed=True, status=status, forced=forced)
 
     prog = ensure_progress(db, member_id, language, for_update=True)
     lesson = repo.lesson_by_id(db, prog.lesson_id)
@@ -232,9 +240,14 @@ def open_call(
         course = COURSE_FREETALK if status == STATUS_EXPRESSION_DONE else COURSE_EXPRESSION
     if course not in (COURSE_EXPRESSION, COURSE_FREETALK):
         raise ValueError(f"unknown course: {course!r}")
+    forced = False
     if course == COURSE_FREETALK and status != STATUS_EXPRESSION_DONE:
-        db.rollback()   # FOR UPDATE 잠금 해제
-        raise CourseLocked(lesson.code, status)
+        if force and repo.member_role(db, member_id) == "admin":
+            forced = True
+            logger.info("cur 프리토킹 강제(admin) lesson=%s(no=%d) status=%s member=%s call_id=%s — 진도 무영향", lesson.code, lesson.no, status, member_id, call_id)
+        else:
+            db.rollback()   # FOR UPDATE 잠금 해제
+            raise CourseLocked(lesson.code, status)
     db.add(CurCall(call_id=call_id, lesson_id=lesson.lesson_id, course=course))
     db.commit()
     items = select_items(db, member_id, lesson.lesson_id, locale=locale) if course == COURSE_EXPRESSION else []
@@ -243,7 +256,7 @@ def open_call(
         "cur open_call: call_id=%s member=%s lesson=%s(no=%d) course=%s status=%s 항목=%d(복습 %d)",
         call_id, member_id, lesson.code, lesson.no, course, status, len(items), sum(1 for d in items if d["review"]),
     )
-    return CurCallOpen(lesson=lesson, course=course, items=items, brief=brief, resumed=False, status=status)
+    return CurCallOpen(lesson=lesson, course=course, items=items, brief=brief, resumed=False, status=status, forced=forced)
 
 
 # ── 통화 종료(표현학습) ────────────────────────────────────────────────────── #

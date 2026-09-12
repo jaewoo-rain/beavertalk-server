@@ -161,8 +161,8 @@ def _factory(holder, script=None):
     return _f
 
 
-async def _run(session_factory, seeded, call_type, holder, *, script=None, continues=None):
-    start = {"type": "start", "character_id": seeded["character_id"]}
+async def _run(session_factory, seeded, call_type, holder, *, script=None, continues=None, extra=None):
+    start = {"type": "start", "character_id": seeded["character_id"], **(extra or {})}
     if call_type is not None:
         start["call_type"] = call_type
     if continues is not None:
@@ -291,6 +291,83 @@ async def test_fragment_resume_does_not_insert_a_second_cur_call(session_factory
     try:
         assert db.execute(text("SELECT COUNT(*) FROM cur_call")).scalar() == n_before, "조각2 는 cur_call INSERT 0"
         assert db.query(Call).filter(Call.member_id == seeded["member_id"]).count() == 1
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# admin QA 우회 — force_course: 잠금을 건너 지금 차시 프리토킹, 진도 무영향. user·force 없음은 잠금 그대로.
+# --------------------------------------------------------------------------- #
+def _set_role(session_factory, member_id, role):
+    db = session_factory()
+    db.get(Member, member_id).role = role
+    db.commit(); db.close()
+
+
+def _lesson_state(session_factory, member_id):
+    db = session_factory()
+    try:
+        prog = repo.current_progress(db, member_id)
+        ml = repo.lesson_status(db, member_id, prog.lesson_id) if prog is not None else None
+        return (prog.lesson_id if prog else None, ml.status if ml is not None else None)
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_admin_force_course_opens_freetalk_on_the_locked_lesson_without_touching_progress(session_factory, seeded, monkeypatch):
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.2)
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 3)
+    m = seeded["member_id"]
+    _set_role(session_factory, m, "admin")
+    db = session_factory(); lesson1 = repo.lesson_by_no(db, "ko", 1); db.close()
+    # 표현학습 0 → 잠금 상태인데 admin+force 로 열린다
+    calls = {"complete": 0}
+    real_complete = cur.complete_freetalk
+    monkeypatch.setattr(cs.cur_svc, "complete_freetalk", lambda *a, **k: (calls.__setitem__("complete", calls["complete"] + 1), real_complete(*a, **k))[1])
+    h = await _run(session_factory, seeded, "freetalk", {}, script=[("B", "안녕하세요? 이름이 뭐예요?"), ("U", "저는 존이에요.")], extra={"force_course": True})
+    assert _started(h)["course"] == "freetalk" and not any(f.get("type") == "error" for f in h["frames"])
+    assert "[이번 차시 — 이 상황을 과제로 던진다]" in h["system_instruction"] and lesson1.situation in h["system_instruction"]
+    db = session_factory()
+    try:
+        call = _last_call(db, m)
+        cc = repo.cur_call(db, call.call_id)
+        assert cc is not None and cc.course == "freetalk" and cc.lesson_id == lesson1.lesson_id, "cur_call 은 평소처럼 INSERT(경로 고정·결과 화면)"
+    finally:
+        db.close()
+    assert calls["complete"] == 0, "강제 통화는 완료 훅 0"
+    assert _lesson_state(session_factory, m) == (lesson1.lesson_id, None), "status·포인터 그대로(표현학습 기록 없음 → 행 없음)"
+    # 조각 재개(continues_call_id) 도 강제 — 완료 훅 0 · cur_call INSERT 0
+    db = session_factory(); n_before = db.execute(text("SELECT COUNT(*) FROM cur_call")).scalar(); db.close()
+    h2 = await _run(session_factory, seeded, "freetalk", {}, script=[("B", "이어서 할게요.")], continues=call.call_id)
+    assert _started(h2)["call_id"] == str(call.call_id) and _started(h2)["course"] == "freetalk"
+    assert calls["complete"] == 0
+    db = session_factory()
+    try:
+        assert db.execute(text("SELECT COUNT(*) FROM cur_call")).scalar() == n_before
+    finally:
+        db.close()
+    assert _lesson_state(session_factory, m) == (lesson1.lesson_id, None)
+
+
+@pytest.mark.asyncio
+async def test_force_course_is_ignored_for_a_user_and_absent_force_keeps_the_lock_for_an_admin(session_factory, seeded):
+    m = seeded["member_id"]
+    # user + force → 잠금 그대로(조용히 무시)
+    h = await _run(session_factory, seeded, "freetalk", {}, extra={"force_course": True})
+    err = next(f for f in h["frames"] if f.get("type") == "error")
+    assert err["code"] == "COURSE_LOCKED" and h["ws"].closed_with == 1008
+    assert not any(f.get("type") == "call_started" for f in h["frames"])
+    # admin, force 없음 → 잠금 그대로
+    _set_role(session_factory, m, "admin")
+    h2 = await _run(session_factory, seeded, "freetalk", {})
+    assert next(f for f in h2["frames"] if f.get("type") == "error")["code"] == "COURSE_LOCKED"
+    # admin + force 이지만 expression/auto 엔 영향 없다 — 표현학습이 열린다
+    h3 = await _run(session_factory, seeded, "auto", {}, script=[("B", "안녕!")], extra={"force_course": True})
+    assert _started(h3)["course"] == "expression"
+    db = session_factory()
+    try:
+        assert db.query(Call).filter(Call.member_id == m, Call.status == "failed").count() == 2
     finally:
         db.close()
 

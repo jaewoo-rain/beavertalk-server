@@ -105,6 +105,10 @@ class ClientStart(BaseModel):
     # ⭐ "auto"(커리큘럼 2단계 §8, 2026-09-12) — 앱은 이것 하나만 보내고 서버가 cur_member_progress·cur_member_lesson.status 로
     #   이번 통화가 표현학습인지 프리토킹인지 정한다(`call_started.course` 로 알린다). 명시 expression/freetalk 는 개발자도구·하네스용.
     call_type: Literal["normal", "level_test", "expression", "freetalk", "auto"] | None = None
+    # ⭐ QA 우회(2026-09-12, 사장님 «QA 하려면 버튼 눌렀을 때 프리토킹이 들어가야»): call_type="freetalk" 와 함께 True 면 **관리자(member.role
+    #   == "admin") 에 한해** 그 차시의 표현학습 잠금(COURSE_LOCKED)을 건너 지금 차시로 프리토킹을 연다. 연습용이라 진도(freetalk_done·
+    #   포인터)를 건드리지 않는다. 관리자가 아니면 조용히 무시(잠금 그대로). expression·auto 에는 영향 없다.
+    force_course: bool = False
     duration_min: int | None = None
     tz_offset_min: int | None = None
 

@@ -746,7 +746,7 @@ class _CallState:
         # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
-        "cur_course", "freetalk_brief", "freetalk_target",
+        "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
         "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "continue_reminder", "continue_injected",
@@ -903,6 +903,7 @@ class _CallState:
         self.nudge_seed_1: str = _NUDGE_SEED_1
         self.nudge_seed_2: str = _NUDGE_SEED_2       # 2단도 슬롯 — 차시 프리토킹만 코스 문구, 나머지는 공용 상수 그대로
         self.cur_course: str = ""
+        self.cur_forced: bool = False                # admin QA 강제 프리토킹 — 종료 시 complete_freetalk 를 부르지 않는다
         self.freetalk_brief: Any = None
         self.freetalk_target: str = ""
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
@@ -2073,6 +2074,7 @@ async def run_call(
         # ⭐ 이어하기 — 클라가 보내는 값은 문자열일 수 있다("1234"). 못 읽으면 조용히 무시하고
         #   새 통화로 간다(거절이 아니라 폴백 — 이어하기가 안 된다고 통화를 막으면 더 나쁘다).
         continues_call_id = _as_int(start.continues_call_id)
+        force_course = bool(getattr(start, "force_course", False))   # admin QA 우회(프리토킹 잠금) — open_call 이 role 을 검사한다
         # ⭐ 과제 통화 — 못 읽으면 조용히 무시하고 평소 통화로 간다(이어하기와 같은
         #   폴백 규율). 자격 검증은 B2B 서비스가 하므로 여기서 판단하지 않는다.
         assignment_id = _as_int(start.assignment_id)
@@ -2497,7 +2499,8 @@ async def run_call(
         try:
             cur_open = await svc.run_db(
                 db_session_factory,
-                lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, locale=locale),
+                lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, locale=locale,
+                                             force=(force_course and call_type == "freetalk")),
             )
         except cur_svc.CourseLocked as exc:
             # 프리토킹인데 그 차시 표현학습이 안 끝났다 — 거절하고 소켓을 닫는다. call 행은 **남기고 status=failed** 로 둔다
@@ -2580,6 +2583,7 @@ async def run_call(
     state = _CallState()
     state.cur_route = cur_route
     state.cur_course = call_type if cur_route else ""
+    state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
     state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
     state.freetalk_target = target_language if freetalk_brief is not None else ""
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
@@ -2977,6 +2981,9 @@ async def run_call(
                     logger.info("normalcall cur 표현학습 저장: %s", stats if stats is not None else "no-op(이미 저장됨/cur_call 없음)")
                 except Exception as exc:  # noqa: BLE001 - 진도 유실일 뿐 통화는 끝났다(R5)
                     logger.warning("normalcall cur 표현학습 저장 실패(무시): %s", exc)
+            elif call_type == "freetalk" and state.cur_forced:
+                # admin QA 강제 프리토킹(잠금 우회) — 연습용. freetalk_done·포인터를 건드리지 않는다(재개 조각도 같다).
+                logger.info("normalcall cur 프리토킹 종료: 강제(admin) 통화 — 진도 훅 생략 call_id=%s", call_id)
             elif call_type == "freetalk":
                 try:
                     _loop = asyncio.get_running_loop()
@@ -3685,6 +3692,8 @@ class StartParams(NamedTuple):
     # ⭐ 과제 통화 — 숙제 상세의 회화 카드에서 시작한 통화만 보낸다. 맨 뒤에 붙여
     #   기본값을 준 이유는 `continues_call_id` 와 같다(기존 호출부·테스트 보호).
     assignment_id: str | int | None = None
+    # ⭐ admin QA 우회(2026-09-12) — call_type="freetalk" 와 함께 True 면 open_call(force=True). 기본 False(기존 호출부·테스트 보호).
+    force_course: bool = False
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -3741,6 +3750,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         inbound_call_id=getattr(cm, "inbound_call_id", None),
                         continues_call_id=getattr(cm, "continues_call_id", None),
                         assignment_id=getattr(cm, "assignment_id", None),
+                        force_course=bool(getattr(cm, "force_course", False)),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc

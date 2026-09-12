@@ -839,6 +839,8 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
         "continues_call_id": None,
         # ⚠ 2026-09-03: 과제 통화 필드. 같은 규율으로 맨 뒤에 기본값을 갖고 붙었다.
         "assignment_id": None,
+        # ⚠ 2026-09-12: admin QA 우회(프리토킹 잠금) 플래그. 같은 규율 — 기본 False.
+        "force_course": False,
     }
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)

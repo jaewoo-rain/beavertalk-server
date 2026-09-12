@@ -13,6 +13,7 @@ from typing import Optional
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
+from domains.account.models.member import Member
 from domains.learning.models.call import Call
 from domains.learning.models.curriculum import (
     CurCall,
@@ -78,6 +79,11 @@ def lesson_item_role(db: Session, lesson_id: int, item_id: int) -> Optional[str]
     return db.execute(
         select(CurLessonItem.role).where(CurLessonItem.lesson_id == lesson_id, CurLessonItem.item_id == item_id)
     ).scalar_one_or_none()
+
+
+def member_role(db: Session, member_id: int) -> Optional[str]:
+    """member.role(«admin» 이면 QA 우회 허용 — open_call(force=True)). 없는 회원이면 None."""
+    return db.execute(select(Member.role).where(Member.member_id == member_id)).scalar_one_or_none()
 
 
 def member_item_map(db: Session, member_id: int, lesson_id: int) -> dict[int, CurMemberItem]:
