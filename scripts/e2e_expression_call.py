@@ -62,7 +62,7 @@ from e2e_cur_adapter import COURSE_LOCKED_CODE, CurApi, CurApiError, summarize_m
 DEFAULT_BASE = "https://beavertalk-app-demo-api-333511894671.asia-northeast3.run.app"
 WS_PATH = "/api/v1/calls/stream"
 DEFAULT_EMAIL = "testfree@gmail.com"
-DEFAULT_PASSWORD = "11111111"     # dev 테스트 계정(testfree=92 Free/2.5 · testmax=88 Max/3.1). 다른 계정 금지.
+DEFAULT_PASSWORD = None            # ⛔ 리터럴 금지(공개 저장소) — E2E_PASSWORD env 로만. dev 테스트 계정(testfree=92 Free/2.5 · testmax=88 Max/3.1). 다른 계정 금지.
 MEMBER_ID = 0                     # ⛔ 하드코딩 아님 — main() 이 --email 로 DB(member.email)에서 찾아 채운다. 다른 계정 금지(사장님 20).
 LEVEL_NO = 1
 LANGUAGE = "ko"
@@ -2363,7 +2363,7 @@ def main() -> None:
     ap.add_argument("--base", default=DEFAULT_BASE)
     ap.add_argument("--email", default=DEFAULT_EMAIL)
     # ⛔ 비밀번호 리터럴을 여기 새로 넣지 마라 — E2E_PASSWORD env 로만 (DEFAULT_PASSWORD 정리는 별건)
-    ap.add_argument("--password", default=os.environ.get("E2E_PASSWORD", DEFAULT_PASSWORD))
+    ap.add_argument("--password", default=os.environ.get("E2E_PASSWORD") or DEFAULT_PASSWORD)
     ap.add_argument("--status", action="store_true", help="GET /cur/me")
     ap.add_argument("--fix-items", action="store_true", help="차시 고정 = POST /__dev/cur-reset {lesson_no} (옛 learning_item 고정 대체)")
     ap.add_argument("--reset", action="store_true", help="POST /__dev/cur-reset {lesson_no} — cur_member_* 삭제 + progress 를 --lesson 으로")
@@ -2407,6 +2407,8 @@ def main() -> None:
     print(f"회원 {args.email} → member_id={MEMBER_ID} · 플랜={plan} · live_engine_for={engine} · 서버 {args.base}")
 
     # 토큰은 상태·초기화(REST)와 통화(WS)가 같이 쓴다(Supabase Bearer)
+    if not args.password:
+        sys.exit("⛔ 비밀번호가 없다 — E2E_PASSWORD env 또는 --password 로 줘라(코드에 리터럴 금지).")
     token = get_token(args.base, args.email, args.password)
     api = CurApi(args.base, token)
 
