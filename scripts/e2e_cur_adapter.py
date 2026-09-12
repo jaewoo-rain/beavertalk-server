@@ -95,4 +95,5 @@ def summarize_me(me: dict) -> str:
     L = lesson_of(me)
     op = me.get("open") or {}
     return (f"차시 no={L.get('no')} {L.get('code')} L{L.get('level_no')} «{L.get('situation')}» · status={me.get('status')} · "
-            f"drilled {me.get('items_drilled')}/{me.get('items_total')} · open expression={op.get('expression')} freetalk={op.get('freetalk')}")
+            f"drilled {me.get('items_drilled')}/{me.get('items_total')} · open expression={op.get('expression')} freetalk={op.get('freetalk')}"
+            + (f" · next_course={me.get('next_course')}" if "next_course" in me else ""))
