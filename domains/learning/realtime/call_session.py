@@ -755,6 +755,11 @@ class _CallState:
         # ⭐ 이 조각의 선톡 시드 원문(벙어리 인사 재시드용).
         "seed_text",
         "usage_log", "usage_dropped", "sidecar_usage",
+        # ── 압축 연구 계측(2026-09-12 ctx-lab) ──
+        # text_injects: 대화 중 텍스트 얹기/주입 사건 시계열 [{t, kind, turn, face_calls, usage_idx}].
+        #   재접지·퀴즈 큐·legacy_idle·무음 넛지 전부. 압축 감지 줄이 «마지막 얹기 이후 몇 초·몇 턴·툴 몇 회»
+        #   를 이걸로 계산한다. compress_events: 감지 사건 [{t, from, to, prev_in, now_in, since}] — usage_json 으로 나간다.
+        "text_injects", "compress_events",
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
         "diag_batches", "diag_events", "diag_dropped",
@@ -977,6 +982,8 @@ class _CallState:
         #   버린다(DB 저장 없음 — 관측 단계). usage_dropped: 상한 초과로 버린 개수.
         self.usage_log: list[dict] = []
         self.usage_dropped: int = 0
+        self.text_injects: list[dict] = []
+        self.compress_events: list[dict] = []
         # sidecar_usage: 통화중 LLM 사이드카(동적 힌트·재접지 브리프·레벨테스트 턴 판정)의
         #   토큰. ⛔ Live usage 와 **다른 그릇**이다 — 단가가 다르고, 섞으면 두 엔진
         #   비교가 오염된다. usage_json.sidecars 로 따로 나간다.
@@ -1718,7 +1725,29 @@ def _modality_pairs(details) -> list[tuple[str, int]]:
     return out
 
 
-def _observe_compression(state: _CallState, prompt) -> None:
+def _note_text_inject(state: _CallState, kind: str) -> None:
+    """대화 중 텍스트 주입 1건을 기록한다(압축 연구 계측 — 예외 전량 흡수, R5).
+
+    kind: "reground"(on_user_turn 얹기) / "quiz_cue" / "legacy_idle" / "nudge". 압축 감지 줄이
+    «마지막 얹기 이후 경과» 를 여기서 읽는다. usage_idx = 이 시점까지 받은 usage 메시지 수.
+    """
+    try:
+        t: Optional[float] = None
+        if state.call_start_ts is not None:
+            t = round(asyncio.get_running_loop().time() - state.call_start_ts, 1)
+        state.text_injects.append({
+            "t": t, "kind": kind, "turn": state.next_turn_index,
+            "face_calls": state.face_calls, "usage_idx": len(state.usage_log),
+        })
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("normalcall inject-note 실패(무시): %s", exc)
+
+
+def _detail_str(pairs) -> str:
+    return ",".join(f"{k}={v}" for k, v in (pairs or [])) or "-"
+
+
+def _observe_compression(state: _CallState, prompt, in_detail=None) -> None:
     """prompt_token_count 시계열로 **컨텍스트 압축**을 관측한다(재접지 트리거의 눈).
 
     🧒 Live 는 "압축했다"는 이벤트를 안 준다(전 필드를 다 뒤졌다). 유일한 단서가 매 턴
@@ -1761,6 +1790,37 @@ def _observe_compression(state: _CallState, prompt) -> None:
             "normalcall: 컨텍스트 압축 감지 #%d (prompt %d → %d)",
             state.compression_seen, peak, p,
         )
+        # ── 압축 연구 계측(2026-09-12 ctx-lab): 직전 메시지의 모달리티 내역 + 마지막 텍스트 얹기 이후 경과 ──
+        try:
+            now_t: Optional[float] = None
+            if state.call_start_ts is not None:
+                now_t = round(asyncio.get_running_loop().time() - state.call_start_ts, 1)
+            prev = state.usage_log[-1] if state.usage_log else None
+            prev_in = prev["in_detail"] if prev else []
+            inj = state.text_injects[-1] if state.text_injects else None
+            since = None
+            if inj is not None:
+                since = {
+                    "kind": inj["kind"],
+                    "s": (round(now_t - inj["t"], 1) if (now_t is not None and inj["t"] is not None) else None),
+                    "turns": state.next_turn_index - inj["turn"],
+                    "msgs": len(state.usage_log) - inj["usage_idx"],
+                    "tools": state.face_calls - inj["face_calls"],
+                }
+            state.compress_events.append({
+                "t": now_t, "n": state.compression_seen, "from": peak, "to": p,
+                "prev_in": list(prev_in), "now_in": list(in_detail or []), "since": since,
+            })
+            logger.info(
+                "normalcall: 압축 상세 #%d t=%s 직전msg(prompt=%s %s) → 지금(prompt=%d %s) | 마지막 얹기=%s 이후 %ss·턴+%s·msg+%s·툴+%s",
+                state.compression_seen, now_t,
+                prev["prompt"] if prev else None, _detail_str(prev_in), p, _detail_str(in_detail),
+                inj["kind"] if inj else "(없음)",
+                since["s"] if since else "-", since["turns"] if since else "-",
+                since["msgs"] if since else "-", since["tools"] if since else "-",
+            )
+        except Exception as exc:  # noqa: BLE001 - 계측이 통화를 죽이면 안 된다
+            logger.debug("normalcall 압축 상세 계측 실패(무시): %s", exc)
 
 
 def _record_usage(state: _CallState, um) -> None:
@@ -1779,7 +1839,10 @@ def _record_usage(state: _CallState, um) -> None:
     try:
         # 압축 관측은 적재 상한과 무관하게 계속 돈다 — 상한을 넘긴 긴 통화야말로 압축이
         # 가장 활발한 구간이라, 여기서 끊으면 재접지가 후반부터 눈이 먼다.
-        _observe_compression(state, getattr(um, "prompt_token_count", None))
+        _observe_compression(
+            state, getattr(um, "prompt_token_count", None),
+            _modality_pairs(getattr(um, "prompt_tokens_details", None)),
+        )
         if len(state.usage_log) >= _USAGE_LOG_MAX:
             state.usage_dropped += 1
             return
@@ -1863,6 +1926,9 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         # ⚠ 여기 실리려면 Live usage 가 1건이라도 있어야 한다(위 `if not log: return None`).
         #   Live 계측이 통째로 없는 통화는 원가 행 자체가 안 생기므로 같이 없는 게 맞다.
         "sidecars": state.sidecar_usage.as_dict(),
+        # 압축 연구 계측(2026-09-12 ctx-lab). 빈 리스트면 얹기·압축이 없었다는 뜻.
+        "injects": list(state.text_injects),
+        "compress_events": list(state.compress_events),
     }
 
 
@@ -1932,6 +1998,12 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
         # 시계열 상세: 압축 발동 판정용(톱니 = 발동, 단조증가 = 미발동).
         trace = " ".join(f"{e['t']}:{e['prompt']}/{e['total']}" for e in state.usage_log)
         logger.info("normalcall usage trace: call_id=%s t:prompt/total %s", call_id, trace)
+        # 압축 연구 계측: 메시지별 입력 모달리티(A=AUDIO,T=TEXT) + 텍스트 얹기 마커. 별도 줄(위 형식 불변).
+        def _ad(e, key):
+            return next((c for n, c in e["in_detail"] if n == key), 0)
+        trace2 = " ".join(f"{e['t']}:{e['prompt']}[A{_ad(e,'AUDIO')}/T{_ad(e,'TEXT')}]" for e in state.usage_log)
+        marks = " ".join(f"{i['t']}:{i['kind']}@u{i['usage_idx']}" for i in state.text_injects)
+        logger.info("normalcall usage trace2: call_id=%s t:prompt[A/T] %s | injects %s", call_id, trace2, marks or "-")
 
 
 async def _persist_usage(db_session_factory, state: _CallState, call_id: int | None) -> None:
@@ -5046,6 +5118,7 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     if state.should_close or state.turn_id is not None:
         return False
     await session.send_text_turn(seed)
+    _note_text_inject(state, "nudge")
     return True
 
 
@@ -5085,6 +5158,7 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
     state.reground_count += 1
     state.last_reground_ts = asyncio.get_running_loop().time()
+    _note_text_inject(state, "reground")
     try:
         await session.send_reground(state.reground_reminder, turn_complete=False)
         logger.info(
@@ -5148,6 +5222,7 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         return
     state.expr_quiz_cue_pending = None
     state.expr_quiz_awaiting_open = True
+    _note_text_inject(state, "quiz_cue")
     # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
     logger.info(
         "%s 얹기: seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
@@ -5382,6 +5457,7 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
         await session.send_reground(text, turn_complete=True)
         state.reground_count += 1
         state.last_reground_ts = asyncio.get_running_loop().time()
+        _note_text_inject(state, "legacy_idle")
         logger.info("normalcall: 캐릭터 재접지 주입(legacy_idle, tc=True)")
     except asyncio.CancelledError:
         raise
