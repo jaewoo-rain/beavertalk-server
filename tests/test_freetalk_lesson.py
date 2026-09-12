@@ -357,7 +357,8 @@ class _WS:
 
 
 class _Sess:
-    def __init__(self, script): self.sent_text_turns = []; self.script = script
+    def __init__(self, script, ws=None, wait_hint=False):
+        self.sent_text_turns = []; self.script = script; self.ws = ws; self.wait_hint = wait_hint
     async def send_audio(self, b): pass
     async def send_text_turn(self, t): self.sent_text_turns.append(t)
     async def send_reground(self, t, *, turn_complete=True): self.sent_text_turns.append(t)
@@ -366,20 +367,27 @@ class _Sess:
         for role, txt in self.script:
             if role == "B":
                 yield cs.LiveEvent(kind="out_tr", text=txt); yield cs.LiveEvent(kind="turn_end")
+                if self.wait_hint and "?" in txt and self.ws is not None:
+                    # 힌트 사이드카는 백그라운드 — 프레임이 나갈 때까지(최대 3초) 세션을 살려 둔다
+                    for _ in range(300):
+                        if any('"type":"hint"' in t or '"type": "hint"' in t for t in self.ws.sent_text):
+                            break
+                        await asyncio.sleep(0.01)
             else:
                 yield cs.LiveEvent(kind="in_tr", text=txt, is_final=True)
 
 
-async def _run(factory, member_id, call_type, holder, script, monkeypatch):
+async def _run(factory, member_id, call_type, holder, script, monkeypatch, *, wait_hint=False):
+    ws = _WS([{"type": "websocket.receive", "text": json.dumps({"type": "start", "character_id": 1, "call_type": call_type})}])
+
     @contextlib.asynccontextmanager
     async def _f(client, settings, *, system_instruction, voice, **_kw):
-        sess = _Sess(script); holder["session"] = sess; holder["system_instruction"] = system_instruction
+        sess = _Sess(script, ws=ws, wait_hint=wait_hint); holder["session"] = sess; holder["system_instruction"] = system_instruction
         yield sess
 
     async def _capture(session, state):
         holder["state"] = state
     monkeypatch.setattr(cs, "_reground_watch", _capture)
-    ws = _WS([{"type": "websocket.receive", "text": json.dumps({"type": "start", "character_id": 1, "call_type": call_type})}])
     await cs.run_call(ws, app_settings, object(), factory, member_id=member_id, live_session_factory=_f)
     for _ in range(300):
         if not cs._analysis_tasks:
@@ -427,6 +435,65 @@ async def test_lesson_freetalk_call_uses_course_slots_and_expression_call_does_n
     assert st2.reground_ctx is not None and len(st2.reground_items) == 15
 
 
+# --------------------------------------------------------------------------- #
+# ⑥ 힌트 — 프리토킹은 보인다(사장님 2026-09-12), 표현학습은 없다(D7). 차시 프리토킹은 지시문에 이번 차시 소재
+# --------------------------------------------------------------------------- #
+def _hint_stub(seen: list):
+    async def _gen(client, model, *, system_instruction, prompt, schema, temperature=0.2, thinking_budget=None, usage=None):
+        if schema is cs.HintOut:
+            seen.append(system_instruction)
+            return cs.HintOut(examples=[
+                cs.HintExample(korean="저는 존이에요.", roman="jeoneun jon-ieyo", native="I'm John."),
+                cs.HintExample(korean="저는 미국 사람이에요.", roman="jeoneun miguk saram-ieyo", native="I'm American."),
+                cs.HintExample(korean="고향은 시카고예요.", roman="gohyang-eun sikago-yeyo", native="My hometown is Chicago."),
+            ])
+        return None
+    return _gen
+
+
+def test_hint_instruction_with_lesson_appends_the_lesson_clause_and_without_is_byte_identical():
+    base = cs._hint_instruction("영어(English)", "한국어")
+    assert base == cs._hint_instruction("영어(English)", "한국어", lesson=None) and "한국어 학습 힌트" in base
+    with_lesson = cs._hint_instruction("영어(English)", "한국어", lesson=_BRIEF)
+    assert with_lesson.startswith(base)
+    tail = with_lesson[len(base):]
+    assert "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 역할극이다." in tail
+    assert "**우선** 써라" in tail and "안녕히 계세요. · 생일이 언제예요? · 저는 회사원입니다. · 사람 · 나라." in tail, "문형은 예문으로"
+    assert "N은/는" not in tail
+
+
+@pytestmark_seed
+@pytest.mark.asyncio
+async def test_lesson_freetalk_pushes_hints_with_lesson_material_and_expression_pushes_none(factory, monkeypatch):
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.2)
+    seen: list[str] = []
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", _hint_stub(seen))
+    db = factory()
+    m = _member(db)
+    c = Call(member_id=m, character_id=1, call_type="expression"); db.add(c); db.commit()
+    opened = cur.open_call(db, m, c.call_id, "expression")
+    ids = [d["item_id"] for d in opened.items]
+    cur.record_expression(db, c.call_id, opened.items, drilled_ids=ids, passed_ids=ids, failed_ids=[])
+    lesson1 = repo.lesson_by_no(db, "ko", 1)
+    db.close()
+
+    h = await _run(factory, m, "auto", {}, [("B", "안녕하세요? 이름이 뭐예요?"), ("U", "저는 존이에요.")], monkeypatch, wait_hint=True)
+    assert next(f for f in h["frames"] if f["type"] == "call_started")["course"] == "freetalk"
+    hints = [f for f in h["frames"] if f.get("type") == "hint"]
+    turn_ends = [f["turn_id"] for f in h["frames"] if f.get("type") == "turn_end"]
+    assert len(hints) == 1 and len(hints[0]["examples"]) == 3 and hints[0]["turn_id"] == turn_ends[0]
+    assert hints[0]["examples"][0] == {"korean": "저는 존이에요.", "roman": "jeoneun jon-ieyo", "native": "I'm John."}
+    assert h["state"].hint_ctx is not None
+    assert seen and f"«{lesson1.situation}» 상황의 역할극이다." in seen[0] and "**우선** 써라" in seen[0]
+
+    # 표현학습(cur) — 힌트 0(D7)
+    db = factory(); m2 = _member(db); db.close()
+    seen.clear()
+    h2 = await _run(factory, m2, "auto", {}, [("B", "따라 하세요. 안녕하세요?")], monkeypatch, wait_hint=False)
+    assert next(f for f in h2["frames"] if f["type"] == "call_started")["course"] == "expression"
+    assert h2["state"].hint_ctx is None and not [f for f in h2["frames"] if f.get("type") == "hint"] and not seen
+
+
 @pytestmark_seed
 @pytest.mark.asyncio
 async def test_old_freetalk_path_keeps_old_seed_and_slots_when_cur_is_disabled(factory, monkeypatch):
@@ -439,3 +506,5 @@ async def test_old_freetalk_path_keeps_old_seed_and_slots_when_cur_is_disabled(f
     assert st.nudge_seed_1 == ft.NUDGE_SEED_1_FREETALK and st.nudge_seed_2 == cs._NUDGE_SEED_2 and st.idle_nudge1_s == cs.IDLE_NUDGE1_S
     assert h["session"].sent_text_turns[0] == ft.seed_freetalk_opening("한국어")
     assert "[이번 차시" not in h["system_instruction"] and "[학습자 흥미·소재]" in h["system_instruction"]
+    # 옛 프리토킹도 힌트는 켜진다(사장님: 프리토킹은 힌트 있음) — 차시 소재 절은 없다
+    assert st.hint_ctx is not None and "상황의 역할극" not in st.hint_ctx["instruction"]

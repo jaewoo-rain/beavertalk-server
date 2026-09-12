@@ -332,20 +332,16 @@ def test_detection_stays_append_only() -> None:
 # ⑦ 힌트 제거(D7) · 통화후 분석 분기
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-@pytest.mark.parametrize("call_type", ["expression", "freetalk"])
-async def test_the_new_courses_have_no_hints(
-    session_factory, seeded, monkeypatch, call_type: str,
-) -> None:
-    """⛔ D7 — 화면 UI 자체를 없앤다. 서버가 push 안 하면 화면에 안 뜬다.
-
-    ⭐ 표현학습에서 특히 해롭다: 이 코스의 퀴즈는 «배운 표현 맞히기» 라 예시 답변을 띄우면
-      **정답을 그대로 보여주는 것**이 되어 판정이 무의미해진다.
-    """
-    spawned: list[str] = []
-    monkeypatch.setattr(cs, "_spawn_hint_task",
-                        lambda ws, st: spawned.append(st.hint_ctx and "on" or "off"))
-    await _run(session_factory, seeded, call_type, {})
-    assert "on" not in spawned
+async def test_expression_has_no_hints_but_freetalk_does(session_factory, seeded, monkeypatch) -> None:
+    """⛔ D7 — 표현학습은 힌트 없음(퀴즈 정답을 그대로 보여주게 된다). ⭐ 2026-09-12 사장님: «프리토킹에는 힌트가 보여야 한다» —
+    프리토킹(옛 경로 포함)은 다시 켠다. 서버가 push 안 하면 화면에 안 뜨므로 hint_ctx 로 잰다."""
+    spawned: dict[str, list[str]] = {"expression": [], "freetalk": []}
+    for ct in ("expression", "freetalk"):
+        monkeypatch.setattr(cs, "_spawn_hint_task",
+                            lambda ws, st, _ct=ct: spawned[_ct].append(st.hint_ctx and "on" or "off"))
+        await _run(session_factory, seeded, ct, {})
+    assert "on" not in spawned["expression"]
+    assert spawned["freetalk"] and all(x == "on" for x in spawned["freetalk"])
 
 
 @pytest.mark.asyncio

@@ -2837,20 +2837,22 @@ async def run_call(
     # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
     # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
     # 프롬프트가 그 언어 커리큘럼에 맞춰져 있지 않아 무의미(R5). 상세는 mechanics ⑬.
-    # ⛔ **표현학습·프리토킹에는 힌트가 없다**(D7 — 사장님: 화면 UI 자체를 없앤다).
+    # ⛔ **표현학습에는 힌트가 없다**(D7). ⭐ 2026-09-12 사장님: «프리토킹에는 힌트가 보여야 한다. 표현학습은 없음» — 프리토킹(명시·auto→freetalk·
+    #   옛 경로 모두)은 다시 켠다. cur 프리토킹이면 지시문에 **이번 차시 소재**(상황·문형 예문·표현·어휘)를 실어 예시 답변이 그 차시 표현을
+    #   우선 쓰게 한다(`_hint_instruction(lesson=…)`, 없으면 바이트 동일). hint_used 는 기록만 — 프리토킹엔 판정이 없어 강등과 무관하다.
     #   ⚠ 여기서 끄는 것이 곧 «화면에 안 뜬다» 다 — 힌트는 서버가 push 해야만 보이므로
     #     ctx 를 안 만들면 사이드카도, ServerHint 프레임도, hint_used 강등도 전부 사라진다
     #     (`_spawn_hint_task` 가 ctx None 이면 즉시 되돌아간다).
     #   ⭐ 표현학습에서 힌트가 해로운 이유: 이 코스의 퀴즈는 «배운 표현을 맞히기» 라
     #     예시 답변을 띄우면 **정답을 그대로 보여주는 것**이 된다. 판정이 무의미해진다.
     #   ⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함).
-    enable_hints = spec.has_curriculum and call_type not in ("expression", "freetalk")
+    enable_hints = spec.has_curriculum and call_type != "expression"
     if enable_hints:
         label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
         state.hint_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            "instruction": _hint_instruction(label, target_language),
+            "instruction": _hint_instruction(label, target_language, lesson=freetalk_brief),
             # 원가 계기판 — 힌트 사이드카는 state 를 안 받으므로 ctx 에 수집기를 실어 보낸다
             # (시그니처를 안 바꾼다). ⚠ 여러 힌트 태스크가 같은 객체에 더한다 — 단일
             # 이벤트루프라 GIL 밖 경합이 없다(락 불요).
@@ -3808,14 +3810,37 @@ def _teaching_plan_items(study_items: list[dict]) -> list[TeachingItem]:
     return items
 
 
-def _hint_instruction(locale_label: str, target_language: str = "한국어") -> str:
+def _hint_instruction(locale_label: str, target_language: str = "한국어", lesson: object | None = None) -> str:
     """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
 
     (멀티랭귀지) target_language 로 예시 답변 언어를 지정한다(기본 한국어 — 기존 출력 무손상).
     korean 필드는 스키마·클라 호환상 이름을 유지하되 **내용은 대상 언어**다(일본어 통화면
     일본어 문장). roman 문구는 한국어만 RR 표기법을 명시, 그 외는 일반 로마자.
     레벨 프로파일은 주입하지 않는다 — 힌트는 어차피 '짧고 쉬운 구어체 1문장'이라 레벨 무관.
+    ⭐ `lesson`(차시 프리토킹, 2026-09-12): CurFreetalkBrief(situation · items[{obj, ex, role}]) 를 주면 뒤에 «이번 차시» 한 절 —
+      상황과 그 차시 표현(문형은 예문으로)을 실어 예시 답변이 그 표현을 **우선** 쓰게 한다(맞는 것이 있을 때만). None 이면 바이트 동일.
     """
+    return _hint_instruction_base(locale_label, target_language) + _hint_lesson_clause(lesson, target_language)
+
+
+def _hint_lesson_clause(lesson: object | None, target_language: str) -> str:
+    if lesson is None:
+        return ""
+    situation = (getattr(lesson, "situation", None) or "").strip()
+    items = [d for d in (getattr(lesson, "items", None) or []) if isinstance(d, dict) and (d.get("obj") or "").strip()]
+    words = [((d.get("ex") or "").strip() or d["obj"].strip()) if d.get("role") == "grammar" else d["obj"].strip() for d in items]
+    if not situation and not words:
+        return ""
+    parts = [" 지금 통화는"]
+    if situation:
+        parts.append(f" «{situation}» 상황의 역할극이다.")
+    if words:
+        parts.append(f" 학습자가 이 차시에서 배운 {target_language} 표현이 있다 — 질문에 맞는 것이 있으면 예시 답변에 **우선** 써라"
+                     f"(억지로 끼우지는 마라): " + " · ".join(words) + ".")
+    return "".join(parts)
+
+
+def _hint_instruction_base(locale_label: str, target_language: str = "한국어") -> str:
     t = target_language
     roman_clause = (
         "roman 은 국어의 로마자 표기법(RR)에 따른 korean 의 로마자 표기, "
