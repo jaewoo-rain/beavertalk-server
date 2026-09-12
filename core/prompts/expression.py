@@ -159,6 +159,7 @@ def build_expression_instruction(
     close_tag: str = CLOSE_TAG_DEFAULT,
     max_sentences: int | None = None,
     model_family: str = "2.5",
+    face_rule: str = "",
 ) -> str:
     """표현학습 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -205,6 +206,9 @@ def build_expression_instruction(
                           has_grammar=any(_is_grammar(i) for i in items)),
         "\n" + _CHARACTER_FRAME,
     ]
+    if face_rule:
+        # ⭐ 표정 규칙(2026-09-12 ctx-lab): 빈 문자열(기본)이면 안 붙어 종전과 바이트 동일. 호출부가 persona_prompt.face_tool_rule() 을 넘긴다.
+        parts.append("\n" + face_rule)
     return "\n".join(parts)
 
 

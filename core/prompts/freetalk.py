@@ -203,6 +203,7 @@ def build_freetalk_instruction(
     close_tag: str = CLOSE_TAG_DEFAULT,
     max_sentences: int | None = None,
     lesson: object | None = None,
+    face_rule: str = "",
 ) -> str:
     """프리토킹 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -237,4 +238,7 @@ def build_freetalk_instruction(
         f"\n[학습자 수준]\n{level_profile}",
         f"\n[학습자 흥미·소재] {interests_text}",
     ]
+    if face_rule:
+        # ⭐ 표정 규칙(2026-09-12 ctx-lab): 빈 문자열(기본)이면 안 붙어 종전과 바이트 동일.
+        parts.append("\n" + face_rule)
     return "\n".join(parts)

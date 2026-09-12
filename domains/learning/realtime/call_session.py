@@ -76,12 +76,14 @@ from core.languages import (
 from core.gemini_live import (
     DEFAULT_VOICE,
     SET_FACE_TOOL,
+    set_face_tool,
     LiveEvent,
     LiveSessionProtocol,
     open_session,
 )
 from core.persona_prompt import (
     _LOCALE_LABEL,
+    face_tool_rule,
     CONTROL_TAG,
     REGROUND_COVERED_CAP,
     build_leveltest_instruction,
@@ -2374,6 +2376,12 @@ async def run_call(
         # ⭐⭐ **여기서부터 코스별로 갈린다.** 위 플랜 분기(영상·백엔드·모델)는 세 코스가
         #   그대로 **공유**한다 — 표현학습·프리토킹도 Max 면 영상, Free·Pro 면 음성이다.
         #   ⛔ 레벨테스트만 이 블록 밖에 있다(자기 백엔드를 명시로 고정한다).
+        # ⭐ 표정 사용 규칙([표정] 블록)을 표현학습·프리토킹 대본에도 붙인다(2026-09-12 ctx-lab). 선언은 모든 영상 통화에
+        #   붙는데 규칙은 일반 통화에만 있었다 — 표현학습이 매 턴 set_face 를 부른 2차 원인(1451 24/25턴, 3.1 은 함수콜 턴
+        #   2회 추론 = 2× 과금). 문구는 core/prompts/locked/face.py(모드별). 빈 문자열이면 각 빌더가 아무것도 안 붙인다.
+        #   ⛔ 옛 모드("")에서는 붙이지 않는다 — 옛 규칙(«바뀔 때마다·neutral 복귀 필수»)을 표현학습에 새로 붙이면 호출이 늘 수 있다.
+        face_rule_text = (face_tool_rule() if (settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test"
+                                               and settings.LIVE_FACE_RULE_MODE) else "")
         if cur_route:
             # ⭐ cur 경로 — 지시문은 **call 행이 생긴 뒤**(아래) 조립한다. cur_call INSERT 에 call_id 가 필요하고(P1-4), 선별·브리프는
             #   그 open_call 의 결과(items/brief)로 만든다. 옛 경로(아래 elif 들)는 한 줄도 안 바뀐다 — CUR_ENABLED=false 면 그대로.
@@ -2403,6 +2411,7 @@ async def run_call(
                 # ⭐ T21-B — 모델은 위 플랜 분기(live_engine_for)가 고른 그대로다. 여기선 그 이름에 "3.1" 이 들었는지
                 #   **하나**만 본다 — 대본의 «[3.1 말투]» 블록 유무가 갈릴 뿐, 모델 선택 로직은 건드리지 않는다.
                 model_family="3.1" if "3.1" in (live_model or "") else "2.5",
+                face_rule=face_rule_text,
             )
             seed_text = seed_expression_opening(target_language)
             logger.info(
@@ -2422,6 +2431,7 @@ async def run_call(
                 name=setup["name"],
                 target_language=target_language,
                 close_tag=close_tag,
+                face_rule=face_rule_text,
             )
             seed_text = seed_freetalk_opening(target_language)
         else:
@@ -2544,6 +2554,7 @@ async def run_call(
                 target_language=target_language,
                 close_tag=close_tag,
                 model_family="3.1" if "3.1" in (live_model or "") else "2.5",
+                face_rule=face_rule_text,
             )
             seed_text = seed_expression_opening(target_language)
             logger.info(
@@ -2564,6 +2575,7 @@ async def run_call(
                 close_tag=close_tag,
                 max_sentences=FREETALK_MAX_SENTENCES,
                 lesson=cur_open.brief,
+                face_rule=face_rule_text,
             )
             seed_text = seed_freetalk_lesson_opening(target_language)
             freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
@@ -2778,7 +2790,7 @@ async def run_call(
     #   ⚠ 두 조건이 **같은 값**이어야 한다 — 한쪽만 고치면 "지시문엔 없는데 tool 은 있는"
     #     이 상태로 조용히 돌아온다. 회귀 `test_plan_call_split.py` 가 이 자리를 잠근다.
     if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test":
-        live_tools = [SET_FACE_TOOL]
+        live_tools = [set_face_tool()]   # LIVE_FACE_RULE_MODE 에 따른 선언(운영 qual = SET_FACE_TOOL)
     if call_type == "level_test":
         # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은
         #   상품 혜택이 아니라 **측정 설계**라, 클라가 언제 닫든 서버가 캡에서 끝내야 한다.
@@ -4326,6 +4338,12 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   ⛔ `turn_id` 로 리셋하지 않는다. 표정은 턴을 넘어 유지되는 상태다 —
             #     턴마다 비우면 다음 턴 첫 마커가 항상 중복으로 나간다.
             duplicate = emotion == state.face_last
+            # ⭐ qual(운영, 2026-09-12): 앱은 감정 클립이 끝나면 스스로 idle 로 돌아온다(사장님 확정) → 표정은 **턴을 넘어
+            #   유지되지 않는다.** 다음 턴에 같은 감정이 또 드러나면 다시 보내야 보인다. 중복은 «같은 턴 안»(face_last_pcm ≥ 0
+            #   = 이 턴에 이미 보냈다; turn_end 가 −1 로 비운다)으로만 본다. 1469 실측: 13회 중 4회가 다른 턴의 같은 감정
+            #   (angry×4)인데 「중복(안 보냄)」으로 버려졌다. ⛔ 옛 모드("")·sparse·budget 은 종전 그대로.
+            if duplicate and _settings.LIVE_FACE_RULE_MODE == "qual" and state.face_last_pcm < 0:
+                duplicate = False
             # ⛔⛔ **첫 인사 턴의 호출은 버린다**(2026-08-20 실측).
             #   프롬프트에 "첫 인사에서는 부르지 마라"를 넣었는데 **모델이 안 지켰다**
             #   (call 1117: 5.60초 지점에서 호출). 그리고 지시문이 예고한 그대로,
