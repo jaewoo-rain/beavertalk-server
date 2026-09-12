@@ -143,6 +143,8 @@ def get_resume_status(call_id: int, member: CurrentMember, db: DbSession) -> dic
     ## `can_resume`
     조각 상한(Free 1 / Pro·Max 3)이 남았나. ⛔ 본인 통화가 아니면 404 다 —
     남의 통화 상태를 조회로 떠보지 못하게 한다.
+    ⭐ 콜타입: normal · expression · freetalk(2026-09-12, 사장님 실기기 1447). 옛 조건이 normal 만 허용해 표현학습·프리토킹은 5분에
+      «Keep talking» 시트 없이 결과 화면으로 떨어졌다 — WS 쪽(이어하기 화이트리스트·cur_call 재개)은 이미 열려 있었다. level_test 만 False.
     """
     call = db.get(Call, call_id)
     if call is None or call.member_id != member.member_id:
@@ -157,7 +159,7 @@ def get_resume_status(call_id: int, member: CurrentMember, db: DbSession) -> dic
         #   ⚠ `resume_materials` 와 **같은 판정**을 써야 한다(한 함수로 모았다) — 두 곳이
         #     다른 기준을 쓰면 "준비됐다는데 느린" 상태가 계속 산다.
         "ready": svc.resume_context_is_fresh(db, call_id),
-        "can_resume": used < total and (call.call_type or "normal") == "normal",
+        "can_resume": used < total and (call.call_type or "normal") in ("normal", "expression", "freetalk"),
         "fragment_count": used,
         "max_fragments": total,
         # ⚠ 분석이 아직 도는 중인지 — 클라가 "요약 준비 중" 을 보여줄 수 있게.
