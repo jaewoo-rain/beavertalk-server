@@ -5265,3 +5265,33 @@ def test_the_end_owner_switch_is_gone():
     assert not hasattr(app_settings, "LIVE_CALL_END_OWNER")
     src = pathlib.Path(cs.__file__).read_text(encoding="utf-8")
     assert "LIVE_CALL_END_OWNER" not in src.replace("`LIVE_CALL_END_OWNER` 스위치로 남겨", "")
+
+
+@pytest.mark.asyncio
+async def test_qual_mode_resends_same_emotion_in_a_new_turn(
+        monkeypatch, session_factory, seeded):
+    """⭐ E9c(LIVE_FACE_RULE_MODE=qual): 앱이 클립 뒤 idle 로 스스로 돌아오므로 **다른 턴의 같은 감정은 다시 보낸다**.
+    같은 턴 안의 같은 값은 여전히 한 번만(1469 실측: angry×4 가 다른 턴인데 「중복」으로 버려졌다).
+    """
+    monkeypatch.setattr(app_settings, "LIVE_FACE_RULE_MODE", "qual", raising=False)
+    script = ["__audio", "__turn_end", "__user",
+              "angry", "__audio", "angry", "__turn_end",        # 같은 턴 안 반복 → 1회
+              "angry", "__audio", "__turn_end",                 # 다음 턴 같은 감정 → 다시 보낸다
+              "angry", "__audio", "__turn_end"]
+    markers, holder = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=True)
+    assert [m["emotion"] for m in markers] == ["angry", "angry", "angry"], markers
+    assert [m["seq"] for m in markers] == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_default_mode_still_drops_cross_turn_duplicates(
+        monkeypatch, session_factory, seeded):
+    """⛔ 기본 모드는 종전 그대로 — 턴을 넘어도 같은 값은 안 보낸다(행동 불변)."""
+    monkeypatch.setattr(app_settings, "LIVE_FACE_RULE_MODE", "", raising=False)
+    script = ["__audio", "__turn_end", "__user",
+              "angry", "__audio", "__turn_end",
+              "angry", "__audio", "__turn_end"]
+    markers, holder = await _run_face_call(
+        monkeypatch, session_factory, seeded, script, on=True)
+    assert [m["emotion"] for m in markers] == ["angry"], markers

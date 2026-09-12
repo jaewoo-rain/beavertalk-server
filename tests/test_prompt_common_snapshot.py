@@ -116,7 +116,7 @@ _FROZEN: dict[str, tuple[str, int]] = {
     "live_plain": ("0eb57542dcff74985b12057ecbe957281ad6d94d63704cc1ee5448386f59c691", 3769),
     "live_checkboard": ("87ecc3a8bce7689eca31eacd34ff3912c7208472004039caa1d1b663fe22d388", 7100),
     "live_survival": ("96e23311bd2d59a90b1eadca449c30231e7e4c6f0d7622dc68715b17cb2081e6", 6135),
-    "live_face_tool": ("dec3ed7df4430a4dc2810457a28e5b07d34369dbc066151a0c03fc5ae81279cc", 4827),
+    "live_face_tool": ("f718605d73d6121eb283a339ded6128a64264f4c3af4b4f1a9532db30bb7d115", 4405),   # 2026-09-12 [표정] 블록 qual 로 교체(사장님 결정, bt-back 승인) — 옛 dec3ed7d…/4827
     "cascade_optin": ("7aadb5781e94e6530737ce9a3425c2b4f58e27b9846df549186a9a844eab095f", 4713),
     "leveltest": ("019f4df8f448fe68dda443511330e59974e752662f5228a5897743a3a0ab98bb", 2117),
     "seed_opening": ("0b1d8dcb23e47f0669fffdf94738eb8c51039a82fc0cc5fe1b2c7a3a668f0fcf", 285),

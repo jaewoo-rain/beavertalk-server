@@ -30,11 +30,14 @@ FROZEN: dict[str, str] = {
     "rules.RULE_NONVERBAL_SOUND": "19e84ac833886ce0",
     "rules.RULE_OFF_TOPIC": "4ec3b6fb0c5d1eb8",
     "rules.RULE_OFF_TOPIC_BODY": "af6552c0c7e1c3a1",
-    "face.FACE_TOOL_RULE": "773ded08034bed22",
+    "face.FACE_TOOL_RULE": "d75b6a64e88efb57",   # 2026-09-12 qual(사장님 결정, bt-back 승인) — 옛 773ded08034bed22 는 FACE_TOOL_RULE_LEGACY
     "face.EMOTION_TAG_RULE": "2cef5ca860a68522",
+    "face.FACE_TOOL_RULE_LEGACY": "773ded08034bed22",
+    "face.SET_FACE_DESCRIPTION_LEGACY": "390b4609ee6359c4",
+    "face.SET_FACE_EMOTION_DESCRIPTION_LEGACY": "75b9563f851249c7",
     "face.LANGUAGE_MARKER_RULE": "5a90e17616194924",
-    "face.SET_FACE_DESCRIPTION": "390b4609ee6359c4",
-    "face.SET_FACE_EMOTION_DESCRIPTION": "75b9563f851249c7",
+    "face.SET_FACE_DESCRIPTION": "e129ec356b1b6c18",   # 2026-09-12 qual — 옛 390b4609ee6359c4 는 *_LEGACY
+    "face.SET_FACE_EMOTION_DESCRIPTION": "ea188ac798a6385a",   # 2026-09-12 qual(neutral 없음) — 옛 75b9563f851249c7 는 *_LEGACY
     "normal.STUDY_RESERVE_HEADER": "3d449452d7fe92d3",
     "normal.STUDY_FIVE_CHECK": "55533093e555338b",
     "normal.STUDY_FIVE_CHECK_L1_TAIL": "bc74fa51fa72c274",
@@ -81,7 +84,9 @@ def test_locked_constant_is_unchanged(key: str) -> None:
 
 def test_locked_non_string_constants() -> None:
     assert _h("\n".join(lex.MODEL_BLOCK_31_LINES)) == "f7dd68410a28e537", f"[3.1 말투] {HELP}"
-    assert tuple(face.SET_FACE_EMOTIONS) == ("neutral", "happy", "surprised", "sad", "angry", "laugh"), f"set_face enum — {HELP}"
+    # 2026-09-12(사장님 결정, bt-back 승인): neutral 제거 — 앱이 감정 클립 뒤 스스로 idle 복귀. 옛 6종은 SET_FACE_EMOTIONS_LEGACY.
+    assert tuple(face.SET_FACE_EMOTIONS) == ("happy", "surprised", "sad", "angry", "laugh"), f"set_face enum — {HELP}"
+    assert tuple(face.SET_FACE_EMOTIONS_LEGACY) == ("neutral", "happy", "surprised", "sad", "angry", "laugh"), f"set_face legacy enum — {HELP}"
     assert rules.DEFAULT_MAX_SENTENCES == 4 and rules.REGROUND_COVERED_CAP == 10, HELP
 
 

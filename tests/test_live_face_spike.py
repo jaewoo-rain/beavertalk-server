@@ -79,13 +79,15 @@ def test_the_face_tool_is_blocking_and_matches_the_client_vocabulary():
     fn = SET_FACE_TOOL.function_declarations[0]
     assert fn.name == "set_face"
     assert fn.behavior is None, "표정 tool 은 기본(블로킹)이어야 한다"
+    # 2026-09-12(사장님 확정): neutral 은 없다 — 앱이 감정 클립 뒤 스스로 idle 로 돌아오므로 복귀 호출은 순수 낭비
+    #   (3.1 은 함수콜 턴을 2회 추론 = 2× 과금; 기준선 호출의 40~47% 가 neutral 복귀였다).
     assert set(fn.parameters.properties["emotion"].enum) == {
-        "neutral", "happy", "surprised", "sad", "angry", "laugh"
+        "happy", "surprised", "sad", "angry", "laugh"
     }
     # ⛔ 값마다 **상황**이 붙어 있어야 한다. 실측(call 1206·1207)에서 자산이 멀쩡한
     #   surprised·angry 가 0건이었다 — 설명이 낱말 하나라 모델이 자기 대사와 못 이었다.
     desc = fn.parameters.properties["emotion"].description or ""
-    for label in ("neutral", "happy", "surprised", "sad", "angry", "laugh"):
+    for label in ("happy", "surprised", "sad", "angry", "laugh"):
         assert f"{label}=" in desc, f"{label} 에 상황 설명이 없다 — 안 불릴 값이 된다"
 
 
@@ -360,13 +362,18 @@ def test_the_face_rule_allows_per_sentence_changes_and_demands_a_return():
 
     ⛔ 그래서 "한 번만" 으로 되돌리지 마라. 되돌리면 표정이 다시 턴 단위로 굳는다.
     """
+    # ⚠ 2026-09-12 갱신(사장님 결정, ctx-lab): 옛 «바뀔 때마다·평소로 돌아올 때도 반드시(neutral)» 는 매 턴 호출을 만들어
+    #   3.1 에서 2× 과금(표현학습 5분 $0.56)을 냈다. 앱이 클립 뒤 스스로 idle 로 돌아오므로 되돌리기는 **시키지 않는다**.
+    #   대신 «감정이 드러나는 차례마다 — 같은 감정이어도 매번» 이 문장 단위·매 감정 표현을 보장한다. 옛 문구는
+    #   locked.face.FACE_TOOL_RULE_LEGACY 에 기록으로 남는다.
     rule = pp._FACE_TOOL_RULE
-    assert "바뀔 때마다" in rule
-    assert "여러 번 부를 수 있다" in rule, "턴당 1회 제한으로 되돌아갔다"
-    # ⭐ 켜는 것만 시키면 영영 안 꺼진다 — 되돌리기를 명시적으로 요구한다.
-    assert "평소로 돌아올 때도 반드시 불러라(neutral)" in rule
+    assert "감정이 드러나는 차례마다" in rule
+    assert "같은 감정이어도 매번" in rule, "같은 감정 재호출 지시가 사라졌다 — 다음 턴 표정이 안 나온다"
+    assert "neutral 이라는 값은 없다" in rule and "평소로 돌아올 때도 반드시" not in rule
     # ⛔ 폭주 방어는 유지 — 이것까지 풀면 89회 사고가 되살아난다.
     assert "소리 없이 연달아 부르지 마라" in rule
+    legacy = pp.face_rule_for("")[0]
+    assert "평소로 돌아올 때도 반드시 불러라(neutral)" in legacy, "옛 문구 기록(LEGACY)이 바뀌었다"
 
 
 # --------------------------------------------------------------------------- #
