@@ -242,6 +242,7 @@ class Item:
     # 서버 문자열 판정(quiz_judge.mentions — cur 경로도 T16 그대로, bt-back 결정 ①)이 «말할 답» 에서 이 항목을 알아보는가.
     # 문법 템플릿(N은/는 …)은 예문에 따라 못 알아볼 수 있다 → False 면 서버는 drilled/passed 를 절대 못 찍는다(기대도 그렇게 둔다)
     server_matchable: bool = True
+    examples: tuple[str, ...] = ()    # cur_item.examples 전부(프리토킹 답 은행 · 문법 예문 회전)
 
     @property
     def answer(self) -> str:
@@ -714,6 +715,10 @@ class Session:
         self.last_beaver_text: str = ""           # 워치독이 «따라 하라» 문구를 볼 때 쓴다
         self.watchdog_fires = 0
         self.speak_errors = 0
+        self.silence_until: float = -1.0          # 프리토킹 의도적 침묵 중이면 그 끝 시각(워치독이 쉰다)
+        self.ft_silence_done = False
+        self.ft_silence: dict = {}                # {"start": t, "nudge_at": t|None, "nudge_text": str}
+        self.character_id: Optional[int] = None
 
     # ---- 유틸 -------------------------------------------------------------- #
     def now(self) -> float:
@@ -744,6 +749,7 @@ class Session:
             self.call_id = int(msg["call_id"]) if msg.get("call_id") else None
             # ⭐ auto 코스: 서버가 정한 코스를 알려준다(계획 §8). 명시 코스여도 서버 값이 오면 기록만 한다.
             self.course_from_server = msg.get("course")
+            self.character_id = msg.get("character_id")
             if self.course == "auto" and self.course_from_server in ("expression", "freetalk"):
                 self.course = self.course_from_server
             self.log(f"call_started call_id={self.call_id} character={msg.get('character_id')} course={self.course_from_server or '(없음)'} → 검증 코스 {self.course}")
@@ -935,6 +941,11 @@ class Session:
         학습자는 차시 예문을 돌려 말한다(비버가 차시 표현을 끌어내는지 보려고 재료를 준다)."""
         turn = self.add_turn("beaver", text)
         tags = turn.tags
+        if self.silence_until > 0 and self.ft_silence.get("nudge_at") is None:
+            self.ft_silence["nudge_at"] = round(self.now(), 1)
+            self.ft_silence["nudge_text"] = text
+            tags.append(f"넛지(침묵 {self.now() - self.ft_silence['start']:.0f}s 뒤)")
+            self.silence_until = -1.0
         if BRACKET_RE.search(text):
             tags.append("[대괄호]")
         mentioned = surfaces_in(text, self.items)
@@ -948,17 +959,79 @@ class Session:
         self.first_turn_end_seen.set()
         if self.probe:
             return
-        reply, lang = self.freetalk_reply(text)
-        self.pending_speak = asyncio.create_task(self._speak_later(reply, lang, "freetalk", uplink))
+        reply, lang, kind = self.freetalk_reply(text)
+        self.pending_speak = asyncio.create_task(self._speak_later(reply, lang, kind, uplink))
 
-    def freetalk_reply(self, text: str) -> tuple[str, str]:
-        """차시 항목의 예문(있으면)·표면형을 순서대로 돌려 말한다. 예문이 문장이라 대화가 굴러가고, 표현 등장을 잴 수 있다."""
-        pool = [it for it in self.items.values() if not it.review] or list(self.items.values())
-        if not pool:
-            return "네, 좋아요.", "ko"
-        it = pool[self.ft_i % len(pool)]
+    # 프리토킹 v1 대본(계획 §9 하네스 v1): 비버 과제에 **한국어로** 답한다 — 차시 항목·문법 예문에서 고른다.
+    #   학습자 턴 3·8번째는 «I don't know»(모국어 턴 유도) · 5번째는 영어 문장(«What does that mean?») · 나머지는 한국어.
+    FT_IDK_TURNS = (3, 9)
+    FT_EN_TURN = 5
+    FT_EN_LINE = "What does that mean?"
+    FT_SILENT_TURN = 7               # 의도적 침묵 — 무음 1단 넛지가 몇 초에 오는지 잰다(최대 70초 대기)
+    FT_SILENCE_MAX_S = 70.0
+
+    def lesson_items_list(self) -> list[Item]:
+        """프리토킹 소재 = **이 차시의 항목 전부**(복습 표시와 무관 — 표현학습을 다 끝낸 차시라 전부 drilled 다)."""
+        lid = (self.lesson or {}).get("lesson_id")
+        its = [it for it in self.items.values() if lid and it.lesson_id == lid]
+        return its or [it for it in self.items.values() if not it.review] or list(self.items.values())
+
+    def freetalk_bank(self) -> list[str]:
+        """차시별 한국어 답 은행 — 문법 예문 전부 + 문형에서 만든 자기소개 문장 + 청크 인접쌍 2부 + 어휘 예문."""
+        if getattr(self, "_ft_bank", None):
+            return self._ft_bank
+        bank: list[str] = []
+        lesson_items = self.lesson_items_list()
+        labels = " ".join(it.surface for it in lesson_items if it.kind == "grammar")
+        if "이에요" in labels or "예요" in labels:
+            bank += ["저는 John이에요.", "저는 미국 사람이에요.", "제 이름은 John이에요."]
+        if "입니다" in labels or "입니까" in labels:
+            bank += ["저는 학생입니다.", "비버 씨는 어느 나라 사람입니까?"]
+        # 청크(차시 1): 인접쌍 2부 — 인사·안부·사과에 응답으로 어울리는 것
+        chunk_pairs = {"안녕하세요?": "안녕하세요.", "잘 지냈어요?": "네, 잘 지냈어요.", "만나서 반갑습니다": "만나서 반갑습니다.",
+                       "죄송합니다": "괜찮아요.", "미안해요": "괜찮아요.", "감사합니다": "아니에요.", "고마워요": "아니에요.",
+                       "이름이 뭐예요?": "저는 John이에요.", "안녕히 가세요": "안녕히 계세요.", "안녕히 계세요": "안녕히 가세요."}
+        for it in lesson_items:
+            if it.kind == "chunk":
+                bank.append(chunk_pairs.get(it.surface, it.surface if it.surface.endswith(("요", "다", "요?", "니다")) else it.surface + "."))
+        for it in lesson_items:
+            if it.kind == "grammar":
+                bank += [e for e in it.examples if e]
+        for it in lesson_items:
+            if it.kind == "vocab" and it.example and len(norm_ko(it.example)) >= 4:
+                bank.append(it.example)
+        seen: set[str] = set()
+        self._ft_bank = [b for b in bank if not (norm_ko(b) in seen or seen.add(norm_ko(b)))] or ["네, 좋아요."]
+        return self._ft_bank
+
+    def freetalk_reply(self, text: str) -> tuple[str, str, str]:
+        """(문장, 언어, 종류). 비버 턴에 차시 항목이 보이면 그 항목의 예문/인접쌍으로, 아니면 은행을 순서대로. 3·8번째 idk · 5번째 영어."""
         self.ft_i += 1
-        return (it.example or it.surface), "ko"
+        n = self.ft_i
+        if n == self.FT_SILENT_TURN and not self.ft_silence_done:
+            return "", "", "ft_silence"
+        if n in self.FT_IDK_TURNS:
+            return IDK_EN, "en", "ft_idk"
+        if n == self.FT_EN_TURN:
+            return self.FT_EN_LINE, "en", "ft_en"
+        hits = surfaces_in(text, {it.item_id: it for it in self.lesson_items_list()})
+        if hits:
+            it = self.items[hits[0]]
+            if it.kind == "chunk":
+                pairs = {"안녕하세요?": "안녕하세요.", "잘 지냈어요?": "네, 잘 지냈어요.", "이름이 뭐예요?": "저는 John이에요.",
+                         "죄송합니다": "괜찮아요.", "감사합니다": "아니에요."}
+                return pairs.get(it.surface, it.surface), "ko", "ft_ko"
+            if it.kind == "grammar" and it.examples:
+                return it.examples[(n - 1) % len(it.examples)], "ko", "ft_ko"
+            # 어휘 과제엔 그 어휘가 든 «자기 얘기» 문장으로(예문보다 대화답게): 이름·나라·국가명
+            if it.surface == "이름":
+                return "저는 John이에요.", "ko", "ft_ko"
+            if it.surface == "나라" or re.search(r"(united states|korea|china|japan|vietnam|canada|russia|indonesia|malaysia|kingdom|america)", norm_en(it.en)):
+                return f"저는 {'미국' if it.surface == '나라' else it.surface} 사람이에요.", "ko", "ft_ko"
+            if it.example:
+                return it.example, "ko", "ft_ko"
+        bank = self.freetalk_bank()
+        return bank[(n - 1) % len(bank)], "ko", "ft_ko"
 
     async def identify(self, text: str, seg: str, mentioned: list[int], is_question: bool,
                        new_item_cue: bool, exclude: set[int] | None = None) -> tuple[Optional[int], str]:
@@ -1139,6 +1212,9 @@ class Session:
         return surface, "ko", "correct"
 
     async def _speak_later(self, reply: str, lang: str, kind: str, uplink: Uplink) -> None:
+        if kind == "ft_silence":
+            await self._ft_silence(uplink)
+            return
         spoke = False
         try:
             pcm = await self.voice.pcm(reply, lang)
@@ -1196,20 +1272,49 @@ class Session:
                 await uplink.speak(await self.voice.pcm(IDK_EN, "en"))
                 self.last_spoke_at = self.now()
 
+    async def _ft_silence(self, uplink: Uplink) -> None:
+        """의도적 침묵: 마이크는 열어 두고(무음 프레임) 비버 넛지 턴이 올 때까지 최대 FT_SILENCE_MAX_S 기다린다. 넛지가 오면
+        on_json(turn_start)이 이 태스크를 취소하고 그 턴에 정상 응답한다 — 넛지 도착 시각은 on_freetalk_turn 이 기록."""
+        self.ft_silence_done = True
+        t0 = self.now()
+        self.silence_until = t0 + self.FT_SILENCE_MAX_S
+        self.ft_silence = {"start": round(t0, 1), "nudge_at": None, "nudge_text": ""}
+        uplink.open = True
+        t = self.add_turn("learner", "(침묵 — 넛지 대기)", kind="ft_silence")
+        t.tags.append("의도적 침묵")
+        self.last_learner = t
+        self.since_learner = []
+        self.log(f"👤 (침묵 시작 — 무음 넛지가 몇 초에 오나, 최대 {self.FT_SILENCE_MAX_S:.0f}s)")
+        try:
+            while self.now() < self.silence_until and not self.ended:
+                await asyncio.sleep(0.5)
+            if self.ft_silence.get("nudge_at") is None:
+                self.log(f"   (침묵 {self.FT_SILENCE_MAX_S:.0f}s 동안 넛지 없음 → 다시 말한다)")
+                self.silence_until = -1.0
+                reply, lang, kind = self.freetalk_reply("")
+                await self._speak_later(reply, lang, kind, uplink)
+        except asyncio.CancelledError:
+            raise
+        finally:
+            self.silence_until = -1.0
+
     async def watchdog(self, uplink: Uplink) -> None:
         """①⛔ 무응답 방지 — 비버 turn_end 뒤 6초 동안 내가 소리를 안 냈으면(발화 태스크가 죽었든 취소됐든) 무조건 말한다.
         «따라 하라» 문구(say/repeat + 표면형)면 그 표현(짧으면 X요)을, 아니면 «I don't know». 비버가 말하는 중이면 끝나기를 기다린다."""
         try:
             while not self.ended:
                 await asyncio.sleep(0.5)
-                if self.probe or self.course == "freetalk" or self.cur_turn_id is not None or self.last_beaver_end <= 0:
+                if self.probe or self.cur_turn_id is not None or self.last_beaver_end <= 0 or self.now() < self.silence_until:
                     continue
                 if self.now() - self.last_beaver_end < 6.0 or self.last_spoke_at >= self.last_beaver_end:
                     continue
                 if self.pending_speak is not None and not self.pending_speak.done():
                     self.pending_speak.cancel()
                 self.watchdog_fires += 1
-                reply, lang, kind = self.parrot_request(self.last_beaver_text) or (IDK_EN, "en", "idk")
+                if self.course == "freetalk":
+                    reply, lang, kind = self.freetalk_reply(self.last_beaver_text)
+                else:
+                    reply, lang, kind = self.parrot_request(self.last_beaver_text) or (IDK_EN, "en", "idk")
                 self.log(f"⏱ 워치독 #{self.watchdog_fires}: 비버 turn_end 뒤 {self.now() - self.last_beaver_end:.1f}s 무발화 → 「{reply}」")
                 uplink.open = True
                 t = self.add_turn("learner", reply, kind=kind, item_id=self.current.item.item_id if self.current else 0)
@@ -1448,7 +1553,7 @@ def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str
            # ⭐ T17-6 «늦은 전사» 가설 확정용 — 학습자 전사 조각(«👤 user:») 과 턴 flush(«👤 USER[t..]») 를 시간순으로 같이 붙인다.
            #   재개 시드 주입·제어 태그 스크럽 줄도(T17-1 벙어리 턴 규칙).
            'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm" '
-           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결")')
+           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음")')
     try:
         out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "1000",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
@@ -1798,11 +1903,13 @@ def load_cur_context(sf, member_id: int, lesson_no: int, *, n: int) -> dict:
             exs = json.loads(it.examples) if it.examples else []
         except ValueError:
             exs = []
-        ex = exs[0] if isinstance(exs, list) and exs else ""
-        ex = ex if isinstance(ex, str) else str(ex.get("ko") or ex.get("text") or "") if isinstance(ex, dict) else ""
+        def _ex_str(e) -> str:
+            return e if isinstance(e, str) else (str(e.get("ko") or e.get("text") or "") if isinstance(e, dict) else "")
+        ex_all = tuple(x for x in (_ex_str(e) for e in (exs if isinstance(exs, list) else [])) if x)
+        ex = ex_all[0] if ex_all else ""
         item = Item(it.item_id, it.surface, str(en), "" if it.kind == "grammar" else casual_for(it.surface),
                     keywords_for(it.surface, str(en), it.kind),
-                    kind=it.kind, example=ex, lesson_id=lesson_id, role=role, review=review, seq=seq)
+                    kind=it.kind, example=ex, lesson_id=lesson_id, role=role, review=review, seq=seq, examples=ex_all)
         try:
             from domains.learning.service.quiz_judge import mentions as _mentions
             # 서버(cur 경로)는 표면형 매처 OR **예문 문장** 으로 문법을 알아본다(bt-back H3-③). 하네스는 문법 답으로 예문을 말하므로
@@ -1940,6 +2047,10 @@ def read_cur_outcome(sf, api: CurApi, call_id: Optional[int], ctx: dict, me_pre:
         sc.cur["me_post"] = api.me()
     except CurApiError as exc:
         sc.cur["api_error"] = str(exc)
+    try:
+        sc.cur["lessons_after"] = api.lessons(level=(ctx["lesson"] or {}).get("level_no"))
+    except CurApiError:
+        sc.cur["lessons_after"] = []
     if call_id:
         try:
             qi = api.quiz_items(call_id)
@@ -1965,9 +2076,20 @@ def read_cur_outcome(sf, api: CurApi, call_id: Optional[int], ctx: dict, me_pre:
     return sc
 
 
+def lang_of(text: str) -> str:
+    """비버 턴 언어 — 한글 비율로. ko ≥ 0.7 · native ≤ 0.3 · 그 사이 mixed (문자만 셈: 한글 vs 라틴)."""
+    ko = len(re.findall(r"[가-힣]", text or ""))
+    la = len(re.findall(r"[A-Za-z]", text or ""))
+    if ko + la == 0:
+        return "empty"
+    r = ko / (ko + la)
+    return "ko" if r >= 0.7 else ("native" if r <= 0.3 else "mixed")
+
+
 def freetalk_report(sess: Session, sc: Score, ctx: dict, *, duration_min: int, run_no: int, server_logs: list[str] | None,
-                    out_dir: Path, expect_locked: bool, picker: Picker) -> tuple[Path, bool]:
-    """프리토킹 보고서 — 판정 없음. 잠금 / 상황·상대 문구 / 차시 표현 등장 / /cur/me 전이."""
+                    out_dir: Path, expect_locked: bool, picker: Picker, sc_sf=None) -> tuple[Path, bool]:
+    """프리토킹 v1 보고서 — 4열만(계획 §9): ①비버 턴별 언어·모국어 턴 수 ②모국어 턴 다음 비버 턴이 한국어인가 ③문형 이름 발화 턴 수
+    ④/cur/me 전이(status·next_course·다음 차시). 판정 없음."""
     L: list[str] = []
     cid = sess.call_id
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -1980,6 +2102,13 @@ def freetalk_report(sess: Session, sc: Score, ctx: dict, *, duration_min: int, r
     b_hits = {i for t in beav for i in surfaces_in(t.text, lesson_items)}
     l_hits = {i for t in learner for i in surfaces_in(t.text, lesson_items)}
     ok = True
+    # 캐릭터 이름(⑤) — call_started.character_id → character.name
+    try:
+        from sqlalchemy import text as _sql
+        with sc_sf() as _db:
+            sc.cur["character_name"] = _db.execute(_sql("SELECT name FROM character WHERE character_id=:c"), {"c": sess.character_id or 0}).scalar() or ""
+    except Exception:  # noqa: BLE001
+        sc.cur["character_name"] = ""
     if sess.locked:
         verdict = "잠금 확인(정상)" if expect_locked else "⛔ 잠김 — 프리토킹이 열려 있어야 했다"
         ok = expect_locked
@@ -1992,49 +2121,108 @@ def freetalk_report(sess: Session, sc: Score, ctx: dict, *, duration_min: int, r
         pre = sc.cur.get("me_pre") or {}
         moved = (post.get("lesson") or {}).get("no")
         L.append(f"**결과: 통화 {sess.turns[-1].t if sess.turns else 0:.0f}초 · 종료 `{sess.end_reason}`** · /cur/me 차시 {((pre.get('lesson') or {}).get('no'))}→{moved} · status {pre.get('status')}→{post.get('status')}")
-    L.append(f"- 통화 길이 요청 {duration_min}분 · 비버 턴 {len(beav)} · 학습자 턴 {len(learner)} · 첫 비버 발화 {beav[0].t if beav else float('nan'):.1f}s · 오류 {sess.errors or '없음'}")
+    L.append(f"- 통화 길이 요청 {duration_min}분 · 비버 턴 {len(beav)} · 학습자 턴 {len(learner)} · 첫 비버 발화 {beav[0].t if beav else float('nan'):.1f}s · 오류 {sess.errors or '없음'}"
+             + (f" · 워치독 {sess.watchdog_fires}회" if sess.watchdog_fires else ""))
     L.append(f"- DB call: {sc.call_row}")
     L.append("")
-    L.append("## 1. 상황·상대 (첫 비버 턴)")
-    L.append(f"- 차시 situation «{les['situation']}» · partner «{les.get('partner')}» · probes {les.get('probes')}")
-    if beav:
-        L.append(f"- 첫 턴: 「{beav[0].text[:300]}」")
-        sit = None
-        if picker.enabled and picker.client is not None:
-            try:
-                from pydantic import BaseModel
-                from core.config import settings
-                from core.gemini_analysis import generate_structured
-
-                class SitCheck(BaseModel):
-                    situation_set: bool
-                    partner_set: bool
-                    reason: str
-
-                res = asyncio.run(generate_structured(
-                    picker.client, settings.JUDGE_MODEL,
-                    system_instruction="You check whether a Korean tutor's opening line sets up the given role-play situation and partner. Answer strictly.",
-                    prompt=f"Situation (Korean): {les['situation']}\nPartner (Korean): {les.get('partner')}\n\nOpening line: {beav[0].text}",
-                    schema=SitCheck, temperature=0.0, thinking_budget=0))
-                if res is not None:
-                    sit = res
-                    L.append(f"- 상황 설정 {'✔' if res.situation_set else '✖'} · 상대 설정 {'✔' if res.partner_set else '✖'} (LLM: {res.reason[:120]})")
-            except Exception as exc:  # noqa: BLE001
-                L.append(f"- 상황 판정 LLM 실패: {exc}")
-        if sit is None:
-            L.append("- 상황·상대 판정: (LLM 꺼짐 — 전사로 확인)")
+    # ① 비버 턴별 언어 · 모국어 턴 수
+    langs = [(t, lang_of(t.text)) for t in beav]
+    n_native = sum(1 for _, lg in langs if lg == "native")
+    n_mixed = sum(1 for _, lg in langs if lg == "mixed")
+    L.append("## ① 비버 턴별 언어 (한글 비율: ko ≥0.7 · native ≤0.3 · mixed)")
+    L.append(f"- 비버 턴 {len(beav)} = ko {sum(1 for _, lg in langs if lg == 'ko')} · **native {n_native}** · mixed {n_mixed}")
+    L.append("- " + " ".join(f"t{t.n}:{lg}" for t, lg in langs))
+    # ② 모국어 턴 다음 비버 턴이 한국어인가
     L.append("")
-    L.append("## 2. 차시 표현 등장")
-    L.append(f"- 비버 턴에 나온 차시 표현 {len(b_hits)}/{len(lesson_items)}: " + ", ".join(lesson_items[i].surface for i in sorted(b_hits)) )
-    L.append(f"- 학습자(하네스 대본) 발화의 차시 표현 {len(l_hits)}: " + ", ".join(lesson_items[i].surface for i in sorted(l_hits)))
-    br = [t for t in sess.turns if "[대괄호]" in t.tags]
-    L.append(f"- 대괄호 누출 {len(br)}건" + (" — " + ", ".join(f"턴{t.n}" for t in br) if br else " ✔"))
+    L.append("## ② 모국어 턴 **다음** 비버 턴이 한국어인가 (복귀 성공률)")
+    back_ok = back_n = 0
+    detail = []
+    for i, (t, lg) in enumerate(langs):
+        if lg != "native" or i + 1 >= len(langs):
+            continue
+        nt, nlg = langs[i + 1]
+        back_n += 1
+        back_ok += int(nlg == "ko")
+        detail.append(f"t{t.n}(native)→t{nt.n}:{nlg}")
+    L.append(f"- 모국어 턴 {back_n}개 중 다음 턴 한국어 {back_ok}개 = {(100 * back_ok / back_n):.0f}%" if back_n else "- 모국어 턴 없음(마지막 턴 제외)")
+    if detail:
+        L.append("- " + " · ".join(detail))
+    probes = [t for t in learner if t.kind in ("ft_idk", "ft_en")]
+    L.append(f"- 하네스가 모국어 턴을 유도한 학습자 턴 {len(probes)}: " + ", ".join(f"t{t.n}「{t.text}」" for t in probes))
+    # ③ 문형 이름 발화
     L.append("")
-    L.append("## 3. /cur/me 전이")
-    L.append(f"- 전: {summarize_me(sc.cur.get('me_pre') or {}) if sc.cur.get('me_pre') else '(없음)'}")
-    L.append(f"- 후: {summarize_me(sc.cur.get('me_post') or {}) if sc.cur.get('me_post') else '(없음)'}")
+    L.append("## ③ 문형 이름을 비버가 말한 턴 (기대 0)")
+    gram = [it for it in sess.items.values() if it.kind == "grammar"]
+    label_hits = []
+    for t in beav:
+        for it in gram:
+            labels = [it.surface] + [p_.strip() for p_ in re.split(r"[,/]", it.surface) if len(norm_ko(p_)) >= 3]
+            if any(has_surface(t.text, lb) for lb in labels):
+                label_hits.append((t, it.surface))
+                break
+    L.append(f"- 문형 이름 발화 턴 **{len(label_hits)}** " + ("✔" if not label_hits else "— " + "; ".join(f"t{t.n}「{lb}」" for t, lb in label_hits)))
+    # ④ /cur/me 전이
+    L.append("")
+    L.append("## ④ /cur/me 전이 — status · next_course · 다음 차시")
+    pre, post = sc.cur.get("me_pre") or {}, sc.cur.get("me_post") or {}
+    L.append(f"- 전: status={pre.get('status')} · next_course={pre.get('next_course')} · 차시 no={(pre.get('lesson') or {}).get('no')}")
+    L.append(f"- 후: status={post.get('status')} · next_course={post.get('next_course')} · 차시 no={(post.get('lesson') or {}).get('no')}")
     if sc.cur.get("api_error"):
         L.append(f"- ⚠ API 오류: {sc.cur['api_error']}")
+    try:
+        lessons_after = sc.cur.get("lessons_after") or []
+        st = next((l.get("status") for l in lessons_after if l.get("no") == les["no"]), None)
+        if lessons_after:
+            L.append(f"- /cur/lessons 차시 {les['no']} status={st} {'✔' if st == 'freetalk_done' else ''}")
+    except Exception:  # noqa: BLE001
+        pass
+    # ⑤ 연기 — 비버가 자기 이름이 아닌 인물로 자기소개(«반 친구» 연기) — 캐릭터 이름은 DB character.name
+    L.append("")
+    L.append("## ⑤ 비버가 자기 이름 아닌 인물로 답한 턴 (연기 · 기대 0)")
+    char_name = sc.cur.get("character_name") or ""
+    intro_re = re.compile(r"(?:\bI'?m\s+([A-Z][a-z]+)\b|\bmy name is\s+([A-Z][a-z]+)|(?:저는|제 이름은|저는 이름이)\s*([가-힣A-Za-z]{2,12})\s*(?:이에요|예요|입니다|이고|라고))", re.I)
+    acting = []
+    for t in beav:
+        for m in intro_re.finditer(t.text):
+            nm = next((g for g in m.groups() if g), "")
+            if nm and norm_ko(nm).lower() not in (norm_ko(char_name).lower(), "john", "testfree", "비버", "beaver") \
+                    and nm.lower() not in ("sorry", "not", "here", "good", "fine", "glad", "sure", "ready", "done", "back", "gonna", "going"):
+                acting.append((t, nm))
+    L.append(f"- 캐릭터 이름 «{char_name or '?'}» · 다른 이름으로 자기소개한 턴 **{len(acting)}**" + ("" if not acting else " — " + "; ".join(f"t{t.n}「{nm}」" for t, nm in acting)))
+    # ⑥ 턴당 문장 수 ≤2 비율
+    L.append("")
+    L.append("## ⑥ 턴당 문장 수 (max_sentences=2)")
+    def _nsent(x: str) -> int:
+        return len([q for q in re.split(r"(?<=[.!?。？！])\s+", x.strip()) if q.strip()])
+    ns = [_nsent(t.text) for t in beav]
+    L.append(f"- ≤2문장 턴 {sum(1 for k in ns if k <= 2)}/{len(ns)} = {(100 * sum(1 for k in ns if k <= 2) / len(ns)):.0f}% · 평균 {sum(ns) / len(ns):.1f}문장 · 3문장 이상 턴: " +
+             (", ".join(f"t{t.n}({k})" for t, k in zip(beav, ns) if k > 2) or "없음") if ns else "- 비버 턴 없음")
+    # ⑦ 과제 수 — 비버 질문/요청으로 끝난 턴
+    L.append("")
+    L.append("## ⑦ 과제 수 — 질문/요청으로 끝난 비버 턴")
+    task_turns = [t for t in beav if t.text.strip().endswith(("?", "？")) or re.search(r"\b(say|tell me|ask me|try|repeat|물어보세요|말해 보세요|말해보세요|해 보세요|해보세요)\b", t.text, re.I)]
+    L.append(f"- 과제 턴 {len(task_turns)}/{len(beav)} · 과제 없는 턴: " + (", ".join(f"t{t.n}" for t in beav if t not in task_turns) or "없음"))
+    # ⑧ 무음 넛지 — 하네스 침묵 프로브 + 서버 로그
+    L.append("")
+    L.append("## ⑧ 무음 넛지 — 의도적 침묵 프로브 · 서버 로그")
+    fs = sess.ft_silence
+    if fs:
+        if fs.get("nudge_at") is not None:
+            L.append(f"- 침묵 시작 {fs['start']}s → 비버 넛지 {fs['nudge_at']}s = **{fs['nudge_at'] - fs['start']:.0f}초 뒤** · 문구 「{(fs.get('nudge_text') or '')[:160]}」")
+        else:
+            L.append(f"- 침묵 시작 {fs['start']}s → {sess.FT_SILENCE_MAX_S:.0f}s 안에 넛지 없음 ⛔")
+    else:
+        L.append("- 침묵 프로브 미실행(학습자 턴이 7개에 못 미침)")
+    nudges = [ln for ln in (server_logs or []) if "무음" in ln and "넛지" in ln]
+    L.append(f"- 서버 로그 넛지 {len(nudges)}줄" + ("".join("\n  - " + ln.split("call_session:")[-1][:120] for ln in nudges[:6]) if nudges else (" (--logs 없음)" if server_logs is None else " — 발동 0")))
+    L.append("- ⚠ 1단/2단 시드 **문구**는 서버가 로그에 남기지 않는다 — 넛지 뒤 비버 턴(위 문구)으로 내용을 본다")
+    # ⑨ 차시 소재 등장 수 — 비버·학습자 각각(항목 기준 · 변형 포함)
+    L.append("")
+    L.append("## ⑨ 차시 소재 등장 (항목 수 · 변형=라벨 조각·예문 포함)")
+    b_items = {i for t in beav for i in surfaces_in(t.text, lesson_items)}
+    l_items = {i for t in learner for i in surfaces_in(t.text, lesson_items)}
+    L.append(f"- 비버 {len(b_items)}/{len(lesson_items)}: " + ", ".join(lesson_items[i].surface for i in sorted(b_items)))
+    L.append(f"- 학습자(하네스 대본) {len(l_items)}/{len(lesson_items)}: " + ", ".join(lesson_items[i].surface for i in sorted(l_items)))
     L.append("")
     if server_logs is not None:
         L.append("## 7. 서버 로그 (gcloud)")
@@ -2057,6 +2245,7 @@ def freetalk_report(sess: Session, sc: Score, ctx: dict, *, duration_min: int, r
     path.with_suffix(".json").write_text(json.dumps({
         "call_id": cid, "course": "freetalk", "locked": sess.locked, "end_reason": sess.end_reason, "lesson": les,
         "me_pre": sc.cur.get("me_pre"), "me_post": sc.cur.get("me_post"), "beaver_hits": sorted(b_hits), "learner_hits": sorted(l_hits),
+        "ft_silence": sess.ft_silence, "character_name": sc.cur.get("character_name"), "watchdog_fires": sess.watchdog_fires,
         "turns": [{"n": t.n, "role": t.role, "t": round(t.t, 1), "wall": round(t.wall, 3), "text": t.text, "kind": t.kind, "stt": t.stt, "tags": t.tags} for t in sess.turns],
         "server_logs": server_logs}, ensure_ascii=False, indent=1), encoding="utf-8")
     return path, ok
@@ -2090,7 +2279,7 @@ def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *,
     logs = fetch_server_logs(started, ended, args.service) if args.logs else None
     if sess.course == "freetalk":
         path, ok = freetalk_report(sess, sc, ctx, duration_min=args.duration, run_no=run_no, server_logs=logs,
-                                   out_dir=Path(args.out_dir), expect_locked=expect_locked, picker=picker)
+                                   out_dir=Path(args.out_dir), expect_locked=expect_locked, picker=picker, sc_sf=sf)
     else:
         path, ok = score_and_report(sess, sc, ctx["items"], duration_min=args.duration, run_no=run_no,
                                     server_logs=logs, out_dir=Path(args.out_dir))
