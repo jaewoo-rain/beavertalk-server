@@ -116,7 +116,9 @@ class ClientStart(BaseModel):
     # ⭐ 끊김 없는 조각 전환(2026-09-13, docs/plans/2026-09-13-끊김없는-조각-전환.md S1 · 사장님 결정 2 «조각2 첫 턴은 비버가 기다린다»):
     #   `continues_call_id` 와 함께 True 면 서버는 **재개 시드를 보내지 않는다** — 비버는 학습자의 첫 발화를 기다린다. 클라가 5:00 뒤
     #   «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 경로라, 비버가 먼저 말을 꺼내면 끊김이 두 번 난다.
-    #   기본 False = 종전 이어하기(브리프 + seed_resume, 구클라 무해). continues_call_id 없이(새 통화로 폴백 포함) 오면 무시 — 선톡 그대로.
+    #   기본 False = 종전 이어하기(브리프 + seed_resume, 구클라 무해). continues_call_id 없이 오면 무시 — 선톡 그대로.
+    #   ⛔ F3(2026-09-14 사장님 확정): continues 가 있는데 이어하기가 불성립(상한·TTL·남의 통화)이면 새 통화로 폴백하지 않고 ServerError(RESUME_UNAVAILABLE,
+    #     recoverable=False) 뒤 1008 close — silent 가 아닌 종전 경로는 폴백 그대로.
     silent_resume: bool = False
     duration_min: int | None = None
     tz_offset_min: int | None = None

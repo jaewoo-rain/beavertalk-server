@@ -2628,6 +2628,19 @@ async def run_call(
             continues_call_id, "call_id=%d" % call_id if resumed else "새 통화로 폴백",
             resume_reason,
         )
+    # ⭐ F3(2026-09-14, 사장님 확정): 조용한 이어하기(silent_resume)인데 이어하기가 **불성립**(조각 상한·TTL·남의 통화·없는 통화)이면 새 통화로 폴백하지
+    #   않는다 — 클라는 «조용히 갈아 끼우는 중» 이라 비버가 새로 인사하는 새 통화가 열리면 그게 사고다. ServerError(RESUME_UNAVAILABLE, 복구 불가) 뒤 1008 로
+    #   닫고 call 행은 만들지 않는다(클라가 결과 화면으로 간다). silent 가 아닌 종전 이어하기(이어하기 시트·구클라)는 폴백 그대로(바이트 불변).
+    #   continues_call_id 없이 silent 만 온 것은 클라 결함 — 종전대로 무시(선톡 새 통화).
+    if call_id is None and silent_resume_req and continues_call_id is not None:
+        logger.warning("normalcall 조용한 이어하기 거절: continues=%s 불성립(%s) → RESUME_UNAVAILABLE·1008", continues_call_id, resume_reason)
+        with contextlib.suppress(Exception):
+            await _send_json(client_ws, ServerError(
+                code="RESUME_UNAVAILABLE", message=f"이어할 수 없어요({resume_reason}).", recoverable=False,
+            ))
+        with contextlib.suppress(Exception):
+            await client_ws.close(code=1008)
+        return
     if call_id is None:
         call_id = await svc.run_db(
             db_session_factory,
@@ -2636,10 +2649,10 @@ async def run_call(
             ),
         )
     # ⭐ 끊김 없는 조각 전환(2026-09-13 S2): 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 조각.
-    #   이어하기가 **성립했을 때만** 뜻이 있다 — 새 통화로 폴백했으면 선톡 시드가 나가야 한다(비버가 먼저 인사하는 새 통화).
+    #   이어하기가 **성립했을 때만** 뜻이 있다 — continues 없이 온 silent 는 무시(선톡 시드가 나가는 새 통화).
     silent = resumed and silent_resume_req
     if silent_resume_req and not resumed:
-        logger.info("normalcall 조용한 이어하기 요청이지만 이어하기 불성립(%s) — 새 통화 선톡으로", resume_reason or "continues 없음")
+        logger.info("normalcall 조용한 이어하기 요청이지만 continues 없음 — 새 통화 선톡으로")
 
     # ⭐⭐ 커리큘럼 2단계 — call 행 직후(P1-4) cur_call «없으면» INSERT + 선별/브리프(§2·§7 P0). 이어하기(cur_call 있음)면
     #   open_call 이 그 통화의 차시·코스로 재선별한다(resumed=True, INSERT 0, 잠금 검사 면제).

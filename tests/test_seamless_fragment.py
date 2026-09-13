@@ -268,7 +268,7 @@ async def _run(session_factory, seeded, call_type, holder, *, script=None, conti
         await asyncio.sleep(0.01)
     holder["ws"] = ws
     holder["frames"] = [json.loads(t) for t in ws.sent_text]
-    holder["started_raw"] = next(t for t in ws.sent_text if json.loads(t).get("type") == "call_started")
+    holder["started_raw"] = next((t for t in ws.sent_text if json.loads(t).get("type") == "call_started"), None)
     return holder
 
 
@@ -371,21 +371,50 @@ async def test_call_started_carries_fragment_index_and_max_fragments(session_fac
     assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
     h3 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
     assert (_started(h3)["fragment_index"], _started(h3)["max_fragments"]) == (3, 3), "마지막 조각"
-    # 상한을 넘긴 4번째는 이어하기 불성립 → 새 통화(조각 1/3) + 선톡 시드(silent 는 무시)
+    # 상한을 넘긴 4번째 — silent 면 F3 거절(RESUME_UNAVAILABLE·1008·call 행 0) / silent 아님(종전 이어하기 시트)이면 새 통화(1/3) + 선톡 시드
     h4 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=cid, extra={"silent_resume": True})
-    assert _started(h4)["call_id"] != str(cid) and (_started(h4)["fragment_index"], _started(h4)["max_fragments"]) == (1, 3)
-    assert h4["session"].sent_text_turns, "새 통화는 비버가 먼저 인사한다(선톡 시드)"
+    err = next(f for f in h4["frames"] if f.get("type") == "error")
+    assert err["code"] == "RESUME_UNAVAILABLE" and err["recoverable"] is False and "조각 상한" in err["message"]
+    assert not any(f.get("type") == "call_started" for f in h4["frames"]) and h4["ws"].closed_with == 1008
+    assert "session" not in h4, "Live 세션을 열지 않는다"
+    h5 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=cid)
+    assert _started(h5)["call_id"] != str(cid) and (_started(h5)["fragment_index"], _started(h5)["max_fragments"]) == (1, 3)
+    assert h5["session"].sent_text_turns, "종전 경로: 새 통화는 비버가 먼저 인사한다(선톡 시드)"
+    db = session_factory()
+    try:
+        assert db.query(Call).filter(Call.member_id == seeded["member_id"]).count() == 2, "거절된 silent 요청은 call 행을 만들지 않았다"
+    finally:
+        db.close()
 
 
 @pytest.mark.asyncio
 async def test_silent_resume_without_a_resumable_call_falls_back_to_the_normal_opening(session_factory, seeded):
-    """continues 가 없거나 못 잇는 silent_resume 은 무시 — 새 통화의 선톡 시드가 그대로 나간다(비버가 먼저 인사)."""
+    """continues 없이 온 silent_resume 은 무시 — 새 통화의 선톡 시드가 그대로 나간다(비버가 먼저 인사). continues 가 있는데 못 잇는 경우는 F3(아래)."""
     h = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], extra={"silent_resume": True})
     assert h["session"].sent_text_turns and "[통화 이어감]" not in h["session"].sent_text_turns[0], "선톡 시드(재개 시드 아님)"
     assert reground.RESUME_SILENT_FIRST_ACTION not in h["system_instruction"]
     assert (_started(h)["fragment_index"], _started(h)["max_fragments"]) == (1, 3)
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=999999, extra={"silent_resume": True})
-    assert h2["session"].sent_text_turns and reground.RESUME_SILENT_FIRST_ACTION not in h2["system_instruction"]
+
+
+@pytest.mark.asyncio
+async def test_silent_resume_of_an_unresumable_call_is_refused_not_replaced_by_a_new_call(session_factory, seeded):
+    """F3(사장님 확정 2026-09-14): 조용히 갈아 끼우는 중에 비버가 새로 인사하는 새 통화가 열리면 사고 — 거절(RESUME_UNAVAILABLE, 1008), call 행 0.
+    silent 가 아닌 종전 경로(이어하기 시트·구클라)는 폴백 그대로."""
+    db = session_factory()
+    n0 = db.query(Call).filter(Call.member_id == seeded["member_id"]).count()
+    db.close()
+    h = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=999999, extra={"silent_resume": True})   # 없는 통화
+    err = next(f for f in h["frames"] if f.get("type") == "error")
+    assert err["code"] == "RESUME_UNAVAILABLE" and err["recoverable"] is False and "없는 통화" in err["message"]
+    assert h["ws"].closed_with == 1008 and not any(f.get("type") == "call_started" for f in h["frames"]) and "session" not in h
+    db = session_factory()
+    try:
+        assert db.query(Call).filter(Call.member_id == seeded["member_id"]).count() == n0, "call 행을 만들지 않는다"
+    finally:
+        db.close()
+    # 종전 경로(silent 아님) — 폴백 새 통화 + 선톡, 바이트 불변
+    h2 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=999999)
+    assert _started(h2)["fragment_index"] == 1 and h2["session"].sent_text_turns and not any(f.get("type") == "error" for f in h2["frames"])
 
 
 # --------------------------------------------------------------------------- #
