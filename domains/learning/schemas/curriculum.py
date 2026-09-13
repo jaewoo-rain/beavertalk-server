@@ -35,10 +35,14 @@ class CurOpenOut(BaseModel):
 
 
 class CurMeOut(BaseModel):
-    """GET /cur/me — 내 커리큘럼 위치 한 장."""
+    """GET /cur/me — 내 커리큘럼 위치 한 장. 언어 = 회원 target_language(DB)."""
 
-    lesson: CurLessonOut
-    status: CurStatus
+    #: 이 장이 어느 언어 진도인지(ISO 639-1). 회원 target_language 를 통화와 같은 해석기로 푼 값(미지원·없음 → 기본 ko).
+    language: str
+    #: 이 언어에 커리큘럼(cur_lesson 시드)이 있나. False 면 lesson·status 는 null 이고 통화는 옛 표현학습 경로로 간다.
+    available: bool
+    lesson: Optional[CurLessonOut] = None
+    status: Optional[CurStatus] = None
     #: 이 차시 항목 수(퇴출분 제외).
     items_total: int
     #: 그중 이 회원이 드릴까지 간 항목 수(cur_member_item.drilled_at). 진행률 = items_drilled / items_total.

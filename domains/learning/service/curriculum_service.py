@@ -461,13 +461,26 @@ def complete_freetalk(db: Session, call_id: int, duration_s: float, normal_end: 
 
 # ── 조회·dev ─────────────────────────────────────────────────────────────── #
 def me(db: Session, member_id: int, language: str = "ko") -> dict:
-    """GET /cur/me (§2) — {lesson:{no,code,level_no,situation,topic}, status, items_total, items_drilled, open:{expression, freetalk}}."""
+    """GET /cur/me (§2) — {language, available, lesson:{no,code,level_no,situation,topic}, status, items_total, items_drilled, open, next_course}.
+
+    ⭐ language·available(2026-09-13 사장님: "cur/me 도 지금 배우는 언어를 DB 에서 확인하고 띄우면 될 듯"): 앱이 «이게 어느 언어 진도인지»
+      와 «이 언어에 커리큘럼이 있는지» 를 안다. 시드 없는 언어(en·zh·fr·vi — 마이페이지 피커엔 있다)면 **500 대신** available=False 로
+      빈 장을 준다(옛날엔 ensure_progress 의 RuntimeError 가 그대로 500 이었다 — 실측: 사장님 계정 target=en). 그 언어의 auto 통화는
+      옛 표현학습 경로로 가므로 next_course 는 expression 이 맞다.
+    """
+    if not available(db, language):
+        return {
+            "language": language, "available": False, "lesson": None, "status": None,
+            "items_total": 0, "items_drilled": 0,
+            "open": {"expression": False, "freetalk": False}, "next_course": "expression",
+        }
     prog = ensure_progress(db, member_id, language)
     lesson = repo.lesson_by_id(db, prog.lesson_id)
     assert lesson is not None
     status = _status_of(db, member_id, lesson.lesson_id)
     items_total = len(repo.lesson_items(db, lesson.lesson_id))
     return {
+        "language": language, "available": True,
         "lesson": {
             "no": lesson.no, "code": lesson.code, "level_no": lesson.level_no,
             "situation": lesson.situation, "topic": _topic_name(db, lesson),

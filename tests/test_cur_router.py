@@ -119,11 +119,31 @@ def test_me_for_a_new_member_is_lesson_1_learning_with_expression_open_and_freet
     assert body["status"] == "learning"
     assert body["items_total"] == 15 and body["items_drilled"] == 0
     assert body["open"] == {"expression": True, "freetalk": False}
-    assert set(body) == {"lesson", "status", "items_total", "items_drilled", "open", "next_course"}
+    assert set(body) == {"language", "available", "lesson", "status", "items_total", "items_drilled", "open", "next_course"}
+    assert body["language"] == "ko" and body["available"] is True   # target_language 없음 → 기본 ko(통화와 같은 해석기)
     assert body["next_course"] == "expression"
     assert set(body["lesson"]) == {"no", "code", "level_no", "situation", "topic"}
     # 두 번 불러도 같은 답(멱등 — 포인터를 한 번만 만든다)
     assert client.get("/api/v1/cur/me", headers=hdr).json() == body
+
+
+def test_me_for_an_unseeded_target_language_is_an_empty_page_not_500(client, db):
+    """사장님 2026-09-13: «cur/me 도 지금 배우는 언어를 DB 에서 확인하고 띄우면 될 듯». 피커엔 있지만 시드가 없는 언어(en)면
+    옛날엔 ensure_progress 의 RuntimeError → 500 이었다(실측: 사장님 계정 target=en). 이제 available=False 빈 장 + 포인터 생성 0."""
+    from domains.learning.models.curriculum import CurMemberProgress
+    mid, hdr = _member(db)
+    db.get(Member, mid).target_language = "en"; db.commit()
+    r = client.get("/api/v1/cur/me", headers=hdr)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["language"] == "en" and body["available"] is False
+    assert body["lesson"] is None and body["status"] is None
+    assert body["items_total"] == 0 and body["open"] == {"expression": False, "freetalk": False} and body["next_course"] == "expression"
+    assert db.query(CurMemberProgress).filter_by(member_id=mid).count() == 0, "시드 없는 언어에 포인터를 만들면 안 된다"
+    # 한국어로 되돌리면 정상 장
+    db.get(Member, mid).target_language = "ko"; db.commit()
+    body = client.get("/api/v1/cur/me", headers=hdr).json()
+    assert body["available"] is True and body["lesson"]["no"] == 1
 
 
 def test_me_requires_auth(client):
