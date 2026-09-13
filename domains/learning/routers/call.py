@@ -116,7 +116,7 @@ def get_daily_status(
     ## 통화 **중** 연장은 여기가 아니다
     5분 뒤 "이어서" 는 `GET /{call_id}/resume-status` 가 소유한다
     (`ready`·`can_resume`·`fragment_count`·`max_fragments`).
-    ⚠ 양쪽 `max_fragments` 는 **같은 함수**(call_fragments_for_member)에서 온다 —
+    ⚠ 양쪽 `max_fragments` 는 **같은 함수**(call_fragments_for_member — 흉내 시 call_fragments_for_plan)에서 온다 —
       한쪽만 고치면 시작 화면과 연장 화면이 다른 말을 한다.
 
     정적 경로라 `/{call_id}` 보다 먼저 선언(라우트 순서로 의도 명확화).
@@ -125,7 +125,13 @@ def get_daily_status(
 
 
 @router.get("/{call_id}/resume-status")
-def get_resume_status(call_id: int, member: CurrentMember, db: DbSession) -> dict:
+def get_resume_status(
+    call_id: int, member: CurrentMember, db: DbSession,
+    plan_override: str | None = Query(
+        None, pattern="^(free|pro|max)$",
+        description="개발자도구 플랜 흉내(admin 만 유효) — can_resume·max_fragments 를 이 플랜 기준으로. WS start.plan_override 와 같은 값을 보낸다.",
+    ),
+) -> dict:
     """⭐ **이 통화를 지금 이어도 되나** — 클라가 "이어서" 버튼을 열 시점을 정하는 값.
 
     ## 왜 폴링인가(서버가 밀어주지 않고)
@@ -150,7 +156,10 @@ def get_resume_status(call_id: int, member: CurrentMember, db: DbSession) -> dic
     if call is None or call.member_id != member.member_id:
         raise HTTPException(status_code=404, detail="통화를 찾을 수 없습니다")
     used = call.fragment_count or 1
-    total = call_service.call_fragments_for_member(db, member.member_id)
+    # ⭐ 플랜 흉내(2026-09-13): admin 이 ?plan_override= 를 붙이면 그 플랜의 조각 수 — WS 이어하기와 **같은 함수**(call_fragments_for_plan).
+    total = call_service.call_fragments_for_plan(
+        db, member.member_id, call_service.plan_override_for(db, member.member_id, plan_override),
+    )
     return {
         # ⛔ **"있다"가 아니라 "최신인가"** 다(2026-08-19 실측). 조각2 직후에는 조각1 때 만든
         #   요약이 남아 있어 `bool()` 로는 즉시 true 가 뜬다 — 사장님: "두 번째에서는

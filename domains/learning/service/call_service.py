@@ -175,11 +175,25 @@ def _plan_key(db: Session, member_id: int, plan: str | None) -> str | None:
 def plan_override_for(db: Session, member_id: int, requested: str | None) -> str | None:
     """개발자도구 플랜 흉내(2026-09-13 사장님) — **admin 만** 유효. 아니면 None(무시 → 본인 플랜).
 
-    ⛔ 통화 엔진 선택(영상/음성·모델·백엔드)에만 쓴다 — 한도·결제·구독·조각 수는 이 값을 모른다. 롤 조회 실패는 무시(R5 보수 방향).
+    ⛔ 통화 엔진 선택(영상/음성·모델·백엔드)과 **조각 수**(`call_fragments_for_plan`, 2026-09-13 사장님: "free 일 때는
+      연장하면 안 되고 max 일 때는 연장되도록")에 쓴다 — 일일 한도·결제·구독은 이 값을 모른다. 롤 조회 실패는 무시(R5 보수 방향).
     """
     if requested not in ("free", "pro", "max"):
         return None
     return requested if is_unlimited_member(db, member_id) else None
+
+
+def call_fragments_for_plan(db: Session, member_id: int, plan_override: str | None) -> int:
+    """조각 수 — **검증된** plan_override 가 있으면 그 플랜(Free 1 / Pro·Max 3), 없으면 본인 플랜(`call_fragments_for_member`).
+
+    ⭐ 플랜 흉내가 엔진만 바꾸고 조각 수는 본인(admin = Pro·Max 3)대로 두면 «Free 로 통화» 가 5분에 «Keep talking» 을 띄운다 —
+      Free 사용자는 못 보는 시트다. 흉내는 **통화 모양 전체**(엔진 + 조각)를 그 플랜으로 맞춰야 실사용을 재현한다.
+    ⛔ `plan_override` 는 `plan_override_for` 를 거친 값이어야 한다(admin 아니면 None). 여기서 롤을 다시 검사하지 않는다.
+    ⚠ REST(`GET /calls/{id}/resume`)와 WS 이어하기가 **같은 이 함수**를 본다 — 한쪽만 고치면 "시트는 떴는데 조각2 가 거절" 이 된다.
+    """
+    if plan_override is not None:
+        return CALL_FRAGMENTS_BY_PLAN.get(None if plan_override == "free" else plan_override, FREE_CALL_FRAGMENTS)
+    return call_fragments_for_member(db, member_id)
 
 
 def call_video_for(db: Session, member_id: int, plan: str | None = None) -> bool:

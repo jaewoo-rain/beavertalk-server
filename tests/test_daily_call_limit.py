@@ -279,3 +279,13 @@ def test_duration_is_not_gated_by_env(monkeypatch, env):
     monkeypatch.setattr(app_settings, "ENV", env)
     assert call_duration_s_for_member(None, 1) == CALL_FRAGMENT_S
     assert call_fragments_for_member(None, 1) == 1
+
+
+def test_call_fragments_for_plan_follows_override_then_member(monkeypatch):
+    """플랜 흉내(2026-09-13): 검증된 override 가 있으면 그 플랜 조각 수, 없으면 본인 플랜. REST·WS 가 같은 함수를 본다."""
+    from domains.learning.service import call_service as cs
+    monkeypatch.setattr(cs, "call_fragments_for_member", lambda db, member_id: 3)   # 본인(admin) = Pro·Max
+    assert cs.call_fragments_for_plan(None, 1, "free") == 1
+    assert cs.call_fragments_for_plan(None, 1, "pro") == 3
+    assert cs.call_fragments_for_plan(None, 1, "max") == 3
+    assert cs.call_fragments_for_plan(None, 1, None) == 3

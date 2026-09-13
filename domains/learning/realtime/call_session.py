@@ -2562,9 +2562,10 @@ async def run_call(
     #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
     # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 normal/expression/freetalk 이다.
     if continues_call_id is not None and call_type in ("normal", "expression", "freetalk"):
+        # ⭐ 플랜 흉내(plan_override, admin 검증 완료값)면 그 플랜의 조각 수 — «Free 로 통화» 는 조각2 를 거절한다(2026-09-13).
         max_fragments = await svc.run_db(
             db_session_factory,
-            lambda db: call_service.call_fragments_for_member(db, member_id),
+            lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
         )
         call_id, resume_reason = await svc.run_db(
             db_session_factory,
