@@ -1081,6 +1081,18 @@ fable 검수(지뢰밭 8건 유지, P0/P1 없음) 뒤 뜻이 빠진 2건 복원:
 선언 없이** 되물음(«알림을 말로 해라» 를 뺀 탓). 학습자가 퀴즈인지 알아야 하니 [퀴즈] 첫 불릿에 «알림이 오면 퀴즈를 시작한다는
 말을 {locale}로 먼저 하고» 한 절 복원(≈20 토큰). 빈 비버 턴 7~8회는 하네스 ack 패턴(1408·1409 도 8회) — 회귀 아님. 해시 재기준.
 
+### 2026-09-13 — 끊김 없는 5분 조각 전환(Pro·Max): silent 재개 = 시드 0 + 브리프 마지막 줄 교체(기존 경로 바이트 불변 — 해시 시험)
+- 왜: 사장님 결정(계획 `docs/plans/2026-09-13-끊김없는-조각-전환.md`) — 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 즉시
+  `continues_call_id + silent_resume:true` 로 다시 연다. 이때 비버가 먼저 말을 꺼내면(seed_resume) 끊김이 두 번 난다 → **조각2 첫 턴은 비버가 기다린다**(결정 2).
+- 무엇: `silent_resume` 재개 조각은 `seed_resume`/`seed_expression_resume` 를 **보내지 않는다**(시드 0). 대신
+  · 일반·프리토킹: `build_resume_brief(silent=True)` — 마지막 줄만 `reground.RESUME_SILENT_FIRST_ACTION`(«학습자가 먼저 말한다 — 기다렸다가 그 말에
+    답하며 이어가라 · 인사·되묻기·끊김 언급 금지»)로 바뀐다. 요약 슬롯이 하나도 없어도 이 한 줄은 나간다(처음 인사를 막는 유일한 문장).
+  · 표현학습: 지시문 끝에 `seeds.brief_expression_silent_resume` 쪽지(기다림 + «[오늘의 표현] 맨 앞 항목부터»).
+  · 시드 없이 열리면 첫 turn_start 가 학습자 발화 뒤라 무음 워처가 안 돌 수 있어, silent 조각은 세션 열기 시각을 무음 시계 기준점으로 삼는다(결정 1 «말 안 하면 무음 3단 종료»).
+- 불변: `silent_resume` 없는 이어하기(구클라·이어하기 시트)는 종전 시드·브리프 바이트 동일 — `reground.build_resume_brief` 해시 8c9bc152ae3ee5b9 그대로.
+  새 해시: RESUME_SILENT_FIRST_ACTION f5b2bc59f9d9cb2e · build_resume_brief(silent) f65c22cbf59d2593 · brief_expression_silent_resume 757fed832c765c94.
+- 시험: tests/test_seamless_fragment.py · tests/test_prompt_locked_hash.py. 실통화 관측(하네스 `--seamless`)은 harness-build 몫.
+
 ### 2026-09-13 — 일본어(ja) 배선: 잠금 프롬프트에 언어별 줄 추가(ko 바이트 불변 — 해시 시험)
 `core/prompts/locked/expression.py` `DRILL_FORMALITY_LINE_BY_LANGUAGE` — ko 는 기존 `DRILL_FORMALITY_LINE` **같은 객체**, ja 는 «격식 표지(です·ます)·보통형은 맞힌
 게 아니다» 줄. `procedure(language=)` 가 고른다(호출부 `build_expression_instruction(language=spec.code)`). `locked/freetalk.py` `PROBE_NAME_RE_BY_LANGUAGE`

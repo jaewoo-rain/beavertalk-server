@@ -90,6 +90,16 @@ def _drop_if_closing(text: Optional[str]) -> str:
     return "" if is_closing_slot(s) else s
 
 
+# ⭐ 끊김 없는 조각 전환(2026-09-13, 사장님 결정 2 «조각2 첫 턴은 비버가 기다린다»): `build_resume_brief(silent=True)` 의 마지막 줄.
+#   ⛔ 시드 없이 세션이 열리므로(seed_resume 0) 비버의 첫 턴은 학습자 발화에 대한 **응답**이다 — 그 응답이 «처음 인사» 가 되지 않게 첫 행동을
+#     지정한다(금지가 아니라 지정, 아래 함수 독스트링과 같은 규율). 끊김·이어짐 언급 금지도 같다. silent=False 출력은 바이트 불변(해시 시험).
+#   ⚠ «위 흐름» 이라고 쓰지 않는다 — 요약 슬롯이 하나도 없으면 이 줄만 단독으로 나간다.
+RESUME_SILENT_FIRST_ACTION = (
+    "⛔ 학습자가 먼저 말한다 — 먼저 말을 꺼내지 말고 기다렸다가, 학습자의 말에 답하면서 하던 대화를 **자연스럽게 이어서** 말해라. "
+    "처음 만난 것처럼 인사하지 말고, 오늘 무엇을 할지도 다시 묻지 마라. 통화가 끊겼다 이어졌다는 사실은 언급하지 마라."
+)
+
+
 def build_resume_brief(
     *,
     covered: Optional[list[str]] = None,
@@ -102,8 +112,12 @@ def build_resume_brief(
     said: Optional[list[str]] = None,
     summary: Optional[str] = None,
     curious: Optional[str] = None,
+    silent: bool = False,
 ) -> str:
     """⭐ 이어하기 브리프 — 조각이 바뀔 때 비버에게 주는 **유일한** 맥락(LLM 생성 0, 순수 조립).
+
+    silent(2026-09-13 끊김 없는 조각 전환): 시드 없이 열린 조각 — 마지막 줄을 RESUME_SILENT_FIRST_ACTION 으로 바꾸고, 줄 게 없어도
+    그 한 줄은 낸다(비버가 처음처럼 인사하는 것을 막는 유일한 문장이다). False 면 종전과 바이트 동일.
 
     ## ⛔ 비버는 조각이 바뀐 걸 몰라야 한다
     "이어서 할게요" 같은 말을 시키지 않는다. 사용자는 이미 끊긴 걸 아는데 비버까지
@@ -149,7 +163,11 @@ def build_resume_brief(
     if curious:
         lines.append("- 학습자가 궁금해했던 것: %s" % curious.strip()[:200])
     if len(lines) == 1:
-        return ""     # 줄 게 없으면 아무것도 주지 않는다(빈 껍데기 주입 금지)
+        # 줄 게 없으면 아무것도 주지 않는다(빈 껍데기 주입 금지) — silent 만 첫 행동 한 줄(빈 [지금까지] 머리 없이).
+        return RESUME_SILENT_FIRST_ACTION if silent else ""
+    if silent:
+        lines.append(RESUME_SILENT_FIRST_ACTION)
+        return "\n".join(lines)
     # ⛔ 이 마지막 줄이 핵심이다. 금지가 아니라 **첫 행동 지정**이다 —
     #   "인사하지 마라"는 안 지켜지고, "이렇게 시작해라"는 지켜진다.
     lines.append(

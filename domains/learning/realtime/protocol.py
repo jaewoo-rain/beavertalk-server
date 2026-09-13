@@ -113,6 +113,11 @@ class ClientStart(BaseModel):
     #   3.1/2.5 · 백엔드)을 이 플랜 기준으로 정한다. 한도·결제·구독 로직은 무변경(플랜 «흉내» 는 엔진 선택에만). 관리자가 아니면 무시(본인 플랜).
     #   이어하기 조각에도 앱이 같은 값을 다시 보낸다(force_course 와 같은 필드 규율) — 서버는 조각마다 다시 적용한다.
     plan_override: Literal["free", "pro", "max"] | None = None
+    # ⭐ 끊김 없는 조각 전환(2026-09-13, docs/plans/2026-09-13-끊김없는-조각-전환.md S1 · 사장님 결정 2 «조각2 첫 턴은 비버가 기다린다»):
+    #   `continues_call_id` 와 함께 True 면 서버는 **재개 시드를 보내지 않는다** — 비버는 학습자의 첫 발화를 기다린다. 클라가 5:00 뒤
+    #   «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 경로라, 비버가 먼저 말을 꺼내면 끊김이 두 번 난다.
+    #   기본 False = 종전 이어하기(브리프 + seed_resume, 구클라 무해). continues_call_id 없이(새 통화로 폴백 포함) 오면 무시 — 선톡 그대로.
+    silent_resume: bool = False
     duration_min: int | None = None
     tz_offset_min: int | None = None
 
@@ -325,14 +330,22 @@ class ServerCallStarted(BaseModel):
     # ⭐ 커리큘럼 2단계(§8): 서버가 정한 코스. cur 경로 통화만 값이 있다 — 옛 경로·일반·레벨테스트는 None 이고,
     #   None 은 직렬화에서 빠져 **프레임 바이트 동일**(구버전 클라 무해).
     course: Literal["expression", "freetalk"] | None = None
+    # ⭐ 끊김 없는 조각 전환(2026-09-13 S4): 이 소켓이 통화의 **몇 번째 조각**인가(1부터) · 이 플랜의 조각 상한(Free 1 / Pro·Max 3 —
+    #   REST resume-status 와 **같은 함수** call_fragments_for_plan). 클라는 `fragment_index == max_fragments` 면 «마지막 조각 — 15:00 뒤
+    #   재연결 없이 종료»(결정 6), 아니면 5:00 뒤 조용히 갈아 끼운다. 조각을 잇는 통화(normal·expression·freetalk)에만 값 — 레벨테스트는
+    #   None 이고 None 은 직렬화에서 빠져 **프레임 바이트 동일**(구버전 클라 무해).
+    fragment_index: int | None = None
+    max_fragments: int | None = None
 
     @model_serializer(mode="wrap")
     def _drop_null_course(self, handler):
-        # ⛔ 옛 경로 프레임 **바이트 동일** — course 가 None 이면 키 자체를 빼고 직렬화한다(다른 None 필드(call_id·diag)는
-        #   예전처럼 null 로 나간다 — 그 모양이 구버전 계약이다).
+        # ⛔ 옛 경로 프레임 **바이트 동일** — course·fragment_index·max_fragments 가 None 이면 키 자체를 빼고 직렬화한다(다른 None
+        #   필드(call_id·diag)는 예전처럼 null 로 나간다 — 그 모양이 구버전 계약이다).
         data = handler(self)
-        if isinstance(data, dict) and data.get("course") is None:
-            data.pop("course", None)
+        if isinstance(data, dict):
+            for k in ("course", "fragment_index", "max_fragments"):
+                if data.get(k) is None:
+                    data.pop(k, None)
         return data
 
 

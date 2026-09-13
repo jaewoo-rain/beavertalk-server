@@ -100,6 +100,7 @@ from core.persona_prompt import (
     seed_leveltest_opening,
     seed_opening,
 )
+from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
 from core.prompts.expression import (
     NUDGE_SEED_1_EXPRESSION,
     build_expression_instruction,
@@ -719,6 +720,7 @@ class _CallState:
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
         "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
+        "silent_resume",
         # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
         "target_code",
         "tag_leak_seen", "resume_sent",
@@ -888,6 +890,8 @@ class _CallState:
         self.cur_forced: bool = False                # admin QA 강제 프리토킹 — 종료 시 complete_freetalk 를 부르지 않는다
         self.target_code: str = "ko"
         self.freetalk_brief: Any = None
+        # ⭐ 끊김 없는 조각 전환(2026-09-13): 이 소켓이 «시드 0 으로 열린 재개 조각» 인가 — 무음 시계 기준점·로그. 기본 False(종전).
+        self.silent_resume: bool = False
         self.freetalk_target: str = ""
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
@@ -2157,6 +2161,7 @@ async def run_call(
         continues_call_id = _as_int(start.continues_call_id)
         force_course = bool(getattr(start, "force_course", False))   # admin QA 우회(프리토킹 잠금) — open_call 이 role 을 검사한다
         plan_override_req = getattr(start, "plan_override", None)      # 개발자도구 플랜 흉내 — 아래 플랜 분기가 admin 을 검사한다
+        silent_resume_req = bool(getattr(start, "silent_resume", False))  # 끊김 없는 조각 전환 — 이어하기가 성립할 때만 뜻이 있다(아래)
         # ⭐ 과제 통화 — 못 읽으면 조용히 무시하고 평소 통화로 간다(이어하기와 같은
         #   폴백 규율). 자격 검증은 B2B 서비스가 하므로 여기서 판단하지 않는다.
         assignment_id = _as_int(start.assignment_id)
@@ -2557,6 +2562,7 @@ async def run_call(
     call_id = None
     resume_reason = ""
     resumed = False
+    max_fragments = None                   # 조각 상한(플랜) — 이어하기 검증에 쓰고 call_started 에도 싣는다(S4). None = 아직 안 읽음
     # ⚠ 여기 목록과 `svc.resume_call` 의 화이트리스트는 **같은 뜻이어야 한다.** 한쪽만
     #   넓히면 «관문은 통과했는데 서비스가 거절» 이 되어 조용히 새 통화로 떨어진다.
     #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
@@ -2586,6 +2592,11 @@ async def run_call(
                 db, member_id, character_id, call_type, target_language=spec.code
             ),
         )
+    # ⭐ 끊김 없는 조각 전환(2026-09-13 S2): 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 조각.
+    #   이어하기가 **성립했을 때만** 뜻이 있다 — 새 통화로 폴백했으면 선톡 시드가 나가야 한다(비버가 먼저 인사하는 새 통화).
+    silent = resumed and silent_resume_req
+    if silent_resume_req and not resumed:
+        logger.info("normalcall 조용한 이어하기 요청이지만 이어하기 불성립(%s) — 새 통화 선톡으로", resume_reason or "continues 없음")
 
     # ⭐⭐ 커리큘럼 2단계 — call 행 직후(P1-4) cur_call «없으면» INSERT + 선별/브리프(§2·§7 P0). 이어하기(cur_call 있음)면
     #   open_call 이 그 통화의 차시·코스로 재선별한다(resumed=True, INSERT 0, 잠금 검사 면제).
@@ -2666,11 +2677,24 @@ async def run_call(
     # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
     # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
     #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
+    # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(normal·expression·freetalk)에만 «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을
+    #   서버 값으로 판단한다. 상한은 REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
+    fragment_index = None
+    if call_type in ("normal", "expression", "freetalk"):
+        if max_fragments is None:
+            max_fragments = await svc.run_db(
+                db_session_factory, lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
+            )
+        fragment_index = (
+            await svc.run_db(db_session_factory, lambda db: svc.call_fragment_index(db, call_id)) if resumed else 1
+        )
     await _send_json(
         client_ws,
         ServerCallStarted(
             character_id=character_id,
             call_id=str(call_id),
+            fragment_index=fragment_index,
+            max_fragments=max_fragments if fragment_index is not None else None,
             # ⛔ 이 값을 안 실으면 클라는 자기 기본값으로 돈다 — 그러면 "끄는 스위치가
             #   서버에 있다"는 말이 거짓이 된다. 필드만 만들어 두고 아무도 안 채우던
             #   상태를 여기서 닫는다(2026-08-25).
@@ -2685,6 +2709,7 @@ async def run_call(
     state.target_code = spec.code                           # 판정(quiz_judge)·대본 조립의 언어 분기(ko/ja — 2026-09-13)
     state.cur_course = call_type if cur_route else ""
     state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
+    state.silent_resume = silent
     state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
     state.freetalk_target = target_language if freetalk_brief is not None else ""
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
@@ -2709,7 +2734,12 @@ async def run_call(
     #     JSON 도 필요 없다. 서버가 정답을 갖고 있다.
     #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
     #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
-    if resumed and call_type == "expression":
+    if resumed and call_type == "expression" and silent:
+        # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
+        seed_text = ""
+        system_instruction = system_instruction + "\n\n" + brief_expression_silent_resume(target_language)
+        logger.info("normalcall 표현학습 조용한 이어하기: 시드 0 · 학습자 첫 발화 뒤 표시 없는 가장 앞 항목부터")
+    elif resumed and call_type == "expression":
         seed_text = seed_expression_resume(target_language)
         logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개")
     elif resumed:
@@ -2717,6 +2747,9 @@ async def run_call(
         #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
         #   ⛔ "이어서 할게요" 를 시키지 않는다 — 그러면 끊김이 두 번 일어난다.
         #     브리프 마지막 줄이 **첫 행동을 지정**한다(금지가 아니라 지정).
+        #   ⭐ 끊김 없는 조각 전환(S2, silent): 시드 0 — 브리프 실패(아래 except)여도 선톡 시드가 나가면 안 되므로 **먼저** 비운다.
+        if silent:
+            seed_text = ""
         try:
             mats = await svc.run_db(
                 db_session_factory, lambda db: svc.resume_materials(db, call_id, spec.code)
@@ -2750,14 +2783,15 @@ async def run_call(
                         "normalcall 이어하기 요약(즉석): 화제=%r 사실 %d개",
                         slots.get("topic"), len(slots.get("learner_facts") or []),
                     )
-            brief = build_resume_brief(**mats)
+            brief = build_resume_brief(**mats, silent=silent)
             # ⛔⛔ **시드를 갈아야 한다 — 지시문만으로는 안 진다**(2026-08-19 실측 call 1087).
             #   `seed_opening` 은 "짧게 인사부터 하고, 오늘 공부할래 수다 떨래?를 물어라" 다.
             #   조각2 에서 그게 그대로 나가자 비버가 방금 하던 대화를 버리고 **처음으로
             #   돌아갔다**(t8 이 t1 과 같은 질문). 브리프에 "인사하지 마라"가 있어도 소용없다 —
             #   **시드는 직접 명령이고 지시문은 배경**이라 시드가 이긴다.
             #   ⚠ 브리프 유무와 무관하게 간다: 브리프가 비어도 "다시 묻기"는 막아야 한다.
-            seed_text = seed_resume(target_language)
+            if not silent:
+                seed_text = seed_resume(target_language)
             if brief:
                 system_instruction = system_instruction + "\n\n" + brief
                 # ⚠ `사실`·`하던것`·`발췌` 를 같이 찍는다(2026-08-19). 전에는 DB 기반 셋만
@@ -2989,6 +3023,13 @@ async def run_call(
     # ⭐ 커리큘럼 2단계 프리토킹 완료 판정(§7 ⓑ) — 정상 종료 = 작별(_CallFinished) · 백스톱(TimeoutError) · 클라 컷(_ClientDisconnect).
     #   예외로 끝난 통화(1006 미복구 등)만 비정상이다. 아래 except 들이 이 값을 세운다.
     end_normal = False
+    if silent:
+        # ⭐ 끊김 없는 조각 전환(S3): 통화 시계(call_start_ts)는 원래 **첫 turn_start** 에 선다 — 시드 0 이면 그게 학습자가 말한 뒤라,
+        #   학습자가 끝내 말하지 않으면 무음 워처(`_watch_idle` 는 call_start_ts 를 기다린다)가 영영 안 돌아 540s 백스톱까지 매달린다.
+        #   사장님 결정 1 «5:00 뒤 사용자가 말 안 하면 무음 3단으로 종료» — 세션을 여는 지금을 기준점으로 삼아 60s/10s/12s 가 그대로 돈다.
+        #   ⚠ 종전 경로(시드 있음)는 건드리지 않는다 — 첫 turn_start 가 선다.
+        state.call_start_ts = asyncio.get_running_loop().time()
+        logger.info("normalcall 조용한 이어하기: 시드 0 · 무음 시계 기준점 = 세션 열기 시각(첫 turn_start 는 학습자 발화 뒤)")
     try:
         async with asyncio.timeout(absolute_timeout):
             await _run_session(
@@ -3791,6 +3832,8 @@ class StartParams(NamedTuple):
     force_course: bool = False
     # ⭐ 개발자도구 플랜 흉내(2026-09-13) — admin 만 유효. 기본 None(기존 호출부·테스트 보호).
     plan_override: str | None = None
+    # ⭐ 끊김 없는 조각 전환(2026-09-13 S1) — continues_call_id 와 함께 True 면 재개 시드 0(비버가 학습자 첫 발화를 기다린다). 기본 False.
+    silent_resume: bool = False
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -3849,6 +3892,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         assignment_id=getattr(cm, "assignment_id", None),
                         force_course=bool(getattr(cm, "force_course", False)),
                         plan_override=getattr(cm, "plan_override", None),
+                        silent_resume=bool(getattr(cm, "silent_resume", False)),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc

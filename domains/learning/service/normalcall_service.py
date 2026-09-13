@@ -828,6 +828,13 @@ RESUME_TTL_S = 300.0
 _RESUME_EXCERPT_CHARS = 1200
 
 
+def call_fragment_index(db: Session, call_id: int) -> int:
+    """이 통화의 현재 조각 번호 = call.fragment_count(없으면 1). `resume_call` 이 올린 값을 call_started 에 싣는 용도(2026-09-13 S4).
+    ⚠ cur 쪽 `curriculum_repository.call_fragment_no` 와 같은 축(같은 열)이다 — 어느 쪽을 바꾸면 다른 쪽도."""
+    v = db.query(Call.fragment_count).filter(Call.call_id == call_id).scalar()
+    return int(v) if v else 1
+
+
 def resume_call(
     db: Session, member_id: int, continues_call_id: int, *, max_fragments: int,
 ) -> tuple[int | None, str]:

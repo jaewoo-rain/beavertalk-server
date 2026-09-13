@@ -75,8 +75,10 @@ FROZEN: dict[str, str] = {
     "expression.CHARACTER_FRAME": "0e5e6aaa60166e64",
     # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
+    # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)
+    "reground.RESUME_SILENT_FIRST_ACTION": "f5b2bc59f9d9cb2e",
 }
-MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltest, "seeds": seeds, "expression": lex}
+MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltest, "seeds": seeds, "expression": lex, "reground": reground}
 
 
 @pytest.mark.parametrize("key", sorted(FROZEN))
@@ -120,6 +122,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "reground.build_continue_reminder": ("383141a13f80c1b7", lambda: reground.build_continue_reminder("선생님", "다정")),
     "reground.build_reground_brief": ("3aead47678d36531", lambda: reground.build_reground_brief("선생님", "다정", mode="study", covered=["물"], topic="축구")),
     "reground.build_resume_brief": ("8c9bc152ae3ee5b9", lambda: reground.build_resume_brief(covered=["물"], strong=["가다"], weak=["-고 싶다"], topic="축구", pending="예문", facts=["학생"], summary="인사", curious="음식")),
+    # 2026-09-13 끊김 없는 조각 전환 — silent 판(마지막 줄만 다름) · 표현학습 silent 쪽지(지시문 끝)
+    "reground.build_resume_brief_silent": ("f65c22cbf59d2593", lambda: reground.build_resume_brief(covered=["물"], strong=["가다"], weak=["-고 싶다"], topic="축구", pending="예문", facts=["학생"], summary="인사", curious="음식", silent=True)),
+    "seeds.brief_expression_silent_resume": ("757fed832c765c94", lambda: seeds.brief_expression_silent_resume("한국어")),
     "reground.build_expression_reground_brief": ("150e706f19a6f1ef", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)")),
     "reground.build_freetalk_reground_brief": ("ee645d3f88cccac6", lambda: reground.build_freetalk_reground_brief("상황", ["a", "b"], target="한국어")),
     "reground.reground_instruction": ("74b1fd05118e1639", lambda: reground.reground_instruction(["물", "가다"], "한국어")),
