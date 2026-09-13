@@ -130,7 +130,7 @@ def test_the_prompt_never_points_at_progress_by_item_number() -> None:
 def test_resume_seed_points_at_the_head_of_the_list() -> None:
     """조각2 시드는 «맨 앞부터» 다 — 목록이 이미 «남은 일» 이라 그 문장이 항상 참이다."""
     seed = seed_expression_resume("한국어")
-    assert "맨 앞 항목부터" in seed
+    assert "맨 앞 항목**으로 가라" in seed        # 2026-09-14 C6 재작성(사장님 지시 형식) — 첫 행동 줄
     assert "(통과)" not in seed
     assert "번호" not in seed
 
@@ -356,7 +356,7 @@ def test_expression_resume_seed_does_not_greet_or_re_ask() -> None:
     """⛔ 시드가 지시문을 이긴다(call 1087) — 이어하기는 시드 자체를 갈아야 한다."""
     seed = seed_expression_resume("한국어")
     assert "인사하지 말고" in seed
-    assert "맨 앞 항목부터" in seed
+    assert "맨 앞 항목**으로 가라" in seed and "«왔냐?»류 시작말도 하지 마라" in seed
 
 
 def test_freetalk_opening_is_in_the_target_language() -> None:
@@ -572,7 +572,8 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 #   일반 통화(build_system_instruction)의 94개 바이트 동일은 tests/test_prompt_common_snapshot.py 가 따로 지킨다.
 # 2026-09-13 재기준(실통화 1550, bt-back 승인 — 잠금 절차 2줄: 다른 올바른 정중한 표현 인정 · 한 턴 요청 하나): 3890 → 4061 · dev 머지(퀴즈 교정 턴 «따라 말하게 하고 멈춰라» 등 09-13 f9fa0da~6c46c0c) → 4104.
 # 2026-09-13 재기준(실통화 1552, 사장님 결정): 드릴 재시도 상한 «2번» → «3번»(길이 같음·해시만).
-_EXPR_FROZEN = ("db8441f18526e9c87a7a3efd02a7f5d0f6cb1619f7d23cc3f3a80c7353eea9e9", 4104)
+# 2026-09-14 재기준(사장님 «진행해», 1601·1592): C3 편집 문구 1줄(목록을 다 돌아도 끝내지 마라) + E 잠금 DRILL_GRAMMAR_ALT_LINE 은 문법 항목 있을 때만(이 기준 통화엔 없음) → 4104 → 4202.
+_EXPR_FROZEN = ("8ec0edda5e0eae27d1c123533d315bfd8bd564cf14a6434644f52c072ab0477a", 4202)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
@@ -604,7 +605,7 @@ def test_cur_dto_grammar_item_renders_the_form_marker_and_the_practice_sentence_
     assert '2. [문형] N입니까?, N입니다 — 뜻: formal is/are — 연습 문장: "저는 회사원입니다."' in out
     assert '1. 안녕히 가세요 — 뜻: 헤어질 때 — 예문: "안녕히 가세요."' in out       # 청크·어휘 줄은 그대로
     assert '3. 가다 — 뜻: to go — 예문: "학교에 가요"' in out
-    assert out.count("[문형]") == 2, "목록 줄 1 + 절차 문장 1"
+    assert out.count("[문형]") == 3, "목록 줄 1 + 절차 문장 2(DRILL_GRAMMAR_LINE · 2026-09-14 E DRILL_GRAMMAR_ALT_LINE)"
     assert _GRAMMAR_SENTENCE in out
     i_drill = out.index("- 드릴: ①")
     i_sent = out.index(_GRAMMAR_SENTENCE)

@@ -59,7 +59,7 @@ def test_protocol_frames_round_trip_with_harness_shapes():
     fe = P.client_adapter.validate_python({"type": "fragment_end"})
     assert isinstance(fe, P.ClientFragmentEnd)
     saved = json.loads(P.ServerFragmentSaved(call_id="1592", fragment_index=1).model_dump_json())
-    assert saved == {"type": "fragment_saved", "call_id": "1592", "fragment_index": 1}
+    assert saved == {"type": "fragment_saved", "call_id": "1592", "fragment_index": 1, "reason": "client"}   # 2026-09-14 B: reason(client|loop)
     started = json.loads(P.ServerCallStarted(call_id="1592", character_id=1, course="expression", fragment_index=2, max_fragments=3).model_dump_json())
     assert started["fragment_index"] == 2 and started["max_fragments"] == 3
     old = json.loads(P.ServerCallStarted(call_id="1", character_id=1).model_dump_json())
