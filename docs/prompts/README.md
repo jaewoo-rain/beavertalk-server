@@ -1139,6 +1139,19 @@ fable 검수(지뢰밭 8건 유지, P0/P1 없음) 뒤 뜻이 빠진 2건 복원:
 토큰). 옛 DTO(role 없음)·어휘/청크만인 목록은 **바이트 동일**(T21-A 기준 해시 그대로). 판정은 예문 OR(`quiz_judge.item_mentioned`)라
 연습 문장이 나오면 drilled/passed 로 잡힌다(1437 「인사말」←「안녕히 계세요」 실측). 시험 tests/test_expression_prompt.py 3건.
 
+### 2026-09-13 — 표현학습 퀴즈 «한 턴에 한 문제» — 교정 턴에 새 문제가 붙어 3개까지 쌓였다 (실통화 1543)
+1543(member 25 · Max/3.1 · en · L1-S01-1) 퀴즈 창(06:06:31 큐 [네·안녕하세요·잘 지냈어요?])에서 t13 «안녕하세요 try again. **And** Yes?»(2) →
+t15 «Yes? **And** How have you been?»(2) → t17 «잘 지냈어요 … Now Yes? **And** Nice to meet you»(3). 무늬: 오답 교정 턴에 «따라 말해» 와
+«다음 문제» 를 같은 턴에 붙이고, 학습자가 하나만 답하니 못 받은 문제가 다음 턴으로 넘어가 쌓인다. 판정 피해 실측: `passed=[] failed=[1,3]
+미판정=[15]` — «네» 는 세 번 물었는데 한 번도 단독으로 안 물어서 판정 자체가 안 됐다. 드릴 구간(t1~t9)은 한 번에 하나였다 — 드릴 지시엔
+«**여기서 멈추고 학습자 말을 기다려라**»(`drill_intro`·`EXPR_RULE3_ASK_FIRST`)가 있고 퀴즈 지시엔 없었다(`QUIZ_LINE_2` 가 «들려주고
+넘어가라» + «따라 말하게만 해라» 를 같이 말해 한 턴에 둘 다 실행).
+고침(잠금 2곳, 조립 +43자): ① `locked/expression.py` `QUIZ_LINE_2` «정답을 들려주고 따라 말하게 해라 — **그리고 거기서 멈추고 기다려라.**
+다음 문제는 학습자가 따라 말한 다음 턴에 낸다» ② `locked/seeds.py` `expression_quiz_cue`(주입문 — 비버가 그 순간 읽는 자리, §8 2026-08-31
+«문구가 아니라 위치» 전례) «한 턴에 한 문제만 — 교정하는 턴에도 새 문제를 붙이지 마라». 해시 3건(`QUIZ_LINE_2`·`expression.procedure`·
+`expression_quiz_cue`) + T21-A 기준(`_EXPR_FROZEN` 3890→3933) + T14 줄 목록 갱신. ⚠ 미검증 — 다음 표현학습 실통화에서 퀴즈 교정 턴의 문제
+개수를 센다(기대: 매 턴 1).
+
 ### 2026-09-12 — 커리큘럼 2단계 B2: 프리토킹 «[이번 차시]» 블록 (`build_freetalk_instruction(lesson=…)`)
 계획 `docs/plans/2026-09-12-cur-2단계-통화경로-이전.md` §2. `lesson`(CurFreetalkBrief: situation·partner·surfaces≤18·probes)이 None 이면
 **출력 바이트 동일**(옛 경로·스냅샷). 있으면 뒤에 블록 하나: 상황 · 상대(«상황 묘사다 — 네가 그 사람이 되라는 뜻이 아니다») · 이 차시에서
