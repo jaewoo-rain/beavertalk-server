@@ -3627,18 +3627,9 @@ def _reconnect_brief(state: _CallState) -> str:
     head = (f"{CONTROL_TAG} 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고, 인사도 다시 하지 말고, "
             "하던 것을 그대로 이어가라. ")
     if state.expr_items:
-        body = _build_expression_note(state)
-        if state.expr_quiz_open and state.expr_quiz_set:
-            judged = state.expr_quiz_pass | state.expr_quiz_fail
-            remaining = [
-                state.reground_items[n - 1] for n in state.expr_quiz_set
-                if 1 <= n <= len(state.reground_items)
-                and int((state.expr_items[n - 1].get("item_id") or -1)) not in judged
-            ]
-            if remaining:
-                body += " 지금은 %s가 연 퀴즈 중이다 — 남은 문항: %s." % (
-                    CONTROL_TAG, " · ".join("«%s»" % r for r in remaining))
-        return head + body
+        # ⭐ 퀴즈 창이 열려 있으면 쪽지 자체가 «아직 안 낸 문항: …» 착지문을 쓴다(2026-09-13, `_expr_quiz_remaining`) —
+        #   예전엔 여기서 따로 한 줄을 덧붙였는데, 같은 계산을 한 곳으로 모았다.
+        return head + _build_expression_note(state)
     last_beaver = next((s.get("text") for s in reversed(state.segments) if s.get("role") == "beaver" and s.get("text")), "")
     return head + ("직전 화제: 네가 마지막으로 한 말은 «%s» 였다." % last_beaver if last_beaver else "")
 
@@ -5322,7 +5313,25 @@ def _build_expression_note(state: _CallState) -> str:
         role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
         # ⭐ T14 ③ 쪽지 착지문이 «{모국어}로 묻고 기다려라» 를 말한다 — 라벨을 넘긴다.
         locale_label=(state.expr_ctx or {}).get("locale_label") or "학습자의 모국어",
+        # ⭐ 2026-09-13(1546): 퀴즈 창이 열려 있으면 착지문이 «남은 문항을 마저 내라» 로 바뀐다 — 퀴즈 중 꽂힌
+        #   쪽지의 «지금 다루는 표현 요청 하나» 가 비버를 방금 항목으로 되돌려 루프(t35~t43)를 만들었다.
+        quiz_remaining=_expr_quiz_remaining(state),
     )
+
+
+def _expr_quiz_remaining(state: _CallState) -> list[str]:
+    """열린(또는 큐가 얹혀 곧 열릴) 퀴즈의 **아직 판정 안 된** 문항 라벨. 퀴즈 중이 아니면 빈 목록.
+
+    이어하기 브리프(`_resume_brief`)가 같은 계산을 하던 것을 끌어냈다 — 재접지 쪽지와 한 곳을 본다.
+    """
+    if not (state.expr_quiz_open or state.expr_quiz_awaiting_open) or not state.expr_quiz_set:
+        return []
+    judged = state.expr_quiz_pass | state.expr_quiz_fail
+    return [
+        state.reground_items[n - 1] for n in state.expr_quiz_set
+        if 1 <= n <= len(state.reground_items)
+        and int((state.expr_items[n - 1].get("item_id") or -1)) not in judged
+    ]
 
 
 def _arm_reground(state: _CallState, reason: str) -> None:
