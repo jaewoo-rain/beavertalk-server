@@ -177,34 +177,34 @@ def select_items(
     """§11 선별 — ① 지금 차시의 안 배운 항목 seq 순 [:N] ② 부족분은 복습(어느 차시든, 뒤에 붙임). 한 통화는 한 차시 안.
 
     exclude / first(2026-09-13, 실통화 1550 조각 재개): 이 통화의 앞 조각이 **이미 통과**한 항목(cur_call.items passed)은 빼고(그 자리는
-    복습 채움 규칙 그대로), **오답**(failed) 항목은 앞줄로. 새 통화는 둘 다 비어 있어 종전과 같다.
-    ⭐ first 항목은 앞 조각에서 **드릴됐어도**(drilled_at 있음) 앞줄에 그대로 싣는다 — 하네스 H6/실측 1568: 옛 코드는 drilled_at 필터가 먼저라
-      오답이 fresh 에서 빠져 정렬이 죽은 코드였다(seg2 목록 18개에 seg1 오답 0개). 이때는 review=True(조각1 에서 드릴됐으니 복습 취급) ·
-      seen_count 는 그 행 값. 순서 = first(준 순서) → fresh(seq) → 복습 채움. n 상한 그대로.
+    복습 채움 규칙 그대로), **오답**(failed) 항목은 이번 통화 안에서 다시 싣는다. 새 통화는 둘 다 비어 있어 종전과 같다.
+    ⭐ first 항목은 앞 조각에서 **드릴됐어도**(drilled_at 있음) 싣는다 — 하네스 H6/실측 1568: 옛 코드는 drilled_at 필터가 먼저라 오답이 fresh 에서 빠져
+      죽은 코드였다. 이때는 review=True(조각1 에서 드릴됐으니 복습 취급) · seen_count 는 그 행 값.
+    ⭐ 순서(2026-09-14 ②, 사장님 «안 배운 것 → 틀린 것 → 예전 것»): fresh(seq) → first(이번 통화 오답, 준 순서) → 복습 채움(review_pool). 예전(2026-09-13)엔 오답이
+      맨 앞이었다. 새 통화(first 없음)는 종전(안 배운 → 복습 채움)과 바이트 동일. n 상한 그대로.
     """
     n = int(n if n is not None else settings.CUR_ITEMS_PER_CALL)
     skip = {int(x) for x in exclude}
-    front = [int(x) for x in first if int(x) not in skip]
+    front_ids = [int(x) for x in first if int(x) not in skip]
     mine = repo.member_item_map(db, member_id, lesson_id)
     by_id = {it.item_id: (li, it) for li, it in repo.lesson_items(db, lesson_id)}
-    out: list[dict] = []
-    for iid in front:                                      # 오답 앞줄 — 드릴 여부와 무관, 이 차시 항목이면 싣는다
-        if iid not in by_id or any(d["item_id"] == iid for d in out):
+    fresh: list[dict] = []
+    for li, it in repo.lesson_items(db, lesson_id):       # ① 안 배운 것(seq)
+        rec = mine.get(it.item_id)
+        if rec is not None and rec.drilled_at is not None:
+            continue
+        if it.item_id in skip or it.item_id in front_ids:
+            continue
+        fresh.append(_dto(it, lesson_id, li.role, seen_count=(rec.seen_count if rec else 0), review=False, locale=locale))
+    front: list[dict] = []
+    for iid in front_ids:                                  # ② 이번 통화 오답 — 드릴 여부와 무관, 이 차시 항목이면 싣는다
+        if iid not in by_id or any(d["item_id"] == iid for d in front):
             continue
         li, it = by_id[iid]
         rec = mine.get(iid)
         drilled = rec is not None and rec.drilled_at is not None
-        out.append(_dto(it, lesson_id, li.role, seen_count=(rec.seen_count if rec else 0), review=drilled, locale=locale))
-    taken = {d["item_id"] for d in out}
-    fresh: list[dict] = []
-    for li, it in repo.lesson_items(db, lesson_id):
-        rec = mine.get(it.item_id)
-        if rec is not None and rec.drilled_at is not None:
-            continue
-        if it.item_id in skip or it.item_id in taken:
-            continue
-        fresh.append(_dto(it, lesson_id, li.role, seen_count=(rec.seen_count if rec else 0), review=False, locale=locale))
-    out = (out + fresh)[:n]
+        front.append(_dto(it, lesson_id, li.role, seen_count=(rec.seen_count if rec else 0), review=drilled, locale=locale))
+    out = (fresh + front)[:n]
     if len(out) < n:
         exclude = frozenset(d["item_id"] for d in out) | frozenset(skip)
         lesson = repo.lesson_by_id(db, lesson_id)

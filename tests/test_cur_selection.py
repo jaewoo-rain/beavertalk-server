@@ -421,27 +421,29 @@ def test_fragment_2_and_3_are_recorded_and_the_same_fragment_is_a_noop(db):
     assert cur.record_expression(db, c, o1.items, drilled_ids=ids[:3], passed_ids=ids[:2], failed_ids=[], fragment_no=1) is None
     assert repo.lesson_status(db, m, o1.lesson.lesson_id).expression_calls == 1
 
-    # 조각 2 재개(resume_call 이 fragment_count 를 2 로) — 목록: 통과 2개 제외, 오답 1개는 이미 드릴돼 fresh 밖(복습 풀에서 앞줄)
+    # 조각 2 재개(resume_call 이 fragment_count 를 2 로) — 목록: 통과 2개 제외, 오답 1개는 안 배운 것 뒤·복습 채움 앞(2026-09-14 ②)
     _set_fragment(db, c, 2)
     o2 = cur.open_call(db, m, c, "expression")
     assert o2.resumed is True
     ids2 = [d["item_id"] for d in o2.items]
     assert not (set(ids[:2]) & set(ids2)), "조각 1 통과 항목은 조각 2 목록에 없다"
-    assert ids2[0] == ids[2] and o2.items[0]["review"] is True, "조각 1 오답은 조각 2 맨 앞(복습 표시) — H6/1568"
+    assert ids2[:len(ids) - 3] == ids[3:] and ids2[len(ids) - 3] == ids[2], "안 배운 것(seq) → 조각 1 오답 순"
+    assert o2.items[len(ids) - 3]["review"] is True, "오답은 복습 표시 — H6/1568"
     assert all(d["review"] is False for d in o2.items if d["item_id"] in ids[3:]), "남은 새 항목은 그대로"
     # 조각 2 판정 저장 — recorded_fragment 2 · 통과 2개 추가 · recorded_at 은 처음 시각 유지 · expression_calls 2
-    r2 = cur.record_expression(db, c, o2.items, drilled_ids=ids2[:3], passed_ids=ids2[:2], failed_ids=[])
+    passed2 = [ids2[0], ids[2]]          # 새 항목 1개 + 조각1 오답(목록 뒤쪽) 통과
+    r2 = cur.record_expression(db, c, o2.items, drilled_ids=ids2[:3] + [ids[2]], passed_ids=passed2, failed_ids=[])
     assert r2 is not None and r2["fragment"] == 2
     cc = repo.cur_call(db, c)
     assert cc.recorded_fragment == 2 and cc.recorded_at == first_recorded_at
     mine = repo.member_item_map(db, m, o1.lesson.lesson_id)
-    assert all(mine[i].quiz_passed_at is not None for i in ids[:2] + ids2[:2]), "조각 1·2 통과가 모두 남는다(1550 결함)"
+    assert all(mine[i].quiz_passed_at is not None for i in ids[:2] + passed2), "조각 1·2 통과가 모두 남는다(1550 결함)"
     assert repo.lesson_status(db, m, o1.lesson.lesson_id).expression_calls == 2
     rows = {r["item_id"]: r for r in json.loads(cc.items)}
-    assert all(rows[i]["passed"] for i in ids[:2] + ids2[:2]), "items 병합(P1-5) — 통과 OR"
-    assert rows[ids[2]]["passed"] is True and rows[ids[2]]["failed"] is False, "조각1 오답(ids[2])이 조각2 앞줄에서 통과 → passed 가 failed 를 지운다(단조)"
+    assert all(rows[i]["passed"] for i in ids[:2] + passed2), "items 병합(P1-5) — 통과 OR"
+    assert rows[ids[2]]["passed"] is True and rows[ids[2]]["failed"] is False, "조각1 오답(ids[2])이 조각2 에서 통과 → passed 가 failed 를 지운다(단조)"
     # 조각 2 재분석/중복 종료 → no-op, 조각 3 은 다시 저장된다
-    assert cur.record_expression(db, c, o2.items, drilled_ids=ids2[:3], passed_ids=ids2[:2], failed_ids=[]) is None
+    assert cur.record_expression(db, c, o2.items, drilled_ids=ids2[:3] + [ids[2]], passed_ids=passed2, failed_ids=[]) is None
     _set_fragment(db, c, 3)
     r3 = cur.record_expression(db, c, o2.items, drilled_ids=[], passed_ids=[ids2[2]], failed_ids=[])
     assert r3 is not None and r3["fragment"] == 3 and repo.cur_call(db, c).recorded_fragment == 3
@@ -453,19 +455,19 @@ def test_select_items_exclude_and_first_shape_the_resume_list(db):
     lesson = _lesson(db, "L1-S01-1")
     base = cur.select_items(db, m, lesson.lesson_id)
     ids = [d["item_id"] for d in base]
-    # 통과 제외(새 회원은 복습 풀이 비어 그만큼 줄어든다 — 있으면 복습 채움 규칙으로 채워진다), 오답은 앞줄
+    # 통과 제외(새 회원은 복습 풀이 비어 그만큼 줄어든다 — 있으면 복습 채움 규칙으로 채워진다), 오답은 안 배운 것 **뒤**·복습 앞(2026-09-14 ②)
     out = cur.select_items(db, m, lesson.lesson_id, exclude=ids[:2], first=[ids[4], ids[3]])
     got = [d["item_id"] for d in out]
     assert not (set(ids[:2]) & set(got)) and len(out) == len(base) - 2
-    assert got[:2] == [ids[4], ids[3]], "오답은 준 순서대로 앞줄"
-    assert got[2:] == [i for i in ids if i not in ids[:2] + [ids[4], ids[3]]], "나머지는 seq 순"
+    assert got[:-2] == [i for i in ids if i not in ids[:2] + [ids[4], ids[3]]], "안 배운 것이 seq 순으로 먼저"
+    assert got[-2:] == [ids[4], ids[3]], "오답은 준 순서대로 그 뒤(복습 채움 앞)"
     # 인자 없으면 종전과 같다
     assert [d["item_id"] for d in cur.select_items(db, m, lesson.lesson_id)] == ids
 
 
 def test_resume_first_puts_drilled_wrong_items_at_the_front_as_review(db):
-    """하네스 H6 / 실측 1568 — 조각1 오답은 드릴됐으니(drilled_at) 옛 코드에선 fresh 에서 빠져 «오답 앞줄» 이 죽은 코드였다.
-    지금은 first 항목을 드릴 여부와 무관하게 앞줄에 싣고 review=True 로 표시한다. 순서 = first → fresh(seq) → 복습 채움."""
+    """하네스 H6 / 실측 1568 — 조각1 오답은 드릴됐으니(drilled_at) 옛 코드에선 fresh 에서 빠져 «오답 다시 싣기» 가 죽은 코드였다.
+    지금은 first 항목을 드릴 여부와 무관하게 싣고 review=True 로 표시한다. 순서(2026-09-14 ② 사장님) = fresh(seq, 안 배운 것) → first(이번 통화 오답) → 복습 채움."""
     m = _member(db)
     c = _call(db, m)
     o1 = cur.open_call(db, m, c, "expression")
@@ -475,12 +477,12 @@ def test_resume_first_puts_drilled_wrong_items_at_the_front_as_review(db):
     _set_fragment(db, c, 2)
     o2 = cur.open_call(db, m, c, "expression")
     got = [d["item_id"] for d in o2.items]
-    assert got[:3] == ids[2:5], "조각1 오답 3개가 조각2 목록 맨 앞(조각1 순서)"
-    assert all(d["review"] is True for d in o2.items[:3]), "드릴됐던 항목이라 복습 취급"
-    assert all(d["seen_count"] == 1 if "seen_count" in d else True for d in o2.items[:3])
+    assert got[:10] == ids[5:], "안 배운 것(fresh) 이 seq 순으로 먼저"
+    assert all(d["review"] is False for d in o2.items[:10])
+    assert got[10:13] == ids[2:5], "조각1 오답 3개는 안 배운 것 뒤(조각1 순서) — 복습 채움 앞"
+    assert all(d["review"] is True for d in o2.items[10:13]), "드릴됐던 항목이라 복습 취급"
+    assert all(d["seen_count"] == 1 if "seen_count" in d else True for d in o2.items[10:13])
     assert not (set(ids[:2]) & set(got)), "통과 2개는 없다"
-    assert got[3:] == ids[5:], "나머지는 seq 순 그대로(fresh)"
-    assert all(d["review"] is False for d in o2.items[3:])
     assert len(o2.items) == 13, "15 - 통과 2 = 13 (오답 3 포함), n=18 상한 안"
     # first 에 이미 통과(exclude)한 것이 섞여도 exclude 가 이긴다 · 새 통화(first 없음)는 종전과 같다
     lesson = o1.lesson
