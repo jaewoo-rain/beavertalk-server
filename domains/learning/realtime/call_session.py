@@ -750,6 +750,9 @@ class _CallState:
         "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray",
         "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
         "expr_quiz_covered_at_open", "expr_quiz_drill_num",
+        # 큐 보류(1552, 2026-09-13): expr_covered_by_user — 학습자 발화로 확인된 번호 · expr_quiz_cue_covered_at_arm — arm 때 covered 수 ·
+        #   expr_quiz_cue_user_turns — arm 뒤 학습자 턴 수(정리 안 되면 3회에 얹는다)
+        "expr_covered_by_user", "expr_quiz_cue_covered_at_arm", "expr_quiz_cue_user_turns",
         "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -944,6 +947,9 @@ class _CallState:
         self.expr_quiz_prev_num: Optional[int] = None   # 큐 직전 마지막 covered 번호 — 여는 B 의 공개 예외(T17-4)
         self.expr_quiz_covered_at_open: set[int] = set()   # 열 때 covered 였던 번호 — 재언급은 닫힘이 아니다(T20)
         self.expr_quiz_drill_num: Optional[int] = None     # 열 때 아직 안 다룬 가장 앞 번호 = 드릴 중이던 항목(T20)
+        self.expr_covered_by_user: set[int] = set()        # 학습자 발화로 확인된 번호(큐 보류 판정 — 1552)
+        self.expr_quiz_cue_covered_at_arm: int = 0
+        self.expr_quiz_cue_user_turns: int = 0
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1088,6 +1094,7 @@ def _flush_user_segment(state: _CallState) -> None:
     #   묻고 정답을 말하지 않기 때문이다. `normal` 통화에서는 이 호출이 즉시 되돌아간다
     #   (게이트는 `state.expr_items` — 함수 독스트링 참조).
     _note_covered_items(state, text, source="user")
+    _expression_quiz_note_user_turn(state, text)   # 큐 보류(1552) — 학습자 턴 수 · 보류 항목이 학습자 입에서 나왔나
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
@@ -1269,6 +1276,44 @@ def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = Fa
     return expression_quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target)   # 잠금: locked/seeds.py
 
 
+#: 큐 보류 상한 — 정리(학습자 성공/비버 다음 항목)를 기다리다 학습자 턴이 이만큼 지나면 얹는다(= 공개 뒤 시도 3번 = 드릴 재시도 상한 3).
+EXPR_QUIZ_SETTLE_MAX_USER_TURNS = 3
+
+
+def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
+    """학습자 세그먼트 확정마다(flush) — 큐가 대기 중이면 턴 수를 올리고, 보류 항목(큐 직전 마지막 covered)이 학습자 입에서 나왔는지 본다.
+
+    ⚠ covered 는 비버 공개로도 오르므로 그 항목은 «다뤄졌다» 지만 «정리됐다» 가 아니다 — 학습자가 표면형/예문을 말했을 때만 확인(1552).
+    `_note_covered_items` 는 이미 covered 인 번호를 다시 세지 않아 여기서 따로 본다(판정 아님 — 큐를 얹을 때를 정하는 것뿐).
+    """
+    if not state.expr_items or state.expr_quiz_cue_pending is None:
+        return
+    state.expr_quiz_cue_user_turns += 1
+    hold = state.expr_quiz_prev_num
+    if hold is None or hold in state.expr_covered_by_user or not text:
+        return
+    _iid, surface = _num_item(state, hold)
+    if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, hold)):
+        state.expr_covered_by_user.add(hold)
+
+
+def _expression_quiz_cue_settled(state: _CallState) -> tuple[bool, str]:
+    """대기 중인 큐를 지금 얹어도 되나(1552, 사장님 결정) — «다뤄진 마지막 항목이 정리됐나».
+
+    정리 = ① 학습자 발화에 그 항목 표면형/예문(성공) · ② 공개 뒤 학습자 시도가 EXPR_QUIZ_SETTLE_MAX_USER_TURNS 번(포기·안전장치) ·
+    ③ 비버가 다음 항목을 소개(covered 가 arm 때보다 늘었다 — 그땐 즉시). 학습자가 먼저 말해 covered 된 항목은 처음부터 정리다.
+    1552: 「잘 지냈어요」 idk → 공개 → «잘 자다» 순간 큐가 얹혀 비버가 정답만 말하고 퀴즈로 넘어갔다 — 재시도가 끊겼다.
+    """
+    hold = state.expr_quiz_prev_num
+    if hold is None or hold in state.expr_covered_by_user:
+        return True, "학습자 확인"
+    if len(state.covered_nums) > state.expr_quiz_cue_covered_at_arm:
+        return True, "다음 항목 소개"
+    if state.expr_quiz_cue_user_turns >= EXPR_QUIZ_SETTLE_MAX_USER_TURNS:
+        return True, "학습자 턴 %d회" % state.expr_quiz_cue_user_turns
+    return False, "항목 %d 미정리(학습자 턴 %d/%d)" % (hold, state.expr_quiz_cue_user_turns, EXPR_QUIZ_SETTLE_MAX_USER_TURNS)
+
+
 def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = False) -> None:
     """큐를 세운다 — 다음 학습자 발화 시작(마이크·RMS)에 얹힌다. 재접지 슬롯과 별개다."""
     state.expr_quiz_set = list(nums)
@@ -1277,6 +1322,8 @@ def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool 
     #   한 턴에 담아 첫 사건이 공개→failed 가 됐다. 큐 직전 마지막 covered 항목을 기억해 두고, 여는 B 세그먼트에서
     #   **그 항목의** 표면형만 공개로 세지 않는다(그 세그먼트만).
     state.expr_quiz_prev_num = state.covered_nums[-1] if state.covered_nums else None
+    state.expr_quiz_cue_covered_at_arm = len(state.covered_nums)
+    state.expr_quiz_cue_user_turns = 0
     if not retry:
         state.expr_quiz_seq += 1
     else:
@@ -1334,6 +1381,8 @@ def _expression_quiz_tick(state: _CallState, idx: int, *, source: str, text: str
         return
     if source == "beaver":
         state.expr_covered_by_beaver.add(idx)
+    else:
+        state.expr_covered_by_user.add(idx)
     if state.expr_quiz_open:
         # ⛔ 닫힘은 **비버 발화로** covered 된 번호만 본다(codex P1-1).
         # ⛔ T20: 열 때 이미 covered 였던 번호는 새 소개가 아니다(재언급). 여는 세그먼트(아직 segments 에 안 들어간 여는 비버
@@ -5235,6 +5284,12 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     cue = state.expr_quiz_cue_pending
     if cue is None:
         return
+    settled, why = _expression_quiz_cue_settled(state)
+    if not settled:
+        # ⭐ 1552 — 공개 직후 학습자가 다시 시도하는 그 자리에 큐가 얹히면 비버가 정답만 말하고 퀴즈로 넘어간다. 마지막 항목이
+        #   정리될 때까지(학습자 성공 / 시도 3번 / 비버가 다음 항목 소개) 큐를 들고 있는다 — 재접지처럼 다음 발화에 다시 본다.
+        logger.info("%s 보류: seq=%d 항목=%s 이유=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_seq, state.expr_quiz_set, why)
+        return
     now = asyncio.get_running_loop().time()
     waited = (now - state.expr_quiz_cue_armed_ts) if state.expr_quiz_cue_armed_ts is not None else 0.0
     try:
@@ -5249,8 +5304,8 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     _note_text_inject(state, "quiz_cue")
     # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
     logger.info(
-        "%s 얹기: seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
-        state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)",
+        "%s 얹기: seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
+        state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
     )
 
 

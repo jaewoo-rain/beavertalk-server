@@ -145,6 +145,7 @@ async def test_the_cue_rides_the_mic_gate_and_leaves_the_reground_counters_alone
     st = _state()
     for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
         _beaver(st, t)
+    _user(st, "저는 미국 사람이에요")          # 1552 큐 보류 — 마지막 항목이 학습자 입에서 나와야(정리) 큐가 얹힌다
     st.reground_pending = True
     st.reground_reminder = "재접지 쪽지"
     st.reground_count = 1
@@ -185,6 +186,92 @@ async def test_silence_and_closing_never_attach_the_cue() -> None:
     st.should_close = True
     await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
     assert sess.sent == []
+
+
+# --------------------------------------------------------------------------- #
+# 큐 보류(실통화 1552, 2026-09-13 사장님 결정) — 마지막 covered 항목이 «정리» 될 때까지 얹지 않는다
+# --------------------------------------------------------------------------- #
+def _three_revealed() -> cs._CallState:
+    """비버가 3개를 공개해 큐가 armed 됐지만 3번은 학습자 입에서 아직 안 나온 상태."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)
+    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_prev_num == 3
+    return st
+
+
+@pytest.mark.asyncio
+async def test_the_cue_is_held_while_the_last_revealed_item_is_unsettled_and_attaches_after_3_learner_turns(caplog) -> None:
+    """공개 → 오답 → 오답 → 오답(3회) 뒤에 큐. 1552: 「잘 지냈어요」 공개 직후 «잘 자다» 자리에 큐가 얹혀 재시도가 끊겼다."""
+    st = _three_revealed()
+    sess = _Sess()
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert sess.sent == [] and st.expr_quiz_cue_pending is not None, "3번이 미정리 — 보류"
+    assert any(r.getMessage().startswith(cs.EXPR_QUIZ_CUE_LOG_PREFIX + " 보류") for r in caplog.records)
+    for i, wrong in enumerate(("저는 사람", "미국 사람", "저는 미국"), 1):     # 표면형 전체가 안 나온 시도 3번
+        _user(st, wrong)
+        _beaver(st, "Try again — 저는 미국 사람이에요.")                    # 재공개는 이미 covered 라 새 소개가 아니다
+        await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+        if i < 3:
+            assert sess.sent == [], f"{i}번째 시도 뒤에도 보류"
+    assert len(sess.sent) == 1 and sess.sent[0][0].startswith(CONTROL_TAG + " 지금 퀴즈를 내라"), "학습자 턴 3회 뒤 얹힘(포기)"
+    assert st.expr_quiz_cue_pending is None and st.expr_quiz_awaiting_open is True
+
+
+@pytest.mark.asyncio
+async def test_the_cue_attaches_right_after_the_learner_produces_the_revealed_item() -> None:
+    """공개 → 정답 → 즉시(다음 발화 자리) 큐."""
+    st = _three_revealed()
+    sess = _Sess()
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert sess.sent == []
+    _user(st, "저는 미국 사람이에요")
+    assert 3 in st.expr_covered_by_user
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert len(sess.sent) == 1 and st.expr_quiz_cue_pending is None
+
+
+@pytest.mark.asyncio
+async def test_the_cue_attaches_when_the_beaver_moves_on_to_the_next_item() -> None:
+    """공개 → 비버가 다음 항목(4번) 소개 → 즉시 큐(지금처럼)."""
+    st = _three_revealed()
+    sess = _Sess()
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert sess.sent == []
+    _beaver(st, 'Next: "도와주세요"')
+    assert st.covered_nums == [1, 2, 3, 4]
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert len(sess.sent) == 1 and st.expr_quiz_cue_pending is None
+
+
+@pytest.mark.asyncio
+async def test_an_item_the_learner_said_first_is_settled_from_the_start() -> None:
+    """3번을 학습자가 먼저 말해 covered 됐으면 보류 없이 첫 발화 자리에 얹힌다(종전과 같다)."""
+    st = _state()
+    _beaver(st, '"이거 얼마예요?"'); _beaver(st, '"잘 부탁드립니다"')
+    _user(st, "저는 미국 사람이에요")
+    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_prev_num == 3 and 3 in st.expr_covered_by_user
+    sess = _Sess()
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert len(sess.sent) == 1
+
+
+def test_settle_predicate_reasons() -> None:
+    st = _three_revealed()
+    assert cs._expression_quiz_cue_settled(st) == (False, "항목 3 미정리(학습자 턴 0/3)")
+    st.expr_quiz_cue_user_turns = 3
+    assert cs._expression_quiz_cue_settled(st) == (True, "학습자 턴 3회")
+    st2 = cs._CallState()
+    assert cs._expression_quiz_cue_settled(st2) == (True, "학습자 확인"), "보류 항목이 없으면(normal·빈 목록) 항상 얹는다"
+
+
+def test_normal_call_user_turns_do_not_touch_the_quiz_state() -> None:
+    st = cs._CallState()
+    st.reground_items = ["물"]
+    st.cur_user_text = ["물이 있어요"]
+    cs._flush_user_segment(st)
+    assert st.expr_covered_by_user == set() and st.expr_quiz_cue_user_turns == 0 and st.expr_quiz_cue_pending is None
 
 
 def test_the_quiz_log_prefix_is_fixed_for_the_harness() -> None:
