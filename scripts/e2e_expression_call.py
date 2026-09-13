@@ -2367,13 +2367,16 @@ def count_redrills(turns: list, items: dict[int, "Item"], passed_before: set[int
 def check_resume(seg1: dict, seg2: dict, *, plan_fragments: int) -> list[tuple[str, str, str, bool]]:
     """① 이어하기 검사 4항목 — (단계, 기대, 실측, PASS).
     seg1: {call_id, course, passed_ids, failed_ids, mi_updated_max}  seg2: {call_id, course_from_server, resumed, drilled_order,
-          fragment_count, recorded_fragment, mi_updated_max, quizzed_ids}
+          fragment_count, recorded_fragment, mi_updated_max, quizzed_ids, new_ids, review_ids}
+    (c) 는 사장님 결정(2026-09-14, expr-build 2차 ②) «안 배운 것(seq) → 이번 통화 오답 → 예전 복습» — seg2 의 실제 드릴 순서에서
+        새 항목(new_ids)이 전부 오답 앞에, 오답이 전부 예전 복습(review_ids − seg1 오답) 앞에 와야 한다. new/review 목록이 없으면(옛 호출)
+        종전 «오답 맨 앞» 규칙으로 본다.
     plan_fragments == 1 이면 «거절(새 통화 폴백)» 이 정상이고 나머지 항목은 «해당 없음»."""
     rows: list[tuple[str, str, str, bool]] = []
     if plan_fragments <= 1:
         ok = seg2.get("resumed") is False and seg2.get("call_id") not in (None, seg1.get("call_id"))
         rows.append(("(a) 이어짐/거절", f"조각 상한 {plan_fragments} → 거절 = 새 call_id", f"seg1 {seg1.get('call_id')} → seg2 {seg2.get('call_id')} resumed={seg2.get('resumed')}", ok))
-        for k in ("(b) 통과 항목 재등장 없음", "(c) 오답 항목 앞줄", "(d) 조각별 저장"):
+        for k in ("(b) 통과 항목 재등장 없음", "(c) 오답 순서(새 항목 뒤·복습 앞)", "(d) 조각별 저장"):
             rows.append((k, "해당 없음(거절)", "—", True))
         return rows
     same = seg2.get("resumed") is True and seg2.get("call_id") == seg1.get("call_id")
@@ -2386,9 +2389,26 @@ def check_resume(seg1: dict, seg2: dict, *, plan_fragments: int) -> list[tuple[s
     reappear = sorted(passed & set(asked2))
     rows.append(("(b) 통과 항목 재등장 없음", f"seg1 passed {len(passed)}개가 seg2 드릴/퀴즈에 없음", f"재등장 {len(reappear)}개 {reappear}", not reappear))
     failed = [i for i in (seg1.get("failed_ids") or []) if i not in passed]
-    head = list(seg2.get("drilled_order") or [])[:max(len(failed), 1)]
-    front_ok = (not failed) or set(failed) <= set(list(seg2.get("drilled_order") or [])[:len(failed) + 1])
-    rows.append(("(c) 오답 항목 앞줄", f"seg1 failed {failed} 가 seg2 맨 앞", f"seg2 첫 항목들 {head}", bool(front_ok)))
+    order = list(seg2.get("drilled_order") or [])
+    if seg2.get("new_ids") is None and seg2.get("review_ids") is None:
+        head = order[:max(len(failed), 1)]
+        front_ok = (not failed) or set(failed) <= set(order[:len(failed) + 1])
+        rows.append(("(c) 오답 항목 앞줄", f"seg1 failed {failed} 가 seg2 맨 앞", f"seg2 첫 항목들 {head}", bool(front_ok)))
+    else:
+        new_ids = [i for i in (seg2.get("new_ids") or []) if i not in failed]
+        old_review = [i for i in (seg2.get("review_ids") or []) if i not in failed]
+        pos = {iid: n for n, iid in enumerate(order)}
+        p_new = [pos[i] for i in new_ids if i in pos]
+        p_fail = [pos[i] for i in failed if i in pos]
+        p_rev = [pos[i] for i in old_review if i in pos]
+        ok_new_first = (not p_new or not p_fail) or max(p_new) < min(p_fail)
+        ok_fail_before_rev = (not p_fail or not p_rev) or max(p_fail) < min(p_rev)
+        ok_new_before_rev = (not p_new or not p_rev) or max(p_new) < min(p_rev)
+        seq = "→".join(("N" if i in new_ids else "F" if i in failed else "R" if i in old_review else "?") for i in order) or "(드릴 0)"
+        rows.append(("(c) 오답 순서(새 항목 뒤·복습 앞)",
+                     f"seg2 드릴 순서 = 안 배운 것 {len(new_ids)}개 → seg1 오답 {failed} → 예전 복습 {len(old_review)}개",
+                     f"실제 순서 {seq} (N=새 항목 F=오답 R=예전 복습 ?=목록 밖) · 드릴 {len(order)}",
+                     bool(ok_new_first and ok_fail_before_rev and ok_new_before_rev)))
     rec_ok = seg2.get("recorded_fragment") == 2 and (seg2.get("mi_updated_max") or datetime.min) > (seg1.get("mi_updated_max") or datetime.min)
     rows.append(("(d) 조각별 저장", "cur_call.recorded_fragment=2 · cur_member_item 갱신 2회(seg1 뒤 다시 갱신)",
                  f"recorded_fragment={seg2.get('recorded_fragment')} · mi_updated seg1 {str(seg1.get('mi_updated_max'))[11:19]} → seg2 {str(seg2.get('mi_updated_max'))[11:19]}", bool(rec_ok)))
@@ -2881,6 +2901,7 @@ def run_segments(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
         seg2 = {"call_id": sess2.call_id, "course_from_server": sess2.course_from_server, "resumed": sess2.resumed,
                 "drilled_order": list(sess2.drilled_order),
                 "quizzed_ids": [iid for iid, r in sess2.records.items() if r.rounds],
+                "new_ids": list(sc2.cur.get("new_ids") or []), "review_ids": list(sc2.cur.get("review_ids") or []),
                 "fragment_count": sc2.call_row.get("fragment_count"),
                 "recorded_fragment": (sc2.cur.get("cur_call") or {}).get("recorded_fragment"),
                 "mi_updated_max": sc2.cur.get("mi_updated_max")}
@@ -3022,6 +3043,7 @@ def run_seamless(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
     seg2 = {"call_id": sess2.call_id, "course_from_server": sess2.course_from_server, "resumed": sess2.resumed,
             "drilled_order": [i for i in sess2.drilled_order if i not in replay_ids],
             "quizzed_ids": [iid for iid, r in sess2.records.items() if r.rounds and iid not in replay_ids],
+            "new_ids": list(sc2.cur.get("new_ids") or []), "review_ids": list(sc2.cur.get("review_ids") or []),
             "fragment_count": sc2.call_row.get("fragment_count"),
             "recorded_fragment": (sc2.cur.get("cur_call") or {}).get("recorded_fragment"),
             "mi_updated_max": sc2.cur.get("mi_updated_max")}

@@ -57,21 +57,34 @@ def test_redrill_ignores_items_not_yet_passed_and_counts_streak_once():
 def test_check_resume_pass_when_same_call_and_ordering_and_saved_twice():
     t1 = datetime(2026, 9, 13, 10, 0, 0)
     seg1 = {"call_id": 100, "course": "expression", "passed_ids": [1, 2], "failed_ids": [3], "mi_updated_max": t1}
-    seg2 = {"call_id": 100, "course_from_server": "expression", "resumed": True, "drilled_order": [3, 5, 6], "quizzed_ids": [3],
+    # 순서 규칙(사장님 2026-09-14): 안 배운 것(5, 6) → 이번 통화 오답(3) → 예전 복습(9)
+    seg2 = {"call_id": 100, "course_from_server": "expression", "resumed": True, "drilled_order": [5, 6, 3, 9], "quizzed_ids": [3],
+            "new_ids": [5, 6], "review_ids": [3, 9],
             "fragment_count": 2, "recorded_fragment": 2, "mi_updated_max": t1 + timedelta(minutes=4)}
     rows = h.check_resume(seg1, seg2, plan_fragments=3)
     assert [r[3] for r in rows] == [True, True, True, True], rows
+    assert "N→N→F→R" in rows[2][2]
+    # 옛 호출(new/review 목록 없음)은 종전 «오답 맨 앞» 규칙
+    old = dict(seg2, drilled_order=[3, 5, 6]); old.pop("new_ids"); old.pop("review_ids")
+    assert h.check_resume(seg1, old, plan_fragments=3)[2][3] is True
 
 
 def test_check_resume_flags_reappearance_and_missing_second_record():
     t1 = datetime(2026, 9, 13, 10, 0, 0)
     seg1 = {"call_id": 100, "course": "expression", "passed_ids": [1, 2], "failed_ids": [3], "mi_updated_max": t1}
-    seg2 = {"call_id": 100, "course_from_server": "expression", "resumed": True, "drilled_order": [5, 1, 3], "quizzed_ids": [],
+    seg2 = {"call_id": 100, "course_from_server": "expression", "resumed": True, "drilled_order": [3, 5, 1, 9, 6], "quizzed_ids": [],
+            "new_ids": [5, 6], "review_ids": [3, 9],
             "fragment_count": 2, "recorded_fragment": 1, "mi_updated_max": t1}
     rows = h.check_resume(seg1, seg2, plan_fragments=3)
     by = {r[0]: r for r in rows}
     assert by["(b) 통과 항목 재등장 없음"][3] is False      # 1 이 다시 나왔다
-    assert by["(c) 오답 항목 앞줄"][3] is False               # 3 이 맨 앞이 아니다
+    assert by["(c) 오답 순서(새 항목 뒤·복습 앞)"][3] is False   # 오답 3 이 새 항목(5, 6) 앞 · 복습 9 가 새 항목 6 앞
+    # 오답이 복습 뒤로 밀려도 FAIL
+    seg2b = dict(seg2, drilled_order=[5, 6, 9, 3])
+    assert h.check_resume(seg1, seg2b, plan_fragments=3)[2][3] is False
+    # 오답이 없는 조각: 새 항목 → 복습 만 지키면 PASS
+    seg1n = dict(seg1, failed_ids=[])
+    assert h.check_resume(seg1n, dict(seg2, drilled_order=[5, 6, 9]), plan_fragments=3)[2][3] is True
     assert by["(d) 조각별 저장"][3] is False                  # recorded_fragment 1 · 갱신 없음
 
 
