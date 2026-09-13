@@ -381,6 +381,13 @@ def hint_lesson_clause(lesson: object | None, target_language: str) -> str:
     return "".join(parts)
 
 
+def hint_reading_clause(language: str) -> str:
+    """힌트 사이드카 — 일본어(ja)만 «reading = korean 문장의 가나(ひらがな) 읽기» 한 절. 그 밖은 빈 문자열(ko 지시문 바이트 동일)."""
+    if language != "ja":
+        return ""
+    return " reading 은 korean 문장 전체의 ひらがな 읽기(한자를 전부 가나로 풀어 쓴 것, 띄어쓰기 없이)."
+
+
 def hint_instruction_base(locale_label: str, target_language: str = "한국어") -> str:
     t = target_language
     roman_clause = (

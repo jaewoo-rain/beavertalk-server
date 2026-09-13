@@ -72,6 +72,7 @@ from core.languages import (
     count_target_script_chars,
     normalize_locale,
     resolve_language,
+    resolve_target_language,
 )
 from core.gemini_live import (
     DEFAULT_VOICE,
@@ -556,15 +557,13 @@ def _resolve_target_language(settings: Settings, override: Optional[str]) -> Lan
     로 폴백(warning). 언어별 동작(회화 전용/레벨테스트/힌트)은 spec.has_curriculum·leveltest 가
     결정 — 하류 분기는 코드가 아니라 이 레지스트리 한 행을 본다.
     """
-    spec = resolve_language(override) if override else None
-    if spec is None:
-        if override:
-            logger.warning(
-                "normalcall: 미지원 target_language(%s) → 기본(%s) 폴백",
-                override, settings.DEFAULT_TARGET_LANGUAGE,
-            )
-        spec = resolve_language(settings.DEFAULT_TARGET_LANGUAGE) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
-    return spec
+    # ⭐ 해석 본체는 core.languages.resolve_target_language(공용 — /cur/* 라우터·cur-reset 이 같은 것을 쓴다, 2026-09-13). 여기는 로그만.
+    if override and resolve_language(override) is None:
+        logger.warning(
+            "normalcall: 미지원 target_language(%s) → 기본(%s) 폴백",
+            override, settings.DEFAULT_TARGET_LANGUAGE,
+        )
+    return resolve_target_language(override, default_code=settings.DEFAULT_TARGET_LANGUAGE)
 
 
 def _call_target_language(
@@ -720,6 +719,8 @@ class _CallState:
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
         "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
+        # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
+        "target_code",
         "tag_leak_seen", "resume_sent",
         "reground_reminder", "reground_pending", "reground_injected", "user_turn_open",
         "continue_reminder", "continue_injected",
@@ -885,6 +886,7 @@ class _CallState:
         self.nudge_seed_2: str = _NUDGE_SEED_2       # 2단도 슬롯 — 차시 프리토킹만 코스 문구, 나머지는 공용 상수 그대로
         self.cur_course: str = ""
         self.cur_forced: bool = False                # admin QA 강제 프리토킹 — 종료 시 complete_freetalk 를 부르지 않는다
+        self.target_code: str = "ko"
         self.freetalk_brief: Any = None
         self.freetalk_target: str = ""
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
@@ -1196,7 +1198,8 @@ def _note_covered_items(
             continue
         # ⭐ 2026-09-12 판정 보강 — 표현학습만 **예문 OR**(`item_mentioned`): 문법 주형(「V-아요/어요」)은 표면형으로는
         #   발화에 나올 수 없고 비버·학습자는 예문(「나무가 타요.」)을 그대로 말한다. normal 은 생짜 비교 그대로.
-        hit = quiz_judge.item_mentioned(text, label, _item_example(state, idx, label)) if expr else (label in text)
+        hit = (quiz_judge.item_mentioned(text, label, _item_example(state, idx, label), language=state.target_code)
+               if expr else (label in text))
         if hit:
             state.covered_nums.append(idx)
             if expr:
@@ -1293,7 +1296,7 @@ def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
     if hold is None or hold in state.expr_covered_by_user or not text:
         return
     _iid, surface = _num_item(state, hold)
-    if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, hold)):
+    if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, hold), language=state.target_code):
         state.expr_covered_by_user.add(hold)
 
 
@@ -1472,10 +1475,10 @@ def _server_judge_quiz(state: _CallState, span: list[tuple[int, str, str]], quiz
         verdict = ""
         example = _item_example(state, n)          # 2026-09-12 판정 보강 — 예문 OR(표면형이 주형인 문법 항목)
         for idx, role, text in span:
-            if not quiz_judge.item_mentioned(text, surface, example):
+            if not quiz_judge.item_mentioned(text, surface, example, language=state.target_code):
                 continue
             if role == "user":
-                if quiz_judge.keeps_formality(text, surface):
+                if quiz_judge.keeps_formality(text, surface, language=state.target_code):
                     verdict = "passed"
                     break
                 continue                       # 반말 산출(V4) — 사건이 아니다. 계속 훑는다(뒤에 공개가 오면 failed)
@@ -1524,16 +1527,16 @@ def _verify_stt_fallback(
         return False, "창 밖·U 아님"
     if answer_seg < state.expr_quiz_open_seg:
         return False, "창 밖"
-    if not quiz_judge.keeps_formality(by_idx[answer_seg][1], surface):
+    if not quiz_judge.keeps_formality(by_idx[answer_seg][1], surface, language=state.target_code):
         return False, "격식(반말)"             # T17-5: 1405 ④ 폴백이 「잘 부탁해」 를 passed 로 — 서버 판정과 같은 V4
     for i, role, text in span:
         if i >= answer_seg:
             break
-        if role == "beaver" and quiz_judge.item_mentioned(text, surface, example):
+        if role == "beaver" and quiz_judge.item_mentioned(text, surface, example, language=state.target_code):
             return False, "앞 B 에 공개"
     for i, role, text in span:
         if i > answer_seg and role == "beaver":
-            if quiz_judge.item_mentioned(text, surface, example):
+            if quiz_judge.item_mentioned(text, surface, example, language=state.target_code):
                 return False, "다음 B 가 정정"
             break
     return True, ""
@@ -2273,7 +2276,7 @@ async def run_call(
         cur_route = False
     if call_type == "auto":
         if cur_route:
-            call_type = await svc.run_db(db_session_factory, lambda db: cur_svc.decide_course(db, member_id))
+            call_type = await svc.run_db(db_session_factory, lambda db: cur_svc.decide_course(db, member_id, spec.code))
             logger.info("normalcall cur: auto → course=%s member=%s", call_type, member_id)
         else:
             call_type = "expression"
@@ -2591,7 +2594,7 @@ async def run_call(
         try:
             cur_open = await svc.run_db(
                 db_session_factory,
-                lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, locale=locale,
+                lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, language=spec.code, locale=locale,
                                              force=(force_course and call_type == "freetalk")),
             )
         except cur_svc.CourseLocked as exc:
@@ -2625,6 +2628,7 @@ async def run_call(
                 close_tag=close_tag,
                 model_family="3.1" if "3.1" in (live_model or "") else "2.5",
                 face_rule=face_rule_text,
+                language=spec.code,                    # 격식 줄 언어별(ja) — ko 바이트 동일
             )
             seed_text = seed_expression_opening(target_language)
             logger.info(
@@ -2646,6 +2650,7 @@ async def run_call(
                 max_sentences=FREETALK_MAX_SENTENCES,
                 lesson=cur_open.brief,
                 face_rule=face_rule_text,
+                language=spec.code,                    # probes 이름 치환 패턴(ja 「〜さん」)
             )
             seed_text = seed_freetalk_lesson_opening(target_language)
             freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
@@ -2676,6 +2681,7 @@ async def run_call(
 
     state = _CallState()
     state.cur_route = cur_route
+    state.target_code = spec.code                           # 판정(quiz_judge)·대본 조립의 언어 분기(ko/ja — 2026-09-13)
     state.cur_course = call_type if cur_route else ""
     state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
     state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
@@ -2946,7 +2952,8 @@ async def run_call(
         state.hint_ctx = {
             "client": client,
             "model": settings.JUDGE_MODEL,
-            "instruction": _hint_instruction(label, target_language, lesson=freetalk_brief),
+            "instruction": _hint_instruction(label, target_language, lesson=freetalk_brief, language=spec.code),
+            "language": spec.code,        # ja 면 예시에 reading(가나) 을 싣는다 — ko 는 None(프레임 바이트 불변)
             # 원가 계기판 — 힌트 사이드카는 state 를 안 받으므로 ctx 에 수집기를 실어 보낸다
             # (시그니처를 안 바꾼다). ⚠ 여러 힌트 태스크가 같은 객체에 더한다 — 단일
             # 이벤트루프라 GIL 밖 경합이 없다(락 불요).
@@ -3898,7 +3905,7 @@ def _teaching_plan_items(study_items: list[dict]) -> list[TeachingItem]:
     return items
 
 
-def _hint_instruction(locale_label: str, target_language: str = "한국어", lesson: object | None = None) -> str:
+def _hint_instruction(locale_label: str, target_language: str = "한국어", lesson: object | None = None, language: str = "ko") -> str:
     """동적 힌트 사이드카 시스템 지시문(순수 문자열 조립 — LLM 생성 0).
 
     (멀티랭귀지) target_language 로 예시 답변 언어를 지정한다(기본 한국어 — 기존 출력 무손상).
@@ -3908,11 +3915,13 @@ def _hint_instruction(locale_label: str, target_language: str = "한국어", les
     ⭐ `lesson`(차시 프리토킹, 2026-09-12): CurFreetalkBrief(situation · items[{obj, ex, role}]) 를 주면 뒤에 «이번 차시» 한 절 —
       상황과 그 차시 표현(문형은 예문으로)을 실어 예시 답변이 그 표현을 **우선** 쓰게 한다(맞는 것이 있을 때만). None 이면 바이트 동일.
     """
-    return _hint_instruction_base(locale_label, target_language) + _hint_lesson_clause(lesson, target_language)
+    return (_hint_instruction_base(locale_label, target_language) + hint_reading_clause(language)
+            + _hint_lesson_clause(lesson, target_language))
 
 
 # ⭐ 잠금 분리(2026-09-12): _reground_instruction, _hint_lesson_clause, _hint_instruction_base → core/prompts/locked/reground.py 로 **이동**(복사 아님 — 바이트 그대로).
 from core.prompts.locked.reground import (
+    hint_reading_clause,
     hint_instruction_base,
     hint_lesson_clause,
     reground_instruction,
@@ -4107,6 +4116,7 @@ async def _hint_sidecar(client_ws, ctx: dict, turn_id: str, question: str) -> No
                 korean=k,
                 roman=getattr(e, "roman", None),
                 native=getattr(e, "native", "") or "",
+                reading=((getattr(e, "reading", None) or "").strip() or None) if ctx.get("language") == "ja" else None,
             )
             for e in (raw or [])
             if (k := (getattr(e, "korean", None) or "").strip())
@@ -5506,7 +5516,7 @@ def _freetalk_unused_material(state: _CallState) -> list[str]:
         ex = (d.get("ex") or "").strip() or None
         if not obj:
             continue
-        if said and quiz_judge.item_mentioned(said, obj, ex):
+        if said and quiz_judge.item_mentioned(said, obj, ex, language=state.target_code):
             continue
         if _FAREWELL_RE.search(obj.lower()) or (ex and _FAREWELL_RE.search(ex.lower())):
             continue    # 1549 — 작별말을 «아직 안 쓴 소재» 로 주면 비버가 턴마다 작별한다

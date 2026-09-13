@@ -47,7 +47,19 @@ import unicodedata
 _PUNCT_RE = re.compile(r"[\s.,!?;:~…·\"'“”‘’()\[\]{}<>«»\-–—/\\|]+")
 
 
-def normalize(text: str | None) -> str:
+# ── 언어 분기(2026-09-13 ja 배선) — «얇은 분기»: 언어별 표(조사·격식 표지·구두점·자리표시)만 갈고 알고리즘은 하나다.
+#   ko 는 아래 표·규칙이 종전과 **같은 객체**라 결과가 한 글자도 안 바뀐다(tests/test_expression_t16 등 기존 시험이 증거).
+#   ja: normalize 는 NFKC(전각/반각 통일)·공백·구두점(。、「」『』・)만 — «에요→예요» 같은 ko 규칙 미적용 · 조사 {は,が,を,に,で,と,も,へ,の,か,ね,よ} ·
+#   격식 표지 (です,ます,ください,ましょう,でした,ません) · 띄어쓰기가 없어 한 낱말 라벨은 «라벨 바로 뒤가 조사/끝/비(非)한자·가나» 일 때만.
+_JA_PUNCT_RE = re.compile(r"[\s.,!?;:~…·\"'“”‘’()\[\]{}<>«»\-–—/\\|。、「」『』・！？]+")
+_JA_PARTICLES = frozenset({"", "は", "が", "を", "に", "で", "と", "も", "へ", "の", "か", "ね", "よ"})
+_JA_POLITE_MARKERS = ("ください", "ましょう", "でした", "ません", "です", "ます")
+# ja 자리표시: ～/〜(파도) — 「～は～です」「～ができる」. ko 표(◯·라틴 대문자·괄호)에 더한다(ko 표면형엔 ～ 가 없어 ko 결과 무변화).
+_JA_PLACEHOLDER_RE = re.compile(r"[～〜]+|◯+|(?<![A-Za-z])[A-Z][A-Za-z]{0,3}\d?(?![A-Za-z])|\([^)]*\)")
+_JA_SCRIPT_RE = re.compile(r"[ぁ-んァ-ヶ一-龠々ー]")
+
+
+def normalize(text: str | None, language: str = "ko") -> str:
     """비교용 정규화 — **공백·문장부호만** 걷어낸다(NFC 정규화 포함).
 
     ⚠ NFC 를 거는 이유: 전사가 자모 분해형(NFD)으로 올 수 있고, 그러면 눈에 같은 글자가
@@ -57,6 +69,9 @@ def normalize(text: str | None) -> str:
       지금은 판정을 안 하니 당장 사고가 나진 않지만, 이 함수를 쓰는 대조가 곧바로 틀린다.
     ⚠ 소문자화는 한다(라틴 문자 답변·영어 라벨 대비).
     """
+    if language == "ja":
+        s = unicodedata.normalize("NFKC", (text or "").strip())     # 전각/반각·합성 가나 통일 — ko 규칙(에요→예요)은 안 탄다
+        return _JA_PUNCT_RE.sub("", s).lower()
     s = unicodedata.normalize("NFC", (text or "").strip())
     s = _PUNCT_RE.sub("", s).lower()
     # ⭐ T17-3 (통화 1405 ①, 매 통화 재현): STT 가 「어디예요」 를 「어디에요」 로 적는다 — 의미 불변 철자 변이라
@@ -77,7 +92,21 @@ _PARTICLES = frozenset({
 })
 
 
-def mentions(text: str | None, label: str | None) -> bool:
+def _ja_word_mentions(text_norm: str, lab: str) -> bool:
+    """ja 한 낱말 라벨 — 띄어쓰기가 없으니 «라벨 바로 뒤 글자» 로 경계를 본다: 조사·끝·비(非)한자·가나(라틴/숫자)면 참.
+    「名」 ← 「名前」 는 뒤가 한자(前)라 거짓(ko 의 「개」←「개나리」 규율과 같다). 활용형(食べます ← 食べる)은 미검출 — 안전한 방향."""
+    start = 0
+    while True:
+        i = text_norm.find(lab, start)
+        if i < 0:
+            return False
+        nxt = text_norm[i + len(lab):i + len(lab) + 1]
+        if nxt in _JA_PARTICLES or not _JA_SCRIPT_RE.match(nxt):
+            return True
+        start = i + 1
+
+
+def mentions(text: str | None, label: str | None, language: str = "ko") -> bool:
     """전사에 그 항목이 **실제로 나왔나**(대조 전용 — 판정이 아니다).
 
     ## ⛔⛔ 부분문자열 하나로 끝내지 마라 — 이 설계가 이미 이름 붙인 실패다
@@ -113,12 +142,18 @@ def mentions(text: str | None, label: str | None) -> bool:
     ⚠ **미검출은 안전하고 오검출은 아니다** — 못 잡으면 한 번 더 가르치면 되지만, 잘못 잡으면
       **가르칠 기회가 영영 사라진다**(`_note_covered_items` 독스트링의 보수성 규율 그대로).
     """
-    lab = normalize(label)
+    lab = normalize(label, language)
     if not lab:
         return False
     raw = (text or "").strip()
     if not raw:
         return False
+    if language == "ja":
+        if is_template(label, language):
+            return template_mentions(raw, label, language)
+        if len((label or "").split()) > 1 or " " in lab:
+            return lab in normalize(raw, language)
+        return _ja_word_mentions(normalize(raw, language), lab)
     # ⭐ T16 — 자리표시·교체·대괄호가 든 표면형(「저는 ◯◯ 사람이에요」「N이/가 있어요[없어요]」)은 부분문자열로는
     #   **영원히** 거짓이다 → covered 가 안 돼 3개가 안 차고 퀴즈 큐 자체가 안 열린다. 템플릿 대조로 간다
     #   (`template_mentions`). 자리표시가 없는 라벨은 아래 기존 경로 그대로다.
@@ -137,7 +172,7 @@ def mentions(text: str | None, label: str | None) -> bool:
 EXAMPLE_MIN_CHARS = 4
 
 
-def item_mentioned(text: str | None, surface: str | None, example: str | None = None) -> bool:
+def item_mentioned(text: str | None, surface: str | None, example: str | None = None, language: str = "ko") -> bool:
     """항목이 **표면형으로든 그 예문으로든** 발화에 나왔나(대조 전용 — 판정이 아니다). 2026-09-12 판정 보강(bt-back 지시).
 
     ## 왜 예문까지 보나
@@ -153,12 +188,12 @@ def item_mentioned(text: str | None, surface: str | None, example: str | None = 
     · 예문이 None/빈 문자열이면 표면형만(옛 동작과 동일).
     ⛔ 판정(passed)에 쓸 때 격식(`keeps_formality`)은 **표면형** 기준 그대로다 — 예문이 맞았다고 격식 검사를 건너뛰지 않는다.
     """
-    if mentions(text, surface):
+    if mentions(text, surface, language):
         return True
-    ex = normalize(example)
+    ex = normalize(example, language)
     if len(ex) < EXAMPLE_MIN_CHARS:
         return False
-    return ex in normalize(text)
+    return ex in normalize(text, language)
 
 
 # --------------------------------------------------------------------------- #
@@ -173,20 +208,20 @@ _POLITE_MARKERS = ("니다", "십시오", "죠", "요")
 _CLAUSE_SPLIT_RE = re.compile(r"[.!?…~,;:]+")
 
 
-def polite_marker(surface: str | None) -> str | None:
+def polite_marker(surface: str | None, language: str = "ko") -> str | None:
     """표면형 **마지막 어절의 종결 표지**(«요»·«니다»·«십시오»·«죠»), 없으면 None(명사·반말 항목·자리표시 주형).
 
     ⚠ «◯◯이/가 뭐예요?» 처럼 자리표시·슬래시가 섞여도 **끝**만 본다 — 문장부호는 normalize 가 걷어낸다.
     ⚠ 대괄호 대안(«가요[와요]»)은 떼고 본다 — 주형의 끝이 기준이다.
     """
-    s = normalize(_BRACKET_RE.sub("", surface or ""))
-    for m in _POLITE_MARKERS:
+    s = normalize(_BRACKET_RE.sub("", surface or ""), language)
+    for m in (_JA_POLITE_MARKERS if language == "ja" else _POLITE_MARKERS):
         if s.endswith(m):
             return m
     return None
 
 
-def keeps_formality(text: str | None, surface: str | None) -> bool:
+def keeps_formality(text: str | None, surface: str | None, language: str = "ko") -> bool:
     """V4 — 표면형이 정중형이면 학습자 발화의 **어느 어절이 그 표지로 끝나야** 한다.
 
     1397 «얼마야?»·«나는 미국 사람» / 1398 t9 「잘 못 들었다」 가 정답 반응을 받았다(B 유형). 지시문이
@@ -194,7 +229,7 @@ def keeps_formality(text: str | None, surface: str | None) -> bool:
     · 표면형이 반말/명사형이면 항상 참(볼 표지가 없다).
     · «요» 표지는 **어절 끝**만 본다 — «요리»·«필요한» 의 «요» 는 표지가 아니다.
     """
-    m = polite_marker(surface)
+    m = polite_marker(surface, language)
     if m is None:
         return True
     raw = text or ""
@@ -203,8 +238,10 @@ def keeps_formality(text: str | None, surface: str | None) -> bool:
     #   normalize(공백 제거·NFC)한 끝 / 전체를 normalize 한 끝. 어느 하나라도 표지로 끝나면 참.
     #   ⚠ «요» 는 여전히 **끝**만 본다 — 「요리 좋아」 의 «요» 는 어디로 봐도 끝이 아니다.
     candidates = list(raw.split()) + _CLAUSE_SPLIT_RE.split(raw) + [raw]
+    if language == "ja":
+        candidates += re.split(r"[。！？!?]+", raw)             # ja 절 경계 — 종결 뒤 다른 절이 와도 «…です。» 를 잡는다
     for c in candidates:
-        if normalize(c).endswith(m):
+        if normalize(c, language).endswith(m):
             return True
     return False
 
@@ -229,30 +266,35 @@ _PLACEHOLDER_RE = re.compile(r"◯+|(?<![A-Za-z])[A-Z][A-Za-z]{0,3}\d?(?![A-Za-z
 _ALT_RE = re.compile(r"([가-힣]{1,3})/([가-힣]{1,3})")
 
 
-def is_template(surface: str | None) -> bool:
+def _placeholder_re(language: str):
+    return _JA_PLACEHOLDER_RE if language == "ja" else _PLACEHOLDER_RE
+
+
+def is_template(surface: str | None, language: str = "ko") -> bool:
     """표면형에 자리표시·교체·대괄호가 있나 — 있으면 `mentions` 대신 `template_mentions` 를 써야 한다."""
     s = surface or ""
-    return bool(_BRACKET_RE.search(s) or _PLACEHOLDER_RE.search(s) or _ALT_RE.search(s))
+    return bool(_BRACKET_RE.search(s) or _placeholder_re(language).search(s) or _ALT_RE.search(s))
 
 
-def template_mentions(text: str | None, surface: str | None) -> bool:
+def template_mentions(text: str | None, surface: str | None, language: str = "ko") -> bool:
     """학습자 발화에 템플릿 표면형이 **채워진 꼴로** 들어 있나. 템플릿이 아니면 `mentions` 와 같다.
     ⚠ `mentions` 가 템플릿이면 여기로 넘긴다 — covered 경로와 V2 가 **한 함수**다(두 경로가 갈리면 covered 는
       되는데 V2 는 안 되는 항목이 생긴다)."""
-    if not is_template(surface):
-        return mentions(text, surface)
+    if not is_template(surface, language):
+        return mentions(text, surface, language)
     src = _BRACKET_RE.sub("", surface or "")
+    ph_re = _placeholder_re(language)
     # 토큰화: 자리표시(와일드카드) / 교체 / 고정 글자 를 순서대로 정규식 조각으로
     parts: list[str] = []
     pos = 0
-    for m in sorted(list(_PLACEHOLDER_RE.finditer(src)) + list(_ALT_RE.finditer(src)), key=lambda m: m.start()):
+    for m in sorted(list(ph_re.finditer(src)) + list(_ALT_RE.finditer(src)), key=lambda m: m.start()):
         if m.start() < pos:
             continue
-        fixed = normalize(src[pos:m.start()])
+        fixed = normalize(src[pos:m.start()], language)
         if fixed:
             parts.append(re.escape(fixed))
         if _ALT_RE.fullmatch(m.group(0)):
-            a, b = normalize(m.group(1)), normalize(m.group(2))
+            a, b = normalize(m.group(1), language), normalize(m.group(2), language)
             alt = "(?:%s|%s)" % (re.escape(a), re.escape(b))
             # 한 글자 조사 교체(이/가·을/를·은/는·와/과)는 **선택**으로 — 학습자는 「이게 뭐예요」(이것+이 축약)처럼
             # 조사를 붙이거나 생략하거나 축약한다. 옳고 그름은 판정기 몫이고, 여기는 «그 표현이 있나» 만 본다.
@@ -262,7 +304,7 @@ def template_mentions(text: str | None, surface: str | None) -> bool:
         else:
             parts.append(".*?")
         pos = m.end()
-    fixed = normalize(src[pos:])
+    fixed = normalize(src[pos:], language)
     if fixed:
         parts.append(re.escape(fixed))
     fixed_parts = [p for p in parts if p != ".*?"]
@@ -274,4 +316,4 @@ def template_mentions(text: str | None, surface: str | None) -> bool:
         pattern = pattern[3:]
     while pattern.endswith(".*?"):
         pattern = pattern[:-3]
-    return re.search(pattern, normalize(text)) is not None
+    return re.search(pattern, normalize(text, language)) is not None

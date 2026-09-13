@@ -418,11 +418,23 @@ class ServerTeachingPlan(BaseModel):
 
 
 class HintExample(BaseModel):
-    """예시 답변 1개(한국어 문장 + 로마자 + 모국어 뜻)."""
+    """예시 답변 1개(한국어 문장 + 로마자 + 모국어 뜻).
+
+    ⭐ reading(2026-09-13, 일본어): 예시 문장의 **가나 읽기**(ひらがな). 한자를 못 읽는 학습자용 — 앱이 korean 아래에 표시한다.
+      ko 통화는 항상 None 이고, None 이면 **키 자체를 직렬화에서 뺀다** → 옛 프레임과 바이트 동일(구버전 앱 무해). 대본엔 싣지 않는다(토큰).
+    """
 
     korean: str
     roman: str | None = None
     native: str
+    reading: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _drop_null_reading(self, handler):
+        data = handler(self)
+        if isinstance(data, dict) and data.get("reading") is None:
+            data.pop("reading", None)
+        return data
 
 
 class ServerHint(BaseModel):

@@ -11,10 +11,15 @@ import re
 
 # probes 의 시드 고유명(«마이클 씨») → 학습자 이름. 이름 환각의 반대 방향 위험(T21-B)을 막는다. 한글·라틴 1~10자 + « 씨».
 PROBE_NAME_RE = re.compile(r"[가-힣A-Za-z]{1,10} 씨")
+# ja(2026-09-13): 시드 probes 의 고유명 「マイケルさん」 → 「{username}さん」. ko 정규식은 그대로(ko 결과 무변화) — 언어별 패턴을 따로 둔다.
+PROBE_NAME_RE_BY_LANGUAGE: dict[str, tuple] = {
+    "ko": (PROBE_NAME_RE, "{username} 씨"),
+    "ja": (re.compile(r"[ぁ-んァ-ヶ一-龠々ーA-Za-z]{1,10}さん"), "{username}さん"),
+}
 
 
 def lesson_block(lesson: object, *, username: str, header: str, partner_line: str, partner_fallback: str,
-                 material_line: str, probes_prefix: str) -> str:
+                 material_line: str, probes_prefix: str, language: str = "ko") -> str:
     """«[이번 차시]» 블록. items(obj·ex·role) 전부 — 문형은 «이름 — "예문"», 청크는 «표현», 어휘는 headword.
 
     ⚠ items 가 없는 옛 브리프(surfaces 만)는 그 표면형을 «표현» 줄로 싣는다(호환). 문법 0 인 차시(레벨1 청크)는 «문형:» 줄이 없다.
@@ -27,7 +32,8 @@ def lesson_block(lesson: object, *, username: str, header: str, partner_line: st
     if not items:
         items = [{"obj": s, "ex": None, "role": "chunk"}
                  for s in (getattr(lesson, "surfaces", None) or []) if isinstance(s, str) and s.strip()]
-    probes = [PROBE_NAME_RE.sub(f"{username} 씨", p.strip())
+    name_re, name_tpl = PROBE_NAME_RE_BY_LANGUAGE.get(language, PROBE_NAME_RE_BY_LANGUAGE["ko"])
+    probes = [name_re.sub(name_tpl.format(username=username), p.strip())
               for p in (getattr(lesson, "probes", None) or []) if isinstance(p, str) and p.strip()]
     grammar = [d for d in items if d.get("role") == "grammar"]
     chunks = [d for d in items if d.get("role") == "chunk"]

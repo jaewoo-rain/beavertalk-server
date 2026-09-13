@@ -127,10 +127,11 @@ _model_block = model_block
 _items_block = items_block
 
 
-def _procedure(quiz_group: int, *, target: str, locale_label: str, has_grammar: bool = False) -> str:
-    """드릴 → 피드백 → 퀴즈 절차(잠금 + 편집 첫 불릿). `quiz_group` 은 시그니처 호환 — 대본엔 숫자를 박지 않는다(세는 것은 서버, T16)."""
+def _procedure(quiz_group: int, *, target: str, locale_label: str, has_grammar: bool = False, language: str = "ko") -> str:
+    """드릴 → 피드백 → 퀴즈 절차(잠금 + 편집 첫 불릿). `quiz_group` 은 시그니처 호환 — 대본엔 숫자를 박지 않는다(세는 것은 서버, T16).
+    language(2026-09-13): 격식 줄만 언어별(locked DRILL_FORMALITY_LINE_BY_LANGUAGE) — ko 는 바이트 동일."""
     del quiz_group
-    return procedure(drill_intro=_ed("drill_intro"), target=target, locale_label=locale_label, has_grammar=has_grammar)
+    return procedure(drill_intro=_ed("drill_intro"), target=target, locale_label=locale_label, has_grammar=has_grammar, language=language)
 
 
 # ⛔ '마무리·마지막·정리·여기까지' 류 어휘를 절대 넣지 마라 — call 870 이 그 어휘 하나로
@@ -160,6 +161,7 @@ def build_expression_instruction(
     max_sentences: int | None = None,
     model_family: str = "2.5",
     face_rule: str = "",
+    language: str = "ko",
 ) -> str:
     """표현학습 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -203,7 +205,7 @@ def build_expression_instruction(
         f"\n[학습자 수준] {level_first}",
         "\n" + _items_block(items, target=target_language, locale_label=label),
         "\n" + _procedure(quiz_group, target=target_language, locale_label=label,
-                          has_grammar=any(_is_grammar(i) for i in items)),
+                          has_grammar=any(_is_grammar(i) for i in items), language=language),
         "\n" + _CHARACTER_FRAME,
     ]
     if face_rule:

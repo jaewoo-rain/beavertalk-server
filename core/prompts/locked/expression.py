@@ -23,6 +23,11 @@ DRILL_FORMALITY_LINE = '- {target}의 정중한 형태를 가르치고 있다. �
 DRILL_ALT_CORRECT_LINE = '- 학습자가 목표 표현 대신 **다른 올바른 정중한 표현**(예: 고마워요 자리에 감사합니다·고맙습니다)을 말하면 틀렸다고 하지 마라 — 맞다고 인정한 뒤 오늘 배우는 표현으로도 한 번 말해 보게 해라. 반말은 여전히 맞힌 게 아니다.'
 # 실통화 1550 t72·t119·t143: «잘 지냈어요? 말해 봐. 그리고 헤어질 때는?» — 한 턴에 요청 둘. 규칙 5(길이)와 다른 축(개수)이라 절차에만 한 줄.
 DRILL_ONE_ASK_LINE = '- 한 턴에 질문·요청은 **하나**만 — 두 개를 이어 묻지 마라.'
+# 언어별 격식 줄(2026-09-13 ja 배선). ko 는 위 DRILL_FORMALITY_LINE **그 객체**(바이트 동일 — 해시 시험). 새 언어는 여기 한 줄.
+DRILL_FORMALITY_LINE_BY_LANGUAGE: dict[str, str] = {
+    "ko": DRILL_FORMALITY_LINE,
+    "ja": '- {target}의 정중한 형태를 가르치고 있다. 반말(です·ます 가 없는 보통형)로 답하면 맞힌 게 아니다 — 고쳐 줘라. 조사 하나가 빠진 것은 맞힌 것으로 받되, 격식 표지(です·ます)가 빠진 것은 아니다.',
+}
 DRILL_SILENCE_LINE = '- 학습자가 조용하면 오답으로 치지 마라. 첫 무음은 답을 주지 말고 {locale_label}로 다시 묻고, 두 번째 연속 무음이면 들려주고 따라 말하게 해라 — 계속 무응답이면 다음 항목으로 넘어가라.'
 # [퀴즈] — T16 큐 계약: «{CONTROL_TAG} 이 «지금 퀴즈를 내라» 고 알릴 때만». CONTROL_TAG 는 조립 때 끼운다.
 QUIZ_HEADER = "[퀴즈]"
@@ -73,15 +78,16 @@ def render_item(n: int, item: dict) -> str:
     return line
 
 
-def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: bool = False) -> str:
-    """[진행 절차] + [퀴즈]. drill_intro(편집 문구, 슬롯 치환 전)가 첫 불릿이고 나머지는 잠금."""
+def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: bool = False, language: str = "ko") -> str:
+    """[진행 절차] + [퀴즈]. drill_intro(편집 문구, 슬롯 치환 전)가 첫 불릿이고 나머지는 잠금. language 는 격식 줄만 가른다(모르면 ko 줄)."""
     fmt = dict(target=target, locale_label=locale_label)
+    formality = DRILL_FORMALITY_LINE_BY_LANGUAGE.get(language, DRILL_FORMALITY_LINE)
     return "\n".join([
         PROCEDURE_HEADER,
         drill_intro.format(**fmt),
         *([DRILL_GRAMMAR_LINE] if has_grammar else []),
         DRILL_REVEAL_LINE,
-        DRILL_FORMALITY_LINE.format(**fmt),
+        formality.format(**fmt),
         DRILL_ALT_CORRECT_LINE,
         DRILL_ONE_ASK_LINE,
         DRILL_SILENCE_LINE.format(**fmt),

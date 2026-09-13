@@ -179,8 +179,10 @@ def test_call_session_picks_client_and_model_together():
       만들어 검증하는 시험은 9/4 사고를 못 잡았다).
     """
     src = _src("domains", "learning", "realtime", "call_session.py")
-    assert "call_service.live_engine_for(db, member_id)" in src, \
+    # 2026-09-13 plan_override: 같은 run_db 안에서 plan 을 한 번 정해 둘(영상·엔진)에 같이 넘긴다 — 여전히 한 함수·한 조회.
+    assert "call_service.live_engine_for(db, member_id, plan)" in src, \
         "통화 경로가 live_engine_for 를 안 쓴다 — 백엔드와 모델이 따로 정해질 수 있다"
+    assert "call_service.call_video_for(db, member_id, plan)" in src, "영상 판정도 같은 plan 키를 봐야 한다"
     assert 'factory_kwargs["vertex"] = state.live_vertex' in src, \
         "고른 백엔드가 세션 팩토리까지 안 흘러간다 — safety/transparent 가 전역을 따른다"
 

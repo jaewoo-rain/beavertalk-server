@@ -60,6 +60,18 @@ DEFAULT_LANGUAGE = "ko"
 _LABEL_ALIAS: dict[str, str] = {spec.label: spec.code for spec in SUPPORTED_LANGUAGES.values()}
 
 
+def resolve_target_language(override: str | None, *, default_code: str) -> LanguageSpec:
+    """교육 대상 언어 결정 → LanguageSpec — **통화(call_session)와 라우터(/cur/*)·dev 도구가 같은 해석기**를 쓴다(2026-09-13 ja 배선).
+
+    override(회원 target_language 또는 start 프레임 값)가 없거나 미지원이면 default_code(settings.DEFAULT_TARGET_LANGUAGE)로 폴백.
+    default_code 조차 미지원이면 DEFAULT_LANGUAGE. 폴백은 호출부가 로그를 남긴다(여기는 순수 함수).
+    """
+    spec = resolve_language(override) if override else None
+    if spec is None:
+        spec = resolve_language(default_code) or SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE]
+    return spec
+
+
 def resolve_language(code: str | None) -> LanguageSpec | None:
     """언어코드(또는 구 데모 라벨)를 LanguageSpec 으로 해석한다. 미지원이면 None.
 

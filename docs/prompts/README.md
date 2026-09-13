@@ -1081,6 +1081,13 @@ fable 검수(지뢰밭 8건 유지, P0/P1 없음) 뒤 뜻이 빠진 2건 복원:
 선언 없이** 되물음(«알림을 말로 해라» 를 뺀 탓). 학습자가 퀴즈인지 알아야 하니 [퀴즈] 첫 불릿에 «알림이 오면 퀴즈를 시작한다는
 말을 {locale}로 먼저 하고» 한 절 복원(≈20 토큰). 빈 비버 턴 7~8회는 하네스 ack 패턴(1408·1409 도 8회) — 회귀 아님. 해시 재기준.
 
+### 2026-09-13 — 일본어(ja) 배선: 잠금 프롬프트에 언어별 줄 추가(ko 바이트 불변 — 해시 시험)
+`core/prompts/locked/expression.py` `DRILL_FORMALITY_LINE_BY_LANGUAGE` — ko 는 기존 `DRILL_FORMALITY_LINE` **같은 객체**, ja 는 «격식 표지(です·ます)·보통형은 맞힌
+게 아니다» 줄. `procedure(language=)` 가 고른다(호출부 `build_expression_instruction(language=spec.code)`). `locked/freetalk.py` `PROBE_NAME_RE_BY_LANGUAGE`
+— ja probes 「〜さん」 → 「{username}さん»(ko 정규식 그대로). `locked/reground.py` `hint_reading_clause("ja")` — 힌트 예시에 ひらがな 읽기(reading) 한 절, ko 는
+빈 문자열(지시문 바이트 동일). **kana 는 대본에 싣지 않는다**(비버는 원어민 — 토큰만 든다); 앱용은 `ServerHint.examples[].reading`(Optional, ko None → 키 없음).
+판정 `quiz_judge` 도 `language=` 얇은 분기(ja: NFKC·일본 구두점·조사 표·です/ます 표지·～ 자리표시) — ko 표·규칙은 같은 객체.
+
 ### 2026-09-13 — 표현학습 드릴 재시도 상한 2 → 3 + 퀴즈 큐 «정리 대기»(실통화 1552, 사장님 결정)
 1552: 「잘 지냈어요」 idk → 공개 → «잘 자다» 자리에 퀴즈 큐가 얹혀 비버가 정답만 말하고 퀴즈로 넘어감 — 재시도가 끊겼다.
 · 잠금 `DRILL_REVEAL_LINE` «같은 항목은 **최대 3번까지만** 다시 시도한다»(2 → 3, 길이 같음 · 해시 재기준).

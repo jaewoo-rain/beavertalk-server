@@ -198,7 +198,9 @@ def select_items(
     out = list(fresh)
     if len(out) < n:
         exclude = frozenset(d["item_id"] for d in out) | frozenset(skip)
-        for mi, it in repo.review_pool(db, member_id, exclude, n - len(out)):
+        lesson = repo.lesson_by_id(db, lesson_id)
+        language = lesson.language if lesson is not None else "ko"
+        for mi, it in repo.review_pool(db, member_id, exclude, n - len(out), language=language):
             # 복습 항목의 role 은 그 차시에서의 역할 — 없으면(비정상) kind 로
             role = repo.lesson_item_role(db, mi.lesson_id, it.item_id) or it.kind
             out.append(_dto(it, mi.lesson_id, role, seen_count=mi.seen_count, review=True, locale=locale))
@@ -445,8 +447,8 @@ def complete_freetalk(db: Session, call_id: int, duration_s: float, normal_end: 
     ml.freetalk_done_at = now
     ml.freetalk_call_id = call_id
     moved = False
-    prog = repo.current_progress(db, member_id)
     lesson = repo.lesson_by_id(db, cc.lesson_id)
+    prog = repo.current_progress(db, member_id, lesson.language if lesson is not None else "ko")   # 그 차시 언어의 포인터
     if prog is not None and lesson is not None and prog.lesson_id == cc.lesson_id:
         nxt = repo.next_lesson(db, lesson.language, lesson.no)
         if nxt is not None:
@@ -490,7 +492,7 @@ def _topic_name(db: Session, lesson: CurLesson) -> Optional[str]:
 
 def lessons(db: Session, member_id: int, level: Optional[int] = None, language: str = "ko") -> list[dict]:
     """GET /cur/lessons?level= — [{no, code, level_no, situation, status}] (내 상태 조인 · 안 시작한 차시는 status None)."""
-    mine = repo.member_lessons(db, member_id)
+    mine = repo.member_lessons(db, member_id, language)
     prog = repo.current_progress(db, member_id, language)
     out = []
     for l in repo.lessons(db, language, level):
@@ -501,13 +503,18 @@ def lessons(db: Session, member_id: int, level: Optional[int] = None, language: 
 
 
 def reset(db: Session, member_id: int, lesson_no: Optional[int] = None, language: str = "ko") -> dict:
-    """POST /__dev/cur-reset — 그 회원의 cur_member_item / cur_member_lesson / cur_call 삭제 + 포인터를 lesson_no(기본 1)로."""
+    """POST /__dev/cur-reset — 그 회원의 **그 언어** cur_member_item / cur_member_lesson / cur_call 삭제 + 포인터를 lesson_no(기본 1)로.
+
+    2026-09-13 ja 배선: 언어 범위로만 지운다(차시 조인) — ko 진도를 지워도 ja 진도는 남는다(그 반대도).
+    """
     from sqlalchemy import delete
-    deleted_calls = repo.member_call_ids(db, member_id)
+    deleted_calls = repo.member_call_ids(db, member_id, language)
     if deleted_calls:
         db.execute(delete(CurCall).where(CurCall.call_id.in_(deleted_calls)))
-    db.execute(delete(CurMemberItem).where(CurMemberItem.member_id == member_id))
-    db.execute(delete(CurMemberLesson).where(CurMemberLesson.member_id == member_id))
+    lesson_ids = repo.member_lesson_ids(db, language)
+    if lesson_ids:
+        db.execute(delete(CurMemberItem).where(CurMemberItem.member_id == member_id, CurMemberItem.lesson_id.in_(lesson_ids)))
+        db.execute(delete(CurMemberLesson).where(CurMemberLesson.member_id == member_id, CurMemberLesson.lesson_id.in_(lesson_ids)))
     target = repo.lesson_by_no(db, language, int(lesson_no or 1))
     if target is None:
         db.rollback()

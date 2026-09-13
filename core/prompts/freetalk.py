@@ -150,12 +150,12 @@ _FREETALK_LESSON_TEMPLATE = (
 _PROBE_NAME_RE = PROBE_NAME_RE
 
 
-def _lesson_block_v1(lesson: object, *, username: str) -> str:
-    """«[이번 차시 — 이 상황을 역할극으로 대화한다]» 블록 — 구조는 잠금(lesson_block), 문장은 편집 파일."""
+def _lesson_block_v1(lesson: object, *, username: str, language: str = "ko") -> str:
+    """«[이번 차시 — 이 상황을 역할극으로 대화한다]» 블록 — 구조는 잠금(lesson_block), 문장은 편집 파일. language 는 probes 이름 치환 패턴만."""
     return lesson_block(
         lesson, username=username,
         header=_ed("lesson_header"), partner_line=_ed("lesson_partner_line"), partner_fallback=_ed("lesson_partner_fallback"),
-        material_line=_ed("lesson_material_line"), probes_prefix=_ed("lesson_probes_prefix"),
+        material_line=_ed("lesson_material_line"), probes_prefix=_ed("lesson_probes_prefix"), language=language,
     )
 
 
@@ -169,7 +169,7 @@ def _lesson_block_v1(lesson: object, *, username: str) -> str:
 
 def _build_freetalk_lesson_instruction(
     *, role: str, personality: str, level_profile: str, locale: str, name: str | None,
-    target_language: str, locale_label: str | None, max_sentences: int | None, lesson: object,
+    target_language: str, locale_label: str | None, max_sentences: int | None, lesson: object, language: str = "ko",
 ) -> str:
     """차시판 조립 — 흥미 블록 없음(interests 미주입). 규칙 5 의 문장 수는 호출부 값(기본 DEFAULT_MAX_SENTENCES; cur 분기는 FREETALK_MAX_SENTENCES)."""
     max_sentences = DEFAULT_MAX_SENTENCES if not max_sentences else max(1, int(max_sentences))
@@ -185,7 +185,7 @@ def _build_freetalk_lesson_instruction(
             max_sentences=max_sentences,
         ),
         f"\n[학습자 수준]\n{level_profile}",
-        "\n" + _lesson_block_v1(lesson, username=username),
+        "\n" + _lesson_block_v1(lesson, username=username, language=language),
     ]
     return "\n".join(parts)
 
@@ -204,6 +204,7 @@ def build_freetalk_instruction(
     max_sentences: int | None = None,
     lesson: object | None = None,
     face_rule: str = "",
+    language: str = "ko",
 ) -> str:
     """프리토킹 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -220,6 +221,7 @@ def build_freetalk_instruction(
         return _build_freetalk_lesson_instruction(
             role=role, personality=personality, level_profile=level_profile, locale=locale, name=name,
             target_language=target_language, locale_label=locale_label, max_sentences=max_sentences, lesson=lesson,
+            language=language,
         )
     max_sentences = DEFAULT_MAX_SENTENCES if not max_sentences else max(1, int(max_sentences))
     label = _locale_label(locale, locale_label)

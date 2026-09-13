@@ -436,15 +436,17 @@ async def test_admin_plan_override_max_picks_video_engine_and_free_picks_voice(s
 async def test_user_plan_override_is_ignored_and_absent_override_is_byte_identical(session_factory, seeded, monkeypatch, caplog) -> None:
     import logging
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
-    base = await _run(session_factory, seeded, "normal", {})
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        base = await _run(session_factory, seeded, "normal", {})
+    # override 없음 = 종전 경로(plan None → effective_plan) — 분기 로그에 override 표기 없음. 대본 바이트 동일은 각 코스 스냅샷 시험이 지킨다.
+    plain = [r.getMessage() for r in caplog.records if "플랜분기: 영상=" in r.getMessage()]
+    assert plain and all("override" not in m for m in plain)
+    caplog.clear()
     with caplog.at_level(logging.INFO, logger=cs.logger.name):
         h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
     assert h["kw"].get("model") == base["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "user 는 본인 플랜(Free → 음성)"
     assert not h["kw"].get("tools") and not base["kw"].get("tools") and "[표정]" not in h["system_instruction"]
     assert any("override=max 무시 — admin 아님" in r.getMessage() for r in caplog.records)
-    # override 없음 = 종전 경로(plan None → effective_plan) — 로그에 override 표기 없음. 대본 바이트 동일은 각 코스 스냅샷 시험이 지킨다.
-    plain = [r.getMessage() for r in caplog.records if "플랜분기: 영상=" in r.getMessage()]
-    assert plain and all("override" in m for m in plain), "override 를 보낸 통화의 분기 로그에만 표기"
 
 
 @pytest.mark.asyncio

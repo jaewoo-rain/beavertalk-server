@@ -466,16 +466,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             call 행(통화 이력)은 보존한다(level-reset 과 같은 이유 — 감사 기록). 옛 체크판(level-reset 몫)은 건드리지 않는다.
             ⛔ CurrentAdmin 으로 막는다 — 실서비스 ENV 가 "test" 라 이 블록이 실서비스에도 뜬다(아래 구독 도구와 같은 이유).
             """
+            from core.languages import resolve_target_language
+            from domains.account.models.member import Member as _Member
             from domains.learning.service import curriculum_service as cur_svc
 
             body = body or {}
             target_id = int(body.get("member_id") or member.member_id)
+            target = db.get(_Member, target_id) if target_id != member.member_id else member
+            if target is None:
+                raise HTTPException(status_code=404, detail="회원을 찾을 수 없습니다")
+            # 언어 = 대상 회원의 target_language(통화·/cur/* 와 같은 해석기) — 그 언어 진도만 지운다(2026-09-13 ja 배선)
+            language = resolve_target_language(getattr(target, "target_language", None), default_code=settings.DEFAULT_TARGET_LANGUAGE).code
             try:
-                r = cur_svc.reset(db, target_id, body.get("lesson_no"))
+                r = cur_svc.reset(db, target_id, body.get("lesson_no"), language)
             except ValueError as exc:
                 raise HTTPException(status_code=404, detail=str(exc))
             return {
                 "member_id": r["member_id"],
+                "language": language,
                 "lesson": {"no": r["lesson_no"], "code": r["lesson_code"]},
                 "deleted_calls": r["deleted_calls"],
             }

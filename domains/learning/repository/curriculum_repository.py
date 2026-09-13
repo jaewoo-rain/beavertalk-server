@@ -99,7 +99,7 @@ def member_item(db: Session, member_id: int, lesson_id: int, item_id: int) -> Op
 
 
 def review_pool(
-    db: Session, member_id: int, exclude_item_ids: set[int] | frozenset[int], limit: int,
+    db: Session, member_id: int, exclude_item_ids: set[int] | frozenset[int], limit: int, language: str = "ko",
 ) -> list[tuple[CurMemberItem, CurItem]]:
     """복습 풀(§11 ②) — 그 회원이 **이미 배운**(drilled_at NOT NULL) 항목, 어느 차시든.
 
@@ -125,6 +125,7 @@ def review_pool(
             CurMemberItem.member_id == member_id,
             CurMemberItem.drilled_at.is_not(None),
             CurItem.retired_at.is_(None),
+            CurLesson.language == language,          # 2026-09-13 ja 배선 — ko·ja 를 함께 배우는 회원의 복습 풀이 섞이지 않게
         )
     )
     if exclude_item_ids:
@@ -158,8 +159,12 @@ def lesson_status(db: Session, member_id: int, lesson_id: int) -> Optional[CurMe
     return db.get(CurMemberLesson, (member_id, lesson_id))
 
 
-def member_lessons(db: Session, member_id: int) -> dict[int, CurMemberLesson]:
-    rows = db.execute(select(CurMemberLesson).where(CurMemberLesson.member_id == member_id)).scalars().all()
+def member_lessons(db: Session, member_id: int, language: str = "ko") -> dict[int, CurMemberLesson]:
+    """그 회원의 차시 상태 — **그 언어 차시만**(cur_lesson.language 조인, 2026-09-13)."""
+    rows = db.execute(
+        select(CurMemberLesson).join(CurLesson, CurLesson.lesson_id == CurMemberLesson.lesson_id)
+        .where(CurMemberLesson.member_id == member_id, CurLesson.language == language)
+    ).scalars().all()
     return {r.lesson_id: r for r in rows}
 
 
@@ -195,8 +200,15 @@ def drilled_count(db: Session, member_id: int, lesson_id: int) -> int:
     ).scalar_one() or 0)
 
 
-def member_call_ids(db: Session, member_id: int) -> list[int]:
-    """reset 용 — 그 회원의 cur_call 행(call 조인)."""
+def member_call_ids(db: Session, member_id: int, language: str = "ko") -> list[int]:
+    """reset 용 — 그 회원의 cur_call 행(call 조인) 중 **그 언어 차시**의 것."""
     return list(db.execute(
-        select(CurCall.call_id).join(Call, Call.call_id == CurCall.call_id).where(Call.member_id == member_id)
+        select(CurCall.call_id).join(Call, Call.call_id == CurCall.call_id)
+        .join(CurLesson, CurLesson.lesson_id == CurCall.lesson_id)
+        .where(Call.member_id == member_id, CurLesson.language == language)
     ).scalars().all())
+
+
+def member_lesson_ids(db: Session, language: str) -> list[int]:
+    """그 언어의 차시 id 전부 — reset 이 cur_member_item/cur_member_lesson 을 언어 범위로 지울 때."""
+    return list(db.execute(select(CurLesson.lesson_id).where(CurLesson.language == language)).scalars().all())

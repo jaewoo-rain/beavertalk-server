@@ -73,6 +73,8 @@ FROZEN: dict[str, str] = {
     "expression.ITEMS_LANGUAGE_NOTE": "093d2ebe6b76e246",
     "expression.ITEMS_EXHAUSTION_LINE": "72b10e569c8de7d9",
     "expression.CHARACTER_FRAME": "0e5e6aaa60166e64",
+    # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
+    "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
 }
 MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltest, "seeds": seeds, "expression": lex}
 
@@ -80,7 +82,11 @@ MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltes
 @pytest.mark.parametrize("key", sorted(FROZEN))
 def test_locked_constant_is_unchanged(key: str) -> None:
     mod, name = key.split(".", 1)
-    value = getattr(MODULES[mod], name)
+    if name == "DRILL_FORMALITY_LINE_JA":
+        value = MODULES[mod].DRILL_FORMALITY_LINE_BY_LANGUAGE["ja"]
+        assert MODULES[mod].DRILL_FORMALITY_LINE_BY_LANGUAGE["ko"] is MODULES[mod].DRILL_FORMALITY_LINE, "ko 격식 줄은 같은 객체(바이트 동일)"
+    else:
+        value = getattr(MODULES[mod], name)
     assert isinstance(value, str) and value
     assert _h(value) == FROZEN[key], f"{key}: {HELP}"
 
@@ -122,6 +128,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "expression.model_block": ("689e4117233531ed", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
     "expression.procedure": ("5c0c6ac8e65fb352", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
+    "expression.procedure_ja": ("a8eb11d5521147f2", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),
+    "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
+    "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
     "expression.items_block": ("1704dbb54003a3ab", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),
     "normal.study_block": ("1b19e2de0fd2947c", lambda: normal.study_block([{"slot": "main", "kind": "grammar", "obj": "-고 싶다", "ex": "가고 싶어요", "des": "want", "state": "new"}, {"slot": "reserve", "kind": "chunk", "obj": "안녕히 가세요", "ex": None, "des": None, "state": "review", "this_call": True}], target="한국어", locale_label="영어(English)", lang_band="beginner")),
     "normal.study_block_l1": ("048df830e20011ef", lambda: normal.study_block([{"slot": "main", "kind": "chunk", "obj": "안녕하세요", "ex": None, "des": None, "state": "new"}], target="한국어", locale_label="영어(English)", lang_band="survival")),
