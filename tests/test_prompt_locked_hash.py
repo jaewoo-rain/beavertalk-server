@@ -64,6 +64,9 @@ FROZEN: dict[str, str] = {
     "expression.DRILL_REVEAL_LINE": "013f3e17c22ccd63",
     "expression.DRILL_FORMALITY_LINE": "26290a378fac6472",
     "expression.DRILL_SILENCE_LINE": "8433621e1a5d27ef",
+    # 2026-09-13 실통화 1550 — bt-back 승인 2줄(다른 올바른 정중한 표현 인정 · 한 턴 요청 하나)
+    "expression.DRILL_ALT_CORRECT_LINE": "5c0ae1f224b77db9",
+    "expression.DRILL_ONE_ASK_LINE": "01cfaa899b1e48c1",
     "expression.QUIZ_LINE_1": "70e88636bce80ce3",
     "expression.QUIZ_LINE_2": "54528c81b4192522",
     "expression.ITEMS_HEADER": "f34fdcee428d7a32",
@@ -118,7 +121,7 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "reground.hint_lesson_clause": ("8ddecba239d5535d", lambda: reground.hint_lesson_clause(_Brief, "한국어")),
     "expression.model_block": ("689e4117233531ed", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
-    "expression.procedure": ("a9eb7e8fc465edb4", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
+    "expression.procedure": ("056aeae20b84ab31", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
     "expression.items_block": ("1704dbb54003a3ab", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),
     "normal.study_block": ("1b19e2de0fd2947c", lambda: normal.study_block([{"slot": "main", "kind": "grammar", "obj": "-고 싶다", "ex": "가고 싶어요", "des": "want", "state": "new"}, {"slot": "reserve", "kind": "chunk", "obj": "안녕히 가세요", "ex": None, "des": None, "state": "review", "this_call": True}], target="한국어", locale_label="영어(English)", lang_band="beginner")),
     "normal.study_block_l1": ("048df830e20011ef", lambda: normal.study_block([{"slot": "main", "kind": "chunk", "obj": "안녕하세요", "ex": None, "des": None, "state": "new"}], target="한국어", locale_label="영어(English)", lang_band="survival")),

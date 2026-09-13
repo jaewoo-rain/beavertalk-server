@@ -19,6 +19,10 @@ PROCEDURE_HEADER = "[진행 절차]"
 DRILL_GRAMMAR_LINE = '- [문형] 항목은 문형 이름을 말하게 하지 말고 **연습 문장**을 상황에 맞게 말하게 해라 — 정답은 그 연습 문장이다. 퀴즈도 같다.'
 DRILL_REVEAL_LINE = '- 못 하거나 틀리면 정답을 또박또박 한 번 들려주고 따라 말하게 해라. 같은 항목은 **최대 2번까지만** 다시 시도한다. 그래도 안 되면 짧게 반응만 하고 다음 번호 항목으로 넘어가라 — **맞았다고 하지는 마라.** 학습자가 해내면 짧게 반응하고 곧바로 다음 번호 항목으로 이어 가라.'
 DRILL_FORMALITY_LINE = '- {target}의 정중한 형태를 가르치고 있다. 반말로 답하면 맞힌 게 아니다 — 고쳐 줘라. 조사·어미 하나가 빠진 것은 맞힌 것으로 받되, 격식 표지(-요·-습니다·저)가 빠진 것은 아니다.'
+# 실통화 1550(2026-09-12): 비버가 «고맙습니다 → too formal, wrong» 4회. 서버 판정(표면형 → passed)은 무변경 — 이 줄은 비버의 «틀렸다» 반응만 막는다.
+DRILL_ALT_CORRECT_LINE = '- 학습자가 목표 표현 대신 **다른 올바른 정중한 표현**(예: 고마워요 자리에 감사합니다·고맙습니다)을 말하면 틀렸다고 하지 마라 — 맞다고 인정한 뒤 오늘 배우는 표현으로도 한 번 말해 보게 해라. 반말은 여전히 맞힌 게 아니다.'
+# 실통화 1550 t72·t119·t143: «잘 지냈어요? 말해 봐. 그리고 헤어질 때는?» — 한 턴에 요청 둘. 규칙 5(길이)와 다른 축(개수)이라 절차에만 한 줄.
+DRILL_ONE_ASK_LINE = '- 한 턴에 질문·요청은 **하나**만 — 두 개를 이어 묻지 마라.'
 DRILL_SILENCE_LINE = '- 학습자가 조용하면 오답으로 치지 마라. 첫 무음은 답을 주지 말고 {locale_label}로 다시 묻고, 두 번째 연속 무음이면 들려주고 따라 말하게 해라 — 계속 무응답이면 다음 항목으로 넘어가라.'
 # [퀴즈] — T16 큐 계약: «{CONTROL_TAG} 이 «지금 퀴즈를 내라» 고 알릴 때만». CONTROL_TAG 는 조립 때 끼운다.
 QUIZ_HEADER = "[퀴즈]"
@@ -78,6 +82,8 @@ def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: 
         *([DRILL_GRAMMAR_LINE] if has_grammar else []),
         DRILL_REVEAL_LINE,
         DRILL_FORMALITY_LINE.format(**fmt),
+        DRILL_ALT_CORRECT_LINE,
+        DRILL_ONE_ASK_LINE,
         DRILL_SILENCE_LINE.format(**fmt),
         "",
         QUIZ_HEADER,
