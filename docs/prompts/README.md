@@ -1151,6 +1151,9 @@ t15 «Yes? **And** How have you been?»(2) → t17 «잘 지냈어요 … Now Ye
 «문구가 아니라 위치» 전례) «한 턴에 한 문제만 — 교정하는 턴에도 새 문제를 붙이지 마라». 해시 3건(`QUIZ_LINE_2`·`expression.procedure`·
 `expression_quiz_cue`) + T21-A 기준(`_EXPR_FROZEN` 3890→3933) + T14 줄 목록 갱신. ⚠ 미검증 — 다음 표현학습 실통화에서 퀴즈 교정 턴의 문제
 개수를 센다(기대: 매 턴 1).
+→ **1546 재측정**(5분 완주): 3개 눈덩이 0건, 교정+새 문제 1건(t15). 대신 «정답 공개 → Try again → **같은 문제를 다시** How do you say X?»
+가 3건(t27·t33·t43) — `QUIZ_LINE_2` 의 «되묻지 마라» 를 3.1 이 무시. 큐 주입문에 «정답을 들려줬으면 따라 말하게만 하고 그 턴을 끝내라 —
+같은 문제를 «어떻게 말해요?» 로 다시 묻지 마라» 한 줄 추가(해시 갱신). ⚠ 미검증.
 
 ### 2026-09-12 — 커리큘럼 2단계 B2: 프리토킹 «[이번 차시]» 블록 (`build_freetalk_instruction(lesson=…)`)
 계획 `docs/plans/2026-09-12-cur-2단계-통화경로-이전.md` §2. `lesson`(CurFreetalkBrief: situation·partner·surfaces≤18·probes)이 None 이면
