@@ -954,6 +954,17 @@ def _resume_transcript(db: Session, call_id: int) -> str:
     )[-4000:]
 
 
+def resume_slots_have_content(slots: dict | None) -> bool:
+    """이어하기 요약 슬롯에 **값이 하나라도** 있나(topic·learner_facts·pending). 2026-09-14(bt-back 결정 ①, seamless QA 조사에서 발견).
+
+    ⛔ 빈 dict({topic:'', learner_facts:[], pending:''} — LLM 이 아무것도 못 뽑은 짧은 통화)도 파이썬에선 참이라, «슬롯이 생겼다» 고 보고
+      발췌(excerpt) 폴백을 지우면 브리프가 텅 비어 비버가 다시 인사한다(call 870 재발 경로). 슬롯 채택·저장·발췌 제거는 전부 이 판정을 쓴다.
+    """
+    if not slots:
+        return False
+    return bool((slots.get("topic") or "").strip() or slots.get("learner_facts") or (slots.get("pending") or "").strip())
+
+
 def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
     """다음 조각이 쓸 요약 슬롯을 저장한다.
 
@@ -986,8 +997,8 @@ async def build_resume_context(
     try:
         tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
         slots = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
-        if not slots:
-            return
+        if not resume_slots_have_content(slots):
+            return          # 빈 요약은 저장하지 않는다 — 저장하면 다음 조각의 resume_materials 가 발췌를 버린다
         await run_db(session_factory, lambda db: _save_resume_context(db, call_id, slots))
         logger.info(
             "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
@@ -1156,7 +1167,9 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
         #     없으므로 낡은 것으로 취급한다(모르면 다시 만드는 편이 안전하다).
         seen = slots.get("turns")
         now_turns = next_turn_index(db, call_id)
-        if not isinstance(seen, int) or seen < now_turns:
+        if not resume_slots_have_content(slots):
+            slots = {}      # 옛 코드가 저장해 둔 빈 슬롯 — 없는 것으로 본다(발췌 폴백 유지)
+        elif not isinstance(seen, int) or seen < now_turns:
             logger.info(
                 "normalcall 이어하기 요약: 낡음(%s턴까지 → 지금 %d턴) — 다시 만든다 call_id=%s",
                 seen, now_turns, call_id,
@@ -1181,7 +1194,7 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
         #   학습자 발화만 남기면 따라 할 대본이 없다.
         #   ⚠ 애초에 이 폴백은 호출부가 즉석 요약으로 대체한다 — 여기 남은 건 그것마저
         #     실패했을 때의 마지막 그물이다.
-        "excerpt": None if slots else _learner_only(topic),
+        "excerpt": None if resume_slots_have_content(slots) else _learner_only(topic),
         "said": said, "summary": summary, "curious": None,
     }
 

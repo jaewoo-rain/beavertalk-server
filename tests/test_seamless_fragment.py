@@ -553,3 +553,30 @@ def test_reconnect_brief_waits_in_a_silent_fragment():
     assert b != plain_head and "먼저 말을 꺼내지 마라 — 학습자가 먼저 말한다" in b and "사과하지 말고" in b
     st.learner_spoke = True
     assert cs._reconnect_brief(st) == plain_head, "학습자가 이미 말한 뒤에는 종전 head"
+
+
+# --------------------------------------------------------------------------- #
+# 빈 요약 슬롯은 발췌를 지우지 않는다 (2026-09-14, bt-back 결정 ① — seamless QA flake 조사에서 발견한 운영 경로 결함)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_empty_resume_summary_slots_keep_the_excerpt_fallback(session_factory, seeded, monkeypatch):
+    """LLM 이 아무것도 못 뽑은 짧은 통화({topic:'', learner_facts:[], pending:''}) — 빈 dict 도 파이썬에선 참이라 예전엔 «슬롯이 생겼다»
+    고 보고 발췌를 지워 브리프가 텅 비었다(call 870 «다시 인사» 재발 경로). 즉석 요약·조각 종료 요약 둘 다 빈 슬롯이어도 발췌가 산다."""
+    async def _empty_slots(*_a, **_k):
+        return {"topic": "", "learner_facts": [], "pending": ""}
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _empty_slots)
+    assert svc.resume_slots_have_content({"topic": "", "learner_facts": [], "pending": ""}) is False
+    assert svc.resume_slots_have_content({"topic": "축구", "learner_facts": [], "pending": ""}) is True
+    assert svc.resume_slots_have_content(None) is False
+    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
+    cid = int(_started(h1)["call_id"])
+    db = session_factory()
+    try:
+        assert not (db.get(Call, cid).resume_context or ""), "빈 요약은 조각 종료 때도 저장하지 않는다"
+    finally:
+        db.close()
+    h2 = await _run(session_factory, seeded, "normal", {}, script=[("B", "그래서요?")], continues=cid)
+    si = h2["system_instruction"]
+    assert "[지금까지]" in si and "- 방금까지 오간 대화:" in si and "학교에 갔어요" in si, "발췌 폴백이 살아 있다"
+    assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라." in si
+    assert h2["session"].sent_text_turns[0] == seeds.seed_resume("한국어")

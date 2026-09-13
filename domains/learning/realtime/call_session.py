@@ -2779,7 +2779,9 @@ async def run_call(
                 slots = await svc.summarize_for_resume_text(
                     client, settings.JUDGE_MODEL, tail
                 )
-                if slots:
+                # ⛔ 빈 슬롯({topic:'', facts:[], pending:''})은 «생긴 것» 이 아니다(2026-09-14, bt-back 결정 ①) — 빈 dict 도 참이라 예전엔
+                #   여기서 발췌를 지워 브리프가 텅 비었다(call 870 «다시 인사» 재발 경로). 값이 하나라도 있을 때만 채택·저장·발췌 제거.
+                if svc.resume_slots_have_content(slots):
                     mats["topic"] = slots.get("topic") or None
                     mats["facts"] = slots.get("learner_facts") or None
                     mats["pending"] = slots.get("pending") or None
@@ -2792,6 +2794,8 @@ async def run_call(
                         "normalcall 이어하기 요약(즉석): 화제=%r 사실 %d개",
                         slots.get("topic"), len(slots.get("learner_facts") or []),
                     )
+                elif slots is not None:
+                    logger.info("normalcall 이어하기 요약(즉석): 빈 슬롯 — 발췌 폴백 유지")
             brief = build_resume_brief(**mats, silent=silent)
             # ⛔⛔ **시드를 갈아야 한다 — 지시문만으로는 안 진다**(2026-08-19 실측 call 1087).
             #   `seed_opening` 은 "짧게 인사부터 하고, 오늘 공부할래 수다 떨래?를 물어라" 다.
