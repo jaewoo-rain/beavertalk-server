@@ -1352,12 +1352,16 @@ def upload_segment_audio(
     return done
 
 
-def finalize_call(db: Session, call_id: int, *, total_time: int, status: str) -> None:
-    """통화 종료 메타(총 시간/상태)를 갱신한다."""
+def finalize_call(db: Session, call_id: int, *, total_time: int, status: str, accumulate: bool = False) -> None:
+    """통화 종료 메타(총 시간/상태)를 갱신한다.
+
+    accumulate(2026-09-14 ①, 실통화 1604 = 306s 인데 실제 3조각 ≈15분): 이어하기 조각(2번째 이후)은 **더한다** — 예전엔 조각마다 덮어써 마지막 조각
+    길이만 남았다. 첫 조각(새 통화·이어하기 첫 조각)은 종전대로 대입(바이트 동일).
+    """
     call = db.get(Call, call_id)
     if call is None:
         return
-    call.total_time = total_time
+    call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else total_time
     call.status = status
     db.commit()
 
@@ -1706,8 +1710,27 @@ def estimate_call_cost_usd(
     return base + side, unknown + side_unknown
 
 
+_USAGE_JSON_SUM_KEYS = ("sum_prompt", "sum_resp", "sum_thoughts", "compressions", "epochs", "reconnects", "dropped")
+
+
+def _usage_fragment_entry(index: int, *, msgs, in_audio, in_text, out_audio, out_text, total, peak_prompt, sum_prompt, sum_resp,
+                          sum_thoughts, sum_cached, t_first, t_last, engine) -> dict:
+    return {
+        "fragment": index, "engine": engine, "msgs": msgs, "in_audio": in_audio, "in_text": in_text, "out_audio": out_audio, "out_text": out_text,
+        "total": total, "peak_prompt": peak_prompt, "sum_prompt": sum_prompt, "sum_resp": sum_resp, "sum_thoughts": sum_thoughts,
+        "sum_cached": sum_cached, "t_first": t_first, "t_last": t_last,
+    }
+
+
+def _add_opt(a, b):
+    """None 보존 덧셈 — 둘 다 None 이면 None(«필드 미제공» 과 0 을 가르는 규약), 아니면 있는 것만 더한다."""
+    if a is None and b is None:
+        return None
+    return int(a or 0) + int(b or 0)
+
+
 def save_call_usage(
-    db: Session, call_id: int, summary: dict, *, engine: str | None = None
+    db: Session, call_id: int, summary: dict, *, engine: str | None = None, accumulate: bool = False
 ) -> bool:
     """usage 요약을 통화 행에 남긴다(원가 계기판 2·3단계). 저장했으면 True.
 
@@ -1730,21 +1753,55 @@ def save_call_usage(
         return False
     in_mod = summary.get("in_mod") or {}
     out_mod = summary.get("out_mod") or {}
-    # engine 인자 우선, 없으면 요약에 실려 온 값. 둘 다 없으면 NULL(= 미기록)로 남긴다 —
-    # 0 이나 'unknown' 으로 채우면 "모른다"와 "정말 그 엔진"이 구별되지 않는다.
-    call.usage_engine = engine or summary.get("engine")
-    call.usage_msgs = int(summary.get("msgs") or 0)
-    call.usage_in_audio = int(in_mod.get("AUDIO") or 0)
-    call.usage_in_text = int(in_mod.get("TEXT") or 0)
-    call.usage_out_audio = int(out_mod.get("AUDIO") or 0)
-    call.usage_out_text = int(out_mod.get("TEXT") or 0)
-    call.usage_total = int(summary.get("sum_total") or 0)
-    call.usage_peak_prompt = int(summary.get("peak_prompt") or 0)
+    # ⭐ 2026-09-14 ①(실통화 1604 — 로그 usage 3줄 합 ≠ DB): 이어하기 조각이면 **누적**한다. 예전엔 조각마다 덮어써 조각1만 남았다.
+    #   컬럼 4항·msgs·total 은 +=, peak 는 max, usage_json 은 합계 + fragments:[{조각별 요약}] 배열. 첫 조각은 종전 경로 그대로(바이트 동일).
+    #   ⚠ 앞 조각 기록이 없으면(첫 조각이 usage 미수신) 누적할 게 없으니 종전 경로.
+    prev_json = call.usage_json if isinstance(call.usage_json, dict) else None
+    accumulate = bool(accumulate and call.usage_msgs is not None and prev_json is not None)
+    new_engine = engine or summary.get("engine")
+    cur_msgs = int(summary.get("msgs") or 0)
+    cur_in_audio, cur_in_text = int(in_mod.get("AUDIO") or 0), int(in_mod.get("TEXT") or 0)
+    cur_out_audio, cur_out_text = int(out_mod.get("AUDIO") or 0), int(out_mod.get("TEXT") or 0)
+    cur_total, cur_peak = int(summary.get("sum_total") or 0), int(summary.get("peak_prompt") or 0)
+    if accumulate:
+        frags = list(prev_json.get("fragments") or [])
+        if not frags:      # 조각1 은 fragments 없이 저장됐다(바이트 동일 규약) — 컬럼·json 에서 조각1 항목을 복원해 넣는다
+            frags = [_usage_fragment_entry(
+                1, msgs=call.usage_msgs, in_audio=call.usage_in_audio, in_text=call.usage_in_text, out_audio=call.usage_out_audio,
+                out_text=call.usage_out_text, total=call.usage_total, peak_prompt=call.usage_peak_prompt,
+                sum_prompt=prev_json.get("sum_prompt"), sum_resp=prev_json.get("sum_resp"), sum_thoughts=prev_json.get("sum_thoughts"),
+                sum_cached=prev_json.get("sum_cached"), t_first=prev_json.get("t_first"), t_last=prev_json.get("t_last"), engine=call.usage_engine,
+            )]
+        frags.append(_usage_fragment_entry(
+            len(frags) + 1, msgs=cur_msgs, in_audio=cur_in_audio, in_text=cur_in_text, out_audio=cur_out_audio, out_text=cur_out_text,
+            total=cur_total, peak_prompt=cur_peak, sum_prompt=summary.get("sum_prompt"), sum_resp=summary.get("sum_resp"),
+            sum_thoughts=summary.get("sum_thoughts"), sum_cached=summary.get("sum_cached"), t_first=summary.get("t_first"),
+            t_last=summary.get("t_last"), engine=new_engine,
+        ))
+        call.usage_engine = new_engine or call.usage_engine
+        call.usage_msgs = int(call.usage_msgs or 0) + cur_msgs
+        call.usage_in_audio = int(call.usage_in_audio or 0) + cur_in_audio
+        call.usage_in_text = int(call.usage_in_text or 0) + cur_in_text
+        call.usage_out_audio = int(call.usage_out_audio or 0) + cur_out_audio
+        call.usage_out_text = int(call.usage_out_text or 0) + cur_out_text
+        call.usage_total = int(call.usage_total or 0) + cur_total
+        call.usage_peak_prompt = max(int(call.usage_peak_prompt or 0), cur_peak)
+    else:
+        # engine 인자 우선, 없으면 요약에 실려 온 값. 둘 다 없으면 NULL(= 미기록)로 남긴다 —
+        # 0 이나 'unknown' 으로 채우면 "모른다"와 "정말 그 엔진"이 구별되지 않는다.
+        call.usage_engine = new_engine
+        call.usage_msgs = cur_msgs
+        call.usage_in_audio = cur_in_audio
+        call.usage_in_text = cur_in_text
+        call.usage_out_audio = cur_out_audio
+        call.usage_out_text = cur_out_text
+        call.usage_total = cur_total
+        call.usage_peak_prompt = cur_peak
     # 컬럼으로 뺀 4종(AUDIO/TEXT × in/out) 외의 모달리티가 오면 여기 남는다 —
     # 새 모달리티(VIDEO 등)가 생겨도 컬럼 추가 없이 관측이 이어진다.
     extra_in = {k: v for k, v in in_mod.items() if k not in ("AUDIO", "TEXT")}
     extra_out = {k: v for k, v in out_mod.items() if k not in ("AUDIO", "TEXT")}
-    call.usage_json = {
+    usage_json = {
         "dropped": summary.get("dropped"),
         "monotonic": summary.get("monotonic"),
         "last_prompt": summary.get("last_prompt"),
@@ -1777,6 +1834,17 @@ def save_call_usage(
         **({"injects": summary["injects"]} if summary.get("injects") else {}),
         **({"compress_events": summary["compress_events"]} if summary.get("compress_events") else {}),
     }
+    if accumulate:
+        # 합계 키는 더하고(None 보존), last_*·monotonic·cycle_peak·sidecars·injects 등은 **이번 조각** 값이 이긴다. 앞 조각이 남긴 곁가지
+        # (analysis·tts — 통화후 분석이 add_call_usage_extra 로 얹은 것)는 이번 요약에 없으니 그대로 남는다. t_first 는 첫 조각 것.
+        merged = {**prev_json, **usage_json}
+        for k in _USAGE_JSON_SUM_KEYS:
+            merged[k] = _add_opt(prev_json.get(k), usage_json.get(k))
+        merged["sum_cached"] = _add_opt(prev_json.get("sum_cached"), usage_json.get("sum_cached"))
+        merged["t_first"] = prev_json.get("t_first") if prev_json.get("t_first") is not None else usage_json.get("t_first")
+        merged["fragments"] = frags
+        usage_json = merged
+    call.usage_json = usage_json
     db.commit()  # R3 — 쓰기는 service 가 명시적으로 커밋
     return True
 

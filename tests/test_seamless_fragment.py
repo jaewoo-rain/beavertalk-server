@@ -736,3 +736,81 @@ async def test_expression_resume_note_carries_previous_fragment_materials(sessio
     h3 = await _run(session_factory, seeded, "auto", {}, script=[("B", "좋아요")], continues=cid)
     seed = h3["session"].sent_text_turns[0]
     assert seed.startswith("[통화 이어감]") and "이미 한 것: 드릴 2개(" in seed and "지금 바로 이어가라" in seed and len(seed) <= 900
+
+
+# --------------------------------------------------------------------------- #
+# ① (2026-09-14) 다조각 저장 누적 — total_time 합 · usage 4항 합 + fragments 배열 · 단일 조각 무변화 · 원가는 합계로
+# --------------------------------------------------------------------------- #
+def _usage_summary(msgs, in_audio, in_text, out_audio, out_text, total, peak, **extra):
+    return {"msgs": msgs, "dropped": 0, "in_mod": {"AUDIO": in_audio, "TEXT": in_text}, "out_mod": {"AUDIO": out_audio, "TEXT": out_text},
+            "sum_total": total, "peak_prompt": peak, "sum_prompt": total - 10, "sum_resp": 10, "sum_thoughts": 0, "sum_cached": None,
+            "t_first": 1.0, "t_last": 200.0, "monotonic": True, "last_prompt": peak, "last_total": total, "compressions": 0, "epochs": 1,
+            "reconnects": 0, "cycle_peak": peak, **extra}
+
+
+def test_multi_fragment_call_accumulates_total_time_and_usage(session_factory, seeded):
+    db = session_factory()
+    try:
+        cid = svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
+        # 조각1 — 종전 경로(accumulate False): 대입, fragments 없음
+        svc.finalize_call(db, cid, total_time=300, status="analyzing")
+        s1 = _usage_summary(50, 1000, 100, 2000, 200, 3300, 9000)
+        assert svc.save_call_usage(db, cid, s1, engine="live:m1") is True
+        c = db.get(Call, cid)
+        j1 = dict(c.usage_json)
+        assert c.total_time == 300 and c.usage_msgs == 50 and c.usage_in_audio == 1000 and "fragments" not in j1, "단일 조각은 종전과 같다"
+        cost1 = svc.estimate_call_cost_usd(c.usage_engine, in_audio=c.usage_in_audio, in_text=c.usage_in_text, out_audio=c.usage_out_audio, out_text=c.usage_out_text, usage_json=c.usage_json)[0]
+        # 통화후 분석이 얹은 곁가지 — 누적 뒤에도 남아야 한다
+        svc.add_call_usage_extra(db, cid, "analysis", {"in": 5, "out": 6})
+        # 조각2·3 — 누적
+        svc.finalize_call(db, cid, total_time=290, status="analyzing", accumulate=True)
+        s2 = _usage_summary(40, 800, 80, 1600, 160, 2640, 12000, sum_cached=500)
+        assert svc.save_call_usage(db, cid, s2, engine="live:m1", accumulate=True) is True
+        svc.finalize_call(db, cid, total_time=310, status="analyzing", accumulate=True)
+        s3 = _usage_summary(30, 600, 60, 1200, 120, 1980, 7000, sum_cached=250)
+        assert svc.save_call_usage(db, cid, s3, engine="live:m1", accumulate=True) is True
+        db.expire_all()
+        c = db.get(Call, cid)
+        assert c.total_time == 900, "300+290+310"
+        assert (c.usage_msgs, c.usage_in_audio, c.usage_in_text, c.usage_out_audio, c.usage_out_text, c.usage_total) == (120, 2400, 240, 4800, 480, 7920)
+        assert c.usage_peak_prompt == 12000, "peak 는 max"
+        j = c.usage_json
+        assert [f["fragment"] for f in j["fragments"]] == [1, 2, 3] and [f["msgs"] for f in j["fragments"]] == [50, 40, 30]
+        assert j["fragments"][0]["in_audio"] == 1000 and j["fragments"][0]["engine"] == "live:m1", "조각1 은 컬럼에서 복원"
+        assert j["sum_prompt"] == (3300 - 10) + (2640 - 10) + (1980 - 10) and j["sum_resp"] == 30 and j["epochs"] == 3
+        assert j["sum_cached"] == 750, "None 보존 덧셈 — 조각1 None + 500 + 250"
+        assert j["t_first"] == 1.0 and j["last_total"] == 1980 and j["analysis"] == {"in": 5, "out": 6}, "첫 t_first · 마지막 last_* · 곁가지 보존"
+        # 원가는 합계 컬럼으로 — 조각별 원가의 합과 같다
+        cost = svc.estimate_call_cost_usd(c.usage_engine, in_audio=c.usage_in_audio, in_text=c.usage_in_text, out_audio=c.usage_out_audio, out_text=c.usage_out_text, usage_json=None)[0]
+        per = sum(svc.estimate_usage_cost_usd(in_audio=f["in_audio"], in_text=f["in_text"], out_audio=f["out_audio"], out_text=f["out_text"]) for f in j["fragments"])
+        assert abs(cost - per) < 1e-9 and cost > cost1
+    finally:
+        db.close()
+
+
+def test_accumulate_without_a_previous_fragment_record_falls_back_to_plain_save(session_factory, seeded):
+    db = session_factory()
+    try:
+        cid = svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal")
+        svc.finalize_call(db, cid, total_time=100, status="analyzing", accumulate=True)     # total_time None → 0+100
+        assert svc.save_call_usage(db, cid, _usage_summary(5, 10, 1, 20, 2, 33, 100), accumulate=True) is True
+        c = db.get(Call, cid)
+        assert c.total_time == 100 and c.usage_msgs == 5 and "fragments" not in c.usage_json, "앞 조각 usage 가 없으면 종전 경로"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_run_call_accumulates_on_resumed_fragments_only(session_factory, seeded, monkeypatch):
+    calls: list[tuple] = []
+    real_fin = svc.finalize_call
+
+    def _spy(db, call_id, **kw):
+        calls.append((call_id, kw.get("accumulate", False)))
+        return real_fin(db, call_id, **kw)
+    monkeypatch.setattr(cs.svc, "finalize_call", _spy)
+    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    cid = int(_started(h1)["call_id"])
+    await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    assert [a for c, a in calls if c == cid] == [False, True, True], "첫 조각 대입 · 2·3조각 누적"

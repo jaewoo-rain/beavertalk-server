@@ -2154,6 +2154,7 @@ async def _persist_usage(db_session_factory, state: _CallState, call_id: int | N
                     svc.build_engine_tag("live", state.live_model)
                     if state.live_model else svc.ENGINE_LIVE_GEMINI
                 ),
+                accumulate=bool((state.fragment_index or 1) > 1),   # 2026-09-14 ① — 이어하기 조각은 누적(fragments 배열 + 합계)
             ),
         )
     except Exception as exc:  # noqa: BLE001 - 계기판 저장 실패가 통화를 죽이면 안 된다(R5)
@@ -3447,8 +3448,11 @@ async def _persist_remaining(
                 lambda db: svc.save_segments(db, call_id, new, member_id, upload_audio=False),
             )
             state.persisted_count += len(new)
+        # ⭐ 2026-09-14 ①: 이어하기 조각(2번째 이후)은 total_time 을 **더한다** — 1604 가 3조각 ≈15분인데 306s(마지막 조각)만 남았다.
         await svc.run_db(
-            db_session_factory, lambda db: svc.finalize_call(db, call_id, total_time=duration_s, status="analyzing")
+            db_session_factory, lambda db: svc.finalize_call(
+                db, call_id, total_time=duration_s, status="analyzing", accumulate=bool((state.fragment_index or 1) > 1),
+            )
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("normalcall: 통화 저장 실패(무시): %s", exc)
