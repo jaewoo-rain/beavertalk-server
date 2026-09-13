@@ -78,6 +78,21 @@ class CurApi:
             body["lesson_no"] = lesson_no
         return self._post(CUR_RESET_DEV, body, prefixed=False)
 
+    # ---- 회원(언어 전환) ----
+    MEMBER_ME = "/members/me"
+
+    def member_me(self) -> dict:
+        """GET /members/me — target_language 원본을 읽어 둔다(복구용)."""
+        return self._get(self.MEMBER_ME)
+
+    def patch_target_language(self, code: Optional[str]) -> dict:
+        """PATCH /members/me {target_language} — 통화·/cur/me 가 읽는 학습 언어의 단일 소스(docs/20260728_0125). None 이면 null 로 되돌린다."""
+        url = self._url(self.MEMBER_ME)
+        r = self._cli.patch(url, json={"target_language": code})
+        if r.status_code != 200:
+            raise CurApiError(r.status_code, r.text, url)
+        return r.json()
+
     def call_result(self, call_id: int) -> dict:
         return self._get(CALL_RESULT.format(call_id=call_id))
 

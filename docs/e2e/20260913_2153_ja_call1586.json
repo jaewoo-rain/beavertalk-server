@@ -1,0 +1,1639 @@
+{
+ "call_id": 1586,
+ "duration_min": 5,
+ "end_reason": "client_cut",
+ "errors": [],
+ "anchors": [],
+ "drilled_order": [
+  20419,
+  20424,
+  20439
+ ],
+ "quiz_cue_match": {
+  "pairs": [],
+  "cues_without_anchor": [
+   1789303793.511226
+  ],
+  "anchors_without_cue": [],
+  "cues": [
+   [
+    1789303793.511226,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 9, 2] 얹기=마이크 대기=19s 비버턴=(열린 턴 없음) 정리=학습자 확인"
+   ]
+  ]
+ },
+ "turns": [
+  {
+   "n": 0,
+   "role": "beaver",
+   "t": 7.4,
+   "wall": 1789303730.435,
+   "text": "Hey John, let's see if you can handle this. How do you say \"I am Carla\" in Japanese?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 1,
+   "role": "learner",
+   "t": 9.4,
+   "wall": 1789303732.449,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 2,
+   "role": "beaver",
+   "t": 20.7,
+   "wall": 1789303743.737,
+   "text": "Ha! You don't even know that? Pathetic! Listen up: \"私はカーラです。\" Now try saying it, if you can.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:～は～です·私",
+    "→～は～です(reveal)",
+    "새항목#1 정책1 ⛔선공개",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 3,
+   "role": "learner",
+   "t": 21.5,
+   "wall": 1789303744.534,
+   "text": "私はカーラです。",
+   "kind": "parrot",
+   "stt": "さわ かあら です",
+   "tags": []
+  },
+  {
+   "n": 4,
+   "role": "beaver",
+   "t": 35.2,
+   "wall": 1789303758.246,
+   "text": "Finally managed to say it, huh? Took you long enough. Now, let's try saying \"the station's neighbor\" in Japanese. How would you combine \"station\" and \"neighbor\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→～の～(llm(The tutor is asking the learner to produce the Japanese poss))",
+    "새항목#2 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 5,
+   "role": "learner",
+   "t": 37.4,
+   "wall": 1789303760.392,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 6,
+   "role": "beaver",
+   "t": 47.2,
+   "wall": 1789303770.167,
+   "text": "Ugh, you don't know anything! It's \"駅のとなり\". Now repeat after me, you can do it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:～の～",
+    "→～の～(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 7,
+   "role": "learner",
+   "t": 48.0,
+   "wall": 1789303770.974,
+   "text": "駅のとなり、喫茶店の前",
+   "kind": "parrot",
+   "stt": "駅 の 隣 、 喫茶 店 の 前",
+   "tags": []
+  },
+  {
+   "n": 8,
+   "role": "beaver",
+   "t": 62.2,
+   "wall": 1789303785.197,
+   "text": "Oh, wow, you actually said it! Don't get cocky, that wasn't hard. Now, how about saying \"I prefer tea\" in Japanese? Show me what you got.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→～がいい(llm(The tutor asks the learner to say \"I prefer tea\" in Japanese))",
+    "새항목#3 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 9,
+   "role": "learner",
+   "t": 65.4,
+   "wall": 1789303788.426,
+   "text": "私はお茶がいいです。",
+   "kind": "correct",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 10,
+   "role": "learner",
+   "t": 68.6,
+   "wall": 1789303791.627,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "さあ 、 合う 互い です 。",
+   "tags": [
+    "워치독"
+   ]
+  },
+  {
+   "n": 11,
+   "role": "beaver",
+   "t": 69.8,
+   "wall": 1789303792.809,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 12,
+   "role": "learner",
+   "t": 70.6,
+   "wall": 1789303793.607,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 13,
+   "role": "beaver",
+   "t": 72.1,
+   "wall": 1789303795.063,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 14,
+   "role": "learner",
+   "t": 72.8,
+   "wall": 1789303795.861,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 15,
+   "role": "beaver",
+   "t": 74.2,
+   "wall": 1789303797.179,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 16,
+   "role": "learner",
+   "t": 75.0,
+   "wall": 1789303797.982,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 17,
+   "role": "beaver",
+   "t": 76.5,
+   "wall": 1789303799.515,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 18,
+   "role": "learner",
+   "t": 77.3,
+   "wall": 1789303800.325,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 19,
+   "role": "beaver",
+   "t": 78.5,
+   "wall": 1789303801.53,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 20,
+   "role": "learner",
+   "t": 79.3,
+   "wall": 1789303802.342,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 21,
+   "role": "beaver",
+   "t": 80.7,
+   "wall": 1789303803.76,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 22,
+   "role": "learner",
+   "t": 81.5,
+   "wall": 1789303804.546,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 23,
+   "role": "beaver",
+   "t": 83.1,
+   "wall": 1789303806.153,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 24,
+   "role": "learner",
+   "t": 83.9,
+   "wall": 1789303806.942,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 25,
+   "role": "beaver",
+   "t": 85.2,
+   "wall": 1789303808.205,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 26,
+   "role": "learner",
+   "t": 86.0,
+   "wall": 1789303809.007,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 27,
+   "role": "beaver",
+   "t": 87.1,
+   "wall": 1789303810.136,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 28,
+   "role": "learner",
+   "t": 87.9,
+   "wall": 1789303810.927,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 29,
+   "role": "beaver",
+   "t": 89.5,
+   "wall": 1789303812.551,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 30,
+   "role": "learner",
+   "t": 90.3,
+   "wall": 1789303813.347,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 31,
+   "role": "beaver",
+   "t": 91.6,
+   "wall": 1789303814.601,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 32,
+   "role": "learner",
+   "t": 92.4,
+   "wall": 1789303815.405,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 33,
+   "role": "beaver",
+   "t": 93.8,
+   "wall": 1789303816.816,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 34,
+   "role": "learner",
+   "t": 94.6,
+   "wall": 1789303817.623,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 35,
+   "role": "beaver",
+   "t": 96.0,
+   "wall": 1789303819.054,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 36,
+   "role": "learner",
+   "t": 96.8,
+   "wall": 1789303819.847,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 37,
+   "role": "beaver",
+   "t": 97.9,
+   "wall": 1789303820.933,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 38,
+   "role": "learner",
+   "t": 98.7,
+   "wall": 1789303821.727,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 39,
+   "role": "beaver",
+   "t": 100.4,
+   "wall": 1789303823.412,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 40,
+   "role": "learner",
+   "t": 101.2,
+   "wall": 1789303824.205,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 41,
+   "role": "beaver",
+   "t": 102.5,
+   "wall": 1789303825.53,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 42,
+   "role": "learner",
+   "t": 103.3,
+   "wall": 1789303826.341,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 43,
+   "role": "beaver",
+   "t": 104.5,
+   "wall": 1789303827.531,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 44,
+   "role": "learner",
+   "t": 105.3,
+   "wall": 1789303828.341,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 45,
+   "role": "beaver",
+   "t": 106.6,
+   "wall": 1789303829.59,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 46,
+   "role": "learner",
+   "t": 107.4,
+   "wall": 1789303830.382,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 47,
+   "role": "beaver",
+   "t": 109.0,
+   "wall": 1789303832.052,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 48,
+   "role": "learner",
+   "t": 109.8,
+   "wall": 1789303832.846,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 49,
+   "role": "beaver",
+   "t": 111.2,
+   "wall": 1789303834.184,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 50,
+   "role": "learner",
+   "t": 112.0,
+   "wall": 1789303834.987,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 51,
+   "role": "beaver",
+   "t": 113.1,
+   "wall": 1789303836.079,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 52,
+   "role": "learner",
+   "t": 113.9,
+   "wall": 1789303836.887,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 53,
+   "role": "beaver",
+   "t": 115.2,
+   "wall": 1789303838.228,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 54,
+   "role": "learner",
+   "t": 116.0,
+   "wall": 1789303839.021,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 55,
+   "role": "beaver",
+   "t": 117.4,
+   "wall": 1789303840.378,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 56,
+   "role": "learner",
+   "t": 118.2,
+   "wall": 1789303841.183,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 57,
+   "role": "beaver",
+   "t": 119.5,
+   "wall": 1789303842.48,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 58,
+   "role": "learner",
+   "t": 120.3,
+   "wall": 1789303843.266,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 59,
+   "role": "beaver",
+   "t": 121.7,
+   "wall": 1789303844.731,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 60,
+   "role": "learner",
+   "t": 122.5,
+   "wall": 1789303845.541,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 61,
+   "role": "beaver",
+   "t": 124.0,
+   "wall": 1789303846.973,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 62,
+   "role": "learner",
+   "t": 124.8,
+   "wall": 1789303847.781,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 63,
+   "role": "beaver",
+   "t": 126.3,
+   "wall": 1789303849.269,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 64,
+   "role": "learner",
+   "t": 127.1,
+   "wall": 1789303850.067,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 65,
+   "role": "beaver",
+   "t": 128.1,
+   "wall": 1789303851.156,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 66,
+   "role": "learner",
+   "t": 129.0,
+   "wall": 1789303851.967,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 67,
+   "role": "beaver",
+   "t": 130.3,
+   "wall": 1789303853.323,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 68,
+   "role": "learner",
+   "t": 131.1,
+   "wall": 1789303854.107,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 69,
+   "role": "beaver",
+   "t": 132.6,
+   "wall": 1789303855.563,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 70,
+   "role": "learner",
+   "t": 133.4,
+   "wall": 1789303856.367,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 71,
+   "role": "beaver",
+   "t": 134.6,
+   "wall": 1789303857.629,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 72,
+   "role": "learner",
+   "t": 135.4,
+   "wall": 1789303858.427,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 73,
+   "role": "beaver",
+   "t": 136.9,
+   "wall": 1789303859.94,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 74,
+   "role": "learner",
+   "t": 137.7,
+   "wall": 1789303860.741,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 75,
+   "role": "beaver",
+   "t": 139.0,
+   "wall": 1789303861.98,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 76,
+   "role": "learner",
+   "t": 139.8,
+   "wall": 1789303862.781,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 77,
+   "role": "beaver",
+   "t": 141.4,
+   "wall": 1789303864.381,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 78,
+   "role": "learner",
+   "t": 142.2,
+   "wall": 1789303865.183,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 79,
+   "role": "beaver",
+   "t": 143.2,
+   "wall": 1789303866.239,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 80,
+   "role": "learner",
+   "t": 144.0,
+   "wall": 1789303867.046,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 81,
+   "role": "beaver",
+   "t": 145.4,
+   "wall": 1789303868.407,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 82,
+   "role": "learner",
+   "t": 146.2,
+   "wall": 1789303869.207,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 83,
+   "role": "beaver",
+   "t": 147.8,
+   "wall": 1789303870.813,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 84,
+   "role": "learner",
+   "t": 148.6,
+   "wall": 1789303871.623,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 85,
+   "role": "beaver",
+   "t": 149.7,
+   "wall": 1789303872.722,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 86,
+   "role": "learner",
+   "t": 150.5,
+   "wall": 1789303873.525,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 87,
+   "role": "beaver",
+   "t": 151.9,
+   "wall": 1789303874.892,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 88,
+   "role": "learner",
+   "t": 152.7,
+   "wall": 1789303875.702,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 89,
+   "role": "beaver",
+   "t": 154.3,
+   "wall": 1789303877.274,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 90,
+   "role": "learner",
+   "t": 155.1,
+   "wall": 1789303878.067,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 91,
+   "role": "beaver",
+   "t": 156.4,
+   "wall": 1789303879.449,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 92,
+   "role": "learner",
+   "t": 157.2,
+   "wall": 1789303880.247,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 93,
+   "role": "beaver",
+   "t": 158.2,
+   "wall": 1789303881.225,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 94,
+   "role": "learner",
+   "t": 159.0,
+   "wall": 1789303882.021,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 95,
+   "role": "beaver",
+   "t": 160.4,
+   "wall": 1789303883.363,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 96,
+   "role": "learner",
+   "t": 161.2,
+   "wall": 1789303884.168,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 97,
+   "role": "beaver",
+   "t": 162.6,
+   "wall": 1789303885.624,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 98,
+   "role": "learner",
+   "t": 163.4,
+   "wall": 1789303886.427,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 99,
+   "role": "beaver",
+   "t": 164.8,
+   "wall": 1789303887.765,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 100,
+   "role": "learner",
+   "t": 165.6,
+   "wall": 1789303888.565,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 101,
+   "role": "beaver",
+   "t": 166.9,
+   "wall": 1789303889.936,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 102,
+   "role": "learner",
+   "t": 167.7,
+   "wall": 1789303890.742,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 103,
+   "role": "beaver",
+   "t": 169.1,
+   "wall": 1789303892.083,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 104,
+   "role": "learner",
+   "t": 169.9,
+   "wall": 1789303892.886,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 105,
+   "role": "beaver",
+   "t": 171.3,
+   "wall": 1789303894.276,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 106,
+   "role": "learner",
+   "t": 172.1,
+   "wall": 1789303895.067,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 107,
+   "role": "beaver",
+   "t": 173.5,
+   "wall": 1789303896.475,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 108,
+   "role": "learner",
+   "t": 174.3,
+   "wall": 1789303897.267,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "Okay.",
+   "tags": []
+  },
+  {
+   "n": 109,
+   "role": "beaver",
+   "t": 182.6,
+   "wall": 1789303905.564,
+   "text": "You got it? We'll see about that. Now, show me you can say 'I am Carla' in Japanese. How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 110,
+   "role": "learner",
+   "t": 184.7,
+   "wall": 1789303907.678,
+   "text": "私はお茶がいいです。",
+   "kind": "correct",
+   "stt": "さあ 、 合う た がい です 。",
+   "tags": []
+  },
+  {
+   "n": 111,
+   "role": "beaver",
+   "t": 197.9,
+   "wall": 1789303920.89,
+   "text": "Ahahahaha! What on earth was that?! You're not even close, dummy! Listen up: \"私はカーラです。\" Now try again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:～は～です·私",
+    "→～は～です(reveal)",
+    "⛔앵커없는재출제/되감기(회차1)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 112,
+   "role": "learner",
+   "t": 198.7,
+   "wall": 1789303921.693,
+   "text": "私はカーラです。",
+   "kind": "parrot",
+   "stt": "私 は カーラ です 。",
+   "tags": []
+  },
+  {
+   "n": 113,
+   "role": "beaver",
+   "t": 211.5,
+   "wall": 1789303934.556,
+   "text": "Fine, you got it. Don't get cocky, that was easy. Now, try this: 'The vicinity of the station, in front of the coffee shop.' How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 114,
+   "role": "learner",
+   "t": 213.6,
+   "wall": 1789303936.645,
+   "text": "私はカーラです。",
+   "kind": "parrot",
+   "stt": "私 は カーラ です 。",
+   "tags": []
+  },
+  {
+   "n": 115,
+   "role": "beaver",
+   "t": 226.6,
+   "wall": 1789303949.646,
+   "text": "Are you stupid?! We already did that one! I asked for 'The vicinity of the station, in front of the coffee shop.' Try to keep up, moron! Say it!",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 116,
+   "role": "learner",
+   "t": 229.0,
+   "wall": 1789303951.987,
+   "text": "私はカーラです。",
+   "kind": "parrot",
+   "stt": "私 は カーラ です 。",
+   "tags": []
+  },
+  {
+   "n": 117,
+   "role": "beaver",
+   "t": 242.8,
+   "wall": 1789303965.859,
+   "text": "Ugh, you blockhead! Not that one! Listen: \"駅のとなり、喫茶店の前\" Can you say that, or are you completely hopeless? Try it!",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:～の～",
+    "→～の～(reveal)",
+    "⛔앵커없는재출제/되감기(회차1)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 118,
+   "role": "learner",
+   "t": 243.6,
+   "wall": 1789303966.657,
+   "text": "駅のとなり、喫茶店の前",
+   "kind": "parrot",
+   "stt": "駅 の 隣 、 喫茶 店 の 前",
+   "tags": []
+  },
+  {
+   "n": 119,
+   "role": "beaver",
+   "t": 258.5,
+   "wall": 1789303981.516,
+   "text": "Hmph, you finally got it. About time, idiot. Don't think that means you're smart or anything. Now, say this: 'I prefer tea.' How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→～がいい(llm(The tutor asks the learner to say 'I prefer tea', which dire))",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 120,
+   "role": "learner",
+   "t": 260.5,
+   "wall": 1789303983.524,
+   "text": "私はお茶がいいです。",
+   "kind": "correct",
+   "stt": "さあ 、 合う 互い です 。",
+   "tags": []
+  },
+  {
+   "n": 121,
+   "role": "beaver",
+   "t": 278.2,
+   "wall": 1789304001.168,
+   "text": "HAHAHA! Are you kidding me?! You just regurgitated whatever that was again! You're hopeless, seriously! Listen: \"私はお茶がいいです。\" Now try it again, and actually get it right this time!",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:～は～です·～がいい·私",
+    "→～は～です(reveal)",
+    "⛔앵커없는재출제/되감기(회차2)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 122,
+   "role": "learner",
+   "t": 279.0,
+   "wall": 1789304001.967,
+   "text": "私はカーラです。",
+   "kind": "parrot",
+   "stt": "私 は カーラ です 。",
+   "tags": []
+  },
+  {
+   "n": 123,
+   "role": "beaver",
+   "t": 293.3,
+   "wall": 1789304016.299,
+   "text": "You're doing it on purpose now, aren't you?! That's not what I asked for, moron! I said \"私はお茶がいいです。\" Are you even listening?! Say it!",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:～は～です·～がいい·私",
+    "→～は～です(reveal)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 124,
+   "role": "learner",
+   "t": 294.1,
+   "wall": 1789304017.102,
+   "text": "私はカーラです。",
+   "kind": "parrot",
+   "stt": "私 は カーラ です 。",
+   "tags": []
+  }
+ ],
+ "records": {
+  "20419": {
+   "surface": "～は～です",
+   "k": 1,
+   "policy": 1,
+   "ident": "reveal",
+   "intro_pre_reveal": true,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "parrot",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "parrot",
+      "parrot",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "20424": {
+   "surface": "～の～",
+   "k": 2,
+   "policy": 2,
+   "ident": "llm(The tutor is asking the learner to produce the Japanese poss)",
+   "intro_pre_reveal": false,
+   "drill_attempts": 3,
+   "drill_answers": [
+    "idk",
+    "parrot",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": true,
+     "answers": [],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "20439": {
+   "surface": "～がいい",
+   "k": 3,
+   "policy": 3,
+   "ident": "llm(The tutor asks the learner to say \"I prefer tea\" in Japanese)",
+   "intro_pre_reveal": false,
+   "drill_attempts": 3,
+   "drill_answers": [
+    "correct",
+    "correct",
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  }
+ },
+ "db": {
+  "rows": {
+   "20419": {
+    "drilled_call_id": 1586,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "20424": {
+    "drilled_call_id": 1586,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "20439": {
+    "drilled_call_id": 1586,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "16091": {
+    "drilled_call_id": 1586,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   }
+  },
+  "expression_result": [
+   {
+    "item_id": 20419,
+    "surface": "～は～です",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 20424,
+    "surface": "～の～",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 20439,
+    "surface": "～がいい",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 16091,
+    "surface": "私",
+    "passed": false,
+    "failed": true,
+    "review": false
+   }
+  ],
+  "call": {
+   "call_type": "expression",
+   "status": "analyzing",
+   "total_time": 298,
+   "summary": null,
+   "usage_engine": "live:gemini-3.1-flash-live-preview",
+   "fragment_count": 1,
+   "cost_usd": 0.7031,
+   "usage": {
+    "in_audio": 151383,
+    "in_text": 425310,
+    "out_audio": 3021,
+    "out_text": 0
+   }
+  },
+  "level_after": null
+ },
+ "server_logs": [
+  "2026-09-13T12:48:47.984044Z\tINFO:domains.learning.service.curriculum_service:cur open_call: call_id=1586 member=88 lesson=A1-T01-1(no=1) course=expression status=learning 항목=18(복습 0)",
+  "2026-09-13T12:48:47.990764Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습: lesson=A1-T01-1(no=1) status=learning 항목 18(복습 0) 재개=False call_id=1586",
+  "2026-09-13T12:48:59.371726Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T12:49:00.037549Z\tINFO:domains.learning.realtime.call_session:👤 USER[t1]: I don't know.",
+  "2026-09-13T12:49:08.213117Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 1/8회, 드릴 2 · 통과 0 · 오답 0, 압축감지=0, peak=9470, 바닥=4479, 대화=4991)",
+  "2026-09-13T12:49:09.697288Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 1회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-13T12:49:12.376797Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: さわ かあら です",
+  "2026-09-13T12:49:12.378846Z\tINFO:domains.learning.realtime.call_session:👤 USER[t3]: さわ かあら です",
+  "2026-09-13T12:49:22.558964Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #1 (prompt 9470 → 5664)",
+  "2026-09-13T12:49:27.321123Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T12:49:27.926009Z\tINFO:domains.learning.realtime.call_session:👤 USER[t5]: I don't know.",
+  "2026-09-13T12:49:34.482458Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=1 항목=[1, 9, 2] retry=False covered=3",
+  "2026-09-13T12:49:35.577809Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.616909Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.657399Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.777520Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.817036Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.860461Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.897119Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:35.937566Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.017334Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.057532Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.097679Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.137282Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.178412Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.219448Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.258448Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.297054Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.330475Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.379908Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.417192Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.897231Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.937479Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:36.976980Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.137128Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.180752Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.217129Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.297957Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.332093Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.377759Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.416973Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.457448Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.496699Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.537006Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.577162Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.617458Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.664380Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.696672Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.737909Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.778318Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.819805Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.861896Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:37.897373Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 9, 2] 이유=항목 2 미정리(학습자 턴 0/3)",
+  "2026-09-13T12:49:39.653788Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 駅 の 隣 、 喫茶 店 の 前",
+  "2026-09-13T12:49:40.332707Z\tINFO:domains.learning.realtime.call_session:👤 USER[t7]: 駅 の 隣 、 喫茶 店 の 前",
+  "2026-09-13T12:49:53.511226Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 9, 2] 얹기=마이크 대기=19s 비버턴=(열린 턴 없음) 정리=학습자 확인",
+  "2026-09-13T12:49:56.377186Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: さあ 、 合う 互い です 。",
+  "2026-09-13T12:49:58.986219Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T12:49:59.378495Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #2 (prompt 14008 → 7070)",
+  "2026-09-13T12:50:01.099378Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:03.310940Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:05.453197Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:07.508874Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:09.703866Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:11.848825Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:14.049665Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:14.451651Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #3 (prompt 15010 → 7560)",
+  "2026-09-13T12:50:16.173075Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:18.257645Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:20.400265Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:22.572807Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:24.823736Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:25.249582Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #4 (prompt 15690 → 7901)",
+  "2026-09-13T12:50:26.970366Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:29.128089Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:31.296282Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:31.847047Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #5 (prompt 16106 → 8108)",
+  "2026-09-13T12:50:33.489633Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:35.617316Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:37.793505Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:39.960813Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:40.395371Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #6 (prompt 16658 → 8384)",
+  "2026-09-13T12:50:42.122857Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:44.261484Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:46.398171Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:48.570505Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:50.726329Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:52.899448Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:55.055657Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:55.473744Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #7 (prompt 15010 → 7560)",
+  "2026-09-13T12:50:57.235577Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:50:59.362021Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:01.564067Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:03.689993Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:05.847644Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:07.992230Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:10.140476Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:10.557114Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #8 (prompt 15988 → 8049)",
+  "2026-09-13T12:51:12.303097Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:14.444734Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:16.633516Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:17.039629Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #9 (prompt 16406 → 8259)",
+  "2026-09-13T12:51:18.778860Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:20.899990Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:23.047407Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:23.766012Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #10 (prompt 16824 → 8467)",
+  "2026-09-13T12:51:25.162138Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:27.279358Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:27.680840Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #11 (prompt 8535 → 7092)",
+  "2026-09-13T12:51:29.560374Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:31.699037Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:33.847460Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:35.999431Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:38.199931Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:39.775089Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=post-compress, 2/8회, 드릴 3 · 통과 0 · 오답 0, 압축감지=11, peak=7427, 바닥=4479, 대화=2948)",
+  "2026-09-13T12:51:40.370744Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:40.593550Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=post-compress, 2회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-13T12:51:42.467209Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: Okay.",
+  "2026-09-13T12:51:42.473432Z\tINFO:domains.learning.realtime.call_session:👤 USER[t9]: さあ 、 合う 互い です 。I don't know.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.Okay.",
+  "2026-09-13T12:51:42.482276Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=1 open_seg=10 항목=[1, 9, 2]",
+  "2026-09-13T12:51:49.881166Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #12 (prompt 7494 → 7071)",
+  "2026-09-13T12:51:55.601210Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: さあ 、 合う た がい です 。",
+  "2026-09-13T12:51:56.335737Z\tINFO:domains.learning.realtime.call_session:👤 USER[t11]: さあ 、 合う た がい です 。",
+  "2026-09-13T12:52:09.169504Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 私 は カーラ です 。",
+  "2026-09-13T12:52:09.171078Z\tINFO:domains.learning.realtime.call_session:👤 USER[t13]: 私 は カーラ です 。",
+  "2026-09-13T12:52:18.872767Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #13 (prompt 14822 → 7780)",
+  "2026-09-13T12:52:24.211819Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 私 は カーラ です 。",
+  "2026-09-13T12:52:24.842201Z\tINFO:domains.learning.realtime.call_session:👤 USER[t15]: 私 は カーラ です 。",
+  "2026-09-13T12:52:39.486559Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 私 は カーラ です 。",
+  "2026-09-13T12:52:40.255169Z\tINFO:domains.learning.realtime.call_session:👤 USER[t17]: 私 は カーラ です 。",
+  "2026-09-13T12:52:55.393844Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 駅 の 隣 、 喫茶 店 の 前",
+  "2026-09-13T12:52:56.042927Z\tINFO:domains.learning.realtime.call_session:👤 USER[t19]: 駅 の 隣 、 喫茶 店 の 前",
+  "2026-09-13T12:53:05.834926Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #14 (prompt 17198 → 15672)",
+  "2026-09-13T12:53:11.449278Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: さあ 、 合う 互い です 。",
+  "2026-09-13T12:53:12.471102Z\tINFO:domains.learning.realtime.call_session:👤 USER[t21]: さあ 、 合う 互い です 。",
+  "2026-09-13T12:53:25.487752Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=1 닫힘=다음 항목 소개 창=10~22(13세그) set=[1, 9, 2] passed=[] failed=[1, 9, 2] 미판정=[]",
+  "2026-09-13T12:53:29.490759Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 私 は カーラ です 。",
+  "2026-09-13T12:53:30.192792Z\tINFO:domains.learning.realtime.call_session:👤 USER[t23]: 私 は カーラ です 。",
+  "2026-09-13T12:53:44.579847Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 私 は カーラ です 。",
+  "2026-09-13T12:53:45.484828Z\tINFO:domains.learning.realtime.call_session:👤 USER[t25]: 私 は カーラ です 。",
+  "2026-09-13T12:53:47.410373Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 마지막 판정: 0ms (상한 2000ms)",
+  "2026-09-13T12:53:47.732911Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습 저장: {'lesson_completed': False, 'status': 'learning', 'drilled': 4, 'passed': 0, 'failed': 3, 'fragment': 1}",
+  "2026-09-13T12:53:49.443630Z\tINFO:domains.learning.service.normalcall_service:normalcall 이어하기 요약: 화제='일본어 문장 말하기' 사실 0개 하던것='나는 차를 선호합니다' call_id=1586"
+ ]
+}
