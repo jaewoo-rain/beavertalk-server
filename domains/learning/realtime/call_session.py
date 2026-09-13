@@ -487,6 +487,20 @@ _FACE_JSON_TAIL_RE = re.compile(
     r"""\{?\s*(?:"?emotion"?\s*)?:?\s*["'](?:neutral|happy|surprised|sad|angry|laugh)["']\s*\}+"""
 )
 
+# ⭐ **세 번째 무늬 — 함수 «응답» 의 꼬리가 샌다**(2026-09-13, 통화 1548 · 3.1). 위 둘은 모델이 보낸 «호출·인자»
+#   쪽이었다. 이번 건 서버가 돌려준 function response `{"result": "ok"}`(gemini_live.py) 의 뒷토막 `:ok}` 를
+#   모델이 **다음 턴 첫 조각**으로 뱉는다 — 5분 통화에서 표정 12번 중 7번(t17·t23·t39·t43·t45·t47·t55):
+#
+#       07:09:21  🦫 beaver: :ok}                          ← 조각 하나가 통째로 이것(그 뒤 개행 + 진짜 대사)
+#       07:09:26  BEAVER[t17]: :ok}⏎Fine. Last one. How do you say "I'm sorry" in Korean? …
+#
+#   같은 날 1543·1546 엔 0번 — 빈도가 널뛴다. 앵커는 위와 같은 원칙(닫는 중괄호 필수): «ok» 바로 뒤에 `}` 가
+#   오는 문장은 자연 발화에 없다. 값은 응답 상수 그대로 «ok» 하나만 문다(임의 낱말 금지 — 대사를 먹지 않는다).
+#   꼬리 뒤의 개행·공백까지 지운다 — 첫 조각이라 남기면 자막이 빈 줄로 시작한다.
+_TOOL_RESULT_TAIL_RE = re.compile(
+    r"""\{?\s*(?:"?result"?\s*)?:?\s*["']?ok["']?\s*\}+\s*"""
+)
+
 
 def _strip_face_echo(text: str) -> str:
     """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**을 걷어낸다.
@@ -497,6 +511,7 @@ def _strip_face_echo(text: str) -> str:
         text = _FACE_ECHO_RE.sub("", text)
     if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다
         text = _FACE_JSON_TAIL_RE.sub("", text)
+        text = _TOOL_RESULT_TAIL_RE.sub("", text)
     return text
 
 
@@ -3627,18 +3642,9 @@ def _reconnect_brief(state: _CallState) -> str:
     head = (f"{CONTROL_TAG} 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고, 인사도 다시 하지 말고, "
             "하던 것을 그대로 이어가라. ")
     if state.expr_items:
-        body = _build_expression_note(state)
-        if state.expr_quiz_open and state.expr_quiz_set:
-            judged = state.expr_quiz_pass | state.expr_quiz_fail
-            remaining = [
-                state.reground_items[n - 1] for n in state.expr_quiz_set
-                if 1 <= n <= len(state.reground_items)
-                and int((state.expr_items[n - 1].get("item_id") or -1)) not in judged
-            ]
-            if remaining:
-                body += " 지금은 %s가 연 퀴즈 중이다 — 남은 문항: %s." % (
-                    CONTROL_TAG, " · ".join("«%s»" % r for r in remaining))
-        return head + body
+        # ⭐ 퀴즈 창이 열려 있으면 쪽지 자체가 «아직 안 낸 문항: …» 착지문을 쓴다(2026-09-13, `_expr_quiz_remaining`) —
+        #   예전엔 여기서 따로 한 줄을 덧붙였는데, 같은 계산을 한 곳으로 모았다.
+        return head + _build_expression_note(state)
     last_beaver = next((s.get("text") for s in reversed(state.segments) if s.get("role") == "beaver" and s.get("text")), "")
     return head + ("직전 화제: 네가 마지막으로 한 말은 «%s» 였다." % last_beaver if last_beaver else "")
 
@@ -5322,7 +5328,25 @@ def _build_expression_note(state: _CallState) -> str:
         role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
         # ⭐ T14 ③ 쪽지 착지문이 «{모국어}로 묻고 기다려라» 를 말한다 — 라벨을 넘긴다.
         locale_label=(state.expr_ctx or {}).get("locale_label") or "학습자의 모국어",
+        # ⭐ 2026-09-13(1546): 퀴즈 창이 열려 있으면 착지문이 «남은 문항을 마저 내라» 로 바뀐다 — 퀴즈 중 꽂힌
+        #   쪽지의 «지금 다루는 표현 요청 하나» 가 비버를 방금 항목으로 되돌려 루프(t35~t43)를 만들었다.
+        quiz_remaining=_expr_quiz_remaining(state),
     )
+
+
+def _expr_quiz_remaining(state: _CallState) -> list[str]:
+    """열린(또는 큐가 얹혀 곧 열릴) 퀴즈의 **아직 판정 안 된** 문항 라벨. 퀴즈 중이 아니면 빈 목록.
+
+    이어하기 브리프(`_resume_brief`)가 같은 계산을 하던 것을 끌어냈다 — 재접지 쪽지와 한 곳을 본다.
+    """
+    if not (state.expr_quiz_open or state.expr_quiz_awaiting_open) or not state.expr_quiz_set:
+        return []
+    judged = state.expr_quiz_pass | state.expr_quiz_fail
+    return [
+        state.reground_items[n - 1] for n in state.expr_quiz_set
+        if 1 <= n <= len(state.reground_items)
+        and int((state.expr_items[n - 1].get("item_id") or -1)) not in judged
+    ]
 
 
 def _arm_reground(state: _CallState, reason: str) -> None:
@@ -5386,11 +5410,24 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     )
 
 
+# ⛔ 재접지 쪽지의 «아직 안 쓴 소재» 에서 **작별 표현은 뺀다**(2026-09-13, 실통화 1549 · 차시 1 «처음 만난 사람과 인사하기»).
+#   차시 1 소재 15개 중 3분 넘어 안 쓴 것이 전부 작별말이었고(미사용 14→13), 07:26:09 쪽지 직후 비버가 그 목록을 «소화» 하느라
+#   t25~t33 **5턴 연속** 작별했다 — «또 보자! 안녕히 가세요!» → «안녕히 계세요!» → «또 봐요!» → «좋은 하루 보내고… 안녕!» →
+#   «그럼 진짜 간다. 또 봐!» (매번 «하나만 더 물어보자» 로 이어 붙임). 통화는 서버가 끝내니 끊기진 않았지만 학습자는 작별을 5번 듣는다.
+#   쪽지에 «작별하지 마라» 를 적는 길은 안 쓴다 — 그 낱말 자체가 작별을 부른 전례(call 706·782·870, README §4 지뢰밭).
+#   ⇒ 소재 선별에서 빼는 것이 가장 값싸고 안전하다(시스템 지시문의 [이번 차시] 목록은 그대로 — 거기선 «자연스럽게 꺼내라» 라 무해했다).
+#   표면형·예문 어느 쪽이든 걸리면 뺀다. 작별이 아닌 «안녕하세요» 는 통과(«안녕히» 만 문다).
+_FAREWELL_RE = re.compile(
+    r"안녕히\s*(?:가|계|주무)|(?:또|다음에|내일|나중에)\s*(?:봐|만나|보자|뵙)|잘\s*(?:가|있|자)|좋은\s*(?:하루|밤|주말|저녁)|조심히\s*가|"
+    r"(?:^|\s)안녕[.!~]?(?:\s|$)|bye|see you|good\s*night"
+)
+
+
 def _freetalk_unused_material(state: _CallState) -> list[str]:
     """차시 프리토킹 재접지 재료 — 이번 통화 **비버 발화**에 아직 안 나온 소재(문형은 예문으로 적는다 — «이름을 말하지 말고 문장으로»).
 
     ⚠ 판정이 아니다(계획 §2 «카운트·판정 없음») — 쪽지에 몇 개 적을지 고르는 것뿐. 대조는 `quiz_judge.item_mentioned`(표면형 OR 예문).
-    순서 = 차시 항목 순서. 호출부가 [:5] 로 자른다.
+    순서 = 차시 항목 순서. 호출부가 [:5] 로 자른다. 작별 표현은 뺀다(`_FAREWELL_RE`, 1549).
     """
     brief = state.freetalk_brief
     items = list(getattr(brief, "items", None) or [])
@@ -5407,6 +5444,8 @@ def _freetalk_unused_material(state: _CallState) -> list[str]:
             continue
         if said and quiz_judge.item_mentioned(said, obj, ex):
             continue
+        if _FAREWELL_RE.search(obj.lower()) or (ex and _FAREWELL_RE.search(ex.lower())):
+            continue    # 1549 — 작별말을 «아직 안 쓴 소재» 로 주면 비버가 턴마다 작별한다
         out.append(ex if (d.get("role") == "grammar" and ex) else obj)
     return out
 

@@ -613,6 +613,31 @@ def test_the_legacy_idle_path_uses_the_expression_note() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# ⛔ 2026-09-13(실통화 1546) — 퀴즈 중에 꽂힌 쪽지는 «남은 문항을 마저 내라» 로 착지한다
+# --------------------------------------------------------------------------- #
+def test_the_note_lands_on_remaining_quiz_items_while_a_quiz_is_open() -> None:
+    """1546 t35~t43: 2번째 퀴즈(3문항) 중 1문항 낸 자리에 재접지 쪽지가 꽂혔고, 쪽지의 «지금 다루는 표현을
+    말하게 하는 요청 하나» + «다음에 다룰 표현: X» 가 비버를 방금 항목으로 되돌려 같은 두 질문을 3바퀴 돌았다
+    (남은 2문항은 아예 안 물어 미판정). 퀴즈 창이 열려 있으면 그 두 줄 대신 «아직 안 낸 문항» 착지문을 쓴다.
+    """
+    st = _state([(1, BYE), (2, PRICE), (3, "도와주세요")])
+    st.reground_persona = ("선생님", "다정함")
+    st.covered_nums = [1, 2, 3]
+    st.expr_quiz_open, st.expr_quiz_set = True, [1, 2, 3]
+    st.expr_quiz_pass.add(1)                 # 1번은 이미 맞힘 → 남은 문항은 2·3
+    note = cs._build_expression_note(st)
+    assert "지금은 퀴즈 중이다 — 아직 안 낸 문항: «%s» · «도와주세요»" % PRICE in note
+    assert "다음에 다룰 표현" not in note and "요청 하나로 이어가라" not in note
+    # 큐만 얹혀 아직 안 열린 창(awaiting_open)도 같다 — 첫 문제 전에 쪽지가 오면 같은 루프가 난다.
+    st.expr_quiz_open, st.expr_quiz_awaiting_open = False, True
+    assert "아직 안 낸 문항" in cs._build_expression_note(st)
+    # 퀴즈가 아니면 옛 착지문 그대로(바이트 동일 경로).
+    st.expr_quiz_awaiting_open = False
+    plain = cs._build_expression_note(st)
+    assert "아직 안 낸 문항" not in plain and "요청 하나로 이어가라" in plain
+
+
+# --------------------------------------------------------------------------- #
 # ⛔ P2 — 승급이 자기복구를 한다(후보 0개여도 판정은 돈다)
 # --------------------------------------------------------------------------- #
 def test_promotion_still_runs_when_nothing_is_left_to_write(env) -> None:

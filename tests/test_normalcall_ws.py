@@ -1215,6 +1215,21 @@ def test_face_tool_json_fragment_is_stripped_from_the_saved_turn():
     assert cs._strip_face_echo("set_face{emotion:neutral}}아, 친구").strip() == "아, 친구"
 
 
+def test_tool_result_tail_is_stripped_from_the_first_chunk():
+    """⭐ 세 번째 무늬(2026-09-13, 통화 1548 · 3.1) — 서버 function response `{"result": "ok"}` 의 꼬리 `:ok}` 가
+    다음 턴 **첫 조각**으로 샌다(5분에 7번). 인자 꼬리 필터는 감정 어휘만 물어 비껴갔다.
+    """
+    # 1548 t17 실측 그대로(꼬리 + 개행 + 대사).
+    raw = ':ok}' + chr(10) + 'Fine. Last one. How do you say "I' + chr(39) + 'm sorry" in Korean?'
+    assert cs._strip_face_echo(raw) == 'Fine. Last one. How do you say "I' + chr(39) + 'm sorry" in Korean?'
+    assert cs._strip_face_echo(':ok}') == ""
+    assert cs._strip_face_echo('{"result":"ok"}Yeah, whatever.') == "Yeah, whatever."
+    assert cs._strip_face_echo('"ok"}} Ugh.') == "Ugh."
+    # ⛔ 대사 속 ok 는 먹지 않는다 — 앵커는 «ok» 뒤의 닫는 중괄호다.
+    for line in ("Okay, you got it.", "ok ok, fine.", "Is it ok? 괜찮아요?", "{ok"):
+        assert cs._strip_face_echo(line) == line, f"대사를 먹었다: {line!r}"
+
+
 def test_face_filter_never_eats_real_dialogue():
     """⛔⛔ **대사를 먹지 않는 것이 최우선**이다 — 오염보다 나쁘다.
 

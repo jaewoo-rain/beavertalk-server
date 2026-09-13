@@ -226,7 +226,29 @@ def test_unused_material_skips_what_the_beaver_already_said_and_writes_grammar_a
     unused = cs._freetalk_unused_material(st)
     # 회사원입니다(문형 3 예문)·사람·나라 는 비버가 말했다. 학습자 발화(생일이 언제예요?)는 세지 않는다 → 문형 2 예문은 남는다.
     #   (⚠ 「N은/는 N이에요/예요」 는 템플릿 대조라 비버가 «…는 …예요» 꼴을 말했으면 쓴 것으로 친다 — 위 비버 발화엔 «예요» 가 없다)
-    assert unused == ["안녕히 계세요.", "생일이 언제예요?"]
+    # ⭐ 2026-09-13(1549): «안녕히 계세요.» 는 작별말이라 쪽지 소재에서 뺀다 — 안 쓴 작별말 목록이 5턴 연속 작별을 만들었다.
+    assert unused == ["생일이 언제예요?"]
+
+
+def test_unused_material_drops_farewells_but_keeps_greetings() -> None:
+    """1549: 차시 1 «처음 만난 사람과 인사하기» 의 미사용 소재가 전부 작별말이었고, 재접지 쪽지 직후 비버가 t25~t33 매 턴
+    «안녕히 가세요/계세요 · 또 봐요 · 좋은 하루 보내세요 · 안녕» 을 하나씩 «소화» 했다. 작별말은 빼고 인사말(안녕하세요)은 남긴다.
+    """
+    st = _ft_state()
+    st.freetalk_brief = type(_BRIEF)(
+        **{**_BRIEF.__dict__, "items": [
+            {"obj": "안녕하세요", "role": "chunk", "ex": None},
+            {"obj": "안녕히 가세요", "role": "chunk", "ex": None},
+            {"obj": "안녕히 계세요", "role": "chunk", "ex": None},
+            {"obj": "또 봐요", "role": "chunk", "ex": None},
+            {"obj": "좋은 하루 보내세요", "role": "chunk", "ex": None},
+            {"obj": "감사합니다", "role": "chunk", "ex": None},
+            {"obj": "V-(으)세요", "role": "grammar", "ex": "안녕히 주무세요."},
+            {"obj": "만나서 반갑습니다", "role": "chunk", "ex": None},
+        ]}
+    )
+    st.segments = []
+    assert cs._freetalk_unused_material(st) == ["안녕하세요", "감사합니다", "만나서 반갑습니다"]
 
 
 def test_arm_reground_on_lesson_freetalk_uses_the_course_brief_not_the_chat_brief() -> None:
@@ -236,7 +258,7 @@ def test_arm_reground_on_lesson_freetalk_uses_the_course_brief_not_the_chat_brie
     assert st.reground_pending is True and st.reground_arm_reason == "time"
     r = st.reground_reminder
     assert r.startswith(common.CONTROL_TAG) and "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 역할극" in r
-    assert "아직 안 쓴 소재: 안녕히 계세요. · 생일이 언제예요? · 사람 · 나라." in r
+    assert "아직 안 쓴 소재: 생일이 언제예요? · 사람 · 나라." in r     # 안녕히 계세요 는 작별말이라 빠진다(1549)
     assert "흥미" not in r and "새 질문" not in r, "일반 잡담 브리프가 아니다"
     # 사이드카는 없다(reground_ctx None → 무동작)
     assert st.reground_ctx is None

@@ -150,7 +150,8 @@ async def test_a_gemini_1006_opens_a_second_generation_with_a_resume_brief() -> 
     assert brief.startswith(CONTROL_TAG + " 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고")
     assert "[선톡]" not in brief, "재연결 세대에 선톡을 다시 보내면 비버가 또 인사한다"
     assert "이거 얼마예요?" in brief and "잘 부탁드립니다" in brief, "재접지 쪽지 재료(다룬 것·맞힌 것·틀린 것)"
-    assert "퀴즈 중이다 — 남은 문항: «도와주세요»" in brief, "열린 퀴즈의 미판정 문항"
+    assert "지금은 퀴즈 중이다 — 아직 안 낸 문항: «도와주세요»" in brief, "열린 퀴즈의 미판정 문항"
+    assert "다음에 다룰 표현" not in brief, "퀴즈 중엔 전진 지시 대신 퀴즈 착지문(1546)"
     # 상태 유지 — 세그먼트·covered·퀴즈·시계
     assert st.covered_nums == [1, 2] and st.expr_quiz_pass == {11} and st.expr_quiz_fail == {12}
     assert st.expr_quiz_open is True and st.expr_quiz_set == [1, 2, 3]
