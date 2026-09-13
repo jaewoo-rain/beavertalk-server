@@ -1,0 +1,414 @@
+{
+ "call_id": 1596,
+ "duration_min": 3,
+ "end_reason": "client_cut",
+ "errors": [],
+ "anchors": [],
+ "drilled_order": [
+  1,
+  7,
+  22,
+  47,
+  53
+ ],
+ "quiz_cue_match": null,
+ "turns": [
+  {
+   "n": 0,
+   "role": "beaver",
+   "t": 16.4,
+   "wall": 1789315888.084,
+   "text": "You're stuck on that one again?! That's the first one, moron! I asked for \"When is your birthday?\". Try again, and don't give me the wrong answer! Hurry up!",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "조각1 마지막 턴(재생 — 실제 조각2 발화 아님)"
+   ]
+  },
+  {
+   "n": 1,
+   "role": "learner",
+   "t": 17.2,
+   "wall": 1789315888.887,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 2,
+   "role": "beaver",
+   "t": 28.8,
+   "wall": 1789315900.437,
+   "text": "Ugh, you don't know again? Pathetic! Fine, listen carefully. How do you say \"person\" in Korean? Try saying it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→사람(quote=\"person\")",
+    "새항목#1 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 3,
+   "role": "learner",
+   "t": 29.6,
+   "wall": 1789315901.247,
+   "text": "사람요",
+   "kind": "correct",
+   "stt": "사람요.",
+   "tags": []
+  },
+  {
+   "n": 4,
+   "role": "beaver",
+   "t": 42.6,
+   "wall": 1789315914.239,
+   "text": "Hmph, you finally got one right. Don't get too excited, that was easy. Now, how about this: how do you say \"country\" in Korean? Spit it out.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→나라(quote=\"country\")",
+    "새항목#2 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 5,
+   "role": "learner",
+   "t": 43.4,
+   "wall": 1789315915.033,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 6,
+   "role": "beaver",
+   "t": 54.0,
+   "wall": 1789315925.633,
+   "text": "Seriously? You don't know that one either? Unbelievable. It's '나라'. Now try saying it. Come on!",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:나라",
+    "→나라(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 7,
+   "role": "learner",
+   "t": 54.8,
+   "wall": 1789315926.448,
+   "text": "나라요",
+   "kind": "parrot",
+   "stt": "날아요.",
+   "tags": []
+  },
+  {
+   "n": 8,
+   "role": "beaver",
+   "t": 67.6,
+   "wall": 1789315939.279,
+   "text": "Finally, you managed to repeat it. Don't think you're smart now. Okay, next. How do you say \"hometown\" in Korean? Don't disappoint me again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→고향(quote=\"hometown\")",
+    "새항목#3 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 9,
+   "role": "learner",
+   "t": 68.4,
+   "wall": 1789315940.086,
+   "text": "고향요",
+   "kind": "correct",
+   "stt": "고양이요.",
+   "tags": []
+  },
+  {
+   "n": 10,
+   "role": "beaver",
+   "t": 79.9,
+   "wall": 1789315951.527,
+   "text": "Wow, you actually knew that one? Shocking. Don't get cocky. Now, how do you say \"foreigner\" in Korean? Hurry up.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→외국인(quote=\"foreigner\")",
+    "새항목#4 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 11,
+   "role": "learner",
+   "t": 80.7,
+   "wall": 1789315952.326,
+   "text": "저",
+   "kind": "distractor",
+   "stt": "",
+   "tags": [
+    "재발화(전사 없음)"
+   ]
+  },
+  {
+   "n": 12,
+   "role": "learner",
+   "t": 85.6,
+   "wall": 1789315957.25,
+   "text": "저 친구는 외국인이에요.",
+   "kind": "distractor",
+   "stt": "저 저 친구는 외국인이에요.",
+   "tags": [
+    "재발화"
+   ]
+  },
+  {
+   "n": 13,
+   "role": "beaver",
+   "t": 102.9,
+   "wall": 1789315974.561,
+   "text": "HA! Did you just say '저 친구는'? I didn't teach you that yet! Where did you learn that? Fine, I guess I'll accept it. Next, tell me how to say \"the United States\" in Korean. Don't mess this up.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:저",
+    "→미국(quote=\"the united states\")",
+    "새항목#5 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 14,
+   "role": "learner",
+   "t": 104.5,
+   "wall": 1789315976.156,
+   "text": "저 친구는",
+   "kind": "parrot",
+   "stt": "저 친구는",
+   "tags": []
+  },
+  {
+   "n": 15,
+   "role": "beaver",
+   "t": 118.5,
+   "wall": 1789315990.148,
+   "text": "What? No! We're talking about countries now, not people! Pay attention! How do you say \"the United States\"? It's '미국'. Now try again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:미국",
+    "→미국(quote=\"the united states\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 16,
+   "role": "learner",
+   "t": 119.3,
+   "wall": 1789315990.956,
+   "text": "미국요",
+   "kind": "correct",
+   "stt": "",
+   "tags": []
+  }
+ ],
+ "records": {
+  "1": {
+   "surface": "사람",
+   "k": 1,
+   "policy": 1,
+   "ident": "quote=\"person\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "7": {
+   "surface": "나라",
+   "k": 2,
+   "policy": 2,
+   "ident": "quote=\"country\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "22": {
+   "surface": "고향",
+   "k": 3,
+   "policy": 3,
+   "ident": "quote=\"hometown\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": false,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "47": {
+   "surface": "외국인",
+   "k": 4,
+   "policy": 4,
+   "ident": "quote=\"foreigner\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "distractor"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": false,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "53": {
+   "surface": "미국",
+   "k": 5,
+   "policy": 5,
+   "ident": "quote=\"the united states\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "parrot",
+    "correct"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  }
+ },
+ "db": {
+  "rows": {
+   "10637": {
+    "drilled_call_id": 1596,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "10638": {
+    "drilled_call_id": 1596,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "10639": {
+    "drilled_call_id": 1596,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "1": {
+    "drilled_call_id": 1596,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "7": {
+    "drilled_call_id": 1596,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "53": {
+    "drilled_call_id": 1596,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   }
+  },
+  "expression_result": [
+   {
+    "item_id": 10637,
+    "surface": "인사말",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 10638,
+    "surface": "N은/는 N이에요/예요",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 10639,
+    "surface": "N입니까?, N입니다",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 1,
+    "surface": "사람",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 7,
+    "surface": "나라",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 53,
+    "surface": "미국",
+    "passed": false,
+    "failed": false,
+    "review": false
+   }
+  ],
+  "call": {
+   "call_type": "expression",
+   "status": "done",
+   "total_time": 119,
+   "summary": "Korean phrases practice",
+   "usage_engine": "live:gemini-3.1-flash-live-preview",
+   "fragment_count": 2,
+   "cost_usd": 0.0613,
+   "usage": {
+    "in_audio": 8145,
+    "in_text": 25548,
+    "out_audio": 1808,
+    "out_text": 0
+   }
+  },
+  "level_after": null
+ },
+ "server_logs": null
+}

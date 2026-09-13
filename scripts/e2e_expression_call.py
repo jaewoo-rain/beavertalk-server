@@ -709,6 +709,7 @@ class Session:
         self.drilled_order: list[int] = []
         self.anchors: list[tuple[int, int]] = []          # (turn_n, drilled_count_at_anchor)
         self.quiz_block_asked: set[int] = set()            # 이 퀴즈 블록에서 이미 낸 항목
+        self.template_sentence: dict[int, str] = {}        # [문형] 항목 → 비버가 공개한 «자기 연습 문장»(1592: 예문 대신 이걸 말해야 받아 준다)
         self.beaver_audio_bytes = 0
         self.cur_turn_id: Optional[str] = None
         self.cur_text: list[str] = []
@@ -741,6 +742,29 @@ class Session:
         self.character_id: Optional[int] = None
         self.hints: list[dict] = []               # (e) hint 프레임 — 예시 수·reading(가나) 있는 예시 수
         self.empty_streak = 0                     # 연속 빈 비버 턴 수(3.1 빈 턴 루프 방어)
+        # ⭐ H8 끊김 없는 조각 전환(--seamless, 계획 docs/plans/2026-09-13-끊김없는-조각-전환.md §2)
+        self.seamless = False                     # 조각1: --segment-min 뒤 «학습자 발화 → 비버 turn_end» 에서 fragment_end
+        self.switch_at: float = -1.0              # 전환 대기 시작 시각(now 기준). <0 = 아직
+        self.switching = False                    # fragment_end 를 보냈다(그 뒤엔 말하지 않는다)
+        self.fragment_end_sent_at: Optional[float] = None
+        self.fragment_saved_at: Optional[float] = None
+        self.fragment_saved: Optional[dict] = None
+        self.call_ended_before_saved = False      # fragment_end 뒤 fragment_saved 전에 call_ended 가 왔다(있으면 안 된다)
+        self.ws_closed_at: Optional[float] = None
+        self.ws_close_code: Optional[int] = None
+        self.silent_resume = False                # 조각2: start.silent_resume=true — 비버는 학습자 첫 발화를 기다려야 한다
+        self.silent_never = False                 # (g) 변형: 학습자가 끝내 말하지 않는다 → 무음 3단(넛지→확인→종료) 관찰
+        self.hold_reply = False                   # 비버 턴이 와도 말하지 않는다(전환 뒤·무음 관찰 중)
+        self.started_at: Optional[float] = None   # call_started 시각
+        self.first_speech_at: Optional[float] = None    # 조각2 에서 학습자가 처음 말한 시각
+        self.watch_done = False                   # 관찰 창이 끝났다((g) 는 학습자가 안 말하므로 이걸로 (c) 계수를 멈춘다)
+        self.pre_speech: dict = {"audio_bytes": 0, "transcripts": [], "turn_starts": 0}   # (c) 첫 발화 전 비버 출력
+        self.beaver_turn_times: list[tuple[float, str]] = []   # (g) call_started 기준 비버 turn_end 시각·텍스트
+        self.send_ctrl = None                     # run_call 이 준다: async (dict) → ws.send(json)
+        self.reconnect_on_saved = False           # fragment_saved 즉시 재연결(앱 동작) / False = 서버 close 까지 기다려 close 지연을 잰다
+        self.resume_prompt: str = ""              # 조각1 마지막 비버 턴(조각2 첫 발화 = 그 턴에 대한 답)
+        self.fragment_index: Optional[int] = None
+        self.max_fragments: Optional[int] = None
 
     # ---- 유틸 -------------------------------------------------------------- #
     def now(self) -> float:
@@ -777,16 +801,41 @@ class Session:
                 self.log(f"이어하기: continues_call_id={self.continues_call_id} → {'같은 call 로 이어짐 ✔' if self.resumed else '⛔ 새 통화로 폴백(거절)'}")
             if self.course == "auto" and self.course_from_server in ("expression", "freetalk"):
                 self.course = self.course_from_server
-            self.log(f"call_started call_id={self.call_id} character={msg.get('character_id')} course={self.course_from_server or '(없음)'} → 검증 코스 {self.course}")
+            self.fragment_index = msg.get("fragment_index")
+            self.max_fragments = msg.get("max_fragments")
+            self.started_at = self.now()
+            self.log(f"call_started call_id={self.call_id} character={msg.get('character_id')} course={self.course_from_server or '(없음)'} → 검증 코스 {self.course}"
+                     + (f" · fragment_index={self.fragment_index} max_fragments={self.max_fragments}" if self.fragment_index is not None else ""))
+            if self.silent_resume:
+                # 조각2(silent): 앱처럼 마이크를 열어 두고(무음 프레임) 비버가 먼저 말하는지 본다 — 학습자는 관찰 창이 끝난 뒤에만 말한다
+                self.hold_reply = True
+                self.silence_until = 1e9
+                uplink.open = True
+        elif t == "fragment_saved":
+            # ⭐ H8 S6: 이 조각의 저장이 끝났다 — 서버는 이 프레임 뒤 소켓을 닫는다(call_ended 는 오지 않아야 한다)
+            self.fragment_saved_at = self.now()
+            self.fragment_saved = dict(msg)
+            self.end_reason = "fragment_saved"
+            dt = (self.fragment_saved_at - self.fragment_end_sent_at) * 1000 if self.fragment_end_sent_at is not None else float("nan")
+            self.log(f"fragment_saved call_id={msg.get('call_id')} fragment_index={msg.get('fragment_index')} · fragment_end 뒤 {dt:.0f}ms")
+            if self.reconnect_on_saved:
+                # 앱과 같게: fragment_saved 를 받으면 **서버의 close 를 기다리지 않고** 바로 재연결한다(이 소켓은 우리가 닫는다).
+                #   서버 close 지연 실측은 reconnect_on_saved=False 로(1596·1597·1598: 2ms~10s).
+                self.ended = True
+                self.log("→ 즉시 재연결(서버 close 를 기다리지 않음)")
         elif t == "turn_start":
             uplink.open = False
             uplink.cut()
+            if self.silent_resume and self.first_speech_at is None and not self.watch_done:
+                self.pre_speech["turn_starts"] += 1
             if self.pending_speak and not self.pending_speak.done():
                 self.pending_speak.cancel()
             self.cur_turn_id = msg.get("turn_id")
             self.cur_text = []
         elif t == "output_transcript":
             self.cur_text.append(msg.get("text") or "")
+            if self.silent_resume and self.first_speech_at is None and not self.watch_done and (msg.get("text") or "").strip():
+                self.pre_speech["transcripts"].append(msg.get("text") or "")
         elif t == "input_transcript":
             stt = (msg.get("text") or "").strip()
             if stt:
@@ -816,10 +865,30 @@ class Session:
                 self.empty_streak = 0
             self.last_beaver_end = self.now()
             self.last_beaver_text = text
+            if self.started_at is not None:
+                self.beaver_turn_times.append((round(self.now() - self.started_at, 1), text))
+            if self.seamless and self.switch_at >= 0 and not self.switching and self.last_learner is not None \
+                    and self.last_learner.t >= self.switch_at and self.send_ctrl is not None:
+                # ⭐ H8 §2: 전환 대기 중 «학습자 발화 → 비버 응답 turn_end» — 이 턴은 기록만 하고(답하지 않는다) fragment_end 를 보낸다.
+                #   소켓은 열어 둔다: 서버가 저장(마지막 판정 → record_expression → usage → 전사) 뒤 fragment_saved 를 보내고 닫는다.
+                self.hold_reply = True
+                self.switching = True
+                self.silence_until = 1e9
+                await self.on_beaver_turn(text, uplink)
+                if self.turns and self.turns[-1].role == "beaver":
+                    self.turns[-1].tags.append("조각 경계(이 턴 뒤 fragment_end)")
+                self.fragment_end_sent_at = self.now()
+                uplink.open = False        # 마이크 프레임 중단 — 서버 읽기 펌프가 fragment_end 뒤 멈추므로 계속 보내면 close 핸드셰이크가 막힌다(1596·1598·1599: 10s)
+                await self.send_ctrl({"type": "fragment_end"})
+                self.log(f"→ fragment_end 전송({self.now():.1f}s · 전환 대기 {self.now() - self.switch_at:.1f}s 뒤) · fragment_saved 대기(상한 5s)")
+                return
             await self.on_beaver_turn(text, uplink)
         elif t == "call_ended":
             self.ended = True
             self.end_reason = msg.get("reason", "")
+            if self.switching and self.fragment_saved_at is None:
+                self.call_ended_before_saved = True
+                self.log("⛔ fragment_end 뒤 fragment_saved 전에 call_ended 가 왔다")
             if not self.call_id and msg.get("call_id"):
                 self.call_id = int(msg["call_id"])
             self.log(f"call_ended reason={self.end_reason}")
@@ -903,7 +972,18 @@ class Session:
         # (비버가 우리 오답 「이름요」 를 따옴표로 되풀이하므로 «현 항목이 언급됐다» 를 제외 조건으로 쓰지 않는다)
         exclude = {self.current.item.item_id} if (self.last_beaver_corrected and self.current is not None and self.mode == "drill"
                                                    and "(정정)" not in self.current.ident) else set()
+        if exclude and self.current.item.kind == "grammar" and self.matches_template(text, self.current.item):
+            # 문형 답(예문 「생일이 언제예요?」)을 비버가 «자기 연습 문장»(「이 옷은 얼마예요?」)으로 고쳤다 — 같은 문형이다(1592).
+            # 오식별이 아니라 비버가 정한 문장을 요구하는 것 → 현 항목 유지(제외하지 않는다)
+            exclude = set()
         item_id, how = await self.identify(text, seg, revealed_ids, is_question, new_item_cue, exclude=exclude)
+        if item_id and how == "template":
+            # 템플릿으로 잡혔다 = 비버가 문형 문장을 **말했다**(공개). 표면형 대조엔 안 잡히므로 여기서 공개로 표시하고 그 문장을 기억한다
+            sent = next((q for q in quoted_segments(text) if re.search(_LANG_CHARS.get(LANGUAGE, r"[가-힣]"), q)), "")
+            if sent:
+                self.template_sentence[item_id] = sent
+            if item_id not in revealed_ids:
+                revealed_ids = revealed_ids + [item_id]
         if exclude and item_id and item_id != self.current.item.item_id and item_id not in self.records:
             # 비버가 우리 «정답» 을 고치며 다른 뜻(예문·설명)을 댔고 그게 다른 미드릴 항목이다 → 처음 짚은 항목이 오식별이었다(1441 이름→명)
             old = self.current
@@ -912,6 +992,19 @@ class Session:
                 self.drilled_order.remove(old.item.item_id)
             tags.append(f"오식별 정정: {old.item.surface}→{self.items[item_id].surface}")
             self._start_item(item_id, turn, how + "(정정)", pre_reveal=item_id in mentioned)
+            item_id_started = True
+        elif (how == "template" and item_id and item_id not in self.records and self.current is not None and self.mode == "drill"
+              and self.current.item.kind == "vocab" and len(norm_ko(self.current.item.surface)) <= 2
+              and self.current.item.item_id in mentioned and "correct" not in self.current.drill_answers
+              and not self.current.rounds):
+            # 비버가 문형 연습 문장(「이 옷은 얼마예요?」)을 공개했고, 우리가 직전 턴에 짚은 항목은 그 문장 속 한 음절 어휘(「이」)다 —
+            # 어휘가 아니라 문형을 드릴하는 중이었다(1592: LLM/키워드가 "this" 를 「이」 로 짚음). 앞 항목은 오식별로 대체.
+            old = self.current
+            old.superseded_by = item_id
+            if old.item.item_id in self.drilled_order:
+                self.drilled_order.remove(old.item.item_id)
+            tags.append(f"오식별 정정: {old.item.surface}→{self.items[item_id].surface}")
+            self._start_item(item_id, turn, how + "(정정)", pre_reveal=True)
             item_id_started = True
         else:
             item_id_started = False
@@ -964,6 +1057,10 @@ class Session:
         self.first_turn_end_seen.set()
         if self.probe:
             return
+        if self.hold_reply:
+            tags.append("보류(전환/무음 관찰)")
+            uplink.open = True
+            return
 
         # ④ 말하기 — 대본 정책
         reply_text, lang, kind = self.decide_reply(text, mentioned, asked)
@@ -996,6 +1093,10 @@ class Session:
             self.log("   " + " ".join(tags))
         self.first_turn_end_seen.set()
         if self.probe:
+            return
+        if self.hold_reply:
+            tags.append("보류(전환/무음 관찰)")
+            uplink.open = True
             return
         reply, lang, kind = self.freetalk_reply(text)
         self.pending_speak = asyncio.create_task(self._speak_later(reply, lang, kind, uplink))
@@ -1099,8 +1200,31 @@ class Session:
         if exclude:
             order = [c for c in order if c.item_id not in exclude]
 
-        quotes = [norm_en(q) for q in quoted_segments(text)]
+        raw_quotes = quoted_segments(text)
+        quotes = [norm_en(q) for q in raw_quotes]
         quotes = [q for q in quotes if q and re.search(r"[a-z]", q)]     # 한국어 인용(공개)은 제외
+        # [문형] 항목은 비버가 «연습 문장을 상황에 맞게» 새로 만든다(1592: 「이 옷은 얼마예요?」 ← N은/는 N이에요/예요) — 표면형·예문에
+        # 안 걸리므로 **서버와 같은 템플릿 매처**(quiz_judge.mentions)로 문형을 잡는다. 인용된 대상 언어 문장(없으면 턴 전체)이
+        # 후보 문법 항목의 템플릿에 유일하게 걸리고, 그 문장이 어느 어휘 항목의 예문도 아니면 문형이 이긴다(「이」 같은 한 음절
+        # 어휘는 아무 문장에나 들어 있다 — 그걸로 공개 판정하면 문형 드릴이 어휘로 찍힌다).
+        tpl_id: Optional[int] = None
+        lang_re = _LANG_CHARS.get(LANGUAGE, r"[가-힣]")
+        ko_quotes = [q for q in raw_quotes if re.search(lang_re, q)]
+        if ko_quotes or re.search(lang_re, text):
+            try:
+                from domains.learning.service.quiz_judge import is_template, mentions as _mentions
+                probe = ko_quotes or [text]
+                tpl = [it for it in order if it.kind == "grammar" and is_template(it.surface, LANGUAGE)
+                       and any(_mentions(q, it.surface, LANGUAGE) for q in probe)]
+            except Exception:  # noqa: BLE001
+                tpl = []
+            if len(tpl) == 1:
+                ex_hit = any(norm_ko(self.items[i].example) and norm_ko(self.items[i].example) in norm_ko(q)
+                             for i in mentioned for q in probe)
+                if not ex_hit:
+                    tpl_id = tpl[0].item_id
+        if tpl_id is not None and not quotes:
+            return tpl_id, "template"
         if mentioned and not quotes:
             # 영어 인용은 없고 한국어 표면형만 있다 = 공개·복창 요구 턴("Now say '화장실이 어디예요?'").
             # 그 항목이다 — 본문의 감탄("Yes, really!")을 키워드로 읽으면 엉뚱한 항목이 시작된다(1401).
@@ -1115,9 +1239,13 @@ class Session:
                 if q == phrase:
                     best = (300, f'quote="{q}"')
                     break
-                if len(q) >= 4 and len(phrase) >= 4 and (q in phrase or phrase in q):   # 「저」=«i» 같은 한 글자 뜻이 아무 인용에나 걸리지 않게
+                # 「저」=«i» 같은 한 글자 뜻이 아무 인용에나 걸리지 않게(≥4자) · 한 낱말 뜻("this")이 인용된 **문장** 안에
+                # 들어 있는 건 포함이 아니다(1592: "How much is this clothing?" → 「이」) — 그건 아래 키워드 규칙(질문 턴)의 몫
+                if len(q) >= 4 and len(phrase) >= 4 and (q in phrase or (phrase in q and (len(phrase.split()) >= 2 or len(q.split()) <= 2))):
                     best = max(best or (0, ""), (200 + min(len(q), 40), f'quote~"{q}"'))
                     continue
+                if len(q.split()) >= 3 and len(phrase.split()) < 2:
+                    continue          # 인용된 문장 ↔ 한 낱말 뜻: 키워드("this")로도 안 잡는다 — 그 문장은 문형·청크 연습이다(1592)
                 for kw in it.keywords:
                     k = norm_en(kw)
                     if k and re.search(rf"(?<![a-z']){re.escape(k)}(?![a-z])", q):
@@ -1147,12 +1275,25 @@ class Session:
         # 표면형만 있고 영어 뜻이 없다(공개·복창 요구 턴) → 그 표면형의 항목
         if mentioned and len(mentioned) == 1:
             return mentioned[0], "reveal"
+        if tpl_id is not None:
+            return tpl_id, "template"
         if is_question and self.picker.enabled:
             pick, how = await self.picker.pick(text, order[:24], seg[-600:])
             if pick:
                 return pick, how
             return None, how
         return None, "continuation"
+
+    @staticmethod
+    def matches_template(text: str, item: "Item") -> bool:
+        """턴에 인용된 대상 언어 문장(없으면 턴 전체)이 이 [문형] 항목의 템플릿에 걸리나 — 서버와 같은 매처(quiz_judge)."""
+        lang_re = _LANG_CHARS.get(LANGUAGE, r"[가-힣]")
+        probe = [q for q in quoted_segments(text) if re.search(lang_re, q)] or [text]
+        try:
+            from domains.learning.service.quiz_judge import is_template, mentions as _mentions
+            return bool(is_template(item.surface, LANGUAGE)) and any(_mentions(q, item.surface, LANGUAGE) for q in probe)
+        except Exception:  # noqa: BLE001
+            return False
 
     def _start_item(self, item_id: int, turn: Turn, how: str, *, pre_reveal: bool) -> None:
         k = len(self.drilled_order) + 1
@@ -1175,6 +1316,8 @@ class Session:
             return "Okay.", "en", "ack"
         p = rec.policy
         surface = rec.item.answer        # ⚠ 이름은 surface 지만 «말할 답» 이다 — 문법 항목은 예문(패턴 표기는 말할 수 없다)
+        if rec.item.kind == "grammar" and self.template_sentence.get(rec.item.item_id):
+            surface = self.template_sentence[rec.item.item_id]   # 비버가 정한 연습 문장이 있으면 그걸(예문은 «틀렸다» 고 한다 — 1592)
         pr = self.parrot_request(text)
         if pr is not None:
             # «Say 명» 처럼 표면형을 대고 따라 하라면 정책과 무관하게 복창한다(1441: 「명」 을 3턴 동안 안 따라 해 무음 종료)
@@ -1285,6 +1428,8 @@ class Session:
                 if not turn.stt and self.cur_turn_id is None and not self.ended:
                     item = self.current.item if self.current is not None else None
                     longer = item.long_form if item is not None else f"{reply} {reply}"
+                    if item is not None and item.kind == "grammar" and self.template_sentence.get(item.item_id):
+                        longer = reply          # 비버가 정한 연습 문장을 말한 것 — 예문으로 바꿔 말하면 «틀렸다» 가 된다(1592)
                     if norm_ko(longer) == norm_ko(reply):
                         longer = f"{reply}. {reply}."
                     turn.tags.append("재발화(전사 없음)")
@@ -1381,7 +1526,8 @@ class Session:
         q = m.group(2).strip().rstrip(".!?")
         # (우리 오답을 «"이름요"? What is that?» 처럼 되풀이한 건 앞에 명령형이 없어 위 정규식에 안 걸린다)
         hits = surfaces_in(q, self.items)
-        if hits:
+        # 문장(2어절 이상)을 시켰는데 걸린 건 그 안의 한 음절 어휘(「이 옷은 얼마예요?」 의 「이」)면 항목 답이 아니라 **그 문장** 을 복창(1592)
+        if hits and not (len(q.split()) >= 2 and len(norm_ko(self.items[hits[0]].surface)) <= 2):
             it = self.items[hits[0]]
             return it.answer, LANGUAGE, "parrot"
         tail = "です" if LANGUAGE == "ja" else "요"
@@ -1403,7 +1549,10 @@ def get_token(base: str, email: str, password: str) -> str:
 async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, picker: Picker, *,
                    duration_min: int, probe: bool, verbose: bool, course: str = "expression",
                    lesson: dict | None = None, distractors: list[str] | None = None,
-                   continues_call_id: Optional[int] = None, passed_before: set[int] | None = None) -> Session:
+                   continues_call_id: Optional[int] = None, passed_before: set[int] | None = None,
+                   seamless: bool = False, switch_after_s: float = 120.0, silent_resume: bool = False,
+                   silent_never: bool = False, resume_prompt: str = "", watch_s: float = 15.0,
+                   cut_after_s: Optional[float] = None, reconnect_on_saved: bool = False) -> Session:
     import websockets
 
     ws_url = base.replace("https://", "wss://").replace("http://", "ws://") + WS_PATH + f"?token={token}"
@@ -1411,6 +1560,11 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
     sess.distractor_pool = list(distractors or [])
     sess.continues_call_id = continues_call_id
     sess.passed_before = set(passed_before or ())
+    sess.seamless = seamless
+    sess.silent_resume = silent_resume
+    sess.silent_never = silent_never
+    sess.resume_prompt = resume_prompt
+    sess.reconnect_on_saved = reconnect_on_saved
     # call_type: "expression" | "freetalk" | "auto"(서버가 정해 call_started.course 로 알림 — 계획 §8)
     start = {"type": "start", "character_id": 1, "locale": LOCALE, "duration_min": duration_min,
              "call_type": course, "aec": {"supported": False}, "sample_rate": SR_IN, "num_channels": 1,
@@ -1419,9 +1573,16 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
         # ① 이어하기 — 앱이 다음 조각에서 돌려주는 값(protocol.ClientStart.continues_call_id, str|int). 서버가 본인·TTL·조각 상한을 검증하고
         #   거절이면 **새 통화로 폴백**한다(call_started.call_id 가 달라진다) — Free(상한 1)는 그게 정상이다.
         start["continues_call_id"] = str(continues_call_id)
+    if silent_resume:
+        start["silent_resume"] = True       # ⭐ H8 S1/S2: 재개 시드 0 — 비버는 학습자 첫 발화를 기다린다
     async with websockets.connect(ws_url, max_size=None, ping_interval=20, ping_timeout=20,
                                   open_timeout=30) as ws:
         sess.t0 = time.perf_counter()
+
+        async def _send_ctrl(d: dict) -> None:
+            await ws.send(json.dumps(d))
+
+        sess.send_ctrl = _send_ctrl
         await ws.send(json.dumps(start))
         sess.log(f"WS 연결 · start 전송 (duration_min={duration_min}, call_type=expression)")
         uplink = Uplink(ws)
@@ -1438,15 +1599,75 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
         # ⭐ T23 (2026-09-12): 서버는 통화 길이로 끊지도 작별 시드도 넣지 않는다 — **앱이 소켓을 닫는다**(스위치 없음, 코드에서 삭제).
         #   하네스도 클라이니 duration 에 닿으면 앱과 같은 무음 컷으로 소켓을 닫는다(안 닫으면 540s 백스톱까지 간다).
         async def client_cut() -> None:
-            await asyncio.sleep(duration_min * 60)
+            await asyncio.sleep(cut_after_s if cut_after_s is not None else duration_min * 60)
             if not sess.ended:
                 sess.ended = True
                 sess.end_reason = "client_cut"
-                sess.log(f"client_cut: {duration_min}분 도달 → 소켓 닫음(앱과 같은 무음 컷)")
+                sess.log(f"client_cut: {(cut_after_s if cut_after_s is not None else duration_min * 60) / 60:.1f}분 도달 → 소켓 닫음(앱과 같은 무음 컷)")
                 with contextlib.suppress(Exception):
                     await ws.close()
 
-        cut_task = asyncio.create_task(client_cut())
+        async def seamless_switch() -> None:
+            # ⭐ H8 조각1: --segment-min 뒤 «전환 대기» → (turn_end 처리기가 fragment_end 전송) → fragment_saved 5s 상한 → 서버가 닫는다.
+            #   fragment_end 를 90s 안에 못 보내면(학습자·비버 교환이 안 일어남) 종전 무음 컷으로 닫는다.
+            await asyncio.sleep(switch_after_s)
+            sess.switch_at = sess.now()
+            sess.log(f"전환 대기 시작({switch_after_s:.0f}s) — 다음 «학습자 발화 → 비버 turn_end» 에서 fragment_end")
+            for _ in range(900):
+                await asyncio.sleep(0.1)
+                if sess.fragment_end_sent_at is not None or sess.ended:
+                    break
+            if sess.fragment_end_sent_at is None and not sess.ended:
+                sess.errors.append("seamless: 90s 안에 fragment_end 를 못 보냈다 → 무음 컷")
+                sess.ended = True
+                sess.end_reason = "client_cut(전환 실패)"
+                with contextlib.suppress(Exception):
+                    await ws.close()
+                return
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                if sess.fragment_saved_at is not None or sess.ended:
+                    break
+            if sess.fragment_saved_at is None and not sess.ended:
+                sess.errors.append("seamless: fragment_end 뒤 5s 안에 fragment_saved 가 없다 → 클라가 닫음(폴백)")
+                sess.log("⛔ fragment_saved 5s 상한 초과 → 소켓 닫음")
+                sess.ended = True
+                sess.end_reason = "client_cut(fragment_saved 없음)"
+                with contextlib.suppress(Exception):
+                    await ws.close()
+
+        async def silent_opener() -> None:
+            # ⭐ H8 조각2: call_started 뒤 watch_s 동안 비버 출력(오디오·전사·turn_start)을 세고, 그 뒤 학습자가 먼저 말한다
+            #   (조각1 마지막 비버 턴에 답한다 — 브리프가 잇는지 (d) 로 본다). (g) silent_never 면 끝까지 말하지 않는다.
+            for _ in range(300):
+                await asyncio.sleep(0.1)
+                if sess.started_at is not None or sess.ended:
+                    break
+            if sess.started_at is None:
+                return
+            await asyncio.sleep(watch_s)
+            sess.pre_speech["audio_bytes"] = sess.beaver_audio_bytes
+            sess.pre_speech["watch_s"] = watch_s
+            sess.watch_done = True
+            sess.log(f"무음 관찰 {watch_s:.0f}s 끝 — 비버 오디오 {sess.beaver_audio_bytes}B · 전사 {len(sess.pre_speech['transcripts'])} · turn_start {sess.pre_speech['turn_starts']}")
+            if silent_never:
+                sess.log("(g) 학습자는 끝까지 말하지 않는다 — 무음 3단 관찰")
+                return
+            sess.hold_reply = False
+            sess.silence_until = -1.0
+            sess.first_speech_at = sess.now()
+            if resume_prompt:
+                sess.log(f"조각1 마지막 비버 턴에 답한다: {resume_prompt[:100]}")
+                await sess.on_beaver_turn(resume_prompt, uplink)
+                if sess.turns and sess.turns[-1].role == "beaver":
+                    sess.turns[-1].tags.append("조각1 마지막 턴(재생 — 실제 조각2 발화 아님)")
+                elif len(sess.turns) >= 2 and sess.turns[-2].role == "beaver":
+                    sess.turns[-2].tags.append("조각1 마지막 턴(재생 — 실제 조각2 발화 아님)")
+            else:
+                sess.pending_speak = asyncio.create_task(sess._speak_later("Okay, let's continue.", "en", "ack", uplink))
+
+        cut_task = asyncio.create_task(seamless_switch() if (seamless and not silent_resume) else client_cut())
+        opener_task = asyncio.create_task(silent_opener()) if silent_resume else None
         wd_task = asyncio.create_task(sess.watchdog(uplink))
         try:
             async for raw in ws:
@@ -1459,8 +1680,9 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
                     continue
                 await sess.on_json(msg, uplink)
                 if sess.ended:
-                    with contextlib.suppress(Exception):
-                        await ws.send(json.dumps({"type": "playback_done"}))
+                    if sess.fragment_saved_at is None:
+                        with contextlib.suppress(Exception):
+                            await ws.send(json.dumps({"type": "playback_done"}))
                     break
                 if probe and sess.first_turn_end_seen.is_set():
                     sess.log("probe: 첫 비버 턴 해석 완료 → 끊는다")
@@ -1469,7 +1691,13 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
             sess.errors.append(f"ws: {type(exc).__name__}: {exc}")
             sess.log(f"⛔ WS 종료 {type(exc).__name__}: {exc}")
         finally:
-            for t in (up_task, ka_task, cut_task, wd_task, sess.pending_speak):
+            sess.ws_closed_at = sess.now()
+            sess.ws_close_code = getattr(ws, "close_code", None)
+            if sess.fragment_saved_at is not None:
+                sess.ended = True
+                who = "하네스가 닫음(즉시 재연결)" if reconnect_on_saved else "서버가 닫음"
+                sess.log(f"소켓 닫힘 · {who} · fragment_saved 뒤 {(sess.ws_closed_at - sess.fragment_saved_at) * 1000:.0f}ms · close_code={sess.ws_close_code}")
+            for t in (up_task, ka_task, cut_task, wd_task, opener_task, sess.pending_speak):
                 if t is not None:
                     t.cancel()
     return sess
@@ -1895,6 +2123,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                 f"선질문 위반 {len(pre)} · 자발 산출 {sess.spontaneous}")
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stamp}_{LANGUAGE + '_' if LANGUAGE != 'ko' else ''}call{cid or 'none'}.md"
+    if path.exists():
+        # 같은 call·같은 분(--seamless 는 조각2 보고서를 먼저 쓰고 조각1 을 나중에 쓴다) — 덮어쓰지 않는다(1598~1600 조각2 보고서가 지워졌다)
+        path = path.with_name(path.stem + f"_run{run_no}.md")
     path.write_text("\n".join(L), encoding="utf-8")
     # 원자료(턴·항목 기록·DB 결과)도 남긴다 — 채점 규칙이 바뀌면 통화를 다시 걸지 않고 다시 읽을 수 있게
     raw = {
@@ -2464,7 +2695,7 @@ def freetalk_report(sess: Session, sc: Score, ctx: dict, *, duration_min: int, r
 
 def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *, course: str, lesson_no: int,
              run_no: int, expect_locked: bool = False, continues_call_id: Optional[int] = None,
-             expect_fragment: int = 1) -> tuple[Session, Score, Path, bool]:
+             expect_fragment: int = 1, call_kw: dict | None = None, after_call=None) -> tuple[Session, Score, Path, bool]:
     """cur 경로 통화 1회: 컨텍스트 예측 → /cur/me(전) → 통화 → 결과 읽기 → 보고서. (판정·큐 대조는 표현학습 그대로)"""
     ctx = load_cur_context(sf, MEMBER_ID, lesson_no, n=CUR_ITEMS_PER_CALL)
     me_pre = cur_status(api)
@@ -2482,8 +2713,10 @@ def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *,
     sess = asyncio.run(run_call(args.base, token, ctx["items"], voice, picker, duration_min=args.duration, probe=False,
                                 verbose=args.verbose, course=course, lesson=ctx["lesson"],
                                 distractors=[ctx["items"][i].surface for i in ctx["lesson_item_ids"] if i not in ctx["predicted_new"]][:8],
-                                continues_call_id=continues_call_id, passed_before=ctx.get("passed_before")))
+                                continues_call_id=continues_call_id, passed_before=ctx.get("passed_before"), **(call_kw or {})))
     ended = datetime.now(timezone.utc)
+    if after_call is not None:
+        after_call(sess)        # H8: 조각1 소켓이 닫히자마자 조각2 를 붙인다(결과 읽기·보고서는 그 뒤) — 앱의 «즉시 재연결» 과 같은 타이밍
     sc = read_cur_outcome(sf, api, sess.call_id, ctx, me_pre)
     if not sess.locked:
         for _ in range(12):
@@ -2636,6 +2869,155 @@ def run_segments(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
     return (0 if all(d for _, _, _, d in rows_all) else 1), path
 
 
+def raw_turn_index_check(rows: list[tuple]) -> tuple[bool, str]:
+    """(f) call_raw_data turn_index 연속·중복 0. rows = [(turn_index, role), …] (DB 순서 무관)."""
+    idx = [int(r[0]) for r in rows if r[0] is not None]
+    if not idx:
+        return False, "행 0"
+    srt = sorted(idx)
+    dup = len(idx) - len(set(idx))
+    uniq = sorted(set(idx))
+    gaps = [b for a, b in zip(uniq, uniq[1:]) if b != a + 1]
+    ok = dup == 0 and not gaps and srt[0] == 0
+    return ok, f"행 {len(idx)} · 범위 {srt[0]}~{srt[-1]} · 중복 {dup} · 건너뜀 {len(gaps)}" + (f"(첫 {gaps[:3]})" if gaps else "")
+
+
+def seamless_checks(seg1: Session, seg2: Session, *, plan_frag: int, sc1: Score, sc2: Score, raw_rows: list[tuple],
+                    silent_never: bool = False, rf1: Optional[int] = None) -> list[tuple[str, str, str, bool]]:
+    """(a)~(g) 표. seg1/seg2 는 Session(조각1·2), sc* 는 결과, raw_rows 는 call_raw_data (turn_index, role)."""
+    rows: list[tuple[str, str, str, bool]] = []
+    # (a)
+    if seg1.fragment_end_sent_at is not None and seg1.fragment_saved_at is not None:
+        ms = (seg1.fragment_saved_at - seg1.fragment_end_sent_at) * 1000
+        close_ms = ((seg1.ws_closed_at or seg1.fragment_saved_at) - seg1.fragment_saved_at) * 1000
+        closer = "하네스 close" if seg1.reconnect_on_saved else "서버 close"
+        rows.append(("(a) fragment_end→fragment_saved", "≤5000ms · 그 전 call_ended 0 · 뒤 소켓 닫힘",
+                     f"{ms:.0f}ms · call_ended {'있음' if seg1.call_ended_before_saved else '0'} · {closer} +{close_ms:.0f}ms(code {seg1.ws_close_code}) · "
+                     f"saved.fragment_index={ (seg1.fragment_saved or {}).get('fragment_index')}",
+                     ms <= 5000 and not seg1.call_ended_before_saved and seg1.ws_closed_at is not None))
+    else:
+        rows.append(("(a) fragment_end→fragment_saved", "≤5000ms", f"fragment_end {'전송' if seg1.fragment_end_sent_at is not None else '미전송'} · fragment_saved 없음 · 종료 {seg1.end_reason}", False))
+    # (b)
+    rows.append(("(b) 재연결 call_started", f"같은 call · fragment_index=2 · max_fragments={plan_frag}",
+                 f"resumed={seg2.resumed} · fragment_index={seg2.fragment_index} · max_fragments={seg2.max_fragments}",
+                 bool(seg2.resumed) and seg2.fragment_index == 2 and seg2.max_fragments == plan_frag))
+    # (c)
+    ps = seg2.pre_speech
+    rows.append(("(c) 조각2 첫 발화 전 비버 출력", f"{ps.get('watch_s', '?')}s 동안 오디오 0B · 전사 0 · turn_start 0",
+                 f"오디오 {ps.get('audio_bytes')}B · 전사 {len(ps.get('transcripts') or [])}{(' ' + repr(ps['transcripts'][:2])) if ps.get('transcripts') else ''} · turn_start {ps.get('turn_starts')}",
+                 (ps.get("audio_bytes") == 0 and not ps.get("transcripts") and ps.get("turn_starts") == 0) if seg2.started_at is not None else False))
+    if not silent_never:
+        # (d) — 육안 항목: 조각1 마지막 교환 + 조각2 첫 비버 응답을 인용(판정은 «응답이 있었다» 까지만 자동)
+        first = next((t for t in seg2.turns if t.role == "beaver" and "재생" not in " ".join(t.tags) and t.text), None)
+        rows.append(("(d) 조각2 첫 응답이 조각1 을 잇는가(육안)", "조각1 마지막 교환에 대한 응답(브리프 반영)",
+                     (f"조각2 첫 비버 턴 @{first.t - (seg2.first_speech_at or 0):.1f}s: «{first.text[:160]}»" if first else "조각2 비버 응답 없음"),
+                     first is not None))
+    # (e)
+    if rf1 is None:
+        rf1 = ((sc1.cur.get("cur_call") or {}).get("recorded_fragment"))
+    rf2 = ((sc2.cur.get("cur_call") or {}).get("recorded_fragment"))
+    rows.append(("(e) 조각별 record_expression", "조각1 뒤 recorded_fragment=1 · 조각2 뒤 =2",
+                 f"조각1 뒤 {rf1} · 조각2 뒤 {rf2} · call.fragment_count {sc2.call_row.get('fragment_count')}", rf1 == 1 and rf2 == 2))
+    # (f)
+    ok, desc = raw_turn_index_check(raw_rows)
+    rows.append(("(f) call_raw_data turn_index 연속·중복 0", "0..N-1 연속", desc, ok))
+    # (g)
+    if silent_never:
+        bt = seg2.beaver_turn_times
+        n1 = bt[0][0] if bt else None
+        rows.append(("(g) 무음 3단(학습자 끝내 침묵)", "첫 넛지 ≥60s(call_started 기준) → 확인 ≈+10s → 작별 ≈+12s → call_ended",
+                     f"비버 턴 {[(t, x[:40]) for t, x in bt[:4]]} · 종료 {seg2.end_reason} @{(seg2.ws_closed_at or 0) - (seg2.started_at or 0):.0f}s",
+                     n1 is not None and 55 <= n1 <= 90 and seg2.end_reason not in ("client_cut", "")))
+    return rows
+
+
+def run_seamless(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *, lesson_no: int) -> tuple[int, Path]:
+    """H8: 조각1(--segment-min 뒤 fragment_end→fragment_saved) → 즉시 silent_resume 재연결 → 조각2. (a)~(g) 표 + H6 이어하기 표."""
+    from sqlalchemy import text as sql
+    from domains.learning.service import call_service as _cs
+    with sf() as db:
+        plan_frag = int(_cs.call_fragments_for_member(db, MEMBER_ID))
+        plan = _cs.effective_plan(db, MEMBER_ID)
+    silent_never = bool(args.seamless_silent)
+    seg_s = float(args.segment_min) * 60
+    print(f"\n════════ 끊김 없는 조각 전환 · 플랜 {plan}(조각 상한 {plan_frag}) · lesson {lesson_no} · 전환 {args.segment_min}분 · "
+          f"{'(g) 조각2 침묵' if silent_never else '조각2 관찰 ' + str(args.watch_s) + 's'} ════════")
+    if plan_frag < 2:
+        print("⛔ 이 플랜은 조각 1 — 이어하기가 거절된다(testfree). testmax/testpro 로.")
+        raise SystemExit(3)
+    cap: dict = {}
+
+    def after_seg1(sess1: Session) -> None:
+        # 조각1 소켓이 닫혔다 — 조각1 결과를 읽기 **전에** 조각2 를 붙인다(앱과 같은 «fragment_saved 직후 재연결»). (e) 용 recorded_fragment 는 지금 캡처.
+        with sf() as db:
+            cap["rf1"] = db.execute(sql("SELECT recorded_fragment FROM cur_call WHERE call_id=:c"), {"c": sess1.call_id}).scalar()
+            it = db.execute(sql("SELECT items FROM cur_call WHERE call_id=:c"), {"c": sess1.call_id}).scalar()
+            cap["items1"] = (json.loads(it) if isinstance(it, str) else (it or []))        # 조각1 판정 스냅샷(조각2 가 덮어쓰기 전)
+            cap["mi1"] = db.execute(sql("SELECT max(updated_at) FROM cur_member_item WHERE member_id=:m"), {"m": MEMBER_ID}).scalar()
+        if sess1.fragment_saved_at is None:
+            print("⛔ 조각1 이 fragment_saved 로 끝나지 않았다 — 그래도 조각2(silent_resume) 를 시도한다")
+        last_beaver = next((t.text for t in reversed(sess1.turns) if t.role == "beaver" and t.text), "")
+        cap["seg2"] = one_call(args, sf, api, token, voice, picker, course=args.course, lesson_no=lesson_no, run_no=2,
+                               continues_call_id=sess1.call_id, expect_fragment=2,
+                               call_kw={"silent_resume": True, "silent_never": silent_never, "resume_prompt": last_beaver,
+                                        "watch_s": float(args.watch_s), "cut_after_s": (150.0 if silent_never else seg_s)})
+
+    sess1, sc1, path1, _ = one_call(args, sf, api, token, voice, picker, course=args.course, lesson_no=lesson_no, run_no=1,
+                                    call_kw={"seamless": True, "switch_after_s": seg_s, "reconnect_on_saved": not args.wait_close}, after_call=after_seg1)
+    sess2, sc2, path2, _ = cap["seg2"]
+    items1 = cap.get("items1") or []
+    seg1 = {"call_id": sess1.call_id, "course": sess1.course_from_server or sess1.course,
+            "passed_ids": [int(q.get("item_id")) for q in items1 if q.get("passed")],
+            "failed_ids": [int(q.get("item_id")) for q in items1 if q.get("failed") and not q.get("passed")],
+            "mi_updated_max": cap.get("mi1")}
+    # 재연결 지연 = 조각2 WS 연 시각 − 조각1 소켓 닫힌 시각(둘 다 perf_counter 축). 하네스 몫은 조각2 컨텍스트 예측(DB·/cur/me) 뿐.
+    reconnect_delay_s = sess2.t0 - (sess1.t0 + (sess1.fragment_saved_at or sess1.ws_closed_at or 0))
+    # (H6 (b)(c)(d) 의 seg1 값은 재연결 직전에 찍은 cur_call.items · cur_member_item.updated_at 스냅샷 — 조각1 결과 읽기는 조각2 뒤라 그걸 쓰면 섞인다)
+    # ⚠ 조각2 첫 발화는 «조각1 마지막 비버 턴» 을 하네스가 재생해 답한 것 — 그 턴에서 잡힌 항목은 비버가 조각2 에서 다시 낸 게 아니다(1600: 「이」).
+    replay_n = next((t.n for t in sess2.turns if t.role == "beaver" and any("재생" in x for x in t.tags)), None)
+    replay_ids = {iid for iid, r in sess2.records.items() if replay_n is not None and r.intro_turn == replay_n}
+    seg2 = {"call_id": sess2.call_id, "course_from_server": sess2.course_from_server, "resumed": sess2.resumed,
+            "drilled_order": [i for i in sess2.drilled_order if i not in replay_ids],
+            "quizzed_ids": [iid for iid, r in sess2.records.items() if r.rounds and iid not in replay_ids],
+            "fragment_count": sc2.call_row.get("fragment_count"),
+            "recorded_fragment": (sc2.cur.get("cur_call") or {}).get("recorded_fragment"),
+            "mi_updated_max": sc2.cur.get("mi_updated_max")}
+    h6_rows = check_resume(seg1, seg2, plan_fragments=plan_frag)
+    with sf() as db:
+        raw_rows = [tuple(r) for r in db.execute(sql("SELECT turn_index, role, left(content, 60) FROM call_raw_data WHERE call_id=:c ORDER BY turn_index"),
+                                                 {"c": sess1.call_id}).all()]
+    rows = seamless_checks(sess1, sess2, plan_frag=plan_frag, sc1=sc1, sc2=sc2, raw_rows=raw_rows, silent_never=silent_never, rf1=cap.get("rf1"))
+    for a, b, c, d in rows + h6_rows:
+        print(f"  [{'✔' if d else '✖'}] {a}: 기대 {b} / 실측 {c}")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{stamp}_seamless_call{sess1.call_id}.md"
+    L = [f"# 끊김 없는 조각 전환(H8) — call {sess1.call_id} · 플랜 {plan}(조각 상한 {plan_frag}) · lesson {lesson_no} ({stamp})", "",
+         f"- 서버 {args.base} · 조각1 전환 대기 {args.segment_min}분 뒤 «학습자 발화 → 비버 turn_end» 에서 fragment_end · 조각2 {'침묵(g)' if silent_never else f'{args.watch_s:.0f}s 관찰 뒤 학습자 발화'} · "
+         f"조각 보고서: {path1.name} · {path2.name}",
+         f"- 조각1 종료 {sess1.end_reason} @{sess1.ws_closed_at or 0:.1f}s · fragment_end @{sess1.fragment_end_sent_at} · fragment_saved @{sess1.fragment_saved_at} · "
+         f"fragment_saved → 조각2 WS 연결 {reconnect_delay_s:.1f}s({'서버 close 대기 뒤' if args.wait_close else '즉시'} · 하네스 몫: 조각2 컨텍스트 예측) → call_started +{sess2.started_at}s · 조각2 종료 {sess2.end_reason}",
+         f"- 오류: {sess1.errors + sess2.errors or '없음'}", "",
+         "## (a)~(g)", "", "| 검사 | 기대 | 실측 | 판정 |", "|---|---|---|---|"]
+    L += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in rows]
+    L += ["", "## H6 이어하기 검사(재사용)", "", "| 검사 | 기대 | 실측 | 판정 |", "|---|---|---|---|"]
+    L += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in h6_rows]
+    L += ["", "## (d) 인용 — 조각1 마지막 교환 → 조각2 첫 응답", "", "```"]
+    tail = [t for t in sess1.turns if t.text][-4:]
+    L += [f"조각1 {'🦫' if t.role == 'beaver' else '👤'} t{t.n} @{t.t:.1f}s: {t.text}" for t in tail]
+    L += ["--- fragment_end → fragment_saved → 재연결(silent_resume) ---"]
+    head = [t for t in sess2.turns if t.text][:5]
+    L += [f"조각2 {'🦫' if t.role == 'beaver' else '👤'} t{t.n} @{t.t:.1f}s: {t.text}" + (f"  [{' '.join(t.tags)}]" if any('재생' in x or '보류' in x for x in t.tags) else "") for t in head]
+    L += ["```", "", "## call_raw_data (turn_index · role · 앞 60자)", "", "```"]
+    L += [f"{r[0]:>3} {r[1]:<7} {r[2]}" for r in raw_rows]
+    L += ["```"]
+    if silent_never:
+        L += ["", "## (g) 조각2 비버 턴(call_started 기준 초)", "", "```"] + [f"@{t:6.1f}s {x}" for t, x in sess2.beaver_turn_times] + ["```"]
+    path.write_text("\n".join(L), encoding="utf-8")
+    print(f"\n끊김 없는 전환 표: {path}")
+    return (0 if all(d for _, _, _, d in rows + h6_rows) else 1), path
+
+
 def run_matrix(args, sf, voice: Voice, picker: Picker) -> int:
     """③ testfree(2.5) → testmax(3.1) 를 **순차**로 lesson-cycle. 같은 서버·같은 DB 라 동시 금지. 한 md 로 묶는다."""
     global MEMBER_ID
@@ -2706,6 +3088,13 @@ def main() -> None:
     ap.add_argument("--expect-locked", action="store_true", help="프리토킹이 COURSE_LOCKED 로 끊기는 것이 기대값(잠금 확인)")
     ap.add_argument("--segments", type=int, default=1, help="① 조각 이어하기: N 조각(조각2 부터 continues_call_id). Free 는 거절 확인")
     ap.add_argument("--matrix", action="store_true", help="③ testfree(2.5)+testmax(3.1) 순차 lesson-cycle → docs/e2e/*_matrix.md")
+    ap.add_argument("--seamless", action="store_true",
+                    help="H8 끊김 없는 조각 전환(--segments 2 와 함께): 조각1 을 --segment-min 뒤 fragment_end→fragment_saved 로 끝내고 "
+                         "즉시 silent_resume 재연결 · 조각2 첫 15s 비버 출력 0 검사 → docs/e2e/*_seamless_call<id>.md")
+    ap.add_argument("--seamless-silent", action="store_true", help="H8 (g): 조각2 에서 학습자가 끝내 말하지 않는다 → 무음 3단(60/10/12s) 관찰")
+    ap.add_argument("--segment-min", type=float, default=2.0, help="H8: 조각1 전환 대기 시작(분) · 조각2 길이(분)")
+    ap.add_argument("--watch-s", type=float, default=15.0, help="H8: 조각2 재연결 뒤 비버가 먼저 말하는지 관찰하는 시간(초)")
+    ap.add_argument("--wait-close", action="store_true", help="H8: fragment_saved 뒤 서버 close 까지 기다렸다가 재연결(close 지연 실측) · 기본은 앱처럼 즉시 재연결")
     ap.add_argument("--scenario", choices=("lesson-cycle",), default=None,
                     help="lesson-cycle: reset → 표현 1통 → 표현 2통 → 프리토킹 → /cur/me 다음 차시 (PASS/FAIL 표)")
     ap.add_argument("--probe", action="store_true", help="①②③만: 첫 비버 턴 해석까지 보고 끊는다")
@@ -2783,7 +3172,7 @@ def _main_body(args, sf, api: CurApi, token: str) -> None:
         if not cur_reset(api, MEMBER_ID, args.lesson, sf=sf):
             sys.exit(2)
         cur_status(api)
-    if not (args.probe or args.runs or args.scenario or args.matrix or args.segments > 1):
+    if not (args.probe or args.runs or args.scenario or args.matrix or args.segments > 1 or args.seamless or args.seamless_silent):
         return
 
     voice = Voice()
@@ -2793,6 +3182,9 @@ def _main_body(args, sf, api: CurApi, token: str) -> None:
 
     if args.matrix:
         sys.exit(run_matrix(args, sf, voice, picker))
+    if args.seamless or args.seamless_silent:
+        rc, _ = run_seamless(args, sf, api, token, voice, picker, lesson_no=args.lesson)
+        sys.exit(rc)
     if args.segments > 1:
         rc, _ = run_segments(args, sf, api, token, voice, picker, lesson_no=args.lesson, n=args.segments)
         sys.exit(rc)
