@@ -127,6 +127,7 @@ from domains.learning.realtime.protocol import (
     HintExample,
     ServerCallEnded,
     ServerCallStarted,
+    ServerFragmentSaved,
     ServerError,
     ServerHint,
     ServerInputTranscript,
@@ -720,7 +721,7 @@ class _CallState:
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
         "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
-        "silent_resume",
+        "silent_resume", "fragment_index", "fragment_end",
         # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
         "target_code",
         "tag_leak_seen", "resume_sent",
@@ -892,6 +893,9 @@ class _CallState:
         self.freetalk_brief: Any = None
         # ⭐ 끊김 없는 조각 전환(2026-09-13): 이 소켓이 «시드 0 으로 열린 재개 조각» 인가 — 무음 시계 기준점·로그. 기본 False(종전).
         self.silent_resume: bool = False
+        # S4/S6: 이 소켓의 조각 번호(call_started 와 같은 값 — fragment_saved 에 싣는다) · 클라 fragment_end 로 끝났는가(call_ended 대신 fragment_saved).
+        self.fragment_index: Optional[int] = None
+        self.fragment_end: bool = False
         self.freetalk_target: str = ""
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
@@ -1037,6 +1041,10 @@ class _ClientDisconnect(Exception):
 
 class _CallFinished(Exception):
     """통화 정상 종료(작별 후/백스톱) 내부 신호."""
+
+
+class _FragmentEnd(Exception):
+    """⭐ 끊김 없는 조각 전환 S6 — 클라 `fragment_end` 제어 프레임. 시드 0·작별 0 으로 세대를 내리고 finally 저장 뒤 `fragment_saved`."""
 
 
 def _release_persisted_pcm(state: _CallState, upto: int) -> int:
@@ -2710,6 +2718,7 @@ async def run_call(
     state.cur_course = call_type if cur_route else ""
     state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
     state.silent_resume = silent
+    state.fragment_index = fragment_index
     state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
     state.freetalk_target = target_language if freetalk_brief is not None else ""
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
@@ -3054,6 +3063,11 @@ async def run_call(
     except _ClientDisconnect:
         logger.info("normalcall 클라 연결 종료")
         end_normal = True
+    except _FragmentEnd:
+        # ⭐ S6: 정상 종료의 한 꼴 — 아래 finally 가 종전 순서(마지막 판정 → 진도 → usage → 전사)로 저장한 뒤 _finish_call 이 fragment_saved 를 보낸다.
+        logger.info("normalcall 조각 끝(fragment_end) — 저장 뒤 fragment_saved call_id=%s fragment=%s", call_id, state.fragment_index)
+        end_normal = True
+        state.fragment_end = True
     except _CallFinished:
         logger.info("normalcall 통화 정상 종료")
         end_normal = True
@@ -3745,6 +3759,11 @@ def _reconnect_brief(state: _CallState) -> str:
     """
     head = (f"{CONTROL_TAG} 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고, 인사도 다시 하지 말고, "
             "하던 것을 그대로 이어가라. ")
+    if state.silent_resume and not state.learner_spoke:
+        # ⭐ S8(QA P2, 2026-09-14): 시드 0 으로 열린 조각에서 학습자가 아직 말하지 않았는데 Gemini 쪽이 끊겨 2세대를 열면, 이 브리프가 완결 텍스트
+        #   턴이라 비버가 학습자 첫 발화 전에 먼저 말할 수 있다 → head 만 «기다려라» 로. 학습자가 이미 말한 뒤(learner_spoke)·종전 경로는 위 문자열 그대로.
+        head = (f"{CONTROL_TAG} 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고, 인사도 다시 하지 말고, "
+                "먼저 말을 꺼내지 마라 — 학습자가 먼저 말한다. 기다렸다가 학습자의 말에 답하며 하던 것을 그대로 이어가라. ")
     if state.expr_items:
         # ⭐ 퀴즈 창이 열려 있으면 쪽지 자체가 «아직 안 낸 문항: …» 착지문을 쓴다(2026-09-13, `_expr_quiz_remaining`) —
         #   예전엔 여기서 따로 한 줄을 덧붙였는데, 같은 계산을 한 곳으로 모았다.
@@ -3756,7 +3775,8 @@ def _reconnect_brief(state: _CallState) -> str:
 # 통화 신호 우선순위(B4). ⛔ 순서가 곧 규칙이다 — **종료 > 클라 끊김 > 스왑**.
 # 종료가 걸린 봉투를 스왑으로 처리하면 이미 끝난 통화가 되살아나고, 클라가 이미 끊었는데
 # 스왑하면 아무도 없는 통화에 새 연결을 연다.
-_CALL_SIGNALS: tuple[type[Exception], ...] = (_CallFinished, _ClientDisconnect)
+#   ⭐ S6 `_FragmentEnd` 는 «클라가 끝냈다» 의 다른 꼴이라 _ClientDisconnect 뒤에 둔다 — 둘이 겹치면 소켓은 이미 없으니 fragment_saved 도 못 보낸다.
+_CALL_SIGNALS: tuple[type[Exception], ...] = (_CallFinished, _ClientDisconnect, _FragmentEnd)
 
 
 def _pick_call_signal(eg: BaseExceptionGroup) -> Optional[Exception]:
@@ -3849,16 +3869,25 @@ async def _read_initial_start(client_ws) -> StartParams:
     from starlette.websockets import WebSocketDisconnect
 
     invalid_warned = False  # 검증 실패 warning 은 통화당 1회만(스팸 방지)
+    # ⭐ S7(QA P1-B, 2026-09-14): 창은 **텍스트 6개 또는 2초** 다 — 바이너리(마이크 프레임)는 세지 않고 버린다. 예전엔 메시지 6개를 세서
+    #   재연결 소켓에 마이크 프레임 6개(240ms)가 start 보다 먼저 오면 start 없는 새 통화로 떨어졌다(이어하기 유실). 텍스트만 세면 그 창이 닫히지 않는다.
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 2.0
+    texts = 0
     try:
-        for _ in range(6):
+        while texts < 6:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                break
             try:
-                message = await asyncio.wait_for(client_ws.receive(), timeout=2.0)
+                message = await asyncio.wait_for(client_ws.receive(), timeout=remaining)
             except asyncio.TimeoutError:
                 break
             if message.get("type") == "websocket.disconnect":
                 raise _ClientDisconnect()
             text = message.get("text")
             if text is not None:
+                texts += 1
                 try:
                     cm = client_adapter.validate_python(json.loads(text))
                 except Exception as exc:  # noqa: BLE001 - 깨진 후보는 폐기하고 계속 대기
@@ -4370,6 +4399,15 @@ async def _handle_client_control(client_ws, text: str, state: _CallState) -> Non
         _record_client_diag(state, msg)  # 적재만(응답 불요 — hint_used 와 같은 규율)
     elif msg.type == "client_timing":
         _record_client_timing(state, msg)
+    elif msg.type == "fragment_end":
+        # ⭐ 끊김 없는 조각 전환 S6(QA P1-A): 클라가 «이 조각 끝» — 세대를 내린다(시드 0·작별 0). 종료 경로는 _ClientDisconnect 와 같은
+        #   TaskGroup 신호 하나라 2펌프·백스톱·barge-in·종료 규약은 건드리지 않는다(R4). 저장 뒤 fragment_saved 는 _finish_call 이 보낸다.
+        #   ⚠ 레벨테스트는 조각 개념이 없다 — 무시(3분 캡·무음이 끝낸다).
+        if state.is_leveltest:
+            logger.warning("normalcall fragment_end 무시 — 레벨테스트는 조각을 잇지 않는다")
+            return
+        logger.info("normalcall fragment_end 수신 — 조각 %s 저장 뒤 fragment_saved", state.fragment_index)
+        raise _FragmentEnd()
 
 
 # --------------------------------------------------------------------------- #
@@ -5859,6 +5897,17 @@ async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> Non
     """
     from starlette.websockets import WebSocketState
 
+    if state.fragment_end:
+        # ⭐ S6(QA P1-A): fragment_end 로 끝난 조각 — call_ended 를 **보내지 않는다**(클라가 종료 흐름으로 가면 안 된다). 저장은 이미 끝났다
+        #   (finally 가 이 함수를 맨 끝에 부른다) → fragment_saved 하나를 보내고 바로 닫는다. playback_done 대기도 없다 — 클라는 재생을 이어가며
+        #   이 프레임을 신호로 재연결한다.
+        with contextlib.suppress(Exception):
+            if client_ws.client_state == WebSocketState.CONNECTED:
+                await _send_json(client_ws, ServerFragmentSaved(call_id=str(call_id or ""), fragment_index=int(state.fragment_index or 1)))
+        with contextlib.suppress(Exception):
+            if client_ws.client_state != WebSocketState.DISCONNECTED:
+                await client_ws.close()
+        return
     with contextlib.suppress(Exception):
         if client_ws.client_state == WebSocketState.CONNECTED:
             await _send_json(client_ws, ServerCallEnded(call_id=str(call_id or ""), reason="done"))

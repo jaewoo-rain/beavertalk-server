@@ -129,6 +129,19 @@ class ClientPlaybackDone(BaseModel):
     turn_id: str | None = None
 
 
+class ClientFragmentEnd(BaseModel):
+    """⭐ 끊김 없는 조각 전환 S6(2026-09-14, QA P1-A) — 클라가 «이 조각은 여기서 끝» 을 알리는 왕복 계약의 요청.
+
+    클라는 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 **닫지 않고** 이 프레임을 보낸다. 서버는 시드 0·작별 0 으로 세션을
+    정상 종료 경로로 빼서 finally 의 저장(마지막 판정·record_expression·usage·전사 저장)까지 끝낸 뒤 `fragment_saved` 를 보내고 소켓을
+    닫는다. 클라는 그것을 받고 재연결한다(재생 중이라 체감 0). ⛔ 그냥 close 하면 재연결(300ms)이 조각1 꼬리 저장(≤2s LLM 판정 포함)을
+    앞질러 turn_index 충돌·브리프 누락·통과 항목 재출제가 난다 — 그 레이스를 닫는 프레임이다.
+    구서버는 미지 타입을 «제어 메시지 무시» 로 삼킨다 → 클라는 3초 안에 fragment_saved 가 없으면 종전처럼 close+300ms 로 폴백.
+    """
+
+    type: Literal["fragment_end"] = "fragment_end"
+
+
 class ClientPing(BaseModel):
     """keepalive 핑(서버는 pong 응답)."""
 
@@ -222,7 +235,7 @@ class ClientTiming(BaseModel):
 
 ClientMessage = Annotated[
     Union[ClientStart, ClientPlaybackDone, ClientPing, ClientHintUsed,
-          ClientDiag, ClientTiming],
+          ClientDiag, ClientTiming, ClientFragmentEnd],
     Field(discriminator="type"),
 ]
 
@@ -300,6 +313,18 @@ class ServerCallEnded(BaseModel):
     type: Literal["call_ended"] = "call_ended"
     call_id: str
     reason: str = "done"
+
+
+class ServerFragmentSaved(BaseModel):
+    """⭐ 끊김 없는 조각 전환 S6 — `fragment_end` 의 응답. 이 조각의 저장(전사·판정·진도·usage)이 **끝났다**, 이제 재연결해도 된다.
+
+    fragment_end 로 끝난 조각은 `call_ended` 를 **보내지 않는다**(클라가 종료 흐름으로 가지 않게) — 대신 이 프레임 하나 뒤 소켓을 닫는다.
+    fragment_index 는 방금 끝난 조각의 번호(call_started.fragment_index 와 같은 값).
+    """
+
+    type: Literal["fragment_saved"] = "fragment_saved"
+    call_id: str
+    fragment_index: int
 
 
 class ServerCallStarted(BaseModel):
@@ -476,6 +501,7 @@ ServerMessage = Annotated[
         ServerPong,
         ServerTeachingPlan,
         ServerHint,
+        ServerFragmentSaved,
     ],
     Field(discriminator="type"),
 ]

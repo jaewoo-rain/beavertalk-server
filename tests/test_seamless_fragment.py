@@ -13,6 +13,13 @@ fragment_index·max_fragments(None 은 직렬화 제거 → 구클라 프레임 
   · Free·구클라 종전과 프레임 동일 → test_call_started_frame_is_byte_identical_when_fragment_fields_are_none /
     test_silent_resume_without_a_resumable_call_falls_back_to_the_normal_opening
   · 기존 이어하기(silent 아님) 바이트 불변 → test_non_silent_resume_is_unchanged + tests/test_prompt_locked_hash.py
+  · (QA P1-A, S6) 조각 경계 레이스 0 — 클라 fragment_end → 저장(판정·진도·전사) 뒤 fragment_saved, call_ended 미전송, turn_index 충돌 0
+    → test_fragment_end_saves_the_fragment_before_fragment_saved_and_sends_no_call_ended /
+      test_fragment_end_on_an_expression_call_records_progress_before_fragment_saved
+  · (S6) 종전 close 경로 프레임 불변(call_ended 그대로) → test_the_old_close_path_still_sends_call_ended
+  · (QA P1-B, S7) 재연결 소켓에 마이크 프레임이 start 보다 먼저 와도 이어하기 유실 0 → test_initial_start_window_ignores_binary_frames
+  · (QA P2, S8) T22 2세대 브리프가 silent 조각에서 비버를 먼저 말하게 하지 않는다(기존 문자열 바이트 불변) → test_reconnect_brief_waits_in_a_silent_fragment
+  · fragment_end 는 레벨테스트에서 무시 → test_fragment_end_is_ignored_on_a_level_test
 """
 from __future__ import annotations
 
@@ -107,14 +114,23 @@ def _mock_external(monkeypatch):
     async def _fake_generate(*_a, **_k):
         return svc.CallAnalysis(summary="요약", detected_mode="chat", expressions=[])
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", _fake_generate)
+
+    # ⛔ flake 원인(3회 중 1회, 2026-09-14): 위 가짜 generate 가 **이어하기 요약**(ResumeOut) 호출에도 CallAnalysis 를 돌려줘 summarize 가
+    #   {topic:"", facts:[], pending:""} 를 만들고, 호출부가 «슬롯이 생겼다» 고 보고 발췌(excerpt)를 지운다 → 조각1 분석(call.summary)이
+    #   아직 안 착지한 순서면 브리프가 텅 빈다. 요약은 None(실패) 으로 고정해 발췌 폴백이 늘 살게 한다 — 하네스 문제지 서버 경합이 아니다.
+    async def _no_summary(*_a, **_k):
+        return None
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _no_summary)
     # 시드 회원은 Free(조각 1) — 이어하기 관문을 Pro 상당(3)으로 연다. ⚠ monkeypatch 로만(다른 시험으로 새지 않게).
     monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 3)
 
 
 class FakeWebSocket:
-    def __init__(self, incoming: list[dict], hold_until=None):
+    def __init__(self, incoming: list[dict], hold_until=None, deferred=None, on_send=None):
         self._incoming = list(incoming)
         self._hold_until = hold_until              # 있으면 참이 될 때까지 disconnect 를 내지 않는다(클라가 붙어 있는 상태를 흉내)
+        self._deferred = list(deferred or [])      # (predicate, message): incoming 이 비면 predicate 가 참이 될 때 그 메시지를 낸다
+        self._on_send = on_send                    # 서버가 텍스트 프레임을 보낼 때 부르는 훅(저장 순서 관측)
         self.sent_text: list[str] = []
         self.sent_bytes: list[bytes] = []
         self.closed_with: int | None = None
@@ -125,6 +141,13 @@ class FakeWebSocket:
     async def receive(self) -> dict:
         if self._incoming:
             return self._incoming.pop(0)
+        if self._deferred:
+            pred, msg = self._deferred[0]
+            for _ in range(400):
+                if pred():
+                    self._deferred.pop(0)
+                    return msg
+                await asyncio.sleep(0.05)
         for _ in range(400):
             if self._hold_until is None or self._hold_until():
                 break
@@ -133,12 +156,14 @@ class FakeWebSocket:
 
     async def send_text(self, text: str) -> None:
         self.sent_text.append(text)
+        if self._on_send is not None:
+            self._on_send(text)
 
     async def send_bytes(self, data: bytes) -> None:
         self.sent_bytes.append(data)
 
     async def close(self, code: int | None = None) -> None:
-        self.closed_with = code
+        self.closed_with = code if code is not None else 1000
         self.client_state = self._WS.DISCONNECTED
 
 
@@ -179,6 +204,21 @@ class SilentLearnerSession(FakeLiveSession):
             yield LiveEvent(kind="turn_end")
 
 
+class HeldOpenSession(FakeLiveSession):
+    """대본을 다 낸 뒤에도 세션을 열어 둔다(실제 Live 처럼) — 클라가 fragment_end 를 보내 끝내는 시나리오용."""
+
+    def __init__(self, script):
+        super().__init__(script)
+        self.script_done = False
+
+    async def events(self):
+        async for ev in super().events():
+            yield ev
+        self.script_done = True
+        for _ in range(400):                        # 20s 상한 — fragment_end 가 세대를 내리면 TaskGroup 취소로 여기서 끊긴다
+            await asyncio.sleep(0.05)
+
+
 def _factory(holder, script=None, session_cls=FakeLiveSession):
     @contextlib.asynccontextmanager
     async def _f(client, settings, *, system_instruction, voice, **_kw):
@@ -189,14 +229,24 @@ def _factory(holder, script=None, session_cls=FakeLiveSession):
     return _f
 
 
-async def _run(session_factory, seeded, call_type, holder, *, script=None, continues=None, extra=None, session_cls=FakeLiveSession):
+async def _run(session_factory, seeded, call_type, holder, *, script=None, continues=None, extra=None, session_cls=FakeLiveSession,
+               fragment_end=False, before_start=None, on_send=None):
     start = {"type": "start", "character_id": seeded["character_id"], **(extra or {})}
     if call_type is not None:
         start["call_type"] = call_type
     if continues is not None:
         start["continues_call_id"] = str(continues)
-    hold = (lambda: len(holder.get("session").sent_text_turns) >= 3 if holder.get("session") else False)         if session_cls is SilentLearnerSession else None
-    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps(start)}], hold_until=hold)
+    hold = (lambda: len(holder.get("session").sent_text_turns) >= 3 if holder.get("session") else False) \
+        if session_cls is SilentLearnerSession else None
+    deferred = []
+    if fragment_end:
+        # 클라: 비버 마지막 응답 turn_end 를 본 뒤 fragment_end 를 보낸다(소켓은 열어 둔다) — 서버가 fragment_saved 뒤 닫는다
+        deferred.append((lambda: bool(holder.get("session") and getattr(holder["session"], "script_done", False)),
+                         {"type": "websocket.receive", "text": json.dumps({"type": "fragment_end"})}))
+        hold = lambda: holder.get("ws") is not None and holder["ws"].closed_with is not None
+    incoming = list(before_start or []) + [{"type": "websocket.receive", "text": json.dumps(start)}]
+    ws = FakeWebSocket(incoming, hold_until=hold, deferred=deferred, on_send=on_send)
+    holder["ws"] = ws
     await run_call(ws, app_settings, object(), session_factory,
                    member_id=seeded["member_id"], live_session_factory=_factory(holder, script, session_cls))
     for _ in range(300):
@@ -366,3 +416,140 @@ async def test_silent_resume_starts_the_idle_clock_at_session_open(session_facto
     assert turns[0] == seeds.NUDGE_SEED_1_NORMAL and turns[1] == seeds.NUDGE_SEED_2_NORMAL, "1단·2단 넛지"
     assert "[통화종료" in turns[2], "3단 = 작별 시드 직접 주입"
     assert took < 10, "무음 3단이 돌았다면 1초 안팎이다 — 20s 상한에 걸리면 시계가 안 선 것"
+
+
+# --------------------------------------------------------------------------- #
+# S6 (QA P1-A) — fragment_end 왕복: 저장 뒤 fragment_saved · call_ended 미전송 · turn_index 충돌 0
+# --------------------------------------------------------------------------- #
+def _frames_of(kind, holder):
+    return [f for f in holder["frames"] if f.get("type") == kind]
+
+
+@pytest.mark.asyncio
+async def test_fragment_end_saves_the_fragment_before_fragment_saved_and_sends_no_call_ended(session_factory, seeded, monkeypatch):
+    from domains.learning.models.call_raw_data import CallRawData
+    order: list[str] = []
+    real_persist = cs._persist_remaining
+
+    async def _persist(*a, **k):
+        r = await real_persist(*a, **k)
+        order.append("persisted")
+        return r
+    monkeypatch.setattr(cs, "_persist_remaining", _persist)
+
+    def _on_send(text):
+        if '"fragment_saved"' in text:
+            order.append("fragment_saved")
+    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")],
+                    session_cls=HeldOpenSession, fragment_end=True, on_send=_on_send)
+    saved = _frames_of("fragment_saved", h1)
+    assert saved and saved[0]["call_id"] == _started(h1)["call_id"] and saved[0]["fragment_index"] == 1
+    assert not _frames_of("call_ended", h1), "fragment_end 로 끝난 조각은 call_ended 를 보내지 않는다"
+    assert h1["frames"][-1]["type"] == "fragment_saved" and h1["ws"].closed_with is not None, "fragment_saved 가 마지막 프레임, 그 뒤 서버가 닫는다"
+    assert order == ["persisted", "fragment_saved"], order
+    turns = h1["session"].sent_text_turns
+    assert turns and all(t == turns[0] and "[통화 시작]" in t for t in turns), ("작별 0·넛지 0 — 선톡 시드(벙어리 재시드 포함) 외 주입 없음", turns)
+    cid = int(_started(h1)["call_id"])
+    db = session_factory()
+    try:
+        rows1 = db.query(CallRawData).filter(CallRawData.call_id == cid).count()
+        assert rows1 >= 3, "조각1 전사 3턴이 fragment_saved 전에 저장돼 있다"
+    finally:
+        db.close()
+    # 조각2 (silent) — 조각1 꼬리가 이미 저장돼 있으니 turn_index 가 이어지고(충돌 0) 브리프에 직전 교환이 들어간다
+    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "그래서요?")], continues=cid, extra={"silent_resume": True})
+    assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
+    assert _frames_of("call_ended", h2) and not _frames_of("fragment_saved", h2), "close 로 끝난 조각은 종전대로 call_ended"
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData.turn_index).filter(CallRawData.call_id == cid).all()
+        idx = [r[0] for r in rows]
+        assert len(idx) == len(set(idx)) and len(idx) >= rows1 + 2, ("turn_index 충돌", sorted(idx))
+    finally:
+        db.close()
+    assert "[지금까지]" in h2["system_instruction"], "브리프에 직전 조각 맥락이 들어간다"
+
+
+@pytest.mark.asyncio
+async def test_fragment_end_on_an_expression_call_records_progress_before_fragment_saved(session_factory, seeded, monkeypatch):
+    from domains.learning.repository import curriculum_repository as repo
+    order: list[str] = []
+    real_record = cs.cur_svc.record_expression
+
+    def _record(*a, **k):
+        r = real_record(*a, **k)
+        order.append("recorded")
+        return r
+    monkeypatch.setattr(cs.cur_svc, "record_expression", _record)
+
+    def _on_send(text):
+        if '"fragment_saved"' in text:
+            order.append("fragment_saved")
+    db = session_factory()
+    lesson1 = repo.lesson_by_no(db, "ko", 1)
+    surfaces = [it.surface for _li, it in repo.lesson_items(db, lesson1.lesson_id)]
+    db.close()
+    h1 = await _run(session_factory, seeded, "expression", {},
+                    script=[("B", "따라 하세요: «%s»" % surfaces[0]), ("U", surfaces[0]), ("B", "좋아요. «%s»" % surfaces[1])],
+                    session_cls=HeldOpenSession, fragment_end=True, on_send=_on_send)
+    assert _started(h1)["course"] == "expression" and _frames_of("fragment_saved", h1) and not _frames_of("call_ended", h1)
+    assert order == ["recorded", "fragment_saved"], order
+    cid = int(_started(h1)["call_id"])
+    db = session_factory()
+    try:
+        cc = repo.cur_call(db, cid)
+        assert cc.recorded_fragment == 1 and cc.recorded_at is not None, "조각1 진도가 fragment_saved 전에 커밋됐다"
+    finally:
+        db.close()
+    h2 = await _run(session_factory, seeded, "auto", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    assert _started(h2)["course"] == "expression" and _started(h2)["fragment_index"] == 2
+    assert h2["session"].sent_text_turns == []
+
+
+@pytest.mark.asyncio
+async def test_the_old_close_path_still_sends_call_ended(session_factory, seeded):
+    h = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    assert _frames_of("call_ended", h) and h["frames"][-1]["type"] == "call_ended"
+    assert not _frames_of("fragment_saved", h)
+
+
+@pytest.mark.asyncio
+async def test_fragment_end_is_ignored_on_a_level_test():
+    st = cs._CallState()
+    st.is_leveltest = True
+    await cs._handle_client_control(FakeWebSocket([]), json.dumps({"type": "fragment_end"}), st)   # raise 없음
+    st2 = cs._CallState()
+    with pytest.raises(cs._FragmentEnd):
+        await cs._handle_client_control(FakeWebSocket([]), json.dumps({"type": "fragment_end"}), st2)
+    assert cs._CALL_SIGNALS == (cs._CallFinished, cs._ClientDisconnect, cs._FragmentEnd), "종료 > 클라 끊김 > 조각 끝"
+
+
+# --------------------------------------------------------------------------- #
+# S7 (QA P1-B) — start 창: 바이너리는 세지 않는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_initial_start_window_ignores_binary_frames(session_factory, seeded):
+    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    cid = int(_started(h1)["call_id"])
+    mic = [{"type": "websocket.receive", "bytes": bytes(640)} for _ in range(8)]     # 재연결 소켓에 마이크 8프레임이 start 보다 먼저
+    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid,
+                    extra={"silent_resume": True}, before_start=mic)
+    assert _started(h2)["call_id"] == str(cid), "start 가 9번째 메시지여도 읽는다 — 이어하기 유실 0"
+    assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
+    assert h2["session"].sent_text_turns == []
+
+
+# --------------------------------------------------------------------------- #
+# S8 (QA P2) — T22 2세대 브리프: silent 조각에서 학습자 첫 발화 전이면 «기다려라»
+# --------------------------------------------------------------------------- #
+def test_reconnect_brief_waits_in_a_silent_fragment():
+    from core.prompts.locked.rules import CONTROL_TAG
+    plain_head = (f"{CONTROL_TAG} 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고, 인사도 다시 하지 말고, "
+                  "하던 것을 그대로 이어가라. ")
+    st = cs._CallState()
+    assert cs._reconnect_brief(st) == plain_head, "종전 경로 바이트 불변(세그먼트 없음 → head 만)"
+    st.silent_resume = True
+    b = cs._reconnect_brief(st)
+    assert b != plain_head and "먼저 말을 꺼내지 마라 — 학습자가 먼저 말한다" in b and "사과하지 말고" in b
+    st.learner_spoke = True
+    assert cs._reconnect_brief(st) == plain_head, "학습자가 이미 말한 뒤에는 종전 head"
