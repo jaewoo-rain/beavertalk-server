@@ -487,6 +487,20 @@ _FACE_JSON_TAIL_RE = re.compile(
     r"""\{?\s*(?:"?emotion"?\s*)?:?\s*["'](?:neutral|happy|surprised|sad|angry|laugh)["']\s*\}+"""
 )
 
+# ⭐ **세 번째 무늬 — 함수 «응답» 의 꼬리가 샌다**(2026-09-13, 통화 1548 · 3.1). 위 둘은 모델이 보낸 «호출·인자»
+#   쪽이었다. 이번 건 서버가 돌려준 function response `{"result": "ok"}`(gemini_live.py) 의 뒷토막 `:ok}` 를
+#   모델이 **다음 턴 첫 조각**으로 뱉는다 — 5분 통화에서 표정 12번 중 7번(t17·t23·t39·t43·t45·t47·t55):
+#
+#       07:09:21  🦫 beaver: :ok}                          ← 조각 하나가 통째로 이것(그 뒤 개행 + 진짜 대사)
+#       07:09:26  BEAVER[t17]: :ok}⏎Fine. Last one. How do you say "I'm sorry" in Korean? …
+#
+#   같은 날 1543·1546 엔 0번 — 빈도가 널뛴다. 앵커는 위와 같은 원칙(닫는 중괄호 필수): «ok» 바로 뒤에 `}` 가
+#   오는 문장은 자연 발화에 없다. 값은 응답 상수 그대로 «ok» 하나만 문다(임의 낱말 금지 — 대사를 먹지 않는다).
+#   꼬리 뒤의 개행·공백까지 지운다 — 첫 조각이라 남기면 자막이 빈 줄로 시작한다.
+_TOOL_RESULT_TAIL_RE = re.compile(
+    r"""\{?\s*(?:"?result"?\s*)?:?\s*["']?ok["']?\s*\}+\s*"""
+)
+
 
 def _strip_face_echo(text: str) -> str:
     """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**을 걷어낸다.
@@ -497,6 +511,7 @@ def _strip_face_echo(text: str) -> str:
         text = _FACE_ECHO_RE.sub("", text)
     if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다
         text = _FACE_JSON_TAIL_RE.sub("", text)
+        text = _TOOL_RESULT_TAIL_RE.sub("", text)
     return text
 
 
