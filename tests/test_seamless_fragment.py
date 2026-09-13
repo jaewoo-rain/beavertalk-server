@@ -140,7 +140,10 @@ class FakeWebSocket:
 
     async def receive(self) -> dict:
         if self._incoming:
-            return self._incoming.pop(0)
+            m = self._incoming.pop(0)
+            if m.get("type") == "websocket.disconnect":
+                self.disconnect_read = True
+            return m
         if self._deferred:
             pred, msg = self._deferred[0]
             for _ in range(400):
@@ -163,6 +166,12 @@ class FakeWebSocket:
         self.sent_bytes.append(data)
 
     async def close(self, code: int | None = None) -> None:
+        if getattr(self, "close_waits_for_reader", False):
+            # 실제 uvicorn 처럼: 앱이 소켓을 읽어 클라의 close(disconnect)를 소비할 때까지 close 핸드셰이크가 안 끝난다(close_timeout 10s)
+            for _ in range(200):
+                if getattr(self, "disconnect_read", False):
+                    break
+                await asyncio.sleep(0.05)
         self.closed_with = code if code is not None else 1000
         self.client_state = self._WS.DISCONNECTED
 
@@ -580,3 +589,34 @@ async def test_empty_resume_summary_slots_keep_the_excerpt_fallback(session_fact
     assert "[지금까지]" in si and "- 방금까지 오간 대화:" in si and "학교에 갔어요" in si, "발췌 폴백이 살아 있다"
     assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라." in si
     assert h2["session"].sent_text_turns[0] == seeds.seed_resume("한국어")
+
+
+# --------------------------------------------------------------------------- #
+# H8 방어 — fragment_saved 뒤 클라가 옛 소켓에 프레임을 더 보내도 close 가 매달리지 않는다(읽고 버리기)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_fragment_saved_then_close_drains_late_client_frames_within_a_second(session_factory, seeded):
+    """실통화 1596·1598: fragment_end 뒤 읽기 펌프가 내려가 클라의 늦은 마이크 프레임·close 를 아무도 안 읽어 close_timeout 10s 에 매달렸다.
+    서버는 close 동안 소켓을 읽고 버린다(바이너리·텍스트 전부) → 클라 close 를 소비하고 즉시 끝난다."""
+    holder: dict = {}
+    marks: dict = {}
+    loop = asyncio.get_running_loop()
+
+    def _on_send(text):
+        if '"fragment_saved"' in text:
+            marks["saved_at"] = loop.time()
+            ws = holder["ws"]
+            ws.close_waits_for_reader = True
+            # 클라가 옛 소켓에 늦은 프레임 3개(마이크 2 + ping 1)를 더 보내고 나서 close 한다
+            ws._incoming.extend([
+                {"type": "websocket.receive", "bytes": bytes(640)},
+                {"type": "websocket.receive", "text": json.dumps({"type": "ping", "t": 1})},
+                {"type": "websocket.receive", "bytes": bytes(640)},
+                {"type": "websocket.disconnect"},
+            ])
+    h = await _run(session_factory, seeded, "normal", holder, script=[("B", "안녕!"), ("U", "네"), ("B", "좋아요")],
+                   session_cls=HeldOpenSession, fragment_end=True, on_send=_on_send)
+    assert _frames_of("fragment_saved", h) and not _frames_of("call_ended", h)
+    assert h["ws"].closed_with is not None and getattr(h["ws"], "disconnect_read", False), "늦은 프레임을 읽고 버린 뒤 클라 close 를 소비했다"
+    assert not h["ws"]._incoming, "프레임 3개 전부 배수"
+    assert loop.time() - marks["saved_at"] <= 1.0, "fragment_saved → close 가 1초 안(10s close_timeout 에 매달리지 않는다)"

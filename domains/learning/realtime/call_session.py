@@ -170,6 +170,7 @@ ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백�
 # 무엇인지 우리가 못 정하는 반면, 시계는 결정적이라 테스트가 발화시킬 수 있다. GoAway 는
 # 보조 트리거, 스트림 종료는 폴백.
 SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
+FRAGMENT_DRAIN_S = 2.0         # fragment_saved 뒤 close 동안 클라 소켓 «읽고 버리기» 상한(H8 1596·1598: 안 읽으면 close_timeout 10s 매달림)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
 #                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
 FLUSH_INTERVAL_S = 60.0         # 통화중 누적 세그먼트 점진 저장 주기(1분)
@@ -5887,6 +5888,25 @@ async def _reground_sidecar(state: _CallState) -> None:
         logger.warning("normalcall: 재접지 사이드카 실패(무시 — 기본 문구 사용): %s", exc)
 
 
+async def _drain_client_socket(client_ws) -> int:
+    """fragment_saved 뒤 close 동안 클라 소켓을 읽고 버린다(H8). disconnect·예외·FRAGMENT_DRAIN_S 상한에서 끝. 버린 프레임 수를 돌려준다."""
+    dropped = 0
+    try:
+        async with asyncio.timeout(FRAGMENT_DRAIN_S):
+            while True:
+                message = await client_ws.receive()
+                if message.get("type") == "websocket.disconnect":
+                    break
+                dropped += 1
+    except (TimeoutError, asyncio.CancelledError):
+        pass
+    except Exception as exc:  # noqa: BLE001 — 배수 실패로 종료를 막지 않는다(R5)
+        logger.debug("normalcall fragment 배수 중단: %s", exc)
+    if dropped:
+        logger.info("normalcall fragment_saved 뒤 클라 프레임 %d개 읽고 버림(close 대기 해소)", dropped)
+    return dropped
+
+
 async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> None:
     """call_ended 송신 → playback_done ack 대기 → WS close(전부 graceful).
 
@@ -5908,9 +5928,18 @@ async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> Non
         with contextlib.suppress(Exception):
             if client_ws.client_state == WebSocketState.CONNECTED:
                 await _send_json(client_ws, ServerFragmentSaved(call_id=str(call_id or ""), fragment_index=int(state.fragment_index or 1)))
+        # ⭐ H8 실통화(1596·1598 +9990ms / 마이크를 같이 끊은 1600 +2ms): fragment_end 뒤엔 읽기 펌프가 이미 내려가 있어, 클라가 옛 소켓에
+        #   프레임을 더 보내면 close 프레임을 못 읽고 close_timeout(10s)까지 매달린다 → close 하는 동안 소켓을 **읽고 버린다**(바이너리·텍스트
+        #   전부, disconnect 오면 즉시 끝). 2펌프·백스톱·종전 경로 무변경 — fragment_end 종료에만 붙는 배수구다.
         with contextlib.suppress(Exception):
             if client_ws.client_state != WebSocketState.DISCONNECTED:
-                await client_ws.close()
+                drain = asyncio.create_task(_drain_client_socket(client_ws), name="nc-drain")
+                try:
+                    await client_ws.close()
+                finally:
+                    with contextlib.suppress(Exception):
+                        await asyncio.wait_for(drain, timeout=FRAGMENT_DRAIN_S)
+                    drain.cancel()
         return
     with contextlib.suppress(Exception):
         if client_ws.client_state == WebSocketState.CONNECTED:
