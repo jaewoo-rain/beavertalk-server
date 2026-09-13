@@ -17,6 +17,8 @@ EXPR_RULE3_LANDING = '   - ★ [착지] 네 턴은 지금 다루는 표현을 �
 # [진행 절차] — 드릴 첫 불릿(editable `drill_intro`) 뒤에 오는 잠금 줄들. GRAMMAR_LINE 은 목록에 [문형] 이 있을 때만.
 PROCEDURE_HEADER = "[진행 절차]"
 DRILL_GRAMMAR_LINE = '- [문형] 항목은 문형 이름을 말하게 하지 말고 **연습 문장**을 상황에 맞게 말하게 해라 — 정답은 그 연습 문장이다. 퀴즈도 같다.'
+# ⭐ E(2026-09-14, 사장님 확정 — 실통화 1592 t11·t14 «not even close»): 문형 항목은 같은 문형으로 만든 다른 올바른 문장도 정답. ko·ja 공통(has_grammar 일 때만, DRILL_GRAMMAR_LINE 바로 뒤).
+DRILL_GRAMMAR_ALT_LINE = '- [문형] 항목은 **같은 문형으로 만든 다른 올바른 문장**도 정답이다 — 네가 낸 연습 문장과 달라도 고치지 말고 맞았다고 해라. 문형 자체가 틀렸을 때만 교정한다.'
 DRILL_REVEAL_LINE = '- 못 하거나 틀리면 정답을 또박또박 한 번 들려주고 따라 말하게 해라. 같은 항목은 **최대 3번까지만** 다시 시도한다. 그래도 안 되면 짧게 반응만 하고 다음 번호 항목으로 넘어가라 — **맞았다고 하지는 마라.** 학습자가 해내면 짧게 반응하고 곧바로 다음 번호 항목으로 이어 가라.'
 DRILL_FORMALITY_LINE = '- {target}의 정중한 형태를 가르치고 있다. 반말로 답하면 맞힌 게 아니다 — 고쳐 줘라. 조사·어미 하나가 빠진 것은 맞힌 것으로 받되, 격식 표지(-요·-습니다·저)가 빠진 것은 아니다.'
 # 실통화 1550(2026-09-12): 비버가 «고맙습니다 → too formal, wrong» 4회. 서버 판정(표면형 → passed)은 무변경 — 이 줄은 비버의 «틀렸다» 반응만 막는다.
@@ -96,7 +98,7 @@ def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: 
         PROCEDURE_HEADER,
         drill_intro.format(**fmt),
         *[line.format(**fmt) for line in extra],
-        *([DRILL_GRAMMAR_LINE] if has_grammar else []),
+        *([DRILL_GRAMMAR_LINE, DRILL_GRAMMAR_ALT_LINE] if has_grammar else []),
         DRILL_REVEAL_LINE,
         formality.format(**fmt),
         DRILL_ALT_CORRECT_LINE,

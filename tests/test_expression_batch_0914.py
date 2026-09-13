@@ -141,3 +141,16 @@ def test_expression_resume_note_has_the_required_sections_and_stays_short():
     # 조각1 대본(선톡 시드) 무변경 — 재개 쪽지가 새지 않았다
     from core.prompts.expression import seed_expression_opening
     assert "[통화 시작]" in seed_expression_opening("한국어") and "[통화 이어감]" not in seed_expression_opening("한국어")
+
+
+# --------------------------------------------------------------------------- #
+# E — [문형] 항목은 같은 문형의 다른 올바른 문장도 정답(ko·ja 공통, has_grammar 일 때만)
+# --------------------------------------------------------------------------- #
+def test_grammar_items_accept_other_correct_sentences_of_the_same_pattern():
+    for lang, target, loc in (("ko", "한국어", "영어(English)"), ("ja", "일본어", "한국어")):
+        with_gr = lex.procedure(drill_intro="- 드릴", target=target, locale_label=loc, has_grammar=True, language=lang).splitlines()
+        i = with_gr.index(lex.DRILL_GRAMMAR_LINE)
+        assert with_gr[i + 1] == lex.DRILL_GRAMMAR_ALT_LINE, "DRILL_GRAMMAR_LINE 바로 뒤"
+        assert "같은 문형으로 만든 다른 올바른 문장**도 정답" in lex.DRILL_GRAMMAR_ALT_LINE and "문형 자체가 틀렸을 때만 교정" in lex.DRILL_GRAMMAR_ALT_LINE
+        without = lex.procedure(drill_intro="- 드릴", target=target, locale_label=loc, has_grammar=False, language=lang)
+        assert lex.DRILL_GRAMMAR_ALT_LINE not in without and lex.DRILL_GRAMMAR_LINE not in without, "무문법 차시 무변경"
