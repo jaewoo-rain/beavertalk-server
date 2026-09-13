@@ -4,6 +4,8 @@ ko 잠금 대본 바이트 불변은 tests/test_prompt_locked_hash.py(expression
 """
 from __future__ import annotations
 
+import pytest
+
 import domains.learning.realtime.call_session as cs
 from core.prompts.locked import expression as lex
 from core.prompts.locked import reground, seeds
@@ -154,3 +156,37 @@ def test_grammar_items_accept_other_correct_sentences_of_the_same_pattern():
         assert "같은 문형으로 만든 다른 올바른 문장**도 정답" in lex.DRILL_GRAMMAR_ALT_LINE and "문형 자체가 틀렸을 때만 교정" in lex.DRILL_GRAMMAR_ALT_LINE
         without = lex.procedure(drill_intro="- 드릴", target=target, locale_label=loc, has_grammar=False, language=lang)
         assert lex.DRILL_GRAMMAR_ALT_LINE not in without and lex.DRILL_GRAMMAR_LINE not in without, "무문법 차시 무변경"
+
+
+# --------------------------------------------------------------------------- #
+# ④ (2026-09-14) — (a) 새 표현 첫 질문 틀(편집 대본) · (b) 큐 «보류» 로그는 사유가 바뀔 때만
+# --------------------------------------------------------------------------- #
+def test_new_item_first_ask_frame_is_in_the_drill_intro_for_all_languages():
+    line = "처음 묻는 새 표현이면 새 표현임을 먼저 알리고, 알면 말해 보고 모르면 알려 주겠다는 틀로 물어라 — 배운 적 없는 것을 맞춰 보라고 몰아세우지 마라."
+    assert line in _instr("ko", "한국어") and line in _instr("ja", "일본어")
+    for banned in ("작별", "종료", "마지막", "마무리", "정리", "여기까지", "퀴즈", "테스트"):
+        assert banned not in line
+
+
+@pytest.mark.asyncio
+async def test_quiz_cue_hold_log_is_emitted_only_when_the_reason_changes(caplog):
+    import logging
+
+    class _Sess:
+        async def send_reground(self, text, *, turn_complete=True):
+            pass
+
+    st = _state()
+    st.expr_quiz_cue_pending = "[큐]"
+    st.expr_quiz_prev_num = 1                        # 보류 항목 — 학습자 입에서 안 나왔다
+    st.expr_quiz_cue_user_turns = 0
+    caplog.set_level(logging.INFO, logger="domains.learning.realtime.call_session")
+    for _ in range(15):                              # 1604: 마이크 프레임마다 15회
+        await cs._attach_quiz_cue(_Sess(), st, "마이크")
+    holds = [r for r in caplog.records if "보류:" in r.getMessage()]
+    assert len(holds) == 1, [r.getMessage() for r in holds]
+    st.expr_quiz_cue_user_turns = 1                  # 사유가 바뀐다(학습자 턴 1/3) → 1줄 더
+    await cs._attach_quiz_cue(_Sess(), st, "마이크")
+    await cs._attach_quiz_cue(_Sess(), st, "마이크")
+    holds = [r for r in caplog.records if "보류:" in r.getMessage()]
+    assert len(holds) == 2 and "1/3" in holds[-1].getMessage()

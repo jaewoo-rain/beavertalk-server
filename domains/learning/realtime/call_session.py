@@ -760,7 +760,7 @@ class _CallState:
         "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "expr_sidecar_calls",
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
-        "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray", "expr_quiz_open_user_turns",
+        "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray", "expr_quiz_open_user_turns", "expr_quiz_hold_why",
         "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
         "expr_quiz_covered_at_open", "expr_quiz_drill_num",
         # 큐 보류(1552, 2026-09-13): expr_covered_by_user — 학습자 발화로 확인된 번호 · expr_quiz_cue_covered_at_arm — arm 때 covered 수 ·
@@ -969,6 +969,7 @@ class _CallState:
         self.expr_quiz_open: bool = False
         self.expr_quiz_open_seg: int = 0
         self.expr_quiz_open_user_turns: int = 0            # C4 — 창이 열린 뒤 학습자 턴 수(상한 EXPR_QUIZ_OPEN_MAX_USER_TURNS 에 강제 닫힘)
+        self.expr_quiz_hold_why: Optional[str] = None      # ④(b) — 마지막으로 찍은 «보류» 사유(같으면 안 찍는다: 1604 1초에 15줄)
         self.expr_quiz_stray: list[int] = []
         self.expr_covered_by_beaver: set[int] = set()
         self.expr_retry_cued: bool = False
@@ -5536,7 +5537,9 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     if not settled:
         # ⭐ 1552 — 공개 직후 학습자가 다시 시도하는 그 자리에 큐가 얹히면 비버가 정답만 말하고 퀴즈로 넘어간다. 마지막 항목이
         #   정리될 때까지(학습자 성공 / 시도 3번 / 비버가 다음 항목 소개) 큐를 들고 있는다 — 재접지처럼 다음 발화에 다시 본다.
-        logger.info("%s 보류: seq=%d 항목=%s 이유=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_seq, state.expr_quiz_set, why)
+        if why != state.expr_quiz_hold_why:     # ④(b) 2026-09-14 — 마이크 프레임마다 불리므로 사유가 바뀔 때만 1줄(1604 18:18:20 1초에 15줄)
+            state.expr_quiz_hold_why = why
+            logger.info("%s 보류: seq=%d 항목=%s 이유=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_seq, state.expr_quiz_set, why)
         return
     now = asyncio.get_running_loop().time()
     waited = (now - state.expr_quiz_cue_armed_ts) if state.expr_quiz_cue_armed_ts is not None else 0.0
@@ -5549,6 +5552,7 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         return
     state.expr_quiz_cue_pending = None
     state.expr_quiz_awaiting_open = True
+    state.expr_quiz_hold_why = None            # ④(b) 다음 큐의 첫 보류는 다시 찍힌다
     _note_text_inject(state, "quiz_cue")
     # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
     logger.info(
