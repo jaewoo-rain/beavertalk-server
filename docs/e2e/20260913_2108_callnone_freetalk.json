@@ -1,0 +1,63 @@
+{
+ "call_id": null,
+ "course": "freetalk",
+ "locked": true,
+ "end_reason": "error:COURSE_LOCKED",
+ "lesson": {
+  "lesson_id": 4,
+  "no": 4,
+  "code": "A1-T01-1",
+  "level_no": 2,
+  "situation": "처음 만난 반 친구와 이름과 나라 말하기",
+  "partner": "한국어 교실에서 처음 만난 반 친구",
+  "probes": "[\"마이클 씨는 어느 나라 사람이에요?\", \"우리 반에 외국인이 많아요?\", \"자기소개와 신상에 대해 더 이야기해 볼래요?\"]",
+  "item_count": 30
+ },
+ "me_pre": {
+  "language": "ko",
+  "available": true,
+  "lesson": {
+   "no": 4,
+   "code": "A1-T01-1",
+   "level_no": 2,
+   "situation": "처음 만난 반 친구와 이름과 나라 말하기",
+   "topic": "자기소개와 신상"
+  },
+  "status": "learning",
+  "items_total": 30,
+  "items_drilled": 10,
+  "open": {
+   "expression": true,
+   "freetalk": false
+  },
+  "next_course": "expression"
+ },
+ "me_post": {
+  "language": "ko",
+  "available": true,
+  "lesson": {
+   "no": 4,
+   "code": "A1-T01-1",
+   "level_no": 2,
+   "situation": "처음 만난 반 친구와 이름과 나라 말하기",
+   "topic": "자기소개와 신상"
+  },
+  "status": "learning",
+  "items_total": 30,
+  "items_drilled": 10,
+  "open": {
+   "expression": true,
+   "freetalk": false
+  },
+  "next_course": "expression"
+ },
+ "beaver_hits": [],
+ "learner_hits": [],
+ "ft_silence": {},
+ "character_name": "",
+ "watchdog_fires": 0,
+ "turns": [],
+ "server_logs": [
+  "2026-09-13T12:08:17.090140Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습 저장: {'lesson_completed': False, 'status': 'learning', 'drilled': 4, 'passed': 0, 'failed': 2, 'fragment': 1}"
+ ]
+}

@@ -1,0 +1,2556 @@
+{
+ "call_id": 1571,
+ "duration_min": 5,
+ "end_reason": "client_cut",
+ "errors": [],
+ "anchors": [
+  [
+   22,
+   4
+  ],
+  [
+   62,
+   7
+  ],
+  [
+   120,
+   17
+  ]
+ ],
+ "drilled_order": [
+  10637,
+  10638,
+  10639,
+  1,
+  5692,
+  7,
+  203,
+  22,
+  47,
+  53,
+  65,
+  73,
+  24,
+  74,
+  84,
+  90,
+  199
+ ],
+ "quiz_cue_match": {
+  "pairs": [
+   [
+    1789300117.999783,
+    22,
+    0.9
+   ],
+   [
+    1789300313.062093,
+    120,
+    25.6
+   ]
+  ],
+  "cues_without_anchor": [
+   1789300223.201395,
+   1789300280.701554,
+   1789300329.782709
+  ],
+  "anchors_without_cue": [
+   62
+  ],
+  "cues": [
+   [
+    1789300117.999783,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=6s 비버턴=(열린 턴 없음) 정리=학습자 확인"
+   ],
+   [
+    1789300223.201395,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 5, 15] 얹기=마이크 대기=18s 비버턴=(열린 턴 없음) 정리=학습자 턴 3회"
+   ],
+   [
+    1789300280.701554,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[6, 7, 8] 얹기=마이크 대기=14s 비버턴=(열린 턴 없음) 정리=학습자 확인"
+   ],
+   [
+    1789300313.062093,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=4 항목=[9, 10, 11] 얹기=마이크 대기=11s 비버턴=(열린 턴 없음) 정리=학습자 확인"
+   ],
+   [
+    1789300329.782709,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=5 항목=[12, 13, 14] 얹기=마이크 대기=2s 비버턴=(열린 턴 없음) 정리=학습자 확인"
+   ]
+  ]
+ },
+ "turns": [
+  {
+   "n": 0,
+   "role": "beaver",
+   "t": 4.7,
+   "wall": 1789300064.635,
+   "text": "Alright, let's get started. When you're leaving a place and saying goodbye to someone staying there, how do you say it in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→인사말(llm(The tutor is asking for a greeting used when leaving a place))",
+    "새항목#1 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 1,
+   "role": "learner",
+   "t": 6.9,
+   "wall": 1789300066.777,
+   "text": "안녕히 계세요.",
+   "kind": "correct",
+   "stt": "안녕히 계세요.",
+   "tags": []
+  },
+  {
+   "n": 2,
+   "role": "beaver",
+   "t": 11.1,
+   "wall": 1789300070.974,
+   "text": "Nailed it. Now, how would you ask someone when their birthday is?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 3,
+   "role": "learner",
+   "t": 13.0,
+   "wall": 1789300072.912,
+   "text": "안녕히 계세요.",
+   "kind": "correct",
+   "stt": "안녕히 계세요.",
+   "tags": []
+  },
+  {
+   "n": 4,
+   "role": "beaver",
+   "t": 18.2,
+   "wall": 1789300078.075,
+   "text": "HAHA! Why are you saying goodbye again? That doesn't make any sense! Try again. \"Birthday is when?\"",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 5,
+   "role": "learner",
+   "t": 20.2,
+   "wall": 1789300080.098,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 6,
+   "role": "beaver",
+   "t": 24.5,
+   "wall": 1789300084.444,
+   "text": "You don't know? Hilarious. It's \"생일이 언제예요?\" Now you try.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N은/는 N이에요/예요",
+    "→N은/는 N이에요/예요(reveal)",
+    "새항목#2 정책2 ⛔선공개",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 7,
+   "role": "learner",
+   "t": 25.3,
+   "wall": 1789300085.238,
+   "text": "생일이 언제예요?",
+   "kind": "parrot",
+   "stt": "생일이 언제예요?",
+   "tags": []
+  },
+  {
+   "n": 8,
+   "role": "beaver",
+   "t": 29.1,
+   "wall": 1789300088.977,
+   "text": "It's \"생일이 언제예요?\" Try that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N은/는 N이에요/예요",
+    "→N은/는 N이에요/예요(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 9,
+   "role": "learner",
+   "t": 29.9,
+   "wall": 1789300089.776,
+   "text": "생일이 언제예요?",
+   "kind": "parrot",
+   "stt": "생일이 언제예요?",
+   "tags": []
+  },
+  {
+   "n": 10,
+   "role": "beaver",
+   "t": 34.4,
+   "wall": 1789300094.328,
+   "text": "Much better. Okay, now for the next one. How do you say \"I am a company employee\" in Korean?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "새항목예고(미식별)"
+   ]
+  },
+  {
+   "n": 11,
+   "role": "learner",
+   "t": 36.6,
+   "wall": 1789300096.475,
+   "text": "생일이 언제예요?",
+   "kind": "parrot",
+   "stt": "생일이 언제예요?",
+   "tags": []
+  },
+  {
+   "n": 12,
+   "role": "beaver",
+   "t": 40.9,
+   "wall": 1789300100.814,
+   "text": "Still just saying the same thing! I said, \"How do you say 'I am a company employee'?\"",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 13,
+   "role": "learner",
+   "t": 43.0,
+   "wall": 1789300102.877,
+   "text": "생일이 언제예요?",
+   "kind": "parrot",
+   "stt": "생일이 언제예요?",
+   "tags": []
+  },
+  {
+   "n": 14,
+   "role": "beaver",
+   "t": 47.6,
+   "wall": 1789300107.474,
+   "text": "You're sticking with that one, huh? Fine. It's \"저는 회사원입니다.\" Say that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N입니까?, N입니다·저",
+    "→N입니까?, N입니다(reveal)",
+    "새항목#3 정책3 ⛔선공개",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 15,
+   "role": "learner",
+   "t": 48.4,
+   "wall": 1789300108.274,
+   "text": "저는 회사원입니다.",
+   "kind": "parrot",
+   "stt": "저는 회사원입니다.",
+   "tags": []
+  },
+  {
+   "n": 16,
+   "role": "beaver",
+   "t": 52.7,
+   "wall": 1789300112.579,
+   "text": "Finally! You got it. Now, what about the word for \"person\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→사람(quote=\"person\")",
+    "새항목#4 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 17,
+   "role": "learner",
+   "t": 53.5,
+   "wall": 1789300113.377,
+   "text": "좋다",
+   "kind": "distractor",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 18,
+   "role": "beaver",
+   "t": 54.2,
+   "wall": 1789300114.134,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 19,
+   "role": "learner",
+   "t": 55.0,
+   "wall": 1789300114.951,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "좋다.",
+   "tags": []
+  },
+  {
+   "n": 20,
+   "role": "beaver",
+   "t": 56.6,
+   "wall": 1789300116.526,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 21,
+   "role": "learner",
+   "t": 57.4,
+   "wall": 1789300117.318,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "오케이.",
+   "tags": []
+  },
+  {
+   "n": 22,
+   "role": "beaver",
+   "t": 59.0,
+   "wall": 1789300118.933,
+   "text": "Time for a quick quiz! How do you say greetings when you're leaving?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@4번째✖",
+    "→인사말(kw:greetings)",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 23,
+   "role": "learner",
+   "t": 59.8,
+   "wall": 1789300119.718,
+   "text": "안녕히 계세요.",
+   "kind": "correct",
+   "stt": "안녕히 계세요.",
+   "tags": []
+  },
+  {
+   "n": 24,
+   "role": "beaver",
+   "t": 64.1,
+   "wall": 1789300123.978,
+   "text": "Good job. Now, how would you ask someone when their birthday is?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 25,
+   "role": "learner",
+   "t": 66.2,
+   "wall": 1789300126.138,
+   "text": "안녕히 계세요.",
+   "kind": "correct",
+   "stt": "안녕히 계세요.",
+   "tags": []
+  },
+  {
+   "n": 26,
+   "role": "beaver",
+   "t": 70.6,
+   "wall": 1789300130.53,
+   "text": "Still saying goodbye? Remember, it's \"생일이 언제예요?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N은/는 N이에요/예요",
+    "→N은/는 N이에요/예요(reveal)",
+    "퀴즈회차1",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 27,
+   "role": "learner",
+   "t": 71.4,
+   "wall": 1789300131.338,
+   "text": "생일이 언제예요?",
+   "kind": "parrot",
+   "stt": "생일이 언제예요?",
+   "tags": []
+  },
+  {
+   "n": 28,
+   "role": "beaver",
+   "t": 75.1,
+   "wall": 1789300135.033,
+   "text": "It's \"생일이 언제예요?\" Try that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N은/는 N이에요/예요",
+    "→N은/는 N이에요/예요(reveal)",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 29,
+   "role": "learner",
+   "t": 75.9,
+   "wall": 1789300135.833,
+   "text": "생일이 언제예요?",
+   "kind": "parrot",
+   "stt": "생일이 언제예요?",
+   "tags": []
+  },
+  {
+   "n": 30,
+   "role": "beaver",
+   "t": 79.8,
+   "wall": 1789300139.7,
+   "text": "That's right! And the last one, how do you say \"I am a company",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→이(kw:one)",
+    "퀴즈끝→드릴",
+    "새항목#5 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 31,
+   "role": "learner",
+   "t": 80.6,
+   "wall": 1789300140.514,
+   "text": "이요",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "재발화(전사 없음)"
+   ]
+  },
+  {
+   "n": 32,
+   "role": "learner",
+   "t": 85.0,
+   "wall": 1789300144.94,
+   "text": "말하는 이의 뜻을 잘 살펴야 해요.",
+   "kind": "correct",
+   "stt": "말하는 이의 뜻을 잘 살펴야 해요.",
+   "tags": [
+    "재발화"
+   ]
+  },
+  {
+   "n": 33,
+   "role": "beaver",
+   "t": 91.3,
+   "wall": 1789300151.249,
+   "text": "What are you talking about? Just say \"I am a company employee.\"",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 34,
+   "role": "learner",
+   "t": 93.4,
+   "wall": 1789300153.358,
+   "text": "이요",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "재발화(전사 없음)"
+   ]
+  },
+  {
+   "n": 35,
+   "role": "learner",
+   "t": 97.9,
+   "wall": 1789300157.779,
+   "text": "말하는 이의 뜻을 잘 살펴야 해요.",
+   "kind": "correct",
+   "stt": "말하는 이의 뜻을 잘 살펴야 해요.",
+   "tags": [
+    "재발화"
+   ]
+  },
+  {
+   "n": 36,
+   "role": "beaver",
+   "t": 104.6,
+   "wall": 1789300164.505,
+   "text": "Stop saying that! It's \"저는 회사원입니다.\" Now say \"person.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N입니까?, N입니다·저",
+    "→사람(quote=\"person\")",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 37,
+   "role": "learner",
+   "t": 105.4,
+   "wall": 1789300165.314,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 38,
+   "role": "beaver",
+   "t": 108.7,
+   "wall": 1789300168.621,
+   "text": "It's \"저는 회사원입니다.\" Repeat that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:N입니까?, N입니다·저",
+    "→N입니까?, N입니다(reveal)",
+    "⛔앵커없는재출제/되감기(회차1)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 39,
+   "role": "learner",
+   "t": 109.5,
+   "wall": 1789300169.419,
+   "text": "저는 회사원입니다.",
+   "kind": "parrot",
+   "stt": "저는 회사원입니다.",
+   "tags": []
+  },
+  {
+   "n": 40,
+   "role": "beaver",
+   "t": 113.5,
+   "wall": 1789300173.385,
+   "text": "There you go. Now, what's the word for \"person\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→사람(quote=\"person\")",
+    "⛔앵커없는재출제/되감기(회차2)"
+   ]
+  },
+  {
+   "n": 41,
+   "role": "learner",
+   "t": 114.3,
+   "wall": 1789300174.178,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 42,
+   "role": "beaver",
+   "t": 117.9,
+   "wall": 1789300177.793,
+   "text": "The word for \"person\" is \"사람.\" Can you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:사람",
+    "→사람(quote=\"person\")",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 43,
+   "role": "learner",
+   "t": 118.7,
+   "wall": 1789300178.598,
+   "text": "사람요",
+   "kind": "parrot",
+   "stt": "사람요",
+   "tags": []
+  },
+  {
+   "n": 44,
+   "role": "beaver",
+   "t": 122.3,
+   "wall": 1789300182.177,
+   "text": "Exactly. Now, what about the word for \"country\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→나라(quote=\"country\")",
+    "새항목#6 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 45,
+   "role": "learner",
+   "t": 123.1,
+   "wall": 1789300182.978,
+   "text": "나라요",
+   "kind": "correct",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 46,
+   "role": "beaver",
+   "t": 124.1,
+   "wall": 1789300184.047,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 47,
+   "role": "learner",
+   "t": 124.9,
+   "wall": 1789300184.858,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "나라요.",
+   "tags": []
+  },
+  {
+   "n": 48,
+   "role": "beaver",
+   "t": 127.6,
+   "wall": 1789300187.5,
+   "text": "Yeah, \"나라\" is correct. Now, how do you say, \"Korea is a beautiful country\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:나라",
+    "→나라(quote~\"korea is a beautiful country\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 49,
+   "role": "learner",
+   "t": 129.9,
+   "wall": 1789300189.833,
+   "text": "나라요",
+   "kind": "correct",
+   "stt": "나라요.",
+   "tags": []
+  },
+  {
+   "n": 50,
+   "role": "beaver",
+   "t": 134.6,
+   "wall": 1789300194.507,
+   "text": "I just said \"나라\" is correct! Now say \"Korea is a beautiful country.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:나라",
+    "→나라(quote~\"korea is a beautiful country\")"
+   ]
+  },
+  {
+   "n": 51,
+   "role": "learner",
+   "t": 136.7,
+   "wall": 1789300196.593,
+   "text": "나라요",
+   "kind": "correct",
+   "stt": "나라요.",
+   "tags": []
+  },
+  {
+   "n": 52,
+   "role": "beaver",
+   "t": 141.3,
+   "wall": 1789300201.235,
+   "text": "Yes, I know it means \"country\"! Now, say \"한국은 아름다운 나라예요.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:한국",
+    "→나라(quote=\"country\")"
+   ]
+  },
+  {
+   "n": 53,
+   "role": "learner",
+   "t": 142.1,
+   "wall": 1789300202.033,
+   "text": "한국요",
+   "kind": "parrot",
+   "stt": "한국역",
+   "tags": []
+  },
+  {
+   "n": 54,
+   "role": "beaver",
+   "t": 146.6,
+   "wall": 1789300206.549,
+   "text": "No, not \"한국형\"! Say the whole sentence: \"한국은 아름다운 나라예요.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:한국",
+    "→한국(reveal)",
+    "새항목#7 정책1 ⛔선공개",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 55,
+   "role": "learner",
+   "t": 147.4,
+   "wall": 1789300207.353,
+   "text": "한국요",
+   "kind": "parrot",
+   "stt": "한국여",
+   "tags": []
+  },
+  {
+   "n": 56,
+   "role": "beaver",
+   "t": 151.2,
+   "wall": 1789300211.098,
+   "text": "It's \"한국은 아름다운 나라예요.\" Try that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:한국",
+    "→한국(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 57,
+   "role": "learner",
+   "t": 152.0,
+   "wall": 1789300211.897,
+   "text": "한국요",
+   "kind": "correct",
+   "stt": "한국역",
+   "tags": []
+  },
+  {
+   "n": 58,
+   "role": "beaver",
+   "t": 156.1,
+   "wall": 1789300216.055,
+   "text": "You're still saying \"한국여.\" It's \"한국은.\" Try again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:한국"
+   ]
+  },
+  {
+   "n": 59,
+   "role": "learner",
+   "t": 158.3,
+   "wall": 1789300218.193,
+   "text": "한국요",
+   "kind": "correct",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 60,
+   "role": "beaver",
+   "t": 159.4,
+   "wall": 1789300219.329,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 61,
+   "role": "learner",
+   "t": 160.2,
+   "wall": 1789300220.137,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "한국여",
+   "tags": []
+  },
+  {
+   "n": 62,
+   "role": "beaver",
+   "t": 162.4,
+   "wall": 1789300222.275,
+   "text": "Okay, let's do a quick quiz on the words we just learned. How do you say \"person\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@7번째✖",
+    "→사람(quote=\"person\")",
+    "퀴즈회차3"
+   ]
+  },
+  {
+   "n": 63,
+   "role": "learner",
+   "t": 163.2,
+   "wall": 1789300223.072,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 64,
+   "role": "beaver",
+   "t": 166.0,
+   "wall": 1789300225.955,
+   "text": "How do you say \"person\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→사람(quote=\"person\")"
+   ]
+  },
+  {
+   "n": 65,
+   "role": "learner",
+   "t": 166.8,
+   "wall": 1789300226.753,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 66,
+   "role": "beaver",
+   "t": 169.9,
+   "wall": 1789300229.847,
+   "text": "It's \"사람.\" Say \"사람.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:사람",
+    "→사람(reveal)",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 67,
+   "role": "learner",
+   "t": 170.7,
+   "wall": 1789300230.638,
+   "text": "사람요",
+   "kind": "parrot",
+   "stt": "사람요",
+   "tags": []
+  },
+  {
+   "n": 68,
+   "role": "beaver",
+   "t": 174.1,
+   "wall": 1789300234.019,
+   "text": "Right. Now, what's the word for \"country\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→나라(quote=\"country\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 69,
+   "role": "learner",
+   "t": 174.9,
+   "wall": 1789300234.816,
+   "text": "나라요",
+   "kind": "correct",
+   "stt": "나라요.",
+   "tags": []
+  },
+  {
+   "n": 70,
+   "role": "beaver",
+   "t": 178.6,
+   "wall": 1789300238.532,
+   "text": "And how do you say \"Korea\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→한국(quote=\"korea\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 71,
+   "role": "learner",
+   "t": 179.4,
+   "wall": 1789300239.338,
+   "text": "한국요",
+   "kind": "correct",
+   "stt": "한국이요.",
+   "tags": []
+  },
+  {
+   "n": 72,
+   "role": "beaver",
+   "t": 183.1,
+   "wall": 1789300242.994,
+   "text": "Good. Now, what about the word for \"hometown\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→고향(quote=\"hometown\")",
+    "퀴즈끝→드릴",
+    "새항목#8 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 73,
+   "role": "learner",
+   "t": 183.9,
+   "wall": 1789300243.792,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 74,
+   "role": "beaver",
+   "t": 187.2,
+   "wall": 1789300247.076,
+   "text": "\"Hometown\" is \"고향.\" Can you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:고향",
+    "→고향(quote=\"hometown\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 75,
+   "role": "learner",
+   "t": 188.0,
+   "wall": 1789300247.878,
+   "text": "고향요",
+   "kind": "parrot",
+   "stt": "고향이요.",
+   "tags": []
+  },
+  {
+   "n": 76,
+   "role": "beaver",
+   "t": 191.7,
+   "wall": 1789300251.663,
+   "text": "Close, it's \"고향.\" And how about the word for \"foreigner\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:고향",
+    "→외국인(quote=\"foreigner\")",
+    "새항목#9 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 77,
+   "role": "learner",
+   "t": 192.5,
+   "wall": 1789300252.454,
+   "text": "외국인",
+   "kind": "correct",
+   "stt": "외국인",
+   "tags": []
+  },
+  {
+   "n": 78,
+   "role": "beaver",
+   "t": 196.3,
+   "wall": 1789300256.202,
+   "text": "Yes, \"외국인\" is \"foreigner.\" How do you say \"the United States\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:외국인",
+    "→미국(llm(The tutor is asking the learner to produce the Korean expres))",
+    "새항목#10 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 79,
+   "role": "learner",
+   "t": 198.4,
+   "wall": 1789300258.354,
+   "text": "저",
+   "kind": "distractor",
+   "stt": "저",
+   "tags": []
+  },
+  {
+   "n": 80,
+   "role": "beaver",
+   "t": 202.3,
+   "wall": 1789300262.266,
+   "text": "\"미국.\" Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:미국",
+    "→미국(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 81,
+   "role": "learner",
+   "t": 203.2,
+   "wall": 1789300263.073,
+   "text": "누구",
+   "kind": "distractor",
+   "stt": "누구?",
+   "tags": []
+  },
+  {
+   "n": 82,
+   "role": "beaver",
+   "t": 206.7,
+   "wall": 1789300266.579,
+   "text": "Not \"누구,\" \"미국.\" Try again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:미국·누구",
+    "→미국(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 83,
+   "role": "learner",
+   "t": 207.5,
+   "wall": 1789300267.377,
+   "text": "가다",
+   "kind": "distractor",
+   "stt": "가다",
+   "tags": []
+  },
+  {
+   "n": 84,
+   "role": "beaver",
+   "t": 210.7,
+   "wall": 1789300270.605,
+   "text": "Laughable! It's \"미국\"! Try again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:미국",
+    "→미국(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 85,
+   "role": "learner",
+   "t": 211.5,
+   "wall": 1789300271.418,
+   "text": "미국요",
+   "kind": "parrot",
+   "stt": "미국이요.",
+   "tags": []
+  },
+  {
+   "n": 86,
+   "role": "beaver",
+   "t": 214.5,
+   "wall": 1789300274.388,
+   "text": "Good. Now, what about the word for \"woman\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→여자(quote=\"woman\")",
+    "새항목#11 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 87,
+   "role": "learner",
+   "t": 216.2,
+   "wall": 1789300276.109,
+   "text": "여자요",
+   "kind": "correct",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 88,
+   "role": "beaver",
+   "t": 216.9,
+   "wall": 1789300276.823,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 89,
+   "role": "learner",
+   "t": 217.7,
+   "wall": 1789300277.611,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "여자요.",
+   "tags": []
+  },
+  {
+   "n": 90,
+   "role": "beaver",
+   "t": 220.2,
+   "wall": 1789300280.108,
+   "text": "Right, \"여자.\" Now let's move on to the next country. How do you say \"Malaysia\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:여자",
+    "→말레이시아(quote=\"malaysia\")",
+    "새항목#12 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 91,
+   "role": "learner",
+   "t": 221.0,
+   "wall": 1789300280.916,
+   "text": "말레이시아",
+   "kind": "correct",
+   "stt": "말레이시아",
+   "tags": []
+  },
+  {
+   "n": 92,
+   "role": "beaver",
+   "t": 224.4,
+   "wall": 1789300284.281,
+   "text": "Yes, \"말레이시아.\" And this one?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:말레이시아",
+    "→이(kw:this)",
+    "새항목#13 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 93,
+   "role": "learner",
+   "t": 225.2,
+   "wall": 1789300285.088,
+   "text": "이요",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "재발화(전사 없음)"
+   ]
+  },
+  {
+   "n": 94,
+   "role": "learner",
+   "t": 229.6,
+   "wall": 1789300289.519,
+   "text": "이 사람은 제 동생이에요.",
+   "kind": "correct",
+   "stt": "이 사람은 제 동생이에요.",
+   "tags": [
+    "재발화"
+   ]
+  },
+  {
+   "n": 95,
+   "role": "beaver",
+   "t": 233.8,
+   "wall": 1789300293.7,
+   "text": "I didn't ask about your family! How do you say \"Vietnam\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→베트남(quote=\"vietnam\")",
+    "새항목#14 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 96,
+   "role": "learner",
+   "t": 234.6,
+   "wall": 1789300294.516,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 97,
+   "role": "beaver",
+   "t": 237.6,
+   "wall": 1789300297.534,
+   "text": "It's \"베트남.\" Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:베트남",
+    "→베트남(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 98,
+   "role": "learner",
+   "t": 238.4,
+   "wall": 1789300298.331,
+   "text": "베트남",
+   "kind": "parrot",
+   "stt": "베트남",
+   "tags": []
+  },
+  {
+   "n": 99,
+   "role": "beaver",
+   "t": 241.8,
+   "wall": 1789300301.717,
+   "text": "Good. And this one? The U.K.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→이(kw:this)",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 100,
+   "role": "learner",
+   "t": 244.0,
+   "wall": 1789300303.956,
+   "text": "이요",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "재발화(전사 없음)"
+   ]
+  },
+  {
+   "n": 101,
+   "role": "learner",
+   "t": 248.5,
+   "wall": 1789300308.439,
+   "text": "이 사람은 제 동생이에요.",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "재발화"
+   ]
+  },
+  {
+   "n": 102,
+   "role": "beaver",
+   "t": 249.3,
+   "wall": 1789300309.185,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 103,
+   "role": "learner",
+   "t": 250.1,
+   "wall": 1789300309.997,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "이 사람은 제 동생이에요.",
+   "tags": []
+  },
+  {
+   "n": 104,
+   "role": "beaver",
+   "t": 252.0,
+   "wall": 1789300311.912,
+   "text": "\"영국.\" Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:영국",
+    "→영국(reveal)",
+    "새항목#15 정책3 ⛔선공개",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 105,
+   "role": "learner",
+   "t": 252.8,
+   "wall": 1789300312.716,
+   "text": "영국요",
+   "kind": "parrot",
+   "stt": "영국 여자.",
+   "tags": []
+  },
+  {
+   "n": 106,
+   "role": "beaver",
+   "t": 255.9,
+   "wall": 1789300315.814,
+   "text": "Right. And \"Canada\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→캐나다(quote=\"canada\")",
+    "새항목#16 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 107,
+   "role": "learner",
+   "t": 256.7,
+   "wall": 1789300316.611,
+   "text": "다음",
+   "kind": "distractor",
+   "stt": "다음.",
+   "tags": []
+  },
+  {
+   "n": 108,
+   "role": "beaver",
+   "t": 260.7,
+   "wall": 1789300320.641,
+   "text": "\"캐나다.\" What about \"name\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:캐나다",
+    "→이름(quote=\"name\")",
+    "새항목#17 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 109,
+   "role": "learner",
+   "t": 261.5,
+   "wall": 1789300321.45,
+   "text": "이름요",
+   "kind": "correct",
+   "stt": "이름이요.",
+   "tags": []
+  },
+  {
+   "n": 110,
+   "role": "beaver",
+   "t": 264.6,
+   "wall": 1789300324.508,
+   "text": "Yes, \"이름.\" And the last one?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:이름",
+    "→이(kw:one)",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 111,
+   "role": "learner",
+   "t": 265.4,
+   "wall": 1789300325.296,
+   "text": "있다",
+   "kind": "distractor",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 112,
+   "role": "beaver",
+   "t": 266.0,
+   "wall": 1789300325.899,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 113,
+   "role": "learner",
+   "t": 266.8,
+   "wall": 1789300326.69,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "있다.",
+   "tags": []
+  },
+  {
+   "n": 114,
+   "role": "beaver",
+   "t": 268.1,
+   "wall": 1789300328.014,
+   "text": "\"한국.\" Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:한국",
+    "→한국(reveal)",
+    "⛔앵커없는재출제/되감기(회차2)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 115,
+   "role": "learner",
+   "t": 268.9,
+   "wall": 1789300328.816,
+   "text": "한국요",
+   "kind": "parrot",
+   "stt": "한국역",
+   "tags": []
+  },
+  {
+   "n": 116,
+   "role": "beaver",
+   "t": 274.2,
+   "wall": 1789300334.097,
+   "text": "Good. So we covered greetings, how to say \"is,\" and some countries. Try making a sentence with \"저는 [country]입니다.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "표면형:저",
+    "→나라(quote=\"country\")"
+   ]
+  },
+  {
+   "n": 117,
+   "role": "learner",
+   "t": 275.0,
+   "wall": 1789300334.897,
+   "text": "한국요",
+   "kind": "parrot",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 118,
+   "role": "beaver",
+   "t": 276.1,
+   "wall": 1789300336.065,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 119,
+   "role": "learner",
+   "t": 276.9,
+   "wall": 1789300336.858,
+   "text": "Okay.",
+   "kind": "ack",
+   "stt": "한국역",
+   "tags": []
+  },
+  {
+   "n": 120,
+   "role": "beaver",
+   "t": 278.8,
+   "wall": 1789300338.69,
+   "text": "Okay, quiz time! How would you say \"U.K.\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@17번째✖",
+    "→영국(llm(The tutor is asking the learner to produce the Korean word f))",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 121,
+   "role": "learner",
+   "t": 281.0,
+   "wall": 1789300340.897,
+   "text": "올해",
+   "kind": "distractor",
+   "stt": "올해",
+   "tags": []
+  },
+  {
+   "n": 122,
+   "role": "beaver",
+   "t": 284.9,
+   "wall": 1789300344.78,
+   "text": "Wrong! It's \"영국\"! Now, what about \"Canada\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:영국",
+    "→캐나다(quote=\"canada\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 123,
+   "role": "learner",
+   "t": 285.7,
+   "wall": 1789300345.576,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 124,
+   "role": "beaver",
+   "t": 288.9,
+   "wall": 1789300348.861,
+   "text": "\"영국.\" Say it. Now, what about \"Canada\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:영국",
+    "→캐나다(quote=\"canada\")"
+   ]
+  },
+  {
+   "n": 125,
+   "role": "learner",
+   "t": 289.7,
+   "wall": 1789300349.657,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 126,
+   "role": "beaver",
+   "t": 293.3,
+   "wall": 1789300353.219,
+   "text": "\"캐나다.\" Try that. And the last one for the quiz?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커(재)",
+    "표면형:캐나다",
+    "→캐나다(reveal)",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 127,
+   "role": "learner",
+   "t": 294.1,
+   "wall": 1789300354.017,
+   "text": "캐나다",
+   "kind": "parrot",
+   "stt": "캐나다.",
+   "tags": []
+  },
+  {
+   "n": 128,
+   "role": "beaver",
+   "t": 297.9,
+   "wall": 1789300357.795,
+   "text": "Good. Last one, \"name.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→이름(quote=\"name\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 129,
+   "role": "learner",
+   "t": 298.7,
+   "wall": 1789300358.597,
+   "text": "이",
+   "kind": "distractor",
+   "stt": "",
+   "tags": []
+  }
+ ],
+ "records": {
+  "10637": {
+   "surface": "인사말",
+   "k": 1,
+   "policy": 1,
+   "ident": "llm(The tutor is asking for a greeting used when leaving a place)",
+   "intro_pre_reveal": false,
+   "drill_attempts": 3,
+   "drill_answers": [
+    "correct",
+    "correct",
+    "idk"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": false,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct",
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "10638": {
+   "surface": "N은/는 N이에요/예요",
+   "k": 2,
+   "policy": 2,
+   "ident": "reveal",
+   "intro_pre_reveal": true,
+   "drill_attempts": 4,
+   "drill_answers": [
+    "parrot",
+    "parrot",
+    "parrot",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "parrot",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "10639": {
+   "surface": "N입니까?, N입니다",
+   "k": 3,
+   "policy": 3,
+   "ident": "reveal",
+   "intro_pre_reveal": true,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "1": {
+   "surface": "사람",
+   "k": 4,
+   "policy": 4,
+   "ident": "quote=\"person\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "distractor"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "idk",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 3,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "idk",
+      "idk",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "5692": {
+   "surface": "이",
+   "k": 5,
+   "policy": 5,
+   "ident": "kw:one",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "correct",
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "distractor"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "7": {
+   "surface": "나라",
+   "k": 6,
+   "policy": 6,
+   "ident": "quote=\"country\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 4,
+   "drill_answers": [
+    "correct",
+    "correct",
+    "correct",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "203": {
+   "surface": "한국",
+   "k": 7,
+   "policy": 1,
+   "ident": "reveal",
+   "intro_pre_reveal": true,
+   "drill_attempts": 3,
+   "drill_answers": [
+    "parrot",
+    "correct",
+    "correct"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "parrot",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "22": {
+   "surface": "고향",
+   "k": 8,
+   "policy": 2,
+   "ident": "quote=\"hometown\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "47": {
+   "surface": "외국인",
+   "k": 9,
+   "policy": 3,
+   "ident": "quote=\"foreigner\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "53": {
+   "surface": "미국",
+   "k": 10,
+   "policy": 4,
+   "ident": "llm(The tutor is asking the learner to produce the Korean expres)",
+   "intro_pre_reveal": false,
+   "drill_attempts": 4,
+   "drill_answers": [
+    "distractor",
+    "distractor",
+    "distractor",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "65": {
+   "surface": "여자",
+   "k": 11,
+   "policy": 5,
+   "ident": "quote=\"woman\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "73": {
+   "surface": "말레이시아",
+   "k": 12,
+   "policy": 6,
+   "ident": "quote=\"malaysia\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "24": {
+   "surface": "이",
+   "k": 13,
+   "policy": 1,
+   "ident": "kw:this",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "74": {
+   "surface": "베트남",
+   "k": 14,
+   "policy": 2,
+   "ident": "quote=\"vietnam\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "84": {
+   "surface": "영국",
+   "k": 15,
+   "policy": 3,
+   "ident": "reveal",
+   "intro_pre_reveal": true,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "distractor"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "90": {
+   "surface": "캐나다",
+   "k": 16,
+   "policy": 4,
+   "ident": "quote=\"canada\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "distractor"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "idk",
+      "idk",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "199": {
+   "surface": "이름",
+   "k": 17,
+   "policy": 5,
+   "ident": "quote=\"name\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "distractor"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  }
+ },
+ "db": {
+  "rows": {
+   "10637": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "10638": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "10639": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "1": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "7": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "22": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "47": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "53": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "65": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "73": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "74": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "84": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "90": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "199": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "203": {
+    "drilled_call_id": 1571,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   }
+  },
+  "expression_result": [
+   {
+    "item_id": 10637,
+    "surface": "인사말",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 10638,
+    "surface": "N은/는 N이에요/예요",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 10639,
+    "surface": "N입니까?, N입니다",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 1,
+    "surface": "사람",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 7,
+    "surface": "나라",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 22,
+    "surface": "고향",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 47,
+    "surface": "외국인",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 53,
+    "surface": "미국",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 65,
+    "surface": "여자",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 73,
+    "surface": "말레이시아",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 74,
+    "surface": "베트남",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 84,
+    "surface": "영국",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 90,
+    "surface": "캐나다",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 199,
+    "surface": "이름",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 203,
+    "surface": "한국",
+    "passed": true,
+    "failed": false,
+    "review": false
+   }
+  ],
+  "call": {
+   "call_type": "expression",
+   "status": "analyzing",
+   "total_time": 298,
+   "summary": null,
+   "usage_engine": "live:gemini-live-2.5-flash-native-audio",
+   "fragment_count": 1,
+   "cost_usd": 0.5961,
+   "usage": {
+    "in_audio": 129127,
+    "in_text": 285639,
+    "out_audio": 5243,
+    "out_text": 1174
+   }
+  },
+  "level_after": null
+ },
+ "server_logs": [
+  "2026-09-13T11:47:44.917479Z\tINFO:domains.learning.service.curriculum_service:cur open_call: call_id=1571 member=92 lesson=A1-T01-1(no=4) course=expression status=learning 항목=18(복습 0)",
+  "2026-09-13T11:47:44.924209Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습: lesson=A1-T01-1(no=4) status=learning 항목 18(복습 0) 재개=False call_id=1571",
+  "2026-09-13T11:47:53.759346Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕히 계세요.",
+  "2026-09-13T11:47:54.082073Z\tINFO:domains.learning.realtime.call_session:👤 USER[t1]: 안녕히 계세요.",
+  "2026-09-13T11:47:59.706295Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕히 계세요.",
+  "2026-09-13T11:48:00.078210Z\tINFO:domains.learning.realtime.call_session:👤 USER[t3]: 안녕히 계세요.",
+  "2026-09-13T11:48:06.389796Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:48:07.043608Z\tINFO:domains.learning.realtime.call_session:👤 USER[t5]: I don't know.",
+  "2026-09-13T11:48:11.842527Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 생일이 언제예요?",
+  "2026-09-13T11:48:12.413168Z\tINFO:domains.learning.realtime.call_session:👤 USER[t7]: 생일이 언제예요?",
+  "2026-09-13T11:48:16.326845Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 생일이 언제예요?",
+  "2026-09-13T11:48:16.758464Z\tINFO:domains.learning.realtime.call_session:👤 USER[t9]: 생일이 언제예요?",
+  "2026-09-13T11:48:23.017468Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 생일이 언제예요?",
+  "2026-09-13T11:48:23.420774Z\tINFO:domains.learning.realtime.call_session:👤 USER[t11]: 생일이 언제예요?",
+  "2026-09-13T11:48:29.577535Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 생일이 언제예요?",
+  "2026-09-13T11:48:29.925266Z\tINFO:domains.learning.realtime.call_session:👤 USER[t13]: 생일이 언제예요?",
+  "2026-09-13T11:48:31.701310Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=1 항목=[1, 2, 3] retry=False covered=3",
+  "2026-09-13T11:48:33.238495Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.278405Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.319031Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.358577Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.398828Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.440342Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.479869Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.518750Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.557894Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.719128Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.759701Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.797585Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.838013Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.878884Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.918466Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.959265Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:33.998394Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.040193Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.078628Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.119086Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.149350Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.199240Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.238032Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.278354Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.319440Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:34.358849Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:48:35.161525Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 저는 회사원입니다.",
+  "2026-09-13T11:48:35.562731Z\tINFO:domains.learning.realtime.call_session:👤 USER[t15]: 저는 회사원입니다.",
+  "2026-09-13T11:48:37.999783Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=6s 비버턴=(열린 턴 없음) 정리=학습자 확인",
+  "2026-09-13T11:48:40.572235Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 좋다.",
+  "2026-09-13T11:48:41.560558Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 오케이.",
+  "2026-09-13T11:48:42.010440Z\tINFO:domains.learning.realtime.call_session:👤 USER[t17]: 좋다.오케이.",
+  "2026-09-13T11:48:42.010724Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=1 open_seg=18 항목=[1, 2, 3]",
+  "2026-09-13T11:48:46.568770Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕히 계세요.",
+  "2026-09-13T11:48:46.978576Z\tINFO:domains.learning.realtime.call_session:👤 USER[t19]: 안녕히 계세요.",
+  "2026-09-13T11:48:52.939825Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 안녕히 계세요.",
+  "2026-09-13T11:48:53.547091Z\tINFO:domains.learning.realtime.call_session:👤 USER[t21]: 안녕히 계세요.",
+  "2026-09-13T11:48:57.932623Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 생일이 언제예요?",
+  "2026-09-13T11:48:58.521794Z\tINFO:domains.learning.realtime.call_session:👤 USER[t23]: 생일이 언제예요?",
+  "2026-09-13T11:49:02.386481Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 생일이 언제예요?",
+  "2026-09-13T11:49:02.777356Z\tINFO:domains.learning.realtime.call_session:👤 USER[t25]: 생일이 언제예요?",
+  "2026-09-13T11:49:13.909209Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 말하는 이의 뜻을 잘 살펴야 해요.",
+  "2026-09-13T11:49:14.255097Z\tINFO:domains.learning.realtime.call_session:👤 USER[t27]: 말하는 이의 뜻을 잘 살펴야 해요.",
+  "2026-09-13T11:49:26.749023Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 말하는 이의 뜻을 잘 살펴야 해요.",
+  "2026-09-13T11:49:27.237010Z\tINFO:domains.learning.realtime.call_session:👤 USER[t29]: 말하는 이의 뜻을 잘 살펴야 해요.",
+  "2026-09-13T11:49:31.595259Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:49:32.003871Z\tINFO:domains.learning.realtime.call_session:👤 USER[t31]: I don't know.",
+  "2026-09-13T11:49:36.324197Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 저는 회사원입니다.",
+  "2026-09-13T11:49:36.744438Z\tINFO:domains.learning.realtime.call_session:👤 USER[t33]: 저는 회사원입니다.",
+  "2026-09-13T11:49:40.491621Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:49:40.972153Z\tINFO:domains.learning.realtime.call_session:👤 USER[t35]: I don't know.",
+  "2026-09-13T11:49:42.016446Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=1 닫힘=다음 항목 소개 창=18~36(19세그) set=[1, 2, 3] passed=[1] failed=[2, 3] 미판정=[]",
+  "2026-09-13T11:49:45.077435Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 사람요",
+  "2026-09-13T11:49:45.535452Z\tINFO:domains.learning.realtime.call_session:👤 USER[t37]: 사람요",
+  "2026-09-13T11:49:47.126716Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=time, 1/8회, 드릴 4 · 통과 1 · 오답 2, 압축감지=0, peak=6810, 바닥=3832, 대화=2978)",
+  "2026-09-13T11:49:47.921552Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=time, 1회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-13T11:49:49.833925Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 나라요.",
+  "2026-09-13T11:49:50.259309Z\tINFO:domains.learning.realtime.call_session:👤 USER[t39]: 나라요.",
+  "2026-09-13T11:49:56.859053Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 나라요.",
+  "2026-09-13T11:49:57.321348Z\tINFO:domains.learning.realtime.call_session:👤 USER[t41]: 나라요.",
+  "2026-09-13T11:50:03.471494Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 나라요.",
+  "2026-09-13T11:50:03.855540Z\tINFO:domains.learning.realtime.call_session:👤 USER[t43]: 나라요.",
+  "2026-09-13T11:50:05.459154Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #1 (prompt 7893 → 6888)",
+  "2026-09-13T11:50:05.460107Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=2 항목=[4, 5, 15] retry=False covered=6",
+  "2026-09-13T11:50:07.041216Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.081520Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.121440Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.160859Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.202255Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.241038Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.281743Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.321461Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.360986Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.401418Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.441858Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.481546Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.521603Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.560909Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.601018Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:07.641028Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:50:08.570638Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국역",
+  "2026-09-13T11:50:09.072440Z\tINFO:domains.learning.realtime.call_session:👤 USER[t45]: 한국역",
+  "2026-09-13T11:50:12.361535Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.400786Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.442930Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.481563Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.523153Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.560823Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.601196Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.640120Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.680803Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.723103Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.761020Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.800268Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.840504Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.881277Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.920649Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:12.961206Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:50:13.977673Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국여",
+  "2026-09-13T11:50:14.364005Z\tINFO:domains.learning.realtime.call_session:👤 USER[t47]: 한국여",
+  "2026-09-13T11:50:16.921124Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:16.960860Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.001601Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.041719Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.081215Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.121146Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.160175Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.200835Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.241350Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.280976Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.320582Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.361616Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.401590Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.441392Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.480858Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:17.521274Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 5, 15] 이유=항목 15 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:50:18.452175Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국역",
+  "2026-09-13T11:50:18.924889Z\tINFO:domains.learning.realtime.call_session:👤 USER[t49]: 한국역",
+  "2026-09-13T11:50:23.201395Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 5, 15] 얹기=마이크 대기=18s 비버턴=(열린 턴 없음) 정리=학습자 턴 3회",
+  "2026-09-13T11:50:24.793162Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국여",
+  "2026-09-13T11:50:25.197886Z\tINFO:domains.learning.realtime.call_session:👤 USER[t51]: 한국여",
+  "2026-09-13T11:50:25.198122Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=2 open_seg=52 항목=[4, 5, 15]",
+  "2026-09-13T11:50:29.361641Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:50:29.763212Z\tINFO:domains.learning.realtime.call_session:👤 USER[t53]: I don't know.",
+  "2026-09-13T11:50:33.051126Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:50:33.424528Z\tINFO:domains.learning.realtime.call_session:👤 USER[t55]: I don't know.",
+  "2026-09-13T11:50:37.029933Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 사람요",
+  "2026-09-13T11:50:37.543814Z\tINFO:domains.learning.realtime.call_session:👤 USER[t57]: 사람요",
+  "2026-09-13T11:50:41.693780Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 나라요.",
+  "2026-09-13T11:50:42.127020Z\tINFO:domains.learning.realtime.call_session:👤 USER[t59]: 나라요.",
+  "2026-09-13T11:50:42.744308Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #2 (prompt 7884 → 6775)",
+  "2026-09-13T11:50:46.000927Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국이요.",
+  "2026-09-13T11:50:46.357762Z\tINFO:domains.learning.realtime.call_session:👤 USER[t61]: 한국이요.",
+  "2026-09-13T11:50:50.078742Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:50:50.478839Z\tINFO:domains.learning.realtime.call_session:👤 USER[t63]: I don't know.",
+  "2026-09-13T11:50:51.306940Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=2 닫힘=다음 항목 소개 창=52~64(13세그) set=[4, 5, 15] passed=[5, 15] failed=[4] 미판정=[]",
+  "2026-09-13T11:50:54.299878Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 고향이요.",
+  "2026-09-13T11:50:54.672775Z\tINFO:domains.learning.realtime.call_session:👤 USER[t65]: 고향이요.",
+  "2026-09-13T11:50:58.829704Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 외국인",
+  "2026-09-13T11:50:59.260765Z\tINFO:domains.learning.realtime.call_session:👤 USER[t67]: 외국인",
+  "2026-09-13T11:51:05.673384Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 저",
+  "2026-09-13T11:51:06.070277Z\tINFO:domains.learning.realtime.call_session:👤 USER[t69]: 저",
+  "2026-09-13T11:51:06.497670Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=3 항목=[6, 7, 8] retry=False covered=9",
+  "2026-09-13T11:51:07.682589Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.722127Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.761743Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.802043Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.842083Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.882844Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.922199Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:07.962603Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:08.003336Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:08.042191Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:08.082222Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:08.122913Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:09.550030Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 누구?",
+  "2026-09-13T11:51:09.958378Z\tINFO:domains.learning.realtime.call_session:👤 USER[t71]: 누구?",
+  "2026-09-13T11:51:11.962146Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.002181Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.041797Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.083287Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.124207Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.162378Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.201472Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.241760Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.282323Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.322365Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:12.364348Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 1/3)",
+  "2026-09-13T11:51:13.543503Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 가다",
+  "2026-09-13T11:51:13.966447Z\tINFO:domains.learning.realtime.call_session:👤 USER[t73]: 가다",
+  "2026-09-13T11:51:16.042795Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.082450Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.122232Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.202489Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.242400Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.282397Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.325149Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.362790Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.402389Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.442837Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:16.482293Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[6, 7, 8] 이유=항목 8 미정리(학습자 턴 2/3)",
+  "2026-09-13T11:51:17.333436Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 미국이요.",
+  "2026-09-13T11:51:17.747729Z\tINFO:domains.learning.realtime.call_session:👤 USER[t75]: 미국이요.",
+  "2026-09-13T11:51:20.701554Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[6, 7, 8] 얹기=마이크 대기=14s 비버턴=(열린 턴 없음) 정리=학습자 확인",
+  "2026-09-13T11:51:22.467365Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 여자요.",
+  "2026-09-13T11:51:22.958218Z\tINFO:domains.learning.realtime.call_session:👤 USER[t77]: 여자요.",
+  "2026-09-13T11:51:22.958411Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=3 open_seg=78 항목=[6, 7, 8]",
+  "2026-09-13T11:51:24.338485Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #3 (prompt 7885 → 6288)",
+  "2026-09-13T11:51:27.385533Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 말레이시아",
+  "2026-09-13T11:51:27.801042Z\tINFO:domains.learning.realtime.call_session:👤 USER[t79]: 말레이시아",
+  "2026-09-13T11:51:36.448599Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이 사람은 제 동생이에요.",
+  "2026-09-13T11:51:36.889919Z\tINFO:domains.learning.realtime.call_session:👤 USER[t81]: 이 사람은 제 동생이에요.",
+  "2026-09-13T11:51:40.825671Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:51:41.333856Z\tINFO:domains.learning.realtime.call_session:👤 USER[t83]: I don't know.",
+  "2026-09-13T11:51:41.766386Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=3 닫힘=다음 항목 소개 창=78~84(7세그) set=[6, 7, 8] passed=[] failed=[] 미판정=[6, 7, 8]",
+  "2026-09-13T11:51:41.766496Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=4 항목=[9, 10, 11] retry=False covered=12",
+  "2026-09-13T11:51:42.842809Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 폴백 기각: 항목 6 «고향» answer_seg=None (창 밖·U 아님)",
+  "2026-09-13T11:51:42.842846Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 폴백 기각: 항목 7 «외국인» answer_seg=None (창 밖·U 아님)",
+  "2026-09-13T11:51:42.842909Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 폴백 기각: 항목 8 «미국» answer_seg=None (창 밖·U 아님)",
+  "2026-09-13T11:51:43.022075Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.061339Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.102731Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.222526Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.262513Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.301004Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.333405Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.382311Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.422725Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.461072Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.502543Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.542192Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.589758Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:43.623267Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[9, 10, 11] 이유=항목 11 미정리(학습자 턴 0/3)",
+  "2026-09-13T11:51:44.789349Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 베트남",
+  "2026-09-13T11:51:45.180633Z\tINFO:domains.learning.realtime.call_session:👤 USER[t85]: 베트남",
+  "2026-09-13T11:51:53.062093Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=4 항목=[9, 10, 11] 얹기=마이크 대기=11s 비버턴=(열린 턴 없음) 정리=학습자 확인",
+  "2026-09-13T11:51:55.342264Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이 사람은 제 동생이에요.",
+  "2026-09-13T11:51:55.716757Z\tINFO:domains.learning.realtime.call_session:👤 USER[t87]: 이 사람은 제 동생이에요.",
+  "2026-09-13T11:51:55.717062Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=4 open_seg=88 항목=[9, 10, 11]",
+  "2026-09-13T11:51:59.036148Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 영국 여자.",
+  "2026-09-13T11:51:59.524917Z\tINFO:domains.learning.realtime.call_session:👤 USER[t89]: 영국 여자.",
+  "2026-09-13T11:52:03.737061Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 다음.",
+  "2026-09-13T11:52:04.211515Z\tINFO:domains.learning.realtime.call_session:👤 USER[t91]: 다음.",
+  "2026-09-13T11:52:04.874212Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버): seq=4 닫힘=다음 항목 소개 창=88~92(5세그) set=[9, 10, 11] passed=[9] failed=[] 미판정=[10, 11]",
+  "2026-09-13T11:52:06.956863Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 폴백 기각: 항목 10 «말레이시아» answer_seg=None (창 밖·U 아님)",
+  "2026-09-13T11:52:06.956903Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 폴백 기각: 항목 11 «베트남» answer_seg=None (창 밖·U 아님)",
+  "2026-09-13T11:52:07.570463Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이름이요.",
+  "2026-09-13T11:52:07.570657Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=5 항목=[12, 13, 14] retry=False covered=15",
+  "2026-09-13T11:52:08.018184Z\tINFO:domains.learning.realtime.call_session:👤 USER[t93]: 이름이요.",
+  "2026-09-13T11:52:09.782709Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=5 항목=[12, 13, 14] 얹기=마이크 대기=2s 비버턴=(열린 턴 없음) 정리=학습자 확인",
+  "2026-09-13T11:52:11.373017Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 있다.",
+  "2026-09-13T11:52:11.832594Z\tINFO:domains.learning.realtime.call_session:👤 USER[t95]: 있다.",
+  "2026-09-13T11:52:11.832765Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=5 open_seg=96 항목=[12, 13, 14]",
+  "2026-09-13T11:52:15.450491Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국역",
+  "2026-09-13T11:52:15.879124Z\tINFO:domains.learning.realtime.call_session:👤 USER[t97]: 한국역",
+  "2026-09-13T11:52:18.086085Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 2/8회, 드릴 15 · 통과 4 · 오답 3, 압축감지=3, peak=7642, 바닥=3832, 대화=3810)",
+  "2026-09-13T11:52:19.944174Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 2회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-13T11:52:20.298688Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #4 (prompt 7726 → 6807)",
+  "2026-09-13T11:52:21.487195Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 한국역",
+  "2026-09-13T11:52:21.929321Z\tINFO:domains.learning.realtime.call_session:👤 USER[t99]: 한국역",
+  "2026-09-13T11:52:27.366065Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 올해",
+  "2026-09-13T11:52:27.821112Z\tINFO:domains.learning.realtime.call_session:👤 USER[t101]: 올해",
+  "2026-09-13T11:52:31.910907Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:52:32.327675Z\tINFO:domains.learning.realtime.call_session:👤 USER[t103]: I don't know.",
+  "2026-09-13T11:52:35.994621Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-13T11:52:36.379533Z\tINFO:domains.learning.realtime.call_session:👤 USER[t105]: I don't know.",
+  "2026-09-13T11:52:40.893952Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 캐나다.",
+  "2026-09-13T11:52:41.252064Z\tINFO:domains.learning.realtime.call_session:👤 USER[t107]: 캐나다.",
+  "2026-09-13T11:52:44.351818Z\tINFO:domains.learning.realtime.call_session:👤 USER[t109]: (무음/전사없음)",
+  "2026-09-13T11:52:44.352444Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(서버·마지막): seq=5 창=96~끝(13세그) set=[12, 13, 14] passed=[] failed=[12, 13] 미판정=[14]",
+  "2026-09-13T11:52:45.656456Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 폴백 기각: 항목 14 «이름» answer_seg=None (창 밖·U 아님)",
+  "2026-09-13T11:52:45.657215Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 마지막 판정: 1305ms (상한 2000ms)"
+ ]
+}

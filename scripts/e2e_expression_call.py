@@ -715,6 +715,9 @@ class Session:
         self.last_beaver_text: str = ""           # 워치독이 «따라 하라» 문구를 볼 때 쓴다
         self.watchdog_fires = 0
         self.speak_errors = 0
+        self.continues_call_id: Optional[int] = None   # ① 조각 이어하기 — start.continues_call_id 로 보낸 앞 조각 번호
+        self.resumed: Optional[bool] = None            # call_started.call_id == continues_call_id 면 True(이어짐), 다르면 False(새 통화로 폴백=거절)
+        self.passed_before: set[int] = set()           # ② 통화 전 이미 quiz_passed 인 항목
         self.silence_until: float = -1.0          # 프리토킹 의도적 침묵 중이면 그 끝 시각(워치독이 쉰다)
         self.ft_silence_done = False
         self.ft_silence: dict = {}                # {"start": t, "nudge_at": t|None, "nudge_text": str}
@@ -750,6 +753,9 @@ class Session:
             # ⭐ auto 코스: 서버가 정한 코스를 알려준다(계획 §8). 명시 코스여도 서버 값이 오면 기록만 한다.
             self.course_from_server = msg.get("course")
             self.character_id = msg.get("character_id")
+            if self.continues_call_id is not None:
+                self.resumed = (self.call_id == self.continues_call_id)
+                self.log(f"이어하기: continues_call_id={self.continues_call_id} → {'같은 call 로 이어짐 ✔' if self.resumed else '⛔ 새 통화로 폴백(거절)'}")
             if self.course == "auto" and self.course_from_server in ("expression", "freetalk"):
                 self.course = self.course_from_server
             self.log(f"call_started call_id={self.call_id} character={msg.get('character_id')} course={self.course_from_server or '(없음)'} → 검증 코스 {self.course}")
@@ -1361,16 +1367,23 @@ def get_token(base: str, email: str, password: str) -> str:
 
 async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, picker: Picker, *,
                    duration_min: int, probe: bool, verbose: bool, course: str = "expression",
-                   lesson: dict | None = None, distractors: list[str] | None = None) -> Session:
+                   lesson: dict | None = None, distractors: list[str] | None = None,
+                   continues_call_id: Optional[int] = None, passed_before: set[int] | None = None) -> Session:
     import websockets
 
     ws_url = base.replace("https://", "wss://").replace("http://", "ws://") + WS_PATH + f"?token={token}"
     sess = Session(items, voice, picker, probe=probe, verbose=verbose, course=course, lesson=lesson)
     sess.distractor_pool = list(distractors or [])
+    sess.continues_call_id = continues_call_id
+    sess.passed_before = set(passed_before or ())
     # call_type: "expression" | "freetalk" | "auto"(서버가 정해 call_started.course 로 알림 — 계획 §8)
     start = {"type": "start", "character_id": 1, "locale": LOCALE, "duration_min": duration_min,
              "call_type": course, "aec": {"supported": False}, "sample_rate": SR_IN, "num_channels": 1,
              "tz_offset_min": 540}
+    if continues_call_id is not None:
+        # ① 이어하기 — 앱이 다음 조각에서 돌려주는 값(protocol.ClientStart.continues_call_id, str|int). 서버가 본인·TTL·조각 상한을 검증하고
+        #   거절이면 **새 통화로 폴백**한다(call_started.call_id 가 달라진다) — Free(상한 1)는 그게 정상이다.
+        start["continues_call_id"] = str(continues_call_id)
     async with websockets.connect(ws_url, max_size=None, ping_interval=20, ping_timeout=20,
                                   open_timeout=30) as ws:
         sess.t0 = time.perf_counter()
@@ -1553,7 +1566,7 @@ def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str
            # ⭐ T17-6 «늦은 전사» 가설 확정용 — 학습자 전사 조각(«👤 user:») 과 턴 flush(«👤 USER[t..]») 를 시간순으로 같이 붙인다.
            #   재개 시드 주입·제어 태그 스크럽 줄도(T17-1 벙어리 턴 규칙).
            'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm" '
-           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음")')
+           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음" OR textPayload:"cur open_call" OR textPayload:"이어하기")')
     try:
         out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "1000",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
@@ -1574,6 +1587,15 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
              f"비버 턴 {sum(1 for t in sess.turns if t.role == 'beaver')} · 학습자 턴 {sum(1 for t in sess.turns if t.role == 'learner')} · "
              f"비버 오디오 {sess.beaver_audio_bytes / 48000:.0f}초 · LLM 폴백 {sess.picker.calls}회")
     L.append(f"- DB call: {sc.call_row} · 레벨(뒤) {sc.level_after}")
+    if sess.course != "freetalk":
+        passed_times = {iid: min(x.asked_at for x in r.rounds if x.spontaneous_correct)
+                        for iid, r in sess.records.items() if any(x.spontaneous_correct for x in r.rounds)}
+        n_re, ev = count_redrills(sess.turns, sess.items, sess.passed_before, passed_times)
+        total_passed = len(sess.passed_before | set(passed_times))
+        sc.cur["redrill"] = {"n": n_re, "total_passed": total_passed, "events": ev}
+        in_list = sorted({int(q.get("item_id") or 0) for q in (sc.cur.get("quiz_items") or [])} & sess.passed_before)
+        L.append(f"- **통과 항목 재드릴 {n_re}/총 통과 {total_passed}**" + (" — " + ", ".join(f"t{tn}「{sess.items[i].surface}」" for tn, i in ev[:10]) if ev else " ✔")
+                 + f" (통화 전 통과 {len(sess.passed_before)} · 이 통화 통과 {len(passed_times)} · 서버 목록에 든 통화 전 통과 항목 {len(in_list)} — 복습 채움이면 서버 선별, 아니면 비버 이탈)")
     if sess.watchdog_fires or sess.speak_errors:
         L.append(f"- ⚠ 하네스 워치독 발화 {sess.watchdog_fires}회 · 발화 태스크 예외 {sess.speak_errors}회 — 무응답 방지가 동작했다(원인은 §전사 태그 «워치독»·«대체발화»)")
     if sc.cur:
@@ -1886,6 +1908,7 @@ def load_cur_context(sf, member_id: int, lesson_no: int, *, n: int) -> dict:
         mine = db.scalars(select(CurMemberItem).where(CurMemberItem.member_id == member_id)).all()
         drilled_rows = {(r.lesson_id, r.item_id): r for r in mine if r.drilled_at is not None}
         drilled_any = {iid for (_, iid) in drilled_rows}
+        passed_any = {r.item_id for r in mine if r.quiz_passed_at is not None}      # ② 재드릴 메트릭의 «이미 통과» 기준
         pool_items = {}
         if drilled_any:
             for it in db.scalars(select(CurItem).where(CurItem.item_id.in_(list(drilled_any)))).all():
@@ -1944,8 +1967,83 @@ def load_cur_context(sf, member_id: int, lesson_no: int, *, n: int) -> dict:
         "lesson": {"lesson_id": lesson.lesson_id, "no": lesson.no, "code": lesson.code, "level_no": lesson.level_no,
                    "situation": lesson.situation, "partner": lesson.partner, "probes": lesson.probes, "item_count": lesson.item_count},
         "items": items, "predicted_new": predicted_new, "review_pool": review_pool,
-        "lesson_item_ids": lesson_ids, "drilled_before": drilled_any,
+        "lesson_item_ids": lesson_ids, "drilled_before": drilled_any, "passed_before": passed_any,
     }
+
+
+def count_redrills(turns: list, items: dict[int, "Item"], passed_before: set[int], passed_times: dict[int, float]) -> tuple[int, list[tuple[int, int]]]:
+    """② «통과 항목 재드릴» — 비버가 **이미 quiz_passed 된** 항목을 다시 드릴/퀴즈로 꺼낸 (턴, 항목) 횟수.
+
+    · 대조 = quiz_judge.item_mentioned(표면형 OR 예문). 없으면 표면형 변형 대조로 폴백.
+    · «이미 통과» = 통화 전 통과(passed_before) 또는 이 통화에서 그 턴보다 앞서 통과(passed_times[item] < 턴 시각).
+    · 제외 = 직전 학습자 턴이 그 항목을 먼저 꺼낸 경우(학습자가 말한 걸 비버가 되받은 것).
+    · 같은 항목이 연속 비버 턴에 걸쳐 나오면 1회로 센다(한 드릴/퀴즈 회차 = 1).
+    """
+    try:
+        from domains.learning.service.quiz_judge import item_mentioned as _im
+    except Exception:  # noqa: BLE001
+        _im = None
+
+    def hit(text: str, it) -> bool:
+        if _im is not None:
+            try:
+                return bool(_im(text, it.surface, getattr(it, "example", None) or None))
+            except Exception:  # noqa: BLE001
+                pass
+        return any(has_surface(text, v) for v in getattr(it, "variants", [it.surface]))
+
+    events: list[tuple[int, int]] = []
+    last_item_by_streak: set[int] = set()
+    prev_learner_text = ""
+    for t in turns:
+        if t.role == "learner":
+            prev_learner_text = t.text
+            last_item_by_streak = set()
+            continue
+        if t.role != "beaver" or not t.text.strip():
+            continue
+        for iid, it in items.items():
+            already = iid in passed_before or (iid in passed_times and passed_times[iid] < t.t)
+            if not already or not hit(t.text, it):
+                continue
+            if prev_learner_text and hit(prev_learner_text, it):
+                continue                       # 학습자가 먼저 꺼냈다
+            if iid in last_item_by_streak:
+                continue                       # 같은 회차의 연속 턴
+            events.append((t.n, iid))
+            last_item_by_streak.add(iid)
+    return len(events), events
+
+
+def check_resume(seg1: dict, seg2: dict, *, plan_fragments: int) -> list[tuple[str, str, str, bool]]:
+    """① 이어하기 검사 4항목 — (단계, 기대, 실측, PASS).
+    seg1: {call_id, course, passed_ids, failed_ids, mi_updated_max}  seg2: {call_id, course_from_server, resumed, drilled_order,
+          fragment_count, recorded_fragment, mi_updated_max, quizzed_ids}
+    plan_fragments == 1 이면 «거절(새 통화 폴백)» 이 정상이고 나머지 항목은 «해당 없음»."""
+    rows: list[tuple[str, str, str, bool]] = []
+    if plan_fragments <= 1:
+        ok = seg2.get("resumed") is False and seg2.get("call_id") not in (None, seg1.get("call_id"))
+        rows.append(("(a) 이어짐/거절", f"조각 상한 {plan_fragments} → 거절 = 새 call_id", f"seg1 {seg1.get('call_id')} → seg2 {seg2.get('call_id')} resumed={seg2.get('resumed')}", ok))
+        for k in ("(b) 통과 항목 재등장 없음", "(c) 오답 항목 앞줄", "(d) 조각별 저장"):
+            rows.append((k, "해당 없음(거절)", "—", True))
+        return rows
+    same = seg2.get("resumed") is True and seg2.get("call_id") == seg1.get("call_id")
+    course_ok = (seg2.get("course_from_server") in (None, seg1.get("course")))
+    rows.append(("(a) 같은 call·같은 course", f"call_id {seg1.get('call_id')} · course {seg1.get('course')} · fragment_count 2",
+                 f"seg2 call_id {seg2.get('call_id')} resumed={seg2.get('resumed')} · course {seg2.get('course_from_server')} · fragment_count {seg2.get('fragment_count')}",
+                 bool(same and course_ok and seg2.get("fragment_count") == 2)))
+    passed = set(seg1.get("passed_ids") or [])
+    asked2 = list(seg2.get("drilled_order") or []) + list(seg2.get("quizzed_ids") or [])
+    reappear = sorted(passed & set(asked2))
+    rows.append(("(b) 통과 항목 재등장 없음", f"seg1 passed {len(passed)}개가 seg2 드릴/퀴즈에 없음", f"재등장 {len(reappear)}개 {reappear}", not reappear))
+    failed = [i for i in (seg1.get("failed_ids") or []) if i not in passed]
+    head = list(seg2.get("drilled_order") or [])[:max(len(failed), 1)]
+    front_ok = (not failed) or set(failed) <= set(list(seg2.get("drilled_order") or [])[:len(failed) + 1])
+    rows.append(("(c) 오답 항목 앞줄", f"seg1 failed {failed} 가 seg2 맨 앞", f"seg2 첫 항목들 {head}", bool(front_ok)))
+    rec_ok = seg2.get("recorded_fragment") == 2 and (seg2.get("mi_updated_max") or datetime.min) > (seg1.get("mi_updated_max") or datetime.min)
+    rows.append(("(d) 조각별 저장", "cur_call.recorded_fragment=2 · cur_member_item 갱신 2회(seg1 뒤 다시 갱신)",
+                 f"recorded_fragment={seg2.get('recorded_fragment')} · mi_updated seg1 {str(seg1.get('mi_updated_max'))[11:19]} → seg2 {str(seg2.get('mi_updated_max'))[11:19]}", bool(rec_ok)))
+    return rows
 
 
 def cur_status(api: CurApi) -> Optional[dict]:
@@ -2030,11 +2128,15 @@ def read_cur_outcome(sf, api: CurApi, call_id: Optional[int], ctx: dict, me_pre:
                 sc.cur["cum_rows"][r.item_id] = {"drilled_call_id": r.drilled_call_id, "drilled_at": r.drilled_at,
                                                 "quiz_passed_at": r.quiz_passed_at, "quiz_failed_count": r.quiz_failed_count,
                                                 "lesson_id": r.lesson_id, "updated_at": r.updated_at}
+        sc.cur["mi_updated_max"] = max((r.updated_at for r in rows if r.updated_at), default=None)
         if call_id:
             r = db.execute(sql("SELECT call_type, status, total_time, summary, usage_engine, usage_json, usage_in_audio, usage_in_text, "
-                               "usage_out_audio, usage_out_text FROM call WHERE call_id=:c"), {"c": call_id}).first()
+                               "usage_out_audio, usage_out_text, fragment_count FROM call WHERE call_id=:c"), {"c": call_id}).first()
+            cc = db.execute(sql("SELECT lesson_id, course, recorded_fragment, lesson_completed FROM cur_call WHERE call_id=:c"), {"c": call_id}).first()
+            sc.cur["cur_call"] = ({"lesson_id": cc[0], "course": cc[1], "recorded_fragment": cc[2], "lesson_completed": cc[3]} if cc else None)
             if r is not None:
-                sc.call_row = {"call_type": r[0], "status": r[1], "total_time": r[2], "summary": r[3], "usage_engine": r[4]}
+                sc.call_row = {"call_type": r[0], "status": r[1], "total_time": r[2], "summary": r[3], "usage_engine": r[4],
+                               "fragment_count": r[10]}
                 try:
                     from domains.learning.service import normalcall_service as _ns
                     uj = r[5] if isinstance(r[5], dict) else (json.loads(r[5]) if r[5] else None)
@@ -2252,7 +2354,8 @@ def freetalk_report(sess: Session, sc: Score, ctx: dict, *, duration_min: int, r
 
 
 def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *, course: str, lesson_no: int,
-             run_no: int, expect_locked: bool = False) -> tuple[Session, Score, Path, bool]:
+             run_no: int, expect_locked: bool = False, continues_call_id: Optional[int] = None,
+             expect_fragment: int = 1) -> tuple[Session, Score, Path, bool]:
     """cur 경로 통화 1회: 컨텍스트 예측 → /cur/me(전) → 통화 → 결과 읽기 → 보고서. (판정·큐 대조는 표현학습 그대로)"""
     ctx = load_cur_context(sf, MEMBER_ID, lesson_no, n=CUR_ITEMS_PER_CALL)
     me_pre = cur_status(api)
@@ -2265,13 +2368,19 @@ def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *,
     started = datetime.now(timezone.utc)
     sess = asyncio.run(run_call(args.base, token, ctx["items"], voice, picker, duration_min=args.duration, probe=False,
                                 verbose=args.verbose, course=course, lesson=ctx["lesson"],
-                                distractors=[ctx["items"][i].surface for i in ctx["lesson_item_ids"] if i not in ctx["predicted_new"]][:8]))
+                                distractors=[ctx["items"][i].surface for i in ctx["lesson_item_ids"] if i not in ctx["predicted_new"]][:8],
+                                continues_call_id=continues_call_id, passed_before=ctx.get("passed_before")))
     ended = datetime.now(timezone.utc)
     sc = read_cur_outcome(sf, api, sess.call_id, ctx, me_pre)
     if not sess.locked:
-        for _ in range(10):
-            saved = any(r.get("drilled_call_id") == sess.call_id for r in sc.db_rows.values()) \
-                or sc.call_row.get("status") in ("done", "analyzing")
+        for _ in range(12):
+            if expect_fragment > 1:
+                # ① 이어하기 조각: 앞 조각 저장으로 이미 «저장됨» 처럼 보인다(1564 에서 recorded_fragment=1 을 읽어 (d) 가 거짓 FAIL).
+                #   cur_call.recorded_fragment 가 이 조각 번호에 닿을 때까지 기다린다(끊김 경로 저장은 수 초 뒤).
+                saved = ((sc.cur.get("cur_call") or {}).get("recorded_fragment") or 0) >= expect_fragment
+            else:
+                saved = any(r.get("drilled_call_id") == sess.call_id for r in sc.db_rows.values()) \
+                    or sc.call_row.get("status") in ("done", "analyzing")
             if saved and sc.call_row.get("total_time"):
                 break
             time.sleep(3)
@@ -2288,6 +2397,19 @@ def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *,
 
 
 def scenario_lesson_cycle(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker) -> int:
+    rc, _rows, _ids, _sums = scenario_lesson_cycle_ex(args, sf, api, token, voice, picker)
+    return rc
+
+
+def _call_summary(sess: Session, sc: Score) -> str:
+    if sess.course == "freetalk":
+        return f"call {sess.call_id} 프리토킹 · locked={sess.locked} · 종료 {sess.end_reason}"
+    rd = sc.cur.get("redrill") or {}
+    return (f"call {sess.call_id} · 드릴 {len(sess.drilled_order)} · 판정 {'✔' if sc.judge_ok else '✖'} · 퀴즈주기 {'✔' if sc.period_ok else '✖'} · "
+            f"거짓칭찬 {'✔' if sc.praise_ok else '✖'} · 재드릴 {rd.get('n', '?')}/{rd.get('total_passed', '?')} · 원가 ${sc.call_row.get('cost_usd')} · {sc.call_row.get('usage_engine')}")
+
+
+def scenario_lesson_cycle_ex(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker) -> tuple[int, list, list, list]:
     """reset(차시) → 표현 1통(18 새) → 표현 2통(12 새 + 복습 6) → 프리토킹 1통 → /cur/me 다음 차시. 각 단계 기대값 대조."""
     lesson_no = args.lesson
     rows: list[tuple[str, str, str, bool]] = []       # (단계, 기대, 실측, PASS)
@@ -2306,7 +2428,7 @@ def scenario_lesson_cycle(args, sf, api: CurApi, token: str, voice: Voice, picke
         # ⛔ 잘못된 차시로 통화 3건($1.3)을 태우지 않는다 — 여기서 멈춘다
         print("⛔ reset 이 기대와 다르다 → 시나리오 중단(통화 안 함)")
         _write_scenario_table(args, lesson_no, rows, [])
-        return 1
+        return 1, rows, [], []
     total = me0.get("items_total") or 0
 
     sess1, sc1, _, _ = one_call(args, sf, api, token, voice, picker, course="expression", lesson_no=lesson_no, run_no=1)
@@ -2340,7 +2462,96 @@ def scenario_lesson_cycle(args, sf, api: CurApi, token: str, voice: Voice, picke
     add("/cur/me 다음 차시", f"no={ft_no + 1}", f"no={(post3.get('lesson') or {}).get('no')} · status {post3.get('status')}",
         (post3.get("lesson") or {}).get("no") == ft_no + 1)
     _write_scenario_table(args, lesson_no, rows, [sess1.call_id, sess2.call_id, sess3.call_id])
-    return 0 if all(d for _, _, _, d in rows) else 1
+    sums = [_call_summary(sess1, sc1), _call_summary(sess2, sc2), _call_summary(sess3, sc3)]
+    return (0 if all(d for _, _, _, d in rows) else 1), rows, [sess1.call_id, sess2.call_id, sess3.call_id], sums
+
+
+def run_segments(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *, lesson_no: int, n: int) -> tuple[int, Path]:
+    """① 조각 이어하기: 조각1(하네스 종료 조건 그대로) → 조각2 를 continues_call_id 로. 검사 4항목을 «이어하기» 표로."""
+    from domains.learning.service import call_service as _cs
+    with sf() as db:
+        plan_frag = int(_cs.call_fragments_for_member(db, MEMBER_ID))
+        plan = _cs.effective_plan(db, MEMBER_ID)
+    print(f"\n════════ 이어하기 {n}조각 · 플랜 {plan} (조각 상한 {plan_frag}) · lesson {lesson_no} ════════")
+    sess1, sc1, path1, _ = one_call(args, sf, api, token, voice, picker, course=args.course, lesson_no=lesson_no, run_no=1)
+    seg1 = {"call_id": sess1.call_id, "course": sess1.course_from_server or sess1.course,
+            "passed_ids": [int(q.get("item_id")) for q in (sc1.cur.get("quiz_items") or []) if q.get("passed")],
+            "failed_ids": [int(q.get("item_id")) for q in (sc1.cur.get("quiz_items") or []) if q.get("failed") and not q.get("passed")],
+            "mi_updated_max": sc1.cur.get("mi_updated_max")}
+    rows_all: list[tuple[str, str, str, bool]] = []
+    paths = [path1]
+    prev = seg1
+    for k in range(2, n + 1):
+        sess2, sc2, path2, _ = one_call(args, sf, api, token, voice, picker, course=args.course, lesson_no=lesson_no, run_no=k,
+                                        continues_call_id=prev["call_id"], expect_fragment=k)
+        seg2 = {"call_id": sess2.call_id, "course_from_server": sess2.course_from_server, "resumed": sess2.resumed,
+                "drilled_order": list(sess2.drilled_order),
+                "quizzed_ids": [iid for iid, r in sess2.records.items() if r.rounds],
+                "fragment_count": sc2.call_row.get("fragment_count"),
+                "recorded_fragment": (sc2.cur.get("cur_call") or {}).get("recorded_fragment"),
+                "mi_updated_max": sc2.cur.get("mi_updated_max")}
+        rows = check_resume(prev, seg2, plan_fragments=plan_frag)
+        # 조각 k 기준 기대치: (a) fragment_count/recorded_fragment 는 k 여야 한다
+        rows = [(a, b.replace("fragment_count 2", f"fragment_count {k}").replace("recorded_fragment=2", f"recorded_fragment={k}"), c,
+                 (d if a not in ("(a) 같은 call·같은 course", "(d) 조각별 저장") or plan_frag <= 1 else
+                  (d if k == 2 else (seg2.get("fragment_count") == k if a.startswith("(a)") else seg2.get("recorded_fragment") == k))))
+                for a, b, c, d in rows]
+        for a, b, c, d in rows:
+            print(f"  [{'✔' if d else '✖'}] 조각{k} {a}: 기대 {b} / 실측 {c}")
+        rows_all += [(f"조각{k} {a}", b, c, d) for a, b, c, d in rows]
+        paths.append(path2)
+        prev = {"call_id": sess2.call_id if sess2.resumed else sess2.call_id, "course": sess2.course_from_server or sess2.course,
+                "passed_ids": [int(q.get("item_id")) for q in (sc2.cur.get("quiz_items") or []) if q.get("passed")],
+                "failed_ids": [int(q.get("item_id")) for q in (sc2.cur.get("quiz_items") or []) if q.get("failed") and not q.get("passed")],
+                "mi_updated_max": sc2.cur.get("mi_updated_max")}
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{stamp}_resume_call{sess1.call_id}.md"
+    L = [f"# 이어하기 검사 — call {sess1.call_id} · {n}조각 · 플랜 {plan}(조각 상한 {plan_frag}) · lesson {lesson_no} ({stamp})", "",
+         f"- 서버 {args.base} · 각 조각 --duration {args.duration}분(하네스 client_cut) · 조각 보고서: " + " · ".join(str(pp.name) for pp in paths), "",
+         "| 검사 | 기대 | 실측 | 판정 |", "|---|---|---|---|"]
+    L += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in rows_all]
+    path.write_text("\n".join(L), encoding="utf-8")
+    print(f"\n이어하기 표: {path}")
+    return (0 if all(d for _, _, _, d in rows_all) else 1), path
+
+
+def run_matrix(args, sf, voice: Voice, picker: Picker) -> int:
+    """③ testfree(2.5) → testmax(3.1) 를 **순차**로 lesson-cycle. 같은 서버·같은 DB 라 동시 금지. 한 md 로 묶는다."""
+    global MEMBER_ID
+    accounts = [("testfree@gmail.com", "2.5"), ("testmax@gmail.com", "3.1")]
+    results: dict[str, tuple] = {}
+    for email, tag in accounts:
+        with sf() as db:
+            MEMBER_ID = resolve_member(db, email)
+        token = get_token(args.base, email, args.password)
+        api = CurApi(args.base, token)
+        print(f"\n╔══ 매트릭스 {tag} · {email} → member {MEMBER_ID} ══╗")
+        rc, rows, ids, sums = scenario_lesson_cycle_ex(args, sf, api, token, voice, picker)
+        results[tag] = (rc, rows, ids, sums, email)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{stamp}_matrix.md"
+    steps = [r[0] for r in results["2.5"][1]] if results.get("2.5") else []
+    L = [f"# 매트릭스 — lesson-cycle 차시 {args.lesson} · 2.5(testfree) vs 3.1(testmax) ({stamp})", "",
+         f"- 서버 {args.base} · --duration {args.duration} · 순차 실행(동시 아님)", "",
+         "| 단계 | 기대 | 2.5 testfree 실측 | 판정 | 3.1 testmax 실측 | 판정 |", "|---|---|---|---|---|---|"]
+    r25 = {a: (b, c, d) for a, b, c, d in results["2.5"][1]} if "2.5" in results else {}
+    r31 = {a: (b, c, d) for a, b, c, d in results["3.1"][1]} if "3.1" in results else {}
+    for a in dict.fromkeys(steps + list(r31)):
+        b = (r25.get(a) or r31.get(a) or ("", "", False))[0]
+        c25 = r25.get(a); c31 = r31.get(a)
+        L.append(f"| {a} | {b} | {c25[1] if c25 else '—'} | {('PASS' if c25[2] else 'FAIL') if c25 else '—'} | {c31[1] if c31 else '—'} | {('PASS' if c31[2] else 'FAIL') if c31 else '—'} |")
+    L.append("")
+    for tag in ("2.5", "3.1"):
+        if tag in results:
+            rc, rows, ids, sums, email = results[tag]
+            L.append(f"## {tag} {email} — 통화 {ids} · {'PASS' if rc == 0 else 'FAIL'}")
+            L += [f"- {x}" for x in sums]
+            L.append("")
+    path.write_text("\n".join(L), encoding="utf-8")
+    print(f"\n매트릭스 표: {path}")
+    return 0 if all(r[0] == 0 for r in results.values()) else 1
 
 
 def _write_scenario_table(args, lesson_no: int, rows: list, call_ids: list) -> None:
@@ -2371,6 +2582,8 @@ def main() -> None:
     ap.add_argument("--course", choices=("expression", "freetalk", "auto"), default="expression",
                     help="start.call_type. auto 면 서버가 정한 코스(call_started.course)로 검증")
     ap.add_argument("--expect-locked", action="store_true", help="프리토킹이 COURSE_LOCKED 로 끊기는 것이 기대값(잠금 확인)")
+    ap.add_argument("--segments", type=int, default=1, help="① 조각 이어하기: N 조각(조각2 부터 continues_call_id). Free 는 거절 확인")
+    ap.add_argument("--matrix", action="store_true", help="③ testfree(2.5)+testmax(3.1) 순차 lesson-cycle → docs/e2e/*_matrix.md")
     ap.add_argument("--scenario", choices=("lesson-cycle",), default=None,
                     help="lesson-cycle: reset → 표현 1통 → 표현 2통 → 프리토킹 → /cur/me 다음 차시 (PASS/FAIL 표)")
     ap.add_argument("--probe", action="store_true", help="①②③만: 첫 비버 턴 해석까지 보고 끊는다")
@@ -2418,7 +2631,7 @@ def main() -> None:
         if not cur_reset(api, MEMBER_ID, args.lesson, sf=sf):
             sys.exit(2)
         cur_status(api)
-    if not (args.probe or args.runs or args.scenario):
+    if not (args.probe or args.runs or args.scenario or args.matrix or args.segments > 1):
         return
 
     voice = Voice()
@@ -2426,6 +2639,11 @@ def main() -> None:
     if args.duration < 3:
         print("⚠ duration_min 은 서버가 3분으로 올린다(DEMO_DURATION_MIN_MINUTES=3)")
 
+    if args.matrix:
+        sys.exit(run_matrix(args, sf, voice, picker))
+    if args.segments > 1:
+        rc, _ = run_segments(args, sf, api, token, voice, picker, lesson_no=args.lesson, n=args.segments)
+        sys.exit(rc)
     if args.scenario == "lesson-cycle":
         sys.exit(scenario_lesson_cycle(args, sf, api, token, voice, picker))
 
