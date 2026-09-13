@@ -699,7 +699,7 @@ class _CallState:
         "close_requested",
         "cur_user_pcm", "cur_user_text", "cur_beaver_pcm", "cur_beaver_text", "next_turn_index",
         # 표정(set_face) — 호출 수 · 마커 seq · 마지막으로 **보낸** 값(중복 억제 기준)
-        "face_calls", "face_seq", "face_last", "face_last_pcm",
+        "face_calls", "face_seq", "face_last", "face_last_pcm", "face_called_this_turn",
         # ⭐ 이어하기 조각의 시작 턴 인덱스(0=첫 조각). 통화후 **검증 범위**의 기준이다.
         "resume_from_turn",
         # ⭐ 표정 v2 계측 — 이 턴에서 오디오·전사가 **각각 처음 온 시각**(monotonic).
@@ -851,6 +851,9 @@ class _CallState:
         # ⭐ 마지막으로 마커를 **보낸** 시점의 턴 오디오 바이트. 같은 자리 겹침을 가른다.
         #   -1 = 아직 이 통화에서 보낸 적 없음.
         self.face_last_pcm = -1
+        # ⭐ D(2026-09-14): 직전 turn_end(flush) 이후 모델이 set_face 를 **불렀나**(보냈든 중복으로 억제됐든 — 의도가 있었나). 없으면 새 턴 turn_start 에
+        #   서버가 neutral 마커 1개를 오디오 앞에 보낸다(1602 조각2: happy 뒤 여러 턴 웃는 채 고정). flush 가 face_last_pcm 과 같은 자리에서 비운다.
+        self.face_called_this_turn = False
         self.face_streak = 0       # 오디오 없이 연달아 온 호출 수(차단기)
         self.resume_from_turn = 0  # 이어하기 조각의 시작 턴(0=첫 조각 — 전체가 이 조각이다)
         # ⭐ 첫 인사 턴에서 **소리가 오기 전에 도착한 자막 조각**을 붙잡아 둔다.
@@ -1810,6 +1813,7 @@ def _flush_beaver_segment(state: _CallState) -> None:
     #   회귀가 잡았다(test_face_markers_flow_and_duplicates_are_dropped: sad 가 사라졌다).
     #   ⚠ 두 값이 같은 전제를 나눠 가지므로 **비우는 자리도 하나**여야 한다.
     state.face_last_pcm = -1
+    state.face_called_this_turn = False     # D — 다음 턴 turn_start 의 «표정 초기화» 판정 재료
     state.cur_beaver_text = []
 
 
@@ -4544,6 +4548,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   ⛔ `turn_id` 로 리셋하지 않는다. 표정은 턴을 넘어 유지되는 상태다 —
             #     턴마다 비우면 다음 턴 첫 마커가 항상 중복으로 나간다.
             duplicate = emotion == state.face_last
+            if emotion and state.learner_spoke:
+                state.face_called_this_turn = True   # D — 의도가 있었다(중복·같은자리로 안 보내도) → 이 턴엔 neutral 초기화를 안 한다
             # ⭐ qual(운영, 2026-09-12): 앱은 감정 클립이 끝나면 스스로 idle 로 돌아온다(사장님 확정) → 표정은 **턴을 넘어
             #   유지되지 않는다.** 다음 턴에 같은 감정이 또 드러나면 다시 보내야 보인다. 중복은 «같은 턴 안»(face_last_pcm ≥ 0
             #   = 이 턴에 이미 보냈다; turn_end 가 −1 로 비운다)으로만 본다. 1469 실측: 13회 중 4회가 다른 턴의 같은 감정
@@ -4948,6 +4954,21 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
         logger.warning("normalcall: 인사 재시드 실패(무시): %s", exc)
 
 
+async def _maybe_send_face_reset(client_ws, state: _CallState) -> None:
+    """⭐ 표정 초기화(2026-09-14 D, 실통화 1602 조각2 — set_face(happy) 뒤 여러 턴 웃는 채 고정). 감정 판정이 아니다.
+
+    비버 새 턴(turn_start) 시점에 직전 turn_end 이후 set_face 호출이 없었으면 서버가 `sentence{emotion:"neutral"}` 마커 1개를 **오디오 앞**에 보낸다
+    (순서 = 주 키 — 프론트가 오디오 봉투 위치에 꽂는다). 툴 호출·대본 무변경(비용 무변). set_face 가 turn_start 직후 늦게 오면 그것이 뒤 자리에 꽂혀 덮는다.
+    ⛔ 인사 구간(learner_spoke 전)은 마커 자체를 보내지 않는 기존 규율 그대로. `face_last_pcm` 은 건드리지 않는다(같은자리 판정은 진짜 set_face 만).
+    """
+    if state.face_called_this_turn or not state.learner_spoke:
+        return
+    state.face_seq += 1
+    await _send_json(client_ws, ServerSentenceMarker(turn_id=state.turn_id or "", seq=state.face_seq, emotion="neutral"))
+    state.face_last = "neutral"
+    logger.info("normalcall 표정 초기화: neutral seq=%d turn=%s (직전 turn_end 이후 set_face 없음)", state.face_seq, state.turn_id or "-")
+
+
 async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool:
     """단일 LiveEvent 를 즉시 forward 하며 진행중 세그먼트에 누적. 새 턴이면 True.
 
@@ -4968,6 +4989,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             state.turn_id = _new_turn_id()
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
+            await _maybe_send_face_reset(client_ws, state)   # D — 오디오 **앞**에
         if event.audio:
             # 🔬 ⛔ 턴이 열리는 경로는 **둘**이다(audio / out_tr). 자막이 먼저 오는 통화가
             #   대부분이라 audio 분기에서만 초기화하면 영영 리셋이 안 된다(2026-08-31 실측:
@@ -5053,6 +5075,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             state.turn_id = _new_turn_id()
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
+            await _maybe_send_face_reset(client_ws, state)   # D — 자막이 먼저 여는 턴도 같다(오디오는 아직 0바이트)
         text = event.text or ""
         if not state.face_first_tr_at and (text or "").strip():
             state.face_first_tr_at = asyncio.get_running_loop().time()
