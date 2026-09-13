@@ -19,7 +19,8 @@ from domains.learning.models.learning_item import LearningItem
 from scripts.curriculum.load_cur_seed import CHUNK_LESSONS, load
 
 SEED = os.path.join(os.path.dirname(__file__), "..", "assets", "curriculum_v3", "cur_seed.json")
-pytestmark = pytest.mark.skipif(not os.path.exists(SEED), reason="cur_seed.json 없음")
+SEED_JA = os.path.join(os.path.dirname(__file__), "..", "assets", "curriculum_v3", "cur_seed_ja.json")
+pytestmark = pytest.mark.skipif(not (os.path.exists(SEED) and os.path.exists(SEED_JA)), reason="cur_seed*.json 없음")
 
 
 @pytest.fixture(scope="module")
@@ -89,9 +90,78 @@ def test_retire_instead_of_delete(db: Session, seed):
          "support_keys": [k for k in l["support_keys"] if k != victim]}
         for l in seed["lessons"]
     ]
+    for l in trimmed["lessons"]:   # 시드 자체의 정합(item_count) — 불변식이 시드에서 세므로 시드는 스스로 맞아야 한다
+        l["item_count"] = len(l["grammar_keys"]) + len(l["must_keys"]) + len(l["core_keys"]) + len(l["support_keys"])
     stats = load(db, trimmed, dry_run=False)
     db.commit()
     assert stats["retired"] == 1
     assert db.execute(text("SELECT COUNT(*) FROM cur_item WHERE kind='vocab'")).scalar() == 10636  # 삭제 안 함
     assert db.execute(text("SELECT retired_at IS NOT NULL FROM cur_item WHERE kind='vocab' AND key=:k"), {"k": victim}).scalar()
-    assert not stats["checks"]["cur_item 현역 11,144"]  # 불변식은 정직하게 실패를 알린다(운영 로더는 여기서 롤백)
+    # 2026-09-13 언어 일반화 — 불변식은 **시드에서 센다**: 시드에서 빠진 항목이 은퇴하면 현역 수 = 시드 수라 PASS 가 맞다(은퇴 = 삭제 아님).
+    assert stats["check_item_key"] == "cur_item 현역 11,143" and stats["checks"][stats["check_item_key"]]
+    assert all(stats["checks"].values())
+
+
+# --------------------------------------------------------------------------- #
+# 일본어(ja) — 청크 차시 없음 · no 1..345 · A1-T01-1 = 1 · meanings {en, ko, kana} · ko 와 같은 DB 에 공존(주제 65 공유)
+# --------------------------------------------------------------------------- #
+@pytest.fixture(scope="module")
+def seed_ja():
+    return json.load(io.open(SEED_JA, encoding="utf-8"))
+
+
+def test_ja_load_passes_invariants_and_is_idempotent(db: Session, seed_ja):
+    assert seed_ja["meta"]["language"] == "ja" and "1" not in seed_ja["meta"]["levels"], "레벨1(청크) 없음 — A1 부터"
+    stats = load(db, seed_ja, dry_run=False, language="ja")
+    assert all(stats["checks"].values()), stats["checks"]
+    assert stats["language"] == "ja" and stats["retired"] == 0 and stats["lessons"] == 345
+    assert stats["check_item_key"] == "cur_item 현역 4,946"          # 어휘 4,328 + 문법 618, 청크 0
+    db.commit()
+    before = {t: db.execute(text(f"SELECT COUNT(*) FROM {t}")).scalar() for t in ("cur_item", "cur_lesson", "cur_lesson_item", "cur_topic")}
+    stats2 = load(db, seed_ja, dry_run=False, language="ja")
+    db.commit()
+    assert {t: db.execute(text(f"SELECT COUNT(*) FROM {t}")).scalar() for t in before} == before
+    assert all(stats2["checks"].values()) and stats2["retired"] == 0
+    assert before["cur_topic"] == 65 and before["cur_lesson"] == 345
+
+
+def test_ja_lesson_numbers_and_first_lesson_composition(db: Session, seed_ja):
+    load(db, seed_ja, dry_run=False, language="ja")
+    db.commit()
+    nos = [r[0] for r in db.execute(text("SELECT no FROM cur_lesson WHERE language='ja' ORDER BY no"))]
+    assert nos == list(range(1, 346))
+    assert db.execute(text("SELECT COUNT(*) FROM cur_lesson WHERE language='ja' AND level_no=1")).scalar() == 0, "청크 차시 없음"
+    first = next(l for l in seed_ja["lessons"] if l["no"] == 1)
+    assert first["code"] == "A1-T01-1"
+    r = db.execute(text("SELECT lesson_id, no, level_no, item_count, situation FROM cur_lesson WHERE language='ja' AND code='A1-T01-1'")).one()
+    assert (r[1], r[2], r[3]) == (1, 2, first["item_count"]) and r[4] == first["situation"]
+    roles = [x[0] for x in db.execute(text("SELECT role FROM cur_lesson_item WHERE lesson_id=:l ORDER BY seq"), {"l": r[0]})]
+    assert roles == (["grammar"] * len(first["grammar_keys"]) + ["must"] * len(first["must_keys"])
+                     + ["core"] * len(first["core_keys"]) + ["support"] * len(first["support_keys"]))
+    # 어휘 뜻 = {en, ko, kana} · 예문 1개 · 문법은 {en}
+    v = seed_ja["vocab"][0]
+    row = db.execute(text("SELECT surface, meanings, examples, level_no FROM cur_item WHERE language='ja' AND kind='vocab' AND key=:k"), {"k": v["key"]}).one()
+    m = json.loads(row[1])
+    assert row[0] == v["key"] and m == {"en": v["en"], "ko": v["ko"], "kana": v["kana"]} and len(json.loads(row[2])) == 1
+    assert m["kana"] and all(ord(c) > 0x3000 for c in m["kana"]), "읽기 = 가나"
+    g = seed_ja["grammar"][0]
+    gm = db.execute(text("SELECT meanings FROM cur_item WHERE language='ja' AND kind='grammar' AND key=:k"), {"k": g["key"]}).scalar()
+    assert json.loads(gm) == {"en": g["en"]}
+
+
+def test_ko_and_ja_coexist_in_one_db_sharing_topics(db: Session, seed, seed_ja):
+    s1 = load(db, seed, dry_run=False); db.commit()
+    s2 = load(db, seed_ja, dry_run=False, language="ja"); db.commit()
+    assert all(s1["checks"].values()) and all(s2["checks"].values())
+    assert db.execute(text("SELECT COUNT(*) FROM cur_topic")).scalar() == 65
+    assert db.execute(text("SELECT COUNT(*) FROM cur_lesson WHERE language='ko'")).scalar() == 491
+    assert db.execute(text("SELECT COUNT(*) FROM cur_lesson WHERE language='ja'")).scalar() == 345
+    # 다시 ko 적재 — ja 가 있어도 ko 불변식·멱등 그대로(언어별로 센다)
+    s3 = load(db, seed, dry_run=False); db.commit()
+    assert all(s3["checks"].values()) and s3["retired"] == 0
+    assert db.execute(text("SELECT COUNT(*) FROM cur_item WHERE retired_at IS NULL")).scalar() == 11144 + 4946
+
+
+def test_language_mismatch_is_refused(db: Session, seed_ja):
+    with pytest.raises(SystemExit):
+        load(db, seed_ja, dry_run=False, language="ko")
