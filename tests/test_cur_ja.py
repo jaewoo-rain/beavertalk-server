@@ -67,6 +67,11 @@ def factory():
         for i in range(46):
             s.add(LearningItem(language="ko", kind="chunk", source_key=f"c:{i}", band=1, level_no=1, assign_rule="seed",
                                surface=f"청크 문장 {i}", meanings=json.dumps({"en": f"chunk {i}"}), examples="[]"))
+        for i in range(46):   # ja 청크 46 — 운영 learning_item(kind=chunk, language=ja) 흉내: meanings {en,roman,ko} + reading 열(가나)
+            s.add(LearningItem(
+                language="ja", kind="chunk", source_key=f"jc:{i}", band=1, level_no=1, assign_rule="survival_v1",
+                surface=f"チャンク{i}", reading=f"ちゃんく{i}", meanings=json.dumps({"en": f"chunk {i}", "roman": f"chanku{i}", "ko": f"청크 {i}"}), examples="[]",
+            ))
         s.commit()
         load(s, json.load(io.open(SEED, encoding="utf-8")), dry_run=False); s.commit()
         load(s, json.load(io.open(SEED_JA, encoding="utf-8")), dry_run=False, language="ja"); s.commit()
@@ -119,7 +124,7 @@ def test_decide_course_and_progress_are_per_language(db):
     m, _ = _member(db, target="ja")
     assert cur.decide_course(db, m, "ja") == "expression"
     pj = repo.current_progress(db, m, "ja"); pk = repo.current_progress(db, m, "ko")
-    assert pj is not None and repo.lesson_by_id(db, pj.lesson_id).code == "A1-T01-1" and pk is None, "ja 포인터만 생겼다"
+    assert pj is not None and repo.lesson_by_id(db, pj.lesson_id).code == "L1-S01-1" and pk is None, "ja 포인터만 생겼다(ja 도 청크 1차시부터)"
     assert cur.decide_course(db, m, "ko") == "expression"
     pk = repo.current_progress(db, m, "ko")
     assert repo.lesson_by_id(db, pk.lesson_id).code == "L1-S01-1" and pk.lesson_id != pj.lesson_id
@@ -129,8 +134,14 @@ def test_decide_course_and_progress_are_per_language(db):
 def test_open_call_ja_selects_the_first_japanese_lesson_with_ko_or_en_meanings(db):
     m, _ = _member(db, target="ja", locale="ko")
     c = _call(db, m)
+    o0 = cur.open_call(db, m, c, "auto", language="ja", locale="ko")
+    assert o0.lesson.code == "L1-S01-1" and o0.lesson.no == 1 and o0.lesson.level_no == 1 and len(o0.items) == 15, "ja 도 청크 1차시부터(ko 와 동일)"
+    assert o0.items[0]["obj"] == "チャンク0" and o0.items[0]["des"] == "청크 0" and o0.items[0]["role"] == "chunk"
+    # 포인터를 A1-T01-1(no 4)로 옮겨 어휘·문법 차시를 본다
+    prog = repo.current_progress(db, m, "ja"); prog.lesson_id = repo.lesson_by_no(db, "ja", 4).lesson_id; db.commit()
+    c = _call(db, m)
     o = cur.open_call(db, m, c, "auto", language="ja", locale="ko")
-    assert o.course == "expression" and o.lesson.code == "A1-T01-1" and o.lesson.no == 1 and o.lesson.level_no == 2
+    assert o.course == "expression" and o.lesson.code == "A1-T01-1" and o.lesson.no == 4 and o.lesson.level_no == 2
     assert o.lesson.language == "ja" and 1 <= len(o.items) <= 18 and all(d["review"] is False for d in o.items)
     vocab = [d for d in o.items if d["role"] != "grammar"]
     assert vocab and all(d["des"] for d in vocab), "뜻이 실린다"
@@ -194,14 +205,16 @@ def test_cur_me_and_lessons_follow_the_members_target_language(client, db):
     _, hj = _member(db, target="ja")
     _, hk = _member(db, target=None)
     me_j = client.get("/api/v1/cur/me", headers=hj).json()
-    assert me_j["lesson"]["code"] == "A1-T01-1" and me_j["lesson"]["no"] == 1 and me_j["lesson"]["level_no"] == 2
-    assert me_j["items_total"] == 18 and me_j["next_course"] == "expression"
+    assert me_j["lesson"]["code"] == "L1-S01-1" and me_j["lesson"]["no"] == 1 and me_j["lesson"]["level_no"] == 1, "ja 도 청크 1차시부터"
+    assert me_j["items_total"] == 15 and me_j["next_course"] == "expression"
     me_k = client.get("/api/v1/cur/me", headers=hk).json()
     assert me_k["lesson"]["code"] == "L1-S01-1", "target_language 없음 → 기본(ko)"
     rows = client.get("/api/v1/cur/lessons", params={"level": 2}, headers=hj).json()
-    assert len(rows) == 8 and rows[0]["code"] == "A1-T01-1" and rows[0]["status"] == "learning"
+    assert len(rows) == 8 and rows[0]["code"] == "A1-T01-1" and rows[0]["no"] == 4 and rows[0]["status"] is None
     assert all(r["code"].startswith("A1-") for r in rows)
-    assert len(client.get("/api/v1/cur/lessons", headers=hj).json()) == 345
+    allrows = client.get("/api/v1/cur/lessons", headers=hj).json()
+    assert len(allrows) == 348 and allrows[0]["code"] == "L1-S01-1" and allrows[0]["status"] == "learning"
+    assert len(client.get("/api/v1/cur/lessons", params={"level": 1}, headers=hj).json()) == 3
 
 
 def test_cur_reset_deletes_only_the_target_language(client, db):
@@ -212,18 +225,36 @@ def test_cur_reset_deletes_only_the_target_language(client, db):
     ko_items = db.query(CurMemberItem).join(CurMemberItem.lesson if hasattr(CurMemberItem, "lesson") else CurMemberItem).count() if False else \
         db.execute(text("SELECT COUNT(*) FROM cur_member_item mi JOIN cur_lesson l ON l.lesson_id=mi.lesson_id WHERE mi.member_id=:m AND l.language='ko'"), {"m": m}).scalar()
     assert ko_items > 0
-    r = client.post("/__dev/cur-reset", json={"lesson_no": 3}, headers=hdr)
+    r = client.post("/__dev/cur-reset", json={"lesson_no": 5}, headers=hdr)                # no 1~3 = L1 청크, 4 = A1-T01-1
     assert r.status_code == 200, r.text
-    assert r.json()["language"] == "ja" and r.json()["lesson"]["code"].startswith("A1-") and r.json()["lesson"]["no"] == 3
+    assert r.json()["language"] == "ja" and r.json()["lesson"]["code"].startswith("A1-") and r.json()["lesson"]["no"] == 5
     assert r.json()["deleted_calls"] == 1, "ja cur_call 만"
     db.expire_all()
     q = "SELECT COUNT(*) FROM {t} x JOIN cur_lesson l ON l.lesson_id=x.lesson_id WHERE x.member_id=:m AND l.language=:lang"
     assert db.execute(text(q.format(t="cur_member_item")), {"m": m, "lang": "ja"}).scalar() == 0
     assert db.execute(text(q.format(t="cur_member_lesson")), {"m": m, "lang": "ja"}).scalar() == 0
     assert db.execute(text(q.format(t="cur_member_item")), {"m": m, "lang": "ko"}).scalar() == ko_items, "ko 진도는 그대로"
-    assert repo.lesson_by_id(db, repo.current_progress(db, m, "ja").lesson_id).no == 3
+    assert repo.lesson_by_id(db, repo.current_progress(db, m, "ja").lesson_id).no == 5
     assert repo.lesson_by_id(db, repo.current_progress(db, m, "ko").lesson_id).no == 1
     assert db.execute(text("SELECT COUNT(*) FROM cur_call c JOIN cur_lesson l ON l.lesson_id=c.lesson_id WHERE l.language='ko'")).scalar() >= 1
+
+
+def test_cur_reset_ja_points_at_lesson_1_which_is_the_survival_chunk_lesson(client, db):
+    """사장님(2026-09-13): «학습 초기화하면 이제 일상회화(0단계)로 되게» — ja 도 no=1 = L1-S01-1(청크)."""
+    m, hdr = _member(db, target="ja", role="admin")
+    prog = repo.current_progress(db, m, "ja") or cur.ensure_progress(db, m, "ja")
+    prog.lesson_id = repo.lesson_by_no(db, "ja", 7).lesson_id; db.commit()          # 진도를 A1 중간까지 옮겨 두고
+    r = client.post("/__dev/cur-reset", json={}, headers=hdr)                         # lesson_no 없음 → 1
+    assert r.status_code == 200, r.text
+    assert r.json()["language"] == "ja" and r.json()["lesson"] == {"no": 1, "code": "L1-S01-1"}
+    db.expire_all()
+    lesson = repo.lesson_by_id(db, repo.current_progress(db, m, "ja").lesson_id)
+    assert (lesson.no, lesson.code, lesson.level_no, lesson.language) == (1, "L1-S01-1", 1, "ja")
+    assert repo.lesson_items(db, lesson.lesson_id)[0][1].kind == "chunk" and len(repo.lesson_items(db, lesson.lesson_id)) == 15
+    me = client.get("/api/v1/cur/me", headers=hdr).json()
+    assert me["lesson"]["code"] == "L1-S01-1" and me["lesson"]["level_no"] == 1 and me["items_total"] == 15
+    # 서비스 직접 호출도 같다
+    assert cur.reset(db, m, None, "ja")["lesson_code"] == "L1-S01-1"
 
 
 # --------------------------------------------------------------------------- #
@@ -344,7 +375,7 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
 
     @contextlib.asynccontextmanager
     async def _f(client, settings, *, system_instruction, voice, **_kw):
-        sess = _Sess([("B", "こんにちは。名前は田中一郎です。"), ("U", "私はTaroです。"), ("B", "「～は～です」 は 私はカーラです。")])
+        sess = _Sess([("B", "チャンク0 と チャンク1 。"), ("U", "チャンク2"), ("B", "次は チャンク3 です。")])
         holder["session"] = sess; holder["si"] = system_instruction
         yield sess
 
@@ -358,16 +389,16 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
     started = next(f for f in frames if f.get("type") == "call_started")
     assert started["course"] == "expression"
     si = holder["si"]
-    assert "일본어" in si and "名前" in si and "격식 표지(です·ます)" in si and "[문형] ～は～です" in si
+    assert "일본어" in si and "チャンク0" in si and "격식 표지(です·ます)" in si and "[문형]" not in si, "ja 1차시 = 청크(문형 없음)"
     db = factory()
     try:
         call = db.query(Call).filter(Call.member_id == m).order_by(Call.call_id.desc()).first()
         cc = repo.cur_call(db, call.call_id)
         lesson = repo.lesson_by_id(db, cc.lesson_id)
-        assert lesson.language == "ja" and lesson.code == "A1-T01-1" and cc.recorded_at is not None
+        assert lesson.language == "ja" and lesson.code == "L1-S01-1" and cc.recorded_at is not None
         mine = repo.member_item_map(db, m, lesson.lesson_id)
         drilled = {iid for iid, r in mine.items() if r.drilled_at is not None}
-        assert drilled, "비버 발화 名前 · ～は～です(예문) 가 covered → drilled 로 저장(ja 판정 분기)"
+        assert len(drilled) == 4, "비버 チャンク0·1·3 + 학습자 チャンク2 → drilled 4(ja 판정 분기: 뒤 글자 경계 — 「チャンク0」 ≠ 「チャンク01」)"
         assert repo.current_progress(db, m, "ko") is None, "ko 진도는 만들지 않았다"
     finally:
         db.close()

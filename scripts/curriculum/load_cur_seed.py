@@ -13,7 +13,11 @@
   · 끝에 불변식을 세고 하나라도 깨지면 롤백·exit 1
 
 언어(2026-09-13): `--language ko|ja`(기본 ko; 시드 meta.language 와 어긋나면 중단).
-  · 청크 복사(learning_item)·CHUNK_LESSONS(레벨1 3차시)는 **ko 만** — ja 는 A1(level_no 2) 부터, 차시 no 는 언어별 1..N(ja 의 A1-T01-1 = 1).
+  · 청크 복사(learning_item)·CHUNK_LESSONS(레벨1 3차시)는 CHUNK_LANGUAGES(ko·ja — 사장님 2026-09-13 «옛날에 넣어놨던 거 복사해서 한국어랑 동일하게»).
+    ja 청크 46(こんにちは…)은 옛 learning_item(kind=chunk, language=ja) 에 ko 와 같은 순서로 있다 — 같은 코드(L1-S01-1/S02-1/S03-1)·같은 상황문·
+    15/15/16·level_no 1. meanings 는 그 행의 JSON({"en","roman","ko"}) + reading 열을 "kana" 로 합친다(ko 는 그대로). ja 차시 no 는 1..348(A1-T01-1 = 4).
+  · 재적재는 code 기준 갱신 — no 가 바뀌면(청크 차시가 새로 들어와 뒤 차시가 밀릴 때) **2단계**(먼저 바뀌는 행을 음수 no 로 비켜 두고 flush → 새 no)로
+    uq_cur_lesson_no 충돌을 피한다. 회원 진도(cur_member_progress·cur_member_lesson)는 lesson_id 로 묶여 있어 그대로다.
   · meanings JSON = {"en", ("ko", "kana" 가 시드에 있으면 함께)} — 로케일 아닌 키(kana)도 청크의 "roman" 처럼 같은 JSON 에 싣는다(새 컬럼 금지).
   · 불변식은 시드에서 센다(차시 수·항목 수·어휘 전건 정확히 1차시) — ko 는 종전 값(491·11,144·11,307)과 같다.
   · 주제(cur_topic)는 언어 무관 자산(코드 65 공통) — 두 언어를 같은 DB 에 적재해도 65 다.
@@ -42,7 +46,9 @@ from domains.learning.models.curriculum import (  # noqa: E402
 )
 
 SEED_BY_LANGUAGE = {"ko": "cur_seed.json", "ja": "cur_seed_ja.json"}
-CHUNK_LESSONS = [  # 결정 #12 — 레벨1 생존회화 3차시(**ko 만**). 청크 46 = 15·15·16 (시드 순)
+#: 옛 learning_item 청크 46 을 레벨1 3차시로 복사하는 언어. 사장님(2026-09-13): 일본어도 한국어와 동일하게.
+CHUNK_LANGUAGES = frozenset({"ko", "ja"})
+CHUNK_LESSONS = [  # 결정 #12 — 레벨1 생존회화 3차시(CHUNK_LANGUAGES). 청크 46 = 15·15·16 (시드 순). 상황문은 한국어 제목 그대로(모든 언어 공통)
     ("L1-S01-1", "처음 만난 사람과 인사하기", 15),
     ("L1-S02-1", "가게·식당에서 부탁하기", 15),
     ("L1-S03-1", "못 알아들었을 때 되묻기", 16),
@@ -60,7 +66,7 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
     seed_lang = (seed.get("meta") or {}).get("language") or "ko"
     if seed_lang != lang:
         raise SystemExit(f"⛔ 시드 언어({seed_lang}) 와 --language({lang}) 가 다르다")
-    has_chunks = lang == "ko"
+    has_chunks = lang in CHUNK_LANGUAGES
     now = datetime.now(timezone.utc)
     stats: dict = {"language": lang}
 
@@ -123,13 +129,27 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
     chunk_ids: list[int] = []
     if has_chunks:
         chunks = session.execute(text(
-            "SELECT surface, meanings, examples FROM learning_item "
+            "SELECT surface, meanings, examples, reading FROM learning_item "
             "WHERE language = :lang AND kind = 'chunk' ORDER BY item_id"
         ), {"lang": lang}).all()
         if len(chunks) != 46:
-            raise SystemExit(f"⛔ 옛 learning_item 청크가 46개가 아니다: {len(chunks)}")
+            raise SystemExit(f"⛔ 옛 learning_item 청크(language={lang})가 46개가 아니다: {len(chunks)}")
+
+        def _chunk_meanings(c) -> str | None:
+            """ko: 옛 JSON 그대로(바이트 동일). 그 밖: JSON + reading 열 → "kana"(어휘 항목과 같은 키)."""
+            if lang == "ko" or not c.reading:
+                return c.meanings
+            try:
+                m = json.loads(c.meanings) if c.meanings else {}
+            except (ValueError, TypeError):
+                m = {}
+            if not isinstance(m, dict):
+                m = {}
+            m.setdefault("kana", c.reading)
+            return _j(m)
+
         chunk_ids = [
-            upsert("chunk", c.surface, surface=c.surface, meanings=c.meanings, examples=c.examples, level_no=1)
+            upsert("chunk", c.surface, surface=c.surface, meanings=_chunk_meanings(c), examples=c.examples, level_no=1)
             for c in chunks
         ]
     # 시드에서 빠진 현역 항목 → 은퇴(삭제 금지)
@@ -165,6 +185,15 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
         }, items))
 
     existing_lessons = {r.code: r for r in session.scalars(select(CurLesson).where(CurLesson.language == lang))}
+    # ⭐ no 재매김 2단계 — 청크 차시가 새로 들어오면 기존 A1-T01-1(no=1) 이 4 로 밀리는데 uq_cur_lesson_no(language, no) 가 문장 단위라
+    #   먼저 «바뀌는 행» 을 음수 no 로 비켜 두고 flush 한 뒤 새 번호를 준다. 바뀌지 않는 행은 건드리지 않는다(재적재 멱등).
+    planned = {fields["code"]: fields["no"] for fields, _items in lesson_rows}
+    moving = [r for code, r in existing_lessons.items() if code in planned and r.no != planned[code]]
+    if moving:
+        for r in moving:
+            r.no = -r.no
+        session.flush()
+    stats["renumbered"] = len(moving)
     for fields, items in lesson_rows:
         row = existing_lessons.get(fields["code"])
         if row is None:
