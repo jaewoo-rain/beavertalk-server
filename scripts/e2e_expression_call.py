@@ -203,6 +203,42 @@ def quoted_segments(text: str) -> list[str]:
     return [q for q in segs if q]
 
 
+def _norm_repeat(text: str) -> str:
+    """동일 문장 판정용 정규화 — 공백·문장부호·대소문자 무시(«Say it!» 과 «Say it.» 은 같은 말)."""
+    return re.sub(r"[\s\W_]+", "", (text or "").lower())
+
+
+def beaver_turn_stats(turns: list) -> dict:
+    """조각(통화) 안 비버 턴 통계 — n · 평균 글자수 · 최대 글자수 · **동일 문장 연속 반복**(정규화 텍스트가 같은 비버 턴이 잇달아 나온 최장 런,
+    사이의 학습자 턴은 무시 · 1602 t73~t87 8회) · 반복 구간 수(런 ≥2). 하네스가 재생한 턴(태그 «재생»)·빈 턴은 뺀다. 글자수 = 공백 제외."""
+    bt = [t for t in turns if t.role == "beaver" and (t.text or "").strip() and not any("재생" in x for x in t.tags)]
+    lens = [len(re.sub(r"\s+", "", t.text)) for t in bt]
+    best = {"count": 0, "text": "", "span": ""}
+    runs = 0
+    run_start = bt[0] if bt else None
+    run = 1
+    for prev, cur in zip(bt, bt[1:]):
+        if _norm_repeat(cur.text) == _norm_repeat(prev.text):
+            run += 1
+            if run == 2:
+                runs += 1
+            if run > best["count"]:
+                best = {"count": run, "text": cur.text, "span": f"t{run_start.n}~t{cur.n}"}
+        else:
+            run = 1
+            run_start = cur
+    return {"n": len(bt), "avg_chars": (sum(lens) / len(lens)) if lens else 0.0, "max_chars": max(lens) if lens else 0,
+            "repeat_max": best["count"], "repeat_text": best["text"], "repeat_span": best["span"], "repeat_runs": runs}
+
+
+def beaver_stats_row(label: str, st: dict) -> str:
+    rep_ = (f"{st['repeat_max']}회 {st['repeat_span']} «{st['repeat_text'][:60]}»" if st["repeat_max"] >= 2 else "0")
+    return f"| {label} | {st['n']} | {st['avg_chars']:.0f} | {st['max_chars']} | {rep_} | {st['repeat_runs']} |"
+
+
+BEAVER_STATS_HEAD = ["| 조각 | 비버 턴 | 평균 글자수 | 최대 글자수 | 동일 문장 연속 반복(최대) | 반복 구간 수 |", "|---|---|---|---|---|---|"]
+
+
 def reaction_part(text: str) -> str:
     """비버 턴에서 «직전 답에 대한 반응» 문장만 — 새 질문·다음 항목 소개 문장은 뺀다.
 
@@ -1850,6 +1886,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
              f"비버 턴 {sum(1 for t in sess.turns if t.role == 'beaver')} · 학습자 턴 {sum(1 for t in sess.turns if t.role == 'learner')} · "
              f"비버 오디오 {sess.beaver_audio_bytes / 48000:.0f}초 · LLM 폴백 {sess.picker.calls}회")
     L.append(f"- DB call: {sc.call_row} · 레벨(뒤) {sc.level_after}")
+    _bs = beaver_turn_stats(sess.turns)
+    sc.cur["beaver_stats"] = _bs
+    L.append(f"- 비버 턴 글자수 평균 {_bs['avg_chars']:.0f} · 최대 {_bs['max_chars']} · 동일 문장 연속 반복 "
+             + (f"**{_bs['repeat_max']}회** {_bs['repeat_span']} «{_bs['repeat_text'][:80]}» (구간 {_bs['repeat_runs']})" if _bs["repeat_max"] >= 2 else "0"))
     if sess.course != "freetalk":
         passed_times = {iid: min(x.asked_at for x in r.rounds if x.spontaneous_correct)
                         for iid, r in sess.records.items() if any(x.spontaneous_correct for x in r.rounds)}
@@ -2833,6 +2873,7 @@ def run_segments(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
             "mi_updated_max": sc1.cur.get("mi_updated_max")}
     rows_all: list[tuple[str, str, str, bool]] = []
     paths = [path1]
+    stats_rows = [beaver_stats_row("조각1", beaver_turn_stats(sess1.turns))]
     prev = seg1
     for k in range(2, n + 1):
         sess2, sc2, path2, _ = one_call(args, sf, api, token, voice, picker, course=args.course, lesson_no=lesson_no, run_no=k,
@@ -2853,6 +2894,7 @@ def run_segments(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
             print(f"  [{'✔' if d else '✖'}] 조각{k} {a}: 기대 {b} / 실측 {c}")
         rows_all += [(f"조각{k} {a}", b, c, d) for a, b, c, d in rows]
         paths.append(path2)
+        stats_rows.append(beaver_stats_row(f"조각{k}", beaver_turn_stats(sess2.turns)))
         prev = {"call_id": sess2.call_id if sess2.resumed else sess2.call_id, "course": sess2.course_from_server or sess2.course,
                 "passed_ids": [int(q.get("item_id")) for q in (sc2.cur.get("quiz_items") or []) if q.get("passed")],
                 "failed_ids": [int(q.get("item_id")) for q in (sc2.cur.get("quiz_items") or []) if q.get("failed") and not q.get("passed")],
@@ -2864,6 +2906,7 @@ def run_segments(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
          f"- 서버 {args.base} · 각 조각 --duration {args.duration}분(하네스 client_cut) · 조각 보고서: " + " · ".join(str(pp.name) for pp in paths), "",
          "| 검사 | 기대 | 실측 | 판정 |", "|---|---|---|---|"]
     L += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in rows_all]
+    L += ["", "## 조각별 비버 턴 통계(글자수 = 공백 제외 · 반복 = 정규화 텍스트 같은 비버 턴이 잇달아 나온 최장 런)", ""] + BEAVER_STATS_HEAD + stats_rows
     path.write_text("\n".join(L), encoding="utf-8")
     print(f"\n이어하기 표: {path}")
     return (0 if all(d for _, _, _, d in rows_all) else 1), path
@@ -2940,7 +2983,7 @@ def run_seamless(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
         plan = _cs.effective_plan(db, MEMBER_ID)
     silent_never = bool(args.seamless_silent)
     seg_s = float(args.segment_min) * 60
-    print(f"\n════════ 끊김 없는 조각 전환 · 플랜 {plan}(조각 상한 {plan_frag}) · lesson {lesson_no} · 전환 {args.segment_min}분 · "
+    print(f"\n════════ 끊김 없는 조각 전환 · {LANGUAGE} · 플랜 {plan}(조각 상한 {plan_frag}) · lesson {lesson_no} · 전환 {args.segment_min}분 · "
           f"{'(g) 조각2 침묵' if silent_never else '조각2 관찰 ' + str(args.watch_s) + 's'} ════════")
     if plan_frag < 2:
         print("⛔ 이 플랜은 조각 1 — 이어하기가 거절된다(testfree). testmax/testpro 로.")
@@ -2991,7 +3034,7 @@ def run_seamless(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
         print(f"  [{'✔' if d else '✖'}] {a}: 기대 {b} / 실측 {c}")
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
-    path = out / f"{stamp}_seamless_call{sess1.call_id}.md"
+    path = out / f"{stamp}_{LANGUAGE + '_' if LANGUAGE != 'ko' else ''}seamless_call{sess1.call_id}.md"
     L = [f"# 끊김 없는 조각 전환(H8) — call {sess1.call_id} · 플랜 {plan}(조각 상한 {plan_frag}) · lesson {lesson_no} ({stamp})", "",
          f"- 서버 {args.base} · 조각1 전환 대기 {args.segment_min}분 뒤 «학습자 발화 → 비버 turn_end» 에서 fragment_end · 조각2 {'침묵(g)' if silent_never else f'{args.watch_s:.0f}s 관찰 뒤 학습자 발화'} · "
          f"조각 보고서: {path1.name} · {path2.name}",
@@ -3002,6 +3045,13 @@ def run_seamless(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker
     L += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in rows]
     L += ["", "## H6 이어하기 검사(재사용)", "", "| 검사 | 기대 | 실측 | 판정 |", "|---|---|---|---|"]
     L += [f"| {a} | {b} | {c} | {'PASS' if d else 'FAIL'} |" for a, b, c, d in h6_rows]
+    st1, st2 = beaver_turn_stats(sess1.turns), beaver_turn_stats(sess2.turns)
+    ratio = (st2["avg_chars"] / st1["avg_chars"]) if st1["avg_chars"] else 0.0
+    L += ["", "## 조각별 비버 턴 통계(글자수 = 공백 제외 · 반복 = 정규화 텍스트 같은 비버 턴이 잇달아 나온 최장 런 · 재생 턴 제외)", ""]
+    L += BEAVER_STATS_HEAD + [beaver_stats_row("조각1", st1), beaver_stats_row("조각2", st2),
+                              f"| 조각2/조각1 평균 글자수 비 | | {ratio:.2f} | | | |"]
+    print(f"  조각별 비버 턴: 조각1 평균 {st1['avg_chars']:.0f}자(최대 {st1['max_chars']}) · 조각2 평균 {st2['avg_chars']:.0f}자(최대 {st2['max_chars']}) · 비 {ratio:.2f} · "
+          f"반복 최대 조각1 {st1['repeat_max']} / 조각2 {st2['repeat_max']}")
     L += ["", "## (d) 인용 — 조각1 마지막 교환 → 조각2 첫 응답", "", "```"]
     tail = [t for t in sess1.turns if t.text][-4:]
     L += [f"조각1 {'🦫' if t.role == 'beaver' else '👤'} t{t.n} @{t.t:.1f}s: {t.text}" for t in tail]

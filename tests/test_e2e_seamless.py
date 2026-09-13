@@ -159,3 +159,18 @@ def test_seamless_checks_table_shapes():
     assert "900ms" in by["(a)"][2]
     s2.pre_speech["audio_bytes"] = 4800
     assert h.seamless_checks(s1, s2, plan_frag=3, sc1=sc1, sc2=sc2, raw_rows=[(0, "beaver")])[2][3] is False
+
+
+# ── ④ 조각별 비버 턴 통계(글자수·동일 문장 연속 반복) ─────────────────────── #
+def test_beaver_turn_stats_counts_consecutive_identical_sentences_across_learner_turns():
+    T = h.Turn
+    turns = [T(0, "beaver", 1.0, "Say 이. Now!"), T(1, "learner", 2.0, "이요"),
+             T(2, "beaver", 3.0, "Say 이, now!"),                # 문장부호·공백만 다르다 → 같은 문장(런 2)
+             T(3, "learner", 4.0, "이요"), T(4, "beaver", 5.0, "say 이 now"),     # 대소문자 → 런 3
+             T(5, "beaver", 6.0, "Good. Next: 나라."), T(6, "beaver", 7.0, "Good. Next: 나라."),   # 두 번째 구간(런 2)
+             T(7, "beaver", 8.0, ""), T(8, "beaver", 9.0, "Okay.", tags=["조각1 마지막 턴(재생)"])]   # 빈 턴·재생 턴 제외
+    st = h.beaver_turn_stats(turns)
+    assert st["n"] == 5 and st["repeat_max"] == 3 and st["repeat_span"] == "t0~t4" and st["repeat_runs"] == 2
+    assert st["max_chars"] == len("Good.Next:나라.") and abs(st["avg_chars"] - (9 + 9 + 7 + 13 + 13) / 5) < 1e-6
+    assert h.beaver_turn_stats([])["repeat_max"] == 0 and h.beaver_turn_stats([T(0, "beaver", 1.0, "x")])["repeat_max"] == 0
+    assert "3회 t0~t4" in h.beaver_stats_row("조각2", st)
