@@ -239,7 +239,7 @@ def _factory(holder, script=None, session_cls=FakeLiveSession):
 
 
 async def _run(session_factory, seeded, call_type, holder, *, script=None, continues=None, extra=None, session_cls=FakeLiveSession,
-               fragment_end=False, before_start=None, on_send=None):
+               fragment_end=False, before_start=None, on_send=None, hold_open=False):
     start = {"type": "start", "character_id": seeded["character_id"], **(extra or {})}
     if call_type is not None:
         start["call_type"] = call_type
@@ -253,6 +253,10 @@ async def _run(session_factory, seeded, call_type, holder, *, script=None, conti
         deferred.append((lambda: bool(holder.get("session") and getattr(holder["session"], "script_done", False)),
                          {"type": "websocket.receive", "text": json.dumps({"type": "fragment_end"})}))
         hold = lambda: holder.get("ws") is not None and holder["ws"].closed_with is not None
+    if hold_open:
+        # 클라가 붙어 있는 채로 서버가 끝내는 시나리오(서버 발신 fragment_saved·작별) — call_ended/close 가 나가면 클라가 끊는다
+        hold = lambda: holder.get("ws") is not None and (
+            holder["ws"].closed_with is not None or any('"call_ended"' in t for t in holder["ws"].sent_text))
     incoming = list(before_start or []) + [{"type": "websocket.receive", "text": json.dumps(start)}]
     ws = FakeWebSocket(incoming, hold_until=hold, deferred=deferred, on_send=on_send)
     holder["ws"] = ws
@@ -620,3 +624,58 @@ async def test_fragment_saved_then_close_drains_late_client_frames_within_a_seco
     assert h["ws"].closed_with is not None and getattr(h["ws"], "disconnect_read", False), "늦은 프레임을 읽고 버린 뒤 클라 close 를 소비했다"
     assert not h["ws"]._incoming, "프레임 3개 전부 배수"
     assert loop.time() - marks["saved_at"] <= 1.0, "fragment_saved → close 가 1초 안(10s close_timeout 에 매달리지 않는다)"
+
+
+# --------------------------------------------------------------------------- #
+# B (2026-09-14) — 반복 루프 차단기: 2회째 안내 1회 · 3회째 조각 강제 전환(fragment_saved reason=loop) · 상한이면 작별 · 정상 통화 0회
+# --------------------------------------------------------------------------- #
+_LOOP_LINE = "오케이, 그것도 맞았어! 잘하고 있네. 그럼 이번에는 친구랑 헤어질 때, \"또 봐\"라고 하잖아? 그걸 일본어로는 어떻게 말하게? 얼른 던져봐!"
+
+
+def test_loop_streak_counts_only_near_identical_long_turns():
+    st = cs._CallState()
+    assert cs._loop_note_beaver_turn(st, _LOOP_LINE) == 0
+    assert cs._loop_note_beaver_turn(st, _LOOP_LINE) == 1, "2회째"
+    assert cs._loop_note_beaver_turn(st, _LOOP_LINE + " 응?") == 2, "≥0.9 유사도도 반복"
+    assert cs._loop_note_beaver_turn(st, "완전히 다른 말이야. 다음 표현은 감사합니다 인데 일본어로 어떻게 말해?") == 0, "다른 문장 → 리셋"
+    assert cs._loop_note_beaver_turn(st, "다시 해봐!") == 0 and cs._loop_note_beaver_turn(st, "다시 해봐!") == 0, "짧은 재요청은 세지 않는다"
+    assert cs.LOOP_REPEAT_SIMILARITY == 0.9 and cs.LOOP_MIN_CHARS == 15
+
+
+@pytest.mark.asyncio
+async def test_loop_breaker_injects_once_then_forces_a_fragment_switch(session_factory, seeded):
+    script = [("B", "안녕! 시작하자."), ("U", "네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE),
+              ("U", "또 봐"), ("B", "여기까지 오면 안 된다 — 3회째에서 전환됐어야 한다")]
+    h = await _run(session_factory, seeded, "normal", {}, script=script, session_cls=HeldOpenSession, hold_open=True)
+    notes = [t for t in h["session"].sent_text_turns if t == seeds.LOOP_BREAK_NOTE]
+    assert len(notes) == 1, ("2회째에 안내 1회", h["session"].sent_text_turns)
+    saved = _frames_of("fragment_saved", h)
+    assert saved and saved[0]["reason"] == "loop" and saved[0]["fragment_index"] == 1, saved
+    assert not _frames_of("call_ended", h) and h["ws"].closed_with is not None
+    assert not any("[통화종료" in t for t in h["session"].sent_text_turns), "전환이지 작별이 아니다"
+    # 강제 전환된 조각도 저장됐다 — 조각2 가 이어진다
+    cid = int(_started(h)["call_id"])
+    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "그래서요?")], continues=cid, extra={"silent_resume": True})
+    assert _started(h2)["fragment_index"] == 2 and _started(h2)["call_id"] == str(cid)
+
+
+@pytest.mark.asyncio
+async def test_loop_breaker_says_goodbye_when_no_fragment_is_left(session_factory, seeded, monkeypatch):
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 1)     # Free — 전환할 조각이 없다
+    script = [("B", "안녕! 시작하자."), ("U", "네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE),
+              ("B", "그래, 오늘은 여기까지. 안녕!")]                      # 종료 시드 뒤 작별 턴
+    h = await _run(session_factory, seeded, "normal", {}, script=script, hold_open=True)
+    turns = h["session"].sent_text_turns
+    assert turns.count(seeds.LOOP_BREAK_NOTE) == 1
+    assert any("[통화종료" in t for t in turns), "상한이면 작별 시드"
+    assert _frames_of("call_ended", h) and not _frames_of("fragment_saved", h)
+    assert (_started(h)["fragment_index"], _started(h)["max_fragments"]) == (1, 1)
+
+
+@pytest.mark.asyncio
+async def test_loop_breaker_is_silent_on_a_normal_call(session_factory, seeded):
+    script = [("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요! 학교에서 뭐 배웠어요?"), ("U", "한국어"),
+              ("B", "한국어를 배웠구나. 재미있었어요?"), ("U", "네"), ("B", "좋아요! 학교에서 뭐 배웠어요?")]    # 같은 문장이지만 연속이 아니다
+    h = await _run(session_factory, seeded, "normal", {}, script=script, hold_open=True)
+    assert seeds.LOOP_BREAK_NOTE not in h["session"].sent_text_turns
+    assert not _frames_of("fragment_saved", h) and _frames_of("call_ended", h)

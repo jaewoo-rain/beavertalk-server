@@ -325,6 +325,9 @@ class ServerFragmentSaved(BaseModel):
     type: Literal["fragment_saved"] = "fragment_saved"
     call_id: str
     fragment_index: int
+    # ⭐ 누가 조각을 끝냈나(2026-09-14 B 루프 차단기): "client" = 클라 fragment_end 의 응답(종전) · "loop" = 서버가 반복 루프를 끊으려
+    #   **먼저** 보낸 것(클라는 요청 없이 받은 fragment_saved 를 «전환하라» 로 처리 — flt-build). 값이 늘어도 클라는 모르는 값을 client 로 본다.
+    reason: Literal["client", "loop"] = "client"
 
 
 class ServerCallStarted(BaseModel):

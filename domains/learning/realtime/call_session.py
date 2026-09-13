@@ -47,6 +47,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import difflib
 import re
 import time
 import uuid
@@ -101,6 +102,7 @@ from core.persona_prompt import (
     seed_opening,
 )
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
+from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
 from core.prompts.expression import (
     NUDGE_SEED_1_EXPRESSION,
     build_expression_instruction,
@@ -170,6 +172,11 @@ ABSOLUTE_CALL_TIMEOUT_S = 540.0  # 이 상한(9분) 넘으면 강제 종료(백�
 # 무엇인지 우리가 못 정하는 반면, 시계는 결정적이라 테스트가 발화시킬 수 있다. GoAway 는
 # 보조 트리거, 스트림 종료는 폴백.
 SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강제 종료까지(작별 절단 방지 여유. 진짜 상한은 ABSOLUTE_CALL_TIMEOUT_S)
+# ⭐ 반복 루프 차단기(2026-09-14 B, 실통화 1602 t73~t87 동일 문장 8회): 비버 턴이 직전 턴과 «같다» 의 기준 — 정규화(공백·부호 제거·소문자) 뒤
+#   difflib 유사도 ≥ 0.9, 그리고 너무 짧은 턴(«다시 해봐!» 류 정당한 재요청)은 세지 않는다.
+LOOP_REPEAT_SIMILARITY = 0.9
+LOOP_MIN_CHARS = 15
+_LOOP_NORM_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 FRAGMENT_DRAIN_S = 2.0         # fragment_saved 뒤 close 동안 클라 소켓 «읽고 버리기» 상한(H8 1596·1598: 안 읽으면 close_timeout 10s 매달림)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
 #                                클라가 작별 오디오 다 재생(최대 6s)한 뒤 ack 보내므로 그보다 길게)
@@ -722,7 +729,8 @@ class _CallState:
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
         "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
-        "silent_resume", "fragment_index", "fragment_end",
+        "silent_resume", "fragment_index", "fragment_end", "max_fragments", "fragment_end_reason",
+        "loop_prev_text", "loop_streak",
         # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
         "target_code",
         "tag_leak_seen", "resume_sent",
@@ -897,6 +905,11 @@ class _CallState:
         # S4/S6: 이 소켓의 조각 번호(call_started 와 같은 값 — fragment_saved 에 싣는다) · 클라 fragment_end 로 끝났는가(call_ended 대신 fragment_saved).
         self.fragment_index: Optional[int] = None
         self.fragment_end: bool = False
+        self.max_fragments: Optional[int] = None          # 이 플랜의 조각 상한(call_started 와 같은 값) — 루프 차단기의 «전환 가능?» 판정 재료
+        self.fragment_end_reason: str = "client"          # fragment_saved.reason — "client"(클라 fragment_end) / "loop"(서버 강제 전환)
+        # 반복 루프 차단기(B): 직전 비버 턴 정규화 텍스트 · 연속 반복 횟수(0 = 반복 아님, 1 = 2회째, 2 = 3회째)
+        self.loop_prev_text: str = ""
+        self.loop_streak: int = 0
         self.freetalk_target: str = ""
         # 단발 재접지 리마인더(일반 통화만, run_call 에서 조립). None = 비활성.
         self.reground_reminder: Optional[str] = None
@@ -2720,6 +2733,7 @@ async def run_call(
     state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
     state.silent_resume = silent
     state.fragment_index = fragment_index
+    state.max_fragments = max_fragments if fragment_index is not None else None
     state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
     state.freetalk_target = target_language if freetalk_brief is not None else ""
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
@@ -4708,8 +4722,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
             # ⭐ 자기낭독 안전망: flush 전(누적 텍스트가 살아 있을 때) 태그 누출을 판정한다.
             _detect_tag_leak(state)
-            # ⭐ flush 가 비우기 **전에** 이 턴의 오디오 양을 잰다(아래 재시드 판정 재료).
+            # ⭐ flush 가 비우기 **전에** 이 턴의 오디오 양을 잰다(아래 재시드 판정 재료). 루프 차단기(B)도 flush 전 텍스트가 재료다.
             turn_pcm_bytes = len(state.cur_beaver_pcm)
+            turn_text = "".join(state.cur_beaver_text)
             _flush_beaver_segment(state)
             # ⭐⭐ **벙어리 인사 재시드**(2026-08-27 실측). 자세한 근거는 아래 함수 주석.
             reseeded_now = _greeting_was_mute(state, turn_pcm_bytes)
@@ -4730,11 +4745,67 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
                 #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
                 await _inject_resume_seed(session, state)
+            elif state.learner_spoke and not reseeded_now and not state.is_leveltest:
+                # ⭐ 반복 루프 차단기(2026-09-14 B). 종료·태그 누출 경로가 위에서 먼저 걸리므로 여기는 «정상 진행 중» 뿐이다.
+                #   인사 구간(learner_spoke 전 — 벙어리 재시드가 같은 인사를 두 번 만든다)·레벨테스트는 보지 않는다.
+                await _loop_breaker_on_turn_end(session, state, turn_text)
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
     logger.warning("normalcall: Live 이벤트 스트림 종료(서버측 close) events=%d", event_count)
     raise _CallFinished()
+
+
+def _loop_note_beaver_turn(state: _CallState, text: str) -> int:
+    """방금 끝난 비버 턴을 직전 턴과 대본다(순수 함수 — 상태만 갱신). 반환 = 연속 반복 횟수(0 정상 · 1 = 2회째 · 2 = 3회째 …).
+
+    정규화 = 공백·문장부호 제거 + 소문자. LOOP_MIN_CHARS 미만은 세지 않는다(«다시 해봐!» 류 짧은 재요청은 정당하다) — 그런 턴은 streak 도 끊는다.
+    """
+    norm = _LOOP_NORM_RE.sub("", text or "").lower()
+    if len(norm) < LOOP_MIN_CHARS:
+        state.loop_prev_text = norm
+        state.loop_streak = 0
+        return 0
+    prev = state.loop_prev_text
+    same = bool(prev) and (prev == norm or difflib.SequenceMatcher(None, prev, norm).ratio() >= LOOP_REPEAT_SIMILARITY)
+    state.loop_streak = state.loop_streak + 1 if same else 0
+    state.loop_prev_text = norm
+    return state.loop_streak
+
+
+async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallState, turn_text: str) -> None:
+    """⭐ 반복 루프 차단기(2026-09-14 B, 실통화 1602 t73~t87 — 3.1 이 같은 문장을 8번 말했다).
+
+    ① 2회째(streak 1): LOOP_BREAK_NOTE 를 완결 텍스트 턴으로 1회 주입(넛지와 같은 파이프 — turn_end 직후 idle 이라 턴을 자르지 않는다).
+    ② 3회째(streak 2): 조각 강제 전환 — 클라가 fragment_end 를 보낸 것과 같은 경로(_FragmentEnd → finally 저장 → fragment_saved reason="loop"
+       → close). 클라는 요청 없이 받은 fragment_saved 를 «전환하라» 로 처리한다. Free(상한 1)·마지막 조각이면 전환할 곳이 없다 → 종전 종료
+       시드로 작별(무음 3단과 같은 마무리). 4회째 이후는 ②가 이미 끝냈으므로 오지 않는다.
+    2펌프·백스톱·barge-in 무변경 — turn_end 자리에서 텍스트 1턴을 넣거나 기존 종료 신호를 올릴 뿐이다(R4).
+    """
+    streak = _loop_note_beaver_turn(state, turn_text)
+    if streak <= 0:
+        return
+    logger.warning("normalcall 루프 감지 %d: 같은 비버 문장 %d회 연속 turn=%d «%.60s»",
+                   streak, streak + 1, state.next_turn_index, turn_text)
+    if streak == 1:
+        if state.turn_id is None and not state.should_close:
+            await session.send_text_turn(LOOP_BREAK_NOTE)
+            _note_text_inject(state, "loop")
+            logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
+        return
+    if streak >= 2:
+        can_switch = (
+            state.fragment_index is not None and state.max_fragments is not None
+            and state.fragment_index < state.max_fragments
+        )
+        if can_switch:
+            state.fragment_end_reason = "loop"
+            logger.warning("normalcall 루프 차단 ②: 조각 강제 전환 — 저장 뒤 fragment_saved(reason=loop) fragment=%s/%s",
+                           state.fragment_index, state.max_fragments)
+            raise _FragmentEnd()
+        logger.warning("normalcall 루프 차단 ②: 전환 불가(조각 %s/%s) — 종료 시드로 작별", state.fragment_index, state.max_fragments)
+        state.should_close = True
+        await _inject_close_seed(session, state)
 
 
 def _greeting_subtitle_on_hold(state: _CallState) -> bool:
@@ -5927,7 +5998,9 @@ async def _finish_call(client_ws, state: _CallState, call_id: int | None) -> Non
         #   이 프레임을 신호로 재연결한다.
         with contextlib.suppress(Exception):
             if client_ws.client_state == WebSocketState.CONNECTED:
-                await _send_json(client_ws, ServerFragmentSaved(call_id=str(call_id or ""), fragment_index=int(state.fragment_index or 1)))
+                await _send_json(client_ws, ServerFragmentSaved(
+                    call_id=str(call_id or ""), fragment_index=int(state.fragment_index or 1), reason=state.fragment_end_reason,
+                ))
         # ⭐ H8 실통화(1596·1598 +9990ms / 마이크를 같이 끊은 1600 +2ms): fragment_end 뒤엔 읽기 펌프가 이미 내려가 있어, 클라가 옛 소켓에
         #   프레임을 더 보내면 close 프레임을 못 읽고 close_timeout(10s)까지 매달린다 → close 하는 동안 소켓을 **읽고 버린다**(바이너리·텍스트
         #   전부, disconnect 오면 즉시 끝). 2펌프·백스톱·종전 경로 무변경 — fragment_end 종료에만 붙는 배수구다.
