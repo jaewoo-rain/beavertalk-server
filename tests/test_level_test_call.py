@@ -841,6 +841,8 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
         "assignment_id": None,
         # ⚠ 2026-09-12: admin QA 우회(프리토킹 잠금) 플래그. 같은 규율 — 기본 False.
         "force_course": False,
+        # ⚠ 2026-09-13: 개발자도구 플랜 흉내(admin). 같은 규율 — 기본 None.
+        "plan_override": None,
     }
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)

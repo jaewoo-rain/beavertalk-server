@@ -165,14 +165,31 @@ CALL_LIVE_MODEL_BY_PLAN: dict[str | None, str] = {
 }
 
 
-def call_video_for(db: Session, member_id: int) -> bool:
-    """이 회원이 **영상통화(표정)** 대상인가. 모르면 False(음성).
+def _plan_key(db: Session, member_id: int, plan: str | None) -> str | None:
+    """엔진 선택에 쓸 플랜 키 — override(«free»→None)가 있으면 그것, 없으면 effective_plan. 표(CALL_*_BY_PLAN)의 키 축(None=Free)."""
+    if plan is not None:
+        return None if plan == "free" else plan
+    return effective_plan(db, member_id)
+
+
+def plan_override_for(db: Session, member_id: int, requested: str | None) -> str | None:
+    """개발자도구 플랜 흉내(2026-09-13 사장님) — **admin 만** 유효. 아니면 None(무시 → 본인 플랜).
+
+    ⛔ 통화 엔진 선택(영상/음성·모델·백엔드)에만 쓴다 — 한도·결제·구독·조각 수는 이 값을 모른다. 롤 조회 실패는 무시(R5 보수 방향).
+    """
+    if requested not in ("free", "pro", "max"):
+        return None
+    return requested if is_unlimited_member(db, member_id) else None
+
+
+def call_video_for(db: Session, member_id: int, plan: str | None = None) -> bool:
+    """이 회원이 **영상통화(표정)** 대상인가. 모르면 False(음성). `plan` 이 있으면(admin 흉내) 그 플랜 기준.
 
     ⚠ 이 값이 곧 `face_tool` 이다 — 표정 도구를 지시문·세션에 실을지가 여기서 갈린다.
       실측: 도구를 빼면 지시문이 1,058자(≈423토큰) 준다. Live 는 매 턴 전액 재과금이라
       20메시지 통화면 그 몫만 ≈8,460토큰이다(통화 1289 기준).
     """
-    return CALL_VIDEO_BY_PLAN.get(effective_plan(db, member_id), CALL_VIDEO_BY_PLAN[None])
+    return CALL_VIDEO_BY_PLAN.get(_plan_key(db, member_id, plan), CALL_VIDEO_BY_PLAN[None])
 
 
 def live_model_for(db: Session, member_id: int) -> str:
@@ -196,8 +213,8 @@ BACKEND_VERTEX = "vertex"
 BACKEND_STUDIO = "studio"
 
 
-def live_engine_for(db: Session, member_id: int) -> tuple[str, str]:
-    """이 회원의 통화에 쓸 **(백엔드, 모델 id)**. 모르면 음성 쪽.
+def live_engine_for(db: Session, member_id: int, plan: str | None = None) -> tuple[str, str]:
+    """이 회원의 통화에 쓸 **(백엔드, 모델 id)**. 모르면 음성 쪽. `plan` 이 있으면(admin 흉내) 그 플랜 기준 — call_video_for 와 같은 키.
 
     ⛔⛔ **둘을 한 함수에서 같이 고른다.** 따로 고르면 언젠가 어긋나고, 어긋나면
       1008 로 통화가 통째로 죽는다 — 2026-09-06 demo-api `00265-br2` 가 `USE_VERTEX` 만
@@ -208,7 +225,7 @@ def live_engine_for(db: Session, member_id: int) -> tuple[str, str]:
       되돌리기는 그 값들을 지우는 것으로 끝난다(코드 배포 불필요).
     """
     kind = CALL_LIVE_MODEL_BY_PLAN.get(
-        effective_plan(db, member_id), CALL_LIVE_MODEL_BY_PLAN[None]
+        _plan_key(db, member_id, plan), CALL_LIVE_MODEL_BY_PLAN[None]
     )
     is_video = kind == "video"
     default_backend = BACKEND_VERTEX if settings.USE_VERTEX else BACKEND_STUDIO

@@ -152,13 +152,14 @@ def _factory(holder):
         sess = FakeLiveSession()
         holder["session"] = sess
         holder["system_instruction"] = system_instruction
+        holder["kw"] = dict(_kw)          # model·vertex·tools — 플랜 분기 관측용
         yield sess
 
     return _f
 
 
-async def _run(session_factory, seeded, call_type: str | None, holder: dict):
-    start = {"type": "start", "character_id": seeded["character_id"]}
+async def _run(session_factory, seeded, call_type: str | None, holder: dict, *, extra: dict | None = None):
+    start = {"type": "start", "character_id": seeded["character_id"], **(extra or {})}
     if call_type is not None:
         start["call_type"] = call_type
     ws = FakeWebSocket([
@@ -396,3 +397,67 @@ def test_every_call_type_has_a_daily_limit(call_type: str) -> None:
     ⚠ 값 자체(Free 가 하루 3통화가 되는 것)는 사장님 확인 사항 — 여기서는 **누락**만 막는다.
     """
     assert call_service.DAILY_CALL_LIMIT.get(call_type)
+
+
+# --------------------------------------------------------------------------- #
+# ⑧ 개발자도구 플랜 흉내 — plan_override(2026-09-13 사장님): admin 만 · 엔진 선택만 · 조각마다 재적용
+# --------------------------------------------------------------------------- #
+def _set_role(session_factory, member_id: int, role: str) -> None:
+    db = session_factory()
+    db.get(Member, member_id).role = role
+    db.commit(); db.close()
+
+
+@pytest.mark.asyncio
+async def test_admin_plan_override_max_picks_video_engine_and_free_picks_voice(session_factory, seeded, monkeypatch, caplog) -> None:
+    """admin + override=max → 영상(3.1·표정 도구) / admin + override=free → 음성(2.5). 한도·조각은 건드리지 않는다."""
+    import logging
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
+    _set_role(session_factory, seeded["member_id"], "admin")
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
+    assert h["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO, "Max 흉내 → 영상 모델(3.1)"
+    assert h["kw"].get("tools"), "영상 통화 = 표정 도구 선언"
+    assert "[표정]" in h["system_instruction"]
+    assert any("플랜분기" in r.getMessage() and "(override=max, admin)" in r.getMessage() for r in caplog.records)
+
+    h2 = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "free"})
+    assert h2["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "Free 흉내 → 음성 모델(2.5)"
+    assert not h2["kw"].get("tools") and "[표정]" not in h2["system_instruction"]
+    # 조각 수(한도 축)는 플랜 흉내를 모른다 — Free 회원 그대로 1
+    db = session_factory()
+    try:
+        assert call_service.call_fragments_for_member(db, seeded["member_id"]) == 1
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_user_plan_override_is_ignored_and_absent_override_is_byte_identical(session_factory, seeded, monkeypatch, caplog) -> None:
+    import logging
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
+    base = await _run(session_factory, seeded, "normal", {})
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
+    assert h["kw"].get("model") == base["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "user 는 본인 플랜(Free → 음성)"
+    assert not h["kw"].get("tools") and not base["kw"].get("tools") and "[표정]" not in h["system_instruction"]
+    assert any("override=max 무시 — admin 아님" in r.getMessage() for r in caplog.records)
+    # override 없음 = 종전 경로(plan None → effective_plan) — 로그에 override 표기 없음. 대본 바이트 동일은 각 코스 스냅샷 시험이 지킨다.
+    plain = [r.getMessage() for r in caplog.records if "플랜분기: 영상=" in r.getMessage()]
+    assert plain and all("override" in m for m in plain), "override 를 보낸 통화의 분기 로그에만 표기"
+
+
+@pytest.mark.asyncio
+async def test_plan_override_is_reapplied_on_a_resumed_fragment(session_factory, seeded, monkeypatch) -> None:
+    """이어하기 조각 2 도 start 에 같은 값을 다시 보내면 다시 적용된다(서버는 조각마다 판정)."""
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 3)
+    _set_role(session_factory, seeded["member_id"], "admin")
+    h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
+    db = session_factory()
+    call = db.query(Call).filter(Call.member_id == seeded["member_id"]).order_by(Call.call_id.desc()).first()
+    db.close()
+    h2 = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max", "continues_call_id": str(call.call_id)})
+    assert h2["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO
+    h3 = await _run(session_factory, seeded, "normal", {}, extra={"continues_call_id": str(call.call_id)})
+    assert h3["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "값을 안 보낸 조각은 본인 플랜으로 — 서버는 기억하지 않는다"

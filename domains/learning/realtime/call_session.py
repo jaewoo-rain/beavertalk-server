@@ -2153,6 +2153,7 @@ async def run_call(
         #   새 통화로 간다(거절이 아니라 폴백 — 이어하기가 안 된다고 통화를 막으면 더 나쁘다).
         continues_call_id = _as_int(start.continues_call_id)
         force_course = bool(getattr(start, "force_course", False))   # admin QA 우회(프리토킹 잠금) — open_call 이 role 을 검사한다
+        plan_override_req = getattr(start, "plan_override", None)      # 개발자도구 플랜 흉내 — 아래 플랜 분기가 admin 을 검사한다
         # ⭐ 과제 통화 — 못 읽으면 조용히 무시하고 평소 통화로 간다(이어하기와 같은
         #   폴백 규율). 자격 검증은 B2B 서비스가 하므로 여기서 판단하지 않는다.
         assignment_id = _as_int(start.assignment_id)
@@ -2403,16 +2404,19 @@ async def run_call(
         #   (위 resolve_call_character·load_call_setup 과 같은 규약). 안 지키면 NameError 다.
         # ⚠ 한 번의 run_db 로 **둘을 같이** 읽는다 — 두 번 부르면 그 사이 구독이 바뀔 때
         #   «영상은 주는데 모델은 음성» 같은 어긋난 조합이 나온다.
-        wants_video, (live_backend, live_model) = await svc.run_db(
-            db_session_factory,
-            lambda db: (
-                call_service.call_video_for(db, member_id),
+        # ⭐ 개발자도구 플랜 흉내(2026-09-13): admin 이 plan_override 를 보내면 **엔진 선택만** 그 플랜으로(한도·조각·결제 무변경).
+        #   같은 run_db 안에서 판정해 영상·모델·백엔드가 같은 플랜 키를 본다. 조각마다 다시 적용(앱이 같은 값을 다시 보낸다).
+        def _pick(db):
+            plan = call_service.plan_override_for(db, member_id, plan_override_req)
+            return (
+                plan,
+                call_service.call_video_for(db, member_id, plan),
                 # ⭐⭐ **백엔드와 모델을 한 함수에서 같이 고른다**(2026-09-08).
                 #   따로 물으면 어긋나고, 어긋나면 1008 로 통화가 통째로 죽는다 —
                 #   2026-09-06 demo-api 가 USE_VERTEX 만 뒤집고 이름을 안 바꿔 2주 죽었다.
-                call_service.live_engine_for(db, member_id),
-            ),
-        )
+                call_service.live_engine_for(db, member_id, plan),
+            )
+        plan_override, wants_video, (live_backend, live_model) = await svc.run_db(db_session_factory, _pick)
         # ⭐ 그 백엔드의 클라이언트로 갈아탄다. 없으면 **모델까지 같이 되돌린다**(R5) —
         #   클라이언트만 되돌리고 이름을 두면 그게 정확히 9/6 사고의 재현이다.
         _picked = getattr(
@@ -2434,8 +2438,10 @@ async def run_call(
         # ⛔ `state` 는 **아직 없다**(1457행에서 만들어진다). 여기선 지역변수로 들고
         #   있다가 state 가 생긴 뒤에 싣는다 — 여기서 대입하면 UnboundLocalError 다.
         logger.info(
-            "normalcall 플랜분기: 영상=%s 백엔드=%s 모델=%s (표정차단기=%s)",
+            "normalcall 플랜분기: 영상=%s 백엔드=%s 모델=%s (표정차단기=%s)%s",
             wants_video, live_backend, live_model, settings.LIVE_FACE_SPIKE,
+            (" (override=%s, admin)" % plan_override) if plan_override
+            else ((" (override=%s 무시 — admin 아님)" % plan_override_req) if plan_override_req else ""),
         )
         # ⭐⭐ **여기서부터 코스별로 갈린다.** 위 플랜 분기(영상·백엔드·모델)는 세 코스가
         #   그대로 **공유**한다 — 표현학습·프리토킹도 Max 면 영상, Free·Pro 면 음성이다.
@@ -3775,6 +3781,8 @@ class StartParams(NamedTuple):
     assignment_id: str | int | None = None
     # ⭐ admin QA 우회(2026-09-12) — call_type="freetalk" 와 함께 True 면 open_call(force=True). 기본 False(기존 호출부·테스트 보호).
     force_course: bool = False
+    # ⭐ 개발자도구 플랜 흉내(2026-09-13) — admin 만 유효. 기본 None(기존 호출부·테스트 보호).
+    plan_override: str | None = None
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -3832,6 +3840,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         continues_call_id=getattr(cm, "continues_call_id", None),
                         assignment_id=getattr(cm, "assignment_id", None),
                         force_course=bool(getattr(cm, "force_course", False)),
+                        plan_override=getattr(cm, "plan_override", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc

@@ -109,6 +109,10 @@ class ClientStart(BaseModel):
     #   == "admin") 에 한해** 그 차시의 표현학습 잠금(COURSE_LOCKED)을 건너 지금 차시로 프리토킹을 연다. 연습용이라 진도(freetalk_done·
     #   포인터)를 건드리지 않는다. 관리자가 아니면 조용히 무시(잠금 그대로). expression·auto 에는 영향 없다.
     force_course: bool = False
+    # ⭐ 개발자도구 «Max 로 통화 / Free 로 통화»(2026-09-13 사장님): **관리자(member.role == "admin") 에 한해** 통화 엔진 선택(영상/음성 ·
+    #   3.1/2.5 · 백엔드)을 이 플랜 기준으로 정한다. 한도·결제·구독 로직은 무변경(플랜 «흉내» 는 엔진 선택에만). 관리자가 아니면 무시(본인 플랜).
+    #   이어하기 조각에도 앱이 같은 값을 다시 보낸다(force_course 와 같은 필드 규율) — 서버는 조각마다 다시 적용한다.
+    plan_override: Literal["free", "pro", "max"] | None = None
     duration_min: int | None = None
     tz_offset_min: int | None = None
 
