@@ -48,6 +48,30 @@ from domains.learning.models.curriculum import (  # noqa: E402
 SEED_BY_LANGUAGE = {"ko": "cur_seed.json", "ja": "cur_seed_ja.json"}
 #: 옛 learning_item 청크 46 을 레벨1 3차시로 복사하는 언어. 사장님(2026-09-13): 일본어도 한국어와 동일하게.
 CHUNK_LANGUAGES = frozenset({"ko", "ja"})
+#: ⭐ ja 청크 뜻풀이 구분(2026-09-14 ③, 실통화 1605: どうも «고마워요» 에 학습자가 ありがとう 로 답하자 비버가 정답 처리 → 항목 미드릴). 옛 learning_item
+#   46개 중 ko/en 뜻이 다른 항목과 겹치는 쌍의 뜻을 **구분되게** 덧쓴다. 키 = 옛 learning_item 표면형(cur_item.key), 값은 meanings 에 병합(kana·roman 은 그대로).
+#   재적재 때마다 같은 값이라 멱등. ⛔ ko 청크는 손대지 않는다(CHUNK_MEANING_OVERRIDES 는 ja 만). 적재는 사장님 «적재» 뒤 bt-back.
+CHUNK_MEANING_OVERRIDES_JA: dict[str, dict[str, str]] = {
+    # 감사 — 정중 vs 가볍게(짧게). ありがとう(단독)는 목록에 없다 — どうも 자리에 ありがとう 가 오면 «가볍게·짧게» 가 아니라 다른 표현이다
+    "ありがとうございます": {"ko": "감사합니다(정중하게)", "en": "Thank you. (polite)"},
+    "どうも": {"ko": "고마워요(가볍게·아주 짧게 — ありがとう 아님)", "en": "Thanks. (casual, very short — not arigatou)"},
+    # 사과 — 사적인 미안함 vs 공적인 죄송·부르는 말
+    "ごめんなさい": {"ko": "미안해요(사적인 사과)", "en": "I'm sorry. (personal apology)"},
+    "すみません": {"ko": "죄송합니다(공적인 사과)·저기요(부를 때)", "en": "Excuse me. / Sorry. (public, or to get attention)"},
+    # 작별 — 정식 vs 친근
+    "さようなら": {"ko": "안녕히 가세요(정식 작별)", "en": "Goodbye. (formal parting)"},
+    "またね": {"ko": "또 봐(친근한 작별)", "en": "See you. (casual)"},
+    # 첫 만남 — 첫인사 vs 소개 뒤 부탁(en 이 둘 다 «meet» 이라 겹쳤다)
+    "はじめまして": {"ko": "처음 뵙겠습니다(첫인사)", "en": "How do you do. (first greeting)"},
+    "よろしくお願いします": {"ko": "잘 부탁드립니다(소개 뒤)", "en": "Please treat me well. (after introducing yourself)"},
+    # 모름 — 지식 없음 vs 방금 말을 못 알아들음
+    "わかりません": {"ko": "몰라요(모르겠어요)", "en": "I don't know."},
+    "わかりませんでした": {"ko": "이해하지 못했어요(방금 말을)", "en": "I didn't understand (what you said)."},
+    # 긍정 — 찬성 vs 괜찮음
+    "いいですね": {"ko": "좋네요(찬성·호응)", "en": "Sounds good. (agreeing)"},
+    "大丈夫です": {"ko": "괜찮아요(문제 없어요)", "en": "It's okay. (no problem)"},
+}
+CHUNK_MEANING_OVERRIDES: dict[str, dict[str, dict[str, str]]] = {"ja": CHUNK_MEANING_OVERRIDES_JA}
 CHUNK_LESSONS = [  # 결정 #12 — 레벨1 생존회화 3차시(CHUNK_LANGUAGES). 청크 46 = 15·15·16 (시드 순). 상황문은 한국어 제목 그대로(모든 언어 공통)
     ("L1-S01-1", "처음 만난 사람과 인사하기", 15),
     ("L1-S02-1", "가게·식당에서 부탁하기", 15),
@@ -135,9 +159,11 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
         if len(chunks) != 46:
             raise SystemExit(f"⛔ 옛 learning_item 청크(language={lang})가 46개가 아니다: {len(chunks)}")
 
+        overrides = CHUNK_MEANING_OVERRIDES.get(lang, {})
+
         def _chunk_meanings(c) -> str | None:
-            """ko: 옛 JSON 그대로(바이트 동일). 그 밖: JSON + reading 열 → "kana"(어휘 항목과 같은 키)."""
-            if lang == "ko" or not c.reading:
+            """ko: 옛 JSON 그대로(바이트 동일). 그 밖: JSON + reading 열 → "kana"(어휘 항목과 같은 키) + 뜻풀이 구분 덧쓰기(CHUNK_MEANING_OVERRIDES, 멱등)."""
+            if lang == "ko" or (not c.reading and c.surface not in overrides):
                 return c.meanings
             try:
                 m = json.loads(c.meanings) if c.meanings else {}
@@ -145,7 +171,9 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
                 m = {}
             if not isinstance(m, dict):
                 m = {}
-            m.setdefault("kana", c.reading)
+            if c.reading:
+                m.setdefault("kana", c.reading)
+            m.update(overrides.get(c.surface, {}))
             return _j(m)
 
         chunk_ids = [

@@ -47,7 +47,8 @@ def db():
         for i in range(46):   # ja 청크 46 — 운영 learning_item(kind=chunk, language=ja) 흉내: meanings {en,roman,ko} + reading 열(가나)
             s.add(LearningItem(
                 language="ja", kind="chunk", source_key=f"jc:{i}", band=1, level_no=1, assign_rule="survival_v1",
-                surface=f"チャンク{i}", reading=f"ちゃんく{i}", meanings=json.dumps({"en": f"chunk {i}", "roman": f"chanku{i}", "ko": f"청크 {i}"}), examples="[]",
+                surface=(f"チャンク{i}" if i not in (44, 45) else ("どうも" if i == 44 else "ありがとうございます")),
+                reading=f"ちゃんく{i}", meanings=json.dumps({"en": f"chunk {i}", "roman": f"chanku{i}", "ko": f"청크 {i}"}), examples="[]",
             ))
         s.commit()
         yield s
@@ -144,6 +145,12 @@ def test_ja_lesson_numbers_and_first_lesson_composition(db: Session, seed_ja):
     assert [(r[1], r[2], r[3], r[4]) for r in rows] == [(c, 1, sit, n) for c, sit, n in CHUNK_LESSONS]
     chunk = db.execute(text("SELECT surface, meanings FROM cur_item WHERE language='ja' AND kind='chunk' ORDER BY item_id LIMIT 1")).one()
     assert chunk[0] == "チャンク0" and json.loads(chunk[1]) == {"en": "chunk 0", "roman": "chanku0", "ko": "청크 0", "kana": "ちゃんく0"}, "reading → kana"
+    # ③(2026-09-14) 뜻풀이 구분 덧쓰기 — 겹치는 쌍만, kana·roman 유지, 멱등(두 번째 load 뒤에도 같다 — 이 시험은 2회 적재 뒤 본다)
+    m44 = json.loads(db.execute(text("SELECT meanings FROM cur_item WHERE language='ja' AND kind='chunk' AND key='どうも'")).scalar())
+    assert m44 == {"en": "Thanks. (casual, very short — not arigatou)", "roman": "chanku44", "ko": "고마워요(가볍게·아주 짧게 — ありがとう 아님)", "kana": "ちゃんく44"}
+    m45 = json.loads(db.execute(text("SELECT meanings FROM cur_item WHERE language='ja' AND kind='chunk' AND key='ありがとうございます'")).scalar())
+    assert m45["ko"] == "감사합니다(정중하게)" and m45["en"] == "Thank you. (polite)" and m45["kana"] == "ちゃんく45"
+    assert set(loader.CHUNK_MEANING_OVERRIDES) == {"ja"} and all({"ko", "en"} <= set(v) for v in loader.CHUNK_MEANING_OVERRIDES_JA.values()), "ko 청크는 손대지 않는다"
     first = next(l for l in seed_ja["lessons"] if l["no"] == 1)
     assert first["code"] == "A1-T01-1"
     r = db.execute(text("SELECT lesson_id, no, level_no, item_count, situation FROM cur_lesson WHERE language='ja' AND code='A1-T01-1'")).one()
