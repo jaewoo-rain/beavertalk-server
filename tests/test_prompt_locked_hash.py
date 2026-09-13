@@ -76,7 +76,10 @@ FROZEN: dict[str, str] = {
     # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
     # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)
-    "reground.RESUME_SILENT_FIRST_ACTION": "f5b2bc59f9d9cb2e",
+    "reground.RESUME_SILENT_FIRST_ACTION": "c0e5dbe816b6c254",   # 2026-09-14 C5 «왔냐?»류 시작말 금지(silent 전용 줄 — 옛 f5b2bc59f9d9cb2e)
+    # 2026-09-14 C1·C2 비ko 전용 드릴 줄(실통화 1601 ja) — ko procedure 는 아래 FROZEN_FN «expression.procedure» 5c0c6ac8e65fb352 그대로
+    "expression.DRILL_TARGET_SCRIPT_LINE": "db851d31d1021909",
+    "expression.DRILL_ASK_FIRST_LINE": "3e98c1a9d3f4a73a",
     "seeds.LOOP_BREAK_NOTE": "ca29880e45b4b46b",   # 2026-09-14 B 반복 루프 차단기(실통화 1602) — 새 문장, 기존 경로 무변경
 }
 MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltest, "seeds": seeds, "expression": lex, "reground": reground}
@@ -114,7 +117,9 @@ class _Brief:
 
 FROZEN_FN: dict[str, tuple[str, object]] = {
     "seeds.seed_resume": ("0843114577a4be22", lambda: seeds.seed_resume("한국어")),
-    "seeds.seed_expression_resume": ("3c789d831b2d6b81", lambda: seeds.seed_expression_resume("한국어")),
+    # 2026-09-14 C6 재개 쪽지 재작성(사장님 지시 형식 — 옛 3c789d831b2d6b81). 조각1 대본(seed_expression_opening·지시문)은 무변경.
+    "seeds.seed_expression_resume": ("8224b61c1b6e1983", lambda: seeds.seed_expression_resume("한국어")),
+    "seeds.seed_expression_resume_mats": ("8a7218a5fb255229", lambda: seeds.seed_expression_resume("한국어", drilled=["물", "가다"], passed=["물"], failed=["가다"], recent=[("beaver", "물은 water 예요. 따라 해 볼까요?"), ("user", "물"), ("beaver", "좋아요! 다음은 가다.")])),
     "seeds.close_seed_normal": ("fbf515b5052b7c68", lambda: seeds.close_seed_normal("[통화종료:ab12]")),
     "seeds.close_seed_leveltest": ("082b0f3499072f05", lambda: seeds.close_seed_leveltest("[통화종료:ab12]")),
     "seeds.expression_quiz_cue": ("6684ebf10c2cf314", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어")),
@@ -124,8 +129,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "reground.build_reground_brief": ("3aead47678d36531", lambda: reground.build_reground_brief("선생님", "다정", mode="study", covered=["물"], topic="축구")),
     "reground.build_resume_brief": ("8c9bc152ae3ee5b9", lambda: reground.build_resume_brief(covered=["물"], strong=["가다"], weak=["-고 싶다"], topic="축구", pending="예문", facts=["학생"], summary="인사", curious="음식")),
     # 2026-09-13 끊김 없는 조각 전환 — silent 판(마지막 줄만 다름) · 표현학습 silent 쪽지(지시문 끝)
-    "reground.build_resume_brief_silent": ("f65c22cbf59d2593", lambda: reground.build_resume_brief(covered=["물"], strong=["가다"], weak=["-고 싶다"], topic="축구", pending="예문", facts=["학생"], summary="인사", curious="음식", silent=True)),
-    "seeds.brief_expression_silent_resume": ("757fed832c765c94", lambda: seeds.brief_expression_silent_resume("한국어")),
+    "reground.build_resume_brief_silent": ("f724c2d58774fc46", lambda: reground.build_resume_brief(covered=["물"], strong=["가다"], weak=["-고 싶다"], topic="축구", pending="예문", facts=["학생"], summary="인사", curious="음식", silent=True)),
+    "seeds.brief_expression_silent_resume": ("345afc0855c8d98d", lambda: seeds.brief_expression_silent_resume("한국어")),   # 2026-09-14 C5·C6(옛 757fed832c765c94)
+    "seeds.brief_expression_silent_resume_mats": ("ff0f1576ecb30ae3", lambda: seeds.brief_expression_silent_resume("한국어", drilled=["물", "가다"], passed=["물"], failed=["가다"], recent=[("beaver", "물은 water 예요. 따라 해 볼까요?"), ("user", "물"), ("beaver", "좋아요! 다음은 가다.")])),
     "reground.build_expression_reground_brief": ("150e706f19a6f1ef", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)")),
     "reground.build_freetalk_reground_brief": ("ee645d3f88cccac6", lambda: reground.build_freetalk_reground_brief("상황", ["a", "b"], target="한국어")),
     "reground.reground_instruction": ("74b1fd05118e1639", lambda: reground.reground_instruction(["물", "가다"], "한국어")),
@@ -134,7 +140,7 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "expression.model_block": ("689e4117233531ed", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
     "expression.procedure": ("5c0c6ac8e65fb352", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
-    "expression.procedure_ja": ("a8eb11d5521147f2", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),
+    "expression.procedure_ja": ("f0fca9b954bd5ab4", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2)
     "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
     "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
     "expression.items_block": ("1704dbb54003a3ab", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),

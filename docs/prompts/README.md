@@ -1081,6 +1081,21 @@ fable 검수(지뢰밭 8건 유지, P0/P1 없음) 뒤 뜻이 빠진 2건 복원:
 선언 없이** 되물음(«알림을 말로 해라» 를 뺀 탓). 학습자가 퀴즈인지 알아야 하니 [퀴즈] 첫 불릿에 «알림이 오면 퀴즈를 시작한다는
 말을 {locale}로 먼저 하고» 한 절 복원(≈20 토큰). 빈 비버 턴 7~8회는 하네스 ack 패턴(1408·1409 도 8회) — 회귀 아님. 해시 재기준.
 
+### 2026-09-14 — 1차 묶음(사장님 «진행해»): 비ko 드릴 줄 2(C1·C2) · 목록 소진 뒤 자진 작별 금지(C3, editable) · 재개 쪽지 재작성(C5·C6) · 반복 루프 안내(B)
+- 근거 통화 1601·1602(사장님 계정, ja L1-S01-1, 3.1). 잠금 ko 대본은 바이트 불변(해시 시험) — 비ko 전용 줄은 `_BY_LANGUAGE` 방식.
+- C1 `expression.DRILL_TARGET_SCRIPT_LINE`(1601 '곤니치와' 15개): «{target} 낱말·문장은 언제나 {target} 문자로 — 학습자 모국어 문자로 음차 금지».
+  C2 `expression.DRILL_ASK_FIRST_LINE`(1601 t3·t5 처음부터 정답 공개): «항목마다 먼저 물어보고 학습자가 시도한 뒤에만 정답 공개(못 하면 최대 3번)».
+  둘은 `DRILL_EXTRA_LINES_BY_LANGUAGE` 로 ko 는 빈 튜플(procedure ko 해시 5c0c6ac8e65fb352 그대로), 그 밖 언어는 drill_intro 바로 뒤. 기존 DRILL_REVEAL_LINE 과
+  겹치는 «최대 3번» 은 ko 바이트 불변을 지키기 위해 순서/강조를 ko 에는 손대지 않았다(비ko 만 강조 줄 추가).
+- C3 editable/expression.md(+default) rule1 에 «목록을 다 돌아도 네가 통화를 끝내지 마라 — 해내지 못한 항목 다시 시키고 표현을 바꿔 가며 이어가라. 끝내는 때는
+  서버가 알린다»(1601 t39 2:30 자진 작별). 잠금 ITEMS_EXHAUSTION_LINE 은 바이트 불변이라 편집 파일로 — 금지어(작별·종료·마지막…)를 피해 썼다. 토큰 근사 900 안.
+- C5 `reground.RESUME_SILENT_FIRST_ACTION` 에 «왔냐?»·«어, 왔어?» 류 시작말 금지(1602 조각3 t89) — silent 전용 줄이라 종전 경로 무변경.
+- C6 `seeds.seed_expression_resume`(조각2 시드) · `seeds.brief_expression_silent_resume`(silent 쪽지) 재작성 — 사장님 지시 형식: [통화 이어감] · 이미 한 것(드릴 N개
+  표면형·퀴즈 통과 — 다시 가르치지 마라) · 남은 것 = [오늘의 표현] 목록(오답은 한 번 더) · 바로 전 대화(마지막 2~4턴 발췌 ≤120자 — 학습자의 다음 말은 이 흐름의 답,
+  **짧게(2문장)**) · 첫 행동(시드: 바로 이어가라 / silent: 기다려라) · 인사·되묻기·끊김 언급·«왔냐»류 금지. 재료 cur_call.items(drilled/passed/failed)+call_raw_data.
+  길이 상한 900자(`RESUME_NOTE_MAX_CHARS`, 발췌 4→2턴·목록 12→6→3 순 축소). 조각1 대본 무변경. 새 해시는 tests/test_prompt_locked_hash.py.
+- B `seeds.LOOP_BREAK_NOTE`(1602 t73~t87 동일 문장 8회): 2회째에 CONTROL_TAG 안내 1회 주입, 3회째는 서버가 조각 강제 전환(코드).
+
 ### 2026-09-13 — 끊김 없는 5분 조각 전환(Pro·Max): silent 재개 = 시드 0 + 브리프 마지막 줄 교체(기존 경로 바이트 불변 — 해시 시험)
 - 왜: 사장님 결정(계획 `docs/plans/2026-09-13-끊김없는-조각-전환.md`) — 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 즉시
   `continues_call_id + silent_resume:true` 로 다시 연다. 이때 비버가 먼저 말을 꺼내면(seed_resume) 끊김이 두 번 난다 → **조각2 첫 턴은 비버가 기다린다**(결정 2).

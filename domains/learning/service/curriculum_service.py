@@ -309,6 +309,18 @@ def _snapshot_rows(items: Iterable[dict], drilled: set[int], passed: set[int], f
     return rows
 
 
+def resume_note_materials(db: Session, call_id: int) -> dict:
+    """조각 재개 쪽지 재료(2026-09-14 C6) — cur_call.items 스냅샷에서 드릴/통과/오답 표면형. cur_call 이 없으면 빈 목록."""
+    cc = repo.cur_call(db, call_id)
+    rows = _json_list(cc.items) if cc is not None else []
+    surf = lambda r: (r.get("surface") or "").strip()  # noqa: E731
+    return {
+        "drilled": [surf(r) for r in rows if isinstance(r, dict) and r.get("drilled") and surf(r)],
+        "passed": [surf(r) for r in rows if isinstance(r, dict) and r.get("passed") and surf(r)],
+        "failed": [surf(r) for r in rows if isinstance(r, dict) and r.get("failed") and not r.get("passed") and surf(r)],
+    }
+
+
 def merge_call_items(existing_raw: Optional[str], incoming: list[dict]) -> list[dict]:
     """cur_call.items 병합(P1-5) — item_id 기준 합집합, passed/failed OR(단 passed 면 failed=False), 표면형·뜻은 최신, drilled OR,
     review OR(하네스가 복습 식별에 쓴다 — B3 §8). 옛 `_merge_expression_snapshot` 규칙 그대로 — 조각2 가 조각1 의 통과분을 지우지 않게."""

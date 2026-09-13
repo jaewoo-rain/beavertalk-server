@@ -760,7 +760,7 @@ class _CallState:
         "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "expr_sidecar_calls",
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
-        "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray",
+        "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray", "expr_quiz_open_user_turns",
         "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
         "expr_quiz_covered_at_open", "expr_quiz_drill_num",
         # 큐 보류(1552, 2026-09-13): expr_covered_by_user — 학습자 발화로 확인된 번호 · expr_quiz_cue_covered_at_arm — arm 때 covered 수 ·
@@ -965,6 +965,7 @@ class _CallState:
         self.expr_quiz_awaiting_open: bool = False
         self.expr_quiz_open: bool = False
         self.expr_quiz_open_seg: int = 0
+        self.expr_quiz_open_user_turns: int = 0            # C4 — 창이 열린 뒤 학습자 턴 수(상한 EXPR_QUIZ_OPEN_MAX_USER_TURNS 에 강제 닫힘)
         self.expr_quiz_stray: list[int] = []
         self.expr_covered_by_beaver: set[int] = set()
         self.expr_retry_cued: bool = False
@@ -1127,6 +1128,7 @@ def _flush_user_segment(state: _CallState) -> None:
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
     state.next_turn_index += 1
+    _expression_quiz_note_open_user_turn(state)    # C4 — 창 안 학습자 턴 상한(세그먼트에 넣은 **뒤** — 이 발화도 창 안에 든다)
     state.cur_user_pcm = bytearray()
     state.cur_user_text = []
 
@@ -1307,6 +1309,9 @@ def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = Fa
 
 #: 큐 보류 상한 — 정리(학습자 성공/비버 다음 항목)를 기다리다 학습자 턴이 이만큼 지나면 얹는다(= 공개 뒤 시도 3번 = 드릴 재시도 상한 3).
 EXPR_QUIZ_SETTLE_MAX_USER_TURNS = 3
+# ⭐ C4(2026-09-14, 실통화 1601): 퀴즈 창이 열린 뒤 학습자 턴이 이만큼 지나도 닫힘 트리거(다음 항목 소개·밖 번호)가 안 오면 강제로 닫는다 —
+#   1601 은 첫 창이 통화 끝까지 열려 다음 큐가 0이었다. 닫힘은 종전 경로(_close_expression_quiz: 서버 판정 + 미판정 STT 폴백 + 다음 큐 arm).
+EXPR_QUIZ_OPEN_MAX_USER_TURNS = 6
 
 
 def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
@@ -1324,6 +1329,17 @@ def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
     _iid, surface = _num_item(state, hold)
     if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, hold), language=state.target_code):
         state.expr_covered_by_user.add(hold)
+
+
+def _expression_quiz_note_open_user_turn(state: _CallState) -> None:
+    """C4(2026-09-14, 1601): 열린 퀴즈 창 안에서 학습자 턴을 세고, 상한에 닿으면 창을 강제로 닫는다(미판정은 종전 STT 폴백 판정) — 다음 큐가 열리게."""
+    if not state.expr_items or not state.expr_quiz_open:
+        return
+    state.expr_quiz_open_user_turns += 1
+    if state.expr_quiz_open_user_turns >= EXPR_QUIZ_OPEN_MAX_USER_TURNS:
+        logger.warning("%s 강제 닫힘: seq=%d 학습자 턴 %d 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
+                       EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_seq, state.expr_quiz_open_user_turns)
+        _close_expression_quiz(state, why="학습자 턴 상한 %d" % EXPR_QUIZ_OPEN_MAX_USER_TURNS)
 
 
 def _expression_quiz_cue_settled(state: _CallState) -> tuple[bool, str]:
@@ -1442,6 +1458,7 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
         state.expr_quiz_open = True
         state.expr_quiz_open_seg = len(state.segments)
         state.expr_quiz_stray = []
+        state.expr_quiz_open_user_turns = 0
         # ⭐ T20 (1410 seq=3) — 여는 비버 턴은 «직전 드릴 피드백 + 퀴즈 시작» 이 한 턴에 오는 게 정상이다. 그 턴이 큐 직전에
         #   드릴 중이던 항목(= 열 때 아직 안 다룬 가장 앞 번호)의 표면형을 공개하면(«It's 괜찮아요. Now, quiz time again!»)
         #   옛 코드는 그걸 «다음 항목 소개» 로 읽어 창을 열자마자 닫았다(창 42~42, [6,7,8] 전부 미판정, 뒤 40초 정답 유실).
@@ -2758,14 +2775,27 @@ async def run_call(
     #     JSON 도 필요 없다. 서버가 정답을 갖고 있다.
     #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
     #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
-    if resumed and call_type == "expression" and silent:
-        # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
-        seed_text = ""
-        system_instruction = system_instruction + "\n\n" + brief_expression_silent_resume(target_language)
-        logger.info("normalcall 표현학습 조용한 이어하기: 시드 0 · 학습자 첫 발화 뒤 표시 없는 가장 앞 항목부터")
-    elif resumed and call_type == "expression":
-        seed_text = seed_expression_resume(target_language)
-        logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개")
+    if resumed and call_type == "expression":
+        # ⭐ C6(2026-09-14): 재개 쪽지 재료 — 직전 조각의 드릴/통과/오답 표면형(cur_call.items) + 마지막 2~4턴 발췌. 실패해도 재료 없는 판으로 간다(R5).
+        note_mats: dict = {}
+        try:
+            note_mats = await svc.run_db(db_session_factory, lambda db: {
+                **cur_svc.resume_note_materials(db, call_id), "recent": svc.recent_turns(db, call_id),
+            })
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("normalcall 표현학습 이어하기: 쪽지 재료 조회 실패(재료 없이) — %s", exc)
+        if silent:
+            # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
+            seed_text = ""
+            system_instruction = system_instruction + "\n\n" + brief_expression_silent_resume(target_language, **note_mats)
+            logger.info("normalcall 표현학습 조용한 이어하기: 시드 0 · 학습자 첫 발화 뒤 표시 없는 가장 앞 항목부터 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
+                        len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
+                        len(note_mats.get("recent") or []))
+        else:
+            seed_text = seed_expression_resume(target_language, **note_mats)
+            logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
+                        len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
+                        len(note_mats.get("recent") or []))
     elif resumed:
         # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
         #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.

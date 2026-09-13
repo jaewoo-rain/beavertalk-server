@@ -70,33 +70,76 @@ def close_seed_leveltest(close_tag: str = CLOSE_TAG_DEFAULT) -> str:
 #   (실측 call 1087: 지시문에 "인사하지 마라"가 있어도 시드가 인사를 시키자 인사했다 —
 #   시드는 직접 명령이고 지시문은 배경이다). 그래서 시드 자체를 갈아야 한다.
 # ⛔ 통화가 끊겼다 이어졌다는 사실을 언급시키지 않는다 — 사용자는 이미 안다.
-def seed_expression_resume(target_language: str = "한국어") -> str:
-    return (
-        "[통화 이어감] 학습자와 하던 학습이 잠깐 멈췄다가 지금 다시 이어진다. "
-        "⛔ 인사하지 말고, 오늘 무엇을 할지도 다시 묻지 마라 — 이미 정해져 있다. "
-        "[오늘의 표현] 목록의 **맨 앞 항목부터** 곧바로 이어가라 — 그 목록은 이미 끝낸 것을 "
-        "빼고 다시 고른 것이라, 거기 있는 것이 곧 남은 일이다. "
-        "통화가 끊겼다 이어졌다는 말은 하지 마라. "
-        f"({target_language} 학습을 계속한다.) "
-        "★ 설명·지시·반응은 학습자의 모국어로 해라 — 이 안내문이 한국어로 적혀 있다고 해서 "
-        "그 언어를 따라가지 마라. "
+# ⭐ 표현학습 재개 쪽지 재작성(2026-09-14 C6, 사장님 지시 형식 — 실통화 1602 조각2·3: «드릴 4·통과 0» 재료 없는 쪽지가 되감기를 불렀고 비버 턴이
+#   조각1 의 1.5배로 길어졐다). 재료 = cur_call.items(drilled/passed/failed 표면형) + call_raw_data 마지막 2~4턴(각 ≤120자). 총 ≤ RESUME_NOTE_MAX_CHARS.
+#   seed_expression_resume(조각2 시드 · 비버가 먼저 이어간다)과 brief_expression_silent_resume(silent 조각 지시문 쪽지 · 학습자가 먼저 말한다)이 몸통을 공유한다.
+#   조각1 대본(seed_expression_opening·지시문)은 무변경.
+RESUME_NOTE_MAX_CHARS = 900
+_RESUME_NOTE_LIST_CAP = 12
+
+
+def _join_cap(items: list[str] | None, cap: int = _RESUME_NOTE_LIST_CAP) -> str:
+    xs = [str(x).strip() for x in (items or []) if str(x).strip()]
+    if not xs:
+        return ""
+    head = ", ".join(xs[:cap])
+    return head + (" 외 %d개" % (len(xs) - cap) if len(xs) > cap else "")
+
+
+def _expression_resume_note(target_language: str, *, first_action: str, drilled, passed, failed, recent, recent_n: int, list_cap: int) -> str:
+    lines = ["[통화 이어감] 학습자와 하던 학습이 잠깐 멈췄다가 지금 다시 이어진다."]
+    d, p, f = _join_cap(drilled, list_cap), _join_cap(passed, list_cap), _join_cap(failed, list_cap)
+    done = "- 이번 통화에서 이미 한 것: 드릴 %d개%s · 퀴즈 통과 %s — 다시 가르치지 마라." % (
+        len(drilled or []), "(%s)" % d if d else "", "(%s)" % p if p else "없음")
+    lines.append(done)
+    if f:
+        lines.append("- 남은 것 = [오늘의 표현] 목록 그대로다. 오답이었던 것(%s)은 한 번 더 시켜 보고, 나머지는 새로 가르쳐라." % f)
+    else:
+        lines.append("- 남은 것 = [오늘의 표현] 목록 그대로다 — 새로 가르쳐라.")
+    rec = [(r, t) for r, t in (recent or []) if (t or "").strip()][-recent_n:] if recent_n > 0 else []
+    if rec:
+        conv = " → ".join(("비버 «%s»" if r == "beaver" else "학습자 «%s»") % t.strip()[:120] for r, t in rec)
+        lines.append("- 바로 전 대화: %s — 학습자의 다음 말은 이 흐름의 답이다. 거기에 **짧게(2문장)** 답하고 이어가라." % conv)
+    lines.append("- " + first_action)
+    lines.append(
+        "⛔ 인사하지 말고, 오늘 무엇을 할지도 다시 묻지 말고, 통화가 끊겼다 이어졌다는 말이나 «왔냐?»류 시작말도 하지 마라. "
+        f"({target_language} 학습을 계속한다.) ★ 설명·지시·반응은 학습자의 모국어로 해라 — 이 안내문이 한국어로 적혀 있다고 해서 그 언어를 따라가지 마라. "
         "이 [통화 이어감] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라."
     )
+    return "\n".join(lines)
+
+
+def _expression_resume_note_capped(target_language: str, *, first_action: str, drilled, passed, failed, recent) -> str:
+    """길이 상한(RESUME_NOTE_MAX_CHARS)을 지키며 조립 — 발췌 4턴→2턴, 목록 12→6→3 순으로 줄인다. 그래도 넘으면 발췌 0."""
+    for recent_n, cap in ((4, _RESUME_NOTE_LIST_CAP), (2, _RESUME_NOTE_LIST_CAP), (2, 6), (2, 3), (0, 3)):
+        note = _expression_resume_note(target_language, first_action=first_action, drilled=drilled, passed=passed, failed=failed,
+                                       recent=recent, recent_n=recent_n, list_cap=cap)
+        if len(note) <= RESUME_NOTE_MAX_CHARS:
+            return note
+    return note
+
+
+EXPRESSION_RESUME_FIRST_ACTION_SEED = (
+    "지금 바로 이어가라: 학습자의 마지막 말에 짧게 답한 뒤 [오늘의 표현] 목록의 **맨 앞 항목**으로 가라."
+)
+EXPRESSION_RESUME_FIRST_ACTION_SILENT = (
+    "⛔ 학습자가 먼저 말한다 — 먼저 말을 꺼내지 말고 기다렸다가, 학습자의 말에 짧게 답한 뒤 [오늘의 표현] 목록의 **맨 앞 항목**으로 가라."
+)
+
+
+def seed_expression_resume(target_language: str = "한국어", *, drilled=None, passed=None, failed=None, recent=None) -> str:
+    """조각2 시드(비버가 먼저 이어간다). 재료 없이 부르면(옛 호출) 목록 없는 판 — 형식은 같다."""
+    return _expression_resume_note_capped(target_language, first_action=EXPRESSION_RESUME_FIRST_ACTION_SEED,
+                                          drilled=drilled, passed=passed, failed=failed, recent=recent)
 
 
 # ⭐ 끊김 없는 조각 전환(2026-09-13 S2) — 표현학습 조각을 **시드 없이** 열 때 지시문 끝에 붙이는 쪽지(시드가 아니라 지시문이다:
 #   비버는 학습자의 첫 발화를 기다리고, 그 응답부터 목록 맨 앞 항목으로 간다). seed_expression_resume 과 같은 규율(인사·되묻기·끊김 언급 금지,
 #   목록 = 남은 일, 설명은 모국어). silent 가 아닌 조각은 종전대로 seed_expression_resume 이 나간다(바이트 불변).
-def brief_expression_silent_resume(target_language: str = "한국어") -> str:
-    return (
-        "[통화 이어감] 학습자와 하던 학습이 잠깐 멈췄다가 지금 다시 이어진다. "
-        "⛔ 학습자가 먼저 말한다 — 먼저 말을 꺼내지 말고 기다렸다가, 학습자의 말에 짧게 답한 뒤 "
-        "[오늘의 표현] 목록의 **맨 앞 항목부터** 이어가라 — 그 목록은 이미 끝낸 것을 빼고 다시 고른 것이라, 거기 있는 것이 곧 남은 일이다. "
-        "인사하지 말고, 오늘 무엇을 할지도 다시 묻지 마라. 통화가 끊겼다 이어졌다는 말은 하지 마라. "
-        f"({target_language} 학습을 계속한다.) "
-        "★ 설명·지시·반응은 학습자의 모국어로 해라 — 이 안내문이 한국어로 적혀 있다고 해서 그 언어를 따라가지 마라. "
-        "이 [통화 이어감] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라."
-    )
+def brief_expression_silent_resume(target_language: str = "한국어", *, drilled=None, passed=None, failed=None, recent=None) -> str:
+    """silent 조각의 지시문 끝 쪽지(학습자가 먼저 말한다). 몸통은 seed_expression_resume 과 같고 첫 행동 줄만 다르다."""
+    return _expression_resume_note_capped(target_language, first_action=EXPRESSION_RESUME_FIRST_ACTION_SILENT,
+                                          drilled=drilled, passed=passed, failed=failed, recent=recent)
 
 
 # ⭐ 반복 루프 차단기(2026-09-14 B, 실통화 1602 t73~t87 동일 문장 8회 — 3.1). 비버 턴이 직전 턴과 같으면(정규화 ≥0.9) 2회째에 이 안내를

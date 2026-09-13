@@ -28,6 +28,15 @@ DRILL_FORMALITY_LINE_BY_LANGUAGE: dict[str, str] = {
     "ko": DRILL_FORMALITY_LINE,
     "ja": '- {target}의 정중한 형태를 가르치고 있다. 반말(です·ます 가 없는 보통형)로 답하면 맞힌 게 아니다 — 고쳐 줘라. 조사 하나가 빠진 것은 맞힌 것으로 받되, 격식 표지(です·ます)가 빠진 것은 아니다.',
 }
+# ⭐ 비ko 목표어 전용 드릴 줄(2026-09-14 C1·C2, 실통화 1601 ja): ko 대본은 바이트 불변(빈 튜플) — 그 밖 언어(ja …)에만 drill_intro 바로 뒤에 들어간다.
+#   C1 1601 비버가 「こんにちは」 를 '곤니치와' 로 15번 적었다 — 목표어는 목표어 문자로. C2 1601 t3·t5 처음부터 정답을 들려주고 따라 하게 했다 — 먼저 묻고,
+#   시도 뒤에만 공개(DRILL_REVEAL_LINE 의 «최대 3번» 과 같은 규율을 순서로 강조). ko 는 기존 drill_intro(편집 문구)+DRILL_REVEAL_LINE 그대로.
+DRILL_TARGET_SCRIPT_LINE = '- {target} 낱말·문장은 언제나 {target} 문자로 말하고 적어라 — 학습자 모국어 문자로 음차해 적거나 읽지 마라.'
+DRILL_ASK_FIRST_LINE = '- 항목마다 **먼저 물어보고** 학습자가 시도한 뒤에만 정답을 공개해라(못 하면 최대 3번) — 처음부터 정답을 들려주고 따라 하게 하지 마라.'
+DRILL_EXTRA_LINES_BY_LANGUAGE: dict[str, tuple[str, ...]] = {
+    "ko": (),                                                    # ⛔ ko 바이트 불변
+}
+DRILL_EXTRA_LINES_DEFAULT: tuple[str, ...] = (DRILL_TARGET_SCRIPT_LINE, DRILL_ASK_FIRST_LINE)   # ja 등 비ko
 DRILL_SILENCE_LINE = '- 학습자가 조용하면 오답으로 치지 마라. 첫 무음은 답을 주지 말고 {locale_label}로 다시 묻고, 두 번째 연속 무음이면 들려주고 따라 말하게 해라 — 계속 무응답이면 다음 항목으로 넘어가라.'
 # [퀴즈] — T16 큐 계약: «{CONTROL_TAG} 이 «지금 퀴즈를 내라» 고 알릴 때만». CONTROL_TAG 는 조립 때 끼운다.
 QUIZ_HEADER = "[퀴즈]"
@@ -79,12 +88,14 @@ def render_item(n: int, item: dict) -> str:
 
 
 def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: bool = False, language: str = "ko") -> str:
-    """[진행 절차] + [퀴즈]. drill_intro(편집 문구, 슬롯 치환 전)가 첫 불릿이고 나머지는 잠금. language 는 격식 줄만 가른다(모르면 ko 줄)."""
+    """[진행 절차] + [퀴즈]. drill_intro(편집 문구, 슬롯 치환 전)가 첫 불릿이고 나머지는 잠금. language 는 격식 줄·비ko 전용 줄(C1·C2)을 가른다(ko 는 종전 바이트)."""
     fmt = dict(target=target, locale_label=locale_label)
     formality = DRILL_FORMALITY_LINE_BY_LANGUAGE.get(language, DRILL_FORMALITY_LINE)
+    extra = DRILL_EXTRA_LINES_BY_LANGUAGE.get(language, DRILL_EXTRA_LINES_DEFAULT)
     return "\n".join([
         PROCEDURE_HEADER,
         drill_intro.format(**fmt),
+        *[line.format(**fmt) for line in extra],
         *([DRILL_GRAMMAR_LINE] if has_grammar else []),
         DRILL_REVEAL_LINE,
         formality.format(**fmt),

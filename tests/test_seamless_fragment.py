@@ -319,7 +319,7 @@ def test_resume_brief_silent_swaps_only_the_last_line_and_survives_an_empty_brie
     assert reground.build_resume_brief(silent=True) == reground.RESUME_SILENT_FIRST_ACTION
     # 표현학습 silent 쪽지 — 목록 맨 앞부터·기다림·끊김 언급 금지·모국어
     note = seeds.brief_expression_silent_resume("한국어")
-    assert "[오늘의 표현] 목록의 **맨 앞 항목부터**" in note and "기다렸다가" in note and "통화가 끊겼다 이어졌다는 말은 하지 마라" in note
+    assert "[오늘의 표현] 목록의 **맨 앞 항목**으로 가라" in note and "기다렸다가" in note and "통화가 끊겼다 이어졌다는 말이나 «왔냐?»류 시작말도 하지 마라" in note
     assert "모국어로 해라" in note
 
 
@@ -400,12 +400,13 @@ async def test_silent_resume_on_an_expression_call_sends_no_seed_and_appends_the
     assert _started(h2)["course"] == "expression" and _started(h2)["call_id"] == str(cid)
     assert h2["session"].sent_text_turns == [], "표현학습 조각2 도 시드 0"
     si = h2["system_instruction"]
-    assert "[오늘의 표현" in si and si.rstrip().endswith(seeds.brief_expression_silent_resume("한국어"))
+    assert "[오늘의 표현" in si and "[통화 이어감]" in si and "먼저 말을 꺼내지 말고 기다렸다가" in si
+    assert si.rstrip().endswith("이 [통화 이어감] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라.")   # C6: 재료(드릴·발췌)가 실려 고정 문자열 비교는 안 한다
     assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
     # 회귀 — silent 아님: 종전 seed_expression_resume 1턴 · 쪽지 없음
     h3 = await _run(session_factory, seeded, "auto", {}, script=[("B", "좋아요")], continues=cid)
-    assert h3["session"].sent_text_turns[0] == seeds.seed_expression_resume("한국어")
-    assert seeds.brief_expression_silent_resume("한국어") not in h3["system_instruction"]
+    assert h3["session"].sent_text_turns[0].startswith("[통화 이어감]") and "지금 바로 이어가라" in h3["session"].sent_text_turns[0]
+    assert "[통화 이어감]" not in h3["system_instruction"], "silent 아님 — 쪽지는 시드로 가고 지시문엔 없다"
 
 
 # --------------------------------------------------------------------------- #
@@ -679,3 +680,30 @@ async def test_loop_breaker_is_silent_on_a_normal_call(session_factory, seeded):
     h = await _run(session_factory, seeded, "normal", {}, script=script, hold_open=True)
     assert seeds.LOOP_BREAK_NOTE not in h["session"].sent_text_turns
     assert not _frames_of("fragment_saved", h) and _frames_of("call_ended", h)
+
+
+# --------------------------------------------------------------------------- #
+# C6 (2026-09-14) — 표현학습 재개 쪽지에 직전 조각 재료(드릴·통과·오답·발췌)가 실린다(시드 · silent 둘 다)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_expression_resume_note_carries_previous_fragment_materials(session_factory, seeded):
+    from domains.learning.repository import curriculum_repository as repo
+    db = session_factory()
+    lesson1 = repo.lesson_by_no(db, "ko", 1)
+    surfaces = [it.surface for _li, it in repo.lesson_items(db, lesson1.lesson_id)]
+    db.close()
+    h1 = await _run(session_factory, seeded, "expression", {},
+                    script=[("B", "따라 하세요: «%s»" % surfaces[0]), ("U", surfaces[0]), ("B", "좋아요! 다음은 «%s»" % surfaces[1]), ("U", surfaces[1])],
+                    session_cls=HeldOpenSession, fragment_end=True)
+    cid = int(_started(h1)["call_id"])
+    # silent 조각2 — 지시문 끝 쪽지에 드릴 표면형·발췌
+    h2 = await _run(session_factory, seeded, "auto", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True},
+                    session_cls=HeldOpenSession, fragment_end=True)
+    si = h2["system_instruction"]
+    assert "[통화 이어감]" in si and "이미 한 것: 드릴 2개(" in si and surfaces[0] in si.split("[통화 이어감]", 1)[1]
+    assert "바로 전 대화:" in si and "학습자 «%s»" % surfaces[1] in si and "먼저 말을 꺼내지 말고 기다렸다가" in si
+    assert h2["session"].sent_text_turns == []
+    # 시드 조각3(silent 아님) — 같은 재료가 시드에
+    h3 = await _run(session_factory, seeded, "auto", {}, script=[("B", "좋아요")], continues=cid)
+    seed = h3["session"].sent_text_turns[0]
+    assert seed.startswith("[통화 이어감]") and "이미 한 것: 드릴 2개(" in seed and "지금 바로 이어가라" in seed and len(seed) <= 900

@@ -954,6 +954,27 @@ def _resume_transcript(db: Session, call_id: int) -> str:
     )[-4000:]
 
 
+def recent_turns(db: Session, call_id: int, *, n: int = 4, max_chars: int = 120) -> list[tuple[str, str]]:
+    """마지막 n 턴의 (역할, 텍스트) — 조각 재개 쪽지의 «바로 전 대화» 재료(2026-09-14 C6). 빈/2자 미만 턴은 건너뛴다. 시간순."""
+    rows = (
+        db.query(CallRawData.role, CallRawData.content)
+        .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
+        .order_by(CallRawData.turn_index.desc())
+        .limit(n * 3)
+        .all()
+    )
+    out: list[tuple[str, str]] = []
+    for role, content in rows:
+        t = (content or "").strip()
+        if len(t) < 2:
+            continue
+        out.append(("beaver" if (role or "") == "beaver" else "user", t[:max_chars]))
+        if len(out) >= n:
+            break
+    out.reverse()
+    return out
+
+
 def resume_slots_have_content(slots: dict | None) -> bool:
     """이어하기 요약 슬롯에 **값이 하나라도** 있나(topic·learner_facts·pending). 2026-09-14(bt-back 결정 ①, seamless QA 조사에서 발견).
 
