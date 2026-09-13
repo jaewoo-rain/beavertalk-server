@@ -181,7 +181,8 @@ def select_items(
     ⭐ first 항목은 앞 조각에서 **드릴됐어도**(drilled_at 있음) 싣는다 — 하네스 H6/실측 1568: 옛 코드는 drilled_at 필터가 먼저라 오답이 fresh 에서 빠져
       죽은 코드였다. 이때는 review=True(조각1 에서 드릴됐으니 복습 취급) · seen_count 는 그 행 값.
     ⭐ 순서(2026-09-14 ②, 사장님 «안 배운 것 → 틀린 것 → 예전 것»): fresh(seq) → first(이번 통화 오답, 준 순서) → 복습 채움(review_pool). 예전(2026-09-13)엔 오답이
-      맨 앞이었다. 새 통화(first 없음)는 종전(안 배운 → 복습 채움)과 바이트 동일. n 상한 그대로.
+      맨 앞이었다. 새 통화(first 없음)는 종전(안 배운 → 복습 채움)과 바이트 동일. n 상한 그대로 — 단 **오답은 보장**한다(bt-back 2026-09-14): fresh 가 n 을
+      다 채워도 이번 통화 오답이 밀리지 않게 fresh 를 n-len(first) 로 자른다.
     """
     n = int(n if n is not None else settings.CUR_ITEMS_PER_CALL)
     skip = {int(x) for x in exclude}
@@ -204,7 +205,7 @@ def select_items(
         rec = mine.get(iid)
         drilled = rec is not None and rec.drilled_at is not None
         front.append(_dto(it, lesson_id, li.role, seen_count=(rec.seen_count if rec else 0), review=drilled, locale=locale))
-    out = (fresh + front)[:n]
+    out = (fresh[:max(0, n - len(front))] + front)[:n]     # 오답 보장 — fresh 가 많아도 이번 통화 오답은 이 조각에 실린다
     if len(out) < n:
         exclude = frozenset(d["item_id"] for d in out) | frozenset(skip)
         lesson = repo.lesson_by_id(db, lesson_id)

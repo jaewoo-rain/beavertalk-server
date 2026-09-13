@@ -493,3 +493,22 @@ def test_resume_first_puts_drilled_wrong_items_at_the_front_as_review(db):
     m2 = _member(db)
     fresh_new = cur.select_items(db, m2, lesson.lesson_id)
     assert [d["item_id"] for d in fresh_new] == ids and all(d["review"] is False for d in fresh_new)
+
+
+def test_resume_wrong_items_are_guaranteed_even_when_fresh_fills_the_cap(db):
+    """bt-back 2026-09-14 ②: fresh 가 n 을 다 채우는 조각에서도 이번 통화 오답은 밀리지 않는다 — fresh 를 n-len(first) 로 자른다.
+    순서는 그대로 안 배운 것 → 오답."""
+    m = _member(db)
+    lesson = _lesson(db, "L1-S01-1")
+    ids = [d["item_id"] for d in cur.select_items(db, m, lesson.lesson_id)]
+    assert len(ids) >= 5
+    # n=4, 안 배운 것 15개, 오답 2개(ids[3], ids[1]) → fresh 2 + 오답 2
+    out = cur.select_items(db, m, lesson.lesson_id, n=4, first=[ids[3], ids[1]])
+    got = [d["item_id"] for d in out]
+    assert len(got) == 4 and got[2:] == [ids[3], ids[1]], "오답 2개가 마지막 두 자리에 보장된다"
+    assert got[:2] == [i for i in ids if i not in (ids[3], ids[1])][:2], "앞은 안 배운 것 seq 순"
+    # 오답이 n 을 넘으면 오답만 n 개(준 순서)
+    out2 = cur.select_items(db, m, lesson.lesson_id, n=2, first=[ids[4], ids[3], ids[2]])
+    assert [d["item_id"] for d in out2] == [ids[4], ids[3]]
+    # first 없으면 종전(fresh[:n])
+    assert [d["item_id"] for d in cur.select_items(db, m, lesson.lesson_id, n=4)] == ids[:4]
