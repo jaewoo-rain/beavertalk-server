@@ -5410,11 +5410,24 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     )
 
 
+# ⛔ 재접지 쪽지의 «아직 안 쓴 소재» 에서 **작별 표현은 뺀다**(2026-09-13, 실통화 1549 · 차시 1 «처음 만난 사람과 인사하기»).
+#   차시 1 소재 15개 중 3분 넘어 안 쓴 것이 전부 작별말이었고(미사용 14→13), 07:26:09 쪽지 직후 비버가 그 목록을 «소화» 하느라
+#   t25~t33 **5턴 연속** 작별했다 — «또 보자! 안녕히 가세요!» → «안녕히 계세요!» → «또 봐요!» → «좋은 하루 보내고… 안녕!» →
+#   «그럼 진짜 간다. 또 봐!» (매번 «하나만 더 물어보자» 로 이어 붙임). 통화는 서버가 끝내니 끊기진 않았지만 학습자는 작별을 5번 듣는다.
+#   쪽지에 «작별하지 마라» 를 적는 길은 안 쓴다 — 그 낱말 자체가 작별을 부른 전례(call 706·782·870, README §4 지뢰밭).
+#   ⇒ 소재 선별에서 빼는 것이 가장 값싸고 안전하다(시스템 지시문의 [이번 차시] 목록은 그대로 — 거기선 «자연스럽게 꺼내라» 라 무해했다).
+#   표면형·예문 어느 쪽이든 걸리면 뺀다. 작별이 아닌 «안녕하세요» 는 통과(«안녕히» 만 문다).
+_FAREWELL_RE = re.compile(
+    r"안녕히\s*(?:가|계|주무)|(?:또|다음에|내일|나중에)\s*(?:봐|만나|보자|뵙)|잘\s*(?:가|있|자)|좋은\s*(?:하루|밤|주말|저녁)|조심히\s*가|"
+    r"(?:^|\s)안녕[.!~]?(?:\s|$)|bye|see you|good\s*night"
+)
+
+
 def _freetalk_unused_material(state: _CallState) -> list[str]:
     """차시 프리토킹 재접지 재료 — 이번 통화 **비버 발화**에 아직 안 나온 소재(문형은 예문으로 적는다 — «이름을 말하지 말고 문장으로»).
 
     ⚠ 판정이 아니다(계획 §2 «카운트·판정 없음») — 쪽지에 몇 개 적을지 고르는 것뿐. 대조는 `quiz_judge.item_mentioned`(표면형 OR 예문).
-    순서 = 차시 항목 순서. 호출부가 [:5] 로 자른다.
+    순서 = 차시 항목 순서. 호출부가 [:5] 로 자른다. 작별 표현은 뺀다(`_FAREWELL_RE`, 1549).
     """
     brief = state.freetalk_brief
     items = list(getattr(brief, "items", None) or [])
@@ -5431,6 +5444,8 @@ def _freetalk_unused_material(state: _CallState) -> list[str]:
             continue
         if said and quiz_judge.item_mentioned(said, obj, ex):
             continue
+        if _FAREWELL_RE.search(obj.lower()) or (ex and _FAREWELL_RE.search(ex.lower())):
+            continue    # 1549 — 작별말을 «아직 안 쓴 소재» 로 주면 비버가 턴마다 작별한다
         out.append(ex if (d.get("role") == "grammar" and ex) else obj)
     return out
 
