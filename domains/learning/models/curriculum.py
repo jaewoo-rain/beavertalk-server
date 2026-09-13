@@ -262,6 +262,11 @@ class CurCall(Base):
     lesson_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     # 2단계(b2d3e4f5a6c7): 종료 저장의 멱등 키 — record_expression 은 NULL 일 때만 쓰고 채운다(§6 ②).
     recorded_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), comment="종료 저장 완료 시각 — NULL 일 때만 record 가 쓴다(멱등 키)"
+        DateTime(timezone=True), comment="처음 종료 저장 시각(c3d4e5f6a7b8 부터 멱등 키는 recorded_fragment)"
+    )
+    # 2단계(c3d4e5f6a7b8, 실통화 1550): 조각 단위 멱등 키 — record_expression 은 fragment_no > recorded_fragment 일 때만 쓴다.
+    recorded_fragment: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0"),
+        comment="마지막으로 종료 저장한 조각 번호(call.fragment_count 축, 0=없음) — 조각 단위 멱등 키",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

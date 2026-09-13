@@ -170,21 +170,34 @@ def decide_course(db: Session, member_id: int, language: str = "ko") -> str:
 
 
 # ── 통화 시작 ─────────────────────────────────────────────────────────────── #
-def select_items(db: Session, member_id: int, lesson_id: int, *, locale: str = "en", n: Optional[int] = None) -> list[dict]:
-    """§11 선별 — ① 지금 차시의 안 배운 항목 seq 순 [:N] ② 부족분은 복습(어느 차시든, 뒤에 붙임). 한 통화는 한 차시 안."""
+def select_items(
+    db: Session, member_id: int, lesson_id: int, *, locale: str = "en", n: Optional[int] = None,
+    exclude: Iterable[int] = (), first: Iterable[int] = (),
+) -> list[dict]:
+    """§11 선별 — ① 지금 차시의 안 배운 항목 seq 순 [:N] ② 부족분은 복습(어느 차시든, 뒤에 붙임). 한 통화는 한 차시 안.
+
+    exclude / first(2026-09-13, 실통화 1550 조각 재개): 이 통화의 앞 조각이 **이미 통과**한 항목(cur_call.items passed)은 빼고(그 자리는
+    복습 채움 규칙 그대로), **오답**(failed) 항목은 앞줄로. 새 통화는 둘 다 비어 있어 종전과 같다.
+    """
     n = int(n if n is not None else settings.CUR_ITEMS_PER_CALL)
+    skip = {int(x) for x in exclude}
+    front = [int(x) for x in first]
     mine = repo.member_item_map(db, member_id, lesson_id)
     fresh: list[dict] = []
     for li, it in repo.lesson_items(db, lesson_id):
         rec = mine.get(it.item_id)
         if rec is not None and rec.drilled_at is not None:
             continue
+        if it.item_id in skip:
+            continue
         fresh.append(_dto(it, lesson_id, li.role, seen_count=(rec.seen_count if rec else 0), review=False, locale=locale))
-        if len(fresh) >= n:
-            break
+    if front:
+        rank = {iid: i for i, iid in enumerate(front)}
+        fresh.sort(key=lambda d: (0, rank[d["item_id"]]) if d["item_id"] in rank else (1, 0))   # 안정 정렬 — 나머지는 seq 순 그대로
+    fresh = fresh[:n]
     out = list(fresh)
     if len(out) < n:
-        exclude = frozenset(d["item_id"] for d in out)
+        exclude = frozenset(d["item_id"] for d in out) | frozenset(skip)
         for mi, it in repo.review_pool(db, member_id, exclude, n - len(out)):
             # 복습 항목의 role 은 그 차시에서의 역할 — 없으면(비정상) kind 로
             role = repo.lesson_item_role(db, mi.lesson_id, it.item_id) or it.kind
@@ -225,11 +238,17 @@ def open_call(
         lesson = repo.lesson_by_id(db, existing.lesson_id)
         assert lesson is not None
         status = _status_of(db, member_id, lesson.lesson_id)
-        items = select_items(db, member_id, lesson.lesson_id, locale=locale) if existing.course == COURSE_EXPRESSION else []
+        # ⭐ 조각 재개(실통화 1550): 앞 조각이 통과한 항목은 목록에서 빼고, 오답은 앞줄로 — cur_call.items 스냅샷이 근거.
+        #   ⚠ 앞 조각의 스냅샷은 그 조각의 **종료 저장**(마지막 판정 LLM 뒤)에 적힌다 — 학습자가 그보다 빨리 이어하기를 누르면 아직 없다.
+        prev = [r for r in _json_list(existing.items) if isinstance(r, dict) and r.get("item_id")]
+        passed_ids = [int(r["item_id"]) for r in prev if r.get("passed")]
+        failed_ids = [int(r["item_id"]) for r in prev if r.get("failed") and not r.get("passed")]
+        items = (select_items(db, member_id, lesson.lesson_id, locale=locale, exclude=passed_ids, first=failed_ids)
+                 if existing.course == COURSE_EXPRESSION else [])
         brief = _brief(db, lesson, member_id) if existing.course == COURSE_FREETALK else None
         forced = existing.course == COURSE_FREETALK and status != STATUS_EXPRESSION_DONE
-        logger.info("cur open_call: 조각 재개 call_id=%s lesson=%s course=%s 재선별=%d%s", call_id, lesson.code, existing.course, len(items),
-                    " 강제(진도 무영향)" if forced else "")
+        logger.info("cur open_call: 조각 재개 call_id=%s lesson=%s course=%s 재선별=%d(통과 제외 %d·오답 앞줄 %d)%s", call_id, lesson.code,
+                    existing.course, len(items), len(passed_ids), len(failed_ids), " 강제(진도 무영향)" if forced else "")
         return CurCallOpen(lesson=lesson, course=existing.course, items=items, brief=brief, resumed=True, status=status, forced=forced)
 
     prog = ensure_progress(db, member_id, language, for_update=True)
@@ -316,18 +335,25 @@ def record_expression(
     passed_ids: Iterable[int],
     failed_ids: Iterable[int],
     snapshot: Optional[list[dict]] = None,
+    fragment_no: Optional[int] = None,
 ) -> Optional[dict]:
-    """표현학습 통화 종료 저장 — `cur_call.recorded_at IS NULL` 일 때만(§6 ②). 두 번 부르면 None(no-op).
+    """표현학습 통화 종료 저장 — 멱등 단위는 **조각**(c3d4e5f6a7b8, 실통화 1550): `fragment_no > cur_call.recorded_fragment` 일 때만 쓴다.
+
+    같은 조각의 중복 종료·재분석은 no-op. 조각 2·3 은 각각 저장된다(items 병합 P1-5 · seen_count +1/조각 · expression_calls +1/조각 ·
+    drilled/passed 단조 그대로). fragment_no 가 None 이면 call.fragment_count(현재 조각)를 읽는다 — call_session 의 조각 번호와 같은 축.
+    recorded_at 은 «처음 저장 시각» 으로 남는다.
 
     items: 통화가 운반한 DTO 그대로(lesson_id 포함) — 어느 차시 행에 적을지가 여기서 나온다(§6 ①).
-    Returns: {"lesson_completed": bool, "status": str, "drilled": n, "passed": n, "failed": n} | None
+    Returns: {"lesson_completed": bool, "status": str, "drilled": n, "passed": n, "failed": n, "fragment": no} | None
     """
     cc = repo.cur_call(db, call_id)
     if cc is None:
         logger.warning("cur record_expression: cur_call 없음 call_id=%s — 옛 경로 통화거나 시작이 안 찍혔다(무시)", call_id)
         return None
-    if cc.recorded_at is not None:
-        logger.info("cur record_expression: 이미 저장됨 call_id=%s recorded_at=%s (no-op)", call_id, cc.recorded_at)
+    frag = int(fragment_no) if fragment_no is not None else repo.call_fragment_no(db, call_id)
+    if frag <= int(cc.recorded_fragment or 0):
+        logger.info("cur record_expression: 조각 %d 이미 저장됨 call_id=%s recorded_fragment=%d recorded_at=%s (no-op)",
+                    frag, call_id, int(cc.recorded_fragment or 0), cc.recorded_at)
         return None
     if cc.course != COURSE_EXPRESSION:
         logger.warning("cur record_expression: course=%s 통화에 표현학습 저장 요청(무시) call_id=%s", cc.course, call_id)
@@ -382,13 +408,16 @@ def record_expression(
         ml.status = STATUS_EXPRESSION_DONE
     if completed and ml.expression_done_at is None:                          # 단조
         ml.expression_done_at = now
-    cc.recorded_at = now
+    if cc.recorded_at is None:                                               # 처음 저장 시각(조각 1)
+        cc.recorded_at = now
+    cc.recorded_fragment = frag
     db.commit()
     logger.info(
-        "cur record_expression: call_id=%s lesson=%s 항목 %d(드릴 %d·통과 %d·오답 %d) 완료=%s status=%s calls=%d",
-        call_id, cc.lesson_id, len(items), len(drilled), len(passed), len(failed), completed, ml.status, ml.expression_calls,
+        "cur record_expression: call_id=%s 조각 %d lesson=%s 항목 %d(드릴 %d·통과 %d·오답 %d) 완료=%s status=%s calls=%d",
+        call_id, frag, cc.lesson_id, len(items), len(drilled), len(passed), len(failed), completed, ml.status, ml.expression_calls,
     )
-    return {"lesson_completed": completed, "status": ml.status, "drilled": len(drilled), "passed": len(passed), "failed": len(failed)}
+    return {"lesson_completed": completed, "status": ml.status, "drilled": len(drilled), "passed": len(passed), "failed": len(failed),
+            "fragment": frag}
 
 
 # ── 통화 종료(프리토킹) ────────────────────────────────────────────────────── #

@@ -394,3 +394,68 @@ def test_cur_files_never_mention_the_old_learning_tables():
         src = (root / rel).read_text(encoding="utf-8")
         for banned in ("learning_item", "member_item_progress", "korean_level", "expression_result", "item_evidence"):
             assert banned not in src, f"{rel}: {banned} — 주석·독스트링까지 0건(계획 §4, grep 검수)"
+
+
+# --------------------------------------------------------------------------- #
+# 조각 단위 멱등(c3d4e5f6a7b8, 실통화 1550) — 조각 2 저장됨 · 같은 조각 재저장/재분석 no-op · 재개 목록은 통과 제외·오답 앞줄
+# --------------------------------------------------------------------------- #
+def _set_fragment(db: Session, call_id: int, n: int) -> None:
+    c = db.get(Call, call_id)
+    c.fragment_count = n
+    db.commit()
+
+
+def test_fragment_2_and_3_are_recorded_and_the_same_fragment_is_a_noop(db):
+    m = _member(db)
+    c = _call(db, m)
+    o1 = cur.open_call(db, m, c, "expression")
+    ids = [d["item_id"] for d in o1.items]
+    # 조각 1: 3개 드릴, 2개 통과, 1개 오답
+    r1 = cur.record_expression(db, c, o1.items, drilled_ids=ids[:3], passed_ids=ids[:2], failed_ids=[ids[2]])
+    assert r1 is not None and r1["fragment"] == 1
+    cc = repo.cur_call(db, c)
+    first_recorded_at = cc.recorded_at
+    assert cc.recorded_fragment == 1 and first_recorded_at is not None
+    # 같은 조각의 중복 종료 / 재분석 → no-op
+    assert cur.record_expression(db, c, o1.items, drilled_ids=ids[:3], passed_ids=ids[:2], failed_ids=[]) is None
+    assert cur.record_expression(db, c, o1.items, drilled_ids=ids[:3], passed_ids=ids[:2], failed_ids=[], fragment_no=1) is None
+    assert repo.lesson_status(db, m, o1.lesson.lesson_id).expression_calls == 1
+
+    # 조각 2 재개(resume_call 이 fragment_count 를 2 로) — 목록: 통과 2개 제외, 오답 1개는 이미 드릴돼 fresh 밖(복습 풀에서 앞줄)
+    _set_fragment(db, c, 2)
+    o2 = cur.open_call(db, m, c, "expression")
+    assert o2.resumed is True
+    ids2 = [d["item_id"] for d in o2.items]
+    assert not (set(ids[:2]) & set(ids2)), "조각 1 통과 항목은 조각 2 목록에 없다"
+    assert all(d["review"] is False for d in o2.items if d["item_id"] in ids[3:]), "남은 새 항목은 그대로"
+    # 조각 2 판정 저장 — recorded_fragment 2 · 통과 2개 추가 · recorded_at 은 처음 시각 유지 · expression_calls 2
+    r2 = cur.record_expression(db, c, o2.items, drilled_ids=ids2[:3], passed_ids=ids2[:2], failed_ids=[])
+    assert r2 is not None and r2["fragment"] == 2
+    cc = repo.cur_call(db, c)
+    assert cc.recorded_fragment == 2 and cc.recorded_at == first_recorded_at
+    mine = repo.member_item_map(db, m, o1.lesson.lesson_id)
+    assert all(mine[i].quiz_passed_at is not None for i in ids[:2] + ids2[:2]), "조각 1·2 통과가 모두 남는다(1550 결함)"
+    assert repo.lesson_status(db, m, o1.lesson.lesson_id).expression_calls == 2
+    rows = {r["item_id"]: r for r in json.loads(cc.items)}
+    assert all(rows[i]["passed"] for i in ids[:2] + ids2[:2]) and rows[ids[2]]["failed"] is True, "items 병합(P1-5) 그대로"
+    # 조각 2 재분석/중복 종료 → no-op, 조각 3 은 다시 저장된다
+    assert cur.record_expression(db, c, o2.items, drilled_ids=ids2[:3], passed_ids=ids2[:2], failed_ids=[]) is None
+    _set_fragment(db, c, 3)
+    r3 = cur.record_expression(db, c, o2.items, drilled_ids=[], passed_ids=[ids2[2]], failed_ids=[])
+    assert r3 is not None and r3["fragment"] == 3 and repo.cur_call(db, c).recorded_fragment == 3
+    assert repo.member_item(db, m, o1.lesson.lesson_id, ids2[2]).quiz_passed_at is not None
+
+
+def test_select_items_exclude_and_first_shape_the_resume_list(db):
+    m = _member(db)
+    lesson = _lesson(db, "L1-S01-1")
+    base = cur.select_items(db, m, lesson.lesson_id)
+    ids = [d["item_id"] for d in base]
+    # 통과 제외(새 회원은 복습 풀이 비어 그만큼 줄어든다 — 있으면 복습 채움 규칙으로 채워진다), 오답은 앞줄
+    out = cur.select_items(db, m, lesson.lesson_id, exclude=ids[:2], first=[ids[4], ids[3]])
+    got = [d["item_id"] for d in out]
+    assert not (set(ids[:2]) & set(got)) and len(out) == len(base) - 2
+    assert got[:2] == [ids[4], ids[3]], "오답은 준 순서대로 앞줄"
+    assert got[2:] == [i for i in ids if i not in ids[:2] + [ids[4], ids[3]]], "나머지는 seq 순"
+    # 인자 없으면 종전과 같다
+    assert [d["item_id"] for d in cur.select_items(db, m, lesson.lesson_id)] == ids

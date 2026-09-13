@@ -167,6 +167,12 @@ def cur_call(db: Session, call_id: int) -> Optional[CurCall]:
     return db.get(CurCall, call_id)
 
 
+def call_fragment_no(db: Session, call_id: int) -> int:
+    """통화의 현재 조각 번호 = call.fragment_count(없으면 1). 조각 단위 멱등 키(cur_call.recorded_fragment)의 짝."""
+    v = db.execute(select(Call.fragment_count).where(Call.call_id == call_id)).scalar_one_or_none()
+    return int(v or 1)
+
+
 def call_member_id(db: Session, call_id: int) -> Optional[int]:
     """통화의 회원 — cur_call 은 회원을 갖지 않는다(call 이 원본)."""
     return db.execute(select(Call.member_id).where(Call.call_id == call_id)).scalar_one_or_none()
