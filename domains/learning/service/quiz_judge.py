@@ -39,8 +39,11 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
+
+_log = logging.getLogger(__name__)
 
 # 걷어낼 것: 공백류 + 문장부호. ⛔ 한글 자모를 건드리지 않는다.
 # ⚠ `\w` 를 쓰지 않는다 — 로케일에 따라 한글 포함 여부가 흔들린다. 버릴 것을 직접 적는다.
@@ -57,6 +60,41 @@ _JA_POLITE_MARKERS = ("ください", "ましょう", "でした", "ません", 
 # ja 자리표시: ～/〜(파도) — 「～は～です」「～ができる」. ko 표(◯·라틴 대문자·괄호)에 더한다(ko 표면형엔 ～ 가 없어 ko 결과 무변화).
 _JA_PLACEHOLDER_RE = re.compile(r"[～〜]+|◯+|(?<![A-Za-z])[A-Z][A-Za-z]{0,3}\d?(?![A-Za-z])|\([^)]*\)")
 _JA_SCRIPT_RE = re.compile(r"[ぁ-んァ-ヶ一-龠々ー]")
+# ⭐ ja 읽기 정규화(2026-09-14, 사장님 «진행해» — 1602 조각2 재접지 «드릴 4·통과 0» 인데 실제 10개 이상 정답: STT 가 「行って き ます」·
+#   「駅 の 隣」 로 적고 표면형은 「いってきます」·「駅のとなり」 라 문자열이 안 맞았다). 비교 시점에만 양쪽을 **히라가나 읽기**로 맞춘다(pykakasi) —
+#   DB·대본·힌트는 그대로. ko 분기는 무변경.
+# 가타카나 낱말 **끝**의 장음(ー)만 지운다 — STT 가 「カーラ」 를 「カーラー」 로 늘여 적는다. 낱말 안의 ー 는 남긴다(「カーラ」→「かーら」 ≠ 「から」 —
+#   진짜 오인식 「私はからです」 는 못 잡는 게 맞다). 다음 글자가 가타카나·ー 가 아니면 «끝».
+_JA_TRAILING_CHOON_RE = re.compile(r"ー+(?![ァ-ヶー])")
+# 변환은 **일본 문자 연속 구간**에만 건다 — pykakasi 는 한글을 조용히 떨어뜨린다(「어디에요」→「어에」). 한글·라틴·숫자는 그대로 둔다.
+_JA_RUN_RE = re.compile(r"[ぁ-んァ-ヶ一-龠々〆ーゝゞヽヾ]+")
+_KKS = None
+_KKS_FAILED = False
+
+
+def _ja_reading(s: str) -> str:
+    """ja **비교 전용** 읽기 정규화: 낱말 끝 장음 제거 → 한자·가타카나 → 히라가나(pykakasi). 라틴·숫자·한글은 그대로.
+    pykakasi 가 없으면(이미지 누락 등) 원문으로 떨어진다(R5 — 판정이 예전처럼 엄격해질 뿐 통화는 산다), 경고 1회."""
+    global _KKS, _KKS_FAILED
+    s = _JA_TRAILING_CHOON_RE.sub("", s)
+    if _KKS is None and not _KKS_FAILED:
+        try:
+            import pykakasi
+            _KKS = pykakasi.kakasi()
+        except Exception as exc:  # noqa: BLE001
+            _KKS_FAILED = True
+            _log.warning("quiz_judge ja: pykakasi 사용 불가(%s) — 읽기 정규화 없이 대조", exc)
+    if _KKS is None:
+        return s
+
+    def _conv(m: "re.Match[str]") -> str:
+        try:
+            return "".join((w.get("hira") or w.get("orig") or "") for w in _KKS.convert(m.group(0)))
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("quiz_judge ja: 읽기 변환 실패(%s) — 원문으로 대조", exc)
+            return m.group(0)
+
+    return _JA_RUN_RE.sub(_conv, s)
 
 
 def normalize(text: str | None, language: str = "ko") -> str:
@@ -71,6 +109,7 @@ def normalize(text: str | None, language: str = "ko") -> str:
     """
     if language == "ja":
         s = unicodedata.normalize("NFKC", (text or "").strip())     # 전각/반각·합성 가나 통일 — ko 규칙(에요→예요)은 안 탄다
+        s = _ja_reading(s)                                          # 비교 시점에만 히라가나 읽기(한자·가타카나 → ひらがな, 낱말 끝 장음 제거)
         return _JA_PUNCT_RE.sub("", s).lower()
     s = unicodedata.normalize("NFC", (text or "").strip())
     s = _PUNCT_RE.sub("", s).lower()

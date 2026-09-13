@@ -26,3 +26,5 @@ google-cloud-speech>=2.27
 supabase>=2.31,<3
 # 예약전화: FCM data-only 발송(firebase-admin). 서비스계정 미설정이면 발송만 비활성.
 firebase-admin>=6.5,<7
+# 일본어 판정(quiz_judge ja) — 비교 시점 읽기 정규화(한자·가타카나 → 히라가나). 사전이 패키지 안(순수 파이썬 · deps: jaconv·deprecated·wrapt). 2026-09-14
+pykakasi==2.3.0

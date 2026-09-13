@@ -261,7 +261,7 @@ def test_cur_reset_ja_points_at_lesson_1_which_is_the_survival_chunk_lesson(clie
 # ③ 판정(quiz_judge) ja 분기 — 5건 · ko 무변화
 # --------------------------------------------------------------------------- #
 def test_ja_normalize_is_nfkc_and_strips_japanese_punctuation_without_ko_rules():
-    assert quiz_judge.normalize("私は　カーラです。", "ja") == "私はカーラです"
+    assert quiz_judge.normalize("私は　カーラです。", "ja") == "わたしはかーらです"   # 2026-09-14 읽기 정규화(pykakasi) — 전각 공백·。 제거 + 히라가나
     assert quiz_judge.normalize("ＡＢＣ！？", "ja") == "abc"
     assert quiz_judge.normalize("어디에요", "ja") == "어디에요" and quiz_judge.normalize("어디에요") == "어디예요", "에요→예요 는 ko 만"
 
@@ -402,3 +402,39 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
         assert repo.current_progress(db, m, "ko") is None, "ko 진도는 만들지 않았다"
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# ④ ja 읽기 정규화(pykakasi, 2026-09-14) — 비교 시점에만 히라가나. 1602: 「行って き ます」 가 「いってきます」 와 안 맞아 «통과 0».
+# --------------------------------------------------------------------------- #
+def test_ja_reading_normalization_matches_kanji_and_spacing_variants():
+    assert quiz_judge.normalize("行って き ます", "ja") == quiz_judge.normalize("いってきます", "ja") == "いってきます"
+    assert quiz_judge.mentions("行って き ます 。", "いってきます", "ja") is True
+    assert quiz_judge.mentions("駅 の 隣", "駅のとなり", "ja") is True
+    assert quiz_judge.mentions("駅のとなり", "駅 の 隣", "ja") is True
+    assert quiz_judge.mentions("お 元気 です か ?", "お元気ですか", "ja") is True
+    assert quiz_judge.mentions("ご 一読 し まし て", "どういたしまして", "ja") is False, "다른 말은 여전히 다르다"
+
+
+def test_ja_reading_normalization_strips_only_trailing_long_vowel():
+    # STT 가 「カーラ」 를 「カーラー」 로 늘여 적는다 → 낱말 끝 ー 만 지운다
+    assert quiz_judge.mentions("私 は カーラー です", "私はカーラです", "ja") is True
+    # 낱말 안의 ー 는 남는다 — 「カーラ(かーら)」 ≠ 「から」: 진짜 오인식은 통과시키지 않는다
+    assert quiz_judge.mentions("私はからです", "私はカーラです", "ja") is False
+    assert quiz_judge.normalize("カーラー", "ja") == quiz_judge.normalize("カーラ", "ja") == "かーら"
+
+
+def test_ja_formality_check_still_works_after_reading_normalization():
+    assert quiz_judge.polite_marker("お元気ですか", "ja") == "か" or quiz_judge.polite_marker("行きます", "ja") == "ます"
+    assert quiz_judge.keeps_formality("行って き ます 。", "いってきます", "ja") is True
+    assert quiz_judge.keeps_formality("行く", "いってきます", "ja") is False, "보통형은 격식 표지가 없다"
+    assert quiz_judge.keeps_formality("私 は カーラー です", "私はカーラです", "ja") is True
+
+
+def test_ja_reading_normalization_leaves_ko_untouched():
+    assert quiz_judge.normalize("行って き ます") == "行って きます".replace(" ", "")   # ko 분기: 공백·부호만(변환 없음)
+    # ja 분기 안의 한글·라틴은 그대로 — pykakasi 는 한글을 떨어뜨리므로 일본 문자 구간에만 변환을 건다
+    assert quiz_judge.normalize("모르겠어. いってきます", "ja") == "모르겠어いってきます"
+    assert quiz_judge.normalize("Arigatou gozaimasu", "ja") == "arigatougozaimasu"
+    assert quiz_judge.normalize("어디에요?") == "어디예요"
+    assert quiz_judge.mentions("저는 물을 좋아해요", "물") is True
