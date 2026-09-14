@@ -621,9 +621,10 @@ def _input_language_codes(target_code: str, locale: str) -> list[str]:
       (그쪽 함수에 경고를 박아 뒀다 · docs/20260813_0040_캐스케이드-데모잔재-정리목록.md §2-b).
 
     ⛔⛔ **하나라도 매핑이 안 되면 통째로 포기한다**(빈 목록 = 자동 감지 = 종전 동작).
-      부분 힌트가 무힌트보다 나쁘기 때문이다 — 일본어 학습자(ja 미매핑)에게 모국어
-      `en-US` 하나만 얹으면 일본어 발화를 영어로 알아들으라고 시키는 꼴이 된다.
-      ⇒ 지금 실제로 힌트가 붙는 조합은 ko·en 이고, 나머지 언어는 **오늘과 완전히 같다.**
+      부분 힌트가 무힌트보다 나쁘기 때문이다 — 미매핑 언어 학습자에게 모국어 하나만 얹으면 그 발화를
+      모국어로 알아들으라고 시키는 꼴이 된다.
+      ⭐ 2026-09-14(실통화 1607): 별칭에 ja·zh·fr·vi 를 채워 레지스트리 언어 전부가 힌트를 받는다(ja/ko → ['ja-JP','ko-KR']).
+        그 전엔 ja 통화가 «생략» 으로 떨어져 일본어가 「保険ってですか」 로 찍혔다.
     """
     wanted = [target_code] + ([locale] if locale and locale != target_code else [])
     mapped = normalize_language_codes(wanted)

@@ -300,7 +300,13 @@ STT_V2_MAX_LANGUAGES = 3
 #   나머지 언어(vi/th/mn/…)는 아직 표에서 확인하지 않았다. 근거 없는 추측을 넣으면 조용히
 #   인식이 죽으므로 **넣지 않는다** — 모르는 짧은 코드는 경고와 함께 버린다(그 경우 동작은
 #   지금과 같다: 학습 언어만 듣는다). 실서비스 배선 때 표 전체를 확인해 채운다.
-_STT_LANGUAGE_ALIASES: dict[str, str] = {"en": "en-US", "ko": "ko-KR"}
+# ⭐ 2026-09-14(실통화 1607, ja 학습·ko 모국어): ja 가 없어서 `_input_language_codes("ja","ko")` 가 부분 힌트 → «생략» → 입력 전사 무힌트 → 일본어가
+#   「保険ってですか」「도움어」 로 찍혀 서버 판정 전부 미통과·재출제. 레지스트리(core.languages) 언어 전부를 채운다 — 값은 Cloud STT v2 supported-languages
+#   표 모양(지역 포함 BCP-47: ja-JP · cmn-Hans-CN(만다린 간체) · fr-FR · vi-VN) 이고 Gemini Live AudioTranscriptionConfig.language_codes 도 같은 BCP-47 을 받는다.
+_STT_LANGUAGE_ALIASES: dict[str, str] = {
+    "en": "en-US", "ko": "ko-KR",
+    "ja": "ja-JP", "zh": "cmn-Hans-CN", "fr": "fr-FR", "vi": "vi-VN",
+}
 # 모양 검사(BCP-47 근사): 언어[-문자]**-지역**. 통과한 값은 그대로 벤더에 넘긴다.
 # ⭐ **지역이 없으면 거절한다.** v2 지원 표의 코드는 지역까지 있다(en-US · ko-KR · cmn-Hans-CN).
 #   그리고 우리 설정의 짧은 코드(`CASCADE_TTS_LANGUAGE="en"`)가 바로 그 모양이라, 통과시키면

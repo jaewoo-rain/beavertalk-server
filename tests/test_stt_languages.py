@@ -53,7 +53,7 @@ def test_unverified_short_codes_are_dropped_not_guessed():
     틀린 코드를 넣으면 그 언어는 조용히 안 들린다(지금 결함과 같은 실패). 확인한 매핑만
     쓰고 나머지는 버린다 — 버려도 동작은 지금과 같다(학습 언어는 그대로 들린다).
     """
-    assert stt_mod.normalize_language_codes(["ko", "vi", "english", ""]) == ["ko-KR"]
+    assert stt_mod.normalize_language_codes(["ko", "th", "english", ""]) == ["ko-KR"]     # th: 표에서 안 확인 → 버림(vi 는 2026-09-14 부터 매핑)
 
 
 def test_full_tags_pass_through():
@@ -206,11 +206,26 @@ def test_live_call_dedupes_when_target_equals_native():
 def test_live_call_gives_up_entirely_when_any_code_is_unmapped():
     """⛔⛔ **부분 힌트는 무힌트보다 나쁘다** — 하나라도 못 만들면 통째로 포기한다.
 
-    `ja` 는 아직 검증된 매핑이 없다(_STT_LANGUAGE_ALIASES). 여기서 모국어 `en-US` 만
-    남겨 보내면, **일본어 발화를 영어로 알아들으라고 시키는** 꼴이 된다. 빈 목록은
-    "힌트 없음"이고 그건 종전 동작(자동 감지)이다 — 안전한 쪽으로 떨어진다.
+    `th` 는 검증된 매핑이 없다(_STT_LANGUAGE_ALIASES). 여기서 모국어 `en-US` 만 남겨 보내면 **그 발화를 영어로 알아들으라고 시키는** 꼴이
+    된다. 빈 목록은 "힌트 없음"이고 그건 종전 동작(자동 감지)이다 — 안전한 쪽으로 떨어진다.
     """
     from domains.learning.realtime.call_session import _input_language_codes
 
-    assert _input_language_codes("ja", "en") == []
-    assert _input_language_codes("ko", "vi") == []
+    assert _input_language_codes("th", "en") == []
+
+
+def test_live_call_hints_every_registry_language_since_1607():
+    """2026-09-14 실통화 1607(ja 학습·ko 모국어): ja 미매핑 → «생략» → 무힌트 → 일본어가 「保険ってですか」「도움어」 로 찍혀 판정 전부 미통과.
+    레지스트리 언어 전부(ko·en·ja·zh·fr·vi)가 힌트를 받는다. ko/en 은 종전 동일."""
+    from domains.learning.realtime.call_session import _input_language_codes
+    from core.languages import SUPPORTED_LANGUAGES as LANGUAGES
+
+    assert _input_language_codes("ja", "ko") == ["ja-JP", "ko-KR"]
+    assert _input_language_codes("ja", "en") == ["ja-JP", "en-US"]
+    assert _input_language_codes("zh", "en") == ["cmn-Hans-CN", "en-US"]
+    assert _input_language_codes("fr", "ko") == ["fr-FR", "ko-KR"]
+    assert _input_language_codes("vi", "en") == ["vi-VN", "en-US"]
+    assert _input_language_codes("ko", "en") == ["ko-KR", "en-US"], "종전 동일"
+    for code in LANGUAGES:
+        assert _input_language_codes(code, "en"), f"레지스트리 언어 {code} 가 힌트를 못 받는다"
+    assert _input_language_codes("ko", "th") == [], "미검증 모국어(th)는 종전대로 통째로 포기"
