@@ -2117,7 +2117,7 @@ def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str
            # ⭐ T17-6 «늦은 전사» 가설 확정용 — 학습자 전사 조각(«👤 user:») 과 턴 flush(«👤 USER[t..]») 를 시간순으로 같이 붙인다.
            #   재개 시드 주입·제어 태그 스크럽 줄도(T17-1 벙어리 턴 규칙).
            'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm" '
-           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음" OR textPayload:"cur open_call" OR textPayload:"이어하기" OR textPayload:"판정")')
+           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음" OR textPayload:"cur open_call" OR textPayload:"이어하기" OR textPayload:"판정" OR textPayload:"판정 사이드카" OR textPayload:"강제 닫힘")')
     try:
         out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "1000",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
@@ -2260,7 +2260,13 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
         L.append(f"- 참고: 무음 턴 정답 {cnt['silent']} · 서버가 «가르침» 으로 안 친 하네스 드릴 항목 {len(cnt['teach_mismatch'])} {cnt['teach_mismatch'][:10]} · 과검출 {cnt['extra_passed']}")
         jl = [ln for ln in (server_logs or []) if "판정" in ln]
+        side = [ln for ln in (server_logs or []) if "판정 사이드카" in ln]
+        sc.cur["judge_sidecar"] = side
+        fb = [ln for ln in (server_logs or []) if "표현학습 퀴즈 판정(서버" in ln]
         if server_logs is not None:
+            # 4차(app-api 00160): 통화 종료 1줄 «normalcall 판정 사이드카: 가르침 n(건너뜀·실패·폴백)·정답 m(실패)·지연·토큰» · 옛 «퀴즈 판정(서버)» 줄은 폴백일 때만
+            L.append(f"- **서버 판정 사이드카**: " + (f"`{side[-1].split('판정 사이드카', 1)[-1][:300]}`" if side else "⚠ 줄 없음(로그 창 밖이거나 사이드카 미동작)")
+                     + f" · 폴백 판정 줄 {len(fb)}")
             L.append(f"- 서버 판정 로그 {len(jl)}줄" + (":" if jl else " (gcloud 창에 없음)"))
             L += [f"  - `{ln[:220]}`" for ln in jl[:30]]
     L.append("")
