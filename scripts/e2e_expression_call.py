@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -78,6 +79,8 @@ FRAME_BYTES = SR_IN * 2 * FRAME_MS // 1000   # 1280
 PRE_SPEECH_S = 0.8                # turn_end 뒤 이만큼 쉬고 말한다
 POST_SPEECH_SILENCE_S = 1.2       # 발화 뒤 무음(VAD 종료 감지)
 LEARNER_VOICE = "Charon"          # 비버 음색과 다르게(Chirp3-HD 로스터)
+ANSWER_STYLE = ""                 # --answer-style: "" | hangul | roman | kana — 정답을 다른 표기로 말한다(4차 ③ LLM 판정이 표기 달라도 통과시키나)
+JUDGE_MODE = "llm"                # --judge: llm(서버 판정 결과·로그와 대조 — 기대 ①~④) | string(옛 문자열 판정기 — 하네스 자체 매칭 기대)
 
 # --------------------------------------------------------------------------- #
 # 고정 18개 (L1 46 중) — 계획서 §1. item_id: (표면형, 영어 뜻, 반말형, 매칭 키워드)
@@ -201,6 +204,100 @@ def quoted_segments(text: str) -> list[str]:
     if not segs:
         segs = [m.group(1).strip() for m in SQUOTE_RE.finditer(text or "")]
     return [q for q in segs if q]
+
+
+# ── 학습자 답 표기 변형(--answer-style) ─────────────────────────────── #
+_RR_ON = ["g", "kk", "n", "d", "tt", "r", "m", "b", "pp", "s", "ss", "", "j", "jj", "ch", "k", "t", "p", "h"]
+_RR_V = ["a", "ae", "ya", "yae", "eo", "e", "yeo", "ye", "o", "wa", "wae", "oe", "yo", "u", "wo", "we", "wi", "yu", "eu", "ui", "i"]
+_RR_CO = ["", "k", "k", "k", "n", "n", "n", "t", "l", "k", "m", "l", "l", "l", "p", "l", "m", "p", "p", "t", "t", "ng", "t", "t", "k", "t", "p", "t"]
+
+
+def hangul_romanize(text: str) -> str:
+    """한글 → 로마자(개정 로마자 음절 단위 · 연음·동화 없음 = 학습자가 적는 식). 한글 아닌 글자는 그대로."""
+    out = []
+    for ch in text or "":
+        c = ord(ch) - 0xAC00
+        out.append(_RR_ON[c // 588] + _RR_V[(c % 588) // 28] + _RR_CO[c % 28] if 0 <= c < 11172 else ch)
+    return "".join(out)
+
+
+_KANA_HANGUL = dict(zip(
+    "あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわをゔぁぃぅぇぉ",
+    "아이우에오카키쿠케코가기구게고사시스세소자지즈제조타치츠테토다지즈데도나니누네노하히후헤호바비부베보파피푸페포마미무메모야유요라리루레로와오부아이우에오"))
+_KANA_YOON = {"きゃ": "캬", "きゅ": "큐", "きょ": "쿄", "ぎゃ": "갸", "ぎゅ": "규", "ぎょ": "교", "しゃ": "샤", "しゅ": "슈", "しょ": "쇼",
+              "じゃ": "자", "じゅ": "주", "じょ": "조", "ちゃ": "차", "ちゅ": "추", "ちょ": "초", "にゃ": "냐", "にゅ": "뉴", "にょ": "뇨",
+              "ひゃ": "햐", "ひゅ": "휴", "ひょ": "효", "びゃ": "뱌", "びゅ": "뷰", "びょ": "뵤", "ぴゃ": "퍄", "ぴゅ": "퓨", "ぴょ": "표",
+              "みゃ": "먀", "みゅ": "뮤", "みょ": "묘", "りゃ": "랴", "りゅ": "류", "りょ": "료"}
+
+
+def kana_to_hangul(kana: str) -> str:
+    """가나 → 한글 음차(한국인 학습자가 적는 식 · 근사). ん=받침 ㄴ · っ=받침 ㅅ · ー 생략. 가나 아닌 글자는 그대로."""
+    try:
+        import jaconv
+        kana = jaconv.kata2hira(kana or "")
+    except Exception:  # noqa: BLE001
+        kana = kana or ""
+    out: list[str] = []
+
+    def _coda(idx: int, fallback: str) -> None:
+        if out and len(out[-1]) == 1 and 0 <= ord(out[-1]) - 0xAC00 < 11172 and (ord(out[-1]) - 0xAC00) % 28 == 0:
+            out[-1] = chr(ord(out[-1]) + idx)
+        else:
+            out.append(fallback)
+
+    i = 0
+    while i < len(kana):
+        two = kana[i:i + 2]
+        if two in _KANA_YOON:
+            out.append(_KANA_YOON[two]); i += 2; continue
+        ch = kana[i]
+        if ch == "ん":
+            _coda(4, "은")
+        elif ch == "っ":
+            _coda(19, "")
+        elif ch == "ー":
+            pass
+        else:
+            out.append(_KANA_HANGUL.get(ch, ch))
+        i += 1
+    return "".join(out)
+
+
+def _kakasi_tokens(text: str) -> list[tuple[str, str, str]]:
+    import pykakasi
+    return [(t["orig"], t["hira"], t["hepburn"]) for t in pykakasi.kakasi().convert(text or "")]
+
+
+def styled_answer(text: str, style: str, language: Optional[str] = None) -> Optional[tuple[str, str]]:
+    """정답 문자열 → (말할 표기, TTS 언어) · 바꿀 게 없으면 None.
+    ko: roman = 로마자를 영어 음성으로(«saramyo») · hangul = 기본 표기(None).
+    ja: kana = 한자를 가나로(ja 음성) · roman = 헵번 로마자를 영어 음성으로(조사 は→wa·へ→e) · hangul = 한글 음차를 한국어 음성으로.
+    ⚠ 서버 전사(STT)가 어떤 글자로 적을지는 우리가 못 정한다 — 발음·음성 언어로 변형을 유도하고, 실제 전사는 보고서에 그대로 남긴다."""
+    lang = language or LANGUAGE
+    if not style or not text:
+        return None
+    if lang == "ko":
+        if style == "roman":
+            r = hangul_romanize(text)
+            return (r, "en") if r != text else None
+        return None
+    toks = _kakasi_tokens(text)
+    if style == "kana":
+        k = "".join(h for _, h, _ in toks)
+        return (k, "ja") if k != text else None
+    if style == "roman":
+        words = [("wa" if o == "は" else "e" if o == "へ" else hep) for o, _, hep in toks]
+        r = " ".join(w for w in words if w.strip() and not re.fullmatch(r"[。、．，.,!?！？\s]+", w))
+        return (r, "en") if r else None
+    if style == "hangul":
+        g = "".join(("와" if o == "は" else "에" if o == "へ" else kana_to_hangul(h)) for o, h, _ in toks)
+        return (g, "ko") if g != text else None
+    return None
+
+
+def _tts_cache_name(text: str, lang: str) -> str:
+    """TTS 캐시 파일 이름 — ⚠ 옛 이름은 [0-9A-Za-z가-힣] 밖 글자를 전부 _ 로 바꿔 **가나·한자 답이 같은 파일로 겹쳤다**(길이만 같으면 다른 문장 음성이 재생). 해시를 붙인다."""
+    return re.sub(r"[^0-9A-Za-z가-힣]", "_", f"{lang}_{text}")[:60] + "_" + hashlib.md5(f"{lang}\n{text}".encode("utf-8")).hexdigest()[:12] + ".pcm"
 
 
 def _norm_repeat(text: str) -> str:
@@ -593,7 +690,7 @@ class Voice:
         key = (text, lang)
         if key in self.mem:
             return self.mem[key]
-        fn = self.cache_dir / (re.sub(r"[^0-9A-Za-z가-힣]", "_", f"{lang}_{text}")[:80] + ".pcm")
+        fn = self.cache_dir / _tts_cache_name(text, lang)
         if fn.is_file():
             data = fn.read_bytes()
         else:
@@ -1474,13 +1571,21 @@ class Session:
             await self._ft_silence(uplink)
             return
         spoke = False
+        say, say_lang, style_tag = reply, lang, ""
+        if ANSWER_STYLE and kind == "correct" and lang == LANGUAGE:
+            st = styled_answer(reply, ANSWER_STYLE)
+            if st:
+                say, say_lang = st
+                style_tag = f"표기:{ANSWER_STYLE} ← {reply}"
         try:
-            pcm = await self.voice.pcm(reply, lang)
+            pcm = await self.voice.pcm(say, say_lang)
             # 비버가 턴을 연달아 내 우리 발화가 취소되기만 하면(1438: 3턴 혼잣말) 다음엔 쉬지 않고 바로 말한다
             await asyncio.sleep(PRE_SPEECH_S if self.cancel_streak == 0 else 0.15)
             uplink.open = True
             spoke = True
-            turn = self.add_turn("learner", reply, kind=kind, item_id=self.current.item.item_id if self.current else 0)
+            turn = self.add_turn("learner", say, kind=kind, item_id=self.current.item.item_id if self.current else 0)
+            if style_tag:
+                turn.tags.append(style_tag)
             self._link_answer_turn(turn)
             self.last_learner = turn
             self.since_learner = []
@@ -1490,7 +1595,7 @@ class Session:
                 self.current.surface_uttered = True
             if kind == "correct":
                 self.spontaneous += 1
-            self.log(f"👤 {reply}   [{kind}]")
+            self.log(f"👤 {say}   [{kind}]" + (f"  ({style_tag})" if style_tag else ""))
             await uplink.speak(pcm)
             self.last_spoke_at = self.now()
             self.cancel_streak = 0
@@ -1509,12 +1614,20 @@ class Session:
                     if norm_ko(longer) == norm_ko(reply):
                         longer = f"{reply}. {reply}."
                     turn.tags.append("재발화(전사 없음)")
-                    t2 = self.add_turn("learner", longer, kind=kind, item_id=turn.item_id)
+                    say2, lang2, tag2 = longer, lang, ""
+                    if style_tag:
+                        st2 = styled_answer(longer, ANSWER_STYLE)
+                        if st2:
+                            say2, lang2 = st2
+                            tag2 = f"표기:{ANSWER_STYLE} ← {longer}"
+                    t2 = self.add_turn("learner", say2, kind=kind, item_id=turn.item_id)
                     t2.tags.append("재발화")
+                    if tag2:
+                        t2.tags.append(tag2)
                     self._link_answer_turn(t2)
                     self.last_learner = t2
-                    self.log(f"👤 {longer}   [{kind}·재발화 — 3초 안 전사 없음]")
-                    await uplink.speak(await self.voice.pcm(longer, lang))
+                    self.log(f"👤 {say2}   [{kind}·재발화 — 3초 안 전사 없음]")
+                    await uplink.speak(await self.voice.pcm(say2, lang2))
                     self.last_spoke_at = self.now()
         except asyncio.CancelledError:
             if not spoke:
@@ -1788,6 +1901,7 @@ class Score:
     judge_ok: bool = True
     period_ok: bool = True
     order_ok: bool = True            # ② 퀴즈 블록 안 항목 번호 오름차순
+    redrill_ok: bool = True          # ① (llm) 가르친·통과 항목이 다시 드릴되지 않았다
     praise_ok: bool = True
     lines: list[str] = field(default_factory=list)
     db_rows: dict[int, dict] = field(default_factory=dict)
@@ -1843,6 +1957,67 @@ QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"   # = call_session.EX
 QUIZ_CUE_STAGE = "얹기"
 QUIZ_CUE_MATCH_WINDOW_S = 30.0      # 큐 뒤 이 안에 난 앵커만 그 큐의 것(실측 2.5 = 2~5s · 3.1 = 10~16s. 60s 는 다음 큐의 앵커를 훔쳤다 — 1420)
 _LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
+
+
+def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list) -> tuple[bool, list[str], dict]:
+    """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
+      ③ 퀴즈 회차의 공개 전 자발 정답 + 그 턴 전사 있음 → 서버 passed 여야(표기 변형 답이면 ③ 로 따로 센다) · 앵커 없는 재출제만이면 passed~
+      ④ 공개 뒤 복창 / 드릴만 한 항목 / 오답·모름 → 서버 passed 면 ✖ · 반말 답은 ~(LLM 이 격식을 어떻게 볼지 미정)
+      과검출 = 서버 passed 인데 하네스 기록에 없는 항목 ✖. 가르쳤나(서버 drilled)는 LLM 문맥 판정이라 불일치를 **세기만** 한다(하네스 식별도 추정이다).
+    반환 (ok, 표 줄, counts{styled:[n,ok], reveal:[n,ok], drill_only:[n,ok], silent:n, teach_mismatch:[ids], extra_passed:[ids]})."""
+    qi = {int(q.get("item_id") or 0): q for q in (quiz_items or [])}
+    by_n = {t.n: t for t in turns}
+    cnt = {"styled": [0, 0], "reveal": [0, 0], "drill_only": [0, 0], "silent": 0, "teach_mismatch": [], "extra_passed": []}
+    lines = ["| # | 항목 | 하네스가 한 것 | 답(말한 표기 → 서버 전사) | 서버 drilled | 서버 passed | 기대 | 판정 |",
+             "|---|---|---|---|---|---|---|---|"]
+    ok_all = True
+    for iid in drilled_order:
+        rec = records.get(iid)
+        if rec is None or rec.superseded_by:
+            continue
+        q = qi.get(iid)
+        srv_pass = bool(q and q.get("passed"))
+        srv_drill = bool(q.get("drilled", True)) if q is not None else False
+        ans_turns = [by_n[n] for rd in rec.rounds for n in rd.answer_turns if n in by_n]
+        styled = [t for t in ans_turns if any(x.startswith("표기:") for x in t.tags)]
+        mark = ""
+        if rec.expected_passed:
+            ok = srv_pass or rec.expectation_ambiguous
+            did = "퀴즈 자발 정답" + (" · 표기 변형 ③" if styled else "") + (" · 앵커 없는 재출제" if rec.expectation_ambiguous else "")
+            exp = "passed~" if rec.expectation_ambiguous else "passed"
+            mark = "~" if (ok and rec.expectation_ambiguous and not srv_pass) else ""
+            if styled:
+                cnt["styled"][0] += 1
+                cnt["styled"][1] += int(bool(ok))
+        elif rec.unjudgeable_correct:
+            ok, did, exp = True, "자발 정답 · 전사 없음(무음 턴)", "—~"
+            mark = "~" if srv_pass else ""
+            cnt["silent"] += 1
+        elif any(rd.revealed for rd in rec.rounds):
+            ok, did, exp = not srv_pass, "비버 공개 뒤 복창 ④", "—"
+            cnt["reveal"][0] += 1
+            cnt["reveal"][1] += int(ok)
+        elif not rec.rounds:
+            ok, did, exp = not srv_pass, "드릴만(퀴즈 없음) ④", "—"
+            cnt["drill_only"][0] += 1
+            cnt["drill_only"][1] += int(ok)
+        elif any("casual" in rd.answers for rd in rec.rounds):
+            ok, did, exp = True, "반말 답", "—~"
+            mark = "~" if srv_pass else ""
+        else:
+            ok, did, exp = not srv_pass, "오답/모름 " + "·".join(a for rd in rec.rounds for a in rd.answers), "—"
+        if q is None or not srv_drill:
+            cnt["teach_mismatch"].append(iid)
+        ok_all &= bool(ok)
+        ans = " / ".join(f"{t.text[:30]} → «{(t.stt or '(전사 없음)')[:30]}»" for t in (styled or ans_turns)[:2]) or "—"
+        lines.append(f"| {rec.k} | {rec.item.surface} | {did} | {ans} | {'✔' if srv_drill else '✖'} | {'passed' if srv_pass else '—'} | {exp} | "
+                     f"{mark or ('✔' if ok else '✖')} |")
+    for iid, q in qi.items():
+        if q.get("passed") and (iid not in records or records[iid].superseded_by):
+            ok_all = False
+            cnt["extra_passed"].append(iid)
+            lines.append(f"| – | {q.get('surface')} | (하네스 기록 없음) | — | {'✔' if q.get('drilled', True) else '✖'} | passed | — | ✖ 과검출 |")
+    return ok_all, lines, cnt
 
 
 def quiz_blocks(records: dict) -> dict[int, list[int]]:
@@ -1942,7 +2117,7 @@ def fetch_server_logs(call_started: datetime, call_ended: datetime, service: str
            # ⭐ T17-6 «늦은 전사» 가설 확정용 — 학습자 전사 조각(«👤 user:») 과 턴 flush(«👤 USER[t..]») 를 시간순으로 같이 붙인다.
            #   재개 시드 주입·제어 태그 스크럽 줄도(T17-1 벙어리 턴 규칙).
            'AND (textPayload:"표현학습" OR textPayload:"재접지" OR textPayload:"compress" OR textPayload:"arm" '
-           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음" OR textPayload:"cur open_call" OR textPayload:"이어하기")')
+           'OR textPayload:"👤" OR textPayload:"재개 시드" OR textPayload:"제어 태그" OR textPayload:"압축 감지" OR textPayload:"재연결" OR textPayload:"무음" OR textPayload:"cur open_call" OR textPayload:"이어하기" OR textPayload:"판정")')
     try:
         out = subprocess.run(["gcloud", "logging", "read", flt, "--project", "bt-dev-web-01", "--limit", "1000",
                               "--format", "value(timestamp,textPayload)", "--order", "asc"],
@@ -2018,6 +2193,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
 
     # ── 판정 정확도 ─────────────────────────────────────────────── #
     L.append("## 1. 판정 정확도 — 기대(하네스 ground truth) ↔ DB")
+    _sec1_i = len(L)
     L.append("")
     L.append("| # | 항목 | 정책 | 식별 | 기대 drilled | DB drilled | 기대 passed | DB passed | result.passed | 판정 |")
     L.append("|---|---|---|---|---|---|---|---|---|---|")
@@ -2061,12 +2237,39 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"| – | {items[iid].surface} | – | (하네스 미드릴) | ✖ | ✔ | — | {'passed' if row.get('quiz_passed_at') else '—'} | "
                  f"{res_by_id.get(iid, {}).get('passed')} | ✖ 과검출 |")
     sc.judge_ok = judge_ok
+    if JUDGE_MODE == "llm" and sess.course != "freetalk":
+        # ⭐ 4차: 판정은 서버 LLM 이 한다 — 하네스 자체 매칭(표면형·템플릿) 기대를 버리고 서버 결과를 정본으로 ①~④ 만 본다
+        del L[_sec1_i:]
+        L[-1] = "## 1. 판정 — 서버 LLM 판정 결과(cur_call.items) ↔ 하네스가 한 것 (기대 ①~④)"
+        if ANSWER_STYLE:
+            L.append(f"- 학습자 정답 표기: **{ANSWER_STYLE}** (말한 표기와 서버 전사를 «답» 열에 둘 다 적는다)")
+        L.append("")
+        ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns)
+        L += tbl
+        sc.judge_ok = ok_llm
+        sc.cur["llm_judge"] = cnt
+        unanch = [r for r in sess.records.values() if not r.superseded_by and any(not rd.anchored for rd in r.rounds)]
+        rd_ = sc.cur.get("redrill") or {}
+        sc.redrill_ok = not unanch and not rd_.get("n")
+        L.append("")
+        L.append(f"- ① 가르친 항목 재드릴: 앵커 없는 재출제/되감기 {len(unanch)}건"
+                 + (" " + ", ".join(f"「{r.item.surface}」" for r in unanch) if unanch else "")
+                 + f" · 통과 항목 재드릴 {rd_.get('n', 0)} → {'✔' if sc.redrill_ok else '✖'}")
+        L.append("- ② 번호 순 출제: §2 «퀴즈순서»")
+        L.append(f"- ③ 표기 변형 정답 → 통과: {cnt['styled'][1]}/{cnt['styled'][0]}" + ("" if ANSWER_STYLE else " (--answer-style 없음)"))
+        L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
+        L.append(f"- 참고: 무음 턴 정답 {cnt['silent']} · 서버가 «가르침» 으로 안 친 하네스 드릴 항목 {len(cnt['teach_mismatch'])} {cnt['teach_mismatch'][:10]} · 과검출 {cnt['extra_passed']}")
+        jl = [ln for ln in (server_logs or []) if "판정" in ln]
+        if server_logs is not None:
+            L.append(f"- 서버 판정 로그 {len(jl)}줄" + (":" if jl else " (gcloud 창에 없음)"))
+            L += [f"  - `{ln[:220]}`" for ln in jl[:30]]
     L.append("")
-    unm = [r for r in sess.records.values() if not r.item.server_matchable]
+    unm = [] if JUDGE_MODE == "llm" else [r for r in sess.records.values() if not r.item.server_matchable]
     if unm:
         L.append("- ⚠ 서버 미인식 " + str(len(unm)) + "건 — 표면형 매처(quiz_judge.mentions)도 못 알아보고 예문도 없다: "
                  + ", ".join(f"「{r.item.surface}」←「{r.item.answer}」" for r in unm) + " → 서버는 이 항목을 drilled/passed 로 찍을 수 없다(커리큘럼 예문 또는 매처 수정 재료)")
-    L.append("- 기대 drilled = 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔다(결정 6 «모국어 설명만으론 안 됨»). "
+    if JUDGE_MODE != "llm":
+        L.append("- 기대 drilled = 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔다(결정 6 «모국어 설명만으론 안 됨»). "
              "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답) · 판정 창은 퀴즈를 여는 비버 턴 **포함**(그 턴에서 공개하면 복창 → failed 기대) "
              "· ④ 그 답 턴에 input_transcript 가 온 것만(전사 없는 턴은 서버에 «무음 턴» — 학습자 턴 아님). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
     L.append("")
@@ -2120,8 +2323,15 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             for c_t in cue_match["cues_without_anchor"]:
                 L.append(f"  - ⛔ 큐 {datetime.fromtimestamp(c_t, timezone.utc).strftime('%H:%M:%S')}Z 뒤 {QUIZ_CUE_MATCH_WINDOW_S:.0f}s 안에 비버가 퀴즈를 열지 않았다")
     num_of = {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(sc.cur.get("quiz_items") or [])}
-    sc.order_ok, order_lines = quiz_order_check(quiz_blocks(sess.records), num_of)
+    _blocks = quiz_blocks(sess.records)
+    sc.order_ok, order_lines = quiz_order_check(_blocks, num_of)
     L += order_lines
+    for b, iids in _blocks.items():
+        pend = sess.anchor_pending[b - 1] if 0 < b <= len(sess.anchor_pending) else []
+        extra = [i for i in iids if i not in pend]
+        missing = [i for i in pend[:QUIZ_GROUP] if i not in iids]
+        if pend and (extra or missing):
+            L.append(f"  - 블록 {b} 참고: 미출제였던 {[num_of.get(i, '?') for i in pend]} 중 안 낸 것 {[num_of.get(i, '?') for i in missing]} · 블록 밖 항목 {[num_of.get(i, '?') for i in extra]}")
     quizzed = [sess.records[i] for i in sess.drilled_order if sess.records[i].quizzed]
     L.append(f"- 퀴즈에 오른 항목 {len(quizzed)}/{len(sess.drilled_order)}: " +
              ", ".join(f"{r.item.surface}(회차{len(r.rounds)}{'' if all(x.anchored for x in r.rounds) else '·앵커없음' + str(sum(1 for x in r.rounds if not x.anchored))})" for r in quizzed))
@@ -2243,9 +2453,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"- (f) 종료 저장: ja cur_member_item(이 통화) {ja_rows}행 · ko 진도 무변화 {'✔' if ko_same else '✖'} (rows {ko0.get('rows')}→{ko1.get('rows')} · passed {ko0.get('passed')}→{ko1.get('passed')})")
         L.append(f"- (g) 거짓 칭찬 {sum(len(r.beaver_said_correct_after_wrong) for r in recs)}건")
         L.append("")
-    passed_all = sc.judge_ok and sc.period_ok and sc.order_ok and sc.praise_ok
+    passed_all = sc.judge_ok and sc.period_ok and sc.order_ok and sc.praise_ok and sc.redrill_ok
     L.insert(2, f"**결과: {'✔ 전부 기대와 일치' if passed_all else '✖ 불일치'}** — 판정 {'✔' if sc.judge_ok else '✖'} · "
                 f"퀴즈주기 {'✔' if sc.period_ok else '✖'} · 퀴즈순서 {'✔' if sc.order_ok else '✖'} · 거짓칭찬 {'✔' if sc.praise_ok else '✖'} · "
+                f"{('재드릴 ' + ('✔' if sc.redrill_ok else '✖') + ' · 판정기 llm' + (' · 표기 ' + ANSWER_STYLE if ANSWER_STYLE else '') + ' · ') if JUDGE_MODE == 'llm' else '판정기 string · '}"
                 f"선질문 위반 {len(pre)} · 자발 산출 {sess.spontaneous}")
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stamp}_{LANGUAGE + '_' if LANGUAGE != 'ko' else ''}call{cid or 'none'}.md"
@@ -2904,7 +3115,7 @@ def _call_summary(sess: Session, sc: Score) -> str:
     if sess.course == "freetalk":
         return f"call {sess.call_id} 프리토킹 · locked={sess.locked} · 종료 {sess.end_reason}"
     rd = sc.cur.get("redrill") or {}
-    return (f"call {sess.call_id} · 드릴 {len(sess.drilled_order)} · 판정 {'✔' if sc.judge_ok else '✖'} · 퀴즈주기 {'✔' if sc.period_ok else '✖'} · 퀴즈순서 {'✔' if sc.order_ok else '✖'} · "
+    return (f"call {sess.call_id} · 드릴 {len(sess.drilled_order)} · 판정 {'✔' if sc.judge_ok else '✖'} · 퀴즈주기 {'✔' if sc.period_ok else '✖'} · 퀴즈순서 {'✔' if sc.order_ok else '✖'} · 재드릴 {'✔' if sc.redrill_ok else '✖'} · "
             f"거짓칭찬 {'✔' if sc.praise_ok else '✖'} · 재드릴 {rd.get('n', '?')}/{rd.get('total_passed', '?')} · 원가 ${sc.call_row.get('cost_usd')} · {sc.call_row.get('usage_engine')}")
 
 
@@ -3261,6 +3472,10 @@ def main() -> None:
     ap.add_argument("--reset-each", action="store_true", help="--runs 매 회 앞에 cur-reset(옛 하네스 동작)")
     ap.add_argument("--duration", type=int, default=5, help="duration_min (서버가 3~15 로 클램프) · 도달 시 하네스가 소켓을 닫는다(client_cut)")
     ap.add_argument("--no-llm", action="store_true", help="항목 매칭 LLM 폴백 끄기")
+    ap.add_argument("--answer-style", choices=("hangul", "roman", "kana"), default=None,
+                    help="4차 ③: 정답을 다른 표기로 말한다 — ko: roman(로마자·영어 음성) · ja: kana(가나)·roman(헵번·영어 음성)·hangul(한글 음차·한국어 음성)")
+    ap.add_argument("--judge", choices=("llm", "string"), default="llm",
+                    help="llm(기본·4차): 서버 LLM 판정 결과를 정본으로 ①재드릴 ②번호 순 ③표기 변형 통과 ④공개 뒤 복창 비통과 · string: 옛 문자열 판정기 기대")
     ap.add_argument("--logs", action="store_true", help="gcloud logging read 로 서버 로그 첨부")
     ap.add_argument("--service", default="beavertalk-app-harness-api")
     ap.add_argument("--out-dir", default=str(ROOT / "docs" / "e2e"))
@@ -3272,8 +3487,20 @@ def main() -> None:
     if args.tee:
         sys.stdout = Tee(Path(args.tee))
 
-    global LANGUAGE
+    global LANGUAGE, ANSWER_STYLE, JUDGE_MODE
     LANGUAGE = args.language
+    JUDGE_MODE = args.judge
+    ANSWER_STYLE = args.answer_style or ""
+    if ANSWER_STYLE == "kana" and LANGUAGE != "ja":
+        sys.exit("⛔ --answer-style kana 는 --language ja 전용이다(ko 는 roman 만 — hangul 은 ko 기본 표기)")
+    if ANSWER_STYLE == "hangul" and LANGUAGE == "ko":
+        print("⚠ --answer-style hangul 은 ko 의 기본 표기 — 변형 없음")
+        ANSWER_STYLE = ""
+    if ANSWER_STYLE and LANGUAGE == "ja":
+        try:
+            import pykakasi  # noqa: F401
+        except ImportError:
+            sys.exit("⛔ ja --answer-style 은 pykakasi 가 필요하다(conda env)")
     if args.lesson is None:
         args.lesson = 1 if LANGUAGE == "ja" else DEFAULT_LESSON_NO
     bootstrap_env(args.env_root)
