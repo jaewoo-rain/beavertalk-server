@@ -520,6 +520,9 @@ async def test_judge_timeouts_are_counted_and_fall_back_to_string_matching(monke
 # --------------------------------------------------------------------------- #
 def test_verdict_instruction_rejects_a_different_word_but_keeps_spelling_variants():
     text = seeds.expression_quiz_verdict_instruction(["6. 고향 — 뜻: hometown"], target="한국어", locale_label="영어(English)")
-    assert "전사가 항목과 **다른 뜻의 낱말**이면(표기 변형이 아니라) 통과가 아니다 — 소리가 비슷해도 다른 낱말이면 failed 다" in text
-    assert "표기·문자 체계가 달라도(가나·한자·로마자·한글 음차)" in text, "표기 변형 통과 줄은 그대로"
-    assert text.index("받아쓰기가 조금 틀려도") < text.index("다른 뜻의 낱말"), "통과 규칙 바로 뒤의 단서"
+    # 7차 ②(2026-09-15, «住みません» ↔ すみません 통과 유지): 기준 = 읽기 — 같은 읽기면 표기 무관 통과, 읽기가 다르면 소리가 비슷해도 failed
+    assert "판단 기준은 글자가 아니라 **읽기(발음)** 다" in text and "같은 읽기의 다른 한자 포함" in text
+    assert "표기·문자 체계가 무엇이든(가나·한자·로마자·한글 음차" in text, "표기 변형 통과는 그대로"
+    assert "**읽기가 다른 낱말**이면 소리가 비슷해도 통과가 아니다 — failed 다(예: «고향» 을 물었는데 «고양이», «こんばんは» 를 물었는데 «こんにちは»)" in text
+    assert "다른 뜻의 낱말" not in text
+    assert text.index("받아쓰기가 조금 틀려도") < text.index("읽기가 다른 낱말"), "통과 규칙 바로 뒤의 단서"
