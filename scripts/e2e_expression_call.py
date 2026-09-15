@@ -9,7 +9,7 @@ DB 판정(quiz_passed_at · call.expression_result)을 기대값과 기계적으
 이 하네스가 그 축을 매 통화 잰다. 계획: docs/20260911_1810_표현학습-E2E-하네스-계획.md
 
 ## 수동 하네스다 (pytest 아님 — smoke 규율)
-**실서비스 DB** 에 붙는다(demo-api 는 app-api 와 같은 Supabase). 회원 92(testfree@gmail.com) 행만 만진다.
+**실서비스 DB** 에 붙는다(demo-api 는 app-api 와 같은 Supabase). 테스트 계정 행만 만진다 — testfree(92·Free·2.5) · testmax(88·Max·3.1) · testpro(91·Pro·2.5) (--email). ⛔ 다른 계정 금지.
 통화 1회 ≈ $0.25 + 3~5분. `duration_min` 은 서버가 **3~15분으로 클램프** 한다(1분 불가).
 
 ## 사용법 (⛔ 반드시 conda env · .env 가 있는 루트를 --env-root 로)
@@ -28,6 +28,18 @@ DB 판정(quiz_passed_at · call.expression_result)을 기대값과 기계적으
     $E2E --runs 1 --course freetalk [--expect-locked]   # 프리토킹(판정 없음 · 상황/표현 등장 · /cur/me 전이) · 잠금이면 COURSE_LOCKED
     $E2E --runs 1 --course auto            # 서버가 정한 코스(call_started.course)로 검증
     $E2E --scenario lesson-cycle           # reset(차시4) → 표현 1통(18) → 표현 2통(12+복습6) → 프리토킹 → /cur/me no=5 · PASS/FAIL 표
+    ## 이어하기 · 끊김 없는 전환 · 언어
+    $E2E --segments 2 --runs 1 --email testmax@gmail.com             # 조각 이어하기(continues_call_id) → *_resume_call<id>.md · Free 는 거절 확인
+    $E2E --segments 2 --seamless --segment-min 2 [--seamless-silent] [--wait-close]   # fragment_end→fragment_saved→silent_resume → *_seamless_call<id>.md
+    $E2E --language ja --reset --runs 1 --email testpro@gmail.com     # 일본어(target_language 전환·끝나면 복구 · 차시 기본 ja=1)
+
+    ## 판정 대조(4차~ LLM 판정)
+    $E2E ... --judge llm                    # 기본: 서버 판정 결과(cur_call.items)·서버 퀴즈 창 로그를 정본으로 ①재드릴 ②번호 순·세트 ③표기 변형 ④공개 뒤 복창
+    $E2E ... --judge string                 # 옛 문자열 판정기 서버용(하네스 자체 매칭 기대)
+    $E2E ... --answer-style kana|roman|hangul    # 정답을 다른 표기로 말한다(ko 는 roman 만) — ⚠ STT 가 표기를 되돌리므로 표기 내성은 리플레이로 본다
+    $E2E ... --offset-expect passed         # 서버 퀴즈 세트 밖 자발 정답도 passed 여야(5차 A-2 이후) · 기본 unjudged
+    표기 내성 리플레이(통화 0): scripts/e2e_replay_transcript.py --language ja|ko --items 6 [--from-json steps.json]
+
     ⛔ 비밀번호는 E2E_PASSWORD env 로만 준다.
 
 한글 콘솔이 깨지면 보고서 파일(docs/e2e/*.md)을 Read 로 본다.
