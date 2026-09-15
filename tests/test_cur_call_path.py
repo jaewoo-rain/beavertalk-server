@@ -265,7 +265,7 @@ async def test_freetalk_opens_after_expression_done_with_lesson_block_and_comple
     assert "**역할극**이다" in si and "**그 턴만 선생님으로 돌아와**" in si and "다음 턴부터는 다시 그 인물로, 전부 한국어다" in si
     assert "**네가 이 사람이다.**" in si and "과제" not in si
     assert all(s in si for s in surfaces) and "[학습자 흥미" not in si and "1~2문장" in si
-    assert h2["session"].sent_text_turns[0].startswith("[통화 시작]") and "«상대» 인물로서 첫 말을 건다" in h2["session"].sent_text_turns[0]
+    assert h2["session"].sent_text_turns[0].startswith("[통화 시작]") and "«상대» 인물로서 한 문장으로 인사하고" in h2["session"].sent_text_turns[0]
     db = session_factory()
     try:
         call = _last_call(db, m)
