@@ -5146,8 +5146,13 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         #   `set_face{emotion:sad}` 가 화면에 그대로 뜬다 — 사장님이 실제로 보셨다.
         #   ⚠ 전사는 조각으로 오므로 한 조각 안에 온전히 들어온 것만 잡힌다. 조각 경계에
         #     걸쳐 쪼개진 것은 못 잡는다 — 그건 아래 저장 경로가 한 번 더 거른다.
+        raw_piece = text
         text = _strip_face_echo(text)
         if not text:
+            # ⭐ P7(2026-09-15, 1611 t9 «라고 해야지!» 중간 시작) 계측: 자막 조각이 서버에서 통째로 버려지는 경로는 여기(표정 낭독만 있던 조각)와
+            #   인사 자막 보류뿐이다. 이 경로는 지금까지 로그 없이 사라졌다 — 버려진 원문을 한 줄 남긴다(1611 t9 는 이 줄이 없었을 조각이다: 첫 로그 조각이 «라고»).
+            if raw_piece.strip():
+                logger.info("normalcall 🦫 자막 조각 폐기(표정 낭독만): turn=%s %r", state.turn_id or "-", raw_piece[:60])
             return turn_started   # 낭독만 있던 조각 — 빈 자막을 보내지 않는다
         # ⭐⭐ **벙어리 인사의 자막은 내보내지 않는다**(2026-09-03 실측, call 1281).
         #
