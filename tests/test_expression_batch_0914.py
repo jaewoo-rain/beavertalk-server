@@ -287,3 +287,19 @@ def test_quiz_set_is_in_item_order_not_covered_order():
     assert st.covered_nums == [2, 1, 3]
     assert st.expr_quiz_set == [1, 2, 3], "다룬 순서가 아니라 번호 순"
     assert "«이거 얼마예요?»" in st.expr_quiz_cue_pending.split("«잘 부탁드립니다»")[0], "큐 문구도 번호 순"
+
+
+# --------------------------------------------------------------------------- #
+# P6 (2026-09-15) — 재개 쪽지 실제 길이·축소 단계 계측
+# --------------------------------------------------------------------------- #
+def test_resume_note_stats_report_the_real_length_and_the_shrink_step():
+    short = dict(drilled=["물"], passed=["물"], failed=[], recent=[("beaver", "물은 water"), ("user", "물")])
+    st = seeds.expression_resume_note_stats("한국어", silent=False, **short)
+    assert st["len"] == len(seeds.seed_expression_resume("한국어", **short)) and st["step"] == 0 and st["recent_n"] == 4 and st["recent_available"] == 2
+    long_mats = dict(drilled=["표현%02d 이것은 긴 표면형" % i for i in range(18)], passed=["표현%02d 이것은 긴 표면형" % i for i in range(12)],
+                     failed=["표현%02d 이것은 긴 표면형" % i for i in range(12, 18)],
+                     recent=[("beaver", "가" * 120), ("user", "나" * 120), ("beaver", "다" * 120), ("user", "라" * 120)])
+    for silent, fn in ((False, seeds.seed_expression_resume), (True, seeds.brief_expression_silent_resume)):
+        s = seeds.expression_resume_note_stats("한국어", silent=silent, **long_mats)
+        assert s["len"] == len(fn("한국어", **long_mats)) <= s["max"] == 900, "계측 길이 = 실제 쪽지 길이"
+        assert s["step"] > 0 and s["lists"] == (18, 12, 6), s

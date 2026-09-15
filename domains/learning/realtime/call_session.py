@@ -103,6 +103,7 @@ from core.persona_prompt import (
 )
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
 from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
+from core.prompts.locked.seeds import expression_resume_note_stats      # P6 재개 쪽지 길이·축소 계측(2026-09-15)
 from core.prompts.locked.seeds import seed_freetalk_lesson_reseed_short  # P5 벙어리 인사 2번째 재시드(차시 프리토킹, 2026-09-15)
 from core.prompts.expression import (
     NUDGE_SEED_1_EXPRESSION,
@@ -2835,6 +2836,13 @@ async def run_call(
             logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
                         len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
                         len(note_mats.get("recent") or []))
+        # ⭐ P6(2026-09-15): 조립된 쪽지의 실제 길이·축소 단계 한 줄(발췌 4→2턴·목록 12→6→3). 계측이라 실패해도 무시(R5).
+        with contextlib.suppress(Exception):
+            _ns = expression_resume_note_stats(target_language, silent=silent, **note_mats)
+            logger.info(
+                "normalcall 표현학습 재개 쪽지: %d자/%d · 축소 %d단계 · 발췌 %d/%d턴 · 목록 상한 %d (드릴·통과·오답 %s)",
+                _ns["len"], _ns["max"], _ns["step"], _ns["recent_n"], _ns["recent_available"], _ns["list_cap"], _ns["lists"],
+            )
     elif resumed:
         # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
         #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.

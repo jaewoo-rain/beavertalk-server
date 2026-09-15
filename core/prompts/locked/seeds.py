@@ -119,6 +119,26 @@ def _expression_resume_note_capped(target_language: str, *, first_action: str, d
     return note
 
 
+_RESUME_NOTE_STAGES = ((4, _RESUME_NOTE_LIST_CAP), (2, _RESUME_NOTE_LIST_CAP), (2, 6), (2, 3), (0, 3))   # _expression_resume_note_capped 와 같은 순서
+
+
+def expression_resume_note_stats(target_language: str = "한국어", *, silent: bool, drilled=None, passed=None, failed=None, recent=None) -> dict:
+    """P6(2026-09-15): 재개 쪽지가 실제로 몇 자였고 몇 단계 줄였나(계측 전용 — 문자열은 seed_expression_resume / brief_expression_silent_resume 가 만든다).
+    반환 {len, max, step(0=안 줄임), recent_n, recent_available, list_cap, lists(드릴·통과·오답 개수)}."""
+    first_action = EXPRESSION_RESUME_FIRST_ACTION_SILENT if silent else EXPRESSION_RESUME_FIRST_ACTION_SEED
+    note, step, recent_n, cap = "", 0, 0, 0
+    for step, (recent_n, cap) in enumerate(_RESUME_NOTE_STAGES):
+        note = _expression_resume_note(target_language, first_action=first_action, drilled=drilled, passed=passed, failed=failed,
+                                       recent=recent, recent_n=recent_n, list_cap=cap)
+        if len(note) <= RESUME_NOTE_MAX_CHARS:
+            break
+    return {
+        "len": len(note), "max": RESUME_NOTE_MAX_CHARS, "step": step, "recent_n": recent_n,
+        "recent_available": len([1 for _r, t in (recent or []) if (t or "").strip()]), "list_cap": cap,
+        "lists": (len(drilled or []), len(passed or []), len(failed or [])),
+    }
+
+
 EXPRESSION_RESUME_FIRST_ACTION_SEED = (
     "지금 바로 이어가라: 학습자의 마지막 말에 짧게 답한 뒤 [오늘의 표현] 목록의 **맨 앞 항목**으로 가라."
 )
