@@ -228,3 +228,49 @@ def test_empty_learner_turns_do_not_count_toward_the_cue_settle_wait():
     assert st.expr_quiz_cue_user_turns == 0, "무음 턴은 정리 대기 카운트 0"
     _user(st, "모르겠어요")
     assert st.expr_quiz_cue_user_turns == 1
+
+
+# --------------------------------------------------------------------------- #
+# P2 (2026-09-15, 1607) — 큐 조건 = 미출제 g개 모이면(covered 총량 기준 폐기) · 종전 3·6·9 동일 · 꼬리 유지
+# --------------------------------------------------------------------------- #
+def _close_quiz_now(st):
+    st.expr_quiz_cue_pending = None
+    st.expr_quiz_awaiting_open = True
+    cs._expression_quiz_open_on_beaver_turn(st)
+    cs._close_expression_quiz(st, why="시험")
+
+
+def test_cue_arms_as_soon_as_three_unquizzed_items_gather_even_if_the_learner_says_two_at_once():
+    st = _state()
+    _beaver(st, '"이거 얼마예요?"')
+    assert st.expr_quiz_cue_pending is None
+    _user(st, "잘 부탁드립니다. 도와주세요.")          # 한 턴에 2개 → 미출제 3개
+    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_seq == 1 and sorted(st.expr_quiz_set) == [1, 2, 3]
+    _close_quiz_now(st)
+    # 퀴즈가 닫힌 뒤 한 번에 4개가 covered 되면 3개로 큐 — 남은 1개는 다음 묶음
+    _user(st, "처음 뵙겠습니다. 네. 감사합니다. 안녕하세요.")
+    assert st.expr_quiz_seq == 2 and sorted(st.expr_quiz_set) == [4, 5, 6]
+
+
+def test_three_six_nine_groups_are_unchanged():
+    st = _state()
+    seqs = []
+    for i, it in enumerate(ITEMS, 1):
+        _beaver(st, '"%s"' % it["obj"])
+        if st.expr_quiz_cue_pending is not None:
+            seqs.append((i, st.expr_quiz_seq, list(st.expr_quiz_set)))
+            _close_quiz_now(st)
+    assert seqs == [(3, 1, [1, 2, 3]), (6, 2, [4, 5, 6]), (9, 3, [7, 8, 9])]
+
+
+def test_tail_cue_is_kept_below_the_group_size():
+    st = _state()
+    st.expr_items = list(ITEMS[:5])
+    st.reground_items = [i["obj"] for i in ITEMS[:5]]
+    for it in ITEMS[:3]:
+        _beaver(st, '"%s"' % it["obj"])
+    _close_quiz_now(st)
+    _beaver(st, '"%s"' % ITEMS[3]["obj"])
+    assert st.expr_quiz_cue_pending is None, "미출제 1개 — 아직"
+    _beaver(st, '"%s"' % ITEMS[4]["obj"])
+    assert st.expr_quiz_cue_pending is not None and sorted(st.expr_quiz_set) == [4, 5], "목록 끝이면 남은 2개로 꼬리 큐"

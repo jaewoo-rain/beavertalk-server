@@ -1407,7 +1407,9 @@ def _expression_quiz_maybe_arm(state: _CallState) -> None:
         return
     g = svc.EXPRESSION_QUIZ_GROUP
     unquizzed = [n for n in state.covered_nums if n not in state.expr_quizzed]
-    if len(state.covered_nums) >= g * (state.expr_quiz_seq + 1) and len(unquizzed) >= g:
+    # ⭐ P2(2026-09-15, 1607 t26 네 표현 한꺼번에): «covered 총량 ≥ g·(seq+1)» 을 버리고 **미출제가 g개 모였으면** 큐. 학습자가 한 턴에 여러 항목을
+    #   말해 covered 가 뛰어도 출제 묶음이 밀리지 않는다. seq 는 출제(arm)마다 +1(종전). 꼬리·오답 재출제는 아래 그대로.
+    if len(unquizzed) >= g:
         _arm_expression_quiz_cue(state, unquizzed[:g])
         return
     all_covered = len(state.covered_nums) >= len(state.expr_items)
