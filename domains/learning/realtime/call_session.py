@@ -1385,9 +1385,32 @@ def _expr_llm_judge_active(state: _CallState) -> bool:
     return bool(state.expr_items and state.expr_llm_judge and ctx.get("client") is not None and _loop_running())
 
 
-def _judge_usage(state: _CallState):
-    """판정 사이드카 토큰 수집기 — 원가 계기판의 sidecars 칸으로 합산된다."""
-    return state.sidecar_usage
+def _judge_usage_done(state: _CallState, u) -> None:
+    """4차 E — 판정 1콜의 토큰(콜마다 따로 모은 수집기)을 원가 계기판 sidecars 칸(state.sidecar_usage)에 흡수하고 계측 칸에 더한다.
+    콜마다 수집기를 따로 쓰는 이유: 판정 태스크가 겹쳐 돌아 전후 차이로는 콜별 토큰을 못 가른다."""
+    try:
+        state.sidecar_usage.merge(u)
+        stats = state.expr_judge_stats
+        stats["in_tokens"] = stats.get("in_tokens", 0) + int(u.in_text or 0)
+        stats["out_tokens"] = stats.get("out_tokens", 0) + int(u.out_text or 0) + int(u.thoughts or 0)
+    except Exception:  # noqa: BLE001 — 계측이 판정을 죽이면 안 된다(R5)
+        pass
+
+
+def _log_expr_judge_summary(state: _CallState, call_id) -> None:
+    """4차 E — 통화(조각) 종료 로그 한 줄: 판정 사이드카 호출 수·지연·토큰. 표현학습이 아니면 아무것도 안 찍는다."""
+    if not state.expr_items:
+        return
+    st = state.expr_judge_stats
+    lat = sorted(st.get("lat_ms") or [])
+    p50 = lat[len(lat) // 2] if lat else 0
+    logger.info(
+        "normalcall 판정 사이드카: call_id=%s %s · 가르침 %d회(건너뜀 %d·실패 %d·폴백 %d) · 정답 %d회(실패 %d) · 지연 p50 %dms 최대 %dms · 토큰 in %d out %d",
+        call_id, "LLM" if state.expr_llm_judge else "꺼짐(문자열)",
+        st.get("taught_calls", 0), st.get("taught_skip", 0), st.get("taught_fail", 0), st.get("taught_fallback", 0),
+        st.get("quiz_calls", 0), st.get("quiz_fail", 0), p50, lat[-1] if lat else 0,
+        st.get("in_tokens", 0), st.get("out_tokens", 0),
+    )
 
 
 def _expr_item_row(state: _CallState, n: int) -> str:
@@ -1467,6 +1490,7 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
     loop = asyncio.get_running_loop()
     t0 = loop.time()
     result = None
+    u = gemini_analysis.LlmUsage()              # 4차 E — 이 콜만의 토큰
     try:
         result = await asyncio.wait_for(
             gemini_analysis.generate_structured(
@@ -1476,7 +1500,7 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
                     target=ctx.get("target_language") or "한국어", locale_label=ctx.get("locale_label") or "학습자의 모국어",
                 ),
                 prompt="[직전 학습자]%sU: %s%s[선생님 이번 턴]%sB: %s" % (chr(10), prev_user or "(없음)", chr(10), chr(10), text),
-                schema=ExpressionTaughtOut, temperature=0.0, thinking_budget=0, usage=_judge_usage(state),
+                schema=ExpressionTaughtOut, temperature=0.0, thinking_budget=0, usage=u,
             ),
             timeout=EXPR_JUDGE_TIMEOUT_S,
         )
@@ -1486,6 +1510,7 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
         logger.warning("normalcall 표현학습 가르침 판정 실패(문자열 폴백) B%d: %r", seg_idx, exc)
         result = None
     state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
+    _judge_usage_done(state, u)
     if result is None:
         state.expr_judge_stats["taught_fail"] += 1
         before = len(state.covered_nums)
@@ -1890,6 +1915,7 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
     lines = [("B%d: " if role == "beaver" else "U%d: ") % i + text for i, role, text in span]
     transcript = chr(10).join(lines)[-EXPR_TRANSCRIPT_MAX_CHARS:]
     result = None
+    u = gemini_analysis.LlmUsage()              # 4차 E — 이 콜만의 토큰
     try:
         result = await asyncio.wait_for(
             gemini_analysis.generate_structured(
@@ -1899,7 +1925,7 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
                     target=ctx.get("target_language") or "한국어", locale_label=ctx.get("locale_label") or "학습자의 모국어",
                 ),
                 prompt=f"[퀴즈 전사]{chr(10)}{transcript}",
-                schema=ExpressionVerdictOut, temperature=0.0, thinking_budget=0, usage=_judge_usage(state),
+                schema=ExpressionVerdictOut, temperature=0.0, thinking_budget=0, usage=u,
             ),
             timeout=EXPR_JUDGE_TIMEOUT_S,
         )
@@ -1909,6 +1935,7 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         logger.warning("normalcall 표현학습 퀴즈 정답 판정 실패 seq=%d final=%s: %r", seq, final, exc)
         result = None
     state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
+    _judge_usage_done(state, u)
     same_quiz = seq == state.expr_quiz_seq
     if result is None:
         state.expr_judge_stats["quiz_fail"] += 1
@@ -3647,6 +3674,8 @@ async def run_call(
         # 방출한다. 로그가 통화후 파이프라인을 막지 않게 예외는 전량 흡수(R5).
         with contextlib.suppress(Exception):
             _log_usage_summary(state, call_id, call_type)
+        with contextlib.suppress(Exception):
+            _log_expr_judge_summary(state, call_id)          # 4차 E — 판정 사이드카 계측 한 줄(표현학습만)
         # ⭐ 클라 계측이 실제로 왔는지 통화당 1줄. **0 이면 앱이 안 보낸 것**이고, 왔는데
         #   숫자가 이상하면 앱 문제다 — 그 둘을 가르는 유일한 줄이다.
         if state.diag_batches or state.diag_events:

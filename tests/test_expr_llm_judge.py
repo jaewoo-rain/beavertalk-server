@@ -309,3 +309,44 @@ def test_remaining_rows_are_capped():
     st = _state(items, lang="ko")
     rows = cs._expr_remaining_rows(st)
     assert len(rows) == cs.EXPR_REMAINING_ROWS_CAP + 1 and rows[0] == "1. 뜻1 = 표현1" and rows[-1] == "외 3개"
+
+
+
+# --------------------------------------------------------------------------- #
+# E — 판정 사이드카 계측: 호출 수·지연·토큰 한 줄 + 원가 sidecars 칸 합산
+# --------------------------------------------------------------------------- #
+class CountingJudge(FakeJudge):
+    async def __call__(self, client, model, *, usage=None, **kw):
+        if usage is not None:
+            usage.calls += 1
+            usage.in_text += 100
+            usage.out_text += 7
+            usage.thoughts += 1
+        return await super().__call__(client, model, **kw)
+
+
+@pytest.mark.asyncio
+async def test_judge_sidecar_summary_line_and_usage_are_accounted(monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    fake = CountingJudge(taught_fn=lambda p, s: [2] if "고마워요" in p else [],
+                         verdict_fn=lambda p, s: {"verdicts": [{"num": 2, "verdict": "passed"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _beaver(st, "오, 좋아!")                                                  # 건너뜀
+    _beaver(st, "친구한테 가볍게 '고마워요' 할 때는 일본어로 뭐라고 할까?")   # 가르침 1
+    await _drain(st)
+    _open_quiz(st, [2])
+    _user(st, "도모")                                                         # 정답 1
+    await _drain(st)
+    cs._log_expr_judge_summary(st, 77)
+    line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
+    assert "call_id=77 LLM · 가르침 1회(건너뜀 1·실패 0·폴백 0) · 정답 1회(실패 0)" in line and "토큰 in 200 out 16" in line, line
+    assert st.sidecar_usage.calls == 2 and st.sidecar_usage.in_text == 200, "원가 계기판 sidecars 칸으로 합산"
+
+
+def test_judge_summary_is_silent_for_non_expression_calls(caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    cs._log_expr_judge_summary(cs._CallState(), 1)
+    assert not [r for r in caplog.records if "판정 사이드카:" in r.getMessage()]
