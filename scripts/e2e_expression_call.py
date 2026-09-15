@@ -2008,6 +2008,27 @@ def parse_quiz_sets(log_lines: list[str] | None) -> list[tuple[Optional[float], 
     return out
 
 
+_SIDECAR_RE = re.compile(
+    r"판정 사이드카: call_id=(\d+)\s+(\S+)\s*·\s*가르침 (\d+)회\(건너뜀 (\d+)·실패 (\d+)·폴백 (\d+)\)\s*·\s*정답 (\d+)회\(실패 (\d+)\)"
+    r"\s*·\s*지연 p50 (\d+)ms 최대 (\d+)ms\s*·\s*토큰 in (\d+) out (\d+)")
+_SIDECAR_TIMEOUT_RE = re.compile(r"타임아웃\(([\d.]+)s\)\s*가르침\s*(\d+)\s*·\s*정답\s*(\d+)")
+
+
+def parse_judge_sidecar(line: str | None) -> Optional[dict]:
+    """«normalcall 판정 사이드카: call_id=N LLM · 가르침 a회(건너뜀·실패·폴백) · 정답 b회(실패) · 지연 p50/최대 · 토큰 in/out[ · 타임아웃(4.5s) 가르침 x·정답 y]»
+    → 필드 dict. ⚠ 줄 끝에 앵커를 두지 않는다 — 6차(a43ff44)에 타임아웃 꼬리가 붙었고 앞으로도 꼬리가 늘 수 있다. 꼬리 없는 옛 줄은 timeout_* = None."""
+    m = _SIDECAR_RE.search(line or "")
+    if not m:
+        return None
+    keys = ("call_id", "mode", "taught", "taught_skip", "taught_fail", "taught_fallback", "quiz", "quiz_fail", "p50_ms", "max_ms", "tok_in", "tok_out")
+    d: dict = {k: (v if k == "mode" else int(v)) for k, v in zip(keys, m.groups())}
+    t = _SIDECAR_TIMEOUT_RE.search(line or "")
+    d["timeout_s"] = float(t.group(1)) if t else None
+    d["timeout_taught"] = int(t.group(2)) if t else None
+    d["timeout_quiz"] = int(t.group(3)) if t else None
+    return d
+
+
 _QUIZ_CLOSE_LOG_RE = re.compile(r"퀴즈 (?:큐 강제 닫힘|닫힘\(LLM 판정(?:·마지막)?\)|닫힘\(서버[^)]*\)): seq=(\d+)")
 
 
@@ -2378,7 +2399,11 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         fb = [ln for ln in (server_logs or []) if "표현학습 퀴즈 판정(서버" in ln]
         if server_logs is not None:
             # 4차(app-api 00160): 통화 종료 1줄 «normalcall 판정 사이드카: 가르침 n(건너뜀·실패·폴백)·정답 m(실패)·지연·토큰» · 옛 «퀴즈 판정(서버)» 줄은 폴백일 때만
-            L.append(f"- **서버 판정 사이드카**: " + (f"`{side[-1].split('판정 사이드카', 1)[-1][:300]}`" if side else "⚠ 줄 없음(로그 창 밖이거나 사이드카 미동작)")
+            _sp = parse_judge_sidecar(side[-1]) if side else None
+            sc.cur["judge_sidecar_parsed"] = _sp
+            _to = ("" if _sp is None else (f" · **타임아웃({_sp['timeout_s']}s) 가르침 {_sp['timeout_taught']}·정답 {_sp['timeout_quiz']}**"
+                                            if _sp["timeout_s"] is not None else " · (타임아웃 꼬리 없음 — 6차 전 서버)"))
+            L.append(f"- **서버 판정 사이드카**: " + (f"`{side[-1].split('판정 사이드카', 1)[-1].strip()}`{_to}" if side else "⚠ 줄 없음(로그 창 밖이거나 사이드카 미동작)")
                      + f" · 폴백 판정 줄 {len(fb)}")
             L.append(f"- 서버 판정 로그 {len(jl)}줄" + (":" if jl else " (gcloud 창에 없음)"))
             L += [f"  - `{ln[:220]}`" for ln in jl[:30]]

@@ -115,3 +115,16 @@ def test_hint_path_only_correct_is_expected_failed_under_5th_b():
     assert ok is True and cnt.get("hint_fail") == 1 and "첫 답 오답" in lines[2]
     qi[-1]["passed"] = True
     assert h.llm_judge_table({4: r}, [4], qi, turns, server_sets=[[4, 5, 6]])[0] is False
+
+
+
+def test_parse_judge_sidecar_with_and_without_6th_timeout_tail():
+    old = "2026-09-15T05:57:56.141119Z	INFO:x:normalcall 판정 사이드카: call_id=1617 LLM · 가르침 20회(건너뜀 0·실패 0·폴백 0) · 정답 7회(실패 0) · 지연 p50 1105ms 최대 1509ms · 토큰 in 17326 out 566"
+    d = h.parse_judge_sidecar(old)
+    assert d["call_id"] == 1617 and d["taught"] == 20 and d["quiz"] == 7 and d["max_ms"] == 1509 and d["tok_out"] == 566
+    assert d["timeout_s"] is None and d["timeout_taught"] is None
+    new = old.replace("call_id=1617", "call_id=1630") + " · 타임아웃(4.5s) 가르침 2·정답 1"
+    d2 = h.parse_judge_sidecar(new)
+    assert d2["call_id"] == 1630 and d2["timeout_s"] == 4.5 and d2["timeout_taught"] == 2 and d2["timeout_quiz"] == 1
+    assert h.parse_judge_sidecar(new + " · 새꼬리 3")["timeout_quiz"] == 1          # 꼬리가 더 붙어도 읽는다
+    assert h.parse_judge_sidecar("무관한 줄") is None
