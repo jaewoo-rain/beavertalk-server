@@ -1373,7 +1373,7 @@ EXPR_QUIZ_SETTLE_MAX_USER_TURNS = 3
 EXPR_QUIZ_OPEN_MAX_USER_TURNS = 6
 # ⭐ 4차 A·B(2026-09-15) — LLM 판정 사이드카 상한. 한 콜 3초(넘으면 그 턴은 문자열 폴백) · 통화당 가르침 60·정답 40(넘으면 문자열) ·
 #   짧은 리액션(공백 뺀 20자 미만이고 남은 항목의 표면형·뜻 후보가 전혀 없는 턴)은 호출하지 않는다(가르침 0 — 폴백 아님, bt-back 결정).
-EXPR_JUDGE_TIMEOUT_S = 4.5      # 6차 B(2026-09-15, 1618 3초 타임아웃 6회·최대 3003ms): 3.0 → 4.5 — 논블로킹이라 통화 영향 0, 타임아웃 턴은 그대로 문자열 폴백
+EXPR_JUDGE_TIMEOUT_S = 6.0      # 6차 B(1618 3초 타임아웃 6회): 3.0 → 4.5 · 7차(1621 2.5 타임아웃 가르침 3회·최대 4506ms): → 6.0 — 논블로킹이라 통화 영향 0, 타임아웃 턴은 그대로 문자열 폴백
 EXPR_TAUGHT_MAX_PER_CALL = 60
 EXPR_QUIZ_VERDICT_MAX_PER_CALL = 40
 EXPR_TAUGHT_SKIP_CHARS = 20
