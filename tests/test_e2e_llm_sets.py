@@ -104,7 +104,7 @@ def test_parse_quiz_windows_open_close_forced_and_open_ended():
 
 def test_hint_path_only_correct_is_expected_failed_under_5th_b():
     T = h.Turn
-    turns = [T(0, "learner", 1.0, "알겠어요", stt="알겠어요?", kind="distractor", item_id=4),
+    turns = [T(0, "learner", 1.0, "맞아요", stt="맞아요.", kind="distractor", item_id=4),     # 내용어 오답(멈춤형 «알겠어요» 는 ~ — 6차 결정)
              T(1, "learner", 2.0, "さようなら", stt="さようなら", kind="correct", item_id=4)]
     r = _rec(4, "さようなら", 1)
     r.rounds.append(h.QuizRound(n=1, asked_at=1.0, block=2, spontaneous_correct=True, heard=True, hint_path=True,

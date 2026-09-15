@@ -119,7 +119,11 @@ FIXED: dict[int, tuple[str, str, str, tuple[str, ...]]] = {
     11133: ("잘 못 들었어요", "I didn't catch that.", "잘 못 들었어", ("didn't catch", "did not catch", "couldn't hear", "didn't hear", "can't hear", "cannot hear", "catch what")),
 }
 # 드릴 오답 미끼 — **제외된 28개** 의 표면형. 판정기 후보 목록 밖이라 다른 항목이 통과로 찍힐 길이 없다.
-DISTRACTORS = ["좋아요", "맞아요", "알겠어요", "물 주세요", "잠시만요", "또 봐요", "어서 오세요", "안녕히 계세요"]
+DISTRACTORS = ["좋아요", "맞아요", "배고파요", "물 주세요", "비싸요", "또 봐요", "어서 오세요", "안녕히 계세요"]
+# ⚠ 6차 재검(1621·1622): «알겠어요»·«잠시만요» 는 판정기가 «멈춤»(pending)으로 볼 수 있다 — 오답 방해어로 쓰면 힌트 경로 기대가 흔들려 뺐다.
+# ja 통화에 한국어 방해어를 말하면 ja STT 가 잡음으로 적는다(«물 주세요»→«お 譲り せよ») — ja 는 차시 밖 일본어 내용어를 쓴다.
+DISTRACTORS_JA = ["いただきます", "おやすみなさい", "おいしいです", "たかいです", "ねこです"]
+STALL_WORDS = {"알겠어요", "잠시만요", "네", "わかりました", "ちょっと待って", "ちょっとまって"}
 # ⚠ 고마워요·미안해요는 뺐다 — 뜻이 18개 안의 감사합니다·죄송합니다와 겹쳐 비버의 교정문("that means thanks")이 매칭을 흔든다.
 IDK_EN = "I don't know."
 
@@ -139,6 +143,7 @@ POLICY_NAMES = {
 QUIZ_RE = re.compile(
     r"\b(quiz|pop quiz|review|recap|let'?s see if you (actually |really )?(remember|learned)|see if you (actually |really )?(remember|learned)|"
     r"what you('ve| have)? (actually |really )?learned|"
+    r"see what you (actually |really )?(remember|know)|"
     r"remember what we (learned|practiced|covered)|test (you|time|what)|(quick|little|short|small|mini) (test|check)|a test|let'?s test|time to (test|check|review)|"
     r"check (what|if) you (learned|remember)|퀴즈|복습)\b", re.I)
 NEW_ITEM_RE = re.compile(
@@ -312,6 +317,17 @@ def styled_answer(text: str, style: str, language: Optional[str] = None) -> Opti
 def _tts_cache_name(text: str, lang: str) -> str:
     """TTS 캐시 파일 이름 — ⚠ 옛 이름은 [0-9A-Za-z가-힣] 밖 글자를 전부 _ 로 바꿔 **가나·한자 답이 같은 파일로 겹쳤다**(길이만 같으면 다른 문장 음성이 재생). 해시를 붙인다."""
     return re.sub(r"[^0-9A-Za-z가-힣]", "_", f"{lang}_{text}")[:60] + "_" + hashlib.md5(f"{lang}\n{text}".encode("utf-8")).hexdigest()[:12] + ".pcm"
+
+
+def looks_cut_off(text: str) -> bool:
+    """비버 말이 끊긴 조각/빈 턴인가 — 빈 턴, 또는 4어절 이하 · 문장부호로 안 끝남 · 인용 없음(«Hahaha! That's» · «Hahaha! You» — 1621 2.5 에서 4회).
+    ⚠ 이런 턴에 «Okay.» 로 답하면 학습자 턴이 늘어 서버 퀴즈 창이 6턴 상한으로 강제 닫힌다(1621 seq2·seq4). 사람은 말 끊김엔 기다린다."""
+    t = (text or "").strip()
+    if not t:
+        return True
+    if quoted_segments(t):
+        return False
+    return len(t.split()) <= 4 and t[-1] not in ".!?。！？…\"”」'"
 
 
 def _norm_repeat(text: str) -> str:
@@ -955,7 +971,7 @@ class Session:
         return t
 
     def next_distractor(self) -> str:
-        pool = self.distractor_pool or DISTRACTORS
+        pool = self.distractor_pool or (DISTRACTORS_JA if LANGUAGE == "ja" else DISTRACTORS)
         d = pool[self.distractor_i % len(pool)]
         self.distractor_i += 1
         return d
@@ -1513,6 +1529,8 @@ class Session:
             # 아직 항목을 못 잡았다 — 비버가 물었으면 모른다고 답해 공개를 유도한다(공개로 식별된다). 안 물었어도 침묵하지 않는다(1438).
             if QUESTION_RE.search(text):
                 return IDK_EN, "en", "idk"
+            if looks_cut_off(text):
+                return None, "", "wait"          # 말 끊김 — 기다린다(워치독이 6s 뒤 대신 말한다)
             return "Okay.", "en", "ack"
         p = rec.policy
         surface = rec.item.answer        # ⚠ 이름은 surface 지만 «말할 답» 이다 — 문법 항목은 예문(패턴 표기는 말할 수 없다)
@@ -1529,6 +1547,8 @@ class Session:
             return pr
         if not asked and not mentioned:
             # 묻지 않은 턴(앵커 선언·인사·감탄) — 학습자처럼 짧게 수긍만 한다
+            if looks_cut_off(text):
+                return None, "", "wait"          # 말 끊김 — 기다린다(워치독이 6s 뒤 대신 말한다)
             return "Okay.", "en", "ack"
         # 드릴 모드인데 이 항목에 «앵커 없는 회차» 가 열려 있으면(끝낸 항목 재질문) 퀴즈 정책으로 답한다
         in_requiz = self.mode == "drill" and bool(rec.rounds) and not rec.rounds[-1].anchored \
@@ -2102,6 +2122,12 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
             else:
                 ok, did, exp = True, "퀴즈 자발 정답 · 서버 퀴즈 세트 밖(비버 이탈)", "—(세트 밖)"
                 mark = "~" if srv_pass else ""
+        elif rec.expected_passed and all(rd.hint_path for rd in rec.rounds if rd.spontaneous_correct and rd.heard) and any(
+                (by_n[n].text or "").strip().rstrip("?.!") in STALL_WORDS
+                for rd in rec.rounds for n in rd.answer_turns if n in by_n and by_n[n].kind in ("distractor", "casual")):
+            # 첫 답이 «알겠어요/잠시만요» 류 — 판정기가 멈춤(pending)으로 볼 수도, 답(failed)으로 볼 수도 있다(1618 failed · 1621 pending) → 어느 쪽이든 ~
+            ok, did, exp = True, "멈춤형 첫 답 → 힌트 뒤 정답", "passed~/failed~"
+            mark = "~"
         elif rec.expected_passed and all(rd.hint_path for rd in rec.rounds if rd.spontaneous_correct and rd.heard):
             # 5차 B(968ddb1·74d19db): 질문 직후 발화는 틀려도 답 → 첫 답 오답이면 failed · 다시 물어 맞혀도 되돌리지 않는다(1618 さようなら)
             ok, did, exp = not srv_pass, "첫 답 오답 → 힌트 뒤 정답(5차 B)", "—(첫 답 오답)"
@@ -2380,7 +2406,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         _wins = parse_quiz_windows(server_logs) if server_logs is not None else []
         _off = (sess.turns[0].wall - sess.turns[0].t) if sess.turns else 0.0
         # 앵커 없는 회차라도 그 질문 시각이 서버 퀴즈 창 안이면 퀴즈 질문이다(하네스가 여는 문구를 못 잡은 것 — 1620)
-        unanch = [r for r in sess.records.values() if not r.superseded_by and any(
+        unanch = [r for r in sess.records.values() if not r.superseded_by
+                  and any(a in ("correct", "parrot") for a in r.drill_answers) and any(
             (not rd.anchored) and not (_wins and in_quiz_window(rd.asked_at + _off, _wins) is not None) for rd in r.rounds)]
         rd_ = sc.cur.get("redrill") or {}
         sc.redrill_ok = not unanch and not rd_.get("n")
@@ -2441,15 +2468,21 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     else:
         cue_by_turn = {tn: (c_t, d) for c_t, tn, d in cue_match["pairs"]} if cue_match else {}
         srv_cue_mode = JUDGE_MODE == "llm" and bool(cue_match and cue_match.get("cues"))
+        srv_wins = parse_quiz_windows(server_logs) if server_logs is not None else []
+
+        def _in_srv_window(tn: int) -> bool:
+            return bool(srv_wins) and 0 <= tn < len(sess.turns) and in_quiz_window(sess.turns[tn].wall, srv_wins, slack=2.0) is not None
         for a_i, (tn, cnt) in enumerate(sess.anchors):
             pend = sess.anchor_pending[a_i] if a_i < len(sess.anchor_pending) else []
             # 4차: «미출제 3개» 는 서버가 LLM 가르침 판정으로 센다 — 하네스 식별(1616 #6 미식별)로 세면 어긋난다. 큐 로그가 있으면 «그 앵커가 큐 뒤에 났나» 로 본다
-            ok = (tn in cue_by_turn) if srv_cue_mode else len(pend) >= QUIZ_GROUP
+            ok = (tn in cue_by_turn or _in_srv_window(tn)) if srv_cue_mode else len(pend) >= QUIZ_GROUP
             sc.period_ok &= ok
             if server_logs is None or not (cue_match and cue_match["cues"]):
                 cue_s = ""          # 로그를 안 붙였거나 큐 줄이 0(T16 전) — 열을 비운다(아래 요약 줄이 이유를 말한다)
             elif tn in cue_by_turn:
                 cue_s = f" · 큐→앵커 {cue_by_turn[tn][1]:.1f}s"
+            elif srv_cue_mode and _in_srv_window(tn):
+                cue_s = " · (서버 퀴즈 창 안 — 이어가기 문구, 새 퀴즈 아님)"
             else:
                 cue_s = " · ⛔큐 없이 난 앵커"
             late = (" (서버 큐 기준 — 하네스 미출제는 참고)" if srv_cue_mode else
