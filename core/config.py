@@ -159,6 +159,9 @@ class Settings(BaseSettings):
     LIVE_MODEL_VIDEO_VERTEX: str = ""  # ⛔ 3.1 은 Vertex 에 없다 — 비워 둔다(실측 1008)
 
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
+    # ⭐ 표현학습 판정의 주인(2026-09-15 4차, 사장님): «가르쳤나»(비버 턴마다)·«맞혔나»(퀴즈 창 학습자 턴마다)를 JUDGE_MODEL 사이드카가 의미로 판정한다.
+    #   False 면 종전 문자열 대조(quiz_judge) 경로만 — 시험 기본값(tests/conftest.py)이자 비상 스위치. 사이드카 실패 턴은 켜져 있어도 문자열로 폴백한다(R5).
+    EXPR_LLM_JUDGE: bool = True
 
     # Live 컨텍스트 압축(build_live_config). trigger 에 닿으면 target 만 남기고 오래된
     # 대화부터 버린다. 세션 수명(압축 無면 오디오 15분/연결 ~10분) 대비로 넣은 값이지만,

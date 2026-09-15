@@ -45,3 +45,14 @@ def _fast_playback_done_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         call_session, "PLAYBACK_DONE_WAIT_S", _TEST_PLAYBACK_DONE_WAIT_S, raising=False
     )
+
+
+@pytest.fixture(autouse=True)
+def _expr_llm_judge_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """표현학습 LLM 판정(2026-09-15 4차)은 시험에서 **기본 꺼짐** — 기존 시험은 문자열 대조 경로(동기 판정)를 검증한다.
+    LLM 판정 시험(tests/test_expr_llm_judge.py)은 state.expr_llm_judge 를 직접 켜고 가짜 generate_structured 를 쓴다."""
+    try:
+        from core.config import settings
+    except Exception:  # noqa: BLE001
+        return
+    monkeypatch.setattr(settings, "EXPR_LLM_JUDGE", False, raising=False)
