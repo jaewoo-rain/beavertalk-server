@@ -509,3 +509,14 @@ async def test_judge_timeouts_are_counted_and_fall_back_to_string_matching(monke
     line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
     assert line.endswith("· 타임아웃(0.1s) 가르침 1·정답 1"), line
     fake.gate.set()
+
+
+
+# --------------------------------------------------------------------------- #
+# 6차 C (2026-09-15, 1620 #6 «고향» → STT «고양이» → passed) — 다른 뜻의 낱말은 통과 아님(표기 변형 통과는 유지)
+# --------------------------------------------------------------------------- #
+def test_verdict_instruction_rejects_a_different_word_but_keeps_spelling_variants():
+    text = seeds.expression_quiz_verdict_instruction(["6. 고향 — 뜻: hometown"], target="한국어", locale_label="영어(English)")
+    assert "전사가 항목과 **다른 뜻의 낱말**이면(표기 변형이 아니라) 통과가 아니다 — 소리가 비슷해도 다른 낱말이면 failed 다" in text
+    assert "표기·문자 체계가 달라도(가나·한자·로마자·한글 음차)" in text, "표기 변형 통과 줄은 그대로"
+    assert text.index("받아쓰기가 조금 틀려도") < text.index("다른 뜻의 낱말"), "통과 규칙 바로 뒤의 단서"
