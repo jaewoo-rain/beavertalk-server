@@ -382,3 +382,15 @@ async def test_final_judge_log_is_not_marked_over_when_tasks_finish_within_budge
     line2 = [r.getMessage() for r in caplog.records if "마지막 판정:" in r.getMessage()][-1]
     assert "⚠초과" in line2, "정말 예산을 넘기면 여전히 찍힌다"
     t2.cancel()
+
+
+
+# --------------------------------------------------------------------------- #
+# 5차 A-1 (2026-09-15, 1615·1616) — 큐 구속력: 이 N개만, 적힌 순서대로
+# --------------------------------------------------------------------------- #
+def test_quiz_cue_binds_the_beaver_to_the_set_in_order():
+    st = _state()
+    st.covered_nums = [1, 2, 3]
+    cue = cs._expression_quiz_cue(st, [1, 2, 3])
+    assert "이 3개만, 적힌 순서대로 물어라 — 다른 표현은 지금 묻지 마라(3개를 다 물은 뒤에 다음 새 표현으로 넘어간다)." in cue
+    assert "3개가 끝나면 다음 새 표현으로 넘어가라" not in cue
