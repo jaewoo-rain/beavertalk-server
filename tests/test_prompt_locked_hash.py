@@ -130,7 +130,7 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "reground.build_expression_reground_brief_remaining": ("6f100c295c08edfa", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)", remaining=["3. person = 사람"])),
     "seeds.expression_quiz_cue": ("beacb708da5b7955", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어")),
     "seeds.expression_taught_judge_instruction": ("7025709c4196d049", lambda: seeds.expression_taught_judge_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 A
-    "seeds.expression_quiz_verdict_instruction": ("92aad440f18db8a8", lambda: seeds.expression_quiz_verdict_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 B
+    "seeds.expression_quiz_verdict_instruction": ("dc5417c8d6bd1a25", lambda: seeds.expression_quiz_verdict_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 B
     "seeds.expression_quiz_fallback_instruction": ("ed351fe6f23314f9", lambda: seeds.expression_quiz_fallback_instruction(["1. 물 — 뜻: water"], target="한국어")),
     "reground.build_reground_reminder": ("33c3ac17e133a74b", lambda: reground.build_reground_reminder("선생님", "다정")),
     "reground.build_continue_reminder": ("383141a13f80c1b7", lambda: reground.build_continue_reminder("선생님", "다정")),
