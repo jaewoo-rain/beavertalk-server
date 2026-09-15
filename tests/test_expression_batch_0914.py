@@ -274,3 +274,16 @@ def test_tail_cue_is_kept_below_the_group_size():
     assert st.expr_quiz_cue_pending is None, "미출제 1개 — 아직"
     _beaver(st, '"%s"' % ITEMS[4]["obj"])
     assert st.expr_quiz_cue_pending is not None and sorted(st.expr_quiz_set) == [4, 5], "목록 끝이면 남은 2개로 꼬리 큐"
+
+
+# --------------------------------------------------------------------------- #
+# P3 (2026-09-15, 1611 set=[2,1,3]) — 출제 묶음은 항목 번호 오름차순
+# --------------------------------------------------------------------------- #
+def test_quiz_set_is_in_item_order_not_covered_order():
+    st = _state()
+    _beaver(st, '"잘 부탁드립니다"')      # 2
+    _beaver(st, '"이거 얼마예요?"')        # 1
+    _beaver(st, '"도와주세요"')            # 3
+    assert st.covered_nums == [2, 1, 3]
+    assert st.expr_quiz_set == [1, 2, 3], "다룬 순서가 아니라 번호 순"
+    assert "«이거 얼마예요?»" in st.expr_quiz_cue_pending.split("«잘 부탁드립니다»")[0], "큐 문구도 번호 순"
