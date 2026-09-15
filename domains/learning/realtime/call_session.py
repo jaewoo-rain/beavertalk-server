@@ -2030,8 +2030,9 @@ async def _final_llm_judge(state: _CallState, loop, t0: float) -> bool:
     over = False
     pending = {t for t in state.expr_tasks if not t.done()}
     if pending:
-        _done, not_done = await asyncio.wait(pending, timeout=budget / 2)
-        over = bool(not_done)
+        # ⚠ 5차 C(2026-09-15, 1617 «1052ms (상한 2000ms — ⚠초과)»): 절반 대기에서 안 끝난 태스크는 **초과가 아니다** — 아래 마지막 대기가 남은 예산으로 기다린다.
+        #   초과는 예산을 다 쓰고도 안 끝났거나(아래 not_done) 창 판정이 시간 안에 못 왔을 때만.
+        await asyncio.wait(pending, timeout=budget / 2)
     if state.expr_quiz_open:
         span = _expression_quiz_span(state, include_tail=True)
         quiz_set = list(state.expr_quiz_set)

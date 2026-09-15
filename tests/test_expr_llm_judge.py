@@ -350,3 +350,35 @@ def test_judge_summary_is_silent_for_non_expression_calls(caplog):
     caplog.set_level(logging.INFO, logger=cs.logger.name)
     cs._log_expr_judge_summary(cs._CallState(), 1)
     assert not [r for r in caplog.records if "판정 사이드카:" in r.getMessage()]
+
+
+
+# --------------------------------------------------------------------------- #
+# 5차 C (2026-09-15, 1617) — 상한 안에 끝난 마지막 판정을 «⚠초과» 로 찍지 않는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_final_judge_log_is_not_marked_over_when_tasks_finish_within_budget(monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    monkeypatch.setattr(cs, "EXPR_FINAL_JUDGE_TIMEOUT_S", 0.6)
+    st = _state()
+
+    async def _slow():
+        await asyncio.sleep(0.4)                    # 절반(0.3s) 뒤·상한(0.6s) 전에 끝난다
+    task = asyncio.create_task(_slow())
+    st.expr_tasks.add(task)
+    await cs._final_expression_progress(st)
+    line = [r.getMessage() for r in caplog.records if "마지막 판정:" in r.getMessage()][-1]
+    assert "초과" not in line, line
+    assert task.done()
+
+    st2 = _state()
+
+    async def _slower():
+        await asyncio.sleep(2.0)
+    t2 = asyncio.create_task(_slower())
+    st2.expr_tasks.add(t2)
+    await cs._final_expression_progress(st2)
+    line2 = [r.getMessage() for r in caplog.records if "마지막 판정:" in r.getMessage()][-1]
+    assert "⚠초과" in line2, "정말 예산을 넘기면 여전히 찍힌다"
+    t2.cancel()
