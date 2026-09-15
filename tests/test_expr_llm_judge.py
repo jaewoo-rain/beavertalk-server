@@ -446,8 +446,11 @@ def test_verdict_instruction_marks_wrong_answers_as_failed_not_pending():
     text = seeds.expression_quiz_verdict_instruction(["3. こんばんは — 뜻: 안녕하세요(저녁)"], target="일본어", locale_label="한국어")
     # 5차 B 보강(2026-09-15 리플레이 ko «사람요» → pending): 질문 직후 발화는 틀려도 답 · pending 은 무응답·명시적 회피·안 물은 항목뿐
     assert "선생님이 그 항목을 물은 **직후의 학습자 발화는 틀려도 답이다** — 그 표현이 아니면 failed 다" in text
-    assert "(엉뚱한 낱말·짧은 조각·«맞아요»·«알겠어요» 같은 대꾸까지) **답으로 친다** — 회피가 아니라 틀린 답이다" in text
-    assert "모른다고 말했거나(«모르겠어요»·«몰라요»·«기억이 안 나요»·«힌트 주세요»)" in text and "질문을 다시 해 달라고 했을 때(«뭐라고요?»·«다시 말해 주세요»)뿐이다" in text
+    # 7차 ①(2026-09-15, 1618 failed ↔ 1621 pending 흔들림): «알겠어요·잠시만요·잠깐만요·네» 는 맞장구·기다려 달라 = pending, «맞아요» 는 내용 있는 대꾸 = failed
+    assert "(엉뚱한 낱말·짧은 조각·«맞아요» 같은 내용 있는 대꾸까지) **답으로 친다** — 회피가 아니라 틀린 답이다" in text
+    assert "«맞아요»·«알겠어요»" not in text, "«알겠어요» 는 failed 예시에서 뺐다"
+    assert "모른다고 말했거나(«모르겠어요»·«몰라요»·«기억이 안 나요»·«힌트 주세요»)" in text and "질문을 다시 해 달라고 했거나(«뭐라고요?»·«다시 말해 주세요»)" in text
+    assert "맞장구치거나 기다려 달라고 했을 때(«알겠어요»·«잠시만요»·«잠깐만요»·«네»)뿐이다" in text
     assert "선생님이 아직 묻지 않은 항목도 pending." in text
     assert "다른 말만 함" not in text, "«다른 말» 을 pending 으로 읽게 하던 문구 제거"
 
