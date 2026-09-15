@@ -124,7 +124,8 @@ POLICY_NAMES = {
 # 텍스트 대조 — 비버가 실제로 어떻게 말하는지(전사 1397·1398)에 맞춘 어휘
 # --------------------------------------------------------------------------- #
 QUIZ_RE = re.compile(
-    r"\b(quiz|pop quiz|review|recap|let'?s see if you remember|see if you remember|"
+    r"\b(quiz|pop quiz|review|recap|let'?s see if you (actually |really )?(remember|learned)|see if you (actually |really )?(remember|learned)|"
+    r"what you('ve| have)? (actually |really )?learned|"
     r"remember what we (learned|practiced|covered)|test (you|time|what)|(quick|little|short|small|mini) (test|check)|a test|let'?s test|time to (test|check|review)|"
     r"check (what|if) you (learned|remember)|퀴즈|복습)\b", re.I)
 NEW_ITEM_RE = re.compile(
@@ -1959,15 +1960,41 @@ QUIZ_CUE_MATCH_WINDOW_S = 30.0      # 큐 뒤 이 안에 난 앵커만 그 큐�
 _LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
 
 
-def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list) -> tuple[bool, list[str], dict]:
+_QUIZ_OPEN_RE = re.compile(r"퀴즈 큐 열림: seq=(\d+).*?항목=\[([0-9,\s]*)\]")
+
+
+def parse_quiz_sets(log_lines: list[str] | None) -> list[tuple[Optional[float], int, list[int]]]:
+    """서버 «normalcall 표현학습 퀴즈 큐 열림: seq=N open_seg=.. 항목=[a, b, c]» → [(epoch|None, seq, [번호…])] 시간순.
+    4차 LLM 판정은 **열린 세트 안 항목만** 판정한다(1615 #13·1616 #7: 세트 밖 정답 = 미판정)."""
+    out: list[tuple[Optional[float], int, list[int]]] = []
+    for ln in log_lines or []:
+        m = _LOG_TS_RE.match(ln.strip())
+        body = m.group(2) if m else ln
+        q = _QUIZ_OPEN_RE.search(body)
+        if not q:
+            continue
+        ts = None
+        if m:
+            base, _, frac = m.group(1).partition(".")
+            ts = datetime.strptime(base, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp() + (float("0." + frac) if frac else 0.0)
+        out.append((ts, int(q.group(1)), [int(x) for x in re.findall(r"\d+", q.group(2))]))
+    return out
+
+
+def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list,
+                    server_sets: Optional[list[list[int]]] = None) -> tuple[bool, list[str], dict]:
     """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
       ③ 퀴즈 회차의 공개 전 자발 정답 + 그 턴 전사 있음 → 서버 passed 여야(표기 변형 답이면 ③ 로 따로 센다) · 앵커 없는 재출제만이면 passed~
       ④ 공개 뒤 복창 / 드릴만 한 항목 / 오답·모름 → 서버 passed 면 ✖ · 반말 답은 ~(LLM 이 격식을 어떻게 볼지 미정)
       과검출 = 서버 passed 인데 하네스 기록에 없는 항목 ✖. 가르쳤나(서버 drilled)는 LLM 문맥 판정이라 불일치를 **세기만** 한다(하네스 식별도 추정이다).
-    반환 (ok, 표 줄, counts{styled:[n,ok], reveal:[n,ok], drill_only:[n,ok], silent:n, teach_mismatch:[ids], extra_passed:[ids]})."""
+      세트 밖 = server_sets(서버 «퀴즈 큐 열림» 항목 번호들)가 주어졌고 그 항목 번호가 어느 세트에도 없으면 서버는 판정하지 않는다 —
+        자발 정답이어도 기대 «—(세트 밖)» · 비버 이탈로 센다(1615 #13 · 1616 #7). server_sets None = 로그 없음 → 종전 기대.
+    반환 (ok, 표 줄, counts{styled:[n,ok], reveal:[n,ok], drill_only:[n,ok], silent:n, teach_mismatch:[ids], extra_passed:[ids], off_set:[번호]})."""
     qi = {int(q.get("item_id") or 0): q for q in (quiz_items or [])}
+    num_of = {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(quiz_items or [])}
+    in_sets = None if server_sets is None else {x for st in server_sets for x in st}
     by_n = {t.n: t for t in turns}
-    cnt = {"styled": [0, 0], "reveal": [0, 0], "drill_only": [0, 0], "silent": 0, "teach_mismatch": [], "extra_passed": []}
+    cnt = {"styled": [0, 0], "reveal": [0, 0], "drill_only": [0, 0], "silent": 0, "teach_mismatch": [], "extra_passed": [], "off_set": []}
     lines = ["| # | 항목 | 하네스가 한 것 | 답(말한 표기 → 서버 전사) | 서버 drilled | 서버 passed | 기대 | 판정 |",
              "|---|---|---|---|---|---|---|---|"]
     ok_all = True
@@ -1981,7 +2008,12 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
         ans_turns = [by_n[n] for rd in rec.rounds for n in rd.answer_turns if n in by_n]
         styled = [t for t in ans_turns if any(x.startswith("표기:") for x in t.tags)]
         mark = ""
-        if rec.expected_passed:
+        num = num_of.get(iid)
+        if rec.expected_passed and in_sets is not None and num is not None and num not in in_sets:
+            ok, did, exp = True, "퀴즈 자발 정답 · 서버 퀴즈 세트 밖(비버 이탈)", "—(세트 밖)"
+            mark = "~" if srv_pass else ""
+            cnt["off_set"].append(num)
+        elif rec.expected_passed:
             ok = srv_pass or rec.expectation_ambiguous
             did = "퀴즈 자발 정답" + (" · 표기 변형 ③" if styled else "") + (" · 앵커 없는 재출제" if rec.expectation_ambiguous else "")
             exp = "passed~" if rec.expectation_ambiguous else "passed"
@@ -2244,7 +2276,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         if ANSWER_STYLE:
             L.append(f"- 학습자 정답 표기: **{ANSWER_STYLE}** (말한 표기와 서버 전사를 «답» 열에 둘 다 적는다)")
         L.append("")
-        ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns)
+        _srv_sets = parse_quiz_sets(server_logs) if server_logs is not None else []
+        sc.cur["server_quiz_sets"] = [(seq, nums) for _, seq, nums in _srv_sets]
+        ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns,
+                                           server_sets=[nums for _, _, nums in _srv_sets] if _srv_sets else None)
         L += tbl
         sc.judge_ok = ok_llm
         sc.cur["llm_judge"] = cnt
@@ -2258,6 +2293,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append("- ② 번호 순 출제: §2 «퀴즈순서»")
         L.append(f"- ③ 표기 변형 정답 → 통과: {cnt['styled'][1]}/{cnt['styled'][0]}" + ("" if ANSWER_STYLE else " (--answer-style 없음)"))
         L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
+        L.append(f"- 서버 퀴즈 세트 {sc.cur['server_quiz_sets'] or '(로그 없음 — 세트 밖 판별 안 함)'} · 세트 밖 자발 정답(비버 이탈, 서버 미판정이 정상) 번호 {cnt['off_set']}")
         L.append(f"- 참고: 무음 턴 정답 {cnt['silent']} · 서버가 «가르침» 으로 안 친 하네스 드릴 항목 {len(cnt['teach_mismatch'])} {cnt['teach_mismatch'][:10]} · 과검출 {cnt['extra_passed']}")
         jl = [ln for ln in (server_logs or []) if "판정" in ln]
         side = [ln for ln in (server_logs or []) if "판정 사이드카" in ln]
@@ -2296,11 +2332,17 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"- 앵커 0회 (드릴 {len(sess.drilled_order)}개 · 끝 미출제 {len(pend_end)}) — " +
                  (f"✖ 미출제 {QUIZ_GROUP}개가 모였는데 퀴즈가 없었다" if len(pend_end) >= QUIZ_GROUP else f"미출제 {QUIZ_GROUP}개 미만 — 판단 불가"))
         sc.period_ok = len(pend_end) < QUIZ_GROUP
+        if JUDGE_MODE == "llm" and cue_match and cue_match.get("cues"):
+            # 서버가 퀴즈를 열었는데 하네스가 앵커를 못 봤다 = 비버 문구 미검출일 수 있다(1617) — 실패로 두지 않고 표시만
+            sc.period_ok = True
+            L.append(f"  - ⚠ 서버 큐 {len(cue_match['cues'])}회 · 하네스 앵커 0 — 퀴즈 여는 비버 문구를 하네스가 못 잡았을 수 있다(전사 확인)")
     else:
         cue_by_turn = {tn: (c_t, d) for c_t, tn, d in cue_match["pairs"]} if cue_match else {}
+        srv_cue_mode = JUDGE_MODE == "llm" and bool(cue_match and cue_match.get("cues"))
         for a_i, (tn, cnt) in enumerate(sess.anchors):
             pend = sess.anchor_pending[a_i] if a_i < len(sess.anchor_pending) else []
-            ok = len(pend) >= QUIZ_GROUP
+            # 4차: «미출제 3개» 는 서버가 LLM 가르침 판정으로 센다 — 하네스 식별(1616 #6 미식별)로 세면 어긋난다. 큐 로그가 있으면 «그 앵커가 큐 뒤에 났나» 로 본다
+            ok = (tn in cue_by_turn) if srv_cue_mode else len(pend) >= QUIZ_GROUP
             sc.period_ok &= ok
             if server_logs is None or not (cue_match and cue_match["cues"]):
                 cue_s = ""          # 로그를 안 붙였거나 큐 줄이 0(T16 전) — 열을 비운다(아래 요약 줄이 이유를 말한다)
@@ -2308,7 +2350,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                 cue_s = f" · 큐→앵커 {cue_by_turn[tn][1]:.1f}s"
             else:
                 cue_s = " · ⛔큐 없이 난 앵커"
-            late = f" (늦음 +{len(pend) - QUIZ_GROUP})" if ok and len(pend) > QUIZ_GROUP else ""
+            late = (" (서버 큐 기준 — 하네스 미출제는 참고)" if srv_cue_mode else
+                    (f" (늦음 +{len(pend) - QUIZ_GROUP})" if ok and len(pend) > QUIZ_GROUP else ""))
             L.append(f"- 턴 {tn}: 드릴 {cnt} · 미출제 {len(pend)} {'✔' if ok else '✖'}{late}{cue_s}")
         if len(pend_end) >= QUIZ_GROUP:
             L.append(f"- ⚠ 끝에 미출제 {len(pend_end)}개 — 마지막 큐 뒤 통화가 끝났거나 큐 누락(서버 큐 로그로 확인)")
@@ -2332,6 +2375,21 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     _blocks = quiz_blocks(sess.records)
     sc.order_ok, order_lines = quiz_order_check(_blocks, num_of)
     L += order_lines
+    srv_sets_ts = parse_quiz_sets(server_logs) if server_logs is not None else []
+    if srv_sets_ts and sess.turns and num_of:
+        off = sess.turns[0].wall - sess.turns[0].t          # now 기준 초 → epoch
+        for b, iids in _blocks.items():
+            firsts = [rd.asked_at for i in iids for rd in sess.records[i].rounds if rd.anchored and rd.block == b]
+            if not firsts:
+                continue
+            cand = [x for x in srv_sets_ts if x[0] is not None and x[0] <= min(firsts) + off + 3.0]
+            if not cand:
+                continue
+            _, seq, nums = cand[-1]
+            outside = [num_of.get(i) for i in iids if num_of.get(i) is not None and num_of.get(i) not in nums]
+            if outside:
+                sc.order_ok = False
+            L.append(f"- 블록 {b} ↔ 서버 seq={seq} 세트 {nums}: " + (f"✖ 세트 밖 출제 {outside}" if outside else "✔ 세트 안"))
     for b, iids in _blocks.items():
         pend = sess.anchor_pending[b - 1] if 0 < b <= len(sess.anchor_pending) else []
         extra = [i for i in iids if i not in pend]
@@ -3095,6 +3153,13 @@ def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *,
             time.sleep(3)
             sc = read_cur_outcome(sf, api, sess.call_id, ctx, me_pre)
     logs = fetch_server_logs(started, ended, args.service) if args.logs else None
+    if logs is not None and JUDGE_MODE == "llm" and sess.course != "freetalk" and not sess.locked:
+        # 통화 종료 1줄 «판정 사이드카» 는 저장 뒤에 찍혀 Cloud Logging 적재가 늦다(1616: 창 안인데 첫 조회에 없음) — 최대 4×15s 다시 읽는다
+        for _ in range(4):
+            if any("판정 사이드카" in ln for ln in logs):
+                break
+            time.sleep(15)
+            logs = fetch_server_logs(started, ended, args.service)
     if LANGUAGE != "ko":
         from core import tts as _tts
         sc.cur["lang_check"] = {"me_language": (me_pre or {}).get("language"), "voice": _tts._resolve_voice(LANGUAGE, LEARNER_VOICE)[1],
