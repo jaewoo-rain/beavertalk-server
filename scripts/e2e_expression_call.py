@@ -1996,6 +1996,43 @@ def parse_quiz_sets(log_lines: list[str] | None) -> list[tuple[Optional[float], 
     return out
 
 
+_QUIZ_CLOSE_LOG_RE = re.compile(r"퀴즈 (?:큐 강제 닫힘|닫힘\(LLM 판정(?:·마지막)?\)|닫힘\(서버[^)]*\)): seq=(\d+)")
+
+
+def parse_quiz_windows(log_lines: list[str] | None) -> list[tuple[int, Optional[float], Optional[float], list[int]]]:
+    """서버 퀴즈 창 [(seq, 열림 epoch, 닫힘 epoch|None, 번호…)] — 닫힘 = «퀴즈 닫힘(LLM 판정[·마지막])» 또는 «강제 닫힘» 중 첫 줄.
+    5차 재검(1618 #10 · 1620 되감기 5): 하네스는 비버 문구로 퀴즈 모드를 추정해 닫힌 뒤 질문을 세트 밖으로, 못 잡은 여는 턴 뒤 질문을
+    되감기로 셌다 — 서버 창 시각이 정본."""
+    wins: dict[int, list] = {}
+    order: list[int] = []
+    for ts, seq, nums in parse_quiz_sets(log_lines):
+        if seq not in wins:
+            wins[seq] = [seq, ts, None, nums]
+            order.append(seq)
+    for ln in log_lines or []:
+        m = _LOG_TS_RE.match(ln.strip())
+        body = m.group(2) if m else ln
+        q = _QUIZ_CLOSE_LOG_RE.search(body)
+        if not q or not m:
+            continue
+        seq = int(q.group(1))
+        base, _, frac = m.group(1).partition(".")
+        ts = datetime.strptime(base, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp() + (float("0." + frac) if frac else 0.0)
+        if seq in wins and wins[seq][2] is None:
+            wins[seq][2] = ts
+    return [tuple(wins[k]) for k in order]
+
+
+def in_quiz_window(epoch: float, windows: list, slack: float = 1.0) -> Optional[int]:
+    """그 시각이 들어가는 서버 퀴즈 창의 seq(없으면 None). 닫힘 없는 창은 끝까지 열린 것으로 본다."""
+    for seq, t_open, t_close, _nums in windows:
+        if t_open is None:
+            continue
+        if t_open - slack <= epoch and (t_close is None or epoch <= t_close + slack):
+            return seq
+    return None
+
+
 def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list,
                     server_sets: Optional[list[list[int]]] = None, offset_expect: str = "unjudged") -> tuple[bool, list[str], dict]:
     """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
@@ -2032,6 +2069,10 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
             else:
                 ok, did, exp = True, "퀴즈 자발 정답 · 서버 퀴즈 세트 밖(비버 이탈)", "—(세트 밖)"
                 mark = "~" if srv_pass else ""
+        elif rec.expected_passed and all(rd.hint_path for rd in rec.rounds if rd.spontaneous_correct and rd.heard):
+            # 5차 B(968ddb1·74d19db): 질문 직후 발화는 틀려도 답 → 첫 답 오답이면 failed · 다시 물어 맞혀도 되돌리지 않는다(1618 さようなら)
+            ok, did, exp = not srv_pass, "첫 답 오답 → 힌트 뒤 정답(5차 B)", "—(첫 답 오답)"
+            cnt["hint_fail"] = cnt.get("hint_fail", 0) + 1
         elif rec.expected_passed:
             ok = srv_pass or rec.expectation_ambiguous
             did = "퀴즈 자발 정답" + (" · 표기 변형 ③" if styled else "") + (" · 앵커 없는 재출제" if rec.expectation_ambiguous else "")
@@ -2303,7 +2344,11 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L += tbl
         sc.judge_ok = ok_llm
         sc.cur["llm_judge"] = cnt
-        unanch = [r for r in sess.records.values() if not r.superseded_by and any(not rd.anchored for rd in r.rounds)]
+        _wins = parse_quiz_windows(server_logs) if server_logs is not None else []
+        _off = (sess.turns[0].wall - sess.turns[0].t) if sess.turns else 0.0
+        # 앵커 없는 회차라도 그 질문 시각이 서버 퀴즈 창 안이면 퀴즈 질문이다(하네스가 여는 문구를 못 잡은 것 — 1620)
+        unanch = [r for r in sess.records.values() if not r.superseded_by and any(
+            (not rd.anchored) and not (_wins and in_quiz_window(rd.asked_at + _off, _wins) is not None) for rd in r.rounds)]
         rd_ = sc.cur.get("redrill") or {}
         sc.redrill_ok = not unanch and not rd_.get("n")
         L.append("")
@@ -2406,7 +2451,16 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             if not cand:
                 continue
             _, seq, nums = cand[-1]
-            outside = [num_of.get(i) for i in iids if num_of.get(i) is not None and num_of.get(i) not in nums]
+            _w = {w[0]: w for w in parse_quiz_windows(server_logs)}
+            _close = _w.get(seq, (None, None, None, None))[2]
+
+            def _asked(i):
+                return min(rd.asked_at for rd in sess.records[i].rounds if rd.anchored and rd.block == b)
+            late = [num_of.get(i) for i in iids if _close is not None and _asked(i) + off > _close + 1.0]
+            outside = [num_of.get(i) for i in iids if num_of.get(i) is not None and num_of.get(i) not in nums
+                       and not (_close is not None and _asked(i) + off > _close + 1.0)]
+            if late:
+                L.append(f"  - 블록 {b}: 서버 seq={seq} 닫힘 뒤 질문 {late} — 세트 밖으로 세지 않음(하네스 퀴즈 모드 잔류)")
             if outside:
                 sc.order_ok = False
             L.append(f"- 블록 {b} ↔ 서버 seq={seq} 세트 {nums}: " + (f"✖ 세트 밖 출제 {outside}" if outside else "✔ 세트 안"))

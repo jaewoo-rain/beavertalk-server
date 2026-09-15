@@ -78,3 +78,40 @@ def test_offset_expect_passed_requires_server_pass_after_5th_deploy():
     assert ok is False and cnt["off_set"] == [13]
     qi[-1]["passed"] = True
     assert h.llm_judge_table({13: r13}, [13], qi, turns, server_sets=[[10, 11, 12]], offset_expect="passed")[0] is True
+
+
+WIN_LOGS = [
+    "2026-09-15T06:18:01.273991Z\tINFO:x:normalcall 표현학습 퀴즈 큐 열림: seq=2 open_seg=32 항목=[4, 5, 6]",
+    "2026-09-15T06:18:21.000000Z\tINFO:x:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=2 닫힘=다음 항목 소개 창=32~(9세그) set=[4, 5, 6] 확정=[4, 5, 6] 남은=[]",
+    "2026-09-15T06:18:50.718691Z\tINFO:x:normalcall 표현학습 퀴즈 큐 열림: seq=3 open_seg=52 항목=[7, 8, 9]",
+    "2026-09-15T06:19:20.000000Z\tWARNING:x:normalcall 표현학습 퀴즈 큐 강제 닫힘: seq=3 학습자 턴 6 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
+    "2026-09-15T06:19:20.500000Z\tINFO:x:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=3 닫힘=학습자 턴 상한 6",
+    "2026-09-15T06:26:47.000000Z\tINFO:x:normalcall 표현학습 퀴즈 큐 열림: seq=4 open_seg=34 항목=[10, 11, 12]",
+]
+
+
+def test_parse_quiz_windows_open_close_forced_and_open_ended():
+    w = h.parse_quiz_windows(WIN_LOGS)
+    assert [(seq, nums) for seq, _, _, nums in w] == [(2, [4, 5, 6]), (3, [7, 8, 9]), (4, [10, 11, 12])]
+    assert abs(w[0][2] - w[0][1] - 19.726) < 1e-2          # 닫힘(LLM 판정)
+    assert abs(w[1][2] - w[1][1] - 29.281) < 1e-2          # 강제 닫힘이 먼저
+    assert w[2][2] is None                                   # 끝까지 열림
+    t_open3 = w[1][1]
+    assert h.in_quiz_window(t_open3 + 10, w) == 3
+    assert h.in_quiz_window(w[1][2] + 7, w) is None          # 1618 #10: 강제 닫힘 7초 뒤 질문 — 창 밖
+    assert h.in_quiz_window(w[2][1] + 3600, w) == 4
+
+
+def test_hint_path_only_correct_is_expected_failed_under_5th_b():
+    T = h.Turn
+    turns = [T(0, "learner", 1.0, "알겠어요", stt="알겠어요?", kind="distractor", item_id=4),
+             T(1, "learner", 2.0, "さようなら", stt="さようなら", kind="correct", item_id=4)]
+    r = _rec(4, "さようなら", 1)
+    r.rounds.append(h.QuizRound(n=1, asked_at=1.0, block=2, spontaneous_correct=True, heard=True, hint_path=True,
+                                answer_turns=[0, 1], answers=["distractor", "correct"]))
+    qi = [{"item_id": 100 + n, "surface": f"s{n}", "passed": False, "drilled": True} for n in range(3)]
+    qi.append({"item_id": 4, "surface": "さようなら", "passed": False, "failed": True, "drilled": True})
+    ok, lines, cnt = h.llm_judge_table({4: r}, [4], qi, turns, server_sets=[[4, 5, 6]])
+    assert ok is True and cnt.get("hint_fail") == 1 and "첫 답 오답" in lines[2]
+    qi[-1]["passed"] = True
+    assert h.llm_judge_table({4: r}, [4], qi, turns, server_sets=[[4, 5, 6]])[0] is False
