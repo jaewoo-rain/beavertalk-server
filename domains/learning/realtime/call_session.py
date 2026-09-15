@@ -1373,7 +1373,7 @@ EXPR_QUIZ_SETTLE_MAX_USER_TURNS = 3
 EXPR_QUIZ_OPEN_MAX_USER_TURNS = 6
 # ⭐ 4차 A·B(2026-09-15) — LLM 판정 사이드카 상한. 한 콜 3초(넘으면 그 턴은 문자열 폴백) · 통화당 가르침 60·정답 40(넘으면 문자열) ·
 #   짧은 리액션(공백 뺀 20자 미만이고 남은 항목의 표면형·뜻 후보가 전혀 없는 턴)은 호출하지 않는다(가르침 0 — 폴백 아님, bt-back 결정).
-EXPR_JUDGE_TIMEOUT_S = 3.0
+EXPR_JUDGE_TIMEOUT_S = 4.5      # 6차 B(2026-09-15, 1618 3초 타임아웃 6회·최대 3003ms): 3.0 → 4.5 — 논블로킹이라 통화 영향 0, 타임아웃 턴은 그대로 문자열 폴백
 EXPR_TAUGHT_MAX_PER_CALL = 60
 EXPR_QUIZ_VERDICT_MAX_PER_CALL = 40
 EXPR_TAUGHT_SKIP_CHARS = 20
@@ -1405,11 +1405,13 @@ def _log_expr_judge_summary(state: _CallState, call_id) -> None:
     lat = sorted(st.get("lat_ms") or [])
     p50 = lat[len(lat) // 2] if lat else 0
     logger.info(
-        "normalcall 판정 사이드카: call_id=%s %s · 가르침 %d회(건너뜀 %d·실패 %d·폴백 %d) · 정답 %d회(실패 %d) · 지연 p50 %dms 최대 %dms · 토큰 in %d out %d",
+        "normalcall 판정 사이드카: call_id=%s %s · 가르침 %d회(건너뜀 %d·실패 %d·폴백 %d) · 정답 %d회(실패 %d) · 지연 p50 %dms 최대 %dms · 토큰 in %d out %d"
+        " · 타임아웃(%.1fs) 가르침 %d·정답 %d",       # 6차 B — 실패 중 타임아웃 몫(실패 수에 포함). 앞부분 형식은 하네스가 읽으므로 그대로 두고 뒤에 붙인다
         call_id, "LLM" if state.expr_llm_judge else "꺼짐(문자열)",
         st.get("taught_calls", 0), st.get("taught_skip", 0), st.get("taught_fail", 0), st.get("taught_fallback", 0),
         st.get("quiz_calls", 0), st.get("quiz_fail", 0), p50, lat[-1] if lat else 0,
         st.get("in_tokens", 0), st.get("out_tokens", 0),
+        EXPR_JUDGE_TIMEOUT_S, st.get("taught_timeout", 0), st.get("quiz_timeout", 0),
     )
 
 
@@ -1506,6 +1508,10 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
         )
     except asyncio.CancelledError:
         raise
+    except (TimeoutError, asyncio.TimeoutError):
+        state.expr_judge_stats["taught_timeout"] = state.expr_judge_stats.get("taught_timeout", 0) + 1
+        logger.warning("normalcall 표현학습 가르침 판정 타임아웃 %.1fs(문자열 폴백) B%d", EXPR_JUDGE_TIMEOUT_S, seg_idx)
+        result = None
     except Exception as exc:  # noqa: BLE001 — 판정 실패는 그 턴만 폴백(R5)
         logger.warning("normalcall 표현학습 가르침 판정 실패(문자열 폴백) B%d: %r", seg_idx, exc)
         result = None
@@ -1951,6 +1957,10 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         )
     except asyncio.CancelledError:
         raise
+    except (TimeoutError, asyncio.TimeoutError):
+        state.expr_judge_stats["quiz_timeout"] = state.expr_judge_stats.get("quiz_timeout", 0) + 1
+        logger.warning("normalcall 표현학습 퀴즈 정답 판정 타임아웃 %.1fs seq=%d final=%s", EXPR_JUDGE_TIMEOUT_S, seq, final)
+        result = None
     except Exception as exc:  # noqa: BLE001 — 판정 실패는 폴백(R5)
         logger.warning("normalcall 표현학습 퀴즈 정답 판정 실패 seq=%d final=%s: %r", seq, final, exc)
         result = None

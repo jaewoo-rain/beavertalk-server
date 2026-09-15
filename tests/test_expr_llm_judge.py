@@ -342,6 +342,7 @@ async def test_judge_sidecar_summary_line_and_usage_are_accounted(monkeypatch, c
     cs._log_expr_judge_summary(st, 77)
     line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
     assert "call_id=77 LLM · 가르침 1회(건너뜀 1·실패 0·폴백 0) · 정답 1회(실패 0)" in line and "토큰 in 200 out 16" in line, line
+    assert "· 타임아웃(4.5s) 가르침 0·정답 0" in line
     assert st.sidecar_usage.calls == 2 and st.sidecar_usage.in_text == 200, "원가 계기판 sidecars 칸으로 합산"
 
 
@@ -480,3 +481,31 @@ async def test_quiz_window_stays_open_while_a_set_item_is_pending(monkeypatch):
     _user(st, "ありがとうございます どうも")
     await _drain(st)
     assert st.expr_quiz_open is True and st.expr_quiz_llm_decided == {1, 2}
+
+
+
+# --------------------------------------------------------------------------- #
+# 6차 B (2026-09-15, 1618) — 타임아웃 4.5초 · 타임아웃 턴은 문자열 폴백 · 계측 줄에 타임아웃 수
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_judge_timeouts_are_counted_and_fall_back_to_string_matching(monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    assert cs.EXPR_JUDGE_TIMEOUT_S == 4.5
+    monkeypatch.setattr(cs, "EXPR_JUDGE_TIMEOUT_S", 0.05)
+    fake = FakeJudge(taught_fn=lambda p, s: [4], verdict_fn=lambda p, s: {"verdicts": []})
+    fake.gate = asyncio.Event()                              # 영영 안 열린다 → 타임아웃
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _beaver(st, "좋아요! 'ごめんなさい' 도 따라 해 봐요. 미안할 때 쓰는 말이에요.")
+    await _drain(st)
+    assert 4 in st.covered_nums, "타임아웃 턴 → 문자열 폴백"
+    _open_quiz(st, [1])
+    _user(st, "ありがとうございます")
+    await _drain(st)
+    s = st.expr_judge_stats
+    assert s["taught_timeout"] == 1 and s["quiz_timeout"] == 1 and s["taught_fail"] == 1 and s["quiz_fail"] == 1
+    cs._log_expr_judge_summary(st, 9)
+    line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
+    assert line.endswith("· 타임아웃(0.1s) 가르침 1·정답 1"), line
+    fake.gate.set()
