@@ -1906,12 +1906,31 @@ def _spawn_quiz_verdict(
     return task
 
 
+def _apply_off_set_pass(state: _CallState, n: int, why: str) -> None:
+    """5차 A-2 — 세트 밖 항목의 자발 정답 기록: passed(단조) + 가르침(covered, append-only) + 출제됨(expr_quizzed — 다음 묶음에 다시 안 낸다).
+    ⛔ tick 은 태우지 않는다 — 퀴즈 창이 열린 중이라 covered 새 번호가 «다음 항목 소개» 닫힘으로 오인된다. arm 은 창이 닫힐 때 종전대로 본다."""
+    iid, surface = _num_item(state, n)
+    if iid is None:
+        return
+    state.expr_quiz_pass.add(iid)
+    state.expr_quiz_fail.discard(iid)
+    if n not in state.covered_nums:
+        state.covered_nums.append(n)
+    state.expr_quizzed.add(n)
+    logger.info("normalcall 표현학습 퀴즈 판정(LLM·세트 밖): 항목 %d «%s» passed + covered (%s)", n, surface, why)
+
+
 async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool) -> dict:
     """판정기 1콜 → 항목별 passed/failed/pending 을 서버가 적용(passed 단조 — failed 는 passed 를 못 지운다). 확정(passed·failed)은 같은 퀴즈(seq)
     안에서만 기록해 다음 퀴즈를 오염시키지 않는다. 실패·None: final 이면 남은 항목을 서버 문자열 판정으로(R5), 아니면 다음 턴 판정·닫힘을 기다린다."""
     ctx = state.expr_ctx or {}
     loop = asyncio.get_running_loop()
     t0 = loop.time()
+    # ⭐ 5차 A-2(2026-09-15, 1615 #13·1616 #7): 비버가 세트 밖 항목을 물었고 학습자가 맞히면 그것도 기록한다 — 세트 밖 후보 = 아직 통과 안 한 나머지 항목 전부.
+    #   «실제로 물었나» 는 판정기가 전사로 가린다(지시문 칸). 서버는 세트 밖 항목에 **passed 만** 적용한다(failed·pending 무시 — 묻지도 않은 항목에 오답을 남기지 않는다).
+    extra = [n for n in range(1, len(state.expr_items) + 1)
+             if n not in nums and n not in state.expr_quiz_set
+             and int(state.expr_items[n - 1].get("item_id") or -1) not in state.expr_quiz_pass]
     lines = [("B%d: " if role == "beaver" else "U%d: ") % i + text for i, role, text in span]
     transcript = chr(10).join(lines)[-EXPR_TRANSCRIPT_MAX_CHARS:]
     result = None
@@ -1923,6 +1942,7 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
                 system_instruction=expression_quiz_verdict_instruction(
                     [_expr_item_row(state, n) for n in nums],
                     target=ctx.get("target_language") or "한국어", locale_label=ctx.get("locale_label") or "학습자의 모국어",
+                    extra_rows=[_expr_item_row(state, n) for n in extra],
                 ),
                 prompt=f"[퀴즈 전사]{chr(10)}{transcript}",
                 schema=ExpressionVerdictOut, temperature=0.0, thinking_budget=0, usage=u,
@@ -1948,6 +1968,12 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
     seen: set[int] = set()
     for v in getattr(result, "verdicts", None) or []:
         n = getattr(v, "num", None)
+        if isinstance(n, int) and n in extra and n not in seen:
+            seen.add(n)
+            if str(getattr(v, "verdict", "") or "").strip().lower() == "passed":
+                _apply_off_set_pass(state, n, str(getattr(v, "why", "") or "")[:40])
+                out.setdefault("off_set_passed", []).append(n)
+            continue
         if not isinstance(n, int) or n not in nums or n in seen:
             continue
         seen.add(n)

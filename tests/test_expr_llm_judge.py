@@ -394,3 +394,44 @@ def test_quiz_cue_binds_the_beaver_to_the_set_in_order():
     cue = cs._expression_quiz_cue(st, [1, 2, 3])
     assert "이 3개만, 적힌 순서대로 물어라 — 다른 표현은 지금 묻지 마라(3개를 다 물은 뒤에 다음 새 표현으로 넘어간다)." in cue
     assert "3개가 끝나면 다음 새 표현으로 넘어가라" not in cue
+
+
+
+# --------------------------------------------------------------------------- #
+# 5차 A-2 (2026-09-15, 1615 #13·1616 #7) — 세트 밖 자발 정답 기록 · 공개 후 복창은 기록 0
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_off_set_spontaneous_answer_is_recorded_as_passed_and_covered(monkeypatch):
+    def verdict(p, s):
+        assert "[세트 밖 항목" in s and "4. ごめんなさい" in s, "세트 밖 후보가 지시문에 실린다"
+        return {"verdicts": [{"num": 1, "verdict": "pending"}, {"num": 4, "verdict": "passed", "why": "자발 정답"}]}
+    fake = FakeJudge(verdict_fn=verdict)
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 2, 3])
+    _beaver(st, "미안할 때는 뭐라고 해?")
+    await _drain(st)
+    _user(st, "ごめんなさい")
+    await _drain(st)
+    assert 104 in st.expr_quiz_pass and 4 in st.covered_nums and 4 in st.expr_quizzed
+    assert st.expr_quiz_open is True and 4 not in st.expr_quiz_llm_decided, "세트 확정 집합·창은 그대로"
+
+
+@pytest.mark.asyncio
+async def test_off_set_repeat_after_reveal_records_nothing(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 4, "verdict": "failed", "why": "공개 뒤 복창"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 2, 3])
+    covered = list(st.covered_nums)
+    _user(st, "ごめんなさい")
+    await _drain(st)
+    assert 104 not in st.expr_quiz_pass and 104 not in st.expr_quiz_fail, "세트 밖은 passed 만 적용 — 오답도 안 남긴다"
+    assert st.covered_nums == covered and 4 not in st.expr_quizzed
+
+
+def test_verdict_instruction_off_set_block_only_when_given():
+    base = seeds.expression_quiz_verdict_instruction(["1. a"], target="일본어", locale_label="한국어")
+    assert "[세트 밖 항목" not in base
+    with_extra = seeds.expression_quiz_verdict_instruction(["1. a"], target="일본어", locale_label="한국어", extra_rows=["4. b"])
+    assert with_extra.startswith(base) and with_extra.endswith("4. b") and "실제로 물은" in with_extra

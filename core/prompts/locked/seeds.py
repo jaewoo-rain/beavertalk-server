@@ -339,7 +339,14 @@ def expression_taught_judge_instruction(rows: list[str], *, target: str, locale_
 
 # ⭐ 4차 B(2026-09-15): 퀴즈 창 안 학습자 턴마다 «맞혔나» 를 항목별로 판정하는 지시문. 판정 기준 4줄이 명세다(bt-back·사장님):
 #   표기·문자 체계가 달라도 그 표현이면 통과 · 비버가 알려준 뒤 따라 말하면 failed · 정중형 항목에 반말만이면 통과 아님 · 말 안 했으면 pending.
-def expression_quiz_verdict_instruction(rows: list[str], *, target: str, locale_label: str) -> str:
+def expression_quiz_verdict_instruction(rows: list[str], *, target: str, locale_label: str, extra_rows: list[str] | None = None) -> str:
+    """5차 A-2(2026-09-15): extra_rows(세트 밖 남은 항목)를 주면 «선생님이 이 창에서 실제로 물은 경우에만» 판정하라는 칸을 덧붙인다(1615 #13·1616 #7 —
+    비버가 세트 밖을 물었고 학습자가 맞혔는데 기록 0). 없으면 종전 바이트."""
+    extra = [] if not extra_rows else [
+        "",
+        "[세트 밖 항목 — 선생님이 이 전사에서 **실제로 물은** 경우에만 판정하라. 묻지 않았으면 pending]",
+        chr(10).join(extra_rows),
+    ]
     return chr(10).join([
         f"너는 {target} 표현학습 퀴즈의 판정기다. 전사의 각 줄은 «B번호:»(선생님) 또는 «U번호:»(학습자)로 시작한다. "
         f"선생님은 {locale_label}로 뜻·상황을 주고 {target}로 말하게 묻는다.",
@@ -354,6 +361,7 @@ def expression_quiz_verdict_instruction(rows: list[str], *, target: str, locale_
         "",
         "[퀴즈 항목]",
         chr(10).join(rows) or "(없음)",
+        *extra,
     ])
 
 
