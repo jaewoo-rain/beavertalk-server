@@ -443,5 +443,9 @@ def test_verdict_instruction_off_set_block_only_when_given():
 # --------------------------------------------------------------------------- #
 def test_verdict_instruction_marks_wrong_answers_as_failed_not_pending():
     text = seeds.expression_quiz_verdict_instruction(["3. こんばんは — 뜻: 안녕하세요(저녁)"], target="일본어", locale_label="한국어")
-    assert "선생님이 그 항목을 물었고 학습자가 답했는데 그 표현이 아니면 failed 다(엉뚱한 대답 포함)" in text
-    assert "학습자가 아무 답도 안 했거나 그 문제와 상관없는 말만 했으면 pending" in text
+    # 5차 B 보강(2026-09-15 리플레이 ko «사람요» → pending): 질문 직후 발화는 틀려도 답 · pending 은 무응답·명시적 회피·안 물은 항목뿐
+    assert "선생님이 그 항목을 물은 **직후의 학습자 발화는 틀려도 답이다** — 그 표현이 아니면 failed 다" in text
+    assert "(엉뚱한 낱말·짧은 조각·«맞아요»·«알겠어요» 같은 대꾸까지) **답으로 친다** — 회피가 아니라 틀린 답이다" in text
+    assert "모른다고 말했거나(«모르겠어요»·«몰라요»·«기억이 안 나요»·«힌트 주세요»)" in text and "질문을 다시 해 달라고 했을 때(«뭐라고요?»·«다시 말해 주세요»)뿐이다" in text
+    assert "선생님이 아직 묻지 않은 항목도 pending." in text
+    assert "다른 말만 함" not in text, "«다른 말» 을 pending 으로 읽게 하던 문구 제거"
