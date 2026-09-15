@@ -2000,6 +2000,11 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         "normalcall 표현학습 퀴즈 판정(LLM): seq=%d %s%s passed=%s failed=%s pending=%s why=%s",
         seq, "마지막 " if final else "", ("U%d까지" % span[-1][0]) if span else "", out["passed"], out["failed"], out["pending"], out["why"],
     )
+    # ⭐ 6차 A(2026-09-15, 재검 1618~1620 — 세트를 다 물어도 창이 안 닫혀 비버가 4번째 항목을 묻고 «강제 닫힘(학습자 턴 6)» 으로 닫혔다): 판정이 도착한 시점에
+    #   **지금 퀴즈 세트가 전부 확정(passed|failed)** 이면 즉시 닫는다 → 다음 큐를 arm 할 수 있다. «다음 항목 소개»·6턴 강제 닫힘은 안전판으로 그대로.
+    if not final and same_quiz and state.expr_quiz_open and state.expr_quiz_set \
+            and all(n in state.expr_quiz_llm_decided for n in state.expr_quiz_set):
+        _close_expression_quiz(state, why="세트 전부 확정")
     return out
 
 

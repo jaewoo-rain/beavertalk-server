@@ -449,3 +449,34 @@ def test_verdict_instruction_marks_wrong_answers_as_failed_not_pending():
     assert "모른다고 말했거나(«모르겠어요»·«몰라요»·«기억이 안 나요»·«힌트 주세요»)" in text and "질문을 다시 해 달라고 했을 때(«뭐라고요?»·«다시 말해 주세요»)뿐이다" in text
     assert "선생님이 아직 묻지 않은 항목도 pending." in text
     assert "다른 말만 함" not in text, "«다른 말» 을 pending 으로 읽게 하던 문구 제거"
+
+
+
+# --------------------------------------------------------------------------- #
+# 6차 A (2026-09-15, 재검 1618~1620) — 세트가 전부 확정되면 즉시 닫고 다음 큐 arm 가능
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_quiz_window_closes_as_soon_as_every_set_item_is_decided_and_the_next_cue_can_arm(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 1, "verdict": "passed"}, {"num": 2, "verdict": "failed"}, {"num": 3, "verdict": "passed"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    items = [{"item_id": 300 + i, "obj": "表現%d" % i, "des": "뜻%d" % i, "ex": None} for i in range(1, 8)]
+    st = _state(items)
+    st.covered_nums = [1, 2, 3, 4, 5, 6]                  # 퀴즈 중에 이미 4·5·6 을 가르쳤다
+    _open_quiz(st, [1, 2, 3])
+    st.covered_nums = [1, 2, 3, 4, 5, 6]
+    _user(st, "表現1 表現3")
+    await _drain(st)
+    assert st.expr_quiz_open is False, "세트 3개가 모두 확정 → 즉시 닫힘"
+    assert {301, 303} <= st.expr_quiz_pass and 302 in st.expr_quiz_fail
+    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_set == [4, 5, 6] and st.expr_quiz_seq == 2, "다음 큐가 바로 선다"
+
+
+@pytest.mark.asyncio
+async def test_quiz_window_stays_open_while_a_set_item_is_pending(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 1, "verdict": "passed"}, {"num": 2, "verdict": "passed"}, {"num": 3, "verdict": "pending"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 2, 3])
+    _user(st, "ありがとうございます どうも")
+    await _drain(st)
+    assert st.expr_quiz_open is True and st.expr_quiz_llm_decided == {1, 2}
