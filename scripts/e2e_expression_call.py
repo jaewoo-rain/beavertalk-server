@@ -345,7 +345,6 @@ class QuizRound:
     answers: list[str] = field(default_factory=list)   # 학습자 답의 종류 시퀀스
     spontaneous_correct: bool = False  # 공개 전 스스로 정답 (하네스가 그렇게 고른 것)
     hint_path: bool = False          # 오답 → (공개 없는) 힌트 → 정답 이 성립했나
-    after_open: bool = True          # ③ 퀴즈를 여는 비버 턴(앵커)이 이미 있었나 — 없으면 서버 판정 창 밖(드릴 복창은 통과 아님)
     block: int = 0                   # 앵커 회차(1부터) — ② 블록 안 출제 순서 검사용. 0 = 앵커 없는 재출제
     answer_turns: list[int] = field(default_factory=list)   # 이 회차에 답한 학습자 턴 번호(재발화 포함)
     heard: bool = False              # ④ 그 답 턴 중 하나라도 input_transcript 가 왔나 — 안 왔으면 서버엔 «무음 턴»(학습자 턴 아님)
@@ -371,24 +370,23 @@ class ItemRecord:
 
     @property
     def expected_passed(self) -> bool:
-        # ③ 퀴즈 여는 턴 뒤 · ④ 서버가 들은(전사 온) 자발 정답만
-        return any(r.spontaneous_correct and r.after_open and r.heard for r in self.rounds)
+        # 판정 창 = 퀴즈 여는 비버 턴(앵커) **포함**(P4 안 함, bt-back 2026-09-15) — 그 턴에서 비버가 공개하면 회차 revealed → 복창 → 기대 failed.
+        # ④ 서버가 들은(전사 온) 자발 정답만
+        return any(r.spontaneous_correct and r.heard for r in self.rounds)
 
     @property
     def unjudgeable_correct(self) -> str:
-        """자발 정답을 냈지만 서버 판정 창에 안 드는 이유(표시용): «퀴즈 열기 전» · «무음 턴(전사 없음)» · 없으면 ""."""
+        """자발 정답을 냈지만 서버가 못 받는 이유(표시용): «무음 턴(전사 없음)» · 없으면 ""."""
         rs = [r for r in self.rounds if r.spontaneous_correct]
         if not rs or self.expected_passed:
             return ""
-        if not any(r.after_open for r in rs):
-            return "퀴즈 열기 전"
         return "무음 턴(전사 없음)"
 
     @property
     def expectation_ambiguous(self) -> bool:
         """자발 정답이 **앵커 없는** 회차에서만 났다 — 판정기 규칙(결정 6-3)상 «그 항목만 보류» 가 허용된다."""
         anchored_pass = any(r.spontaneous_correct and r.anchored and r.heard for r in self.rounds)
-        unanchored_pass = any(r.spontaneous_correct and not r.anchored and r.after_open and r.heard for r in self.rounds)
+        unanchored_pass = any(r.spontaneous_correct and not r.anchored and r.heard for r in self.rounds)
         return unanchored_pass and not anchored_pass
 
     @property
@@ -1105,7 +1103,7 @@ class Session:
                 # 끝낸 항목을 드릴 모드에서 다시 묻는다 — 앵커 없는 재출제이거나 되감기다.
                 # 회차를 열되 anchored=False 로 표시한다(판정기는 이 항목을 보류할 수 있다 — 결정 6-3).
                 rec = self.records[item_id]
-                rec.rounds.append(QuizRound(n=len(rec.rounds) + 1, asked_at=self.now(), anchored=False, after_open=bool(self.anchors)))
+                rec.rounds.append(QuizRound(n=len(rec.rounds) + 1, asked_at=self.now(), anchored=False))
                 self.current = rec
                 tags.append(f"⛔앵커없는재출제/되감기(회차{len(rec.rounds)})")
             if self.current is not None and self.current.item.item_id in revealed_ids:
@@ -1440,7 +1438,7 @@ class Session:
             return surface, "ko", kind
         # 퀴즈
         if not rec.rounds:
-            rec.rounds.append(QuizRound(n=1, asked_at=self.now(), block=len(self.anchors), after_open=bool(self.anchors)))
+            rec.rounds.append(QuizRound(n=1, asked_at=self.now(), block=len(self.anchors)))
             self.quiz_block_asked.add(rec.item.item_id)
         rd = rec.rounds[-1]
         if rd.revealed:
@@ -2069,8 +2067,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append("- ⚠ 서버 미인식 " + str(len(unm)) + "건 — 표면형 매처(quiz_judge.mentions)도 못 알아보고 예문도 없다: "
                  + ", ".join(f"「{r.item.surface}」←「{r.item.answer}」" for r in unm) + " → 서버는 이 항목을 drilled/passed 로 찍을 수 없다(커리큘럼 예문 또는 매처 수정 재료)")
     L.append("- 기대 drilled = 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔다(결정 6 «모국어 설명만으론 안 됨»). "
-             "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답) · 3차 규칙: ③ 퀴즈를 여는 비버 턴 **다음** 답만(드릴 복창·퀴즈 열기 전 정답은 통과 아님) "
-             "④ 그 답 턴에 input_transcript 가 온 것만(전사 없는 턴은 서버에 «무음 턴» — 학습자 턴 아님). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
+             "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답) · 판정 창은 퀴즈를 여는 비버 턴 **포함**(그 턴에서 공개하면 복창 → failed 기대) "
+             "· ④ 그 답 턴에 input_transcript 가 온 것만(전사 없는 턴은 서버에 «무음 턴» — 학습자 턴 아님). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
     L.append("")
 
     # ── 퀴즈 주기 ──────────────────────────────────────────────── #

@@ -1,5 +1,5 @@
 """E2E 하네스 — 3차 묶음 퀴즈 규칙 기대(bt-back 2026-09-15): ① 미출제 3개가 모이면 큐 ② 블록 안 항목 번호 오름차순
-③ 판정 창은 퀴즈 여는 비버 턴 다음부터(드릴 복창·열기 전 정답은 통과 아님) ④ 전사 없는(무음) 답 턴은 학습자 턴이 아니다. 서버·DB 없이."""
+③(되돌림 — 판정 창은 여는 비버 턴 포함, 그 턴 공개면 failed) ④ 전사 없는(무음) 답 턴은 학습자 턴이 아니다. 서버·DB 없이."""
 
 from __future__ import annotations
 
@@ -82,17 +82,22 @@ def test_quiz_blocks_first_ask_order_and_skips_unanchored():
 
 
 # ── ③④ 기대 passed ──────────────────────────────────────────────────── #
-def test_expected_passed_requires_open_quiz_and_heard_answer():
+def test_expected_passed_window_includes_opening_turn_and_requires_heard_answer():
     sess = _session()
     r = _rec(sess, 1, 1)
-    rd = h.QuizRound(n=1, asked_at=1.0, anchored=False, after_open=False, spontaneous_correct=True, heard=True)
-    r.rounds.append(rd)
-    assert r.expected_passed is False and r.unjudgeable_correct == "퀴즈 열기 전"
-    rd2 = h.QuizRound(n=2, asked_at=2.0, block=1, spontaneous_correct=True, heard=False)
+    # 여는 턴에서 비버가 정답을 공개 → 회차 revealed · 복창 → 기대 failed
+    r.rounds.append(h.QuizRound(n=1, asked_at=1.0, block=1, revealed=True, answers=["parrot"], heard=True))
+    assert r.expected_passed is False and r.unjudgeable_correct == ""
+    # 여는 턴(앵커) 회차의 자발 정답이라도 전사가 안 왔으면 무음 턴
+    rd2 = h.QuizRound(n=2, asked_at=2.0, block=2, spontaneous_correct=True, heard=False)
     r.rounds.append(rd2)
     assert r.expected_passed is False and r.unjudgeable_correct == "무음 턴(전사 없음)"
     rd2.heard = True
     assert r.expected_passed is True and r.unjudgeable_correct == "" and r.expectation_ambiguous is False
+    # 앵커 없는 재출제의 들린 정답만 있으면 passed~(보류 허용)
+    r2 = _rec(sess, 2, 2)
+    r2.rounds.append(h.QuizRound(n=1, asked_at=3.0, anchored=False, spontaneous_correct=True, heard=True))
+    assert r2.expected_passed is True and r2.expectation_ambiguous is True
 
 
 def test_transcript_arrival_marks_linked_quiz_round_heard_only():
