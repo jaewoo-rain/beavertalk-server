@@ -345,6 +345,10 @@ class QuizRound:
     answers: list[str] = field(default_factory=list)   # 학습자 답의 종류 시퀀스
     spontaneous_correct: bool = False  # 공개 전 스스로 정답 (하네스가 그렇게 고른 것)
     hint_path: bool = False          # 오답 → (공개 없는) 힌트 → 정답 이 성립했나
+    after_open: bool = True          # ③ 퀴즈를 여는 비버 턴(앵커)이 이미 있었나 — 없으면 서버 판정 창 밖(드릴 복창은 통과 아님)
+    block: int = 0                   # 앵커 회차(1부터) — ② 블록 안 출제 순서 검사용. 0 = 앵커 없는 재출제
+    answer_turns: list[int] = field(default_factory=list)   # 이 회차에 답한 학습자 턴 번호(재발화 포함)
+    heard: bool = False              # ④ 그 답 턴 중 하나라도 input_transcript 가 왔나 — 안 왔으면 서버엔 «무음 턴»(학습자 턴 아님)
 
 
 @dataclass
@@ -367,13 +371,24 @@ class ItemRecord:
 
     @property
     def expected_passed(self) -> bool:
-        return any(r.spontaneous_correct for r in self.rounds)
+        # ③ 퀴즈 여는 턴 뒤 · ④ 서버가 들은(전사 온) 자발 정답만
+        return any(r.spontaneous_correct and r.after_open and r.heard for r in self.rounds)
+
+    @property
+    def unjudgeable_correct(self) -> str:
+        """자발 정답을 냈지만 서버 판정 창에 안 드는 이유(표시용): «퀴즈 열기 전» · «무음 턴(전사 없음)» · 없으면 ""."""
+        rs = [r for r in self.rounds if r.spontaneous_correct]
+        if not rs or self.expected_passed:
+            return ""
+        if not any(r.after_open for r in rs):
+            return "퀴즈 열기 전"
+        return "무음 턴(전사 없음)"
 
     @property
     def expectation_ambiguous(self) -> bool:
         """자발 정답이 **앵커 없는** 회차에서만 났다 — 판정기 규칙(결정 6-3)상 «그 항목만 보류» 가 허용된다."""
-        anchored_pass = any(r.spontaneous_correct and r.anchored for r in self.rounds)
-        unanchored_pass = any(r.spontaneous_correct and not r.anchored for r in self.rounds)
+        anchored_pass = any(r.spontaneous_correct and r.anchored and r.heard for r in self.rounds)
+        unanchored_pass = any(r.spontaneous_correct and not r.anchored and r.after_open and r.heard for r in self.rounds)
         return unanchored_pass and not anchored_pass
 
     @property
@@ -744,6 +759,7 @@ class Session:
         self.records: dict[int, ItemRecord] = {}
         self.drilled_order: list[int] = []
         self.anchors: list[tuple[int, int]] = []          # (turn_n, drilled_count_at_anchor)
+        self.anchor_pending: list[list[int]] = []         # ① 앵커마다 그 순간 «드릴했지만 아직 퀴즈에 안 오른» 항목 id(드릴 순)
         self.quiz_block_asked: set[int] = set()            # 이 퀴즈 블록에서 이미 낸 항목
         self.template_sentence: dict[int, str] = {}        # [문형] 항목 → 비버가 공개한 «자기 연습 문장»(1592: 예문 대신 이걸 말해야 받아 준다)
         self.beaver_audio_bytes = 0
@@ -824,6 +840,27 @@ class Session:
     def policy_of(self, k: int) -> int:
         return (k - 1) % 6 + 1
 
+    def _link_answer_turn(self, turn: "Turn") -> None:
+        """이 학습자 턴이 퀴즈 회차의 답이면 회차에 턴 번호를 단다(④ 전사 도착으로 heard 를 켜기 위해). 드릴 답은 달지 않는다."""
+        rec = self.current
+        if rec is None or not rec.rounds:
+            return
+        rd = rec.rounds[-1]
+        if self.mode == "quiz" or (not rd.anchored and rec is not self._last_started):
+            rd.answer_turns.append(turn.n)
+
+    def _mark_heard(self, turn: "Turn") -> None:
+        rec = self.records.get(turn.item_id)
+        if rec is None:
+            return
+        for rd in rec.rounds:
+            if turn.n in rd.answer_turns:
+                rd.heard = True
+
+    def unquizzed_ids(self) -> list[int]:
+        """드릴은 끝났고 아직 어느 퀴즈 회차에도 안 오른 항목(드릴 순) — 서버 «미출제» 와 같은 뜻(3차 ①)."""
+        return [i for i in self.drilled_order if i in self.records and not self.records[i].rounds and not self.records[i].superseded_by]
+
     # ---- 프레임 처리 --------------------------------------------------------- #
     async def on_json(self, msg: dict, uplink: Uplink) -> None:
         t = msg.get("type")
@@ -878,6 +915,7 @@ class Session:
                 for tn in reversed(self.turns[-6:]):
                     if tn.role == "learner" and not tn.stt:
                         tn.stt = stt
+                        self._mark_heard(tn)
                         rec = self.records.get(tn.item_id)
                         if rec is not None and has_surface(stt, rec.item.surface):
                             rec.surface_heard = True
@@ -885,6 +923,7 @@ class Session:
                 else:
                     if self.last_learner is not None:
                         self.last_learner.stt = (self.last_learner.stt + " " + stt).strip()
+                        self._mark_heard(self.last_learner)
         elif t == "turn_end":
             text = "".join(self.cur_text).strip()
             self.cur_turn_id = None
@@ -988,8 +1027,10 @@ class Session:
             self.mode = "quiz"
             self.quiz_block_asked = set()
             self.anchors.append((turn.n, len(self.drilled_order)))
-            ok = len(self.drilled_order) % QUIZ_GROUP == 0 and self.drilled_order
-            tags.append(f"앵커@{len(self.drilled_order)}번째{'✔' if ok else '✖'}")
+            pend = self.unquizzed_ids()
+            self.anchor_pending.append(pend)
+            ok = len(pend) >= QUIZ_GROUP          # ① 3차 규칙: 미출제 3개가 모이면(드릴 총량 3·6·9 아님)
+            tags.append(f"앵커@드릴{len(self.drilled_order)}·미출제{len(pend)}{'✔' if ok else '✖'}")
         elif quiz_anchor:
             tags.append("앵커(재)")
 
@@ -1064,7 +1105,7 @@ class Session:
                 # 끝낸 항목을 드릴 모드에서 다시 묻는다 — 앵커 없는 재출제이거나 되감기다.
                 # 회차를 열되 anchored=False 로 표시한다(판정기는 이 항목을 보류할 수 있다 — 결정 6-3).
                 rec = self.records[item_id]
-                rec.rounds.append(QuizRound(n=len(rec.rounds) + 1, asked_at=self.now(), anchored=False))
+                rec.rounds.append(QuizRound(n=len(rec.rounds) + 1, asked_at=self.now(), anchored=False, after_open=bool(self.anchors)))
                 self.current = rec
                 tags.append(f"⛔앵커없는재출제/되감기(회차{len(rec.rounds)})")
             if self.current is not None and self.current.item.item_id in revealed_ids:
@@ -1079,7 +1120,7 @@ class Session:
             if rec is not None:
                 # 새 회차: 다른 항목으로 옮겼거나(재출제 포함) 이 블록에서 처음 묻는 항목
                 if rec is not self.current or rec.item.item_id not in self.quiz_block_asked:
-                    rec.rounds.append(QuizRound(n=len(rec.rounds) + 1, asked_at=self.now()))
+                    rec.rounds.append(QuizRound(n=len(rec.rounds) + 1, asked_at=self.now(), block=len(self.anchors)))
                     self.quiz_block_asked.add(rec.item.item_id)
                     tags.append(f"퀴즈회차{len(rec.rounds)}")
                 self.current = rec
@@ -1399,7 +1440,7 @@ class Session:
             return surface, "ko", kind
         # 퀴즈
         if not rec.rounds:
-            rec.rounds.append(QuizRound(n=1, asked_at=self.now()))
+            rec.rounds.append(QuizRound(n=1, asked_at=self.now(), block=len(self.anchors), after_open=bool(self.anchors)))
             self.quiz_block_asked.add(rec.item.item_id)
         rd = rec.rounds[-1]
         if rd.revealed:
@@ -1442,6 +1483,7 @@ class Session:
             uplink.open = True
             spoke = True
             turn = self.add_turn("learner", reply, kind=kind, item_id=self.current.item.item_id if self.current else 0)
+            self._link_answer_turn(turn)
             self.last_learner = turn
             self.since_learner = []
             if kind in ("correct", "parrot") and self.current is not None and (
@@ -1471,6 +1513,7 @@ class Session:
                     turn.tags.append("재발화(전사 없음)")
                     t2 = self.add_turn("learner", longer, kind=kind, item_id=turn.item_id)
                     t2.tags.append("재발화")
+                    self._link_answer_turn(t2)
                     self.last_learner = t2
                     self.log(f"👤 {longer}   [{kind}·재발화 — 3초 안 전사 없음]")
                     await uplink.speak(await self.voice.pcm(longer, lang))
@@ -1746,6 +1789,7 @@ async def run_call(base: str, token: str, items: dict[int, Item], voice: Voice, 
 class Score:
     judge_ok: bool = True
     period_ok: bool = True
+    order_ok: bool = True            # ② 퀴즈 블록 안 항목 번호 오름차순
     praise_ok: bool = True
     lines: list[str] = field(default_factory=list)
     db_rows: dict[int, dict] = field(default_factory=dict)
@@ -1801,6 +1845,41 @@ QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"   # = call_session.EX
 QUIZ_CUE_STAGE = "얹기"
 QUIZ_CUE_MATCH_WINDOW_S = 30.0      # 큐 뒤 이 안에 난 앵커만 그 큐의 것(실측 2.5 = 2~5s · 3.1 = 10~16s. 60s 는 다음 큐의 앵커를 훔쳤다 — 1420)
 _LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
+
+
+def quiz_blocks(records: dict) -> dict[int, list[int]]:
+    """앵커 회차(block ≥1)별로 «처음 물은 시각» 순 항목 id — 같은 블록에서 다시 물은 건 첫 번만."""
+    ev: dict[int, list[tuple[float, int]]] = {}
+    for iid, rec in records.items():
+        if rec.superseded_by:
+            continue
+        for rd in rec.rounds:
+            if rd.anchored and rd.block >= 1:
+                ev.setdefault(rd.block, []).append((rd.asked_at, iid))
+    out: dict[int, list[int]] = {}
+    for b, lst in sorted(ev.items()):
+        seen: list[int] = []
+        for _, iid in sorted(lst):
+            if iid not in seen:
+                seen.append(iid)
+        out[b] = seen
+    return out
+
+
+def quiz_order_check(blocks: dict[int, list[int]], num_of: dict[int, int]) -> tuple[bool, list[str]]:
+    """② 3차 규칙: 한 퀴즈 블록 안 출제 순서는 **항목 번호 오름차순**(번호 = cur_call.items 1-기준 위치 = 서버 로그 «항목 N»).
+    번호 모르는 항목(목록 밖)은 순서 판정에서 뺀다. 번호 목록이 비면(옛 경로) 판단 불가 → True."""
+    if not num_of:
+        return True, ["- 항목 번호 없음(quiz_items 비어 있음) — 순서 판단 불가"]
+    ok_all = True
+    lines = []
+    for b, iids in blocks.items():
+        nums = [num_of.get(i) for i in iids]
+        known = [n for n in nums if n is not None]
+        ok = all(a < c for a, c in zip(known, known[1:]))
+        ok_all &= ok
+        lines.append(f"- 블록 {b}: 출제 번호 {' → '.join(str(n) if n is not None else '?' for n in nums)} {'✔' if ok else '✖ 오름차순 아님'}")
+    return ok_all, lines
 
 
 def parse_quiz_cues(log_lines: list[str], stage: str = QUIZ_CUE_STAGE) -> list[tuple[float, str]]:
@@ -1972,7 +2051,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         drilled_ok = (db_drilled == exp_drilled) or stt_amb
         ok = drilled_ok and (amb or db_passed == exp_passed)
         judge_ok &= bool(ok)
-        exp_s = ("passed~" if amb else "passed") if exp_passed else "—"
+        exp_s = ("passed~" if amb else "passed") if exp_passed else ("—(" + rec.unjudgeable_correct + ")" if rec.unjudgeable_correct else "—")
         drilled_s = ("✔~(STT 불일치)" if stt_amb else "✔") if exp_drilled else ("✖(템플릿 미인식 — 서버 못 봄)" if unmatchable else "✖(표면형 미출현)")
         amb = amb or (stt_amb and db_drilled != exp_drilled)
         L.append(f"| {rec.k} | {rec.item.surface} | {rec.policy} | {rec.ident} | {drilled_s} | {'✔' if db_drilled else '✖'} | "
@@ -1990,7 +2069,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append("- ⚠ 서버 미인식 " + str(len(unm)) + "건 — 표면형 매처(quiz_judge.mentions)도 못 알아보고 예문도 없다: "
                  + ", ".join(f"「{r.item.surface}」←「{r.item.answer}」" for r in unm) + " → 서버는 이 항목을 drilled/passed 로 찍을 수 없다(커리큘럼 예문 또는 매처 수정 재료)")
     L.append("- 기대 drilled = 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔다(결정 6 «모국어 설명만으론 안 됨»). "
-             "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
+             "기대 passed = 퀴즈 회차에서 **공개 전 자발 정답**(하네스가 고른 답) · 3차 규칙: ③ 퀴즈를 여는 비버 턴 **다음** 답만(드릴 복창·퀴즈 열기 전 정답은 통과 아님) "
+             "④ 그 답 턴에 input_transcript 가 온 것만(전사 없는 턴은 서버에 «무음 턴» — 학습자 턴 아님). `passed~` = 그 정답이 앵커 없는 재출제에서만 났다 → 판정기가 보류해도 된다(결정 6-3), 어느 쪽이든 ✔(~)")
     L.append("")
 
     # ── 퀴즈 주기 ──────────────────────────────────────────────── #
@@ -2003,15 +2083,17 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         anchor_walls = [(tn, sess.turns[tn].wall) for tn, _ in sess.anchors if 0 <= tn < len(sess.turns)]
         cue_match = match_quiz_cues(cues, anchor_walls)
         cue_match["cues"] = cues
-    L.append("## 2. 퀴즈 주기 — 앵커가 3·6·9번째 항목 직후에만 났나")
+    L.append(f"## 2. 퀴즈 주기·순서 — 미출제 {QUIZ_GROUP}개가 모이면 퀴즈 · 블록 안 항목 번호 오름차순(3차 규칙)")
+    pend_end = sess.unquizzed_ids()
     if not sess.anchors:
-        L.append(f"- 앵커 0회 (드릴 {len(sess.drilled_order)}개) — " +
-                 ("✖ 3개 이상 드릴했는데 퀴즈가 없었다" if len(sess.drilled_order) >= QUIZ_GROUP else "묶음이 안 차 판단 불가"))
-        sc.period_ok = len(sess.drilled_order) < QUIZ_GROUP
+        L.append(f"- 앵커 0회 (드릴 {len(sess.drilled_order)}개 · 끝 미출제 {len(pend_end)}) — " +
+                 (f"✖ 미출제 {QUIZ_GROUP}개가 모였는데 퀴즈가 없었다" if len(pend_end) >= QUIZ_GROUP else f"미출제 {QUIZ_GROUP}개 미만 — 판단 불가"))
+        sc.period_ok = len(pend_end) < QUIZ_GROUP
     else:
         cue_by_turn = {tn: (c_t, d) for c_t, tn, d in cue_match["pairs"]} if cue_match else {}
-        for tn, cnt in sess.anchors:
-            ok = cnt > 0 and cnt % QUIZ_GROUP == 0
+        for a_i, (tn, cnt) in enumerate(sess.anchors):
+            pend = sess.anchor_pending[a_i] if a_i < len(sess.anchor_pending) else []
+            ok = len(pend) >= QUIZ_GROUP
             sc.period_ok &= ok
             if server_logs is None or not (cue_match and cue_match["cues"]):
                 cue_s = ""          # 로그를 안 붙였거나 큐 줄이 0(T16 전) — 열을 비운다(아래 요약 줄이 이유를 말한다)
@@ -2019,7 +2101,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                 cue_s = f" · 큐→앵커 {cue_by_turn[tn][1]:.1f}s"
             else:
                 cue_s = " · ⛔큐 없이 난 앵커"
-            L.append(f"- 턴 {tn}: {cnt}번째 항목 뒤 {'✔' if ok else '✖'}{cue_s}")
+            late = f" (늦음 +{len(pend) - QUIZ_GROUP})" if ok and len(pend) > QUIZ_GROUP else ""
+            L.append(f"- 턴 {tn}: 드릴 {cnt} · 미출제 {len(pend)} {'✔' if ok else '✖'}{late}{cue_s}")
+        if len(pend_end) >= QUIZ_GROUP:
+            L.append(f"- ⚠ 끝에 미출제 {len(pend_end)}개 — 마지막 큐 뒤 통화가 끝났거나 큐 누락(서버 큐 로그로 확인)")
     if server_logs is not None:
         # ⭐ T16 열 — 서버 큐(로그) ↔ 비버 앵커(문구) 대조. 큐 줄이 0이면 «구현 전이거나 문구가 다르다» 로 읽어라.
         n_c = len(cue_match["cues"]) if cue_match else 0
@@ -2036,6 +2121,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                      f"큐 없이 난 앵커 {len(cue_match['anchors_without_cue'])}")
             for c_t in cue_match["cues_without_anchor"]:
                 L.append(f"  - ⛔ 큐 {datetime.fromtimestamp(c_t, timezone.utc).strftime('%H:%M:%S')}Z 뒤 {QUIZ_CUE_MATCH_WINDOW_S:.0f}s 안에 비버가 퀴즈를 열지 않았다")
+    num_of = {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(sc.cur.get("quiz_items") or [])}
+    sc.order_ok, order_lines = quiz_order_check(quiz_blocks(sess.records), num_of)
+    L += order_lines
     quizzed = [sess.records[i] for i in sess.drilled_order if sess.records[i].quizzed]
     L.append(f"- 퀴즈에 오른 항목 {len(quizzed)}/{len(sess.drilled_order)}: " +
              ", ".join(f"{r.item.surface}(회차{len(r.rounds)}{'' if all(x.anchored for x in r.rounds) else '·앵커없음' + str(sum(1 for x in r.rounds if not x.anchored))})" for r in quizzed))
@@ -2149,7 +2237,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         p4 = [r for r in recs if r.policy == 4]
         p4_ok = sum(1 for r in p4 if r.drill_attempts <= 3)
         L.append(f"- (c) 판정: 정답 일본어 문장 통과 {p1_ok}/{len(p1)} · 반말(だ) 미통과 {p3_np}/{len(p3)}(격식 재요청 관측 {p3_corr}) · 오답 재시도 ≤3 {p4_ok}/{len(p4)}")
-        L.append(f"- (d) 퀴즈 큐 3개마다: §2 참조(앵커 {[cnt for _, cnt in sess.anchors]})")
+        L.append(f"- (d) 퀴즈 큐 미출제 {QUIZ_GROUP}개마다: §2 참조(앵커별 미출제 {[len(x) for x in sess.anchor_pending]})")
         L.append(f"- (e) 힌트 프레임 {len(sess.hints)}개 · reading(가나) 있는 예시 {sum(h_['reading'] for h_ in sess.hints)} — ⚠ 표현학습은 힌트 사이드카를 끈다(call_session enable_hints = call_type != 'expression') → 0 이 정상, 프리토킹에서 본다")
         ko0, ko1 = sc.cur.get("ko_before") or {}, sc.cur.get("ko_after") or {}
         ko_same = ko0.get("rows") == ko1.get("rows") and ko0.get("passed") == ko1.get("passed") and ko0.get("updated_max") == ko1.get("updated_max")
@@ -2157,9 +2245,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"- (f) 종료 저장: ja cur_member_item(이 통화) {ja_rows}행 · ko 진도 무변화 {'✔' if ko_same else '✖'} (rows {ko0.get('rows')}→{ko1.get('rows')} · passed {ko0.get('passed')}→{ko1.get('passed')})")
         L.append(f"- (g) 거짓 칭찬 {sum(len(r.beaver_said_correct_after_wrong) for r in recs)}건")
         L.append("")
-    passed_all = sc.judge_ok and sc.period_ok and sc.praise_ok
+    passed_all = sc.judge_ok and sc.period_ok and sc.order_ok and sc.praise_ok
     L.insert(2, f"**결과: {'✔ 전부 기대와 일치' if passed_all else '✖ 불일치'}** — 판정 {'✔' if sc.judge_ok else '✖'} · "
-                f"퀴즈주기 {'✔' if sc.period_ok else '✖'} · 거짓칭찬 {'✔' if sc.praise_ok else '✖'} · "
+                f"퀴즈주기 {'✔' if sc.period_ok else '✖'} · 퀴즈순서 {'✔' if sc.order_ok else '✖'} · 거짓칭찬 {'✔' if sc.praise_ok else '✖'} · "
                 f"선질문 위반 {len(pre)} · 자발 산출 {sess.spontaneous}")
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stamp}_{LANGUAGE + '_' if LANGUAGE != 'ko' else ''}call{cid or 'none'}.md"
@@ -2170,7 +2258,7 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     # 원자료(턴·항목 기록·DB 결과)도 남긴다 — 채점 규칙이 바뀌면 통화를 다시 걸지 않고 다시 읽을 수 있게
     raw = {
         "call_id": cid, "duration_min": duration_min, "end_reason": sess.end_reason, "errors": sess.errors,
-        "anchors": sess.anchors, "drilled_order": sess.drilled_order,
+        "anchors": sess.anchors, "anchor_pending": sess.anchor_pending, "drilled_order": sess.drilled_order,
         "quiz_cue_match": ({k: v for k, v in cue_match.items() if k != "cues"} | {"cues": [[t, p] for t, p in cue_match["cues"]]})
         if cue_match else None,
         "turns": [{"n": t.n, "role": t.role, "t": round(t.t, 1), "wall": round(t.wall, 3), "text": t.text, "kind": t.kind, "stt": t.stt, "tags": t.tags}
@@ -2818,7 +2906,7 @@ def _call_summary(sess: Session, sc: Score) -> str:
     if sess.course == "freetalk":
         return f"call {sess.call_id} 프리토킹 · locked={sess.locked} · 종료 {sess.end_reason}"
     rd = sc.cur.get("redrill") or {}
-    return (f"call {sess.call_id} · 드릴 {len(sess.drilled_order)} · 판정 {'✔' if sc.judge_ok else '✖'} · 퀴즈주기 {'✔' if sc.period_ok else '✖'} · "
+    return (f"call {sess.call_id} · 드릴 {len(sess.drilled_order)} · 판정 {'✔' if sc.judge_ok else '✖'} · 퀴즈주기 {'✔' if sc.period_ok else '✖'} · 퀴즈순서 {'✔' if sc.order_ok else '✖'} · "
             f"거짓칭찬 {'✔' if sc.praise_ok else '✖'} · 재드릴 {rd.get('n', '?')}/{rd.get('total_passed', '?')} · 원가 ${sc.call_row.get('cost_usd')} · {sc.call_row.get('usage_engine')}")
 
 
