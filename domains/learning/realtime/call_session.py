@@ -1133,7 +1133,7 @@ def _flush_user_segment(state: _CallState) -> None:
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
     state.next_turn_index += 1
-    _expression_quiz_note_open_user_turn(state)    # C4 — 창 안 학습자 턴 상한(세그먼트에 넣은 **뒤** — 이 발화도 창 안에 든다)
+    _expression_quiz_note_open_user_turn(state, text)    # C4 — 창 안 학습자 턴 상한(세그먼트에 넣은 **뒤** — 이 발화도 창 안에 든다)
     state.cur_user_pcm = bytearray()
     state.cur_user_text = []
 
@@ -1327,6 +1327,8 @@ def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
     """
     if not state.expr_items or state.expr_quiz_cue_pending is None:
         return
+    if not (text or "").strip():
+        return      # P1(2026-09-15, 1611 t0·t28·t40): 전사 빈 턴은 «학습자 시도» 가 아니다 — 정리 대기 턴을 세지 않는다(세그먼트·turn_index 는 종전대로 저장)
     state.expr_quiz_cue_user_turns += 1
     hold = state.expr_quiz_prev_num
     if hold is None or hold in state.expr_covered_by_user or not text:
@@ -1336,9 +1338,12 @@ def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
         state.expr_covered_by_user.add(hold)
 
 
-def _expression_quiz_note_open_user_turn(state: _CallState) -> None:
-    """C4(2026-09-14, 1601): 열린 퀴즈 창 안에서 학습자 턴을 세고, 상한에 닿으면 창을 강제로 닫는다(미판정은 종전 STT 폴백 판정) — 다음 큐가 열리게."""
+def _expression_quiz_note_open_user_turn(state: _CallState, text: str = "") -> None:
+    """C4(2026-09-14, 1601): 열린 퀴즈 창 안에서 학습자 턴을 세고, 상한에 닿으면 창을 강제로 닫는다(미판정은 종전 STT 폴백 판정) — 다음 큐가 열리게.
+    P1(2026-09-15, 1611): 전사가 빈 턴(무음·전사 누락)은 세지 않는다 — 학습자가 답하지 않은 턴으로 창이 닫히면 안 된다."""
     if not state.expr_items or not state.expr_quiz_open:
+        return
+    if not (text or "").strip():
         return
     state.expr_quiz_open_user_turns += 1
     if state.expr_quiz_open_user_turns >= EXPR_QUIZ_OPEN_MAX_USER_TURNS:
@@ -1478,7 +1483,13 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
 
 
 def _expression_quiz_span(state: _CallState, *, include_tail: bool) -> list[tuple[int, str, str]]:
-    """퀴즈 창 = (세그먼트 인덱스, 역할, 텍스트) — open_seg 부터. include_tail 이면 아직 flush 안 된 버퍼도(가상 인덱스)."""
+    """퀴즈 창 = (세그먼트 인덱스, 역할, 텍스트) — open_seg 부터. include_tail 이면 아직 flush 안 된 버퍼도(가상 인덱스).
+
+    ⛔ (2026-09-15 P4 검토 — 하지 않기로 함) «창이 open_seg 부터라 드릴 복창이 통과로 잡힌다» 는 추론은 **틀렸다.** open_seg 는 큐가 얹힌 뒤
+      **여는 비버 턴**의 인덱스라 드릴(그 앞 세그먼트)은 이미 창 밖이다. 1611 seq=1(창 11~23, passed=[2,1,3])을 전사로 보면 t11 비버는 공개 없이
+      묻고 t12·t14·t16 이 퀴즈 답이었다 — 정당한 통과. 창 시작을 open_seg+1 로 좁히면 여는 비버 턴의 **정답 공개**를 못 봐서, 공개 뒤 학습자가
+      따라 말한 것이 오히려 통과가 된다(지금은 failed). 코드만 보지 말고 세그먼트 내용을 확인하고 바꿔라.
+    """
     span: list[tuple[int, str, str]] = []
     for i in range(state.expr_quiz_open_seg, len(state.segments)):
         seg = state.segments[i]

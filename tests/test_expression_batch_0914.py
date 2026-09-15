@@ -190,3 +190,41 @@ async def test_quiz_cue_hold_log_is_emitted_only_when_the_reason_changes(caplog)
     await cs._attach_quiz_cue(_Sess(), st, "마이크")
     holds = [r for r in caplog.records if "보류:" in r.getMessage()]
     assert len(holds) == 2 and "1/3" in holds[-1].getMessage()
+
+
+# --------------------------------------------------------------------------- #
+# P1 (2026-09-15, 1611 t0·t28·t40) — 전사 빈 턴은 창 상한·큐 정리 대기를 세지 않는다
+# --------------------------------------------------------------------------- #
+def _empty_user(st):
+    st.cur_user_pcm = bytearray(b"\x00\x00" * 160)     # 소리는 왔는데 전사가 비었다
+    st.cur_user_text = []
+    cs._flush_user_segment(st)
+
+
+def test_empty_learner_turns_do_not_count_toward_the_quiz_window_cap():
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"도와주세요"'):
+        _beaver(st, t)
+    st.expr_quiz_cue_pending = None
+    st.expr_quiz_awaiting_open = True
+    cs._expression_quiz_open_on_beaver_turn(st)
+    n_seg = len(st.segments)
+    for _ in range(6):
+        _empty_user(st)
+    assert st.expr_quiz_open is True and st.expr_quiz_open_user_turns == 0, "무음 턴 6회 → 강제 닫힘 0"
+    assert len(st.segments) == n_seg + 6, "세그먼트·turn_index 는 종전대로 저장된다"
+    for i in range(6):
+        _user(st, "음 %d" % i)
+    assert st.expr_quiz_open is False, "전사 있는 턴 6회면 종전대로 닫힌다"
+
+
+def test_empty_learner_turns_do_not_count_toward_the_cue_settle_wait():
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"도와주세요"'):
+        _beaver(st, t)
+    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_cue_user_turns == 0
+    for _ in range(4):
+        _empty_user(st)
+    assert st.expr_quiz_cue_user_turns == 0, "무음 턴은 정리 대기 카운트 0"
+    _user(st, "모르겠어요")
+    assert st.expr_quiz_cue_user_turns == 1
