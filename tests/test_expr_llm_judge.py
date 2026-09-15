@@ -278,3 +278,34 @@ def test_quiz_verdict_instruction_pins_the_four_rules():
     text = seeds.expression_quiz_verdict_instruction(["2. どうも — 뜻: 고마워요"], target="일본어", locale_label="한국어")
     assert "한글 음차" in text and "선생님이 그 표현(정답)을 먼저 들려준 뒤에야 학습자가 따라 말했거나" in text
     assert "반말(보통형)만 말했으면 passed 가 아니다" in text and "pending: 학습자가 그 항목에 아직 답하지 않았다" in text
+
+
+
+# --------------------------------------------------------------------------- #
+# C — 큐·재접지 쪽지에 «이미 다룬» · «남은(번호·뜻)» 목록을 서버가 싣는다(규칙 ①)
+# --------------------------------------------------------------------------- #
+def test_quiz_cue_carries_done_and_remaining_lists_from_the_server():
+    st = _state()
+    st.covered_nums = [1, 2, 3]
+    cue = cs._expression_quiz_cue(st, [1, 2, 3])
+    assert "이미 다룬 표현: ありがとうございます / どうも / すみません — 다시 가르치지 마라." in cue
+    assert "퀴즈 뒤 새로 가르칠 남은 표현(번호·뜻): 4. 미안해요 = ごめんなさい · 5. 네 = はい — 이 순서로, 이것만 새로 가르쳐라." in cue
+    assert " 지금 퀴즈를 내라" in cue
+
+
+def test_reground_note_lists_what_is_left_so_the_beaver_does_not_reteach():
+    st = _state()
+    st.covered_nums = [1, 2]
+    note = cs._build_expression_note(st)
+    assert "이미 다룬 표현: ありがとうございます / どうも" in note
+    assert "아직 안 가르친 남은 표현(번호·뜻): 3. 죄송합니다·저기요 = すみません · 4. 미안해요 = ごめんなさい · 5. 네 = はい." in note
+    assert "이미 다룬 표현을 처음처럼 다시 가르치지 마라" in note
+    st.covered_nums = [1, 2, 3, 4, 5]
+    assert "아직 안 가르친 남은 표현" not in cs._build_expression_note(st), "다 가르쳤으면 줄이 없다"
+
+
+def test_remaining_rows_are_capped():
+    items = [{"item_id": 200 + i, "obj": "표현%d" % i, "des": "뜻%d(설명)" % i, "ex": None} for i in range(1, 16)]
+    st = _state(items, lang="ko")
+    rows = cs._expr_remaining_rows(st)
+    assert len(rows) == cs.EXPR_REMAINING_ROWS_CAP + 1 and rows[0] == "1. 뜻1 = 표현1" and rows[-1] == "외 3개"

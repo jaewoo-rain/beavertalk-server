@@ -1339,13 +1339,31 @@ class ExpressionQuizOut(BaseModel):
     items: list[ExpressionQuizFallbackItem] = []
 
 
+EXPR_REMAINING_ROWS_CAP = 12     # 4차 C — 쪽지·큐에 싣는 남은 항목 줄 상한(넘으면 « 외 N개») — 재개 쪽지 목록 상한(12)과 같은 규율
+
+
+def _expr_remaining_rows(state: _CallState) -> list[str]:
+    """4차 C — 아직 안 가르친(covered 아님) 항목 «번호. 뜻 = 표면형»(번호 순, 상한 EXPR_REMAINING_ROWS_CAP)."""
+    rows: list[str] = []
+    left = [n for n in range(1, len(state.reground_items) + 1) if n not in state.covered_nums]
+    for n in left[:EXPR_REMAINING_ROWS_CAP]:
+        surface = str(state.reground_items[n - 1] or "").strip()
+        meaning = _PAREN_RE.sub("", str(state.expr_items[n - 1].get("des") or "")).strip()[:24] if n <= len(state.expr_items) else ""
+        rows.append(f"{n}. {meaning} = {surface}" if meaning else f"{n}. {surface}")
+    if len(left) > EXPR_REMAINING_ROWS_CAP:
+        rows.append("외 %d개" % (len(left) - EXPR_REMAINING_ROWS_CAP))
+    return rows
+
+
 def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = False) -> str:
-    """퀴즈 큐 문구(시스템 텍스트, CONTROL_TAG 접두 — ⛔ «[시스템]» 은 종료 태그와 같던 시절 태그라 금지, call 706)."""
+    """퀴즈 큐 문구(시스템 텍스트, CONTROL_TAG 접두 — ⛔ «[시스템]» 은 종료 태그와 같던 시절 태그라 금지, call 706).
+    4차 C(2026-09-15): 이미 다룬 표현·남은 표현 목록을 서버 목록으로 싣는다(ko 대본도 바뀐다 — 해시 갱신, README §8)."""
     ctx = state.expr_ctx or {}
     locale_label = ctx.get("locale_label") or "학습자의 모국어"
     target = ctx.get("target_language") or "한국어"
     labels = " ".join("«%s»" % state.reground_items[n - 1] for n in nums if 1 <= n <= len(state.reground_items))
-    return expression_quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target)   # 잠금: locked/seeds.py
+    return expression_quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target,   # 잠금: locked/seeds.py
+                               done_labels=_covered_labels(state), remaining_rows=_expr_remaining_rows(state))
 
 
 #: 큐 보류 상한 — 정리(학습자 성공/비버 다음 항목)를 기다리다 학습자 턴이 이만큼 지나면 얹는다(= 공개 뒤 시도 3번 = 드릴 재시도 상한 3).
@@ -6026,6 +6044,7 @@ def _build_expression_note(state: _CallState) -> str:
         # ⭐ 2026-09-13(1546): 퀴즈 창이 열려 있으면 착지문이 «남은 문항을 마저 내라» 로 바뀐다 — 퀴즈 중 꽂힌
         #   쪽지의 «지금 다루는 표현 요청 하나» 가 비버를 방금 항목으로 되돌려 루프(t35~t43)를 만들었다.
         quiz_remaining=_expr_quiz_remaining(state),
+        remaining=_expr_remaining_rows(state),      # ⭐ 4차 C — 남은 항목 목록(사장님 규칙 ① 을 쪽지가 강제)
     )
 
 

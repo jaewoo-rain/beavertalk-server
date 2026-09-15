@@ -125,6 +125,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "seeds.seed_expression_resume_mats": ("8a7218a5fb255229", lambda: seeds.seed_expression_resume("한국어", drilled=["물", "가다"], passed=["물"], failed=["가다"], recent=[("beaver", "물은 water 예요. 따라 해 볼까요?"), ("user", "물"), ("beaver", "좋아요! 다음은 가다.")])),
     "seeds.close_seed_normal": ("fbf515b5052b7c68", lambda: seeds.close_seed_normal("[통화종료:ab12]")),
     "seeds.close_seed_leveltest": ("082b0f3499072f05", lambda: seeds.close_seed_leveltest("[통화종료:ab12]")),
+    # 2026-09-15 4차 C — 이미 다룬/남은 표현 목록판(서버가 항상 넘긴다 → ko 실통화 대본 바뀜). 목록 없는 호출은 아래 옛 해시 그대로.
+    "seeds.expression_quiz_cue_lists": ("393adc8fe7ac0e70", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어", done_labels=["물", "가다"], remaining_rows=["3. to go = 가다", "4. person = 사람"])),
+    "reground.build_expression_reground_brief_remaining": ("6f100c295c08edfa", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)", remaining=["3. person = 사람"])),
     "seeds.expression_quiz_cue": ("6684ebf10c2cf314", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어")),
     "seeds.expression_taught_judge_instruction": ("7025709c4196d049", lambda: seeds.expression_taught_judge_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 A
     "seeds.expression_quiz_verdict_instruction": ("5d2a3bf1fc3e9183", lambda: seeds.expression_quiz_verdict_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 B

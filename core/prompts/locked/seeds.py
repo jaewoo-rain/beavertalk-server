@@ -296,16 +296,29 @@ NUDGE_SEED_1_LEVELTEST = (
 # ⛔⛔ 절대 고치지 마라 — 서버 판정/표정/진도 배관이 이 문장을 **그대로** 기대한다(gemini 2.5·3.1 두 모델 모두 같은 문장을 쓴다).
 #   고치려면 bt-back 과 시험(tests/test_prompt_locked_hash.py · tests/test_prompt_*.py)을 같이. 사람이 고치는 문구는 core/prompts/editable/*.md 다.
 # 표현학습 퀴즈 큐(T16 — 재접지 배관과 별개 슬롯으로 마이크·RMS 관문에 얹힌다). 하네스 로그 계약은 call_session.EXPR_QUIZ_CUE_LOG_PREFIX.
-def expression_quiz_cue(labels: str, n: int, *, retry: bool, locale_label: str, target: str) -> str:
-    """큐 문구(시스템 텍스트, CONTROL_TAG 접두 — ⛔ «[시스템]» 은 종료 태그와 같던 시절 태그라 금지, call 706)."""
+def expression_quiz_cue(
+    labels: str, n: int, *, retry: bool, locale_label: str, target: str,
+    done_labels: list[str] | None = None, remaining_rows: list[str] | None = None,
+) -> str:
+    """큐 문구(시스템 텍스트, CONTROL_TAG 접두 — ⛔ «[시스템]» 은 종료 태그와 같던 시절 태그라 금지, call 706).
+
+    ⭐ 4차 C(2026-09-15, 사장님 규칙 ① «배운 건 뒤에 다시 안 배운다»): done_labels(이미 다룬 표현)·remaining_rows(남은 표현 «번호. 뜻 = 표면형»)를 받으면 끝에
+      두 줄을 붙인다 — 세션 지시문은 중간에 못 바꾸니 큐가 서버 목록으로 되박는다. 둘 다 None/빈 목록이면 **종전 바이트 동일**.
+    """
     lead = "아까 틀린" if retry else "방금 배운"
-    return (
+    base = (
         f"{CONTROL_TAG} 지금 퀴즈를 내라. {lead} {labels} {n}개를 한 문제씩 — {locale_label}로 뜻·상황을 주고 "
         f"{target}로 말하게 하라. 정답을 먼저 말하지 마라. 한 턴에 한 문제만 — 교정하는 턴에도 새 문제를 붙이지 마라. "
         "정답을 들려줬으면 따라 말하게만 하고 그 턴을 끝내라 — 같은 문제를 «어떻게 말해요?» 로 다시 묻지 마라. "
         f"{n}개가 끝나면 다음 새 표현으로 넘어가라. "
         "네 말에 대괄호나 '퀴즈 시작' 같은 단계 표시를 넣지 마라 — 그냥 말로 내라."
     )
+    extra: list[str] = []
+    if done_labels:
+        extra.append("이미 다룬 표현: " + " / ".join(done_labels) + " — 다시 가르치지 마라.")
+    if remaining_rows:
+        extra.append("퀴즈 뒤 새로 가르칠 남은 표현(번호·뜻): " + " · ".join(remaining_rows) + " — 이 순서로, 이것만 새로 가르쳐라.")
+    return base + (" " + " ".join(extra) if extra else "")
 
 
 # ⭐ 4차 A(2026-09-15, 사장님 «배운 거 체크는 비버가 말하는 것만»): 비버 턴마다 «이 턴에서 다룬 항목» 을 고르는 판정기 지시문. 문자열 대조로는 비버가

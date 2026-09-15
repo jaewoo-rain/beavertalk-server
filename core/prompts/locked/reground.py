@@ -285,8 +285,12 @@ def build_expression_reground_brief(
     next_label: Optional[str] = None,
     locale_label: str = "학습자의 모국어",
     quiz_remaining: Optional[list[str]] = None,
+    remaining: Optional[list[str]] = None,
 ) -> str:
     """표현학습 재접지 쪽지 — 진도(다룬 것·맞힌 것·틀린 것)를 서버가 되박는다.
+
+    ⭐ `remaining`(2026-09-15 4차 C, 사장님 규칙 ①): 아직 안 가르친 항목 «번호. 뜻 = 표면형» — 쪽지가 다룬 것만 적고 남은 것을 안 적어, 압축 뒤 비버가 이미
+      가르친 것을 처음처럼 다시 가르쳤다(1614 t23·t25·t29). None/빈 목록이면 **출력 바이트 동일**.
 
     ⭐ `quiz_remaining`(2026-09-13, 실통화 1546): **퀴즈 창이 열린 채** 쪽지가 꽂히면 착지문이 퀴즈를 모른다 —
       «다음에 다룰 표현: X» + «지금 다루는 표현을 말하게 하는 요청 하나로 이어가라» 가 퀴즈 3문제 중 1문제 낸 자리에
@@ -335,6 +339,12 @@ def build_expression_reground_brief(
         out.append(
             "아직 틀린 표현: " + " / ".join(failed_s) +
             ". 이것들은 이 통화 안에서 한 번 더 물어 맞히게 해라."
+        )
+    remaining_new = clean(remaining)
+    if remaining_new:
+        out.append(
+            "아직 안 가르친 남은 표현(번호·뜻): " + " · ".join(remaining_new) +
+            ". 새로 가르칠 것은 이것뿐이다 — 위에서 이미 다룬 표현을 처음처럼 다시 가르치지 마라."
         )
     remaining_s = clean(quiz_remaining)
     if remaining_s:
