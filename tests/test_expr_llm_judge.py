@@ -435,3 +435,13 @@ def test_verdict_instruction_off_set_block_only_when_given():
     assert "[세트 밖 항목" not in base
     with_extra = seeds.expression_quiz_verdict_instruction(["1. a"], target="일본어", locale_label="한국어", extra_rows=["4. b"])
     assert with_extra.startswith(base) and with_extra.endswith("4. b") and "실제로 물은" in with_extra
+
+
+
+# --------------------------------------------------------------------------- #
+# 5차 B (2026-09-15, 1615 #3) — 물었고 답했는데 그 표현이 아니면 failed(무응답·딴 얘기만 pending)
+# --------------------------------------------------------------------------- #
+def test_verdict_instruction_marks_wrong_answers_as_failed_not_pending():
+    text = seeds.expression_quiz_verdict_instruction(["3. こんばんは — 뜻: 안녕하세요(저녁)"], target="일본어", locale_label="한국어")
+    assert "선생님이 그 항목을 물었고 학습자가 답했는데 그 표현이 아니면 failed 다(엉뚱한 대답 포함)" in text
+    assert "학습자가 아무 답도 안 했거나 그 문제와 상관없는 말만 했으면 pending" in text
