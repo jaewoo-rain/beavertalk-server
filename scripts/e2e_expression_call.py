@@ -80,6 +80,7 @@ PRE_SPEECH_S = 0.8                # turn_end 뒤 이만큼 쉬고 말한다
 POST_SPEECH_SILENCE_S = 1.2       # 발화 뒤 무음(VAD 종료 감지)
 LEARNER_VOICE = "Charon"          # 비버 음색과 다르게(Chirp3-HD 로스터)
 ANSWER_STYLE = ""                 # --answer-style: "" | hangul | roman | kana — 정답을 다른 표기로 말한다(4차 ③ LLM 판정이 표기 달라도 통과시키나)
+OFFSET_EXPECT = "unjudged"        # --offset-expect: 서버 퀴즈 세트 밖 자발 정답의 기대 — unjudged(4차: 서버 미판정이 정상) | passed(5차 A 배포 뒤: 서버가 판정·기록)
 JUDGE_MODE = "llm"                # --judge: llm(서버 판정 결과·로그와 대조 — 기대 ①~④) | string(옛 문자열 판정기 — 하네스 자체 매칭 기대)
 
 # --------------------------------------------------------------------------- #
@@ -772,6 +773,17 @@ class Uplink:
 # --------------------------------------------------------------------------- #
 # LLM 폴백 — 문자열로 안 가릴 때 번호 하나 (generate_structured 1회)
 # --------------------------------------------------------------------------- #
+def picker_listing(candidates: list["Item"], max_examples: int = 3) -> str:
+    """LLM 픽커 후보 목록 — 표면형 · 뜻 · **예문**(최대 3). 비버는 [문형] 항목을 라벨 뜻이 아니라 예문 문장을 영어로 옮겨 묻는다
+    («When is your birthday?» ← 생일이 언제예요? · «I am a company employee» ← 저는 회사원입니다 — 1617 탈선). 예문엔 영어 번역이 없어
+    (cur_item.examples) 시드로 못 풀므로 LLM 에게 대상 언어 예문을 그대로 보여 준다."""
+    lines = []
+    for i, c in enumerate(candidates):
+        exs = [e for e in (list(c.examples) or ([c.example] if c.example else [])) if e][:max_examples]
+        lines.append(f"{i + 1}. {c.surface} — {c.en}" + (" — examples: " + " / ".join(exs) if exs else ""))
+    return "\n".join(lines)
+
+
 class Picker:
     def __init__(self, enabled: bool) -> None:
         self.enabled = enabled
@@ -813,10 +825,13 @@ class Picker:
             item_no: int
             reason: str
 
-        listing = "\n".join(f"{i + 1}. {c.surface} — {c.en}" for i, c in enumerate(candidates))
-        sysi = ("You classify which Korean expression a tutor's utterance is asking the learner to produce. "
-                "The tutor speaks English and describes a situation or gives the English meaning, without saying "
-                "the Korean. Answer with the number of the matching expression from the list, or 0 if the utterance "
+        listing = picker_listing(candidates)
+        tl = "Japanese" if LANGUAGE == "ja" else "Korean"
+        sysi = (f"You classify which {tl} expression a tutor's utterance is asking the learner to produce. "
+                f"The tutor speaks English and describes a situation or gives the English meaning, without saying "
+                f"the {tl}. The tutor may also ask for a whole sentence in English (e.g. \"When is your birthday?\") that is the "
+                f"translation of one of an expression's example sentences, or that uses its grammar pattern — pick that expression. "
+                "Answer with the number of the matching expression from the list, or 0 if the utterance "
                 "is not asking for any of them (e.g. small talk, encouragement, or asking to repeat something already said).")
         prompt = f"[Recent context]\n{context}\n\n[Tutor utterance to classify]\n{question}\n\n[Expressions]\n{listing}"
         self.calls += 1
@@ -1982,7 +1997,7 @@ def parse_quiz_sets(log_lines: list[str] | None) -> list[tuple[Optional[float], 
 
 
 def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list,
-                    server_sets: Optional[list[list[int]]] = None) -> tuple[bool, list[str], dict]:
+                    server_sets: Optional[list[list[int]]] = None, offset_expect: str = "unjudged") -> tuple[bool, list[str], dict]:
     """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
       ③ 퀴즈 회차의 공개 전 자발 정답 + 그 턴 전사 있음 → 서버 passed 여야(표기 변형 답이면 ③ 로 따로 센다) · 앵커 없는 재출제만이면 passed~
       ④ 공개 뒤 복창 / 드릴만 한 항목 / 오답·모름 → 서버 passed 면 ✖ · 반말 답은 ~(LLM 이 격식을 어떻게 볼지 미정)
@@ -2010,9 +2025,13 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
         mark = ""
         num = num_of.get(iid)
         if rec.expected_passed and in_sets is not None and num is not None and num not in in_sets:
-            ok, did, exp = True, "퀴즈 자발 정답 · 서버 퀴즈 세트 밖(비버 이탈)", "—(세트 밖)"
-            mark = "~" if srv_pass else ""
             cnt["off_set"].append(num)
+            if offset_expect == "passed":
+                # 5차 A: 서버가 세트 밖 정답도 판정·기록한다 → passed 여야
+                ok, did, exp = srv_pass, "퀴즈 자발 정답 · 서버 퀴즈 세트 밖(비버 이탈)", "passed(세트 밖)"
+            else:
+                ok, did, exp = True, "퀴즈 자발 정답 · 서버 퀴즈 세트 밖(비버 이탈)", "—(세트 밖)"
+                mark = "~" if srv_pass else ""
         elif rec.expected_passed:
             ok = srv_pass or rec.expectation_ambiguous
             did = "퀴즈 자발 정답" + (" · 표기 변형 ③" if styled else "") + (" · 앵커 없는 재출제" if rec.expectation_ambiguous else "")
@@ -2279,7 +2298,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         _srv_sets = parse_quiz_sets(server_logs) if server_logs is not None else []
         sc.cur["server_quiz_sets"] = [(seq, nums) for _, seq, nums in _srv_sets]
         ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns,
-                                           server_sets=[nums for _, _, nums in _srv_sets] if _srv_sets else None)
+                                           server_sets=[nums for _, _, nums in _srv_sets] if _srv_sets else None,
+                                           offset_expect=OFFSET_EXPECT)
         L += tbl
         sc.judge_ok = ok_llm
         sc.cur["llm_judge"] = cnt
@@ -3545,6 +3565,8 @@ def main() -> None:
     ap.add_argument("--no-llm", action="store_true", help="항목 매칭 LLM 폴백 끄기")
     ap.add_argument("--answer-style", choices=("hangul", "roman", "kana"), default=None,
                     help="4차 ③: 정답을 다른 표기로 말한다 — ko: roman(로마자·영어 음성) · ja: kana(가나)·roman(헵번·영어 음성)·hangul(한글 음차·한국어 음성)")
+    ap.add_argument("--offset-expect", choices=("unjudged", "passed"), default="unjudged",
+                    help="서버 퀴즈 세트 밖 자발 정답의 기대 — unjudged(4차) · passed(5차 A 배포 뒤: 세트 밖 정답도 서버가 판정·기록)")
     ap.add_argument("--judge", choices=("llm", "string"), default="llm",
                     help="llm(기본·4차): 서버 LLM 판정 결과를 정본으로 ①재드릴 ②번호 순 ③표기 변형 통과 ④공개 뒤 복창 비통과 · string: 옛 문자열 판정기 기대")
     ap.add_argument("--logs", action="store_true", help="gcloud logging read 로 서버 로그 첨부")
@@ -3558,9 +3580,10 @@ def main() -> None:
     if args.tee:
         sys.stdout = Tee(Path(args.tee))
 
-    global LANGUAGE, ANSWER_STYLE, JUDGE_MODE
+    global LANGUAGE, ANSWER_STYLE, JUDGE_MODE, OFFSET_EXPECT
     LANGUAGE = args.language
     JUDGE_MODE = args.judge
+    OFFSET_EXPECT = args.offset_expect
     ANSWER_STYLE = args.answer_style or ""
     if ANSWER_STYLE == "kana" and LANGUAGE != "ja":
         sys.exit("⛔ --answer-style kana 는 --language ja 전용이다(ko 는 roman 만 — hangul 은 ko 기본 표기)")

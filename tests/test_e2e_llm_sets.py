@@ -56,3 +56,25 @@ def test_quiz_open_phrases_1615_1617():
     assert h.QUIZ_RE.search("Okay, let's see if you remember anything. How do you say \"Good morning\"?")
     assert h.QUIZ_RE.search("Let's check what you've learned so far.")
     assert not h.QUIZ_RE.search("Now, how do you say \"person\" in Korean? Try it!")
+
+
+def test_picker_listing_includes_examples_for_grammar_items():
+    g = h.Item(10638, "N은/는 N이에요/예요", "N is N (informal polite copula)", "", ("n is n",), kind="grammar",
+               example="생일이 언제예요?", examples=("생일이 언제예요?", "이 옷은 얼마예요?", "저 사람은 가수예요.", "넷째"))
+    v = h.Item(24, "사람", "person", "", ("person",), kind="vocab")
+    out = h.picker_listing([g, v]).splitlines()
+    assert out[0] == "1. N은/는 N이에요/예요 — N is N (informal polite copula) — examples: 생일이 언제예요? / 이 옷은 얼마예요? / 저 사람은 가수예요."
+    assert out[1] == "2. 사람 — person"
+
+
+def test_offset_expect_passed_requires_server_pass_after_5th_deploy():
+    T = h.Turn
+    turns = [T(0, "learner", 1.0, "ごめんなさい", stt="ごめん なさい 。", kind="correct", item_id=13)]
+    r13 = _rec(13, "ごめんなさい", 1)
+    r13.rounds.append(h.QuizRound(n=1, asked_at=1.0, block=1, spontaneous_correct=True, heard=True, answer_turns=[0], answers=["correct"]))
+    qi = [{"item_id": 100 + n, "surface": f"s{n}", "passed": False, "drilled": True} for n in range(12)]
+    qi.append({"item_id": 13, "surface": "ごめんなさい", "passed": False, "drilled": True})     # 번호 13
+    ok, _, cnt = h.llm_judge_table({13: r13}, [13], qi, turns, server_sets=[[10, 11, 12]], offset_expect="passed")
+    assert ok is False and cnt["off_set"] == [13]
+    qi[-1]["passed"] = True
+    assert h.llm_judge_table({13: r13}, [13], qi, turns, server_sets=[[10, 11, 12]], offset_expect="passed")[0] is True
