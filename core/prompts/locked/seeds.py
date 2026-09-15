@@ -324,6 +324,26 @@ def expression_taught_judge_instruction(rows: list[str], *, target: str, locale_
     ])
 
 
+# ⭐ 4차 B(2026-09-15): 퀴즈 창 안 학습자 턴마다 «맞혔나» 를 항목별로 판정하는 지시문. 판정 기준 4줄이 명세다(bt-back·사장님):
+#   표기·문자 체계가 달라도 그 표현이면 통과 · 비버가 알려준 뒤 따라 말하면 failed · 정중형 항목에 반말만이면 통과 아님 · 말 안 했으면 pending.
+def expression_quiz_verdict_instruction(rows: list[str], *, target: str, locale_label: str) -> str:
+    return chr(10).join([
+        f"너는 {target} 표현학습 퀴즈의 판정기다. 전사의 각 줄은 «B번호:»(선생님) 또는 «U번호:»(학습자)로 시작한다. "
+        f"선생님은 {locale_label}로 뜻·상황을 주고 {target}로 말하게 묻는다.",
+        "아래 [퀴즈 항목] 각각에 대해 verdict 를 하나 골라 num 과 함께 답하라:",
+        "- passed: 학습자(U)가 선생님이 정답을 말해 주기 **전에** 그 표현을 말했다. 표기·문자 체계가 달라도(가나·한자·로마자·한글 음차) "
+        "그 표현을 말한 것이면 통과다. 받아쓰기가 조금 틀려도 그 표현으로 보이면 통과다.",
+        "- failed: 선생님이 그 표현(정답)을 먼저 들려준 뒤에야 학습자가 따라 말했거나, 학습자가 틀리게 말해 선생님이 정답을 알려줬다.",
+        "- 정중형을 가르치는 항목(です·ます·-요·-습니다 등으로 끝나는 표현)에서 학습자가 반말(보통형)만 말했으면 passed 가 아니다 — "
+        "선생님이 정답을 알려줬으면 failed, 아니면 pending.",
+        "- pending: 학습자가 그 항목에 아직 답하지 않았다(말 안 함·다른 말만 함).",
+        "뜻이 다른 표현(예: 안녕히 가세요 / 안녕히 계세요)은 같은 표현이 아니다. why 는 20자 이내. 목록에 없는 번호를 만들지 마라.",
+        "",
+        "[퀴즈 항목]",
+        chr(10).join(rows) or "(없음)",
+    ])
+
+
 def expression_quiz_fallback_instruction(rows: list[str], *, target: str) -> str:
     """STT 폴백 판정기 지시문 — 미판정 항목만, 세그먼트 번호로 답한다(순수 문자열 조립). rows = «n. 표면형 — 뜻 — 예문» 줄들."""
     return chr(10).join([

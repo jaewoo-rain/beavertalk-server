@@ -171,3 +171,110 @@ def test_taught_judge_instruction_pins_the_rules():
     text = seeds.expression_taught_judge_instruction(["1. どうも — 뜻: 고마워요"], target="일본어", locale_label="한국어")
     assert "이번 B 턴에서" in text and "한글 음차" in text and "학습자만 말하고 선생님이 이 턴에서 다루지 않은 항목은 넣지 마라" in text
     assert "1. どうも — 뜻: 고마워요" in text
+
+
+
+# --------------------------------------------------------------------------- #
+# B «맞혔나» — 퀴즈 창 안 학습자 턴마다 항목별 passed/failed/pending · 닫힐 때 남은 것만 한 번 더 · 실패면 서버 문자열
+# --------------------------------------------------------------------------- #
+def _open_quiz(st, nums, seq=1):
+    st.covered_nums = sorted(set(st.covered_nums) | set(nums))
+    st.expr_quizzed = set(nums)
+    st.expr_quiz_set = list(nums)
+    st.expr_quiz_seq = seq
+    st.expr_quiz_awaiting_open = True
+    cs._expression_quiz_open_on_beaver_turn(st)
+
+
+@pytest.mark.asyncio
+async def test_learner_answer_in_hangul_transliteration_is_passed_by_the_llm(monkeypatch):
+    """1614 류: 「どうも」 를 «도모» 로 말했다 — 문자열로는 틀림, LLM 판정은 통과."""
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 2, "verdict": "passed", "why": "음차"}]} if "U" in p else {"verdicts": []})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [2])
+    _beaver(st, "퀴즈! 친구한테 가볍게 고마워요는?")
+    await _drain(st)
+    _user(st, "도모")
+    await _drain(st)
+    assert 102 in st.expr_quiz_pass and st.expr_quiz_llm_decided == {2}
+    name, prompt = [c for c in fake.calls if c[0] == "ExpressionVerdictOut"][0]
+    assert "[퀴즈 전사]" in prompt and "U" in prompt and "도모" in prompt
+
+
+@pytest.mark.asyncio
+async def test_repeat_after_reveal_is_failed_and_failed_cannot_undo_passed(monkeypatch):
+    answers = iter([{"verdicts": [{"num": 3, "verdict": "failed", "why": "공개 뒤 복창"}, {"num": 1, "verdict": "passed"}]},
+                    {"verdicts": [{"num": 1, "verdict": "failed"}]}])
+    fake = FakeJudge(verdict_fn=lambda p, s: next(answers))
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 3])
+    _user(st, "すみません")
+    await _drain(st)
+    assert 103 in st.expr_quiz_fail and 101 in st.expr_quiz_pass
+    assert st.expr_quiz_llm_decided == {1, 3}
+    # 확정된 항목은 다음 턴 판정에 다시 안 보낸다
+    n_calls = len(fake.calls)
+    _user(st, "ありがとう")
+    await _drain(st)
+    assert len(fake.calls) == n_calls, "확정 뒤엔 부를 게 없다"
+
+
+@pytest.mark.asyncio
+async def test_pending_items_get_one_more_llm_call_at_close_and_fall_back_to_server_matching_on_failure(monkeypatch):
+    calls = {"n": 0}
+
+    def verdict(p, s):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"verdicts": [{"num": 5, "verdict": "pending"}]}
+        return RuntimeError("boom")                       # 닫힐 때 1콜 → 실패 → 서버 문자열
+    fake = FakeJudge(verdict_fn=verdict)
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [5])
+    _user(st, "はい です")
+    await _drain(st)
+    assert 105 not in st.expr_quiz_pass and st.expr_quiz_llm_decided == set()
+    cs._close_expression_quiz(st, why="시험")
+    await _drain(st)
+    assert calls["n"] == 2, "닫힐 때 남은 항목으로 한 번 더"
+    assert 105 in st.expr_quiz_pass, "LLM 실패 → 서버 문자열 판정(はい 표면형이 창 안 U 에 있다)"
+    assert st.expr_judge_stats["quiz_fail"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_late_verdict_does_not_pollute_the_next_quiz(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 1, "verdict": "passed"}]})
+    fake.gate = asyncio.Event()
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1], seq=1)
+    _user(st, "ありがとうございます")                        # 판정이 늦게 온다
+    st.expr_quiz_open = False                               # 그 사이 퀴즈 1 이 닫히고 퀴즈 2 가 열렸다
+    _open_quiz(st, [1, 2], seq=2)                           # (재출제 가정 — 같은 번호 1 이 새 퀴즈에도 있다)
+    fake.gate.set()
+    await _drain(st)
+    assert 101 in st.expr_quiz_pass, "통과 사실(item_id)은 반영"
+    assert st.expr_quiz_llm_decided == set(), "퀴즈 2 의 확정 집합은 오염되지 않는다"
+
+
+@pytest.mark.asyncio
+async def test_final_progress_judges_the_open_quiz_with_the_llm_within_budget(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 4, "verdict": "passed"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    st.expr_llm_judge = True
+    _open_quiz(st, [4])
+    st.cur_user_text = ["고멘나사이"]                       # 아직 flush 안 된 꼬리 — 마지막 판정이 본다
+    fake.gate = asyncio.Event()
+    fake.gate.set()
+    await cs._final_expression_progress(st)
+    assert st.expr_quiz_open is False and 104 in st.expr_quiz_pass
+
+
+def test_quiz_verdict_instruction_pins_the_four_rules():
+    text = seeds.expression_quiz_verdict_instruction(["2. どうも — 뜻: 고마워요"], target="일본어", locale_label="한국어")
+    assert "한글 음차" in text and "선생님이 그 표현(정답)을 먼저 들려준 뒤에야 학습자가 따라 말했거나" in text
+    assert "반말(보통형)만 말했으면 passed 가 아니다" in text and "pending: 학습자가 그 항목에 아직 답하지 않았다" in text
