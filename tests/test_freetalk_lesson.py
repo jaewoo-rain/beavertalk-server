@@ -175,8 +175,9 @@ def test_lesson_script_never_renders_the_close_tag() -> None:
 # --------------------------------------------------------------------------- #
 def test_lesson_opening_seed_declares_the_situation_and_one_task_in_the_target_language() -> None:
     seed = ft.seed_freetalk_lesson_opening("한국어")
-    assert seed.startswith("[통화 시작]") and "**한국어로** [이번 차시]의 «상대» 인물로서 첫 말을 건다" in seed
-    assert "인사와 그 상황 속 첫 질문 하나를 한국어로 하고 멈춰" in seed and "상황을 설명하거나 무엇을 할지 묻지 마라" in seed
+    assert seed.startswith("[통화 시작]") and "**한국어로** [이번 차시]의 «상대» 인물로서 한 문장으로 인사하고" in seed
+    assert "첫 질문 하나만 한국어로 한 뒤 멈춰라" in seed and "상황 설명도, 무엇을 할지 묻기도 하지 마라" in seed
+    assert len(seed) < 226, "P5(2026-09-15, 1610) — 선톡 시드를 짧게(옛 판 %d자)" % 226
     assert "과제" not in seed
     assert "소리 내어 읽지 말고" in seed and "종료" not in seed and "작별" not in seed
 

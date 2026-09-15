@@ -103,6 +103,7 @@ from core.persona_prompt import (
 )
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
 from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
+from core.prompts.locked.seeds import seed_freetalk_lesson_reseed_short  # P5 벙어리 인사 2번째 재시드(차시 프리토킹, 2026-09-15)
 from core.prompts.expression import (
     NUDGE_SEED_1_EXPRESSION,
     build_expression_instruction,
@@ -176,6 +177,8 @@ SEED_TO_HANGUP_S = 22.0        # 종료 시드 후 정상 종료 안 되면 강�
 #   difflib 유사도 ≥ 0.9, 그리고 너무 짧은 턴(«다시 해봐!» 류 정당한 재요청)은 세지 않는다.
 LOOP_REPEAT_SIMILARITY = 0.9
 LOOP_MIN_CHARS = 15
+# ⭐ P5(2026-09-15, 1610): 벙어리 첫 인사 재시드 상한 — 1회 → 2회. 두 번째는 차시 프리토킹이면 짧은 대체 시드(seed_freetalk_lesson_reseed_short), 그 밖은 같은 시드.
+GREETING_RESEED_MAX = 2
 _LOOP_NORM_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 FRAGMENT_DRAIN_S = 2.0         # fragment_saved 뒤 close 동안 클라 소켓 «읽고 버리기» 상한(H8 1596·1598: 안 읽으면 close_timeout 10s 매달림)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
@@ -720,7 +723,7 @@ class _CallState:
         #     실제로 그 오차 때문에 회귀가 깨졌다(2026-08-20).
         "beaver_turns",
         # ⭐ 벙어리 인사를 다시 시드했는가(통화당 1회). 아래 재시드 자리 참조.
-        "greeting_reseeded",
+        "greeting_reseeded", "greeting_reseeds", "greeting_reseed_watch",
         "close_seed",
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
@@ -845,6 +848,8 @@ class _CallState:
         self.next_turn_index = 0
         self.beaver_turns = 0
         self.greeting_reseeded = False
+        self.greeting_reseeds: int = 0            # P5 — 벙어리 인사 재시드 횟수(상한 GREETING_RESEED_MAX)
+        self.greeting_reseed_watch: bool = False  # P5 — 재시드 뒤 다음 turn_end 에서 «소리 났나» 한 줄 찍기
         self.learner_spoke = False
         self.face_calls = 0        # 표정: set_face 호출 수(꺼져 있으면 영원히 0)
         self.face_seq = 0          # 마커 seq(통화 스코프 — 턴마다 리셋하지 않는다)
@@ -4796,6 +4801,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             turn_text = "".join(state.cur_beaver_text)
             _flush_beaver_segment(state)
             # ⭐⭐ **벙어리 인사 재시드**(2026-08-27 실측). 자세한 근거는 아래 함수 주석.
+            _log_reseed_result(state, turn_pcm_bytes)   # P5 — 직전 재시드가 소리를 냈나(한 줄)
             reseeded_now = _greeting_was_mute(state, turn_pcm_bytes)
             if reseeded_now:
                 await _reseed_greeting(session, state)
@@ -4949,14 +4955,23 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
     """
     return (
         state.session_epoch == 1        # 재개 세대엔 선톡 자체가 없다
-        and not state.greeting_reseeded  # 통화당 1회
+        and getattr(state, "greeting_reseeds", 0) < GREETING_RESEED_MAX   # P5(2026-09-15): 통화당 2회(종전 1회)
         and not state.learner_spoke      # 학습자가 말했으면 인사 구간이 아니다
-        and state.beaver_turns == 1      # 방금 끝난 것이 첫 비버 턴
+        and state.beaver_turns == getattr(state, "greeting_reseeds", 0) + 1   # 방금 끝난 것이 첫 비버 턴(재시드가 만든 턴 포함)
         and turn_pcm_bytes == 0          # 그 턴에 소리가 없었다
         and not state.should_close
         and not state.close_seed_sent
         and bool(state.seed_text)
     )
+
+
+def _log_reseed_result(state: _CallState, turn_pcm_bytes: int) -> None:
+    """P5(2026-09-15, 1610): 재시드 직후 turn_end 에서 그 턴의 오디오 바이트를 한 줄 — «재시드가 통했나» 를 로그로 판정한다."""
+    if not getattr(state, "greeting_reseed_watch", False):
+        return
+    state.greeting_reseed_watch = False
+    logger.info("normalcall 재시드 결과 %d/%d: 다음 턴 오디오 %dB (%s)", state.greeting_reseeds, GREETING_RESEED_MAX, turn_pcm_bytes,
+                "소리 남" if turn_pcm_bytes > 0 else "⛔또 벙어리")
 
 
 async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> None:
@@ -4974,12 +4989,19 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
     ⚠ [state.beaver_turns] 는 건드리지 않는다. 재시드가 만든 턴도 «인사 턴»이라
       표정 마커 억제([state.learner_spoke] 기준)가 그대로 걸려야 한다.
     """
+    n = getattr(state, "greeting_reseeds", 0) + 1
     state.greeting_reseeded = True  # await 전 선점 — 재진입해도 두 번 안 보낸다
+    state.greeting_reseeds = n
+    state.greeting_reseed_watch = True
+    # ⭐ P5(2026-09-15, 1610): 두 번째 재시드는 차시 프리토킹이면 짧은 대체 시드 — 같은 긴 시드가 두 번 연속 벙어리였다.
+    short = n >= 2 and getattr(state, "cur_course", "") == "freetalk" and getattr(state, "freetalk_brief", None) is not None
+    seed = seed_freetalk_lesson_reseed_short(getattr(state, "freetalk_target", "") or "한국어") if short else state.seed_text
     try:
-        await session.send_text_turn(state.seed_text)
+        await session.send_text_turn(seed)
         logger.warning(
-            "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 1회 "
-            "turns=%d epoch=%d", state.beaver_turns, state.session_epoch,
+            "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 %d/%d%s "
+            "turns=%d epoch=%d", n, GREETING_RESEED_MAX, " (짧은 대체 시드)" if short else "",
+            state.beaver_turns, state.session_epoch,
         )
     except asyncio.CancelledError:
         raise

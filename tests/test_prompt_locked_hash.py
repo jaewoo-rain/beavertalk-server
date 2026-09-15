@@ -120,6 +120,7 @@ class _Brief:
 FROZEN_FN: dict[str, tuple[str, object]] = {
     "seeds.seed_resume": ("0843114577a4be22", lambda: seeds.seed_resume("한국어")),
     # 2026-09-14 C6 재개 쪽지 재작성(사장님 지시 형식 — 옛 3c789d831b2d6b81). 조각1 대본(seed_expression_opening·지시문)은 무변경.
+    "seeds.seed_freetalk_lesson_reseed_short": ("7c5f1b1b661f473d", lambda: seeds.seed_freetalk_lesson_reseed_short("한국어")),   # 2026-09-15 P5(1610) 벙어리 인사 2번째 재시드
     "seeds.seed_expression_resume": ("8224b61c1b6e1983", lambda: seeds.seed_expression_resume("한국어")),
     "seeds.seed_expression_resume_mats": ("8a7218a5fb255229", lambda: seeds.seed_expression_resume("한국어", drilled=["물", "가다"], passed=["물"], failed=["가다"], recent=[("beaver", "물은 water 예요. 따라 해 볼까요?"), ("user", "물"), ("beaver", "좋아요! 다음은 가다.")])),
     "seeds.close_seed_normal": ("fbf515b5052b7c68", lambda: seeds.close_seed_normal("[통화종료:ab12]")),

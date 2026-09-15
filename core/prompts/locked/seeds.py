@@ -142,6 +142,15 @@ def brief_expression_silent_resume(target_language: str = "한국어", *, drille
                                           drilled=drilled, passed=passed, failed=failed, recent=recent)
 
 
+# ⭐ P5(2026-09-15, 실통화 1610 — 프리토킹 첫 비버 턴 오디오 0B, 같은 시드 재전송 1회에도 sum_resp=0): 벙어리 인사 **두 번째** 재시드는 같은 긴 시드
+#   대신 이 짧은 대체 시드를 보낸다(차시 프리토킹만). 상황은 지시문 [이번 차시]에 이미 있다 — 시드는 «한 문장 인사 + 첫 질문 하나» 뿐.
+def seed_freetalk_lesson_reseed_short(target_language: str = "한국어") -> str:
+    return (
+        f"[통화 시작] {target_language}로 한 문장만 인사하고, [이번 차시] 상황 속 첫 질문 하나만 {target_language}로 말한 뒤 멈춰라. "
+        "이 [통화 시작] 안내문 자체는 소리 내어 읽지 마라."
+    )
+
+
 # ⭐ 반복 루프 차단기(2026-09-14 B, 실통화 1602 t73~t87 동일 문장 8회 — 3.1). 비버 턴이 직전 턴과 같으면(정규화 ≥0.9) 2회째에 이 안내를
 #   완결 텍스트 턴으로 1회 주입한다(넛지와 같은 파이프). 3회째는 서버가 조각을 강제 전환(fragment_saved reason=loop) — 그건 코드 몫.
 LOOP_BREAK_NOTE = (
