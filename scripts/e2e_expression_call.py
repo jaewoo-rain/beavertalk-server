@@ -488,6 +488,7 @@ class ItemRecord:
     drill_attempts: int = 0
     drill_revealed: bool = False
     drill_answers: list[str] = field(default_factory=list)
+    drill_done_at: Optional[float] = None    # 드릴에서 처음 정답·복창을 낸 시각 — 이 뒤의 재질문만 «재드릴»(1624 #2: 드릴 중 재질문을 세던 결함)
     surface_uttered: bool = False     # 표면형이 비버 공개나 학습자 발화로 실제 한 번 나왔나 (= drilled 기대의 조건)
     surface_heard: bool = False       # 서버가 «들은» 쪽 — 비버 공개, 또는 학습자 턴의 input_transcript 에 표면형이 있었다
                                       #   (TTS 「이거 주세요」→STT 「이거 지세요」 처럼 보낸 것과 들린 것이 다르면 서버는 못 본다)
@@ -1643,6 +1644,8 @@ class Session:
                 self.current.surface_uttered = True
             if kind == "correct":
                 self.spontaneous += 1
+            if kind in ("correct", "parrot") and self.mode == "drill" and self.current is not None and self.current.drill_done_at is None:
+                self.current.drill_done_at = self.now()
             self.log(f"👤 {say}   [{kind}]" + (f"  ({style_tag})" if style_tag else ""))
             await uplink.speak(pcm)
             self.last_spoke_at = self.now()
@@ -2007,6 +2010,42 @@ QUIZ_CUE_MATCH_WINDOW_S = 30.0      # 큐 뒤 이 안에 난 앵커만 그 큐�
 _LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?\s+(.*)$")
 
 
+_ITEM_LIST_RE = re.compile(r"표현학습 목록:\s*(.+)$")
+_ITEM_NUM_RE = re.compile(r"(\d+)=")
+
+
+def parse_item_numbers(log_lines: list[str] | None) -> dict[int, str]:
+    """서버 «normalcall 표현학습 목록: 1=인사말 2=N은/는 N이에요/예요 …» → {번호: 표면형}.
+    ⚠ 이게 번호 **정본**이다(서버 state.expr_items 기준). cur_call.items 스냅샷 위치로 세면 어긋난다 —
+    ko 1626 은 스냅샷 8항목인데 서버는 #15 를 썼다(7차 재검). 표면형에 공백이 있어(«N입니까?, N입니다») 다음 «n=» 앞까지를 한 항목으로 자른다."""
+    out: dict[int, str] = {}
+    for ln in log_lines or []:
+        m = _ITEM_LIST_RE.search(ln)
+        if not m:
+            continue
+        body = m.group(1).strip()
+        hits = list(_ITEM_NUM_RE.finditer(body))
+        for i, h in enumerate(hits):
+            end = hits[i + 1].start() if i + 1 < len(hits) else len(body)
+            surface = body[h.end():end].strip().rstrip("·,").strip()
+            if surface:
+                out[int(h.group(1))] = surface
+    return out
+
+
+def item_numbers_by_id(num_to_surface: dict[int, str], items: dict) -> dict[int, int]:
+    """{번호: 표면형} + 하네스 항목 → {item_id: 번호}. 표면형이 같은 항목이 둘이면 둘 다 버린다(모호)."""
+    by_surface: dict[str, list[int]] = {}
+    for iid, it in (items or {}).items():
+        by_surface.setdefault(norm_ko(it.surface), []).append(iid)
+    out: dict[int, int] = {}
+    for num, surface in num_to_surface.items():
+        cand = by_surface.get(norm_ko(surface)) or []
+        if len(cand) == 1:
+            out[cand[0]] = num
+    return out
+
+
 _QUIZ_OPEN_RE = re.compile(r"퀴즈 큐 열림: seq=(\d+).*?항목=\[([0-9,\s]*)\]")
 
 
@@ -2087,7 +2126,8 @@ def in_quiz_window(epoch: float, windows: list, slack: float = 1.0) -> Optional[
 
 
 def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list,
-                    server_sets: Optional[list[list[int]]] = None, offset_expect: str = "unjudged") -> tuple[bool, list[str], dict]:
+                    server_sets: Optional[list[list[int]]] = None, offset_expect: str = "unjudged",
+                    num_of: Optional[dict[int, int]] = None) -> tuple[bool, list[str], dict]:
     """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
       ③ 퀴즈 회차의 공개 전 자발 정답 + 그 턴 전사 있음 → 서버 passed 여야(표기 변형 답이면 ③ 로 따로 센다) · 앵커 없는 재출제만이면 passed~
       ④ 공개 뒤 복창 / 드릴만 한 항목 / 오답·모름 → 서버 passed 면 ✖ · 반말 답은 ~(LLM 이 격식을 어떻게 볼지 미정)
@@ -2096,7 +2136,8 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
         자발 정답이어도 기대 «—(세트 밖)» · 비버 이탈로 센다(1615 #13 · 1616 #7). server_sets None = 로그 없음 → 종전 기대.
     반환 (ok, 표 줄, counts{styled:[n,ok], reveal:[n,ok], drill_only:[n,ok], silent:n, teach_mismatch:[ids], extra_passed:[ids], off_set:[번호]})."""
     qi = {int(q.get("item_id") or 0): q for q in (quiz_items or [])}
-    num_of = {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(quiz_items or [])}
+    # 번호 정본은 서버 «표현학습 목록» 로그(num_of) — 없으면 옛 방식(스냅샷 위치)
+    num_of = dict(num_of or {}) or {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(quiz_items or [])}
     in_sets = None if server_sets is None else {x for st in server_sets for x in st}
     by_n = {t.n: t for t in turns}
     cnt = {"styled": [0, 0], "reveal": [0, 0], "drill_only": [0, 0], "silent": 0, "teach_mismatch": [], "extra_passed": [], "off_set": []}
@@ -2397,18 +2438,23 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append("")
         _srv_sets = parse_quiz_sets(server_logs) if server_logs is not None else []
         sc.cur["server_quiz_sets"] = [(seq, nums) for _, seq, nums in _srv_sets]
+        _num_src = parse_item_numbers(server_logs)
+        _num_of = item_numbers_by_id(_num_src, sess.items)
+        sc.cur["item_numbers"] = {"source": "서버 목록 로그" if _num_src else "cur_call.items 위치(폴백)", "n": len(_num_of)}
         ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns,
                                            server_sets=[nums for _, _, nums in _srv_sets] if _srv_sets else None,
-                                           offset_expect=OFFSET_EXPECT)
+                                           offset_expect=OFFSET_EXPECT, num_of=_num_of)
+        L.append(f"- 항목 번호 정본: {sc.cur['item_numbers']['source']} ({len(_num_of)}개 대응"
+                 + (f" · 서버 목록 {len(_num_src)}항목" if _num_src else "") + ")")
         L += tbl
         sc.judge_ok = ok_llm
         sc.cur["llm_judge"] = cnt
         _wins = parse_quiz_windows(server_logs) if server_logs is not None else []
         _off = (sess.turns[0].wall - sess.turns[0].t) if sess.turns else 0.0
         # 앵커 없는 회차라도 그 질문 시각이 서버 퀴즈 창 안이면 퀴즈 질문이다(하네스가 여는 문구를 못 잡은 것 — 1620)
-        unanch = [r for r in sess.records.values() if not r.superseded_by
-                  and any(a in ("correct", "parrot") for a in r.drill_answers) and any(
-            (not rd.anchored) and not (_wins and in_quiz_window(rd.asked_at + _off, _wins) is not None) for rd in r.rounds)]
+        unanch = [r for r in sess.records.values() if not r.superseded_by and r.drill_done_at is not None and any(
+            (not rd.anchored) and rd.asked_at > r.drill_done_at
+            and not (_wins and in_quiz_window(rd.asked_at + _off, _wins) is not None) for rd in r.rounds)]
         rd_ = sc.cur.get("redrill") or {}
         sc.redrill_ok = not unanch and not rd_.get("n")
         L.append("")
@@ -2506,7 +2552,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                      f"큐 없이 난 앵커 {len(cue_match['anchors_without_cue'])}")
             for c_t in cue_match["cues_without_anchor"]:
                 L.append(f"  - ⛔ 큐 {datetime.fromtimestamp(c_t, timezone.utc).strftime('%H:%M:%S')}Z 뒤 {QUIZ_CUE_MATCH_WINDOW_S:.0f}s 안에 비버가 퀴즈를 열지 않았다")
-    num_of = {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(sc.cur.get("quiz_items") or [])}
+    num_of = item_numbers_by_id(parse_item_numbers(server_logs), sess.items) \
+        or {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(sc.cur.get("quiz_items") or [])}
     _blocks = quiz_blocks(sess.records)
     sc.order_ok, order_lines = quiz_order_check(_blocks, num_of)
     L += order_lines
@@ -2727,13 +2774,17 @@ def casual_for(surface: str) -> str:
     return ""   # 명사·동사 원형·문법 패턴·-세요 명령형 — 반말 함정 대신 오답 변형
 
 
+# «that one»·«this thing» 같은 지시 표현이 어휘 「이」·「그」 의 키워드로 걸려 엉뚱한 항목을 짚었다(1626 t14 kw:one) — 키워드에서 뺀다
+GENERIC_KEYWORDS = {"one", "ones", "this", "that", "these", "those", "it", "its", "thing", "things", "here", "there"}
+
+
 def keywords_for(surface: str, en: str, kind: str) -> tuple[str, ...]:
     hint = _CHUNK_HINTS.get(norm_ko(surface))
     if hint:
         return hint[1]
     # ⚠ 쉼표·세미콜론으로 **먼저** 가른 뒤 정규화한다 — norm_en 이 쉼표를 지워 «name, title» 이 «name title» 한 덩이가 됐다(1441 명↔이름)
     parts = [norm_en(k) for k in re.split(r"[;,/]| or ", en or "")]
-    kws = [k for k in parts if len(k) >= 3 and k not in ("to be", "the")]
+    kws = [k for k in parts if len(k) >= 3 and k not in ("to be", "the") and k not in GENERIC_KEYWORDS]
     return tuple(dict.fromkeys(kws))[:4]
 
 
