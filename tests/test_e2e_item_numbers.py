@@ -69,3 +69,11 @@ def test_generic_keywords_are_not_item_keywords():
     assert "one" not in h.keywords_for("이", "this one", "vocab")
     assert "that" not in h.keywords_for("그", "that", "vocab")
     assert h.keywords_for("사람", "person", "vocab") == ("person",)
+
+
+def test_parse_item_numbers_8th_format_with_dot_separator_and_count_tail():
+    ln = ("2026-09-16T12:00:00Z\tINFO:x:normalcall 표현학습 목록: 1=인사말 · 2=N은/는 N이에요/예요 · 3=N입니까?, N입니다 · "
+          "4=사람 · 15=한국 (18개, 복습 0)")
+    got = h.parse_item_numbers([ln])
+    assert got == {1: "인사말", 2: "N은/는 N이에요/예요", 3: "N입니까?, N입니다", 4: "사람", 15: "한국"}
+    assert h.item_numbers_by_id(got, _items())[14] == 15

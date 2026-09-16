@@ -2024,10 +2024,11 @@ def parse_item_numbers(log_lines: list[str] | None) -> dict[int, str]:
         if not m:
             continue
         body = m.group(1).strip()
+        body = re.sub(r"\(\s*\d+\s*개[^)]*\)\s*$", "", body).strip()   # 꼬리 «(18개, 복습 0)»(8차 A) 제거
         hits = list(_ITEM_NUM_RE.finditer(body))
         for i, h in enumerate(hits):
             end = hits[i + 1].start() if i + 1 < len(hits) else len(body)
-            surface = body[h.end():end].strip().rstrip("·,").strip()
+            surface = body[h.end():end].strip().rstrip("·,").strip()      # 구분자 « · » 꼬리 제거
             if surface:
                 out[int(h.group(1))] = surface
     return out
