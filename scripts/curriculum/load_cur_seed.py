@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from core.config import settings  # noqa: E402
 import db.registry  # noqa: E402,F401  — 전 모델 등록(관계 매퍼가 Member·Call 을 찾는다)
+from domains.learning import cur_l1_layout as l1  # noqa: E402
 from domains.learning.models.curriculum import (  # noqa: E402
     CurItem, CurLesson, CurLessonItem, CurTopic,
 )
@@ -72,11 +73,10 @@ CHUNK_MEANING_OVERRIDES_JA: dict[str, dict[str, str]] = {
     "大丈夫です": {"ko": "괜찮아요(문제 없어요)", "en": "It's okay. (no problem)"},
 }
 CHUNK_MEANING_OVERRIDES: dict[str, dict[str, dict[str, str]]] = {"ja": CHUNK_MEANING_OVERRIDES_JA}
-CHUNK_LESSONS = [  # 결정 #12 — 레벨1 생존회화 3차시(CHUNK_LANGUAGES). 청크 46 = 15·15·16 (시드 순). 상황문은 한국어 제목 그대로(모든 언어 공통)
-    ("L1-S01-1", "처음 만난 사람과 인사하기", 15),
-    ("L1-S02-1", "가게·식당에서 부탁하기", 15),
-    ("L1-S03-1", "못 알아들었을 때 되묻기", 16),
-]
+# 결정 #12 — 레벨1 생존회화 3차시(CHUNK_LANGUAGES = ko·ja). 배치(어느 청크가 어느 차시인가)의 원본은
+# domains/learning/cur_l1_layout.py 다. 2026-09-16 이전엔 여기서 시드 순서대로 15/15/16 을 잘랐는데
+# 원본이 카테고리 순이라 차시 라벨과 소재가 어긋났다(실통화 1606·1549 — 진단 docs/20260914_1800_*).
+CHUNK_LESSONS = l1.NEW
 ROLE_ORDER = ("grammar", "must", "core", "support")
 TOPIC_KIND = {"회화": "conv", "지원": "support"}
 
@@ -190,16 +190,23 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
 
     # 3. lesson + lesson_item + lesson_function ───────────────────────────
     lesson_rows: list[tuple[dict, list[tuple[str, int]]]] = []  # (lesson fields, [(role, item_id)...])
-    chunk_lessons = CHUNK_LESSONS if has_chunks else []
-    pos = 0
-    for i, (code, situation, n) in enumerate(chunk_lessons, start=1):
-        ids = chunk_ids[pos:pos + n]
-        pos += n
-        lesson_rows.append(({
-            "no": i, "code": code, "level_no": 1, "topic_id": None,
-            "situation": situation, "partner": None, "probes": None,
-        }, [("chunk", iid) for iid in ids]))
-    assert pos == (46 if has_chunks else 0)
+    # 청크 차시는 ko·ja(CHUNK_LANGUAGES). 배치는 표면형으로 해소한다 — 위치 가정에 기대지 않는다
+    # (cur_l1_layout.resolve 독스트링). 46 전건·중복 0 은 resolve 안에서 검사하고 깨지면 여기서 죽는다.
+    chunk_lessons = CHUNK_LESSONS if has_chunks else ()
+    if chunk_lessons:
+        # ⭐ 배치 해소는 **ko 표면형** 으로 한다(cur_l1_layout.CHUNKS). ja 청크는 표면형이 일본어라 그대로 넘기면 46건 전부
+        #   위치 폴백 + 경고가 된다 — 두 언어의 청크 시드 순서가 같으므로(옛 learning_item item_id 순) 그 순서의 ko 표면형을
+        #   짝지어 넘긴다. ⇒ ko 는 종전과 완전히 같고(자기 표면형), ja 도 «상황별 재묶기» 를 그대로 받는다.
+        rows = ([(iid, c.surface) for iid, c in zip(chunk_ids, chunks)] if lang == "ko"
+                else [(iid, l1.CHUNKS[i]) for i, iid in enumerate(chunk_ids, 1)])
+        assign, layout_warnings = l1.resolve(chunk_lessons, rows)
+        for w in layout_warnings:
+            print("⚠ " + w)
+        for lesson in chunk_lessons:
+            lesson_rows.append(({
+                "no": lesson.no, "code": lesson.code, "level_no": 1, "topic_id": None,
+                "situation": lesson.situation, "partner": lesson.partner, "probes": None,
+            }, [("chunk", iid) for iid in assign[lesson.code]]))
     for l in seed["lessons"]:
         items: list[tuple[str, int]] = []
         for role, keys, kind in (("grammar", l["grammar_keys"], "grammar"), ("must", l["must_keys"], "vocab"),

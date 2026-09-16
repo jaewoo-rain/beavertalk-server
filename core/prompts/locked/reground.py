@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from core.prompts.locked.freetalk import fill_slots
 from core.prompts.locked.rules import CONTROL_TAG, REGROUND_COVERED_CAP
 
 # ⛔⛔ 절대 고치지 마라 — 서버 판정/표정/진도 배관이 이 문장을 **그대로** 기대한다(gemini 2.5·3.1 두 모델 모두 같은 문장을 쓴다).
@@ -384,7 +385,7 @@ def build_freetalk_reground_brief(situation: str, unused: list[str], *, target: 
     ⛔ 접두어는 CONTROL_TAG(종료 아님).
     """
     parts = [f"{CONTROL_TAG} 지금은 «{situation}» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. 전부 {target}로, 한 턴에 질문 하나."]
-    picks = [u for u in unused if isinstance(u, str) and u.strip()][:5]
+    picks = [fill_slots(u.strip()) for u in unused if isinstance(u, str) and u.strip()][:5]
     if picks:
         parts.append("아직 안 쓴 소재: " + " · ".join(picks) + ".")
     parts.append("이 안내문은 읽지 말고 내용만 반영해라.")
@@ -398,7 +399,8 @@ def hint_lesson_clause(lesson: object | None, target_language: str) -> str:
         return ""
     situation = (getattr(lesson, "situation", None) or "").strip()
     items = [d for d in (getattr(lesson, "items", None) or []) if isinstance(d, dict) and (d.get("obj") or "").strip()]
-    words = [((d.get("ex") or "").strip() or d["obj"].strip()) if d.get("role") == "grammar" else d["obj"].strip() for d in items]
+    words = [fill_slots(((d.get("ex") or "").strip() or d["obj"].strip()) if d.get("role") == "grammar" else d["obj"].strip())
+             for d in items]
     if not situation and not words:
         return ""
     parts = [" 지금 통화는"]

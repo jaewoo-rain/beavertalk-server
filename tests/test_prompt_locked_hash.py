@@ -65,7 +65,8 @@ FROZEN: dict[str, str] = {
     "expression.DRILL_FORMALITY_LINE": "26290a378fac6472",
     "expression.DRILL_SILENCE_LINE": "8433621e1a5d27ef",
     # 2026-09-13 실통화 1550 — bt-back 승인 2줄(다른 올바른 정중한 표현 인정 · 한 턴 요청 하나)
-    "expression.DRILL_ALT_CORRECT_LINE": "5c0ae1f224b77db9",
+    # 2026-09-16 실통화 1636 재기준 — 인정 범위를 어휘 교체에서 «어미·조사·군말» 까지 넓혔다(옛 5c0ae1f224b77db9)
+    "expression.DRILL_ALT_CORRECT_LINE": "3c88e76c5d7eb7d4",
     "expression.DRILL_ONE_ASK_LINE": "01cfaa899b1e48c1",
     "expression.QUIZ_LINE_1": "70e88636bce80ce3",
     "expression.QUIZ_LINE_2": "afbbc31838202091",
@@ -149,10 +150,10 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "reground.hint_lesson_clause": ("8ddecba239d5535d", lambda: reground.hint_lesson_clause(_Brief, "한국어")),
     "expression.model_block": ("689e4117233531ed", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
-    # 2026-09-14 E — has_grammar 판에 DRILL_GRAMMAR_ALT_LINE 1줄(옛 5c0c6ac8e65fb352). 문법 없는 차시(has_grammar=False)는 아래 procedure_nogrammar 그대로.
-    "expression.procedure": ("547ec563b4c883bc", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
-    "expression.procedure_ja": ("158aaf1b72d5ac8a", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4)
-    "expression.procedure_nogrammar": ("ef2fd77e4fa85c7f", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)
+    # 2026-09-14 E — has_grammar 판에 DRILL_GRAMMAR_ALT_LINE 1줄 · 2026-09-16 dev 머지(DRILL_ALT_CORRECT_LINE 확장)로 셋 다 재기준. 문법 없는 차시(has_grammar=False)는 아래 procedure_nogrammar 그대로.
+    "expression.procedure": ("be4d9af4e0b5cec7", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
+    "expression.procedure_ja": ("d82e09518a5a7acb", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4)
+    "expression.procedure_nogrammar": ("ae05af6dc47b6eaa", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)
     "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
     "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
     "expression.items_block": ("1704dbb54003a3ab", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),

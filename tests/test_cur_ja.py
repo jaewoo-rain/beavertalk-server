@@ -375,7 +375,9 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
 
     @contextlib.asynccontextmanager
     async def _f(client, settings, *, system_instruction, voice, **_kw):
-        sess = _Sess([("B", "チャンク0 と チャンク1 。"), ("U", "チャンク2"), ("B", "次は チャンク3 です。")])
+        # 2026-09-16 dev 머지: L1 배치가 상황별 재묶기(cur_l1_layout.NEW)로 바뀌어 1차시 소재가 시드 0~14 가 아니다.
+        #   1차시 nos = (1,2,3,26,27,…) → 표면형 チャンク0·1·2·25 를 쓴다(チャンク3 은 3차시로 갔다).
+        sess = _Sess([("B", "チャンク0 と チャンク1 。"), ("U", "チャンク2"), ("B", "次は チャンク25 です。")])
         holder["session"] = sess; holder["si"] = system_instruction
         yield sess
 
@@ -398,7 +400,7 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
         assert lesson.language == "ja" and lesson.code == "L1-S01-1" and cc.recorded_at is not None
         mine = repo.member_item_map(db, m, lesson.lesson_id)
         drilled = {iid for iid, r in mine.items() if r.drilled_at is not None}
-        assert len(drilled) == 4, "비버 チャンク0·1·3 + 학습자 チャンク2 → drilled 4(ja 판정 분기: 뒤 글자 경계 — 「チャンク0」 ≠ 「チャンク01」)"
+        assert len(drilled) == 4, "비버 チャンク0·1·25 + 학습자 チャンク2 → drilled 4(ja 판정 분기: 뒤 글자 경계 — 「チャンク0」 ≠ 「チャンク01」)"
         assert repo.current_progress(db, m, "ko") is None, "ko 진도는 만들지 않았다"
     finally:
         db.close()

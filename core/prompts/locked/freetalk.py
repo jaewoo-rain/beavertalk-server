@@ -17,6 +17,26 @@ PROBE_NAME_RE_BY_LANGUAGE: dict[str, tuple] = {
     "ja": (re.compile(r"[ぁ-んァ-ヶ一-龠々ーA-Za-z]{1,10}さん"), "{username}さん"),
 }
 
+# 레벨1 청크의 빈칸 슬롯(«저는 ◯◯이에요»). 소재 줄에 기호째 실리면 비버가 **그대로 읽는다**
+# (실통화 1606 t23 «저는 ◯◯ 회원 아니에요»). 그래서 렌더 직전에 무엇을 넣을 자리인지로 바꾼다.
+# ⚠ 판정·진도는 원래 표면형을 쓴다 — 치환은 **프롬프트에 싣는 순간에만** 한다(서비스의 brief 는 안 건드린다).
+SLOT_RE = re.compile(r"[◯○〇]{1,}")
+
+
+def fill_slots(text: str) -> str:
+    """«◯◯» 빈칸을 «(이름)»·«(나라)»·«(그 단어)» 로. 문맥이 안 잡히면 «(빈칸)»."""
+    if not text or not SLOT_RE.search(text):
+        return text
+    if "사람이에요" in text or "에서 왔" in text or "나라" in text:
+        label = "나라"
+    elif "뭐예요" in text or "무슨 뜻" in text or "뜻이" in text:
+        label = "그 단어"
+    elif "저는" in text or "제 이름" in text:
+        label = "이름"
+    else:
+        label = "빈칸"
+    return SLOT_RE.sub(f"({label})", text)
+
 
 def lesson_block(lesson: object, *, username: str, header: str, partner_line: str, partner_fallback: str,
                  material_line: str, probes_prefix: str, language: str = "ko") -> str:
@@ -47,13 +67,14 @@ def lesson_block(lesson: object, *, username: str, header: str, partner_line: st
         lines.append(material_line)
         if grammar:
             lines.append("  문형: " + " / ".join(
-                f"{d['obj'].strip()} — \"{str(d['ex']).strip()}\"" if (d.get("ex") or "").strip() else d["obj"].strip()
+                f"{fill_slots(d['obj'].strip())} — \"{fill_slots(str(d['ex']).strip())}\"" if (d.get("ex") or "").strip()
+                else fill_slots(d["obj"].strip())
                 for d in grammar
             ))
         if chunks:
-            lines.append("  표현: " + " · ".join(d["obj"].strip() for d in chunks))
+            lines.append("  표현: " + " · ".join(fill_slots(d["obj"].strip()) for d in chunks))
         if vocab:
-            lines.append("  어휘: " + " · ".join(d["obj"].strip() for d in vocab))
+            lines.append("  어휘: " + " · ".join(fill_slots(d["obj"].strip()) for d in vocab))
     if probes:
         lines.append(probes_prefix + " " + " / ".join(probes))
     return "\n".join(lines)

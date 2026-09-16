@@ -572,9 +572,10 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 #   일반 통화(build_system_instruction)의 94개 바이트 동일은 tests/test_prompt_common_snapshot.py 가 따로 지킨다.
 # 2026-09-13 재기준(실통화 1550, bt-back 승인 — 잠금 절차 2줄: 다른 올바른 정중한 표현 인정 · 한 턴 요청 하나): 3890 → 4061 · dev 머지(퀴즈 교정 턴 «따라 말하게 하고 멈춰라» 등 09-13 f9fa0da~6c46c0c) → 4104.
 # 2026-09-13 재기준(실통화 1552, 사장님 결정): 드릴 재시도 상한 «2번» → «3번»(길이 같음·해시만).
-# 2026-09-14 재기준(사장님 «진행해», 1601·1592): C3 편집 문구 1줄(목록을 다 돌아도 끝내지 마라) + E 잠금 DRILL_GRAMMAR_ALT_LINE 은 문법 항목 있을 때만(이 기준 통화엔 없음) → 4104 → 4202.
-# 2026-09-14 재기준(2차 묶음 ④a, 1604 t53~55): drill_intro 편집 문구에 «처음 묻는 새 표현이면 … 틀로 물어라» 1문장 → 4202 → 4288.
-_EXPR_FROZEN = ("748a503f760370e3991c770424f18ddbaeb75680327fe160b4f6648843af3460", 4288)
+# 2026-09-14 재기준(사장님 «진행해», 1601·1592): C3 편집 문구 1줄 + E 잠금 DRILL_GRAMMAR_ALT_LINE(문법 있을 때만) → 4104 → 4202.
+# 2026-09-14 재기준(2차 묶음 ④a, 1604 t53~55): drill_intro 편집 문구 1문장 → 4202 → 4288.
+# 2026-09-16 머지(dev 7ef23db, 실통화 1636): DRILL_ALT_CORRECT_LINE 인정 범위를 어미·조사·군말까지 → 4288 → 4393.
+_EXPR_FROZEN = ("0d89b745e180ba0b2b956294177b7245613892dfd67bbe0f77d3ad83628a70a8", 4393)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:

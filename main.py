@@ -488,6 +488,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "deleted_calls": r["deleted_calls"],
             }
 
+        @app.post("/__dev/cur-reseed-l1", include_in_schema=False)
+        def dev_cur_reseed_l1(member: CurrentAdmin, db: DbSession, body: dict | None = None) -> dict:
+            """[dev] 레벨1 3차시의 **청크 배치**를 다시 쓴다 — `/__dev/cur-reset` 과 같은 관례(ENV 게이트 + CurrentAdmin).
+
+            body: {"layout": "new"|"legacy", "dry_run": true}  — 둘 다 선택. 기본은 **new · dry_run**.
+            왜 회원 도구가 아니라 여기 있나: 재적재 스크립트는 `DATABASE_URL_DIRECT` 를 요구하는데 이 작업은
+            DDL 이 없는 순수 DML 이라 런타임 연결(6543)로 충분하다(계획 docs/20260916_1620_* §4).
+
+            ⚠ **회원 데이터가 아니라 커리큘럼을 고친다** — 지금 L1 을 도는 모든 학습자에게 보인다. 그래서
+              기본이 dry_run 이다(쓰기 0, before/after 만 응답).
+            되돌리기: 같은 엔드포인트에 {"layout": "legacy", "dry_run": false} — 재배포 필요 없다.
+            """
+            from domains.learning.service import curriculum_service as cur_svc
+
+            body = body or {}
+            try:
+                return cur_svc.reseed_l1(
+                    db,
+                    layout_name=str(body.get("layout") or "new"),
+                    dry_run=bool(body.get("dry_run", True)),
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+
         @app.post("/__dev/subscription-state", include_in_schema=False)
         def dev_subscription_state(
             body: dict, member: CurrentAdmin, db: DbSession
