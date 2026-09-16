@@ -527,3 +527,24 @@ def test_verdict_instruction_rejects_a_different_word_but_keeps_spelling_variant
     assert "**읽기가 다른 낱말**이면 소리가 비슷해도 통과가 아니다 — failed 다(예: «고향» 을 물었는데 «고양이», «こんばんは» 를 물었는데 «こんにちは»)" in text
     assert "다른 뜻의 낱말" not in text
     assert text.index("받아쓰기가 조금 틀려도") < text.index("읽기가 다른 낱말"), "통과 규칙 바로 뒤의 단서"
+
+
+
+# --------------------------------------------------------------------------- #
+# 8차 A (2026-09-15, 1626 ko 번호 대응) — 통화 시작에 «번호=항목» 정본 한 줄
+# --------------------------------------------------------------------------- #
+def test_expression_item_list_is_logged_once_with_server_numbers(caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    cs._log_expression_items([{"item_id": 1, "obj": "ありがとうございます", "des": "감사합니다"},
+                              {"item_id": 2, "obj": "どうも", "des": "고마워요", "review": True}])
+    line = [r.getMessage() for r in caplog.records if "표현학습 목록:" in r.getMessage()][-1]
+    assert line == "normalcall 표현학습 목록: 1=ありがとうございます · 2=どうも (2개, 복습 1)"
+    caplog.clear()
+    cs._log_expression_items([{"item_id": i, "obj": "표현%02d" % i} for i in range(1, 25)])
+    line = [r.getMessage() for r in caplog.records if "표현학습 목록:" in r.getMessage()][-1]
+    assert "1=표현01" in line and "18=표현18" in line and "19=표현19" not in line and "외 6개 (24개, 복습 0)" in line
+    assert len(line) < cs.EXPR_LIST_LOG_MAX_CHARS + 120
+    caplog.clear()
+    cs._log_expression_items([])
+    assert not [r for r in caplog.records if "표현학습 목록:" in r.getMessage()], "항목이 없으면 안 찍는다"

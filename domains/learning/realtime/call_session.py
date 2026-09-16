@@ -1415,6 +1415,31 @@ def _log_expr_judge_summary(state: _CallState, call_id) -> None:
     )
 
 
+EXPR_LIST_LOG_MAX_ITEMS = 18     # 8차 A — «번호=항목» 줄의 항목 상한(넘으면 « 외 N개»)
+EXPR_LIST_LOG_MAX_CHARS = 800    # 8차 A — 같은 줄의 길이 상한
+
+
+def _log_expression_items(items: list[dict]) -> None:
+    """⭐ 8차 A(2026-09-15, 하네스 요청·bt-back 승인): 이 통화의 **번호 정본**을 통화 시작에 한 줄로 찍는다.
+    하네스는 cur_call.items 위치로 번호를 만드는데 그건 서버 state.expr_items 와 어긋날 수 있다(1626: 스냅샷 8항목인데 서버는 #15 를 썼다)."""
+    if not items:
+        return
+    parts: list[str] = []
+    used = 0
+    extra = 0
+    for n, it in enumerate(items, 1):
+        piece = "%d=%s" % (n, str(it.get("obj") or "").strip())
+        if len(parts) >= EXPR_LIST_LOG_MAX_ITEMS or used + len(piece) + 3 > EXPR_LIST_LOG_MAX_CHARS:
+            extra = len(items) - len(parts)
+            break
+        parts.append(piece)
+        used += len(piece) + 3
+    logger.info(
+        "normalcall 표현학습 목록: %s%s (%d개, 복습 %d)", " · ".join(parts), (" · 외 %d개" % extra) if extra else "",
+        len(items), sum(1 for d in items if d.get("review")),
+    )
+
+
 def _expr_item_row(state: _CallState, n: int) -> str:
     """판정기에 주는 항목 한 줄 «n. 표면형 — 뜻 — 예문»."""
     it = state.expr_items[n - 1]
@@ -3150,6 +3175,7 @@ async def run_call(
                 cur_open.lesson.code, cur_open.lesson.no, cur_open.status, len(expr_items),
                 sum(1 for d in expr_items if d.get("review")), cur_open.resumed, call_id,
             )
+            _log_expression_items(expr_items)     # 8차 A — «번호=항목» 정본 한 줄(하네스가 이 번호로 판정표를 만든다)
         else:
             # ⭐ 차시 프리토킹 v1(계획 2026-09-12-프리토킹-코스-대본 §3·§9): 흥미 미주입 · 문장 수 2 · 차시판 선톡 시드.
             system_instruction = build_freetalk_instruction(
