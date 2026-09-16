@@ -167,6 +167,8 @@ QUESTION_RE = re.compile(
 REJECT_RE = re.compile(
     r"\b(what (is|was) that|not (quite|it|right|that)|wrong|no,|nope|we'?re talking about|i mean|i asked|i said|"
     r"properly|try again|again|that'?s not)\b", re.I)
+# «Hello? Are you there?» 류 생존 확인 — 항목을 묻는 턴이 아니다(1632: kw:hello 로 「こんにちは」 재출제로 셌다)
+PRESENCE_RE = re.compile(r"\b(are you (still )?(there|with me|awake|listening)|hello\?|you there\?|can you hear me)\b", re.I)
 QUIZ_CLOSE_RE = re.compile(
     r"\b(done with the (quiz|test|review)|(quiz|test|review) is (over|done)|end of the (quiz|test)|"
     r"that'?s (it for|the end of) the (quiz|test)|no more quiz|back to (new|learning))\b", re.I)
@@ -1418,6 +1420,8 @@ class Session:
             order = [c for c in order if c.item_id not in exclude]
 
         raw_quotes = quoted_segments(text)
+        if PRESENCE_RE.search(text) and not raw_quotes and not mentioned:
+            return None, "생존 확인"          # 무음 뒤 «거기 있어?» — 항목 질문이 아니다
         quotes = [norm_en(q) for q in raw_quotes]
         quotes = [q for q in quotes if q and re.search(r"[a-z]", q)]     # 한국어 인용(공개)은 제외
         # [문형] 항목은 비버가 «연습 문장을 상황에 맞게» 새로 만든다(1592: 「이 옷은 얼마예요?」 ← N은/는 N이에요/예요) — 표면형·예문에
@@ -2047,6 +2051,14 @@ def item_numbers_by_id(num_to_surface: dict[int, str], items: dict) -> dict[int,
     return out
 
 
+_GRACE_PASS_RE = re.compile(r"퀴즈 판정\(LLM·세트 밖\):\s*항목\s*(\d+)")
+
+
+def parse_grace_passes(log_lines: list[str] | None) -> set[int]:
+    """8차 B — 서버가 창 닫힘 직후(유예 1턴)·세트 밖에서 통과로 기록한 번호: «퀴즈 판정(LLM·세트 밖): 항목 7 «…» passed + covered»."""
+    return {int(m.group(1)) for ln in (log_lines or []) if (m := _GRACE_PASS_RE.search(ln))}
+
+
 _QUIZ_OPEN_RE = re.compile(r"퀴즈 큐 열림: seq=(\d+).*?항목=\[([0-9,\s]*)\]")
 
 
@@ -2128,7 +2140,7 @@ def in_quiz_window(epoch: float, windows: list, slack: float = 1.0) -> Optional[
 
 def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list,
                     server_sets: Optional[list[list[int]]] = None, offset_expect: str = "unjudged",
-                    num_of: Optional[dict[int, int]] = None) -> tuple[bool, list[str], dict]:
+                    num_of: Optional[dict[int, int]] = None, grace_passed: Optional[set[int]] = None) -> tuple[bool, list[str], dict]:
     """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
       ③ 퀴즈 회차의 공개 전 자발 정답 + 그 턴 전사 있음 → 서버 passed 여야(표기 변형 답이면 ③ 로 따로 센다) · 앵커 없는 재출제만이면 passed~
       ④ 공개 뒤 복창 / 드릴만 한 항목 / 오답·모름 → 서버 passed 면 ✖ · 반말 답은 ~(LLM 이 격식을 어떻게 볼지 미정)
@@ -2156,6 +2168,22 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
         styled = [t for t in ans_turns if any(x.startswith("표기:") for x in t.tags)]
         mark = ""
         num = num_of.get(iid)
+        # 8차 B: 창 닫힘 직후·세트 밖 통과 기록 — 하네스 ground truth 로 옳고 그름을 가른다
+        #   자발 정답(퀴즈 회차든 드릴이든, 공개 전)이면 passed 가 맞다 · 공개 뒤 복창이면 ⛔(1632 #10 どうも)
+        if grace_passed and num in grace_passed:
+            spont = rec.expected_passed or (not rec.drill_revealed and "correct" in rec.drill_answers)
+            if spont:
+                ok, did, exp = srv_pass, "공개 전 자발 정답(닫힘 직후·세트 밖 유예 창)", "passed(유예)"
+            else:
+                ok, did, exp = not srv_pass, "공개 뒤 복창인데 서버가 유예 창에서 통과 ⛔", "—"
+            cnt.setdefault("grace", [0, 0])
+            cnt["grace"][0] += 1
+            cnt["grace"][1] += int(bool(ok))
+            ans = " / ".join(f"{t.text[:30]} → «{(t.stt or '(전사 없음)')[:30]}»" for t in (styled or ans_turns)[:2]) or "—"
+            ok_all &= bool(ok)
+            lines.append(f"| {rec.k} | {rec.item.surface} | {did} | {ans} | {'✔' if srv_drill else '✖'} | {'passed' if srv_pass else '—'} | {exp} | "
+                         f"{'✔' if ok else '✖'} |")
+            continue
         if rec.expected_passed and in_sets is not None and num is not None and num not in in_sets:
             cnt["off_set"].append(num)
             if offset_expect == "passed":
@@ -2174,6 +2202,14 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
             # 5차 B(968ddb1·74d19db): 질문 직후 발화는 틀려도 답 → 첫 답 오답이면 failed · 다시 물어 맞혀도 되돌리지 않는다(1618 さようなら)
             ok, did, exp = not srv_pass, "첫 답 오답 → 힌트 뒤 정답(5차 B)", "—(첫 답 오답)"
             cnt["hint_fail"] = cnt.get("hint_fail", 0) + 1
+        elif rec.expected_passed and any(
+                t.stt and norm_ko(t.stt) != norm_ko(t.text) and not norm_ko(t.text) in norm_ko(t.stt)
+                for rd in rec.rounds for n in rd.answer_turns if (t := by_n.get(n)) is not None and t.kind == "correct"):
+            # 말한 답과 서버 전사가 다르다(STT 오인식 — 1634 «한국요»→«한국어») → 판정기는 «읽기가 다르면 failed» 가 맞다. 어느 쪽이든 ~
+            ok, did, exp = True, "자발 정답이나 전사 오인식(말한 답 ≠ 전사)", "passed~/failed~"
+            mark = "~"
+            cnt.setdefault("stt_mismatch", 0)
+            cnt["stt_mismatch"] += 1
         elif rec.expected_passed:
             ok = srv_pass or rec.expectation_ambiguous
             did = "퀴즈 자발 정답" + (" · 표기 변형 ③" if styled else "") + (" · 앵커 없는 재출제" if rec.expectation_ambiguous else "")
@@ -2444,7 +2480,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         sc.cur["item_numbers"] = {"source": "서버 목록 로그" if _num_src else "cur_call.items 위치(폴백)", "n": len(_num_of)}
         ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns,
                                            server_sets=[nums for _, _, nums in _srv_sets] if _srv_sets else None,
-                                           offset_expect=OFFSET_EXPECT, num_of=_num_of)
+                                           offset_expect=OFFSET_EXPECT, num_of=_num_of,
+                                           grace_passed=parse_grace_passes(server_logs))
         L.append(f"- 항목 번호 정본: {sc.cur['item_numbers']['source']} ({len(_num_of)}개 대응"
                  + (f" · 서버 목록 {len(_num_src)}항목" if _num_src else "") + ")")
         L += tbl
@@ -2466,6 +2503,11 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"- ③ 표기 변형 정답 → 통과: {cnt['styled'][1]}/{cnt['styled'][0]}" + ("" if ANSWER_STYLE else " (--answer-style 없음)"))
         L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
         L.append(f"- 서버 퀴즈 세트 {sc.cur['server_quiz_sets'] or '(로그 없음 — 세트 밖 판별 안 함)'} · 세트 밖 자발 정답(비버 이탈, 서버 미판정이 정상) 번호 {cnt['off_set']}")
+        _gr = cnt.get("grace")
+        if _gr:
+            L.append(f"- 유예 창(8차 B) 기록 {_gr[1]}/{_gr[0]} 정당 — 공개 뒤 복창을 통과시킨 건 ⛔ 로 센다")
+        if cnt.get("stt_mismatch"):
+            L.append(f"- 전사 오인식(말한 답 ≠ 서버 전사) {cnt['stt_mismatch']}건 — 판정 기대는 ~(읽기 기준이면 failed 가 맞다)")
         L.append(f"- 참고: 무음 턴 정답 {cnt['silent']} · 서버가 «가르침» 으로 안 친 하네스 드릴 항목 {len(cnt['teach_mismatch'])} {cnt['teach_mismatch'][:10]} · 과검출 {cnt['extra_passed']}")
         jl = [ln for ln in (server_logs or []) if "판정" in ln]
         side = [ln for ln in (server_logs or []) if "판정 사이드카" in ln]
