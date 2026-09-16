@@ -92,3 +92,14 @@ def test_only_attach_stage_lines_count_as_cues_by_default():
     assert len(h.parse_quiz_cues(lines, "arm")) == 1
     assert len(h.parse_quiz_cues(lines, "열림")) == 1
     assert len(h.parse_quiz_cues(lines, "")) == 3
+
+
+def test_cue_tc_counts_reads_10th_injection_flag():
+    logs = [
+        "2026-09-17T01:00:00.000000Z\tINFO:x:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=7s tc=True 비버턴=(열린 턴 없음)",
+        "2026-09-17T01:02:00.000000Z\tINFO:x:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 5, 6] 얹기=마이크 대기=5s tc=False",
+        "2026-09-17T01:04:00.000000Z\tINFO:x:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[7, 8, 9] 얹기=마이크 대기=5s",
+        "2026-09-17T01:05:00.000000Z\tINFO:x:normalcall: 재접지 얹기(자리=마이크, tc=False)",          # 재접지 줄은 세지 않는다
+    ]
+    assert h.cue_tc_counts(logs) == {"True": 1, "False": 1, "none": 1}
+    assert h.cue_tc_counts(None) == {"True": 0, "False": 0, "none": 0}

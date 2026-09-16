@@ -1402,7 +1402,7 @@ class Session:
             # 어휘 과제엔 그 어휘가 든 «자기 얘기» 문장으로(예문보다 대화답게): 이름·나라·국가명
             if LANGUAGE == "ko" and it.surface == "이름":
                 return "저는 John이에요.", "ko", "ft_ko"
-            if LANGUAGE == "ko" and (it.surface == "나라" or re.search(r"(united states|korea|china|japan|vietnam|canada|russia|indonesia|malaysia|kingdom|america)", norm_en(it.en))):
+            if LANGUAGE == "ko" and (it.surface == "나라" or re.search(r"\b(united states|korea|china|japan|vietnam|canada|russia|indonesia|malaysia|kingdom|america)\b", norm_en(it.en))):
                 return f"저는 {'미국' if it.surface == '나라' else it.surface} 사람이에요.", LANGUAGE, "ft_ko"
             if it.example:
                 return it.example, LANGUAGE, "ft_ko"
@@ -2300,6 +2300,18 @@ def quiz_order_check(blocks: dict[int, list[int]], num_of: dict[int, int]) -> tu
     return ok_all, lines
 
 
+_TC_RE = re.compile(r"\btc=(True|False)\b")
+
+
+def cue_tc_counts(log_lines: list[str] | None) -> dict[str, int]:
+    """10차(2.5 실험): 퀴즈 큐 «얹기» 줄의 주입 방식 — tc=True(완결 텍스트 턴) / tc=False(종전) / 표시 없음(10차 전 서버)."""
+    out = {"True": 0, "False": 0, "none": 0}
+    for _, payload in parse_quiz_cues(log_lines or [], "얹기"):
+        m = _TC_RE.search(payload)
+        out[m.group(1) if m else "none"] += 1
+    return out
+
+
 def parse_quiz_cues(log_lines: list[str], stage: str = QUIZ_CUE_STAGE) -> list[tuple[float, str]]:
     """gcloud `value(timestamp,textPayload)` 줄들 → [(epoch, payload)] — 퀴즈 큐 **해당 단계** 줄만. 시각 없는 줄은 버린다.
 
@@ -2604,8 +2616,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             delays = [d for _, _, d in cue_match["pairs"]]
             n_arm = len(parse_quiz_cues(server_logs, "arm"))
             n_open = len(parse_quiz_cues(server_logs, "열림"))
+            _tc = cue_tc_counts(server_logs)
             L.append(f"- 서버 큐 단계: arm {n_arm} · 얹기 {n_c} · 열림 {n_open}" +
-                     (" ⚠ arm 뒤 얹기 안 됨 " + str(n_arm - n_c) if n_arm > n_c else ""))
+                     (" ⚠ arm 뒤 얹기 안 됨 " + str(n_arm - n_c) if n_arm > n_c else "") +
+                     (f" · 얹기 주입 tc=True {_tc['True']} · tc=False {_tc['False']}" if (_tc["True"] or _tc["False"]) else ""))
             L.append(f"- 서버 퀴즈 큐(얹기) {n_c}회 · 앵커로 이어진 큐 {len(cue_match['pairs'])} "
                      f"(지연 {', '.join(f'{d:.1f}s' for d in delays) or '—'}) · 큐 뒤 앵커 없음 {len(cue_match['cues_without_anchor'])} · "
                      f"큐 없이 난 앵커 {len(cue_match['anchors_without_cue'])}")
