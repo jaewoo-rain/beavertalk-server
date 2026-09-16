@@ -218,7 +218,9 @@ async def test_repeat_after_reveal_is_failed_and_failed_cannot_undo_passed(monke
     n_calls = len(fake.calls)
     _user(st, "ありがとう")
     await _drain(st)
-    assert len(fake.calls) == n_calls, "확정 뒤엔 부를 게 없다"
+    # 8차 B: 세트가 다 확정돼 창이 이미 닫혔고, 이 턴은 «유예 판정» 1콜(세트 밖 후보만) — 확정된 세트 항목은 다시 묻지 않는다.
+    assert len(fake.calls) == n_calls + 1
+    assert st.expr_quiz_llm_decided == {1, 3} and 101 in st.expr_quiz_pass and 103 in st.expr_quiz_fail, "확정은 그대로(단조)"
 
 
 @pytest.mark.asyncio
@@ -548,3 +550,55 @@ def test_expression_item_list_is_logged_once_with_server_numbers(caplog):
     caplog.clear()
     cs._log_expression_items([])
     assert not [r for r in caplog.records if "표현학습 목록:" in r.getMessage()], "항목이 없으면 안 찍는다"
+
+
+
+# --------------------------------------------------------------------------- #
+# 8차 B (2026-09-15, 1624 #13) — 창이 닫힌 직후 한 턴은 «닫히기 직전 질문» 의 정답을 받는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_a_correct_answer_right_after_the_window_closes_is_still_recorded(monkeypatch):
+    calls = {"n": 0}
+
+    def verdict(p, s):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"verdicts": [{"num": 1, "verdict": "passed"}, {"num": 2, "verdict": "passed"}]}
+        return {"verdicts": [{"num": 4, "verdict": "passed", "why": "닫힘 직후 정답"}]}
+    fake = FakeJudge(taught_fn=lambda p, s: [], verdict_fn=verdict)
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 2])
+    _user(st, "ありがとうございます どうも")                 # 세트 전부 확정 → 6차 A 로 즉시 닫힘
+    await _drain(st)
+    assert st.expr_quiz_open is False and st.expr_quiz_grace_from is not None, "유예 창이 열려 있다"
+    _beaver(st, "좋아! 그럼 미안할 때는 일본어로 뭐라고 해?")   # 닫힌 뒤 비버가 세트 밖(4번)을 물었다
+    await _drain(st)
+    _user(st, "ごめんなさい")
+    await _drain(st)
+    assert 104 in st.expr_quiz_pass and 4 in st.covered_nums and 4 in st.expr_quizzed
+    assert st.expr_quiz_grace_from is None, "유예는 한 번 쓰고 끝"
+    n_before = calls["n"]
+    _user(st, "はい")                                         # 두 번째 턴은 유예 밖
+    await _drain(st)
+    assert calls["n"] == n_before, "닫힘 뒤 두 번째 학습자 턴은 판정하지 않는다"
+
+
+@pytest.mark.asyncio
+async def test_grace_verdict_only_applies_passed_not_failed(monkeypatch):
+    def verdict(p, s):
+        return {"verdicts": [{"num": 1, "verdict": "passed"}]} if "[퀴즈 항목]" in s and "1. ありがとう" in s \
+            else {"verdicts": [{"num": 4, "verdict": "failed", "why": "공개 뒤 복창"}]}
+    fake = FakeJudge(taught_fn=lambda p, s: [], verdict_fn=verdict)
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1])
+    _user(st, "ありがとうございます")
+    await _drain(st)
+    assert st.expr_quiz_open is False
+    _beaver(st, "미안할 때는? 'ごめんなさい' 라고 해. 따라 해 봐.")
+    await _drain(st)
+    covered = list(st.covered_nums)
+    _user(st, "ごめんなさい")
+    await _drain(st)
+    assert 104 not in st.expr_quiz_pass and 104 not in st.expr_quiz_fail and st.covered_nums == covered

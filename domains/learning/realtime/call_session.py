@@ -765,7 +765,7 @@ class _CallState:
         # expr_quiz_stray: 창 안에서 비버가 낸 quiz_set 밖 번호(닫힘 안전판) · expr_covered_by_beaver: 비버 발화로 covered 된 번호
         # expr_retry_cued: 오답 재출제 큐를 이미 세웠나(통화당 1회)
         "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
-        "expr_sidecar_calls", "expr_llm_judge", "expr_judge_stats", "expr_quiz_llm_decided",
+        "expr_sidecar_calls", "expr_llm_judge", "expr_judge_stats", "expr_quiz_llm_decided", "expr_quiz_grace_from",
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
         "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray", "expr_quiz_open_user_turns", "expr_quiz_hold_why",
         "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
@@ -978,6 +978,7 @@ class _CallState:
         self.expr_quiz_open: bool = False
         self.expr_quiz_open_seg: int = 0
         self.expr_llm_judge: bool = False                  # 4차(2026-09-15) — LLM 판정 켜짐(run_call 이 settings.EXPR_LLM_JUDGE 로 세운다)
+        self.expr_quiz_grace_from: Optional[int] = None    # 8차 B — 창이 닫힌 뒤 «유예 판정» 에 쓸 시작 세그먼트(닫히기 직전 비버 턴). 한 번 쓰고 None.
         self.expr_quiz_llm_decided: set[int] = set()       # 4차 B — 지금 퀴즈에서 LLM 이 passed/failed 로 확정한 번호(창 열 때 리셋)
         self.expr_judge_stats: dict = {                    # 4차 E — 판정 사이드카 계측(통화 종료 로그 한 줄)
             "taught_calls": 0, "taught_fail": 0, "taught_fallback": 0, "taught_skip": 0,
@@ -1151,6 +1152,8 @@ def _flush_user_segment(state: _CallState) -> None:
     state.next_turn_index += 1
     if text and state.expr_quiz_open and _expr_llm_judge_active(state):
         _spawn_quiz_verdict(state, upto=len(state.segments))     # 4차 B — 창 안 학습자 턴마다 정답 판정(논블로킹). 상한 닫힘보다 먼저(이 턴까지 본다)
+    elif text and state.expr_quiz_grace_from is not None and _expr_llm_judge_active(state):
+        _spawn_grace_verdict(state)                              # 8차 B — 닫힘 직후 한 턴: 닫히기 직전 질문의 정답을 받는다
     _expression_quiz_note_open_user_turn(state, text)    # C4 — 창 안 학습자 턴 상한(세그먼트에 넣은 **뒤** — 이 발화도 창 안에 든다)
     state.cur_user_pcm = bytearray()
     state.cur_user_text = []
@@ -1715,6 +1718,7 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
         state.expr_quiz_stray = []
         state.expr_quiz_open_user_turns = 0
         state.expr_quiz_llm_decided = set()
+        state.expr_quiz_grace_from = None                  # 8차 B — 새 창이 열리면 유예는 없다
         # ⭐ T20 (1410 seq=3) — 여는 비버 턴은 «직전 드릴 피드백 + 퀴즈 시작» 이 한 턴에 오는 게 정상이다. 그 턴이 큐 직전에
         #   드릴 중이던 항목(= 열 때 아직 안 다룬 가장 앞 번호)의 표면형을 공개하면(«It's 괜찮아요. Now, quiz time again!»)
         #   옛 코드는 그걸 «다음 항목 소개» 로 읽어 창을 열자마자 닫았다(창 42~42, [6,7,8] 전부 미판정, 뒤 40초 정답 유실).
@@ -1937,6 +1941,40 @@ def _spawn_quiz_verdict(
     return task
 
 
+def _last_beaver_seg(state: _CallState) -> int:
+    """마지막 비버 세그먼트 인덱스(없으면 지금 자리) — 8차 B 유예 판정의 시작점."""
+    for i in range(len(state.segments) - 1, -1, -1):
+        if state.segments[i].get("role") == "beaver":
+            return i
+    return max(0, len(state.segments) - 1)
+
+
+def _spawn_grace_verdict(state: _CallState) -> "asyncio.Task | None":
+    """⭐ 8차 B — 창이 닫힌 **직후 한 턴**만: «닫히기 직전 비버 턴 + 이 학습자 턴» 을 판정기에 넣어 그때 물은 항목(세트 밖 포함)의 자발 정답을 받는다.
+    세트가 이미 없으므로 판정기에는 세트 밖 후보만 실린다 — 서버는 passed 만 적용(5차 A-2 규율: 공개 뒤 복창·오답은 기록 0). 한 번 쓰고 유예는 끝난다."""
+    start = state.expr_quiz_grace_from
+    state.expr_quiz_grace_from = None
+    if start is None or not state.expr_items:
+        return None
+    span = [
+        (i, "beaver" if state.segments[i].get("role") == "beaver" else "user", (state.segments[i].get("text") or "").strip())
+        for i in range(start, len(state.segments)) if (state.segments[i].get("text") or "").strip()
+    ]
+    if not any(role == "user" for _, role, _ in span):
+        return None
+    stats = state.expr_judge_stats
+    if stats["quiz_calls"] >= EXPR_QUIZ_VERDICT_MAX_PER_CALL:
+        return None
+    stats["quiz_calls"] += 1
+    logger.info("normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=%d 창=%d~%d", state.expr_quiz_seq, start, len(state.segments))
+    task = asyncio.create_task(
+        _quiz_verdict_judge(state, state.expr_quiz_seq, span, [], final=False), name="normalcall-expr-quiz-grace",
+    )
+    state.expr_tasks.add(task)
+    task.add_done_callback(state.expr_tasks.discard)
+    return task
+
+
 def _apply_off_set_pass(state: _CallState, n: int, why: str) -> None:
     """5차 A-2 — 세트 밖 항목의 자발 정답 기록: passed(단조) + 가르침(covered, append-only) + 출제됨(expr_quizzed — 다음 묶음에 다시 안 낸다).
     ⛔ tick 은 태우지 않는다 — 퀴즈 창이 열린 중이라 covered 새 번호가 «다음 항목 소개» 닫힘으로 오인된다. arm 은 창이 닫힐 때 종전대로 본다."""
@@ -2061,6 +2099,9 @@ def _close_expression_quiz(state: _CallState, *, why: str, closing_text: str = "
     state.expr_quiz_open = False
     state.expr_quiz_set = []
     state.expr_quiz_stray = []
+    # ⭐ 8차 B(2026-09-15, 1624 #13): 6차 A 로 창이 «세트 전부 확정» 즉시 닫히면서, 닫히기 직전 비버가 물어 둔 항목의 정답을 놓쳤다(질문 1초 뒤 닫힘).
+    #   닫힘 직후 **학습자 턴 하나까지**는 그 마지막 비버 턴부터 다시 판정한다(세트 밖 규율 그대로 passed 만 적용).
+    state.expr_quiz_grace_from = _last_beaver_seg(state)
     if _expr_llm_judge_active(state):
         # ⭐ 4차 B: 닫힘 규칙은 서버 그대로, 판정은 LLM — 창 안 턴마다 이미 낸 판정 외에 **남은 항목**만 창 전체로 한 번 더. 그것도 못 부르면(상한·학습자 턴 0)
         #   종전 서버 문자열 판정(+STT 폴백). 콜이 실패하면 _quiz_verdict_judge 가 같은 폴백으로 내려간다.
