@@ -72,3 +72,23 @@ def test_presence_check_turn_is_not_an_item_question():
     got = asyncio.run(sess.identify("Hello? Are you there?", "", [], True, False))
     assert got == (None, "생존 확인")
     assert asyncio.run(sess.identify('How do you say "Hello"?', "", [], True, False))[0] == 1
+
+
+def test_same_reading_ja_kana_kanji_and_ko_mishear(monkeypatch):
+    monkeypatch.setattr(h, "LANGUAGE", "ja")
+    assert h.same_reading("いってきます", "行っ て き ます 。") is True        # 가나 ↔ 한자, 읽기 같음 (1638 #7)
+    assert h.same_reading("おげんきですか", "お 元気 です か ?") is True
+    monkeypatch.setattr(h, "LANGUAGE", "ko")
+    assert h.same_reading("고향요", "고양이") is False                          # 읽기 다름 (1640 #6)
+    assert h.same_reading("사람요", "사람요.") is True
+
+
+def test_styled_answer_is_not_counted_as_mistranscription(monkeypatch):
+    monkeypatch.setattr(h, "LANGUAGE", "ja")
+    T = h.Turn
+    turns = [T(0, "learner", 1.0, "콘니치하", stt="こんにちは", kind="correct", item_id=1, tags=["표기:hangul ← こんにちは"])]
+    r = _rec(1, "こんにちは", 1)
+    r.rounds.append(h.QuizRound(n=1, asked_at=1.0, block=1, spontaneous_correct=True, heard=True, answer_turns=[0], answers=["correct"]))
+    qi = [{"item_id": 1, "surface": "こんにちは", "passed": True, "drilled": True}]
+    ok, lines, cnt = h.llm_judge_table({1: r}, [1], qi, turns, num_of={1: 1}, server_sets=[[1, 2, 3]])
+    assert ok is True and "stt_mismatch" not in cnt and "표기 변형 ③" in lines[2] and lines[2].endswith("✔ |")

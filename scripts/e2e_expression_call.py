@@ -316,6 +316,22 @@ def styled_answer(text: str, style: str, language: Optional[str] = None) -> Opti
     return None
 
 
+def same_reading(spoken: str, heard: str) -> bool:
+    """말한 답과 서버 전사가 **읽기** 로 같은가 — 글자 비교로는 가나↔한자(いってきます↔«行ってきます»)가 다르게 보인다(9차 1638).
+    ja 는 pykakasi 히라가나로 맞춘다. 전사가 비었거나 말한 답이 전사에 들어 있으면 같다고 본다."""
+    a, b = norm_ko(spoken), norm_ko(heard)
+    if not a or not b or a == b or a in b:
+        return True
+    if LANGUAGE == "ja":
+        try:
+            ra = norm_ko("".join(x for _, x, _ in _kakasi_tokens(spoken)))
+            rb = norm_ko("".join(x for _, x, _ in _kakasi_tokens(heard)))
+            return bool(ra) and (ra == rb or ra in rb)
+        except Exception:  # noqa: BLE001
+            return True
+    return False
+
+
 def _tts_cache_name(text: str, lang: str) -> str:
     """TTS 캐시 파일 이름 — ⚠ 옛 이름은 [0-9A-Za-z가-힣] 밖 글자를 전부 _ 로 바꿔 **가나·한자 답이 같은 파일로 겹쳤다**(길이만 같으면 다른 문장 음성이 재생). 해시를 붙인다."""
     return re.sub(r"[^0-9A-Za-z가-힣]", "_", f"{lang}_{text}")[:60] + "_" + hashlib.md5(f"{lang}\n{text}".encode("utf-8")).hexdigest()[:12] + ".pcm"
@@ -2203,7 +2219,7 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
             ok, did, exp = not srv_pass, "첫 답 오답 → 힌트 뒤 정답(5차 B)", "—(첫 답 오답)"
             cnt["hint_fail"] = cnt.get("hint_fail", 0) + 1
         elif rec.expected_passed and any(
-                t.stt and norm_ko(t.stt) != norm_ko(t.text) and not norm_ko(t.text) in norm_ko(t.stt)
+                t.stt and not any(x.startswith("표기:") for x in t.tags) and not same_reading(t.text, t.stt)
                 for rd in rec.rounds for n in rd.answer_turns if (t := by_n.get(n)) is not None and t.kind == "correct"):
             # 말한 답과 서버 전사가 다르다(STT 오인식 — 1634 «한국요»→«한국어») → 판정기는 «읽기가 다르면 failed» 가 맞다. 어느 쪽이든 ~
             ok, did, exp = True, "자발 정답이나 전사 오인식(말한 답 ≠ 전사)", "passed~/failed~"
