@@ -2432,6 +2432,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                  f"이번 통화 목록 = {size_src} · 결과 행(다룬 것) 새 {len(c.get('new_ids') or [])} · 복습 {len(c.get('review_ids') or [])}"
                  f"{' (review 플래그 없음 → 통화 전 drilled 로 추정)' if c.get('review_estimated') else ''}"
                  f"{' · ⚠ API 오류: ' + str(c.get('api_error')) if c.get('api_error') else ''}")
+        if c.get("l1_layout"):
+            L.append(f"- **{LANGUAGE} L1 배치: {c['l1_layout']}** (2026-09-16 상황별 재묶기 — ko 는 재시드됨, ja 는 bt-back 재시드 전까지 옛것)")
         # 누적 컬럼 단조 확인 — 이번 통화 passed 인 항목은 cur_member_item.quiz_passed_at 이 있어야 하고, 이전 통화 passed 가 지워지면 안 된다
         cum = c.get("cum_rows") or {}
         broke = [iid for iid, row in sc.db_rows.items() if row.get("quiz_passed_at") and iid in cum and cum[iid].get("quiz_passed_at") is None]
@@ -2859,6 +2861,24 @@ def keywords_for(surface: str, en: str, kind: str) -> tuple[str, ...]:
     parts = [norm_en(k) for k in re.split(r"[;,/]| or ", en or "")]
     kws = [k for k in parts if len(k) >= 3 and k not in ("to be", "the") and k not in GENERIC_KEYWORDS]
     return tuple(dict.fromkeys(kws))[:4]
+
+
+def l1_layout_of(code: str | None, situation: str | None, partner: str | None) -> str | None:
+    """L1 차시(코드 L1-…)의 청크 배치가 새것(상황별 재묶기, 2026-09-16)인지 옛것(시드 순 15/15/16)인지.
+    cur_l1_layout 의 두 배치가 차시별 situation·partner 를 들고 있으니 그걸로 맞춘다. 정확히 안 맞으면(ja 번역 문장 등)
+    partner 유무로 추정 — 새 배치만 partner 를 채운다. L1 이 아니면 None."""
+    if not code or not str(code).startswith("L1-"):
+        return None
+    try:
+        from domains.learning import cur_l1_layout as _l1
+        names = {"new": "새것", "legacy": "옛것"}
+        for name, lessons in _l1.LAYOUTS.items():
+            for les in lessons:
+                if les.code == code and (situation or "").strip() == les.situation and (partner or None) == les.partner:
+                    return names.get(name, name)
+    except Exception:  # noqa: BLE001
+        pass
+    return "새것(추정 — partner 있음)" if partner else "옛것(추정 — partner 없음)"
 
 
 def load_cur_context(sf, member_id: int, lesson_no: int, *, n: int) -> dict:
@@ -3435,6 +3455,15 @@ def one_call(args, sf, api: CurApi, token: str, voice: Voice, picker: Picker, *,
         sc.cur["ko_before"] = ko_before
         sc.cur["ko_after"] = progress_snapshot(sf, MEMBER_ID, "ko")
         sc.cur["prompt_check"] = local_prompt_check(ctx)
+    try:
+        from sqlalchemy import text as _sql
+        with sf() as _db:
+            _row = _db.execute(_sql("SELECT code, situation, partner FROM cur_lesson WHERE lesson_id=:i"),
+                               {"i": (ctx.get("lesson") or {}).get("lesson_id")}).first()
+        if _row is not None:
+            sc.cur["l1_layout"] = l1_layout_of(_row[0], _row[1], _row[2])
+    except Exception:  # noqa: BLE001 - 표시용
+        pass
     if sess.course == "freetalk":
         path, ok = freetalk_report(sess, sc, ctx, duration_min=args.duration, run_no=run_no, server_logs=logs,
                                    out_dir=Path(args.out_dir), expect_locked=expect_locked, picker=picker, sc_sf=sf)

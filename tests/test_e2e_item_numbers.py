@@ -77,3 +77,13 @@ def test_parse_item_numbers_8th_format_with_dot_separator_and_count_tail():
     got = h.parse_item_numbers([ln])
     assert got == {1: "인사말", 2: "N은/는 N이에요/예요", 3: "N입니까?, N입니다", 4: "사람", 15: "한국"}
     assert h.item_numbers_by_id(got, _items())[14] == 15
+
+
+def test_l1_layout_of_detects_new_legacy_and_guesses():
+    from domains.learning import cur_l1_layout as L
+    new1, old1 = L.NEW[0], L.LEGACY[0]
+    assert h.l1_layout_of(new1.code, new1.situation, new1.partner) == "새것"
+    assert h.l1_layout_of(old1.code, old1.situation, old1.partner) == "옛것"
+    assert h.l1_layout_of("L1-S01-1", "初めて会った人に挨拶する", None).startswith("옛것(추정")    # ja 번역 문장·partner 없음
+    assert h.l1_layout_of("L1-S01-1", "初めて会った人に挨拶する", "日本語教室").startswith("새것(추정")
+    assert h.l1_layout_of("A1-T01-1", "x", None) is None
