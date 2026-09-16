@@ -713,3 +713,23 @@ async def test_grace_still_records_a_genuine_spontaneous_answer(monkeypatch):
     _user(st, "ごめんなさい")
     await _drain(st)
     assert 104 in st.expr_quiz_pass and 4 in st.covered_nums
+
+
+
+# --------------------------------------------------------------------------- #
+# 9차 B (2026-09-16, 1632 블록4 #15) — 퀴즈 중 «새 항목» 을 가르친 것도 세트 이탈
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_teaching_a_brand_new_item_during_a_quiz_also_nudges(monkeypatch):
+    fake = FakeJudge(taught_fn=lambda p, s: [5], verdict_fn=lambda p, s: {"verdicts": []})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    st.covered_nums = [1, 2, 3]
+    _open_quiz(st, [1, 2, 3])
+    _beaver(st, "자, «네» 는 일본어로 はい 라고 해. 따라 해 봐.")     # 세트 밖 새 항목(5번)을 창 안에서 가르쳤다
+    await _drain(st)
+    assert 5 in st.covered_nums, "가르침 자체는 그대로 기록"
+    assert st.expr_quiz_set_nudge_pending is True, "세트 이탈 — 안내 표시"
+    sess = _Sess()
+    assert await cs._inject_quiz_set_reminder(sess, st) is True
+    assert "지금 낼 문제는" in sess.sent_text_turns[0]

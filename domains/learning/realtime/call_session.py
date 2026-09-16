@@ -1568,24 +1568,27 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
             continue
         state.covered_nums.append(n)
         _expression_quiz_tick(state, n, source="beaver", text=text, seg_idx=seg_idx)
-    _note_quiz_set_drift(state, getattr(result, "retaught", None) or [], seg_idx)   # 8차 C
+    # 8차 C + 9차 B(2026-09-16, 1632 블록4 #15 はい): 퀴즈 창이 열린 동안 비버가 세트 밖을 다룬 것 — «이미 다룬 항목 재질문»(retaught) 뿐 아니라
+    #   **아직 안 다룬 새 항목을 새로 가르친 것**(nums)도 이탈이다. 둘 다 같은 안내를 쓴다(통화당 상한 공유).
+    _note_quiz_set_drift(state, list(getattr(result, "retaught", None) or []) + nums, seg_idx)
     return nums
 
 
 def _note_quiz_set_drift(state: _CallState, retaught: list, seg_idx: int) -> None:
-    """⭐ 8차 C(2026-09-15, 1624 2.5 seq2 — 이미 다룬 #2·#3 을 창 안에서 다시 물었다): 퀴즈 중 «세트 밖 + 이미 다룬» 항목을 다시 물었으면
-    다음 turn_end 에 «지금 낼 문제는 …뿐이다» 안내를 1회 넣도록 표시한다(통화당 EXPR_QUIZ_SET_NUDGE_MAX). 판정·진도는 건드리지 않는다."""
+    """⭐ 8차 C(2026-09-15, 1624 2.5 seq2 — 이미 다룬 #2·#3 을 창 안에서 다시 물었다) + 9차 B(2026-09-16, 1632 블록4 — 세트 [12,13,14] 창에서
+    아직 안 다룬 #15 를 물었다): 퀴즈 중 비버가 **세트 밖 항목**을 다뤘으면(재질문이든 새 항목이든) 다음 turn_end 에 «지금 낼 문제는 …뿐이다» 안내를
+    1회 넣도록 표시한다(통화당 EXPR_QUIZ_SET_NUDGE_MAX). 판정·진도는 건드리지 않는다."""
     if not (state.expr_quiz_open and state.expr_quiz_set):
         return
     off = sorted({n for n in retaught if isinstance(n, int) and 1 <= n <= len(state.expr_items)
-                  and n in state.covered_nums and n not in state.expr_quiz_set})
+                  and n in state.covered_nums and n not in state.expr_quiz_set})   # nums 는 직전에 covered 로 들어간다
     if not off:
         return
     if state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
         logger.info("%s 세트 이탈(안내 상한 %d): B%d 다시 물은 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX, EXPR_QUIZ_SET_NUDGE_MAX, seg_idx, off)
         return
     state.expr_quiz_set_nudge_pending = True
-    logger.info("%s 세트 이탈: B%d 다시 물은 항목=%s 세트=%s — 다음 턴에 안내", EXPR_QUIZ_CUE_LOG_PREFIX, seg_idx, off, state.expr_quiz_set)
+    logger.info("%s 세트 이탈: B%d 세트 밖으로 다룬 항목=%s 세트=%s — 다음 턴에 안내", EXPR_QUIZ_CUE_LOG_PREFIX, seg_idx, off, state.expr_quiz_set)
 
 
 async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallState) -> bool:
