@@ -70,7 +70,12 @@ def test_level1_chunk_lessons_and_order(db: Session, seed):
         "SELECT l.no, l.code, l.level_no, COUNT(li.item_id) FROM cur_lesson l "
         "JOIN cur_lesson_item li ON li.lesson_id = l.lesson_id WHERE l.no <= 3 GROUP BY l.no, l.code, l.level_no ORDER BY l.no"
     )).all()
-    assert [(r[1], r[2], r[3]) for r in rows] == [(c, 1, n) for c, _, n in CHUNK_LESSONS]
+    # 2026-09-16 — 배치 원본이 domains/learning/cur_l1_layout 로 옮겨졌다(상황별 재묶기 + partner).
+    assert [(r[1], r[2], r[3]) for r in rows] == [(l.code, 1, len(l.nos)) for l in CHUNK_LESSONS]
+    # 상대를 안 채우면 프롬프트가 «네가 정한다» 로 떨어져 비버가 점원 대신 딴 사람을 고른다(실통화 1606 t7)
+    meta = db.execute(text("SELECT code, situation, partner FROM cur_lesson WHERE no <= 3 ORDER BY no")).all()
+    assert [(m[1], m[2]) for m in meta] == [(l.situation, l.partner) for l in CHUNK_LESSONS]
+    assert all((m[2] or "").strip() for m in meta)
     # A1-T01-1 은 4번째, level_no 2, 항목 = 문법 3 + 필수 8 + 핵심 9 + 지원 10 = 30, 순번은 role 순
     r = db.execute(text("SELECT lesson_id, no, level_no, item_count FROM cur_lesson WHERE code='A1-T01-1'")).one()
     assert (r[1], r[2], r[3]) == (4, 2, 30)
