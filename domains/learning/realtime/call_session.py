@@ -1601,7 +1601,9 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
     state.expr_quiz_set_nudges += 1
     await session.send_text_turn(expression_quiz_set_reminder(labels))
     _note_text_inject(state, "quiz_set")
-    logger.info("%s 세트 안내 주입 %d/%d: 세트=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX, state.expr_quiz_set)
+    # 10차 계측: 세트 안내는 8차 C 부터 모델과 무관하게 완결 텍스트 턴(turn_end 뒤 비버 idle)이다 — 하네스 대조용으로 tc·모델을 같이 찍는다.
+    logger.info("%s 세트 안내 주입 %d/%d: 세트=%s tc=True 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
+                state.expr_quiz_set, state.live_model or "-")
     return True
 
 
@@ -6142,8 +6144,17 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         return
     now = asyncio.get_running_loop().time()
     waited = (now - state.expr_quiz_cue_armed_ts) if state.expr_quiz_cue_armed_ts is not None else 0.0
+    # ⭐ 10차(2026-09-16, 1638): 2.5 계열이면 **완결 텍스트 턴**(send_text_turn — 종료 시드가 매 통화 쓰는 같은 통로)으로 보낸다. 2.5 는 미완결 얹기
+    #   (지시문처럼 배경으로 읽힘)를 무시해 seq1 이 끝내 안 나왔다. 3.1 은 이미 준수하고 완결 턴 1011 전례가 있어 종전(tc=False) 그대로.
+    #   ⛔ R4: 비버 발화 중(turn_id)에는 보내지 않는다 — 큐는 pending 으로 남아 다음 관문에서 다시 본다. 완결 턴이라 «열린 턴에 마이크 무음» 창은 안 생긴다.
+    tc = _cue_completed_turn(state)
+    if tc and state.turn_id is not None:
+        return
     try:
-        await session.send_reground(cue, turn_complete=False)
+        if tc:
+            await session.send_text_turn(cue)
+        else:
+            await session.send_reground(cue, turn_complete=False)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - 다음 발화에서 재시도(R5)
@@ -6155,9 +6166,16 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     _note_text_inject(state, "quiz_cue")
     # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
     logger.info(
-        "%s 얹기: seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
+        "%s 얹기: seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s tc=%s 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
         state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
+        tc, state.live_model or "-",
     )
+
+
+def _cue_completed_turn(state: _CallState) -> bool:
+    """10차 — 퀴즈 큐를 완결 텍스트 턴으로 보낼까: 스위치(EXPR_CUE_COMPLETED_TURN_25) 켜짐 ∧ 이 통화 모델이 **명시적으로** 2.5 계열.
+    ⚠ live_model 이 비어 있으면(레벨테스트·옛 경로·시험) 종전 경로 — 모델을 모르면 바꾸지 않는다."""
+    return bool(getattr(_settings, "EXPR_CUE_COMPLETED_TURN_25", True)) and "2.5" in (state.live_model or "")
 
 
 def _reground_due(state: _CallState, now: float) -> str:

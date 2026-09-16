@@ -754,3 +754,73 @@ async def test_failed_taught_judge_counts_both_fail_and_fallback(monkeypatch, ca
     cs._log_expr_judge_summary(st, 5)
     line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
     assert "가르침 1회(건너뜀 0·실패 1·폴백 1)" in line, line
+
+
+
+# --------------------------------------------------------------------------- #
+# 10차 (2026-09-16, 1638 — 2.5 가 큐를 무시) — 2.5 면 퀴즈 큐를 완결 텍스트 턴으로 · 3.1 종전 · 비버 발화 중엔 안 보냄
+# --------------------------------------------------------------------------- #
+class _CueSess:
+    def __init__(self):
+        self.text_turns: list[str] = []
+        self.regrounds: list[tuple[str, bool]] = []
+
+    async def send_text_turn(self, text: str) -> None:
+        self.text_turns.append(text)
+
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        self.regrounds.append((text, turn_complete))
+
+
+def _armed_cue_state(model):
+    st = _state()
+    st.live_model = model
+    st.expr_quiz_cue_pending = "[큐] 퀴즈 1·2·3"          # 큐 arm 은 다른 시험이 지킨다 — 여기선 보내는 통로만 본다
+    st.expr_quiz_set, st.expr_quiz_seq = [1, 2, 3], 1
+    st.expr_quiz_prev_num = None                          # 보류 항목 없음 → 정리 대기 통과
+    return st
+
+
+@pytest.mark.asyncio
+async def test_quiz_cue_is_a_completed_text_turn_on_25(caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st = _armed_cue_state("gemini-live-2.5-flash-native-audio")
+    sess = _CueSess()
+    await cs._attach_quiz_cue(sess, st, "마이크")
+    assert len(sess.text_turns) == 1 and sess.regrounds == [], "2.5 → send_text_turn(완결 턴)"
+    assert st.expr_quiz_cue_pending is None and st.expr_quiz_awaiting_open is True
+    line = [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
+    assert "tc=True 모델=gemini-live-2.5-flash-native-audio" in line
+
+
+@pytest.mark.asyncio
+async def test_quiz_cue_stays_an_incomplete_attach_on_31_and_when_switched_off(monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st = _armed_cue_state("gemini-3.1-flash-live-preview")
+    sess = _CueSess()
+    await cs._attach_quiz_cue(sess, st, "마이크")
+    assert sess.text_turns == [] and len(sess.regrounds) == 1 and sess.regrounds[0][1] is False, "3.1 → 종전 tc=False"
+    assert "tc=False" in [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
+    monkeypatch.setattr(cs._settings, "EXPR_CUE_COMPLETED_TURN_25", False)
+    st2 = _armed_cue_state("gemini-live-2.5-flash-native-audio")
+    sess2 = _CueSess()
+    await cs._attach_quiz_cue(sess2, st2, "마이크")
+    assert sess2.text_turns == [] and sess2.regrounds[0][1] is False, "스위치 끄면 2.5 도 종전"
+    st3 = _armed_cue_state(None)
+    sess3 = _CueSess()
+    await cs._attach_quiz_cue(sess3, st3, "마이크")
+    assert sess3.text_turns == [] and len(sess3.regrounds) == 1, "모델을 모르면(레벨테스트·시험) 종전"
+
+
+@pytest.mark.asyncio
+async def test_completed_turn_cue_is_not_sent_while_the_beaver_is_speaking():
+    st = _armed_cue_state("gemini-live-2.5-flash-native-audio")
+    st.turn_id = "t-speaking"
+    sess = _CueSess()
+    await cs._attach_quiz_cue(sess, st, "마이크")
+    assert sess.text_turns == [] and sess.regrounds == [] and st.expr_quiz_cue_pending is not None, "R4 — 발화 중엔 보류(다음 관문에서 다시)"
+    st.turn_id = None
+    await cs._attach_quiz_cue(sess, st, "마이크")
+    assert len(sess.text_turns) == 1

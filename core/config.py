@@ -162,6 +162,10 @@ class Settings(BaseSettings):
     # ⭐ 표현학습 판정의 주인(2026-09-15 4차, 사장님): «가르쳤나»(비버 턴마다)·«맞혔나»(퀴즈 창 학습자 턴마다)를 JUDGE_MODEL 사이드카가 의미로 판정한다.
     #   False 면 종전 문자열 대조(quiz_judge) 경로만 — 시험 기본값(tests/conftest.py)이자 비상 스위치. 사이드카 실패 턴은 켜져 있어도 문자열로 폴백한다(R5).
     EXPR_LLM_JUDGE: bool = True
+    # ⭐ 10차(2026-09-16, 1638 — 2.5 가 퀴즈 큐·세트 안내를 무시해 seq1 이 끝내 미출제, 3.1 은 준수): **2.5 계열 모델일 때만** 퀴즈 큐를
+    #   완결 텍스트 턴(send_text_turn, 종료 시드와 같은 통로)으로 보낸다 — «시드는 직접 명령이라 지켜지고 지시문은 배경이라 안 지켜진다»(locked/seeds.seed_resume).
+    #   3.1 은 종전(send_reground turn_complete=False). 나쁘면 env 로 끈다.
+    EXPR_CUE_COMPLETED_TURN_25: bool = True
 
     # Live 컨텍스트 압축(build_live_config). trigger 에 닿으면 target 만 남기고 오래된
     # 대화부터 버린다. 세션 수명(압축 無면 오디오 15분/연결 ~10분) 대비로 넣은 값이지만,
