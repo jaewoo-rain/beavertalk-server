@@ -572,7 +572,8 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 #   일반 통화(build_system_instruction)의 94개 바이트 동일은 tests/test_prompt_common_snapshot.py 가 따로 지킨다.
 # 2026-09-13 재기준(실통화 1550, bt-back 승인 — 잠금 절차 2줄: 다른 올바른 정중한 표현 인정 · 한 턴 요청 하나): 3890 → 4061 · dev 머지(퀴즈 교정 턴 «따라 말하게 하고 멈춰라» 등 09-13 f9fa0da~6c46c0c) → 4104.
 # 2026-09-13 재기준(실통화 1552, 사장님 결정): 드릴 재시도 상한 «2번» → «3번»(길이 같음·해시만).
-_EXPR_FROZEN = ("db8441f18526e9c87a7a3efd02a7f5d0f6cb1619f7d23cc3f3a80c7353eea9e9", 4104)
+# 2026-09-16 재기준(실통화 1636): DRILL_ALT_CORRECT_LINE 인정 범위를 어미·조사·군말까지 — 4104 → 4209.
+_EXPR_FROZEN = ("a4843af6fb1763205d20f4620c9e5182f32f6fdcc818cda440e314f030a7f5f2", 4209)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
