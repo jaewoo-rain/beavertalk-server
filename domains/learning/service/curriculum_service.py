@@ -28,10 +28,12 @@ from typing import Iterable, Optional
 from sqlalchemy.orm import Session
 
 from core.config import settings
+from domains.learning import cur_l1_layout as l1
 from domains.learning.models.curriculum import (
     CurCall,
     CurItem,
     CurLesson,
+    CurLessonItem,
     CurMemberItem,
     CurMemberLesson,
     CurMemberProgress,
@@ -539,3 +541,78 @@ def reset(db: Session, member_id: int, lesson_no: Optional[int] = None, language
         prog.lesson_id = target.lesson_id
     db.commit()
     return {"member_id": member_id, "lesson_no": target.no, "lesson_code": target.code, "deleted_calls": len(deleted_calls)}
+
+
+def reseed_l1(
+    db: Session, *, layout_name: str = l1.DEFAULT_LAYOUT, dry_run: bool = True, language: str = "ko"
+) -> dict:
+    """POST /__dev/cur-reseed-l1 — 레벨1 3차시의 **청크 배치**만 다시 쓴다(`cur_lesson_item` + situation·partner).
+
+    왜 있나: 배치가 틀렸다는 걸 2026-09-14 에 알았는데(진단 docs/20260914_1800_*) 재적재 스크립트는
+    `DATABASE_URL_DIRECT` 를 요구하고 그 비밀값에 닿을 수 있는 사람이 한정돼 있었다. 배포된 컨테이너는
+    이미 DB 를 들고 있고 이 작업은 **DDL 이 0 · 순수 DML** 이라 여기서 도는 게 맞다(계획 docs/20260916_1620_* §4).
+
+    ⛔ 건드리는 것은 이 3차시의 `cur_lesson_item` 과 `cur_lesson`(situation·partner·item_count) 뿐이다.
+       회원 진도(cur_member_*)·항목(cur_item)·레벨 2~13 차시는 **읽지도 쓰지도 않는다**.
+       `cur_item` 을 안 건드리므로 `item_id` 가 보존되고, 회원 기록은 item_id 로 묶여 있어 안전하다.
+    ⚠ dry_run=True(기본)면 **전부 롤백**한다 — before/after 만 보고 쓰기는 0.
+    되돌리기: layout_name="legacy" 로 한 번 더(옛 15/15/16 배치를 상수로 그대로 들고 있다).
+    """
+    from sqlalchemy import delete, select
+
+    lessons = l1.layout(layout_name)          # 모르는 이름이면 ValueError
+    rows = db.execute(
+        select(CurItem.item_id, CurItem.surface)
+        .where(CurItem.language == language, CurItem.kind == "chunk")
+        .order_by(CurItem.item_id)
+    ).all()
+    assign, warnings = l1.resolve(lessons, [(r.item_id, r.surface or "") for r in rows])
+    surface_of = {r.item_id: (r.surface or "") for r in rows}
+
+    report: list[dict] = []
+    for lesson in lessons:
+        row = db.scalar(select(CurLesson).where(CurLesson.language == language, CurLesson.code == lesson.code))
+        if row is None:
+            db.rollback()
+            raise ValueError(f"차시 {lesson.code} 가 없다 — 시드 적재부터 해야 한다")
+        before_ids = list(db.scalars(
+            select(CurLessonItem.item_id)
+            .where(CurLessonItem.lesson_id == row.lesson_id)
+            .order_by(CurLessonItem.seq)
+        ))
+        after_ids = assign[lesson.code]
+        db.execute(delete(CurLessonItem).where(CurLessonItem.lesson_id == row.lesson_id))
+        for seq, item_id in enumerate(after_ids, start=1):
+            db.add(CurLessonItem(lesson_id=row.lesson_id, item_id=item_id, role="chunk", seq=seq))
+        before_meta = (row.situation, row.partner)
+        row.situation, row.partner, row.item_count = lesson.situation, lesson.partner, len(after_ids)
+        db.flush()
+        report.append({
+            "code": lesson.code,
+            "changed": before_ids != after_ids or before_meta != (lesson.situation, lesson.partner),
+            "situation": {"before": before_meta[0], "after": lesson.situation},
+            "partner": {"before": before_meta[1], "after": lesson.partner},
+            "items": {
+                "before": [surface_of.get(i, f"item#{i}") for i in before_ids],
+                "after": [surface_of.get(i, f"item#{i}") for i in after_ids],
+            },
+            "count": {"before": len(before_ids), "after": len(after_ids)},
+        })
+
+    # 마지막 문 — DB 에 쓴 결과로 46 전건·중복 0 을 다시 센다(배치 자체 검증은 resolve 안에서 이미 했다)
+    written = [i for lesson in lessons for i in assign[lesson.code]]
+    if not (len(written) == l1.TOTAL == len(set(written))):
+        db.rollback()
+        raise ValueError(f"재시드 불변식 실패 — 배치 {len(written)}건 / 고유 {len(set(written))}건")
+
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
+    return {
+        "layout": layout_name,
+        "dry_run": dry_run,
+        "committed": not dry_run,
+        "lessons": report,
+        "warnings": warnings,
+    }
