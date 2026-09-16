@@ -511,6 +511,7 @@ async def test_judge_timeouts_are_counted_and_fall_back_to_string_matching(monke
     await _drain(st)
     s = st.expr_judge_stats
     assert s["taught_timeout"] == 1 and s["quiz_timeout"] == 1 and s["taught_fail"] == 1 and s["quiz_fail"] == 1
+    assert s["taught_fallback"] == 1, "9차 C — 타임아웃 뒤 문자열 폴백을 탔으면 폴백 수도 올라간다(1632 계측 정합)"
     cs._log_expr_judge_summary(st, 9)
     line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
     assert line.endswith("· 타임아웃(0.1s) 가르침 1·정답 1"), line
@@ -733,3 +734,23 @@ async def test_teaching_a_brand_new_item_during_a_quiz_also_nudges(monkeypatch):
     sess = _Sess()
     assert await cs._inject_quiz_set_reminder(sess, st) is True
     assert "지금 낼 문제는" in sess.sent_text_turns[0]
+
+
+
+# --------------------------------------------------------------------------- #
+# 9차 C (2026-09-16, 1632 계측) — 판정 실패로 문자열 폴백을 탔으면 «폴백» 카운터도 올린다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_failed_taught_judge_counts_both_fail_and_fallback(monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    fake = FakeJudge(taught_fn=lambda p, s: RuntimeError("boom"))
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _beaver(st, "좋아요! 'ごめんなさい' 도 따라 해 봐요. 미안할 때 쓰는 말이에요.")
+    await _drain(st)
+    s = st.expr_judge_stats
+    assert s["taught_fail"] == 1 and s["taught_fallback"] == 1 and 4 in st.covered_nums
+    cs._log_expr_judge_summary(st, 5)
+    line = [r.getMessage() for r in caplog.records if "판정 사이드카:" in r.getMessage()][-1]
+    assert "가르침 1회(건너뜀 0·실패 1·폴백 1)" in line, line

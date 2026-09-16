@@ -1557,6 +1557,7 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
     _judge_usage_done(state, u)
     if result is None:
         state.expr_judge_stats["taught_fail"] += 1
+        state.expr_judge_stats["taught_fallback"] += 1      # 9차 C(2026-09-16, 1632 계측 정합): 문자열 폴백을 탔으면 폴백 수도 올린다
         before = len(state.covered_nums)
         _taught_fallback(state, text, prev_user, seg_idx)
         return list(state.covered_nums[before:])
