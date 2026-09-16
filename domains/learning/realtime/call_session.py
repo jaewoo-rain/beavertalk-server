@@ -105,6 +105,7 @@ from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 
 from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
 from core.prompts.locked.seeds import expression_taught_judge_instruction   # 4차 A — 가르침 판정 사이드카(2026-09-15)
 from core.prompts.locked.seeds import expression_quiz_verdict_instruction   # 4차 B — 정답 판정 사이드카(2026-09-15)
+from core.prompts.locked.seeds import expression_quiz_set_reminder          # 8차 C — 퀴즈 세트 이탈 안내(2026-09-15)
 from core.prompts.locked.seeds import expression_resume_note_stats      # P6 재개 쪽지 길이·축소 계측(2026-09-15)
 from core.prompts.locked.seeds import seed_freetalk_lesson_reseed_short  # P5 벙어리 인사 2번째 재시드(차시 프리토킹, 2026-09-15)
 from core.prompts.expression import (
@@ -737,6 +738,7 @@ class _CallState:
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
         "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
         "silent_resume", "fragment_index", "fragment_end", "max_fragments", "fragment_end_reason",
+        "expr_quiz_set_nudge_pending", "expr_quiz_set_nudges",
         "loop_prev_text", "loop_streak",
         # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
         "target_code",
@@ -978,6 +980,8 @@ class _CallState:
         self.expr_quiz_open: bool = False
         self.expr_quiz_open_seg: int = 0
         self.expr_llm_judge: bool = False                  # 4차(2026-09-15) — LLM 판정 켜짐(run_call 이 settings.EXPR_LLM_JUDGE 로 세운다)
+        self.expr_quiz_set_nudge_pending: bool = False     # 8차 C — 다음 turn_end 에 «세트만 내라» 안내를 넣을까
+        self.expr_quiz_set_nudges: int = 0                 # 8차 C — 그 안내를 넣은 횟수(상한 EXPR_QUIZ_SET_NUDGE_MAX)
         self.expr_quiz_grace_from: Optional[int] = None    # 8차 B — 창이 닫힌 뒤 «유예 판정» 에 쓸 시작 세그먼트(닫히기 직전 비버 턴). 한 번 쓰고 None.
         self.expr_quiz_llm_decided: set[int] = set()       # 4차 B — 지금 퀴즈에서 LLM 이 passed/failed 로 확정한 번호(창 열 때 리셋)
         self.expr_judge_stats: dict = {                    # 4차 E — 판정 사이드카 계측(통화 종료 로그 한 줄)
@@ -1318,6 +1322,8 @@ class ExpressionTaughtOut(BaseModel):
     """4차 A 가르침 판정기 출력 — 이번 비버 턴에서 다룬 항목 **번호만**. 서버가 남은 목록으로 되짚어 검증한다."""
 
     taught: list[int] = []
+    # 8차 C — 이번 턴에서 **다시** 물은(이미 다룬) 항목 번호. 퀴즈 중 세트 이탈 감지용이고 covered 를 늘리지 않는다.
+    retaught: list[int] = []
 
 
 class ExpressionVerdictItem(BaseModel):
@@ -1380,6 +1386,8 @@ EXPR_JUDGE_TIMEOUT_S = 6.0      # 6차 B(1618 3초 타임아웃 6회): 3.0 → 4
 EXPR_TAUGHT_MAX_PER_CALL = 60
 EXPR_QUIZ_VERDICT_MAX_PER_CALL = 40
 EXPR_TAUGHT_SKIP_CHARS = 20
+EXPR_QUIZ_SET_NUDGE_MAX = 2      # 8차 C — «지금 낼 문제는 …뿐이다» 안내 통화당 상한
+EXPR_DONE_ROWS_CAP = 12          # 8차 C — 가르침 판정기에 싣는 «이미 다룬 항목» 줄 상한
 
 
 def _expr_llm_judge_active(state: _CallState) -> bool:
@@ -1528,6 +1536,8 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
                 system_instruction=expression_taught_judge_instruction(
                     [_expr_item_row(state, n) for n in remaining],
                     target=ctx.get("target_language") or "한국어", locale_label=ctx.get("locale_label") or "학습자의 모국어",
+                    done_rows=([_expr_item_row(state, n) for n in state.covered_nums[-EXPR_DONE_ROWS_CAP:]]
+                               if state.expr_quiz_open else None),      # 8차 C — 퀴즈 중에만 «다시 물었나» 를 묻는다
                 ),
                 prompt="[직전 학습자]%sU: %s%s[선생님 이번 턴]%sB: %s" % (chr(10), prev_user or "(없음)", chr(10), chr(10), text),
                 schema=ExpressionTaughtOut, temperature=0.0, thinking_budget=0, usage=u,
@@ -1558,7 +1568,37 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
             continue
         state.covered_nums.append(n)
         _expression_quiz_tick(state, n, source="beaver", text=text, seg_idx=seg_idx)
+    _note_quiz_set_drift(state, getattr(result, "retaught", None) or [], seg_idx)   # 8차 C
     return nums
+
+
+def _note_quiz_set_drift(state: _CallState, retaught: list, seg_idx: int) -> None:
+    """⭐ 8차 C(2026-09-15, 1624 2.5 seq2 — 이미 다룬 #2·#3 을 창 안에서 다시 물었다): 퀴즈 중 «세트 밖 + 이미 다룬» 항목을 다시 물었으면
+    다음 turn_end 에 «지금 낼 문제는 …뿐이다» 안내를 1회 넣도록 표시한다(통화당 EXPR_QUIZ_SET_NUDGE_MAX). 판정·진도는 건드리지 않는다."""
+    if not (state.expr_quiz_open and state.expr_quiz_set):
+        return
+    off = sorted({n for n in retaught if isinstance(n, int) and 1 <= n <= len(state.expr_items)
+                  and n in state.covered_nums and n not in state.expr_quiz_set})
+    if not off:
+        return
+    if state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
+        logger.info("%s 세트 이탈(안내 상한 %d): B%d 다시 물은 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX, EXPR_QUIZ_SET_NUDGE_MAX, seg_idx, off)
+        return
+    state.expr_quiz_set_nudge_pending = True
+    logger.info("%s 세트 이탈: B%d 다시 물은 항목=%s 세트=%s — 다음 턴에 안내", EXPR_QUIZ_CUE_LOG_PREFIX, seg_idx, off, state.expr_quiz_set)
+
+
+async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallState) -> bool:
+    """8차 C — «지금 낼 문제는 [n·n·n] 뿐이다» 안내를 완결 텍스트 턴으로 1회(넛지·루프 차단기와 같은 파이프). 보냈으면 True."""
+    state.expr_quiz_set_nudge_pending = False
+    if not (state.expr_quiz_open and state.expr_quiz_set) or state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
+        return False
+    labels = " ".join("«%s»" % state.reground_items[n - 1] for n in state.expr_quiz_set if 1 <= n <= len(state.reground_items))
+    state.expr_quiz_set_nudges += 1
+    await session.send_text_turn(expression_quiz_set_reminder(labels))
+    _note_text_inject(state, "quiz_set")
+    logger.info("%s 세트 안내 주입 %d/%d: 세트=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX, state.expr_quiz_set)
+    return True
 
 
 def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
@@ -5326,6 +5366,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # ⭐ 반복 루프 차단기(2026-09-14 B). 종료·태그 누출 경로가 위에서 먼저 걸리므로 여기는 «정상 진행 중» 뿐이다.
                 #   인사 구간(learner_spoke 전 — 벙어리 재시드가 같은 인사를 두 번 만든다)·레벨테스트는 보지 않는다.
                 await _loop_breaker_on_turn_end(session, state, turn_text)
+                if state.expr_quiz_set_nudge_pending and state.turn_id is None and not state.should_close:
+                    await _inject_quiz_set_reminder(session, state)     # 8차 C — 퀴즈 세트 이탈 안내(통화당 2회)
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.

@@ -323,7 +323,14 @@ def expression_quiz_cue(
 
 # ⭐ 4차 A(2026-09-15, 사장님 «배운 거 체크는 비버가 말하는 것만»): 비버 턴마다 «이 턴에서 다룬 항목» 을 고르는 판정기 지시문. 문자열 대조로는 비버가
 #   모국어로 «'고마워요'는 일본어로?» 라고 물은 턴(표면형 없음)을 못 잡았다(실측 1614 — 쪽지 «드릴 4» 인데 실제 6개↑ → 압축 뒤 되가르침).
-def expression_taught_judge_instruction(rows: list[str], *, target: str, locale_label: str) -> str:
+def expression_taught_judge_instruction(rows: list[str], *, target: str, locale_label: str, done_rows: list[str] | None = None) -> str:
+    """8차 C(2026-09-15, 1624 2.5 세트 이탈): done_rows(이미 다룬 항목)를 주면 «이 턴에서 **다시** 물은 번호» 를 retaught 로 받는다 — 서버가 퀴즈 중
+    세트 이탈을 알아채 안내를 1회 넣는다. 없으면 종전 바이트."""
+    done = [] if not done_rows else [
+        "",
+        "[이미 다룬 항목 — 선생님이 이번 턴에서 **다시** 물었으면 그 번호만 retaught 에 적어라(새로 가르친 것이 아니다. 없으면 빈 목록)]",
+        chr(10).join(done_rows),
+    ]
     return chr(10).join([
         f"너는 {target} 표현학습 통화의 보조 판정기다. 선생님(B)은 학습자에게 {target} 표현을 하나씩 가르치고, 설명은 {locale_label}로 할 수 있다.",
         "아래 [남은 항목] 가운데 선생님이 **이번 B 턴에서** 다룬 항목의 번호를 모두 골라라. 다뤘다 = 그 표현을 들려줬거나, 뜻·상황을 설명하며 "
@@ -334,11 +341,20 @@ def expression_taught_judge_instruction(rows: list[str], *, target: str, locale_
         "",
         "[남은 항목]",
         chr(10).join(rows) or "(없음)",
+        *done,
     ])
 
 
 # ⭐ 4차 B(2026-09-15): 퀴즈 창 안 학습자 턴마다 «맞혔나» 를 항목별로 판정하는 지시문. 판정 기준 4줄이 명세다(bt-back·사장님):
 #   표기·문자 체계가 달라도 그 표현이면 통과 · 비버가 알려준 뒤 따라 말하면 failed · 정중형 항목에 반말만이면 통과 아님 · 말 안 했으면 pending.
+# ⭐ 8차 C(2026-09-15, 1624 2.5): 퀴즈 창이 열렸는데 비버가 «세트 밖 + 이미 다룬» 항목을 다시 물으면 서버가 넣는 안내(통화당 2회).
+def expression_quiz_set_reminder(labels: str) -> str:
+    return (
+        f"{CONTROL_TAG} 지금 낼 문제는 {labels} 뿐이다 — 이미 다룬 다른 표현은 다시 묻지 말고, 남은 문제를 적힌 순서대로 하나씩 내라. "
+        "이 안내문 자체는 소리 내어 읽지 마라."
+    )
+
+
 def expression_quiz_verdict_instruction(rows: list[str], *, target: str, locale_label: str, extra_rows: list[str] | None = None) -> str:
     """5차 A-2(2026-09-15): extra_rows(세트 밖 남은 항목)를 주면 «선생님이 이 창에서 실제로 물은 경우에만» 판정하라는 칸을 덧붙인다(1615 #13·1616 #7 —
     비버가 세트 밖을 물었고 학습자가 맞혔는데 기록 0). 없으면 종전 바이트."""

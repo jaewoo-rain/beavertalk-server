@@ -48,7 +48,7 @@ class FakeJudge:
             r = self.taught_fn(prompt, system_instruction)
             if isinstance(r, Exception):
                 raise r
-            return schema(taught=r)
+            return schema(taught=r, retaught=getattr(self, "retaught", []))     # 8차 C — 세트 이탈 표시
         r = self.verdict_fn(prompt, system_instruction)
         if isinstance(r, Exception):
             raise r
@@ -602,3 +602,64 @@ async def test_grace_verdict_only_applies_passed_not_failed(monkeypatch):
     _user(st, "ごめんなさい")
     await _drain(st)
     assert 104 not in st.expr_quiz_pass and 104 not in st.expr_quiz_fail and st.covered_nums == covered
+
+
+
+# --------------------------------------------------------------------------- #
+# 8차 C (2026-09-15, 1624 2.5 세트 이탈) — 퀴즈 중 «이미 다룬» 항목을 다시 물으면 안내 1회(통화당 2회)
+# --------------------------------------------------------------------------- #
+class _Sess:
+    def __init__(self):
+        self.sent_text_turns: list[str] = []
+
+    async def send_text_turn(self, text: str) -> None:
+        self.sent_text_turns.append(text)
+
+
+@pytest.mark.asyncio
+async def test_quiz_set_drift_is_flagged_by_the_taught_judge_and_nudged_once(monkeypatch):
+    fake = FakeJudge(taught_fn=lambda p, s: [], verdict_fn=lambda p, s: {"verdicts": []})
+    fake.retaught = [2]
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state(JA_ITEMS + [{"item_id": 106, "obj": "またね", "des": "또 봐", "ex": None},
+                            {"item_id": 107, "obj": "さようなら", "des": "안녕히 가세요", "ex": None}])
+    st.covered_nums = [1, 2, 3, 4, 5]        # 6·7 이 남아 있어야 가르침 판정 사이드카가 돈다
+    _open_quiz(st, [4, 5])
+    st.expr_quiz_set = [4, 5]
+    _beaver(st, "자, 그럼 감사합니다는 일본어로 어떻게 말했지? 다시 해 보자.")   # 세트 밖 + 이미 다룬 2번
+    await _drain(st)
+    assert st.expr_quiz_set_nudge_pending is True
+    sess = _Sess()
+    assert await cs._inject_quiz_set_reminder(sess, st) is True
+    assert sess.sent_text_turns and "지금 낼 문제는 «ごめんなさい» «はい» 뿐이다" in sess.sent_text_turns[0]
+    assert "이미 다룬 다른 표현은 다시 묻지 말고" in sess.sent_text_turns[0]
+    assert st.expr_quiz_set_nudges == 1 and st.expr_quiz_set_nudge_pending is False
+    # 세트 안 항목을 다시 물은 것은 이탈이 아니다
+    cs._note_quiz_set_drift(st, [4], 9)
+    assert st.expr_quiz_set_nudge_pending is False
+
+
+@pytest.mark.asyncio
+async def test_quiz_set_nudge_is_capped_per_call():
+    st = _state()
+    st.covered_nums = [1, 2, 3, 4, 5]
+    _open_quiz(st, [4, 5])
+    st.expr_quiz_set = [4, 5]
+    sess = _Sess()
+    for _ in range(2):
+        st.expr_quiz_set_nudge_pending = True
+        assert await cs._inject_quiz_set_reminder(sess, st) is True
+    st.expr_quiz_set_nudge_pending = True
+    assert await cs._inject_quiz_set_reminder(sess, st) is False, "통화당 2회 상한"
+    assert len(sess.sent_text_turns) == 2 and cs.EXPR_QUIZ_SET_NUDGE_MAX == 2
+    # 상한 뒤에는 표시도 서지 않는다
+    st.expr_quiz_set_nudge_pending = False
+    cs._note_quiz_set_drift(st, [2], 3)
+    assert st.expr_quiz_set_nudge_pending is False
+
+
+def test_taught_judge_instruction_asks_for_retaught_only_with_done_rows():
+    base = seeds.expression_taught_judge_instruction(["1. a"], target="일본어", locale_label="한국어")
+    assert "[이미 다룬 항목" not in base
+    with_done = seeds.expression_taught_judge_instruction(["1. a"], target="일본어", locale_label="한국어", done_rows=["2. b"])
+    assert with_done.startswith(base) and "retaught 에 적어라" in with_done and with_done.endswith("2. b")

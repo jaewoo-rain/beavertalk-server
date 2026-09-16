@@ -129,6 +129,8 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "seeds.expression_quiz_cue_lists": ("9f49a518eb8d1839", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어", done_labels=["물", "가다"], remaining_rows=["3. to go = 가다", "4. person = 사람"])),
     "reground.build_expression_reground_brief_remaining": ("6f100c295c08edfa", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)", remaining=["3. person = 사람"])),
     "seeds.expression_quiz_cue": ("beacb708da5b7955", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어")),
+    "seeds.expression_quiz_set_reminder": ("8bcd024c38581f13", lambda: seeds.expression_quiz_set_reminder("«물» «가다»")),   # 2026-09-15 8차 C
+    "seeds.expression_taught_judge_instruction_done": ("b0aa726021903a91", lambda: seeds.expression_taught_judge_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)", done_rows=["2. 가다 — 뜻: to go"])),   # 2026-09-15 8차 C(done_rows 없으면 옛 해시)
     "seeds.expression_taught_judge_instruction": ("7025709c4196d049", lambda: seeds.expression_taught_judge_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 A
     "seeds.expression_quiz_verdict_instruction": ("dc5417c8d6bd1a25", lambda: seeds.expression_quiz_verdict_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)")),   # 2026-09-15 4차 B
     "seeds.expression_quiz_fallback_instruction": ("ed351fe6f23314f9", lambda: seeds.expression_quiz_fallback_instruction(["1. 물 — 뜻: water"], target="한국어")),
