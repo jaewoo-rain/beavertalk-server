@@ -663,3 +663,53 @@ def test_taught_judge_instruction_asks_for_retaught_only_with_done_rows():
     assert "[이미 다룬 항목" not in base
     with_done = seeds.expression_taught_judge_instruction(["1. a"], target="일본어", locale_label="한국어", done_rows=["2. b"])
     assert with_done.startswith(base) and "retaught 에 적어라" in with_done and with_done.endswith("2. b")
+
+
+
+# --------------------------------------------------------------------------- #
+# 9차 A (2026-09-16, 1632 #10 どうも) — 유예 판정이 «공개 뒤 복창» 을 passed 로 덮지 않는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_grace_never_overrides_an_item_already_confirmed_failed(monkeypatch):
+    """창 판정에서 failed(정답 공개) 로 확정된 항목은 유예 후보에서 빠지고, 판정기가 passed 라고 해도 기록하지 않는다."""
+    seen_extra: list[str] = []
+
+    def verdict(p, s):
+        seen_extra.append(s)
+        if "[퀴즈 항목]" in s and "2. どうも" in s:                 # 창 판정 — 비버가 정답을 공개했다
+            return {"verdicts": [{"num": 2, "verdict": "failed", "why": "선생님이 정답을 알려줌"}]}
+        return {"verdicts": [{"num": 2, "verdict": "passed", "why": ""}]}   # 유예 — 복창을 정답으로 본다(막아야 한다)
+    fake = FakeJudge(taught_fn=lambda p, s: [], verdict_fn=verdict)
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [2])
+    _beaver(st, "«고마워요» 는 일본어로? … It's just どうも. Say it.")
+    await _drain(st)
+    _user(st, "どうも")
+    await _drain(st)
+    assert 102 in st.expr_quiz_fail and 102 not in st.expr_quiz_pass, "창 판정: 공개 뒤 복창 → failed"
+    assert st.expr_quiz_open is False and st.expr_quiz_grace_from is not None
+    _user(st, "どうも")                                            # 유예 창의 학습자 턴 — 또 복창
+    await _drain(st)
+    assert 102 not in st.expr_quiz_pass and 102 in st.expr_quiz_fail, "유예가 failed 를 passed 로 덮지 않는다"
+    grace_instr = seen_extra[-1]
+    assert "[세트 밖 항목" not in grace_instr or "2. どうも" not in grace_instr.split("[세트 밖 항목")[1], "failed 확정 항목은 유예 후보에서 뺀다"
+
+
+@pytest.mark.asyncio
+async def test_grace_still_records_a_genuine_spontaneous_answer(monkeypatch):
+    """1632 #7·#11 류 — 닫히기 직전 비버가 **묻기만** 한 항목의 자발 정답은 유예에서 그대로 passed."""
+    fake = FakeJudge(taught_fn=lambda p, s: [], verdict_fn=lambda p, s: (
+        {"verdicts": [{"num": 1, "verdict": "passed"}]} if "1. ありがとうございます" in s.split("[세트 밖 항목")[0]
+        else {"verdicts": [{"num": 4, "verdict": "passed", "why": "자발 정답"}]}))
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1])
+    _user(st, "ありがとうございます")
+    await _drain(st)
+    assert st.expr_quiz_open is False
+    _beaver(st, "좋아! 그럼 미안할 때는 일본어로 뭐라고 해?")      # 묻기만 했다(공개 없음)
+    await _drain(st)
+    _user(st, "ごめんなさい")
+    await _drain(st)
+    assert 104 in st.expr_quiz_pass and 4 in st.covered_nums

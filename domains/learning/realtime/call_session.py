@@ -2008,7 +2008,7 @@ def _spawn_grace_verdict(state: _CallState) -> "asyncio.Task | None":
     stats["quiz_calls"] += 1
     logger.info("normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=%d 창=%d~%d", state.expr_quiz_seq, start, len(state.segments))
     task = asyncio.create_task(
-        _quiz_verdict_judge(state, state.expr_quiz_seq, span, [], final=False), name="normalcall-expr-quiz-grace",
+        _quiz_verdict_judge(state, state.expr_quiz_seq, span, [], final=False, grace=True), name="normalcall-expr-quiz-grace",
     )
     state.expr_tasks.add(task)
     task.add_done_callback(state.expr_tasks.discard)
@@ -2029,7 +2029,8 @@ def _apply_off_set_pass(state: _CallState, n: int, why: str) -> None:
     logger.info("normalcall 표현학습 퀴즈 판정(LLM·세트 밖): 항목 %d «%s» passed + covered (%s)", n, surface, why)
 
 
-async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool) -> dict:
+async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool,
+                              grace: bool = False) -> dict:
     """판정기 1콜 → 항목별 passed/failed/pending 을 서버가 적용(passed 단조 — failed 는 passed 를 못 지운다). 확정(passed·failed)은 같은 퀴즈(seq)
     안에서만 기록해 다음 퀴즈를 오염시키지 않는다. 실패·None: final 이면 남은 항목을 서버 문자열 판정으로(R5), 아니면 다음 턴 판정·닫힘을 기다린다."""
     ctx = state.expr_ctx or {}
@@ -2037,9 +2038,12 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
     t0 = loop.time()
     # ⭐ 5차 A-2(2026-09-15, 1615 #13·1616 #7): 비버가 세트 밖 항목을 물었고 학습자가 맞히면 그것도 기록한다 — 세트 밖 후보 = 아직 통과 안 한 나머지 항목 전부.
     #   «실제로 물었나» 는 판정기가 전사로 가린다(지시문 칸). 서버는 세트 밖 항목에 **passed 만** 적용한다(failed·pending 무시 — 묻지도 않은 항목에 오답을 남기지 않는다).
+    # ⛔ 9차 A(2026-09-16, 1632 #10 どうも): **유예 판정(grace)** 은 같은 사건의 꼬리다 — 이미 failed 로 확정된 항목(비버가 정답을 알려준 항목)은 후보에서
+    #   빼야 한다. 안 그러면 «공개 → 복창» 이 유예에서 passed 로 덮여 «안 배운 걸 배웠다» 가 된다(판정기에 맡기지 않고 서버가 후보를 만든다).
     extra = [n for n in range(1, len(state.expr_items) + 1)
              if n not in nums and n not in state.expr_quiz_set
-             and int(state.expr_items[n - 1].get("item_id") or -1) not in state.expr_quiz_pass]
+             and int(state.expr_items[n - 1].get("item_id") or -1) not in state.expr_quiz_pass
+             and not (grace and int(state.expr_items[n - 1].get("item_id") or -1) in state.expr_quiz_fail)]
     lines = [("B%d: " if role == "beaver" else "U%d: ") % i + text for i, role, text in span]
     transcript = chr(10).join(lines)[-EXPR_TRANSCRIPT_MAX_CHARS:]
     result = None
@@ -2084,6 +2088,11 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         if isinstance(n, int) and n in extra and n not in seen:
             seen.add(n)
             if str(getattr(v, "verdict", "") or "").strip().lower() == "passed":
+                iid, surface = _num_item(state, n)
+                if grace and iid is not None and iid in state.expr_quiz_fail:
+                    # 9차 A② — 단조 보강: 유예는 새 사건이 아니라 같은 사건의 꼬리라, 이미 failed 로 확정된 항목을 passed 로 덮지 않는다.
+                    logger.info("normalcall 표현학습 유예 판정 기각(이미 오답 확정): 항목 %d «%s»", n, surface)
+                    continue
                 _apply_off_set_pass(state, n, str(getattr(v, "why", "") or "")[:40])
                 out.setdefault("off_set_passed", []).append(n)
             continue
