@@ -4549,21 +4549,32 @@ async def _periodic_flush(db_session_factory, state: _CallState, call_id: int, m
         new = state.segments[state.persisted_count:]
         if not new:
             continue
-        target = state.persisted_count + len(new)
+        before = state.persisted_count
+        target = before + len(new)
+        # ⭐⭐ 12차(2026-09-18, 사장님 1644 — call_raw_data 75행/고유 turn 65개, turn 45~54 가 두 벌): **커서를 쓰기 전에 올린다.**
+        #   `svc.run_db` 는 스레드풀에서 돈다(run_in_threadpool) — await 가 취소돼도 **그 스레드의 commit 은 끝난다.**
+        #   옛 코드는 저장이 끝난 뒤에 커서를 올려서, fragment_end 로 TaskGroup 이 내려가는 순간 «썼는데 안 썼다» 가 됐고
+        #   finally 의 `_persist_remaining` 이 같은 구간을 다시 써 행이 두 벌이 됐다(조각 경계가 아니라 조각 내부에 중복이 생긴 이유).
+        #   ⚠ 되돌리는 것은 **진짜 실패(예외)** 뿐이다 — 취소는 되돌리지 않는다(이미 쓴 것으로 본다). 두 번 불려도 한 행이
+        #     되도록 저장 경로 자체도 멱등이다(`svc.save_segments` — (call_id, turn_index) 중복 건너뜀).
+        state.persisted_count = target
         try:
             await svc.run_db(
                 db_session_factory, lambda db: svc.save_segments(db, call_id, new, member_id)
             )
-            state.persisted_count = target
-            # ⭐ 저장이 끝났으니 PCM 을 놓아준다(B1). 안 놓으면 통화 오디오 전체가 통화
-            #   내내 RAM 에 남아 15분 통화 하나가 30~50MB 를 물고 있게 된다.
-            freed = _release_persisted_pcm(state, target)
-            logger.info(
-                "normalcall: 점진 flush %d개(누적 %d) call_id=%s pcm해제=%dKB",
-                len(new), target, call_id, freed // 1024,
-            )
+        except asyncio.CancelledError:
+            raise                       # 커서는 올린 채로 — 스레드의 커밋은 끝난다
         except Exception as exc:  # noqa: BLE001 - flush 실패는 다음 주기/종료시 재시도
+            state.persisted_count = before
             logger.warning("normalcall: 점진 flush 실패(무시): %s", exc)
+            continue
+        # ⭐ 저장이 끝났으니 PCM 을 놓아준다(B1). 안 놓으면 통화 오디오 전체가 통화
+        #   내내 RAM 에 남아 15분 통화 하나가 30~50MB 를 물고 있게 된다.
+        freed = _release_persisted_pcm(state, target)
+        logger.info(
+            "normalcall: 점진 flush %d개(누적 %d) call_id=%s pcm해제=%dKB",
+            len(new), target, call_id, freed // 1024,
+        )
 
 
 class StartParams(NamedTuple):

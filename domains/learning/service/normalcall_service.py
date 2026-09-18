@@ -898,6 +898,11 @@ def next_turn_index(db: Session, call_id: int) -> int:
     ⛔ 0 부터 다시 매기면 조각2의 첫 턴이 조각1의 첫 턴을 덮어쓰거나 순서가 섞인다.
       전사·증거가 전부 이 인덱스로 정렬된다.
     """
+    # ⭐ 12차(2026-09-18, 1644): **max(turn_index)+1** 이다 — 옛 코드는 «행 수»를 셌다. 중복 행이 한 벌이라도 들어가면(또는 저장이
+    #   빠진 턴이 있으면) 행 수와 다음 번호가 어긋나 조각2의 첫 턴이 조각1의 턴을 덮거나 건너뛴다. 정상 통화(중복·빠짐 0)에서는 값이 같다.
+    last = db.query(func.max(CallRawData.turn_index)).filter(CallRawData.call_id == call_id).scalar()
+    if last is not None:
+        return int(last) + 1
     return int(
         db.query(func.count(CallRawData.call_raw_data_id))
         .filter(CallRawData.call_id == call_id)
@@ -1287,8 +1292,25 @@ def save_segments(
             upload_segment_audio 에 넘길 pending 목록
             [{call_raw_data_id, turn_index, role, pcm}] 반환(pcm 없는 행 제외).
     """
+    # ⭐⭐ 12차(2026-09-18, 1644 turn 45~54 두 벌) — **(call_id, turn_index) 멱등.** 같은 턴이 이미 있으면 건너뛴다(먼저 쓴 행을 남긴다:
+    #   점진 flush 가 쓴 행에는 voice_url 이 있고, 나중 종료 저장은 upload_audio=False 라 None 이다 — 먼저 쓴 쪽이 더 완전하다).
+    #   ⛔ 여기가 마지막 방어선이다. 부르는 쪽(점진 flush 커서)도 고쳤지만, 재연결·재시도 경로가 같은 구간을 다시 줄 수 있다.
+    #   ⚠ DB 유니크 제약(call_id, turn_index)이 있으면 더 좋다 — 마이그레이션이라 사장님 «적용» 전까지는 코드 멱등으로만 막는다.
+    idxs = {int(seg["turn_index"]) for seg in segments if seg.get("turn_index") is not None}
+    existing: set[int] = set()
+    if idxs:
+        existing = {
+            int(t) for (t,) in db.query(CallRawData.turn_index)
+            .filter(CallRawData.call_id == call_id, CallRawData.turn_index.in_(sorted(idxs))).all()
+            if t is not None
+        }
+    skipped: list[int] = []
     rows: list[tuple[CallRawData, dict]] = []
     for seg in segments:
+        ti = seg.get("turn_index")
+        if ti is not None and int(ti) in existing:
+            skipped.append(int(ti))
+            continue
         pcm = seg.get("pcm") or b""
         key = None
         if pcm and upload_audio:
@@ -1304,6 +1326,8 @@ def save_segments(
         )
         db.add(row)
         rows.append((row, seg))
+    if skipped:
+        logger.info("normalcall 저장 멱등: call_id=%s 이미 있는 turn %d개 건너뜀 %s", call_id, len(skipped), skipped[:12])
     db.flush()  # PK(call_raw_data_id) 확보 — commit 후 expire 재조회 없이 수집
     pending = [
         {

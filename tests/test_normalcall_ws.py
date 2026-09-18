@@ -3323,7 +3323,8 @@ async def test_periodic_flush_releases_pcm(session_factory, seeded, monkeypatch)
         cs._periodic_flush(session_factory, state, call_id, seeded["member_id"])
     )
     for _ in range(300):
-        if state.persisted_count == 2:
+        # 12차(2026-09-18): 커서(persisted_count)는 이제 **쓰기 전에** 오른다 — 저장이 끝난 신호는 PCM 해제다
+        if state.persisted_count == 2 and sum(len(sg["pcm"]) for sg in state.segments) == 0:
             break
         await asyncio.sleep(0.01)
     task.cancel()
@@ -5310,3 +5311,134 @@ async def test_default_mode_still_drops_cross_turn_duplicates(
     markers, holder = await _run_face_call(
         monkeypatch, session_factory, seeded, script, on=True)
     assert [m["emotion"] for m in markers] == ["angry"], markers
+
+
+# --------------------------------------------------------------------------- #
+# 12차 (2026-09-18, 사장님 1644 ko 3.1 2조각 — call_raw_data 75행인데 고유 turn 65개, turn 45~54 가 두 벌)
+#   원인: _periodic_flush 가 커서(persisted_count)를 **저장이 끝난 뒤에** 올렸다. svc.run_db 는 스레드풀이라
+#   fragment_end 로 TaskGroup 이 내려가며 await 가 취소돼도 그 스레드의 commit 은 끝난다 ⇒ «썼는데 안 썼다» ⇒
+#   finally 의 _persist_remaining 이 같은 구간을 다시 썼다. 고침: 커서를 먼저 올린다 + 저장 경로를 멱등으로.
+# --------------------------------------------------------------------------- #
+def _new_call(session_factory, seeded) -> int:
+    db = session_factory()
+    try:
+        call = Call(member_id=seeded["member_id"], character_id=seeded["character_id"], status="ongoing")
+        db.add(call)
+        db.commit()
+        return call.call_id
+    finally:
+        db.close()
+
+
+def test_save_segments_is_idempotent_per_turn_index(session_factory, seeded):
+    """① 같은 turn_index 를 두 번 요청해도 행은 하나다 — 먼저 쓴 행(voice_url 있는 쪽)이 남는다."""
+    call_id = _new_call(session_factory, seeded)
+    segs = [{"turn_index": i, "role": "user" if i % 2 == 0 else "beaver",
+             "text": "t%d" % i, "pcm": b"\x00\x00"} for i in range(5)]
+    db = session_factory()
+    try:
+        assert svc.save_segments(db, call_id, segs, seeded["member_id"]) == 5
+    finally:
+        db.close()
+    # 종료 저장이 같은 구간(2~4) + 새 구간(5~6)을 다시 준다 — 중복 없이 새것만 들어가야 한다
+    again = segs[2:] + [{"turn_index": i, "role": "user", "text": "t%d" % i, "pcm": b""} for i in (5, 6)]
+    db = session_factory()
+    try:
+        pending = svc.save_segments(db, call_id, again, seeded["member_id"], upload_audio=False)
+        assert [p["turn_index"] for p in pending] == [], "이미 있는 턴은 오디오 후행 목록에도 안 들어간다"
+    finally:
+        db.close()
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData).filter(CallRawData.call_id == call_id).order_by(CallRawData.turn_index).all()
+        assert [r.turn_index for r in rows] == [0, 1, 2, 3, 4, 5, 6], "중복 0 · 새 턴은 들어간다"
+        assert len(rows) == len({r.turn_index for r in rows}) == 7
+        assert rows[3].voice_url == "stub-key", "먼저 쓴 행(오디오 있는 쪽)이 남는다"
+    finally:
+        db.close()
+
+
+def test_next_turn_index_is_max_plus_one_not_the_row_count(session_factory, seeded):
+    """② 조각2 의 첫 turn_index 는 조각1 **최대+1** — 중복 행이 한 벌 있어도 번호가 밀리지 않는다."""
+    call_id = _new_call(session_factory, seeded)
+    db = session_factory()
+    try:
+        for ti in (0, 1, 2, 2, 3):          # 옛 버그로 이미 중복이 들어간 통화(2 가 두 벌)
+            db.add(CallRawData(call_id=call_id, role="user", turn_index=ti, content="t%d" % ti))
+        db.commit()
+        assert svc.next_turn_index(db, call_id) == 4, "행 수(5)가 아니라 최대+1"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_periodic_flush_cancelled_mid_write_does_not_double_save(session_factory, seeded, monkeypatch):
+    """① 점진 flush 가 쓰는 도중 fragment_end 로 취소돼도(스레드의 commit 은 끝난다) 종료 저장이 같은 턴을 또 쓰지 않는다."""
+    monkeypatch.setattr(cs, "FLUSH_INTERVAL_S", 0.01)
+    call_id = _new_call(session_factory, seeded)
+    state = cs._CallState()
+    state.segments = [_seg(i, "user" if i % 2 == 0 else "beaver", b"\x11\x22" * 10) for i in range(3)]
+
+    started = asyncio.Event()
+    orig_run_db = svc.run_db
+
+    async def slow_run_db(factory, fn):
+        # 실제 의미 그대로: **스레드의 commit 은 끝나고**(run_in_threadpool 은 취소돼도 스레드를 못 멈춘다)
+        # 그 뒤 await 가 취소된다 — 1644 가 그 창에서 났다.
+        result = await orig_run_db(factory, fn)
+        started.set()
+        await asyncio.sleep(3)
+        return result
+
+    monkeypatch.setattr(svc, "run_db", slow_run_db)
+    task = asyncio.create_task(cs._periodic_flush(session_factory, state, call_id, seeded["member_id"]))
+    await asyncio.wait_for(started.wait(), 3)
+    assert state.persisted_count == 3, "커서는 쓰기 전에 오른다(취소돼도 «썼다» 로 본다)"
+    task.cancel()                            # ← fragment_end 로 TaskGroup 이 내려가는 순간
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+    monkeypatch.setattr(svc, "run_db", orig_run_db)
+    await cs._persist_remaining(session_factory, state, call_id, seeded["member_id"])   # finally 경로
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData).filter(CallRawData.call_id == call_id).all()
+        idx = sorted(r.turn_index for r in rows)
+        assert idx == [0, 1, 2], "1644 재발 — 같은 구간이 두 벌 저장됐다: %s" % idx
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_periodic_flush_rolls_the_cursor_back_when_the_write_really_fails(session_factory, seeded, monkeypatch):
+    """③ 종전 경로 무변경 — 진짜 실패(예외)는 커서를 되돌려 다음 주기·종료 저장이 다시 쓴다(취소만 «썼다» 로 본다)."""
+    monkeypatch.setattr(cs, "FLUSH_INTERVAL_S", 0.01)
+    call_id = _new_call(session_factory, seeded)
+    state = cs._CallState()
+    state.segments = [_seg(0, "user", b"\x11\x22" * 10)]
+    calls = {"n": 0}
+    orig_run_db = svc.run_db
+
+    async def flaky(factory, fn):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("DB 일시 오류")
+        return await orig_run_db(factory, fn)
+
+    monkeypatch.setattr(svc, "run_db", flaky)
+    task = asyncio.create_task(cs._periodic_flush(session_factory, state, call_id, seeded["member_id"]))
+    for _ in range(300):
+        if calls["n"] >= 2 and state.persisted_count == 1 and sum(len(sg["pcm"]) for sg in state.segments) == 0:
+            break
+        await asyncio.sleep(0.01)
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    monkeypatch.setattr(svc, "run_db", orig_run_db)
+    assert calls["n"] >= 2, "실패 뒤 다음 주기에 다시 쓰지 않았다"
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData).filter(CallRawData.call_id == call_id).all()
+        assert [r.turn_index for r in rows] == [0], "실패한 구간이 정확히 한 번 저장된다"
+    finally:
+        db.close()
