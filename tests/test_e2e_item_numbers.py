@@ -87,3 +87,17 @@ def test_l1_layout_of_detects_new_legacy_and_guesses():
     assert h.l1_layout_of("L1-S01-1", "初めて会った人に挨拶する", None).startswith("옛것(추정")    # ja 번역 문장·partner 없음
     assert h.l1_layout_of("L1-S01-1", "初めて会った人に挨拶する", "日本語教室").startswith("새것(추정")
     assert h.l1_layout_of("A1-T01-1", "x", None) is None
+
+
+MIXED_LOGS = LOGS + [
+    "2026-09-18T08:55:37.000000Z\tINFO:x:normalcall 표현학습 목록: 1=처음 뵙겠습니다 · 2=잘 부탁드립니다 · 3=저는 ◯◯이에요 (18개, 복습 6)",
+]
+
+
+def test_pick_our_item_numbers_prefers_the_list_matching_our_items():
+    got, n = h.pick_our_item_numbers(MIXED_LOGS, _items())
+    assert n == 2                                  # 다른 통화 로그가 섞였다(1643 ↔ 1644)
+    assert got[1] == "인사말" and h.item_numbers_by_id(got, _items())[14] == 15
+    one, n1 = h.pick_our_item_numbers(LOGS, _items())
+    assert n1 == 1 and one[15] == "한국"
+    assert h.pick_our_item_numbers([], _items()) == ({}, 0)

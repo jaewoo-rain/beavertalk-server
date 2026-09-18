@@ -2034,6 +2034,26 @@ _ITEM_LIST_RE = re.compile(r"표현학습 목록:\s*(.+)$")
 _ITEM_NUM_RE = re.compile(r"(\d+)=")
 
 
+def parse_item_number_lists(log_lines: list[str] | None) -> list[dict[int, str]]:
+    """«표현학습 목록:» 줄마다 {번호: 표면형} 하나씩 — **통화마다 한 줄**이다. 창에 두 개 이상 나오면 다른 통화 로그가 섞인 것(1643 에 1644 가 섞였다)."""
+    out: list[dict[int, str]] = []
+    for ln in log_lines or []:
+        one = parse_item_numbers([ln])
+        if one:
+            out.append(one)
+    return out
+
+
+def pick_our_item_numbers(log_lines: list[str] | None, items: dict) -> tuple[dict[int, str], int]:
+    """우리 통화의 목록 줄을 **표면형 일치수**로 고른다 → ({번호: 표면형}, 목록 줄 수). 줄 수 ≥2 면 로그가 섞였다는 뜻."""
+    lists = parse_item_number_lists(log_lines)
+    if not lists:
+        return {}, 0
+    ours = {norm_ko(it.surface) for it in (items or {}).values()}
+    best = max(lists, key=lambda d: sum(1 for sfc in d.values() if norm_ko(sfc) in ours))
+    return best, len(lists)
+
+
 def parse_item_numbers(log_lines: list[str] | None) -> dict[int, str]:
     """서버 «normalcall 표현학습 목록: 1=인사말 2=N은/는 N이에요/예요 …» → {번호: 표면형}.
     ⚠ 이게 번호 **정본**이다(서버 state.expr_items 기준). cur_call.items 스냅샷 위치로 세면 어긋난다 —
@@ -2505,13 +2525,18 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append("")
         _srv_sets = parse_quiz_sets(server_logs) if server_logs is not None else []
         sc.cur["server_quiz_sets"] = [(seq, nums) for _, seq, nums in _srv_sets]
-        _num_src = parse_item_numbers(server_logs)
+        _num_src, _n_lists = pick_our_item_numbers(server_logs, sess.items)
         _num_of = item_numbers_by_id(_num_src, sess.items)
+        _mixed = _n_lists > 1          # 같은 시간대에 다른 통화가 돌았다 — 로그로 만드는 판정 재료를 믿을 수 없다
+        sc.cur["log_mixed"] = _n_lists
+        if _mixed:
+            L.append(f"- ⚠ **서버 로그에 다른 통화가 섞였다**(«표현학습 목록» 줄 {_n_lists}개) — 우리 목록은 표면형 일치로 골랐고, "
+                     f"**세트·유예·큐 주입(tc) 판정은 이 통화에서 끄고 표시만 한다**(잘못된 ✖ 방지). 통화는 한 번에 하나만 돌리는 게 맞다.")
         sc.cur["item_numbers"] = {"source": "서버 목록 로그" if _num_src else "cur_call.items 위치(폴백)", "n": len(_num_of)}
         ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns,
-                                           server_sets=[nums for _, _, nums in _srv_sets] if _srv_sets else None,
+                                           server_sets=([nums for _, _, nums in _srv_sets] if _srv_sets else None) if not _mixed else None,
                                            offset_expect=OFFSET_EXPECT, num_of=_num_of,
-                                           grace_passed=parse_grace_passes(server_logs))
+                                           grace_passed=set() if _mixed else parse_grace_passes(server_logs))
         L.append(f"- 항목 번호 정본: {sc.cur['item_numbers']['source']} ({len(_num_of)}개 대응"
                  + (f" · 서버 목록 {len(_num_src)}항목" if _num_src else "") + ")")
         L += tbl
@@ -2621,18 +2646,19 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             _tc = cue_tc_counts(server_logs)
             L.append(f"- 서버 큐 단계: arm {n_arm} · 얹기 {n_c} · 열림 {n_open}" +
                      (" ⚠ arm 뒤 얹기 안 됨 " + str(n_arm - n_c) if n_arm > n_c else "") +
-                     (f" · 얹기 주입 tc=True {_tc['True']} · tc=False {_tc['False']}" if (_tc["True"] or _tc["False"]) else ""))
+                     (f" · 얹기 주입 tc=True {_tc['True']} · tc=False {_tc['False']}"
+                      + (" ⚠ 다른 통화 섞임 — 참고만" if sc.cur.get("log_mixed", 0) > 1 else "") if (_tc["True"] or _tc["False"]) else ""))
             L.append(f"- 서버 퀴즈 큐(얹기) {n_c}회 · 앵커로 이어진 큐 {len(cue_match['pairs'])} "
                      f"(지연 {', '.join(f'{d:.1f}s' for d in delays) or '—'}) · 큐 뒤 앵커 없음 {len(cue_match['cues_without_anchor'])} · "
                      f"큐 없이 난 앵커 {len(cue_match['anchors_without_cue'])}")
             for c_t in cue_match["cues_without_anchor"]:
                 L.append(f"  - ⛔ 큐 {datetime.fromtimestamp(c_t, timezone.utc).strftime('%H:%M:%S')}Z 뒤 {QUIZ_CUE_MATCH_WINDOW_S:.0f}s 안에 비버가 퀴즈를 열지 않았다")
-    num_of = item_numbers_by_id(parse_item_numbers(server_logs), sess.items) \
+    num_of = item_numbers_by_id(pick_our_item_numbers(server_logs, sess.items)[0], sess.items) \
         or {int(q.get("item_id") or 0): n + 1 for n, q in enumerate(sc.cur.get("quiz_items") or [])}
     _blocks = quiz_blocks(sess.records)
     sc.order_ok, order_lines = quiz_order_check(_blocks, num_of)
     L += order_lines
-    srv_sets_ts = parse_quiz_sets(server_logs) if server_logs is not None else []
+    srv_sets_ts = parse_quiz_sets(server_logs) if (server_logs is not None and not sc.cur.get("log_mixed", 0) > 1) else []
     if srv_sets_ts and sess.turns and num_of:
         off = sess.turns[0].wall - sess.turns[0].t          # now 기준 초 → epoch
         for b, iids in _blocks.items():

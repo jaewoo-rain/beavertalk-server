@@ -1,0 +1,2275 @@
+{
+ "call_id": 1643,
+ "duration_min": 5,
+ "end_reason": "client_cut",
+ "errors": [],
+ "anchors": [
+  [
+   75,
+   9
+  ],
+  [
+   101,
+   12
+  ]
+ ],
+ "anchor_pending": [
+  [
+   21085,
+   21109,
+   21107,
+   21091,
+   21092
+  ],
+  [
+   21085,
+   21093,
+   21097,
+   21099
+  ]
+ ],
+ "drilled_order": [
+  21083,
+  21084,
+  21085,
+  21108,
+  21106,
+  21109,
+  21107,
+  21091,
+  21092,
+  21093,
+  21097,
+  21099
+ ],
+ "quiz_cue_match": {
+  "pairs": [
+   [
+    1789721915.827764,
+    75,
+    11.7
+   ],
+   [
+    1789721994.947362,
+    101,
+    2.6
+   ]
+  ],
+  "cues_without_anchor": [
+   1789721747.061937,
+   1789721801.143735,
+   1789721802.143635,
+   1789721923.507209
+  ],
+  "anchors_without_cue": [],
+  "cues": [
+   [
+    1789721747.061937,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=9s 비버턴=(열린 턴 없음) 정리=학습자 확인 tc=True 모델=gemini-live-2.5-flash-native-audio"
+   ],
+   [
+    1789721801.143735,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 6, 7] 얹기=마이크 대기=16s 비버턴=(열린 턴 없음) 정리=다음 항목 소개 tc=True 모델=gemini-live-2.5-flash-native-audio"
+   ],
+   [
+    1789721802.143635,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=13s 비버턴=(열린 턴 없음) 정리=다음 항목 소개 tc=False 모델=gemini-3.1-flash-live-preview"
+   ],
+   [
+    1789721915.827764,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 5, 6] 얹기=마이크 대기=7s 비버턴=(열린 턴 없음) 정리=다음 항목 소개 tc=False 모델=gemini-3.1-flash-live-preview"
+   ],
+   [
+    1789721923.507209,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[5, 8, 9] 얹기=마이크 대기=12s 비버턴=(열린 턴 없음) 정리=학습자 확인 tc=True 모델=gemini-live-2.5-flash-native-audio"
+   ],
+   [
+    1789721994.947362,
+    "INFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=4 항목=[10, 11, 12] 얹기=마이크 대기=8s 비버턴=(열린 턴 없음) 정리=학습자 확인 tc=True 모델=gemini-live-2.5-flash-native-audio"
+   ]
+  ]
+ },
+ "turns": [
+  {
+   "n": 0,
+   "role": "beaver",
+   "t": 4.9,
+   "wall": 1789721717.697,
+   "text": "Alright, let's start with your Japanese lesson. How do you say \"Hello\" in Japanese?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんにちは(quote=\"hello\")",
+    "새항목#1 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 1,
+   "role": "learner",
+   "t": 6.9,
+   "wall": 1789721719.631,
+   "text": "こんにちは",
+   "kind": "correct",
+   "stt": "こんにちは 。",
+   "tags": []
+  },
+  {
+   "n": 2,
+   "role": "beaver",
+   "t": 12.2,
+   "wall": 1789721725.012,
+   "text": "Yeah, whatever. Now, what about \"Good morning\"? How do you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→おはようございます(quote=\"good morning\")",
+    "새항목#2 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 3,
+   "role": "learner",
+   "t": 13.6,
+   "wall": 1789721726.35,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 4,
+   "role": "beaver",
+   "t": 17.5,
+   "wall": 1789721730.227,
+   "text": "It's おはようございます. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:おはようございます",
+    "→おはようございます(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 5,
+   "role": "learner",
+   "t": 18.8,
+   "wall": 1789721731.61,
+   "text": "おはようございます",
+   "kind": "parrot",
+   "stt": "おはよう ござい ます 。",
+   "tags": []
+  },
+  {
+   "n": 6,
+   "role": "beaver",
+   "t": 23.0,
+   "wall": 1789721735.72,
+   "text": "Fine. And \"Good evening\"? Can you say that?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんばんは(quote=\"good evening\")",
+    "새항목#3 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 7,
+   "role": "learner",
+   "t": 24.4,
+   "wall": 1789721737.151,
+   "text": "こんばんは",
+   "kind": "correct",
+   "stt": "こんばんは 。",
+   "tags": []
+  },
+  {
+   "n": 8,
+   "role": "beaver",
+   "t": 29.9,
+   "wall": 1789721742.659,
+   "text": "Right. Now, if you're meeting someone for the first time, what do you say?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→はじめまして(llm(The tutor is asking for the standard Japanese greeting when ))",
+    "새항목#4 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 9,
+   "role": "learner",
+   "t": 32.5,
+   "wall": 1789721745.292,
+   "text": "いただきます",
+   "kind": "distractor",
+   "stt": "いただき ます 。",
+   "tags": []
+  },
+  {
+   "n": 10,
+   "role": "beaver",
+   "t": 33.3,
+   "wall": 1789721746.073,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 11,
+   "role": "beaver",
+   "t": 36.5,
+   "wall": 1789721749.3,
+   "text": "HA! Wrong! That's not for meeting someone. How do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんにちは(quote=\"hello\")",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 12,
+   "role": "learner",
+   "t": 37.9,
+   "wall": 1789721750.63,
+   "text": "こんにちは",
+   "kind": "correct",
+   "stt": "こんにちは 。",
+   "tags": []
+  },
+  {
+   "n": 13,
+   "role": "beaver",
+   "t": 42.5,
+   "wall": 1789721755.281,
+   "text": "No, that's just \"Hello.\" How do you say \"How do you do\" when you meet someone the first time?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんにちは(quote=\"hello\")"
+   ]
+  },
+  {
+   "n": 14,
+   "role": "learner",
+   "t": 43.3,
+   "wall": 1789721756.07,
+   "text": "こんにちは",
+   "kind": "correct",
+   "stt": "こんにちは 。",
+   "tags": []
+  },
+  {
+   "n": 15,
+   "role": "beaver",
+   "t": 47.8,
+   "wall": 1789721760.612,
+   "text": "Ugh, no. It's はじめまして. Try saying that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:はじめまして",
+    "→はじめまして(reveal)",
+    "⛔앵커없는재출제/되감기(회차1)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 16,
+   "role": "beaver",
+   "t": 50.1,
+   "wall": 1789721762.839,
+   "text": "[Pfft] Okay, so how do you say \"Good morning\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "[대괄호]",
+    "→おはようございます(quote=\"good morning\")",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 17,
+   "role": "learner",
+   "t": 50.2,
+   "wall": 1789721762.99,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 18,
+   "role": "beaver",
+   "t": 51.4,
+   "wall": 1789721764.114,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 19,
+   "role": "beaver",
+   "t": 54.4,
+   "wall": 1789721767.132,
+   "text": "You're hopeless. It's はじめまして. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:はじめまして",
+    "→はじめまして(reveal)",
+    "⛔앵커없는재출제/되감기(회차2)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 20,
+   "role": "learner",
+   "t": 55.7,
+   "wall": 1789721768.449,
+   "text": "おいしいです",
+   "kind": "distractor",
+   "stt": "美味しい です 。",
+   "tags": []
+  },
+  {
+   "n": 21,
+   "role": "beaver",
+   "t": 59.6,
+   "wall": 1789721772.381,
+   "text": "What are you even saying? Just say はじめまして.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:はじめまして",
+    "→はじめまして(reveal)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 22,
+   "role": "learner",
+   "t": 60.4,
+   "wall": 1789721773.186,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 23,
+   "role": "beaver",
+   "t": 64.6,
+   "wall": 1789721777.351,
+   "text": "Fine, whatever. Let's move on. Say \"Hello\" in Japanese.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんにちは(quote=\"hello\")"
+   ]
+  },
+  {
+   "n": 24,
+   "role": "learner",
+   "t": 65.4,
+   "wall": 1789721778.15,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 25,
+   "role": "beaver",
+   "t": 70.5,
+   "wall": 1789721783.253,
+   "text": "Ugh. It's はじめまして. Just say it. We're done with this. How do you say \"I'm from Korea\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:はじめまして",
+    "→◯◯から来ました(quote~\"i'm from korea\")",
+    "새항목#5 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 26,
+   "role": "learner",
+   "t": 72.0,
+   "wall": 1789721784.79,
+   "text": "◯◯から来ました",
+   "kind": "correct",
+   "stt": "苦悩 苦悩 から れ まし た 。",
+   "tags": []
+  },
+  {
+   "n": 27,
+   "role": "beaver",
+   "t": 78.0,
+   "wall": 1789721790.794,
+   "text": "What the hell was that? Just say はじめまして. And then we can move on.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:はじめまして",
+    "→はじめまして(reveal)",
+    "⛔앵커없는재출제/되감기(회차3)",
+    "재출제공개"
+   ]
+  },
+  {
+   "n": 28,
+   "role": "learner",
+   "t": 79.4,
+   "wall": 1789721792.131,
+   "text": "はじめまして",
+   "kind": "parrot",
+   "stt": "初めまして 。",
+   "tags": []
+  },
+  {
+   "n": 29,
+   "role": "beaver",
+   "t": 83.7,
+   "wall": 1789721796.436,
+   "text": "Finally. Now, after you introduce yourself, what do you say?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→よろしくお願いします(llm(The tutor asks what to say after introducing yourself, which))",
+    "새항목#6 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 30,
+   "role": "learner",
+   "t": 86.6,
+   "wall": 1789721799.329,
+   "text": "よろしくお願いします",
+   "kind": "correct",
+   "stt": "よろしく お 頼み し ます 。",
+   "tags": []
+  },
+  {
+   "n": 31,
+   "role": "beaver",
+   "t": 87.4,
+   "wall": 1789721800.118,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 32,
+   "role": "beaver",
+   "t": 90.6,
+   "wall": 1789721803.384,
+   "text": "Good. Now, tell me how to say \"I'm from Japan\" in Japanese.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(quote~\"i'm from japan\")",
+    "⛔앵커없는재출제/되감기(회차1)"
+   ]
+  },
+  {
+   "n": 33,
+   "role": "learner",
+   "t": 91.9,
+   "wall": 1789721804.665,
+   "text": "たかいです",
+   "kind": "distractor",
+   "stt": "高い です 。",
+   "tags": []
+  },
+  {
+   "n": 34,
+   "role": "beaver",
+   "t": 95.9,
+   "wall": 1789721808.706,
+   "text": "Laughable! That means \"it's expensive.\" How do you say \"I'm from Japan\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(quote~\"i'm from japan\")"
+   ]
+  },
+  {
+   "n": 35,
+   "role": "learner",
+   "t": 97.6,
+   "wall": 1789721810.344,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "● 台 、 ● 台 、 台 から 来 まし た 。",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 36,
+   "role": "learner",
+   "t": 102.2,
+   "wall": 1789721814.928,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "",
+   "tags": [
+    "워치독"
+   ]
+  },
+  {
+   "n": 37,
+   "role": "beaver",
+   "t": 103.8,
+   "wall": 1789721816.532,
+   "text": "What in the world It's 日本から来ました. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(llm(The tutor is asking the learner to say the Japanese phrase \"))"
+   ]
+  },
+  {
+   "n": 38,
+   "role": "learner",
+   "t": 106.0,
+   "wall": 1789721818.77,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 39,
+   "role": "learner",
+   "t": 109.8,
+   "wall": 1789721822.542,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "● 台 、 ● 台 、 台 から 来 まし た 。",
+   "tags": [
+    "워치독"
+   ]
+  },
+  {
+   "n": 40,
+   "role": "beaver",
+   "t": 112.2,
+   "wall": 1789721824.99,
+   "text": "Unbelievable. Just say 日本から来ました.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(llm(The tutor is explicitly asking the learner to say '日本から来ました'))"
+   ]
+  },
+  {
+   "n": 41,
+   "role": "learner",
+   "t": 114.4,
+   "wall": 1789721827.171,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 42,
+   "role": "learner",
+   "t": 118.5,
+   "wall": 1789721831.247,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "白丸 大 白丸 大 から 来 まし た 。",
+   "tags": [
+    "워치독"
+   ]
+  },
+  {
+   "n": 43,
+   "role": "beaver",
+   "t": 120.9,
+   "wall": 1789721833.701,
+   "text": "Seriously? It's 日本から来ました. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(llm(The tutor explicitly states the Japanese phrase '日本から来ました' a))"
+   ]
+  },
+  {
+   "n": 44,
+   "role": "learner",
+   "t": 123.0,
+   "wall": 1789721835.745,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "白丸 大 白丸 大 から 来 まし た 。",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 45,
+   "role": "beaver",
+   "t": 124.2,
+   "wall": 1789721836.918,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 46,
+   "role": "beaver",
+   "t": 129.5,
+   "wall": 1789721842.252,
+   "text": "Seriously, what is that noise?",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 47,
+   "role": "learner",
+   "t": 131.6,
+   "wall": 1789721844.386,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 48,
+   "role": "learner",
+   "t": 135.9,
+   "wall": 1789721848.63,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "白丸 、 大白 丸 、 大 から 来 まし た 。",
+   "tags": [
+    "워치독"
+   ]
+  },
+  {
+   "n": 49,
+   "role": "beaver",
+   "t": 138.3,
+   "wall": 1789721851.07,
+   "text": "You're impossible. Let's move on. How do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんにちは(quote=\"hello\")",
+    "⛔앵커없는재출제/되감기(회차2)"
+   ]
+  },
+  {
+   "n": 50,
+   "role": "learner",
+   "t": 139.1,
+   "wall": 1789721851.871,
+   "text": "こんにちは",
+   "kind": "correct",
+   "stt": "こんにちは 。",
+   "tags": []
+  },
+  {
+   "n": 51,
+   "role": "beaver",
+   "t": 143.8,
+   "wall": 1789721856.548,
+   "text": "Right. Now, how do you say \"I'm from Japan\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(quote~\"i'm from japan\")",
+    "⛔앵커없는재출제/되감기(회차2)"
+   ]
+  },
+  {
+   "n": 52,
+   "role": "learner",
+   "t": 145.0,
+   "wall": 1789721857.81,
+   "text": "ねこです",
+   "kind": "distractor",
+   "stt": "猫 です 。",
+   "tags": []
+  },
+  {
+   "n": 53,
+   "role": "beaver",
+   "t": 149.3,
+   "wall": 1789721862.079,
+   "text": "Seriously? That's \"I'm a cat.\" Try again: \"I'm from Japan.\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(quote~\"i'm from japan\")"
+   ]
+  },
+  {
+   "n": 54,
+   "role": "learner",
+   "t": 150.1,
+   "wall": 1789721862.87,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "白丸 大 白丸 大 から 来 まし た 。",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 55,
+   "role": "beaver",
+   "t": 156.2,
+   "wall": 1789721868.926,
+   "text": "No! It's 日本から来ました. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→◯◯から来ました(llm(The tutor is explicitly asking the learner to say '日本から来ました'))"
+   ]
+  },
+  {
+   "n": 56,
+   "role": "learner",
+   "t": 158.2,
+   "wall": 1789721870.947,
+   "text": "◯◯からきました",
+   "kind": "correct",
+   "stt": "● 台 、 白 〇 台 から 来 まし た 。",
+   "tags": [
+    "표기:kana ← ◯◯から来ました"
+   ]
+  },
+  {
+   "n": 57,
+   "role": "learner",
+   "t": 162.6,
+   "wall": 1789721875.383,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "",
+   "tags": [
+    "워치독"
+   ]
+  },
+  {
+   "n": 58,
+   "role": "beaver",
+   "t": 165.0,
+   "wall": 1789721877.804,
+   "text": "You're absolutely hopeless. Let's try something else. How do you say \"Hello\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→こんにちは(quote=\"hello\")",
+    "⛔앵커없는재출제/되감기(회차3)"
+   ]
+  },
+  {
+   "n": 59,
+   "role": "learner",
+   "t": 165.8,
+   "wall": 1789721878.611,
+   "text": "こんにちは",
+   "kind": "correct",
+   "stt": "こんにちは 。",
+   "tags": []
+  },
+  {
+   "n": 60,
+   "role": "beaver",
+   "t": 170.5,
+   "wall": 1789721883.216,
+   "text": "Okay, fine. Now, what do you say if you want to ask someone's name?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→お名前は何ですか(llm(The tutor is asking how to say \"What's your name?\" in Japane))",
+    "새항목#7 정책1 선질문✔"
+   ]
+  },
+  {
+   "n": 61,
+   "role": "learner",
+   "t": 172.9,
+   "wall": 1789721885.71,
+   "text": "お名前は何ですか",
+   "kind": "correct",
+   "stt": "お めん じょう は は です か 。",
+   "tags": []
+  },
+  {
+   "n": 62,
+   "role": "beaver",
+   "t": 177.8,
+   "wall": 1789721890.599,
+   "text": "Hahaha! What is that even? It's お名前は何ですか. Try again.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:お名前は何ですか"
+   ]
+  },
+  {
+   "n": 63,
+   "role": "learner",
+   "t": 180.1,
+   "wall": 1789721892.87,
+   "text": "お名前は何ですか",
+   "kind": "correct",
+   "stt": "お べ んじょ は どこ です か 。",
+   "tags": []
+  },
+  {
+   "n": 64,
+   "role": "beaver",
+   "t": 184.5,
+   "wall": 1789721897.266,
+   "text": "Still wrong! It's お名前は何ですか. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:お名前は何ですか"
+   ]
+  },
+  {
+   "n": 65,
+   "role": "learner",
+   "t": 186.7,
+   "wall": 1789721899.425,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 66,
+   "role": "beaver",
+   "t": 191.4,
+   "wall": 1789721904.121,
+   "text": "Fine. It's お名前は何ですか. Repeat after me.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:お名前は何ですか",
+    "→お名前は何ですか(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 67,
+   "role": "learner",
+   "t": 192.1,
+   "wall": 1789721904.912,
+   "text": "お名前は何ですか",
+   "kind": "correct",
+   "stt": "お 明浄 は 歯 です か ?",
+   "tags": []
+  },
+  {
+   "n": 68,
+   "role": "beaver",
+   "t": 196.6,
+   "wall": 1789721909.33,
+   "text": "That's correct. Now, how do you say \"Thank you\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→ありがとうございます(quote=\"thank you\")",
+    "새항목#8 정책2 선질문✔"
+   ]
+  },
+  {
+   "n": 69,
+   "role": "learner",
+   "t": 197.4,
+   "wall": 1789721910.131,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 70,
+   "role": "beaver",
+   "t": 201.0,
+   "wall": 1789721913.738,
+   "text": "It's ありがとうございます. Repeat it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:ありがとうございます",
+    "→ありがとうございます(reveal)",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 71,
+   "role": "learner",
+   "t": 202.3,
+   "wall": 1789721915.071,
+   "text": "ありがとうございます",
+   "kind": "parrot",
+   "stt": "ありがとう ござい ます 。",
+   "tags": []
+  },
+  {
+   "n": 72,
+   "role": "beaver",
+   "t": 206.3,
+   "wall": 1789721919.05,
+   "text": "Good. Now, what's the super casual way to say thanks?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→どうも(llm(The tutor is asking for the 'super casual way to say thanks'))",
+    "새항목#9 정책3 선질문✔"
+   ]
+  },
+  {
+   "n": 73,
+   "role": "learner",
+   "t": 208.9,
+   "wall": 1789721921.665,
+   "text": "どうも",
+   "kind": "correct",
+   "stt": "どう も",
+   "tags": []
+  },
+  {
+   "n": 74,
+   "role": "beaver",
+   "t": 209.8,
+   "wall": 1789721922.545,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 75,
+   "role": "beaver",
+   "t": 214.8,
+   "wall": 1789721927.526,
+   "text": "Alright, let's see if you remember anything. How do you say \"Please treat me well\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@드릴9·미출제5✔",
+    "→よろしくお願いします(quote=\"please treat me well\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 76,
+   "role": "learner",
+   "t": 216.1,
+   "wall": 1789721928.89,
+   "text": "よろしくおねがいします",
+   "kind": "correct",
+   "stt": "よろしく お 願い し ます 。",
+   "tags": [
+    "표기:kana ← よろしくお願いします"
+   ]
+  },
+  {
+   "n": 77,
+   "role": "beaver",
+   "t": 221.7,
+   "wall": 1789721934.49,
+   "text": "[No, the question was for \"Please treat me well,\" which is よろしくお願いします. Now, what about \"What's your name?\"",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:よろしくお願いします",
+    "→お名前は何ですか(llm(The tutor is asking for the Japanese translation of 'What's ))",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 78,
+   "role": "learner",
+   "t": 224.6,
+   "wall": 1789721937.409,
+   "text": "おなまえはなんですか",
+   "kind": "correct",
+   "stt": "お 名前 は 何 です か ?",
+   "tags": [
+    "표기:kana ← お名前は何ですか"
+   ]
+  },
+  {
+   "n": 79,
+   "role": "beaver",
+   "t": 228.8,
+   "wall": 1789721941.592,
+   "text": "Perfect. And what about \"Thank you\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→ありがとうございます(quote=\"thank you\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 80,
+   "role": "learner",
+   "t": 229.6,
+   "wall": 1789721942.386,
+   "text": "I don't know.",
+   "kind": "idk",
+   "stt": "I don't know.",
+   "tags": []
+  },
+  {
+   "n": 81,
+   "role": "beaver",
+   "t": 233.3,
+   "wall": 1789721946.034,
+   "text": "It's ありがとうございます. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:ありがとうございます",
+    "→ありがとうございます(reveal)",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 82,
+   "role": "learner",
+   "t": 234.1,
+   "wall": 1789721946.825,
+   "text": "ありがとうございます",
+   "kind": "parrot",
+   "stt": "ありがとう ござい ます 。",
+   "tags": []
+  },
+  {
+   "n": 83,
+   "role": "beaver",
+   "t": 238.6,
+   "wall": 1789721951.392,
+   "text": "Good. Now, let's learn a new one. How do you say \"Thanks\" in a very casual way?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→どうも(quote=\"thanks\")",
+    "퀴즈회차1"
+   ]
+  },
+  {
+   "n": 84,
+   "role": "learner",
+   "t": 239.4,
+   "wall": 1789721952.18,
+   "text": "いただきます",
+   "kind": "distractor",
+   "stt": "いただき ます 。",
+   "tags": []
+  },
+  {
+   "n": 85,
+   "role": "beaver",
+   "t": 244.4,
+   "wall": 1789721957.154,
+   "text": "Hahaha! No, that's what you say before eating. \"Thanks\" is just どうも. Try it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:どうも",
+    "→どうも(quote=\"thanks\")",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 86,
+   "role": "learner",
+   "t": 245.7,
+   "wall": 1789721958.449,
+   "text": "どうも",
+   "kind": "parrot",
+   "stt": "どう も",
+   "tags": []
+  },
+  {
+   "n": 87,
+   "role": "beaver",
+   "t": 251.0,
+   "wall": 1789721963.796,
+   "text": "Yes, \"どうも\" is the casual \"thanks.\" Now, how do you say \"You're welcome\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:どうも",
+    "→どういたしまして(llm(The tutor is asking for the Japanese translation of 'You're ))",
+    "퀴즈끝→드릴",
+    "새항목#10 정책4 선질문✔"
+   ]
+  },
+  {
+   "n": 88,
+   "role": "learner",
+   "t": 253.1,
+   "wall": 1789721965.91,
+   "text": "おやすみなさい",
+   "kind": "distractor",
+   "stt": "お やすみ なさい 。",
+   "tags": []
+  },
+  {
+   "n": 89,
+   "role": "beaver",
+   "t": 257.7,
+   "wall": 1789721970.489,
+   "text": "That's \"Good night.\" \"You're welcome\" is どういたしまして. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:どういたしまして",
+    "→どういたしまして(quote=\"you're welcome\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 90,
+   "role": "learner",
+   "t": 258.5,
+   "wall": 1789721971.292,
+   "text": "おいしいです",
+   "kind": "distractor",
+   "stt": "美味しい です 。",
+   "tags": []
+  },
+  {
+   "n": 91,
+   "role": "beaver",
+   "t": 262.8,
+   "wall": 1789721975.56,
+   "text": "That's \"It's delicious.\" \"You're welcome\" is どういたしまして. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:どういたしまして",
+    "→どういたしまして(quote=\"you're welcome\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 92,
+   "role": "learner",
+   "t": 263.6,
+   "wall": 1789721976.351,
+   "text": "たかいです",
+   "kind": "distractor",
+   "stt": "高い です 。",
+   "tags": []
+  },
+  {
+   "n": 93,
+   "role": "beaver",
+   "t": 267.5,
+   "wall": 1789721980.253,
+   "text": "That's \"It's expensive.\" \"You're welcome\" is どういたしまして. Say it.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:どういたしまして",
+    "→どういたしまして(quote=\"you're welcome\")",
+    "드릴공개"
+   ]
+  },
+  {
+   "n": 94,
+   "role": "learner",
+   "t": 268.8,
+   "wall": 1789721981.59,
+   "text": "どういたしまして",
+   "kind": "parrot",
+   "stt": "どう いたし まし て ?",
+   "tags": []
+  },
+  {
+   "n": 95,
+   "role": "beaver",
+   "t": 272.7,
+   "wall": 1789721985.433,
+   "text": "There you go. Now, how about \"Yes\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→はい(quote=\"yes\")",
+    "새항목#11 정책5 선질문✔"
+   ]
+  },
+  {
+   "n": 96,
+   "role": "learner",
+   "t": 273.9,
+   "wall": 1789721986.664,
+   "text": "はい",
+   "kind": "correct",
+   "stt": "はい 。",
+   "tags": []
+  },
+  {
+   "n": 97,
+   "role": "beaver",
+   "t": 278.7,
+   "wall": 1789721991.429,
+   "text": "Right. And what if you want to say \"Sounds good\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→いいですね(quote=\"sounds good\")",
+    "새항목#12 정책6 선질문✔"
+   ]
+  },
+  {
+   "n": 98,
+   "role": "learner",
+   "t": 280.1,
+   "wall": 1789721992.831,
+   "text": "いいですね",
+   "kind": "correct",
+   "stt": "いい です ね 。",
+   "tags": []
+  },
+  {
+   "n": 99,
+   "role": "beaver",
+   "t": 281.0,
+   "wall": 1789721993.788,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 100,
+   "role": "beaver",
+   "t": 281.2,
+   "wall": 1789721993.914,
+   "text": "",
+   "kind": "",
+   "stt": "",
+   "tags": []
+  },
+  {
+   "n": 101,
+   "role": "beaver",
+   "t": 284.8,
+   "wall": 1789721997.547,
+   "text": "Okay, you got it. Now, time for a quick test. How do you say \"Thanks\" casually?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "앵커@드릴12·미출제4✔",
+    "→どうも(quote=\"thanks\")",
+    "퀴즈회차2"
+   ]
+  },
+  {
+   "n": 102,
+   "role": "learner",
+   "t": 285.6,
+   "wall": 1789721998.345,
+   "text": "ねこです",
+   "kind": "distractor",
+   "stt": "猫 です 。",
+   "tags": []
+  },
+  {
+   "n": 103,
+   "role": "beaver",
+   "t": 289.4,
+   "wall": 1789722002.158,
+   "text": "[No, the question was for \"Thanks.\" How do you say that casually?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→どうも(quote=\"thanks\")"
+   ]
+  },
+  {
+   "n": 104,
+   "role": "learner",
+   "t": 290.2,
+   "wall": 1789722002.945,
+   "text": "いただきます",
+   "kind": "distractor",
+   "stt": "いただき ます 。",
+   "tags": []
+  },
+  {
+   "n": 105,
+   "role": "beaver",
+   "t": 294.1,
+   "wall": 1789722006.845,
+   "text": "Still not it! It's どうも. Try saying that.",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "표면형:どうも",
+    "→どうも(reveal)",
+    "퀴즈공개"
+   ]
+  },
+  {
+   "n": 106,
+   "role": "learner",
+   "t": 294.9,
+   "wall": 1789722007.63,
+   "text": "どうも",
+   "kind": "parrot",
+   "stt": "どう も",
+   "tags": []
+  },
+  {
+   "n": 107,
+   "role": "beaver",
+   "t": 299.4,
+   "wall": 1789722012.167,
+   "text": "Fine. And what about \"You're welcome\"?",
+   "kind": "",
+   "stt": "",
+   "tags": [
+    "→どういたしまして(quote=\"you're welcome\")",
+    "퀴즈회차1"
+   ]
+  }
+ ],
+ "records": {
+  "21083": {
+   "surface": "こんにちは",
+   "k": 1,
+   "policy": 1,
+   "ident": "quote=\"hello\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "correct",
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    },
+    {
+     "n": 3,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21084": {
+   "surface": "おはようございます",
+   "k": 2,
+   "policy": 2,
+   "ident": "quote=\"good morning\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21085": {
+   "surface": "こんばんは",
+   "k": 3,
+   "policy": 3,
+   "ident": "quote=\"good evening\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "21108": {
+   "surface": "はじめまして",
+   "k": 4,
+   "policy": 4,
+   "ident": "llm(The tutor is asking for the standard Japanese greeting when )",
+   "intro_pre_reveal": false,
+   "drill_attempts": 5,
+   "drill_answers": [
+    "distractor",
+    "distractor",
+    "distractor",
+    "idk",
+    "idk"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": true,
+     "answers": [],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": true,
+     "answers": [],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 3,
+     "anchored": false,
+     "revealed": true,
+     "answers": [
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21106": {
+   "surface": "◯◯から来ました",
+   "k": 5,
+   "policy": 5,
+   "ident": "quote~\"i'm from korea\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": false,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "distractor",
+      "correct",
+      "correct",
+      "correct",
+      "correct",
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": true
+    },
+    {
+     "n": 2,
+     "anchored": false,
+     "revealed": false,
+     "answers": [
+      "distractor",
+      "correct",
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": true
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21109": {
+   "surface": "よろしくお願いします",
+   "k": 6,
+   "policy": 6,
+   "ident": "llm(The tutor asks what to say after introducing yourself, which)",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21107": {
+   "surface": "お名前は何ですか",
+   "k": 7,
+   "policy": 1,
+   "ident": "llm(The tutor is asking how to say \"What's your name?\" in Japane)",
+   "intro_pre_reveal": false,
+   "drill_attempts": 4,
+   "drill_answers": [
+    "correct",
+    "correct",
+    "idk",
+    "correct"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "correct"
+     ],
+     "spontaneous_correct": true,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21091": {
+   "surface": "ありがとうございます",
+   "k": 8,
+   "policy": 2,
+   "ident": "quote=\"thank you\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 2,
+   "drill_answers": [
+    "idk",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "idk",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21092": {
+   "surface": "どうも",
+   "k": 9,
+   "policy": 3,
+   "ident": "llm(The tutor is asking for the 'super casual way to say thanks')",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "distractor",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    },
+    {
+     "n": 2,
+     "anchored": true,
+     "revealed": true,
+     "answers": [
+      "distractor",
+      "distractor",
+      "parrot"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21093": {
+   "surface": "どういたしまして",
+   "k": 10,
+   "policy": 4,
+   "ident": "llm(The tutor is asking for the Japanese translation of 'You're )",
+   "intro_pre_reveal": false,
+   "drill_attempts": 4,
+   "drill_answers": [
+    "distractor",
+    "distractor",
+    "distractor",
+    "parrot"
+   ],
+   "drill_revealed": true,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [
+    {
+     "n": 1,
+     "anchored": true,
+     "revealed": false,
+     "answers": [
+      "idk"
+     ],
+     "spontaneous_correct": false,
+     "hint_path": false
+    }
+   ],
+   "false_praise_turns": []
+  },
+  "21097": {
+   "surface": "はい",
+   "k": 11,
+   "policy": 5,
+   "ident": "quote=\"yes\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  },
+  "21099": {
+   "surface": "いいですね",
+   "k": 12,
+   "policy": 6,
+   "ident": "quote=\"sounds good\"",
+   "intro_pre_reveal": false,
+   "drill_attempts": 1,
+   "drill_answers": [
+    "correct"
+   ],
+   "drill_revealed": false,
+   "surface_uttered": true,
+   "surface_heard": true,
+   "rounds": [],
+   "false_praise_turns": []
+  }
+ },
+ "db": {
+  "rows": {
+   "21083": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21084": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21085": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21108": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21109": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21105": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "21106": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "21107": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": true,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21091": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "21092": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": true,
+    "review": false,
+    "lesson_id": null
+   },
+   "21093": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21097": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   },
+   "21099": {
+    "drilled_call_id": 1643,
+    "drilled_at": true,
+    "quiz_passed_at": null,
+    "failed": false,
+    "review": false,
+    "lesson_id": null
+   }
+  },
+  "expression_result": [
+   {
+    "item_id": 21083,
+    "surface": "こんにちは",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21084,
+    "surface": "おはようございます",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21085,
+    "surface": "こんばんは",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21108,
+    "surface": "はじめまして",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21109,
+    "surface": "よろしくお願いします",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21105,
+    "surface": "◯◯です",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 21106,
+    "surface": "◯◯から来ました",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 21107,
+    "surface": "お名前は何ですか",
+    "passed": true,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21091,
+    "surface": "ありがとうございます",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 21092,
+    "surface": "どうも",
+    "passed": false,
+    "failed": true,
+    "review": false
+   },
+   {
+    "item_id": 21093,
+    "surface": "どういたしまして",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21097,
+    "surface": "はい",
+    "passed": false,
+    "failed": false,
+    "review": false
+   },
+   {
+    "item_id": 21099,
+    "surface": "いいですね",
+    "passed": false,
+    "failed": false,
+    "review": false
+   }
+  ],
+  "call": {
+   "call_type": "expression",
+   "status": "analyzing",
+   "total_time": 298,
+   "summary": null,
+   "usage_engine": "live:gemini-live-2.5-flash-native-audio",
+   "fragment_count": 1,
+   "cost_usd": 0.5382,
+   "usage": {
+    "in_audio": 106278,
+    "in_text": 259595,
+    "out_audio": 5410,
+    "out_text": 1108
+   }
+  },
+  "level_after": null
+ },
+ "server_logs": [
+  "2026-09-18T08:55:14.948421Z\tINFO:domains.learning.service.curriculum_service:cur open_call: call_id=1643 member=91 lesson=L1-S01-1(no=1) course=expression status=learning 항목=15(복습 0)",
+  "2026-09-18T08:55:14.957513Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습: lesson=L1-S01-1(no=1) status=learning 항목 15(복습 0) 재개=False call_id=1643",
+  "2026-09-18T08:55:14.957576Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 목록: 1=こんにちは · 2=おはようございます · 3=こんばんは · 4=はじめまして · 5=よろしくお願いします · 6=◯◯です · 7=◯◯から来ました · 8=お名前は何ですか · 9=ありがとうございます · 10=どうも · 11=どういたしまして · 12=はい · 13=いいですね · 14=そうです · 15=本当ですか (15개, 복습 0)",
+  "2026-09-18T08:55:14.964401Z\tINFO:     169.254.169.126:52984 - \"GET /api/v1/alarms HTTP/1.1\" 200 OK",
+  "2026-09-18T08:55:19.987489Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B0 → [1] (남은 15)",
+  "2026-09-18T08:55:24.475316Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: こんにちは 。",
+  "2026-09-18T08:55:25.370948Z\tINFO:domains.learning.realtime.call_session:👤 USER[t1]: こんにちは 。",
+  "2026-09-18T08:55:27.817458Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B2 → [2] (남은 14)",
+  "2026-09-18T08:55:30.161145Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:55:30.678247Z\tINFO:domains.learning.realtime.call_session:👤 USER[t3]: I don't know.",
+  "2026-09-18T08:55:32.261404Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B4 → [] (남은 13)",
+  "2026-09-18T08:55:35.640432Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: おはよう ござい ます 。",
+  "2026-09-18T08:55:36.156232Z\tINFO:domains.learning.realtime.call_session:👤 USER[t5]: おはよう ござい ます 。",
+  "2026-09-18T08:55:37.554080Z\tINFO:domains.learning.service.curriculum_service:cur open_call: call_id=1644 member=20 lesson=L1-S01-1(no=1) course=expression status=learning 항목=18(복습 6)",
+  "2026-09-18T08:55:37.560667Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습: lesson=L1-S01-1(no=1) status=learning 항목 18(복습 6) 재개=False call_id=1644",
+  "2026-09-18T08:55:37.560744Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 목록: 1=처음 뵙겠습니다 · 2=잘 부탁드립니다 · 3=저는 ◯◯이에요 · 4=저는 ◯◯ 사람이에요 · 5=이름이 뭐예요? · 6=감사합니다 · 7=고마워요 · 8=아니에요 · 9=네 · 10=좋아요 · 11=맞아요 · 12=진짜요? · 13=만나서 반갑습니다 · 14=안녕히 가세요 · 15=안녕히 계세요 · 16=잘 지냈어요? · 17=안녕하세요? · 18=어서 오세요 (18개, 복습 6)",
+  "2026-09-18T08:55:37.953410Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B6 → [3] (남은 13)",
+  "2026-09-18T08:55:37.953556Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=1 항목=[1, 2, 3] retry=False covered=3",
+  "2026-09-18T08:55:39.103991Z\tINFO:domains.learning.realtime.call_session:👤 USER[t0]: (무음/전사없음)",
+  "2026-09-18T08:55:39.381698Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-18T08:55:42.213251Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: こんばんは 。",
+  "2026-09-18T08:55:42.752026Z\tINFO:domains.learning.realtime.call_session:👤 USER[t7]: こんばんは 。",
+  "2026-09-18T08:55:45.208950Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B1 → [1] (남은 18)",
+  "2026-09-18T08:55:45.483628Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B8 → [4] (남은 12)",
+  "2026-09-18T08:55:47.061937Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=9s 비버턴=(열린 턴 없음) 정리=학습자 확인 tc=True 모델=gemini-live-2.5-flash-native-audio",
+  "2026-09-18T08:55:48.767030Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: いただき ます 。",
+  "2026-09-18T08:55:49.161962Z\tINFO:domains.learning.realtime.call_session:👤 USER[t9]: いただき ます 。",
+  "2026-09-18T08:55:49.162123Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=1 open_seg=10 항목=[1, 2, 3]",
+  "2026-09-18T08:55:50.866355Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 뭐 했어?",
+  "2026-09-18T08:55:50.869410Z\tINFO:domains.learning.realtime.call_session:👤 USER[t2]: 뭐 했어?",
+  "2026-09-18T08:55:52.236047Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B10 → [] (남은 11)",
+  "2026-09-18T08:55:54.499527Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: こんにちは 。",
+  "2026-09-18T08:55:54.955896Z\tINFO:domains.learning.realtime.call_session:👤 USER[t11]: こんにちは 。",
+  "2026-09-18T08:55:55.863175Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U11까지 passed=[1] failed=[] pending=[2, 3] why={1: ''}",
+  "2026-09-18T08:55:57.474079Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B12 → [] (남은 11)",
+  "2026-09-18T08:55:57.474135Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 세트 이탈: B12 세트 밖으로 다룬 항목=[4] 세트=[1, 2, 3] — 다음 턴에 안내",
+  "2026-09-18T08:55:59.720659Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B3 → [] (남은 17)",
+  "2026-09-18T08:55:59.950106Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: こんにちは 。",
+  "2026-09-18T08:56:00.483374Z\tINFO:domains.learning.realtime.call_session:👤 USER[t13]: こんにちは 。",
+  "2026-09-18T08:56:01.423627Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U13까지 passed=[] failed=[] pending=[2, 3] why={2: '', 3: ''}",
+  "2026-09-18T08:56:01.991011Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 세트 안내 주입 1/2: 세트=[1, 2, 3] tc=True 모델=gemini-live-2.5-flash-native-audio",
+  "2026-09-18T08:56:02.667767Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B14 → [] (남은 11)",
+  "2026-09-18T08:56:02.667804Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 세트 이탈: B14 세트 밖으로 다룬 항목=[4] 세트=[1, 2, 3] — 다음 턴에 안내",
+  "2026-09-18T08:56:03.421654Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 처음 뵙겠습니다.",
+  "2026-09-18T08:56:03.423684Z\tINFO:domains.learning.realtime.call_session:👤 USER[t4]: 처음 뵙겠습니다.",
+  "2026-09-18T08:56:04.216182Z\tINFO:domains.learning.realtime.call_session:normalcall: 제어 태그 스크럽만(소리 4.4초·본문 39자 — 벙어리 턴이 아니라 재개 시드 생략): '[Pfft]'",
+  "2026-09-18T08:56:04.217502Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 세트 안내 주입 2/2: 세트=[1, 2, 3] tc=True 모델=gemini-live-2.5-flash-native-audio",
+  "2026-09-18T08:56:04.849277Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B15 → [] (남은 11)",
+  "2026-09-18T08:56:06.503067Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:56:07.108286Z\tINFO:domains.learning.realtime.call_session:👤 USER[t16]: I don't know.",
+  "2026-09-18T08:56:08.162832Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U16까지 passed=[] failed=[] pending=[2, 3] why={2: '', 3: ''}",
+  "2026-09-18T08:56:10.595833Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B5 → [2] (남은 17)",
+  "2026-09-18T08:56:11.979326Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 美味しい です 。",
+  "2026-09-18T08:56:12.552857Z\tINFO:domains.learning.realtime.call_session:👤 USER[t18]: 美味しい です 。",
+  "2026-09-18T08:56:12.950121Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 모르겠어.",
+  "2026-09-18T08:56:12.952663Z\tINFO:domains.learning.realtime.call_session:👤 USER[t6]: 모르겠어.",
+  "2026-09-18T08:56:14.513200Z\tWARNING:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정 타임아웃 6.0s(문자열 폴백) B17",
+  "2026-09-18T08:56:14.687136Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U18까지 passed=[] failed=[] pending=[2, 3] why={2: 'U16이 모른다고 함', 3: '선생님이 묻지 않음'}",
+  "2026-09-18T08:56:15.492896Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B19 → [] (남은 10)",
+  "2026-09-18T08:56:15.492927Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 세트 이탈(안내 상한 2): B19 다시 물은 항목=[4]",
+  "2026-09-18T08:56:16.910674Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:56:17.358127Z\tINFO:domains.learning.realtime.call_session:👤 USER[t20]: I don't know.",
+  "2026-09-18T08:56:18.851004Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B7 → [] (남은 16)",
+  "2026-09-18T08:56:19.368075Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B21 → [] (남은 10)",
+  "2026-09-18T08:56:19.397893Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U20까지 passed=[] failed=[] pending=[2, 3] why={2: '모른다고 답함', 3: '선생님이 묻지 않음'}",
+  "2026-09-18T08:56:21.662627Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:56:22.041100Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 잘 부탁드립니다.",
+  "2026-09-18T08:56:22.043155Z\tINFO:domains.learning.realtime.call_session:👤 USER[t8]: 잘 부탁드립니다.",
+  "2026-09-18T08:56:22.412745Z\tINFO:domains.learning.realtime.call_session:👤 USER[t22]: I don't know.",
+  "2026-09-18T08:56:22.412927Z\tWARNING:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 강제 닫힘: seq=1 학습자 턴 6 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
+  "2026-09-18T08:56:22.413027Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=1 닫힘=학습자 턴 상한 6 창=10~(13세그) set=[1, 2, 3] 확정=[1] 남은=[2, 3]",
+  "2026-09-18T08:56:23.419196Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 마지막 U22까지 passed=[] failed=[] pending=[2, 3] why={2: '', 3: ''}",
+  "2026-09-18T08:56:23.440297Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U22까지 passed=[] failed=[] pending=[2, 3] why={2: '', 3: ''}",
+  "2026-09-18T08:56:25.467518Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B23 → [7] (남은 10)",
+  "2026-09-18T08:56:25.467644Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=2 항목=[4, 6, 7] retry=False covered=6",
+  "2026-09-18T08:56:26.543184Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 6, 7] 이유=항목 7 미정리(학습자 턴 0/3)",
+  "2026-09-18T08:56:29.120564Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B9 → [3] (남은 16)",
+  "2026-09-18T08:56:29.120693Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=1 항목=[1, 2, 3] retry=False covered=3",
+  "2026-09-18T08:56:29.176818Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=1 항목=[1, 2, 3] 이유=항목 3 미정리(학습자 턴 0/3)",
+  "2026-09-18T08:56:29.748838Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 苦悩 苦悩 から れ まし た 。",
+  "2026-09-18T08:56:30.168746Z\tINFO:domains.learning.realtime.call_session:👤 USER[t24]: 苦悩 苦悩 から れ まし た 。",
+  "2026-09-18T08:56:30.169090Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=2 창=21~25",
+  "2026-09-18T08:56:31.907127Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 나는 재우입니다.",
+  "2026-09-18T08:56:31.908684Z\tINFO:domains.learning.realtime.call_session:👤 USER[t10]: 나는 재우입니다.",
+  "2026-09-18T08:56:32.365573Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U24까지 passed=[] failed=[] pending=[] why={}",
+  "2026-09-18T08:56:33.658296Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B25 → [] (남은 9)",
+  "2026-09-18T08:56:33.942403Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=2 항목=[4, 6, 7] 이유=항목 7 미정리(학습자 턴 1/3)",
+  "2026-09-18T08:56:36.128709Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 初めまして 。",
+  "2026-09-18T08:56:36.644544Z\tINFO:domains.learning.realtime.call_session:👤 USER[t26]: 初めまして 。",
+  "2026-09-18T08:56:38.467320Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B27 → [5] (남은 9)",
+  "2026-09-18T08:56:41.143735Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 6, 7] 얹기=마이크 대기=16s 비버턴=(열린 턴 없음) 정리=다음 항목 소개 tc=True 모델=gemini-live-2.5-flash-native-audio",
+  "2026-09-18T08:56:41.665367Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B11 → [4] (남은 15)",
+  "2026-09-18T08:56:42.143635Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=1 항목=[1, 2, 3] 얹기=마이크 대기=13s 비버턴=(열린 턴 없음) 정리=다음 항목 소개 tc=False 모델=gemini-3.1-flash-live-preview",
+  "2026-09-18T08:56:43.103352Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: よろしく お 頼み し ます 。",
+  "2026-09-18T08:56:43.478449Z\tINFO:domains.learning.realtime.call_session:👤 USER[t28]: よろしく お 頼み し ます 。",
+  "2026-09-18T08:56:43.478555Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=2 open_seg=29 항목=[4, 6, 7]",
+  "2026-09-18T08:56:45.356525Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 저는 미국 사람입니다.",
+  "2026-09-18T08:56:45.360797Z\tINFO:domains.learning.realtime.call_session:👤 USER[t12]: 저는 미국 사람입니다.",
+  "2026-09-18T08:56:45.360907Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=1 open_seg=13 항목=[1, 2, 3]",
+  "2026-09-18T08:56:46.284165Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B29 → [] (남은 8)",
+  "2026-09-18T08:56:47.830838Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 高い です 。",
+  "2026-09-18T08:56:48.328837Z\tINFO:domains.learning.realtime.call_session:👤 USER[t30]: 高い です 。",
+  "2026-09-18T08:56:49.144347Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U30까지 passed=[] failed=[7] pending=[4, 6] why={7: '틀린 답'}",
+  "2026-09-18T08:56:50.757629Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B31 → [] (남은 8)",
+  "2026-09-18T08:56:52.598331Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B13 → [] (남은 14)",
+  "2026-09-18T08:56:55.088440Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 처음 뵙겠습니다.",
+  "2026-09-18T08:56:55.089810Z\tINFO:domains.learning.realtime.call_session:👤 USER[t14]: 처음 뵙겠습니다.",
+  "2026-09-18T08:56:56.006244Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: ● 台 、 ● 台 、 台 から 来 まし た 。",
+  "2026-09-18T08:56:56.213492Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U14까지 passed=[1] failed=[] pending=[2, 3] why={1: 'U answered correctly before B.'}",
+  "2026-09-18T08:56:56.417263Z\tINFO:domains.learning.realtime.call_session:👤 USER[t32]: ● 台 、 ● 台 、 台 から 来 まし た 。",
+  "2026-09-18T08:56:58.173735Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U32까지 passed=[] failed=[6] pending=[4] why={4: '', 6: '선생님이 정답을 알려준 뒤에 학습자가 따라 말함'}",
+  "2026-09-18T08:56:59.437141Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B33 → [] (남은 8)",
+  "2026-09-18T08:57:01.077855Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B15 → [] (남은 14)",
+  "2026-09-18T08:57:04.414876Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: ● 台 、 ● 台 、 台 から 来 まし た 。",
+  "2026-09-18T08:57:04.992469Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know that.",
+  "2026-09-18T08:57:04.994008Z\tINFO:domains.learning.realtime.call_session:👤 USER[t16]: I don't know that.",
+  "2026-09-18T08:57:05.130394Z\tINFO:domains.learning.realtime.call_session:👤 USER[t34]: ● 台 、 ● 台 、 台 から 来 まし た 。",
+  "2026-09-18T08:57:06.489326Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM·세트 밖): 항목 13 «만나서 반갑습니다» passed + covered (정답을 말함)",
+  "2026-09-18T08:57:06.489377Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U16까지 passed=[] failed=[] pending=[2, 3] why={2: '모른다고 말함', 3: '아직 안 물음'}",
+  "2026-09-18T08:57:07.624774Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U34까지 passed=[] failed=[] pending=[4] why={4: ''}",
+  "2026-09-18T08:57:07.870772Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B35 → [] (남은 8)",
+  "2026-09-18T08:57:10.513265Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B17 → [] (남은 13)",
+  "2026-09-18T08:57:13.002334Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 白丸 大 白丸 大 から 来 まし た 。",
+  "2026-09-18T08:57:13.512532Z\tINFO:domains.learning.realtime.call_session:👤 USER[t36]: 白丸 大 白丸 大 から 来 まし た 。",
+  "2026-09-18T08:57:13.575849Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 잘 부탁드립니다.",
+  "2026-09-18T08:57:13.577491Z\tINFO:domains.learning.realtime.call_session:👤 USER[t18]: 잘 부탁드립니다.",
+  "2026-09-18T08:57:14.746577Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U18까지 passed=[] failed=[2] pending=[3] why={2: '선생님이 정답을 알려준 뒤 따라 말함', 3: ''}",
+  "2026-09-18T08:57:15.055673Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U36까지 passed=[] failed=[] pending=[4] why={}",
+  "2026-09-18T08:57:15.223503Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 1/8회, 드릴 7 · 통과 1 · 오답 2, 압축감지=0, peak=7569, 바닥=3822, 대화=3747)",
+  "2026-09-18T08:57:15.825760Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B37 → [] (남은 8)",
+  "2026-09-18T08:57:17.945051Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 1회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-18T08:57:18.298801Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #1 (prompt 7569 → 6825)",
+  "2026-09-18T08:57:19.519714Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B19 → [] (남은 13)",
+  "2026-09-18T08:57:21.495698Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 白丸 大 白丸 大 から 来 まし た 。",
+  "2026-09-18T08:57:22.191417Z\tINFO:domains.learning.realtime.call_session:👤 USER[t38]: 白丸 大 白丸 大 から 来 まし た 。",
+  "2026-09-18T08:57:22.742303Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 저는 재우입니다.",
+  "2026-09-18T08:57:22.744189Z\tINFO:domains.learning.realtime.call_session:👤 USER[t20]: 저는 재우입니다.",
+  "2026-09-18T08:57:23.839042Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U38까지 passed=[] failed=[] pending=[4] why={4: ''}",
+  "2026-09-18T08:57:23.911238Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U20까지 passed=[3] failed=[] pending=[] why={3: 'U answered correctly before B gave the a'}",
+  "2026-09-18T08:57:23.911323Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=1 닫힘=세트 전부 확정 창=13~(8세그) set=[1, 2, 3] 확정=[1, 2, 3] 남은=[]",
+  "2026-09-18T08:57:24.292113Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B39 → [] (남은 8)",
+  "2026-09-18T08:57:30.147042Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 白丸 、 大白 丸 、 大 から 来 まし た 。",
+  "2026-09-18T08:57:30.764955Z\tINFO:domains.learning.realtime.call_session:👤 USER[t40]: 白丸 、 大白 丸 、 大 から 来 まし た 。",
+  "2026-09-18T08:57:30.765102Z\tWARNING:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 강제 닫힘: seq=2 학습자 턴 6 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
+  "2026-09-18T08:57:30.765179Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=2 닫힘=학습자 턴 상한 6 창=29~(12세그) set=[4, 6, 7] 확정=[6, 7] 남은=[4]",
+  "2026-09-18T08:57:31.170906Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B21 → [] (남은 13)",
+  "2026-09-18T08:57:32.376591Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 마지막 U40까지 passed=[] failed=[] pending=[4] why={}",
+  "2026-09-18T08:57:32.450388Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U40까지 passed=[] failed=[] pending=[4] why={}",
+  "2026-09-18T08:57:33.042534Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B41 → [] (남은 8)",
+  "2026-09-18T08:57:35.738997Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: こんにちは 。",
+  "2026-09-18T08:57:36.840991Z\tINFO:domains.learning.realtime.call_session:👤 USER[t42]: こんにちは 。",
+  "2026-09-18T08:57:36.841099Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=2 창=39~43",
+  "2026-09-18T08:57:38.039658Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: What?",
+  "2026-09-18T08:57:38.041084Z\tINFO:domains.learning.realtime.call_session:👤 USER[t22]: What?",
+  "2026-09-18T08:57:38.041232Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=1 창=19~23",
+  "2026-09-18T08:57:38.306467Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U42까지 passed=[] failed=[] pending=[] why={}",
+  "2026-09-18T08:57:39.662216Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B43 → [] (남은 8)",
+  "2026-09-18T08:57:39.970190Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=1 U22까지 passed=[] failed=[] pending=[] why={}",
+  "2026-09-18T08:57:40.986430Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 猫 です 。",
+  "2026-09-18T08:57:41.670170Z\tINFO:domains.learning.realtime.call_session:👤 USER[t44]: 猫 です 。",
+  "2026-09-18T08:57:44.889437Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 1/8회, 드릴 5 · 통과 3 · 오답 1, 압축감지=0, peak=7697, 바닥=4316, 대화=3381)",
+  "2026-09-18T08:57:45.712421Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B23 → [] (남은 13)",
+  "2026-09-18T08:57:46.220800Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 1회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-18T08:57:48.444813Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:57:48.447251Z\tINFO:domains.learning.realtime.call_session:👤 USER[t24]: I don't know.",
+  "2026-09-18T08:57:48.651526Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 白丸 大 白丸 大 から 来 まし た 。",
+  "2026-09-18T08:57:49.029792Z\tINFO:domains.learning.realtime.call_session:👤 USER[t46]: 白丸 大 白丸 大 から 来 まし た 。",
+  "2026-09-18T08:57:49.459476Z\tWARNING:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정 타임아웃 6.0s(문자열 폴백) B45",
+  "2026-09-18T08:57:51.801827Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B47 → [] (남은 8)",
+  "2026-09-18T08:57:56.300526Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B25 → [] (남은 13)",
+  "2026-09-18T08:57:56.600938Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: ● 台 、 白 〇 台 から 来 まし た 。",
+  "2026-09-18T08:57:57.037386Z\tINFO:domains.learning.realtime.call_session:👤 USER[t48]: ● 台 、 白 〇 台 から 来 まし た 。",
+  "2026-09-18T08:58:00.502046Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 저는 미국 사람이에요.",
+  "2026-09-18T08:58:00.503587Z\tINFO:domains.learning.realtime.call_session:👤 USER[t26]: 저는 미국 사람이에요.",
+  "2026-09-18T08:58:00.798131Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B49 → [] (남은 8)",
+  "2026-09-18T08:58:02.472006Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: こんにちは 。",
+  "2026-09-18T08:58:03.203464Z\tINFO:domains.learning.realtime.call_session:👤 USER[t50]: こんにちは 。",
+  "2026-09-18T08:58:05.349083Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B51 → [8] (남은 8)",
+  "2026-09-18T08:58:07.228898Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B27 → [5] (남은 13)",
+  "2026-09-18T08:58:09.454011Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: お めん じょう は は です か 。",
+  "2026-09-18T08:58:09.960996Z\tINFO:domains.learning.realtime.call_session:👤 USER[t52]: お めん じょう は は です か 。",
+  "2026-09-18T08:58:11.984445Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #2 (prompt 7905 → 6723)",
+  "2026-09-18T08:58:12.295038Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: don't know",
+  "2026-09-18T08:58:12.296662Z\tINFO:domains.learning.realtime.call_session:👤 USER[t28]: don't know",
+  "2026-09-18T08:58:12.747096Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B53 → [] (남은 7)",
+  "2026-09-18T08:58:16.621090Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: お べ んじょ は どこ です か 。",
+  "2026-09-18T08:58:17.140189Z\tINFO:domains.learning.realtime.call_session:👤 USER[t54]: お べ んじょ は どこ です か 。",
+  "2026-09-18T08:58:17.744510Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B29 → [] (남은 12)",
+  "2026-09-18T08:58:20.199978Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B55 → [] (남은 7)",
+  "2026-09-18T08:58:21.025120Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이름이 뭐예요?",
+  "2026-09-18T08:58:21.027458Z\tINFO:domains.learning.realtime.call_session:👤 USER[t30]: 이름이 뭐예요?",
+  "2026-09-18T08:58:23.143983Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:58:23.809522Z\tINFO:domains.learning.realtime.call_session:👤 USER[t56]: I don't know.",
+  "2026-09-18T08:58:27.112995Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B57 → [] (남은 7)",
+  "2026-09-18T08:58:28.638893Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: お 明浄 は 歯 です か ?",
+  "2026-09-18T08:58:29.067156Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B31 → [6, 7] (남은 12)",
+  "2026-09-18T08:58:29.067405Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=2 항목=[4, 5, 6] retry=False covered=7",
+  "2026-09-18T08:58:29.338471Z\tINFO:domains.learning.realtime.call_session:👤 USER[t58]: お 明浄 は 歯 です か ?",
+  "2026-09-18T08:58:31.331144Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B59 → [9] (남은 7)",
+  "2026-09-18T08:58:31.331274Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=3 항목=[5, 8, 9] retry=False covered=9",
+  "2026-09-18T08:58:32.265205Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[5, 8, 9] 이유=항목 9 미정리(학습자 턴 0/3)",
+  "2026-09-18T08:58:33.852672Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:58:34.268177Z\tINFO:domains.learning.realtime.call_session:👤 USER[t60]: I don't know.",
+  "2026-09-18T08:58:35.759484Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B61 → [] (남은 6)",
+  "2026-09-18T08:58:35.827764Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=2 항목=[4, 5, 6] 얹기=마이크 대기=7s 비버턴=(열린 턴 없음) 정리=다음 항목 소개 tc=False 모델=gemini-3.1-flash-live-preview",
+  "2026-09-18T08:58:36.622911Z\tINFO:domains.learning.realtime.call_session:👤 USER[t32]: (무음/전사없음)",
+  "2026-09-18T08:58:36.623060Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=2 open_seg=33 항목=[4, 5, 6]",
+  "2026-09-18T08:58:36.745240Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=3 항목=[5, 8, 9] 이유=항목 9 미정리(학습자 턴 1/3)",
+  "2026-09-18T08:58:38.823907Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: ありがとう ござい ます 。",
+  "2026-09-18T08:58:39.310602Z\tINFO:domains.learning.realtime.call_session:👤 USER[t62]: ありがとう ござい ます 。",
+  "2026-09-18T08:58:41.323929Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B63 → [10] (남은 6)",
+  "2026-09-18T08:58:42.585187Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #1 (prompt 9558 → 8031)",
+  "2026-09-18T08:58:43.507209Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=3 항목=[5, 8, 9] 얹기=마이크 대기=12s 비버턴=(열린 턴 없음) 정리=학습자 확인 tc=True 모델=gemini-live-2.5-flash-native-audio",
+  "2026-09-18T08:58:43.699031Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B33 → [] (남은 10)",
+  "2026-09-18T08:58:46.700304Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 나는 미국 사람이에요.",
+  "2026-09-18T08:58:46.705202Z\tINFO:domains.learning.realtime.call_session:👤 USER[t34]: 나는 미국 사람이에요.",
+  "2026-09-18T08:58:46.859149Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: どう も",
+  "2026-09-18T08:58:47.380817Z\tINFO:domains.learning.realtime.call_session:👤 USER[t64]: どう も",
+  "2026-09-18T08:58:47.381019Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=3 open_seg=65 항목=[5, 8, 9]",
+  "2026-09-18T08:58:48.015745Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U34까지 passed=[4] failed=[] pending=[5, 6] why={4: 'U가 정답을 먼저 말함'}",
+  "2026-09-18T08:58:48.912620Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #3 (prompt 7905 → 6184)",
+  "2026-09-18T08:58:50.493638Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B65 → [] (남은 5)",
+  "2026-09-18T08:58:52.688563Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: よろしく お 願い し ます 。",
+  "2026-09-18T08:58:53.107082Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B35 → [] (남은 10)",
+  "2026-09-18T08:58:53.122974Z\tINFO:domains.learning.realtime.call_session:👤 USER[t66]: よろしく お 願い し ます 。",
+  "2026-09-18T08:58:53.996184Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=3 U66까지 passed=[5] failed=[] pending=[8, 9] why={5: ''}",
+  "2026-09-18T08:58:55.656048Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이름이 뭘까요?",
+  "2026-09-18T08:58:55.657913Z\tINFO:domains.learning.realtime.call_session:👤 USER[t36]: 이름이 뭘까요?",
+  "2026-09-18T08:58:56.701528Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U36까지 passed=[] failed=[5] pending=[6] why={5: \"정답은 '이름이 뭐예요?'\"}",
+  "2026-09-18T08:58:56.802702Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B67 → [] (남은 5)",
+  "2026-09-18T08:59:01.428963Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: お 名前 は 何 です か ?",
+  "2026-09-18T08:59:02.082276Z\tINFO:domains.learning.realtime.call_session:👤 USER[t68]: お 名前 は 何 です か ?",
+  "2026-09-18T08:59:03.670472Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=3 U68까지 passed=[8] failed=[] pending=[9] why={8: ''}",
+  "2026-09-18T08:59:03.876623Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B69 → [] (남은 5)",
+  "2026-09-18T08:59:04.037262Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B37 → [] (남은 10)",
+  "2026-09-18T08:59:06.085774Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: I don't know.",
+  "2026-09-18T08:59:06.542216Z\tINFO:domains.learning.realtime.call_session:👤 USER[t70]: I don't know.",
+  "2026-09-18T08:59:06.629968Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 이름이 뭐예요?",
+  "2026-09-18T08:59:07.243188Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=3 U70까지 passed=[] failed=[] pending=[9] why={9: '학습자가 모른다고 말함'}",
+  "2026-09-18T08:59:07.287114Z\tINFO:domains.learning.realtime.call_session:👤 USER[t38]: 이름이 뭐예요?",
+  "2026-09-18T08:59:08.114640Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B71 → [] (남은 5)",
+  "2026-09-18T08:59:08.966649Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U38까지 passed=[] failed=[] pending=[6] why={6: ''}",
+  "2026-09-18T08:59:10.518361Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: ありがとう ござい ます 。",
+  "2026-09-18T08:59:10.957048Z\tINFO:domains.learning.realtime.call_session:👤 USER[t72]: ありがとう ござい ます 。",
+  "2026-09-18T08:59:11.793138Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=3 U72까지 passed=[] failed=[9] pending=[] why={9: '선생님이 정답을 알려준 뒤 학습자가 따라 말함'}",
+  "2026-09-18T08:59:11.793221Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=3 닫힘=세트 전부 확정 창=65~(8세그) set=[5, 8, 9] 확정=[5, 8, 9] 남은=[]",
+  "2026-09-18T08:59:13.475522Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B73 → [] (남은 5)",
+  "2026-09-18T08:59:15.004410Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B39 → [] (남은 10)",
+  "2026-09-18T08:59:15.661091Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: いただき ます 。",
+  "2026-09-18T08:59:16.084153Z\tINFO:domains.learning.realtime.call_session:👤 USER[t74]: いただき ます 。",
+  "2026-09-18T08:59:16.084272Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=3 창=71~75",
+  "2026-09-18T08:59:17.008206Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=3 U74까지 passed=[] failed=[] pending=[] why={}",
+  "2026-09-18T08:59:18.801558Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 고마워요.",
+  "2026-09-18T08:59:18.803440Z\tINFO:domains.learning.realtime.call_session:👤 USER[t40]: 고마워요.",
+  "2026-09-18T08:59:19.265526Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B75 → [] (남은 5)",
+  "2026-09-18T08:59:20.002937Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U40까지 passed=[] failed=[6] pending=[] why={6: \"U40이 '고마워요'라고 말해 정답 '감사합니다'와 다름\"}",
+  "2026-09-18T08:59:20.002994Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=2 닫힘=세트 전부 확정 창=33~(8세그) set=[4, 5, 6] 확정=[4, 5, 6] 남은=[]",
+  "2026-09-18T08:59:22.927688Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: どう も",
+  "2026-09-18T08:59:23.541304Z\tINFO:domains.learning.realtime.call_session:👤 USER[t76]: どう も",
+  "2026-09-18T08:59:25.768263Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #2 (prompt 17750 → 9154)",
+  "2026-09-18T08:59:26.848514Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B77 → [11] (남은 5)",
+  "2026-09-18T08:59:26.887282Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B41 → [] (남은 10)",
+  "2026-09-18T08:59:29.523233Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: お やすみ なさい 。",
+  "2026-09-18T08:59:29.917974Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 감사합니다.",
+  "2026-09-18T08:59:30.416080Z\tINFO:domains.learning.realtime.call_session:👤 USER[t78]: お やすみ なさい 。",
+  "2026-09-18T08:59:30.524773Z\tINFO:domains.learning.realtime.call_session:👤 USER[t42]: 감사합니다.",
+  "2026-09-18T08:59:30.524894Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=2 창=39~43",
+  "2026-09-18T08:59:31.651074Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=2 U42까지 passed=[] failed=[] pending=[] why={}",
+  "2026-09-18T08:59:33.318318Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B79 → [] (남은 4)",
+  "2026-09-18T08:59:34.852649Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 美味しい です 。",
+  "2026-09-18T08:59:35.298761Z\tINFO:domains.learning.realtime.call_session:👤 USER[t80]: 美味しい です 。",
+  "2026-09-18T08:59:37.668341Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B81 → [] (남은 4)",
+  "2026-09-18T08:59:39.557222Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 高い です 。",
+  "2026-09-18T08:59:39.563103Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B43 → [] (남은 10)",
+  "2026-09-18T08:59:40.038220Z\tINFO:domains.learning.realtime.call_session:👤 USER[t82]: 高い です 。",
+  "2026-09-18T08:59:42.290094Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B83 → [] (남은 4)",
+  "2026-09-18T08:59:44.061067Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 고마워.",
+  "2026-09-18T08:59:44.063085Z\tINFO:domains.learning.realtime.call_session:👤 USER[t44]: 고마워.",
+  "2026-09-18T08:59:45.457671Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: どう いたし まし て ?",
+  "2026-09-18T08:59:45.937807Z\tINFO:domains.learning.realtime.call_session:👤 USER[t84]: どう いたし まし て ?",
+  "2026-09-18T08:59:47.385066Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B85 → [12] (남은 4)",
+  "2026-09-18T08:59:47.385152Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 arm: seq=4 항목=[10, 11, 12] retry=False covered=12",
+  "2026-09-18T08:59:48.021587Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 2/8회, 드릴 12 · 통과 3 · 오답 3, 압축감지=3, peak=7534, 바닥=3822, 대화=3712)",
+  "2026-09-18T08:59:48.425660Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 보류: seq=4 항목=[10, 11, 12] 이유=항목 12 미정리(학습자 턴 0/3)",
+  "2026-09-18T08:59:51.236630Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: はい 。",
+  "2026-09-18T08:59:51.788212Z\tINFO:domains.learning.realtime.call_session:👤 USER[t86]: はい 。",
+  "2026-09-18T08:59:52.525055Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #3 (prompt 18912 → 9795)",
+  "2026-09-18T08:59:53.581745Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B45 → [] (남은 10)",
+  "2026-09-18T08:59:54.269197Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B87 → [13] (남은 3)",
+  "2026-09-18T08:59:54.947362Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 얹기: seq=4 항목=[10, 11, 12] 얹기=마이크 대기=8s 비버턴=(열린 턴 없음) 정리=학습자 확인 tc=True 모델=gemini-live-2.5-flash-native-audio",
+  "2026-09-18T08:59:54.986628Z\tINFO:domains.learning.realtime.call_session:normalcall: 재접지 얹기(자리=마이크, 근거=compress_imminent, 2회째, tc=False, 통로=realtime, 비버턴=(열린 턴 없음))",
+  "2026-09-18T08:59:55.171344Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #4 (prompt 7657 → 6887)",
+  "2026-09-18T08:59:56.186570Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 고마워요.",
+  "2026-09-18T08:59:56.616805Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: いい です ね 。",
+  "2026-09-18T08:59:56.814283Z\tINFO:domains.learning.realtime.call_session:👤 USER[t46]: 고마워요.",
+  "2026-09-18T08:59:56.998366Z\tINFO:domains.learning.realtime.call_session:👤 USER[t88]: いい です ね 。",
+  "2026-09-18T08:59:56.998471Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 큐 열림: seq=4 open_seg=89 항목=[10, 11, 12]",
+  "2026-09-18T08:59:59.794692Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B89 → [] (남은 2)",
+  "2026-09-18T09:00:01.562697Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 猫 です 。",
+  "2026-09-18T09:00:02.113447Z\tINFO:domains.learning.realtime.call_session:👤 USER[t90]: 猫 です 。",
+  "2026-09-18T09:00:03.509613Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B47 → [8] (남은 10)",
+  "2026-09-18T09:00:03.538952Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #5 (prompt 7810 → 6693)",
+  "2026-09-18T09:00:04.138655Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=4 U90까지 passed=[] failed=[10] pending=[11, 12] why={10: 'U90 said wrong word'}",
+  "2026-09-18T09:00:04.994730Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B91 → [] (남은 2)",
+  "2026-09-18T09:00:06.441929Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: いただき ます 。",
+  "2026-09-18T09:00:06.493036Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: No, I don't know.",
+  "2026-09-18T09:00:06.494706Z\tINFO:domains.learning.realtime.call_session:👤 USER[t48]: No, I don't know.",
+  "2026-09-18T09:00:06.942195Z\tINFO:domains.learning.realtime.call_session:👤 USER[t92]: いただき ます 。",
+  "2026-09-18T09:00:07.704993Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=4 U92까지 passed=[] failed=[] pending=[11, 12] why={}",
+  "2026-09-18T09:00:08.909268Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B93 → [] (남은 2)",
+  "2026-09-18T09:00:10.614547Z\tINFO:domains.learning.realtime.call_session:normalcall: 컨텍스트 압축 감지 #4 (prompt 15522 → 8018)",
+  "2026-09-18T09:00:11.872041Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B49 → [] (남은 9)",
+  "2026-09-18T09:00:12.165160Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: どう も",
+  "2026-09-18T09:00:12.593885Z\tINFO:domains.learning.realtime.call_session:👤 USER[t94]: どう も",
+  "2026-09-18T09:00:13.490878Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=4 U94까지 passed=[] failed=[] pending=[11, 12] why={11: '', 12: ''}",
+  "2026-09-18T09:00:14.258485Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 가르침 판정(LLM): B95 → [] (남은 2)",
+  "2026-09-18T09:00:14.350648Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 닫힘(LLM 판정·마지막): seq=4 창=89~끝(7세그) set=[10, 11, 12] 남은=[11, 12]",
+  "2026-09-18T09:00:15.402845Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 퀴즈 판정(LLM): seq=4 마지막 U95까지 passed=[] failed=[] pending=[11, 12] why={11: '선생님이 아직 묻지 않았다.'}",
+  "2026-09-18T09:00:15.403046Z\tINFO:domains.learning.realtime.call_session:normalcall 표현학습 마지막 판정: 1052ms (상한 2000ms)",
+  "2026-09-18T09:00:15.679795Z\tINFO:domains.learning.realtime.call_session:normalcall cur 표현학습 저장: {'lesson_completed': False, 'status': 'learning', 'drilled': 13, 'passed': 3, 'failed': 4, 'fragment': 1}",
+  "2026-09-18T09:00:15.680207Z\tINFO:domains.learning.realtime.call_session:normalcall 판정 사이드카: call_id=1643 LLM · 가르침 49회(건너뜀 0·실패 2·폴백 2) · 정답 25회(실패 0) · 지연 p50 939ms 최대 6001ms · 토큰 in 50236 out 2931 · 타임아웃(6.0s) 가르침 2·정답 0",
+  "2026-09-18T09:00:16.240170Z\tINFO:domains.learning.realtime.call_session:normalcall 재접지 arm(표현학습, 근거=compress_imminent, 2/8회, 드릴 9 · 통과 4 · 오답 3, 압축감지=4, peak=8018, 바닥=4316, 대화=3702)",
+  "2026-09-18T09:00:16.625111Z\tINFO:domains.learning.realtime.call_session:normalcall 👤 user: 케이",
+  "2026-09-18T09:00:17.206162Z\tINFO:domains.learning.service.normalcall_service:normalcall 이어하기 요약: 화제='일본어 인사말 배우기' 사실 0개 하던것=\"일본어로 '천만에요' 말하기\" call_id=1643",
+  "2026-09-18T09:00:17.354003Z\tINFO:domains.learning.realtime.call_session:👤 USER[t50]: 케이"
+ ]
+}
