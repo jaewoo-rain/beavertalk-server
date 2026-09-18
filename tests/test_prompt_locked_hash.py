@@ -83,6 +83,7 @@ FROZEN: dict[str, str] = {
     "expression.DRILL_ASK_FIRST_LINE": "3e98c1a9d3f4a73a",
     # 2026-09-14 E(사장님 확정, 실통화 1592) — [문형] 항목은 같은 문형의 다른 올바른 문장도 정답. ko·ja 공통(has_grammar 일 때만)
     "expression.DRILL_GRAMMAR_ALT_LINE": "3b3c2f297047daad",
+    "seeds.EXPRESSION_DRILL_MOVE_ON": "c8036af5f641d952",   # 2026-09-18 11차 B 드릴 루프 안내(1643 2.5) — 새 문장, 기존 경로 무변경
     "seeds.LOOP_BREAK_NOTE": "ca29880e45b4b46b",   # 2026-09-14 B 반복 루프 차단기(실통화 1602) — 새 문장, 기존 경로 무변경
 }
 MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltest, "seeds": seeds, "expression": lex, "reground": reground}

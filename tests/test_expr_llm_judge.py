@@ -837,6 +837,7 @@ CID_FORMATS = (
     " 미얹힘(통화 끝): call_id=%s", " 얹기 실패(다음 발화 재시도): call_id=%s",
     " 세트 이탈: call_id=%s", " 세트 이탈(안내 상한 %d): call_id=%s", " 세트 안내 주입 %d/%d: call_id=%s",
     "퀴즈 판정(LLM): call_id=%s", "퀴즈 판정(LLM·세트 밖): call_id=%s", "유예 판정 기각(이미 오답 확정): call_id=%s",
+    "드릴 루프 감지: call_id=%s", "드릴 안내 주입 %d/%d: call_id=%s",
 )
 
 
@@ -918,3 +919,83 @@ async def test_call_id_is_the_first_field_after_the_prefix_and_old_fields_keep_t
     st0.expr_quiz_cue_pending, st0.expr_quiz_set, st0.expr_quiz_seq, st0.expr_quiz_prev_num = "[큐]", [1], 1, None
     await cs._attach_quiz_cue(_CidSess(), st0, "마이크")
     assert "call_id=- seq=1" in [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
+
+
+# --------------------------------------------------------------------------- #
+# 11차 B (2026-09-18, 1643 2.5 드릴 루프 — 한 항목 6~8턴 · 통과 항목 재드릴 3건) — «다음 번호 항목으로» 안내
+# --------------------------------------------------------------------------- #
+JA_DRILL = [
+    {"item_id": 101, "obj": "こんにちは", "des": "안녕하세요", "ex": None},
+    {"item_id": 102, "obj": "はじめまして", "des": "처음 뵙겠습니다", "ex": None},
+    {"item_id": 103, "obj": "ありがとうございます", "des": "감사합니다", "ex": None},
+]
+
+
+def _drill_state():
+    st = _state(items=JA_DRILL)
+    st.call_id = 1643
+    st.expr_llm_judge = False          # 문자열 경로 — 드릴 추적은 판정기와 무관하다
+    return st
+
+
+async def _turn_end(sess, st):
+    """turn_end 자리의 주입 관문(세트 안내 → 드릴 안내 택일)만 흉내낸다."""
+    if st.expr_quiz_set_nudge_pending and st.turn_id is None and not st.should_close:
+        await cs._inject_quiz_set_reminder(sess, st)
+    elif st.expr_drill_nudge_pending and st.turn_id is None and not st.should_close:
+        await cs._inject_drill_move_on(sess, st)
+
+
+@pytest.mark.asyncio
+async def test_drill_on_one_item_past_three_learner_turns_gets_one_move_on_note(caplog):
+    """B① — 같은 항목을 붙잡고 학습자 턴 3회를 넘기면 안내 1회(문장이 달라 루프 차단기는 안 걸리는 경우)."""
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st, sess = _drill_state(), _CidSess()
+    _beaver(st, "«こんにちは» 따라 해 보세요")
+    assert st.expr_drill_focus == 1
+    for i, said in enumerate(("こんにちは", "곤니치와", "こんにちは?", "다시 해볼게요"), 1):
+        _user(st, said)
+        _beaver(st, "좋아요! 한 번 더 — «こんにちは» 를 크게 말해 보세요 (%d)" % i)   # 매번 다른 문장 = 루프 차단기 미발동
+        await _turn_end(sess, st)
+    assert sess.text_turns == [cs.EXPRESSION_DRILL_MOVE_ON], "3턴 초과 시점에 안내 1회"
+    assert st.expr_drill_nudges == 1 and st.expr_drill_nudge_pending is False
+    line = [r.getMessage() for r in caplog.records if "드릴 안내 주입" in r.getMessage()][-1]
+    assert "call_id=1643" in line and "1/3" in line
+
+
+@pytest.mark.asyncio
+async def test_drill_move_on_note_is_capped_per_call():
+    """B② — 통화당 상한 3회(이미 다룬 항목 재드릴도 같은 계정)."""
+    st, sess = _drill_state(), _CidSess()
+    st.covered_nums = [1, 2, 3]
+    st.expr_drill_focus = 3
+    for _ in range(6):
+        _beaver(st, "«こんにちは» 를 다시 연습해 봐요")      # 되돌아간 재드릴(마지막 covered 는 3)
+        await _turn_end(sess, st)
+        _beaver(st, "«ありがとうございます» 도 좋아요")       # 초점을 옮겨 다음 재드릴이 또 잡히게
+        await _turn_end(sess, st)
+    assert len(sess.text_turns) == cs.EXPR_DRILL_NUDGE_MAX == 3, sess.text_turns
+    assert st.expr_drill_nudges == 3
+
+
+@pytest.mark.asyncio
+async def test_normal_drill_progression_gets_no_move_on_note():
+    """B③ — 정상 드릴(항목마다 2~3턴 주고 다음 번호로)엔 안내 0회 · 퀴즈 창이 열린 동안도 0회(그 구간은 세트 안내 몫)."""
+    st, sess = _drill_state(), _CidSess()
+    for n, label in ((1, "こんにちは"), (2, "はじめまして"), (3, "ありがとうございます")):
+        _beaver(st, "«%s» 따라 해 보세요" % label)
+        _user(st, label)
+        _beaver(st, "잘했어요!")
+        _user(st, "네")
+        await _turn_end(sess, st)
+        assert st.expr_drill_focus == n
+    assert sess.text_turns == [] and st.expr_drill_nudges == 0
+    # 퀴즈 창이 열리면 드릴 추적은 멈춘다(주입 겹침 금지)
+    st.expr_quiz_open, st.expr_quiz_set = True, [1, 2, 3]
+    st.expr_drill_focus, st.expr_drill_user_turns = 1, 0
+    for i in range(5):
+        _beaver(st, "«こんにちは» 는 뭐였죠? (%d)" % i)
+        _user(st, "음...")
+        await _turn_end(sess, st)
+    assert sess.text_turns == [] and st.expr_drill_nudge_pending is False

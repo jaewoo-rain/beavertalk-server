@@ -102,6 +102,7 @@ from core.persona_prompt import (
     seed_opening,
 )
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
+from core.prompts.locked.seeds import EXPRESSION_DRILL_MOVE_ON          # 11차 B — 드릴 루프 «다음 항목으로»(2026-09-18)
 from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
 from core.prompts.locked.seeds import expression_taught_judge_instruction   # 4차 A — 가르침 판정 사이드카(2026-09-15)
 from core.prompts.locked.seeds import expression_quiz_verdict_instruction   # 4차 B — 정답 판정 사이드카(2026-09-15)
@@ -775,6 +776,9 @@ class _CallState:
         # 큐 보류(1552, 2026-09-13): expr_covered_by_user — 학습자 발화로 확인된 번호 · expr_quiz_cue_covered_at_arm — arm 때 covered 수 ·
         #   expr_quiz_cue_user_turns — arm 뒤 학습자 턴 수(정리 안 되면 3회에 얹는다)
         "expr_covered_by_user", "expr_quiz_cue_covered_at_arm", "expr_quiz_cue_user_turns",
+        # 11차 B(2026-09-18): 드릴 루프 — expr_drill_focus 지금 붙잡고 있는 항목 · _user_turns 그 항목에 쌓인 학습자 턴 ·
+        #   _nudges 통화당 주입 수(상한 EXPR_DRILL_NUDGE_MAX) · _nudge_pending 다음 turn_end 에 넣을까
+        "expr_drill_focus", "expr_drill_user_turns", "expr_drill_nudges", "expr_drill_nudge_pending",
         "call_id", "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -1001,6 +1005,10 @@ class _CallState:
         self.expr_quiz_cue_user_turns: int = 0
         # ⭐ 11차 A(2026-09-18, 같은 시간대에 1643 ja 하네스 · 1644 ko 사장님 두 통화가 돌자 하네스가 서로의 줄을 섞어 읽었다 — «세트 밖 항목 13» 오귀속):
         #   표현학습 로그 줄마다 call_id 를 찍기 위해 state 에 싷는다. ⚠ run_call 이 통화 행을 만든 뒤에 채워진다 — 그 전(시험·레벨테스트)엔 None 이고 로그엔 «call_id=-» 로 나간다.
+        self.expr_drill_focus: Optional[int] = None        # 11차 B — 지금 드릴 중인 항목 번호(마지막으로 비버가 붙잡은 항목)
+        self.expr_drill_user_turns: int = 0                # 그 항목에 쌓인 학습자 턴 수(상한 EXPR_DRILL_MAX_USER_TURNS)
+        self.expr_drill_nudges: int = 0                    # «다음 항목으로» 안내 주입 수(통화당 EXPR_DRILL_NUDGE_MAX)
+        self.expr_drill_nudge_pending: bool = False        # 다음 turn_end(비버 idle)에 넣을까
         self.call_id: Optional[int] = None
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
@@ -1153,6 +1161,7 @@ def _flush_user_segment(state: _CallState) -> None:
         # ⭐ 4차 A(사장님 «배운 거 체크는 비버가 말하는 것만»): LLM 판정이 켜져 있으면 학습자 발화는 가르침을 세지 않는다 — 사이드카 실패 턴의 폴백에서만 산다.
         _note_covered_items(state, text, source="user")
     _expression_quiz_note_user_turn(state, text)   # 큐 보류(1552) — 학습자 턴 수 · 보류 항목이 학습자 입에서 나왔나
+    _note_drill_user_turn(state, text)             # 11차 B — 드릴 중인 항목에 쌓인 학습자 턴
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
@@ -1312,6 +1321,10 @@ def _note_covered_items(
 
 # 퀴즈 큐 로그 접두 — ⛔ 고정. 하네스(c4f6bbb, QUIZ_CUE_LOG_PREFIX)가 이 접두로 큐↔비버 앵커를 시간 대조한다.
 EXPR_QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
+
+
+EXPR_DRILL_MAX_USER_TURNS = 3   # 11차 B — 한 항목 드릴에 허용하는 학습자 턴(넘으면 «다음 항목으로» 1회). DRILL 재시도 상한 3 과 같은 축이다.
+EXPR_DRILL_NUDGE_MAX = 3        # 11차 B — 통화당 드릴 안내 상한(세트 안내 2회와 별도 계정)
 
 
 def _cid(state: _CallState) -> str:
@@ -1617,6 +1630,74 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
     logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s tc=True 모델=%s",
                 EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
                 _cid(state), state.expr_quiz_set, state.live_model or "-")
+    return True
+
+
+def _expr_mentioned_nums(state: _CallState, text: str) -> list[int]:
+    """이 발화가 언급한 항목 번호(표면형 OR 예문 — covered 대조와 같은 `quiz_judge.item_mentioned`). covered 여부와 무관하게 **전 항목**을 본다."""
+    hits: list[int] = []
+    for n in range(1, len(state.reground_items) + 1):
+        surface = (state.reground_items[n - 1] or "").strip()
+        if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, n, surface), language=state.target_code):
+            hits.append(n)
+    return hits
+
+
+def _arm_drill_nudge(state: _CallState, why: str) -> None:
+    """드릴 안내를 다음 turn_end 에 넣도록 표시(상한·중복 가드는 여기서). 판정·진도는 건드리지 않는다."""
+    if state.expr_drill_nudge_pending or state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
+        return
+    state.expr_drill_nudge_pending = True
+    logger.info("normalcall 표현학습 드릴 루프 감지: call_id=%s 항목=%s 사유=%s 안내=%d/%d",
+                _cid(state), state.expr_drill_focus, why, state.expr_drill_nudges + 1, EXPR_DRILL_NUDGE_MAX)
+
+
+def _note_expression_drill(state: _CallState, text: str) -> None:
+    """⭐ 11차 B(2026-09-18, 1643 2.5) — [drill] 구간에서 «한 항목을 계속 붙잡고 있나» 를 센다.
+
+    루프 차단기는 **문장**을 대보므로(직전 턴과 ≥0.9 유사) 같은 항목을 표현만 바꿔 6~8턴 되풀이하면 안 걸린다. 여기선 **항목**을 센다:
+    ① 한 항목의 드릴에 학습자 턴이 EXPR_DRILL_MAX_USER_TURNS(3)를 넘으면 안내 1회 · ② 이미 다룬 항목으로 되돌아가 또 드릴하면 안내 1회.
+    ⛔ 퀴즈 창이 열린 동안은 보지 않는다 — 그 구간은 세트 안내(8차 C)가 담당이고, 두 안내가 같은 turn_end 에 겹치면 안 된다(주입은 택일).
+    """
+    if not state.expr_items or state.expr_quiz_open or not (text or "").strip():
+        return
+    hits = _expr_mentioned_nums(state, text)
+    if not hits:
+        return                      # 항목을 안 짚은 턴(잡담·리액션) — 지금 초점을 유지한다
+    if state.expr_drill_focus in hits:
+        return                      # 같은 항목을 계속 드릴한다 — 턴 수는 학습자 발화에서 센다
+    fresh = [n for n in hits if n not in state.covered_nums]
+    focus = fresh[0] if fresh else hits[-1]
+    prev_focus = state.expr_drill_focus
+    state.expr_drill_focus = focus
+    state.expr_drill_user_turns = 0
+    # ② 되돌아간 재드릴 — 이미 다룬 항목인데 «방금 다룬 마지막 항목» 도 아니다(=넘어갔다가 되돌아왔다).
+    if prev_focus is not None and focus in state.covered_nums and state.covered_nums and state.covered_nums[-1] != focus:
+        _arm_drill_nudge(state, "이미 다룬 항목 재드릴")
+
+
+def _note_drill_user_turn(state: _CallState, text: str) -> None:
+    """11차 B — 드릴 중인 항목에 학습자 턴을 센다(빈 전사는 안 센다 — P1 규율 그대로). 상한을 넘으면 안내를 표시한다."""
+    if not state.expr_items or state.expr_quiz_open or state.expr_drill_focus is None:
+        return
+    if not (text or "").strip():
+        return
+    state.expr_drill_user_turns += 1
+    if state.expr_drill_user_turns > EXPR_DRILL_MAX_USER_TURNS:
+        _arm_drill_nudge(state, "학습자 턴 %d > 상한 %d" % (state.expr_drill_user_turns, EXPR_DRILL_MAX_USER_TURNS))
+
+
+async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState) -> bool:
+    """11차 B — «그 표현은 충분히 했다 — 다음 번호 항목으로» 안내를 완결 텍스트 턴으로 1회(세트 안내·루프 차단기와 같은 파이프). 보냈으면 True."""
+    state.expr_drill_nudge_pending = False
+    if state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
+        return False
+    state.expr_drill_nudges += 1
+    await session.send_text_turn(EXPRESSION_DRILL_MOVE_ON)
+    _note_text_inject(state, "drill_move_on")
+    state.expr_drill_user_turns = 0
+    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s tc=True 모델=%s",
+                state.expr_drill_nudges, EXPR_DRILL_NUDGE_MAX, _cid(state), state.expr_drill_focus, state.live_model or "-")
     return True
 
 
@@ -2380,6 +2461,7 @@ def _flush_beaver_segment(state: _CallState) -> None:
         _spawn_taught_judge(state, text, len(state.segments))    # 4차 A — 이 비버 턴(바로 아래 append 자리)을 LLM 이 판정(논블로킹)
     else:
         _note_covered_items(state, text)
+    _note_expression_drill(state, text)          # 11차 B — 드릴 루프(항목 기준) 추적. 판정·진도는 안 건드린다
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
@@ -5397,6 +5479,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 await _loop_breaker_on_turn_end(session, state, turn_text)
                 if state.expr_quiz_set_nudge_pending and state.turn_id is None and not state.should_close:
                     await _inject_quiz_set_reminder(session, state)     # 8차 C — 퀴즈 세트 이탈 안내(통화당 2회)
+                elif state.expr_drill_nudge_pending and state.turn_id is None and not state.should_close:
+                    await _inject_drill_move_on(session, state)         # 11차 B — 드릴 루프 «다음 항목으로»(통화당 3회) · 한 turn_end 에 주입은 택일
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
