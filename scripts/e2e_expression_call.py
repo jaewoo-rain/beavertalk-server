@@ -152,12 +152,12 @@ NEW_ITEM_RE = re.compile(
 PRAISE_RE = re.compile(
     r"\b(perfect|nailed it|great( job)?|excellent|exactly|correct|you got it|there you go|right on|"
     r"well done|awesome|spot on|that'?s it|that'?s right|good job|nice(ly)?( done)?|yes!|bingo|brilliant|"
-    r"you did it|way to go|yep|yup|that'?s the one|good one|not bad)\b|(?:^|\s)(right|good|yes)[.!]|맞아요|정답|잘했|완벽", re.I)
+    r"you did it|way to go|yep|yup|that'?s the one|good one|not bad)\b|(?:^|\s)(?<!it )(right|good|yes)[.!]|맞아요|정답|잘했|완벽", re.I)
 CORRECTION_RE = re.compile(
     r"\b(but|not quite|almost|close|nope|wrong|no,|not right|try again|one more (time|try)|remember|"
     r"polite|formal|add|missing|should be|it'?s actually|actually|instead|the word is|it was|"
     r"it'?s ['\"]|say it like|listen|repeat|not it|not that|not how|not right|still not|past tense|"
-    r"ending)\b|아니|다시|틀렸|존댓말|정중", re.I)
+    r"ending)\b|\bnot [\'\"“]|, not |아니|다시|틀렸|존댓말|정중", re.I)   # «That's "Good night," not "Good evening"» 도 교정이다(1646 t18)
 QUESTION_RE = re.compile(
     r"\?|\b(how (do|would|can) you (say|ask|tell|greet)|what do you say|what would you say|"
     r"tell me|say it|give it a (shot|try)|try (it|saying|to say|that)|can you say|what was it|"
@@ -2139,7 +2139,9 @@ def item_numbers_by_id(num_to_surface: dict[int, str], items: dict) -> dict[int,
     return out
 
 
-_GRACE_PASS_RE = re.compile(r"퀴즈 판정\(LLM·세트 밖\):\s*항목\s*(\d+)")
+# 11차 A: 모든 표현학습 로그 줄에 «call_id=NNNN» 접두가 붙는다 — 종전 첫 필드 앞이라 «: seq=»·«: 항목» 앵커가 깨졌다(1645·1646 에서 세트/유예 파서가 통째로 빈값).
+_CID_TAG = r"(?:call_id=\d+\s*)?"
+_GRACE_PASS_RE = re.compile(r"퀴즈 판정\(LLM·세트 밖\):\s*" + _CID_TAG + r"항목\s*(\d+)")
 
 
 def parse_grace_passes(log_lines: list[str] | None) -> set[int]:
@@ -2147,7 +2149,7 @@ def parse_grace_passes(log_lines: list[str] | None) -> set[int]:
     return {int(m.group(1)) for ln in (log_lines or []) if (m := _GRACE_PASS_RE.search(ln))}
 
 
-_QUIZ_OPEN_RE = re.compile(r"퀴즈 큐 열림: seq=(\d+).*?항목=\[([0-9,\s]*)\]")
+_QUIZ_OPEN_RE = re.compile(r"퀴즈 큐 열림: " + _CID_TAG + r"seq=(\d+).*?항목=\[([0-9,\s]*)\]")
 
 
 def parse_quiz_sets(log_lines: list[str] | None) -> list[tuple[Optional[float], int, list[int]]]:
@@ -2189,7 +2191,7 @@ def parse_judge_sidecar(line: str | None) -> Optional[dict]:
     return d
 
 
-_QUIZ_CLOSE_LOG_RE = re.compile(r"퀴즈 (?:큐 강제 닫힘|닫힘\(LLM 판정(?:·마지막)?\)|닫힘\(서버[^)]*\)): seq=(\d+)")
+_QUIZ_CLOSE_LOG_RE = re.compile(r"퀴즈 (?:큐 강제 닫힘|닫힘\(LLM 판정(?:·마지막)?\)|닫힘\(서버[^)]*\)): " + _CID_TAG + r"seq=(\d+)")
 
 
 def parse_quiz_windows(log_lines: list[str] | None) -> list[tuple[int, Optional[float], Optional[float], list[int]]]:

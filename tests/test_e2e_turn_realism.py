@@ -72,3 +72,18 @@ def test_hint_path_with_stall_first_answer_is_either_way():
 
 def test_quiz_open_phrase_see_what_you_remember():
     assert h.QUIZ_RE.search("Hold on, we're not done yet. Let's see what you actually remember.")
+
+
+# ── 11차 재검(1646 t18) — 교정 턴을 «거짓 칭찬» 으로 세던 오검출 ──────────── #
+def test_correction_with_say_it_right_is_not_false_praise():
+    """「Are you kidding me?! That's "Good night," not "Good evening"! It's こんばんは. Say it right!」 은 교정이다."""
+    import e2e_expression_call as h
+    t = 'Are you kidding me?! That\'s "Good night," not "Good evening"! It\'s こんばんは. Say it right!'
+    assert h.CORRECTION_RE.search(t), '«, not …» 를 교정으로 봐야 한다'
+    assert not h.PRAISE_RE.search("Say it right!"), "«say it right» 의 right 는 칭찬이 아니다"
+
+
+def test_real_praise_still_detected():
+    import e2e_expression_call as h
+    for good in ("Right!", "Yes! That's the one.", "Perfect.", "That's right.", "Good job!"):
+        assert h.PRAISE_RE.search(good), good
