@@ -2115,6 +2115,37 @@ def _spawn_grace_verdict(state: _CallState) -> "asyncio.Task | None":
     return task
 
 
+def _grace_off_set_server_pass(state: _CallState, span: list[tuple[int, str, str]], extra: list[int], already: set[int]) -> list[int]:
+    """⭐ 12차 C(2026-09-18, 1646 #7 ◯◯から来ました) — **유예 창의 세트 밖 자발 정답을 서버가 직접 줍는다.**
+
+    1645 #13 은 판정기가 세트 밖 통과를 냈고(passed+covered) 1646 #7 은 같은 모양인데 냈지 않았다 — 유예 판정은 세트가 이미 확정돼
+    [퀴즈 항목] 이 «(없음)» 인 채로 나가고, 그러면 모델이 [세트 밖 항목] 칸을 통째로 건너뛰는 일이 있다(1646: verdicts 0건).
+    ⇒ 판정기를 조이는 대신 **코드가 확인한다**(관통원칙 ① AI 는 증인·판정은 코드). 규율은 `_server_judge_quiz` 와 같다:
+      · 창을 순서대로 훑어 **먼저 나오는 사건**으로 정한다 · 학습자가 격식까지 지켜 말했으면 passed
+      · 반말 산출은 사건이 아니다(계속 훑는다) · **비버가 그 표면형을 먼저 말했으면 기록 0**(공개 뒤 복창을 통과로 치지 않는다)
+    ⛔ 세트 밖에는 **passed 만** 적용한다(5차 A-2 규율) — failed·pending 은 남기지 않는다.
+    """
+    got: list[int] = []
+    for n in extra:
+        if n in already:
+            continue
+        iid, surface = _num_item(state, n)
+        if iid is None or not surface or iid in state.expr_quiz_pass:
+            continue
+        example = _item_example(state, n)
+        for _idx, role, text in span:
+            if not quiz_judge.item_mentioned(text, surface, example, language=state.target_code):
+                continue
+            if role == "user":
+                if quiz_judge.keeps_formality(text, surface, language=state.target_code):
+                    _apply_off_set_pass(state, n, "서버 대조(유예)")
+                    got.append(n)
+                    break
+                continue                       # 반말 산출 — 사건이 아니다(뒤에 공개가 오면 거기서 멈춘다)
+            break                              # 비버가 먼저 말했다 = 공개 — 기록 0
+    return got
+
+
 def _apply_off_set_pass(state: _CallState, n: int, why: str) -> None:
     """5차 A-2 — 세트 밖 항목의 자발 정답 기록: passed(단조) + 가르침(covered, append-only) + 출제됨(expr_quizzed — 다음 묶음에 다시 안 낸다).
     ⛔ tick 은 태우지 않는다 — 퀴즈 창이 열린 중이라 covered 새 번호가 «다음 항목 소개» 닫힘으로 오인된다. arm 은 창이 닫힐 때 종전대로 본다."""
@@ -2180,6 +2211,8 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
             left = [n for n in nums if not (same_quiz and n in state.expr_quiz_llm_decided)]
             if left:
                 _quiz_server_judge_and_fallback(state, span, left, why="LLM 실패")
+        if grace:
+            _grace_off_set_server_pass(state, span, extra, set())      # 12차 C — 판정기가 죽어도 세트 밖 자발 정답은 줍는다
         return {}
     out: dict = {"passed": [], "failed": [], "pending": [], "why": {}}
     seen: set[int] = set()
@@ -2218,6 +2251,11 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         if same_quiz:
             state.expr_quiz_llm_decided.add(n)
     out["pending"] += [n for n in nums if n not in seen]
+    if grace:
+        # 12차 C — 판정기가 세트 밖 칸을 건너뛴 경우(1646 #7: verdicts 0건) 서버 대조로 줍는다. 이미 판정기가 낸 번호는 건드리지 않는다.
+        server_got = _grace_off_set_server_pass(state, span, extra, set(out.get("off_set_passed") or []))
+        if server_got:
+            out.setdefault("off_set_passed", []).extend(server_got)
     logger.info(
         "normalcall 표현학습 퀴즈 판정(LLM): call_id=%s seq=%d %s%s passed=%s failed=%s pending=%s why=%s",
         _cid(state), seq, "마지막 " if final else "", ("U%d까지" % span[-1][0]) if span else "", out["passed"], out["failed"], out["pending"], out["why"],

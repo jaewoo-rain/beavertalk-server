@@ -1003,3 +1003,62 @@ async def test_normal_drill_progression_gets_no_move_on_note():
         _user(st, "음...")
         await _turn_end(sess, st)
     assert sess.text_turns == [] and st.expr_drill_nudge_pending is False
+
+
+# --------------------------------------------------------------------------- #
+# 12차 C (2026-09-18, 1646 #7 ◯◯から来ました — 유예 창에서 판정기가 세트 밖 칸을 통째로 건너뛰어 자발 정답 기록 0)
+#   1645 #13 은 같은 모양인데 기록됐다 ⇒ 모델 재량이었다. 서버 대조로 줍는다(관통원칙 ① AI 는 증인·판정은 코드).
+# --------------------------------------------------------------------------- #
+JA_FROM = [
+    {"item_id": 301, "obj": "はじめまして", "des": "처음 뵙겠습니다", "ex": None},
+    {"item_id": 302, "obj": "◯◯です", "des": "저는 ◯◯입니다", "ex": None},
+    {"item_id": 303, "obj": "◯◯から来ました", "des": "◯◯에서 왔습니다", "ex": None},
+]
+
+
+def _grace_fake(monkeypatch, in_window_pass=2):
+    """창 판정은 세트를 확정(→ 닫힘 → 유예 창) · 유예 판정은 1646 처럼 verdicts 0건으로 답한다."""
+    def verdict(prompt, system):
+        main = system.split("[퀴즈 항목]")[1].split("[세트 밖 항목")[0]
+        if "(없음)" in main:                       # 유예 — 세트가 이미 확정돼 본 칸이 비었다
+            return {"verdicts": []}
+        return {"verdicts": [{"num": in_window_pass, "verdict": "passed", "why": "자발 정답"}]}
+    fake = FakeJudge(taught_fn=lambda p, s: [], verdict_fn=verdict)
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    return fake
+
+
+@pytest.mark.asyncio
+async def test_grace_off_set_pass_is_recovered_by_the_server_when_the_judge_skips_it(monkeypatch):
+    """C① — 유예 판정이 verdicts 0건으로 와도, 창 안에서 학습자가 세트 밖 항목을 스스로 말했으면 서버가 통과로 적는다(1646 #7)."""
+    _grace_fake(monkeypatch)
+    st = _state(items=JA_FROM)
+    st.call_id = 1646
+    _open_quiz(st, [2])
+    _beaver(st, "«저는 존입니다» 는 일본어로 어떻게 말해요?")
+    await _drain(st)
+    _user(st, "存です")                                  # 세트 항목(2) 자발 정답 → 세트 전부 확정 → 창 닫힘
+    await _drain(st)
+    assert st.expr_quiz_open is False and st.expr_quiz_grace_from is not None, "유예 창이 열려 있다(전제)"
+    _beaver(st, "Now, back to the real stuff. How do you say «I am from New York»? Try that.")   # 세트 밖 #3 을 영어로만 묻는다
+    _user(st, "韓国から来ました。")                        # ◯◯ 자리표시를 채운 정답
+    await _drain(st)
+    assert 303 in st.expr_quiz_pass, "세트 밖 자발 정답이 기록되지 않았다(1646 #7 재발)"
+    assert 3 in st.covered_nums and 3 in st.expr_quizzed, "passed + covered + 출제됨"
+
+
+@pytest.mark.asyncio
+async def test_server_recovery_does_not_record_a_parrot_after_the_reveal(monkeypatch):
+    """C② — 비버가 그 표현을 **먼저** 말한 자리(공개 뒤 복창)면 서버 대조도 기록하지 않는다(5차 A-2·9차 A 규율 그대로)."""
+    _grace_fake(monkeypatch)
+    st = _state(items=JA_FROM)
+    _open_quiz(st, [2])
+    _beaver(st, "«저는 존입니다» 는 일본어로?")
+    await _drain(st)
+    _user(st, "存です")
+    await _drain(st)
+    assert st.expr_quiz_grace_from is not None
+    _beaver(st, "It's ◯◯から来ました. Say it!")            # 공개
+    _user(st, "韓国から来ました。")                        # 복창
+    await _drain(st)
+    assert 303 not in st.expr_quiz_pass and 3 not in st.expr_quizzed, "공개 뒤 복창은 통과가 아니다"
