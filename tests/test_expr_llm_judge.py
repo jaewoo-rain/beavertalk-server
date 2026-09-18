@@ -935,8 +935,8 @@ JA_DRILL = [
 ]
 
 
-def _drill_state():
-    st = _state(items=JA_DRILL)
+def _drill_state(items=None):
+    st = _state(items=items or JA_DRILL)
     st.call_id = 1643
     st.expr_llm_judge = False          # 문자열 경로 — 드릴 추적은 판정기와 무관하다
     return st
@@ -965,22 +965,48 @@ async def test_drill_on_one_item_past_three_learner_turns_gets_one_move_on_note(
     assert sess.text_turns == [cs.EXPRESSION_DRILL_MOVE_ON], "3턴 초과 시점에 안내 1회"
     assert st.expr_drill_nudges == 1 and st.expr_drill_nudge_pending is False
     line = [r.getMessage() for r in caplog.records if "드릴 안내 주입" in r.getMessage()][-1]
-    assert "call_id=1643" in line and "1/3" in line
+    assert "call_id=1643" in line and "1/6" in line
+
+
+JA_DRILL8 = [{"item_id": 200 + i, "obj": obj, "des": "뜻%d" % i, "ex": None} for i, obj in enumerate(
+    ("こんにちは", "はじめまして", "ありがとうございます", "すみません", "おはようございます",
+     "こんばんは", "どういたしまして", "さようなら"), 1)]
 
 
 @pytest.mark.asyncio
-async def test_drill_move_on_note_is_capped_per_call():
-    """B② — 통화당 상한 3회(이미 다룬 항목 재드릴도 같은 계정)."""
+async def test_drill_move_on_note_is_sent_once_per_item():
+    """D① — 같은 항목에는 두 번 안내하지 않는다(1645: 한 항목이 앞 2분에 상한 3 을 다 먹었다)."""
     st, sess = _drill_state(), _CidSess()
-    st.covered_nums = [1, 2, 3]
-    st.expr_drill_focus = 3
-    for _ in range(6):
-        _beaver(st, "«こんにちは» 를 다시 연습해 봐요")      # 되돌아간 재드릴(마지막 covered 는 3)
+    _beaver(st, "«こんにちは» 따라 해 보세요")
+    for i in range(8):                                   # 같은 항목을 계속 붙잡는다
+        _user(st, "음... %d" % i)
+        _beaver(st, "한 번 더 — «こんにちは» (%d)" % i)
         await _turn_end(sess, st)
-        _beaver(st, "«ありがとうございます» 도 좋아요")       # 초점을 옮겨 다음 재드릴이 또 잡히게
+    assert len(sess.text_turns) == 1 and st.expr_drill_nudges == 1, sess.text_turns
+    assert st.expr_drill_nudged == {1}
+    # 다른 항목으로 옮기면 그 항목에는 다시 쓸 수 있다
+    _beaver(st, "이제 «はじめまして» 예요")
+    for i in range(5):
+        _user(st, "네 %d" % i)
+        _beaver(st, "«はじめまして» 다시 (%d)" % i)
         await _turn_end(sess, st)
-    assert len(sess.text_turns) == cs.EXPR_DRILL_NUDGE_MAX == 3, sess.text_turns
-    assert st.expr_drill_nudges == 3
+    assert len(sess.text_turns) == 2 and st.expr_drill_nudged == {1, 2}
+
+
+@pytest.mark.asyncio
+async def test_drill_move_on_note_is_capped_at_six_per_call():
+    """D② — 통화당 상한 6회(11차의 3회는 후반 루프에 개입을 0 으로 만들었다)."""
+    st, sess = _drill_state(JA_DRILL8), _CidSess()
+    st.covered_nums = list(range(1, 9))                  # 전부 다뤘다 — 되돌아간 재드릴이 항목마다 1회씩 잡힌다
+    st.expr_drill_focus = 8
+    for n, obj in enumerate([d["obj"] for d in JA_DRILL8][:7], 1):
+        _beaver(st, "«%s» 를 다시 연습해 봐요" % obj)
+        await _turn_end(sess, st)
+        _beaver(st, "«さようなら» 로 돌아가죠")            # 초점을 마지막 covered 로 되돌려 다음 항목이 또 잡히게
+        await _turn_end(sess, st)
+    assert cs.EXPR_DRILL_NUDGE_MAX == 6
+    assert len(sess.text_turns) == 6 == st.expr_drill_nudges, sess.text_turns
+    assert len(st.expr_drill_nudged) == 6, st.expr_drill_nudged
 
 
 @pytest.mark.asyncio

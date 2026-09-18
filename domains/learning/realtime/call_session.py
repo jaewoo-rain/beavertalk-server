@@ -779,6 +779,7 @@ class _CallState:
         # 11차 B(2026-09-18): 드릴 루프 — expr_drill_focus 지금 붙잡고 있는 항목 · _user_turns 그 항목에 쌓인 학습자 턴 ·
         #   _nudges 통화당 주입 수(상한 EXPR_DRILL_NUDGE_MAX) · _nudge_pending 다음 turn_end 에 넣을까
         "expr_drill_focus", "expr_drill_user_turns", "expr_drill_nudges", "expr_drill_nudge_pending",
+        "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
         "call_id", "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -1009,6 +1010,8 @@ class _CallState:
         self.expr_drill_user_turns: int = 0                # 그 항목에 쌓인 학습자 턴 수(상한 EXPR_DRILL_MAX_USER_TURNS)
         self.expr_drill_nudges: int = 0                    # «다음 항목으로» 안내 주입 수(통화당 EXPR_DRILL_NUDGE_MAX)
         self.expr_drill_nudge_pending: bool = False        # 다음 turn_end(비버 idle)에 넣을까
+        self.expr_drill_nudged: set[int] = set()           # 12차 D — 안내를 이미 쓴 항목(항목별 1회)
+        self.expr_drill_nudge_for: Optional[int] = None    # 12차 D — 대기 중인 안내가 어느 항목 때문인가(로그·기록용)
         self.call_id: Optional[int] = None
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
@@ -1324,7 +1327,8 @@ EXPR_QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
 
 
 EXPR_DRILL_MAX_USER_TURNS = 3   # 11차 B — 한 항목 드릴에 허용하는 학습자 턴(넘으면 «다음 항목으로» 1회). DRILL 재시도 상한 3 과 같은 축이다.
-EXPR_DRILL_NUDGE_MAX = 3        # 11차 B — 통화당 드릴 안내 상한(세트 안내 2회와 별도 계정)
+EXPR_DRILL_NUDGE_MAX = 6        # 12차 D(2026-09-18, 1645 — 상한 3 이 앞 2분에 소진돼 후반 4턴 루프엔 개입 0): 통화당 6회
+                                #   (세트 안내 2회와 별도 계정) + **항목별 1회**(같은 항목에 두 번 안내하지 않는다)
 
 
 def _cid(state: _CallState) -> str:
@@ -1644,12 +1648,19 @@ def _expr_mentioned_nums(state: _CallState, text: str) -> list[int]:
 
 
 def _arm_drill_nudge(state: _CallState, why: str) -> None:
-    """드릴 안내를 다음 turn_end 에 넣도록 표시(상한·중복 가드는 여기서). 판정·진도는 건드리지 않는다."""
+    """드릴 안내를 다음 turn_end 에 넣도록 표시(상한·중복 가드는 여기서). 판정·진도는 건드리지 않는다.
+    12차 D — **항목별 1회**: 같은 항목에는 다시 안내하지 않는다(안 그러면 한 항목이 통화당 상한을 다 먹는다 — 1645 앞 2분에 3회 소진)."""
+    focus = state.expr_drill_focus
     if state.expr_drill_nudge_pending or state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
         return
+    if focus is not None and focus in state.expr_drill_nudged:
+        return
     state.expr_drill_nudge_pending = True
+    state.expr_drill_nudge_for = focus
+    if focus is not None:
+        state.expr_drill_nudged.add(focus)          # 표시는 arm 에서 — 창이 열려 주입이 무산돼도 그 항목은 이미 한 번 다뤘다
     logger.info("normalcall 표현학습 드릴 루프 감지: call_id=%s 항목=%s 사유=%s 안내=%d/%d",
-                _cid(state), state.expr_drill_focus, why, state.expr_drill_nudges + 1, EXPR_DRILL_NUDGE_MAX)
+                _cid(state), focus, why, state.expr_drill_nudges + 1, EXPR_DRILL_NUDGE_MAX)
 
 
 def _note_expression_drill(state: _CallState, text: str) -> None:
@@ -1697,7 +1708,9 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
     logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s tc=True 모델=%s",
-                state.expr_drill_nudges, EXPR_DRILL_NUDGE_MAX, _cid(state), state.expr_drill_focus, state.live_model or "-")
+                state.expr_drill_nudges, EXPR_DRILL_NUDGE_MAX, _cid(state),
+                state.expr_drill_nudge_for if state.expr_drill_nudge_for is not None else state.expr_drill_focus,
+                state.live_model or "-")
     return True
 
 
