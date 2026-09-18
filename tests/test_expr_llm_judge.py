@@ -524,6 +524,10 @@ async def test_judge_timeouts_are_counted_and_fall_back_to_string_matching(monke
 # --------------------------------------------------------------------------- #
 def test_verdict_instruction_rejects_a_different_word_but_keeps_spelling_variants():
     text = seeds.expression_quiz_verdict_instruction(["6. 고향 — 뜻: hometown"], target="한국어", locale_label="영어(English)")
+    # 12차 B(2026-09-18, 1645 #15 — 「本当?」 만 말했는데 passed): 읽기는 **항목 전체**의 읽기여야 하고, 정중형 규칙이 읽기 규칙보다 우선한다
+    assert "읽기는 **항목 전체**의 읽기여야 한다" in text and "«本当ですか» 를 물었는데 «本当?»" in text
+    assert "**이 규칙이 위의 «읽기가 같으면 통과» 보다 우선한다.**" in text
+    assert text.index("항목 전체**의 읽기") < text.index("정중형을 가르치는 항목"), "읽기 규칙 바로 뒤에 붙인다"
     # 7차 ②(2026-09-15, «住みません» ↔ すみません 통과 유지): 기준 = 읽기 — 같은 읽기면 표기 무관 통과, 읽기가 다르면 소리가 비슷해도 failed
     assert "판단 기준은 글자가 아니라 **읽기(발음)** 다" in text and "같은 읽기의 다른 한자 포함" in text
     assert "표기·문자 체계가 무엇이든(가나·한자·로마자·한글 음차" in text, "표기 변형 통과는 그대로"
