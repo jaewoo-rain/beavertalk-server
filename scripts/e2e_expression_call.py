@@ -37,7 +37,7 @@ DB 판정(quiz_passed_at · call.expression_result)을 기대값과 기계적으
     $E2E ... --judge llm                    # 기본: 서버 판정 결과(cur_call.items)·서버 퀴즈 창 로그를 정본으로 ①재드릴 ②번호 순·세트 ③표기 변형 ④공개 뒤 복창
     $E2E ... --judge string                 # 옛 문자열 판정기 서버용(하네스 자체 매칭 기대)
     $E2E ... --answer-style kana|roman|hangul    # 정답을 다른 표기로 말한다(ko 는 roman 만) — ⚠ STT 가 표기를 되돌리므로 표기 내성은 리플레이로 본다
-    $E2E ... --offset-expect passed         # 서버 퀴즈 세트 밖 자발 정답도 passed 여야(5차 A-2 이후) · 기본 unjudged
+    $E2E ... --offset-expect unjudged       # 세트 밖 정답을 서버가 안 보던 옛 기대(4차) · 기본은 passed(12차)
     표기 내성 리플레이(통화 0): scripts/e2e_replay_transcript.py --language ja|ko --items 6 [--from-json steps.json]
 
     ⛔ 비밀번호는 E2E_PASSWORD env 로만 준다.
@@ -92,7 +92,7 @@ PRE_SPEECH_S = 0.8                # turn_end 뒤 이만큼 쉬고 말한다
 POST_SPEECH_SILENCE_S = 1.2       # 발화 뒤 무음(VAD 종료 감지)
 LEARNER_VOICE = "Charon"          # 비버 음색과 다르게(Chirp3-HD 로스터)
 ANSWER_STYLE = ""                 # --answer-style: "" | hangul | roman | kana — 정답을 다른 표기로 말한다(4차 ③ LLM 판정이 표기 달라도 통과시키나)
-OFFSET_EXPECT = "unjudged"        # --offset-expect: 서버 퀴즈 세트 밖 자발 정답의 기대 — unjudged(4차: 서버 미판정이 정상) | passed(5차 A 배포 뒤: 서버가 판정·기록)
+OFFSET_EXPECT = "passed"          # --offset-expect: 서버 퀴즈 세트 밖 자발 정답의 기대 — passed(12차 기본: 서버가 판정·기록. 1646 #7 미기록이 ✖) | unjudged(4차 옛 기대)
 JUDGE_MODE = "llm"                # --judge: llm(서버 판정 결과·로그와 대조 — 기대 ①~④) | string(옛 문자열 판정기 — 하네스 자체 매칭 기대)
 
 # --------------------------------------------------------------------------- #
@@ -2258,6 +2258,15 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
         styled = [t for t in ans_turns if any(x.startswith("표기:") for x in t.tags)]
         mark = ""
         num = num_of.get(iid)
+        srv_fail = bool(q and q.get("failed"))
+        # 12차: 반말(정중형 누락) 답은 failed 로 기록돼야 한다 — 1645 #15 「本当？」 는 passed 였다(거짓 통과)
+        if any(by_n[n].kind == "casual" for rd in rec.rounds for n in rd.answer_turns if n in by_n):
+            cnt.setdefault("casual", [0, 0, []])
+            cnt["casual"][0] += 1
+            if srv_fail and not srv_pass:
+                cnt["casual"][1] += 1
+            else:
+                cnt["casual"][2].append(f"{num}:{'passed' if srv_pass else 'failed 없음'}")
         # 8차 B: 창 닫힘 직후·세트 밖 통과 기록 — 하네스 ground truth 로 옳고 그름을 가른다
         #   자발 정답(퀴즈 회차든 드릴이든, 공개 전)이면 passed 가 맞다 · 공개 뒤 복창이면 ⛔(1632 #10 どうも)
         if grace_passed and num in grace_passed:
@@ -2345,6 +2354,54 @@ _MOVE_ON_RE = re.compile("표현학습 드릴 안내 주입|표현학습.*다음
 def parse_move_on_notices(log_lines: list[str] | None) -> int:
     """11차: «한 항목 드릴이 학습자 턴 3회를 넘으면 다음 항목으로» 안내 주입 줄 수."""
     return sum(1 for ln in (log_lines or []) if _MOVE_ON_RE.search(ln))
+
+
+_DRILL_NOTICE_ITEM_RE = re.compile(r"드릴 안내 주입[^:]*:.*?항목=(\d+)")
+_NOTICE_TC_RE = re.compile(r"(드릴|세트) 안내 주입[^:]*:.*?tc=(True|False)(?:.*?모델=([\w.\-]+))?")
+
+
+def parse_drill_notices(log_lines: list[str] | None) -> list[int]:
+    """12차 — «표현학습 드릴 안내 주입 n/6: call_id=… 항목=N tc=… 모델=…» 의 항목 번호(주입 순서대로).
+    12차 결정: **항목별 1회 · 통화당 6회** 가 상한이다(11차는 통화당 3회라 앞 2분에 소진됐다 — 1645)."""
+    return [int(m.group(1)) for ln in (log_lines or []) if (m := _DRILL_NOTICE_ITEM_RE.search(ln))]
+
+
+def notice_tc_rows(log_lines: list[str] | None) -> list[tuple[str, bool, str]]:
+    """안내 주입 줄의 (종류 드릴|세트, tc, 모델) — 12차: 완결 텍스트 턴(tc=True)은 **2.5 에서만** 나와야 한다(1646 은 3.1 인데 True 였다)."""
+    out: list[tuple[str, bool, str]] = []
+    for ln in log_lines or []:
+        m = _NOTICE_TC_RE.search(ln)
+        if m:
+            out.append((m.group(1), m.group(2) == "True", m.group(3) or ""))
+    return out
+
+
+def notice_tc_violations(rows: list[tuple[str, bool, str]]) -> list[tuple[str, bool, str]]:
+    """규칙 위반 = 2.5 가 아닌 모델인데 tc=True(또는 2.5 인데 tc=False)."""
+    bad = []
+    for kind, tc, model in rows or []:
+        is25 = "2.5" in (model or "")
+        if tc != is25:
+            bad.append((kind, tc, model))
+    return bad
+
+
+def call_id_coverage(log_lines: list[str] | None) -> tuple[int, int, list[str]]:
+    """12차 A — 표현학습 로그 «전 줄» 에 call_id 가 붙었나 → (붙은 줄, 안 붙은 줄, 안 붙은 문구 샘플).
+    11차(00168-hks)는 큐·드릴 안내·세트 밖 판정·사이드카에만 붙었다 — 가르침 판정·닫힘·유예·마지막·저장엔 없었다(1645 56줄)."""
+    tagged, untagged, kinds = 0, 0, []
+    for ln in log_lines or []:
+        if "표현학습" not in ln:
+            continue
+        if _CALL_ID_RE.search(ln):
+            tagged += 1
+            continue
+        untagged += 1
+        body = ln.split("normalcall ", 1)[-1]
+        kind = re.sub(r"\d+", "N", body.split(":", 1)[0].strip())[:40]   # B12·6.0s 같은 꼬리는 N 으로 뭉쳐 문구별로 센다
+        if kind and kind not in kinds:
+            kinds.append(kind)
+    return tagged, untagged, kinds
 
 
 def drill_streaks(records: dict, turns: list) -> dict[int, int]:
@@ -2547,6 +2604,10 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     empty_b = [t for t in sess.turns if t.role == "beaver" and not t.text.strip()]
     dbl = [t for i, t in enumerate(sess.turns) if t.role == "beaver" and i > 0 and sess.turns[i - 1].role == "beaver" and sess.turns[i - 1].text.strip() and t.text.strip()]
     rep_b = [t for t in sess.turns if t.role == "beaver" and re.search(r"\b(\w{3,}(?: \w+){0,3})\b[,.!? ]+\1\b", t.text, re.I)]
+    if sc.cur.get("raw_rows_n") is not None:
+        _dupes = sc.cur.get("raw_dupes") or []
+        L.append(f"- 전사 저장(call_raw_data) {sc.cur['raw_rows_n']}행 · 같은 (turn_index, role) 중복 {len(_dupes)}건"
+                 + (f" {_dupes[:6]}" if _dupes else "") + f" → {'✔' if not _dupes else '✖'} (12차)")
     L.append(f"- 엔진 관찰: usage_engine `{sc.call_row.get('usage_engine')}` · 원가 ${sc.call_row.get('cost_usd')} · "
              f"첫 비버 발화 {first_b.t if first_b else float('nan'):.1f}s · 빈 비버 턴 {len(empty_b)} · 학습자 없이 연속 비버 턴 {len(dbl)} · "
              f"같은 구절 반복 턴 {len(rep_b)}" + (" (" + ", ".join(f"t{t.n}" for t in rep_b[:8]) + ")" if rep_b else ""))
@@ -2643,15 +2704,40 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         _over = sorted((iid for iid, n in _streaks.items() if n > 3), key=lambda i: -_streaks[i])
         _top = max(_streaks.items(), key=lambda kv: kv[1], default=(0, 0))
         _moves = parse_move_on_notices(server_logs)
-        sc.cur["drill_streaks"] = {"max": _top[1], "max_item": _top[0], "over3": len(_over), "notices": _moves}
+        _notice_items = parse_drill_notices(server_logs)
+        _per_item: dict[int, int] = {}
+        for _n in _notice_items:
+            _per_item[_n] = _per_item.get(_n, 0) + 1
+        _twice = sorted(n for n, c in _per_item.items() if c > 1)
+        sc.cur["drill_streaks"] = {"max": _top[1], "max_item": _top[0], "over3": len(_over), "notices": _moves,
+                                   "notice_items": _notice_items, "notice_twice": _twice}
         L.append(f"- ②-1 한 항목 연속 드릴 턴: 최대 **{_top[1]}**"
                  + (f"(「{sess.items[_top[0]].surface}」)" if _top[0] in sess.items else "")
                  + f" · 3턴 초과 항목 {len(_over)}개"
                  + (" " + ", ".join(f"「{sess.items[i].surface}」{_streaks[i]}" for i in _over[:5]) if _over else "")
-                 + f" · 서버 «다음 항목으로» 안내 {_moves}회 (11차)")
+                 + f" · 서버 드릴 안내 주입 {_moves}회(12차 상한 6 → {'✔' if _moves <= 6 else '✖'})"
+                 + (f" · 항목별 {sorted(_per_item.items())}" if _per_item else "")
+                 + f" · 같은 항목 2회 이상 {len(_twice)}개{_twice if _twice else ''}(12차 상한 1 → {'✔' if not _twice else '✖'})")
         L.append(f"- ③ 표기 변형 정답 → 통과: {cnt['styled'][1]}/{cnt['styled'][0]}" + ("" if ANSWER_STYLE else " (--answer-style 없음)"))
         L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
-        L.append(f"- 서버 퀴즈 세트 {sc.cur['server_quiz_sets'] or '(로그 없음 — 세트 밖 판별 안 함)'} · 세트 밖 자발 정답(비버 이탈, 서버 미판정이 정상) 번호 {cnt['off_set']}")
+        _cas = cnt.get("casual")
+        if _cas:
+            L.append(f"- ⑤ 반말(정중형 누락) 답 → 서버 failed: {_cas[1]}/{_cas[0]}"
+                     + (f" · 어긴 항목 {_cas[2]}" if _cas[2] else "") + " (12차)")
+        _off_note = ("서버가 판정·기록해야 한다(12차)" if OFFSET_EXPECT == "passed" else "서버 미판정이 정상")
+        L.append(f"- 서버 퀴즈 세트 {sc.cur['server_quiz_sets'] or '(로그 없음 — 세트 밖 판별 안 함)'} · 세트 밖 자발 정답(비버 이탈, {_off_note}) 번호 {cnt['off_set']}")
+        _ntc = notice_tc_rows(server_logs)
+        _nbad = notice_tc_violations(_ntc)
+        if _ntc:
+            _models = sorted({m for _k, _t, m in _ntc if m})
+            L.append(f"- 안내 주입 방식(tc): 드릴 {sum(1 for k, _t, _m in _ntc if k == '드릴')}회 · 세트 {sum(1 for k, _t, _m in _ntc if k == '세트')}회 · "
+                     f"tc=True {sum(1 for _k, t, _m in _ntc if t)} / False {sum(1 for _k, t, _m in _ntc if not t)} · 모델 {_models} · "
+                     f"규칙(완결 턴은 2.5 만) 위반 {len(_nbad)}{_nbad if _nbad else ''} → {'✔' if not _nbad else '✖'} (12차)")
+        if server_logs is not None:
+            _tag, _untag, _kinds = call_id_coverage(server_logs)
+            sc.cur["call_id_coverage"] = {"tagged": _tag, "untagged": _untag, "kinds": _kinds}
+            L.append(f"- call_id 태그: 표현학습 줄 {_tag + _untag}개 중 붙은 줄 {_tag} · 안 붙은 줄 {_untag}"
+                     + (f" {_kinds[:8]}" if _kinds else "") + f" → {'✔' if not _untag else '✖'} (12차 A: 전 줄)")
         _gr = cnt.get("grace")
         if _gr:
             L.append(f"- 유예 창(8차 B) 기록 {_gr[1]}/{_gr[0]} 정당 — 공개 뒤 복창을 통과시킨 건 ⛔ 로 센다")
@@ -3302,6 +3388,11 @@ def read_cur_outcome(sf, api: CurApi, call_id: Optional[int], ctx: dict, me_pre:
             r = db.execute(sql("SELECT call_type, status, total_time, summary, usage_engine, usage_json, usage_in_audio, usage_in_text, "
                                "usage_out_audio, usage_out_text, fragment_count FROM call WHERE call_id=:c"), {"c": call_id}).first()
             cc = db.execute(sql("SELECT lesson_id, course, recorded_fragment, lesson_completed FROM cur_call WHERE call_id=:c"), {"c": call_id}).first()
+            # 12차: 전사 중복 저장(1644 는 turn_index 45~54 가 두 번 들어갔다) — 같은 (turn_index, role) 이 2행 이상이면 ✖
+            _dup = db.execute(sql("SELECT turn_index, role, count(*) FROM call_raw_data WHERE call_id=:c "
+                                  "GROUP BY turn_index, role HAVING count(*) > 1 ORDER BY turn_index"), {"c": call_id}).all()
+            sc.cur["raw_dupes"] = [(r[0], r[1], int(r[2])) for r in _dup]
+            sc.cur["raw_rows_n"] = db.execute(sql("SELECT count(*) FROM call_raw_data WHERE call_id=:c"), {"c": call_id}).scalar()
             sc.cur["cur_call"] = ({"lesson_id": cc[0], "course": cc[1], "recorded_fragment": cc[2], "lesson_completed": cc[3]} if cc else None)
             if r is not None:
                 sc.call_row = {"call_type": r[0], "status": r[1], "total_time": r[2], "summary": r[3], "usage_engine": r[4],
@@ -3962,8 +4053,8 @@ def main() -> None:
     ap.add_argument("--no-llm", action="store_true", help="항목 매칭 LLM 폴백 끄기")
     ap.add_argument("--answer-style", choices=("hangul", "roman", "kana"), default=None,
                     help="4차 ③: 정답을 다른 표기로 말한다 — ko: roman(로마자·영어 음성) · ja: kana(가나)·roman(헵번·영어 음성)·hangul(한글 음차·한국어 음성)")
-    ap.add_argument("--offset-expect", choices=("unjudged", "passed"), default="unjudged",
-                    help="서버 퀴즈 세트 밖 자발 정답의 기대 — unjudged(4차) · passed(5차 A 배포 뒤: 세트 밖 정답도 서버가 판정·기록)")
+    ap.add_argument("--offset-expect", choices=("unjudged", "passed"), default="passed",
+                    help="서버 퀴즈 세트 밖 자발 정답의 기대 — passed(12차 기본: 세트 밖 정답도 서버가 판정·기록) · unjudged(4차 옛 기대)")
     ap.add_argument("--judge", choices=("llm", "string"), default="llm",
                     help="llm(기본·4차): 서버 LLM 판정 결과를 정본으로 ①재드릴 ②번호 순 ③표기 변형 통과 ④공개 뒤 복창 비통과 · string: 옛 문자열 판정기 기대")
     ap.add_argument("--logs", action="store_true", help="gcloud logging read 로 서버 로그 첨부")
