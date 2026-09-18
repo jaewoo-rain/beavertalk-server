@@ -617,9 +617,13 @@ async def test_grace_verdict_only_applies_passed_not_failed(monkeypatch):
 class _Sess:
     def __init__(self):
         self.sent_text_turns: list[str] = []
+        self.regrounds: list[tuple[str, bool]] = []
 
     async def send_text_turn(self, text: str) -> None:
         self.sent_text_turns.append(text)
+
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        self.regrounds.append((text, turn_complete))
 
 
 @pytest.mark.asyncio
@@ -629,6 +633,7 @@ async def test_quiz_set_drift_is_flagged_by_the_taught_judge_and_nudged_once(mon
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
     st = _state(JA_ITEMS + [{"item_id": 106, "obj": "またね", "des": "또 봐", "ex": None},
                             {"item_id": 107, "obj": "さようなら", "des": "안녕히 가세요", "ex": None}])
+    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 완결 턴 통로(2.5). 3.1 통로는 E 시험이 본다
     st.covered_nums = [1, 2, 3, 4, 5]        # 6·7 이 남아 있어야 가르침 판정 사이드카가 돈다
     _open_quiz(st, [4, 5])
     st.expr_quiz_set = [4, 5]
@@ -648,6 +653,7 @@ async def test_quiz_set_drift_is_flagged_by_the_taught_judge_and_nudged_once(mon
 @pytest.mark.asyncio
 async def test_quiz_set_nudge_is_capped_per_call():
     st = _state()
+    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 완결 턴 통로(2.5). 3.1 통로는 E 시험이 본다
     st.covered_nums = [1, 2, 3, 4, 5]
     _open_quiz(st, [4, 5])
     st.expr_quiz_set = [4, 5]
@@ -730,6 +736,7 @@ async def test_teaching_a_brand_new_item_during_a_quiz_also_nudges(monkeypatch):
     fake = FakeJudge(taught_fn=lambda p, s: [5], verdict_fn=lambda p, s: {"verdicts": []})
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
     st = _state()
+    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 완결 턴 통로(2.5). 3.1 통로는 E 시험이 본다
     st.covered_nums = [1, 2, 3]
     _open_quiz(st, [1, 2, 3])
     _beaver(st, "자, «네» 는 일본어로 はい 라고 해. 따라 해 봐.")     # 세트 밖 새 항목(5번)을 창 안에서 가르쳤다
@@ -848,12 +855,13 @@ CID_FORMATS = (
 class _CidSess:
     def __init__(self):
         self.text_turns: list[str] = []
+        self.regrounds: list[tuple[str, bool]] = []
 
     async def send_text_turn(self, text: str) -> None:
         self.text_turns.append(text)
 
     async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
-        self.text_turns.append(text)
+        self.regrounds.append((text, turn_complete))
 
 
 def _cid_state(call_id=1643):
@@ -938,6 +946,7 @@ JA_DRILL = [
 def _drill_state(items=None):
     st = _state(items=items or JA_DRILL)
     st.call_id = 1643
+    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 통로 판별용(2.5 = 완결 턴)
     st.expr_llm_judge = False          # 문자열 경로 — 드릴 추적은 판정기와 무관하다
     return st
 
@@ -965,7 +974,7 @@ async def test_drill_on_one_item_past_three_learner_turns_gets_one_move_on_note(
     assert sess.text_turns == [cs.EXPRESSION_DRILL_MOVE_ON], "3턴 초과 시점에 안내 1회"
     assert st.expr_drill_nudges == 1 and st.expr_drill_nudge_pending is False
     line = [r.getMessage() for r in caplog.records if "드릴 안내 주입" in r.getMessage()][-1]
-    assert "call_id=1643" in line and "1/6" in line
+    assert "call_id=1643" in line and "1/6" in line and "tc=True" in line
 
 
 JA_DRILL8 = [{"item_id": 200 + i, "obj": obj, "des": "뜻%d" % i, "ex": None} for i, obj in enumerate(
@@ -1007,6 +1016,28 @@ async def test_drill_move_on_note_is_capped_at_six_per_call():
     assert cs.EXPR_DRILL_NUDGE_MAX == 6
     assert len(sess.text_turns) == 6 == st.expr_drill_nudges, sess.text_turns
     assert len(st.expr_drill_nudged) == 6, st.expr_drill_nudged
+
+
+# --------------------------------------------------------------------------- #
+# 12차 E (2026-09-18, 1646 — 3.1 인데 드릴 안내가 tc=True 로 나갔다) — 안내 통로도 10차 결정(_cue_completed_turn)을 탄다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_notes_use_the_completed_turn_only_on_25_like_the_quiz_cue():
+    """E — 드릴 안내·세트 안내: 2.5 면 완결 텍스트 턴, 3.1 이면 종전 통로(재접지 얹기 tc=False)."""
+    for model, expect_tc in (("gemini-live-2.5-flash-native-audio", True), ("gemini-3.1-flash-live-preview", False)):
+        st, sess = _drill_state(), _CidSess()
+        st.live_model = model
+        st.expr_drill_nudge_pending, st.expr_drill_focus = True, 1
+        await cs._inject_drill_move_on(sess, st)
+        st2, sess2 = _drill_state(), _CidSess()
+        st2.live_model = model
+        st2.expr_quiz_open, st2.expr_quiz_set = True, [1, 2]
+        await cs._inject_quiz_set_reminder(sess2, st2)
+        for name, sx in (("드릴 안내", sess), ("세트 안내", sess2)):
+            if expect_tc:
+                assert len(sx.text_turns) == 1 and sx.regrounds == [], (model, name, sx.text_turns, sx.regrounds)
+            else:
+                assert sx.text_turns == [] and len(sx.regrounds) == 1 and sx.regrounds[0][1] is False, (model, name)
 
 
 @pytest.mark.asyncio

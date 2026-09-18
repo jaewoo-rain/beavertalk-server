@@ -1628,12 +1628,14 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
         return False
     labels = " ".join("«%s»" % state.reground_items[n - 1] for n in state.expr_quiz_set if 1 <= n <= len(state.reground_items))
     state.expr_quiz_set_nudges += 1
-    await session.send_text_turn(expression_quiz_set_reminder(labels))
+    # ⭐ 12차 E(2026-09-18, 1646 — 3.1 인데 완결 턴으로 나갔다): 10차 결정은 «완결 턴은 2.5 계열만» 이다. 세트 안내·드릴 안내도 큐와
+    #   같은 판별(`_cue_completed_turn`)을 탄다 — 3.1 이면 종전 통로(재접지 얹기, tc=False).
+    tc = _cue_completed_turn(state)
+    await _send_note(session, expression_quiz_set_reminder(labels), tc)
     _note_text_inject(state, "quiz_set")
-    # 10차 계측: 세트 안내는 8차 C 부터 모델과 무관하게 완결 텍스트 턴(turn_end 뒤 비버 idle)이다 — 하네스 대조용으로 tc·모델을 같이 찍는다.
-    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s tc=True 모델=%s",
+    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s tc=%s 모델=%s",
                 EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
-                _cid(state), state.expr_quiz_set, state.live_model or "-")
+                _cid(state), state.expr_quiz_set, tc, state.live_model or "-")
     return True
 
 
@@ -1704,13 +1706,14 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     if state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
         return False
     state.expr_drill_nudges += 1
-    await session.send_text_turn(EXPRESSION_DRILL_MOVE_ON)
+    tc = _cue_completed_turn(state)      # 12차 E — 2.5 만 완결 턴(10차 결정) · 3.1 은 종전 통로
+    await _send_note(session, EXPRESSION_DRILL_MOVE_ON, tc)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
-    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s tc=True 모델=%s",
+    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s tc=%s 모델=%s",
                 state.expr_drill_nudges, EXPR_DRILL_NUDGE_MAX, _cid(state),
                 state.expr_drill_nudge_for if state.expr_drill_nudge_for is not None else state.expr_drill_focus,
-                state.live_model or "-")
+                tc, state.live_model or "-")
     return True
 
 
@@ -6330,6 +6333,15 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         _cid(state), state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
         tc, state.live_model or "-",
     )
+
+
+async def _send_note(session: LiveSessionProtocol, text: str, completed_turn: bool) -> None:
+    """12차 E — 통화 중 안내문 1건을 보낸다. 완결 텍스트 턴(2.5 — 종료 시드와 같은 통로) / 재접지 얹기(3.1 — 종전 통로) 중 하나.
+    ⛔ 부르는 자리는 그대로다(turn_end 뒤 비버 idle) — 통로만 모델에 맞춘다."""
+    if completed_turn:
+        await session.send_text_turn(text)
+    else:
+        await session.send_reground(text, turn_complete=False)
 
 
 def _cue_completed_turn(state: _CallState) -> bool:
