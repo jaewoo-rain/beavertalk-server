@@ -775,7 +775,7 @@ class _CallState:
         # 큐 보류(1552, 2026-09-13): expr_covered_by_user — 학습자 발화로 확인된 번호 · expr_quiz_cue_covered_at_arm — arm 때 covered 수 ·
         #   expr_quiz_cue_user_turns — arm 뒤 학습자 턴 수(정리 안 되면 3회에 얹는다)
         "expr_covered_by_user", "expr_quiz_cue_covered_at_arm", "expr_quiz_cue_user_turns",
-        "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "call_id", "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
@@ -999,6 +999,9 @@ class _CallState:
         self.expr_covered_by_user: set[int] = set()        # 학습자 발화로 확인된 번호(큐 보류 판정 — 1552)
         self.expr_quiz_cue_covered_at_arm: int = 0
         self.expr_quiz_cue_user_turns: int = 0
+        # ⭐ 11차 A(2026-09-18, 같은 시간대에 1643 ja 하네스 · 1644 ko 사장님 두 통화가 돌자 하네스가 서로의 줄을 섞어 읽었다 — «세트 밖 항목 13» 오귀속):
+        #   표현학습 로그 줄마다 call_id 를 찍기 위해 state 에 싷는다. ⚠ run_call 이 통화 행을 만든 뒤에 채워진다 — 그 전(시험·레벨테스트)엔 None 이고 로그엔 «call_id=-» 로 나간다.
+        self.call_id: Optional[int] = None
         self.call_mode: str = "chat"
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
@@ -1309,6 +1312,12 @@ def _note_covered_items(
 
 # 퀴즈 큐 로그 접두 — ⛔ 고정. 하네스(c4f6bbb, QUIZ_CUE_LOG_PREFIX)가 이 접두로 큐↔비버 앵커를 시간 대조한다.
 EXPR_QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
+
+
+def _cid(state: _CallState) -> str:
+    """11차 A — 로그 줄에 붙일 call_id 값(없으면 «-»). 형식은 판정 사이드카 줄과 같게 «call_id=NNNN» 을 접두(«…:») 바로 뒤
+    **첫 필드**로 둔다 — 기존 필드 순서는 그대로라 하네스 파서는 안 깨진다(뒤 필드를 이름으로 읽으므로)."""
+    return "-" if state.call_id is None else str(state.call_id)
 # 닫힘 안전판 — quiz_set 밖 새 번호(비버 발화)가 이만큼 쌓이면 «순번상 다음 항목» 이 아니어도 닫는다.
 EXPR_QUIZ_STRAY_CLOSE = 2
 
@@ -1430,7 +1439,7 @@ EXPR_LIST_LOG_MAX_ITEMS = 18     # 8차 A — «번호=항목» 줄의 항목 �
 EXPR_LIST_LOG_MAX_CHARS = 800    # 8차 A — 같은 줄의 길이 상한
 
 
-def _log_expression_items(items: list[dict]) -> None:
+def _log_expression_items(items: list[dict], call_id: int | None = None) -> None:
     """⭐ 8차 A(2026-09-15, 하네스 요청·bt-back 승인): 이 통화의 **번호 정본**을 통화 시작에 한 줄로 찍는다.
     하네스는 cur_call.items 위치로 번호를 만드는데 그건 서버 state.expr_items 와 어긋날 수 있다(1626: 스냅샷 8항목인데 서버는 #15 를 썼다)."""
     if not items:
@@ -1446,7 +1455,8 @@ def _log_expression_items(items: list[dict]) -> None:
         parts.append(piece)
         used += len(piece) + 3
     logger.info(
-        "normalcall 표현학습 목록: %s%s (%d개, 복습 %d)", " · ".join(parts), (" · 외 %d개" % extra) if extra else "",
+        "normalcall 표현학습 목록: call_id=%s %s%s (%d개, 복습 %d)",
+        "-" if call_id is None else call_id, " · ".join(parts), (" · 외 %d개" % extra) if extra else "",
         len(items), sum(1 for d in items if d.get("review")),
     )
 
@@ -1586,10 +1596,12 @@ def _note_quiz_set_drift(state: _CallState, retaught: list, seg_idx: int) -> Non
     if not off:
         return
     if state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
-        logger.info("%s 세트 이탈(안내 상한 %d): B%d 다시 물은 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX, EXPR_QUIZ_SET_NUDGE_MAX, seg_idx, off)
+        logger.info("%s 세트 이탈(안내 상한 %d): call_id=%s B%d 다시 물은 항목=%s",
+                    EXPR_QUIZ_CUE_LOG_PREFIX, EXPR_QUIZ_SET_NUDGE_MAX, _cid(state), seg_idx, off)
         return
     state.expr_quiz_set_nudge_pending = True
-    logger.info("%s 세트 이탈: B%d 세트 밖으로 다룬 항목=%s 세트=%s — 다음 턴에 안내", EXPR_QUIZ_CUE_LOG_PREFIX, seg_idx, off, state.expr_quiz_set)
+    logger.info("%s 세트 이탈: call_id=%s B%d 세트 밖으로 다룬 항목=%s 세트=%s — 다음 턴에 안내",
+                EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), seg_idx, off, state.expr_quiz_set)
 
 
 async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallState) -> bool:
@@ -1602,8 +1614,9 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
     await session.send_text_turn(expression_quiz_set_reminder(labels))
     _note_text_inject(state, "quiz_set")
     # 10차 계측: 세트 안내는 8차 C 부터 모델과 무관하게 완결 텍스트 턴(turn_end 뒤 비버 idle)이다 — 하네스 대조용으로 tc·모델을 같이 찍는다.
-    logger.info("%s 세트 안내 주입 %d/%d: 세트=%s tc=True 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
-                state.expr_quiz_set, state.live_model or "-")
+    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s tc=True 모델=%s",
+                EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
+                _cid(state), state.expr_quiz_set, state.live_model or "-")
     return True
 
 
@@ -1635,8 +1648,8 @@ def _expression_quiz_note_open_user_turn(state: _CallState, text: str = "") -> N
         return
     state.expr_quiz_open_user_turns += 1
     if state.expr_quiz_open_user_turns >= EXPR_QUIZ_OPEN_MAX_USER_TURNS:
-        logger.warning("%s 강제 닫힘: seq=%d 학습자 턴 %d 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
-                       EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_seq, state.expr_quiz_open_user_turns)
+        logger.warning("%s 강제 닫힘: call_id=%s seq=%d 학습자 턴 %d 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
+                       EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), state.expr_quiz_seq, state.expr_quiz_open_user_turns)
         _close_expression_quiz(state, why="학습자 턴 상한 %d" % EXPR_QUIZ_OPEN_MAX_USER_TURNS)
 
 
@@ -1674,8 +1687,8 @@ def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool 
     state.expr_quiz_cue_pending = _expression_quiz_cue(state, nums, retry=retry)
     state.expr_quiz_cue_armed_ts = asyncio.get_running_loop().time() if _loop_running() else None
     logger.info(
-        "%s arm: seq=%d 항목=%s retry=%s covered=%d", EXPR_QUIZ_CUE_LOG_PREFIX,
-        state.expr_quiz_seq, nums, retry, len(state.covered_nums),
+        "%s arm: call_id=%s seq=%d 항목=%s retry=%s covered=%d", EXPR_QUIZ_CUE_LOG_PREFIX,
+        _cid(state), state.expr_quiz_seq, nums, retry, len(state.covered_nums),
     )
 
 
@@ -1774,8 +1787,8 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
         state.expr_quiz_drill_num = next(
             (n for n in range(1, len(state.expr_items) + 1) if n not in covered_now), None,
         )
-        logger.info("%s 열림: seq=%d open_seg=%d 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
-                    state.expr_quiz_seq, state.expr_quiz_open_seg, state.expr_quiz_set)
+        logger.info("%s 열림: call_id=%s seq=%d open_seg=%d 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
+                    _cid(state), state.expr_quiz_seq, state.expr_quiz_open_seg, state.expr_quiz_set)
 
 
 def _expression_quiz_span(state: _CallState, *, include_tail: bool, upto: int | None = None) -> list[tuple[int, str, str]]:
@@ -2032,7 +2045,7 @@ def _apply_off_set_pass(state: _CallState, n: int, why: str) -> None:
     if n not in state.covered_nums:
         state.covered_nums.append(n)
     state.expr_quizzed.add(n)
-    logger.info("normalcall 표현학습 퀴즈 판정(LLM·세트 밖): 항목 %d «%s» passed + covered (%s)", n, surface, why)
+    logger.info("normalcall 표현학습 퀴즈 판정(LLM·세트 밖): call_id=%s 항목 %d «%s» passed + covered (%s)", _cid(state), n, surface, why)
 
 
 async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool,
@@ -2097,7 +2110,7 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
                 iid, surface = _num_item(state, n)
                 if grace and iid is not None and iid in state.expr_quiz_fail:
                     # 9차 A② — 단조 보강: 유예는 새 사건이 아니라 같은 사건의 꼬리라, 이미 failed 로 확정된 항목을 passed 로 덮지 않는다.
-                    logger.info("normalcall 표현학습 유예 판정 기각(이미 오답 확정): 항목 %d «%s»", n, surface)
+                    logger.info("normalcall 표현학습 유예 판정 기각(이미 오답 확정): call_id=%s 항목 %d «%s»", _cid(state), n, surface)
                     continue
                 _apply_off_set_pass(state, n, str(getattr(v, "why", "") or "")[:40])
                 out.setdefault("off_set_passed", []).append(n)
@@ -2125,8 +2138,8 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
             state.expr_quiz_llm_decided.add(n)
     out["pending"] += [n for n in nums if n not in seen]
     logger.info(
-        "normalcall 표현학습 퀴즈 판정(LLM): seq=%d %s%s passed=%s failed=%s pending=%s why=%s",
-        seq, "마지막 " if final else "", ("U%d까지" % span[-1][0]) if span else "", out["passed"], out["failed"], out["pending"], out["why"],
+        "normalcall 표현학습 퀴즈 판정(LLM): call_id=%s seq=%d %s%s passed=%s failed=%s pending=%s why=%s",
+        _cid(state), seq, "마지막 " if final else "", ("U%d까지" % span[-1][0]) if span else "", out["passed"], out["failed"], out["pending"], out["why"],
     )
     # ⭐ 6차 A(2026-09-15, 재검 1618~1620 — 세트를 다 물어도 창이 안 닫혀 비버가 4번째 항목을 묻고 «강제 닫힘(학습자 턴 6)» 으로 닫혔다): 판정이 도착한 시점에
     #   **지금 퀴즈 세트가 전부 확정(passed|failed)** 이면 즉시 닫는다 → 다음 큐를 arm 할 수 있다. «다음 항목 소개»·6턴 강제 닫힘은 안전판으로 그대로.
@@ -2272,8 +2285,8 @@ async def _final_expression_progress(state: _CallState) -> None:
     except Exception as exc:  # noqa: BLE001 - 저장을 막으면 안 된다(R5)
         logger.warning("normalcall 표현학습: 마지막 판정 실패(무시): %s", exc)
     if state.expr_quiz_cue_pending is not None:
-        logger.info("%s 미얹힘(통화 끝): seq=%d 항목=%s — drilled 로만 남는다", EXPR_QUIZ_CUE_LOG_PREFIX,
-                    state.expr_quiz_seq, state.expr_quizzed and sorted(state.expr_quizzed)[-len(state.expr_quiz_set or []):])
+        logger.info("%s 미얹힘(통화 끝): call_id=%s seq=%d 항목=%s — drilled 로만 남는다", EXPR_QUIZ_CUE_LOG_PREFIX,
+                    _cid(state), state.expr_quiz_seq, state.expr_quizzed and sorted(state.expr_quizzed)[-len(state.expr_quiz_set or []):])
     logger.info(
         "normalcall 표현학습 마지막 판정: %.0fms (상한 %.0fms%s)",
         (loop.time() - t0) * 1000.0, EXPR_FINAL_JUDGE_TIMEOUT_S * 1000.0,
@@ -3271,7 +3284,7 @@ async def run_call(
                 cur_open.lesson.code, cur_open.lesson.no, cur_open.status, len(expr_items),
                 sum(1 for d in expr_items if d.get("review")), cur_open.resumed, call_id,
             )
-            _log_expression_items(expr_items)     # 8차 A — «번호=항목» 정본 한 줄(하네스가 이 번호로 판정표를 만든다)
+            _log_expression_items(expr_items, call_id)     # 8차 A — «번호=항목» 정본 한 줄(하네스가 이 번호로 판정표를 만든다)
         else:
             # ⭐ 차시 프리토킹 v1(계획 2026-09-12-프리토킹-코스-대본 §3·§9): 흥미 미주입 · 문장 수 2 · 차시판 선톡 시드.
             system_instruction = build_freetalk_instruction(
@@ -3341,6 +3354,7 @@ async def run_call(
     # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
     #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
     #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
+    state.call_id = call_id                                # 11차 A — 표현학습 로그 줄의 call_id 출처(통화 행은 위에서 이미 만들었다)
     state.live_model = live_model
     state.live_vertex = live_vertex
     if resumed:
@@ -6140,7 +6154,7 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         #   정리될 때까지(학습자 성공 / 시도 3번 / 비버가 다음 항목 소개) 큐를 들고 있는다 — 재접지처럼 다음 발화에 다시 본다.
         if why != state.expr_quiz_hold_why:     # ④(b) 2026-09-14 — 마이크 프레임마다 불리므로 사유가 바뀔 때만 1줄(1604 18:18:20 1초에 15줄)
             state.expr_quiz_hold_why = why
-            logger.info("%s 보류: seq=%d 항목=%s 이유=%s", EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_seq, state.expr_quiz_set, why)
+            logger.info("%s 보류: call_id=%s seq=%d 항목=%s 이유=%s", EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), state.expr_quiz_seq, state.expr_quiz_set, why)
         return
     now = asyncio.get_running_loop().time()
     waited = (now - state.expr_quiz_cue_armed_ts) if state.expr_quiz_cue_armed_ts is not None else 0.0
@@ -6158,7 +6172,7 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - 다음 발화에서 재시도(R5)
-        logger.warning("%s 얹기 실패(다음 발화 재시도): %s", EXPR_QUIZ_CUE_LOG_PREFIX, exc)
+        logger.warning("%s 얹기 실패(다음 발화 재시도): call_id=%s %s", EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), exc)
         return
     state.expr_quiz_cue_pending = None
     state.expr_quiz_awaiting_open = True
@@ -6166,8 +6180,8 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     _note_text_inject(state, "quiz_cue")
     # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
     logger.info(
-        "%s 얹기: seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s tc=%s 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
-        state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
+        "%s 얹기: call_id=%s seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s tc=%s 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
+        _cid(state), state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
         tc, state.live_model or "-",
     )
 

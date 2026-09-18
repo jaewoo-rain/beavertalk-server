@@ -540,9 +540,10 @@ def test_expression_item_list_is_logged_once_with_server_numbers(caplog):
     import logging
     caplog.set_level(logging.INFO, logger=cs.logger.name)
     cs._log_expression_items([{"item_id": 1, "obj": "ありがとうございます", "des": "감사합니다"},
-                              {"item_id": 2, "obj": "どうも", "des": "고마워요", "review": True}])
+                              {"item_id": 2, "obj": "どうも", "des": "고마워요", "review": True}], 1643)
     line = [r.getMessage() for r in caplog.records if "표현학습 목록:" in r.getMessage()][-1]
-    assert line == "normalcall 표현학습 목록: 1=ありがとうございます · 2=どうも (2개, 복습 1)"
+    # 11차 A(2026-09-18): 접두 «…:» 바로 뒤 첫 필드가 call_id — 기존 필드 순서는 그대로다
+    assert line == "normalcall 표현학습 목록: call_id=1643 1=ありがとうございます · 2=どうも (2개, 복습 1)"
     caplog.clear()
     cs._log_expression_items([{"item_id": i, "obj": "표현%02d" % i} for i in range(1, 25)])
     line = [r.getMessage() for r in caplog.records if "표현학습 목록:" in r.getMessage()][-1]
@@ -824,3 +825,96 @@ async def test_completed_turn_cue_is_not_sent_while_the_beaver_is_speaking():
     st.turn_id = None
     await cs._attach_quiz_cue(sess, st, "마이크")
     assert len(sess.text_turns) == 1
+
+
+# --------------------------------------------------------------------------- #
+# 11차 A (2026-09-18, 1643 ja 하네스 ↔ 1644 ko 사장님이 같은 시간대에 돌아 하네스가 서로의 줄을 섞어 읽었다) — 표현학습 로그 줄마다 call_id
+# --------------------------------------------------------------------------- #
+# 11차 A — 하네스가 읽는 줄의 «접두 뒤 첫 필드» 형식. 소스의 포맷 문자열에서 이 모양이 유지되는지 시험이 지킨다(줄을 실행 못 하는 것까지).
+CID_FORMATS = (
+    "표현학습 목록: call_id=%s",
+    " arm: call_id=%s", " 보류: call_id=%s", " 얹기: call_id=%s", " 열림: call_id=%s", " 강제 닫힘: call_id=%s",
+    " 미얹힘(통화 끝): call_id=%s", " 얹기 실패(다음 발화 재시도): call_id=%s",
+    " 세트 이탈: call_id=%s", " 세트 이탈(안내 상한 %d): call_id=%s", " 세트 안내 주입 %d/%d: call_id=%s",
+    "퀴즈 판정(LLM): call_id=%s", "퀴즈 판정(LLM·세트 밖): call_id=%s", "유예 판정 기각(이미 오답 확정): call_id=%s",
+)
+
+
+class _CidSess:
+    def __init__(self):
+        self.text_turns: list[str] = []
+
+    async def send_text_turn(self, text: str) -> None:
+        self.text_turns.append(text)
+
+    async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
+        self.text_turns.append(text)
+
+
+def _cid_state(call_id=1643):
+    st = _state()
+    st.call_id = call_id
+    return st
+
+
+@pytest.mark.asyncio
+async def test_every_expression_log_line_carries_the_call_id(caplog):
+    """A — 하네스가 통화를 구분할 수 있게 지정된 줄 전부에 call_id 가 실린다."""
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st = _cid_state()
+    cs._log_expression_items([{"item_id": 1, "obj": "ありがとうございます"}], st.call_id)
+    st.covered_nums = [1, 2, 3]
+    st.expr_quiz_cue_pending = "[큐]"
+    st.expr_quiz_set, st.expr_quiz_seq, st.expr_quiz_prev_num = [1, 2, 3], 1, None
+    sess = _CidSess()
+    await cs._attach_quiz_cue(sess, st, "마이크")                 # 얹기
+    st.expr_quiz_awaiting_open = True
+    cs._expression_quiz_open_on_beaver_turn(st)                   # 열림
+    st.expr_quiz_open_user_turns = cs.EXPR_QUIZ_OPEN_MAX_USER_TURNS - 1
+    cs._expression_quiz_note_open_user_turn(st, "음 모르겠어요")    # 강제 닫힘
+    # 세트 이탈 · 세트 안내 주입
+    st.expr_quiz_open, st.expr_quiz_set = True, [1, 2]
+    st.covered_nums = [1, 2, 3]
+    cs._note_quiz_set_drift(st, [3], 7)
+    await cs._inject_quiz_set_reminder(sess, st)
+    # 세트 밖 통과 · 유예 기각
+    cs._apply_off_set_pass(st, 3, "자발 정답")
+    st.expr_quiz_fail.add(st.expr_items[0]["item_id"])
+    # 보류 줄
+    st2 = _cid_state()
+    st2.expr_quiz_cue_pending, st2.expr_quiz_prev_num, st2.expr_quiz_cue_user_turns = "[큐]", 1, 0
+    await cs._attach_quiz_cue(_CidSess(), st2, "마이크")
+    msgs = [r.getMessage() for r in caplog.records]
+    for mark in ("표현학습 목록:", "퀴즈 큐 얹기:", "퀴즈 큐 열림:", "퀴즈 큐 강제 닫힘:", "퀴즈 큐 세트 이탈:",
+                 "세트 안내 주입", "퀴즈 판정(LLM·세트 밖):", "퀴즈 큐 보류:"):
+        hits = [m for m in msgs if mark in m]
+        assert hits, "이 줄이 안 찍혔다: %s" % mark
+        assert all("call_id=1643" in m for m in hits), (mark, hits)
+
+
+@pytest.mark.asyncio
+async def test_call_id_is_the_first_field_after_the_prefix_and_old_fields_keep_their_order(caplog):
+    """A — 하네스 파서용 형식: «…: call_id=NNNN <종전 첫 필드> …» (call_id 만 끼워 넣고 뒤 필드 순서는 그대로) · call_id 가 없으면 «-»."""
+    import io
+    import logging
+    import re
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st = _cid_state(1644)
+    st.expr_quiz_cue_pending, st.expr_quiz_set, st.expr_quiz_seq, st.expr_quiz_prev_num = "[큐]", [4, 5], 2, None
+    st.live_model = "gemini-live-2.5-flash-native-audio"
+    await cs._attach_quiz_cue(_CidSess(), st, "마이크")
+    line = [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
+    assert re.search(r"퀴즈 큐 얹기: call_id=1644 seq=2 항목=\[4, 5\] 얹기=마이크 대기=\d+s 비버턴=.+ 정리=.* tc=\w+ 모델=", line), line
+    m = re.search(r"call_id=(\d+|-)", line)
+    assert m and m.group(1) == "1644"
+    # 지정된 줄 전부 — 소스의 포맷 문자열이 «접두 뒤 첫 필드 = call_id» 를 지킨다
+    src = io.open(cs.__file__, encoding="utf-8").read()
+    for fmt in CID_FORMATS:
+        assert fmt in src, "이 줄에 call_id 가 빠졌다: %s" % fmt
+    # call_id 를 모르는 경로(레벨테스트·시험)는 «-»
+    caplog.clear()
+    st0 = _state()
+    st0.expr_quiz_cue_pending, st0.expr_quiz_set, st0.expr_quiz_seq, st0.expr_quiz_prev_num = "[큐]", [1], 1, None
+    await cs._attach_quiz_cue(_CidSess(), st0, "마이크")
+    assert "call_id=- seq=1" in [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
