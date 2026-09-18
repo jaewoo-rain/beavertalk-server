@@ -2230,7 +2230,8 @@ def in_quiz_window(epoch: float, windows: list, slack: float = 1.0) -> Optional[
 
 def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[dict], turns: list,
                     server_sets: Optional[list[list[int]]] = None, offset_expect: str = "unjudged",
-                    num_of: Optional[dict[int, int]] = None, grace_passed: Optional[set[int]] = None) -> tuple[bool, list[str], dict]:
+                    num_of: Optional[dict[int, int]] = None, grace_passed: Optional[set[int]] = None,
+                    server_windows: Optional[list[tuple[int, Optional[float], Optional[float], list[int]]]] = None) -> tuple[bool, list[str], dict]:
     """4차(LLM 판정) 기대 — **서버 판정 결과(cur_call.items 스냅샷 = result.quiz_items)** 를 정본으로, 하네스는 «무엇을 했는가» 만 댄다.
       ③ 퀴즈 회차의 공개 전 자발 정답 + 그 턴 전사 있음 → 서버 passed 여야(표기 변형 답이면 ③ 로 따로 센다) · 앵커 없는 재출제만이면 passed~
       ④ 공개 뒤 복창 / 드릴만 한 항목 / 오답·모름 → 서버 passed 면 ✖ · 반말 답은 ~(LLM 이 격식을 어떻게 볼지 미정)
@@ -2259,6 +2260,16 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
         mark = ""
         num = num_of.get(iid)
         srv_fail = bool(q and q.get("failed"))
+        # 12차 재검(1647 #3 こんばんは): 드릴 **첫 답**이 자발 정답이면 그건 «공개 전 정답» 이다 — 뒤에 되감기 퀴즈에서 공개+복창으로
+        #   끝나도 서버가 그 턴으로 통과를 주는 게 맞다(서버 why=«학습자가 정답을 먼저 말함»). 서버 창 안이면 passed 기대 · 창 밖이면 ~.
+        drill_spont = (rec.drill_answers[:1] == ["correct"] and not rec.intro_pre_reveal and not rec.drill_revealed)
+        #   ⛔ 서버가 «들은» 정답이어야 한다 — 전사가 깨진 드릴 정답(1645 #15 「本当ですか」→«ポンド です か ?»)은 근거가 못 된다
+        _dt = next((t for t in turns if t.role == "learner" and t.item_id == iid and t.kind == "correct"
+                    and t.stt and same_reading(t.text, t.stt)), None) if drill_spont else None
+        drill_spont = drill_spont and _dt is not None
+        drill_spont_in_window = bool(_dt is not None and num is not None and any(
+            num in nums and (op or 0) <= (_dt.wall or 0) <= (cl if cl is not None else float("inf"))
+            for _seq, op, cl, nums in (server_windows or [])))
         # 12차: 반말(정중형 누락) 답은 failed 로 기록돼야 한다 — 1645 #15 「本当？」 는 passed 였다(거짓 통과)
         if any(by_n[n].kind == "casual" for rd in rec.rounds for n in rd.answer_turns if n in by_n):
             cnt.setdefault("casual", [0, 0, []])
@@ -2321,6 +2332,15 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
             ok, did, exp = True, "자발 정답 · 전사 없음(무음 턴)", "—~"
             mark = "~" if srv_pass else ""
             cnt["silent"] += 1
+        elif drill_spont and any(rd.revealed for rd in rec.rounds):
+            # 드릴에서 이미 스스로 말한 항목 — 서버 통과는 옳다(④ 로 세지 않는다)
+            ok = srv_pass if drill_spont_in_window else True
+            did = "드릴 자발 정답(공개 전) → 뒤에 되감기 공개·복창"
+            exp = "passed(드릴 자발)" if drill_spont_in_window else "passed~/—~"
+            mark = "" if drill_spont_in_window else "~"
+            cnt.setdefault("drill_spont", [0, 0])
+            cnt["drill_spont"][0] += 1
+            cnt["drill_spont"][1] += int(bool(srv_pass))
         elif any(rd.revealed for rd in rec.rounds):
             ok, did, exp = not srv_pass, "비버 공개 뒤 복창 ④", "—"
             cnt["reveal"][0] += 1
@@ -2678,10 +2698,12 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             L.append(f"- ⚠ **서버 로그에 다른 통화가 섞였다**(«표현학습 목록» 줄 {_n_lists}개) — 우리 목록은 표면형 일치로 골랐고, "
                      f"**세트·유예·큐 주입(tc) 판정은 이 통화에서 끄고 표시만 한다**(잘못된 ✖ 방지). 통화는 한 번에 하나만 돌리는 게 맞다.")
         sc.cur["item_numbers"] = {"source": "서버 목록 로그" if _num_src else "cur_call.items 위치(폴백)", "n": len(_num_of)}
+        _srv_wins = parse_quiz_windows(server_logs) if (server_logs is not None and not _mixed) else []
         ok_llm, tbl, cnt = llm_judge_table(sess.records, sess.drilled_order, sc.cur.get("quiz_items") or [], sess.turns,
                                            server_sets=([nums for _, _, nums in _srv_sets] if _srv_sets else None) if not _mixed else None,
                                            offset_expect=OFFSET_EXPECT, num_of=_num_of,
-                                           grace_passed=set() if _mixed else parse_grace_passes(server_logs))
+                                           grace_passed=set() if _mixed else parse_grace_passes(server_logs),
+                                           server_windows=_srv_wins)
         L.append(f"- 항목 번호 정본: {sc.cur['item_numbers']['source']} ({len(_num_of)}개 대응"
                  + (f" · 서버 목록 {len(_num_src)}항목" if _num_src else "") + ")")
         L += tbl
@@ -2717,9 +2739,13 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                  + (" " + ", ".join(f"「{sess.items[i].surface}」{_streaks[i]}" for i in _over[:5]) if _over else "")
                  + f" · 서버 드릴 안내 주입 {_moves}회(12차 상한 6 → {'✔' if _moves <= 6 else '✖'})"
                  + (f" · 항목별 {sorted(_per_item.items())}" if _per_item else "")
+                 + (f" · 항목 미상 {_moves - len(_notice_items)}개" if _moves > len(_notice_items) else "")
                  + f" · 같은 항목 2회 이상 {len(_twice)}개{_twice if _twice else ''}(12차 상한 1 → {'✔' if not _twice else '✖'})")
         L.append(f"- ③ 표기 변형 정답 → 통과: {cnt['styled'][1]}/{cnt['styled'][0]}" + ("" if ANSWER_STYLE else " (--answer-style 없음)"))
         L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
+        _ds = cnt.get("drill_spont")
+        if _ds:
+            L.append(f"- ④-1 드릴에서 공개 전 자발 정답을 낸 항목(뒤에 되감기 공개·복창): {_ds[0]}개 중 서버 통과 {_ds[1]} — 통과가 맞다(12차 1647 #3)")
         _cas = cnt.get("casual")
         if _cas:
             L.append(f"- ⑤ 반말(정중형 누락) 답 → 서버 failed: {_cas[1]}/{_cas[0]}"

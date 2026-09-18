@@ -81,3 +81,45 @@ def test_casual_answer_passed_is_counted_as_violation():
     ok, _lines, cnt = _casual_case({"item_id": 15, "surface": "本当ですか", "passed": True, "failed": False, "drilled": True})
     assert ok is False
     assert cnt["casual"][0] == 1 and cnt["casual"][1] == 0 and cnt["casual"][2] == ["15:passed"]
+
+
+# ── ④-1 드릴에서 공개 전 자발 정답 → 뒤에 되감기 공개·복창 (1647 #3 こんばんは) ── #
+def _spont_case(server_row, stt="こんばんは 。", windows=None):
+    T = h.Turn
+    turns = [T(7, "learner", 17.0, "こんばんは", stt=stt, kind="correct", item_id=3, wall=1000.0),
+             T(18, "learner", 44.0, "おやすみなさい", stt="お やすみ なさい 。", kind="distractor", item_id=3, wall=1030.0),
+             T(20, "learner", 48.0, "こんばんは", stt="こんばんは 。", kind="parrot", item_id=3, wall=1034.0)]
+    r = h.ItemRecord(item=h.Item(3, "こんばんは", "Good evening", "", ("good evening",), kind="chunk"), k=3, policy=3)
+    r.drill_attempts, r.drill_answers, r.drill_revealed = 1, ["correct"], False
+    r.rounds.append(h.QuizRound(n=1, asked_at=44.0, block=1, revealed=True, heard=True,
+                                answer_turns=[18, 20], answers=["distractor", "parrot"]))
+    return h.llm_judge_table({3: r}, [3], [server_row], turns, num_of={3: 3},
+                             server_windows=windows if windows is not None else [(1, 990.0, 1050.0, [1, 2, 3])])
+
+
+PASSED_ROW = {"item_id": 3, "surface": "こんばんは", "passed": True, "drilled": True}
+NOT_PASSED_ROW = {"item_id": 3, "surface": "こんばんは", "passed": False, "drilled": True}
+
+
+def test_drill_spontaneous_correct_makes_server_pass_right():
+    """1647 #3 — 서버 why=«학습자가 정답을 먼저 말함». ④(공개 뒤 복창)로 세면 서버가 억울하게 ✖ 가 된다."""
+    ok, lines, cnt = _spont_case(PASSED_ROW)
+    assert ok is True and cnt["drill_spont"] == [1, 1] and cnt["reveal"] == [0, 0]
+    assert "드릴 자발 정답(공개 전)" in lines[2] and lines[2].endswith("✔ |")
+
+
+def test_drill_spontaneous_correct_expects_pass_inside_server_window():
+    ok, _lines, _cnt = _spont_case(NOT_PASSED_ROW)
+    assert ok is False              # 창 안에서 들은 자발 정답인데 서버가 안 적었다 → ✖
+
+
+def test_outside_server_window_is_ambiguous():
+    ok, lines, _cnt = _spont_case(NOT_PASSED_ROW, windows=[(1, 2000.0, 2100.0, [1, 2, 3])])
+    assert ok is True and lines[2].endswith("~ |")
+
+
+def test_broken_transcript_drill_answer_is_not_evidence():
+    """1645 #15 — 드릴 정답이 «ポンド です か ?» 로 깨졌으면 서버가 그걸로 통과를 줄 수 없다 → ④ 그대로."""
+    ok, lines, cnt = _spont_case(PASSED_ROW, stt="ポンド です か ?")
+    assert ok is False and cnt.get("drill_spont") is None
+    assert "비버 공개 뒤 복창 ④" in lines[2]
