@@ -289,6 +289,34 @@ def _kakasi_tokens(text: str) -> list[tuple[str, str, str]]:
     return [(t["orig"], t["hira"], t["hepburn"]) for t in pykakasi.kakasi().convert(text or "")]
 
 
+_PLACEHOLDER_RE = re.compile(r"[◯○〇]{1,3}")
+# 자리표시자를 그대로 말하면 TTS 가 «白丸(흰 동그라미)» 로 읽고 STT 도 «白丸 大 …» 로 적어 답이 판정에 안 실린다(1643 «◯◯から来ました»).
+# 학습자는 «John · 한국 사람» 이라는 설정이니 그 값으로 채운다. 표면형·항목 기록은 그대로 두고 **말하는 문장만** 채운다.
+PLACEHOLDER_FILL = {
+    "ko": {"country": "한국", "name": "존", "thing": "사과"},
+    "ja": {"country": "韓国", "name": "ジョン", "thing": "りんご"},
+}
+
+
+def fill_placeholder(text: str, language: Optional[str] = None) -> str:
+    """«◯◯» 가 든 문장을 실제 낱말로 채운다 — 나라(…에서 왔다·… 사람)·이름(저는 ◯◯이에요)·사물(◯◯이/가 뭐예요?)."""
+    lang = language or LANGUAGE
+    if not text or not _PLACEHOLDER_RE.search(text):
+        return text
+    fill = PLACEHOLDER_FILL.get(lang, PLACEHOLDER_FILL["ko"])
+    low = text
+    if any(k in low for k in ("에서 왔", "から来", "から き", "からきま", " 사람", "人です")):
+        word = fill["country"]
+    elif any(k in low for k in ("뭐예요", "何ですか", "なんですか")):
+        word = fill["thing"]
+    else:
+        word = fill["name"]
+    out = _PLACEHOLDER_RE.sub(word, text)
+    if lang == "ko":
+        out = out.replace(f"{word}이/가", f"{word}가").replace(f"{word}이에요", f"{word}이에요")
+    return out
+
+
 def styled_answer(text: str, style: str, language: Optional[str] = None) -> Optional[tuple[str, str]]:
     """정답 문자열 → (말할 표기, TTS 언어) · 바꿀 게 없으면 None.
     ko: roman = 로마자를 영어 음성으로(«saramyo») · hangul = 기본 표기(None).
@@ -1640,7 +1668,12 @@ class Session:
             await self._ft_silence(uplink)
             return
         spoke = False
-        say, say_lang, style_tag = reply, lang, ""
+        say, say_lang, style_tag, fill_tag = reply, lang, "", ""
+        if kind in ("correct", "parrot", "casual") and lang == LANGUAGE:
+            filled = fill_placeholder(reply)
+            if filled != reply:
+                fill_tag = f"치환:◯◯→{filled}"   # «◯◯» 는 말할 수 없다 — 실제 낱말로 채워 말한다(기록·판정 대조도 이 문장으로)
+                say = reply = filled
         if ANSWER_STYLE and kind == "correct" and lang == LANGUAGE:
             st = styled_answer(reply, ANSWER_STYLE)
             if st:
@@ -1653,8 +1686,9 @@ class Session:
             uplink.open = True
             spoke = True
             turn = self.add_turn("learner", say, kind=kind, item_id=self.current.item.item_id if self.current else 0)
-            if style_tag:
-                turn.tags.append(style_tag)
+            for _tag in (fill_tag, style_tag):
+                if _tag:
+                    turn.tags.append(_tag)
             self._link_answer_turn(turn)
             self.last_learner = turn
             self.since_learner = []
@@ -2034,6 +2068,24 @@ _ITEM_LIST_RE = re.compile(r"표현학습 목록:\s*(.+)$")
 _ITEM_NUM_RE = re.compile(r"(\d+)=")
 
 
+_CALL_ID_RE = re.compile(r"call_id=(\d+)")
+
+
+def filter_logs_for_call(log_lines: list[str] | None, call_id: Optional[int]) -> tuple[list[str], int]:
+    """11차: 서버 로그 줄에 «call_id=NNNN» 이 붙으면 우리 통화 줄만 남긴다 → (남긴 줄, 버린 남의 줄 수).
+    call_id 가 없는 줄(옛 서버·공용 줄)은 남긴다 — 그 경우는 «목록 줄 2개» 안전판이 잡는다."""
+    if not log_lines or not call_id:
+        return list(log_lines or []), 0
+    keep, foreign = [], 0
+    for ln in log_lines:
+        m = _CALL_ID_RE.search(ln)
+        if m and int(m.group(1)) != int(call_id):
+            foreign += 1
+            continue
+        keep.append(ln)
+    return keep, foreign
+
+
 def parse_item_number_lists(log_lines: list[str] | None) -> list[dict[int, str]]:
     """«표현학습 목록:» 줄마다 {번호: 표면형} 하나씩 — **통화마다 한 줄**이다. 창에 두 개 이상 나오면 다른 통화 로그가 섞인 것(1643 에 1644 가 섞였다)."""
     out: list[dict[int, str]] = []
@@ -2408,6 +2460,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                      server_logs: list[str] | None, out_dir: Path) -> tuple[Path, bool]:
     L: list[str] = []
     cid = sess.call_id
+    server_logs, _foreign = filter_logs_for_call(server_logs, cid)
+    if _foreign:
+        L.append(f"- 로그 필터: 다른 통화 줄 {_foreign}개 제외(call_id 태그 기준) — 남은 {len(server_logs)}줄로 판정한다")
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
     L.append(f"# 표현학습 E2E — call {cid} ({stamp}, run {run_no})")
     L.append("")
