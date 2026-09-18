@@ -1575,10 +1575,10 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
         raise
     except (TimeoutError, asyncio.TimeoutError):
         state.expr_judge_stats["taught_timeout"] = state.expr_judge_stats.get("taught_timeout", 0) + 1
-        logger.warning("normalcall 표현학습 가르침 판정 타임아웃 %.1fs(문자열 폴백) B%d", EXPR_JUDGE_TIMEOUT_S, seg_idx)
+        logger.warning("normalcall 표현학습 가르침 판정 타임아웃 %.1fs(문자열 폴백): call_id=%s B%d", EXPR_JUDGE_TIMEOUT_S, _cid(state), seg_idx)
         result = None
     except Exception as exc:  # noqa: BLE001 — 판정 실패는 그 턴만 폴백(R5)
-        logger.warning("normalcall 표현학습 가르침 판정 실패(문자열 폴백) B%d: %r", seg_idx, exc)
+        logger.warning("normalcall 표현학습 가르침 판정 실패(문자열 폴백): call_id=%s B%d: %r", _cid(state), seg_idx, exc)
         result = None
     state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
     _judge_usage_done(state, u)
@@ -1590,7 +1590,7 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
         return list(state.covered_nums[before:])
     nums = sorted({n for n in (getattr(result, "taught", None) or [])
                    if isinstance(n, int) and n in remaining and n not in state.covered_nums})
-    logger.info("normalcall 표현학습 가르침 판정(LLM): B%d → %s (남은 %d)", seg_idx, nums, len(remaining))
+    logger.info("normalcall 표현학습 가르침 판정(LLM): call_id=%s B%d → %s (남은 %d)", _cid(state), seg_idx, nums, len(remaining))
     for n in nums:
         if n in state.covered_nums:
             continue
@@ -2061,8 +2061,8 @@ def _quiz_server_judge_and_fallback(state: _CallState, span: list[tuple[int, str
     """4차 B 폴백 — 종전 서버 문자열 판정 + 미판정 STT 폴백(논블로킹). LLM 판정을 못 부르거나 실패한 항목에만."""
     res = _server_judge_quiz(state, span, nums)
     logger.info(
-        "normalcall 표현학습 퀴즈 판정(서버·폴백): seq=%d 사유=%s set=%s passed=%s failed=%s 미판정=%s",
-        state.expr_quiz_seq, why, nums, res["passed"], res["failed"], res["pending"],
+        "normalcall 표현학습 퀴즈 판정(서버·폴백): call_id=%s seq=%d 사유=%s set=%s passed=%s failed=%s 미판정=%s",
+        _cid(state), state.expr_quiz_seq, why, nums, res["passed"], res["failed"], res["pending"],
     )
     if res["pending"] and state.expr_ctx is not None and not state.should_close and _loop_running():
         task = asyncio.create_task(
@@ -2122,7 +2122,7 @@ def _spawn_grace_verdict(state: _CallState) -> "asyncio.Task | None":
     if stats["quiz_calls"] >= EXPR_QUIZ_VERDICT_MAX_PER_CALL:
         return None
     stats["quiz_calls"] += 1
-    logger.info("normalcall 표현학습 유예 판정(닫힘 직후 1턴): seq=%d 창=%d~%d", state.expr_quiz_seq, start, len(state.segments))
+    logger.info("normalcall 표현학습 유예 판정(닫힘 직후 1턴): call_id=%s seq=%d 창=%d~%d", _cid(state), state.expr_quiz_seq, start, len(state.segments))
     task = asyncio.create_task(
         _quiz_verdict_judge(state, state.expr_quiz_seq, span, [], final=False, grace=True), name="normalcall-expr-quiz-grace",
     )
@@ -2213,10 +2213,10 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         raise
     except (TimeoutError, asyncio.TimeoutError):
         state.expr_judge_stats["quiz_timeout"] = state.expr_judge_stats.get("quiz_timeout", 0) + 1
-        logger.warning("normalcall 표현학습 퀴즈 정답 판정 타임아웃 %.1fs seq=%d final=%s", EXPR_JUDGE_TIMEOUT_S, seq, final)
+        logger.warning("normalcall 표현학습 퀴즈 정답 판정 타임아웃 %.1fs: call_id=%s seq=%d final=%s", EXPR_JUDGE_TIMEOUT_S, _cid(state), seq, final)
         result = None
     except Exception as exc:  # noqa: BLE001 — 판정 실패는 폴백(R5)
-        logger.warning("normalcall 표현학습 퀴즈 정답 판정 실패 seq=%d final=%s: %r", seq, final, exc)
+        logger.warning("normalcall 표현학습 퀴즈 정답 판정 실패: call_id=%s seq=%d final=%s: %r", _cid(state), seq, final, exc)
         result = None
     state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
     _judge_usage_done(state, u)
@@ -2310,8 +2310,8 @@ def _close_expression_quiz(state: _CallState, *, why: str, closing_text: str = "
         #   종전 서버 문자열 판정(+STT 폴백). 콜이 실패하면 _quiz_verdict_judge 가 같은 폴백으로 내려간다.
         remaining = [n for n in quiz_set if n not in state.expr_quiz_llm_decided]
         logger.info(
-            "normalcall 표현학습 퀴즈 닫힘(LLM 판정): seq=%d 닫힘=%s 창=%d~(%d세그) set=%s 확정=%s 남은=%s",
-            state.expr_quiz_seq, why, state.expr_quiz_open_seg, len(span), quiz_set,
+            "normalcall 표현학습 퀴즈 닫힘(LLM 판정): call_id=%s seq=%d 닫힘=%s 창=%d~(%d세그) set=%s 확정=%s 남은=%s",
+            _cid(state), state.expr_quiz_seq, why, state.expr_quiz_open_seg, len(span), quiz_set,
             sorted(state.expr_quiz_llm_decided), remaining,
         )
         if remaining and _spawn_quiz_verdict(state, span=span, items=remaining, final=True) is None:
@@ -2423,8 +2423,8 @@ async def _final_expression_progress(state: _CallState) -> None:
         logger.info("%s 미얹힘(통화 끝): call_id=%s seq=%d 항목=%s — drilled 로만 남는다", EXPR_QUIZ_CUE_LOG_PREFIX,
                     _cid(state), state.expr_quiz_seq, state.expr_quizzed and sorted(state.expr_quizzed)[-len(state.expr_quiz_set or []):])
     logger.info(
-        "normalcall 표현학습 마지막 판정: %.0fms (상한 %.0fms%s)",
-        (loop.time() - t0) * 1000.0, EXPR_FINAL_JUDGE_TIMEOUT_S * 1000.0,
+        "normalcall 표현학습 마지막 판정: call_id=%s %.0fms (상한 %.0fms%s)",
+        _cid(state), (loop.time() - t0) * 1000.0, EXPR_FINAL_JUDGE_TIMEOUT_S * 1000.0,
         " — ⚠초과, 있는 것만 저장" if over else "",
     )
 
@@ -3930,7 +3930,7 @@ async def run_call(
                             snapshot=snapshot,
                         ),
                     )
-                    logger.info("normalcall cur 표현학습 저장: %s", stats if stats is not None else "no-op(이미 저장됨/cur_call 없음)")
+                    logger.info("normalcall cur 표현학습 저장: call_id=%s %s", call_id, stats if stats is not None else "no-op(이미 저장됨/cur_call 없음)")
                 except Exception as exc:  # noqa: BLE001 - 진도 유실일 뿐 통화는 끝났다(R5)
                     logger.warning("normalcall cur 표현학습 저장 실패(무시): %s", exc)
             elif call_type == "freetalk" and state.cur_forced:
@@ -6482,8 +6482,8 @@ def _arm_reground(state: _CallState, reason: str) -> None:
         state.reground_arm_reason = reason
         # ⚠ peak·바닥·대화를 같이 남긴다(T15-6) — 1398 감사에서 이 세 값이 없어 room 을 역산해야 했다.
         logger.info(
-            "normalcall 재접지 arm(표현학습, 근거=%s, %d/%d회, 드릴 %d · 통과 %d · 오답 %d, 압축감지=%d, peak=%d, 바닥=%d, 대화=%d)",
-            reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
+            "normalcall 재접지 arm(표현학습): call_id=%s 근거=%s, %d/%d회, 드릴 %d · 통과 %d · 오답 %d, 압축감지=%d, peak=%d, 바닥=%d, 대화=%d",
+            _cid(state), reason, state.reground_count + 1, REGROUND_MAX_PER_CALL,
             len(state.covered_nums), len(state.expr_quiz_pass), len(state.expr_quiz_fail),
             state.compression_seen, state.usage_prompt_peak, state.usage_prompt_floor,
             max(0, state.usage_prompt_peak - state.usage_prompt_floor),

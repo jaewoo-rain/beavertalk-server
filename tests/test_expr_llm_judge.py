@@ -849,6 +849,11 @@ CID_FORMATS = (
     " 세트 이탈: call_id=%s", " 세트 이탈(안내 상한 %d): call_id=%s", " 세트 안내 주입 %d/%d: call_id=%s",
     "퀴즈 판정(LLM): call_id=%s", "퀴즈 판정(LLM·세트 밖): call_id=%s", "유예 판정 기각(이미 오답 확정): call_id=%s",
     "드릴 루프 감지: call_id=%s", "드릴 안내 주입 %d/%d: call_id=%s",
+    # 12차 F(2026-09-18) — 나머지 표현학습 줄
+    "가르침 판정(LLM): call_id=%s", "가르침 판정 타임아웃 %.1fs(문자열 폴백): call_id=%s", "가르침 판정 실패(문자열 폴백): call_id=%s",
+    "퀴즈 판정(서버·폴백): call_id=%s", "퀴즈 정답 판정 타임아웃 %.1fs: call_id=%s", "퀴즈 정답 판정 실패: call_id=%s",
+    "퀴즈 닫힘(LLM 판정): call_id=%s", "유예 판정(닫힘 직후 1턴): call_id=%s", "마지막 판정: call_id=%s",
+    "cur 표현학습 저장: call_id=%s", "재접지 arm(표현학습): call_id=%s",
 )
 
 
