@@ -33,3 +33,29 @@ def test_filter_logs_for_call_keeps_ours_and_untagged():
     assert foreign == 1 and len(keep) == 2 and all("1644" not in k for k in keep)
     assert h.filter_logs_for_call(logs, None) == (logs, 0)
     assert h.filter_logs_for_call([], 1643) == ([], 0)
+
+
+def _rec_with_round(iid, answer_turns):
+    r = h.ItemRecord(item=h.Item(iid, f"s{iid}", "x", "", ("x",), kind="vocab"), k=1, policy=1)
+    r.rounds.append(h.QuizRound(n=1, asked_at=1.0, block=1, answer_turns=list(answer_turns)))
+    return r
+
+
+def test_drill_streaks_counts_consecutive_drill_turns_per_item_excluding_quiz():
+    T = h.Turn
+    turns = [T(0, "learner", 1.0, "a", kind="idk", item_id=5),
+             T(1, "beaver", 1.5, "again"),
+             T(2, "learner", 2.0, "a", kind="parrot", item_id=5),
+             T(3, "learner", 3.0, "a", kind="correct", item_id=5),
+             T(4, "learner", 4.0, "b", kind="correct", item_id=6),     # 다른 항목 — 런 끊김
+             T(5, "learner", 5.0, "a", kind="parrot", item_id=5),
+             T(6, "learner", 6.0, "q", kind="correct", item_id=7)]     # 퀴즈 회차 답 — 제외
+    st = h.drill_streaks({7: _rec_with_round(7, [6])}, turns)
+    assert st[5] == 3 and st[6] == 1 and 7 not in st
+    assert h.drill_streaks({}, []) == {}
+
+
+def test_parse_move_on_notices():
+    logs = ["2026-09-19T01:00:00Z\tINFO:x:normalcall 표현학습 드릴 상한: 항목 5 학습자 턴 4 — 다음 항목으로 안내 주입 1/3",
+            "2026-09-19T01:01:00Z\tINFO:x:normalcall 표현학습 퀴즈 큐 열림: seq=1 항목=[1, 2, 3]"]
+    assert h.parse_move_on_notices(logs) == 1 and h.parse_move_on_notices(None) == 0

@@ -2337,6 +2337,33 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
     return ok_all, lines, cnt
 
 
+_MOVE_ON_RE = re.compile("표현학습.*다음 항목으로")   # . 는 줄바꿈을 안 먹는다 — 한 줄 안에서만 맞춘다
+
+
+def parse_move_on_notices(log_lines: list[str] | None) -> int:
+    """11차: «한 항목 드릴이 학습자 턴 3회를 넘으면 다음 항목으로» 안내 주입 줄 수."""
+    return sum(1 for ln in (log_lines or []) if _MOVE_ON_RE.search(ln))
+
+
+def drill_streaks(records: dict, turns: list) -> dict[int, int]:
+    """항목별 «한 항목 연속 드릴 턴 수» 최대값 — 퀴즈 회차에 속한 답 턴은 빼고(드릴만), 학습자 턴이 같은 항목으로 잇달아 간 최장 런.
+    11차 서버 개입(3턴 초과 시 다음 항목 안내)이 겨냥한 축이라 그 숫자를 그대로 잰다."""
+    in_round = {n for rec in (records or {}).values() for rd in rec.rounds for n in rd.answer_turns}
+    best: dict[int, int] = {}
+    cur_id, run = None, 0
+    for t in turns or []:
+        if t.role != "learner" or t.n in in_round or not t.item_id:
+            if t.role == "learner":
+                cur_id, run = None, 0
+            continue
+        if t.item_id == cur_id:
+            run += 1
+        else:
+            cur_id, run = t.item_id, 1
+        best[cur_id] = max(best.get(cur_id, 0), run)
+    return best
+
+
 def quiz_blocks(records: dict) -> dict[int, list[int]]:
     """앵커 회차(block ≥1)별로 «처음 물은 시각» 순 항목 id — 같은 블록에서 다시 물은 건 첫 번만."""
     ev: dict[int, list[tuple[float, int]]] = {}
@@ -2610,6 +2637,16 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
                  + (" " + ", ".join(f"「{r.item.surface}」" for r in unanch) if unanch else "")
                  + f" · 통과 항목 재드릴 {rd_.get('n', 0)} → {'✔' if sc.redrill_ok else '✖'}")
         L.append("- ② 번호 순 출제: §2 «퀴즈순서»")
+        _streaks = drill_streaks(sess.records, sess.turns)
+        _over = sorted((iid for iid, n in _streaks.items() if n > 3), key=lambda i: -_streaks[i])
+        _top = max(_streaks.items(), key=lambda kv: kv[1], default=(0, 0))
+        _moves = parse_move_on_notices(server_logs)
+        sc.cur["drill_streaks"] = {"max": _top[1], "max_item": _top[0], "over3": len(_over), "notices": _moves}
+        L.append(f"- ②-1 한 항목 연속 드릴 턴: 최대 **{_top[1]}**"
+                 + (f"(「{sess.items[_top[0]].surface}」)" if _top[0] in sess.items else "")
+                 + f" · 3턴 초과 항목 {len(_over)}개"
+                 + (" " + ", ".join(f"「{sess.items[i].surface}」{_streaks[i]}" for i in _over[:5]) if _over else "")
+                 + f" · 서버 «다음 항목으로» 안내 {_moves}회 (11차)")
         L.append(f"- ③ 표기 변형 정답 → 통과: {cnt['styled'][1]}/{cnt['styled'][0]}" + ("" if ANSWER_STYLE else " (--answer-style 없음)"))
         L.append(f"- ④ 공개 뒤 복창 → 통과 아님: {cnt['reveal'][1]}/{cnt['reveal'][0]} · 드릴만 → 통과 아님: {cnt['drill_only'][1]}/{cnt['drill_only'][0]}")
         L.append(f"- 서버 퀴즈 세트 {sc.cur['server_quiz_sets'] or '(로그 없음 — 세트 밖 판별 안 함)'} · 세트 밖 자발 정답(비버 이탈, 서버 미판정이 정상) 번호 {cnt['off_set']}")
