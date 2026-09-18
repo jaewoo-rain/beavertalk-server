@@ -2337,7 +2337,7 @@ def llm_judge_table(records: dict, drilled_order: list[int], quiz_items: list[di
     return ok_all, lines, cnt
 
 
-_MOVE_ON_RE = re.compile("표현학습.*다음 항목으로")   # . 는 줄바꿈을 안 먹는다 — 한 줄 안에서만 맞춘다
+_MOVE_ON_RE = re.compile("표현학습 드릴 안내 주입|표현학습.*다음 항목으로")   # 11차 B 문구(주입 줄) · 옛 문구도 함께 — . 는 줄바꿈을 안 먹는다
 
 
 def parse_move_on_notices(log_lines: list[str] | None) -> int:

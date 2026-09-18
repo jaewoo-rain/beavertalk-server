@@ -59,3 +59,12 @@ def test_parse_move_on_notices():
     logs = ["2026-09-19T01:00:00Z\tINFO:x:normalcall 표현학습 드릴 상한: 항목 5 학습자 턴 4 — 다음 항목으로 안내 주입 1/3",
             "2026-09-19T01:01:00Z\tINFO:x:normalcall 표현학습 퀴즈 큐 열림: seq=1 항목=[1, 2, 3]"]
     assert h.parse_move_on_notices(logs) == 1 and h.parse_move_on_notices(None) == 0
+
+
+def test_parse_move_on_notices_11th_wording_counts_injections_only():
+    logs = [
+        "2026-09-19T02:00:00Z\tINFO:x:normalcall 표현학습 드릴 루프 감지: call_id=1680 항목=7 사유=학습자 턴 4 안내=0/3",
+        "2026-09-19T02:00:01Z\tINFO:x:normalcall 표현학습 드릴 안내 주입 1/3: call_id=1680 항목=7 tc=True 모델=gemini-live-2.5-flash-native-audio",
+        "2026-09-19T02:01:00Z\tINFO:x:normalcall 표현학습 드릴 안내 주입 2/3: call_id=1680 항목=9 tc=True 모델=gemini-live-2.5-flash-native-audio",
+    ]
+    assert h.parse_move_on_notices(logs) == 2          # 감지 줄은 빼고 주입 줄만
