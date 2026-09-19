@@ -1124,3 +1124,44 @@ async def test_server_recovery_does_not_record_a_parrot_after_the_reveal(monkeyp
     _user(st, "韓国から来ました。")                        # 복창
     await _drain(st)
     assert 303 not in st.expr_quiz_pass and 3 not in st.expr_quizzed, "공개 뒤 복창은 통과가 아니다"
+
+
+# --------------------------------------------------------------------------- #
+# 13차 D (2026-09-19, 1647 블록2 — 세트 [7,8,9] 안에 항목 6 을 끼워 물었는데 이탈 로그 0)
+#   «세트 밖 ∧ 이미 다룬» → «창 안에서 세트에 없는 항목을 물었으면 전부» + 서버 문자열 대조(판정기 응답과 무관)
+# --------------------------------------------------------------------------- #
+def test_set_drift_counts_any_item_outside_the_set_even_if_not_covered_yet():
+    """D① — 아직 안 다룬 항목도 이탈이다(옛 조건은 covered 여야 했다)."""
+    st = _state()
+    st.live_model = "gemini-live-2.5-flash-native-audio"
+    st.covered_nums = [1, 2]
+    _open_quiz(st, [1, 2])
+    st.expr_quiz_set = [1, 2]
+    cs._note_quiz_set_drift(st, [4], 9)                  # 4 번은 아직 covered 가 아니다
+    assert st.expr_quiz_set_nudge_pending is True
+
+
+def test_set_drift_is_caught_by_the_server_when_the_judge_does_not_report_it(caplog):
+    """D② — 판정기가 아무 번호도 안 줘도(1647 항목 6) 비버 턴에 세트 밖 표면형이 있으면 서버가 이탈로 잡는다.
+    창을 여는 세그먼트의 «큐 직전 드릴 항목»(T17-4 예외)은 그대로 이탈이 아니다."""
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st = _state()
+    st.call_id = 1647
+    st.expr_llm_judge = False                            # 판정기 없이 — 서버 대조만으로 잡히는지 본다
+    st.covered_nums = [1, 2, 3]
+    _open_quiz(st, [2, 3])
+    st.expr_quiz_set = [2, 3]
+    _beaver(st, "잠깐, «ありがとうございます» 도 다시 해볼까요?")      # 세트 밖 항목 1
+    assert st.expr_quiz_set_nudge_pending is True, "서버 대조가 이탈을 못 잡았다(1647 재발)"
+    line = [r.getMessage() for r in caplog.records if "세트 이탈:" in r.getMessage()][-1]
+    assert "call_id=1647" in line and "항목=[1]" in line
+    # T17-4 예외: 창을 여는 세그먼트에서 큐 직전 드릴 항목을 말한 것은 드릴 피드백이다
+    st2 = _state()
+    st2.expr_llm_judge = False
+    st2.covered_nums = [1, 2, 3]
+    _open_quiz(st2, [2, 3])
+    st2.expr_quiz_set, st2.expr_quiz_prev_num = [2, 3], 1
+    st2.expr_quiz_open_seg = len(st2.segments)
+    _beaver(st2, "«ありがとうございます» 좋아요! 이제 퀴즈예요")
+    assert st2.expr_quiz_set_nudge_pending is False, "여는 턴의 드릴 피드백은 이탈이 아니다"

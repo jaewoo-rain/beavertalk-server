@@ -1605,11 +1605,14 @@ async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: i
 def _note_quiz_set_drift(state: _CallState, retaught: list, seg_idx: int) -> None:
     """⭐ 8차 C(2026-09-15, 1624 2.5 seq2 — 이미 다룬 #2·#3 을 창 안에서 다시 물었다) + 9차 B(2026-09-16, 1632 블록4 — 세트 [12,13,14] 창에서
     아직 안 다룬 #15 를 물었다): 퀴즈 중 비버가 **세트 밖 항목**을 다뤘으면(재질문이든 새 항목이든) 다음 turn_end 에 «지금 낼 문제는 …뿐이다» 안내를
-    1회 넣도록 표시한다(통화당 EXPR_QUIZ_SET_NUDGE_MAX). 판정·진도는 건드리지 않는다."""
+    1회 넣도록 표시한다(통화당 EXPR_QUIZ_SET_NUDGE_MAX). 판정·진도는 건드리지 않는다.
+
+    ⭐ 13차 D(2026-09-19, 1647 블록2 — 세트 [7,8,9] 창에서 항목 6 을 끼워 물었는데 이탈 로그 0): 조건에서 «이미 다룬 항목» 을 뺀다 —
+      **창 안에서 세트에 없는 항목을 다뤘으면 전부 이탈**이다(재질문이든 새 항목이든 아직 안 다룬 항목이든). 문구·상한은 그대로."""
     if not (state.expr_quiz_open and state.expr_quiz_set):
         return
     off = sorted({n for n in retaught if isinstance(n, int) and 1 <= n <= len(state.expr_items)
-                  and n in state.covered_nums and n not in state.expr_quiz_set})   # nums 는 직전에 covered 로 들어간다
+                  and n not in state.expr_quiz_set})
     if not off:
         return
     if state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
@@ -1663,6 +1666,23 @@ def _arm_drill_nudge(state: _CallState, why: str) -> None:
         state.expr_drill_nudged.add(focus)          # 표시는 arm 에서 — 창이 열려 주입이 무산돼도 그 항목은 이미 한 번 다뤘다
     logger.info("normalcall 표현학습 드릴 루프 감지: call_id=%s 항목=%s 사유=%s 안내=%d/%d",
                 _cid(state), focus, why, state.expr_drill_nudges + 1, EXPR_DRILL_NUDGE_MAX)
+
+
+def _note_quiz_set_drift_by_text(state: _CallState, text: str, seg_idx: int) -> None:
+    """⭐ 13차 D(2026-09-19) — 이탈 감지의 두 번째 눈: **서버 문자열 대조.**
+
+    옛 감지는 가르침 판정기가 돌려준 번호(taught·retaught)에만 기댔다. 판정기는 «이번 턴에 무엇을 가르쳤나» 를 보는 것이라
+    이미 다룬 항목을 다시 물은 것은 done_rows 상한(EXPR_DONE_ROWS_CAP) 밖이면 안 돌아온다 — 1647 블록2 의 항목 6 이 그렇게 샜다.
+    여기서는 비버 턴이 **세트 밖 항목의 표면형을 말했나** 만 본다(covered 여부·판정기 응답과 무관). 판정·진도는 건드리지 않는다.
+    ⚠ 창을 여는 세그먼트에서 «큐 직전 드릴 항목»(expr_quiz_prev_num)을 말하는 것은 드릴 피드백이다 — T17-4 예외를 그대로 지킨다.
+    """
+    if not (state.expr_quiz_open and state.expr_quiz_set) or not (text or "").strip():
+        return
+    off = [n for n in _expr_mentioned_nums(state, text) if n not in state.expr_quiz_set]
+    if seg_idx == state.expr_quiz_open_seg and state.expr_quiz_prev_num is not None:
+        off = [n for n in off if n != state.expr_quiz_prev_num]
+    if off:
+        _note_quiz_set_drift(state, off, seg_idx)
 
 
 def _note_expression_drill(state: _CallState, text: str) -> None:
@@ -2516,6 +2536,7 @@ def _flush_beaver_segment(state: _CallState) -> None:
     else:
         _note_covered_items(state, text)
     _note_expression_drill(state, text)          # 11차 B — 드릴 루프(항목 기준) 추적. 판정·진도는 안 건드린다
+    _note_quiz_set_drift_by_text(state, text, len(state.segments))   # 13차 D — 세트 이탈 서버 대조(판정기 응답과 무관)
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
