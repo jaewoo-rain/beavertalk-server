@@ -30,6 +30,8 @@ from domains.account.models.member_reason import MemberReason
 from domains.commerce.models.character import Character
 from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
+from sqlalchemy import text as sa_text
+from sqlalchemy.orm import Session
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.level import Level
 from domains.learning.models.sentence import Sentence
@@ -5359,14 +5361,68 @@ def test_save_segments_is_idempotent_per_turn_index(session_factory, seeded):
 
 
 def test_next_turn_index_is_max_plus_one_not_the_row_count(session_factory, seeded):
-    """② 조각2 의 첫 turn_index 는 조각1 **최대+1** — 중복 행이 한 벌 있어도 번호가 밀리지 않는다."""
+    """② 조각2 의 첫 turn_index 는 조각1 **최대+1** — 저장이 빠진 턴이 있어도(행 수 ≠ 번호) 밀리지 않는다.
+    ⚠ 13차 B 로 중복 행은 이제 DB 가 막는다 — 여기서는 «빠진 턴» 으로 행 수와 번호를 어긋나게 한다."""
     call_id = _new_call(session_factory, seeded)
     db = session_factory()
     try:
-        for ti in (0, 1, 2, 2, 3):          # 옛 버그로 이미 중복이 들어간 통화(2 가 두 벌)
+        for ti in (0, 1, 3):                # 2 번이 빠졌다 — 행 3개, 다음 번호는 4
             db.add(CallRawData(call_id=call_id, role="user", turn_index=ti, content="t%d" % ti))
         db.commit()
-        assert svc.next_turn_index(db, call_id) == 4, "행 수(5)가 아니라 최대+1"
+        assert svc.next_turn_index(db, call_id) == 4, "행 수(3)가 아니라 최대+1"
+    finally:
+        db.close()
+
+
+def test_duplicate_turn_rows_are_rejected_by_the_unique_constraint(session_factory, seeded):
+    """B① — (call_id, turn_index) 유니크 제약(13차 B, 사장님 «걸어»): 같은 턴을 두 벌 넣으려 하면 DB 가 막는다."""
+    from sqlalchemy.exc import IntegrityError
+
+    call_id = _new_call(session_factory, seeded)
+    db = session_factory()
+    try:
+        db.add(CallRawData(call_id=call_id, role="user", turn_index=7, content="t7"))
+        db.commit()
+        db.add(CallRawData(call_id=call_id, role="beaver", turn_index=7, content="t7 다시"))
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+    finally:
+        db.close()
+    assert any(c.name == "uq_call_raw_data_call_turn" for c in CallRawData.__table__.constraints), "모델에 제약이 선언돼 있다"
+
+
+def test_save_segments_survives_a_unique_conflict_and_skips_that_row(session_factory, seeded, monkeypatch):
+    """B② — 경합(사전 조회 뒤에 다른 경로가 같은 턴을 먼저 썼다)으로 제약에 걸려도 그 행만 건너뛰고 나머지는 저장된다(R5)."""
+    call_id = _new_call(session_factory, seeded)
+    db = session_factory()
+    try:
+        db.add(CallRawData(call_id=call_id, role="user", turn_index=1, content="먼저 쓴 행"))
+        db.commit()
+    finally:
+        db.close()
+    # 사전 조회가 아무것도 못 본 것처럼 만든다 = 조회 직후 다른 태스크가 써 버린 상황
+    real_query = Session.query
+
+    def blind_query(self, *entities, **kw):
+        q = real_query(self, *entities, **kw)
+        if entities and entities[0] is CallRawData.turn_index:
+            return q.filter(sa_text("1=0"))
+        return q
+
+    monkeypatch.setattr(Session, "query", blind_query)
+    db = session_factory()
+    try:
+        segs = [{"turn_index": i, "role": "user", "text": "t%d" % i, "pcm": b""} for i in (0, 1, 2)]
+        svc.save_segments(db, call_id, segs, seeded["member_id"])
+    finally:
+        db.close()
+    monkeypatch.undo()
+    db = session_factory()
+    try:
+        rows = db.query(CallRawData).filter(CallRawData.call_id == call_id).order_by(CallRawData.turn_index).all()
+        assert [r.turn_index for r in rows] == [0, 1, 2], "충돌한 1번만 건너뛰고 0·2 는 저장된다"
+        assert rows[1].content == "먼저 쓴 행", "먼저 쓴 행이 남는다"
     finally:
         db.close()
 

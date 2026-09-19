@@ -20,6 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from google import genai
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from core import b2b_client, curriculum_hints, gemini_analysis, storage, tts
@@ -1305,6 +1306,7 @@ def save_segments(
             if t is not None
         }
     skipped: list[int] = []
+    conflicted: list[int] = []
     rows: list[tuple[CallRawData, dict]] = []
     for seg in segments:
         ti = seg.get("turn_index")
@@ -1324,10 +1326,23 @@ def save_segments(
             content=(seg.get("text") or None),
             voice_url=key,
         )
-        db.add(row)
+        # ⭐ 13차 B(2026-09-19) — DB 에 (call_id, turn_index) 유니크 제약이 걸렸다. 위 사전 조회가 보통은 거르지만, 두 저장 경로가
+        #   동시에 같은 턴을 주는 **경합**은 남는다(점진 flush ↔ 종료 저장). 그 행만 SAVEPOINT 로 되돌려 건너뛴다 —
+        #   통화 저장 전체를 죽이지 않는다(R5). 제약이 아직 없는 DB 에서는 이 경로가 그냥 안 걸린다(옛 동작 그대로).
+        try:
+            with db.begin_nested():
+                db.add(row)
+                db.flush()
+        except IntegrityError:
+            if ti is not None:
+                conflicted.append(int(ti))
+            continue
         rows.append((row, seg))
     if skipped:
         logger.info("normalcall 저장 멱등: call_id=%s 이미 있는 turn %d개 건너뜀 %s", call_id, len(skipped), skipped[:12])
+    if conflicted:
+        logger.info("normalcall 저장 멱등(제약 경합): call_id=%s 유니크 충돌 turn %d개 건너뜀 %s",
+                    call_id, len(conflicted), conflicted[:12])
     db.flush()  # PK(call_raw_data_id) 확보 — commit 후 expire 재조회 없이 수집
     pending = [
         {
