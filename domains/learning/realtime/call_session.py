@@ -2377,8 +2377,8 @@ async def _final_llm_judge(state: _CallState, loop, t0: float) -> bool:
         state.expr_quiz_open = False
         state.expr_quiz_set = []
         remaining = [n for n in quiz_set if n not in state.expr_quiz_llm_decided]
-        logger.info("normalcall 표현학습 퀴즈 닫힘(LLM 판정·마지막): seq=%d 창=%d~끝(%d세그) set=%s 남은=%s",
-                    state.expr_quiz_seq, state.expr_quiz_open_seg, len(span), quiz_set, remaining)
+        logger.info("normalcall 표현학습 퀴즈 닫힘(LLM 판정·마지막): call_id=%s seq=%d 창=%d~끝(%d세그) set=%s 남은=%s",
+                    _cid(state), state.expr_quiz_seq, state.expr_quiz_open_seg, len(span), quiz_set, remaining)
         if remaining:
             left_budget = max(0.2, budget - (loop.time() - t0))
             if any(role == "user" for _, role, _ in span) and state.expr_judge_stats["quiz_calls"] < EXPR_QUIZ_VERDICT_MAX_PER_CALL:
@@ -2390,12 +2390,12 @@ async def _final_llm_judge(state: _CallState, loop, t0: float) -> bool:
                     left = [n for n in remaining if n not in state.expr_quiz_llm_decided]
                     if left:
                         res = _server_judge_quiz(state, span, left)
-                        logger.info("normalcall 표현학습 퀴즈 판정(서버·마지막 폴백): seq=%d set=%s passed=%s failed=%s 미판정=%s",
-                                    state.expr_quiz_seq, left, res["passed"], res["failed"], res["pending"])
+                        logger.info("normalcall 표현학습 퀴즈 판정(서버·마지막 폴백): call_id=%s seq=%d set=%s passed=%s failed=%s 미판정=%s",
+                                    _cid(state), state.expr_quiz_seq, left, res["passed"], res["failed"], res["pending"])
             else:
                 res = _server_judge_quiz(state, span, remaining)
-                logger.info("normalcall 표현학습 퀴즈 판정(서버·마지막 폴백): seq=%d set=%s passed=%s failed=%s 미판정=%s",
-                            state.expr_quiz_seq, remaining, res["passed"], res["failed"], res["pending"])
+                logger.info("normalcall 표현학습 퀴즈 판정(서버·마지막 폴백): call_id=%s seq=%d set=%s passed=%s failed=%s 미판정=%s",
+                            _cid(state), state.expr_quiz_seq, remaining, res["passed"], res["failed"], res["pending"])
     pending = {t for t in state.expr_tasks if not t.done()}
     if pending:
         _done, not_done = await asyncio.wait(pending, timeout=max(0.0, budget - (loop.time() - t0)))

@@ -854,6 +854,8 @@ CID_FORMATS = (
     "퀴즈 판정(서버·폴백): call_id=%s", "퀴즈 정답 판정 타임아웃 %.1fs: call_id=%s", "퀴즈 정답 판정 실패: call_id=%s",
     "퀴즈 닫힘(LLM 판정): call_id=%s", "유예 판정(닫힘 직후 1턴): call_id=%s", "마지막 판정: call_id=%s",
     "cur 표현학습 저장: call_id=%s", "재접지 arm(표현학습): call_id=%s",
+    # 13차 E(2026-09-19) — 마지막 판정 경로의 남은 2줄
+    "퀴즈 닫힘(LLM 판정·마지막): call_id=%s", "퀴즈 판정(서버·마지막 폴백): call_id=%s",
 )
 
 
