@@ -1319,6 +1319,18 @@ idle 의 완결 텍스트 턴)이고 한 turn_end 에 **택일**이다(세트 �
 «읽기가 같으면 통과» 보다 우선한다**». 7차 ②의 통과 사례(住みません↔すみません · 今晩は↔こんばんは · 콘방와)는 그대로 통과여야 한다 —
 리플레이 ja/ko 회귀로 확인한다. 해시 1건 갱신(`expression_quiz_verdict_instruction`).
 
+### 2026-09-19 — 15차: «먼저 물어라» 규칙을 전 언어 공통으로 (ko 추가 · ja 중복 제거)
+
+근거: 사장님 2.5 실통화 1657(ko) t13 — «Next is also a greeting…: "처음 뵙겠습니다." Can you try that?» 로 **묻지 않고 정답부터** 줬다
+(t5·t9 는 학습자가 모른다고 한 뒤라 정상). 원인은 `DRILL_ASK_FIRST_LINE` 이 `DRILL_EXTRA_LINES_DEFAULT`(비ko)에만 있고 ko 는
+«바이트 불변» 때문에 빈 튜플이었던 것(2026-09-14 C2 의 잔재).
+
+고침: 그 줄을 `procedure` 의 **공통 줄**로 올리고(ko·ja 모두 받는다) 비ko 전용 목록에서 뺐다 — 남은 것은 `DRILL_TARGET_SCRIPT_LINE` 뿐이다.
+**문장은 한 글자도 안 바뀌었다(위치만 이동).** 공통 줄을 extra **뒤**에 둬서 ja 조립 순서(표기 → 먼저 물어라)는 종전 그대로 —
+`expression.procedure_ja` 해시는 무변이다. 바뀐 것은 ko 조립뿐: `expression.procedure` be4d9af4e0b5cec7 → bcba132ecff7ad5b ·
+`expression.procedure_nogrammar` ae05af6dc47b6eaa → 2638371ae110c76e · T21-A 기준 `_EXPR_FROZEN` 4393 → 4475(+82자).
+다른 대본(일반·레벨테스트·프리토킹)과 판정 지시문은 무변경 — 스냅샷·해시 시험이 증명한다.
+
 ---
 
 ## §9. 통화 후 볼 로그 (계측은 이미 붙어 있다)

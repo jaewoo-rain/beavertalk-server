@@ -23,16 +23,22 @@ def _instr(language: str, target: str) -> str:
 # --------------------------------------------------------------------------- #
 # C1·C2 — 비ko 전용 드릴 줄 · ko 무변화
 # --------------------------------------------------------------------------- #
-def test_non_ko_drill_gets_script_and_ask_first_lines_but_ko_does_not():
+def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_language():
+    """C1(비ko 전용 표기 줄)은 그대로 · ⭐ 15차(2026-09-19, 사장님 지시 — 1657 ko t13): «먼저 물어라» 는 **전 언어 공통**이다."""
     ja = _instr("ja", "일본어")
     assert "일본어 낱말·문장은 언제나 일본어 문자로 말하고 적어라 — 학습자 모국어 문자로 음차해 적거나 읽지 마라." in ja, "C1"
-    assert "항목마다 **먼저 물어보고** 학습자가 시도한 뒤에만 정답을 공개해라(못 하면 최대 3번)" in ja, "C2"
+    ask = "항목마다 **먼저 물어보고** 학습자가 시도한 뒤에만 정답을 공개해라(못 하면 최대 3번)"
+    assert ja.count(ask) == 1, "ja 는 정확히 1회 — 공통 자리로 옮기며 비ko 목록에서 뺐다(중복 0)"
     ko = _instr("ko", "한국어")
-    assert "음차해 적거나 읽지 마라" not in ko and "먼저 물어보고** 학습자가 시도한 뒤에만" not in ko, "ko 대본 무변화(해시 시험이 바이트를 지킨다)"
+    assert "음차해 적거나 읽지 마라" not in ko, "표기 줄은 여전히 비ko 전용"
+    assert ko.count(ask) == 1, "15차 — ko 도 이제 «먼저 물어라» 를 받는다(1657 t13 재발 방지)"
     assert lex.DRILL_EXTRA_LINES_BY_LANGUAGE["ko"] == ()
-    # 두 줄은 drill_intro 바로 뒤(먼저 묻는 규율이 공개 규율보다 앞에)
-    proc = lex.procedure(drill_intro="- 드릴", target="일본어", locale_label="한국어", language="ja").splitlines()
-    assert proc[1] == "- 드릴" and proc[2].startswith("- 일본어 낱말·문장은") and proc[3].startswith("- 항목마다") and proc[4] == lex.DRILL_REVEAL_LINE
+    assert lex.DRILL_EXTRA_LINES_DEFAULT == (lex.DRILL_TARGET_SCRIPT_LINE,), "비ko 전용 목록에는 표기 줄만 남는다"
+    # 자리: drill_intro 바로 뒤 — ja 는 종전 순서 그대로(표기 → 먼저 물어라), ko 는 drill_intro 바로 뒤
+    proc_ja = lex.procedure(drill_intro="- 드릴", target="일본어", locale_label="한국어", language="ja").splitlines()
+    assert proc_ja[1] == "- 드릴" and proc_ja[2].startswith("- 일본어 낱말·문장은") and proc_ja[3].startswith("- 항목마다") and proc_ja[4] == lex.DRILL_REVEAL_LINE
+    proc_ko = lex.procedure(drill_intro="- 드릴", target="한국어", locale_label="영어(English)").splitlines()
+    assert proc_ko[1] == "- 드릴" and proc_ko[2].startswith("- 항목마다") and proc_ko[3] == lex.DRILL_REVEAL_LINE
 
 
 # --------------------------------------------------------------------------- #

@@ -78,7 +78,8 @@ FROZEN: dict[str, str] = {
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
     # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)
     "reground.RESUME_SILENT_FIRST_ACTION": "c0e5dbe816b6c254",   # 2026-09-14 C5 «왔냐?»류 시작말 금지(silent 전용 줄 — 옛 f5b2bc59f9d9cb2e)
-    # 2026-09-14 C1·C2 비ko 전용 드릴 줄(실통화 1601 ja) — ko procedure 는 아래 FROZEN_FN «expression.procedure» 5c0c6ac8e65fb352 그대로
+    # 2026-09-14 C1·C2 비ko 전용 드릴 줄(실통화 1601 ja). ⭐ 2026-09-19 15차: DRILL_ASK_FIRST_LINE 은 **전 언어 공통**이 됐다
+    #   (procedure 가 직접 붙인다) — 문장 자체는 무변경이라 이 해시는 그대로고, 바뀐 것은 ko 조립 결과다
     "expression.DRILL_TARGET_SCRIPT_LINE": "db851d31d1021909",
     "expression.DRILL_ASK_FIRST_LINE": "3e98c1a9d3f4a73a",
     # 2026-09-14 E(사장님 확정, 실통화 1592) — [문형] 항목은 같은 문형의 다른 올바른 문장도 정답. ko·ja 공통(has_grammar 일 때만)
@@ -152,9 +153,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "expression.model_block": ("689e4117233531ed", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
     # 2026-09-14 E — has_grammar 판에 DRILL_GRAMMAR_ALT_LINE 1줄 · 2026-09-16 dev 머지(DRILL_ALT_CORRECT_LINE 확장)로 셋 다 재기준. 문법 없는 차시(has_grammar=False)는 아래 procedure_nogrammar 그대로.
-    "expression.procedure": ("be4d9af4e0b5cec7", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
-    "expression.procedure_ja": ("d82e09518a5a7acb", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4)
-    "expression.procedure_nogrammar": ("ae05af6dc47b6eaa", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)
+    "expression.procedure": ("bcba132ecff7ad5b", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
+    "expression.procedure_ja": ("d82e09518a5a7acb", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)
+    "expression.procedure_nogrammar": ("2638371ae110c76e", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)
     "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
     "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
     "expression.items_block": ("1704dbb54003a3ab", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),

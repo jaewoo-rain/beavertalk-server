@@ -40,7 +40,10 @@ DRILL_ASK_FIRST_LINE = '- 항목마다 **먼저 물어보고** 학습자가 시�
 DRILL_EXTRA_LINES_BY_LANGUAGE: dict[str, tuple[str, ...]] = {
     "ko": (),                                                    # ⛔ ko 바이트 불변
 }
-DRILL_EXTRA_LINES_DEFAULT: tuple[str, ...] = (DRILL_TARGET_SCRIPT_LINE, DRILL_ASK_FIRST_LINE)   # ja 등 비ko
+# ⭐ 15차(2026-09-19, 사장님 지시 — 실통화 1657 ko t13 «…: "처음 뵙겠습니다." Can you try that?» 로 묻지 않고 정답부터 줬다):
+#   DRILL_ASK_FIRST_LINE 은 이제 **전 언어 공통**이다(procedure 가 extra 뒤에 직접 붙인다). 여기서는 뺀다 — 두면 ja 가 같은 줄을 두 번 받는다.
+#   ⚠ 문장은 한 글자도 안 바뀌었다(위치만 이동). ja 조립 바이트도 그대로다 — 공통 줄을 **extra 뒤**에 두어 종전 순서를 지켰다.
+DRILL_EXTRA_LINES_DEFAULT: tuple[str, ...] = (DRILL_TARGET_SCRIPT_LINE,)   # ja 등 비ko
 DRILL_SILENCE_LINE = '- 학습자가 조용하면 오답으로 치지 마라. 첫 무음은 답을 주지 말고 {locale_label}로 다시 묻고, 두 번째 연속 무음이면 들려주고 따라 말하게 해라 — 계속 무응답이면 다음 항목으로 넘어가라.'
 # [퀴즈] — T16 큐 계약: «{CONTROL_TAG} 이 «지금 퀴즈를 내라» 고 알릴 때만». CONTROL_TAG 는 조립 때 끼운다.
 QUIZ_HEADER = "[퀴즈]"
@@ -100,6 +103,7 @@ def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: 
         PROCEDURE_HEADER,
         drill_intro.format(**fmt),
         *[line.format(**fmt) for line in extra],
+        DRILL_ASK_FIRST_LINE.format(**fmt),          # 15차 — 전 언어 공통(ko 추가·ja 중복 제거). 자리는 종전 ja 와 같은 맥락(drill_intro 뒤)
         *([DRILL_GRAMMAR_LINE, DRILL_GRAMMAR_ALT_LINE] if has_grammar else []),
         DRILL_REVEAL_LINE,
         formality.format(**fmt),

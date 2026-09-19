@@ -575,7 +575,9 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # 2026-09-14 재기준(사장님 «진행해», 1601·1592): C3 편집 문구 1줄 + E 잠금 DRILL_GRAMMAR_ALT_LINE(문법 있을 때만) → 4104 → 4202.
 # 2026-09-14 재기준(2차 묶음 ④a, 1604 t53~55): drill_intro 편집 문구 1문장 → 4202 → 4288.
 # 2026-09-16 머지(dev 7ef23db, 실통화 1636): DRILL_ALT_CORRECT_LINE 인정 범위를 어미·조사·군말까지 → 4288 → 4393.
-_EXPR_FROZEN = ("0d89b745e180ba0b2b956294177b7245613892dfd67bbe0f77d3ad83628a70a8", 4393)
+# 2026-09-19 재기준(15차, 사장님 지시 — 실통화 1657 ko t13 «묻지 않고 정답부터»): DRILL_ASK_FIRST_LINE 을 전 언어 공통으로 올려 **ko 대본에 1줄 추가** → 4393 → 4475.
+#   ⚠ 문장은 한 글자도 안 바뀌었다(비ko 전용 목록에서 공통 자리로 이동). ja 조립은 바이트 동일(expression.procedure_ja 해시 무변).
+_EXPR_FROZEN = ("ac359a303b180cd3453c223b7fc211fa56193252a059cfe99e63e5d21983d8bd", 4475)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
