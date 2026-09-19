@@ -856,6 +856,8 @@ CID_FORMATS = (
     "cur 표현학습 저장: call_id=%s", "재접지 arm(표현학습): call_id=%s",
     # 13차 E(2026-09-19) — 마지막 판정 경로의 남은 2줄
     "퀴즈 닫힘(LLM 판정·마지막): call_id=%s", "퀴즈 판정(서버·마지막 폴백): call_id=%s",
+    # 14차 D(2026-09-19) — 안내가 무산된 줄도 통화를 구분해 읽는다
+    "안내 보류: call_id=%s 사유=%s",
 )
 
 
@@ -958,12 +960,17 @@ def _drill_state(items=None):
     return st
 
 
-async def _turn_end(sess, st):
-    """turn_end 자리의 주입 관문(세트 안내 → 드릴 안내 택일)만 흉내낸다."""
-    if st.expr_quiz_set_nudge_pending and st.turn_id is None and not st.should_close:
-        await cs._inject_quiz_set_reminder(sess, st)
-    elif st.expr_drill_nudge_pending and st.turn_id is None and not st.should_close and not st.expr_quiz_open:
-        await cs._inject_drill_move_on(sess, st)      # 13차 C — 퀴즈 창이 열린 동안에는 주입을 미룬다(실제 turn_end 관문과 같다)
+async def _turn_end(sess, st, *, gap_ok=True):
+    """14차 C — 안내 주입 자리는 이제 **마이크 자리**(_attach_note)다. 시험은 «학습자가 막 말을 시작한 자리» 하나만 흉내낸다.
+    gap_ok=True 면 30초 간격·창 직후 금지를 이미 지난 것으로 본다(그 관문은 전용 시험이 따로 본다)."""
+    if gap_ok:
+        loop_now = asyncio.get_running_loop().time()
+        if st.expr_note_last_ts is not None:
+            st.expr_note_last_ts = loop_now - cs.EXPR_NOTE_MIN_GAP_S - 1
+        if st.expr_quiz_open_ts is not None:
+            st.expr_quiz_open_ts = loop_now - cs.EXPR_QUIZ_OPEN_QUIET_S - 1
+    if not st.should_close and st.turn_id is None:
+        await cs._attach_note(sess, st, "마이크")
 
 
 @pytest.mark.asyncio
@@ -1238,3 +1245,61 @@ def test_set_drift_is_flagged_once_per_beaver_turn(caplog):
     st.expr_quiz_set_nudge_pending = False                     # 안내가 나갔다고 치고
     cs._note_quiz_set_drift(st, [4], 15)                       # 다른 비버 턴이면 다시 잡는다
     assert st.expr_quiz_set_nudge_pending is True and st.expr_quiz_drift_seg == 15
+
+
+@pytest.mark.asyncio
+async def test_notes_wait_for_the_minimum_gap_between_injections(caplog):
+    """B① — 안내 사이 최소 30초. 못 나가면 «보류» 줄을 남긴다(D)."""
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st, sess = _drift_state(), _CidSess()
+    st.expr_quiz_open_ts = asyncio.get_running_loop().time() - cs.EXPR_QUIZ_OPEN_QUIET_S - 1
+    st.expr_quiz_set_nudge_pending = True
+    assert await cs._attach_note(sess, st, "마이크") is True
+    assert st.expr_note_last_ts is not None and len(sess.regrounds) == 1      # 3.1 → 재접지 통로
+    st.expr_quiz_set_nudge_pending = True                                     # 곧바로 또 이탈
+    assert await cs._attach_note(sess, st, "마이크") is False, "30초 안에는 다시 안 나간다"
+    hold = [r.getMessage() for r in caplog.records if "안내 보류:" in r.getMessage()][-1]
+    assert "call_id=1651" in hold and "직전 안내" in hold and "간격 30s 필요" in hold
+    assert len(sess.regrounds) == 1
+    st.expr_note_last_ts -= cs.EXPR_NOTE_MIN_GAP_S + 1                        # 30초가 지났다
+    assert await cs._attach_note(sess, st, "마이크") is True and len(sess.regrounds) == 2
+    assert cs.EXPR_NOTE_MIN_GAP_S == 30.0
+
+
+@pytest.mark.asyncio
+async def test_set_note_is_quiet_right_after_the_window_opens(caplog):
+    """B② — 창을 연 직후 15초 안에는 세트 안내 금지(큐와 겹치면 두 지시가 한꺼번에 간다)."""
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st, sess = _drift_state(), _CidSess()
+    st.expr_quiz_open_ts = asyncio.get_running_loop().time()                  # 방금 열렸다
+    st.expr_quiz_set_nudge_pending = True
+    assert await cs._attach_note(sess, st, "마이크") is False
+    hold = [r.getMessage() for r in caplog.records if "안내 보류:" in r.getMessage()][-1]
+    assert "창 연 지" in hold and "조용히 15s" in hold
+    assert sess.regrounds == [] and sess.text_turns == []
+    st.expr_quiz_open_ts -= cs.EXPR_QUIZ_OPEN_QUIET_S + 1                     # 15초가 지났다
+    assert await cs._attach_note(sess, st, "마이크") is True and len(sess.regrounds) == 1
+    assert cs.EXPR_QUIZ_OPEN_QUIET_S == 15.0
+
+
+@pytest.mark.asyncio
+async def test_notes_only_go_out_at_the_microphone_slot_after_the_learner_speaks(monkeypatch):
+    """C — 안내는 **학습자 발화 직후(마이크 RMS 통과)** 에만 나간다. 침묵 프레임·비버 발화 중에는 0."""
+    st, sess = _drift_state(), _CidSess()
+    st.expr_quiz_open_ts = asyncio.get_running_loop().time() - cs.EXPR_QUIZ_OPEN_QUIET_S - 1
+    st.expr_quiz_set_nudge_pending = True
+    silence = bytes(320)                                 # 무음 PCM16 160프레임
+    await cs._maybe_attach_reground_on_mic(sess, st, silence)
+    assert sess.regrounds == [] and st.expr_quiz_set_nudge_pending is True, "침묵 프레임에는 안 넣는다"
+    voice = b"".join(int(8000 * (1 if i % 2 else -1)).to_bytes(2, "little", signed=True) for i in range(160))
+    assert cs.frame_rms(voice) >= cs.REGROUND_VOICE_RMS, "시험 전제: 이 프레임은 «사람이 말한다»"
+    await cs._maybe_attach_reground_on_mic(sess, st, voice)
+    assert len(sess.regrounds) == 1 and st.expr_quiz_set_nudge_pending is False, "말이 시작된 자리에서 나간다"
+    # turn_end 자리에는 이제 주입 코드가 없다 — 펌프 소스에 남아 있지 않은지 지킨다
+    import io as _io
+
+    src = _io.open(cs.__file__, encoding="utf-8").read()
+    turn_end_block = src[src.index("await _loop_breaker_on_turn_end(session, state, turn_text)"):][:600]
+    assert "_inject_quiz_set_reminder" not in turn_end_block and "_inject_drill_move_on" not in turn_end_block

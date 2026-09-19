@@ -779,6 +779,7 @@ class _CallState:
         # 11차 B(2026-09-18): 드릴 루프 — expr_drill_focus 지금 붙잡고 있는 항목 · _user_turns 그 항목에 쌓인 학습자 턴 ·
         #   _nudges 통화당 주입 수(상한 EXPR_DRILL_NUDGE_MAX) · _nudge_pending 다음 turn_end 에 넣을까
         "expr_drill_focus", "expr_drill_user_turns", "expr_drill_nudges", "expr_drill_nudge_pending",
+        "expr_note_last_ts", "expr_quiz_open_ts", "expr_note_hold_why",   # 14차 B·D — 마지막 안내 주입 시각 · 창 연 시각 · 마지막 보류 사유
         "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
         "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
         "call_id", "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
@@ -1011,6 +1012,9 @@ class _CallState:
         self.expr_drill_user_turns: int = 0                # 그 항목에 쌓인 학습자 턴 수(상한 EXPR_DRILL_MAX_USER_TURNS)
         self.expr_drill_nudges: int = 0                    # «다음 항목으로» 안내 주입 수(통화당 EXPR_DRILL_NUDGE_MAX)
         self.expr_drill_nudge_pending: bool = False        # 다음 turn_end(비버 idle)에 넣을까
+        self.expr_note_last_ts: Optional[float] = None     # 14차 B — 마지막 안내(세트·드릴) 주입 시각(루프 시계)
+        self.expr_quiz_open_ts: Optional[float] = None     # 14차 B — 퀴즈 창을 연 시각(창 직후 조용히)
+        self.expr_note_hold_why: Optional[str] = None      # 14차 D — 마지막으로 찍은 «안내 보류» 사유(같으면 다시 안 찍는다)
         self.expr_quiz_drift_seg: Optional[int] = None     # 14차 A — 이탈을 이미 잡은 비버 세그먼트(판정기·서버 대조가 같은 턴을 두 번 잡지 않게)
         self.expr_drill_nudged: set[int] = set()           # 12차 D — 안내를 이미 쓴 항목(항목별 1회)
         self.expr_drill_nudge_for: Optional[int] = None    # 12차 D — 대기 중인 안내가 어느 항목 때문인가(로그·기록용)
@@ -1329,6 +1333,8 @@ EXPR_QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
 
 
 EXPR_DRILL_MAX_USER_TURNS = 3   # 11차 B — 한 항목 드릴에 허용하는 학습자 턴(넘으면 «다음 항목으로» 1회). DRILL 재시도 상한 3 과 같은 축이다.
+EXPR_NOTE_MIN_GAP_S = 30.0      # ⭐ 14차 B(2026-09-19, 1651) — 안내(세트·드릴) 사이 최소 간격. 연달아 넣으면 비버가 지시를 겹쳐 받는다.
+EXPR_QUIZ_OPEN_QUIET_S = 15.0   # ⭐ 14차 B — 퀴즈 창을 연 직후 이 시간 동안은 세트 안내 금지(큐와 안내가 겹치면 두 지시가 한꺼번에 간다).
 EXPR_DRILL_NUDGE_MAX = 6        # 12차 D(2026-09-18, 1645 — 상한 3 이 앞 2분에 소진돼 후반 4턴 루프엔 개입 0): 통화당 6회
                                 #   (세트 안내 2회와 별도 계정) + **항목별 1회**(같은 항목에 두 번 안내하지 않는다)
 
@@ -1643,7 +1649,7 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
     tc = _cue_completed_turn(state)
     await _send_note(session, expression_quiz_set_reminder(labels), tc)
     _note_text_inject(state, "quiz_set")
-    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s tc=%s 모델=%s",
+    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s 자리=마이크 tc=%s 모델=%s",
                 EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
                 _cid(state), state.expr_quiz_set, tc, state.live_model or "-")
     return True
@@ -1745,7 +1751,7 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     await _send_note(session, EXPRESSION_DRILL_MOVE_ON, tc)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
-    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s tc=%s 모델=%s",
+    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s 자리=마이크 tc=%s 모델=%s",
                 state.expr_drill_nudges, EXPR_DRILL_NUDGE_MAX, _cid(state),
                 state.expr_drill_nudge_for if state.expr_drill_nudge_for is not None else state.expr_drill_focus,
                 tc, state.live_model or "-")
@@ -1910,6 +1916,8 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
         state.expr_quiz_open_user_turns = 0
         state.expr_quiz_llm_decided = set()
         state.expr_quiz_grace_from = None                  # 8차 B — 새 창이 열리면 유예는 없다
+        state.expr_quiz_open_ts = asyncio.get_running_loop().time() if _loop_running() else None   # 14차 B
+        state.expr_quiz_drift_seg = None                   # 14차 A — 창이 바뀌면 이탈 중복 차단도 새로
         # ⭐ T20 (1410 seq=3) — 여는 비버 턴은 «직전 드릴 피드백 + 퀴즈 시작» 이 한 턴에 오는 게 정상이다. 그 턴이 큐 직전에
         #   드릴 중이던 항목(= 열 때 아직 안 다룬 가장 앞 번호)의 표면형을 공개하면(«It's 괜찮아요. Now, quiz time again!»)
         #   옛 코드는 그걸 «다음 항목 소개» 로 읽어 창을 열자마자 닫았다(창 42~42, [6,7,8] 전부 미판정, 뒤 40초 정답 유실).
@@ -5578,13 +5586,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # ⭐ 반복 루프 차단기(2026-09-14 B). 종료·태그 누출 경로가 위에서 먼저 걸리므로 여기는 «정상 진행 중» 뿐이다.
                 #   인사 구간(learner_spoke 전 — 벙어리 재시드가 같은 인사를 두 번 만든다)·레벨테스트는 보지 않는다.
                 await _loop_breaker_on_turn_end(session, state, turn_text)
-                if state.expr_quiz_set_nudge_pending and state.turn_id is None and not state.should_close:
-                    await _inject_quiz_set_reminder(session, state)     # 8차 C — 퀴즈 세트 이탈 안내(통화당 2회)
-                elif state.expr_drill_nudge_pending and state.turn_id is None and not state.should_close \
-                        and not state.expr_quiz_open:
-                    # 11차 B — 드릴 루프 «다음 항목으로» · 한 turn_end 에 주입은 택일
-                    # 13차 C — 퀴즈 창이 열린 동안은 **주입만** 미룬다(추적·표시는 창 안에서도 계속). 창이 닫히면 다음 turn_end 에 나간다.
-                    await _inject_drill_move_on(session, state)
+                # ⛔ 14차 C(2026-09-19, 1651): 세트·드릴 안내를 **여기서 넣지 않는다.** turn_end 직후 idle 에 넣으면 비버가
+                #   그것을 대화 차례로 받아 학습자 없이 다음 턴을 만든다(자문자답). 안내는 마이크 자리(_attach_note)에서만 나간다.
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
@@ -6277,6 +6280,11 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     if state.expr_quiz_cue_pending is not None:
         await _attach_quiz_cue(session, state, where)
         return
+    # ⭐ 14차 C — 큐 다음은 안내(세트·드릴)다. 큐와 마찬가지로 **학습자가 막 말을 시작한 자리**에만 넣는다.
+    #   재접지 쪽지는 그대로 남겨 다음 발화에 보낸다(큐와 같은 규율 — 한 자리에 하나).
+    if state.expr_quiz_set_nudge_pending or state.expr_drill_nudge_pending:
+        if await _attach_note(session, state, where):
+            return
     if not (state.reground_pending and state.reground_reminder):
         return
     state.reground_pending = False    # await 전 선점(단일 소유권)
@@ -6316,8 +6324,10 @@ async def _maybe_attach_reground_on_mic(
     ⚠ **핫패스다**(초당 45~90프레임). RMS 는 `reground_pending` 일 때만 계산한다 —
       대기 중이 아닐 때의 비용은 불린 검사 하나다(R4).
     """
-    if state.expr_quiz_cue_pending is None and not (state.reground_pending and state.reground_reminder):
-        return
+    if (state.expr_quiz_cue_pending is None and not state.expr_quiz_set_nudge_pending
+            and not state.expr_drill_nudge_pending
+            and not (state.reground_pending and state.reground_reminder)):
+        return              # 14차 C — 안내도 이 관문을 탄다(대기 중이 아닐 때의 비용은 종전대로 불린 검사뿐)
     if state.should_close or state.close_seed_sent:
         return
     if frame_rms(data) < REGROUND_VOICE_RMS:
@@ -6372,6 +6382,60 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         _cid(state), state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
         tc, state.live_model or "-",
     )
+
+
+def _note_gate(state: _CallState, kind: str) -> tuple[bool, str]:
+    """⭐ 14차 B·D(2026-09-19, 사장님 1651 — 안내 2회가 5초 간격으로 나가고 비버가 혼자 묻고 혼자 답했다): 안내를 **지금** 넣어도 되나.
+
+    ① 직전 안내로부터 EXPR_NOTE_MIN_GAP_S(30초)는 지나야 한다 — 두 지시가 겹치면 비버가 대화 차례로 받아 스스로 턴을 만든다.
+    ② 세트 안내는 창을 연 직후 EXPR_QUIZ_OPEN_QUIET_S(15초) 동안 금지 — 큐(문제 목록)와 안내가 붙으면 같은 말을 두 번 하는 꼴이다.
+    반환 (보낼까, 사유). 사유는 보류 로그에 그대로 실린다(D — 무산도 하네스가 센다)."""
+    if not _loop_running():
+        return True, ""
+    now = asyncio.get_running_loop().time()
+    if state.expr_note_last_ts is not None:
+        gap = now - state.expr_note_last_ts
+        if gap < EXPR_NOTE_MIN_GAP_S:
+            return False, "직전 안내 %.0fs 전(간격 %.0fs 필요)" % (gap, EXPR_NOTE_MIN_GAP_S)
+    if kind == "quiz_set" and state.expr_quiz_open_ts is not None:
+        since = now - state.expr_quiz_open_ts
+        if since < EXPR_QUIZ_OPEN_QUIET_S:
+            return False, "창 연 지 %.0fs(조용히 %.0fs)" % (since, EXPR_QUIZ_OPEN_QUIET_S)
+    return True, ""
+
+
+def _note_held(state: _CallState, kind: str, why: str) -> None:
+    """14차 D — 안내가 무산된 줄을 남긴다. 같은 사유면 다시 안 찍는다(1604 «1초에 15줄» 재발 방지)."""
+    if state.expr_note_hold_why == why:
+        return
+    state.expr_note_hold_why = why
+    logger.info("normalcall 표현학습 %s 안내 보류: call_id=%s 사유=%s",
+                "세트" if kind == "quiz_set" else "드릴", _cid(state), why)
+
+
+async def _attach_note(session: LiveSessionProtocol, state: _CallState, where: str) -> bool:
+    """⭐ 14차 C(2026-09-19, 1651 t14·t15) — 안내(세트·드릴)를 **학습자 발화 직후(마이크 자리)** 에만 넣는다.
+
+    ⛔ 왜 turn_end 가 아닌가: 비버 턴이 끝난 직후 idle 에 넣으면 비버가 그 텍스트를 **대화 차례**로 받아 다음 턴을 스스로 만든다 —
+      1651 에서 학습자 턴 0 인데 «You got it!»·«Exactly!» 로 자문자답한 구간이 그것이다. 마이크 자리는 사람이 막 말을 시작한
+      자리라(RMS 통과) 비버가 그 말에 이어서 반응한다. 퀴즈 큐가 이미 쓰는 자리·관문 그대로다(T16·10차).
+    통로는 모델별(_cue_completed_turn): 2.5 완결 텍스트 턴 · 3.1 재접지 얹기(tc=False). 한 자리에 하나만 — 세트가 먼저다.
+    """
+    kind = "quiz_set" if state.expr_quiz_set_nudge_pending else ("drill" if state.expr_drill_nudge_pending else "")
+    if not kind:
+        return False
+    if kind == "drill" and state.expr_quiz_open:
+        _note_held(state, kind, "퀴즈 창이 열려 있다")     # 13차 C — 드릴 안내는 창 밖에서만
+        return False
+    ok, why = _note_gate(state, kind)
+    if not ok:
+        _note_held(state, kind, why)
+        return False
+    state.expr_note_hold_why = None
+    sent = await (_inject_quiz_set_reminder(session, state) if kind == "quiz_set" else _inject_drill_move_on(session, state))
+    if sent and _loop_running():
+        state.expr_note_last_ts = asyncio.get_running_loop().time()
+    return sent
 
 
 async def _send_note(session: LiveSessionProtocol, text: str, completed_turn: bool) -> None:
