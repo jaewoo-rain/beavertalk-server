@@ -1690,11 +1690,16 @@ def _note_expression_drill(state: _CallState, text: str) -> None:
 
     루프 차단기는 **문장**을 대보므로(직전 턴과 ≥0.9 유사) 같은 항목을 표현만 바꿔 6~8턴 되풀이하면 안 걸린다. 여기선 **항목**을 센다:
     ① 한 항목의 드릴에 학습자 턴이 EXPR_DRILL_MAX_USER_TURNS(3)를 넘으면 안내 1회 · ② 이미 다룬 항목으로 되돌아가 또 드릴하면 안내 1회.
-    ⛔ 퀴즈 창이 열린 동안은 보지 않는다 — 그 구간은 세트 안내(8차 C)가 담당이고, 두 안내가 같은 turn_end 에 겹치면 안 된다(주입은 택일).
+
+    ⭐ 13차 C(2026-09-19, 1647 — 통과 항목 재드릴 3회에 안내 0): 퀴즈 창이 열린 동안에도 **추적은 계속한다**(옛 코드는 통째로 껐다 —
+      그 사각지대에서 재드릴이 벌어졌다). 다만 창 안에서는 **세트 항목을 제외**하고 본다 — 세트 항목을 묻고 답하는 것은 퀴즈 진행이지
+      드릴 루프가 아니다. 안내 **주입**은 창 밖(또는 창이 닫힌 뒤)에서만 한다 — 퀴즈를 방해하지 않게(주입 자리의 가드).
     """
-    if not state.expr_items or state.expr_quiz_open or not (text or "").strip():
+    if not state.expr_items or not (text or "").strip():
         return
     hits = _expr_mentioned_nums(state, text)
+    if state.expr_quiz_open and state.expr_quiz_set:
+        hits = [n for n in hits if n not in state.expr_quiz_set]     # 창 안: 세트 항목은 퀴즈 진행이다
     if not hits:
         return                      # 항목을 안 짚은 턴(잡담·리액션) — 지금 초점을 유지한다
     if state.expr_drill_focus in hits:
@@ -1710,8 +1715,11 @@ def _note_expression_drill(state: _CallState, text: str) -> None:
 
 
 def _note_drill_user_turn(state: _CallState, text: str) -> None:
-    """11차 B — 드릴 중인 항목에 학습자 턴을 센다(빈 전사는 안 센다 — P1 규율 그대로). 상한을 넘으면 안내를 표시한다."""
-    if not state.expr_items or state.expr_quiz_open or state.expr_drill_focus is None:
+    """11차 B — 드릴 중인 항목에 학습자 턴을 센다(빈 전사는 안 센다 — P1 규율 그대로). 상한을 넘으면 안내를 표시한다.
+    13차 C — 퀴즈 창이 열려 있어도 센다. 단 초점이 **세트 항목**이면 그건 퀴즈 진행이므로 세지 않는다(주입도 창 밖에서만)."""
+    if not state.expr_items or state.expr_drill_focus is None:
+        return
+    if state.expr_quiz_open and state.expr_drill_focus in (state.expr_quiz_set or []):
         return
     if not (text or "").strip():
         return
@@ -5565,8 +5573,11 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 await _loop_breaker_on_turn_end(session, state, turn_text)
                 if state.expr_quiz_set_nudge_pending and state.turn_id is None and not state.should_close:
                     await _inject_quiz_set_reminder(session, state)     # 8차 C — 퀴즈 세트 이탈 안내(통화당 2회)
-                elif state.expr_drill_nudge_pending and state.turn_id is None and not state.should_close:
-                    await _inject_drill_move_on(session, state)         # 11차 B — 드릴 루프 «다음 항목으로»(통화당 3회) · 한 turn_end 에 주입은 택일
+                elif state.expr_drill_nudge_pending and state.turn_id is None and not state.should_close \
+                        and not state.expr_quiz_open:
+                    # 11차 B — 드릴 루프 «다음 항목으로» · 한 turn_end 에 주입은 택일
+                    # 13차 C — 퀴즈 창이 열린 동안은 **주입만** 미룬다(추적·표시는 창 안에서도 계속). 창이 닫히면 다음 turn_end 에 나간다.
+                    await _inject_drill_move_on(session, state)
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.

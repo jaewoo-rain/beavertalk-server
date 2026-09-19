@@ -960,8 +960,8 @@ async def _turn_end(sess, st):
     """turn_end 자리의 주입 관문(세트 안내 → 드릴 안내 택일)만 흉내낸다."""
     if st.expr_quiz_set_nudge_pending and st.turn_id is None and not st.should_close:
         await cs._inject_quiz_set_reminder(sess, st)
-    elif st.expr_drill_nudge_pending and st.turn_id is None and not st.should_close:
-        await cs._inject_drill_move_on(sess, st)
+    elif st.expr_drill_nudge_pending and st.turn_id is None and not st.should_close and not st.expr_quiz_open:
+        await cs._inject_drill_move_on(sess, st)      # 13차 C — 퀴즈 창이 열린 동안에는 주입을 미룬다(실제 turn_end 관문과 같다)
 
 
 @pytest.mark.asyncio
@@ -1124,6 +1124,46 @@ async def test_server_recovery_does_not_record_a_parrot_after_the_reveal(monkeyp
     _user(st, "韓国から来ました。")                        # 복창
     await _drain(st)
     assert 303 not in st.expr_quiz_pass and 3 not in st.expr_quizzed, "공개 뒤 복창은 통과가 아니다"
+
+
+# --------------------------------------------------------------------------- #
+# 13차 C (2026-09-19, 1647 — 퀴즈 창이 열린 동안 드릴 추적이 꺼져 있어 통과 항목 재드릴 3회에 안내 0)
+#   추적은 창 안에서도 계속(세트 항목은 제외 — 그건 퀴즈 진행이다) · 주입만 창 밖에서.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_drill_tracking_keeps_running_inside_the_quiz_window_and_the_note_waits_for_it_to_close():
+    """C① — 창 안에서 세트 밖 항목을 되풀이하면 표시는 서고, 주입은 창이 닫힌 뒤에 나간다."""
+    st, sess = _drill_state(JA_DRILL8), _CidSess()
+    st.covered_nums = [1, 2, 3, 4, 5, 6, 7, 8]
+    _open_quiz(st, [7, 8])
+    st.expr_quiz_set = [7, 8]
+    for i in range(5):                                   # 세트 밖 항목 1 을 창 안에서 되풀이
+        _beaver(st, "«こんにちは» 를 한 번 더 해볼까요 (%d)" % i)
+        _user(st, "こんにちは")
+        await _turn_end(sess, st)
+    assert st.expr_drill_focus == 1, "창 안에서도 항목 추적이 돈다"
+    assert st.expr_drill_nudge_pending is True, "안내 표시는 창 안에서도 선다"
+    assert cs.EXPRESSION_DRILL_MOVE_ON not in sess.text_turns, "창이 열린 동안에는 드릴 안내 주입 0(퀴즈를 방해하지 않는다)"
+    # ⚠ 세트 안내(8차 C·13차 D)는 창 안에서 나간다 — 세트 밖 항목을 다뤘으니 그쪽이 제 일을 한 것이다
+    assert any("지금 낼 문제는" in t for t in sess.text_turns), "세트 이탈 안내는 창 안에서 제 몫을 한다"
+    st.expr_quiz_open, st.expr_quiz_set = False, []      # 창이 닫혔다
+    before = len(sess.text_turns)
+    _beaver(st, "좋아요, 다음으로 가죠")
+    await _turn_end(sess, st)
+    assert sess.text_turns[before:] == [cs.EXPRESSION_DRILL_MOVE_ON], "닫힌 뒤 다음 turn_end 에 나간다"
+
+
+@pytest.mark.asyncio
+async def test_quiz_progress_on_set_items_is_not_counted_as_a_drill_loop():
+    """C② — 창 안에서 **세트 항목**을 묻고 답하는 것은 퀴즈 진행이다 — 드릴 루프로 세지 않는다(안내 0)."""
+    st, sess = _drill_state(JA_DRILL8), _CidSess()
+    _open_quiz(st, [1, 2])
+    st.expr_quiz_set = [1, 2]
+    for i in range(6):
+        _beaver(st, "«こんにちは» 는 뭐라고 하죠? (%d)" % i)
+        _user(st, "음...")
+        await _turn_end(sess, st)
+    assert st.expr_drill_nudge_pending is False and sess.text_turns == [] and st.expr_drill_nudges == 0
 
 
 # --------------------------------------------------------------------------- #
