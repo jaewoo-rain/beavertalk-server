@@ -555,6 +555,8 @@ def _mk_state(monkeypatch):
     st.last_reground_ts = None
     st.reground_arm_reason = "compress_imminent"
     st.expr_quiz_cue_pending = None      # T16 — 퀴즈 큐 슬롯(재접지와 별개). 여기선 큐 없음
+    st.expr_quiz_set_nudge_pending = False   # 14차 C — 안내(세트·드릴)도 이 관문을 탄다. 여기선 대기 없음
+    st.expr_drill_nudge_pending = False
     st.should_close = False
     st.close_seed_sent = False
     st.turn_id = None
