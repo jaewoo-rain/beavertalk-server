@@ -2008,6 +2008,7 @@ class Score:
     order_ok: bool = True            # ② 퀴즈 블록 안 항목 번호 오름차순
     redrill_ok: bool = True          # ① (llm) 가르친·통과 항목이 다시 드릴되지 않았다
     praise_ok: bool = True
+    solo_ok: bool = True             # 14차: 학습자 턴 없이 이어진 비버 턴 묶음이 3턴 이상이 아니다(1651 자문자답)
     lines: list[str] = field(default_factory=list)
     db_rows: dict[int, dict] = field(default_factory=dict)
     expr_result: list[dict] = field(default_factory=list)
@@ -2380,6 +2381,55 @@ _DRILL_NOTICE_ITEM_RE = re.compile(r"드릴 안내 주입[^:]*:.*?항목=(\d+)")
 _NOTICE_TC_RE = re.compile(r"(드릴|세트) 안내 주입[^:]*:.*?tc=(True|False)(?:.*?모델=([\w.\-]+))?")
 
 
+def beaver_solo_runs(turns: list) -> list[list]:
+    """학습자 턴이 하나도 없이 이어진 **내용 있는** 비버 턴 묶음들(길이 2 이상만) — 빈 턴은 묶음을 끊지 않는다.
+
+    14차(2026-09-19, 사장님 통화 1651): 13차 D 로 같은 비버 턴에 세트 이탈이 두 번 감지돼 안내가 5초 간격으로 2회 주입됐고,
+    비버가 그걸 대화 차례로 받아 **학습자 턴 없이 혼자 묻고 답했다**(t13→t14→t15 = 3턴 묶음)."""
+    runs: list[list] = []
+    cur: list = []
+    for t in turns or []:
+        if t.role == "learner":
+            if len(cur) >= 2:
+                runs.append(cur)
+            cur = []
+            continue
+        if t.role == "beaver" and (t.text or "").strip():
+            cur.append(t)
+    if len(cur) >= 2:
+        runs.append(cur)
+    return runs
+
+
+def solo_run_self_answered(run: list) -> bool:
+    """그 묶음 안에서 비버가 **묻고 스스로 답했나** — 앞 턴이 **항목을 묻는 문형**(QUESTION_LEAD_RE), 뒤 턴에 공개(표면형 reveal) 태그.
+    ⛔ 「Are you naming foods now?!」 같은 수사의문문은 질문으로 안 친다(1638 t15 오검출)."""
+    for i, t in enumerate(run or []):
+        if not QUESTION_LEAD_RE.search(t.text or ""):
+            continue
+        if any(any("reveal" in x for x in (u.tags or [])) for u in run[i + 1:]):
+            return True
+    return False
+
+
+_NOTICE_HOLD_RE = re.compile(r"(세트|드릴)?\s*안내 보류[^:]*:(.*)$")
+_HOLD_REASON_RE = re.compile(r"(?:이유|사유)=(.+?)(?:\s·|$)")   # 사유는 줄 끝(또는 « · ») 까지 — 공백으로 자르면 «같은» 처럼 토막난다
+
+
+def parse_notice_holds(log_lines: list[str] | None) -> dict[str, int]:
+    """14차 — «안내 보류» 로그를 사유별로 센다(같은 턴 1회 · 30초 간격 · 창 연 직후 15초 · 마이크 자리 아님 …).
+    문구가 조금 달라도 «안내 보류» 만 있으면 잡는다 — 사유가 없으면 «(사유 없음)» 으로 묶는다."""
+    out: dict[str, int] = {}
+    for ln in log_lines or []:
+        m = _NOTICE_HOLD_RE.search(ln)
+        if not m:
+            continue
+        r = _HOLD_REASON_RE.search(m.group(2) or "")
+        key = f"{(m.group(1) or '').strip()} {r.group(1) if r else '(사유 없음)'}".strip()
+        out[key] = out.get(key, 0) + 1
+    return out
+
+
 def parse_drill_notices(log_lines: list[str] | None) -> list[int]:
     """12차 — «표현학습 드릴 안내 주입 n/6: call_id=… 항목=N tc=… 모델=…» 의 항목 번호(주입 순서대로).
     12차 결정: **항목별 1회 · 통화당 6회** 가 상한이다(11차는 통화당 3회라 앞 2분에 소진됐다 — 1645)."""
@@ -2578,7 +2628,8 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     L.append(f"- DB call: {sc.call_row} · 레벨(뒤) {sc.level_after}")
     _bs = beaver_turn_stats(sess.turns)
     sc.cur["beaver_stats"] = _bs
-    L.append(f"- 비버 턴 글자수 평균 {_bs['avg_chars']:.0f} · 최대 {_bs['max_chars']} · 동일 문장 연속 반복 "
+    L.append(f"- 비버 턴 글자수 평균 {_bs['avg_chars']:.0f}{' ⚠' if _bs['avg_chars'] >= 95 else ''} · 최대 {_bs['max_chars']} "
+             f"(기준선 14차: 정상 1644 83자 · 13차 D 부작용 1651 95자) · 동일 문장 연속 반복 "
              + (f"**{_bs['repeat_max']}회** {_bs['repeat_span']} «{_bs['repeat_text'][:80]}» (구간 {_bs['repeat_runs']})" if _bs["repeat_max"] >= 2 else "0"))
     if sess.course != "freetalk":
         passed_times = {iid: min(x.asked_at for x in r.rounds if x.spontaneous_correct)
@@ -2624,6 +2675,18 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
     empty_b = [t for t in sess.turns if t.role == "beaver" and not t.text.strip()]
     dbl = [t for i, t in enumerate(sess.turns) if t.role == "beaver" and i > 0 and sess.turns[i - 1].role == "beaver" and sess.turns[i - 1].text.strip() and t.text.strip()]
     rep_b = [t for t in sess.turns if t.role == "beaver" and re.search(r"\b(\w{3,}(?: \w+){0,3})\b[,.!? ]+\1\b", t.text, re.I)]
+    # 14차 — 학습자 턴 없이 이어진 비버 턴 묶음(1651: 안내 2회 주입 → t13→t14→t15 자문자답)
+    _runs = beaver_solo_runs(sess.turns)
+    _long = [r for r in _runs if len(r) >= 3]
+    _self = [r for r in _runs if solo_run_self_answered(r)]
+    sc.solo_ok = not _long and not _self
+    sc.cur["solo_runs"] = {"n": len(_runs), "max": max((len(r) for r in _runs), default=0),
+                           "over3": len(_long), "self_answered": len(_self)}
+    L.append(f"- 학습자 턴 없이 이어진 비버 턴: 묶음 {len(_runs)}개 · 최장 {max((len(r) for r in _runs), default=0)}턴 · "
+             f"3턴 이상 {len(_long)}개" + (" " + ", ".join(f"t{r[0].n}→t{r[-1].n}" for r in _long[:4]) if _long else "")
+             + f" · 자문자답(묻고 스스로 공개) {len(_self)}건"
+             + (" " + ", ".join(f"t{r[0].n}→t{r[-1].n}" for r in _self[:4]) if _self else "")
+             + f" → {'✔' if sc.solo_ok else '✖'} (14차 · 1651 기준선: 3턴 묶음 1개·자문자답 1건)")
     if sc.cur.get("raw_rows_n") is not None:
         _dupes = sc.cur.get("raw_dupes") or []
         L.append(f"- 전사 저장(call_raw_data) {sc.cur['raw_rows_n']}행 · 같은 (turn_index, role) 중복 {len(_dupes)}건"
@@ -2759,6 +2822,9 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
             L.append(f"- 안내 주입 방식(tc): 드릴 {sum(1 for k, _t, _m in _ntc if k == '드릴')}회 · 세트 {sum(1 for k, _t, _m in _ntc if k == '세트')}회 · "
                      f"tc=True {sum(1 for _k, t, _m in _ntc if t)} / False {sum(1 for _k, t, _m in _ntc if not t)} · 모델 {_models} · "
                      f"규칙(완결 턴은 2.5 만) 위반 {len(_nbad)}{_nbad if _nbad else ''} → {'✔' if not _nbad else '✖'} (12차)")
+        _holds = parse_notice_holds(server_logs)
+        if _holds or _ntc:
+            L.append(f"- 안내 보류(14차): {sum(_holds.values())}회 " + (str(_holds) if _holds else "— 보류 로그 없음(14차 전 서버면 정상)"))
         if server_logs is not None:
             _tag, _untag, _kinds = call_id_coverage(server_logs)
             sc.cur["call_id_coverage"] = {"tagged": _tag, "untagged": _untag, "kinds": _kinds}
@@ -3015,11 +3081,11 @@ def score_and_report(sess: Session, sc: Score, items: dict[int, Item], *, durati
         L.append(f"- (f) 종료 저장: ja cur_member_item(이 통화) {ja_rows}행 · ko 진도 무변화 {'✔' if ko_same else '✖'} (rows {ko0.get('rows')}→{ko1.get('rows')} · passed {ko0.get('passed')}→{ko1.get('passed')})")
         L.append(f"- (g) 거짓 칭찬 {sum(len(r.beaver_said_correct_after_wrong) for r in recs)}건")
         L.append("")
-    passed_all = sc.judge_ok and sc.period_ok and sc.order_ok and sc.praise_ok and sc.redrill_ok
+    passed_all = sc.judge_ok and sc.period_ok and sc.order_ok and sc.praise_ok and sc.redrill_ok and sc.solo_ok
     L.insert(2, f"**결과: {'✔ 전부 기대와 일치' if passed_all else '✖ 불일치'}** — 판정 {'✔' if sc.judge_ok else '✖'} · "
                 f"퀴즈주기 {'✔' if sc.period_ok else '✖'} · 퀴즈순서 {'✔' if sc.order_ok else '✖'} · 거짓칭찬 {'✔' if sc.praise_ok else '✖'} · "
                 f"{('재드릴 ' + ('✔' if sc.redrill_ok else '✖') + ' · 판정기 llm' + (' · 표기 ' + ANSWER_STYLE if ANSWER_STYLE else '') + ' · ') if JUDGE_MODE == 'llm' else '판정기 string · '}"
-                f"선질문 위반 {len(pre)} · 자발 산출 {sess.spontaneous}")
+                f"연속비버턴 {'✔' if sc.solo_ok else '✖'} · 선질문 위반 {len(pre)} · 자발 산출 {sess.spontaneous}")
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stamp}_{LANGUAGE + '_' if LANGUAGE != 'ko' else ''}call{cid or 'none'}.md"
     if path.exists():
