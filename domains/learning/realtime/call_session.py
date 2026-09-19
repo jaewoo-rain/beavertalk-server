@@ -779,6 +779,7 @@ class _CallState:
         # 11차 B(2026-09-18): 드릴 루프 — expr_drill_focus 지금 붙잡고 있는 항목 · _user_turns 그 항목에 쌓인 학습자 턴 ·
         #   _nudges 통화당 주입 수(상한 EXPR_DRILL_NUDGE_MAX) · _nudge_pending 다음 turn_end 에 넣을까
         "expr_drill_focus", "expr_drill_user_turns", "expr_drill_nudges", "expr_drill_nudge_pending",
+        "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
         "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
         "call_id", "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
@@ -1010,6 +1011,7 @@ class _CallState:
         self.expr_drill_user_turns: int = 0                # 그 항목에 쌓인 학습자 턴 수(상한 EXPR_DRILL_MAX_USER_TURNS)
         self.expr_drill_nudges: int = 0                    # «다음 항목으로» 안내 주입 수(통화당 EXPR_DRILL_NUDGE_MAX)
         self.expr_drill_nudge_pending: bool = False        # 다음 turn_end(비버 idle)에 넣을까
+        self.expr_quiz_drift_seg: Optional[int] = None     # 14차 A — 이탈을 이미 잡은 비버 세그먼트(판정기·서버 대조가 같은 턴을 두 번 잡지 않게)
         self.expr_drill_nudged: set[int] = set()           # 12차 D — 안내를 이미 쓴 항목(항목별 1회)
         self.expr_drill_nudge_for: Optional[int] = None    # 12차 D — 대기 중인 안내가 어느 항목 때문인가(로그·기록용)
         self.call_id: Optional[int] = None
@@ -1615,6 +1617,11 @@ def _note_quiz_set_drift(state: _CallState, retaught: list, seg_idx: int) -> Non
                   and n not in state.expr_quiz_set})
     if not off:
         return
+    # ⭐⭐ 14차 A(2026-09-19, 사장님 1651 B13 — 같은 비버 턴을 판정기 경로와 서버 대조 경로가 **각각** 잡아 안내가 2회 나갔다):
+    #   이탈은 **비버 턴 하나당 1회**다. 두 경로가 같은 seg_idx 를 물고 와도 여기서 합쳐진다.
+    if state.expr_quiz_drift_seg == seg_idx:
+        return
+    state.expr_quiz_drift_seg = seg_idx
     if state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
         logger.info("%s 세트 이탈(안내 상한 %d): call_id=%s B%d 다시 물은 항목=%s",
                     EXPR_QUIZ_CUE_LOG_PREFIX, EXPR_QUIZ_SET_NUDGE_MAX, _cid(state), seg_idx, off)

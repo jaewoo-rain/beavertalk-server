@@ -1207,3 +1207,34 @@ def test_set_drift_is_caught_by_the_server_when_the_judge_does_not_report_it(cap
     st2.expr_quiz_open_seg = len(st2.segments)
     _beaver(st2, "«ありがとうございます» 좋아요! 이제 퀴즈예요")
     assert st2.expr_quiz_set_nudge_pending is False, "여는 턴의 드릴 피드백은 이탈이 아니다"
+
+
+# --------------------------------------------------------------------------- #
+# 14차 (2026-09-19, 사장님 1651 — 같은 비버 턴 B13 에 이탈이 두 번 잡혀 안내가 5초 간격으로 2회 나갔고,
+#   turn_end 직후 idle 주입을 비버가 대화 차례로 받아 학습자 턴 0 인 채 «You got it!»·«Exactly!» 로 자문자답했다)
+# --------------------------------------------------------------------------- #
+def _drift_state():
+    st = _state()
+    st.call_id = 1651
+    st.live_model = "gemini-3.1-flash-live-preview"
+    st.expr_llm_judge = False
+    st.covered_nums = [1, 2, 3, 4]
+    _open_quiz(st, [1, 2, 3])
+    st.expr_quiz_set = [1, 2, 3]
+    return st
+
+
+def test_set_drift_is_flagged_once_per_beaver_turn(caplog):
+    """A — 판정기 경로와 서버 대조 경로가 같은 비버 턴(seg_idx)을 각각 잡아도 이탈은 1회다(1651 B13)."""
+    import logging
+    caplog.set_level(logging.INFO, logger=cs.logger.name)
+    st = _drift_state()
+    cs._note_quiz_set_drift(st, [4], 13)                       # 판정기 경로
+    cs._note_quiz_set_drift(st, [4], 13)                       # 서버 대조 경로 — 같은 턴
+    cs._note_quiz_set_drift_by_text(st, "«ありがとうございます» 도 다시 해볼까요?", 13)
+    drift_lines = [r.getMessage() for r in caplog.records if "세트 이탈:" in r.getMessage()]
+    assert len(drift_lines) == 1, drift_lines
+    assert st.expr_quiz_drift_seg == 13
+    st.expr_quiz_set_nudge_pending = False                     # 안내가 나갔다고 치고
+    cs._note_quiz_set_drift(st, [4], 15)                       # 다른 비버 턴이면 다시 잡는다
+    assert st.expr_quiz_set_nudge_pending is True and st.expr_quiz_drift_seg == 15
