@@ -63,6 +63,7 @@ class TtsService:
         text: str,
         character_id: Optional[int],
         if_none_match: Optional[str] = None,
+        engine: Optional[str] = None,
     ) -> TtsResult:
         """문장 → MP3. 캐시 적중이면 합성 없이 `not_modified=True`.
 
@@ -104,8 +105,10 @@ class TtsService:
         # ⚠ 키에 **셋 다** 넣는다. 같은 문장이라도 캐릭터·언어가 바뀌면 다른 소리다.
         #   voice 대신 character_id 를 쓰지 않는 이유: 캐릭터의 음색이 나중에 바뀌면
         #   같은 id 라도 소리가 달라진다. 소리를 정하는 것은 voice 다.
+        # ⚠ 엔진도 키에 넣는다. 같은 문장·같은 음색이라도 **엔진이 다르면 다른 소리**라,
+        #   빼면 Chirp3 로 받아 둔 캐시가 Gemini 요청에 그대로 나간다.
         etag = hashlib.sha256(
-            f"{text}|{voice or '-'}|{language}".encode("utf-8")
+            f"{text}|{voice or '-'}|{language}|{engine or '-'}".encode("utf-8")
         ).hexdigest()[:32]
         if if_none_match and if_none_match.strip('"') == etag:
             logger.info(
@@ -119,7 +122,7 @@ class TtsService:
         # ── 합성 ──────────────────────────────────────────────────────────
         # ⛔ 키 부재·합성 실패는 **503** 이다(R5 graceful degradation). 서버가 죽지 않고
         #   기능만 꺼진다 — 앱은 «음성 없이 텍스트만» 폴백이 있어야 한다.
-        synthesized = await tts.synthesize(text, language, voice=voice)
+        synthesized = await tts.synthesize(text, language, voice=voice, engine=engine)
         if not synthesized:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,

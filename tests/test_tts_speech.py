@@ -97,12 +97,46 @@ def spy(monkeypatch):
     """`core.tts.synthesize` 를 가로채 (호출인자, 호출횟수) 를 본다."""
     calls = []
 
-    async def fake(text, language="ko", voice=None):
-        calls.append({"text": text, "language": language, "voice": voice})
+    async def fake(text, language="ko", voice=None, engine=None):
+        calls.append(
+            {"text": text, "language": language, "voice": voice, "engine": engine}
+        )
         return (b"ID3-FAKE-MP3-BYTES", "audio/mpeg")
 
     monkeypatch.setattr(tts_mod, "synthesize", fake)
     return calls
+
+
+def test_engine_defaults_to_chirp3_and_can_be_overridden(session_factory, spy):
+    """엔진은 **클라가 고른다.** 안 주면 종전대로(None=Chirp3), 주면 그대로 내려간다.
+
+    취약 발음 학습이 `gemini-tts` 를 쓴다(2026-09-21). 기존 호출처(힌트)는 아무것도
+    안 보내므로 소리가 바뀌면 안 된다 — 그 불변식을 여기서 못박는다.
+    """
+    _seed(session_factory)
+    client = TestClient(_build_app(session_factory))
+    client.post("/api/v1/tts/speech", json={"text": "안녕"}, headers=_hdr())
+    assert spy[-1]["engine"] is None
+
+    client.post(
+        "/api/v1/tts/speech",
+        json={"text": "안녕", "engine": "gemini-tts"},
+        headers=_hdr(),
+    )
+    assert spy[-1]["engine"] == "gemini-tts"
+
+
+def test_etag_changes_when_the_engine_changes(session_factory, spy):
+    """엔진이 다르면 소리가 다르다 — ETag 도 달라야 캐시가 안 섞인다."""
+    _seed(session_factory)
+    client = TestClient(_build_app(session_factory))
+    a = client.post("/api/v1/tts/speech", json={"text": "안녕"}, headers=_hdr())
+    b = client.post(
+        "/api/v1/tts/speech",
+        json={"text": "안녕", "engine": "gemini-tts"},
+        headers=_hdr(),
+    )
+    assert a.headers["ETag"] != b.headers["ETag"]
 
 
 # --------------------------------------------------------------------------- #
@@ -202,7 +236,7 @@ def test_tts_unavailable_is_503_so_the_app_can_fall_back(session_factory, monkey
     """
     _seed(session_factory)
 
-    async def fake_none(text, language="ko", voice=None):
+    async def fake_none(text, language="ko", voice=None, engine=None):
         return None
 
     monkeypatch.setattr(tts_mod, "synthesize", fake_none)

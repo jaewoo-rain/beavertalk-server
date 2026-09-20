@@ -41,13 +41,32 @@ def test_streaming_config_keeps_client_playback_contract():
     assert config.voice.language_code == "ko-KR"
 
 
-def test_non_streaming_synthesize_is_untouched():
-    """⛔ 비스트리밍 경로(통화후 분석의 표현 오디오)는 MP3 그대로다 — 여기 손대면 안 된다."""
+def test_non_streaming_synthesize_stays_mp3_and_non_streaming():
+    """⛔ 비스트리밍 경로는 **MP3 · 비스트리밍** 그대로다.
+
+    2026-09-21 에 이 경로에 엔진 선택(`engine=`)이 붙었다 — 취약 발음 학습이 구
+    Gemini-TTS 를 쓰기 때문이다. 합성 본체는 `_synthesize_once` 로 떨어져 나갔고,
+    `synthesize` 는 엔진을 고르고 폴백하는 껍데기가 됐다.
+
+    그래서 단언 대상을 **비스트리밍 경로 전체**로 넓힌다. 지켜야 할 것은 함수의 모양이
+    아니라 계약이다 — 인코딩은 MP3 고, 스트리밍 API 는 타지 않는다.
+    """
     import inspect
 
-    source = inspect.getsource(tts.synthesize)
-    assert "AudioEncoding.MP3" in source
-    assert "streaming" not in source.lower()
+    shell = inspect.getsource(tts.synthesize)
+    body = inspect.getsource(tts._synthesize_once)
+
+    # 인코딩은 합성 본체에 있다. 스트리밍 설정(build_streaming_config)의 PCM 과 섞이면
+    # 앱이 MP3 로 알고 받은 바이트가 헤더 없는 PCM 이라 소리가 안 난다.
+    assert "AudioEncoding.MP3" in body
+    assert "AudioEncoding.MP3" not in shell
+
+    # 둘 중 어느 쪽도 스트리밍 경로를 타지 않는다.
+    for src in (shell, body):
+        assert "streaming" not in src.lower()
+
+    # 반환 계약도 그대로다.
+    assert '"audio/mpeg"' in body
 
 
 def test_voice_name_format_differs_per_engine():
