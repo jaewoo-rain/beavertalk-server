@@ -64,6 +64,20 @@ _LABEL_ISO = {
     "Vietnam": "VN", "Zambia": "ZM",
 }
 
+
+def iso_for_country(country_name: Optional[str]) -> Optional[str]:
+    """국적 서버 라벨(영문명) → ISO 2자리. 표에 없는 이름이면 None.
+
+    `speak_country` 에는 영문명만 남는데, 그 이름이 다른 테이블의 표기와 늘 같지는
+    않다 — 실측(2026-09-21)으로 모델은 `Russia`, 취약발음 통계는 `Russian Federation`
+    이었다. 이름끼리 맞추면 러시아 사용자만 조용히 목록이 비었다. 이름을 여기서 한 번
+    ISO 로 접어서, 표기가 갈려도 같은 나라로 만나게 한다.
+    """
+    if not country_name:
+        return None
+    return _LABEL_ISO.get(country_name)
+
+
 # URL 미설정 warning 을 모듈당 1회만 남기기 위한 플래그
 _warned_no_url = False
 

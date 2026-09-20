@@ -25,13 +25,18 @@ def _assert_contract(out: dict) -> None:
         assert set(cs.keys()) == {"char", "score", "grade"}
         assert isinstance(cs["score"], int)
         assert cs["grade"] in ("상", "중", "하")
-    # phonemes 키는 항상 존재(리스트), 각 항목은 phoneme/alpha/pronunciation
+    # phonemes 키는 항상 존재(리스트), 각 항목은 phoneme/alpha/pronunciation + 위치 2종.
+    # position/sound_key 는 위치를 못 붙인 경우 None 이다(모음·비한글·정렬 실패).
     assert isinstance(out["phonemes"], list)
     for p in out["phonemes"]:
-        assert set(p.keys()) == {"phoneme", "alpha", "pronunciation"}
+        assert set(p.keys()) == {
+            "phoneme", "alpha", "pronunciation", "position", "sound_key",
+        }
         assert isinstance(p["phoneme"], str)
         assert isinstance(p["alpha"], str)
         assert isinstance(p["pronunciation"], int)
+        assert p["position"] in (None, "초성", "중성", "종성")
+        assert p["sound_key"] == ss.sound_key(p["alpha"], p["position"])
     # phoneme_misses 도 항상 존재(리스트). char_index 는 char_scores 범위 안이어야 한다 —
     # 벗어나면 앱이 엉뚱한 글자에 조음 도해를 붙인다.
     assert isinstance(out["phoneme_misses"], list)
@@ -139,7 +144,13 @@ def test_map_result_extracts_phonemes():
     phs = out["phonemes"]
     assert [p["alpha"] for p in phs] == ["ㅏ", "ㄴ", "ㄹ", "ㅕ", "ㅇ"]
     assert [p["pronunciation"] for p in phs] == [97, 100, 0, 1, 0]
-    assert phs[0] == {"phoneme": "A", "alpha": "ㅏ", "pronunciation": 97}
+    # 위치는 글자의 자모 슬롯과 순서를 맞춰 붙는다("안"→[ㅏ 중성, ㄴ 종성]).
+    assert [p["position"] for p in phs] == ["중성", "종성", "초성", "중성", "종성"]
+    assert [p["sound_key"] for p in phs] == [None, "coda_ㄴ", "onset_ㄹ", None, "coda_ㅇ"]
+    assert phs[0] == {
+        "phoneme": "A", "alpha": "ㅏ", "pronunciation": 97,
+        "position": "중성", "sound_key": None,
+    }
 
 
 def test_map_result_skips_words_without_phonemes():
@@ -177,7 +188,12 @@ def test_map_result_phonemes_defensive():
         ],
     }
     phs = ss._map_result("가나", result)["phonemes"]
-    assert phs == [{"phoneme": "N", "alpha": "ㄴ", "pronunciation": 88}]
+    # "나" 의 자모 슬롯은 2개(ㄴ 초성·ㅏ 중성)인데 채택된 자모는 1개다 —
+    # 슬롯 수가 안 맞으면 틀린 위치를 붙이지 않고 None 으로 둔다.
+    assert phs == [{
+        "phoneme": "N", "alpha": "ㄴ", "pronunciation": 88,
+        "position": None, "sound_key": None,
+    }]
 
 
 def test_stub_generates_mock_phonemes():
@@ -187,11 +203,15 @@ def test_stub_generates_mock_phonemes():
     phonemes = out["phonemes"]
     assert isinstance(phonemes, list) and len(phonemes) > 0
     assert all("alpha" in p and "pronunciation" in p for p in phonemes)
-    # alpha 는 라벨링됨: "안"→받침 ㄴ, "세"→ㅅ/ㅆ 구분.
+    # ★ alpha 는 **자모 그대로**다(실경로와 같은 모양). 라벨은 표시 단계에서
+    #   sound_label 로 만든다 — 여기서 라벨을 넣으면 실경로와 집계 버킷이 갈린다.
     alphas = {p["alpha"] for p in phonemes}
-    assert "받침 ㄴ" in alphas
-    assert "ㅅ/ㅆ 구분" in alphas
-    assert all(any(k in a for k in ("받침", "초성", "모음", "구분")) for a in alphas)
+    assert "ㄴ" in alphas and "ㅅ" in alphas
+    assert all(len(a) == 1 for a in alphas)
+    # 위치는 전부 붙는다("안녕하세요" 는 전부 한글).
+    assert all(p["position"] in ("초성", "중성", "종성") for p in phonemes)
+    keys = {p["sound_key"] for p in phonemes}
+    assert "coda_ㄴ" in keys and "onset_ㅅ" in keys
 
 
 def test_call_failure_falls_back(monkeypatch):

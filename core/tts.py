@@ -117,27 +117,63 @@ def _client() -> "Any | None":
 
 
 async def synthesize(
-    text: str, language: str = "ko", voice: str | None = None
+    text: str,
+    language: str = "ko",
+    voice: str | None = None,
+    engine: str | None = None,
 ) -> tuple[bytes, str] | None:
-    """텍스트를 대상 언어 Chirp3-HD 음성으로 합성 → (mp3_bytes, "audio/mpeg") 또는 None.
+    """텍스트를 대상 언어 음성으로 합성 → (mp3_bytes, "audio/mpeg") 또는 None.
 
     (멀티랭귀지) language 는 ISO 코드("ja") 또는 라벨("일본어") — 일본어 문장은 일본어 음성으로.
     voice: 통화 캐릭터의 Gemini Live voice 이름(예: "Fenrir"). 유효하면 그 목소리로, 없거나
     미지원이면 언어 기본 음성으로 합성한다. Cloud TTS 는 MP3 를 직접 주므로 ffmpeg 불필요.
     키 부재/합성 실패는 None(graceful) — 호출부는 None 이면 TTS 를 건너뛴다.
+
+    engine: `None`(기본) 이면 **Chirp3-HD** 다 — 기존 호출처(표현 오디오·힌트)의 동작을
+    그대로 둔다. `"gemini-tts"` 면 Gemini-TTS 모델로 합성한다(취약 발음 학습이 이걸 쓴다).
+
+    ⛔ 엔진마다 **음성명 형식이 다르다** — Chirp3 는 `ko-KR-Chirp3-HD-Sulafat`,
+      Gemini 는 맨이름 `Sulafat` 이다. 섞으면 400 "Gemini models cannot be used with
+      non-Gemini voices." 가 난다. 그래서 `_resolve_voice(gemini=...)` 로 갈라 받는다.
+    ⚠ Gemini 경로가 실패하면 **Chirp3 로 한 번 더 시도**한다. 소리가 아예 안 나는 것보다
+      다른 목소리로라도 나는 편이 낫다(스트리밍 경로의 폴백 규율과 같다).
     """
     if not text or not text.strip():
         return None
     cli = _client()
     if cli is None:
         return None
-    lang_code, voice_name = _resolve_voice(language, voice)
+    want_gemini = (engine or "").strip() == GEMINI_ENGINE
+    if want_gemini:
+        model = (settings.CASCADE_TTS_GEMINI_MODEL or "").strip()
+        if model:
+            got = await _synthesize_once(cli, text, language, voice, model)
+            if got is not None:
+                return got
+            logger.warning("tts(gcp): gemini-tts 실패 → chirp3-hd 로 폴백.")
+        else:
+            logger.warning("tts(gcp): CASCADE_TTS_GEMINI_MODEL 미설정 → chirp3-hd 로 합성.")
+    return await _synthesize_once(cli, text, language, voice, None)
+
+
+async def _synthesize_once(
+    cli: "Any",
+    text: str,
+    language: str,
+    voice: str | None,
+    model_name: str | None,
+) -> tuple[bytes, str] | None:
+    """엔진 하나로 MP3 한 번 합성. 실패는 None(호출부가 폴백을 정한다)."""
+    lang_code, voice_name = _resolve_voice(language, voice, gemini=bool(model_name))
     try:
         from google.cloud import texttospeech
 
+        voice_kwargs: dict = {"language_code": lang_code, "name": voice_name}
+        if model_name:
+            voice_kwargs["model_name"] = model_name
         resp = await cli.synthesize_speech(
             input=texttospeech.SynthesisInput(text=text.strip()),
-            voice=texttospeech.VoiceSelectionParams(language_code=lang_code, name=voice_name),
+            voice=texttospeech.VoiceSelectionParams(**voice_kwargs),
             audio_config=texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.MP3
             ),
@@ -145,8 +181,8 @@ async def synthesize(
         if not resp.audio_content:
             logger.warning("tts(gcp): 합성 결과 비어있음 → None.")
             return None
-        logger.info("tts(gcp): 합성 성공 MP3(%d bytes, voice=%s).",
-                    len(resp.audio_content), voice_name)
+        logger.info("tts(gcp): 합성 성공 MP3(%d bytes, voice=%s, model=%s).",
+                    len(resp.audio_content), voice_name, model_name or "chirp3-hd")
         return resp.audio_content, "audio/mpeg"
     except Exception as exc:  # noqa: BLE001 - 인증/비활성/임의 예외 graceful
         logger.warning("tts(gcp): 합성 실패(무시, None) — %s", exc)

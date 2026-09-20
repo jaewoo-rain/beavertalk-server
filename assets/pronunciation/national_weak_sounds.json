@@ -1,0 +1,1186 @@
+{
+ "BD": {
+  "country": "Bangladesh",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 44
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 15
+   },
+   {
+    "sound_key": "onset_ㅃ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 14
+   }
+  ]
+ },
+ "BG": {
+  "country": "Bulgaria",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 36
+   },
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 38
+   }
+  ]
+ },
+ "BR": {
+  "country": "Brazil",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 43
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 19
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 11
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 10
+   },
+   {
+    "sound_key": "onset_ㅅ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 10
+   },
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 34
+   }
+  ]
+ },
+ "CL": {
+  "country": "Chile",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㅅ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 13
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 10
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 20
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 55
+   }
+  ]
+ },
+ "CN": {
+  "country": "China",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 21
+   },
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 14
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 10
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 10
+   },
+   {
+    "sound_key": "coda_ㄷ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 6
+   },
+   {
+    "sound_key": "rule_유음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 54
+   }
+  ]
+ },
+ "CO": {
+  "country": "Colombia",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 15
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 13
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 12
+   },
+   {
+    "sound_key": "onset_ㅅ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 10
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 13
+   }
+  ]
+ },
+ "DE": {
+  "country": "Germany",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 16
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 15
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 12
+   }
+  ]
+ },
+ "ES": {
+  "country": "Spain",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 1,
+    "share": 34
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 17
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 11
+   },
+   {
+    "sound_key": "onset_ㅅ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 9
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 38
+   }
+  ]
+ },
+ "FR": {
+  "country": "France",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 12
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 11
+   },
+   {
+    "sound_key": "onset_ㅃ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 9
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 18
+   },
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 34
+   }
+  ]
+ },
+ "GB": {
+  "country": "United Kingdom",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 1,
+    "share": 34
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 42
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 21
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 21
+   },
+   {
+    "sound_key": "rule_유음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 55
+   }
+  ]
+ },
+ "HK": {
+  "country": "Hong Kong",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 21
+   },
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 20
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 11
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 7
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 36
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 23
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 22
+   }
+  ]
+ },
+ "ID": {
+  "country": "Indonesia",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 43
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 20
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 18
+   },
+   {
+    "sound_key": "onset_ㅃ",
+    "category": "tense",
+    "category_rank": 1,
+    "share": 11
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 37
+   },
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 33
+   }
+  ]
+ },
+ "IN": {
+  "country": "India",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_구개음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 58
+   },
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 42
+   }
+  ]
+ },
+ "IT": {
+  "country": "Italy",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 47
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 20
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 19
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 12
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 11
+   }
+  ]
+ },
+ "JP": {
+  "country": "Japan",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 27
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 25
+   },
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 8
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 7
+   },
+   {
+    "sound_key": "coda_ㅁ",
+    "category": "insert",
+    "category_rank": 2,
+    "share": 9
+   }
+  ]
+ },
+ "KG": {
+  "country": "Kyrgyzstan",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 1,
+    "share": 42
+   },
+   {
+    "sound_key": "rule_유음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 55
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 36
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 28
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 25
+   }
+  ]
+ },
+ "KH": {
+  "country": "Cambodia",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㅅ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 21
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 17
+   },
+   {
+    "sound_key": "onset_ㄷ",
+    "category": "onset",
+    "category_rank": 1,
+    "share": 11
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 45
+   },
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 33
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 19
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 11
+   }
+  ]
+ },
+ "KZ": {
+  "country": "Kazakhstan",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 44
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 33
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 28
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 24
+   }
+  ]
+ },
+ "MM": {
+  "country": "Myanmar",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 22
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 20
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 17
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 7
+   },
+   {
+    "sound_key": "rule_연음",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 22
+   }
+  ]
+ },
+ "MN": {
+  "country": "Mongolia",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_구개음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 59
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 23
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 20
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 13
+   }
+  ]
+ },
+ "MY": {
+  "country": "Malaysia",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 34
+   },
+   {
+    "sound_key": "rule_연음",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 16
+   }
+  ]
+ },
+ "NP": {
+  "country": "Nepal",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 24
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 33
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 29
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 25
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 42
+   }
+  ]
+ },
+ "PE": {
+  "country": "Peru",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 24
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 18
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 13
+   },
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 13
+   },
+   {
+    "sound_key": "coda_ㄷ",
+    "category": "insert",
+    "category_rank": 2,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 46
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 25
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 16
+   }
+  ]
+ },
+ "PH": {
+  "country": "Philippines",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "insert",
+    "category_rank": 2,
+    "share": 12
+   }
+  ]
+ },
+ "RO": {
+  "country": "Romania",
+  "weak_sounds": [
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 17
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 11
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 10
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 20
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 18
+   }
+  ]
+ },
+ "RU": {
+  "country": "Russian Federation",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 32
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 15
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 13
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 15
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 12
+   },
+   {
+    "sound_key": "onset_ㅂ",
+    "category": "onset",
+    "category_rank": 2,
+    "share": 7
+   }
+  ]
+ },
+ "TH": {
+  "country": "Thailand",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_연음",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 14
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 40
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 20
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 19
+   }
+  ]
+ },
+ "TJ": {
+  "country": "Tajikistan",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 1,
+    "share": 38
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 45
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 20
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 2,
+    "share": 15
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 24
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 21
+   },
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 3,
+    "share": 10
+   }
+  ]
+ },
+ "TM": {
+  "country": "Turkmenistan",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㅂ",
+    "category": "insert",
+    "category_rank": 3,
+    "share": 29
+   },
+   {
+    "sound_key": "coda_ㄷ",
+    "category": "insert",
+    "category_rank": 3,
+    "share": 14
+   }
+  ]
+ },
+ "TR": {
+  "country": "Turkey",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 1,
+    "share": 35
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 41
+   }
+  ]
+ },
+ "UA": {
+  "country": "Ukraine",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 37
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 12
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 12
+   },
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 39
+   }
+  ]
+ },
+ "US": {
+  "country": "United States",
+  "weak_sounds": [
+   {
+    "sound_key": "rule_비음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 35
+   },
+   {
+    "sound_key": "rule_구개음화",
+    "category": "rule",
+    "category_rank": 3,
+    "share": 49
+   }
+  ]
+ },
+ "UZ": {
+  "country": "Uzbekistan",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "insert",
+    "category_rank": 1,
+    "share": 50
+   },
+   {
+    "sound_key": "coda_ㅂ",
+    "category": "insert",
+    "category_rank": 1,
+    "share": 16
+   },
+   {
+    "sound_key": "rule_격음화",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 41
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 37
+   },
+   {
+    "sound_key": "onset_ㅉ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 25
+   },
+   {
+    "sound_key": "onset_ㄸ",
+    "category": "tense",
+    "category_rank": 3,
+    "share": 21
+   }
+  ]
+ },
+ "VN": {
+  "country": "Vietnam",
+  "weak_sounds": [
+   {
+    "sound_key": "coda_ㄹ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 39
+   },
+   {
+    "sound_key": "coda_ㄴ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 14
+   },
+   {
+    "sound_key": "coda_ㅇ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 8
+   },
+   {
+    "sound_key": "coda_ㄱ",
+    "category": "coda",
+    "category_rank": 1,
+    "share": 6
+   },
+   {
+    "sound_key": "rule_연음",
+    "category": "rule",
+    "category_rank": 2,
+    "share": 22
+   },
+   {
+    "sound_key": "onset_ㄱ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 18
+   },
+   {
+    "sound_key": "onset_ㅈ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 11
+   },
+   {
+    "sound_key": "onset_ㄲ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 9
+   },
+   {
+    "sound_key": "onset_ㅅ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 8
+   },
+   {
+    "sound_key": "onset_ㄷ",
+    "category": "onset",
+    "category_rank": 3,
+    "share": 7
+   }
+  ]
+ }
+}

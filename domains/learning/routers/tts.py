@@ -48,7 +48,7 @@ async def synthesize_speech(
     `member.target_language` 로 서버가 정한다.
     """
     result = await TtsService(db).synthesize(
-        member.member_id, data.text, data.character_id, if_none_match
+        member.member_id, data.text, data.character_id, if_none_match, data.engine
     )
     # ⭐ 캐시 적중이면 **바디 없이 304**. 저장을 안 하는 이 API 의 유일한 절약 지점이다.
     if result.not_modified:

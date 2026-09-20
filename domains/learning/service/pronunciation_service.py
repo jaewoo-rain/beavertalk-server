@@ -12,7 +12,7 @@ async 지만 DB 접근은 `run_db`(threadpool + 짧은 세션)로 감싼다.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from google import genai
 from pydantic import BaseModel
@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from core import gemini_analysis
 from core.config import Settings
 from core.persona_prompt import _LOCALE_LABEL
+from core.speechsuper import sound_label
 from domains.learning.models.call import Call
 from domains.learning.models.review import Review
 from domains.learning.models.sentence import Sentence
@@ -65,15 +66,20 @@ def build_sentence_scores(sentences: Sequence[Sentence]) -> list[PronSentenceSco
 
 
 def aggregate_sounds(last_counted_reviews: Sequence[Review]) -> list[SoundAggregate]:
-    """문장별 마지막 counted 복습의 phonemes 만 순회 → alpha 버킷별 집계.
+    """문장별 마지막 counted 복습의 phonemes 만 순회 → 소리 버킷별 집계.
 
-    - attempts        : alpha 출현 횟수
+    - attempts        : 그 소리 출현 횟수
     - passes          : pronunciation >= 80 인 횟수
     - pronunciation_avg: 평균(소수 1자리)
     phonemes 가 없는(옛) 복습은 자연히 제외되며, 자모가 전혀 없으면 빈 리스트를 반환한다.
     (counted 여부는 리포지토리에서 이미 걸러진 입력을 전제한다.)
+
+    버킷 키는 위치를 포함한 `sound_key`(`coda_ㄹ`)를 우선 쓴다. 같은 자모라도 초성과
+    받침은 다른 소리이고, 취약 발음 학습이 그 단위로 돌기 때문이다. 위치가 없는
+    옛 복습은 종전대로 alpha 문자열로 묶이고 `sound_key` 는 None 으로 남는다.
+    출력 `alpha` 는 표시용 라벨(`받침 ㄹ`)이다 — 위치를 모르면 자모 그대로다.
     """
-    buckets: dict[str, dict[str, float]] = {}
+    buckets: dict[str, dict[str, Any]] = {}
     for review in last_counted_reviews:
         feedback = review.feedback if isinstance(review.feedback, dict) else {}
         phonemes = feedback.get("phonemes")
@@ -85,11 +91,23 @@ def aggregate_sounds(last_counted_reviews: Sequence[Review]) -> list[SoundAggreg
             alpha = p.get("alpha")
             if not alpha:
                 continue
+            position = p.get("position")
+            key = p.get("sound_key") or str(alpha)
+            label = sound_label(str(alpha), position) if position else str(alpha)
             try:
                 score = float(p.get("pronunciation", 0) or 0)
             except (TypeError, ValueError):
                 score = 0.0
-            b = buckets.setdefault(str(alpha), {"attempts": 0, "passes": 0, "sum": 0.0})
+            b = buckets.setdefault(
+                key,
+                {
+                    "attempts": 0,
+                    "passes": 0,
+                    "sum": 0.0,
+                    "label": label,
+                    "sound_key": p.get("sound_key"),
+                },
+            )
             b["attempts"] += 1
             b["sum"] += score
             if score >= 80:
@@ -97,14 +115,15 @@ def aggregate_sounds(last_counted_reviews: Sequence[Review]) -> list[SoundAggreg
 
     sounds = [
         SoundAggregate(
-            alpha=alpha,
+            alpha=str(b["label"]),
             attempts=int(b["attempts"]),
             passes=int(b["passes"]),
             pronunciation_avg=round(b["sum"] / b["attempts"], 1) if b["attempts"] else 0.0,
+            sound_key=b["sound_key"],
         )
-        for alpha, b in buckets.items()
+        for b in buckets.values()
     ]
-    # 안정적 출력 순서(alpha 사전순).
+    # 안정적 출력 순서(표시 라벨 사전순).
     sounds.sort(key=lambda s: s.alpha)
     return sounds
 
