@@ -230,6 +230,26 @@ def test_list_unknown_country_returns_empty_not_error(session_factory, seeded):
     assert r.json()["national"] == {"country": "Narnia", "items": []}
 
 
+def test_list_matches_country_by_iso_not_name(session_factory, seeded):
+    """표기가 갈려도 같은 나라면 찾는다 — 분류기 `Russia` ↔ 통계 `Russian Federation`.
+
+    2026-09-21 실측 결함이다. 이름끼리 맞추던 동안 러시아 사용자만 국적 섹션이
+    조용히 비었다. 예외가 안 나므로 아무도 모른다 — 그래서 시험으로 박아 둔다.
+    """
+    db = session_factory()
+    db.query(SpeakCountry).update({"first_country": "Russia"})
+    db.add(NationalSoundStat(country_iso="RU", country_name="Russian Federation",
+                             sound_key="coda_ㄹ", share=52, rank=1))
+    db.commit()
+    db.close()
+    client = TestClient(_build_app(session_factory))
+    body = client.get("/api/v1/pronunciation/weak-sounds", headers=_hdr()).json()
+    assert [i["sound_key"] for i in body["national"]["items"]] == ["coda_ㄹ"]
+    assert body["national"]["items"][0]["share"] == 52
+    # 화면에 보이는 이름은 사용자의 국적 라벨 그대로다(통계 쪽 표기로 바뀌지 않는다).
+    assert body["national"]["country"] == "Russia"
+
+
 def test_list_excludes_vowels_and_duplicates(session_factory, seeded):
     """모음(sound_key None)은 목록에 없고, 국적별에 뜬 소리는 내 목록에서 빠진다."""
     client = TestClient(_build_app(session_factory))

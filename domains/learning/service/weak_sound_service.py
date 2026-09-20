@@ -9,9 +9,11 @@
 학습이 집계를 덮는다. 집계는 통화에서 저절로 나온 값이고, 학습 점수는 그 소리를 겨눠서
 낸 값이라 더 최신·더 정확하다. 결과 화면의 「학습 전」 막대가 집계값(baseline)이다.
 
-국적별 목록은 `speak_country.first_country`(영문 국가명)로 통계를 찾는다. 이름이 통계에
-없으면(표기 차이·미수록 국가) **국적 섹션만 빈 채로** 내려간다 — 화면 전체를 실패시키지
-않는다(R5 정신).
+국적별 목록은 `speak_country.first_country`(영문 국가명)를 **ISO 2자리로 접어서** 찾는다
+(`core.nationality.iso_for_country`). 이름끼리 맞추면 표기가 갈린 나라가 조용히 빈 목록이
+된다 — 실측(2026-09-21)으로 모델은 `Russia`, 통계는 `Russian Federation` 이었다.
+통계가 없는 나라(미수록 7개국·Korea 포함)면 **국적 섹션만 빈 채로** 내려간다 — 화면 전체를
+실패시키지 않는다(R5 정신).
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from core.nationality import iso_for_country
 from core.speechsuper import assess_pronunciation
 from domains.learning.models.member_sound_score import MemberSoundScore
 from domains.learning.models.sound_lesson import SoundLesson
@@ -105,9 +108,14 @@ def get_weak_sounds(db: Session, member_id: int) -> WeakSoundListOut:
     agg = _aggregated(db, member_id)
 
     country = PronunciationRepository(db).get_first_country(member_id)
+    country_iso = iso_for_country(country)
+    if country and country_iso is None:
+        # 분류기가 낸 이름이 라벨표에 없다. 그 나라 사용자는 국적 섹션을 못 본다 —
+        # 조용히 넘기면 아무도 모르므로 로그로 남긴다.
+        logger.warning("국적 라벨을 ISO 로 못 바꿨다: %s", country)
     national_items: list[WeakSoundItem] = []
-    if country:
-        for stat in repo.get_national_stats(country):
+    if country_iso:
+        for stat in repo.get_national_stats(country_iso):
             lesson = lessons.get(stat.sound_key)
             if lesson is None:
                 # 시드 불일치. 조용히 넘기되 로그는 남긴다 — 앱에 빈 카드를 띄우지 않는다.

@@ -38,16 +38,18 @@ class WeakSoundRepository:
         return self.db.scalar(select(SoundLesson).where(SoundLesson.sound_key == sound_key))
 
     # ── 국적별 통계 ─────────────────────────────────────────────────────── #
-    def get_national_stats(self, country_name: str) -> Sequence[NationalSoundStat]:
-        """국가명(영문)으로 취약 소리 목록 — rank 오름차순. 없는 나라면 빈 시퀀스.
+    def get_national_stats(self, country_iso: str) -> Sequence[NationalSoundStat]:
+        """ISO 2자리로 취약 소리 목록 — rank 오름차순. 없는 나라면 빈 시퀀스.
 
-        국적 분류 API 는 `iso` 도 주지만 speak_country 에는 **영문명만** 저장돼 있어
-        이름으로 찾는다. 이름 표기가 갈리면(예: Russia vs Russian Federation) 여기서
-        조용히 빈 목록이 된다 — service 가 그 경우 국적 섹션을 감춘다.
+        **이름이 아니라 ISO 로 찾는다.** speak_country 에는 영문명만 저장되지만,
+        그 이름과 이 표의 이름이 갈리는 경우가 실제로 있었다(Russia vs Russian
+        Federation, 2026-09-21 실측). 이름 대조는 틀려도 예외가 아니라 빈 목록이라
+        아무도 모른 채 그 나라 사용자만 국적 섹션을 못 본다. 이름→ISO 변환은
+        `core.nationality.iso_for_country` 가 맡고, 여기는 ISO 만 받는다.
         """
         return self.db.scalars(
             select(NationalSoundStat)
-            .where(NationalSoundStat.country_name == country_name)
+            .where(NationalSoundStat.country_iso == country_iso)
             .order_by(NationalSoundStat.rank, NationalSoundStat.sound_key)
         ).all()
 
