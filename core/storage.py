@@ -159,3 +159,49 @@ def public_url(bucket: str, path: str | None) -> str | None:
 def signed_url(bucket: str, path: str | None, expires_in: int = 3600) -> str | None:
     """private 자산(통화 원본·연습 녹음)의 서명 재생 URL(기본 1시간). path 없거나 실패 시 None."""
     return _signed(bucket, path, expires_in)
+
+
+def object_key(bucket: str, stored: str | None) -> str | None:
+    """DB 에 담긴 값을 object key(버킷 상대 경로)로 정규화한다.
+
+    이 모듈의 계약은 「DB 엔 key 만 저장하고 URL 은 매 요청 조립」이다. 정상 행은 이미
+    key 이므로 그대로 돌려준다. 다만 **전체 URL 을 저장해 버린 행**이 실재한다
+    (2026-08-30 실측: sentence.voice_url — 만료된 서명 URL 이 영구 반환되고 있었다).
+    그런 행은 경로를 되짚어 key 를 뽑아 **읽는 즉시 재서명되게** 한다.
+
+    두 세대의 URL 을 모두 흡수한다.
+      - GCS  : https://storage.googleapis.com/{버킷}/{prefix}/{key}?X-Goog-...
+      - 과거 Supabase: {SUPABASE_URL}/storage/v1/object/public/{prefix}/{key}
+    prefix 세그먼트를 찾아 그 뒤를 key 로 본다. 못 찾으면 버킷명만 걷어낸 경로를 쓴다.
+    """
+    if not stored:
+        return None
+    if not stored.startswith(("http://", "https://")):
+        return stored  # 이미 key — 정상 경로
+
+    from urllib.parse import unquote, urlparse
+
+    segments = [seg for seg in unquote(urlparse(stored).path).split("/") if seg]
+    prefix = (bucket or "").strip("/")
+    if prefix and prefix in segments:
+        # prefix 뒤가 곧 key. 두 세대 URL 이 같은 규칙으로 풀린다.
+        segments = segments[segments.index(prefix) + 1:]
+    else:
+        gcs_bucket = (settings.GCS_AUDIO_BUCKET or "").strip("/")
+        if gcs_bucket and segments and segments[0] == gcs_bucket:
+            segments = segments[1:]
+    return "/".join(segments) or None
+
+
+def playback_url(bucket: str, stored: str | None, expires_in: int | None = None) -> str | None:
+    """저장값(key 또는 과거 전체 URL) → **지금 서명한** 재생 URL. 실패 시 None.
+
+    호출부는 DB 값을 그대로 내보내지 말고 반드시 이 함수를 거친다 — 저장된 URL 을
+    그대로 돌려주면 서명이 만료된 뒤 영구히 재생 불가가 된다.
+    """
+    key = object_key(bucket, stored)
+    if not key:
+        return None
+    if expires_in is None:
+        return public_url(bucket, key)
+    return signed_url(bucket, key, expires_in)

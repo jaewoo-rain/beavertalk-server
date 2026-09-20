@@ -78,7 +78,8 @@ def assess_pronunciation(
         {
           "evaluation": {total_score, pronunciation, fluency, rhythm},  # 0~100 int
           "char_scores": [{char, score, grade}, ...],                   # 공백 제외, ref_text 글자순
-          "phonemes": [{phoneme, alpha, pronunciation}, ...]            # 자모별 0~100(없으면 [])
+          "phonemes": [{phoneme, alpha, pronunciation}, ...],           # 자모별 0~100(없으면 [])
+          "phoneme_misses": [{char_index, expected}, ...]               # 틀린 자모(없으면 [])
         }
 
     Note:
@@ -279,7 +280,12 @@ def _map_result(ref_text: Optional[str], result: dict[str, Any]) -> dict:
     }
     char_scores = _map_char_scores(ref_text, result, overall)
     phonemes = _extract_phonemes(result)
-    return {"evaluation": evaluation, "char_scores": char_scores, "phonemes": phonemes}
+    return {
+        "evaluation": evaluation,
+        "char_scores": char_scores,
+        "phonemes": phonemes,
+        "phoneme_misses": _extract_phoneme_misses(result),
+    }
 
 
 def _extract_phonemes(result: dict[str, Any]) -> list[dict]:
@@ -318,6 +324,66 @@ def _extract_phonemes(result: dict[str, Any]) -> list[dict]:
                     "pronunciation": _to_int(p.get("pronunciation")),
                 }
             )
+    return out
+
+
+def _extract_phoneme_misses(result: dict[str, Any]) -> list[dict]:
+    """틀린 자모를 **글자 인덱스와 함께** 뽑는다 → [{char_index, expected}, ...].
+
+    왜 필요한가(2026-08-30 실측):
+        서버는 지금 「글자 저 가 0점」까지만 알려준다. 그래서 앱이 조음 도해를 그릴 때
+        **어느 자모가 틀렸는지를 규칙으로 추정**한다(「종성 있으면 종성, 없으면 초성」).
+        「저」는 종성이 없으니 무조건 ㅈ 도해가 뜨는데, 실제로 틀린 것이 ㅓ 였다면
+        **엉뚱한 도해**를 보여주게 된다. 이 함수는 그 추정을 사실로 바꾼다.
+
+    ★ char_index 는 반드시 [_map_char_scores] 와 **같은 기준**이어야 한다.
+      앱이 이 인덱스로 char_scores 와 두 배열을 맞추기 때문이다. 어긋나면 엉뚱한
+      글자에 도해가 붙는다. 그래서 같은 필터(score >= 0)와 같은 공백 규칙을 쓴다.
+
+    판정 2단(벤더 응답 형태가 두 갈래여서 둘 다 받는다):
+        1순위 — 치환. `sound_like` 가 있고 `"-"`(탈락)도 아니고 `phone` 과 다르면
+                그 자모를 낸 소리가 다르다는 뜻이다.
+        2순위 — `sound_like` 자체가 없으면 판정 근거가 없으므로 **점수**로 본다.
+                `pronunciation` 이 「하」(<70) 면 틀린 것으로 친다.
+        ☞ 어느 쪽이든 결과는 같다 — 「이 글자의 이 자모가 틀렸다」.
+
+    `phoneme` 이 빈 문자열이면 **스텁 응답**이므로(서버 규약) 통째로 제외한다.
+    expected 는 벤더의 `alpha`(자모) 를 그대로 쓴다 — 앱의 도해 키가 자모다.
+    `actual`(실제로 낸 소리)은 음소기호→자모 역매핑이 없어 이번 범위에서 뺐다.
+    앱은 actual 이 없어도 깨지지 않는다(목표 도해 한 컷이 정확해질 뿐).
+    """
+    words = result.get("words")
+    if not isinstance(words, list):
+        return []
+    pairs = _extract_word_scores(result)
+    # 같은 words[] 를 훑은 결과라 길이·순서가 같아야 한다. 어긋나면 인덱스를 믿을 수
+    # 없으므로 **아무것도 내지 않는다** — 틀린 도해를 그리느니 안 그리는 게 낫다.
+    if len(pairs) != len(words):
+        return []
+
+    out: list[dict] = []
+    char_index = 0
+    for w, (word_text, score) in zip(words, pairs):
+        if score < 0:
+            continue  # _map_char_scores 가 버리는 word — 인덱스도 같이 건너뛴다
+        chars = [c for c in word_text if not c.isspace()]
+        if isinstance(w, dict) and chars:
+            # 한국어(sent.eval.kr)는 word 하나가 곧 한 글자다(실측). 여러 글자로 오면
+            # 자모를 글자에 배분할 근거가 없으므로 그 word 의 **첫 글자**에 붙인다.
+            for p in w.get("phonemes") or []:
+                if not isinstance(p, dict):
+                    continue
+                phone, alpha = p.get("phoneme"), p.get("alpha")
+                if not phone or not alpha:
+                    continue  # 스텁(phoneme="")·결손 항목 제외
+                sound_like = p.get("sound_like")
+                if sound_like:
+                    missed = sound_like != "-" and sound_like != phone
+                else:
+                    missed = _grade(_to_int(p.get("pronunciation"))) == "하"
+                if missed:
+                    out.append({"char_index": char_index, "expected": str(alpha)})
+        char_index += len(chars)
     return out
 
 
@@ -472,4 +538,6 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
         },
         "char_scores": char_scores,
         "phonemes": phonemes,
+        # 스텁은 자모를 라벨("받침 ㄹ")로 만들어 도해 키로 못 쓴다. 계약만 맞추고 비운다.
+        "phoneme_misses": [],
     }
