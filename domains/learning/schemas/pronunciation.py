@@ -26,12 +26,19 @@ class PronSentenceScore(BaseModel):
 
 
 class SoundAggregate(BaseModel):
-    """자모(alpha) 1개의 소리별 집계 — 문장별 마지막 counted 복습의 phonemes 만 산입."""
+    """소리 1개의 집계 — 문장별 마지막 counted 복습의 phonemes 만 산입.
+
+    alpha 는 **표시용 라벨**이다("받침 ㄹ"·"ㅓ/ㅗ 구분"·"초성 ㄱ") — 발음 리포트가 이 값을
+    그대로 화면에 쓰기 때문에 이름을 유지했다.
+    sound_key 는 취약 발음 학습이 쓰는 위치 포함 키(`coda_ㄹ`)다. 위치를 모르거나 모음이면
+    None 이고, 위치가 없던 옛 복습도 None 으로 남는다.
+    """
 
     alpha: str
     attempts: int
     passes: int
     pronunciation_avg: float
+    sound_key: Optional[str] = None
 
 
 class PronunciationReport(BaseModel):

@@ -292,6 +292,11 @@ def _extract_phonemes(result: dict[str, Any]) -> list[dict]:
     - words 없음 / phonemes 없음(readType 4 등) / 타입 이상 → 해당 항목 스킵(빈 [] 가능).
     - phoneme/alpha 둘 다 있는 항목만 채택. pronunciation 은 _to_int 로 0~100 정규화.
     KeyError 를 던지지 않는다.
+
+    ★ 위치(position)·sound_key 는 벤더가 주지 않는다. 벤더의 alpha 는 「ㄴ」처럼 위치가
+      없는 자모라 「초성 ㄴ」과 「받침 ㄴ」이 한 덩어리로 섞인다. 그래서 word(=한 글자)의
+      자모 슬롯과 순서를 맞춰 위치를 붙인다(_attach_positions). 취약 발음 학습은 이
+      sound_key 로 소리를 세므로, 여기서 붙이지 않으면 초성/받침을 갈라낼 수 없다.
     """
     out: list[dict] = []
     words = result.get("words")
@@ -303,6 +308,7 @@ def _extract_phonemes(result: dict[str, Any]) -> list[dict]:
         phonemes = w.get("phonemes")
         if not isinstance(phonemes, list):
             continue  # phonemes 없는 word(readType 4 등) 스킵
+        picked: list[dict] = []
         for p in phonemes:
             if not isinstance(p, dict):
                 continue
@@ -311,14 +317,56 @@ def _extract_phonemes(result: dict[str, Any]) -> list[dict]:
             # phoneme/alpha 가 없거나 빈 문자열이면 스킵
             if not phoneme or not alpha:
                 continue
-            out.append(
+            picked.append(
                 {
                     "phoneme": str(phoneme),
                     "alpha": str(alpha),
                     "pronunciation": _to_int(p.get("pronunciation")),
                 }
             )
+        out.extend(_attach_positions(_word_text(w), picked))
     return out
+
+
+def _word_text(w: dict[str, Any]) -> str:
+    """word 레코드에서 글자를 꺼낸다(벤더 키가 갈려서 순서대로 시도)."""
+    for key in ("word", "text", "char"):
+        v = w.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return ""
+
+
+def _attach_positions(word_text: str, picked: list[dict]) -> list[dict]:
+    """자모 목록에 position·sound_key 를 붙인다(제자리 수정 후 그대로 반환).
+
+    한국어(sent.eval.kr)는 word 하나가 한 글자고 그 글자의 자모가 **순서대로** 온다
+    (실측: "안"→[ㅏ, ㄴ], "녕"→[ㄹ, ㅕ, ㅇ]). 그래서 글자를 분해한 슬롯과 index 로 맞춘다.
+    초성 ㅇ 은 소리가 없어 _jamos 가 빼므로 슬롯 수와 자모 수가 그대로 맞는다.
+
+    슬롯 수가 다르면(글자 없음·다국어·벤더 분절 차이) **위치를 붙이지 않는다** —
+    틀린 위치를 붙이느니 없는 편이 낫다. 그때 position/sound_key 는 None 이다.
+    """
+    slots = [pos for _, pos in _jamos(word_text)] if len(word_text) == 1 else []
+    if len(slots) != len(picked):
+        for p in picked:
+            p["position"] = None
+            p["sound_key"] = None
+        return picked
+    for p, pos in zip(picked, slots):
+        p["position"] = pos
+        p["sound_key"] = sound_key(p["alpha"], pos)
+    return picked
+
+
+def sound_key(alpha: str, position: Optional[str]) -> Optional[str]:
+    """자모 + 위치 → 취약 발음 학습의 소리 키(`onset_ㄱ` · `coda_ㄹ`).
+
+    중성(모음)은 1차 범위 밖이라 키를 만들지 않는다(조음 도해 자산이 자음만 있다).
+    """
+    if not alpha or position not in ("초성", "종성"):
+        return None
+    return f"{'onset' if position == '초성' else 'coda'}_{alpha}"
 
 
 def _extract_word_scores(result: dict[str, Any]) -> list[tuple[str, int]]:
@@ -454,14 +502,22 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
             for j, pos in jamos:
                 phonemes.append({
                     "phoneme": "",
-                    "alpha": sound_label(j, pos),
+                    # ★ 실경로(_extract_phonemes)와 **같은 모양**을 낸다 — 자모 그대로다.
+                    #   예전엔 여기만 sound_label 로 라벨을 넣어서, 같은 소리가 스텁이냐
+                    #   실채점이냐에 따라 다른 집계 버킷으로 갈라졌다. 라벨은 표시 단계에서
+                    #   만든다(pronunciation_service.aggregate_sounds).
+                    "alpha": j,
                     "pronunciation": 45 + ((ord(j) * 3 + i * 7 + ord(c)) % 56),
+                    "position": pos,
+                    "sound_key": sound_key(j, pos),
                 })
         elif not c.isascii():  # 비한글 표의/음절 문자(일본어·중국어 등) — 글자를 소리 단위로
             phonemes.append({
                 "phoneme": "",
                 "alpha": c,
                 "pronunciation": 45 + ((ord(c) * 5 + i * 7) % 56),
+                "position": None,
+                "sound_key": None,
             })
     return {
         "evaluation": {
