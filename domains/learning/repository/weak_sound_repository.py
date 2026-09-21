@@ -20,7 +20,9 @@ from domains.learning.models.member_sound_score import MemberSoundScore
 from domains.learning.models.national_sound_stat import NationalSoundStat
 from domains.learning.models.review import Review
 from domains.learning.models.sentence import Sentence
+from domains.learning.models.sound_audio import SoundAudio
 from domains.learning.models.sound_lesson import SoundLesson
+from domains.learning.models.sound_lesson_i18n import SoundLessonI18n
 
 
 class WeakSoundRepository:
@@ -36,6 +38,38 @@ class WeakSoundRepository:
 
     def get_lesson(self, sound_key: str) -> Optional[SoundLesson]:
         return self.db.scalar(select(SoundLesson).where(SoundLesson.sound_key == sound_key))
+
+    # ── 번역 ───────────────────────────────────────────────────────────── #
+    def get_i18n(self, locale: str) -> dict[str, SoundLessonI18n]:
+        """그 언어의 번역 전량 — {sound_key: 행}. 없는 언어면 빈 dict.
+
+        과가 30행이라 언어 한 벌을 통째로 읽는다. 목록 화면이 30과를 다 그리므로
+        과마다 조회하면 30번 왕복한다.
+        """
+        rows = self.db.scalars(
+            select(SoundLessonI18n).where(SoundLessonI18n.locale == locale)
+        ).all()
+        return {r.sound_key: r for r in rows}
+
+    # ── 미리 구운 음성 ──────────────────────────────────────────────────── #
+    def get_audio(
+        self, text_hashes: Sequence[str], voice: Optional[str], engine: Optional[str]
+    ) -> dict[str, str]:
+        """{text_hash: object_key}. 없는 문장은 그냥 빠진다(앱이 온디맨드로 떨어진다).
+
+        ⚠ 돌려주는 값은 **object key** 다. 서명 URL 이 아니다 — 서명은 호출부가
+        `core/storage.playback_url` 로 매번 새로 만든다(저장된 서명은 7일 뒤 죽는다).
+        """
+        if not text_hashes:
+            return {}
+        stmt = select(SoundAudio).where(SoundAudio.text_hash.in_(list(text_hashes)))
+        stmt = stmt.where(
+            SoundAudio.voice.is_(None) if voice is None else SoundAudio.voice == voice
+        )
+        stmt = stmt.where(
+            SoundAudio.engine.is_(None) if engine is None else SoundAudio.engine == engine
+        )
+        return {r.text_hash: r.object_key for r in self.db.scalars(stmt).all()}
 
     # ── 국적별 통계 ─────────────────────────────────────────────────────── #
     def get_national_stats(self, country_iso: str) -> Sequence[NationalSoundStat]:

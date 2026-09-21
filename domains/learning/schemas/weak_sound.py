@@ -69,7 +69,14 @@ class SoundLessonOut(BaseModel):
     """4단계 콘텐츠 전량 — 한 번에 내려주고 단계 이동은 클라에서만 한다.
 
     단계마다 왕복하면 자동진행(단어→다음 단어)에 네트워크 지연이 끼어든다.
-    payload 는 마스터 JSON 그대로다(how_to·words·sentence·test, 규칙은 formula·symbol).
+
+    `label`·`card_desc`·`payload` 는 **회원 언어로 번역된 값**이다(`sound_lesson_i18n`).
+    번역이 없는 언어·항목은 한국어 원본으로 떨어진다 — 화면이 비지 않는다.
+    ⚠ 한국어 학습 대상 자체(단어 `가방`, 문장 본문)는 번역되지 않는다. 배우는 대상이다.
+
+    `audio` 는 {문장: 재생 URL} 이다 — **미리 구워 둔 것만** 들어 있다.
+    ⛔ 매번 서명해서 내려보내는 URL 이라 **캐시하지 마라**(만료된다). 문장이 이 map 에
+      없으면 앱은 종전대로 `POST /tts/speech` 로 떨어진다(R5).
     """
 
     sound_key: str
@@ -80,6 +87,7 @@ class SoundLessonOut(BaseModel):
     diagram: Optional[str] = None
     card_desc: str
     payload: dict[str, Any]
+    audio: dict[str, str] = {}
     score: Optional[int] = None
     learned: bool = False
 

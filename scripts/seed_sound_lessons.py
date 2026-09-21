@@ -30,6 +30,7 @@ from db.engine import build_engine
 from db.session import build_session_factory
 from domains.learning.models.national_sound_stat import NationalSoundStat
 from domains.learning.models.sound_lesson import SoundLesson
+from domains.learning.models.sound_lesson_i18n import SoundLessonI18n
 
 _ASSETS = Path(__file__).resolve().parent.parent / "assets" / "pronunciation"
 _LESSONS = _ASSETS / "lessons.json"
@@ -98,6 +99,62 @@ def seed_lessons(session, lessons: list[dict]) -> tuple[int, int]:
     return created, updated
 
 
+def _i18n_payload(l: dict, locale: str) -> dict:
+    """한 과 × 한 언어의 **번역되는 부분만** 뽑는다.
+
+    한국어 학습 대상(단어 `가방`, 문장 본문)은 넣지 않는다 — 배우는 대상이라 원문이 정본이다.
+    번역되는 것은 그 뜻과 소리 내는 법뿐이다.
+    """
+    if locale == "ko":
+        # 원본 언어 — how_to 는 그대로, 뜻·번역은 한국어본이 없으므로 비운다.
+        return {"how_to": l.get("how_to") or []}
+    if locale == "en":
+        return {
+            # ⚠ how_to 는 영어본이 **없다**(lessons.json 에 한국어만 있다). 비워 두면
+            #   API 가 원본(한국어)으로 떨어뜨린다 — 영어 사용자는 설명을 한국어로 본다.
+            #   지금까지도 그랬고, 번역을 채우면 앱 배포 없이 해소된다.
+            "words": [
+                {"meaning": w.get("meaning_en")} for w in (l.get("words") or [])
+            ],
+            "sentence": {"translation": (l.get("sentence") or {}).get("translation_en")},
+            "test": {"translation": (l.get("test") or {}).get("translation_en")},
+        }
+    return {}
+
+
+def seed_i18n(session, lessons: list[dict]) -> tuple[int, int]:
+    """sound_lesson_i18n upsert → (신규, 갱신). 지금 채우는 언어는 ko·en 둘뿐이다.
+
+    나머지 28개 로케일은 **의도적으로 비워 둔다**(2026-09-21 결정). 조음 설명은 기계번역이
+    자주 틀리고, 틀리면 학습자가 엉뚱한 입 모양을 배운다 — 검수를 거쳐 채울 자리다.
+    """
+    created = updated = 0
+    for l in lessons:
+        for locale in ("ko", "en"):
+            payload = _i18n_payload(l, locale)
+            row = session.scalar(
+                select(SoundLessonI18n).where(
+                    SoundLessonI18n.sound_key == l["sound_key"],
+                    SoundLessonI18n.locale == locale,
+                )
+            )
+            # label·card_desc 는 한국어본만 있다. en 은 None 으로 두어 원본으로 떨어뜨린다.
+            label = l["label"] if locale == "ko" else None
+            card_desc = l["card_desc"] if locale == "ko" else None
+            if row is None:
+                session.add(SoundLessonI18n(
+                    sound_key=l["sound_key"], locale=locale,
+                    label=label, card_desc=card_desc, payload=payload,
+                ))
+                created += 1
+                continue
+            row.label = label
+            row.card_desc = card_desc
+            row.payload = payload
+            updated += 1
+    return created, updated
+
+
 def seed_national(session, national: dict[str, dict]) -> tuple[int, int, int]:
     """national_sound_stat upsert → (신규, 갱신, 삭제).
 
@@ -156,9 +213,11 @@ def main() -> int:
     session_factory = build_session_factory(engine)
     with session_factory() as session:
         lc, lu = seed_lessons(session, lessons)
+        ic, iu = seed_i18n(session, lessons)
         nc, nu, nd = seed_national(session, national)
         session.commit()
     print(f"sound_lesson        신규 {lc} · 갱신 {lu}")
+    print(f"sound_lesson_i18n   신규 {ic} · 갱신 {iu}  (ko·en 2벌)")
     print(f"national_sound_stat 신규 {nc} · 갱신 {nu} · 삭제 {nd}")
     return 0
 

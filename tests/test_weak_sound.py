@@ -38,6 +38,7 @@ from domains.learning.models.national_sound_stat import NationalSoundStat
 from domains.learning.models.review import Review
 from domains.learning.models.sentence import Sentence
 from domains.learning.models.sound_lesson import SoundLesson
+from domains.learning.models.sound_lesson_i18n import SoundLessonI18n
 
 import core.deps as deps
 import domains.learning.service.weak_sound_service as wsvc
@@ -248,6 +249,59 @@ def test_list_matches_country_by_iso_not_name(session_factory, seeded):
     assert body["national"]["items"][0]["share"] == 52
     # 화면에 보이는 이름은 사용자의 국적 라벨 그대로다(통계 쪽 표기로 바뀌지 않는다).
     assert body["national"]["country"] == "Russia"
+
+
+def test_lesson_uses_member_locale_and_keeps_korean_target(session_factory, seeded):
+    """번역이 있으면 설명은 회원 언어로, **배우는 한국어는 원문 그대로** 내려간다.
+
+    단어 `가방`·문장 본문은 학습 대상이라 번역하면 안 된다. 번역되는 것은 뜻과
+    소리 내는 법뿐이다.
+    """
+    db = session_factory()
+    db.query(Member).update({"language": "en"})
+    db.add(SoundLessonI18n(
+        sound_key="coda_ㄹ", locale="en",
+        label="Final ㄹ", card_desc="Tap the ridge",
+        payload={
+            "how_to": ["Lift the tongue tip", "Tap lightly", "Do not roll"],
+            "sentence": {"translation": "A sentence."},
+        },
+    ))
+    db.commit()
+    db.close()
+    client = TestClient(_build_app(session_factory))
+    body = client.get("/api/v1/pronunciation/weak-sounds/coda_ㄹ/lesson",
+                      headers=_hdr()).json()
+    assert body["label"] == "Final ㄹ"
+    assert body["card_desc"] == "Tap the ridge"
+    assert body["payload"]["how_to"][0] == "Lift the tongue tip"
+    assert body["payload"]["sentence"]["translation"] == "A sentence."
+    # ⛔ 학습 대상은 한국어 원문이다.
+    assert body["payload"]["sentence"]["text"] == "문장"
+
+
+def test_lesson_falls_back_to_korean_when_untranslated(session_factory, seeded):
+    """번역이 없는 언어면 원본으로 떨어진다 — 화면이 비지 않는다."""
+    db = session_factory()
+    db.query(Member).update({"language": "sw"})  # 번역 행이 없는 언어
+    db.commit()
+    db.close()
+    client = TestClient(_build_app(session_factory))
+    body = client.get("/api/v1/pronunciation/weak-sounds/coda_ㄹ/lesson",
+                      headers=_hdr()).json()
+    assert body["label"] == "받침 ㄹ"
+    assert body["payload"]["how_to"] == ["a", "b", "c"]
+
+
+def test_lesson_audio_is_empty_when_nothing_pregenerated(session_factory, seeded):
+    """미리 구운 음성이 없으면 audio 는 빈 map 이다 — 500 이 아니다.
+
+    앱은 빈 map 을 보고 종전대로 `POST /tts/speech` 로 떨어진다(R5).
+    """
+    client = TestClient(_build_app(session_factory))
+    r = client.get("/api/v1/pronunciation/weak-sounds/coda_ㄹ/lesson", headers=_hdr())
+    assert r.status_code == 200
+    assert r.json()["audio"] == {}
 
 
 def test_list_excludes_vowels_and_duplicates(session_factory, seeded):

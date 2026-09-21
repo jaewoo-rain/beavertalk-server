@@ -27,10 +27,18 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from core import storage
+from core.config import settings
 from core.nationality import iso_for_country
 from core.speechsuper import assess_pronunciation
 from domains.learning.models.member_sound_score import MemberSoundScore
+from domains.learning.models.sound_audio import (
+    LESSON_ENGINE,
+    LESSON_VOICE,
+    audio_text_hash,
+)
 from domains.learning.models.sound_lesson import SoundLesson
+from domains.learning.models.sound_lesson_i18n import SoundLessonI18n
 from domains.learning.repository.pronunciation_repository import PronunciationRepository
 from domains.learning.repository.weak_sound_repository import WeakSoundRepository
 from domains.learning.schemas.weak_sound import (
@@ -52,11 +60,115 @@ RECOMMEND_BELOW = 80
 RECENT_CALLS = 5
 
 
+def _locale_of(db: Session, member_id: int) -> str:
+    """회원의 표시 언어. 없으면 en.
+
+    ⚠ `member.language`(모국어)다. `target_language`(배우는 언어=한국어)가 아니다 —
+    바꿔 쓰면 외국인에게 한국어 설명이 나간다.
+    """
+    lang = PronunciationRepository(db).get_member_language(member_id)
+    return (lang or "en").strip().lower() or "en"
+
+
+def _translated(
+    lesson: SoundLesson, tr: Optional[SoundLessonI18n]
+) -> tuple[str, str, dict]:
+    """(label, card_desc, payload) 를 번역본으로 덮어쓴다. 없는 항목은 **원본 유지**.
+
+    ⛔ 빈 번역으로 원본을 지우지 마라. 번역이 없는 언어에서 화면이 비어 버린다 —
+    한국어라도 보이는 편이 아무것도 없는 것보다 낫다.
+
+    payload 는 **깊은 병합**이 아니라 「번역되는 자리만」 갈아 끼운다. words 는 순서로
+    맞춘다(원본과 번역의 길이가 다르면 짧은 쪽까지만).
+    """
+    if tr is None:
+        return lesson.label, lesson.card_desc, lesson.payload
+    label = tr.label or lesson.label
+    card_desc = tr.card_desc or lesson.card_desc
+    payload = dict(lesson.payload or {})
+    tp = tr.payload or {}
+
+    if tp.get("how_to"):
+        payload["how_to"] = tp["how_to"]
+
+    # ⚠ payload 는 JSON 이다. dict 가 아닌 항목은 손대지 않고 그대로 통과시킨다 —
+    #   번역 때문에 원본 콘텐츠가 깨지면 안 된다.
+    src_words = list(payload.get("words") or [])
+    tr_words = list(tp.get("words") or [])
+    if src_words and tr_words:
+        merged = []
+        for i, w in enumerate(src_words):
+            if not isinstance(w, dict):
+                merged.append(w)
+                continue
+            w = dict(w)
+            got = tr_words[i] if i < len(tr_words) else None
+            if isinstance(got, dict) and got.get("meaning"):
+                w["meaning"] = got["meaning"]
+            merged.append(w)
+        payload["words"] = merged
+
+    for key in ("sentence", "test"):
+        src = payload.get(key)
+        got = (tp.get(key) or {}).get("translation")
+        if isinstance(src, dict) and got:
+            src = dict(src)
+            src["translation"] = got
+            payload[key] = src
+    return label, card_desc, payload
+
+
+def _audio_urls(db: Session, payload: dict) -> dict[str, str]:
+    """payload 안에서 **재생되는 문장** → 지금 서명한 재생 URL.
+
+    미리 구워 둔 것만 나온다. 없는 문장은 빠지고, 앱은 종전대로 `POST /tts/speech` 로
+    떨어진다(R5) — 죽지 않는다.
+
+    ⛔ DB 에 든 것은 object key 다. 반드시 `playback_url` 로 지금 서명한다. 저장된 서명을
+      그대로 내보내면 7일 뒤 그 과는 영구히 소리가 죽는다(2026-08-31 실사고).
+    """
+    # ⚠ payload 는 JSON 이다 — 모양을 **믿지 않는다**. 시드가 어긋나거나 옛 행이 남아 있어도
+    #   여기서 500 을 내면 학습 화면 전체가 죽는다. 음성은 부가물이라 빠지면 빠진 대로 둔다.
+    def _text_of(item: object) -> str:
+        if isinstance(item, str):
+            return item.strip()
+        if isinstance(item, dict):
+            got = item.get("text")
+            return got.strip() if isinstance(got, str) else ""
+        return ""
+
+    texts: list[str] = []
+    for w in payload.get("words") or []:
+        t = _text_of(w)
+        if t:
+            texts.append(t)
+    s = payload.get("sentence") if isinstance(payload.get("sentence"), dict) else {}
+    for item in [*(s.get("chunks") or []), s.get("text")]:
+        t = _text_of(item)
+        if t:
+            texts.append(t)
+    test = payload.get("test") if isinstance(payload.get("test"), dict) else {}
+    t = _text_of(test.get("text"))
+    if t:
+        texts.append(t)
+
+    by_hash = {audio_text_hash(t): t for t in texts}
+    keys = WeakSoundRepository(db).get_audio(list(by_hash), LESSON_VOICE, LESSON_ENGINE)
+    out: dict[str, str] = {}
+    for h, key in keys.items():
+        url = storage.playback_url(settings.SUPABASE_BUCKET_SAMPLES, key)
+        if url:
+            out[by_hash[h]] = url
+    return out
+
+
 def _score_view(
     lesson: SoundLesson,
     row: Optional[MemberSoundScore],
     agg: dict[str, float],
     share: Optional[int] = None,
+    label: Optional[str] = None,
+    card_desc: Optional[str] = None,
 ) -> WeakSoundItem:
     """학습 점수 우선, 없으면 복습 집계 → 카드 1장."""
     if row is not None:
@@ -74,8 +186,8 @@ def _score_view(
         last = None
     return WeakSoundItem(
         sound_key=lesson.sound_key,
-        label=lesson.label,
-        card_desc=lesson.card_desc,
+        label=label or lesson.label,
+        card_desc=card_desc or lesson.card_desc,
         type=lesson.type,
         diagram=lesson.diagram,
         score=score,
@@ -106,6 +218,8 @@ def get_weak_sounds(db: Session, member_id: int) -> WeakSoundListOut:
     lessons = {l.sound_key: l for l in repo.get_lessons()}
     scores = repo.get_scores(member_id)
     agg = _aggregated(db, member_id)
+    # 번역은 언어 한 벌을 통째로 읽는다(과 30개 × 왕복 30번을 피한다).
+    tr = repo.get_i18n(_locale_of(db, member_id))
 
     country = PronunciationRepository(db).get_first_country(member_id)
     country_iso = iso_for_country(country)
@@ -121,8 +235,12 @@ def get_weak_sounds(db: Session, member_id: int) -> WeakSoundListOut:
                 # 시드 불일치. 조용히 넘기되 로그는 남긴다 — 앱에 빈 카드를 띄우지 않는다.
                 logger.warning("national_sound_stat 이 없는 과를 가리킨다: %s", stat.sound_key)
                 continue
+            lb, cd, _ = _translated(lesson, tr.get(lesson.sound_key))
             national_items.append(
-                _score_view(lesson, scores.get(stat.sound_key), agg, share=stat.share)
+                _score_view(
+                    lesson, scores.get(stat.sound_key), agg,
+                    share=stat.share, label=lb, card_desc=cd,
+                )
             )
             if len(national_items) >= LIST_SIZE:
                 break
@@ -135,7 +253,10 @@ def get_weak_sounds(db: Session, member_id: int) -> WeakSoundListOut:
         lesson = lessons.get(key)
         if lesson is None or key in national_keys:
             continue  # 같은 소리를 두 목록에 중복 노출하지 않는다
-        mine_items.append(_score_view(lesson, scores.get(key), agg))
+        lb, cd, _ = _translated(lesson, tr.get(key))
+        mine_items.append(
+            _score_view(lesson, scores.get(key), agg, label=lb, card_desc=cd)
+        )
         if len(mine_items) >= LIST_SIZE:
             break
 
@@ -177,15 +298,18 @@ def get_lesson(db: Session, member_id: int, sound_key: str) -> Optional[SoundLes
         avg = _aggregated(db, member_id).get(sound_key)
         score = int(round(avg)) if avg is not None else None
         learned = False
+    tr = repo.get_i18n(_locale_of(db, member_id)).get(sound_key)
+    label, card_desc, payload = _translated(lesson, tr)
     return SoundLessonOut(
         sound_key=lesson.sound_key,
-        label=lesson.label,
+        label=label,
         type=lesson.type,
         position=lesson.position,
         jamo=lesson.jamo,
         diagram=lesson.diagram,
-        card_desc=lesson.card_desc,
-        payload=lesson.payload,
+        card_desc=card_desc,
+        payload=payload,
+        audio=_audio_urls(db, payload),
         score=score,
         learned=learned,
     )
