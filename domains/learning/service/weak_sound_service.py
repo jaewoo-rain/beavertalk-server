@@ -156,7 +156,13 @@ def _audio_urls(db: Session, payload: dict) -> dict[str, str]:
     keys = WeakSoundRepository(db).get_audio(list(by_hash), LESSON_VOICE, LESSON_ENGINE)
     out: dict[str, str] = {}
     for h, key in keys.items():
-        url = storage.playback_url(settings.SUPABASE_BUCKET_SAMPLES, key)
+        # 만료를 **명시한다.** 인자를 비우면 `public_url` 경로로 빠지는데, 이름과 달리
+        # 그것도 서명 URL 이고 TTL 만 다르다(7일). 기본값에 기대면 그 함수의 기본이
+        # 바뀌는 날 이 화면이 조용히 따라 바뀐다.
+        # 학습 음성은 통화 문장 TTS 와 같은 성격이라 같은 TTL 을 쓴다.
+        url = storage.playback_url(
+            settings.SUPABASE_BUCKET_SAMPLES, key, settings.GCS_SIGNED_URL_TTS_TTL,
+        )
         if url:
             out[by_hash[h]] = url
     return out
