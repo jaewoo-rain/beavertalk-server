@@ -512,6 +512,48 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc))
 
+        @app.post("/__dev/pregen-sound-audio", include_in_schema=False)
+        async def dev_pregen_sound_audio(
+            member: CurrentAdmin, db: DbSession, body: dict | None = None
+        ) -> dict:
+            """[dev] 취약 발음 학습 TTS 를 미리 굽는다 — 한 번만 돌리면 되는 도구.
+
+            body: {"force": false, "limit": null}  — 둘 다 선택.
+              force  이미 구운 것도 다시 굽는다(음색·엔진을 바꿨을 때).
+              limit  앞에서 N 개만 굽는다(맛보기·타임아웃 회피용).
+
+            **왜 서버에 있나** — 굽는 데 TTS 서비스계정 키와 GCS 자격증명이 필요한데
+            그 둘은 배포 환경의 시크릿으로만 있다(로컬엔 없다). 작업용 PC 로 키를
+            내려받지 않으려고 **배포된 서비스가 자기 자격증명으로** 굽게 한다.
+
+            멱등이다 — 이미 있는 문장은 건너뛴다. 중간에 끊겨도 다시 부르면 빠진 것만
+            채운다(문장 하나마다 커밋한다).
+
+            ⛔ `CurrentAdmin` 으로 막는다 — 실서비스 ENV 가 "test" 라 이 블록이
+              실서비스에도 뜬다(위 dev 도구들과 같은 이유). 합성은 **돈이 나가는**
+              동작이라 아무나 부르면 안 된다.
+            """
+            from scripts.pregen_sound_audio import (
+                ENGINE, VOICE, collect_texts, pregen,
+            )
+
+            body = body or {}
+            texts = collect_texts()
+            limit = body.get("limit")
+            if limit is not None:
+                texts = texts[: int(limit)]
+            made, skipped, failed = await pregen(
+                db, texts, bool(body.get("force")), quiet=True
+            )
+            return {
+                "engine": ENGINE,
+                "voice": VOICE or "(언어 기본)",
+                "total": len(texts),
+                "made": made,
+                "skipped": skipped,
+                "failed": failed,
+            }
+
         @app.post("/__dev/subscription-state", include_in_schema=False)
         def dev_subscription_state(
             body: dict, member: CurrentAdmin, db: DbSession

@@ -82,8 +82,15 @@ def collect_texts() -> list[str]:
     return list(seen)
 
 
-async def pregen(session, texts: list[str], force: bool) -> tuple[int, int, int]:
-    """→ (구운 수, 건너뛴 수, 실패 수). 한 건마다 커밋해 중단에 견딘다."""
+async def pregen(
+    session, texts: list[str], force: bool, *, quiet: bool = False
+) -> tuple[int, int, int]:
+    """→ (구운 수, 건너뛴 수, 실패 수). 한 건마다 커밋해 중단에 견딘다.
+
+    `quiet=True` 면 진행 출력을 하지 않는다 — 서버(`/__dev/pregen-sound-audio`)에서
+    부를 때 쓴다. 로컬 자격증명이 없어 스크립트를 못 돌리는 환경이 있어서, 굽는 일은
+    **배포된 서비스가 자기 자격증명으로** 할 수 있어야 한다.
+    """
     made = skipped = failed = 0
     for i, text in enumerate(texts, start=1):
         h = text_hash(text)
@@ -100,7 +107,8 @@ async def pregen(session, texts: list[str], force: bool) -> tuple[int, int, int]
 
         synthesized = await tts.synthesize(text, LANGUAGE, voice=VOICE, engine=ENGINE)
         if not synthesized:
-            print(f"  [{i}/{len(texts)}] 합성 실패: {text}")
+            if not quiet:
+                print(f"  [{i}/{len(texts)}] 합성 실패: {text}")
             failed += 1
             continue
         audio, content_type = synthesized
@@ -110,7 +118,8 @@ async def pregen(session, texts: list[str], force: bool) -> tuple[int, int, int]
         path = f"sound-lesson/{ENGINE}/{h}.{ext}"
         key = storage.upload(settings.SUPABASE_BUCKET_SAMPLES, path, audio, content_type)
         if not key:
-            print(f"  [{i}/{len(texts)}] 업로드 실패: {text}")
+            if not quiet:
+                print(f"  [{i}/{len(texts)}] 업로드 실패: {text}")
             failed += 1
             continue
 
@@ -123,7 +132,8 @@ async def pregen(session, texts: list[str], force: bool) -> tuple[int, int, int]
             row.object_key = key
         session.commit()
         made += 1
-        print(f"  [{i}/{len(texts)}] {text}  →  {key}")
+        if not quiet:
+            print(f"  [{i}/{len(texts)}] {text}  →  {key}")
     return made, skipped, failed
 
 
