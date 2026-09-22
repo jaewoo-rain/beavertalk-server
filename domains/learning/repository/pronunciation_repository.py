@@ -103,12 +103,12 @@ class PronunciationRepository:
 
     # ── T9: 최근5 발음 이력 ─────────────────────────────────────────────── #
     def recent_calls(self, member_id: int, limit: int = 5) -> Sequence[Call]:
-        """일반(normal)·완료(done) 통화 최근순 N건 — 이력 카드용(발화 미로딩)."""
+        """일반(chat, 옛 normal — C3 로 개명)·완료(done) 통화 최근순 N건 — 이력 카드용(발화 미로딩)."""
         stmt = (
             select(Call)
             .where(
                 Call.member_id == member_id,
-                Call.call_type == "normal",
+                Call.call_type == "chat",
                 Call.status == "done",
             )
             .order_by(Call.call_date.desc(), Call.call_id.desc())
@@ -129,7 +129,7 @@ class PronunciationRepository:
             .join(Evaluation, Evaluation.sentence_id == Sentence.sentence_id)
             .where(
                 Call.member_id == member_id,
-                Call.call_type == "normal",
+                Call.call_type == "chat",
                 Call.status == "done",
                 Sentence.deleted_at.is_(None),
                 Evaluation.pronunciation.is_not(None),

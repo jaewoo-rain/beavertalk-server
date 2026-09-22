@@ -75,7 +75,10 @@ def seeded(session_factory):
     db = session_factory()
     try:
         ch = db.execute(text("SELECT character_id FROM character LIMIT 1")).scalar()
-        m = Member(language="en", korean_level=1, onboarding_completed=True, auth_user_id=f"auth-cur-path-{_n['i']}")
+        # QA C3-③(2026-09-22): expression·freetalk 명시는 admin 전용 — 이 파일은 그 명시
+        # 라우팅 자체(cur 경로·잠금)를 시험하므로 기본 회원을 admin 으로 둔다.
+        m = Member(language="en", korean_level=1, onboarding_completed=True,
+                  auth_user_id=f"auth-cur-path-{_n['i']}", role="admin")
         db.add(m); db.flush()
         db.add(MemberReason(member_id=m.member_id, reason="travel"))
         db.commit()
@@ -352,15 +355,13 @@ async def test_admin_force_course_opens_freetalk_on_the_locked_lesson_without_to
 
 
 @pytest.mark.asyncio
-async def test_force_course_is_ignored_for_a_user_and_absent_force_keeps_the_lock_for_an_admin(session_factory, seeded):
-    m = seeded["member_id"]
-    # user + force → 잠금 그대로(조용히 무시)
-    h = await _run(session_factory, seeded, "freetalk", {}, extra={"force_course": True})
-    err = next(f for f in h["frames"] if f.get("type") == "error")
-    assert err["code"] == "COURSE_LOCKED" and h["ws"].closed_with == 1008
-    assert not any(f.get("type") == "call_started" for f in h["frames"])
+async def test_force_course_requires_admin_and_absent_force_keeps_the_lock_for_an_admin(session_factory, seeded):
+    """QA C3-③(2026-09-22): "user + 명시 freetalk + force" 시나리오는 이제 이 시험의 몫이
+    아니다 — 그보다 **먼저** admin 게이트가 걸려 명시 freetalk 자체가 auto 로 되돌아간다
+    (tests/test_call_type_expression.py::test_non_admin_explicit_expression_or_freetalk_falls_back_to_auto
+    가 그 자리를 지킨다). 여기서는 admin 안에서 force 유무의 효과만 본다."""
+    m = seeded["member_id"]  # ⭐ seeded 기본이 admin 이다(이 파일 전체가 명시 코스 시험)
     # admin, force 없음 → 잠금 그대로
-    _set_role(session_factory, m, "admin")
     h2 = await _run(session_factory, seeded, "freetalk", {})
     assert next(f for f in h2["frames"] if f.get("type") == "error")["code"] == "COURSE_LOCKED"
     # admin + force 이지만 expression/auto 엔 영향 없다 — 표현학습이 열린다
@@ -368,7 +369,7 @@ async def test_force_course_is_ignored_for_a_user_and_absent_force_keeps_the_loc
     assert _started(h3)["course"] == "expression"
     db = session_factory()
     try:
-        assert db.query(Call).filter(Call.member_id == m, Call.status == "failed").count() == 2
+        assert db.query(Call).filter(Call.member_id == m, Call.status == "failed").count() == 1
     finally:
         db.close()
 

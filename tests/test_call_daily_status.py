@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import Integer, create_engine
+from sqlalchemy import Integer, create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -127,6 +127,22 @@ def test_chat_does_not_consume_level_test(ctx):
     s = _status(ctx, "2026-07-17", 540)
     assert s["called_today"] is True
     assert s["level_test_today"] is False
+
+
+def test_migrated_legacy_normal_row_is_counted_once_converted_to_chat(ctx):
+    """QA C3-②(2026-09-22): daily-status 는 call_type='chat' 만 센다 — 마이그레이션
+    (e0a404f9e6c0, upgrade: UPDATE call SET call_type='chat' WHERE call_type='normal')이
+    옛 행을 전환해야 세어진다는 것을 값으로 못박는다."""
+    # 전환 전(옛 normal 그대로) — 안 세어진다.
+    _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
+          call_type="normal")
+    assert _status(ctx, "2026-07-17", 540)["called_today"] is False, \
+        "전환 안 된 옛 normal 행이 세어졌다 — 마이그레이션 없이도 세어지면 이 시험의 전제가 깨진다"
+    # 마이그레이션이 하는 일과 같은 UPDATE — 전환 후에는 세어진다.
+    ctx["db"].execute(text("UPDATE call SET call_type = 'chat' WHERE call_type = 'normal'"))
+    ctx["db"].commit()
+    assert _status(ctx, "2026-07-17", 540)["called_today"] is True, \
+        "전환 후에도(call_type='chat') daily-status 가 못 셌다"
 
 
 def test_ongoing_excluded(ctx):

@@ -3057,6 +3057,18 @@ async def run_call(
         if call_type == "normal":
             logger.info("normalcall: call_type=normal → chat 취급(자유대화) member=%s", member_id)
             call_type = "chat"
+        # ⭐⭐ QA C3-③(2026-09-22): expression·freetalk 명시는 **admin 전용**(개발자 도구) —
+        #   홈 화면에 그 버튼이 없어진 지금(D3), 명시로 들어오는 expression/freetalk 는
+        #   admin 개발자 도구·QA 하네스뿐이어야 한다. 일반 회원이 보내면(구버전 앱·조작된
+        #   요청) auto(학습)로 되돌린다 — 서버가 표현학습/프리토킹 중 고른다.
+        if call_type in ("expression", "freetalk") and not await svc.run_db(
+            db_session_factory, lambda db: call_service.is_unlimited_member(db, member_id)
+        ):
+            logger.info(
+                "normalcall: call_type=%s 명시 — admin 아님 → auto 취급 member=%s",
+                call_type, member_id,
+            )
+            call_type = "auto"
         # ⛔ 표현학습은 **커리큘럼이 있는 언어**에서만 성립한다 — 가르칠 항목이 커리큘럼에서
         #   나오기 때문이다(`pick_expression_items`). 회화 전용 신 언어에서 명시로 들어오면
         #   항목 0개로 «표현 목록이 빈 표현학습» 이 되므로 chat 로 강등한다(레벨테스트

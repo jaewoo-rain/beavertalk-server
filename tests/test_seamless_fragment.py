@@ -56,11 +56,13 @@ pytestmark = pytest.mark.skipif(not os.path.exists(SEED), reason="cur_seed.json 
 
 # ⛔ C3(2026-09-22, D3): "normal" 콜타입은 더 이상 클라가 못 고른다 — chat(자유대화)로
 #   흡수됐다. 그런데 chat 은 **아직 이어하기 허용 목록에 없다**(C7 이 명시적으로 붙인다,
-#   docs/plans/2026-09-22-…: "call_type="chat" 을 이어하기 허용 목록 …에 추가"). 아래 5개는
-#   옛 "normal" 전용 재개 브리프·시드 콘텐츠(build_system_instruction 의 history 슬롯)를
-#   검증하는데, expression/freetalk 로 바꿔도 이 콘텐츠 자체가 없다(다른 대본이다) — 그리고
-#   chat 으로 두면 이어하기 자체가 RESUME_UNAVAILABLE 로 거절된다. C7 이 chat 을 이어하기
-#   목록에 넣고 나면(그때 이 콘텐츠가 chat 대본에도 있는지부터 다시 확인해야 한다) 되살린다.
+#   docs/plans/2026-09-22-…: "call_type="chat" 을 이어하기 허용 목록 …에 추가"). 아래
+#   3개(:340·:363·:622)는 옛 "normal" 전용 재개 브리프·시드 콘텐츠(build_system_instruction
+#   의 history 슬롯)를 검증하는데, expression/freetalk 로 바꿔도 이 콘텐츠 자체가 없다
+#   (다른 대본이다) — 그리고 chat 으로 두면 이어하기 자체가 RESUME_UNAVAILABLE 로 거절된다.
+#   C7 이 chat 을 이어하기 목록에 넣고 나면(그때 이 콘텐츠가 chat 대본에도 있는지부터
+#   다시 확인해야 한다) 되살린다. (나머지 2개는 expression 코스 + 실제 넛지/브리프
+#   콘텐츠로 대체해 살려 뒀다 — :460·:490 참조)
 _SKIP_UNTIL_C7_CHAT_RESUME = pytest.mark.skip(
     reason="C7 전까지 chat 은 이어하기 불가 — 옛 normal 전용 재개 브리프 시험, C7 에서 재검토"
 )

@@ -307,9 +307,9 @@ def factory():
 _counter = {"n": 0}
 
 
-def _member(db: Session) -> int:
+def _member(db: Session, *, role: str = "user") -> int:
     _counter["n"] += 1
-    m = Member(language="en", korean_level=1, onboarding_completed=True, auth_user_id=f"auth-ft-{_counter['n']}", name="John")
+    m = Member(language="en", korean_level=1, onboarding_completed=True, auth_user_id=f"auth-ft-{_counter['n']}", name="John", role=role)
     db.add(m); db.commit()
     return m.member_id
 
@@ -522,7 +522,8 @@ async def test_lesson_freetalk_pushes_hints_with_lesson_material_and_expression_
 async def test_old_freetalk_path_keeps_old_seed_and_slots_when_cur_is_disabled(factory, monkeypatch):
     monkeypatch.setattr(app_settings, "CUR_ENABLED", False)   # run_call 은 넘겨받은 settings(app_settings)를 읽는다
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.2)
-    db = factory(); m = _member(db); db.close()
+    # QA C3-③(2026-09-22): 명시 freetalk 는 admin 전용 — 비admin 이면 auto 로 되돌아간다.
+    db = factory(); m = _member(db, role="admin"); db.close()
     h = await _run(factory, m, "freetalk", {}, [("B", "안녕!")], monkeypatch)
     st = h["state"]
     assert not st.cur_route and st.cur_course == "" and st.freetalk_brief is None

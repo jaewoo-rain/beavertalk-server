@@ -92,10 +92,12 @@ class Call(Base, TimestampMixin):
         comment="이어하기 조각 수(1=이어하기 없음)",
     )
     call_type: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=text("'normal'"),
+        Text, nullable=False, server_default=text("'chat'"),
         # ⭐ 2026-09-10: expression(표현학습)·freetalk(프리토킹) 추가. TEXT 라 **스키마
         #   변경이 아니다** — 값 목록은 앱 계층이 소유한다(call.status 컨벤션 그대로).
-        comment="통화 종류(normal/level_test/expression/freetalk)",
+        # ⭐⭐ C3(2026-09-22, D3): 옛 "normal"(일반 통화) 은 "chat"(자유대화)으로 개명 —
+        #   기존 행도 마이그레이션으로 전환했다(옛 데이터에 "normal" 이 남지 않는다).
+        comment="통화 종류(chat/level_test/expression/freetalk — 옛 normal 은 chat 으로 전환됨)",
     )
     assessed_level: Mapped[Optional[int]] = mapped_column(
         Integer, comment="레벨테스트 판정 결과(1~13, level_test 전용)",

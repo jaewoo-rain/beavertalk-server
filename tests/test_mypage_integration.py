@@ -55,8 +55,9 @@ def _member(db, language="ko", korean_level=None) -> Member:
 
 
 def _scored_call(db, member_id: int, days_ago: int, scores: list[int]) -> int:
-    """점수가 채워진 통화 1건. scores 는 문장별 pronunciation 값."""
-    c = Call(member_id=member_id, character_id=1, call_type="normal", status="done",
+    """점수가 채워진 통화 1건. scores 는 문장별 pronunciation 값.
+    C3(2026-09-22, D3): 발음 이력(T9)은 chat(옛 normal)만 본다."""
+    c = Call(member_id=member_id, character_id=1, call_type="chat", status="done",
              call_date=datetime.now(timezone.utc) - timedelta(days=days_ago))
     db.add(c)
     db.flush()
@@ -72,7 +73,7 @@ def _scored_call(db, member_id: int, days_ago: int, scores: list[int]) -> int:
 
 def _unscored_call(db, member_id: int, days_ago: int) -> int:
     """통화는 했지만 발음 챌린지를 안 눌러 점수가 없는 통화(실제로 대부분)."""
-    c = Call(member_id=member_id, character_id=1, call_type="normal", status="done",
+    c = Call(member_id=member_id, character_id=1, call_type="chat", status="done",
              call_date=datetime.now(timezone.utc) - timedelta(days=days_ago))
     db.add(c)
     db.flush()

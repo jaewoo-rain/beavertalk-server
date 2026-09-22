@@ -100,7 +100,7 @@ def _phon(alpha, pron):
 
 @pytest.fixture()
 def seeded(session_factory):
-    """회원(+타인) / 통화 1건(done,normal) / 문장 3개(복습 유·무 혼합) 시드."""
+    """회원(+타인) / 통화 1건(done,chat) / 문장 3개(복습 유·무 혼합) 시드."""
     db = session_factory()
     try:
         voice = Voice(name="Fenrir", gender="male")
@@ -118,8 +118,9 @@ def seeded(session_factory):
         other = Member(language="en", auth_user_id="auth-other")
         db.add_all([member, other])
         db.flush()
+        # C3(2026-09-22, D3): 옛 normal → chat 개명. 발음 이력(T9)은 chat 만 본다.
         call = Call(member_id=member.member_id, character_id=ch.character_id,
-                    status="done", call_type="normal")
+                    status="done", call_type="chat")
         db.add(call)
         db.flush()
 
@@ -324,3 +325,32 @@ def test_history_empty_when_no_counted_reviews(session_factory, seeded, llm):
     item = r.json()[0]
     assert item["sentence_count"] == 3
     assert item["score"] is None
+
+
+def test_history_counts_chat_calls_not_unmigrated_legacy_normal(session_factory, seeded, llm):
+    """QA C3-①(2026-09-22): 발음 이력(T9)은 call_type='chat' 만 본다(C3 로 normal→chat
+    개명). `seeded` 의 통화가 이미 chat 이라 여기 나온다 — 그리고 **전환 안 된 옛 normal
+    행은 안 나온다**(마이그레이션 e0a404f9e6c0 가 배포 시 그 행들을 chat 으로 전환하는
+    이유)."""
+    db = session_factory()
+    try:
+        char_id = db.get(Call, seeded["call_id"]).character_id
+        legacy = Call(member_id=seeded["member_id"], character_id=char_id,
+                      status="done", call_type="normal")  # 마이그레이션 전 옛 행 흉내
+        db.add(legacy)
+        db.flush()
+        db.add(Sentence(call_id=legacy.call_id, korean_sentence="안 보여야 함",
+                        native_sentence="must not appear", locale="en",
+                        evaluation=Evaluation(total_score=99, pronunciation=99,
+                                              fluency=99, rhythm=99)))
+        db.commit()
+    finally:
+        db.close()
+
+    app = _build_app(session_factory)
+    client = TestClient(app)
+    r = client.get("/api/v1/calls/pronunciation-history", headers=_hdr())
+    assert r.status_code == 200, r.text
+    items = r.json()
+    assert [item["call_id"] for item in items] == [seeded["call_id"]], \
+        "전환 안 된 legacy normal 통화가 섞여 나왔다(또는 chat 통화가 안 나왔다)"

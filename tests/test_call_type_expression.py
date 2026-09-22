@@ -80,8 +80,11 @@ def seeded(session_factory):
                 kind="chunk", band=1, level_no=1, seq_no=i,
                 surface=f"표현{i:02d} 주세요",
             ))
+        # QA C3-③(2026-09-22): expression·freetalk 명시는 admin 전용이다 — 이 파일은 그
+        # 라우팅 자체를 시험하므로 기본 회원을 admin 으로 둔다. 비admin 라우팅(→auto)은
+        # test_non_admin_explicit_expression_falls_back_to_auto 가 따로 admin 을 내린다.
         member = Member(language="en", korean_level=1, onboarding_completed=True,
-                        auth_user_id="auth-member")
+                        auth_user_id="auth-member", role="admin")
         db.add(member)
         db.flush()
         db.add(MemberReason(member_id=member.member_id, reason="travel"))
@@ -441,6 +444,28 @@ def _set_role(session_factory, member_id: int, role: str) -> None:
     db.commit(); db.close()
 
 
+# --------------------------------------------------------------------------- #
+# ⑨ QA C3-③(2026-09-22) — expression·freetalk 명시는 admin 전용
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+@pytest.mark.parametrize("call_type", ["expression", "freetalk"])
+async def test_non_admin_explicit_expression_or_freetalk_falls_back_to_auto(
+    session_factory, seeded, call_type: str,
+) -> None:
+    """비admin 이 call_type=expression|freetalk 를 명시해도 auto(학습)로 되돌린다 —
+    홈 화면에 그 버튼이 없어진 지금(D3), 명시는 admin 개발자 도구·하네스만 쓴다."""
+    _set_role(session_factory, seeded["member_id"], "user")
+    await _run(session_factory, seeded, call_type, {})
+    db = session_factory()
+    try:
+        # 이 시드 DB 엔 cur_lesson 이 없어(§ test_call_type_unset_now_defaults_to_auto_not_chat
+        # 와 같은 이유) auto 는 항상 expression 으로 폴백한다 — freetalk 를 보내도 마찬가지다.
+        assert db.query(Call).one().call_type == "expression", \
+            f"비admin 인데 명시 {call_type} 이 auto 로 안 되돌아갔다"
+    finally:
+        db.close()
+
+
 @pytest.mark.asyncio
 async def test_admin_plan_override_premium_picks_video_engine_and_free_picks_voice(session_factory, seeded, monkeypatch, caplog) -> None:
     """admin + override=premium → 영상(3.1·표정 도구) / admin + override=free → 음성(2.5). 한도·조각은 건드리지 않는다."""
@@ -468,6 +493,8 @@ async def test_admin_plan_override_premium_picks_video_engine_and_free_picks_voi
 @pytest.mark.asyncio
 async def test_user_plan_override_is_ignored_and_absent_override_is_byte_identical(session_factory, seeded, monkeypatch, caplog) -> None:
     import logging
+    # QA C3-③: 이 시험은 **비admin** 전제다 — seeded 기본은 이제 admin(⑨절)이라 내려야 한다.
+    _set_role(session_factory, seeded["member_id"], "user")
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
     with caplog.at_level(logging.INFO, logger=cs.logger.name):
         base = await _run(session_factory, seeded, "normal", {})
