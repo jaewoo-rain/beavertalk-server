@@ -409,17 +409,17 @@ def _set_role(session_factory, member_id: int, role: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_admin_plan_override_max_picks_video_engine_and_free_picks_voice(session_factory, seeded, monkeypatch, caplog) -> None:
-    """admin + override=max → 영상(3.1·표정 도구) / admin + override=free → 음성(2.5). 한도·조각은 건드리지 않는다."""
+async def test_admin_plan_override_premium_picks_video_engine_and_free_picks_voice(session_factory, seeded, monkeypatch, caplog) -> None:
+    """admin + override=premium → 영상(3.1·표정 도구) / admin + override=free → 음성(2.5). 한도·조각은 건드리지 않는다."""
     import logging
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
     _set_role(session_factory, seeded["member_id"], "admin")
     with caplog.at_level(logging.INFO, logger=cs.logger.name):
-        h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
-    assert h["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO, "Max 흉내 → 영상 모델(3.1)"
+        h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "premium"})
+    assert h["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO, "Premium 흉내 → 영상 모델(3.1)"
     assert h["kw"].get("tools"), "영상 통화 = 표정 도구 선언"
     assert "[표정]" in h["system_instruction"]
-    assert any("플랜분기" in r.getMessage() and "(override=max, admin)" in r.getMessage() for r in caplog.records)
+    assert any("플랜분기" in r.getMessage() and "(override=premium, admin)" in r.getMessage() for r in caplog.records)
 
     h2 = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "free"})
     assert h2["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "Free 흉내 → 음성 모델(2.5)"
@@ -443,10 +443,10 @@ async def test_user_plan_override_is_ignored_and_absent_override_is_byte_identic
     assert plain and all("override" not in m for m in plain)
     caplog.clear()
     with caplog.at_level(logging.INFO, logger=cs.logger.name):
-        h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
+        h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "premium"})
     assert h["kw"].get("model") == base["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "user 는 본인 플랜(Free → 음성)"
     assert not h["kw"].get("tools") and not base["kw"].get("tools") and "[표정]" not in h["system_instruction"]
-    assert any("override=max 무시 — admin 아님" in r.getMessage() for r in caplog.records)
+    assert any("override=premium 무시 — admin 아님" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio
@@ -455,11 +455,11 @@ async def test_plan_override_is_reapplied_on_a_resumed_fragment(session_factory,
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
     monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 3)
     _set_role(session_factory, seeded["member_id"], "admin")
-    h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max"})
+    h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "premium"})
     db = session_factory()
     call = db.query(Call).filter(Call.member_id == seeded["member_id"]).order_by(Call.call_id.desc()).first()
     db.close()
-    h2 = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "max", "continues_call_id": str(call.call_id)})
+    h2 = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "premium", "continues_call_id": str(call.call_id)})
     assert h2["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO
     h3 = await _run(session_factory, seeded, "normal", {}, extra={"continues_call_id": str(call.call_id)})
     assert h3["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "값을 안 보낸 조각은 본인 플랜으로 — 서버는 기억하지 않는다"

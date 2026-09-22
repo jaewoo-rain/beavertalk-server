@@ -286,7 +286,7 @@ def test_admin_is_exempt_from_the_daily_limit(ctx, monkeypatch):
     assert _status(ctx, today_local, 540)["can_call_level_test"] is True
 
     # ③ ⭐ 그런데 **구독은 여전히 Free** 다 — 화면은 Free 그대로여야 한다.
-    #    (Max 를 꽂는 방법이었다면 여기가 "max" 가 되어 Free UI 를 못 본다)
+    #    (Premium 을 꽂는 방법이었다면 여기가 "premium" 이 되어 Free UI 를 못 본다)
     assert entitlements.effective_plan(ctx["db"], ctx["member_id"]) is None
 
     # ④ ⛔⛔ **조각은 안 늘어난다.** 사장님 확인: "1통화 5분씩 3번까지는 동일한데
@@ -304,13 +304,14 @@ def test_admin_is_exempt_from_the_daily_limit(ctx, monkeypatch):
 
 
 def test_paid_plans_are_also_one_call_a_day(ctx, monkeypatch):
-    """⭐⭐ **플랜이 가르는 것은 횟수가 아니라 조각 수다**(2026-08-19 결정 반영).
+    """⭐⭐ **플랜이 가르는 것은 횟수가 아니라 조각 수다**(2026-08-19 결정 반영, D1 2단화로
+    옛 pro·max 가 premium 하나로 합쳐졌다).
 
     결정 원문: *"free는 5분 1통화가 제한이고, pro랑 max는 체인으로 15분 연달아서가
     1통화로 할게."* ⇒ 체인 전체가 '1통화'다.
 
         Free      하루 1통화 × 조각 1개
-        Pro·Max   하루 1통화 × 조각 3개
+        Premium   하루 1통화 × 조각 3개
 
     ⛔ 이 표만 옛 계약(무제한)에 멈춰 있었다 — 379d654 가 "무제한"으로 박은 뒤 길이
       재편(77ed775)도 조각 재편(08-19)도 이 표를 안 건드렸다. **길이 축만 두 번 고치고
@@ -319,12 +320,11 @@ def test_paid_plans_are_also_one_call_a_day(ctx, monkeypatch):
     """
     from domains.learning.service import call_service as cs
 
-    for plan in (None, "pro", "max"):
+    for plan in (None, "premium"):
         limits = cs.DAILY_CALL_LIMIT_BY_PLAN[plan]
         assert limits.get("normal") == 1, "플랜 %r 이 무제한으로 돌아갔다" % plan
         assert limits.get("level_test") == 1, "플랜 %r 레벨테스트가 무제한이다" % plan
 
     # ⚠ 조각 수는 반대로 **갈려 있어야** 한다 — 그게 플랜의 차별점이다.
     assert cs.CALL_FRAGMENTS_BY_PLAN[None] == 1
-    assert cs.CALL_FRAGMENTS_BY_PLAN["pro"] == 3
-    assert cs.CALL_FRAGMENTS_BY_PLAN["max"] == 3
+    assert cs.CALL_FRAGMENTS_BY_PLAN["premium"] == 3

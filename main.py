@@ -573,8 +573,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ⛔ CurrentAdmin 으로 막는다. 실서비스(app-api)의 ENV 는 "prod" 가 아니라
               "test" 라 이 블록이 실서비스에도 노출되기 때문(위 할인 도구와 같은 이유).
 
-            body: {"state": "grace", "plan": "max", "email": "tester@x.com"}
-              - plan 기본 pro
+            body: {"state": "grace", "plan": "premium", "email": "tester@x.com"}
+              - plan 은 premium 뿐(D1 2단화)
               - 대상은 member_id 또는 email 로 지정. 둘 다 없으면 **호출한 본인**.
 
             ⭐ 대상 지정이 왜 필요한가: 이 엔드포인트는 관리자만 부를 수 있는데, 화면을
@@ -589,15 +589,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             from domains.commerce.models.subscribe import Subscribe
 
             state = str(body.get("state") or "").strip()
-            plan = str(body.get("plan") or "pro").strip()
+            plan = str(body.get("plan") or "premium").strip()
             valid = {
-                "free", "trial", "active_pro", "active_max",
+                "free", "trial", "active_premium",
                 "grace", "on_hold", "ending", "expired",
             }
             if state not in valid:
                 return {"error": f"state 는 {sorted(valid)} 중 하나"}
-            if plan not in {"pro", "max"}:
-                return {"error": "plan 은 pro | max"}
+            if plan not in {"premium"}:
+                return {"error": "plan 은 premium 뿐"}
 
             # 대상 회원 결정 — 미지정이면 본인.
             target = None
@@ -629,13 +629,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "state": "free", "deleted": deleted,
                 }
 
-            # active_pro/active_max 는 plan 이 상태에 이미 들어 있다.
-            if state == "active_max":
-                plan = "max"
-            elif state == "active_pro":
-                plan = "pro"
-            elif state == "trial":
-                plan = "max"  # 앱은 체험을 Max 로 취급(subscription_state.dart)
+            # active_premium/trial 은 plan 이 이미 premium 한 값뿐이다(D1).
+            if state in ("active_premium", "trial"):
+                plan = "premium"
 
             row = Subscribe(
                 member_id=mid,

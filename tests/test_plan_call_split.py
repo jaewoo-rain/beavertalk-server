@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """플랜별 통화 분기 — 영상(표정)·모델을 구독 등급으로 가른다(2026-09-04).
 
-## 사장님 지시
-    max 만 영상통화. free·pro 는 모두 음성통화. free 는 한 조각.
+## 사장님 지시 (D1 2단화로 옛 max 가 premium 이 됐다)
+    premium 만 영상통화. free 는 음성통화 한 조각.
     모델 가르는 이유는 원가 절감.
 
 ## ⛔ 이 파일이 지키는 것
@@ -20,18 +20,16 @@ from domains.learning.service import call_service as cs
 # 1. 표 자체 — 사장님 지시가 값으로 박혀 있는가
 # --------------------------------------------------------------------------- #
 
-def test_only_max_gets_video():
-    """max 만 영상. free·pro 는 음성."""
-    assert cs.CALL_VIDEO_BY_PLAN["max"] is True
-    assert cs.CALL_VIDEO_BY_PLAN["pro"] is False
+def test_only_premium_gets_video():
+    """premium 만 영상. free 는 음성."""
+    assert cs.CALL_VIDEO_BY_PLAN["premium"] is True
     assert cs.CALL_VIDEO_BY_PLAN[None] is False
 
 
 def test_free_gets_exactly_one_fragment():
-    """⛔ free 는 **한 조각**. pro·max 는 3조각(5분×3=15분, 서버는 6분 백스톱)."""
+    """⛔ free 는 **한 조각**. premium 은 3조각(5분×3=15분, 서버는 6분 백스톱)."""
     assert cs.CALL_FRAGMENTS_BY_PLAN[None] == 1
-    assert cs.CALL_FRAGMENTS_BY_PLAN["pro"] == 3
-    assert cs.CALL_FRAGMENTS_BY_PLAN["max"] == 3
+    assert cs.CALL_FRAGMENTS_BY_PLAN["premium"] == 3
 
 
 def test_unknown_plan_falls_back_to_free_everywhere():
@@ -64,12 +62,12 @@ def test_model_ids_live_in_settings_not_in_the_table():
 def test_video_plan_takes_the_video_model(monkeypatch):
     monkeypatch.setattr(cs.settings, "LIVE_MODEL_VOICE", "M-VOICE", raising=False)
     monkeypatch.setattr(cs.settings, "LIVE_MODEL_VIDEO", "M-VIDEO", raising=False)
-    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "max")
+    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "premium")
     assert cs.live_model_for(object(), 1) == "M-VIDEO"
     assert cs.call_video_for(object(), 1) is True
 
 
-@pytest.mark.parametrize("plan", ["pro", None, "누가봐도-없는-플랜"])
+@pytest.mark.parametrize("plan", [None, "누가봐도-없는-플랜"])
 def test_non_video_plans_take_the_voice_model(monkeypatch, plan):
     monkeypatch.setattr(cs.settings, "LIVE_MODEL_VOICE", "M-VOICE", raising=False)
     monkeypatch.setattr(cs.settings, "LIVE_MODEL_VIDEO", "M-VIDEO", raising=False)
@@ -87,7 +85,7 @@ def test_empty_settings_fall_back_to_the_legacy_model(monkeypatch):
     monkeypatch.setattr(cs.settings, "LIVE_MODEL_VOICE", "", raising=False)
     monkeypatch.setattr(cs.settings, "LIVE_MODEL_VIDEO", "", raising=False)
     monkeypatch.setattr(cs.settings, "GEMINI_LIVE_MODEL", "M-LEGACY", raising=False)
-    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "max")
+    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "premium")
     assert cs.live_model_for(object(), 1) == "M-LEGACY"
 
 

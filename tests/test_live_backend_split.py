@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-"""플랜별 **백엔드** 분기 — Free·Pro=Vertex / Max=AI Studio (2026-09-08).
+"""플랜별 **백엔드** 분기 — Free=Vertex / Premium=AI Studio (2026-09-08, D1 2단화로 옛 Max 가 Premium).
 
 ## 사장님 지시
-    같은 2.5 가 Vertex 에서 2.5 배 빠르다(실측 1.15초 vs 2.82초). Free·Pro 를 Vertex 로
-    되돌린다. Max 는 3.1 인데 **3.1 은 Vertex 에 없으므로**(실측 1008) AI Studio 에 남는다.
+    같은 2.5 가 Vertex 에서 2.5 배 빠르다(실측 1.15초 vs 2.82초). Free 를 Vertex 로
+    되돌린다. Premium 은 3.1 인데 **3.1 은 Vertex 에 없으므로**(실측 1008) AI Studio 에 남는다.
     레벨테스트는 AI Studio 3.1 로 고정한다.
 
 ## ⛔ 이 파일이 지키는 것 — 「이름과 백엔드는 한 묶음」
 
 2026-09-06 demo-api 리비전 `00265-br2` 가 `USE_VERTEX` 를 true→false 로 뒤집으면서
 **모델 이름을 안 바꿨다.** 그 이름(`gemini-live-2.5-flash-native-audio`)은 Vertex 전용이라
-AI Studio 에서 1008 이 났고, **Free·Pro 통화가 2주 죽었다.** Max 는 3.1 이라 멀쩡해서
-아무도 몰랐다.
+AI Studio 에서 1008 이 났고, **Free 통화가 2주 죽었다.** Max(지금의 Premium)는 3.1 이라
+멀쩡해서 아무도 몰랐다.
 
 ⇒ 그래서 이 설계는 **둘을 한 함수에서 같이 고른다**(`live_engine_for`). 이 파일은
    그 «한 묶음» 계약이 깨지지 않는지를 잠근다.
@@ -40,22 +40,21 @@ def _fix(monkeypatch, **kw):
         monkeypatch.setattr(cs.settings, k, v, raising=False)
 
 
-@pytest.mark.parametrize("plan", [None, "pro"])
-def test_free_and_pro_go_to_vertex(monkeypatch, plan):
+def test_free_goes_to_vertex(monkeypatch):
     """⭐ 원가는 그대로 두고 응답만 3.0 배 빨라지는 자리다(실측 2.82초 → 1.15초)."""
     _fix(monkeypatch)
-    monkeypatch.setattr(cs, "effective_plan", lambda db, m: plan)
+    monkeypatch.setattr(cs, "effective_plan", lambda db, m: None)
     assert cs.live_engine_for(object(), 1) == ("vertex", "M-VERTEX-2.5")
 
 
-def test_max_stays_on_ai_studio(monkeypatch):
+def test_premium_stays_on_ai_studio(monkeypatch):
     """⛔ **3.1 은 Vertex 에 없다**(2026-09-08 실측: us-central1 에서 1008).
 
-    그래서 «전부 Vertex» 는 선택지가 아니다 — Max 의 영상통화를 포기해야 한다.
+    그래서 «전부 Vertex» 는 선택지가 아니다 — Premium 의 영상통화를 포기해야 한다.
     혼합이 설계상 필수라는 사실을 여기서 못박는다.
     """
     _fix(monkeypatch)
-    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "max")
+    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "premium")
     assert cs.live_engine_for(object(), 1) == ("studio", "M-STUDIO-3.1")
 
 

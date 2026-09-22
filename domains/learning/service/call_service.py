@@ -96,9 +96,8 @@ DAILY_CALL_LIMIT: dict[str, int] = {
 #   "1통화"만 말하고 콜타입을 안 갈랐으므로 Free 와 대칭이 기본이다 — 유료는 여러 번
 #   보게 하려면 여기 "level_test" 만 빼면 된다(한 줄).
 DAILY_CALL_LIMIT_BY_PLAN: dict[str | None, dict[str, int]] = {
-    None: DAILY_CALL_LIMIT,    # Free  — 1통화 × 1조각
-    "pro": DAILY_CALL_LIMIT,   # Pro   — 1통화 × 3조각(체인 전체가 1통화)
-    "max": DAILY_CALL_LIMIT,   # Max   — Pro 상위집합. 차별점은 길이가 아니다
+    None: DAILY_CALL_LIMIT,        # Free    — 1통화 × 1조각
+    "premium": DAILY_CALL_LIMIT,   # Premium — 1통화 × 3조각(체인 전체가 1통화)
 }
 
 # ── 플랜별 통화 길이(초) ───────────────────────────────────────────────── #
@@ -130,39 +129,37 @@ CALL_FRAGMENT_S = 360.0     # 조각 하나의 서버측 상한(6분) — 플랜
 
 # 플랜별 **조각 수**. 빈 dict 아님 — 모르는 플랜은 Free 로 떨어뜨린다(R5).
 CALL_FRAGMENTS_BY_PLAN: dict[str | None, int] = {
-    None: 1,     # Free — 6분 한 조각
-    "pro": 3,    # 최대 18분
-    "max": 3,    # Pro 상위집합 — 길이는 같다(차별점이 길이가 아니다)
+    None: 1,        # Free    — 6분 한 조각
+    "premium": 3,   # 최대 18분
 }
 FREE_CALL_FRAGMENTS = CALL_FRAGMENTS_BY_PLAN[None]
 
 # ⚠ 하위호환: 호출부가 아직 "이 회원의 통화 길이"를 묻는다. 조각 길이가 곧 그 답이다.
 CALL_DURATION_S_BY_PLAN: dict[str | None, float] = {
     None: CALL_FRAGMENT_S,
-    "pro": CALL_FRAGMENT_S,
-    "max": CALL_FRAGMENT_S,
+    "premium": CALL_FRAGMENT_S,
 }
 FREE_CALL_DURATION_S = CALL_DURATION_S_BY_PLAN[None]
 
 
 # ── 플랜별 통화 종류: 영상(표정 O) vs 음성(표정 X) ──────────────────────────
-# ⭐ 사장님 지시(2026-09-04): "max 만 영상통화. free·pro 는 모두 음성통화.
-#   모델 가르는 이유는 원가 절감."
+# ⭐ D2(2026-09-22, 2단화): "Free = 3.1 음성(표정 도구 없음) · 프리미엄 = 3.1 영상 +
+#   set_face 도구." 구 사장님 지시(2026-09-04, "max 만 영상통화")를 그대로 물려받는다
+#   — 옛 max 가 곧 지금의 premium 이다.
 #
 # ⛔ **빈 dict 아님 · 모르는 플랜은 Free 로 떨어뜨린다**(R5, 위 조각 표와 같은 규율).
 #   "모르면 싸게 준다"가 안전하다 — 잘못 열어 원가가 새는 것보다 낫다.
 # ⛔ 판정은 `effective_plan` **하나로만** 간다. 상태(state)와 플랜(plan)은 다른 축이라
 #   (grace/on_hold/ending 은 직전 플랜을 유지한다) 상태 문자열을 직접 보면 앱과 갈라진다.
 CALL_VIDEO_BY_PLAN: dict[str | None, bool] = {
-    None: False,   # Free — 음성
-    "pro": False,  # Pro  — 음성
-    "max": True,   # Max  — 영상(표정)
+    None: False,       # Free    — 음성
+    "premium": True,   # Premium — 영상(표정)
 }
 
 # 플랜별 Live 모델. 표정을 쓰는 영상통화만 3.1 로 간다.
 # ⚠ 값 자체는 `settings` 가 갖는다 — 모델 id 를 두 곳에 적으면 언젠가 갈라진다.
 CALL_LIVE_MODEL_BY_PLAN: dict[str | None, str] = {
-    None: "voice", "pro": "voice", "max": "video",
+    None: "voice", "premium": "video",
 }
 
 
@@ -179,7 +176,7 @@ def plan_override_for(db: Session, member_id: int, requested: str | None) -> str
     ⛔ 통화 엔진 선택(영상/음성·모델·백엔드)과 **조각 수**(`call_fragments_for_plan`, 2026-09-13 사장님: "free 일 때는
       연장하면 안 되고 max 일 때는 연장되도록")에 쓴다 — 일일 한도·결제·구독은 이 값을 모른다. 롤 조회 실패는 무시(R5 보수 방향).
     """
-    if requested not in ("free", "pro", "max"):
+    if requested not in ("free", "premium"):
         return None
     return requested if is_unlimited_member(db, member_id) else None
 

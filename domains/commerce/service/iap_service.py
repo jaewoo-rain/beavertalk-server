@@ -252,9 +252,9 @@ class IapService:
     ) -> datetime:
         """구독 활성화. 만료는 **스토어 값이 우선**, 없으면 주기별 폴백(스텁용).
 
-        기존 활성 구독이 있으면 만료를 연장하고 **플랜·주기도 갱신**한다 — Pro→Max
-        업그레이드나 월납→연납 전환이 같은 경로로 들어오는데, 만료만 늘리면 회원은
-        Max 를 샀는데 서버는 Pro 로 남는다.
+        기존 활성 구독이 있으면 만료를 연장하고 **플랜·주기도 갱신**한다 — 월납→연납
+        전환이 같은 경로로 들어오는데, 만료만 늘리면 새 주기를 안 반영하게 된다
+        (D1 이후 plan 은 premium 하나뿐이라 플랜 자체가 바뀌는 일은 없다).
 
         source='store': 결제 미연동 기간에 만든 행(manual)과 구분하는 표식이다.
         이게 없으면 결제가 붙는 날 "누가 진짜 유료인가"를 못 가른다.
@@ -287,7 +287,7 @@ class IapService:
             end_date=expires,
             price=None,  # 스토어가 청구한다 — 서버는 금액을 모른다
             is_activate=True,
-            plan=ref.plan or "pro",
+            plan=ref.plan or "premium",
             billing_period=ref.billing_period,
             product_id=product_id,
             source="store",

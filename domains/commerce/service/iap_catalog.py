@@ -27,15 +27,17 @@ from domains.commerce.models.character import Character
 
 PRODUCT_PREFIX_CHARACTER = "bt_character_"
 
-Plan = Literal["pro", "max"]
+Plan = Literal["premium"]
 BillingPeriod = Literal["monthly", "yearly"]
 
 # 구독 상품 4종 → (plan, 주기). 앱(IapProductIds)과 **같은 문자열**이어야 한다.
+# ⭐ D1(2026-09-22): 옛 pro·max 는 전부 premium 하나다. 상품 ID(bt_pro_*·bt_max_*)는
+#   스토어 등록값이라 이름은 그대로 두고 값만 premium 으로 매핑한다 — 스토어 정리 시 id 교체.
 SUBSCRIPTION_PRODUCTS: dict[str, tuple[str, str]] = {
-    "bt_pro_monthly": ("pro", "monthly"),
-    "bt_pro_yearly": ("pro", "yearly"),
-    "bt_max_monthly": ("max", "monthly"),
-    "bt_max_yearly": ("max", "yearly"),
+    "bt_pro_monthly": ("premium", "monthly"),
+    "bt_pro_yearly": ("premium", "yearly"),
+    "bt_max_monthly": ("premium", "monthly"),
+    "bt_max_yearly": ("premium", "yearly"),
 }
 
 # 주기별 폴백 기간(일). 실제 만료는 **스토어 영수증의 expiresDate 가 우선**이고,
@@ -91,7 +93,11 @@ def product_id_for_character(product_key: str) -> str:
 
 
 def product_id_for_subscription(plan: str, billing_period: str) -> str:
-    """plan+주기 → 상품 ID. 정의되지 않은 조합이면 KeyError(등록 실수를 조용히 넘기지 않는다)."""
+    """plan+주기 → 상품 ID. 정의되지 않은 조합이면 KeyError(등록 실수를 조용히 넘기지 않는다).
+
+    ⚠ D1 이후 premium+주기는 pid 두 개(bt_pro_*·bt_max_*)와 매핑된다 — dict 순서상
+      bt_pro_* 가 먼저 잡힌다. 역방향 조회(문서·스텁)용이라 실제 지급 경로엔 안 쓰인다.
+    """
     for pid, (p, period) in SUBSCRIPTION_PRODUCTS.items():
         if p == plan and period == billing_period:
             return pid

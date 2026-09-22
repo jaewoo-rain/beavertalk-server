@@ -1,8 +1,9 @@
-"""구독 상태 8종 판정 + GET /subscriptions/status 계약.
+"""구독 상태 7종 판정(D1 2단화 — 옛 active_pro/active_max 가 active_premium 하나로) +
+GET /subscriptions/status 계약.
 
 왜 이 테스트가 중요한가: 상태 판정이 틀리면 **해지 안내가 틀어진다** — 취소할 게
-없는 사람에게 "스토어에서 취소하세요"를 보여주거나, Max 회원에게 Pro 화면을 보여준다.
-판정은 순수 함수라 DB 없이 경계값을 전부 돌린다.
+없는 사람에게 "스토어에서 취소하세요"를 보여준다. 판정은 순수 함수라 DB 없이
+경계값을 전부 돌린다.
 
 계약(응답 키·plan 동봉 규칙)은 앱 `SubscriptionStatusDto` 와 맞물려 있어 별도로 고정한다.
 """
@@ -32,7 +33,7 @@ class Row:
     end_date: Optional[datetime] = None
     price: Optional[Decimal] = None
     is_activate: Optional[bool] = True
-    plan: str = "pro"
+    plan: str = "premium"
     is_trial: bool = False
     billing_state: str = "ok"
     retrying_until: Optional[datetime] = None
@@ -44,21 +45,21 @@ def _state(*rows: Row) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# 8종 기본 판정
+# 7종 기본 판정
 # --------------------------------------------------------------------------- #
 def test_no_rows_is_free():
     assert resolve_status([], now=NOW).state == "free"
     assert resolve_status([], now=NOW).plan is None
 
 
-def test_active_pro_and_max_split_by_plan():
-    assert _state(Row(plan="pro", end_date=FUTURE)) == "active_pro"
-    assert _state(Row(plan="max", end_date=FUTURE)) == "active_max"
+def test_active_row_is_active_premium():
+    """D1: plan 은 premium 하나뿐이라 활성 행은 모두 active_premium."""
+    assert _state(Row(plan="premium", end_date=FUTURE)) == "active_premium"
 
 
 def test_trial_beats_plan():
-    """체험은 별도 상태다 — 앱이 체험을 Max 로 취급하므로 plan 보다 먼저 본다."""
-    assert _state(Row(plan="max", is_trial=True, end_date=FUTURE)) == "trial"
+    """체험은 별도 상태다 — plan 판정보다 먼저 본다."""
+    assert _state(Row(plan="premium", is_trial=True, end_date=FUTURE)) == "trial"
 
 
 def test_grace_and_on_hold_beat_everything():
@@ -83,7 +84,7 @@ def test_expired_when_nothing_live():
 
 def test_null_end_date_is_open_ended():
     """만료일이 없으면 무기한 활성 — iap_service.entitlement 와 같은 규칙."""
-    assert _state(Row(end_date=None)) == "active_pro"
+    assert _state(Row(end_date=None)) == "active_premium"
 
 
 # --------------------------------------------------------------------------- #
@@ -92,13 +93,13 @@ def test_null_end_date_is_open_ended():
 def test_expiry_boundary_is_exclusive():
     """end_date == now 는 **만료**다(> 비교). 1초 뒤면 아직 살아 있다."""
     assert _state(Row(end_date=NOW)) == "expired"
-    assert _state(Row(end_date=NOW + timedelta(seconds=1))) == "active_pro"
+    assert _state(Row(end_date=NOW + timedelta(seconds=1))) == "active_premium"
 
 
 def test_naive_datetime_treated_as_utc():
     """DB 가 tz 를 잃어도 판정이 뒤집히지 않는다(iap_service._as_utc 와 같은 방어)."""
     naive_future = FUTURE.replace(tzinfo=None)
-    assert _state(Row(end_date=naive_future)) == "active_pro"
+    assert _state(Row(end_date=naive_future)) == "active_premium"
 
 
 # --------------------------------------------------------------------------- #
@@ -107,36 +108,35 @@ def test_naive_datetime_treated_as_utc():
 def test_newest_active_row_wins():
     """레거시 POST /subscriptions 가 중복 활성 행을 만들어 왔다. 최신이 이긴다 —
     앱 resolver 도 같은 규칙이라, 폴백 전후로 화면이 바뀌면 안 된다."""
-    old = Row(subscribe_id=1, plan="pro", end_date=FUTURE)
-    new = Row(subscribe_id=2, plan="max", end_date=FUTURE)
-    assert _state(old, new) == "active_max"
-    assert _state(new, old) == "active_max"  # 입력 순서와 무관
+    old = Row(subscribe_id=1, end_date=FUTURE)
+    new = Row(subscribe_id=2, end_date=FUTURE)
+    assert _state(old, new) == "active_premium"
+    assert _state(new, old) == "active_premium"  # 입력 순서와 무관
 
 
 def test_active_beats_ending_regardless_of_order():
     ending = Row(subscribe_id=9, is_activate=False, end_date=FUTURE)
     active = Row(subscribe_id=2, is_activate=True, end_date=FUTURE)
-    assert _state(ending, active) == "active_pro"
+    assert _state(ending, active) == "active_premium"
 
 
 # --------------------------------------------------------------------------- #
-# plan 동봉 규칙 — 빠지면 앱이 Pro 로 오판한다
+# plan 동봉 규칙 — 빠지면 앱이 isPlanInferred 로 오판한다
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "row,expected_state",
     [
-        (Row(plan="max", billing_state="grace", end_date=FUTURE), "grace"),
-        (Row(plan="max", billing_state="on_hold", end_date=FUTURE), "on_hold"),
-        (Row(plan="max", is_activate=False, end_date=FUTURE), "ending"),
-        (Row(plan="max", is_trial=True, end_date=FUTURE), "trial"),
+        (Row(billing_state="grace", end_date=FUTURE), "grace"),
+        (Row(billing_state="on_hold", end_date=FUTURE), "on_hold"),
+        (Row(is_activate=False, end_date=FUTURE), "ending"),
+        (Row(is_trial=True, end_date=FUTURE), "trial"),
     ],
 )
 def test_plan_is_always_sent_for_lapsed_paid_states(row, expected_state):
-    """⛔ grace·on_hold·ending·trial 에서 plan 이 빠지면 앱이 isPlanInferred 로
-    **Pro 를 가정**한다 — Max 회원이 결제에 실패하면 Pro 화면을 보게 된다."""
+    """⛔ grace·on_hold·ending·trial 에서 plan 이 빠지면 앱이 isPlanInferred=true 로 떨어진다."""
     resolved = resolve_status([row], now=NOW)
     assert resolved.state == expected_state
-    assert resolved.plan == "max"
+    assert resolved.plan == "premium"
 
 
 def test_expired_carries_no_plan():
@@ -148,7 +148,7 @@ def test_retrying_and_paused_are_scoped_to_their_state():
     """다른 상태에 남은 잔여 값이 'Retrying until …' 배너를 띄우면 안 된다."""
     row = Row(end_date=FUTURE, retrying_until=FUTURE, paused_since=PAST)
     active = resolve_status([row], now=NOW)
-    assert active.state == "active_pro"
+    assert active.state == "active_premium"
     assert active.retrying_until is None and active.paused_since is None
 
     grace = resolve_status([Row(end_date=FUTURE, billing_state="grace",
@@ -174,13 +174,13 @@ def test_response_keys_match_app_contract():
 
 
 def test_state_literal_matches_app_enum():
-    """앱은 이 8개 문자열만 파싱한다 — 모르는 값이면 폴백한다."""
+    """앱은 이 7개 문자열만 파싱한다 — 모르는 값이면 폴백한다."""
     from typing import get_args
 
     from domains.commerce.schemas.subscription import SubscriptionStatusOut
 
     field = SubscriptionStatusOut.model_fields["state"]
     assert set(get_args(field.annotation)) == {
-        "free", "trial", "active_pro", "active_max",
+        "free", "trial", "active_premium",
         "grace", "on_hold", "ending", "expired",
     }

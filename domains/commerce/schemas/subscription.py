@@ -14,9 +14,9 @@ class SubscribeCreate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     card_info: Optional[str] = None
-    # 3티어 재편: 기본값 pro 라 기존 호출은 그대로 동작한다(하위호환).
+    # 2단화(D1): free 없음(행이 없으면 free) · premium 한 값뿐.
     # ⚠ 이 API 는 IAP 전환 시 폐기된다 — 여기 plan 은 결제 미연동 기간의 임시 통로다.
-    plan: Literal["pro", "max"] = "pro"
+    plan: Literal["premium"] = "premium"
     billing_period: Optional[Literal["monthly", "yearly"]] = None
 
 
@@ -37,21 +37,21 @@ class SubscriptionStatusOut(BaseModel):
        키를 바꾸면 앱이 파싱을 거부하고 구식 목록 추론으로 폴백한다.
 
     두 축을 따로 내린다:
-      - state: 결제 관계가 어디 있나(8종)
-      - plan : 어떤 기능 묶음이 열리나(pro | max)
+      - state: 결제 관계가 어디 있나(7종, D1 2단화로 active_pro/active_max 가
+        active_premium 하나로 합쳐졌다)
+      - plan : 어떤 기능 묶음이 열리나(premium 하나뿐 — free 는 plan=None)
     grace·on_hold·ending 은 "직전에 무슨 플랜이었는지"를 유지하므로 state 만으로는
     플랜을 알 수 없다. 그래서 plan 을 따로 싣는다.
 
     ⛔ plan 은 free·expired 를 뺀 **전 상태에서 반드시 채운다.** 빠지면 앱이
-       isPlanInferred=true 로 Pro 라고 가정한다 — Max 회원이 결제에 실패하면
-       Pro 화면(잘못된 해지 안내)을 보게 된다.
+       isPlanInferred=true 로 잘못 가정할 수 있다.
     """
 
     state: Literal[
-        "free", "trial", "active_pro", "active_max",
+        "free", "trial", "active_premium",
         "grace", "on_hold", "ending", "expired",
     ]
-    plan: Optional[Literal["pro", "max"]] = None
+    plan: Optional[Literal["premium"]] = None
     subscribe_id: Optional[int] = None
     price: Optional[Decimal] = None
     start_date: Optional[datetime] = None

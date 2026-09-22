@@ -27,12 +27,13 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 # 이 플랜은 카탈로그 전체를 연다. 구매 없이 **쓸 수** 있다는 뜻이지 소유가 아니다.
-PLANS_UNLOCKING_ALL_CHARACTERS = frozenset({"max"})
+# D1(2026-09-22): 2단화로 유료는 premium 하나뿐 — 전부 이 조건을 만족한다.
+PLANS_UNLOCKING_ALL_CHARACTERS = frozenset({"premium"})
 
 # 혜택이 실제로 열려 있는 구독 상태. grace(결제 재시도 중)·ending(해지했지만 기간 남음)이
 # 포함되는 게 요점이다 — 카드가 한 번 실패했다고 캐릭터가 잠기면, 갱신하는 며칠 동안
 # 결제한 사람이 서비스를 못 쓴다. on_hold(유예도 끝남)·expired 는 열지 않는다.
-_ACTIVE_STATES = frozenset({"trial", "active_pro", "active_max", "grace", "ending"})
+_ACTIVE_STATES = frozenset({"trial", "active_premium", "grace", "ending"})
 
 
 def effective_plan(db: Session, member_id: int) -> Optional[str]:

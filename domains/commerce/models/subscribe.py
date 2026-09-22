@@ -44,8 +44,10 @@ class Subscribe(Base, TimestampMixin):
     # ⛔ 상태(state)와 플랜(plan)은 **다른 축**이다. grace/on_hold/ending 은 "직전에
     #   무슨 플랜이었는지"를 유지하므로, 상태만으로 플랜을 알 수 없다. 앱도 같은 구조로
     #   짜여 있다(subscription_state.dart — impliedTier 가 이 세 상태에서 null).
+    # 2단화(2026-09-22, D1): 옛 pro/max 는 모두 premium 이다 — free 없음(free 는 행이
+    # 없다는 뜻이라 이 컬럼엔 애초에 안 나온다). 판매 전이라 데이터를 그대로 바꿨다.
     plan: Mapped[str] = mapped_column(
-        String(8), server_default="pro", nullable=False, comment="pro | max",
+        String(8), server_default="premium", nullable=False, comment="premium (free 없음)",
     )
     billing_period: Mapped[Optional[str]] = mapped_column(
         String(8), comment="monthly | yearly (스토어 상품에서 파생)",

@@ -79,7 +79,7 @@ def test_level_test_never_resumes_and_exhausted_fragments_close_the_door(env):
     assert _status(client, calls[("expression", 3)])["can_resume"] is False, "조각 상한 소진"
 
 
-# ── 플랜 흉내(2026-09-13 사장님: "free 일 때는 연장하면 안 되고 max 일 때는 연장되도록") ─────────────────────────────
+# ── 플랜 흉내(2026-09-13 사장님: "free 일 때는 연장하면 안 되고 premium 일 때는 연장되도록") ─────────────────────────────
 def _status_q(client, call_id, q):
     r = client.get(f"/api/v1/calls/{call_id}/resume-status{q}", headers={"Authorization": "Bearer auth-m"})
     assert r.status_code == 200, r.text
@@ -91,7 +91,7 @@ def test_plan_override_free_closes_resume_for_admin(env, monkeypatch):
     monkeypatch.setattr(call_router.call_service, "is_unlimited_member", lambda db, member_id: True)   # admin
     body = _status_q(client, calls[("normal", 1)], "?plan_override=free")
     assert body["can_resume"] is False and body["max_fragments"] == 1, "«Free 로 통화» 는 «Keep talking» 이 없어야 한다"
-    body = _status_q(client, calls[("normal", 1)], "?plan_override=max")
+    body = _status_q(client, calls[("normal", 1)], "?plan_override=premium")
     assert body["can_resume"] is True and body["max_fragments"] == 3
 
 
@@ -100,6 +100,17 @@ def test_plan_override_ignored_for_non_admin(env, monkeypatch):
     monkeypatch.setattr(call_router.call_service, "is_unlimited_member", lambda db, member_id: False)
     body = _status_q(client, calls[("normal", 1)], "?plan_override=free")
     assert body["can_resume"] is True and body["max_fragments"] == 3, "admin 이 아니면 본인 플랜(스텁 3) 그대로"
+
+
+@pytest.mark.parametrize("stale_plan", ["pro", "max"])
+def test_plan_override_rejects_the_old_three_tier_values(env, stale_plan):
+    """⛔ D1(2026-09-22) 2단화 — pro·max 는 더 이상 유효한 값이 아니다. 422 로 거절한다."""
+    client, calls = env
+    r = client.get(
+        f"/api/v1/calls/{calls[('normal', 1)]}/resume-status?plan_override={stale_plan}",
+        headers={"Authorization": "Bearer auth-m"},
+    )
+    assert r.status_code == 422
 
 
 def test_plan_override_rejects_unknown_value(env):

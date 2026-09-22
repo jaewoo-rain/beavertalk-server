@@ -175,9 +175,9 @@ def test_unknown_call_type_is_not_limited(patched_repo):
 # 4) 플랜별 혜택 — ⭐ 2026-08-19 재편: **길이가 아니라 조각 수**가 플랜을 가른다
 # --------------------------------------------------------------------------- #
 # 전: Free 한 통화 5분 / Pro·Max 한 통화 15분
-# 후: 조각은 누구나 **6분**, Free 는 1개 / Pro·Max 는 3개(= 최대 18분)
+# 후: 조각은 누구나 **6분**, Free 는 1개 / Premium 은 3개(= 최대 18분, D1 로 Pro·Max 가 하나로)
 #
-# ⛔⛔ **앱 카피가 아직 옛 계약이다.** `app_en.arb` 의 Pro "Unlimited calls.
+# ⛔⛔ **앱 카피가 아직 옛 계약이다.** `app_en.arb` 의 "Unlimited calls.
 #    **15 minutes each**" 는 이제 사실이 아니다 — 한 번에 15분이 아니라 6분×3 이다.
 #    이 시험의 원래 목적이 "앱 문구와 서버 값의 드리프트 잡기"였으므로, 숫자만 바꿔서
 #    통과시키면 그 감시가 죽는다. ⇒ **프론트 문구 변경이 남은 일**임을 여기 남긴다.
@@ -186,12 +186,10 @@ def test_the_plan_splits_on_fragment_count_not_length():
     """⭐ 조각 길이는 **플랜 무관 상수**이고, 플랜은 조각 수를 정한다."""
     assert CALL_FRAGMENT_S == 360.0
     assert CALL_DURATION_S_BY_PLAN[None] == CALL_FRAGMENT_S
-    assert CALL_DURATION_S_BY_PLAN["pro"] == CALL_FRAGMENT_S
-    assert CALL_DURATION_S_BY_PLAN["max"] == CALL_FRAGMENT_S
+    assert CALL_DURATION_S_BY_PLAN["premium"] == CALL_FRAGMENT_S
 
-    assert CALL_FRAGMENTS_BY_PLAN[None] == 1     # Free — 한 조각
-    assert CALL_FRAGMENTS_BY_PLAN["pro"] == 3    # 최대 18분
-    assert CALL_FRAGMENTS_BY_PLAN["max"] == 3    # Pro 상위집합 — 길이는 같다
+    assert CALL_FRAGMENTS_BY_PLAN[None] == 1        # Free — 한 조각
+    assert CALL_FRAGMENTS_BY_PLAN["premium"] == 3   # 최대 18분
 
 
 def test_the_fragment_is_longer_than_the_client_boundary():
@@ -224,15 +222,14 @@ def test_the_fragment_never_outlives_the_absolute_backstop():
     "state,plan,expected",
     [
         ("free", None, 1),
-        ("active_pro", "pro", 3),
-        ("active_max", "max", 3),
+        ("active_premium", "premium", 3),
         # grace(결제 재시도 중)는 **접근 유지** — 혜택을 뺏으면 카드 갱신하는 동안
         # 통화가 짧아진다. ending(해지했지만 기간 남음)도 같다.
-        ("grace", "max", 3),
-        ("ending", "pro", 3),
-        ("trial", "max", 3),
+        ("grace", "premium", 3),
+        ("ending", "premium", 3),
+        ("trial", "premium", 3),
         # on_hold(유예도 끝남)·expired 는 접근 없음 → Free 혜택.
-        ("on_hold", "max", 1),
+        ("on_hold", "premium", 1),
         ("expired", None, 1),
     ],
 )
@@ -284,8 +281,7 @@ def test_duration_is_not_gated_by_env(monkeypatch, env):
 def test_call_fragments_for_plan_follows_override_then_member(monkeypatch):
     """플랜 흉내(2026-09-13): 검증된 override 가 있으면 그 플랜 조각 수, 없으면 본인 플랜. REST·WS 가 같은 함수를 본다."""
     from domains.learning.service import call_service as cs
-    monkeypatch.setattr(cs, "call_fragments_for_member", lambda db, member_id: 3)   # 본인(admin) = Pro·Max
+    monkeypatch.setattr(cs, "call_fragments_for_member", lambda db, member_id: 3)   # 본인(admin) = Premium
     assert cs.call_fragments_for_plan(None, 1, "free") == 1
-    assert cs.call_fragments_for_plan(None, 1, "pro") == 3
-    assert cs.call_fragments_for_plan(None, 1, "max") == 3
+    assert cs.call_fragments_for_plan(None, 1, "premium") == 3
     assert cs.call_fragments_for_plan(None, 1, None) == 3

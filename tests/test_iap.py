@@ -109,14 +109,14 @@ def test_product_key_survives_rename(db):
 @pytest.mark.parametrize(
     "pid,plan,period",
     [
-        (PRO, "pro", "monthly"),
-        (PRO_YEARLY, "pro", "yearly"),
-        (MAX, "max", "monthly"),
-        (MAX_YEARLY, "max", "yearly"),
+        (PRO, "premium", "monthly"),
+        (PRO_YEARLY, "premium", "yearly"),
+        (MAX, "premium", "monthly"),
+        (MAX_YEARLY, "premium", "yearly"),
     ],
 )
 def test_subscription_products_map_to_plan_and_period(db, pid, plan, period):
-    """구독 4종이 plan × 주기로 풀린다. 앱 IapProductIds 와 같은 문자열이어야 한다."""
+    """구독 4종이 plan × 주기로 풀린다(D1: 옛 pro·max 스토어 상품 id 는 남지만 값은 premium 하나)."""
     ref = iap_catalog.resolve(db, pid)
     assert ref is not None and ref.kind == "subscription"
     assert ref.character_id is None

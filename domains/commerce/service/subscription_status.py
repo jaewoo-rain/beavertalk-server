@@ -70,10 +70,10 @@ def resolve_status(
 
     판정 순서(위가 이긴다):
       1. 활성(is_activate ∧ 미만료) 중 가장 최근 행
-           on_hold  → billing_state == 'on_hold'   (접근 차단)
-           grace    → billing_state == 'grace'     (접근 유지)
-           trial    → is_trial
-           active_max / active_pro → plan
+           on_hold        → billing_state == 'on_hold'   (접근 차단)
+           grace          → billing_state == 'grace'     (접근 유지)
+           trial          → is_trial
+           active_premium → 그 외(D1: 옛 active_max/active_pro 가 하나로 합쳐졌다)
       2. 해지했으나 기간 남음(is_activate=False ∧ 미만료) → ending
       3. 행은 있으나 전부 실효 → expired
       4. 행 없음 → free
@@ -98,10 +98,8 @@ def resolve_status(
             state = "grace"
         elif row.is_trial:
             state = "trial"
-        elif row.plan == "max":
-            state = "active_max"
         else:
-            state = "active_pro"
+            state = "active_premium"
         return _from_row(row, state)
 
     for row in ordered:
@@ -120,7 +118,7 @@ def _from_row(row: SubscribeRow, state: str) -> ResolvedStatus:
     """
     return ResolvedStatus(
         state=state,
-        plan=None if state == "expired" else (row.plan or "pro"),
+        plan=None if state == "expired" else (row.plan or "premium"),
         subscribe_id=row.subscribe_id,
         price=row.price,
         start_date=row.start_date,

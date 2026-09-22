@@ -1,11 +1,11 @@
-"""Max 구독의 "모든 캐릭터" 혜택 — 소유(ownership)와 접근(entitlement)의 분리.
+"""Premium 구독의 "모든 캐릭터" 혜택(D1 2단화 — 옛 Max) — 소유(ownership)와 접근(entitlement)의 분리.
 
-⛔ 이 파일이 지키는 핵심 하나: **Max 는 접근을 열지 소유를 주지 않는다.**
+⛔ 이 파일이 지키는 핵심 하나: **Premium 은 접근을 열지 소유를 주지 않는다.**
    섞으면 두 방향으로 터진다 —
      · member_character 행을 만들면 → 해지해도 영구 소유(되돌릴 수 없음)
      · is_owned 를 true 로 내보내면 → 앱이 "Owned" 배지를 띄우고 구매 CTA 를 숨긴다.
        샀다고 오해시킨 뒤 해지 때 뺏는 꼴이다(앱의 downgradeWarning 이 이미
-       "Max-only characters turn off on {date}" 라고 말한다).
+       "Premium-only characters turn off on {date}" 라고 말한다).
 
    그래서 wire 는 두 축이다: is_owned(영구 구매) + is_unlocked/unlock_source(지금 쓸 수 있나).
 """
@@ -86,8 +86,8 @@ def _catalog(db, member_id: int) -> dict[str, object]:
 # --------------------------------------------------------------------------- #
 # 1) 판정 — 어떤 플랜이 카탈로그를 여는가
 # --------------------------------------------------------------------------- #
-def test_only_max_unlocks_all_characters():
-    assert entitlements.unlocks_all_characters("max") is True
+def test_only_premium_unlocks_all_characters():
+    assert entitlements.unlocks_all_characters("premium") is True
     assert entitlements.unlocks_all_characters("pro") is False
     assert entitlements.unlocks_all_characters(None) is False
 
@@ -95,13 +95,13 @@ def test_only_max_unlocks_all_characters():
 @pytest.mark.parametrize(
     "kwargs,plan,unlocked",
     [
-        ({}, "max", True),                                  # active_max
-        ({}, "pro", False),                                 # active_pro
-        ({"billing_state": "grace"}, "max", True),          # 결제 재시도 중 — 접근 유지
-        ({"is_activate": False}, "max", True),              # ending — 기간 남음
-        ({"is_trial": True}, "max", True),                  # 체험도 Max 취급
-        ({"billing_state": "on_hold"}, "max", False),       # 유예도 끝남 — 차단
-        ({"days": -1}, "max", False),                       # expired
+        ({}, "premium", True),                                  # active_premium
+        ({}, "pro", False),                                     # 옛 값 — 이제 premium 이 아니다
+        ({"billing_state": "grace"}, "premium", True),          # 결제 재시도 중 — 접근 유지
+        ({"is_activate": False}, "premium", True),              # ending — 기간 남음
+        ({"is_trial": True}, "premium", True),                  # 체험도 Premium 취급
+        ({"billing_state": "on_hold"}, "premium", False),       # 유예도 끝남 — 차단
+        ({"days": -1}, "premium", False),                       # expired
     ],
 )
 def test_unlock_follows_subscription_state(db, kwargs, plan, unlocked):
@@ -117,21 +117,21 @@ def test_free_member_has_nothing_unlocked(db):
 # --------------------------------------------------------------------------- #
 # 2) 카탈로그 계약 — is_owned 와 is_unlocked 는 다른 축
 # --------------------------------------------------------------------------- #
-def test_max_unlocks_catalog_without_claiming_ownership(db):
-    """★ 핵심. Max 회원의 미구매 캐릭터: 쓸 수 있지만(is_unlocked) 산 건 아니다(is_owned)."""
+def test_premium_unlocks_catalog_without_claiming_ownership(db):
+    """★ 핵심. Premium 회원의 미구매 캐릭터: 쓸 수 있지만(is_unlocked) 산 건 아니다(is_owned)."""
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     cat = _catalog(db, mid)
 
     assert cat["BIBI"].is_owned is False, "안 산 캐릭터를 샀다고 했다"
-    assert cat["BIBI"].is_unlocked is True, "Max 인데 안 열렸다"
+    assert cat["BIBI"].is_unlocked is True, "Premium 인데 안 열렸다"
     assert cat["BIBI"].unlock_source == "subscription"
 
 
 def test_owned_beats_subscription_as_unlock_source(db):
     """⛔ 둘 다면 'owned' 다 — 해지해도 남는 캐릭터를 해지 경고에 넣으면 안 된다."""
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     assert _catalog(db, mid)["BABA"].unlock_source == "owned"
 
 
@@ -143,8 +143,8 @@ def test_free_member_catalog_locks_unowned(db):
     assert (cat["BIBI"].is_unlocked, cat["BIBI"].unlock_source) == (False, None)
 
 
-def test_pro_member_catalog_locks_unowned(db):
-    """Pro 는 길이·횟수만 연다 — 캐릭터는 Max 전용."""
+def test_unknown_plan_string_catalog_locks_unowned(db):
+    """⚠ DB 에 남은 옛 값(pro 등)이 있어도 premium 이 아니면 캐릭터는 안 열린다."""
     mid = _member(db, owns=("BABA",))
     _subscribe(db, mid, "pro")
     assert _catalog(db, mid)["BIBI"].is_unlocked is False
@@ -153,7 +153,7 @@ def test_pro_member_catalog_locks_unowned(db):
 def test_detail_matches_catalog(db):
     """목록과 상세가 다른 답을 하면 카드에선 열려 보이고 상세에선 잠긴다."""
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     detail = CharacterService(db).get_character(mid, _cid(db, "BIBI"))
     summary = _catalog(db, mid)["BIBI"]
     assert (detail.is_owned, detail.is_unlocked, detail.unlock_source) == (
@@ -164,7 +164,7 @@ def test_detail_matches_catalog(db):
 def test_unlock_never_writes_ownership_rows(db):
     """⛔ 조회가 소유 행을 만들면 안 된다 — 한 번 생기면 해지해도 안 잠긴다."""
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     _catalog(db, mid)
     CharacterService(db).get_character(mid, _cid(db, "BIBI"))
     rows = db.query(MemberCharacter).filter_by(member_id=mid).all()
@@ -174,7 +174,7 @@ def test_unlock_never_writes_ownership_rows(db):
 def test_downgrade_relocks_catalog(db):
     """★ 해지 후 재조회하면 잠긴다 — 파생 계산이라 별도 정리 작업이 필요 없다."""
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     assert _catalog(db, mid)["BIBI"].is_unlocked is True
 
     sub = db.query(Subscribe).filter_by(member_id=mid).one()
@@ -192,7 +192,7 @@ def test_old_app_sees_no_behavior_change(db):
     새 필드 추가가 하위호환인 이유를 값으로 못박는다(합쳤다면 여기가 깨진다).
     """
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     owned_flags = {n: c.is_owned for n, c in _catalog(db, mid).items()}
     assert owned_flags == {"BABA": True, "BIBI": False, "Rara": False}
 
@@ -209,6 +209,6 @@ def test_lookup_failure_falls_back_to_locked(monkeypatch, db):
         "domains.commerce.repository.subscribe_repository.SubscribeRepository", _boom
     )
     mid = _member(db, owns=("BABA",))
-    _subscribe(db, mid, "max")
+    _subscribe(db, mid, "premium")
     assert entitlements.has_all_characters(db, mid) is False
     assert _catalog(db, mid)["BIBI"].is_unlocked is False

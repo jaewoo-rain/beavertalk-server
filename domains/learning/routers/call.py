@@ -128,7 +128,7 @@ def get_daily_status(
 def get_resume_status(
     call_id: int, member: CurrentMember, db: DbSession,
     plan_override: str | None = Query(
-        None, pattern="^(free|pro|max)$",
+        None, pattern="^(free|premium)$",
         description="개발자도구 플랜 흉내(admin 만 유효) — can_resume·max_fragments 를 이 플랜 기준으로. WS start.plan_override 와 같은 값을 보낸다.",
     ),
 ) -> dict:
