@@ -450,18 +450,28 @@ def _set_role(session_factory, member_id: int, role: str) -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("call_type", ["expression", "freetalk"])
 async def test_non_admin_explicit_expression_or_freetalk_falls_back_to_auto(
-    session_factory, seeded, call_type: str,
+    session_factory, seeded, call_type: str, caplog,
 ) -> None:
     """비admin 이 call_type=expression|freetalk 를 명시해도 auto(학습)로 되돌린다 —
-    홈 화면에 그 버튼이 없어진 지금(D3), 명시는 admin 개발자 도구·하네스만 쓴다."""
+    홈 화면에 그 버튼이 없어진 지금(D3), 명시는 admin 개발자 도구·하네스만 쓴다.
+
+    ⚠ QA C3 재검-③(2026-09-22): 이 시드 DB 엔 cur_lesson 이 없어 auto 도 결국 expression
+    으로 떨어진다 — "게이트가 auto 로 되돌렸다" 와 "게이트가 아예 없어서 명시가 그대로
+    통과했다" 가 **최종 코스만으로는 구분이 안 된다**. 게이트가 실제로 탄 로그 줄로
+    직접 확인한다(게이트가 없으면 이 줄 자체가 안 찍힌다)."""
+    import logging
     _set_role(session_factory, seeded["member_id"], "user")
-    await _run(session_factory, seeded, call_type, {})
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        await _run(session_factory, seeded, call_type, {})
+    assert any(
+        f"call_type={call_type} 명시 — admin 아님 → auto 취급" in r.getMessage()
+        for r in caplog.records
+    ), f"비admin 명시 {call_type} 에 admin 게이트 로그가 안 찍혔다"
     db = session_factory()
     try:
-        # 이 시드 DB 엔 cur_lesson 이 없어(§ test_call_type_unset_now_defaults_to_auto_not_chat
-        # 와 같은 이유) auto 는 항상 expression 으로 폴백한다 — freetalk 를 보내도 마찬가지다.
-        assert db.query(Call).one().call_type == "expression", \
-            f"비admin 인데 명시 {call_type} 이 auto 로 안 되돌아갔다"
+        # 게이트가 정말 auto 로 넘겼다면 그 뒤는 auto 의 정상 폴백(이 DB 엔 cur_lesson 이
+        # 없어 항상 expression) — 위 로그 단언과 합쳐야 "게이트 없이 그대로 통과"와 갈린다.
+        assert db.query(Call).one().call_type == "expression"
     finally:
         db.close()
 
@@ -557,3 +567,49 @@ async def test_real_subscription_row_picks_tools_not_admin_override(session_fact
     premium = await _run(session_factory, seeded, "normal", {})
     assert premium["kw"].get("tools"), "진짜 premium 구독 행인데 tools 에 set_face 가 안 실렸다"
     assert "[표정]" in premium["system_instruction"]
+
+
+# --------------------------------------------------------------------------- #
+# ⑩ QA C3 재검-①(2026-09-22) — 런타임 코드에 call_type="normal" 이 남지 않는다
+# --------------------------------------------------------------------------- #
+def test_no_runtime_code_still_uses_normal_as_a_call_type_value():
+    """옛 "normal" 은 죽은 값이다(마이그레이션 e0a404f9e6c0 가 기존 데이터도 전부 chat 으로
+    전환했다). 딱 두 자리만 예외다:
+      · call_session.py 의 구버전 앱 호환 감지 한 줄(`if call_type == "normal":` — 받으면
+        즉시 chat 으로 바꾼다. 이 줄 자체가 없어지면 안 된다)
+      · protocol.py 의 와이어 Literal — 위 감지가 파싱하려면 "normal" 을 계속 허용해야 한다.
+    나머지는 전부 주석(역사 기록)이거나 chat 이어야 한다."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    pattern = re.compile(r"""(['"])normal\1""")
+    scan_files = (
+        "domains/learning/realtime/call_session.py",
+        "domains/learning/realtime/cascade_session.py",
+        "domains/learning/realtime/protocol.py",
+        "domains/learning/routers/call.py",
+        "domains/learning/service/call_service.py",
+        "domains/learning/service/normalcall_service.py",
+        "domains/learning/models/call.py",
+        "main.py",
+    )
+    # (파일, 그 파일 안에서 허용하는 줄의 부분 문자열) — 코드 그 자체인 두 자리만.
+    allowed = {
+        "domains/learning/realtime/call_session.py": ('if call_type == "normal":',),
+        "domains/learning/realtime/protocol.py": (
+            'call_type: Literal["normal", "level_test", "expression", "freetalk", "auto", "chat"]',
+        ),
+    }
+    offenders: list[str] = []
+    for rel in scan_files:
+        text = (root / rel).read_text(encoding="utf-8")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if not pattern.search(line):
+                continue
+            if line.lstrip().startswith("#"):
+                continue  # 주석(역사 기록) — 코드가 아니다
+            if any(marker in line for marker in allowed.get(rel, ())):
+                continue
+            offenders.append(f"{rel}:{lineno}: {line.strip()}")
+    assert not offenders, "call_type 에 'normal' 을 쓰는 런타임 코드가 남아 있다:\n" + "\n".join(offenders)

@@ -374,6 +374,25 @@ async def test_force_course_requires_admin_and_absent_force_keeps_the_lock_for_a
         db.close()
 
 
+def test_open_call_rejects_force_for_a_non_admin_even_called_directly(session_factory, seeded):
+    """QA C3-②(2026-09-22): curriculum_service.open_call(force=True) 의 role 방어
+    (:278 `if force and repo.member_role(db, member_id) == "admin":`)를 **서비스를 직접
+    불러서** 확인한다 — WS 앞단 admin 게이트와 별개로 이 방어 자체가 살아 있어야 한다
+    (앞단이 뚫리거나 다른 진입점이 생겨도 여기서 막힌다)."""
+    m = seeded["member_id"]
+    _set_role(session_factory, m, "user")  # ⭐ seeded 기본은 admin 이다 — 여기서만 내린다
+    db = session_factory()
+    try:
+        call = Call(member_id=m, character_id=seeded["character_id"], call_type="freetalk", status="ongoing")
+        db.add(call)
+        db.commit()
+        with pytest.raises(cur.CourseLocked):
+            cur.open_call(db, m, call.call_id, "freetalk", language="ko", locale="en", force=True)
+        assert repo.cur_call(db, call.call_id) is None, "잠긴 채 거절됐으면 cur_call 이 생기면 안 된다"
+    finally:
+        db.close()
+
+
 @pytest.mark.asyncio
 async def test_cur_disabled_keeps_the_old_path_byte_identical(session_factory, seeded, monkeypatch):
     monkeypatch.setattr(app_settings, "CUR_ENABLED", False)

@@ -1,6 +1,9 @@
-"""GET /api/v1/calls/{id}/resume-status — can_resume 는 normal·expression·freetalk 에 열리고 level_test 는 닫힌다(2026-09-12, 실기기 1447).
+"""GET /api/v1/calls/{id}/resume-status — can_resume 는 expression·freetalk 에 열리고
+chat(옛 normal)·level_test 는 닫힌다(2026-09-12, 실기기 1447 / QA C3 재검-① 2026-09-22).
 
-옛 조건이 normal 만 허용해 표현학습·프리토킹은 5분에 «Keep talking» 시트 없이 결과 화면으로 떨어졌다. 조각 상한·요약 준비 판정은 스텁.
+옛 조건이 normal 만 허용해 표현학습·프리토킹은 5분에 «Keep talking» 시트 없이 결과 화면으로
+떨어졌다. ⚠ C3(D3)로 normal→chat 개명 + chat 은 아직 이어하기 화이트리스트에 없다(C7 전 —
+프리미엄 5분 재연결). 조각 상한·요약 준비 판정은 스텁.
 """
 from __future__ import annotations
 
@@ -46,7 +49,7 @@ def env():
     ch = Character(name="비비", role="선생님", personality="다정", voice_id=v.voice_id, price=0); db.add(ch); db.flush()
     m = Member(language="en", korean_level=1, onboarding_completed=True, auth_user_id="auth-m"); db.add(m); db.commit()
     calls = {}
-    for ct, frags in (("normal", 1), ("expression", 1), ("freetalk", 2), ("level_test", 1), ("expression", 3)):
+    for ct, frags in (("chat", 1), ("expression", 1), ("freetalk", 2), ("level_test", 1), ("expression", 3)):
         c = Call(member_id=m.member_id, character_id=ch.character_id, call_type=ct, status="done", fragment_count=frags)
         db.add(c); db.flush()
         calls[(ct, frags)] = c.call_id
@@ -65,12 +68,14 @@ def _status(client, call_id):
     return r.json()
 
 
-def test_expression_and_freetalk_can_resume_like_normal_when_fragments_remain(env):
+def test_expression_and_freetalk_can_resume_but_chat_cannot_yet(env):
     client, calls = env
-    for key in (("normal", 1), ("expression", 1), ("freetalk", 2)):
+    for key in (("expression", 1), ("freetalk", 2)):
         body = _status(client, calls[key])
         assert body["can_resume"] is True, key
         assert body["fragment_count"] == key[1] and body["max_fragments"] == 3
+    # QA C3 재검-①(2026-09-22): chat(옛 normal)은 C7 전까지 이어하기 목록에 없다.
+    assert _status(client, calls[("chat", 1)])["can_resume"] is False
 
 
 def test_level_test_never_resumes_and_exhausted_fragments_close_the_door(env):
@@ -87,18 +92,20 @@ def _status_q(client, call_id, q):
 
 
 def test_plan_override_free_closes_resume_for_admin(env, monkeypatch):
+    """⚠ QA C3 재검-①: 대상 콜을 expression 으로 쓴다 — chat(옛 normal)은 이제 조각 상한과
+    무관하게 can_resume 이 항상 False 라 plan_override 의 조각 상한 효과를 못 가린다."""
     client, calls = env
     monkeypatch.setattr(call_router.call_service, "is_unlimited_member", lambda db, member_id: True)   # admin
-    body = _status_q(client, calls[("normal", 1)], "?plan_override=free")
+    body = _status_q(client, calls[("expression", 1)], "?plan_override=free")
     assert body["can_resume"] is False and body["max_fragments"] == 1, "«Free 로 통화» 는 «Keep talking» 이 없어야 한다"
-    body = _status_q(client, calls[("normal", 1)], "?plan_override=premium")
+    body = _status_q(client, calls[("expression", 1)], "?plan_override=premium")
     assert body["can_resume"] is True and body["max_fragments"] == 3
 
 
 def test_plan_override_ignored_for_non_admin(env, monkeypatch):
     client, calls = env
     monkeypatch.setattr(call_router.call_service, "is_unlimited_member", lambda db, member_id: False)
-    body = _status_q(client, calls[("normal", 1)], "?plan_override=free")
+    body = _status_q(client, calls[("expression", 1)], "?plan_override=free")
     assert body["can_resume"] is True and body["max_fragments"] == 3, "admin 이 아니면 본인 플랜(스텁 3) 그대로"
 
 
@@ -107,7 +114,7 @@ def test_plan_override_rejects_the_old_three_tier_values(env, stale_plan):
     """⛔ D1(2026-09-22) 2단화 — pro·max 는 더 이상 유효한 값이 아니다. 422 로 거절한다."""
     client, calls = env
     r = client.get(
-        f"/api/v1/calls/{calls[('normal', 1)]}/resume-status?plan_override={stale_plan}",
+        f"/api/v1/calls/{calls[('expression', 1)]}/resume-status?plan_override={stale_plan}",
         headers={"Authorization": "Bearer auth-m"},
     )
     assert r.status_code == 422
@@ -115,5 +122,5 @@ def test_plan_override_rejects_the_old_three_tier_values(env, stale_plan):
 
 def test_plan_override_rejects_unknown_value(env):
     client, calls = env
-    r = client.get(f"/api/v1/calls/{calls[('normal', 1)]}/resume-status?plan_override=vip", headers={"Authorization": "Bearer auth-m"})
+    r = client.get(f"/api/v1/calls/{calls[('expression', 1)]}/resume-status?plan_override=vip", headers={"Authorization": "Bearer auth-m"})
     assert r.status_code == 422

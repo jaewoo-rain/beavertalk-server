@@ -296,11 +296,14 @@ def test_a_later_call_never_erases_an_earlier_result(env) -> None:
 # ⑥ 이어하기 관문
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("call_type,ok", [
-    ("normal", True), ("expression", True), ("freetalk", True), ("level_test", False),
+    ("chat", False), ("expression", True), ("freetalk", True), ("level_test", False),
 ])
 def test_the_resume_gate_is_a_whitelist(env, call_type: str, ok: bool) -> None:
     """⛔ 화이트리스트로 쓴다 — 새 콜타입이 생겼을 때 **기본이 «막힘»** 이어야 안전하다.
 
+    ⚠ QA C3 재검-①(2026-09-22): 옛 "normal" 은 죽은 값이다(chat 으로 개명) — chat 은
+      아직 화이트리스트에 없다(C7 이 이어하기를 붙인다, 프리미엄 5분 재연결). 그래서
+      chat 은 지금 False 다.
     ⚠ 레벨테스트는 계속 막는다: 조각 개념이 없다(3분 하드캡은 측정 설계다).
     """
     db = env["db"]

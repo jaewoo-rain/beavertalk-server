@@ -9,6 +9,11 @@ D3(2026-09-22): 통화 종류는 학습(auto)·자유대화(chat) 둘이다. 옛
 값은 이 배포 전엔 존재하지 않았다)과 "normal"에서 전환된 행을 구분할 수 없다. 되돌리면
 전부 "normal"로 돌아간다.
 
+⚠ **배포 직후 재실행**: 롤링 배포 중 옛 리비전(이 마이그레이션 전 코드)이 만든 "normal"
+행이 배포 창에 섞여 들어올 수 있다 — 새 코드는 그 행을 chat 으로 못 본다(쿼리 별칭은
+안 만든다, 결정). 배포 직후 같은 SQL 을 한 번 더 돌린다:
+    UPDATE call SET call_type='chat' WHERE call_type='normal'
+
 Revision ID: e0a404f9e6c0
 Revises: b068a7dedfd3
 Create Date: 2026-09-23

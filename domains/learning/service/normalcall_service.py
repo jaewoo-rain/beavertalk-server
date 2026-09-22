@@ -255,7 +255,7 @@ def load_call_setup(
     member_found = base.pop("member_found")
 
     # 레벨 미확정 → 레벨테스트 자동 라우팅 신호(D11). 아래 폴백 레벨 2 는 명시
-    # call_type="normal" 등으로 일반 통화가 강행될 때만 실제 사용된다.
+    # call_type="chat" 등으로 일반 통화가 강행될 때만 실제 사용된다.
     # (멀티랭귀지) korean_level 은 이미 language 스코프 — needs_level_test 도 언어별.
     needs_level_test = korean_level is None
     # 레벨 미설정 폴백 = 2(Basic A). 1 은 생존 회화 — 레벨테스트가 배정하는 전용 레벨.
@@ -864,11 +864,14 @@ def resume_call(
     #   ⛔ **레벨테스트는 계속 막는다** — 조각 개념이 없다(3분 하드캡은 상품 혜택이 아니라
     #     측정 설계다). 그래서 화이트리스트로 쓴다: 새 콜타입이 생겼을 때 **기본이 «막힘»**
     #     이어야 안전하다(블랙리스트로 쓰면 새 타입이 조용히 조각을 잇는다).
-    #   ⚠ 표현학습에서 조각이 이어져야 하는 이유는 normal 과 다르다 — 진도가 이어져야
-    #     비버가 «(통과) 표시가 없는 가장 앞 항목» 부터 다시 시작한다(기획 §2-7·D17).
+    #   ⚠ 표현학습에서 조각이 이어져야 하는 이유는 chat(옛 normal) 과 다르다 — 진도가
+    #     이어져야 비버가 «(통과) 표시가 없는 가장 앞 항목» 부터 다시 시작한다(기획 §2-7·D17).
     #     여기서 막히면 조각2가 **새 통화**가 되고, 그러면 turn_index 도 진도도 갈린다.
-    if (call.call_type or "normal") not in ("normal", "expression", "freetalk"):
-        return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "normal")
+    #   ⛔ C3(2026-09-22, D3): "normal" 은 죽은 값이다(마이그레이션 e0a404f9e6c0 가 기존
+    #     행을 전부 chat 으로 전환했다) — 화이트리스트에서 뺐다. chat 은 아직 없다(C7 이
+    #     붙인다, 프리미엄 5분 재연결).
+    if (call.call_type or "chat") not in ("expression", "freetalk"):
+        return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "chat")
 
     last = call.call_date
     if last is not None:
@@ -1227,12 +1230,12 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
 
 
 def create_call(
-    db: Session, member_id: int, character_id: int, call_type: str = "normal",
+    db: Session, member_id: int, character_id: int, call_type: str = "chat",
     *, target_language: str = "ko",
 ) -> int:
     """통화 행을 생성하고(status=ongoing) call_id 를 반환한다.
 
-    call_type: "normal"(기본) | "level_test" — 콜타입 라우팅 결과(call_session 결정).
+    call_type: "chat"(기본, C3 로 normal 개명) | "level_test" — 콜타입 라우팅 결과(call_session 결정).
     target_language: 이 통화의 학습 대상 언어코드(멀티랭귀지, 기본 'ko') — 커리큘럼 선별·
         증거/이력 집계 스코프. call_session 이 resolve 한 LanguageSpec.code 를 넘긴다.
     """

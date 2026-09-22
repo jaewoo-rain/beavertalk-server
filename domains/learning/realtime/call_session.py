@@ -1268,8 +1268,8 @@ def _note_covered_items(
     #   ⛔ 생짜 `label in text` 는 항목 「물」에 "어제 **선물**을 받았어요" 를 잡는다 ⇒ 그
     #     항목이 완료로 처리돼 **가르치지도 않고 건너뛴다.** L2 이상은 90%가 어휘이고
     #     대부분 1~2글자라 여기가 주 무대다(근거·규율은 `mentions` 독스트링).
-    #   ⛔ `normal` 은 **생짜 비교 그대로** 다 — 여기서 대조 규칙을 바꾸면 일반 통화의
-    #     covered 검출 폭이 달라져 재접지 쪽지가 바뀐다(그 경로는 손대지 않는다).
+    #   ⛔ `chat`(옛 normal) 은 **생짜 비교 그대로** 다 — 여기서 대조 규칙을 바꾸면 일반
+    #     통화의 covered 검출 폭이 달라져 재접지 쪽지가 바뀐다(그 경로는 손대지 않는다).
     expr = bool(state.expr_items)
     for idx, label in enumerate(state.reground_items, start=1):
         label = (label or "").strip()
@@ -3388,10 +3388,11 @@ async def run_call(
     # ⚠ 여기 목록과 `svc.resume_call` 의 화이트리스트는 **같은 뜻이어야 한다.** 한쪽만
     #   넓히면 «관문은 통과했는데 서비스가 거절» 이 되어 조용히 새 통화로 떨어진다.
     #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
-    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 normal(옛 값·레거시
-    #   재개 대비)/expression/freetalk 이다. **chat 은 아직 없다** — 이어하기(5분 재연결)는
-    #   C7 이 붙인다(자유대화 세션 작업, docs 참조). 그 전엔 chat 은 항상 조각 1개다.
-    if continues_call_id is not None and call_type in ("normal", "expression", "freetalk"):
+    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 expression/freetalk
+    # 뿐이다("normal" 은 C3 로 죽은 값이다 — 라우팅이 절대 안 만든다). **chat 은 아직 없다**
+    #   — 이어하기(5분 재연결)는 C7 이 붙인다(자유대화 세션 작업, docs 참조). 그 전엔 chat 은
+    #   항상 조각 1개다.
+    if continues_call_id is not None and call_type in ("expression", "freetalk"):
         # ⭐ 플랜 흉내(plan_override, admin 검증 완료값)면 그 플랜의 조각 수 — «Free 로 통화» 는 조각2 를 거절한다(2026-09-13).
         max_fragments = await svc.run_db(
             db_session_factory,
@@ -3515,10 +3516,11 @@ async def run_call(
     # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
     # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
     #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
-    # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(normal·expression·freetalk)에만 «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을
-    #   서버 값으로 판단한다. 상한은 REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
+    # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(expression·freetalk, C7 전까지 chat 은 제외)에만
+    #   «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을 서버 값으로 판단한다. 상한은
+    #   REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
     fragment_index = None
-    if call_type in ("normal", "expression", "freetalk"):
+    if call_type in ("expression", "freetalk"):
         if max_fragments is None:
             max_fragments = await svc.run_db(
                 db_session_factory, lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
@@ -4097,7 +4099,7 @@ async def run_call(
 def _trigger_analysis(
     call_id, client, settings, db_session_factory, locale,
     *, target_language: str = _DEFAULT_TARGET_LABEL, locale_label: str | None = None,
-    call_type: str = "normal", member_id: int | None = None,
+    call_type: str = "chat", member_id: int | None = None,
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
     # ⭐ 이어하기 조각의 **시작 턴 인덱스**. 있으면 검증(증거 판정)을 그 뒤 턴으로 좁힌다.
@@ -4107,7 +4109,7 @@ def _trigger_analysis(
     """통화후 분석을 백그라운드 task 로 띄운다(non-blocking, GC 방지 보관).
 
     call_type 디스패치: level_test → 레벨 판정(analyze_level_test_call, member_id 필수),
-    normal → 기존 표현 추출 + 항목 검출(analyze_call). candidates 는 통화 시작 때
+    chat(옛 normal) → 기존 표현 추출 + 항목 검출(analyze_call). candidates 는 통화 시작 때
     선별한 검출 후보(주입 injected=True 포함, P2-c2) — None 이면 analyze_call 이
     기본 후보(practicing 18+introduced 12)로 폴백한다.
     hinted_from_turn_index(D16)는 항목 검출이 있는 analyze_call 에만 의미가 있다
@@ -4143,7 +4145,7 @@ def _trigger_analysis(
             # ⭐ 이어하기 조각이면 **이 조각의 턴만** 검증한다(근거는 analyze_call 주석).
             since_turn_index=since_turn_index,
             # ⛔ 두 코스는 옛 승급 사슬을 쓰지 않는다(기획 §5) — 판정도 안 돈다.
-            #   ⚠ «후보가 0인가» 로 판정하면 안 된다: normal 도 후보가 빈 경우가 정상이고
+            #   ⚠ «후보가 0인가» 로 판정하면 안 된다: chat 도 후보가 빈 경우가 정상이고
             #     그때는 승급이 돌아야 한다. 아는 것은 **콜타입뿐**이라 여기서 명시한다.
             skip_level_up=call_type in ("expression", "freetalk"),
         )
@@ -4737,9 +4739,9 @@ async def _read_initial_start(client_ws) -> StartParams:
     target_language 는 **언어코드**로 해석한다(멀티랭귀지): resolve_language 로 정규화해
     지원 코드/구 데모 라벨("프랑스어")은 canonical code("fr")로, 미지원/부재는 원문 그대로
     통과시킨다(_resolve_target_language 가 최종 경고+DEFAULT 폴백). call_type None = 서버 판단
-    (D11 자동 라우팅, C3 로 결과가 normal→auto 로 바뀌었다), "chat"/"auto"/"level_test" =
-    클라 명시(우선, C3) — 구버전 "normal" 은 받으면 chat 으로 취급한다. duration_min None =
-    서버 기본 통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
+    (D11 자동 라우팅, C3 로 결과가 옛 기본값에서 auto 로 바뀌었다), chat/auto/level_test =
+    클라 명시(우선, C3) — 구버전 앱이 옛 기본값을 그대로 보내면 chat 으로 취급한다.
+    duration_min None = 서버 기본 통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
     """
     from starlette.websockets import WebSocketDisconnect
 

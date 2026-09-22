@@ -4069,7 +4069,7 @@ class CascadeSession:
                 self._call_id, self._genai_client, settings, self._session_factory,
                 self._locale,
                 target_language=self._target_label, locale_label=None,
-                call_type="normal", member_id=self._member_id,
+                call_type="chat", member_id=self._member_id,  # C3(2026-09-22, D3): normal→chat 개명
                 candidates=(self._setup or {}).get("candidates"),
                 # 힌트가 꺼져 있으면 열람 마커가 없다(D16 강등이 없을 뿐 나머지는 그대로 돈다).
                 hinted_from_turn_index=None,
@@ -4574,13 +4574,14 @@ class CascadeSession:
             self._setup = None
         self._resolve_languages()
         self._voice = (self._setup or {}).get("voice") or None
-        # ⭐ 통화 행 — **Live 와 같은 함수**. call_type 은 항상 normal 이다(사장님: 레벨테스트는
-        #   나중에). ⛔ 실패해도 통화는 계속된다(call_id=None → 기록만 못 남긴다 — R5).
+        # ⭐ 통화 행 — **Live 와 같은 함수**. call_type 은 항상 chat 이다(C3, 2026-09-22, D3
+        #   — 옛 normal 개명. 사장님: 레벨테스트는 나중에). ⛔ 실패해도 통화는 계속된다
+        #   (call_id=None → 기록만 못 남긴다 — R5).
         try:
             self._call_id = await svc.run_db(
                 self._session_factory,
                 lambda db: svc.create_call(
-                    db, self._member_id, self._character_id, "normal",
+                    db, self._member_id, self._character_id, "chat",
                     target_language=self._target_code,
                 ),
             )
@@ -4590,7 +4591,7 @@ class CascadeSession:
         if (self._setup or {}).get("needs_level_test"):
             # ⚠ 레벨 미확정이지만 캐스케이드는 **레벨테스트를 안 돌린다**(사장님 결정).
             #   Live 라면 여기서 라우팅이 갈린다 — 그 차이를 로그로 드러낸다.
-            logger.info("cascade: 레벨 미확정이지만 call_type=normal 로 진행(레벨테스트 미지원)")
+            logger.info("cascade: 레벨 미확정이지만 call_type=chat 로 진행(레벨테스트 미지원)")
         logger.info(
             "cascade 캐릭터: member=%s character=%s 음색=%s(출처=%s) 레벨프로파일=%s",
             self._member_id, self._character_id,

@@ -4431,7 +4431,10 @@ def test_resume_stops_at_the_fragment_cap(session_factory, seeded):
 
     db = session_factory()
     try:
-        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"])
+        # QA C3 재검-①(2026-09-22): create_call 기본값이 chat(옛 normal)인데 chat 은
+        # 아직 이어하기 화이트리스트에 없다(C7 전) — 이 시험은 조각 상한 자체를 재므로
+        # 지금 이어지는 코스(expression)로 명시한다.
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
         # 1 → 2 → 3 까지는 된다.
         for expect in (2, 3):
             got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
