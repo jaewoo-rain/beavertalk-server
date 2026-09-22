@@ -100,11 +100,15 @@ class ClientStart(BaseModel):
     target_language: str | None = None
     # ⭐ 2026-09-10: 통화 코스가 둘 늘었다(기획 D1·D18) — 홈 화면 버튼 2개가 각각
     #   `expression`(표현학습) · `freetalk`(프리토킹)로 명시해 들어온다.
-    #   ⛔ **자동 라우팅 대상이 아니다.** 서버가 저절로 고르는 건 여전히 level_test/normal
+    #   ⛔ **자동 라우팅 대상이 아니다.** 서버가 저절로 고르는 건 여전히 level_test/auto
     #     둘뿐이다 — 어느 코스를 할지는 학습자가 버튼으로 정한다.
     # ⭐ "auto"(커리큘럼 2단계 §8, 2026-09-12) — 앱은 이것 하나만 보내고 서버가 cur_member_progress·cur_member_lesson.status 로
     #   이번 통화가 표현학습인지 프리토킹인지 정한다(`call_started.course` 로 알린다). 명시 expression/freetalk 는 개발자도구·하네스용.
-    call_type: Literal["normal", "level_test", "expression", "freetalk", "auto"] | None = None
+    # ⭐⭐ C3(2026-09-22, D3) — 통화 종류는 **학습**(=auto, 서버가 표현학습/프리토킹 결정) ·
+    #   **자유대화**(=chat, 신규) 둘이다. 앱은 이 둘만 보낸다. "normal" 은 더 이상 클라가
+    #   고르는 값이 아니다 — 구버전 앱 호환으로 **받으면 chat 으로 취급**한다(로그 1줄).
+    #   미전송(구버전·알람)이면 레벨 미확정 시 level_test, 아니면 auto(학습).
+    call_type: Literal["normal", "level_test", "expression", "freetalk", "auto", "chat"] | None = None
     # ⭐ QA 우회(2026-09-12, 사장님 «QA 하려면 버튼 눌렀을 때 프리토킹이 들어가야»): call_type="freetalk" 와 함께 True 면 **관리자(member.role
     #   == "admin") 에 한해** 그 차시의 표현학습 잠금(COURSE_LOCKED)을 건너 지금 차시로 프리토킹을 연다. 연습용이라 진도(freetalk_done·
     #   포인터)를 건드리지 않는다. 관리자가 아니면 조용히 무시(잠금 그대로). expression·auto 에는 영향 없다.

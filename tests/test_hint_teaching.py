@@ -304,7 +304,9 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
 
     ws = FakeWebSocket([
         {"type": "websocket.receive",
-         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+         # C3(2026-09-22, D3): teaching_plan 은 chat(옛 normal) 전용 — 미전송이면 이제
+         # auto(학습)로 떨어져(이 시드엔 커리큘럼이 없어 expression) 힌트/자료가 꺼진다.
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"], "call_type": "chat"})},
     ])
     await run_call(ws, app_settings, object(), session_factory,
                    member_id=seeded["member_id"], live_session_factory=factory)
@@ -371,7 +373,9 @@ async def test_hint_task_created_cancelled_and_pushed(session_factory, seeded, m
 
     ws = FakeWebSocket([
         {"type": "websocket.receive",
-         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+         # C3(2026-09-22, D3): 힌트는 chat(옛 normal) 에서 켜진다 — 미전송이면 auto(학습)로
+         # 떨어져(이 시드엔 커리큘럼이 없어 expression) 힌트가 꺼진다.
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"], "call_type": "chat"})},
         # 힌트 열람 신호(마커 기록) — 처리 시점의 next_turn_index=0 이 기록된다.
         {"type": "websocket.receive",
          "text": json.dumps({"type": "hint_used", "turn_id": "demo-turn", "item_id": 3})},

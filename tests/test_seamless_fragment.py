@@ -54,6 +54,17 @@ from scripts.curriculum.load_cur_seed import load
 SEED = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "curriculum_v3", "cur_seed.json")
 pytestmark = pytest.mark.skipif(not os.path.exists(SEED), reason="cur_seed.json 없음")
 
+# ⛔ C3(2026-09-22, D3): "normal" 콜타입은 더 이상 클라가 못 고른다 — chat(자유대화)로
+#   흡수됐다. 그런데 chat 은 **아직 이어하기 허용 목록에 없다**(C7 이 명시적으로 붙인다,
+#   docs/plans/2026-09-22-…: "call_type="chat" 을 이어하기 허용 목록 …에 추가"). 아래 5개는
+#   옛 "normal" 전용 재개 브리프·시드 콘텐츠(build_system_instruction 의 history 슬롯)를
+#   검증하는데, expression/freetalk 로 바꿔도 이 콘텐츠 자체가 없다(다른 대본이다) — 그리고
+#   chat 으로 두면 이어하기 자체가 RESUME_UNAVAILABLE 로 거절된다. C7 이 chat 을 이어하기
+#   목록에 넣고 나면(그때 이 콘텐츠가 chat 대본에도 있는지부터 다시 확인해야 한다) 되살린다.
+_SKIP_UNTIL_C7_CHAT_RESUME = pytest.mark.skip(
+    reason="C7 전까지 chat 은 이어하기 불가 — 옛 normal 전용 재개 브리프 시험, C7 에서 재검토"
+)
+
 
 # --------------------------------------------------------------------------- #
 # 고정물 — tests/test_cur_call_path.py 와 같은 꼴(sqlite 메모리 + 실제 ko 시드 → 표현학습 코스도 돈다)
@@ -326,12 +337,13 @@ def test_resume_brief_silent_swaps_only_the_last_line_and_survives_an_empty_brie
 # --------------------------------------------------------------------------- #
 # S2 · S4 — 일반 통화 조각1 → 조각2(silent) 통합
 # --------------------------------------------------------------------------- #
+@_SKIP_UNTIL_C7_CHAT_RESUME
 @pytest.mark.asyncio
 async def test_silent_resume_sends_no_seed_and_pins_the_first_action_line(session_factory, seeded):
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
     assert h1["session"].sent_text_turns and "[통화종료" not in h1["session"].sent_text_turns[0], "조각1 은 종전 선톡 시드"
     cid = int(_started(h1)["call_id"])
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네, 계속해요"), ("B", "그래서 학교에서는?")],
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네, 계속해요"), ("B", "그래서 학교에서는?")],
                     continues=cid, extra={"silent_resume": True})
     assert _started(h2)["call_id"] == str(cid), "같은 통화 행에 조각2"
     # ⛔ 조각 경계에서 비버 발화 0 — 서버가 세션에 넣은 텍스트 턴이 없다(재개 시드 없음; 넛지도 없음)
@@ -348,12 +360,13 @@ async def test_silent_resume_sends_no_seed_and_pins_the_first_action_line(sessio
         db.close()
 
 
+@_SKIP_UNTIL_C7_CHAT_RESUME
 @pytest.mark.asyncio
 async def test_non_silent_resume_is_unchanged(session_factory, seeded):
     """⛔ 회귀 — silent_resume 를 안 보낸(구클라·이어하기 시트) 조각2 는 종전대로 seed_resume 1턴 + 종전 마지막 줄."""
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "안녕하세요"), ("B", "좋아요!")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "안녕하세요"), ("B", "좋아요!")])
     cid = int(_started(h1)["call_id"])
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("B", "그래서요?")], continues=cid)
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("B", "그래서요?")], continues=cid)
     assert h2["session"].sent_text_turns[0] == seeds.seed_resume("한국어")
     si = h2["system_instruction"]
     assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라." in si
@@ -363,21 +376,21 @@ async def test_non_silent_resume_is_unchanged(session_factory, seeded):
 @pytest.mark.asyncio
 async def test_call_started_carries_fragment_index_and_max_fragments(session_factory, seeded):
     """클라는 «fragment_index == max_fragments → 마지막 조각(재연결 없음)» 을 이 두 값으로 판단한다(결정 6)."""
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "네")])
     s1 = _started(h1)
     assert (s1["fragment_index"], s1["max_fragments"]) == (1, 3)
     cid = int(s1["call_id"])
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
     assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
-    h3 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    h3 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
     assert (_started(h3)["fragment_index"], _started(h3)["max_fragments"]) == (3, 3), "마지막 조각"
     # 상한을 넘긴 4번째 — silent 면 F3 거절(RESUME_UNAVAILABLE·1008·call 행 0) / silent 아님(종전 이어하기 시트)이면 새 통화(1/3) + 선톡 시드
-    h4 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=cid, extra={"silent_resume": True})
+    h4 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!")], continues=cid, extra={"silent_resume": True})
     err = next(f for f in h4["frames"] if f.get("type") == "error")
     assert err["code"] == "RESUME_UNAVAILABLE" and err["recoverable"] is False and "조각 상한" in err["message"]
     assert not any(f.get("type") == "call_started" for f in h4["frames"]) and h4["ws"].closed_with == 1008
     assert "session" not in h4, "Live 세션을 열지 않는다"
-    h5 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=cid)
+    h5 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!")], continues=cid)
     assert _started(h5)["call_id"] != str(cid) and (_started(h5)["fragment_index"], _started(h5)["max_fragments"]) == (1, 3)
     assert h5["session"].sent_text_turns, "종전 경로: 새 통화는 비버가 먼저 인사한다(선톡 시드)"
     db = session_factory()
@@ -390,7 +403,7 @@ async def test_call_started_carries_fragment_index_and_max_fragments(session_fac
 @pytest.mark.asyncio
 async def test_silent_resume_without_a_resumable_call_falls_back_to_the_normal_opening(session_factory, seeded):
     """continues 없이 온 silent_resume 은 무시 — 새 통화의 선톡 시드가 그대로 나간다(비버가 먼저 인사). continues 가 있는데 못 잇는 경우는 F3(아래)."""
-    h = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], extra={"silent_resume": True})
+    h = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!")], extra={"silent_resume": True})
     assert h["session"].sent_text_turns and "[통화 이어감]" not in h["session"].sent_text_turns[0], "선톡 시드(재개 시드 아님)"
     assert reground.RESUME_SILENT_FIRST_ACTION not in h["system_instruction"]
     assert (_started(h)["fragment_index"], _started(h)["max_fragments"]) == (1, 3)
@@ -403,7 +416,7 @@ async def test_silent_resume_of_an_unresumable_call_is_refused_not_replaced_by_a
     db = session_factory()
     n0 = db.query(Call).filter(Call.member_id == seeded["member_id"]).count()
     db.close()
-    h = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=999999, extra={"silent_resume": True})   # 없는 통화
+    h = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!")], continues=999999, extra={"silent_resume": True})   # 없는 통화
     err = next(f for f in h["frames"] if f.get("type") == "error")
     assert err["code"] == "RESUME_UNAVAILABLE" and err["recoverable"] is False and "없는 통화" in err["message"]
     assert h["ws"].closed_with == 1008 and not any(f.get("type") == "call_started" for f in h["frames"]) and "session" not in h
@@ -413,7 +426,7 @@ async def test_silent_resume_of_an_unresumable_call_is_refused_not_replaced_by_a
     finally:
         db.close()
     # 종전 경로(silent 아님) — 폴백 새 통화 + 선톡, 바이트 불변
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!")], continues=999999)
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!")], continues=999999)
     assert _started(h2)["fragment_index"] == 1 and h2["session"].sent_text_turns and not any(f.get("type") == "error" for f in h2["frames"])
 
 
@@ -448,15 +461,18 @@ async def test_silent_resume_starts_the_idle_clock_at_session_open(session_facto
     monkeypatch.setattr(cs, "IDLE_NUDGE1_S", 0.3)
     monkeypatch.setattr(cs, "IDLE_NUDGE2_S", 0.2)
     monkeypatch.setattr(cs, "IDLE_CLOSE_S", 0.2)
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "네")])
     cid = int(_started(h1)["call_id"])
     loop = asyncio.get_running_loop()
     t0 = loop.time()
-    h2 = await _run(session_factory, seeded, "normal", {}, continues=cid, extra={"silent_resume": True}, session_cls=SilentLearnerSession)
+    h2 = await _run(session_factory, seeded, "expression", {}, continues=cid, extra={"silent_resume": True}, session_cls=SilentLearnerSession)
     took = loop.time() - t0
     turns = h2["session"].sent_text_turns
     assert len(turns) == 3, (took, turns)
-    assert turns[0] == seeds.NUDGE_SEED_1_NORMAL and turns[1] == seeds.NUDGE_SEED_2_NORMAL, "1단·2단 넛지"
+    # ⚠ C3(2026-09-22): 이 시험은 expression 코스를 쓴다(옛 normal→chat 은 아직 이어하기가
+    #   안 된다, C7 전) — 1단 넛지는 코스별로 갈린다(:3817 NUDGE_SEED_1_EXPRESSION). 2단·3단은
+    #   코스 공통이라 바이트 동일.
+    assert turns[0] == seeds.NUDGE_SEED_1_EXPRESSION and turns[1] == seeds.NUDGE_SEED_2_NORMAL, "1단·2단 넛지"
     assert "[통화종료" in turns[2], "3단 = 작별 시드 직접 주입"
     assert took < 10, "무음 3단이 돌았다면 1초 안팎이다 — 20s 상한에 걸리면 시계가 안 선 것"
 
@@ -483,7 +499,7 @@ async def test_fragment_end_saves_the_fragment_before_fragment_saved_and_sends_n
     def _on_send(text):
         if '"fragment_saved"' in text:
             order.append("fragment_saved")
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")],
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")],
                     session_cls=HeldOpenSession, fragment_end=True, on_send=_on_send)
     saved = _frames_of("fragment_saved", h1)
     assert saved and saved[0]["call_id"] == _started(h1)["call_id"] and saved[0]["fragment_index"] == 1
@@ -500,7 +516,7 @@ async def test_fragment_end_saves_the_fragment_before_fragment_saved_and_sends_n
     finally:
         db.close()
     # 조각2 (silent) — 조각1 꼬리가 이미 저장돼 있으니 turn_index 가 이어지고(충돌 0) 브리프에 직전 교환이 들어간다
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "그래서요?")], continues=cid, extra={"silent_resume": True})
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "그래서요?")], continues=cid, extra={"silent_resume": True})
     assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
     assert _frames_of("call_ended", h2) and not _frames_of("fragment_saved", h2), "close 로 끝난 조각은 종전대로 call_ended"
     db = session_factory()
@@ -510,7 +526,9 @@ async def test_fragment_end_saves_the_fragment_before_fragment_saved_and_sends_n
         assert len(idx) == len(set(idx)) and len(idx) >= rows1 + 2, ("turn_index 충돌", sorted(idx))
     finally:
         db.close()
-    assert "[지금까지]" in h2["system_instruction"], "브리프에 직전 조각 맥락이 들어간다"
+    # ⚠ C3(2026-09-22): "[지금까지]" 브리프는 옛 normal(→chat) 전용(build_system_instruction
+    # 의 history 슬롯) — expression 은 cur_open 재개 브리프를 따로 쓴다(다음 시험이 그걸 본다).
+    # chat 은 아직 이어하기가 안 되어(C7 전) 여기서 그 브리프를 직접 못 본다.
 
 
 @pytest.mark.asyncio
@@ -551,7 +569,7 @@ async def test_fragment_end_on_an_expression_call_records_progress_before_fragme
 
 @pytest.mark.asyncio
 async def test_the_old_close_path_still_sends_call_ended(session_factory, seeded):
-    h = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    h = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "네")])
     assert _frames_of("call_ended", h) and h["frames"][-1]["type"] == "call_ended"
     assert not _frames_of("fragment_saved", h)
 
@@ -572,10 +590,10 @@ async def test_fragment_end_is_ignored_on_a_level_test():
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
 async def test_initial_start_window_ignores_binary_frames(session_factory, seeded):
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "네")])
     cid = int(_started(h1)["call_id"])
     mic = [{"type": "websocket.receive", "bytes": bytes(640)} for _ in range(8)]     # 재연결 소켓에 마이크 8프레임이 start 보다 먼저
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid,
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid,
                     extra={"silent_resume": True}, before_start=mic)
     assert _started(h2)["call_id"] == str(cid), "start 가 9번째 메시지여도 읽는다 — 이어하기 유실 0"
     assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
@@ -601,6 +619,7 @@ def test_reconnect_brief_waits_in_a_silent_fragment():
 # --------------------------------------------------------------------------- #
 # 빈 요약 슬롯은 발췌를 지우지 않는다 (2026-09-14, bt-back 결정 ① — seamless QA flake 조사에서 발견한 운영 경로 결함)
 # --------------------------------------------------------------------------- #
+@_SKIP_UNTIL_C7_CHAT_RESUME
 @pytest.mark.asyncio
 async def test_empty_resume_summary_slots_keep_the_excerpt_fallback(session_factory, seeded, monkeypatch):
     """LLM 이 아무것도 못 뽑은 짧은 통화({topic:'', learner_facts:[], pending:''}) — 빈 dict 도 파이썬에선 참이라 예전엔 «슬롯이 생겼다»
@@ -611,14 +630,14 @@ async def test_empty_resume_summary_slots_keep_the_excerpt_fallback(session_fact
     assert svc.resume_slots_have_content({"topic": "", "learner_facts": [], "pending": ""}) is False
     assert svc.resume_slots_have_content({"topic": "축구", "learner_facts": [], "pending": ""}) is True
     assert svc.resume_slots_have_content(None) is False
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
     cid = int(_started(h1)["call_id"])
     db = session_factory()
     try:
         assert not (db.get(Call, cid).resume_context or ""), "빈 요약은 조각 종료 때도 저장하지 않는다"
     finally:
         db.close()
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("B", "그래서요?")], continues=cid)
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("B", "그래서요?")], continues=cid)
     si = h2["system_instruction"]
     assert "[지금까지]" in si and "- 방금까지 오간 대화:" in si and "학교에 갔어요" in si, "발췌 폴백이 살아 있다"
     assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라." in si
@@ -648,7 +667,7 @@ async def test_fragment_saved_then_close_drains_late_client_frames_within_a_seco
                 {"type": "websocket.receive", "bytes": bytes(640)},
                 {"type": "websocket.disconnect"},
             ])
-    h = await _run(session_factory, seeded, "normal", holder, script=[("B", "안녕!"), ("U", "네"), ("B", "좋아요")],
+    h = await _run(session_factory, seeded, "expression", holder, script=[("B", "안녕!"), ("U", "네"), ("B", "좋아요")],
                    session_cls=HeldOpenSession, fragment_end=True, on_send=_on_send)
     assert _frames_of("fragment_saved", h) and not _frames_of("call_ended", h)
     assert h["ws"].closed_with is not None and getattr(h["ws"], "disconnect_read", False), "늦은 프레임을 읽고 버린 뒤 클라 close 를 소비했다"
@@ -676,7 +695,7 @@ def test_loop_streak_counts_only_near_identical_long_turns():
 async def test_loop_breaker_injects_once_then_forces_a_fragment_switch(session_factory, seeded):
     script = [("B", "안녕! 시작하자."), ("U", "네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE),
               ("U", "또 봐"), ("B", "여기까지 오면 안 된다 — 3회째에서 전환됐어야 한다")]
-    h = await _run(session_factory, seeded, "normal", {}, script=script, session_cls=HeldOpenSession, hold_open=True)
+    h = await _run(session_factory, seeded, "expression", {}, script=script, session_cls=HeldOpenSession, hold_open=True)
     notes = [t for t in h["session"].sent_text_turns if t == seeds.LOOP_BREAK_NOTE]
     assert len(notes) == 1, ("2회째에 안내 1회", h["session"].sent_text_turns)
     saved = _frames_of("fragment_saved", h)
@@ -685,7 +704,7 @@ async def test_loop_breaker_injects_once_then_forces_a_fragment_switch(session_f
     assert not any("[통화종료" in t for t in h["session"].sent_text_turns), "전환이지 작별이 아니다"
     # 강제 전환된 조각도 저장됐다 — 조각2 가 이어진다
     cid = int(_started(h)["call_id"])
-    h2 = await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "그래서요?")], continues=cid, extra={"silent_resume": True})
+    h2 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "그래서요?")], continues=cid, extra={"silent_resume": True})
     assert _started(h2)["fragment_index"] == 2 and _started(h2)["call_id"] == str(cid)
 
 
@@ -694,7 +713,7 @@ async def test_loop_breaker_says_goodbye_when_no_fragment_is_left(session_factor
     monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 1)     # Free — 전환할 조각이 없다
     script = [("B", "안녕! 시작하자."), ("U", "네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE),
               ("B", "그래, 오늘은 여기까지. 안녕!")]                      # 종료 시드 뒤 작별 턴
-    h = await _run(session_factory, seeded, "normal", {}, script=script, hold_open=True)
+    h = await _run(session_factory, seeded, "expression", {}, script=script, hold_open=True)
     turns = h["session"].sent_text_turns
     assert turns.count(seeds.LOOP_BREAK_NOTE) == 1
     assert any("[통화종료" in t for t in turns), "상한이면 작별 시드"
@@ -706,7 +725,7 @@ async def test_loop_breaker_says_goodbye_when_no_fragment_is_left(session_factor
 async def test_loop_breaker_is_silent_on_a_normal_call(session_factory, seeded):
     script = [("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요! 학교에서 뭐 배웠어요?"), ("U", "한국어"),
               ("B", "한국어를 배웠구나. 재미있었어요?"), ("U", "네"), ("B", "좋아요! 학교에서 뭐 배웠어요?")]    # 같은 문장이지만 연속이 아니다
-    h = await _run(session_factory, seeded, "normal", {}, script=script, hold_open=True)
+    h = await _run(session_factory, seeded, "expression", {}, script=script, hold_open=True)
     assert seeds.LOOP_BREAK_NOTE not in h["session"].sent_text_turns
     assert not _frames_of("fragment_saved", h) and _frames_of("call_ended", h)
 
@@ -809,8 +828,8 @@ async def test_run_call_accumulates_on_resumed_fragments_only(session_factory, s
         calls.append((call_id, kw.get("accumulate", False)))
         return real_fin(db, call_id, **kw)
     monkeypatch.setattr(cs.svc, "finalize_call", _spy)
-    h1 = await _run(session_factory, seeded, "normal", {}, script=[("B", "안녕!"), ("U", "네")])
+    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "네")])
     cid = int(_started(h1)["call_id"])
-    await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
-    await _run(session_factory, seeded, "normal", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
+    await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
     assert [a for c, a in calls if c == cid] == [False, True, True], "첫 조각 대입 · 2·3조각 누적"

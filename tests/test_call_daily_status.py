@@ -57,7 +57,7 @@ def ctx(session_factory):
 
 
 def _call(ctx, *, when_utc: datetime, total_time=60, status="done",
-          spoke=True, call_type="normal"):
+          spoke=True, call_type="chat"):
     """통화 1건. spoke=True 면 학습자 발화 행을 함께 넣는다(성립 조건).
 
     선톡은 role='beaver' 라 성립에 안 쓰이므로, 비버 발화만 있는 통화 = spoke False.
@@ -120,9 +120,10 @@ def test_level_test_does_not_consume_normal(ctx):
     assert s["level_test_today"] is True
 
 
-def test_normal_does_not_consume_level_test(ctx):
+def test_chat_does_not_consume_level_test(ctx):
+    """C3(2026-09-22, D3): 옛 이름 normal → chat(자유대화)."""
     _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
-          call_type="normal")
+          call_type="chat")
     s = _status(ctx, "2026-07-17", 540)
     assert s["called_today"] is True
     assert s["level_test_today"] is False
@@ -195,7 +196,7 @@ def test_can_call_mirrors_the_server_refusal(ctx, monkeypatch):
     today_local = (now + timedelta(minutes=540)).date().isoformat()
 
     out = _status(ctx, today_local, 540)
-    for call_type, key in (("normal", "can_call_normal"),
+    for call_type, key in (("chat", "can_call_normal"),
                            ("level_test", "can_call_level_test")):
         refused = cs.is_daily_limit_reached(ctx["db"], ctx["member_id"], call_type, 540)
         assert out[key] is (not refused), (
@@ -322,7 +323,7 @@ def test_paid_plans_are_also_one_call_a_day(ctx, monkeypatch):
 
     for plan in (None, "premium"):
         limits = cs.DAILY_CALL_LIMIT_BY_PLAN[plan]
-        assert limits.get("normal") == 1, "플랜 %r 이 무제한으로 돌아갔다" % plan
+        assert limits.get("chat") == 1, "플랜 %r 이 무제한으로 돌아갔다" % plan
         assert limits.get("level_test") == 1, "플랜 %r 레벨테스트가 무제한이다" % plan
 
     # ⚠ 조각 수는 반대로 **갈려 있어야** 한다 — 그게 플랜의 차별점이다.

@@ -559,7 +559,9 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
 
     ws = FakeWebSocket(
         [{"type": "websocket.receive",
-          "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})}],
+          # C3(2026-09-22, D3): 이 무음 넛지 대본은 chat(옛 normal) 전용이다 — 미전송이면
+          # 이제 auto(학습)로 떨어진다.
+          "text": json.dumps({"type": "start", "character_id": seeded["character_id"], "call_type": "chat"})}],
         hang=True,
     )
 

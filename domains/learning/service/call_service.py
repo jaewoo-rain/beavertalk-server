@@ -67,8 +67,10 @@ def _avg(values: list) -> float | None:
 #     뜻이 «통화 1번» 인지 «코스마다 1번» 인지가 갈리는데, 그건 상품 결정이다.
 #   ⭐ 대칭을 기본으로 삼은 근거는 아래 레벨테스트 주석과 **같다** — 결정 원문이 콜타입을
 #     안 갈랐으면 Free 와 대칭이 기본이다. 유료가 여러 번 하게 하려면 여기서 빼면 된다.
+# ⚠ C3(2026-09-22, D3): 옛 "normal" 키를 "chat"(자유대화)으로 개명했다 — 라우팅이 더 이상
+#   "normal" 을 만들지 않는다(chat 으로 흡수). C4 에서 이 표 자체가 예산 방식으로 대체된다.
 DAILY_CALL_LIMIT: dict[str, int] = {
-    "normal": 1, "level_test": 1, "expression": 1, "freetalk": 1,
+    "chat": 1, "level_test": 1, "expression": 1, "freetalk": 1,
 }
 
 # ⭐⭐ **플랜이 가르는 것은 횟수가 아니라 조각 수다**(2026-08-19 사장님 결정을 반영,
@@ -585,8 +587,11 @@ class CallService:
         # 남았는데 소진된 것처럼 보인다.
         return {
             "date": local_date,
+            # ⚠ C3(2026-09-22, D3): 필드 이름(called_today/can_call_normal)은 앱 계약이라
+            #   그대로 두지만, 안에서 보는 call_type 은 "normal"→"chat"(자유대화)으로
+            #   개명됐다 — 라우팅이 더 이상 "normal" 을 만들지 않는다(chat 으로 흡수).
             "called_today": self.repo.has_call_in_window(
-                member_id, start_utc, end_utc, call_type="normal"
+                member_id, start_utc, end_utc, call_type="chat"
             ),
             "level_test_today": self.repo.has_call_in_window(
                 member_id, start_utc, end_utc, call_type="level_test"
@@ -607,7 +612,7 @@ class CallService:
             #     서버가 실제로 안 막는다는 **사실의 반영**이다 — 이 필드의 계약은
             #     "한도를 판정해 준다"가 아니라 "**서버가 지금 거절할지**"다.
             "can_call_normal": not is_daily_limit_reached(
-                self.db, member_id, "normal", tz_offset_min
+                self.db, member_id, "chat", tz_offset_min
             ),
             "can_call_level_test": not is_daily_limit_reached(
                 self.db, member_id, "level_test", tz_offset_min

@@ -3029,12 +3029,13 @@ async def run_call(
     # "ko-KR" 이 남아 있으면 _LOCALE_LABEL 조회가 미스나 **영어로 폴백**한다(실측 3건).
     locale = normalize_locale(locale_override or setup["locale"]) or setup["locale"]
 
-    # 콜타입 라우팅(D11): ① 클라 명시 — 단 아래 1건은 normal 로 강등 ② 서버 자동.
+    # 콜타입 라우팅(D11, C3 로 chat 강등 도입): ① 클라 명시 — 단 아래 1건은 chat 으로 강등
+    #   ② 서버 자동.
     #   강등) 레벨테스트 미지원 언어(spec.leveltest=False, 예: 회화 전용 신 언어):
     #         그 언어 루브릭/대본이 없어 판정이 무의미 → 명시여도 level_test 금지.
     # 자동: 레벨테스트 지원 언어(spec.leveltest) + 레벨 미확정일 때만 level_test.
     #
-    # 🧒 여기서 "강등"은 **이번 통화의 종류**를 level_test → normal 로 돌린다는 뜻이다.
+    # 🧒 여기서 "강등"은 **이번 통화의 종류**를 level_test → chat 으로 돌린다는 뜻이다.
     #   학습자 레벨(member_language_level·korean_level)은 전혀 건드리지 않는다.
     #
     # ⛔ 레벨 재측정을 ENV 로 막지 마라. 옛날엔 "prod && 레벨 보유자면 강등"이 있었는데
@@ -3044,28 +3045,38 @@ async def run_call(
     #   서버가 어디 떠 있느냐의 문제가 아니다. 레벨 재측정은 환경과 무관하게 허용한다.
     #
     # ⭐ 2026-09-10: 코스 2종(expression·freetalk)이 늘었다. 둘은 **명시로만** 들어온다 —
-    #   홈 화면 버튼이 정하는 것이지 서버가 추측할 값이 아니다. 그래서 아래 자동 라우팅
-    #   (else 절)은 한 글자도 안 바꿨다.
+    #   홈 화면 버튼이 정하는 것이지 서버가 추측할 값이 아니다. C3(2026-09-22) 으로 미전송
+    #   시의 결과값만 normal→auto 로 바뀌었다 — expression·freetalk 은 여전히 명시 전용.
     if call_type_override is not None:
         call_type = call_type_override
+        # ⭐⭐ C3(2026-09-22, D3) — "normal" 은 더 이상 클라가 직접 고르는 코스가 아니다.
+        #   앱은 이제 학습("auto")·자유대화("chat") 둘 중 하나만 보낸다. 구버전 앱이 옛
+        #   기본값 "normal" 을 그대로 보내면 자유대화(chat)로 취급한다 — "normal" 이 하던
+        #   일(커리큘럼 없는 일반 대화)이 지금은 chat 의 몫이다(대본은 C7 전까지 그대로
+        #   build_system_instruction 을 쓴다 — 이 자리는 **라우팅만** 바꾼다).
+        if call_type == "normal":
+            logger.info("normalcall: call_type=normal → chat 취급(자유대화) member=%s", member_id)
+            call_type = "chat"
         # ⛔ 표현학습은 **커리큘럼이 있는 언어**에서만 성립한다 — 가르칠 항목이 커리큘럼에서
         #   나오기 때문이다(`pick_expression_items`). 회화 전용 신 언어에서 명시로 들어오면
-        #   항목 0개로 «표현 목록이 빈 표현학습» 이 되므로 normal 로 강등한다(레벨테스트
+        #   항목 0개로 «표현 목록이 빈 표현학습» 이 되므로 chat 로 강등한다(레벨테스트
         #   미지원 언어와 **같은 규율**). ⚠ freetalk 은 항목을 안 쓰므로 이 게이트가 없다.
         if call_type == "expression" and not spec.has_curriculum:
             logger.warning(
                 "normalcall: 커리큘럼 없는 언어(target=%s)에서 call_type=expression 명시 "
-                "→ normal 강등(가르칠 항목이 0개다) member=%s", spec.code, member_id,
+                "→ chat 강등(가르칠 항목이 0개다) member=%s", spec.code, member_id,
             )
-            call_type = "normal"
+            call_type = "chat"
         if call_type == "level_test" and not spec.leveltest:
             logger.warning(
                 "normalcall: 레벨테스트 미지원 언어(target=%s) 통화에서 call_type=level_test 명시 "
-                "→ normal 강등(루브릭·대본 부재 판정 오염 방지) member=%s", spec.code, member_id,
+                "→ chat 강등(루브릭·대본 부재 판정 오염 방지) member=%s", spec.code, member_id,
             )
-            call_type = "normal"
+            call_type = "chat"
     else:
-        call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "normal"
+        # ⭐ C3: 미전송(구버전 앱·알람)이면 레벨 미확정일 때만 레벨테스트, 그 외엔
+        #   **"auto"(학습)** — 옛 기본값 "normal" 은 폐기했다(D3, 자유대화는 명시로만 온다).
+        call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "auto"
 
     # ⭐⭐ 커리큘럼 2단계 경로(docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — **여기서 한 번** 정한다(§6 ③ 경로 고정).
     #   표현학습·프리토킹·auto 이고 CUR_ENABLED 면 cur 경로: 재료는 cur_* 에서, 진도도 cur_* 에 쓴다. 이 결정은 state.cur_route 로
@@ -3347,11 +3358,11 @@ async def run_call(
             reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
             continue_reminder = build_continue_reminder(setup["role"], setup["personality"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
-        # ⛔ **normal 에만 보낸다**(2026-09-10). `setup["study_items"]` 는 `pick_study_items`
-        #   가 고른 «일반 통화의 오늘 항목» 이라, 표현학습·프리토킹에 그대로 보내면 화면에
-        #   **이번 통화에서 다루지 않을 카드**가 뜬다. 표현학습의 카드는 자기 선별 결과로
-        #   따로 보내야 하고, 그건 결과 화면과 함께 뒤에서 다룬다(T12).
-        if inject_materials and setup.get("study_items") and call_type == "normal":
+        # ⛔ **chat 에만 보낸다**(2026-09-10 도입, C3 로 normal→chat 개명). `setup["study_items"]`
+        #   는 `pick_study_items` 가 고른 «일반 통화의 오늘 항목» 이라, 표현학습·프리토킹에
+        #   그대로 보내면 화면에 **이번 통화에서 다루지 않을 카드**가 뜬다. 표현학습의 카드는
+        #   자기 선별 결과로 따로 보내야 하고, 그건 결과 화면과 함께 뒤에서 다룬다(T12).
+        if inject_materials and setup.get("study_items") and call_type == "chat":
             teaching_items = _teaching_plan_items(setup["study_items"])
 
     # 3) 통화 행 — ⭐ **이어하기면 새로 만들지 않고 그 행에 계속 쓴다**(2026-08-19).
@@ -3365,7 +3376,9 @@ async def run_call(
     # ⚠ 여기 목록과 `svc.resume_call` 의 화이트리스트는 **같은 뜻이어야 한다.** 한쪽만
     #   넓히면 «관문은 통과했는데 서비스가 거절» 이 되어 조용히 새 통화로 떨어진다.
     #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
-    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 normal/expression/freetalk 이다.
+    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 normal(옛 값·레거시
+    #   재개 대비)/expression/freetalk 이다. **chat 은 아직 없다** — 이어하기(5분 재연결)는
+    #   C7 이 붙인다(자유대화 세션 작업, docs 참조). 그 전엔 chat 은 항상 조각 1개다.
     if continues_call_id is not None and call_type in ("normal", "expression", "freetalk"):
         # ⭐ 플랜 흉내(plan_override, admin 검증 완료값)면 그 플랜의 조각 수 — «Free 로 통화» 는 조각2 를 거절한다(2026-09-13).
         max_fragments = await svc.run_db(
@@ -4049,7 +4062,7 @@ async def run_call(
             call_id, client, settings, db_session_factory, locale,
             target_language=target_language, locale_label=None,
             call_type=call_type, member_id=member_id,
-            candidates=setup.get("candidates") if call_type == "normal" else None,
+            candidates=setup.get("candidates") if call_type == "chat" else None,
             # D16: 힌트 열람 마커(in-memory) — 크래시 유실 시 과크레딧 1회 허용.
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
             # ⭐ 이어하기면 **이 조각이 시작한 턴**부터만 검증한다(근거는 analyze_call 주석).
@@ -4712,8 +4725,9 @@ async def _read_initial_start(client_ws) -> StartParams:
     target_language 는 **언어코드**로 해석한다(멀티랭귀지): resolve_language 로 정규화해
     지원 코드/구 데모 라벨("프랑스어")은 canonical code("fr")로, 미지원/부재는 원문 그대로
     통과시킨다(_resolve_target_language 가 최종 경고+DEFAULT 폴백). call_type None = 서버 판단
-    (D11 자동 라우팅), "normal"/"level_test" = 클라 명시(우선). duration_min None = 서버 기본
-    통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
+    (D11 자동 라우팅, C3 로 결과가 normal→auto 로 바뀌었다), "chat"/"auto"/"level_test" =
+    클라 명시(우선, C3) — 구버전 "normal" 은 받으면 chat 으로 취급한다. duration_min None =
+    서버 기본 통화 길이, 값 있으면 데모/dev 에서 3~15분 override.
     """
     from starlette.websockets import WebSocketDisconnect
 

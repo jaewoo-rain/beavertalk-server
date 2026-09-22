@@ -197,12 +197,44 @@ async def test_the_new_call_type_is_stored_on_the_call_row(
 
 
 @pytest.mark.asyncio
-async def test_the_default_routing_is_untouched(session_factory, seeded) -> None:
-    """⛔ 자동 라우팅은 한 글자도 안 바뀌었다 — 두 코스는 **명시로만** 들어온다."""
+async def test_call_type_unset_now_defaults_to_auto_not_chat(session_factory, seeded) -> None:
+    """C3(2026-09-22, D3): call_type 미전송(구버전 앱·알람) → 레벨 미확정이면 레벨테스트,
+    아니면 **auto(학습)**. 옛 기본값 "normal"(→ 지금의 chat)은 더 이상 기본이 아니다.
+
+    ⚠ 이 시드 DB 엔 cur_lesson 이 없어(CUR_ENABLED 시드 부재) auto 가 옛 표현학습 경로로
+    폴백한다(call_session.py:3086) — 그래서 여기서는 "expression" 이 관측된다. 커리큘럼이
+    실제로 있는 언어에서는 decide_course 가 expression/freetalk 중 하나를 고른다."""
     await _run(session_factory, seeded, None, {})
     db = session_factory()
     try:
-        assert db.query(Call).one().call_type == "normal"
+        assert db.query(Call).one().call_type == "expression", \
+            "미전송이 chat(옛 normal)으로 떨어졌다 — auto(학습) 이어야 한다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "wire_call_type,expected_course",
+    [
+        (None, "expression"),          # 미전송, 레벨 확정 → auto(학습) → 폴백 expression(cur 시드 없음)
+        ("auto", "expression"),        # 명시 auto — 미전송과 같은 결과
+        ("chat", "chat"),              # 자유대화 — 그대로
+        ("normal", "chat"),            # 구버전 앱 호환 — normal 은 chat 으로 흡수
+        ("expression", "expression"),  # 명시(admin·개발자도구용으로 유지, 서버는 그대로 수용)
+        ("freetalk", "freetalk"),      # 〃
+    ],
+)
+async def test_call_type_combination_table_routes_to_the_right_course(
+    session_factory, seeded, wire_call_type: str | None, expected_course: str,
+) -> None:
+    """C3(2026-09-22, D3) 요구 시험표 — call_type 조합(미전송·auto·chat·normal·expression·
+    freetalk) → 실제 코스. level_test 조합은 test_level_test_call.py 가 따로 지킨다
+    (이 시드는 korean_level 이 이미 확정돼 있어 그 갈래를 여기서 못 만든다)."""
+    await _run(session_factory, seeded, wire_call_type, {})
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == expected_course
     finally:
         db.close()
 
@@ -271,17 +303,17 @@ async def test_the_expression_detection_list_is_not_truncated_at_ten(
 
 
 @pytest.mark.asyncio
-async def test_normal_calls_keep_the_cap_of_ten(
+async def test_chat_calls_keep_the_cap_of_ten(
     session_factory, seeded, monkeypatch,
 ) -> None:
-    """⚠ `normal` 은 한 글자도 안 바뀐다 — 상한 10 은 일반 통화의 계약이다."""
+    """⚠ 옛 `normal`(C3 로 chat 개명)은 한 글자도 안 바뀐다 — 상한 10 은 일반 통화의 계약이다."""
     seen: list[list[str]] = []
     orig = cs._reground_instruction
     monkeypatch.setattr(
         cs, "_reground_instruction",
         lambda items, target: (seen.append(list(items)), orig(items, target))[1],
     )
-    await _run(session_factory, seeded, None, {})
+    await _run(session_factory, seeded, "chat", {})
     assert seen and len(seen[0]) <= 10
 
 
@@ -347,13 +379,13 @@ async def test_expression_has_no_hints_but_freetalk_does(session_factory, seeded
 
 
 @pytest.mark.asyncio
-async def test_normal_calls_still_get_hints(session_factory, seeded, monkeypatch) -> None:
-    """⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함)."""
+async def test_chat_calls_still_get_hints(session_factory, seeded, monkeypatch) -> None:
+    """⚠ 옛 `normal`(C3 로 chat 개명)·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함)."""
     seen: list[bool] = []
     orig = cs._hint_instruction
     monkeypatch.setattr(cs, "_hint_instruction",
                         lambda *a, **k: (seen.append(True), orig(*a, **k))[1])
-    await _run(session_factory, seeded, None, {})
+    await _run(session_factory, seeded, "chat", {})
     assert seen, "일반 통화의 힌트가 같이 꺼졌다"
 
 
@@ -390,7 +422,7 @@ async def test_item_detection_is_off_but_analysis_still_runs(
 # --------------------------------------------------------------------------- #
 # ⑥ 일일 한도
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("call_type", ["normal", "level_test", "expression", "freetalk"])
+@pytest.mark.parametrize("call_type", ["chat", "level_test", "expression", "freetalk"])
 def test_every_call_type_has_a_daily_limit(call_type: str) -> None:
     """⛔ 표에 없으면 `is_daily_limit_reached` 가 «막지 않는다» 로 떨어져 **무제한**이 된다.
 
@@ -452,17 +484,21 @@ async def test_user_plan_override_is_ignored_and_absent_override_is_byte_identic
 
 @pytest.mark.asyncio
 async def test_plan_override_is_reapplied_on_a_resumed_fragment(session_factory, seeded, monkeypatch) -> None:
-    """이어하기 조각 2 도 start 에 같은 값을 다시 보내면 다시 적용된다(서버는 조각마다 판정)."""
+    """이어하기 조각 2 도 start 에 같은 값을 다시 보내면 다시 적용된다(서버는 조각마다 판정).
+
+    ⚠ C3(2026-09-22): call_type 은 "expression" 을 쓴다 — chat(옛 normal)은 아직
+    이어하기 허용 목록에 없다(C7 이 붙인다). 여기서 보는 건 plan_override 재적용이지
+    코스별 이어하기 자격이 아니므로, 지금 이어하기가 되는 코스로 시험한다."""
     monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
     monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, m: 3)
     _set_role(session_factory, seeded["member_id"], "admin")
-    h = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "premium"})
+    h = await _run(session_factory, seeded, "expression", {}, extra={"plan_override": "premium"})
     db = session_factory()
     call = db.query(Call).filter(Call.member_id == seeded["member_id"]).order_by(Call.call_id.desc()).first()
     db.close()
-    h2 = await _run(session_factory, seeded, "normal", {}, extra={"plan_override": "premium", "continues_call_id": str(call.call_id)})
+    h2 = await _run(session_factory, seeded, "expression", {}, extra={"plan_override": "premium", "continues_call_id": str(call.call_id)})
     assert h2["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO
-    h3 = await _run(session_factory, seeded, "normal", {}, extra={"continues_call_id": str(call.call_id)})
+    h3 = await _run(session_factory, seeded, "expression", {}, extra={"continues_call_id": str(call.call_id)})
     assert h3["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "값을 안 보낸 조각은 본인 플랜으로 — 서버는 기억하지 않는다"
 
 

@@ -324,10 +324,11 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
 
 
 @pytest.mark.asyncio
-async def test_member_with_level_routes_to_normal(session_factory, seeded):
-    """korean_level=3 보유자 → 기존 일반 대본([학습자 수준] 포함), call_type=normal."""
+async def test_member_with_level_routes_to_chat(session_factory, seeded):
+    """korean_level=3 보유자 → 기존 일반 대본([학습자 수준] 포함), call_type=chat
+    (C3, 2026-09-22, D3: 옛 이름 normal → chat 개명, 명시로 요청한다)."""
     holder = await _run_one_call(
-        session_factory, seeded["member_l3"], seeded["character_id"]
+        session_factory, seeded["member_l3"], seeded["character_id"], call_type="chat",
     )
 
     instr = holder["system_instruction"]
@@ -339,7 +340,7 @@ async def test_member_with_level_routes_to_normal(session_factory, seeded):
     try:
         calls = db.query(Call).all()
         assert len(calls) == 1
-        assert calls[0].call_type == "normal"
+        assert calls[0].call_type == "chat"
     finally:
         db.close()
 
@@ -367,13 +368,14 @@ async def test_explicit_call_type_forces_level_test(session_factory, seeded, mon
 
 
 @pytest.mark.asyncio
-async def test_demo_explicit_level_test_demoted_to_normal(
+async def test_demo_explicit_level_test_demoted_to_chat(
     session_factory, seeded, monkeypatch, caplog
 ):
-    """F1: 레벨테스트 미지원 언어(회화 전용) + 명시 call_type=level_test → normal 강등.
+    """F1: 레벨테스트 미지원 언어(회화 전용) + 명시 call_type=level_test → chat 강등
+    (C3, 2026-09-22, D3: 강등 목표가 normal → chat 로 개명됐다).
 
     멀티랭귀지: spec.leveltest=False 언어(콘텐츠 미저작·회화 전용)는 명시 level_test 도 그
-    언어 판정이 무의미하므로 normal 로 강등 + warning. 현재 지원 6개 언어는 모두 저작 완료라
+    언어 판정이 무의미하므로 chat 로 강등 + warning. 현재 지원 6개 언어는 모두 저작 완료라
     leveltest=True 이므로, **미저작 회화 전용 언어를 임시로 주입**해 강등 로직을 검증한다."""
     monkeypatch.setattr(app_settings, "ENV", "dev")
     # 아직 콘텐츠 미저작인 회화 전용 언어(leveltest=False)를 임시 주입 — 강등 대상.
@@ -393,7 +395,7 @@ async def test_demo_explicit_level_test_demoted_to_normal(
     try:
         calls = db.query(Call).all()
         assert len(calls) == 1
-        assert calls[0].call_type == "normal"
+        assert calls[0].call_type == "chat"
     finally:
         db.close()
     assert any("강등" in r.getMessage() for r in caplog.records)
