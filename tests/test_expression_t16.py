@@ -184,6 +184,53 @@ async def test_transcript_slot_never_consumes_the_cue_or_notes_only_reground() -
     assert st.expr_quiz_set_nudge_pending is True, "전사 자리에서 안내가 소비되면 안 된다"
     assert sess.sent == [("재접지 쪽지", False)], "전사 자리는 재접지 쪽지만 나가야 한다"
     assert st.reground_pending is False, "재접지 자체는 두 자리 모두에서 정상 동작한다"
+
+
+@pytest.mark.asyncio
+async def test_first_mode_still_services_the_mic_hook_so_the_cue_is_not_stuck_forever(monkeypatch) -> None:
+    """⛔⛔ QA C2 재검(2026-09-22) — `LIVE_REGROUND_ATTACH_AT=first` 에서도 마이크 훅은 돈다.
+
+    직전 수정(전사 자리는 큐·안내를 안 먹는다)만 넣었을 때, 펌프(:5217)가 여전히
+    `REGROUND_ATTACH_AT=="mic_open"` 일 때만 마이크 훅을 불렀다 — 그러면 first/final
+    모드에서 마이크 훅 자체가 안 돌아 **큐·안내가 통화 끝까지 영구 대기**했다. 결정: 마이크
+    훅은 모드와 무관하게 늘 부르고, 모드 조건은 **재접지 쪽지 쪽에만** 건다. 펌프
+    (`_pump_client_to_gemini`) 수준에서 직접 확인한다."""
+    monkeypatch.setattr(cs, "REGROUND_MODE", "on_user_turn")
+    monkeypatch.setattr(cs, "REGROUND_ATTACH_AT", "first")
+
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)
+    _user(st, "저는 미국 사람이에요")           # 큐 정리 완료 — 마이크에 얹힐 준비
+    assert st.expr_quiz_cue_pending is not None
+
+    class _FakeMicWS:
+        def __init__(self):
+            self._frames = [{"type": "websocket.receive", "bytes": _voiced()}]
+
+        async def receive(self):
+            if self._frames:
+                return self._frames.pop(0)
+            return {"type": "websocket.disconnect"}
+
+    class _FakeMicSess:
+        def __init__(self):
+            self.sent: list[tuple[str, bool]] = []
+            self.audio_frames = 0
+
+        async def send_audio(self, pcm16_16k: bytes) -> None:
+            self.audio_frames += 1
+
+        async def send_reground(self, text, *, turn_complete=True):
+            self.sent.append((text, turn_complete))
+
+    sess = _FakeMicSess()
+    with pytest.raises(cs._ClientDisconnect):
+        await cs._pump_client_to_gemini(_FakeMicWS(), sess, st)
+
+    assert st.expr_quiz_cue_pending is None, "first 모드에서도 마이크 훅이 돌아 큐가 얹혀야 한다 — 영구 대기 0"
+    assert sess.sent and sess.sent[0][0].startswith(CONTROL_TAG + " 지금 퀴즈를 내라")
+    assert sess.audio_frames == 1, "오디오 전달도 그대로 이어진다"
     # 대조군 — 같은 상태에서 마이크 자리는 큐를 먼저 소비한다(종전 동작 그대로)
     st2 = _state()
     for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):

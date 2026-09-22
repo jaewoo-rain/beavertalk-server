@@ -5214,8 +5214,14 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                 # ⭐ 재접지를 **오디오보다 먼저** 넣는다 — 대화에 [쪽지][사용자말] 순으로
                 #   앉아야 비버가 둘을 묶어 한 번 답한다(사장님 요구: "따로 넣지 말고
                 #   사용자가 말하는 타이밍에 같이"). 뒤에 넣으면 말이 끊긴 뒤에 붙는다.
-                if REGROUND_MODE == "on_user_turn" and REGROUND_ATTACH_AT == "mic_open":
-                    await _maybe_attach_reground_on_mic(session, state, data)
+                # ⭐⭐ QA C2 재검(2026-09-22) — 마이크 훅은 **모드와 무관하게 늘 부른다.**
+                #   퀴즈 큐·세트·드릴 안내는 REGROUND_ATTACH_AT 을 모른다(마이크 자리 전용,
+                #   14차 C). 예전엔 이 호출 자체를 "on_user_turn"+"mic_open" 일 때만 했는데,
+                #   그러면 first/final 모드에선 마이크 훅이 아예 안 돌아 **큐·안내가 통화
+                #   끝까지 영구 대기**한다(전사 자리는 재접지 쪽지만 다루도록 이미 막아 뒀다
+                #   — `_attach_reground` at_mic 가드, C2 QA①). 모드 조건은 **쪽지 자리에만**
+                #   건다(`_attach_reground` 안, at_mic 인데 mic_open 모드가 아니면 쪽지만 건너뜀).
+                await _maybe_attach_reground_on_mic(session, state, data)
                 await session.send_audio(data)
                 state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
                 continue
@@ -6274,7 +6280,6 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     #   시작한 자리에만). 이 함수는 전사 자리(`LIVE_REGROUND_ATTACH_AT=first|final`)에서도
     #   불린다 — 그 자리에서 큐·안내를 먼저 먹으면 관문을 우회한다(운영은 mic_open 이라 지금
     #   안 타지만, 두 자리를 공유하는 이 함수 하나에서 막아야 다음에 자리가 늘어도 안전하다).
-    #   재접지 쪽지는 두 자리 모두에서 그대로 나간다 — 막는 건 큐·안내뿐이다.
     at_mic = where == "마이크"
     # ⭐ T16 — 퀴즈 큐가 대기 중이면 **큐가 먼저** 간다. 재접지 pending 은 그대로 남겨 다음 발화에 보낸다
     #   (둘을 한 문자열로 합치지 않는다). reground_count/last_reground_ts 는 건드리지 않는다 — 큐가 재접지
@@ -6288,6 +6293,13 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
         if await _attach_note(session, state, where):
             return
     if not (state.reground_pending and state.reground_reminder):
+        return
+    # ⭐⭐ QA C2 재검(2026-09-22): 마이크 훅은 이제 모드와 무관하게 늘 불린다(위 참조) —
+    #   그런데 **쪽지 자리는 여전히 REGROUND_ATTACH_AT 이 정한다.** first/final 모드에서
+    #   쪽지는 전사 자리 몫이다(:5551 — 그 자리는 이미 모드로 걸려 있다). 여기서 안 막으면
+    #   마이크에서도 같은 쪽지가 또 나가 **[쪽지][쪽지]** 중복이 된다. mic_open 모드가
+    #   아닌데 마이크 자리로 왔으면 쪽지는 건너뛴다(다음 전사 이벤트가 처리한다).
+    if at_mic and not (REGROUND_MODE == "on_user_turn" and REGROUND_ATTACH_AT == "mic_open"):
         return
     state.reground_pending = False    # await 전 선점(단일 소유권)
     state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
