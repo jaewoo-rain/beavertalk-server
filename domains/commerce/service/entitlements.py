@@ -5,11 +5,12 @@
     소유   member_character 행. 돈 주고 산 것. **영구**다.
     접근   구독이 여는 것. 구독이 끝나면 **닫힌다**.
 
-Max 의 "모든 캐릭터 무제한"은 후자다. 그래서 Max 회원에게 member_character 행을
-만들어 주면 안 된다 — 해지 후에도 영구 소유가 되어 되돌릴 수 없다. 접근은 DB 에
-쓰지 않고 **읽는 시점에 파생 계산**한다(체크판의 "증거가 원본, 나머지는 파생"과 같은 규율).
+Premium 의 "모든 캐릭터 무제한"(D1 이전엔 Max)은 후자다. 그래서 Premium 회원에게
+member_character 행을 만들어 주면 안 된다 — 해지 후에도 영구 소유가 되어 되돌릴
+수 없다. 접근은 DB 에 쓰지 않고 **읽는 시점에 파생 계산**한다(체크판의 "증거가
+원본, 나머지는 파생"과 같은 규율).
 
-앱도 두 축을 구분한다: `downgradeWarning` = *"Video calls and Max-only characters
+앱도 두 축을 구분한다: `downgradeWarning` = *"Video calls and Premium-only characters
 turn off on {date}"* — 해지하면 잠긴다는 걸 화면이 이미 말하고 있다. 그래서 wire 에서도
 `is_owned`(영구 구매)와 `is_unlocked`(지금 쓸 수 있음)를 섞지 않는다.
 

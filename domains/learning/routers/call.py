@@ -90,7 +90,7 @@ def get_daily_status(
       "level_test_today":    false,   # 사실 — 오늘 레벨테스트를 했나
       "can_call_normal":     true,    # ⭐ 판정 — 서버가 지금 거절할지
       "can_call_level_test": true,    # ⭐ 판정
-      "max_fragments":       1        # ⭐ 이 회원이 이을 수 있는 조각 수(Free 1 / Pro·Max 3)
+      "max_fragments":       1        # ⭐ 이 회원이 이을 수 있는 조각 수(Free 1 / Premium 3)
     }
     ```
 

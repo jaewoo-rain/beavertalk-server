@@ -360,7 +360,7 @@ class ServerCallStarted(BaseModel):
     # ⭐ 커리큘럼 2단계(§8): 서버가 정한 코스. cur 경로 통화만 값이 있다 — 옛 경로·일반·레벨테스트는 None 이고,
     #   None 은 직렬화에서 빠져 **프레임 바이트 동일**(구버전 클라 무해).
     course: Literal["expression", "freetalk"] | None = None
-    # ⭐ 끊김 없는 조각 전환(2026-09-13 S4): 이 소켓이 통화의 **몇 번째 조각**인가(1부터) · 이 플랜의 조각 상한(Free 1 / Pro·Max 3 —
+    # ⭐ 끊김 없는 조각 전환(2026-09-13 S4): 이 소켓이 통화의 **몇 번째 조각**인가(1부터) · 이 플랜의 조각 상한(Free 1 / Premium 3 —
     #   REST resume-status 와 **같은 함수** call_fragments_for_plan). 클라는 `fragment_index == max_fragments` 면 «마지막 조각 — 15:00 뒤
     #   재연결 없이 종료»(결정 6), 아니면 5:00 뒤 조용히 갈아 끼운다. 조각을 잇는 통화(normal·expression·freetalk)에만 값 — 레벨테스트는
     #   None 이고 None 은 직렬화에서 빠져 **프레임 바이트 동일**(구버전 클라 무해).

@@ -107,11 +107,22 @@ def test_naive_datetime_treated_as_utc():
 # --------------------------------------------------------------------------- #
 def test_newest_active_row_wins():
     """레거시 POST /subscriptions 가 중복 활성 행을 만들어 왔다. 최신이 이긴다 —
-    앱 resolver 도 같은 규칙이라, 폴백 전후로 화면이 바뀌면 안 된다."""
-    old = Row(subscribe_id=1, end_date=FUTURE)
-    new = Row(subscribe_id=2, end_date=FUTURE)
-    assert _state(old, new) == "active_premium"
-    assert _state(new, old) == "active_premium"  # 입력 순서와 무관
+    앱 resolver 도 같은 규칙이라, 폴백 전후로 화면이 바뀌면 안 된다.
+
+    ⛔ D1 이후 plan 이 premium 하나뿐이라 state 만 보면 어느 행이 이겨도
+      "active_premium"으로 같다 — 그래서는 최신 행 선택 자체가 회귀해도 못 잡는다.
+      행마다 다른 subscribe_id·가격·만료일을 주고 **고른 행의 값**을 단언한다.
+    """
+    old = Row(subscribe_id=1, end_date=FUTURE, price=Decimal("9.99"))
+    new = Row(subscribe_id=2, end_date=FUTURE + timedelta(days=5), price=Decimal("19.99"))
+
+    picked_forward = resolve_status([old, new], now=NOW)
+    picked_reversed = resolve_status([new, old], now=NOW)
+    for picked in (picked_forward, picked_reversed):
+        assert picked.state == "active_premium"
+        assert picked.subscribe_id == new.subscribe_id, "최신 행(subscribe_id=2)이 안 이겼다"
+        assert picked.price == new.price
+        assert picked.end_date == new.end_date
 
 
 def test_active_beats_ending_regardless_of_order():

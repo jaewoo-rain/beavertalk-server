@@ -49,7 +49,7 @@ PERIOD_DAYS: dict[str, int] = {"monthly": 30, "yearly": 365}
 class ProductRef:
     kind: Literal["character", "subscription"]
     character_id: Optional[int] = None
-    plan: Optional[str] = None            # 구독일 때만: pro | max
+    plan: Optional[str] = None            # 구독일 때만: premium
     billing_period: Optional[str] = None  # 구독일 때만: monthly | yearly
 
 

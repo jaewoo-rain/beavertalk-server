@@ -27,7 +27,7 @@ def upgrade() -> None:
         "subscribe", "plan",
         existing_type=sa.String(8), existing_nullable=False,
         server_default="premium",
-        comment="premium (free 없음)",
+        comment="free 없음 · premium",
     )
 
 
