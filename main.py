@@ -188,7 +188,7 @@ def _create_cascade_client(
 
     ⛔ 왜 따로 만드나: `genai.Client` 는 lifespan 이 한 번 만들어 **Live·캐스케이드·분석이
       전부 공유**한다. 그래서 `GCP_LOCATION` 을 서울로 바꾸면 **Live 도 같이 옮겨간다**.
-      Live 네이티브 오디오(`gemini-live-2.5-flash-native-audio`)의 서울 지원 여부는
+      Live 네이티브 오디오(현재 `gemini-3.1-flash-live-preview`)의 서울 지원 여부는
       **확인하지 못했다** — bidi WebSocket 이라 단순 호출로 못 재고, 모델 GET 은 어느
       리전에서든 404 라 가용성 판정에 못 쓴다. 확인 안 된 채 전역을 옮기면 **통화가 죽는다**.
       ⇒ 교체가 아니라 **추가**다. `app.state.genai_client` 는 그대로 둔다.

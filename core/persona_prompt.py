@@ -456,7 +456,7 @@ def build_system_instruction(
 # Live setup 분할 (2026-08-23) — 지시문을 setup 밖으로 빼서 1011 을 피한다
 # =========================================================================== #
 #
-# ⛔⛔ **왜 있나.** `gemini-2.5-flash-native-audio-preview-09-2025`(AI Studio)에서
+# ⛔⛔ **왜 있나.** 옛 2.5 계열 모델(AI Studio)에서
 #   **긴 system_instruction 과 function tool 이 같은 setup 페이로드에 함께 있으면
 #   통화가 100% 죽는다**(1011, `receive()` 0번째 메시지). 같은 시간대 라운드로빈 실측:
 #     · 지시문 5,057자 + set_face 를 setup 에 전부 → **0/8**
@@ -475,7 +475,7 @@ def build_system_instruction(
 #   _SETUP_CORE_TEMPLATE · _SETUP_CORE_FACE · build_setup_core() ·
 #   split_persona_for_injection(). 전부 2.5 시절의 응급처치였다.
 #
-#   ⭐ 왜 필요했나 — `gemini-2.5-flash-native-audio-preview-09-2025` 는 **긴 지시문 +
+#   ⭐ 왜 필요했나 — 옛 2.5 계열 모델은 **긴 지시문 +
 #     function tool 이 같은 setup 에 있으면 0/8 로 죽었다**(1011). 그래서 setup 을 380자
 #     코어로 줄이고 나머지를 통화 중에 조각으로 밀어넣었다.
 #   ⭐ 왜 없앴나 — **3.1 에는 그 제약이 없다.** 전문 9,094자 + tool 을 setup 에 넣어도

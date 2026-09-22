@@ -1438,10 +1438,11 @@ def estimate_usage_cost_usd(
            **포함**돼 나오고 Vertex 는 **빠진다**. 이 앱은 Vertex 지만(USE_VERTEX), 원가는
            모달리티 분해(response_tokens_details)로 계산하는데 그 분해가 사고 토큰을
            품는지는 문서에서 확인하지 못했다. 품는다면 더하는 순간 이중계상이다.
-        ② 애초에 이 모델은 사고를 안 한다. GEMINI_LIVE_MODEL 이
-           'gemini-live-2.5-flash-native-audio'(비-사고 대화형)이고, 사고형은
-           '...-native-audio-thinking-dialog' 라는 **다른 모델 id** 다.
-           실측 call 909 도 sum_thoughts=0 이었다.
+        ② 애초에 이 모델은 사고를 안 한다(당시 근거 — 옛 GEMINI_LIVE_MODEL 은 비-사고
+           대화형 계열이었고, 사고형은 별도 모델 id 였다. 실측 call 909 도
+           sum_thoughts=0). ⚠ C2(2026-09-22)로 GEMINI_LIVE_MODEL 이 3.1 로 바뀌었다 —
+           3.1 이 사고를 하는지는 **재확인하지 않았다**. sum_thoughts>0 경고 로그가
+           뜨면 이 판단부터 다시 봐라.
       즉 지금 더해도 값이 안 변하고, 틀리면 조용히 과대계상이 된다 — 그래서 안 더한다.
       대신 sum_thoughts>0 인 Live 통화가 나오면 call_session 이 **경고를 찍는다**(이 판단이
       낡았다는 신호). 그 로그가 보이면 ①을 실측으로 확인하고 여기 산식을 고쳐라.

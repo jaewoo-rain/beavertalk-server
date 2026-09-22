@@ -166,6 +166,35 @@ async def test_the_cue_rides_the_mic_gate_and_leaves_the_reground_counters_alone
 
 
 @pytest.mark.asyncio
+async def test_transcript_slot_never_consumes_the_cue_or_notes_only_reground() -> None:
+    """⛔⛔ QA C2-①(2026-09-22): 큐·안내는 **마이크 자리 전용**(14차 C) — `_attach_reground` 는
+    전사 자리(`LIVE_REGROUND_ATTACH_AT=first|final`)에서도 불리는 **공용 함수**라, 거기서
+    큐·안내를 먼저 먹으면 그 관문을 우회한다. 전사 자리에서는 재접지 쪽지만 나가야 한다."""
+    st = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st, t)
+    _user(st, "저는 미국 사람이에요")          # 큐 정리 완료 — 마이크 자리였다면 바로 얹혔을 상태
+    assert st.expr_quiz_cue_pending is not None
+    st.expr_quiz_set_nudge_pending = True      # 안내도 같이 대기 중이라고 가정
+    st.reground_pending = True
+    st.reground_reminder = "재접지 쪽지"
+    sess = _Sess()
+    await cs._attach_reground(sess, st, "전사·first")
+    assert st.expr_quiz_cue_pending is not None, "전사 자리에서 큐가 소비되면 안 된다"
+    assert st.expr_quiz_set_nudge_pending is True, "전사 자리에서 안내가 소비되면 안 된다"
+    assert sess.sent == [("재접지 쪽지", False)], "전사 자리는 재접지 쪽지만 나가야 한다"
+    assert st.reground_pending is False, "재접지 자체는 두 자리 모두에서 정상 동작한다"
+    # 대조군 — 같은 상태에서 마이크 자리는 큐를 먼저 소비한다(종전 동작 그대로)
+    st2 = _state()
+    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
+        _beaver(st2, t)
+    _user(st2, "저는 미국 사람이에요")
+    sess2 = _Sess()
+    await cs._attach_reground(sess2, st2, "마이크")
+    assert st2.expr_quiz_cue_pending is None, "마이크 자리는 종전대로 큐를 먼저 얹는다"
+
+
+@pytest.mark.asyncio
 async def test_a_failed_cue_send_keeps_the_cue_pending() -> None:
     """⛔ 재접지의 «await 전 내림» 과 다르다 — 큐는 필수라 다음 발화에서 재시도한다."""
     st = _state()

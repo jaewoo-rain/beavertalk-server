@@ -27,6 +27,7 @@ from db.registry import Base  # noqa: F401  (전 모델 import 부수효과)
 from domains.account.models.member import Member
 from domains.account.models.member_reason import MemberReason
 from domains.commerce.models.character import Character
+from domains.commerce.models.subscribe import Subscribe
 from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
 from domains.learning.models.learning_item import LearningItem
@@ -463,3 +464,33 @@ async def test_plan_override_is_reapplied_on_a_resumed_fragment(session_factory,
     assert h2["kw"].get("model") == app_settings.LIVE_MODEL_VIDEO
     h3 = await _run(session_factory, seeded, "normal", {}, extra={"continues_call_id": str(call.call_id)})
     assert h3["kw"].get("model") == app_settings.LIVE_MODEL_VOICE, "값을 안 보낸 조각은 본인 플랜으로 — 서버는 기억하지 않는다"
+
+
+# --------------------------------------------------------------------------- #
+# QA C2-③(2026-09-22): admin 흉내가 아니라 **진짜 구독 행**으로 — 실제 세션 팩토리
+# 인자(holder["kw"]["tools"])로 Free/Premium 을 검증한다. LIVE_FACE_SPIKE 기본값(False)은
+# 그대로 두고(운영 env 가 true), 시험에서만 True 로 켠다.
+# --------------------------------------------------------------------------- #
+def _subscribe_premium(session_factory, member_id: int) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    db = session_factory()
+    db.add(Subscribe(
+        member_id=member_id, plan="premium", start_date=datetime.now(timezone.utc),
+        end_date=datetime.now(timezone.utc) + timedelta(days=30),
+        is_activate=True, billing_state="ok", is_trial=False, source="manual",
+    ))
+    db.commit(); db.close()
+
+
+@pytest.mark.asyncio
+async def test_real_subscription_row_picks_tools_not_admin_override(session_factory, seeded, monkeypatch) -> None:
+    """Free 회원(구독 행 없음)은 tools 없음 · 진짜 premium 구독 행이 있는 회원은 set_face 가 tools 에 실린다."""
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True)
+    free = await _run(session_factory, seeded, "normal", {})
+    assert not free["kw"].get("tools"), "구독 없음(Free) 인데 tools 가 실렸다"
+
+    _subscribe_premium(session_factory, seeded["member_id"])
+    premium = await _run(session_factory, seeded, "normal", {})
+    assert premium["kw"].get("tools"), "진짜 premium 구독 행인데 tools 에 set_face 가 안 실렸다"
+    assert "[표정]" in premium["system_instruction"]

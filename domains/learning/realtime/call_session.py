@@ -6270,15 +6270,21 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     """
     if state.should_close or state.close_seed_sent:
         return
+    # ⭐⭐ QA C2-①(2026-09-22): 큐·안내는 **마이크 자리 전용**이다(14차 C — 학습자가 막 말을
+    #   시작한 자리에만). 이 함수는 전사 자리(`LIVE_REGROUND_ATTACH_AT=first|final`)에서도
+    #   불린다 — 그 자리에서 큐·안내를 먼저 먹으면 관문을 우회한다(운영은 mic_open 이라 지금
+    #   안 타지만, 두 자리를 공유하는 이 함수 하나에서 막아야 다음에 자리가 늘어도 안전하다).
+    #   재접지 쪽지는 두 자리 모두에서 그대로 나간다 — 막는 건 큐·안내뿐이다.
+    at_mic = where == "마이크"
     # ⭐ T16 — 퀴즈 큐가 대기 중이면 **큐가 먼저** 간다. 재접지 pending 은 그대로 남겨 다음 발화에 보낸다
     #   (둘을 한 문자열로 합치지 않는다). reground_count/last_reground_ts 는 건드리지 않는다 — 큐가 재접지
     #   간격 150s 를 소모하면 쪽지가 0회가 돼 되감기 방어가 죽는다(fable P1-3).
-    if state.expr_quiz_cue_pending is not None:
+    if at_mic and state.expr_quiz_cue_pending is not None:
         await _attach_quiz_cue(session, state, where)
         return
     # ⭐ 14차 C — 큐 다음은 안내(세트·드릴)다. 큐와 마찬가지로 **학습자가 막 말을 시작한 자리**에만 넣는다.
     #   재접지 쪽지는 그대로 남겨 다음 발화에 보낸다(큐와 같은 규율 — 한 자리에 하나).
-    if state.expr_quiz_set_nudge_pending or state.expr_drill_nudge_pending:
+    if at_mic and (state.expr_quiz_set_nudge_pending or state.expr_drill_nudge_pending):
         if await _attach_note(session, state, where):
             return
     if not (state.reground_pending and state.reground_reminder):
