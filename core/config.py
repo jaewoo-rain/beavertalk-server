@@ -105,67 +105,45 @@ class Settings(BaseSettings):
     GCP_PROJECT: str | None = None                 # Vertex 프로젝트 ID
     GCP_LOCATION: str = "us-central1"              # Vertex 리전
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None  # 서비스계정 키(JSON) 경로
-    GEMINI_LIVE_MODEL: str = "gemini-2.5-flash-native-audio-preview-12-2025"  # 통화(실시간 음성)
-    # ⭐⭐ **플랜별 모델**(2026-09-04). 영상통화(Max)만 표정을 쓰므로 그 모델만 3.1 로 간다.
-    #
-    #   Free·Pro → 음성통화 → 표정 없음 → VOICE 모델
-    #   Max      → 영상통화 → 표정 있음 → VIDEO 모델
+    GEMINI_LIVE_MODEL: str = "gemini-3.1-flash-live-preview"  # 통화(실시간 음성)
+    # ⭐⭐ **C2(2026-09-22, D2) — 3.1 단일 모델.** 옛 2.5/3.1 이원화(플랜별 모델 분기,
+    #   2026-09-04)를 걷어냈다 — Free 도 3.1 음성(표정 도구만 없음), Premium 은 3.1
+    #   영상(+set_face). 두 값이 이제 **같은 모델**이다.
     #
     #   ⛔ `GEMINI_LIVE_MODEL` 은 **폐기하지 않는다** — 아래 둘이 비어 있을 때의 폴백이고,
     #     레벨테스트·캐스케이드 등 플랜을 모르는 호출부가 아직 그것을 본다. 두 값을 다
     #     비워 두면 종전 동작 그대로다(하위호환).
     #   ⚠ 값을 여기서 고르지 마라 — 고르는 곳은 `call_service.live_model_for()` 하나다.
     #     두 곳에서 고르면 언젠가 갈라진다.
-    #   ⛔⛔ **모델 이름과 `USE_VERTEX` 는 반드시 같이 움직인다** — 백엔드마다 이름이 다르다.
-    #     ⚠⚠ 2026-09-08 정정: 여기 예전 주석이 이 사고를 «오타» 로, `docs/QUEUE.md` Q15 가
-    #       «구글이 모델을 내렸다» 로 적어 뒀는데 **둘 다 틀렸다.**
-    #       `gemini-live-2.5-flash-native-audio` 는 **Vertex 이름**이고 지금도 살아 있다
-    #       (2026-09-08 실측: Vertex bt-dev-web-01/us-central1 에서 정상 응답).
-    #     진짜 원인: demo-api 리비전 `00265-br2`(2026-09-06 01:21)에서 `USE_VERTEX` 가
-    #       true → false 로 뒤집혔는데 **모델 이름을 안 바꿨다.** AI Studio 에 그 이름이
-    #       없으니 1008 로 세션이 열리자마자 닫혔고, 그게 **Free·Pro 통화 2주 장애**다.
-    #       Max 는 VIDEO(3.1)라 멀쩡해서 아무도 몰랐다.
-    #       (app-api 는 8/20 `00072-msj` 에서 같은 전환을 하며 이름도 같이 바꿔 무사했다.)
-    #   ⭐ 두 백엔드는 이름이 **서로 전혀 안 통한다**(2026-09-08 실측):
-    #       Vertex(us-central1)  gemini-live-2.5-flash-native-audio        ✅ 유일하게 열림
-    #                            gemini-2.5-flash-native-audio-preview-*   ⛔ 1008
-    #                            gemini-3.1-flash-live-preview             ⛔ 1008 (3.1 은 Vertex 에 없다)
-    #       AI Studio            gemini-live-2.5-flash-native-audio        ⛔ 1008
-    #   ⭐ 실재하는 이름은 API 에 물어서 확인한다(2026-09-07 실측, bidiGenerateContent 지원):
-    #       gemini-2.5-flash-native-audio-latest           최신 자동 추종
-    #       gemini-2.5-flash-native-audio-preview-09-2025
-    #       gemini-2.5-flash-native-audio-preview-12-2025  ← 채택(최신 고정판)
-    #       gemini-3.1-flash-live-preview                  VIDEO 가 쓰는 것
-    #     `-latest` 를 안 쓴 이유: 구글이 바꾸면 **통보 없이** 통화 품질이 바뀐다.
+    #
+    #   ⛔ 역사(2.5 시절의 함정, 지금도 유효한 교훈 — **모델 이름과 `USE_VERTEX` 는
+    #     반드시 같이 움직인다**): demo-api 리비전 `00265-br2`(2026-09-06)가 `USE_VERTEX`
+    #     만 뒤집고 모델 이름을 안 바꿔 AI Studio 에 없는 이름으로 1008 이 났다 —
+    #     **Free·Pro 통화가 2주 죽었다**(당시 Max 만 VIDEO=3.1 이라 멀쩡해서 아무도 몰랐다).
+    #     지금은 3.1 이 Vertex 에 아예 없으므로(아래) 이 함정 자체가 구조적으로 막혔다 —
+    #     Vertex 를 켜도 `live_engine_for` 가 빈 Vertex 모델을 보고 studio 로 되돌린다(R5).
     #   ⚠ 바꿀 땐 `tests/test_live_model_name.py` 가 형태를 잠근다. 그래도 **실제 존재
     #     여부는 배포 전에 API 로 확인해라** — 테스트는 오프라인이라 그것까진 못 본다.
-    LIVE_MODEL_VOICE: str = "gemini-2.5-flash-native-audio-preview-12-2025"
+    LIVE_MODEL_VOICE: str = "gemini-3.1-flash-live-preview"
     LIVE_MODEL_VIDEO: str = "gemini-3.1-flash-live-preview"
 
-    # ⭐⭐ **플랜별 백엔드**(2026-09-08). 같은 2.5 가 Vertex 에서 2.5배 빠르다 — 실측:
-    #     Vertex   gemini-live-2.5-flash-native-audio             중앙 1.15초 (n=18)
-    #     AIStudio gemini-2.5-flash-native-audio-preview-09-2025  중앙 2.82초 (n=20)
-    #     AIStudio gemini-3.1-flash-live-preview                  중앙 1.30초 (n=20)
-    #   맨몸 세션(지시문·도구·압축 전부 없음)으로 쟀고, 실제 통화 로그와 값이 거의 같다
-    #   (맨몸 2.82초 ≈ 실통화 2.51초) ⇒ **우리 코드가 더하는 지연은 ≈0, 백엔드 차이다.**
-    #
-    # ⛔ **이름과 백엔드는 한 묶음이다.** 두 백엔드는 모델 이름이 서로 안 통하고(위 :119),
-    #   3.1 은 Vertex 에 아예 없다 ⇒ Max(영상)는 AI Studio 를 벗어날 수 없다. 혼합이 필수다.
-    # ⚠ 비워 두면 위 `LIVE_MODEL_VOICE/VIDEO` + 전역 `USE_VERTEX` 로 떨어진다
-    #   (= 종전 동작 그대로). 되돌리기는 이 두 값을 지우는 것으로 끝난다.
-    LIVE_VOICE_BACKEND: str = ""      # "vertex" | "studio" | "" (=전역 USE_VERTEX 따름)
-    LIVE_VIDEO_BACKEND: str = ""      # 〃
-    LIVE_MODEL_VOICE_VERTEX: str = "gemini-live-2.5-flash-native-audio"
+    # ⭐ 백엔드 분기 기반은 남겨 둔다(2026-09-08 도입) — **3.1 은 Vertex 에 없으므로**
+    #   (2026-09-08 실측 1008) 지금은 Free·Premium 모두 사실상 studio 로 고정된다.
+    #   Vertex 가 2.5 시절 냈던 속도 이득(중앙 1.15초 vs AI Studio 2.82초)은 3.1 에선
+    #   못 받는다 — 구글이 3.1 을 Vertex 에 올리면 `LIVE_MODEL_*_VERTEX` 만 채워 되살린다.
+    # ⚠ 비워 두면 위 `LIVE_MODEL_VOICE/VIDEO` + 전역 `USE_VERTEX` 로 떨어진다.
+    LIVE_VOICE_BACKEND: str = "studio"  # "vertex" | "studio" | "" (=전역 USE_VERTEX 따름)
+    LIVE_VIDEO_BACKEND: str = ""        # 〃 — 이미 Vertex 모델이 비어 있어 R5 로 studio 폴백
+    LIVE_MODEL_VOICE_VERTEX: str = ""  # ⛔ 3.1 은 Vertex 에 없다 — 비워 둔다(실측 1008)
     LIVE_MODEL_VIDEO_VERTEX: str = ""  # ⛔ 3.1 은 Vertex 에 없다 — 비워 둔다(실측 1008)
 
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
     # ⭐ 표현학습 판정의 주인(2026-09-15 4차, 사장님): «가르쳤나»(비버 턴마다)·«맞혔나»(퀴즈 창 학습자 턴마다)를 JUDGE_MODEL 사이드카가 의미로 판정한다.
     #   False 면 종전 문자열 대조(quiz_judge) 경로만 — 시험 기본값(tests/conftest.py)이자 비상 스위치. 사이드카 실패 턴은 켜져 있어도 문자열로 폴백한다(R5).
     EXPR_LLM_JUDGE: bool = True
-    # ⭐ 10차(2026-09-16, 1638 — 2.5 가 퀴즈 큐·세트 안내를 무시해 seq1 이 끝내 미출제, 3.1 은 준수): **2.5 계열 모델일 때만** 퀴즈 큐를
-    #   완결 텍스트 턴(send_text_turn, 종료 시드와 같은 통로)으로 보낸다 — «시드는 직접 명령이라 지켜지고 지시문은 배경이라 안 지켜진다»(locked/seeds.seed_resume).
-    #   3.1 은 종전(send_reground turn_complete=False). 나쁘면 env 로 끈다.
-    EXPR_CUE_COMPLETED_TURN_25: bool = True
+    # ⛔ 옛 EXPR_CUE_COMPLETED_TURN_25(10차, 2026-09-16)는 C2(2026-09-22, D2 3.1 단일화)에서
+    #   삭제했다 — 2.5 계열 모델 자체가 더 이상 안 쓰인다. 퀴즈 큐·안내는 이제 항상
+    #   재접지 얹기(send_reground turn_complete=False) 하나로만 간다.
 
     # Live 컨텍스트 압축(build_live_config). trigger 에 닿으면 target 만 남기고 오래된
     # 대화부터 버린다. 세션 수명(압축 無면 오디오 15분/연결 ~10분) 대비로 넣은 값이지만,

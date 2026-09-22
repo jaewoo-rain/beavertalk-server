@@ -93,17 +93,18 @@ def test_default_model_is_one_we_actually_saw(field):
     )
 
 
-def test_voice_and_video_are_different_models():
-    """⭐ 플랜 분기의 **존재 이유**를 못박는다.
+def test_voice_and_video_are_the_same_model_now():
+    """⭐ C2(2026-09-22, D2) — **3.1 단일 모델**로 결정이 바뀌었다.
 
-    둘이 같아지면 원가 절감(Free·Pro 를 싼 모델로)이 조용히 사라진다.
-    같게 만들 이유가 생기면 이 시험을 지우는 게 아니라 **결정을 문서에 적고** 지워라.
+    docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md D2: "Live 모델 = 3.1 하나.
+    Free = 3.1 음성(표정 도구 없음) · 프리미엄 = 3.1 영상 + set_face 도구." 원가 절감을
+    위한 2.5/3.1 플랜 분기(옛 이 시험이 지키던 것)는 폐기하고 원가 상승을 수용했다.
+    VOICE·VIDEO 는 이제 **의도적으로 같다** — 표정 도구 유무만 플랜을 가른다.
     """
     d = _defaults()
-    assert Settings.model_fields["LIVE_MODEL_VOICE"].default != \
-        Settings.model_fields["LIVE_MODEL_VIDEO"].default, (
-        "VOICE 와 VIDEO 가 같다 — 플랜별 모델 분기가 무의미해졌다"
-    )
+    assert Settings.model_fields["LIVE_MODEL_VOICE"].default == \
+        Settings.model_fields["LIVE_MODEL_VIDEO"].default == \
+        "gemini-3.1-flash-live-preview"
     assert d is not None
 
 

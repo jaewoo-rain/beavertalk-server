@@ -633,7 +633,6 @@ async def test_quiz_set_drift_is_flagged_by_the_taught_judge_and_nudged_once(mon
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
     st = _state(JA_ITEMS + [{"item_id": 106, "obj": "またね", "des": "또 봐", "ex": None},
                             {"item_id": 107, "obj": "さようなら", "des": "안녕히 가세요", "ex": None}])
-    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 완결 턴 통로(2.5). 3.1 통로는 E 시험이 본다
     st.covered_nums = [1, 2, 3, 4, 5]        # 6·7 이 남아 있어야 가르침 판정 사이드카가 돈다
     _open_quiz(st, [4, 5])
     st.expr_quiz_set = [4, 5]
@@ -642,8 +641,8 @@ async def test_quiz_set_drift_is_flagged_by_the_taught_judge_and_nudged_once(mon
     assert st.expr_quiz_set_nudge_pending is True
     sess = _Sess()
     assert await cs._inject_quiz_set_reminder(sess, st) is True
-    assert sess.sent_text_turns and "지금 낼 문제는 «ごめんなさい» «はい» 뿐이다" in sess.sent_text_turns[0]
-    assert "이미 다룬 다른 표현은 다시 묻지 말고" in sess.sent_text_turns[0]
+    assert sess.regrounds and "지금 낼 문제는 «ごめんなさい» «はい» 뿐이다" in sess.regrounds[0][0]
+    assert "이미 다룬 다른 표현은 다시 묻지 말고" in sess.regrounds[0][0]
     assert st.expr_quiz_set_nudges == 1 and st.expr_quiz_set_nudge_pending is False
     # 세트 안 항목을 다시 물은 것은 이탈이 아니다
     cs._note_quiz_set_drift(st, [4], 9)
@@ -653,7 +652,6 @@ async def test_quiz_set_drift_is_flagged_by_the_taught_judge_and_nudged_once(mon
 @pytest.mark.asyncio
 async def test_quiz_set_nudge_is_capped_per_call():
     st = _state()
-    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 완결 턴 통로(2.5). 3.1 통로는 E 시험이 본다
     st.covered_nums = [1, 2, 3, 4, 5]
     _open_quiz(st, [4, 5])
     st.expr_quiz_set = [4, 5]
@@ -663,7 +661,7 @@ async def test_quiz_set_nudge_is_capped_per_call():
         assert await cs._inject_quiz_set_reminder(sess, st) is True
     st.expr_quiz_set_nudge_pending = True
     assert await cs._inject_quiz_set_reminder(sess, st) is False, "통화당 2회 상한"
-    assert len(sess.sent_text_turns) == 2 and cs.EXPR_QUIZ_SET_NUDGE_MAX == 2
+    assert len(sess.regrounds) == 2 and cs.EXPR_QUIZ_SET_NUDGE_MAX == 2
     # 상한 뒤에는 표시도 서지 않는다
     st.expr_quiz_set_nudge_pending = False
     cs._note_quiz_set_drift(st, [2], 3)
@@ -736,7 +734,6 @@ async def test_teaching_a_brand_new_item_during_a_quiz_also_nudges(monkeypatch):
     fake = FakeJudge(taught_fn=lambda p, s: [5], verdict_fn=lambda p, s: {"verdicts": []})
     monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
     st = _state()
-    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 완결 턴 통로(2.5). 3.1 통로는 E 시험이 본다
     st.covered_nums = [1, 2, 3]
     _open_quiz(st, [1, 2, 3])
     _beaver(st, "자, «네» 는 일본어로 はい 라고 해. 따라 해 봐.")     # 세트 밖 새 항목(5번)을 창 안에서 가르쳤다
@@ -745,7 +742,7 @@ async def test_teaching_a_brand_new_item_during_a_quiz_also_nudges(monkeypatch):
     assert st.expr_quiz_set_nudge_pending is True, "세트 이탈 — 안내 표시"
     sess = _Sess()
     assert await cs._inject_quiz_set_reminder(sess, st) is True
-    assert "지금 낼 문제는" in sess.sent_text_turns[0]
+    assert "지금 낼 문제는" in sess.regrounds[0][0]
 
 
 
@@ -770,7 +767,9 @@ async def test_failed_taught_judge_counts_both_fail_and_fallback(monkeypatch, ca
 
 
 # --------------------------------------------------------------------------- #
-# 10차 (2026-09-16, 1638 — 2.5 가 큐를 무시) — 2.5 면 퀴즈 큐를 완결 텍스트 턴으로 · 3.1 종전 · 비버 발화 중엔 안 보냄
+# C2(2026-09-22, D2 3.1 단일화) — 퀴즈 큐는 항상 재접지 얹기(tc=False) 하나뿐이다.
+#   옛 10차(2026-09-16, 1638 — 2.5 가 큐를 무시)의 완결 텍스트 턴 분기는 2.5 계열 모델
+#   자체가 더 이상 안 쓰이므로 걷어냈다(_cue_completed_turn·EXPR_CUE_COMPLETED_TURN_25 삭제).
 # --------------------------------------------------------------------------- #
 class _CueSess:
     def __init__(self):
@@ -794,48 +793,17 @@ def _armed_cue_state(model):
 
 
 @pytest.mark.asyncio
-async def test_quiz_cue_is_a_completed_text_turn_on_25(caplog):
+async def test_quiz_cue_is_always_an_incomplete_reground_attach(caplog):
     import logging
     caplog.set_level(logging.INFO, logger=cs.logger.name)
-    st = _armed_cue_state("gemini-live-2.5-flash-native-audio")
-    sess = _CueSess()
-    await cs._attach_quiz_cue(sess, st, "마이크")
-    assert len(sess.text_turns) == 1 and sess.regrounds == [], "2.5 → send_text_turn(완결 턴)"
-    assert st.expr_quiz_cue_pending is None and st.expr_quiz_awaiting_open is True
+    for model in ("gemini-3.1-flash-live-preview", None):
+        st = _armed_cue_state(model)
+        sess = _CueSess()
+        await cs._attach_quiz_cue(sess, st, "마이크")
+        assert sess.text_turns == [] and len(sess.regrounds) == 1 and sess.regrounds[0][1] is False, model
+        assert st.expr_quiz_cue_pending is None and st.expr_quiz_awaiting_open is True
     line = [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
-    assert "tc=True 모델=gemini-live-2.5-flash-native-audio" in line
-
-
-@pytest.mark.asyncio
-async def test_quiz_cue_stays_an_incomplete_attach_on_31_and_when_switched_off(monkeypatch, caplog):
-    import logging
-    caplog.set_level(logging.INFO, logger=cs.logger.name)
-    st = _armed_cue_state("gemini-3.1-flash-live-preview")
-    sess = _CueSess()
-    await cs._attach_quiz_cue(sess, st, "마이크")
-    assert sess.text_turns == [] and len(sess.regrounds) == 1 and sess.regrounds[0][1] is False, "3.1 → 종전 tc=False"
-    assert "tc=False" in [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
-    monkeypatch.setattr(cs._settings, "EXPR_CUE_COMPLETED_TURN_25", False)
-    st2 = _armed_cue_state("gemini-live-2.5-flash-native-audio")
-    sess2 = _CueSess()
-    await cs._attach_quiz_cue(sess2, st2, "마이크")
-    assert sess2.text_turns == [] and sess2.regrounds[0][1] is False, "스위치 끄면 2.5 도 종전"
-    st3 = _armed_cue_state(None)
-    sess3 = _CueSess()
-    await cs._attach_quiz_cue(sess3, st3, "마이크")
-    assert sess3.text_turns == [] and len(sess3.regrounds) == 1, "모델을 모르면(레벨테스트·시험) 종전"
-
-
-@pytest.mark.asyncio
-async def test_completed_turn_cue_is_not_sent_while_the_beaver_is_speaking():
-    st = _armed_cue_state("gemini-live-2.5-flash-native-audio")
-    st.turn_id = "t-speaking"
-    sess = _CueSess()
-    await cs._attach_quiz_cue(sess, st, "마이크")
-    assert sess.text_turns == [] and sess.regrounds == [] and st.expr_quiz_cue_pending is not None, "R4 — 발화 중엔 보류(다음 관문에서 다시)"
-    st.turn_id = None
-    await cs._attach_quiz_cue(sess, st, "마이크")
-    assert len(sess.text_turns) == 1
+    assert "tc=" not in line, "완결 턴 통로는 이제 없다 — 로그에도 남지 않아야 한다"
 
 
 # --------------------------------------------------------------------------- #
@@ -924,10 +892,10 @@ async def test_call_id_is_the_first_field_after_the_prefix_and_old_fields_keep_t
     caplog.set_level(logging.INFO, logger=cs.logger.name)
     st = _cid_state(1644)
     st.expr_quiz_cue_pending, st.expr_quiz_set, st.expr_quiz_seq, st.expr_quiz_prev_num = "[큐]", [4, 5], 2, None
-    st.live_model = "gemini-live-2.5-flash-native-audio"
+    st.live_model = "gemini-3.1-flash-live-preview"
     await cs._attach_quiz_cue(_CidSess(), st, "마이크")
     line = [r.getMessage() for r in caplog.records if "퀴즈 큐 얹기:" in r.getMessage()][-1]
-    assert re.search(r"퀴즈 큐 얹기: call_id=1644 seq=2 항목=\[4, 5\] 얹기=마이크 대기=\d+s 비버턴=.+ 정리=.* tc=\w+ 모델=", line), line
+    assert re.search(r"퀴즈 큐 얹기: call_id=1644 seq=2 항목=\[4, 5\] 얹기=마이크 대기=\d+s 비버턴=.+ 정리=.* 모델=", line), line
     m = re.search(r"call_id=(\d+|-)", line)
     assert m and m.group(1) == "1644"
     # 지정된 줄 전부 — 소스의 포맷 문자열이 «접두 뒤 첫 필드 = call_id» 를 지킨다
@@ -955,7 +923,7 @@ JA_DRILL = [
 def _drill_state(items=None):
     st = _state(items=items or JA_DRILL)
     st.call_id = 1643
-    st.live_model = "gemini-live-2.5-flash-native-audio"   # 12차 E — 통로 판별용(2.5 = 완결 턴)
+    st.live_model = "gemini-3.1-flash-live-preview"
     st.expr_llm_judge = False          # 문자열 경로 — 드릴 추적은 판정기와 무관하다
     return st
 
@@ -985,10 +953,10 @@ async def test_drill_on_one_item_past_three_learner_turns_gets_one_move_on_note(
         _user(st, said)
         _beaver(st, "좋아요! 한 번 더 — «こんにちは» 를 크게 말해 보세요 (%d)" % i)   # 매번 다른 문장 = 루프 차단기 미발동
         await _turn_end(sess, st)
-    assert sess.text_turns == [cs.EXPRESSION_DRILL_MOVE_ON], "3턴 초과 시점에 안내 1회"
+    assert [t for t, _ in sess.regrounds] == [cs.EXPRESSION_DRILL_MOVE_ON], "3턴 초과 시점에 안내 1회"
     assert st.expr_drill_nudges == 1 and st.expr_drill_nudge_pending is False
     line = [r.getMessage() for r in caplog.records if "드릴 안내 주입" in r.getMessage()][-1]
-    assert "call_id=1643" in line and "1/6" in line and "tc=True" in line
+    assert "call_id=1643" in line and "1/6" in line
 
 
 JA_DRILL8 = [{"item_id": 200 + i, "obj": obj, "des": "뜻%d" % i, "ex": None} for i, obj in enumerate(
@@ -1005,7 +973,7 @@ async def test_drill_move_on_note_is_sent_once_per_item():
         _user(st, "음... %d" % i)
         _beaver(st, "한 번 더 — «こんにちは» (%d)" % i)
         await _turn_end(sess, st)
-    assert len(sess.text_turns) == 1 and st.expr_drill_nudges == 1, sess.text_turns
+    assert len(sess.regrounds) == 1 and st.expr_drill_nudges == 1, sess.regrounds
     assert st.expr_drill_nudged == {1}
     # 다른 항목으로 옮기면 그 항목에는 다시 쓸 수 있다
     _beaver(st, "이제 «はじめまして» 예요")
@@ -1013,7 +981,7 @@ async def test_drill_move_on_note_is_sent_once_per_item():
         _user(st, "네 %d" % i)
         _beaver(st, "«はじめまして» 다시 (%d)" % i)
         await _turn_end(sess, st)
-    assert len(sess.text_turns) == 2 and st.expr_drill_nudged == {1, 2}
+    assert len(sess.regrounds) == 2 and st.expr_drill_nudged == {1, 2}
 
 
 @pytest.mark.asyncio
@@ -1028,17 +996,17 @@ async def test_drill_move_on_note_is_capped_at_six_per_call():
         _beaver(st, "«さようなら» 로 돌아가죠")            # 초점을 마지막 covered 로 되돌려 다음 항목이 또 잡히게
         await _turn_end(sess, st)
     assert cs.EXPR_DRILL_NUDGE_MAX == 6
-    assert len(sess.text_turns) == 6 == st.expr_drill_nudges, sess.text_turns
+    assert len(sess.regrounds) == 6 == st.expr_drill_nudges, sess.regrounds
     assert len(st.expr_drill_nudged) == 6, st.expr_drill_nudged
 
 
 # --------------------------------------------------------------------------- #
-# 12차 E (2026-09-18, 1646 — 3.1 인데 드릴 안내가 tc=True 로 나갔다) — 안내 통로도 10차 결정(_cue_completed_turn)을 탄다
+# C2(2026-09-22, D2 3.1 단일화) — 드릴·세트 안내는 모델과 무관하게 항상 재접지 얹기다.
+#   옛 12차 E(2026-09-18, 1646)의 «2.5 면 완결 텍스트 턴» 분기는 걷어냈다(10차와 같은 이유).
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_notes_use_the_completed_turn_only_on_25_like_the_quiz_cue():
-    """E — 드릴 안내·세트 안내: 2.5 면 완결 텍스트 턴, 3.1 이면 종전 통로(재접지 얹기 tc=False)."""
-    for model, expect_tc in (("gemini-live-2.5-flash-native-audio", True), ("gemini-3.1-flash-live-preview", False)):
+async def test_notes_are_always_an_incomplete_reground_attach_regardless_of_model():
+    for model in ("gemini-3.1-flash-live-preview", None):
         st, sess = _drill_state(), _CidSess()
         st.live_model = model
         st.expr_drill_nudge_pending, st.expr_drill_focus = True, 1
@@ -1048,10 +1016,7 @@ async def test_notes_use_the_completed_turn_only_on_25_like_the_quiz_cue():
         st2.expr_quiz_open, st2.expr_quiz_set = True, [1, 2]
         await cs._inject_quiz_set_reminder(sess2, st2)
         for name, sx in (("드릴 안내", sess), ("세트 안내", sess2)):
-            if expect_tc:
-                assert len(sx.text_turns) == 1 and sx.regrounds == [], (model, name, sx.text_turns, sx.regrounds)
-            else:
-                assert sx.text_turns == [] and len(sx.regrounds) == 1 and sx.regrounds[0][1] is False, (model, name)
+            assert sx.text_turns == [] and len(sx.regrounds) == 1 and sx.regrounds[0][1] is False, (model, name)
 
 
 @pytest.mark.asyncio
@@ -1065,7 +1030,7 @@ async def test_normal_drill_progression_gets_no_move_on_note():
         _user(st, "네")
         await _turn_end(sess, st)
         assert st.expr_drill_focus == n
-    assert sess.text_turns == [] and st.expr_drill_nudges == 0
+    assert sess.text_turns == [] and sess.regrounds == [] and st.expr_drill_nudges == 0
     # 퀴즈 창이 열리면 드릴 추적은 멈춘다(주입 겹침 금지)
     st.expr_quiz_open, st.expr_quiz_set = True, [1, 2, 3]
     st.expr_drill_focus, st.expr_drill_user_turns = 1, 0
@@ -1073,7 +1038,7 @@ async def test_normal_drill_progression_gets_no_move_on_note():
         _beaver(st, "«こんにちは» 는 뭐였죠? (%d)" % i)
         _user(st, "음...")
         await _turn_end(sess, st)
-    assert sess.text_turns == [] and st.expr_drill_nudge_pending is False
+    assert sess.text_turns == [] and sess.regrounds == [] and st.expr_drill_nudge_pending is False
 
 
 # --------------------------------------------------------------------------- #
@@ -1152,14 +1117,15 @@ async def test_drill_tracking_keeps_running_inside_the_quiz_window_and_the_note_
         await _turn_end(sess, st)
     assert st.expr_drill_focus == 1, "창 안에서도 항목 추적이 돈다"
     assert st.expr_drill_nudge_pending is True, "안내 표시는 창 안에서도 선다"
-    assert cs.EXPRESSION_DRILL_MOVE_ON not in sess.text_turns, "창이 열린 동안에는 드릴 안내 주입 0(퀴즈를 방해하지 않는다)"
+    sent = [t for t, _ in sess.regrounds]
+    assert cs.EXPRESSION_DRILL_MOVE_ON not in sent, "창이 열린 동안에는 드릴 안내 주입 0(퀴즈를 방해하지 않는다)"
     # ⚠ 세트 안내(8차 C·13차 D)는 창 안에서 나간다 — 세트 밖 항목을 다뤘으니 그쪽이 제 일을 한 것이다
-    assert any("지금 낼 문제는" in t for t in sess.text_turns), "세트 이탈 안내는 창 안에서 제 몫을 한다"
+    assert any("지금 낼 문제는" in t for t in sent), "세트 이탈 안내는 창 안에서 제 몫을 한다"
     st.expr_quiz_open, st.expr_quiz_set = False, []      # 창이 닫혔다
-    before = len(sess.text_turns)
+    before = len(sess.regrounds)
     _beaver(st, "좋아요, 다음으로 가죠")
     await _turn_end(sess, st)
-    assert sess.text_turns[before:] == [cs.EXPRESSION_DRILL_MOVE_ON], "닫힌 뒤 다음 turn_end 에 나간다"
+    assert [t for t, _ in sess.regrounds[before:]] == [cs.EXPRESSION_DRILL_MOVE_ON], "닫힌 뒤 다음 turn_end 에 나간다"
 
 
 @pytest.mark.asyncio
@@ -1172,7 +1138,7 @@ async def test_quiz_progress_on_set_items_is_not_counted_as_a_drill_loop():
         _beaver(st, "«こんにちは» 는 뭐라고 하죠? (%d)" % i)
         _user(st, "음...")
         await _turn_end(sess, st)
-    assert st.expr_drill_nudge_pending is False and sess.text_turns == [] and st.expr_drill_nudges == 0
+    assert st.expr_drill_nudge_pending is False and sess.regrounds == [] and st.expr_drill_nudges == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -1182,7 +1148,6 @@ async def test_quiz_progress_on_set_items_is_not_counted_as_a_drill_loop():
 def test_set_drift_counts_any_item_outside_the_set_even_if_not_covered_yet():
     """D① — 아직 안 다룬 항목도 이탈이다(옛 조건은 covered 여야 했다)."""
     st = _state()
-    st.live_model = "gemini-live-2.5-flash-native-audio"
     st.covered_nums = [1, 2]
     _open_quiz(st, [1, 2])
     st.expr_quiz_set = [1, 2]

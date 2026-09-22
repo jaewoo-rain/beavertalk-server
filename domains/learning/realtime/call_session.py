@@ -1644,14 +1644,11 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
         return False
     labels = " ".join("«%s»" % state.reground_items[n - 1] for n in state.expr_quiz_set if 1 <= n <= len(state.reground_items))
     state.expr_quiz_set_nudges += 1
-    # ⭐ 12차 E(2026-09-18, 1646 — 3.1 인데 완결 턴으로 나갔다): 10차 결정은 «완결 턴은 2.5 계열만» 이다. 세트 안내·드릴 안내도 큐와
-    #   같은 판별(`_cue_completed_turn`)을 탄다 — 3.1 이면 종전 통로(재접지 얹기, tc=False).
-    tc = _cue_completed_turn(state)
-    await _send_note(session, expression_quiz_set_reminder(labels), tc)
+    await _send_note(session, expression_quiz_set_reminder(labels))
     _note_text_inject(state, "quiz_set")
-    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s 자리=마이크 tc=%s 모델=%s",
+    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s 자리=마이크 모델=%s",
                 EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
-                _cid(state), state.expr_quiz_set, tc, state.live_model or "-")
+                _cid(state), state.expr_quiz_set, state.live_model or "-")
     return True
 
 
@@ -1747,14 +1744,13 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     if state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
         return False
     state.expr_drill_nudges += 1
-    tc = _cue_completed_turn(state)      # 12차 E — 2.5 만 완결 턴(10차 결정) · 3.1 은 종전 통로
-    await _send_note(session, EXPRESSION_DRILL_MOVE_ON, tc)
+    await _send_note(session, EXPRESSION_DRILL_MOVE_ON)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
-    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s 자리=마이크 tc=%s 모델=%s",
+    logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s 자리=마이크 모델=%s",
                 state.expr_drill_nudges, EXPR_DRILL_NUDGE_MAX, _cid(state),
                 state.expr_drill_nudge_for if state.expr_drill_nudge_for is not None else state.expr_drill_focus,
-                tc, state.live_model or "-")
+                state.live_model or "-")
     return True
 
 
@@ -6356,17 +6352,11 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
         return
     now = asyncio.get_running_loop().time()
     waited = (now - state.expr_quiz_cue_armed_ts) if state.expr_quiz_cue_armed_ts is not None else 0.0
-    # ⭐ 10차(2026-09-16, 1638): 2.5 계열이면 **완결 텍스트 턴**(send_text_turn — 종료 시드가 매 통화 쓰는 같은 통로)으로 보낸다. 2.5 는 미완결 얹기
-    #   (지시문처럼 배경으로 읽힘)를 무시해 seq1 이 끝내 안 나왔다. 3.1 은 이미 준수하고 완결 턴 1011 전례가 있어 종전(tc=False) 그대로.
-    #   ⛔ R4: 비버 발화 중(turn_id)에는 보내지 않는다 — 큐는 pending 으로 남아 다음 관문에서 다시 본다. 완결 턴이라 «열린 턴에 마이크 무음» 창은 안 생긴다.
-    tc = _cue_completed_turn(state)
-    if tc and state.turn_id is not None:
-        return
+    # C2(2026-09-22, D2 3.1 단일화): 옛 10차 결정(2.5 계열은 완결 텍스트 턴)은 걷어냈다 —
+    # 2.5 계열 모델 자체가 더 이상 안 쓰인다. 재접지 얹기(send_reground turn_complete=False)
+    # 하나로만 간다(3.1 이 이미 준수하던 통로 — 완결 턴 1011 전례가 있어 바꾸지 않는다).
     try:
-        if tc:
-            await session.send_text_turn(cue)
-        else:
-            await session.send_reground(cue, turn_complete=False)
+        await session.send_reground(cue, turn_complete=False)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - 다음 발화에서 재시도(R5)
@@ -6378,9 +6368,9 @@ async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, wher
     _note_text_inject(state, "quiz_cue")
     # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
     logger.info(
-        "%s 얹기: call_id=%s seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s tc=%s 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
+        "%s 얹기: call_id=%s seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
         _cid(state), state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
-        tc, state.live_model or "-",
+        state.live_model or "-",
     )
 
 
@@ -6419,7 +6409,8 @@ async def _attach_note(session: LiveSessionProtocol, state: _CallState, where: s
     ⛔ 왜 turn_end 가 아닌가: 비버 턴이 끝난 직후 idle 에 넣으면 비버가 그 텍스트를 **대화 차례**로 받아 다음 턴을 스스로 만든다 —
       1651 에서 학습자 턴 0 인데 «You got it!»·«Exactly!» 로 자문자답한 구간이 그것이다. 마이크 자리는 사람이 막 말을 시작한
       자리라(RMS 통과) 비버가 그 말에 이어서 반응한다. 퀴즈 큐가 이미 쓰는 자리·관문 그대로다(T16·10차).
-    통로는 모델별(_cue_completed_turn): 2.5 완결 텍스트 턴 · 3.1 재접지 얹기(tc=False). 한 자리에 하나만 — 세트가 먼저다.
+    통로는 재접지 얹기 하나뿐이다(C2, 2026-09-22 — 3.1 단일화로 2.5 전용 완결 텍스트 턴 경로를 걷어냈다).
+    한 자리에 하나만 — 세트가 먼저다.
     """
     kind = "quiz_set" if state.expr_quiz_set_nudge_pending else ("drill" if state.expr_drill_nudge_pending else "")
     if not kind:
@@ -6438,19 +6429,14 @@ async def _attach_note(session: LiveSessionProtocol, state: _CallState, where: s
     return sent
 
 
-async def _send_note(session: LiveSessionProtocol, text: str, completed_turn: bool) -> None:
-    """12차 E — 통화 중 안내문 1건을 보낸다. 완결 텍스트 턴(2.5 — 종료 시드와 같은 통로) / 재접지 얹기(3.1 — 종전 통로) 중 하나.
-    ⛔ 부르는 자리는 그대로다(turn_end 뒤 비버 idle) — 통로만 모델에 맞춘다."""
-    if completed_turn:
-        await session.send_text_turn(text)
-    else:
-        await session.send_reground(text, turn_complete=False)
+async def _send_note(session: LiveSessionProtocol, text: str) -> None:
+    """통화 중 안내문 1건을 재접지 얹기로 보낸다(turn_end 뒤 비버 idle 자리).
 
-
-def _cue_completed_turn(state: _CallState) -> bool:
-    """10차 — 퀴즈 큐를 완결 텍스트 턴으로 보낼까: 스위치(EXPR_CUE_COMPLETED_TURN_25) 켜짐 ∧ 이 통화 모델이 **명시적으로** 2.5 계열.
-    ⚠ live_model 이 비어 있으면(레벨테스트·옛 경로·시험) 종전 경로 — 모델을 모르면 바꾸지 않는다."""
-    return bool(getattr(_settings, "EXPR_CUE_COMPLETED_TURN_25", True)) and "2.5" in (state.live_model or "")
+    ⛔ C2(2026-09-22, D2 3.1 단일화)에서 옛 완결 텍스트 턴 통로(2.5 전용, 10차·12차 E)를
+    걷어냈다 — 2.5 계열 모델 자체가 더 이상 안 쓰인다. 되살릴 일이 있으면
+    `git show` 로 `_cue_completed_turn`/`EXPR_CUE_COMPLETED_TURN_25` 이력을 참고하라.
+    """
+    await session.send_reground(text, turn_complete=False)
 
 
 def _reground_due(state: _CallState, now: float) -> str:

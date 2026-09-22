@@ -217,7 +217,9 @@ def test_legacy_constant_is_untouched():
 # 5. 설정 자체
 # --------------------------------------------------------------------------- #
 
-def test_defaults_keep_max_on_31_and_others_on_25():
+def test_defaults_keep_both_plans_on_31():
+    """C2(2026-09-22, D2 3.1 단일화) — 옛 2.5/3.1 플랜 분기는 폐기됐다. 둘 다 3.1."""
     s = Settings(DATABASE_URL_POOL="postgresql://x/y")
     assert "3.1" in s.LIVE_MODEL_VIDEO
-    assert "2.5" in s.LIVE_MODEL_VOICE
+    assert "3.1" in s.LIVE_MODEL_VOICE
+    assert "2.5" not in s.LIVE_MODEL_VOICE and "2.5" not in s.LIVE_MODEL_VIDEO

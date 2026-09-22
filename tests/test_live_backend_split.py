@@ -107,13 +107,16 @@ def test_empty_backend_settings_follow_the_global_flag(monkeypatch):
     assert cs.live_engine_for(object(), 1) == ("vertex", "M-VERTEX-2.5")
 
 
-def test_defaults_ship_with_vertex_voice_and_no_vertex_video():
-    """설정 기본값 자체 — Vertex 음성 이름은 있고, Vertex 영상 이름은 **비어 있어야** 한다."""
+def test_defaults_ship_with_no_vertex_model_either_side():
+    """C2(2026-09-22, D2 3.1 단일화): 설정 기본값 자체 — Vertex 음성·영상 이름 둘 다
+    **비어 있어야** 한다(3.1 은 Vertex 에 없다 — 이름을 지어내지 마라). 음성 백엔드는
+    studio 로 명시 고정, 영상은 R5 폴백(빈 Vertex 모델 → studio)으로 같은 곳에 닿는다."""
     from core.config import Settings
 
     s = Settings(DATABASE_URL_POOL="postgresql://x/y")
-    assert s.LIVE_MODEL_VOICE_VERTEX == "gemini-live-2.5-flash-native-audio"
-    assert s.LIVE_MODEL_VIDEO_VERTEX == "", "3.1 은 Vertex 에 없다 — 이름을 지어내지 마라"
+    assert s.LIVE_MODEL_VOICE_VERTEX == ""
+    assert s.LIVE_MODEL_VIDEO_VERTEX == ""
+    assert s.LIVE_VOICE_BACKEND == "studio"
 
 
 # --------------------------------------------------------------------------- #
@@ -205,3 +208,28 @@ def test_default_client_meaning_is_unchanged():
     assert "app.state.genai_client = _create_genai_client(settings)" in src, \
         "기본 클라이언트 생성이 바뀌었다 — 캐스케이드·분석이 같이 움직인다"
     assert "app.state.genai_client_vertex" in src and "app.state.genai_client_studio" in src
+
+
+# --------------------------------------------------------------------------- #
+# 6. C2(2026-09-22, D2) — 실제 기본 설정(monkeypatch 없이)으로 두 플랜 모두 3.1
+# --------------------------------------------------------------------------- #
+
+def test_both_plans_resolve_to_31_on_real_defaults(monkeypatch):
+    """⭐ 표(M-VERTEX-2.5 등)가 아니라 **진짜 config.py 기본값**으로, Free·Premium 이
+    둘 다 실제 3.1 모델 id 를 고르는지 — 스텁이 아니라 실전 값으로 D2 를 못박는다.
+    ⚠ 개발자 `.env` 에 흔들리지 않게 실제 기본값을 그대로 고정해 둔다(`_fix` 와 같은 이유)."""
+    from core.config import Settings
+
+    defaults = Settings.model_construct()
+    for field in ("USE_VERTEX", "LIVE_VOICE_BACKEND", "LIVE_VIDEO_BACKEND",
+                  "LIVE_MODEL_VOICE_VERTEX", "LIVE_MODEL_VIDEO_VERTEX",
+                  "LIVE_MODEL_VOICE", "LIVE_MODEL_VIDEO", "GEMINI_LIVE_MODEL"):
+        monkeypatch.setattr(cs.settings, field, getattr(defaults, field), raising=False)
+
+    monkeypatch.setattr(cs, "effective_plan", lambda db, m: None)
+    free_backend, free_model = cs.live_engine_for(object(), 1)
+    monkeypatch.setattr(cs, "effective_plan", lambda db, m: "premium")
+    premium_backend, premium_model = cs.live_engine_for(object(), 1)
+    assert free_model == premium_model == "gemini-3.1-flash-live-preview"
+    assert free_backend == "studio", "3.1 은 Vertex 에 없다 — Free 도 studio 로 떨어져야 한다"
+    assert premium_backend == "studio"
