@@ -2187,6 +2187,15 @@ class LearnedExpression(BaseModel):
     translation: str
     source_type: Literal["asked", "corrected", "drilled"]
     learner_attempt: str | None = None
+    # ⭐⭐ C8(2026-09-23, docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md) — 현지인
+    #   표현 짝(전부 선택 칸). 모델이 못 채워도(구스키마·파싱 누락) 파싱이 안 죽는다 —
+    #   저장(C9)은 이 셋이 전부 있을 때만 의미가 있다.
+    #   ⛔⛔ 짝이 없거나 원문(korean)과 사실상 같으면 **None** 이어야 한다(빈 문자열
+    #     금지 — bt-back 결정). 지시문이 "비워라"라 해도 모델이 빈 문자열을 낼 수
+    #     있어 `_normalize_native_pair` 가 파싱 직후 한 번 더 정리한다(R5).
+    native_expression: str | None = None              # 목표어 현지 구어(과장·줄임말·가벼운 비속어 OK)
+    native_expression_translation: str | None = None  # 그 현지인 표현의 모국어 번역
+    native_nuance: str | None = None                  # 그 표현의 뉘앙스 한 줄(모국어)
 
 
 class ItemDetection(BaseModel):
@@ -2256,8 +2265,43 @@ def _analysis_instruction(
         "딱 1문장 쓴다(비버 선생님이 직접 건네는 따뜻한 말투, 과장·오글거림 금지). "
         "통화의 구체적인 순간 하나를 짧게 언급하되, 점수·레벨·숫자·'틀렸다'는 절대 쓰지 않는다. "
         "통화가 아주 짧거나 발화가 적어도 참여 자체를 격려하는 1문장을 반드시 쓴다(빈 문자열 금지).\n"
-        "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다."
+        "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다.\n"
+        "[현지인 표현 짝]\n"
+        f"- expressions 의 각 표현(korean)마다, {target_language}를 쓰는 현지인이 **일상에서 그 뜻으로 "
+        "실제 흔히 쓰는** 표현 1개를 native_expression 에 적어라. 기준은 학습 대상 언어"
+        f"({target_language})다 — 학습자의 모국어로 짝을 만들지 마라.\n"
+        "- native_expression 은 korean 과 **반드시 같은 뜻**이어야 한다 — 다른 표현을 새로 "
+        "가르치는 것이 아니라, 같은 뜻을 현지인은 어떻게 말하는지 보여주는 것이다.\n"
+        "- 허용: 과장·줄임말·가벼운 비속어. 금지: 심한 욕설·혐오 표현·성적인 표현 — 이 셋은 "
+        "절대 쓰지 마라.\n"
+        "- native_expression_translation 에는 그 현지인 표현을 " + label + " 로 번역하고, "
+        "native_nuance 에는 그 표현의 뉘앙스(왜 그렇게 말하는지)를 " + label + " 로 한 줄만 "
+        "설명해라.\n"
+        "- 자연스러운 현지인 짝이 없거나 korean 과 사실상 같으면 native_expression·"
+        "native_expression_translation·native_nuance 를 **전부 생략**해라(빈 문자열로 "
+        "채우지 마라)."
     )
+
+
+def _normalize_native_pair(e: LearnedExpression) -> None:
+    """C8(2026-09-23): 짝이 없거나 원문(korean)과 사실상 같으면 세 칸을 전부 **None**
+    으로 비운다(빈 문자열 금지 — bt-back 결정). 지시문이 "비워라"라고 해도 모델이
+    빈 문자열이나 원문과 똑같은 표현을 낼 수 있어, 파싱 직후 서버가 한 번 더
+    정리한다(R5 — 지시문만 믿지 않는다). `analyze_call` 이 `_save_analysis` 를
+    부르기 **전**에 각 표현마다 이 함수를 거친다.
+    """
+    native = (e.native_expression or "").strip()
+    original = (e.korean or "").strip()
+    if not native or native == original:
+        e.native_expression = None
+        e.native_expression_translation = None
+        e.native_nuance = None
+        return
+    e.native_expression = native
+    if e.native_expression_translation is not None:
+        e.native_expression_translation = e.native_expression_translation.strip() or None
+    if e.native_nuance is not None:
+        e.native_nuance = e.native_nuance.strip() or None
 
 
 # 항목 사용 판정 지시문(mechanics ⑤ 3단계) — 검출 후보가 있을 때만 기존 지시문 뒤에 부착.
@@ -2770,6 +2814,12 @@ async def analyze_call(
             logger.warning("normalcall 분석: _analyze 실패 → failed call_id=%s", call_id)
             await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
             return
+
+        # C8(2026-09-23): 현지인 표현 짝 정리 — 저장(C9) 전에 빈 문자열/원문과 동일한
+        # 짝을 None 으로 비운다. `_save_analysis`(C9 이전인 지금은 이 세 칸을 아직 안
+        # 읽는다)가 이 값을 쓰게 되면 항상 정리된 값만 보게 하기 위해 여기서 미리 한다.
+        for _expr in result.expressions:
+            _normalize_native_pair(_expr)
 
         # P2.6: 요약·표현 저장과 status=done 을 같은 커밋으로 — 여기서 결과 페이지
         # 폴링이 풀린다(TTS×N·체크판을 기다리지 않음).
