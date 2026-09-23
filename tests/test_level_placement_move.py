@@ -156,6 +156,11 @@ def test_same_level_retest_still_moves_progress_to_the_levels_first_lesson(db):
 # ④ 배운 기록은 건드리지 않는다
 # --------------------------------------------------------------------------- #
 def test_learned_records_survive_the_move(db):
+    """⚠ L7(2026-09-24) 정정 — 되돌아간 지점(no>=목표 no)이 이미 완료돼 있으면 그
+    `CurMemberLesson.status` 는 이제 "학습 중"으로 **되돌아가야 정상이다**(안 그러면
+    영구히 갇힌다 — tests/test_level_retest_unstuck.py 참조). 이 시험이 원래 지키려던
+    "배운 기록"은 `CurMemberItem`(드릴·통과 시각)이었다 — 그건 여전히 건드리지 않는다.
+    옛 기대값("status 는 안 바뀐다")은 정확히 L7 이 고친 그 결함의 원인이었다."""
     mid = _member(db)
     lesson5 = repo.lesson_by_no(db, "ko", 5)
     item = CurItem(language="ko", kind="vocab", key="k1", surface="단어1", level_no=2)
@@ -169,8 +174,11 @@ def test_learned_records_survive_the_move(db):
 
     call_id = _call(db, mid, "ko")
     svc._save_level_assessment(db, call_id, mid, 1, _assessment())
+    db.expire_all()
 
-    assert db.query(CurMemberLesson).filter_by(member_id=mid, lesson_id=lesson5.lesson_id).one().status == "expression_done"
+    # no=5 는 목표(레벨1 첫 차시, no=1) 이후라 완료 표시가 되돌아간다(L7).
+    assert db.query(CurMemberLesson).filter_by(member_id=mid, lesson_id=lesson5.lesson_id).one().status == "learning"
+    # 드릴 기록(진짜 "배운 기록")은 그대로 남는다 — L7 이 지키는 불변식.
     row = db.query(CurMemberItem).filter_by(member_id=mid, lesson_id=lesson5.lesson_id, item_id=item.item_id).one()
     assert row.drilled_at is not None
 

@@ -190,6 +190,35 @@ def decide_course(db: Session, member_id: int, language: str = "ko") -> str:
     return COURSE_FREETALK if _status_of(db, member_id, prog.lesson_id) == STATUS_EXPRESSION_DONE else COURSE_EXPRESSION
 
 
+def reset_lessons_from(db: Session, member_id: int, language: str, from_no: int) -> int:
+    """⭐⭐ L7(2026-09-24, 레벨-커리큘럼 연결 결함 수정) — 재측정으로 진도 포인터가
+    **이미 완료된 차시**(`no >= from_no`)로 되돌아가면, 그 차시들의 완료 표시를
+    "학습 중"으로 되돌린다. 안 하면 영구히 갇힌다:
+    `decide_course` 는 `expression_done` 이어야 freetalk 를 고르고, `open_call` 은
+    freetalk 명시를 그 상태가 아니면 `CourseLocked` 로 거절하며, `record_expression` 은
+    `status == learning` 일 때만 `expression_done` 으로 올리고, `complete_freetalk` 은
+    이미 `freetalk_done` 이면 포인터를 움직이지 않고 그냥 반환한다(멱등 가드) — 네
+    가드 전부가 "이미 끝났다"를 전제해 되돌아온 진도를 다시 통과시키지 않는다.
+
+    ⛔⛔ `cur_member_item`(드릴 기록 — `drilled_at`·`quiz_passed_at`)은 **절대 안
+    건드린다.** 그게 남아야 다시 배울 때 `select_items`/`review_pool` 이 이미 배운
+    항목을 `review=True`(복습)로 낸다 — "배운 기록은 그대로 남는다"는 약속이 이거다.
+    ⛔ `expression_done_at`·`freetalk_done_at` 도 안 비운다 — CHECK 제약
+    (`ck_cur_ml_expression_ts`·`ck_cur_ml_freetalk_ts`)은 `status == 'learning'` 이면
+    그 값과 무관하게 통과하고(둘 다 "status가 그거 **아니면** 값이 있어야 한다" 형태),
+    이 값들을 읽는 production 코드는 그 두 CHECK 와 "없으면 채운다" 단조 가드뿐이라
+    (grep 확인, 다른 소비처 0건) 비우지 않아도 안전하다 — 오히려 "최초 완료 시각"을
+    보존하는 게 이 파일의 기존 단조(monotonic) 관례와 맞는다.
+    ⛔ `from_no` **미만**(더 낮은 no)은 손대지 않는다 — 되돌아간 지점부터만이다.
+
+    Returns: 되돌린 행 수(로그·시험용).
+    """
+    rows = repo.member_lessons_done_from(db, member_id, language, from_no)
+    for ml in rows:
+        ml.status = STATUS_LEARNING
+    return len(rows)
+
+
 # ── 통화 시작 ─────────────────────────────────────────────────────────────── #
 def select_items(
     db: Session, member_id: int, lesson_id: int, *, locale: str = "en", n: Optional[int] = None,

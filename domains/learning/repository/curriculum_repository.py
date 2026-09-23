@@ -182,6 +182,19 @@ def member_lessons(db: Session, member_id: int, language: str = "ko") -> dict[in
     return {r.lesson_id: r for r in rows}
 
 
+def member_lessons_done_from(db: Session, member_id: int, language: str, from_no: int) -> list[CurMemberLesson]:
+    """L7(2026-09-24) — 그 회원×언어의 진도 행 중 `no >= from_no`(재측정이 되돌아간 지점
+    이후)이고 완료 표시(learning 아님)인 것. 재측정 진도 이동이 되돌린 차시의 완료 표시를
+    되돌릴 때 쓴다(cur_member_item 은 별개 — 여기서 안 만진다)."""
+    return list(db.execute(
+        select(CurMemberLesson).join(CurLesson, CurLesson.lesson_id == CurMemberLesson.lesson_id)
+        .where(
+            CurMemberLesson.member_id == member_id, CurLesson.language == language,
+            CurLesson.no >= from_no, CurMemberLesson.status != "learning",
+        )
+    ).scalars().all())
+
+
 def cur_call(db: Session, call_id: int) -> Optional[CurCall]:
     return db.get(CurCall, call_id)
 

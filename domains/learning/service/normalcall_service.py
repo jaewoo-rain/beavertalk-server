@@ -52,6 +52,7 @@ from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository import curriculum_repository
 from domains.learning.repository import mastery_repository
+from domains.learning.service import curriculum_service
 from domains.learning.service import mastery_service
 from domains.push.models.push_dispatch_log import PushDispatchLog
 
@@ -3424,11 +3425,15 @@ def _move_progress_to_new_level(db: Session, member_id: int, language: str, leve
     ⛔ 진도 행이 아직 없으면(레벨테스트를 먼저 본 신규 회원) **만들지 않는다** — 다음
     표현학습 통화의 `ensure_progress`(L1)가 새 레벨로 만든다. 여기서 만들면 두 곳이
     같은 일을 해 갈릴 수 있다.
-    ⛔ 배운 기록(`cur_member_lesson`·`cur_member_item`)은 건드리지 않는다 — 포인터만
-    옮긴다. 그 차시를 다시 하면 `select_items` 가 이미 드릴된 항목을 review=True 로
-    낸다(기존 규율).
     ⚠ 그 레벨 차시가 0건이면 조용히 넘어간다(L1 과 같은 R5 규율) — 레벨테스트 저장
     자체를 여기서 죽이면 안 된다.
+
+    ⛔⛔ L7(2026-09-24) — 되돌아간 지점(`lesson.no` 이상)이 **이미 완료 표시**돼 있으면
+    `curriculum_service.reset_lessons_from` 으로 "학습 중"으로 되돌린다. 안 하면 영구히
+    갇힌다(`decide_course`·`open_call`(freetalk 잠금)·`record_expression`·
+    `complete_freetalk` 이 전부 "이미 끝났다"를 전제해 되돌아온 진도를 다시 안 받는다 —
+    표현학습 무한반복·프리토킹 잠김·레벨 정지). `cur_member_item`(드릴 기록)은 그
+    함수가 건드리지 않는다 — 다시 하면 review=True 로 복습 표시된다.
     """
     prog = curriculum_repository.current_progress(db, member_id, language)
     if prog is None:
@@ -3441,6 +3446,12 @@ def _move_progress_to_new_level(db: Session, member_id: int, language: str, leve
         )
         return
     prog.lesson_id = lesson.lesson_id
+    reset_n = curriculum_service.reset_lessons_from(db, member_id, language, lesson.no)
+    if reset_n:
+        logger.info(
+            "normalcall level-test: member=%s language=%s no>=%d 완료 표시 %d건 되돌림(재측정)",
+            member_id, language, lesson.no, reset_n,
+        )
 
 
 def _save_level_assessment(
