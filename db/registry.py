@@ -44,6 +44,7 @@ from domains.learning.models.member_sound_score import MemberSoundScore  # noqa:
 from domains.learning.models.national_sound_stat import NationalSoundStat  # noqa: F401
 from domains.learning.models.sound_lesson_i18n import SoundLessonI18n  # noqa: F401
 from domains.learning.models.sound_audio import SoundAudio  # noqa: F401
+from domains.learning.models.chat_memory import ChatMemory  # noqa: F401
 
 # alarm
 from domains.alarm.models.alarm import Alarm  # noqa: F401
