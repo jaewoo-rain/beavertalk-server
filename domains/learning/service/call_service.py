@@ -326,6 +326,24 @@ def local_window_utc(
     return daily_window_utc(date_, offset)
 
 
+def _resolve_zone(tz: str | None) -> ZoneInfo | None:
+    """C12/C13 공용 — `tz`(IANA) 파싱. 잘못됐거나 없으면 경고 로그 + None(호출부가
+    `tz_offset_min` 고정 오프셋으로 폴백 — `local_window_utc` 와 같은 규율)."""
+    if not tz:
+        return None
+    try:
+        return ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        logger.warning("stats: 잘못된 tz(%r) → tz_offset_min 폴백", tz)
+        return None
+
+
+def _local_date_of(dt_utc: datetime, zone: ZoneInfo | None, offset: timedelta) -> _date:
+    """UTC 시각 → 그 zone(있으면 우선) 또는 고정 offset 기준 로컬 날짜."""
+    dt_utc = dt_utc if dt_utc.tzinfo else dt_utc.replace(tzinfo=timezone.utc)
+    return dt_utc.astimezone(zone).date() if zone is not None else (dt_utc + offset).date()
+
+
 def effective_plan(db: Session, member_id: int) -> str | None:
     """지금 **실제로 혜택이 열려 있는** 플랜. Free 면 None.
 
@@ -779,19 +797,13 @@ class CallService:
         call_ids = [r.call_id for r in rows]
         sentence_counts = self.repo.sentence_counts_by_call(call_ids)
 
-        zone: ZoneInfo | None = None
-        if tz:
-            try:
-                zone = ZoneInfo(tz)
-            except (ZoneInfoNotFoundError, ValueError):
-                logger.warning("stats/calendar: 잘못된 tz(%r) → tz_offset_min 폴백", tz)
+        zone = _resolve_zone(tz)
         offset = timedelta(minutes=tz_offset_min or 0)
 
         buckets: dict[_date, dict] = {}
         total_time_all = 0
         for r in rows:
-            call_date = r.call_date if r.call_date.tzinfo else r.call_date.replace(tzinfo=timezone.utc)
-            local_date = call_date.astimezone(zone).date() if zone is not None else (call_date + offset).date()
+            local_date = _local_date_of(r.call_date, zone, offset)
             b = buckets.setdefault(
                 local_date, {"sentences": 0, "call_count": 0, "words": 0, "has_words": False, "total_time": 0},
             )
@@ -834,7 +846,54 @@ class CallService:
         if total_has_words:
             total["words"] = total_words
 
-        return {"days": days, "total": total}
+        result = {"days": days, "total": total}
+        streak = self._streak_days(
+            member_id, tz=tz, tz_offset_min=tz_offset_min, zone=zone, offset=offset,
+            cached_rows=rows, cached_range=(start_utc, end_utc),
+        )
+        if streak is not None:
+            result["streak_days"] = streak
+        return result
+
+    def _streak_days(
+        self, member_id: int, *, tz: str | None, tz_offset_min: int | None,
+        zone: ZoneInfo | None, offset: timedelta,
+        cached_rows: Sequence | None = None, cached_range: tuple[datetime, datetime] | None = None,
+    ) -> int | None:
+        """⭐⭐ C13(2026-09-23) — 오늘부터 거꾸로 연속 **성립 통화** 일수(현지 날짜, 최대 999).
+
+        ⭐ 조건②: **기간과 무관** — get_calendar 가 어떤 [start,end] 를 물어봤든 이
+          값은 항상 «지금»(그 tz 기준 오늘) 기준으로 계산한다.
+        ⛔ 조건③: 전체 이력을 읽지 않는다 — 오늘부터 거꾸로 최대 999일 창 하나만
+          조회한다. `cached_range` 가 이미 그 창을 덮으면 `cached_rows`(get_calendar
+          가 방금 부른 쿼리 결과)를 그대로 쓰고 **새 쿼리를 만들지 않는다.**
+        오늘 통화가 없으면 어제부터 센다(어제도 없으면 None → 키 생략, get_calendar 참조).
+        """
+        today_local = datetime.now(zone).date() if zone is not None else (datetime.now(timezone.utc) + offset).date()
+        window_start_date = today_local - timedelta(days=999)
+        streak_start_utc, _ = local_window_utc(window_start_date, tz, tz_offset_min)
+        _, streak_end_utc = local_window_utc(today_local, tz, tz_offset_min)  # 오늘의 끝(=내일 시작)
+
+        if (
+            cached_rows is not None and cached_range is not None
+            and cached_range[0] <= streak_start_utc and cached_range[1] >= streak_end_utc
+        ):
+            rows = cached_rows
+        else:
+            rows = self.repo.calendar_calls(member_id, streak_start_utc, streak_end_utc)
+
+        dates_with_calls = {_local_date_of(r.call_date, zone, offset) for r in rows}
+
+        anchor = today_local if today_local in dates_with_calls else today_local - timedelta(days=1)
+        if anchor not in dates_with_calls:
+            return None
+
+        streak = 0
+        d = anchor
+        while d in dates_with_calls and streak < 999:
+            streak += 1
+            d -= timedelta(days=1)
+        return streak
 
     def get_raw(self, member_id: int, call_id: int) -> list[RawDataOut]:
         call = self.repo.get_with_raw(call_id)
