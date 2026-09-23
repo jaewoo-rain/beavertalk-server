@@ -183,6 +183,13 @@ class Call(Base, TimestampMixin):
     usage_json: Mapped[Optional[dict]] = mapped_column(
         JSON, comment="usage 요약 원본(dropped/monotonic/last/thoughts/기타 모달리티/재연결·압축 수)",
     )
+    # ⭐⭐ C11(2026-09-23, docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md) — 학습
+    #   달력·연속일(D8·D9)용 사용자 발화 단어 수. total_time 과 같은 방식으로 조각마다
+    #   누적(finalize_call). ⛔ 그 통화에 사용자 전사가 하나도 없으면 NULL 그대로
+    #   (0 과 «집계 없음» 을 가른다 — 0 으로 쓰지 않는다).
+    user_word_count: Mapped[Optional[int]] = mapped_column(
+        Integer, comment="사용자 발화 단어 수(ja·zh 는 글자수/2) — NULL=집계 없음(전사 없음)",
+    )
 
     member: Mapped["Member"] = relationship(back_populates="calls")
     character: Mapped["Character"] = relationship(lazy="select")  # 단방향(필요 시 쿼리에서 joinedload)

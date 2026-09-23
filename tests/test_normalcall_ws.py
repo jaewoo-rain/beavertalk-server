@@ -3166,14 +3166,17 @@ async def test_redial_is_allowed_immediately_after_disconnect_even_if_finalize_i
     release_finalize = threading.Event()
     call_count = {"n": 0}
 
-    def slow_finalize(db, call_id, *, total_time, status, accumulate=False):
+    def slow_finalize(db, call_id, *, total_time, status, accumulate=False, user_word_count=None):
         call_count["n"] += 1
         if call_count["n"] == 1:
             # 첫 통화(끊길 통화)의 마무리 저장만 느리게 흉내낸다 — 두 번째(재발신) 통화의
             # 마무리까지 여기서 묶이면 이 시험 자체가 끝나지 않는다.
             started_finalize.set()
             release_finalize.wait(timeout=5)
-        return orig_finalize(db, call_id, total_time=total_time, status=status, accumulate=accumulate)
+        return orig_finalize(
+            db, call_id, total_time=total_time, status=status, accumulate=accumulate,
+            user_word_count=user_word_count,
+        )
 
     monkeypatch.setattr(svc, "finalize_call", slow_finalize)
 

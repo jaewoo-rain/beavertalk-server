@@ -1534,17 +1534,46 @@ def mark_fragment_ended(db: Session, call_id: int) -> None:
     db.commit()
 
 
-def finalize_call(db: Session, call_id: int, *, total_time: int, status: str, accumulate: bool = False) -> None:
-    """통화 종료 메타(총 시간/상태)를 갱신한다.
+def fragment_user_word_count(segments: list[dict], target_code: str) -> int | None:
+    """⭐⭐ C11(2026-09-23) — 이번 조각의 **사용자 발화 전사**만으로 단어 수를 센다.
+
+    ko 등은 공백 분할 개수. 목표어가 ja·zh 면 `count_target_script_chars`(문장부호·
+    공백·타 언어 제외)로 글자수를 센 뒤 2 로 나눠 반올림(대략 단어 2음절 가정).
+    ⛔ 이 조각에 사용자 발화 전사가 하나도 없으면 **None**(0 이 아니다) — «집계 없음»
+    과 «0» 을 갈라야 한다(bt-back 조건③). 호출부가 None 이면 컬럼을 건드리지 않는다.
+    """
+    texts = [str(seg.get("text") or "").strip() for seg in segments if seg.get("role") == "user"]
+    texts = [t for t in texts if t]
+    if not texts:
+        return None
+    blob = " ".join(texts)
+    if target_code in ("ja", "zh"):
+        return round(count_target_script_chars(blob, target_code) / 2)
+    return len(blob.split())
+
+
+def finalize_call(
+    db: Session, call_id: int, *, total_time: int, status: str, accumulate: bool = False,
+    user_word_count: int | None = None,
+) -> None:
+    """통화 종료 메타(총 시간/상태[/단어 수])를 갱신한다.
 
     accumulate(2026-09-14 ①, 실통화 1604 = 306s 인데 실제 3조각 ≈15분): 이어하기 조각(2번째 이후)은 **더한다** — 예전엔 조각마다 덮어써 마지막 조각
     길이만 남았다. 첫 조각(새 통화·이어하기 첫 조각)은 종전대로 대입(바이트 동일).
+
+    user_word_count(C11): total_time 과 같은 방식으로 **조각 누적**. None(이 조각에
+    사용자 전사가 없음)이면 컬럼을 아예 건드리지 않는다 — 이전에 쌓인 값이 있으면
+    그대로 두고, 통화 내내 한 번도 안 채워졌으면 NULL 그대로 남는다.
     """
     call = db.get(Call, call_id)
     if call is None:
         return
     call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else total_time
     call.status = status
+    if user_word_count is not None:
+        call.user_word_count = (
+            (int(call.user_word_count or 0) + int(user_word_count)) if accumulate else int(user_word_count)
+        )
     # ⭐⭐ QA C4 재검-①(2026-09-23): 이 조각이 끝난 시각 — 이어하기 TTL(resume_call)의
     #   단일 소스. `updated_at` 을 쓰면 이 뒤에 오는 분석·usage 기록 등 후행 쓰기가
     #   TTL 을 계속 밀어내므로, **조각 종료 전용** 컬럼에 여기서만 찍는다.

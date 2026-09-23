@@ -4353,6 +4353,9 @@ async def _persist_remaining(
     if state.call_start_ts is not None:
         duration_s = int(asyncio.get_running_loop().time() - state.call_start_ts)
     pending_audio: list[dict] = []
+    # ⭐⭐ C11(2026-09-23) — 이 조각의 사용자 발화 단어 수(늦어도 되는 값이라 여기,
+    #   전사 저장 뒤에 찍는다 — mark_fragment_ended 의 «끊김 즉시» 자리가 아니다).
+    word_count = svc.fragment_user_word_count(new, state.target_code)
     try:
         if new:
             pending_audio = await svc.run_db(
@@ -4364,6 +4367,7 @@ async def _persist_remaining(
         await svc.run_db(
             db_session_factory, lambda db: svc.finalize_call(
                 db, call_id, total_time=duration_s, status="analyzing", accumulate=bool((state.fragment_index or 1) > 1),
+                user_word_count=word_count,
             )
         )
     except Exception as exc:  # noqa: BLE001
