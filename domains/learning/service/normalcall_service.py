@@ -50,6 +50,7 @@ from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.level import Level
 from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.sentence import Sentence
+from domains.learning.repository import curriculum_repository
 from domains.learning.repository import mastery_repository
 from domains.learning.service import mastery_service
 from domains.push.models.push_dispatch_log import PushDispatchLog
@@ -3417,6 +3418,36 @@ def _user_char_total(dialog: str, language: str = "ko") -> int:
     )
 
 
+def _move_progress_to_new_level(db: Session, member_id: int, language: str, level_no: int) -> None:
+    """⭐⭐ L2(2026-09-24, 레벨-커리큘럼 연결 §T1-b) — 레벨테스트 재측정 이벤트.
+
+    그 언어 진도 포인터를 새 레벨의 첫 차시로 옮긴다. **위아래 양방향**(D1) — 값이
+    이전과 같아도(2→2) 옮긴다. 이 함수가 호출됐다는 사실 자체가 «재측정했다» 는
+    이벤트이지, 레벨 값 비교로 판정하는 게 아니다(값 비교로 건너뛰면 재측정마다
+    그 레벨 첫 차시로 되돌아가야 한다는 규칙이 샌다).
+
+    ⛔ 진도 행이 아직 없으면(레벨테스트를 먼저 본 신규 회원) **만들지 않는다** — 다음
+    표현학습 통화의 `ensure_progress`(L1)가 새 레벨로 만든다. 여기서 만들면 두 곳이
+    같은 일을 해 갈릴 수 있다.
+    ⛔ 배운 기록(`cur_member_lesson`·`cur_member_item`)은 건드리지 않는다 — 포인터만
+    옮긴다. 그 차시를 다시 하면 `select_items` 가 이미 드릴된 항목을 review=True 로
+    낸다(기존 규율).
+    ⚠ 그 레벨 차시가 0건이면 조용히 넘어간다(L1 과 같은 R5 규율) — 레벨테스트 저장
+    자체를 여기서 죽이면 안 된다.
+    """
+    prog = curriculum_repository.current_progress(db, member_id, language)
+    if prog is None:
+        return
+    lesson = curriculum_repository.first_lesson_of_level(db, language, level_no)
+    if lesson is None:
+        logger.warning(
+            "normalcall level-test: member=%s language=%s level=%s 차시 0건 → 진도 이동 생략",
+            member_id, language, level_no,
+        )
+        return
+    prog.lesson_id = lesson.lesson_id
+
+
 def _save_level_assessment(
     db: Session, call_id: int, member_id: int, level_no: int, result: LevelAssessment
 ) -> bool:
@@ -3425,6 +3456,10 @@ def _save_level_assessment(
     member.korean_level 과 call.assessed_level 이 어긋난 채 남지 않도록 반드시 한 커밋.
     member/call 어느 한쪽이라도 없으면 아무것도 저장하지 않고 False(부분 저장 창 제거) —
     호출부가 status=failed 처리한다.
+
+    ⭐ L2(2026-09-24) — 레벨 확정과 **같은 커밋**에서 그 언어 진도 포인터도 새 레벨
+    첫 차시로 옮긴다(`_move_progress_to_new_level`). 레벨만 오르고 진도가 안 따라간
+    중간 상태가 남으면 다음 통화가 새 레벨 재료로 옛 차시를 가르친다.
     """
     # 리뷰 M1: FOR UPDATE 로 회원 단위 직렬화 — 동시 레벨테스트 2건의 grandfathering
     # progress insert 가 uq_member_item 충돌로 유실되는 창 제거(sqlite 테스트에선 no-op).
@@ -3450,6 +3485,7 @@ def _save_level_assessment(
         db, member_id, level_no, trigger_call_id=call_id, from_level=prior_level,
         language=language,
     )
+    _move_progress_to_new_level(db, member_id, language, level_no)
     db.commit()
     return True
 
