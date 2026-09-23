@@ -173,6 +173,7 @@ def main() -> None:
         print("-" * len(hdr))
 
         buckets: dict[int, list[float]] = {}
+        excluded_unknown = 0
         for c in reversed(calls):
             uj = c.usage_json or {}
             # 길이: total_time(초) 우선, 없으면 usage_json.t_last(마지막 usage 수신 시각).
@@ -215,8 +216,14 @@ def main() -> None:
                   f"{total_s:>9} {cost:>9.4f} {side_s:>9} {per_min:>8.4f}")
             if unknown:
                 print(f"      ⚠ 단가 미상: {', '.join(unknown)}")
-            if secs > 0:
+            # ⚠ 단가 미상(unknown)인 통화는 cost=0.0000 으로 찍힌다 — 그걸 평균에 넣으면
+            #   길이별 평균·분당 원가가 **실제보다 낮게** 끌어내려진다(옛 cascade 행 70여
+            #   건). 표시 칸은 '-'/경고로 드러내면서 집계만 0 을 삼키면 위 규율(:188·197·
+            #   205-206)과 모순된다 — 여기도 똑같이 제외하고, 조용히 버리지 않는다.
+            if secs > 0 and not unknown:
                 buckets.setdefault(max(1, round(secs / 60)), []).append(cost)
+            elif secs > 0:
+                excluded_unknown += 1
 
         print("\n=== 분 단위 집계 (반올림한 통화 길이별) ===")
         print(f"{'길이':>5} {'통화수':>6} {'평균원가$':>11} {'분당$':>9}")
@@ -224,6 +231,9 @@ def main() -> None:
             v = buckets[m]
             avg = sum(v) / len(v)
             print(f"{m:>4}분 {len(v):>6} {avg:>11.4f} {avg / m:>9.4f}")
+        if excluded_unknown:
+            print(f"⚠ 단가 미상 {excluded_unknown}건은 평균에서 제외했다"
+                  "(0 으로 넣으면 평균이 거짓이 된다).")
 
         print("\n⚠ 원가는 estimate_call_cost_usd 한 곳에서만 나온다(직접 곱셈 없음).")
         print("⚠ '곁가지$' 는 원가에 **포함된** 값이다(중복 아님) — 통화중 사이드카·통화후 "

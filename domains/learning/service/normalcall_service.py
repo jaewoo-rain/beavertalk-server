@@ -2003,8 +2003,11 @@ def save_call_usage(
         # 압축 사이클 peak(압축마다 리셋되는 값). 컬럼의 peak_prompt 는 통화 전체 최대치라
         # 둘이 갈라진다 — 왜 갈라졌는지 나중에 봐야 해서 참고용으로 같이 남긴다.
         "cycle_peak": summary.get("cycle_peak"),
-        # 캐스케이드 다리별 사용량(STT 초·TTS 문자·LLM 토큰). 단위가 토큰이 아니라
-        # 컬럼에 못 들어가는 값들이다 — 원가는 estimate_cascade_cost_usd 가 여기서 계산한다.
+        # ⛔⛔ C14-b(2026-09-23) — 캐스케이드 다리별 사용량(STT 초·TTS 문자·LLM 토큰)을
+        #   담던 자리다. 단위가 토큰이 아니라 컬럼에 못 들어가는 값들이었다. 캐스케이드
+        #   엔진 삭제로 지금은 **채우는 호출부가 없다**(과거 usage_json 에 남은 값을
+        #   덮어쓰지 않고 보존만 한다) — 원가는 estimate_call_cost_usd 가 계산하며, 그
+        #   함수는 vendors 를 읽지 않는다(engine 문자열로만 분기한다).
         **({"vendors": summary["vendors"]} if summary.get("vendors") else {}),
         # ⭐ 통화중 사이드카(힌트·재접지·레벨테스트 턴 판정)의 LLM 토큰. ⛔ Live 컬럼
         #   (usage_in_text 등)에 **섞지 마라** — 단가가 다르고, 섞으면 두 엔진 비교가
