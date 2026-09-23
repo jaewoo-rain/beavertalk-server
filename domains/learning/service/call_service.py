@@ -740,6 +740,102 @@ class CallService:
             "max_fragments": call_fragments_for_member(self.db, member_id),
         }
 
+    def get_calendar(
+        self, member_id: int, start: str, end: str, *, tz: str | None = None,
+        tz_offset_min: int | None = None,
+    ) -> dict:
+        """⭐⭐ C12(2026-09-23) — 학습 달력: [start, end] 로컬 날짜 범위의 통화 집계.
+
+        집계 대상은 `CallRepository.calendar_calls` 가 정의하는 **성립 통화**
+        (`has_call_in_window` 과 같은 기준 — 학습자가 최소 한 번 말한 done/analyzing
+        통화, 레벨테스트 제외). 날짜는 **통화 시작 시각(call_date)의 현지 날짜**.
+
+        ⛔ N+1 방지(bt-back 조건⑥): 요청 범위 전체를 **한 번**의 통화 쿼리 + **한 번**의
+          문장 수 집계 쿼리로 가져온 뒤, 날짜별 묶기는 파이썬에서 한다(회원 하루
+          몇 건 수준이라 성능 문제 없음 — sum_total_time_in_window 와 같은 판단).
+        ⛔ 값 없으면 키 생략(진행 규칙 5) — `words` 는 그 날/그 기간에 사용자 단어
+          수가 **하나도 집계 안 됐으면**(user_word_count 전부 NULL) 키 자체를 뺀다.
+        """
+        try:
+            start_date = _date.fromisoformat(start)
+            end_date = _date.fromisoformat(end)
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "start/end 는 YYYY-MM-DD 형식이어야 합니다."
+            )
+        if start_date > end_date:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "start 는 end 보다 앞이어야 합니다.")
+        if (end_date - start_date).days + 1 > 400:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "조회 범위는 최대 400일입니다.")
+        if tz_offset_min is not None and not -14 * 60 <= tz_offset_min <= 14 * 60:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "tz_offset_min 은 분 단위(-840~840)여야 합니다."
+            )
+
+        start_utc, _end_of_start_day = local_window_utc(start_date, tz, tz_offset_min)
+        _start_of_end_day, end_utc = local_window_utc(end_date, tz, tz_offset_min)
+
+        rows = self.repo.calendar_calls(member_id, start_utc, end_utc)
+        call_ids = [r.call_id for r in rows]
+        sentence_counts = self.repo.sentence_counts_by_call(call_ids)
+
+        zone: ZoneInfo | None = None
+        if tz:
+            try:
+                zone = ZoneInfo(tz)
+            except (ZoneInfoNotFoundError, ValueError):
+                logger.warning("stats/calendar: 잘못된 tz(%r) → tz_offset_min 폴백", tz)
+        offset = timedelta(minutes=tz_offset_min or 0)
+
+        buckets: dict[_date, dict] = {}
+        total_time_all = 0
+        for r in rows:
+            call_date = r.call_date if r.call_date.tzinfo else r.call_date.replace(tzinfo=timezone.utc)
+            local_date = call_date.astimezone(zone).date() if zone is not None else (call_date + offset).date()
+            b = buckets.setdefault(
+                local_date, {"sentences": 0, "call_count": 0, "words": 0, "has_words": False, "total_time": 0},
+            )
+            b["sentences"] += sentence_counts.get(r.call_id, 0)
+            b["call_count"] += 1
+            b["total_time"] += r.total_time or 0
+            if r.user_word_count is not None:
+                b["words"] += r.user_word_count
+                b["has_words"] = True
+            total_time_all += r.total_time or 0
+
+        days = []
+        total_sentences = total_call_count = total_words = 0
+        total_has_words = False
+        for d in sorted(buckets):
+            b = buckets[d]
+            entry = {
+                "date": d.isoformat(),
+                "sentences": b["sentences"],
+                "call_count": b["call_count"],
+                "call_minutes": -(-b["total_time"] // 60),  # ceil(그 날 total_time 합 / 60)
+            }
+            if b["has_words"]:
+                entry["words"] = b["words"]
+            days.append(entry)
+            total_sentences += b["sentences"]
+            total_call_count += b["call_count"]
+            if b["has_words"]:
+                total_words += b["words"]
+                total_has_words = True
+
+        total = {
+            "sentences": total_sentences,
+            "call_count": total_call_count,
+            "call_days": len(days),
+            # ⛔ 일별 ceil 을 다시 더하지 않는다 — 반올림 오차가 날짜 수만큼 누적된다.
+            #   전체 초를 한 번만 ceil 한다(예: 10일×31초=310초 → 6분, 일별 합이면 10분).
+            "call_minutes": -(-total_time_all // 60),
+        }
+        if total_has_words:
+            total["words"] = total_words
+
+        return {"days": days, "total": total}
+
     def get_raw(self, member_id: int, call_id: int) -> list[RawDataOut]:
         call = self.repo.get_with_raw(call_id)
         self._assert_owner(call, member_id)

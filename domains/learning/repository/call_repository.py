@@ -5,12 +5,28 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.sql.selectable import Exists
 
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.sentence import Sentence
+
+
+def _spoke_exists() -> Exists:
+    """«학습자가 이 통화에서 최소 한 번 말했다» — has_call_in_window 와 C12(달력)
+    «성립 통화» 판정이 같이 쓰는 EXISTS 서브쿼리(정의는 has_call_in_window 참조)."""
+    return (
+        select(CallRawData.call_raw_data_id)
+        .where(
+            CallRawData.call_id == Call.call_id,
+            CallRawData.role == "user",
+            CallRawData.content.isnot(None),
+            CallRawData.content != "",
+        )
+        .exists()
+    )
 
 
 # ⭐ QA C4 재검-②(2026-09-23): ongoing 조각의 경과 추정 상한(초) — 오래 방치된 ongoing
@@ -78,22 +94,12 @@ class CallRepository:
         call_type: 주면 그 콜타입만 센다(일일 한도용 — level_test 와 normal 은 서로의
             한도를 깎지 않는다). None 이면 전 콜타입.
         """
-        spoke = (
-            select(CallRawData.call_raw_data_id)
-            .where(
-                CallRawData.call_id == Call.call_id,
-                CallRawData.role == "user",
-                CallRawData.content.isnot(None),
-                CallRawData.content != "",
-            )
-            .exists()
-        )
         inner = select(Call.call_id).where(
             Call.member_id == member_id,
             Call.call_date >= start_utc,
             Call.call_date < end_utc,
             Call.status.in_(("done", "analyzing")),
-            spoke,
+            _spoke_exists(),
         )
         if call_type is not None:
             inner = inner.where(Call.call_type == call_type)
@@ -191,6 +197,37 @@ class CallRepository:
             if started >= cutoff:
                 return call_id
         return None
+
+    def calendar_calls(self, member_id: int, start_utc, end_utc) -> Sequence:
+        """C12(2026-09-23) — 학습 달력 집계 대상: [start_utc, end_utc) 안에서 시작한
+        **성립 통화**(has_call_in_window 와 같은 기준), 레벨테스트 제외.
+
+        ⛔ N+1 방지(bt-back 조건⑥) — 날짜별로 쪼개 부르지 않는다. 요청 범위 전체를
+          **한 번**에 가져와 파이썬에서 로컬 날짜로 묶는다(서비스 계층).
+        """
+        stmt = select(
+            Call.call_id, Call.call_date, Call.total_time, Call.user_word_count,
+        ).where(
+            Call.member_id == member_id,
+            Call.call_date >= start_utc,
+            Call.call_date < end_utc,
+            Call.call_type != "level_test",
+            Call.status.in_(("done", "analyzing")),
+            _spoke_exists(),
+        )
+        return self.db.execute(stmt).all()
+
+    def sentence_counts_by_call(self, call_ids: Sequence[int]) -> dict[int, int]:
+        """C12 — 통화별 활성(소프트 삭제 제외) 문장 수. 현지인 표현 짝(kind='native')도
+        같은 `call_id` 라 자연히 포함된다(별도 분기 없음)."""
+        if not call_ids:
+            return {}
+        stmt = (
+            select(Sentence.call_id, func.count(Sentence.sentence_id))
+            .where(Sentence.call_id.in_(call_ids), Sentence.deleted_at.is_(None))
+            .group_by(Sentence.call_id)
+        )
+        return dict(self.db.execute(stmt).all())
 
     def add(self, call: Call) -> Call:
         self.db.add(call)
