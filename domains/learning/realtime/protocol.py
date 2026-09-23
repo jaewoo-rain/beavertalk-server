@@ -71,6 +71,10 @@ class ClientStart(BaseModel):
             "하루" 경계를 클라 로컬 자정으로 잡는 데 쓴다 — 서버가 UTC 로 고정하면
             한국 사용자는 오전 9시에 날짜가 바뀐다. 미전송(구버전 앱)이면 UTC(0).
             GET /calls/daily-status 의 tz_offset 과 같은 의미·같은 값을 보내야 한다.
+        tz: (선택) C4(2026-09-23, D4) — IANA 존 이름("Asia/Seoul"). 있으면
+            tz_offset_min 보다 우선(local_window_utc) — 서머타임 경계에서도 자정이
+            정확하다. 잘못된 이름·미전송이면 tz_offset_min 폴백, 그것도 없으면 UTC.
+            GET /calls/daily-status 의 tz 와 같은 의미·같은 값을 보내야 한다.
         duration_min: (선택) 통화 길이(분) override. **데모/dev 전용** — prod 에서는
             서버가 무시하고 기본값을 쓴다. 서버가 3~15분으로 클램프. 없으면 기본값.
     """
@@ -126,6 +130,7 @@ class ClientStart(BaseModel):
     silent_resume: bool = False
     duration_min: int | None = None
     tz_offset_min: int | None = None
+    tz: str | None = None
 
 
 class ClientPlaybackDone(BaseModel):

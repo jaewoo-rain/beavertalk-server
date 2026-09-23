@@ -46,6 +46,17 @@ class Settings(BaseSettings):
     #     ⇒ 프론트 검증용으로 켤 곳은 demo-api 쪽이 맞다. 켤 위치를 정하고 켜라.
     DAILY_LIMIT_ENFORCED: bool = False
 
+    # ⭐⭐ C4(2026-09-23, D4) — **하루 통화 총량(분) 예산**. Free 300s·premium 900s,
+    #   콜타입 무관 합산(레벨테스트 제외). 옛 콜타입별 횟수 한도(DAILY_LIMIT_ENFORCED,
+    #   DAILY_CALL_LIMIT)는 레벨테스트에만 남고 나머지는 이 예산이 대체한다.
+    #   ⛔⛔ **기본값이 True 인 이유**: 옛 한도(DAILY_LIMIT_ENFORCED)가 운영에서 계속
+    #     꺼진 채였던(사장님이 몰랐던) 문제가 있었다 — 그 구멍을 여기서 닫는다. prod 는
+    #     이 값과 무관하게 계속 돈다(`or settings.ENV == "prod"`, DAILY_LIMIT_ENFORCED
+    #     와 같은 이중 게이트).
+    #   ⚠ 로컬 개발에서 5분/15분에 자꾸 막히면 `.env.local` 에 `DAILY_BUDGET_ENFORCED=false`
+    #     를 넣어라(admin 롤 계정은 어차피 면제다 — 위 주석과 같은 탈출구).
+    DAILY_BUDGET_ENFORCED: bool = True
+
     # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
     # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).
     DEFAULT_TARGET_LANGUAGE: str = "ko"

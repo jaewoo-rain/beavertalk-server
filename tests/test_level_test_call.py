@@ -846,6 +846,7 @@ async def test_invalid_start_candidate_logs_warning_then_parses_valid(caplog):
         # ⚠ 2026-09-13: 개발자도구 플랜 흉내(admin). 같은 규율 — 기본 None.
         "plan_override": None,
         "silent_resume": False,                # 끊김 없는 조각 전환(2026-09-13) — 기본 False
+        "tz": None,                            # C4(2026-09-23): IANA 존 — 기본 None
     }
     warnings = [r for r in caplog.records if "검증 실패" in r.getMessage()]
     assert len(warnings) == 1  # 통화당 1회만(스팸 방지)

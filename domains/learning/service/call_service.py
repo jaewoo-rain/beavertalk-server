@@ -10,6 +10,7 @@ import json
 import logging
 from datetime import date as _date, datetime, time as _time, timedelta, timezone
 from typing import Sequence
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -67,10 +68,12 @@ def _avg(values: list) -> float | None:
 #     뜻이 «통화 1번» 인지 «코스마다 1번» 인지가 갈리는데, 그건 상품 결정이다.
 #   ⭐ 대칭을 기본으로 삼은 근거는 아래 레벨테스트 주석과 **같다** — 결정 원문이 콜타입을
 #     안 갈랐으면 Free 와 대칭이 기본이다. 유료가 여러 번 하게 하려면 여기서 빼면 된다.
-# ⚠ C3(2026-09-22, D3): 옛 "normal" 키를 "chat"(자유대화)으로 개명했다 — 라우팅이 더 이상
-#   "normal" 을 만들지 않는다(chat 으로 흡수). C4 에서 이 표 자체가 예산 방식으로 대체된다.
+# ⭐⭐ C4(2026-09-23, D4): **콜타입별 횟수 한도는 레벨테스트만 남는다.** chat·expression·
+#   freetalk 는 이제 하루 통화 총량(분) 예산(daily_budget_s·daily_budget_exceeded)이
+#   대체한다 — 코스마다 따로 세던 옛 방식(바로 위 주석들)은 "Free 가 하루 3통화"가
+#   되는 문제가 있었다. 레벨테스트는 예산과 무관한 측정 통화라 이 표에만 남는다.
 DAILY_CALL_LIMIT: dict[str, int] = {
-    "chat": 1, "level_test": 1, "expression": 1, "freetalk": 1,
+    "level_test": 1,
 }
 
 # ⭐⭐ **플랜이 가르는 것은 횟수가 아니라 조각 수다**(2026-08-19 사장님 결정을 반영,
@@ -101,6 +104,24 @@ DAILY_CALL_LIMIT_BY_PLAN: dict[str | None, dict[str, int]] = {
     None: DAILY_CALL_LIMIT,        # Free    — 1통화 × 1조각
     "premium": DAILY_CALL_LIMIT,   # Premium — 1통화 × 3조각(체인 전체가 1통화)
 }
+
+# ── 하루 통화 총량(분) 예산 — C4(2026-09-23, D4) ──────────────────────────── #
+# ⭐⭐ "학습"(auto)·"자유대화"(chat) 를 **합산**해 하루 총량으로 잰다(코스별 횟수가
+#   아니다) — Free 5분(300s)·premium 15분(900s). 레벨테스트는 여기서 안 잰다(위
+#   DAILY_CALL_LIMIT 이 별도로 막는다 — 측정 통화라 상품 혜택 축이 아니다).
+# ⚠ 결제 직후 남은 시간이 자연스럽게 늘어난다: Free 로 5분(300s) 다 쓰고 그날 premium 을
+#   사면, 같은 날 이미 쓴 300s 가 새 예산(900s)에서 그대로 빠져 **남은 게 600s**다.
+#   별도 "결제 시각 이후" 로직이 필요 없다 — used_seconds_today 가 하루 전체를 보기 때문.
+DAILY_BUDGET_S_BY_PLAN: dict[str | None, int] = {
+    None: 300,       # Free    — 5분
+    "premium": 900,  # Premium — 15분
+}
+
+
+def daily_budget_s(plan: str | None) -> int:
+    """이 플랜의 하루 통화 총량(초). 모르는 플랜은 Free 로 떨어뜨린다(R5, 위 조각 표와 같은 규율)."""
+    return DAILY_BUDGET_S_BY_PLAN.get(plan, DAILY_BUDGET_S_BY_PLAN[None])
+
 
 # ── 플랜별 통화 길이(초) ───────────────────────────────────────────────── #
 # 앱 카피가 이미 계약이다(`app_en.arb`) — 여기 숫자는 그 문구에서 왔다:
@@ -273,6 +294,37 @@ def daily_window_utc(local_date: _date, tz_offset_min: int) -> tuple[datetime, d
     return start_utc, start_utc + timedelta(days=1)
 
 
+def local_window_utc(
+    local_date: _date | None, tz: str | None, tz_offset_min: int | None,
+) -> tuple[datetime, datetime]:
+    """로컬 하루 → UTC 반열린 구간. C4(2026-09-23, D4) — `daily_window_utc` 의 고정
+    오프셋 대신 **IANA 존**(`tz`)을 우선 쓴다.
+
+    local_date: None 이면 **오늘**(그 존 기준 "지금"의 날짜) — 하루 예산(잔여) 판정은
+      항상 "지금"을 본다(daily_status 의 can_call_* 규율과 같다). 값을 주면 그 날짜.
+    tz: IANA 이름("Asia/Seoul" 등). 있으면 `zoneinfo.ZoneInfo` 로 그 순간의 **실제**
+      UTC 오프셋을 쓴다 — `daily_window_utc`(고정 오프셋)와 달리 자정이 서머타임
+      경계를 걸쳐도 정확하다(예: `America/New_York` 3월 둘째 일요일).
+      ⚠ 잘못된 이름이면 경고 로그를 남기고 `tz_offset_min` 으로 폴백한다(R5) —
+        존 이름 오타 하나로 통화 시작이 막히면 안 된다.
+    tz_offset_min: `tz` 가 없거나 잘못됐을 때의 폴백(분, 동쪽 +). 둘 다 없으면 UTC(0).
+    """
+    zone: ZoneInfo | None = None
+    if tz:
+        try:
+            zone = ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            logger.warning("normalcall: 잘못된 tz(%r) → tz_offset_min 폴백: %s", tz, exc)
+    if zone is not None:
+        date_ = local_date or datetime.now(zone).date()
+        start_local = datetime.combine(date_, _time.min, tzinfo=zone)
+        end_local = start_local + timedelta(days=1)  # ZoneInfo 는 astimezone 시점에 오프셋을 다시 계산한다(DST 안전)
+        return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+    offset = tz_offset_min or 0
+    date_ = local_date or (datetime.now(timezone.utc) + timedelta(minutes=offset)).date()
+    return daily_window_utc(date_, offset)
+
+
 def effective_plan(db: Session, member_id: int) -> str | None:
     """지금 **실제로 혜택이 열려 있는** 플랜. Free 면 None.
 
@@ -350,9 +402,14 @@ def call_duration_s_for_member(db: Session, member_id: int) -> float:
 
 
 def is_daily_limit_reached(
-    db: Session, member_id: int, call_type: str, tz_offset_min: int = 0
+    db: Session, member_id: int, call_type: str, tz_offset_min: int = 0,
+    *, tz: str | None = None,
 ) -> bool:
     """이 회원이 오늘(클라 로컬) 해당 콜타입 한도를 이미 썼는지.
+
+    ⚠ C4(2026-09-23, D4) 이후 **레벨테스트에만 의미가 있다** — chat·expression·
+      freetalk 는 DAILY_CALL_LIMIT 에서 빠졌다(하루 통화 총량 예산이 대체, 아래
+      daily_budget_exceeded). 정의 없는 콜타입은 그대로 «막지 않는다».
 
     ⛔ **prod 이거나 `DAILY_LIMIT_ENFORCED` 가 켜졌을 때만 적용한다.** 그 외
     (dev/test/데모)는 자유롭게 쓴다 — 테스트하다 하루가 잠기면 개발이 안 된다.
@@ -371,7 +428,8 @@ def is_daily_limit_reached(
     한도(상품)와 남용 방지(인프라)는 다른 축이라, 필요해지면 "하루 세션 오픈 N회" 같은
     별도 레이트리밋으로 잡는다.
 
-    tz_offset_min: 클라 UTC 오프셋(분, 동쪽 +). KST=540. 미전송이면 0(UTC).
+    tz: IANA 존 이름 — 있으면 우선(local_window_utc). tz_offset_min: 클라 UTC 오프셋
+      (분, 동쪽 +). KST=540. 둘 다 없으면 UTC(0).
     """
     if not (settings.DAILY_LIMIT_ENFORCED or settings.ENV == "prod"):
         return False
@@ -385,11 +443,50 @@ def is_daily_limit_reached(
     )
     if not limit:
         return False  # 한도가 없는 플랜(유료) 또는 정의되지 않은 콜타입은 막지 않는다
-    now_local = datetime.now(timezone.utc) + timedelta(minutes=tz_offset_min)
-    start_utc, end_utc = daily_window_utc(now_local.date(), tz_offset_min)
+    start_utc, end_utc = local_window_utc(None, tz, tz_offset_min)
     return CallRepository(db).has_call_in_window(
         member_id, start_utc, end_utc, call_type=call_type
     )
+
+
+def used_seconds_today(
+    db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
+) -> int:
+    """오늘(기기 현지 자정~) **시작한** 통화의 total_time 합(초) — 하루 통화 총량 예산 집계.
+
+    ⛔ 레벨테스트는 뺀다(측정 통화라 상품 혜택 축이 아니다 — 위 DAILY_CALL_LIMIT 와
+      같은 이유). status in (done, analyzing, ongoing) — 아직 저장 안 끝난 ongoing 도
+      **진행 중인 소비**라 뺄 이유가 없다(끊고 바로 또 걸면 그 몫이 안 잡히는 구멍을 막는다).
+    ⚠ `total_time` 은 12차(끊김 없는 조각 전환)부터 **조각 누적**이다 — 조각2·3이 쌓여도
+      그 통화 한 행의 total_time 이 체인 전체 길이를 담고 있어 이중 계산이 안 된다.
+    """
+    start_utc, end_utc = local_window_utc(None, tz, tz_offset_min)
+    return CallRepository(db).sum_total_time_in_window(
+        member_id, start_utc, end_utc, exclude_call_types=("level_test",),
+    )
+
+
+def daily_budget_exceeded(
+    db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
+    plan_override: str | None = None,
+) -> bool:
+    """이 회원이 오늘 하루 통화 총량(분) 예산을 다 썼는지 — **새 통화·이어하기 조각
+    모두**에서 부른다(옛 횟수 한도와 달리 조각도 검사한다 — 남은 시간이 곧 조각 상한이다).
+
+    ⛔ **prod 이거나 `DAILY_BUDGET_ENFORCED` 가 켜졌을 때만 적용한다** — is_daily_limit_reached
+      와 같은 이중 게이트 규율.
+    ⭐ admin 은 면제하되 **plan_override 를 보낸 admin 은 그 플랜 예산을 적용**한다
+      (개발자 도구로 한도를 시험할 수 있게) — `plan_override` 는 `plan_override_for` 를
+      거친 값이어야 한다(admin 아니면 None, 여기서 롤을 다시 검사하지 않는다).
+    """
+    if not (settings.DAILY_BUDGET_ENFORCED or settings.ENV == "prod"):
+        return False
+    if plan_override is None and is_unlimited_member(db, member_id):
+        return False
+    plan = _plan_key(db, member_id, plan_override)
+    budget = daily_budget_s(plan)
+    used = used_seconds_today(db, member_id, tz=tz, tz_offset_min=tz_offset_min)
+    return (budget - used) <= 0
 
 
 class CallService:
@@ -561,12 +658,17 @@ class CallService:
             )
         return out
 
-    def daily_status(self, member_id: int, local_date: str, tz_offset_min: int) -> dict:
+    def daily_status(
+        self, member_id: int, local_date: str, tz_offset_min: int, *, tz: str | None = None,
+    ) -> dict:
         """'오늘 통화함' 파생 체크 — member 컬럼/일일 초기화 없이 call 에서 계산.
 
         Args:
             local_date: 클라이언트 로컬 날짜 "YYYY-MM-DD"(사용자가 '오늘'이라 여기는 날).
             tz_offset_min: 클라이언트 UTC 오프셋(분, 동쪽 +). KST=540. 로컬 하루 경계를 UTC 로 환산.
+            tz: C4(2026-09-23, D4) — IANA 존 이름("Asia/Seoul"). 있으면 tz_offset_min 보다
+              우선(local_window_utc) — 서머타임 경계까지 정확하다. 잘못됐거나 없으면
+              tz_offset_min 폴백, 그것도 없으면 UTC.
 
         유효 통화 = 그 로컬 하루 안에 시작 + total_time>=DAILY_MIN_CALL_S + status in(done,analyzing).
         외국인 사용자 타임존이 제각각이라 경계를 서버가 고정하지 않고 클라 로컬 날짜/오프셋으로 받는다.
@@ -581,7 +683,7 @@ class CallService:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY, "tz_offset 은 분 단위(-840~840)여야 합니다."
             )
-        start_utc, end_utc = daily_window_utc(d, tz_offset_min)
+        start_utc, end_utc = local_window_utc(d, tz, tz_offset_min)
         # 콜타입을 나눠 센다. 한도가 콜타입별로 따로 있으므로(일반 1 + 레벨테스트 1),
         # 합쳐서 세면 레벨테스트만 해도 홈 배지가 "오늘 통화함"이 돼 일반 통화가 아직
         # 남았는데 소진된 것처럼 보인다.
@@ -604,18 +706,21 @@ class CallService:
             #     같은 응답인데 결론이 반대다. 그 조합을 클라에 맡기면 판정이 두 군데로
             #     갈리고, 어긋나는 순간 "배지는 된다는데 서버가 거절"이 난다.
             #     그 위험은 daily_window_utc 주석에 이미 적혀 있던 것이다.
-            #   ⇒ **서버 거절과 똑같은 함수**(is_daily_limit_reached)를 그대로 부른다.
-            #     새 정책을 만들지 않는다 — 그래야 두 곳이 영원히 같은 답을 낸다.
+            #   ⇒ **서버 거절과 똑같은 함수**를 그대로 부른다 — 새 정책을 만들지 않는다.
+            #     그래야 두 곳이 영원히 같은 답을 낸다.
             #
-            #   ⚠ **지금은 항상 true 다.** is_daily_limit_reached 가 ENV != "prod" 에서
-            #     즉시 False 를 돌려주기 때문이다(app-api 의 ENV = 'test'). 버그가 아니라
-            #     서버가 실제로 안 막는다는 **사실의 반영**이다 — 이 필드의 계약은
-            #     "한도를 판정해 준다"가 아니라 "**서버가 지금 거절할지**"다.
-            "can_call_normal": not is_daily_limit_reached(
-                self.db, member_id, "chat", tz_offset_min
+            #   ⚠ C4(2026-09-23, D4): can_call_normal 은 이제 **횟수가 아니라 예산**을
+            #     본다(daily_budget_exceeded) — chat·expression·freetalk 는 하루 통화
+            #     총량으로 합산되므로, "일반 통화 했나" 가 아니라 "오늘 쓸 시간이
+            #     남았나" 가 정확한 뜻이다. can_call_level_test 는 여전히 옛 횟수
+            #     한도(is_daily_limit_reached)를 본다(레벨테스트는 예산과 무관).
+            #   ⚠ DAILY_BUDGET_ENFORCED 가 기본 True 라 이 필드는 **이제 실제로 거절을
+            #     반영한다**(옛 count 한도는 DAILY_LIMIT_ENFORCED 기본 False 라 늘 true 였다).
+            "can_call_normal": not daily_budget_exceeded(
+                self.db, member_id, tz=tz, tz_offset_min=tz_offset_min
             ),
             "can_call_level_test": not is_daily_limit_reached(
-                self.db, member_id, "level_test", tz_offset_min
+                self.db, member_id, "level_test", tz_offset_min, tz=tz
             ),
             # ⭐ 통화를 **시작하기 전에** 조각 수를 알려준다. 연장 UI 는 5분 뒤에 뜨는데,
             #   그때 처음 알면 "이 사람이 이을 수 있는 회원인가"를 늦게 알게 된다.

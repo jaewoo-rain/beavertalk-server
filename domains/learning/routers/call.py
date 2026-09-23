@@ -75,13 +75,16 @@ def get_pronunciation_summary(
 
 @router.get("/daily-status")
 def get_daily_status(
-    date: str, member: CurrentMember, db: DbSession, tz_offset: int = 0
+    date: str, member: CurrentMember, db: DbSession, tz_offset: int = 0, tz: str | None = None,
 ) -> dict:
     """⭐ **오늘 더 통화할 수 있나** — 통화를 시작하기 전 클라의 1차 검증.
 
     - date: 클라이언트 로컬 날짜 "YYYY-MM-DD"(사용자가 '오늘'이라 여기는 날, 필수).
     - tz_offset: 클라이언트 UTC 오프셋(분, 동쪽 +). KST=540. 미지정 시 0(UTC).
       ⚠ 외국인 학습자라 타임존이 제각각이다 — 하루 경계를 서버가 고정하지 않는다.
+    - tz: (선택) C4(2026-09-23, D4) — IANA 존 이름("Asia/Seoul"). 있으면 tz_offset
+      보다 우선(local_window_utc) — 서머타임 경계에서도 자정이 정확하다. 잘못된
+      이름이면 tz_offset 폴백. WS `start.tz` 와 같은 의미·같은 값을 보내야 한다.
 
     ```
     {
@@ -99,11 +102,12 @@ def get_daily_status(
     Pro 는 할 수 있다 — 같은 사실에서 결론이 반대로 갈린다. 그래서 판정을 클라가
     조합하게 두지 않고 서버가 내린다(서버 거절과 **같은 함수**를 부른다).
 
-    ## ⚠ 지금 `can_call_*` 은 항상 true 다
-    `is_daily_limit_reached` 가 `ENV != "prod"` 에서 즉시 False 를 돌려주고,
-    app-api 의 ENV 는 `'test'` 다. **버그가 아니라 사실의 반영**이다 — 이 필드의 계약은
-    "한도를 계산해 준다"가 아니라 "**서버가 지금 거절할지**"다. 한도를 실제로 켜면
-    이 값이 저절로 바뀌고 클라는 고칠 게 없다.
+    ## ⚠ C4(2026-09-23, D4): `can_call_normal` 은 이제 **횟수가 아니라 예산**이다
+    `DAILY_BUDGET_ENFORCED` 기본 True(운영 기본 켜짐)라, `can_call_normal` 은
+    실제로 하루 통화 총량(Free 5분/Premium 15분)을 다 썼으면 false 를 돌려준다 —
+    "일반 통화 했나"가 아니라 "오늘 쓸 시간이 남았나"다. `can_call_level_test` 는
+    옛 횟수 한도(`is_daily_limit_reached`, `DAILY_LIMIT_ENFORCED` 기본 False)를 그대로
+    본다 — dev/test 에선 대체로 true(막지 않음), prod 는 스위치와 무관하게 켜져 있다.
 
     ## ⛔ `can_call_*` 은 `date` 가 아니라 서버의 **'지금'** 을 본다
     `date` 는 `called_today`·`level_test_today`(사실) 축이 소유한다. 판정 축은
@@ -121,7 +125,7 @@ def get_daily_status(
 
     정적 경로라 `/{call_id}` 보다 먼저 선언(라우트 순서로 의도 명확화).
     """
-    return CallService(db).daily_status(member.member_id, date, tz_offset)
+    return CallService(db).daily_status(member.member_id, date, tz_offset, tz=tz)
 
 
 @router.get("/{call_id}/resume-status")

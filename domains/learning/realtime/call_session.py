@@ -3108,52 +3108,50 @@ async def run_call(
         else:
             call_type = "expression"
 
-    # ── 일일 통화 한도 ─────────────────────────────────────────────────── #
-    # 콜타입별로 따로 센다 — 레벨테스트를 썼어도 일반 통화 1회가 남는다.
+    # ── 일일 한도 / 하루 통화 총량 예산 ───────────────────────────────────── #
+    # 레벨테스트는 옛 횟수 한도(콜타입별 1회) 그대로. 나머지(chat·expression·freetalk)는
+    # **C4(2026-09-23, D4)** 부터 하루 통화 총량(분) 예산으로 대체됐다 — DAILY_CALL_LIMIT
+    # 에서 이 콜타입들이 빠졌다(call_service.is_daily_limit_reached 문서 참조).
     #
-    # 여기서 막는 이유(위치가 중요): 콜타입 라우팅 **직후**라 한도를 콜타입별로 판정할 수
+    # 여기서 막는 이유(위치가 중요): 콜타입 라우팅 **직후**라 콜타입/예산을 판정할 수
     # 있고, create_call(통화 행)·Live 세션 open 이 **모두 아래**라 거절해도 잔여물도
     # Gemini 비용도 0이다. 클라 게이팅은 우회되므로 서버가 거절해야 한다.
-    # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+    # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md · docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md(C4)
     tz_offset_min = start.tz_offset_min or 0
-    # ⛔⛔ **이어하기는 한도 검사를 건너뛴다** — 안 그러면 15분 체인이 조각1에서 죽는다.
-    #
-    #   한도 판정은 «오늘 성립한 통화가 하나라도 있나»(EXISTS)이고, 성립 기준이
-    #   «학습자가 한 번이라도 말했나» 다(`has_call_in_window`). 그러면:
-    #       조각1  5분 통화 → 학습자가 말함 → "오늘 통화함" 성립
-    #       조각2  접속     → "이미 통화했네" → 거절   ⛔
-    #   **체인 전체가 1통화** 인데(사장님 결정 2026-08-19: "pro랑 max는 체인으로 15분
-    #   연달아서가 1통화") 조각1이 그 1통화를 다 써 버린다. 광고는 15분인데 5분에 끊긴다.
-    #
-    #   ⭐ 남용은 **조각 상한이 막는다.** `resume_call` 이 `fragment_count >= max_fragments`
-    #     면 거절하므로(Free 는 1이라 아예 못 잇는다), 이어하기를 무한 반복할 수 없다.
-    #     ⇒ 여기서 건너뛰어도 «하루 1통화» 는 조각 상한과 함께 그대로 성립한다.
-    #
-    #   ⚠ `continues_call_id` 는 아직 **검증 전**이다(본인 통화인지·상한인지는 아래
-    #     `resume_call` 이 본다). 남의 id 를 들고 와 한도를 우회하는 것처럼 보이지만,
-    #     그 경우 `resume_call` 이 거절해 `call_id is None` 이 되고 **새 통화로 폴백**하는데
-    #     그 폴백 경로는 이 검사를 이미 지난 뒤다.
-    #     ⇒ 이 구멍을 막으려면 검증을 한도 검사보다 **앞으로** 옮겨야 하는데, 그건 DB 왕복이
-    #       하나 더 늘고 거절 경로가 둘로 갈린다. 이득이 «남의 call_id 를 아는 사람이
-    #       하루 한 번 더 통화한다» 뿐이라 지금은 안 한다. 나중에 새면 그때 옮긴다.
-    if continues_call_id is None and await svc.run_db(
-        db_session_factory,
-        lambda db: call_service.is_daily_limit_reached(
-            db, member_id, call_type, tz_offset_min
-        ),
-    ):
+    client_tz = getattr(start, "tz", None)
+    if call_type == "level_test":
+        # ⛔ 레벨테스트는 애초에 이어하기 대상이 아니다(resume-status 가 거절) —
+        #   continues_call_id is None 가드는 옛 동작을 그대로 보존한다(변경 없음).
+        limit_reached = continues_call_id is None and await svc.run_db(
+            db_session_factory,
+            lambda db: call_service.is_daily_limit_reached(
+                db, member_id, call_type, tz_offset_min, tz=client_tz
+            ),
+        )
+    else:
+        # ⛔⛔ **예산 방식은 이어하기 조각도 검사한다** — 옛 횟수 한도의 "이어하기는
+        #   건너뛴다"(위 is_daily_limit_reached 시절 주석)는 여기 적용되지 않는다.
+        #   예산은 «오늘 성립한 통화가 있나»가 아니라 «쓴 시간이 얼마나 남았나»라서,
+        #   조각2 시작 시점의 남은 예산이 곧 그 조각의 상한이다 — 건너뛰면 Free 가
+        #   300초를 다 쓰고도 이어하기로 계속 통화할 수 있게 된다.
+        limit_reached = await svc.run_db(
+            db_session_factory,
+            lambda db: call_service.daily_budget_exceeded(
+                db, member_id, tz=client_tz, tz_offset_min=tz_offset_min,
+                plan_override=call_service.plan_override_for(db, member_id, plan_override_req),
+            ),
+        )
+    if limit_reached:
         logger.info(
-            "normalcall: 일일 한도 초과 거절 member=%s call_type=%s tz=%s",
-            member_id, call_type, tz_offset_min,
+            "normalcall: 일일 한도/예산 초과 거절 member=%s call_type=%s tz=%s continues=%s",
+            member_id, call_type, client_tz or tz_offset_min, continues_call_id is not None,
         )
         with contextlib.suppress(Exception):
             await _send_json(client_ws, ServerError(
                 code="DAILY_LIMIT",
                 message={
                     "level_test": "오늘의 레벨테스트를 이미 사용했어요.",
-                    "expression": "오늘의 표현학습을 이미 사용했어요.",
-                    "freetalk": "오늘의 프리토킹을 이미 사용했어요.",
-                }.get(call_type, "오늘의 통화를 이미 사용했어요."),
+                }.get(call_type, "오늘 쓸 수 있는 통화 시간을 다 썼어요."),
                 recoverable=False,
             ))
         return
@@ -4704,6 +4702,11 @@ class StartParams(NamedTuple):
     옛날엔 평범한 5-tuple 이었는데 필드가 늘면서 호출부가 위치로 풀어야 했다. 이름이
     붙으면 순서를 틀릴 수 없고 뒤에 필드를 더해도 기존 언패킹이 안 깨진다.
     (NamedTuple 이라 == (a, b, ...) 비교도 그대로 된다 — 기존 테스트 무영향.)
+
+    ⚠ `ClientStart` 의 필드를 추가할 때 여기도 같이 넣어야 한다 — `_read_initial_start`
+      가 `getattr(cm, ...)` 로 **명시 목록만** 옮겨 담는다(자동 통과 아님). tz(C4)가 그
+      예다: protocol.py 에 필드를 추가했지만 여기 빠뜨려 `getattr(start, "tz", None)`
+      이 항상 None 이었던 회귀가 있었다.
     """
 
     # ⛔ 서버가 무시한다(로그 전용). 통화 캐릭터는 resolve_call_character 가 정한다.
@@ -4730,6 +4733,9 @@ class StartParams(NamedTuple):
     plan_override: str | None = None
     # ⭐ 끊김 없는 조각 전환(2026-09-13 S1) — continues_call_id 와 함께 True 면 재개 시드 0(비버가 학습자 첫 발화를 기다린다). 기본 False.
     silent_resume: bool = False
+    # ⭐ C4(2026-09-23, D4) — IANA 존 이름. 기본 None(미전송·구버전 앱)이면 호출부가
+    #   tz_offset_min 폴백(local_window_utc). 기존 호출부·테스트 보호를 위해 맨 뒤.
+    tz: str | None = None
 
 
 async def _read_initial_start(client_ws) -> StartParams:
@@ -4799,6 +4805,7 @@ async def _read_initial_start(client_ws) -> StartParams:
                         force_course=bool(getattr(cm, "force_course", False)),
                         plan_override=getattr(cm, "plan_override", None),
                         silent_resume=bool(getattr(cm, "silent_resume", False)),
+                        tz=getattr(cm, "tz", None),
                     )
     except WebSocketDisconnect as exc:
         raise _ClientDisconnect() from exc

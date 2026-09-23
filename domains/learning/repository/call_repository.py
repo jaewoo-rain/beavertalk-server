@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from domains.learning.models.call import Call
@@ -88,6 +88,29 @@ class CallRepository:
         if call_type is not None:
             inner = inner.where(Call.call_type == call_type)
         return bool(self.db.scalar(select(inner.exists())))
+
+    def sum_total_time_in_window(
+        self, member_id: int, start_utc, end_utc, *, exclude_call_types: tuple[str, ...] = (),
+    ) -> int:
+        """[start_utc, end_utc) 안에 **시작한** 통화의 `total_time` 합(초) — 하루 통화 총량
+        예산(C4, 2026-09-23) 집계용.
+
+        ⚠ `has_call_in_window` 와 달리 "학습자가 말했나"(spoke)를 걸지 않는다 — 예산은
+          **써버린 시간**을 재는 것이라, 마이크가 안 열린 통화도 Gemini 세션이 열려 있던
+          시간만큼 total_time 이 쌓였다면 그 소비가 실제다(옛 count 한도의 "성립" 기준과는
+          목적이 다르다).
+        status 는 (done, analyzing, ongoing) 만 센다 — 아직 저장 안 끝난 ongoing 도 진행
+          중인 소비라 빼면, 끊고 바로 또 거는 구멍이 생긴다.
+        """
+        stmt = select(func.coalesce(func.sum(Call.total_time), 0)).where(
+            Call.member_id == member_id,
+            Call.call_date >= start_utc,
+            Call.call_date < end_utc,
+            Call.status.in_(("done", "analyzing", "ongoing")),
+        )
+        if exclude_call_types:
+            stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
+        return int(self.db.scalar(stmt) or 0)
 
     def add(self, call: Call) -> Call:
         self.db.add(call)

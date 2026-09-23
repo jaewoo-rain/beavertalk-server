@@ -190,19 +190,26 @@ def test_bad_offset_422(ctx):
 def test_can_call_mirrors_the_server_refusal(ctx, monkeypatch):
     """⛔⛔ **화면 배지와 서버 거절이 갈리면 안 된다.**
 
-    `called_today` 는 사실이고 `can_call_normal` 은 판정이다 — 같은 사실에서 Free 는
-    못 하고 Pro 는 할 수 있으므로 결론이 반대로 갈린다. 그 조합을 클라에 맡기면
-    판정이 두 군데가 되고, 어긋나는 순간 "배지는 된다는데 서버가 거절"이 난다.
+    `called_today` 는 사실이고 `can_call_normal`/`can_call_level_test` 는 판정이다 —
+    같은 사실에서 Free 는 못 하고 Pro 는 할 수 있으므로 결론이 반대로 갈린다. 그 조합을
+    클라에 맡기면 판정이 두 군데가 되고, 어긋나는 순간 "배지는 된다는데 서버가 거절"이 난다.
     ⇒ 이 시험은 **서버 거절 함수와 응답이 같은 답인지**만 본다. 값을 박아두지 않는다.
 
-    ⚠ ENV != "prod" 면 서버가 아무도 안 막으므로 can_call_* 은 항상 True 다. 그것도
-      **같은 답**이므로 이 시험은 그대로 통과한다 — 그게 이 계약의 요점이다.
+    ⭐⭐ C4(2026-09-23, D4): `can_call_normal` 의 서버 거절 함수는 `is_daily_limit_reached`
+      에서 `daily_budget_exceeded` 로 바뀌었다 — chat·expression·freetalk 는 이제 횟수가
+      아니라 하루 통화 총량(분) 예산으로 판정한다. `can_call_level_test` 는 여전히
+      `is_daily_limit_reached` 다(레벨테스트만 옛 횟수 한도가 남았다).
+
+    ⚠ `DAILY_BUDGET_ENFORCED` 기본 True(운영 기본 켜짐)라 `can_call_normal` 은 이제
+      **기본적으로 실제 판정**을 반영한다(옛 count 한도는 DAILY_LIMIT_ENFORCED 기본
+      False 라 dev/test 에선 늘 true 였다).
     """
     from domains.learning.service import call_service as cs
 
     # ⛔⛔ **`can_call_*` 은 요청한 `date` 가 아니라 서버의 '지금'을 본다.**
-    #   is_daily_limit_reached 가 datetime.now() 로 창을 잡기 때문이다. 처음 이 시험을
-    #   과거 날짜(2026-07-17)로 썼더니 prod 에서도 안 막혔다 — 그날 통화는 오늘 창 밖이다.
+    #   is_daily_limit_reached/daily_budget_exceeded 가 datetime.now() 로 창을 잡기
+    #   때문이다. 처음 이 시험을 과거 날짜(2026-07-17)로 썼더니 prod 에서도 안 막혔다 —
+    #   그날 통화는 오늘 창 밖이다.
     #   ⭐ 이건 버그가 아니라 **맞는 동작**이다: 서버 거절은 통화를 거는 **그 순간** 일어나므로
     #     can_call_* 이 '지금'을 봐야 거절과 같은 답이 된다. date 를 따르게 만들면 오히려
     #     "어제 날짜로 물으면 된다고 한다"가 되어 두 값이 갈린다.
@@ -212,19 +219,22 @@ def test_can_call_mirrors_the_server_refusal(ctx, monkeypatch):
     today_local = (now + timedelta(minutes=540)).date().isoformat()
 
     out = _status(ctx, today_local, 540)
-    for call_type, key in (("chat", "can_call_normal"),
-                           ("level_test", "can_call_level_test")):
-        refused = cs.is_daily_limit_reached(ctx["db"], ctx["member_id"], call_type, 540)
-        assert out[key] is (not refused), (
-            "%s 가 서버 거절과 어긋난다 — 배지와 거절이 갈리는 그 버그다" % key
-        )
+    refused_budget = cs.daily_budget_exceeded(ctx["db"], ctx["member_id"], tz_offset_min=540)
+    assert out["can_call_normal"] is (not refused_budget), (
+        "can_call_normal 이 daily_budget_exceeded 와 어긋난다 — 배지와 거절이 갈리는 그 버그다"
+    )
+    refused_lt = cs.is_daily_limit_reached(ctx["db"], ctx["member_id"], "level_test", 540)
+    assert out["can_call_level_test"] is (not refused_lt), (
+        "can_call_level_test 가 is_daily_limit_reached 와 어긋난다"
+    )
 
-    # ⛔ prod 로 올리면 Free 는 실제로 막혀야 한다(한도 배선이 살아 있는지 확인).
-    monkeypatch.setattr(cs.settings, "ENV", "prod", raising=False)
+    # ⛔ 예산을 다 쓰면 Free 는 실제로 막혀야 한다(예산 배선이 살아 있는지 확인). 30초는
+    #   Free 예산 300초에 한참 못 미치므로, 남은 300 - 30 = 270초를 더 써서 소진시킨다.
+    _call(ctx, when_utc=now, total_time=270)
     blocked = _status(ctx, today_local, 540)
     assert blocked["called_today"] is True
-    assert blocked["can_call_normal"] is False, "prod 에서 Free 가 두 번째 통화를 못 막는다"
-    # 레벨테스트는 콜타입이 달라 아직 남아 있다(한도를 따로 센다 — 위 주석 참조).
+    assert blocked["can_call_normal"] is False, "예산 소진인데 Free 가 두 번째 통화를 못 막는다"
+    # 레벨테스트는 예산과 무관한 별도 축이다 — dev/test 는 DAILY_LIMIT_ENFORCED 기본 False.
     assert blocked["can_call_level_test"] is True
 
 
@@ -244,34 +254,38 @@ def test_max_fragments_is_the_same_source_as_resume_status(ctx):
     assert out["max_fragments"] == cs.FREE_CALL_FRAGMENTS, "플랜 없는 회원은 Free(1)"
 
 
-def test_daily_limit_switch_is_independent_of_env(ctx, monkeypatch):
-    """⭐ **한도만 따로 켜는 스위치**(2026-08-20 사장님 지시).
+def test_daily_budget_switch_is_independent_of_env(ctx, monkeypatch):
+    """⭐ **예산만 따로 켜는 스위치**(DAILY_BUDGET_ENFORCED, C4/D4 — 옛 DAILY_LIMIT_ENFORCED
+    와 같은 규율, 2026-08-20 사장님 지시를 그대로 물려받는다).
 
     ⛔ 왜 ENV 로 안 하나: `ENV=prod` 는 한도만 켜는 값이 아니다 — dev 데모 라우트
       (main.py `/__levelcalldemo`·`/__enginedemo`)와 통화 prod 가드도 같이 켠다.
       프론트가 한도 UI 를 검증하려면 **한도만** 켜야 했다.
-    ⛔⛔ 켜면 Free 는 하루 1통화에서 잠긴다. 켤 위치를 고를 때 그 대가를 보라.
+    ⛔⛔ 켜면 Free 는 하루 예산(300초)에서 잠긴다. 켤 위치를 고를 때 그 대가를 보라.
+    ⚠ C4 로 기본값이 **True 로 뒤집혔다** — 옛 DAILY_LIMIT_ENFORCED(기본 False)와 반대다.
+      그래서 ①은 명시로 꺼야 "안 막는다"를 볼 수 있다.
     """
     from domains.learning.service import call_service as cs
 
     now = datetime.now(timezone.utc)
-    _call(ctx, when_utc=now, total_time=30)
+    # 예산(300초)을 다 쓴 상태를 심는다 — 스위치가 꺼지면 그래도 안 막혀야 한다.
+    _call(ctx, when_utc=now, total_time=300)
     today_local = (now + timedelta(minutes=540)).date().isoformat()
 
-    # ① 기본값(꺼짐) + ENV=test → 안 막는다
+    # ① 스위치를 꺼면 ENV=test 에서 안 막는다(예산을 다 썼어도)
     monkeypatch.setattr(cs.settings, "ENV", "test", raising=False)
-    monkeypatch.setattr(cs.settings, "DAILY_LIMIT_ENFORCED", False, raising=False)
+    monkeypatch.setattr(cs.settings, "DAILY_BUDGET_ENFORCED", False, raising=False)
     assert _status(ctx, today_local, 540)["can_call_normal"] is True
 
     # ② 스위치만 켜면 ENV 가 test 여도 막는다 — 이게 이 변경의 요점이다
-    monkeypatch.setattr(cs.settings, "DAILY_LIMIT_ENFORCED", True, raising=False)
+    monkeypatch.setattr(cs.settings, "DAILY_BUDGET_ENFORCED", True, raising=False)
     assert _status(ctx, today_local, 540)["can_call_normal"] is False,         "스위치를 켰는데 안 막는다 — ENV 축과 분리가 안 된 것이다"
 
     # ③ ⚠ prod 는 스위치와 무관하게 계속 막는다(회귀 방어).
-    #    실서비스에서 플래그 하나 안 켰다고 한도가 풀리면 그게 사고다.
+    #    실서비스에서 플래그 하나 안 켰다고 예산이 풀리면 그게 사고다.
     monkeypatch.setattr(cs.settings, "ENV", "prod", raising=False)
-    monkeypatch.setattr(cs.settings, "DAILY_LIMIT_ENFORCED", False, raising=False)
-    assert _status(ctx, today_local, 540)["can_call_normal"] is False,         "prod 에서 한도가 풀렸다"
+    monkeypatch.setattr(cs.settings, "DAILY_BUDGET_ENFORCED", False, raising=False)
+    assert _status(ctx, today_local, 540)["can_call_normal"] is False,         "prod 에서 예산이 풀렸다"
 
 
 def test_admin_is_exempt_from_the_daily_limit(ctx, monkeypatch):
@@ -282,15 +296,18 @@ def test_admin_is_exempt_from_the_daily_limit(ctx, monkeypatch):
       화면·Free 한도 UI 를 본인이 못 보게 된다.** role 은 구독을 안 건드리므로 화면은
       Free 그대로이고 한도만 안 걸린다 — 테스트용으로 원하는 게 정확히 그것이다.
       이 시험이 그 성질(구독은 그대로 Free)까지 같이 잡는다.
+
+    ⚠ C4(2026-09-23, D4): can_call_normal 은 이제 예산(daily_budget_exceeded)이라,
+      일반 회원이 막히려면 Free 예산(300초)을 다 써야 한다 — 옛 30초 심기로는 안 막힌다.
     """
     from domains.account.models.member import Member
     from domains.commerce.service import entitlements
     from domains.learning.service import call_service as cs
 
     now = datetime.now(timezone.utc)
-    _call(ctx, when_utc=now, total_time=30)
+    _call(ctx, when_utc=now, total_time=300)   # Free 예산(300초) 소진
     today_local = (now + timedelta(minutes=540)).date().isoformat()
-    monkeypatch.setattr(cs.settings, "DAILY_LIMIT_ENFORCED", True, raising=False)
+    monkeypatch.setattr(cs.settings, "DAILY_BUDGET_ENFORCED", True, raising=False)
 
     # ① 일반 회원(user)은 막힌다
     assert _status(ctx, today_local, 540)["can_call_normal"] is False
@@ -334,13 +351,20 @@ def test_paid_plans_are_also_one_call_a_day(ctx, monkeypatch):
       재편(77ed775)도 조각 재편(08-19)도 이 표를 안 건드렸다. **길이 축만 두 번 고치고
       횟수 축을 놔둔 것**이다.
     ⚠ 앱 문구("Unlimited calls" 10군데)는 프론트가 고친다 — 서버는 서버만 본다.
+    ⚠⚠ C4(2026-09-23, D4): "chat 도 횟수 1회"였던 옛 계약은 이제 없다 — chat·expression·
+      freetalk 는 하루 통화 총량(분) 예산(daily_budget_s)이 대신 막는다. 이 시험은 그
+      대체가 실수로 사라지지 않았는지(예산이 플랜별로 갈려 있는지)를 본다.
     """
     from domains.learning.service import call_service as cs
 
     for plan in (None, "premium"):
         limits = cs.DAILY_CALL_LIMIT_BY_PLAN[plan]
-        assert limits.get("chat") == 1, "플랜 %r 이 무제한으로 돌아갔다" % plan
+        assert limits.get("chat") is None, "chat 이 다시 횟수 한도로 돌아갔다(예산과 이중 게이트가 된다)"
         assert limits.get("level_test") == 1, "플랜 %r 레벨테스트가 무제한이다" % plan
+
+    # 횟수 대신 예산이 플랜을 가른다 — Free < Premium 이 유지돼야 "무제한으로 돌아갔다"가 아니다.
+    assert cs.daily_budget_s(None) == 300
+    assert cs.daily_budget_s("premium") == 900
 
     # ⚠ 조각 수는 반대로 **갈려 있어야** 한다 — 그게 플랜의 차별점이다.
     assert cs.CALL_FRAGMENTS_BY_PLAN[None] == 1

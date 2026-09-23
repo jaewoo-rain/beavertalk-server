@@ -1,8 +1,10 @@
 """일일 통화 한도 — 서버가 통화 시작을 거절한다.
 
-지시: 하루에 레벨테스트 1회 + 일반 통화(자유대화, C3 로 "normal"→"chat" 개명) 1회.
-레벨테스트는 일반 통화 한도를 깎지 않는다.
-근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+⭐⭐ C4(2026-09-23, D4): 이 파일의 **콜타입별 횟수 한도**(is_daily_limit_reached)는
+이제 **레벨테스트에만** 적용된다. chat·expression·freetalk 는 하루 통화 총량(분) 예산
+(daily_budget_exceeded, tests/test_daily_call_budget.py)이 대체했다 — 코스마다 따로
+세던 옛 방식은 "Free 가 하루 3통화"가 되는 문제가 있었다.
+근거: docs/20260729_1243_일일-통화-한도-서버-거절.md · docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md(C4)
 
 ⚠ 클라 게이팅은 우회 가능하므로 판정은 서버가 한다. 거절은 create_call·Live 세션 open
    **이전**에 일어나야 잔여물도 Gemini 비용도 안 생긴다.
@@ -93,57 +95,46 @@ def patched_repo(monkeypatch):
     return make
 
 
-def test_limits_are_one_each():
-    """지시: 레벨테스트 1회 + 일반 통화 1회. 코스 2종(2026-09-10)도 같은 1회.
+def test_limits_are_level_test_only():
+    """⭐⭐ C4(2026-09-23, D4): 콜타입별 횟수 한도는 **레벨테스트만** 남는다.
 
-    ⚠⚠ **표현학습·프리토킹 값은 사장님 확인 사항이다**(2026-09-10 추가). 코스를 가르면
-      «하루 1통화» 의 뜻이 «통화 1번» 인지 «코스마다 1번» 인지가 갈리는데, 그건 상품 결정이다.
-      이 값이면 Free 가 하루 **3통화**를 하게 된다(chat 1 + 표현학습 1 + 프리토킹 1).
-    ⛔ 그래도 **표에서 빼면 안 된다** — `is_daily_limit_reached` 가 «정의되지 않은 콜타입은
-      막지 않는다» 로 떨어져 두 코스가 통째로 **무제한**이 된다. Live 는 통화당 원가가
-      나가므로 «무제한» 쪽이 «값이 아직 미확정» 보다 훨씬 위험하다.
-    ⇒ 이 시험은 **누락을 막는 것**이 임무다. 값을 바꾸려면 여기서 바꾼다.
+    옛 표(chat·expression·freetalk 도 1회씩)는 "Free 가 하루 3통화"가 되는 문제가
+    있었다 — 하루 통화 총량(분) 예산(daily_budget_exceeded)이 그 셋을 대체한다.
+    ⇒ 이 시험은 **누락/재추가를 막는 것**이 임무다. chat 등이 다시 들어오면 예산과
+      횟수 한도가 이중으로 걸려 조각2가 예산은 남았는데 횟수로 거절되는 회귀가 난다.
     """
-    assert DAILY_CALL_LIMIT == {
-        "chat": 1, "level_test": 1, "expression": 1, "freetalk": 1,
-    }
+    assert DAILY_CALL_LIMIT == {"level_test": 1}
 
 
-def test_chat_blocked_after_chat(patched_repo):
-    patched_repo({"chat"})
-    assert is_daily_limit_reached(None, 1, "chat", 540) is True
+def test_level_test_blocked_after_level_test(patched_repo):
+    patched_repo({"level_test"})
+    assert is_daily_limit_reached(None, 1, "level_test", 540) is True
 
 
 def test_level_test_not_blocked_by_chat(patched_repo):
-    """★ 핵심: 일반 통화(자유대화)를 썼어도 레벨테스트는 남아 있다."""
+    """★ 핵심: 일반 통화(자유대화)를 썼어도 레벨테스트는 남아 있다(콜타입 분리)."""
     patched_repo({"chat"})
     assert is_daily_limit_reached(None, 1, "level_test", 540) is False
 
 
-def test_chat_not_blocked_by_level_test(patched_repo):
-    """★ 핵심: 레벨테스트를 썼어도 일반 통화(자유대화)는 남아 있다."""
-    patched_repo({"level_test"})
-    assert is_daily_limit_reached(None, 1, "chat", 540) is False
-
-
-def test_both_used_blocks_both(patched_repo):
+def test_chat_is_no_longer_count_limited(patched_repo):
+    """⭐⭐ C4: chat 은 이 표에서 빠졌으므로 아무리 오늘 썼어도 **횟수로는** 안 막힌다
+    (예산으로만 막힌다 — daily_budget_exceeded, 이 함수가 볼 대상이 아니다)."""
     patched_repo({"chat", "level_test"})
-    assert is_daily_limit_reached(None, 1, "chat", 540) is True
-    assert is_daily_limit_reached(None, 1, "level_test", 540) is True
-
-
-def test_nothing_used_allows_both(patched_repo):
-    patched_repo(set())
     assert is_daily_limit_reached(None, 1, "chat", 540) is False
+
+
+def test_nothing_used_allows_level_test(patched_repo):
+    patched_repo(set())
     assert is_daily_limit_reached(None, 1, "level_test", 540) is False
 
 
 def test_query_filters_by_call_type(patched_repo):
     """콜타입 필터가 실제로 쿼리에 실린다(안 실리면 한도가 서로를 깎는다)."""
     repo = patched_repo(set())
-    is_daily_limit_reached(None, 7, "chat", 540)
+    is_daily_limit_reached(None, 7, "level_test", 540)
     q = repo.calls[-1]
-    assert q["call_type"] == "chat"
+    assert q["call_type"] == "level_test"
     assert q["member_id"] == 7
     assert q["end"] - q["start"] == timedelta(days=1)
 
@@ -156,20 +147,22 @@ def test_not_limited_outside_prod(patched_repo, monkeypatch, env):
     """dev/test/데모는 자유 — 테스트하다 하루가 잠기면 개발이 안 된다."""
     monkeypatch.setattr(app_settings, "ENV", env)
     repo = patched_repo({"chat", "level_test"})
-    assert is_daily_limit_reached(None, 1, "chat", 540) is False
+    assert is_daily_limit_reached(None, 1, "level_test", 540) is False
     assert repo.calls == [], f"ENV={env} 인데 DB 를 조회했다(불필요한 왕복)"
 
 
 def test_limited_in_prod(patched_repo, monkeypatch):
     monkeypatch.setattr(app_settings, "ENV", "prod")
-    patched_repo({"chat"})
-    assert is_daily_limit_reached(None, 1, "chat", 540) is True
+    patched_repo({"level_test"})
+    assert is_daily_limit_reached(None, 1, "level_test", 540) is True
 
 
 def test_unknown_call_type_is_not_limited(patched_repo):
-    """한도가 정의되지 않은 콜타입은 막지 않는다(새 콜타입이 조용히 잠기지 않게)."""
+    """한도가 정의되지 않은 콜타입은 막지 않는다(새 콜타입이 조용히 잠기지 않게 —
+    C4 이후 chat·expression·freetalk 도 이 경로다, 예산이 대신 막는다)."""
     patched_repo({"chat", "level_test"})
     assert is_daily_limit_reached(None, 1, "practice", 540) is False
+    assert is_daily_limit_reached(None, 1, "chat", 540) is False
 
 
 # --------------------------------------------------------------------------- #

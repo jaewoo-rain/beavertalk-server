@@ -2723,21 +2723,31 @@ async def test_missing_target_language_falls_back_to_default(session_factory, se
 
 
 # --------------------------------------------------------------------------- #
-# 10. 일일 통화 한도 — 서버가 통화 시작을 거절한다.
+# 10. 일일 통화 한도 / 하루 통화 총량 예산 — 서버가 통화 시작을 거절한다.
 #
 # 클라 게이팅은 우회 가능하므로 서버가 막는다. 거절은 create_call(통화 행)·Live 세션
 # open **이전**이라 잔여물도 Gemini 비용도 안 생긴다.
 # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md
+#
+# ⭐⭐ C4(2026-09-23, D4): 레벨테스트만 `is_daily_limit_reached`(횟수)를 본다. 그 외
+#   (기본 라우팅 결과 — seeded 는 korean_level 확정이라 "auto"→표현학습/프리토킹) 는
+#   `daily_budget_exceeded`(하루 통화 총량 분 예산)를 본다. 이 파일의 daily-limit 시험은
+#   그래서 콜타입에 따라 **다른 함수**를 모킹한다.
 # --------------------------------------------------------------------------- #
 
 
 @pytest.mark.asyncio
-async def test_daily_limit_rejects_before_creating_call(
+async def test_budget_exceeded_rejects_before_creating_call(
     session_factory, seeded, monkeypatch
 ):
-    """한도 초과면 DAILY_LIMIT 을 보내고, 통화 행도 Live 세션도 만들지 않는다."""
+    """예산 초과면 DAILY_LIMIT 을 보내고, 통화 행도 Live 세션도 만들지 않는다.
+
+    ⚠ seeded 는 korean_level 확정이라 콜타입 미전송 → "auto"(학습) 로 라우팅된다 —
+      level_test 가 아니므로 판정은 `daily_budget_exceeded` 가 한다(is_daily_limit_reached
+      가 아니다 — C4 로 레벨테스트에만 남았다).
+    """
     monkeypatch.setattr(app_settings, "ENV", "prod")
-    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached",
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded",
                         lambda *a, **k: True)
     opened = {"n": 0}
 
@@ -2767,9 +2777,9 @@ async def test_daily_limit_rejects_before_creating_call(
 
 
 @pytest.mark.asyncio
-async def test_within_limit_proceeds(session_factory, seeded, monkeypatch):
-    """한도 안이면 평소대로 통화가 열린다(거절 경로가 정상 통화를 막지 않는다)."""
-    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached",
+async def test_within_budget_proceeds(session_factory, seeded, monkeypatch):
+    """예산 안이면 평소대로 통화가 열린다(거절 경로가 정상 통화를 막지 않는다)."""
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded",
                         lambda *a, **k: False)
     sess = FakeLiveSession()
     _, holder = await _run_call_with(sess, seeded, session_factory)
@@ -2783,24 +2793,26 @@ async def test_within_limit_proceeds(session_factory, seeded, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_limit_checked_with_routed_call_type_and_client_tz(
+async def test_level_test_limit_checked_with_routed_call_type_and_client_tz(
     session_factory, seeded, monkeypatch
 ):
-    """판정에 넘어가는 값 검증 — 라우팅된 콜타입 + 클라가 보낸 tz 오프셋.
+    """판정에 넘어가는 값 검증(레벨테스트, is_daily_limit_reached) — 라우팅된 콜타입 +
+    클라가 보낸 tz_offset_min·tz(IANA) 둘 다.
 
     콜타입을 틀리면 레벨테스트가 일반 통화 한도를 깎고, tz 를 틀리면 하루 경계가
     사용자 자정과 어긋난다.
     """
     seen: dict = {}
 
-    def spy(db, member_id, call_type, tz_offset_min=0):
-        seen.update(member_id=member_id, call_type=call_type, tz=tz_offset_min)
+    def spy(db, member_id, call_type, tz_offset_min=0, *, tz=None):
+        seen.update(member_id=member_id, call_type=call_type,
+                    tz_offset=tz_offset_min, tz=tz)
         return False
 
     monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", spy)
 
     start = {"type": "start", "character_id": seeded["character_id"],
-             "call_type": "level_test", "tz_offset_min": 540}
+             "call_type": "level_test", "tz_offset_min": 540, "tz": "Asia/Seoul"}
     ws = FakeWebSocket(
         [{"type": "websocket.receive", "text": json.dumps(start)}], hang=True
     )
@@ -2816,7 +2828,48 @@ async def test_limit_checked_with_routed_call_type_and_client_tz(
         member_id=seeded["member_id"], live_session_factory=factory,
     )
     assert seen["call_type"] == "level_test"
-    assert seen["tz"] == 540
+    assert seen["tz_offset"] == 540
+    assert seen["tz"] == "Asia/Seoul"
+
+
+@pytest.mark.asyncio
+async def test_budget_checked_with_routed_call_type_and_client_tz(
+    session_factory, seeded, monkeypatch
+):
+    """C4(2026-09-23, D4): 예산 판정(`daily_budget_exceeded`)에 넘어가는 값 — 라우팅된
+    콜타입(auto→expression/freetalk 등 level_test 가 아닌 값) + tz(IANA) + tz_offset_min +
+    검증된 plan_override(admin 아니면 None)."""
+    seen: dict = {}
+
+    def spy(db, member_id, *, tz=None, tz_offset_min=None, plan_override=None):
+        seen.update(member_id=member_id, tz=tz, tz_offset=tz_offset_min,
+                    plan_override=plan_override)
+        return False
+
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", spy)
+
+    start = {"type": "start", "character_id": seeded["character_id"],
+             "tz_offset_min": 540, "tz": "Asia/Seoul", "plan_override": "premium"}
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive", "text": json.dumps(start)}], hang=True
+    )
+
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        yield FakeLiveSession()
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    assert seen["tz_offset"] == 540
+    assert seen["tz"] == "Asia/Seoul"
+    assert seen["member_id"] == seeded["member_id"]
+    # ⚠ seeded 는 admin 이 아니므로(role 기본 user) plan_override_for 가 요청을 버린다
+    #   — «premium」을 보냈어도 검증된 값은 None(본인 플랜)이어야 한다.
+    assert seen["plan_override"] is None, "admin 아닌 회원의 plan_override 가 그대로 통과했다"
     assert seen["member_id"] == seeded["member_id"]
 
 
@@ -5074,18 +5127,20 @@ def test_an_unknown_reground_mode_is_refused_at_startup(bad):
 
 
 # --------------------------------------------------------------------------- #
-# 일일 한도 × 이어하기 (2026-09-06)
+# 일일 한도 × 이어하기 (2026-09-06 도입 → C4(2026-09-23, D4)로 예산 방식에서 뒤집힘)
 # --------------------------------------------------------------------------- #
 #
-# ⛔ 한도 판정은 «오늘 성립한 통화가 하나라도 있나»(EXISTS)이고, 성립 기준이 «학습자가
-#   한 번이라도 말했나» 다. 그러면 15분 체인이 조각1에서 죽는다:
+# ⛔ 옛(횟수) 한도는 «오늘 성립한 통화가 하나라도 있나»(EXISTS)였고, 성립 기준이 «학습자가
+#   한 번이라도 말했나» 였다. 그대로 두면 15분 체인이 조각1에서 죽는다:
 #       조각1  5분 통화 → 학습자가 말함 → "오늘 통화함" 성립
 #       조각2  접속     → "이미 통화했네" → 거절
-#   **체인 전체가 1통화** 인데(사장님 결정: "pro랑 max는 체인으로 15분 연달아서가 1통화")
-#   조각1이 그 1통화를 다 써 버린다. 광고는 15분인데 5분에 끊긴다.
+#   그래서 **옛 방식은 이어하기를 건너뛰었다.**
 #
-# ⚠ 지금은 한도가 꺼져 있어(ENV='test') 이 사고가 안 보인다. **켜는 순간 드러난다.**
-#   그래서 이 시험이 필요하다 — 켜기 전에 안전망을 먼저 깐다.
+# ⭐⭐ **C4 가 이걸 뒤집는다** — 하루 통화 총량(분) 예산에서는 «남은 시간»이 곧 조각의
+#   상한이다. 건너뛰면 Free 가 300초를 다 쓰고도 이어하기로 계속 통화할 수 있게 된다
+#   (문서 C4 스펙: "지금은 «이어하기는 한도 검사를 건너뛴다» — 예산 방식에선 조각도
+#   검사한다"). ⇒ 아래 `test_resume_fragment_is_checked_against_the_budget` 가 새 계약,
+#   `test_resume_skips_the_daily_limit`(옛 이름)은 더 이상 성립하지 않아 이름째 바뀌었다.
 
 
 def _start_incoming_resume(seeded, continues_call_id):
@@ -5101,19 +5156,20 @@ def _start_incoming_resume(seeded, continues_call_id):
 
 
 @pytest.mark.asyncio
-async def test_resume_skips_the_daily_limit(session_factory, seeded, monkeypatch):
-    """⛔⛔ **이어하기는 한도 검사를 건너뛴다** — 안 그러면 15분 체인이 5분에 죽는다.
+async def test_resume_fragment_is_checked_against_the_budget(session_factory, seeded, monkeypatch):
+    """⭐⭐ C4(D4): **이어하기 조각도 예산 검사를 받는다** — 옛 횟수 한도와 반대다.
 
-    한도를 «항상 초과» 로 고정해도, `continues_call_id` 가 있으면 통화가 열려야 한다.
+    예산을 «항상 초과» 로 고정하면, `continues_call_id` 가 있어도 거절돼야 한다
+    (조각2 시작 시 남은 예산이 0이면 거절 — 문서 C4 시험 목록의 그 항목).
     """
-    monkeypatch.setattr(app_settings, "ENV", "prod")   # 한도 켜기
-    calls = {"limit_checked": 0}
+    monkeypatch.setattr(app_settings, "ENV", "prod")
+    calls = {"budget_checked": 0}
 
     def _always_over(*a, **k):
-        calls["limit_checked"] += 1
+        calls["budget_checked"] += 1
         return True
 
-    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", _always_over)
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", _always_over)
 
     import contextlib as _cl
     opened = {"n": 0}
@@ -5130,20 +5186,17 @@ async def test_resume_skips_the_daily_limit(session_factory, seeded, monkeypatch
     )
 
     errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
-    assert not [e for e in errors if e.get("code") == "DAILY_LIMIT"], \
-        "이어하기인데 한도로 거절했다 — 15분 체인이 조각1에서 죽는다"
-    assert calls["limit_checked"] == 0, "이어하기면 한도 검사를 아예 안 해야 한다"
-    assert opened["n"] == 1, "통화가 안 열렸다"
+    assert errors and errors[0]["code"] == "DAILY_LIMIT", \
+        "이어하기 조각인데 예산 초과를 거절하지 않았다"
+    assert calls["budget_checked"] == 1, "이어하기 조각도 예산 검사를 받아야 한다"
+    assert opened["n"] == 0, "거절했는데 Live 세션을 열었다"
 
 
 @pytest.mark.asyncio
-async def test_a_fresh_call_still_hits_the_daily_limit(session_factory, seeded, monkeypatch):
-    """⚠ 반대 방향도 못박는다 — `continues_call_id` 가 **없으면** 한도가 그대로 돈다.
-
-    건너뛰기가 지나쳐 한도 자체를 무력화하면, 그건 «하루 1통화» 계약이 사라진 것이다.
-    """
+async def test_a_fresh_call_still_hits_the_budget(session_factory, seeded, monkeypatch):
+    """⚠ 새 통화도 예산이 그대로 돈다(반대 방향 확인 — `continues_call_id` 없음)."""
     monkeypatch.setattr(app_settings, "ENV", "prod")
-    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", lambda *a, **k: True)
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", lambda *a, **k: True)
 
     import contextlib as _cl
     opened = {"n": 0}
@@ -5160,22 +5213,25 @@ async def test_a_fresh_call_still_hits_the_daily_limit(session_factory, seeded, 
     )
 
     errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
-    assert errors and errors[0]["code"] == "DAILY_LIMIT", "새 통화인데 한도가 안 걸렸다"
+    assert errors and errors[0]["code"] == "DAILY_LIMIT", "새 통화인데 예산 초과가 안 걸렸다"
     assert opened["n"] == 0
 
 
 @pytest.mark.asyncio
-async def test_the_fragment_cap_is_what_stops_abuse(session_factory, seeded, monkeypatch):
-    """⭐ 한도를 건너뛰어도 **조각 상한이 남용을 막는다** — 그게 이 설계의 안전망이다.
+async def test_the_fragment_cap_still_stops_abuse_when_budget_has_room(
+    session_factory, seeded, monkeypatch
+):
+    """⭐ 예산이 남아 있어도 **조각 상한**이 남용을 막는다 — 그게 또 다른 안전망이다.
 
     `resume_call` 이 `fragment_count >= max_fragments` 면 거절한다. Free 는 상한이 1이라
-    아예 못 잇고, Pro·Max 도 3조각에서 멈춘다. ⇒ 이어하기를 무한 반복할 수 없다.
+    아예 못 잇고, Premium 도 3조각에서 멈춘다. ⇒ 예산이 넉넉해도 이어하기를 무한
+    반복할 수 없다.
 
-    ⚠ 거절은 «통화 실패» 가 아니라 **새 통화로 폴백**이다. 그 폴백은 한도 검사를 이미
+    ⚠ 거절은 «통화 실패» 가 아니라 **새 통화로 폴백**이다. 그 폴백은 예산 검사를 이미
       지난 뒤라 통화 자체는 열린다 — 다만 앞 대화를 못 잇는다.
     """
     monkeypatch.setattr(app_settings, "ENV", "prod")
-    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", lambda *a, **k: False)
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", lambda *a, **k: False)
     # Free 를 흉내낸다: 조각 상한 1
     monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda *a, **k: 1)
 

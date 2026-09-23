@@ -423,16 +423,24 @@ async def test_item_detection_is_off_but_analysis_still_runs(
 
 
 # --------------------------------------------------------------------------- #
-# ⑥ 일일 한도
+# ⑥ 일일 한도 / 하루 통화 총량 예산
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("call_type", ["chat", "level_test", "expression", "freetalk"])
-def test_every_call_type_has_a_daily_limit(call_type: str) -> None:
+def test_level_test_has_a_daily_limit() -> None:
     """⛔ 표에 없으면 `is_daily_limit_reached` 가 «막지 않는다» 로 떨어져 **무제한**이 된다.
 
     Live 는 통화당 원가가 나가므로 그건 조용한 비용 구멍이다.
-    ⚠ 값 자체(Free 가 하루 3통화가 되는 것)는 사장님 확인 사항 — 여기서는 **누락**만 막는다.
     """
-    assert call_service.DAILY_CALL_LIMIT.get(call_type)
+    assert call_service.DAILY_CALL_LIMIT.get("level_test")
+
+
+@pytest.mark.parametrize("call_type", ["chat", "expression", "freetalk"])
+def test_non_level_test_call_types_are_not_count_limited(call_type: str) -> None:
+    """⭐⭐ C4(2026-09-23, D4): chat·expression·freetalk 는 **횟수 표에서 빠졌다** —
+    하루 통화 총량(분) 예산(daily_budget_s·daily_budget_exceeded)이 대체했기 때문이다.
+    이 셋이 다시 표에 들어오면 예산과 횟수가 이중으로 걸려 "예산은 남았는데 조각2가
+    횟수로 거절"되는 회귀가 난다 — 그래서 표에 **없는 것**을 여기서 못박는다.
+    """
+    assert call_service.DAILY_CALL_LIMIT.get(call_type) is None
 
 
 # --------------------------------------------------------------------------- #
