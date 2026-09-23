@@ -32,7 +32,6 @@ import pytest
 
 import core.stt as stt_mod
 from core.stt import SPEECH_BEGIN, STREAM_ERROR, RollingSttV2Stream, SttV2Event
-from domains.learning.realtime.cascade_session import CascadeInbound, CascadeSession
 
 
 # ── ② 정규화 ────────────────────────────────────────────────────────────────
@@ -72,35 +71,6 @@ def test_empty_falls_back_instead_of_sending_nothing():
     """⛔ 언어 코드가 비면 스트림이 400 으로 죽고, 그건 **통화가 죽는다**는 뜻이다(R5)."""
     assert stt_mod.normalize_language_codes([], fallback="ko-KR") == ["ko-KR"]
     assert stt_mod.normalize_language_codes(["english"], fallback="ko") == ["ko-KR"]
-
-
-# ── ① 데모 경로가 두 언어를 싣는다 ──────────────────────────────────────────
-class _Sink:
-    async def send_event(self, event: dict) -> None:
-        return None
-
-    async def send_audio(self, frame: bytes) -> None:
-        return None
-
-    async def receive(self) -> CascadeInbound:
-        await asyncio.sleep(3600)
-        raise AssertionError("이 테스트는 receive 를 쓰지 않는다")
-
-
-def test_call_listens_to_both_target_and_native_language(monkeypatch):
-    """⭐ 학습 언어(ko)와 모국어(en)를 **같이** 듣는다 — 결함의 본체다."""
-    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_TARGET_LANGUAGE", "ko")
-    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LANGUAGE", "en")
-    session = CascadeSession(_Sink())
-    assert stt_mod.normalize_language_codes(session._stt_language_codes()) == ["ko-KR", "en-US"]
-
-
-def test_native_language_is_env_switchable(monkeypatch):
-    """데모는 env 로 모국어를 바꿔 실험할 수 있어야 한다."""
-    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_TARGET_LANGUAGE", "ko")
-    monkeypatch.setattr(stt_mod.settings, "CASCADE_TTS_LANGUAGE", "ja-JP")
-    session = CascadeSession(_Sink())
-    assert stt_mod.normalize_language_codes(session._stt_language_codes()) == ["ko-KR", "ja-JP"]
 
 
 # ── ④ 실패해도 통화가 죽지 않는다 ───────────────────────────────────────────

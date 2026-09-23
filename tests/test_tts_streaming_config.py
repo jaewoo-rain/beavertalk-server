@@ -125,15 +125,16 @@ def test_speaking_rate_applies_to_both_engines():
 def test_prompts_do_not_dictate_speed():
     """⚠ 프롬프트가 속도를 얘기하면 파라미터와 싸운다 — 어느 게 진짜인지 못 가리게 된다.
 
-    캐스케이드가 쓰는 **두 문구**(TTS 스타일 / 레벨 프로파일)에서 속도 지시를 뺐다.
+    TTS 스타일 프롬프트에서 속도 지시를 뺐다(core/tts.py 가 직접 읽는 공용 설정 —
+    C14-b 로 캐스케이드 전용 페르소나 문구(CASCADE_PERSONA_LEVEL)는 그 세션과 함께
+    삭제됐다).
     ⛔ normalcall 의 교수법 지시("천천히 또박또박 들려주고 따라 말하게")는 **건드리지 않았다** —
       그건 실서비스의 어학적 의도이고 Live 는 모델이 직접 음성을 낸다(아래 전용 테스트가 지킨다).
     """
     from core.config import settings
 
-    for prompt in (settings.CASCADE_TTS_STYLE_PROMPT, settings.CASCADE_PERSONA_LEVEL):
-        for word in ("천천히", "빠르게", "속도"):
-            assert word not in prompt, prompt
+    for word in ("천천히", "빠르게", "속도"):
+        assert word not in settings.CASCADE_TTS_STYLE_PROMPT, settings.CASCADE_TTS_STYLE_PROMPT
 
 
 def test_tts_style_prompt_has_no_pacing_words():

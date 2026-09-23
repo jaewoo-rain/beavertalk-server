@@ -512,7 +512,15 @@ def remaining_budget_s(
     db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
     plan_override: str | None = None,
 ) -> int | None:
-    """⭐⭐ C5(2026-09-23) — 이 통화가 지금 쓸 수 있는 초 = `min(남은 예산, 조각 상한 360)`.
+    """⭐⭐ C5(2026-09-23) — **오늘 남은 예산**(초) = `budget - used`(0 밑으로는 안 내려간다).
+
+    ⛔⛔ C5 후속 결함(2026-09-23, bt-back): 예전엔 여기서 조각 상한(`CALL_FRAGMENT_S`,
+      360)까지 같이 잘랐다 — premium(예산 900)이 오늘 0초 썼을 때 `daily-status` 가
+      `budget_s=900,used_s=0,remaining_s=360` 을 냈다(900-0=900 인데 360). **이 함수는
+      "하루 잔여"만 뜻한다** — 조각 상한 클램프는 별개 개념(그 조각 하나가 쓸 수 있는
+      초)이라 **call_started 를 만드는 자리**(call_session.py)에서 `min(remaining, 360)`
+      으로 따로 건다. 이 함수를 그대로 쓰는 `/daily-status`·`resume-status` 의
+      `remaining > 0` 판정은 원래도 클램프와 무관해 영향 없다.
 
     `daily_budget_exceeded` 와 **같은 면제 규칙**(admin 이고 `plan_override` 를 안
     보냈으면 예산 대상이 아니다) — None 이면 호출부가 필드 자체를 뺀다(`call_started.
@@ -524,8 +532,7 @@ def remaining_budget_s(
     plan = _plan_key(db, member_id, plan_override)
     budget = daily_budget_s(plan)
     used = used_seconds_today(db, member_id, tz=tz, tz_offset_min=tz_offset_min)
-    remaining = max(0, budget - used)
-    return int(min(remaining, CALL_FRAGMENT_S))
+    return max(0, budget - used)
 
 
 def active_ongoing_call_id(db: Session, member_id: int) -> int | None:

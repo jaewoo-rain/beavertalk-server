@@ -95,6 +95,21 @@ def test_called_today_kst(ctx):
     assert _status(ctx, "2026-07-16", 540)["called_today"] is False
 
 
+def test_daily_status_remaining_s_is_the_full_daily_budget_not_the_fragment_cap(ctx, monkeypatch):
+    """⭐⭐⭐ C5 후속 결함(2026-09-23, bt-back) 회귀 — premium(예산 900)이 오늘 0초
+    썼으면 daily-status.remaining_s 는 900 이어야 한다(조각 상한 360 으로 잘리면
+    budget_s-used_s 산수가 900-0=900 인데 화면은 360 이라는 거짓말을 한다).
+    call_started.remaining_s(조각 상한 클램프 적용) 는 test_normalcall_ws.py 가 따로 잡는다."""
+    monkeypatch.setattr(
+        "domains.commerce.service.entitlements.effective_plan",
+        lambda db, member_id: "premium",
+    )
+    got = _status(ctx, "2026-07-17", 540)
+    assert got["budget_s"] == 900
+    assert got["used_s"] == 0
+    assert got["remaining_s"] == 900, "조각 상한(360)으로 잘리면 안 된다 — 하루 잔여 전체다"
+
+
 def test_call_without_user_speech_excluded(ctx):
     """★ 학습자가 한마디도 안 한 통화는 하루를 소모하지 않는다.
 

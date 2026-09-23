@@ -1684,17 +1684,6 @@ def build_engine_tag(mode: str, *components: str) -> str:
 # ⛔ 무료 한도(TTS Chirp3 HD 월 100만 자, STT 월 60분 등)는 **일부러 반영하지 않았다.**
 #   한도는 프로젝트 전체에 걸쳐 소진되는 값이라 통화 1건에 배분할 수가 없다. 여기 값은
 #   "한도를 다 쓴 뒤의 한계원가"이고, 그게 증설 판단에 필요한 숫자다.
-STT_PRICE_USD_PER_S = {
-    "google-stt-v2": 0.016 / 60,          # 실시간/스트리밍 표준가 $0.016/분(대량 시 $0.004까지)
-    "openai-whisper": 0.006 / 60,         # whisper-1 정가 $0.006/분, 볼륨 할인 없음
-    "gpt-4o-mini-transcribe": 0.003 / 60,  # 참고용
-    # ⭐ 실시간 전사(Realtime API). 구글의 **1/5.3** — 통화 원가 $0.44 → 약 $0.26.
-    # ⚠ **침묵 과금 여부 미확인.** 우리는 마이크 상시개방이라 침묵도 흘린다. 벤더가 발화만
-    #   과금한다면 이 계산은 **과대**다(과소보다 안전한 방향이라 그대로 둔다). 청구서로 확인해라.
-    "openai-gpt-4o-mini-transcribe": 0.003 / 60,
-    "openai-gpt-4o-transcribe": 0.006 / 60,
-}
-
 # ⛔ **OpenAI TTS(`gpt-4o-mini-tts`)는 단가표에 넣지 않았다.** 1차 자료(pricing)가
 #   "Audio ... $12.00 / 1M **tokens**" 라 과금 단위가 **오디오 토큰**인데, **초→토큰 환산율이
 #   문서에 없다**(Gemini 는 1초=25tok 을 확인했지만 그 값을 남의 벤더에 쓰면 그건 추측이다).
@@ -1868,46 +1857,6 @@ def estimate_side_cost_usd(usage_json: dict | None) -> tuple[float, list[str]]:
     return total, unknown
 
 
-def estimate_cascade_cost_usd(vendors: dict | None) -> tuple[float, list[str]]:
-    """캐스케이드 원가(USD)를 usage_json.vendors 에서 계산한다.
-
-    반환: (원가, **단가표에 없는 벤더 이름들**). 두 번째 값이 요점이다 — 모르는 벤더를
-    조용히 0 원으로 먹으면 "캐스케이드가 공짜"라는 그럴듯한 거짓말이 나온다. 모르면
-    모른다고 드러내고, 호출부가 그 행을 표본에서 뺄지 정하게 한다.
-
-    기대 형태(계약):
-      {"stt": {"vendor": ..., "audio_s": 902.4},
-       "llm": {"vendor": ..., "in_text": 41000, "out_text": 3200, "thoughts": 1500},
-       "tts": {"vendor": ..., "chars": 8400}}          ← 문자 과금 엔진
-       "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 452.0}  ← 토큰 과금 엔진
-    llm.thoughts 는 선택이지만 **있으면 출력 원가에 더해진다**(아래 산식 주석 참조).
-    ⚠ Gemini-TTS 계열은 **audio_s(합성된 오디오 초)가 필수**다. 없으면 chars 가 와도
-      계산하지 않고 미상으로 낸다 — 과금 단위가 문자가 아니라 오디오 길이이기 때문이다.
-    """
-    total = 0.0
-    unknown: list[str] = []
-    v = vendors or {}
-
-    stt = v.get("stt") or {}
-    if stt.get("audio_s"):
-        price = STT_PRICE_USD_PER_S.get(stt.get("vendor"))
-        if price is None:
-            unknown.append(f"stt:{stt.get('vendor')}")
-        else:
-            total += float(stt["audio_s"]) * price
-
-    llm_cost, llm_unknown = _llm_tokens_cost_usd(v.get("llm"))
-    total += llm_cost
-    if llm_unknown:
-        unknown.append(f"llm:{llm_unknown}")
-
-    tts_cost, tts_unknown = _tts_cost_usd(v.get("tts"))
-    total += tts_cost
-    unknown += tts_unknown
-
-    return total, unknown
-
-
 def estimate_call_cost_usd(
     engine: str | None,
     *,
@@ -1927,20 +1876,14 @@ def estimate_call_cost_usd(
       (Live 든 캐스케이드든) 돌기 때문에 engine 분기 **안이 아니라 위**에서 더한다.
       ⛔ 새 산식을 만들지 마라 — 원가의 유일한 입구는 계속 이 함수다.
     """
-    # ⛔⛔ **캐스케이드는 안 쓴다**(사장님 결정 2026-09-04). 그런데 이 분기를 **지우지 않았다.**
-    #
-    #   ⚠ 지우면 안 되는 이유: `usage_engine='cascade:...'` 인 **과거 통화 70여 건이 DB 에
-    #     이미 있다.** 분기를 없애면 그 행들이 조용히 **Live 단가로 계산된다**
-    #     (같은 `usage_in_text` 컬럼이 캐스케이드에선 LLM 토큰 $0.30, Live 는 $0.50).
-    #     원가 계기판이 과거를 소급해서 틀리게 되고, 그게 하필 "두 엔진 중 뭐가 쌌나"의
-    #     근거로 쓰인다 — 이 함수가 애초에 엔진을 받는 이유가 그것이다.
-    #
-    #   ⇒ **새 통화는 여기 안 온다**(app-api 는 `CASCADE_ENABLED=False`, 라우터 미마운트).
-    #     이 분기는 이제 **과거 행을 읽을 때만** 도는 읽기 전용 경로다.
-    #   ⚠ 캐스케이드를 정말 걷어낼 때는 이 분기가 **마지막**이어야 한다 — 과거 데이터를
-    #     어떻게 할지(백필? 보존?) 정하기 전엔 못 지운다.
+    # ⭐⭐ C14-b(2026-09-23) — 캐스케이드 엔진 자체를 걷어냈다(estimate_cascade_cost_usd
+    #   삭제). `usage_engine='cascade:...'` 인 **과거 통화 70여 건은 DB 에 그대로 남는다**
+    #   — 그 행에서 원가 계산이 죽으면 안 되니, Live 단가로 잘못 계산하는 대신(같은
+    #   `usage_in_text` 컬럼이 캐스케이드에선 LLM 토큰 $0.30, Live 는 $0.50이라 섞으면
+    #   틀린다) **0 + «미상»** 으로 폴백한다(정밀 소급 계산보다 "안 죽는다"를 택함 —
+    #   실측 원가가 필요하면 로그 기반 백필 스크립트로 별도 처리한다).
     if engine and engine.startswith("cascade:"):
-        base, unknown = estimate_cascade_cost_usd((usage_json or {}).get("vendors"))
+        base, unknown = 0.0, [f"engine:{engine}"]
     else:
         base, unknown = estimate_usage_cost_usd(
             in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text

@@ -91,5 +91,3 @@ def test_call_session_passes_face_rule_to_every_course_builder():
             kws = {k.arg for k in node.keywords}
             assert "face_rule" in kws, f"{node.func.id} 호출(줄 {node.lineno})에 face_rule= 이 없다"
     assert seen == {"build_expression_instruction": 2, "build_freetalk_instruction": 2}, seen
-    # 일반 통화는 face_tool= 로 같은 규칙 블록을 붙인다(persona_prompt.build_system_instruction)
-    assert "face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video" in src

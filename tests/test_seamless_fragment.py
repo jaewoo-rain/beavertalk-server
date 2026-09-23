@@ -54,20 +54,6 @@ from scripts.curriculum.load_cur_seed import load
 SEED = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "curriculum_v3", "cur_seed.json")
 pytestmark = pytest.mark.skipif(not os.path.exists(SEED), reason="cur_seed.json 없음")
 
-# ⛔ C3(2026-09-22, D3): "normal" 콜타입은 더 이상 클라가 못 고른다 — chat(자유대화)로
-#   흡수됐다. 그런데 chat 은 **아직 이어하기 허용 목록에 없다**(C7 이 명시적으로 붙인다,
-#   docs/plans/2026-09-22-…: "call_type="chat" 을 이어하기 허용 목록 …에 추가"). 아래
-#   3개(:340·:363·:622)는 옛 "normal" 전용 재개 브리프·시드 콘텐츠(build_system_instruction
-#   의 history 슬롯)를 검증하는데, expression/freetalk 로 바꿔도 이 콘텐츠 자체가 없다
-#   (다른 대본이다) — 그리고 chat 으로 두면 이어하기 자체가 RESUME_UNAVAILABLE 로 거절된다.
-#   C7 이 chat 을 이어하기 목록에 넣고 나면(그때 이 콘텐츠가 chat 대본에도 있는지부터
-#   다시 확인해야 한다) 되살린다. (나머지 2개는 expression 코스 + 실제 넛지/브리프
-#   콘텐츠로 대체해 살려 뒀다 — :460·:490 참조)
-_SKIP_UNTIL_C7_CHAT_RESUME = pytest.mark.skip(
-    reason="C7 전까지 chat 은 이어하기 불가 — 옛 normal 전용 재개 브리프 시험, C7 에서 재검토"
-)
-
-
 # --------------------------------------------------------------------------- #
 # 고정물 — tests/test_cur_call_path.py 와 같은 꼴(sqlite 메모리 + 실제 ko 시드 → 표현학습 코스도 돈다)
 # --------------------------------------------------------------------------- #
@@ -289,10 +275,6 @@ def _started(holder):
     return next(f for f in holder["frames"] if f.get("type") == "call_started")
 
 
-def _last_call(db, member_id):
-    return db.query(Call).filter(Call.member_id == member_id).order_by(Call.call_id.desc()).first()
-
-
 # --------------------------------------------------------------------------- #
 # S1 · S4 — 프로토콜
 # --------------------------------------------------------------------------- #
@@ -339,42 +321,6 @@ def test_resume_brief_silent_swaps_only_the_last_line_and_survives_an_empty_brie
 # --------------------------------------------------------------------------- #
 # S2 · S4 — 일반 통화 조각1 → 조각2(silent) 통합
 # --------------------------------------------------------------------------- #
-@_SKIP_UNTIL_C7_CHAT_RESUME
-@pytest.mark.asyncio
-async def test_silent_resume_sends_no_seed_and_pins_the_first_action_line(session_factory, seeded):
-    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
-    assert h1["session"].sent_text_turns and "[통화종료" not in h1["session"].sent_text_turns[0], "조각1 은 종전 선톡 시드"
-    cid = int(_started(h1)["call_id"])
-    h2 = await _run(session_factory, seeded, "expression", {}, script=[("U", "네, 계속해요"), ("B", "그래서 학교에서는?")],
-                    continues=cid, extra={"silent_resume": True})
-    assert _started(h2)["call_id"] == str(cid), "같은 통화 행에 조각2"
-    # ⛔ 조각 경계에서 비버 발화 0 — 서버가 세션에 넣은 텍스트 턴이 없다(재개 시드 없음; 넛지도 없음)
-    assert h2["session"].sent_text_turns == [], h2["session"].sent_text_turns
-    si = h2["system_instruction"]
-    assert si.rstrip().endswith(reground.RESUME_SILENT_FIRST_ACTION), "브리프 마지막 줄 = silent 첫 행동 지정"
-    assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을" not in si, "종전 마지막 줄은 silent 에 나가지 않는다"
-    assert seeds.seed_resume("한국어") not in si
-    db = session_factory()
-    try:
-        assert db.query(Call).filter(Call.member_id == seeded["member_id"]).count() == 1
-        assert (_last_call(db, seeded["member_id"]).fragment_count or 1) == 2
-    finally:
-        db.close()
-
-
-@_SKIP_UNTIL_C7_CHAT_RESUME
-@pytest.mark.asyncio
-async def test_non_silent_resume_is_unchanged(session_factory, seeded):
-    """⛔ 회귀 — silent_resume 를 안 보낸(구클라·이어하기 시트) 조각2 는 종전대로 seed_resume 1턴 + 종전 마지막 줄."""
-    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕!"), ("U", "안녕하세요"), ("B", "좋아요!")])
-    cid = int(_started(h1)["call_id"])
-    h2 = await _run(session_factory, seeded, "expression", {}, script=[("B", "그래서요?")], continues=cid)
-    assert h2["session"].sent_text_turns[0] == seeds.seed_resume("한국어")
-    si = h2["system_instruction"]
-    assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라." in si
-    assert reground.RESUME_SILENT_FIRST_ACTION not in si
-
-
 @pytest.mark.asyncio
 async def test_call_started_carries_fragment_index_and_max_fragments(session_factory, seeded):
     """클라는 «fragment_index == max_fragments → 마지막 조각(재연결 없음)» 을 이 두 값으로 판단한다(결정 6)."""
@@ -696,34 +642,6 @@ def test_reconnect_brief_waits_in_a_silent_fragment():
     assert b != plain_head and "먼저 말을 꺼내지 마라 — 학습자가 먼저 말한다" in b and "사과하지 말고" in b
     st.learner_spoke = True
     assert cs._reconnect_brief(st) == plain_head, "학습자가 이미 말한 뒤에는 종전 head"
-
-
-# --------------------------------------------------------------------------- #
-# 빈 요약 슬롯은 발췌를 지우지 않는다 (2026-09-14, bt-back 결정 ① — seamless QA flake 조사에서 발견한 운영 경로 결함)
-# --------------------------------------------------------------------------- #
-@_SKIP_UNTIL_C7_CHAT_RESUME
-@pytest.mark.asyncio
-async def test_empty_resume_summary_slots_keep_the_excerpt_fallback(session_factory, seeded, monkeypatch):
-    """LLM 이 아무것도 못 뽑은 짧은 통화({topic:'', learner_facts:[], pending:''}) — 빈 dict 도 파이썬에선 참이라 예전엔 «슬롯이 생겼다»
-    고 보고 발췌를 지워 브리프가 텅 비었다(call 870 «다시 인사» 재발 경로). 즉석 요약·조각 종료 요약 둘 다 빈 슬롯이어도 발췌가 산다."""
-    async def _empty_slots(*_a, **_k):
-        return {"topic": "", "learner_facts": [], "pending": ""}
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _empty_slots)
-    assert svc.resume_slots_have_content({"topic": "", "learner_facts": [], "pending": ""}) is False
-    assert svc.resume_slots_have_content({"topic": "축구", "learner_facts": [], "pending": ""}) is True
-    assert svc.resume_slots_have_content(None) is False
-    h1 = await _run(session_factory, seeded, "expression", {}, script=[("B", "안녕! 오늘 뭐 했어?"), ("U", "학교에 갔어요"), ("B", "좋아요!")])
-    cid = int(_started(h1)["call_id"])
-    db = session_factory()
-    try:
-        assert not (db.get(Call, cid).resume_context or ""), "빈 요약은 조각 종료 때도 저장하지 않는다"
-    finally:
-        db.close()
-    h2 = await _run(session_factory, seeded, "expression", {}, script=[("B", "그래서요?")], continues=cid)
-    si = h2["system_instruction"]
-    assert "[지금까지]" in si and "- 방금까지 오간 대화:" in si and "학교에 갔어요" in si, "발췌 폴백이 살아 있다"
-    assert "⛔ 처음 만난 것처럼 인사하지 말고, 위 흐름을 **자연스럽게 이어서** 말해라." in si
-    assert h2["session"].sent_text_turns[0] == seeds.seed_resume("한국어")
 
 
 # --------------------------------------------------------------------------- #

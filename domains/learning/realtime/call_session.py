@@ -3401,34 +3401,12 @@ async def run_call(
             #   나가 비버가 지어낸다 — seed_chat_opening 이 그때 빈 문자열을 돌려주므로
             #   D8 오프닝으로 폴백한다.
             seed_text = seed_chat_opening(target_language, chat_memory_dict) or seed_freetalk_opening(target_language)
-        else:
-            system_instruction = build_system_instruction(
-                role=setup["role"],
-                personality=setup["personality"],
-                level_profile=level_profile,
-                locale=locale,
-                interests=setup["interests"],
-                name=setup["name"],
-                history=setup["history"],
-                target_language=target_language,
-                study_items=_prompt_study_items(setup.get("study_items")) if inject_materials else None,
-                known_items=setup.get("known_items") if inject_materials else None,
-                recent_topics=setup.get("recent_topics") if inject_materials else None,
-                promotion_notice=bool(setup.get("promotion_notice")) and inject_materials,
-                lang_band=setup.get("lang_band", "beginner"),
-                close_tag=close_tag,
-                # ⭐⭐ **플랜이 표정을 정한다**(2026-09-04). Max=영상통화(표정 O) /
-                #   Free·Pro=음성통화(표정 X). 판정은 `call_service.call_video_for` 하나로 간다
-                #   — 상태(state)와 플랜(plan)은 다른 축이라 상태 문자열을 직접 보면 앱과 갈라진다.
-                #
-                #   ⛔ `LIVE_FACE_SPIKE` 는 이제 **비상 차단기**다. 켜져 있어도 플랜이 아니면
-                #     안 준다. 반대로 끄면 Max 도 못 받는다(사고 시 전원 차단용).
-                #     ⚠ 의미가 바뀌었다 — 예전엔 "표정 기능 자체의 on/off" 였다.
-                #   ⚠ 표정을 빼면 지시문이 1,058자(≈423토큰) 준다(실측). Live 는 매 턴 전액
-                #     재과금이라 20메시지 통화면 그 몫만 ≈8,460 토큰이다(통화 1289 기준).
-                face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video,
-            )
-            seed_text = seed_opening(target_language)
+        # ⭐⭐ C14-a(2026-09-23) — 옛 "normal" 전용 else 분기(build_system_instruction·
+        #   seed_opening 호출)를 지웠다. C3 라우팅 뒤로 여기 call_type 은 chat·expression·
+        #   freetalk 뿐이고(레벨테스트는 위 if 에서 이미 갈렸다) 셋 다 위 if/elif 가 잡는다
+        #   — 이 else 는 도달 불가였다(검증: 라우팅 함수 grep + call_type 값 추적).
+        #   build_system_instruction·seed_opening 자체는 지우지 않는다(scripts/dev_dump_prompt.py·
+        #   /__dev/call-prompt 개발자 도구가 여전히 직접 부른다).
         voice = setup["voice"]
         # 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"). 통합 재접지는 캐릭터 3필드에
         # 맥락 슬롯을 얹어 조립하므로(build_reground_brief) 페르소나 원재료를 그대로 넘긴다.
@@ -3631,14 +3609,19 @@ async def run_call(
         #   예산 대상이 아닌 통화(level_test)는 None. daily_budget_exceeded 게이트와
         #   같은 tz·plan_override 를 쓴다 — 어긋나면 "거절은 안 했는데 remaining_s=0" 같은
         #   모순이 난다.
+        # ⛔⛔ C5 후속 결함(2026-09-23, bt-back): `remaining_budget_s` 는 **하루 잔여**만
+        #   뜻한다(daily-status 와 공유) — 조각 상한(360) 클램프는 "이 조각이 쓸 수 있는
+        #   초"라는 별개 개념이라 **여기서만** 건다(daily-status 로는 안 새게).
         remaining_s = None
         if call_type in ("expression", "freetalk", "chat"):
-            remaining_s = await svc.run_db(
+            daily_remaining = await svc.run_db(
                 db_session_factory, lambda db: call_service.remaining_budget_s(
                     db, member_id, tz=client_tz, tz_offset_min=tz_offset_min,
                     plan_override=call_service.plan_override_for(db, member_id, plan_override_req),
                 ),
             )
+            if daily_remaining is not None:
+                remaining_s = min(daily_remaining, int(call_service.CALL_FRAGMENT_S))
         await _send_json(
             client_ws,
             ServerCallStarted(

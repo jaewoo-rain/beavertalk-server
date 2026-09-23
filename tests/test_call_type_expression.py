@@ -594,7 +594,6 @@ def test_no_runtime_code_still_uses_normal_as_a_call_type_value():
     pattern = re.compile(r"""(['"])normal\1""")
     scan_files = (
         "domains/learning/realtime/call_session.py",
-        "domains/learning/realtime/cascade_session.py",
         "domains/learning/realtime/protocol.py",
         "domains/learning/routers/call.py",
         "domains/learning/service/call_service.py",

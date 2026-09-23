@@ -140,9 +140,13 @@ def test_both_face_gates_check_the_plan():
     """
     src = _call_session_source()
 
-    # ① 지시문 쪽
-    assert "face_tool=bool(settings.LIVE_FACE_SPIKE) and wants_video" in src, (
-        "지시문의 표정 게이트가 바뀌었다 — 아래 tool 게이트와 같은 식인지 확인하라"
+    # ① 지시문 쪽 — C14-a(2026-09-23)로 옛 일반 통화 전용 face_tool= 게이트(build_system_
+    #   instruction 호출과 함께)는 삭제됐다. 지금은 face_rule_text 하나가 표현학습·
+    #   프리토킹·자유대화 세 빌더에 공용으로 실리고, 그 조건이 이 게이트다.
+    same_condition = 'settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test"'
+    assert src.count(same_condition) >= 2, (
+        "지시문(face_rule_text)과 세션 tool 게이트가 같은 조건 문자열을 안 쓴다 — "
+        "두 게이트는 **같은 조건**이어야 한다."
     )
 
     # ② 세션 tool 쪽 — ⛔ 여기에 `wants_video` 가 빠지는 것이 그 사고였다

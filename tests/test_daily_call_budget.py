@@ -365,21 +365,22 @@ def test_switch_gate_matches_is_daily_limit_reached_discipline(ctx, monkeypatch)
 
 
 # --------------------------------------------------------------------------- #
-# C5(2026-09-23) — remaining_budget_s
+# C5(2026-09-23) — remaining_budget_s = **하루 잔여**(조각 상한 클램프 없음)
 # --------------------------------------------------------------------------- #
-def test_remaining_budget_s_is_min_of_remaining_and_fragment_cap(ctx):
-    """Free 300 다 쓰기 전(100 사용)엔 남은 200 이 조각 상한(360)보다 작으니 200."""
+def test_remaining_budget_s_is_the_plain_daily_remainder(ctx):
+    """Free 300 중 100 사용 → 남은 200(조각 상한 360 과 무관, 그냥 예산-사용)."""
     _call(ctx, total_time=100)
     assert cs.remaining_budget_s(ctx["db"], ctx["member_id"]) == 200
 
 
-def test_remaining_budget_s_caps_at_the_fragment_length_not_the_full_remaining_budget(ctx):
-    """premium 900 다 쓰기 전(100 사용)엔 남은 800 이 조각 상한(360)보다 크므로 360 으로 잘린다."""
-    _call(ctx, total_time=100)
+def test_remaining_budget_s_is_not_capped_by_the_fragment_length(ctx):
+    """⭐⭐⭐ C5 후속 결함(2026-09-23, bt-back) 회귀 — premium 900 중 0 사용이면 남은
+    900 그대로여야 한다(조각 상한 360 으로 잘리면 daily-status 의 budget_s-used_s
+    산수가 안 맞는다). 조각 상한 클램프는 call_started 를 만드는 자리에서만 건다."""
     m = ctx["db"].get(Member, ctx["member_id"])
     m.role = "user"
     ctx["db"].commit()
-    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"], plan_override="premium") == 360
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"], plan_override="premium") == 900
 
 
 def test_remaining_budget_s_floors_at_zero_when_over_budget(ctx):

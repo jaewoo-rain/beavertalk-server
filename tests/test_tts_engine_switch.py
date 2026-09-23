@@ -102,30 +102,11 @@ async def test_choosing_chirp_keeps_the_old_behaviour(rig):
 def test_the_server_default_is_gemini():
     """⭐ **서버 기본값 = Gemini-TTS.** 클라가 아무 말 안 하면 이 소리가 나간다.
 
-    ⛔ 값 하나만 보지 않는다 — 그 기본을 골랐을 때 **실제로 Gemini 로 도는지**까지 본다
-      (기본값만 바꾸고 성질 표를 안 옮기면 조용히 Chirp 이 난다).
     ⚠ 되돌리려면 env 로 "chirp3-hd" 를 넣으면 끝이다 — 쿼터(429) 위험 때문에 그 길은 열어 둔다.
     """
-    import domains.learning.realtime.cascade_session as cs
     from core.config import settings
 
     assert settings.CASCADE_TTS_ENGINE == "gemini-tts"
-
-    class _Sink:
-        async def send_event(self, event: dict) -> None:
-            return None
-
-        async def send_audio(self, frame: bytes) -> None:
-            return None
-
-        async def receive(self):
-            raise AssertionError
-
-    session = cs.CascadeSession(_Sink())
-    assert session._tts_engine == "gemini-tts", "기본값이 세션에 안 실린다"
-    assert session._profile().google_engine == tts.GEMINI_ENGINE
-    assert session._profile().takes_style is True, "감정 지시가 안 나간다"
-    assert session._tts_vendor() == "gemini-2.5-flash-tts"
 
 
 @pytest.mark.asyncio
@@ -188,116 +169,3 @@ async def test_no_fallback_after_audio_already_started(rig, caplog):
     assert report["engine"] == "gemini-2.5-flash-tts"
 
 
-# --------------------------------------------------------------------------- #
-# 말하기 배속은 **엔진마다 다르다** (2026-08-10)
-#   실측: Chirp en 14.4자per초 vs Gemini en 11.1 = 약 1.3배 차이.
-#   공통 값 하나를 올리면 **Chirp 까지 빨라진다** — Chirp 은 이미 충분하다
-#   (사장님: "빠르게 잘 나온다"). 올릴 곳은 Gemini 뿐이라 레버를 나눈다.
-# --------------------------------------------------------------------------- #
-def _session_with(engine: str):
-    import domains.learning.realtime.cascade_session as cs
-
-    class _Sink:
-        async def send_event(self, event: dict) -> None:
-            return None
-
-        async def send_audio(self, frame: bytes) -> None:
-            return None
-
-        async def receive(self):
-            raise AssertionError("쓰지 않는다")
-
-    session = cs.CascadeSession(_Sink())
-    session._tts_engine = engine
-    return session
-
-
-def test_gemini_rate_is_separate_from_the_common_one(monkeypatch):
-    """⭐ Gemini 만 올릴 수 있어야 한다 — Chirp 은 공통 값을 그대로 쓴다."""
-    import domains.learning.realtime.cascade_session as cs
-
-    monkeypatch.setattr(cs.settings, "CASCADE_TTS_SPEAKING_RATE", 1.0)
-    monkeypatch.setattr(cs.settings, "CASCADE_TTS_SPEAKING_RATE_GEMINI", 1.3)
-    assert _session_with("gemini-tts")._speaking_rate() == pytest.approx(1.3)
-    assert _session_with("gemini-batch")._speaking_rate() == pytest.approx(1.3)
-    assert _session_with("chirp3-hd")._speaking_rate() == pytest.approx(1.0)
-    assert _session_with("")._speaking_rate() == pytest.approx(1.0)   # 서버 기본값(Chirp)
-
-
-def test_client_choice_still_wins(monkeypatch):
-    """데모 화면에서 고른 값이 있으면 그게 우선이다(A/B 하려고 만든 통로)."""
-    import domains.learning.realtime.cascade_session as cs
-
-    monkeypatch.setattr(cs.settings, "CASCADE_TTS_SPEAKING_RATE_GEMINI", 1.3)
-    session = _session_with("gemini-tts")
-    session._tts_rate = 0.9
-    assert session._speaking_rate() == pytest.approx(0.9)
-
-
-def test_rates_start_unchanged_until_measured():
-    """⛔ **레버만 달았지 값은 안 올렸다.**
-
-    앞 커밋(구간 침묵 정리)이 체감을 바꾸므로 **먼저 재고 나서** 정한다. 둘을 한꺼번에
-    올리면 어느 쪽이 얼마를 기여했는지 못 가린다.
-    """
-    from core.config import settings as live
-
-    assert live.CASCADE_TTS_SPEAKING_RATE == 1.0
-    assert live.CASCADE_TTS_SPEAKING_RATE_GEMINI == 1.0
-    # 문서 범위 [0.25, 2.0] 안에 있어야 한다(벗어나면 요청이 거절된다)
-    assert 0.25 <= live.CASCADE_TTS_SPEAKING_RATE_GEMINI <= 2.0
-
-
-# ── ⑥ 폴백은 **통화 요약에도** 남는다(2026-08-12) ──────────────────────────
-def test_a_quota_fallback_is_counted_in_the_call_summary():
-    """⛔ 폴백이 나면 **통화 중에 목소리가 바뀐다.** 사장님은 그걸 소리로만 아신다.
-
-    지금까지는 그 순간의 WARNING 한 줄뿐이라, 통화가 끝난 뒤 "그 통화에서 몇 번 바뀌었나"를
-    답할 수 없었다. Gemini 를 **기본**으로 쓰기로 한 이상(쿼터가 있는 유일한 엔진) 이 숫자가
-    요약에 있어야 한다.
-    """
-    from domains.learning.realtime.cascade_usage import CascadeUsage, format_usage_line
-
-    usage = CascadeUsage()
-    usage.record_tts("안녕하세요", vendor="gemini-2.5-flash-tts")
-    usage.record_tts_audio(48000)
-    assert usage.summary()["vendors"]["tts"]["fallbacks"] == 0
-
-    usage.record_tts("", vendor="gemini-2.5-flash-tts", failed=True)
-    usage.record_tts_fallback()
-    usage.record_tts_fallback()
-    summary = usage.summary()
-    assert summary["vendors"]["tts"]["fallbacks"] == 2
-    assert "tts_fallbacks=2" in format_usage_line(summary), format_usage_line(summary)
-
-
-@pytest.mark.asyncio
-async def test_the_session_counts_the_fallback_where_it_actually_happens(monkeypatch):
-    """⭐ 세는 자리는 **폴백을 실제로 감지하는 곳**이어야 한다(따로 세면 갈린다)."""
-    import domains.learning.realtime.cascade_session as cs
-
-    class _Sink:
-        async def send_event(self, event: dict) -> None:
-            return None
-
-        async def send_audio(self, frame: bytes) -> None:
-            return None
-
-        async def receive(self):
-            raise AssertionError
-
-    async def _stream(text, **kwargs):
-        report = kwargs.get("report")
-        if report is not None:
-            report.update({"engine": tts.CHIRP3_ENGINE,
-                           "fallback_from": "gemini-2.5-flash-tts", "quota": True})
-
-        async def _gen():
-            yield b"\x01\x00" * 240
-        return _gen()
-
-    monkeypatch.setattr(cs.tts, "synthesize_stream", _stream)
-    session = cs.CascadeSession(_Sink())
-    await session.beaver.begin()
-    await session._speak_one("안녕하세요", "ko")
-    assert session.usage.summary()["vendors"]["tts"]["fallbacks"] == 1

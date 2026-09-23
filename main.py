@@ -87,51 +87,13 @@ _configure_logging()
 logger = logging.getLogger(__name__)
 
 
-def _keepalive_http_options(seconds: float) -> Any | None:
-    """커넥션을 **살려 두는** HttpOptions(0 이하면 None = 예전 동작).
-
-    ⭐ 왜: 턴마다 TLS 를 새로 맺는 데 ~185ms 를 쓰고 있었다(페어드 A/B 8쌍 전부 개선).
-    ⛔ 이 값이 **실제로 먹는지**는 설치된 SDK 가 정한다. google-genai 2.10 은
-      `async_client_args` 를 `httpx.AsyncClient(**args)` 로 그대로 넘기지만(`_api_client.py`
-      828~833 — 설치된 소스로 확인), **aiohttp 가 설치돼 있으면 async 경로가 aiohttp 로
-      바뀌고 이 인자는 `ssl` 말고는 전부 무시된다**(`_use_aiohttp`). 지금 이 환경에는
-      aiohttp 가 없다. ⇒ 나중에 누가 aiohttp 를 끌어오면 **이 설정이 조용히 죽는다.**
-      그래서 그 경우 **부팅 로그로 시끄럽게** 알린다(조용한 무효화를 만들지 않는다).
-    """
-    if seconds <= 0:
-        return None
-    try:
-        import httpx
-        from google.genai.types import HttpOptions
-        from google.genai import _api_client as genai_api_client
-    except Exception as exc:  # noqa: BLE001 - 미설치·시그니처 변경이면 그냥 안 쓴다(R5)
-        logger.warning("cascade LLM: keepalive 미적용(모듈/시그니처 없음) — %s", exc)
-        return None
-    if getattr(genai_api_client, "has_aiohttp", False):
-        # ⛔ 조용히 안 먹는 상태를 만들지 않는다 — 오늘 하루 우리를 가장 많이 태운 유형이다.
-        logger.warning(
-            "cascade LLM: ⚠ aiohttp 가 설치돼 있어 keepalive(httpx limits)가 **안 먹는다**. "
-            "aiohttp 를 빼거나 aiohttp 용 커넥터로 다시 붙여라"
-        )
-        return None
-    return HttpOptions(
-        async_client_args={
-            "limits": httpx.Limits(
-                max_keepalive_connections=8,
-                max_connections=32,
-                keepalive_expiry=seconds,
-            )
-        }
-    )
-
-
 def _create_genai_client(settings: Settings, location: str | None = None,
                          http_options: Any | None = None,
                          use_vertex: bool | None = None) -> Any | None:
     """normalcall 용 genai.Client 를 생성한다(실패 시 None — 통화만 비활성, 앱은 정상).
 
-    `location` 을 주면 그 리전으로 만든다(기본은 `GCP_LOCATION`). 리전만 다른 **두 번째**
-    클라이언트가 필요해서 열어 둔 인자다 — 자세한 이유는 `_create_cascade_client`.
+    `location` 을 주면 그 리전으로 만든다(기본은 `GCP_LOCATION`). 리전만 다른 클라이언트가
+    필요할 때(플랜별 백엔드 등) 쓰는 인자다.
 
     USE_VERTEX=True 면 서비스계정 키(설정 경로 → 프로젝트 루트 gcp_key.json 폴백)로
     Vertex 클라이언트를, 아니면 GEMINI_API_KEY 로 AI Studio 클라이언트를 만든다.
@@ -181,60 +143,6 @@ def _create_genai_client(settings: Settings, location: str | None = None,
         return None
 
 
-def _create_cascade_client(
-    settings: Settings, default_client: Any | None
-) -> tuple[Any | None, str]:
-    """캐스케이드 **대답 LLM 전용** 클라이언트 — 리전만 다르다.
-
-    ⛔ 왜 따로 만드나: `genai.Client` 는 lifespan 이 한 번 만들어 **Live·캐스케이드·분석이
-      전부 공유**한다. 그래서 `GCP_LOCATION` 을 서울로 바꾸면 **Live 도 같이 옮겨간다**.
-      Live 네이티브 오디오(현재 `gemini-3.1-flash-live-preview`)의 서울 지원 여부는
-      **확인하지 못했다** — bidi WebSocket 이라 단순 호출로 못 재고, 모델 GET 은 어느
-      리전에서든 404 라 가용성 판정에 못 쓴다. 확인 안 된 채 전역을 옮기면 **통화가 죽는다**.
-      ⇒ 교체가 아니라 **추가**다. `app.state.genai_client` 는 그대로 둔다.
-    ⚠ 값이 없으면 **기본 클라이언트를 그대로 재사용**한다(객체를 하나 더 만들지 않는다) —
-      기본 동작이 지금과 **완전히 같아야** 한다.
-    ⚠ 실패해도 기본 클라이언트로 떨어진다(R5) — 리전 하나 때문에 통화가 죽으면 안 된다.
-    ⚠ 토큰 만료(1008)는 **여기 해당 없다**: 그건 Live 의 **WS connect** 가 만료 토큰을 그대로
-      보내서 났고(`gemini_live._ensure_fresh_credentials` 주석), 캐스케이드 대답은 REST
-      (`generate_content_stream`)라 **요청마다 갱신**된다. 그래도 같은 SA creds 를 공유하므로
-      갱신이 일어나면 두 클라이언트가 함께 이득을 본다.
-    """
-    base = (settings.GCP_LOCATION or "").strip()
-    where = (settings.CASCADE_LLM_LOCATION or "").strip()
-    http_options = _keepalive_http_options(settings.CASCADE_LLM_KEEPALIVE_S)
-    if not where or where == base:
-        # ⭐⭐ **keepalive 를 켜면 리전이 같아도 객체를 따로 만든다**(2026-08-15). 안 그러면
-        #   Live 와 같은 클라이언트를 쓰게 되고, 그러면 ①Live 의 커넥션 정책까지 바꾸거나
-        #   ②캐스케이드에 아무 효과가 없거나 둘 중 하나다 — 둘 다 안 된다.
-        #   ⚠ 지금 배포에 `CASCADE_LLM_LOCATION` 이 없을 수 있고, 그때 여기로 온다.
-        #     리전이 같아도 **커넥션 정책이 다르다**는 이유만으로 객체를 가르는 것이다.
-        if http_options is None:
-            return default_client, base
-        client = _create_genai_client(settings, location=base, http_options=http_options)
-        if client is None:
-            logger.warning("cascade LLM: keepalive 클라이언트 생성 실패 → 기본 클라이언트로 계속")
-            return default_client, base
-        logger.info(
-            "cascade LLM: 대답 전용 클라이언트(리전 동일 %s) keepalive=%.0fs — Live 와 분리했다",
-            base, settings.CASCADE_LLM_KEEPALIVE_S,
-        )
-        return client, base
-    client = _create_genai_client(settings, location=where, http_options=http_options)
-    if client is None:
-        logger.warning(
-            "cascade LLM: %s 리전 클라이언트 생성 실패 → 기본 리전(%s)으로 계속한다", where, base,
-        )
-        return default_client, base
-    logger.info(
-        "cascade LLM: 대답 전용 클라이언트 location=%s keepalive=%s (Live 는 %s 그대로)",
-        where, "%.0fs" % settings.CASCADE_LLM_KEEPALIVE_S if http_options else "off", base,
-    )
-    # ⚠ **실제로 만들어진 리전**을 돌려준다(설정값이 아니라) — 폴백이 일어났는데 설정값을
-    #   찍으면 로그가 거짓말을 한다. 통화 로그가 이 값을 그대로 쓴다.
-    return client, where
-
-
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """앱 수명 동안 공유 자원(엔진/세션 팩토리/genai)을 준비하고 종료 시 정리한다."""
@@ -244,9 +152,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.session_factory = build_session_factory(engine)
     app.state.genai_client = _create_genai_client(settings)  # normalcall(없으면 None)
     # ⭐⭐ **플랜별 백엔드용 통화 전용 클라이언트 2개**(2026-09-08).
-    #   ⛔ 기본(`genai_client`)의 의미는 **바꾸지 않는다** — 캐스케이드·통화후 분석·
-    #     레벨테스트가 전부 그것을 보고 있어서, 기본을 건드리면 통화와 무관한 것들이
-    #     같이 움직인다. `_create_cascade_client` 가 세운 «교체가 아니라 추가» 규율 그대로다.
+    #   ⛔ 기본(`genai_client`)의 의미는 **바꾸지 않는다** — 통화후 분석·레벨테스트가
+    #     전부 그것을 보고 있어서, 기본을 건드리면 통화와 무관한 것들이 같이 움직인다
+    #     («교체가 아니라 추가» 규율).
     #   ⚠ 만들기 실패(키 부재 등)면 None 이고, 통화는 기본 클라이언트로 떨어진다(R5) —
     #     백엔드 하나 때문에 통화가 죽으면 안 된다.
     app.state.genai_client_vertex = _create_genai_client(settings, use_vertex=True)
@@ -256,13 +164,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "OK" if app.state.genai_client else "없음",
         "OK" if app.state.genai_client_vertex else "없음",
         "OK" if app.state.genai_client_studio else "없음",
-    )
-    # ⭐ 캐스케이드 **대답 전용**(리전만 다를 수 있다). 값이 없으면 위 객체를 그대로 재사용한다.
-    #   ⚠ 리전을 **함께** 받아 둔다 — 부팅 로그는 인스턴스가 재활용되면 한참 전 것이라 못
-    #     찾는다. 통화 로그가 이 값을 찍어야 "그 통화가 어느 리전으로 돌았나"가 그 통화
-    #     안에서 닫힌다(원가·지연을 통화 단위로 비교하려면 필수다).
-    app.state.cascade_llm_client, app.state.cascade_llm_location = _create_cascade_client(
-        settings, app.state.genai_client
     )
     from core import fcm
 
@@ -393,27 +294,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     #   ENV 값을 바로잡는 게 근본이지만 같은 조건을 쓰는 다른 블록이 동시에 닫히므로
     #   영향 범위를 잰 뒤 별건으로 한다(docs/20260807_0510_dev블록-노출-사실관계.md).
     if settings.ENV != "prod":
-        # 캐스케이드(STT→LLM→TTS) 실험 경로 — WS /api/v1/cascade/stream.
-        # ⭐ **전용 스위치로 한 번 더 막는다.** ENV 게이트가 깨져 있으므로 그것에 기대지
-        #   않는다 — 기본값 False 라 아무 데도 안 열리고, 켠 곳에서만 열린다.
-        #   위험은 미인증 공개가 아니다(verify_token 이 있다). **인증된 아무 계정이나 세션을
-        #   열 수 있고 LLM·TTS 가 실제로 돈다는 것**이다. call_id·DB 연동이 없어 누가 얼마나
-        #   썼는지 사후 추적도 안 되고, dev 훅(__test_beaver)까지 같이 열린다.
-        # ⚠ **demo-api 에는 CASCADE_ENABLED=true 를 넣어야 데모가 산다.** 코드만 배포하고
-        #   env 를 안 넣으면 /__cascadedemo 가 즉시 404 다(배포와 같이 나가야 한다).
-        if settings.CASCADE_ENABLED:
-            from domains.learning.realtime.cascade_router import router as cascade_router
-
-            app.include_router(cascade_router, prefix=API_PREFIX)
-
-            @app.get("/__cascadedemo", include_in_schema=False)
-            def cascade_demo() -> FileResponse:
-                """캐스케이드 턴 감지 최소루프 데모 HTML(마이크 → STT v2 → 턴 판정 에코)."""
-                return FileResponse(
-                    Path(__file__).parent / "scripts" / "cascade_demo.html",
-                    media_type="text/html",
-                )
-
         @app.post("/__dev/level-reset", include_in_schema=False)
         def dev_level_reset(member: CurrentAdmin, db: DbSession) -> dict:
             """[dev] 레벨 관련 상태 완전 초기화 — 재테스트용 백지화.
@@ -913,29 +793,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             db.delete(ev)
             db.commit()
             return {"deleted": 1}
-
-        @app.get("/__enginedemo", include_in_schema=False)
-        def engine_demo() -> FileResponse:
-            """엔진 선택 통화 데모 — "얘기할래(Live) / 공부할래(PTT 캐스케이드)" 를 웹에서 고른다.
-
-            ⭐ 왜 새 페이지인가(2026-08-18): 기존 데모 둘은 엔진이 하나씩 박혀 있다
-              (level_call_demo → /calls/stream, cascade_demo → /cascade/stream).
-              사장님이 플러터 대신 웹으로 테스트하기로 해서, **같은 화면에서 골라 붙는** 자리가 필요했다.
-
-            ⭐ 릴리즈지연 R(버튼 뗀 시각 → 첫 소리)을 화면에서 잰다 — PTT 단일경로 전환의
-              착수 조건이 "R 을 아무도 안 쟀다"이고(docs/20260816_1804_PTT-단일경로-전환-계획.md §0),
-              이 페이지가 그 자다.
-
-            ⚠ 이 게이트는 `ENV != "prod"` 인데 **실서비스(app-api)의 ENV 가 'test'** 라
-              거기서도 열린다(`/__levelcalldemo` 가 지금 그렇다). 인증은 필요하지만 공개 URL 이다.
-
-            ⛔ 라우트와 파일은 **같은 커밋**이어야 한다 — /__calldemo 가 라우트만 남고 파일이
-              없어 500 이 났던 전례가 있다(tests/test_cascade_gate.py:77).
-            """
-            return FileResponse(
-                Path(__file__).parent / "scripts" / "engine_demo.html",
-                media_type="text/html",
-            )
 
         @app.get("/__levelcalldemo", include_in_schema=False)
         def level_call_demo() -> FileResponse:

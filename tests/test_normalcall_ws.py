@@ -4198,46 +4198,22 @@ def test_cost_depends_on_engine_not_just_tokens():
     assert unknown == []
     assert round(live, 6) == round(0.50 + 2.00, 6), "Live 텍스트 단가"
 
-    casc, unknown = svc.estimate_call_cost_usd(
-        "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd",
-        in_text=1_000_000, out_text=1_000_000,
-        usage_json={"vendors": {
-            "llm": {"vendor": "gemini-2.5-flash", "in_text": 1_000_000, "out_text": 1_000_000},
-        }},
-    )
-    assert unknown == []
-    assert round(casc, 6) == round(0.30 + 2.50, 6), "캐스케이드 LLM 단가"
-    assert live != casc, "엔진이 달라도 같은 값이 나오면 컬럼이 섞인 걸 못 잡는다"
-
     # engine 이 NULL(계기판 이전 통화)이면 Live 로 본다 — 캐스케이드는 이 컬럼 이후에만 있다.
     assert svc.estimate_call_cost_usd(None, in_text=1_000_000)[0] == \
         svc.estimate_usage_cost_usd(in_text=1_000_000)
 
 
-def test_cascade_cost_matches_hand_calculation_and_flags_unknown_vendors():
-    """세 다리 합산이 손계산과 맞고, 모르는 벤더는 **조용히 0 원이 되지 않는다.**"""
-    cost, unknown = svc.estimate_cascade_cost_usd({
-        "stt": {"vendor": "google-stt-v2", "audio_s": 900.0},
-        "llm": {"vendor": "gemini-2.5-flash", "in_text": 41_000, "out_text": 3_200},
-        "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 8_400},
-    })
-    expected = (
-        900.0 * (0.016 / 60)
-        + (41_000 * 0.30 + 3_200 * 2.50) / 1_000_000
-        + 8_400 * (30.0 / 1_000_000)
+def test_old_cascade_engine_rows_fall_back_to_zero_and_unknown_instead_of_crashing():
+    """⭐⭐⭐ C14-b(2026-09-23) — 캐스케이드 엔진을 걷어낸 뒤에도 옛
+    `usage_engine='cascade:...'` 행(약 70건, DB 에 남아 있다)의 원가 계산이 죽으면
+    안 된다. Live 단가로 잘못 계산하는 대신(같은 컬럼이 엔진마다 단가가 다르다) 0 원 +
+    «미상» 으로 드러난다 — 조용히 틀린 값보다 "모른다"가 낫다."""
+    cost, unknown = svc.estimate_call_cost_usd(
+        "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd",
+        in_text=1_000_000, out_text=1_000_000,
     )
-    assert unknown == [] and round(cost, 8) == round(expected, 8)
-
-    # 모르는 벤더 → 값이 0 이 아니라 "미상"으로 드러나야 한다. 조용히 0 이면
-    # "캐스케이드가 공짜"라는 그럴듯한 거짓말이 통계에 섞인다.
-    # ⭐ 원가에 실리는 문자열은 **모델 ID** 다(`_tts_vendor()`). 표에 없는 모델이 오면
-    #   조용히 0 원이 아니라 **미상으로 드러나야** 한다 — 검증된 단가가 없는 벤더에 근거 없는
-    #   숫자를 넣느니 모른다고 말하는 쪽이 맞다(274044a 의 교훈). 엔진이 바뀌어도 남는 성질이다.
-    for model in ("some-new-tts-2026", "another-vendor-hd"):
-        cost2, unknown2 = svc.estimate_cascade_cost_usd({
-            "tts": {"vendor": model, "chars": 8_400},
-        })
-        assert cost2 == 0.0 and unknown2 == [f"tts:{model}"], model
+    assert cost == 0.0, "죽지 않고 0 원으로 안전하게 떨어져야 한다"
+    assert unknown == ["engine:cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd"]
 
 
 def test_peak_prompt_is_the_whole_call_max_not_the_last_cycle():
@@ -4288,19 +4264,21 @@ def test_compression_detection_and_arm_still_use_the_cycle_peak():
     assert cs._reground_due(st, now) == "compress_imminent"
 
 
-def test_cascade_output_cost_includes_thinking_tokens():
+def test_llm_output_cost_includes_thinking_tokens():
     """사고 토큰은 출력 단가로 과금되는데 응답 본문(candidates)엔 안 들어온다.
 
-    ⛔ out_text 만 세면 낸 돈의 일부가 통계에서 사라지고, 하필 그 통계가
-      "캐스케이드가 Live 보다 싼가"의 근거가 된다.
+    ⛔ out_text 만 세면 낸 돈의 일부가 통계에서 사라진다. `_llm_tokens_cost_usd` 는
+      캐스케이드의 LLM 다리(삭제됨)뿐 아니라 통화중 사이드카·통화후 분석의 LLM 원가도
+      같이 타는 **공용 함수**라 그대로 남는다 — 여기서 직접 부른다(옛 캐스케이드
+      래퍼(estimate_cascade_cost_usd) 는 C14-b 로 삭제됐다).
     """
-    base = {"llm": {"vendor": "gemini-2.5-flash", "in_text": 10_000, "out_text": 2_000}}
-    thinking = {"llm": {**base["llm"], "thoughts": 1_500}}
+    base = {"vendor": "gemini-2.5-flash", "in_text": 10_000, "out_text": 2_000}
+    thinking = {**base, "thoughts": 1_500}
 
-    cost_base, _ = svc.estimate_cascade_cost_usd(base)
-    cost_thinking, unknown = svc.estimate_cascade_cost_usd(thinking)
+    cost_base, _ = svc._llm_tokens_cost_usd(base)
+    cost_thinking, unknown = svc._llm_tokens_cost_usd(thinking)
 
-    assert unknown == []
+    assert unknown is None
     # 늘어난 만큼이 정확히 사고 토큰 × 출력 단가여야 한다.
     assert round(cost_thinking - cost_base, 10) == round(1_500 * 2.50 / 1_000_000, 10)
     # 손계산 전체.
@@ -4308,9 +4286,7 @@ def test_cascade_output_cost_includes_thinking_tokens():
         (10_000 * 0.30 + (2_000 + 1_500) * 2.50) / 1_000_000, 10
     )
     # 사고 토큰만 온 경우도(출력 본문 0) 원가가 잡혀야 한다 — 게이트에서 안 빠지는지.
-    only, _ = svc.estimate_cascade_cost_usd(
-        {"llm": {"vendor": "gemini-2.5-flash", "thoughts": 1_000}}
-    )
+    only, _ = svc._llm_tokens_cost_usd({"vendor": "gemini-2.5-flash", "thoughts": 1_000})
     assert round(only, 10) == round(1_000 * 2.50 / 1_000_000, 10)
 
 
@@ -4336,23 +4312,23 @@ def test_live_thinking_tokens_raise_a_warning_not_a_silent_undercount(caplog):
         "사고 토큰이 관측됐는데 아무 신호도 안 나온다(조용한 과소 계상)"
 
 
+# ⛔ 아래 TTS 단가 시험은 `_tts_cost_usd` 를 **직접** 부른다(2026-09-23, C14-b) — 옛
+#   캐스케이드 래퍼(estimate_cascade_cost_usd)는 삭제됐지만, 이 산식 자체는 통화후
+#   문장 TTS(estimate_side_cost_usd)가 Live·캐스케이드 무관하게 계속 쓰는 **공용
+#   함수**라 남는다(발음/TTS 경로 무변경 — C14 시험 요구).
 def test_gemini_tts_is_priced_by_audio_seconds_not_characters():
     """Gemini-TTS 는 **출력 오디오 토큰**(1초=25tok) 과금이다 — 문자 수로 계산하면 틀린다."""
-    cost, unknown = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 450.0},
-    })
+    cost, unknown = svc._tts_cost_usd({"vendor": "gemini-2.5-flash-tts", "audio_s": 450.0})
     assert unknown == []
     assert round(cost, 8) == round(450.0 * 25 * 10.00 / 1_000_000, 8)
 
     # pro 는 flash 의 2배 단가 — 모델별로 갈라야 "어느 걸 들었나"와 원가가 맞는다.
-    pro, _ = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "gemini-2.5-pro-tts", "audio_s": 450.0},
-    })
+    pro, _ = svc._tts_cost_usd({"vendor": "gemini-2.5-pro-tts", "audio_s": 450.0})
     assert round(pro, 8) == round(cost * 2, 8), "flash/pro 를 뭉개면 원가가 어긋난다"
 
     # 가격표(Gemini API) 이름도 알아둔다 — 우리 경로로는 안 오지만 다른 경로로 올 수 있다.
     for name in ("gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"):
-        _, unk = svc.estimate_cascade_cost_usd({"tts": {"vendor": name, "audio_s": 10.0}})
+        _, unk = svc._tts_cost_usd({"vendor": name, "audio_s": 10.0})
         assert unk == [], f"{name} 이 미상으로 빠진다"
 
 
@@ -4365,20 +4341,18 @@ def test_every_cloud_tts_model_name_is_priced():
     """
     assert svc.CLOUD_TTS_GEMINI_MODELS, "Cloud TTS 모델 목록이 비었다"
     for name in svc.CLOUD_TTS_GEMINI_MODELS:
-        cost, unk = svc.estimate_cascade_cost_usd({"tts": {"vendor": name, "audio_s": 10.0}})
+        cost, unk = svc._tts_cost_usd({"vendor": name, "audio_s": 10.0})
         assert unk == [], f"{name} 이 미상으로 빠진다 — 그 통화 원가가 통째로 사라진다"
         assert cost > 0, f"{name} 이 0 원으로 계산된다"
 
 
 def test_audio_seconds_win_over_characters_for_token_billed_tts():
     """chars 가 같이 와도 **초를 쓴다.** 문자 단가를 곱하면 조용히 틀린 값이 나온다."""
-    only_secs, _ = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0},
-    })
-    both, unknown = svc.estimate_cascade_cost_usd({
-        # 실제 캐스케이드 요약은 chars 와 audio_s 를 **둘 다** 싣는다.
-        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0, "chars": 6000},
-    })
+    only_secs, _ = svc._tts_cost_usd({"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0})
+    both, unknown = svc._tts_cost_usd(
+        # 실제 요약은 chars 와 audio_s 를 **둘 다** 싣는다.
+        {"vendor": "gemini-2.5-flash-tts", "audio_s": 120.0, "chars": 6000},
+    )
     assert unknown == []
     assert both == only_secs, "chars 가 섞여 들어와 계산이 오염됐다"
     # 문자 단가($30/1M)로 계산했다면 나왔을 값과 달라야 한다(같으면 잘못된 경로를 탄 것).
@@ -4387,31 +4361,25 @@ def test_audio_seconds_win_over_characters_for_token_billed_tts():
 
 def test_token_billed_tts_without_audio_seconds_is_flagged_not_guessed():
     """⛔ chars 만 오면 **추정하지 않는다.** 문자→초 환산은 말하는 속도에 따라 배로 틀린다."""
-    cost, unknown = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "gemini-2.5-flash-tts", "chars": 6000},
-    })
+    cost, unknown = svc._tts_cost_usd({"vendor": "gemini-2.5-flash-tts", "chars": 6000})
     assert cost == 0.0
     assert unknown and "audio_s" in unknown[0], "왜 못 쟀는지가 안 드러난다"
 
     # 반대로 문자 과금 엔진은 chars 로 정상 계산된다(기존 동작 무변경).
-    chirp, unk = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 6000},
-    })
+    chirp, unk = svc._tts_cost_usd({"vendor": "cloud-tts-chirp3-hd", "chars": 6000})
     assert unk == [] and round(chirp, 8) == round(6000 * 30.0 / 1_000_000, 8)
 
     # 초는 왔는데 모르는 벤더 → 조용히 0 원이 되면 안 된다.
-    _, unk2 = svc.estimate_cascade_cost_usd({"tts": {"vendor": "무명TTS", "audio_s": 100.0}})
+    _, unk2 = svc._tts_cost_usd({"vendor": "무명TTS", "audio_s": 100.0})
     assert unk2 == ["tts:무명TTS"]
 
 
 def test_gemini_tts_input_text_tokens_are_added_when_present():
     """입력 텍스트 토큰은 선택이지만, 오면 더한다(출력 대비 1% 미만이라 없어도 무방)."""
-    base, _ = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0},
-    })
-    withtext, unknown = svc.estimate_cascade_cost_usd({
-        "tts": {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0, "in_text": 1_500},
-    })
+    base, _ = svc._tts_cost_usd({"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0})
+    withtext, unknown = svc._tts_cost_usd(
+        {"vendor": "gemini-2.5-flash-tts", "audio_s": 100.0, "in_text": 1_500},
+    )
     assert unknown == []
     assert round(withtext - base, 10) == round(1_500 * 0.50 / 1_000_000, 10)
 
@@ -5042,6 +5010,29 @@ async def test_call_started_carries_remaining_s_for_a_free_member(session_factor
 
 
 @pytest.mark.asyncio
+async def test_call_started_remaining_s_is_clamped_to_the_fragment_cap_for_premium(session_factory, seeded, monkeypatch):
+    """⭐⭐⭐ C5 후속 결함(2026-09-23, bt-back) 회귀 — premium(예산 900)이 오늘 0초
+    썼어도 call_started.remaining_s 는 **조각 상한(360)** 으로 잘린다(이 조각이 쓸 수
+    있는 초라는 뜻이라 하루 잔여 900 을 그대로 실으면 안 된다). daily-status 의
+    remaining_s(하루 잔여 900, 안 잘림)와는 **다른 값**이어야 정상이다 —
+    test_call_daily_status.py::test_daily_status_remaining_s_is_the_full_daily_budget_not_the_fragment_cap
+    가 그쪽을 잡는다."""
+    monkeypatch.setattr(
+        "domains.commerce.service.entitlements.effective_plan",
+        lambda db, member_id: "premium",
+    )
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+    assert _started_frame(ws).get("remaining_s") == 360
+
+
+@pytest.mark.asyncio
 async def test_call_started_omits_remaining_s_for_an_exempt_admin(session_factory, seeded, monkeypatch):
     """⭐⭐ admin 면제(plan_override 없음) — remaining_s 키 자체가 없다(0 아님)."""
     from domains.learning.service import call_service as _cs
@@ -5439,24 +5430,6 @@ def test_client_timing_is_no_longer_discarded():
     assert msg.type == "client_timing"
     assert msg.speech_to_sound_ms == 2100, "사장님이 기다리는 그 값이 안 실렸다"
     cs._record_client_timing(cs._CallState(), msg)   # 예외 없이
-
-
-def test_live_and_cascade_timing_never_drift_apart():
-    """⛔⛔ 이 회귀가 없어서 밟은 사고 그 자체 (2026-08-25).
-
-    Live `ClientTiming` 을 만들 때 `first_audio_ms`·`measured` 라는 **없는 이름**을 지어
-    넣었다. 유니온에 넣어 살렸다고 생각한 값이 pydantic `extra=ignore` 에 걸려 조용히 한 번
-    더 버려졌고, 서버 로그는 `first_audio=None` 을 찍으며 **정상처럼 보였다.**
-
-    ⇒ 클라는 두 엔진에 **같은 프레임**을 보낸다. 두 모델의 필드 집합이 갈라지는 순간
-      한쪽 엔진의 계측이 소리 없이 죽는다. 그 갈라짐을 여기서 실패로 만든다.
-    """
-    from domains.learning.realtime.protocol import ClientTiming
-    from domains.learning.realtime.cascade_protocol import ClientCascadeTiming
-
-    assert set(ClientTiming.model_fields) == set(ClientCascadeTiming.model_fields), (
-        "Live/캐스케이드 client_timing 필드가 갈라졌다 — 한쪽 계측이 조용히 죽는다"
-    )
 
 
 def test_pong_carries_server_clock():
