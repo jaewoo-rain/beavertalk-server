@@ -77,10 +77,10 @@ def _member(db, selected: str | None = None, owns: tuple[str, ...] = ()) -> int:
     return m.member_id
 
 
-def _dispatched(db, member_id: int, character: str, call_id: str) -> None:
+def _dispatched(db, member_id: int, character: str, call_id: str, call_type: str = "auto") -> None:
     """이 회원에게 `character` 알람 전화를 발송한 상태를 만든다."""
     a = Alarm(member_id=member_id, character_id=_cid(db, character),
-              time=datetime.now(timezone.utc), is_activate=True)
+              time=datetime.now(timezone.utc), is_activate=True, call_type=call_type)
     db.add(a)
     db.flush()
     db.add(PushDispatchLog(alarm_id=a.alarm_id,
@@ -94,18 +94,24 @@ def _dispatched(db, member_id: int, character: str, call_id: str) -> None:
 # --------------------------------------------------------------------------- #
 def test_uses_selected_character_when_no_inbound(db):
     mid = _member(db, selected="Rara", owns=("BABA", "Rara"))
-    assert resolve_call_character(db, mid) == _cid(db, "Rara")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "Rara")
 
 
 def test_unowned_selected_falls_back_to_free(db):
     """고르기만 하고 안 산 상태(member.character_id 는 소유와 별개인 FK)."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
-    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BABA")
 
 
 def test_no_selection_falls_back_to_cheapest(db):
     mid = _member(db, selected=None, owns=())
-    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BABA")
+
+
+def test_non_alarm_paths_report_no_alarm_call_type(db):
+    """② ③ 경로는 알람이 아니다 — alarm_call_type 은 None 이라야 호출부가 덮지 않는다."""
+    mid = _member(db, selected="Rara", owns=("BABA", "Rara"))
+    assert resolve_call_character(db, mid).alarm_call_type is None
 
 
 # --------------------------------------------------------------------------- #
@@ -115,13 +121,19 @@ def test_inbound_uses_alarm_character_not_selected(db):
     """★ 이게 핵심 — 알람마다 캐릭터가 다를 수 있다."""
     mid = _member(db, selected="BABA", owns=("BABA", "Rara"))
     _dispatched(db, mid, "Rara", "call-abc")
-    assert resolve_call_character(db, mid, "call-abc") == _cid(db, "Rara")
+    assert resolve_call_character(db, mid, "call-abc").character_id == _cid(db, "Rara")
 
 
 def test_unknown_inbound_id_falls_back(db):
     """로그가 purge 됐거나 컬럼 추가 이전 발송 — 끊지 말고 대표 캐릭터로."""
     mid = _member(db, selected="Rara", owns=("BABA", "Rara"))
-    assert resolve_call_character(db, mid, "call-없음") == _cid(db, "Rara")
+    assert resolve_call_character(db, mid, "call-없음").character_id == _cid(db, "Rara")
+
+
+def test_unknown_inbound_id_has_no_alarm_call_type(db):
+    """못 찾은 알람은 캐릭터뿐 아니라 모드도 폴백 없음(None) — 레벨테스트를 덮지 않는다."""
+    mid = _member(db, selected="Rara", owns=("BABA", "Rara"))
+    assert resolve_call_character(db, mid, "call-없음").alarm_call_type is None
 
 
 def test_other_members_inbound_id_is_rejected(db):
@@ -129,7 +141,24 @@ def test_other_members_inbound_id_is_rejected(db):
     victim = _member(db, selected="Rara", owns=("BABA", "Rara"))
     _dispatched(db, victim, "Rara", "call-victim")
     attacker = _member(db, selected="BABA", owns=("BABA",))
-    assert resolve_call_character(db, attacker, "call-victim") == _cid(db, "BABA")
+    resolved = resolve_call_character(db, attacker, "call-victim")
+    assert resolved.character_id == _cid(db, "BABA")
+    assert resolved.alarm_call_type is None, "남의 알람이면 모드도 안 넘어간다"
+
+
+# --------------------------------------------------------------------------- #
+# 2-b) 수신통화 — 알람의 통화 모드(프론트 요청 #1, 2026-09-23)
+# --------------------------------------------------------------------------- #
+def test_inbound_reports_the_alarms_call_type(db):
+    mid = _member(db, selected="BABA", owns=("BABA", "Rara"))
+    _dispatched(db, mid, "Rara", "call-chat-1", call_type="chat")
+    assert resolve_call_character(db, mid, "call-chat-1").alarm_call_type == "chat"
+
+
+def test_inbound_default_alarm_call_type_is_auto(db):
+    mid = _member(db, selected="BABA", owns=("BABA", "Rara"))
+    _dispatched(db, mid, "Rara", "call-auto-1")  # call_type 기본값
+    assert resolve_call_character(db, mid, "call-auto-1").alarm_call_type == "auto"
 
 
 # --------------------------------------------------------------------------- #
@@ -154,7 +183,7 @@ def test_never_raises_when_no_characters_exist(db):
     db.query(MemberCharacter).delete()
     db.query(Character).delete()
     db.commit()
-    assert resolve_call_character(db, mid) == 1
+    assert resolve_call_character(db, mid).character_id == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -181,7 +210,7 @@ def test_premium_can_call_unowned_selected_character(db):
     """★ Premium 회원은 안 산 캐릭터를 대표로 걸어도 그 캐릭터로 통화한다."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
     _subscribe(db, mid, "premium")
-    assert resolve_call_character(db, mid) == _cid(db, "BIBI")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BIBI")
 
 
 def test_premium_unlock_creates_no_ownership_row(db):
@@ -197,28 +226,28 @@ def test_unknown_plan_string_does_not_unlock_characters(db):
     """⚠ DB 에 남은 옛 값(pro 등)이 섞여도 premium 이 아니면 폴백한다(R5)."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
     _subscribe(db, mid, "pro")
-    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BABA")
 
 
 def test_expired_premium_relocks_characters(db):
     """★ 해지·만료하면 다시 잠긴다 — 앱의 downgradeWarning 이 약속한 동작."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
     _subscribe(db, mid, "premium", days=-1)   # 어제 끝난 구독
-    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BABA")
 
 
 def test_grace_premium_keeps_characters(db):
     """grace(결제 재시도 중)는 접근 유지 — 카드 갱신하는 며칠 동안 뺏으면 안 된다."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
     _subscribe(db, mid, "premium", billing_state="grace")
-    assert resolve_call_character(db, mid) == _cid(db, "BIBI")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BIBI")
 
 
 def test_on_hold_premium_relocks_characters(db):
     """on_hold(유예도 끝남)는 접근 차단 — grace 와의 비대칭이 요점이다."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
     _subscribe(db, mid, "premium", billing_state="on_hold")
-    assert resolve_call_character(db, mid) == _cid(db, "BABA")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BABA")
 
 
 def test_premium_still_honors_alarm_character(db):
@@ -226,4 +255,4 @@ def test_premium_still_honors_alarm_character(db):
     mid = _member(db, selected="BIBI", owns=())
     _subscribe(db, mid, "premium")
     _dispatched(db, mid, "Rara", "call-max-1")
-    assert resolve_call_character(db, mid, "call-max-1") == _cid(db, "Rara")
+    assert resolve_call_character(db, mid, "call-max-1").character_id == _cid(db, "Rara")

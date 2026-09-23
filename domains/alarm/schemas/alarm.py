@@ -17,12 +17,16 @@ class AlarmCharacterBrief(BaseModel):
     image_url: Optional[str]
 
 
+CallType = Literal["auto", "chat"]
+
+
 # ── 요청 ──
 class AlarmCreate(BaseModel):
     character_id: int
     time: datetime
     is_activate: bool = True
     days_of_week: list[DayOfWeek]
+    call_type: CallType = "auto"  # 키 없으면 학습(auto)
 
 
 class AlarmUpdate(BaseModel):
@@ -32,6 +36,7 @@ class AlarmUpdate(BaseModel):
     character_id: Optional[int] = None
     is_activate: Optional[bool] = None
     days_of_week: Optional[list[DayOfWeek]] = None
+    call_type: Optional[CallType] = None
 
 
 # ── 응답 ──
@@ -41,3 +46,4 @@ class AlarmOut(BaseModel):
     is_activate: Optional[bool]
     character: AlarmCharacterBrief
     days_of_week: list[str]
+    call_type: str

@@ -15,7 +15,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Literal, Optional, TypeVar
+from typing import Callable, Literal, NamedTuple, Optional, TypeVar
 
 from fastapi.concurrency import run_in_threadpool
 from google import genai
@@ -105,9 +105,16 @@ def character_display_name(db: Session, character_id: int) -> str | None:
     return (ch.name or None) if ch else None
 
 
+class ResolvedCall(NamedTuple):
+    """resolve_call_character 의 반환 — 캐릭터 + (수신통화면) 알람의 통화 모드."""
+
+    character_id: int
+    alarm_call_type: Optional[str] = None  # "auto"|"chat" — 알람 통화가 아니면 None
+
+
 def resolve_call_character(
     db: Session, member_id: int, inbound_call_id: Optional[str] = None
-) -> int:
+) -> ResolvedCall:
     """이 통화의 캐릭터를 **서버가 정한다**. 클라는 캐릭터를 지정하지 못한다.
 
     두 가지 실측 사고를 함께 막는다.
@@ -139,13 +146,21 @@ def resolve_call_character(
     순간이라, 캐릭터 문제로 연결을 끊으면 "전화가 안 됨"으로 보인다. 조용히
     대표 캐릭터로 내려놓고 경고 로그를 남긴다(운영에서 집계 가능).
 
+    ⭐ 프론트 요청 #1(2026-09-23) — 수신통화(①)면 **알람의 통화 모드(call_type)** 도
+    같이 돌려준다. 두 번째 조회를 만들지 않는다 — 캐릭터를 되짚는 이 join 이 이미
+    그 알람 행을 보고 있다(따로 조회하면 ①DB 왕복이 늘고 ②그 사이 수정되면 두 곳이
+    다른 알람을 볼 수 있다). ②③ 경로(대표 캐릭터·최저가 폴백)는 알람이 아니므로
+    `alarm_call_type=None` — 호출부가 "레벨테스트 판정을 덮지 않는다" 를 이 None 으로
+    판단한다(호출부: call_session.py).
+
     Returns:
-        실제로 통화에 쓸 character_id.
+        ResolvedCall(character_id, alarm_call_type). alarm_call_type 은 알람 캐릭터를
+        내려줄 때(①, 소유 검증 통과)만 채워진다 — 그 외엔 None.
     """
     # ① 수신통화 — 서버가 발송할 때 남긴 로그로 알람을 되짚는다.
     if inbound_call_id:
         row = db.execute(
-            select(Alarm.character_id, Alarm.member_id)
+            select(Alarm.character_id, Alarm.member_id, Alarm.call_type)
             .join(PushDispatchLog, PushDispatchLog.alarm_id == Alarm.alarm_id)
             .where(PushDispatchLog.call_id == inbound_call_id)
         ).first()
@@ -156,13 +171,13 @@ def resolve_call_character(
                 inbound_call_id,
             )
         elif row.member_id != member_id:
-            # 남의 알람 uuid 를 들고 온 경우 — 캐릭터를 넘겨주지 않는다.
+            # 남의 알람 uuid 를 들고 온 경우 — 캐릭터도 모드도 넘겨주지 않는다.
             logger.warning(
                 "normalcall: 남의 알람 inbound_call_id member=%s owner=%s → 거절",
                 member_id, row.member_id,
             )
         else:
-            return row.character_id
+            return ResolvedCall(row.character_id, row.call_type)
 
     # ② 사용자가 고른 대표 캐릭터. 소유를 확인한다 — member.character_id 는
     #    ondelete=SET NULL 인 단순 FK 라 "고르기만 하고 안 산" 상태가 될 수 있다.
@@ -174,7 +189,7 @@ def resolve_call_character(
         db.get(MemberCharacter, (member_id, selected))
         or entitlements.has_all_characters(db, member_id)
     ):
-        return selected
+        return ResolvedCall(selected)
 
     # ③ 마지막 폴백 = 가장 싼 캐릭터(온보딩 기본 무료 캐릭터). id 를 하드코딩하지
     #    않는 이유는 IAP 상품 매핑과 같다 — 환경마다 character_id 가 다르다
@@ -188,7 +203,7 @@ def resolve_call_character(
         "normalcall: 소유 캐릭터 없음 member=%s (대표=%s) → 기본 캐릭터 %s",
         member_id, selected, cheapest,
     )
-    return int(cheapest) if cheapest is not None else 1
+    return ResolvedCall(int(cheapest) if cheapest is not None else 1)
 
 
 def _load_member_character(

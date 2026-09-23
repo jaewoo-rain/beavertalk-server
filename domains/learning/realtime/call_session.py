@@ -3010,10 +3010,12 @@ async def run_call(
     #   그 외에는 member.character_id(소유 확인). 자세한 근거는 resolve_call_character.
     # ⛔ ENV 로 게이트하지 마라 — 실서비스(app-api)조차 ENV="test" 인 적이 있어
     #   prod 게이트는 무력하다(target_language 에서 겪은 그대로).
-    character_id = await svc.run_db(
+    resolved_call = await svc.run_db(
         db_session_factory,
         lambda db: svc.resolve_call_character(db, member_id, inbound_call_id),
     )
+    character_id = resolved_call.character_id
+    alarm_call_type = resolved_call.alarm_call_type  # "auto"|"chat" — 수신통화가 아니면 None
     if client_character_id is not None and client_character_id != character_id:
         # 구버전 앱 탐지용 — 전송이 사라지면 이 로그도 사라진다.
         logger.info(
@@ -3102,6 +3104,15 @@ async def run_call(
         # ⭐ C3: 미전송(구버전 앱·알람)이면 레벨 미확정일 때만 레벨테스트, 그 외엔
         #   **"auto"(학습)** — 옛 기본값 "normal" 은 폐기했다(D3, 자유대화는 명시로만 온다).
         call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "auto"
+
+    # ⭐⭐ 알람별 통화 모드(프론트 요청 #1, 2026-09-23) — 수신통화면 **알람에 저장된
+    #   call_type 이 start.call_type 보다 우선한다.** 앱은 알람 통화에서도 홈 버튼 값을
+    #   그대로 실어 보내므로, start 를 우선하면 알람 설정이 영영 안 먹는다.
+    # ⛔ level_test 는 덮지 않는다 — 레벨 미확정이면 여전히 그게 먼저다(바로 위 else 분기
+    #   규율 그대로). alarm_call_type 은 스키마상 "auto"|"chat" 뿐이라 그 둘만 정한다 —
+    #   레벨테스트·표현학습/프리토킹 여부는 안 건드린다(auto 면 아래에서 그대로 갈린다).
+    if alarm_call_type is not None and call_type != "level_test":
+        call_type = alarm_call_type
 
     # ⭐⭐ 커리큘럼 2단계 경로(docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — **여기서 한 번** 정한다(§6 ③ 경로 고정).
     #   표현학습·프리토킹·auto 이고 CUR_ENABLED 면 cur 경로: 재료는 cur_* 에서, 진도도 cur_* 에 쓴다. 이 결정은 state.cur_route 로

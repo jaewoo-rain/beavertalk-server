@@ -40,6 +40,7 @@ class AlarmService:
             character_id=data.character_id,
             time=data.time,
             is_activate=data.is_activate,
+            call_type=data.call_type,
             schedules=[Schedule(day_of_week=d) for d in data.days_of_week],
         )
         self.repo.add(alarm)
@@ -55,6 +56,8 @@ class AlarmService:
             alarm.character_id = data.character_id
         if data.is_activate is not None:
             alarm.is_activate = data.is_activate
+        if data.call_type is not None:
+            alarm.call_type = data.call_type
         if data.days_of_week is not None:
             # 기존 요일 통째 교체: clear() → delete-orphan 이 옛 schedule 삭제
             alarm.schedules.clear()
@@ -94,4 +97,5 @@ class AlarmService:
                 image_url=alarm.character.image_url,
             ),
             days_of_week=[s.day_of_week for s in alarm.schedules],
+            call_type=alarm.call_type,
         )
