@@ -1513,7 +1513,7 @@ def upload_segment_audio(
     return done
 
 
-def mark_fragment_ended(db: Session, call_id: int) -> None:
+def mark_fragment_ended(db: Session, call_id: int, *, total_time: int = 0, accumulate: bool = False) -> None:
     """조각이 끝났음을 **즉시** 기록 — QA C4 재검-5차(2026-09-23): 세션이 끊긴 것을
     인지한 직후(신호: `_ClientDisconnect`·`_FragmentEnd`·`_CallFinished`·백스톱),
     `finally` 의 무거운 마무리 저장(최종 판정 ~2초·진도·usage·전사 저장) **전에** 이
@@ -1523,14 +1523,23 @@ def mark_fragment_ended(db: Session, call_id: int) -> None:
       `fragment_ended_at` **하나만** 본다. 무거운 마무리 저장이 끝난 뒤에야 이 값을
       찍으면, 그 몇 초 동안은 이미 끊긴 세션이 여전히 "살아있다"로 보여 **끊고 바로
       다시 걸기**가 `ALREADY_IN_CALL` 로 잘못 거절된다.
-    ⚠ `finalize_call` 이 나중에 이 컬럼을 **또 찍어도 된다**(멱등 — "이 조각은
-      끝났다"는 사실은 그대로고 값만 살짝 갱신된다). 둘을 합치지 않는 이유: 무거운
-      저장 전체를 기다리면 이 함수의 존재 의미(빠른 해제)가 없어진다.
+
+    ⭐⭐ C4 재설계(2026-09-23, bt-back A·B) — `total_time` 도 **같은 쓰기**로 담는다.
+      전엔 이 시각만 빨리 찍고 `total_time` 은 한참 뒤(무거운 저장 뒤) `finalize_call`
+      이 채웠는데, 그 사이 "진행 중" 조각의 예산을 어떻게 셀지가 `sum_total_time_in_window`
+      에 별도 추정 로직으로 남아 있었다. 이제 끊김을 인지한 **이 순간** 실제 사용
+      시간을 확정해 버리므로 그 추정이 통째로 필요 없어졌다(추정 로직은 삭제,
+      `call_repository.sum_total_time_in_window` 참조). `finalize_call` 은 더 이상
+      `total_time` 을 쓰지 않는다(캐스케이드 경로만 예외 — 아래 참조).
+    ⚠ `finalize_call` 이 나중에 `fragment_ended_at` 을 **또 찍어도 된다**(멱등 —
+      "이 조각은 끝났다"는 사실은 그대로고 값만 살짝 갱신된다). 둘을 합치지 않는
+      이유: 무거운 저장 전체를 기다리면 이 함수의 존재 의미(빠른 해제)가 없어진다.
     """
     call = db.get(Call, call_id)
     if call is None:
         return
     call.fragment_ended_at = datetime.now(timezone.utc)
+    call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else int(total_time)
     db.commit()
 
 
@@ -1553,22 +1562,31 @@ def fragment_user_word_count(segments: list[dict], target_code: str) -> int | No
 
 
 def finalize_call(
-    db: Session, call_id: int, *, total_time: int, status: str, accumulate: bool = False,
+    db: Session, call_id: int, *, status: str, total_time: int | None = None, accumulate: bool = False,
     user_word_count: int | None = None,
 ) -> None:
-    """통화 종료 메타(총 시간/상태[/단어 수])를 갱신한다.
+    """통화 종료 메타(상태[/총 시간·단어 수])를 갱신한다.
 
-    accumulate(2026-09-14 ①, 실통화 1604 = 306s 인데 실제 3조각 ≈15분): 이어하기 조각(2번째 이후)은 **더한다** — 예전엔 조각마다 덮어써 마지막 조각
-    길이만 남았다. 첫 조각(새 통화·이어하기 첫 조각)은 종전대로 대입(바이트 동일).
+    ⭐⭐ C4 재설계(2026-09-23, bt-back A) — `total_time` 은 이제 **기본적으로 건드리지
+      않는다**(None). `mark_fragment_ended`(끊김을 인지한 그 자리)가 이미 이 조각이
+      쓴 시간을 확정해 뒀기 때문이다. `total_time` 을 명시로 넘기는 유일한 호출부는
+      `cascade_session.py`(별도 실험 경로 — `mark_fragment_ended`/`fragment_started_at`
+      을 아예 안 쓰므로 여기서 직접 채워야 한다) — 그 경로는 `accumulate` 도 안 쓴다
+      (조각 개념이 없는 단발 통화).
+      accumulate(2026-09-14 ①, 실통화 1604 = 306s 인데 실제 3조각 ≈15분): `total_time`
+      을 넘길 때 이어하기 조각(2번째 이후)은 **더한다** — 예전엔 조각마다 덮어써
+      마지막 조각 길이만 남았다. 첫 조각(새 통화·이어하기 첫 조각)은 대입.
 
-    user_word_count(C11): total_time 과 같은 방식으로 **조각 누적**. None(이 조각에
-    사용자 전사가 없음)이면 컬럼을 아예 건드리지 않는다 — 이전에 쌓인 값이 있으면
-    그대로 두고, 통화 내내 한 번도 안 채워졌으면 NULL 그대로 남는다.
+    user_word_count(C11): 여전히 여기서 조각 누적(마무리 저장 — 전사 커밋 뒤가
+    자리라 늦어도 되는 값). None(이 조각에 사용자 전사가 없음)이면 컬럼을 아예
+    건드리지 않는다 — 이전에 쌓인 값이 있으면 그대로 두고, 통화 내내 한 번도 안
+    채워졌으면 NULL 그대로 남는다.
     """
     call = db.get(Call, call_id)
     if call is None:
         return
-    call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else total_time
+    if total_time is not None:
+        call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else int(total_time)
     call.status = status
     if user_word_count is not None:
         call.user_word_count = (

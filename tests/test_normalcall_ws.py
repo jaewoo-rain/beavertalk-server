@@ -3166,7 +3166,7 @@ async def test_redial_is_allowed_immediately_after_disconnect_even_if_finalize_i
     release_finalize = threading.Event()
     call_count = {"n": 0}
 
-    def slow_finalize(db, call_id, *, total_time, status, accumulate=False, user_word_count=None):
+    def slow_finalize(db, call_id, *, status, total_time=None, accumulate=False, user_word_count=None):
         call_count["n"] += 1
         if call_count["n"] == 1:
             # 첫 통화(끊길 통화)의 마무리 저장만 느리게 흉내낸다 — 두 번째(재발신) 통화의

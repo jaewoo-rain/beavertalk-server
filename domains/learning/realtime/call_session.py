@@ -3994,8 +3994,15 @@ async def run_call(
             state.call_start_ts = asyncio.get_running_loop().time()
             logger.info("normalcall 조용한 이어하기: 시드 0 · 무음 시계 기준점 = 세션 열기 시각(첫 turn_start 는 학습자 발화 뒤)")
     except Exception:
+        # ⭐⭐ C4 재설계(2026-09-23, bt-back A) — 끊김을 인지한 이 자리에서 fragment_ended_at
+        #   과 함께 이 조각이 쓴 시간(total_time)도 확정한다(추정 없는 실측치).
+        # ⛔ 러닝 이벤트루프가 있는 **여기서** 미리 계산한다 — run_db 의 스레드풀
+        #   워커엔 running loop 가 없어 asyncio.get_running_loop() 가 RuntimeError.
         with contextlib.suppress(Exception):
-            await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
+            _dur = _elapsed_since_call_start(state)
+            await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(
+                db, call_id, total_time=_dur, accumulate=bool((state.fragment_index or 1) > 1),
+            ))
         # ⛔⛔ QA C7 재검(2026-09-23): 설비 구간 예외(비정상 종료)에서도 기억을 남긴다 —
         #   이어하기 조각이면 이전 조각의 전사가 이미 DB 에 있다. `_trigger_chat_memory`
         #   가 게이트(call_type·fragment_end·1회성)를 직접 갖는다.
@@ -4056,8 +4063,19 @@ async def run_call(
         #   **먼저** fragment_ended_at 부터 작게 찍는다 — 안 그러면 동시통화 게이트가 몇 초간
         #   이 세션을 "아직 살아있다"로 보고 **끊고 바로 다시 걸기**를 ALREADY_IN_CALL 로
         #   잘못 거절한다. finalize_call 이 뒤에서 또 찍어도 무해(멱등)하니 합치지 않는다.
+        # ⭐⭐ C4 재설계(2026-09-23, bt-back A) — total_time 도 **여기서** 같이 확정한다
+        #   (무거운 저장 뒤인 _persist_remaining 이 아니라). 그래야 "진행 중" 조각의
+        #   예산을 추정할 필요가 없어진다(call_repository.sum_total_time_in_window 참조).
         with contextlib.suppress(Exception):
-            await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
+            # ⛔ _elapsed_since_call_start 는 run_db(스레드풀)의 **바깥**, 실행 중인
+            #   이벤트루프 위에서 미리 계산한다 — 워커 스레드엔 running loop 가 없어
+            #   asyncio.get_running_loop() 가 RuntimeError 를 낸다(그 자리에서 그대로
+            #   당하면 contextlib.suppress 가 조용히 삼켜 fragment_ended_at 이 영영
+            #   안 찍히는 사고가 난다 — 실측으로 잡았다).
+            _dur = _elapsed_since_call_start(state)
+            await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(
+                db, call_id, total_time=_dur, accumulate=bool((state.fragment_index or 1) > 1),
+            ))
         # ⛔⛔ QA C7 재검(2026-09-23): 기억 추출도 **여기(무거운 마무리 저장보다 먼저)**
         #   에서 뜬다 — 뒤에 있으면 그 앞(usage·전사 저장·분석 트리거) 단계가 예외로
         #   터졌을 때 기억이 아예 안 남는다. `_trigger_chat_memory` 가 게이트(call_type·
@@ -4339,6 +4357,18 @@ def _on_analysis_done(task: asyncio.Task) -> None:
         logger.warning("normalcall 분석 task 예외(무시): %s", exc)
 
 
+def _elapsed_since_call_start(state: _CallState) -> int:
+    """⭐⭐ C4 재설계(2026-09-23) — 이 조각이 call_start_ts 부터 지금까지 쓴 시간(초).
+
+    `mark_fragment_ended` 가 끊김을 인지한 **그 순간** 부르므로, `_persist_remaining`
+    (무거운 저장 뒤)에서 재는 것보다 실제 사용 시간에 더 가깝다. `call_start_ts` 가
+    아직 안 섰으면(첫 turn_start 전에 끊김) 0 — 실제로 쓴 시간이 없다.
+    """
+    if state.call_start_ts is None:
+        return 0
+    return int(asyncio.get_running_loop().time() - state.call_start_ts)
+
+
 async def _persist_remaining(
     db_session_factory, state: _CallState, call_id: int, member_id: int
 ) -> list[dict]:
@@ -4363,10 +4393,12 @@ async def _persist_remaining(
                 lambda db: svc.save_segments(db, call_id, new, member_id, upload_audio=False),
             )
             state.persisted_count += len(new)
-        # ⭐ 2026-09-14 ①: 이어하기 조각(2번째 이후)은 total_time 을 **더한다** — 1604 가 3조각 ≈15분인데 306s(마지막 조각)만 남았다.
+        # ⭐⭐ C4 재설계(2026-09-23) — total_time 은 여기서 넘기지 않는다(None, 안 건드림).
+        #   mark_fragment_ended 가 이미 끊김을 인지한 자리에서 확정했다. accumulate 는
+        #   user_word_count(C11) 조각 누적에만 쓰인다.
         await svc.run_db(
             db_session_factory, lambda db: svc.finalize_call(
-                db, call_id, total_time=duration_s, status="analyzing", accumulate=bool((state.fragment_index or 1) > 1),
+                db, call_id, status="analyzing", accumulate=bool((state.fragment_index or 1) > 1),
                 user_word_count=word_count,
             )
         )

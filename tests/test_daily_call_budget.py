@@ -3,6 +3,15 @@
 Free 300s(5분) · Premium 900s(15분), chat·expression·freetalk 합산(레벨테스트 제외).
 근거: docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md(C4)
 
+⭐⭐ C4 재설계(2026-09-23, bt-back A·B·C·D) — "진행 중 조각의 경과 시간 추정"을
+  통째로 없앴다. `mark_fragment_ended`(call_session.py, 끊김을 인지한 그 자리)가
+  이제 `fragment_ended_at` 과 `total_time` 을 **같은 쓰기**로 확정하므로,
+  `sum_total_time_in_window` 는 단순 `SUM(total_time)` 이다(한 사람 한 통화 게이트
+  가 애초에 "진행 중" 조각과 새 예산 조회가 동시에 일어나는 상황을 막는다). 남긴 것:
+  자정 귀속(call_date 고정) · 한 사람 한 통화(active_ongoing_call_id, 판정은
+  fragment_started_at/ended_at 그대로) · 두 시각 컬럼 · 백필 마이그레이션. 앱이
+  통째로 죽어 끊김 신호조차 못 오면 540s 절대 백스톱에 기댄다(감수).
+
 시험 목록(문서 그대로):
     - Free 300 소진 → 거절
     - premium 에서 Free 로 쓴 300 이 차감돼 600 남음("결제 직후 10분")
@@ -10,6 +19,7 @@ Free 300s(5분) · Premium 900s(15분), chat·expression·freetalk 합산(레벨
     - 조각2 시작 시 남은 0 이면 거절(WS 레벨은 test_normalcall_ws.py 쪽에서 잡는다)
     - 서머타임 경계(America/New_York) 자정 계산
     - admin 면제 / admin+override 적용
+    - active_ongoing_call_id 는 재설계와 무관 — status 덮어쓰기·540s 컷오프 그대로
 """
 
 from __future__ import annotations
@@ -176,70 +186,37 @@ def test_level_test_does_not_consume_the_budget(ctx):
     assert cs.daily_budget_exceeded(ctx["db"], ctx["member_id"]) is False
 
 
+# --------------------------------------------------------------------------- #
+# C4 재설계(2026-09-23, bt-back E) — 조각1 저장 뒤 조각2 가 남은 예산을 정확히 본다
+# --------------------------------------------------------------------------- #
+def test_fragment_1_ending_then_fragment_2_sees_the_exact_remaining_budget(ctx):
+    """⭐⭐ mark_fragment_ended 가 끊김을 인지한 자리에서 total_time 을 확정하는 새
+    경로 자체를 부른다(추정이 아니라 이 함수가 진짜 쓰이는 계약). 조각1 이 100초를
+    쓰고 끝난 뒤, 조각2 가 시작 전 남은 예산을 정확히(Free 300-100=200) 봐야 한다.
+    """
+    call = _call(ctx, total_time=None, call_type="expression", status="ongoing")
+    ns.mark_fragment_ended(ctx["db"], call.call_id, total_time=100, accumulate=False)  # 조각1 종료
+    ctx["db"].refresh(call)
+    assert call.total_time == 100
+
+    remaining = cs.daily_budget_s(None) - cs.used_seconds_today(ctx["db"], ctx["member_id"])
+    assert remaining == 200, "조각1 종료 직후 조각2 가 볼 남은 예산이 정확해야 한다"
+
+    # 조각2 재개 + 종료(50초 추가) — 조각 누적(accumulate=True).
+    got, why = ns.resume_call(ctx["db"], ctx["member_id"], call.call_id, max_fragments=3)
+    assert got == call.call_id, why
+    ns.mark_fragment_ended(ctx["db"], call.call_id, total_time=50, accumulate=True)
+    ctx["db"].refresh(call)
+    assert call.total_time == 150, "조각2 의 시간이 조각1 에 누적돼야 한다(덮어쓰기 아님)"
+
+    remaining_after = cs.daily_budget_s(None) - cs.used_seconds_today(ctx["db"], ctx["member_id"])
+    assert remaining_after == 150
+
+
 def test_ongoing_call_with_recorded_total_time_counts_as_in_progress_spend(ctx):
     """아직 저장이 끝나지 않은 ongoing 도 진행 중인 소비다 — 빼면 끊고 바로 또 거는 구멍."""
     _call(ctx, total_time=300, status="ongoing")
     assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 300
-
-
-def test_ongoing_call_with_null_total_time_is_estimated_from_elapsed_time(ctx):
-    """⭐⭐ QA C4 재검-②(2026-09-23): `total_time` 이 아직 NULL(정말 진행 중이라 저장이
-    안 끝난 ongoing)이면 SUM 에서 **0으로 세어져** 예산 검사를 통과해 버린다(동시 접속
-    경합 시 우회 구멍) — call_date 로부터 지금까지 경과한 시간으로 추정해 채운다.
-    """
-    started = datetime.now(timezone.utc) - timedelta(seconds=120)
-    _call(ctx, total_time=None, status="ongoing", when_utc=started, fragment_started_at=started)
-    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
-    assert 118 <= used <= 130, "NULL total_time 이 경과 추정 없이 0으로 세어졌다(그 회귀)"
-
-
-def test_ongoing_call_finishing_does_not_double_count(ctx):
-    """⭐ ongoing 이던 통화가 끝나 `total_time` 이 실제 값으로 박히면, 그 이후 집계는
-    실제 값만 세고 **경과 추정과 이중으로 더해지지 않는다**(NULL 일 때만 추정한다).
-
-    ⚠ "끝났다"의 신호는 `fragment_ended_at` 이다(QA C4 재검-3차) — 실제
-      finalize_call/mark_fragment_ended 가 하는 일 그대로 흉내낸다.
-    """
-    started = datetime.now(timezone.utc) - timedelta(seconds=400)  # 추정치라면 300 초과일 시각
-    call = _call(ctx, total_time=None, status="ongoing", when_utc=started, fragment_started_at=started)
-    call.total_time = 300     # 통화 종료 저장 — 실제 값 확정
-    call.status = "done"
-    call.fragment_ended_at = datetime.now(timezone.utc)  # 조각 종료 — 더 이상 "진행 중" 아님
-    ctx["db"].commit()
-    assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 300
-
-
-def test_done_call_with_null_total_time_is_not_estimated(ctx):
-    """⭐⭐ QA C4 재검-3차(2026-09-23): 경과 추정은 **fragment_ended_at 이 아직 안 찍힌
-    행에만** 건다(`status` 는 안 본다) — 이 통화는 done 인데 total_time 이 NULL(예:
-    분석 실패로 못 채움)이지만, `fragment_ended_at` 이 이미 찍혀 있으면(조각이 끝났다는
-    사실 자체는 분명하므로) 경과 추정을 걸지 않는다 — 안 그러면 **쿼리할 때마다 elapsed
-    가 계속 자라** 예산을 점점 더 깎는 별개의 버그가 된다.
-    """
-    long_ago = datetime.now(timezone.utc) - timedelta(hours=5)
-    _call(ctx, total_time=None, status="done", when_utc=long_ago,
-          fragment_started_at=long_ago, fragment_ended_at=long_ago + timedelta(seconds=300))
-    assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 0, \
-        "끝난 통화(fragment_ended_at 찍힘)의 NULL total_time 이 경과 시간으로 잘못 추정됐다"
-
-
-def test_budget_survives_a_delayed_analysis_overwriting_status_to_done(ctx):
-    """⭐⭐ QA C4 재검-3차(codex 재현 시나리오): 조각2 가 진행 중인 동안, 조각1 의
-    지연된 분석 완료가 같은 행의 `status` 를 `done` 으로 덮어써도 조각2 의 진행 중
-    경과가 예산에서 사라지면 안 된다 — "진행 중" 판정이 `status` 를 안 보기 때문이다.
-    """
-    started = datetime.now(timezone.utc) - timedelta(seconds=120)
-    call = _call(ctx, total_time=180, call_type="expression", status="ongoing",
-                 fragment_started_at=started, fragment_ended_at=None)
-    # 조각1 의 지연된 분석 완료 — status 만 덮어쓴다(raw 대입, finalize_call 이 아니다 —
-    # 실제 버그가 바로 이 경로였다: normalcall_service.py 의 후행 `call.status = "done"`).
-    call.status = "done"
-    ctx["db"].commit()
-
-    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
-    # total_time(180, 조각1 확정분) + 조각2 진행 중 경과(~120s) — status 가 done 이어도 살아있다.
-    assert 295 <= used <= 305, \
-        "지연된 status=done 덮어쓰기로 조각2 의 진행 중 경과가 예산에서 사라졌다"
 
 
 def test_active_ongoing_call_id_survives_a_delayed_analysis_overwriting_status_to_done(ctx):
@@ -257,11 +234,15 @@ def test_active_ongoing_call_id_survives_a_delayed_analysis_overwriting_status_t
         "지연된 status=done 덮어쓰기로 진행 중인 조각2 가 active 판정에서 사라졌다"
 
 
-def test_failed_status_still_counts_as_active_and_budgeted(ctx):
+def test_failed_status_still_counts_as_active(ctx):
     """⭐⭐ QA C4 재검-6차: 진행 중 판정 쿼리의 **status 필터 자체를 없앴다** — 분석이
-    `failed` 로 덮는 경합(재검-3차의 `done` 재현과 같은 축, 상태값만 다르다)도 예산·
-    active 양쪽에서 그대로 잡혀야 한다. `failed` 로 끝난 조각도 Gemini 세션이 열려
-    있던 시간만큼 `total_time` 이 쌓였다면 그 소비는 실제다.
+    `failed` 로 덮는 경합(재검-3차의 `done` 재현과 같은 축, 상태값만 다르다)도
+    active 판정에서 그대로 잡혀야 한다.
+
+    ⛔ C4 재설계(2026-09-23): "진행 중 조각의 예산 추정"은 삭제됐다(bt-back B) —
+      이 시험은 이제 active_ongoing_call_id 축만 확인한다. 예산은 mark_fragment_ended
+      가 끊김을 인지한 자리에서 즉시 확정하므로, "아직 안 끝난 조각"의 예산을
+      추정할 필요 자체가 없어졌다.
     """
     started = datetime.now(timezone.utc) - timedelta(seconds=120)
     call = _call(ctx, total_time=180, call_type="expression", status="ongoing",
@@ -271,26 +252,25 @@ def test_failed_status_still_counts_as_active_and_budgeted(ctx):
 
     assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) == call.call_id, \
         "status=failed 로 덮여도 진행 중인 조각은 active 여야 한다"
-    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
-    assert 295 <= used <= 305, "status=failed 여도 total_time(확정분)+진행 중 경과가 예산에 잡혀야 한다"
 
 
-def test_dead_fragment_still_credits_the_cap_to_the_budget(ctx):
+def test_dead_fragment_is_not_active_past_the_cap(ctx):
     """⭐⭐ QA C4 재검-6차: 종료 표식을 못 남긴 죽은 조각(크래시로 fragment_ended_at 을
-    영영 못 찍음)의 예산 기여를 **버리지 않는다** — 경과가 상한(540s)을 넘겨도
-    `min(경과, 540)` 으로 최소 540초는 계상한다. "살아있다"(active, 동시통화 게이트)
-    판정만 540초 창을 컷오프로 써서 이 행을 무시한다 — 역할이 다르다.
+    영영 못 찍음)은 경과가 상한(540s)을 넘기면 "살아있다"(active, 동시통화 게이트)
+    판정에서 제외한다 — 죽은 행 하나가 그 회원을 영영 통화 못 걸게 잠그면 안 된다.
+
+    ⛔ C4 재설계(2026-09-23): 옛 시험은 "그래도 예산엔 540초를 계상한다"를 같이
+      쟀지만, 그 예산-추정 로직은 삭제됐다(bt-back B·D) — 앱이 완전히 죽어 끊김
+      신호조차 못 오면 540s 절대 백스톱이 대신 발동해 그 자리에서 mark_fragment_ended
+      가 **실제** 경과 시간을 total_time 에 확정한다(백스톱이 안 뜨는 한 이 통화는
+      계속 "안 끝난" 상태로 남고, 그동안은 예산 계산 대상이 아니다 — 감수한 설계).
     """
     started = datetime.now(timezone.utc) - timedelta(seconds=600)   # 상한(540)보다 오래됨
-    call = _call(ctx, total_time=None, call_type="expression", status="ongoing",
-                 fragment_started_at=started, fragment_ended_at=None)
+    _call(ctx, total_time=None, call_type="expression", status="ongoing",
+          fragment_started_at=started, fragment_ended_at=None)
 
-    # active(동시통화 게이트) 판정은 죽은 세션으로 보고 무시한다.
     assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) is None, \
         "540초 넘은 죽은 조각이 여전히 active 로 잡혔다"
-    # 그런데 예산은 그 시간을 버리지 않고 상한(540)만큼 계상한다.
-    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
-    assert used == 540, "죽은 조각의 경과가 예산에서 0으로 버려졌다(상한 계상이 아니라)"
 
 
 def test_backfilled_old_row_is_not_active_and_budgets_only_total_time(ctx):

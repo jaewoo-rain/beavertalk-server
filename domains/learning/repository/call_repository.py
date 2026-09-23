@@ -114,53 +114,26 @@ class CallRepository:
         ⚠ `has_call_in_window` 와 달리 "학습자가 말했나"(spoke)를 걸지 않는다 — 예산은
           **써버린 시간**을 재는 것이라, 마이크가 안 열린 통화도 Gemini 세션이 열려 있던
           시간만큼 total_time 이 쌓였다면 그 소비가 실제다(옛 count 한도의 "성립" 기준과는
-          목적이 다르다).
+          목적이 다르다). `status` 필터도 없다 — `failed` 로 끝난 조각도 시간은 실제로
+          썼다(옛 (done,analyzing,ongoing) 화이트리스트는 실패한 조각을 조용히 공짜로
+          만들었다, QA C4 재검-6차).
 
-        ⛔⛔ QA C4 재검-3차(2026-09-23): "진행 중"을 **`status` 로 판정하지 않는다.**
-          `status` 는 통화의 진행 여부와 분석 상태(analyzing→done)를 **겸해서** 쓰이는데,
-          조각2 가 진행 중인 동안 조각1 의 지연된 분석 완료가 같은 행의 `status` 를
-          `done`(또는 재검-6차 재현: `failed`)으로 덮어써 조각2 가 "진행 중 아님"으로
-          사라지는 사고가 났다. ⇒ **진행 중 = `fragment_started_at IS NOT NULL AND
-          fragment_ended_at IS NULL`** 만 본다(`status` 무관 — done/analyzing/failed
-          여도 상관없다).
-        ⛔⛔ QA C4 재검-6차(2026-09-23): 이 쿼리의 **status 필터 자체를 없앴다**(레벨
-          테스트 제외만 남는다) — `failed` 로 끝난 조각도 Gemini 세션이 열려 있던
-          시간만큼 `total_time` 이 쌓여 있으면 그 소비는 실제다(옛 (done,analyzing,
-          ongoing) 화이트리스트는 실패한 조각의 시간을 조용히 공짜로 만들었다).
-        예산 합계 = 전 행 공통 `sum(total_time or 0)` + 위 "진행 중" 조건을 만족하는
-          행마다 `min(now - fragment_started_at, _ONGOING_ELAPSED_CAP_S)`.
-          ⛔⛔ 재검-6차: 이 캡은 **버리지 않고 상한으로만** 쓴다 — 경과가 상한을
-          넘겨도(죽은 세션·크래시로 fragment_ended_at 을 영영 못 찍은 조각) 예산에서
-          `_ONGOING_ELAPSED_CAP_S` 만큼은 계상한다(0 으로 버리면 진짜 쓴 시간이
-          예산 계산에서 사라진다). "살아있다"(동시통화 게이트) 판정만 이 상한을
-          **컷오프**로 쓴다 — active_ongoing_call_id 참조, 여기와 역할이 다르다.
-        이 파일은 sqlite(테스트)·postgres(운영) 양쪽에서 돌아야 해서 SQL 레벨
-        COALESCE/EXTRACT(EPOCH) 대신 파이썬에서 계산한다 — 회원 하루 통화 수가 적어
-        (많아야 몇 건) 성능상 문제가 없다.
-        ⚠ 회원 단위 잠금·예약은 만들지 않는다(과한 구조) — 같은 회원이 동시에 두 세션을
-          열어 **각각** 경과 시간을 추정하는 경우까지 막으려면 행 잠금이 필요하다. 그
-          경로는 동시통화 금지 정책(call_session — 통화 시작 시 진행 중 통화 존재 검사)
-          이 애초에 막는다. 여기는 "0으로 새는" 구멍만 막는다.
+        ⭐⭐ C4 재설계(2026-09-23, bt-back B) — "진행 중 조각의 경과 시간 추정" 로직을
+          **통째로 없앴다.** `mark_fragment_ended`(call_session.py, 끊김을 인지한 그
+          자리)가 이제 `fragment_ended_at` 과 `total_time` 을 **같은 쓰기**로 확정하므로,
+          이 쿼리가 도는 시점(새 통화를 시작하려는 순간)엔 그 전 조각들의 `total_time`
+          이 이미 정확하다 — 살아있는 조각이 있다면애초에 `active_ongoing_call_id`
+          (한 사람 한 통화 게이트)가 새 시작 자체를 막으므로, 이 SUM 이 "아직 안 끝난"
+          조각을 볼 일이 없다. 그래서 단순 `SUM(total_time)` 이면 충분하다.
         """
-        stmt = select(
-            Call.total_time, Call.fragment_started_at, Call.fragment_ended_at,
-        ).where(
+        stmt = select(func.coalesce(func.sum(Call.total_time), 0)).where(
             Call.member_id == member_id,
             Call.call_date >= start_utc,
             Call.call_date < end_utc,
         )
         if exclude_call_types:
             stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
-        now = datetime.now(timezone.utc)
-        total = 0
-        for total_time, fragment_started_at, fragment_ended_at in self.db.execute(stmt):
-            total += total_time or 0
-            if fragment_started_at is None or fragment_ended_at is not None:
-                continue  # "진행 중" 아님(조각이 끝났거나 아직 한 번도 안 열림)
-            started = fragment_started_at if fragment_started_at.tzinfo else fragment_started_at.replace(tzinfo=timezone.utc)
-            elapsed = max(0.0, (now - started).total_seconds())
-            total += int(min(elapsed, _ONGOING_ELAPSED_CAP_S))
-        return total
+        return int(self.db.scalar(stmt) or 0)
 
     def active_ongoing_call_id(self, member_id: int) -> int | None:
         """이 회원에게 지금 **살아있는 조각**(진행 중인 통화)이 있으면 그 call_id —
