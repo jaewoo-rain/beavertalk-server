@@ -126,11 +126,13 @@ from core.prompts.freetalk import (
     seed_freetalk_lesson_opening,
     seed_freetalk_opening,
 )
+from core.prompts.chat import build_chat_instruction, seed_chat_opening
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
+from domains.learning.service import chat_memory_service
 from domains.learning.realtime.protocol import (
     HintExample,
     ServerCallEnded,
@@ -3363,6 +3365,31 @@ async def run_call(
                 face_rule=face_rule_text,
             )
             seed_text = seed_freetalk_opening(target_language)
+        elif call_type == "chat":
+            # ⭐⭐ C7(2026-09-23): freetalk 의 D8 기본 대본(lesson=None, 차시 블록 없음)을
+            #   그대로 재사용 + [기억](chat_memory, 있을 때만) — cur_route 미적용(진도 무관).
+            chat_memory_row = await svc.run_db(
+                db_session_factory,
+                lambda db: chat_memory_service.load(db, member_id, spec.code),
+            )
+            chat_memory_dict = chat_memory_service.to_dict(chat_memory_row)
+            system_instruction = build_chat_instruction(
+                role=setup["role"],
+                personality=setup["personality"],
+                level_profile=level_profile,
+                locale=locale,
+                interests=setup["interests"],
+                name=setup["name"],
+                target_language=target_language,
+                close_tag=close_tag,
+                face_rule=face_rule_text,
+                language=spec.code,
+                memory=chat_memory_dict,
+            )
+            # ⭐⭐ QA C7-③: 기억이 빈약(사실 0·화제 0)하면 "아는 척" 시드가 내용 없이
+            #   나가 비버가 지어낸다 — seed_chat_opening 이 그때 빈 문자열을 돌려주므로
+            #   D8 오프닝으로 폴백한다.
+            seed_text = seed_chat_opening(target_language, chat_memory_dict) or seed_freetalk_opening(target_language)
         else:
             system_instruction = build_system_instruction(
                 role=setup["role"],
@@ -3417,11 +3444,11 @@ async def run_call(
     # ⚠ 여기 목록과 `svc.resume_call` 의 화이트리스트는 **같은 뜻이어야 한다.** 한쪽만
     #   넓히면 «관문은 통과했는데 서비스가 거절» 이 되어 조용히 새 통화로 떨어진다.
     #   ⛔ 레벨테스트는 양쪽 모두에서 빠져 있다(조각 개념 없음 — 3분 하드캡은 측정 설계다).
-    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은 expression/freetalk
-    # 뿐이다("normal" 은 C3 로 죽은 값이다 — 라우팅이 절대 안 만든다). **chat 은 아직 없다**
-    #   — 이어하기(5분 재연결)는 C7 이 붙인다(자유대화 세션 작업, docs 참조). 그 전엔 chat 은
-    #   항상 조각 1개다.
-    if continues_call_id is not None and call_type in ("expression", "freetalk"):
+    # ⚠ "auto" 는 위에서 이미 코스로 바뀌었다 — 여기 도달하는 call_type 은
+    # expression/freetalk/chat 이다("normal" 은 C3 로 죽은 값이다 — 라우팅이 절대 안
+    #   만든다). ⭐⭐ C7(2026-09-23): chat 도 이어하기 화이트리스트에 넣는다(프리미엄
+    #   5분 조각 재연결) — Free 는 아래 max_fragments(조각 1)가 이미 조각2 를 막는다.
+    if continues_call_id is not None and call_type in ("expression", "freetalk", "chat"):
         # ⭐ 플랜 흉내(plan_override, admin 검증 완료값)면 그 플랜의 조각 수 — «Free 로 통화» 는 조각2 를 거절한다(2026-09-13).
         max_fragments = await svc.run_db(
             db_session_factory,
@@ -3577,11 +3604,11 @@ async def run_call(
         # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
         # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
         #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
-        # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(expression·freetalk, C7 전까지 chat 은 제외)에만
+        # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(expression·freetalk·chat, C7)에만
         #   «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을 서버 값으로 판단한다. 상한은
         #   REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
         fragment_index = None
-        if call_type in ("expression", "freetalk"):
+        if call_type in ("expression", "freetalk", "chat"):
             if max_fragments is None:
                 max_fragments = await svc.run_db(
                     db_session_factory, lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
@@ -3772,12 +3799,13 @@ async def run_call(
                 #   모드 축(공부/대화)이 이 코스엔 없다. 옛 프리토킹(lesson=None)·표현학습·일반은 아래 그대로.
                 state.reground_items = []
                 state.call_mode = "chat"
-            elif call_type in ("expression", "freetalk"):
-                # ⛔⛔ **두 코스는 normal 의 학습 항목 기계를 물려받지 않는다**(2026-09-10 QA).
-                #   게이트를 `expr_items` 로 두면 두 경우가 아래 else 로 떨어진다:
-                #     · 프리토킹 — 항목이 애초에 0개인데(D8) `study_items[:10]` 을 물고
-                #       call_mode='study' 가 된다 ⇒ 재접지 쪽지가 «학습 항목을 대화에서 쓰게
-                #       하라» 로 나가는데 지시문엔 그 항목이 **하나도 없다.**
+            elif call_type in ("expression", "freetalk", "chat"):
+                # ⛔⛔ **이 코스들은 normal 의 학습 항목 기계를 물려받지 않는다**(2026-09-10
+                #   QA, C7 로 chat 추가). 게이트를 `expr_items` 로 두면 각 경우가 아래
+                #   else 로 떨어진다:
+                #     · 프리토킹·자유대화(chat) — 항목이 애초에 0개인데(D8) `study_items[:10]`
+                #       을 물고 call_mode='study' 가 된다 ⇒ 재접지 쪽지가 «학습 항목을 대화에서
+                #       쓰게 하라» 로 나가는데 지시문엔 그 항목이 **하나도 없다.**
                 #     · 표현학습 — 그 레벨을 전량 통과해 풀이 비면 «표현 0개짜리 표현학습» 이
                 #       normal 항목을 물고 돈다.
                 #   ⇒ 판정은 **콜타입**으로 한다. 항목 유무는 그 다음 문제다.
@@ -4155,6 +4183,12 @@ async def run_call(
             since_turn_index=state.resume_from_turn or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
+        # ⭐⭐ QA C7-②(2026-09-23, 사장님 경고 반영): 기억 저장은 **조각 전환이 아닌
+        #   진짜 끝에서 1회만** — `state.fragment_end` 가 서 있으면(클라 fragment_end
+        #   왕복이든 루프 차단기 강제 전환이든, 둘 다 같은 신호다) 다음 조각이 온다는
+        #   뜻이라 건너뛴다.
+        if call_type == "chat" and not state.fragment_end:
+            _trigger_chat_memory(db_session_factory, call_id, member_id, spec.code, client, settings)
         # 마지막 회수·해제(B1): 아직 안 놓아준 세그먼트의 PCM 을 여기서 전부 정리한다.
         # 이 시점 이후 원본을 읽는 코드는 없다 — 오디오 후행 업로드는 save_segments 가 뜬
         # 사본(pending_audio)을 쓰고, 국적 추론은 아래 nationality_pcm 을 쓴다.
@@ -4426,6 +4460,27 @@ def _trigger_nationality(
             )
 
     task = asyncio.create_task(_run(), name=f"normalcall-nationality-{call_id}")
+    _analysis_tasks.add(task)
+    task.add_done_callback(_on_analysis_done)
+
+
+def _trigger_chat_memory(
+    db_session_factory, call_id: int, member_id: int, language: str, client, settings_obj: Settings,
+) -> None:
+    """C7(2026-09-23) — 자유대화 기억 추출·merge 를 백그라운드 task 로 띄운다
+    (fire-and-forget, `_trigger_nationality` 와 같은 패턴).
+
+    ⛔⛔ 호출부(finally)가 **`call_type == "chat" and not state.fragment_end` 일 때만**
+      불러야 한다 — 조각 전환(클라 fragment_end·루프 차단기 강제 전환 모두
+      `state.fragment_end` 하나로 걸린다)에서는 부르면 안 된다(사장님 경고, "조각마다
+      돌면 안 된다"). 이 함수 자체는 그 조건을 모른다 — 호출 여부가 정책이다.
+    """
+    task = asyncio.create_task(
+        svc.extract_and_merge_chat_memory(
+            call_id, member_id, language, client, settings_obj, db_session_factory,
+        ),
+        name=f"normalcall-chat-memory-{call_id}",
+    )
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
 

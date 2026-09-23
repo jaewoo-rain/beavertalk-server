@@ -45,6 +45,19 @@ def load(db: Session, member_id: int, language: str) -> ChatMemory | None:
     return ChatMemoryRepository(db).get(member_id, language)
 
 
+def to_dict(row: ChatMemory | None) -> dict | None:
+    """ChatMemory 행 → 프롬프트 조립(core/prompts/chat.py)이 쓰는 평범한 dict. 행이 없으면 None."""
+    if row is None:
+        return None
+    return {
+        "summary": row.summary or "",
+        "topics": list(row.topics or []),
+        "facts": list(row.facts or []),
+        "interests": list(row.interests or []),
+        "next_topics": list(row.next_topics or []),
+    }
+
+
 def _merge_capped(old: list | None, new: list | None, cap: int) -> list[str]:
     """새 항목을 **앞에**(최신 우선) 두고 중복 제거한 뒤 상한을 자른다.
 

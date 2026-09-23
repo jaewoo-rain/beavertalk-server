@@ -10,6 +10,7 @@ DB 접근은 `run_db`(run_in_threadpool + 짧은 세션)로 감싼다 — 장수
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -43,6 +44,7 @@ from domains.commerce.service import entitlements
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.service import call_service
+from domains.learning.service import chat_memory_service
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.learning_item import LearningItem
 from domains.learning.models.level import Level
@@ -895,9 +897,11 @@ def resume_call(
     #     이어져야 비버가 «(통과) 표시가 없는 가장 앞 항목» 부터 다시 시작한다(기획 §2-7·D17).
     #     여기서 막히면 조각2가 **새 통화**가 되고, 그러면 turn_index 도 진도도 갈린다.
     #   ⛔ C3(2026-09-22, D3): "normal" 은 죽은 값이다(마이그레이션 e0a404f9e6c0 가 기존
-    #     행을 전부 chat 으로 전환했다) — 화이트리스트에서 뺐다. chat 은 아직 없다(C7 이
-    #     붙인다, 프리미엄 5분 재연결).
-    if (call.call_type or "chat") not in ("expression", "freetalk"):
+    #     행을 전부 chat 으로 전환했다) — 화이트리스트에서 뺐다.
+    #   ⭐⭐ C7(2026-09-23): "chat" 을 화이트리스트에 넣는다(프리미엄 5분 조각 재연결) —
+    #     Free 는 `call_fragments_for_member`(조각 1)가 이미 조각2 자체를 막으므로 여기
+    #     화이트리스트에 넣는다고 Free 가 이어지는 게 아니다.
+    if (call.call_type or "chat") not in ("expression", "freetalk", "chat"):
         return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "chat")
 
     # ⛔⛔ QA C4 재검-①(2026-09-23, 재재검): TTL 기준은 `updated_at` 도 아니다 — 통화
@@ -966,6 +970,11 @@ class ResumeOut(BaseModel):
     topic: str = ""                    # 하던 얘기 — 짧은 명사구
     learner_facts: list[str] = []      # 학습자에 대해 알게 된 것(짧은 구)
     pending: str = ""                  # 하다 만 것 — 짧은 구
+    # ⭐ C7(2026-09-23) — chat_memory 추출에 재사용하려고 추가한 칸. 기존 소비처
+    #   (build_resume_brief — covered/strong/weak/topic/facts/pending/excerpt/said/
+    #   summary/curious 만 받는다)는 이 칸을 모르므로 그냥 무시한다 — 추가만이라
+    #   기존 재개 브리프 바이트에 영향 없다.
+    interests: list[str] = []          # 대화에서 드러난 관심사(짧은 구, 자유대화에서만 채움)
 
 
 _RESUME_SUMMARY_INSTRUCTION = (
@@ -974,7 +983,9 @@ _RESUME_SUMMARY_INSTRUCTION = (
     "- topic: 대화가 흐르던 화제를 짧은 명사구 하나로(최대 15자). 없으면 빈 문자열.\n"
     "- learner_facts: 이 대화에서 **학습자에 대해 알게 된 사실**을 짧은 구로(각 20자 이내, "
     "최대 5개). 예: \"김치찌개를 좋아함\". ⛔ 대화에 근거가 없으면 넣지 마라.\n"
-    "- pending: 끝내지 못하고 하던 중이던 것을 짧은 구로(최대 20자). 없으면 빈 문자열."
+    "- pending: 끝내지 못하고 하던 중이던 것을 짧은 구로(최대 20자). 없으면 빈 문자열.\n"
+    "- interests: 대화에서 드러난 학습자의 관심사를 짧은 구로(각 15자 이내, 최대 5개). "
+    "⛔ 대화에 근거가 없으면 넣지 마라."
 )
 
 
@@ -1103,7 +1114,76 @@ async def summarize_for_resume_text(client, model: str, tail: str) -> dict | Non
             if isinstance(f, str) and f.strip()
         ][:5],
         "pending": (getattr(out, "pending", "") or "").strip()[:40],
+        # ⭐ C7(2026-09-23) — chat_memory 추출용(그 외 소비처는 무시하는 칸).
+        "interests": [
+            i.strip()[:20] for i in (getattr(out, "interests", None) or [])
+            if isinstance(i, str) and i.strip()
+        ][:5],
     }
+
+
+async def extract_and_merge_chat_memory(
+    call_id: int, member_id: int, language: str, client, settings_obj: Settings,
+    session_factory: sessionmaker,
+) -> None:
+    """C7(2026-09-23) — 자유대화 통화의 **진짜 끝**(조각 전환이 아닌 끝)에서 기억을
+    추출해 `chat_memory_service.merge` 로 저장한다.
+
+    ⛔⛔ 조각마다 돌면 안 된다(사장님 경고) — 호출부(call_session.py finally)가
+      **`not state.fragment_end`(다음 조각이 오는 신호가 아닐 때)에만** 이 함수를
+      부른다. 조각 강제 전환(루프 차단기, reason=loop)도 같은 `_FragmentEnd` 경로라
+      `state.fragment_end` 하나로 같이 걸러진다.
+    ⚠ fire-and-forget — 실패해도 통화는 이미 끝났다(R5). 다음 통화는 이 merge 를
+      기다리지 않고 그 시점의 `chat_memory` 를 그대로 쓴다(늦게 끝나도 안 기다린다).
+    ⭐ `summarize_for_resume_text` 를 **재사용**한다(문서 지시) — 조각 재개 브리프와
+      같은 LLM 호출·스키마다. topic→topics 1개, learner_facts→facts, pending→
+      next_topics 1개, interests→interests 로 옮겨 담는다. `summary`(재압축 입력)는
+      이 슬롯들에서 파생한다 — 별도 LLM 호출을 추가하지 않는다.
+    """
+    try:
+        tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
+        slots_raw = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
+    except Exception as exc:  # noqa: BLE001 — R5
+        logger.warning("normalcall chat_memory 추출 실패(무시) call_id=%s: %s", call_id, exc)
+        return
+    if slots_raw is None:
+        return
+
+    topic = slots_raw.get("topic") or ""
+    facts = slots_raw.get("learner_facts") or []
+    pending = slots_raw.get("pending") or ""
+    interests = slots_raw.get("interests") or []
+    summary_parts = []
+    if topic:
+        summary_parts.append(f"화제: {topic}")
+    if facts:
+        summary_parts.append("사실: " + ", ".join(facts))
+    if pending:
+        summary_parts.append(f"하던 것: {pending}")
+    slots = {
+        "summary": ". ".join(summary_parts),
+        "topics": [topic] if topic else [],
+        "facts": facts,
+        "interests": interests,
+        "next_topics": [pending] if pending else [],
+    }
+    if not any(slots.values()):
+        logger.info("normalcall chat_memory: 뽑힌 슬롯이 없어 merge 생략 call_id=%s", call_id)
+        return
+
+    def _do_merge(db: Session) -> None:
+        # ⚠ chat_memory_service.merge 는 async(재압축 LLM 호출을 안에서 await 한다) —
+        #   이 스레드(run_db 의 threadpool 워커)는 자기 이벤트 루프가 없으니
+        #   asyncio.run 으로 새로 하나 만들어 그 안에서 끝까지 돌린다.
+        asyncio.run(chat_memory_service.merge(
+            db, member_id, language, call_id, slots,
+            client=client, model=settings_obj.JUDGE_MODEL,
+        ))
+
+    try:
+        await run_db(session_factory, _do_merge)
+    except Exception as exc:  # noqa: BLE001 — R5
+        logger.warning("normalcall chat_memory merge 실패(무시) call_id=%s: %s", call_id, exc)
 
 
 def resume_context_is_fresh(db: Session, call_id: int) -> bool:

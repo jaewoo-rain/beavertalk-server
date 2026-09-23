@@ -1,9 +1,10 @@
-"""GET /api/v1/calls/{id}/resume-status — can_resume 는 expression·freetalk 에 열리고
-chat(옛 normal)·level_test 는 닫힌다(2026-09-12, 실기기 1447 / QA C3 재검-① 2026-09-22).
+"""GET /api/v1/calls/{id}/resume-status — can_resume 는 expression·freetalk·chat 에
+열리고 level_test 는 닫힌다(2026-09-12, 실기기 1447 / QA C3 재검-① 2026-09-22 / C7
+2026-09-23 — chat 도 화이트리스트에 들어왔다, 프리미엄 5분 조각 재연결).
 
 옛 조건이 normal 만 허용해 표현학습·프리토킹은 5분에 «Keep talking» 시트 없이 결과 화면으로
-떨어졌다. ⚠ C3(D3)로 normal→chat 개명 + chat 은 아직 이어하기 화이트리스트에 없다(C7 전 —
-프리미엄 5분 재연결). 조각 상한·요약 준비 판정은 스텁.
+떨어졌다. C3(D3)로 normal→chat 개명, C7 로 chat 도 이어하기 대상이 됐다. 조각 상한·요약
+준비 판정은 스텁.
 """
 from __future__ import annotations
 
@@ -68,14 +69,13 @@ def _status(client, call_id):
     return r.json()
 
 
-def test_expression_and_freetalk_can_resume_but_chat_cannot_yet(env):
+def test_expression_freetalk_and_chat_can_resume(env):
+    """⭐⭐ C7(2026-09-23): chat 도 expression·freetalk 와 같은 화이트리스트에 있다."""
     client, calls = env
-    for key in (("expression", 1), ("freetalk", 2)):
+    for key in (("expression", 1), ("freetalk", 2), ("chat", 1)):
         body = _status(client, calls[key])
         assert body["can_resume"] is True, key
         assert body["fragment_count"] == key[1] and body["max_fragments"] == 3
-    # QA C3 재검-①(2026-09-22): chat(옛 normal)은 C7 전까지 이어하기 목록에 없다.
-    assert _status(client, calls[("chat", 1)])["can_resume"] is False
 
 
 def test_level_test_never_resumes_and_exhausted_fragments_close_the_door(env):

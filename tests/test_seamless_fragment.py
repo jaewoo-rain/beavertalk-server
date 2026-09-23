@@ -588,6 +588,86 @@ async def test_fragment_end_is_ignored_on_a_level_test():
 
 
 # --------------------------------------------------------------------------- #
+# C7(2026-09-23) — 자유대화 기억 저장은 진짜 끝에서만 1회(조각 전환에서는 건너뛴다)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_chat_memory_merge_fires_on_a_true_call_end(session_factory, seeded, monkeypatch):
+    """⭐⭐ 자유대화가 정상 종료(작별/끊김/백스톱 — fragment_end 가 아님)로 끝나면
+    기억 추출·merge 가 한 번 뜬다."""
+    calls: list[tuple] = []
+
+    async def _spy(*args, **kwargs):
+        calls.append(args)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+
+    h = await _run(session_factory, seeded, "chat", {}, script=[("B", "안녕!"), ("U", "네")])
+    assert _frames_of("call_ended", h), "정상 종료인데 call_ended 가 안 나갔다(시험 전제 실패)"
+    assert len(calls) == 1, "진짜 끝인데 기억 merge 가 안 떴다(또는 두 번 떴다)"
+
+
+@pytest.mark.asyncio
+async def test_chat_memory_merge_is_skipped_on_a_client_fragment_end(session_factory, seeded, monkeypatch):
+    """⛔⛔ QA C7-⑥(사장님 경고): 조각 전환(클라 fragment_end 왕복)에서는 기억 merge 를
+    건너뛴다 — 다음 조각이 온다는 신호일 뿐, 통화가 끝난 게 아니다."""
+    calls: list[tuple] = []
+
+    async def _spy(*args, **kwargs):
+        calls.append(args)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+
+    h = await _run(session_factory, seeded, "chat", {}, script=[("B", "안녕!"), ("U", "네")],
+                   fragment_end=True, session_cls=HeldOpenSession)
+    assert _frames_of("fragment_saved", h), "fragment_end 왕복인데 fragment_saved 가 안 나갔다(시험 전제 실패)"
+    assert calls == [], "조각 전환(fragment_end)인데 기억 merge 가 떴다 — 조각마다 돌면 안 된다"
+
+
+@pytest.mark.asyncio
+async def test_chat_resume_instruction_has_no_lesson_content(session_factory, seeded):
+    """⭐⭐ QA C7-① 시험: chat 재개는 프리토킹과 같은 브리프 계열(build_resume_brief,
+    covered/strong/weak 없음)을 쓴다 — 차시("[이번 차시" · "역할극") 문구가 재개
+    지시문에 섞이면 안 된다(그 계열은 D8 재개 브리프에 없다 — 있다면 잘못된 경로다)."""
+    h1 = await _run(session_factory, seeded, "chat", {},
+                    script=[("B", "안녕하세요!"), ("U", "네 안녕하세요, 요리 얘기 할래요")],
+                    session_cls=HeldOpenSession, fragment_end=True)
+    assert _frames_of("fragment_saved", h1), "조각1 이 안 끝났다(시험 전제 실패)"
+    cid = int(_started(h1)["call_id"])
+
+    h2 = await _run(session_factory, seeded, "chat", {}, continues=cid,
+                    script=[("B", "그래서 무슨 얘기 하고 있었죠?")])
+    instr = h2["system_instruction"]
+    for banned in ("[이번 차시", "역할극"):
+        assert banned not in instr, f"차시 소재 문구가 chat 재개 지시문에 섞였다: {banned!r}"
+
+
+@pytest.mark.asyncio
+async def test_loop_breaker_forced_transition_shares_the_fragment_end_signal(session_factory):
+    """⭐⭐ QA C7-⑥ 근거: 루프 차단기의 조각 강제 전환(reason=loop)도 클라 fragment_end
+    와 **같은** `_FragmentEnd` 신호다 — `state.fragment_end` 하나로 기억 merge 게이트가
+    자동으로 같이 걸린다(별도 분기 불필요)."""
+    st = cs._CallState()
+    st.fragment_index = 1
+    st.max_fragments = 3
+
+    class _Sink:
+        async def send_text_turn(self, text: str) -> None:
+            pass
+
+    sink = _Sink()
+    line = "이건 아주 길고 특이한 반복 문장이라 유사도 감지에 걸리도록 만든 테스트용 문장입니다"
+    raised = False
+    for _ in range(3):   # 관측: 스트릭 임계는 내부 구현 상세 — 몇 번째에 걸리는지는 안 박아둔다
+        try:
+            await cs._loop_breaker_on_turn_end(sink, st, line)
+        except cs._FragmentEnd:
+            raised = True
+            break
+    assert raised, "반복해도 조각 강제 전환(_FragmentEnd)이 안 걸렸다"
+    assert st.fragment_end_reason == "loop"
+
+
+# --------------------------------------------------------------------------- #
 # S7 (QA P1-B) — start 창: 바이너리는 세지 않는다
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio

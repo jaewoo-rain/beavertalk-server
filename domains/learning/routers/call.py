@@ -172,9 +172,9 @@ def get_resume_status(
         #   ⚠ `resume_materials` 와 **같은 판정**을 써야 한다(한 함수로 모았다) — 두 곳이
         #     다른 기준을 쓰면 "준비됐다는데 느린" 상태가 계속 산다.
         "ready": svc.resume_context_is_fresh(db, call_id),
-        # ⛔ C3(2026-09-22, D3): "normal" 은 죽은 값(전부 chat 으로 전환됨) — chat 은
-        #   아직 이어하기 목록에 없다(C7 이 붙인다). svc.resume_call 과 같은 뜻이어야 한다.
-        "can_resume": used < total and (call.call_type or "chat") in ("expression", "freetalk"),
+        # ⛔ C3(2026-09-22, D3): "normal" 은 죽은 값(전부 chat 으로 전환됨). C7(2026-09-23)
+        #   로 chat 도 이어하기 목록에 들어왔다 — svc.resume_call 과 같은 뜻이어야 한다.
+        "can_resume": used < total and (call.call_type or "chat") in ("expression", "freetalk", "chat"),
         "fragment_count": used,
         "max_fragments": total,
         # ⚠ 분석이 아직 도는 중인지 — 클라가 "요약 준비 중" 을 보여줄 수 있게.
