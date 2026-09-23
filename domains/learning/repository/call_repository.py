@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Optional, Sequence
 
 from sqlalchemy import func, select
@@ -101,8 +102,19 @@ class CallRepository:
           목적이 다르다).
         status 는 (done, analyzing, ongoing) 만 센다 — 아직 저장 안 끝난 ongoing 도 진행
           중인 소비라 빼면, 끊고 바로 또 거는 구멍이 생긴다.
+
+        ⛔⛔ QA C4 재검-②(2026-09-23): `ongoing` 인 행은 `total_time` 이 아직 NULL 이라
+          SQL SUM 에서 0으로 세어지면 — 통화 진행 중(특히 동시 접속으로 같은 회원이
+          두 번째 세션을 여는 경합)에는 예산 검사가 "아직 아무것도 안 썼다"로 잘못
+          통과한다. 그래서 NULL 인 행은 **경과 시간으로 추정**해 더한다(call_date 로부터
+          지금까지). 이 파일은 sqlite(테스트)·postgres(운영) 양쪽에서 돌아야 해서 SQL
+          레벨 COALESCE/EXTRACT(EPOCH) 대신 파이썬에서 계산한다 — 회원 하루 통화 수가
+          적어(많아야 몇 건) 성능상 문제가 없다.
+        ⚠ 회원 단위 잠금·예약은 만들지 않는다(과한 구조) — 같은 회원이 동시에 두 세션을
+          열어 **각각** 경과 시간을 추정하는 경우까지 막으려면 행 잠금이 필요하다. 지금은
+          "0으로 새는" 구멍만 막는다.
         """
-        stmt = select(func.coalesce(func.sum(Call.total_time), 0)).where(
+        stmt = select(Call.total_time, Call.call_date).where(
             Call.member_id == member_id,
             Call.call_date >= start_utc,
             Call.call_date < end_utc,
@@ -110,7 +122,15 @@ class CallRepository:
         )
         if exclude_call_types:
             stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
-        return int(self.db.scalar(stmt) or 0)
+        now = datetime.now(timezone.utc)
+        total = 0
+        for total_time, call_date in self.db.execute(stmt):
+            if total_time is not None:
+                total += total_time
+            elif call_date is not None:
+                started = call_date if call_date.tzinfo else call_date.replace(tzinfo=timezone.utc)
+                total += max(0, int((now - started).total_seconds()))
+        return total
 
     def add(self, call: Call) -> Call:
         self.db.add(call)

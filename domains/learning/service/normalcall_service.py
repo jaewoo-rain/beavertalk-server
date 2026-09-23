@@ -873,14 +873,19 @@ def resume_call(
     if (call.call_type or "chat") not in ("expression", "freetalk"):
         return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "chat")
 
-    last = call.call_date
+    # ⛔⛔ QA C4 재검-①(2026-09-23): TTL 기준은 `call_date`(최초 시작 시각, 이제 고정)
+    #   가 아니라 `updated_at` 이다 — 조각이 끝날 때(분석 파이프라인이 status 를
+    #   analyzing→done 으로 쓸 때) 또는 이전 resume(fragment_count 갱신)이 **그 행을
+    #   실제로 건드린 마지막 시각**이라, "조각이 끝난 뒤"를 옛 call_date 보다 훨씬 정확히
+    #   가리킨다 — 그래서 옛 코드가 얹던 CALL_FRAGMENT_S 보정(시작 시각을 종료 시각으로
+    #   근사하던 것)도 같이 없앤다. 그대로 남기면 TTL 창이 의도(RESUME_TTL_S=5분)보다
+    #   6분 더 넓어진다.
+    last = call.updated_at
     if last is not None:
         if last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
         elapsed = (datetime.now(timezone.utc) - last).total_seconds()
-        # ⚠ `call_date` 는 **시작 시각**이라 조각 길이(6분)만큼 이미 흘러 있다.
-        #   TTL 은 "조각이 끝난 뒤"부터 재야 하므로 조각 길이를 얹어 준다.
-        if elapsed > RESUME_TTL_S + call_service.CALL_FRAGMENT_S:
+        if elapsed > RESUME_TTL_S:
             return None, "유효시간 초과(%.0fs)" % elapsed
 
     used = call.fragment_count or 1
@@ -888,9 +893,14 @@ def resume_call(
         return None, "조각 상한(%d/%d)" % (used, max_fragments)
 
     call.fragment_count = used + 1
-    # ⚠ `call_date` 를 갱신한다 — 다음 조각의 TTL 기준이 되어야 한다. 통화 "시작" 시각이
-    #   밀리지만, 이 값의 소비처는 목록 정렬과 TTL 이고 둘 다 최신이 맞다.
-    call.call_date = datetime.now(timezone.utc)
+    # ⛔⛔ QA C4 재검-①(2026-09-23): `call_date` 를 여기서 **갱신하지 않는다** — 예산
+    #   (daily_budget_exceeded)이 하루 창을 이 값으로 잡는다. 자정을 넘겨 조각2 를 열면
+    #   이 통화의 `total_time`(조각 누적, 12차) 전체가 **조각2 를 연 날**로 옮겨가 조각1
+    #   이 쓴 시간이 그날 예산에서 빠지고 새 날 예산에서 깎이는 사고가 난다.
+    #   ⇒ `call_date` 는 **최초 시작 시각 고정**(그 통화가 시작한 로컬 하루에 예산이 잡힌다).
+    #   조각 시각이 필요한 소비처(목록 정렬·TTL)는 `updated_at` 을 쓴다 — 아래 두 대입
+    #   (fragment_count·status)이 이미 UPDATE 를 만들므로 TimestampMixin.onupdate 가
+    #   자동으로 채운다(따로 대입할 것 없음).
     call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다
     db.commit()
     return call.call_id, "조각 %d/%d" % (call.fragment_count, max_fragments)

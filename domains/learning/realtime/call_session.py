@@ -3120,9 +3120,13 @@ async def run_call(
     tz_offset_min = start.tz_offset_min or 0
     client_tz = getattr(start, "tz", None)
     if call_type == "level_test":
-        # ⛔ 레벨테스트는 애초에 이어하기 대상이 아니다(resume-status 가 거절) —
-        #   continues_call_id is None 가드는 옛 동작을 그대로 보존한다(변경 없음).
-        limit_reached = continues_call_id is None and await svc.run_db(
+        # ⛔⛔ QA C4 재검-③(2026-09-23): **continues_call_id 유무와 무관하게 항상 검사한다.**
+        #   레벨테스트는 애초에 이어하기 대상이 아니다(resume_call 화이트리스트에 없다 —
+        #   normalcall_service.resume_call 의 (expression,freetalk) 목록 참조) — 그런데
+        #   옛 `continues_call_id is None` 가드를 그대로 두면, 클라가 level_test 에
+        #   아무 continues_call_id 나 실어 보내는 것만으로 이 검사를 건너뛰고, resume_call
+        #   이 뒤에서 거절해 새 통화로 폴백하면서 **하루 1회 한도가 우회된다.**
+        limit_reached = await svc.run_db(
             db_session_factory,
             lambda db: call_service.is_daily_limit_reached(
                 db, member_id, call_type, tz_offset_min, tz=client_tz

@@ -2833,6 +2833,47 @@ async def test_level_test_limit_checked_with_routed_call_type_and_client_tz(
 
 
 @pytest.mark.asyncio
+async def test_level_test_with_continues_call_id_still_hits_the_count_limit(
+    session_factory, seeded, monkeypatch
+):
+    """⭐⭐ QA C4 재검-③(2026-09-23): 레벨테스트는 **continues_call_id 유무와 무관하게**
+    항상 횟수 검사를 받는다.
+
+    ⛔⛔ 이 시험이 막는 회귀: 레벨테스트는 애초에 이어하기 화이트리스트에 없어
+      `resume_call` 이 뒤에서 거절하고 새 통화로 폴백한다 — 그런데 옛 코드는 그 판정보다
+      **앞**에서 `continues_call_id is None` 이어야만 횟수 검사를 했다. 클라가 아무
+      continues_call_id 나 실어 보내면 이 검사를 건너뛰고 폴백 경로로 새 레벨테스트가
+      열려 하루 1회 한도가 우회됐다.
+    """
+    monkeypatch.setattr(app_settings, "ENV", "prod")
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", lambda *a, **k: True)
+
+    start = {"type": "start", "character_id": seeded["character_id"],
+             "call_type": "level_test", "continues_call_id": "999999"}
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive", "text": json.dumps(start)}], hang=True
+    )
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "DAILY_LIMIT", \
+        "레벨테스트가 continues_call_id 를 실은 것만으로 한도를 건너뛰었다"
+    assert opened["n"] == 0, "거절했는데 Live 세션을 열었다"
+
+
+@pytest.mark.asyncio
 async def test_budget_checked_with_routed_call_type_and_client_tz(
     session_factory, seeded, monkeypatch
 ):

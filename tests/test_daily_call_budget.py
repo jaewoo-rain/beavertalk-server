@@ -27,7 +27,9 @@ from domains.account.models.member import Member
 from domains.commerce.models.character import Character
 from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
+from domains.learning.repository.call_repository import CallRepository
 from domains.learning.service import call_service as cs
+from domains.learning.service import normalcall_service as ns
 
 
 # --------------------------------------------------------------------------- #
@@ -168,9 +170,31 @@ def test_level_test_does_not_consume_the_budget(ctx):
     assert cs.daily_budget_exceeded(ctx["db"], ctx["member_id"]) is False
 
 
-def test_ongoing_call_counts_as_in_progress_spend(ctx):
+def test_ongoing_call_with_recorded_total_time_counts_as_in_progress_spend(ctx):
     """아직 저장이 끝나지 않은 ongoing 도 진행 중인 소비다 — 빼면 끊고 바로 또 거는 구멍."""
     _call(ctx, total_time=300, status="ongoing")
+    assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 300
+
+
+def test_ongoing_call_with_null_total_time_is_estimated_from_elapsed_time(ctx):
+    """⭐⭐ QA C4 재검-②(2026-09-23): `total_time` 이 아직 NULL(정말 진행 중이라 저장이
+    안 끝난 ongoing)이면 SUM 에서 **0으로 세어져** 예산 검사를 통과해 버린다(동시 접속
+    경합 시 우회 구멍) — call_date 로부터 지금까지 경과한 시간으로 추정해 채운다.
+    """
+    started = datetime.now(timezone.utc) - timedelta(seconds=120)
+    _call(ctx, total_time=None, status="ongoing", when_utc=started)
+    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
+    assert 118 <= used <= 130, "NULL total_time 이 경과 추정 없이 0으로 세어졌다(그 회귀)"
+
+
+def test_ongoing_call_finishing_does_not_double_count(ctx):
+    """⭐ ongoing 이던 통화가 끝나 `total_time` 이 실제 값으로 박히면, 그 이후 집계는
+    실제 값만 세고 **경과 추정과 이중으로 더해지지 않는다**(NULL 일 때만 추정한다)."""
+    started = datetime.now(timezone.utc) - timedelta(seconds=400)  # 추정치라면 300 초과일 시각
+    call = _call(ctx, total_time=None, status="ongoing", when_utc=started)
+    call.total_time = 300     # 통화 종료 저장 — 실제 값 확정
+    call.status = "done"
+    ctx["db"].commit()
     assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 300
 
 
@@ -222,3 +246,48 @@ def test_switch_gate_matches_is_daily_limit_reached_discipline(ctx, monkeypatch)
 
     monkeypatch.setattr(cs.settings, "ENV", "prod", raising=False)
     assert cs.daily_budget_exceeded(ctx["db"], ctx["member_id"]) is True
+
+
+# --------------------------------------------------------------------------- #
+# QA C4 재검-①(2026-09-23) — 이어하기가 call_date 를 밀면 자정 경계에서 예산이 샌다
+# --------------------------------------------------------------------------- #
+def test_resume_does_not_move_the_call_into_the_next_days_budget(ctx):
+    """자정 직전 시작 → 자정 넘겨 조각2 를 열어도 `call_date` 는 그대로라, 예산 차감
+    (누적 total_time)은 **시작한 날**에만 잡힌다.
+
+    ⛔⛔ 이 시험이 막는 회귀: `resume_call` 이 `call_date` 를 조각2 시작 시각으로
+      덮어쓰면, 조각1+조각2 누적 `total_time` 전체가 조각2 를 연 **다음 날**로 옮겨가
+      시작한 날 예산이 빈 것처럼 보이고(써야 할 만큼 못 막음) 다음 날 예산이 미리
+      깎인다(안 써야 할 만큼 막음) — 양방향으로 틀린다.
+    """
+    start_day = date(2026, 9, 23)
+    started_at = datetime(2026, 9, 23, 23, 58, tzinfo=timezone.utc)   # 자정 직전(UTC)
+    call = _call(ctx, total_time=300, call_type="expression", status="done", when_utc=started_at)
+
+    # 자정을 넘겨 조각2 를 연다(이어하기).
+    got, why = ns.resume_call(ctx["db"], ctx["member_id"], call.call_id, max_fragments=3)
+    assert got == call.call_id, why
+    ctx["db"].refresh(call)
+    refreshed = call.call_date if call.call_date.tzinfo else call.call_date.replace(tzinfo=timezone.utc)
+    assert refreshed == started_at, "resume_call 이 call_date 를 덮어썼다 — 그 회귀"
+
+    # 조각2 가 끝나 total_time 이 누적됐다(12차 조각 누적 계약).
+    call.total_time = 600
+    ctx["db"].commit()
+
+    repo = CallRepository(ctx["db"])
+    s0, e0 = cs.local_window_utc(start_day, None, 0)
+    s1, e1 = cs.local_window_utc(start_day + timedelta(days=1), None, 0)
+    assert repo.sum_total_time_in_window(ctx["member_id"], s0, e0, exclude_call_types=("level_test",)) == 600, \
+        "누적 total_time 이 시작한 날 예산에 안 잡혔다"
+    assert repo.sum_total_time_in_window(ctx["member_id"], s1, e1, exclude_call_types=("level_test",)) == 0, \
+        "call_date 가 다음 날로 옮겨져 다음 날 예산까지 깎였다"
+
+
+# --------------------------------------------------------------------------- #
+# QA C4 재검-③(2026-09-23) — 레벨테스트는 continues_call_id 유무와 무관하게 횟수 검사
+# --------------------------------------------------------------------------- #
+# WS 라우팅 레벨 회귀는 tests/test_normalcall_ws.py 의
+# test_level_test_with_continues_call_id_still_hits_the_count_limit 가 잡는다
+# (call_session.py 의 `continues_call_id is None` 가드 제거 — 예산 스위치가 아니라
+# 레벨테스트 횟수 축이라 이 파일이 아니라 그 WS 시험 파일이 근거를 들고 있다).
