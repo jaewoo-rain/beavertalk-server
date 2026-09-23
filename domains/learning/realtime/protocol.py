@@ -375,14 +375,18 @@ class ServerCallStarted(BaseModel):
     #   None 이고 None 은 직렬화에서 빠져 **프레임 바이트 동일**(구버전 클라 무해).
     fragment_index: int | None = None
     max_fragments: int | None = None
+    # ⭐⭐ C5(2026-09-23, 하루 통화 총량) — 이 통화(조각)가 지금 쓸 수 있는 초
+    #   = min(남은 예산, 조각 상한 360). 예산 대상이 아니면(admin 면제) None → 직렬화에서
+    #   빠진다(구버전 클라·예산 무관 통화 무해). 조각을 잇지 않는 통화(level_test)도 None.
+    remaining_s: int | None = None
 
     @model_serializer(mode="wrap")
     def _drop_null_course(self, handler):
-        # ⛔ 옛 경로 프레임 **바이트 동일** — course·fragment_index·max_fragments 가 None 이면 키 자체를 빼고 직렬화한다(다른 None
-        #   필드(call_id·diag)는 예전처럼 null 로 나간다 — 그 모양이 구버전 계약이다).
+        # ⛔ 옛 경로 프레임 **바이트 동일** — course·fragment_index·max_fragments·remaining_s 가 None 이면 키 자체를 빼고
+        #   직렬화한다(다른 None 필드(call_id·diag)는 예전처럼 null 로 나간다 — 그 모양이 구버전 계약이다).
         data = handler(self)
         if isinstance(data, dict):
-            for k in ("course", "fragment_index", "max_fragments"):
+            for k in ("course", "fragment_index", "max_fragments", "remaining_s"):
                 if data.get(k) is None:
                     data.pop(k, None)
         return data

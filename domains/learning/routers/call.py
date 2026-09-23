@@ -93,7 +93,8 @@ def get_daily_status(
       "level_test_today":    false,   # 사실 — 오늘 레벨테스트를 했나
       "can_call_normal":     true,    # ⭐ 판정 — 서버가 지금 거절할지
       "can_call_level_test": true,    # ⭐ 판정
-      "max_fragments":       1        # ⭐ 이 회원이 이을 수 있는 조각 수(Free 1 / Premium 3)
+      "max_fragments":       1,       # ⭐ 이 회원이 이을 수 있는 조각 수(Free 1 / Premium 3)
+      "budget_s": 300, "used_s": 120, "remaining_s": 180   # ⭐ C5 — 예산 대상 아니면(admin) 셋 다 키 자체가 없다
     }
     ```
 
@@ -161,9 +162,14 @@ def get_resume_status(
         raise HTTPException(status_code=404, detail="통화를 찾을 수 없습니다")
     used = call.fragment_count or 1
     # ⭐ 플랜 흉내(2026-09-13): admin 이 ?plan_override= 를 붙이면 그 플랜의 조각 수 — WS 이어하기와 **같은 함수**(call_fragments_for_plan).
-    total = call_service.call_fragments_for_plan(
-        db, member.member_id, call_service.plan_override_for(db, member.member_id, plan_override),
-    )
+    plan_override_resolved = call_service.plan_override_for(db, member.member_id, plan_override)
+    total = call_service.call_fragments_for_plan(db, member.member_id, plan_override_resolved)
+    # ⭐⭐ C5(2026-09-23) — 남은 예산도 0이면 이어할 수 없다(조각 상한이 남아도 하루
+    #   예산이 없으면 WS 재개 자체가 DAILY_LIMIT 로 거절된다). None = 예산 대상 아님
+    #   (admin 면제) — 그때는 이 조건을 걸지 않는다. ⚠ 이 엔드포인트는 tz 를 안 받는다
+    #   (C15 프론트 문서 목록에도 없음) — UTC 자정 기준이라 실제 WS 재개 판정(클라 tz)과
+    #   자정 근처에서 살짝 어긋날 수 있다(허용 — "이어서" 버튼 힌트일 뿐, 진짜 관문은 WS).
+    remaining = call_service.remaining_budget_s(db, member.member_id, plan_override=plan_override_resolved)
     return {
         # ⛔ **"있다"가 아니라 "최신인가"** 다(2026-08-19 실측). 조각2 직후에는 조각1 때 만든
         #   요약이 남아 있어 `bool()` 로는 즉시 true 가 뜬다 — 사장님: "두 번째에서는
@@ -174,7 +180,10 @@ def get_resume_status(
         "ready": svc.resume_context_is_fresh(db, call_id),
         # ⛔ C3(2026-09-22, D3): "normal" 은 죽은 값(전부 chat 으로 전환됨). C7(2026-09-23)
         #   로 chat 도 이어하기 목록에 들어왔다 — svc.resume_call 과 같은 뜻이어야 한다.
-        "can_resume": used < total and (call.call_type or "chat") in ("expression", "freetalk", "chat"),
+        "can_resume": (
+            used < total and (call.call_type or "chat") in ("expression", "freetalk", "chat")
+            and (remaining is None or remaining > 0)
+        ),
         "fragment_count": used,
         "max_fragments": total,
         # ⚠ 분석이 아직 도는 중인지 — 클라가 "요약 준비 중" 을 보여줄 수 있게.

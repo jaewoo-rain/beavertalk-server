@@ -508,6 +508,26 @@ def daily_budget_exceeded(
     return (budget - used) <= 0
 
 
+def remaining_budget_s(
+    db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
+    plan_override: str | None = None,
+) -> int | None:
+    """⭐⭐ C5(2026-09-23) — 이 통화가 지금 쓸 수 있는 초 = `min(남은 예산, 조각 상한 360)`.
+
+    `daily_budget_exceeded` 와 **같은 면제 규칙**(admin 이고 `plan_override` 를 안
+    보냈으면 예산 대상이 아니다) — None 이면 호출부가 필드 자체를 뺀다(`call_started.
+    remaining_s`·`/daily-status`). ⛔ enforcement 스위치(`DAILY_BUDGET_ENFORCED`)는
+    여기서 안 본다 — 꺼져 있어도(dev) 숫자는 그대로 보여준다(강제만 안 할 뿐).
+    """
+    if plan_override is None and is_unlimited_member(db, member_id):
+        return None
+    plan = _plan_key(db, member_id, plan_override)
+    budget = daily_budget_s(plan)
+    used = used_seconds_today(db, member_id, tz=tz, tz_offset_min=tz_offset_min)
+    remaining = max(0, budget - used)
+    return int(min(remaining, CALL_FRAGMENT_S))
+
+
 def active_ongoing_call_id(db: Session, member_id: int) -> int | None:
     """QA C4 재검-③④(2026-09-23) — "한 회원은 동시에 한 통화만" 정책의 근거. 정의는
     `CallRepository.active_ongoing_call_id` 참조("살아있다"의 뜻·exclude 없는 이유·
@@ -716,7 +736,7 @@ class CallService:
         # 콜타입을 나눠 센다. 한도가 콜타입별로 따로 있으므로(일반 1 + 레벨테스트 1),
         # 합쳐서 세면 레벨테스트만 해도 홈 배지가 "오늘 통화함"이 돼 일반 통화가 아직
         # 남았는데 소진된 것처럼 보인다.
-        return {
+        out = {
             "date": local_date,
             # ⚠ C3(2026-09-22, D3): 필드 이름(called_today/can_call_normal)은 앱 계약이라
             #   그대로 두지만, 안에서 보는 call_type 은 "normal"→"chat"(자유대화)으로
@@ -757,6 +777,16 @@ class CallService:
             #     한쪽만 고치면 시작 화면과 연장 화면이 다른 말을 한다.
             "max_fragments": call_fragments_for_member(self.db, member_id),
         }
+        # ⭐⭐ C5(2026-09-23) — 예산 숫자 3개. remaining_budget_s 와 **같은 면제 규칙**
+        #   (admin 이고 plan_override 없음)이라 None 이면 셋 다 통째로 뺀다(진행 규칙 5 —
+        #   0 이 아니라 키 자체가 없어야 "예산 대상 아님"과 "다 씀"이 갈린다).
+        remaining = remaining_budget_s(self.db, member_id, tz=tz, tz_offset_min=tz_offset_min)
+        if remaining is not None:
+            plan = _plan_key(self.db, member_id, None)
+            out["budget_s"] = daily_budget_s(plan)
+            out["used_s"] = used_seconds_today(self.db, member_id, tz=tz, tz_offset_min=tz_offset_min)
+            out["remaining_s"] = remaining
+        return out
 
     def get_calendar(
         self, member_id: int, start: str, end: str, *, tz: str | None = None,

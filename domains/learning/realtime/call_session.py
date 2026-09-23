@@ -743,6 +743,9 @@ class _CallState:
         "silent_resume", "fragment_index", "fragment_end", "max_fragments", "fragment_end_reason",
         # C7(2026-09-23): 기억 merge 트리거 1회성 플래그(정상·비정상 종료 두 자리에서 불러도 한 번만).
         "chat_memory_triggered",
+        # ⭐⭐ C5(2026-09-23) — 이 조각이 지금 쓸 수 있는 초(하루 예산 vs 조각 상한 360).
+        #   None = 예산 대상 아님(level_test·admin 면제) → _watch_call_clock 의 안전판 미적용.
+        "remaining_s",
         "expr_quiz_set_nudge_pending", "expr_quiz_set_nudges",
         "loop_prev_text", "loop_streak",
         # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
@@ -935,6 +938,9 @@ class _CallState:
         # ⭐⭐ QA C7 재검(2026-09-23): 기억 merge 트리거 호출 지점이 여러 곳(정상·비정상
         #   종료)이라, 어느 쪽이 뜨든 **한 번만** 뜨게 막는 플래그.
         self.chat_memory_triggered: bool = False
+        # ⭐⭐ C5(2026-09-23) — run_call 이 ServerCallStarted 를 보낸 뒤 같은 값을 여기 싣는다
+        #   (_watch_call_clock 의 안전판이 본다). None = 예산 대상 아님.
+        self.remaining_s: Optional[int] = None
         # 반복 루프 차단기(B): 직전 비버 턴 정규화 텍스트 · 연속 반복 횟수(0 = 반복 아님, 1 = 2회째, 2 = 3회째)
         self.loop_prev_text: str = ""
         self.loop_streak: int = 0
@@ -3621,6 +3627,18 @@ async def run_call(
             fragment_index = (
                 await svc.run_db(db_session_factory, lambda db: svc.call_fragment_index(db, call_id)) if resumed else 1
             )
+        # ⭐⭐ C5(2026-09-23) — 이 조각이 지금 쓸 수 있는 초(남은 예산 vs 조각 상한 360).
+        #   예산 대상이 아닌 통화(level_test)는 None. daily_budget_exceeded 게이트와
+        #   같은 tz·plan_override 를 쓴다 — 어긋나면 "거절은 안 했는데 remaining_s=0" 같은
+        #   모순이 난다.
+        remaining_s = None
+        if call_type in ("expression", "freetalk", "chat"):
+            remaining_s = await svc.run_db(
+                db_session_factory, lambda db: call_service.remaining_budget_s(
+                    db, member_id, tz=client_tz, tz_offset_min=tz_offset_min,
+                    plan_override=call_service.plan_override_for(db, member_id, plan_override_req),
+                ),
+            )
         await _send_json(
             client_ws,
             ServerCallStarted(
@@ -3634,6 +3652,7 @@ async def run_call(
                 diag=settings.LIVE_DIAG_LEVEL,
                 # ⭐ 커리큘럼 2단계(§8): cur 경로만 코스를 실는다 — 옛 경로는 None(직렬화에서 빠져 프레임 바이트 동일).
                 course=call_type if cur_route else None,
+                remaining_s=remaining_s,
             ),
         )
 
@@ -3645,6 +3664,7 @@ async def run_call(
         state.silent_resume = silent
         state.fragment_index = fragment_index
         state.max_fragments = max_fragments if fragment_index is not None else None
+        state.remaining_s = remaining_s
         state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
         state.freetalk_target = target_language if freetalk_brief is not None else ""
         # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
@@ -6340,6 +6360,13 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
         타이머가 없다(앱은 call_type 을 안 보내고 서버 D11 이 레벨테스트로 돌린다 · 앱 구간 타이머는 5분뿐 —
         normalcall_controller.dart, bt-back 확인). 사장님 지시는 «5분 조각 경계의 작별» 제거지 측정 캡이 아니다.
         그래서 `is_leveltest` 면 캡 경과 → 종료 시드 → 작별을 서버가 그대로 잡는다.
+      ⭐⭐ **C5(2026-09-23) 두 번째 예외 — 하루 예산 안전판.** 정상 경로는 여전히 클라가
+        `remaining_s`(하루 예산) 에서 조각 경계와 같은 방식으로 소켓을 닫는다(§프론트
+        문서) — 이건 그게 **안 됐을 때만** 뜨는 방어선이다. `state.remaining_s` 가 있고
+        경과가 `remaining_s + 60` 을 넘으면 캡 경과로 보고 종료 시드를 주입한다("뚝
+        끊지 마라" — bt-back). ⛔ T23 이 없앤 "통화 길이로 종료"의 부활이 아니다 — 그건
+        **매 5분 조각**마다 걸리던 무조건 캡이었고, 이건 **하루 예산을 다 썼는데 클라가
+        못 끊었을 때만** 걸리는 별개의 안전판이다.
       ⇒ 이 워처가 반응하는 신호는 **GoAway(펌프) · 무음 3단(_watch_idle) · 사이드카 _request_close**, 그리고 레벨테스트 캡이다.
       ⛔ 절대 백스톱(`ABSOLUTE_CALL_TIMEOUT_S` 540초, run_call 의 asyncio.timeout)은 별개 축 — 프론트가 영영 안 닫아도
         9분에 끝난다(무한 과금 방어). 여기서 지운 것과 무관하게 그대로 돈다.
@@ -6360,11 +6387,20 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
     while state.call_start_ts is None:
         await asyncio.sleep(0.2)
 
-    cap_hit = False
+    cap_reason: str | None = None
     while not state.should_close:
+        elapsed = loop.time() - state.call_start_ts
         # ⭐ 레벨테스트만 서버 캡(3분) — 위 docstring. 다른 콜타입은 길이로 끊지 않는다(프론트가 소켓을 닫는다).
-        if state.is_leveltest and loop.time() - state.call_start_ts >= state.call_duration_s:
-            cap_hit = True
+        if state.is_leveltest and elapsed >= state.call_duration_s:
+            cap_reason = "레벨테스트 캡 %.0fs 경과" % state.call_duration_s
+            break
+        # ⭐⭐ C5(2026-09-23) — 하루 예산 안전판. 클라가 remaining_s 에서 조각 경계와 같은
+        #   방식(사용자 발화 → 응답 turn_end)으로 끊는 게 정상 경로다(§프론트 문서) — 이건
+        #   그게 **안 됐을 때**의 방어선이다. +60s 여유는 클라 왕복·마지막 턴 완결 시간.
+        #   ⛔ 이게 "서버가 통화 길이로 끊는다"(T23 이 없앤 그것)의 부활이 아니다 — 정상
+        #   경로는 여전히 클라가 닫고, 여긴 remaining_s(하루 예산) 못 지켰을 때만 뜬다.
+        if state.remaining_s is not None and elapsed > state.remaining_s + 60:
+            cap_reason = "하루 예산 안전판(remaining=%ds) 초과 — 경과 %.0fs" % (state.remaining_s, elapsed)
             break
         # 폴링 0.2s 유지 + 종료 요청이 오면 즉시 깨어난다(_request_close). TaskGroup 밖
         # 사이드카가 세션을 직접 잡지 않고도 지연 없이 종료 시드를 내보내게 하는 통로(B2).
@@ -6373,8 +6409,7 @@ async def _watch_call_clock(state: _CallState, session: LiveSessionProtocol) -> 
     state.should_close = True
     logger.info(
         "normalcall: 종료 플래그(%s)",
-        "레벨테스트 캡 %.0fs 경과" % state.call_duration_s if cap_hit
-        else "신호 수신 — GoAway·무음 3단·사이드카 중 하나(길이 만료는 프론트가 소켓을 닫는다)",
+        cap_reason or "신호 수신 — GoAway·무음 3단·사이드카 중 하나(길이 만료는 프론트가 소켓을 닫는다)",
     )
 
     # 시드가 주입될 때까지 감시. idle 이면 워처가 즉시 주입, 발화중이면 펌프 turn_end 주입을 기다림.

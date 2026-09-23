@@ -365,6 +365,46 @@ def test_switch_gate_matches_is_daily_limit_reached_discipline(ctx, monkeypatch)
 
 
 # --------------------------------------------------------------------------- #
+# C5(2026-09-23) — remaining_budget_s
+# --------------------------------------------------------------------------- #
+def test_remaining_budget_s_is_min_of_remaining_and_fragment_cap(ctx):
+    """Free 300 다 쓰기 전(100 사용)엔 남은 200 이 조각 상한(360)보다 작으니 200."""
+    _call(ctx, total_time=100)
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"]) == 200
+
+
+def test_remaining_budget_s_caps_at_the_fragment_length_not_the_full_remaining_budget(ctx):
+    """premium 900 다 쓰기 전(100 사용)엔 남은 800 이 조각 상한(360)보다 크므로 360 으로 잘린다."""
+    _call(ctx, total_time=100)
+    m = ctx["db"].get(Member, ctx["member_id"])
+    m.role = "user"
+    ctx["db"].commit()
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"], plan_override="premium") == 360
+
+
+def test_remaining_budget_s_floors_at_zero_when_over_budget(ctx):
+    _call(ctx, total_time=999)
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"]) == 0
+
+
+def test_remaining_budget_s_is_none_for_an_exempt_admin(ctx):
+    _call(ctx, total_time=100)
+    m = ctx["db"].get(Member, ctx["member_id"])
+    m.role = "admin"
+    ctx["db"].commit()
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"]) is None
+
+
+def test_remaining_budget_s_applies_when_an_admin_sends_a_plan_override(ctx):
+    """⭐ plan_override 를 보낸 admin 은 면제가 풀리고 그 플랜 예산이 적용된다(개발자 도구)."""
+    _call(ctx, total_time=100)
+    m = ctx["db"].get(Member, ctx["member_id"])
+    m.role = "admin"
+    ctx["db"].commit()
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"], plan_override="free") == 200
+
+
+# --------------------------------------------------------------------------- #
 # QA C4 재검-①(2026-09-23) — 이어하기가 call_date 를 밀면 자정 경계에서 예산이 샌다
 # --------------------------------------------------------------------------- #
 def test_resume_does_not_move_the_call_into_the_next_days_budget(ctx):

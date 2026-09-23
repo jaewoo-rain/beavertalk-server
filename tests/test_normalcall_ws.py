@@ -5019,6 +5019,67 @@ async def test_call_started_carries_the_call_id(session_factory, seeded):
         db.close()
 
 
+# --------------------------------------------------------------------------- #
+# C5(2026-09-23) — call_started.remaining_s
+# --------------------------------------------------------------------------- #
+def _started_frame(ws) -> dict:
+    frames = [json.loads(t) for t in ws.sent_text]
+    return next((f for f in frames if f.get("type") == "call_started"), {})
+
+
+@pytest.mark.asyncio
+async def test_call_started_carries_remaining_s_for_a_free_member(session_factory, seeded):
+    """⭐⭐ Free 새 통화 — remaining_s = min(예산 300, 조각 상한 360) = 300."""
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+    assert _started_frame(ws).get("remaining_s") == 300
+
+
+@pytest.mark.asyncio
+async def test_call_started_omits_remaining_s_for_an_exempt_admin(session_factory, seeded, monkeypatch):
+    """⭐⭐ admin 면제(plan_override 없음) — remaining_s 키 자체가 없다(0 아님)."""
+    from domains.learning.service import call_service as _cs
+    monkeypatch.setattr(_cs, "is_unlimited_member", lambda db, member_id: True)
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+    assert "remaining_s" not in _started_frame(ws)
+
+
+@pytest.mark.asyncio
+async def test_call_started_recomputes_remaining_s_on_the_resumed_fragment(session_factory, seeded, monkeypatch):
+    """⭐⭐ 조각1 이 100초를 쓰고 끝난 뒤, 조각2(이어하기) 의 call_started 는 남은
+    예산(300-100=200)을 정확히 싣는다 — mark_fragment_ended 로 조각1 종료를 흉내낸다."""
+    from domains.learning.service import normalcall_service as _svc
+
+    monkeypatch.setattr(app_settings, "ENV", "prod")  # 예산 강제 적용
+    db = session_factory()
+    cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
+    # 조각1 종료만 흉내낸다 — resume_call 은 run_call 이 이어하기 프레임을 받아 **직접**
+    # 부른다(여기서 미리 부르면 행이 다시 "active"로 열려 run_call 의 동시통화 게이트에
+    # 걸린다).
+    _svc.mark_fragment_ended(db, cid, total_time=100, accumulate=False)
+    db.close()
+
+    holder: dict = {}
+    ws = FakeWebSocket([_start_incoming_resume(seeded, cid)])
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+    assert _started_frame(ws).get("remaining_s") == 200
+
+
 def test_a_stale_resume_summary_is_discarded(session_factory, seeded):
     """⛔⛔ **낡은 요약을 최신인 줄 알고 쓰면 조각 하나가 통째로 빠진다.**
 
@@ -5823,6 +5884,46 @@ async def test_the_watcher_still_caps_a_leveltest_by_length(monkeypatch):
     with pytest.raises(cs._CallFinished):
         await asyncio.wait_for(cs._watch_call_clock(st, sink), timeout=3.0)
     assert st.should_close and any(t.startswith("[통화종료") for t in sink.sent_text_turns)
+
+
+# --------------------------------------------------------------------------- #
+# C5(2026-09-23) — 하루 예산 안전판(두 번째 예외, T23 삭제와 무관)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_the_watcher_trips_the_daily_budget_safety_net_past_the_margin(monkeypatch):
+    """⭐⭐ 클라가 remaining_s 에서 못 끊고 경과가 remaining_s+60 을 넘기면, 서버가
+    (레벨테스트 캡과 같은 방식으로) 종료 시드를 넣어 **작별 종료**한다 — 뚝 끊지 않는다.
+    ⛔ T23 이 없앤 "매 5분 조각 무조건 캡"의 부활이 아니다 — 하루 예산 한정 방어선."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.3)
+    st = _clock_state()
+    loop = asyncio.get_running_loop()
+    st.remaining_s = 1
+    st.call_start_ts = loop.time() - 65  # remaining(1)+60=61 을 이미 넘긴 경과
+    sink = _SeedSink()
+    with pytest.raises(cs._CallFinished):
+        await asyncio.wait_for(cs._watch_call_clock(st, sink), timeout=3.0)
+    assert st.should_close and any(t.startswith("[통화종료") for t in sink.sent_text_turns)
+
+
+@pytest.mark.asyncio
+async def test_the_watcher_does_not_trip_the_safety_net_within_the_margin(monkeypatch):
+    """remaining_s 가 넉넉히 남아 있으면(경과 <= remaining+60) 안전판이 뜨지 않는다."""
+    monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 0.2)
+    st = _clock_state()
+    st.remaining_s = 300
+    sink = _SeedSink()
+    task = asyncio.create_task(cs._watch_call_clock(st, sink))
+    await asyncio.sleep(0.3)
+    assert not task.done() and not st.should_close and sink.sent_text_turns == []
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+
+def test_the_safety_net_does_not_apply_when_remaining_s_is_none():
+    """remaining_s=None(예산 대상 아님·admin 면제)이면 이 조건 자체가 걸리지 않는다 —
+    _CallState 기본값이 이미 None 임을 문서화(회귀 방지)."""
+    assert cs._CallState().remaining_s is None
 
 
 def test_the_end_owner_switch_is_gone():

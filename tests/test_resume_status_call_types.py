@@ -124,3 +124,23 @@ def test_plan_override_rejects_unknown_value(env):
     client, calls = env
     r = client.get(f"/api/v1/calls/{calls[('expression', 1)]}/resume-status?plan_override=vip", headers={"Authorization": "Bearer auth-m"})
     assert r.status_code == 422
+
+
+# --------------------------------------------------------------------------- #
+# C5(2026-09-23) — 조각 상한이 남아도 하루 예산이 없으면 이어할 수 없다
+# --------------------------------------------------------------------------- #
+def test_can_resume_is_false_when_the_daily_budget_is_exhausted(env, monkeypatch):
+    """⭐⭐ 조각 상한(3)이 넉넉히 남아도(fragment_count=1) remaining_budget_s=0 이면
+    can_resume 이 False 다 — WS 재개 자체가 DAILY_LIMIT 로 거절될 것이기 때문이다."""
+    client, calls = env
+    monkeypatch.setattr(call_router.call_service, "remaining_budget_s", lambda db, member_id, plan_override=None: 0)
+    body = _status(client, calls[("expression", 1)])
+    assert body["can_resume"] is False, "예산 소진인데 이어하기가 열렸다"
+
+
+def test_can_resume_ignores_the_budget_check_when_exempt(env, monkeypatch):
+    """remaining_budget_s 가 None(admin 면제)이면 예산 조건 자체를 걸지 않는다."""
+    client, calls = env
+    monkeypatch.setattr(call_router.call_service, "remaining_budget_s", lambda db, member_id, plan_override=None: None)
+    body = _status(client, calls[("expression", 1)])
+    assert body["can_resume"] is True

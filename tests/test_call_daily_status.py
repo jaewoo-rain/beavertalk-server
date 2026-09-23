@@ -88,7 +88,9 @@ def test_called_today_kst(ctx):
     #     아래 test_can_call_mirrors_the_server_refusal 이 그 계약을 따로 잡는다.
     assert _status(ctx, "2026-07-17", 540) == {
         "date": "2026-07-17", "called_today": True, "level_test_today": False,
-        "can_call_normal": True, "can_call_level_test": True, "max_fragments": 1}
+        "can_call_normal": True, "can_call_level_test": True, "max_fragments": 1,
+        # ⭐ C5(2026-09-23) — 예산 숫자 3개(admin 아니면 항상 실린다).
+        "budget_s": 300, "used_s": 0, "remaining_s": 300}
     # 같은 통화, 다른 로컬 날짜로 물으면 False
     assert _status(ctx, "2026-07-16", 540)["called_today"] is False
 
