@@ -38,6 +38,20 @@ class Sentence(Base, TimestampMixin):
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), index=True, comment="소프트 삭제 시각(NULL=정상)",
     )
+    # ⭐⭐ C9(2026-09-23, docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md) — 현지인
+    #   표현 짝 행. **기본 문장은 이 세 칸이 전부 NULL** 이다 — 현지인 행만 값을 가진다
+    #   (같은 테이블에 "짝" 개념을 얹은 것이지 새 종류의 문장이 아니다).
+    kind: Mapped[Optional[str]] = mapped_column(
+        Text, comment="NULL=기본 문장 · 'native'=현지인 표현 짝",
+    )
+    paired_sentence_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("sentence.sentence_id", ondelete="SET NULL", name="fk_sentence_paired"),
+        comment="kind='native' 인 행이 가리키는 기본 문장(NULL=기본 문장 자신)",
+    )
+    nuance: Mapped[Optional[str]] = mapped_column(
+        Text, comment="현지인 표현의 뉘앙스 한 줄(모국어, kind='native' 에만 값)",
+    )
 
     call: Mapped["Call"] = relationship(back_populates="sentences")
     # 1:1 평가(자식). 발화 삭제 시 평가도 함께(delete-orphan + DB CASCADE)

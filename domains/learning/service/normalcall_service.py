@@ -2629,8 +2629,18 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     P2.6: 결과 페이지 폴링이 status==done 에서 풀리므로, 요약·표현과 done 을 같은
     커밋에 담아 LLM 1콜 직후 결과 화면이 열리게 한다. TTS·체크판은 done 이후 후행.
 
+    ⭐⭐ C9(2026-09-23) — 기본 표현에 현지인 표현 짝(C8 `_normalize_native_pair` 로
+    이미 정규화됨)이 있으면 **기본 행이 flush 로 sentence_id 를 얻은 뒤** 짝 행을
+    만들어 paired_sentence_id 로 연결한다. 기본 행이 dedup(seen)으로 건너뛰어지면
+    짝도 만들지 않는다(bt-back C9 조건②).
+    ⛔ 재분석 중복 방지: 이 함수는 `analyze_call` 성공 시에만, **단일 최종 커밋**으로
+    호출된다(status="failed" 인 통화만 재분석 가능하고, failed 는 이 커밋이 한 번도
+    성공한 적이 없다는 뜻이라 기존 Sentence 가 존재하지 않는다 — `prepare_reanalysis`
+    의 status 게이트가 원본 보호막이지, 이 함수가 지우고 다시 쓰는 게 아니다). 짝 행도
+    같은 트랜잭션 안에서 만들어지므로 이 보호를 그대로 물려받는다.
+
     Returns:
-        [(sentence_id, korean), ...] — 이후 TTS 합성 대상.
+        [(sentence_id, korean), ...] — 이후 TTS 합성 대상(짝 행 포함).
     """
     call = db.get(Call, call_id)
     if call is not None:
@@ -2659,6 +2669,24 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
         db.add(s)
         db.flush()  # sentence_id 확보
         pending.append((s.sentence_id, e.korean))
+
+        native_expression = getattr(e, "native_expression", None)
+        if native_expression:
+            pair = Sentence(
+                call_id=call_id,
+                korean_sentence=native_expression,
+                native_sentence=getattr(e, "native_expression_translation", None),
+                locale=locale,
+                source_type=e.source_type,
+                is_bookmarked=False,
+                kind="native",
+                paired_sentence_id=s.sentence_id,
+                nuance=getattr(e, "native_nuance", None),
+                evaluation=Evaluation(),
+            )
+            db.add(pair)
+            db.flush()  # sentence_id 확보
+            pending.append((pair.sentence_id, native_expression))
     db.commit()
     return pending
 
