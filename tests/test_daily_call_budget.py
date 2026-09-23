@@ -210,15 +210,17 @@ def test_ongoing_call_finishing_does_not_double_count(ctx):
 
 
 def test_done_call_with_null_total_time_is_not_estimated(ctx):
-    """⭐⭐ QA C4 재검-②(2026-09-23, 재재검): 경과 추정은 **status=='ongoing' 에만**
-    건다 — done·analyzing 인데 `total_time` 이 NULL(예: 분석 실패로 못 채움)인 행까지
-    추정하면, 이미 끝난 통화인데 **쿼리할 때마다 elapsed 가 계속 자라** 예산을 점점
-    더 깎는 별개의 버그가 된다(옛 코드가 status 를 안 보고 NULL 여부만 봤다).
+    """⭐⭐ QA C4 재검-3차(2026-09-23): 경과 추정은 **fragment_ended_at 이 아직 안 찍힌
+    행에만** 건다(`status` 는 안 본다) — 이 통화는 done 인데 total_time 이 NULL(예:
+    분석 실패로 못 채움)이지만, `fragment_ended_at` 이 이미 찍혀 있으면(조각이 끝났다는
+    사실 자체는 분명하므로) 경과 추정을 걸지 않는다 — 안 그러면 **쿼리할 때마다 elapsed
+    가 계속 자라** 예산을 점점 더 깎는 별개의 버그가 된다.
     """
     long_ago = datetime.now(timezone.utc) - timedelta(hours=5)
-    _call(ctx, total_time=None, status="done", when_utc=long_ago)
+    _call(ctx, total_time=None, status="done", when_utc=long_ago,
+          fragment_started_at=long_ago, fragment_ended_at=long_ago + timedelta(seconds=300))
     assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 0, \
-        "끝난 통화(done)의 NULL total_time 이 경과 시간으로 잘못 추정됐다"
+        "끝난 통화(fragment_ended_at 찍힘)의 NULL total_time 이 경과 시간으로 잘못 추정됐다"
 
 
 def test_budget_survives_a_delayed_analysis_overwriting_status_to_done(ctx):
@@ -253,6 +255,83 @@ def test_active_ongoing_call_id_survives_a_delayed_analysis_overwriting_status_t
 
     assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) == call.call_id, \
         "지연된 status=done 덮어쓰기로 진행 중인 조각2 가 active 판정에서 사라졌다"
+
+
+def test_failed_status_still_counts_as_active_and_budgeted(ctx):
+    """⭐⭐ QA C4 재검-6차: 진행 중 판정 쿼리의 **status 필터 자체를 없앴다** — 분석이
+    `failed` 로 덮는 경합(재검-3차의 `done` 재현과 같은 축, 상태값만 다르다)도 예산·
+    active 양쪽에서 그대로 잡혀야 한다. `failed` 로 끝난 조각도 Gemini 세션이 열려
+    있던 시간만큼 `total_time` 이 쌓였다면 그 소비는 실제다.
+    """
+    started = datetime.now(timezone.utc) - timedelta(seconds=120)
+    call = _call(ctx, total_time=180, call_type="expression", status="ongoing",
+                 fragment_started_at=started, fragment_ended_at=None)
+    call.status = "failed"  # 분석 파이프라인이 실패로 덮었다 — status 만 바뀐다
+    ctx["db"].commit()
+
+    assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) == call.call_id, \
+        "status=failed 로 덮여도 진행 중인 조각은 active 여야 한다"
+    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
+    assert 295 <= used <= 305, "status=failed 여도 total_time(확정분)+진행 중 경과가 예산에 잡혀야 한다"
+
+
+def test_dead_fragment_still_credits_the_cap_to_the_budget(ctx):
+    """⭐⭐ QA C4 재검-6차: 종료 표식을 못 남긴 죽은 조각(크래시로 fragment_ended_at 을
+    영영 못 찍음)의 예산 기여를 **버리지 않는다** — 경과가 상한(540s)을 넘겨도
+    `min(경과, 540)` 으로 최소 540초는 계상한다. "살아있다"(active, 동시통화 게이트)
+    판정만 540초 창을 컷오프로 써서 이 행을 무시한다 — 역할이 다르다.
+    """
+    started = datetime.now(timezone.utc) - timedelta(seconds=600)   # 상한(540)보다 오래됨
+    call = _call(ctx, total_time=None, call_type="expression", status="ongoing",
+                 fragment_started_at=started, fragment_ended_at=None)
+
+    # active(동시통화 게이트) 판정은 죽은 세션으로 보고 무시한다.
+    assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) is None, \
+        "540초 넘은 죽은 조각이 여전히 active 로 잡혔다"
+    # 그런데 예산은 그 시간을 버리지 않고 상한(540)만큼 계상한다.
+    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
+    assert used == 540, "죽은 조각의 경과가 예산에서 0으로 버려졌다(상한 계상이 아니라)"
+
+
+def test_backfilled_old_row_is_not_active_and_budgets_only_total_time(ctx):
+    """⭐⭐ QA C4 재검-4차: 마이그레이션(30dda365f616)이 옛 행에
+    `fragment_started_at=call_date`·`fragment_ended_at=updated_at` 를 백필한다 —
+    "진행 중처럼 보이는 옛 행도 죽은 것으로 간주"하므로, 백필된 행은 active 가 아니고
+    예산은 `total_time` 만 본다(경과 추정이 안 붙는다).
+    """
+    call = _call(ctx, total_time=200, status="ongoing")  # 옛 행 흉내: 생성 시 두 컬럼 NULL(오늘 창 안)
+    # 마이그레이션이 하는 일 그대로: call_date → fragment_started_at, updated_at → fragment_ended_at.
+    call.fragment_started_at = call.call_date
+    call.fragment_ended_at = call.updated_at
+    ctx["db"].commit()
+
+    assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) is None, \
+        "백필된 옛 행이 여전히 active 로 잡혔다(진행 중처럼 보이는 옛 행도 죽은 것으로 봐야 한다)"
+    assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 200, \
+        "백필된 옛 행의 예산이 total_time 이 아닌 다른 값으로 계산됐다"
+
+
+def test_finalize_call_does_not_overwrite_an_already_stamped_fragment_ended_at(ctx):
+    """⭐⭐ QA C4 재검-5차(재재검): `finalize_call` 은 `fragment_ended_at` 이 **이미
+    찍혀 있으면 덮지 않는다** — 즉시 표식(`mark_fragment_ended`, 세션 끊김을 인지한
+    순간)이 TTL 의 단일 기준이다. `finalize_call` 은 무거운 마무리 저장 뒤(더 늦게)
+    불릴 수 있어서, 무조건 덮으면 그 늦은 시각으로 TTL 이 매번 다시 늘어난다.
+    """
+    from domains.learning.service import normalcall_service as _ns
+
+    call = _call(ctx, total_time=None, call_type="expression", status="ongoing")
+    immediate_stamp = datetime.now(timezone.utc) - timedelta(seconds=5)
+    call.fragment_ended_at = immediate_stamp
+    ctx["db"].commit()
+
+    _ns.finalize_call(ctx["db"], call.call_id, total_time=300, status="analyzing")
+    ctx["db"].refresh(call)
+
+    stamped = call.fragment_ended_at if call.fragment_ended_at.tzinfo else \
+        call.fragment_ended_at.replace(tzinfo=timezone.utc)
+    assert abs((stamped - immediate_stamp).total_seconds()) < 1, \
+        "finalize_call 이 이미 찍혀 있던 fragment_ended_at 을 늦은 시각으로 덮어썼다"
+    assert call.total_time == 300, "fragment_ended_at 보호와 무관하게 total_time 은 정상 갱신돼야 한다"
 
 
 def test_fragment_2_is_rejected_when_remaining_is_zero(ctx):

@@ -3062,16 +3062,19 @@ async def test_resuming_a_call_whose_fragment_is_still_living_is_rejected(
         db.close()
 
 
-@pytest.mark.parametrize("start_extra", [{}, {"call_type": "level_test"}])
+@pytest.mark.parametrize(
+    "start_extra", [{}, {"call_type": "level_test"}, {"call_type": "chat"}]
+)
 @pytest.mark.asyncio
 async def test_chat_or_level_test_cannot_bypass_the_gate_with_their_own_living_call_id(
     session_factory, seeded, start_extra,
 ):
-    """⭐⭐ QA C4 재검-④: chat(미전송 기본 라우팅)·level_test 는 `resume_call` 을 아예
-    안 부른다 — 옛 `exclude_call_id=continues_call_id` 예외가 있던 시절엔, 살아있는
-    **자기 자신의** call_id 를 `continues_call_id` 에 실어 보내는 것만으로 동시통화
-    게이트를 우회할 수 있었다(그 콜타입은 이어하기 화이트리스트에 없어 continues 를
-    아예 무시하고 새 통화를 만든다). 예외 자체를 없앤 지금은 이 값을 실어도 거절된다.
+    """⭐⭐ QA C4 재검-④⑥: chat(미전송 기본 라우팅 및 명시 call_type="chat")·level_test
+    는 `resume_call` 을 아예 안 부른다 — 옛 `exclude_call_id=continues_call_id` 예외가
+    있던 시절엔, 살아있는 **자기 자신의** call_id 를 `continues_call_id` 에 실어 보내는
+    것만으로 동시통화 게이트를 우회할 수 있었다(그 콜타입은 이어하기 화이트리스트에
+    없어 continues 를 아예 무시하고 새 통화를 만든다). 예외 자체를 없앤 지금은 이
+    값을 실어도 거절된다.
     """
     from datetime import datetime, timezone
 

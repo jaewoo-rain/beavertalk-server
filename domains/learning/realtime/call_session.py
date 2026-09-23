@@ -3475,482 +3475,495 @@ async def run_call(
                 db, member_id, character_id, call_type, target_language=spec.code
             ),
         )
-    # ⭐ 끊김 없는 조각 전환(2026-09-13 S2): 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 조각.
-    #   이어하기가 **성립했을 때만** 뜻이 있다 — continues 없이 온 silent 는 무시(선톡 시드가 나가는 새 통화).
-    silent = resumed and silent_resume_req
-    if silent_resume_req and not resumed:
-        logger.info("normalcall 조용한 이어하기 요청이지만 continues 없음 — 새 통화 선톡으로")
+    # QA C4 재검-⑥(2026-09-23): 이 구간(콜타입 라우팅 직후 ~ 본 세션 진입 직전)에서 나는
+    #   예외(open_call 일반 예외·조각수/인덱스 조회·call_started 송신 실패·next_turn·플랜
+    #   길이 조회 등)는 fragment_ended_at 을 못 찍으면 이 행이 영원히 "살아있는 조각"으로
+    #   남아 그 회원이 동시통화 게이트에 영구히 걸린다. 아직 세션이 실제로 돈 적 없으므로
+    #   아래 본 finally(전사·분석·진도)는 같이 타지 않는다 — 그건 세션이 시작된 뒤에만
+    #   의미가 있다(합치면 "실패" 통화를 분석기가 done 으로 되덮는 별개 사고가 난다).
+    #   COURSE_LOCKED 는 자체 반려에 자체 mark_fragment_ended 를 찍는다(return 이라 이
+    #   except 를 안 탄다).
+    try:
+        # ⭐ 끊김 없는 조각 전환(2026-09-13 S2): 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 조각.
+        #   이어하기가 **성립했을 때만** 뜻이 있다 — continues 없이 온 silent 는 무시(선톡 시드가 나가는 새 통화).
+        silent = resumed and silent_resume_req
+        if silent_resume_req and not resumed:
+            logger.info("normalcall 조용한 이어하기 요청이지만 continues 없음 — 새 통화 선톡으로")
 
-    # ⭐⭐ 커리큘럼 2단계 — call 행 직후(P1-4) cur_call «없으면» INSERT + 선별/브리프(§2·§7 P0). 이어하기(cur_call 있음)면
-    #   open_call 이 그 통화의 차시·코스로 재선별한다(resumed=True, INSERT 0, 잠금 검사 면제).
-    #   ⛔ 옛 경로는 이 블록을 타지 않는다(cur_route=False).
-    cur_open = None
-    if cur_route:
-        try:
-            cur_open = await svc.run_db(
-                db_session_factory,
-                lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, language=spec.code, locale=locale,
-                                             force=(force_course and call_type == "freetalk")),
-            )
-        except cur_svc.CourseLocked as exc:
-            # 프리토킹인데 그 차시 표현학습이 안 끝났다 — 거절하고 소켓을 닫는다. call 행은 **남기고 status=failed** 로 둔다
-            # (통화가 시작되지 않았다는 사실 기록 · 재분석 대상도 아니다 — analyze 는 세그먼트 0 이면 빈 결과).
-            logger.info("normalcall cur: COURSE_LOCKED member=%s call_id=%s %s", member_id, call_id, exc)
-            with contextlib.suppress(Exception):
-                await svc.run_db(db_session_factory, lambda db: svc.set_status(db, call_id, "failed"))
-            # ⛔⛔ QA C4 재검-⑤ 부수 발견(2026-09-23): 이 경로는 아래 메인 try/finally
-            #   **이전**이라 finally 의 mark_fragment_ended 를 안 탄다 — create_call 이
-            #   이미 fragment_started_at 을 찍어 놨으므로, 여기서 fragment_ended_at 을
-            #   안 찍으면 이 행이 **영원히 "살아있는 조각"** 으로 남아 그 회원이 동시통화
-            #   게이트에 영구히 걸린다(실제로 이 시험이 그 상태로 잡혔다).
-            with contextlib.suppress(Exception):
-                await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
-            with contextlib.suppress(Exception):
-                await _send_json(client_ws, ServerError(
-                    code="COURSE_LOCKED",
-                    message=f"이 차시({exc.lesson_code})의 표현학습이 아직 끝나지 않았어요(status={exc.status}).",
-                    recoverable=False,
-                ))
-            with contextlib.suppress(Exception):
-                await client_ws.close(code=1008)
-            return
-        call_type = cur_open.course          # 이어하기면 cur_call 의 코스가 이긴다(§7 P0)
-        if cur_open.course == "expression":
-            expr_items = cur_open.items       # DTO: item_id·lesson_id·obj·des·ex·role·review — lesson_id 가 state 까지 살아간다(§6 ①)
-            system_instruction = build_expression_instruction(
-                role=setup["role"],
-                personality=setup["personality"],
-                level_profile=level_profile,
-                locale=locale,
-                interests=setup["interests"],
-                name=setup["name"],
-                items=expr_items,
-                quiz_group=svc.EXPRESSION_QUIZ_GROUP,
-                target_language=target_language,
-                close_tag=close_tag,
-                model_family="3.1" if "3.1" in (live_model or "") else "2.5",
-                face_rule=face_rule_text,
-                language=spec.code,                    # 격식 줄 언어별(ja) — ko 바이트 동일
-            )
-            seed_text = seed_expression_opening(target_language)
-            logger.info(
-                "normalcall cur 표현학습: lesson=%s(no=%d) status=%s 항목 %d(복습 %d) 재개=%s call_id=%s",
-                cur_open.lesson.code, cur_open.lesson.no, cur_open.status, len(expr_items),
-                sum(1 for d in expr_items if d.get("review")), cur_open.resumed, call_id,
-            )
-            _log_expression_items(expr_items, call_id)     # 8차 A — «번호=항목» 정본 한 줄(하네스가 이 번호로 판정표를 만든다)
-        else:
-            # ⭐ 차시 프리토킹 v1(계획 2026-09-12-프리토킹-코스-대본 §3·§9): 흥미 미주입 · 문장 수 2 · 차시판 선톡 시드.
-            system_instruction = build_freetalk_instruction(
-                role=setup["role"],
-                personality=setup["personality"],
-                level_profile=level_profile,
-                locale=locale,
-                interests=[],
-                name=setup["name"],
-                target_language=target_language,
-                close_tag=close_tag,
-                max_sentences=FREETALK_MAX_SENTENCES,
-                lesson=cur_open.brief,
-                face_rule=face_rule_text,
-                language=spec.code,                    # probes 이름 치환 패턴(ja 「〜さん」)
-            )
-            seed_text = seed_freetalk_lesson_opening(target_language)
-            freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
-            logger.info(
-                "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 소재 %d(문형 %d) 재개=%s call_id=%s",
-                cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
-                len(cur_open.brief.items) if cur_open.brief else 0,
-                sum(1 for d in (cur_open.brief.items if cur_open.brief else []) if d.get("role") == "grammar"),
-                cur_open.resumed, call_id,
-            )
-
-    # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
-    # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
-    #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
-    # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(expression·freetalk, C7 전까지 chat 은 제외)에만
-    #   «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을 서버 값으로 판단한다. 상한은
-    #   REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
-    fragment_index = None
-    if call_type in ("expression", "freetalk"):
-        if max_fragments is None:
-            max_fragments = await svc.run_db(
-                db_session_factory, lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
-            )
-        fragment_index = (
-            await svc.run_db(db_session_factory, lambda db: svc.call_fragment_index(db, call_id)) if resumed else 1
-        )
-    await _send_json(
-        client_ws,
-        ServerCallStarted(
-            character_id=character_id,
-            call_id=str(call_id),
-            fragment_index=fragment_index,
-            max_fragments=max_fragments if fragment_index is not None else None,
-            # ⛔ 이 값을 안 실으면 클라는 자기 기본값으로 돈다 — 그러면 "끄는 스위치가
-            #   서버에 있다"는 말이 거짓이 된다. 필드만 만들어 두고 아무도 안 채우던
-            #   상태를 여기서 닫는다(2026-08-25).
-            diag=settings.LIVE_DIAG_LEVEL,
-            # ⭐ 커리큘럼 2단계(§8): cur 경로만 코스를 실는다 — 옛 경로는 None(직렬화에서 빠져 프레임 바이트 동일).
-            course=call_type if cur_route else None,
-        ),
-    )
-
-    state = _CallState()
-    state.cur_route = cur_route
-    state.target_code = spec.code                           # 판정(quiz_judge)·대본 조립의 언어 분기(ko/ja — 2026-09-13)
-    state.cur_course = call_type if cur_route else ""
-    state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
-    state.silent_resume = silent
-    state.fragment_index = fragment_index
-    state.max_fragments = max_fragments if fragment_index is not None else None
-    state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
-    state.freetalk_target = target_language if freetalk_brief is not None else ""
-    # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
-    #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
-    #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
-    state.call_id = call_id                                # 11차 A — 표현학습 로그 줄의 call_id 출처(통화 행은 위에서 이미 만들었다)
-    state.live_model = live_model
-    state.live_vertex = live_vertex
-    if resumed:
-        # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
-        #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
-        #   충돌이 조용히 난다 — 새 행이었으면 안 났을 사고다).
-        state.next_turn_index = await svc.run_db(
-            db_session_factory, lambda db: svc.next_turn_index(db, call_id)
-        )
-        # ⭐ 검증 범위의 기준. 이 턴 앞은 **이전 조각**이고, 그건 이미 그때 판정됐다.
-        state.resume_from_turn = state.next_turn_index
-        logger.info("normalcall 이어하기: 턴 인덱스 %d 부터 이어서 기록", state.next_turn_index)
-    # ⭐⭐ **표현학습의 조각 승계는 브리프가 아니라 «시드 + 목록»이 한다**(D17).
-    #   ⛔ 아래 `build_resume_brief` 를 타지 않는다 — 그건 «하던 대화를 이어가라» 이고,
-    #     표현학습에 필요한 것은 «(통과) 표시가 없는 가장 앞 항목부터» 다. 그리고 그 정보는
-    #     **이미 지시문 안에 있다**(선별이 통과분을 빼고 목록을 다시 만든다) — 사이드카도
-    #     JSON 도 필요 없다. 서버가 정답을 갖고 있다.
-    #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
-    #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
-    if resumed and call_type == "expression":
-        # ⭐ C6(2026-09-14): 재개 쪽지 재료 — 직전 조각의 드릴/통과/오답 표면형(cur_call.items) + 마지막 2~4턴 발췌. 실패해도 재료 없는 판으로 간다(R5).
-        note_mats: dict = {}
-        try:
-            note_mats = await svc.run_db(db_session_factory, lambda db: {
-                **cur_svc.resume_note_materials(db, call_id), "recent": svc.recent_turns(db, call_id),
-            })
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("normalcall 표현학습 이어하기: 쪽지 재료 조회 실패(재료 없이) — %s", exc)
-        if silent:
-            # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
-            seed_text = ""
-            system_instruction = system_instruction + "\n\n" + brief_expression_silent_resume(target_language, **note_mats)
-            logger.info("normalcall 표현학습 조용한 이어하기: 시드 0 · 학습자 첫 발화 뒤 표시 없는 가장 앞 항목부터 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
-                        len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
-                        len(note_mats.get("recent") or []))
-        else:
-            seed_text = seed_expression_resume(target_language, **note_mats)
-            logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
-                        len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
-                        len(note_mats.get("recent") or []))
-        # ⭐ P6(2026-09-15): 조립된 쪽지의 실제 길이·축소 단계 한 줄(발췌 4→2턴·목록 12→6→3). 계측이라 실패해도 무시(R5).
-        with contextlib.suppress(Exception):
-            _ns = expression_resume_note_stats(target_language, silent=silent, **note_mats)
-            logger.info(
-                "normalcall 표현학습 재개 쪽지: %d자/%d · 축소 %d단계 · 발췌 %d/%d턴 · 목록 상한 %d (드릴·통과·오답 %s)",
-                _ns["len"], _ns["max"], _ns["step"], _ns["recent_n"], _ns["recent_available"], _ns["list_cap"], _ns["lists"],
-            )
-    elif resumed:
-        # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
-        #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
-        #   ⛔ "이어서 할게요" 를 시키지 않는다 — 그러면 끊김이 두 번 일어난다.
-        #     브리프 마지막 줄이 **첫 행동을 지정**한다(금지가 아니라 지정).
-        #   ⭐ 끊김 없는 조각 전환(S2, silent): 시드 0 — 브리프 실패(아래 except)여도 선톡 시드가 나가면 안 되므로 **먼저** 비운다.
-        if silent:
-            seed_text = ""
-        try:
-            mats = await svc.run_db(
-                db_session_factory, lambda db: svc.resume_materials(db, call_id, spec.code)
-            )
-            # ⭐⭐ **슬롯이 아직 없으면 지금 만든다**(2026-08-19 실측 사고).
-            #   조각 종료 시점 생성은 fire-and-forget 이라 이어하기가 그걸 **앞지른다**:
-            #     07:00:48 저장 → 07:00:51 이어하기(슬롯 없음) → 07:00:53 요약 완성
-            #   그때 발췌 폴백을 탔고, 짧은 통화라 **비버의 첫 인사가 발췌 맨 앞**에 왔다.
-            #   ⇒ 비버가 그걸 요약이 아니라 **대본으로 읽어** 글자까지 똑같이 다시 인사했다
-            #     (t10 == t1). 원문을 주면 따라 한다 — 그게 원문 덤프의 진짜 위험이다.
-            #   ⚠ 여기서 LLM 을 한 번 더 부르지만 **체감 지연은 0에 가깝다**: Live 세션을
-            #     여는 데만 2초가 걸리고(실측 07:00:51→07:00:53) 요약은 thinking 0 · 짧은
-            #     전사라 그보다 빠르다.
-            if not mats.get("topic") and not mats.get("facts") and client is not None:
-                tail = await svc.run_db(
-                    db_session_factory, lambda db: svc._resume_transcript(db, call_id)
+        # ⭐⭐ 커리큘럼 2단계 — call 행 직후(P1-4) cur_call «없으면» INSERT + 선별/브리프(§2·§7 P0). 이어하기(cur_call 있음)면
+        #   open_call 이 그 통화의 차시·코스로 재선별한다(resumed=True, INSERT 0, 잠금 검사 면제).
+        #   ⛔ 옛 경로는 이 블록을 타지 않는다(cur_route=False).
+        cur_open = None
+        if cur_route:
+            try:
+                cur_open = await svc.run_db(
+                    db_session_factory,
+                    lambda db: cur_svc.open_call(db, member_id, call_id, course=call_type, language=spec.code, locale=locale,
+                                                 force=(force_course and call_type == "freetalk")),
                 )
-                slots = await svc.summarize_for_resume_text(
-                    client, settings.JUDGE_MODEL, tail
+            except cur_svc.CourseLocked as exc:
+                # 프리토킹인데 그 차시 표현학습이 안 끝났다 — 거절하고 소켓을 닫는다. call 행은 **남기고 status=failed** 로 둔다
+                # (통화가 시작되지 않았다는 사실 기록 · 재분석 대상도 아니다 — analyze 는 세그먼트 0 이면 빈 결과).
+                logger.info("normalcall cur: COURSE_LOCKED member=%s call_id=%s %s", member_id, call_id, exc)
+                with contextlib.suppress(Exception):
+                    await svc.run_db(db_session_factory, lambda db: svc.set_status(db, call_id, "failed"))
+                # ⛔⛔ QA C4 재검-⑤ 부수 발견(2026-09-23): 이 경로는 아래 메인 try/finally
+                #   **이전**이라 finally 의 mark_fragment_ended 를 안 탄다 — create_call 이
+                #   이미 fragment_started_at 을 찍어 놨으므로, 여기서 fragment_ended_at 을
+                #   안 찍으면 이 행이 **영원히 "살아있는 조각"** 으로 남아 그 회원이 동시통화
+                #   게이트에 영구히 걸린다(실제로 이 시험이 그 상태로 잡혔다).
+                with contextlib.suppress(Exception):
+                    await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
+                with contextlib.suppress(Exception):
+                    await _send_json(client_ws, ServerError(
+                        code="COURSE_LOCKED",
+                        message=f"이 차시({exc.lesson_code})의 표현학습이 아직 끝나지 않았어요(status={exc.status}).",
+                        recoverable=False,
+                    ))
+                with contextlib.suppress(Exception):
+                    await client_ws.close(code=1008)
+                return
+            call_type = cur_open.course          # 이어하기면 cur_call 의 코스가 이긴다(§7 P0)
+            if cur_open.course == "expression":
+                expr_items = cur_open.items       # DTO: item_id·lesson_id·obj·des·ex·role·review — lesson_id 가 state 까지 살아간다(§6 ①)
+                system_instruction = build_expression_instruction(
+                    role=setup["role"],
+                    personality=setup["personality"],
+                    level_profile=level_profile,
+                    locale=locale,
+                    interests=setup["interests"],
+                    name=setup["name"],
+                    items=expr_items,
+                    quiz_group=svc.EXPRESSION_QUIZ_GROUP,
+                    target_language=target_language,
+                    close_tag=close_tag,
+                    model_family="3.1" if "3.1" in (live_model or "") else "2.5",
+                    face_rule=face_rule_text,
+                    language=spec.code,                    # 격식 줄 언어별(ja) — ko 바이트 동일
                 )
-                # ⛔ 빈 슬롯({topic:'', facts:[], pending:''})은 «생긴 것» 이 아니다(2026-09-14, bt-back 결정 ①) — 빈 dict 도 참이라 예전엔
-                #   여기서 발췌를 지워 브리프가 텅 비었다(call 870 «다시 인사» 재발 경로). 값이 하나라도 있을 때만 채택·저장·발췌 제거.
-                if svc.resume_slots_have_content(slots):
-                    mats["topic"] = slots.get("topic") or None
-                    mats["facts"] = slots.get("learner_facts") or None
-                    mats["pending"] = slots.get("pending") or None
-                    mats["excerpt"] = None      # ⛔ 슬롯이 생겼으면 발췌는 안 보낸다
-                    await svc.run_db(
-                        db_session_factory,
-                        lambda db: svc._save_resume_context(db, call_id, slots),
-                    )
-                    logger.info(
-                        "normalcall 이어하기 요약(즉석): 화제=%r 사실 %d개",
-                        slots.get("topic"), len(slots.get("learner_facts") or []),
-                    )
-                elif slots is not None:
-                    logger.info("normalcall 이어하기 요약(즉석): 빈 슬롯 — 발췌 폴백 유지")
-            brief = build_resume_brief(**mats, silent=silent)
-            # ⛔⛔ **시드를 갈아야 한다 — 지시문만으로는 안 진다**(2026-08-19 실측 call 1087).
-            #   `seed_opening` 은 "짧게 인사부터 하고, 오늘 공부할래 수다 떨래?를 물어라" 다.
-            #   조각2 에서 그게 그대로 나가자 비버가 방금 하던 대화를 버리고 **처음으로
-            #   돌아갔다**(t8 이 t1 과 같은 질문). 브리프에 "인사하지 마라"가 있어도 소용없다 —
-            #   **시드는 직접 명령이고 지시문은 배경**이라 시드가 이긴다.
-            #   ⚠ 브리프 유무와 무관하게 간다: 브리프가 비어도 "다시 묻기"는 막아야 한다.
-            if not silent:
-                seed_text = seed_resume(target_language)
-            if brief:
-                system_instruction = system_instruction + "\n\n" + brief
-                # ⚠ `사실`·`하던것`·`발췌` 를 같이 찍는다(2026-08-19). 전에는 DB 기반 셋만
-                #   찍어서, 요약이 `사실 3개` 를 만들었는데 브리프 로그는 `다룬 0 · 잘함 0 ·
-                #   헷갈림 0` 이라 **아무것도 안 들어간 것처럼 보였다.** 관측 구멍이었다.
-                #   ⭐ `발췌` 는 폴백을 탔는지를 가른다 — 붙어 있으면 요약이 없었다는 뜻이다.
+                seed_text = seed_expression_opening(target_language)
                 logger.info(
-                    "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 사실 %d · "
-                    "화제=%s · 하던것=%s%s",
-                    len(mats["covered"]), len(mats["strong"]), len(mats["weak"]),
-                    len(mats.get("facts") or []),
-                    (mats["topic"] or "")[:30] or "없음",
-                    (mats.get("pending") or "")[:30] or "없음",
-                    " · ⚠발췌폴백" if mats.get("excerpt") else "",
+                    "normalcall cur 표현학습: lesson=%s(no=%d) status=%s 항목 %d(복습 %d) 재개=%s call_id=%s",
+                    cur_open.lesson.code, cur_open.lesson.no, cur_open.status, len(expr_items),
+                    sum(1 for d in expr_items if d.get("review")), cur_open.resumed, call_id,
                 )
-        except Exception as exc:   # noqa: BLE001 — 브리프 실패가 통화를 막으면 안 된다(R5)
-            logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
-    # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
-    state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
-    if settings.LIVE_INPUT_LANGUAGE_CODES:
-        state.input_language_codes = _input_language_codes(spec.code, locale)
-    # ⭐ 표현학습 진도를 state 에 싣는다 — 이 리스트가 비어 있지 않다는 것 자체가
-    #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
-    state.expr_items = expr_items
-    # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
-    state.expr_tag_allow = _expression_bracket_allowlist(expr_items)
-    if expr_items:
-        # ⭐ T16 — STT 폴백 판정기 재료. 서버 검색이 미판정으로 남긴 항목에만 LLM 을 부른다.
-        #   ⚠ 힌트 사이드카와 같은 모델(JUDGE_MODEL)·같은 usage 그릇을 쓴다 — 원가가 한
-        #     칸에 모여야 «표현학습이 얼마나 더 드는가» 를 나중에 잴 수 있다.
-        #   쪽지(_build_expression_note)·큐 문구도 여기 라벨을 쓴다 — state 에 따로 칸을 안 판다.
-        state.expr_ctx = {
-            "client": client,
-            "model": settings.JUDGE_MODEL,
-            "locale_label": _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
-            "target_language": target_language,
-        }
-        # ⭐ 4차(2026-09-15): 표현학습 판정의 주인 = LLM 사이드카(가르침·정답). 클라이언트가 없거나 스위치가 꺼져 있으면 종전 문자열 대조.
-        state.expr_llm_judge = bool(getattr(settings, "EXPR_LLM_JUDGE", False)) and client is not None
-    state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
-    state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
-    if call_type != "level_test" and REGROUND_MODE != "off":
-        # 재접지 통합(단계 3): 문구 조립 재료 + 사이드카에 번호로 떠먹일 항목 목록 + 모드 시드.
-        # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
-        #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
-        state.reground_persona = (setup["role"] or "", setup["personality"] or "")
-        if cur_route and call_type == "freetalk":
-            # ⭐ 차시 프리토킹(2026-09-12): 일반 잡담 브리프(«흥미를 느낄 새 질문») 도, 항목 검출 기계도 안 쓴다 — 쪽지는
-            #   `_arm_reground` 가 `build_freetalk_reground_brief`(상황 + 아직 안 쓴 소재)로 만든다. 사이드카(reground_ctx)도 없다 —
-            #   모드 축(공부/대화)이 이 코스엔 없다. 옛 프리토킹(lesson=None)·표현학습·일반은 아래 그대로.
-            state.reground_items = []
-            state.call_mode = "chat"
-        elif call_type in ("expression", "freetalk"):
-            # ⛔⛔ **두 코스는 normal 의 학습 항목 기계를 물려받지 않는다**(2026-09-10 QA).
-            #   게이트를 `expr_items` 로 두면 두 경우가 아래 else 로 떨어진다:
-            #     · 프리토킹 — 항목이 애초에 0개인데(D8) `study_items[:10]` 을 물고
-            #       call_mode='study' 가 된다 ⇒ 재접지 쪽지가 «학습 항목을 대화에서 쓰게
-            #       하라» 로 나가는데 지시문엔 그 항목이 **하나도 없다.**
-            #     · 표현학습 — 그 레벨을 전량 통과해 풀이 비면 «표현 0개짜리 표현학습» 이
-            #       normal 항목을 물고 돈다.
-            #   ⇒ 판정은 **콜타입**으로 한다. 항목 유무는 그 다음 문제다.
-            # ⭐ 표현학습: 검출 목록이 곧 **오늘의 표현 전량**이다.
-            # ⛔⛔ **여기서 [:10] 로 자르지 마라.** 자르면 11~18번이 «비버가 다뤄도 서버는
-            #   모르는» 항목이 되고, 그건 영원히 «안 가르친 것» 으로 남아 다음 통화에 또
-            #   나온다(그리고 재접지 쪽지가 «이미 다룬 것» 에서 빠뜨려 되감기를 부른다 —
-            #   통화 1360 이 정확히 부분 목록 때문에 난 사고다).
-            # ⚠ `REGROUND_COVERED_CAP`(10)은 **쪽지에 몇 개를 적을지**의 상한이지 검출
-            #   상한이 아니다 — 검출은 18개 전부 돈다. 두 숫자를 섞지 마라.
-            state.reground_items = [str(it["obj"]) for it in expr_items if it.get("obj")]
-            # ⚠ 항목이 0개면(프리토킹 · 전량 통과한 표현학습) 'chat' 이다 — 'study' 로
-            #   굳히면 쪽지가 없는 항목을 가리킨다.
-            state.call_mode = "study" if state.reground_items else "chat"
-        else:
-            # ⚠ `normal` 은 **한 글자도 안 바뀐다** — 상한 10 은 일반 통화의 계약이다
-            #   (공급원 study_items 가 본편 5 + 예비라 10 이면 사실상 전량이다).
-            state.reground_items = [
-                str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
-            ][:10]
-            state.call_mode = "study" if state.reground_items else "chat"
-        if not (cur_route and call_type == "freetalk"):
-            state.reground_ctx = {
+                _log_expression_items(expr_items, call_id)     # 8차 A — «번호=항목» 정본 한 줄(하네스가 이 번호로 판정표를 만든다)
+            else:
+                # ⭐ 차시 프리토킹 v1(계획 2026-09-12-프리토킹-코스-대본 §3·§9): 흥미 미주입 · 문장 수 2 · 차시판 선톡 시드.
+                system_instruction = build_freetalk_instruction(
+                    role=setup["role"],
+                    personality=setup["personality"],
+                    level_profile=level_profile,
+                    locale=locale,
+                    interests=[],
+                    name=setup["name"],
+                    target_language=target_language,
+                    close_tag=close_tag,
+                    max_sentences=FREETALK_MAX_SENTENCES,
+                    lesson=cur_open.brief,
+                    face_rule=face_rule_text,
+                    language=spec.code,                    # probes 이름 치환 패턴(ja 「〜さん」)
+                )
+                seed_text = seed_freetalk_lesson_opening(target_language)
+                freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
+                logger.info(
+                    "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 소재 %d(문형 %d) 재개=%s call_id=%s",
+                    cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
+                    len(cur_open.brief.items) if cur_open.brief else 0,
+                    sum(1 for d in (cur_open.brief.items if cur_open.brief else []) if d.get("role") == "grammar"),
+                    cur_open.resumed, call_id,
+                )
+
+        # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
+        # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면
+        #   끊기 버튼(소켓 선(先)종료)에서 그 프레임이 도착하지 않아 번호를 영영 못 받는다.
+        # ⭐ 끊김 없는 조각 전환(S4): 조각을 잇는 통화(expression·freetalk, C7 전까지 chat 은 제외)에만
+        #   «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을 서버 값으로 판단한다. 상한은
+        #   REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
+        fragment_index = None
+        if call_type in ("expression", "freetalk"):
+            if max_fragments is None:
+                max_fragments = await svc.run_db(
+                    db_session_factory, lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
+                )
+            fragment_index = (
+                await svc.run_db(db_session_factory, lambda db: svc.call_fragment_index(db, call_id)) if resumed else 1
+            )
+        await _send_json(
+            client_ws,
+            ServerCallStarted(
+                character_id=character_id,
+                call_id=str(call_id),
+                fragment_index=fragment_index,
+                max_fragments=max_fragments if fragment_index is not None else None,
+                # ⛔ 이 값을 안 실으면 클라는 자기 기본값으로 돈다 — 그러면 "끄는 스위치가
+                #   서버에 있다"는 말이 거짓이 된다. 필드만 만들어 두고 아무도 안 채우던
+                #   상태를 여기서 닫는다(2026-08-25).
+                diag=settings.LIVE_DIAG_LEVEL,
+                # ⭐ 커리큘럼 2단계(§8): cur 경로만 코스를 실는다 — 옛 경로는 None(직렬화에서 빠져 프레임 바이트 동일).
+                course=call_type if cur_route else None,
+            ),
+        )
+
+        state = _CallState()
+        state.cur_route = cur_route
+        state.target_code = spec.code                           # 판정(quiz_judge)·대본 조립의 언어 분기(ko/ja — 2026-09-13)
+        state.cur_course = call_type if cur_route else ""
+        state.cur_forced = bool(cur_open.forced) if cur_open is not None else False
+        state.silent_resume = silent
+        state.fragment_index = fragment_index
+        state.max_fragments = max_fragments if fragment_index is not None else None
+        state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
+        state.freetalk_target = target_language if freetalk_brief is not None else ""
+        # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
+        #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
+        #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
+        state.call_id = call_id                                # 11차 A — 표현학습 로그 줄의 call_id 출처(통화 행은 위에서 이미 만들었다)
+        state.live_model = live_model
+        state.live_vertex = live_vertex
+        if resumed:
+            # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
+            #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
+            #   충돌이 조용히 난다 — 새 행이었으면 안 났을 사고다).
+            state.next_turn_index = await svc.run_db(
+                db_session_factory, lambda db: svc.next_turn_index(db, call_id)
+            )
+            # ⭐ 검증 범위의 기준. 이 턴 앞은 **이전 조각**이고, 그건 이미 그때 판정됐다.
+            state.resume_from_turn = state.next_turn_index
+            logger.info("normalcall 이어하기: 턴 인덱스 %d 부터 이어서 기록", state.next_turn_index)
+        # ⭐⭐ **표현학습의 조각 승계는 브리프가 아니라 «시드 + 목록»이 한다**(D17).
+        #   ⛔ 아래 `build_resume_brief` 를 타지 않는다 — 그건 «하던 대화를 이어가라» 이고,
+        #     표현학습에 필요한 것은 «(통과) 표시가 없는 가장 앞 항목부터» 다. 그리고 그 정보는
+        #     **이미 지시문 안에 있다**(선별이 통과분을 빼고 목록을 다시 만든다) — 사이드카도
+        #     JSON 도 필요 없다. 서버가 정답을 갖고 있다.
+        #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
+        #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
+        if resumed and call_type == "expression":
+            # ⭐ C6(2026-09-14): 재개 쪽지 재료 — 직전 조각의 드릴/통과/오답 표면형(cur_call.items) + 마지막 2~4턴 발췌. 실패해도 재료 없는 판으로 간다(R5).
+            note_mats: dict = {}
+            try:
+                note_mats = await svc.run_db(db_session_factory, lambda db: {
+                    **cur_svc.resume_note_materials(db, call_id), "recent": svc.recent_turns(db, call_id),
+                })
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("normalcall 표현학습 이어하기: 쪽지 재료 조회 실패(재료 없이) — %s", exc)
+            if silent:
+                # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
+                seed_text = ""
+                system_instruction = system_instruction + "\n\n" + brief_expression_silent_resume(target_language, **note_mats)
+                logger.info("normalcall 표현학습 조용한 이어하기: 시드 0 · 학습자 첫 발화 뒤 표시 없는 가장 앞 항목부터 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
+                            len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
+                            len(note_mats.get("recent") or []))
+            else:
+                seed_text = seed_expression_resume(target_language, **note_mats)
+                logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
+                            len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
+                            len(note_mats.get("recent") or []))
+            # ⭐ P6(2026-09-15): 조립된 쪽지의 실제 길이·축소 단계 한 줄(발췌 4→2턴·목록 12→6→3). 계측이라 실패해도 무시(R5).
+            with contextlib.suppress(Exception):
+                _ns = expression_resume_note_stats(target_language, silent=silent, **note_mats)
+                logger.info(
+                    "normalcall 표현학습 재개 쪽지: %d자/%d · 축소 %d단계 · 발췌 %d/%d턴 · 목록 상한 %d (드릴·통과·오답 %s)",
+                    _ns["len"], _ns["max"], _ns["step"], _ns["recent_n"], _ns["recent_available"], _ns["list_cap"], _ns["lists"],
+                )
+        elif resumed:
+            # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
+            #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
+            #   ⛔ "이어서 할게요" 를 시키지 않는다 — 그러면 끊김이 두 번 일어난다.
+            #     브리프 마지막 줄이 **첫 행동을 지정**한다(금지가 아니라 지정).
+            #   ⭐ 끊김 없는 조각 전환(S2, silent): 시드 0 — 브리프 실패(아래 except)여도 선톡 시드가 나가면 안 되므로 **먼저** 비운다.
+            if silent:
+                seed_text = ""
+            try:
+                mats = await svc.run_db(
+                    db_session_factory, lambda db: svc.resume_materials(db, call_id, spec.code)
+                )
+                # ⭐⭐ **슬롯이 아직 없으면 지금 만든다**(2026-08-19 실측 사고).
+                #   조각 종료 시점 생성은 fire-and-forget 이라 이어하기가 그걸 **앞지른다**:
+                #     07:00:48 저장 → 07:00:51 이어하기(슬롯 없음) → 07:00:53 요약 완성
+                #   그때 발췌 폴백을 탔고, 짧은 통화라 **비버의 첫 인사가 발췌 맨 앞**에 왔다.
+                #   ⇒ 비버가 그걸 요약이 아니라 **대본으로 읽어** 글자까지 똑같이 다시 인사했다
+                #     (t10 == t1). 원문을 주면 따라 한다 — 그게 원문 덤프의 진짜 위험이다.
+                #   ⚠ 여기서 LLM 을 한 번 더 부르지만 **체감 지연은 0에 가깝다**: Live 세션을
+                #     여는 데만 2초가 걸리고(실측 07:00:51→07:00:53) 요약은 thinking 0 · 짧은
+                #     전사라 그보다 빠르다.
+                if not mats.get("topic") and not mats.get("facts") and client is not None:
+                    tail = await svc.run_db(
+                        db_session_factory, lambda db: svc._resume_transcript(db, call_id)
+                    )
+                    slots = await svc.summarize_for_resume_text(
+                        client, settings.JUDGE_MODEL, tail
+                    )
+                    # ⛔ 빈 슬롯({topic:'', facts:[], pending:''})은 «생긴 것» 이 아니다(2026-09-14, bt-back 결정 ①) — 빈 dict 도 참이라 예전엔
+                    #   여기서 발췌를 지워 브리프가 텅 비었다(call 870 «다시 인사» 재발 경로). 값이 하나라도 있을 때만 채택·저장·발췌 제거.
+                    if svc.resume_slots_have_content(slots):
+                        mats["topic"] = slots.get("topic") or None
+                        mats["facts"] = slots.get("learner_facts") or None
+                        mats["pending"] = slots.get("pending") or None
+                        mats["excerpt"] = None      # ⛔ 슬롯이 생겼으면 발췌는 안 보낸다
+                        await svc.run_db(
+                            db_session_factory,
+                            lambda db: svc._save_resume_context(db, call_id, slots),
+                        )
+                        logger.info(
+                            "normalcall 이어하기 요약(즉석): 화제=%r 사실 %d개",
+                            slots.get("topic"), len(slots.get("learner_facts") or []),
+                        )
+                    elif slots is not None:
+                        logger.info("normalcall 이어하기 요약(즉석): 빈 슬롯 — 발췌 폴백 유지")
+                brief = build_resume_brief(**mats, silent=silent)
+                # ⛔⛔ **시드를 갈아야 한다 — 지시문만으로는 안 진다**(2026-08-19 실측 call 1087).
+                #   `seed_opening` 은 "짧게 인사부터 하고, 오늘 공부할래 수다 떨래?를 물어라" 다.
+                #   조각2 에서 그게 그대로 나가자 비버가 방금 하던 대화를 버리고 **처음으로
+                #   돌아갔다**(t8 이 t1 과 같은 질문). 브리프에 "인사하지 마라"가 있어도 소용없다 —
+                #   **시드는 직접 명령이고 지시문은 배경**이라 시드가 이긴다.
+                #   ⚠ 브리프 유무와 무관하게 간다: 브리프가 비어도 "다시 묻기"는 막아야 한다.
+                if not silent:
+                    seed_text = seed_resume(target_language)
+                if brief:
+                    system_instruction = system_instruction + "\n\n" + brief
+                    # ⚠ `사실`·`하던것`·`발췌` 를 같이 찍는다(2026-08-19). 전에는 DB 기반 셋만
+                    #   찍어서, 요약이 `사실 3개` 를 만들었는데 브리프 로그는 `다룬 0 · 잘함 0 ·
+                    #   헷갈림 0` 이라 **아무것도 안 들어간 것처럼 보였다.** 관측 구멍이었다.
+                    #   ⭐ `발췌` 는 폴백을 탔는지를 가른다 — 붙어 있으면 요약이 없었다는 뜻이다.
+                    logger.info(
+                        "normalcall 이어하기 브리프: 다룬 %d · 잘함 %d · 헷갈림 %d · 사실 %d · "
+                        "화제=%s · 하던것=%s%s",
+                        len(mats["covered"]), len(mats["strong"]), len(mats["weak"]),
+                        len(mats.get("facts") or []),
+                        (mats["topic"] or "")[:30] or "없음",
+                        (mats.get("pending") or "")[:30] or "없음",
+                        " · ⚠발췌폴백" if mats.get("excerpt") else "",
+                    )
+            except Exception as exc:   # noqa: BLE001 — 브리프 실패가 통화를 막으면 안 된다(R5)
+                logger.warning("normalcall 이어하기 브리프 실패(맥락 없이 진행) — %s", exc)
+        # 통화 길이: 데모/dev 는 클라가 3~15분 지정 가능(prod 무시). _watch_call_clock 이 참조.
+        state.close_seed = _close_seed(close_tag)  # 지시문과 같은 난수 태그로 재조립
+        if settings.LIVE_INPUT_LANGUAGE_CODES:
+            state.input_language_codes = _input_language_codes(spec.code, locale)
+        # ⭐ 표현학습 진도를 state 에 싣는다 — 이 리스트가 비어 있지 않다는 것 자체가
+        #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
+        state.expr_items = expr_items
+        # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
+        state.expr_tag_allow = _expression_bracket_allowlist(expr_items)
+        if expr_items:
+            # ⭐ T16 — STT 폴백 판정기 재료. 서버 검색이 미판정으로 남긴 항목에만 LLM 을 부른다.
+            #   ⚠ 힌트 사이드카와 같은 모델(JUDGE_MODEL)·같은 usage 그릇을 쓴다 — 원가가 한
+            #     칸에 모여야 «표현학습이 얼마나 더 드는가» 를 나중에 잴 수 있다.
+            #   쪽지(_build_expression_note)·큐 문구도 여기 라벨을 쓴다 — state 에 따로 칸을 안 판다.
+            state.expr_ctx = {
                 "client": client,
                 "model": settings.JUDGE_MODEL,
-                "instruction": _reground_instruction(state.reground_items, target_language),
+                "locale_label": _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
+                "target_language": target_language,
             }
-    # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
-    # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
-    live_tools = None
-    # ⭐ 표정 계측 스파이크 — 이 스위치가 켜진 통화만 `set_face` 를 받는다(2026-08-18).
-    #   ⛔ 기능이 아니다. 클라로 아무것도 안 보내고 화면도 안 바뀐다 — **로그만** 남긴다.
-    #   ⚠ 이게 `live_tools` 의 **첫 실사용**이다. 지금까지 항상 None 이라 "모델이 tool 을
-    #     부른다"를 이 프로젝트에서 아무도 본 적이 없다. 그래서 재는 것이다.
-    #   ⛔⛔ **레벨테스트에는 붙이지 마라**(2026-08-23). 이 분기가 `call_type` 검사 **밖**에
-    #     있어서, 스위치를 켜면 레벨테스트 통화에도 tool 이 붙었다. 레벨테스트 지시문은
-    #     2,111자라 "긴 지시문 + tool" 사망 구간(실측 2,697자 0/7)에 들어간다 — 즉 스위치를
-    #     켜는 순간 레벨테스트가 통째로 죽는다. 지금까지 스위치가 off 라 잠복해 있었다.
-    #     ⚠ 레벨테스트에 표정을 넣으려면 일반 통화와 같은 분할이 필요한데, 첫 2턴이 곧
-    #       0단·1단 **측정 구간**이라 페르소나 미완성 구간이 그대로 측정 오염이 된다.
-    #       일반 통화에서 검증한 뒤 별건으로 다룬다.
-    # ⛔⛔ **`wants_video` 를 빼지 마라.** 2026-09-04 플랜 분기가 표정을 Max 전용으로
-    #   가를 때 **지시문 쪽(:1457)만 고치고 여기를 안 고쳤다.** 그래서 Free·Pro(2.5)
-    #   세션 setup 에도 `set_face` 선언이 실렸다 — 지시문은 표정을 안 시키니 사람 눈엔
-    #   "표정 없음"으로 보이는데, 와이어에는 tool 이 나간다.
-    #   ⇒ 그 조합이 2026-09-07 에 **Free·Pro 통화를 전부 죽였다**(1011 internal error,
-    #     사용자 첫 발화 직후). 이 저장소가 이미 실측으로 못박아 둔 사망 조건이다:
-    #       영문 무인자 5툴                        30/30 생존
-    #       현행 SET_FACE_TOOL(한국어 설명+enum)    0/21 전부 1011   (CODEX_RESULT_1011.md)
-    #       긴 지시문 + set_face 를 setup 에        0/8             (커밋 05462f8)
-    #   ⚠ 두 조건이 **같은 값**이어야 한다 — 한쪽만 고치면 "지시문엔 없는데 tool 은 있는"
-    #     이 상태로 조용히 돌아온다. 회귀 `test_plan_call_split.py` 가 이 자리를 잠근다.
-    if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test":
-        live_tools = [set_face_tool()]   # LIVE_FACE_RULE_MODE 에 따른 선언(운영 qual = SET_FACE_TOOL)
-    if call_type == "level_test":
-        # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은
-        #   상품 혜택이 아니라 **측정 설계**라, 클라가 언제 닫든 서버가 캡에서 끝내야 한다.
-        state.is_leveltest = True
-        # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
-        # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
-        # 넛지는 이 한 값(state.call_duration_s)으로 흡수한다(무수정).
-        state.call_duration_s = _resolve_call_duration(
-            settings, duration_override, base=LEVELTEST_MAX_S
-        )
-        # 종료 시드 문자열만 교체(주입 파이프 불변). 태그는 지시문과 같은 난수 태그.
-        state.close_seed = close_seed_leveltest(close_tag)
-        # T3: 무음 캐던스 단축 + 1단 넛지 내용 전환(질문 재출제 유지).
-        state.idle_nudge1_s = LEVELTEST_IDLE_NUDGE1_S
-        state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
-        state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
-        state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
-        # Phase 2: 종료 판정 사이드카 활성 — 매 유저 답변을 사이드카로 종료 판정만 하고(질문 주입 0)
-        # 종료 트리거가 서면 종료 시드만 주입한다. band_client = 판정 사이드카가 쓸 genai.Client.
-        state.band_observe = True
-        state.band_client = client
-        state.band_target_language = target_language  # (멀티랭귀지) 판정관 대상 언어
-    else:
-        # 일반 통화 길이 = 구독 플랜(Free 5분 / Pro·Max 15분). env 강제값이 있으면 그게
-        # 이긴다 — dev/demo 에서 구독 없이 15분 경로를 밟기 위한 탈출구이고, 테스트가
-        # monkeypatch 하는 지점도 여기다(값이 박히면 DB 조회 자체를 건너뛴다).
-        if CALL_DURATION_S is not None:
-            plan_duration_s = CALL_DURATION_S
-        else:
-            plan_duration_s = await svc.run_db(
-                db_session_factory,
-                lambda db: call_service.call_duration_s_for_member(db, member_id),
+            # ⭐ 4차(2026-09-15): 표현학습 판정의 주인 = LLM 사이드카(가르침·정답). 클라이언트가 없거나 스위치가 꺼져 있으면 종전 문자열 대조.
+            state.expr_llm_judge = bool(getattr(settings, "EXPR_LLM_JUDGE", False)) and client is not None
+        state.reground_reminder = reground_reminder  # 일반 통화만 값 있음(첫 arm 전 기본 문구)
+        state.continue_reminder = continue_reminder  # 하위호환(legacy 문구)
+        if call_type != "level_test" and REGROUND_MODE != "off":
+            # 재접지 통합(단계 3): 문구 조립 재료 + 사이드카에 번호로 떠먹일 항목 목록 + 모드 시드.
+            # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
+            #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
+            state.reground_persona = (setup["role"] or "", setup["personality"] or "")
+            if cur_route and call_type == "freetalk":
+                # ⭐ 차시 프리토킹(2026-09-12): 일반 잡담 브리프(«흥미를 느낄 새 질문») 도, 항목 검출 기계도 안 쓴다 — 쪽지는
+                #   `_arm_reground` 가 `build_freetalk_reground_brief`(상황 + 아직 안 쓴 소재)로 만든다. 사이드카(reground_ctx)도 없다 —
+                #   모드 축(공부/대화)이 이 코스엔 없다. 옛 프리토킹(lesson=None)·표현학습·일반은 아래 그대로.
+                state.reground_items = []
+                state.call_mode = "chat"
+            elif call_type in ("expression", "freetalk"):
+                # ⛔⛔ **두 코스는 normal 의 학습 항목 기계를 물려받지 않는다**(2026-09-10 QA).
+                #   게이트를 `expr_items` 로 두면 두 경우가 아래 else 로 떨어진다:
+                #     · 프리토킹 — 항목이 애초에 0개인데(D8) `study_items[:10]` 을 물고
+                #       call_mode='study' 가 된다 ⇒ 재접지 쪽지가 «학습 항목을 대화에서 쓰게
+                #       하라» 로 나가는데 지시문엔 그 항목이 **하나도 없다.**
+                #     · 표현학습 — 그 레벨을 전량 통과해 풀이 비면 «표현 0개짜리 표현학습» 이
+                #       normal 항목을 물고 돈다.
+                #   ⇒ 판정은 **콜타입**으로 한다. 항목 유무는 그 다음 문제다.
+                # ⭐ 표현학습: 검출 목록이 곧 **오늘의 표현 전량**이다.
+                # ⛔⛔ **여기서 [:10] 로 자르지 마라.** 자르면 11~18번이 «비버가 다뤄도 서버는
+                #   모르는» 항목이 되고, 그건 영원히 «안 가르친 것» 으로 남아 다음 통화에 또
+                #   나온다(그리고 재접지 쪽지가 «이미 다룬 것» 에서 빠뜨려 되감기를 부른다 —
+                #   통화 1360 이 정확히 부분 목록 때문에 난 사고다).
+                # ⚠ `REGROUND_COVERED_CAP`(10)은 **쪽지에 몇 개를 적을지**의 상한이지 검출
+                #   상한이 아니다 — 검출은 18개 전부 돈다. 두 숫자를 섞지 마라.
+                state.reground_items = [str(it["obj"]) for it in expr_items if it.get("obj")]
+                # ⚠ 항목이 0개면(프리토킹 · 전량 통과한 표현학습) 'chat' 이다 — 'study' 로
+                #   굳히면 쪽지가 없는 항목을 가리킨다.
+                state.call_mode = "study" if state.reground_items else "chat"
+            else:
+                # ⚠ `normal` 은 **한 글자도 안 바뀐다** — 상한 10 은 일반 통화의 계약이다
+                #   (공급원 study_items 가 본편 5 + 예비라 10 이면 사실상 전량이다).
+                state.reground_items = [
+                    str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
+                ][:10]
+                state.call_mode = "study" if state.reground_items else "chat"
+            if not (cur_route and call_type == "freetalk"):
+                state.reground_ctx = {
+                    "client": client,
+                    "model": settings.JUDGE_MODEL,
+                    "instruction": _reground_instruction(state.reground_items, target_language),
+                }
+        # Phase 1: 레벨테스트도 in-band tool 을 쓰지 않는다(인-콜 판정 없음 — 종료는 3분캡/무음).
+        # 따라서 tools=None(일반 통화와 동일 — 세션 팩토리 시그니처 무손상).
+        live_tools = None
+        # ⭐ 표정 계측 스파이크 — 이 스위치가 켜진 통화만 `set_face` 를 받는다(2026-08-18).
+        #   ⛔ 기능이 아니다. 클라로 아무것도 안 보내고 화면도 안 바뀐다 — **로그만** 남긴다.
+        #   ⚠ 이게 `live_tools` 의 **첫 실사용**이다. 지금까지 항상 None 이라 "모델이 tool 을
+        #     부른다"를 이 프로젝트에서 아무도 본 적이 없다. 그래서 재는 것이다.
+        #   ⛔⛔ **레벨테스트에는 붙이지 마라**(2026-08-23). 이 분기가 `call_type` 검사 **밖**에
+        #     있어서, 스위치를 켜면 레벨테스트 통화에도 tool 이 붙었다. 레벨테스트 지시문은
+        #     2,111자라 "긴 지시문 + tool" 사망 구간(실측 2,697자 0/7)에 들어간다 — 즉 스위치를
+        #     켜는 순간 레벨테스트가 통째로 죽는다. 지금까지 스위치가 off 라 잠복해 있었다.
+        #     ⚠ 레벨테스트에 표정을 넣으려면 일반 통화와 같은 분할이 필요한데, 첫 2턴이 곧
+        #       0단·1단 **측정 구간**이라 페르소나 미완성 구간이 그대로 측정 오염이 된다.
+        #       일반 통화에서 검증한 뒤 별건으로 다룬다.
+        # ⛔⛔ **`wants_video` 를 빼지 마라.** 2026-09-04 플랜 분기가 표정을 Max 전용으로
+        #   가를 때 **지시문 쪽(:1457)만 고치고 여기를 안 고쳤다.** 그래서 Free·Pro(2.5)
+        #   세션 setup 에도 `set_face` 선언이 실렸다 — 지시문은 표정을 안 시키니 사람 눈엔
+        #   "표정 없음"으로 보이는데, 와이어에는 tool 이 나간다.
+        #   ⇒ 그 조합이 2026-09-07 에 **Free·Pro 통화를 전부 죽였다**(1011 internal error,
+        #     사용자 첫 발화 직후). 이 저장소가 이미 실측으로 못박아 둔 사망 조건이다:
+        #       영문 무인자 5툴                        30/30 생존
+        #       현행 SET_FACE_TOOL(한국어 설명+enum)    0/21 전부 1011   (CODEX_RESULT_1011.md)
+        #       긴 지시문 + set_face 를 setup 에        0/8             (커밋 05462f8)
+        #   ⚠ 두 조건이 **같은 값**이어야 한다 — 한쪽만 고치면 "지시문엔 없는데 tool 은 있는"
+        #     이 상태로 조용히 돌아온다. 회귀 `test_plan_call_split.py` 가 이 자리를 잠근다.
+        if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test":
+            live_tools = [set_face_tool()]   # LIVE_FACE_RULE_MODE 에 따른 선언(운영 qual = SET_FACE_TOOL)
+        if call_type == "level_test":
+            # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은
+            #   상품 혜택이 아니라 **측정 설계**라, 클라가 언제 닫든 서버가 캡에서 끝내야 한다.
+            state.is_leveltest = True
+            # T1: 3분 하드캡(base=LEVELTEST_MAX_S). 데모가 duration_min 을 주면 3~15분 클램프가
+            # 우선(데모의 명시 선택) — prod/일반 경로는 이 값에 못 닿아 무영향. 워처·리그라운드·
+            # 넛지는 이 한 값(state.call_duration_s)으로 흡수한다(무수정).
+            state.call_duration_s = _resolve_call_duration(
+                settings, duration_override, base=LEVELTEST_MAX_S
             )
-        state.call_duration_s = _resolve_call_duration(
-            settings, duration_override, base=plan_duration_s
+            # 종료 시드 문자열만 교체(주입 파이프 불변). 태그는 지시문과 같은 난수 태그.
+            state.close_seed = close_seed_leveltest(close_tag)
+            # T3: 무음 캐던스 단축 + 1단 넛지 내용 전환(질문 재출제 유지).
+            state.idle_nudge1_s = LEVELTEST_IDLE_NUDGE1_S
+            state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
+            state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
+            state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
+            # Phase 2: 종료 판정 사이드카 활성 — 매 유저 답변을 사이드카로 종료 판정만 하고(질문 주입 0)
+            # 종료 트리거가 서면 종료 시드만 주입한다. band_client = 판정 사이드카가 쓸 genai.Client.
+            state.band_observe = True
+            state.band_client = client
+            state.band_target_language = target_language  # (멀티랭귀지) 판정관 대상 언어
+        else:
+            # 일반 통화 길이 = 구독 플랜(Free 5분 / Pro·Max 15분). env 강제값이 있으면 그게
+            # 이긴다 — dev/demo 에서 구독 없이 15분 경로를 밟기 위한 탈출구이고, 테스트가
+            # monkeypatch 하는 지점도 여기다(값이 박히면 DB 조회 자체를 건너뛴다).
+            if CALL_DURATION_S is not None:
+                plan_duration_s = CALL_DURATION_S
+            else:
+                plan_duration_s = await svc.run_db(
+                    db_session_factory,
+                    lambda db: call_service.call_duration_s_for_member(db, member_id),
+                )
+            state.call_duration_s = _resolve_call_duration(
+                settings, duration_override, base=plan_duration_s
+            )
+            # ⭐ **숙제 통화는 무조건 5분이다**(2026-09-04 사장님 지시).
+            #
+            #   플랜도 env 강제값도 클라 override 도 이기지 못한다. 교사가 낸 과제는 반
+            #   전체가 같은 조건이어야 하고, 학습자마다 구독이 달라 통화 길이가 갈리면
+            #   교사 화면의 수치끼리 비교가 성립하지 않는다.
+            #   ⛔ 늘리지 마라. 늘리려면 반 단위 설정이 먼저 있어야 한다.
+            #   ⚠ 절대 백스톱은 안 바뀐다 — max(540, 300+22+30) = 540 그대로다(R4 불변식).
+            if assignment_id is not None:
+                state.call_duration_s = HOMEWORK_CALL_DURATION_S
+            # ⭐ 캐던스(60/+10/+12)는 세 코스가 **같다**(기획 §2-9 임계표) — 값은 일반과 같게
+            #   두고 **1단 시드 문구만** 코스별로 가른다. 실통화로 재본 뒤 조정한다.
+            #   ⛔ 표현학습에서 1단을 줄이고 싶어지면 레벨테스트 전례를 먼저 봐라 — 25초로
+            #     줄였다가 "생각 중에 넛지가 끼어들었다"로 60초로 되돌렸다(LEVELTEST_IDLE_NUDGE1_S).
+            #     드릴은 학습자가 문장을 떠올리는 시간이다.
+            state.idle_nudge1_s = IDLE_NUDGE1_S
+            state.idle_nudge2_s = IDLE_NUDGE2_S
+            state.idle_close_s = IDLE_CLOSE_S
+            # ⛔⛔ 표현학습에 일반 1단 시드("가볍게 새 화제로")를 쓰면 **그 항목을 건너뛴다.**
+            #   여기서 무음은 «대화가 끊겼다»가 아니라 «학습자가 지금 항목을 못 하고 있다»다.
+            #   ⚠ 2단·3단은 공통으로 둔다 — "거기 있어?"와 작별은 코스와 무관하다.
+            state.nudge_seed_1 = {
+                "expression": NUDGE_SEED_1_EXPRESSION,
+                "freetalk": NUDGE_SEED_1_FREETALK,
+            }.get(call_type, _NUDGE_SEED_1)
+            if cur_route and call_type == "freetalk":
+                # ⭐ 차시 프리토킹만(계획 §3 시드 3종·D-a): 1단 30s «같은 과제를 더 쉽게» · 2단 «그 턴만 모국어 뜻 + 학습 언어 문장 하나».
+                #   다른 코스의 임계·1단·2단은 위 값 그대로(바이트 동일).
+                state.idle_nudge1_s = float(settings.FREETALK_IDLE_NUDGE1_S)
+                state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
+                state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
+
+        # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
+        # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
+        # 프롬프트가 그 언어 커리큘럼에 맞춰져 있지 않아 무의미(R5). 상세는 mechanics ⑬.
+        # ⛔ **표현학습에는 힌트가 없다**(D7). ⭐ 2026-09-12 사장님: «프리토킹에는 힌트가 보여야 한다. 표현학습은 없음» — 프리토킹(명시·auto→freetalk·
+        #   옛 경로 모두)은 다시 켠다. cur 프리토킹이면 지시문에 **이번 차시 소재**(상황·문형 예문·표현·어휘)를 실어 예시 답변이 그 차시 표현을
+        #   우선 쓰게 한다(`_hint_instruction(lesson=…)`, 없으면 바이트 동일). hint_used 는 기록만 — 프리토킹엔 판정이 없어 강등과 무관하다.
+        #   ⚠ 여기서 끄는 것이 곧 «화면에 안 뜬다» 다 — 힌트는 서버가 push 해야만 보이므로
+        #     ctx 를 안 만들면 사이드카도, ServerHint 프레임도, hint_used 강등도 전부 사라진다
+        #     (`_spawn_hint_task` 가 ctx None 이면 즉시 되돌아간다).
+        #   ⭐ 표현학습에서 힌트가 해로운 이유: 이 코스의 퀴즈는 «배운 표현을 맞히기» 라
+        #     예시 답변을 띄우면 **정답을 그대로 보여주는 것**이 된다. 판정이 무의미해진다.
+        #   ⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함).
+        enable_hints = spec.has_curriculum and call_type != "expression"
+        if enable_hints:
+            label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
+            state.hint_ctx = {
+                "client": client,
+                "model": settings.JUDGE_MODEL,
+                "instruction": _hint_instruction(label, target_language, lesson=freetalk_brief, language=spec.code),
+                "language": spec.code,        # ja 면 예시에 reading(가나) 을 싣는다 — ko 는 None(프레임 바이트 불변)
+                # 원가 계기판 — 힌트 사이드카는 state 를 안 받으므로 ctx 에 수집기를 실어 보낸다
+                # (시그니처를 안 바꾼다). ⚠ 여러 힌트 태스크가 같은 객체에 더한다 — 단일
+                # 이벤트루프라 GIL 밖 경합이 없다(락 불요).
+                "usage": state.sidecar_usage,
+            }
+
+        logger.info(
+            "normalcall 시작: member=%s character=%s locale=%s voice=%s call_type=%s call_id=%s "
+            "hints=%s teaching_plan=%d",
+            member_id, character_id, locale, voice, call_type, call_id,
+            enable_hints, len(teaching_items),
         )
-        # ⭐ **숙제 통화는 무조건 5분이다**(2026-09-04 사장님 지시).
-        #
-        #   플랜도 env 강제값도 클라 override 도 이기지 못한다. 교사가 낸 과제는 반
-        #   전체가 같은 조건이어야 하고, 학습자마다 구독이 달라 통화 길이가 갈리면
-        #   교사 화면의 수치끼리 비교가 성립하지 않는다.
-        #   ⛔ 늘리지 마라. 늘리려면 반 단위 설정이 먼저 있어야 한다.
-        #   ⚠ 절대 백스톱은 안 바뀐다 — max(540, 300+22+30) = 540 그대로다(R4 불변식).
-        if assignment_id is not None:
-            state.call_duration_s = HOMEWORK_CALL_DURATION_S
-        # ⭐ 캐던스(60/+10/+12)는 세 코스가 **같다**(기획 §2-9 임계표) — 값은 일반과 같게
-        #   두고 **1단 시드 문구만** 코스별로 가른다. 실통화로 재본 뒤 조정한다.
-        #   ⛔ 표현학습에서 1단을 줄이고 싶어지면 레벨테스트 전례를 먼저 봐라 — 25초로
-        #     줄였다가 "생각 중에 넛지가 끼어들었다"로 60초로 되돌렸다(LEVELTEST_IDLE_NUDGE1_S).
-        #     드릴은 학습자가 문장을 떠올리는 시간이다.
-        state.idle_nudge1_s = IDLE_NUDGE1_S
-        state.idle_nudge2_s = IDLE_NUDGE2_S
-        state.idle_close_s = IDLE_CLOSE_S
-        # ⛔⛔ 표현학습에 일반 1단 시드("가볍게 새 화제로")를 쓰면 **그 항목을 건너뛴다.**
-        #   여기서 무음은 «대화가 끊겼다»가 아니라 «학습자가 지금 항목을 못 하고 있다»다.
-        #   ⚠ 2단·3단은 공통으로 둔다 — "거기 있어?"와 작별은 코스와 무관하다.
-        state.nudge_seed_1 = {
-            "expression": NUDGE_SEED_1_EXPRESSION,
-            "freetalk": NUDGE_SEED_1_FREETALK,
-        }.get(call_type, _NUDGE_SEED_1)
-        if cur_route and call_type == "freetalk":
-            # ⭐ 차시 프리토킹만(계획 §3 시드 3종·D-a): 1단 30s «같은 과제를 더 쉽게» · 2단 «그 턴만 모국어 뜻 + 학습 언어 문장 하나».
-            #   다른 코스의 임계·1단·2단은 위 값 그대로(바이트 동일).
-            state.idle_nudge1_s = float(settings.FREETALK_IDLE_NUDGE1_S)
-            state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
-            state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
 
-    # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
-    # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
-    # 프롬프트가 그 언어 커리큘럼에 맞춰져 있지 않아 무의미(R5). 상세는 mechanics ⑬.
-    # ⛔ **표현학습에는 힌트가 없다**(D7). ⭐ 2026-09-12 사장님: «프리토킹에는 힌트가 보여야 한다. 표현학습은 없음» — 프리토킹(명시·auto→freetalk·
-    #   옛 경로 모두)은 다시 켠다. cur 프리토킹이면 지시문에 **이번 차시 소재**(상황·문형 예문·표현·어휘)를 실어 예시 답변이 그 차시 표현을
-    #   우선 쓰게 한다(`_hint_instruction(lesson=…)`, 없으면 바이트 동일). hint_used 는 기록만 — 프리토킹엔 판정이 없어 강등과 무관하다.
-    #   ⚠ 여기서 끄는 것이 곧 «화면에 안 뜬다» 다 — 힌트는 서버가 push 해야만 보이므로
-    #     ctx 를 안 만들면 사이드카도, ServerHint 프레임도, hint_used 강등도 전부 사라진다
-    #     (`_spawn_hint_task` 가 ctx None 이면 즉시 되돌아간다).
-    #   ⭐ 표현학습에서 힌트가 해로운 이유: 이 코스의 퀴즈는 «배운 표현을 맞히기» 라
-    #     예시 답변을 띄우면 **정답을 그대로 보여주는 것**이 된다. 판정이 무의미해진다.
-    #   ⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함).
-    enable_hints = spec.has_curriculum and call_type != "expression"
-    if enable_hints:
-        label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
-        state.hint_ctx = {
-            "client": client,
-            "model": settings.JUDGE_MODEL,
-            "instruction": _hint_instruction(label, target_language, lesson=freetalk_brief, language=spec.code),
-            "language": spec.code,        # ja 면 예시에 reading(가나) 을 싣는다 — ko 는 None(프레임 바이트 불변)
-            # 원가 계기판 — 힌트 사이드카는 state 를 안 받으므로 ctx 에 수집기를 실어 보낸다
-            # (시그니처를 안 바꾼다). ⚠ 여러 힌트 태스크가 같은 객체에 더한다 — 단일
-            # 이벤트루프라 GIL 밖 경합이 없다(락 불요).
-            "usage": state.sidecar_usage,
-        }
+        # P2.5: teaching_plan 1회 push(mechanics ⑪) — 통화 시작 직후, 펌프(핫패스) 밖.
+        # 데이터 없으면 미전송 = 기존 화면. 실패해도 통화는 계속(R5 — 카드만 미표시).
+        if teaching_items:
+            try:
+                await _send_json(client_ws, ServerTeachingPlan(items=teaching_items))
+            except Exception as exc:  # noqa: BLE001 - 카드 미표시일 뿐 통화 무영향
+                logger.warning("normalcall: teaching_plan push 실패(무시): %s", exc)
 
-    logger.info(
-        "normalcall 시작: member=%s character=%s locale=%s voice=%s call_type=%s call_id=%s "
-        "hints=%s teaching_plan=%d",
-        member_id, character_id, locale, voice, call_type, call_id,
-        enable_hints, len(teaching_items),
-    )
-
-    # P2.5: teaching_plan 1회 push(mechanics ⑪) — 통화 시작 직후, 펌프(핫패스) 밖.
-    # 데이터 없으면 미전송 = 기존 화면. 실패해도 통화는 계속(R5 — 카드만 미표시).
-    if teaching_items:
-        try:
-            await _send_json(client_ws, ServerTeachingPlan(items=teaching_items))
-        except Exception as exc:  # noqa: BLE001 - 카드 미표시일 뿐 통화 무영향
-            logger.warning("normalcall: teaching_plan push 실패(무시): %s", exc)
-
-    # 절대 백스톱: 기본은 ABSOLUTE_CALL_TIMEOUT_S(540s, 연결 ~10분 선점). 단 데모가 통화 길이를
-    # 길게 잡으면(예: 15분) 이 상한이 시계보다 먼저 떨어져 통화를 잘라버린다 — 그래서 선택 길이
-    # +마무리 여유를 하한으로 삼아 시계가 정상 종료할 시간을 준다. 짧은/기본 통화는 그대로 540s.
-    # ⭐ 2026-08-04: 예전엔 "10분 초과 선택은 연결 한계로 GoAway 가 먼저 올 수 있다(감수)"였다.
-    #   이제 세대 루프가 연결을 갈아끼우므로 통화 길이와 연결 수명이 분리됐다 — 연결 수명은
-    #   지금은 세대가 하나뿐이라 통화 전체를 이 백스톱만이 지킨다. 없애면 안 된다:
-    #   재연결이 생긴 뒤로는 버그 하나가 곧 무한 세션(= 무한 과금)이 될 수 있다.
-    absolute_timeout = max(
-        ABSOLUTE_CALL_TIMEOUT_S, state.call_duration_s + SEED_TO_HANGUP_S + 30.0
-    )
-    # ⭐ 커리큘럼 2단계 프리토킹 완료 판정(§7 ⓑ) — 정상 종료 = 작별(_CallFinished) · 백스톱(TimeoutError) · 클라 컷(_ClientDisconnect).
-    #   예외로 끝난 통화(1006 미복구 등)만 비정상이다. 아래 except 들이 이 값을 세운다.
-    end_normal = False
-    if silent:
-        # ⭐ 끊김 없는 조각 전환(S3): 통화 시계(call_start_ts)는 원래 **첫 turn_start** 에 선다 — 시드 0 이면 그게 학습자가 말한 뒤라,
-        #   학습자가 끝내 말하지 않으면 무음 워처(`_watch_idle` 는 call_start_ts 를 기다린다)가 영영 안 돌아 540s 백스톱까지 매달린다.
-        #   사장님 결정 1 «5:00 뒤 사용자가 말 안 하면 무음 3단으로 종료» — 세션을 여는 지금을 기준점으로 삼아 60s/10s/12s 가 그대로 돈다.
-        #   ⚠ 종전 경로(시드 있음)는 건드리지 않는다 — 첫 turn_start 가 선다.
-        state.call_start_ts = asyncio.get_running_loop().time()
-        logger.info("normalcall 조용한 이어하기: 시드 0 · 무음 시계 기준점 = 세션 열기 시각(첫 turn_start 는 학습자 발화 뒤)")
+        # 절대 백스톱: 기본은 ABSOLUTE_CALL_TIMEOUT_S(540s, 연결 ~10분 선점). 단 데모가 통화 길이를
+        # 길게 잡으면(예: 15분) 이 상한이 시계보다 먼저 떨어져 통화를 잘라버린다 — 그래서 선택 길이
+        # +마무리 여유를 하한으로 삼아 시계가 정상 종료할 시간을 준다. 짧은/기본 통화는 그대로 540s.
+        # ⭐ 2026-08-04: 예전엔 "10분 초과 선택은 연결 한계로 GoAway 가 먼저 올 수 있다(감수)"였다.
+        #   이제 세대 루프가 연결을 갈아끼우므로 통화 길이와 연결 수명이 분리됐다 — 연결 수명은
+        #   지금은 세대가 하나뿐이라 통화 전체를 이 백스톱만이 지킨다. 없애면 안 된다:
+        #   재연결이 생긴 뒤로는 버그 하나가 곧 무한 세션(= 무한 과금)이 될 수 있다.
+        absolute_timeout = max(
+            ABSOLUTE_CALL_TIMEOUT_S, state.call_duration_s + SEED_TO_HANGUP_S + 30.0
+        )
+        # ⭐ 커리큘럼 2단계 프리토킹 완료 판정(§7 ⓑ) — 정상 종료 = 작별(_CallFinished) · 백스톱(TimeoutError) · 클라 컷(_ClientDisconnect).
+        #   예외로 끝난 통화(1006 미복구 등)만 비정상이다. 아래 except 들이 이 값을 세운다.
+        end_normal = False
+        if silent:
+            # ⭐ 끊김 없는 조각 전환(S3): 통화 시계(call_start_ts)는 원래 **첫 turn_start** 에 선다 — 시드 0 이면 그게 학습자가 말한 뒤라,
+            #   학습자가 끝내 말하지 않으면 무음 워처(`_watch_idle` 는 call_start_ts 를 기다린다)가 영영 안 돌아 540s 백스톱까지 매달린다.
+            #   사장님 결정 1 «5:00 뒤 사용자가 말 안 하면 무음 3단으로 종료» — 세션을 여는 지금을 기준점으로 삼아 60s/10s/12s 가 그대로 돈다.
+            #   ⚠ 종전 경로(시드 있음)는 건드리지 않는다 — 첫 turn_start 가 선다.
+            state.call_start_ts = asyncio.get_running_loop().time()
+            logger.info("normalcall 조용한 이어하기: 시드 0 · 무음 시계 기준점 = 세션 열기 시각(첫 turn_start 는 학습자 발화 뒤)")
+    except Exception:
+        with contextlib.suppress(Exception):
+            await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
+        raise
     try:
         async with asyncio.timeout(absolute_timeout):
             await _run_session(

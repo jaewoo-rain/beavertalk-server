@@ -1468,7 +1468,12 @@ def finalize_call(db: Session, call_id: int, *, total_time: int, status: str, ac
     # ⭐⭐ QA C4 재검-①(2026-09-23): 이 조각이 끝난 시각 — 이어하기 TTL(resume_call)의
     #   단일 소스. `updated_at` 을 쓰면 이 뒤에 오는 분석·usage 기록 등 후행 쓰기가
     #   TTL 을 계속 밀어내므로, **조각 종료 전용** 컬럼에 여기서만 찍는다.
-    call.fragment_ended_at = datetime.now(timezone.utc)
+    # ⛔⛔ QA C4 재검-6차(2026-09-23): **이미 찍혀 있으면 덮지 않는다.** `mark_fragment_ended`
+    #   (call_session.py 의 finally 최상단, 세션이 끊긴 걸 인지한 즉시)가 진짜 TTL 기준
+    #   시각이다 — finalize_call 은 그보다 한참 뒤(무거운 저장 뒤)에 불릴 수 있어서,
+    #   여기서 무조건 덮으면 그 늦은 시각으로 TTL 이 매번 다시 늘어난다.
+    if call.fragment_ended_at is None:
+        call.fragment_ended_at = datetime.now(timezone.utc)
     db.commit()
 
 

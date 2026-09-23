@@ -109,21 +109,25 @@ class CallRepository:
           **써버린 시간**을 재는 것이라, 마이크가 안 열린 통화도 Gemini 세션이 열려 있던
           시간만큼 total_time 이 쌓였다면 그 소비가 실제다(옛 count 한도의 "성립" 기준과는
           목적이 다르다).
-        status 는 (done, analyzing, ongoing) 만 센다 — 아직 저장 안 끝난 ongoing 도 진행
-          중인 소비라 빼면, 끊고 바로 또 거는 구멍이 생긴다.
 
         ⛔⛔ QA C4 재검-3차(2026-09-23): "진행 중"을 **`status` 로 판정하지 않는다.**
           `status` 는 통화의 진행 여부와 분석 상태(analyzing→done)를 **겸해서** 쓰이는데,
           조각2 가 진행 중인 동안 조각1 의 지연된 분석 완료가 같은 행의 `status` 를
-          `done` 으로 덮어써(현재 codex 재현 시나리오) 조각2 가 "진행 중 아님"으로
+          `done`(또는 재검-6차 재현: `failed`)으로 덮어써 조각2 가 "진행 중 아님"으로
           사라지는 사고가 났다. ⇒ **진행 중 = `fragment_started_at IS NOT NULL AND
-          fragment_ended_at IS NULL AND (now - fragment_started_at) <= 상한`** 만 본다
-          (`status` 무관 — done/analyzing/failed 여도 상관없다). 예산 합계 = 전 상태
-          공통 `sum(total_time or 0)` + 위 "진행 중" 조건을 만족하는 행마다
-          `min(now - fragment_started_at, _ONGOING_ELAPSED_CAP_S)`.
-          ⛔ done/analyzing 인데 `total_time` 이 NULL(예: 분석 실패)인 행은 이 조건에
-          안 걸린다(`fragment_ended_at` 이 이미 찍혀 있으므로) — "쿼리할 때마다 elapsed
-          가 계속 자라는" 별개의 버그가 자연히 안 생긴다.
+          fragment_ended_at IS NULL`** 만 본다(`status` 무관 — done/analyzing/failed
+          여도 상관없다).
+        ⛔⛔ QA C4 재검-6차(2026-09-23): 이 쿼리의 **status 필터 자체를 없앴다**(레벨
+          테스트 제외만 남는다) — `failed` 로 끝난 조각도 Gemini 세션이 열려 있던
+          시간만큼 `total_time` 이 쌓여 있으면 그 소비는 실제다(옛 (done,analyzing,
+          ongoing) 화이트리스트는 실패한 조각의 시간을 조용히 공짜로 만들었다).
+        예산 합계 = 전 행 공통 `sum(total_time or 0)` + 위 "진행 중" 조건을 만족하는
+          행마다 `min(now - fragment_started_at, _ONGOING_ELAPSED_CAP_S)`.
+          ⛔⛔ 재검-6차: 이 캡은 **버리지 않고 상한으로만** 쓴다 — 경과가 상한을
+          넘겨도(죽은 세션·크래시로 fragment_ended_at 을 영영 못 찍은 조각) 예산에서
+          `_ONGOING_ELAPSED_CAP_S` 만큼은 계상한다(0 으로 버리면 진짜 쓴 시간이
+          예산 계산에서 사라진다). "살아있다"(동시통화 게이트) 판정만 이 상한을
+          **컷오프**로 쓴다 — active_ongoing_call_id 참조, 여기와 역할이 다르다.
         이 파일은 sqlite(테스트)·postgres(운영) 양쪽에서 돌아야 해서 SQL 레벨
         COALESCE/EXTRACT(EPOCH) 대신 파이썬에서 계산한다 — 회원 하루 통화 수가 적어
         (많아야 몇 건) 성능상 문제가 없다.
@@ -138,7 +142,6 @@ class CallRepository:
             Call.member_id == member_id,
             Call.call_date >= start_utc,
             Call.call_date < end_utc,
-            Call.status.in_(("done", "analyzing", "ongoing")),
         )
         if exclude_call_types:
             stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
@@ -150,8 +153,6 @@ class CallRepository:
                 continue  # "진행 중" 아님(조각이 끝났거나 아직 한 번도 안 열림)
             started = fragment_started_at if fragment_started_at.tzinfo else fragment_started_at.replace(tzinfo=timezone.utc)
             elapsed = max(0.0, (now - started).total_seconds())
-            if elapsed > _ONGOING_ELAPSED_CAP_S:
-                continue  # 죽은 세션 — 진행 중으로 안 본다
             total += int(min(elapsed, _ONGOING_ELAPSED_CAP_S))
         return total
 
