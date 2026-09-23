@@ -6042,3 +6042,52 @@ async def test_periodic_flush_rolls_the_cursor_back_when_the_write_really_fails(
         assert [r.turn_index for r in rows] == [0], "실패한 구간이 정확히 한 번 저장된다"
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# C7 재검(2026-09-23) — 기억 merge 는 무거운 마무리 저장보다 먼저 뜬다(비정상 종료 보호)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_chat_memory_merge_still_fires_when_a_later_finalize_step_raises(
+    session_factory, seeded, monkeypatch
+):
+    """⭐⭐ QA C7 재검: 무거운 마무리 저장(usage 등)이 예외로 죽어도 기억 merge 는
+    이미 떠 있어야 한다 — _trigger_chat_memory 를 mark_fragment_ended 바로 뒤(그
+    앞선 저장 단계보다 먼저)로 옮긴 것을 잠근다."""
+    calls: list = []
+
+    async def _spy(*a, **k):
+        calls.append(a)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+
+    async def _boom(*a, **k):
+        raise RuntimeError("usage 저장 실패 흉내")
+
+    monkeypatch.setattr(cs, "_persist_usage", _boom)
+
+    ws = FakeWebSocket([_start_incoming(seeded, "chat")], hang=True)
+    with pytest.raises(RuntimeError):
+        await run_call(
+            ws, app_settings, object(), session_factory,
+            member_id=seeded["member_id"], live_session_factory=make_live_factory({}),
+        )
+    await _wait_analysis_tasks()
+    assert len(calls) == 1, "마무리 저장 단계 예외로 기억 merge 자체가 안 떴다"
+
+
+@pytest.mark.asyncio
+async def test_trigger_chat_memory_is_one_shot_per_state(monkeypatch):
+    """⭐⭐ QA C7 재검: mark_fragment_ended 가 두 자리(정상·비정상 종료)에 있어도
+    `state.chat_memory_triggered` 플래그로 기억 merge 는 그 state 당 한 번만 뜬다."""
+    calls: list = []
+
+    async def _spy(*a, **k):
+        calls.append(a)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+    st = cs._CallState()
+    cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    await _wait_analysis_tasks()
+    assert len(calls) == 1, "같은 state 로 두 번 불렀는데 기억 merge 가 두 번 떴다"

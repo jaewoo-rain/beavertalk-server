@@ -741,6 +741,8 @@ class _CallState:
         #   재접지 쪽지(상황 + 아직 안 쓴 소재)가 읽는다. 다른 코스는 None.
         "cur_course", "freetalk_brief", "freetalk_target", "cur_forced",
         "silent_resume", "fragment_index", "fragment_end", "max_fragments", "fragment_end_reason",
+        # C7(2026-09-23): 기억 merge 트리거 1회성 플래그(정상·비정상 종료 두 자리에서 불러도 한 번만).
+        "chat_memory_triggered",
         "expr_quiz_set_nudge_pending", "expr_quiz_set_nudges",
         "loop_prev_text", "loop_streak",
         # target_code: 이 통화의 학습 대상 언어 코드(spec.code). quiz_judge 분기·표현학습 대본(격식 줄) 이 본다. 기본 "ko".
@@ -930,6 +932,9 @@ class _CallState:
         self.fragment_end: bool = False
         self.max_fragments: Optional[int] = None          # 이 플랜의 조각 상한(call_started 와 같은 값) — 루프 차단기의 «전환 가능?» 판정 재료
         self.fragment_end_reason: str = "client"          # fragment_saved.reason — "client"(클라 fragment_end) / "loop"(서버 강제 전환)
+        # ⭐⭐ QA C7 재검(2026-09-23): 기억 merge 트리거 호출 지점이 여러 곳(정상·비정상
+        #   종료)이라, 어느 쪽이 뜨든 **한 번만** 뜨게 막는 플래그.
+        self.chat_memory_triggered: bool = False
         # 반복 루프 차단기(B): 직전 비버 턴 정규화 텍스트 · 연속 반복 횟수(0 = 반복 아님, 1 = 2회째, 2 = 3회째)
         self.loop_prev_text: str = ""
         self.loop_streak: int = 0
@@ -3991,6 +3996,11 @@ async def run_call(
     except Exception:
         with contextlib.suppress(Exception):
             await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
+        # ⛔⛔ QA C7 재검(2026-09-23): 설비 구간 예외(비정상 종료)에서도 기억을 남긴다 —
+        #   이어하기 조각이면 이전 조각의 전사가 이미 DB 에 있다. `_trigger_chat_memory`
+        #   가 게이트(call_type·fragment_end·1회성)를 직접 갖는다.
+        with contextlib.suppress(Exception):
+            _trigger_chat_memory(state, call_type, db_session_factory, call_id, member_id, spec.code, client, settings)
         raise
     try:
         async with asyncio.timeout(absolute_timeout):
@@ -4048,6 +4058,13 @@ async def run_call(
         #   잘못 거절한다. finalize_call 이 뒤에서 또 찍어도 무해(멱등)하니 합치지 않는다.
         with contextlib.suppress(Exception):
             await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
+        # ⛔⛔ QA C7 재검(2026-09-23): 기억 추출도 **여기(무거운 마무리 저장보다 먼저)**
+        #   에서 뜬다 — 뒤에 있으면 그 앞(usage·전사 저장·분석 트리거) 단계가 예외로
+        #   터졌을 때 기억이 아예 안 남는다. `_trigger_chat_memory` 가 게이트(call_type·
+        #   fragment_end·1회성 — `state.chat_memory_triggered`)를 직접 가지므로 위
+        #   설비-예외 경로와 여기가 둘 다 불러도 실제로는 한 번만 뜬다.
+        with contextlib.suppress(Exception):
+            _trigger_chat_memory(state, call_type, db_session_factory, call_id, member_id, spec.code, client, settings)
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
         for t in list(state.hint_tasks):
             t.cancel()
@@ -4183,12 +4200,6 @@ async def run_call(
             since_turn_index=state.resume_from_turn or None,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
-        # ⭐⭐ QA C7-②(2026-09-23, 사장님 경고 반영): 기억 저장은 **조각 전환이 아닌
-        #   진짜 끝에서 1회만** — `state.fragment_end` 가 서 있으면(클라 fragment_end
-        #   왕복이든 루프 차단기 강제 전환이든, 둘 다 같은 신호다) 다음 조각이 온다는
-        #   뜻이라 건너뛴다.
-        if call_type == "chat" and not state.fragment_end:
-            _trigger_chat_memory(db_session_factory, call_id, member_id, spec.code, client, settings)
         # 마지막 회수·해제(B1): 아직 안 놓아준 세그먼트의 PCM 을 여기서 전부 정리한다.
         # 이 시점 이후 원본을 읽는 코드는 없다 — 오디오 후행 업로드는 save_segments 가 뜬
         # 사본(pending_audio)을 쓰고, 국적 추론은 아래 nationality_pcm 을 쓴다.
@@ -4465,16 +4476,26 @@ def _trigger_nationality(
 
 
 def _trigger_chat_memory(
-    db_session_factory, call_id: int, member_id: int, language: str, client, settings_obj: Settings,
+    state: _CallState, call_type: str, db_session_factory, call_id: int, member_id: int,
+    language: str, client, settings_obj: Settings,
 ) -> None:
     """C7(2026-09-23) — 자유대화 기억 추출·merge 를 백그라운드 task 로 띄운다
     (fire-and-forget, `_trigger_nationality` 와 같은 패턴).
 
-    ⛔⛔ 호출부(finally)가 **`call_type == "chat" and not state.fragment_end` 일 때만**
-      불러야 한다 — 조각 전환(클라 fragment_end·루프 차단기 강제 전환 모두
-      `state.fragment_end` 하나로 걸린다)에서는 부르면 안 된다(사장님 경고, "조각마다
-      돌면 안 된다"). 이 함수 자체는 그 조건을 모른다 — 호출 여부가 정책이다.
+    ⛔⛔ QA C7 재검(2026-09-23): 호출부(finally)가 **정상·비정상 종료 양쪽에서** 이
+      함수를 부른다 — 예전엔 무거운 마무리 저장(usage·전사·분석) **뒤**에 한 곳에서만
+      불러서, 그 앞 단계가 예외로 터지면(9분 백스톱·예외 종료 등) 기억이 **아예 안
+      남았다**(사용자 체감: "어제 얘기한 걸 모른다"). 이제 이 함수가 게이트를 **직접**
+      갖는다(call_type=="chat" and not state.fragment_end) — 호출부는 조건 없이 불러도
+      된다. `state.chat_memory_triggered` 로 **한 번만** 뜨게 막는다(정상·비정상 두 자리
+      모두에서 호출해도 중복 실행 없음).
+    ⭐ 기억 추출은 전사 DB 를 읽는 fire-and-forget 이라 무거운 마무리 저장보다 먼저
+      떠도 된다 — 전사는 점진 flush 로 이미 대부분 저장돼 있고, 조금 덜 담기는 것이
+      통째로 못 담는 것보다 낫다(R5).
     """
+    if call_type != "chat" or state.fragment_end or state.chat_memory_triggered:
+        return
+    state.chat_memory_triggered = True
     task = asyncio.create_task(
         svc.extract_and_merge_chat_memory(
             call_id, member_id, language, client, settings_obj, db_session_factory,
