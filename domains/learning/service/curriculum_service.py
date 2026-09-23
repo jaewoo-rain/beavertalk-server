@@ -38,6 +38,7 @@ from domains.learning.models.curriculum import (
     CurMemberLesson,
     CurMemberProgress,
 )
+from domains.learning.models.member_level_history import MemberLevelHistory
 from domains.learning.repository import curriculum_repository as repo
 from domains.learning.repository import mastery_repository
 
@@ -496,6 +497,33 @@ def complete_freetalk(db: Session, call_id: int, duration_s: float, normal_end: 
         if nxt is not None:
             prog.lesson_id = nxt.lesson_id
             moved = True
+            # ⭐⭐ L3(2026-09-24, 레벨-커리큘럼 연결 §T2) — 포인터가 레벨 경계를 넘으면
+            #   레벨도 올린다(진도가 레벨을 민다). L2 와 같은 갱신 함수(upsert_language_level,
+            #   ko dual-write 포함)를 쓴다 — 산식을 두 곳에 만들지 않는다.
+            #   ⛔ 절대 내리지 않는다(D3, 자동 강등 없음). `next_lesson` 이 no 순서로만
+            #   주므로 시드가 레벨 순이면 nxt.level_no 가 항상 더 크지만, **시드를 믿지
+            #   않고** 코드로 방어한다 — 작거나 같으면 레벨은 그대로 두고 로그만 남긴다.
+            #   ⚠ trigger_call_id(UNIQUE uq_mlh_trigger_call)가 멱등 키다 — 같은 통화로
+            #   두 번 불려도(조각 재저장) 2행이 안 생긴다. 이 함수 자체도 위 STATUS_FREETALK_
+            #   DONE 가드로 두 번째 호출은 여기까지 오지 않는다.
+            if nxt.level_no > lesson.level_no:
+                mastery_repository.upsert_language_level(db, member_id, lesson.language, nxt.level_no)
+                db.add(MemberLevelHistory(
+                    member_id=member_id, language=lesson.language,
+                    from_level=lesson.level_no, to_level=nxt.level_no,
+                    reason="curriculum_advance", trigger_call_id=call_id,
+                    created_at=now,
+                ))
+                logger.info(
+                    "cur complete_freetalk 레벨업: member=%s language=%s %d→%d (trigger_call=%s)",
+                    member_id, lesson.language, lesson.level_no, nxt.level_no, call_id,
+                )
+            elif nxt.level_no < lesson.level_no:
+                logger.warning(
+                    "cur complete_freetalk: 다음 차시 레벨이 더 낮다(no=%d level=%d → no=%d level=%d) "
+                    "— 레벨을 안 올린다(방어, 시드 순서 이상 가능성) member=%s",
+                    lesson.no, lesson.level_no, nxt.no, nxt.level_no, member_id,
+                )
     db.commit()
     logger.info("cur complete_freetalk: call_id=%s lesson=%s freetalk_done 포인터이동=%s", call_id, cc.lesson_id, moved)
     return {"freetalk_done": True, "moved": moved}

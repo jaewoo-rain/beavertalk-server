@@ -232,6 +232,9 @@ def test_level_and_progress_land_together_in_the_same_call(db):
     _set_progress(db, mid, "ko", 2)
     call_id = _call(db, mid, "ko")
     svc._save_level_assessment(db, call_id, mid, 3, _assessment())
+    # ⚠ QA 지적(2026-09-24) — 같은 세션의 identity map 이 in-memory 값을 돌려주면 "DB 에
+    #   실렸다"를 증명하지 못한다. expire_all() 로 캐시를 비우고 실제로 다시 읽는다.
+    db.expire_all()
     assert mastery_repository.get_language_level(db, mid, "ko") == 3
     prog = repo.current_progress(db, mid, "ko")
     assert _lesson_no(db, prog.lesson_id) == 6

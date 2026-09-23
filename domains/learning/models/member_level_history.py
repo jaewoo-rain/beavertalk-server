@@ -8,8 +8,10 @@ created_at 파생값이다. 유효통화 수·체류일(G3)·승급 잠금(G5)·
 - (멀티랭귀지) language(ISO 639-1) = 이력축. member-only 집계(진입 시각·승급 잠금)는
   반드시 language 로 필터해야 ja 통화가 ko 진입시각을 오염시키지 않는다(리스크 1).
   기존 이력은 전부 'ko' 로 백필. 인덱스 (member_id, language, created_at).
-- reason CHECK: placement(레벨테스트 배정) / gate_promotion(게이트 자동 승급) /
-  remeasure_up·remeasure_down(재측정) / manual(운영 수동) — 마스터성 필드라 CHECK 유지.
+- reason CHECK: placement(레벨테스트 배정) / gate_promotion(옛 게이트 자동 승급) /
+  expression_complete(옛 경로 전용 — 그 레벨 퀴즈 전량 통과) / curriculum_advance(cur
+  경로 — 진도 포인터가 레벨 경계 돌파, L3) / remeasure_up·remeasure_down(재측정) /
+  manual(운영 수동) — 마스터성 필드라 CHECK 유지.
 - trigger_call_id UNIQUE(uq_mlh_trigger_call) = evaluate_level_up 멱등 키:
   같은 통화 분석이 재실행돼도 승급 1회만. NULL 다중 허용은 Postgres UNIQUE 기본
   (manual/placement 등 통화 없는 변경 다수 공존 가능). 통화 1건은 정확히 1개 언어라
@@ -53,9 +55,16 @@ class MemberLevelHistory(Base):
         #   통과»)은 옛 게이트(`gate_promotion`)와 **다른 기준**이라 이름을 갈라야 한다.
         #   ⛔ gate_promotion 으로 뭉뚱그리면 «어느 기준으로 오른 레벨인가» 를 나중에 아무도
         #     못 말한다 — 두 사슬이 공존하는 동안 그건 감사 불가능이라는 뜻이다.
+        # ⭐⭐ 2026-09-24(L3, docs/plans/2026-09-23-레벨-커리큘럼-연결.md) — `curriculum_advance`
+        #   추가. `expression_complete` 는 **옛 경로 전용**이다(cur_route=false, 시드 없는
+        #   언어만 타는 save_expression_progress→promote_by_expression, call_session.py:4189).
+        #   운영 기본인 cur 경로(CUR_ENABLED=True)는 그 함수를 아예 안 부른다(call_session.py
+        #   :4123-4124 이 «옛 승급 함수는 부르지 않는다·시험이 0회를 잠근다» 고 명시). 그래서
+        #   기준이 다른 두 승급(옛: 그 레벨 퀴즈 전량 통과 / 새: 진도 포인터가 레벨 경계 돌파)
+        #   을 같은 값으로 뭉뚱그리면 위 gate_promotion 의 교훈이 그대로 반복된다.
         CheckConstraint(
             "reason IN ('placement', 'gate_promotion', 'remeasure_up', 'remeasure_down',"
-            " 'manual', 'expression_complete')",
+            " 'manual', 'expression_complete', 'curriculum_advance')",
             name="ck_mlh_reason",
         ),
         UniqueConstraint("trigger_call_id", name="uq_mlh_trigger_call"),
@@ -80,7 +89,7 @@ class MemberLevelHistory(Base):
     )
     reason: Mapped[str] = mapped_column(
         Text, nullable=False,
-        comment="변경 사유(placement/gate_promotion/remeasure_up/remeasure_down/manual)",
+        comment="변경 사유(placement/gate_promotion/expression_complete/curriculum_advance/remeasure_up/remeasure_down/manual)",
     )
     trigger_call_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
