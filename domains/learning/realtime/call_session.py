@@ -94,12 +94,10 @@ from core.persona_prompt import (
     build_continue_reminder,
     build_reground_brief,
     build_reground_reminder,
-    build_system_instruction,
     close_seed_leveltest,
     is_closing_slot,
     new_close_tag,
     seed_leveltest_opening,
-    seed_opening,
 )
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
 from core.prompts.locked.seeds import EXPRESSION_DRILL_MOVE_ON          # 11차 B — 드릴 루프 «다음 항목으로»(2026-09-18)
@@ -3065,8 +3063,9 @@ async def run_call(
         # ⭐⭐ C3(2026-09-22, D3) — "normal" 은 더 이상 클라가 직접 고르는 코스가 아니다.
         #   앱은 이제 학습("auto")·자유대화("chat") 둘 중 하나만 보낸다. 구버전 앱이 옛
         #   기본값 "normal" 을 그대로 보내면 자유대화(chat)로 취급한다 — "normal" 이 하던
-        #   일(커리큘럼 없는 일반 대화)이 지금은 chat 의 몫이다(대본은 C7 전까지 그대로
-        #   build_system_instruction 을 쓴다 — 이 자리는 **라우팅만** 바꾼다).
+        #   일(커리큘럼 없는 일반 대화)이 지금은 chat 의 몫이다(대본은 C7 이 build_chat_
+        #   instruction 으로 새로 만들었다 — 옛 build_system_instruction 호출은 C14-a
+        #   로 지웠다). 이 자리는 **라우팅만** 바꾼다.
         if call_type == "normal":
             logger.info("normalcall: call_type=normal → chat 취급(자유대화) member=%s", member_id)
             call_type = "chat"

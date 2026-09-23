@@ -237,7 +237,14 @@ class Settings(BaseSettings):
     #   ⚠ 키가 없거나 연결이 실패하면 google 로 폴백하고 WARNING 을 남긴다(R5). 조용한 폴백
     #     금지 — 어느 엔진이 실제로 돌았는지 로그와 **원가 벤더**에 남아야 한다.
     #     ⇒ 폴백은 **안전망으로 그대로 산다.** 키가 빠지면 통화가 죽는 게 아니라 구글로 돈다.
-    CASCADE_STT_ENGINE: str = "openai"        # 'openai' | 'google'
+    #   ⛔⛔ C14-b(2026-09-23) — 이 값을 실제로 읽는 유일한 코드는 `core/stt.py`
+    #     `make_stt_v2_stream`(캐스케이드 턴감지용 STT v2)인데, 그 함수의 유일한 실제
+    #     호출부(cascade_session.py)가 캐스케이드 엔진 삭제로 없어졌다 — **지금은 죽은
+    #     경로다**(발음 챌린지는 이 값과 무관하다: `/pron/stt/ws` 는 `make_stt_stream`(v1,
+    #     STT_LANGUAGE·STT_MODEL 을 쓰는 Google 전용 경로)만 쓴다, grep 으로 확인).
+    #     그래도 **이름은 그대로 둔다** — Cloud Run env 로 주입되는 키라 개명하면 운영
+    #     설정과 갈린다. core/stt.py 전체가 삭제 보호 대상이라 이 값도 코드와 함께 남긴다.
+    CASCADE_STT_ENGINE: str = "openai"        # 'openai' | 'google' — 캐스케이드 STT v2 전용(지금은 미사용 경로, env 키라 이름 유지)
     OPENAI_STT_MODEL: str = "gpt-4o-mini-transcribe"   # $0.003/분(구글의 1/5.3)
     # ⭐ 통화를 끊기 전에 흘릴 무음 길이. **없으면 마지막 발화가 사라진다**(2026-08-10 실측:
     #   그냥 끊으면 전사 2건, 꼬리 무음 1.5초를 붙이면 3건째가 온다 — server VAD 가 발화 끝을
