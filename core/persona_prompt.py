@@ -467,8 +467,16 @@ def build_system_instruction(
 # ⛔ **위치가 아니라 총량이다.** 지시문을 선톡 시드(첫 메시지)로 옮기는 것도 1/6 으로 실패했다.
 #   setup~첫 응답 구간의 총량만 줄이면 되고, 붙은 뒤에는 5,057자를 통째로 넣어도 안 죽는다.
 #
-# ⛔ **build_system_instruction 을 고치지 마라.** 바이트 스냅샷 3건이 출력을 얼려 두고 있다
-#   (tests/test_persona_prompt.py). 분할은 그 출력을 **받아서 자르는 후처리**로만 한다.
+# ⛔ **build_system_instruction 을 고치지 마라.** 바이트 스냅샷이 출력을 얼려 두고 있다
+#   (tests/test_persona_prompt.py · tests/test_prompt_common_snapshot.py ·
+#   tests/test_freetalk_lesson.py · tests/test_live_face_spike.py). 분할은 그 출력을
+#   **받아서 자르는 후처리**로만 한다.
+#
+# ⛔⛔ C14-b(2026-09-23) 정정 — 이 함수의 **프로덕션 호출부는 이제 0개**다(C14-a 로 옛
+#   "normal" 전용 else 분기가 call_session.py 에서 삭제됐다). 남은 호출부는 dev 도구
+#   2개(main.py:850 `/__dev/call-prompt` · scripts/dev_dump_prompt.py:125) + 위 잠금
+#   시험 4개뿐이다. **dev 도구를 나중에 지워도 이 함수는 못 지운다** — 잠금 시험이
+#   걸려 있다("dev 도구뿐이라 남겼다"는 예전 서술은 틀렸다).
 
 # ⛔⛔ **지시문 분할 주입 기계를 걷어냈다**(2026-09-01). 되살리지 마라.
 #   여기 있던 것: LIVE_SETUP_MAX_CHARS(380) · LIVE_PERSONA_CHUNK_CHARS ·
