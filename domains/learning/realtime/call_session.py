@@ -3108,23 +3108,24 @@ async def run_call(
         else:
             call_type = "expression"
 
-    # ── 동시통화 금지(정책) — QA C4 재검-③(2026-09-23) ───────────────────── #
-    # ⭐⭐ "한 회원은 동시에 한 통화만." 동시 시작·동시 재개로 하루 예산을 두 번 쓰는
-    #   경로를 막는 최소 처방이다(행 잠금·예약은 만들지 않는다 — 결정). "살아있는
-    #   ongoing" 의 정의(죽은 세션 무시 포함)는 CallRepository.active_ongoing_call_id.
-    # ⚠ `exclude_call_id=continues_call_id` 가 핵심이다 — 재연결(소켓만 끊기고
-    #   finalize_call 이 못 돈 조각)은 **그 통화 자신**이 아직 ongoing 인 채로 같은
-    #   continues_call_id 를 다시 보낸다. 자신을 제외하지 않으면 정상 재연결까지 막힌다.
-    other_ongoing = await svc.run_db(
-        db_session_factory,
-        lambda db: call_service.active_ongoing_call_id(
-            db, member_id, exclude_call_id=continues_call_id
-        ),
+    # ── 동시통화 금지(정책) — QA C4 재검-③④(2026-09-23) ─────────────────── #
+    # ⭐⭐ "한 회원에게 살아있는 조각이 있으면 무조건 거절." 동시 시작·동시 재개로
+    #   하루 예산을 두 번 쓰는 경로를 막는 최소 처방이다(행 잠금·예약은 만들지 않는다
+    #   — 결정). "살아있다"의 정의(죽은 세션 무시 포함)는
+    #   CallRepository.active_ongoing_call_id.
+    # ⛔⛔ **예외를 두지 않는다**(재검-④) — 정상 이어하기는 조각 저장(`finalize_call`/
+    #   `mark_fragment_ended`)이 `fragment_ended_at` 을 찍은 **뒤**에 오므로 이 시점엔
+    #   이미 "살아있지" 않다. 옛 버전은 `exclude_call_id=continues_call_id` 로 자기
+    #   자신을 봐줬는데, call_type=chat·level_test(둘 다 resume_call 을 안 부른다)가
+    #   **살아있는 자기 자신의** call_id 를 continues_call_id 에 실어 보내는 것만으로
+    #   이 게이트를 우회하는 구멍이었다.
+    other_active = await svc.run_db(
+        db_session_factory, lambda db: call_service.active_ongoing_call_id(db, member_id),
     )
-    if other_ongoing is not None:
+    if other_active is not None:
         logger.info(
-            "normalcall: 동시통화 거절 member=%s ongoing_call_id=%s continues=%s",
-            member_id, other_ongoing, continues_call_id,
+            "normalcall: 동시통화 거절 member=%s active_call_id=%s continues=%s call_type=%s",
+            member_id, other_active, continues_call_id, call_type,
         )
         with contextlib.suppress(Exception):
             await _send_json(client_ws, ServerError(
@@ -3438,6 +3439,22 @@ async def run_call(
             continues_call_id, "call_id=%d" % call_id if resumed else "새 통화로 폴백",
             resume_reason,
         )
+        # ⛔⛔ QA C4 재검-④(2026-09-23): resume_call 이 "살아있는 조각"으로 거절하면
+        #   **새 통화로 폴백하지 않는다** — 살아있는 세션과 충돌하는데 새 통화를 또
+        #   열어주면 동시통화 금지 정책 자체가 무의미해진다. WS 레벨 게이트(위)와 같은
+        #   ALREADY_IN_CALL 로 거절하고 닫는다.
+        if resume_reason == svc.RESUME_REJECT_ALREADY_ACTIVE:
+            logger.info(
+                "normalcall: 이어하기 재확인(resume_call 내부)에서 동시통화 거절 member=%s continues=%s",
+                member_id, continues_call_id,
+            )
+            with contextlib.suppress(Exception):
+                await _send_json(client_ws, ServerError(
+                    code="ALREADY_IN_CALL",
+                    message="다른 통화가 이미 진행 중이에요.",
+                    recoverable=False,
+                ))
+            return
     # ⭐ F3(2026-09-14, 사장님 확정): 조용한 이어하기(silent_resume)인데 이어하기가 **불성립**(조각 상한·TTL·남의 통화·없는 통화)이면 새 통화로 폴백하지
     #   않는다 — 클라는 «조용히 갈아 끼우는 중» 이라 비버가 새로 인사하는 새 통화가 열리면 그게 사고다. ServerError(RESUME_UNAVAILABLE, 복구 불가) 뒤 1008 로
     #   닫고 call 행은 만들지 않는다(클라가 결과 화면으로 간다). silent 가 아닌 종전 이어하기(이어하기 시트·구클라)는 폴백 그대로(바이트 불변).
@@ -3481,6 +3498,13 @@ async def run_call(
             logger.info("normalcall cur: COURSE_LOCKED member=%s call_id=%s %s", member_id, call_id, exc)
             with contextlib.suppress(Exception):
                 await svc.run_db(db_session_factory, lambda db: svc.set_status(db, call_id, "failed"))
+            # ⛔⛔ QA C4 재검-⑤ 부수 발견(2026-09-23): 이 경로는 아래 메인 try/finally
+            #   **이전**이라 finally 의 mark_fragment_ended 를 안 탄다 — create_call 이
+            #   이미 fragment_started_at 을 찍어 놨으므로, 여기서 fragment_ended_at 을
+            #   안 찍으면 이 행이 **영원히 "살아있는 조각"** 으로 남아 그 회원이 동시통화
+            #   게이트에 영구히 걸린다(실제로 이 시험이 그 상태로 잡혔다).
+            with contextlib.suppress(Exception):
+                await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
             with contextlib.suppress(Exception):
                 await _send_json(client_ws, ServerError(
                     code="COURSE_LOCKED",
@@ -3976,6 +4000,13 @@ async def run_call(
         #   있었든 반드시 실행되므로, 뒤처리를 여기 한 곳에 모아 '절대 빠지지 않게' 만든다.
         #   무거운 작업(분석·업로드·국적 추론)은 전부 fire-and-forget(띄워만 놓고 안 기다림)로
         #   백그라운드에 넘겨, 학습자 쪽 소켓을 붙잡지 않고 빠르게 통화를 마무리한다.
+        #
+        # ⭐⭐ QA C4 재검-5차(2026-09-23): 아래 무거운 저장(최종 판정·진도·usage·전사)보다
+        #   **먼저** fragment_ended_at 부터 작게 찍는다 — 안 그러면 동시통화 게이트가 몇 초간
+        #   이 세션을 "아직 살아있다"로 보고 **끊고 바로 다시 걸기**를 ALREADY_IN_CALL 로
+        #   잘못 거절한다. finalize_call 이 뒤에서 또 찍어도 무해(멱등)하니 합치지 않는다.
+        with contextlib.suppress(Exception):
+            await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(db, call_id))
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
         for t in list(state.hint_tasks):
             t.cancel()

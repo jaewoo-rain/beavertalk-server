@@ -120,10 +120,16 @@ def ctx(session_factory):
     return {"db": db, "member_id": m.member_id, "cid": ch.character_id}
 
 
-def _call(ctx, *, total_time, call_type="chat", status="done", when_utc=None):
+def _call(ctx, *, total_time, call_type="chat", status="done", when_utc=None,
+          fragment_started_at=None, fragment_ended_at=None):
+    """QA C4 재검-3차(2026-09-23): "진행 중"은 이제 `fragment_started_at`/`fragment_ended_at`
+    로만 판정한다(status 무관) — status="ongoing" 으로 진행 중을 흉내내려면
+    `fragment_started_at` 을 같이 넘겨야 한다(기본 None = "진행 중 아님").
+    """
     when_utc = when_utc or datetime.now(timezone.utc)
     c = Call(member_id=ctx["member_id"], character_id=ctx["cid"], call_date=when_utc,
-              total_time=total_time, status=status, call_type=call_type)
+              total_time=total_time, status=status, call_type=call_type,
+              fragment_started_at=fragment_started_at, fragment_ended_at=fragment_ended_at)
     ctx["db"].add(c); ctx["db"].commit()
     return c
 
@@ -182,18 +188,23 @@ def test_ongoing_call_with_null_total_time_is_estimated_from_elapsed_time(ctx):
     경합 시 우회 구멍) — call_date 로부터 지금까지 경과한 시간으로 추정해 채운다.
     """
     started = datetime.now(timezone.utc) - timedelta(seconds=120)
-    _call(ctx, total_time=None, status="ongoing", when_utc=started)
+    _call(ctx, total_time=None, status="ongoing", when_utc=started, fragment_started_at=started)
     used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
     assert 118 <= used <= 130, "NULL total_time 이 경과 추정 없이 0으로 세어졌다(그 회귀)"
 
 
 def test_ongoing_call_finishing_does_not_double_count(ctx):
     """⭐ ongoing 이던 통화가 끝나 `total_time` 이 실제 값으로 박히면, 그 이후 집계는
-    실제 값만 세고 **경과 추정과 이중으로 더해지지 않는다**(NULL 일 때만 추정한다)."""
+    실제 값만 세고 **경과 추정과 이중으로 더해지지 않는다**(NULL 일 때만 추정한다).
+
+    ⚠ "끝났다"의 신호는 `fragment_ended_at` 이다(QA C4 재검-3차) — 실제
+      finalize_call/mark_fragment_ended 가 하는 일 그대로 흉내낸다.
+    """
     started = datetime.now(timezone.utc) - timedelta(seconds=400)  # 추정치라면 300 초과일 시각
-    call = _call(ctx, total_time=None, status="ongoing", when_utc=started)
+    call = _call(ctx, total_time=None, status="ongoing", when_utc=started, fragment_started_at=started)
     call.total_time = 300     # 통화 종료 저장 — 실제 값 확정
     call.status = "done"
+    call.fragment_ended_at = datetime.now(timezone.utc)  # 조각 종료 — 더 이상 "진행 중" 아님
     ctx["db"].commit()
     assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 300
 
@@ -208,6 +219,40 @@ def test_done_call_with_null_total_time_is_not_estimated(ctx):
     _call(ctx, total_time=None, status="done", when_utc=long_ago)
     assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 0, \
         "끝난 통화(done)의 NULL total_time 이 경과 시간으로 잘못 추정됐다"
+
+
+def test_budget_survives_a_delayed_analysis_overwriting_status_to_done(ctx):
+    """⭐⭐ QA C4 재검-3차(codex 재현 시나리오): 조각2 가 진행 중인 동안, 조각1 의
+    지연된 분석 완료가 같은 행의 `status` 를 `done` 으로 덮어써도 조각2 의 진행 중
+    경과가 예산에서 사라지면 안 된다 — "진행 중" 판정이 `status` 를 안 보기 때문이다.
+    """
+    started = datetime.now(timezone.utc) - timedelta(seconds=120)
+    call = _call(ctx, total_time=180, call_type="expression", status="ongoing",
+                 fragment_started_at=started, fragment_ended_at=None)
+    # 조각1 의 지연된 분석 완료 — status 만 덮어쓴다(raw 대입, finalize_call 이 아니다 —
+    # 실제 버그가 바로 이 경로였다: normalcall_service.py 의 후행 `call.status = "done"`).
+    call.status = "done"
+    ctx["db"].commit()
+
+    used = cs.used_seconds_today(ctx["db"], ctx["member_id"])
+    # total_time(180, 조각1 확정분) + 조각2 진행 중 경과(~120s) — status 가 done 이어도 살아있다.
+    assert 295 <= used <= 305, \
+        "지연된 status=done 덮어쓰기로 조각2 의 진행 중 경과가 예산에서 사라졌다"
+
+
+def test_active_ongoing_call_id_survives_a_delayed_analysis_overwriting_status_to_done(ctx):
+    """⭐⭐ QA C4 재검-3차(codex 재현 시나리오, active 축): 위와 같은 상황에서
+    `active_ongoing_call_id` 도 이 통화를 계속 "살아있다"고 봐야 한다 — status 가
+    done 으로 덮였다고 동시통화 게이트가 뚫리면(다른 세션이 또 열리면) 안 된다.
+    """
+    started = datetime.now(timezone.utc) - timedelta(seconds=120)
+    call = _call(ctx, total_time=180, call_type="expression", status="ongoing",
+                 fragment_started_at=started, fragment_ended_at=None)
+    call.status = "done"  # 조각1 의 지연된 분석 완료 — status 만 덮어쓴다
+    ctx["db"].commit()
+
+    assert cs.active_ongoing_call_id(ctx["db"], ctx["member_id"]) == call.call_id, \
+        "지연된 status=done 덮어쓰기로 진행 중인 조각2 가 active 판정에서 사라졌다"
 
 
 def test_fragment_2_is_rejected_when_remaining_is_zero(ctx):

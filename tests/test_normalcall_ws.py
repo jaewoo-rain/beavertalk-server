@@ -2915,10 +2915,14 @@ async def test_budget_checked_with_routed_call_type_and_client_tz(
 
 
 # --------------------------------------------------------------------------- #
-# 11. 동시통화 금지 — QA C4 재검-③(2026-09-23)
+# 11. 동시통화 금지 — QA C4 재검-③④(2026-09-23)
 #
-# "한 회원은 동시에 한 통화만." 동시 시작·동시 재개로 하루 예산을 두 번 쓰는 경로를
-# 막는 최소 처방 — 행 잠금·예약은 만들지 않는다(결정).
+# "한 회원에게 살아있는 조각이 있으면 무조건 거절." 동시 시작·동시 재개로 하루 예산을
+# 두 번 쓰는 경로를 막는 최소 처방 — 행 잠금·예약은 만들지 않는다(결정).
+# ⛔⛔ 재검-④: 예외를 두지 않는다 — 정상 이어하기는 조각 저장(finalize_call/
+#   mark_fragment_ended)이 fragment_ended_at 을 찍은 **뒤**에 오므로 이미 살아있지
+#   않다. 자기 자신을 봐주는 예외가 있으면 chat·level_test(resume_call 을 안 부른다)
+#   가 살아있는 자기 call_id 를 continues_call_id 에 실어 게이트를 우회할 수 있었다.
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
 async def test_second_call_is_rejected_while_one_is_already_ongoing(
@@ -2968,18 +2972,22 @@ async def test_second_call_is_rejected_while_one_is_already_ongoing(
 
 
 @pytest.mark.asyncio
-async def test_resuming_the_ongoing_call_itself_is_allowed(session_factory, seeded):
-    """⚠ 재연결(소켓만 끊기고 finalize_call 이 못 돈 조각)은 **그 통화 자신**이 아직
-    ongoing 인 채로 같은 continues_call_id 를 다시 보낸다 — 자기 자신은 "다른 통화"가
-    아니므로 동시통화 금지에 걸리면 안 된다."""
-    from datetime import datetime, timezone
+async def test_resuming_a_call_whose_fragment_has_already_ended_is_allowed(
+    session_factory, seeded
+):
+    """⚠ QA C4 재검-③④: 정상 이어하기는 앞 조각이 **끝난 뒤**(fragment_ended_at 이
+    찍힌 뒤)에 온다 — 그 시점엔 이 통화가 더 이상 "살아있는 조각"이 아니므로 동시통화
+    금지에 걸리지 않는다."""
+    from datetime import datetime, timedelta, timezone
 
     db = session_factory()
     try:
+        ended = datetime.now(timezone.utc) - timedelta(seconds=30)
         call = Call(
             member_id=seeded["member_id"], character_id=seeded["character_id"],
-            call_date=datetime.now(timezone.utc), status="ongoing",
-            call_type="expression", fragment_started_at=datetime.now(timezone.utc),
+            call_date=datetime.now(timezone.utc) - timedelta(seconds=400), status="analyzing",
+            call_type="expression", fragment_started_at=ended - timedelta(seconds=350),
+            fragment_ended_at=ended,   # 조각이 30초 전에 끝났다 — TTL(300초) 안, 더 이상 "살아있지" 않다
         )
         db.add(call); db.commit()
         call_id = call.call_id
@@ -3002,8 +3010,217 @@ async def test_resuming_the_ongoing_call_itself_is_allowed(session_factory, seed
 
     errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
     assert not [e for e in errors if e.get("code") == "ALREADY_IN_CALL"], \
-        "자기 자신의 이어하기가 동시통화 금지에 걸렸다"
+        "조각이 끝난 뒤의 정상 이어하기가 동시통화 금지에 걸렸다"
     assert opened["n"] == 1, "정상 재연결인데 통화가 안 열렸다"
+
+
+@pytest.mark.asyncio
+async def test_resuming_a_call_whose_fragment_is_still_living_is_rejected(
+    session_factory, seeded
+):
+    """⭐⭐ QA C4 재검-④: 같은 continues_call_id 로 온 요청이라도, 그 조각이 아직
+    "살아있으면"(fragment_ended_at 이 아직 안 찍힘) 거절한다 — 폴백(새 통화)이 아니라
+    거절이다. WS 게이트와 resume_call 내부 재확인 둘 다 이 성질을 지킨다."""
+    from datetime import datetime, timezone
+
+    db = session_factory()
+    try:
+        call = Call(
+            member_id=seeded["member_id"], character_id=seeded["character_id"],
+            call_date=datetime.now(timezone.utc), status="ongoing",
+            call_type="expression", fragment_started_at=datetime.now(timezone.utc),
+            fragment_ended_at=None,
+        )
+        db.add(call); db.commit()
+        call_id = call.call_id
+    finally:
+        db.close()
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming_resume(seeded, call_id)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "ALREADY_IN_CALL", \
+        "살아있는 조각으로의 이어하기를 안 막았다"
+    assert opened["n"] == 0, "거절했는데 Live 세션을 열었다"
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 1, "거절했는데 새 통화로 폴백해 행이 생겼다(폴백 금지)"
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("start_extra", [{}, {"call_type": "level_test"}])
+@pytest.mark.asyncio
+async def test_chat_or_level_test_cannot_bypass_the_gate_with_their_own_living_call_id(
+    session_factory, seeded, start_extra,
+):
+    """⭐⭐ QA C4 재검-④: chat(미전송 기본 라우팅)·level_test 는 `resume_call` 을 아예
+    안 부른다 — 옛 `exclude_call_id=continues_call_id` 예외가 있던 시절엔, 살아있는
+    **자기 자신의** call_id 를 `continues_call_id` 에 실어 보내는 것만으로 동시통화
+    게이트를 우회할 수 있었다(그 콜타입은 이어하기 화이트리스트에 없어 continues 를
+    아예 무시하고 새 통화를 만든다). 예외 자체를 없앤 지금은 이 값을 실어도 거절된다.
+    """
+    from datetime import datetime, timezone
+
+    db = session_factory()
+    try:
+        living = Call(
+            member_id=seeded["member_id"], character_id=seeded["character_id"],
+            call_date=datetime.now(timezone.utc), status="ongoing",
+            call_type="expression", fragment_started_at=datetime.now(timezone.utc),
+            fragment_ended_at=None,
+        )
+        db.add(living); db.commit()
+        living_id = living.call_id
+    finally:
+        db.close()
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    start = {"type": "start", "character_id": seeded["character_id"],
+             "continues_call_id": str(living_id), **start_extra}
+    ws = FakeWebSocket(
+        [{"type": "websocket.receive", "text": json.dumps(start)}], hang=True
+    )
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "ALREADY_IN_CALL", \
+        "chat/level_test 가 살아있는 자기 call_id 로 게이트를 우회했다"
+    assert opened["n"] == 0
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 1, "우회로 새 통화 행이 생겼다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_resume_call_itself_rejects_a_still_living_fragment(session_factory, seeded):
+    """QA C4 재검-④, 서비스 단위 시험: WS 게이트를 거치지 않고 `resume_call` 을 직접
+    불러도 살아있는 조각이면 `RESUME_REJECT_ALREADY_ACTIVE` 사유로 거절한다(방어 종심
+    — WS 게이트와 resume_call 호출 사이 TOCTOU 창을 닫는다)."""
+    from datetime import datetime, timezone
+
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
+        call = db.query(Call).get(cid)
+        assert call.fragment_started_at is not None and call.fragment_ended_at is None, \
+            "create_call 직후는 항상 살아있는 조각이어야 한다(전제 확인)"
+
+        got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+        assert got is None
+        assert why == _svc.RESUME_REJECT_ALREADY_ACTIVE
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# QA C4 재검-5차(2026-09-23) — "끊고 바로 새로 걸기" 는 무거운 마무리 저장을 기다리지 않는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_redial_is_allowed_immediately_after_disconnect_even_if_finalize_is_slow(
+    session_factory, seeded, monkeypatch,
+):
+    """⭐⭐ 세션이 끊긴 것을 인지한 직후 `mark_fragment_ended` 가 먼저 돈다 — 그 뒤에
+    오는 무거운 마무리 저장(`finalize_call`: 최종 판정·진도·usage·전사)이 느려도, 같은
+    회원이 즉시 다시 걸면 동시통화 게이트에 안 걸려야 한다.
+
+    ⛔⛔ 이 시험이 막는 회귀: `fragment_ended_at` 을 `finalize_call` 안에서만 찍으면,
+      그 함수가 끝나기 전까지 몇 초간 이 세션이 "아직 살아있다"로 보여 재발신이
+      `ALREADY_IN_CALL` 로 잘못 거절된다.
+    """
+    import threading
+
+    orig_finalize = svc.finalize_call
+    started_finalize = threading.Event()
+    release_finalize = threading.Event()
+    call_count = {"n": 0}
+
+    def slow_finalize(db, call_id, *, total_time, status, accumulate=False):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            # 첫 통화(끊길 통화)의 마무리 저장만 느리게 흉내낸다 — 두 번째(재발신) 통화의
+            # 마무리까지 여기서 묶이면 이 시험 자체가 끝나지 않는다.
+            started_finalize.set()
+            release_finalize.wait(timeout=5)
+        return orig_finalize(db, call_id, total_time=total_time, status=status, accumulate=accumulate)
+
+    monkeypatch.setattr(svc, "finalize_call", slow_finalize)
+
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory1(client, settings, **kwargs):
+        yield FakeLiveSession()
+
+    ws1 = FakeWebSocket([_start_incoming(seeded)], hang=True)
+    task1 = asyncio.create_task(run_call(
+        ws1, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory1,
+    ))
+
+    # 첫 통화가 finalize_call 의 "느린 구간"에 들어갈 때까지만 기다린다 — 이 시점엔
+    # mark_fragment_ended 가 이미(그보다 먼저 실행되므로) 돌았어야 한다.
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, started_finalize.wait, 5)
+    assert started_finalize.is_set(), "finalize_call 이 시간 안에 안 불렸다(시험 전제 실패)"
+
+    db = session_factory()
+    try:
+        call = db.query(Call).order_by(Call.call_id.desc()).first()
+        assert call.fragment_ended_at is not None, \
+            "무거운 마무리 저장이 끝나기 전인데 fragment_ended_at 이 아직 안 찍혔다 — 그 회귀"
+    finally:
+        db.close()
+
+    # 첫 통화의 마무리가 아직 안 끝난 상태에서 같은 회원이 즉시 재발신한다.
+    opened2 = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory2(client, settings, **kwargs):
+        opened2["n"] += 1
+        yield FakeLiveSession()
+
+    ws2 = FakeWebSocket([_start_incoming(seeded)], hang=True)
+    await run_call(
+        ws2, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory2,
+    )
+
+    errors2 = [json.loads(t) for t in ws2.sent_text if '"error"' in t]
+    assert not [e for e in errors2 if e.get("code") == "ALREADY_IN_CALL"], \
+        "끊고 바로 다시 걸었는데 느린 마무리 저장 때문에 거절됐다"
+    assert opened2["n"] == 1, "재발신인데 통화가 안 열렸다"
+
+    release_finalize.set()
+    await asyncio.wait_for(task1, timeout=5)
 
 
 @pytest.mark.asyncio
@@ -4669,11 +4886,17 @@ def test_resume_stops_at_the_fragment_cap(session_factory, seeded):
         # 지금 이어지는 코스(expression)로 명시한다.
         cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
         # 1 → 2 → 3 까지는 된다.
+        # ⚠ QA C4 재검-③④(2026-09-23): 조각이 "끝난" 뒤에만 이어할 수 있다 —
+        #   create_call/resume_call 은 fragment_started_at 을 찍고 fragment_ended_at 을
+        #   비운다("진행 중"). 실제로는 finalize_call 이 조각 종료 때 이걸 찍는다 —
+        #   여기선 그 대신 mark_fragment_ended 로 가볍게 흉내낸다.
         for expect in (2, 3):
+            _svc.mark_fragment_ended(db, cid)
             got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
             assert got == cid, why
             assert db.query(Call).get(cid).fragment_count == expect
         # 4번째는 막힌다.
+        _svc.mark_fragment_ended(db, cid)
         got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
         assert got is None and "상한" in why, why
     finally:

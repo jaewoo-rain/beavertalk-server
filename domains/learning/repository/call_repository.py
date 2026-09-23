@@ -112,19 +112,18 @@ class CallRepository:
         status 는 (done, analyzing, ongoing) 만 센다 — 아직 저장 안 끝난 ongoing 도 진행
           중인 소비라 빼면, 끊고 바로 또 거는 구멍이 생긴다.
 
-        ⛔⛔ QA C4 재검-②(2026-09-23, 재재검): `ongoing` 인 행은 아직 조각이 끝나지
-          않아 이번 조각의 `total_time` 이 반영되지 않는다 — 통화 진행 중(특히 동시
-          접속으로 같은 회원이 두 번째 세션을 여는 경합)에는 예산 검사가 "이번 조각은
-          아직 0초"로 잘못 통과한다. ⇒ 합계 = `sum(total_time or 0)`(전 상태 공통 —
-          done·analyzing 은 이 값만 본다) **+** `status='ongoing'` 인 행마다
-          `min(now - fragment_started_at, _ONGOING_ELAPSED_CAP_S)`(이번 조각의 진행 중
-          경과 추정, 상한 있음 — 죽은 ongoing 행이 예산을 영영 잠그지 않게).
-          ⛔ 경과 추정은 **ongoing 에만** 건다 — done·analyzing 에 걸면(status 를 안
-          보고 total_time NULL 만 보던 옛 코드), 이미 끝난 통화인데 total_time 이 NULL
-          로 남은 행(예: 분석 실패)이 **쿼리할 때마다 elapsed 가 계속 자라** 예산을
-          점점 더 깎는 별개의 버그가 된다.
-          ⚠ `fragment_started_at` 이 NULL(마이그레이션 전 옛 ongoing 행)이면 `call_date`
-          로 폴백한다(R5 — 모르면 예전 근사치라도 쓴다).
+        ⛔⛔ QA C4 재검-3차(2026-09-23): "진행 중"을 **`status` 로 판정하지 않는다.**
+          `status` 는 통화의 진행 여부와 분석 상태(analyzing→done)를 **겸해서** 쓰이는데,
+          조각2 가 진행 중인 동안 조각1 의 지연된 분석 완료가 같은 행의 `status` 를
+          `done` 으로 덮어써(현재 codex 재현 시나리오) 조각2 가 "진행 중 아님"으로
+          사라지는 사고가 났다. ⇒ **진행 중 = `fragment_started_at IS NOT NULL AND
+          fragment_ended_at IS NULL AND (now - fragment_started_at) <= 상한`** 만 본다
+          (`status` 무관 — done/analyzing/failed 여도 상관없다). 예산 합계 = 전 상태
+          공통 `sum(total_time or 0)` + 위 "진행 중" 조건을 만족하는 행마다
+          `min(now - fragment_started_at, _ONGOING_ELAPSED_CAP_S)`.
+          ⛔ done/analyzing 인데 `total_time` 이 NULL(예: 분석 실패)인 행은 이 조건에
+          안 걸린다(`fragment_ended_at` 이 이미 찍혀 있으므로) — "쿼리할 때마다 elapsed
+          가 계속 자라는" 별개의 버그가 자연히 안 생긴다.
         이 파일은 sqlite(테스트)·postgres(운영) 양쪽에서 돌아야 해서 SQL 레벨
         COALESCE/EXTRACT(EPOCH) 대신 파이썬에서 계산한다 — 회원 하루 통화 수가 적어
         (많아야 몇 건) 성능상 문제가 없다.
@@ -134,7 +133,7 @@ class CallRepository:
           이 애초에 막는다. 여기는 "0으로 새는" 구멍만 막는다.
         """
         stmt = select(
-            Call.total_time, Call.status, Call.fragment_started_at, Call.call_date,
+            Call.total_time, Call.fragment_started_at, Call.fragment_ended_at,
         ).where(
             Call.member_id == member_id,
             Call.call_date >= start_utc,
@@ -145,47 +144,49 @@ class CallRepository:
             stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
         now = datetime.now(timezone.utc)
         total = 0
-        for total_time, status, fragment_started_at, call_date in self.db.execute(stmt):
+        for total_time, fragment_started_at, fragment_ended_at in self.db.execute(stmt):
             total += total_time or 0
-            if status != "ongoing":
-                continue
-            started = fragment_started_at or call_date
-            if started is None:
-                continue
-            if started.tzinfo is None:
-                started = started.replace(tzinfo=timezone.utc)
+            if fragment_started_at is None or fragment_ended_at is not None:
+                continue  # "진행 중" 아님(조각이 끝났거나 아직 한 번도 안 열림)
+            started = fragment_started_at if fragment_started_at.tzinfo else fragment_started_at.replace(tzinfo=timezone.utc)
             elapsed = max(0.0, (now - started).total_seconds())
+            if elapsed > _ONGOING_ELAPSED_CAP_S:
+                continue  # 죽은 세션 — 진행 중으로 안 본다
             total += int(min(elapsed, _ONGOING_ELAPSED_CAP_S))
         return total
 
-    def active_ongoing_call_id(
-        self, member_id: int, *, exclude_call_id: int | None = None,
-    ) -> int | None:
-        """이 회원의 **살아있는** ongoing 통화 id(있으면) — QA C4 재검-③(2026-09-23),
-        "한 회원은 동시에 한 통화만" 정책의 근거 쿼리.
+    def active_ongoing_call_id(self, member_id: int) -> int | None:
+        """이 회원에게 지금 **살아있는 조각**(진행 중인 통화)이 있으면 그 call_id —
+        "한 회원은 동시에 한 통화만" 정책의 근거 쿼리(QA C4 재검-③④).
 
-        ⭐ "살아있다" = `fragment_started_at`(없으면 `call_date`)로부터
-          `_ONGOING_ELAPSED_CAP_S`(=통화 절대 백스톱과 같은 값) 이내 — 그보다 오래된
-          ongoing 은 크래시·강제종료로 status 가 못 닫힌 **죽은 세션**으로 보고 무시한다
-          (안 그러면 죽은 행 하나가 그 회원을 영영 통화 못 걸게 잠근다).
-        exclude_call_id: 지금 이어하려는 그 통화 id — 자기 자신은 "다른 통화"가 아니다.
-        ⚠ 행 잠금·예약은 하지 않는다(과한 구조) — 동시에 두 요청이 동시에 이 쿼리를
-          통과하는 아주 좁은 경합까지는 못 막는다. 목적은 "같은 회원이 통화 두 개를
-          나란히 켜 놓고 예산을 두 번 쓰는" 흔한 경로를 막는 것이다.
+        ⭐ "살아있다" = `fragment_started_at IS NOT NULL AND fragment_ended_at IS NULL
+          AND (now - fragment_started_at) <= _ONGOING_ELAPSED_CAP_S`. **`status` 는
+          안 본다**(재검-3차와 같은 이유 — 분석 파이프라인의 지연된 status 갱신이 진행
+          중 판정에 끼어들면 안 된다). 상한을 넘긴 행은 크래시·강제종료로 못 닫힌
+          **죽은 세션**으로 보고 무시한다(안 그러면 죽은 행 하나가 그 회원을 영영
+          통화 못 걸게 잠근다).
+
+        ⛔⛔ QA C4 재검-④(2026-09-23): **`exclude_call_id` 파라미터를 없앴다** —
+          "살아있는 조각이 있으면 무조건 거절"이 규칙 전체다. 정상 이어하기는 조각
+          저장(`finalize_call`/`mark_fragment_ended`)이 `fragment_ended_at` 을 찍은
+          **뒤에** 요청이 오므로 이미 살아있지 않다 — 예외를 둘 필요가 없다.
+          `exclude_call_id` 로 "자기 자신"만 봐주던 옛 버전은, call_type=chat·
+          level_test(둘 다 `resume_call` 을 아예 안 부른다)가 살아있는 **자기 자신의**
+          call_id 를 `continues_call_id` 에 실어 보내는 것만으로 이 게이트를 우회하는
+          구멍이었다 — 예외 자체를 없애 구조로 막는다.
+        ⚠ 행 잠금·예약은 하지 않는다(과한 구조) — 동시에 두 요청이 이 쿼리를 동시에
+          통과하는 아주 좁은 경합(둘 다 "살아있는 조각 없음"을 보고 통과)까지는 못
+          막는다. 창이 1초 수준이라 감수한다(결정) — 원자화하려면 회원 단위 lease 가
+          필요하다.
         """
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=_ONGOING_ELAPSED_CAP_S)
-        stmt = select(Call.call_id, Call.fragment_started_at, Call.call_date).where(
+        stmt = select(Call.call_id, Call.fragment_started_at).where(
             Call.member_id == member_id,
-            Call.status == "ongoing",
+            Call.fragment_started_at.isnot(None),
+            Call.fragment_ended_at.is_(None),
         )
-        if exclude_call_id is not None:
-            stmt = stmt.where(Call.call_id != exclude_call_id)
-        for call_id, fragment_started_at, call_date in self.db.execute(stmt):
-            started = fragment_started_at or call_date
-            if started is None:
-                continue
-            if started.tzinfo is None:
-                started = started.replace(tzinfo=timezone.utc)
+        for call_id, fragment_started_at in self.db.execute(stmt):
+            started = fragment_started_at if fragment_started_at.tzinfo else fragment_started_at.replace(tzinfo=timezone.utc)
             if started >= cutoff:
                 return call_id
         return None

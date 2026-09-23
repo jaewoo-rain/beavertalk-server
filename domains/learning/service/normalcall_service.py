@@ -836,6 +836,18 @@ def call_fragment_index(db: Session, call_id: int) -> int:
     return int(v) if v else 1
 
 
+#  QA C4 재검-④(2026-09-23) — resume_call 이 이 사유를 돌려주면 **거절이지 새 통화
+#  폴백이 아니다**(호출부가 이 문자열을 보고 갈래를 가른다). 살아있는 조각을 이어봐야
+#  또 같은 세션과 충돌하므로, 새 통화를 대신 열어주는 것도 정답이 아니다.
+RESUME_REJECT_ALREADY_ACTIVE = "이미 진행 중인 조각"
+
+# ⭐ QA C4 재검-③④와 같은 상한(초) — repository._ONGOING_ELAPSED_CAP_S ·
+#   call_session.ABSOLUTE_CALL_TIMEOUT_S 와 같은 값이어야 한다. 서비스가 레포지토리를
+#   당연히 알 수 있지만, 여기서는 이미 로드한 `call` 행을 직접 보는 게 더 싸서
+#   (쿼리 하나 덜 나간다) 값만 복제한다 — 세 파일이 어긋나면 회귀가 잡는다.
+_ACTIVE_FRAGMENT_WINDOW_S = 540.0
+
+
 def resume_call(
     db: Session, member_id: int, continues_call_id: int, *, max_fragments: int,
 ) -> tuple[int | None, str]:
@@ -845,14 +857,21 @@ def resume_call(
       기준이다. 행이 하나면 **묶을 게 없다** — 15분 대화가 저절로 1건이다.
       (설계 초안의 `root_call_id` 묶기보다 싸고, 놓칠 자리가 적다.)
 
-    ⛔ 검증 3가지. 하나라도 어긋나면 이어하지 않고 **새 통화로 떨어진다**(거절이 아니라
-      폴백이다 — 이어하기가 안 된다고 통화를 막으면 그게 더 나쁘다):
+    ⛔ 검증 4가지. ①②③은 이어하지 않고 **새 통화로 떨어진다**(거절이 아니라 폴백이다
+      — 이어하기가 안 된다고 통화를 막으면 그게 더 나쁘다). ④는 **폴백하지 않고
+      거절한다**(사유가 `RESUME_REJECT_ALREADY_ACTIVE`) — 살아있는 세션과 충돌하는
+      상황에서 새 통화를 또 열어주면 동시통화 금지 정책 자체가 무의미해진다:
         ① 본인 통화인가      — 남의 call_id 를 들고 와도 통과하면 안 된다
         ② TTL 안인가          — 마지막 조각이 끝난 지 5분 이내
         ③ 조각 상한 안인가    — Free 1 / Pro·Max 3
+        ④ 지금 살아있는 조각이 **아닌가** — QA C4 재검-④: WS 레벨 동시통화 게이트
+          (call_session.active_ongoing_call_id)와 이 함수 호출 사이에 별도 DB 왕복이
+          끼어 TOCTOU 창이 있다 — 여기서 같은 조건을 한 번 더 본다(방어 종심).
 
     Returns:
-        (call_id, 사유). call_id 가 None 이면 이어하기 불가(호출부가 새 통화를 만든다).
+        (call_id, 사유). call_id 가 None 이면 이어하기 불가 — 단, 사유가
+        `RESUME_REJECT_ALREADY_ACTIVE` 면 **호출부는 새 통화를 만들면 안 된다**(거절).
+        그 외 사유는 종전대로 호출부가 새 통화를 만든다.
     """
     call = db.query(Call).filter(Call.call_id == continues_call_id).first()
     if call is None:
@@ -860,6 +879,14 @@ def resume_call(
     if call.member_id != member_id:
         # ⛔ 남의 통화에 내 발화를 이어 붙이는 것을 막는다. 로그에 남긴다(탐지용).
         return None, "본인 통화 아님"
+    # ⛔⛔ QA C4 재검-④: 이 통화가 지금 "살아있는 조각"이면 거절(폴백 아님) — 정상
+    #   이어하기는 finalize_call/mark_fragment_ended 가 fragment_ended_at 을 찍은 뒤에
+    #   오므로 여기 걸리지 않는다. 걸린다면 같은 continues_call_id 로 온 동시 요청이다.
+    if call.fragment_started_at is not None and call.fragment_ended_at is None:
+        started = call.fragment_started_at if call.fragment_started_at.tzinfo else \
+            call.fragment_started_at.replace(tzinfo=timezone.utc)
+        if (datetime.now(timezone.utc) - started).total_seconds() <= _ACTIVE_FRAGMENT_WINDOW_S:
+            return None, RESUME_REJECT_ALREADY_ACTIVE
     # ⭐ 2026-09-10: 표현학습·프리토킹도 조각을 잇는다(15분 = 5분 소켓 3개).
     #   ⛔ **레벨테스트는 계속 막는다** — 조각 개념이 없다(3분 하드캡은 상품 혜택이 아니라
     #     측정 설계다). 그래서 화이트리스트로 쓴다: 새 콜타입이 생겼을 때 **기본이 «막힘»**
@@ -895,8 +922,13 @@ def resume_call(
     #   이 통화의 `total_time`(조각 누적, 12차) 전체가 **조각2 를 연 날**로 옮겨가 조각1
     #   이 쓴 시간이 그날 예산에서 빠지고 새 날 예산에서 깎이는 사고가 난다.
     #   ⇒ `call_date` 는 **최초 시작 시각 고정**(그 통화가 시작한 로컬 하루에 예산이 잡힌다).
-    call.fragment_started_at = datetime.now(timezone.utc)  # C4 재검-②: 이번 조각의 경과 추정 기준
-    call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다
+    # ⭐⭐ QA C4 재검-③(2026-09-23): 이번 조각의 시작을 **둘 다 같이** 찍는다 — started 만
+    #   찍고 ended 를 안 비우면(이전 조각의 fragment_ended_at 이 그대로 남아) "진행 중"
+    #   조건(started IS NOT NULL AND ended IS NULL)이 거짓이 되어 재개한 조각이 진행
+    #   중으로 안 잡힌다(예산 누락·동시통화 게이트 오탐 둘 다).
+    call.fragment_started_at = datetime.now(timezone.utc)
+    call.fragment_ended_at = None
+    call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다 — status 는 진행 판정에 안 쓰이지만 화면·집계 표시용으로 유지
     db.commit()
     return call.call_id, "조각 %d/%d" % (call.fragment_count, max_fragments)
 
@@ -1399,6 +1431,27 @@ def upload_segment_audio(
             done += 1
     db.commit()
     return done
+
+
+def mark_fragment_ended(db: Session, call_id: int) -> None:
+    """조각이 끝났음을 **즉시** 기록 — QA C4 재검-5차(2026-09-23): 세션이 끊긴 것을
+    인지한 직후(신호: `_ClientDisconnect`·`_FragmentEnd`·`_CallFinished`·백스톱),
+    `finally` 의 무거운 마무리 저장(최종 판정 ~2초·진도·usage·전사 저장) **전에** 이
+    작은 쓰기부터 한다.
+
+    ⛔⛔ 왜 순서가 중요한가: 동시통화 게이트(`active_ongoing_call_id`)는
+      `fragment_ended_at` **하나만** 본다. 무거운 마무리 저장이 끝난 뒤에야 이 값을
+      찍으면, 그 몇 초 동안은 이미 끊긴 세션이 여전히 "살아있다"로 보여 **끊고 바로
+      다시 걸기**가 `ALREADY_IN_CALL` 로 잘못 거절된다.
+    ⚠ `finalize_call` 이 나중에 이 컬럼을 **또 찍어도 된다**(멱등 — "이 조각은
+      끝났다"는 사실은 그대로고 값만 살짝 갱신된다). 둘을 합치지 않는 이유: 무거운
+      저장 전체를 기다리면 이 함수의 존재 의미(빠른 해제)가 없어진다.
+    """
+    call = db.get(Call, call_id)
+    if call is None:
+        return
+    call.fragment_ended_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 def finalize_call(db: Session, call_id: int, *, total_time: int, status: str, accumulate: bool = False) -> None:

@@ -489,13 +489,12 @@ def daily_budget_exceeded(
     return (budget - used) <= 0
 
 
-def active_ongoing_call_id(
-    db: Session, member_id: int, *, exclude_call_id: int | None = None,
-) -> int | None:
-    """QA C4 재검-③(2026-09-23) — "한 회원은 동시에 한 통화만" 정책의 근거. 정의는
-    `CallRepository.active_ongoing_call_id` 참조("살아있다"의 뜻·행 잠금을 안 쓰는 이유).
+def active_ongoing_call_id(db: Session, member_id: int) -> int | None:
+    """QA C4 재검-③④(2026-09-23) — "한 회원은 동시에 한 통화만" 정책의 근거. 정의는
+    `CallRepository.active_ongoing_call_id` 참조("살아있다"의 뜻·exclude 없는 이유·
+    행 잠금을 안 쓰는 이유).
     """
-    return CallRepository(db).active_ongoing_call_id(member_id, exclude_call_id=exclude_call_id)
+    return CallRepository(db).active_ongoing_call_id(member_id)
 
 
 class CallService:
