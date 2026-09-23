@@ -48,6 +48,20 @@ def lesson_by_no(db: Session, language: str, no: int) -> Optional[CurLesson]:
     ).scalar_one_or_none()
 
 
+def first_lesson_of_level(db: Session, language: str, level_no: int) -> Optional[CurLesson]:
+    """그 언어·레벨의 첫 차시(MIN(no)) — 레벨테스트 시작 차시(placement, L1·L2).
+
+    `ix_cur_lesson_level_no(language, level_no, no)` 를 탄다. 그 레벨 차시가 0건이면
+    None(호출부가 no=1 로 폴백 — 여기서 예외를 던지지 않는다, R5).
+    """
+    return db.execute(
+        select(CurLesson)
+        .where(CurLesson.language == language, CurLesson.level_no == level_no)
+        .order_by(CurLesson.no.asc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+
 def lesson_by_id(db: Session, lesson_id: int) -> Optional[CurLesson]:
     return db.get(CurLesson, lesson_id)
 

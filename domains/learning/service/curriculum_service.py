@@ -39,6 +39,7 @@ from domains.learning.models.curriculum import (
     CurMemberProgress,
 )
 from domains.learning.repository import curriculum_repository as repo
+from domains.learning.repository import mastery_repository
 
 logger = logging.getLogger(__name__)
 
@@ -146,11 +147,28 @@ def available(db: Session, language: str = "ko") -> bool:
 
 
 def ensure_progress(db: Session, member_id: int, language: str = "ko", *, for_update: bool = False) -> CurMemberProgress:
-    """회원의 «지금 차시» 행 — 없으면 no=1 로 만든다(레벨테스트→시작 차시 연결은 별건). 만들면 commit."""
+    """회원의 «지금 차시» 행 — 없으면 **그 언어 레벨의 첫 차시**로 만든다(placement, L1).
+
+    ⛔ **행이 이미 있으면 건드리지 않는다** — 이 함수는 "없을 때 생성" 만 한다. 이동(레벨
+    재측정)은 `normalcall_service._save_level_assessment`(L2)의 몫이다. 여기서 옮기면
+    평소 통화마다 진도가 리셋된다.
+
+    레벨은 `mastery_repository.get_language_level`(언어 우선 → ko 전용 옛 스칼라 필드
+    폴백)로만 읽는다 — 새 접근자를 만들지 않는다. 레벨을 못 읽었거나(None) 그 레벨 차시가
+    0건이면 `no=1` 로 폴백한다(R5 — 통화를 막지 않는다), 로그 1줄만 남긴다.
+    """
     prog = repo.current_progress(db, member_id, language, for_update=for_update)
     if prog is not None:
         return prog
-    first = repo.lesson_by_no(db, language, 1)
+    level_no = mastery_repository.get_language_level(db, member_id, language)
+    first = repo.first_lesson_of_level(db, language, level_no) if level_no is not None else None
+    if first is None:
+        if level_no is not None:
+            logger.warning(
+                "cur ensure_progress: member=%s language=%s level=%s 차시 0건 → no=1 폴백",
+                member_id, language, level_no,
+            )
+        first = repo.lesson_by_no(db, language, 1)
     if first is None:
         raise RuntimeError("cur_lesson 이 비어 있다 — 시드 적재(scripts/curriculum/load_cur_seed.py) 먼저")
     prog = CurMemberProgress(member_id=member_id, language=language, lesson_id=first.lesson_id)

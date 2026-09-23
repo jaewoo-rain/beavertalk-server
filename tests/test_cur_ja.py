@@ -100,13 +100,17 @@ def client(factory):
 _n = {"i": 0}
 
 
-def _member(db: Session, *, target: str | None, role: str = "member", locale: str = "en") -> tuple[int, dict]:
+def _member(db: Session, *, target: str | None, role: str = "member", locale: str = "en",
+           ja_level: int | None = 2) -> tuple[int, dict]:
+    """⚠ L1(2026-09-24, placement) — target="ja" 는 기본으로 ja 레벨2 를 심는다(그래서
+    ja 진도가 그 레벨 첫 차시 A1-T01-1 에서 시작한다). 레벨1(청크, no=1)에서 시작하는
+    시나리오가 필요하면 `ja_level=None` 을 넘긴다(레벨테스트 미실시 흉내)."""
     _n["i"] += 1
     auth = f"auth-ja-{_n['i']}"
     m = Member(language=locale, korean_level=1, onboarding_completed=True, auth_user_id=auth, role=role, target_language=target, name="Taro")
     db.add(m); db.flush()
-    if target == "ja":
-        db.add(MemberLanguageLevel(member_id=m.member_id, language="ja", level_no=2))
+    if target == "ja" and ja_level is not None:
+        db.add(MemberLanguageLevel(member_id=m.member_id, language="ja", level_no=ja_level))
     db.commit()
     return m.member_id, {"Authorization": f"Bearer {auth}"}
 
@@ -121,24 +125,28 @@ def _call(db: Session, member_id: int, call_type="expression") -> int:
 # ① 서비스 배선 — auto/decide_course · open_call · 진도가 언어별로 따로 간다
 # --------------------------------------------------------------------------- #
 def test_decide_course_and_progress_are_per_language(db):
-    m, _ = _member(db, target="ja")
+    m, _ = _member(db, target="ja")  # _member 가 ja 레벨2 를 심는다(MemberLanguageLevel)
     assert cur.decide_course(db, m, "ja") == "expression"
     pj = repo.current_progress(db, m, "ja"); pk = repo.current_progress(db, m, "ko")
-    assert pj is not None and repo.lesson_by_id(db, pj.lesson_id).code == "L1-S01-1" and pk is None, "ja 포인터만 생겼다(ja 도 청크 1차시부터)"
+    # ⭐ L1(2026-09-24, placement) — ja 는 레벨2 라 그 레벨 첫 차시(A1-T01-1)에서 시작한다.
+    assert pj is not None and repo.lesson_by_id(db, pj.lesson_id).code == "A1-T01-1" and pk is None, "ja 포인터만 생겼다(레벨2 placement)"
     assert cur.decide_course(db, m, "ko") == "expression"
     pk = repo.current_progress(db, m, "ko")
+    # ko 는 korean_level=1(청크) 이라 여전히 L1-S01-1 부터(레벨1 첫 차시 = no=1, 종전과 동일).
     assert repo.lesson_by_id(db, pk.lesson_id).code == "L1-S01-1" and pk.lesson_id != pj.lesson_id
     assert cur.available(db, "ja") and cur.available(db, "ko") and not cur.available(db, "zh")
 
 
 def test_open_call_ja_selects_the_first_japanese_lesson_with_ko_or_en_meanings(db):
-    m, _ = _member(db, target="ja", locale="ko")
-    c = _call(db, m)
-    o0 = cur.open_call(db, m, c, "auto", language="ja", locale="ko")
-    assert o0.lesson.code == "L1-S01-1" and o0.lesson.no == 1 and o0.lesson.level_no == 1 and len(o0.items) == 15, "ja 도 청크 1차시부터(ko 와 동일)"
+    # 레벨 미설정(레벨테스트 미실시 흉내) → L1(placement) 이 청크 1차시(no=1)로 만든다.
+    m0, _ = _member(db, target="ja", locale="ko", ja_level=None)
+    o0 = cur.open_call(db, m0, _call(db, m0), "auto", language="ja", locale="ko")
+    assert o0.lesson.code == "L1-S01-1" and o0.lesson.no == 1 and o0.lesson.level_no == 1 and len(o0.items) == 15, "레벨 미설정이면 여전히 청크 1차시부터"
     assert o0.items[0]["obj"] == "チャンク0" and o0.items[0]["des"] == "청크 0" and o0.items[0]["role"] == "chunk"
-    # 포인터를 A1-T01-1(no 4)로 옮겨 어휘·문법 차시를 본다
-    prog = repo.current_progress(db, m, "ja"); prog.lesson_id = repo.lesson_by_no(db, "ja", 4).lesson_id; db.commit()
+
+    # ja 레벨2(기본값) → L1 placement 가 그 레벨 첫 차시(A1-T01-1, no=4)로 바로 만든다
+    # (수동으로 포인터를 옮길 필요가 없어졌다 — 그게 L1 이 하는 일이다).
+    m, _ = _member(db, target="ja", locale="ko")
     c = _call(db, m)
     o = cur.open_call(db, m, c, "auto", language="ja", locale="ko")
     assert o.course == "expression" and o.lesson.code == "A1-T01-1" and o.lesson.no == 4 and o.lesson.level_no == 2
@@ -168,9 +176,11 @@ def test_freetalk_brief_ja_and_lock_is_per_language(db):
     assert o3.course == "freetalk" and o3.brief is not None and len(o3.brief.items) == o.lesson.item_count
     assert all(d["ex"] for d in o3.brief.items if d["role"] == "grammar")
     # 프리토킹 종료 → ja 포인터만 다음 차시로(ko 포인터 무변화)
+    # ⭐ L1(2026-09-24): ja 는 레벨2 라 A1-T01-1(no=4)에서 시작 — 다음 차시는 no=5(옛 no=2 아님).
+    started_no = o.lesson.no
     ko_before = repo.current_progress(db, m, "ko").lesson_id
     assert cur.complete_freetalk(db, o3 and repo.member_call_ids(db, m, "ja")[-1], duration_s=200, normal_end=True) == {"freetalk_done": True, "moved": True}
-    assert repo.lesson_by_id(db, repo.current_progress(db, m, "ja").lesson_id).no == 2
+    assert repo.lesson_by_id(db, repo.current_progress(db, m, "ja").lesson_id).no == started_no + 1
     assert repo.current_progress(db, m, "ko").lesson_id == ko_before
 
 
@@ -202,18 +212,23 @@ def test_resolver_is_shared_and_falls_back_to_default():
 
 
 def test_cur_me_and_lessons_follow_the_members_target_language(client, db):
-    _, hj = _member(db, target="ja")
+    _, hj = _member(db, target="ja")  # 레벨2 → L1 placement 가 A1-T01-1(no=4)에서 시작
     _, hk = _member(db, target=None)
     me_j = client.get("/api/v1/cur/me", headers=hj).json()
-    assert me_j["lesson"]["code"] == "L1-S01-1" and me_j["lesson"]["no"] == 1 and me_j["lesson"]["level_no"] == 1, "ja 도 청크 1차시부터"
-    assert me_j["items_total"] == 15 and me_j["next_course"] == "expression"
+    # ⭐ L1(2026-09-24): ja 레벨2 라 청크(no=1)가 아니라 그 레벨 첫 차시에서 시작한다.
+    assert me_j["lesson"]["code"] == "A1-T01-1" and me_j["lesson"]["no"] == 4 and me_j["lesson"]["level_no"] == 2
+    a1t01 = repo.lesson_by_no(db, "ja", 4)
+    assert me_j["items_total"] == len(repo.lesson_items(db, a1t01.lesson_id))
+    assert me_j["next_course"] == "expression"
     me_k = client.get("/api/v1/cur/me", headers=hk).json()
-    assert me_k["lesson"]["code"] == "L1-S01-1", "target_language 없음 → 기본(ko)"
+    assert me_k["lesson"]["code"] == "L1-S01-1", "target_language 없음 → 기본(ko, korean_level=1)"
     rows = client.get("/api/v1/cur/lessons", params={"level": 2}, headers=hj).json()
-    assert len(rows) == 8 and rows[0]["code"] == "A1-T01-1" and rows[0]["no"] == 4 and rows[0]["status"] is None
+    # 이 회원의 진도 포인터가 지금 A1-T01-1(no=4) 이므로 status 는 "learning"이다(옛 None 아님).
+    assert len(rows) == 8 and rows[0]["code"] == "A1-T01-1" and rows[0]["no"] == 4 and rows[0]["status"] == "learning"
     assert all(r["code"].startswith("A1-") for r in rows)
     allrows = client.get("/api/v1/cur/lessons", headers=hj).json()
-    assert len(allrows) == 348 and allrows[0]["code"] == "L1-S01-1" and allrows[0]["status"] == "learning"
+    # no=1(L1-S01-1)은 더 이상 이 회원의 진도 포인터가 아니라 status 는 None(옛 "learning" 아님).
+    assert len(allrows) == 348 and allrows[0]["code"] == "L1-S01-1" and allrows[0]["status"] is None
     assert len(client.get("/api/v1/cur/lessons", params={"level": 1}, headers=hj).json()) == 3
 
 
@@ -369,7 +384,9 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
     monkeypatch.setattr(svc.tts, "synthesize", _none)
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", _none)
     db = factory()
-    m, _ = _member(db, target="ja", locale="ko")
+    # 이 시험은 청크 1차시(L1-S01-1, 문형 없음) 소재를 검증한다 — 레벨2 placement(A1-T01-1)
+    # 로 가면 안 되므로 ja_level=None(레벨테스트 미실시 흉내)으로 청크부터 시작시킨다.
+    m, _ = _member(db, target="ja", locale="ko", ja_level=None)
     db.close()
     holder = {}
 
