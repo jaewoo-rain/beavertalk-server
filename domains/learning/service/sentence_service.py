@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Sequence
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,6 +18,37 @@ from domains.learning.schemas.call import EvaluationOut, SentenceOut
 from domains.learning.schemas.sentence import SentenceTtsOut
 
 logger = logging.getLogger(__name__)
+
+
+def order_sentences_with_pairs(sentences: Sequence[Sentence]) -> list[Sentence]:
+    """⭐⭐ C10(2026-09-23) — 기본 문장 뒤에 그 현지인 표현 짝(C9)을 붙여 배열한다:
+    기본1·짝1·기본2·짝2… . 결과 API(`/calls/{id}/result`)·`pronunciation-report`가
+    이 한 곳을 같이 쓴다(북마크 목록은 통화 무관이라 제외 — bt-back 결정).
+
+    ⛔ 방어(정상 경로로는 생기지 않는다): 기본이 없는(소프트 삭제됐거나 데이터
+    이상으로 끊어진) 고아 짝은 순서를 깨뜨리지 않게 끝에 원래 순서대로 붙인다 —
+    사라지지 않고 그대로 보인다.
+    """
+    by_id = {s.sentence_id: s for s in sentences}
+    bases: list[Sentence] = []
+    pairs_by_base: dict[int, list[Sentence]] = {}
+    orphans: list[Sentence] = []
+    for s in sentences:
+        if s.kind == "native":
+            base = by_id.get(s.paired_sentence_id) if s.paired_sentence_id is not None else None
+            if base is not None and base.kind != "native":
+                pairs_by_base.setdefault(base.sentence_id, []).append(s)
+            else:
+                orphans.append(s)
+        else:
+            bases.append(s)
+
+    ordered: list[Sentence] = []
+    for b in bases:
+        ordered.append(b)
+        ordered.extend(pairs_by_base.get(b.sentence_id, []))
+    ordered.extend(orphans)
+    return ordered
 
 
 class SentenceService:
@@ -233,4 +264,6 @@ class SentenceService:
             voice_url=self._playback_url(s.voice_url),
             is_bookmarked=s.is_bookmarked,
             evaluation=EvaluationOut.model_validate(s.evaluation) if s.evaluation else None,
+            kind=s.kind,
+            nuance=s.nuance,
         )

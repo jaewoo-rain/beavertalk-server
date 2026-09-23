@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 
 class CallCharacterBrief(BaseModel):
@@ -76,6 +76,20 @@ class SentenceOut(BaseModel):
     voice_url: Optional[str]
     is_bookmarked: Optional[bool]
     evaluation: Optional[EvaluationOut]
+    # ⭐⭐ C10(2026-09-23) — 북마크 목록도 현지인 표현 짝을 실어 준다(통화 무관 목록이라
+    #   순서·paired_sentence_id 는 안 붙인다 — bt-back 결정). 기본 문장은 둘 다 None →
+    #   진행규칙 5 로 키 자체가 빠진다.
+    kind: Optional[str] = None
+    nuance: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _drop_native_pair_none_fields(self, handler):
+        data = handler(self)
+        if isinstance(data, dict):
+            for k in ("kind", "nuance"):
+                if data.get(k) is None:
+                    data.pop(k, None)
+        return data
 
 
 class RawDataOut(BaseModel):
@@ -122,6 +136,21 @@ class CallResultSentence(BaseModel):
     native_sentence: Optional[str]
     voice_url: Optional[str]
     is_bookmarked: Optional[bool]
+    # ⭐⭐ C10(2026-09-23) — 현지인 표현 짝(C9). 기본 문장은 셋 다 None → 진행규칙 5 로
+    #   키 자체가 빠진다(현지인 행만 가짐). 정렬은 call_service._to_result_sentences
+    #   가 order_sentences_with_pairs 로 미리 「기본→그 짝」 순서로 배열해 넘긴다.
+    kind: Optional[str] = None
+    paired_sentence_id: Optional[int] = None
+    nuance: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _drop_native_pair_none_fields(self, handler):
+        data = handler(self)
+        if isinstance(data, dict):
+            for k in ("kind", "paired_sentence_id", "nuance"):
+                if data.get(k) is None:
+                    data.pop(k, None)
+        return data
 
 
 class CallResultUsedItem(BaseModel):

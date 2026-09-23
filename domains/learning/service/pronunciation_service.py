@@ -34,6 +34,7 @@ from domains.learning.schemas.pronunciation import (
     SoundAggregate,
 )
 from domains.learning.service.normalcall_service import run_db
+from domains.learning.service.sentence_service import order_sentences_with_pairs
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +266,8 @@ def _gather(db: Session, call_id: int, member_id: int) -> Optional[_PronGathered
     call = repo.get_owned_call(call_id, member_id)
     if call is None:
         return None
-    sentences = repo.get_active_sentences(call_id)
+    # ⭐⭐ C10(2026-09-23) — 결과 API 와 같은 정렬 헬퍼(기본→그 짝).
+    sentences = order_sentences_with_pairs(repo.get_active_sentences(call_id))
     last_reviews = repo.get_last_counted_reviews(call_id)
     return _PronGathered(
         sentence_scores=build_sentence_scores(sentences),

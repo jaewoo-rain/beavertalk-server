@@ -26,6 +26,7 @@ from core import storage
 from core.config import settings
 from domains.learning.repository.call_repository import CallRepository
 from domains.learning.repository import curriculum_repository as cur_repo
+from domains.learning.service.sentence_service import order_sentences_with_pairs
 from domains.learning.schemas.call import (
     CallCharacterBrief,
     CallCreate,
@@ -554,6 +555,8 @@ class CallService:
         call = self.repo.get_detail(call_id)
         self._assert_owner(call, member_id)
         active = [s for s in call.sentences if s.deleted_at is None]  # 소프트 삭제 제외
+        # ⭐⭐ C10(2026-09-23) — 기본→그 짝 순서로 배열(order_sentences_with_pairs).
+        ordered = order_sentences_with_pairs(active)
         evals = [s.evaluation for s in active if s.evaluation]
         average = ScoreAverage(
             total_score=_avg([e.total_score for e in evals]),
@@ -574,7 +577,7 @@ class CallService:
                 CallResultSentence.model_validate(s).model_copy(
                     update={"voice_url": self._sample_url(s.voice_url)},
                 )
-                for s in active
+                for s in ordered
             ],
             used_items=self._used_items(member_id, call_id),
             quiz_items=self._quiz_items(member_id, call),
