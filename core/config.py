@@ -226,61 +226,6 @@ class Settings(BaseSettings):
     STT_FAKE: bool = False                          # True 면 실제 STT 대신 페이크(테스트/크레덴셜 부재)
     STT_SA_KEY_FILE: str = ""                       # STT 전용 SA 키. 비우면 TTS_SA_KEY_FILE(bt-dev-web-01) 재사용
 
-    # ── 캐스케이드 통화용 STT v2 (Speech-to-Text v2 스트리밍 + 음성활동 이벤트) ──
-    # 발음챌린지의 v1 경로와 **나란히** 존재한다(v1 은 일부러 v1 — 건드리지 않는다).
-    # v2 를 따로 쓰는 이유: v1 에는 음성활동 이벤트가 없어 턴 "시작"을 알 수 없다 = barge-in 불가.
-    # 설계: docs/20260805_1720_캐스케이드-턴감지-최소루프-설계.md
-    # ── STT 엔진 선택 (2026-08-10) ──
-    # ⭐ `openai` 는 code-switching 실측에서 **6/6** 을 맞춘 유일한 후보다(구글은 1~2/6).
-    #   ⭐ **기본이 openai 다**(2026-08-10 사장님 지시). 실측이 근거다 — 6개 언어쌍 같은
-    #     오디오·같은 실시간 경로에서 OpenAI **6/6**, Google 1~2/6, ElevenLabs 2/6.
-    #   ⚠ 키가 없거나 연결이 실패하면 google 로 폴백하고 WARNING 을 남긴다(R5). 조용한 폴백
-    #     금지 — 어느 엔진이 실제로 돌았는지 로그와 **원가 벤더**에 남아야 한다.
-    #     ⇒ 폴백은 **안전망으로 그대로 산다.** 키가 빠지면 통화가 죽는 게 아니라 구글로 돈다.
-    #   ⛔⛔ C14-b(2026-09-23) — 이 값을 실제로 읽는 유일한 코드는 `core/stt.py`
-    #     `make_stt_v2_stream`(캐스케이드 턴감지용 STT v2)인데, 그 함수의 유일한 실제
-    #     호출부(cascade_session.py)가 캐스케이드 엔진 삭제로 없어졌다 — **지금은 죽은
-    #     경로다**(발음 챌린지는 이 값과 무관하다: `/pron/stt/ws` 는 `make_stt_stream`(v1,
-    #     STT_LANGUAGE·STT_MODEL 을 쓰는 Google 전용 경로)만 쓴다, grep 으로 확인).
-    #     그래도 **이름은 그대로 둔다** — Cloud Run env 로 주입되는 키라 개명하면 운영
-    #     설정과 갈린다. core/stt.py 전체가 삭제 보호 대상이라 이 값도 코드와 함께 남긴다.
-    CASCADE_STT_ENGINE: str = "openai"        # 'openai' | 'google' — 캐스케이드 STT v2 전용(지금은 미사용 경로, env 키라 이름 유지)
-    OPENAI_STT_MODEL: str = "gpt-4o-mini-transcribe"   # $0.003/분(구글의 1/5.3)
-    # ⭐ 통화를 끊기 전에 흘릴 무음 길이. **없으면 마지막 발화가 사라진다**(2026-08-10 실측:
-    #   그냥 끊으면 전사 2건, 꼬리 무음 1.5초를 붙이면 3건째가 온다 — server VAD 가 발화 끝을
-    #   못 봐서 마지막 구간을 커밋하지 않는다). 통화 중에는 마이크가 상시 열려 문제가 없다.
-    OPENAI_STT_TAIL_SILENCE_MS: int = 1500
-    # ⭐⭐ **벤더 VAD 가 '말이 끝났다'고 판정하기까지 듣는 침묵**(2026-08-14).
-    #   ⛔ 지금까지 이 노브가 **코드에도 config 에도 없었다** — `{"type":"server_vad"}` 만 보내고
-    #     벤더 기본값에 맡겼다. 그래서 우리 침묵 임계(800ms) 위에 **얹혀 있는 줄도 몰랐다.**
-    #   ⭐ 그게 얹혀 있다는 증거(실측 `pipeline_lag_ms` 25표본, 중앙 **172ms**):
-    #     `audio_end_ms` 가 진짜 말끝이라면 이벤트는 침묵을 다 들은 뒤에야 나오므로
-    #     `audio_ms − audio_end_ms ≥ 침묵창` 이어야 한다. 172 는 그보다 훨씬 작다
-    #     ⇒ `audio_end_ms` 는 **VAD 판정 시점**(= 말끝 + 침묵창)이고, 침묵창은 우리 800ms
-    #       **앞에 통째로 붙어 있다**. 총 대기 = 침묵창 + 800.
-    #   ⚠ 낮추면 **사람이 문장 중간에 쉴 수 있는 시간이 같이 준다.** 그래서 이 값을 내릴 때는
-    #     `CASCADE_SPEECH_MERGE_GAP_MS` 를 같은 폭으로 **올려야** 관용도가 보존된다
-    #     (병합 gap 은 벤더가 이미 이 값을 뺀 뒤의 값이라 — 둘의 합이 곧 허용 쉼이다).
-    #   ⚠ 0 이면 안 보낸다(벤더 기본값). 벤더 문서상 범위를 벗어난 값은 요청이 거절될 수 있다.
-    OPENAI_STT_SILENCE_MS: int = 300
-    # ⚠ 이름이 관례와 다르다(`OPENAI_API_KEY` 가 아니다) — .env 에 이렇게 들어 있다.
-    GPT_API_KEY: str = ""
-    STT_V2_LANGUAGE: str = ""            # 비우면 STT_LANGUAGE 재사용
-    STT_V2_MODEL: str = "long"           # 대화 길이 발화용(v1 의 latest_short 는 단어용)
-    STT_V2_LOCATION: str = "global"      # global 이 아니면 리전 엔드포인트로 클라 생성
-    STT_V2_PROJECT: str = ""             # 비우면 SA 키의 project_id
-    STT_V2_RECOGNIZER: str = "_"         # 인라인 설정용 기본 recognizer
-    STT_V2_STREAM_MAX_S: int = 240       # 선제 롤오버 시점(v2 스트림 하드 한도 5분보다 짧게)
-    STT_V2_FAKE: bool = False            # True 면 실제 v2 대신 페이크(과금 0)
-    # ⛔ voice_activity_timeout 은 **턴 감지 노브가 아니다.** proto 원문:
-    #   "the server will automatically close the stream after the specified duration has
-    #    elapsed after the last VOICE_ACTIVITY speech event has been sent."
-    #   → 800ms 로 두면 사용자가 0.8초 쉴 때마다 **스트림이 통째로 닫힌다**. 턴 종료는
-    #   아래 CASCADE_TURN_SILENCE_MS(서버 자체 타이머)가 판정한다. 이 두 값은 **스트림 보호
-    #   상한**으로만 쓰고 기본은 미설정(0)이다. 0 초과로 줄 땐 문서상 범위 500ms~60s 를 지킬 것.
-    STT_V2_VAD_START_GUARD_MS: int = 0   # 0=미설정. speech_start_timeout(스트림 보호)
-    STT_V2_VAD_END_GUARD_MS: int = 0     # 0=미설정. speech_end_timeout(스트림 보호)
-
     # ── 라이브 표정(영상통화 아바타) 스위치 ────────────────────────────────
     # ⚠ 이름이 SPIKE 인 건 **출신 때문**이다 — 2026-08-18 에 "모델이 tool 을 부르기는
     #   하는가"를 로그로만 재보려던 계측 스파이크였다. 다음날(08-19) 본편에서 마커 전송이
@@ -441,7 +386,6 @@ class Settings(BaseSettings):
     #   ⚠ 차단기가 걸려도 통화는 죽지 않는다 — 그 턴을 잃을 뿐이고, 다음 사용자 발화에서
     #     오디오가 흐르면 카운터가 0으로 돌아간다.
     LIVE_FACE_MAX_CONSECUTIVE: int = 3
-    CASCADE_ROLLOVER_BUFFER_MS: int = 3000       # 롤오버 갭 동안 보관할 오디오 상한(core/stt.py v2 가 씀)
     # ── TTS 엔진 A/B 스위치 (core/tts.py 가 직접 읽는다 — "CASCADE_" 접두는 역사적
     #   이름일 뿐, 캐스케이드 전용이 아니다. C14-b 로 캐스케이드를 걷어낸 뒤에도 이
     #   다섯 값은 core/tts.py(문장 TTS·발음 복습이 쓰는 공용 합성기)가 그대로 읽는다.
