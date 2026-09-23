@@ -3108,6 +3108,32 @@ async def run_call(
         else:
             call_type = "expression"
 
+    # ── 동시통화 금지(정책) — QA C4 재검-③(2026-09-23) ───────────────────── #
+    # ⭐⭐ "한 회원은 동시에 한 통화만." 동시 시작·동시 재개로 하루 예산을 두 번 쓰는
+    #   경로를 막는 최소 처방이다(행 잠금·예약은 만들지 않는다 — 결정). "살아있는
+    #   ongoing" 의 정의(죽은 세션 무시 포함)는 CallRepository.active_ongoing_call_id.
+    # ⚠ `exclude_call_id=continues_call_id` 가 핵심이다 — 재연결(소켓만 끊기고
+    #   finalize_call 이 못 돈 조각)은 **그 통화 자신**이 아직 ongoing 인 채로 같은
+    #   continues_call_id 를 다시 보낸다. 자신을 제외하지 않으면 정상 재연결까지 막힌다.
+    other_ongoing = await svc.run_db(
+        db_session_factory,
+        lambda db: call_service.active_ongoing_call_id(
+            db, member_id, exclude_call_id=continues_call_id
+        ),
+    )
+    if other_ongoing is not None:
+        logger.info(
+            "normalcall: 동시통화 거절 member=%s ongoing_call_id=%s continues=%s",
+            member_id, other_ongoing, continues_call_id,
+        )
+        with contextlib.suppress(Exception):
+            await _send_json(client_ws, ServerError(
+                code="ALREADY_IN_CALL",
+                message="다른 통화가 이미 진행 중이에요.",
+                recoverable=False,
+            ))
+        return
+
     # ── 일일 한도 / 하루 통화 총량 예산 ───────────────────────────────────── #
     # 레벨테스트는 옛 횟수 한도(콜타입별 1회) 그대로. 나머지(chat·expression·freetalk)는
     # **C4(2026-09-23, D4)** 부터 하루 통화 총량(분) 예산으로 대체됐다 — DAILY_CALL_LIMIT

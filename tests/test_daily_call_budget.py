@@ -198,6 +198,18 @@ def test_ongoing_call_finishing_does_not_double_count(ctx):
     assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 300
 
 
+def test_done_call_with_null_total_time_is_not_estimated(ctx):
+    """⭐⭐ QA C4 재검-②(2026-09-23, 재재검): 경과 추정은 **status=='ongoing' 에만**
+    건다 — done·analyzing 인데 `total_time` 이 NULL(예: 분석 실패로 못 채움)인 행까지
+    추정하면, 이미 끝난 통화인데 **쿼리할 때마다 elapsed 가 계속 자라** 예산을 점점
+    더 깎는 별개의 버그가 된다(옛 코드가 status 를 안 보고 NULL 여부만 봤다).
+    """
+    long_ago = datetime.now(timezone.utc) - timedelta(hours=5)
+    _call(ctx, total_time=None, status="done", when_utc=long_ago)
+    assert cs.used_seconds_today(ctx["db"], ctx["member_id"]) == 0, \
+        "끝난 통화(done)의 NULL total_time 이 경과 시간으로 잘못 추정됐다"
+
+
 def test_fragment_2_is_rejected_when_remaining_is_zero(ctx):
     """⭐⭐ 조각2 시작 시 남은 예산이 0이면 거절 — 예산 방식은 이어하기 조각도 검사한다
     (call_session.py 의 실제 WS 라우팅 레벨 회귀는 test_normalcall_ws.py

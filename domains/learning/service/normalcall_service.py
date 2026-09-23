@@ -873,14 +873,11 @@ def resume_call(
     if (call.call_type or "chat") not in ("expression", "freetalk"):
         return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "chat")
 
-    # ⛔⛔ QA C4 재검-①(2026-09-23): TTL 기준은 `call_date`(최초 시작 시각, 이제 고정)
-    #   가 아니라 `updated_at` 이다 — 조각이 끝날 때(분석 파이프라인이 status 를
-    #   analyzing→done 으로 쓸 때) 또는 이전 resume(fragment_count 갱신)이 **그 행을
-    #   실제로 건드린 마지막 시각**이라, "조각이 끝난 뒤"를 옛 call_date 보다 훨씬 정확히
-    #   가리킨다 — 그래서 옛 코드가 얹던 CALL_FRAGMENT_S 보정(시작 시각을 종료 시각으로
-    #   근사하던 것)도 같이 없앤다. 그대로 남기면 TTL 창이 의도(RESUME_TTL_S=5분)보다
-    #   6분 더 넓어진다.
-    last = call.updated_at
+    # ⛔⛔ QA C4 재검-①(2026-09-23, 재재검): TTL 기준은 `updated_at` 도 아니다 — 통화
+    #   종료 "후행" 쓰기(분석·usage 기록·TTS·평점 PATCH 등)가 전부 그 값을 밀어, TTL 이
+    #   실제 조각 종료 시각보다 계속 늘어난다. **`fragment_ended_at` 전용 컬럼**(finalize_call
+    #   이 조각마다 찍는다)을 쓴다 — NULL(옛 행)이면 `updated_at` 으로 폴백한다.
+    last = call.fragment_ended_at or call.updated_at
     if last is not None:
         if last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
@@ -898,9 +895,7 @@ def resume_call(
     #   이 통화의 `total_time`(조각 누적, 12차) 전체가 **조각2 를 연 날**로 옮겨가 조각1
     #   이 쓴 시간이 그날 예산에서 빠지고 새 날 예산에서 깎이는 사고가 난다.
     #   ⇒ `call_date` 는 **최초 시작 시각 고정**(그 통화가 시작한 로컬 하루에 예산이 잡힌다).
-    #   조각 시각이 필요한 소비처(목록 정렬·TTL)는 `updated_at` 을 쓴다 — 아래 두 대입
-    #   (fragment_count·status)이 이미 UPDATE 를 만들므로 TimestampMixin.onupdate 가
-    #   자동으로 채운다(따로 대입할 것 없음).
+    call.fragment_started_at = datetime.now(timezone.utc)  # C4 재검-②: 이번 조각의 경과 추정 기준
     call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다
     db.commit()
     return call.call_id, "조각 %d/%d" % (call.fragment_count, max_fragments)
@@ -1249,13 +1244,15 @@ def create_call(
     target_language: 이 통화의 학습 대상 언어코드(멀티랭귀지, 기본 'ko') — 커리큘럼 선별·
         증거/이력 집계 스코프. call_session 이 resolve 한 LanguageSpec.code 를 넘긴다.
     """
+    now = datetime.now(timezone.utc)
     call = Call(
         member_id=member_id,
         character_id=character_id,
-        call_date=datetime.now(timezone.utc),
+        call_date=now,
         status="ongoing",
         call_type=call_type,
         target_language=target_language,
+        fragment_started_at=now,   # C4 재검-②: 예산의 ongoing 경과 추정 기준
     )
     db.add(call)
     db.commit()
@@ -1415,6 +1412,10 @@ def finalize_call(db: Session, call_id: int, *, total_time: int, status: str, ac
         return
     call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else total_time
     call.status = status
+    # ⭐⭐ QA C4 재검-①(2026-09-23): 이 조각이 끝난 시각 — 이어하기 TTL(resume_call)의
+    #   단일 소스. `updated_at` 을 쓰면 이 뒤에 오는 분석·usage 기록 등 후행 쓰기가
+    #   TTL 을 계속 밀어내므로, **조각 종료 전용** 컬럼에 여기서만 찍는다.
+    call.fragment_ended_at = datetime.now(timezone.utc)
     db.commit()
 
 

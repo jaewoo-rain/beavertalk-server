@@ -91,6 +91,19 @@ class Call(Base, TimestampMixin):
         Integer, nullable=False, server_default=text("1"),
         comment="이어하기 조각 수(1=이어하기 없음)",
     )
+    # ⭐⭐ C4 재검-①②(2026-09-23) — 일일 통화 예산·이어하기 TTL 전용 시각 2종. 둘 다
+    #   `updated_at`(TimestampMixin, 모든 쓰기에 반응)과 달리 **정확히 한 사건만** 가리킨다.
+    #   ⛔ 왜 updated_at 을 그대로 못 쓰나: 분석·usage 기록·TTS·평점 PATCH 등 통화 종료
+    #     "후행" 쓰기가 전부 updated_at 을 밀어, 이어하기 TTL(300초)이 실제보다 계속
+    #     늘어난다(그 통화가 끝난 지 한참 지나도 "방금 끝났다"로 보인다).
+    fragment_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="이번 조각이 시작된 시각(새 통화 생성·이어하기 재개 때 찍음) — 예산의 ongoing 경과 추정 기준",
+    )
+    fragment_ended_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="가장 최근 조각이 끝난 시각(finalize_call 이 조각마다 찍음) — 이어하기 TTL 기준. NULL=옛 행(updated_at 폴백)",
+    )
     call_type: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'chat'"),
         # ⭐ 2026-09-10: expression(표현학습)·freetalk(프리토킹) 추가. TEXT 라 **스키마

@@ -2915,6 +2915,145 @@ async def test_budget_checked_with_routed_call_type_and_client_tz(
 
 
 # --------------------------------------------------------------------------- #
+# 11. 동시통화 금지 — QA C4 재검-③(2026-09-23)
+#
+# "한 회원은 동시에 한 통화만." 동시 시작·동시 재개로 하루 예산을 두 번 쓰는 경로를
+# 막는 최소 처방 — 행 잠금·예약은 만들지 않는다(결정).
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_second_call_is_rejected_while_one_is_already_ongoing(
+    session_factory, seeded
+):
+    """같은 회원의 살아있는 ongoing 통화가 있으면 새 통화(또는 다른 통화로의 이어하기
+    시도)는 `ALREADY_IN_CALL` 로 거절되고 Live 세션도, 새 통화 행도 생기지 않는다."""
+    from datetime import datetime, timezone
+
+    db = session_factory()
+    try:
+        existing = Call(
+            member_id=seeded["member_id"], character_id=seeded["character_id"],
+            call_date=datetime.now(timezone.utc), status="ongoing",
+            call_type="expression", fragment_started_at=datetime.now(timezone.utc),
+        )
+        db.add(existing); db.commit()
+        existing_id = existing.call_id
+    finally:
+        db.close()
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming(seeded)], hang=True)   # 새 통화(이어하기 아님)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "ALREADY_IN_CALL", "동시통화를 안 막았다"
+    assert errors[0]["recoverable"] is False
+    assert opened["n"] == 0, "거절했는데 Live 세션을 열었다"
+
+    db = session_factory()
+    try:
+        assert db.query(Call).count() == 1, "거절했는데 새 통화 행이 생겼다"
+        assert db.query(Call).get(existing_id) is not None
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_resuming_the_ongoing_call_itself_is_allowed(session_factory, seeded):
+    """⚠ 재연결(소켓만 끊기고 finalize_call 이 못 돈 조각)은 **그 통화 자신**이 아직
+    ongoing 인 채로 같은 continues_call_id 를 다시 보낸다 — 자기 자신은 "다른 통화"가
+    아니므로 동시통화 금지에 걸리면 안 된다."""
+    from datetime import datetime, timezone
+
+    db = session_factory()
+    try:
+        call = Call(
+            member_id=seeded["member_id"], character_id=seeded["character_id"],
+            call_date=datetime.now(timezone.utc), status="ongoing",
+            call_type="expression", fragment_started_at=datetime.now(timezone.utc),
+        )
+        db.add(call); db.commit()
+        call_id = call.call_id
+    finally:
+        db.close()
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming_resume(seeded, call_id)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert not [e for e in errors if e.get("code") == "ALREADY_IN_CALL"], \
+        "자기 자신의 이어하기가 동시통화 금지에 걸렸다"
+    assert opened["n"] == 1, "정상 재연결인데 통화가 안 열렸다"
+
+
+@pytest.mark.asyncio
+async def test_stale_ongoing_call_does_not_block_a_new_call(session_factory, seeded, monkeypatch):
+    """죽은 세션(크래시로 status 가 못 닫힌 옛 ongoing) 은 무시한다 — 그렇지 않으면
+    그 회원이 영영 통화를 못 걸게 잠긴다.
+
+    ⚠ 이 시험은 **동시통화 판정만** 격리해서 본다 — 죽은 ongoing 행도 예산 집계에서는
+      여전히 진행 중 경과로 잡히므로(별개 축, sum_total_time_in_window), 예산까지
+      같이 심으면 DAILY_LIMIT 로 막혀 동시통화 판정을 가린다.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from domains.learning.realtime import call_session as _cs_mod
+
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", lambda *a, **k: False)
+
+    db = session_factory()
+    try:
+        stale = Call(
+            member_id=seeded["member_id"], character_id=seeded["character_id"],
+            call_date=datetime.now(timezone.utc) - timedelta(seconds=_cs_mod.ABSOLUTE_CALL_TIMEOUT_S + 60),
+            status="ongoing", call_type="expression",
+            fragment_started_at=datetime.now(timezone.utc) - timedelta(seconds=_cs_mod.ABSOLUTE_CALL_TIMEOUT_S + 60),
+        )
+        db.add(stale); db.commit()
+    finally:
+        db.close()
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming(seeded)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert not [e for e in errors if e.get("code") == "ALREADY_IN_CALL"], \
+        "죽은 ongoing 세션이 새 통화를 막았다"
+    assert opened["n"] == 1
+
+
+# --------------------------------------------------------------------------- #
 # 세션 재연결(15분 통화) — 세대 루프 불변식
 #
 # ⚠ 이 묶음이 지키는 핵심: 세대 루프에서 **워처 태스크는 재생성되는데 상태(_CallState)는
@@ -4537,6 +4676,83 @@ def test_resume_stops_at_the_fragment_cap(session_factory, seeded):
         # 4번째는 막힌다.
         got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
         assert got is None and "상한" in why, why
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# QA C4 재검-①(2026-09-23) — 이어하기 TTL 은 fragment_ended_at 전용, 후행 쓰기로 안 밀린다
+# --------------------------------------------------------------------------- #
+def test_rating_patch_does_not_extend_the_resume_ttl(session_factory, seeded):
+    """평점(rating) PATCH 는 `updated_at` 을 밀지만 `fragment_ended_at` 은 안 건드린다 —
+    TTL(5분)이 지난 통화는 평점을 매겨도 여전히 이어지지 않는다."""
+    from datetime import datetime, timedelta, timezone
+
+    from domains.learning.service import call_service as _cs
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
+        call = db.query(Call).get(cid)
+        call.fragment_ended_at = datetime.now(timezone.utc) - timedelta(seconds=_svc.RESUME_TTL_S + 10)
+        db.commit()
+
+        # 평점 PATCH — updated_at 은 밀리지만 fragment_ended_at 은 그대로여야 한다.
+        _cs.CallService(db).update_rating(seeded["member_id"], cid, 3)
+
+        got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+        assert got is None and "유효시간" in why, \
+            "평점 PATCH(updated_at 갱신)가 이어하기 TTL 을 연장했다 — 그 회귀"
+    finally:
+        db.close()
+
+
+def test_post_call_analysis_update_does_not_extend_the_resume_ttl(session_factory, seeded):
+    """통화후 분석(summary 등 후행 쓰기)도 `updated_at` 을 밀지만 이어하기 TTL 판정에는
+    안 쓰인다 — `fragment_ended_at` 이 유일한 기준이다."""
+    from datetime import datetime, timedelta, timezone
+
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
+        call = db.query(Call).get(cid)
+        call.fragment_ended_at = datetime.now(timezone.utc) - timedelta(seconds=_svc.RESUME_TTL_S + 10)
+        db.commit()
+
+        # 분석 파이프라인의 후행 쓰기 흉내 — updated_at 은 밀리지만 fragment_ended_at 은 그대로.
+        call.summary = "통화후 분석이 방금 채운 요약"
+        db.commit()
+
+        got, why = _svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)
+        assert got is None and "유효시간" in why, \
+            "분석 후행 갱신(updated_at)이 이어하기 TTL 을 연장했다 — 그 회귀"
+    finally:
+        db.close()
+
+
+def test_finalize_call_stamps_fragment_ended_at(session_factory, seeded):
+    """finalize_call(조각마다 부르는 그 자리)이 `fragment_ended_at` 을 실제로 찍는다 —
+    이 값이 없으면 이어하기 TTL 이 `updated_at` 폴백으로 되돌아가 위 두 시험이 지키는
+    성질이 애초에 성립하지 않는다."""
+    from datetime import datetime, timezone
+
+    from domains.learning.service import normalcall_service as _svc
+
+    db = session_factory()
+    try:
+        cid = _svc.create_call(db, seeded["member_id"], seeded["character_id"], "expression")
+        call = db.query(Call).get(cid)
+        assert call.fragment_ended_at is None, "새 통화는 아직 조각이 안 끝났다"
+
+        _svc.finalize_call(db, cid, total_time=300, status="analyzing")
+        db.refresh(call)
+        assert call.fragment_ended_at is not None
+        stamped = call.fragment_ended_at if call.fragment_ended_at.tzinfo else \
+            call.fragment_ended_at.replace(tzinfo=timezone.utc)
+        assert (datetime.now(timezone.utc) - stamped).total_seconds() < 10
     finally:
         db.close()
 
