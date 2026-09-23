@@ -213,8 +213,8 @@ def test_tts_rides_on_top_of_the_engine_cost_too():
 
 
 def test_the_tts_leg_still_prices_the_same_way():
-    """⛔ 산식을 하나로 합쳤다 — TTS 다리의 값이 안 변해야 한다(회귀). C14-b(2026-09-23)
-    로 캐스케이드 래퍼(estimate_cascade_cost_usd)는 삭제됐지만, 그 안에서 불렀던
+    """⛔ 산식을 하나로 합쳤다 — TTS 다리의 값이 안 변해야 한다(회귀). C14(70e20e2,
+    2026-09-23) 로 캐스케이드 래퍼(estimate_cascade_cost_usd)는 삭제됐지만, 그 안에서 불렀던
     `_tts_cost_usd` 는 통화후 문장 TTS·곁가지(estimate_side_cost_usd)도 같이 쓰는
     공용 함수라 그대로 남는다 — 여기서 직접 부른다."""
     from core import tts as tts_mod

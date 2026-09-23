@@ -388,7 +388,9 @@ class Settings(BaseSettings):
     LIVE_FACE_MAX_CONSECUTIVE: int = 3
     # ── TTS 엔진 A/B 스위치 (core/tts.py 가 직접 읽는다 — "CASCADE_" 접두는 역사적
     #   이름일 뿐, 캐스케이드 전용이 아니다. C14-b 로 캐스케이드를 걷어낸 뒤에도 이
-    #   다섯 값은 core/tts.py(문장 TTS·발음 복습이 쓰는 공용 합성기)가 그대로 읽는다.
+    #   네 값은 core/tts.py(문장 TTS·발음 복습이 쓰는 공용 합성기)가 그대로 읽는다.
+    #   ⛔⛔ C14-c(2026-09-23) — CASCADE_TTS_LANGUAGE 는 삭제했다. 읽는 곳이 0건이었다
+    #     (70e20e2 커밋 메시지의 "다섯 값 모두 읽힌다"는 부정확했다 — codex 발견).
     #   나머지 배치·침묵트림·OpenAI 보이스·에코 방어 등은 cascade_session.py 전용이라
     #   그 파일과 함께 삭제했다.) ──
     # ⭐⭐ **사장님 결정(2026-08-12): Gemini-TTS 로 간다**("지금 좋아 잘돼"). 화면에서 골라
@@ -420,11 +422,6 @@ class Settings(BaseSettings):
     #   ⭐ 원가와 같은 방향이다 — Gemini-TTS 는 **출력 오디오 초**로 과금되므로 빨리 읽으면
     #     오디오가 짧아져 그만큼 싸진다.
     CASCADE_TTS_SPEAKING_RATE: float = 1.0
-    # ── 언어 두 개(모국어 구간 TTS) ──
-    # ⭐⭐ **학습자 모국어 = 비버가 설명·리액션에 쓰는 언어**. core/tts.py 가 __마커__
-    #   경계로 모국어/타깃 언어 구간을 갈라 각각 그 언어로 읽을 때 폴백 기본값으로 쓴다
-    #   (실서비스는 member.language 가 준다).
-    CASCADE_TTS_LANGUAGE: str = "en"             # 모국어 구간을 읽을 언어(= 페르소나 locale)
 
     # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None

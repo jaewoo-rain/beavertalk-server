@@ -1653,13 +1653,16 @@ def estimate_usage_cost_usd(
     ) / 1_000_000
 
 
-# ── 원가 계기판 3단계: 엔진 구분 + 캐스케이드 단가 ───────────────────────────
-# 🧒 왜 엔진 이름을 남기나: Live 통화와 캐스케이드 통화가 같은 테이블·같은 컬럼에 섞이면
-#   AVG(원가) 가 두 엔진의 평균이 돼 버려, **"캐스케이드가 정말 싼가"를 증명할 수 없다.**
-#   그게 캐스케이드 프로젝트의 유일한 목적인데. 나중에 백필할 근거도 안 남는다.
+# ── 원가 계기판 3단계: 엔진 구분 ─────────────────────────────────────────────
+# 🧒 왜 엔진 이름을 남기나: 서로 다른 엔진(또는 모델)의 통화가 같은 테이블·같은 컬럼에
+#   섞이면 AVG(원가) 가 뭉뚱그려져 "이 엔진이 정말 싼가"를 증명할 수 없다. 나중에
+#   백필할 근거도 안 남는다.
 #
-# ⛔ 이 문자열들은 cascade-impl 과 공유하는 **계약**이다. 임의로 바꾸지 마라 —
-#   한쪽만 바꾸면 두 엔진의 행이 서로 다른 이름으로 쌓여 비교가 깨진다.
+# ⛔⛔ C14-c(2026-09-23) — 이 축은 원래 Live 와 캐스케이드를 비교하려고 만들었다.
+#   캐스케이드 엔진 삭제로 **지금은 비교할 상대가 없다**(옛 "cascade-impl 과 공유하는
+#   계약" 서술은 틀렸다 — 공유할 상대가 없어졌다). 함수는 그래도 남긴다: usage_engine
+#   컬럼 형식 자체는 여전히 계약이고(옛 live:*·cascade:* 행과 어긋나면 집계가 깨진다),
+#   Live 모델이 바뀌거나 새 엔진이 생기면 다시 쓸 자리다.
 ENGINE_LIVE_GEMINI = "live:gemini-native-audio"
 ENGINE_LIVE_OPENAI = "live:openai-realtime"
 
@@ -1667,10 +1670,10 @@ ENGINE_LIVE_OPENAI = "live:openai-realtime"
 def build_engine_tag(mode: str, *components: str) -> str:
     """엔진 태그를 계약 형식('<모드>:<구성요소를 + 로 연결>')으로 조립한다.
 
-    >>> build_engine_tag("cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd")
-    'cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd'
+    >>> build_engine_tag("live", "gemini-native-audio")
+    'live:gemini-native-audio'
 
-    STT/TTS 조합까지 문자열에 박아 두는 게 요점이다 — 나중에 Whisper 로 바꿔도 스키마 변경
+    구성요소까지 문자열에 박아 두는 게 요점이다 — 나중에 모델을 바꿔도 스키마 변경
     없이 **같은 컬럼에서 갈라진다**. 빈 구성요소는 무시한다(폴백으로 한 다리가 빠진 경우).
     """
     parts = [c.strip() for c in components if c and c.strip()]
@@ -1876,7 +1879,7 @@ def estimate_call_cost_usd(
       (Live 든 캐스케이드든) 돌기 때문에 engine 분기 **안이 아니라 위**에서 더한다.
       ⛔ 새 산식을 만들지 마라 — 원가의 유일한 입구는 계속 이 함수다.
     """
-    # ⭐⭐ C14-b(2026-09-23) — 캐스케이드 엔진 자체를 걷어냈다(estimate_cascade_cost_usd
+    # ⭐⭐ C14(70e20e2, 2026-09-23) — 캐스케이드 엔진 자체를 걷어냈다(estimate_cascade_cost_usd
     #   삭제). `usage_engine='cascade:...'` 인 **과거 통화 70여 건은 DB 에 그대로 남는다**
     #   — 그 행에서 원가 계산이 죽으면 안 되니, Live 단가로 잘못 계산하는 대신(같은
     #   `usage_in_text` 컬럼이 캐스케이드에선 LLM 토큰 $0.30, Live 는 $0.50이라 섞으면

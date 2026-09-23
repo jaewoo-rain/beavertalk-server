@@ -4117,24 +4117,27 @@ async def test_call_without_usage_leaves_columns_null(session_factory, seeded):
 # --------------------------------------------------------------------------- #
 # (p) 원가 계기판 3단계 — 엔진 구분(usage_engine) + peak 의미 수정
 # --------------------------------------------------------------------------- #
-# Live 와 캐스케이드가 같은 컬럼에 섞이면 AVG(원가) 가 두 엔진의 평균이 돼, 캐스케이드
-# 프로젝트의 유일한 목적("정말 싼가")을 데이터로 증명할 수 없게 된다.
+# ⛔⛔ C14-c(2026-09-23) 갱신 — 원래 여기는 Live 와 캐스케이드가 같은 컬럼에 섞이면
+# AVG(원가) 가 두 엔진의 평균이 돼 "정말 싼가"를 데이터로 증명할 수 없다는 문제를
+# 지켰다. 캐스케이드 엔진 삭제로 지금은 비교 상대가 없다 — 남은 건 옛 cascade:* 행이
+# 원가 계산을 죽이지 않는다는 보증(아래 test_old_cascade_engine_rows_...)과
+# build_engine_tag/엔진 태그 자체의 계약뿐이다.
 # 그리고 usage_peak_prompt 는 압축마다 리셋되는 사이클 peak 를 담고 있었다(call 909:
 # DB 13,355 vs 실제 15,904) — 압축 트리거 하향 실험이 바로 그 숫자를 본다.
 
 def test_engine_tag_follows_the_contract():
-    """엔진 태그 조립 — cascade-impl 과 공유하는 계약 문자열이라 한 글자도 어긋나면 안 된다."""
+    """⛔⛔ C14-c(2026-09-23) 갱신 — 캐스케이드 조합은 지웠다(엔진 삭제, 옛 행만 DB 에
+    남는다). 여기서 지키는 진짜 성질은 build_engine_tag 자체의 것이라 live 로 옮겨
+    그대로 지킨다: usage_engine 컬럼 형식은 한 글자도 어긋나면 안 되는 계약이다.
+    구성요소 개수·이름은 실제 호출부(call_session.py, 모델 하나)와 무관한 추상값이다
+    — 여기서 보는 건 join 규칙이지 프로덕션 모양이 아니다."""
     assert svc.ENGINE_LIVE_GEMINI == "live:gemini-native-audio"
-    assert svc.build_engine_tag(
-        "cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
-    ) == "cascade:google-stt-v2+gemini-2.5-flash+cloud-tts-chirp3-hd"
-    # STT 를 갈아끼워도 같은 컬럼에서 갈라진다(스키마 변경 없이).
-    assert svc.build_engine_tag(
-        "cascade", "whisper", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
-    ) == "cascade:whisper+gemini-2.5-flash+cloud-tts-chirp3-hd"
+    assert svc.build_engine_tag("live", "gemini-3.1-flash-live-preview") \
+        == "live:gemini-3.1-flash-live-preview"
+    # 구성요소가 여러 개면 + 로 이어진다(스키마 변경 없이 같은 컬럼에서 갈라진다).
+    assert svc.build_engine_tag("live", "leg-a", "leg-b") == "live:leg-a+leg-b"
     # 폴백으로 한 다리가 빠지면 빈 칸이 아니라 그냥 빠진다("a++b" 같은 쓰레기 방지).
-    assert svc.build_engine_tag("cascade", "whisper", "", "cloud-tts-chirp3-hd") \
-        == "cascade:whisper+cloud-tts-chirp3-hd"
+    assert svc.build_engine_tag("live", "leg-a", "", "leg-c") == "live:leg-a+leg-c"
 
 
 @pytest.mark.asyncio
@@ -4159,37 +4162,6 @@ async def test_live_call_stamps_its_engine(session_factory, seeded):
         db.close()
 
 
-def test_cascade_summary_keeps_column_contract_and_vendors(session_factory, seeded):
-    """캐스케이드 규약: 오디오 컬럼 0, 텍스트 컬럼 = LLM 토큰, STT·TTS 는 usage_json.vendors."""
-    db = session_factory()
-    try:
-        call_id = svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal")
-        engine = svc.build_engine_tag(
-            "cascade", "google-stt-v2", "gemini-2.5-flash", "cloud-tts-chirp3-hd"
-        )
-        summary = {
-            "msgs": 40, "sum_total": 44200, "peak_prompt": 5200,
-            "in_mod": {"TEXT": 41000}, "out_mod": {"TEXT": 3200},
-            "vendors": {
-                "stt": {"vendor": "google-stt-v2", "audio_s": 902.4},
-                "llm": {"vendor": "gemini-2.5-flash", "in_text": 41000, "out_text": 3200},
-                "tts": {"vendor": "cloud-tts-chirp3-hd", "chars": 8400},
-            },
-        }
-        assert svc.save_call_usage(db, call_id, summary, engine=engine) is True
-
-        call = db.get(Call, call_id)
-        assert call.usage_engine == engine
-        # 오디오 토큰은 0 — 캐스케이드 LLM 은 오디오를 안 받는다(NULL 아님: 0 은 사실이다).
-        assert (call.usage_in_audio, call.usage_out_audio) == (0, 0)
-        assert (call.usage_in_text, call.usage_out_text) == (41000, 3200)
-        # 초·문자는 토큰 컬럼에 못 들어간다 — JSON 에 원형 그대로.
-        assert call.usage_json["vendors"]["tts"]["chars"] == 8400
-        assert call.usage_json["vendors"]["stt"]["audio_s"] == 902.4
-    finally:
-        db.close()
-
-
 def test_cost_depends_on_engine_not_just_tokens():
     """같은 토큰 수라도 엔진이 다르면 원가가 다르다 — 엔진을 모르고 계산하면 조용히 틀린다."""
     live, unknown = svc.estimate_call_cost_usd(
@@ -4204,7 +4176,7 @@ def test_cost_depends_on_engine_not_just_tokens():
 
 
 def test_old_cascade_engine_rows_fall_back_to_zero_and_unknown_instead_of_crashing():
-    """⭐⭐⭐ C14-b(2026-09-23) — 캐스케이드 엔진을 걷어낸 뒤에도 옛
+    """⭐⭐⭐ C14(70e20e2, 2026-09-23) — 캐스케이드 엔진을 걷어낸 뒤에도 옛
     `usage_engine='cascade:...'` 행(약 70건, DB 에 남아 있다)의 원가 계산이 죽으면
     안 된다. Live 단가로 잘못 계산하는 대신(같은 컬럼이 엔진마다 단가가 다르다) 0 원 +
     «미상» 으로 드러난다 — 조용히 틀린 값보다 "모른다"가 낫다."""
@@ -4270,7 +4242,7 @@ def test_llm_output_cost_includes_thinking_tokens():
     ⛔ out_text 만 세면 낸 돈의 일부가 통계에서 사라진다. `_llm_tokens_cost_usd` 는
       캐스케이드의 LLM 다리(삭제됨)뿐 아니라 통화중 사이드카·통화후 분석의 LLM 원가도
       같이 타는 **공용 함수**라 그대로 남는다 — 여기서 직접 부른다(옛 캐스케이드
-      래퍼(estimate_cascade_cost_usd) 는 C14-b 로 삭제됐다).
+      래퍼(estimate_cascade_cost_usd) 는 C14(70e20e2)로 삭제됐다).
     """
     base = {"vendor": "gemini-2.5-flash", "in_text": 10_000, "out_text": 2_000}
     thinking = {**base, "thoughts": 1_500}
@@ -4312,7 +4284,7 @@ def test_live_thinking_tokens_raise_a_warning_not_a_silent_undercount(caplog):
         "사고 토큰이 관측됐는데 아무 신호도 안 나온다(조용한 과소 계상)"
 
 
-# ⛔ 아래 TTS 단가 시험은 `_tts_cost_usd` 를 **직접** 부른다(2026-09-23, C14-b) — 옛
+# ⛔ 아래 TTS 단가 시험은 `_tts_cost_usd` 를 **직접** 부른다(2026-09-23, C14/70e20e2) — 옛
 #   캐스케이드 래퍼(estimate_cascade_cost_usd)는 삭제됐지만, 이 산식 자체는 통화후
 #   문장 TTS(estimate_side_cost_usd)가 Live·캐스케이드 무관하게 계속 쓰는 **공용
 #   함수**라 남는다(발음/TTS 경로 무변경 — C14 시험 요구).

@@ -472,7 +472,7 @@ def build_system_instruction(
 #   tests/test_freetalk_lesson.py · tests/test_live_face_spike.py). 분할은 그 출력을
 #   **받아서 자르는 후처리**로만 한다.
 #
-# ⛔⛔ C14-b(2026-09-23) 정정 — 이 함수의 **프로덕션 호출부는 이제 0개**다(C14-a 로 옛
+# ⛔⛔ C14 정리 후속(919e9ee, 2026-09-23) 정정 — 이 함수의 **프로덕션 호출부는 이제 0개**다(C14-a 로 옛
 #   "normal" 전용 else 분기가 call_session.py 에서 삭제됐다). 남은 호출부는 dev 도구
 #   2개(main.py:850 `/__dev/call-prompt` · scripts/dev_dump_prompt.py:125) + 위 잠금
 #   시험 4개뿐이다. **dev 도구를 나중에 지워도 이 함수는 못 지운다** — 잠금 시험이

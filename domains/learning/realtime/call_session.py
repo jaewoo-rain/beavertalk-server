@@ -2910,8 +2910,9 @@ async def _persist_usage(db_session_factory, state: _CallState, call_id: int | N
             # ⭐⭐ **모델을 태그에 싣는다**(2026-09-04). 플랜에 따라 2.5/3.1 이 갈리는데
             #   종전 태그(`live:gemini-native-audio`)는 모델을 안 담아 **두 모델의 통화가
             #   같은 문자열로 섞였다** — "2.5 로 내린 게 얼마 아꼈나"를 DB 로 못 묻는다.
-            #   ⛔ `ENGINE_LIVE_GEMINI` 상수는 **안 건드린다** — 캐스케이드와 공유하는
-            #     계약이고, 원가 분기가 `startswith("cascade:")` 라 접두사만 지키면 된다.
+            #   ⛔ `ENGINE_LIVE_GEMINI` 상수는 **안 건드린다** — usage_engine 컬럼에 이미
+            #     쌓인 옛 행(live:*·cascade:*, C14-c 2026-09-23 갱신)과 형식이 어긋나면
+            #     원가 집계가 깨진다. 원가 분기는 `startswith("cascade:")` 로 옛 행만 갈라낸다.
             #   ⇒ `build_engine_tag("live", <모델id>)` = "live:gemini-3.1-flash-live-preview"
             #   ⚠ 모델을 모르면(재개 세대 등) 종전 상수로 떨어진다 — 값이 비는 것보다 낫다.
             lambda db: svc.save_call_usage(
