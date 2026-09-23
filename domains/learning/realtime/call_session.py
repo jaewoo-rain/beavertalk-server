@@ -4293,10 +4293,9 @@ def _trigger_analysis(
             hinted_from_turn_index=hinted_from_turn_index,
             # ⭐ 이어하기 조각이면 **이 조각의 턴만** 검증한다(근거는 analyze_call 주석).
             since_turn_index=since_turn_index,
-            # ⛔ 두 코스는 옛 승급 사슬을 쓰지 않는다(기획 §5) — 판정도 안 돈다.
-            #   ⚠ «후보가 0인가» 로 판정하면 안 된다: chat 도 후보가 빈 경우가 정상이고
-            #     그때는 승급이 돌아야 한다. 아는 것은 **콜타입뿐**이라 여기서 명시한다.
-            skip_level_up=call_type in ("expression", "freetalk"),
+            # ⛔⛔ L5(2026-09-24, D7) — 옛 승급 사슬은 모든 콜타입에서 끊었다. 여기 있던
+            #   `skip_level_up=call_type in ("expression","freetalk")` 는 죽은 인자라
+            #   지웠다(정본: normalcall_service._apply_call_mastery 의 L5 주석).
         )
     task = asyncio.create_task(coro, name=f"normalcall-analysis-{call_id}")
     _analysis_tasks.add(task)

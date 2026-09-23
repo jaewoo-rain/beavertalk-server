@@ -598,10 +598,18 @@ def test_fast_track_and_levelup_pipeline(env):
 
     # ── 승급 1→2: 파이프라인 관통(D15 — 통화 수 시드 없이 게이트 4종만으로) ──
     # (call3 은 위에서 증거를 직접 적립했으므로 M4 가드에 걸린다 — 새 통화로 검증)
+    # ⭐⭐ L5(2026-09-24, D7) — `_apply_call_mastery`(파이프라인)는 이제 옛 승급 사슬을
+    #   안 돌린다(모든 콜타입에서 끊었다). `evaluate_level_up` 함수 자체는 그대로
+    #   남아 있으므로(D4 — 끊기만) 여기서는 **직접 불러서** 이 시험이 지키던 게이트
+    #   로직(fast-track·G1∧G2·스냅샷)이 여전히 정확함을 증명한다.
     call3b = _new_call(env)
     res = svc._apply_call_mastery(db, call3b.call_id, mid, [], [], _DIALOG_ROWS)
-    assert res["levelup"]["result"] == "promoted", res["levelup"]
-    assert res["levelup"]["from_level"] == 1 and res["levelup"]["to_level"] == 2
+    assert res["levelup"] is None, "L5 — 파이프라인에서 옛 승급 사슬이 더는 안 돈다"
+
+    res_levelup = mastery_service.evaluate_level_up(db, mid, trigger_call_id=call3b.call_id)
+    db.commit()
+    assert res_levelup["result"] == "promoted", res_levelup
+    assert res_levelup["from_level"] == 1 and res_levelup["to_level"] == 2
     assert db.get(Member, mid).korean_level == 2
 
     hist = db.scalar(select(MemberLevelHistory).where(
@@ -609,7 +617,7 @@ def test_fast_track_and_levelup_pipeline(env):
     ))
     assert hist is not None and hist.reason == "gate_promotion" and hist.gate_snapshot
 
-    snap = res["levelup"]["snapshot"]
+    snap = res_levelup["snapshot"]
     assert snap["gate_scope"] == "grammar_chunk"
     assert snap["denominator"] == 4  # L1 청크 4 — g1(L2)·어휘 미산입(D12)
     assert snap["g2"]["ratio"] == 0.5, snap  # 확정 c2 + observed c3 / 4 — 미확정 복귀 c4 제외

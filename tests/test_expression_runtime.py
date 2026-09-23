@@ -353,20 +353,25 @@ def test_an_expression_row_is_promoted_once_real_evidence_arrives(env) -> None:
     assert 'prog.provenance in ("placement", PROVENANCE_EXPRESSION)' in src
 
 
-def test_level_up_is_skipped_for_the_two_courses() -> None:
-    """⛔ 이 게이트는 «이번 통화의 증거» 가 아니라 **기존 progress 상태**로 판정한다.
+def test_level_up_is_never_run_from_any_call_type() -> None:
+    """⭐⭐ L5(2026-09-24, D7) — 옛 승급 사슬(`evaluate_level_up`)은 **어떤 콜타입에서도**
+    안 돈다. 예전엔 expression·freetalk 만 `skip_level_up` 으로 막고 chat·level_test 는
+    이 게이트가 돌았다 — "진도가 레벨의 유일한 소스" 가 된 뒤로는 chat 이 옛 체크판
+    기준(G1∧G2)으로 레벨을 따로 올리면 진도(cur_member_progress)가 가리키는 레벨과
+    실제 레벨이 갈린다(D7: 진도는 레벨2 차시인데 체크판이 레벨3 으로 올려 레벨3
+    재료로 레벨2 차시를 가르치는 상태). 승급은 이제 L2(재측정)·L3(진도 경계 돌파)
+    로만 일어난다.
 
-    그래서 검출을 안 한 통화가 **트리거가 되어** 옛 기준으로 승급이 찍힌다. 승급하면
-    korean_level 이 바뀌고 `pick_expression_items` 는 레벨 **정확일치**라 커리큘럼 분모가
-    통째로 갈아탄다 — D12 와 다른 기준으로.
-
-    ⛔ 판정을 «후보가 0인가» 로 하면 안 된다(그렇게 썼다가 회귀가 잡았다) — `normal` 도
-      후보가 빈 경우가 정상이고 그때는 승급이 **돌아야 한다**. 기준은 **콜타입**이다.
+    ⛔ `evaluate_level_up` 함수 자체는 지우지 않았다(D4 — 끊기만). `mastery_service`
+      코드·`member_item_progress`·`item_evidence` 테이블·`apply_evidence` 증거 적립은
+      그대로 돈다 — 여기서 지키는 건 "아무도 안 부른다" 뿐이다.
     """
     import inspect
 
     src = inspect.getsource(svc._apply_call_mastery)
-    assert "None if skip_level_up" in src, "두 코스에서도 승급 판정이 돈다"
+    assert "mastery_service.evaluate_level_up(" not in src, "옛 승급 사슬을 여전히 부른다"
+    assert "skip_level_up" not in inspect.signature(svc._apply_call_mastery).parameters, \
+        "죽은 플래그가 남아 있다"
 
 
 # --------------------------------------------------------------------------- #

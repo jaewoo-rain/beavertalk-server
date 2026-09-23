@@ -2575,17 +2575,25 @@ def _apply_call_mastery(
     hinted_from_turn_index: set[int] | None = None,
     # ⭐ 이어하기 조각의 시작 턴 — 멱등 가드를 이 조각 범위로 좁히는 데 쓴다.
     since_turn_index: int | None = None,
-    # ⭐ 표현학습·프리토킹은 옛 승급 사슬을 쓰지 않는다(기획 §5) — 호출부가 명시한다.
-    skip_level_up: bool = False,
 ) -> dict:
-    """검증→증거·상태전이→레벨업을 **한 세션·단일 commit** 으로 수행(⑤ 4~7단계).
+    """검증→증거·상태전이를 **한 세션·단일 commit** 으로 수행(⑤ 4~6단계).
 
-    부분 커밋 창 금지 — 증거가 반영됐는데 승급 판정이 빠진 상태가 남지 않는다.
+    부분 커밋 창 금지 — 증거가 반영됐는데 상태전이가 빠진 상태가 남지 않는다.
     (D15: 유효통화 산출·저장 단계 폐지 — 통화 수 파생값은 증거통화로 계산.)
+
+    ⛔⛔ L5(2026-09-24, D7) — 옛 승급 사슬(`evaluate_level_up`)을 **모든 콜타입에서
+    끊었다**. "진도가 레벨의 유일한 소스"(레벨-커리큘럼 연결 기획)가 된 뒤로는 이
+    게이트가 chat 통화 몇 번으로 `korean_level` 을 옛 기준(체크판 G1∧G2)으로 올릴 수
+    있었고, 그러면 진도(cur_member_progress)가 가리키는 레벨과 실제 레벨이 갈려
+    `lang_band`·재료 선별이 엇나갔다(D7 예시: 진도는 레벨2 차시인데 체크판이 레벨3
+    으로 올려 레벨3 재료로 레벨2 차시를 가르치는 상태). 승급은 이제 오직 L2(레벨테스트
+    재측정)·L3(진도가 레벨 경계 돌파)로만 일어난다.
+    ⛔ `evaluate_level_up` 함수 자체는 안 지운다(D4 — 끊기만, 삭제는 나중). 이 함수는
+    이제 아무도 안 부른다(mastery_service·mastery_repository 코드·member_item_progress·
+    item_evidence 테이블은 그대로 — apply_evidence 증거 적립은 계속 돈다).
     """
     # 리뷰 M1: 회원 단위 직렬화 — 같은 회원의 통화 2개가 동시 분석되면 progress upsert 가
     # uq_member_item 충돌로 증거를 통째 유실할 수 있어, 파이프라인 선두에서 행 잠금.
-    # (evaluate_level_up 의 재잠금은 멱등이라 무해. sqlite 테스트에선 no-op.)
     if mastery_repository.get_member_for_update(db, member_id) is None:
         logger.warning("normalcall 체크판: member 부재 → 스킵 member_id=%s", member_id)
         return {"verified": 0, "discarded": len(detections), "evidence": None, "levelup": None}
@@ -2610,23 +2618,13 @@ def _apply_call_mastery(
         db, member_id, call_id, verified, language=call_language,
     )
 
-    # ⛔⛔ **표현학습·프리토킹은 승급 판정을 돌리지 않는다**(2026-09-10 QA — 기획 §5).
-    #   이 게이트는 «이번 통화의 증거» 가 아니라 **기존 progress 상태**로 판정한다. 그래서
-    #   검출을 아예 안 한 통화가 **트리거가 되어** 옛 기준으로 승급이 찍힌다. 승급하면
-    #   korean_level 이 바뀌고, `pick_expression_items` 는 레벨 **정확일치**라 표현학습의
-    #   커리큘럼 분모가 통째로 갈아탄다 — D12(«그 레벨 전체 퀴즈 통과»)와 **다른 기준으로**
-    #   레벨이 오르는 것이다. ⇒ 두 코스는 이 사슬을 «안 쓰기만» 한다.
-    #
-    # ⛔ **«후보가 0개인가» 로 판정하지 마라**(그렇게 썼다가 회귀가 잡았다). `normal` 통화도
-    #   후보가 빈 경우가 정상으로 존재하고(`test_fast_track_and_levelup_pipeline`), 그때는
-    #   승급이 **돌아야 한다.** 판정 기준은 «후보 유무» 가 아니라 **«이 콜타입이 이 사슬을
-    #   쓰는가»** 다 — 그건 호출부만 안다. 그래서 명시 플래그로 받는다.
-    levelup = (
-        None if skip_level_up
-        else mastery_service.evaluate_level_up(
-            db, member_id, trigger_call_id=call_id, language=call_language,
-        )
-    )
+    # ⛔⛔ **옛 승급 사슬은 어떤 콜타입에서도 안 돈다**(L5, 2026-09-24, D7). "levelup" 키는
+    #   반환 모양 유지를 위해 항상 None 으로 둔다 — 호출부(analyze_call 의 로그 줄)가 이
+    #   키를 읽는다. 되살리지 마라: 이 게이트는 «이번 통화의 증거» 가 아니라 **기존
+    #   progress 상태**로 판정해서, 검출을 아예 안 한 통화가 트리거가 되어 옛 기준으로
+    #   승급이 찍힐 수 있었다. 승급하면 korean_level 이 바뀌고, 재료 선별은 레벨
+    #   **정확일치**라 진도(cur_member_progress)가 가리키는 레벨과 실제 레벨이 갈렸다.
+    levelup = None
     db.commit()
     return {
         "verified": len(verified),
@@ -2739,8 +2737,6 @@ async def analyze_call(
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
     since_turn_index: int | None = None,
-    # ⭐ 표현학습·프리토킹 — 옛 승급 사슬 미사용(기획 §5). 호출부가 명시한다.
-    skip_level_up: bool = False,
 ) -> None:
     """통화 전사를 분석해 표현·요약을 저장하고 표현별 TTS 를 합성한다(전체 graceful).
 
@@ -2941,7 +2937,6 @@ async def analyze_call(
                         db, call_id, member_id, detections, cands, verify_rows,
                         hinted_from_turn_index=hinted_from_turn_index,
                         since_turn_index=since_turn_index,
-                        skip_level_up=skip_level_up,
                     ),
                 )
                 logger.info(
