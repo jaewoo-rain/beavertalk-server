@@ -25,6 +25,7 @@ _FILES = sorted(p.name for p in _SERVICE_DIR.glob("*.py"))
 # 그쪽은 key 를 그대로 들고 있는 것이 정상이다.
 _RESPONSE_SCHEMAS = (
     "SentenceOut",
+    "CallDetailSentenceOut",
     "CallResultSentence",
     "RawDataOut",
     "ReviewOut",

@@ -82,8 +82,12 @@ class SentenceOut(BaseModel):
     is_bookmarked: Optional[bool]
     evaluation: Optional[EvaluationOut]
     # ⭐⭐ C10(2026-09-23) — 북마크 목록도 현지인 표현 짝을 실어 준다(통화 무관 목록이라
-    #   순서·paired_sentence_id 는 안 붙인다 — bt-back 결정). 기본 문장은 둘 다 None →
-    #   진행규칙 5 로 키 자체가 빠진다.
+    #   순서·paired_sentence_id 는 안 붙인다 — bt-back 결정, 프론트 전달 문서에도 명시).
+    #   기본 문장은 둘 다 None → 진행규칙 5 로 키 자체가 빠진다.
+    # ⛔⛔ R5-b(2026-09-24, bt-back) — `paired_sentence_id` 를 여기 넣으려다 되돌렸다.
+    #   북마크는 **문장 단위**(통화 무관) 목록이라 어떤 짝의 "부모"가 이 목록에
+    #   없을 수 있다(앱이 존재하지 않는 id 를 찾게 된다) — `CallDetailSentenceOut`
+    #   참조(통화 상세 전용으로 분리했다).
     kind: Optional[str] = None
     nuance: Optional[str] = None
 
@@ -92,6 +96,39 @@ class SentenceOut(BaseModel):
         data = handler(self)
         if isinstance(data, dict):
             for k in ("kind", "nuance"):
+                if data.get(k) is None:
+                    data.pop(k, None)
+        return data
+
+
+class CallDetailSentenceOut(BaseModel):
+    """`GET /calls/{call_id}`(지난 통화 상세) 전용 문장 — `SentenceOut` + `paired_
+    sentence_id`.
+
+    ⛔⛔ R5-b(2026-09-24, bt-back) — `SentenceOut`(북마크 목록과 공유)에 이 필드를
+      넣지 않는다. 북마크는 통화와 무관한 문장 단위 목록이라 짝의 "부모"가 그
+      목록에 없을 수 있다는 게 그 결정의 근거였고(C10, 프론트 전달 문서), 통화
+      상세는 항상 같은 통화 안의 짝만 다루므로 그 문제가 없다 — 그래서 이 화면
+      전용으로 새로 뗐다(`SentenceOut` 은 무변경).
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    sentence_id: int
+    korean_sentence: Optional[str]
+    native_sentence: Optional[str]
+    locale: Optional[str]
+    voice_url: Optional[str]
+    is_bookmarked: Optional[bool]
+    evaluation: Optional[EvaluationOut]
+    kind: Optional[str] = None
+    paired_sentence_id: Optional[int] = None
+    nuance: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _drop_native_pair_none_fields(self, handler):
+        data = handler(self)
+        if isinstance(data, dict):
+            for k in ("kind", "paired_sentence_id", "nuance"):
                 if data.get(k) is None:
                     data.pop(k, None)
         return data
@@ -120,7 +157,7 @@ class CallSummary(BaseModel):
 class CallDetail(CallSummary):
     """상세용 — 발화+평가 중첩."""
 
-    sentences: list[SentenceOut]
+    sentences: list[CallDetailSentenceOut]
 
 
 # ── 통화 분석 결과(종료 후) ──

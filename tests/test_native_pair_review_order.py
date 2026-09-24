@@ -165,6 +165,79 @@ def test_native_pair_sentence_gets_scored_like_any_other(ctx):
 
 
 # --------------------------------------------------------------------------- #
+# R5-b(2026-09-24, bt-back) — GET /calls/{call_id}(지난 통화 상세)도 /result 와
+# 같은 헬퍼(order_sentences_with_pairs)로 같은 순서·필드를 준다
+# --------------------------------------------------------------------------- #
+def test_get_call_matches_get_call_result_order(ctx):
+    """⛔⛔ 핵심 재현·수정 확인 — `/calls/{id}` 가 `/result` 와 **같은 순서**를 준다.
+
+    ⚠ 두 기본을 **먼저** 넣고 그 짝을 **나중에** 넣는다(물리/관계 순서 =
+    [기본1·기본2·짝1·짝2]) — `order_sentences_with_pairs` 없이는 이 물리 순서가
+    그대로 나가 [기본1·짝1·기본2·짝2](정답)와 달라진다. 짝을 기본 바로 뒤에
+    붙여 넣으면(관계 순서가 이미 정답과 같아) 정렬 누락이 있어도 우연히 통과해
+    이 시험이 아무것도 못 잡는다."""
+    db, call_id = ctx["db"], ctx["call_id"]
+    base1 = Sentence(call_id=call_id, korean_sentence="감사합니다", locale="en", source_type="asked",
+                      is_bookmarked=False, evaluation=Evaluation())
+    base2 = Sentence(call_id=call_id, korean_sentence="안녕", locale="en", source_type="asked",
+                      is_bookmarked=False, evaluation=Evaluation())
+    db.add(base1); db.add(base2); db.flush()
+    pair1 = Sentence(call_id=call_id, korean_sentence="고마워요", native_sentence="y", locale="en",
+                      source_type="asked", is_bookmarked=False, kind="native",
+                      paired_sentence_id=base1.sentence_id, nuance="캐주얼함", evaluation=Evaluation())
+    db.add(pair1); db.commit()
+
+    detail = CallService(db).get_call(ctx["member_id"], call_id)
+    result = CallService(db).get_call_result(ctx["member_id"], call_id)
+    detail_ids = [s.sentence_id for s in detail.sentences]
+    result_ids = [s.sentence_id for s in result.sentences]
+    assert detail_ids == [base1.sentence_id, pair1.sentence_id, base2.sentence_id], \
+        "물리 순서([기본1·기본2·짝1])를 그대로 내보냈다 — order_sentences_with_pairs 미적용"
+    assert detail_ids == result_ids, "/calls/{id} 와 /result 의 순서가 어긋난다"
+
+
+def test_get_call_base_sentence_json_omits_the_three_keys_entirely(ctx):
+    db, call_id = ctx["db"], ctx["call_id"]
+    base = Sentence(call_id=call_id, korean_sentence="안녕", locale="en", source_type="asked",
+                     is_bookmarked=False, evaluation=Evaluation())
+    db.add(base); db.commit()
+
+    detail = CallService(db).get_call(ctx["member_id"], call_id)
+    dumped = detail.sentences[0].model_dump()
+    assert "kind" not in dumped
+    assert "paired_sentence_id" not in dumped
+    assert "nuance" not in dumped
+
+
+def test_get_call_pair_sentence_json_carries_kind_paired_id_and_nuance(ctx):
+    db, call_id = ctx["db"], ctx["call_id"]
+    base, pair = _add_pair(db, call_id, korean="감사합니다", native="고마워요")
+    db.commit()
+
+    detail = CallService(db).get_call(ctx["member_id"], call_id)
+    by_id = {s.sentence_id: s.model_dump() for s in detail.sentences}
+    assert by_id[pair.sentence_id]["kind"] == "native"
+    assert by_id[pair.sentence_id]["paired_sentence_id"] == base.sentence_id
+    assert by_id[pair.sentence_id]["nuance"] == "캐주얼함"
+
+
+def test_get_call_without_any_pairs_is_unchanged(ctx):
+    """짝 없는 통화(지금 운영 상태) 회귀 — 기본 문장만 있으면 순서·필드가 종전과 같다."""
+    db, call_id = ctx["db"], ctx["call_id"]
+    s1 = Sentence(call_id=call_id, korean_sentence="하나", locale="en", source_type="asked",
+                  is_bookmarked=False, evaluation=Evaluation())
+    s2 = Sentence(call_id=call_id, korean_sentence="둘", locale="en", source_type="asked",
+                  is_bookmarked=False, evaluation=Evaluation())
+    db.add(s1); db.add(s2); db.commit()
+
+    detail = CallService(db).get_call(ctx["member_id"], call_id)
+    assert [s.sentence_id for s in detail.sentences] == [s1.sentence_id, s2.sentence_id]
+    for s in detail.sentences:
+        dumped = s.model_dump()
+        assert "kind" not in dumped and "paired_sentence_id" not in dumped and "nuance" not in dumped
+
+
+# --------------------------------------------------------------------------- #
 # ⑤ 북마크 목록 — kind·nuance 만, paired_sentence_id 없음, 순서는 종전
 # --------------------------------------------------------------------------- #
 def test_bookmark_list_exposes_kind_and_nuance_but_not_paired_sentence_id(ctx):
@@ -176,6 +249,10 @@ def test_bookmark_list_exposes_kind_and_nuance_but_not_paired_sentence_id(ctx):
 
     out = SentenceService(db).list_bookmarks(ctx["member_id"])
     by_id = {o.sentence_id: o for o in out}
+    # ⛔⛔ R5-b(2026-09-24, bt-back) — `paired_sentence_id` 를 `SentenceOut`(이 목록이
+    #   쓰는 스키마)에 넣지 않기로 한 결정 그대로다 — 통화 상세 전용 `CallDetail
+    #   SentenceOut` 으로 분리했다(schemas/call.py 참조). 이 스키마엔 그 필드
+    #   자체가 없어야 한다.
     assert "paired_sentence_id" not in type(out[0]).model_fields
 
     pair_dumped = by_id[pair.sentence_id].model_dump()

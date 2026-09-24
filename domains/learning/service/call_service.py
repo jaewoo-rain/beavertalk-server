@@ -31,6 +31,7 @@ from domains.learning.schemas.call import (
     CallCharacterBrief,
     CallCreate,
     CallDetail,
+    CallDetailSentenceOut,
     CallResult,
     CallResultQuizItem,
     CallResultUsedItem,
@@ -39,7 +40,6 @@ from domains.learning.schemas.call import (
     EvaluationOut,
     RawDataOut,
     ScoreAverage,
-    SentenceOut,
 )
 
 
@@ -606,9 +606,16 @@ class CallService:
         call = self.repo.get_detail(call_id)
         self._assert_owner(call, member_id)
         active = [s for s in call.sentences if s.deleted_at is None]  # 소프트 삭제 제외
+        # ⛔⛔ R5-b(2026-09-24, bt-back) — `/result`(get_call_result)와 같은 헬퍼로
+        #   같은 순서(기본→그 짝)를 준다. 새 정렬 로직을 만들지 않는다 — 한 헬퍼를
+        #   두 곳이 쓰는 지금 구조를 지킨다. 정렬을 안 하면 relationship 의 DB 물리
+        #   순서(`models/call.py` 의 `sentences` 에 order_by 없음)를 그대로 노출해
+        #   짝이 기본 문장과 나란히 안 온다(분석 직후 voice_url UPDATE 가 행을
+        #   뒤로 밀 수도 있다).
+        ordered = order_sentences_with_pairs(active)
         return CallDetail(
             **self._summary_fields(call),
-            sentences=[self._to_sentence(s) for s in active],
+            sentences=[self._to_sentence(s) for s in ordered],
         )
 
     def get_call_result(self, member_id: int, call_id: int) -> CallResult:
@@ -1010,8 +1017,8 @@ class CallService:
         """통화 원본 녹음 저장값 → 지금 서명한 재생 URL(단기)."""
         return storage.playback_url(settings.SUPABASE_BUCKET_RECORDINGS, stored)
 
-    def _to_sentence(self, s: Sentence) -> SentenceOut:
-        return SentenceOut(
+    def _to_sentence(self, s: Sentence) -> CallDetailSentenceOut:
+        return CallDetailSentenceOut(
             sentence_id=s.sentence_id,
             korean_sentence=s.korean_sentence,
             native_sentence=s.native_sentence,
@@ -1023,4 +1030,13 @@ class CallService:
             ),
             is_bookmarked=s.is_bookmarked,
             evaluation=EvaluationOut.model_validate(s.evaluation) if s.evaluation else None,
+            # ⭐⭐ R5-b(2026-09-24, bt-back) — 현지인 표현 짝(C9). sentence_service.
+            #   _to_out(북마크 목록)은 이미 kind·nuance 를 채운다 — 여기(통화 상세)
+            #   만 빠져 있었다. 기본 문장은 셋 다 None → 진행규칙 5 로 키 생략.
+            #   ⚠ `SentenceOut`(북마크와 공유) 대신 `CallDetailSentenceOut` 을 쓴다 —
+            #   `paired_sentence_id` 를 북마크 목록에 안 주기로 한 결정(C10, 프론트
+            #   전달 문서) 때문에 통화 상세 전용으로 분리했다(그 스키마 문서 참조).
+            kind=s.kind,
+            paired_sentence_id=s.paired_sentence_id,
+            nuance=s.nuance,
         )
