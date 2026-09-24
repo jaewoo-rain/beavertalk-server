@@ -253,6 +253,30 @@ async def test_needs_level_test_still_wins_over_alarm_chat(session_factory, seed
 
 
 @pytest.mark.asyncio
+async def test_needs_level_test_wins_when_alarm_is_auto_but_start_explicitly_sends_chat(
+    session_factory, seeded,
+):
+    """⛔⛔ R1-b(2026-09-24, bt-back 재발견) 핵심 회귀 — 알람 자체는 "auto"(학습)인데
+    start 가 명시로 "chat" 을 보낸 조합(수정 전 실패). 옛 순서(L8 이 알람 override
+    **앞**)에서는: call_type="chat"(명시) → L8 조건(`call_type=="auto"`) 거짓이라
+    건너뜀 → 알람 override 가 "auto" 로 덮음(L8 은 이미 지나감) → 레벨테스트를 영영
+    안 거치고 표현학습으로 감. 이 브랜치의 자유대화 버튼(start.call_type="chat")이
+    나가는 순간 도달하는 경로다."""
+    _dispatched(session_factory, seeded["member_no_level"], seeded["character_id"],
+                "call-lt-3", call_type="auto")
+    await _run(
+        session_factory, seeded, call_type="chat", inbound_call_id="call-lt-3",
+        member_id=seeded["member_no_level"],
+    )
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == "level_test", \
+            "알람 auto + start 명시 chat 조합에서 레벨테스트가 안 이겼다(R1-b 재발)"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
 async def test_needs_level_test_still_wins_over_alarm_chat_with_explicit_auto(session_factory, seeded):
     """⭐⭐ L8(2026-09-24) — 위 시험과 같지만 start.call_type="auto" 를 **명시로** 보낸다
     (앱이 실제로 보내는 값). L8 이전엔 명시 "auto" 가 레벨테스트 판정을 안 거쳐 알람의

@@ -3106,19 +3106,43 @@ async def run_call(
         #   "auto" 공통 규칙 한 번으로 판정한다(L8 — 이 자리에만 있으면 안 됐다).
         call_type = "auto"
 
+    # ⭐⭐ 알람별 통화 모드(프론트 요청 #1, 2026-09-23) — 수신통화면 **알람에 저장된
+    #   call_type 이 start.call_type 보다 우선한다.** 앱은 알람 통화에서도 홈 버튼 값을
+    #   그대로 실어 보내므로, start 를 우선하면 알람 설정이 영영 안 먹는다.
+    # ⛔⛔ R1-b(2026-09-24, bt-back 지적) — 이 블록은 **L8(바로 아래, 레벨테스트 필요
+    #   판정) 보다 먼저** 돈다(예전엔 반대였다 — 그게 이 버그였다). alarm_call_type 은
+    #   스키마상 "auto"|"chat" 뿐이라 그 둘만 정한다. 이 시점엔 call_type 이 아직
+    #   "level_test" 일 수 없으므로(L8 이 안 돌았다) 옛 `!= "level_test"` 가드는 필요
+    #   없다 — 항상 덮는다.
+    if alarm_call_type is not None:
+        call_type = alarm_call_type
+
     # ⭐⭐ L8(2026-09-24, 사장님 지적) — "auto" 는 미전송이든 명시든 **서버가 정해라**
     #   는 뜻이다. 서버가 가장 먼저 정할 것은 "레벨테스트가 필요한가" 다.
-    #   ⛔⛔ 옛 버그: 이 판정이 위 else(미전송) 분기에만 있었다. 그런데 앱은 "auto" 를
-    #   **명시로** 보낸다(home.dart CourseCallRequest(CallCourse.auto)) — 그리고 앱엔
-    #   "level_test" 를 보낼 수단이 아예 없다(CallCourse enum = expression/freetalk/
-    #   auto/chat). ⇒ 레벨 NULL 인 신규 회원이 홈 "학습" 을 누르면 레벨테스트가 아니라
-    #   표현학습이 열렸다(setup.get("korean_level") or 2 폴백으로 레벨2 재료를 받아
-    #   레벨테스트를 영영 못 봄 — 운영 실측 member 103·113).
-    #   ⛔ chat(자유대화)은 건드리지 않는다 — 사장님 지시는 "auto" 뿐이고, 자유대화는
-    #   커리큘럼이 아니라 레벨 없이도 돈다. expression·freetalk 명시(admin 도구)도
-    #   이미 위 admin 게이트가 처리했으니 여기서 또 안 건드린다.
-    if call_type == "auto" and spec.leveltest and setup["needs_level_test"]:
+    #   ⛔⛔ 옛 버그①(초판): 이 판정이 미전송(else) 분기에만 있었다(위에서 고쳤다 —
+    #   지금은 call_type 결정 전체가 끝난 뒤, 알람 override 까지 반영된 값을 본다).
+    #   ⛔⛔ 옛 버그②(R1-b, bt-back 재발견): 알람 override 가 **이 판정보다 뒤**에 있던
+    #   때는, start 가 명시로 "chat" 을 보낸 알람 통화(알람 자체 설정은 "auto")가 L8
+    #   을 건너뛴 채(그때 call_type=="chat"이라 L8 조건이 거짓) 알람 override 로
+    #   "auto" 가 됐다 — L8 은 이미 지나간 뒤라 레벨테스트로 다시 안 갔다(재현: 알람
+    #   auto + start chat + 레벨 NULL → 표현학습으로 새 회원이 레벨테스트를 영영 못
+    #   봄). 지금은 알람 override 를 먼저 적용하고, 그 결과가 "auto" 이거나 **애초에
+    #   알람 통화였으면**(`alarm_call_type is not None` — 알람 자체가 "chat" 을
+    #   골랐어도) 이 판정을 태운다: 알람의 "chat" 은 사용자가 그 알람을 만들 때 고른
+    #   값일 뿐 "지금 이 순간의 명시적 선택"이 아니므로, 레벨 미확정이면 여전히
+    #   레벨테스트가 이겨야 한다(기존 규율 — 알람 chat + 레벨 NULL → level_test, 그대로
+    #   지켜진다).
+    #   ⚠ 알람이 **아닌** 통화의 진짜 명시적 chat(사용자가 지금 자유대화 버튼을 누름)
+    #   은 `alarm_call_type is None` 이라 이 조건에 안 걸린다 — chat(자유대화)은
+    #   커리큘럼이 아니라 레벨 없이도 돈다는 규율은 그대로 산다(아래 참조).
+    if (
+        (call_type == "auto" or alarm_call_type is not None)
+        and spec.leveltest and setup["needs_level_test"]
+    ):
         call_type = "level_test"
+    # ⛔ 알람이 아닌 통화의 chat(자유대화)은 건드리지 않는다 — 사장님 지시는 "auto"
+    #   뿐이고, 자유대화는 커리큘럼이 아니라 레벨 없이도 돈다. expression·freetalk
+    #   명시(admin 도구)도 이미 위 admin 게이트가 처리했으니 여기서 또 안 건드린다.
     # ⚠ 하루 한도(DAILY_CALL_LIMIT["level_test"]=1) 와 조합하면 "레벨은 없는데 학습도
     #   못 한다" 로 갇힐 수 있어 보이지만(레벨테스트 한 번 소진 + 그날 재판정 실패로
     #   레벨 NULL 유지) — bt-back 이 배포 두 서비스(app-api·demo-api) 를 gcloud 로 실측:
@@ -3127,15 +3151,6 @@ async def run_call(
     #   ⛔ 방어 코드를 만들지 않는다(2026-09-24 결정, 안 일어나는 일에 분기 추가 금지).
     #   나중에 한도를 켜면(ENV=prod 또는 DAILY_LIMIT_ENFORCED=true) 이 조합이 실제로
     #   막힐 수 있다는 걸 그때 다시 검토해라.
-
-    # ⭐⭐ 알람별 통화 모드(프론트 요청 #1, 2026-09-23) — 수신통화면 **알람에 저장된
-    #   call_type 이 start.call_type 보다 우선한다.** 앱은 알람 통화에서도 홈 버튼 값을
-    #   그대로 실어 보내므로, start 를 우선하면 알람 설정이 영영 안 먹는다.
-    # ⛔ level_test 는 덮지 않는다 — 레벨 미확정이면 여전히 그게 먼저다(바로 위 L8
-    #   공통 규칙 그대로). alarm_call_type 은 스키마상 "auto"|"chat" 뿐이라 그 둘만 정한다 —
-    #   레벨테스트·표현학습/프리토킹 여부는 안 건드린다(auto 면 아래에서 그대로 갈린다).
-    if alarm_call_type is not None and call_type != "level_test":
-        call_type = alarm_call_type
 
     # ⭐⭐ 커리큘럼 2단계 경로(docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — **여기서 한 번** 정한다(§6 ③ 경로 고정).
     #   표현학습·프리토킹·auto 이고 CUR_ENABLED 면 cur 경로: 재료는 cur_* 에서, 진도도 cur_* 에 쓴다. 이 결정은 state.cur_route 로
