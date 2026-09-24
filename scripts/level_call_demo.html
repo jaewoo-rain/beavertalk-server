@@ -157,7 +157,10 @@ let token = null, callId = null;
 // ⛔ Supabase 주소·키를 페이지에 박지 않는다. 예전엔 여기에 프로젝트를 하드코딩했는데,
 //   서버가 토큰을 검증하는 프로젝트가 바뀌자 **로그인 이후 전부 401/403** 이 났고 서버
 //   ERROR 로그는 0건이라 아무도 못 찾았다. 이제 토큰은 **이 페이지를 준 서버**가 발급한다
-//   (/__dev/login·/__dev/signup) — 어긋날 대상 자체가 없다. cascade_demo 와 같은 방식.
+//   (/__dev/login·/__dev/signup) — 어긋날 대상 자체가 없다.
+//   ⛔⛔ P2-4(2026-09-24, bt-back QA) — "cascade_demo 와 같은 방식"이라는 옛 비교는
+//   뺐다. 그 데모(카스케이드 통화 체험)는 남아 있지 않다(grep 확인 — 파일·라우트
+//   둘 다 0건, main.py 에 지금 등록된 dev 데모는 이 페이지(/__levelcalldemo)뿐이다).
 $('#apibase').value = location.origin;
 const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
 function wsBase() {

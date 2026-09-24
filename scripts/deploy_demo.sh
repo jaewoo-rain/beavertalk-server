@@ -57,7 +57,11 @@ echo "[2/3] 배포"
 gcloud run deploy "$SERVICE" --image "$IMG" --region "$REGION" --project "$PROJECT"   --timeout=3600 "${ENV_ARGS[@]}" --quiet
 
 echo "[3/3] 헬스체크"
+# ⛔⛔ P2-4(2026-09-24, bt-back QA — 실제 결함) — `/__calldemo` 는 2026-08-12 에
+#   지워졌다(scripts/call_demo.html 삭제, 라우트만 남았었다 — CLAUDE.md 참조).
+#   배포마다 여기가 항상 404 를 찍고 있었다. 살아있는 두 번째 신호(`/docs`,
+#   Swagger — 무인증 GET 이라 curl 로 바로 쓸 수 있다)로 바꿨다.
 printf 'health:%s  ' "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/health")"
 printf 'leveldemo:%s  ' "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/__levelcalldemo")"
-printf 'calldemo:%s\n' "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/__calldemo")"
+printf 'docs:%s\n' "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/docs")"
 echo "URL: $BASE"

@@ -202,7 +202,7 @@
 
 | 우선 | 항목 | 메모 |
 |---|---|---|
-| 🔴 | **캐스케이드에 체크판·이력 재료가 안 들어간다** | `load_call_setup` 이 `study_items`/`known_items`/`recent_topics`/`history`/`promotion_notice` 를 **이미 담아 주는데** 캐스케이드가 안 넘긴다. Live 는 넘긴다. ⇒ 캐스케이드 통화엔 커리큘럼이 없다(비버가 즉석 생성). **코드 작업이라 프롬프트 범위 밖으로 보류 중** |
+| 🔴 | **캐스케이드에 체크판·이력 재료가 안 들어간다** | `load_call_setup` 이 `study_items`/`known_items`/`recent_topics`/`history`/`promotion_notice` 를 **이미 담아 주는데** 캐스케이드가 안 넘긴다. ⛔⛔ P2-4(2026-09-24, bt-back QA) — "Live 는 넘긴다"는 정정한다: **둘 다 안 넘긴다.** 실통화 WS 경로(call_session.py)는 C14-a(2026-09-23)로 그 재료를 받는 `build_system_instruction` 자체를 더 이상 안 부른다(normal→chat 강등 뒤 build_chat_instruction 이 대신한다). 그 함수의 살아있는 호출부는 devtool 둘뿐이다 — `main.py:845`(`/__dev/call-prompt`)·`scripts/dev_dump_prompt.py:110`. ⇒ 캐스케이드 통화엔 애초에 커리큘럼이 없다(비버가 즉석 생성). **코드 작업이라 프롬프트 범위 밖으로 보류 중** |
 | 🟠 | 감정 80% neutral 의 원인 미확정 | "모델이 하나만 내나" vs "우리가 뒤 태그를 버리나" — `read_emotion_tags` 계측이 답을 준다. **통화 1건이면 갈린다** |
 | 🟠 | 대괄호 라벨 ↔ 태그 충돌의 뿌리 | 방어 2겹(꺾쇠 표기 + 서버 제거)만 있고 라벨 표기는 그대로. `버린태그:` 로 확정 |
 | 🟡 | 응답 길이 문구 vs `max_output_tokens=200` | 잘리면 꼬리를 버린다. `truncated` 로 확정 |

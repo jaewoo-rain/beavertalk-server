@@ -204,6 +204,13 @@ def make_stt_stream(sample_rate: int, words: list[str]) -> Any:
 # 필드 의미(REST 레퍼런스): "If additional languages are provided, recognition result will
 #   contain recognition in the most likely language detected." → 순서가 우선순위라는 규정은
 #   문서에 **없다**. 우리는 학습 언어를 먼저 적지만 그건 규약이 아니라 우리 의도의 표시다.
+# ⛔⛔ P2-4(2026-09-24, bt-back QA) — 이름의 "v2"·로그 태그 `[stt-v2]`(아래 두 `logger.
+#   warning` 과 이 상수)는 **캐스케이드 시절의 흔적**이다. 지금은 이 값·로그가 전부
+#   Live 통화(`normalize_language_codes` → `call_session._input_language_codes`)에서만
+#   찍힌다 — 캐스케이드 v2 STT 스트림 자체는 이미 삭제됐다(파일 맨 위 C14-b docstring).
+#   로그에서 `[stt-v2]` 를 보면 "캐스케이드 문제"가 아니라 "Live 통화의 언어 힌트 문제"로
+#   읽어라. 이름은 여기서 안 바꾼다(문구만 정리하는 자리 — 상수·로그 태그를 바꾸면 기존
+#   로그 검색·알람이 갈라진다, 실제 개명은 별도 커밋 몫).
 STT_V2_MAX_LANGUAGES = 3
 
 # ⛔ **검증한 것만 매핑한다.** 짧은 코드(en)는 STT 코드가 아니다 — BCP-47 지역까지 필요하다
@@ -225,17 +232,18 @@ _STT_LANGUAGE_ALIASES: dict[str, str] = {
 _BCP47_RE = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z]{4})?-([A-Za-z]{2}|\d{3})$")
 
 
-# ⛔⛔ **이 함수는 캐스케이드 전용이 아니다 — 지울 때 같이 지우지 마라**(2026-08-20).
-#   ⭐⭐ C14-b(2026-09-23) 갱신 — 살아있는 호출부는 **라이브 통화 하나뿐**이다
-#   (`call_session._input_language_codes` → Gemini Live 입력 전사 언어 힌트, call_session.py:638
-#   근방). ⛔ "발음 챌린지가 쓴다"는 옛 서술은 **부정확했다** — 발음 챌린지(`stt_session.py`
-#   → `/pron/stt/ws`)는 v1 `make_stt_stream`(문서상 위 "발음 챌린지 서버 STT" 절, Google
-#   전용·언어 코드 정규화 없음)만 쓰고 이 함수를 호출하지 않는다(grep 확인, 0건). 캐스케이드
-#   호출부(`make_stt_v2_stream`)는 캐스케이드 엔진 삭제로 죽었지만, 함수 자체가 이 파일
-#   전체와 함께 보호 대상이라 코드는 그대로 남아 있다 — 지금은 **미사용 경로**다.
+# ⛔⛔ P2-4(2026-09-24, bt-back QA) — 아래는 이 파일 맨 위 C14-b 문단과 자기모순이던
+#   낡은 서술을 정리한 것이다(옛 글은 `make_stt_v2_stream`이 "코드는 그대로 남아 있다"고
+#   적었는데, 그 함수는 v2 섹션 삭제 때 **이미 지워졌다** — 파일 맨 위 docstring 이
+#   정본이다). 이 함수(`normalize_language_codes`)의 살아있는 호출부는 **라이브 통화
+#   하나뿐**이다(`call_session._input_language_codes` → Gemini Live 입력 전사 언어
+#   힌트, call_session.py:638 근방). "발음 챌린지가 쓴다"는 옛 서술도 부정확했다 —
+#   발음 챌린지(`stt_session.py` → `/pron/stt/ws`)는 v1 `make_stt_stream`(Google 전용·
+#   언어 코드 정규화 없음)만 쓰고 이 함수를 호출하지 않는다(grep 확인, 0건).
 #   ⭐ 라이브가 여기 기댄 이유: 입력 전사를 힌트 없이 열어 뒀더니 짧은 한국어가 다른 언어로
 #   찍혔는데(실측 call_id=1097: "다"→`套`, "아주"→`और च`), **캐스케이드가 2026-08-08 에
-#   똑같은 결함을 이미 겪고** 이 변환을 만들어 뒀다. 표를 하나 더 만들면 같은 질문에 답이 둘이 된다.
+#   똑같은 결함을 이미 겪고** 이 변환을 만들어 뒀다(v2 섹션 삭제 때 이 함수만 살려 v1 으로
+#   옮긴 이유 — 파일 맨 위 docstring 참조). 표를 하나 더 만들면 같은 질문에 답이 둘이 된다.
 #   기록: docs/20260813_0040_캐스케이드-데모잔재-정리목록.md §2-b
 def normalize_language_codes(codes: Any, fallback: str = "") -> list[str]:
     """언어 코드 목록을 **벤더가 받을 수 있는 모양**으로 다듬는다.

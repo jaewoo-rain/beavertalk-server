@@ -6,7 +6,12 @@ system_instruction 을 만든다. 어떤 조각도 AI 가 만들지 않는다(�
 원시 값(str/list) — 도메인 모델/DB 를 모른다.
 
 공개 심볼:
-    - build_system_instruction(...), SEED_OPENING / seed_opening(선톡 시드) — 일반 통화.
+    - build_system_instruction(...), SEED_OPENING / seed_opening(선톡 시드) — 옛 "일반
+      통화"(normal) 대본. ⛔⛔ P2-4(2026-09-24, bt-back QA) — 실통화 WS 경로(call_session.py)
+      는 C14-a(2026-09-23)로 이 함수를 더 이상 안 부른다(normal→chat 강등 뒤 build_chat_
+      instruction 이 대신한다). 지금 살아있는 호출부는 **devtool 둘뿐**이다 —
+      `main.py:845`(`/__dev/call-prompt`)·`scripts/dev_dump_prompt.py:110`. 그게 이
+      함수를 지우지 않고 남겨 둔 이유다(call_session.py 의 C14-a 주석 참조).
     - build_leveltest_instruction(...), seed_leveltest_opening(),
       CLOSE_SEED_LEVELTEST — 레벨테스트 통화(korean_level 미확정 회원). 레벨을 모르므로
       level_profile/history 슬롯이 없고, code-switching 이 역전(안내=모국어, 측정
@@ -49,9 +54,11 @@ from __future__ import annotations
 #   tests/test_prompt_common_snapshot.py 가 그걸 잠근다.
 #   ⛔ 복사해 오지 마라. 같은 문구가 두 곳에 있으면 어느 게 진짜인지 아무도 모른다
 #     (docs/prompts/README.md 원칙 3). 지뢰 주석도 common.py 가 함께 갖는다.
-#   ⚠ 아래 `_` 접두 별칭은 **하위호환**이다 — call_session·cascade_session·
-#     normalcall_service·pronunciation_service·테스트가 `persona_prompt._LOCALE_LABEL` 등을
+#   ⚠ 아래 `_` 접두 별칭은 **하위호환**이다 — call_session·normalcall_service·
+#     pronunciation_service·테스트가 `persona_prompt._LOCALE_LABEL` 등을
 #     그대로 import 한다. 이름을 안 바꿔야 그 전부가 무손상이다.
+#     ⛔⛔ P2-4(2026-09-24, bt-back QA) — `cascade_session` 은 뺐다. 캐스케이드
+#     엔진 삭제로 그 파일 자체가 없다(grep 확인 — import 할 데가 없다).
 from core.prompts.common import (  # noqa: F401 - 재수출(하위호환 공개 심볼)
     CLOSE_TAG_DEFAULT,
     CONTROL_TAG,
