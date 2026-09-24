@@ -38,16 +38,29 @@
 
 ### 통화 본체에 들어가는 것 (Gemini 에 직접)
 
-| # | 심볼 | 파일 | 언제 | Live | 캐스케이드 |
-|---|---|---|---|---|---|
-| 1 | `build_system_instruction` | `core/persona_prompt.py` | 통화 시작 1회 | ✅ | ✅ (옵트인 2블록 추가) |
-| 2 | `seed_opening` | `core/persona_prompt.py` | 시작 직후 1회(선톡) | ✅ | ✅ |
-| 3 | `build_reground_reminder` | `core/persona_prompt.py` | 중반 재접지 | ✅ | ❌ **없음** |
-| 3b | `build_continue_reminder` | `core/persona_prompt.py` | 후반 재접지(08-01 신설) | ✅ | ❌ **없음** |
-| 3c | `build_reground_brief` | `core/persona_prompt.py` | 압축 트리거 통합 재접지 | ✅ | ❌ |
-| 4 | `_close_seed` | `domains/learning/realtime/call_session.py` | 서버 시계 판단 시 | ✅ | ✅ (같은 함수 재사용) |
-| 5 | `_NUDGE_SEED_1` / `_2` | `call_session.py` | 무음 3단 넛지 | ✅ | (캐스케이드는 자체 처리) |
-| 6 | `build_leveltest_instruction` + `seed_leveltest_opening` + `close_seed_leveltest` | `core/persona_prompt.py` | 레벨테스트 통화 | ✅ | ❌ **레벨테스트 미지원** |
+> ⛔⛔ **2026-09-24 대정정 — 캐스케이드 엔진은 삭제됐다.** 옛 표의 «캐스케이드» 열과
+> §2 «두 엔진의 차이» 절은 **전부 사문**이다(`cascade_*.py`·`test_cascade_*.py` 삭제,
+> 커밋 `70e20e2`·`5ab9403`). 그리고 **`build_system_instruction` 은 더 이상 통화에 안 쓰인다** —
+> C14-a(`call_session.py`)가 그 호출을 지웠다. 남은 호출부는 dev 도구 2개
+> (`/__dev/call-prompt`·`scripts/dev_dump_prompt.py`)와 **바이트 스냅샷 잠금 시험 4개**뿐이다.
+> ⇒ **「일반 통화 프롬프트를 고쳐라」를 받았다면 `persona_prompt.py` 가 아니다.**
+>   실제로 도는 것은 아래 표의 1·2 다.
+
+| # | 심볼 | 파일 | 언제 | 지금 도나 |
+|---|---|---|---|---|
+| **1** | **`build_chat_instruction`** | **`core/prompts/chat.py`** | **자유대화(chat) 시작 1회** | ✅ **이게 실제 대본이다** |
+| **2** | **`seed_chat_opening`** | **`core/prompts/chat.py`** | **자유대화 선톡(기억 있을 때)** | ✅ (없으면 `seed_freetalk_opening` 폴백) |
+| 3 | `build_expression_instruction` 계열 | `core/prompts/expression.py` | 표현학습 통화 | ✅ |
+| 4 | `build_freetalk_instruction` | `core/prompts/freetalk.py` | 프리토킹 통화 | ✅ (chat 도 이걸 기반으로 쓴다) |
+| 5 | `build_reground_reminder`·`build_continue_reminder`·`build_reground_brief` | `core/persona_prompt.py` | 재접지 | ✅ |
+| 6 | `_close_seed` · `_NUDGE_SEED_1`/`_2` | `domains/learning/realtime/call_session.py` | 종료 시드 · 무음 3단 넛지 | ✅ |
+| 7 | `build_leveltest_instruction` + `seed_leveltest_opening` + `close_seed_leveltest` | `core/persona_prompt.py` | 레벨테스트 통화 | ✅ |
+| — | ~~`build_system_instruction`~~ · ~~`seed_opening`~~ | `core/persona_prompt.py` | ~~옛 일반 통화~~ | ⛔ **dev 도구·잠금 시험 전용**(프로덕션 호출 0건) |
+
+⚠ 잠금 대본은 `core/prompts/locked/*` 이고 해시 시험이 지킨다 — 고치려면 새 파일로 만든다.
+⚠ `build_system_instruction` 은 **지울 수 없다**(잠금 시험 4개: `test_persona_prompt.py`·
+  `test_prompt_common_snapshot.py`·`test_freetalk_lesson.py`·`test_live_face_spike.py`).
+  dev 도구를 나중에 없애도 그 함수는 남는다.
 
 ### 사이드카 (JUDGE_MODEL — 별도 LLM)
 
@@ -80,7 +93,19 @@
 
 ---
 
-## §2. 두 엔진의 차이 (프롬프트 관점)
+## §2. ~~두 엔진의 차이 (프롬프트 관점)~~ ⛔ **사문 — 읽지 마라**
+
+> **캐스케이드 엔진은 2026-09-23 에 삭제됐다**(커밋 `70e20e2`·`5ab9403`, 약 12,000줄).
+> 이 절 전체가 없는 코드를 설명한다 — `cascade_session.py`·`CASCADE_LLM_MAX_SENTENCES` 등
+> 여기 나오는 심볼은 **존재하지 않는다.** 엔진은 이제 **Live 하나뿐**이다.
+> 역사 기록으로만 남긴다(왜 두 엔진을 비교했는지 알아야 할 때를 위해). **판단 근거로 쓰지 마라.**
+>
+> ⚠ 이름에 `CASCADE_` 가 붙었어도 **살아 있는 설정이 있다** — `CASCADE_TTS_ENGINE`·
+> `CASCADE_TTS_GEMINI_MODEL`·`CASCADE_TTS_STYLE_PROMPT`·`CASCADE_TTS_SPEAKING_RATE` 는
+> **복습 TTS**(`core/tts.py`)가 읽는다. 이름만 역사적이다.
+
+<details><summary>옛 내용 펼치기(사문)</summary>
+
 
 |  | Live (`call_session`) | 캐스케이드 (`cascade_session`) |
 |---|---|---|
@@ -102,6 +127,8 @@
 동결 스냅샷이 깨진다. 스냅샷 통과 = **Live 무영향의 자동 증명**이니, 깨졌다면 공용 자산을 건드린 것이다.
 
 ---
+
+</details>
 
 ## §3. 튜닝 원칙 (노션 결정 로그에서 추출)
 
@@ -195,7 +222,9 @@
 3. **원칙 1~6 과 §4 지뢰밭을 대조한다.**
 4. 고친다. **규칙을 고쳤으면 예시도 같이 고친다**(원칙 4).
 5. **전문을 다시 뽑아 diff 한다.** 의도한 줄만 바뀌었는지 확인.
-6. `pytest tests/ -q` — 특히 `test_persona_prompt.py`(Live 무영향) · `test_cascade_*.py`.
+6. `pytest tests/ -q` — 특히 **잠금 시험 4개**(`test_persona_prompt.py` ·
+   `test_prompt_common_snapshot.py` · `test_freetalk_lesson.py` · `test_live_face_spike.py`)와
+   `test_prompt_locked_hash.py`. ⚠ 옛 `test_cascade_*.py` 는 **삭제됐다**(2026-09-24 정정).
    `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q`
 7. **§8 결정 로그에 적는다** — 무엇을·왜·무엇을 안 했는지. 노션에도 반영.
 8. 통화하고 **§9 로그를 본다.**

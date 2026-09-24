@@ -66,8 +66,14 @@ class Settings(BaseSettings):
         """마이그레이션용 URL. 미설정이면 런타임 URL 로 폴백."""
         return self.DATABASE_URL_DIRECT or self.DATABASE_URL_POOL
 
-    # ── JWT 인증 ──
-    # 운영에서는 반드시 강한 무작위 값으로 교체(.env). dev 기본값은 편의용.
+    # ── JWT 인증 ⛔ 사문(2026-09-24 QA) — 아래 4개를 읽는 코드가 **0건**이다 ──
+    # 자체 JWT 발급·검증은 `core/security.py` 와 함께 삭제됐다(Supabase GoTrue 로 이전,
+    # 인증은 `core/supabase_auth.py`). 지우지 않는 이유는 D4 규율(«끊기만, 삭제는 나중») —
+    # Cloud Run env 에 남아 있을 수 있고 `extra="ignore"` 라 무해하다.
+    # ⛔ 되살리지 마라. 다시 자체 JWT 가 필요해지면 그때 새로 설계한다.
+    # ⚠ 옛 `_guard_prod_secret`(ENV=prod + dev 기본값이면 기동 차단)은 **제거했다** —
+    #   아무도 안 읽는 값 때문에 운영 부팅이 거절되는 함정이었다(그리고 이 파일이
+    #   DAILY_LIMIT 를 켜려면 ENV=prod 를 쓰라고 권하고 있어 실제로 밟을 수 있었다).
     JWT_SECRET: str = _DEV_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7일
@@ -478,13 +484,6 @@ class Settings(BaseSettings):
         if not self.GOOGLE_CLIENT_ID:
             return set()
         return {c.strip() for c in self.GOOGLE_CLIENT_ID.split(",") if c.strip()}
-
-    @model_validator(mode="after")
-    def _guard_prod_secret(self) -> "Settings":
-        # 운영(prod)에서 기본 JWT 시크릿이면 기동 차단(시크릿 교체 누락 사고 방지)
-        if self.ENV == "prod" and self.JWT_SECRET == _DEV_JWT_SECRET:
-            raise ValueError("운영(ENV=prod)에서는 JWT_SECRET 을 반드시 교체해야 합니다.")
-        return self
 
     @model_validator(mode="after")
     def _guard_reground_mode(self) -> "Settings":

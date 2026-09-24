@@ -4,7 +4,8 @@
 
 ## 무엇인가
 외국인 학습자를 위한 **한국어 회화 학습 앱**의 백엔드 API.
-**FastAPI + SQLAlchemy 2.0 (동기/sync) + Supabase(PostgreSQL)**. 인증은 자체 JWT + Supabase 토큰(통화 WS).
+**FastAPI + SQLAlchemy 2.0 (동기/sync) + Supabase(PostgreSQL)**. 인증은 **Supabase 토큰 검증**(`core/supabase_auth.py`) — REST·통화 WS 둘 다.
+⚠ 옛 «자체 JWT» 는 없다(`core/security.py` 삭제). `JWT_SECRET` 등 `core/config.py` 의 JWT 설정 4개는 **읽는 곳이 0건인 사문**이다 — 다만 `:477` 가드가 `ENV="prod"` 에서 그 값이 dev 기본값이면 **기동을 막는다**(아무도 안 쓰는 값이 부팅을 거절한다).
 핵심 기능은 **normalcall**: Gemini Live 네이티브 오디오로 비버(선생님 페르소나)와 5분 한국어 음성통화 → 통화후 분석 → 문장 추출 → 복습·발음평가.
 
 ## 아키텍처 사실 (추측 금지, 코드가 근거)
@@ -35,7 +36,8 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - Gemini Live 네이티브 오디오. 세션 한계(압축 無): **오디오 15분 / 연결 자체 ~10분**(S2). **context window compression(sliding window)** 은 세션을 무제한으로 늘리고 오래된 오디오 토큰을 밀어내 **드리프트 완화·장기 통화 대비** — 5분 통화도 이 압축 위에서 돈다.
 - 시계: **통화 길이 만료는 프론트가 소켓을 닫아 끝낸다**(이어하기 §8 «무음 컷·주입 0» — 서버 길이 시계 종료 경로와 `LIVE_CALL_END_OWNER` 스위치는 T23(2026-09-12)에 코드에서 삭제, 되살리지 마라). 서버 몫은 540s 절대 백스톱, 무음 3단 넛지(in_tr 부재로 감지 → 재개→확인→종료 합류), GoAway 예고 시 조기 종료, 사이드카 종료 요청, 1분마다 점진 flush(크래시 내성). `call_duration_s` 는 넛지 간격·재접지 주기·재연결 잔여시간의 기준으로만 남는다.
 - 오디오: 입력 PCM16/16k, 출력 PCM24k. WS **바이너리=오디오, 텍스트=JSON 제어**(discriminated union, `protocol.py`).
-- **graceful degradation**: `genai_client` None 이면 통화만 비활성, 앱은 정상 기동. 외부 연동(발음/이메일/소셜/Storage)도 키 없으면 스텁·폴백.
+- **graceful degradation**: `genai_client` None 이면 통화만 비활성, 앱은 정상 기동. 외부 연동(발음/TTS/Storage/푸시)도 키 없으면 스텁·폴백.
+  ⚠ 이메일·소셜 로그인은 **없다**(`core/email.py`·`core/social.py` 삭제, Supabase GoTrue 로 이전).
 
 ### 프롬프트 규율
 - ⭐ **프롬프트를 만지기 전 `docs/prompts/README.md` 를 먼저 읽는다**(정본 — 카탈로그·엔진 차이·튜닝 원칙·되돌리면 안 되는 지뢰밭·결정 로그). 같은 폴더에 노션 원문 5종이 보존돼 있다(노션은 로그인 필요라 도구로 못 읽는다). 프롬프트를 고치면 그 §8 결정 로그에 적는다.
@@ -74,7 +76,8 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 ## 테스트 / 검증
 - **파이썬은 반드시 conda env**: `PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python -m pytest tests/ -q` (base 파이썬엔 의존성 없음). ⚠ **`.env` 가 없는 PC 에선 `DATABASE_URL_POOL` 더미를 준다** — `core/config.py` 가 import 시점에 `Settings()` 를 만들어 없으면 **79개가 수집 단계에서 죽는다**(실제 접속은 안 한다): `DATABASE_URL_POOL="postgresql+psycopg2://u:p@localhost:5432/dummy"`. ⛔ **전체 회귀를 동시에 두 번 돌리지 마라** — 통화 타이밍 테스트가 부하에 흔들려 실패 목록이 매번 바뀜다(약 9분 소요). 한글 출력이 콘솔에서 깨지면 스크립트가 **UTF-8 파일로 쓰게 하고 Read** 로 확인.
 - `pytest` (tests/). `scripts/smoke_*.py` 는 **실행 중 서버에 실제 요청**하는 수동 점검(파이테스트 아님).
-- API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 데모: `/__levelcalldemo`(레벨테스트·힌트 체험) · `/__cascadedemo`(캐스케이드 통화).
+- API 문서: 서버 실행 후 `/docs`(Swagger). 헬스체크 `/health`. dev 전용 데모: `/__levelcalldemo`(레벨테스트·힌트 체험) **하나뿐**.
+  ⚠ `/__cascadedemo`·`/__calldemo`·`/__enginedemo` 는 **전부 삭제**했다(캐스케이드 엔진 정리, 2026-09-23). `scripts/deploy_demo.sh:62` 헬스체크가 아직 `/__calldemo` 를 찍어 배포마다 404 를 출력한다.
   ⚠ `/__calldemo` 는 **삭제했다**(2026-08-12) — `scripts/call_demo.html` 이 `aaa14b6` 에서
   지워진 뒤로 라우트만 남아 **계속 500** 이었다. 참조는 문서뿐이었고 코드·프론트는 0건.
 
