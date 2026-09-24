@@ -8,6 +8,9 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Integer, create_engine
@@ -133,7 +136,10 @@ def test_can_resume_is_false_when_the_daily_budget_is_exhausted(env, monkeypatch
     """⭐⭐ 조각 상한(3)이 넉넉히 남아도(fragment_count=1) remaining_budget_s=0 이면
     can_resume 이 False 다 — WS 재개 자체가 DAILY_LIMIT 로 거절될 것이기 때문이다."""
     client, calls = env
-    monkeypatch.setattr(call_router.call_service, "remaining_budget_s", lambda db, member_id, plan_override=None: 0)
+    monkeypatch.setattr(
+        call_router.call_service, "remaining_budget_s",
+        lambda db, member_id, tz=None, tz_offset_min=None, plan_override=None, resuming_call_id=None: 0,
+    )
     body = _status(client, calls[("expression", 1)])
     assert body["can_resume"] is False, "예산 소진인데 이어하기가 열렸다"
 
@@ -141,6 +147,89 @@ def test_can_resume_is_false_when_the_daily_budget_is_exhausted(env, monkeypatch
 def test_can_resume_ignores_the_budget_check_when_exempt(env, monkeypatch):
     """remaining_budget_s 가 None(admin 면제)이면 예산 조건 자체를 걸지 않는다."""
     client, calls = env
-    monkeypatch.setattr(call_router.call_service, "remaining_budget_s", lambda db, member_id, plan_override=None: None)
+    monkeypatch.setattr(
+        call_router.call_service, "remaining_budget_s",
+        lambda db, member_id, tz=None, tz_offset_min=None, plan_override=None, resuming_call_id=None: None,
+    )
     body = _status(client, calls[("expression", 1)])
     assert body["can_resume"] is True
+
+
+# --------------------------------------------------------------------------- #
+# R2-b(2026-09-24, 프론트 실기기 QA) — resume-status 만 tz 를 안 받아 daily-status·WS
+# 와 최대 9시간(KST) 어긋났다("이 화면은 된다는데 서버는 거절" 류). tz·tz_offset_min·
+# resuming_call_id 를 실제로 remaining_budget_s 에 넘기는지 배선을 확인한다.
+# --------------------------------------------------------------------------- #
+def test_resume_status_passes_tz_and_resuming_call_id_through_to_remaining_budget_s(env, monkeypatch):
+    """⛔⛔ 배선 확인 — 이 엔드포인트가 받은 tz·tz_offset_min 그대로, 그리고 자기
+    자신의 call_id 를 resuming_call_id 로(R2-a, 자정 걸친 체인의 남은 예산을 이
+    화면에서도 정확히 보여준다) remaining_budget_s 에 넘겨야 한다."""
+    client, calls = env
+    seen = {}
+
+    def spy(db, member_id, tz=None, tz_offset_min=None, plan_override=None, resuming_call_id=None):
+        seen.update(tz=tz, tz_offset_min=tz_offset_min, resuming_call_id=resuming_call_id)
+        return 100
+
+    monkeypatch.setattr(call_router.call_service, "remaining_budget_s", spy)
+    call_id = calls[("expression", 1)]
+    body = _status_q(client, call_id, "?tz=Asia/Seoul&tz_offset_min=540")
+    assert seen == {"tz": "Asia/Seoul", "tz_offset_min": 540, "resuming_call_id": call_id}
+    assert body["can_resume"] is True   # remaining=100>0, 배선만 확인
+
+
+def test_resume_status_tz_is_optional_and_defaults_harmlessly(env, monkeypatch):
+    """tz·tz_offset_min 을 안 보내면(옛 클라·구버전 앱) None 그대로 넘어가야 한다
+    (local_window_utc 가 그 경우 UTC 로 안전하게 폴백하는 건 별도 시험 — 여기선
+    이 엔드포인트가 값을 조작하지 않고 그대로 통과시키는지만 본다)."""
+    client, calls = env
+    seen = {}
+
+    def spy(db, member_id, tz=None, tz_offset_min=None, plan_override=None, resuming_call_id=None):
+        seen.update(tz=tz, tz_offset_min=tz_offset_min)
+        return 100
+
+    monkeypatch.setattr(call_router.call_service, "remaining_budget_s", spy)
+    _status(client, calls[("expression", 1)])
+    assert seen == {"tz": None, "tz_offset_min": None}
+
+
+def test_daily_status_and_resume_status_agree_on_exhausted_budget_with_the_same_tz(env, monkeypatch):
+    """⛔⛔ R2-b 핵심 — 예전엔 resume-status 만 UTC 자정 기준이라, KST(UTC+9)에서
+    daily-status(tz 를 이미 받는다)와 최대 9시간 어긋날 수 있었다. 같은 tz 를 주면
+    두 엔드포인트가 **같은 예산 소진 판정**을 내야 한다.
+
+    시나리오: 이 통화의 call_date 를 "오늘"(KST) 자정 막 지난 시각으로 두고
+    total_time 을 premium 한도(900) 전부로 채운다 — KST 로는 명백히 "오늘 다 썼다"
+    인데, tz 를 안 받던 옛 resume-status(UTC 자정 기준)는 이 시각을 "어제"로 볼 수
+    있어(KST 자정 0~9시는 UTC 로 전날) 예산이 안 깎인 것처럼 잘못 봤다.
+    """
+    client, calls = env
+    monkeypatch.setattr(call_router.call_service, "is_unlimited_member", lambda db, member_id: False)
+    monkeypatch.setattr(
+        "domains.commerce.service.entitlements.effective_plan",
+        lambda db, member_id: "premium",
+    )
+
+    zone = ZoneInfo("Asia/Seoul")
+    today_kst = datetime.now(zone).date()
+    call_date_utc = datetime.combine(today_kst, time.min, tzinfo=zone).astimezone(timezone.utc) \
+        + timedelta(minutes=30)   # KST 00:30 — UTC 로는 전날 오후(9시간 차)
+
+    call_id = calls[("expression", 1)]
+    sf = client.app.state.session_factory
+    db = sf()
+    row = db.get(Call, call_id)
+    row.call_date = call_date_utc
+    row.total_time = 900   # premium 한도 전부 소진
+    db.commit()
+    db.close()
+
+    resume_body = _status_q(client, call_id, "?tz=Asia/Seoul&tz_offset_min=540")
+    daily_body = client.get(
+        f"/api/v1/calls/daily-status?date={today_kst.isoformat()}&tz=Asia/Seoul&tz_offset=540",
+        headers={"Authorization": "Bearer auth-m"},
+    ).json()
+
+    assert resume_body["can_resume"] is False, "KST 로 오늘 예산을 다 썼는데 resume-status 가 열어줬다"
+    assert daily_body["can_call_normal"] is False, "daily-status 도 같은 판정이어야 한다(비교 기준)"

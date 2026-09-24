@@ -136,6 +136,14 @@ def get_resume_status(
         None, pattern="^(free|premium)$",
         description="개발자도구 플랜 흉내(admin 만 유효) — can_resume·max_fragments 를 이 플랜 기준으로. WS start.plan_override 와 같은 값을 보낸다.",
     ),
+    tz: str | None = Query(
+        None, description="IANA 존 이름(\"Asia/Seoul\"). 있으면 tz_offset_min 보다 우선"
+        "(서머타임 안전). WS start.tz·calendar 와 같은 이름·같은 값을 보낸다.",
+    ),
+    tz_offset_min: int | None = Query(
+        None, description="tz 가 없거나 잘못됐을 때의 폴백(분, 동쪽 +). KST=540."
+        " WS start.tz_offset_min·calendar 와 같은 이름.",
+    ),
 ) -> dict:
     """⭐ **이 통화를 지금 이어도 되나** — 클라가 "이어서" 버튼을 열 시점을 정하는 값.
 
@@ -166,10 +174,21 @@ def get_resume_status(
     total = call_service.call_fragments_for_plan(db, member.member_id, plan_override_resolved)
     # ⭐⭐ C5(2026-09-23) — 남은 예산도 0이면 이어할 수 없다(조각 상한이 남아도 하루
     #   예산이 없으면 WS 재개 자체가 DAILY_LIMIT 로 거절된다). None = 예산 대상 아님
-    #   (admin 면제) — 그때는 이 조건을 걸지 않는다. ⚠ 이 엔드포인트는 tz 를 안 받는다
-    #   (C15 프론트 문서 목록에도 없음) — UTC 자정 기준이라 실제 WS 재개 판정(클라 tz)과
-    #   자정 근처에서 살짝 어긋날 수 있다(허용 — "이어서" 버튼 힌트일 뿐, 진짜 관문은 WS).
-    remaining = call_service.remaining_budget_s(db, member.member_id, plan_override=plan_override_resolved)
+    #   (admin 면제) — 그때는 이 조건을 걸지 않는다.
+    # ⛔⛔ R2-b(2026-09-24, 프론트 실기기 QA) — 예전엔 이 엔드포인트만 tz 를 안 받아
+    #   **UTC 자정** 기준으로 판정했다. 옛 주석은 "자정 근처에서 살짝 어긋날 수 있다"
+    #   고 적었는데 **과소평가였다** — 앱은 이미 daily-status·WS·calendar 세 곳에 tz
+    #   를 보내는데(lib/core/time/device_timezone.dart) 여기만 안 받으니, KST(UTC+9)
+    #   기준으로는 창 전체가 **9시간** 밀린다("Keep talking 시트는 안 뜨는데 WS 는
+    #   허용" 또는 그 반대가 남). daily_budget_exceeded 게이트(call_session.py)와
+    #   같은 tz·tz_offset_min 을 받아 넘긴다 — 어긋나면 "이 화면은 된다는데 서버는
+    #   거절" 이 난다. resuming_call_id=call_id 도 같이 넘긴다(R2-a, 자정을 걸친
+    #   체인의 남은 예산을 이 화면에서도 정확히 보여준다 — 소유 검증은 위에서 이미
+    #   끝났으므로 이 call_id 를 그대로 써도 안전하다).
+    remaining = call_service.remaining_budget_s(
+        db, member.member_id, tz=tz, tz_offset_min=tz_offset_min,
+        plan_override=plan_override_resolved, resuming_call_id=call_id,
+    )
     return {
         # ⛔ **"있다"가 아니라 "최신인가"** 다(2026-08-19 실측). 조각2 직후에는 조각1 때 만든
         #   요약이 남아 있어 `bool()` 로는 즉시 true 가 뜬다 — 사장님: "두 번째에서는
