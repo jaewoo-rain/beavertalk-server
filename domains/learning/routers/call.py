@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from core.deps import CurrentMember, DbSession, PageParams
+from core.deps import CurrentAdmin, CurrentMember, DbSession, PageParams
 from domains.learning.realtime.call_session import trigger_reanalysis
 from domains.learning.schemas.call import (
     CallCreate,
@@ -279,8 +279,19 @@ def update_rating(
 
 
 @router.delete("/{call_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_call(call_id: int, member: CurrentMember, db: DbSession) -> None:
-    """통화 삭제 — 연관 문장·원본·평가가 CASCADE 로 함께 삭제된다."""
+def delete_call(call_id: int, member: CurrentAdmin, db: DbSession) -> None:
+    """통화 삭제(admin 전용) — 연관 문장·원본·평가가 CASCADE 로 함께 삭제된다.
+
+    ⛔⛔ Q5(2026-09-24, 프론트 실기기 QA) — 앱에 이 호출이 없다(Flutter 전수 검색
+    0건, dio.delete 계열 포함). 일반 회원에게 열려 있으면 하루 통화 예산이
+    `SUM(total_time)` 이라 하드 삭제 = **예산 환급**이었다(지운 통화의 total_time
+    이 SUM 에서 빠진다) — 의도적으로 반복하면 예산 상한이 무력화된다.
+    실사용 경로가 없으니 soft delete 로 조회 경로를 전수 손보는 대신, **admin 전용**
+    으로 좁히는 쪽을 택했다(더 간단하고, 지금 안 쓰는 기능의 위험만 없앤다).
+    예산 SUM 은 하드 삭제된 행을 당연히 못 센다(사라졌으니) — admin 이 실제로 지우면
+    예산이 돌아온다. 그건 admin 운영 도구의 의도된 동작이라 그대로 남긴다(일반 회원
+    경로만 막으면 되는 문제였지, SUM 산식을 고칠 문제가 아니었다).
+    """
     CallService(db).delete_call(member.member_id, call_id)
 
 

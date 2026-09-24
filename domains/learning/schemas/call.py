@@ -36,7 +36,10 @@ class SentenceIn(BaseModel):
 class RawDataIn(BaseModel):
     content: Optional[str] = None
     voice_url: Optional[str] = None
-    total_time: Optional[int] = None
+    # ⛔⛔ Q5(2026-09-24, 프론트 실기기 QA) — 음수 total_time 이면 하루 예산
+    # SUM(total_time)(call_repository.py) 이 음수로 내려가 그날 상한이 사실상
+    # 소멸한다(매일 반복 가능). 0 은 정상값(허용)이라 ge=0 만 건다.
+    total_time: Optional[int] = Field(default=None, ge=0)
 
 
 class CallCreate(BaseModel):
@@ -44,7 +47,9 @@ class CallCreate(BaseModel):
 
     character_id: int
     call_date: Optional[datetime] = None
-    total_time: Optional[int] = None
+    # ⛔⛔ Q5(2026-09-24) — 같은 이유(RawDataIn.total_time 참조). 이 필드가 SUM 의
+    # 실제 재료(call.total_time)다 — 여기가 원래 구멍이었다.
+    total_time: Optional[int] = Field(default=None, ge=0)
     summary: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=3)
     sentences: list[SentenceIn] = Field(default_factory=list)

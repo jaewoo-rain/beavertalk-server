@@ -139,6 +139,14 @@ class CallRepository:
           (한 사람 한 통화 게이트)가 새 시작 자체를 막으므로, 이 SUM 이 "아직 안 끝난"
           조각을 볼 일이 없다. 그래서 단순 `SUM(total_time)` 이면 충분하다.
         """
+        # ⛔⛔ Q5(2026-09-24) — 이 SUM 은 하드 삭제된 통화 행을 당연히 못 센다(행 자체가
+        #   없다) — 삭제 = 예산 환급이다. 일반 회원에게 이게 뚫려 있으면 스스로 하드
+        #   삭제를 반복해 하루 예산을 무한 리필하는 구멍이 된다(실측·에이전트 재현).
+        #   ⇒ `DELETE /api/v1/calls/{id}` 를 admin 전용(CurrentAdmin)으로 좁혔다(routers/
+        #   call.py) — 앱이 이 호출을 아예 안 쓴다(전수 검색 0건). admin 계정은
+        #   `is_unlimited_member` 로 애초에 예산 대상이 아니고, 삭제도 **자기 소유
+        #   통화만**(_assert_owner) 지울 수 있어 다른 회원 예산을 되돌릴 경로가 없다.
+        #   음수 total_time 삽입 구멍은 별도로 막았다(schemas/call.py, ge=0).
         stmt = select(func.coalesce(func.sum(Call.total_time), 0)).where(
             Call.member_id == member_id,
             Call.call_date >= start_utc,
