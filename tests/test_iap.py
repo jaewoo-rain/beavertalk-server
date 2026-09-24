@@ -272,3 +272,33 @@ def test_no_verify_no_stub_rejects(db, monkeypatch):
     with pytest.raises(HTTPException) as ex:
         IapService(db).verify_and_grant(_mid(db), "ios", _item())
     assert ex.value.status_code == 503
+
+
+# --------------------------------------------------------------------------- #
+# 7) R3-a(2026-09-24, bt-back — 판매 개시 전 필수) — 스텁 기본값 자체가 닫혀 있어야
+#    한다. ENV 가드를 안 쓴 이유: 배포된 세 서비스(app-api·demo-api·test-api) 전부
+#    ENV=test 라(2026-08-05 gcloud 실측) ENV 가드는 이 프로젝트에서 안 걸린다.
+# --------------------------------------------------------------------------- #
+def test_iap_allow_stub_defaults_to_false():
+    """⛔⛔ 핵심 재현·수정 확인 — 이 필드의 **기본값**이 닫혀 있어야 한다(이 파일의
+    다른 시험은 전부 autouse 픽스처로 명시 True 를 켜므로 기본값 자체는 안 잡는다).
+    개발·QA 는 Cloud Run 환경변수로 명시로 켜서 쓴다."""
+    assert app_settings.__class__.model_fields["IAP_ALLOW_STUB"].default is False
+
+
+def test_stub_receipt_is_rejected_with_only_defaults(db, monkeypatch):
+    """기본 설정(이 파일의 autouse 오버라이드를 걷어낸 상태)에서 스텁 영수증이
+    거부되는지 — 실제 배선까지 확인한다(위 필드 기본값 시험과 상호보완)."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", False)
+    monkeypatch.setattr(app_settings, "IAP_ALLOW_STUB", False)
+    with pytest.raises(HTTPException) as ex:
+        IapService(db).verify_and_grant(_mid(db), "ios", _item())
+    assert ex.value.status_code == 503
+
+
+def test_stub_receipt_is_accepted_once_the_switch_is_explicitly_on(db, monkeypatch):
+    """개발·QA 통로 유지 — 스위치를 명시로 켜면(dev) 스텁이 여전히 통과한다."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", False)
+    monkeypatch.setattr(app_settings, "IAP_ALLOW_STUB", True)
+    res = IapService(db).verify_and_grant(_mid(db), "ios", _item())
+    assert res.already_granted is False

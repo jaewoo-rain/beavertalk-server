@@ -448,7 +448,15 @@ class Settings(BaseSettings):
     # 돌려볼 수 있게). 자격증명이 들어오면 prod 부터 True 로 올린다.
     # ⛔ prod 에서 True 인데 키가 없으면 검증이 실패(503)한다 — 키 먼저, 스위치 나중.
     IAP_VERIFY_ENABLED: bool = False
-    IAP_ALLOW_STUB: bool = True   # 스텁 허용(개발·QA). prod 전환 시 False 로 내린다
+    # ⛔⛔ R3-a(2026-09-24, bt-back — 판매 개시 전 필수): 기본값을 **False 로 뒤집었다**.
+    #   스텁은 서명을 안 본다 = 아무 문자열 영수증이나 통과해 premium 을 지급한다(무료
+    #   기능이던 시절엔 무해했지만, 2단화로 유료 기능이 실제로 갈린 지금은 구멍이다).
+    #   ⚠ ENV 가드(prod 에서만 막기)를 안 쓴 이유: 배포된 세 서비스(app-api·demo-api·
+    #     test-api) 전부 `ENV=test` 다(2026-08-05 gcloud 실측, CLAUDE.md 참조) — ENV
+    #     가드는 이 프로젝트에서 안 걸린다. 기본값 자체를 닫는 게 유일하게 확실하다.
+    #   개발·QA 는 이 스위치를 Cloud Run 환경변수로 켜서(True) 그대로 쓴다(로컬은
+    #   tests/test_iap.py 의 autouse 픽스처가 스스로 True 로 켠다 — 회귀 무영향).
+    IAP_ALLOW_STUB: bool = False   # 스텁 허용(개발·QA 명시로 켜야 함). prod 는 절대 켜지 마라
 
     INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
     INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)

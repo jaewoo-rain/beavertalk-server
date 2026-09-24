@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from core.deps import CurrentMember, DbSession
+from core.deps import CurrentAdmin, CurrentMember, DbSession
 from domains.commerce.schemas.subscription import (
     SubscribeCreate,
     SubscriptionOut,
@@ -17,9 +17,18 @@ router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
 @router.post("", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
 def start_subscription(
-    data: SubscribeCreate, member: CurrentMember, db: DbSession
+    data: SubscribeCreate, member: CurrentAdmin, db: DbSession
 ) -> SubscriptionOut:
-    """구독 시작 — 결제 후 구독을 활성화(기간·금액 저장)한다."""
+    """⛔⛔ R3-a(2026-09-24, bt-back — 판매 개시 전 필수) — **admin 전용**으로 좁혔다.
+    금액 검증이 `gt=0` 뿐이라(클라가 가격을 스스로 정한다) 아무 회원이나 이 API 를
+    한 번 불러 본인 JWT 로 `is_activate=True, plan="premium"` 행을 즉시 만들 수
+    있었다 — 실결제 없이 영상·15분·전 캐릭터를 스스로 지급하는 구멍.
+
+    ⚠ 이 API 자체는 **폐기하지 않는다**(IAP 전환 전 사장님 개발 통로,
+    `SubscriptionService.start` 문서 참조) — admin(`role=="admin"`)만 통과시킨다.
+    admin 이 아닌 회원의 진짜 구독은 이 경로를 안 쓴다(`POST /purchases/verify`,
+    `iap_service.verify_and_grant` — 그쪽은 건드리지 않았다).
+    """
     return SubscriptionService(db).start(member.member_id, data)
 
 
