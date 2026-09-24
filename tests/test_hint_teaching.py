@@ -274,15 +274,29 @@ async def test_run_call_pushes_teaching_plan_once(session_factory, seeded, monke
     # ⚠ 2026-08-19: `chain_call_id` 가 추가됐다(이어하기 — "이 통화에서 이미 다뤘나" 판정).
     #   ⛔ 가짜가 **kw 를 흡수**해야 한다. 인자를 하나 늘릴 때마다 가짜가 깨지면, 다음 사람이
     #     그때마다 이 파일을 고치거나 시험을 지운다 — 후자가 더 흔하고 더 나쁘다.
+    _study_items = [
+        {"slot": "main", "kind": "chunk", "obj": "안녕하세요?", "ex": None,
+         "des": "Hello.", "item_id": 77, "roman": "annyeonghaseyo?"},
+    ]
+
     def _setup_with_items(db, member_id, character_id, language="ko", **_kw):
         out = real_setup(db, member_id, character_id, language)
-        out["study_items"] = [
-            {"slot": "main", "kind": "chunk", "obj": "안녕하세요?", "ex": None,
-             "des": "Hello.", "item_id": 77, "roman": "annyeonghaseyo?"},
-        ]
+        out["study_items"] = _study_items
         return out
 
     monkeypatch.setattr(svc, "load_call_setup", _setup_with_items)
+    # ⛔⛔ P2-5(2026-09-24, bt-back QA) — call_session.py 는 이제 `include_materials=
+    #   False` 로 위를 부른 뒤, call_type 이 "chat" 으로 확정된 자리에서 `load_study_
+    #   materials` 를 **한 번 더** 직접 불러 study_items 를 채운다. 그 두 번째 호출도
+    #   같이 가짜를 줘야 한다 — 안 그러면 실제 함수가 돌아 (이 시험의 빈 시드 DB 에서)
+    #   `_EMPTY_MATERIALS` 로 위 주입을 덮어써 버린다.
+    monkeypatch.setattr(
+        svc, "load_study_materials",
+        lambda *a, **k: {
+            "study_items": _study_items, "known_items": None,
+            "promotion_notice": False, "candidates": None,
+        },
+    )
 
     import contextlib as _cl
 

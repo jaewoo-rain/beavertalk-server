@@ -163,7 +163,7 @@ def test_평소_통화는_B2B_를_부르지_않는다(monkeypatch):
     monkeypatch.setattr(repo, "load_default_candidates", lambda *a, **k: [])
     monkeypatch.setattr(repo, "promotion_pending", lambda *a, **k: False)
 
-    got = normalcall_service._load_study_materials(
+    got = normalcall_service.load_study_materials(
         _stub_db([]), member_id=1, level_no=2, locale="en",
         language="ko", assignment_id=None,
     )

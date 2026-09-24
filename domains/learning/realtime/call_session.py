@@ -3028,6 +3028,12 @@ async def run_call(
 
     # 2) 프롬프트 입력 조회(레벨 프로파일·페르소나·voice·locale) — 1회, 짧은 세션.
     #    needs_level_test(= 언어별 레벨 미확정)도 여기서 얻는다(추가 DB 비용 0, D11).
+    # ⛔⛔ P2-5(2026-09-24, bt-back QA) — `include_materials=False`. 이 시점엔 아직
+    #   이번 통화의 call_type 이 확정 전이다(아래 라우팅이 정한다) — study_items/
+    #   candidates(≈7~8 SELECT)는 call_type 이 실제로 "chat" 으로 확정됐을 때만
+    #   쓰이므로(그 자리에서 `load_study_materials` 를 한 번 더 부른다), 여기서는
+    #   건너뛴다. auto→expression/freetalk 로 갈리는 통화(주력 경로)는 이 선별
+    #   자체가 통째로 낭비였다 — 통화 시작 지연 경로였다.
     setup = await svc.run_db(
         db_session_factory,
         # ⭐ 이어하기면 체인의 call_id 를 넘긴다 — 선별이 "이 통화에서 이미 다뤘나"를
@@ -3037,6 +3043,7 @@ async def run_call(
         lambda db: svc.load_call_setup(
             db, member_id, character_id, spec.code,
             chain_call_id=continues_call_id, assignment_id=assignment_id,
+            include_materials=False,
         ),
     )
     # 읽기 쪽 방어: 저장 시 정규화(MemberService)를 넣었지만, 과거 데이터·다른 경로로 들어온
@@ -3443,6 +3450,29 @@ async def run_call(
             )
             seed_text = seed_freetalk_opening(target_language)
         elif call_type == "chat":
+            # ⛔⛔ P2-5(2026-09-24, bt-back QA) — `load_call_setup` 을 위(2) 에서
+            #   `include_materials=False` 로 불러 study_items/known_items/recent_topics/
+            #   promotion_notice/candidates 선별(≈7~8 SELECT)을 건너뛰었다(그때는 아직
+            #   call_type 이 "chat" 으로 확정되기 전이었다 — auto→expression/freetalk 로
+            #   갈렸으면 이 선별 자체가 낭비였다). 지금 call_type 이 진짜 "chat" 으로
+            #   확정됐으니 **여기서만** 짧은 세션으로 한 번 더 불러 `setup` 에 채운다.
+            #   ⚠ study_items 자체는 chat 프롬프트에 안 실린다(D8, 항목 0개 코스) — 이
+            #   재료가 필요한 자리는 teaching_plan 카드(아래 `setup.get("study_items")`)와
+            #   통화후 검출 후보(`setup.get("candidates")`, `_trigger_analysis`)뿐이다.
+            if setup.get("korean_level") is not None:
+                try:
+                    setup.update(await svc.run_db(
+                        db_session_factory,
+                        lambda db: svc.load_study_materials(
+                            db, member_id, setup["korean_level"], setup["locale"], spec.code,
+                            chain_call_id=continues_call_id, assignment_id=assignment_id,
+                        ),
+                    ))
+                except Exception:  # noqa: BLE001 - 재료 없이도 통화는 기존 프롬프트로 진행(R5)
+                    logger.exception(
+                        "normalcall chat 재료 선별 실패(무시 — 기존 프롬프트 폴백) member=%s",
+                        member_id,
+                    )
             # ⭐⭐ C7(2026-09-23): freetalk 의 D8 기본 대본(lesson=None, 차시 블록 없음)을
             #   그대로 재사용 + [기억](chat_memory, 있을 때만) — cur_route 미적용(진도 무관).
             chat_memory_row = await svc.run_db(

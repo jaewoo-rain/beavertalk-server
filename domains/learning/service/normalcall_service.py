@@ -268,6 +268,7 @@ def level_profile_for(db: Session, language: str, level_no: int) -> str:
 def load_call_setup(
     db: Session, member_id: int, character_id: int, language: str = "ko",
     *, chain_call_id: int | None = None, assignment_id: int | None = None,
+    include_materials: bool = True,
 ) -> dict:
     """통화 시작에 필요한 프롬프트 입력 + voice 를 한 번에 조회한다(LLM 0).
 
@@ -287,6 +288,20 @@ def load_call_setup(
         candidates     검출 후보 ≤30 (주입 항목 injected=True + 기본 후보 병합)
     learning_item 미시드·쿼리 결과 0·korean_level 미확정(레벨테스트 예정)이면 각 키
     None(promotion 은 False) — persona 블록 미주입으로 기존 프롬프트와 동일(R5).
+
+    ⛔⛔ P2-5(2026-09-24, bt-back QA) — `include_materials`(기본 True). 이 함수를
+    부르는 시점엔 아직 **이번 통화의 최종 call_type 이 안 정해져 있다**(호출부가
+    이 결과의 `needs_level_test` 를 보고서야 레벨테스트 라우팅을 확정한다) — 그런데
+    `study_items`·`candidates`(이 아래 `load_study_materials`, ≈7~8 SELECT)는 실제
+    통화 경로(call_session.py)에서 **`call_type == "chat"` 일 때만** 읽힌다. `auto`
+    (→expression/freetalk)로 확정되는 통화는 그 선별 전체가 조용히 버려졌다(통화
+    시작 지연 경로). `include_materials=False` 로 부르면 이 선별을 아예 안 돌고
+    `_EMPTY_MATERIALS`(+`recent_topics=None`)로 떨어진다. 호출부(call_session.py)
+    는 여기선 `False` 로 불러 라우팅만 먼저 확정하고, `chat` 으로 정해졌을 때만
+    `load_study_materials` 를 **직접**(짧은 세션으로) 한 번 더 불러 채운다 — "결국
+    chat 이 될까"를 미리 예측하는 술어를 세우지 않는다(그 술어가 틀리면 아무도
+    모르게 학습 품질만 조용히 떨어진다). 기본값이 `True` 라 devtool(main.py:845·
+    scripts/dev_dump_prompt.py:110)·시험은 전부 바이트 동일하게 동작한다.
     """
     base = _load_member_character(db, member_id, character_id, language)
     korean_level = base.pop("korean_level")
@@ -307,11 +322,12 @@ def load_call_setup(
 
     history = _load_history(db, member_id, language) if member_found else None
 
-    # 체크판 재료(P2-c2) — 레벨 확정 회원만. 선별 실패는 통화를 막지 않는다(R5 폴백).
+    # 체크판 재료(P2-c2) — 레벨 확정 회원 + include_materials 일 때만. 선별 실패는
+    # 통화를 막지 않는다(R5 폴백).
     materials = _EMPTY_MATERIALS
-    if member_found and korean_level is not None:
+    if member_found and korean_level is not None and include_materials:
         try:
-            materials = _load_study_materials(
+            materials = load_study_materials(
                 db, member_id, level_no, base["locale"], language,
                 chain_call_id=chain_call_id, assignment_id=assignment_id,
             )
@@ -723,13 +739,13 @@ def _assignment_materials(
 
     ⛔ 여기서 빼는 네 가지는 전부 **학습자 축**이다 — 숙련도 기반 공부 선별 · 아는 문법
        soft 범위 · 승급 대기 알림 · 기본 검출 후보. 평소 통화는 이것들을 그대로 쓴다
-       (`_load_study_materials`). 두 경로가 섞이면 「반의 숙제」가 다시 개인화된다.
+       (`load_study_materials`). 두 경로가 섞이면 「반의 숙제」가 다시 개인화된다.
 
     목표 산정은 B2B 가 한다(`conversation_target_ids` 한 곳). 이 함수는 그 결과를
     프롬프트 스키마로 옮기기만 한다 — 여기서 다시 고르면 교사가 센 수와 갈린다.
 
     Returns:
-        `_load_study_materials` 와 같은 네 칸. 과제를 못 받으면 `_EMPTY_MATERIALS` 다.
+        `load_study_materials` 와 같은 네 칸. 과제를 못 받으면 `_EMPTY_MATERIALS` 다.
         ⛔ **평소 선별로 되돌리지 않는다** — 되돌리면 숙제 통화가 개인 커리큘럼에
         다시 붙는다. 주입 없는 평범한 대화가 되는 편이 낫다.
     """
@@ -790,7 +806,7 @@ def _assignment_materials(
 
 
 
-def _load_study_materials(
+def load_study_materials(
     db: Session, member_id: int, level_no: int, locale: str, language: str = "ko",
     *, chain_call_id: int | None = None, assignment_id: int | None = None,
 ) -> dict:
@@ -800,6 +816,11 @@ def _load_study_materials(
     + 승급 멘트 여부(⑧) + 검출 후보 ≤30(⑤ — 주입 injected=True + 기본 후보 병합).
     learning_item 미시드/결과 0 이면 해당 키 None(R5 — persona 블록 미주입).
     (멀티랭귀지) 선별·집계를 전부 language 로 스코프(대상 언어 커리큘럼만).
+
+    ⛔⛔ P2-5(2026-09-24, bt-back QA) — 밑줄을 뗐다(공개 함수로 노출). 옛 이름
+    `_load_study_materials` 는 `load_call_setup` 만 부르는 사적 헬퍼였지만, 지금은
+    `call_session.py` 가 `call_type == "chat"` 확정 뒤 **직접** 한 번 더 부른다
+    (`load_call_setup(..., include_materials=False)` 가 건너뛴 자리를 채운다).
     """
     # 커리큘럼 미시드 방어 — 대상 언어 항목이 하나도 없으면 전부 기존 동작(쿼리 1회 조기 종료).
     if db.scalar(
