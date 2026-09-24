@@ -2635,6 +2635,32 @@ def _apply_call_mastery(
     }
 
 
+def _existing_expression_keys(db: Session, call_id: int) -> set[str]:
+    """이 통화에 이미 저장된 **기본** 표현(kind IS NULL, 활성)의 정규화 텍스트 집합.
+
+    ⛔⛔ Q1(2026-09-24, 프론트 실기기 QA — 운영 실측 call 1653: 활성 문장 34행인데
+    고유 표면형 14개, TTS 14회로 끝날 일을 34회 과금) — 조각 통화(이어하기)는 매 조각
+    종료마다 `_trigger_analysis` 가 다시 돌고, 표현 추출은 **전사 전체**를 다시 보므로
+    (근거: analyze_call 의 `dialog`, since_turn_index 로 안 좁힌다 — 검증만 좁힌다)
+    조각1에서 이미 저장한 표현을 조각2·3 이 새 행으로 또 저장했다. `_save_analysis`
+    의 옛 `seen` 은 **이 호출 1회(=이번 LLM 응답)** 범위뿐이라 기존 DB 행과 대조하지
+    않았다.
+    ⇒ 저장 시점에 기존 활성 행과 대조(방향 a — bt-back 판단 위임, "조각2가 놓친 걸
+    조각2가 새로 잡는" 케이스를 잃지 않는 쪽). normalize_text 는 이미 검출 게이트
+    dedup 의 공통 기준(mastery_service)이라 그대로 재사용한다.
+    """
+    stmt = select(Sentence.korean_sentence).where(
+        Sentence.call_id == call_id,
+        Sentence.deleted_at.is_(None),
+        Sentence.kind.is_(None),
+    )
+    return {
+        mastery_service.normalize_text(row)
+        for row in db.scalars(stmt).all()
+        if row and mastery_service.normalize_text(row)
+    }
+
+
 def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale: str) -> list[tuple[int, str]]:
     """요약/모드 저장 + 표현별 Sentence(+Evaluation placeholder) + **status=done** 단일 커밋.
 
@@ -2644,7 +2670,15 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     ⭐⭐ C9(2026-09-23) — 기본 표현에 현지인 표현 짝(C8 `_normalize_native_pair` 로
     이미 정규화됨)이 있으면 **기본 행이 flush 로 sentence_id 를 얻은 뒤** 짝 행을
     만들어 paired_sentence_id 로 연결한다. 기본 행이 dedup(seen)으로 건너뛰어지면
-    짝도 만들지 않는다(bt-back C9 조건②).
+    짝도 만들지 않는다(bt-back C9 조건②) — Q1(아래) dedup 도 같은 경로라 짝도 자동
+    보호된다.
+    ⛔⛔ Q1(2026-09-24) — **이 통화에 이미 저장된 표현은 다시 저장하지 않는다**
+    (조각2·3 재분석이 같은 표현을 또 저장하던 버그). `seen` 을 빈 집합이 아니라
+    `_existing_expression_keys`(기존 활성 행)로 **미리 채워** 시작한다 — 조각 간
+    dedup(across-fragment)과 이번 응답 내부 dedup(모델이 가끔 중복 산출)을 같은
+    자료구조·같은 정규화(normalize_text)로 통일한다.
+    ⚠ **이미 생긴 중복 행은 이 함수가 안 건드린다** — 정리는 별건(백필·정리
+    스크립트)이다. 이 함수는 "앞으로 안 생긴다"만 보장한다.
     ⛔ 재분석 중복 방지: 이 함수는 `analyze_call` 성공 시에만, **단일 최종 커밋**으로
     호출된다(status="failed" 인 통화만 재분석 가능하고, failed 는 이 커밋이 한 번도
     성공한 적이 없다는 뜻이라 기존 Sentence 가 존재하지 않는다 — `prepare_reanalysis`
@@ -2652,7 +2686,8 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     같은 트랜잭션 안에서 만들어지므로 이 보호를 그대로 물려받는다.
 
     Returns:
-        [(sentence_id, korean), ...] — 이후 TTS 합성 대상(짝 행 포함).
+        [(sentence_id, korean), ...] — 이후 TTS 합성 대상(짝 행 포함). 이미 저장된
+        (건너뛴) 표현은 포함되지 않는다 — TTS 재합성 없음(기존 voice_url 규율 유지).
     """
     call = db.get(Call, call_id)
     if call is not None:
@@ -2663,9 +2698,9 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
         call.status = "done"  # P2.6 — 결과 화면 즉시 해제(요약·표현과 같은 커밋)
 
     pending: list[tuple[int, str]] = []
-    seen: set[str] = set()  # 같은 한국어 표현 중복 저장 방지(모델이 가끔 중복 산출)
+    seen: set[str] = _existing_expression_keys(db, call_id)  # Q1: 기존 활성 행으로 선점
     for e in result.expressions:
-        key = (e.korean or "").strip()
+        key = mastery_service.normalize_text(e.korean)
         if not key or key in seen:
             continue
         seen.add(key)

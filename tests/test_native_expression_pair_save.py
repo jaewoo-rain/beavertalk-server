@@ -200,3 +200,61 @@ def test_reanalysis_never_doubles_pair_rows_because_failed_calls_have_zero_sente
 
     rows = ctx["db"].query(Sentence).filter_by(call_id=ctx["call_id"]).all()
     assert len(rows) == 2  # 기본 1 + 짝 1, 딱 그만큼 — 재분석이 두 번 겹쳐 쌓이지 않는다
+
+
+# --------------------------------------------------------------------------- #
+# ⑧ Q1(2026-09-24) — 조각 간(across-fragment) dedup: 저장 시 기존 활성 행과 대조
+# --------------------------------------------------------------------------- #
+# 운영 실측(call 1653, 910초·3조각): 활성 문장 34행인데 고유 표면형 14개 — 조각마다
+# 같은 표현을 새 행으로 또 저장해 TTS 도 그만큼 다시 과금됐다. `_save_analysis` 를
+# **두 번** 부르는(조각1→조각2 재현) 것이 이 회귀의 핵심 구조다.
+def test_second_fragment_does_not_resave_an_already_stored_expression(ctx):
+    """⛔⛔ 핵심 회귀 — 조각2 분석이 조각1과 같은 표현을 다시 저장하면 안 된다."""
+    e = LearnedExpression(korean="안녕하세요", translation="hello", source_type="asked")
+    pending1 = _save_analysis(ctx["db"], ctx["call_id"], _result([e]), "en")
+    assert len(pending1) == 1
+
+    # 조각2: analyze_call 은 전사 전체를 다시 보므로 같은 표현이 다시 추출된다(재현).
+    pending2 = _save_analysis(ctx["db"], ctx["call_id"], _result([e]), "en")
+    assert pending2 == [], "조각2가 이미 저장된 표현을 TTS 대상(pending)에 다시 올렸다 — 재합성 과금"
+
+    rows = ctx["db"].query(Sentence).filter_by(call_id=ctx["call_id"]).all()
+    assert len(rows) == 1, "조각2가 같은 표현을 중복 저장했다"
+
+
+def test_second_fragment_still_saves_a_genuinely_new_expression(ctx):
+    """조각2에서 **새로 나온** 표현은 정상 저장된다 — dedup 이 과도하게 막지 않는다."""
+    e1 = LearnedExpression(korean="안녕하세요", translation="hello", source_type="asked")
+    e2 = LearnedExpression(korean="반갑습니다", translation="nice to meet you", source_type="asked")
+    _save_analysis(ctx["db"], ctx["call_id"], _result([e1]), "en")
+    pending2 = _save_analysis(ctx["db"], ctx["call_id"], _result([e1, e2]), "en")
+
+    assert {k for _sid, k in pending2} == {"반갑습니다"}
+    rows = ctx["db"].query(Sentence).filter_by(call_id=ctx["call_id"]).all()
+    assert len(rows) == 2, "새 표현 1개만 추가돼 총 2행이어야 한다(중복 1 + 신규 1)"
+
+
+def test_second_fragment_does_not_reduplicate_the_native_pair(ctx):
+    """짝(kind='native')도 같은 규칙을 탄다 — 짝이 중복되면 2배로 는다."""
+    e = LearnedExpression(
+        korean="감사합니다", translation="thank you", source_type="asked",
+        native_expression="고마워요", native_expression_translation="thanks",
+    )
+    _save_analysis(ctx["db"], ctx["call_id"], _result([e]), "en")
+    pending2 = _save_analysis(ctx["db"], ctx["call_id"], _result([e]), "en")
+    assert pending2 == []
+
+    rows = ctx["db"].query(Sentence).filter_by(call_id=ctx["call_id"]).all()
+    assert len(rows) == 2, "기본 1 + 짝 1 그대로여야 한다 — 조각2가 짝까지 중복시키면 안 된다"
+    natives = [r for r in rows if r.kind == "native"]
+    assert len(natives) == 1
+
+
+def test_whitespace_variant_across_fragments_still_dedups(ctx):
+    """정규화(normalize_text, 공백 전제거)는 검출 게이트 dedup 과 같은 기준이다 —
+    조각 간 STT/모델 산출이 공백만 다르게 내도 같은 표현으로 잡혀야 한다."""
+    e1 = LearnedExpression(korean="안녕 하세요", translation="hello", source_type="asked")
+    e2 = LearnedExpression(korean="안녕하세요", translation="hello", source_type="asked")
+    _save_analysis(ctx["db"], ctx["call_id"], _result([e1]), "en")
+    pending2 = _save_analysis(ctx["db"], ctx["call_id"], _result([e2]), "en")
+    assert pending2 == [], "공백만 다른 조각2 표현이 별개로 저장됐다"
