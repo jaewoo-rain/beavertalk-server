@@ -253,6 +253,27 @@ async def test_needs_level_test_still_wins_over_alarm_chat(session_factory, seed
 
 
 @pytest.mark.asyncio
+async def test_explicit_level_test_is_not_overwritten_by_an_alarm(session_factory, seeded):
+    """⛔⛔ R1-b 검수(bt-back) 핵심 회귀 — 명시 `call_type="level_test"` + 알람(auto)
+    + **레벨 있음** → level_test 가 유지돼야 한다. 초판 수정이 `!= "level_test"` 가드를
+    "이 시점엔 level_test 일 수 없다"는 틀린 근거로 지웠는데, `call_type` 은 명시로도
+    "level_test" 가 될 수 있다(protocol.py 의 Literal, 하네스·dev 도구가 재측정을 요청
+    할 때 보낸다). 가드가 없으면 레벨이 이미 있어 L8 도 안 되돌려주는 상태에서 알람이
+    그 재측정 요청을 조용히 삼킨다."""
+    _dispatched(session_factory, seeded["member_id"], seeded["character_id"],
+                "call-lt-4", call_type="auto")
+    await _run(
+        session_factory, seeded, call_type="level_test", inbound_call_id="call-lt-4",
+    )
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == "level_test", \
+            "명시 level_test 요청을 알람이 덮었다 — 재측정 요청이 삼켜졌다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
 async def test_needs_level_test_wins_when_alarm_is_auto_but_start_explicitly_sends_chat(
     session_factory, seeded,
 ):

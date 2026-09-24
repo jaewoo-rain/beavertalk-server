@@ -3110,11 +3110,20 @@ async def run_call(
     #   call_type 이 start.call_type 보다 우선한다.** 앱은 알람 통화에서도 홈 버튼 값을
     #   그대로 실어 보내므로, start 를 우선하면 알람 설정이 영영 안 먹는다.
     # ⛔⛔ R1-b(2026-09-24, bt-back 지적) — 이 블록은 **L8(바로 아래, 레벨테스트 필요
-    #   판정) 보다 먼저** 돈다(예전엔 반대였다 — 그게 이 버그였다). alarm_call_type 은
-    #   스키마상 "auto"|"chat" 뿐이라 그 둘만 정한다. 이 시점엔 call_type 이 아직
-    #   "level_test" 일 수 없으므로(L8 이 안 돌았다) 옛 `!= "level_test"` 가드는 필요
-    #   없다 — 항상 덮는다.
-    if alarm_call_type is not None:
+    #   판정) 보다 먼저** 돈다(예전엔 반대였다 — 그게 이 버그였다).
+    # ⛔⛔ 정정(bt-back, R1-b 검수) — **`!= "level_test"` 가드는 되살려야 한다.**
+    #   초판에서 "이 시점엔 call_type 이 level_test 일 수 없다"고 적고 지웠는데
+    #   **틀렸다** — `call_type` 은 명시로도 "level_test" 가 될 수 있다(protocol.py
+    #   의 `ClientStart.call_type` Literal 에 있고, 바로 위 :3097 이 그 값을 실제로
+    #   다룬다 — 하네스·dev 도구가 재측정을 요청할 때 보낸다). 가드 없이 덮으면
+    #   「명시 level_test + 알람 통화」에서 알람이 재측정 요청을 조용히 삼킨다(레벨이
+    #   이미 있으면 L8 도 되돌려주지 않는다 — NULL 일 때만 L8 이 복구한다).
+    #   ⇒ 명시 level_test 는 알람이 안 덮는다 — 그 요청은 사용자/도구의 **직접 지시**
+    #   다. 알람이 auto·chat 을 고른 것(그 알람을 "만들 때"의 선택)과는 격이 다르다.
+    #   ⚠ 가드를 되살려도 L8 확장(아래, `alarm_call_type is not None` 조건)은 그대로
+    #   산다 — "알람auto+start chat" 조합은 애초에 이 가드에 안 걸린다(call_type 이
+    #   "chat"이지 "level_test"가 아니므로 정상적으로 덮인다).
+    if alarm_call_type is not None and call_type != "level_test":
         call_type = alarm_call_type
 
     # ⭐⭐ L8(2026-09-24, 사장님 지적) — "auto" 는 미전송이든 명시든 **서버가 정해라**
