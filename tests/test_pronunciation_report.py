@@ -159,6 +159,59 @@ def test_report_adapts_main_data(session_factory, seeded, _patch_pron):
     assert b["sessions"][0]["call_date"] == "2026-07-15T00:00:00Z"
 
 
+# --------------------------------------------------------------------------- #
+# R5-a(2026-09-24, bt-back) — 현지인 표현 짝(kind="native", C9)이 통과수 분모·
+# 분자를 2배로 부풀리면 안 된다(앱이 보정할 수 없는 서버 계산값이라 서버가
+# 맞게 줘야 한다). 짝은 목록·평균엔 그대로 남는다.
+# --------------------------------------------------------------------------- #
+def _fake_report_with_pairs(call_id: int):
+    return PronunciationReport(
+        call_id=call_id,
+        country="United States",
+        sentences=[
+            # 기본 3개 — 2개 통과(98·92), 1개 탈락(71).
+            PronSentenceScore(sentence_id=1, korean_sentence="문장A", total_score=98, pronunciation=98, fluency=95, rhythm=97),
+            PronSentenceScore(sentence_id=11, korean_sentence="짝A", total_score=99, pronunciation=99, fluency=97, rhythm=98, kind="native"),
+            PronSentenceScore(sentence_id=2, korean_sentence="문장B", total_score=71, pronunciation=71, fluency=88, rhythm=84),
+            PronSentenceScore(sentence_id=12, korean_sentence="짝B", total_score=60, pronunciation=60, fluency=70, rhythm=65, kind="native"),
+            PronSentenceScore(sentence_id=3, korean_sentence="문장C", total_score=92, pronunciation=94, fluency=90, rhythm=92),
+            PronSentenceScore(sentence_id=13, korean_sentence="짝C", total_score=100, pronunciation=100, fluency=100, rhythm=100, kind="native"),
+        ],
+        sounds=[],
+        comment="",
+    )
+
+
+def test_report_excludes_native_pairs_from_the_pass_count(session_factory, seeded, monkeypatch):
+    """⛔⛔ 핵심 재현·수정 확인 — 기본 3 + 짝 3, 기본 2개 통과 → 「3개 중 2개」
+    (짝을 세면 「6개 중 2개」로 잘못 뜬다)."""
+    async def _report(**kw):
+        return _fake_report_with_pairs(kw["call_id"])
+    monkeypatch.setattr(pron_module, "get_pronunciation_report", _report)
+    monkeypatch.setattr(pron_module, "get_pronunciation_history", _fake_history)
+
+    client = TestClient(_build_app(session_factory))
+    r = client.get(f"/api/v1/calls/{seeded['call']}/pronunciation-report", headers=_hdr())
+    assert r.status_code == 200, r.text
+    b = r.json()
+
+    assert b["total"] == 3, "짝이 분모에 섞였다"
+    assert b["passed"] == 2, "짝이 분자에 섞였다"
+
+    # 짝도 여전히 목록에 나온다(전부 6개) — 세는 기준만 바뀐다.
+    assert len(b["sentences"]) == 6, "짝의 점수가 목록에서 빠졌다"
+    kinds = [s.get("kind") for s in b["sentences"]]
+    assert kinds.count("native") == 3
+    # 기본 문장은 kind 키 자체가 생략된다(진행규칙 5).
+    base_rows = [s for s in b["sentences"] if "짝" not in s["sentence"]]
+    assert all("kind" not in s for s in base_rows), "기본 문장에 kind 키가 남아 있다(키 생략 규약 위반)"
+
+    # overall 평균은 짝을 포함한다(/result 의 ScoreAverage 와 같은 규칙 — call_service
+    # .get_call_result 의 average 는 kind 로 안 거른다).
+    all_totals = [98, 99, 71, 60, 92, 100]
+    assert b["overall"] == round(sum(all_totals) / len(all_totals))
+
+
 def test_report_unknown_call_404(session_factory, seeded, monkeypatch):
     async def _none(**kw):
         return None

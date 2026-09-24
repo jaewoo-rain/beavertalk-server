@@ -61,6 +61,7 @@ def build_sentence_scores(sentences: Sequence[Sentence]) -> list[PronSentenceSco
                 pronunciation=ev.pronunciation if ev else None,
                 fluency=ev.fluency if ev else None,
                 rhythm=ev.rhythm if ev else None,
+                kind=s.kind,
             )
         )
     return result

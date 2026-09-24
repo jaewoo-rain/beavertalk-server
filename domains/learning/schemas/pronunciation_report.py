@@ -12,8 +12,9 @@ pronunciation_service(문장별 점수·자모별 소리 집계·국가 맞춤 �
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_serializer
 
 
 class PhonemeStatOut(BaseModel):
@@ -25,12 +26,27 @@ class PhonemeStatOut(BaseModel):
 
 
 class SentenceScoreOut(BaseModel):
-    """문장별 결과 한 줄."""
+    """문장별 결과 한 줄.
+
+    ⭐⭐ R5-a(2026-09-24, bt-back) — `kind`(NULL=기본 문장 · 'native'=현지인 표현
+    짝, C9). `LearningSummaryOut.total`/`passed` 는 짝을 안 센다(서버가 계산해
+    주는 숫자라 앱이 걸러낼 방법이 없다) — 그래도 짝은 채점되고 이 목록엔 그대로
+    나온다. 앱이 짝을 다르게 그리려면 이 값이 필요하다. 기본 문장은 None →
+    진행규칙 5(`SentenceOut`·`CallResultSentence` 와 같은 규약)로 키 생략.
+    """
 
     sentence: str
     pronunciation: int
     fluency: int
     rhythm: int
+    kind: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _drop_native_pair_none_fields(self, handler):
+        data = handler(self)
+        if isinstance(data, dict) and data.get("kind") is None:
+            data.pop("kind", None)
+        return data
 
 
 class SessionPointOut(BaseModel):

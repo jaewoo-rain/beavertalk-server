@@ -11,11 +11,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_serializer
 
 
 class PronSentenceScore(BaseModel):
-    """문장 1건의 발음 점수(공식점수=Evaluation 직독). 미복습이면 점수 전부 None."""
+    """문장 1건의 발음 점수(공식점수=Evaluation 직독). 미복습이면 점수 전부 None.
+
+    ⭐⭐ R5-a(2026-09-24, bt-back) — `kind`(NULL=기본 문장 · 'native'=현지인 표현
+    짝, C9)를 싣는다. 앱이 통과수(`LearningSummaryOut.total`/`passed`)가 짝을
+    포함하지 않는다는 걸 검증·필터할 수 있어야 한다. 기본 문장은 None → 진행규칙
+    5(`SentenceOut`·`CallResultSentence` 와 같은 규약)로 키 자체가 빠진다.
+    """
 
     sentence_id: int
     korean_sentence: Optional[str] = None
@@ -23,6 +29,14 @@ class PronSentenceScore(BaseModel):
     pronunciation: Optional[int] = None
     fluency: Optional[int] = None
     rhythm: Optional[int] = None
+    kind: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _drop_native_pair_none_fields(self, handler):
+        data = handler(self)
+        if isinstance(data, dict) and data.get("kind") is None:
+            data.pop("kind", None)
+        return data
 
 
 class SoundAggregate(BaseModel):
