@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql.selectable import Exists
 
@@ -122,26 +122,48 @@ class CallRepository:
         self, member_id: int, start_utc, end_utc, *, exclude_call_types: tuple[str, ...] = (),
         also_include_call_id: int | None = None,
     ) -> int:
-        """[start_utc, end_utc) 안에 **시작한** 통화의 `total_time` 합(초) — 하루 통화 총량
-        예산(C4, 2026-09-23) 집계용.
+        """[start_utc, end_utc) 안에 **활동한** 통화의 `total_time` 합(초) — 하루 통화
+        총량 예산(C4, 2026-09-23) 집계용.
 
         ⛔⛔ R2-a(2026-09-24, 프론트 실기기 QA — 자정 걸친 조각 체인이 새 날 예산을 안
-        깎는다) — `also_include_call_id`: 이어하기(resume_call) 조각을 열기 **전** 예산
-        판정에서, 지금 이으려는 그 통화의 call_id 를 넘기면 이 창의 합계에 반영한다.
-        `call_date`(그 통화의 최초 조각 시작일 — 자정을 넘겨도 **고정**, QA C4 재검-①)
-        가 이미 이 창 안이면(같은 날 안의 조각) 위 SUM 에 이미 실려 있으므로 더하지
-        않는다. `call_date` 가 이 창 밖이면(체인이 자정을 넘겨 **다른 날**에 시작했다는
-        뜻) 그 통화의 **지금까지 누적된 total_time**을 이 창의 합계에 더한다.
-        재현: 어제 23:50 시작 체인이 새벽에 조각을 이으려 하면, 옛 SUM(call_date 필터
-        뿐)은 그 통화를 못 봐(call_date=어제) 오늘 예산이 고스란히 남은 것으로 잘못
-        판정했다(premium 이 저녁~새벽 한 시간에 최대 30분).
-        ⚠ 이중 계산이 아니다 — 이 조정은 **지금 이 순간의 예산 판정**(daily_budget_
+        깎는다) — 두 겹으로 막는다. bt-back 재검에서 1차 수정(also_include_call_id
+        만)이 "체인을 명시로 이을 때"만 막고 "체인이 끝난 뒤 **전혀 다른 새 통화**를
+        건다"(재현: 23:50 체인이 900초 다 쓰고 정상 종료 → 00:10 새 통화 → call_date
+        가 어제라 오늘 SUM 이 0 → 오늘 예산이 고스란히 또 열림 → premium 한 시간에
+        최대 30분)는 못 막는다는 걸 잡아냈다.
+
+        ① 일반 규칙(모든 호출에 항상 적용) — `call_date` **또는**
+        `fragment_started_at`(가장 최근 조각의 시작 시각)이 이 창 안이면 센다.
+        `fragment_started_at` 을 쓰는 이유(bt-back 재검 — «그 값이 무엇 때문에
+        바뀌는가부터 봐라»): `fragment_ended_at` 은 후보에서 뺐다 — 운영 실측(자정
+        걸친 8건 중 7건)이 C4 마이그레이션(`30dda365f616`)의 백필 흔적이었다
+        (`fragment_ended_at = updated_at` — 재분석·수정으로 옛 행의 `updated_at` 이
+        밀리면 엉뚱한 날짜에 잡힌다). `fragment_started_at` 은 `resume_call`/
+        `create_call`(정확히 이 두 곳, grep 으로 확인)에서만 "지금"으로 쓰이고,
+        같은 마이그레이션이 옛 행엔 `fragment_started_at = call_date` 로 백필해
+        (마이그레이션 소스 확인) **절대 `call_date` 와 다른 값으로 옛 행을 오염시킬
+        수 없다** — 이미 `call_date` 조건으로 걸러지는 값이라 안전하다.
+        하나의 행은 두 조건 중 하나만 맞아도(또는 둘 다) **한 번만** 더해진다(SQL
+        WHERE 는 행 단위 — OR 자체가 이중 계산을 만들지 않는다).
+
+        ② `also_include_call_id`(보조, ①이 못 잡는 좁은 틈 하나를 막는다) — 이어하기
+        조각을 열기 **전** 예산 판정에서, 지금 이으려는 그 통화의 call_id 를 넘기면
+        추가로 반영한다. ①의 `fragment_started_at` 은 **가장 최근에 끝난 조각의
+        시작 시각**이라, 그 조각 자체가 자정을 막 걸쳤으면(예: 23:57 시작·00:03 종료)
+        시작 시각은 여전히 "어제"라 ①에 안 걸린다 — 그런데 그 조각이 쓴 시간(활동)은
+        오늘에도 걸쳐 있다. ②는 "지금 이 call_id 를 이으려 한다"는 확실한 신호를
+        직접 받으므로 타이밍에 무관하게 정확하다. `call_date`/`fragment_started_at`
+        가 이미 이 창 안이면(①에 이미 실려 있음) 중복으로 더하지 않는다.
+        ⚠ 이중 계산이 아니다 — 이 조정들은 **지금 이 순간의 예산 판정**(daily_budget_
         exceeded/remaining_budget_s, 호출부가 매번 "지금"을 기준으로 새로 계산한다)
         에만 쓰인다. `call_date` 로 집계하는 다른 용도(학습 달력 등)는 그대로 그 통화를
         `call_date` 하루에만 싣는다 — 같은 total_time 이 "어제의 기록"과 "오늘의 잔여
         판정"에 둘 다 나타날 수 있지만, 하루 예산은 **날짜별로 독립된 풀**이라 한 풀에서
         두 번 깎이는 게 아니다(체인이 자정을 걸쳤다는 사실 자체가 두 날 모두에 영향을
         준 것이고, 그걸 각 날의 판정이 각자 반영하는 것이 정확하다).
+        운영 실측: 진짜 자정 통과는 1,590건 중 1건(call 198, 6분 차이)뿐이라 ①의
+        과다 계상(체인이 두 날 모두에 온전히 잡히는 것)이 실사용자를 부당하게 막을
+        위험은 사실상 없다고 판단했다(bt-back 확인).
 
         ⚠ `has_call_in_window` 와 달리 "학습자가 말했나"(spoke)를 걸지 않는다 — 예산은
           **써버린 시간**을 재는 것이라, 마이크가 안 열린 통화도 Gemini 세션이 열려 있던
@@ -168,8 +190,10 @@ class CallRepository:
         #   음수 total_time 삽입 구멍은 별도로 막았다(schemas/call.py, ge=0).
         stmt = select(func.coalesce(func.sum(Call.total_time), 0)).where(
             Call.member_id == member_id,
-            Call.call_date >= start_utc,
-            Call.call_date < end_utc,
+            or_(
+                and_(Call.call_date >= start_utc, Call.call_date < end_utc),
+                and_(Call.fragment_started_at >= start_utc, Call.fragment_started_at < end_utc),
+            ),
         )
         if exclude_call_types:
             stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
@@ -177,11 +201,17 @@ class CallRepository:
         if also_include_call_id is not None:
             call = self.db.get(Call, also_include_call_id)
             call_date = call.call_date if call is not None else None
+            frag_started = call.fragment_started_at if call is not None else None
             # ⚠ sqlite 왕복에서 tzinfo 가 빠질 수 있다(다른 자리들과 같은 방어 —
             #   has_call_in_window·resume_call 의 fragment_started_at 비교 참조).
             if call_date is not None and call_date.tzinfo is None:
                 call_date = call_date.replace(tzinfo=timezone.utc)
-            already_counted = call_date is not None and start_utc <= call_date < end_utc
+            if frag_started is not None and frag_started.tzinfo is None:
+                frag_started = frag_started.replace(tzinfo=timezone.utc)
+            already_counted = (
+                (call_date is not None and start_utc <= call_date < end_utc)
+                or (frag_started is not None and start_utc <= frag_started < end_utc)
+            )
             if (
                 call is not None
                 and call.member_id == member_id

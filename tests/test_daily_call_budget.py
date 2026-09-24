@@ -408,25 +408,47 @@ def test_remaining_budget_s_applies_when_an_admin_sends_a_plan_override(ctx):
 # --------------------------------------------------------------------------- #
 # QA C4 재검-①(2026-09-23) — 이어하기가 call_date 를 밀면 자정 경계에서 예산이 샌다
 # --------------------------------------------------------------------------- #
-def test_resume_does_not_move_the_call_into_the_next_days_budget(ctx):
-    """자정 직전 시작 → 자정 넘겨 조각2 를 열어도 `call_date` 는 그대로라, 예산 차감
-    (누적 total_time)은 **시작한 날**에만 잡힌다.
+def test_resume_does_not_move_the_call_into_the_next_days_budget(ctx, monkeypatch):
+    """자정 직전 시작 → 자정 넘겨 조각2 를 열어도 `call_date` 는 그대로다(시작한 날
+    귀속은 안 바뀐다).
 
-    ⛔⛔ 이 시험이 막는 회귀: `resume_call` 이 `call_date` 를 조각2 시작 시각으로
-      덮어쓰면, 조각1+조각2 누적 `total_time` 전체가 조각2 를 연 **다음 날**로 옮겨가
-      시작한 날 예산이 빈 것처럼 보이고(써야 할 만큼 못 막음) 다음 날 예산이 미리
-      깎인다(안 써야 할 만큼 막음) — 양방향으로 틀린다.
+    ⛔⛔ 이 시험이 막는 회귀(그대로 유지): `resume_call` 이 `call_date` 자체를 조각2
+      시작 시각으로 덮어쓰면, 그 통화가 "시작한 날"이라는 사실 자체가 사라진다(학습
+      달력 등 call_date 로 귀속하는 다른 용도가 다 틀어진다).
+
+    ⭐⭐ R2-a 2차(2026-09-24) 로 아래 둘째 단언이 바뀌었다 — 조각2 가 **실제로 다음
+      날(00:05) 시작**하면, 일반 규칙(① call_date 또는 fragment_started_at 이 창
+      안)이 그 활동을 다음 날 창에도 잡는 게 **의도된 동작**이다(진짜 자정을 넘겨
+      쓴 시간을 다음 날 예산이 못 보면 그게 원래 버그였다 — R2-a 1차가 절반만
+      닫았던 그 구멍). 옛 시험은 "다음 날 SUM == 0"을 정답으로 뒀지만, 그건 그 시절
+      SUM 이 call_date 만 보던 **결함**의 증상이었다.
     """
     start_day = date(2026, 9, 23)
     started_at = datetime(2026, 9, 23, 23, 58, tzinfo=timezone.utc)   # 자정 직전(UTC)
     call = _call(ctx, total_time=300, call_type="expression", status="done", when_utc=started_at)
+    call.fragment_ended_at = datetime(2026, 9, 24, 0, 0, tzinfo=timezone.utc)
+    ctx["db"].commit()
 
-    # 자정을 넘겨 조각2 를 연다(이어하기).
+    # 조각2 는 자정을 넘겨(00:02, TTL 300s 안) 실제로 다음 날 시작한다 — resume_call
+    # 내부의 datetime.now() 를 고정해 테스트를 실제 벽시계와 분리한다
+    # (test_push_dispatch.py 의 FakeDatetime 패턴).
+    fixed_now = datetime(2026, 9, 24, 0, 2, tzinfo=timezone.utc)
+
+    class FakeDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_now
+
+    monkeypatch.setattr(ns, "datetime", FakeDatetime)
+
     got, why = ns.resume_call(ctx["db"], ctx["member_id"], call.call_id, max_fragments=3)
     assert got == call.call_id, why
     ctx["db"].refresh(call)
     refreshed = call.call_date if call.call_date.tzinfo else call.call_date.replace(tzinfo=timezone.utc)
     assert refreshed == started_at, "resume_call 이 call_date 를 덮어썼다 — 그 회귀"
+    frag_started = call.fragment_started_at if call.fragment_started_at.tzinfo else \
+        call.fragment_started_at.replace(tzinfo=timezone.utc)
+    assert frag_started == fixed_now, "조각2 의 fragment_started_at 이 실제 시작 시각(다음 날)을 안 반영했다"
 
     # 조각2 가 끝나 total_time 이 누적됐다(12차 조각 누적 계약).
     call.total_time = 600
@@ -436,9 +458,9 @@ def test_resume_does_not_move_the_call_into_the_next_days_budget(ctx):
     s0, e0 = cs.local_window_utc(start_day, None, 0)
     s1, e1 = cs.local_window_utc(start_day + timedelta(days=1), None, 0)
     assert repo.sum_total_time_in_window(ctx["member_id"], s0, e0, exclude_call_types=("level_test",)) == 600, \
-        "누적 total_time 이 시작한 날 예산에 안 잡혔다"
-    assert repo.sum_total_time_in_window(ctx["member_id"], s1, e1, exclude_call_types=("level_test",)) == 0, \
-        "call_date 가 다음 날로 옮겨져 다음 날 예산까지 깎였다"
+        "누적 total_time 이 시작한 날 예산에 안 잡혔다(call_date 매칭)"
+    assert repo.sum_total_time_in_window(ctx["member_id"], s1, e1, exclude_call_types=("level_test",)) == 600, \
+        "fragment_started_at 이 다음 날 창 안인데도 그 활동이 다음 날 예산에 안 잡혔다"
 
 
 # --------------------------------------------------------------------------- #
@@ -547,6 +569,92 @@ def test_daily_budget_exceeded_and_remaining_honor_resuming_call_id(ctx, monkeyp
     assert cs.remaining_budget_s(
         ctx["db"], ctx["member_id"], resuming_call_id=call.call_id,
     ) == 0
+
+
+# --------------------------------------------------------------------------- #
+# R2-a 2차(2026-09-24, bt-back 재검) — "체인이 끝난 뒤 전혀 다른 새 통화"는
+# resuming_call_id 조정이 전혀 못 막는다(continues_call_id 자체가 없다). 일반 규칙
+# (call_date 또는 fragment_started_at 이 창 안)을 SUM 의 기본 동작으로 넣어 닫는다.
+#
+# fragment_started_at 을 고른 근거(fragment_ended_at 이 아니라) — bt-back 운영 실측
+# (2026-09-24): 자정 걸친 것처럼 보인 8건 중 7건이 C4 백필 마이그레이션(30dda365f616)
+# 의 흔적이었다(`fragment_ended_at = updated_at` 백필 — 재분석·수정이 옛 행의
+# updated_at 을 밀면 fragment_ended_at 도 같이 튄다, 예: call 992 는 08-14→08-30 로
+# 16일이 벌어졌다). `fragment_started_at` 은 `resume_call`/`create_call` 두 곳에서만
+# "지금"으로 쓰이고, 같은 마이그레이션이 옛 행엔 `fragment_started_at = call_date` 로
+# 백필해 **call_date 와 다른 값으로 옛 행을 오염시킬 수 없다**. 진짜 자정 통과는
+# 1,590건 중 1건뿐이라(call 198) 일반 규칙의 과다 계상(체인이 두 날 모두에 잡히는 것)
+# 이 실사용자를 부당하게 막을 위험은 사실상 없다고 판단했다.
+# --------------------------------------------------------------------------- #
+def test_sum_total_time_in_window_also_matches_on_fragment_started_at_alone(ctx):
+    """일반 규칙 최소 단위 확인 — call_date 가 창 밖이어도 fragment_started_at 이
+    창 안이면 resuming_call_id 없이도 잡힌다."""
+    _call(ctx, total_time=500, call_type="expression", status="done",
+          when_utc=datetime(2026, 9, 23, 10, 0, tzinfo=timezone.utc),
+          fragment_started_at=datetime(2026, 9, 24, 0, 4, tzinfo=timezone.utc))
+    repo = CallRepository(ctx["db"])
+    s, e = cs.local_window_utc(date(2026, 9, 24), None, 0)
+    assert repo.sum_total_time_in_window(ctx["member_id"], s, e, exclude_call_types=("level_test",)) == 500
+
+
+def test_a_new_call_after_a_finished_midnight_crossing_chain_is_blocked_by_todays_budget(ctx, monkeypatch):
+    """⛔⛔ R2-a 2차 핵심 재현·수정 확인(bt-back) — resuming_call_id 는 "그 통화를
+    명시로 이으려 할 때"만 돕는다. 체인이 **완전히 끝난 뒤** 전혀 다른 새 통화를
+    걸면 continues_call_id 자체가 없어 그 조정이 전혀 안 먹는다.
+    재현: 23:50 체인 시작 → 조각을 여러 번 이어 900초(premium 한도)를 쓰고 자정을
+    넘겨 정상 종료(마지막 조각은 00:04 시작) → 00:10 완전히 새 통화를 시도 → 옛
+    SUM(call_date 뿐)은 어제 것만 보여 오늘 예산이 고스란히 남은 것으로 오판했다
+    (하루 예산이 사실상 두 배로 샌다).
+    ⭐ 고침: 체인이 이어지며 fragment_started_at 이 계속 "지금"으로 갱신되므로,
+    활동이 진짜 자정을 넘겼다면 마지막 조각의 시작 시각도 "오늘"이다 — 일반 규칙이
+    resuming_call_id 없이도 이 통화를 오늘 창에 잡는다.
+    """
+    monkeypatch.setattr(
+        "domains.commerce.service.entitlements.effective_plan",
+        lambda db, member_id: "premium",
+    )
+    call = _call(
+        ctx, total_time=900, call_type="expression", status="done",
+        when_utc=datetime(2026, 9, 23, 23, 50, tzinfo=timezone.utc),
+        fragment_started_at=datetime(2026, 9, 24, 0, 4, tzinfo=timezone.utc),
+        fragment_ended_at=datetime(2026, 9, 24, 0, 10, tzinfo=timezone.utc),
+    )
+    assert call.call_id is not None
+
+    fixed_today = date(2026, 9, 24)
+    monkeypatch.setattr(
+        cs, "local_window_utc",
+        lambda local_date, tz, tz_offset_min: cs.daily_window_utc(local_date or fixed_today, tz_offset_min or 0),
+    )
+
+    # resuming_call_id 없이(완전히 새로운 통화 시도) — 그래도 오늘 예산이 이미 다
+    # 찼다고 정확히 봐야 한다.
+    assert cs.daily_budget_exceeded(ctx["db"], ctx["member_id"]) is True
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"]) == 0
+
+
+def test_backfilled_legacy_row_does_not_pollute_an_unrelated_days_budget(ctx):
+    """⛔⛔ R2-a 2차 — fragment_ended_at 을 판정 신호로 안 쓰는 이유의 회귀 고정.
+    C4 백필 마이그레이션(30dda365f616)은 옛 행에 `fragment_started_at=call_date`·
+    `fragment_ended_at=updated_at` 를 심는다 — updated_at 은 재분석·수정으로 실제
+    활동과 무관하게 훨씬 뒤로 튈 수 있다(운영 실측: call 992 는 08-14→08-30, 16일
+    차이). `fragment_started_at` 은 이 백필에서 항상 `call_date` 와 **같은 값**이
+    되므로(마이그레이션 소스), 일반 규칙의 OR 조건이 이 백필된 행을 call_date 가
+    속하지 않는 다른 날 창에 끌어들이지 않는다 — 이 시험이 그 안전을 고정한다.
+    """
+    backfill_call_date = datetime(2026, 8, 14, 5, 19, tzinfo=timezone.utc)
+    call = _call(ctx, total_time=75, call_type="expression", status="done", when_utc=backfill_call_date)
+    # 마이그레이션이 실제로 하는 일 그대로 재현: call_date → fragment_started_at,
+    # (재분석으로 튄) updated_at → fragment_ended_at.
+    call.fragment_started_at = call.call_date
+    call.fragment_ended_at = datetime(2026, 8, 30, 5, 6, tzinfo=timezone.utc)
+    ctx["db"].commit()
+
+    repo = CallRepository(ctx["db"])
+    polluted_day = date(2026, 8, 30)
+    s, e = cs.local_window_utc(polluted_day, None, 0)
+    assert repo.sum_total_time_in_window(ctx["member_id"], s, e, exclude_call_types=("level_test",)) == 0, \
+        "fragment_ended_at 오염(재분석으로 튄 updated_at)이 무관한 날 예산에 새어 들었다"
 
 
 # --------------------------------------------------------------------------- #
