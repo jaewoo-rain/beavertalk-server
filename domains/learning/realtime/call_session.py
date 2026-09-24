@@ -3533,6 +3533,16 @@ async def run_call(
     #   의미가 있다(합치면 "실패" 통화를 분석기가 done 으로 되덮는 별개 사고가 난다).
     #   COURSE_LOCKED 는 자체 반려에 자체 mark_fragment_ended 를 찍는다(return 이라 이
     #   except 를 안 탄다).
+    # ⛔⛔ R1-a(2026-09-24) — `state` 를 try **앞에서** 만든다. 이전엔 `:3676`(try 본문
+    #   중간)에서 만들어서, 그 앞(`:3539~:3675`)에서 던진 예외를 아래 except 가 잡을 때
+    #   `state` 가 아직 없어 `UnboundLocalError` 가 나고 `contextlib.suppress` 에 조용히
+    #   삼켜졌다 — `mark_fragment_ended` 자체가 안 불려 `fragment_ended_at` 이 영원히
+    #   안 찍히고, 그 회원은 최대 9분(active_ongoing_call_id 컷오프) 「이미 통화 중」에
+    #   갇혔다. 여기서 만들면 아래 except 가 무조건 `state`(빈 기본값이어도)를 본다 —
+    #   `state.fragment_index` 참조가 새 `UnboundLocalError` 를 낼 수 없다(정적 보장).
+    #   경과 시간 자체는 `state.call_start_ts` 를 안 쓴다 — `elapsed_since_fragment_start`
+    #   (DB 의 `fragment_started_at`) 참조.
+    state = _CallState()
     try:
         # ⭐ 끊김 없는 조각 전환(2026-09-13 S2): 클라가 5:00 뒤 «학습자 발화→비버 응답 turn_end» 에서 소켓을 닫고 바로 다시 연 조각.
         #   이어하기가 **성립했을 때만** 뜻이 있다 — continues 없이 온 silent 는 무시(선톡 시드가 나가는 새 통화).
@@ -4033,12 +4043,15 @@ async def run_call(
     except Exception:
         # ⭐⭐ C4 재설계(2026-09-23, bt-back A) — 끊김을 인지한 이 자리에서 fragment_ended_at
         #   과 함께 이 조각이 쓴 시간(total_time)도 확정한다(추정 없는 실측치).
-        # ⛔ 러닝 이벤트루프가 있는 **여기서** 미리 계산한다 — run_db 의 스레드풀
-        #   워커엔 running loop 가 없어 asyncio.get_running_loop() 가 RuntimeError.
+        # ⛔⛔ R1-a(2026-09-24) — 이 구간(통화 준비 구간) 예외는 `state.call_start_ts`
+        #   가 아직 안 섰을 수 있다(첫 turn_start 이전) — `_elapsed_since_call_start`
+        #   대신 DB 의 `fragment_started_at` 로 계산하는 `elapsed_since_fragment_start`
+        #   를 쓴다(러닝 이벤트루프도 필요 없어 run_db 클로저 안에서 그대로 조회+쓰기를
+        #   한 번에 한다 — 옛 코드처럼 스레드풀 밖에서 따로 잴 필요가 없다).
         with contextlib.suppress(Exception):
-            _dur = _elapsed_since_call_start(state)
             await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(
-                db, call_id, total_time=_dur, accumulate=bool((state.fragment_index or 1) > 1),
+                db, call_id, total_time=svc.elapsed_since_fragment_start(db, call_id),
+                accumulate=bool((state.fragment_index or 1) > 1),
             ))
         # ⛔⛔ QA C7 재검(2026-09-23): 설비 구간 예외(비정상 종료)에서도 기억을 남긴다 —
         #   이어하기 조각이면 이전 조각의 전사가 이미 DB 에 있다. `_trigger_chat_memory`

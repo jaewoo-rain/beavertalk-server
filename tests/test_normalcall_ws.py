@@ -345,6 +345,124 @@ async def test_run_call_persists_segments_and_status(session_factory, seeded):
     assert holder["voice"] == seeded["voice"]  # 캐릭터 voice 가 반영됨
 
 
+# --------------------------------------------------------------------------- #
+# (b') R1-a(2026-09-24) — 통화 준비 구간 예외가 다음 통화를 9분간 잠그던 결함
+# --------------------------------------------------------------------------- #
+# 원인: `state = _CallState()` 가 try 본문 **중간**(끊김 없는 조각 전환 이전 구간이
+# 아니라 그 뒤)에 있어서, 그 앞(준비 구간)에서 던진 예외를 잡는 except 핸들러가
+# `state` 를 참조하며 `UnboundLocalError` 를 내고 `contextlib.suppress(Exception)`
+# 에 조용히 삼켜졌다 — `mark_fragment_ended` 자체가 안 불려 `fragment_ended_at` 이
+# 영원히 안 찍히고, `create_call` 이 이미 찍어 둔 `fragment_started_at` 만 남아
+# 그 회원이 `active_ongoing_call_id`(9분 컷오프)에 최대 9분간 갇혔다.
+@pytest.mark.asyncio
+async def test_send_json_failure_during_prep_still_releases_the_concurrency_gate(
+    session_factory, seeded, monkeypatch,
+):
+    """⛔⛔ 핵심 — ServerCallStarted 전송 실패(사용자가 즉시 이탈하는 가장 흔한 경우)
+    에서도 fragment_ended_at 이 찍혀야 한다."""
+    orig_send_json = cs._send_json
+
+    async def _boom_on_call_started(ws, message):
+        if isinstance(message, cs.ServerCallStarted):
+            raise RuntimeError("클라 즉시 이탈 흉내")
+        return await orig_send_json(ws, message)
+
+    monkeypatch.setattr(cs, "_send_json", _boom_on_call_started)
+
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    with pytest.raises(RuntimeError):
+        await run_call(
+            ws, app_settings, object(), session_factory,
+            member_id=seeded["member_id"],
+            live_session_factory=make_live_factory({}),
+        )
+
+    db = session_factory()
+    try:
+        call = db.query(Call).one()
+        assert call.fragment_started_at is not None, "테스트 전제 붕괴(조각 시작이 안 찍힘)"
+        assert call.fragment_ended_at is not None, \
+            "준비 구간 예외에서 fragment_ended_at 이 안 찍혔다 — 동시통화 게이트에 갇힌다"
+    finally:
+        db.close()
+
+    from domains.learning.repository.call_repository import CallRepository
+    db = session_factory()
+    try:
+        assert CallRepository(db).active_ongoing_call_id(seeded["member_id"]) is None, \
+            "다음 통화가 ALREADY_IN_CALL 로 거절될 상태로 남았다"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_another_prep_phase_failure_also_releases_the_gate(
+    session_factory, seeded, monkeypatch,
+):
+    """ServerCallStarted 송신뿐 아니라 같은 준비 구간의 **다른** 실패 지점(조각 상한
+    조회)도 같은 방식으로 안전해야 한다 — state 초기화 위치를 옮긴 수정이 특정 실패
+    지점 하나만이 아니라 그 구간 전체에 적용됨을 확인한다."""
+    def _boom(*a, **k):
+        raise RuntimeError("조각 상한 조회 실패 흉내")
+
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_plan", _boom)
+
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    with pytest.raises(RuntimeError):
+        await run_call(
+            ws, app_settings, object(), session_factory,
+            member_id=seeded["member_id"],
+            live_session_factory=make_live_factory({}),
+        )
+
+    db = session_factory()
+    try:
+        call = db.query(Call).one()
+        assert call.fragment_ended_at is not None
+    finally:
+        db.close()
+
+    from domains.learning.repository.call_repository import CallRepository
+    db = session_factory()
+    try:
+        assert CallRepository(db).active_ongoing_call_id(seeded["member_id"]) is None
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_normal_call_completion_is_unaffected_by_the_early_state_init(
+    session_factory, seeded,
+):
+    """회귀 — `state` 를 try 앞으로 옮긴 것이 정상 종료 경로를 바꾸면 안 된다."""
+    holder: dict = {}
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"],
+        live_session_factory=make_live_factory(holder),
+    )
+    await _wait_analysis_tasks()
+
+    db = session_factory()
+    try:
+        call = db.query(Call).one()
+        assert call.status in ("analyzing", "done")
+        assert call.fragment_ended_at is not None
+    finally:
+        db.close()
+    assert holder["session"].sent_text_turns
+
+
 @pytest.mark.asyncio
 async def test_auto_close_injects_seed_when_idle(session_factory, seeded, monkeypatch):
     """RC1 회귀: 5분 경과가 소강(idle) 구간에 떨어져도 종료 시드가 주입되고 정상 작별 종료.

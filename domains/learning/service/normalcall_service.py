@@ -1554,6 +1554,29 @@ def upload_segment_audio(
     return done
 
 
+def elapsed_since_fragment_start(db: Session, call_id: int) -> int:
+    """이 조각이 `fragment_started_at`(create_call 이 이미 찍어 둔 값) 이후 지금까지
+    쓴 시간(초) — **`state` 없이 DB 만으로** 계산한다.
+
+    ⛔⛔ R1-a(2026-09-24, 프론트 실기기 QA) — 통화 준비 구간(call_session.py 의 `state
+    = _CallState()` 대입 **전**)에서 던진 예외의 핸들러는 `state.call_start_ts` 를
+    볼 수 없다(그 필드가 아직 안 생겼거나, `state` 자체가 아직 없다 — 옛 코드는 여기서
+    `UnboundLocalError` 가 나 `contextlib.suppress(Exception)` 에 조용히 삼켜졌고,
+    `mark_fragment_ended` 자체가 안 불려 `fragment_ended_at` 이 영원히 안 찍혔다 —
+    그 회원은 최대 9분간 「이미 통화 중」에 갇혔다). `fragment_started_at` 은
+    `create_call`(위 create_call 참조)이 통화 시작 시점에 이미 커밋해 두므로,
+    `state` 나 러닝 이벤트루프 없이도 정확한 경과 시간을 구할 수 있다.
+    행이 없거나 `fragment_started_at` 이 없으면(이론상 없음, 방어) 0.
+    """
+    call = db.get(Call, call_id)
+    if call is None or call.fragment_started_at is None:
+        return 0
+    started = call.fragment_started_at
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=timezone.utc)
+    return max(0, int((datetime.now(timezone.utc) - started).total_seconds()))
+
+
 def mark_fragment_ended(db: Session, call_id: int, *, total_time: int = 0, accumulate: bool = False) -> None:
     """조각이 끝났음을 **즉시** 기록 — QA C4 재검-5차(2026-09-23): 세션이 끊긴 것을
     인지한 직후(신호: `_ClientDisconnect`·`_FragmentEnd`·`_CallFinished`·백스톱),
