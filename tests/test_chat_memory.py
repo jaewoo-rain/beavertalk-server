@@ -118,7 +118,8 @@ def test_merge_capped_helper_is_order_preserving_and_ignores_blanks(ctx):
 
 
 # --------------------------------------------------------------------------- #
-# 3) 재압축 실패(또는 LLM 미제공) 폴백 — 옛 요약 유지 + 이번 요약을 뒤에 붙여 자르기
+# 3) 재압축 실패(또는 LLM 미제공) 폴백 — Q3(2026-09-24): 최신 내용 우선(이번 요약을
+#    앞에, 옛 요약을 뒤에 붙여 자른다 — 상한 초과 시 잘리는 쪽은 옛 내용이어야 한다)
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
 async def test_recompress_falls_back_when_no_client_is_given(ctx):
@@ -126,7 +127,7 @@ async def test_recompress_falls_back_when_no_client_is_given(ctx):
                      slots={"summary": "옛 요약 문장."})
     row = await svc.merge(ctx["db"], ctx["member_id"], "ko", call_id=2,
                            slots={"summary": "이번 통화 요약 문장."})
-    assert row.summary == "옛 요약 문장. 이번 통화 요약 문장."
+    assert row.summary == "이번 통화 요약 문장. 옛 요약 문장."
 
 
 @pytest.mark.asyncio
@@ -141,7 +142,7 @@ async def test_recompress_falls_back_when_the_llm_call_raises(ctx, monkeypatch):
         ctx["db"], ctx["member_id"], "ko", call_id=2, slots={"summary": "이번 요약."},
         client=object(), model="gemini-2.5-flash",
     )
-    assert row.summary == "옛 요약. 이번 요약."
+    assert row.summary == "이번 요약. 옛 요약."
 
 
 @pytest.mark.asyncio
@@ -156,7 +157,22 @@ async def test_recompress_falls_back_when_the_llm_returns_empty(ctx, monkeypatch
         ctx["db"], ctx["member_id"], "ko", call_id=2, slots={"summary": "이번 요약."},
         client=object(), model="gemini-2.5-flash",
     )
-    assert row.summary == "옛 요약. 이번 요약."
+    assert row.summary == "이번 요약. 옛 요약."
+
+
+@pytest.mark.asyncio
+async def test_fallback_summary_survives_the_cap_when_old_summary_alone_already_fills_it(ctx):
+    """⛔⛔ Q3 핵심 회귀 — 옛 요약이 이미 상한을 꽉 채운 상태(운영에서 5~8통 뒤 실제로
+    벌어지던 «동결» 상태)여도, 폴백은 **새 통화 내용이 최소한 일부라도** 들어가야
+    한다. 예전 순서(옛+새, 앞에서부터 자름)면 이 경우 새 내용이 0글자였다.
+    """
+    huge_old = "가" * svc.SUMMARY_CHAR_CAP
+    await svc.merge(ctx["db"], ctx["member_id"], "ko", call_id=1, slots={"summary": huge_old})
+    row = await svc.merge(ctx["db"], ctx["member_id"], "ko", call_id=2,
+                           slots={"summary": "새로 배운 표현이 여기 있다"})
+    assert row.summary.startswith("새로 배운 표현이 여기 있다"), \
+        "옛 요약이 상한을 채운 상태에서 새 내용이 전혀 안 들어갔다 — «동결» 버그가 재발했다"
+    assert len(row.summary) == svc.SUMMARY_CHAR_CAP
 
 
 @pytest.mark.asyncio

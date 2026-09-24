@@ -1188,16 +1188,40 @@ async def extract_and_merge_chat_memory(
         logger.info("normalcall chat_memory: 뽑힌 슬롯이 없어 merge 생략 call_id=%s", call_id)
         return
 
-    def _do_merge(db: Session) -> None:
-        # ⚠ chat_memory_service.merge 는 async(재압축 LLM 호출을 안에서 await 한다) —
-        #   이 스레드(run_db 의 threadpool 워커)는 자기 이벤트 루프가 없으니
-        #   asyncio.run 으로 새로 하나 만들어 그 안에서 끝까지 돌린다.
-        asyncio.run(chat_memory_service.merge(
-            db, member_id, language, call_id, slots,
-            client=client, model=settings_obj.JUDGE_MODEL,
-        ))
-
+    # ⛔⛔ Q3(2026-09-24, 프론트 실기기 QA — 자유대화 「기억」 요약이 구조적으로 항상
+    #   실패) — **옛 패턴을 여기 되살리지 마라**: `run_db`(threadpool 워커) 안에서
+    #   `asyncio.run()` 으로 새 이벤트 루프를 만들어 `chat_memory_service.merge` 를
+    #   통째로 돌리던 코드가 있었다. `client`(lifespan 공유 genai 클라이언트, 곧
+    #   메인 루프에 바인딩된 httpx.AsyncClient)를 그 새 루프에서 쓰면
+    #   `RuntimeError: ... bound to a different event loop` 가 나고, `gemini_analysis`
+    #   의 포괄 except 가 그걸 삼켜 재압축이 **항상** `_fallback_summary` 로 떨어지고
+    #   있었다(운영 상시 재현 — 에이전트 로컬 재현 + bt-back 코드 확인).
+    #   이 함수(extract_and_merge_chat_memory) 자체가 이미 **메인 이벤트 루프**의
+    #   fire-and-forget task 이므로, LLM 재압축은 여기서 바로 await 한다 — client 가
+    #   바인딩된 바로 그 루프다. DB 접근만 run_db(threadpool)로 오프로드하되, 그
+    #   안에는 **순수 동기 함수**(load_old_summary_for_merge·merge_sync)만 둔다.
+    #   ⚠ 저장소 전체에서 "threadpool 안 asyncio.run" 패턴은 여기 하나뿐이었다
+    #     (grep 확인 — 다른 hit 는 전부 scripts/*, tests/*, docs/learn/* 의 독립
+    #     엔트리포인트·튜토리얼이라 공유 루프 위에서 안 돈다).
     try:
+        old_summary = await run_db(
+            session_factory,
+            lambda db: chat_memory_service.load_old_summary_for_merge(
+                db, member_id, language, call_id
+            ),
+        )
+        if old_summary is None:
+            logger.info(
+                "normalcall chat_memory: 이미 이 통화로 merge 됨(멱등) call_id=%s", call_id
+            )
+            return
+        summary = await chat_memory_service.recompress_summary(
+            client, settings_obj.JUDGE_MODEL, old_summary, slots.get("summary") or "",
+        )
+
+        def _do_merge(db: Session) -> None:
+            chat_memory_service.merge_sync(db, member_id, language, call_id, slots, summary)
+
         await run_db(session_factory, _do_merge)
     except Exception as exc:  # noqa: BLE001 — R5
         logger.warning("normalcall chat_memory merge 실패(무시) call_id=%s: %s", call_id, exc)
