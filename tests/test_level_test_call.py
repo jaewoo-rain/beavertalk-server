@@ -324,6 +324,86 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
 
 
 @pytest.mark.asyncio
+async def test_explicit_auto_routes_to_level_test_when_level_none(session_factory, seeded):
+    """⭐⭐⭐ L8(2026-09-24, 사장님 지적) — 위 시험과 같은 조건이지만 start.call_type="auto"
+    를 **명시로** 보낸다(앱이 실제로 보내는 값, home.dart CourseCallRequest(CallCourse.auto)).
+
+    L8 이전엔 이 명시 경로에 needs_level_test 판정이 아예 없어서, 레벨 NULL 인 신규
+    회원이 홈 "학습" 버튼을 눌러도 레벨테스트가 아니라 표현학습이 열렸다(운영 실측
+    member 103·113) — 앱엔 "level_test" 를 직접 보낼 수단이 없으므로 이 경로가 막히면
+    그 회원은 영원히 레벨테스트를 못 본다. 이 시험이 그 버그를 잠근다."""
+    holder = await _run_one_call(
+        session_factory, seeded["member_none"], seeded["character_id"], call_type="auto",
+    )
+    instr = holder["system_instruction"]
+    assert "[진행 — 네가 이끈다]" in instr
+    assert "[학습자 수준]" not in instr
+
+    db = session_factory()
+    try:
+        calls = db.query(Call).all()
+        assert len(calls) == 1
+        assert calls[0].call_type == "level_test"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_explicit_auto_with_a_level_routes_as_before(session_factory, seeded):
+    """레벨 있음(korean_level=3) + "auto" 명시 → 레벨테스트로 새지 않고 종전대로 학습
+    경로(이 시드 DB 엔 cur_lesson 이 없어 옛 표현학습 경로로 폴백 — expression)."""
+    holder = await _run_one_call(
+        session_factory, seeded["member_l3"], seeded["character_id"], call_type="auto",
+    )
+    assert "[진행 — 네가 이끈다]" not in holder["system_instruction"]
+
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == "expression"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_explicit_chat_with_no_level_is_not_converted_to_level_test(session_factory, seeded):
+    """레벨 NULL + "chat"(자유대화) 명시 → 그대로 chat. L8 은 "auto" 만 건드린다 —
+    자유대화는 커리큘럼이 아니고 레벨 없이도 돈다(korean_level or 2 폴백)."""
+    holder = await _run_one_call(
+        session_factory, seeded["member_none"], seeded["character_id"], call_type="chat",
+    )
+    assert "[진행 — 네가 이끈다]" not in holder["system_instruction"]
+
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == "chat"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_auto_with_no_level_test_support_stays_auto(session_factory, seeded, monkeypatch):
+    """레벨테스트 미지원 언어(spec.leveltest=False) + 레벨 NULL + "auto" 명시 →
+    level_test 로 안 새고 auto 그대로 유지된다(이 시드는 cur_lesson 이 없어 auto 가
+    옛 표현학습 경로로 폴백 — expression). L8 조건에 spec.leveltest 가 꼭 있어야 하는
+    이유 — 미지원 언어에서 레벨테스트를 열면 루브릭·대본이 없다."""
+    monkeypatch.setattr(app_settings, "ENV", "dev")
+    monkeypatch.setitem(
+        SUPPORTED_LANGUAGES, "vi", LanguageSpec("vi", "베트남어", 12, False, False)
+    )
+    holder = await _run_one_call(
+        session_factory, seeded["member_none"], seeded["character_id"],
+        call_type="auto", target_language="vi",
+    )
+    assert "[진행 — 네가 이끈다]" not in holder["system_instruction"]
+
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == "expression"
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
 async def test_member_with_level_routes_to_chat(session_factory, seeded):
     """korean_level=3 보유자 → 기존 일반 대본([학습자 수준] 포함), call_type=chat
     (C3, 2026-09-22, D3: 옛 이름 normal → chat 개명, 명시로 요청한다)."""

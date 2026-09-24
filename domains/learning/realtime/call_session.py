@@ -3101,15 +3101,38 @@ async def run_call(
             )
             call_type = "chat"
     else:
-        # ⭐ C3: 미전송(구버전 앱·알람)이면 레벨 미확정일 때만 레벨테스트, 그 외엔
-        #   **"auto"(학습)** — 옛 기본값 "normal" 은 폐기했다(D3, 자유대화는 명시로만 온다).
-        call_type = "level_test" if (spec.leveltest and setup["needs_level_test"]) else "auto"
+        # ⭐ C3: 미전송(구버전 앱·알람)이면 **"auto"(학습)** — 옛 기본값 "normal" 은
+        #   폐기했다(D3, 자유대화는 명시로만 온다). 레벨테스트 필요 여부는 아래에서
+        #   "auto" 공통 규칙 한 번으로 판정한다(L8 — 이 자리에만 있으면 안 됐다).
+        call_type = "auto"
+
+    # ⭐⭐ L8(2026-09-24, 사장님 지적) — "auto" 는 미전송이든 명시든 **서버가 정해라**
+    #   는 뜻이다. 서버가 가장 먼저 정할 것은 "레벨테스트가 필요한가" 다.
+    #   ⛔⛔ 옛 버그: 이 판정이 위 else(미전송) 분기에만 있었다. 그런데 앱은 "auto" 를
+    #   **명시로** 보낸다(home.dart CourseCallRequest(CallCourse.auto)) — 그리고 앱엔
+    #   "level_test" 를 보낼 수단이 아예 없다(CallCourse enum = expression/freetalk/
+    #   auto/chat). ⇒ 레벨 NULL 인 신규 회원이 홈 "학습" 을 누르면 레벨테스트가 아니라
+    #   표현학습이 열렸다(setup.get("korean_level") or 2 폴백으로 레벨2 재료를 받아
+    #   레벨테스트를 영영 못 봄 — 운영 실측 member 103·113).
+    #   ⛔ chat(자유대화)은 건드리지 않는다 — 사장님 지시는 "auto" 뿐이고, 자유대화는
+    #   커리큘럼이 아니라 레벨 없이도 돈다. expression·freetalk 명시(admin 도구)도
+    #   이미 위 admin 게이트가 처리했으니 여기서 또 안 건드린다.
+    if call_type == "auto" and spec.leveltest and setup["needs_level_test"]:
+        call_type = "level_test"
+    # ⚠ 하루 한도(DAILY_CALL_LIMIT["level_test"]=1) 와 조합하면 "레벨은 없는데 학습도
+    #   못 한다" 로 갇힐 수 있어 보이지만(레벨테스트 한 번 소진 + 그날 재판정 실패로
+    #   레벨 NULL 유지) — bt-back 이 배포 두 서비스(app-api·demo-api) 를 gcloud 로 실측:
+    #   둘 다 ENV=test, DAILY_LIMIT_ENFORCED 미설정(기본 False) 이라 `is_daily_limit_reached`
+    #   가 즉시 False 를 반환해 **지금은 이 한도 자체가 안 걸린다**(call_service.py:453).
+    #   ⛔ 방어 코드를 만들지 않는다(2026-09-24 결정, 안 일어나는 일에 분기 추가 금지).
+    #   나중에 한도를 켜면(ENV=prod 또는 DAILY_LIMIT_ENFORCED=true) 이 조합이 실제로
+    #   막힐 수 있다는 걸 그때 다시 검토해라.
 
     # ⭐⭐ 알람별 통화 모드(프론트 요청 #1, 2026-09-23) — 수신통화면 **알람에 저장된
     #   call_type 이 start.call_type 보다 우선한다.** 앱은 알람 통화에서도 홈 버튼 값을
     #   그대로 실어 보내므로, start 를 우선하면 알람 설정이 영영 안 먹는다.
-    # ⛔ level_test 는 덮지 않는다 — 레벨 미확정이면 여전히 그게 먼저다(바로 위 else 분기
-    #   규율 그대로). alarm_call_type 은 스키마상 "auto"|"chat" 뿐이라 그 둘만 정한다 —
+    # ⛔ level_test 는 덮지 않는다 — 레벨 미확정이면 여전히 그게 먼저다(바로 위 L8
+    #   공통 규칙 그대로). alarm_call_type 은 스키마상 "auto"|"chat" 뿐이라 그 둘만 정한다 —
     #   레벨테스트·표현학습/프리토킹 여부는 안 건드린다(auto 면 아래에서 그대로 갈린다).
     if alarm_call_type is not None and call_type != "level_test":
         call_type = alarm_call_type

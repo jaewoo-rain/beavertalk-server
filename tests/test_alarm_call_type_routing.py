@@ -252,6 +252,25 @@ async def test_needs_level_test_still_wins_over_alarm_chat(session_factory, seed
         db.close()
 
 
+@pytest.mark.asyncio
+async def test_needs_level_test_still_wins_over_alarm_chat_with_explicit_auto(session_factory, seeded):
+    """⭐⭐ L8(2026-09-24) — 위 시험과 같지만 start.call_type="auto" 를 **명시로** 보낸다
+    (앱이 실제로 보내는 값). L8 이전엔 명시 "auto" 가 레벨테스트 판정을 안 거쳐 알람의
+    chat 이 그대로 이겼다 — 이 시험이 바로 그 버그를 잠근다."""
+    _dispatched(session_factory, seeded["member_no_level"], seeded["character_id"],
+                "call-lt-2", call_type="chat")
+    await _run(
+        session_factory, seeded, call_type="auto", inbound_call_id="call-lt-2",
+        member_id=seeded["member_no_level"],
+    )
+    db = session_factory()
+    try:
+        assert db.query(Call).one().call_type == "level_test", \
+            "명시 auto + 알람의 chat 조합에서 레벨테스트가 안 이겼다(L8 회귀)"
+    finally:
+        db.close()
+
+
 # --------------------------------------------------------------------------- #
 # ③ 알람 조회는 한 번만 — resolve_call_character 호출 1회로 캐릭터+모드를 같이 얻는다
 # --------------------------------------------------------------------------- #

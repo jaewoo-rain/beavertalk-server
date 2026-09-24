@@ -78,6 +78,7 @@ def factory():
         v = Voice(name="Fenrir", gender="male"); s.add(v); s.flush()
         s.add(Character(name="비비", role="선생님", personality="다정함", voice_id=v.voice_id, price=0))
         s.add(Level(language="ko", level_no=1, profile="초급 학습자"))
+        s.add(Level(language="ja", level_no=1, profile="일본어 청크"))
         s.add(Level(language="ja", level_no=2, profile="일본어 입문"))
         s.commit()
     return sf
@@ -385,8 +386,11 @@ async def test_run_call_auto_for_a_japanese_learner_opens_the_ja_lesson_and_reco
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", _none)
     db = factory()
     # 이 시험은 청크 1차시(L1-S01-1, 문형 없음) 소재를 검증한다 — 레벨2 placement(A1-T01-1)
-    # 로 가면 안 되므로 ja_level=None(레벨테스트 미실시 흉내)으로 청크부터 시작시킨다.
-    m, _ = _member(db, target="ja", locale="ko", ja_level=None)
+    # 로 가면 안 되므로 ja_level=1(레벨1=청크 배정 확정 흉내)으로 청크부터 시작시킨다.
+    # ⚠ L8(2026-09-24) 이후 — ja_level=None(레벨테스트 미실시) 이면 이제 "auto" 가
+    # level_test 로 라우팅된다(그게 L8 의 요점이다). 이 시험은 라우팅이 아니라 청크
+    # 소재를 보는 것이 목적이라, 레벨이 **확정된** 상태로 시작해야 한다.
+    m, _ = _member(db, target="ja", locale="ko", ja_level=1)
     db.close()
     holder = {}
 
