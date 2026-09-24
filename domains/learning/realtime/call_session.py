@@ -3926,13 +3926,14 @@ async def run_call(
                 # ⚠ 항목이 0개면(프리토킹 · 전량 통과한 표현학습) 'chat' 이다 — 'study' 로
                 #   굳히면 쪽지가 없는 항목을 가리킨다.
                 state.call_mode = "study" if state.reground_items else "chat"
-            else:
-                # ⚠ `normal` 은 **한 글자도 안 바뀐다** — 상한 10 은 일반 통화의 계약이다
-                #   (공급원 study_items 가 본편 5 + 예비라 10 이면 사실상 전량이다).
-                state.reground_items = [
-                    str(it.get("obj")) for it in (setup.get("study_items") or []) if it.get("obj")
-                ][:10]
-                state.call_mode = "study" if state.reground_items else "chat"
+            # ⛔⛔ P2-6(2026-09-24, bt-back QA — 도달 불가 else 삭제) — 옛 "normal" 전용
+            #   else 분기(`study_items[:10]` 을 무는 자리)를 지웠다. 위 elif 가 이미
+            #   ("expression","freetalk","chat") 셋을 전부 잡고, 이 시점의 call_type 은
+            #   그 셋 뿐이다 — :3072 근방에서 "normal"→"chat" 을 무조건 정규화하고
+            #   "auto" 는 그 전에 코스로 확정되며, "level_test" 는 이 블록을 감싸는
+            #   `if call_type != "level_test"` 가 이미 걸렀다(위 :3502 주석 "여기 도달
+            #   하는 call_type 은 expression/freetalk/chat 이다" 도 같은 근거). 「아무도
+            #   안 보낸다」가 아니라 「코드가 도메인을 좁힌다」가 삭제 근거다.
             if not (cur_route and call_type == "freetalk"):
                 state.reground_ctx = {
                     "client": client,

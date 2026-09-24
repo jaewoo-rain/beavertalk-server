@@ -43,7 +43,6 @@ from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.service import entitlements
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
-from domains.learning.service import call_service
 from domains.learning.service import chat_memory_service
 from domains.learning.models.evaluation import Evaluation
 from domains.learning.models.learning_item import LearningItem

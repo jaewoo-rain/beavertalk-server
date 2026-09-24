@@ -28,7 +28,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from core import supabase_client
 from core.config import Settings
 from core.config import settings as default_settings
-from core.deps import CurrentAdmin, CurrentMember, DbSession
+from core.deps import CurrentAdmin, DbSession
 from db.engine import build_engine
 from db.session import build_session_factory
 from domains.account.routers import router as account_router

@@ -11,8 +11,6 @@ from typing import Optional
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_DEV_JWT_SECRET = "dev-secret-change-me-please-32bytes-minimum-0123456789"
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -66,18 +64,13 @@ class Settings(BaseSettings):
         """마이그레이션용 URL. 미설정이면 런타임 URL 로 폴백."""
         return self.DATABASE_URL_DIRECT or self.DATABASE_URL_POOL
 
-    # ── JWT 인증 ⛔ 사문(2026-09-24 QA) — 아래 4개를 읽는 코드가 **0건**이다 ──
-    # 자체 JWT 발급·검증은 `core/security.py` 와 함께 삭제됐다(Supabase GoTrue 로 이전,
-    # 인증은 `core/supabase_auth.py`). 지우지 않는 이유는 D4 규율(«끊기만, 삭제는 나중») —
-    # Cloud Run env 에 남아 있을 수 있고 `extra="ignore"` 라 무해하다.
-    # ⛔ 되살리지 마라. 다시 자체 JWT 가 필요해지면 그때 새로 설계한다.
-    # ⚠ 옛 `_guard_prod_secret`(ENV=prod + dev 기본값이면 기동 차단)은 **제거했다** —
-    #   아무도 안 읽는 값 때문에 운영 부팅이 거절되는 함정이었다(그리고 이 파일이
-    #   DAILY_LIMIT 를 켜려면 ENV=prod 를 쓰라고 권하고 있어 실제로 밟을 수 있었다).
-    JWT_SECRET: str = _DEV_JWT_SECRET
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7일
-    PASSWORD_RESET_EXPIRE_MINUTES: int = 30  # 비밀번호 재설정 토큰 만료
+    # ⛔⛔ P2-6(2026-09-24, bt-back QA) — 옛 JWT 인증 설정 4개(JWT_SECRET·JWT_ALGORITHM·
+    #   ACCESS_TOKEN_EXPIRE_MINUTES·PASSWORD_RESET_EXPIRE_MINUTES)를 지웠다. 자체 JWT
+    #   발급·검증은 `core/security.py` 와 함께 이미 삭제됐다(Supabase GoTrue 로 이전,
+    #   인증은 `core/supabase_auth.py`) — 읽는 코드가 0건이었다(grep 확인). 삭제는
+    #   안전하다(bt-back 확인) — `extra="ignore"` 라 Cloud Run env 에 그 이름이 남아
+    #   있어도 기동을 막지 않는다. 되살리지 마라 — 다시 자체 JWT 가 필요해지면 그때
+    #   새로 설계한다.
 
     # ── SpeechSuper 발음평가 ──
     # 미설정이면 core.speechsuper 가 결정적 스텁으로 폴백한다(앱은 그대로 동작).
@@ -99,21 +92,12 @@ class Settings(BaseSettings):
     NATIONALITY_API_TIMEOUT_S: float = 20.0     # httpx read/write 타임아웃(초)
     NATIONALITY_MIN_SPEECH_S: float = 10.0      # 이 길이 미만 user 발화는 호출 스킵(호출측 게이트)
 
-    # ── 이메일 발송 (Resend) ──
-    # 둘 다 있어야 실제 발송. 하나라도 없으면 core.email 이 콘솔 출력으로 폴백한다.
-    RESEND_API_KEY: str | None = None
-    MAIL_FROM: str | None = None  # 발신 주소 (예: onboarding@resend.dev)
-
-    # ── 이메일 인증 코드 (회원가입 / 비밀번호 재설정 공용) ──
-    EMAIL_CODE_LENGTH: int = 4          # 코드 자릿수
-    EMAIL_CODE_EXPIRE_MINUTES: int = 30  # 코드 유효시간
-    EMAIL_CODE_MAX_ATTEMPTS: int = 5     # 코드 입력 시도 제한
-    EMAIL_CODE_RESEND_SECONDS: int = 60  # 재발송 최소 간격(레이트리밋)
-
-    # ── 소셜 로그인 (Google) ──
-    # 구글 ID 토큰 검증 시 허용할 audience(클라이언트 ID). 플랫폼별(Android/iOS/Web)로
-    # 여러 개면 콤마로 구분해 넣는다. 미설정이면 google 검증은 500(서버 설정 오류).
-    GOOGLE_CLIENT_ID: str | None = None
+    # ⛔⛔ P2-6(2026-09-24, bt-back QA) — 옛 이메일 발송(Resend)·이메일 인증 코드·구글
+    #   소셜 로그인 설정 7개(RESEND_API_KEY·MAIL_FROM·EMAIL_CODE_LENGTH·EMAIL_CODE_
+    #   EXPIRE_MINUTES·EMAIL_CODE_MAX_ATTEMPTS·EMAIL_CODE_RESEND_SECONDS·GOOGLE_
+    #   CLIENT_ID)를 지웠다. 읽는 코드가 0건이었다(grep 확인 — `core/email.py` 는
+    #   이 파일 말고 어디에도 없다, 이미 삭제됐다). 삭제는 안전하다(bt-back 확인) —
+    #   `extra="ignore"` 라 Cloud Run env 에 그 이름이 남아 있어도 기동을 막지 않는다.
 
     # ── normalcall (Gemini Live 음성통화 + 통화후 분석 + TTS + Storage) ──
     # 미설정이면 어댑터들이 graceful 폴백(통화 불가/분석 스킵/스텁). 앱은 그대로 뜬다.
@@ -392,22 +376,23 @@ class Settings(BaseSettings):
     #   ⚠ 차단기가 걸려도 통화는 죽지 않는다 — 그 턴을 잃을 뿐이고, 다음 사용자 발화에서
     #     오디오가 흐르면 카운터가 0으로 돌아간다.
     LIVE_FACE_MAX_CONSECUTIVE: int = 3
-    # ── TTS 엔진 A/B 스위치 (core/tts.py 가 직접 읽는다 — "CASCADE_" 접두는 역사적
-    #   이름일 뿐, 캐스케이드 전용이 아니다. C14-b 로 캐스케이드를 걷어낸 뒤에도 이
-    #   네 값은 core/tts.py(문장 TTS·발음 복습이 쓰는 공용 합성기)가 그대로 읽는다.
+    # ── TTS(core/tts.py `synthesize()` — 표현 오디오·발음 복습이 쓰는 합성기).
+    #   "CASCADE_" 접두는 역사적 이름일 뿐, 지금은 캐스케이드와 무관하다.
     #   ⛔⛔ C14-c(2026-09-23) — CASCADE_TTS_LANGUAGE 는 삭제했다. 읽는 곳이 0건이었다
     #     (70e20e2 커밋 메시지의 "다섯 값 모두 읽힌다"는 부정확했다 — codex 발견).
     #   나머지 배치·침묵트림·OpenAI 보이스·에코 방어 등은 cascade_session.py 전용이라
-    #   그 파일과 함께 삭제했다.) ──
-    # ⭐⭐ **사장님 결정(2026-08-12): Gemini-TTS 로 간다**("지금 좋아 잘돼"). 화면에서 골라
-    #   들으시던 값을 **서버 기본값**으로 올린다 — 앱이 붙으면 이 값이 곧 실서비스 소리다.
-    #   ⚠ 대가를 알고 쓴다: Gemini-TTS 는 **쿼터가 있는 유일한 엔진**이고, 넘치면 그 통화는
-    #     Chirp 으로 폴백한다 = **통화 중에 목소리가 바뀐다**(사장님은 소리로만 아신다).
-    #   ⚠ 실측(7일 로그): 분당 요청 최대 **42회**(08-10), 최근 통화 **12회/분**. 문서상 상한은
-    #     분당 10회인데 그 두 경우 모두 429 가 **안** 났다 — 실효 상한이 문서와 다르다는 뜻이다.
-    #   ⛔ 그래도 위험은 실재한다. 되돌리려면 env 로 "chirp3-hd" 를 넣으면 끝이다.
-    CASCADE_TTS_ENGINE: str = "gemini-tts"
-    # 속도가 목적이라 flash 계열부터. lite 가 더 빠를 수 있어 이것도 env 로 바꾼다.
+    #   그 파일과 함께 삭제했다.
+    #   ⛔⛔ P2-6(2026-09-24, bt-back QA) — `CASCADE_TTS_ENGINE`·`CASCADE_TTS_STYLE_
+    #   PROMPT`·`CASCADE_TTS_SPEAKING_RATE` 도 같은 이유로 지웠다: 그 세 값은
+    #   `core/tts.synthesize_stream`(캐스케이드 통화 중 스트리밍 합성) 전용이었는데
+    #   그 함수 자체를 이번 정리에서 지웠다(호출부 0건 — grep 확인, 캐스케이드
+    #   엔진 삭제로 유일한 소비처였던 cascade_session.py 가 먼저 없어졌다). 지금
+    #   남은 `synthesize()`(표현 오디오·발음 복습)는 `CASCADE_TTS_GEMINI_MODEL`
+    #   하나만 읽는다 — 나머지 셋은 이제 어디서도 안 읽힌다(extra="ignore" 라 Cloud
+    #   Run env 에 남아 있어도 기동은 막지 않는다).
+    #   ⭐⭐ 사장님 결정(2026-08-12): Gemini-TTS 로 간다("지금 좋아 잘돼"). 이 결정
+    #   자체는 유효하다 — `synthesize()` 의 기본 엔진 선택(`engine=None`→Chirp3-HD,
+    #   `engine="gemini-tts"`→Gemini)은 호출부(표현 추출·발음 복습)가 정한다.
     # ⭐ **Cloud TTS 의 model_name 문자열**이다(2026-08-07 공식 문서 확인). 유효값 4종:
     #     gemini-2.5-flash-tts / gemini-2.5-flash-lite-preview-tts /
     #     gemini-2.5-pro-tts / gemini-3.1-flash-tts-preview
@@ -415,19 +400,6 @@ class Settings(BaseSettings):
     #   gemini-2.5-flash-preview-tts 처럼 'preview' 위치가 다르다). 가격표를 그쪽 페이지에서
     #   읽어 왔다면 **이름을 그대로 가져다 쓰면 안 된다** — 우리는 Cloud TTS 를 호출한다.
     CASCADE_TTS_GEMINI_MODEL: str = "gemini-2.5-flash-tts"
-    # 감정 지시(Style Instructions). ⚠ **짧게 유지해라** — 길어지면 지연 비교가 오염된다.
-    # ⛔ **속도 얘기를 여기 쓰지 마라.** 속도는 아래 speaking_rate(파라미터)가 맡는다.
-    #   프롬프트는 **감정·톤만** 맡는다.
-    #   ⛔ **normalcall 의 교수법 문장("천천히 또박또박 들려주고 2번 따라 말하게")과 혼동하지
-    #     마라.** 그건 LLM 에게 주는 **가르치는 방식**이고 여기는 TTS 목소리 스타일이다.
-    #     거기를 같이 지우면 학습 설계가 무너진다(에코 결함도 그 문장이 근거였다).
-    CASCADE_TTS_STYLE_PROMPT: str = "밝고 다정한 선생님 목소리로."
-    # ⭐ 말하는 속도. proto 원문 범위 [0.25, 2.0], **1.0 = 그 목소리의 정상 속도**.
-    #   1.0 이면 필드를 아예 안 넘긴다 = 지금 동작 그대로. 엔진 공통 필드라 Chirp3-HD
-    #   경로에도 같이 걸린다.
-    #   ⭐ 원가와 같은 방향이다 — Gemini-TTS 는 **출력 오디오 초**로 과금되므로 빨리 읽으면
-    #     오디오가 짧아져 그만큼 싸진다.
-    CASCADE_TTS_SPEAKING_RATE: float = 1.0
 
     # Supabase (인증 주체 = GoTrue). Storage 는 GCS 로 이전 — 아래 URL/KEY 는 auth 검증용.
     SUPABASE_URL: str | None = None

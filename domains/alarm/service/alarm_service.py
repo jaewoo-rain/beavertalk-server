@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-from typing import Sequence
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
