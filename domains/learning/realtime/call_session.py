@@ -3634,10 +3634,28 @@ async def run_call(
                 _log_expression_items(expr_items, call_id)     # 8차 A — «번호=항목» 정본 한 줄(하네스가 이 번호로 판정표를 만든다)
             else:
                 # ⭐ 차시 프리토킹 v1(계획 2026-09-12-프리토킹-코스-대본 §3·§9): 흥미 미주입 · 문장 수 2 · 차시판 선톡 시드.
+                # ⛔⛔ R1-c(2026-09-24, 프론트 실기기 QA) — 레벨 프로파일은 회원의 "지금"
+                #   레벨(setup["level_profile"])이 아니라 **이 통화의 차시**(cur_open.
+                #   lesson.level_no)로 고정한다. 프리미엄 다조각 프리토킹은 조각1(≥60초)
+                #   이 끝나자마자 complete_freetalk 가 그 자리에서 freetalk_done·포인터
+                #   전진·L3 레벨업을 찍는데(이건 그대로 둔다 — 이미 확정된 진짜 진행이다),
+                #   조각2·3 이 **같은 call_id** 로 이어지며 load_call_setup 을 다시 불러
+                #   회원의 방금 오른 새 레벨을 읽으면, 새 세션 프롬프트가 **옛 차시 소재를
+                #   새 레벨 난이도·code-switching 밴드로** 얘기하게 된다(5분대에서 학습자
+                #   가 체감 — "통화 종료 후라 안전하다"는 옛 판단은 조각을 안 본 것이었다).
+                #   cur_call 은 call_id 당 한 번만 만들어져 조각이 바뀌어도 lesson 이 그대로
+                #   이므로, 그 lesson 의 level_no 로 프로파일을 다시 조회하면 조각 전체가
+                #   같은 난이도로 고정된다(조각1도 이 값을 쓴다 — 통화 시작 시점엔 아직
+                #   레벨이 안 올랐으므로 setup["level_profile"] 과 같은 값이라 단일 조각
+                #   Free 통화는 바이트 동일).
+                freetalk_level_profile = await svc.run_db(
+                    db_session_factory,
+                    lambda db: svc.level_profile_for(db, spec.code, cur_open.lesson.level_no),
+                )
                 system_instruction = build_freetalk_instruction(
                     role=setup["role"],
                     personality=setup["personality"],
-                    level_profile=level_profile,
+                    level_profile=freetalk_level_profile,
                     locale=locale,
                     interests=[],
                     name=setup["name"],

@@ -246,6 +246,26 @@ def _load_member_character(
     }
 
 
+def level_profile_for(db: Session, language: str, level_no: int) -> str:
+    """(language, level_no) 의 레벨 프로파일 문구 — 없으면 "".
+
+    ⛔⛔ R1-c(2026-09-24, 프론트 실기기 QA — 프리미엄 프리토킹이 통화 도중 레벨이
+    바뀐다) — 조각(fragment)이 여럿인 통화에서 `load_call_setup` 의 `level_profile`
+    (회원의 **지금** 레벨)을 그대로 쓰면 안 되는 자리가 있다: 조각1(≥60초)이 이미
+    complete_freetalk 로 freetalk_done·포인터 전진·L3 레벨업을 찍은 뒤, 조각2·3 이
+    **같은 call_id** 로 이어질 때 `load_call_setup` 을 다시 부르면 방금 오른 새
+    레벨을 읽어와, 새 세션 프롬프트가 **옛 차시 소재를 새 레벨 난이도·code-switching
+    밴드**로 얘기하게 된다(5분대에서 학습자가 체감). 이 함수는 그 자리(cur_route
+    freetalk)에서 회원의 "지금" 레벨 대신 **이 통화의 차시**(cur_open.lesson.
+    level_no — cur_call 은 call_id 당 한 번만 만들어져 조각이 바뀌어도 그대로다)로
+    프로파일을 고정하는 데 쓴다.
+    """
+    level = db.scalar(
+        select(Level).where(Level.language == language, Level.level_no == level_no)
+    )
+    return (level.profile if level else "") or ""
+
+
 def load_call_setup(
     db: Session, member_id: int, character_id: int, language: str = "ko",
     *, chain_call_id: int | None = None, assignment_id: int | None = None,
