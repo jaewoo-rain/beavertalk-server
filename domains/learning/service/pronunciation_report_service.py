@@ -60,7 +60,18 @@ def _phonemes_from_sounds(report: PronunciationReport) -> list[PhonemeStatOut]:
 
 
 def _sessions_from_history(history: list[PronHistoryItem]) -> list[SessionPointOut]:
-    """최근 세션(oldest first) — 라벨(오늘/M/D)·날짜(M/D)·delta 조립."""
+    """최근 세션(oldest first) — 라벨(오늘/M/D)·날짜(M/D)·delta 조립.
+
+    ⭐ Q8(2026-09-24) — call_date·call_id 를 이력 행 원본 그대로 싣는다.
+    ⚠ label·date 는 **구버전 앱 호환**을 위해 그대로 둔다(`or datetime.now()` 폴백
+      포함, 손대지 않았다) — 그 폴백은 이미 나온 문자열의 모양을 지키기 위함이고,
+      새 필드 call_date 는 그 폴백을 타지 않고 h.call_date 원본을 그대로 싣는다
+      («없음»을 «지금»으로 위조하지 않는다). `Call.call_date` 는 스키마상 nullable
+      이지만 실제로 Call 을 만드는 두 경로(normalcall_service.py:1377,
+      call_service.py:552)가 항상 채운다 — 그래서 여기서 None 이면 조용히 감추지
+      않고 그대로 필수필드 검증에 맡긴다(발생하면 502 아니라 500 으로 시끄럽게
+      실패해야 그게 진짜 이상 데이터라는 신호다).
+    """
     items = list(reversed(history))  # get_pronunciation_history 는 최신순 → 오래된순으로
     today = datetime.now(timezone.utc).date()
     out: list[SessionPointOut] = []
@@ -75,6 +86,8 @@ def _sessions_from_history(history: list[PronHistoryItem]) -> list[SessionPointO
                 sentences=h.sentence_count,
                 score=score,
                 delta=None if prev is None else score - prev,
+                call_date=h.call_date,
+                call_id=h.call_id,
             )
         )
         prev = score

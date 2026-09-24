@@ -154,6 +154,9 @@ def test_report_adapts_main_data(session_factory, seeded, _patch_pron):
     assert [s["score"] for s in b["sessions"]] == [80, 84, 97]
     assert b["sessions"][0]["delta"] is None
     assert b["sessions"][1]["delta"] == 4
+    # ⭐ Q8(2026-09-24) — call_date(원시 UTC)·call_id 가 이력 행 그대로 실린다.
+    assert [s["call_id"] for s in b["sessions"]] == [1, 2, 3]
+    assert b["sessions"][0]["call_date"] == "2026-07-15T00:00:00Z"
 
 
 def test_report_unknown_call_404(session_factory, seeded, monkeypatch):
