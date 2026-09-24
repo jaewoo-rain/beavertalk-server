@@ -553,20 +553,58 @@ async def test_chat_memory_merge_fires_on_a_true_call_end(session_factory, seede
 
 
 @pytest.mark.asyncio
-async def test_chat_memory_merge_is_skipped_on_a_client_fragment_end(session_factory, seeded, monkeypatch):
-    """⛔⛔ QA C7-⑥(사장님 경고): 조각 전환(클라 fragment_end 왕복)에서는 기억 merge 를
-    건너뛴다 — 다음 조각이 온다는 신호일 뿐, 통화가 끝난 게 아니다."""
+async def test_chat_memory_merge_does_the_cheap_path_on_a_mid_chain_fragment_end(
+    session_factory, seeded, monkeypatch
+):
+    """⛔⛔ R4-c(2026-09-24, bt-back) — 옛 QA C7-⑥ 규율("조각 전환에서는 merge 를
+    건너뛴다")은 **절반만 맞았다**. 조각1 종료 후 재연결을 안 하면 그 통화는 기억을
+    영구히 안 남겼다(핵심 결함). 지금은 건너뛰지 않는다 — 아직 조각이 남았으면
+    (fragment_index < max_fragments) **재압축 없이 슬롯만** 싼값에 접는다(사장님
+    경고 — 재압축이 조각마다 돌면 안 된다 — 는 그대로 지킨다)."""
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_plan", lambda db, member_id, plan_override: 3)
     calls: list[tuple] = []
 
     async def _spy(*args, **kwargs):
-        calls.append(args)
+        calls.append((args, kwargs))
 
     monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
 
     h = await _run(session_factory, seeded, "chat", {}, script=[("B", "안녕!"), ("U", "네")],
                    fragment_end=True, session_cls=HeldOpenSession)
     assert _frames_of("fragment_saved", h), "fragment_end 왕복인데 fragment_saved 가 안 나갔다(시험 전제 실패)"
-    assert calls == [], "조각 전환(fragment_end)인데 기억 merge 가 떴다 — 조각마다 돌면 안 된다"
+    assert len(calls) == 1, "조각 전환인데 기억 merge 가 아예 안 떴다 — 그 시점까지의 기억이 유실된다"
+    assert calls[0][1].get("is_final") is False, \
+        "아직 조각이 남았는데(fragment_index < max_fragments) 전체(재압축) 병합으로 갔다"
+
+
+@pytest.mark.asyncio
+async def test_chat_memory_merge_does_the_full_path_on_the_last_allowed_fragment(
+    session_factory, seeded, monkeypatch
+):
+    """⛔⛔ R4-c 핵심 재현·수정 확인 — 앱은 **진짜 마지막 조각에서도** `fragment_end`
+    를 보낸다(의도된 설계, `_finishFinalFragment`). 클라 신호만 보면 옛 규율처럼
+    "조각 전환이니 건너뛴다"로 오판해 다조각 자유대화가 사실상 항상 기억 0이 됐다 —
+    서버가 `fragment_index >= max_fragments` 로 직접 판정해야 한다. 이 시험은 Free
+    (조각 1개, `max_fragments` 기본값) 통화 회귀도 겸한다 — 조각 1개면 그 유일한
+    조각이 곧 마지막이다."""
+    # ⚠ 이 파일의 autouse 픽스처(_mock_external)가 시드 회원을 이어하기 관문 상당(3
+    #   조각)으로 이미 열어 둔다 — 여기서만 Free(1조각)로 되돌려 "조각 1개" 전제를 만든다.
+    monkeypatch.setattr(cs.call_service, "call_fragments_for_member", lambda db, member_id: 1)
+    calls: list[tuple] = []
+
+    async def _spy(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+
+    h = await _run(session_factory, seeded, "chat", {}, script=[("B", "안녕!"), ("U", "네")],
+                   fragment_end=True, session_cls=HeldOpenSession)
+    assert _frames_of("fragment_saved", h), "fragment_end 왕복인데 fragment_saved 가 안 나갔다(시험 전제 실패)"
+    assert _started(h)["fragment_index"] == 1 and _started(h)["max_fragments"] == 1, \
+        "Free 회원의 조각 1개 전제가 깨졌다(시험 전제 실패)"
+    assert len(calls) == 1
+    assert calls[0][1].get("is_final") is True, \
+        "마지막(유일한) 조각인데 재압축 없는 중간 경로로 갔다 — 기억이 완전히 안 만들어진다"
 
 
 @pytest.mark.asyncio

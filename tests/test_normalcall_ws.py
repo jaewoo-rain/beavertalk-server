@@ -6295,6 +6295,84 @@ async def test_trigger_chat_memory_is_one_shot_per_state(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# R4-c(2026-09-24, bt-back) — is_final 판정: fragment_index/max_fragments 가
+# 모호하면(None) 비싼 쪽(전체 재압축) 대신 싼 쪽(중간)으로 — R5
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_trigger_chat_memory_treats_unknown_fragment_position_as_intermediate(monkeypatch):
+    """⚠ chat 콜타입은 실제로는 fragment_index/max_fragments 가 항상 채워진다
+    (`call_type in ("expression","freetalk","chat")` 일 때만 그 값들이 서므로) —
+    이 시험은 방어 코드가 있는지, 그리고 그 기본값이 안전한 방향(중간=재압축 없음)
+    인지를 고정한다(이론상 도달 안 해도 R5 규율은 지켜야 한다)."""
+    seen: dict = {}
+
+    async def _spy(*a, **k):
+        seen.update(k)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+    st = cs._CallState()
+    st.fragment_end = True
+    st.fragment_index = None
+    st.max_fragments = None
+    cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    await _wait_analysis_tasks()
+    assert seen.get("is_final") is False, "fragment 위치를 모르는데 전체(비싼) 경로로 갔다"
+
+
+@pytest.mark.asyncio
+async def test_trigger_chat_memory_is_final_when_fragment_index_reaches_the_cap(monkeypatch):
+    seen: dict = {}
+
+    async def _spy(*a, **k):
+        seen.update(k)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+    st = cs._CallState()
+    st.fragment_end = True
+    st.fragment_index = 3
+    st.max_fragments = 3
+    cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    await _wait_analysis_tasks()
+    assert seen.get("is_final") is True, "마지막 조각(fragment_index == max_fragments)인데 중간 경로로 갔다"
+
+
+@pytest.mark.asyncio
+async def test_trigger_chat_memory_is_not_final_when_a_fragment_remains(monkeypatch):
+    seen: dict = {}
+
+    async def _spy(*a, **k):
+        seen.update(k)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+    st = cs._CallState()
+    st.fragment_end = True
+    st.fragment_index = 1
+    st.max_fragments = 3
+    cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    await _wait_analysis_tasks()
+    assert seen.get("is_final") is False, "조각이 남았는데(1<3) 전체(비싼) 경로로 갔다"
+
+
+@pytest.mark.asyncio
+async def test_trigger_chat_memory_is_final_for_a_true_call_end_regardless_of_fragment_fields(monkeypatch):
+    """`fragment_end=False`(작별·끊김·백스톱 — 조각 경계가 아니다)면
+    `fragment_index`/`max_fragments` 값과 무관하게 항상 전체 병합이다."""
+    seen: dict = {}
+
+    async def _spy(*a, **k):
+        seen.update(k)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+    st = cs._CallState()
+    st.fragment_end = False
+    st.fragment_index = 1
+    st.max_fragments = 3
+    cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    await _wait_analysis_tasks()
+    assert seen.get("is_final") is True
+
+
+# --------------------------------------------------------------------------- #
 # R4-b(2026-09-24, bt-back) — 기억 추출은 _persist_remaining 뒤에 떠야
 # 아직 flush 안 된 마지막 구간(60초 미만 통화는 전체)을 놓치지 않는다
 # --------------------------------------------------------------------------- #
@@ -6309,7 +6387,7 @@ async def test_chat_memory_extraction_sees_the_transcript_already_flushed_to_db(
     기억이 0 이었다."""
     seen: dict = {}
 
-    async def _spy(call_id, member_id, language, client, settings_obj, db_session_factory):
+    async def _spy(call_id, member_id, language, client, settings_obj, db_session_factory, **_kw):
         db = db_session_factory()
         try:
             rows = db.query(CallRawData).filter(CallRawData.call_id == call_id).all()

@@ -183,6 +183,46 @@ def merge_sync(
     return row
 
 
+def merge_slots_only(
+    db: Session, member_id: int, language: str, slots: dict,
+) -> ChatMemory:
+    """⛔⛔ R4-c(2026-09-24, bt-back) — **중간 조각용** 값싼 병합. `merge_sync` 와
+    달리 `summary` 는 손대지 않고(재압축이 없으니 채울 값도 없다) `last_call_id`
+    도 안 건드린다.
+
+    ⚠ **`last_call_id` 를 안 건드리는 이유가 이 함수의 존재 이유다** — 조각 전환은
+      `call_id` 를 새로 안 만든다(같은 행을 이어 쓴다, `resume_call` 계약). 만약
+      여기서 `last_call_id = call_id` 를 찍으면, 이 통화의 **진짜 마지막 조각**이
+      끝나 `merge_sync`(전체 병합)가 돌 때 `load_old_summary_for_merge` 의 멱등
+      가드(`row.last_call_id == call_id`)가 "이미 이 call_id 로 병합함"으로 오판해
+      **마지막 조각의 재압축 자체를 건너뛴다**(bt-back 이 지적한 그 함정). 그래서
+      이 함수는 멱등 가드가 없다 — 중간 조각 병합은 몇 번 겹쳐 불려도 무해하다
+      (`_merge_capped` 가 같은 문자열을 dedup 하므로 재실행은 리스트를 흔들지 않는다).
+    """
+    repo = ChatMemoryRepository(db)
+    row = repo.get(member_id, language)
+
+    topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
+    facts = _merge_capped(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP)
+    interests = _merge_capped(
+        row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
+    )
+    next_topics = _merge_capped(
+        row.next_topics if row is not None else [], slots.get("next_topics"), NEXT_TOPICS_CAP
+    )
+
+    if row is None:
+        row = ChatMemory(member_id=member_id, language=language)
+        repo.add(row)
+    row.topics = topics
+    row.facts = facts
+    row.interests = interests
+    row.next_topics = next_topics
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 async def merge(
     db: Session, member_id: int, language: str, call_id: int, slots: dict,
     *, client=None, model: str | None = None,

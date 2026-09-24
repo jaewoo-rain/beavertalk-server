@@ -1161,21 +1161,32 @@ async def summarize_for_resume_text(client, model: str, tail: str) -> dict | Non
 
 async def extract_and_merge_chat_memory(
     call_id: int, member_id: int, language: str, client, settings_obj: Settings,
-    session_factory: sessionmaker,
+    session_factory: sessionmaker, *, is_final: bool = True,
 ) -> None:
-    """C7(2026-09-23) — 자유대화 통화의 **진짜 끝**(조각 전환이 아닌 끝)에서 기억을
-    추출해 `chat_memory_service.merge` 로 저장한다.
+    """C7(2026-09-23) — 자유대화 통화의 끝(또는 조각 경계)에서 기억을 추출해
+    `chat_memory` 에 저장한다.
 
-    ⛔⛔ 조각마다 돌면 안 된다(사장님 경고) — 호출부(call_session.py finally)가
-      **`not state.fragment_end`(다음 조각이 오는 신호가 아닐 때)에만** 이 함수를
-      부른다. 조각 강제 전환(루프 차단기, reason=loop)도 같은 `_FragmentEnd` 경로라
-      `state.fragment_end` 하나로 같이 걸러진다.
+    ⛔⛔ R4-c(2026-09-24, bt-back) — «조각마다 돌면 안 된다(사장님 경고)» 는 정확히는
+      **재압축(LLM, `recompress_summary`)이 조각마다 돌면 안 된다**는 뜻이었다 —
+      그 경고 자체는 지우지 않는다(왜 아래 분기가 있는지의 근거다). `is_final=False`
+      (중간 조각 — `state.fragment_index < state.max_fragments`)면 재압축·요약 갱신
+      없이 **슬롯만** `chat_memory_service.merge_slots_only` 로 싼값에 접는다(멱등
+      가드 없음 — 이 함수 문서 참조). `is_final=True`(진짜 종료 또는 마지막 조각 —
+      기본값, 호출부가 안 정하면 예전처럼 전체)면 종전 그대로 재압축까지 전부 돈다.
+      ⚠ **앱은 진짜 마지막 조각에서도 `fragment_end` 를 보낸다**(의도된 설계 —
+        `normalcall_controller.dart:_finishFinalFragment`, "call_ended 와 같은
+        길로 보낸다") — 클라 신호만으론 "진짜 마지막인가"를 못 가른다. 그래서
+        `is_final` 판정은 **서버가** `state.fragment_index`/`max_fragments` 로
+        직접 한다(호출부 `call_session.py` 의 `_trigger_chat_memory` 참조).
     ⚠ fire-and-forget — 실패해도 통화는 이미 끝났다(R5). 다음 통화는 이 merge 를
       기다리지 않고 그 시점의 `chat_memory` 를 그대로 쓴다(늦게 끝나도 안 기다린다).
     ⭐ `summarize_for_resume_text` 를 **재사용**한다(문서 지시) — 조각 재개 브리프와
-      같은 LLM 호출·스키마다. topic→topics 1개, learner_facts→facts, pending→
-      next_topics 1개, interests→interests 로 옮겨 담는다. `summary`(재압축 입력)는
-      이 슬롯들에서 파생한다 — 별도 LLM 호출을 추가하지 않는다.
+      같은 LLM 호출·스키마다(양쪽 다 매 조각 끝마다 이미 돈다 — `build_resume_context`
+      참조. 이 함수가 슬롯 추출로 그걸 한 번 더 부르는 건 증분 비용이 아니라 기존
+      비용의 재사용이다. 조각마다 새로 느는 것은 `is_final=True` 일 때만의 재압축
+      한 번뿐이다). topic→topics 1개, learner_facts→facts, pending→next_topics
+      1개, interests→interests 로 옮겨 담는다. `summary`(재압축 입력)는 이
+      슬롯들에서 파생한다 — 별도 LLM 호출을 추가하지 않는다.
     """
     try:
         tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
@@ -1206,6 +1217,19 @@ async def extract_and_merge_chat_memory(
     }
     if not any(slots.values()):
         logger.info("normalcall chat_memory: 뽑힌 슬롯이 없어 merge 생략 call_id=%s", call_id)
+        return
+
+    if not is_final:
+        # ⛔⛔ R4-c(2026-09-24) — 중간 조각: 재압축(LLM) 없이 슬롯만 싼값에 접는다.
+        try:
+            await run_db(
+                session_factory,
+                lambda db: chat_memory_service.merge_slots_only(db, member_id, language, slots),
+            )
+        except Exception as exc:  # noqa: BLE001 — R5
+            logger.warning("normalcall chat_memory 중간 조각 merge 실패(무시) call_id=%s: %s", call_id, exc)
+            return
+        logger.info("normalcall chat_memory: 중간 조각 슬롯 merge 완료(재압축 없음) call_id=%s", call_id)
         return
 
     # ⛔⛔ Q3(2026-09-24, 프론트 실기기 QA — 자유대화 「기억」 요약이 구조적으로 항상

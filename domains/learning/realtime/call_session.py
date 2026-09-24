@@ -4661,13 +4661,43 @@ def _trigger_chat_memory(
       `state.segments` 가 항상 비어 있어(라이브 세션이 아직 안 열렸다) `_persist_
       remaining` 자체가 안 불린다. fire-and-forget(아래 `create_task`, 기다리지
       않는다)이라 호출 위치를 옮겨도 통화 종료 자체는 늦어지지 않는다.
+
+    ⛔⛔ R4-c(2026-09-24, bt-back) — **`state.fragment_end` 가 더 이상 전면 차단이
+      아니다.** 옛 게이트(`... or state.fragment_end ...`)는 조각 경계(다음 조각이
+      온다)면 무조건 건너뛰었다 — 조각1 종료 후 재연결을 안 하면 그 통화는 기억을
+      영구히 안 남겼고, 앱이 **진짜 마지막 조각에서도** `fragment_end` 를 보내므로
+      (`normalcall_controller.dart:_finishFinalFragment`, "call_ended 와 같은 길로
+      보낸다" — 의도된 설계, 클라 결함 아님) 다조각 자유대화는 **사실상 항상** 기억이
+      0이었다. 클라 신호로는 "이게 진짜 마지막인가"를 못 가르므로, **서버가**
+      `state.fragment_index`/`state.max_fragments`(루프 차단기가 쓰는 것과 같은
+      값 — 루프 차단기의 `state.fragment_index < state.max_fragments` 판정과
+      같은 재료)로 직접 판정한다:
+        - 조각 경계(`fragment_end`)인데 상한에 못 미쳤다(아직 조각이 남음) →
+          `is_final=False`(중간 조각) — `extract_and_merge_chat_memory` 가 재압축
+          없이 슬롯만 싼값에 접는다(사장님 경고 — 재압축이 조각마다 돌면 안 된다 —
+          는 그대로 지킨다, 그 함수 문서 참조).
+        - `fragment_index`/`max_fragments` 가 둘 다 있고 상한에 닿았다(마지막
+          조각), **또는** 애초에 조각 경계가 아니다(진짜 작별·끊김·백스톱) →
+          `is_final=True`(종전 그대로 전체 재압축).
+        - 어느 하나가 None 이면(이론상 chat 콜타입엔 안 생긴다 — `call_type in
+          ("expression","freetalk","chat")` 일 때만 둘 다 채워진다, run_call 의
+          `state.fragment_index = fragment_index` 대입부 참조) **중간 조각으로
+          본다**(R5 — 판정이 애매하면 비싼 쪽 대신 싼 쪽으로, 최소한 슬롯은 남는다).
     """
-    if call_type != "chat" or state.fragment_end or state.chat_memory_triggered:
+    if call_type != "chat" or state.chat_memory_triggered:
         return
     state.chat_memory_triggered = True
+    if state.fragment_end:
+        is_final = (
+            state.fragment_index is not None and state.max_fragments is not None
+            and state.fragment_index >= state.max_fragments
+        )
+    else:
+        is_final = True
     task = asyncio.create_task(
         svc.extract_and_merge_chat_memory(
             call_id, member_id, language, client, settings_obj, db_session_factory,
+            is_final=is_final,
         ),
         name=f"normalcall-chat-memory-{call_id}",
     )

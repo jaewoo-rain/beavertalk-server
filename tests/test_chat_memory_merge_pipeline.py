@@ -191,3 +191,103 @@ async def test_recompression_exception_does_not_escape(ctx, monkeypatch):
     # 실패했으니 저장도 안 됐어야 한다(부분 저장 없음).
     row = chat_memory_service.load(ctx["db"], ctx["member_id"], "ko")
     assert row is None
+
+
+# --------------------------------------------------------------------------- #
+# 5) R4-c(2026-09-24, bt-back) — 중간 조각은 재압축 없이 슬롯만 싼값에 접는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_intermediate_fragment_merges_slots_without_recompressing(ctx, monkeypatch):
+    """⛔⛔ 핵심 재현·수정 확인 — `is_final=False`(중간 조각)면 `recompress_summary`
+    (LLM)를 **안 부르고**, 그래도 topics/facts 는 chat_memory 에 실제로 남는다(조각1
+    종료 후 재연결 안 해도 그 시점까지의 기억이 남는다, R4-c 원래 버그: 지금 0).
+
+    ⚠ `summarize_for_resume_text`(슬롯 추출)는 중간 조각에도 여전히 부른다 — 슬롯 자체가
+    없으면 접을 게 없다. 이건 `build_resume_context`(이어하기 브리프)가 매 조각 끝마다
+    이미 부르는 것과 같은 호출이라 **증분 비용이 아니다**(그 함수 문서 참조). 여기서
+    "LLM 0회"로 확인하는 건 **재압축**(recompress_summary, 사장님 경고가 겨눈 바로 그
+    단계) 하나뿐이다.
+    """
+    recompress_calls = {"n": 0}
+
+    async def counting_recompress(client, model, old, new):
+        recompress_calls["n"] += 1
+        return (new + " " + old).strip()
+
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    monkeypatch.setattr(chat_memory_service, "recompress_summary", counting_recompress)
+
+    await svc.extract_and_merge_chat_memory(
+        ctx["call_id"], ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+        is_final=False,
+    )
+
+    assert recompress_calls["n"] == 0, "중간 조각인데 재압축(LLM)이 돌았다 — 사장님 경고를 어겼다"
+    row = chat_memory_service.load(ctx["db"], ctx["member_id"], "ko")
+    assert row is not None, "중간 조각 종료 후 재연결 안 해도 남아야 할 기억이 아예 없다"
+    assert "요리" in row.topics
+    assert "채식주의자다" in row.facts
+    assert row.summary == "", "중간 조각이 재압축 없이 summary 를 건드렸다(비어 있어야 한다)"
+
+
+@pytest.mark.asyncio
+async def test_intermediate_fragment_merge_is_not_blocked_across_fragments(ctx, monkeypatch):
+    """⛔⛔ bt-back 이 «제일 틀리기 쉽다» 고 짚은 자리 — 멱등 가드(`last_call_id`)가
+    중간 조각 저장에도 걸리면 **같은 call_id 를 공유하는** 다음 조각이 무시된다
+    (조각 전환은 새 call_id 를 안 만든다, `resume_call` 계약). 조각1의 화제와
+    조각2의 화제가 **둘 다** 남아야 한다."""
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    await svc.extract_and_merge_chat_memory(
+        ctx["call_id"], ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+        is_final=False,
+    )
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="여행"))
+    await svc.extract_and_merge_chat_memory(
+        ctx["call_id"], ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+        is_final=False,
+    )
+    ctx["db"].expire_all()
+    row = chat_memory_service.load(ctx["db"], ctx["member_id"], "ko")
+    assert row is not None
+    assert "요리" in row.topics and "여행" in row.topics, \
+        "조각2 의 중간 merge 가 조각1 의 내용을 밀어냈거나 멱등 가드에 막혔다"
+
+
+@pytest.mark.asyncio
+async def test_final_fragment_recompresses_even_after_intermediate_merges(ctx, monkeypatch):
+    """⛔⛔ 마지막 조각은 그 전에 중간 조각 merge 가 몇 번 있었어도 재압축이 **돌아야**
+    한다 — `merge_slots_only` 가 `last_call_id` 를 안 건드리는 이유가 정확히 이것이다
+    (건드렸다면 여기서 `load_old_summary_for_merge` 가 "이미 이 call_id 로 병합함"
+    으로 오판해 재압축을 건너뛴다)."""
+    recompress_calls = {"n": 0}
+
+    async def counting_recompress(client, model, old, new):
+        recompress_calls["n"] += 1
+        return (new + " " + old).strip()
+
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    monkeypatch.setattr(chat_memory_service, "recompress_summary", counting_recompress)
+
+    # 조각1(중간) — 재압축 없이 슬롯만.
+    await svc.extract_and_merge_chat_memory(
+        ctx["call_id"], ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+        is_final=False,
+    )
+    assert recompress_calls["n"] == 0
+
+    # 조각2(마지막, 같은 call_id) — 전체 병합이 돌아야 한다.
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="여행"))
+    await svc.extract_and_merge_chat_memory(
+        ctx["call_id"], ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+        is_final=True,
+    )
+    assert recompress_calls["n"] == 1, "마지막 조각인데 중간 조각의 흔적 때문에 재압축이 건너뛰어졌다"
+    ctx["db"].expire_all()
+    row = chat_memory_service.load(ctx["db"], ctx["member_id"], "ko")
+    assert row is not None and row.last_call_id == ctx["call_id"]
+    assert row.summary != "", "마지막 조각인데 summary 가 여전히 비어 있다"
