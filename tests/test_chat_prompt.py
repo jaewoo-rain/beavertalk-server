@@ -82,3 +82,28 @@ def test_the_caller_contract_falls_back_to_the_d8_opening_when_seed_is_empty():
     """실제 호출부 패턴 확인: `seed_chat_opening(...) or seed_freetalk_opening(...)`."""
     seed = chat_prompt.seed_chat_opening("한국어", None) or seed_freetalk_opening("한국어")
     assert seed == seed_freetalk_opening("한국어")
+
+
+# --------------------------------------------------------------------------- #
+# R4-a(2026-09-24, bt-back) — 이 시드는 user 턴으로 나간다(send_client_content
+# role="user"). 대괄호 지시문이 아니면 비버가 "학습자가 한 말"로 착각해 자기
+# 말에 스스로 답한다(선톡 실종 — 실측). 다른 모든 시드와 같은 형식이어야 한다.
+# --------------------------------------------------------------------------- #
+def test_memory_seed_starts_with_a_bracket_directive():
+    memory = {"summary": "", "topics": ["요리"], "facts": [], "interests": [], "next_topics": []}
+    seed = chat_prompt.seed_chat_opening("한국어", memory)
+    assert seed.startswith("["), "비버가 할 말이 아니라 대괄호 지시문이어야 한다"
+
+
+def test_memory_seed_tells_the_model_not_to_read_it_aloud():
+    memory = {"summary": "", "topics": ["요리"], "facts": [], "interests": [], "next_topics": []}
+    seed = chat_prompt.seed_chat_opening("한국어", memory)
+    assert "소리 내어 읽지" in seed
+
+
+def test_sparse_memory_fallback_seed_is_also_a_bracket_directive():
+    """기억이 얄팍해 D8 오프닝(`seed_freetalk_opening`)으로 폴백해도 같은 규율이어야
+    한다 — 폴백이라고 규율이 느슨해지면 같은 사고가 거기서 재현된다."""
+    fallback = seed_freetalk_opening("한국어")
+    assert fallback.startswith("[")
+    assert "소리 내어 읽지" in fallback
