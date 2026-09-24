@@ -12,6 +12,15 @@ docs/plans/2026-09-23-레벨-커리큘럼-연결.md T2. `complete_freetalk` 의 
   ⑤ 같은 통화로 두 번 불러도 1행(멱등)
   ⑥ 마지막 차시(nxt 없음)면 아무 일도 없음
   ⑦ 레벨이 작아지는 경우 올리지 않는다(방어 — 시드를 믿지 않는다)
+
+Q6(2026-09-24, bt-back 자체 발견 — 원 산식 오류): 옛 비교(`nxt.level_no > lesson.level_no`)
+는 회원의 현재 레벨을 한 번도 안 읽어서, 회원 레벨이 이미 차시 레벨보다 높으면(포인터만
+되돌아간 경우 등) 프리토킹 완료가 회원 레벨을 **차시 레벨로 강등**시켰다(D3 위반). 아래
+⑧~⑪이 그 회귀를 잠근다.
+  ⑧ 회원 레벨이 진도(차시)보다 높으면 완료해도 레벨 유지(강등 없음, 핵심)
+  ⑨ 정상 승급은 여전히 동작(회귀)
+  ⑩ 레벨 NULL 이면 종전대로(시험①과 같은 계약)
+  ⑪ 이력 from_level 은 회원의 실제 현재 레벨이다(차시 레벨이 아니라) + 레벨=nxt 면 이력 없음
 """
 
 from __future__ import annotations
@@ -70,6 +79,11 @@ def _member(db) -> int:
     db.add(m)
     db.commit()
     return m.member_id
+
+
+def _set_level(db, member_id: int, level_no: int) -> None:
+    mastery_repository.upsert_language_level(db, member_id, "ko", level_no)
+    db.commit()
 
 
 def _freetalk_call(db, member_id: int, lesson_no: int) -> int:
@@ -192,3 +206,78 @@ def test_a_lower_level_on_the_next_lesson_does_not_lower_the_level(db, caplog):
     assert mastery_repository.get_language_level(db, mid, "ko") is None, "레벨은 안 내려간다(그대로 미배정)"
     assert db.query(MemberLevelHistory).filter_by(member_id=mid).count() == 0
     assert any("레벨을 안 올린다" in r.getMessage() for r in caplog.records)
+
+
+# --------------------------------------------------------------------------- #
+# ⑧ Q6 핵심 — 회원 레벨이 진도(차시)보다 높으면 완료해도 레벨 유지(강등 없음)
+# --------------------------------------------------------------------------- #
+def test_completing_a_lower_level_lesson_does_not_demote_a_higher_member_level(db):
+    """⛔⛔ Q6(2026-09-24) 핵심 회귀 — 운영 실측 재현: 회원 레벨 3인데 진도 포인터가
+    레벨1 차시(no=3)에 있는 상태(POST /__dev/cur-reset 등으로 포인터만 되돌아간 경우)
+    에서 프리토킹을 완료하면, nxt=no4(레벨2) 인데 회원 레벨(3)을 2로 **강등**시키면
+    안 된다."""
+    mid = _member(db)
+    _set_level(db, mid, 3)
+    call_id = _freetalk_call(db, mid, 3)  # 레벨1 차시, nxt=no4(레벨2)
+    res = cur.complete_freetalk(db, call_id, duration_s=200, normal_end=True)
+    assert res == {"freetalk_done": True, "moved": True}, "포인터는 그대로 전진한다(레벨만 방어)"
+    db.expire_all()
+    assert mastery_repository.get_language_level(db, mid, "ko") == 3, "회원 레벨이 강등됐다 — D3 위반 재발"
+    assert db.query(MemberLevelHistory).filter_by(member_id=mid).count() == 0, \
+        "강등되지 않아야 하니 이력도 안 남아야 한다"
+
+
+# --------------------------------------------------------------------------- #
+# ⑨ 정상 승급은 여전히 동작(회귀) — 회원 레벨과 진도가 같은 값에서 시작
+# --------------------------------------------------------------------------- #
+def test_normal_level_up_still_works_when_member_level_matches_progress(db):
+    mid = _member(db)
+    _set_level(db, mid, 1)
+    call_id = _freetalk_call(db, mid, 3)  # 레벨1 차시(경계), nxt=no4(레벨2)
+    res = cur.complete_freetalk(db, call_id, duration_s=200, normal_end=True)
+    assert res == {"freetalk_done": True, "moved": True}
+    db.expire_all()
+    assert mastery_repository.get_language_level(db, mid, "ko") == 2
+    row = db.query(MemberLevelHistory).filter_by(member_id=mid).one()
+    assert row.from_level == 1 and row.to_level == 2
+
+
+# --------------------------------------------------------------------------- #
+# ⑩ 레벨 NULL 이면 종전대로(시험①과 같은 계약 — max(None, ...) 로 안 터진다)
+# --------------------------------------------------------------------------- #
+def test_null_member_level_still_behaves_like_test_one(db):
+    mid = _member(db)
+    assert mastery_repository.get_language_level(db, mid, "ko") is None
+    call_id = _freetalk_call(db, mid, 3)
+    res = cur.complete_freetalk(db, call_id, duration_s=200, normal_end=True)
+    assert res == {"freetalk_done": True, "moved": True}
+    db.expire_all()
+    assert mastery_repository.get_language_level(db, mid, "ko") == 2
+
+
+# --------------------------------------------------------------------------- #
+# ⑪ 이력 from_level = 회원의 실제 현재 레벨(차시 레벨 아님) + 레벨==nxt 면 이력 없음
+# --------------------------------------------------------------------------- #
+def test_history_from_level_is_the_members_real_level_not_the_lesson_level(db):
+    """옛 버그의 «거짓 감사로그» 부분 — from_level 이 차시 레벨(1)이 아니라 회원의
+    실제 레벨(3)이어야 한다. 이 시험에서는 승급이 실제로 일어나도록 레벨을 2로 맞춘다
+    (레벨3 은 ⑧처럼 강등 방어만 타고 이력 자체가 안 남으므로 from_level 을 못 본다)."""
+    mid = _member(db)
+    _set_level(db, mid, 2)
+    call_id = _freetalk_call(db, mid, 4)  # 레벨2 차시, nxt=no6(레벨3) — no5(레벨2)는 같은 레벨
+    # no=4 의 next_lesson 은 no=5(레벨2) — 레벨은 그대로(같은 레벨), 이력 없음을 먼저 확인.
+    res = cur.complete_freetalk(db, call_id, duration_s=200, normal_end=True)
+    assert res == {"freetalk_done": True, "moved": True}
+    db.expire_all()
+    assert mastery_repository.get_language_level(db, mid, "ko") == 2, "레벨==nxt 면 갱신 없음"
+    assert db.query(MemberLevelHistory).filter_by(member_id=mid).count() == 0, \
+        "레벨과 nxt 가 같으면 이력을 남기면 안 된다"
+
+    # 다음 차시(no=5, 레벨2)에서 완료 → nxt=no6(레벨3) — 이제 진짜 승급.
+    call_id2 = _freetalk_call(db, mid, 5)
+    cur.complete_freetalk(db, call_id2, duration_s=200, normal_end=True)
+    db.expire_all()
+    assert mastery_repository.get_language_level(db, mid, "ko") == 3
+    row = db.query(MemberLevelHistory).filter_by(member_id=mid).one()
+    assert row.from_level == 2, "from_level 이 차시 레벨이 아니라 회원의 실제 레벨(2)이어야 한다"
+    assert row.to_level == 3

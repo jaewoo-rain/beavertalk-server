@@ -529,30 +529,45 @@ def complete_freetalk(db: Session, call_id: int, duration_s: float, normal_end: 
             # ⭐⭐ L3(2026-09-24, 레벨-커리큘럼 연결 §T2) — 포인터가 레벨 경계를 넘으면
             #   레벨도 올린다(진도가 레벨을 민다). L2 와 같은 갱신 함수(upsert_language_level,
             #   ko dual-write 포함)를 쓴다 — 산식을 두 곳에 만들지 않는다.
-            #   ⛔ 절대 내리지 않는다(D3, 자동 강등 없음). `next_lesson` 이 no 순서로만
-            #   주므로 시드가 레벨 순이면 nxt.level_no 가 항상 더 크지만, **시드를 믿지
-            #   않고** 코드로 방어한다 — 작거나 같으면 레벨은 그대로 두고 로그만 남긴다.
+            #   ⛔ 절대 내리지 않는다(D3, 자동 강등 없음).
+            # ⛔⛔ Q6(2026-09-24, bt-back 자체 발견) — 옛 비교(`nxt.level_no > lesson.level_no`,
+            #   **차시 레벨끼리만** 비교)는 회원의 현재 레벨을 한 번도 읽지 않았다. 그래서
+            #   회원 레벨이 이미 차시 레벨보다 높은 상태(POST /__dev/cur-reset 으로 포인터만
+            #   되돌렸거나, 기획서 §P1(b) 인터리빙 등)에서 프리토킹을 완료하면 회원 레벨을
+            #   **차시 레벨로 강등**했다(실측: 회원레벨3·진도 레벨1 차시 → nxt=레벨2 →
+            #   2>1 참 → 레벨을 2로 덮음 — D3 위반 + 이력도 거짓 기록).
+            #   ⇒ 비교 기준(`floor`)을 **회원의 현재 레벨**(get_language_level)로 바꾼다 —
+            #   있으면 그 값, 콜드스타트(None)면 여태처럼 차시 레벨(lesson.level_no)이
+            #   기준이다(레벨 배정이 아예 없을 때도 "지금 듣던 차시보다 낮은 레벨로
+            #   갑자기 떨어지는" 방어는 여전히 필요하다 — 시험⑦: X-BAD-HIGH(level 5) 듣다가
+            #   역순 시드로 nxt.level_no=2 를 만나면, 콜드스타트여도 2 를 그대로 배정하면
+            #   안 된다). `nxt.level_no > floor` 일 때만 그 값을 그대로 새 레벨로 쓴다
+            #   (floor 보다 큰 게 조건이니 이미 max(floor, nxt.level_no) 와 같다).
             #   ⚠ trigger_call_id(UNIQUE uq_mlh_trigger_call)가 멱등 키다 — 같은 통화로
             #   두 번 불려도(조각 재저장) 2행이 안 생긴다. 이 함수 자체도 위 STATUS_FREETALK_
             #   DONE 가드로 두 번째 호출은 여기까지 오지 않는다.
-            if nxt.level_no > lesson.level_no:
+            current_level = mastery_repository.get_language_level(db, member_id, lesson.language)
+            floor = current_level if current_level is not None else lesson.level_no
+            if nxt.level_no > floor:
                 mastery_repository.upsert_language_level(db, member_id, lesson.language, nxt.level_no)
                 db.add(MemberLevelHistory(
                     member_id=member_id, language=lesson.language,
-                    from_level=lesson.level_no, to_level=nxt.level_no,
+                    from_level=floor, to_level=nxt.level_no,
                     reason="curriculum_advance", trigger_call_id=call_id,
                     created_at=now,
                 ))
                 logger.info(
                     "cur complete_freetalk 레벨업: member=%s language=%s %d→%d (trigger_call=%s)",
-                    member_id, lesson.language, lesson.level_no, nxt.level_no, call_id,
+                    member_id, lesson.language, floor, nxt.level_no, call_id,
                 )
-            elif nxt.level_no < lesson.level_no:
+            elif nxt.level_no < floor:
                 logger.warning(
-                    "cur complete_freetalk: 다음 차시 레벨이 더 낮다(no=%d level=%d → no=%d level=%d) "
-                    "— 레벨을 안 올린다(방어, 시드 순서 이상 가능성) member=%s",
-                    lesson.no, lesson.level_no, nxt.no, nxt.level_no, member_id,
+                    "cur complete_freetalk: 다음 차시 레벨이 기준(회원레벨 또는 콜드스타트 시 차시레벨)"
+                    "보다 낮다(기준=%d, no=%d level=%d → no=%d level=%d) — 레벨을 안 올린다"
+                    "(D3 — 자동 강등 없음) member=%s",
+                    floor, lesson.no, lesson.level_no, nxt.no, nxt.level_no, member_id,
                 )
+            # else(nxt.level_no == floor): 이미 그 레벨이다 — 갱신도 이력도 불필요.
     db.commit()
     logger.info("cur complete_freetalk: call_id=%s lesson=%s freetalk_done 포인터이동=%s", call_id, cc.lesson_id, moved)
     return {"freetalk_done": True, "moved": moved}
