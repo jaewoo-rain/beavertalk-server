@@ -74,7 +74,12 @@ class CallRepository:
         return self.db.scalars(stmt).all()
 
     def has_call_in_window(
-        self, member_id: int, start_utc, end_utc, call_type: str | None = None
+        self,
+        member_id: int,
+        start_utc,
+        end_utc,
+        call_type: str | None = None,
+        exclude_call_type: str | None = None,
     ) -> bool:
         """[start_utc, end_utc) 안에 **성립한 통화**가 있는지(EXISTS).
 
@@ -91,8 +96,14 @@ class CallRepository:
         ⚠ 성립하지 않은 통화도 **행은 남긴다**(삭제하지 않는다). Live 세션을 연 비용은
         이미 나갔으므로 그 증거가 있어야 요금을 설명할 수 있고, 버그 조사 재료이기도 하다.
 
-        call_type: 주면 그 콜타입만 센다(일일 한도용 — level_test 와 normal 은 서로의
-            한도를 깎지 않는다). None 이면 전 콜타입.
+        두 필터 모드(Q7, 2026-09-24) — 서로 배타적으로 쓴다:
+        - call_type: 주면 **그 콜타입만** 센다(일일 한도용 — level_test 와 chat 은
+          서로의 한도를 깎지 않는다). `level_test_today` 가 이 모드를 쓴다.
+        - exclude_call_type: 주면 **그 콜타입만 빼고 전부** 센다(학습 달력
+          `calendar_calls` 와 같은 기준). `called_today`(홈 배지)가 이 모드를 쓴다 —
+          예전엔 call_type="chat" 로 정확매칭해 표현학습·프리토킹이 "오늘 통화함"에서
+          빠졌다(달력은 이미 "레벨테스트 빼고 전부"를 썼는데 배지만 어긋났었다).
+        둘 다 None 이면 전 콜타입.
         """
         inner = select(Call.call_id).where(
             Call.member_id == member_id,
@@ -103,6 +114,8 @@ class CallRepository:
         )
         if call_type is not None:
             inner = inner.where(Call.call_type == call_type)
+        if exclude_call_type is not None:
+            inner = inner.where(Call.call_type != exclude_call_type)
         return bool(self.db.scalar(select(inner.exists())))
 
     def sum_total_time_in_window(

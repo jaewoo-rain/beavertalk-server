@@ -146,6 +146,37 @@ def test_summary_limits_to_requested_sessions(db):
     assert get_pronunciation_summary(db, m.member_id, sessions=2).sessions == 2
 
 
+def test_summary_includes_expression_and_freetalk_excludes_level_test(db):
+    """⛔⛔ Q7(2026-09-24, 프론트 실기기 QA) — `scored_call_ids` 도 레벨테스트만 빼고
+    전부 센다. 예전엔 call_type=="chat" 정확매칭이라 표현학습·프리토킹 세션이 "최근 N
+    세션 평균"에서 빠졌다. 레벨테스트는 측정 통화라 여전히 제외된다."""
+    m = _member(db)
+    for call_type in ("expression", "freetalk"):
+        c = Call(member_id=m.member_id, character_id=1, call_type=call_type, status="done",
+                 call_date=datetime.now(timezone.utc) - timedelta(days=1))
+        db.add(c)
+        db.flush()
+        sent = Sentence(call_id=c.call_id, korean_sentence="안녕하세요")
+        db.add(sent)
+        db.flush()
+        db.add(Evaluation(sentence_id=sent.sentence_id, total_score=80,
+                          pronunciation=80, fluency=75, rhythm=70))
+    lt = Call(member_id=m.member_id, character_id=1, call_type="level_test", status="done",
+              call_date=datetime.now(timezone.utc) - timedelta(days=1))
+    db.add(lt)
+    db.flush()
+    lt_sent = Sentence(call_id=lt.call_id, korean_sentence="안녕하세요")
+    db.add(lt_sent)
+    db.flush()
+    db.add(Evaluation(sentence_id=lt_sent.sentence_id, total_score=99,
+                      pronunciation=99, fluency=99, rhythm=99))
+    db.commit()
+
+    s = get_pronunciation_summary(db, m.member_id, sessions=10)
+    assert s.sessions == 2, "표현학습·프리토킹 세션이 요약 표본에서 빠졌거나, 레벨테스트가 섞였다"
+    assert s.pronunciation == 80.0, "레벨테스트(99점)가 평균에 섞였다"
+
+
 # --------------------------------------------------------------------------- #
 # 3) 레벨테스트 다시하기
 # --------------------------------------------------------------------------- #

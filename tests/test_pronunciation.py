@@ -118,7 +118,8 @@ def seeded(session_factory):
         other = Member(language="en", auth_user_id="auth-other")
         db.add_all([member, other])
         db.flush()
-        # C3(2026-09-22, D3): 옛 normal → chat 개명. 발음 이력(T9)은 chat 만 본다.
+        # C3(2026-09-22, D3): 옛 normal → chat 개명. Q7(2026-09-24)부터 발음 이력(T9)은
+        # 레벨테스트만 빼고 전부 본다(call_type != "level_test") — chat 은 그 부분집합.
         call = Call(member_id=member.member_id, character_id=ch.character_id,
                     status="done", call_type="chat")
         db.add(call)
@@ -327,23 +328,31 @@ def test_history_empty_when_no_counted_reviews(session_factory, seeded, llm):
     assert item["score"] is None
 
 
-def test_history_counts_chat_calls_not_unmigrated_legacy_normal(session_factory, seeded, llm):
-    """QA C3-①(2026-09-22): 발음 이력(T9)은 call_type='chat' 만 본다(C3 로 normal→chat
-    개명). `seeded` 의 통화가 이미 chat 이라 여기 나온다 — 그리고 **전환 안 된 옛 normal
-    행은 안 나온다**(마이그레이션 e0a404f9e6c0 가 배포 시 그 행들을 chat 으로 전환하는
-    이유)."""
+def test_history_includes_all_non_level_test_call_types(session_factory, seeded, llm):
+    """⛔⛔ Q7(2026-09-24, 프론트 실기기 QA) 핵심 회귀 — 발음 이력(T9)은 **레벨테스트만
+    빼고 전부** 본다(학습 달력과 같은 기준, `call_type != "level_test"`). 운영 실측
+    (call 1681: call_type='expression', status='done', 활성 문장 1개)이 이 버그였다 —
+    예전엔 call_type=="chat" 정확매칭이라 표현학습·프리토킹(지금 학습의 주력 경로)이
+    발음 이력에서 통째로 빠졌다. 레벨테스트만 여전히 제외된다(측정 통화라 학습 세션이
+    아니다)."""
     db = session_factory()
     try:
         char_id = db.get(Call, seeded["call_id"]).character_id
-        legacy = Call(member_id=seeded["member_id"], character_id=char_id,
-                      status="done", call_type="normal")  # 마이그레이션 전 옛 행 흉내
-        db.add(legacy)
+        expr = Call(member_id=seeded["member_id"], character_id=char_id,
+                    status="done", call_type="expression")
+        freetalk = Call(member_id=seeded["member_id"], character_id=char_id,
+                        status="done", call_type="freetalk")
+        lt = Call(member_id=seeded["member_id"], character_id=char_id,
+                  status="done", call_type="level_test")
+        db.add_all([expr, freetalk, lt])
         db.flush()
-        db.add(Sentence(call_id=legacy.call_id, korean_sentence="안 보여야 함",
-                        native_sentence="must not appear", locale="en",
-                        evaluation=Evaluation(total_score=99, pronunciation=99,
-                                              fluency=99, rhythm=99)))
+        for c, txt in ((expr, "표현학습"), (freetalk, "프리토킹"), (lt, "레벨테스트")):
+            db.add(Sentence(call_id=c.call_id, korean_sentence=txt,
+                            native_sentence=txt, locale="en",
+                            evaluation=Evaluation(total_score=90, pronunciation=90,
+                                                  fluency=90, rhythm=90)))
         db.commit()
+        expr_id, freetalk_id, lt_id = expr.call_id, freetalk.call_id, lt.call_id
     finally:
         db.close()
 
@@ -351,6 +360,7 @@ def test_history_counts_chat_calls_not_unmigrated_legacy_normal(session_factory,
     client = TestClient(app)
     r = client.get("/api/v1/calls/pronunciation-history", headers=_hdr())
     assert r.status_code == 200, r.text
-    items = r.json()
-    assert [item["call_id"] for item in items] == [seeded["call_id"]], \
-        "전환 안 된 legacy normal 통화가 섞여 나왔다(또는 chat 통화가 안 나왔다)"
+    ids = {item["call_id"] for item in r.json()}
+    assert expr_id in ids, "표현학습 통화가 발음 이력에서 빠졌다"
+    assert freetalk_id in ids, "프리토킹 통화가 발음 이력에서 빠졌다"
+    assert lt_id not in ids, "레벨테스트 통화가 발음 이력에 섞여 나왔다"

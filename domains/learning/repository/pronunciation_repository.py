@@ -103,12 +103,20 @@ class PronunciationRepository:
 
     # ── T9: 최근5 발음 이력 ─────────────────────────────────────────────── #
     def recent_calls(self, member_id: int, limit: int = 5) -> Sequence[Call]:
-        """일반(chat, 옛 normal — C3 로 개명)·완료(done) 통화 최근순 N건 — 이력 카드용(발화 미로딩)."""
+        """완료(done) 통화 최근순 N건 — 이력 카드용(발화 미로딩).
+
+        ⛔⛔ Q7(2026-09-24, 프론트 실기기 QA) — **레벨테스트만 빼고 전부** 센다(학습
+        달력 `call_repository.calendar_calls` 와 같은 기준, `call_type != "level_test"`).
+        예전엔 `call_type == "chat"` 뿐이라 표현학습·프리토킹(지금 학습의 주력 경로)이
+        발음 이력에서 통째로 빠졌다 — 옛 normal→chat 개명(C3) 때 이 필터를 못 바꾼
+        잔재였다(운영 실측 call 1681: call_type='expression', status='done', 활성 문장
+        1개인데 이력에 안 들어갔다).
+        """
         stmt = (
             select(Call)
             .where(
                 Call.member_id == member_id,
-                Call.call_type == "chat",
+                Call.call_type != "level_test",
                 Call.status == "done",
             )
             .order_by(Call.call_date.desc(), Call.call_id.desc())
@@ -122,6 +130,8 @@ class PronunciationRepository:
         recent_calls 와 달리 점수 없는 통화를 건너뛴다. 마이페이지의 "최근 N세션
         평균"은 점수가 있는 세션 N개를 뜻하기 때문 — 통화만 하고 발음 챌린지를
         안 누른 통화(대부분이다)를 세면 표본이 순식간에 비어버린다.
+
+        ⛔⛔ Q7(2026-09-24) — recent_calls 와 같은 정정: `call_type != "level_test"`.
         """
         stmt = (
             select(Call.call_id)
@@ -129,7 +139,7 @@ class PronunciationRepository:
             .join(Evaluation, Evaluation.sentence_id == Sentence.sentence_id)
             .where(
                 Call.member_id == member_id,
-                Call.call_type == "chat",
+                Call.call_type != "level_test",
                 Call.status == "done",
                 Sentence.deleted_at.is_(None),
                 Evaluation.pronunciation.is_not(None),

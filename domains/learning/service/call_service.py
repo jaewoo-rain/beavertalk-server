@@ -748,8 +748,12 @@ class CallService:
             # ⚠ C3(2026-09-22, D3): 필드 이름(called_today/can_call_normal)은 앱 계약이라
             #   그대로 두지만, 안에서 보는 call_type 은 "normal"→"chat"(자유대화)으로
             #   개명됐다 — 라우팅이 더 이상 "normal" 을 만들지 않는다(chat 으로 흡수).
+            # ⛔⛔ Q7(2026-09-24, 프론트 실기기 QA) — **레벨테스트만 빼고 전부** 센다
+            #   (학습 달력 calendar_calls 와 같은 기준). 예전엔 call_type="chat" 정확매칭
+            #   이라 표현학습·프리토킹(지금 학습의 주력 경로)을 하고도 "오늘 통화함"이
+            #   안 켜졌다 — 달력엔 점이 찍히는데 홈 배지는 "안 했다"는 불일치였다.
             "called_today": self.repo.has_call_in_window(
-                member_id, start_utc, end_utc, call_type="chat"
+                member_id, start_utc, end_utc, exclude_call_type="level_test"
             ),
             "level_test_today": self.repo.has_call_in_window(
                 member_id, start_utc, end_utc, call_type="level_test"

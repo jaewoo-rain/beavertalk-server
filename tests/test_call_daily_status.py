@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import Integer, create_engine, text
+from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -146,20 +146,29 @@ def test_chat_does_not_consume_level_test(ctx):
     assert s["level_test_today"] is False
 
 
-def test_migrated_legacy_normal_row_is_counted_once_converted_to_chat(ctx):
-    """QA C3-②(2026-09-22): daily-status 는 call_type='chat' 만 센다 — 마이그레이션
-    (e0a404f9e6c0, upgrade: UPDATE call SET call_type='chat' WHERE call_type='normal')이
-    옛 행을 전환해야 세어진다는 것을 값으로 못박는다."""
-    # 전환 전(옛 normal 그대로) — 안 세어진다.
+def test_legacy_normal_call_type_now_counts_without_migration(ctx):
+    """⛔⛔ Q7(2026-09-24) 이후 갱신 — 예전엔 call_type=="chat" **정확매칭**이라 마이그레이션
+    전 옛 'normal' 행이 세어지지 않았다(그래서 e0a404f9e6c0 전환이 필요했다). 지금은
+    exclude_call_type="level_test"(레벨테스트만 빼고 전부)라 'normal' 도 곧바로 세어진다 —
+    이 시험은 그 폭을 값으로 못박는다(옛 시험의 "전환 전엔 False" 전제는 이제 성립하지 않는다)."""
     _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
           call_type="normal")
-    assert _status(ctx, "2026-07-17", 540)["called_today"] is False, \
-        "전환 안 된 옛 normal 행이 세어졌다 — 마이그레이션 없이도 세어지면 이 시험의 전제가 깨진다"
-    # 마이그레이션이 하는 일과 같은 UPDATE — 전환 후에는 세어진다.
-    ctx["db"].execute(text("UPDATE call SET call_type = 'chat' WHERE call_type = 'normal'"))
-    ctx["db"].commit()
     assert _status(ctx, "2026-07-17", 540)["called_today"] is True, \
-        "전환 후에도(call_type='chat') daily-status 가 못 셌다"
+        "레벨테스트가 아닌 콜타입은 마이그레이션 여부와 무관하게 세어져야 한다"
+
+
+@pytest.mark.parametrize("call_type", ["expression", "freetalk"])
+def test_expression_and_freetalk_count_toward_called_today(ctx, call_type):
+    """⛔⛔ Q7(2026-09-24, 프론트 실기기 QA) 핵심 회귀 — 표현학습·프리토킹도 '오늘
+    통화함'을 켠다. 운영 실측(call 1681: call_type='expression', status='done', 학습자
+    발화 있음)이 이 버그였다 — 학습 달력엔 점이 찍히는데 홈 배지는 "안 했다"였다.
+    예전엔 call_type=="chat" 정확매칭이라 이 두 콜타입이 통째로 빠졌었다.
+    """
+    _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
+          call_type=call_type)
+    s = _status(ctx, "2026-07-17", 540)
+    assert s["called_today"] is True, f"call_type={call_type!r} 이 세어지지 않았다"
+    assert s["level_test_today"] is False
 
 
 def test_ongoing_excluded(ctx):
