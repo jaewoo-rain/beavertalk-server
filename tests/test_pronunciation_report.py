@@ -32,6 +32,7 @@ from domains.learning.schemas.pronunciation import (
 )
 
 import core.deps as deps
+import domains.learning.service.pronunciation_report_service as report_module
 import domains.learning.service.pronunciation_service as pron_module
 
 
@@ -219,3 +220,69 @@ def test_report_unknown_call_404(session_factory, seeded, monkeypatch):
     client = TestClient(_build_app(session_factory))
     r = client.get(f"/api/v1/calls/{seeded['call']}/pronunciation-report", headers=_hdr())
     assert r.status_code == 404
+
+
+# --------------------------------------------------------------------------- #
+# Q9(2026-09-24, bt-back 운영 실측 member_id=88) — 「점수 없음」(발음 챌린지를 안
+# 누른 통화, h.score is None)과 「0점」을 같은 값으로 뭉개면 delta 가 없는 하락을
+# 만든다. score=None 은 키를 생략하지 않는다(진행규칙 5 대상이 아니다) — 값이
+# 없다는 사실 자체를 앱에 알려야 하는 필드라서다.
+# --------------------------------------------------------------------------- #
+def _hist(call_id, score, sentence_count=5, call_date=None):
+    return PronHistoryItem(
+        call_id=call_id,
+        call_date=call_date or datetime(2026, 7, 15 + call_id, tzinfo=timezone.utc),
+        sentence_count=sentence_count,
+        score=score,
+    )
+
+
+def test_score_less_session_reports_none_and_keeps_the_key():
+    """⛔⛔ 핵심 재현·수정 확인 — 점수 없는 세션은 score=None 으로 나가고, 그
+    None 이 진행규칙 5(kind·nuance 류) 처럼 키 자체를 빼는 대상이 **아니다**."""
+    history = [_hist(1, None)]  # get_pronunciation_history 계약: 최신순(여기 1건뿐)
+    out = report_module._sessions_from_history(history)
+    assert len(out) == 1
+    assert out[0].score is None
+    dumped = out[0].model_dump()
+    assert "score" in dumped and dumped["score"] is None, "score 키 자체가 생략됐다"
+
+
+def test_score_gaps_never_produce_a_fabricated_drop():
+    """⛔⛔ bt-back 운영 실측(member_id=88) 배열을 그대로 재현한다: 없음·없음·96·
+    없음·없음(오래된순). 옛 코드는 0 으로 뭉개 96 다음 delta=-96(없는 하락)을
+    냈다 — 이제 delta 가 한 번도 음수가 되면 안 된다."""
+    history_newest_first = [
+        _hist(5, None), _hist(4, None), _hist(3, 96), _hist(2, None), _hist(1, None),
+    ]  # get_pronunciation_history 계약: 최신순으로 준다
+    out = report_module._sessions_from_history(history_newest_first)
+    scores = [s.score for s in out]
+    deltas = [s.delta for s in out]
+    assert scores == [None, None, 96, None, None]
+    assert all(d is None or d >= 0 for d in deltas), f"음수 delta(없는 하락)가 나왔다: {deltas}"
+    # 96점 세션 자체는 "직전 점수 있는 세션"이 없어 delta=None(비교 상대 없음 — "—").
+    assert deltas[2] is None
+    # 96 다음의 점수 없는 세션들은 자기 점수가 없으니 delta 자체가 None 이다.
+    assert deltas[3] is None and deltas[4] is None
+
+
+def test_prev_score_is_not_overwritten_by_a_scoreless_session():
+    """⛔⛔ bt-back «제일 틀리기 쉽다» 는 아니지만 명시적으로 지적한 자리 — 점수
+    없는 세션이 «직전 점수 있는 세션» 과의 비교 사슬을 끊으면 안 된다. 96 →
+    없음 → 82(다음 점수 있는 통화)면 82 의 delta 는 **직전 없음(0) 대비가 아니라
+    96 대비**(82-96=-14)여야 한다."""
+    history_newest_first = [_hist(3, 82), _hist(2, None), _hist(1, 96)]
+    out = report_module._sessions_from_history(history_newest_first)
+    scores = [s.score for s in out]
+    deltas = [s.delta for s in out]
+    assert scores == [96, None, 82]
+    assert deltas == [None, None, -14], \
+        "점수 없는 세션이 prev 를 0 으로 덮어 82 의 delta 가 82(96 대비가 아니라 0 대비)로 나왔다"
+
+
+def test_consecutive_real_scores_regress_unchanged():
+    """정상 경로 회귀 — 점수가 연속으로 있으면 종전과 같은 delta 산수."""
+    history_newest_first = [_hist(3, 90), _hist(2, 85), _hist(1, 80)]
+    out = report_module._sessions_from_history(history_newest_first)
+    assert [s.score for s in out] == [80, 85, 90]
+    assert [s.delta for s in out] == [None, 5, 5]

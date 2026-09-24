@@ -71,6 +71,21 @@ def _sessions_from_history(history: list[PronHistoryItem]) -> list[SessionPointO
       call_service.py:552)가 항상 채운다 — 그래서 여기서 None 이면 조용히 감추지
       않고 그대로 필수필드 검증에 맡긴다(발생하면 502 아니라 500 으로 시끄럽게
       실패해야 그게 진짜 이상 데이터라는 신호다).
+
+    ⛔⛔ Q9(2026-09-24, bt-back 운영 실측 member_id=88) — 「점수 없음」(counted 복습이
+      있는 문장이 없어 `h.score is None` — 발음 챌린지를 안 누른 통화)과 「0점」을
+      더 이상 같은 값으로 뭉개지 않는다. 예전엔 `score=0` 으로 내보내 96점 다음에
+      점수 없는 통화가 오면 `delta=-96`(없는 하락)이 찍혔다. 이제 점수 없는 세션은
+      `score=None` 으로 그대로 내보내고(진행규칙 5 의 "키 생략" 대상이 **아니다** —
+      이건 "값이 없다"는 사실 자체를 앱에 알려야 하는 필드라 키는 남긴다), `delta`
+      는 **양쪽 다 점수가 있을 때만** 계산한다. `prev`(직전 비교 기준)는 점수 없는
+      세션을 만나도 **안 덮는다** — 그 통화 하나가 "직전 점수 있는 세션"과의 비교
+      사슬을 끊으면 안 된다(96 → 없음 → 없음 → 다음 점수 있는 통화까지도 96 대비
+      delta 를 낸다).
+      앱 호환 확인(`beavertalk-flutter` origin/dev `learning_summary.dart:16`):
+      `_asInt(null)` 이 0 을 돌려줘 구버전은 크래시 없이 지금과 같게 보이고,
+      `delta` 는 이미 null 을 "—"(no previous session)로 처리하고 있어 신버전만
+      더 정확해진다.
     """
     items = list(reversed(history))  # get_pronunciation_history 는 최신순 → 오래된순으로
     today = datetime.now(timezone.utc).date()
@@ -78,19 +93,20 @@ def _sessions_from_history(history: list[PronHistoryItem]) -> list[SessionPointO
     prev: int | None = None
     for h in items:
         d = h.call_date or datetime.now(timezone.utc)
-        score = round(h.score) if h.score is not None else 0
+        score = round(h.score) if h.score is not None else None
         out.append(
             SessionPointOut(
                 label="오늘" if d.date() == today else f"{d.month}/{d.day}",
                 date=f"{d.month}/{d.day}",
                 sentences=h.sentence_count,
                 score=score,
-                delta=None if prev is None else score - prev,
+                delta=None if (prev is None or score is None) else score - prev,
                 call_date=h.call_date,
                 call_id=h.call_id,
             )
         )
-        prev = score
+        if score is not None:
+            prev = score
     return out
 
 

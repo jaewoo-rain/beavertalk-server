@@ -60,13 +60,21 @@ class SessionPointOut(BaseModel):
     - call_id: 이 세션이 어느 통화인지. 방금 복습한 통화가 이 리스트의 어느 줄인지
       앱이 스스로 가릴 방법이 없어서 생겼던 QA(표 최신 줄이 "문장 0·점수 0"으로 보임
       — 실은 다른 통화였는지 진짜 0인지 앱이 구분 못 했다).
+
+    ⛔⛔ Q9(2026-09-24, bt-back 운영 실측) — `score` 는 **필수 필드지만 값은
+      nullable** 이다. 「점수 없음」(counted 복습이 있는 문장이 없는 통화 —
+      발음 챌린지를 안 눌렀다)과 「0점」은 다른 사실이라 같은 값으로 뭉개면
+      안 된다(뭉개면 `delta` 가 없는 하락을 만든다, `_sessions_from_history`
+      참조). ⚠ 값이 없다고 **키까지 빼면 안 된다** — 진행규칙 5(kind·nuance 류)
+      의 "키 생략"은 "그 속성 자체가 이 행과 무관하다"는 뜻인데, `score` 는
+      정반대로 "이 세션에 점수가 없다는 사실 자체"를 앱에 알려야 하는 값이다.
     """
 
     label: str          # 그래프 x축, 예: "12/21" 또는 "오늘"
     date: str           # 표 날짜칸, 예: "12월 21일"
     sentences: int      # 그 세션 문장 수
-    score: int          # 0~100 세션 점수
-    delta: int | None = None  # 직전 세션 대비 변화(가장 오래된 것은 null → "—")
+    score: int | None   # 0~100 세션 점수. None = 발음 챌린지를 안 누른 통화(0점 아님)
+    delta: int | None = None  # 직전 "점수 있는" 세션 대비 변화. 비교 상대가 없으면 null → "—"
     call_date: datetime  # UTC, tz-aware — 이력 행 원본 그대로(위조 없음)
     call_id: int
 
