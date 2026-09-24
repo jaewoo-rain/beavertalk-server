@@ -4180,13 +4180,6 @@ async def run_call(
             await svc.run_db(db_session_factory, lambda db: svc.mark_fragment_ended(
                 db, call_id, total_time=_dur, accumulate=bool((state.fragment_index or 1) > 1),
             ))
-        # ⛔⛔ QA C7 재검(2026-09-23): 기억 추출도 **여기(무거운 마무리 저장보다 먼저)**
-        #   에서 뜬다 — 뒤에 있으면 그 앞(usage·전사 저장·분석 트리거) 단계가 예외로
-        #   터졌을 때 기억이 아예 안 남는다. `_trigger_chat_memory` 가 게이트(call_type·
-        #   fragment_end·1회성 — `state.chat_memory_triggered`)를 직접 가지므로 위
-        #   설비-예외 경로와 여기가 둘 다 불러도 실제로는 한 번만 뜬다.
-        with contextlib.suppress(Exception):
-            _trigger_chat_memory(state, call_type, db_session_factory, call_id, member_id, spec.code, client, settings)
         # D16: 미완 힌트 태스크 전량 취소 — 통화가 끝났는데 늦은 힌트가 나가는 것 방지.
         for t in list(state.hint_tasks):
             t.cancel()
@@ -4307,9 +4300,37 @@ async def run_call(
         #   품질 저하다. 이 줄이 없으면 아무도 모르고 "요즘 비버가 이상해"만 남는다.
         # 2단계(영속화): 로그는 30일이면 사라진다. 원가 추이를 계속 보려면 행에 남아야 한다.
         # 예외는 함수 안에서 흡수한다(R5) — 통화 기록·분석과 트랜잭션을 나눠 둔 이유.
-        await _persist_usage(db_session_factory, state, call_id)
+        # ⛔⛔ R4-b(2026-09-24, bt-back) — `_persist_remaining` 을 `_persist_usage` **앞**
+        #   으로 옮겼다(옛 순서는 usage → remaining). `_trigger_chat_memory` →
+        #   `extract_and_merge_chat_memory` → `_resume_transcript` 는 **DB 만** 읽는다.
+        #   flush 주기가 60초라, 옛 위치(전사가 DB 에 다 실리기 **전**)에서 추출이 뜨면
+        #   아직 flush 안 된 마지막 최대 60초가 통째로 빠졌고, **60초 미만 통화는 진행
+        #   중 flush 가 한 번도 안 돌아 DB 전사가 아예 비어 있어 기억이 0 이었다**(옛
+        #   주석의 "조금 덜 담기는 것이 낫다" 트레이드오프는 60초 미만에서는 "조금
+        #   덜"이 아니라 "전부 0"이었다). `_persist_remaining` 이 아직 저장 안 한
+        #   세그먼트를 전부 커밋하므로(`state.segments[state.persisted_count:]`,
+        #   길이 무관) 그 직후에 추출을 띄우면 DB 가 이 조각의 전사 전체를 담은 뒤에
+        #   돈다.
+        #   ⚠ usage 를 뒤로 미룬 이유: `_trigger_chat_memory` 를 여전히 "그 뒤에 오는
+        #   단계가 예외로 터져도 이미 떠 있다"는 자리에 두기 위해서다(QA C7 재검의
+        #   원래 보장 — `test_chat_memory_merge_still_fires_when_a_later_finalize_
+        #   step_raises` 가 `_persist_usage` 를 일부러 실패시켜 이 보장을 잠근다).
+        #   `_persist_usage`·`_persist_remaining` 은 서로 다른 컬럼만 쓰고(usage_json류
+        #   vs 전사·status) 트랜잭션도 이미 분리돼 있어(각자 주석 참조) 순서를 바꿔도
+        #   무해하다.
+        #   ⚠ 종료 지연 없음: `_trigger_chat_memory` 는 `asyncio.create_task` 만 부르고
+        #   그 태스크를 기다리지 않는 fire-and-forget(정의 참조) — 띄우는 시점만
+        #   바뀌었지 여기서 새로 `await` 가 생기지 않았다.
+        #   ⛔ 이 자리와 위 설비-예외 경로(`except Exception: ... raise`, R1-a 가드
+        #   구간)는 **다르다** — 그 경로는 `_run_session` 진입 전(라이브 세션이 아직
+        #   안 열려 `state.segments` 가 항상 비어 있다) 실패라 `_persist_remaining`
+        #   자체가 안 불린다. 그 경로의 즉시 추출(이전 조각의 DB 전사만 읽음)은 그대로
+        #   맞다 — 옮길 대상이 없다.
         # P2.6: 전사(텍스트) 선저장 — 오디오 MP3 변환·업로드(~9s)는 pending 으로 분리.
         pending_audio = await _persist_remaining(db_session_factory, state, call_id, member_id)
+        with contextlib.suppress(Exception):
+            _trigger_chat_memory(state, call_type, db_session_factory, call_id, member_id, spec.code, client, settings)
+        await _persist_usage(db_session_factory, state, call_id)
         # 분석 태스크를 먼저 생성(분석 우선 착수) → 오디오 업로드는 병렬 후행.
         _trigger_analysis(
             call_id, client, settings, db_session_factory, locale,
@@ -4632,9 +4653,14 @@ def _trigger_chat_memory(
       갖는다(call_type=="chat" and not state.fragment_end) — 호출부는 조건 없이 불러도
       된다. `state.chat_memory_triggered` 로 **한 번만** 뜨게 막는다(정상·비정상 두 자리
       모두에서 호출해도 중복 실행 없음).
-    ⭐ 기억 추출은 전사 DB 를 읽는 fire-and-forget 이라 무거운 마무리 저장보다 먼저
-      떠도 된다 — 전사는 점진 flush 로 이미 대부분 저장돼 있고, 조금 덜 담기는 것이
-      통째로 못 담는 것보다 낫다(R5).
+    ⛔⛔ R4-b(2026-09-24, bt-back) — **정상 종료 호출 자리**(finally)는 `_persist_
+      remaining` **뒤**로 옮겼다(위 ⭐ 바로 다음 문단이 옛 근거였는데 틀렸다 — 이
+      함수는 DB 만 읽어서, 무거운 저장 앞이면 아직 flush 안 된 마지막 최대 60초가
+      빠지고 60초 미만 통화는 DB 전사가 통째로 비어 기억이 0이었다). **설비-예외
+      호출 자리**(위 except, `_run_session` 진입 전 실패)는 그대로 둔다 — 그 경로는
+      `state.segments` 가 항상 비어 있어(라이브 세션이 아직 안 열렸다) `_persist_
+      remaining` 자체가 안 불린다. fire-and-forget(아래 `create_task`, 기다리지
+      않는다)이라 호출 위치를 옮겨도 통화 종료 자체는 늦어지지 않는다.
     """
     if call_type != "chat" or state.fragment_end or state.chat_memory_triggered:
         return

@@ -6292,3 +6292,73 @@ async def test_trigger_chat_memory_is_one_shot_per_state(monkeypatch):
     cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
     await _wait_analysis_tasks()
     assert len(calls) == 1, "같은 state 로 두 번 불렀는데 기억 merge 가 두 번 떴다"
+
+
+# --------------------------------------------------------------------------- #
+# R4-b(2026-09-24, bt-back) — 기억 추출은 _persist_remaining 뒤에 떠야
+# 아직 flush 안 된 마지막 구간(60초 미만 통화는 전체)을 놓치지 않는다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_chat_memory_extraction_sees_the_transcript_already_flushed_to_db(
+    session_factory, seeded, monkeypatch
+):
+    """⛔⛔ 핵심 재현·수정 확인 — `extract_and_merge_chat_memory`(DB 만 읽는다)가
+    도는 그 순간, DB 에 이 통화의 전사가 **이미 실려 있어야** 한다. `_persist_
+    remaining` 보다 먼저 뜨면(옛 위치) 아직 flush 안 된 세그먼트가 빠진다 — 짧은
+    통화(60초 미만, 진행 중 flush 가 한 번도 안 돔)는 이 시점 DB 가 통째로 비어
+    기억이 0 이었다."""
+    seen: dict = {}
+
+    async def _spy(call_id, member_id, language, client, settings_obj, db_session_factory):
+        db = db_session_factory()
+        try:
+            rows = db.query(CallRawData).filter(CallRawData.call_id == call_id).all()
+            seen["rows_at_trigger"] = [(r.role, r.content) for r in rows]
+        finally:
+            db.close()
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+
+    ws = FakeWebSocket([_start_incoming(seeded, "chat")], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=make_live_factory({}),
+    )
+    await _wait_analysis_tasks()
+
+    rows_at_trigger = seen.get("rows_at_trigger")
+    assert rows_at_trigger, "추출이 도는 시점에 DB 전사가 비어 있었다 — persist_remaining 보다 먼저 떴다"
+    assert any(role == "beaver" for role, _content in rows_at_trigger), \
+        "짧은(60초 미만) 통화의 유일한 발화(선톡)가 추출 시점 DB 에 없었다"
+
+    db = session_factory()
+    try:
+        final_rows = [
+            (r.role, r.content)
+            for r in db.query(CallRawData).filter(CallRawData.call_id == db.query(Call).first().call_id).all()
+        ]
+    finally:
+        db.close()
+    assert rows_at_trigger == final_rows, \
+        "추출 이후에도 전사가 더 늘었다 — 추출 시점이 여전히 최종 저장보다 앞서 있다"
+
+
+@pytest.mark.asyncio
+async def test_call_ends_promptly_even_though_chat_memory_trigger_moved(
+    session_factory, seeded, monkeypatch
+):
+    """순서만 바뀌었을 뿐 `_trigger_chat_memory` 는 여전히 fire-and-forget(await 없음)
+    이라 통화 종료 자체가 늦어지면 안 된다."""
+    async def _slow_spy(*a, **k):
+        await asyncio.sleep(5)  # 만약 어딘가 await 됐다면 이 시험이 타임아웃으로 잡는다
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _slow_spy)
+
+    ws = FakeWebSocket([_start_incoming(seeded, "chat")], hang=True)
+    await asyncio.wait_for(
+        run_call(
+            ws, app_settings, object(), session_factory,
+            member_id=seeded["member_id"], live_session_factory=make_live_factory({}),
+        ),
+        timeout=2.0,
+    )
