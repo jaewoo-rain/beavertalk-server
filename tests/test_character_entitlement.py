@@ -96,7 +96,11 @@ def test_only_premium_unlocks_all_characters():
     "kwargs,plan,unlocked",
     [
         ({}, "premium", True),                                  # active_premium
-        ({}, "pro", False),                                     # 옛 값 — 이제 premium 이 아니다
+        # ⛔⛔ R3-b(2026-09-24, bt-back) — 옛 값(pro/max)은 이제 premium 으로
+        #   정규화된다(subscription_status._from_row, 공유 DB 의 구코드가 아직
+        #   pro/max 를 쓴다). 정규화 전엔 여기가 False 였다 — 그게 "결제한 pro/max
+        #   회원의 캐릭터가 잠기던" 버그였다.
+        ({}, "pro", True),
         ({"billing_state": "grace"}, "premium", True),          # 결제 재시도 중 — 접근 유지
         ({"is_activate": False}, "premium", True),              # ending — 기간 남음
         ({"is_trial": True}, "premium", True),                  # 체험도 Premium 취급
@@ -143,10 +147,18 @@ def test_free_member_catalog_locks_unowned(db):
     assert (cat["BIBI"].is_unlocked, cat["BIBI"].unlock_source) == (False, None)
 
 
-def test_unknown_plan_string_catalog_locks_unowned(db):
-    """⚠ DB 에 남은 옛 값(pro 등)이 있어도 premium 이 아니면 캐릭터는 안 열린다."""
+def test_legacy_pro_plan_string_catalog_unlocks(db):
+    """⛔⛔ R3-b(2026-09-24, bt-back) — DB 에 남은 옛 값(pro 등, 공유 DB 의 구코드가
+    아직 쓴다)은 premium 으로 정규화되므로 카탈로그도 열려야 한다."""
     mid = _member(db, owns=("BABA",))
     _subscribe(db, mid, "pro")
+    assert _catalog(db, mid)["BIBI"].is_unlocked is True
+
+
+def test_truly_unknown_plan_string_catalog_locks_unowned(db):
+    """⚠ 진짜 모르는 값(pro/max 가 아닌 DB 오염)은 여전히 Free 로 폴백해 안 열린다(R5)."""
+    mid = _member(db, owns=("BABA",))
+    _subscribe(db, mid, "xyz")
     assert _catalog(db, mid)["BIBI"].is_unlocked is False
 
 

@@ -222,10 +222,21 @@ def test_premium_unlock_creates_no_ownership_row(db):
     assert [o.character_id for o in owned] == [_cid(db, "BABA")], "소유 행이 늘었다"
 
 
-def test_unknown_plan_string_does_not_unlock_characters(db):
-    """⚠ DB 에 남은 옛 값(pro 등)이 섞여도 premium 이 아니면 폴백한다(R5)."""
+def test_legacy_pro_plan_string_still_unlocks_characters(db):
+    """⛔⛔ R3-b(2026-09-24, bt-back) — DB 에 남은 옛 값(pro/max, 공유 DB 의 구코드가
+    아직 쓴다)은 `subscription_status._from_row` 에서 premium 으로 정규화되므로
+    캐릭터도 그대로 열려야 한다(정규화 전엔 여기가 Free 로 조용히 강등됐다 — 결제한
+    pro/max 회원의 캐릭터가 잠기던 그 구멍)."""
     mid = _member(db, selected="BIBI", owns=("BABA",))
     _subscribe(db, mid, "pro")
+    assert resolve_call_character(db, mid).character_id == _cid(db, "BIBI")
+
+
+def test_truly_unknown_plan_string_does_not_unlock_characters(db):
+    """⚠ 진짜 모르는 값(pro/max 가 아닌 DB 오염)은 여전히 Free 로 폴백한다(R5) —
+    정규화가 pro/max 만 표적이지 모든 값을 premium 으로 만드는 게 아니다."""
+    mid = _member(db, selected="BIBI", owns=("BABA",))
+    _subscribe(db, mid, "xyz")
     assert resolve_call_character(db, mid).character_id == _cid(db, "BABA")
 
 

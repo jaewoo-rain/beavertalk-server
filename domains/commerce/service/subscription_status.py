@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional, Protocol, Sequence
 
+from domains.commerce.service.plan_normalize import normalize_plan
+
 
 class SubscribeRow(Protocol):
     """판정에 필요한 필드만. Subscribe ORM 모델이 이 모양을 만족한다."""
@@ -115,10 +117,17 @@ def _from_row(row: SubscribeRow, state: str) -> ResolvedStatus:
     """행 + 상태 → 응답. plan 은 free/expired 를 뺀 전 상태에서 반드시 채운다.
 
     expired 는 이미 Free 로 떨어진 회원이라 플랜이 없다 — 앱도 tier=free 로 본다.
+
+    ⛔⛔ R3-b(2026-09-24, bt-back) — `normalize_plan` 을 거친다. DB 는 app-api(구코드,
+      아직 pro/max 를 쓴다)와 공유라, 정규화 없이 그 값을 그대로 돌려주면 이 값을
+      쓰는 하류(`effective_plan`·`SubscriptionService.status`)가 전부 "모르는 플랜"
+      취급해 **결제한 pro/max 회원을 조용히 Free 로** 떨어뜨린다(영상·조각·예산·
+      캐릭터 잠김). 근거·왜 이 파일이 아닌 `plan_normalize.py` 에 상수를 뒀는지는
+      그 파일 docstring 참조(이 파일은 옛 플랜 리터럴 금지 시험의 스캔 대상이다).
     """
     return ResolvedStatus(
         state=state,
-        plan=None if state == "expired" else (row.plan or "premium"),
+        plan=None if state == "expired" else normalize_plan(row.plan or "premium"),
         subscribe_id=row.subscribe_id,
         price=row.price,
         start_date=row.start_date,
