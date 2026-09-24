@@ -3550,6 +3550,24 @@ def _save_level_assessment(
     ⭐ L2(2026-09-24) — 레벨 확정과 **같은 커밋**에서 그 언어 진도 포인터도 새 레벨
     첫 차시로 옮긴다(`_move_progress_to_new_level`). 레벨만 오르고 진도가 안 따라간
     중간 상태가 남으면 다음 통화가 새 레벨 재료로 옛 차시를 가르친다.
+
+    ⛔⛔ Q4(2026-09-24, 프론트 실기기 QA — «중단된 재측정 1건이 차시 완료 표시를
+    전량 삭제한다») — `result.sample_quality == "none"`(표본 미달: 목표어 20자 미만
+    이거나 LLM 이 사실상 무발화로 판정)이면 **진도를 옮기지 않는다**. 되짚은 사슬:
+    ①재측정 요청이 member_language_level 행을 지워 레벨 NULL ②그래서 위 "레벨
+    있으면 안 쓴다" 가드(analyze_level_test_call)가 안 걸림 ③통화가 몇 초 만에
+    끊겨 표본 미달 → 최하 레벨(1) 배정 ④`_move_progress_to_new_level` 이 진도를
+    레벨1 첫 차시로 이동 ⑤`reset_lessons_from`(L7)이 그 언어 완료 표시를 **전량**
+    "학습 중"으로 되돌림 — `no>=46` 만 만지므로 나중에 레벨을 제대로 재측정해도
+    1~45차시는 영구 미완료로 남는다(되돌릴 수 없다).
+    ⭐ 레벨 배정(1) 자체는 그대로 한다 — 안 하면 "레벨 없는 상태로 갇힌다"는
+    옛 사고(위 주석 §3613 근방)가 재발한다. 파괴적인 건 **진도 이동**뿐이다.
+    ⭐ Q6(레벨 강등 산식 수정) 덕분에 자연 치유된다 — 진도는 그대로 no=8(레벨4 차시)
+    에 남고 레벨만 1이 된 상태에서, 다음 프리토킹 완료 때 Q6 의 floor=현재레벨(1)·
+    nxt.level_no(4)>1 로 레벨이 4로 복구된다.
+    ⚠ 최초 배정(그 언어 진도 행이 아직 없거나 no=1 그대로)일 때는 애초에
+    `_move_progress_to_new_level` 이 no-op(진도 없음 early return, 또는 이동해도
+    완료 표시가 없어 reset 대상 0건)이었으므로 이 분기를 타도 결과는 동일하다.
     """
     # 리뷰 M1: FOR UPDATE 로 회원 단위 직렬화 — 동시 레벨테스트 2건의 grandfathering
     # progress insert 가 uq_member_item 충돌로 유실되는 창 제거(sqlite 테스트에선 no-op).
@@ -3575,7 +3593,14 @@ def _save_level_assessment(
         db, member_id, level_no, trigger_call_id=call_id, from_level=prior_level,
         language=language,
     )
-    _move_progress_to_new_level(db, member_id, language, level_no)
+    if result.sample_quality == "none":
+        logger.info(
+            "normalcall level-test: member=%s language=%s 표본 미달 — 진도 이동 생략"
+            "(레벨 %d 은 배정, 완료 표시는 건드리지 않음)",
+            member_id, language, level_no,
+        )
+    else:
+        _move_progress_to_new_level(db, member_id, language, level_no)
     db.commit()
     return True
 
