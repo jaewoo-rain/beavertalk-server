@@ -820,7 +820,20 @@ def test_accumulate_without_a_previous_fragment_record_falls_back_to_plain_save(
 
 
 @pytest.mark.asyncio
-async def test_run_call_accumulates_on_resumed_fragments_only(session_factory, seeded, monkeypatch):
+async def test_run_call_never_accumulates_word_count_via_finalize_call(session_factory, seeded, monkeypatch):
+    """⛔⛔ Q2(2026-09-24) 갱신 — `_persist_remaining` 의 `finalize_call` 호출은 이제
+    조각 번호와 무관하게 항상 `accumulate=False` 다.
+
+    옛 시험은 `[False, True, True]`(1조각 대입·2·3조각 누적)를 기대했다 — `total_time`
+    은 이 자리에 안 넘기므로(None, mark_fragment_ended 가 따로 확정) 그 `accumulate` 는
+    실질적으로 `user_word_count` 누적에만 쓰이고 있었다. Q2 로 `user_word_count` 가
+    "이 통화 전체를 DB 에서 다시 세어 SET"(call_user_word_count) 으로 바뀌면서, 조각마다
+    누적할 대상 자체가 없어졌다 — 매번 그 시점까지의 진짜 총합을 계산해 그대로 쓴다.
+    ⚠ `finalize_call` 자체의 accumulate 메커니즘은 안 건드렸다 — `mark_fragment_ended`
+    (total_time, 별도 호출부)와 `save_call_usage`(usage 4항, 별도 함수)는 여전히 조각별
+    accumulate 를 쓴다(위 `test_multi_fragment_call_accumulates_total_time_and_usage`
+    가 그쪽을 지킨다). 이 시험은 `_persist_remaining` 이라는 **한 호출부**만 본다.
+    """
     calls: list[tuple] = []
     real_fin = svc.finalize_call
 
@@ -832,4 +845,5 @@ async def test_run_call_accumulates_on_resumed_fragments_only(session_factory, s
     cid = int(_started(h1)["call_id"])
     await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
     await _run(session_factory, seeded, "expression", {}, script=[("U", "네"), ("B", "좋아요")], continues=cid, extra={"silent_resume": True})
-    assert [a for c, a in calls if c == cid] == [False, True, True], "첫 조각 대입 · 2·3조각 누적"
+    assert [a for c, a in calls if c == cid] == [False, False, False], \
+        "조각이 몇 번째든 user_word_count 는 항상 전체 재계산·SET — accumulate 를 안 쓴다"

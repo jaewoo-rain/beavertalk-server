@@ -3798,6 +3798,40 @@ async def test_periodic_flush_releases_pcm(session_factory, seeded, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_persist_remaining_word_count_covers_flushed_and_pending_segments(session_factory, seeded):
+    """⛔⛔ Q2(2026-09-24, 프론트 실기기 QA) 핵심 회귀 — `_persist_remaining` 이 계산하는
+    `user_word_count` 는 **이미 flush 로 저장된 구간 + 아직 안 저장된 구간을 합친 전체**
+    여야 한다. 옛 코드는 아직 안 저장된 세그먼트(`new` = segments[persisted_count:])만
+    셌다 — `_periodic_flush` 가 이미 커밋한 구간은 통째로 누락됐다(운영 실측: NULL
+    1,570건 / 값 있음 3건, 5분 통화면 flush 가 여러 번 돌고 종료 시 `new` 는 마지막
+    tick 이후분뿐이었다).
+    """
+    call_id = await svc.run_db(
+        session_factory,
+        lambda db: svc.create_call(db, seeded["member_id"], seeded["character_id"], "normal"),
+    )
+    # flush 로 이미 저장된 구간을 직접 흉내낸다(= _periodic_flush 가 이미 커밋한 것처럼).
+    flushed = [_seg(0, "user", b"", text="안녕 오늘 날씨 좋다")]  # 4어절, 이미 DB 에 있음
+    await svc.run_db(
+        session_factory,
+        lambda db: svc.save_segments(db, call_id, flushed, seeded["member_id"]),
+    )
+
+    state = cs._CallState()
+    # persisted_count=1 은 "flushed 의 1개는 이미 저장됨" — _persist_remaining 의 `new`
+    # 는 이 뒤의 미저장분(2번째 세그먼트)뿐이다.
+    state.segments = flushed + [_seg(1, "user", b"", text="같이 가실래요")]  # 2어절, 아직 미저장
+    state.persisted_count = 1
+    state.call_start_ts = asyncio.get_running_loop().time()
+
+    await cs._persist_remaining(session_factory, state, call_id, seeded["member_id"])
+
+    call = await svc.run_db(session_factory, lambda db: db.get(Call, call_id))
+    assert call.user_word_count == 6, \
+        "flush 로 이미 저장된 구간(4어절)이 빠지고 신규분(2어절)만 잡혔다 — 옛 버그가 재발했다"
+
+
+@pytest.mark.asyncio
 async def test_call_end_releases_pcm_but_still_feeds_nationality(
     session_factory, seeded, monkeypatch
 ):

@@ -4419,9 +4419,6 @@ async def _persist_remaining(
     if state.call_start_ts is not None:
         duration_s = int(asyncio.get_running_loop().time() - state.call_start_ts)
     pending_audio: list[dict] = []
-    # ⭐⭐ C11(2026-09-23) — 이 조각의 사용자 발화 단어 수(늦어도 되는 값이라 여기,
-    #   전사 저장 뒤에 찍는다 — mark_fragment_ended 의 «끊김 즉시» 자리가 아니다).
-    word_count = svc.fragment_user_word_count(new, state.target_code)
     try:
         if new:
             pending_audio = await svc.run_db(
@@ -4430,12 +4427,19 @@ async def _persist_remaining(
             )
             state.persisted_count += len(new)
         # ⭐⭐ C4 재설계(2026-09-23) — total_time 은 여기서 넘기지 않는다(None, 안 건드림).
-        #   mark_fragment_ended 가 이미 끊김을 인지한 자리에서 확정했다. accumulate 는
-        #   user_word_count(C11) 조각 누적에만 쓰인다.
+        #   mark_fragment_ended 가 이미 끊김을 인지한 자리에서 확정했다.
+        # ⛔⛔ Q2(2026-09-24) — 이 조각의 in-memory 세그먼트(`new`)만 세던 옛 방식은
+        #   `_periodic_flush` 가 커서만 올리고 단어를 안 세서, flush tick 이후분만 남아
+        #   NULL/과소집계가 됐다(운영 실측: NULL 1,570 / 값 있음 3). 이제 **이 통화
+        #   전체** DB 전사를 다시 세어(백필 스크립트와 같은 경로 — `call_user_word_count`)
+        #   그대로 SET 한다 — 조각이 여럿이어도 매번 진짜 총합을 다시 계산하므로
+        #   accumulate 는 쓰지 않는다(True 로 부르면 이미 합산된 값에 또 더해 배가 된다).
+        #   `save_segments` 가 위에서 이미 commit 했으므로(별도 run_db·별도 세션이라도
+        #   커밋된 행은 이 아래 새 세션에서 그대로 보인다) 이 조각의 `new` 도 포함된다.
         await svc.run_db(
             db_session_factory, lambda db: svc.finalize_call(
-                db, call_id, status="analyzing", accumulate=bool((state.fragment_index or 1) > 1),
-                user_word_count=word_count,
+                db, call_id, status="analyzing",
+                user_word_count=svc.call_user_word_count(db, call_id, state.target_code),
             )
         )
     except Exception as exc:  # noqa: BLE001

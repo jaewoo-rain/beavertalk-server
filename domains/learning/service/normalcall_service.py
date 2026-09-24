@@ -1561,12 +1561,16 @@ def mark_fragment_ended(db: Session, call_id: int, *, total_time: int = 0, accum
 
 
 def fragment_user_word_count(segments: list[dict], target_code: str) -> int | None:
-    """⭐⭐ C11(2026-09-23) — 이번 조각의 **사용자 발화 전사**만으로 단어 수를 센다.
+    """⭐⭐ C11(2026-09-23) — 주어진 세그먼트의 **사용자 발화 전사**만으로 단어 수를 센다.
 
     ko 등은 공백 분할 개수. 목표어가 ja·zh 면 `count_target_script_chars`(문장부호·
     공백·타 언어 제외)로 글자수를 센 뒤 2 로 나눠 반올림(대략 단어 2음절 가정).
-    ⛔ 이 조각에 사용자 발화 전사가 하나도 없으면 **None**(0 이 아니다) — «집계 없음»
+    ⛔ 세그먼트에 사용자 발화 전사가 하나도 없으면 **None**(0 이 아니다) — «집계 없음»
     과 «0» 을 갈라야 한다(bt-back 조건③). 호출부가 None 이면 컬럼을 건드리지 않는다.
+
+    ⚠ 순수 계산 함수 — segments 를 **어디서 모았는지는 안 가린다**. 조각 하나의
+    in-memory 세그먼트든(구 경로), 통화 전체 DB 전사든(Q2 신 경로 —
+    `call_user_word_count`) 여기로 들어오면 같은 산식으로 센다.
     """
     texts = [str(seg.get("text") or "").strip() for seg in segments if seg.get("role") == "user"]
     texts = [t for t in texts if t]
@@ -1576,6 +1580,27 @@ def fragment_user_word_count(segments: list[dict], target_code: str) -> int | No
     if target_code in ("ja", "zh"):
         return round(count_target_script_chars(blob, target_code) / 2)
     return len(blob.split())
+
+
+def call_user_word_count(db: Session, call_id: int, target_code: str) -> int | None:
+    """이 통화 **전체**(모든 조각 포함)의 사용자 발화 단어 수 — DB 전사를 처음부터 다시 센다.
+
+    ⛔⛔ Q2(2026-09-24, 프론트 실기기 QA — 운영 실측: user_word_count NULL 1,570건 /
+    값 있음 3건) — 실시간 경로(옛 `_persist_remaining`)는 `fragment_user_word_count`
+    를 **이 조각의 in-memory 미저장 세그먼트(`new`)** 에만 걸었다. `_periodic_flush`
+    가 FLUSH_INTERVAL_S(60초)마다 커서만 올리고 단어는 안 세므로, 5분 통화면 flush 가
+    여러 번 돌고 종료 시 `new` 는 **마지막 tick 이후분뿐**이다 — 대부분 비거나 일부만
+    세어져 NULL 또는 과소집계가 됐다.
+    ⇒ 종료 시점에 이 통화의 `call_raw_data`(role='user') **전체**를 다시 읽어 한 번에
+    센다 — `scripts/dev_backfill_word_count.py` 와 **완전히 같은 경로**(같은
+    `fragment_user_word_count`, 같은 select). 백필과 실시간이 영영 갈리지 않는다.
+    ⚠ 조각이 여럿이어도 **전체 재계산**이라 누적(accumulate)이 필요 없다 — 매번 그
+    시점까지의 진짜 총합을 다시 계산해 그대로 SET 한다(호출부가 accumulate=True 로
+    부르면 이미 합산된 값에 또 더해 배가 된다 — 반드시 accumulate=False 로 불러라).
+    """
+    rows = _load_dialog_rows(db, call_id)
+    segments = [{"role": r["role"], "text": r["content"]} for r in rows if r["role"] == "user"]
+    return fragment_user_word_count(segments, target_code)
 
 
 def finalize_call(
