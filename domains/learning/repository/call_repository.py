@@ -120,9 +120,28 @@ class CallRepository:
 
     def sum_total_time_in_window(
         self, member_id: int, start_utc, end_utc, *, exclude_call_types: tuple[str, ...] = (),
+        also_include_call_id: int | None = None,
     ) -> int:
         """[start_utc, end_utc) 안에 **시작한** 통화의 `total_time` 합(초) — 하루 통화 총량
         예산(C4, 2026-09-23) 집계용.
+
+        ⛔⛔ R2-a(2026-09-24, 프론트 실기기 QA — 자정 걸친 조각 체인이 새 날 예산을 안
+        깎는다) — `also_include_call_id`: 이어하기(resume_call) 조각을 열기 **전** 예산
+        판정에서, 지금 이으려는 그 통화의 call_id 를 넘기면 이 창의 합계에 반영한다.
+        `call_date`(그 통화의 최초 조각 시작일 — 자정을 넘겨도 **고정**, QA C4 재검-①)
+        가 이미 이 창 안이면(같은 날 안의 조각) 위 SUM 에 이미 실려 있으므로 더하지
+        않는다. `call_date` 가 이 창 밖이면(체인이 자정을 넘겨 **다른 날**에 시작했다는
+        뜻) 그 통화의 **지금까지 누적된 total_time**을 이 창의 합계에 더한다.
+        재현: 어제 23:50 시작 체인이 새벽에 조각을 이으려 하면, 옛 SUM(call_date 필터
+        뿐)은 그 통화를 못 봐(call_date=어제) 오늘 예산이 고스란히 남은 것으로 잘못
+        판정했다(premium 이 저녁~새벽 한 시간에 최대 30분).
+        ⚠ 이중 계산이 아니다 — 이 조정은 **지금 이 순간의 예산 판정**(daily_budget_
+        exceeded/remaining_budget_s, 호출부가 매번 "지금"을 기준으로 새로 계산한다)
+        에만 쓰인다. `call_date` 로 집계하는 다른 용도(학습 달력 등)는 그대로 그 통화를
+        `call_date` 하루에만 싣는다 — 같은 total_time 이 "어제의 기록"과 "오늘의 잔여
+        판정"에 둘 다 나타날 수 있지만, 하루 예산은 **날짜별로 독립된 풀**이라 한 풀에서
+        두 번 깎이는 게 아니다(체인이 자정을 걸쳤다는 사실 자체가 두 날 모두에 영향을
+        준 것이고, 그걸 각 날의 판정이 각자 반영하는 것이 정확하다).
 
         ⚠ `has_call_in_window` 와 달리 "학습자가 말했나"(spoke)를 걸지 않는다 — 예산은
           **써버린 시간**을 재는 것이라, 마이크가 안 열린 통화도 Gemini 세션이 열려 있던
@@ -154,7 +173,23 @@ class CallRepository:
         )
         if exclude_call_types:
             stmt = stmt.where(Call.call_type.notin_(exclude_call_types))
-        return int(self.db.scalar(stmt) or 0)
+        total = int(self.db.scalar(stmt) or 0)
+        if also_include_call_id is not None:
+            call = self.db.get(Call, also_include_call_id)
+            call_date = call.call_date if call is not None else None
+            # ⚠ sqlite 왕복에서 tzinfo 가 빠질 수 있다(다른 자리들과 같은 방어 —
+            #   has_call_in_window·resume_call 의 fragment_started_at 비교 참조).
+            if call_date is not None and call_date.tzinfo is None:
+                call_date = call_date.replace(tzinfo=timezone.utc)
+            already_counted = call_date is not None and start_utc <= call_date < end_utc
+            if (
+                call is not None
+                and call.member_id == member_id
+                and not (exclude_call_types and call.call_type in exclude_call_types)
+                and not already_counted
+            ):
+                total += int(call.total_time or 0)
+        return total
 
     def active_ongoing_call_id(self, member_id: int) -> int | None:
         """이 회원에게 지금 **살아있는 조각**(진행 중인 통화)이 있으면 그 call_id —

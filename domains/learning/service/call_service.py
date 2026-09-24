@@ -470,6 +470,7 @@ def is_daily_limit_reached(
 
 def used_seconds_today(
     db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
+    resuming_call_id: int | None = None,
 ) -> int:
     """오늘(기기 현지 자정~) **시작한** 통화의 total_time 합(초) — 하루 통화 총량 예산 집계.
 
@@ -477,17 +478,23 @@ def used_seconds_today(
       같은 이유). status in (done, analyzing, ongoing) — 아직 저장 안 끝난 ongoing 도
       **진행 중인 소비**라 뺄 이유가 없다(끊고 바로 또 걸면 그 몫이 안 잡히는 구멍을 막는다).
     ⚠ `total_time` 은 12차(끊김 없는 조각 전환)부터 **조각 누적**이다 — 조각2·3이 쌓여도
-      그 통화 한 행의 total_time 이 체인 전체 길이를 담고 있어 이중 계산이 안 된다.
+      그 통화 한 행의 total_time 이 체인 전체 길이를 담고 있어 이중 계산이 안 된다
+      (같은 날 안에서는). ⛔⛔ R2-a(2026-09-24) — **자정을 걸치면 이야기가 다르다**:
+      `call_date` 가 최초 조각 시작일에 고정돼, 그 뒤 조각이 다른 날짜에 열려도 이 SUM
+      은 그 통화를 못 본다. `resuming_call_id`(지금 이으려는 그 통화의 call_id)를 넘기면
+      `sum_total_time_in_window` 가 그 통화를 이 창에도 반영한다(참조: 그 함수 docstring
+      — 이중 계산이 아니라는 근거 포함).
     """
     start_utc, end_utc = local_window_utc(None, tz, tz_offset_min)
     return CallRepository(db).sum_total_time_in_window(
         member_id, start_utc, end_utc, exclude_call_types=("level_test",),
+        also_include_call_id=resuming_call_id,
     )
 
 
 def daily_budget_exceeded(
     db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
-    plan_override: str | None = None,
+    plan_override: str | None = None, resuming_call_id: int | None = None,
 ) -> bool:
     """이 회원이 오늘 하루 통화 총량(분) 예산을 다 썼는지 — **새 통화·이어하기 조각
     모두**에서 부른다(옛 횟수 한도와 달리 조각도 검사한다 — 남은 시간이 곧 조각 상한이다).
@@ -497,6 +504,8 @@ def daily_budget_exceeded(
     ⭐ admin 은 면제하되 **plan_override 를 보낸 admin 은 그 플랜 예산을 적용**한다
       (개발자 도구로 한도를 시험할 수 있게) — `plan_override` 는 `plan_override_for` 를
       거친 값이어야 한다(admin 아니면 None, 여기서 롤을 다시 검사하지 않는다).
+    resuming_call_id(R2-a): 이어하기 조각을 여는 판정이면 그 통화의 call_id 를 넘겨라 —
+      `used_seconds_today` 참조.
     """
     if not (settings.DAILY_BUDGET_ENFORCED or settings.ENV == "prod"):
         return False
@@ -504,13 +513,15 @@ def daily_budget_exceeded(
         return False
     plan = _plan_key(db, member_id, plan_override)
     budget = daily_budget_s(plan)
-    used = used_seconds_today(db, member_id, tz=tz, tz_offset_min=tz_offset_min)
+    used = used_seconds_today(
+        db, member_id, tz=tz, tz_offset_min=tz_offset_min, resuming_call_id=resuming_call_id,
+    )
     return (budget - used) <= 0
 
 
 def remaining_budget_s(
     db: Session, member_id: int, *, tz: str | None = None, tz_offset_min: int | None = None,
-    plan_override: str | None = None,
+    plan_override: str | None = None, resuming_call_id: int | None = None,
 ) -> int | None:
     """⭐⭐ C5(2026-09-23) — **오늘 남은 예산**(초) = `budget - used`(0 밑으로는 안 내려간다).
 
@@ -526,12 +537,17 @@ def remaining_budget_s(
     보냈으면 예산 대상이 아니다) — None 이면 호출부가 필드 자체를 뺀다(`call_started.
     remaining_s`·`/daily-status`). ⛔ enforcement 스위치(`DAILY_BUDGET_ENFORCED`)는
     여기서 안 본다 — 꺼져 있어도(dev) 숫자는 그대로 보여준다(강제만 안 할 뿐).
+    resuming_call_id(R2-a): `used_seconds_today` 참조 — 자정을 걸친 조각 체인의 남은
+      예산을 정확히 보여주려면(예: `call_started.remaining_s`·`resume-status`) 그
+      이어지는 통화의 call_id 를 넘겨라.
     """
     if plan_override is None and is_unlimited_member(db, member_id):
         return None
     plan = _plan_key(db, member_id, plan_override)
     budget = daily_budget_s(plan)
-    used = used_seconds_today(db, member_id, tz=tz, tz_offset_min=tz_offset_min)
+    used = used_seconds_today(
+        db, member_id, tz=tz, tz_offset_min=tz_offset_min, resuming_call_id=resuming_call_id,
+    )
     return max(0, budget - used)
 
 

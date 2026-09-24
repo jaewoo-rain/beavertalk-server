@@ -442,6 +442,114 @@ def test_resume_does_not_move_the_call_into_the_next_days_budget(ctx):
 
 
 # --------------------------------------------------------------------------- #
+# R2-a(2026-09-24, 프론트 실기기 QA) — 자정 걸친 조각 체인이 새 날 예산을 안 깎는다
+# --------------------------------------------------------------------------- #
+# 위 test_resume_does_not_move_the_call_into_the_next_days_budget 이 지키는
+# "call_date 는 최초 시작일 고정"은 그대로 맞다 — 문제는 그 고정 때문에, 체인이
+# 자정을 넘겨 **다음 날 조각을 이으려 할 때** 그 예산 판정이 이미 쓴 시간을 못 보고
+# 새 날 예산이 고스란히 남은 것으로 착각한다는 것이다(premium 저녁~새벽 한 시간에
+# 최대 30분). 고친 방향(bt-back 제안 b, «판정 창을 조각 시작일 기준으로») —
+# resuming_call_id 를 넘기면 그 통화가 call_date 창 밖이어도 지금까지 누적된
+# total_time 을 이 창에 반영한다. call_date 자체는 안 건드린다.
+def test_resuming_call_id_pulls_a_midnight_crossing_chains_usage_into_todays_budget(ctx):
+    """⛔⛔ 핵심 재현·수정 확인 — 어제 23:50 시작한 900초 체인을 오늘 이으려 하면,
+    resuming_call_id 를 넘긴 오늘 창의 SUM 이 그 900초를 반영해야 한다."""
+    yesterday_2350 = datetime(2026, 9, 23, 23, 50, tzinfo=timezone.utc)
+    call = _call(ctx, total_time=900, call_type="expression", status="analyzing",
+                 when_utc=yesterday_2350)
+
+    today = date(2026, 9, 24)
+    s, e = cs.local_window_utc(today, None, 0)
+    repo = CallRepository(ctx["db"])
+
+    # 옛 동작(조정 없음) — 오늘 SUM 은 그 통화를 못 본다(call_date=어제). 다른 용도
+    # (학습 달력 등)는 여전히 이 값을 써야 하므로 기본값은 그대로 0이어야 한다.
+    assert repo.sum_total_time_in_window(
+        ctx["member_id"], s, e, exclude_call_types=("level_test",)
+    ) == 0
+
+    # R2-a 조정 — resuming_call_id 를 넘기면 그 900초가 오늘 창에도 반영된다.
+    assert repo.sum_total_time_in_window(
+        ctx["member_id"], s, e, exclude_call_types=("level_test",),
+        also_include_call_id=call.call_id,
+    ) == 900
+
+
+def test_resuming_call_id_does_not_double_count_a_same_day_chain(ctx):
+    """회귀 — 같은 날 안의 체인은 call_date 가 이미 오늘 창 안이라, resuming_call_id
+    를 넘겨도 두 번 더해지면 안 된다(이중 계산 방지)."""
+    today_noon = datetime(2026, 9, 24, 12, 0, tzinfo=timezone.utc)
+    call = _call(ctx, total_time=300, call_type="expression", status="analyzing",
+                 when_utc=today_noon)
+
+    s, e = cs.local_window_utc(date(2026, 9, 24), None, 0)
+    repo = CallRepository(ctx["db"])
+    without = repo.sum_total_time_in_window(
+        ctx["member_id"], s, e, exclude_call_types=("level_test",)
+    )
+    with_adjust = repo.sum_total_time_in_window(
+        ctx["member_id"], s, e, exclude_call_types=("level_test",),
+        also_include_call_id=call.call_id,
+    )
+    assert without == 300 and with_adjust == 300, "같은 날 조각은 이미 SUM 에 있으니 또 더하면 안 된다"
+
+
+def test_resuming_call_id_is_a_noop_for_a_call_that_does_not_cross_midnight(ctx):
+    """회귀 — 자정을 안 걸치는 통화는 resuming_call_id 유무와 무관하게 결과가 같다."""
+    call = _call(ctx, total_time=150, call_type="chat", status="done")  # when_utc=지금
+    now = datetime.now(timezone.utc)
+    s, e = cs.local_window_utc(now.date(), None, 0)
+    repo = CallRepository(ctx["db"])
+    assert repo.sum_total_time_in_window(ctx["member_id"], s, e) == \
+        repo.sum_total_time_in_window(ctx["member_id"], s, e, also_include_call_id=call.call_id) == 150
+
+
+def test_resuming_call_id_ignores_another_members_call(ctx):
+    """방어 — resuming_call_id 가 남의 통화면(위조·오류) 무시한다(자기 자신에게만 영향)."""
+    other = Member(language="en", onboarding_completed=True, auth_user_id="auth-budget-other")
+    ctx["db"].add(other); ctx["db"].commit()
+    other_call = Call(member_id=other.member_id, character_id=ctx["cid"],
+                      call_date=datetime(2026, 9, 23, 23, 50, tzinfo=timezone.utc),
+                      total_time=900, status="analyzing", call_type="expression")
+    ctx["db"].add(other_call); ctx["db"].commit()
+
+    s, e = cs.local_window_utc(date(2026, 9, 24), None, 0)
+    repo = CallRepository(ctx["db"])
+    assert repo.sum_total_time_in_window(
+        ctx["member_id"], s, e, also_include_call_id=other_call.call_id,
+    ) == 0, "남의 통화 total_time 이 내 예산 판정에 반영됐다"
+
+
+def test_daily_budget_exceeded_and_remaining_honor_resuming_call_id(ctx, monkeypatch):
+    """같은 시나리오를 실제 게이트 함수로 — 어제 23:50 시작한 900초(premium 한도와
+    같은 값) 체인을 '오늘' 이으려 하면 예산이 이미 다 찼다고 거절해야 한다."""
+    monkeypatch.setattr(
+        "domains.commerce.service.entitlements.effective_plan",
+        lambda db, member_id: "premium",
+    )
+    fixed_today = date(2026, 9, 24)
+    monkeypatch.setattr(
+        cs, "local_window_utc",
+        lambda local_date, tz, tz_offset_min: cs.daily_window_utc(local_date or fixed_today, tz_offset_min or 0),
+    )
+    yesterday_2350 = datetime(2026, 9, 23, 23, 50, tzinfo=timezone.utc)
+    call = _call(ctx, total_time=900, call_type="expression", status="analyzing",
+                 when_utc=yesterday_2350)
+
+    # resuming_call_id 없이(옛 동작) — 오늘 예산이 고스란히 남은 것으로 잘못 판정.
+    assert cs.daily_budget_exceeded(ctx["db"], ctx["member_id"]) is False
+    assert cs.remaining_budget_s(ctx["db"], ctx["member_id"]) == 900
+
+    # resuming_call_id 를 넘기면(수정) — 이미 다 썼다고 정확히 거절.
+    assert cs.daily_budget_exceeded(
+        ctx["db"], ctx["member_id"], resuming_call_id=call.call_id,
+    ) is True
+    assert cs.remaining_budget_s(
+        ctx["db"], ctx["member_id"], resuming_call_id=call.call_id,
+    ) == 0
+
+
+# --------------------------------------------------------------------------- #
 # QA C4 재검-③(2026-09-23) — 레벨테스트는 continues_call_id 유무와 무관하게 횟수 검사
 # --------------------------------------------------------------------------- #
 # WS 라우팅 레벨 회귀는 tests/test_normalcall_ws.py 의

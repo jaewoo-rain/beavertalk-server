@@ -3236,11 +3236,19 @@ async def run_call(
         #   예산은 «오늘 성립한 통화가 있나»가 아니라 «쓴 시간이 얼마나 남았나»라서,
         #   조각2 시작 시점의 남은 예산이 곧 그 조각의 상한이다 — 건너뛰면 Free 가
         #   300초를 다 쓰고도 이어하기로 계속 통화할 수 있게 된다.
+        # ⛔⛔ R2-a(2026-09-24) — `resuming_call_id=continues_call_id` 를 넘긴다. 자정을
+        #   걸친 체인은 `call_date`(최초 조각 시작일 고정)가 오늘 창 밖이라, 이걸 안
+        #   넘기면 그 체인이 이미 쓴 시간이 오늘 예산 SUM 에서 안 보여 새 날 예산이
+        #   고스란히 남은 것으로 잘못 판정된다(재현: 어제 23:50 시작·900초 체인 →
+        #   오늘 used=0). continues_call_id 는 아직 resume_call 검증 전(소유·TTL 등)
+        #   이지만 sum_total_time_in_window 가 member_id 로 다시 걸러 — 남의 통화를
+        #   대면 무시된다(자기 자신에게만 영향).
         limit_reached = await svc.run_db(
             db_session_factory,
             lambda db: call_service.daily_budget_exceeded(
                 db, member_id, tz=client_tz, tz_offset_min=tz_offset_min,
                 plan_override=call_service.plan_override_for(db, member_id, plan_override_req),
+                resuming_call_id=continues_call_id,
             ),
         )
     if limit_reached:
@@ -3700,10 +3708,14 @@ async def run_call(
         #   초"라는 별개 개념이라 **여기서만** 건다(daily-status 로는 안 새게).
         remaining_s = None
         if call_type in ("expression", "freetalk", "chat"):
+            # ⛔⛔ R2-a(2026-09-24) — 이 시점엔 resume_call 이 이미 검증을 끝냈으므로
+            #   call_id 는 (resumed 면) 그 이어지는 통화 자신이다 — 위 게이트와 같은
+            #   조정을 여기서도 걸어야 표시값이 실제 거절 판정과 어긋나지 않는다.
             daily_remaining = await svc.run_db(
                 db_session_factory, lambda db: call_service.remaining_budget_s(
                     db, member_id, tz=client_tz, tz_offset_min=tz_offset_min,
                     plan_override=call_service.plan_override_for(db, member_id, plan_override_req),
+                    resuming_call_id=call_id if resumed else None,
                 ),
             )
             if daily_remaining is not None:

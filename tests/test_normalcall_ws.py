@@ -3000,9 +3000,9 @@ async def test_budget_checked_with_routed_call_type_and_client_tz(
     검증된 plan_override(admin 아니면 None)."""
     seen: dict = {}
 
-    def spy(db, member_id, *, tz=None, tz_offset_min=None, plan_override=None):
+    def spy(db, member_id, *, tz=None, tz_offset_min=None, plan_override=None, resuming_call_id=None):
         seen.update(member_id=member_id, tz=tz, tz_offset=tz_offset_min,
-                    plan_override=plan_override)
+                    plan_override=plan_override, resuming_call_id=resuming_call_id)
         return False
 
     monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", spy)
