@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Anlaut ㄱ",
+  "card_desc": "Mit der Hinterzunge verschließen, dann leicht lösen",
+  "payload": {
+   "how_to": [
+    "Leg die Hinterzunge an den weichen Gaumen",
+    "Löse sie leicht, fast ohne Luft auszustoßen",
+    "Lass nicht so kräftig Luft heraus wie bei ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "Tasche"
+    },
+    {
+     "meaning": "Fleisch"
+    },
+    {
+     "meaning": "Lederschuhe"
+    },
+    {
+     "meaning": "Zug"
+    }
+   ],
+   "sentence": {
+    "translation": "Die Tasche ist voller Fleisch."
+   },
+   "test": {
+    "translation": "Ich suche im Laden Snacks aus."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Anlaut ㄲ",
+  "card_desc": "Kehle anspannen, ohne Luftstoß",
+  "payload": {
+   "how_to": [
+    "Leg die Hinterzunge an dieselbe Stelle wie bei ㄱ",
+    "Spann Kehle und Zunge an und halte kurz inne",
+    "Löse sie kurz und fest, ohne Luftstoß"
+   ],
+   "words": [
+    {
+     "meaning": "Honig"
+    },
+    {
+     "meaning": "Schwanz"
+    },
+    {
+     "meaning": "Elster"
+    },
+    {
+     "meaning": "Blume"
+    }
+   ],
+   "sentence": {
+    "translation": "Die Elster mag Blütenhonig."
+   },
+   "test": {
+    "translation": "Der Kleine kommt ganz bestimmt bis zum Ende."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Anlaut ㄴ",
+  "card_desc": "Mit der Zungenspitze berühren, durch die Nase klingen",
+  "payload": {
+   "how_to": [
+    "Leg die Zungenspitze an den Zahndamm",
+    "Lass den Laut durch die Nase klingen",
+    "Löse die Zunge und geh dabei in den Vokal über"
+   ],
+   "words": [
+    {
+     "meaning": "Baum"
+    },
+    {
+     "meaning": "ältere Schwester (eines Jungen)"
+    },
+    {
+     "meaning": "Lied"
+    },
+    {
+     "meaning": "Schmetterling"
+    }
+   ],
+   "sentence": {
+    "translation": "Meine ältere Schwester singt ein Lied über Bäume."
+   },
+   "test": {
+    "translation": "Meine ältere Schwester trifft dich ganz bestimmt."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Anlaut ㄷ",
+  "card_desc": "Mit der Zungenspitze berühren, dann leicht lösen",
+  "payload": {
+   "how_to": [
+    "Leg die Zungenspitze an den Zahndamm",
+    "Löse sie leicht, fast ohne Luft auszustoßen",
+    "Lass nicht so kräftig Luft heraus wie bei ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "Brücke"
+    },
+    {
+     "meaning": "Tofu"
+    },
+    {
+     "meaning": "Stadt"
+    },
+    {
+     "meaning": "Mond"
+    }
+   ],
+   "sentence": {
+    "translation": "In der Stadt gibt es zwei Brücken."
+   },
+   "test": {
+    "translation": "Mein jüngeres Geschwisterkind bittet um noch mehr Tofu."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Anlaut ㄸ",
+  "card_desc": "Zungenspitze anspannen und auf einmal lösen",
+  "payload": {
+   "how_to": [
+    "Leg die Zungenspitze an dieselbe Stelle wie bei ㄷ",
+    "Spann Zunge und Kehle an und halte kurz inne",
+    "Löse sie kurz und fest, ohne Luftstoß"
+   ],
+   "words": [
+    {
+     "meaning": "Tochter"
+    },
+    {
+     "meaning": "Schweiß"
+    },
+    {
+     "meaning": "Reiskuchen"
+    },
+    {
+     "meaning": "wieder, noch einmal"
+    }
+   ],
+   "sentence": {
+    "translation": "Meine Tochter isst wieder Reiskuchen."
+   },
+   "test": {
+    "translation": "Ich schwitze, also gehe ich wieder hinaus in den Hof."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Anlaut ㄹ",
+  "card_desc": "Mit der Zungenspitze kurz an den Zahndamm tippen",
+  "payload": {
+   "how_to": [
+    "Berühr den Zahndamm nur ganz kurz mit der Zungenspitze",
+    "Tipp nur einmal ganz kurz und leicht an",
+    "Bieg die Zungenspitze nicht nach hinten wie beim englischen r"
+   ],
+   "words": [
+    {
+     "meaning": "Ramen (Instantnudeln)"
+    },
+    {
+     "meaning": "wir"
+    },
+    {
+     "meaning": "Lied"
+    },
+    {
+     "meaning": "Kopf"
+    }
+   ],
+   "sentence": {
+    "translation": "Lass uns beim Singen Ramen essen."
+   },
+   "test": {
+    "translation": "Jedes Land hat eine andere Küche."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Anlaut ㅁ",
+  "card_desc": "Lippen schließen, durch die Nase klingen",
+  "payload": {
+   "how_to": [
+    "Leg beide Lippen leicht aufeinander",
+    "Lass den Laut durch die Nase klingen",
+    "Öffne die Lippen und geh dabei in den Vokal über"
+   ],
+   "words": [
+    {
+     "meaning": "Kopf"
+    },
+    {
+     "meaning": "Mütze, Hut"
+    },
+    {
+     "meaning": "Rettich"
+    },
+    {
+     "meaning": "Herz, Gefühl"
+    }
+   ],
+   "sentence": {
+    "translation": "Mama macht viele Mützen."
+   },
+   "test": {
+    "translation": "Alle trinken jeden Tag Wasser."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Anlaut ㅂ",
+  "card_desc": "Lippen schließen, dann leicht lösen",
+  "payload": {
+   "how_to": [
+    "Leg beide Lippen aufeinander",
+    "Löse sie leicht, fast ohne Luft auszustoßen",
+    "Lass nicht so kräftig Luft heraus wie bei ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "Meer"
+    },
+    {
+     "meaning": "Regen"
+    },
+    {
+     "meaning": "Gerste"
+    },
+    {
+     "meaning": "Eltern"
+    }
+   ],
+   "sentence": {
+    "translation": "Ich gehe das Meer im Regen anschauen."
+   },
+   "test": {
+    "translation": "Meine Eltern mieten ein Boot."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Anlaut ㅃ",
+  "card_desc": "Lippen anspannen, ohne Luftstoß",
+  "payload": {
+   "how_to": [
+    "Drück beide Lippen fest aufeinander",
+    "Spann Lippen und Kehle an und halte kurz inne",
+    "Löse sie kurz und fest, ohne Luftstoß"
+   ],
+   "words": [
+    {
+     "meaning": "Brot"
+    },
+    {
+     "meaning": "Knochen"
+    },
+    {
+     "meaning": "Küsschen"
+    },
+    {
+     "meaning": "Wäsche"
+    }
+   ],
+   "sentence": {
+    "translation": "Papa kauft schnell Brot."
+   },
+   "test": {
+    "translation": "Nimm schnell die Wäsche heraus."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Anlaut ㅅ",
+  "card_desc": "Luft durch den Spalt an der Zungenspitze",
+  "payload": {
+   "how_to": [
+    "Halte die Zungenspitze nah am Zahndamm, mit einem kleinen Abstand",
+    "Lass die Luft sanft durch diesen Spalt strömen",
+    "Spann nicht an wie bei ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "Apfel"
+    },
+    {
+     "meaning": "Klang, Laut"
+    },
+    {
+     "meaning": "Wassermelone"
+    },
+    {
+     "meaning": "Uhr"
+    }
+   ],
+   "sentence": {
+    "translation": "Heute kaufe ich auf dem Markt Äpfel."
+   },
+   "test": {
+    "translation": "Der Lehrer kauft einen Roman."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Anlaut ㅆ",
+  "card_desc": "Mit Anspannung kräftig Luft ausstoßen",
+  "payload": {
+   "how_to": [
+    "Halte die Zungenspitze an derselben Stelle wie bei ㅅ",
+    "Spann Zunge und Kehle an",
+    "Stoß die Luft kräftig durch den engen Spalt"
+   ],
+   "words": [
+    {
+     "meaning": "Reis (ungekocht)"
+    },
+    {
+     "meaning": "billig"
+    },
+    {
+     "meaning": "benutzen, verbrauchen"
+    },
+    {
+     "meaning": "Samen"
+    }
+   ],
+   "sentence": {
+    "translation": "Der Reis war billig, also habe ich viel davon verbraucht."
+   },
+   "test": {
+    "translation": "Ich ziehe Samen, und sie wachsen schnell."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Anlaut ㅈ",
+  "card_desc": "Mit der Zunge berühren, dann leicht lösen",
+  "payload": {
+   "how_to": [
+    "Leg den vorderen Zungenrücken an den vorderen harten Gaumen",
+    "Löse ihn sanft, fast ohne Luft auszustoßen",
+    "Drück nicht so fest wie bei ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "Platz, Sitz"
+    },
+    {
+     "meaning": "Saft"
+    },
+    {
+     "meaning": "Landkarte"
+    },
+    {
+     "meaning": "Abend"
+    }
+   ],
+   "sentence": {
+    "translation": "Gib mir am Abend etwas Saft."
+   },
+   "test": {
+    "translation": "Ich räume jetzt meinen Platz auf."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Anlaut ㅉ",
+  "card_desc": "Zunge anspannen, ohne Luftstoß",
+  "payload": {
+   "how_to": [
+    "Leg die Zunge an dieselbe Stelle wie bei ㅈ",
+    "Spann Zunge und Kehle an und halte kurz inne",
+    "Löse sie kurz und fest, ohne Luftstoß"
+   ],
+   "words": [
+    {
+     "meaning": "salzig"
+    },
+    {
+     "meaning": "Eintopf"
+    },
+    {
+     "meaning": "Seite"
+    },
+    {
+     "meaning": "Partner, Gegenstück"
+    }
+   ],
+   "sentence": {
+    "translation": "Mein Kumpel kocht den Eintopf salzig."
+   },
+   "test": {
+    "translation": "Ich zerreiße den Zettel und laufe hinterher."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Anlaut ㅊ",
+  "card_desc": "An der ㅈ-Stelle lösen und kräftig Luft ausstoßen",
+  "payload": {
+   "how_to": [
+    "Leg die Zunge an dieselbe Stelle wie bei ㅈ",
+    "Stoß beim Lösen kräftig Luft aus",
+    "Spürst du Luft an der Handfläche, ist es richtig"
+   ],
+   "words": [
+    {
+     "meaning": "Auto"
+    },
+    {
+     "meaning": "Rock"
+    },
+    {
+     "meaning": "Buch"
+    },
+    {
+     "meaning": "Freund, Freundin"
+    }
+   ],
+   "sentence": {
+    "translation": "Mein Freund hat das Buch im Auto liegen lassen."
+   },
+   "test": {
+    "translation": "An einem kalten Tag esse ich langsam Brathähnchen."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Anlaut ㅋ",
+  "card_desc": "An der ㄱ-Stelle lösen und kräftig Luft ausstoßen",
+  "payload": {
+   "how_to": [
+    "Leg die Hinterzunge an dieselbe Stelle wie bei ㄱ",
+    "Stoß beim Lösen kräftig Luft aus",
+    "Spürst du Luft an der Handfläche, ist es richtig"
+   ],
+   "words": [
+    {
+     "meaning": "Nase"
+    },
+    {
+     "meaning": "Körpergröße"
+    },
+    {
+     "meaning": "Kaffee"
+    },
+    {
+     "meaning": "Karte"
+    }
+   ],
+   "sentence": {
+    "translation": "Mein großer Freund kauft Kaffee."
+   },
+   "test": {
+    "translation": "Der Elefant lacht laut."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Anlaut ㅌ",
+  "card_desc": "An der ㄷ-Stelle lösen und kräftig Luft ausstoßen",
+  "payload": {
+   "how_to": [
+    "Leg die Zungenspitze an dieselbe Stelle wie bei ㄷ",
+    "Stoß beim Lösen kräftig Luft aus",
+    "Spürst du Luft an der Handfläche, ist es richtig"
+   ],
+   "words": [
+    {
+     "meaning": "Hase"
+    },
+    {
+     "meaning": "Maske"
+    },
+    {
+     "meaning": "Tisch"
+    },
+    {
+     "meaning": "Behälter, Eimer"
+    }
+   ],
+   "sentence": {
+    "translation": "Am Samstag fahre ich mit dem Taxi."
+   },
+   "test": {
+    "translation": "Ich kaufe einen stabilen Tisch."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Anlaut ㅍ",
+  "card_desc": "An der ㅂ-Stelle lösen und kräftig Luft ausstoßen",
+  "payload": {
+   "how_to": [
+    "Leg beide Lippen aufeinander, wie bei ㅂ",
+    "Stoß beim Lösen kräftig Luft aus",
+    "Beiß nicht auf die Unterlippe wie beim englischen f"
+   ],
+   "words": [
+    {
+     "meaning": "Frühlingszwiebel"
+    },
+    {
+     "meaning": "Weintraube"
+    },
+    {
+     "meaning": "Klavier"
+    },
+    {
+     "meaning": "Brief"
+    }
+   ],
+   "sentence": {
+    "translation": "Ich öffne den Brief und spiele Klavier."
+   },
+   "test": {
+    "translation": "Es gibt reichlich grüne Trauben."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Anlaut ㅎ",
+  "card_desc": "Aus der Kehle ausatmen",
+  "payload": {
+   "how_to": [
+    "Öffne den Mund zuerst in der Form des Vokals",
+    "Atme leicht aus der Tiefe der Kehle aus",
+    "Verschließ nichts mit Zunge oder Lippen"
+   ],
+   "words": [
+    {
+     "meaning": "eins"
+    },
+    {
+     "meaning": "See"
+    },
+    {
+     "meaning": "Taschentuch"
+    },
+    {
+     "meaning": "Großmutter"
+    }
+   ],
+   "sentence": {
+    "translation": "Oma geht für den ganzen Tag zum See."
+   },
+   "test": {
+    "translation": "An freien Tagen gehe ich allein zum Han-Fluss."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Auslaut ㄱ",
+  "card_desc": "Mit der Hinterzunge verschließen und stoppen",
+  "payload": {
+   "how_to": [
+    "Leg die Hinterzunge an den weichen Gaumen",
+    "Lass sie liegen und beende den Laut dort",
+    "Häng keinen Vokal 「으」 an"
+   ],
+   "words": [
+    {
+     "meaning": "Buch"
+    },
+    {
+     "meaning": "Medikament"
+    },
+    {
+     "meaning": "Wassermelone"
+    },
+    {
+     "meaning": "Familie"
+    }
+   ],
+   "sentence": {
+    "translation": "Geh heute in die Apotheke und kauf ein Medikament."
+   },
+   "test": {
+    "translation": "Iss zwei Wassermelonen und lies ein Buch."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Auslaut ㄴ",
+  "card_desc": "Zungenspitze anlegen, durch die Nase klingen",
+  "payload": {
+   "how_to": [
+    "Leg die Zungenspitze an den Zahndamm",
+    "Lass sie liegen und den Laut durch die Nase klingen",
+    "Heb die Hinterzunge nicht wie bei ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "Berg"
+    },
+    {
+     "meaning": "Schnee"
+    },
+    {
+     "meaning": "Geld"
+    },
+    {
+     "meaning": "Tür"
+    }
+   ],
+   "sentence": {
+    "translation": "Geh mit einem Freund in die Berge und schau dir den Schnee an."
+   },
+   "test": {
+    "translation": "Meine ältere Schwester bezahlt und kauft Schuhe."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Auslaut ㄷ",
+  "card_desc": "Mit der Zungenspitze verschließen und stoppen",
+  "payload": {
+   "how_to": [
+    "Leg die Zungenspitze an den Zahndamm",
+    "Lass sie liegen und beende den Laut dort",
+    "Auch die Auslaute ㅅ·ㅈ·ㅊ·ㅌ klingen genauso"
+   ],
+   "words": [
+    {
+     "meaning": "Kleidung"
+    },
+    {
+     "meaning": "Geschmack"
+    },
+    {
+     "meaning": "Blume"
+    },
+    {
+     "meaning": "Tag (tagsüber)"
+    }
+   ],
+   "sentence": {
+    "translation": "Geh aufs Feld, schau dir die Blumen an und kauf Kleidung."
+   },
+   "test": {
+    "translation": "Kurz darauf habe ich drei Blumen gekauft."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Auslaut ㄹ",
+  "card_desc": "Zungenspitze anlegen und dort halten",
+  "payload": {
+   "how_to": [
+    "Berühr mit der Zungenspitze den Zahndamm hinter den oberen Zähnen",
+    "Löse die Zunge nicht, halte sie dort",
+    "Lass die Luft an beiden Seiten der Zunge vorbeiströmen"
+   ],
+   "words": [
+    {
+     "meaning": "Wasser"
+    },
+    {
+     "meaning": "Mond"
+    },
+    {
+     "meaning": "Winter"
+    },
+    {
+     "meaning": "Klassenzimmer"
+    }
+   ],
+   "sentence": {
+    "translation": "Möchtest du heute etwas Wasser trinken?"
+   },
+   "test": {
+    "translation": "Soll ich um etwas Wasser bitten?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Auslaut ㅁ",
+  "card_desc": "Mit geschlossenen Lippen klingen lassen",
+  "payload": {
+   "how_to": [
+    "Leg beide Lippen aufeinander",
+    "Lass sie geschlossen und den Laut durch die Nase klingen",
+    "Beende den Laut, ohne die Lippen zu öffnen"
+   ],
+   "words": [
+    {
+     "meaning": "Nacht"
+    },
+    {
+     "meaning": "Frühling"
+    },
+    {
+     "meaning": "Seetang (Gim)"
+    },
+    {
+     "meaning": "Mensch"
+    }
+   ],
+   "sentence": {
+    "translation": "Lass uns in einer Frühlingsnacht im Park Gimbap essen."
+   },
+   "test": {
+    "translation": "Pack das Gimbap ein und nimm dein Gepäck mit."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Auslaut ㅂ",
+  "card_desc": "Lippen schließen und stoppen",
+  "payload": {
+   "how_to": [
+    "Leg beide Lippen aufeinander",
+    "Lass sie geschlossen und beende den Laut dort",
+    "Öffne die Lippen nicht und häng kein 「으」 an"
+   ],
+   "words": [
+    {
+     "meaning": "Reis, Essen"
+    },
+    {
+     "meaning": "Haus, Zuhause"
+    },
+    {
+     "meaning": "Mund"
+    },
+    {
+     "meaning": "Unterricht"
+    }
+   ],
+   "sentence": {
+    "translation": "Geh zu den Nachbarn und gib ihnen etwas zu essen."
+   },
+   "test": {
+    "translation": "Lass uns nach dem Unterricht nach Hause gehen."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Auslaut ㅇ",
+  "card_desc": "Hinten im Mund verschließen, durch die Nase klingen",
+  "payload": {
+   "how_to": [
+    "Leg die Hinterzunge an den weichen Gaumen",
+    "Lass sie liegen und den Laut durch die Nase klingen",
+    "Heb die Zungenspitze nicht wie bei ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "Zimmer"
+    },
+    {
+     "meaning": "Fluss"
+    },
+    {
+     "meaning": "Ball"
+    },
+    {
+     "meaning": "Tasche"
+    }
+   ],
+   "sentence": {
+    "translation": "Mein jüngeres Geschwisterkind geht mit einer Tasche in den Park."
+   },
+   "test": {
+    "translation": "Ich gehe zum Fernsehsender auf der anderen Seite des Flusses."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Lautbindung",
+  "card_desc": "Den Auslaut in die nächste Silbe hinüberziehen",
+  "payload": {
+   "how_to": [
+    "Folgt auf einen Auslaut eine Silbe, die mit ㅇ beginnt,",
+    "zieh den Auslaut als Anlaut in die nächste Silbe hinüber",
+    "und sprich ohne Pause in einem Zug weiter"
+   ],
+   "words": [
+    {
+     "meaning": "Koreanisch"
+    },
+    {
+     "meaning": "Musik"
+    },
+    {
+     "meaning": "Kleidung (Subjekt)"
+    },
+    {
+     "meaning": "Reis (Objekt)"
+    }
+   ],
+   "sentence": {
+    "translation": "Ich höre koreanische Musik."
+   },
+   "test": {
+    "translation": "Probier die Kleidung an."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalierung",
+  "card_desc": "ㄱ·ㄷ·ㅂ werden zu Nasenlauten",
+  "payload": {
+   "how_to": [
+    "Folgt auf den Auslaut ㄱ·ㄷ·ㅂ ein ㄴ oder ㅁ,",
+    "wird ㄱ zu ㅇ, ㄷ zu ㄴ und ㅂ zu ㅁ",
+    "Lass schon den Auslaut durch die Nase klingen und sprich verbunden weiter"
+   ],
+   "words": [
+    {
+     "meaning": "Brühe"
+    },
+    {
+     "meaning": "Pony (Stirnhaare)"
+    },
+    {
+     "meaning": "Lüge"
+    },
+    {
+     "meaning": "isst"
+    }
+   ],
+   "sentence": {
+    "translation": "Ich esse gerade die Brühe."
+   },
+   "test": {
+    "translation": "Letztes Jahr habe ich mir den Pony geschnitten."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Liquidisierung",
+  "card_desc": "Treffen ㄴ und ㄹ aufeinander, wird es ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Folgen ㄴ und ㄹ direkt aufeinander,",
+    "wird auch ㄴ zu ㄹ und du sprichst ㄹㄹ",
+    "Lass die Zungenspitze am Zahndamm und verbinde weich und fließend"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (altes Königreich)"
+    },
+    {
+     "meaning": "Neujahrsfest (Mondkalender)"
+    },
+    {
+     "meaning": "Kontakt, Nachricht"
+    },
+    {
+     "meaning": "Hallasan (Berg)"
+    }
+   ],
+   "sentence": {
+    "translation": "Ich warte an diesem Mondneujahrsfest auf deine Nachricht."
+   },
+   "test": {
+    "translation": "Warte auf die Nachricht der Hausverwaltung."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalisierung",
+  "card_desc": "ㄷ·ㅌ + 이 werden zu 지·치",
+  "payload": {
+   "how_to": [
+    "Folgt auf den Auslaut ㄷ·ㅌ ein 「이」,",
+    "sprich ㄷ als 지 und ㅌ als 치",
+    "Schieb die Zunge zum vorderen harten Gaumen"
+   ],
+   "words": [
+    {
+     "meaning": "zusammen"
+    },
+    {
+     "meaning": "unbedingt, extra"
+    },
+    {
+     "meaning": "Sonnenaufgang"
+    },
+    {
+     "meaning": "ältestes Kind"
+    }
+   ],
+   "sentence": {
+    "translation": "Lass uns zusammen den Sonnenaufgang anschauen."
+   },
+   "test": {
+    "translation": "Du musst nicht unbedingt mitkommen."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Behauchung",
+  "card_desc": "Mit ㅎ wird es ein behauchter Laut",
+  "payload": {
+   "how_to": [
+    "Treffen ㄱ·ㄷ·ㅂ·ㅈ und ㅎ aufeinander,",
+    "verschmelzen sie zu ㅋ·ㅌ·ㅍ·ㅊ",
+    "Stoß beim verschmolzenen Laut kräftig Luft aus"
+   ],
+   "words": [
+    {
+     "meaning": "gut"
+    },
+    {
+     "meaning": "Glückwunsch"
+    },
+    {
+     "meaning": "Aufnahme an einer Schule"
+    },
+    {
+     "meaning": "viel"
+    }
+   ],
+   "sentence": {
+    "translation": "Glückwunsch zur Aufnahme, das ist wirklich toll."
+   },
+   "test": {
+    "translation": "Es ist nicht so viel."
+   }
+  }
+ }
+}

@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Phụ âm đầu ㄱ",
+  "card_desc": "Chặn hơi bằng phần sau lưỡi rồi tách nhẹ",
+  "payload": {
+   "how_to": [
+    "Áp phần sau lưỡi vào phía trong vòm miệng",
+    "Tách nhẹ ra, gần như không bật hơi",
+    "Đừng bật hơi mạnh như ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "cái túi"
+    },
+    {
+     "meaning": "thịt"
+    },
+    {
+     "meaning": "giày da"
+    },
+    {
+     "meaning": "tàu hỏa"
+    }
+   ],
+   "sentence": {
+    "translation": "Cái túi đó đựng đầy thịt."
+   },
+   "test": {
+    "translation": "Tôi chọn bánh kẹo ở cửa hàng."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Phụ âm đầu ㄲ",
+  "card_desc": "Căng cổ họng, không bật hơi",
+  "payload": {
+   "how_to": [
+    "Áp phần sau lưỡi vào cùng chỗ với ㄱ",
+    "Căng cổ họng và lưỡi, dừng một chút",
+    "Tách ra ngắn và chắc, không bật hơi"
+   ],
+   "words": [
+    {
+     "meaning": "mật ong"
+    },
+    {
+     "meaning": "cái đuôi"
+    },
+    {
+     "meaning": "chim ác là"
+    },
+    {
+     "meaning": "hoa"
+    }
+   ],
+   "sentence": {
+    "translation": "Chim ác là thích mật hoa."
+   },
+   "test": {
+    "translation": "Đứa bé nhất định đi đến tận cuối cùng."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Phụ âm đầu ㄴ",
+  "card_desc": "Chạm đầu lưỡi, phát âm qua mũi",
+  "payload": {
+   "how_to": [
+    "Áp đầu lưỡi vào lợi trên",
+    "Cho âm vang qua mũi",
+    "Vừa tách lưỡi ra vừa chuyển sang nguyên âm"
+   ],
+   "words": [
+    {
+     "meaning": "cây"
+    },
+    {
+     "meaning": "chị gái"
+    },
+    {
+     "meaning": "bài hát"
+    },
+    {
+     "meaning": "con bướm"
+    }
+   ],
+   "sentence": {
+    "translation": "Chị gái hát bài hát về cây."
+   },
+   "test": {
+    "translation": "Chị gái nhất định sẽ gặp bạn."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Phụ âm đầu ㄷ",
+  "card_desc": "Chạm đầu lưỡi rồi tách nhẹ",
+  "payload": {
+   "how_to": [
+    "Áp đầu lưỡi vào lợi trên",
+    "Tách nhẹ ra, gần như không bật hơi",
+    "Đừng bật hơi mạnh như ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "cây cầu"
+    },
+    {
+     "meaning": "đậu phụ"
+    },
+    {
+     "meaning": "thành phố"
+    },
+    {
+     "meaning": "mặt trăng"
+    }
+   ],
+   "sentence": {
+    "translation": "Thành phố có hai cây cầu."
+   },
+   "test": {
+    "translation": "Em tôi xin thêm đậu phụ."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Phụ âm đầu ㄸ",
+  "card_desc": "Căng đầu lưỡi rồi bật ra một lần",
+  "payload": {
+   "how_to": [
+    "Áp đầu lưỡi vào cùng chỗ với ㄷ",
+    "Căng lưỡi và cổ họng, dừng một chút",
+    "Tách ra ngắn và chắc, không bật hơi"
+   ],
+   "words": [
+    {
+     "meaning": "con gái"
+    },
+    {
+     "meaning": "mồ hôi"
+    },
+    {
+     "meaning": "bánh gạo"
+    },
+    {
+     "meaning": "lại, nữa"
+    }
+   ],
+   "sentence": {
+    "translation": "Con gái lại ăn bánh gạo."
+   },
+   "test": {
+    "translation": "Đổ mồ hôi nên tôi lại ra sân."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Phụ âm đầu ㄹ",
+  "card_desc": "Đầu lưỡi chạm nhẹ vào lợi một cái",
+  "payload": {
+   "how_to": [
+    "Chạm đầu lưỡi vào lợi trên thật nhanh",
+    "Bật nhẹ đúng một lần, như gõ khẽ",
+    "Đừng uốn cong lưỡi như âm r tiếng Anh"
+   ],
+   "words": [
+    {
+     "meaning": "mì ramen"
+    },
+    {
+     "meaning": "chúng ta"
+    },
+    {
+     "meaning": "bài hát"
+    },
+    {
+     "meaning": "cái đầu"
+    }
+   ],
+   "sentence": {
+    "translation": "Vừa hát vừa ăn mì ramen nào."
+   },
+   "test": {
+    "translation": "Mỗi nước có món ăn khác nhau."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Phụ âm đầu ㅁ",
+  "card_desc": "Khép môi và phát âm qua mũi",
+  "payload": {
+   "how_to": [
+    "Áp nhẹ hai môi vào nhau",
+    "Cho âm vang qua mũi",
+    "Vừa tách môi ra vừa chuyển sang nguyên âm"
+   ],
+   "words": [
+    {
+     "meaning": "cái đầu"
+    },
+    {
+     "meaning": "cái mũ"
+    },
+    {
+     "meaning": "củ cải"
+    },
+    {
+     "meaning": "tấm lòng"
+    }
+   ],
+   "sentence": {
+    "translation": "Mẹ làm rất nhiều mũ."
+   },
+   "test": {
+    "translation": "Mỗi ngày mọi người đều uống nước."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Phụ âm đầu ㅂ",
+  "card_desc": "Khép môi rồi tách nhẹ",
+  "payload": {
+   "how_to": [
+    "Áp hai môi vào nhau",
+    "Tách nhẹ ra, gần như không bật hơi",
+    "Đừng bật hơi mạnh như ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "biển"
+    },
+    {
+     "meaning": "mưa"
+    },
+    {
+     "meaning": "lúa mạch"
+    },
+    {
+     "meaning": "bố mẹ"
+    }
+   ],
+   "sentence": {
+    "translation": "Đi ngắm biển lúc trời mưa nào."
+   },
+   "test": {
+    "translation": "Bố mẹ tôi thuê thuyền."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Phụ âm đầu ㅃ",
+  "card_desc": "Căng môi, không bật hơi",
+  "payload": {
+   "how_to": [
+    "Áp chặt hai môi vào nhau",
+    "Căng môi và cổ họng, dừng một chút",
+    "Tách ra ngắn và chắc, không bật hơi"
+   ],
+   "words": [
+    {
+     "meaning": "bánh mì"
+    },
+    {
+     "meaning": "xương"
+    },
+    {
+     "meaning": "nụ hôn"
+    },
+    {
+     "meaning": "đồ giặt"
+    }
+   ],
+   "sentence": {
+    "translation": "Bố mua bánh mì thật nhanh."
+   },
+   "test": {
+    "translation": "Lấy đồ giặt ra nhanh giúp tôi."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Phụ âm đầu ㅅ",
+  "card_desc": "Cho hơi thoát qua khe hở ở đầu lưỡi",
+  "payload": {
+   "how_to": [
+    "Đưa đầu lưỡi lại gần lợi trên, để hở một chút",
+    "Cho hơi thoát ra nhẹ nhàng qua khe hở đó",
+    "Không căng như ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "quả táo"
+    },
+    {
+     "meaning": "âm thanh"
+    },
+    {
+     "meaning": "dưa hấu"
+    },
+    {
+     "meaning": "đồng hồ"
+    }
+   ],
+   "sentence": {
+    "translation": "Hôm nay tôi mua táo ở chợ."
+   },
+   "test": {
+    "translation": "Giáo viên mua một cuốn tiểu thuyết."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Phụ âm đầu ㅆ",
+  "card_desc": "Căng lên và đẩy hơi ra mạnh",
+  "payload": {
+   "how_to": [
+    "Đặt đầu lưỡi ở cùng chỗ với ㅅ",
+    "Căng lưỡi và cổ họng",
+    "Đẩy hơi ra mạnh qua khe hẹp"
+   ],
+   "words": [
+    {
+     "meaning": "gạo"
+    },
+    {
+     "meaning": "rẻ"
+    },
+    {
+     "meaning": "dùng; viết"
+    },
+    {
+     "meaning": "hạt giống"
+    }
+   ],
+   "sentence": {
+    "translation": "Gạo rẻ nên tôi đã dùng nhiều."
+   },
+   "test": {
+    "translation": "Tôi chăm cho hạt giống lớn nhanh."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Phụ âm đầu ㅈ",
+  "card_desc": "Chạm lưỡi rồi tách nhẹ",
+  "payload": {
+   "how_to": [
+    "Áp phần trước lưỡi vào phía trước vòm miệng",
+    "Tách ra nhẹ nhàng, gần như không bật hơi",
+    "Đừng ấn mạnh như ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "chỗ ngồi"
+    },
+    {
+     "meaning": "nước ép"
+    },
+    {
+     "meaning": "bản đồ"
+    },
+    {
+     "meaning": "buổi tối"
+    }
+   ],
+   "sentence": {
+    "translation": "Buổi tối cho tôi một ít nước ép nhé."
+   },
+   "test": {
+    "translation": "Bây giờ tôi dọn dẹp chỗ ngồi."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Phụ âm đầu ㅉ",
+  "card_desc": "Căng lưỡi, không bật hơi",
+  "payload": {
+   "how_to": [
+    "Áp lưỡi vào cùng chỗ với ㅈ",
+    "Căng lưỡi và cổ họng, dừng một chút",
+    "Tách ra ngắn và chắc, không bật hơi"
+   ],
+   "words": [
+    {
+     "meaning": "mặn"
+    },
+    {
+     "meaning": "món canh hầm"
+    },
+    {
+     "meaning": "phía"
+    },
+    {
+     "meaning": "bạn cùng bàn; cặp, đôi"
+    }
+   ],
+   "sentence": {
+    "translation": "Bạn cùng bàn nấu canh hầm bị mặn."
+   },
+   "test": {
+    "translation": "Tôi xé mẩu giấy rồi đuổi theo."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Phụ âm đầu ㅊ",
+  "card_desc": "Ở vị trí ㅈ, tách ra và bật hơi mạnh",
+  "payload": {
+   "how_to": [
+    "Áp lưỡi vào cùng chỗ với ㅈ",
+    "Ngay lúc tách ra, đẩy hơi ra mạnh",
+    "Thấy hơi phả vào lòng bàn tay là đúng"
+   ],
+   "words": [
+    {
+     "meaning": "xe ô tô"
+    },
+    {
+     "meaning": "váy"
+    },
+    {
+     "meaning": "sách"
+    },
+    {
+     "meaning": "người bạn"
+    }
+   ],
+   "sentence": {
+    "translation": "Bạn tôi để quên sách trên xe."
+   },
+   "test": {
+    "translation": "Ngày lạnh tôi ăn gà rán thật chậm."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Phụ âm đầu ㅋ",
+  "card_desc": "Ở vị trí ㄱ, tách ra và bật hơi mạnh",
+  "payload": {
+   "how_to": [
+    "Áp phần sau lưỡi vào cùng chỗ với ㄱ",
+    "Ngay lúc tách ra, đẩy hơi ra mạnh",
+    "Thấy hơi phả vào lòng bàn tay là đúng"
+   ],
+   "words": [
+    {
+     "meaning": "cái mũi"
+    },
+    {
+     "meaning": "chiều cao"
+    },
+    {
+     "meaning": "cà phê"
+    },
+    {
+     "meaning": "thẻ"
+    }
+   ],
+   "sentence": {
+    "translation": "Người bạn cao mua cà phê."
+   },
+   "test": {
+    "translation": "Con voi cười thật to."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Phụ âm đầu ㅌ",
+  "card_desc": "Ở vị trí ㄷ, tách ra và bật hơi mạnh",
+  "payload": {
+   "how_to": [
+    "Áp đầu lưỡi vào cùng chỗ với ㄷ",
+    "Ngay lúc tách ra, đẩy hơi ra mạnh",
+    "Thấy hơi phả vào lòng bàn tay là đúng"
+   ],
+   "words": [
+    {
+     "meaning": "con thỏ"
+    },
+    {
+     "meaning": "mặt nạ"
+    },
+    {
+     "meaning": "cái bàn"
+    },
+    {
+     "meaning": "cái thùng"
+    }
+   ],
+   "sentence": {
+    "translation": "Thứ Bảy tôi đi taxi."
+   },
+   "test": {
+    "translation": "Tôi mua một cái bàn chắc chắn."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Phụ âm đầu ㅍ",
+  "card_desc": "Ở vị trí ㅂ, tách ra và bật hơi mạnh",
+  "payload": {
+   "how_to": [
+    "Áp hai môi vào nhau giống ㅂ",
+    "Ngay lúc tách ra, đẩy hơi ra mạnh",
+    "Đừng cắn môi như âm f tiếng Anh"
+   ],
+   "words": [
+    {
+     "meaning": "hành lá"
+    },
+    {
+     "meaning": "quả nho"
+    },
+    {
+     "meaning": "đàn piano"
+    },
+    {
+     "meaning": "lá thư"
+    }
+   ],
+   "sentence": {
+    "translation": "Tôi mở lá thư ra rồi chơi piano."
+   },
+   "test": {
+    "translation": "Có rất nhiều nho xanh."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Phụ âm đầu ㅎ",
+  "card_desc": "Thở hơi ra từ cổ họng",
+  "payload": {
+   "how_to": [
+    "Mở miệng theo khẩu hình nguyên âm trước",
+    "Thở nhẹ hơi ra từ sâu trong cổ họng",
+    "Không chặn hơi bằng lưỡi hay môi"
+   ],
+   "words": [
+    {
+     "meaning": "một"
+    },
+    {
+     "meaning": "hồ nước"
+    },
+    {
+     "meaning": "khăn giấy"
+    },
+    {
+     "meaning": "bà"
+    }
+   ],
+   "sentence": {
+    "translation": "Bà ra hồ cả ngày."
+   },
+   "test": {
+    "translation": "Ngày nghỉ tôi đi sông Hàn một mình."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Phụ âm cuối ㄱ",
+  "card_desc": "Chặn bằng phần sau lưỡi rồi dừng âm",
+  "payload": {
+   "how_to": [
+    "Áp phần sau lưỡi vào phía trong vòm miệng",
+    "Giữ nguyên như vậy và dừng âm",
+    "Không thêm 「으」 (ư) phía sau"
+   ],
+   "words": [
+    {
+     "meaning": "sách"
+    },
+    {
+     "meaning": "thuốc"
+    },
+    {
+     "meaning": "dưa hấu"
+    },
+    {
+     "meaning": "gia đình"
+    }
+   ],
+   "sentence": {
+    "translation": "Hôm nay ra hiệu thuốc mua ít thuốc đi."
+   },
+   "test": {
+    "translation": "Ăn hai quả dưa hấu rồi đọc sách đi."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Phụ âm cuối ㄴ",
+  "card_desc": "Giữ đầu lưỡi áp vào, phát âm qua mũi",
+  "payload": {
+   "how_to": [
+    "Áp đầu lưỡi vào lợi trên",
+    "Giữ nguyên và cho âm vang qua mũi",
+    "Không nâng phần sau lưỡi lên như ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "núi"
+    },
+    {
+     "meaning": "tuyết"
+    },
+    {
+     "meaning": "tiền"
+    },
+    {
+     "meaning": "cái cửa"
+    }
+   ],
+   "sentence": {
+    "translation": "Đi núi với bạn rồi ngắm tuyết đi."
+   },
+   "test": {
+    "translation": "Chị gái trả tiền mua giày."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Phụ âm cuối ㄷ",
+  "card_desc": "Chặn bằng đầu lưỡi rồi dừng âm",
+  "payload": {
+   "how_to": [
+    "Áp đầu lưỡi vào lợi trên",
+    "Giữ nguyên như vậy và dừng âm",
+    "Phụ âm cuối ㅅ·ㅈ·ㅊ·ㅌ cũng đọc giống vậy"
+   ],
+   "words": [
+    {
+     "meaning": "quần áo"
+    },
+    {
+     "meaning": "vị"
+    },
+    {
+     "meaning": "hoa"
+    },
+    {
+     "meaning": "ban ngày"
+    }
+   ],
+   "sentence": {
+    "translation": "Ra ruộng ngắm hoa rồi mua quần áo đi."
+   },
+   "test": {
+    "translation": "Tôi đã mua ngay ba bông hoa."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Phụ âm cuối ㄹ",
+  "card_desc": "Áp đầu lưỡi vào và giữ yên",
+  "payload": {
+   "how_to": [
+    "Chạm đầu lưỡi vào lợi ngay sau răng trên",
+    "Không tách lưỡi ra, giữ nguyên ở đó",
+    "Cho hơi thoát ra hai bên lưỡi"
+   ],
+   "words": [
+    {
+     "meaning": "nước"
+    },
+    {
+     "meaning": "mặt trăng"
+    },
+    {
+     "meaning": "mùa đông"
+    },
+    {
+     "meaning": "lớp học"
+    }
+   ],
+   "sentence": {
+    "translation": "Hôm nay uống chút nước không?"
+   },
+   "test": {
+    "translation": "Mình xin ít nước nhé?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Phụ âm cuối ㅁ",
+  "card_desc": "Giữ môi khép và cho âm vang",
+  "payload": {
+   "how_to": [
+    "Áp hai môi vào nhau",
+    "Giữ nguyên và cho âm vang qua mũi",
+    "Kết thúc mà không tách môi ra"
+   ],
+   "words": [
+    {
+     "meaning": "ban đêm"
+    },
+    {
+     "meaning": "mùa xuân"
+    },
+    {
+     "meaning": "rong biển"
+    },
+    {
+     "meaning": "người"
+    }
+   ],
+   "sentence": {
+    "translation": "Đêm xuân mình ăn kimbap ở công viên nhé."
+   },
+   "test": {
+    "translation": "Cho kimbap vào hộp rồi chuẩn bị đồ đạc đi."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Phụ âm cuối ㅂ",
+  "card_desc": "Khép môi rồi dừng âm",
+  "payload": {
+   "how_to": [
+    "Áp hai môi vào nhau",
+    "Giữ nguyên như vậy và dừng âm",
+    "Không tách môi ra, không thêm 「으」 (ư)"
+   ],
+   "words": [
+    {
+     "meaning": "cơm"
+    },
+    {
+     "meaning": "nhà"
+    },
+    {
+     "meaning": "miệng"
+    },
+    {
+     "meaning": "giờ học"
+    }
+   ],
+   "sentence": {
+    "translation": "Sang nhà bên cạnh đưa ít cơm đi."
+   },
+   "test": {
+    "translation": "Học xong mình về nhà nhé."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Phụ âm cuối ㅇ",
+  "card_desc": "Chặn phía trong vòm miệng, phát âm qua mũi",
+  "payload": {
+   "how_to": [
+    "Áp phần sau lưỡi vào phía trong vòm miệng",
+    "Giữ nguyên và cho âm vang qua mũi",
+    "Không nâng đầu lưỡi lên như ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "căn phòng"
+    },
+    {
+     "meaning": "sông"
+    },
+    {
+     "meaning": "quả bóng"
+    },
+    {
+     "meaning": "cái túi"
+    }
+   ],
+   "sentence": {
+    "translation": "Em tôi mang túi đi công viên."
+   },
+   "test": {
+    "translation": "Tôi qua sông đến đài truyền hình."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Nối âm",
+  "card_desc": "Chuyển phụ âm cuối sang âm tiết sau",
+  "payload": {
+   "how_to": [
+    "Khi sau phụ âm cuối là chữ bắt đầu bằng ㅇ,",
+    "chuyển phụ âm cuối thành phụ âm đầu của chữ sau",
+    "nói liền một hơi, không ngắt quãng"
+   ],
+   "words": [
+    {
+     "meaning": "tiếng Hàn"
+    },
+    {
+     "meaning": "âm nhạc"
+    },
+    {
+     "meaning": "quần áo (chủ ngữ)"
+    },
+    {
+     "meaning": "cơm (tân ngữ)"
+    }
+   ],
+   "sentence": {
+    "translation": "Tôi nghe nhạc tiếng Hàn."
+   },
+   "test": {
+    "translation": "Mặc thử quần áo xem."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Mũi âm hóa",
+  "card_desc": "ㄱ·ㄷ·ㅂ thành âm mũi",
+  "payload": {
+   "how_to": [
+    "Khi sau phụ âm cuối ㄱ·ㄷ·ㅂ là ㄴ·ㅁ,",
+    "ㄱ đổi thành ㅇ, ㄷ thành ㄴ, ㅂ thành ㅁ",
+    "cho âm vang qua mũi ngay từ phụ âm cuối và nói liền"
+   ],
+   "words": [
+    {
+     "meaning": "nước canh"
+    },
+    {
+     "meaning": "tóc mái"
+    },
+    {
+     "meaning": "lời nói dối"
+    },
+    {
+     "meaning": "ăn"
+    }
+   ],
+   "sentence": {
+    "translation": "Tôi đang ăn nước canh."
+   },
+   "test": {
+    "translation": "Năm ngoái tôi đã cắt tóc mái."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Lưu âm hóa",
+  "card_desc": "ㄴ gặp ㄹ thì đọc ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Khi ㄴ và ㄹ đứng liền nhau,",
+    "đổi cả ㄴ thành ㄹ và đọc là ㄹㄹ",
+    "giữ đầu lưỡi chạm lợi, lướt liền sang âm sau (không rung lưỡi)"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (vương quốc cổ)"
+    },
+    {
+     "meaning": "Tết Nguyên đán"
+    },
+    {
+     "meaning": "liên lạc"
+    },
+    {
+     "meaning": "núi Halla"
+    }
+   ],
+   "sentence": {
+    "translation": "Tết này tôi chờ bạn liên lạc."
+   },
+   "test": {
+    "translation": "Chờ phòng quản lý liên lạc nhé."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Âm vòm hóa",
+  "card_desc": "ㄷ·ㅌ+이 thành 지·치",
+  "payload": {
+   "how_to": [
+    "Khi sau phụ âm cuối ㄷ·ㅌ là 「이」,",
+    "đọc ㄷ thành 지, ㅌ thành 치",
+    "đưa lưỡi về phía trước vòm miệng"
+   ],
+   "words": [
+    {
+     "meaning": "cùng nhau"
+    },
+    {
+     "meaning": "nhất thiết"
+    },
+    {
+     "meaning": "mặt trời mọc"
+    },
+    {
+     "meaning": "con cả"
+    }
+   ],
+   "sentence": {
+    "translation": "Chúng ta cùng đi ngắm mặt trời mọc nhé."
+   },
+   "test": {
+    "translation": "Không nhất thiết phải đi cùng đâu."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Bật hơi hóa",
+  "card_desc": "Gặp ㅎ thì thành âm bật hơi",
+  "payload": {
+   "how_to": [
+    "Khi ㄱ·ㄷ·ㅂ·ㅈ gặp ㅎ,",
+    "gộp lại và đọc thành ㅋ·ㅌ·ㅍ·ㅊ",
+    "bật hơi mạnh ở âm đã gộp"
+   ],
+   "words": [
+    {
+     "meaning": "tốt"
+    },
+    {
+     "meaning": "chúc mừng"
+    },
+    {
+     "meaning": "nhập học"
+    },
+    {
+     "meaning": "nhiều"
+    }
+   ],
+   "sentence": {
+    "translation": "Chúc mừng bạn nhập học, thật tuyệt."
+   },
+   "test": {
+    "translation": "Không nhiều đến thế."
+   }
+  }
+ }
+}

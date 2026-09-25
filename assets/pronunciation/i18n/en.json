@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Initial ㄱ",
+  "card_desc": "Block with the back of your tongue, then release lightly",
+  "payload": {
+   "how_to": [
+    "Press the back of your tongue against the back of the roof of your mouth",
+    "Release it lightly, with almost no puff of air",
+    "Don't let out a strong puff of air as you would for ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "bag"
+    },
+    {
+     "meaning": "meat"
+    },
+    {
+     "meaning": "dress shoes"
+    },
+    {
+     "meaning": "train"
+    }
+   ],
+   "sentence": {
+    "translation": "That bag is full of meat."
+   },
+   "test": {
+    "translation": "I pick out snacks at the store."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Initial ㄲ",
+  "card_desc": "Tense your throat and release with no puff of air",
+  "payload": {
+   "how_to": [
+    "Press the back of your tongue at the same spot as ㄱ",
+    "Tense your throat and tongue, and hold for a moment",
+    "Release short and firm, with no puff of air"
+   ],
+   "words": [
+    {
+     "meaning": "honey"
+    },
+    {
+     "meaning": "tail"
+    },
+    {
+     "meaning": "magpie"
+    },
+    {
+     "meaning": "flower"
+    }
+   ],
+   "sentence": {
+    "translation": "The magpie likes flower honey."
+   },
+   "test": {
+    "translation": "The little kid makes sure to come all the way to the end."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Initial ㄴ",
+  "card_desc": "Touch with your tongue tip and make a nasal sound",
+  "payload": {
+   "how_to": [
+    "Press your tongue tip against your upper gum ridge",
+    "Let the sound ring through your nose",
+    "Release your tongue as you move into the vowel"
+   ],
+   "words": [
+    {
+     "meaning": "tree"
+    },
+    {
+     "meaning": "older sister (of a male)"
+    },
+    {
+     "meaning": "song"
+    },
+    {
+     "meaning": "butterfly"
+    }
+   ],
+   "sentence": {
+    "translation": "My older sister sings a song about trees."
+   },
+   "test": {
+    "translation": "My older sister will meet you for sure."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Initial ㄷ",
+  "card_desc": "Touch with your tongue tip, then release lightly",
+  "payload": {
+   "how_to": [
+    "Press your tongue tip against your upper gum ridge",
+    "Release it lightly, with almost no puff of air",
+    "Don't let out a strong puff of air as you would for ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "bridge"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "city"
+    },
+    {
+     "meaning": "moon"
+    }
+   ],
+   "sentence": {
+    "translation": "There are two bridges in the city."
+   },
+   "test": {
+    "translation": "My younger sibling asks for more tofu."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Initial ㄸ",
+  "card_desc": "Tense your tongue tip and release it all at once",
+  "payload": {
+   "how_to": [
+    "Press your tongue tip at the same spot as ㄷ",
+    "Tense your tongue and throat, and hold for a moment",
+    "Release short and firm, with no puff of air"
+   ],
+   "words": [
+    {
+     "meaning": "daughter"
+    },
+    {
+     "meaning": "sweat"
+    },
+    {
+     "meaning": "rice cake"
+    },
+    {
+     "meaning": "again"
+    }
+   ],
+   "sentence": {
+    "translation": "My daughter is eating rice cake again."
+   },
+   "test": {
+    "translation": "I'm sweating, so I go out to the yard again."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Initial ㄹ",
+  "card_desc": "Tap your gum ridge quickly with your tongue tip",
+  "payload": {
+   "how_to": [
+    "Touch your tongue tip to your upper gum ridge for just an instant",
+    "Flick it once, like a quick tap",
+    "Don't curl your tongue back like the English r"
+   ],
+   "words": [
+    {
+     "meaning": "ramen"
+    },
+    {
+     "meaning": "we"
+    },
+    {
+     "meaning": "song"
+    },
+    {
+     "meaning": "head"
+    }
+   ],
+   "sentence": {
+    "translation": "Let's eat ramen while we sing."
+   },
+   "test": {
+    "translation": "Every country has different dishes."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Initial ㅁ",
+  "card_desc": "Close your lips and make a nasal sound",
+  "payload": {
+   "how_to": [
+    "Press both lips together lightly",
+    "Let the sound ring through your nose",
+    "Open your lips as you move into the vowel"
+   ],
+   "words": [
+    {
+     "meaning": "head"
+    },
+    {
+     "meaning": "hat"
+    },
+    {
+     "meaning": "radish"
+    },
+    {
+     "meaning": "heart"
+    }
+   ],
+   "sentence": {
+    "translation": "Mom makes a lot of hats."
+   },
+   "test": {
+    "translation": "Everyone drinks water every day."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Initial ㅂ",
+  "card_desc": "Close your lips, then release lightly",
+  "payload": {
+   "how_to": [
+    "Press both lips together",
+    "Release them lightly, with almost no puff of air",
+    "Don't let out a strong puff of air as you would for ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "sea"
+    },
+    {
+     "meaning": "rain"
+    },
+    {
+     "meaning": "barley"
+    },
+    {
+     "meaning": "parents"
+    }
+   ],
+   "sentence": {
+    "translation": "Let's go see the sea in the rain."
+   },
+   "test": {
+    "translation": "My parents rent a boat."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Initial ㅃ",
+  "card_desc": "Tense your lips and release with no puff of air",
+  "payload": {
+   "how_to": [
+    "Press both lips together firmly",
+    "Tense your lips and throat, and hold for a moment",
+    "Release short and firm, with no puff of air"
+   ],
+   "words": [
+    {
+     "meaning": "bread"
+    },
+    {
+     "meaning": "bone"
+    },
+    {
+     "meaning": "kiss (a peck)"
+    },
+    {
+     "meaning": "laundry"
+    }
+   ],
+   "sentence": {
+    "translation": "Dad buys bread quickly."
+   },
+   "test": {
+    "translation": "Please take the laundry out quickly."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Initial ㅅ",
+  "card_desc": "Let air out through a gap at your tongue tip",
+  "payload": {
+   "how_to": [
+    "Bring your tongue tip close to your upper gum ridge, leaving a small gap",
+    "Let air flow out gently through that gap",
+    "Don't tense up as you would for ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "apple"
+    },
+    {
+     "meaning": "sound"
+    },
+    {
+     "meaning": "watermelon"
+    },
+    {
+     "meaning": "clock"
+    }
+   ],
+   "sentence": {
+    "translation": "I buy apples at the market today."
+   },
+   "test": {
+    "translation": "The teacher buys a novel."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Initial ㅆ",
+  "card_desc": "Tense up and push the air out strongly",
+  "payload": {
+   "how_to": [
+    "Put your tongue tip at the same spot as ㅅ",
+    "Tense your tongue and throat",
+    "Push air out strongly through the narrow gap"
+   ],
+   "words": [
+    {
+     "meaning": "rice (uncooked)"
+    },
+    {
+     "meaning": "to be cheap"
+    },
+    {
+     "meaning": "to use"
+    },
+    {
+     "meaning": "seed"
+    }
+   ],
+   "sentence": {
+    "translation": "Rice was cheap, so I used a lot."
+   },
+   "test": {
+    "translation": "I grow the seeds, and they shoot up fast."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Initial ㅈ",
+  "card_desc": "Touch with your tongue, then release lightly",
+  "payload": {
+   "how_to": [
+    "Press the front of your tongue against the front of the roof of your mouth",
+    "Release it gently, with almost no puff of air",
+    "Don't press hard as you would for ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "seat"
+    },
+    {
+     "meaning": "juice"
+    },
+    {
+     "meaning": "map"
+    },
+    {
+     "meaning": "evening"
+    }
+   ],
+   "sentence": {
+    "translation": "Give me a little juice in the evening."
+   },
+   "test": {
+    "translation": "I'm tidying up my seat now."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Initial ㅉ",
+  "card_desc": "Tense your tongue and release with no puff of air",
+  "payload": {
+   "how_to": [
+    "Press your tongue at the same spot as ㅈ",
+    "Tense your tongue and throat, and hold for a moment",
+    "Release short and firm, with no puff of air"
+   ],
+   "words": [
+    {
+     "meaning": "to be salty"
+    },
+    {
+     "meaning": "stew"
+    },
+    {
+     "meaning": "side"
+    },
+    {
+     "meaning": "partner"
+    }
+   ],
+   "sentence": {
+    "translation": "My buddy makes the stew salty."
+   },
+   "test": {
+    "translation": "I tear up the note and chase after them."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Initial ㅊ",
+  "card_desc": "At the ㅈ spot, release with a strong puff of air",
+  "payload": {
+   "how_to": [
+    "Press your tongue at the same spot as ㅈ",
+    "Let out a strong puff of air the moment you release",
+    "If you feel air on your palm, you're doing it right"
+   ],
+   "words": [
+    {
+     "meaning": "car"
+    },
+    {
+     "meaning": "skirt"
+    },
+    {
+     "meaning": "book"
+    },
+    {
+     "meaning": "friend"
+    }
+   ],
+   "sentence": {
+    "translation": "My friend left the book in the car."
+   },
+   "test": {
+    "translation": "I eat chicken slowly on a cold day."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Initial ㅋ",
+  "card_desc": "At the ㄱ spot, release with a strong puff of air",
+  "payload": {
+   "how_to": [
+    "Press the back of your tongue at the same spot as ㄱ",
+    "Let out a strong puff of air the moment you release",
+    "If you feel air on your palm, you're doing it right"
+   ],
+   "words": [
+    {
+     "meaning": "nose"
+    },
+    {
+     "meaning": "height"
+    },
+    {
+     "meaning": "coffee"
+    },
+    {
+     "meaning": "card"
+    }
+   ],
+   "sentence": {
+    "translation": "My tall friend buys coffee."
+   },
+   "test": {
+    "translation": "The elephant laughs loudly."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Initial ㅌ",
+  "card_desc": "At the ㄷ spot, release with a strong puff of air",
+  "payload": {
+   "how_to": [
+    "Press your tongue tip at the same spot as ㄷ",
+    "Let out a strong puff of air the moment you release",
+    "If you feel air on your palm, you're doing it right"
+   ],
+   "words": [
+    {
+     "meaning": "rabbit"
+    },
+    {
+     "meaning": "mask"
+    },
+    {
+     "meaning": "table"
+    },
+    {
+     "meaning": "container"
+    }
+   ],
+   "sentence": {
+    "translation": "I take a taxi on Saturday."
+   },
+   "test": {
+    "translation": "I buy a sturdy table."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Initial ㅍ",
+  "card_desc": "At the ㅂ spot, release with a strong puff of air",
+  "payload": {
+   "how_to": [
+    "Press both lips together, just like ㅂ",
+    "Let out a strong puff of air the moment you release",
+    "Don't bite your lower lip like the English f"
+   ],
+   "words": [
+    {
+     "meaning": "green onion"
+    },
+    {
+     "meaning": "grape"
+    },
+    {
+     "meaning": "piano"
+    },
+    {
+     "meaning": "letter"
+    }
+   ],
+   "sentence": {
+    "translation": "I open the letter and play the piano."
+   },
+   "test": {
+    "translation": "There are plenty of green grapes."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Initial ㅎ",
+  "card_desc": "Breathe out from your throat",
+  "payload": {
+   "how_to": [
+    "First open your mouth into the shape of the vowel",
+    "Breathe out lightly from deep in your throat",
+    "Don't block the air with your tongue or lips"
+   ],
+   "words": [
+    {
+     "meaning": "one"
+    },
+    {
+     "meaning": "lake"
+    },
+    {
+     "meaning": "tissue"
+    },
+    {
+     "meaning": "grandmother"
+    }
+   ],
+   "sentence": {
+    "translation": "Grandma goes to the lake for the whole day."
+   },
+   "test": {
+    "translation": "On holidays I go to the Han River alone."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Final ㄱ",
+  "card_desc": "Block with the back of your tongue and stop",
+  "payload": {
+   "how_to": [
+    "Press the back of your tongue against the back of the roof of your mouth",
+    "Keep it there and stop the sound",
+    "Don't add 「으」 (eu) after it"
+   ],
+   "words": [
+    {
+     "meaning": "book"
+    },
+    {
+     "meaning": "medicine"
+    },
+    {
+     "meaning": "watermelon"
+    },
+    {
+     "meaning": "family"
+    }
+   ],
+   "sentence": {
+    "translation": "Go to the pharmacy today and buy some medicine."
+   },
+   "test": {
+    "translation": "Eat two watermelons and then read a book."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Final ㄴ",
+  "card_desc": "Keep your tongue tip touching and make a nasal sound",
+  "payload": {
+   "how_to": [
+    "Press your tongue tip against your upper gum ridge",
+    "Keep it there and let the sound ring through your nose",
+    "Don't raise the back of your tongue as you would for ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "mountain"
+    },
+    {
+     "meaning": "snow"
+    },
+    {
+     "meaning": "money"
+    },
+    {
+     "meaning": "door"
+    }
+   ],
+   "sentence": {
+    "translation": "Go to the mountain with a friend and see the snow."
+   },
+   "test": {
+    "translation": "My older sister pays and buys shoes."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Final ㄷ",
+  "card_desc": "Block with your tongue tip and stop",
+  "payload": {
+   "how_to": [
+    "Press your tongue tip against your upper gum ridge",
+    "Keep it there and stop the sound",
+    "Final ㅅ·ㅈ·ㅊ·ㅌ sound the same too"
+   ],
+   "words": [
+    {
+     "meaning": "clothes"
+    },
+    {
+     "meaning": "taste"
+    },
+    {
+     "meaning": "flower"
+    },
+    {
+     "meaning": "daytime"
+    }
+   ],
+   "sentence": {
+    "translation": "Go to the field, see the flowers, and buy clothes."
+   },
+   "test": {
+    "translation": "I bought three flowers right away."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Final ㄹ",
+  "card_desc": "Keep your tongue tip touching and stop",
+  "payload": {
+   "how_to": [
+    "Touch your tongue tip to the gum ridge behind your upper teeth",
+    "Don't lift your tongue off; hold it right there",
+    "Let the air flow out along both sides of your tongue"
+   ],
+   "words": [
+    {
+     "meaning": "water"
+    },
+    {
+     "meaning": "moon"
+    },
+    {
+     "meaning": "winter"
+    },
+    {
+     "meaning": "classroom"
+    }
+   ],
+   "sentence": {
+    "translation": "Do you want some water today?"
+   },
+   "test": {
+    "translation": "Should I ask for some water?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Final ㅁ",
+  "card_desc": "Hum with your lips closed",
+  "payload": {
+   "how_to": [
+    "Press both lips together",
+    "Keep them closed and let the sound ring through your nose",
+    "Finish without opening your lips"
+   ],
+   "words": [
+    {
+     "meaning": "night"
+    },
+    {
+     "meaning": "spring"
+    },
+    {
+     "meaning": "dried seaweed"
+    },
+    {
+     "meaning": "person"
+    }
+   ],
+   "sentence": {
+    "translation": "Let's eat gimbap in the park on a spring night."
+   },
+   "test": {
+    "translation": "Pack the gimbap and get your things together."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Final ㅂ",
+  "card_desc": "Close your lips and stop",
+  "payload": {
+   "how_to": [
+    "Press both lips together",
+    "Keep them closed and stop the sound",
+    "Don't open your lips or add 「으」 (eu)"
+   ],
+   "words": [
+    {
+     "meaning": "rice (cooked); meal"
+    },
+    {
+     "meaning": "house"
+    },
+    {
+     "meaning": "mouth"
+    },
+    {
+     "meaning": "class"
+    }
+   ],
+   "sentence": {
+    "translation": "Go next door and give them some food."
+   },
+   "test": {
+    "translation": "Let's go home after class."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Final ㅇ",
+  "card_desc": "Block the back of your mouth and make a nasal sound",
+  "payload": {
+   "how_to": [
+    "Press the back of your tongue against the back of the roof of your mouth",
+    "Keep it there and let the sound ring through your nose",
+    "Don't raise your tongue tip as you would for ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "room"
+    },
+    {
+     "meaning": "river"
+    },
+    {
+     "meaning": "ball"
+    },
+    {
+     "meaning": "bag"
+    }
+   ],
+   "sentence": {
+    "translation": "My younger sibling takes a bag to the park."
+   },
+   "test": {
+    "translation": "I go to the broadcasting station across the river."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Linking",
+  "card_desc": "Move the final consonant to the next syllable",
+  "payload": {
+   "how_to": [
+    "When a syllable starting with ㅇ comes after a final consonant",
+    "Move the final consonant over as that syllable's first sound",
+    "Say it all in one go, without a break"
+   ],
+   "words": [
+    {
+     "meaning": "Korean (language)"
+    },
+    {
+     "meaning": "music"
+    },
+    {
+     "meaning": "clothes (subject)"
+    },
+    {
+     "meaning": "rice (object)"
+    }
+   ],
+   "sentence": {
+    "translation": "I listen to Korean music."
+   },
+   "test": {
+    "translation": "Try on the clothes."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalization",
+  "card_desc": "ㄱ·ㄷ·ㅂ become nasal sounds",
+  "payload": {
+   "how_to": [
+    "When ㄴ or ㅁ comes after a final ㄱ·ㄷ·ㅂ",
+    "ㄱ becomes ㅇ, ㄷ becomes ㄴ, and ㅂ becomes ㅁ",
+    "Let the sound ring through your nose from the final consonant and keep going smoothly"
+   ],
+   "words": [
+    {
+     "meaning": "broth"
+    },
+    {
+     "meaning": "bangs"
+    },
+    {
+     "meaning": "lie"
+    },
+    {
+     "meaning": "eats"
+    }
+   ],
+   "sentence": {
+    "translation": "I'm having the broth."
+   },
+   "test": {
+    "translation": "I cut my bangs last year."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Liquidization",
+  "card_desc": "When ㄴ and ㄹ meet, say ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "When ㄴ and ㄹ come one right after the other",
+    "Change ㄴ into ㄹ too and say ㄹㄹ",
+    "Keep your tongue tip on your gum ridge and glide smoothly into the next sound"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (ancient kingdom)"
+    },
+    {
+     "meaning": "Lunar New Year"
+    },
+    {
+     "meaning": "contact"
+    },
+    {
+     "meaning": "Hallasan (Mt. Halla)"
+    }
+   ],
+   "sentence": {
+    "translation": "I'll wait to hear from you this Lunar New Year."
+   },
+   "test": {
+    "translation": "Wait for a call from the management office."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalization",
+  "card_desc": "ㄷ·ㅌ + 이 become 지·치",
+  "payload": {
+   "how_to": [
+    "When 「이」 comes after a final ㄷ·ㅌ",
+    "Say ㄷ as 지 and ㅌ as 치",
+    "Move your tongue toward the front of the roof of your mouth"
+   ],
+   "words": [
+    {
+     "meaning": "together"
+    },
+    {
+     "meaning": "necessarily; bother to"
+    },
+    {
+     "meaning": "sunrise"
+    },
+    {
+     "meaning": "eldest child"
+    }
+   ],
+   "sentence": {
+    "translation": "Let's go see the sunrise together."
+   },
+   "test": {
+    "translation": "There's no need for us to go together."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspiration",
+  "card_desc": "Meeting ㅎ makes an aspirated sound",
+  "payload": {
+   "how_to": [
+    "When ㄱ·ㄷ·ㅂ·ㅈ meets ㅎ",
+    "They combine and are said as ㅋ·ㅌ·ㅍ·ㅊ",
+    "Push out a strong puff of air on the combined sound"
+   ],
+   "words": [
+    {
+     "meaning": "to be good"
+    },
+    {
+     "meaning": "congratulations"
+    },
+    {
+     "meaning": "school admission"
+    },
+    {
+     "meaning": "to be many"
+    }
+   ],
+   "sentence": {
+    "translation": "Congrats on getting into school, that's great."
+   },
+   "test": {
+    "translation": "There aren't that many."
+   }
+  }
+ }
+}

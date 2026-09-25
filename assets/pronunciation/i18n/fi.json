@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Alkukonsonantti ㄱ",
+  "card_desc": "Sulje kielen takaosalla ja irrota kevyesti",
+  "payload": {
+   "how_to": [
+    "Paina kielen takaosa pehmeää kitalakea vasten",
+    "Irrota kevyesti, lähes ilman ilmapuhallusta",
+    "Älä päästä voimakasta ilmapuhallusta kuten ㅋ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "laukku"
+    },
+    {
+     "meaning": "liha"
+    },
+    {
+     "meaning": "nahkakengät"
+    },
+    {
+     "meaning": "juna"
+    }
+   ],
+   "sentence": {
+    "translation": "Tuo laukku on täynnä lihaa."
+   },
+   "test": {
+    "translation": "Valitsen kaupassa naposteltavaa."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Alkukonsonantti ㄲ",
+  "card_desc": "Jännitä kurkku, ei ilmapuhallusta",
+  "payload": {
+   "how_to": [
+    "Paina kielen takaosa samaan kohtaan kuin ㄱ-äänteessä",
+    "Jännitä kurkku ja kieli ja pidä asento hetken",
+    "Irrota lyhyesti ja napakasti ilman ilmapuhallusta"
+   ],
+   "words": [
+    {
+     "meaning": "hunaja"
+    },
+    {
+     "meaning": "häntä"
+    },
+    {
+     "meaning": "harakka"
+    },
+    {
+     "meaning": "kukka"
+    }
+   ],
+   "sentence": {
+    "translation": "Harakka pitää kukkien hunajasta."
+   },
+   "test": {
+    "translation": "Pikkuinen tulee varmasti loppuun asti."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Alkukonsonantti ㄴ",
+  "card_desc": "Kosketa kielenkärjellä ja soinnuta nenän kautta",
+  "payload": {
+   "how_to": [
+    "Paina kielenkärki hammasvallia vasten",
+    "Anna äänen soida nenän kautta",
+    "Irrota kieli ja siirry samalla vokaaliin"
+   ],
+   "words": [
+    {
+     "meaning": "puu"
+    },
+    {
+     "meaning": "isosisko (pojan tai miehen)"
+    },
+    {
+     "meaning": "laulu"
+    },
+    {
+     "meaning": "perhonen"
+    }
+   ],
+   "sentence": {
+    "translation": "Isosisko laulaa laulua puista."
+   },
+   "test": {
+    "translation": "Isosisko tapaa sinut varmasti."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Alkukonsonantti ㄷ",
+  "card_desc": "Kosketa kielenkärjellä ja irrota kevyesti",
+  "payload": {
+   "how_to": [
+    "Paina kielenkärki hammasvallia vasten",
+    "Irrota kevyesti, lähes ilman ilmapuhallusta",
+    "Älä päästä voimakasta ilmapuhallusta kuten ㅌ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "silta"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "kaupunki"
+    },
+    {
+     "meaning": "kuu"
+    }
+   ],
+   "sentence": {
+    "translation": "Kaupungissa on kaksi siltaa."
+   },
+   "test": {
+    "translation": "Pikkusisarus pyytää lisää tofua."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Alkukonsonantti ㄸ",
+  "card_desc": "Jännitä kielenkärki ja irrota kerralla",
+  "payload": {
+   "how_to": [
+    "Paina kielenkärki samaan kohtaan kuin ㄷ-äänteessä",
+    "Jännitä kieli ja kurkku ja pidä asento hetken",
+    "Irrota lyhyesti ja napakasti ilman ilmapuhallusta"
+   ],
+   "words": [
+    {
+     "meaning": "tytär"
+    },
+    {
+     "meaning": "hiki"
+    },
+    {
+     "meaning": "riisikakku"
+    },
+    {
+     "meaning": "taas"
+    }
+   ],
+   "sentence": {
+    "translation": "Tytär syö taas riisikakkua."
+   },
+   "test": {
+    "translation": "Minulle tulee hiki, joten menen taas pihalle."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Alkukonsonantti ㄹ",
+  "card_desc": "Napauta kielenkärjellä hammasvallia",
+  "payload": {
+   "how_to": [
+    "Kosketa kielenkärjellä hammasvallia vain hyvin lyhyesti",
+    "Näpäytä vain kerran, kuin kevyt napautus",
+    "Älä käännä kieltä taaksepäin kuten englannin r-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "ramen"
+    },
+    {
+     "meaning": "me"
+    },
+    {
+     "meaning": "laulu"
+    },
+    {
+     "meaning": "pää"
+    }
+   ],
+   "sentence": {
+    "translation": "Syödään ramenia laulaen."
+   },
+   "test": {
+    "translation": "Joka maassa on erilaiset ruoat."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Alkukonsonantti ㅁ",
+  "card_desc": "Sulje huulet ja soinnuta nenän kautta",
+  "payload": {
+   "how_to": [
+    "Paina huulet kevyesti yhteen",
+    "Anna äänen soida nenän kautta",
+    "Avaa huulet ja siirry samalla vokaaliin"
+   ],
+   "words": [
+    {
+     "meaning": "pää"
+    },
+    {
+     "meaning": "hattu"
+    },
+    {
+     "meaning": "valkoretikka"
+    },
+    {
+     "meaning": "mieli, sydän"
+    }
+   ],
+   "sentence": {
+    "translation": "Äiti tekee paljon hattuja."
+   },
+   "test": {
+    "translation": "Kaikki juovat vettä joka päivä."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Alkukonsonantti ㅂ",
+  "card_desc": "Sulje huulet ja irrota kevyesti",
+  "payload": {
+   "how_to": [
+    "Paina huulet yhteen",
+    "Irrota ne kevyesti, lähes ilman ilmapuhallusta",
+    "Älä päästä voimakasta ilmapuhallusta kuten ㅍ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "meri"
+    },
+    {
+     "meaning": "sade"
+    },
+    {
+     "meaning": "ohra"
+    },
+    {
+     "meaning": "vanhemmat"
+    }
+   ],
+   "sentence": {
+    "translation": "Mennään katsomaan merta sateessa."
+   },
+   "test": {
+    "translation": "Vanhempani vuokraavat veneen."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Alkukonsonantti ㅃ",
+  "card_desc": "Jännitä huulet, ei ilmapuhallusta",
+  "payload": {
+   "how_to": [
+    "Paina huulet tiukasti yhteen",
+    "Jännitä huulet ja kurkku ja pidä asento hetken",
+    "Irrota lyhyesti ja napakasti ilman ilmapuhallusta"
+   ],
+   "words": [
+    {
+     "meaning": "leipä"
+    },
+    {
+     "meaning": "luu"
+    },
+    {
+     "meaning": "pusu"
+    },
+    {
+     "meaning": "pyykki"
+    }
+   ],
+   "sentence": {
+    "translation": "Isä ostaa leipää nopeasti."
+   },
+   "test": {
+    "translation": "Ota pyykit nopeasti pois."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Alkukonsonantti ㅅ",
+  "card_desc": "Päästä ilma kielenkärjen raosta",
+  "payload": {
+   "how_to": [
+    "Vie kielenkärki lähelle hammasvallia ja jätä pieni rako",
+    "Päästä ilma pehmeästi ulos siitä raosta",
+    "Älä jännitä kieltä ja kurkkua, toisin kuin ㅆ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "omena"
+    },
+    {
+     "meaning": "ääni"
+    },
+    {
+     "meaning": "vesimeloni"
+    },
+    {
+     "meaning": "kello"
+    }
+   ],
+   "sentence": {
+    "translation": "Ostan tänään omenoita torilta."
+   },
+   "test": {
+    "translation": "Opettaja ostaa romaanin."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Alkukonsonantti ㅆ",
+  "card_desc": "Jännitä ja puhalla ilma voimakkaasti",
+  "payload": {
+   "how_to": [
+    "Aseta kielenkärki samaan kohtaan kuin ㅅ-äänteessä",
+    "Jännitä kieli ja kurkku",
+    "Puhalla ilma voimakkaasti ulos kapeasta raosta"
+   ],
+   "words": [
+    {
+     "meaning": "riisi (keittämätön)"
+    },
+    {
+     "meaning": "olla halpa"
+    },
+    {
+     "meaning": "käyttää"
+    },
+    {
+     "meaning": "siemen"
+    }
+   ],
+   "sentence": {
+    "translation": "Riisi oli halpaa, joten käytin sitä paljon."
+   },
+   "test": {
+    "translation": "Kasvatan siemeniä, ja ne kasvavat nopeasti."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Alkukonsonantti ㅈ",
+  "card_desc": "Kosketa kielellä ja irrota kevyesti",
+  "payload": {
+   "how_to": [
+    "Paina kielen etuosa kitalaen etuosaa vasten",
+    "Irrota pehmeästi, lähes ilman ilmapuhallusta",
+    "Älä paina voimakkaasti kuten ㅉ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "istumapaikka"
+    },
+    {
+     "meaning": "mehu"
+    },
+    {
+     "meaning": "kartta"
+    },
+    {
+     "meaning": "ilta"
+    }
+   ],
+   "sentence": {
+    "translation": "Anna minulle illalla vähän mehua."
+   },
+   "test": {
+    "translation": "Järjestän nyt paikkani."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Alkukonsonantti ㅉ",
+  "card_desc": "Jännitä kieli, ei ilmapuhallusta",
+  "payload": {
+   "how_to": [
+    "Paina kieli samaan kohtaan kuin ㅈ-äänteessä",
+    "Jännitä kieli ja kurkku ja pidä asento hetken",
+    "Irrota lyhyesti ja napakasti ilman ilmapuhallusta"
+   ],
+   "words": [
+    {
+     "meaning": "olla suolainen"
+    },
+    {
+     "meaning": "keitto, muhennos"
+    },
+    {
+     "meaning": "puoli, sivu"
+    },
+    {
+     "meaning": "pari, kumppani"
+    }
+   ],
+   "sentence": {
+    "translation": "Kaverini tekee keitosta suolaisen."
+   },
+   "test": {
+    "translation": "Revin lapun ja lähden perään."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Alkukonsonantti ㅊ",
+  "card_desc": "ㅈ-äänteen kohdasta irrottaessasi päästä voimakas ilmapuhallus",
+  "payload": {
+   "how_to": [
+    "Paina kieli samaan kohtaan kuin ㅈ-äänteessä",
+    "Päästä voimakas ilmapuhallus irrottaessasi",
+    "Jos tunnet ilman kämmenelläsi, teet oikein"
+   ],
+   "words": [
+    {
+     "meaning": "auto"
+    },
+    {
+     "meaning": "hame"
+    },
+    {
+     "meaning": "kirja"
+    },
+    {
+     "meaning": "ystävä"
+    }
+   ],
+   "sentence": {
+    "translation": "Ystäväni jätti kirjan autoon."
+   },
+   "test": {
+    "translation": "Syön kanaa hitaasti kylmänä päivänä."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Alkukonsonantti ㅋ",
+  "card_desc": "ㄱ-äänteen kohdasta irrottaessasi päästä voimakas ilmapuhallus",
+  "payload": {
+   "how_to": [
+    "Paina kielen takaosa samaan kohtaan kuin ㄱ-äänteessä",
+    "Päästä voimakas ilmapuhallus irrottaessasi",
+    "Jos tunnet ilman kämmenelläsi, teet oikein"
+   ],
+   "words": [
+    {
+     "meaning": "nenä"
+    },
+    {
+     "meaning": "pituus"
+    },
+    {
+     "meaning": "kahvi"
+    },
+    {
+     "meaning": "kortti"
+    }
+   ],
+   "sentence": {
+    "translation": "Pitkä ystäväni ostaa kahvia."
+   },
+   "test": {
+    "translation": "Norsu nauraa kovaa."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Alkukonsonantti ㅌ",
+  "card_desc": "ㄷ-äänteen kohdasta irrottaessasi päästä voimakas ilmapuhallus",
+  "payload": {
+   "how_to": [
+    "Paina kielenkärki samaan kohtaan kuin ㄷ-äänteessä",
+    "Päästä voimakas ilmapuhallus irrottaessasi",
+    "Jos tunnet ilman kämmenelläsi, teet oikein"
+   ],
+   "words": [
+    {
+     "meaning": "kani"
+    },
+    {
+     "meaning": "naamio"
+    },
+    {
+     "meaning": "pöytä"
+    },
+    {
+     "meaning": "astia, purkki"
+    }
+   ],
+   "sentence": {
+    "translation": "Menen lauantaina taksilla."
+   },
+   "test": {
+    "translation": "Ostan tukevan pöydän."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Alkukonsonantti ㅍ",
+  "card_desc": "ㅂ-äänteen kohdasta irrottaessasi päästä voimakas ilmapuhallus",
+  "payload": {
+   "how_to": [
+    "Paina huulet yhteen kuten ㅂ-äänteessä",
+    "Päästä voimakas ilmapuhallus irrottaessasi",
+    "Älä pure huulta kuten englannin f-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "kevätsipuli"
+    },
+    {
+     "meaning": "viinirypäle"
+    },
+    {
+     "meaning": "piano"
+    },
+    {
+     "meaning": "kirje"
+    }
+   ],
+   "sentence": {
+    "translation": "Avaan kirjeen ja soitan pianoa."
+   },
+   "test": {
+    "translation": "Vihreitä viinirypäleitä on runsaasti."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Alkukonsonantti ㅎ",
+  "card_desc": "Hengitä ilma ulos kurkusta",
+  "payload": {
+   "how_to": [
+    "Avaa suu ensin vokaalin asentoon",
+    "Hengitä ilma kevyesti ulos syvältä kurkusta",
+    "Älä sulje ilmavirtaa kielellä tai huulilla"
+   ],
+   "words": [
+    {
+     "meaning": "yksi"
+    },
+    {
+     "meaning": "järvi"
+    },
+    {
+     "meaning": "paperinenäliina, vessapaperi"
+    },
+    {
+     "meaning": "isoäiti"
+    }
+   ],
+   "sentence": {
+    "translation": "Isoäiti menee järvelle koko päiväksi."
+   },
+   "test": {
+    "translation": "Vapaapäivänä menen yksin Han-joelle."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Loppukonsonantti ㄱ",
+  "card_desc": "Sulje kielen takaosalla ja lopeta äänne",
+  "payload": {
+   "how_to": [
+    "Paina kielen takaosa pehmeää kitalakea vasten",
+    "Pidä se paikallaan ja lopeta äänne irrottamatta",
+    "Älä lisää perään 「으」-vokaalia"
+   ],
+   "words": [
+    {
+     "meaning": "kirja"
+    },
+    {
+     "meaning": "lääke"
+    },
+    {
+     "meaning": "vesimeloni"
+    },
+    {
+     "meaning": "perhe"
+    }
+   ],
+   "sentence": {
+    "translation": "Mene tänään apteekkiin ostamaan lääkettä."
+   },
+   "test": {
+    "translation": "Syö kaksi vesimelonia ja lue sitten kirjaa."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Loppukonsonantti ㄴ",
+  "card_desc": "Pidä kielenkärki kiinni ja soinnuta nenän kautta",
+  "payload": {
+   "how_to": [
+    "Paina kielenkärki hammasvallia vasten",
+    "Pidä se paikallaan ja anna äänen soida nenän kautta",
+    "Älä nosta kielen takaosaa kuten ㅇ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "vuori"
+    },
+    {
+     "meaning": "lumi"
+    },
+    {
+     "meaning": "raha"
+    },
+    {
+     "meaning": "ovi"
+    }
+   ],
+   "sentence": {
+    "translation": "Mene ystävän kanssa vuorelle katsomaan lunta."
+   },
+   "test": {
+    "translation": "Isosisko maksaa ja ostaa kengät."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Loppukonsonantti ㄷ",
+  "card_desc": "Sulje kielenkärjellä ja lopeta äänne",
+  "payload": {
+   "how_to": [
+    "Paina kielenkärki hammasvallia vasten",
+    "Pidä se paikallaan ja lopeta äänne irrottamatta",
+    "Myös loppukonsonantit ㅅ, ㅈ, ㅊ ja ㅌ äännetään näin"
+   ],
+   "words": [
+    {
+     "meaning": "vaatteet"
+    },
+    {
+     "meaning": "maku"
+    },
+    {
+     "meaning": "kukka"
+    },
+    {
+     "meaning": "päiväsaika"
+    }
+   ],
+   "sentence": {
+    "translation": "Mene pellolle, katso kukkia ja osta vaatteita."
+   },
+   "test": {
+    "translation": "Ostin heti kolme kukkaa."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Loppukonsonantti ㄹ",
+  "card_desc": "Pidä kielenkärki kiinni ja paikallaan",
+  "payload": {
+   "how_to": [
+    "Kosketa kielenkärjellä ylähampaiden takana olevaa hammasvallia",
+    "Älä irrota kieltä, vaan pidä se paikallaan",
+    "Päästä ilma virtaamaan kielen molemmilta puolilta"
+   ],
+   "words": [
+    {
+     "meaning": "vesi"
+    },
+    {
+     "meaning": "kuu"
+    },
+    {
+     "meaning": "talvi"
+    },
+    {
+     "meaning": "luokkahuone"
+    }
+   ],
+   "sentence": {
+    "translation": "Haluatko juoda vähän vettä tänään?"
+   },
+   "test": {
+    "translation": "Pyydänkö vähän vettä?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Loppukonsonantti ㅁ",
+  "card_desc": "Hyräile huulet suljettuina",
+  "payload": {
+   "how_to": [
+    "Paina huulet yhteen",
+    "Pidä ne kiinni ja anna äänen soida nenän kautta",
+    "Lopeta avaamatta huulia"
+   ],
+   "words": [
+    {
+     "meaning": "yö"
+    },
+    {
+     "meaning": "kevät"
+    },
+    {
+     "meaning": "kuivattu merilevä"
+    },
+    {
+     "meaning": "ihminen"
+    }
+   ],
+   "sentence": {
+    "translation": "Syödään kimbapia puistossa kevätyönä."
+   },
+   "test": {
+    "translation": "Pakkaa kimbapit ja ota tavarasi mukaan."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Loppukonsonantti ㅂ",
+  "card_desc": "Sulje huulet ja lopeta äänne",
+  "payload": {
+   "how_to": [
+    "Paina huulet yhteen",
+    "Pidä ne kiinni ja lopeta äänne irrottamatta",
+    "Älä avaa huulia äläkä lisää perään 「으」-vokaalia"
+   ],
+   "words": [
+    {
+     "meaning": "riisi (keitetty); ateria"
+    },
+    {
+     "meaning": "talo, koti"
+    },
+    {
+     "meaning": "suu"
+    },
+    {
+     "meaning": "oppitunti"
+    }
+   ],
+   "sentence": {
+    "translation": "Mene naapuriin ja anna heille vähän ruokaa."
+   },
+   "test": {
+    "translation": "Mennään kotiin tunnin jälkeen."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Loppukonsonantti ㅇ",
+  "card_desc": "Sulje suun perukka ja soinnuta nenän kautta",
+  "payload": {
+   "how_to": [
+    "Paina kielen takaosa pehmeää kitalakea vasten",
+    "Pidä se paikallaan ja anna äänen soida nenän kautta",
+    "Älä nosta kielenkärkeä kuten ㄴ-äänteessä"
+   ],
+   "words": [
+    {
+     "meaning": "huone"
+    },
+    {
+     "meaning": "joki"
+    },
+    {
+     "meaning": "pallo"
+    },
+    {
+     "meaning": "laukku"
+    }
+   ],
+   "sentence": {
+    "translation": "Pikkusisarus vie laukun puistoon."
+   },
+   "test": {
+    "translation": "Menen joen toiselle puolelle tv-asemalle."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Sidonta",
+  "card_desc": "Siirrä loppukonsonantti seuraavaan tavuun",
+  "payload": {
+   "how_to": [
+    "Kun loppukonsonantin jälkeen tulee tavu, joka alkaa ㅇ-kirjaimella,",
+    "siirrä loppukonsonantti seuraavan tavun alkuäänteeksi",
+    "ja sano se yhteen menoon katkaisematta"
+   ],
+   "words": [
+    {
+     "meaning": "korean kieli"
+    },
+    {
+     "meaning": "musiikki"
+    },
+    {
+     "meaning": "vaatteet (subjekti)"
+    },
+    {
+     "meaning": "riisi (objekti)"
+    }
+   ],
+   "sentence": {
+    "translation": "Kuuntelen korealaista musiikkia."
+   },
+   "test": {
+    "translation": "Sovita vaatteita."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalisaatio",
+  "card_desc": "ㄱ, ㄷ ja ㅂ muuttuvat nenä-äänteiksi",
+  "payload": {
+   "how_to": [
+    "Kun loppukonsonantin ㄱ, ㄷ tai ㅂ jälkeen tulee ㄴ tai ㅁ,",
+    "ㄱ muuttuu ㅇ-äänteeksi, ㄷ ㄴ-äänteeksi ja ㅂ ㅁ-äänteeksi",
+    "anna äänen soida nenän kautta jo loppukonsonantista ja jatka sujuvasti"
+   ],
+   "words": [
+    {
+     "meaning": "liemi"
+    },
+    {
+     "meaning": "otsatukka"
+    },
+    {
+     "meaning": "valhe"
+    },
+    {
+     "meaning": "syö"
+    }
+   ],
+   "sentence": {
+    "translation": "Olen syömässä lientä."
+   },
+   "test": {
+    "translation": "Leikkasin otsatukkani viime vuonna."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Likvidisaatio",
+  "card_desc": "Kun ㄴ ja ㄹ kohtaavat, sano ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Kun ㄴ ja ㄹ tulevat heti peräkkäin,",
+    "muuta myös ㄴ ㄹ-äänteeksi ja sano ㄹㄹ",
+    "pidä kielenkärki hammasvallilla ja jatka pehmeästi liukuen"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (muinainen kuningaskunta)"
+    },
+    {
+     "meaning": "kuun uusivuosi"
+    },
+    {
+     "meaning": "yhteydenotto"
+    },
+    {
+     "meaning": "Hallasan-vuori"
+    }
+   ],
+   "sentence": {
+    "translation": "Odotan yhteydenottoasi tänä kuun uutenavuonna."
+   },
+   "test": {
+    "translation": "Odota yhteydenottoa isännöitsijän toimistosta."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalisaatio",
+  "card_desc": "ㄷ tai ㅌ + 이 ääntyy 지 tai 치",
+  "payload": {
+   "how_to": [
+    "Kun loppukonsonantin ㄷ tai ㅌ jälkeen tulee 「이」,",
+    "sano ㄷ kuin 지 ja ㅌ kuin 치",
+    "siirrä kieli kitalaen etuosaa kohti"
+   ],
+   "words": [
+    {
+     "meaning": "yhdessä"
+    },
+    {
+     "meaning": "välttämättä; nähdä vaivaa"
+    },
+    {
+     "meaning": "auringonnousu"
+    },
+    {
+     "meaning": "vanhin lapsi"
+    }
+   ],
+   "sentence": {
+    "translation": "Mennään yhdessä katsomaan auringonnousua."
+   },
+   "test": {
+    "translation": "Meidän ei ole pakko mennä yhdessä."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspiraatio",
+  "card_desc": "ㅎ-äänteen kanssa syntyy aspiroitu äänne",
+  "payload": {
+   "how_to": [
+    "Kun ㄱ, ㄷ, ㅂ tai ㅈ ja ㅎ kohtaavat,",
+    "ne sulautuvat ja äännetään ㅋ, ㅌ, ㅍ tai ㅊ",
+    "puhalla yhdistyneessä äänteessä ilma voimakkaasti ulos"
+   ],
+   "words": [
+    {
+     "meaning": "olla hyvä"
+    },
+    {
+     "meaning": "onnittelut"
+    },
+    {
+     "meaning": "kouluun pääsy"
+    },
+    {
+     "meaning": "olla paljon"
+    }
+   ],
+   "sentence": {
+    "translation": "Onnea kouluun pääsystä, tosi hienoa!"
+   },
+   "test": {
+    "translation": "Niitä ei ole niin paljon."
+   }
+  }
+ }
+}

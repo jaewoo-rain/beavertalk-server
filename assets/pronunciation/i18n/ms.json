@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Konsonan awal ㄱ",
+  "card_desc": "Sekat udara dengan belakang lidah, kemudian lepaskan dengan ringan",
+  "payload": {
+   "how_to": [
+    "Lekapkan belakang lidah pada lelangit lembut",
+    "Lepaskan dengan ringan, hampir tanpa hembusan udara",
+    "Jangan hembuskan udara dengan kuat seperti ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "beg"
+    },
+    {
+     "meaning": "daging"
+    },
+    {
+     "meaning": "kasut"
+    },
+    {
+     "meaning": "kereta api"
+    }
+   ],
+   "sentence": {
+    "translation": "Beg itu penuh dengan daging."
+   },
+   "test": {
+    "translation": "Saya memilih makanan ringan di kedai."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Konsonan awal ㄲ",
+  "card_desc": "Tegangkan tekak, tanpa hembusan udara",
+  "payload": {
+   "how_to": [
+    "Lekapkan belakang lidah di tempat yang sama seperti ㄱ",
+    "Tegangkan tekak dan lidah, lalu tahan sekejap",
+    "Lepaskan dengan cepat dan tegas, tanpa hembusan udara"
+   ],
+   "words": [
+    {
+     "meaning": "madu"
+    },
+    {
+     "meaning": "ekor"
+    },
+    {
+     "meaning": "burung murai"
+    },
+    {
+     "meaning": "bunga"
+    }
+   ],
+   "sentence": {
+    "translation": "Burung murai suka madu bunga."
+   },
+   "test": {
+    "translation": "Budak kecil itu pasti datang sampai ke hujung."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Konsonan awal ㄴ",
+  "card_desc": "Sentuhkan hujung lidah dan keluarkan bunyi sengau",
+  "payload": {
+   "how_to": [
+    "Lekapkan hujung lidah pada gusi atas",
+    "Biarkan bunyi bergema melalui hidung",
+    "Lepaskan lidah sambil beralih ke vokal"
+   ],
+   "words": [
+    {
+     "meaning": "pokok"
+    },
+    {
+     "meaning": "kakak"
+    },
+    {
+     "meaning": "lagu"
+    },
+    {
+     "meaning": "rama-rama"
+    }
+   ],
+   "sentence": {
+    "translation": "Kakak menyanyikan lagu tentang pokok."
+   },
+   "test": {
+    "translation": "Kakak pasti akan berjumpa dengan kamu."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Konsonan awal ㄷ",
+  "card_desc": "Sentuhkan hujung lidah, kemudian lepaskan dengan ringan",
+  "payload": {
+   "how_to": [
+    "Lekapkan hujung lidah pada gusi atas",
+    "Lepaskan dengan ringan, hampir tanpa hembusan udara",
+    "Jangan hembuskan udara dengan kuat seperti ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "jambatan"
+    },
+    {
+     "meaning": "tauhu"
+    },
+    {
+     "meaning": "bandar"
+    },
+    {
+     "meaning": "bulan"
+    }
+   ],
+   "sentence": {
+    "translation": "Ada dua jambatan di bandar itu."
+   },
+   "test": {
+    "translation": "Adik minta tauhu lagi."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Konsonan awal ㄸ",
+  "card_desc": "Tegangkan hujung lidah dan lepaskan sekali gus",
+  "payload": {
+   "how_to": [
+    "Lekapkan hujung lidah di tempat yang sama seperti ㄷ",
+    "Tegangkan lidah dan tekak, lalu tahan sekejap",
+    "Lepaskan dengan cepat dan tegas, tanpa hembusan udara"
+   ],
+   "words": [
+    {
+     "meaning": "anak perempuan"
+    },
+    {
+     "meaning": "peluh"
+    },
+    {
+     "meaning": "kuih beras"
+    },
+    {
+     "meaning": "lagi"
+    }
+   ],
+   "sentence": {
+    "translation": "Anak perempuan saya makan kuih beras lagi."
+   },
+   "test": {
+    "translation": "Saya berpeluh, jadi saya keluar ke halaman lagi."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Konsonan awal ㄹ",
+  "card_desc": "Ketuk gusi sekali dengan hujung lidah",
+  "payload": {
+   "how_to": [
+    "Sentuhkan hujung lidah pada gusi atas sekejap sahaja",
+    "Petik sekali sahaja, seperti ketukan ringan",
+    "Jangan gulung lidah ke belakang seperti r dalam bahasa Inggeris"
+   ],
+   "words": [
+    {
+     "meaning": "mi segera"
+    },
+    {
+     "meaning": "kita"
+    },
+    {
+     "meaning": "lagu"
+    },
+    {
+     "meaning": "kepala"
+    }
+   ],
+   "sentence": {
+    "translation": "Mari kita makan mi segera sambil menyanyi."
+   },
+   "test": {
+    "translation": "Setiap negara ada masakan yang berbeza."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Konsonan awal ㅁ",
+  "card_desc": "Tutup bibir dan keluarkan bunyi sengau",
+  "payload": {
+   "how_to": [
+    "Rapatkan kedua-dua bibir dengan ringan",
+    "Biarkan bunyi bergema melalui hidung",
+    "Buka bibir sambil beralih ke vokal"
+   ],
+   "words": [
+    {
+     "meaning": "kepala"
+    },
+    {
+     "meaning": "topi"
+    },
+    {
+     "meaning": "lobak putih"
+    },
+    {
+     "meaning": "hati"
+    }
+   ],
+   "sentence": {
+    "translation": "Ibu membuat banyak topi."
+   },
+   "test": {
+    "translation": "Semua orang minum air setiap hari."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Konsonan awal ㅂ",
+  "card_desc": "Tutup bibir, kemudian lepaskan dengan ringan",
+  "payload": {
+   "how_to": [
+    "Rapatkan kedua-dua bibir",
+    "Lepaskan dengan ringan, hampir tanpa hembusan udara",
+    "Jangan hembuskan udara dengan kuat seperti ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "laut"
+    },
+    {
+     "meaning": "hujan"
+    },
+    {
+     "meaning": "barli"
+    },
+    {
+     "meaning": "ibu bapa"
+    }
+   ],
+   "sentence": {
+    "translation": "Jom pergi melihat laut ketika hujan."
+   },
+   "test": {
+    "translation": "Ibu bapa saya menyewa bot."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Konsonan awal ㅃ",
+  "card_desc": "Tegangkan bibir, tanpa hembusan udara",
+  "payload": {
+   "how_to": [
+    "Rapatkan kedua-dua bibir dengan kemas",
+    "Tegangkan bibir dan tekak, lalu tahan sekejap",
+    "Lepaskan dengan cepat dan tegas, tanpa hembusan udara"
+   ],
+   "words": [
+    {
+     "meaning": "roti"
+    },
+    {
+     "meaning": "tulang"
+    },
+    {
+     "meaning": "ciuman"
+    },
+    {
+     "meaning": "cucian"
+    }
+   ],
+   "sentence": {
+    "translation": "Ayah membeli roti dengan cepat."
+   },
+   "test": {
+    "translation": "Tolong keluarkan cucian dengan cepat."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Konsonan awal ㅅ",
+  "card_desc": "Alirkan udara melalui celah kecil di hujung lidah",
+  "payload": {
+   "how_to": [
+    "Dekatkan hujung lidah pada gusi atas, tetapi renggangkan sedikit",
+    "Hembuskan udara dengan lembut melalui celah itu",
+    "Jangan tegang seperti ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "epal"
+    },
+    {
+     "meaning": "bunyi"
+    },
+    {
+     "meaning": "tembikai"
+    },
+    {
+     "meaning": "jam"
+    }
+   ],
+   "sentence": {
+    "translation": "Hari ini saya membeli epal di pasar."
+   },
+   "test": {
+    "translation": "Cikgu membeli novel."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Konsonan awal ㅆ",
+  "card_desc": "Tegangkan dan hembuskan udara dengan kuat",
+  "payload": {
+   "how_to": [
+    "Letakkan hujung lidah di tempat yang sama seperti ㅅ",
+    "Tegangkan lidah dan tekak",
+    "Hembuskan udara dengan kuat melalui celah yang sempit"
+   ],
+   "words": [
+    {
+     "meaning": "beras"
+    },
+    {
+     "meaning": "murah"
+    },
+    {
+     "meaning": "menggunakan"
+    },
+    {
+     "meaning": "benih"
+    }
+   ],
+   "sentence": {
+    "translation": "Beras murah, jadi saya banyak menggunakannya."
+   },
+   "test": {
+    "translation": "Saya menanam benih sehingga tumbuh dengan cepat."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Konsonan awal ㅈ",
+  "card_desc": "Sentuhkan lidah, kemudian lepaskan dengan ringan",
+  "payload": {
+   "how_to": [
+    "Lekapkan bahagian depan lidah pada bahagian depan lelangit",
+    "Lepaskan dengan lembut, hampir tanpa hembusan udara",
+    "Jangan tekan kuat seperti ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "tempat duduk"
+    },
+    {
+     "meaning": "jus"
+    },
+    {
+     "meaning": "peta"
+    },
+    {
+     "meaning": "petang"
+    }
+   ],
+   "sentence": {
+    "translation": "Beri saya sedikit jus pada waktu petang."
+   },
+   "test": {
+    "translation": "Saya sedang mengemas tempat duduk saya sekarang."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Konsonan awal ㅉ",
+  "card_desc": "Tegangkan lidah, tanpa hembusan udara",
+  "payload": {
+   "how_to": [
+    "Lekapkan lidah di tempat yang sama seperti ㅈ",
+    "Tegangkan lidah dan tekak, lalu tahan sekejap",
+    "Lepaskan dengan cepat dan tegas, tanpa hembusan udara"
+   ],
+   "words": [
+    {
+     "meaning": "masin"
+    },
+    {
+     "meaning": "rebusan"
+    },
+    {
+     "meaning": "sebelah"
+    },
+    {
+     "meaning": "pasangan"
+    }
+   ],
+   "sentence": {
+    "translation": "Rakan karib saya memasak rebusan yang masin."
+   },
+   "test": {
+    "translation": "Saya mengoyakkan nota itu lalu mengejar."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Konsonan awal ㅊ",
+  "card_desc": "Di tempat ㅈ, lepaskan sambil menghembuskan udara dengan kuat",
+  "payload": {
+   "how_to": [
+    "Lekapkan lidah di tempat yang sama seperti ㅈ",
+    "Hembuskan udara dengan kuat sebaik sahaja melepaskannya",
+    "Jika terasa udara pada tapak tangan di depan mulut, itu betul"
+   ],
+   "words": [
+    {
+     "meaning": "kereta"
+    },
+    {
+     "meaning": "skirt"
+    },
+    {
+     "meaning": "buku"
+    },
+    {
+     "meaning": "kawan"
+    }
+   ],
+   "sentence": {
+    "translation": "Kawan saya tertinggal buku di dalam kereta."
+   },
+   "test": {
+    "translation": "Pada hari yang sejuk, saya makan ayam goreng perlahan-lahan."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Konsonan awal ㅋ",
+  "card_desc": "Di tempat ㄱ, lepaskan sambil menghembuskan udara dengan kuat",
+  "payload": {
+   "how_to": [
+    "Lekapkan belakang lidah di tempat yang sama seperti ㄱ",
+    "Hembuskan udara dengan kuat sebaik sahaja melepaskannya",
+    "Jika terasa udara pada tapak tangan di depan mulut, itu betul"
+   ],
+   "words": [
+    {
+     "meaning": "hidung"
+    },
+    {
+     "meaning": "ketinggian"
+    },
+    {
+     "meaning": "kopi"
+    },
+    {
+     "meaning": "kad"
+    }
+   ],
+   "sentence": {
+    "translation": "Kawan saya yang tinggi membeli kopi."
+   },
+   "test": {
+    "translation": "Gajah itu ketawa dengan kuat."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Konsonan awal ㅌ",
+  "card_desc": "Di tempat ㄷ, lepaskan sambil menghembuskan udara dengan kuat",
+  "payload": {
+   "how_to": [
+    "Lekapkan hujung lidah di tempat yang sama seperti ㄷ",
+    "Hembuskan udara dengan kuat sebaik sahaja melepaskannya",
+    "Jika terasa udara pada tapak tangan di depan mulut, itu betul"
+   ],
+   "words": [
+    {
+     "meaning": "arnab"
+    },
+    {
+     "meaning": "topeng"
+    },
+    {
+     "meaning": "meja"
+    },
+    {
+     "meaning": "tong"
+    }
+   ],
+   "sentence": {
+    "translation": "Saya naik teksi pada hari Sabtu."
+   },
+   "test": {
+    "translation": "Saya membeli meja yang kukuh."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Konsonan awal ㅍ",
+  "card_desc": "Di tempat ㅂ, lepaskan sambil menghembuskan udara dengan kuat",
+  "payload": {
+   "how_to": [
+    "Rapatkan kedua-dua bibir seperti ㅂ",
+    "Hembuskan udara dengan kuat sebaik sahaja melepaskannya",
+    "Jangan gigit bibir seperti f dalam bahasa Inggeris"
+   ],
+   "words": [
+    {
+     "meaning": "daun bawang"
+    },
+    {
+     "meaning": "anggur"
+    },
+    {
+     "meaning": "piano"
+    },
+    {
+     "meaning": "surat"
+    }
+   ],
+   "sentence": {
+    "translation": "Saya membuka surat dan bermain piano."
+   },
+   "test": {
+    "translation": "Ada banyak anggur hijau."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Konsonan awal ㅎ",
+  "card_desc": "Hembuskan udara dari tekak",
+  "payload": {
+   "how_to": [
+    "Buka mulut dahulu mengikut bentuk vokal",
+    "Hembuskan udara dengan ringan dari dalam tekak",
+    "Jangan sekat udara dengan lidah atau bibir"
+   ],
+   "words": [
+    {
+     "meaning": "satu"
+    },
+    {
+     "meaning": "tasik"
+    },
+    {
+     "meaning": "tisu"
+    },
+    {
+     "meaning": "nenek"
+    }
+   ],
+   "sentence": {
+    "translation": "Nenek pergi ke tasik sepanjang hari."
+   },
+   "test": {
+    "translation": "Pada hari cuti, saya pergi ke Sungai Han seorang diri."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Batchim ㄱ",
+  "card_desc": "Sekat dengan belakang lidah dan hentikan bunyi",
+  "payload": {
+   "how_to": [
+    "Lekapkan belakang lidah pada lelangit lembut",
+    "Kekalkan lidah di situ dan hentikan bunyi",
+    "Jangan tambah 「으」 (eu) selepasnya"
+   ],
+   "words": [
+    {
+     "meaning": "buku"
+    },
+    {
+     "meaning": "ubat"
+    },
+    {
+     "meaning": "tembikai"
+    },
+    {
+     "meaning": "keluarga"
+    }
+   ],
+   "sentence": {
+    "translation": "Hari ini pergi ke farmasi dan beli sedikit ubat."
+   },
+   "test": {
+    "translation": "Makan dua biji tembikai dan baca buku."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Batchim ㄴ",
+  "card_desc": "Lekapkan hujung lidah dan keluarkan bunyi sengau",
+  "payload": {
+   "how_to": [
+    "Lekapkan hujung lidah pada gusi atas",
+    "Kekalkan lidah di situ dan biarkan bunyi bergema melalui hidung",
+    "Jangan angkat belakang lidah seperti ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "gunung"
+    },
+    {
+     "meaning": "salji"
+    },
+    {
+     "meaning": "wang"
+    },
+    {
+     "meaning": "pintu"
+    }
+   ],
+   "sentence": {
+    "translation": "Pergi ke gunung dengan kawan dan lihat salji."
+   },
+   "test": {
+    "translation": "Kakak membayar dan membeli kasut."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Batchim ㄷ",
+  "card_desc": "Sekat dengan hujung lidah dan hentikan bunyi",
+  "payload": {
+   "how_to": [
+    "Lekapkan hujung lidah pada gusi atas",
+    "Kekalkan lidah di situ dan hentikan bunyi",
+    "Batchim ㅅ·ㅈ·ㅊ·ㅌ juga berbunyi sama"
+   ],
+   "words": [
+    {
+     "meaning": "pakaian"
+    },
+    {
+     "meaning": "rasa"
+    },
+    {
+     "meaning": "bunga"
+    },
+    {
+     "meaning": "siang hari"
+    }
+   ],
+   "sentence": {
+    "translation": "Pergi ke ladang, lihat bunga dan beli pakaian."
+   },
+   "test": {
+    "translation": "Tidak lama kemudian, saya membeli tiga kuntum bunga."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Batchim ㄹ",
+  "card_desc": "Lekapkan hujung lidah dan kekalkan di situ",
+  "payload": {
+   "how_to": [
+    "Sentuhkan hujung lidah pada gusi di belakang gigi atas",
+    "Jangan lepaskan lidah, kekalkannya di situ",
+    "Alirkan udara melalui kedua-dua sisi lidah"
+   ],
+   "words": [
+    {
+     "meaning": "air"
+    },
+    {
+     "meaning": "bulan"
+    },
+    {
+     "meaning": "musim sejuk"
+    },
+    {
+     "meaning": "bilik darjah"
+    }
+   ],
+   "sentence": {
+    "translation": "Nak minum air hari ini?"
+   },
+   "test": {
+    "translation": "Patutkah saya minta air?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Batchim ㅁ",
+  "card_desc": "Biarkan bunyi bergema dengan bibir tertutup",
+  "payload": {
+   "how_to": [
+    "Rapatkan kedua-dua bibir",
+    "Kekalkan bibir rapat dan biarkan bunyi bergema melalui hidung",
+    "Habiskan bunyi tanpa membuka bibir"
+   ],
+   "words": [
+    {
+     "meaning": "malam"
+    },
+    {
+     "meaning": "musim bunga"
+    },
+    {
+     "meaning": "rumpai laut"
+    },
+    {
+     "meaning": "orang"
+    }
+   ],
+   "sentence": {
+    "translation": "Jom makan gimbap di taman pada malam musim bunga."
+   },
+   "test": {
+    "translation": "Masukkan gimbap ke dalam bekas dan kemaskan barang."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Batchim ㅂ",
+  "card_desc": "Tutup bibir dan hentikan bunyi",
+  "payload": {
+   "how_to": [
+    "Rapatkan kedua-dua bibir",
+    "Kekalkan bibir rapat dan hentikan bunyi",
+    "Jangan buka bibir atau tambah 「으」 (eu)"
+   ],
+   "words": [
+    {
+     "meaning": "nasi"
+    },
+    {
+     "meaning": "rumah"
+    },
+    {
+     "meaning": "mulut"
+    },
+    {
+     "meaning": "kelas"
+    }
+   ],
+   "sentence": {
+    "translation": "Pergi ke rumah sebelah dan beri mereka sedikit nasi."
+   },
+   "test": {
+    "translation": "Jom balik rumah selepas kelas."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Batchim ㅇ",
+  "card_desc": "Sekat di lelangit lembut dan keluarkan bunyi sengau",
+  "payload": {
+   "how_to": [
+    "Lekapkan belakang lidah pada lelangit lembut",
+    "Kekalkan lidah di situ dan biarkan bunyi bergema melalui hidung",
+    "Jangan angkat hujung lidah seperti ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "bilik"
+    },
+    {
+     "meaning": "sungai"
+    },
+    {
+     "meaning": "bola"
+    },
+    {
+     "meaning": "beg"
+    }
+   ],
+   "sentence": {
+    "translation": "Adik pergi ke taman sambil membawa beg."
+   },
+   "test": {
+    "translation": "Saya pergi ke stesen penyiaran di seberang sungai."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Penyambungan bunyi",
+  "card_desc": "Pindahkan batchim ke suku kata seterusnya",
+  "payload": {
+   "how_to": [
+    "Jika suku kata yang bermula dengan ㅇ datang selepas batchim,",
+    "pindahkan batchim itu menjadi bunyi awal suku kata seterusnya",
+    "sebut sekali gus tanpa berhenti"
+   ],
+   "words": [
+    {
+     "meaning": "bahasa Korea"
+    },
+    {
+     "meaning": "muzik"
+    },
+    {
+     "meaning": "pakaian (subjek)"
+    },
+    {
+     "meaning": "nasi (objek)"
+    }
+   ],
+   "sentence": {
+    "translation": "Saya mendengar muzik Korea."
+   },
+   "test": {
+    "translation": "Cuba pakai pakaian itu."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Penyengauan",
+  "card_desc": "ㄱ·ㄷ·ㅂ menjadi bunyi sengau",
+  "payload": {
+   "how_to": [
+    "Jika ㄴ·ㅁ datang selepas batchim ㄱ·ㄷ·ㅂ,",
+    "ㄱ menjadi ㅇ, ㄷ menjadi ㄴ, ㅂ menjadi ㅁ",
+    "biarkan bunyi bergema melalui hidung bermula dari batchim dan sebut secara bersambung"
+   ],
+   "words": [
+    {
+     "meaning": "sup"
+    },
+    {
+     "meaning": "rambut depan"
+    },
+    {
+     "meaning": "pembohongan"
+    },
+    {
+     "meaning": "makan"
+    }
+   ],
+   "sentence": {
+    "translation": "Saya sedang makan sup."
+   },
+   "test": {
+    "translation": "Saya memotong rambut depan tahun lepas."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Asimilasi likuida",
+  "card_desc": "Apabila ㄴ bertemu ㄹ, sebut ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Jika ㄴ dan ㄹ datang berturut-turut,",
+    "tukar ㄴ juga kepada ㄹ dan sebut ㄹㄹ",
+    "kekalkan hujung lidah pada gusi dan sambung dengan lancar"
+   ],
+   "words": [
+    {
+     "meaning": "Silla"
+    },
+    {
+     "meaning": "Tahun Baru Lunar"
+    },
+    {
+     "meaning": "khabar"
+    },
+    {
+     "meaning": "Gunung Halla"
+    }
+   ],
+   "sentence": {
+    "translation": "Saya tunggu khabar daripada anda pada Tahun Baru Lunar ini."
+   },
+   "test": {
+    "translation": "Tunggu khabar daripada pejabat pengurusan."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalisasi",
+  "card_desc": "ㄷ·ㅌ+이 menjadi 지·치",
+  "payload": {
+   "how_to": [
+    "Jika 「이」 datang selepas batchim ㄷ·ㅌ,",
+    "sebut ㄷ sebagai 지 dan ㅌ sebagai 치",
+    "gerakkan lidah ke bahagian depan lelangit"
+   ],
+   "words": [
+    {
+     "meaning": "bersama"
+    },
+    {
+     "meaning": "sengaja bersusah payah"
+    },
+    {
+     "meaning": "matahari terbit"
+    },
+    {
+     "meaning": "anak sulung"
+    }
+   ],
+   "sentence": {
+    "translation": "Jom kita pergi melihat matahari terbit bersama."
+   },
+   "test": {
+    "translation": "Tak perlu pun pergi bersama."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspirasi",
+  "card_desc": "Apabila bertemu ㅎ, menjadi bunyi beraspirasi",
+  "payload": {
+   "how_to": [
+    "Jika ㄱ·ㄷ·ㅂ·ㅈ bertemu ㅎ,",
+    "gabungkan dan sebut sebagai ㅋ·ㅌ·ㅍ·ㅊ",
+    "hembuskan udara dengan kuat pada bunyi gabungan itu"
+   ],
+   "words": [
+    {
+     "meaning": "baik"
+    },
+    {
+     "meaning": "tahniah"
+    },
+    {
+     "meaning": "kemasukan ke sekolah"
+    },
+    {
+     "meaning": "banyak"
+    }
+   ],
+   "sentence": {
+    "translation": "Tahniah kerana diterima masuk, bagus sungguh."
+   },
+   "test": {
+    "translation": "Tidaklah begitu banyak."
+   }
+  }
+ }
+}

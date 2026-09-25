@@ -35,6 +35,8 @@ from domains.learning.models.sound_lesson_i18n import SoundLessonI18n
 _ASSETS = Path(__file__).resolve().parent.parent / "assets" / "pronunciation"
 _LESSONS = _ASSETS / "lessons.json"
 _NATIONAL = _ASSETS / "national_weak_sounds.json"
+# 검수된 번역(언어별 1파일 · sound_key → {label, card_desc, payload}). 2026-09-24 29개 언어.
+_I18N_DIR = _ASSETS / "i18n"
 
 # payload 로 넘기는 4단계 콘텐츠 키. 나머지(sound_key·label·type 등)는 컬럼으로 뽑는다.
 _PAYLOAD_KEYS = (
@@ -46,6 +48,36 @@ def load_sources() -> tuple[list[dict], dict[str, dict]]:
     lessons = json.loads(_LESSONS.read_text(encoding="utf-8"))["lessons"]
     national = json.loads(_NATIONAL.read_text(encoding="utf-8"))
     return lessons, national
+
+
+def load_i18n() -> dict[str, dict]:
+    """assets/pronunciation/i18n/<locale>.json → {locale: {sound_key: row}}. 폴더가 없으면 빈 dict."""
+    out: dict[str, dict] = {}
+    if _I18N_DIR.is_dir():
+        for p in sorted(_I18N_DIR.glob("*.json")):
+            out[p.stem] = json.loads(p.read_text(encoding="utf-8"))
+    return out
+
+
+def validate_i18n(lessons: list[dict], i18n: dict[str, dict]) -> list[str]:
+    """번역 파일 모양 검증 — 과 목록이 같고, 과마다 how_to 3줄 · 단어 뜻 4개 · label·card_desc 가 있어야 한다."""
+    keys = {l["sound_key"] for l in lessons}
+    errs: list[str] = []
+    for loc, rows in i18n.items():
+        if loc == "ko":
+            errs.append("i18n/ko.json — 한국어는 원본(lessons.json)이 정본이다. 파일을 두지 않는다")
+            continue
+        if set(rows) != keys:
+            errs.append(f"i18n/{loc}.json — sound_key 불일치 {sorted(set(rows) ^ keys)[:5]}")
+        for k, r in rows.items():
+            p = r.get("payload") or {}
+            if len(p.get("how_to") or []) != 3:
+                errs.append(f"i18n/{loc}.json {k} — how_to 3줄 아님")
+            if len(p.get("words") or []) != 4:
+                errs.append(f"i18n/{loc}.json {k} — words 4개 아님")
+            if not r.get("label") or not r.get("card_desc"):
+                errs.append(f"i18n/{loc}.json {k} — label·card_desc 비어 있음")
+    return errs
 
 
 def validate(lessons: list[dict], national: dict[str, dict]) -> list[str]:
@@ -122,25 +154,28 @@ def _i18n_payload(l: dict, locale: str) -> dict:
     return {}
 
 
-def seed_i18n(session, lessons: list[dict]) -> tuple[int, int]:
-    """sound_lesson_i18n upsert → (신규, 갱신). 지금 채우는 언어는 ko·en 둘뿐이다.
+def seed_i18n(session, lessons: list[dict], i18n: dict[str, dict]) -> tuple[int, int]:
+    """sound_lesson_i18n upsert → (신규, 갱신). ko(원본 복사) + i18n/ 폴더의 언어들.
 
-    나머지 28개 로케일은 **의도적으로 비워 둔다**(2026-09-21 결정). 조음 설명은 기계번역이
-    자주 틀리고, 틀리면 학습자가 엉뚱한 입 모양을 배운다 — 검수를 거쳐 채울 자리다.
+    번역은 검수를 거친 파일만 넣는다(2026-09-21 결정 「기계번역을 그냥 붓지 않는다」).
+    2026-09-24 29개 언어를 번역 → 역번역 검수 → 재검수 → 교차 점검까지 마쳐 적재한다.
+    파일에 없는 언어는 행이 없고, API 는 en → 한국어 원본 순서로 떨어진다(_translated).
+    en 은 이 파일이 옛 meaning_en·translation_en 기반 행을 대체한다(설명·소리 이름까지 채움).
     """
     created = updated = 0
     for l in lessons:
-        for locale in ("ko", "en"):
-            payload = _i18n_payload(l, locale)
+        for locale in ["ko", *sorted(i18n)]:
+            if locale == "ko":
+                label, card_desc, payload = l["label"], l["card_desc"], _i18n_payload(l, "ko")
+            else:
+                r = i18n[locale][l["sound_key"]]
+                label, card_desc, payload = r["label"], r["card_desc"], r["payload"]
             row = session.scalar(
                 select(SoundLessonI18n).where(
                     SoundLessonI18n.sound_key == l["sound_key"],
                     SoundLessonI18n.locale == locale,
                 )
             )
-            # label·card_desc 는 한국어본만 있다. en 은 None 으로 두어 원본으로 떨어뜨린다.
-            label = l["label"] if locale == "ko" else None
-            card_desc = l["card_desc"] if locale == "ko" else None
             if row is None:
                 session.add(SoundLessonI18n(
                     sound_key=l["sound_key"], locale=locale,
@@ -199,13 +234,14 @@ def main() -> int:
     args = ap.parse_args()
 
     lessons, national = load_sources()
-    errs = validate(lessons, national)
+    i18n = load_i18n()
+    errs = validate(lessons, national) + validate_i18n(lessons, i18n)
     if errs:
         print(f"검증 실패 {len(errs)}건:")
         for e in errs[:30]:
             print("  -", e)
         return 1
-    print(f"검증 통과 — 학습 {len(lessons)}과 · 국가 {len(national)}")
+    print(f"검증 통과 — 학습 {len(lessons)}과 · 국가 {len(national)} · 번역 {len(i18n)}개 언어")
     if args.dry_run:
         return 0
 
@@ -213,11 +249,11 @@ def main() -> int:
     session_factory = build_session_factory(engine)
     with session_factory() as session:
         lc, lu = seed_lessons(session, lessons)
-        ic, iu = seed_i18n(session, lessons)
+        ic, iu = seed_i18n(session, lessons, i18n)
         nc, nu, nd = seed_national(session, national)
         session.commit()
     print(f"sound_lesson        신규 {lc} · 갱신 {lu}")
-    print(f"sound_lesson_i18n   신규 {ic} · 갱신 {iu}  (ko·en 2벌)")
+    print(f"sound_lesson_i18n   신규 {ic} · 갱신 {iu}  (ko + {len(i18n)}개 언어)")
     print(f"national_sound_stat 신규 {nc} · 갱신 {nu} · 삭제 {nd}")
     return 0
 

@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "ㄱ inicial",
+  "card_desc": "Bloqueie o ar com a parte de trás da língua e solte de leve",
+  "payload": {
+   "how_to": [
+    "Encoste a parte de trás da língua no fundo do céu da boca",
+    "Solte de leve, quase sem deixar sair ar",
+    "Não deixe sair um sopro forte de ar como no ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "bolsa"
+    },
+    {
+     "meaning": "carne"
+    },
+    {
+     "meaning": "sapatos"
+    },
+    {
+     "meaning": "trem"
+    }
+   ],
+   "sentence": {
+    "translation": "Aquela bolsa está cheia de carne."
+   },
+   "test": {
+    "translation": "Escolho biscoitos na loja."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "ㄲ inicial",
+  "card_desc": "Tensione a garganta e solte sem sopro de ar",
+  "payload": {
+   "how_to": [
+    "Encoste a parte de trás da língua no mesmo lugar do ㄱ",
+    "Tensione a garganta e a língua e segure por um instante",
+    "Solte curto e firme, sem sopro de ar"
+   ],
+   "words": [
+    {
+     "meaning": "mel"
+    },
+    {
+     "meaning": "rabo, cauda"
+    },
+    {
+     "meaning": "pega (pássaro)"
+    },
+    {
+     "meaning": "flor"
+    }
+   ],
+   "sentence": {
+    "translation": "A pega gosta do mel das flores."
+   },
+   "test": {
+    "translation": "A criança vem até o fim, sem falta."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "ㄴ inicial",
+  "card_desc": "Encoste a ponta da língua e faça um som nasal",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua na gengiva de cima",
+    "Deixe o som ressoar pelo nariz",
+    "Passe para a vogal ao soltar a língua"
+   ],
+   "words": [
+    {
+     "meaning": "árvore"
+    },
+    {
+     "meaning": "irmã mais velha (de um homem)"
+    },
+    {
+     "meaning": "canção"
+    },
+    {
+     "meaning": "borboleta"
+    }
+   ],
+   "sentence": {
+    "translation": "Minha irmã canta uma canção sobre árvores."
+   },
+   "test": {
+    "translation": "Minha irmã vai te encontrar, com certeza."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "ㄷ inicial",
+  "card_desc": "Encoste a ponta da língua e solte de leve",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua na gengiva de cima",
+    "Solte de leve, quase sem deixar sair ar",
+    "Não deixe sair um sopro forte de ar como no ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "ponte"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "cidade"
+    },
+    {
+     "meaning": "lua"
+    }
+   ],
+   "sentence": {
+    "translation": "Há duas pontes na cidade."
+   },
+   "test": {
+    "translation": "Meu irmão mais novo pede mais tofu."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "ㄸ inicial",
+  "card_desc": "Tensione a ponta da língua e solte de uma vez",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua no mesmo lugar do ㄷ",
+    "Tensione a língua e a garganta e segure por um instante",
+    "Solte curto e firme, sem sopro de ar"
+   ],
+   "words": [
+    {
+     "meaning": "filha"
+    },
+    {
+     "meaning": "suor"
+    },
+    {
+     "meaning": "bolinho de arroz (tteok)"
+    },
+    {
+     "meaning": "de novo"
+    }
+   ],
+   "sentence": {
+    "translation": "Minha filha come bolinho de arroz de novo."
+   },
+   "test": {
+    "translation": "Estou suando, então saio para o quintal de novo."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "ㄹ inicial",
+  "card_desc": "Um toque rápido da ponta da língua na gengiva",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua na gengiva de cima só por um instante",
+    "Bata só uma vez, como um toque leve",
+    "Não enrole a língua como no r do inglês"
+   ],
+   "words": [
+    {
+     "meaning": "lámen"
+    },
+    {
+     "meaning": "nós"
+    },
+    {
+     "meaning": "canção"
+    },
+    {
+     "meaning": "cabeça"
+    }
+   ],
+   "sentence": {
+    "translation": "Vamos comer lámen cantando."
+   },
+   "test": {
+    "translation": "Cada país tem uma culinária diferente."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "ㅁ inicial",
+  "card_desc": "Feche os lábios e faça um som nasal",
+  "payload": {
+   "how_to": [
+    "Junte os dois lábios de leve",
+    "Deixe o som ressoar pelo nariz",
+    "Passe para a vogal ao separar os lábios"
+   ],
+   "words": [
+    {
+     "meaning": "cabeça"
+    },
+    {
+     "meaning": "chapéu"
+    },
+    {
+     "meaning": "nabo (rabanete branco grande)"
+    },
+    {
+     "meaning": "coração, sentimento"
+    }
+   ],
+   "sentence": {
+    "translation": "A mamãe faz muitos chapéus."
+   },
+   "test": {
+    "translation": "Todo mundo bebe água todos os dias."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "ㅂ inicial",
+  "card_desc": "Feche os lábios e separe de leve",
+  "payload": {
+   "how_to": [
+    "Junte os dois lábios",
+    "Separe de leve, quase sem deixar sair ar",
+    "Não deixe sair um sopro forte de ar como no ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "mar"
+    },
+    {
+     "meaning": "chuva"
+    },
+    {
+     "meaning": "cevada"
+    },
+    {
+     "meaning": "pais"
+    }
+   ],
+   "sentence": {
+    "translation": "Vamos ver o mar na chuva."
+   },
+   "test": {
+    "translation": "Meus pais alugam um barco."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "ㅃ inicial",
+  "card_desc": "Tensione os lábios e separe sem sopro de ar",
+  "payload": {
+   "how_to": [
+    "Junte os dois lábios com firmeza",
+    "Tensione os lábios e a garganta e segure por um instante",
+    "Separe curto e firme, sem sopro de ar"
+   ],
+   "words": [
+    {
+     "meaning": "pão"
+    },
+    {
+     "meaning": "osso"
+    },
+    {
+     "meaning": "beijinho"
+    },
+    {
+     "meaning": "roupa para lavar"
+    }
+   ],
+   "sentence": {
+    "translation": "O papai compra pão rapidinho."
+   },
+   "test": {
+    "translation": "Tire a roupa lavada rápido."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "ㅅ inicial",
+  "card_desc": "Deixe o ar passar pela fresta na ponta da língua",
+  "payload": {
+   "how_to": [
+    "Deixe a ponta da língua bem perto da gengiva de cima, sem encostar",
+    "Solte o ar suavemente por essa fresta",
+    "Não faça força como no ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "maçã"
+    },
+    {
+     "meaning": "som"
+    },
+    {
+     "meaning": "melancia"
+    },
+    {
+     "meaning": "relógio"
+    }
+   ],
+   "sentence": {
+    "translation": "Hoje compro maçãs no mercado."
+   },
+   "test": {
+    "translation": "O professor compra um romance."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "ㅆ inicial",
+  "card_desc": "Com tensão, solte o ar com força",
+  "payload": {
+   "how_to": [
+    "Deixe a ponta da língua no mesmo lugar do ㅅ",
+    "Tensione a língua e a garganta",
+    "Solte o ar com força pela fresta estreita"
+   ],
+   "words": [
+    {
+     "meaning": "arroz (cru)"
+    },
+    {
+     "meaning": "barato"
+    },
+    {
+     "meaning": "usar, gastar"
+    },
+    {
+     "meaning": "semente"
+    }
+   ],
+   "sentence": {
+    "translation": "O arroz estava barato, então usei bastante."
+   },
+   "test": {
+    "translation": "Faço as sementes crescerem depressa."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "ㅈ inicial",
+  "card_desc": "Encoste a língua e solte de leve",
+  "payload": {
+   "how_to": [
+    "Encoste a parte da frente da língua na parte da frente do céu da boca",
+    "Solte suavemente, quase sem deixar sair ar",
+    "Não pressione com força como no ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "lugar, assento"
+    },
+    {
+     "meaning": "suco"
+    },
+    {
+     "meaning": "mapa"
+    },
+    {
+     "meaning": "noite, fim da tarde"
+    }
+   ],
+   "sentence": {
+    "translation": "Me dá um pouco de suco à noite."
+   },
+   "test": {
+    "translation": "Estou arrumando meu lugar agora."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "ㅉ inicial",
+  "card_desc": "Tensione a língua e solte sem sopro de ar",
+  "payload": {
+   "how_to": [
+    "Encoste a língua no mesmo lugar do ㅈ",
+    "Tensione a língua e a garganta e segure por um instante",
+    "Solte curto e firme, sem sopro de ar"
+   ],
+   "words": [
+    {
+     "meaning": "salgado"
+    },
+    {
+     "meaning": "ensopado"
+    },
+    {
+     "meaning": "lado"
+    },
+    {
+     "meaning": "par, parceiro"
+    }
+   ],
+   "sentence": {
+    "translation": "Meu parceiro cozinha o ensopado bem salgado."
+   },
+   "test": {
+    "translation": "Rasgo o bilhete e saio correndo atrás."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "ㅊ inicial",
+  "card_desc": "No lugar do ㅈ, solte com um sopro forte de ar",
+  "payload": {
+   "how_to": [
+    "Encoste a língua no mesmo lugar do ㅈ",
+    "Na hora de soltar, deixe sair um sopro forte de ar",
+    "Se sentir o ar na palma da mão, está certo"
+   ],
+   "words": [
+    {
+     "meaning": "carro"
+    },
+    {
+     "meaning": "saia"
+    },
+    {
+     "meaning": "livro"
+    },
+    {
+     "meaning": "amigo"
+    }
+   ],
+   "sentence": {
+    "translation": "Meu amigo deixou o livro no carro."
+   },
+   "test": {
+    "translation": "Num dia frio, como frango frito devagar."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "ㅋ inicial",
+  "card_desc": "No lugar do ㄱ, solte com um sopro forte de ar",
+  "payload": {
+   "how_to": [
+    "Encoste a parte de trás da língua no mesmo lugar do ㄱ",
+    "Na hora de soltar, deixe sair um sopro forte de ar",
+    "Se sentir o ar na palma da mão, está certo"
+   ],
+   "words": [
+    {
+     "meaning": "nariz"
+    },
+    {
+     "meaning": "altura"
+    },
+    {
+     "meaning": "café"
+    },
+    {
+     "meaning": "cartão"
+    }
+   ],
+   "sentence": {
+    "translation": "Meu amigo alto compra café."
+   },
+   "test": {
+    "translation": "O elefante ri alto."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "ㅌ inicial",
+  "card_desc": "No lugar do ㄷ, solte com um sopro forte de ar",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua no mesmo lugar do ㄷ",
+    "Na hora de soltar, deixe sair um sopro forte de ar",
+    "Se sentir o ar na palma da mão, está certo"
+   ],
+   "words": [
+    {
+     "meaning": "coelho"
+    },
+    {
+     "meaning": "máscara"
+    },
+    {
+     "meaning": "mesa"
+    },
+    {
+     "meaning": "balde, pote"
+    }
+   ],
+   "sentence": {
+    "translation": "No sábado, vou de táxi."
+   },
+   "test": {
+    "translation": "Compro uma mesa resistente."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "ㅍ inicial",
+  "card_desc": "No lugar do ㅂ, separe os lábios com um sopro forte de ar",
+  "payload": {
+   "how_to": [
+    "Junte os dois lábios, como no ㅂ",
+    "Na hora de separar, deixe sair um sopro forte de ar",
+    "Não morda o lábio como no f do inglês"
+   ],
+   "words": [
+    {
+     "meaning": "cebolinha"
+    },
+    {
+     "meaning": "uva"
+    },
+    {
+     "meaning": "piano"
+    },
+    {
+     "meaning": "carta"
+    }
+   ],
+   "sentence": {
+    "translation": "Abro a carta e toco piano."
+   },
+   "test": {
+    "translation": "Há uvas verdes de sobra."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "ㅎ inicial",
+  "card_desc": "Solte o ar pela garganta",
+  "payload": {
+   "how_to": [
+    "Primeiro, abra a boca no formato da vogal",
+    "Solte o ar de leve lá do fundo da garganta",
+    "Não bloqueie o ar com a língua nem com os lábios"
+   ],
+   "words": [
+    {
+     "meaning": "um (número)"
+    },
+    {
+     "meaning": "lago"
+    },
+    {
+     "meaning": "lenço de papel"
+    },
+    {
+     "meaning": "avó"
+    }
+   ],
+   "sentence": {
+    "translation": "A vovó vai ao lago e passa o dia todo lá."
+   },
+   "test": {
+    "translation": "Nos feriados, vou sozinho ao rio Han."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Batchim ㄱ",
+  "card_desc": "Bloqueie o ar com a parte de trás da língua e pare",
+  "payload": {
+   "how_to": [
+    "Encoste a parte de trás da língua no fundo do céu da boca",
+    "Mantenha a língua encostada e pare o som",
+    "Não acrescente um 「으」 (vogal extra) depois"
+   ],
+   "words": [
+    {
+     "meaning": "livro"
+    },
+    {
+     "meaning": "remédio"
+    },
+    {
+     "meaning": "melancia"
+    },
+    {
+     "meaning": "família"
+    }
+   ],
+   "sentence": {
+    "translation": "Vá hoje à farmácia e compre um remédio."
+   },
+   "test": {
+    "translation": "Coma duas melancias e leia um livro."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Batchim ㄴ",
+  "card_desc": "Deixe a ponta da língua encostada e faça um som nasal",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua na gengiva de cima",
+    "Mantenha a língua encostada e deixe o som ressoar pelo nariz",
+    "Não levante a parte de trás da língua como no ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "montanha"
+    },
+    {
+     "meaning": "neve"
+    },
+    {
+     "meaning": "dinheiro"
+    },
+    {
+     "meaning": "porta"
+    }
+   ],
+   "sentence": {
+    "translation": "Vá à montanha com um amigo e veja a neve."
+   },
+   "test": {
+    "translation": "Minha irmã paga e compra sapatos."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Batchim ㄷ",
+  "card_desc": "Bloqueie o ar com a ponta da língua e pare",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua na gengiva de cima",
+    "Mantenha a língua encostada e pare o som",
+    "Os batchins ㅅ·ㅈ·ㅊ·ㅌ também têm esse mesmo som"
+   ],
+   "words": [
+    {
+     "meaning": "roupa"
+    },
+    {
+     "meaning": "sabor"
+    },
+    {
+     "meaning": "flor"
+    },
+    {
+     "meaning": "dia (período com sol)"
+    }
+   ],
+   "sentence": {
+    "translation": "Vá à horta, veja as flores e compre roupas."
+   },
+   "test": {
+    "translation": "Logo comprei três flores."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Batchim ㄹ",
+  "card_desc": "Deixe a ponta da língua encostada e pare",
+  "payload": {
+   "how_to": [
+    "Encoste a ponta da língua na gengiva atrás dos dentes de cima",
+    "Não solte a língua; mantenha-a aí",
+    "Deixe o ar sair pelos dois lados da língua"
+   ],
+   "words": [
+    {
+     "meaning": "água"
+    },
+    {
+     "meaning": "lua"
+    },
+    {
+     "meaning": "inverno"
+    },
+    {
+     "meaning": "sala de aula"
+    }
+   ],
+   "sentence": {
+    "translation": "Quer beber um pouco de água hoje?"
+   },
+   "test": {
+    "translation": "Peço um pouco de água?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Batchim ㅁ",
+  "card_desc": "Com os lábios fechados, deixe o som ressoar",
+  "payload": {
+   "how_to": [
+    "Junte os dois lábios",
+    "Mantenha os lábios juntos e deixe o som ressoar pelo nariz",
+    "Termine sem separar os lábios"
+   ],
+   "words": [
+    {
+     "meaning": "noite"
+    },
+    {
+     "meaning": "primavera"
+    },
+    {
+     "meaning": "alga seca (nori)"
+    },
+    {
+     "meaning": "pessoa"
+    }
+   ],
+   "sentence": {
+    "translation": "Vamos comer kimbap no parque numa noite de primavera."
+   },
+   "test": {
+    "translation": "Guarde o kimbap e pegue suas coisas."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Batchim ㅂ",
+  "card_desc": "Feche os lábios e pare",
+  "payload": {
+   "how_to": [
+    "Junte os dois lábios",
+    "Mantenha os lábios juntos e pare o som",
+    "Não separe os lábios nem acrescente um 「으」"
+   ],
+   "words": [
+    {
+     "meaning": "arroz, comida"
+    },
+    {
+     "meaning": "casa"
+    },
+    {
+     "meaning": "boca"
+    },
+    {
+     "meaning": "aula"
+    }
+   ],
+   "sentence": {
+    "translation": "Vá à casa do vizinho e dê um pouco de comida."
+   },
+   "test": {
+    "translation": "Vamos para casa depois da aula."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Batchim ㅇ",
+  "card_desc": "Bloqueie o fundo da boca e faça um som nasal",
+  "payload": {
+   "how_to": [
+    "Encoste a parte de trás da língua no fundo do céu da boca",
+    "Mantenha a língua encostada e deixe o som ressoar pelo nariz",
+    "Não levante a ponta da língua como no ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "quarto"
+    },
+    {
+     "meaning": "rio"
+    },
+    {
+     "meaning": "bola"
+    },
+    {
+     "meaning": "bolsa"
+    }
+   ],
+   "sentence": {
+    "translation": "Meu irmão mais novo vai ao parque com a bolsa."
+   },
+   "test": {
+    "translation": "Vou à emissora do outro lado do rio."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Ligação de sons",
+  "card_desc": "Passe o batchim para a sílaba seguinte",
+  "payload": {
+   "how_to": [
+    "Quando, depois de um batchim, vem uma sílaba que começa com ㅇ,",
+    "passe o batchim para o primeiro som da sílaba seguinte",
+    "e fale tudo de uma vez, sem pausa"
+   ],
+   "words": [
+    {
+     "meaning": "coreano (língua)"
+    },
+    {
+     "meaning": "música"
+    },
+    {
+     "meaning": "roupa (sujeito)"
+    },
+    {
+     "meaning": "arroz (objeto)"
+    }
+   ],
+   "sentence": {
+    "translation": "Ouço música coreana."
+   },
+   "test": {
+    "translation": "Experimente a roupa."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalização",
+  "card_desc": "ㄱ·ㄷ·ㅂ viram sons nasais",
+  "payload": {
+   "how_to": [
+    "Quando ㄴ·ㅁ vêm depois do batchim ㄱ·ㄷ·ㅂ,",
+    "ㄱ vira ㅇ, ㄷ vira ㄴ e ㅂ vira ㅁ",
+    "faça o som ressoar pelo nariz já no batchim e fale sem pausa"
+   ],
+   "words": [
+    {
+     "meaning": "caldo"
+    },
+    {
+     "meaning": "franja"
+    },
+    {
+     "meaning": "mentira"
+    },
+    {
+     "meaning": "come"
+    }
+   ],
+   "sentence": {
+    "translation": "Estou tomando o caldo."
+   },
+   "test": {
+    "translation": "Cortei a franja no ano passado."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Lateralização",
+  "card_desc": "Quando ㄴ e ㄹ se encontram, vira ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Quando ㄴ e ㄹ vêm um logo depois do outro,",
+    "transforme o ㄴ em ㄹ também e fale ㄹㄹ",
+    "mantenha a ponta da língua na gengiva e deslize para o som seguinte"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (antigo reino)"
+    },
+    {
+     "meaning": "Ano-Novo Lunar"
+    },
+    {
+     "meaning": "contato"
+    },
+    {
+     "meaning": "monte Halla"
+    }
+   ],
+   "sentence": {
+    "translation": "Espero seu contato neste Ano-Novo Lunar."
+   },
+   "test": {
+    "translation": "Espere o contato da administração do prédio."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalização",
+  "card_desc": "ㄷ·ㅌ + 이 viram 지·치",
+  "payload": {
+   "how_to": [
+    "Quando 「이」 vem depois do batchim ㄷ·ㅌ,",
+    "fale ㄷ como 지 e ㅌ como 치",
+    "leve a língua para a parte da frente do céu da boca"
+   ],
+   "words": [
+    {
+     "meaning": "juntos"
+    },
+    {
+     "meaning": "fazer questão de, sem necessidade"
+    },
+    {
+     "meaning": "nascer do sol"
+    },
+    {
+     "meaning": "filho mais velho, primogênito"
+    }
+   ],
+   "sentence": {
+    "translation": "Vamos ver o nascer do sol juntos."
+   },
+   "test": {
+    "translation": "Você não precisa fazer questão de ir comigo."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspiração",
+  "card_desc": "Com ㅎ, vira som aspirado",
+  "payload": {
+   "how_to": [
+    "Quando ㄱ·ㄷ·ㅂ·ㅈ encontram ㅎ,",
+    "os dois se juntam e viram ㅋ·ㅌ·ㅍ·ㅊ",
+    "no som que se juntou, solte um sopro forte de ar"
+   ],
+   "words": [
+    {
+     "meaning": "bom"
+    },
+    {
+     "meaning": "parabéns"
+    },
+    {
+     "meaning": "admissão (na escola)"
+    },
+    {
+     "meaning": "muitos"
+    }
+   ],
+   "sentence": {
+    "translation": "Parabéns por entrar na escola, que ótimo!"
+   },
+   "test": {
+    "translation": "Não são tantos assim."
+   }
+  }
+ }
+}

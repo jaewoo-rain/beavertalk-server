@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "初声 ㄱ",
+  "card_desc": "用舌头后部堵住，再轻轻放开",
+  "payload": {
+   "how_to": [
+    "把舌头后部贴住软腭",
+    "几乎不送气，轻轻放开",
+    "不要像 ㅋ 那样强烈送气"
+   ],
+   "words": [
+    {
+     "meaning": "包"
+    },
+    {
+     "meaning": "肉"
+    },
+    {
+     "meaning": "皮鞋"
+    },
+    {
+     "meaning": "火车"
+    }
+   ],
+   "sentence": {
+    "translation": "那个包里装满了肉"
+   },
+   "test": {
+    "translation": "在商店里挑零食"
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "初声 ㄲ",
+  "card_desc": "喉咙用力，不送气",
+  "payload": {
+   "how_to": [
+    "把舌头后部贴在和 ㄱ 相同的位置",
+    "喉咙和舌头用力，稍停一下",
+    "不送气，短而有力地放开"
+   ],
+   "words": [
+    {
+     "meaning": "蜂蜜"
+    },
+    {
+     "meaning": "尾巴"
+    },
+    {
+     "meaning": "喜鹊"
+    },
+    {
+     "meaning": "花"
+    }
+   ],
+   "sentence": {
+    "translation": "喜鹊喜欢花蜜"
+   },
+   "test": {
+    "translation": "小家伙一定会一直走到最后"
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "初声 ㄴ",
+  "card_desc": "舌尖碰住，发鼻音",
+  "payload": {
+   "how_to": [
+    "把舌尖贴住上齿龈",
+    "让声音在鼻腔里共鸣",
+    "舌头放开的同时接上元音"
+   ],
+   "words": [
+    {
+     "meaning": "树"
+    },
+    {
+     "meaning": "姐姐（男生称呼）"
+    },
+    {
+     "meaning": "歌"
+    },
+    {
+     "meaning": "蝴蝶"
+    }
+   ],
+   "sentence": {
+    "translation": "姐姐在唱关于树的歌"
+   },
+   "test": {
+    "translation": "姐姐一定会见你"
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "初声 ㄷ",
+  "card_desc": "舌尖碰住，再轻轻放开",
+  "payload": {
+   "how_to": [
+    "把舌尖贴住上齿龈",
+    "几乎不送气，轻轻放开",
+    "不要像 ㅌ 那样强烈送气"
+   ],
+   "words": [
+    {
+     "meaning": "桥"
+    },
+    {
+     "meaning": "豆腐"
+    },
+    {
+     "meaning": "城市"
+    },
+    {
+     "meaning": "月亮"
+    }
+   ],
+   "sentence": {
+    "translation": "城市里有两座桥"
+   },
+   "test": {
+    "translation": "弟弟说还要豆腐"
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "初声 ㄸ",
+  "card_desc": "舌尖用力，一下子放开",
+  "payload": {
+   "how_to": [
+    "把舌尖贴在和 ㄷ 相同的位置",
+    "舌头和喉咙用力，稍停一下",
+    "不送气，短而有力地放开"
+   ],
+   "words": [
+    {
+     "meaning": "女儿"
+    },
+    {
+     "meaning": "汗"
+    },
+    {
+     "meaning": "年糕"
+    },
+    {
+     "meaning": "又；再"
+    }
+   ],
+   "sentence": {
+    "translation": "女儿又在吃年糕"
+   },
+   "test": {
+    "translation": "出汗了，又到院子里去"
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "初声 ㄹ",
+  "card_desc": "舌尖在齿龈上轻弹一下",
+  "payload": {
+   "how_to": [
+    "舌尖在上齿龈上碰一下就离开",
+    "像轻敲一样，只弹一次",
+    "不要像英语 r 那样卷舌"
+   ],
+   "words": [
+    {
+     "meaning": "拉面（方便面）"
+    },
+    {
+     "meaning": "我们"
+    },
+    {
+     "meaning": "歌"
+    },
+    {
+     "meaning": "头；头发"
+    }
+   ],
+   "sentence": {
+    "translation": "我们边唱歌边吃拉面吧"
+   },
+   "test": {
+    "translation": "每个国家的菜都不一样"
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "初声 ㅁ",
+  "card_desc": "闭上嘴唇，发鼻音",
+  "payload": {
+   "how_to": [
+    "双唇轻轻贴住",
+    "让声音在鼻腔里共鸣",
+    "嘴唇放开的同时接上元音"
+   ],
+   "words": [
+    {
+     "meaning": "头；头发"
+    },
+    {
+     "meaning": "帽子"
+    },
+    {
+     "meaning": "萝卜"
+    },
+    {
+     "meaning": "心"
+    }
+   ],
+   "sentence": {
+    "translation": "妈妈做了很多帽子"
+   },
+   "test": {
+    "translation": "大家每天都喝水"
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "初声 ㅂ",
+  "card_desc": "闭上嘴唇，再轻轻放开",
+  "payload": {
+   "how_to": [
+    "双唇贴住",
+    "几乎不送气，轻轻放开",
+    "不要像 ㅍ 那样强烈送气"
+   ],
+   "words": [
+    {
+     "meaning": "大海"
+    },
+    {
+     "meaning": "雨"
+    },
+    {
+     "meaning": "大麦"
+    },
+    {
+     "meaning": "父母"
+    }
+   ],
+   "sentence": {
+    "translation": "去看下雨的大海"
+   },
+   "test": {
+    "translation": "父母租了一条船"
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "初声 ㅃ",
+  "card_desc": "嘴唇用力，不送气",
+  "payload": {
+   "how_to": [
+    "双唇紧紧贴住",
+    "嘴唇和喉咙用力，稍停一下",
+    "不送气，短而有力地放开"
+   ],
+   "words": [
+    {
+     "meaning": "面包"
+    },
+    {
+     "meaning": "骨头"
+    },
+    {
+     "meaning": "亲亲"
+    },
+    {
+     "meaning": "要洗的衣服"
+    }
+   ],
+   "sentence": {
+    "translation": "爸爸赶快去买面包"
+   },
+   "test": {
+    "translation": "快把洗好的衣服拿出来"
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "初声 ㅅ",
+  "card_desc": "气流从舌尖的缝隙出来",
+  "payload": {
+   "how_to": [
+    "舌尖靠近上齿龈，留一点缝隙",
+    "让气流从那道缝隙轻轻出来",
+    "不要像 ㅆ 那样用力"
+   ],
+   "words": [
+    {
+     "meaning": "苹果"
+    },
+    {
+     "meaning": "声音"
+    },
+    {
+     "meaning": "西瓜"
+    },
+    {
+     "meaning": "钟表"
+    }
+   ],
+   "sentence": {
+    "translation": "今天在市场买苹果"
+   },
+   "test": {
+    "translation": "老师买小说"
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "初声 ㅆ",
+  "card_desc": "用力，气流要强",
+  "payload": {
+   "how_to": [
+    "舌尖放在和 ㅅ 相同的位置",
+    "舌头和喉咙用力",
+    "让气流从窄缝里强劲地出来"
+   ],
+   "words": [
+    {
+     "meaning": "大米"
+    },
+    {
+     "meaning": "便宜"
+    },
+    {
+     "meaning": "用；花（钱）"
+    },
+    {
+     "meaning": "种子"
+    }
+   ],
+   "sentence": {
+    "translation": "大米便宜，所以用了很多"
+   },
+   "test": {
+    "translation": "让种子快快长大"
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "初声 ㅈ",
+  "card_desc": "舌头碰住，再轻轻放开",
+  "payload": {
+   "how_to": [
+    "把舌面前部贴住硬腭前部",
+    "几乎不送气，柔和地放开",
+    "不要像 ㅉ 那样用力压"
+   ],
+   "words": [
+    {
+     "meaning": "座位"
+    },
+    {
+     "meaning": "果汁"
+    },
+    {
+     "meaning": "地图"
+    },
+    {
+     "meaning": "晚上"
+    }
+   ],
+   "sentence": {
+    "translation": "晚上给我一点果汁"
+   },
+   "test": {
+    "translation": "现在整理座位"
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "初声 ㅉ",
+  "card_desc": "舌头用力，不送气",
+  "payload": {
+   "how_to": [
+    "把舌头贴在和 ㅈ 相同的位置",
+    "舌头和喉咙用力，稍停一下",
+    "不送气，短而有力地放开"
+   ],
+   "words": [
+    {
+     "meaning": "咸"
+    },
+    {
+     "meaning": "炖汤（韩式汤锅）"
+    },
+    {
+     "meaning": "页；边"
+    },
+    {
+     "meaning": "伙伴；一对中的一个"
+    }
+   ],
+   "sentence": {
+    "translation": "同桌把汤煮得很咸"
+   },
+   "test": {
+    "translation": "把纸条撕了，然后追上去"
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "初声 ㅊ",
+  "card_desc": "在 ㅈ 的位置放开时用力送气",
+  "payload": {
+   "how_to": [
+    "把舌头贴在和 ㅈ 相同的位置",
+    "放开的一瞬间用力送气",
+    "手掌放在嘴前能感觉到气流就对了"
+   ],
+   "words": [
+    {
+     "meaning": "车"
+    },
+    {
+     "meaning": "裙子"
+    },
+    {
+     "meaning": "书"
+    },
+    {
+     "meaning": "朋友"
+    }
+   ],
+   "sentence": {
+    "translation": "朋友把书落在车里了"
+   },
+   "test": {
+    "translation": "天冷的时候慢慢吃炸鸡"
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "初声 ㅋ",
+  "card_desc": "在 ㄱ 的位置放开时用力送气",
+  "payload": {
+   "how_to": [
+    "把舌头后部贴在和 ㄱ 相同的位置",
+    "放开的一瞬间用力送气",
+    "手掌放在嘴前能感觉到气流就对了"
+   ],
+   "words": [
+    {
+     "meaning": "鼻子"
+    },
+    {
+     "meaning": "个子（身高）"
+    },
+    {
+     "meaning": "咖啡"
+    },
+    {
+     "meaning": "卡"
+    }
+   ],
+   "sentence": {
+    "translation": "高个子朋友买咖啡"
+   },
+   "test": {
+    "translation": "大象哈哈大笑"
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "初声 ㅌ",
+  "card_desc": "在 ㄷ 的位置放开时用力送气",
+  "payload": {
+   "how_to": [
+    "把舌尖贴在和 ㄷ 相同的位置",
+    "放开的一瞬间用力送气",
+    "手掌放在嘴前能感觉到气流就对了"
+   ],
+   "words": [
+    {
+     "meaning": "兔子"
+    },
+    {
+     "meaning": "面具"
+    },
+    {
+     "meaning": "桌子"
+    },
+    {
+     "meaning": "桶"
+    }
+   ],
+   "sentence": {
+    "translation": "星期六坐出租车去"
+   },
+   "test": {
+    "translation": "买一张结实的桌子"
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "初声 ㅍ",
+  "card_desc": "在 ㅂ 的位置放开时用力送气",
+  "payload": {
+   "how_to": [
+    "和 ㅂ 一样，双唇贴住",
+    "放开的一瞬间用力送气",
+    "不要像英语 f 那样咬住下唇"
+   ],
+   "words": [
+    {
+     "meaning": "葱"
+    },
+    {
+     "meaning": "葡萄"
+    },
+    {
+     "meaning": "钢琴"
+    },
+    {
+     "meaning": "信"
+    }
+   ],
+   "sentence": {
+    "translation": "打开信，然后弹钢琴"
+   },
+   "test": {
+    "translation": "青葡萄很多"
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "初声 ㅎ",
+  "card_desc": "从喉咙呼气",
+  "payload": {
+   "how_to": [
+    "先把嘴张成元音的口型",
+    "从喉咙深处轻轻呼气",
+    "不要用舌头或嘴唇挡住气流"
+   ],
+   "words": [
+    {
+     "meaning": "一"
+    },
+    {
+     "meaning": "湖"
+    },
+    {
+     "meaning": "纸巾"
+    },
+    {
+     "meaning": "奶奶"
+    }
+   ],
+   "sentence": {
+    "translation": "奶奶去湖边待一整天"
+   },
+   "test": {
+    "translation": "假日一个人去汉江"
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "收音 ㄱ",
+  "card_desc": "用舌头后部堵住，停住",
+  "payload": {
+   "how_to": [
+    "把舌头后部贴住软腭",
+    "保持贴住，把声音停住",
+    "后面不要加「으」(eu)"
+   ],
+   "words": [
+    {
+     "meaning": "书"
+    },
+    {
+     "meaning": "药"
+    },
+    {
+     "meaning": "西瓜"
+    },
+    {
+     "meaning": "家人"
+    }
+   ],
+   "sentence": {
+    "translation": "今天去药店买点药"
+   },
+   "test": {
+    "translation": "吃两个西瓜，然后看书"
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "收音 ㄴ",
+  "card_desc": "舌尖贴住，发鼻音",
+  "payload": {
+   "how_to": [
+    "把舌尖贴住上齿龈",
+    "保持贴住，让声音在鼻腔里共鸣",
+    "不要像 ㅇ 那样抬起舌头后部"
+   ],
+   "words": [
+    {
+     "meaning": "山"
+    },
+    {
+     "meaning": "雪；眼睛"
+    },
+    {
+     "meaning": "钱"
+    },
+    {
+     "meaning": "门"
+    }
+   ],
+   "sentence": {
+    "translation": "和朋友去山上看雪"
+   },
+   "test": {
+    "translation": "姐姐付钱买鞋"
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "收音 ㄷ",
+  "card_desc": "用舌尖堵住，停住",
+  "payload": {
+   "how_to": [
+    "把舌尖贴住上齿龈",
+    "保持贴住，把声音停住",
+    "收音 ㅅ·ㅈ·ㅊ·ㅌ 也是同样的发音"
+   ],
+   "words": [
+    {
+     "meaning": "衣服"
+    },
+    {
+     "meaning": "味道"
+    },
+    {
+     "meaning": "花"
+    },
+    {
+     "meaning": "白天"
+    }
+   ],
+   "sentence": {
+    "translation": "去田里看花，再买衣服"
+   },
+   "test": {
+    "translation": "马上买了三朵花"
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "收音 ㄹ",
+  "card_desc": "舌尖贴住，停住",
+  "payload": {
+   "how_to": [
+    "把舌尖碰住上齿背后的齿龈",
+    "舌头不要放开，就这样停住",
+    "让气流从舌头两侧流出去"
+   ],
+   "words": [
+    {
+     "meaning": "水"
+    },
+    {
+     "meaning": "月亮"
+    },
+    {
+     "meaning": "冬天"
+    },
+    {
+     "meaning": "教室"
+    }
+   ],
+   "sentence": {
+    "translation": "今天要喝点水吗？"
+   },
+   "test": {
+    "translation": "要不要请人给点水？"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "收音 ㅁ",
+  "card_desc": "闭着嘴唇发出共鸣",
+  "payload": {
+   "how_to": [
+    "双唇贴住",
+    "保持贴住，让声音在鼻腔里共鸣",
+    "嘴唇不放开就结束"
+   ],
+   "words": [
+    {
+     "meaning": "夜晚"
+    },
+    {
+     "meaning": "春天"
+    },
+    {
+     "meaning": "紫菜"
+    },
+    {
+     "meaning": "人"
+    }
+   ],
+   "sentence": {
+    "translation": "春天晚上在公园吃紫菜包饭吧"
+   },
+   "test": {
+    "translation": "装好紫菜包饭，收拾好行李"
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "收音 ㅂ",
+  "card_desc": "闭上嘴唇，停住",
+  "payload": {
+   "how_to": [
+    "双唇贴住",
+    "保持贴住，把声音停住",
+    "不要放开嘴唇，也不要加「으」(eu)"
+   ],
+   "words": [
+    {
+     "meaning": "饭"
+    },
+    {
+     "meaning": "家"
+    },
+    {
+     "meaning": "嘴"
+    },
+    {
+     "meaning": "课"
+    }
+   ],
+   "sentence": {
+    "translation": "去隔壁家给点饭吧"
+   },
+   "test": {
+    "translation": "下课后回家吧"
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "收音 ㅇ",
+  "card_desc": "在软腭处堵住，发鼻音",
+  "payload": {
+   "how_to": [
+    "把舌头后部贴住软腭",
+    "保持贴住，让声音在鼻腔里共鸣",
+    "不要像 ㄴ 那样抬起舌尖"
+   ],
+   "words": [
+    {
+     "meaning": "房间"
+    },
+    {
+     "meaning": "江；河"
+    },
+    {
+     "meaning": "球"
+    },
+    {
+     "meaning": "包"
+    }
+   ],
+   "sentence": {
+    "translation": "弟弟带着包去公园"
+   },
+   "test": {
+    "translation": "过河去电视台"
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "连音",
+  "card_desc": "把收音移到下一个字",
+  "payload": {
+   "how_to": [
+    "收音后面接以 ㅇ 开头的字时",
+    "把收音移到下一个字的初声",
+    "不要断开，一口气连着说"
+   ],
+   "words": [
+    {
+     "meaning": "韩语"
+    },
+    {
+     "meaning": "音乐"
+    },
+    {
+     "meaning": "衣服（主语）"
+    },
+    {
+     "meaning": "饭（宾语）"
+    }
+   ],
+   "sentence": {
+    "translation": "听韩语音乐"
+   },
+   "test": {
+    "translation": "试穿一下衣服吧"
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "鼻音化",
+  "card_desc": "ㄱ·ㄷ·ㅂ 变成鼻音",
+  "payload": {
+   "how_to": [
+    "收音 ㄱ·ㄷ·ㅂ 后面接 ㄴ·ㅁ 时",
+    "ㄱ 变成 ㅇ，ㄷ 变成 ㄴ，ㅂ 变成 ㅁ",
+    "从收音开始就用鼻腔共鸣，连着说"
+   ],
+   "words": [
+    {
+     "meaning": "汤"
+    },
+    {
+     "meaning": "刘海"
+    },
+    {
+     "meaning": "谎话"
+    },
+    {
+     "meaning": "吃"
+    }
+   ],
+   "sentence": {
+    "translation": "我正在喝汤"
+   },
+   "test": {
+    "translation": "我去年剪了刘海"
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "流音化",
+  "card_desc": "ㄴ 和 ㄹ 相遇就读 ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "ㄴ 和 ㄹ 连在一起出现时",
+    "把 ㄴ 也变成 ㄹ，读成 ㄹㄹ",
+    "舌尖贴着齿龈，顺滑地连下去"
+   ],
+   "words": [
+    {
+     "meaning": "新罗（古代王国）"
+    },
+    {
+     "meaning": "春节（农历新年）"
+    },
+    {
+     "meaning": "联系"
+    },
+    {
+     "meaning": "汉拿山"
+    }
+   ],
+   "sentence": {
+    "translation": "这次春节等你联系"
+   },
+   "test": {
+    "translation": "等管理室联系"
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "腭化",
+  "card_desc": "ㄷ·ㅌ+이 读成 지·치",
+  "payload": {
+   "how_to": [
+    "收音 ㄷ·ㅌ 后面接「이」时",
+    "ㄷ 读成 지，ㅌ 读成 치",
+    "把舌头移到硬腭前部"
+   ],
+   "words": [
+    {
+     "meaning": "一起"
+    },
+    {
+     "meaning": "非要；偏要"
+    },
+    {
+     "meaning": "日出"
+    },
+    {
+     "meaning": "老大（长子或长女）"
+    }
+   ],
+   "sentence": {
+    "translation": "我们一起去看日出吧"
+   },
+   "test": {
+    "translation": "不必非要一起去"
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "送气音化",
+  "card_desc": "和 ㅎ 相遇变成送气音",
+  "payload": {
+   "how_to": [
+    "ㄱ·ㄷ·ㅂ·ㅈ 和 ㅎ 相遇时",
+    "合起来读成 ㅋ·ㅌ·ㅍ·ㅊ",
+    "合成的音要用力送气"
+   ],
+   "words": [
+    {
+     "meaning": "好"
+    },
+    {
+     "meaning": "祝贺"
+    },
+    {
+     "meaning": "入学"
+    },
+    {
+     "meaning": "多"
+    }
+   ],
+   "sentence": {
+    "translation": "恭喜入学，真好"
+   },
+   "test": {
+    "translation": "没有那么多"
+   }
+  }
+ }
+}

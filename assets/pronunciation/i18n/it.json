@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "ㄱ iniziale",
+  "card_desc": "Blocca l'aria con la parte posteriore della lingua, poi stacca leggermente",
+  "payload": {
+   "how_to": [
+    "Appoggia la parte posteriore della lingua sul fondo del palato",
+    "Stacca leggermente, quasi senza soffio d'aria",
+    "Non far uscire un forte soffio d'aria come per ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "borsa"
+    },
+    {
+     "meaning": "carne"
+    },
+    {
+     "meaning": "scarpe"
+    },
+    {
+     "meaning": "treno"
+    }
+   ],
+   "sentence": {
+    "translation": "Quella borsa è piena di carne."
+   },
+   "test": {
+    "translation": "Scelgo degli snack al negozio."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "ㄲ iniziale",
+  "card_desc": "Tendi la gola e stacca senza soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Appoggia la parte posteriore della lingua nello stesso punto di ㄱ",
+    "Tendi la gola e la lingua e fermati un attimo",
+    "Stacca in modo breve e deciso, senza soffio d'aria"
+   ],
+   "words": [
+    {
+     "meaning": "miele"
+    },
+    {
+     "meaning": "coda"
+    },
+    {
+     "meaning": "gazza"
+    },
+    {
+     "meaning": "fiore"
+    }
+   ],
+   "sentence": {
+    "translation": "Alla gazza piace il miele dei fiori."
+   },
+   "test": {
+    "translation": "Il bambino arriva di sicuro fino alla fine."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "ㄴ iniziale",
+  "card_desc": "Tocca con la punta della lingua e fai un suono nasale",
+  "payload": {
+   "how_to": [
+    "Appoggia la punta della lingua sulla gengiva superiore, subito dietro i denti di sopra",
+    "Fai risuonare il suono nel naso",
+    "Mentre stacchi la lingua, passa alla vocale"
+   ],
+   "words": [
+    {
+     "meaning": "albero"
+    },
+    {
+     "meaning": "sorella maggiore (di un ragazzo)"
+    },
+    {
+     "meaning": "canzone"
+    },
+    {
+     "meaning": "farfalla"
+    }
+   ],
+   "sentence": {
+    "translation": "Mia sorella canta una canzone sugli alberi."
+   },
+   "test": {
+    "translation": "Mia sorella ti incontrerà di sicuro."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "ㄷ iniziale",
+  "card_desc": "Tocca con la punta della lingua, poi stacca leggermente",
+  "payload": {
+   "how_to": [
+    "Appoggia la punta della lingua sulla gengiva superiore",
+    "Stacca leggermente, quasi senza soffio d'aria",
+    "Non far uscire un forte soffio d'aria come per ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "ponte"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "città"
+    },
+    {
+     "meaning": "luna"
+    }
+   ],
+   "sentence": {
+    "translation": "In città ci sono due ponti."
+   },
+   "test": {
+    "translation": "Mio fratello minore chiede altro tofu."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "ㄸ iniziale",
+  "card_desc": "Tendi la punta della lingua e stacca di colpo",
+  "payload": {
+   "how_to": [
+    "Appoggia la punta della lingua nello stesso punto di ㄷ",
+    "Tendi la lingua e la gola e fermati un attimo",
+    "Stacca in modo breve e deciso, senza soffio d'aria"
+   ],
+   "words": [
+    {
+     "meaning": "figlia"
+    },
+    {
+     "meaning": "sudore"
+    },
+    {
+     "meaning": "tteok (dolce di riso)"
+    },
+    {
+     "meaning": "di nuovo"
+    }
+   ],
+   "sentence": {
+    "translation": "Mia figlia mangia di nuovo il tteok."
+   },
+   "test": {
+    "translation": "Sto sudando, quindi esco di nuovo in cortile."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "ㄹ iniziale",
+  "card_desc": "Un colpetto della punta della lingua sulla gengiva",
+  "payload": {
+   "how_to": [
+    "Tocca la gengiva superiore con la punta della lingua solo per un istante",
+    "Falla scattare una volta sola, come un colpetto leggero",
+    "Non arrotolare la lingua all'indietro come la r inglese"
+   ],
+   "words": [
+    {
+     "meaning": "ramen"
+    },
+    {
+     "meaning": "noi"
+    },
+    {
+     "meaning": "canzone"
+    },
+    {
+     "meaning": "testa"
+    }
+   ],
+   "sentence": {
+    "translation": "Mangiamo il ramen cantando."
+   },
+   "test": {
+    "translation": "Ogni paese ha una cucina diversa."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "ㅁ iniziale",
+  "card_desc": "Chiudi le labbra e fai un suono nasale",
+  "payload": {
+   "how_to": [
+    "Unisci leggermente le due labbra",
+    "Fai risuonare il suono nel naso",
+    "Mentre apri le labbra, passa alla vocale"
+   ],
+   "words": [
+    {
+     "meaning": "testa"
+    },
+    {
+     "meaning": "cappello"
+    },
+    {
+     "meaning": "ravanello bianco"
+    },
+    {
+     "meaning": "cuore, animo"
+    }
+   ],
+   "sentence": {
+    "translation": "La mamma fa tanti cappelli."
+   },
+   "test": {
+    "translation": "Tutti bevono acqua ogni giorno."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "ㅂ iniziale",
+  "card_desc": "Chiudi le labbra, poi staccale leggermente",
+  "payload": {
+   "how_to": [
+    "Unisci le due labbra",
+    "Staccale leggermente, quasi senza soffio d'aria",
+    "Non far uscire un forte soffio d'aria come per ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "mare"
+    },
+    {
+     "meaning": "pioggia"
+    },
+    {
+     "meaning": "orzo"
+    },
+    {
+     "meaning": "genitori"
+    }
+   ],
+   "sentence": {
+    "translation": "Andiamo a vedere il mare sotto la pioggia."
+   },
+   "test": {
+    "translation": "I miei genitori noleggiano una barca."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "ㅃ iniziale",
+  "card_desc": "Tendi le labbra e stacca senza soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Unisci le due labbra con forza",
+    "Tendi le labbra e la gola e fermati un attimo",
+    "Stacca in modo breve e deciso, senza soffio d'aria"
+   ],
+   "words": [
+    {
+     "meaning": "pane"
+    },
+    {
+     "meaning": "osso"
+    },
+    {
+     "meaning": "bacino"
+    },
+    {
+     "meaning": "bucato"
+    }
+   ],
+   "sentence": {
+    "translation": "Papà compra il pane in fretta."
+   },
+   "test": {
+    "translation": "Tira fuori il bucato, presto."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "ㅅ iniziale",
+  "card_desc": "Fai passare l'aria da una piccola fessura vicino alla punta della lingua",
+  "payload": {
+   "how_to": [
+    "Tieni la punta della lingua vicina alla gengiva superiore, lasciando una piccola fessura senza toccarla",
+    "Fai uscire l'aria dolcemente da quella fessura",
+    "Non tendere i muscoli come per ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "mela"
+    },
+    {
+     "meaning": "suono"
+    },
+    {
+     "meaning": "anguria"
+    },
+    {
+     "meaning": "orologio"
+    }
+   ],
+   "sentence": {
+    "translation": "Oggi compro le mele al mercato."
+   },
+   "test": {
+    "translation": "L'insegnante compra un romanzo."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "ㅆ iniziale",
+  "card_desc": "Con tensione, fai uscire l'aria con forza",
+  "payload": {
+   "how_to": [
+    "Metti la punta della lingua nello stesso punto di ㅅ",
+    "Tendi la lingua e la gola",
+    "Fai uscire l'aria con forza dalla fessura stretta"
+   ],
+   "words": [
+    {
+     "meaning": "riso (crudo)"
+    },
+    {
+     "meaning": "economico"
+    },
+    {
+     "meaning": "usare"
+    },
+    {
+     "meaning": "seme"
+    }
+   ],
+   "sentence": {
+    "translation": "Il riso costava poco, quindi ne ho usato tanto."
+   },
+   "test": {
+    "translation": "Faccio crescere i semi in fretta."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "ㅈ iniziale",
+  "card_desc": "Tocca con la lingua, poi stacca leggermente",
+  "payload": {
+   "how_to": [
+    "Appoggia la parte anteriore della lingua sulla parte anteriore del palato",
+    "Stacca dolcemente, quasi senza soffio d'aria",
+    "Non premere forte come per ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "posto"
+    },
+    {
+     "meaning": "succo"
+    },
+    {
+     "meaning": "mappa"
+    },
+    {
+     "meaning": "sera"
+    }
+   ],
+   "sentence": {
+    "translation": "La sera dammi un po' di succo."
+   },
+   "test": {
+    "translation": "Ora metto in ordine il mio posto."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "ㅉ iniziale",
+  "card_desc": "Tendi la lingua e stacca senza soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Appoggia la lingua nello stesso punto di ㅈ",
+    "Tendi la lingua e la gola e fermati un attimo",
+    "Stacca in modo breve e deciso, senza soffio d'aria"
+   ],
+   "words": [
+    {
+     "meaning": "salato"
+    },
+    {
+     "meaning": "stufato coreano"
+    },
+    {
+     "meaning": "lato"
+    },
+    {
+     "meaning": "compagno (di banco), partner"
+    }
+   ],
+   "sentence": {
+    "translation": "Il mio compagno cucina uno stufato salato."
+   },
+   "test": {
+    "translation": "Strappo il bigliettino e corro dietro."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "ㅊ iniziale",
+  "card_desc": "Nella posizione di ㅈ, stacca con un forte soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Appoggia la lingua nello stesso punto di ㅈ",
+    "Nel momento in cui stacchi, fai uscire un forte soffio d'aria",
+    "Se senti l'aria sul palmo della mano davanti alla bocca, va bene"
+   ],
+   "words": [
+    {
+     "meaning": "auto"
+    },
+    {
+     "meaning": "gonna"
+    },
+    {
+     "meaning": "libro"
+    },
+    {
+     "meaning": "amico"
+    }
+   ],
+   "sentence": {
+    "translation": "Il mio amico ha lasciato il libro in macchina."
+   },
+   "test": {
+    "translation": "Nei giorni freddi mangio il pollo fritto con calma."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "ㅋ iniziale",
+  "card_desc": "Nella posizione di ㄱ, stacca con un forte soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Appoggia la parte posteriore della lingua nello stesso punto di ㄱ",
+    "Nel momento in cui stacchi, fai uscire un forte soffio d'aria",
+    "Se senti l'aria sul palmo della mano davanti alla bocca, va bene"
+   ],
+   "words": [
+    {
+     "meaning": "naso"
+    },
+    {
+     "meaning": "altezza (statura)"
+    },
+    {
+     "meaning": "caffè"
+    },
+    {
+     "meaning": "carta, tessera"
+    }
+   ],
+   "sentence": {
+    "translation": "Il mio amico alto compra il caffè."
+   },
+   "test": {
+    "translation": "L'elefante ride forte."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "ㅌ iniziale",
+  "card_desc": "Nella posizione di ㄷ, stacca con un forte soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Appoggia la punta della lingua nello stesso punto di ㄷ",
+    "Nel momento in cui stacchi, fai uscire un forte soffio d'aria",
+    "Se senti l'aria sul palmo della mano davanti alla bocca, va bene"
+   ],
+   "words": [
+    {
+     "meaning": "coniglio"
+    },
+    {
+     "meaning": "maschera"
+    },
+    {
+     "meaning": "tavolo"
+    },
+    {
+     "meaning": "secchio, contenitore"
+    }
+   ],
+   "sentence": {
+    "translation": "Sabato vado in taxi."
+   },
+   "test": {
+    "translation": "Compro un tavolo robusto."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "ㅍ iniziale",
+  "card_desc": "Nella posizione di ㅂ, stacca con un forte soffio d'aria",
+  "payload": {
+   "how_to": [
+    "Unisci le due labbra come per ㅂ",
+    "Nel momento in cui stacchi, fai uscire un forte soffio d'aria",
+    "Non morderti il labbro come per la f inglese"
+   ],
+   "words": [
+    {
+     "meaning": "cipollotto"
+    },
+    {
+     "meaning": "uva"
+    },
+    {
+     "meaning": "pianoforte"
+    },
+    {
+     "meaning": "lettera"
+    }
+   ],
+   "sentence": {
+    "translation": "Apro la lettera e suono il pianoforte."
+   },
+   "test": {
+    "translation": "C'è tanta uva verde."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "ㅎ iniziale",
+  "card_desc": "Espira dalla gola",
+  "payload": {
+   "how_to": [
+    "Prima apri la bocca nella forma della vocale",
+    "Espira piano dal fondo della gola",
+    "Non bloccare l'aria con la lingua o con le labbra"
+   ],
+   "words": [
+    {
+     "meaning": "uno"
+    },
+    {
+     "meaning": "lago"
+    },
+    {
+     "meaning": "fazzoletto di carta"
+    },
+    {
+     "meaning": "nonna"
+    }
+   ],
+   "sentence": {
+    "translation": "La nonna sta al lago tutto il giorno."
+   },
+   "test": {
+    "translation": "Nei giorni liberi vado da solo al fiume Han."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "ㄱ finale",
+  "card_desc": "Blocca l'aria con la parte posteriore della lingua e fermati",
+  "payload": {
+   "how_to": [
+    "Appoggia la parte posteriore della lingua sul fondo del palato",
+    "Tienila ferma e interrompi il suono, senza staccare",
+    "Non aggiungere 「으」 (eu) dopo"
+   ],
+   "words": [
+    {
+     "meaning": "libro"
+    },
+    {
+     "meaning": "medicina"
+    },
+    {
+     "meaning": "anguria"
+    },
+    {
+     "meaning": "famiglia"
+    }
+   ],
+   "sentence": {
+    "translation": "Oggi vai in farmacia e compra delle medicine."
+   },
+   "test": {
+    "translation": "Mangia due angurie e leggi un libro."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "ㄴ finale",
+  "card_desc": "Tieni appoggiata la punta della lingua e fai un suono nasale",
+  "payload": {
+   "how_to": [
+    "Appoggia la punta della lingua sulla gengiva superiore",
+    "Tienila ferma e fai risuonare il suono nel naso",
+    "Non alzare la parte posteriore della lingua come per ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "montagna"
+    },
+    {
+     "meaning": "neve"
+    },
+    {
+     "meaning": "soldi"
+    },
+    {
+     "meaning": "porta"
+    }
+   ],
+   "sentence": {
+    "translation": "Vai in montagna con un amico e guarda la neve."
+   },
+   "test": {
+    "translation": "Mia sorella maggiore paga e compra delle scarpe."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "ㄷ finale",
+  "card_desc": "Blocca l'aria con la punta della lingua e fermati",
+  "payload": {
+   "how_to": [
+    "Appoggia la punta della lingua sulla gengiva superiore",
+    "Tienila ferma e interrompi il suono, senza staccare",
+    "Anche ㅅ·ㅈ·ㅊ·ㅌ finali hanno lo stesso suono"
+   ],
+   "words": [
+    {
+     "meaning": "vestiti"
+    },
+    {
+     "meaning": "sapore"
+    },
+    {
+     "meaning": "fiore"
+    },
+    {
+     "meaning": "giorno (ore di luce)"
+    }
+   ],
+   "sentence": {
+    "translation": "Vai nel campo, guarda i fiori e compra dei vestiti."
+   },
+   "test": {
+    "translation": "Ho subito comprato tre fiori."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "ㄹ finale",
+  "card_desc": "Tieni appoggiata la punta della lingua e fermati",
+  "payload": {
+   "how_to": [
+    "Tocca con la punta della lingua la gengiva subito dietro i denti di sopra",
+    "Non staccare la lingua: tienila lì",
+    "Fai uscire l'aria dai due lati della lingua"
+   ],
+   "words": [
+    {
+     "meaning": "acqua"
+    },
+    {
+     "meaning": "luna"
+    },
+    {
+     "meaning": "inverno"
+    },
+    {
+     "meaning": "aula"
+    }
+   ],
+   "sentence": {
+    "translation": "Vuoi un po' d'acqua oggi?"
+   },
+   "test": {
+    "translation": "Chiedo un po' d'acqua?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "ㅁ finale",
+  "card_desc": "Fai risuonare il suono con le labbra chiuse",
+  "payload": {
+   "how_to": [
+    "Unisci le due labbra",
+    "Tienile chiuse e fai risuonare il suono nel naso",
+    "Finisci senza aprire le labbra"
+   ],
+   "words": [
+    {
+     "meaning": "notte"
+    },
+    {
+     "meaning": "primavera"
+    },
+    {
+     "meaning": "alga (secca)"
+    },
+    {
+     "meaning": "persona"
+    }
+   ],
+   "sentence": {
+    "translation": "Mangiamo il gimbap al parco in una notte di primavera."
+   },
+   "test": {
+    "translation": "Metti il gimbap nel contenitore e prepara le tue cose."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "ㅂ finale",
+  "card_desc": "Chiudi le labbra e fermati",
+  "payload": {
+   "how_to": [
+    "Unisci le due labbra",
+    "Tienile chiuse e interrompi il suono, senza staccare",
+    "Non aprire le labbra e non aggiungere 「으」 (eu)"
+   ],
+   "words": [
+    {
+     "meaning": "riso (cotto), pasto"
+    },
+    {
+     "meaning": "casa"
+    },
+    {
+     "meaning": "bocca"
+    },
+    {
+     "meaning": "lezione"
+    }
+   ],
+   "sentence": {
+    "translation": "Vai dai vicini e da' loro un po' da mangiare."
+   },
+   "test": {
+    "translation": "Andiamo a casa dopo la lezione."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "ㅇ finale",
+  "card_desc": "Chiudi il fondo della bocca e fai un suono nasale",
+  "payload": {
+   "how_to": [
+    "Appoggia la parte posteriore della lingua sul fondo del palato",
+    "Tienila ferma e fai risuonare il suono nel naso",
+    "Non alzare la punta della lingua come per ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "stanza"
+    },
+    {
+     "meaning": "fiume"
+    },
+    {
+     "meaning": "palla"
+    },
+    {
+     "meaning": "borsa"
+    }
+   ],
+   "sentence": {
+    "translation": "Mio fratello minore va al parco con la borsa."
+   },
+   "test": {
+    "translation": "Vado all'emittente televisiva dall'altra parte del fiume."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Legamento",
+  "card_desc": "Sposta la consonante finale sulla sillaba dopo",
+  "payload": {
+   "how_to": [
+    "Quando dopo una consonante finale viene una sillaba che inizia con ㅇ,",
+    "sposta la consonante finale: diventa il primo suono della sillaba dopo",
+    "e dillo tutto insieme, senza pause"
+   ],
+   "words": [
+    {
+     "meaning": "lingua coreana"
+    },
+    {
+     "meaning": "musica"
+    },
+    {
+     "meaning": "vestiti (soggetto)"
+    },
+    {
+     "meaning": "riso (complemento oggetto)"
+    }
+   ],
+   "sentence": {
+    "translation": "Ascolto musica in coreano."
+   },
+   "test": {
+    "translation": "Prova i vestiti."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalizzazione",
+  "card_desc": "ㄱ·ㄷ·ㅂ diventano suoni nasali",
+  "payload": {
+   "how_to": [
+    "Quando dopo ㄱ·ㄷ·ㅂ finali viene ㄴ o ㅁ,",
+    "ㄱ diventa ㅇ, ㄷ diventa ㄴ e ㅂ diventa ㅁ",
+    "fai risuonare il suono nel naso già dalla consonante finale e dillo tutto insieme"
+   ],
+   "words": [
+    {
+     "meaning": "brodo"
+    },
+    {
+     "meaning": "frangia"
+    },
+    {
+     "meaning": "bugia"
+    },
+    {
+     "meaning": "mangia"
+    }
+   ],
+   "sentence": {
+    "translation": "Sto mangiando il brodo."
+   },
+   "test": {
+    "translation": "L'anno scorso ho tagliato la frangia."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Liquidizzazione",
+  "card_desc": "Quando ㄴ e ㄹ si incontrano: ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Quando ㄴ e ㄹ vengono uno dopo l'altro,",
+    "trasforma anche ㄴ in ㄹ e di' ㄹㄹ",
+    "tieni la punta della lingua sulla gengiva e continua in modo fluido, senza vibrare"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (antico regno)"
+    },
+    {
+     "meaning": "Capodanno lunare"
+    },
+    {
+     "meaning": "contatto, notizie"
+    },
+    {
+     "meaning": "monte Halla"
+    }
+   ],
+   "sentence": {
+    "translation": "Per questo Capodanno lunare aspetto tue notizie."
+   },
+   "test": {
+    "translation": "Aspetta la chiamata dell'ufficio di amministrazione."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalizzazione",
+  "card_desc": "ㄷ·ㅌ + 이 diventano 지·치",
+  "payload": {
+   "how_to": [
+    "Quando 「이」 viene dopo ㄷ·ㅌ finali,",
+    "pronuncia ㄷ come 지 e ㅌ come 치",
+    "sposta la lingua verso la parte anteriore del palato"
+   ],
+   "words": [
+    {
+     "meaning": "insieme"
+    },
+    {
+     "meaning": "per forza"
+    },
+    {
+     "meaning": "alba"
+    },
+    {
+     "meaning": "primogenito"
+    }
+   ],
+   "sentence": {
+    "translation": "Andiamo a vedere l'alba insieme."
+   },
+   "test": {
+    "translation": "Non devi per forza venire con me."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspirazione",
+  "card_desc": "Con ㅎ si forma una consonante aspirata",
+  "payload": {
+   "how_to": [
+    "Quando ㄱ·ㄷ·ㅂ·ㅈ si incontrano con ㅎ,",
+    "si fondono e si pronunciano come ㅋ·ㅌ·ㅍ·ㅊ",
+    "sul suono fuso fai uscire un forte soffio d'aria"
+   ],
+   "words": [
+    {
+     "meaning": "buono, bello"
+    },
+    {
+     "meaning": "congratulazioni"
+    },
+    {
+     "meaning": "ammissione (a una scuola)"
+    },
+    {
+     "meaning": "molti, tanto"
+    }
+   ],
+   "sentence": {
+    "translation": "Congratulazioni per l'ammissione, che bello!"
+   },
+   "test": {
+    "translation": "Non sono così tanti."
+   }
+  }
+ }
+}

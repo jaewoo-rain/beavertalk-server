@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Unang katinig ㄱ",
+  "card_desc": "Harangan ng likod ng dila, saka bitawan nang bahagya",
+  "payload": {
+   "how_to": [
+    "Idikit ang likod ng dila sa likod ng ngalangala",
+    "Bitawan nang magaan, halos walang hanging lumalabas",
+    "Hindi tulad ng ㅋ, huwag magbuga ng malakas na hangin"
+   ],
+   "words": [
+    {
+     "meaning": "bag"
+    },
+    {
+     "meaning": "karne"
+    },
+    {
+     "meaning": "sapatos na balat"
+    },
+    {
+     "meaning": "tren"
+    }
+   ],
+   "sentence": {
+    "translation": "Puno ng karne ang bag na iyon."
+   },
+   "test": {
+    "translation": "Pumipili ako ng meryenda sa tindahan."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Unang katinig ㄲ",
+  "card_desc": "Patigasin ang lalamunan, walang buga ng hangin",
+  "payload": {
+   "how_to": [
+    "Idikit ang likod ng dila sa parehong puwesto ng ㄱ",
+    "Patigasin ang lalamunan at dila, at huminto sandali",
+    "Bitawan nang maikli at matatag, walang buga ng hangin"
+   ],
+   "words": [
+    {
+     "meaning": "pulot"
+    },
+    {
+     "meaning": "buntot"
+    },
+    {
+     "meaning": "ibong magpie"
+    },
+    {
+     "meaning": "bulaklak"
+    }
+   ],
+   "sentence": {
+    "translation": "Gusto ng magpie ang pulot ng bulaklak."
+   },
+   "test": {
+    "translation": "Siguradong darating ang bata hanggang sa dulo."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Unang katinig ㄴ",
+  "card_desc": "Ilapat ang dulo ng dila at patunugin sa ilong",
+  "payload": {
+   "how_to": [
+    "Idikit ang dulo ng dila sa gilagid sa itaas",
+    "Paugungin ang tunog sa ilong",
+    "Habang binibitawan ang dila, lumipat sa patinig"
+   ],
+   "words": [
+    {
+     "meaning": "puno (halaman)"
+    },
+    {
+     "meaning": "ate"
+    },
+    {
+     "meaning": "kanta"
+    },
+    {
+     "meaning": "paru-paro"
+    }
+   ],
+   "sentence": {
+    "translation": "Kumakanta si Ate ng kanta tungkol sa puno."
+   },
+   "test": {
+    "translation": "Siguradong kikitain ka ni Ate."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Unang katinig ㄷ",
+  "card_desc": "Ilapat ang dulo ng dila, saka bitawan nang bahagya",
+  "payload": {
+   "how_to": [
+    "Idikit ang dulo ng dila sa gilagid sa itaas",
+    "Bitawan nang magaan, halos walang hanging lumalabas",
+    "Hindi tulad ng ㅌ, huwag magbuga ng malakas na hangin"
+   ],
+   "words": [
+    {
+     "meaning": "tulay"
+    },
+    {
+     "meaning": "tokwa"
+    },
+    {
+     "meaning": "lungsod"
+    },
+    {
+     "meaning": "buwan"
+    }
+   ],
+   "sentence": {
+    "translation": "May dalawang tulay sa lungsod."
+   },
+   "test": {
+    "translation": "Humihingi pa ng tokwa ang nakababata kong kapatid."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Unang katinig ㄸ",
+  "card_desc": "Patigasin ang dulo ng dila at bitawan nang minsanan",
+  "payload": {
+   "how_to": [
+    "Idikit ang dulo ng dila sa parehong puwesto ng ㄷ",
+    "Patigasin ang dila at lalamunan, at huminto sandali",
+    "Bitawan nang maikli at matatag, walang buga ng hangin"
+   ],
+   "words": [
+    {
+     "meaning": "anak na babae"
+    },
+    {
+     "meaning": "pawis"
+    },
+    {
+     "meaning": "rice cake (kakaning bigas)"
+    },
+    {
+     "meaning": "ulit"
+    }
+   ],
+   "sentence": {
+    "translation": "Kumakain na naman ng rice cake ang anak kong babae."
+   },
+   "test": {
+    "translation": "Pinagpapawisan ako, kaya lumalabas ulit ako sa bakuran."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Unang katinig ㄹ",
+  "card_desc": "Mabilis na pitik ng dulo ng dila sa gilagid",
+  "payload": {
+   "how_to": [
+    "Ilapat ang dulo ng dila sa gilagid sa itaas nang saglit lang",
+    "Pitikin nang isang beses lang, parang mahinang tapik",
+    "Huwag ikulot pabalik ang dila gaya ng r sa English"
+   ],
+   "words": [
+    {
+     "meaning": "ramen"
+    },
+    {
+     "meaning": "tayo; kami"
+    },
+    {
+     "meaning": "kanta"
+    },
+    {
+     "meaning": "ulo"
+    }
+   ],
+   "sentence": {
+    "translation": "Kumain tayo ng ramen habang kumakanta."
+   },
+   "test": {
+    "translation": "Iba-iba ang pagkain sa bawat bansa."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Unang katinig ㅁ",
+  "card_desc": "Isara ang labi at patunugin sa ilong",
+  "payload": {
+   "how_to": [
+    "Idikit nang magaan ang dalawang labi",
+    "Paugungin ang tunog sa ilong",
+    "Habang binubuka ang labi, lumipat sa patinig"
+   ],
+   "words": [
+    {
+     "meaning": "ulo"
+    },
+    {
+     "meaning": "sumbrero"
+    },
+    {
+     "meaning": "labanos"
+    },
+    {
+     "meaning": "puso; damdamin"
+    }
+   ],
+   "sentence": {
+    "translation": "Maraming sumbrero ang ginagawa ni Nanay."
+   },
+   "test": {
+    "translation": "Umiinom ng tubig ang lahat araw-araw."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Unang katinig ㅂ",
+  "card_desc": "Isara ang labi, saka bitawan nang bahagya",
+  "payload": {
+   "how_to": [
+    "Idikit ang dalawang labi",
+    "Bitawan nang magaan, halos walang hanging lumalabas",
+    "Hindi tulad ng ㅍ, huwag magbuga ng malakas na hangin"
+   ],
+   "words": [
+    {
+     "meaning": "dagat"
+    },
+    {
+     "meaning": "ulan"
+    },
+    {
+     "meaning": "sebada (barley)"
+    },
+    {
+     "meaning": "magulang"
+    }
+   ],
+   "sentence": {
+    "translation": "Tara, tingnan natin ang dagat habang umuulan."
+   },
+   "test": {
+    "translation": "Umuupa ng bangka ang mga magulang ko."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Unang katinig ㅃ",
+  "card_desc": "Patigasin ang labi, walang buga ng hangin",
+  "payload": {
+   "how_to": [
+    "Idikit nang mahigpit ang dalawang labi",
+    "Patigasin ang labi at lalamunan, at huminto sandali",
+    "Bitawan nang maikli at matatag, walang buga ng hangin"
+   ],
+   "words": [
+    {
+     "meaning": "tinapay"
+    },
+    {
+     "meaning": "buto (ng katawan)"
+    },
+    {
+     "meaning": "halik"
+    },
+    {
+     "meaning": "labada"
+    }
+   ],
+   "sentence": {
+    "translation": "Mabilis na bumibili ng tinapay si Tatay."
+   },
+   "test": {
+    "translation": "Ilabas mo agad ang labada."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Unang katinig ㅅ",
+  "card_desc": "Palabasin ang hangin sa maliit na puwang sa dulo ng dila",
+  "payload": {
+   "how_to": [
+    "Ilapit ang dulo ng dila sa gilagid sa itaas at mag-iwan ng maliit na puwang",
+    "Palabasin nang marahan ang hangin sa puwang na iyon",
+    "Huwag patigasin gaya ng ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "mansanas"
+    },
+    {
+     "meaning": "tunog"
+    },
+    {
+     "meaning": "pakwan"
+    },
+    {
+     "meaning": "orasan"
+    }
+   ],
+   "sentence": {
+    "translation": "Bumibili ako ng mansanas sa palengke ngayon."
+   },
+   "test": {
+    "translation": "Bumibili ng nobela ang guro."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Unang katinig ㅆ",
+  "card_desc": "Nang may tensyon, ibuga nang malakas ang hangin",
+  "payload": {
+   "how_to": [
+    "Ilagay ang dulo ng dila sa parehong puwesto ng ㅅ",
+    "Patigasin ang dila at lalamunan",
+    "Ibuga nang malakas ang hangin sa makitid na puwang"
+   ],
+   "words": [
+    {
+     "meaning": "bigas"
+    },
+    {
+     "meaning": "mura"
+    },
+    {
+     "meaning": "gamitin; isulat"
+    },
+    {
+     "meaning": "binhi"
+    }
+   ],
+   "sentence": {
+    "translation": "Mura ang bigas, kaya marami akong nagamit."
+   },
+   "test": {
+    "translation": "Mabilis kong pinatutubo ang mga binhi."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Unang katinig ㅈ",
+  "card_desc": "Ilapat ang dila, saka bitawan nang bahagya",
+  "payload": {
+   "how_to": [
+    "Idikit ang harapang bahagi ng dila sa harapan ng ngalangala",
+    "Bitawan nang marahan, halos walang hanging lumalabas",
+    "Huwag idiin nang malakas gaya ng ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "upuan; puwesto"
+    },
+    {
+     "meaning": "juice"
+    },
+    {
+     "meaning": "mapa"
+    },
+    {
+     "meaning": "gabi (evening)"
+    }
+   ],
+   "sentence": {
+    "translation": "Bigyan mo ako ng kaunting juice mamayang gabi."
+   },
+   "test": {
+    "translation": "Inaayos ko ang puwesto ko ngayon."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Unang katinig ㅉ",
+  "card_desc": "Patigasin ang dila, walang buga ng hangin",
+  "payload": {
+   "how_to": [
+    "Idikit ang dila sa parehong puwesto ng ㅈ",
+    "Patigasin ang dila at lalamunan, at huminto sandali",
+    "Bitawan nang maikli at matatag, walang buga ng hangin"
+   ],
+   "words": [
+    {
+     "meaning": "maalat"
+    },
+    {
+     "meaning": "stew (ulam na may sabaw)"
+    },
+    {
+     "meaning": "gilid; panig"
+    },
+    {
+     "meaning": "kapareha"
+    }
+   ],
+   "sentence": {
+    "translation": "Niluluto nang maalat ng kapareha ko ang stew."
+   },
+   "test": {
+    "translation": "Pinupunit ko ang maliit na sulat at humahabol ako."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Unang katinig ㅊ",
+  "card_desc": "Sa puwesto ng ㅈ, bitawan at ibuga nang malakas ang hangin",
+  "payload": {
+   "how_to": [
+    "Idikit ang dila sa parehong puwesto ng ㅈ",
+    "Sa sandaling bitawan, ibuga nang malakas ang hangin",
+    "Tama kung may hangin kang nararamdaman sa palad mo"
+   ],
+   "words": [
+    {
+     "meaning": "kotse"
+    },
+    {
+     "meaning": "palda"
+    },
+    {
+     "meaning": "libro"
+    },
+    {
+     "meaning": "kaibigan"
+    }
+   ],
+   "sentence": {
+    "translation": "Naiwan ng kaibigan ko ang libro sa kotse."
+   },
+   "test": {
+    "translation": "Dahan-dahan akong kumakain ng pritong manok sa malamig na araw."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Unang katinig ㅋ",
+  "card_desc": "Sa puwesto ng ㄱ, bitawan at ibuga nang malakas ang hangin",
+  "payload": {
+   "how_to": [
+    "Idikit ang likod ng dila sa parehong puwesto ng ㄱ",
+    "Sa sandaling bitawan, ibuga nang malakas ang hangin",
+    "Tama kung may hangin kang nararamdaman sa palad mo"
+   ],
+   "words": [
+    {
+     "meaning": "ilong"
+    },
+    {
+     "meaning": "tangkad"
+    },
+    {
+     "meaning": "kape"
+    },
+    {
+     "meaning": "card"
+    }
+   ],
+   "sentence": {
+    "translation": "Bumibili ng kape ang matangkad kong kaibigan."
+   },
+   "test": {
+    "translation": "Malakas na tumatawa ang elepante."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Unang katinig ㅌ",
+  "card_desc": "Sa puwesto ng ㄷ, bitawan at ibuga nang malakas ang hangin",
+  "payload": {
+   "how_to": [
+    "Idikit ang dulo ng dila sa parehong puwesto ng ㄷ",
+    "Sa sandaling bitawan, ibuga nang malakas ang hangin",
+    "Tama kung may hangin kang nararamdaman sa palad mo"
+   ],
+   "words": [
+    {
+     "meaning": "kuneho"
+    },
+    {
+     "meaning": "maskara"
+    },
+    {
+     "meaning": "mesa"
+    },
+    {
+     "meaning": "timba; lalagyan"
+    }
+   ],
+   "sentence": {
+    "translation": "Sumasakay ako ng taxi sa Sabado."
+   },
+   "test": {
+    "translation": "Bumibili ako ng matibay na mesa."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Unang katinig ㅍ",
+  "card_desc": "Sa puwesto ng ㅂ, bitawan at ibuga nang malakas ang hangin",
+  "payload": {
+   "how_to": [
+    "Idikit ang dalawang labi gaya ng sa ㅂ",
+    "Sa sandaling bitawan, ibuga nang malakas ang hangin",
+    "Huwag kagatin ang ibabang labi gaya ng f sa English"
+   ],
+   "words": [
+    {
+     "meaning": "dahon ng sibuyas"
+    },
+    {
+     "meaning": "ubas"
+    },
+    {
+     "meaning": "piyano"
+    },
+    {
+     "meaning": "sulat"
+    }
+   ],
+   "sentence": {
+    "translation": "Binubuksan ko ang sulat at tumutugtog ako ng piyano."
+   },
+   "test": {
+    "translation": "Sagana ang berdeng ubas."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Unang katinig ㅎ",
+  "card_desc": "Huminga palabas mula sa lalamunan",
+  "payload": {
+   "how_to": [
+    "Ibuka muna ang bibig sa hugis ng patinig",
+    "Huminga nang magaan palabas mula sa loob ng lalamunan",
+    "Huwag harangan ng dila o labi"
+   ],
+   "words": [
+    {
+     "meaning": "isa"
+    },
+    {
+     "meaning": "lawa"
+    },
+    {
+     "meaning": "tisyu"
+    },
+    {
+     "meaning": "lola"
+    }
+   ],
+   "sentence": {
+    "translation": "Buong araw pumupunta si Lola sa lawa."
+   },
+   "test": {
+    "translation": "Mag-isa akong pumupunta sa Ilog Han tuwing holiday."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Batchim ㄱ",
+  "card_desc": "Harangan ng likod ng dila at itigil ang tunog",
+  "payload": {
+   "how_to": [
+    "Idikit ang likod ng dila sa likod ng ngalangala",
+    "Habang nakadikit, itigil ang tunog",
+    "Huwag magdagdag ng 「으」 (eu) pagkatapos nito"
+   ],
+   "words": [
+    {
+     "meaning": "libro"
+    },
+    {
+     "meaning": "gamot"
+    },
+    {
+     "meaning": "pakwan"
+    },
+    {
+     "meaning": "pamilya"
+    }
+   ],
+   "sentence": {
+    "translation": "Pumunta ka sa botika ngayon at bumili ng gamot."
+   },
+   "test": {
+    "translation": "Kumain ka ng dalawang pakwan at magbasa ng libro."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Batchim ㄴ",
+  "card_desc": "Idikit ang dulo ng dila at patunugin sa ilong",
+  "payload": {
+   "how_to": [
+    "Idikit ang dulo ng dila sa gilagid sa itaas",
+    "Habang nakadikit, paugungin ang tunog sa ilong",
+    "Huwag itaas ang likod ng dila gaya ng sa ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "bundok"
+    },
+    {
+     "meaning": "niyebe"
+    },
+    {
+     "meaning": "pera"
+    },
+    {
+     "meaning": "pinto"
+    }
+   ],
+   "sentence": {
+    "translation": "Pumunta ka sa bundok kasama ang kaibigan at tingnan ang niyebe."
+   },
+   "test": {
+    "translation": "Nagbabayad si Ate at bumibili ng sapatos."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Batchim ㄷ",
+  "card_desc": "Harangan ng dulo ng dila at itigil ang tunog",
+  "payload": {
+   "how_to": [
+    "Idikit ang dulo ng dila sa gilagid sa itaas",
+    "Habang nakadikit, itigil ang tunog",
+    "Ganito rin ang tunog ng batchim ㅅ·ㅈ·ㅊ·ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "damit"
+    },
+    {
+     "meaning": "lasa"
+    },
+    {
+     "meaning": "bulaklak"
+    },
+    {
+     "meaning": "araw (kabaligtaran ng gabi)"
+    }
+   ],
+   "sentence": {
+    "translation": "Pumunta ka sa bukid, tingnan ang mga bulaklak, at bumili ng damit."
+   },
+   "test": {
+    "translation": "Hindi nagtagal, bumili ako ng tatlong bulaklak."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Batchim ㄹ",
+  "card_desc": "Idikit ang dulo ng dila at huwag itong galawin",
+  "payload": {
+   "how_to": [
+    "Ilapat ang dulo ng dila sa gilagid sa likod ng mga ngipin sa itaas",
+    "Huwag alisin ang dila, panatilihin ito roon",
+    "Padaanin ang hangin sa magkabilang gilid ng dila"
+   ],
+   "words": [
+    {
+     "meaning": "tubig"
+    },
+    {
+     "meaning": "buwan"
+    },
+    {
+     "meaning": "taglamig"
+    },
+    {
+     "meaning": "silid-aralan"
+    }
+   ],
+   "sentence": {
+    "translation": "Gusto mo bang uminom ng tubig ngayon?"
+   },
+   "test": {
+    "translation": "Hihingi kaya ako ng tubig?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Batchim ㅁ",
+  "card_desc": "Paugungin habang nakasara ang labi",
+  "payload": {
+   "how_to": [
+    "Idikit ang dalawang labi",
+    "Habang nakadikit, paugungin ang tunog sa ilong",
+    "Tapusin nang hindi binubuka ang labi"
+   ],
+   "words": [
+    {
+     "meaning": "gabi"
+    },
+    {
+     "meaning": "tagsibol"
+    },
+    {
+     "meaning": "damong-dagat (gim)"
+    },
+    {
+     "meaning": "tao"
+    }
+   ],
+   "sentence": {
+    "translation": "Kumain tayo ng gimbap sa parke sa isang gabi ng tagsibol."
+   },
+   "test": {
+    "translation": "Ilagay mo ang gimbap at ihanda ang mga gamit mo."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Batchim ㅂ",
+  "card_desc": "Isara ang labi at itigil ang tunog",
+  "payload": {
+   "how_to": [
+    "Idikit ang dalawang labi",
+    "Habang nakadikit, itigil ang tunog",
+    "Huwag ibuka ang labi o magdagdag ng 「으」 (eu)"
+   ],
+   "words": [
+    {
+     "meaning": "kanin"
+    },
+    {
+     "meaning": "bahay"
+    },
+    {
+     "meaning": "bibig"
+    },
+    {
+     "meaning": "klase"
+    }
+   ],
+   "sentence": {
+    "translation": "Pumunta ka sa kapitbahay at bigyan sila ng pagkain."
+   },
+   "test": {
+    "translation": "Umuwi na tayo pagkatapos ng klase."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Batchim ㅇ",
+  "card_desc": "Harangan sa likod ng ngalangala at patunugin sa ilong",
+  "payload": {
+   "how_to": [
+    "Idikit ang likod ng dila sa likod ng ngalangala",
+    "Habang nakadikit, paugungin ang tunog sa ilong",
+    "Huwag itaas ang dulo ng dila gaya ng sa ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "kuwarto"
+    },
+    {
+     "meaning": "ilog"
+    },
+    {
+     "meaning": "bola"
+    },
+    {
+     "meaning": "bag"
+    }
+   ],
+   "sentence": {
+    "translation": "Pumupunta sa parke ang nakababata kong kapatid dala ang bag."
+   },
+   "test": {
+    "translation": "Pumupunta ako sa himpilan ng brodkast sa kabila ng ilog."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Pag-uugnay ng tunog",
+  "card_desc": "Ilipat ang batchim sa susunod na pantig",
+  "payload": {
+   "how_to": [
+    "Kapag may pantig na nagsisimula sa ㅇ pagkatapos ng batchim,",
+    "ilipat ang batchim bilang unang katinig ng susunod na pantig",
+    "at sabihin nang tuloy-tuloy, nang walang putol"
+   ],
+   "words": [
+    {
+     "meaning": "wikang Korean"
+    },
+    {
+     "meaning": "musika"
+    },
+    {
+     "meaning": "damit (simuno)"
+    },
+    {
+     "meaning": "kanin (layon)"
+    }
+   ],
+   "sentence": {
+    "translation": "Nakikinig ako ng musikang Korean."
+   },
+   "test": {
+    "translation": "Subukan mong isuot ang damit."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalisasyon",
+  "card_desc": "Nagiging tunog sa ilong ang ㄱ·ㄷ·ㅂ",
+  "payload": {
+   "how_to": [
+    "Kapag may ㄴ o ㅁ pagkatapos ng batchim ㄱ·ㄷ·ㅂ,",
+    "ang ㄱ ay nagiging ㅇ, ang ㄷ ay ㄴ, at ang ㅂ ay ㅁ",
+    "at mula sa batchim, paugungin ang tunog sa ilong at sabihin nang tuloy-tuloy"
+   ],
+   "words": [
+    {
+     "meaning": "sabaw"
+    },
+    {
+     "meaning": "bangs"
+    },
+    {
+     "meaning": "kasinungalingan"
+    },
+    {
+     "meaning": "kumakain"
+    }
+   ],
+   "sentence": {
+    "translation": "Kumakain ako ng sabaw."
+   },
+   "test": {
+    "translation": "Nagpagupit ako ng bangs noong isang taon."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Likidisasyon",
+  "card_desc": "Kapag nagtagpo ang ㄴ at ㄹ, sabihing ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Kapag magkasunod na lumabas ang ㄴ at ㄹ,",
+    "gawing ㄹ din ang ㄴ at sabihing ㄹㄹ",
+    "at habang nakalapat ang dulo ng dila sa gilagid, idugtong nang madulas (hindi nanginginig ang dila)"
+   ],
+   "words": [
+    {
+     "meaning": "Silla"
+    },
+    {
+     "meaning": "Lunar New Year"
+    },
+    {
+     "meaning": "pakikipag-ugnayan; balita"
+    },
+    {
+     "meaning": "Bundok Halla"
+    }
+   ],
+   "sentence": {
+    "translation": "Hihintayin ko ang balita mo ngayong Lunar New Year."
+   },
+   "test": {
+    "translation": "Hintayin mo ang tawag ng opisina ng pamamahala."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalisasyon",
+  "card_desc": "Ang ㄷ·ㅌ+이 ay nagiging 지·치",
+  "payload": {
+   "how_to": [
+    "Kapag may 「이」 pagkatapos ng batchim ㄷ·ㅌ,",
+    "sabihin ang ㄷ bilang 지 at ang ㅌ bilang 치",
+    "at ilipat ang dila papunta sa harapan ng ngalangala"
+   ],
+   "words": [
+    {
+     "meaning": "magkasama"
+    },
+    {
+     "meaning": "talagang kailangan; sadyang"
+    },
+    {
+     "meaning": "pagsikat ng araw"
+    },
+    {
+     "meaning": "panganay"
+    }
+   ],
+   "sentence": {
+    "translation": "Tara, sabay nating panoorin ang pagsikat ng araw."
+   },
+   "test": {
+    "translation": "Hindi mo na kailangang sumama sa akin."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspirasyon",
+  "card_desc": "Kapag nakasama ang ㅎ, nagiging tunog na may malakas na hangin",
+  "payload": {
+   "how_to": [
+    "Kapag nagtagpo ang ㄱ·ㄷ·ㅂ·ㅈ at ㅎ,",
+    "pagsamahin at sabihin bilang ㅋ·ㅌ·ㅍ·ㅊ",
+    "at ibuga nang malakas ang hangin sa pinagsamang tunog"
+   ],
+   "words": [
+    {
+     "meaning": "mabuti"
+    },
+    {
+     "meaning": "pagbati"
+    },
+    {
+     "meaning": "pagpasok sa paaralan"
+    },
+    {
+     "meaning": "marami"
+    }
+   ],
+   "sentence": {
+    "translation": "Binabati kita sa pagpasok mo sa paaralan, ang saya talaga."
+   },
+   "test": {
+    "translation": "Hindi naman ganoon karami."
+   }
+  }
+ }
+}

@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Hece başı ㄱ",
+  "card_desc": "Dilin arka kısmıyla kapatıp hafifçe ayırın",
+  "payload": {
+   "how_to": [
+    "Dilin arka kısmını damağın arka kısmına dayayın",
+    "Neredeyse hiç hava çıkarmadan hafifçe ayırın",
+    "ㅋ sesindeki kadar güçlü hava çıkarmayın"
+   ],
+   "words": [
+    {
+     "meaning": "çanta"
+    },
+    {
+     "meaning": "et"
+    },
+    {
+     "meaning": "klasik ayakkabı"
+    },
+    {
+     "meaning": "tren"
+    }
+   ],
+   "sentence": {
+    "translation": "O çanta etle dolu."
+   },
+   "test": {
+    "translation": "Dükkânda atıştırmalık seçiyorum."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Hece başı ㄲ",
+  "card_desc": "Boğazınızı gerin, hava çıkarmayın",
+  "payload": {
+   "how_to": [
+    "Dilin arka kısmını ㄱ sesiyle aynı yere dayayın",
+    "Boğazınızı ve dilinizi gerip bir an bekleyin",
+    "Hava çıkarmadan kısa ve sert biçimde ayırın"
+   ],
+   "words": [
+    {
+     "meaning": "bal"
+    },
+    {
+     "meaning": "kuyruk"
+    },
+    {
+     "meaning": "saksağan"
+    },
+    {
+     "meaning": "çiçek"
+    }
+   ],
+   "sentence": {
+    "translation": "Saksağan çiçek balını sever."
+   },
+   "test": {
+    "translation": "Küçük çocuk mutlaka sonuna kadar gelir."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Hece başı ㄴ",
+  "card_desc": "Dil ucunu değdirip sesi burundan verin",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst diş etine dayayın",
+    "Sesi burundan tınlatın",
+    "Dili ayırırken ünlüye geçin"
+   ],
+   "words": [
+    {
+     "meaning": "ağaç"
+    },
+    {
+     "meaning": "abla (erkeğin ablası)"
+    },
+    {
+     "meaning": "şarkı"
+    },
+    {
+     "meaning": "kelebek"
+    }
+   ],
+   "sentence": {
+    "translation": "Ablam ağaç şarkısı söylüyor."
+   },
+   "test": {
+    "translation": "Ablam seninle mutlaka buluşur."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Hece başı ㄷ",
+  "card_desc": "Dil ucunu değdirip hafifçe ayırın",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst diş etine dayayın",
+    "Neredeyse hiç hava çıkarmadan hafifçe ayırın",
+    "ㅌ sesindeki kadar güçlü hava çıkarmayın"
+   ],
+   "words": [
+    {
+     "meaning": "köprü"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "şehir"
+    },
+    {
+     "meaning": "ay"
+    }
+   ],
+   "sentence": {
+    "translation": "Şehirde iki köprü var."
+   },
+   "test": {
+    "translation": "Kardeşim daha fazla tofu istiyor."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Hece başı ㄸ",
+  "card_desc": "Dil ucunu gerip bir anda ayırın",
+  "payload": {
+   "how_to": [
+    "Dil ucunu ㄷ sesiyle aynı yere dayayın",
+    "Dilinizi ve boğazınızı gerip bir an bekleyin",
+    "Hava çıkarmadan kısa ve sert biçimde ayırın"
+   ],
+   "words": [
+    {
+     "meaning": "kız evlat"
+    },
+    {
+     "meaning": "ter"
+    },
+    {
+     "meaning": "pirinç keki (tteok)"
+    },
+    {
+     "meaning": "yine"
+    }
+   ],
+   "sentence": {
+    "translation": "Kızım yine pirinç keki yiyor."
+   },
+   "test": {
+    "translation": "Terledim, bu yüzden yine bahçeye çıkıyorum."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Hece başı ㄹ",
+  "card_desc": "Dil ucuyla diş etine hafifçe bir kez vurun",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst diş etine çok kısa bir an değdirin",
+    "Hafif bir vuruş gibi yalnızca bir kez dokunup çekin",
+    "İngilizcedeki r gibi dili geriye kıvırmayın"
+   ],
+   "words": [
+    {
+     "meaning": "ramen"
+    },
+    {
+     "meaning": "biz"
+    },
+    {
+     "meaning": "şarkı"
+    },
+    {
+     "meaning": "baş, kafa"
+    }
+   ],
+   "sentence": {
+    "translation": "Şarkı söyleyerek birlikte ramen yiyelim."
+   },
+   "test": {
+    "translation": "Her ülkenin yemekleri farklıdır."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Hece başı ㅁ",
+  "card_desc": "Dudakları kapatıp sesi burundan verin",
+  "payload": {
+   "how_to": [
+    "İki dudağınızı hafifçe birleştirin",
+    "Sesi burundan tınlatın",
+    "Dudakları ayırırken ünlüye geçin"
+   ],
+   "words": [
+    {
+     "meaning": "baş, kafa"
+    },
+    {
+     "meaning": "şapka"
+    },
+    {
+     "meaning": "turp"
+    },
+    {
+     "meaning": "gönül, kalp"
+    }
+   ],
+   "sentence": {
+    "translation": "Annem çok sayıda şapka yapıyor."
+   },
+   "test": {
+    "translation": "Herkes her gün su içer."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Hece başı ㅂ",
+  "card_desc": "Dudakları kapatıp hafifçe ayırın",
+  "payload": {
+   "how_to": [
+    "İki dudağınızı birleştirin",
+    "Neredeyse hiç hava çıkarmadan hafifçe ayırın",
+    "ㅍ sesindeki kadar güçlü hava çıkarmayın"
+   ],
+   "words": [
+    {
+     "meaning": "deniz"
+    },
+    {
+     "meaning": "yağmur"
+    },
+    {
+     "meaning": "arpa"
+    },
+    {
+     "meaning": "anne baba"
+    }
+   ],
+   "sentence": {
+    "translation": "Yağmurlu denizi görmeye gidelim."
+   },
+   "test": {
+    "translation": "Annemle babam bir tekne kiralıyor."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Hece başı ㅃ",
+  "card_desc": "Dudaklarınızı gerin, hava çıkarmayın",
+  "payload": {
+   "how_to": [
+    "İki dudağınızı sıkıca birleştirin",
+    "Dudaklarınızı ve boğazınızı gerip bir an bekleyin",
+    "Hava çıkarmadan kısa ve sert biçimde ayırın"
+   ],
+   "words": [
+    {
+     "meaning": "ekmek"
+    },
+    {
+     "meaning": "kemik"
+    },
+    {
+     "meaning": "öpücük"
+    },
+    {
+     "meaning": "çamaşır"
+    }
+   ],
+   "sentence": {
+    "translation": "Babam hemen ekmek alıyor."
+   },
+   "test": {
+    "translation": "Çamaşırları çabucak çıkar."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Hece başı ㅅ",
+  "card_desc": "Dil ucundaki aralıktan hava çıkarın",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst diş etine yakın tutup hafif bir aralık bırakın",
+    "Bu aralıktan havayı yumuşakça çıkarın",
+    "ㅆ sesindeki gibi kaslarınızı germeyin"
+   ],
+   "words": [
+    {
+     "meaning": "elma"
+    },
+    {
+     "meaning": "ses"
+    },
+    {
+     "meaning": "karpuz"
+    },
+    {
+     "meaning": "saat"
+    }
+   ],
+   "sentence": {
+    "translation": "Bugün pazardan elma alıyorum."
+   },
+   "test": {
+    "translation": "Öğretmen bir roman alıyor."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Hece başı ㅆ",
+  "card_desc": "Gerilerek havayı güçlü çıkarın",
+  "payload": {
+   "how_to": [
+    "Dil ucunu ㅅ sesiyle aynı yere koyun",
+    "Dilinizi ve boğazınızı gerin",
+    "Dar aralıktan havayı güçlü çıkarın"
+   ],
+   "words": [
+    {
+     "meaning": "pirinç (pişmemiş)"
+    },
+    {
+     "meaning": "ucuz"
+    },
+    {
+     "meaning": "kullanmak, yazmak"
+    },
+    {
+     "meaning": "tohum"
+    }
+   ],
+   "sentence": {
+    "translation": "Pirinç ucuz olduğu için çok kullandım."
+   },
+   "test": {
+    "translation": "Tohumları hızla büyütüyorum."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Hece başı ㅈ",
+  "card_desc": "Dili değdirip hafifçe ayırın",
+  "payload": {
+   "how_to": [
+    "Dilin ön kısmını damağın ön kısmına dayayın",
+    "Neredeyse hiç hava çıkarmadan yumuşakça ayırın",
+    "ㅉ sesindeki kadar sert bastırmayın"
+   ],
+   "words": [
+    {
+     "meaning": "yer, oturacak yer"
+    },
+    {
+     "meaning": "meyve suyu"
+    },
+    {
+     "meaning": "harita"
+    },
+    {
+     "meaning": "akşam"
+    }
+   ],
+   "sentence": {
+    "translation": "Akşam bana biraz meyve suyu ver."
+   },
+   "test": {
+    "translation": "Şimdi yerimi topluyorum."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Hece başı ㅉ",
+  "card_desc": "Dilinizi gerin, hava çıkarmayın",
+  "payload": {
+   "how_to": [
+    "Dili ㅈ sesiyle aynı yere dayayın",
+    "Dilinizi ve boğazınızı gerip bir an bekleyin",
+    "Hava çıkarmadan kısa ve sert biçimde ayırın"
+   ],
+   "words": [
+    {
+     "meaning": "tuzlu"
+    },
+    {
+     "meaning": "güveç (jjigae)"
+    },
+    {
+     "meaning": "taraf, yön"
+    },
+    {
+     "meaning": "eş, partner"
+    }
+   ],
+   "sentence": {
+    "translation": "Arkadaşım güveci tuzlu pişiriyor."
+   },
+   "test": {
+    "translation": "Notu yırtıp peşinden koşuyorum."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Hece başı ㅊ",
+  "card_desc": "ㅈ sesinin yerinde ayırırken havayı güçlü çıkarın",
+  "payload": {
+   "how_to": [
+    "Dili ㅈ sesiyle aynı yere dayayın",
+    "Ayırdığınız anda havayı güçlü çıkarın",
+    "Ağzınızın önündeki avucunuzda hava hissederseniz doğrudur"
+   ],
+   "words": [
+    {
+     "meaning": "araba"
+    },
+    {
+     "meaning": "etek"
+    },
+    {
+     "meaning": "kitap"
+    },
+    {
+     "meaning": "arkadaş"
+    }
+   ],
+   "sentence": {
+    "translation": "Arkadaşım kitabı arabada unuttu."
+   },
+   "test": {
+    "translation": "Soğuk bir günde kızarmış tavuğu yavaş yavaş yiyorum."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Hece başı ㅋ",
+  "card_desc": "ㄱ sesinin yerinde ayırırken havayı güçlü çıkarın",
+  "payload": {
+   "how_to": [
+    "Dilin arka kısmını ㄱ sesiyle aynı yere dayayın",
+    "Ayırdığınız anda havayı güçlü çıkarın",
+    "Ağzınızın önündeki avucunuzda hava hissederseniz doğrudur"
+   ],
+   "words": [
+    {
+     "meaning": "burun"
+    },
+    {
+     "meaning": "boy"
+    },
+    {
+     "meaning": "kahve"
+    },
+    {
+     "meaning": "kart"
+    }
+   ],
+   "sentence": {
+    "translation": "Uzun boylu arkadaşım kahve alıyor."
+   },
+   "test": {
+    "translation": "Fil yüksek sesle gülüyor."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Hece başı ㅌ",
+  "card_desc": "ㄷ sesinin yerinde ayırırken havayı güçlü çıkarın",
+  "payload": {
+   "how_to": [
+    "Dil ucunu ㄷ sesiyle aynı yere dayayın",
+    "Ayırdığınız anda havayı güçlü çıkarın",
+    "Ağzınızın önündeki avucunuzda hava hissederseniz doğrudur"
+   ],
+   "words": [
+    {
+     "meaning": "tavşan"
+    },
+    {
+     "meaning": "maske"
+    },
+    {
+     "meaning": "masa"
+    },
+    {
+     "meaning": "kova, kap"
+    }
+   ],
+   "sentence": {
+    "translation": "Cumartesi taksiye binip gidiyorum."
+   },
+   "test": {
+    "translation": "Sağlam bir masa alıyorum."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Hece başı ㅍ",
+  "card_desc": "ㅂ sesinin yerinde ayırırken havayı güçlü çıkarın",
+  "payload": {
+   "how_to": [
+    "ㅂ sesindeki gibi iki dudağınızı birleştirin",
+    "Ayırdığınız anda havayı güçlü çıkarın",
+    "İngilizcedeki f gibi dudağınızı ısırmayın"
+   ],
+   "words": [
+    {
+     "meaning": "yeşil soğan"
+    },
+    {
+     "meaning": "üzüm"
+    },
+    {
+     "meaning": "piyano"
+    },
+    {
+     "meaning": "mektup"
+    }
+   ],
+   "sentence": {
+    "translation": "Mektubu açıp piyano çalıyorum."
+   },
+   "test": {
+    "translation": "Yeşil üzüm bol bol var."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Hece başı ㅎ",
+  "card_desc": "Boğazdan nefes verin",
+  "payload": {
+   "how_to": [
+    "Önce ağzınızı ünlünün şekline göre açın",
+    "Boğazın derininden hafifçe nefes verin",
+    "Havanın yolunu dille ya da dudaklarla kapatmayın"
+   ],
+   "words": [
+    {
+     "meaning": "bir (sayı)"
+    },
+    {
+     "meaning": "göl"
+    },
+    {
+     "meaning": "kâğıt mendil"
+    },
+    {
+     "meaning": "büyükanne"
+    }
+   ],
+   "sentence": {
+    "translation": "Büyükannem gün boyu göle gidiyor."
+   },
+   "test": {
+    "translation": "Tatil günü tek başıma Han Nehri'ne gidiyorum."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Hece sonu ㄱ",
+  "card_desc": "Dilin arka kısmıyla kapatın ve sesi orada bitirin",
+  "payload": {
+   "how_to": [
+    "Dilin arka kısmını damağın arka kısmına dayayın",
+    "Ayırmadan sesi orada bitirin",
+    "Sonuna 「으」 (ı) eklemeyin"
+   ],
+   "words": [
+    {
+     "meaning": "kitap"
+    },
+    {
+     "meaning": "ilaç"
+    },
+    {
+     "meaning": "karpuz"
+    },
+    {
+     "meaning": "aile"
+    }
+   ],
+   "sentence": {
+    "translation": "Bugün eczaneye gidip biraz ilaç al."
+   },
+   "test": {
+    "translation": "İki karpuz ye, sonra kitap oku."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Hece sonu ㄴ",
+  "card_desc": "Dil ucunu dayalı tutup sesi burundan verin",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst diş etine dayayın",
+    "Öyle tutarak sesi burundan tınlatın",
+    "ㅇ sesindeki gibi dilin arka kısmını kaldırmayın"
+   ],
+   "words": [
+    {
+     "meaning": "dağ"
+    },
+    {
+     "meaning": "kar"
+    },
+    {
+     "meaning": "para"
+    },
+    {
+     "meaning": "kapı"
+    }
+   ],
+   "sentence": {
+    "translation": "Arkadaşınla dağa git, karı gör."
+   },
+   "test": {
+    "translation": "Ablam para verip ayakkabı alıyor."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Hece sonu ㄷ",
+  "card_desc": "Dil ucuyla kapatın ve sesi orada bitirin",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst diş etine dayayın",
+    "Ayırmadan sesi orada bitirin",
+    "Hece sonundaki ㅅ, ㅈ, ㅊ, ㅌ de aynı okunur"
+   ],
+   "words": [
+    {
+     "meaning": "kıyafet"
+    },
+    {
+     "meaning": "tat"
+    },
+    {
+     "meaning": "çiçek"
+    },
+    {
+     "meaning": "gündüz"
+    }
+   ],
+   "sentence": {
+    "translation": "Tarlaya gidip çiçeklere bak, sonra kıyafet al."
+   },
+   "test": {
+    "translation": "Kısa süre sonra üç çiçek aldım."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Hece sonu ㄹ",
+  "card_desc": "Dil ucunu dayalı tutun ve öylece durun",
+  "payload": {
+   "how_to": [
+    "Dil ucunu üst dişlerin arkasındaki diş etine değdirin",
+    "Dili ayırmadan öylece durun",
+    "Havayı dilin iki yanından akıtın"
+   ],
+   "words": [
+    {
+     "meaning": "su"
+    },
+    {
+     "meaning": "ay"
+    },
+    {
+     "meaning": "kış"
+    },
+    {
+     "meaning": "sınıf"
+    }
+   ],
+   "sentence": {
+    "translation": "Bugün biraz su içer misin?"
+   },
+   "test": {
+    "translation": "Biraz su isteyeyim mi?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Hece sonu ㅁ",
+  "card_desc": "Dudakları kapalı tutup sesi tınlatın",
+  "payload": {
+   "how_to": [
+    "İki dudağınızı birleştirin",
+    "Öyle tutarak sesi burundan tınlatın",
+    "Dudakları ayırmadan bitirin"
+   ],
+   "words": [
+    {
+     "meaning": "gece"
+    },
+    {
+     "meaning": "bahar"
+    },
+    {
+     "meaning": "kurutulmuş deniz yosunu (gim)"
+    },
+    {
+     "meaning": "insan, kişi"
+    }
+   ],
+   "sentence": {
+    "translation": "Bahar gecesi parkta gimbap yiyelim."
+   },
+   "test": {
+    "translation": "Gimbapı kaba koy ve eşyalarını topla."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Hece sonu ㅂ",
+  "card_desc": "Dudakları kapatın ve sesi orada bitirin",
+  "payload": {
+   "how_to": [
+    "İki dudağınızı birleştirin",
+    "Ayırmadan sesi orada bitirin",
+    "Dudakları ayırmayın, 「으」 (ı) da eklemeyin"
+   ],
+   "words": [
+    {
+     "meaning": "pilav, yemek"
+    },
+    {
+     "meaning": "ev"
+    },
+    {
+     "meaning": "ağız"
+    },
+    {
+     "meaning": "ders"
+    }
+   ],
+   "sentence": {
+    "translation": "Yan eve git, onlara biraz yemek ver."
+   },
+   "test": {
+    "translation": "Ders bitince eve gidelim."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Hece sonu ㅇ",
+  "card_desc": "Ağzın arka kısmını kapatıp sesi burundan verin",
+  "payload": {
+   "how_to": [
+    "Dilin arka kısmını damağın arka kısmına dayayın",
+    "Öyle tutarak sesi burundan tınlatın",
+    "ㄴ sesindeki gibi dil ucunu kaldırmayın"
+   ],
+   "words": [
+    {
+     "meaning": "oda"
+    },
+    {
+     "meaning": "nehir"
+    },
+    {
+     "meaning": "top"
+    },
+    {
+     "meaning": "çanta"
+    }
+   ],
+   "sentence": {
+    "translation": "Kardeşim çantasını alıp parka gidiyor."
+   },
+   "test": {
+    "translation": "Nehrin karşı tarafındaki yayın binasına gidiyorum."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Ulama",
+  "card_desc": "Hece sonu ünsüzünü sonraki heceye aktarın",
+  "payload": {
+   "how_to": [
+    "Hece sonu ünsüzünden sonra ㅇ ile başlayan bir hece gelirse",
+    "Bu ünsüzü sonraki heceye ilk ses olarak aktarın",
+    "Kesmeden, tek seferde bağlayarak söyleyin"
+   ],
+   "words": [
+    {
+     "meaning": "Korece"
+    },
+    {
+     "meaning": "müzik"
+    },
+    {
+     "meaning": "kıyafet (özne)"
+    },
+    {
+     "meaning": "pilav (nesne)"
+    }
+   ],
+   "sentence": {
+    "translation": "Korece müzik dinliyorum."
+   },
+   "test": {
+    "translation": "Kıyafeti bir deneyin."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nazalleşme",
+  "card_desc": "ㄱ, ㄷ, ㅂ burun sesine dönüşür",
+  "payload": {
+   "how_to": [
+    "Hece sonundaki ㄱ, ㄷ, ㅂ sesinden sonra ㄴ ya da ㅁ gelirse",
+    "ㄱ sesi ㅇ, ㄷ sesi ㄴ, ㅂ sesi ㅁ olur",
+    "Hece sonu ünsüzünden itibaren sesi burundan tınlatarak bağlayıp söyleyin"
+   ],
+   "words": [
+    {
+     "meaning": "et suyu, çorba suyu"
+    },
+    {
+     "meaning": "kâkül"
+    },
+    {
+     "meaning": "yalan"
+    },
+    {
+     "meaning": "yiyor"
+    }
+   ],
+   "sentence": {
+    "translation": "Şu an çorba suyu içiyorum."
+   },
+   "test": {
+    "translation": "Geçen yıl kâkülümü kestim."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Akıcılaşma",
+  "card_desc": "ㄴ ile ㄹ yan yana gelince ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "ㄴ ile ㄹ art arda gelirse",
+    "ㄴ sesini de ㄹ yapıp ㄹㄹ olarak söyleyin",
+    "Dil ucunu diş etinde tutarak sesleri kaydırır gibi akıcı bağlayıp söyleyin"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (eski Kore krallığı)"
+    },
+    {
+     "meaning": "Seollal (Kore Ay Yılı Bayramı)"
+    },
+    {
+     "meaning": "haber, iletişim"
+    },
+    {
+     "meaning": "Halla Dağı"
+    }
+   ],
+   "sentence": {
+    "translation": "Bu Seollal'de haberini bekliyorum."
+   },
+   "test": {
+    "translation": "Yönetim ofisinin aramasını bekle."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Damaksıllaşma",
+  "card_desc": "ㄷ·ㅌ + 이, 지·치 olarak okunur",
+  "payload": {
+   "how_to": [
+    "Hece sonundaki ㄷ ya da ㅌ sesinden sonra 「이」 gelirse",
+    "ㄷ sesini 지, ㅌ sesini 치 olarak söyleyin",
+    "Dili damağın ön kısmına doğru kaydırın"
+   ],
+   "words": [
+    {
+     "meaning": "birlikte"
+    },
+    {
+     "meaning": "ille de"
+    },
+    {
+     "meaning": "gün doğumu"
+    },
+    {
+     "meaning": "ilk çocuk"
+    }
+   ],
+   "sentence": {
+    "translation": "Hadi birlikte gün doğumunu izlemeye gidelim."
+   },
+   "test": {
+    "translation": "İlle de birlikte gitmek zorunda değilsin."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Soluklaşma",
+  "card_desc": "ㅎ ile yan yana gelince soluklu ses olur",
+  "payload": {
+   "how_to": [
+    "ㄱ, ㄷ, ㅂ, ㅈ ile ㅎ yan yana gelirse",
+    "Bunları birleştirip ㅋ, ㅌ, ㅍ, ㅊ olarak söyleyin",
+    "Birleşen seste havayı güçlü çıkarın"
+   ],
+   "words": [
+    {
+     "meaning": "iyi"
+    },
+    {
+     "meaning": "tebrik"
+    },
+    {
+     "meaning": "okula giriş"
+    },
+    {
+     "meaning": "çok"
+    }
+   ],
+   "sentence": {
+    "translation": "Okula girdiğin için tebrikler, gerçekten çok güzel!"
+   },
+   "test": {
+    "translation": "O kadar çok değil."
+   }
+  }
+ }
+}

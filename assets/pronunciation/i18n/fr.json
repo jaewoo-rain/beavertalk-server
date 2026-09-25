@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "ㄱ initial",
+  "card_desc": "Bloquer avec l'arrière de la langue, puis décoller doucement",
+  "payload": {
+   "how_to": [
+    "Collez l'arrière de la langue contre le fond du palais",
+    "Décollez-la doucement, presque sans souffle",
+    "Ne soufflez pas fort comme pour ㅋ"
+   ],
+   "words": [
+    {
+     "meaning": "sac"
+    },
+    {
+     "meaning": "viande"
+    },
+    {
+     "meaning": "chaussures"
+    },
+    {
+     "meaning": "train"
+    }
+   ],
+   "sentence": {
+    "translation": "Ce sac est plein de viande"
+   },
+   "test": {
+    "translation": "Je choisis des biscuits au magasin"
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "ㄲ initial",
+  "card_desc": "Contracter la gorge, sans souffle",
+  "payload": {
+   "how_to": [
+    "Collez l'arrière de la langue au même endroit que pour ㄱ",
+    "Contractez la gorge et la langue, et marquez un court arrêt",
+    "Décollez-la d'un coup sec et bref, sans souffle"
+   ],
+   "words": [
+    {
+     "meaning": "miel"
+    },
+    {
+     "meaning": "queue"
+    },
+    {
+     "meaning": "pie (oiseau)"
+    },
+    {
+     "meaning": "fleur"
+    }
+   ],
+   "sentence": {
+    "translation": "La pie aime le miel des fleurs"
+   },
+   "test": {
+    "translation": "Le petit vient sans faute jusqu'au bout"
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "ㄴ initial",
+  "card_desc": "Toucher avec la pointe de la langue et faire un son nasal",
+  "payload": {
+   "how_to": [
+    "Collez la pointe de la langue contre la gencive du haut",
+    "Faites résonner le son dans le nez",
+    "Décollez la langue en passant à la voyelle"
+   ],
+   "words": [
+    {
+     "meaning": "arbre"
+    },
+    {
+     "meaning": "grande sœur (pour un garçon)"
+    },
+    {
+     "meaning": "chanson"
+    },
+    {
+     "meaning": "papillon"
+    }
+   ],
+   "sentence": {
+    "translation": "Ma grande sœur chante une chanson sur les arbres"
+   },
+   "test": {
+    "translation": "Ma grande sœur va te voir, c'est sûr"
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "ㄷ initial",
+  "card_desc": "Toucher avec la pointe de la langue, puis décoller doucement",
+  "payload": {
+   "how_to": [
+    "Collez la pointe de la langue contre la gencive du haut",
+    "Décollez-la doucement, presque sans souffle",
+    "Ne soufflez pas fort comme pour ㅌ"
+   ],
+   "words": [
+    {
+     "meaning": "pont"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "ville"
+    },
+    {
+     "meaning": "lune"
+    }
+   ],
+   "sentence": {
+    "translation": "Il y a deux ponts dans la ville"
+   },
+   "test": {
+    "translation": "Mon petit frère redemande du tofu"
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "ㄸ initial",
+  "card_desc": "Contracter la pointe de la langue et relâcher d'un coup",
+  "payload": {
+   "how_to": [
+    "Collez la pointe de la langue au même endroit que pour ㄷ",
+    "Contractez la langue et la gorge, et marquez un court arrêt",
+    "Décollez-la d'un coup sec et bref, sans souffle"
+   ],
+   "words": [
+    {
+     "meaning": "fille (enfant)"
+    },
+    {
+     "meaning": "sueur"
+    },
+    {
+     "meaning": "gâteau de riz"
+    },
+    {
+     "meaning": "encore"
+    }
+   ],
+   "sentence": {
+    "translation": "Ma fille mange encore des gâteaux de riz"
+   },
+   "test": {
+    "translation": "Je transpire, alors je ressors dans la cour"
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "ㄹ initial",
+  "card_desc": "Une petite tape de la pointe de la langue sur la gencive",
+  "payload": {
+   "how_to": [
+    "Touchez la gencive du haut avec la pointe de la langue, très brièvement",
+    "Faites-la rebondir une seule fois, comme une petite tape",
+    "Ne recourbez pas la langue vers l'arrière comme pour le r anglais"
+   ],
+   "words": [
+    {
+     "meaning": "ramen (nouilles instantanées)"
+    },
+    {
+     "meaning": "nous"
+    },
+    {
+     "meaning": "chanson"
+    },
+    {
+     "meaning": "tête"
+    }
+   ],
+   "sentence": {
+    "translation": "Mangeons des ramen en chantant"
+   },
+   "test": {
+    "translation": "Chaque pays a une cuisine différente"
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "ㅁ initial",
+  "card_desc": "Fermer les lèvres, avec un son nasal",
+  "payload": {
+   "how_to": [
+    "Collez doucement les deux lèvres",
+    "Faites résonner le son dans le nez",
+    "Décollez les lèvres en passant à la voyelle"
+   ],
+   "words": [
+    {
+     "meaning": "tête"
+    },
+    {
+     "meaning": "chapeau"
+    },
+    {
+     "meaning": "radis blanc"
+    },
+    {
+     "meaning": "cœur (esprit)"
+    }
+   ],
+   "sentence": {
+    "translation": "Maman fabrique beaucoup de chapeaux"
+   },
+   "test": {
+    "translation": "Tout le monde boit de l'eau chaque jour"
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "ㅂ initial",
+  "card_desc": "Fermer les lèvres, puis décoller doucement",
+  "payload": {
+   "how_to": [
+    "Collez les deux lèvres",
+    "Décollez-les doucement, presque sans souffle",
+    "Ne soufflez pas fort comme pour ㅍ"
+   ],
+   "words": [
+    {
+     "meaning": "mer"
+    },
+    {
+     "meaning": "pluie"
+    },
+    {
+     "meaning": "orge"
+    },
+    {
+     "meaning": "parents"
+    }
+   ],
+   "sentence": {
+    "translation": "Je vais voir la mer sous la pluie"
+   },
+   "test": {
+    "translation": "Mes parents louent un bateau"
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "ㅃ initial",
+  "card_desc": "Contracter les lèvres, sans souffle",
+  "payload": {
+   "how_to": [
+    "Collez fermement les deux lèvres",
+    "Contractez les lèvres et la gorge, et marquez un court arrêt",
+    "Décollez-les d'un coup sec et bref, sans souffle"
+   ],
+   "words": [
+    {
+     "meaning": "pain"
+    },
+    {
+     "meaning": "os"
+    },
+    {
+     "meaning": "bisou"
+    },
+    {
+     "meaning": "linge (lessive)"
+    }
+   ],
+   "sentence": {
+    "translation": "Papa achète vite du pain"
+   },
+   "test": {
+    "translation": "Sors vite le linge, s'il te plaît"
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "ㅅ initial",
+  "card_desc": "Faire passer l'air par la petite fente à la pointe de la langue",
+  "payload": {
+   "how_to": [
+    "Placez la pointe de la langue près de la gencive du haut, sans la toucher",
+    "Laissez l'air sortir doucement par cette fente",
+    "Ne vous crispez pas comme pour ㅆ"
+   ],
+   "words": [
+    {
+     "meaning": "pomme"
+    },
+    {
+     "meaning": "son (bruit)"
+    },
+    {
+     "meaning": "pastèque"
+    },
+    {
+     "meaning": "montre, horloge"
+    }
+   ],
+   "sentence": {
+    "translation": "Aujourd'hui, j'achète des pommes au marché"
+   },
+   "test": {
+    "translation": "Le professeur achète un roman"
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "ㅆ initial",
+  "card_desc": "Contracter et souffler fort",
+  "payload": {
+   "how_to": [
+    "Placez la pointe de la langue au même endroit que pour ㅅ",
+    "Contractez la langue et la gorge",
+    "Faites sortir l'air fort par la fente étroite"
+   ],
+   "words": [
+    {
+     "meaning": "riz (cru)"
+    },
+    {
+     "meaning": "être bon marché"
+    },
+    {
+     "meaning": "utiliser ; écrire"
+    },
+    {
+     "meaning": "graine"
+    }
+   ],
+   "sentence": {
+    "translation": "Le riz était bon marché, alors j'en ai utilisé beaucoup"
+   },
+   "test": {
+    "translation": "Je fais pousser les graines très vite"
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "ㅈ initial",
+  "card_desc": "Toucher avec la langue, puis décoller doucement",
+  "payload": {
+   "how_to": [
+    "Collez l'avant de la langue contre l'avant du palais",
+    "Décollez-la doucement, presque sans souffle",
+    "N'appuyez pas fort comme pour ㅉ"
+   ],
+   "words": [
+    {
+     "meaning": "place, siège"
+    },
+    {
+     "meaning": "jus"
+    },
+    {
+     "meaning": "carte (plan)"
+    },
+    {
+     "meaning": "soir"
+    }
+   ],
+   "sentence": {
+    "translation": "Donne-moi un peu de jus ce soir"
+   },
+   "test": {
+    "translation": "Maintenant, je range ma place"
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "ㅉ initial",
+  "card_desc": "Contracter la langue, sans souffle",
+  "payload": {
+   "how_to": [
+    "Collez la langue au même endroit que pour ㅈ",
+    "Contractez la langue et la gorge, et marquez un court arrêt",
+    "Décollez-la d'un coup sec et bref, sans souffle"
+   ],
+   "words": [
+    {
+     "meaning": "être salé"
+    },
+    {
+     "meaning": "ragoût coréen (jjigae)"
+    },
+    {
+     "meaning": "côté ; page"
+    },
+    {
+     "meaning": "partenaire (binôme)"
+    }
+   ],
+   "sentence": {
+    "translation": "Mon binôme fait un ragoût trop salé"
+   },
+   "test": {
+    "translation": "Je déchire le petit mot et je cours après lui"
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "ㅊ initial",
+  "card_desc": "À la position de ㅈ, décoller en soufflant fort",
+  "payload": {
+   "how_to": [
+    "Collez la langue au même endroit que pour ㅈ",
+    "Au moment de décoller la langue, soufflez fort",
+    "Si vous sentez l'air sur la paume de la main, c'est bon"
+   ],
+   "words": [
+    {
+     "meaning": "voiture"
+    },
+    {
+     "meaning": "jupe"
+    },
+    {
+     "meaning": "livre"
+    },
+    {
+     "meaning": "ami"
+    }
+   ],
+   "sentence": {
+    "translation": "Mon ami a laissé le livre dans la voiture"
+   },
+   "test": {
+    "translation": "Par un jour froid, je mange lentement du poulet frit"
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "ㅋ initial",
+  "card_desc": "À la position de ㄱ, décoller en soufflant fort",
+  "payload": {
+   "how_to": [
+    "Collez l'arrière de la langue au même endroit que pour ㄱ",
+    "Au moment de décoller la langue, soufflez fort",
+    "Si vous sentez l'air sur la paume de la main, c'est bon"
+   ],
+   "words": [
+    {
+     "meaning": "nez"
+    },
+    {
+     "meaning": "taille (hauteur)"
+    },
+    {
+     "meaning": "café"
+    },
+    {
+     "meaning": "carte (bancaire)"
+    }
+   ],
+   "sentence": {
+    "translation": "Mon ami, qui est grand, achète du café"
+   },
+   "test": {
+    "translation": "L'éléphant rit fort"
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "ㅌ initial",
+  "card_desc": "À la position de ㄷ, décoller en soufflant fort",
+  "payload": {
+   "how_to": [
+    "Collez la pointe de la langue au même endroit que pour ㄷ",
+    "Au moment de décoller la langue, soufflez fort",
+    "Si vous sentez l'air sur la paume de la main, c'est bon"
+   ],
+   "words": [
+    {
+     "meaning": "lapin"
+    },
+    {
+     "meaning": "masque"
+    },
+    {
+     "meaning": "table"
+    },
+    {
+     "meaning": "boîte, récipient"
+    }
+   ],
+   "sentence": {
+    "translation": "Samedi, j'y vais en taxi"
+   },
+   "test": {
+    "translation": "J'achète une table solide"
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "ㅍ initial",
+  "card_desc": "À la position de ㅂ, décoller en soufflant fort",
+  "payload": {
+   "how_to": [
+    "Collez les deux lèvres, comme pour ㅂ",
+    "Au moment de décoller les lèvres, soufflez fort",
+    "Ne mordez pas la lèvre comme le f anglais"
+   ],
+   "words": [
+    {
+     "meaning": "oignon vert"
+    },
+    {
+     "meaning": "raisin"
+    },
+    {
+     "meaning": "piano"
+    },
+    {
+     "meaning": "lettre (courrier)"
+    }
+   ],
+   "sentence": {
+    "translation": "J'ouvre la lettre et je joue du piano"
+   },
+   "test": {
+    "translation": "Il y a beaucoup de raisins verts"
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "ㅎ initial",
+  "card_desc": "Souffler depuis la gorge",
+  "payload": {
+   "how_to": [
+    "Ouvrez d'abord la bouche selon la forme de la voyelle",
+    "Soufflez doucement depuis le fond de la gorge",
+    "Ne bloquez pas l'air avec la langue ni les lèvres"
+   ],
+   "words": [
+    {
+     "meaning": "un (chiffre)"
+    },
+    {
+     "meaning": "lac"
+    },
+    {
+     "meaning": "mouchoir en papier"
+    },
+    {
+     "meaning": "grand-mère"
+    }
+   ],
+   "sentence": {
+    "translation": "Grand-mère va au lac toute la journée"
+   },
+   "test": {
+    "translation": "Les jours de congé, je vais seul au fleuve Han"
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "ㄱ en batchim",
+  "card_desc": "Bloquer avec l'arrière de la langue et s'arrêter",
+  "payload": {
+   "how_to": [
+    "Collez l'arrière de la langue contre le fond du palais",
+    "Gardez-la collée et arrêtez le son",
+    "N'ajoutez pas de 「으」 (eu) après"
+   ],
+   "words": [
+    {
+     "meaning": "livre"
+    },
+    {
+     "meaning": "médicament"
+    },
+    {
+     "meaning": "pastèque"
+    },
+    {
+     "meaning": "famille"
+    }
+   ],
+   "sentence": {
+    "translation": "Aujourd'hui, va à la pharmacie acheter des médicaments"
+   },
+   "test": {
+    "translation": "Mange deux pastèques et lis un livre"
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "ㄴ en batchim",
+  "card_desc": "Garder la pointe de la langue collée, avec un son nasal",
+  "payload": {
+   "how_to": [
+    "Collez la pointe de la langue contre la gencive du haut",
+    "Gardez-la collée et faites résonner le son dans le nez",
+    "Ne levez pas l'arrière de la langue comme pour ㅇ"
+   ],
+   "words": [
+    {
+     "meaning": "montagne"
+    },
+    {
+     "meaning": "neige"
+    },
+    {
+     "meaning": "argent"
+    },
+    {
+     "meaning": "porte"
+    }
+   ],
+   "sentence": {
+    "translation": "Va à la montagne avec un ami et regarde la neige"
+   },
+   "test": {
+    "translation": "Ma grande sœur paie et achète des chaussures"
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "ㄷ en batchim",
+  "card_desc": "Bloquer avec la pointe de la langue et s'arrêter",
+  "payload": {
+   "how_to": [
+    "Collez la pointe de la langue contre la gencive du haut",
+    "Gardez-la collée et arrêtez le son",
+    "Les batchims ㅅ·ㅈ·ㅊ·ㅌ se prononcent de la même façon"
+   ],
+   "words": [
+    {
+     "meaning": "vêtement"
+    },
+    {
+     "meaning": "goût"
+    },
+    {
+     "meaning": "fleur"
+    },
+    {
+     "meaning": "journée (le jour)"
+    }
+   ],
+   "sentence": {
+    "translation": "Va au champ, regarde les fleurs et achète des vêtements"
+   },
+   "test": {
+    "translation": "J'ai aussitôt acheté trois fleurs"
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "ㄹ en batchim",
+  "card_desc": "Garder la pointe de la langue collée et s'arrêter",
+  "payload": {
+   "how_to": [
+    "Touchez la gencive derrière les dents du haut avec la pointe de la langue",
+    "Ne décollez pas la langue, restez ainsi",
+    "Laissez l'air passer des deux côtés de la langue"
+   ],
+   "words": [
+    {
+     "meaning": "eau"
+    },
+    {
+     "meaning": "lune"
+    },
+    {
+     "meaning": "hiver"
+    },
+    {
+     "meaning": "salle de classe"
+    }
+   ],
+   "sentence": {
+    "translation": "Tu veux boire un peu d'eau aujourd'hui ?"
+   },
+   "test": {
+    "translation": "On demande un peu d'eau ?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "ㅁ en batchim",
+  "card_desc": "Faire résonner le son, lèvres fermées",
+  "payload": {
+   "how_to": [
+    "Collez les deux lèvres",
+    "Gardez-les collées et faites résonner le son dans le nez",
+    "Terminez sans décoller les lèvres"
+   ],
+   "words": [
+    {
+     "meaning": "nuit"
+    },
+    {
+     "meaning": "printemps"
+    },
+    {
+     "meaning": "algue séchée"
+    },
+    {
+     "meaning": "personne"
+    }
+   ],
+   "sentence": {
+    "translation": "Mangeons du gimbap au parc par une nuit de printemps"
+   },
+   "test": {
+    "translation": "Mets le gimbap dans la boîte et prépare tes affaires"
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "ㅂ en batchim",
+  "card_desc": "Fermer les lèvres et s'arrêter",
+  "payload": {
+   "how_to": [
+    "Collez les deux lèvres",
+    "Gardez-les collées et arrêtez le son",
+    "Ne décollez pas les lèvres et n'ajoutez pas de 「으」 (eu)"
+   ],
+   "words": [
+    {
+     "meaning": "riz cuit (repas)"
+    },
+    {
+     "meaning": "maison"
+    },
+    {
+     "meaning": "bouche"
+    },
+    {
+     "meaning": "cours"
+    }
+   ],
+   "sentence": {
+    "translation": "Va chez le voisin et donne-lui un peu de riz"
+   },
+   "test": {
+    "translation": "Rentrons à la maison après le cours"
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "ㅇ en batchim",
+  "card_desc": "Bloquer le fond de la bouche, avec un son nasal",
+  "payload": {
+   "how_to": [
+    "Collez l'arrière de la langue contre le fond du palais",
+    "Gardez-la collée et faites résonner le son dans le nez",
+    "Ne levez pas la pointe de la langue comme pour ㄴ"
+   ],
+   "words": [
+    {
+     "meaning": "chambre"
+    },
+    {
+     "meaning": "rivière"
+    },
+    {
+     "meaning": "ballon"
+    },
+    {
+     "meaning": "sac"
+    }
+   ],
+   "sentence": {
+    "translation": "Mon petit frère va au parc avec son sac"
+   },
+   "test": {
+    "translation": "Je vais à la station de télévision de l'autre côté de la rivière"
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Liaison",
+  "card_desc": "Faire passer le batchim à la syllabe suivante",
+  "payload": {
+   "how_to": [
+    "Quand une syllabe qui commence par ㅇ suit un batchim",
+    "faites passer le batchim en première consonne de la syllabe suivante",
+    "et dites tout d'un trait, sans couper"
+   ],
+   "words": [
+    {
+     "meaning": "langue coréenne"
+    },
+    {
+     "meaning": "musique"
+    },
+    {
+     "meaning": "vêtement (+ particule sujet)"
+    },
+    {
+     "meaning": "riz (+ particule complément d'objet)"
+    }
+   ],
+   "sentence": {
+    "translation": "J'écoute de la musique coréenne"
+   },
+   "test": {
+    "translation": "Essayez ces vêtements"
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Nasalisation",
+  "card_desc": "ㄱ·ㄷ·ㅂ deviennent des sons nasaux",
+  "payload": {
+   "how_to": [
+    "Quand ㄴ ou ㅁ suit un batchim ㄱ·ㄷ·ㅂ",
+    "ㄱ devient ㅇ, ㄷ devient ㄴ et ㅂ devient ㅁ",
+    "faites résonner le son dans le nez dès le batchim et enchaînez"
+   ],
+   "words": [
+    {
+     "meaning": "bouillon"
+    },
+    {
+     "meaning": "frange (cheveux)"
+    },
+    {
+     "meaning": "mensonge"
+    },
+    {
+     "meaning": "manger (forme du présent)"
+    }
+   ],
+   "sentence": {
+    "translation": "Je suis en train de manger du bouillon"
+   },
+   "test": {
+    "translation": "L'an dernier, je me suis coupé la frange"
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Latéralisation",
+  "card_desc": "Quand ㄴ et ㄹ se rencontrent, dire ㄹㄹ",
+  "payload": {
+   "how_to": [
+    "Quand ㄴ et ㄹ se suivent",
+    "changez aussi ㄴ en ㄹ et dites ㄹㄹ",
+    "gardez la pointe de la langue sur la gencive et enchaînez en douceur"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (ancien royaume)"
+    },
+    {
+     "meaning": "Nouvel An lunaire"
+    },
+    {
+     "meaning": "contact, nouvelles"
+    },
+    {
+     "meaning": "mont Halla"
+    }
+   ],
+   "sentence": {
+    "translation": "J'attends de tes nouvelles pour ce Nouvel An lunaire"
+   },
+   "test": {
+    "translation": "J'attends que le bureau de gestion me contacte"
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalisation",
+  "card_desc": "ㄷ·ㅌ + 이 deviennent 지·치",
+  "payload": {
+   "how_to": [
+    "Quand 「이」 suit un batchim ㄷ·ㅌ",
+    "dites ㄷ comme 지 et ㅌ comme 치",
+    "avancez la langue vers l'avant du palais"
+   ],
+   "words": [
+    {
+     "meaning": "ensemble"
+    },
+    {
+     "meaning": "à tout prix"
+    },
+    {
+     "meaning": "lever du soleil"
+    },
+    {
+     "meaning": "aîné(e)"
+    }
+   ],
+   "sentence": {
+    "translation": "Allons voir le lever du soleil ensemble"
+   },
+   "test": {
+    "translation": "On n'est pas obligés d'y aller ensemble"
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspiration",
+  "card_desc": "Avec ㅎ, on obtient une consonne aspirée",
+  "payload": {
+   "how_to": [
+    "Quand ㄱ·ㄷ·ㅂ·ㅈ rencontrent ㅎ",
+    "ils se combinent et se disent ㅋ·ㅌ·ㅍ·ㅊ",
+    "soufflez fort sur le son combiné"
+   ],
+   "words": [
+    {
+     "meaning": "être bien, être bon"
+    },
+    {
+     "meaning": "félicitations"
+    },
+    {
+     "meaning": "entrée à l'école"
+    },
+    {
+     "meaning": "être nombreux"
+    }
+   ],
+   "sentence": {
+    "translation": "Félicitations pour ton entrée à l'école, c'est vraiment super"
+   },
+   "test": {
+    "translation": "Il n'y en a pas tant que ça"
+   }
+  }
+ }
+}

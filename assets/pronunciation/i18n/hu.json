@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Szótagkezdő ㄱ",
+  "card_desc": "Zárd el a nyelved hátsó részével, majd engedd el könnyedén",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelved hátsó részét a lágy szájpadláshoz",
+    "Engedd el könnyedén, szinte levegő kiáramlása nélkül",
+    "Ne fújj ki olyan erős levegőt, mint a ㅋ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "táska"
+    },
+    {
+     "meaning": "hús"
+    },
+    {
+     "meaning": "cipő (bőrcipő)"
+    },
+    {
+     "meaning": "vonat"
+    }
+   ],
+   "sentence": {
+    "translation": "Az a táska tele van hússal."
+   },
+   "test": {
+    "translation": "A boltban rágcsálnivalót választok."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Szótagkezdő ㄲ",
+  "card_desc": "Feszítsd meg a torkodat, levegőlöket nélkül",
+  "payload": {
+   "how_to": [
+    "A nyelved hátsó részét ugyanoda illeszd, mint a ㄱ esetén",
+    "Feszítsd meg a torkodat és a nyelvedet, és tartsd így egy pillanatig",
+    "Engedd el röviden és feszesen, levegőlöket nélkül"
+   ],
+   "words": [
+    {
+     "meaning": "méz"
+    },
+    {
+     "meaning": "farok"
+    },
+    {
+     "meaning": "szarka"
+    },
+    {
+     "meaning": "virág"
+    }
+   ],
+   "sentence": {
+    "translation": "A szarka szereti a virágmézet."
+   },
+   "test": {
+    "translation": "A kisgyerek mindenképp eljön egészen a végéig."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Szótagkezdő ㄴ",
+  "card_desc": "Érintsd oda a nyelvhegyedet, és ejtsd orrhangon",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelvhegyedet a felső fogak mögötti fogínyhez",
+    "Hagyd, hogy a hang az orrodban zengjen",
+    "Ahogy elengeded a nyelvedet, térj át a magánhangzóra"
+   ],
+   "words": [
+    {
+     "meaning": "fa"
+    },
+    {
+     "meaning": "nővér (fiú idősebb nővére)"
+    },
+    {
+     "meaning": "dal"
+    },
+    {
+     "meaning": "pillangó"
+    }
+   ],
+   "sentence": {
+    "translation": "A nővérem egy dalt énekel a fáról."
+   },
+   "test": {
+    "translation": "A nővérem mindenképp találkozik veled."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Szótagkezdő ㄷ",
+  "card_desc": "Érintsd oda a nyelvhegyedet, majd engedd el könnyedén",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelvhegyedet a felső fogak mögötti fogínyhez",
+    "Engedd el könnyedén, szinte levegő kiáramlása nélkül",
+    "Ne fújj ki olyan erős levegőt, mint a ㅌ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "híd"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "város"
+    },
+    {
+     "meaning": "hold"
+    }
+   ],
+   "sentence": {
+    "translation": "A városban két híd van."
+   },
+   "test": {
+    "translation": "A kistestvérem még tofut kér."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Szótagkezdő ㄸ",
+  "card_desc": "Feszítsd meg a nyelvhegyedet, és engedd el egyszerre",
+  "payload": {
+   "how_to": [
+    "A nyelvhegyedet ugyanoda illeszd, mint a ㄷ esetén",
+    "Feszítsd meg a nyelvedet és a torkodat, és tartsd így egy pillanatig",
+    "Engedd el röviden és feszesen, levegőlöket nélkül"
+   ],
+   "words": [
+    {
+     "meaning": "lány (valakinek a lánya)"
+    },
+    {
+     "meaning": "izzadság"
+    },
+    {
+     "meaning": "rizssütemény (tteok)"
+    },
+    {
+     "meaning": "megint, újra"
+    }
+   ],
+   "sentence": {
+    "translation": "A lányom megint rizssüteményt eszik."
+   },
+   "test": {
+    "translation": "Megizzadtam, ezért megint kimegyek az udvarra."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Szótagkezdő ㄹ",
+  "card_desc": "Egy gyors koppintás a nyelvheggyel a fogínyen",
+  "payload": {
+   "how_to": [
+    "Érintsd a nyelvhegyedet egy pillanatra a felső fogak mögötti fogínyhez",
+    "Csak egyszer pöccintsd meg, mint egy könnyű koppintás",
+    "Ne görbítsd hátra a nyelvedet, mint az angol r esetén"
+   ],
+   "words": [
+    {
+     "meaning": "ramen (instant tészta)"
+    },
+    {
+     "meaning": "mi (többes szám első személy)"
+    },
+    {
+     "meaning": "dal"
+    },
+    {
+     "meaning": "fej"
+    }
+   ],
+   "sentence": {
+    "translation": "Együnk rament, és közben énekeljünk!"
+   },
+   "test": {
+    "translation": "Minden országnak más a konyhája."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Szótagkezdő ㅁ",
+  "card_desc": "Zárd össze az ajkadat, és ejtsd orrhangon",
+  "payload": {
+   "how_to": [
+    "Zárd össze könnyedén a két ajkadat",
+    "Hagyd, hogy a hang az orrodban zengjen",
+    "Ahogy szétnyitod az ajkadat, térj át a magánhangzóra"
+   ],
+   "words": [
+    {
+     "meaning": "fej"
+    },
+    {
+     "meaning": "kalap, sapka"
+    },
+    {
+     "meaning": "retek (koreai fehér retek)"
+    },
+    {
+     "meaning": "szív, lélek"
+    }
+   ],
+   "sentence": {
+    "translation": "Anya sok kalapot készít."
+   },
+   "test": {
+    "translation": "Mindenki minden nap vizet iszik."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Szótagkezdő ㅂ",
+  "card_desc": "Zárd össze az ajkadat, majd engedd el könnyedén",
+  "payload": {
+   "how_to": [
+    "Zárd össze a két ajkadat",
+    "Nyisd szét könnyedén, szinte levegő kiáramlása nélkül",
+    "Ne fújj ki olyan erős levegőt, mint a ㅍ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "tenger"
+    },
+    {
+     "meaning": "eső"
+    },
+    {
+     "meaning": "árpa"
+    },
+    {
+     "meaning": "szülők"
+    }
+   ],
+   "sentence": {
+    "translation": "Menjünk, nézzük meg a tengert az esőben."
+   },
+   "test": {
+    "translation": "A szüleim hajót bérelnek."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Szótagkezdő ㅃ",
+  "card_desc": "Feszítsd meg az ajkadat, levegőlöket nélkül",
+  "payload": {
+   "how_to": [
+    "Zárd össze erősen a két ajkadat",
+    "Feszítsd meg az ajkadat és a torkodat, és tartsd így egy pillanatig",
+    "Engedd el röviden és feszesen, levegőlöket nélkül"
+   ],
+   "words": [
+    {
+     "meaning": "kenyér"
+    },
+    {
+     "meaning": "csont"
+    },
+    {
+     "meaning": "puszi"
+    },
+    {
+     "meaning": "mosnivaló, mosás"
+    }
+   ],
+   "sentence": {
+    "translation": "Apa gyorsan vesz kenyeret."
+   },
+   "test": {
+    "translation": "Vedd ki gyorsan a mosott ruhát!"
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Szótagkezdő ㅅ",
+  "card_desc": "Engedd ki a levegőt a nyelvhegynél lévő kis résen",
+  "payload": {
+   "how_to": [
+    "Vidd a nyelvhegyedet a felső fogak mögötti fogíny közelébe, és hagyj egy kis rést",
+    "Ezen a résen át finoman engedd ki a levegőt",
+    "Ne feszülj meg, mint a ㅆ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "alma"
+    },
+    {
+     "meaning": "hang"
+    },
+    {
+     "meaning": "görögdinnye"
+    },
+    {
+     "meaning": "óra (fali vagy karóra)"
+    }
+   ],
+   "sentence": {
+    "translation": "Ma almát veszek a piacon."
+   },
+   "test": {
+    "translation": "A tanár egy regényt vesz."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Szótagkezdő ㅆ",
+  "card_desc": "Feszesen, erősen fújd ki a levegőt",
+  "payload": {
+   "how_to": [
+    "A nyelvhegyedet ugyanoda tedd, mint a ㅅ esetén",
+    "Feszítsd meg a nyelvedet és a torkodat",
+    "A szűk résen át erősen engedd ki a levegőt"
+   ],
+   "words": [
+    {
+     "meaning": "rizs (nyers)"
+    },
+    {
+     "meaning": "olcsó"
+    },
+    {
+     "meaning": "használ"
+    },
+    {
+     "meaning": "mag"
+    }
+   ],
+   "sentence": {
+    "translation": "Olcsó volt a rizs, ezért sokat elhasználtam."
+   },
+   "test": {
+    "translation": "Gyorsan felnevelem a magokat."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Szótagkezdő ㅈ",
+  "card_desc": "Érintsd oda a nyelvedet, majd engedd el könnyedén",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelved elülső részét a kemény szájpadlás elejéhez",
+    "Engedd el finoman, szinte levegő kiáramlása nélkül",
+    "Ne nyomd erősen, mint a ㅉ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "hely, ülőhely"
+    },
+    {
+     "meaning": "gyümölcslé"
+    },
+    {
+     "meaning": "térkép"
+    },
+    {
+     "meaning": "este"
+    }
+   ],
+   "sentence": {
+    "translation": "Este adj egy kis gyümölcslét."
+   },
+   "test": {
+    "translation": "Most rendbe teszem a helyemet."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Szótagkezdő ㅉ",
+  "card_desc": "Feszítsd meg a nyelvedet, levegőlöket nélkül",
+  "payload": {
+   "how_to": [
+    "A nyelvedet ugyanoda illeszd, mint a ㅈ esetén",
+    "Feszítsd meg a nyelvedet és a torkodat, és tartsd így egy pillanatig",
+    "Engedd el röviden és feszesen, levegőlöket nélkül"
+   ],
+   "words": [
+    {
+     "meaning": "sós"
+    },
+    {
+     "meaning": "ragu (koreai egytálétel)"
+    },
+    {
+     "meaning": "oldal"
+    },
+    {
+     "meaning": "pár, társ"
+    }
+   ],
+   "sentence": {
+    "translation": "A társam sósra főzi a ragut."
+   },
+   "test": {
+    "translation": "Széttépem a cetlit, és utánaeredek."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Szótagkezdő ㅊ",
+  "card_desc": "A ㅈ helyén elengedve fújj ki erős levegőt",
+  "payload": {
+   "how_to": [
+    "A nyelvedet ugyanoda illeszd, mint a ㅈ esetén",
+    "Az elengedés pillanatában fújj ki erős levegőt",
+    "Ha érzed a levegőt a tenyereden, jól csinálod"
+   ],
+   "words": [
+    {
+     "meaning": "autó"
+    },
+    {
+     "meaning": "szoknya"
+    },
+    {
+     "meaning": "könyv"
+    },
+    {
+     "meaning": "barát"
+    }
+   ],
+   "sentence": {
+    "translation": "A barátom a kocsiban hagyta a könyvet."
+   },
+   "test": {
+    "translation": "Hideg napon lassan eszem a sült csirkét."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Szótagkezdő ㅋ",
+  "card_desc": "A ㄱ helyén elengedve fújj ki erős levegőt",
+  "payload": {
+   "how_to": [
+    "A nyelved hátsó részét ugyanoda illeszd, mint a ㄱ esetén",
+    "Az elengedés pillanatában fújj ki erős levegőt",
+    "Ha érzed a levegőt a tenyereden, jól csinálod"
+   ],
+   "words": [
+    {
+     "meaning": "orr"
+    },
+    {
+     "meaning": "testmagasság"
+    },
+    {
+     "meaning": "kávé"
+    },
+    {
+     "meaning": "kártya"
+    }
+   ],
+   "sentence": {
+    "translation": "A magas barátom kávét vesz."
+   },
+   "test": {
+    "translation": "Az elefánt hangosan nevet."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Szótagkezdő ㅌ",
+  "card_desc": "A ㄷ helyén elengedve fújj ki erős levegőt",
+  "payload": {
+   "how_to": [
+    "A nyelvhegyedet ugyanoda illeszd, mint a ㄷ esetén",
+    "Az elengedés pillanatában fújj ki erős levegőt",
+    "Ha érzed a levegőt a tenyereden, jól csinálod"
+   ],
+   "words": [
+    {
+     "meaning": "nyúl"
+    },
+    {
+     "meaning": "maszk"
+    },
+    {
+     "meaning": "asztal"
+    },
+    {
+     "meaning": "vödör, tartály"
+    }
+   ],
+   "sentence": {
+    "translation": "Szombaton taxival megyek."
+   },
+   "test": {
+    "translation": "Veszek egy strapabíró asztalt."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Szótagkezdő ㅍ",
+  "card_desc": "A ㅂ helyén elengedve fújj ki erős levegőt",
+  "payload": {
+   "how_to": [
+    "Zárd össze a két ajkadat, mint a ㅂ esetén",
+    "Az elengedés pillanatában fújj ki erős levegőt",
+    "Ne harapj rá az ajkadra, mint az angol f esetén"
+   ],
+   "words": [
+    {
+     "meaning": "újhagyma"
+    },
+    {
+     "meaning": "szőlő"
+    },
+    {
+     "meaning": "zongora"
+    },
+    {
+     "meaning": "levél (írott)"
+    }
+   ],
+   "sentence": {
+    "translation": "Kinyitom a levelet, és zongorázom."
+   },
+   "test": {
+    "translation": "Rengeteg zöld szőlő van."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Szótagkezdő ㅎ",
+  "card_desc": "Fújd ki a levegőt a torkodból",
+  "payload": {
+   "how_to": [
+    "Először nyisd a szádat a magánhangzó formájára",
+    "A torkod mélyéből fújd ki könnyedén a levegőt",
+    "Ne zárd el a levegőt a nyelveddel vagy az ajkaddal"
+   ],
+   "words": [
+    {
+     "meaning": "egy"
+    },
+    {
+     "meaning": "tó"
+    },
+    {
+     "meaning": "papírzsebkendő"
+    },
+    {
+     "meaning": "nagymama"
+    }
+   ],
+   "sentence": {
+    "translation": "A nagymama egész napra a tóhoz megy."
+   },
+   "test": {
+    "translation": "Szabadnapon egyedül megyek a Han folyóhoz."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Szótagzáró ㄱ",
+  "card_desc": "Zárd el a nyelved hátsó részével, és állj meg",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelved hátsó részét a lágy szájpadláshoz",
+    "Így tartva fejezd be a hangot",
+    "Ne tegyél utána 「으」 hangot"
+   ],
+   "words": [
+    {
+     "meaning": "könyv"
+    },
+    {
+     "meaning": "gyógyszer"
+    },
+    {
+     "meaning": "görögdinnye"
+    },
+    {
+     "meaning": "család"
+    }
+   ],
+   "sentence": {
+    "translation": "Ma menj el a gyógyszertárba, és vegyél egy kis gyógyszert."
+   },
+   "test": {
+    "translation": "Egyél meg két görögdinnyét, és olvass egy könyvet."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Szótagzáró ㄴ",
+  "card_desc": "Tartsd ott a nyelvhegyedet, és ejtsd orrhangon",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelvhegyedet a felső fogak mögötti fogínyhez",
+    "Így tartva hagyd, hogy a hang az orrodban zengjen",
+    "Ne emeld fel a nyelved hátsó részét, mint a ㅇ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "hegy"
+    },
+    {
+     "meaning": "hó"
+    },
+    {
+     "meaning": "pénz"
+    },
+    {
+     "meaning": "ajtó"
+    }
+   ],
+   "sentence": {
+    "translation": "Menj a barátoddal a hegyre, és nézd a havat."
+   },
+   "test": {
+    "translation": "A nővérem fizet, és cipőt vesz."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Szótagzáró ㄷ",
+  "card_desc": "Zárd el a nyelvhegyeddel, és állj meg",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelvhegyedet a felső fogak mögötti fogínyhez",
+    "Így tartva fejezd be a hangot",
+    "A szótagzáró ㅅ·ㅈ·ㅊ·ㅌ is ugyanígy hangzik"
+   ],
+   "words": [
+    {
+     "meaning": "ruha"
+    },
+    {
+     "meaning": "íz"
+    },
+    {
+     "meaning": "virág"
+    },
+    {
+     "meaning": "nappal"
+    }
+   ],
+   "sentence": {
+    "translation": "Menj ki a földekre, nézd meg a virágokat, és vegyél ruhát."
+   },
+   "test": {
+    "translation": "Hamar vettem három szál virágot."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Szótagzáró ㄹ",
+  "card_desc": "Tartsd ott a nyelvhegyedet, és állj meg",
+  "payload": {
+   "how_to": [
+    "Érintsd a nyelvhegyedet a felső fogak mögötti fogínyhez",
+    "Ne emeld el a nyelvedet, tartsd így",
+    "A levegőt a nyelved két oldalán engedd ki"
+   ],
+   "words": [
+    {
+     "meaning": "víz"
+    },
+    {
+     "meaning": "hold"
+    },
+    {
+     "meaning": "tél"
+    },
+    {
+     "meaning": "osztályterem"
+    }
+   ],
+   "sentence": {
+    "translation": "Iszol ma egy kis vizet?"
+   },
+   "test": {
+    "translation": "Kérjek egy kis vizet?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Szótagzáró ㅁ",
+  "card_desc": "Zárt ajakkal zengesd a hangot",
+  "payload": {
+   "how_to": [
+    "Zárd össze a két ajkadat",
+    "Így tartva hagyd, hogy a hang az orrodban zengjen",
+    "Úgy fejezd be, hogy nem nyitod szét az ajkadat"
+   ],
+   "words": [
+    {
+     "meaning": "éjszaka"
+    },
+    {
+     "meaning": "tavasz"
+    },
+    {
+     "meaning": "szárított tengeri alga (gim)"
+    },
+    {
+     "meaning": "ember"
+    }
+   ],
+   "sentence": {
+    "translation": "Együnk kimbapot a parkban egy tavaszi éjszakán!"
+   },
+   "test": {
+    "translation": "Csomagold be a kimbapot, és szedd össze a holmidat."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Szótagzáró ㅂ",
+  "card_desc": "Zárd össze az ajkadat, és állj meg",
+  "payload": {
+   "how_to": [
+    "Zárd össze a két ajkadat",
+    "Így tartva fejezd be a hangot",
+    "Ne nyisd szét az ajkadat, és ne tegyél utána 「으」 hangot"
+   ],
+   "words": [
+    {
+     "meaning": "főtt rizs, étel"
+    },
+    {
+     "meaning": "ház, otthon"
+    },
+    {
+     "meaning": "száj"
+    },
+    {
+     "meaning": "tanóra"
+    }
+   ],
+   "sentence": {
+    "translation": "Menj át a szomszédba, és adj nekik egy kis ennivalót."
+   },
+   "test": {
+    "translation": "Óra után menjünk haza."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Szótagzáró ㅇ",
+  "card_desc": "Zárd el a száj hátsó részét, és ejtsd orrhangon",
+  "payload": {
+   "how_to": [
+    "Illeszd a nyelved hátsó részét a lágy szájpadláshoz",
+    "Így tartva hagyd, hogy a hang az orrodban zengjen",
+    "Ne emeld fel a nyelvhegyedet, mint a ㄴ esetén"
+   ],
+   "words": [
+    {
+     "meaning": "szoba"
+    },
+    {
+     "meaning": "folyó"
+    },
+    {
+     "meaning": "labda"
+    },
+    {
+     "meaning": "táska"
+    }
+   ],
+   "sentence": {
+    "translation": "A kistestvérem a táskájával a parkba megy."
+   },
+   "test": {
+    "translation": "Átkelek a folyón, és a tévéstúdióba megyek."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Átkötés",
+  "card_desc": "Vidd át a szótagzáró mássalhangzót a következő szótagra",
+  "payload": {
+   "how_to": [
+    "Ha a szótagzáró mássalhangzó után ㅇ betűvel kezdődő szótag jön,",
+    "vidd át a szótagzáró mássalhangzót a következő szótag elejére, kezdőhangnak,",
+    "és mondd egyben, megszakítás nélkül"
+   ],
+   "words": [
+    {
+     "meaning": "koreai nyelv"
+    },
+    {
+     "meaning": "zene"
+    },
+    {
+     "meaning": "ruha (alanyként)"
+    },
+    {
+     "meaning": "rizs (tárgyként)"
+    }
+   ],
+   "sentence": {
+    "translation": "Koreai nyelvű zenét hallgatok."
+   },
+   "test": {
+    "translation": "Próbáld fel a ruhát."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Orrhangúsodás",
+  "card_desc": "A ㄱ·ㄷ·ㅂ orrhanggá válik",
+  "payload": {
+   "how_to": [
+    "Ha a szótagzáró ㄱ·ㄷ·ㅂ után ㄴ vagy ㅁ jön,",
+    "a ㄱ helyett ㅇ, a ㄷ helyett ㄴ, a ㅂ helyett ㅁ lesz,",
+    "és már a szótagzáró hangtól az orrodban zengetve mondd egyben"
+   ],
+   "words": [
+    {
+     "meaning": "leveslé, lé"
+    },
+    {
+     "meaning": "frufru"
+    },
+    {
+     "meaning": "hazugság"
+    },
+    {
+     "meaning": "eszik"
+    }
+   ],
+   "sentence": {
+    "translation": "Éppen a levest eszem."
+   },
+   "test": {
+    "translation": "Tavaly levágtam a frufrumat."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Likvidásodás",
+  "card_desc": "Ha a ㄴ és a ㄹ találkozik, ㄹㄹ lesz",
+  "payload": {
+   "how_to": [
+    "Ha a ㄴ és a ㄹ közvetlenül egymás után jön,",
+    "változtasd a ㄴ hangot is ㄹ hanggá, és ㄹㄹ hangot mondj,",
+    "a nyelvhegyedet a fogínyen tartva lágyan, folyamatosan vezesd tovább a hangot"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (ókori koreai királyság)"
+    },
+    {
+     "meaning": "holdújév"
+    },
+    {
+     "meaning": "kapcsolat, jelentkezés"
+    },
+    {
+     "meaning": "Halla-hegy"
+    }
+   ],
+   "sentence": {
+    "translation": "Várom, hogy jelentkezz ezen a holdújéven."
+   },
+   "test": {
+    "translation": "Várd, hogy a gondnoki iroda jelentkezzen."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Palatalizáció",
+  "card_desc": "A ㄷ·ㅌ + 이 kiejtése 지·치",
+  "payload": {
+   "how_to": [
+    "Ha a szótagzáró ㄷ·ㅌ után 「이」 jön,",
+    "a ㄷ hangot 지, a ㅌ hangot 치 hangként mondd,",
+    "és vidd a nyelvedet a kemény szájpadlás eleje felé"
+   ],
+   "words": [
+    {
+     "meaning": "együtt"
+    },
+    {
+     "meaning": "feltétlenül, mindenáron"
+    },
+    {
+     "meaning": "napfelkelte"
+    },
+    {
+     "meaning": "legidősebb gyermek"
+    }
+   ],
+   "sentence": {
+    "translation": "Menjünk együtt megnézni a napfelkeltét!"
+   },
+   "test": {
+    "translation": "Nem kell feltétlenül együtt mennünk."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Hehezetesedés",
+  "card_desc": "Ha ㅎ hanggal találkozik, hehezetes hang lesz",
+  "payload": {
+   "how_to": [
+    "Ha a ㄱ·ㄷ·ㅂ·ㅈ és a ㅎ találkozik,",
+    "összeolvadva ㅋ·ㅌ·ㅍ·ㅊ hangként mondd őket,",
+    "és az összeolvadt hangnál fújj ki erős levegőt"
+   ],
+   "words": [
+    {
+     "meaning": "jó"
+    },
+    {
+     "meaning": "gratuláció"
+    },
+    {
+     "meaning": "iskolai felvétel, beiratkozás"
+    },
+    {
+     "meaning": "sok"
+    }
+   ],
+   "sentence": {
+    "translation": "Gratulálok a felvételhez, ez nagyszerű!"
+   },
+   "test": {
+    "translation": "Nem olyan sok."
+   }
+  }
+ }
+}

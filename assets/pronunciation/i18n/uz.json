@@ -1,0 +1,932 @@
+{
+ "onset_ㄱ": {
+  "label": "Boʻgʻin boshidagi ㄱ",
+  "card_desc": "Tilning orqa qismi bilan toʻsib, yengil ajrating",
+  "payload": {
+   "how_to": [
+    "Tilning orqa qismini tanglayning orqa qismiga tegizing",
+    "Deyarli havo chiqarmay, yengil ajrating",
+    "ㅋ tovushidagidek kuchli havo chiqarmang"
+   ],
+   "words": [
+    {
+     "meaning": "sumka"
+    },
+    {
+     "meaning": "goʻsht"
+    },
+    {
+     "meaning": "tufli"
+    },
+    {
+     "meaning": "poyezd"
+    }
+   ],
+   "sentence": {
+    "translation": "Oʻsha sumka goʻshtga toʻla."
+   },
+   "test": {
+    "translation": "Doʻkonda gazak tanlayman."
+   }
+  }
+ },
+ "onset_ㄲ": {
+  "label": "Boʻgʻin boshidagi ㄲ",
+  "card_desc": "Tomoqni taranglashtirib, havosiz ajrating",
+  "payload": {
+   "how_to": [
+    "ㄱ bilan bir xil joyga tilning orqa qismini tegizing",
+    "Tomoq va tilni taranglashtirib, bir lahza ushlab turing",
+    "Havo chiqarmay, qisqa va qatʼiy ajrating"
+   ],
+   "words": [
+    {
+     "meaning": "asal"
+    },
+    {
+     "meaning": "dum"
+    },
+    {
+     "meaning": "zagʻizgʻon"
+    },
+    {
+     "meaning": "gul"
+    }
+   ],
+   "sentence": {
+    "translation": "Zagʻizgʻon gul asalini yaxshi koʻradi."
+   },
+   "test": {
+    "translation": "Kichkina bola albatta oxirigacha keladi."
+   }
+  }
+ },
+ "onset_ㄴ": {
+  "label": "Boʻgʻin boshidagi ㄴ",
+  "card_desc": "Til uchini tegizib, burun tovushi bilan",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori milkka tegizing",
+    "Tovushni burundan jaranglating",
+    "Tilni ajratayotib, unliga oʻting"
+   ],
+   "words": [
+    {
+     "meaning": "daraxt"
+    },
+    {
+     "meaning": "opa (erkak kishining opasi)"
+    },
+    {
+     "meaning": "qoʻshiq"
+    },
+    {
+     "meaning": "kapalak"
+    }
+   ],
+   "sentence": {
+    "translation": "Opam daraxt haqidagi qoʻshiqni kuylaydi."
+   },
+   "test": {
+    "translation": "Opam sen bilan albatta uchrashadi."
+   }
+  }
+ },
+ "onset_ㄷ": {
+  "label": "Boʻgʻin boshidagi ㄷ",
+  "card_desc": "Til uchini tegizib, yengil ajrating",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori milkka tegizing",
+    "Deyarli havo chiqarmay, yengil ajrating",
+    "ㅌ tovushidagidek kuchli havo chiqarmang"
+   ],
+   "words": [
+    {
+     "meaning": "koʻprik"
+    },
+    {
+     "meaning": "tofu"
+    },
+    {
+     "meaning": "shahar"
+    },
+    {
+     "meaning": "oy (osmondagi)"
+    }
+   ],
+   "sentence": {
+    "translation": "Shaharda ikkita koʻprik bor."
+   },
+   "test": {
+    "translation": "Ukam yana tofu soʻrayapti."
+   }
+  }
+ },
+ "onset_ㄸ": {
+  "label": "Boʻgʻin boshidagi ㄸ",
+  "card_desc": "Til uchini taranglashtirib, birdan ajrating",
+  "payload": {
+   "how_to": [
+    "ㄷ bilan bir xil joyga til uchini tegizing",
+    "Til va tomoqni taranglashtirib, bir lahza ushlab turing",
+    "Havo chiqarmay, qisqa va qatʼiy ajrating"
+   ],
+   "words": [
+    {
+     "meaning": "qiz (farzand)"
+    },
+    {
+     "meaning": "ter"
+    },
+    {
+     "meaning": "tteok (guruch pishiriqi)"
+    },
+    {
+     "meaning": "yana"
+    }
+   ],
+   "sentence": {
+    "translation": "Qizim yana tteok yeyapti."
+   },
+   "test": {
+    "translation": "Terlaganim uchun yana hovliga chiqaman."
+   }
+  }
+ },
+ "onset_ㄹ": {
+  "label": "Boʻgʻin boshidagi ㄹ",
+  "card_desc": "Til uchi bilan milkka yengil cherting",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori milkka juda qisqa tegizing",
+    "Yengil urgandek faqat bir marta cherting",
+    "Ingliz tilidagi r kabi tilni orqaga bukmang"
+   ],
+   "words": [
+    {
+     "meaning": "ramyon"
+    },
+    {
+     "meaning": "biz"
+    },
+    {
+     "meaning": "qoʻshiq"
+    },
+    {
+     "meaning": "bosh"
+    }
+   ],
+   "sentence": {
+    "translation": "Qoʻshiq aytib, ramyon yeylik."
+   },
+   "test": {
+    "translation": "Har bir mamlakatning taomlari har xil."
+   }
+  }
+ },
+ "onset_ㅁ": {
+  "label": "Boʻgʻin boshidagi ㅁ",
+  "card_desc": "Lablarni yumib, burun tovushi bilan",
+  "payload": {
+   "how_to": [
+    "Ikki labni bir-biriga yengil tegizing",
+    "Tovushni burundan jaranglating",
+    "Lablarni ochayotib, unliga oʻting"
+   ],
+   "words": [
+    {
+     "meaning": "bosh"
+    },
+    {
+     "meaning": "shapka"
+    },
+    {
+     "meaning": "turp"
+    },
+    {
+     "meaning": "koʻngil"
+    }
+   ],
+   "sentence": {
+    "translation": "Onam koʻp shapka yasaydi."
+   },
+   "test": {
+    "translation": "Hamma har kuni suv ichadi."
+   }
+  }
+ },
+ "onset_ㅂ": {
+  "label": "Boʻgʻin boshidagi ㅂ",
+  "card_desc": "Lablarni yumib, yengil oching",
+  "payload": {
+   "how_to": [
+    "Ikki labni bir-biriga tegizing",
+    "Deyarli havo chiqarmay, yengil oching",
+    "ㅍ tovushidagidek kuchli havo chiqarmang"
+   ],
+   "words": [
+    {
+     "meaning": "dengiz"
+    },
+    {
+     "meaning": "yomgʻir"
+    },
+    {
+     "meaning": "arpa"
+    },
+    {
+     "meaning": "ota-ona"
+    }
+   ],
+   "sentence": {
+    "translation": "Yomgʻir yogʻayotgan dengizni koʻrgani boraman."
+   },
+   "test": {
+    "translation": "Ota-onam qayiqni ijaraga oladi."
+   }
+  }
+ },
+ "onset_ㅃ": {
+  "label": "Boʻgʻin boshidagi ㅃ",
+  "card_desc": "Lablarni taranglashtirib, havosiz oching",
+  "payload": {
+   "how_to": [
+    "Ikki labni bir-biriga mahkam tegizing",
+    "Lablar va tomoqni taranglashtirib, bir lahza ushlab turing",
+    "Havo chiqarmay, qisqa va qatʼiy oching"
+   ],
+   "words": [
+    {
+     "meaning": "non"
+    },
+    {
+     "meaning": "suyak"
+    },
+    {
+     "meaning": "oʻpich (yengil oʻpish)"
+    },
+    {
+     "meaning": "kir (yuviladigan kiyim)"
+    }
+   ],
+   "sentence": {
+    "translation": "Dadam tezda non sotib oladi."
+   },
+   "test": {
+    "translation": "Kirlarni tezroq olib chiqib bering."
+   }
+  }
+ },
+ "onset_ㅅ": {
+  "label": "Boʻgʻin boshidagi ㅅ",
+  "card_desc": "Til uchidagi tirqishdan havo chiqaring",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori milkka yaqin tuting, tegizmay ozgina tirqish qoldiring",
+    "Oʻsha tirqishdan havoni yumshoq chiqaring",
+    "ㅆ tovushidagidek taranglashmang"
+   ],
+   "words": [
+    {
+     "meaning": "olma"
+    },
+    {
+     "meaning": "tovush"
+    },
+    {
+     "meaning": "tarvuz"
+    },
+    {
+     "meaning": "soat"
+    }
+   ],
+   "sentence": {
+    "translation": "Bugun bozordan olma sotib olaman."
+   },
+   "test": {
+    "translation": "Oʻqituvchi roman sotib oladi."
+   }
+  }
+ },
+ "onset_ㅆ": {
+  "label": "Boʻgʻin boshidagi ㅆ",
+  "card_desc": "Taranglashib, havoni kuchli chiqaring",
+  "payload": {
+   "how_to": [
+    "ㅅ bilan bir xil joyga til uchini qoʻying",
+    "Til va tomoqni taranglashtiring",
+    "Tor tirqishdan havoni kuchli chiqaring"
+   ],
+   "words": [
+    {
+     "meaning": "guruch (pishirilmagan)"
+    },
+    {
+     "meaning": "arzon boʻlmoq"
+    },
+    {
+     "meaning": "ishlatmoq"
+    },
+    {
+     "meaning": "urugʻ"
+    }
+   ],
+   "sentence": {
+    "translation": "Guruch arzon boʻlgani uchun koʻp ishlatdim."
+   },
+   "test": {
+    "translation": "Urugʻlarni oʻstiraman, ular tez oʻsib chiqadi."
+   }
+  }
+ },
+ "onset_ㅈ": {
+  "label": "Boʻgʻin boshidagi ㅈ",
+  "card_desc": "Tilni tegizib, yengil ajrating",
+  "payload": {
+   "how_to": [
+    "Tilning old qismini tanglayning old qismiga tegizing",
+    "Deyarli havo chiqarmay, yumshoq ajrating",
+    "ㅉ tovushidagidek qattiq bosmang"
+   ],
+   "words": [
+    {
+     "meaning": "oʻrin, joy"
+    },
+    {
+     "meaning": "sharbat"
+    },
+    {
+     "meaning": "xarita"
+    },
+    {
+     "meaning": "kechqurun"
+    }
+   ],
+   "sentence": {
+    "translation": "Kechqurun menga ozgina sharbat bering."
+   },
+   "test": {
+    "translation": "Hozir joyimni yigʻishtiraman."
+   }
+  }
+ },
+ "onset_ㅉ": {
+  "label": "Boʻgʻin boshidagi ㅉ",
+  "card_desc": "Tilni taranglashtirib, havosiz ajrating",
+  "payload": {
+   "how_to": [
+    "ㅈ bilan bir xil joyga tilni tegizing",
+    "Til va tomoqni taranglashtirib, bir lahza ushlab turing",
+    "Havo chiqarmay, qisqa va qatʼiy ajrating"
+   ],
+   "words": [
+    {
+     "meaning": "shoʻr boʻlmoq"
+    },
+    {
+     "meaning": "jjigae (quyuq shoʻrva)"
+    },
+    {
+     "meaning": "tomon"
+    },
+    {
+     "meaning": "juft, sherik"
+    }
+   ],
+   "sentence": {
+    "translation": "Sherigim jjigaeni shoʻr qilib pishiradi."
+   },
+   "test": {
+    "translation": "Xatchani yirtib, orqasidan quvib boraman."
+   }
+  }
+ },
+ "onset_ㅊ": {
+  "label": "Boʻgʻin boshidagi ㅊ",
+  "card_desc": "ㅈ joyida ajratib, havoni kuchli chiqaring",
+  "payload": {
+   "how_to": [
+    "ㅈ bilan bir xil joyga tilni tegizing",
+    "Ajratgan zahoti havoni kuchli chiqaring",
+    "Kaftingizda havo sezilsa, toʻgʻri aytyapsiz"
+   ],
+   "words": [
+    {
+     "meaning": "mashina"
+    },
+    {
+     "meaning": "yubka"
+    },
+    {
+     "meaning": "kitob"
+    },
+    {
+     "meaning": "doʻst"
+    }
+   ],
+   "sentence": {
+    "translation": "Doʻstim kitobni mashinada qoldirib keldi."
+   },
+   "test": {
+    "translation": "Sovuq kunda qovurilgan tovuqni sekin yeyman."
+   }
+  }
+ },
+ "onset_ㅋ": {
+  "label": "Boʻgʻin boshidagi ㅋ",
+  "card_desc": "ㄱ joyida ajratib, havoni kuchli chiqaring",
+  "payload": {
+   "how_to": [
+    "ㄱ bilan bir xil joyga tilning orqa qismini tegizing",
+    "Ajratgan zahoti havoni kuchli chiqaring",
+    "Kaftingizda havo sezilsa, toʻgʻri aytyapsiz"
+   ],
+   "words": [
+    {
+     "meaning": "burun"
+    },
+    {
+     "meaning": "boʻy"
+    },
+    {
+     "meaning": "qahva"
+    },
+    {
+     "meaning": "karta"
+    }
+   ],
+   "sentence": {
+    "translation": "Boʻyi baland doʻstim qahva sotib oladi."
+   },
+   "test": {
+    "translation": "Fil baland ovozda kuladi."
+   }
+  }
+ },
+ "onset_ㅌ": {
+  "label": "Boʻgʻin boshidagi ㅌ",
+  "card_desc": "ㄷ joyida ajratib, havoni kuchli chiqaring",
+  "payload": {
+   "how_to": [
+    "ㄷ bilan bir xil joyga til uchini tegizing",
+    "Ajratgan zahoti havoni kuchli chiqaring",
+    "Kaftingizda havo sezilsa, toʻgʻri aytyapsiz"
+   ],
+   "words": [
+    {
+     "meaning": "quyon"
+    },
+    {
+     "meaning": "niqob"
+    },
+    {
+     "meaning": "stol"
+    },
+    {
+     "meaning": "idish"
+    }
+   ],
+   "sentence": {
+    "translation": "Shanba kuni taksida boraman."
+   },
+   "test": {
+    "translation": "Mustahkam stol sotib olaman."
+   }
+  }
+ },
+ "onset_ㅍ": {
+  "label": "Boʻgʻin boshidagi ㅍ",
+  "card_desc": "ㅂ joyida lablarni ochib, havoni kuchli chiqaring",
+  "payload": {
+   "how_to": [
+    "ㅂ tovushidagidek ikki labni bir-biriga tegizing",
+    "Ochgan zahoti havoni kuchli chiqaring",
+    "Ingliz tilidagi f kabi labni tishlamang"
+   ],
+   "words": [
+    {
+     "meaning": "koʻk piyoz"
+    },
+    {
+     "meaning": "uzum"
+    },
+    {
+     "meaning": "pianino"
+    },
+    {
+     "meaning": "xat"
+    }
+   ],
+   "sentence": {
+    "translation": "Xatni ochib, pianino chalaman."
+   },
+   "test": {
+    "translation": "Yashil uzum juda koʻp."
+   }
+  }
+ },
+ "onset_ㅎ": {
+  "label": "Boʻgʻin boshidagi ㅎ",
+  "card_desc": "Tomoqdan nafas chiqaring",
+  "payload": {
+   "how_to": [
+    "Avval ogʻizni unli shaklida oching",
+    "Tomoq ichidan yengil nafas chiqaring",
+    "Til yoki lablar bilan toʻsmang"
+   ],
+   "words": [
+    {
+     "meaning": "bir"
+    },
+    {
+     "meaning": "koʻl"
+    },
+    {
+     "meaning": "salfetka"
+    },
+    {
+     "meaning": "buvi"
+    }
+   ],
+   "sentence": {
+    "translation": "Buvim kun boʻyi koʻlga boradi."
+   },
+   "test": {
+    "translation": "Dam olish kunida Hangang daryosiga yolgʻiz boraman."
+   }
+  }
+ },
+ "coda_ㄱ": {
+  "label": "Boʻgʻin oxiridagi ㄱ",
+  "card_desc": "Tilning orqa qismi bilan toʻsib, tovushni toʻxtating",
+  "payload": {
+   "how_to": [
+    "Tilning orqa qismini tanglayning orqa qismiga tegizing",
+    "Tegib turgan holda tovushni toʻxtating",
+    "Oxiriga 「으」 unlisini qoʻshmang"
+   ],
+   "words": [
+    {
+     "meaning": "kitob"
+    },
+    {
+     "meaning": "dori"
+    },
+    {
+     "meaning": "tarvuz"
+    },
+    {
+     "meaning": "oila"
+    }
+   ],
+   "sentence": {
+    "translation": "Bugun dorixonaga borib, ozgina dori oling."
+   },
+   "test": {
+    "translation": "Ikkita tarvuz yeng, keyin kitob oʻqing."
+   }
+  }
+ },
+ "coda_ㄴ": {
+  "label": "Boʻgʻin oxiridagi ㄴ",
+  "card_desc": "Til uchini tegizib turib, burun tovushi bilan",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori milkka tegizing",
+    "Tegib turgan holda tovushni burundan jaranglating",
+    "ㅇ tovushidagidek tilning orqa qismini koʻtarmang"
+   ],
+   "words": [
+    {
+     "meaning": "togʻ"
+    },
+    {
+     "meaning": "qor"
+    },
+    {
+     "meaning": "pul"
+    },
+    {
+     "meaning": "eshik"
+    }
+   ],
+   "sentence": {
+    "translation": "Doʻstingiz bilan togʻga borib, qorni koʻring."
+   },
+   "test": {
+    "translation": "Opam pul toʻlab, poyabzal sotib oladi."
+   }
+  }
+ },
+ "coda_ㄷ": {
+  "label": "Boʻgʻin oxiridagi ㄷ",
+  "card_desc": "Til uchi bilan toʻsib, tovushni toʻxtating",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori milkka tegizing",
+    "Tegib turgan holda tovushni toʻxtating",
+    "Oxirgi ㅅ·ㅈ·ㅊ·ㅌ ham xuddi shu tovush boʻladi"
+   ],
+   "words": [
+    {
+     "meaning": "kiyim"
+    },
+    {
+     "meaning": "taʼm"
+    },
+    {
+     "meaning": "gul"
+    },
+    {
+     "meaning": "kunduz"
+    }
+   ],
+   "sentence": {
+    "translation": "Dalaga borib, gullarni koʻring va kiyim sotib oling."
+   },
+   "test": {
+    "translation": "Uch dona gulni darhol sotib oldim."
+   }
+  }
+ },
+ "coda_ㄹ": {
+  "label": "Boʻgʻin oxiridagi ㄹ",
+  "card_desc": "Til uchini tegizib turib, toʻxtating",
+  "payload": {
+   "how_to": [
+    "Til uchini yuqori tishlar orqasidagi milkka tegizing",
+    "Tilni ajratmay, shu holatda toʻxtating",
+    "Havoni tilning ikki yonidan oqizib chiqaring"
+   ],
+   "words": [
+    {
+     "meaning": "suv"
+    },
+    {
+     "meaning": "oy (osmondagi)"
+    },
+    {
+     "meaning": "qish"
+    },
+    {
+     "meaning": "sinfxona"
+    }
+   ],
+   "sentence": {
+    "translation": "Bugun ozgina suv ichasizmi?"
+   },
+   "test": {
+    "translation": "Ozgina suv soʻraymi?"
+   }
+  }
+ },
+ "coda_ㅁ": {
+  "label": "Boʻgʻin oxiridagi ㅁ",
+  "card_desc": "Lablarni yumgan holda tovushni jaranglating",
+  "payload": {
+   "how_to": [
+    "Ikki labni bir-biriga tegizing",
+    "Yumgan holda tovushni burundan jaranglating",
+    "Lablarni ochmasdan tugating"
+   ],
+   "words": [
+    {
+     "meaning": "tun"
+    },
+    {
+     "meaning": "bahor"
+    },
+    {
+     "meaning": "quritilgan dengiz oʻti (gim)"
+    },
+    {
+     "meaning": "odam"
+    }
+   ],
+   "sentence": {
+    "translation": "Bahor kechasi bogʻda kimbap yeylik."
+   },
+   "test": {
+    "translation": "Kimbapni solib, narsalaringizni yigʻishtiring."
+   }
+  }
+ },
+ "coda_ㅂ": {
+  "label": "Boʻgʻin oxiridagi ㅂ",
+  "card_desc": "Lablarni yumib, tovushni toʻxtating",
+  "payload": {
+   "how_to": [
+    "Ikki labni bir-biriga tegizing",
+    "Yumgan holda tovushni toʻxtating",
+    "Lablarni ochmang, 「으」 unlisini ham qoʻshmang"
+   ],
+   "words": [
+    {
+     "meaning": "pishgan guruch; ovqat"
+    },
+    {
+     "meaning": "uy"
+    },
+    {
+     "meaning": "ogʻiz"
+    },
+    {
+     "meaning": "dars"
+    }
+   ],
+   "sentence": {
+    "translation": "Qoʻshni uyga borib, ozgina ovqat bering."
+   },
+   "test": {
+    "translation": "Darsdan keyin uyga boraylik."
+   }
+  }
+ },
+ "coda_ㅇ": {
+  "label": "Boʻgʻin oxiridagi ㅇ",
+  "card_desc": "Ogʻizning orqa qismini toʻsib, burun tovushi bilan",
+  "payload": {
+   "how_to": [
+    "Tilning orqa qismini tanglayning orqa qismiga tegizing",
+    "Tegib turgan holda tovushni burundan jaranglating",
+    "ㄴ tovushidagidek til uchini koʻtarmang"
+   ],
+   "words": [
+    {
+     "meaning": "xona"
+    },
+    {
+     "meaning": "daryo"
+    },
+    {
+     "meaning": "toʻp"
+    },
+    {
+     "meaning": "sumka"
+    }
+   ],
+   "sentence": {
+    "translation": "Ukam sumkasini olib bogʻga boradi."
+   },
+   "test": {
+    "translation": "Daryoning narigi tomonidagi telekanal binosiga boraman."
+   }
+  }
+ },
+ "rule_연음": {
+  "label": "Ulanish",
+  "card_desc": "Oxirgi undoshni keyingi boʻgʻinga oʻtkazing",
+  "payload": {
+   "how_to": [
+    "Oxirgi undoshdan keyin ㅇ bilan boshlanadigan boʻgʻin kelsa",
+    "Oxirgi undoshni keyingi boʻgʻinning birinchi tovushiga oʻtkazing",
+    "Uzmasdan bir nafasda ulab ayting"
+   ],
+   "words": [
+    {
+     "meaning": "koreys tili"
+    },
+    {
+     "meaning": "musiqa"
+    },
+    {
+     "meaning": "kiyim (ega)"
+    },
+    {
+     "meaning": "ovqat (toʻldiruvchi)"
+    }
+   ],
+   "sentence": {
+    "translation": "Koreyscha musiqa tinglayman."
+   },
+   "test": {
+    "translation": "Kiyimni kiyib koʻring."
+   }
+  }
+ },
+ "rule_비음화": {
+  "label": "Burunlashish",
+  "card_desc": "ㄱ·ㄷ·ㅂ burun tovushiga aylanadi",
+  "payload": {
+   "how_to": [
+    "Oxirgi ㄱ·ㄷ·ㅂ dan keyin ㄴ·ㅁ kelsa",
+    "ㄱ — ㅇ ga, ㄷ — ㄴ ga, ㅂ — ㅁ ga aylanadi",
+    "Oxirgi undoshdan boshlab burundan jaranglatib, ulab ayting"
+   ],
+   "words": [
+    {
+     "meaning": "shoʻrva suvi"
+    },
+    {
+     "meaning": "peshona sochi"
+    },
+    {
+     "meaning": "yolgʻon"
+    },
+    {
+     "meaning": "yeydi"
+    }
+   ],
+   "sentence": {
+    "translation": "Men shoʻrva ichyapman."
+   },
+   "test": {
+    "translation": "Oʻtgan yili peshona sochimni qirqtirdim."
+   }
+  }
+ },
+ "rule_유음화": {
+  "label": "Lateralizatsiya",
+  "card_desc": "ㄴ va ㄹ uchrashsa, ㄹㄹ deb ayting",
+  "payload": {
+   "how_to": [
+    "ㄴ va ㄹ ketma-ket kelsa",
+    "ㄴ ni ham ㄹ ga aylantirib, ㄹㄹ deb ayting",
+    "Til uchini milkka tegizib turib, silliq oqizgandek ulang"
+   ],
+   "words": [
+    {
+     "meaning": "Silla (qadimgi qirollik)"
+    },
+    {
+     "meaning": "Qamariy Yangi yil (Sollal)"
+    },
+    {
+     "meaning": "aloqa, xabar"
+    },
+    {
+     "meaning": "Hallasan togʻi"
+    }
+   ],
+   "sentence": {
+    "translation": "Shu Sollal bayramida xabaringizni kutaman."
+   },
+   "test": {
+    "translation": "Maʼmuriyat xonasidan xabar kuting."
+   }
+  }
+ },
+ "rule_구개음화": {
+  "label": "Tanglaylashish",
+  "card_desc": "ㄷ·ㅌ+이 지·치 ga aylanadi",
+  "payload": {
+   "how_to": [
+    "Oxirgi ㄷ·ㅌ dan keyin 「이」 kelsa",
+    "ㄷ ni 지, ㅌ ni 치 deb ayting",
+    "Tilni tanglayning old qismiga suring"
+   ],
+   "words": [
+    {
+     "meaning": "birga"
+    },
+    {
+     "meaning": "ataylab; majburan"
+    },
+    {
+     "meaning": "quyosh chiqishi"
+    },
+    {
+     "meaning": "toʻngʻich farzand"
+    }
+   ],
+   "sentence": {
+    "translation": "Keling, birga quyosh chiqishini koʻrgani boraylik."
+   },
+   "test": {
+    "translation": "Ataylab birga bormasak ham boʻladi."
+   }
+  }
+ },
+ "rule_격음화": {
+  "label": "Aspiratsiya",
+  "card_desc": "ㅎ bilan uchrashsa, kuchli nafasli tovushga aylanadi",
+  "payload": {
+   "how_to": [
+    "ㄱ·ㄷ·ㅂ·ㅈ ㅎ bilan uchrashsa",
+    "Qoʻshilib, ㅋ·ㅌ·ㅍ·ㅊ deb aytiladi",
+    "Qoʻshilgan tovushda havoni kuchli chiqaring"
+   ],
+   "words": [
+    {
+     "meaning": "yaxshi boʻlmoq"
+    },
+    {
+     "meaning": "tabrik"
+    },
+    {
+     "meaning": "oʻqishga kirish"
+    },
+    {
+     "meaning": "koʻp boʻlmoq"
+    }
+   ],
+   "sentence": {
+    "translation": "Oʻqishga kirganing bilan tabriklayman, juda zoʻr."
+   },
+   "test": {
+    "translation": "Unchalik koʻp emas."
+   }
+  }
+ }
+}
