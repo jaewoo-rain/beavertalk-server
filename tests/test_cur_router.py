@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import core.deps as deps
+from core.config import Settings
 from core.config import settings as app_settings
 from core.supabase_auth import AuthUser
 from db.registry import Base
@@ -73,7 +74,12 @@ def factory():
 @pytest.fixture()
 def client(factory):
     from main import create_app
-    app = create_app()
+
+    # ⛔⛔ S5(2026-09-26, Play 심사 대비) — 이 파일이 시험하는 `POST /__dev/cur-reset` 은
+    #   main.py 의 dev 전용 블록 안에 있다. 그 블록은 이제 `ENV != "prod"` 가 아니라
+    #   `DEV_ROUTES_ENABLED`(기본 False)로 마운트 여부가 갈린다 — 옵트인하지 않으면
+    #   create_app() 이 이 라우트를 아예 안 만들어 전부 404 로 깨진다.
+    app = create_app(Settings(DEV_ROUTES_ENABLED=True))
     app.state.session_factory = factory
     app.state.settings = app_settings
     app.state.genai_client = object()

@@ -44,6 +44,20 @@ class Settings(BaseSettings):
     #     ⇒ 프론트 검증용으로 켤 곳은 demo-api 쪽이 맞다. 켤 위치를 정하고 켜라.
     DAILY_LIMIT_ENFORCED: bool = False
 
+    # ⭐⭐ S5(2026-09-26, Play 심사 대비) — **dev 전용 라우트(main.py:296)만 따로 켜는
+    #   스위치** — 위 DAILY_LIMIT_ENFORCED 와 같은 「축을 나눈다」 패턴이다.
+    #   ⛔ 왜 ENV 로 안 하나: 실서비스(app-api)의 ENV 는 "prod" 가 아니라 "test" 다(2026-08-07
+    #     실측) — `main.py:296` 이 `ENV != "prod"` 로 게이트돼 있어 `/__dev/signup`(service key
+    #     로 계정 생성+토큰 발급, 이메일 확인 건너뜀)·`/__levelcalldemo` 등 dev 라우트 15개가
+    #     실서비스에 그대로 열려 있었다(요청서 S5, bt-back 실측: 운영 `/__dev/signup` → 400,
+    #     `/__levelcalldemo` → 200). `ENV` 를 prod 로 바로잡으면 근본 해결이지만, 같은 조건을
+    #     쓰는 다른 블록(`call_session.py:366` 의 prod 가드)이 동시에 켜져 영향 범위가 커진다
+    #     (`docs/20260807_0510_dev블록-노출-사실관계.md`) — 그 별건은 여전히 미착수다.
+    #   ⇒ 이 값이 dev 라우트 마운트 여부를 **ENV 와 무관하게** 단독으로 결정한다.
+    #   기본 False = **안 넣으면 닫힘**(운영은 env 를 안 넣으면 그대로 안전). demo-api·
+    #   test-api 는 이 값을 true 로 넣어야 데모가 산다(Cloud Run env — bt-back 이 넣는다).
+    DEV_ROUTES_ENABLED: bool = False
+
     # ⭐⭐ C4(2026-09-23, D4) — **하루 통화 총량(분) 예산**. Free 300s·premium 900s,
     #   콜타입 무관 합산(레벨테스트 제외). 옛 콜타입별 횟수 한도(DAILY_LIMIT_ENFORCED,
     #   DAILY_CALL_LIMIT)는 레벨테스트에만 남고 나머지는 이 예산이 대체한다.

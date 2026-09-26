@@ -284,16 +284,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(push_router, prefix=API_PREFIX)
 
     # ── (dev 전용) 통화 데모 콘솔 ──
-    # ⛔ **"dev 전용"은 의도이지 현실이 아니다.** 실서비스(app-api)의 ENV 는 "prod" 가 아니라
-    #   **"test"** 다(2026-08-07 실측: 운영 /health → {"status":"ok","env":"test"}). 그래서
-    #   아래 조건은 **운영에서도 참**이고 이 블록은 실서비스에 마운트된다.
-    #   같은 사실을 이미 알고 있었으면서(아래 구독 도구 주석 참조) 캐스케이드에는 2차 방어를
-    #   안 붙였다. 옛 주석("prod 에는 마운트조차 하지 않는다")을 1차 자료로 읽은 클라 쪽이
-    #   "prod 백엔드면 소켓이 안 열린다"를 **안전장치로 세는** 일까지 벌어졌다 —
-    #   틀린 주석이 남의 설계 판단이 됐다. 그래서 문구를 사실로 바꾼다.
-    #   ENV 값을 바로잡는 게 근본이지만 같은 조건을 쓰는 다른 블록이 동시에 닫히므로
-    #   영향 범위를 잰 뒤 별건으로 한다(docs/20260807_0510_dev블록-노출-사실관계.md).
-    if settings.ENV != "prod":
+    # ⛔ **"dev 전용"은 의도이지 현실이 아니었다.** 실서비스(app-api)의 ENV 는 "prod" 가 아니라
+    #   **"test"** 다(2026-08-07 실측: 운영 /health → {"status":"ok","env":"test"}). 예전엔
+    #   이 블록이 `ENV != "prod"` 로만 게이트돼 있어 **운영에서도 참**이 되어 마운트됐고,
+    #   `/__dev/signup`(service key 로 계정 생성+토큰 발급)까지 실서비스에 열려 있었다
+    #   (S5, 2026-09-26, bt-back 실측: 운영 `/__dev/signup` → 400·`/__levelcalldemo` → 200).
+    #   ENV 값을 바로잡는 게 근본이지만 같은 조건을 쓰는 다른 블록(call_session.py 의 prod
+    #   가드 등)이 동시에 닫혀 영향 범위가 커진다(docs/20260807_0510_dev블록-노출-사실관계.md)
+    #   — **그 별건은 이것과 무관하게 여전히 미착수다.** 이 작업(S5)은 축을 하나 더 빼서
+    #   ENV 를 안 건드리고 이 블록만 닫는다: `DEV_ROUTES_ENABLED`(기본 False, core/config.py) —
+    #   DAILY_LIMIT_ENFORCED 가 이미 쓴 「축을 나눈다」와 같은 패턴. demo-api·test-api 는
+    #   Cloud Run env 로 true 를 넣어야 데모가 산다.
+    if settings.DEV_ROUTES_ENABLED:
         @app.post("/__dev/level-reset", include_in_schema=False)
         def dev_level_reset(member: CurrentAdmin, db: DbSession) -> dict:
             """[dev] 레벨 관련 상태 완전 초기화 — 재테스트용 백지화.
@@ -606,7 +608,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             service key 로 만들기 때문에 **이메일 확인 절차를 건너뛴다**(email_confirm=True).
             이미 있는 계정이면 만들지 않고 로그인만 한다.
             권한 상승이 아니다 — 이메일·비밀번호를 아는 사람이 자기 토큰을 받는 것뿐이고,
-            애초에 non-prod 에서만 마운트된다.
+            `DEV_ROUTES_ENABLED`(기본 False)가 꺼진 배포에는 마운트조차 안 된다(S5).
             """
             client = supabase_client.get_client()
             if client is None:

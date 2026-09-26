@@ -17,6 +17,7 @@ from sqlalchemy.pool import StaticPool
 
 import core.deps as deps
 import domains.learning.realtime.call_session as cs
+from core.config import Settings
 from core.config import settings as app_settings
 from core.languages import resolve_target_language
 from core.prompts import freetalk as ft
@@ -94,7 +95,10 @@ def db(factory):
 @pytest.fixture()
 def client(factory):
     from main import create_app
-    app = create_app(); app.state.session_factory = factory; app.state.settings = app_settings; app.state.genai_client = object()
+    # ⛔⛔ S5(2026-09-26) — POST /__dev/cur-reset 는 이제 DEV_ROUTES_ENABLED(기본 False)로
+    #   마운트 여부가 갈린다(main.py:296). 옵트인 안 하면 create_app() 이 이 라우트를 안 만든다.
+    app = create_app(Settings(DEV_ROUTES_ENABLED=True))
+    app.state.session_factory = factory; app.state.settings = app_settings; app.state.genai_client = object()
     return TestClient(app)
 
 
