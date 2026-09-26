@@ -18,6 +18,7 @@ from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from core import iap
 from core.config import settings as app_settings
 from db.registry import Base  # noqa: F401 - 전 모델 import
 from domains.account.models.member import Member
@@ -302,3 +303,80 @@ def test_stub_receipt_is_accepted_once_the_switch_is_explicitly_on(db, monkeypat
     monkeypatch.setattr(app_settings, "IAP_ALLOW_STUB", True)
     res = IapService(db).verify_and_grant(_mid(db), "ios", _item())
     assert res.already_granted is False
+
+
+# --------------------------------------------------------------------------- #
+# 8) S1(2026-09-26, Play 심사 대비) — acknowledge: 순서·범위·실패 내성
+# --------------------------------------------------------------------------- #
+def test_acknowledge_ios_is_always_a_noop_true(monkeypatch):
+    """애플엔 이 절차가 없는 것으로 보인다(원문 명시적 부정문은 미확인, docstring 참조)
+    — platform="ios" 는 구글 경로를 아예 안 타고 항상 True."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", True)  # 켜져 있어도 무관해야 한다
+    assert iap.acknowledge("ios", "subscription", "tok", "bt_pro_monthly") is True
+
+
+def test_acknowledge_android_skips_when_verify_disabled(monkeypatch):
+    """스텁 지급(IAP_VERIFY_ENABLED=False)일 땐 구글에 실제로 물어볼 것이 없다 — True 로 스킵."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", False)
+    assert iap.acknowledge("android", "character", "tok", BIBI) is True
+
+
+def test_acknowledge_android_calls_google_when_verify_enabled(monkeypatch):
+    """실검증이 켜졌을 때만 진짜 구글 acknowledge 경로를 탄다 — 지금은 미구현이라 False
+    (자격증명 대기, 지급을 막는 신호는 아니다 — 아래 wiring 시험이 그걸 확인한다)."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", True)
+    assert iap.acknowledge("android", "subscription", "tok", "bt_pro_monthly") is False
+
+
+def test_grant_succeeds_even_when_acknowledge_fails(db, monkeypatch):
+    """⛔⛔ 핵심 — acknowledge 실패가 이미 커밋된 지급을 되돌리면 안 된다(R5).
+    지금 구글 acknowledge 는 미구현(항상 False)이라, 이 시험이 실패하면 «지급 후
+    acknowledge 가 지급을 롤백한다»는 회귀가 생겼다는 뜻이다."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", False)  # 스텁 검증 유지
+    monkeypatch.setattr(app_settings, "IAP_ALLOW_STUB", True)
+    monkeypatch.setattr(iap, "acknowledge", lambda *a, **k: False)
+
+    res = IapService(db).verify_and_grant(_mid(db), "android", _item(product=BIBI))
+
+    assert res.already_granted is False
+    assert db.query(MemberCharacter).count() == 1
+    assert db.query(IapReceipt).count() == 1
+
+
+def test_acknowledge_is_called_after_the_receipt_is_persisted(db, monkeypatch):
+    """⛔⛔ 순서 잠금 — acknowledge 호출 시점에 IapReceipt·지급이 **이미 커밋돼 있어야**
+    한다("검증 → 지급 → acknowledge", 지급 전에 부르면 지급 실패 시 환불 창구가
+    닫힌다). 콜백 안에서 DB 를 직접 조회해 그 시점의 실제 상태를 확인한다."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", False)
+    monkeypatch.setattr(app_settings, "IAP_ALLOW_STUB", True)
+    seen: dict = {}
+
+    def _spy(platform, kind, token, product_id):
+        seen["receipt_count_at_ack_time"] = db.query(IapReceipt).count()
+        seen["character_count_at_ack_time"] = db.query(MemberCharacter).count()
+        seen["args"] = (platform, kind, token, product_id)
+        return True
+
+    monkeypatch.setattr(iap, "acknowledge", _spy)
+
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=BIBI, token="tok-order"))
+
+    assert seen["receipt_count_at_ack_time"] == 1   # 이미 저장됨
+    assert seen["character_count_at_ack_time"] == 1  # 이미 지급됨
+    assert seen["args"] == ("android", "character", "tok-order", BIBI)
+
+
+def test_acknowledge_not_called_again_on_idempotent_replay(db, monkeypatch):
+    """같은 영수증이 두 번째로 와서 already_granted 경로(③에서 조기 반환)로 빠지면
+    acknowledge 를 다시 부르지 않는다 — 이미 첫 지급 때 한 번 불렀을 것이기 때문."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", False)
+    monkeypatch.setattr(app_settings, "IAP_ALLOW_STUB", True)
+    calls = []
+    monkeypatch.setattr(iap, "acknowledge", lambda *a, **k: (calls.append(a), True)[1])
+
+    item = _item(product=BIBI, tx="tx-replay")
+    IapService(db).verify_and_grant(_mid(db), "android", item)
+    res2 = IapService(db).verify_and_grant(_mid(db), "android", item)
+
+    assert res2.already_granted is True
+    assert len(calls) == 1  # 두 번째 호출에서는 안 늘어난다

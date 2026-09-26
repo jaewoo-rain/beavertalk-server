@@ -126,9 +126,56 @@ def _verify_google(
 
     구현 시: Play Developer API 의 purchases.products.get / purchases.subscriptionsv2.get
     으로 purchaseToken 을 조회한다. Play Console 권한이 있는 서비스계정이 필요하다.
+    subscriptionsv2.get 응답의 subscriptionState=="SUBSCRIPTION_STATE_ACTIVE" 이고
+    lineItems[].expiryTime 이 지금보다 미래면 유효로 본다.
 
-    ⛔ 검증 후 **반드시 acknowledge** 를 보내야 한다. 3일 안에 안 하면 구글이 자동
-       환불하고, 돈은 돌아가는데 지급은 남는 사고가 난다(애플엔 없는 절차).
+    ⛔ 검증 후 **반드시 acknowledge** 를 보내야 한다(아래 acknowledge() — 지급이
+       끝난 뒤에만 부른다). 3일 안에 안 하면 구글이 자동 환불하고, 돈은 돌아가는데
+       지급은 남는 사고가 난다(애플엔 없는 절차 — acknowledge() 의 애플 분기 주석 참조).
     """
     logger.warning("iap(google): 미구현 — 자격증명 대기")
     return VerifyResult(ok=False, reason="unavailable")
+
+
+def acknowledge(
+    platform: Platform, kind: str, purchase_token: str, product_id: str
+) -> bool:
+    """지급 성공 **다음에만** 부른다 — 순서가 곧 환불 방지 설계다.
+
+    ⛔⛔ **지급 전에 부르면 안 된다.** acknowledge 가 먼저 나가고 지급이 그 뒤에
+    실패하면(DB 오류 등) 구글은 "확인된 결제"로 알고 환불 창구가 막힌다 — 돈은
+    받았는데 지급도 못 하고 환불도 못 받는 사고. `iap_service.verify_and_grant` 는
+    `db.commit()` 성공 뒤에만 이 함수를 부른다.
+
+    실패해도 이미 커밋된 지급을 되돌리지 않는다(R5) — 구글이 3일의 여유를 주므로
+    다음 acknowledge 재시도(배치·재요청)로 복구할 수 있다. 실패를 로그로 남겨
+    추적 가능하게만 한다.
+
+    - **구글**: kind=="subscription" 이면 v1 `purchases.subscriptions.acknowledge`,
+      kind=="character"(일회성 상품) 면 `purchases.products.acknowledge` — 엔드포인트가
+      다르다(둘 다 v1, subscriptionsv2 조회와는 별개 API 계열).
+    - **애플**: acknowledge 류 절차가 **없는 것으로 보인다** — 구현 전 재확인 시도:
+      Apple 공식 문서(App Store Server API·Server Notifications)는 JS 렌더링이라
+      이 세션의 WebFetch 로 원문을 못 읽었다(제목만 반환됨). WebSearch 로 찾은 간접
+      근거: 애플의 환불 관련 절차는 「CONSUMPTION_REQUEST 알림(실제 환불 *요청*이
+      있을 때만 발생) → 서버가 12시간 안에 소비 데이터를 제출해 환불 결정에 참고
+      자료로 반영」이다 — 이건 "일반 구매를 N일 안에 확인 안 하면 자동환불"이 아니라
+      "이미 들어온 환불 요청에 대한 선택적 소명" 이라 구글의 acknowledge 와 성격이
+      다르다. ⇒ **명시적 부정문을 원문에서 확인하지 못했다 — 추측을 사실로 적지
+      않는다.** 애플 키가 들어오는 시점에 원문을 다시 확인해라.
+    """
+    if platform != "android":
+        logger.info("iap(apple): acknowledge 미대상(애플엔 이 절차가 없는 것으로 보임, 위 docstring 참조)")
+        return True
+    if not settings.IAP_VERIFY_ENABLED:
+        logger.info("iap(google): 검증 비활성 상태 → acknowledge 스킵(스텁 지급)")
+        return True
+    return _acknowledge_google(kind, purchase_token, product_id)
+
+
+def _acknowledge_google(kind: str, purchase_token: str, product_id: str) -> bool:
+    """Google Play acknowledge (미구현 — 자격증명 대기)."""
+    logger.warning(
+        "iap(google): acknowledge 미구현 — 자격증명 대기 kind=%s product=%s", kind, product_id,
+    )
+    return False

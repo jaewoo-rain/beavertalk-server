@@ -194,6 +194,15 @@ class IapService:
             "iap: 지급 완료 member=%s product=%s kind=%s stub=%s",
             member_id, item.product_id, ref.kind, result.stubbed,
         )
+        # ⛔⛔ S1(2026-09-26, Play 심사 대비) — acknowledge 는 지급(위 commit)이 끝난
+        #   **다음에만** 부른다(iap.acknowledge 의 docstring 참조 — 순서가 곧 환불
+        #   방지 설계). 실패해도 이미 커밋된 지급을 되돌리지 않는다(R5) — 구글이 3일
+        #   여유를 준다. already_granted(멱등 재조회) 경로는 이미 한 번 지급 때
+        #   acknowledge 를 불렀을 것이므로 여기서 다시 부르지 않는다.
+        if not iap.acknowledge(platform, ref.kind, item.purchase_token, item.product_id):  # type: ignore[arg-type]
+            logger.warning(
+                "iap: acknowledge 실패(지급은 유지) member=%s tx=%s", member_id, tx_id,
+            )
         return VerifyResponse(
             already_granted=False,
             product_id=item.product_id,
