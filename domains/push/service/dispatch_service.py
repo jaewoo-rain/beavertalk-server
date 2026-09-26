@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from core import apns, fcm
 from core.config import settings
 from core.push_defaults import DEFAULT_CALLER_NAME
+from domains.account.models.member import Member
 from domains.alarm.models.alarm import Alarm
 from domains.push.models.device_token import DeviceToken
 from domains.push.models.push_dispatch_log import PushDispatchLog
@@ -48,14 +49,19 @@ class DispatchService:
             (now - timedelta(minutes=i)).replace(second=0, microsecond=0)
             for i in range(catchup + 1)
         ]
+        # ⛔⛔ S3(2026-09-26, Play 심사 대비) — 발송 대상 선별은 이 SELECT **하나뿐**이고
+        #   run() 의 유일한 호출부는 POST /internal/dispatch-calls(외부 크론) 다. 탈퇴
+        #   (Member.deleted_at)는 안 보고 있어서 탈퇴 회원의 알람이 그대로 발송됐다 —
+        #   가드를 여기 한 곳에 두면 호출부가 하나뿐이라 전부 막힌다(ponytail 원칙).
         alarms = (
             self.db.execute(
                 select(Alarm)
+                .join(Member, Member.member_id == Alarm.member_id)
                 .options(
                     selectinload(Alarm.schedules),
                     joinedload(Alarm.character),
                 )
-                .where(Alarm.is_activate.is_(True))
+                .where(Alarm.is_activate.is_(True), Member.deleted_at.is_(None))
             )
             .scalars()
             .all()

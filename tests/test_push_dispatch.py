@@ -381,6 +381,45 @@ def test_run_inactive_alarm_excluded(session_factory, monkeypatch, patch_dispatc
     assert patch_dispatch.fcm_calls == []
 
 
+def test_run_deleted_member_excluded(session_factory, monkeypatch, patch_dispatch):
+    """S3(2026-09-26) — 탈퇴 회원(member.deleted_at)의 알람은 활성이어도 발송에서 빠진다."""
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    code = _DAY_CODES[now.weekday()]
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={code}, tokens=[("t", True)])
+    member = db.get(Member, ids["member_id"])
+    member.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+
+    sent = DispatchService(db).run()
+
+    assert sent == 0
+    assert patch_dispatch.claims == []       # 선별 SELECT 에서 이미 빠져 클레임 자체가 없다
+    assert patch_dispatch.fcm_calls == []
+    db.close()
+
+
+def test_run_living_member_unaffected_by_deleted_member_gate(
+    session_factory, monkeypatch, patch_dispatch
+):
+    """S3 회귀 — 탈퇴 회원 가드가 살아있는 회원의 정상 발송을 건드리지 않는다."""
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    code = _DAY_CODES[now.weekday()]
+    db = session_factory()
+    _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+          day_codes={code}, tokens=[("t-live", True)])
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    sent = DispatchService(db).run()
+
+    assert sent == 1
+    assert len(patch_dispatch.claims) == 1
+    db.close()
+
+
 def test_run_time_none_skipped(session_factory, monkeypatch, patch_dispatch):
     now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
     _patch_now(monkeypatch, now)

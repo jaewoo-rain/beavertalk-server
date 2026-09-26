@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,8 @@ from core.supabase_auth import delete_auth_user
 from domains.account.models.member import Member
 from domains.account.models.member_reason import ALLOWED_REASONS, MemberReason
 from domains.account.repository.member_repository import MemberRepository
+from domains.alarm.models.alarm import Alarm
+from domains.push.models.device_token import DeviceToken
 from domains.account.schemas.member import (
     MemberUpdate,
     MyPageOut,
@@ -223,4 +225,10 @@ class MemberService:
         member.deleted_at = datetime.now(timezone.utc)
         member.email = None
         member.auth_user_id = None
+        # ⛔⛔ S3(2026-09-26, Play 심사 대비) — 예약전화 발송 선별(dispatch_service.py)이
+        #   deleted_at 을 이제는 보지만, 알람·기기토큰 행 자체는 소프트 삭제로 안 지워져
+        #   계속 남는다(S2 하드 삭제 전까지). 그동안 새는 걸 지금 막는다 — bulk 삭제라
+        #   개수와 무관하게 한 번에 끝난다.
+        self.db.execute(delete(Alarm).where(Alarm.member_id == member_id))
+        self.db.execute(delete(DeviceToken).where(DeviceToken.member_id == member_id))
         self.db.commit()
