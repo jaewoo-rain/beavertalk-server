@@ -21,8 +21,6 @@ from core.supabase_auth import delete_auth_user
 from domains.account.models.member import Member
 from domains.account.models.member_reason import ALLOWED_REASONS, MemberReason
 from domains.account.repository.member_repository import MemberRepository
-from domains.alarm.models.alarm import Alarm
-from domains.push.models.device_token import DeviceToken
 from domains.account.schemas.member import (
     MemberUpdate,
     MyPageOut,
@@ -205,16 +203,26 @@ class MemberService:
         return member
 
     def delete(self, member_id: int) -> None:
-        """회원 탈퇴 — Supabase auth 사용자는 삭제, 로컬 member 는 소프트 삭제.
+        """회원 탈퇴 — Supabase auth 사용자 삭제 + 로컬 member **하드 삭제**.
 
-        인증 주체(auth.users)를 먼저 지운다(이메일·비밀번호는 Supabase 가 관리하므로
-        여기서 함께 사라진다). auth 삭제가 실패하면(미설정·네트워크·권한) 탈퇴 자체를
-        실패로 처리해 로컬만 바뀌는(=부활 가능한) 불일치 상태를 막는다.
+        ⛔⛔ S2(2026-09-26, Play 심사 대비) — 소프트 삭제(deleted_at 만 찍고 행은 보존)
+        에서 하드 삭제로 바꿨다. member 를 참조하는 FK 대부분이 `ON DELETE CASCADE`라
+        `DELETE FROM member` 하나로 그 표들이 함께 정리된다 — 테이블을 하나씩 지우는
+        코드를 여기 쓰지 않는다(S3 에서 넣었던 alarm·device_token 개별 bulk 삭제도
+        이제 이 cascade 가 대신한다, 지워도 안전).
 
-        로컬 member 는 하드 삭제하지 않고 deleted_at 을 찍어 학습·구독 등 데이터를
-        보존한다. 대신 유니크 제약이 걸린 재식별 키(email·auth_user_id)를 NULL 로 비워
-        (1) 같은 이메일로 재가입이 가능하고 (2) 남은 토큰으로 find_or_create_by_auth
-        가 이 행을 다시 찾아 계정을 부활시키지 못하게 한다.
+        ⭐ 예외 3개(payment·subscribe·iap_receipt) — `ON DELETE SET NULL`(법무 결제
+        보존 의무, 모델·마이그레이션 c2d4e6f8a0b1 에서 같이 바꿈). 회원이 지워져도
+        그 표의 행은 `member_id=NULL` 로 남는다(신원 소실은 지금은 그대로 둔다, YAGNI —
+        보존 기간·항목은 법무 확정 대기).
+        ⭐ GCS 음성은 사장님 결정(2026-09-26 「음성 놔둬, 지우지마」)으로 보존한다 —
+        이 함수는 storage 를 전혀 건드리지 않는다(member_id 가 시퀀스라 재사용되지
+        않으므로 남는 객체가 새 회원 것으로 오인될 위험도 없다).
+
+        순서(트랜잭션 경계): ① supabase auth 삭제(이 함수 밖의 API 호출이라 **유일한
+        틈** — delete_auth_user 가 「이미 없음(404)」도 성공으로 접어 재시도가 멱등하다)
+        → ② `DELETE FROM member`(cascade) → ③ 커밋. ①이 실패하면 로컬은 아무것도
+        안 바뀐 채 그대로 502 — 재시도해도 안전하다.
         """
         member = self.get(member_id)
         if member.auth_user_id and not delete_auth_user(member.auth_user_id):
@@ -222,13 +230,5 @@ class MemberService:
                 status.HTTP_502_BAD_GATEWAY,
                 "인증 서버에서 계정을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.",
             )
-        member.deleted_at = datetime.now(timezone.utc)
-        member.email = None
-        member.auth_user_id = None
-        # ⛔⛔ S3(2026-09-26, Play 심사 대비) — 예약전화 발송 선별(dispatch_service.py)이
-        #   deleted_at 을 이제는 보지만, 알람·기기토큰 행 자체는 소프트 삭제로 안 지워져
-        #   계속 남는다(S2 하드 삭제 전까지). 그동안 새는 걸 지금 막는다 — bulk 삭제라
-        #   개수와 무관하게 한 번에 끝난다.
-        self.db.execute(delete(Alarm).where(Alarm.member_id == member_id))
-        self.db.execute(delete(DeviceToken).where(DeviceToken.member_id == member_id))
+        self.db.execute(delete(Member).where(Member.member_id == member_id))
         self.db.commit()

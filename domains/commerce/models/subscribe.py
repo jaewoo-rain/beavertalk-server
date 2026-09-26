@@ -28,8 +28,12 @@ class Subscribe(Base, TimestampMixin):
     __tablename__ = "subscribe"
 
     subscribe_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
-    member_id: Mapped[int] = mapped_column(
-        ForeignKey("member.member_id", ondelete="CASCADE"), index=True, comment="회원",
+    # ⛔⛔ S2(2026-09-26, Play 심사 대비) — nullable + ON DELETE SET NULL(옛 CASCADE).
+    #   구독 기록은 결제 관련 보존 의무 대상이라 회원 하드 삭제에 같이 지워지면 안 된다.
+    #   같은 커밋의 마이그레이션(c2d4e6f8a0b1)과 반드시 같은 내용이어야 한다(R2) —
+    #   sqlite(테스트)는 이 파일의 제약을 쓰고 운영은 그 마이그레이션을 쓴다.
+    member_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("member.member_id", ondelete="SET NULL"), index=True, comment="회원",
     )
     start_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), comment="시작(결제) 날짜")
     end_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), comment="끝나는 날짜")
@@ -80,4 +84,5 @@ class Subscribe(Base, TimestampMixin):
         DateTime(timezone=True), comment="on_hold 에서만 값 존재",
     )
 
-    member: Mapped["Member"] = relationship(back_populates="subscribes")
+    # ⛔ Optional — SET NULL 대상이라 탈퇴 회원의 구독 행은 이 관계가 None 이 된다.
+    member: Mapped[Optional["Member"]] = relationship(back_populates="subscribes")

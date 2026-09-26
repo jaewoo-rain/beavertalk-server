@@ -42,8 +42,12 @@ class IapReceipt(Base, TimestampMixin):
     iap_receipt_id: Mapped[int] = mapped_column(
         BigInteger, Identity(), primary_key=True
     )
-    member_id: Mapped[int] = mapped_column(
-        ForeignKey("member.member_id", ondelete="CASCADE"), index=True,
+    # ⛔⛔ S2(2026-09-26, Play 심사 대비) — nullable + ON DELETE SET NULL(옛 CASCADE).
+    #   영수증 원장도 결제 보존 의무 대상이라 회원 하드 삭제에 같이 지워지면 안 된다.
+    #   같은 커밋의 마이그레이션(c2d4e6f8a0b1)과 반드시 같은 내용이어야 한다(R2) —
+    #   sqlite(테스트)는 이 파일의 제약을 쓰고 운영은 그 마이그레이션을 쓴다.
+    member_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("member.member_id", ondelete="SET NULL"), index=True,
         comment="지급받은 회원",
     )
     platform: Mapped[str] = mapped_column(Text, comment="ios | android")
