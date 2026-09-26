@@ -132,3 +132,32 @@ jobs:
           echo "health=$CODE ($URL)"
           # ⛔ 배포가 "성공"인데 앱이 죽어 있으면 아무도 모른다 — 여기서 실패시킨다.
           [ "$CODE" = "200" ]
+
+      # ⛔⛔ 예약전화 발송 서비스도 **같은 이미지로** 올린다(2026-09-27, 앱 QA 14번).
+      #   Cloud Scheduler `beavertalk-dispatch-calls`(매분)가 test-api 의
+      #   `/internal/dispatch-calls` 를 부르고, 세 서비스가 **같은 DB** 를 보므로
+      #   **운영 회원의 예약전화를 실제로 쏘는 건 test-api 다.** 그런데 이 워크플로가
+      #   test-api 를 배포하지 않아서, 발견 시점에 그 서비스는 `pushlog-0909`(9월 9일)
+      #   이미지를 돌리고 있었다 — 09-09 이후 발송 경로의 모든 수정이 안 돌고 있었다
+      #   (탈퇴 회원 제외 게이트 포함). 「배포되지 않는 서비스가 운영을 담당」하던 것이다.
+      #
+      # ⭐ 구성 자체는 의도된 것이다 — test-api 만 `cpu-throttling=true` 라 매분 크론을
+      #   받아도 과금이 얇다(app-api·demo-api 는 통화후 fire-and-forget 때문에 false 여서
+      #   매분 요청이 인스턴스를 24시간 깨운다). 그래서 스케줄러를 옮기지 않고 **배포만**
+      #   붙인다. 비용 결정은 지키고 「옛 코드가 운영을 담당」만 없앤다.
+      #
+      # ⛔ **main 에서만** 한다. 운영 회원 알람을 쏘는 서비스라 dev 코드가 올라가면 안 된다.
+      # ⛔ `--image` 만 바꾼다 — 위 배포 단계와 같은 이유로 env·시크릿을 건드리지 않는다.
+      # ⚠ 서비스 이름을 시크릿이 아니라 리터럴로 쓴다. 이 저장소는 PUBLIC 이지만 세 서비스
+      #   이름은 이미 CLAUDE.md 에 적혀 있어 가릴 게 없고, 시크릿으로 두면 값을 하나 더
+      #   넣어야 한다(얻는 것 없이 설정 단계만 늘어난다).
+      - name: 예약전화 발송 서비스 배포 (main 만)
+        if: github.ref_name == 'main'
+        run: |
+          DISPATCH_SERVICE="beavertalk-app-test-api"
+          gcloud run deploy "$DISPATCH_SERVICE"             --image "$IMAGE"             --region "${{ secrets.GCP_REGION }}"             --project "${{ secrets.GCP_PROJECT }}"             --quiet
+          URL=$(gcloud run services describe "$DISPATCH_SERVICE"             --region "${{ secrets.GCP_REGION }}" --project "${{ secrets.GCP_PROJECT }}"             --format="value(status.url)")
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+          echo "dispatch health=$CODE ($URL)"
+          # ⛔ 여기서 실패시킨다 — 조용히 넘기면 다시 「옛 코드가 운영 알람을 쏘는」 상태로 돌아간다.
+          [ "$CODE" = "200" ]
