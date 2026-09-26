@@ -8,11 +8,18 @@
 
 ## 지금 채워져 있는 것
 
-`ko`(원본 복사)와 `en`(lessons.json 의 `meaning_en`·`translation_en`) 둘뿐이다.
-나머지 28개 로케일은 **비어 있다** — 의도된 상태다(2026-09-21 결정).
+⭐ 2026-09-25 — `ko`(원본 복사) + 검수된 **29개 언어** = **30로케일 × 30과 = 900행**.
+en es fr de it pt ru ja zh vi th id ms fil hi bn ne ur si my km mn kk ky uz tr ar fi hu.
+원본은 `assets/pronunciation/i18n/<locale>.json`(`scripts/seed_sound_lessons.py` 가 적재).
+⛔ `i18n/ko.json` 은 두지 않는다 — 한국어 정본은 `lessons.json` 이다(검증이 거부한다).
 
-번역이 없으면 `en` 으로, `en` 도 없으면 한국어 원본으로 떨어진다. 화면은 어느 경우에도
-비지 않는다.
+번역 행이 없는 언어는 한국어 원본으로 떨어진다(`weak_sound_service._translated` — 없는
+항목만 원본 유지). 화면은 어느 경우에도 비지 않는다.
+
+⚠ 로케일 키는 `member.language` 를 **정규화하지 않고** `.strip().lower()` 한 값이다
+(`weak_sound_service._locale_of` → `weak_sound_repository.get_i18n` 의 동등 조회).
+`ko-KR` 처럼 지역 접미사가 붙은 값이 들어오면 조용히 한국어로 떨어진다 — 새 언어를
+받을 때 `member.language` 실제 분포를 파일명과 대조해라(2026-09-25 대조 시점엔 0종).
 
 ⛔ **기계번역을 그냥 부어 넣지 마라.** 「혀뿌리로 막았다 살짝 떼요」 같은 조음 설명은
 기계번역이 자주 틀리고, 틀리면 학습자가 **엉뚱한 입 모양을 배운다.** 번역은 검수를 거쳐
