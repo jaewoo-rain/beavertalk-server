@@ -450,6 +450,24 @@ class Settings(BaseSettings):
     #   tests/test_iap.py 의 autouse 픽스처가 스스로 True 로 켠다 — 회귀 무영향).
     IAP_ALLOW_STUB: bool = False   # 스텁 허용(개발·QA 명시로 켜야 함). prod 는 절대 켜지 마라
 
+    # ⭐ S1(2026-09-27, 키 도착) — 패키지명·번들 ID 는 스토어에 공개돼 있고 앱 바이너리
+    #   에서 누구나 읽는다 — 기본값으로 커밋해도 안전하다.
+    IAP_ANDROID_PACKAGE_NAME: str = "im.beavertalk.beavertalk"
+    IAP_APPLE_BUNDLE_ID: str = "im.beavertalk.beavertalk"  # 지금은 안드로이드와 같은 문자열
+    # ⛔⛔ S1 정정(2026-09-27, bt-back QA) — Issuer ID·Key ID 는 `.p8` 없이는 못 쓰지만,
+    #   이 저장소는 **PUBLIC** 이라(`gh repo view` 확인) 공격자에게 "어느 키를 노려야
+    #   하나"를 굳이 알려줄 이유가 없다. 기본값 없이 env 로만 받는다(Cloud Run — bt-back
+    #   이 넣는다). 미설정이면 _apple_jwt() 가 **조용히 넘어가지 않고** warning 로그 +
+    #   unavailable 로 떨어진다 — LIVE_MODEL_VOICE_VERTEX 가 비어 2주 동안 아무도 모르게
+    #   느린 경로로 돌던 사고와 같은 모양이라, 이번엔 침묵을 허용하지 않는다.
+    IAP_APPLE_ISSUER_ID: str | None = None
+    IAP_APPLE_KEY_ID: str | None = None
+    # ⛔ 아래 둘은 시크릿 **파일 경로**다(내용이 아니다) — Cloud Run 이 시크릿을 파일로
+    #   마운트한 뒤 그 경로를 이 env 로 알려준다. 미설정이면 해당 플랫폼 검증은
+    #   graceful 하게 "unavailable"(503)로 떨어진다(R5) — 다른 플랫폼은 안 죽는다.
+    PLAY_RECEIPT_SA_KEY_PATH: str | None = None   # 구글 서비스계정 JSON 키 경로
+    APPSTORE_IAP_KEY_PATH: str | None = None      # 애플 App Store Server API .p8 키 경로
+
     INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
     INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)
 

@@ -212,6 +212,23 @@ def test_stub_flag_recorded(db):
     assert db.query(IapReceipt).one().is_stub is True
 
 
+def test_is_sandbox_is_or_of_client_and_store_confirmed(db, monkeypatch):
+    """⛔⛔ S1(2026-09-27) 조건①·③ 배선 — 클라가 is_sandbox=False 라고 우겨도(라이선스
+    테스트 계정을 숨기려는 시도) 스토어가 확인해 준 값이 IapReceipt.is_sandbox 를 True 로
+    만든다. entitlement 지급 자체는 영향받지 않는다(테스터도 기능을 써봐야 한다)."""
+    from core import iap as iap_mod
+
+    monkeypatch.setattr(
+        iap_mod, "verify",
+        lambda **kw: iap_mod.VerifyResult(ok=True, transaction_id=kw["transaction_id"], store_confirmed_test=True),
+    )
+
+    res = IapService(db).verify_and_grant(_mid(db), "android", _item(), is_sandbox=False)
+
+    assert res.already_granted is False  # 지급은 그대로 됨
+    assert db.query(IapReceipt).one().is_sandbox is True  # 그러나 표시는 남는다
+
+
 # --------------------------------------------------------------------------- #
 # 4) 구독
 # --------------------------------------------------------------------------- #

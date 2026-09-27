@@ -101,6 +101,7 @@ class IapService:
         # ② 스토어 검증 (앱 말을 믿지 않는 지점)
         result = iap.verify(
             platform=platform,  # type: ignore[arg-type]
+            kind=ref.kind,  # type: ignore[arg-type]
             product_id=item.product_id,
             transaction_id=item.transaction_id,
             purchase_token=item.purchase_token,
@@ -172,7 +173,12 @@ class IapService:
             kind=ref.kind,
             character_id=ref.character_id,
             expires_at=expires_at,
-            is_sandbox=is_sandbox,
+            # ⭐ S1(2026-09-27) — 클라 self-report(is_sandbox) OR 스토어 실측
+            # (result.store_confirmed_test, 라이선스 테스트 계정·StoreKit 샌드박스).
+            # 클라가 그 사실을 숨겨도(예: false 로 보내도) 스토어가 확인해 준 값이
+            # 잡는다 — 누구나 가입 가능한 라이선스 테스트 그룹으로 받은 Premium 이
+            # 매출 집계에 조용히 섞여 들어가지 않게(iap.verify 가 어긋나면 로그도 남긴다).
+            is_sandbox=is_sandbox or result.store_confirmed_test,
             is_stub=result.stubbed,
         ))
         try:
