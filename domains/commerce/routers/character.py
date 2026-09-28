@@ -1,8 +1,14 @@
-"""commerce 라우터 — 캐릭터 목록/상세/구매 + 내 소유 캐릭터."""
+"""commerce 라우터 — 캐릭터 목록/상세 + 내 소유 캐릭터.
+
+⛔ 구매 API(POST /characters/{id}/purchase)는 **삭제했다**(2026-09-29 사장님 지시) — 돈을
+받지 않고 지급하던 테스트 경로였다(운영 유료 보유 24건 중 영수증 1건). 무료 캐릭터는
+처음부터 보유(파생, entitlements.is_free_character)이고, 유료는 스토어 영수증
+(POST /purchases/verify)으로만 지급한다.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 
 from core.deps import CurrentMember, DbSession, PageParams
 from domains.commerce.schemas.character import (
@@ -10,9 +16,7 @@ from domains.commerce.schemas.character import (
     CharacterSummary,
     OwnedCharacterOut,
 )
-from domains.commerce.schemas.purchase import PurchaseRequest, PurchaseResponse
 from domains.commerce.service.character_service import CharacterService
-from domains.commerce.service.purchase_service import PurchaseService
 
 router = APIRouter(tags=["commerce"])
 
@@ -33,33 +37,9 @@ def get_character(
     return CharacterService(db).get_character(member.member_id, character_id)
 
 
-@router.post(
-    "/characters/{character_id}/purchase",
-    response_model=PurchaseResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def purchase_character(
-    character_id: int,
-    member: CurrentMember,
-    db: DbSession,
-    data: PurchaseRequest | None = None,
-) -> PurchaseResponse:
-    """캐릭터 구매 — 결제 후 보유 처리. 이미 보유한 캐릭터면 중복구매가 막힌다.
-
-    data.expected_price 를 보내면 서버 계산가와 대조해 다를 때 409(PRICE_CHANGED)로
-    거절한다(한정 할인 종료 직후의 금액 불일치 방지).
-    """
-    return PurchaseService(db).purchase(
-        member.member_id,
-        character_id,
-        data.card_info if data else None,
-        data.expected_price if data else None,
-    )
-
-
 @router.get("/members/me/characters", response_model=list[OwnedCharacterOut])
 def my_characters(member: CurrentMember, db: DbSession) -> list[OwnedCharacterOut]:
-    """내가 보유한(구매한) 캐릭터 목록 — 구매가·구매일 포함."""
+    """내가 보유한 캐릭터 목록 — 구매한 것 + 0원 캐릭터(처음부터 보유). 구매가·구매일 포함."""
     return CharacterService(db).list_owned(member.member_id)
 
 # todo: 이벤트 중인 캐릭터들 가격 및 정보 조회 

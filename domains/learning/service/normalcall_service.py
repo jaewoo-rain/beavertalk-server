@@ -185,10 +185,14 @@ def resolve_call_character(
     #    ondelete=SET NULL 인 단순 FK 라 "고르기만 하고 안 산" 상태가 될 수 있다.
     #    Max 구독은 카탈로그 전체를 열어주므로 소유 없이도 통과한다(구매가 아니라 접근 —
     #    member_character 행은 만들지 않는다. 해지하면 다시 잠겨야 하기 때문).
+    #    ⭐ 0원 캐릭터는 행 없이도 소유다(2026-09-29, entitlements.is_free_character) —
+    #    카탈로그(character_service)와 **같은 함수**로 판정해야 "목록엔 보유인데 통화에선
+    #    Baba 로 바뀐다"(옛 Bibi 폴백 사고)가 안 난다.
     member = db.get(Member, member_id)
     selected = member.character_id if member else None
     if selected is not None and (
         db.get(MemberCharacter, (member_id, selected))
+        or entitlements.is_free_character(db.get(Character, selected))
         or entitlements.has_all_characters(db, member_id)
     ):
         return ResolvedCall(selected)

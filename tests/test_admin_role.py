@@ -1,20 +1,17 @@
-"""관리자 롤 + 구매 가격 경합 방어 회귀.
+"""관리자 롤 회귀.
 
 - /__dev/* 운영 도구는 ENV 게이트만으로 가려져 있었는데 실서비스조차 ENV="test" 라
   사실상 로그인한 아무 회원에게나 열려 있었다 → member.role == "admin" 으로 막는다.
-- 한정 할인이 "구매" 탭과 서버 처리 사이에 끝나면 화면가($5)와 청구가($10)가 어긋난다
-  → 클라가 본 가격(expected_price)을 대조해 다르면 409.
+
+(구매 가격 경합 409 시험은 POST /characters/{id}/purchase 삭제(2026-09-29)와 함께 지웠다.)
 """
 
 from __future__ import annotations
-
-from decimal import Decimal
 
 import pytest
 from fastapi import HTTPException
 
 from core.deps import ADMIN_ROLE, get_current_admin
-from domains.commerce.schemas.purchase import PurchaseRequest
 
 
 class _M:
@@ -45,37 +42,3 @@ def test_missing_role_attribute_is_403():
     with pytest.raises(HTTPException) as ex:
         get_current_admin(_Old())
     assert ex.value.status_code == 403
-
-
-def test_expected_price_is_optional():
-    """구버전 앱은 안 보낸다 — 없으면 검사를 건너뛴다(하위호환)."""
-    assert PurchaseRequest().expected_price is None
-    assert PurchaseRequest(expected_price=Decimal("5.00")).expected_price == Decimal("5.00")
-
-
-def test_price_mismatch_raises_409():
-    """할인 종료 직후: 클라가 본 $5 != 서버 계산 $10 → 409 로 거절하고 실제가를 알려준다."""
-    from domains.commerce.service.purchase_service import PurchaseService
-
-    svc = PurchaseService.__new__(PurchaseService)
-
-    class _Char:
-        character_id, name, price = 2, "BIBI", Decimal("10.00")
-        discount_events: list = []
-
-    class _CharRepo:
-        def get(self, _cid): return _Char()
-
-    class _McRepo:
-        def get(self, _m, _c): return None
-
-    class _CharSvc:
-        def effective_price(self, _c): return Decimal("10.00")
-
-    svc.char_repo, svc.mc_repo, svc.char_service = _CharRepo(), _McRepo(), _CharSvc()
-
-    with pytest.raises(HTTPException) as ex:
-        svc.purchase(1, 2, None, Decimal("5.00"))
-    assert ex.value.status_code == 409
-    assert ex.value.detail["code"] == "PRICE_CHANGED"
-    assert ex.value.detail["actual_price"] == "10.00"
