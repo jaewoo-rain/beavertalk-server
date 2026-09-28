@@ -3225,6 +3225,15 @@ async def run_call(
     # 근거: docs/20260729_1243_일일-통화-한도-서버-거절.md · docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md(C4)
     tz_offset_min = start.tz_offset_min or 0
     client_tz = getattr(start, "tz", None)
+    # 알람 시간대 자동 추적(2026-09-29) — 예약전화가 현지 시각을 따라가게 member.tz 를
+    # 갱신한다. 거절(한도·동시통화) 여부와 무관하게 "지금 기기가 어느 시간대인가"는
+    # 사실이므로 여기서 적는다. remember_device_tz 는 예외를 내지 않고(R5), 값이 같으면
+    # SELECT 1번으로 끝난다.
+    if client_tz:
+        await svc.run_db(
+            db_session_factory,
+            lambda db: call_service.remember_device_tz(db, member_id, client_tz),
+        )
     if call_type == "level_test":
         # ⛔⛔ QA C4 재검-③(2026-09-23): **continues_call_id 유무와 무관하게 항상 검사한다.**
         #   레벨테스트는 애초에 이어하기 대상이 아니다(resume_call 화이트리스트에 없다 —

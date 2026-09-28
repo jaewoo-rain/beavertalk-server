@@ -45,20 +45,41 @@ def _offset_zone(offset_min: Optional[int]) -> Optional[timezone]:
     return timezone(timedelta(minutes=offset_min))
 
 
-def _alarm_zone(alarm: Alarm) -> ZoneInfo | timezone:
+def _alarm_zone(alarm: Alarm, member_tz: Optional[str] = None) -> ZoneInfo | timezone:
     """⭐⭐ §5(2026-09-28) — 이 알람의 시간대. **폴백은 여기(디스패치) 한 곳에만**
     둔다 — 쓰기 시점(AlarmService)에 서울을 채우면 "앱이 안 보냈다"와 "진짜
     서울이다"가 구분이 안 된다.
 
-    순서: tz(IANA, call_service._resolve_zone 재사용 — 실패 시 경고 로그)
-        → tz_offset_min(고정 오프셋) → Asia/Seoul.
+    순서(2026-09-29 알람 시간대 자동 추적):
+        member.tz(회원 기기가 **최근에** 알려온 IANA) → alarm.tz(알람 **만들 때** IANA)
+        → alarm.tz_offset_min(고정 오프셋) → Asia/Seoul.
+    ⭐⭐ 왜 member.tz 가 alarm.tz 를 이기나: 의도는 「여행 가면 현지 시각에 울린다」다.
+      알람을 만들 때 값이 이기면 그 순간의 시간대로 **고정**돼 버려, 뉴욕에서 만든
+      「08:00」이 서울에 와서도 뉴욕 08:00(=서울 21:00)에 울린다. member.tz 는 앱이
+      daily-status·달력·통화 시작마다 싣는 기기 tz 로 계속 갱신되므로(call_service.
+      remember_device_tz) "지금 회원이 있는 곳"에 가장 가깝다. 이 순서를 뒤집지 마라.
+      (alarm.tz 는 member.tz 가 아직 없는 회원 — 이 기능 배포 후 앱을 한 번도 안 연
+      회원 — 의 폴백으로 남는다.)
+    IANA 파싱은 call_service._resolve_zone 재사용(실패 시 경고 로그 → 다음 폴백).
     ⚠ _resolve_zone 자신의 마지막 폴백은 (그 함수를 쓰는 달력·일일한도·WS 쪽에서)
       UTC 이지만, **알람만 서울이다** — 기존 17행이 전부 서울 가정으로 만들어졌고
       tz/tz_offset_min 이 둘 다 NULL 인 알람(전부 NULL 백필)이 지금과 똑같이
       동작해야 하기 때문이다. 그래서 _resolve_zone 은 "IANA 파싱"만 재사용하고
       그 함수의 폴백 로직 자체는 쓰지 않는다.
     """
-    return _resolve_zone(alarm.tz) or _offset_zone(alarm.tz_offset_min) or APP_TZ
+    return (
+        _resolve_zone(member_tz)
+        or _resolve_zone(alarm.tz)
+        or _offset_zone(alarm.tz_offset_min)
+        or APP_TZ
+    )
+
+
+# ⛔⛔ 시간대가 바뀐 순간의 이중 발송 방지 창(2026-09-29). 아래 run() 의 가드 주석 참조.
+#   2시간 = 두 존의 벽시계 차 최대 26h(+14 ↔ -12)에서 나오는 "다른 날짜·같은 시각"
+#   발송 간격의 최악값(24h-26h=-2h … 즉 |간격|≤2h)을 덮는 값 + 여유. 늘리면 수동 시간대
+#   변경 같은 드문 정상 발송이 막힐 수 있고, 줄이면 날짜변경선 이중 발송이 샌다.
+_REFIRE_GUARD = timedelta(hours=3)
 
 
 class DispatchService:
@@ -91,9 +112,9 @@ class DispatchService:
         #   run() 의 유일한 호출부는 POST /internal/dispatch-calls(외부 크론) 다. 탈퇴
         #   (Member.deleted_at)는 안 보고 있어서 탈퇴 회원의 알람이 그대로 발송됐다 —
         #   가드를 여기 한 곳에 두면 호출부가 하나뿐이라 전부 막힌다(ponytail 원칙).
-        alarms = (
+        rows = (
             self.db.execute(
-                select(Alarm)
+                select(Alarm, Member.tz)
                 .join(Member, Member.member_id == Alarm.member_id)
                 .options(
                     selectinload(Alarm.schedules),
@@ -101,11 +122,11 @@ class DispatchService:
                 )
                 .where(Alarm.is_activate.is_(True), Member.deleted_at.is_(None))
             )
-            .scalars()
+            .unique()
             .all()
         )
         sent = 0
-        for a in alarms:
+        for a, member_tz in rows:
             if a.time is None:
                 continue
             # ⛔⛔ §25-①(2026-09-28, 출시 전 권장) — 알람 1건 처리 실패가 나머지를
@@ -117,7 +138,7 @@ class DispatchService:
             #   범위 밖 값이 안 고쳐지는 한 매분) 통째로 발송 안 된다(500).
             try:
                 h, m = _wall_hm(a.time)
-                zone = _alarm_zone(a)
+                zone = _alarm_zone(a, member_tz)
                 # ⛔⛔ 봄 DST 건너뜀(그 존의 로컬 02:30 같은 시각이 그날 존재하지 않음)은
                 #   **수용한 결정**이다(§5, 2026-09-28) — 그날은 조용히 안 울린다.
                 #   ⛔ "가까운 유효 시각으로 밀어서라도 울리게" 고치지 마라 — 사용자가
@@ -132,6 +153,26 @@ class DispatchService:
                     if _DAY_CODES[b.weekday()] not in {s.day_of_week for s in a.schedules}:
                         continue
                     bucket_key = b.strftime("%Y-%m-%d %H:%M")
+                    # ⛔⛔ 시간대 변경 이중 발송 가드(2026-09-29). 존은 이제 member.tz 를
+                    #   따라 **움직이고**, 멱등 키는 그 존의 로컬 벽분이다.
+                    #   · 같은 날짜로 끝나는 경우(대부분 — 서울→뉴욕, 뉴욕→서울)는 키
+                    #     문자열이 같아 UNIQUE 가 이미 막는다: 서울에서 「월 08:00」이
+                    #     울린 뒤 뉴욕으로 가면 뉴욕 「월 08:00」은 같은 키라 안 울린다
+                    #     (=한 로컬 날짜·시각 발생당 1회. 로그 보존 2일 > 최대 벽시계 차 26h).
+                    #   · 새는 건 **날짜가 다른 키가 몇 분~2시간 안에** 생기는 경우뿐이다
+                    #     — 벽시계 차가 22~26h 인 두 존(날짜변경선 양쪽, 예 Pacific/
+                    #     Kiritimati +14 ↔ Pacific/Honolulu -10)에서 같은 순간이 「화 08:00」
+                    #     이자 「월 08:00」이다. 기기 시간대를 그 사이에 바꾸면 같은 알람이
+                    #     다른 키로 곧바로 한 번 더 울린다.
+                    #   ⇒ 같은 알람이 **같은 시·분 키**로 _REFIRE_GUARD 안에 이미 발송됐으면
+                    #     건너뛴다. 시·분이 다른 키(사용자가 알람 시각을 고친 경우)는 막지
+                    #     않는다 — 1분 뒤로 맞춰 다시 울려 보는 QA 흐름을 깨지 않는다.
+                    if self._recently_fired_same_time(a.alarm_id, bucket_key, now):
+                        logger.info(
+                            "dispatch: 시간대 변경 이중 발송 차단 alarm_id=%s key=%s zone=%s",
+                            a.alarm_id, bucket_key, zone,
+                        )
+                        break
                     # 클레임이 통화 id 까지 발급한다 — 발송과 기록이 갈리면 되짚기가
                     # 끊긴다(캐릭터를 알람에서 못 꺼낸다).
                     call_id = self._claim(a.alarm_id, bucket_key)
@@ -145,6 +186,27 @@ class DispatchService:
                 )
         self._purge()
         return sent
+
+    def _recently_fired_same_time(self, alarm_id: int, bucket_key: str, now: datetime) -> bool:
+        """같은 알람이 **다른 날짜·같은 시·분** 키로 _REFIRE_GUARD 안에 발송된 적이 있나.
+
+        같은 키(같은 날짜)는 여기서 보지 않는다 — 그건 _claim 의 UNIQUE 가 원자적으로
+        막는다(catchup 재시도가 그 경로다). 이 조회는 알람이 이번 분에 매칭됐을 때만
+        돈다(하루 알람 수 × 1회 수준).
+        """
+        hm = bucket_key[-5:]  # "HH:MM"
+        since = now.astimezone(timezone.utc) - _REFIRE_GUARD
+        hit = self.db.execute(
+            select(PushDispatchLog.push_dispatch_log_id)
+            .where(
+                PushDispatchLog.alarm_id == alarm_id,
+                PushDispatchLog.intended_fire_minute != bucket_key,
+                PushDispatchLog.intended_fire_minute.like(f"% {hm}"),
+                PushDispatchLog.created_at >= since,
+            )
+            .limit(1)
+        ).first()
+        return hit is not None
 
     def _claim(self, alarm_id: int, bucket_key: str) -> Optional[str]:
         """(alarm, 벽분) 멱등 클레임 + 통화 id 발급.

@@ -2951,6 +2951,45 @@ async def test_level_test_limit_checked_with_routed_call_type_and_client_tz(
 
 
 @pytest.mark.asyncio
+async def test_start_tz_is_remembered_on_member_for_alarm_dispatch(
+    session_factory, seeded, monkeypatch
+):
+    """알람 시간대 자동 추적(2026-09-29) — WS start.tz 가 유효한 IANA 면 member.tz 에 적힌다
+    (예약전화가 현지 시각을 따라가게). 잘못된 이름은 저장하지 않고 통화는 그대로 진행한다."""
+    monkeypatch.setattr(cs.call_service, "is_daily_limit_reached", lambda *a, **k: False)
+    monkeypatch.setattr(cs.call_service, "daily_budget_exceeded", lambda *a, **k: False)
+
+    import contextlib as _cl
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        yield FakeLiveSession()
+
+    async def _start(tz):
+        start = {"type": "start", "character_id": seeded["character_id"],
+                 "tz_offset_min": -240, "tz": tz}
+        ws = FakeWebSocket(
+            [{"type": "websocket.receive", "text": json.dumps(start)}], hang=True
+        )
+        await run_call(
+            ws, app_settings, object(), session_factory,
+            member_id=seeded["member_id"], live_session_factory=factory,
+        )
+
+    def _member_tz():
+        db = session_factory()
+        try:
+            return db.get(Member, seeded["member_id"]).tz
+        finally:
+            db.close()
+
+    await _start("America/New_York")
+    assert _member_tz() == "America/New_York"
+    await _start("Not/AZone")
+    assert _member_tz() == "America/New_York"
+
+
+@pytest.mark.asyncio
 async def test_level_test_with_continues_call_id_still_hits_the_count_limit(
     session_factory, seeded, monkeypatch
 ):

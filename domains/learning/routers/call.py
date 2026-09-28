@@ -126,7 +126,10 @@ def get_daily_status(
 
     정적 경로라 `/{call_id}` 보다 먼저 선언(라우트 순서로 의도 명확화).
     """
-    return CallService(db).daily_status(member.member_id, date, tz_offset, tz=tz)
+    out = CallService(db).daily_status(member.member_id, date, tz_offset, tz=tz)
+    # 알람 시간대 자동 추적(2026-09-29) — 응답을 다 만든 **뒤에**, 실패해도 200(R5).
+    call_service.remember_device_tz(db, member.member_id, tz)
+    return out
 
 
 @router.get("/{call_id}/resume-status")
