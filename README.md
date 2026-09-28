@@ -155,7 +155,9 @@ pytest tests/test_email.py -v
 | `DATABASE_URL_DIRECT` | 권장 | 마이그레이션용 (5432 직접). 미설정 시 POOL 폴백 |
 | `ENV` | | `dev`/`prod` (기본 `dev`). dev에서 SQL 로깅·테스트 콘솔 활성 |
 | `JWT_SECRET` | prod 필수 | JWT 서명 키. **prod에선 기본값이면 기동 차단**. `openssl rand -hex 32` |
-| `SPEECH_SUPER_APP_KEY` / `_SECRET_KEY` | | 발음평가. 없으면 스텁으로 폴백(앱 정상 동작) |
+| `PRON_NPU_TOKEN` | | 자체 NPU 발음평가 토큰(비밀). 있으면 NPU 1순위, 실패 시 SpeechSuper→스텁 |
+| `PRON_NPU_URL` | | NPU 발음평가 주소(기본 `https://npu.tail428c00.ts.net:8443`) |
+| `SPEECH_SUPER_APP_KEY` / `_SECRET_KEY` | | 발음평가 2순위. NPU·이 키 모두 없으면 스텁으로 폴백(앱 정상 동작) |
 | `SPEECH_SUPER_CORETYPE` | | 평가 coreType (기본 문장평가) |
 | `RESEND_API_KEY` / `MAIL_FROM` | | 이메일 실발송. 없으면 콘솔 출력 폴백 |
 | `GOOGLE_CLIENT_ID` | | 소셜 로그인(구글) audience. 콤마로 여러 개 |

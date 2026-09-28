@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     SPEECH_SUPER_SECRET_KEY: str | None = None
     SPEECH_SUPER_CORETYPE: str = "sent.eval.kr"  # 한국어 문장 평가
 
+    # ── 자체 NPU 발음평가 서버(2026-09-28 · SpeechSuper 대체) ──
+    # 토큰이 있으면 core.speechsuper 가 NPU 를 먼저 부른다. NPU 가 실패하면 SpeechSuper
+    # 키가 있을 때만 SpeechSuper, 없으면 스텁으로 폴백한다(R5). 요청·응답 모양은
+    # SpeechSuper `sent.eval.kr` 과 같다(글자 점수 위치·음소 표기만 다르다 — 매핑 참조).
+    # ⛔ 토큰은 비밀이다 — 코드·로그·앱에 넣지 말고 Cloud Run 시크릿으로만 준다.
+    PRON_NPU_URL: str = "https://npu.tail428c00.ts.net:8443"
+    PRON_NPU_TOKEN: str | None = None
+
     # ── B2B 교실 서비스 (2026-09-02 분리) ──
     # 과제 통화의 회화 목표를 여기에 묻는다. 교실 테이블은 이 서버가 읽지 않는다.
     # ⛔ 둘 중 하나라도 비면 조회를 건너뛰고 **평소 선별로 통화가 진행된다** —
