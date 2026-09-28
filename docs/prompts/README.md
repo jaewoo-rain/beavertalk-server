@@ -235,6 +235,14 @@
 
 > 노션 결정 로그(2026-07-24 ~ 08-01)는 `notion-02` §5 에 보존돼 있다. 여기부터는 그 뒤를 잇는다.
 
+### 2026-09-29 — 표시 문구 번역 지시문 신설(`core/text_translate._SYSTEM`) — 통화·분석과 무관
+- 무엇: `GET /cur/me` situation_translation(§6)·`GET /calls` summary(§10)를 회원 모국어로 **요청 시** 번역하는
+  별도 1콜(JSON `items`, thinking 0, 타임아웃 `TRANSLATE_TIMEOUT_S`). 모델 `TRANSLATE_MODEL`.
+- ⛔ 안 건드린 것: 잠금 대본(`core/prompts/locked/*`)·분석 지시문(`_analysis_instruction`·`_leveltest_instruction`)·판정 지시문
+  — 해시 시험 무변. 요약 생성 언어 규칙도 그대로(`LOCALE_LABEL.get(locale, 영어)`) — 대신 그 규칙대로 `call.summary_lang` 을 저장.
+- 문구 요점: «이미 그 언어면 그대로 돌려줘라» — 과거 요약은 원문 언어를 몰라(비-ko 끼리 구분 불가) 번역기에 넣기 때문.
+- 문서: `docs/20260929_0050_차시제목-통화제목-다국어-요청시번역.md`
+
 ### 2026-08-22 — 종료 시드에 **우선순위**를 적는다 (무음 종료)
 
 배경: 규칙 6 배포 후 통화(`call_id=1137`). 5분이 되자 **비버가 아무 말도 없이 끊겼다.**

@@ -128,7 +128,7 @@ def test_me_for_a_new_member_is_lesson_1_learning_with_expression_open_and_freet
     assert set(body) == {"language", "available", "lesson", "status", "items_total", "items_drilled", "open", "next_course"}
     assert body["language"] == "ko" and body["available"] is True   # target_language 없음 → 기본 ko(통화와 같은 해석기)
     assert body["next_course"] == "expression"
-    assert set(body["lesson"]) == {"no", "code", "level_no", "situation", "topic"}
+    assert set(body["lesson"]) == {"no", "code", "level_no", "situation", "situation_translation", "topic"}
     # 두 번 불러도 같은 답(멱등 — 포인터를 한 번만 만든다)
     assert client.get("/api/v1/cur/me", headers=hdr).json() == body
 

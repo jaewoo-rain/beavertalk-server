@@ -53,6 +53,7 @@ from domains.learning.repository import curriculum_repository
 from domains.learning.repository import mastery_repository
 from domains.learning.repository.call_repository import SPOKEN_MIN_TOTAL_TIME_S
 from domains.learning.service import curriculum_service
+from domains.learning.service import display_i18n_service
 from domains.learning.service import mastery_service
 from domains.push.models.push_dispatch_log import PushDispatchLog
 
@@ -2861,6 +2862,8 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     call = db.get(Call, call_id)
     if call is not None:
         call.summary = result.summary
+        # §10(2026-09-29) — 요약을 실제로 쓴 언어(목록이 회원의 지금 언어와 비교한다).
+        call.summary_lang = display_i18n_service.summary_lang_for(locale)
         call.mode = result.detected_mode
         # 요구1: 격려 한마디 저장(같은 커밋). 파싱 누락·데모·빈통화 폴백은 자연 None.
         call.feedback = getattr(result, "feedback", "") or None
@@ -3659,7 +3662,8 @@ def _move_progress_to_new_level(db: Session, member_id: int, language: str, leve
 
 
 def _save_level_assessment(
-    db: Session, call_id: int, member_id: int, level_no: int, result: LevelAssessment
+    db: Session, call_id: int, member_id: int, level_no: int, result: LevelAssessment,
+    locale: str | None = None,
 ) -> bool:
     """레벨 배정 + 판정 메타 + status=done 을 단일 트랜잭션(단일 commit)으로 저장.
 
@@ -3704,6 +3708,8 @@ def _save_level_assessment(
     call.assessed_level = level_no
     call.assessment_note = result.reasoning
     call.summary = result.summary
+    # §10(2026-09-29) — 요약 언어. locale 을 모르는 호출부(표본 미달 — summary="")는 NULL.
+    call.summary_lang = display_i18n_service.summary_lang_for(locale) if locale else None
     call.status = "done"
     # ⭐ 레벨 배정 기록(2026-08-16 — grandfathering **제거**): 건너뛴 레벨의 항목을 만들지
     #   않는다. "레벨이 처음 3이면 배운 거 0" — 안 만들면 배정 직후 승급(#247)도, 하락 후
@@ -3874,7 +3880,7 @@ async def analyze_level_test_call(
         )
         saved = await run_db(
             session_factory,
-            lambda db: _save_level_assessment(db, call_id, member_id, level_no, result),
+            lambda db: _save_level_assessment(db, call_id, member_id, level_no, result, locale),
         )
         if not saved:
             # member/call 소실(탈퇴 등) — 부분 저장 없이 실패 처리.

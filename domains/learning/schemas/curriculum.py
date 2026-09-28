@@ -22,6 +22,9 @@ class CurLessonOut(BaseModel):
     level_no: int
     #: 상황 한 줄(프리토킹 «[이번 차시]» 블록의 «상황» 과 같은 값).
     situation: Optional[str] = None
+    #: §6(2026-09-29) — situation 의 **회원 모국어(member.language)** 번역. 요청 시 번역해 캐시한다
+    #: (display_i18n_service). 모국어가 ko 이거나 번역을 못 만들면 null — 앱은 한국어 줄만 보인다.
+    situation_translation: Optional[str] = None
     #: 주제(cur_topic.name). 없으면 None.
     topic: Optional[str] = None
 

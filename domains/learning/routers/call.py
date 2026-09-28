@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from core.deps import CurrentAdmin, CurrentMember, DbSession, PageParams
+from core.deps import CurrentAdmin, CurrentMember, DbSession, GenaiClient, PageParams
 from domains.learning.realtime.call_session import trigger_reanalysis
 from domains.learning.schemas.call import (
     CallCreate,
@@ -38,10 +38,17 @@ def create_call(data: CallCreate, member: CurrentMember, db: DbSession) -> CallD
 
 @router.get("", response_model=list[CallSummary])
 def list_calls(
-    member: CurrentMember, db: DbSession, page: PageParams = Depends()
+    member: CurrentMember, db: DbSession, client: GenaiClient, page: PageParams = Depends()
 ) -> list[CallSummary]:
-    """내 통화 목록(최신순) — 요약·평점·상태, 페이지네이션."""
-    return CallService(db).list_calls(member.member_id, page.limit, page.offset)
+    """내 통화 목록(최신순) — 요약·평점·상태, 페이지네이션.
+
+    §10(2026-09-29): `summary` 는 회원의 **지금** 모국어(member.language)로 내린다 — 요약을 만든 언어와
+    다르면 번역본(캐시, 이 페이지 분량만). 번역을 못 하면 원문 그대로. 요청에 언어를 싣지 않는다.
+    """
+    return CallService(db).list_calls(
+        member.member_id, page.limit, page.offset,
+        client=client, locale=call_service.display_locale(member.language),
+    )
 
 
 @router.get("/pronunciation-history", response_model=list[PronHistoryItem])
