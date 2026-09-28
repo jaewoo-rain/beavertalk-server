@@ -410,6 +410,54 @@ def test_reverify_does_not_lower_end_date(db, monkeypatch):
     assert sub.end_date == original_end
 
 
+def test_reverify_success_does_not_stamp_throttle(db, monkeypatch):
+    """⭐⭐ §26-⑦ 핵심 회귀(2026-09-29, 실기기 사고) — 예전엔 이 already_granted
+    분기가 갱신 성공 여부와 무관하게 무조건 쓰로틀을 찍었다. 23:46 재검증이 이
+    경로로 실제로 반영됐는데도 찍혀서, 뒤이은 자기치유가 1시간 막혔다(00:01
+    Free 로 보임). 갱신이 실제로 반영되면(bumped) 쓰로틀을 안 찍어야 한다."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+    sub = db.query(Subscribe).one()
+    later = sub.end_date + timedelta(days=30)
+
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=later),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    receipt = db.query(IapReceipt).one()
+    assert receipt.last_store_check_at is None
+
+
+def test_reverify_without_a_bump_does_stamp_throttle(db, monkeypatch):
+    """반대로 갱신이 실제로 안 붙으면(예: expires_at 없음) 쓰로틀을 찍어야
+    한다 — 안 찍으면 바로 아래 entitlement() 호출(입구①)이 같은 요청 안에서
+    verify() 를 한 번 더 부른다(end_date 가 여전히 과거라 가드를 못 피한다).
+
+    ⚠ 스텁 지급은 만료를 미래로 폴백시켜(period_days) "아직 안 지남" 가드가
+    먼저 걸려버린다 — 이 시험은 그 가드가 아니라 쓰로틀 자체를 보려는 것이라,
+    최초 지급부터 만료를 이미 지난 값으로 직접 준다."""
+    svc = IapService(db)
+    already_past = datetime.now(timezone.utc) - timedelta(days=1)
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=already_past),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    calls = []
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: calls.append(k) or iap.VerifyResult(ok=True, transaction_id="s1", expires_at=None),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    receipt = db.query(IapReceipt).one()
+    assert receipt.last_store_check_at is not None
+    assert len(calls) == 1, "already_granted 의 verify() 1회 + entitlement() 의 재조회가 쓰로틀로 막혀야 한다"
+
+
 def test_reverify_of_already_granted_subscription_also_updates_trial_flag(db, monkeypatch):
     """§22-⑤⑦ — 입구③(already_granted)도 같은 자리에서 is_trial 을 채운다
     (verify() 를 또 부르지 않고 이미 가진 결과를 재사용— subscription_refresh_service
