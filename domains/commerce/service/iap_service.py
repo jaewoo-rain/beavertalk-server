@@ -381,7 +381,7 @@ class IapService:
         store_expires_at: object | None,
         ref: iap_catalog.ProductRef,
         product_id: str,
-        is_trial: bool = False,
+        is_trial: Optional[bool] = None,
     ) -> datetime:
         """구독 활성화. 만료는 **스토어 값이 우선**, 없으면 주기별 폴백(스텁용).
 
@@ -392,9 +392,14 @@ class IapService:
         source='store': 결제 미연동 기간에 만든 행(manual)과 구분하는 표식이다.
         이게 없으면 결제가 붙는 날 "누가 진짜 유료인가"를 못 가른다.
 
-        is_trial: §22-⑤⑦(2026-09-28) — verify() 가 이미 판정해 준 값을 그대로
-        저장한다(체험→유료 전환도 같은 경로로 들어온다 — 전환 시 스토어가 offer
-        없는 갱신을 주므로 is_trial=False 로 자연히 꺼진다, 별도 처리 불필요).
+        is_trial: §22-⑤⑦(2026-09-28) — verify() 가 판정해 준 값을 그대로 저장한다.
+        ⛔⛔ §26-③(2026-09-29, bt-back 실기기 회귀) — **Optional**. 옛 주석("전환 시
+        offer 없는 갱신이 와서 자연히 꺼진다")은 틀렸다 — 구글은 유료 전환 뒤에도
+        offerDetails 를 lineItem 에 남겨 offerId 기반 판정이 영원히 True 로 고정
+        됐다. 지금은 core/iap.py 가 offerPhase 로 판정하고, 모르면(그 필드 자체가
+        없는 응답) None 을 준다 — **기존 행(연장)은 None 이면 손대지 않는다**(잘못된
+        재조회로 뒤집는 게 최악). 새 행(최초 지급)은 기존값이 없으니 None→False로
+        보수적 기본값을 쓴다.
         """
         now = datetime.now(timezone.utc)
         expires = (
@@ -413,7 +418,8 @@ class IapService:
             sub.billing_period = ref.billing_period or sub.billing_period
             sub.product_id = product_id
             sub.source = "store"
-            sub.is_trial = is_trial
+            if is_trial is not None:
+                sub.is_trial = is_trial
             # 스토어가 갱신에 성공했다 = 재시도/보류 상태가 아니다.
             sub.billing_state = "ok"
             sub.retrying_until = None
@@ -429,7 +435,7 @@ class IapService:
             billing_period=ref.billing_period,
             product_id=product_id,
             source="store",
-            is_trial=is_trial,
+            is_trial=bool(is_trial),
         ))
         return expires
 

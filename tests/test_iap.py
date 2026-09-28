@@ -478,6 +478,30 @@ def test_reverify_of_already_granted_subscription_also_updates_trial_flag(db, mo
     assert sub.is_trial is True
 
 
+def test_reverify_of_already_granted_subscription_with_unknown_trial_does_not_touch_flag(db, monkeypatch):
+    """⭐⭐ §26-③(2026-09-29, bt-back 실기기 회귀) — 재조회 결과의 is_trial 이
+    None(offerPhase 미제공 응답)이면 기존 저장값을 그대로 둔다. 근거 없는 재조회로
+    True→False 로 잘못 뒤집는 게 이 회귀가 막으려는 원래 버그의 재발이다."""
+    svc = IapService(db)
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", is_trial=True),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+    sub = db.query(Subscribe).one()
+    assert sub.is_trial is True
+
+    later = sub.end_date + timedelta(days=7)
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=later, is_trial=None),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    db.refresh(sub)
+    assert sub.is_trial is True, "is_trial=None 이면 기존 True 를 건드리면 안 된다"
+
+
 def test_reverify_fills_missing_purchase_token(db, monkeypatch):
     """§24 입구③의 두 번째 역할 — 기존 5행(토큰 없음)의 유일한 이주 경로.
     앱 「복원」(재검증) 한 번이면 그 receipt 의 purchase_token 이 채워진다."""
@@ -668,6 +692,20 @@ def test_subscription_grant_records_trial_flag(db, monkeypatch):
 
     sub = db.query(Subscribe).one()
     assert sub.is_trial is True
+
+
+def test_subscription_grant_defaults_trial_flag_false_when_unknown(db, monkeypatch):
+    """⭐⭐ §26-③(2026-09-29) — 최초 지급인데 verify() 가 is_trial=None(offerPhase
+    미제공)을 주면, 지켜야 할 기존값이 없으니 보수적으로 False 로 시작한다."""
+    later = datetime.now(timezone.utc) + timedelta(days=7)
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s-unknown", expires_at=later, is_trial=None),
+    )
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=PRO, tx="s-unknown"))
+
+    sub = db.query(Subscribe).one()
+    assert sub.is_trial is False
 
 
 def test_expired_subscription_is_not_pro(db):

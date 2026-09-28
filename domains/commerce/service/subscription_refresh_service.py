@@ -117,7 +117,10 @@ def bump_subscription_from_verify_result(
     if sub is None:
         return False
     # §22-⑤⑦ — 이미 손에 든 결과라 verify() 를 또 안 부르고 같은 자리에서 채운다.
-    sub.is_trial = result.is_trial
+    # ⛔⛔ §26-③(2026-09-29) — result.is_trial 이 None(offerPhase 미제공 응답)이면
+    #   기존 저장값을 그대로 둔다 — 재조회에서 근거 없이 뒤집지 않는다.
+    if result.is_trial is not None:
+        sub.is_trial = result.is_trial
     bumped = _bump_end_date_if_later(sub, result.expires_at)
     if bumped:
         logger.info(
@@ -170,7 +173,9 @@ def _refresh_from_store(db: Session, sub: Subscribe) -> bool:
     #   (쓰로틀의 원래 목적 그대로: 진짜 해지한 회원·죽은 스토어를 매 호출 안 때림).
     if result.ok:
         # §22-⑤⑦ — 이미 손에 든 결과라 verify() 를 또 안 부르고 같은 자리에서 채운다.
-        sub.is_trial = result.is_trial
+        # ⛔⛔ §26-③(2026-09-29) — None(offerPhase 미제공)이면 기존 저장값을 둔다.
+        if result.is_trial is not None:
+            sub.is_trial = result.is_trial
         _bump_end_date_if_later(sub, result.expires_at)
         logger.info(
             "iap 재조회: member=%s subscribe=%s 갱신 반영(신규 end_date=%s)",
