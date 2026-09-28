@@ -229,19 +229,46 @@ def test_verify_google_subscription_offer_phase_base_price_is_not_trial(google_s
     assert result.is_trial is False
 
 
-def test_verify_google_subscription_offer_phase_non_base_price_is_trial(google_sa_key_path, monkeypatch):
-    """⛔ 키 이름을 하드코딩하지 않는다 — basePrice 가 아닌 다른(무엇이든) oneof 키가
-    오면 아직 할인/체험 단계로 본다. 일부러 낯선 키를 써서 이걸 증명한다."""
+def test_verify_google_subscription_offer_phase_free_trial_is_trial(google_sa_key_path, monkeypatch):
+    """⭐⭐ §26-③ 정정(bt-back, androidpublisher v3 디스커버리 문서) — OfferPhase 는
+    4종(freeTrial/introductoryPrice/basePrice/prorationPeriod)이다. freeTrial 키가
+    와야만 체험이다(양성 판정)."""
     monkeypatch.setattr(httpx, "post", _fake_google_token_post())
     body = _sub_body(extra_line_item={
         "offerDetails": {"basePlanId": "monthly", "offerId": "trial-7d"},
-        "offerPhase": {"someFreeTrialLikePhaseKey": {}},
+        "offerPhase": {"freeTrial": {}},
     })
     monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
 
     result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
     assert result.ok is True
     assert result.is_trial is True
+
+
+def test_verify_google_subscription_offer_phase_introductory_price_is_not_trial(google_sa_key_path, monkeypatch):
+    """⛔⛔ §26-③ 정정(bt-back) — introductoryPrice(도입가)는 **돈을 낸다**, 체험이
+    아니다. 옛 음성 판정("basePrice 아니면 체험")이면 여기서 오판했다."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(extra_line_item={"offerPhase": {"introductoryPrice": {}}})
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+    assert result.ok is True
+    assert result.is_trial is False
+
+
+def test_verify_google_subscription_offer_phase_proration_period_is_not_trial(google_sa_key_path, monkeypatch):
+    """⛔⛔ §26-③ 정정(bt-back) — prorationPeriod(플랜 변경 일할 정산)는 이론이
+    아니다: 앱의 안드로이드 월↔연 전환(CHARGE_FULL_PRICE, 남은 월간 가치는 기간
+    연장)이 정확히 이 단계를 만든다. 옛 음성 판정이면 이 전환 회원이 Trial
+    배지를 보게 된다 — 이게 지금 고치는 그 버그였다."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(extra_line_item={"offerPhase": {"prorationPeriod": {}}})
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+    assert result.ok is True
+    assert result.is_trial is False
 
 
 def test_verify_google_subscription_offer_phase_absent_is_unknown(google_sa_key_path, monkeypatch):
