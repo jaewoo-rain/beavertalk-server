@@ -112,10 +112,6 @@ class Settings(BaseSettings):
     NATIONALITY_API_URL: str | None = None      # 예: https://<tailscale-host> (POST {URL}/predict)
     NATIONALITY_API_KEY: str | None = None      # X-API-Key(GPU 서버 앞단 인증 프록시). 비면 헤더 생략
     NATIONALITY_API_TIMEOUT_S: float = 20.0     # httpx read/write 타임아웃(초)
-    # 녹음 저장 동의(NPU 국적 서버 `consent`). "0" 이면 서버가 녹음을 저장하지 않는다 —
-    # 안 보내면 **저장된다**(NPU_서버_API_안내 §2). 통화 녹음이라 기본은 저장 안 함.
-    # None 이면 필드를 보내지 않는다(옛 GPU 서버 호환 · 그 서버는 필드를 무시한다).
-    NATIONALITY_API_CONSENT: str | None = "0"
     NATIONALITY_MIN_SPEECH_S: float = 10.0      # 이 길이 미만 user 발화는 호출 스킵(호출측 게이트)
 
     # ⛔⛔ P2-6(2026-09-24, bt-back QA) — 옛 이메일 발송(Resend)·이메일 인증 코드·구글

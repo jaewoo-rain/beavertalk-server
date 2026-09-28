@@ -191,10 +191,8 @@ def _call_with_retry(
     for attempt in range(attempts):
         try:
             files = {"audio": (f"audio.{audio_type}", audio_bytes, mime)}
-            consent = settings.NATIONALITY_API_CONSENT
-            data = {"consent": consent} if consent is not None else None
             with httpx.Client(timeout=timeout) as client:
-                resp = client.post(url, files=files, data=data, headers=headers)
+                resp = client.post(url, files=files, headers=headers)
             status = resp.status_code
             if 500 <= status < 600:
                 # 서버 오류 → 재시도 대상
