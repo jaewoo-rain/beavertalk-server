@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import inspect
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -186,6 +188,68 @@ def test_same_receipt_twice_is_idempotent(db):
     assert again.already_granted is True
     assert db.query(MemberCharacter).count() == 1, "중복 지급됨"
     assert db.query(IapReceipt).count() == 1
+
+
+# --------------------------------------------------------------------------- #
+# §24 입구③ — 복원/재검증(already_granted)이 새 만료·토큰을 버리지 않는다
+# --------------------------------------------------------------------------- #
+def test_reverify_of_already_granted_subscription_bumps_end_date_when_store_gives_a_later_expiry(
+    db, monkeypatch
+):
+    """운영 실측: bt_max_monthly 검증이 3회 찍혔는데 영수증 행은 2개뿐이었다 —
+    한 번이 already_granted 경로였고, 그때도 verify() 는 돌았지만 결과가 버려졌다.
+    이제는 already_granted 여도 더 나중 만료면 end_date 가 올라가야 한다."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+    sub = db.query(Subscribe).one()
+    later = sub.end_date + timedelta(days=30)
+
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=later),
+    )
+    again = svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    assert again.already_granted is True
+    db.refresh(sub)
+    assert sub.end_date == later, "재검증이 더 나중 만료를 줬는데 저장값이 그대로다"
+
+
+def test_reverify_does_not_lower_end_date(db, monkeypatch):
+    """⛔ 한 방향만 — 스토어가 어떤 이유로든 더 이른 시각을 주면 무시한다(박탈 아님)."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+    sub = db.query(Subscribe).one()
+    original_end = sub.end_date
+    earlier = original_end - timedelta(days=5)
+
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=earlier),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    db.refresh(sub)
+    assert sub.end_date == original_end
+
+
+def test_reverify_fills_missing_purchase_token(db, monkeypatch):
+    """§24 입구③의 두 번째 역할 — 기존 5행(토큰 없음)의 유일한 이주 경로.
+    앱 「복원」(재검증) 한 번이면 그 receipt 의 purchase_token 이 채워진다."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+    receipt = db.query(IapReceipt).one()
+    receipt.purchase_token = None  # 기존 5행 시뮬레이션(백필 불가로 NULL 인 채 남은 행)
+    db.commit()
+
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=None),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1", token="restored-token"))
+
+    db.refresh(receipt)
+    assert receipt.purchase_token == "restored-token"
 
 
 def test_receipt_of_another_member_is_409(db):
@@ -397,3 +461,55 @@ def test_acknowledge_not_called_again_on_idempotent_replay(db, monkeypatch):
 
     assert res2.already_granted is True
     assert len(calls) == 1  # 두 번째 호출에서는 안 늘어난다
+
+
+# --------------------------------------------------------------------------- #
+# §24 — 운영 가시성·자격 보호 회귀
+# --------------------------------------------------------------------------- #
+def test_domains_commerce_logger_is_configured_for_cloud_logging():
+    """⛔⛔ §24(2026-09-28, bt-back — Cloud Logging 3일치 실측) — main.py 의 로거
+    목록에 "domains.commerce" 가 빠져 있어서 iap_service 의 "지급 완료"·
+    "acknowledge 실패(지급은 유지)" 로그가 운영에서 한 줄도 안 보였다. acknowledge
+    실패는 구글이 3일 뒤 자동 환불한다 — 그 경고가 안 보이면 결제 사고가 조용히
+    지나간다. 이 시험이 그 목록에 다시 없어지는 걸 막는다."""
+    import main
+
+    src = inspect.getsource(main._configure_logging)
+    assert '"domains.commerce"' in src, "domains.commerce 로거가 목록에서 빠졌다 — 결제 로그가 안 보인다"
+
+
+def _logger_call_spans(src: str) -> list[str]:
+    """`logger.<method>(...)` 호출의 원문(괄호까지 포함, 여러 줄 허용)을 전부 뽑는다.
+
+    완벽한 파서가 아니라 괄호 깊이만 센다 — 문자열 리터럴 안의 괄호까지 걱정할
+    정도로 복잡한 로그 호출은 이 코드베이스에 없다(검토 대상 3개 파일 확인).
+    """
+    spans = []
+    for m in re.finditer(r"logger\.\w+\(", src):
+        depth = 1
+        i = m.end()
+        while depth > 0 and i < len(src):
+            if src[i] == "(":
+                depth += 1
+            elif src[i] == ")":
+                depth -= 1
+            i += 1
+        spans.append(src[m.start():i])
+    return spans
+
+
+@pytest.mark.parametrize("path", [
+    "core/iap.py",
+    "domains/commerce/service/iap_service.py",
+    "domains/commerce/service/subscription_refresh_service.py",
+])
+def test_purchase_token_is_never_logged(path):
+    """⛔⛔ §24 — purchase_token 은 스토어 자격에 준한다. 이 값을 다루는 세 파일의
+    모든 `logger.*(...)` 호출 원문에 `purchase_token` 식별자가 등장하면 안 된다
+    (변수를 실어 보내는 f-string·%-포맷 전부 포함 — 그 자체가 이미 위반이다)."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    src = (root / path).read_text(encoding="utf-8")
+    offenders = [span for span in _logger_call_spans(src) if "purchase_token" in span]
+    assert offenders == [], f"{path} 의 로그 호출이 purchase_token 을 찍는다: {offenders}"

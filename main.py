@@ -61,6 +61,15 @@ def _configure_logging() -> None:
         "domains.learning.realtime",  # 통화 WS/세션(전사·타이밍)
         "domains.learning.service",   # 통화후 분석·체크판·레벨 판정
         "domains.push",               # 예약전화 발송
+        # ⭐⭐ §24(2026-09-28, bt-back — Cloud Logging 3일치 실측) — 이게 빠져 있어서
+        #   iap_service 의 로그가 운영에서 **한 줄도 안 보였다**("지급 완료"·"acknowledge
+        #   실패(지급은 유지)"·"동시 요청 경합" 전부). core.iap(어댑터)는 떴는데
+        #   domains.commerce(서비스 계층)는 0건이었다 — 바로 아래 `core` 주석과 **같은
+        #   실수**다(그때는 어댑터가 조용했고 이번엔 서비스 계층이 조용했다). acknowledge
+        #   실패는 구글이 3일 뒤 자동 환불한다(돈은 돌아가고 지급은 남는다) — 그 경고가
+        #   안 보이면 결제 사고가 조용히 지나간다.
+        "domains.commerce",           # IAP 지급·구독 상태(iap_service·subscription_*)
+        # ⭐ core.* 외부 어댑터(STT·TTS·Gemini). 이게 빠져 있어서 캐스케이드 TTS 가 문장마다
         # ⭐ core.* 외부 어댑터(STT·TTS·Gemini). 이게 빠져 있어서 캐스케이드 TTS 가 문장마다
         #   실패하는데도 그 원인(400 Unsupported audio encoding)이 로그에 안 떴다 — 세션 쪽
         #   "첫소리=-1ms" 만 보고 거꾸로 추적해야 했다. 어댑터가 왜 실패했는지는 어댑터가

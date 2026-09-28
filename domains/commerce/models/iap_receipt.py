@@ -24,6 +24,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Text,
     UniqueConstraint,
 )
@@ -34,10 +35,6 @@ from db.base import Base, TimestampMixin
 
 class IapReceipt(Base, TimestampMixin):
     __tablename__ = "iap_receipt"
-    __table_args__ = (
-        # 멱등 키 — 같은 거래는 플랫폼당 한 번만 처리된다.
-        UniqueConstraint("platform", "transaction_id", name="uq_iap_platform_tx"),
-    )
 
     iap_receipt_id: Mapped[int] = mapped_column(
         BigInteger, Identity(), primary_key=True
@@ -68,4 +65,25 @@ class IapReceipt(Base, TimestampMixin):
     # 스텁으로 통과했는지. 자격증명 없이 QA 한 흔적이라 운영 정산에서 걸러야 한다.
     is_stub: Mapped[bool] = mapped_column(
         default=False, comment="스텁 검증(실검증 아님) — 운영 집계 제외"
+    )
+    # ⭐⭐ §24(2026-09-28) — 스토어 재조회의 전제. 예전엔 verify()→acknowledge() 로만
+    #   쓰고 버렸다(core/iap.py 의 verify()·acknowledge() 호출부 참조) — 그래서 갱신을
+    #   서버가 능동적으로 확인할 방법이 없었다(구독 상태·권한이 검증 시점 저장값에만
+    #   의존, iap_service.entitlement()·subscription_status.resolve_status() 참조).
+    #   ⛔ 로그에 절대 찍지 않는다(스토어 자격에 준한다) — core/iap.py·iap_service.py
+    #   어디에도 이 값을 interpolate 하는 로그가 없다(회귀로 고정, tests/test_iap.py).
+    #   ⛔ 기존 5행은 NULL 로 남는다(백필 불가 — 토큰이 어디에도 없었다). 앱 「구매
+    #   복원」을 한 번 누르면 새 receipt 행이 토큰과 함께 채워진다.
+    purchase_token: Mapped[Optional[str]] = mapped_column(
+        Text, comment="스토어 재조회용(§24). NULL=이 컬럼 추가 이전 receipt. 로그 금지",
+    )
+    # 재조회 쓰로틀(IAP_RECHECK_MIN_INTERVAL_S) 기준 시각 — 진짜 해지한 회원의
+    # end_date 는 영원히 과거라, 이게 없으면 읽을 때마다 스토어를 때린다.
+    last_store_check_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), comment="마지막 스토어 재조회 시각(§24 쓰로틀용)",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("platform", "transaction_id", name="uq_iap_platform_tx"),
+        Index("ix_iap_receipt_purchase_token", "purchase_token"),
     )

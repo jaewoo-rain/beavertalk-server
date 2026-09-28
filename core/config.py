@@ -467,6 +467,10 @@ class Settings(BaseSettings):
     #   graceful 하게 "unavailable"(503)로 떨어진다(R5) — 다른 플랫폼은 안 죽는다.
     PLAY_RECEIPT_SA_KEY_PATH: str | None = None   # 구글 서비스계정 JSON 키 경로
     APPSTORE_IAP_KEY_PATH: str | None = None      # 애플 App Store Server API .p8 키 경로
+    # ⭐ §24(2026-09-28) — 만료된 store 구독을 스토어에 재조회하는 최소 간격(초).
+    #   읽을 때(2단계)마다 쓰로틀 없이 재조회하면, 진짜 해지한 회원은 end_date 가
+    #   영원히 과거에 머물러 **매 호출**이 스토어를 때린다 — 이 값이 그걸 막는다.
+    IAP_RECHECK_MIN_INTERVAL_S: int = 3600
 
     INTERNAL_DISPATCH_SECRET: str | None = None  # 미설정이면 /internal/dispatch-calls 는 항상 403
     INTERNAL_DISPATCH_CATCHUP_MIN: int = 1        # 크론 지연 보정(과거 N분 버킷까지 재시도)

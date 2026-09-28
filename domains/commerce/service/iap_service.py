@@ -35,6 +35,7 @@ from domains.commerce.schemas.iap import (
     VerifyResponse,
 )
 from domains.commerce.service import iap_catalog
+from domains.commerce.service import subscription_refresh_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,15 @@ class IapService:
 
         만료 판정을 서버가 한다 — 앱이 만료 시각을 자체 비교하면 기기 시계 조작·시차로
         어긋난다. 앱은 is_pro 를 그대로 쓴다.
+
+        ⭐⭐ §24 입구①(2026-09-28) — 판정 전에 이 회원의 store 구독을 필요하면(§24
+        가드 — source='store'·만료됨·토큰 있음·쓰로틀 통과) 재조회해 반영한다.
+        앱이 시작할 때 이 엔드포인트를 부르니 여기서 치유되면 충분하다 — ⛔ **통화
+        경로(entitlements.effective_plan)는 이 재조회를 타지 않는다**(별도 함수,
+        subscription_refresh_service 를 참조하지 않는다) — 통화가 스토어 장애에
+        묶이면 안 된다.
         """
+        subscription_refresh_service.SubscriptionRefreshService(self.db).refresh_member(member_id)
         now = datetime.now(timezone.utc)
         sub = self.db.scalar(
             select(Subscribe)
@@ -148,6 +157,29 @@ class IapService:
                         "message": "다른 계정에서 사용된 결제입니다.",
                     },
                 )
+            # ⭐⭐ §24 입구③(2026-09-28, bt-back 실측) — 위 ②의 verify() 가 이미
+            #   스토어에 다시 물었고(여기 도달 = result.ok=True, ok=False 면 이미
+            #   422/503 으로 끝났다) 새 expires_at 을 손에 들고 있다. 예전엔 그걸
+            #   버리고 already_granted 만 응답했다 — "재검증해도 구독 만료가 안
+            #   바뀐다"로 관찰된 버그의 정확한 원인이다(운영 로그 실증: bt_max_monthly
+            #   검증 3회·영수증 행 2개, 한 번이 이 경로였다). verify() 를 또 부르지
+            #   않고 이미 가진 result 를 그대로 반영한다(subscription_refresh_service
+            #   와 갱신 함수 1개 공유 — 로직 두 벌 금지).
+            if not existing.purchase_token:
+                # ⭐ 기존 5행(토큰 없음)의 유일한 이주 경로 — 앱 「복원」(이미 있는
+                #   버튼, 앱 수정 불필요) 한 번이면 여기서 채워지고, 그 뒤부터
+                #   입구①②(읽을 때 자기치유·스케줄 스윕)가 이 회원에게도 작동한다.
+                existing.purchase_token = item.purchase_token
+            if existing.kind == "subscription":
+                subscription_refresh_service.bump_subscription_from_verify_result(
+                    self.db, member_id, result,
+                )
+                # ⛔ 쓰로틀 기록도 여기서 남긴다 — 안 남기면 바로 아래 entitlement()
+                #   호출이 입구①(자기치유)을 다시 태워 **같은 요청 안에서 verify()
+                #   를 두 번** 부른다(갱신이 실제로 안 붙었을 때만 재현 — 안 붙었으면
+                #   end_date 가 여전히 과거라 입구①의 "만료됨" 가드를 못 피한다).
+                existing.last_store_check_at = datetime.now(timezone.utc)
+            self.db.commit()
             return VerifyResponse(
                 already_granted=True,
                 product_id=existing.product_id,
@@ -180,6 +212,9 @@ class IapService:
             # 매출 집계에 조용히 섞여 들어가지 않게(iap.verify 가 어긋나면 로그도 남긴다).
             is_sandbox=is_sandbox or result.store_confirmed_test,
             is_stub=result.stubbed,
+            # ⭐⭐ §24(2026-09-28) — 재조회(subscription_refresh_service)의 유일한
+            #   열쇠. ⛔ 로그에 절대 찍지 않는다(스토어 자격에 준한다).
+            purchase_token=item.purchase_token,
         ))
         try:
             self.db.commit()

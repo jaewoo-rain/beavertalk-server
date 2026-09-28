@@ -18,6 +18,7 @@ from domains.commerce.schemas.subscription import (
     SubscriptionOut,
     SubscriptionStatusOut,
 )
+from domains.commerce.service import subscription_refresh_service
 from domains.commerce.service.subscription_status import resolve_status
 
 
@@ -94,7 +95,13 @@ class SubscriptionService:
 
         앱이 price 같은 값으로 상태를 역추론하면 해지 안내가 틀어진다. 판정 규칙은
         subscription_status.resolve_status 한 곳에만 둔다.
+
+        ⭐⭐ §24 입구①(2026-09-28) — 판정 전에 이 회원의 store 구독을 필요하면
+        재조회해 반영한다(iap_service.entitlement 와 같은 자기치유, 가드는
+        subscription_refresh_service 참조). ⛔ 통화 경로는 이 재조회를 타지
+        않는다 — entitlements.effective_plan 은 resolve_status 를 직접 부른다.
         """
+        subscription_refresh_service.SubscriptionRefreshService(self.db).refresh_member(member_id)
         resolved = resolve_status(self.repo.list_by_member(member_id))
         return SubscriptionStatusOut(
             state=resolved.state,  # type: ignore[arg-type]
