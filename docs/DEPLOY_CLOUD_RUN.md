@@ -152,7 +152,7 @@ gcloud secrets add-iam-policy-binding beavertalk-app-db-pool --member="$SA" --ro
 gcloud secrets add-iam-policy-binding beavertalk-app-jwt-secret --member="$SA" --role="roles/secretmanager.secretAccessor"
 ```
 
-> 선택 비밀값(있으면 같은 방식으로 추가): `RESEND_API_KEY`, `MAIL_FROM`, `GOOGLE_CLIENT_ID`, `SPEECH_SUPER_APP_KEY`, `SPEECH_SUPER_SECRET_KEY`. 없으면 해당 기능은 스텁/콘솔 폴백으로 동작.
+> 선택 비밀값(있으면 같은 방식으로 추가): `RESEND_API_KEY`, `MAIL_FROM`, `GOOGLE_CLIENT_ID`, `PRON_NPU_TOKEN`(자체 NPU 발음평가 · 1순위), `SPEECH_SUPER_APP_KEY`, `SPEECH_SUPER_SECRET_KEY`. 없으면 해당 기능은 스텁/콘솔 폴백으로 동작.
 
 ---
 

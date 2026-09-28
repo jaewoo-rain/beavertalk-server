@@ -1,4 +1,10 @@
-"""발음 채점 어댑터 (SpeechSuper).
+"""발음 채점 어댑터 (자체 NPU 서버 → SpeechSuper → 스텁).
+
+⭐ 2026-09-28 — 자체 NPU 발음평가 서버를 1순위로 쓴다(`PRON_NPU_TOKEN` 이 있을 때).
+   요청·응답 모양이 SpeechSuper `sent.eval.kr` 과 같지만 두 군데가 다르다:
+   글자 점수가 `words[].score`, 음소 `alpha` 가 KoG2P 기호(자모는 `alpha_jamo`).
+   그래서 응답 매핑은 따로 한다(_map_npu_result). NPU 가 실패하면 SpeechSuper 키가
+   있을 때만 SpeechSuper, 없으면 스텁으로 간다. API 안내: NPU_서버_API_안내.md §3.
 
 기준 문장(ref_text)과 녹음(audio_url)을 SpeechSuper 발음평가 API 로 채점한 뒤,
 우리 도메인 형태(글자별 상/중/하 + 평가 점수)로 매핑해서 반환한다.
@@ -99,6 +105,23 @@ def assess_pronunciation(
     if (language or "ko").strip().lower() != "ko":
         return _stub_assess(ref_text)
 
+    # 1순위 — 자체 NPU 서버. 실패하면 아래 SpeechSuper·스텁으로 내려간다(R5).
+    audio: Optional[tuple[bytes, str]] = None
+    if settings.PRON_NPU_TOKEN:
+        try:
+            audio = _load_audio(audio_url)
+            result = _call_npu(
+                ref_text=ref_text or "",
+                audio_bytes=audio[0],
+                audio_type=audio[1],
+                base_url=settings.PRON_NPU_URL,
+                token=settings.PRON_NPU_TOKEN,
+            )
+            return _map_npu_result(ref_text, result)
+        except Exception as exc:  # noqa: BLE001 - 어떤 실패든 앱이 깨지면 안 됨
+            # ⛔ exc 에 토큰이 실릴 일은 없다(헤더로만 보낸다) — 메시지만 남긴다.
+            logger.warning("NPU 발음평가 실패 → 다음 순위로: %s", exc)
+
     app_key = settings.SPEECH_SUPER_APP_KEY
     secret_key = settings.SPEECH_SUPER_SECRET_KEY
     if not app_key or not secret_key:
@@ -106,7 +129,7 @@ def assess_pronunciation(
         return _stub_assess(ref_text)
 
     try:
-        audio_bytes, audio_type = _load_audio(audio_url)
+        audio_bytes, audio_type = audio or _load_audio(audio_url)
         result = _call_speechsuper(
             ref_text=ref_text or "",
             audio_bytes=audio_bytes,
@@ -251,6 +274,123 @@ def _call_speechsuper(
         # 인증오류/한도초과 등도 보통 여기로 들어온다 → 에러로 간주
         raise ValueError(f"SpeechSuper 응답에 result 없음: {body!r}")
     return result
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# 자체 NPU 서버 호출·매핑 (2026-09-28)
+# ──────────────────────────────────────────────────────────────────────────
+_NPU_POSITIONS = ("초성", "중성", "종성")
+
+
+def _call_npu(
+    *,
+    ref_text: str,
+    audio_bytes: bytes,
+    audio_type: str,
+    base_url: str,
+    token: str,
+) -> dict[str, Any]:
+    """NPU `POST /sent.eval.kr` → result dict.
+
+    토큰은 **헤더**로 보낸다(주소에 넣으면 접속 기록에 남는다 — API 안내 §3-8).
+    400(`low_speech`·`too_short` 등)·401 은 raise_for_status 로 예외 → 상위가 폴백한다.
+    """
+    url = base_url.rstrip("/") + "/sent.eval.kr"
+    headers = {"Authorization": f"Bearer {token}"}
+    data = {"refText": ref_text, "tokenId": f"tok-{int(time.time())}-{os.getpid()}"}
+    files = {"audio": ("audio." + audio_type, audio_bytes)}
+    with httpx.Client(timeout=_TIMEOUT) as client:
+        resp = client.post(url, data=data, files=files, headers=headers)
+        resp.raise_for_status()
+        body = resp.json()
+    result = body.get("result")
+    if not isinstance(result, dict):
+        raise ValueError(f"NPU 응답에 result 없음: {body.get('code') or body.get('error')!r}")
+    return result
+
+
+def _npu_word_score(w: dict[str, Any]) -> Optional[int]:
+    """NPU 글자 점수. `readType` 3(오독)은 점수가 null 로 오는데 뜻은 「20 미만」이라 0 으로 본다.
+    그 밖의 null 은 판정 못 한 글자 → None(그 글자는 char_scores 에서 빠진다, 기존 규칙과 같다)."""
+    score = _to_int(w.get("score"))
+    if score is None and w.get("readType") == 3:
+        return 0
+    return score
+
+
+def _map_npu_result(ref_text: Optional[str], result: dict[str, Any]) -> dict:
+    """NPU result → 도메인 반환 형태(SpeechSuper 매핑과 같은 계약).
+
+    SpeechSuper 와 다른 점을 여기서 흡수한다(API 안내 §3-3):
+    - 글자 점수: `words[].score`(SpeechSuper 는 `scores.overall`).
+    - 음소: `alpha` 는 KoG2P 기호, 자모는 `alpha_jamo`. 도메인의 `alpha` 는 자모다 → alpha_jamo.
+    - 위치: 서버가 `position`(초성·중성·종성)을 **실제 발음 기준**으로 준다(연음이면 받침이 초성).
+      그래서 글자 분해로 위치를 추정하지 않고 그대로 쓴다 — 음소가 발음 단위로 묶여 와서
+      글자 분해 슬롯과 개수가 맞지 않을 수 있다.
+    - 빠뜨린 소리는 `pronunciation: null`·`actual_jamo: null` → 음소 점수 0.
+    - 틀린 음소는 `errorType` 이 있는 것만(`uncertain: true` 는 지적하지 않는다 — §3-4).
+    """
+    overall = _to_int(result.get("overall"))
+    pronunciation = _to_int(result.get("pronunciation"), overall)
+    fluency = _to_int(result.get("fluency"), overall)
+    # rhythm·comprehensibility 는 문장 하나로는 null 로 온다(§3-3) → overall 로 대체(기존 규칙).
+    rhythm = _to_int(result.get("rhythm"), overall)
+
+    char_scores: list[dict] = []
+    phonemes: list[dict] = []
+    misses: list[dict] = []
+    words = result.get("words") if isinstance(result.get("words"), list) else []
+    for w in words:
+        if not isinstance(w, dict):
+            continue
+        # 음소는 글자 점수가 없어도 소리 통계에 쓴다.
+        for p in w.get("phonemes") or []:
+            if not isinstance(p, dict):
+                continue
+            jamo = p.get("alpha_jamo")
+            if not jamo:
+                continue
+            position = p.get("position") if p.get("position") in _NPU_POSITIONS else None
+            phonemes.append({
+                "phoneme": str(p.get("alpha") or jamo),
+                "alpha": str(jamo),
+                "pronunciation": _to_int(p.get("pronunciation"), 0),
+                "position": position,
+                "sound_key": sound_key(str(jamo), position),
+            })
+        score = _npu_word_score(w)
+        chars = [ch for ch in _word_text(w) if not ch.isspace()]
+        if score is None or not chars:
+            continue  # SpeechSuper 매핑과 같은 규칙 — 인덱스도 같이 건너뛴다
+        char_index = len(char_scores)
+        s = max(0, min(100, score))
+        for ch in chars:
+            char_scores.append({"char": ch, "score": s, "grade": _grade(s)})
+        for p in w.get("phonemes") or []:
+            if (
+                isinstance(p, dict)
+                and p.get("errorType")
+                and not p.get("uncertain")
+                and p.get("alpha_jamo")
+            ):
+                misses.append({"char_index": char_index, "expected": str(p["alpha_jamo"])})
+
+    if not char_scores:
+        # words 가 비었다 — SpeechSuper 매핑과 같은 자리표시자 폴백.
+        char_scores = _map_char_scores(ref_text, {}, overall)
+
+    return {
+        "evaluation": {
+            "total_score": overall,
+            "pronunciation": pronunciation,
+            "fluency": fluency,
+            "rhythm": rhythm,
+        },
+        "char_scores": char_scores,
+        "phonemes": phonemes,
+        "phoneme_misses": misses,
+        "is_stub": False,
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────

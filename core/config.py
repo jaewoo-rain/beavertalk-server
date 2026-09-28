@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     SPEECH_SUPER_SECRET_KEY: str | None = None
     SPEECH_SUPER_CORETYPE: str = "sent.eval.kr"  # 한국어 문장 평가
 
+    # ── 자체 NPU 발음평가 서버(2026-09-28 · SpeechSuper 대체) ──
+    # 토큰이 있으면 core.speechsuper 가 NPU 를 먼저 부른다. NPU 가 실패하면 SpeechSuper
+    # 키가 있을 때만 SpeechSuper, 없으면 스텁으로 폴백한다(R5). 요청·응답 모양은
+    # SpeechSuper `sent.eval.kr` 과 같다(글자 점수 위치·음소 표기만 다르다 — 매핑 참조).
+    # ⛔ 토큰은 비밀이다 — 코드·로그·앱에 넣지 말고 Cloud Run 시크릿으로만 준다.
+    PRON_NPU_URL: str = "https://npu.tail428c00.ts.net:8443"
+    PRON_NPU_TOKEN: str | None = None
+
     # ── B2B 교실 서비스 (2026-09-02 분리) ──
     # 과제 통화의 회화 목표를 여기에 묻는다. 교실 테이블은 이 서버가 읽지 않는다.
     # ⛔ 둘 중 하나라도 비면 조회를 건너뛰고 **평소 선별로 통화가 진행된다** —
@@ -104,6 +112,10 @@ class Settings(BaseSettings):
     NATIONALITY_API_URL: str | None = None      # 예: https://<tailscale-host> (POST {URL}/predict)
     NATIONALITY_API_KEY: str | None = None      # X-API-Key(GPU 서버 앞단 인증 프록시). 비면 헤더 생략
     NATIONALITY_API_TIMEOUT_S: float = 20.0     # httpx read/write 타임아웃(초)
+    # 녹음 저장 동의(NPU 국적 서버 `consent`). "0" 이면 서버가 녹음을 저장하지 않는다 —
+    # 안 보내면 **저장된다**(NPU_서버_API_안내 §2). 통화 녹음이라 기본은 저장 안 함.
+    # None 이면 필드를 보내지 않는다(옛 GPU 서버 호환 · 그 서버는 필드를 무시한다).
+    NATIONALITY_API_CONSENT: str | None = "0"
     NATIONALITY_MIN_SPEECH_S: float = 10.0      # 이 길이 미만 user 발화는 호출 스킵(호출측 게이트)
 
     # ⛔⛔ P2-6(2026-09-24, bt-back QA) — 옛 이메일 발송(Resend)·이메일 인증 코드·구글
