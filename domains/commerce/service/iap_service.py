@@ -192,6 +192,8 @@ class IapService:
         expires_at = None
         if ref.kind == "character":
             self._grant_character(member_id, ref.character_id)  # type: ignore[arg-type]
+        elif ref.kind == "bundle":
+            self._grant_bundle(member_id)
         else:
             expires_at = self._grant_subscription(
                 member_id, result.expires_at, ref, item.product_id, result.is_trial,
@@ -292,6 +294,22 @@ class IapService:
             purchase_price=None,  # 가격은 스토어가 정한다 — 서버가 모른다
             purchase_date=datetime.now(timezone.utc),
         ))
+
+    def _grant_bundle(self, member_id: int) -> None:
+        """묶음(§2, 2026-09-28) — **없는 것만** 만든다(멱등). 구성 개수만큼을 한 행에
+        못 담아 iap_receipt.character_id 는 NULL 로 남는다(kind="bundle" 이 구성을
+        대신한다). 구성 자체(지금 character.in_bundle=True 인 캐릭터 전부)는
+        iap_catalog.resolve_bundle_character_ids 가 정한다 — 하드코딩 없음, 그
+        함수 docstring 참조(소급 지급 걱정이 없는 이유도 거기 있다).
+
+        ⭐ 사장님 확정: 앱은 유료 캐릭터를 하나라도 가진 회원에게 이 상품을 안
+        보여준다(fail-closed). ⛔ 그래도 서버는 거절하지 않는다 — 스토어 결제가
+        이미 끝난 뒤 도착하는 요청(구버전 앱·경합)을 거절하면 돈만 받고 지급을
+        안 하게 된다. `_grant_character` 가 이미 가진 캐릭터에 조용히 통과하므로
+        이 함수는 그냥 구성을 순서대로 부르기만 하면 된다 — 있으면 스킵, 없으면 지급.
+        """
+        for character_id in iap_catalog.resolve_bundle_character_ids(self.db):
+            self._grant_character(member_id, character_id)
 
     def _grant_subscription(
         self,

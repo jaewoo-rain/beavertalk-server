@@ -59,8 +59,8 @@ class VerifyResponse(BaseModel):
     status: Literal["granted"] = "granted"
     already_granted: bool = False
     product_id: str
-    kind: Literal["character", "subscription"]
-    character_id: Optional[int] = None  # 구독이면 None
+    kind: Literal["character", "subscription", "bundle"]
+    character_id: Optional[int] = None  # 구독·묶음이면 None(묶음은 3종을 한 칸에 못 담는다)
     entitlement: Entitlement
 
 

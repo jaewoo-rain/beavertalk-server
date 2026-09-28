@@ -52,9 +52,9 @@ class IapReceipt(Base, TimestampMixin):
         Text, comment="iOS originalTransactionId / Android orderId"
     )
     product_id: Mapped[str] = mapped_column(Text, comment="스토어 상품 ID")
-    kind: Mapped[str] = mapped_column(Text, comment="character | subscription")
+    kind: Mapped[str] = mapped_column(Text, comment="character | subscription | bundle")
     character_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger, comment="캐릭터 지급이면 그 id(구독이면 NULL)"
+        BigInteger, comment="캐릭터 지급이면 그 id(구독·묶음은 NULL — 묶음은 3종을 한 칸에 못 담는다)"
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), comment="구독 만료(캐릭터는 NULL)"

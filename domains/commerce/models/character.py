@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
-from sqlalchemy import JSON, BigInteger, ForeignKey, Identity, Numeric, String, Text
+from sqlalchemy import JSON, BigInteger, Boolean, ForeignKey, Identity, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimestampMixin
@@ -69,6 +69,27 @@ class Character(Base, TimestampMixin):
     image_url: Mapped[Optional[str]] = mapped_column(Text, comment="캐릭터 이미지")
     tags: Mapped[Optional[list[str]]] = mapped_column(
         JSON, comment="음색/특성 태그 배열(예: Warm, Calm, Soft)"
+    )
+    # ⭐⭐ §2(2026-09-28, 사장님 확정) — 캐릭터 묶음(bt_character_bundle) 구성의
+    #   **유일한 정본**. Play Developer API 실측(monetization.oneTimeProducts):
+    #   OneTimeProduct 스키마엔 자식 상품 필드가 없다(productId·listings·
+    #   purchaseOptions·offerTags·taxAndComplianceSettings·restrictedPaymentCountries·
+    #   regionsVersion 뿐) — 내용물은 영어 설명 한 줄("Unlock Popo, Rara and Dudu,
+    #   yours forever")로만 존재한다. 마케팅 문구를 파싱해 구성을 읽는 건 문구
+    #   수정·다국어화에 바로 깨진다. 애플도 IAP 에 같은 개념이 없다.
+    #   ⇒ 스토어에서 구조적으로 읽어올 방법이 없으므로 우리 쪽에 정본을 둔다.
+    #   ⛔ "price>0 전부"로 파생하지 않는다 — 캐릭터가 계속 추가되는데 신규 유료
+    #   캐릭터가 자동으로 묶음에 들어가면(=과거 판매 내용과 다른 걸 새로 파는 셈)
+    #   사장님 요구와 어긋난다. 기본값 False 라 새 캐릭터는 묶음에 자동으로 안
+    #   들어간다 — 넣고 싶으면 이 컬럼을 UPDATE 한 줄로 켠다(배포 불필요).
+    #   ⚠ 이 컬럼을 바꾸면 Play Console 의 그 설명 문구도 사람이 같이 고쳐야 한다
+    #   (스토어와 여기는 서로 다른 진실이고 동기화가 자동이 아니다).
+    #   ⛔ "스토어에서 읽어오게 고쳐라"로 되돌리지 마라 — 위 실측이 이미 불가능을
+    #   확인했다.
+    in_bundle: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+        comment="캐릭터 묶음(bt_character_bundle)에 포함되는가 — 스토어엔 내용물 "
+                "필드가 없어 여기가 유일한 정본",
     )
 
     voice: Mapped[Optional["Voice"]] = relationship(
