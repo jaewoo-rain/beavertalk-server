@@ -213,6 +213,49 @@ def test_verify_google_subscription_offer_id_does_not_change_grant_result(google
     assert result.ok is True
 
 
+def test_verify_google_subscription_offer_phase_base_price_is_not_trial(google_sa_key_path, monkeypatch):
+    """⭐⭐ §26-③(2026-09-29, bt-back 실기기 회귀·실측) — 체험이 끝나 유료로 전환된
+    구독의 실제 응답 모양(offerDetails.offerId="trial-7d" 는 남아 있지만 offerPhase
+    는 basePrice). 옛 판정(offerId 존재만 봄)은 여기서 영원히 True 였다."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(extra_line_item={
+        "offerDetails": {"basePlanId": "monthly", "offerId": "trial-7d"},
+        "offerPhase": {"basePrice": {}},
+    })
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+    assert result.ok is True
+    assert result.is_trial is False
+
+
+def test_verify_google_subscription_offer_phase_non_base_price_is_trial(google_sa_key_path, monkeypatch):
+    """⛔ 키 이름을 하드코딩하지 않는다 — basePrice 가 아닌 다른(무엇이든) oneof 키가
+    오면 아직 할인/체험 단계로 본다. 일부러 낯선 키를 써서 이걸 증명한다."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(extra_line_item={
+        "offerDetails": {"basePlanId": "monthly", "offerId": "trial-7d"},
+        "offerPhase": {"someFreeTrialLikePhaseKey": {}},
+    })
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+    assert result.ok is True
+    assert result.is_trial is True
+
+
+def test_verify_google_subscription_offer_phase_absent_is_unknown(google_sa_key_path, monkeypatch):
+    """offerPhase 자체가 없는(구 API 등) 응답에서는 판단하지 않는다 — None(모름).
+    하류가 이 None 을 보고 기존 저장값을 그대로 둔다."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(extra_line_item={"offerDetails": {"offerId": "trial-7d"}})  # offerPhase 없음
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+    assert result.ok is True
+    assert result.is_trial is None
+
+
 def test_verify_google_subscription_400_is_invalid_not_unavailable(google_sa_key_path, monkeypatch):
     """bt-back 실측(2026-09-27) — 가짜 토큰이 404→400 Invalid Value 로 바뀜(권한 정상)."""
     monkeypatch.setattr(httpx, "post", _fake_google_token_post())

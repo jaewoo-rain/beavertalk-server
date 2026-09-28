@@ -92,10 +92,10 @@ def _receipt(db, member_id, *, token="tok-abc", platform="android",
     return r
 
 
-def _fake_verify(*, ok=True, reason=None, expires_at=None):
+def _fake_verify(*, ok=True, reason=None, expires_at=None, is_trial=None):
     def _v(**kwargs):
         return iap.VerifyResult(ok=ok, reason=reason, transaction_id=kwargs.get("transaction_id"),
-                                expires_at=expires_at)
+                                expires_at=expires_at, is_trial=is_trial)
     return _v
 
 
@@ -263,6 +263,38 @@ def test_success_does_not_set_throttle_so_a_later_check_is_not_blocked(db, monke
 
     db.refresh(receipt)
     assert receipt.last_store_check_at is None, "성공 뒤에 쓰로틀 스탬프가 찍히면 안 된다"
+
+
+# --------------------------------------------------------------------------- #
+# §26-③(2026-09-29) — 자기치유 재조회는 is_trial=None(offerPhase 미제공)을
+# 근거 없는 재조회로 뒤집지 않는다. is_trial 이 확정값이면 정상 반영한다.
+# --------------------------------------------------------------------------- #
+def test_self_heal_refresh_with_unknown_trial_does_not_touch_stored_flag(db, monkeypatch):
+    monkeypatch.setattr(iap, "verify", _fake_verify(ok=True, expires_at=LATER, is_trial=None))
+    mid = _member(db)
+    sub = _subscribe(db, mid, source="store", end_date=PAST)
+    sub.is_trial = True
+    db.commit()
+    _receipt(db, mid)
+
+    SubscriptionRefreshService(db).refresh_member(mid)
+
+    db.refresh(sub)
+    assert sub.is_trial is True, "is_trial=None 이면 기존 True 를 건드리면 안 된다"
+
+
+def test_self_heal_refresh_with_definite_trial_updates_stored_flag(db, monkeypatch):
+    monkeypatch.setattr(iap, "verify", _fake_verify(ok=True, expires_at=LATER, is_trial=False))
+    mid = _member(db)
+    sub = _subscribe(db, mid, source="store", end_date=PAST)
+    sub.is_trial = True
+    db.commit()
+    _receipt(db, mid)
+
+    SubscriptionRefreshService(db).refresh_member(mid)
+
+    db.refresh(sub)
+    assert sub.is_trial is False, "확정값(offerPhase=basePrice 등)은 정상 반영돼야 한다"
 
 
 def test_throttle_allows_a_second_call_after_the_window(db, monkeypatch):
