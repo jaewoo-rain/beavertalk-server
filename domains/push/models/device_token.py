@@ -26,7 +26,7 @@ class DeviceToken(Base, TimestampMixin):
     member_id: Mapped[int] = mapped_column(
         ForeignKey("member.member_id", ondelete="CASCADE"), index=True, comment="회원",
     )
-    platform: Mapped[str] = mapped_column(Text, comment="android_fcm | ios_voip")
+    platform: Mapped[str] = mapped_column(Text, comment="android_fcm | ios_voip | ios_fcm")
     token: Mapped[str] = mapped_column(Text, unique=True, index=True, comment="푸시 토큰")
     is_valid: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true"),

@@ -35,6 +35,8 @@ from domains.commerce.models.character import Character
 from domains.commerce.models.voice import Voice
 from domains.push.models.device_token import DeviceToken
 
+import core.apns as apns_mod
+from core.apns import ApnsSendResult
 import core.fcm as fcm_mod
 from core.fcm import FcmSendResult, send_incoming_call
 from core.push_defaults import DEFAULT_CALLER_NAME
@@ -72,7 +74,8 @@ _seed_counter = 0
 def _seed(db, *, alarm_time, is_activate, day_codes, tokens):
     """member/voice/character/alarm(+schedules)/device_token 시드. ids 반환.
 
-    tokens: [(token_str, is_valid), ...]  → DeviceToken(platform=android_fcm).
+    tokens: [(token_str, is_valid), ...] 또는 [(token_str, is_valid, platform), ...]
+      → DeviceToken(platform 생략 시 android_fcm).
     day_codes: alarm.schedules 의 day_of_week 코드 집합.
     alarm_time: alarm.time 값(센티넬 날짜 + UTC 라벨) 또는 None.
 
@@ -101,8 +104,9 @@ def _seed(db, *, alarm_time, is_activate, day_codes, tokens):
     db.flush()
     for code in day_codes:
         db.add(Schedule(alarm_id=alarm.alarm_id, day_of_week=code))
-    for tok, valid in tokens:
-        db.add(DeviceToken(member_id=member.member_id, platform="android_fcm",
+    for spec in tokens:
+        tok, valid, platform = (*spec, "android_fcm")[:3] if len(spec) == 2 else spec
+        db.add(DeviceToken(member_id=member.member_id, platform=platform,
                            token=tok, is_valid=valid))
     db.commit()
     return {"member_id": member.member_id, "character_id": ch.character_id,
@@ -450,6 +454,54 @@ def test_run_no_valid_tokens_contributes_zero(
 
     assert sent == 0
     assert patch_dispatch.fcm_calls == []  # 유효 토큰 없으면 발송 자체 안 함
+    db.close()
+
+
+def test_run_ios_fcm_token_excluded_from_incoming_call_dispatch(
+    session_factory, monkeypatch, patch_dispatch
+):
+    """⛔⛔ §1(2026-09-27, 앱 요청) — "ios_fcm"(일반 알림) 토큰은 착신(예약 통화)
+    디스패치 대상이 아니다. 착신은 CallKit VoIP push 전용 채널(ios_voip)만 쓴다 —
+    일반 FCM 토큰으로는 착신을 못 띄운다. _ring() 이 android_fcm/ios_voip 만
+    필터링해서 자동으로 걸러지는지 못박는다(fcm·apns 둘 다 안 불림)."""
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    code = _DAY_CODES[now.weekday()]
+    db = session_factory()
+    _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+          day_codes={code}, tokens=[("homework-tok", True, "ios_fcm")])
+
+    sent = DispatchService(db).run()
+
+    assert sent == 0
+    assert patch_dispatch.fcm_calls == []
+    db.close()
+
+
+def test_run_ios_voip_token_still_rings(session_factory, monkeypatch, patch_dispatch):
+    """회귀 — §1 이 android_fcm/ios_voip 필터 자체는 안 건드렸다. ios_voip 는
+    여전히 apns 경로로 정상 발송된다(이 파일의 다른 시험은 전부 android_fcm 만
+    써서 apns 분기가 실제로 안 태워졌었다 — 이번에 처음 태운다)."""
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    code = _DAY_CODES[now.weekday()]
+    db = session_factory()
+    _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+          day_codes={code}, tokens=[("voip-tok", True, "ios_voip")])
+
+    calls = []
+
+    def _fake_voip(**kwargs):
+        calls.append(kwargs)
+        return ApnsSendResult(sent=1, dead_tokens=[])
+
+    monkeypatch.setattr(apns_mod, "send_incoming_call_voip", _fake_voip)
+
+    sent = DispatchService(db).run()
+
+    assert sent == 1
+    assert len(calls) == 1
+    assert calls[0]["tokens"] == ["voip-tok"]
     db.close()
 
 
