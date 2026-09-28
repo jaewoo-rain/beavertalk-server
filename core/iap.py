@@ -253,6 +253,61 @@ def _google_access_token() -> Optional[str]:
         return None
 
 
+# ⭐⭐ §23(2026-09-28) — invalid 진단 보조. 서버가 스토어 상품 카탈로그를 직접 읽을
+#   수 있다는 걸 실측으로 확인했다(bt-back): 신 경로 monetization.oneTimeProducts
+#   (대문자 T) GET 200(구 inappproducts 는 403 "migrate to the new publishing
+#   API"), 구독은 subscriptions?pageSize= GET 200. 이걸로 "앱이 보낸 product_id 가
+#   스토어에 아예 없다"와 "있는데 상태가 틀렸다"를 구분해 로그에 적을 수 있다.
+#   ⛔ 검증 경로마다(=매 verify() 호출마다) 조회하지 않는다(지연·쿼터) — **invalid
+#   로 떨어졌을 때만**, 그것도 1시간 캐시를 쓴다.
+_google_catalog_cache: dict = {}
+_GOOGLE_CATALOG_CACHE_TTL_S = 3600
+
+
+def _google_catalog_product_ids(token: str, pkg: str, kind: Kind) -> Optional[set]:
+    """§23 진단 전용 — 이 kind 의 스토어 카탈로그 productId 집합(1시간 캐시).
+
+    조회 자체가 실패하면(권한 문제 등) None(모름) — 로그 문구가 "모름"으로 빠질
+    뿐, 원래 검증 응답(422)을 막지 않는다(R5, 진단은 부가 기능이다).
+    """
+    cache_key = f"{pkg}:{kind}"
+    now = time.time()
+    cached = _google_catalog_cache.get(cache_key)
+    if cached and cached["at"] + _GOOGLE_CATALOG_CACHE_TTL_S > now:
+        return cached["ids"]
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        if kind == "subscription":
+            url = f"{_GOOGLE_ANDROIDPUBLISHER_BASE}/applications/{pkg}/subscriptions"
+            resp = httpx.get(url, headers=headers, params={"pageSize": 100}, timeout=10.0)
+            resp.raise_for_status()
+            ids = {s.get("productId") for s in resp.json().get("subscriptions") or [] if s.get("productId")}
+        else:
+            url = f"{_GOOGLE_ANDROIDPUBLISHER_BASE}/applications/{pkg}/monetization/oneTimeProducts"
+            resp = httpx.get(url, headers=headers, timeout=10.0)
+            resp.raise_for_status()
+            ids = {p.get("productId") for p in resp.json().get("oneTimeProducts") or [] if p.get("productId")}
+    except Exception as exc:  # noqa: BLE001 - 진단 보조 조회 실패는 원래 응답을 막으면 안 된다
+        logger.warning("iap(google): 카탈로그 조회 실패(진단 보조, 무시) kind=%s — %s", kind, exc)
+        return None
+    _google_catalog_cache[cache_key] = {"ids": ids, "at": now}
+    return ids
+
+
+def _log_google_invalid_catalog_check(token: str, pkg: str, kind: Kind, product_id: str, transaction_id: str, extra: str) -> None:
+    """§23 — invalid(HTTP 400/404, 토큰 자체 조회 실패) 분기 전용 진단 로그.
+
+    ⛔ purchase_token 은 인자로도 안 받는다·안 찍는다(스토어 자격에 준한다,
+    tests/test_iap.py::test_purchase_token_is_never_logged 가 정적으로 고정한다).
+    """
+    ids = _google_catalog_product_ids(token, pkg, kind)
+    in_catalog = None if ids is None else product_id in ids
+    logger.warning(
+        "iap(google) invalid: product=%s tx=%s 카탈로그존재=%s(모름=None) — %s",
+        product_id, transaction_id, in_catalog, extra,
+    )
+
+
 def _verify_google(
     kind: Kind, product_id: str, transaction_id: str, purchase_token: str, is_sandbox: bool
 ) -> VerifyResult:
@@ -287,6 +342,12 @@ def _verify_google(
             )
             resp = httpx.get(url, headers=headers, timeout=10.0)
             if resp.status_code in (400, 404):
+                # §23 — 토큰 자체 조회 실패(잘못된/만료/타 앱 토큰). 카탈로그 확인은
+                # "상품 자체가 스토어에 없다"와 "토큰이 무효하다"를 가른다.
+                _log_google_invalid_catalog_check(
+                    token, pkg, kind, product_id, transaction_id,
+                    f"구독 토큰 조회 실패 status={resp.status_code}",
+                )
                 return VerifyResult(ok=False, reason="invalid")
             resp.raise_for_status()
             body = resp.json()
@@ -297,6 +358,14 @@ def _verify_google(
             if match is None or state not in (
                 "SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
             ):
+                # §23 — basePlanId 는 offerDetails 안(찾았을 때만 의미 있다).
+                logger.warning(
+                    "iap(google) invalid: subscriptionState=%s 요청productId=%s "
+                    "응답productId목록=%s basePlanId=%s tx=%s",
+                    state, product_id, [li.get("productId") for li in line_items],
+                    (match.get("offerDetails") or {}).get("basePlanId") if match else None,
+                    transaction_id,
+                )
                 return VerifyResult(ok=False, reason="invalid")
 
             offer_id = (match.get("offerDetails") or {}).get("offerId")
@@ -329,10 +398,18 @@ def _verify_google(
         )
         resp = httpx.get(url, headers=headers, timeout=10.0)
         if resp.status_code in (400, 404):
+            _log_google_invalid_catalog_check(
+                token, pkg, kind, product_id, transaction_id,
+                f"캐릭터/묶음 토큰 조회 실패 status={resp.status_code}",
+            )
             return VerifyResult(ok=False, reason="invalid")
         resp.raise_for_status()
         body = resp.json()
         if body.get("purchaseState") != 0:  # 0=구매완료(취소·대기 아님)
+            logger.warning(
+                "iap(google) invalid: purchaseState=%s(0=완료·1=취소·2=대기) product=%s tx=%s",
+                body.get("purchaseState"), product_id, transaction_id,
+            )
             return VerifyResult(ok=False, reason="invalid")
         return VerifyResult(
             ok=True,
@@ -513,25 +590,47 @@ def _verify_apple(
                 f"{base}/inApps/v1/subscriptions/{transaction_id}", headers=headers, timeout=10.0,
             )
             if resp.status_code == 404:
+                # §23 — Apple 은(Google 과 달리) 카탈로그 조회 경로를 실측 확인 못
+                # 했다(App Store Connect API 는 별개 자격증명·범위) — HTTP 상태만 남긴다.
+                logger.warning(
+                    "iap(apple) invalid: status=404(구독 상태 없음) product=%s tx=%s",
+                    product_id, transaction_id,
+                )
                 return VerifyResult(ok=False, reason="invalid")
             resp.raise_for_status()
             body = resp.json()
 
             matched_tx = matched_info = None
+            seen_product_ids: list = []
             for group in body.get("data") or []:
                 for tx in group.get("lastTransactions") or []:
                     info = _decode_apple_transaction(tx.get("signedTransactionInfo"))
+                    if info:
+                        seen_product_ids.append(info.get("productId"))
                     if info and info.get("productId") == product_id:
                         matched_tx, matched_info = tx, info
                         break
                 if matched_tx is not None:
                     break
             if matched_tx is None:
+                # §23 — 요청 productId 가 이 회원의 lastTransactions 목록에 없다.
+                logger.warning(
+                    "iap(apple) invalid: 요청productId=%s 이 lastTransactions 목록에 "
+                    "없음 응답목록=%s tx=%s", product_id, seen_product_ids, transaction_id,
+                )
                 return VerifyResult(ok=False, reason="invalid")
             # status: 1=ACTIVE, 4=BILLING_GRACE_PERIOD 만 유효로 본다(2=EXPIRED·
             #   3=BILLING_RETRY·5=REVOKED 는 무효 — retry 를 유효로 볼지는 요청서에
             #   명시가 없어 보수적으로 무효 처리했다).
             if matched_tx.get("status") not in (1, 4):
+                # §23 — subscriptionGroupIdentifier 가 Apple 쪽 basePlanId 등가물
+                # (그 구독이 속한 구독 그룹 식별자, JWSTransactionDecodedPayload 필드).
+                logger.warning(
+                    "iap(apple) invalid: status=%s(1=ACTIVE·2=EXPIRED·3=BILLING_RETRY·"
+                    "4=GRACE·5=REVOKED) product=%s subscriptionGroupIdentifier=%s tx=%s",
+                    matched_tx.get("status"), product_id,
+                    matched_info.get("subscriptionGroupIdentifier"), transaction_id,
+                )
                 return VerifyResult(ok=False, reason="invalid")
             expires_ms = matched_info.get("expiresDate")
             expires_at = (
@@ -557,10 +656,18 @@ def _verify_apple(
             f"{base}/inApps/v1/transactions/{transaction_id}", headers=headers, timeout=10.0,
         )
         if resp.status_code == 404:
+            logger.warning(
+                "iap(apple) invalid: status=404(거래 없음) product=%s tx=%s",
+                product_id, transaction_id,
+            )
             return VerifyResult(ok=False, reason="invalid")
         resp.raise_for_status()
         info = _decode_apple_transaction(resp.json().get("signedTransactionInfo"))
         if info is None or info.get("productId") != product_id:
+            logger.warning(
+                "iap(apple) invalid: 요청productId=%s 응답productId=%s(디코드실패=None) tx=%s",
+                product_id, info.get("productId") if info else None, transaction_id,
+            )
             return VerifyResult(ok=False, reason="invalid")
         return VerifyResult(
             ok=True,
