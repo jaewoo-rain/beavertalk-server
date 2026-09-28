@@ -18,10 +18,12 @@ ko 행은 member.korean_level 과 dual-read/write 로 폴백 정합을 유지한
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Identity,
@@ -60,4 +62,14 @@ class MemberLanguageLevel(Base, TimestampMixin):
     )
     level_no: Mapped[Optional[int]] = mapped_column(
         Integer, comment="현재 레벨(1~13 → level.level_no, NULL=콜드스타트/레벨테스트 미실시)",
+    )
+    retest_requested_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment=(
+            "§9(2026-09-28) 「다시하기」 요청 시각(NULL=대기 없음). 요청만으론 이 행을 "
+            "지우지 않는다 — 실제 초기화(행 삭제·korean_level NULL)는 레벨테스트 통화가 "
+            "call_started 로 성립한 뒤에 한다(mastery_service.apply_pending_retest). "
+            "즉시 지우면 재측정 성공과 통화 성립 사이 취소·거절(ALREADY_IN_CALL·"
+            "DAILY_LIMIT)에서 레벨만 사라진 채 남는다."
+        ),
     )

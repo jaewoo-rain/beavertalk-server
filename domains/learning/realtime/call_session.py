@@ -128,6 +128,7 @@ from core.prompts.chat import build_chat_instruction, seed_chat_opening
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
+from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
 from domains.learning.service import chat_memory_service
@@ -3750,6 +3751,20 @@ async def run_call(
             )
             if daily_remaining is not None:
                 remaining_s = min(daily_remaining, int(call_service.CALL_FRAGMENT_S))
+        # ⭐⭐ §9(2026-09-28) — 「재측정 대기」였다면 **여기서** 실제 레벨 초기화(행
+        #   삭제·korean_level NULL)를 한다. ALREADY_IN_CALL·DAILY_LIMIT 은 이 지점
+        #   **이전**에 이미 걸러졌으므로(위 :3200·:3261), 여기 도달했다는 것 자체가
+        #   통화가 실제로 성립했다는 뜻이다. 결과 확정(통화후 판정)까지 미루면 측정
+        #   진행 중 조회(마이페이지 등)가 옛 레벨을 그대로 보여준다("측정 중인데
+        #   옛 레벨이 보인다") — 그래서 결과가 아니라 **성립 시점**을 택했다.
+        #   대기가 없으면(최초 레벨테스트·admin 명시 재판정) no-op(레벨 유지) —
+        #   analyze_level_test_call 의 "레벨 있으면 안 덮어쓴다" 가드가 그 경우를
+        #   그대로 보호한다.
+        if call_type == "level_test":
+            await svc.run_db(
+                db_session_factory,
+                lambda db: mastery_service.apply_pending_retest(db, member_id, spec.code),
+            )
         await _send_json(
             client_ws,
             ServerCallStarted(

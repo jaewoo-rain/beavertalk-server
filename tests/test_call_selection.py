@@ -743,6 +743,24 @@ def test_load_call_setup_level_unset_returns_no_materials(env):
     assert setup["promotion_notice"] is False
 
 
+def test_load_call_setup_retest_pending_forces_needs_level_test(env):
+    """⭐⭐ §9(2026-09-28) — 재측정 대기(retest_requested_at)만으로도 needs_level_test=True.
+
+    korean_level 은 통화 성립 전까지 **옛 레벨을 그대로** 돌려준다(초기화는
+    call_started 성립 뒤 — mastery_service.apply_pending_retest). 그래도 라우팅은
+    "레벨 미확정 OR 재측정 대기"로 판정해야 다음 통화가 레벨테스트로 간다(D11)."""
+    from domains.learning.service import mastery_service
+
+    db = env["db"]
+    mB = env["mB"]  # env 시드가 이미 레벨 2로 배치한 회원(placement 10일 전)
+    mastery_service.request_level_retest(db, mB, "ko")
+
+    setup = svc.load_call_setup(db, mB.member_id, env["ch"].character_id)
+
+    assert setup["needs_level_test"] is True
+    assert setup["korean_level"] == 2, "통화 성립 전인데 korean_level 이 벌써 지워졌다"
+
+
 def test_load_call_setup_without_learning_items_returns_none(session_factory):
     """learning_item 0행(커리큘럼 미시드): 재료 전부 None — 기존 프롬프트 폴백(R5)."""
     db = session_factory()

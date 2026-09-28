@@ -7,6 +7,11 @@
     레벨 배정만 다시 받는 것이다(dev 의 완전 백지화와 목적이 다르다).
   - member_language_level 행을 지워야 실제로 레벨테스트가 뜬다 — korean_level 만
     NULL 로 만들면 라우팅이 안 바뀐다(전례 있음).
+  - ⛔⛔ §9(2026-09-28) — request_level_retest 는 이제 **행을 지우지 않는다**.
+    retest_requested_at 만 찍고, 실제 삭제는 레벨테스트 통화가 call_started 로
+    성립한 뒤(mastery_service.apply_pending_retest)에 일어난다. 통화가 안 되면
+    옛 레벨이 그대로 남는다 — 재측정 성공과 통화 성립 사이 취소로 레벨만 지워진
+    채 남는 문제(docs/plans/2026-09-27-앱요청-20건-잔여.md §3) 때문.
   - "최근 N세션"은 **점수가 있는** 세션 N개다. 통화만 하고 발음 챌린지를 안 누른
     통화가 대부분이라 단순 최근 N통화로 잡으면 표본이 비어버린다.
 """
@@ -178,22 +183,71 @@ def test_summary_includes_expression_and_freetalk_excludes_level_test(db):
 
 
 # --------------------------------------------------------------------------- #
-# 3) 레벨테스트 다시하기
+# 3) 레벨테스트 다시하기 (§9, 2026-09-28 — 요청은 표시만, 삭제는 call_started 뒤)
 # --------------------------------------------------------------------------- #
-def test_retest_clears_language_level_row(db):
-    """★ mll 행을 지워야 실제로 레벨테스트가 뜬다 — korean_level 만으론 부족."""
+def test_retest_request_only_marks_pending_without_deleting(db):
+    """⛔⛔ §9 — request_level_retest 는 이제 행을 지우지 않는다(retest_requested_at 만).
+
+    통화가 성립하기 전까지 옛 레벨이 그대로 남아야 한다 — 재측정 성공과 통화 성립
+    사이 취소·거절로 레벨만 지워진 채 남는 문제(앱요청 §3)를 막기 위함."""
     m = _member(db, korean_level=7)
     db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=7))
     db.commit()
 
+    result = mastery_service.request_level_retest(db, m, "ko")
+
+    assert result["retest_requested_at"] is not None
+    row = db.query(MemberLanguageLevel).one()
+    assert row.level_no == 7, "요청만으로 레벨이 지워졌다 — call_started 전에 지우면 안 된다"
+    assert row.retest_requested_at is not None
+    assert m.korean_level == 7, "요청만으로 korean_level 이 비워졌다"
+
+
+def test_retest_creates_row_when_none_exists(db):
+    """행이 아예 없던 회원(레벨 자체가 없음)도 대기 표시는 걸린다(level_no=NULL로 생성)."""
+    m = _member(db, korean_level=None)
+    db.commit()
+
     mastery_service.request_level_retest(db, m, "ko")
 
+    row = db.query(MemberLanguageLevel).one()
+    assert row.level_no is None
+    assert row.retest_requested_at is not None
+
+
+def test_apply_pending_retest_clears_language_level_row(db):
+    """★ mll 행을 지워야 실제로 레벨테스트가 뜬다 — korean_level 만으론 부족.
+
+    call_started 성립 뒤(apply_pending_retest)에야 실제 삭제가 일어난다."""
+    m = _member(db, korean_level=7)
+    db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=7))
+    db.commit()
+    mastery_service.request_level_retest(db, m, "ko")
+
+    applied = mastery_service.apply_pending_retest(db, m.member_id, "ko")
+
+    assert applied is True
     assert db.query(MemberLanguageLevel).count() == 0
     assert m.korean_level is None
 
 
+def test_apply_pending_retest_is_noop_without_a_pending_request(db):
+    """대기(retest_requested_at)가 없으면 아무것도 지우지 않는다 — 통화가 안 됐거나,
+    애초에 재측정 요청이 아닌 명시 level_test(레벨 보유자 재판정)도 이 경로로 보호된다."""
+    m = _member(db, korean_level=7)
+    db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=7))
+    db.commit()
+
+    applied = mastery_service.apply_pending_retest(db, m.member_id, "ko")
+
+    assert applied is False
+    row = db.query(MemberLanguageLevel).one()
+    assert row.level_no == 7
+    assert m.korean_level == 7
+
+
 def test_retest_preserves_checkboard(db):
-    """★ 배운 걸 지우는 게 아니다 — 체크판·증거는 그대로."""
+    """★ 배운 걸 지우는 게 아니다 — 체크판·증거는 그대로(요청·실제 삭제 둘 다)."""
     m = _member(db, korean_level=5)
     db.add(MemberLanguageLevel(member_id=m.member_id, language="ko", level_no=5))
     db.add(MemberItemProgress(member_id=m.member_id, item_id=1, status="mastered"))
@@ -202,6 +256,7 @@ def test_retest_preserves_checkboard(db):
     db.commit()
 
     mastery_service.request_level_retest(db, m, "ko")
+    mastery_service.apply_pending_retest(db, m.member_id, "ko")
 
     assert db.query(MemberItemProgress).count() == 1, "체크판이 지워졌다"
     assert db.query(ItemEvidence).count() == 1, "증거가 지워졌다"
@@ -215,6 +270,7 @@ def test_retest_of_other_language_keeps_korean_level(db):
     db.commit()
 
     mastery_service.request_level_retest(db, m, "ja")
+    mastery_service.apply_pending_retest(db, m.member_id, "ja")
 
     assert m.korean_level == 6, "다른 언어 재측정이 한국어 레벨을 건드렸다"
     rows = db.query(MemberLanguageLevel).all()

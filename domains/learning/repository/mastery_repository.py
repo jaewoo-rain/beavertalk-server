@@ -125,6 +125,58 @@ def upsert_language_level(
 
 
 # --------------------------------------------------------------------------- #
+# 레벨 재측정 대기(§9, 2026-09-28) — retest_requested_at
+# --------------------------------------------------------------------------- #
+def has_pending_retest(db: Session, member_id: int, language: str = "ko") -> bool:
+    """이 회원×언어에 「재측정 대기」가 있나 — needs_level_test(D11)가 이것도 본다.
+
+    행이 없거나 retest_requested_at 이 NULL 이면 False(대기 없음). 행이 있어도
+    korean_level(get_language_level)은 **옛 레벨을 그대로 돌려준다** — 통화가
+    성립해 실제로 초기화(apply_pending_retest)될 때까지는 옛 레벨로 정상 학습한다.
+    """
+    row = db.scalar(
+        select(MemberLanguageLevel).where(
+            MemberLanguageLevel.member_id == member_id,
+            MemberLanguageLevel.language == language,
+        )
+    )
+    return row is not None and row.retest_requested_at is not None
+
+
+def mark_retest_requested(
+    db: Session, member_id: int, language: str = "ko"
+) -> MemberLanguageLevel:
+    """「다시하기」 요청 — retest_requested_at 만 찍는다(commit 은 호출부 — R3).
+
+    ⛔ 행을 지우지 않는다(§9, 옛 동작과 결정적 차이) — 지우면(또는 행이 없어
+    level_no=NULL 로 새로 만들면) get_language_level 이 즉시 None 을 돌려줘,
+    call_started 전인데 벌써 레벨이 지워진 것처럼 보인다(korean_level 은 통화가
+    성립하기 전까지 옛 값을 유지해야 한다 — §9 핵심 불변식).
+
+    ⚠ ko 는 dual-read 폴백이 있어 **행이 아직 없을 수 있다**(member.korean_level
+    만 있고 mll 행은 없는 기존 회원). 그런 경우 새로 만드는 행의 level_no 를
+    member.korean_level 로 채운다 — NULL 로 만들면 get_language_level 이 (행이
+    있으니) 폴백을 안 타고 바로 None 을 돌려줘 레벨이 조기에 사라진다. ko 가
+    아닌 언어는 행 부재 자체가 원래 "콜드스타트"(폴백 없음)이므로 NULL 그대로.
+    """
+    row = db.scalar(
+        select(MemberLanguageLevel).where(
+            MemberLanguageLevel.member_id == member_id,
+            MemberLanguageLevel.language == language,
+        )
+    )
+    if row is None:
+        level_no = None
+        if language == "ko":
+            member = db.get(Member, member_id)
+            level_no = member.korean_level if member is not None else None
+        row = MemberLanguageLevel(member_id=member_id, language=language, level_no=level_no)
+        db.add(row)
+    row.retest_requested_at = datetime.now(timezone.utc)
+    return row
+
+
+# --------------------------------------------------------------------------- #
 # 검출 후보 (⑤ 2단계 — 후보 30 구성)
 # --------------------------------------------------------------------------- #
 def first_example(item: LearningItem) -> Optional[str]:

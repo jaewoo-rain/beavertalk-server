@@ -216,9 +216,14 @@ def _load_member_character(
     (멀티랭귀지) korean_level 은 member_language_level[language](ko 는 member.korean_level
     dual-read 폴백) — 언어별 현재 레벨/콜드스타트를 반영한다.
 
+    ⭐ §9(2026-09-28) retest_pending — 「재측정 대기」(mark_retest_requested)가 있나.
+    korean_level 은 대기 중에도 **옛 레벨을 그대로** 돌려준다(초기화는 call_started
+    성립 뒤로 미룬다) — 그래서 needs_level_test(D11) 판정은 korean_level 하나만
+    보면 안 되고 이 플래그도 같이 봐야 한다(load_call_setup 참조).
+
     Returns:
         {role, personality, voice, locale, interests, name,
-         korean_level(내부용 — 언어별), member_found(내부용)}.
+         korean_level(내부용 — 언어별), member_found(내부용), retest_pending(내부용)}.
     """
     member = db.get(Member, member_id)
     locale = _base_locale(member.language if member else None)
@@ -243,6 +248,7 @@ def _load_member_character(
         "name": name,
         "korean_level": mastery_repository.get_language_level(db, member_id, language),
         "member_found": member is not None,
+        "retest_pending": mastery_repository.has_pending_retest(db, member_id, language),
     }
 
 
@@ -277,7 +283,7 @@ def load_call_setup(
         {role, personality, voice, level_profile, locale, interests, name,
          history, needs_level_test, korean_level, study_items, known_items,
          recent_topics, promotion_notice, candidates}.
-        needs_level_test=True(= korean_level 미확정)면
+        needs_level_test=True(= korean_level 미확정 **또는** §9 재측정 대기)면
         call_session 이 레벨테스트로 자동 라우팅한다(D11). ORM 객체가 아니라
         평범한 값만 담아 async 컨텍스트로 안전히 넘긴다.
 
@@ -307,11 +313,16 @@ def load_call_setup(
     base = _load_member_character(db, member_id, character_id, language)
     korean_level = base.pop("korean_level")
     member_found = base.pop("member_found")
+    retest_pending = base.pop("retest_pending")
 
     # 레벨 미확정 → 레벨테스트 자동 라우팅 신호(D11). 아래 폴백 레벨 2 는 명시
     # call_type="chat" 등으로 일반 통화가 강행될 때만 실제 사용된다.
     # (멀티랭귀지) korean_level 은 이미 language 스코프 — needs_level_test 도 언어별.
-    needs_level_test = korean_level is None
+    # ⭐⭐ §9(2026-09-28) — 「레벨 미확정」뿐 아니라 「재측정 대기」도 level_test 로
+    #   본다. retest_pending 이 True 여도 korean_level 은 여전히 옛 값이다(초기화는
+    #   call_started 성립 뒤 — mastery_service.apply_pending_retest) — 그래서
+    #   korean_level 만 보면 재측정 요청이 라우팅에 반영되지 않는다.
+    needs_level_test = korean_level is None or retest_pending
     # 레벨 미설정 폴백 = 2(Basic A). 1 은 생존 회화 — 레벨테스트가 배정하는 전용 레벨.
     level_no = korean_level if korean_level else 2
 
@@ -586,6 +597,7 @@ def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dic
     base = _load_member_character(db, member_id, character_id)
     base.pop("korean_level")
     base.pop("member_found")
+    base.pop("retest_pending")
     return base
 
 

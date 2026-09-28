@@ -817,40 +817,77 @@ apply_grandfathering = record_placement
 # 레벨 재측정 (사용자 요청 — 마이페이지 "레벨테스트 다시하기")
 # --------------------------------------------------------------------------- #
 def request_level_retest(db: Session, member: Member, language: str = "ko") -> dict:
-    """레벨만 백지화해 다음 통화가 레벨테스트로 라우팅되게 한다. **체크판은 보존.**
+    """"다시하기" 요청 — **retest_requested_at 만 찍는다**(§9, 2026-09-28). 체크판 보존.
+
+    ⛔⛔ §9 — 예전엔 여기서 즉시 member_language_level 행을 지웠다(ko 면
+    korean_level 도 NULL). 그런데 레벨테스트 거절(call_session.py 의
+    ALREADY_IN_CALL·DAILY_LIMIT)은 **실제 통화 시작 시점**에서만 걸린다 — 그 사이
+    (연결 중 취소·다른 기기 통화 중)에 실패하면 레벨만 지워진 채 아무것도 대신
+    채워지지 않는다(실측: 회원 58명 중 레벨 없음 37명, 그중 통화 기록은 있는데
+    레벨테스트 통화가 0건인 회원 다수). 그래서 실제 초기화는 레벨테스트 통화가
+    call_started 로 성립한 뒤로 미뤘다(apply_pending_retest 참조) — 통화가 안
+    되면 **옛 레벨이 그대로 남는다**.
+
+    ⭐ 「재측정 대기」를 취소하는 기능은 없다(앱에 취소 버튼 없음, YAGNI — 필요해
+    지면 그때). 사용자가 다시하기를 누르고 통화를 영영 안 하면, 다음 통화도 계속
+    level_test 로 라우팅된다(needs_level_test — normalcall_service.load_call_setup).
+    이건 **의도된 동작**이다 — 요청서가 그렇게 읽힌다("통화가 성립하지 않으면
+    기존 레벨이 그대로 남는다"). 사용자가 원할 때 레벨테스트를 받는 게 맞고, 그
+    전까지는 옛 레벨로 정상 학습한다(get_language_level 은 대기 중에도 옛
+    level_no 를 그대로 돌려준다 — 아래 apply_pending_retest 전까지는 안 지워지므로).
 
     "다시하기"는 배운 걸 지우는 게 아니라 **레벨 배정만 다시 받는 것**이다. 그래서
     member_item_progress(체크판)·item_evidence(증거)·member_level_history(승급 이력)는
     건드리지 않는다. dev 전용 `/__dev/level-reset` 은 그것까지 전부 지우는 완전
     백지화라 목적이 다르다 — 혼동하면 사용자의 학습 기록이 날아간다.
 
-    ⚠ **member_language_level 행을 지우는 게 핵심이다.** korean_level 만 NULL 로
-    만들면 라우팅이 안 바뀐다 — mastery_repository.get_language_level 은 mll 행이
-    있으면 그 level_no 를 진실로 삼고 member.korean_level 로 폴백하지 않는다.
-    (멀티랭귀지 도입 때 dev 엔드포인트가 이걸 놓쳐 "초기화해도 레벨테스트가 안 뜨는"
-    상태였던 전례가 있다.) 행을 NULL 로 두지 않고 삭제하는 이유는 get_language_level
-    이 "행 부재 = 콜드스타트"로 정의하고, 레벨테스트가 placement 로 행을 새로
-    만들어 주기 때문이다.
-
     하루 1회 제한은 여기서 검사하지 않는다 — 실제 통화 시작(call_session)이
-    call_type='level_test' 로 한도를 검사해 거절한다. 즉 이 호출이 성공해도 오늘
-    이미 레벨테스트를 했다면 통화가 DAILY_LIMIT 로 거절된다. 판정을 한 곳에 두는
-    편이 두 곳에서 각자 세는 것보다 어긋날 여지가 없다.
+    call_type='level_test' 로 한도를 검사해 거절한다.
 
     Args:
-        member: 요청자(ORM). korean_level 을 직접 비운다.
+        member: 요청자(ORM).
         language: 재측정할 학습 언어(기본 ko).
 
     Returns:
-        {"language", "cleared_language_level"(삭제 행 수), "korean_level"}.
+        {"language", "retest_requested_at"}.
     """
+    row = mastery_repository.mark_retest_requested(db, member.member_id, language)
+    db.commit()  # 쓰기는 service 가 명시적 커밋(프로젝트 컨벤션)
+    logger.info(
+        "level_retest: member=%s language=%s 재측정 대기 표시(행 삭제는 통화 성립 뒤)",
+        member.member_id, language,
+    )
+    return {"language": language, "retest_requested_at": row.retest_requested_at}
+
+
+def apply_pending_retest(db: Session, member_id: int, language: str = "ko") -> bool:
+    """레벨테스트 통화가 **성립한 뒤** 실제 초기화(행 삭제·korean_level NULL)를 한다(§9).
+
+    ⭐⭐ call_started 시점을 택한 이유(call_session.py 가 이 함수를 그 송신
+    직전/직후에 부른다) — 결과 확정(통화후 판정)까지 미루면 측정이 진행되는
+    도중의 조회(마이페이지 등)가 여전히 **옛 레벨**을 보여준다("측정 중인데 옛
+    레벨이 보인다"). ALREADY_IN_CALL·DAILY_LIMIT 은 이 지점 **이전**에 이미
+    걸러졌으므로, 여기 도달했다는 사실 자체가 통화가 실제로 성립했다는 뜻이다.
+
+    retest_requested_at 이 없으면(재측정 요청이 아니라 최초 레벨 미확정으로 온
+    level_test, 또는 admin/도구의 명시 level_test 로 레벨 보유자가 그냥 재판정만
+    받는 경우) **아무것도 하지 않는다** — 지울 대기가 없다. 이 경우 기존 레벨은
+    `analyze_level_test_call` 의 "레벨 있으면 안 덮어쓴다" 가드가 그대로 보호한다
+    (레이스 방지, 2026-09-09 call 1367/1368 사고 참조).
+
+    Returns:
+        True면 실제로 초기화했다(대기가 있었다), False면 대기가 없어 no-op.
+    """
+    if not mastery_repository.has_pending_retest(db, member_id, language):
+        return False
+
     from sqlalchemy import delete
 
     from domains.learning.models.member_language_level import MemberLanguageLevel
 
     cleared = db.execute(
         delete(MemberLanguageLevel).where(
-            MemberLanguageLevel.member_id == member.member_id,
+            MemberLanguageLevel.member_id == member_id,
             MemberLanguageLevel.language == language,
         )
     ).rowcount
@@ -858,15 +895,13 @@ def request_level_retest(db: Session, member: Member, language: str = "ko") -> d
     # ko 는 member.korean_level 이 폴백 경로라 같이 비운다. 다른 언어는 mll 행이
     # 유일한 출처이므로 korean_level 을 건드리면 안 된다(한국어 레벨이 날아간다).
     if language == "ko":
-        member.korean_level = None
+        member = db.get(Member, member_id)
+        if member is not None:
+            member.korean_level = None
 
     db.commit()  # 쓰기는 service 가 명시적 커밋(프로젝트 컨벤션)
     logger.info(
-        "level_retest: member=%s language=%s mll삭제=%s (체크판 보존)",
-        member.member_id, language, cleared,
+        "apply_pending_retest: member=%s language=%s mll삭제=%s (call_started 성립 뒤 초기화)",
+        member_id, language, cleared,
     )
-    return {
-        "language": language,
-        "cleared_language_level": int(cleared or 0),
-        "korean_level": member.korean_level,
-    }
+    return True
