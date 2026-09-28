@@ -14,6 +14,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, select, text
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -127,8 +128,6 @@ class DispatchService:
         )
         sent = 0
         for a, member_tz in rows:
-            if a.time is None:
-                continue
             # ⛔⛔ §25-①(2026-09-28, 출시 전 권장) — 알람 1건 처리 실패가 나머지를
             #   막으면 안 된다. API 레벨에 tz_offset_min 범위 검사(AlarmCreate/Update,
             #   -840~840)가 생겼지만, 그 전에 API 를 직접 불러 넣은 값이나 앞으로
@@ -137,6 +136,11 @@ class DispatchService:
             #   여기서 안 잡히면 이 알람 **뒤 순번의 모든 알람**이 그 분(그리고
             #   범위 밖 값이 안 고쳐지는 한 매분) 통째로 발송 안 된다(500).
             try:
+                # ⛔ §26-④ — `a.time` 읽기도 try **안**에 둔다. 앞 알람의 DB 오류·rollback 이
+                #   세션 객체를 만료시키면 이 읽기가 DB 를 다시 친다. try 밖이면 그 실패가
+                #   루프를 깨고 run() 전체가 500 이 됐다(§26-④ 재현 중 확인).
+                if a.time is None:
+                    continue
                 h, m = _wall_hm(a.time)
                 zone = _alarm_zone(a, member_tz)
                 # ⛔⛔ 봄 DST 건너뜀(그 존의 로컬 02:30 같은 시각이 그날 존재하지 않음)은
@@ -180,9 +184,28 @@ class DispatchService:
                         sent += self._ring(a, call_id)
                     break
             except Exception:  # noqa: BLE001 - 알람 1건의 실패가 나머지 알람을 막으면 안 된다(R5)
+                # ⛔⛔ §26-④(2026-09-29) — **rollback 이 건별 방어의 나머지 반쪽이다.** 세션은
+                #   루프 전체가 공유한다. DB 오류(flush 실패·끊긴 연결·PG 의 «current
+                #   transaction is aborted»)가 난 채로 두면 이 분의 **뒤 알람 전부**가 같은
+                #   오염 세션에서 연달아 실패해 건너뛰어졌다(다음 분 catchup 까지 ~1분 지연).
+                # ⭐ 이 rollback 이 다른 알람의 발송 기록을 되돌리지 않는 이유: 되돌리는 건
+                #   «마지막 commit 이후»뿐인데, _claim 은 INSERT 직후 **그 자리에서 commit** 하고
+                #   (_ring 의 토큰 무효화도 자기 commit/rollback 으로 닫는다) 알람 사이에 걸쳐
+                #   열린 쓰기가 없다. 되돌려지는 건 이 알람의 미커밋분뿐이다 — 예컨대 _claim 의
+                #   commit 자체가 실패했다면 그 클레임은 정말 없던 것이 맞다(발송도 안 했다).
+                # ⚠ rollback 은 세션의 ORM 객체를 전부 만료시킨다 — 뒤 알람은 속성을 다시 읽어
+                #   온다(정상 동작, 쿼리만 늘어난다). 그래서 로그용 id 는 DB 를 치지 않는 identity
+                #   에서 꺼낸다(오염 세션에서 속성을 새로 읽으면 except 안에서 또 터져 루프를 깬다).
+                try:
+                    self.db.rollback()
+                except Exception:  # noqa: BLE001 - rollback 실패도 루프를 깨면 안 된다
+                    logger.warning("dispatch: rollback 실패(무시)", exc_info=True)
+                ident = sa_inspect(a).identity
                 logger.exception(
-                    "dispatch: 알람 처리 실패(건너뜀, 나머지는 계속) alarm_id=%s tz=%r tz_offset_min=%s",
-                    a.alarm_id, a.tz, a.tz_offset_min,
+                    "dispatch: 알람 처리 실패(건너뜀·rollback, 나머지는 계속) alarm_id=%s "
+                    "member_tz=%r tz=%r tz_offset_min=%s",
+                    ident[0] if ident else None, member_tz,
+                    a.__dict__.get("tz"), a.__dict__.get("tz_offset_min"),  # 만료돼도 DB 를 안 친다
                 )
         self._purge()
         return sent
