@@ -20,6 +20,7 @@ from domains.commerce.models.discount_event import DiscountEvent  # noqa: F401
 from domains.commerce.models.payment import Payment  # noqa: F401
 from domains.commerce.models.subscribe import Subscribe  # noqa: F401
 from domains.commerce.models.iap_receipt import IapReceipt  # noqa: F401
+from domains.commerce.models.churn_reason import ChurnReason  # noqa: F401
 
 # learning
 from domains.learning.models.call import Call  # noqa: F401

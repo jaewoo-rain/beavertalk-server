@@ -14,6 +14,8 @@ from domains.account.schemas.member import (
     MyPageOut,
     OnboardingIn,
 )
+from domains.commerce.schemas.churn_reason import ChurnReasonIn, ChurnReasonOut
+from domains.commerce.service.churn_reason_service import ChurnReasonService
 from domains.learning.service import mastery_service
 from domains.account.service.member_service import MemberService
 
@@ -73,6 +75,27 @@ def retake_level_test(member: CurrentMember, db: DbSession) -> dict:
     return mastery_service.request_level_retest(
         db, member, member.target_language or "ko"
     )
+
+
+@router.post("/me/churn-reasons", response_model=ChurnReasonOut)
+def submit_churn_reason(
+    data: ChurnReasonIn, member: CurrentMember, db: DbSession
+) -> ChurnReasonOut:
+    """해지 사유 수집(§17) — 마이페이지 구독 해지 설문("왜 그만두시나요?")의 통로.
+
+    ⚠ 회원은 **토큰에서** 온다(요청 본문에 없다). `subscribe_id` 는 앱이 이미 들고
+    있는 값(subscription_status_dto.dart)을 그대로 보낸다 — 서버가 "지금 만료된
+    구독"을 스스로 추론하면, 답하기 전에 재구독한 회원의 직전 만료 응답을 엉뚱한
+    행에 붙이거나 거절하게 된다. 서버는 그 `subscribe_id` 가 **이 회원 것인지만**
+    검증한다(위조 불가) — 남의 것이면 존재를 알리지 않고 404.
+
+    같은 (회원, 구독) 조합으로 다시 보내면 **마지막 값으로 덮어쓴다**(재설치 후
+    다른 답을 골랐다면 그게 최신 의사).
+
+    ⚠ 이 API 는 아직 앱이 호출하지 않는다(요청서 §17, 와이어 코드 `other_app` 확정
+    전 — 앱팀 확인 대기). 먼저 만들어 둬도 지금은 아무것도 안 바뀐다.
+    """
+    return ChurnReasonService(db).submit(member.member_id, data)
 
 
 @router.patch("/me", response_model=MemberRead)
