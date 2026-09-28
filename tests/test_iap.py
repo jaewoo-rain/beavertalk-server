@@ -367,6 +367,29 @@ def test_bundle_acknowledge_uses_non_subscription_path(db, monkeypatch):
     assert seen["member_character_count_at_ack_time"] == 3, "acknowledge 는 지급 뒤에 불려야 한다"
 
 
+def test_bundle_with_empty_composition_is_503_before_any_side_effect(db, monkeypatch):
+    """⭐⭐ §26-②(2026-09-29, bt-back 지시) — in_bundle 이 0건이면 _grant_bundle 이
+    아무것도 못 주는데, 그냥 통과시키면 영수증 기록·acknowledge·200 까지 진행되고
+    **멱등이라 되돌릴 수 없다**(돈 받고 아무것도 안 줌). 구성이 비면 지급·기록·
+    acknowledge 전에 503 으로 끊어야 한다(앱이 재시도 경로로 간다)."""
+    for c in db.query(Character).filter(Character.in_bundle.is_(True)).all():
+        c.in_bundle = False
+    db.commit()
+    assert iap_catalog.resolve_bundle_character_ids(db) == []
+
+    ack_calls = []
+    monkeypatch.setattr(iap, "acknowledge", lambda *a, **k: ack_calls.append(a) or True)
+
+    with pytest.raises(HTTPException) as exc_info:
+        IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-empty"))
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail["code"] == "VERIFY_UNAVAILABLE"
+    assert db.query(IapReceipt).filter_by(transaction_id="bundle-empty").count() == 0
+    assert db.query(MemberCharacter).count() == 0
+    assert ack_calls == []
+
+
 # --------------------------------------------------------------------------- #
 # §24 입구③ — 복원/재검증(already_granted)이 새 만료·토큰을 버리지 않는다
 # --------------------------------------------------------------------------- #
