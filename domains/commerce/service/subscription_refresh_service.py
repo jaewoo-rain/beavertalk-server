@@ -116,6 +116,8 @@ def bump_subscription_from_verify_result(
     )
     if sub is None:
         return False
+    # §22-⑤⑦ — 이미 손에 든 결과라 verify() 를 또 안 부르고 같은 자리에서 채운다.
+    sub.is_trial = result.is_trial
     bumped = _bump_end_date_if_later(sub, result.expires_at)
     if bumped:
         logger.info(
@@ -158,6 +160,8 @@ def _refresh_from_store(db: Session, sub: Subscribe) -> bool:
     )
     receipt.last_store_check_at = now
     if result.ok:
+        # §22-⑤⑦ — 이미 손에 든 결과라 verify() 를 또 안 부르고 같은 자리에서 채운다.
+        sub.is_trial = result.is_trial
         _bump_end_date_if_later(sub, result.expires_at)
         logger.info(
             "iap 재조회: member=%s subscribe=%s 갱신 반영(신규 end_date=%s)",

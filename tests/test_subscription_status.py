@@ -38,6 +38,8 @@ class Row:
     billing_state: str = "ok"
     retrying_until: Optional[datetime] = None
     paused_since: Optional[datetime] = None
+    billing_period: Optional[str] = None
+    product_id: Optional[str] = None
 
 
 def _state(*rows: Row) -> str:
@@ -172,6 +174,29 @@ def test_retrying_and_paused_are_scoped_to_their_state():
 
 
 # --------------------------------------------------------------------------- #
+# §22-⑤⑦(2026-09-28) — 체험·주기 필드 전달
+# --------------------------------------------------------------------------- #
+def test_trial_ends_at_mirrors_end_date_when_trial():
+    """trial_ends_at 은 별도 칸이 아니라 is_trial 일 때의 end_date 그 자체다."""
+    resolved = resolve_status([Row(is_trial=True, end_date=FUTURE)], now=NOW)
+    assert resolved.state == "trial"
+    assert resolved.trial_ends_at == FUTURE
+
+
+def test_trial_ends_at_is_none_when_not_trial():
+    resolved = resolve_status([Row(is_trial=False, end_date=FUTURE)], now=NOW)
+    assert resolved.trial_ends_at is None
+
+
+def test_billing_period_and_product_id_pass_through():
+    resolved = resolve_status(
+        [Row(end_date=FUTURE, billing_period="yearly", product_id="bt_pro_yearly")], now=NOW,
+    )
+    assert resolved.billing_period == "yearly"
+    assert resolved.product_id == "bt_pro_yearly"
+
+
+# --------------------------------------------------------------------------- #
 # 계약 — 앱 SubscriptionStatusDto 가 읽는 키 집합
 # --------------------------------------------------------------------------- #
 def test_response_keys_match_app_contract():
@@ -181,6 +206,8 @@ def test_response_keys_match_app_contract():
     assert set(SubscriptionStatusOut.model_fields) == {
         "state", "plan", "subscribe_id", "price",
         "start_date", "end_date", "retrying_until", "paused_since",
+        # §22-⑤⑦(2026-09-28) — 체험·주기 필드 추가.
+        "billing_period", "product_id", "is_trial", "trial_ends_at",
     }
 
 

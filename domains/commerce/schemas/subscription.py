@@ -58,3 +58,13 @@ class SubscriptionStatusOut(BaseModel):
     end_date: Optional[datetime] = None
     retrying_until: Optional[datetime] = None
     paused_since: Optional[datetime] = None
+    # ⭐ §22-⑤⑦(2026-09-28) — DB 엔 이미 있던 값(subscribe.billing_period·product_id·
+    # is_trial), 응답에만 없었다. trial_ends_at 은 별도 칸이 아니라 is_trial 일 때의
+    # end_date 그 자체(subscription_status._from_row 참조).
+    # ⚠ billing_period 는 응답에서 Optional[str] 로 느슨하게 뒀다(입력 SubscribeCreate
+    #   와 달리 DB 값을 그대로 내보내는 자리라, 레거시/외부 데이터가 두 값 밖이어도
+    #   500 대신 그대로 통과시킨다).
+    billing_period: Optional[str] = None
+    product_id: Optional[str] = None
+    is_trial: bool = False
+    trial_ends_at: Optional[datetime] = None

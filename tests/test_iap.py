@@ -233,6 +233,26 @@ def test_reverify_does_not_lower_end_date(db, monkeypatch):
     assert sub.end_date == original_end
 
 
+def test_reverify_of_already_granted_subscription_also_updates_trial_flag(db, monkeypatch):
+    """§22-⑤⑦ — 입구③(already_granted)도 같은 자리에서 is_trial 을 채운다
+    (verify() 를 또 부르지 않고 이미 가진 결과를 재사용— subscription_refresh_service
+    참조)."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+    sub = db.query(Subscribe).one()
+    assert sub.is_trial is False
+
+    later = sub.end_date + timedelta(days=7)
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s1", expires_at=later, is_trial=True),
+    )
+    svc.verify_and_grant(_mid(db), "ios", _item(product=PRO, tx="s1"))
+
+    db.refresh(sub)
+    assert sub.is_trial is True
+
+
 def test_reverify_fills_missing_purchase_token(db, monkeypatch):
     """§24 입구③의 두 번째 역할 — 기존 5행(토큰 없음)의 유일한 이주 경로.
     앱 「복원」(재검증) 한 번이면 그 receipt 의 purchase_token 이 채워진다."""
@@ -302,6 +322,22 @@ def test_subscription_grants_pro(db):
     assert r.character_id is None
     assert r.entitlement.is_pro is True
     assert r.entitlement.pro_expires_at is not None
+
+
+def test_subscription_grant_records_trial_flag(db, monkeypatch):
+    """§22-⑤⑦ — verify() 가 판정한 is_trial 을 subscribe.is_trial 로 그대로 저장한다.
+
+    스텁(_verify_stub)은 항상 is_trial=False 라 여기서는 verify() 자체를 대체해
+    스토어가 체험 오퍼를 돌려준 상황을 흉내낸다."""
+    later = datetime.now(timezone.utc) + timedelta(days=7)
+    monkeypatch.setattr(
+        iap, "verify",
+        lambda **k: iap.VerifyResult(ok=True, transaction_id="s-trial", expires_at=later, is_trial=True),
+    )
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=PRO, tx="s-trial"))
+
+    sub = db.query(Subscribe).one()
+    assert sub.is_trial is True
 
 
 def test_expired_subscription_is_not_pro(db):

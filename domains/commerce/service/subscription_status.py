@@ -34,6 +34,8 @@ class SubscribeRow(Protocol):
     billing_state: str
     retrying_until: Optional[datetime]
     paused_since: Optional[datetime]
+    billing_period: Optional[str]
+    product_id: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,14 @@ class ResolvedStatus:
     end_date: Optional[datetime]
     retrying_until: Optional[datetime]
     paused_since: Optional[datetime]
+    # ⭐ §22-⑤⑦(2026-09-28) — DB 엔 이미 있던 값, 응답에만 없었다. 새 필드는 전부
+    #   기본값을 줘 기존 호출부(테스트의 ResolvedStatus(...) 직접 생성 등)가 안 깨진다.
+    billing_period: Optional[str] = None
+    product_id: Optional[str] = None
+    is_trial: bool = False
+    # 체험 종료 시각 — 별도 컬럼이 아니라 is_trial 일 때의 end_date 그 자체다
+    # (DB 에 새 칸을 안 만든 이유).
+    trial_ends_at: Optional[datetime] = None
 
 
 FREE = ResolvedStatus(
@@ -136,6 +146,10 @@ def _from_row(row: SubscribeRow, state: str) -> ResolvedStatus:
         # "Retrying until …" 을 띄우지 않게 여기서 잘라낸다.
         retrying_until=row.retrying_until if state == "grace" else None,
         paused_since=row.paused_since if state == "on_hold" else None,
+        billing_period=row.billing_period,
+        product_id=row.product_id,
+        is_trial=row.is_trial,
+        trial_ends_at=row.end_date if row.is_trial else None,
     )
 
 

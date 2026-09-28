@@ -112,6 +112,10 @@ class SubscriptionService:
             end_date=resolved.end_date,
             retrying_until=resolved.retrying_until,
             paused_since=resolved.paused_since,
+            billing_period=resolved.billing_period,
+            product_id=resolved.product_id,
+            is_trial=resolved.is_trial,
+            trial_ends_at=resolved.trial_ends_at,
         )
 
     def cancel(self, member_id: int, subscribe_id: int) -> SubscriptionOut:

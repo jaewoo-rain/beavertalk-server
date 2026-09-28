@@ -61,6 +61,8 @@ def _row():
         billing_state: str = "ok"
         retrying_until: Optional[datetime] = None
         paused_since: Optional[datetime] = None
+        billing_period: Optional[str] = None
+        product_id: Optional[str] = None
 
     return Row
 

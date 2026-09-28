@@ -194,7 +194,7 @@ class IapService:
             self._grant_character(member_id, ref.character_id)  # type: ignore[arg-type]
         else:
             expires_at = self._grant_subscription(
-                member_id, result.expires_at, ref, item.product_id
+                member_id, result.expires_at, ref, item.product_id, result.is_trial,
             )
 
         self.db.add(IapReceipt(
@@ -299,6 +299,7 @@ class IapService:
         store_expires_at: object | None,
         ref: iap_catalog.ProductRef,
         product_id: str,
+        is_trial: bool = False,
     ) -> datetime:
         """구독 활성화. 만료는 **스토어 값이 우선**, 없으면 주기별 폴백(스텁용).
 
@@ -308,6 +309,10 @@ class IapService:
 
         source='store': 결제 미연동 기간에 만든 행(manual)과 구분하는 표식이다.
         이게 없으면 결제가 붙는 날 "누가 진짜 유료인가"를 못 가른다.
+
+        is_trial: §22-⑤⑦(2026-09-28) — verify() 가 이미 판정해 준 값을 그대로
+        저장한다(체험→유료 전환도 같은 경로로 들어온다 — 전환 시 스토어가 offer
+        없는 갱신을 주므로 is_trial=False 로 자연히 꺼진다, 별도 처리 불필요).
         """
         now = datetime.now(timezone.utc)
         expires = (
@@ -326,6 +331,7 @@ class IapService:
             sub.billing_period = ref.billing_period or sub.billing_period
             sub.product_id = product_id
             sub.source = "store"
+            sub.is_trial = is_trial
             # 스토어가 갱신에 성공했다 = 재시도/보류 상태가 아니다.
             sub.billing_state = "ok"
             sub.retrying_until = None
@@ -341,6 +347,7 @@ class IapService:
             billing_period=ref.billing_period,
             product_id=product_id,
             source="store",
+            is_trial=is_trial,
         ))
         return expires
 

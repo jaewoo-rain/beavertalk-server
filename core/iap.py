@@ -65,6 +65,10 @@ class VerifyResult:
     #   한다) 나중에 만들 매출 집계에서 이 값으로 걸러낸다(누구나 가입 가능한 라이선스
     #   테스트 그룹으로 공짜 Premium 을 "매출"로 잡는 사고 방지).
     store_confirmed_test: bool = False
+    # ⭐ §22-⑤⑦(2026-09-28) — 이 구독 건이 체험(무료/도입) 오퍼인가. 구독일 때만
+    #   의미 있다(캐릭터는 항상 False). Google 은 offerId=='trial-7d', Apple 은
+    #   offerType==1(Introductory) — 하류(subscribe.is_trial)가 그대로 저장한다.
+    is_trial: bool = False
 
 
 def verify(
@@ -269,6 +273,9 @@ def _verify_google(
                 transaction_id=transaction_id,
                 expires_at=_parse_rfc3339(match.get("expiryTime")),
                 store_confirmed_test="testPurchase" in body,
+                # ⭐ §22-⑤⑦ — 체험 오퍼 코드. 위 offer_id 로그와 같은 자리(응답을
+                #   이미 파싱해 손에 든 상태)에서 판정만 한 줄 추가한다.
+                is_trial=offer_id == "trial-7d",
             )
 
         url = (
@@ -466,6 +473,10 @@ def _verify_apple(
                 transaction_id=matched_info.get("originalTransactionId") or transaction_id,
                 expires_at=expires_at,
                 store_confirmed_test=_is_apple_sandbox_transaction(matched_info),
+                # ⭐ §22-⑤⑦ — offerType 1=Introductory(체험/도입가), 2=Promotional,
+                #   3=Offer Code. JWSTransactionDecodedPayload 필드(apple/app-store-
+                #   server-library-python 모델 확인).
+                is_trial=matched_info.get("offerType") == 1,
             )
 
         resp = httpx.get(
