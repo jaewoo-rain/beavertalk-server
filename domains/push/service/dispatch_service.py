@@ -108,28 +108,41 @@ class DispatchService:
         for a in alarms:
             if a.time is None:
                 continue
-            h, m = _wall_hm(a.time)
-            zone = _alarm_zone(a)
-            # ⛔⛔ 봄 DST 건너뜀(그 존의 로컬 02:30 같은 시각이 그날 존재하지 않음)은
-            #   **수용한 결정**이다(§5, 2026-09-28) — 그날은 조용히 안 울린다.
-            #   ⛔ "가까운 유효 시각으로 밀어서라도 울리게" 고치지 마라 — 사용자가
-            #   예상 못 한 시각에 전화를 받는 게 더 나쁘다. 1년에 한 번, DST 지역
-            #   에서만 벌어진다. (가을 되돌림은 같은 로컬시각이 두 번 오는데, 멱등
-            #   키가 로컬 벽분이라 두 번째 instant 가 같은 키로 막혀 자연히 1회만
-            #   울린다 — 이쪽은 이미 바람직하게 동작한다.)
-            for cand in candidates:
-                b = cand.astimezone(zone)
-                if b.hour != h or b.minute != m:
-                    continue
-                if _DAY_CODES[b.weekday()] not in {s.day_of_week for s in a.schedules}:
-                    continue
-                bucket_key = b.strftime("%Y-%m-%d %H:%M")
-                # 클레임이 통화 id 까지 발급한다 — 발송과 기록이 갈리면 되짚기가
-                # 끊긴다(캐릭터를 알람에서 못 꺼낸다).
-                call_id = self._claim(a.alarm_id, bucket_key)
-                if call_id is not None:
-                    sent += self._ring(a, call_id)
-                break
+            # ⛔⛔ §25-①(2026-09-28, 출시 전 권장) — 알람 1건 처리 실패가 나머지를
+            #   막으면 안 된다. API 레벨에 tz_offset_min 범위 검사(AlarmCreate/Update,
+            #   -840~840)가 생겼지만, 그 전에 API 를 직접 불러 넣은 값이나 앞으로
+            #   생길 다른 실패 모드까지 여기서 다시 방어한다 — _alarm_zone 이 죽으면
+            #   (예: |tz_offset_min|≥1440 → datetime.timezone ValueError) 예외가
+            #   여기서 안 잡히면 이 알람 **뒤 순번의 모든 알람**이 그 분(그리고
+            #   범위 밖 값이 안 고쳐지는 한 매분) 통째로 발송 안 된다(500).
+            try:
+                h, m = _wall_hm(a.time)
+                zone = _alarm_zone(a)
+                # ⛔⛔ 봄 DST 건너뜀(그 존의 로컬 02:30 같은 시각이 그날 존재하지 않음)은
+                #   **수용한 결정**이다(§5, 2026-09-28) — 그날은 조용히 안 울린다.
+                #   ⛔ "가까운 유효 시각으로 밀어서라도 울리게" 고치지 마라 — 사용자가
+                #   예상 못 한 시각에 전화를 받는 게 더 나쁘다. 1년에 한 번, DST 지역
+                #   에서만 벌어진다. (가을 되돌림은 같은 로컬시각이 두 번 오는데, 멱등
+                #   키가 로컬 벽분이라 두 번째 instant 가 같은 키로 막혀 자연히 1회만
+                #   울린다 — 이쪽은 이미 바람직하게 동작한다.)
+                for cand in candidates:
+                    b = cand.astimezone(zone)
+                    if b.hour != h or b.minute != m:
+                        continue
+                    if _DAY_CODES[b.weekday()] not in {s.day_of_week for s in a.schedules}:
+                        continue
+                    bucket_key = b.strftime("%Y-%m-%d %H:%M")
+                    # 클레임이 통화 id 까지 발급한다 — 발송과 기록이 갈리면 되짚기가
+                    # 끊긴다(캐릭터를 알람에서 못 꺼낸다).
+                    call_id = self._claim(a.alarm_id, bucket_key)
+                    if call_id is not None:
+                        sent += self._ring(a, call_id)
+                    break
+            except Exception:  # noqa: BLE001 - 알람 1건의 실패가 나머지 알람을 막으면 안 된다(R5)
+                logger.exception(
+                    "dispatch: 알람 처리 실패(건너뜀, 나머지는 계속) alarm_id=%s tz=%r tz_offset_min=%s",
+                    a.alarm_id, a.tz, a.tz_offset_min,
+                )
         self._purge()
         return sent
 

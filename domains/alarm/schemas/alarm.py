@@ -5,10 +5,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # 요일 화이트리스트 — 잘못된 값은 422 로 거부됨
 DayOfWeek = Literal["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+
+# ⛔⛔ §25-①(2026-09-28, 출시 전 권장) — 범위 밖(|값|≥1440)이면 dispatch_service.
+#   _offset_zone 의 datetime.timezone(timedelta(...)) 이 ValueError 로 죽는다.
+#   call_service.py 의 tz_offset_min 검증(-14*60~14*60)과 같은 값 — 그쪽과 어긋나면
+#   "이 화면은 되는데 알람은 안 된다"가 된다.
+_TZ_OFFSET_MIN, _TZ_OFFSET_MAX = -14 * 60, 14 * 60
 
 
 class AlarmCharacterBrief(BaseModel):
@@ -31,7 +37,7 @@ class AlarmCreate(BaseModel):
     # 폴백한다). ⛔ 여기서 서울을 기본값으로 채우지 않는다 — "안 보냄"과 "서울"이
     # 구분돼야 한다.
     tz: Optional[str] = None
-    tz_offset_min: Optional[int] = None
+    tz_offset_min: Optional[int] = Field(default=None, ge=_TZ_OFFSET_MIN, le=_TZ_OFFSET_MAX)
 
 
 class AlarmUpdate(BaseModel):
@@ -43,7 +49,7 @@ class AlarmUpdate(BaseModel):
     days_of_week: Optional[list[DayOfWeek]] = None
     call_type: Optional[CallType] = None
     tz: Optional[str] = None
-    tz_offset_min: Optional[int] = None
+    tz_offset_min: Optional[int] = Field(default=None, ge=_TZ_OFFSET_MIN, le=_TZ_OFFSET_MAX)
 
 
 # ── 응답 ──
