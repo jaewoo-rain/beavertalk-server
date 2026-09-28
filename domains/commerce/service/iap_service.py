@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -27,6 +28,7 @@ from sqlalchemy.orm import Session
 from core import iap
 from domains.commerce.models.iap_receipt import IapReceipt
 from domains.commerce.models.member_character import MemberCharacter
+from domains.commerce.models.payment import Payment
 from domains.commerce.models.subscribe import Subscribe
 from domains.commerce.schemas.iap import (
     Entitlement,
@@ -218,6 +220,11 @@ class IapService:
             #   열쇠. ⛔ 로그에 절대 찍지 않는다(스토어 자격에 준한다).
             purchase_token=item.purchase_token,
         ))
+        # ⭐⭐ §22-⑥(2026-09-28) — 스토어 결제를 결제 내역(payment)에 남긴다. 옛
+        #   무료 지급 경로(purchase_service.py)만 payment 행을 만들고 있었고 이
+        #   verify_and_grant(진짜 결제 경로)는 안 만들어서 "이번 달 결제 $0"으로
+        #   보이는 버그였다. 구독·캐릭터·묶음 전부 여기서 한 트랜잭션으로 같이 남긴다.
+        self.db.add(_build_payment(member_id, ref, item, result, is_sandbox))
         try:
             self.db.commit()
         except IntegrityError:
@@ -373,3 +380,42 @@ class IapService:
 def _as_utc(dt: datetime) -> datetime:
     """naive datetime 을 UTC 로 간주해 비교 가능하게 만든다(DB 가 tz 를 잃는 경우 대비)."""
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+_PAYMENT_CATEGORY = {"subscription": "subscribe", "character": "character", "bundle": "character"}
+_PAYMENT_LABEL = {"subscription": "구독 결제", "character": "캐릭터 구매", "bundle": "캐릭터 묶음 구매"}
+
+
+def _build_payment(
+    member_id: int,
+    ref: iap_catalog.ProductRef,
+    item: PurchaseItem,
+    result: iap.VerifyResult,
+    is_sandbox: bool,
+) -> Payment:
+    """§22-⑥ — 검증 성공 결과를 결제 내역 1행으로 옮긴다.
+
+    ⛔ category 는 기존 두 값(subscribe/character)만 쓴다 — PaymentType 이 앱 탭
+    계약이라 "bundle" 탭이 없다(요청서도 안 시켰다). 묶음은 "캐릭터" 탭에 같이
+    보인다(실제로 캐릭터를 지급하는 거래이므로 자연스럽다).
+
+    price(기존 달러 Numeric)는 통화가 USD 일 때만 micros 에서 1:1 환산해 채운다
+    (환율 변환 없음 — 범위 밖). 그 외 통화는 price=None 으로 남아 "이번 달 결제"
+    합계에서 빠진다 — 환율 변환이 필요해지면 그때 추가한다(YAGNI).
+    """
+    price_usd: Optional[Decimal] = None
+    if result.price_amount_micros is not None and (result.price_currency or "").upper() == "USD":
+        price_usd = Decimal(result.price_amount_micros) / Decimal(1_000_000)
+    return Payment(
+        member_id=member_id,
+        payment_date=datetime.now(timezone.utc),
+        price=price_usd,
+        description=f"{_PAYMENT_LABEL.get(ref.kind, ref.kind)} · {item.product_id}",
+        category=_PAYMENT_CATEGORY.get(ref.kind, ref.kind),
+        local_currency=result.price_currency,
+        local_price_micros=result.price_amount_micros,
+        store_order_id=result.order_id,
+        # ⭐ IapReceipt 와 같은 OR 규율 — 클라가 숨겨도 스토어 실측이 잡는다.
+        is_sandbox=is_sandbox or result.store_confirmed_test,
+        is_stub=result.stubbed,
+    )
