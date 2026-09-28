@@ -30,7 +30,7 @@ from domains.commerce.models.iap_receipt import IapReceipt
 from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.models.subscribe import Subscribe
 from domains.commerce.models.voice import Voice
-from domains.commerce.schemas.iap import PurchaseItem
+from domains.commerce.schemas.iap import PurchaseItem, RestoreItemResult
 from domains.commerce.service import iap_catalog
 from domains.commerce.service.iap_service import IapService
 
@@ -634,6 +634,81 @@ def test_restore_after_reinstall_is_idempotent(db):
     res = svc.restore(_mid(db), "ios", [_item(tx="r1")])
     assert res.failed == 0
     assert db.query(MemberCharacter).count() == 1
+
+
+# --------------------------------------------------------------------------- #
+# §22-③(2026-09-28) — 복원 응답 건별 사유(items)
+# --------------------------------------------------------------------------- #
+def test_restore_items_reports_granted_and_invalid_per_product(db):
+    """⛔ 기존 restored/failed 필드는 그대로 두고 items 를 추가만 한다."""
+    items = [_item(product=BIBI, tx="r1"), _item(product=POPO, tx="r3", token="invalid-x")]
+    res = IapService(db).restore(_mid(db), "ios", items)
+
+    assert res.restored == 1 and res.failed == 1  # 기존 필드 불변
+    by_product = {i.product_id: i.result for i in res.items}
+    assert by_product[BIBI] == "granted"
+    assert by_product[POPO] == "invalid"
+
+
+def test_restore_item_result_already_when_previously_granted(db):
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(tx="r1"))
+
+    res = svc.restore(_mid(db), "ios", [_item(tx="r1")])
+
+    assert res.items == [RestoreItemResult(product_id=BIBI, result="already")]
+    assert res.restored == 0  # 새로 지급된 게 아니라 restored 는 안 올라간다
+
+
+def test_restore_item_result_invalid_for_a_distinct_product(db):
+    res = IapService(db).restore(
+        _mid(db), "ios", [_item(product=POPO, tx="r-invalid", token="invalid-x")],
+    )
+    assert res.items == [RestoreItemResult(product_id=POPO, result="invalid")]
+
+
+def test_restore_item_result_unavailable_for_a_distinct_product(db):
+    res = IapService(db).restore(
+        _mid(db), "ios", [_item(product=POPO, tx="r-unavail", token="unavailable-x")],
+    )
+    assert res.items == [RestoreItemResult(product_id=POPO, result="unavailable")]
+
+
+def test_restore_item_result_owned_by_other(db):
+    """다른 계정이 먼저 쓴 영수증을 복원하면 그 상품 1건이 owned_by_other 로 나온다
+    (전체 복원 호출이 409 로 끝나는 게 아니라 목록 안의 한 항목이 된다)."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=POPO, tx="r-shared"))
+    other = Member(language="en", onboarding_completed=True, auth_user_id="a-other")
+    db.add(other)
+    db.commit()
+
+    res = svc.restore(other.member_id, "ios", [_item(product=POPO, tx="r-shared")])
+
+    assert res.items == [RestoreItemResult(product_id=POPO, result="owned_by_other")]
+    assert res.failed == 1
+
+
+def test_restore_items_cover_all_outcomes_in_one_call(db):
+    """한 복원 호출에 granted·already·invalid·unavailable·owned_by_other 가 섞여도
+    각 항목이 독립적으로 정확한 사유를 낸다."""
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=BIBI, tx="already-tx"))
+    other = Member(language="en", onboarding_completed=True, auth_user_id="a-other2")
+    db.add(other)
+    db.commit()
+    svc.verify_and_grant(other.member_id, "ios", _item(product=POPO, tx="others-tx"))
+
+    res = svc.restore(_mid(db), "ios", [
+        _item(product=BIBI, tx="already-tx"),
+        _item(product=POPO, tx="others-tx"),
+        _item(product=MAX, tx="invalid-tx", token="invalid-x"),
+    ])
+
+    by_product = {i.product_id: i.result for i in res.items}
+    assert by_product[BIBI] == "already"
+    assert by_product[POPO] == "owned_by_other"
+    assert by_product[MAX] == "invalid"
 
 
 # --------------------------------------------------------------------------- #

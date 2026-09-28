@@ -64,9 +64,28 @@ class VerifyResponse(BaseModel):
     entitlement: Entitlement
 
 
+# ⭐⭐ §22-③(2026-09-28) — 요청서가 제시한 5종. ⛔ UNKNOWN_PRODUCT(404, 우리
+#   서버가 모르는 product_id)는 이 5종에 없다 — RestoreItemResult 주석 참조.
+RestoreResultReason = Literal["granted", "already", "owned_by_other", "invalid", "unavailable"]
+
+
+class RestoreItemResult(BaseModel):
+    """§22-③ — 복원 1건의 건별 결과. restored/failed(요약 카운트)와 별개로,
+    "무엇이 왜 안 됐는지"를 항목별로 보여준다.
+    """
+
+    product_id: str
+    result: RestoreResultReason
+
+
 class RestoreResponse(BaseModel):
-    """일부가 무효여도 200 — failed 로 알려주고 유효한 것만 지급한다."""
+    """일부가 무효여도 200 — failed 로 알려주고 유효한 것만 지급한다.
+
+    ⭐ items(§22-③, 2026-09-28)는 **추가** 필드다 — restored/failed 는 그대로 두고
+    (구버전 앱 호환), 건별 사유만 더 준다.
+    """
 
     restored: int
     failed: int
     entitlement: Entitlement
+    items: list[RestoreItemResult] = []
