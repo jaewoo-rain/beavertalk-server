@@ -343,6 +343,12 @@ def assess(
       않는다 — 「학습 전」은 한 번만 일어나는 사건이다.
     - `before` 는 직전에 화면에 보이던 점수다(학습 이력이 있으면 그 점수, 없으면 집계값).
     - 재도전으로 점수가 내려가도 `best_score` 는 유지한다.
+
+    ⛔⛔ §3(2026-09-27, 앱 요청) — 스텁 채점(is_stub=True, 키 없음·로드 실패 등)이거나
+    점수 자체를 못 얻었으면(value is None, §2) `member_sound_score` 를 **건드리지
+    않는다** — 이 테이블이 취약 발음 목록의 「지금 점수」 단일 출처라, 여기 스텁 값이
+    들어가면 학습자가 가짜 실력을 본다(iap_receipt.is_stub 과 같은 판단). 응답은 이번
+    회차 점수(참고용)만 보여주고 `is_stub=True` 로 표시한다.
     """
     repo = WeakSoundRepository(db)
     lesson = repo.get_lesson(sound_key)
@@ -351,12 +357,33 @@ def assess(
 
     scored = _score_audio(lesson, raw)
     value = scored["score"]
+    is_stub = scored["is_stub"]
     row = repo.get_score(member_id, sound_key)
-    now = datetime.now(timezone.utc)
 
+    if is_stub or value is None:
+        # 저장하지 않는다 — row 는 그대로 두고 이번 회차만 참고용으로 보여준다.
+        before = row.score if row is not None else _baseline(db, member_id, sound_key)
+        if row is not None:
+            best_score = max(row.best_score, value) if value is not None else row.best_score
+        else:
+            best_score = value if value is not None else 0
+        return SoundResultOut(
+            sound_key=sound_key,
+            label=lesson.label,
+            before=before,
+            after=value,
+            delta=(value - before) if (before is not None and value is not None) else None,
+            best_score=best_score if best_score is not None else 0,
+            attempts=row.attempts if row is not None else 0,
+            text=scored["text"],
+            char_scores=scored["char_scores"],
+            phoneme_misses=scored["phoneme_misses"],
+            is_stub=True,
+        )
+
+    now = datetime.now(timezone.utc)
     if row is None:
-        avg = _aggregated(db, member_id).get(sound_key)
-        baseline = int(round(avg)) if avg is not None else None
+        baseline = _baseline(db, member_id, sound_key)
         before = baseline
         row = repo.add_score(MemberSoundScore(
             member_id=member_id, sound_key=sound_key, score=value,
@@ -381,17 +408,27 @@ def assess(
         text=scored["text"],
         char_scores=scored["char_scores"],
         phoneme_misses=scored["phoneme_misses"],
+        is_stub=False,
     )
 
 
+def _baseline(db: Session, member_id: int, sound_key: str) -> Optional[int]:
+    """학습 이력이 없을 때의 「학습 전」 점수 — 복습 집계값을 반올림(없으면 None)."""
+    avg = _aggregated(db, member_id).get(sound_key)
+    return int(round(avg)) if avg is not None else None
+
+
 def _score_audio(lesson: SoundLesson, raw: bytes) -> dict:
-    """평가 문장 + 녹음 → {score, text, char_scores, phoneme_misses}.
+    """평가 문장 + 녹음 → {score, is_stub, text, char_scores, phoneme_misses}.
 
     SpeechSuper 는 파일 경로/URL 을 받으므로 임시 .wav 로 떨어뜨려 넘긴다(복습 경로와
     같은 방식). 녹음을 스토리지에 저장하지 않는다 — 이 화면은 점수만 쓰고 다시 듣기가
     없다. 나중에 다시 듣기가 생기면 그때 저장을 붙인다.
 
     키·오디오 문제로 벤더가 죽어도 speechsuper 가 스텁으로 폴백한다(예외 없음, R5).
+    ⛔⛔ §2(2026-09-27) — score 는 Optional 이다. 벤더가 준 real 응답에 pronunciation·
+    total_score 둘 다 없으면(드문 기형 응답) **0 으로 둔갑시키지 않고 None 을 그대로
+    낸다** — 예전엔 `or 0` 이 그 사실을 지웠다.
 
     ⚠ `phoneme_misses` 는 **dev 의 speechsuper 가 아직 내지 않는다**(그 기능은
       `feat/pronunciation` 에만 있고 dev 로 병합되지 않았다). 그래서 지금은 항상 빈
@@ -410,9 +447,10 @@ def _score_audio(lesson: SoundLesson, raw: bytes) -> dict:
     evaluation = result.get("evaluation") or {}
     score = evaluation.get("pronunciation")
     if score is None:
-        score = evaluation.get("total_score") or 0
+        score = evaluation.get("total_score")
     return {
-        "score": max(0, min(100, int(score))),
+        "score": max(0, min(100, int(score))) if score is not None else None,
+        "is_stub": bool(result.get("is_stub")),
         "text": text,
         "char_scores": result.get("char_scores") or [],
         "phoneme_misses": result.get("phoneme_misses") or [],

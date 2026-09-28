@@ -201,3 +201,75 @@ def test_apply_score_default_is_true_backward_compat(session_factory, seeded):
         assert db.get(Sentence, sid).evaluation.total_score == 88
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# §3(2026-09-27, 앱 요청) — 스텁 채점은 apply_score=True 여도 저장되지 않는다
+# --------------------------------------------------------------------------- #
+_STUB_FLAGGED_FEEDBACK = {
+    "evaluation": {"total_score": 77, "pronunciation": 80, "fluency": 75, "rhythm": 70},
+    "char_scores": [{"char": "안", "score": 77, "grade": "중"}],
+    "is_stub": True,
+}
+
+
+def test_stub_scoring_is_not_counted_even_with_apply_score_true(
+    session_factory, seeded, monkeypatch
+):
+    """⛔⛔ 핵심 — 스텁(is_stub=True) 응답은 apply_score=True 를 요청해도 counted=False
+    이고 공식점수(Evaluation)를 덮어쓰지 않는다. 표식만 달고 저장하면 고친 게 아니다
+    — 실제로 집계(counted)·공식점수 양쪽에서 빠지는지 확인한다."""
+    monkeypatch.setattr(rsvc, "assess_pronunciation", lambda *_a, **_k: _STUB_FLAGGED_FEEDBACK)
+    app = _build_app(session_factory)
+    client = TestClient(app)
+    sid = seeded["sid"]
+
+    r = client.post(
+        f"/api/v1/sentences/{sid}/reviews",
+        json={"voice_url": "reviews/stub.mp3", "apply_score": True},
+        headers=_hdr(),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["is_stub"] is True
+    assert body["evaluation"]["total_score"] == 77  # 화면엔 참고용으로 보여준다
+
+    db = session_factory()
+    try:
+        review = db.scalars(select(Review).where(Review.sentence_id == sid)).one()
+        assert review.counted is False              # ⛔ 집계 미산입
+        assert review.feedback["is_stub"] is True    # 이력 자체는 저장(iap_receipt 패턴)
+        ev = db.get(Sentence, sid).evaluation
+        assert ev.total_score == 10                  # ⛔ 공식점수 불변(seeded 초기값 그대로)
+        assert ev.pronunciation == 10
+    finally:
+        db.close()
+
+
+def test_feedback_with_no_evaluation_key_returns_null_not_zero(session_factory, seeded):
+    """⛔⛔ §2 — Review.feedback JSON 에 "evaluation" 키 자체가 없으면(이 필드가
+    생기기 전의 옛 복습 행과 같은 모양) 0 네 개가 아니라 null 네 개가 나가야 한다.
+    "채점을 못 했다"는 사실 자체가 0점과 다른 정보다."""
+    db = session_factory()
+    try:
+        legacy = Review(
+            sentence_id=seeded["sid"],
+            voice_url="reviews/legacy.mp3",
+            feedback={"char_scores": [{"char": "안", "score": 50, "grade": "하"}]},  # evaluation 없음
+            counted=True,
+        )
+        db.add(legacy)
+        db.commit()
+        review_id = legacy.review_id
+    finally:
+        db.close()
+
+    app = _build_app(session_factory)
+    client = TestClient(app)
+    r = client.get(f"/api/v1/reviews/{review_id}/feedback", headers=_hdr())
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["evaluation"] == {
+        "total_score": None, "pronunciation": None, "fluency": None, "rhythm": None,
+    }
+    assert body["is_stub"] is False  # 이 필드가 생기기 전 옛 행은 구분 불가 → False

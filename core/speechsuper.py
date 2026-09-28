@@ -82,6 +82,7 @@ def assess_pronunciation(
                                                                         # 자모별 0~100(없으면 [])
                                                                         # position/sound_key 는 못 붙이면 None
           "phoneme_misses": [{char_index, expected}, ...]               # 틀린 자모(없으면 [])
+          "is_stub": bool,   # §3(2026-09-27) — 실채점(False) vs 스텁 폴백(True)
         }
 
     Note:
@@ -255,8 +256,13 @@ def _call_speechsuper(
 # ──────────────────────────────────────────────────────────────────────────
 # 응답 매핑
 # ──────────────────────────────────────────────────────────────────────────
-def _to_int(value: Any, default: int = 0) -> int:
-    """0~100 점수를 int 로 반올림. 변환 실패 시 default."""
+def _to_int(value: Any, default: Optional[int] = None) -> Optional[int]:
+    """0~100 점수를 int 로 반올림. 변환 실패 시 default.
+
+    ⛔⛔ §2(2026-09-27, 앱 요청) — 기본값을 0 에서 None 으로 바꿨다. 벤더가 그
+    필드를 안 준 것과 "0점"은 다른 사실이다 — 0 을 기본값으로 두면 "채점을 못
+    했다"는 사실이 "정말 0점 받았다"로 둔갑한다(Q9 의 score: int|None 과 같은 판단).
+    """
     try:
         return int(round(float(value)))
     except (TypeError, ValueError):
@@ -287,6 +293,8 @@ def _map_result(ref_text: Optional[str], result: dict[str, Any]) -> dict:
         "char_scores": char_scores,
         "phonemes": phonemes,
         "phoneme_misses": _extract_phoneme_misses(result),
+        # ⭐ §3(2026-09-27, 앱 요청) — 실채점 경로는 항상 False. _stub_assess 만 True.
+        "is_stub": False,
     }
 
 
@@ -389,7 +397,10 @@ def _extract_phoneme_misses(result: dict[str, Any]) -> list[dict]:
                 if sound_like:
                     missed = sound_like != "-" and sound_like != phone
                 else:
-                    missed = _grade(_to_int(p.get("pronunciation"))) == "하"
+                    # ⚠ 명시적 기본값 0 — sound_like 가 없어 점수로 판정하는 이 분기는
+                    #   _grade(int) 에 넣을 실수를 만든다(None >= 85 는 TypeError). 값이
+                    #   없으면 "가장 낮은 등급(하)=틀렸다"로 보수적으로 판정한다(기존 동작).
+                    missed = _grade(_to_int(p.get("pronunciation"), 0)) == "하"
                 if missed:
                     out.append({"char_index": char_index, "expected": str(alpha)})
         char_index += len(chars)
@@ -455,12 +466,16 @@ def _extract_word_scores(result: dict[str, Any]) -> list[tuple[str, int]]:
             score_val = w.get("score")
         if score_val is None and isinstance(w.get("scores"), dict):
             score_val = w["scores"].get("pronunciation")
-        pairs.append((str(word), _to_int(score_val) if score_val is not None else -1))
+        # ⚠ 여기 -1 은 "이 word 를 건너뛴다"는 기존 센티넬이다(_map_char_scores·
+        #   _extract_phoneme_misses 가 `score < 0` 으로 거른다) — _to_int 기본값이
+        #   None 으로 바뀌어도 이 자리는 명시적으로 -1 을 계속 준다(None 을 주면
+        #   비교 연산(`score < 0`)이 TypeError 로 깨진다).
+        pairs.append((str(word), _to_int(score_val, -1) if score_val is not None else -1))
     return pairs
 
 
 def _map_char_scores(
-    ref_text: Optional[str], result: dict[str, Any], overall: int
+    ref_text: Optional[str], result: dict[str, Any], overall: Optional[int]
 ) -> list[dict]:
     """글자별 char_scores 생성.
 
@@ -486,9 +501,13 @@ def _map_char_scores(
         return out
 
     # 폴백: words[] 없음 → ref_text 글자에 overall 기준 결정적 점수
+    # ⚠ overall 이 None 일 수 있다(§2, 벤더가 그 필드도 안 준 기형 응답) — 합성 점수는
+    #   "진짜 0점"이 아니라 계약(char_scores 는 항상 int)을 지키기 위한 자리표시자일
+    #   뿐이라, evaluation.total_score 의 None 의미와는 무관하게 여기서만 0 을 쓴다.
+    baseline = overall if overall is not None else 0
     chars = [c for c in (ref_text or "") if not c.isspace()]
     for ch in chars:
-        score = max(0, min(100, overall + ((ord(ch) % 5) - 2)))
+        score = max(0, min(100, baseline + ((ord(ch) % 5) - 2)))
         out.append({"char": ch, "score": score, "grade": _grade(score)})
     return out
 
@@ -598,4 +617,9 @@ def _stub_assess(ref_text: Optional[str]) -> dict:
         # (예전 주석은 스텁이 alpha 를 라벨로 넣는다고 했으나, 지금은 실경로와 같은
         #  자모를 넣는다 — 위 phonemes 생성부 참조.)
         "phoneme_misses": [],
+        # ⛔⛔ §3(2026-09-27, 앱 요청) — 스텁 여부 표식. 60~100 사이 결정적 값이라
+        #   "대부분 통과"로 찍힌다 — 호출부(review_service·weak_sound_service)가 이걸
+        #   보고 복습 기록·소리 집계(평균)에는 반영하지 않는다(iap_receipt.is_stub 과
+        #   같은 판단 — 저장은 하되 운영 집계에서 제외).
+        "is_stub": True,
     }

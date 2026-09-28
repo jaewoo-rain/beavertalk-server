@@ -15,7 +15,7 @@ import core.speechsuper as ss
 def _assert_contract(out: dict) -> None:
     """반환 계약(키/타입) 검증."""
     assert set(out.keys()) == {
-        "evaluation", "char_scores", "phonemes", "phoneme_misses",
+        "evaluation", "char_scores", "phonemes", "phoneme_misses", "is_stub",
     }
     ev = out["evaluation"]
     assert set(ev.keys()) == {"total_score", "pronunciation", "fluency", "rhythm"}
@@ -51,6 +51,7 @@ def test_fallback_no_audio_url():
     """audio_url 없으면 스텁으로 폴백하고 계약을 지킨다."""
     out = ss.assess_pronunciation("안녕하세요", None)
     _assert_contract(out)
+    assert out["is_stub"] is True  # §3(2026-09-27)
     # 공백 제외 글자 수만큼 char_scores
     assert len(out["char_scores"]) == 5
     assert [c["char"] for c in out["char_scores"]] == list("안녕하세요")
@@ -68,6 +69,7 @@ def test_fallback_no_keys(monkeypatch):
     monkeypatch.setattr(ss.settings, "SPEECH_SUPER_SECRET_KEY", None, raising=False)
     out = ss.assess_pronunciation("테스트", "https://example.com/a.wav")
     _assert_contract(out)
+    assert out["is_stub"] is True  # §3(2026-09-27)
     # 스텁의 결정적 점수: 60 + ord%41
     s = 60 + (ord("테") % 41)
     assert out["char_scores"][0]["score"] == s
@@ -87,6 +89,7 @@ def test_map_result_word_scores():
     }
     out = ss._map_result("안녕 하세요", result)
     _assert_contract(out)
+    assert out["is_stub"] is False  # §3(2026-09-27) — 실채점 경로
     assert out["evaluation"] == {
         "total_score": 88,
         "pronunciation": 90,
@@ -98,6 +101,28 @@ def test_map_result_word_scores():
     # 앞쪽 글자는 높은 단어 점수, 뒤쪽은 낮은 단어 점수 영역에 들어간다
     assert chars[0]["score"] == 95
     assert chars[-1]["score"] == 70
+
+
+def test_to_int_default_is_none_not_zero():
+    """⛔⛔ §2(2026-09-27, 앱 요청) — 변환 실패 시 기본값이 0 이 아니라 None 이다.
+    "채점을 못 했다"와 "0점을 받았다"는 다른 사실이다."""
+    assert ss._to_int(None) is None
+    assert ss._to_int("garbage") is None
+    assert ss._to_int(None, 42) == 42  # 명시적 기본값은 그대로 존중
+
+
+def test_map_result_missing_overall_propagates_none_without_crashing():
+    """⛔⛔ 벤더 응답에 overall 자체가 없으면(기형 응답) 0 이 아니라 None 이 evaluation
+    에 그대로 나가야 한다 — char_scores 폴백(overall 기준 합성)이 None 때문에
+    TypeError 로 죽지 않는지도 같이 확인한다."""
+    out = ss._map_result("가나다", {})  # overall 도 words 도 없는 완전 기형 응답
+    assert out["evaluation"]["total_score"] is None
+    assert out["evaluation"]["pronunciation"] is None
+    assert out["evaluation"]["fluency"] is None
+    assert out["evaluation"]["rhythm"] is None
+    assert out["is_stub"] is False
+    # char_scores 는 죽지 않고 계약대로 나온다(합성 폴백이 0 기준으로 대체됐을 뿐).
+    assert [c["char"] for c in out["char_scores"]] == ["가", "나", "다"]
 
 
 def test_map_result_rhythm_falls_back_to_integrity():
@@ -225,6 +250,7 @@ def test_call_failure_falls_back(monkeypatch):
     monkeypatch.setattr(ss, "_load_audio", boom)
     out = ss.assess_pronunciation("안녕", "https://example.com/a.wav")
     _assert_contract(out)  # 스텁 결과
+    assert out["is_stub"] is True  # §3(2026-09-27)
 
 
 # ──────────────────────────────────────────────────────────────────────────

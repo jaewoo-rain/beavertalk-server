@@ -139,7 +139,14 @@ async def build_learning_summary(
     )
     call_date = await run_db(session_factory, lambda db: _call_date(db, call_id))
 
-    # ── 문장별 + 통과·평균(실데이터, 미복습 점수는 0) ──
+    # ── 문장별 + 통과·평균(실데이터) ──
+    # ⛔⛔ §2 정정(2026-09-27, 앱 요청) — "미복습 점수는 0"이었던 옛 설계를 뒤집었다.
+    #   미복습은 0점이 아니라 "채점을 못 했다"는 별개의 사실이라 null 로 보낸다
+    #   (Q9 발음 리포트 score: int|None 과 같은 규율 — core/speechsuper.py·
+    #   review_service.py·PronScoreOut·SoundResultOut 과 같은 계약으로 맞춘다).
+    #   ⚠ 앱(LearningSummary 화면)의 선반영 여부는 이 커밋 시점에 미확인이다 —
+    #   `_asInt(null)→0` 이라 크래시는 없지만(bt-back 확인), null 을 "-%" 로 그리려면
+    #   앱 쪽 수정이 별도로 필요하다.
     # ⛔⛔ R5-a(2026-09-24, bt-back) — 현지인 표현 짝(kind="native", C9)은 목록·
     #   평균엔 그대로 남긴다(짝도 채점된 문장이다 — /result 의 ScoreAverage 도
     #   짝을 포함해 평균 낸다, call_service.get_call_result 참조. 같은 규칙으로
@@ -149,9 +156,9 @@ async def build_learning_summary(
     sentences = [
         SentenceScoreOut(
             sentence=s.korean_sentence or "",
-            pronunciation=s.pronunciation or 0,
-            fluency=s.fluency or 0,
-            rhythm=s.rhythm or 0,
+            pronunciation=s.pronunciation,
+            fluency=s.fluency,
+            rhythm=s.rhythm,
             kind=s.kind,
         )
         for s in report.sentences

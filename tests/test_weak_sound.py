@@ -407,6 +407,61 @@ def test_assess_no_baseline_when_no_sample(session_factory, seeded, scorer):
     assert body["before"] is None and body["delta"] is None and body["after"] == 77
 
 
+# --------------------------------------------------------------------------- #
+# §3(2026-09-27, 앱 요청) — 스텁 채점은 member_sound_score 에 저장되지 않는다
+# --------------------------------------------------------------------------- #
+def _stub_scorer(score=95):
+    def _score(ref_text, audio_url=None, *, language="ko"):
+        return {
+            "evaluation": {"total_score": score, "pronunciation": score,
+                           "fluency": score, "rhythm": score},
+            "char_scores": [{"char": "평", "score": score, "grade": "상"}],
+            "phonemes": [],
+            "phoneme_misses": [],
+            "is_stub": True,
+        }
+    return _score
+
+
+def test_assess_stub_is_flagged_and_not_persisted(session_factory, seeded, monkeypatch):
+    """⛔⛔ 핵심 — 스텁(is_stub=True) 채점은 응답에 is_stub=True 로 표시되고, 이번
+    회차 점수는 화면에만 보여줄 뿐 member_sound_score 에 저장되지 않는다(표본이
+    baseline=55 로 이미 있었더라도 그대로 유지된다)."""
+    monkeypatch.setattr(wsvc, "assess_pronunciation", _stub_scorer(score=95))
+    client = TestClient(_build_app(session_factory))
+
+    body = _post_audio(client, "coda_ㄹ", _hdr()).json()
+
+    assert body["is_stub"] is True
+    assert body["after"] == 95  # 참고용으로는 보여준다
+    assert body["before"] == 55  # 집계값(학습 이력 없음) — 이 소리는 첫 시도
+
+    db = session_factory()
+    row = db.query(MemberSoundScore).one_or_none()
+    assert row is None, "스텁 점수가 member_sound_score 에 저장됐다(집계 오염)"
+    db.close()
+
+
+def test_assess_stub_after_a_real_score_does_not_overwrite_it(session_factory, seeded, scorer, monkeypatch):
+    """실채점으로 이미 84점이 저장된 뒤, 스텁 응답(95점)이 와도 **저장된 값은 그대로**
+    84 여야 한다 — best_score·attempts 도 안 늘어난다."""
+    client = TestClient(_build_app(session_factory))
+    _post_audio(client, "coda_ㄹ", _hdr())  # 실채점 84점 저장(scorer fixture)
+
+    monkeypatch.setattr(wsvc, "assess_pronunciation", _stub_scorer(score=95))
+    body = _post_audio(client, "coda_ㄹ", _hdr()).json()
+
+    assert body["is_stub"] is True
+    assert body["after"] == 95
+    assert body["before"] == 84  # 직전 실채점 값(row.score) — 스텁이 덮지 않았다
+
+    db = session_factory()
+    row = db.query(MemberSoundScore).one()
+    assert row.score == 84 and row.best_score == 84 and row.attempts == 1, \
+        "스텁 응답이 member_sound_score 를 갱신했다"
+    db.close()
+
+
 def test_assess_tolerates_scorer_without_phoneme_misses(session_factory, seeded, monkeypatch):
     """dev 의 speechsuper 는 `phoneme_misses` 를 내지 않는다 — 빈 리스트로 내려앉는다.
 

@@ -117,15 +117,21 @@ class SoundResultOut(BaseModel):
 
     `after` 는 **서버가 채점한 값**이다(SpeechSuper pronunciation). 클라가 점수를 보내는
     설계는 폐기했다 — 위조가 가능했다.
+
+    ⛔⛔ §2·§3(2026-09-27, 앱 요청) — `after` 는 Optional(벤더가 값을 아예 못 주면
+    null, 0 이 아니다). `is_stub=True` 면 이 회차만 화면에 보여줄 뿐 `best_score`·
+    `attempts`·`member_sound_score` 에는 반영되지 않았다는 뜻이다(스텁 60~100 점이
+    평균에 섞이면 가짜 실력이 보인다 — iap_receipt.is_stub 과 같은 판단).
     """
 
     sound_key: str
     label: str
     before: Optional[int] = None
-    after: int
+    after: Optional[int] = None
     delta: Optional[int] = None
     best_score: int
     attempts: int
     text: str
     char_scores: list[CharScoreOut]
     phoneme_misses: list[PhonemeMissOut]
+    is_stub: bool = False

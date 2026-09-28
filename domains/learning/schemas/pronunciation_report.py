@@ -42,9 +42,13 @@ class SentenceScoreOut(BaseModel):
     """
 
     sentence: str
-    pronunciation: int
-    fluency: int
-    rhythm: int
+    # ⛔⛔ §2 정정(2026-09-27, 앱 요청) — Optional. 미복습 문장은 0점이 아니라
+    #   "채점을 못 했다"는 별개의 사실이라 null 로 보낸다(Q9 발음 리포트 score:
+    #   int|None 과 같은 규율). ⛔ 키는 빼지 않는다 — kind 와 달리 이 셋은
+    #   `_drop_native_pair_none_fields` 대상이 아니다(그대로 null 로 나간다).
+    pronunciation: Optional[int] = None
+    fluency: Optional[int] = None
+    rhythm: Optional[int] = None
     kind: Optional[str] = None
 
     @model_serializer(mode="wrap")

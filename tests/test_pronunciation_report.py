@@ -213,6 +213,49 @@ def test_report_excludes_native_pairs_from_the_pass_count(session_factory, seede
     assert b["overall"] == round(sum(all_totals) / len(all_totals))
 
 
+# --------------------------------------------------------------------------- #
+# §2 정정(2026-09-27, 앱 요청) — 세 번째 「미복습=0」 지점(bt-back 확인·승인).
+# --------------------------------------------------------------------------- #
+def _fake_report_with_unreviewed(call_id: int):
+    return PronunciationReport(
+        call_id=call_id,
+        country="United States",
+        sentences=[
+            PronSentenceScore(sentence_id=1, korean_sentence="문장A", total_score=90,
+                              pronunciation=90, fluency=88, rhythm=85),
+            # 미복습(placeholder Evaluation) — 네 칸 전부 None. 운영 2,870/2,956 이 이 모양.
+            PronSentenceScore(sentence_id=2, korean_sentence="문장B"),
+        ],
+        sounds=[],
+        comment="",
+    )
+
+
+def test_unreviewed_sentence_reports_null_not_zero(session_factory, seeded, monkeypatch):
+    """⛔⛔ 핵심 — 미복습 문장(pronunciation/fluency/rhythm 전부 None)이 0 이 아니라
+    null 로 나가고, 키가 생략되지 않는다(kind 와 다른 규약 — 값이 없다는 사실 자체를
+    앱에 알려야 한다)."""
+    async def _report(**kw):
+        return _fake_report_with_unreviewed(kw["call_id"])
+    monkeypatch.setattr(pron_module, "get_pronunciation_report", _report)
+    monkeypatch.setattr(pron_module, "get_pronunciation_history", _fake_history)
+
+    client = TestClient(_build_app(session_factory))
+    r = client.get(f"/api/v1/calls/{seeded['call']}/pronunciation-report", headers=_hdr())
+    assert r.status_code == 200, r.text
+    b = r.json()
+
+    reviewed, unreviewed = b["sentences"]
+    assert reviewed["pronunciation"] == 90
+    assert unreviewed["pronunciation"] is None
+    assert unreviewed["fluency"] is None
+    assert unreviewed["rhythm"] is None
+    # ⛔ 키 자체는 남아 있어야 한다(0 으로 뭉개지도, 키가 생략되지도 않는다).
+    assert "pronunciation" in unreviewed and "fluency" in unreviewed and "rhythm" in unreviewed
+    # 평균(overall 등)은 미복습 문장을 이미 걸러서 계산한다(회귀 — 기존 _avg 로직 그대로).
+    assert b["pronunciation"] == 90
+
+
 def test_report_unknown_call_404(session_factory, seeded, monkeypatch):
     async def _none(**kw):
         return None

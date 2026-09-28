@@ -47,17 +47,24 @@ class ReviewService:
         # 가져오게 하고, DB 에는 key 를 그대로 저장한다(스토리지 규약: key 보관 + URL 즉석조립).
         audio_ref = audio_override or self._audio_for_scoring(data.voice_url)
         feedback = assess_pronunciation(sentence.korean_sentence, audio_ref, language=language)
+        # ⛔⛔ §3(2026-09-27, 앱 요청) — 스텁 채점(is_stub=True)은 apply_score 요청과
+        #   무관하게 공식점수·집계에 안 들어간다. 스텁은 60~100 결정적 값이라 대부분
+        #   통과로 찍힌다 — 섞이면 학습자에게 가짜 실력이 보인다(iap_receipt.is_stub
+        #   과 같은 판단: 저장은 하되 운영 집계에서 제외 — 표식만 달고 저장하면 고친
+        #   게 아니다).
+        is_stub = bool(feedback.get("is_stub"))
         review = Review(
             sentence_id=sentence_id,
             voice_url=data.voice_url,  # object key(또는 폴백 경로)
             feedback=feedback,
-            counted=data.apply_score,  # 공식점수 산입 여부(연습 모드=False)
+            counted=data.apply_score and not is_stub,  # 공식점수 산입 여부(연습 모드·스텁=False)
         )
         self.repo.add(review)
         # apply_score=True 일 때만 발화의 공식 평가(Evaluation 1:1)를 '마지막 시도'
         # 점수로 덮어쓴다 → Sentence.evaluation / 통화 평균(CallResult.average)에 반영.
-        # apply_score=False(연습 모드)면 이력·voice_url·feedback 은 저장하되 공식점수는 불변.
-        if data.apply_score:
+        # apply_score=False(연습 모드)나 스텁 채점이면 이력·voice_url·feedback 은
+        # 저장하되 공식점수는 불변.
+        if data.apply_score and not is_stub:
             self._apply_evaluation(sentence, feedback)
         self.db.commit()
         self.db.refresh(review)
@@ -157,8 +164,11 @@ class ReviewService:
     def _to_feedback(self, review: Review, sentence: Sentence) -> ReviewFeedback:
         # 외부 채점(SpeechSuper) 응답 형태가 바뀌어도 KeyError 안 나게 방어 접근
         fb = review.feedback or {}
+        # ⛔⛔ §2(2026-09-27, 앱 요청) — 0 이 아니라 null. "채점을 못 했다"는 사실
+        #   자체가 정보다(0점과 다르다) — Q9(score: int|None)와 같은 판단, 키는
+        #   생략하지 않고 값만 null 로 보낸다.
         evaluation = fb.get("evaluation") or {
-            "total_score": 0, "pronunciation": 0, "fluency": 0, "rhythm": 0,
+            "total_score": None, "pronunciation": None, "fluency": None, "rhythm": None,
         }
         return ReviewFeedback(
             review_id=review.review_id,
@@ -171,4 +181,7 @@ class ReviewService:
             char_scores=fb.get("char_scores", []),
             # 이 필드가 생기기 전의 복습 행에는 없다 → 빈 목록(앱은 종전 동작).
             phoneme_misses=fb.get("phoneme_misses", []),
+            # §3 — 이 필드가 생기기 전의 옛 복습 행은 fb 에 키가 없다 → False(실채점 취급,
+            # 기존 행은 어차피 이 필드가 생기기 전이라 stub 여부를 알 방법이 없다).
+            is_stub=bool(fb.get("is_stub", False)),
         )

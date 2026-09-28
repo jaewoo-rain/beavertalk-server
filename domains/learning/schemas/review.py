@@ -42,10 +42,14 @@ class PhonemeMissOut(BaseModel):
 
 
 class PronScoreOut(BaseModel):
-    total_score: int
-    pronunciation: int
-    fluency: int
-    rhythm: int
+    """⛔⛔ §2(2026-09-27, 앱 요청) — 네 칸 다 Optional. 채점을 못 했으면(evaluation
+    이 아예 없는 sentence, 운영 2,956건 중 2,870건=97%) 0 이 아니라 null 을 보낸다 —
+    0 은 "0점을 받았다"는 뜻이라 다르다. Q9(발음 리포트 score: int|None)와 같은 판단."""
+
+    total_score: Optional[int] = None
+    pronunciation: Optional[int] = None
+    fluency: Optional[int] = None
+    rhythm: Optional[int] = None
 
 
 class ReviewFeedback(BaseModel):
@@ -60,3 +64,6 @@ class ReviewFeedback(BaseModel):
     char_scores: list[CharScoreOut]
     # 채점 엔진이 자모를 못 주면 빈 목록 — 앱은 종전대로 동작한다(계약이 이미 열려 있음).
     phoneme_misses: list[PhonemeMissOut] = []
+    # ⭐ §3(2026-09-27, 앱 요청) — 키 없음·로드 실패 등으로 결정적 스텁(60~100)이
+    # 나갔다는 표식. 이 필드가 생기기 전의 옛 복습 행은 False(구분 불가, 실채점 취급).
+    is_stub: bool = False
