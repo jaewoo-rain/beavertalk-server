@@ -38,9 +38,17 @@ class PaymentRepository:
         return self.db.scalars(stmt).all()
 
     def month_total(self, member_id: int, since: datetime) -> Decimal:
-        """since(이번 달 1일) 이후 결제 총액."""
+        """since(이번 달 1일) 이후 결제 총액.
+
+        ⭐⭐ §22-⑥(2026-09-28) — 샌드박스·스텁 결제는 집계에서 뺀다(iap_receipt.
+        is_sandbox/is_stub 과 같은 규율: 저장은 하되 — list_by_member 는 그대로
+        보여준다 — 운영 집계에서만 제외한다). 안 빼면 테스터의 $0 짜리 테스트
+        결제가 "이번 달 결제"에 실제 매출처럼 섞여 든다.
+        """
         stmt = select(func.coalesce(func.sum(Payment.price), 0)).where(
             Payment.member_id == member_id,
             Payment.payment_date >= since,
+            Payment.is_sandbox.is_(False),
+            Payment.is_stub.is_(False),
         )
         return self.db.scalar(stmt) or Decimal("0")

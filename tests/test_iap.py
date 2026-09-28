@@ -13,6 +13,7 @@ from __future__ import annotations
 import inspect
 import re
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 from fastapi import HTTPException
@@ -459,6 +460,111 @@ def test_is_sandbox_is_or_of_client_and_store_confirmed(db, monkeypatch):
 
     assert res.already_granted is False  # 지급은 그대로 됨
     assert db.query(IapReceipt).one().is_sandbox is True  # 그러나 표시는 남는다
+
+
+# --------------------------------------------------------------------------- #
+# §22-⑥(2026-09-28) — 스토어 결제를 결제 내역(payment)에 기록
+# --------------------------------------------------------------------------- #
+def _fake_verify_with_price(*, micros=9_990_000, currency="USD", order_id="GPA.ORDER-1"):
+    def _v(**kwargs):
+        return iap.VerifyResult(
+            ok=True, transaction_id=kwargs["transaction_id"],
+            price_amount_micros=micros, price_currency=currency, order_id=order_id,
+        )
+    return _v
+
+
+def test_subscription_purchase_creates_a_payment_row(db, monkeypatch):
+    monkeypatch.setattr(iap, "verify", _fake_verify_with_price())
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=PRO, tx="pay-sub"))
+
+    from domains.commerce.models.payment import Payment
+    p = db.query(Payment).one()
+    assert p.category == "subscribe"
+    assert p.price == Decimal("9.99")
+    assert p.local_currency == "USD"
+    assert p.local_price_micros == 9_990_000
+    assert p.store_order_id == "GPA.ORDER-1"
+    assert p.is_sandbox is False
+    assert p.is_stub is False
+
+
+def test_character_purchase_creates_a_payment_row(db, monkeypatch):
+    monkeypatch.setattr(iap, "verify", _fake_verify_with_price(micros=4_990_000))
+    IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BIBI, tx="pay-char"))
+
+    from domains.commerce.models.payment import Payment
+    p = db.query(Payment).one()
+    assert p.category == "character"
+    assert p.price == Decimal("4.99")
+
+
+def test_bundle_purchase_creates_a_payment_row(db, monkeypatch):
+    """묶음은 앱 탭 계약(PaymentType)에 "bundle" 이 없어 캐릭터 탭(category="character")
+    에 같이 보인다 — 실제로 캐릭터를 지급하는 거래라 자연스럽다."""
+    monkeypatch.setattr(iap, "verify", _fake_verify_with_price(micros=9_990_000))
+    IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="pay-bundle"))
+
+    from domains.commerce.models.payment import Payment
+    p = db.query(Payment).one()
+    assert p.category == "character"
+    assert p.price == Decimal("9.99")
+    assert BUNDLE in p.description
+
+
+def test_non_usd_price_leaves_dollar_price_null_but_keeps_local_fields(db, monkeypatch):
+    """⛔ 환율 변환은 범위 밖이다 — USD 가 아니면 price(달러)는 NULL 로 남지만
+    local_currency·local_price_micros 는 그대로 남아(정보 손실 없음)."""
+    monkeypatch.setattr(iap, "verify", _fake_verify_with_price(micros=12_000_000, currency="EUR"))
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=PRO, tx="pay-eur"))
+
+    from domains.commerce.models.payment import Payment
+    p = db.query(Payment).one()
+    assert p.price is None
+    assert p.local_currency == "EUR"
+    assert p.local_price_micros == 12_000_000
+
+
+def test_google_character_purchase_has_no_price_but_has_order_id(db, monkeypatch):
+    """⛔ Google ProductPurchase(캐릭터·묶음)는 가격 필드가 원천에 없다(core/iap.py
+    확인) — price_amount_micros/currency 가 None 이어도 버그가 아니다. orderId 는 있다."""
+    def _v(**kwargs):
+        return iap.VerifyResult(ok=True, transaction_id=kwargs["transaction_id"], order_id="GPA.NO-PRICE")
+    monkeypatch.setattr(iap, "verify", _v)
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=BIBI, tx="pay-noprice"))
+
+    from domains.commerce.models.payment import Payment
+    p = db.query(Payment).one()
+    assert p.price is None
+    assert p.local_currency is None
+    assert p.local_price_micros is None
+    assert p.store_order_id == "GPA.NO-PRICE"
+
+
+def test_sandbox_payment_is_excluded_from_month_total(db, monkeypatch):
+    from domains.commerce.repository.payment_repository import PaymentRepository
+
+    monkeypatch.setattr(iap, "verify", _fake_verify_with_price(micros=9_990_000))
+    mid = _mid(db)
+    IapService(db).verify_and_grant(mid, "android", _item(product=PRO, tx="pay-real"), is_sandbox=False)
+    IapService(db).verify_and_grant(mid, "android", _item(product=MAX, tx="pay-sandbox"), is_sandbox=True)
+
+    since = datetime.now(timezone.utc) - timedelta(days=1)
+    total = PaymentRepository(db).month_total(mid, since)
+
+    assert total == Decimal("9.99"), "샌드박스 결제가 이번 달 합계에 섞였다"
+
+
+def test_already_granted_reverify_does_not_create_a_duplicate_payment_row(db, monkeypatch):
+    """⭐⭐ 가장 중요한 회귀 — 재시도·재검증으로 같은 영수증이 다시 와도 결제 내역에
+    행이 또 생기면 안 된다(already_granted 는 ④ 지급/기록 블록 자체를 안 탄다)."""
+    monkeypatch.setattr(iap, "verify", _fake_verify_with_price())
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "android", _item(product=PRO, tx="pay-dup"))
+    svc.verify_and_grant(_mid(db), "android", _item(product=PRO, tx="pay-dup"))  # 재요청
+
+    from domains.commerce.models.payment import Payment
+    assert db.query(Payment).count() == 1
 
 
 # --------------------------------------------------------------------------- #

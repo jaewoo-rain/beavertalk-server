@@ -73,6 +73,23 @@ class VerifyResult:
     #   의미 있다(캐릭터는 항상 False). Google 은 offerId=='trial-7d', Apple 은
     #   offerType==1(Introductory) — 하류(subscribe.is_trial)가 그대로 저장한다.
     is_trial: bool = False
+    # ⭐⭐ §22-⑥(2026-09-28) — 결제 내역 기록용. **딱 이 3개만**(요청서 지시) — 필드를
+    #   더 늘리지 마라. 출처(WebSearch 로 공식 문서 확인, 2026-09-28):
+    #     - Apple(JWSTransactionDecodedPayload): `price`(밀리단위, 1000=1단위) ·
+    #       `currency`(ISO 4217) — 구독·캐릭터·묶음(비소모성) 전부 이 필드가 있다.
+    #       https://developer.apple.com/documentation/appstoreserverapi/price
+    #     - Google 구독(subscriptionsv2.get 의 lineItems[].autoRenewingPlan.
+    #       recurringPrice): {currencyCode, units, nanos}(Money 타입) ·
+    #       lineItems[].latestSuccessfulOrderId.
+    #     - ⛔ Google 캐릭터·묶음(purchases.products.get 의 ProductPurchase)은
+    #       **가격 필드가 원천에 없다**(공식 필드 목록 확인 — orderId 뿐). 그래서
+    #       Google 캐릭터·묶음 구매는 price_amount_micros/price_currency 가
+    #       구조적으로 항상 None 이다(버그 아님, 스토어가 안 준다).
+    #   단위는 전부 **micros**(1,000,000=1단위)로 통일해 돌려준다 — Apple 의
+    #   밀리단위·Google 의 units+nanos 는 각 _verify_* 에서 변환한다.
+    price_amount_micros: Optional[int] = None
+    price_currency: Optional[str] = None  # ISO 4217, 예: "USD"
+    order_id: Optional[str] = None  # Google orderId / Apple transactionId(주문 개념의 등가물)
 
 
 def verify(
@@ -158,6 +175,22 @@ def _parse_rfc3339(value: Optional[str]) -> Optional[datetime]:
     except ValueError:
         logger.warning("iap: RFC3339 파싱 실패 value=%s", value)
         return None
+
+
+def _google_money_to_micros(money: Optional[dict]) -> Optional[int]:
+    """구글 Money 타입({currencyCode, units, nanos}) → micros(1,000,000=1단위).
+
+    units 는 int64 호환을 위해 문자열로 올 수 있어 int() 로 강제한다. 파싱이
+    안 되면(예상 밖 모양) 조용히 None — 결제 기록 자체를 막을 이유는 아니다(R5).
+    """
+    if not money:
+        return None
+    try:
+        units = int(money.get("units", 0) or 0)
+        nanos = int(money.get("nanos", 0) or 0)
+    except (TypeError, ValueError):
+        return None
+    return units * 1_000_000 + nanos // 1_000
 
 
 # ═══════════════════════════════════════════════════════════════════════ #
@@ -272,6 +305,11 @@ def _verify_google(
                     "iap(google): 윈백/오퍼 감지 product=%s offer=%s(기록만, 지급 로직 무관)",
                     product_id, offer_id,
                 )
+            # ⭐⭐ §22-⑥ — 가격은 autoRenewingPlan.recurringPrice 에 있다(prepaidPlan
+            #   은 확인 못 했다 — 그 경우 조용히 None, 결제 기록 자체를 막지 않는다).
+            #   주문 ID 는 lineItem 별 latestSuccessfulOrderId(공식 필드, WebSearch로
+            #   확인 — SubscriptionPurchaseLineItem.latest_successful_order_id).
+            recurring_price = (match.get("autoRenewingPlan") or {}).get("recurringPrice")
             return VerifyResult(
                 ok=True,
                 transaction_id=transaction_id,
@@ -280,6 +318,9 @@ def _verify_google(
                 # ⭐ §22-⑤⑦ — 체험 오퍼 코드. 위 offer_id 로그와 같은 자리(응답을
                 #   이미 파싱해 손에 든 상태)에서 판정만 한 줄 추가한다.
                 is_trial=offer_id == "trial-7d",
+                price_amount_micros=_google_money_to_micros(recurring_price),
+                price_currency=(recurring_price or {}).get("currencyCode"),
+                order_id=match.get("latestSuccessfulOrderId"),
             )
 
         url = (
@@ -297,6 +338,15 @@ def _verify_google(
             ok=True,
             transaction_id=transaction_id,
             store_confirmed_test=body.get("purchaseType") == 0,  # 0=라이선스 테스트 계정
+            # ⛔⛔ §22-⑥ — ProductPurchase(캐릭터·묶음, 비소모성)에는 가격 필드가
+            #   **원천에 없다**(공식 필드 목록 확인: kind·purchaseTimeMillis·
+            #   purchaseState·consumptionState·developerPayload·orderId·purchaseType·
+            #   acknowledgementState·purchaseToken·productId·quantity·
+            #   obfuscatedExternalAccountId·obfuscatedExternalProfileId·regionCode·
+            #   refundableQuantity 뿐). price_amount_micros/price_currency 가 항상
+            #   None 인 건 버그가 아니라 스토어가 원래 안 준다 — "채워지게 고쳐라"로
+            #   되돌리지 마라. orderId 는 있다.
+            order_id=body.get("orderId"),
         )
     except httpx.HTTPStatusError as exc:
         logger.warning(
@@ -406,6 +456,21 @@ def _decode_apple_transaction(signed: Optional[str]) -> Optional[dict]:
         return None
 
 
+def _apple_price_micros(info: dict) -> Optional[int]:
+    """§22-⑥ — JWSTransactionDecodedPayload.price(밀리단위, 1000=1단위) → micros.
+
+    price·currency 는 Apple 공식 문서로 확인된 필드다(구독·비소모성 공통) —
+    https://developer.apple.com/documentation/appstoreserverapi/price
+    """
+    price = info.get("price")
+    if price is None:
+        return None
+    try:
+        return int(price) * 1_000
+    except (TypeError, ValueError):
+        return None
+
+
 def _is_apple_sandbox_transaction(info: dict) -> bool:
     """⭐ bt-back 조건③(2026-09-27) — `_decode_apple_transaction` 이 디코드한
     JWSTransactionDecodedPayload(`signedTransactionInfo`)의 **`environment`** 필드가
@@ -481,6 +546,11 @@ def _verify_apple(
                 #   3=Offer Code. JWSTransactionDecodedPayload 필드(apple/app-store-
                 #   server-library-python 모델 확인).
                 is_trial=matched_info.get("offerType") == 1,
+                price_amount_micros=_apple_price_micros(matched_info),
+                price_currency=matched_info.get("currency"),
+                # ⭐ §22-⑥ — Apple 엔 별도 "주문 ID" 개념이 없다. transactionId 가
+                #   그 등가물이다(이 거래 자체를 가리키는 스토어 발급 식별자).
+                order_id=matched_info.get("transactionId"),
             )
 
         resp = httpx.get(
@@ -496,6 +566,9 @@ def _verify_apple(
             ok=True,
             transaction_id=info.get("originalTransactionId") or transaction_id,
             store_confirmed_test=_is_apple_sandbox_transaction(info),
+            price_amount_micros=_apple_price_micros(info),
+            price_currency=info.get("currency"),
+            order_id=info.get("transactionId"),
         )
     except httpx.HTTPStatusError as exc:
         logger.warning(
