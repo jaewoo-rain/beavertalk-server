@@ -338,6 +338,13 @@ def _resolve_zone(tz: str | None) -> ZoneInfo | None:
         return None
 
 
+def display_locale(member_language: str | None) -> str:
+    """§10 — 라우터용 재노출(표시 언어 규칙의 본체는 display_i18n_service.display_locale)."""
+    from domains.learning.service.display_i18n_service import display_locale as _dl
+
+    return _dl(member_language)
+
+
 _MAX_TZ_LEN = 64  # IANA 이름 최장이 30자대 — 이보다 긴 건 쓰레기다(ZoneInfo 에 넘기지도 않는다)
 
 
@@ -642,8 +649,21 @@ class CallService:
         # 상세 응답을 위해 연관 로딩된 형태로 다시 조회
         return self.get_call(member_id, call.call_id)
 
-    def list_calls(self, member_id: int, limit: int = 20, offset: int = 0) -> list[CallSummary]:
-        return [self._to_summary(c) for c in self.repo.list_by_member(member_id, limit, offset)]
+    def list_calls(
+        self, member_id: int, limit: int = 20, offset: int = 0, *,
+        client=None, locale: str | None = None,
+    ) -> list[CallSummary]:
+        """locale 을 주면(§10) 요약을 그 언어로 바꿔 낸다 — 번역은 이 페이지 분량만, 실패는 원문."""
+        calls = self.repo.list_by_member(member_id, limit, offset)
+        out = [self._to_summary(c) for c in calls]
+        if locale:
+            from domains.learning.service import display_i18n_service
+
+            tr = display_i18n_service.localized_summaries(self.db, client, calls, locale)
+            for s in out:
+                if s.call_id in tr:
+                    s.summary = tr[s.call_id]
+        return out
 
     def get_call(self, member_id: int, call_id: int) -> CallDetail:
         call = self.repo.get_detail(call_id)

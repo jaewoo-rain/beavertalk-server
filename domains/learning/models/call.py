@@ -50,6 +50,13 @@ class Call(Base, TimestampMixin):
     call_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), comment="전화 날짜")
     total_time: Mapped[Optional[int]] = mapped_column(Integer, comment="총 통화 시간(초)")
     summary: Mapped[Optional[str]] = mapped_column(Text, comment="대화 내용 한 줄 요약")
+    # §10(2026-09-29) — summary 를 **실제로 쓴 언어**. 분석 지시문은 LOCALE_LABEL 에 없는
+    # locale 을 영어로 쓰므로 그 규칙대로 저장한다(normalcall_service.summary_lang_for).
+    # 기록 목록이 회원의 **지금** 언어와 다르면 번역본을 내린다(display_i18n_service).
+    # NULL = 이 컬럼 이전 행(목록은 한글 유무로만 ko/비-ko 를 가른다).
+    summary_lang: Mapped[Optional[str]] = mapped_column(
+        Text, comment="summary 를 생성한 언어(ISO 639-1). NULL=미기록(과거 행)",
+    )
     feedback: Mapped[Optional[str]] = mapped_column(
         Text, comment="통화 코칭 한 문장(통화후 분석 생성)",
     )
