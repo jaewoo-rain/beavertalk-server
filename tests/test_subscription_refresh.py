@@ -144,7 +144,12 @@ def test_store_subscription_extends_end_date_when_ok(db, monkeypatch):
     db.refresh(sub)
     db.refresh(receipt)
     assert _eq(sub.end_date, LATER), "만료된 store 구독 + 유효 토큰 → 재조회로 end_date 가 미래로 이동해야 한다"
-    assert receipt.last_store_check_at is not None
+    # ⛔⛔ §26-⑦ 정정(2026-09-29, 실기기 회귀) — 갱신 성공 뒤엔 쓰로틀을 **안**
+    #   찍는다(예전엔 여기서 찍어서, 그 뒤 1시간 동안 다른 조회가 재조회를 못
+    #   했다 — 23:46 갱신 확인 → 00:01 Free 로 보인 사고). end_date 가 미래로
+    #   갔으니 다음 호출은 애초에 "아직 안 지남" 가드를 못 넘어 쓰로틀이 필요
+    #   없다.
+    assert receipt.last_store_check_at is None
 
 
 # --------------------------------------------------------------------------- #
@@ -228,24 +233,36 @@ def test_unexpired_subscription_is_not_refreshed(db, monkeypatch):
 # 6) 쓰로틀 — 안에서 두 번 호출 → 스토어 호출 1회
 # --------------------------------------------------------------------------- #
 def test_throttle_prevents_a_second_call_within_the_window(db, monkeypatch):
+    """⛔⛔ §26-⑦ 정정 — 쓰로틀은 invalid/unavailable 에만 찍힌다(성공 뒤엔 안
+    찍는다, 위 섹션 2 참조) — 그래서 쓰로틀 자체를 보려면 **실패 응답**으로 두
+    번 불러야 한다(성공으로 두 번 부르면 첫 호출이 이미 end_date 를 미래로
+    옮겨 두 번째 호출이 "아직 안 지남" 가드에 걸릴 뿐, 쓰로틀을 시험한 게 아니다)."""
     calls = []
-    monkeypatch.setattr(iap, "verify", lambda **k: calls.append(k) or iap.VerifyResult(ok=True, expires_at=LATER))
+    monkeypatch.setattr(iap, "verify", lambda **k: calls.append(k) or iap.VerifyResult(ok=False, reason="invalid"))
     mid = _member(db)
-    sub = _subscribe(db, mid, source="store", end_date=PAST)
+    _subscribe(db, mid, source="store", end_date=PAST)
     _receipt(db, mid)
 
     svc = SubscriptionRefreshService(db)
     svc.refresh_member(mid)
-    db.refresh(sub)
-    # 첫 호출이 갱신에 성공해 end_date 가 미래로 갔다 — 그 자체로 두 번째 호출은
-    # "아직 안 지남" 가드에 걸려 재조회를 안 한다. 쓰로틀 자체(같은 만료 상태에서
-    # 다시 호출)를 보려면 두 번째 호출 전에 end_date 를 다시 과거로 되돌려야 한다.
-    sub.end_date = PAST
-    db.commit()
-
     svc.refresh_member(mid)  # 쓰로틀 안 — 스토어를 또 부르면 안 된다
 
     assert len(calls) == 1, "쓰로틀 안에서 스토어가 두 번 불렸다"
+
+
+def test_success_does_not_set_throttle_so_a_later_check_is_not_blocked(db, monkeypatch):
+    """⭐⭐ §26-⑦ 핵심 회귀(bt-back 실기기 실측: 23:46 갱신 확인 → 00:01 앱 재실행
+    시 쓰로틀에 막혀 Free 로 보임). 갱신 성공 직후엔 last_store_check_at 을 안
+    찍는다 — 그래서 다른 조회가 **바로** 재조회할 수 있다(무기한 대기 없음)."""
+    monkeypatch.setattr(iap, "verify", _fake_verify(ok=True, expires_at=LATER))
+    mid = _member(db)
+    _subscribe(db, mid, source="store", end_date=PAST)
+    receipt = _receipt(db, mid)
+
+    SubscriptionRefreshService(db).refresh_member(mid)
+
+    db.refresh(receipt)
+    assert receipt.last_store_check_at is None, "성공 뒤에 쓰로틀 스탬프가 찍히면 안 된다"
 
 
 def test_throttle_allows_a_second_call_after_the_window(db, monkeypatch):

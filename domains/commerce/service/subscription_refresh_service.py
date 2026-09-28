@@ -158,7 +158,16 @@ def _refresh_from_store(db: Session, sub: Subscribe) -> bool:
         purchase_token=receipt.purchase_token,
         is_sandbox=receipt.is_sandbox,
     )
-    receipt.last_store_check_at = now
+    # ⛔⛔ §26-⑦(2026-09-29, 실기기 회귀 — bt-back) — 쓰로틀은 **직전 응답이
+    #   invalid/unavailable 일 때만** 찍는다. 예전엔 여기서 무조건 찍었다: 23:46
+    #   갱신이 성공해 end_date 가 미래로 옮겨졌는데도 last_store_check_at 을
+    #   찍는 바람에, 그 뒤 1시간(IAP_RECHECK_MIN_INTERVAL_S) 동안 아무도 재조회를
+    #   못 했다 — 그 사이 다른 경로가 end_date 를 다시 과거로 되돌릴 리는 없지만,
+    #   애초에 ok=True 뒤에 쓰로틀을 찍을 이유가 없다: end_date 가 미래로 갔으면
+    #   위 ②(아직 안 지남) 가드를 다음 호출이 애초에 못 넘으니 쓰로틀 없이도
+    #   재조회가 안 난다. invalid/unavailable 은 end_date 가 과거에 그대로
+    #   남으므로 ②가드를 계속 통과한다 — 그래서 그 둘만 쓰로틀이 필요하다
+    #   (쓰로틀의 원래 목적 그대로: 진짜 해지한 회원·죽은 스토어를 매 호출 안 때림).
     if result.ok:
         # §22-⑤⑦ — 이미 손에 든 결과라 verify() 를 또 안 부르고 같은 자리에서 채운다.
         sub.is_trial = result.is_trial
@@ -170,11 +179,13 @@ def _refresh_from_store(db: Session, sub: Subscribe) -> bool:
     elif result.reason == "invalid":
         # ⛔ 여기서 아무것도 더 안 바꾼다 — end_date 가 이미 과거이므로
         #   resolve_status/entitlement 가 그 자체로 Free 를 낸다(위 docstring ②).
+        receipt.last_store_check_at = now
         logger.info(
             "iap 재조회: member=%s subscribe=%s invalid(진짜 종료 — 해지/환불/만료)",
             sub.member_id, sub.subscribe_id,
         )
     else:  # "unavailable" — ⛔ 박탈 금지. 저장값 그대로 두고 다음에 재시도.
+        receipt.last_store_check_at = now
         logger.info(
             "iap 재조회: member=%s subscribe=%s unavailable(스토어 응답 없음) — 박탈 안 함, 재시도 예정",
             sub.member_id, sub.subscribe_id,

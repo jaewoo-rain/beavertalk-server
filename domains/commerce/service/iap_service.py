@@ -206,14 +206,23 @@ class IapService:
                 #   입구①②(읽을 때 자기치유·스케줄 스윕)가 이 회원에게도 작동한다.
                 existing.purchase_token = item.purchase_token
             if existing.kind == "subscription":
-                subscription_refresh_service.bump_subscription_from_verify_result(
+                bumped = subscription_refresh_service.bump_subscription_from_verify_result(
                     self.db, member_id, result,
                 )
-                # ⛔ 쓰로틀 기록도 여기서 남긴다 — 안 남기면 바로 아래 entitlement()
-                #   호출이 입구①(자기치유)을 다시 태워 **같은 요청 안에서 verify()
-                #   를 두 번** 부른다(갱신이 실제로 안 붙었을 때만 재현 — 안 붙었으면
-                #   end_date 가 여전히 과거라 입구①의 "만료됨" 가드를 못 피한다).
-                existing.last_store_check_at = datetime.now(timezone.utc)
+                # ⛔⛔ §26-⑦(2026-09-29, 실기기 회귀 — bt-back) — 예전엔 여기서
+                #   무조건 찍었다. 23:46 이 경로로 갱신이 실제로 반영됐는데도
+                #   찍혀서, 그 뒤 1시간 쓰로틀에 걸려 다른 조회(00:01 앱 재실행)
+                #   가 재조회를 못 하고 — end_date 는 이미 미래로 옮겨져 있었으니
+                #   사실 문제 없었을 텐데, 이 스탬프가 subscription_refresh_service
+                #   쪽 입구①에도 영향을 줘 혼선의 원인이 됐다(같은 receipt 행을 씀).
+                #   ⇒ **만료가 여전히 과거일 때만**(bumped=False) 찍는다 — 갱신이
+                #   실제로 반영됐으면(bumped=True) 그 자체로 입구①의 "아직 안
+                #   지남" 가드를 다음 호출이 못 넘으니 쓰로틀이 필요 없다. 안
+                #   붙었을 때만 "같은 요청 안 이중 verify() 방지"가 뜻이 있다 —
+                #   end_date 가 여전히 과거라 입구①의 "만료됨" 가드를 못 피하기
+                #   때문이다(이 케이스는 이 스탬프가 여전히 막아야 한다).
+                if not bumped:
+                    existing.last_store_check_at = datetime.now(timezone.utc)
             self.db.commit()
             return VerifyResponse(
                 already_granted=True,
