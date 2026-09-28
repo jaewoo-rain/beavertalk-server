@@ -142,6 +142,27 @@ class IapService:
                 },
             )
 
+        # ⛔⛔ §26-②(2026-09-29, bt-back 지시) — 묶음 구성(character.in_bundle)이
+        #   0건이면 _grant_bundle 이 아무것도 못 준다. 그런데도 여기서 그냥 통과시키면
+        #   결제 확인은 되고(스토어 영수증은 진짜) 지급은 0인 채로 영수증 기록·
+        #   acknowledge·200 이 그대로 진행되고, **비소모성이라 같은 transaction_id
+        #   로 재시도해도 already_granted 로 수렴해 영원히 못 고친다**(돈 받고 아무
+        #   것도 안 줌, 되돌릴 방법이 없다) — 그래서 스토어에 묻기(②) 전에, 순수
+        #   로컬 카탈로그 판정만으로 끊는다. 503(재시도 가능)로 응답해 앱이 나중에
+        #   다시 시도하게 한다(구성 UPDATE 한 줄로 복구되면 바로 성공한다).
+        if ref.kind == "bundle" and not iap_catalog.resolve_bundle_character_ids(self.db):
+            logger.error(
+                "iap: BUNDLE_EMPTY product=%s member=%s — in_bundle 0건, 지급 불가(카탈로그 구멍)",
+                item.product_id, member_id,
+            )
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "VERIFY_UNAVAILABLE",
+                    "message": "결제 확인이 지연되고 있어요. 잠시 후 다시 시도해 주세요.",
+                },
+            )
+
         # ② 스토어 검증 (앱 말을 믿지 않는 지점)
         result = iap.verify(
             platform=platform,  # type: ignore[arg-type]
