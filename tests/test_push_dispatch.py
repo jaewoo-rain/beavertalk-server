@@ -740,3 +740,33 @@ def test_run_null_tz_alarm_bucket_key_is_byte_identical_to_pre_s5(
     assert sent == 1
     assert patch_dispatch.claims == [(ids["alarm_id"], "2026-07-08 08:00")]
     db.close()
+
+
+def test_run_survives_a_broken_tz_offset_and_still_rings_the_rest(
+    session_factory, monkeypatch, patch_dispatch, caplog
+):
+    """⛔⛔ §25-①(2026-09-28, 출시 전 권장) — API 검증(AlarmCreate/Update) 은 이제
+    tz_offset_min 을 -840~840 으로 막지만, 그 전에 API 를 직접 불러 넣었거나 다른
+    경로로 이미 들어온 범위 밖 값(|값|≥1440)이 있으면 datetime.timezone(...)이
+    ValueError 로 죽는다. 옛 코드는 이 루프에 try/except 가 없어 그 알람 뒤 순번의
+    모든 알람이 같이 막혔다(500) — 이제는 그 알람 1건만 건너뛰고 나머지는 정상
+    발송돼야 한다."""
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    code = _DAY_CODES[now.weekday()]
+    db = session_factory()
+    broken = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                   day_codes={code}, tokens=[("t-broken", True)], tz_offset_min=99999)
+    good = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={code}, tokens=[("t-good", True)])
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    with caplog.at_level(logging.ERROR):
+        sent = DispatchService(db).run()  # 예외 없이 끝나야 한다(500 이 아님)
+
+    assert sent == 1, "깨진 알람 때문에 정상 알람까지 발송이 막혔다"
+    claimed_alarm_ids = [aid for aid, _ in patch_dispatch.claims]
+    assert good["alarm_id"] in claimed_alarm_ids
+    assert broken["alarm_id"] not in claimed_alarm_ids
+    assert any(r.levelno >= logging.ERROR for r in caplog.records), "실패가 로그로 안 남았다"
+    db.close()

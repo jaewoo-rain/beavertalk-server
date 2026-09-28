@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -105,6 +106,32 @@ def test_update_without_tz_fields_leaves_existing_tz_untouched(db):
     updated = svc.update(mid, created.alarm_id, AlarmUpdate(call_type="chat"))
     assert updated.tz == "America/New_York"
     assert updated.tz_offset_min == -240
+
+
+# --------------------------------------------------------------------------- #
+# §25-①(2026-09-28, 출시 전 권장) — tz_offset_min 범위 검사(-840~840)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("bad", [1440, -1440, 841, -841, 10000])
+def test_create_rejects_out_of_range_tz_offset_min(bad):
+    """⛔⛔ |값|≥1440 이면 dispatch_service._offset_zone 의 datetime.timezone(...)
+    이 ValueError 로 죽는다 — API 레벨에서 먼저 422 로 막는다."""
+    with pytest.raises(ValidationError):
+        AlarmCreate(character_id=1, time=datetime.now(timezone.utc),
+                    days_of_week=["MON"], tz_offset_min=bad)
+
+
+@pytest.mark.parametrize("bad", [1440, -1440, 841])
+def test_update_rejects_out_of_range_tz_offset_min(bad):
+    with pytest.raises(ValidationError):
+        AlarmUpdate(tz_offset_min=bad)
+
+
+@pytest.mark.parametrize("ok", [-840, 840, 0, 540, -240])
+def test_boundary_values_are_accepted(ok):
+    """경계값(-840·840, ±14시간)은 통과한다 — 배타적으로 막으면 안 된다."""
+    parsed = AlarmCreate(character_id=1, time=datetime.now(timezone.utc),
+                         days_of_week=["MON"], tz_offset_min=ok)
+    assert parsed.tz_offset_min == ok
 
 
 def test_legacy_client_payload_without_tz_fields_is_ignored_not_422(db):
