@@ -27,6 +27,7 @@ from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.sentence import Sentence
+from domains.learning.repository.call_repository import SPOKEN_MIN_TOTAL_TIME_S
 from domains.learning.service.call_service import CallService
 
 
@@ -55,9 +56,13 @@ def ctx(session_factory):
 
 def _call(ctx, *, when_utc: datetime, total_time=60, status="done", call_type="chat",
           user_word_count: int | None = None, spoke=True):
+    """⛔⛔ §12(2026-09-27) — was_spoken 은 finalize_call 과 같은 공식으로 직접
+    채운다(전사 있음 OR total_time >= SPOKEN_MIN_TOTAL_TIME_S). CallRawData 삽입은
+    더 이상 판정에 안 쓰인다(과거 기록 재현용으로만 남긴다)."""
+    was_spoken = bool(spoke) or (total_time is not None and total_time >= SPOKEN_MIN_TOTAL_TIME_S)
     c = Call(member_id=ctx["member_id"], character_id=ctx["cid"], call_date=when_utc,
               total_time=total_time, status=status, call_type=call_type,
-              user_word_count=user_word_count)
+              user_word_count=user_word_count, was_spoken=was_spoken)
     ctx["db"].add(c); ctx["db"].flush()
     ctx["db"].add(CallRawData(call_id=c.call_id, role="beaver", turn_index=0, content="안녕!"))
     if spoke:
@@ -152,10 +157,23 @@ def test_level_test_calls_are_excluded(ctx):
 # 6) 성립 통화만(학습자 발화 0 이면 제외 — has_call_in_window 기준 재사용)
 # --------------------------------------------------------------------------- #
 def test_calls_where_the_learner_never_spoke_are_excluded(ctx):
-    _call(ctx, when_utc=datetime(2026, 9, 10, 1, 0, tzinfo=timezone.utc), spoke=False)
+    """⛔ §12(2026-09-27) — total_time 을 명시로 60초 미만으로 줘야 한다(기본값 60은
+    이제 그 자체로 was_spoken=True 를 만든다 — 이 시험은 "짧고 무발화"만 제외됨을 본다)."""
+    _call(ctx, when_utc=datetime(2026, 9, 10, 1, 0, tzinfo=timezone.utc), total_time=30, spoke=False)
 
     got = _cal(ctx, "2026-09-01", "2026-09-30", tz_offset_min=0)
     assert got["days"] == []
+
+
+def test_long_call_without_transcript_still_appears_on_the_calendar(ctx):
+    """⛔⛔ §12(2026-09-27, 앱 요청, N=60) 핵심 재현·수정 확인 — 60초 넘게 참여했는데
+    전사가 통째로 빈 통화(운영 실측 49건, 최장 324초 — 전사 파이프라인 실패)도 이제
+    달력에 뜬다."""
+    _call(ctx, when_utc=datetime(2026, 9, 10, 1, 0, tzinfo=timezone.utc),
+          total_time=SPOKEN_MIN_TOTAL_TIME_S, spoke=False)
+
+    got = _cal(ctx, "2026-09-01", "2026-09-30", tz_offset_min=0)
+    assert len(got["days"]) == 1
 
 
 # --------------------------------------------------------------------------- #

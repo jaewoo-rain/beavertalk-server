@@ -51,6 +51,7 @@ from domains.learning.models.member_item_progress import MemberItemProgress
 from domains.learning.models.sentence import Sentence
 from domains.learning.repository import curriculum_repository
 from domains.learning.repository import mastery_repository
+from domains.learning.repository.call_repository import SPOKEN_MIN_TOTAL_TIME_S
 from domains.learning.service import curriculum_service
 from domains.learning.service import mastery_service
 from domains.push.models.push_dispatch_log import PushDispatchLog
@@ -1737,6 +1738,16 @@ def finalize_call(
     자리라 늦어도 되는 값). None(이 조각에 사용자 전사가 없음)이면 컬럼을 아예
     건드리지 않는다 — 이전에 쌓인 값이 있으면 그대로 두고, 통화 내내 한 번도 안
     채워졌으면 NULL 그대로 남는다.
+
+    was_spoken(§12, 2026-09-27): 매 조각 종료(이 함수의 유일한 호출부 `_persist_
+    remaining` 이 매 조각마다 부른다)마다 **다시 계산**한다 — `total_time`·
+    `user_word_count` 둘 다 여기서 이미 최신 누적값으로 갱신된 뒤라(위 두 블록),
+    조각이 이어져 나중에 60초를 넘기거나(조각1 40초→false, 조각2 누적 70초→true)
+    나중 조각에서야 첫 사용자 발화가 잡혀도(조각1 무발화·30초, 조각2 발화 있음)
+    그 시점의 finalize_call 호출에서 정확히 갱신된다. `total_time` 은
+    `mark_fragment_ended` 가 이 함수보다 먼저(끊김 인지 즉시) 확정해 두므로 여기서
+    읽는 `call.total_time` 은 이미 이 조각까지의 최종값이다. 한 번 True 가 되면
+    이후 계속 True 로 남는다(두 원천 다 누적이라 줄어들지 않는다 — 단조).
     """
     call = db.get(Call, call_id)
     if call is None:
@@ -1748,6 +1759,9 @@ def finalize_call(
         call.user_word_count = (
             (int(call.user_word_count or 0) + int(user_word_count)) if accumulate else int(user_word_count)
         )
+    call.was_spoken = (
+        (call.total_time or 0) >= SPOKEN_MIN_TOTAL_TIME_S or call.user_word_count is not None
+    )
     # ⭐⭐ QA C4 재검-①(2026-09-23): 이 조각이 끝난 시각 — 이어하기 TTL(resume_call)의
     #   단일 소스. `updated_at` 을 쓰면 이 뒤에 오는 분석·usage 기록 등 후행 쓰기가
     #   TTL 을 계속 밀어내므로, **조각 종료 전용** 컬럼에 여기서만 찍는다.

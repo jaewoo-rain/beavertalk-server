@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     Identity,
@@ -189,6 +190,20 @@ class Call(Base, TimestampMixin):
     #   (0 과 «집계 없음» 을 가른다 — 0 으로 쓰지 않는다).
     user_word_count: Mapped[Optional[int]] = mapped_column(
         Integer, comment="사용자 발화 단어 수(ja·zh 는 글자수/2) — NULL=집계 없음(전사 없음)",
+    )
+    # ⭐⭐ §12(2026-09-27, 앱 요청, N=60) — 「학습자가 이 통화에 참여했다」를 통화
+    #   종료 시점에 **한 번만** 확정한 불변 플래그(원본). 예전엔 이걸 읽을 때마다
+    #   call_raw_data 에 내용 있는 user 행이 있는지로 **매번 다시 계산**했는데,
+    #   전사 파이프라인이 실패하면(운영 실측 49건, 최장 324초) 통화가 아무리 길어도
+    #   "말 안 함"으로 잡혀 연속일·하루 한도가 샜다. 기준은 finalize_call 이 계산:
+    #   전사 있음 OR total_time >= SPOKEN_MIN_TOTAL_TIME_S(call_repository.py, 60초).
+    #   `call_repository._spoke_exists()`(달력·하루한도·이어하기 판정 공용)가 이 값만
+    #   본다 — call_raw_data 를 더 이상 안 읽는다.
+    #   ⛔ 기존 1,615행은 마이그레이션이 같은 기준으로 백필한다(코드 배포와 분리하면
+    #   그 사이 전체가 false 로 보여 연속일이 0이 되는 장애 구간이 생긴다).
+    was_spoken: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"),
+        comment="학습자가 이 통화에서 참여했나(전사 있음 OR total_time>=60) — finalize_call 확정",
     )
 
     member: Mapped["Member"] = relationship(back_populates="calls")

@@ -218,3 +218,75 @@ def test_finalize_call_across_two_fragments_does_not_double_count(ctx):
     )
     ctx["db"].refresh(ctx["call"])
     assert ctx["call"].user_word_count == 6, "조각1 값에 조각1+2 합계를 또 더하면 10 이 된다 — SET 이어야 한다"
+
+
+# --------------------------------------------------------------------------- #
+# 4) §12(2026-09-27, 앱 요청, N=60) — finalize_call 의 was_spoken 계산
+# --------------------------------------------------------------------------- #
+def test_long_call_with_no_transcript_is_spoken_via_total_time(ctx):
+    """전사가 전혀 없어도(user_word_count=None) total_time >= 60 이면 was_spoken=True."""
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=90, accumulate=False, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].was_spoken is True
+
+
+def test_short_call_with_no_transcript_is_not_spoken(ctx):
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=30, accumulate=False, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].was_spoken is False
+
+
+def test_short_call_with_a_transcript_is_spoken_via_word_count(ctx):
+    """짧아도(<60초) 사용자 발화가 있으면 was_spoken=True(전사 쪽 OR)."""
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=5, accumulate=False, user_word_count=3)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].was_spoken is True
+
+
+def test_boundary_59s_is_not_spoken_60s_is(ctx):
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=59, accumulate=False, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].was_spoken is False
+
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=1, accumulate=True, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].total_time == 60
+    assert ctx["call"].was_spoken is True
+
+
+def test_fragment_flips_to_spoken_only_once_accumulated_total_time_crosses_60(ctx):
+    """⛔⛔ bt-back 이 명시적으로 확인을 요구한 시나리오 — 조각1(40초, 무발화)이 끝난
+    시점엔 아직 60초 미만이라 False, 조각2(누적 70초)가 끝나면 그제서야 True 로
+    바뀐다. finalize_call 이 조각마다 다시 계산하기 때문에 가능하다(단발 계산이면
+    조각1 에서 확정돼 영영 False 로 남는다)."""
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=40, accumulate=False, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].total_time == 40
+    assert ctx["call"].was_spoken is False, "조각1 종료 시점 — 아직 60초 미만"
+
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=30, accumulate=True, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].total_time == 70
+    assert ctx["call"].was_spoken is True, "조각2 누적 후 — 60초를 넘겼다"
+
+
+def test_once_spoken_via_word_count_a_later_wordless_fragment_does_not_unset_it(ctx):
+    """조각1 에서 발화로 True 가 된 뒤, 조각2 가 무발화(user_word_count=None)여도
+    (기존 누적값이 안 지워지므로) was_spoken 은 True 로 남는다 — 단조."""
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=5, accumulate=False, user_word_count=3)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].was_spoken is True
+
+    finalize_call(ctx["db"], ctx["call"].call_id, status="analyzing",
+                  total_time=5, accumulate=True, user_word_count=None)
+    ctx["db"].refresh(ctx["call"])
+    assert ctx["call"].user_word_count == 3, "누적값이 지워지지 않는다(기존 회귀와 같은 규율)"
+    assert ctx["call"].was_spoken is True

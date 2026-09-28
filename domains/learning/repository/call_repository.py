@@ -7,26 +7,32 @@ from typing import Optional, Sequence
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy.sql.selectable import Exists
 
 from domains.learning.models.call import Call
-from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.sentence import Sentence
 
 
-def _spoke_exists() -> Exists:
+# ⭐⭐ §12(2026-09-27, 앱 요청, N=60 bt-back 실측 승인) — 「말한 통화」의 total_time
+#   쪽 기준. `curriculum_service.FREETALK_MIN_DURATION_S`(마찬가지로 60)와 **값만
+#   같고 뜻은 다르다** — 그건 "프리토킹 1회를 커리큘럼 완료로 인정하나"(call_type=
+#   freetalk + normal_end 필수, 진도 전용)이고, 이건 "이 통화에 학습자가 참여했나"
+#   (모든 call_type, 종료 방식 무관 — 달력·하루 예산·이어하기 판정 전용)다. 우연히
+#   같은 값이라고 상수를 공유하면 한쪽만 바뀌어야 할 때 둘 다 바뀐다 — 따로 둔다.
+SPOKEN_MIN_TOTAL_TIME_S = 60
+
+
+def _spoke_exists():
     """«학습자가 이 통화에서 최소 한 번 말했다» — has_call_in_window 와 C12(달력)
-    «성립 통화» 판정이 같이 쓰는 EXISTS 서브쿼리(정의는 has_call_in_window 참조)."""
-    return (
-        select(CallRawData.call_raw_data_id)
-        .where(
-            CallRawData.call_id == Call.call_id,
-            CallRawData.role == "user",
-            CallRawData.content.isnot(None),
-            CallRawData.content != "",
-        )
-        .exists()
-    )
+    «성립 통화» 판정이 같이 쓰는 필터(정의는 has_call_in_window 참조).
+
+    ⛔⛔ §12(2026-09-27, 앱 요청) — 예전엔 `call_raw_data` 에 내용 있는 user 행이
+    있는지를 **읽는 시점마다** 다시 계산했다(파생·불안정). 전사 파이프라인이 실패해
+    내용이 비면(운영 실측: 82초·324초짜리 통화도 있었다) 통화가 아무리 길어도
+    "말 안 함"으로 잡혀 연속일·하루 한도가 조용히 샜다. 이제 통화 종료 시점에
+    `call.was_spoken` 하나로 **한 번만** 확정한다(원본·안정 — normalcall_service.
+    finalize_call 이 채운다: 전사 있음 OR total_time >= SPOKEN_MIN_TOTAL_TIME_S).
+    """
+    return Call.was_spoken.is_(True)
 
 
 # ⭐ QA C4 재검-②(2026-09-23): ongoing 조각의 경과 추정 상한(초) — 오래 방치된 ongoing
@@ -84,12 +90,19 @@ class CallRepository:
         """[start_utc, end_utc) 안에 **성립한 통화**가 있는지(EXISTS).
 
         성립 = status in(done, analyzing) AND **학습자가 최소 한 번 말했다**
-        (call_raw_data 에 role='user' 이고 전사가 빈 값이 아닌 행이 존재).
+        (`call.was_spoken` — finalize_call 이 통화 종료 시점에 확정, _spoke_exists 참조).
 
         왜 '유저가 말했는가'인가: 옛 기준은 total_time >= 10초 였는데 자의적이었다.
         실측(prod)에서 normal 통화 405건 중 205건이 **학습자 발화 0건**이고, 그중 44건은
         10초를 넘겨 하루를 소모했다(최장 324초 — 비버 혼자 5분을 떠든 통화). 마이크가 안
         열렸거나 듣기만 한 통화가 한도를 깎으면 안 된다.
+
+        ⛔⛔ §12(2026-09-27, 앱 요청, N=60) — 그런데 "발화 유무"만으로 판단하면
+        전사 파이프라인이 실패한 **긴** 통화(60초 넘게 참여했는데 전사가 통째로 빔,
+        운영 실측 49건·최장 324초)가 거꾸로 "말 안 함"에 잡혀 연속일·하루 한도가
+        샜다. 그래서 `was_spoken` 은 "전사 있음 OR total_time >= 60초"(둘 중 하나)로
+        확정한다 — 짧은 무발화 통화(470/564 = 83%, 평균 17초, 무음 3단 넛지→종료 패턴)
+        는 여전히 제외되고, 길게 참여했는데 우리 쪽 전사가 실패한 통화만 구제된다.
 
         선톡(비버가 먼저 거는 첫 발화)은 role='beaver' 라 자동으로 제외된다.
 

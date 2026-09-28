@@ -28,6 +28,7 @@ from domains.commerce.models.character import Character
 from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
+from domains.learning.repository.call_repository import SPOKEN_MIN_TOTAL_TIME_S
 from domains.learning.service.call_service import CallService
 
 
@@ -61,10 +62,16 @@ def _call(ctx, *, when_utc: datetime, total_time=60, status="done",
     """통화 1건. spoke=True 면 학습자 발화 행을 함께 넣는다(성립 조건).
 
     선톡은 role='beaver' 라 성립에 안 쓰이므로, 비버 발화만 있는 통화 = spoke False.
+
+    ⛔⛔ §12(2026-09-27) — `was_spoken` 을 이제 read 시점 계산이 아니라 컬럼으로
+    저장한다(finalize_call 이 확정). 이 헬퍼는 `finalize_call` 과 **같은 공식**
+    (전사 있음 OR total_time >= SPOKEN_MIN_TOTAL_TIME_S)으로 직접 채운다 —
+    CallRawData 삽입만으로는(과거처럼) 더 이상 판정에 반영되지 않는다.
     """
+    was_spoken = bool(spoke) or (total_time is not None and total_time >= SPOKEN_MIN_TOTAL_TIME_S)
     c = Call(member_id=ctx["member_id"], character_id=ctx["cid"],
              call_date=when_utc, total_time=total_time, status=status,
-             call_type=call_type)
+             call_type=call_type, was_spoken=was_spoken)
     ctx["db"].add(c); ctx["db"].flush()
     ctx["db"].add(CallRawData(call_id=c.call_id, role="beaver", turn_index=0,
                               content="안녕! 오늘 뭐 할까?"))  # 선톡 — 성립에 안 쓰임
@@ -110,15 +117,41 @@ def test_daily_status_remaining_s_is_the_full_daily_budget_not_the_fragment_cap(
     assert got["remaining_s"] == 900, "조각 상한(360)으로 잘리면 안 된다 — 하루 잔여 전체다"
 
 
-def test_call_without_user_speech_excluded(ctx):
-    """★ 학습자가 한마디도 안 한 통화는 하루를 소모하지 않는다.
+def test_short_call_without_user_speech_excluded(ctx):
+    """★ 학습자가 한마디도 안 했고 **짧기까지 한** 통화는 하루를 소모하지 않는다.
 
     실측: normal 405건 중 205건이 발화 0건이고 그중 44건이 10초를 넘겼다(최장 324초).
-    마이크가 안 열렸거나 듣기만 한 통화가 한도를 깎으면 안 된다.
+    마이크가 안 열렸거나 듣기만 한 통화가 한도를 깎으면 안 된다. §12(N=60)에서
+    이 "짧은 무발화"(<60초)는 그대로 제외 대상으로 남았다 — 470/564(83%, 평균 17초)
+    가 이 부류다.
     """
     _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
-          total_time=300, spoke=False)
+          total_time=30, spoke=False)
     assert _status(ctx, "2026-07-17", 540)["called_today"] is False
+
+
+def test_long_call_without_transcript_still_counts(ctx):
+    """⛔⛔ §12(2026-09-27, 앱 요청, N=60) 핵심 재현·수정 확인 — 예전엔 이 시나리오
+    (긴 통화인데 전사가 통째로 빔)가 "말 안 함"으로 잘못 잡혔다(운영 실측 49건,
+    최장 324초 — 전사 파이프라인 실패로 판단, 학습자 행동 문제가 아니다). 이제
+    total_time >= 60초면 전사가 없어도 성립한다."""
+    _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
+          total_time=300, spoke=False)
+    assert _status(ctx, "2026-07-17", 540)["called_today"] is True
+
+
+def test_call_just_under_the_60s_threshold_without_speech_excluded(ctx):
+    """경계값 — 59초·무발화는 여전히 제외(60초 미만)."""
+    _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
+          total_time=SPOKEN_MIN_TOTAL_TIME_S - 1, spoke=False)
+    assert _status(ctx, "2026-07-17", 540)["called_today"] is False
+
+
+def test_call_at_the_60s_threshold_without_speech_counts(ctx):
+    """경계값 — 정확히 60초·무발화는 성립(>=)."""
+    _call(ctx, when_utc=datetime(2026, 7, 17, 1, 0, tzinfo=timezone.utc),
+          total_time=SPOKEN_MIN_TOTAL_TIME_S, spoke=False)
+    assert _status(ctx, "2026-07-17", 540)["called_today"] is True
 
 
 def test_short_call_counts_when_user_spoke(ctx):

@@ -30,6 +30,7 @@ from domains.commerce.models.character import Character
 from domains.commerce.models.voice import Voice
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
+from domains.learning.repository.call_repository import SPOKEN_MIN_TOTAL_TIME_S
 from domains.learning.service.call_service import CallService
 
 
@@ -56,9 +57,13 @@ def ctx(session_factory):
     return {"db": db, "member_id": m.member_id, "cid": ch.character_id}
 
 
-def _call_on(ctx, when_utc: datetime, *, spoke=True):
+def _call_on(ctx, when_utc: datetime, *, spoke=True, total_time=60):
+    """⛔⛔ §12(2026-09-27) — was_spoken 은 finalize_call 과 같은 공식으로 직접
+    채운다(전사 있음 OR total_time >= SPOKEN_MIN_TOTAL_TIME_S). 이 파일의 기존
+    호출은 전부 spoke=True(기본값)라 total_time=60(기본) 과 무관하게 그대로 True다."""
+    was_spoken = bool(spoke) or (total_time is not None and total_time >= SPOKEN_MIN_TOTAL_TIME_S)
     c = Call(member_id=ctx["member_id"], character_id=ctx["cid"], call_date=when_utc,
-              total_time=60, status="done", call_type="chat")
+              total_time=total_time, status="done", call_type="chat", was_spoken=was_spoken)
     ctx["db"].add(c); ctx["db"].flush()
     ctx["db"].add(CallRawData(call_id=c.call_id, role="beaver", turn_index=0, content="안녕!"))
     if spoke:
