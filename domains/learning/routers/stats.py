@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from core.deps import CurrentMember, DbSession
+from domains.learning.service import call_service
 from domains.learning.service.call_service import CallService
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -34,6 +35,9 @@ def get_calendar(
     통화가 없는 날은 `days` 에 없다. `words` 가 그 날/그 기간에 전혀 집계 안 됐으면
     (사용자 전사가 없던 통화만 있었으면) `words` 키 자체가 빠진다(0 이 아니다).
     """
-    return CallService(db).get_calendar(
+    out = CallService(db).get_calendar(
         member.member_id, start, end, tz=tz, tz_offset_min=tz_offset_min,
     )
+    # 알람 시간대 자동 추적(2026-09-29) — 응답을 다 만든 **뒤에**, 실패해도 200(R5).
+    call_service.remember_device_tz(db, member.member_id, tz)
+    return out

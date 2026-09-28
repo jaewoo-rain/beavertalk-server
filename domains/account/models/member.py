@@ -65,6 +65,14 @@ class Member(Base, TimestampMixin):
         Text, server_default=text("'ko'"),
         comment="학습 대상 언어(ISO 639-1). NULL=기본 ko",
     )
+    # (2026-09-29) 알람이 **현지 시각을 따라가게** 하는 값. 앱이 이미 보내는 IANA tz
+    # (daily-status·stats/calendar·WS start.tz)를 서버가 받아 적어 둔다 — 위치 권한이
+    # 아니라 기기 시간대 설정값이다. ⛔ 기본값·백필 없음: NULL 은 "아직 모름"이고,
+    # 폴백(alarm.tz → 서울)은 dispatch_service._alarm_zone 한 곳에만 있다.
+    # 쓰는 곳은 call_service.remember_device_tz 하나뿐(유효한 IANA 만, 값이 바뀔 때만).
+    tz: Mapped[Optional[str]] = mapped_column(
+        Text, comment="회원이 마지막으로 알려온 기기 IANA 시간대 — 알람이 현지 시각을 따라가게 하는 값",
+    )
     email: Mapped[Optional[str]] = mapped_column(Text, unique=True, comment="이메일(Supabase 에서 동기화)")
     # 권한. 지금은 user | admin 둘뿐 — /__dev/* 운영 도구(할인 이벤트·레벨 초기화 등)를
     # admin 만 쓰게 한다. 역할이 늘면 member_role 테이블로 옮기되, 읽는 곳을 deps 의
