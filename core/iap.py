@@ -70,9 +70,14 @@ class VerifyResult:
     #   테스트 그룹으로 공짜 Premium 을 "매출"로 잡는 사고 방지).
     store_confirmed_test: bool = False
     # ⭐ §22-⑤⑦(2026-09-28) — 이 구독 건이 체험(무료/도입) 오퍼인가. 구독일 때만
-    #   의미 있다(캐릭터는 항상 False). Google 은 offerId=='trial-7d', Apple 은
-    #   offerType==1(Introductory) — 하류(subscribe.is_trial)가 그대로 저장한다.
-    is_trial: bool = False
+    #   의미 있다(캐릭터는 항상 None). Apple 은 offerType==1(Introductory) — 항상
+    #   확정값(bool).
+    # ⛔⛔ §26-③(2026-09-29, bt-back 실기기 회귀 — 체험 종료 뒤에도 state=trial 로
+    #   남는 버그) — Google 은 **Optional**. subscriptionsv2 의 `lineItems[].
+    #   offerPhase`(oneof)로 판정하는데, 이 필드 자체가 없는 응답(구 API 등)에서는
+    #   "모른다"는 뜻으로 None 을 돌려준다 — 하류가 None 이면 저장값을 건드리지
+    #   않는다(잘못된 재조회로 뒤집는 게 최악). 확정값이 있을 때만 True/False.
+    is_trial: Optional[bool] = None
     # ⭐⭐ §22-⑥(2026-09-28) — 결제 내역 기록용. **딱 이 3개만**(요청서 지시) — 필드를
     #   더 늘리지 마라. 출처(WebSearch 로 공식 문서 확인, 2026-09-28):
     #     - Apple(JWSTransactionDecodedPayload): `price`(밀리단위, 1000=1단위) ·
@@ -379,14 +384,29 @@ def _verify_google(
             #   주문 ID 는 lineItem 별 latestSuccessfulOrderId(공식 필드, WebSearch로
             #   확인 — SubscriptionPurchaseLineItem.latest_successful_order_id).
             recurring_price = (match.get("autoRenewingPlan") or {}).get("recurringPrice")
+            # ⛔⛔ §26-③(2026-09-29, bt-back 실기기 회귀) — 옛 판정(offer_id ==
+            #   "trial-7d")은 offerId 존재 여부만 봤는데, 구글은 **유료 전환 뒤에도
+            #   offerDetails 를 lineItem 에 남긴다** — 그래서 체험이 끝나도 영원히
+            #   True 로 고정됐다. bt-back 이 실제 스토어 응답(member=174,
+            #   subscriptionsv2.get)으로 확정: `offerPhase`(oneof, 현재 가격단계)가
+            #   진짜 신호다 — 체험이 끝난 응답은 offerPhase=={"basePrice": {...}}.
+            #   ⛔ 체험 단계를 가리키는 키 이름을 추측해 하드코딩하지 않는다 —
+            #   "basePrice 가 아닌 다른 키가 왔다"를 체험으로 본다(oneof 이므로
+            #   basePrice 의 부정이 곧 나머지 전부를 포괄한다).
+            #   offerPhase 자체가 없는 응답(구 API 등)에서는 판단하지 않고 None —
+            #   하류(iap_service/subscription_refresh_service)가 None 이면 기존
+            #   저장값을 그대로 둔다.
+            offer_phase = match.get("offerPhase")
+            if isinstance(offer_phase, dict) and offer_phase:
+                is_trial: Optional[bool] = "basePrice" not in offer_phase
+            else:
+                is_trial = None
             return VerifyResult(
                 ok=True,
                 transaction_id=transaction_id,
                 expires_at=_parse_rfc3339(match.get("expiryTime")),
                 store_confirmed_test="testPurchase" in body,
-                # ⭐ §22-⑤⑦ — 체험 오퍼 코드. 위 offer_id 로그와 같은 자리(응답을
-                #   이미 파싱해 손에 든 상태)에서 판정만 한 줄 추가한다.
-                is_trial=offer_id == "trial-7d",
+                is_trial=is_trial,
                 price_amount_micros=_google_money_to_micros(recurring_price),
                 price_currency=(recurring_price or {}).get("currencyCode"),
                 order_id=match.get("latestSuccessfulOrderId"),
