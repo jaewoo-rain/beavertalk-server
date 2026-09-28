@@ -149,6 +149,34 @@ def test_unknown_product_is_404(db, pid):
     assert ex.value.detail["code"] == "UNKNOWN_PRODUCT"
 
 
+def test_unknown_product_logs_a_warning_distinguishing_it_from_a_store_rejection(db, caplog):
+    """⭐⭐ §22-③ 보완(2026-09-29, bt-back 지시) — 이 404 는 스토어 거절이 아니라
+    우리 카탈로그에 상품이 없다는 뜻이다(서버 쪽 구멍 — bt_character_bundle 이
+    실제로 이 경로였다). §23 로그(core/iap.py)는 여기 안 걸리므로 따로 남긴다."""
+    mid = _mid(db)
+    with caplog.at_level("WARNING"):
+        with pytest.raises(HTTPException):
+            IapService(db).verify_and_grant(mid, "ios", _item(product="bt_character_nosuch"))
+
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "bt_character_nosuch" in msg
+    assert "ios" in msg
+    assert str(mid) in msg
+    assert "verify" in msg
+    assert "ok-token" not in msg  # purchase_token 은 안 찍는다
+
+
+def test_unknown_product_via_restore_logs_restore_as_the_path(db, caplog):
+    """복원 경로에서 온 건지도 로그에 남는다 — 단건 검증과 구분."""
+    mid = _mid(db)
+    with caplog.at_level("WARNING"):
+        res = IapService(db).restore(mid, "ios", [_item(product="bt_character_nosuch", tx="r-unknown")])
+
+    assert res.items == [RestoreItemResult(product_id="bt_character_nosuch", result="invalid")]
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "restore" in msg
+
+
 # --------------------------------------------------------------------------- #
 # 2) 검증 실패 — 422(무효) vs 503(불통) 구분
 # --------------------------------------------------------------------------- #
