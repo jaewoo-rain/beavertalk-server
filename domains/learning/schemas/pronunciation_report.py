@@ -21,7 +21,13 @@ class PhonemeStatOut(BaseModel):
     """소리별 정확도 한 줄(음소 단위). accuracy 는 클라가 correct/attempts 로 계산."""
 
     sound: str      # 학습자에게 보이는 소리 라벨, 예: "받침 ㄹ", "ㅓ / ㅗ 구분"
-    attempts: int   # 그 소리가 나온 문장 수(문장 1회 카운트)
+    # ⛔ 정정(2026-09-27) — 원래 「그 소리가 나온 **문장 수**(문장 1회 카운트)」라고
+    #   적혀 있었는데 **거짓이다.** 실제 계산은 `pronunciation_service.aggregate_sounds`
+    #   (그 docstring: 「attempts : 그 소리 **출현 횟수**」)이고, 복습의 `phonemes` 를
+    #   전부 순회해 **출현마다 1씩** 센다 — 한 문장에 같은 소리가 두 번 나오면 2다.
+    #   ⚠ B2B(`beavertalk-b2b-api`)도 같은 의미로 센다(2026-09-27 대조 확인) — 앱이 두
+    #   서버를 같은 위젯으로 그리므로 두 곳이 어긋나면 같은 숫자가 다른 뜻이 된다.
+    attempts: int   # 그 소리의 출현 횟수(한 문장에 두 번 나오면 2)
     correct: int    # 그중 정확히 발음한 수
 
 
