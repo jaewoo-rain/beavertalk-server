@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Identity, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Identity, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base, TimestampMixin
@@ -35,6 +35,15 @@ class Alarm(Base, TimestampMixin):
     call_type: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="auto",
         comment="알람 통화 종류 — auto(학습) · chat(자유대화)",
+    )
+    # ⭐⭐ §5(2026-09-28) — 알람 시간대. ⛔ 기본값 없음 · ⛔ 기존 행 백필 없음(실제
+    #   시간대를 모른다 — 언어 ≠ 시간대). 둘 다 NULL 이면 디스패치가 Asia/Seoul 로
+    #   폴백한다(폴백은 dispatch_service.py 한 곳에만 — 쓰기 시점에 서울을 채우면
+    #   "앱이 안 보냈다" 와 "진짜 서울이다" 가 구분 안 된다). 응답(AlarmOut)도
+    #   저장값 그대로 내보낸다 — 없는 시간대를 지어내지 않는다.
+    tz: Mapped[Optional[str]] = mapped_column(Text, comment="IANA 시간대(예: America/New_York), NULL=미상")
+    tz_offset_min: Mapped[Optional[int]] = mapped_column(
+        Integer, comment="tz 파싱 실패/부재 시 폴백 고정 오프셋(분, 동쪽 +), NULL=미상",
     )
 
     member: Mapped["Member"] = relationship(back_populates="alarms")

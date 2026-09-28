@@ -39,6 +39,8 @@ class AlarmService:
             time=data.time,
             is_activate=data.is_activate,
             call_type=data.call_type,
+            tz=data.tz,
+            tz_offset_min=data.tz_offset_min,
             schedules=[Schedule(day_of_week=d) for d in data.days_of_week],
         )
         self.repo.add(alarm)
@@ -56,6 +58,10 @@ class AlarmService:
             alarm.is_activate = data.is_activate
         if data.call_type is not None:
             alarm.call_type = data.call_type
+        if data.tz is not None:
+            alarm.tz = data.tz
+        if data.tz_offset_min is not None:
+            alarm.tz_offset_min = data.tz_offset_min
         if data.days_of_week is not None:
             # 기존 요일 통째 교체: clear() → delete-orphan 이 옛 schedule 삭제
             alarm.schedules.clear()
@@ -96,4 +102,6 @@ class AlarmService:
             ),
             days_of_week=[s.day_of_week for s in alarm.schedules],
             call_type=alarm.call_type,
+            tz=alarm.tz,
+            tz_offset_min=alarm.tz_offset_min,
         )

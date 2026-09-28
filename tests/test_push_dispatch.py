@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from types import ModuleType, SimpleNamespace
@@ -71,13 +72,14 @@ def session_factory():
 _seed_counter = 0
 
 
-def _seed(db, *, alarm_time, is_activate, day_codes, tokens):
+def _seed(db, *, alarm_time, is_activate, day_codes, tokens, tz=None, tz_offset_min=None):
     """member/voice/character/alarm(+schedules)/device_token 시드. ids 반환.
 
     tokens: [(token_str, is_valid), ...] 또는 [(token_str, is_valid, platform), ...]
       → DeviceToken(platform 생략 시 android_fcm).
     day_codes: alarm.schedules 의 day_of_week 코드 집합.
     alarm_time: alarm.time 값(센티넬 날짜 + UTC 라벨) 또는 None.
+    tz / tz_offset_min: §5(2026-09-28) 알람 시간대(기본 둘 다 None=미상 → 서울 폴백).
 
     Voice.name / Member.auth_user_id 는 UNIQUE 라, 같은 DB 에 두 번 시드하는
     테스트를 위해 카운터로 유니크하게 만든다(StaticPool = 단일 인메모리 DB 공유).
@@ -99,7 +101,8 @@ def _seed(db, *, alarm_time, is_activate, day_codes, tokens):
     db.add(member)
     db.flush()
     alarm = Alarm(member_id=member.member_id, character_id=ch.character_id,
-                  time=alarm_time, is_activate=is_activate)
+                  time=alarm_time, is_activate=is_activate,
+                  tz=tz, tz_offset_min=tz_offset_min)
     db.add(alarm)
     db.flush()
     for code in day_codes:
@@ -624,3 +627,116 @@ def test_run_midnight_uses_bucket_weekday_not_now(
     assert sent_bucket == 1
     assert key_bucket[0][1] == prev_bucket.strftime("%Y-%m-%d %H:%M")  # 전날 23:59
     assert sent_now == 0
+
+
+# =========================================================================== #
+# F. §5(2026-09-28) 알람 시간대 — 자기 시간대의 시·분·요일 + 로컬 벽분 멱등 키
+# =========================================================================== #
+def test_run_matches_alarm_in_its_own_timezone_not_seoul(
+    session_factory, monkeypatch, patch_dispatch
+):
+    """⭐⭐ 요청서가 지목한 그 버그의 정방향 확인 — 뉴욕 알람 「월 08:00」은
+    **뉴욕**이 월요일 08:00 일 때 울려야 한다(서울이 월요일 08:00 일 때가 아니다
+    — 그건 뉴욕 일요일 19:00 이다)."""
+    ny = ZoneInfo("America/New_York")
+    ny_local = datetime(2026, 7, 6, 8, 0, tzinfo=ny)  # EDT(비-DST-경계일)
+    ny_code = _DAY_CODES[ny_local.weekday()]
+
+    _patch_now(monkeypatch, ny_local.astimezone(APP_TZ))
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={ny_code}, tokens=[("t", True)], tz="America/New_York")
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    sent = DispatchService(db).run()
+
+    assert sent == 1
+    # 멱등 키도 뉴욕 로컬 벽분 — 서울 벽분이 아니다.
+    assert patch_dispatch.claims == [(ids["alarm_id"], ny_local.strftime("%Y-%m-%d %H:%M"))]
+    db.close()
+
+
+def test_run_does_not_fire_at_seoul_local_time_for_a_foreign_tz_alarm(
+    session_factory, monkeypatch, patch_dispatch
+):
+    """옛 버그 재현 방지 회귀 — 서울이 「월요일 08:00」이어도(=뉴욕 일요일 19:00)
+    뉴욕 알람 「월 08:00」은 울리면 안 된다(시각도 요일도 뉴욕 기준으론 다르다)."""
+    seoul_local = datetime(2026, 7, 6, 8, 0, tzinfo=APP_TZ)
+    seoul_code = _DAY_CODES[seoul_local.weekday()]
+
+    _patch_now(monkeypatch, seoul_local)
+    db = session_factory()
+    _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+          day_codes={seoul_code}, tokens=[("t", True)], tz="America/New_York")
+
+    sent = DispatchService(db).run()
+
+    assert sent == 0
+    assert patch_dispatch.claims == []
+    db.close()
+
+
+def test_run_falls_back_to_tz_offset_min_when_tz_is_absent(
+    session_factory, monkeypatch, patch_dispatch
+):
+    """tz 없이 tz_offset_min 만 있으면 고정 오프셋으로 시·분·요일·버킷 키를 낸다."""
+    # UTC-04:00 고정(뉴욕 이름 없이 오프셋만 주는 구버전 앱 시나리오 흉내).
+    offset = timezone(timedelta(minutes=-240))
+    local = datetime(2026, 7, 6, 8, 0, tzinfo=offset)
+    code = _DAY_CODES[local.weekday()]
+
+    _patch_now(monkeypatch, local.astimezone(APP_TZ))
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={code}, tokens=[("t", True)], tz_offset_min=-240)
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    sent = DispatchService(db).run()
+
+    assert sent == 1
+    assert patch_dispatch.claims == [(ids["alarm_id"], local.strftime("%Y-%m-%d %H:%M"))]
+    db.close()
+
+
+def test_run_invalid_tz_string_falls_back_to_offset_then_seoul(
+    session_factory, monkeypatch, patch_dispatch, caplog
+):
+    """잘못된 IANA 이름은 경고 로그 후 tz_offset_min 으로 폴백한다(_resolve_zone 재사용)."""
+    offset = timezone(timedelta(minutes=-240))
+    local = datetime(2026, 7, 6, 8, 0, tzinfo=offset)
+    code = _DAY_CODES[local.weekday()]
+
+    _patch_now(monkeypatch, local.astimezone(APP_TZ))
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={code}, tokens=[("t", True)],
+                tz="Not/AZone", tz_offset_min=-240)
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    with caplog.at_level(logging.WARNING):
+        sent = DispatchService(db).run()
+
+    assert sent == 1
+    assert patch_dispatch.claims == [(ids["alarm_id"], local.strftime("%Y-%m-%d %H:%M"))]
+    db.close()
+
+
+def test_run_null_tz_alarm_bucket_key_is_byte_identical_to_pre_s5(
+    session_factory, monkeypatch, patch_dispatch
+):
+    """⭐⭐ bt-back 요구 — tz·tz_offset_min 이 둘 다 NULL(기존 17행)인 알람은 §5
+    이전과 **완전히 같은** 서울 벽분 문자열을 낸다. 배포 직후 같은 분에 이중
+    발송이 생기면 안 된다(멱등 키가 바뀌면 옛 로그와 새 로그가 다른 키로 갈린다)."""
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)  # 수요일 08:00 KST
+    _patch_now(monkeypatch, now)
+    code = _DAY_CODES[now.weekday()]
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={code}, tokens=[("t", True)])  # tz·tz_offset_min 생략 = NULL
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    sent = DispatchService(db).run()
+
+    assert sent == 1
+    assert patch_dispatch.claims == [(ids["alarm_id"], "2026-07-08 08:00")]
+    db.close()
