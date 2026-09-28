@@ -162,6 +162,26 @@ def test_api_key_header_sent_and_stripped(monkeypatch):
     assert calls[0]["headers"] == {"X-API-Key": "s3cr3t"}
 
 
+def test_consent_zero_sent_by_default_and_omittable(monkeypatch):
+    """NPU 국적 서버는 consent 를 안 보내면 녹음을 저장한다 — 기본은 "0"(저장 안 함).
+    None 이면 필드를 아예 보내지 않는다(옛 서버 호환)."""
+    _set_url(monkeypatch)
+    calls = []
+    monkeypatch.setattr(
+        natl.httpx, "Client", _make_client_factory([_FakeResponse(200, _ok_body())], calls)
+    )
+    assert natl.predict_nationality(b"x" * 100, "wav") is not None
+    assert calls[0]["data"] == {"consent": "0"}
+
+    monkeypatch.setattr(natl.settings, "NATIONALITY_API_CONSENT", None, raising=False)
+    calls2 = []
+    monkeypatch.setattr(
+        natl.httpx, "Client", _make_client_factory([_FakeResponse(200, _ok_body())], calls2)
+    )
+    assert natl.predict_nationality(b"x" * 100, "wav") is not None
+    assert calls2[0]["data"] is None
+
+
 def test_labels_whose_names_differ_get_iso(monkeypatch):
     """Russia·United Kingdom·Hong Kong 은 iso 로 붙는다. 모르는 라벨은 iso=None 으로 남긴다."""
     _set_url(monkeypatch)
