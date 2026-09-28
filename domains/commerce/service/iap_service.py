@@ -112,10 +112,28 @@ class IapService:
         platform: str,
         item: PurchaseItem,
         is_sandbox: bool = False,
+        *,
+        _via_restore: bool = False,
     ) -> VerifyResponse:
         # ① 상품 해석
         ref = iap_catalog.resolve(self.db, item.product_id)
         if ref is None:
+            # ⭐⭐ §22-③ 보완(2026-09-29, bt-back 지시) — 이 404 는 스토어 거절이
+            #   아니라 **우리 카탈로그(iap_catalog.resolve)에 그 상품이 없다**는
+            #   뜻이다 — 서버 쪽 구멍이다. bt_character_bundle 이 정확히 이
+            #   경로였다(PRODUCT_PREFIX_CHARACTER 접두사 분기에 먼저 걸려 404) —
+            #   앱팀이 보고해 주기 전까지 서버는 몰랐다. §22-③ 응답에서는
+            #   invalid 로 뭉치지만(앱 enum 5종 계약 유지, §17 otherApp/other_app
+            #   과 같은 이유로 6번째 값을 안 만든다), 그러면 다음에 같은 일이
+            #   나도 우리가 모른다 — 그래서 여기서 따로 남긴다.
+            #   ⛔ §23 로그(core/iap.py, 스토어 왕복)는 여기 안 걸린다 — resolve
+            #   실패는 스토어에 묻기도 전에 끝난다. ⛔ purchase_token 은 인자로도
+            #   안 받아서 안 찍는다(정적 스캔 시험이 지킨다).
+            logger.warning(
+                "iap: UNKNOWN_PRODUCT product=%s platform=%s member=%s 경로=%s — "
+                "스토어 거절이 아니라 우리 카탈로그에 없다(서버 쪽 구멍 의심)",
+                item.product_id, platform, member_id, "restore" if _via_restore else "verify",
+            )
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 detail={
@@ -298,7 +316,7 @@ class IapService:
         items: list[RestoreItemResult] = []
         for p in purchases:
             try:
-                res = self.verify_and_grant(member_id, platform, p, is_sandbox)
+                res = self.verify_and_grant(member_id, platform, p, is_sandbox, _via_restore=True)
                 if res.already_granted:
                     # already_granted 도 복원 성공이다(이미 갖고 있다는 뜻) — 다만
                     # "새로 지급"은 아니므로 restored 카운트는 안 올린다(기존 규율 유지).
