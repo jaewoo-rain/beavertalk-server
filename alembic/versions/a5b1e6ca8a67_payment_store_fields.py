@@ -16,14 +16,18 @@ is_sandbox/is_stub 은 iap_receipt 의 같은 이름 플래그와 같은 규율 
 ⛔ 백필 없음 — 기존 payment 행(수동 결제 시절)은 스토어 필드가 원천에 없다.
 
 Revision ID: a5b1e6ca8a67
-Revises: f737b32e72cf
+Revises: 2d65f20ea0c8
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = "a5b1e6ca8a67"
-down_revision = "f737b32e72cf"
+# ⚠ 원래 f737b32e72cf(§25-① tz_offset_min 정리) 였으나, appreq-b 의 3건(member.tz·
+#   call.summary_lang·cur_text_i18n)이 먼저 적용·푸시되며 운영 head 가
+#   f737b32e72cf → 4cec70d04fc0 → 2d65f20ea0c8 로 옮겨졌다(bt-back 지시, 2026-09-29)
+#   — 그 위로 다시 엮는다.
+down_revision = "2d65f20ea0c8"
 branch_labels = None
 depends_on = None
 
