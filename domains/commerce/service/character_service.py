@@ -51,7 +51,9 @@ class CharacterService:
         # 구독 판정은 회원당 1회 — 카탈로그 길이만큼 구독 행을 다시 읽지 않는다.
         all_unlocked = entitlements.has_all_characters(self.db, member_id)
         return [
-            self._to_summary(c, c.character_id in owned, all_unlocked)
+            self._to_summary(
+                c, c.character_id in owned or entitlements.is_free_character(c), all_unlocked
+            )
             for c in characters
         ]
 
@@ -59,7 +61,10 @@ class CharacterService:
         c = self.char_repo.get(character_id)
         if c is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "캐릭터를 찾을 수 없습니다.")
-        owned = self.mc_repo.get(member_id, character_id) is not None
+        owned = (
+            entitlements.is_free_character(c)
+            or self.mc_repo.get(member_id, character_id) is not None
+        )
         unlocked, source = self._unlock(
             owned, entitlements.has_all_characters(self.db, member_id)
         )
@@ -83,23 +88,32 @@ class CharacterService:
         )
 
     def list_owned(self, member_id: int) -> list[OwnedCharacterOut]:
-        rows = self.mc_repo.list_by_member(member_id)
-        return [
-            OwnedCharacterOut(
-                character_id=mc.character_id,
-                name=mc.character.name,
-                image_url=mc.character.image_url,
-                description=mc.character.description,
-                background_story=mc.character.story,
-                voice_url=mc.character.voice_url,
-                tags=mc.character.tags or [],
-                purchase_price=mc.purchase_price,
-                purchase_date=mc.purchase_date,
-            )
-            for mc in rows
-        ]
+        """보유 캐릭터 = 소유 행 + **0원 캐릭터(행 없이 파생)**, character_id 순.
 
-    # ── 할인 계산(구매 서비스에서도 재사용) ──
+        0원 캐릭터에 행이 있으면(옛 가입 스타터 지급 등) 그 행의 구매 정보를 쓰고, 없으면
+        purchase_price=0 · purchase_date=None 이다(산 적이 없으니 날짜가 없다).
+        """
+        rows = {mc.character_id: mc for mc in self.mc_repo.list_by_member(member_id)}
+        chars = {cid: mc.character for cid, mc in rows.items()}
+        for c in self.char_repo.list_free():
+            chars.setdefault(c.character_id, c)
+        out = []
+        for cid in sorted(chars):
+            c, mc = chars[cid], rows.get(cid)
+            out.append(OwnedCharacterOut(
+                character_id=cid,
+                name=c.name,
+                image_url=c.image_url,
+                description=c.description,
+                background_story=c.story,
+                voice_url=c.voice_url,
+                tags=c.tags or [],
+                purchase_price=mc.purchase_price if mc else Decimal("0"),
+                purchase_date=mc.purchase_date if mc else None,
+            ))
+        return out
+
+    # ── 할인 계산 ──
     def active_discount(self, character: Character) -> Optional[DiscountEvent]:
         """현재 유효한 할인 행사 1건(활성 + 기간 내). 없으면 None."""
         now = datetime.now(timezone.utc)

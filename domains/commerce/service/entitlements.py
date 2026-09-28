@@ -63,6 +63,21 @@ def unlocks_all_characters(plan: Optional[str]) -> bool:
     return plan in PLANS_UNLOCKING_ALL_CHARACTERS
 
 
+def is_free_character(character) -> bool:
+    """⭐ 가격 0원 캐릭터 — **누구나 처음부터 보유**한다(2026-09-29 사장님 지시).
+
+    ⚠ 이건 위 «접근» 축이 아니라 **소유** 축이다(is_owned=true · unlock_source="owned").
+      구독과 달리 끝나는 일이 없으니 소유가 맞다. 그래도 행을 만들지 않는 이유는 이 파일
+      머리의 규율과 같다 — 읽는 시점 파생이면 가입 훅·백필·마이그레이션이 전부 필요 없고,
+      옛 가입 스타터 지급·구매 API 로 생긴 0원 행은 그대로 둬도 결과가 같다(무해).
+    ⛔ 가격 NULL(미상)은 무료가 아니다 — 모르면 잠그는 편이 과금 사고보다 낫다.
+    ⛔ 판정은 원가(price)다. 할인가가 0 이 돼도(한정 이벤트) 소유를 주지 않는다 —
+      이벤트가 끝나면 되돌려야 하는데 소유는 되돌리지 않는 축이다.
+    """
+    price = getattr(character, "price", None)
+    return price is not None and price == 0
+
+
 def has_all_characters(db: Session, member_id: int) -> bool:
     """이 회원이 지금 모든 캐릭터를 쓸 수 있는가(구독 기준 — 소유와 무관)."""
     return unlocks_all_characters(effective_plan(db, member_id))
