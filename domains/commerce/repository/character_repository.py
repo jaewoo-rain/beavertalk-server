@@ -33,3 +33,8 @@ class CharacterRepository:
             .options(selectinload(Character.discount_events))
         )
         return self.db.scalars(stmt).all()
+
+    def list_free(self) -> Sequence[Character]:
+        """가격 0원 캐릭터 — 누구나 처음부터 보유한다(entitlements.is_free_character 와 같은 기준)."""
+        stmt = select(Character).where(Character.price == 0).order_by(Character.character_id)
+        return self.db.scalars(stmt).all()

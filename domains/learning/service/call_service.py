@@ -338,6 +338,56 @@ def _resolve_zone(tz: str | None) -> ZoneInfo | None:
         return None
 
 
+def display_locale(member_language: str | None) -> str:
+    """§10 — 라우터용 재노출(표시 언어 규칙의 본체는 display_i18n_service.display_locale)."""
+    from domains.learning.service.display_i18n_service import display_locale as _dl
+
+    return _dl(member_language)
+
+
+_MAX_TZ_LEN = 64  # IANA 이름 최장이 30자대 — 이보다 긴 건 쓰레기다(ZoneInfo 에 넘기지도 않는다)
+
+
+def remember_device_tz(db: Session, member_id: int, tz: str | None) -> None:
+    """⭐ 알람 시간대 자동 추적(2026-09-29) — 앱이 알려온 기기 IANA tz 를 member.tz 에 적는다.
+
+    호출부 3곳(앱이 이미 tz 를 싣는 곳): GET /calls/daily-status · GET /stats/calendar ·
+    WS start.tz. 예약전화 디스패치가 이 값을 1순위로 쓴다(dispatch_service._alarm_zone).
+
+    ⛔ 규율:
+      - 유효한 IANA 만 저장한다 — 파싱은 `_resolve_zone` 재사용(실패 시 경고 로그).
+        쓰레기를 저장하면 알람이 엉뚱한 시각에 울린다. 저장값은 `zone.key`(정규 이름).
+      - 값이 같으면 쓰지 않는다(매 호출 UPDATE 금지 — 조회 API 가 매번 쓰기가 된다).
+      - **실패는 로그만**(R5). 호출부는 읽기 API 라, 이 쓰기가 조회를 막으면 안 된다 —
+        그래서 예외를 절대 밖으로 내지 않는다. 호출부는 응답을 다 만든 **뒤에** 부른다
+        (여기서 commit/rollback 하면 같은 세션의 다른 객체가 만료되기 때문).
+    """
+    if not tz:
+        return
+    try:
+        if len(tz) > _MAX_TZ_LEN:
+            logger.warning("member.tz: 너무 긴 tz(len=%d) → 저장 안 함 member=%s", len(tz), member_id)
+            return
+        zone = _resolve_zone(tz)
+        if zone is None:
+            logger.warning("member.tz: 잘못된 tz(%r) → 저장 안 함 member=%s", tz, member_id)
+            return
+        from domains.account.models.member import Member as _Member
+
+        member = db.get(_Member, member_id)
+        if member is None or member.tz == zone.key:
+            return
+        logger.info("member.tz: %r → %r member=%s", member.tz, zone.key, member_id)
+        member.tz = zone.key
+        db.commit()
+    except Exception:  # noqa: BLE001 - 시간대 기록 실패가 조회·통화 시작을 막으면 안 된다(R5)
+        logger.warning("member.tz: 저장 실패(무시) member=%s tz=%r", member_id, tz, exc_info=True)
+        try:
+            db.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _local_date_of(dt_utc: datetime, zone: ZoneInfo | None, offset: timedelta) -> _date:
     """UTC 시각 → 그 zone(있으면 우선) 또는 고정 offset 기준 로컬 날짜."""
     dt_utc = dt_utc if dt_utc.tzinfo else dt_utc.replace(tzinfo=timezone.utc)
@@ -599,8 +649,21 @@ class CallService:
         # 상세 응답을 위해 연관 로딩된 형태로 다시 조회
         return self.get_call(member_id, call.call_id)
 
-    def list_calls(self, member_id: int, limit: int = 20, offset: int = 0) -> list[CallSummary]:
-        return [self._to_summary(c) for c in self.repo.list_by_member(member_id, limit, offset)]
+    def list_calls(
+        self, member_id: int, limit: int = 20, offset: int = 0, *,
+        client=None, locale: str | None = None,
+    ) -> list[CallSummary]:
+        """locale 을 주면(§10) 요약을 그 언어로 바꿔 낸다 — 번역은 이 페이지 분량만, 실패는 원문."""
+        calls = self.repo.list_by_member(member_id, limit, offset)
+        out = [self._to_summary(c) for c in calls]
+        if locale:
+            from domains.learning.service import display_i18n_service
+
+            tr = display_i18n_service.localized_summaries(self.db, client, calls, locale)
+            for s in out:
+                if s.call_id in tr:
+                    s.summary = tr[s.call_id]
+        return out
 
     def get_call(self, member_id: int, call_id: int) -> CallDetail:
         call = self.repo.get_detail(call_id)

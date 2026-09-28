@@ -11,18 +11,28 @@ from typing import Optional
 from fastapi import APIRouter, Query
 
 from core.config import settings
-from core.deps import CurrentMember, DbSession
+from core.deps import CurrentMember, DbSession, GenaiClient
 from core.languages import resolve_target_language
 from domains.learning.schemas.curriculum import CurLessonRowOut, CurMeOut
 from domains.learning.service import curriculum_service as cur_svc
+from domains.learning.service import display_i18n_service as i18n_svc
 
 router = APIRouter(prefix="/cur", tags=["curriculum"])
 
 
 @router.get("/me", response_model=CurMeOut)
-def get_me(member: CurrentMember, db: DbSession) -> CurMeOut:
-    """내 현재 차시·상태·진행률·열 수 있는 코스. 첫 호출이면 포인터(1차시)를 만든다(멱등). 언어 = 회원 target_language."""
-    return CurMeOut.model_validate(cur_svc.me(db, member.member_id, _language_of(member)))
+def get_me(member: CurrentMember, db: DbSession, client: GenaiClient) -> CurMeOut:
+    """내 현재 차시·상태·진행률·열 수 있는 코스. 첫 호출이면 포인터(1차시)를 만든다(멱등). 언어 = 회원 target_language.
+
+    §6(2026-09-29): lesson.situation_translation = situation 의 회원 **모국어**(member.language) 번역 — 요청에 언어를
+    싣지 않는다. 캐시에 없으면 이 요청에서 번역해 저장하고, 실패하면 null(조회는 그대로 200).
+    """
+    out = cur_svc.me(db, member.member_id, _language_of(member))
+    if out.get("lesson"):
+        out["lesson"]["situation_translation"] = i18n_svc.situation_translation(
+            db, client, out["lesson"].get("situation"), i18n_svc.display_locale(member.language),
+        )
+    return CurMeOut.model_validate(out)
 
 
 @router.get("/lessons", response_model=list[CurLessonRowOut])
