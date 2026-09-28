@@ -390,15 +390,30 @@ def _verify_google(
             #   True 로 고정됐다. bt-back 이 실제 스토어 응답(member=174,
             #   subscriptionsv2.get)으로 확정: `offerPhase`(oneof, 현재 가격단계)가
             #   진짜 신호다 — 체험이 끝난 응답은 offerPhase=={"basePrice": {...}}.
-            #   ⛔ 체험 단계를 가리키는 키 이름을 추측해 하드코딩하지 않는다 —
-            #   "basePrice 가 아닌 다른 키가 왔다"를 체험으로 본다(oneof 이므로
-            #   basePrice 의 부정이 곧 나머지 전부를 포괄한다).
+            #
+            #   ⛔⛔ 정정(bt-back, androidpublisher v3 디스커버리 문서 확인) — 처음엔
+            #   "basePrice 가 아니면 체험"(음성 판정)으로 짰는데 **틀렸다**.
+            #   OfferPhase 는 4종이다:
+            #     - freeTrial          → 무료 체험(이게 진짜 신호)
+            #     - introductoryPrice  → 도입가 — ⚠ 돈을 낸다, 체험 아님
+            #     - basePrice          → 정가 — 돈을 낸다
+            #     - prorationPeriod    → 플랜 변경 일할 정산 — ⚠ 돈을 낸다. 이론이
+            #       아니다: 앱이 안드로이드 월↔연 전환에 CHARGE_FULL_PRICE 를 쓰고
+            #       남은 월간 가치를 기간 연장으로 반영한다 — 전환한 유료 회원에게
+            #       정확히 이 단계가 온다. 음성 판정("basePrice 아니면 체험")이면
+            #       이 회원이 Trial 배지를 보게 된다 — 지금 고치는 그 버그의 재발.
+            #   ⇒ **양성 판정만 쓴다: freeTrial 키가 있으면 True, 그 외(4종 중 다른
+            #   키·모르는 5번째 키가 와도) False 로 보지 않고** — 카탈로그된 4종
+            #   중 하나라도 오면 "우리가 아는 상태"이므로 freeTrial 여부로 확정
+            #   (introductoryPrice/basePrice/prorationPeriod 는 전부 결제 중=False).
+            #   구글이 5번째 키를 추가해도 이 규칙은 깨지지 않는다(음성 판정과
+            #   달리 새 키를 "체험"으로 오판하지 않는다).
             #   offerPhase 자체가 없는 응답(구 API 등)에서는 판단하지 않고 None —
             #   하류(iap_service/subscription_refresh_service)가 None 이면 기존
             #   저장값을 그대로 둔다.
             offer_phase = match.get("offerPhase")
             if isinstance(offer_phase, dict) and offer_phase:
-                is_trial: Optional[bool] = "basePrice" not in offer_phase
+                is_trial: Optional[bool] = "freeTrial" in offer_phase
             else:
                 is_trial = None
             return VerifyResult(
