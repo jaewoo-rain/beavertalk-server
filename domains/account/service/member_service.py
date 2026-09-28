@@ -7,8 +7,6 @@ Spring 의 @Service + @Transactional 에 해당. **여기서 db.commit() 을 명
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
@@ -27,7 +25,6 @@ from domains.account.schemas.member import (
     SpeakCountryOut,
 )
 from domains.commerce.models.character import Character
-from domains.commerce.models.member_character import MemberCharacter
 from domains.commerce.models.subscribe import Subscribe
 from domains.learning.repository import mastery_repository
 from domains.learning.service import level_percentile
@@ -89,8 +86,9 @@ class MemberService:
     ) -> Member:
         """Supabase auth user(uuid)로 member 를 찾고, 없으면 자동 프로비저닝.
 
-        인증은 Supabase 가 끝낸 뒤(토큰 검증 완료) 호출된다. 신규면 기본(첫 무료)
-        캐릭터를 지정·보유시키고 onboarding_completed=False 로 만든다.
+        인증은 Supabase 가 끝낸 뒤(토큰 검증 완료) 호출된다. 신규면 기본(첫) 캐릭터를
+        대표로 지정하고 onboarding_completed=False 로 만든다. 소유 행은 만들지 않는다 —
+        0원 캐릭터는 행 없이 보유다(entitlements.is_free_character, 2026-09-29).
         """
         member = self.repo.get_by_auth(auth_user_id)
         if member is not None:
@@ -99,12 +97,10 @@ class MemberService:
                 self.db.commit()
             return member
 
-        character_id, owned = self._resolve_default_character(None)
         member = Member(
             auth_user_id=auth_user_id,
             email=email,
-            character_id=character_id,
-            owned_characters=owned,
+            character_id=self._resolve_default_character(None),
         )
         self.repo.add(member)
         try:
@@ -147,32 +143,17 @@ class MemberService:
         self.db.refresh(member)
         return member
 
-    def _resolve_default_character(
-        self, requested: Optional[int]
-    ) -> tuple[Optional[int], list[MemberCharacter]]:
-        """대표 캐릭터 결정 + 무료 스타터 자동 보유.
+    def _resolve_default_character(self, requested: Optional[int]) -> Optional[int]:
+        """대표 캐릭터 결정 — 요청값이 있으면 그대로, 없으면 첫(가장 낮은 id) 캐릭터.
 
-        - 대표 캐릭터: 요청값이 있으면 그대로, 없으면 첫(가장 낮은 id) 캐릭터.
-        - 첫 캐릭터가 무료(price 0)면 그 캐릭터를 자동으로 보유 처리(스타터 지급).
-        캐릭터가 하나도 없으면 (None, []) 반환(가입은 진행됨).
+        ⛔ 옛날엔 첫 캐릭터가 무료면 member_character 행(스타터 지급)도 만들었다. 2026-09-29
+        부터 0원 캐릭터는 **행 없이 보유**(entitlements.is_free_character)라 그 행은 죽은 기록이고,
+        「모든 Free 계정이 캐릭터 보유로 읽히는」 혼란(앱 복원 QA F003)의 근원이었다 — 만들지 않는다.
+        기존 행은 그대로 둔다(결과 동일, 무해). 캐릭터가 하나도 없으면 None(가입은 진행됨).
         """
-        starter = self.db.scalar(
-            select(Character).order_by(Character.character_id).limit(1)
-        )
-        if starter is None:
-            return requested, []
-
-        character_id = requested or starter.character_id
-        owned: list[MemberCharacter] = []
-        if starter.price == 0:
-            owned.append(
-                MemberCharacter(
-                    character_id=starter.character_id,
-                    purchase_price=Decimal("0.00"),
-                    purchase_date=datetime.now(timezone.utc),
-                )
-            )
-        return character_id, owned
+        if requested is not None:
+            return requested
+        return self.db.scalar(select(Character.character_id).order_by(Character.character_id).limit(1))
 
     @staticmethod
     def _validate_reasons(reasons: Optional[list[str]]) -> list[str]:

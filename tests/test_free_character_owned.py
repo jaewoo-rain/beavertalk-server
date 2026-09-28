@@ -188,3 +188,22 @@ def test_purchase_service_module_is_gone():
 
     assert importlib.util.find_spec("domains.commerce.service.purchase_service") is None
     assert importlib.util.find_spec("domains.commerce.schemas.purchase") is None
+
+
+# --------------------------------------------------------------------------- #
+# 가입 — 스타터 member_character 행을 만들지 않는다(2026-09-29, ②의 꼬리)
+# --------------------------------------------------------------------------- #
+def test_signup_creates_no_ownership_rows_but_free_characters_work(db):
+    """⭐ 신규 회원: 행 0개로도 무료 캐릭터가 보유이고, 대표 캐릭터가 정해지고, 통화 캐릭터가 그것이다."""
+    from domains.account.service.member_service import MemberService
+
+    m = MemberService(db).find_or_create_by_auth("auth-new-1", "new1@example.com")
+    assert db.query(MemberCharacter).filter_by(member_id=m.member_id).count() == 0
+    assert m.character_id == _cid(db, "Baba"), "대표 캐릭터(가장 낮은 id)가 안 정해졌다"
+    cat = _catalog(db, m.member_id)
+    assert cat["Baba"].is_owned and cat["Bibi"].is_owned and not cat["Popo"].is_owned
+    assert resolve_call_character(db, m.member_id).character_id == _cid(db, "Baba")
+
+    m.character_id = _cid(db, "Bibi")  # 무료 캐릭터를 골랐다
+    db.commit()
+    assert resolve_call_character(db, m.member_id).character_id == _cid(db, "Bibi")
