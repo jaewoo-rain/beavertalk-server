@@ -33,6 +33,7 @@ from domains.commerce.models.subscribe import Subscribe
 from domains.commerce.schemas.iap import (
     Entitlement,
     PurchaseItem,
+    RestoreItemResult,
     RestoreResponse,
     VerifyResponse,
 )
@@ -40,6 +41,20 @@ from domains.commerce.service import iap_catalog
 from domains.commerce.service import subscription_refresh_service
 
 logger = logging.getLogger(__name__)
+
+# ⭐⭐ §22-③(2026-09-28) — verify_and_grant 이 던지는 HTTPException → 요청서가
+# 정한 5종 사유. ⛔⛔ 확인 결과, **5종이 실제 코드 경로와 완전히 1:1 은 아니다**:
+# 404 UNKNOWN_PRODUCT(우리 서버가 모르는 product_id — iap_catalog.resolve 가 못
+# 찾음)는 이 5종 목록에 없다. "invalid"(스토어가 무효 판정)와는 출처가 다르지만
+# (우리 카탈로그 미스 vs 스토어 거절), 앱 입장에서는 둘 다 "재시도해도 안 됨"이라
+# 실질이 같아 invalid 로 접는다 — 억지로 6번째 사유를 만들지 않는다(요청서가
+# 정한 Literal 을 그대로 지킨다). bt-back 에게 이 매핑을 판단으로 보고했다.
+_RESTORE_FAILURE_REASON = {
+    status.HTTP_409_CONFLICT: "owned_by_other",
+    status.HTTP_422_UNPROCESSABLE_ENTITY: "invalid",
+    status.HTTP_503_SERVICE_UNAVAILABLE: "unavailable",
+    status.HTTP_404_NOT_FOUND: "invalid",  # UNKNOWN_PRODUCT — 위 주석 참조
+}
 
 
 class IapService:
@@ -273,20 +288,35 @@ class IapService:
         🧒 왜 필요한가: 폰을 바꾸거나 앱을 지웠다 깔면 산 캐릭터가 사라진다. 스토어엔
           구매 기록이 남아 있으므로 앱이 그걸 꺼내 보내면 서버가 소유권을 되살린다.
           캐릭터를 **영구 소유**로 정했으므로 필수 기능이다.
+
+        ⭐⭐ §22-③(2026-09-28) — restored/failed(요약 카운트)만으론 "그 캐릭터
+        하나가 왜 안 됐는지" 를 앱이 알 수 없었다. items 에 건별 사유를 같이
+        낸다(RestoreItemResult 참조) — restored/failed 는 그대로 둔다(추가만,
+        구버전 앱 호환).
         """
         restored = failed = 0
+        items: list[RestoreItemResult] = []
         for p in purchases:
             try:
                 res = self.verify_and_grant(member_id, platform, p, is_sandbox)
-                # already_granted 도 복원 성공이다(이미 갖고 있다는 뜻).
-                restored += 1 if not res.already_granted else 0
+                if res.already_granted:
+                    # already_granted 도 복원 성공이다(이미 갖고 있다는 뜻) — 다만
+                    # "새로 지급"은 아니므로 restored 카운트는 안 올린다(기존 규율 유지).
+                    items.append(RestoreItemResult(product_id=p.product_id, result="already"))
+                else:
+                    restored += 1
+                    items.append(RestoreItemResult(product_id=p.product_id, result="granted"))
             except HTTPException as exc:
                 failed += 1
+                reason = _RESTORE_FAILURE_REASON.get(exc.status_code, "invalid")
+                items.append(RestoreItemResult(product_id=p.product_id, result=reason))
                 logger.info(
-                    "iap(restore): 건너뜀 product=%s status=%s", p.product_id, exc.status_code
+                    "iap(restore): 건너뜀 product=%s status=%s reason=%s",
+                    p.product_id, exc.status_code, reason,
                 )
         return RestoreResponse(
-            restored=restored, failed=failed, entitlement=self.entitlement(member_id)
+            restored=restored, failed=failed, entitlement=self.entitlement(member_id),
+            items=items,
         )
 
     # ── 지급 ────────────────────────────────────────────────────────────── #
