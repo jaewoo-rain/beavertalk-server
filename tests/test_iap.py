@@ -41,6 +41,8 @@ PRO = "bt_pro_monthly"
 PRO_YEARLY = "bt_pro_yearly"
 MAX = "bt_max_monthly"
 MAX_YEARLY = "bt_max_yearly"
+# 캐릭터 묶음(§2, 2026-09-28) — 유료 3종(Popo·Rara·Dudu).
+BUNDLE = "bt_character_bundle"
 
 
 @pytest.fixture()
@@ -58,9 +60,13 @@ def db():
     v = Voice(name="Leda", gender="female")
     s.add(v)
     s.flush()
-    for name in ("BIBI", "Popo"):
-        s.add(Character(name=name, role="r", personality="p",
-                        voice_id=v.voice_id, price=10))
+    # BIBI 는 무료·묶음 제외. Popo/Rara/Dudu 는 유료·in_bundle=True(§2 — 정본은
+    # 이 플래그다, price 가 아니다. iap_catalog.py BUNDLE_PRODUCT_ID 주석 참조).
+    for name, price, in_bundle in (
+        ("BIBI", 0, False), ("Popo", 10, True), ("Rara", 10, True), ("Dudu", 10, True),
+    ):
+        s.add(Character(name=name, role="r", personality="p", voice_id=v.voice_id,
+                        price=price, in_bundle=in_bundle))
     m = Member(language="en", onboarding_completed=True, auth_user_id="a1")
     s.add(m)
     s.commit()
@@ -188,6 +194,148 @@ def test_same_receipt_twice_is_idempotent(db):
     assert again.already_granted is True
     assert db.query(MemberCharacter).count() == 1, "중복 지급됨"
     assert db.query(IapReceipt).count() == 1
+
+
+# --------------------------------------------------------------------------- #
+# §2(2026-09-28) — 캐릭터 묶음(bt_character_bundle). 구성은 하드코딩하지 않는다.
+# ⛔⛔ 최종 정정(사장님 지시) — price>0 파생도 되돌렸다. 정본은 character.
+# in_bundle 플래그다(스토어 oneTimeProducts 실측: 자식 상품 필드가 없어 스토어에서
+# 구조적으로 읽을 방법이 없다 — iap_catalog.py BUNDLE_PRODUCT_ID 주석 참조).
+# 이 파일의 db 픽스처는 BIBI=무료·in_bundle=False, Popo/Rara/Dudu=유료·
+# in_bundle=True 로 시드한다.
+# --------------------------------------------------------------------------- #
+def _bundle_character_ids(db) -> set[int]:
+    return {c.character_id for c in db.query(Character).filter(Character.in_bundle.is_(True)).all()}
+
+
+def test_bundle_product_resolves_not_404(db):
+    """⛔⛔ 이게 앱팀이 보고한 버그다 — bt_character_bundle 이 PRODUCT_PREFIX_CHARACTER
+    접두사와 겹쳐 product_key=="bundle" 캐릭터를 찾다 못 찾고 404 였다."""
+    ref = iap_catalog.resolve(db, BUNDLE)
+    assert ref is not None and ref.kind == "bundle"
+
+
+def test_bundle_grants_all_three_characters(db):
+    r = IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-1"))
+    assert r.already_granted is False
+    assert r.kind == "bundle"
+    assert r.character_id is None, "묶음은 3종을 한 칸에 못 담는다"
+    owned = set(r.entitlement.owned_character_ids)
+    assert _bundle_character_ids(db) <= owned
+    assert db.query(MemberCharacter).count() == 3
+
+
+def test_bundle_grants_only_missing_characters_when_one_already_owned(db):
+    """⭐ 이미 1종 보유 회원이 사면 나머지 2종만 생기고 200(거절 아님) — 앱이
+    fail-closed 로 숨기지만, 서버는 돈이 이미 들어온 요청을 거절하지 않는다."""
+    svc = IapService(db)
+    popo_id = db.query(Character).filter_by(name="Popo").one().character_id
+    svc._grant_character(_mid(db), popo_id)
+    db.commit()
+    assert db.query(MemberCharacter).count() == 1
+
+    r = svc.verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-2"))
+
+    assert r.kind == "bundle"
+    assert db.query(MemberCharacter).count() == 3, "나머지 2종만 채워져 총 3종이어야 한다"
+    assert _bundle_character_ids(db) <= set(r.entitlement.owned_character_ids)
+
+
+def test_bundle_grants_nothing_new_when_all_three_already_owned(db):
+    """3종 다 보유한 회원이 사도 200(신규 0건) — 거절 아님."""
+    svc = IapService(db)
+    for cid in _bundle_character_ids(db):
+        svc._grant_character(_mid(db), cid)
+    db.commit()
+    assert db.query(MemberCharacter).count() == 3
+
+    r = svc.verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-3"))
+
+    assert r.kind == "bundle"
+    assert db.query(MemberCharacter).count() == 3, "신규 지급이 생기면 안 된다"
+
+
+def test_bundle_same_transaction_twice_is_idempotent_no_duplicate_rows(db):
+    svc = IapService(db)
+    svc.verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-4"))
+    again = svc.verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-4"))
+
+    assert again.already_granted is True
+    assert db.query(MemberCharacter).count() == 3
+    assert db.query(IapReceipt).filter_by(transaction_id="bundle-4").count() == 1
+
+
+def test_bundle_is_included_in_restore(db):
+    """재설치 후 복원에서 묶음이 빠지면 산 걸 잃는다."""
+    svc = IapService(db)
+    res = svc.restore(_mid(db), "ios", [_item(product=BUNDLE, tx="bundle-restore")])
+
+    assert res.failed == 0
+    assert res.restored == 1
+    assert db.query(MemberCharacter).count() == 3
+
+
+def test_free_characters_are_not_part_of_the_bundle(db):
+    """무료 캐릭터(baba·bibi)는 묶음에 들어가지 않는다 — in_bundle=False 라서
+    자동으로 빠진다(price 가 아니라 이 플래그가 정본)."""
+    ids = iap_catalog.resolve_bundle_character_ids(db)
+    bibi_id = db.query(Character).filter_by(name="BIBI").one().character_id
+    assert bibi_id not in ids
+    assert set(ids) == _bundle_character_ids(db)
+
+
+def test_new_paid_character_is_not_granted_by_the_bundle_unless_flagged(db):
+    """⭐⭐ 사장님 요구의 핵심 회귀 — 캐릭터는 계속 추가된다. 새 유료 캐릭터를
+    만들어도 in_bundle 을 건드리지 않으면(기본값 False) 묶음을 사도 지급되지
+    않는다(3종만) — "price>0 전부"였다면 여기서 4종이 나왔을 것이다."""
+    v = db.query(Voice).one()
+    kiki = Character(name="Kiki", role="r", personality="p", voice_id=v.voice_id, price=10)
+    db.add(kiki)
+    db.commit()
+
+    r = IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-kiki"))
+
+    assert db.query(MemberCharacter).count() == 3, "in_bundle=False 인 새 캐릭터가 딸려 나왔다"
+    assert kiki.character_id not in r.entitlement.owned_character_ids
+
+
+def test_flagging_a_new_character_adds_it_to_future_bundle_purchases(db):
+    """in_bundle 을 UPDATE 한 줄로 켜면(배포 불필요) 그다음 구매부터 반영된다."""
+    v = db.query(Voice).one()
+    kiki = Character(name="Kiki", role="r", personality="p", voice_id=v.voice_id,
+                     price=10, in_bundle=True)
+    db.add(kiki)
+    db.commit()
+    assert len(_bundle_character_ids(db)) == 4
+
+    r = IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-kiki-in"))
+
+    assert db.query(MemberCharacter).count() == 4
+    assert kiki.character_id in r.entitlement.owned_character_ids
+
+
+def test_bundle_receipt_has_null_character_id_and_bundle_kind(db):
+    IapService(db).verify_and_grant(_mid(db), "ios", _item(product=BUNDLE, tx="bundle-5"))
+    receipt = db.query(IapReceipt).filter_by(transaction_id="bundle-5").one()
+    assert receipt.kind == "bundle"
+    assert receipt.character_id is None
+
+
+def test_bundle_acknowledge_uses_non_subscription_path(db, monkeypatch):
+    """묶음은 일회성이라 구독이 아니다 — acknowledge 가 지급 커밋 뒤에, 구독이
+    아닌 kind 로 불린다(core/iap.py 의 비구독 분기를 그대로 탄다)."""
+    seen = {}
+
+    def _spy(platform, kind, token, product_id):
+        seen["kind"] = kind
+        seen["member_character_count_at_ack_time"] = db.query(MemberCharacter).count()
+        return True
+
+    monkeypatch.setattr(iap, "acknowledge", _spy)
+    IapService(db).verify_and_grant(_mid(db), "android", _item(product=BUNDLE, tx="bundle-ack"))
+
+    assert seen["kind"] != "subscription"
+    assert seen["member_character_count_at_ack_time"] == 3, "acknowledge 는 지급 뒤에 불려야 한다"
 
 
 # --------------------------------------------------------------------------- #

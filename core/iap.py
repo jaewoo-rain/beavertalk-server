@@ -34,7 +34,11 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 Platform = Literal["ios", "android"]
-Kind = Literal["character", "subscription"]
+# ⭐ §2(2026-09-28) — "bundle"(캐릭터 묶음)도 스토어 입장에선 캐릭터와 똑같은
+#   비소모성 일회성 상품이다. 아래 _verify_google/_verify_apple/_acknowledge_google
+#   은 전부 `kind == "subscription"` 만 따로 갈라내고 나머지는 한 분기로 처리하므로
+#   "bundle" 은 그 분기를 그대로 탄다(새 코드 불필요) — 타입에만 추가한다.
+Kind = Literal["character", "subscription", "bundle"]
 
 _GOOGLE_ANDROIDPUBLISHER_BASE = "https://androidpublisher.googleapis.com/androidpublisher/v3"
 _GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
