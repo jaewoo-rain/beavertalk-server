@@ -77,8 +77,10 @@ def google_sa_key_path(tmp_path, rsa_private_pem, monkeypatch):
 def _reset_google_token_cache():
     """모듈 전역 캐시가 시험 간에 새는 것을 막는다."""
     iap._google_token_cache.clear()
+    iap._google_catalog_cache.clear()
     yield
     iap._google_token_cache.clear()
+    iap._google_catalog_cache.clear()
 
 
 class _FakeResponse:
@@ -548,3 +550,218 @@ def test_verify_no_warning_when_flags_agree(google_sa_key_path, monkeypatch, cap
         )
 
     assert not any("sandbox 불일치" in r.message for r in caplog.records)
+
+
+# --------------------------------------------------------------------------- #
+# 10) §23(2026-09-28) — invalid 사유를 로그에 남긴다(HTTP 상태·subscriptionState·
+#     받은 productId·basePlanId, Google 은 카탈로그 존재 여부까지)
+# --------------------------------------------------------------------------- #
+def _dispatch_google_get(*, verify_status, verify_body=None, catalog_status=200, catalog_body=None):
+    """토큰/거래 조회 호출과 카탈로그 조회 호출을 URL 로 구분해 서로 다른 응답을 준다."""
+    def _get(url, **kw):
+        if "subscriptionsv2/tokens" in url or "/purchases/products/" in url:
+            return _FakeResponse(verify_status, verify_body or {})
+        return _FakeResponse(catalog_status, catalog_body or {})
+    return _get
+
+
+def test_verify_google_subscription_400_logs_status_tx_and_catalog_membership(
+    google_sa_key_path, monkeypatch, caplog,
+):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    monkeypatch.setattr(httpx, "get", _dispatch_google_get(
+        verify_status=400,
+        catalog_body={"subscriptions": [{"productId": "bt_pro_monthly"}]},
+    ))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "super-secret-ptok", False)
+
+    assert result.ok is False and result.reason == "invalid"
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "400" in msg
+    assert "bt_pro_monthly" in msg
+    assert "tx-1" in msg
+    assert "카탈로그존재=True" in msg
+    assert "super-secret-ptok" not in msg  # purchase_token 은 절대 안 찍는다
+
+
+def test_verify_google_subscription_404_logs_product_not_in_catalog(
+    google_sa_key_path, monkeypatch, caplog,
+):
+    """상품 자체가 스토어에 없는 경우 — "앱이 오타 상품을 보냈다" 를 구분할 수 있다."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    monkeypatch.setattr(httpx, "get", _dispatch_google_get(
+        verify_status=404, catalog_body={"subscriptions": []},
+    ))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("subscription", "bt_typo_monthly", "tx-1", "ptok", False)
+
+    assert result.ok is False and result.reason == "invalid"
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "카탈로그존재=False" in msg
+
+
+def test_verify_google_subscription_400_catalog_lookup_failure_logs_unknown(
+    google_sa_key_path, monkeypatch, caplog,
+):
+    """카탈로그 조회 자체가 실패해도(권한 등) 원래 422 응답은 그대로고, 로그만 '모름'."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    monkeypatch.setattr(httpx, "get", _dispatch_google_get(verify_status=400, catalog_status=500))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+
+    assert result.ok is False and result.reason == "invalid"  # 카탈로그 실패가 원 응답을 안 막는다
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "카탈로그존재=None" in msg
+
+
+def test_verify_google_subscription_state_mismatch_logs_state_and_product_lists(
+    google_sa_key_path, monkeypatch, caplog,
+):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(state="SUBSCRIPTION_STATE_EXPIRED", product="bt_pro_monthly")
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "SUBSCRIPTION_STATE_EXPIRED" in msg
+    assert "bt_pro_monthly" in msg
+
+
+def test_verify_google_subscription_wrong_product_logs_requested_vs_seen(
+    google_sa_key_path, monkeypatch, caplog,
+):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(product="bt_pro_monthly")  # 응답엔 pro 만 있음
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("subscription", "bt_max_monthly", "tx-1", "ptok", False)  # 요청은 max
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "bt_max_monthly" in msg  # 요청 productId
+    assert "bt_pro_monthly" in msg  # 응답에 실제로 있던 productId(비교용)
+
+
+def test_verify_google_subscription_basePlanId_logged_when_present(
+    google_sa_key_path, monkeypatch, caplog,
+):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    body = _sub_body(
+        state="SUBSCRIPTION_STATE_EXPIRED",
+        extra_line_item={"offerDetails": {"basePlanId": "monthly-base"}},
+    )
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "monthly-base" in msg
+
+
+def test_verify_google_character_purchase_state_logged(google_sa_key_path, monkeypatch, caplog):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, {"purchaseState": 1}))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("character", "bt_character_bibi", "tx-1", "ptok", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "purchaseState=1" in msg
+    assert "bt_character_bibi" in msg
+
+
+def test_verify_google_character_404_logs_catalog_membership(google_sa_key_path, monkeypatch, caplog):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    monkeypatch.setattr(httpx, "get", _dispatch_google_get(
+        verify_status=404,
+        catalog_body={"oneTimeProducts": [{"productId": "bt_character_bibi"}]},
+    ))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_google("character", "bt_character_bibi", "tx-1", "ptok", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "카탈로그존재=True" in msg
+
+
+def test_verify_apple_subscription_404_logs_status_and_tx(apple_key_path, monkeypatch, caplog):
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(404, {}))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "super-secret-jws", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "404" in msg
+    assert "orig-1" in msg
+    assert "super-secret-jws" not in msg
+
+
+def test_verify_apple_subscription_wrong_product_logs_seen_ids(apple_key_path, ec_private_pem, monkeypatch, caplog):
+    body = _apple_status_body(ec_private_pem, status=1, product="bt_pro_monthly")
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_apple("subscription", "bt_max_monthly", "orig-1", "jws", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "bt_max_monthly" in msg
+    assert "bt_pro_monthly" in msg
+
+
+def test_verify_apple_subscription_bad_status_logs_status_and_group(apple_key_path, ec_private_pem, monkeypatch, caplog):
+    body = _apple_status_body(ec_private_pem, status=2, product="bt_pro_monthly")
+    body["data"][0]["lastTransactions"][0]["signedTransactionInfo"] = jwt.encode(
+        {
+            "productId": "bt_pro_monthly", "originalTransactionId": "orig-1",
+            "expiresDate": 4102444800000, "environment": "Production",
+            "subscriptionGroupIdentifier": "group-42",
+        },
+        ec_private_pem, algorithm="ES256",
+    )
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, body))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "jws", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "status=2" in msg
+    assert "group-42" in msg
+
+
+def test_verify_apple_character_404_logs_status(apple_key_path, monkeypatch, caplog):
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(404, {}))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_apple("character", "bt_character_bibi", "orig-2", "jws", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "404" in msg
+    assert "bt_character_bibi" in msg
+
+
+def test_verify_apple_character_wrong_product_logs_both_ids(apple_key_path, ec_private_pem, monkeypatch, caplog):
+    jws = _apple_tx_jws(ec_private_pem, product="bt_character_bibi")
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(200, {"signedTransactionInfo": jws}))
+
+    with caplog.at_level("WARNING", logger="core.iap"):
+        result = iap._verify_apple("character", "bt_character_popo", "orig-2", "jws", False)
+
+    assert result.ok is False
+    msg = "\n".join(r.getMessage() for r in caplog.records)
+    assert "bt_character_popo" in msg  # 요청
+    assert "bt_character_bibi" in msg  # 실제 응답
