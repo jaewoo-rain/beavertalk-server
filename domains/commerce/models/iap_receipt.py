@@ -27,6 +27,7 @@ from sqlalchemy import (
     Index,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -74,6 +75,25 @@ class IapReceipt(Base, TimestampMixin):
     #   어디에도 이 값을 interpolate 하는 로그가 없다(회귀로 고정, tests/test_iap.py).
     #   ⛔ 기존 5행은 NULL 로 남는다(백필 불가 — 토큰이 어디에도 없었다). 앱 「구매
     #   복원」을 한 번 누르면 새 receipt 행이 토큰과 함께 채워진다.
+    # ⛔⛔ §26(2026-09-30, iOS 출시 차단 실사고 + 정정) — 이 컬럼 **전체**에 btree
+    #   인덱스를 걸지 마라. iOS StoreKit2 JWS 는 약 5.7KB 라 PostgreSQL 행 크기
+    #   한도(btree 버전4 최대 2704B)를 넘어 iOS 영수증이 한 건도 INSERT 되지
+    #   않는 사고가 났다(500, bt-back 실사고). Android 토큰은 최대 144자라 한도
+    #   안이다 — 그래서 아래 인덱스(ix_iap_receipt_purchase_token_android)는
+    #   **android 행에만** 걸린 부분 인덱스다(__table_args__ 참조).
+    #   ① 왜 부분 인덱스인가 — 위 사고 재발 방지. iOS 행이 인덱스에 아예 안
+    #      들어가므로 5.7KB JWS 가 btree 한도를 넘을 일이 없다.
+    #   ② 왜 애플은 이 인덱스가 필요 없나 — Apple ASSN V2(알림)는
+    #      `originalTransactionId` 를 주는데, 그 값이 바로 이 모델의
+    #      `transaction_id` 컬럼이고 `uq_iap_platform_tx` 가 이미 인덱스한다.
+    #      android 만 필요한 건 Play RTDN 이 `purchaseToken` 으로 찾아오기
+    #      때문이다(그 값이 이 컬럼).
+    #   ③ 왜 UNIQUE 가 아닌가 — 복원은 같은 토큰을 다시 보낸다. Play 구독은
+    #      갱신해도 purchaseToken 이 그대로라(orderId 만 갱신마다 바뀐다) 같은
+    #      토큰이 여러 iap_receipt 행에 붙을 수 있다 — UNIQUE 면 그 순간
+    #      IntegrityError 다.
+    #   ⛔ 전체 컬럼 인덱스로 되돌리지 마라. ⛔ 해시 컬럼(purchase_token_hash)도
+    #   만들지 마라 — 이 부분 인덱스가 같은 일을 하고 쓰기 경로도 안 늘린다.
     purchase_token: Mapped[Optional[str]] = mapped_column(
         Text, comment="스토어 재조회용(§24). NULL=이 컬럼 추가 이전 receipt. 로그 금지",
     )
@@ -85,5 +105,10 @@ class IapReceipt(Base, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint("platform", "transaction_id", name="uq_iap_platform_tx"),
-        Index("ix_iap_receipt_purchase_token", "purchase_token"),
+        # Play RTDN 이 purchaseToken 으로 찾아올 때 쓸 조회 — android 행만(위
+        # purchase_token 컬럼 주석 ①②③ 참조). UNIQUE 아님(③).
+        Index(
+            "ix_iap_receipt_purchase_token_android", "purchase_token",
+            postgresql_where=text("platform = 'android'"),
+        ),
     )
