@@ -1015,3 +1015,80 @@ def test_purchase_token_is_never_logged(path):
     src = (root / path).read_text(encoding="utf-8")
     offenders = [span for span in _logger_call_spans(src) if "purchase_token" in span]
     assert offenders == [], f"{path} 의 로그 호출이 purchase_token 을 찍는다: {offenders}"
+
+
+# --------------------------------------------------------------------------- #
+# §26(2026-09-30, iOS 출시 차단 실사고 + 정정) — purchase_token 의 전체 btree
+# 인덱스를 android 전용 부분 인덱스로 교체.
+#
+# 운영 실사고: iOS StoreKit2 JWS(약 5.7KB)에 btree 인덱스가 걸려 있어 PostgreSQL
+# 행 크기 한도(2704B)를 넘어 INSERT 가 500 으로 죽었다 — iOS 영수증을 한 건도
+# 저장할 수 없었다. Play RTDN 이 purchaseToken 으로 android 행을 찾아올 필요는
+# 실제로 있어서(Apple ASSN V2 는 transaction_id 를 쓰고 uq_iap_platform_tx 가
+# 이미 인덱스한다), 전체 삭제가 아니라 android 행만의 부분 인덱스로 바꿨다.
+# sqlite(이 파일의 테스트 DB)는 postgres 행 크기 한도도, postgresql_where 부분
+# 인덱스 조건도 강제하지 않아 이 시험 스위트가 원래 사고를 재현하진 못하지만
+# (그래서 처음에 못 잡았다), 인덱스 모양(전체 아님·UNIQUE 아님)과 큰 토큰이
+# 정상 저장/멱등/Android 회귀 없는지는 여기서 고정한다.
+# --------------------------------------------------------------------------- #
+def test_iap_receipt_purchase_token_index_is_android_partial_not_unique():
+    """⛔⛔ 되돌림 방지 — 전체 컬럼 인덱스로 되돌리면 iOS 출시가 다시 막히고,
+    UNIQUE 로 만들면 복원 재전송·Play 구독 갱신(토큰 불변)에서 IntegrityError 다."""
+    indexes = {ix.name: ix for ix in IapReceipt.__table__.indexes}
+    assert "ix_iap_receipt_purchase_token" not in indexes, "옛 전체 컬럼 인덱스가 되살아났다"
+    assert "ix_iap_receipt_purchase_token_android" in indexes
+    android_ix = indexes["ix_iap_receipt_purchase_token_android"]
+    assert android_ix.unique is not True
+    assert android_ix.dialect_options["postgresql"]["where"] is not None
+    # UNIQUE(platform, transaction_id)는 그대로 있어야 한다 — 멱등의 근거.
+    unique_names = {uc.name for uc in IapReceipt.__table__.constraints
+                    if uc.__class__.__name__ == "UniqueConstraint"}
+    assert "uq_iap_platform_tx" in unique_names
+
+
+def test_ios_jws_length_purchase_token_grants_and_saves_receipt(db):
+    """핵심 회귀 — 6KB 짜리 iOS StoreKit2 JWS 급 토큰으로도 verify_and_grant 가
+    200(성공)이고 iap_receipt 행이 원문 그대로 저장돼야 한다."""
+    long_token = "eyJhbGciOiJFUzI1NiJ9." + "A" * 6000
+    r = IapService(db).verify_and_grant(
+        _mid(db), "ios", _item(product=PRO, tx="ios-long-1", token=long_token),
+    )
+    assert r.entitlement.is_pro is True
+
+    receipt = db.query(IapReceipt).filter_by(transaction_id="ios-long-1").one()
+    assert receipt.purchase_token == long_token
+
+
+def test_ios_jws_length_purchase_token_resend_is_idempotent(db):
+    """같은 토큰·같은 transaction_id 재전송 → already_granted 멱등, 중복 행 0."""
+    long_token = "eyJhbGciOiJFUzI1NiJ9." + "B" * 6000
+    svc = IapService(db)
+    item = _item(product=PRO, tx="ios-long-2", token=long_token)
+    svc.verify_and_grant(_mid(db), "ios", item)
+    r2 = svc.verify_and_grant(_mid(db), "ios", item)
+
+    assert r2.already_granted is True
+    assert db.query(IapReceipt).filter_by(transaction_id="ios-long-2").count() == 1
+
+
+def test_android_normal_length_purchase_token_still_grants(db):
+    """Android(짧은 토큰) 회귀 0 — 인덱스 교체가 기존 경로를 안 건드린다."""
+    r = IapService(db).verify_and_grant(
+        _mid(db), "android", _item(product=PRO, tx="android-1", token="a" * 144),
+    )
+    assert r.entitlement.is_pro is True
+    receipt = db.query(IapReceipt).filter_by(transaction_id="android-1").one()
+    assert receipt.purchase_token == "a" * 144
+
+
+def test_same_android_purchase_token_with_different_transactions_coexist(db):
+    """⭐⭐ §26 정정 — UNIQUE 가 아님을 증명한다. Play 구독은 갱신해도
+    purchaseToken 이 그대로라(orderId 만 갱신마다 바뀐다) 같은 토큰이 여러
+    iap_receipt 행에 붙는다 — 구독 갱신을 모사한다(같은 토큰, 다른 tx)."""
+    svc = IapService(db)
+    same_token = "same-play-purchase-token-abc"
+    svc.verify_and_grant(_mid(db), "android", _item(product=PRO, tx="android-renew-1", token=same_token))
+    svc.verify_and_grant(_mid(db), "android", _item(product=PRO, tx="android-renew-2", token=same_token))
+
+    rows = db.query(IapReceipt).filter_by(purchase_token=same_token).all()
+    assert len(rows) == 2, "같은 토큰의 두 번째 거래가 UNIQUE 위반으로 막히면 안 된다"
