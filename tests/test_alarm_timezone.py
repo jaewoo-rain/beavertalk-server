@@ -144,3 +144,71 @@ def test_legacy_client_payload_without_tz_fields_is_ignored_not_422(db):
     parsed = AlarmCreate.model_validate(payload)
     assert parsed.tz is None
     assert parsed.tz_offset_min is None
+
+
+# --------------------------------------------------------------------------- #
+# (2026-09-29) tz 는 유효한 IANA 만 — 아니면 422(오타가 조용히 저장돼 엉뚱한 시각에 울리지 않게)
+# --------------------------------------------------------------------------- #
+_BAD_TZ = ["Not/AZone", "asia/seoul_x", "KST", "../../etc/passwd", "/abs/path", "x" * 200]
+
+
+@pytest.mark.parametrize("bad", _BAD_TZ)
+def test_create_rejects_invalid_tz(bad):
+    with pytest.raises(ValidationError):
+        AlarmCreate(character_id=1, time=datetime.now(timezone.utc), days_of_week=["MON"], tz=bad)
+
+
+@pytest.mark.parametrize("bad", _BAD_TZ)
+def test_update_rejects_invalid_tz(bad):
+    with pytest.raises(ValidationError):
+        AlarmUpdate(tz=bad)
+
+
+@pytest.mark.parametrize("good", ["Asia/Seoul", "America/New_York", "Pacific/Kiritimati", "UTC", " Europe/Paris "])
+def test_valid_iana_tz_passes(good):
+    assert AlarmUpdate(tz=good).tz == good.strip()
+    assert AlarmCreate(character_id=1, time=datetime.now(timezone.utc),
+                       days_of_week=["MON"], tz=good).tz == good.strip()
+
+
+@pytest.mark.parametrize("empty", [None, "", "   "])
+def test_missing_or_empty_tz_is_none_not_422(db, empty):
+    """⛔ 미지정·빈 문자열은 «없음» — 422 가 아니고 저장은 NULL(기존 NULL 알람과 같다)."""
+    mid = _member(db)
+    out = AlarmService(db).create(mid, AlarmCreate(
+        character_id=_character_id(db), time=datetime.now(timezone.utc),
+        days_of_week=["MON"], tz=empty,
+    ))
+    assert out.tz is None
+
+
+def test_update_with_empty_tz_leaves_existing_value(db):
+    """update 의 빈 tz 는 «안 보냄»과 같다 — 기존 값을 지우지도, 422 도 아니다."""
+    mid = _member(db)
+    svc = AlarmService(db)
+    created = svc.create(mid, AlarmCreate(
+        character_id=_character_id(db), time=datetime.now(timezone.utc),
+        days_of_week=["MON"], tz="Asia/Tokyo",
+    ))
+    assert svc.update(mid, created.alarm_id, AlarmUpdate(tz="")).tz == "Asia/Tokyo"
+
+
+def test_tz_only_update_is_allowed(db):
+    """앱팀 질문 — PUT 에 tz 만 담아도 된다(나머지 필드는 그대로)."""
+    mid = _member(db)
+    svc = AlarmService(db)
+    created = svc.create(mid, AlarmCreate(
+        character_id=_character_id(db), time=datetime.now(timezone.utc), days_of_week=["MON", "WED"],
+    ))
+    updated = svc.update(mid, created.alarm_id, AlarmUpdate(tz="America/New_York"))
+    assert updated.tz == "America/New_York"
+    assert sorted(updated.days_of_week) == ["MON", "WED"]
+
+
+def test_schema_validation_agrees_with_dispatch_resolver():
+    """⛔ 저장 검증과 디스패치 판정이 **같은 함수**여야 «저장은 됐는데 디스패치가 폴백»이 안 생긴다."""
+    from domains.alarm.schemas import alarm as alarm_schemas
+    from domains.learning.service import call_service
+    from domains.push.service import dispatch_service
+
+    assert alarm_schemas._resolve_zone is call_service._resolve_zone is dispatch_service._resolve_zone
