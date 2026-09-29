@@ -594,6 +594,74 @@ def _is_apple_sandbox_transaction(info: dict) -> bool:
     return str(info.get("environment") or "").strip().lower() == "sandbox"
 
 
+_APPLE_PRODUCTION_HOST = "https://api.storekit.apple.com"
+_APPLE_SANDBOX_HOST = "https://api.storekit-sandbox.apple.com"
+
+
+def _apple_env_hint_unverified(client_jws: str) -> Optional[str]:
+    """⛔⛔ §26(2026-09-30, iOS 심사 제출 차단 긴급) — 클라가 보낸 StoreKit2 거래
+    JWS(purchase_token)의 `environment` 필드를 **서명 검증 없이** 들여다본다.
+
+    ⛔⛔⛔ `_decode_apple_transaction` 의 면제("우리가 애플에 직접 물어 받은
+    응답이라는 전제")는 **여기 적용되지 않는다** — 이 값은 클라이언트가 보낸 것
+    이라 위조 가능하다(신뢰 경계가 반대). 그래서 그 함수를 재사용하지 않고
+    이름에 "힌트 전용·미검증"을 박은 별도 함수로 뗐다.
+
+    ⭐ 이 값은 **오직 "어느 호스트(운영/샌드박스)를 먼저 칠까" 순서 결정에만**
+    쓴다 — 지급·권한 판정(store_confirmed_test 등)에는 절대 안 쓴다. 클라가 이
+    값을 위조해도 최악의 경우 순서만 한 번 틀리고, 바로 아래 폴백(401/404 →
+    반대 호스트 재조회)이 옳은 호스트로 정정한다 — 진짜 환경은 여전히 애플이
+    직접 서명해 돌려준 응답(_is_apple_sandbox_transaction)이 정한다.
+    """
+    try:
+        payload = jwt.decode(client_jws, options={"verify_signature": False})
+    except Exception:  # noqa: BLE001 - 파싱 실패는 "힌트 없음"으로
+        return None
+    env = str(payload.get("environment") or "").strip().lower()
+    if env == "sandbox":
+        return _APPLE_SANDBOX_HOST
+    if env == "production":
+        return _APPLE_PRODUCTION_HOST
+    return None
+
+
+def _apple_hosts_in_order(purchase_token: str, is_sandbox: bool) -> list[str]:
+    """1순위로 먼저 칠 호스트, 2순위로 폴백할 호스트 순서.
+
+    1순위: 클라 JWS 의 environment 힌트(미검증, 순서만 결정). 힌트가 없거나
+    파싱 실패면 기존 동작대로 클라 is_sandbox 플래그로 1순위를 고른다.
+    """
+    hint = _apple_env_hint_unverified(purchase_token) if purchase_token else None
+    if hint == _APPLE_SANDBOX_HOST:
+        return [_APPLE_SANDBOX_HOST, _APPLE_PRODUCTION_HOST]
+    if hint == _APPLE_PRODUCTION_HOST:
+        return [_APPLE_PRODUCTION_HOST, _APPLE_SANDBOX_HOST]
+    return [_APPLE_SANDBOX_HOST, _APPLE_PRODUCTION_HOST] if is_sandbox else [
+        _APPLE_PRODUCTION_HOST, _APPLE_SANDBOX_HOST,
+    ]
+
+
+def _apple_get_with_env_fallback(
+    path: str, headers: dict, hosts: list[str], transaction_id: str,
+) -> httpx.Response:
+    """⛔⛔ §26(2026-09-30, iOS 심사 제출 차단 긴급) — 심사 제출 빌드는 클라가
+    is_sandbox=false 로 보내는데, 샌드박스 결제를 운영 호스트로 조회하면
+    **401**(출시 전) 또는 **404**(출시 후, 본문 `4040010 TransactionIdNotFound`)
+    가 난다 — 인앱결제 심사가 실패해 거절이 확정되는 사고였다.
+
+    1순위 호스트가 401/404 면 2순위(반대 환경) 호스트로 **한 번만** 재조회한다.
+    ⛔ purchase_token 은 여기서도 로그에 안 찍는다(정적 스캔 시험이 지킨다).
+    """
+    resp = httpx.get(f"{hosts[0]}{path}", headers=headers, timeout=10.0)
+    if resp.status_code in (401, 404) and len(hosts) > 1:
+        logger.info(
+            "iap(apple): 환경 폴백 %s(status=%s) → %s tx=%s",
+            hosts[0], resp.status_code, hosts[1], transaction_id,
+        )
+        resp = httpx.get(f"{hosts[1]}{path}", headers=headers, timeout=10.0)
+    return resp
+
+
 def _verify_apple(
     kind: Kind, product_id: str, transaction_id: str, purchase_token: str, is_sandbox: bool
 ) -> VerifyResult:
@@ -606,9 +674,12 @@ def _verify_apple(
 
     transaction_id 는 IapReceipt 계약상 iOS 의 originalTransactionId(API 경로에
     그대로 쓸 수 있다 — "may be an original transaction identifier").
-    purchase_token(StoreKit2 `Transaction.jwsRepresentation`)은 여기서 안 쓴다 —
-    서버가 애플에 직접 물어보므로 클라이언트가 보낸 서명 값을 우리가 검증할 필요가
-    없다(위 _decode_apple_transaction 의 판단과 같은 이유).
+
+    ⛔⛔ §26(2026-09-30) 정정 — purchase_token(StoreKit2 `Transaction.
+    jwsRepresentation`)을 이제 쓴다. 검증 자체(서명·지급 판정)에 쓰는 게 아니라
+    **어느 환경 호스트를 먼저 칠지 힌트로만** 쓴다(_apple_env_hint_unverified
+    참조) — 서버가 애플에 직접 물어 받은 응답으로 지급을 판정하는 원래 설계는
+    그대로다.
 
     ⚠ 애플엔 acknowledge 류 절차가 **없는 것으로 보인다**(원문 명시적 부정문은
     확인 못 함 — acknowledge() 의 애플 분기 주석 참조. 지우지 마라).
@@ -617,12 +688,12 @@ def _verify_apple(
     if token is None:
         return VerifyResult(ok=False, reason="unavailable")
 
-    base = "https://api.storekit-sandbox.apple.com" if is_sandbox else "https://api.storekit.apple.com"
+    hosts = _apple_hosts_in_order(purchase_token, is_sandbox)
     headers = {"Authorization": f"Bearer {token}"}
     try:
         if kind == "subscription":
-            resp = httpx.get(
-                f"{base}/inApps/v1/subscriptions/{transaction_id}", headers=headers, timeout=10.0,
+            resp = _apple_get_with_env_fallback(
+                f"/inApps/v1/subscriptions/{transaction_id}", headers, hosts, transaction_id,
             )
             if resp.status_code == 404:
                 # §23 — Apple 은(Google 과 달리) 카탈로그 조회 경로를 실측 확인 못
@@ -687,8 +758,8 @@ def _verify_apple(
                 order_id=matched_info.get("transactionId"),
             )
 
-        resp = httpx.get(
-            f"{base}/inApps/v1/transactions/{transaction_id}", headers=headers, timeout=10.0,
+        resp = _apple_get_with_env_fallback(
+            f"/inApps/v1/transactions/{transaction_id}", headers, hosts, transaction_id,
         )
         if resp.status_code == 404:
             logger.warning(
