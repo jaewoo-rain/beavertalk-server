@@ -235,6 +235,27 @@
 
 > 노션 결정 로그(2026-07-24 ~ 08-01)는 `notion-02` §5 에 보존돼 있다. 여기부터는 그 뒤를 잇는다.
 
+### 2026-09-30 — C9 현지인 표현 짝이 거의 안 나오던 버그: 조건부 탈출구를 완전히 제거
+
+**대상**: `_analysis_instruction`(`domains/learning/service/normalcall_service.py`, §1 카탈로그 #8).
+**잠금 대상 아님**(`core/prompts/locked/*` 밖, `test_prompt_locked_hash.py` 가 import 하는 모듈에
+없음 — 확인 완료).
+
+- 원인: `[현지인 표현 짝]` 블록의 "자연스러운 현지인 짝이 없거나 korean 과 사실상 같으면 **전부
+  생략**해라"가 모델의 상시 탈출구였다(운영 `kind=native` sentence 2건뿐, 09-26 이후 0건).
+- 고침(사장님 최종 지시): **생략·비움·조건부 예외 문구를 블록에서 전부 제거.** "모든 표현에
+  짝을 반드시 하나씩 낸다"만 남긴다 — 원문 복사 같은 퇴화 사례를 거르는 일은
+  `_normalize_native_pair`(원문과 동일하면 `None`)에 그대로 맡긴다(안 건드림, 기존 시험 유지).
+  정의는 "격식·반말을 바꾸는 게 목적이 아니다 — 같은 뜻을 더 생생하게(관용구·비유·과장·줄임말)",
+  예시는 원 요청(S1) 그대로 「배고파요 → 뱃가죽이 등에 붙을 것 같아요」(반말 변환 예시는 시행착오
+  중 모델을 "반말 변환기"로 끌고 간 것을 실측으로 확인해 폐기).
+- 안 한 것(사장님 결정 대기, S1 ②): 필드 이름(`native_*`)·저장 모양(별도 `sentence` 행 vs S1 이
+  요청한 `sentences[]` 내부 `colloquial_*`)은 안 건드렸다 — 앱이 이미 `kind=="native"`를 읽는다.
+- 검증: `test_native_expression_pair.py` 14 passed. 잠금 시험 4개+`test_prompt_locked_hash.py`
+  무변. 전체 회귀 2328 passed·1 skipped(기준선 2325). before/after 실호출 측정은 bt-back 이 직접.
+
+---
+
 ### 2026-09-29 — 표시 문구 번역 지시문 신설(`core/text_translate._SYSTEM`) — 통화·분석과 무관
 - 무엇: `GET /cur/me` situation_translation(§6)·`GET /calls` summary(§10)를 회원 모국어로 **요청 시** 번역하는
   별도 1콜(JSON `items`, thinking 0, 타임아웃 `TRANSLATE_TIMEOUT_S`). 모델 `TRANSLATE_MODEL`.
