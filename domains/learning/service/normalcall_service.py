@@ -2451,19 +2451,18 @@ def _analysis_instruction(
         "통화가 아주 짧거나 발화가 적어도 참여 자체를 격려하는 1문장을 반드시 쓴다(빈 문자열 금지).\n"
         "- 전사가 부정확할 수 있으니 명백히 학습된 표현만 보수적으로 뽑는다.\n"
         "[현지인 표현 짝]\n"
-        f"- expressions 의 각 표현(korean)마다, {target_language}를 쓰는 현지인이 **일상에서 그 뜻으로 "
-        "실제 흔히 쓰는** 표현 1개를 native_expression 에 적어라. 기준은 학습 대상 언어"
+        f"- expressions 의 각 표현(korean)마다, {target_language}를 쓰는 현지인이 실생활에서 "
+        "**더 생생하게** 말하는 방식(관용구·비유·과장·줄임말)을 native_expression 에 "
+        "**반드시 하나씩** 적어라. 기준은 학습 대상 언어"
         f"({target_language})다 — 학습자의 모국어로 짝을 만들지 마라.\n"
-        "- native_expression 은 korean 과 **반드시 같은 뜻**이어야 한다 — 다른 표현을 새로 "
-        "가르치는 것이 아니라, 같은 뜻을 현지인은 어떻게 말하는지 보여주는 것이다.\n"
+        "- native_expression 은 korean 과 **반드시 같은 뜻**이어야 한다. **격식·반말 수준을 "
+        "바꾸는 게 목적이 아니다** — 존댓말을 반말로만 바꾼 문장은 해당하지 않는다. "
+        'ex) korean="배고파요" → native_expression="뱃가죽이 등에 붙을 것 같아요".\n'
         "- 허용: 과장·줄임말·가벼운 비속어. 금지: 심한 욕설·혐오 표현·성적인 표현 — 이 셋은 "
         "절대 쓰지 마라.\n"
         "- native_expression_translation 에는 그 현지인 표현을 " + label + " 로 번역하고, "
         "native_nuance 에는 그 표현의 뉘앙스(왜 그렇게 말하는지)를 " + label + " 로 한 줄만 "
-        "설명해라.\n"
-        "- 자연스러운 현지인 짝이 없거나 korean 과 사실상 같으면 native_expression·"
-        "native_expression_translation·native_nuance 를 **전부 생략**해라(빈 문자열로 "
-        "채우지 마라)."
+        "설명해라."
     )
 
 

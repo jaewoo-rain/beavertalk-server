@@ -74,10 +74,53 @@ def test_instruction_is_target_language_based_not_native_language():
     assert "학습자의 모국어로 짝을 만들지 마라" in instruction
 
 
-def test_instruction_says_to_omit_rather_than_fill_blank():
+# --------------------------------------------------------------------------- #
+# 2-b) C9(2026-09-30) — 현지인 표현 짝이 거의 안 나오던 버그.
+#
+# 운영 실측(bt-back): sentence 2,926건 중 kind=native 2건뿐(09-26 이후 0건).
+# 원인은 지시문의 탈출구 "자연스러운 현지인 짝이 없거나 korean 과 사실상
+# 같으면 전부 생략해라" — 모델이 거의 항상 이 조건을 근거로 짝 내기를 건너
+# 뛰었다(call=1716 실측: 표현 3개 전부 native_expression=None).
+#
+# ⛔⛔ 정정 2(2026-09-30, 사장님 지시) — "생략" 개념 자체를 지시문에서 완전히
+# 뺐다(처음엔 "korean 과 글자까지 같을 때만 생략" 예외를 남겼는데, 그것도
+# 조건문이라 제거). 지시문은 "모든 표현에 짝을 반드시 하나 낸다"만 말하고,
+# 원문을 복사해 내는 퇴화 사례를 거르는 일은 서버(_normalize_native_pair,
+# 아래 3번 섹션)에 전담시킨다 — 모델에게 "낼지 말지"를 판단하게 하는 문구
+# 자체가 이 버그의 본체였다(원칙: 프롬프트는 「항상 내라」만, 걸러내기는 서버).
+# --------------------------------------------------------------------------- #
+def test_instruction_has_no_omission_wording_at_all():
+    """⛔⛔ 되돌림 방지(정정 2) — 생략·비움·조건부 예외를 가리키는 문구가 단
+    하나도 있으면 안 된다. 모델의 "낼지 말지" 판단 여지 자체가 버그의 본체였다."""
     instruction = _analysis_instruction("en", "한국어")
-    assert "전부 생략" in instruction
-    assert "빈 문자열로" in instruction
+    native_block = instruction[instruction.index("[현지인 표현 짝]"):]
+    for banned in ("생략", "비워", "비운다", "없으면"):
+        assert banned not in native_block, f"'{banned}' 가 여전히 있다(조건부 예외 재발)"
+
+
+def test_instruction_defaults_to_always_producing_a_pair():
+    instruction = _analysis_instruction("en", "한국어")
+    assert "반드시 하나씩" in instruction
+
+
+def test_instruction_has_a_worked_example():
+    """⛔⛔ 정정(2026-09-30, bt-back) — 원 요청(S1)의 예시는 **입말·관용구**지
+    반말 변환이 아니다. 처음엔 "제 잘못이 아닙니다→내 탓 아니야"(격식→반말)를
+    썼는데, 이게 모델을 "반말 변환기"로 끌고 갔다(실험: "저는 미국 사람이에요
+    →나 미국 사람이야" 류만 나옴 — 뜻은 같지만 원 요청과 축이 다르다). S1 원문
+    예시("배고파요→뱃가죽이 등에 붙을 것 같아요")로 교체한다."""
+    instruction = _analysis_instruction("en", "한국어")
+    assert "배고파요" in instruction
+    assert "뱃가죽이 등에 붙을 것 같아요" in instruction
+
+
+def test_instruction_targets_vividness_not_formality():
+    """⭐⭐ 정정(2026-09-30) — 지시문이 "격식/반말을 바꾸는 게 목적이 아니다"를
+    명시해야 한다. 이 문구가 없으면 모델이 존댓말→반말 변환만 반복한다(실험으로
+    확인)."""
+    instruction = _analysis_instruction("en", "한국어")
+    assert "격식" in instruction and "목적이 아니다" in instruction
+    assert "관용구" in instruction
 
 
 # --------------------------------------------------------------------------- #
