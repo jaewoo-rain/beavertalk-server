@@ -726,6 +726,150 @@ def test_public_verify_entrypoint_also_gets_the_env_fallback(apple_key_path, ec_
 
 
 # --------------------------------------------------------------------------- #
+# 8) §26(2026-09-30, 3차) — 애플 샌드박스 일시 5xx 재시도
+#
+# 실사고: 환경 폴백(2차)까지는 정상 작동해 샌드박스로 갔는데, 그 샌드박스
+# 호스트 자체가 일시적으로 500 을 줬다. bt-back 이 같은 거래ID·같은 URL·4가지
+# JWT 구성으로 직접 호출해 전부 200 을 받아 키·설정·JWT 구성은 배제했다 — 남은
+# 설명은 "그 순간 애플이 일시적으로 아팠다"뿐이다. 5xx(401/404 와는 다른 축)에
+# 만 짧은 재시도(2회, 0.5s→1.5s, 합 2.0s)를 건다.
+# --------------------------------------------------------------------------- #
+def _sequence_get(responses):
+    """호출마다 정해진 응답을 순서대로 돌려주는 fake httpx.get(목록 소진되면
+    마지막 값을 반복). 호출된 url 목록도 같이 돌려준다."""
+    calls: list = []
+
+    def _get(url, **kw):
+        calls.append(url)
+        idx = min(len(calls) - 1, len(responses) - 1)
+        return responses[idx]
+
+    return _get, calls
+
+
+def _record_sleep(monkeypatch):
+    delays: list = []
+    monkeypatch.setattr(iap.time, "sleep", lambda s: delays.append(s))
+    return delays
+
+
+def test_apple_5xx_then_200_retries_and_succeeds(apple_key_path, ec_private_pem, monkeypatch):
+    """⭐⭐ 실사고 그 자체 — 첫 호출 500, 재시도에서 200. verify 는 최종 성공해야
+    한다(지금은 첫 500 에서 바로 unavailable 로 끝난다)."""
+    body = _apple_status_body(ec_private_pem, status=1)
+    get_fn, calls = _sequence_get([_FakeResponse(500, {}), _FakeResponse(200, body)])
+    monkeypatch.setattr(httpx, "get", get_fn)
+    delays = _record_sleep(monkeypatch)
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "not-a-jws", False)
+
+    assert result.ok is True
+    assert len(calls) == 2
+    assert delays == [0.5]
+
+
+@pytest.mark.parametrize("status", [500, 502, 503, 504])
+def test_apple_5xx_variants_all_retry(status, apple_key_path, ec_private_pem, monkeypatch):
+    body = _apple_status_body(ec_private_pem, status=1)
+    get_fn, calls = _sequence_get([_FakeResponse(status, {}), _FakeResponse(200, body)])
+    monkeypatch.setattr(httpx, "get", get_fn)
+    _record_sleep(monkeypatch)
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "not-a-jws", False)
+
+    assert result.ok is True
+    assert len(calls) == 2
+
+
+def test_apple_5xx_exhausted_returns_unavailable_with_retry_log_no_token(
+    apple_key_path, monkeypatch, caplog,
+):
+    """계속 500 이면 재시도를 소진하고 unavailable(503) — 재시도 로그가 남고
+    purchase_token 은 어디에도 안 찍힌다."""
+    secret_token = "super-secret-client-jws"
+    get_fn, calls = _sequence_get([_FakeResponse(500, {})])  # 항상 500
+    monkeypatch.setattr(httpx, "get", get_fn)
+    delays = _record_sleep(monkeypatch)
+
+    with caplog.at_level("INFO", logger="core.iap"):
+        result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", secret_token, False)
+
+    assert result.ok is False and result.reason == "unavailable"
+    assert len(calls) == 3, "초회 + 재시도 2회 = 3회 호출이어야 한다"
+    retry_logs = [r.getMessage() for r in caplog.records if "5xx 재시도" in r.getMessage()]
+    assert len(retry_logs) == 2
+    assert delays == [0.5, 1.5]
+    assert sum(delays) <= 3.0, "재시도 총 추가 지연이 상한 3초를 넘었다"
+    for msg in retry_logs:
+        assert secret_token not in msg
+
+
+def test_apple_401_does_not_trigger_5xx_retry_only_env_fallback(
+    apple_key_path, ec_private_pem, monkeypatch,
+):
+    """401/404(환경 틀림)는 5xx 재시도 축과 다르다 — 재시도 없이 바로 반대
+    호스트로 폴백해야 한다(time.sleep 이 호출되면 안 된다)."""
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(401, {}), sandbox=_FakeResponse(200, body),
+    ))
+    delays = _record_sleep(monkeypatch)
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "not-a-jws", False)
+
+    assert result.ok is True
+    assert delays == [], "401 은 5xx 재시도를 타면 안 된다"
+
+
+def test_apple_404_still_falls_back_after_5xx_retry_change(apple_key_path, monkeypatch):
+    """기존 404→invalid 동작이 5xx 재시도 추가로 깨지지 않았는지 회귀."""
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(404, {}))
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "jws", False)
+    assert result.ok is False and result.reason == "invalid"
+
+
+def test_verify_google_5xx_then_200_retries_and_succeeds(google_sa_key_path, monkeypatch):
+    """⭐⭐ bt-back 요청 — 구글도 같은 구멍(raise_for_status 앞에 재시도 없음)이라
+    같은 재시도를 적용했다(5xx 는 드물지만 안 넣을 이유가 없다)."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    get_fn, calls = _sequence_get([_FakeResponse(500, {}), _FakeResponse(200, _sub_body())])
+    monkeypatch.setattr(httpx, "get", get_fn)
+    delays = _record_sleep(monkeypatch)
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+
+    assert result.ok is True
+    assert delays == [0.5]
+
+
+def test_verify_google_5xx_exhausted_returns_unavailable(google_sa_key_path, monkeypatch, caplog):
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    get_fn, calls = _sequence_get([_FakeResponse(500, {})])
+    monkeypatch.setattr(httpx, "get", get_fn)
+    delays = _record_sleep(monkeypatch)
+
+    with caplog.at_level("INFO", logger="core.iap"):
+        result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+
+    assert result.ok is False and result.reason == "unavailable"
+    assert len(calls) == 3
+    assert delays == [0.5, 1.5]
+
+
+def test_verify_google_400_does_not_trigger_5xx_retry(google_sa_key_path, monkeypatch):
+    """400(구글의 무효 판정)은 5xx 축과 무관 — 재시도 없이 바로 invalid."""
+    monkeypatch.setattr(httpx, "post", _fake_google_token_post())
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: _FakeResponse(400, {}))
+    delays = _record_sleep(monkeypatch)
+
+    result = iap._verify_google("subscription", "bt_pro_monthly", "tx-1", "ptok", False)
+
+    assert result.ok is False and result.reason == "invalid"
+    assert delays == []
+
+
+# --------------------------------------------------------------------------- #
 # 7) 애플 캐릭터(일회성) 검증
 # --------------------------------------------------------------------------- #
 def test_verify_apple_character_matching_product_is_ok(apple_key_path, ec_private_pem, monkeypatch):

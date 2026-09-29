@@ -345,7 +345,7 @@ def _verify_google(
                 f"{_GOOGLE_ANDROIDPUBLISHER_BASE}/applications/{pkg}"
                 f"/purchases/subscriptionsv2/tokens/{purchase_token}"
             )
-            resp = httpx.get(url, headers=headers, timeout=10.0)
+            resp = _get_with_5xx_retry("google", url, headers, transaction_id)
             if resp.status_code in (400, 404):
                 # §23 — 토큰 자체 조회 실패(잘못된/만료/타 앱 토큰). 카탈로그 확인은
                 # "상품 자체가 스토어에 없다"와 "토큰이 무효하다"를 가른다.
@@ -431,7 +431,7 @@ def _verify_google(
             f"{_GOOGLE_ANDROIDPUBLISHER_BASE}/applications/{pkg}"
             f"/purchases/products/{product_id}/tokens/{purchase_token}"
         )
-        resp = httpx.get(url, headers=headers, timeout=10.0)
+        resp = _get_with_5xx_retry("google", url, headers, transaction_id)
         if resp.status_code in (400, 404):
             _log_google_invalid_catalog_check(
                 token, pkg, kind, product_id, transaction_id,
@@ -597,6 +597,43 @@ def _is_apple_sandbox_transaction(info: dict) -> bool:
 _APPLE_PRODUCTION_HOST = "https://api.storekit.apple.com"
 _APPLE_SANDBOX_HOST = "https://api.storekit-sandbox.apple.com"
 
+# ⛔⛔ §26(2026-09-30, 3차 — 애플 샌드박스 일시 500) — bt-back 이 사고 직후 같은
+#   거래 ID·같은 URL·4가지 JWT 구성(iat/typ 유무 전부)으로 직접 호출해 전부 200
+#   을 받았다 — 키·Issuer·Key ID·bundle id·엔드포인트·JWT 구성 전부 정상임을
+#   실측으로 배제했다. 남은 설명은 "그 순간 애플 샌드박스가 일시적으로 500 을
+#   냈다"뿐이다(4건이 2분 안에 몰리고 그 뒤로 없었다 — 애플 샌드박스 5xx 는
+#   알려진 현상, 공식 문서도 백오프 재시도를 권한다).
+_STORE_5XX_RETRY_DELAYS = (0.5, 1.5)  # 2회 재시도, 지수 백오프. 합 2.0s(상한 3s 안)
+
+
+def _get_with_5xx_retry(provider: str, url: str, headers: dict, transaction_id: str) -> httpx.Response:
+    """스토어가 5xx(500/502/503/504)를 주면 **같은 URL로** 짧게 재시도한다.
+
+    ⛔ 401/404(환경이 틀림)와는 축이 다르다 — 그건 이 함수가 다루지 않는다(애플
+    쪽은 `_apple_get_with_env_fallback` 이 처리). 5xx 는 "스토어가 일시적으로
+    아픈 것"이라 같은 호스트·같은 URL 로 재시도하는 게 맞다.
+
+    `/purchases/verify` 는 사용자가 결제 시트 앞에서 기다리는 요청이다 — 재시도
+    총 추가 지연을 3초 안으로 제한한다(0.5s + 1.5s = 2.0s). 재시도를 다 쓰고도
+    5xx 면 상태 그대로 반환하고(호출부의 raise_for_status 가 unavailable 로
+    떨어뜨린다), 무한 재시도나 긴 대기를 만들지 않는다.
+
+    provider(로그용, "apple"|"google")만 다르고 구글도 구조가 같다(raise_for_status
+    앞에 아무 재시도가 없었다) — 5xx 가 드물다는 이유로 안 넣을 이유가 없어서
+    같이 적용했다(bt-back 요청 §26-3차 — "확인 후 판단·근거 보고").
+    """
+    resp = httpx.get(url, headers=headers, timeout=10.0)
+    for attempt, delay in enumerate(_STORE_5XX_RETRY_DELAYS, start=1):
+        if resp.status_code < 500:
+            break
+        logger.info(
+            "iap(%s): 5xx 재시도 %d회째(status=%s) %.1fs 뒤 tx=%s",
+            provider, attempt, resp.status_code, delay, transaction_id,
+        )
+        time.sleep(delay)
+        resp = httpx.get(url, headers=headers, timeout=10.0)
+    return resp
+
 
 def _apple_env_hint_unverified(client_jws: str) -> Optional[str]:
     """⛔⛔ §26(2026-09-30, iOS 심사 제출 차단 긴급) — 클라가 보낸 StoreKit2 거래
@@ -650,15 +687,17 @@ def _apple_get_with_env_fallback(
     가 난다 — 인앱결제 심사가 실패해 거절이 확정되는 사고였다.
 
     1순위 호스트가 401/404 면 2순위(반대 환경) 호스트로 **한 번만** 재조회한다.
+    각 호스트 호출은 그 자체로 5xx 재시도(_get_with_5xx_retry)를 거친다 —
+    401/404(환경 폴백 축)와 5xx(일시 장애 축)는 서로 다른 문제라 섞지 않는다.
     ⛔ purchase_token 은 여기서도 로그에 안 찍는다(정적 스캔 시험이 지킨다).
     """
-    resp = httpx.get(f"{hosts[0]}{path}", headers=headers, timeout=10.0)
+    resp = _get_with_5xx_retry("apple", f"{hosts[0]}{path}", headers, transaction_id)
     if resp.status_code in (401, 404) and len(hosts) > 1:
         logger.info(
             "iap(apple): 환경 폴백 %s(status=%s) → %s tx=%s",
             hosts[0], resp.status_code, hosts[1], transaction_id,
         )
-        resp = httpx.get(f"{hosts[1]}{path}", headers=headers, timeout=10.0)
+        resp = _get_with_5xx_retry("apple", f"{hosts[1]}{path}", headers, transaction_id)
     return resp
 
 
