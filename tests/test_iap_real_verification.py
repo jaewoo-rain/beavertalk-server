@@ -545,6 +545,187 @@ def test_verify_apple_subscription_sandbox_environment_is_detected(apple_key_pat
 
 
 # --------------------------------------------------------------------------- #
+# 7) §26(2026-09-30, iOS 심사 제출 차단 긴급) — 환경 호스트 자동판정·폴백
+#
+# 실기기 사고: TestFlight/심사관 빌드는 클라가 is_sandbox=false 로 보내는데,
+# 샌드박스 결제를 운영 호스트(api.storekit.apple.com)로 조회하면 401(출시 전)
+# 또는 404(출시 후, 본문 4040010 TransactionIdNotFound)가 난다 — 인앱결제 심사가
+# 실패해 거절이 확정되는 사고였다. 클라 JWS(purchase_token)의 environment 를
+# "어느 호스트를 먼저 칠지" 힌트로만 쓰고, 틀리면 반대 호스트로 폴백한다.
+# --------------------------------------------------------------------------- #
+def _client_jws(ec_private_pem, *, environment="Production"):
+    """purchase_token 자리에 넣을, 클라가 보냈다고 가정하는 StoreKit2 거래 JWS.
+    힌트 판정만 검증하므로 environment 외 클레임은 필요 없다."""
+    return jwt.encode({"environment": environment}, ec_private_pem, algorithm="ES256")
+
+
+def _apple_dispatch_get(calls, *, prod=None, sandbox=None):
+    """호스트별로 다른 응답을 주는 fake httpx.get — 실제로 어느 호스트를 먼저/나중에
+    쳤는지 calls 리스트로 순서까지 확인할 수 있다."""
+    def _get(url, **kw):
+        calls.append(url)
+        if url.startswith(iap._APPLE_SANDBOX_HOST):
+            return sandbox
+        return prod
+    return _get
+
+
+def test_apple_env_hint_sandbox_tries_sandbox_host_first(apple_key_path, ec_private_pem, monkeypatch):
+    client_jws = _client_jws(ec_private_pem, environment="Sandbox")
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(calls, sandbox=_FakeResponse(200, body)))
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", client_jws, False)
+
+    assert result.ok is True
+    assert len(calls) == 1
+    assert calls[0].startswith(iap._APPLE_SANDBOX_HOST), "Sandbox 힌트인데 운영 호스트를 먼저 쳤다"
+
+
+def test_apple_env_hint_production_with_401_falls_back_to_sandbox(apple_key_path, ec_private_pem, monkeypatch, caplog):
+    """⭐⭐ 실기기 사고 그 자체 — 심사 제출 빌드(is_sandbox=false)가 실은 샌드박스
+    결제라 운영 호스트가 401 을 주는 상황. 폴백으로 200 을 받아야 하고, 폴백
+    로그 1줄에 purchase_token 이 찍히면 안 된다."""
+    client_jws = _client_jws(ec_private_pem, environment="Production")
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(401, {}), sandbox=_FakeResponse(200, body),
+    ))
+
+    with caplog.at_level("INFO", logger="core.iap"):
+        result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", client_jws, False)
+
+    assert result.ok is True
+    assert len(calls) == 2
+    assert calls[0].startswith(iap._APPLE_PRODUCTION_HOST)
+    assert calls[1].startswith(iap._APPLE_SANDBOX_HOST)
+    fallback_logs = [r.getMessage() for r in caplog.records if "환경 폴백" in r.getMessage()]
+    assert len(fallback_logs) == 1
+    assert "401" in fallback_logs[0]
+    assert client_jws not in fallback_logs[0]
+
+
+def test_apple_production_404_with_not_found_body_falls_back_to_sandbox(apple_key_path, ec_private_pem, monkeypatch):
+    """출시 후엔 401 대신 404(본문 4040010 TransactionIdNotFound)가 온다 — 같은
+    폴백이 적용돼야 한다."""
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls,
+        prod=_FakeResponse(404, {"errorCode": 4040010, "errorMessage": "Transaction id not found."}),
+        sandbox=_FakeResponse(200, body),
+    ))
+
+    # 힌트 없음(purchase_token 파싱 실패) → 클라 is_sandbox=False 로 운영을 먼저 친다.
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "not-a-jws", False)
+
+    assert result.ok is True
+    assert calls[0].startswith(iap._APPLE_PRODUCTION_HOST)
+    assert calls[1].startswith(iap._APPLE_SANDBOX_HOST)
+
+
+def test_apple_sandbox_401_falls_back_to_production_symmetrically(apple_key_path, ec_private_pem, monkeypatch):
+    """반대 방향도 대칭이다 — 샌드박스를 먼저 쳤는데 401/404 면 운영으로 폴백."""
+    client_jws = _client_jws(ec_private_pem, environment="Sandbox")
+    body = _apple_status_body(ec_private_pem, status=1, environment="Production")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(200, body), sandbox=_FakeResponse(401, {}),
+    ))
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", client_jws, False)
+
+    assert result.ok is True
+    assert calls[0].startswith(iap._APPLE_SANDBOX_HOST)
+    assert calls[1].startswith(iap._APPLE_PRODUCTION_HOST)
+    assert result.store_confirmed_test is False
+
+
+def test_apple_client_sandbox_lie_is_corrected_by_store_confirmed_test(apple_key_path, ec_private_pem, monkeypatch):
+    """⭐⭐ §26(2026-09-30) — 클라가 is_sandbox=false 라고 보내도(심사 제출 빌드가
+    그렇다) 실제로 샌드박스에서 200 을 받으면 store_confirmed_test=True 로 잡혀야
+    한다(하류에서 is_sandbox = 클라 OR 스토어 로 합쳐 매출 집계에서 빠진다)."""
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(401, {}), sandbox=_FakeResponse(200, body),
+    ))
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "not-a-jws", False)
+
+    assert result.ok is True
+    assert result.store_confirmed_test is True
+
+
+def test_apple_hint_missing_or_unparseable_falls_back_to_client_flag_and_fallback_still_works(
+    apple_key_path, ec_private_pem, monkeypatch,
+):
+    """힌트가 없거나(빈 문자열) JWS 파싱이 실패해도 기존 동작(클라 is_sandbox 값으로
+    1순위를 고름)으로 시도하고, 그래도 틀리면 폴백이 정상 작동한다."""
+    assert iap._apple_env_hint_unverified("garbage-not-a-jws") is None
+
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(401, {}), sandbox=_FakeResponse(200, body),
+    ))
+
+    result = iap._verify_apple("subscription", "bt_pro_monthly", "orig-1", "garbage-not-a-jws", False)
+
+    assert result.ok is True
+    assert calls[0].startswith(iap._APPLE_PRODUCTION_HOST), "힌트 없으면 클라 is_sandbox=False → 운영 먼저"
+    assert calls[1].startswith(iap._APPLE_SANDBOX_HOST)
+
+
+def test_apple_env_fallback_applies_to_character_kind_too(apple_key_path, ec_private_pem, monkeypatch):
+    """묶음·캐릭터(일회성, Get Transaction Info)도 같은 폴백을 탄다."""
+    jws = _apple_tx_jws(ec_private_pem, product="bt_character_bibi", original_tx="orig-2",
+                         environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(401, {}),
+        sandbox=_FakeResponse(200, {"signedTransactionInfo": jws}),
+    ))
+
+    result = iap._verify_apple("character", "bt_character_bibi", "orig-2", "not-a-jws", False)
+
+    assert result.ok is True
+    assert calls[0].startswith(iap._APPLE_PRODUCTION_HOST)
+    assert calls[1].startswith(iap._APPLE_SANDBOX_HOST)
+
+
+def test_apple_host_strings_unchanged():
+    """앱팀이 실측한 그 두 호스트 문자열 그대로인지 못박는다."""
+    assert iap._APPLE_PRODUCTION_HOST == "https://api.storekit.apple.com"
+    assert iap._APPLE_SANDBOX_HOST == "https://api.storekit-sandbox.apple.com"
+
+
+def test_public_verify_entrypoint_also_gets_the_env_fallback(apple_key_path, ec_private_pem, monkeypatch):
+    """⭐⭐ §26(2026-09-30) 요청 ②확인 — subscription_refresh_service(§24 자기치유·
+    재검증)와 iap_service(verify_and_grant)는 둘 다 `_verify_apple` 을 직접 부르지
+    않고 공용 진입점 `iap.verify()` 를 부른다(grep 으로 확인: 두 파일 다
+    `iap.verify(` 한 줄뿐, `_verify_apple` 직접 호출 0건) — 그래서 이 픽스는 한
+    곳만 고쳐도 두 경로 모두에 자동 적용된다. 이 시험은 그 공용 진입점을 통해서도
+    폴백이 실제로 동작하는지 증명한다(내부 구현 우연히 안 타는 경로가 없는지)."""
+    monkeypatch.setattr(app_settings, "IAP_VERIFY_ENABLED", True)
+    body = _apple_status_body(ec_private_pem, status=1, environment="Sandbox")
+    calls: list = []
+    monkeypatch.setattr(httpx, "get", _apple_dispatch_get(
+        calls, prod=_FakeResponse(401, {}), sandbox=_FakeResponse(200, body),
+    ))
+
+    result = iap.verify(
+        platform="ios", kind="subscription", product_id="bt_pro_monthly",
+        transaction_id="orig-1", purchase_token="not-a-jws", is_sandbox=False,
+    )
+
+    assert result.ok is True
+    assert len(calls) == 2, "공용 진입점을 통해서도 운영→샌드박스 폴백이 일어나야 한다"
+
+
+# --------------------------------------------------------------------------- #
 # 7) 애플 캐릭터(일회성) 검증
 # --------------------------------------------------------------------------- #
 def test_verify_apple_character_matching_product_is_ok(apple_key_path, ec_private_pem, monkeypatch):
