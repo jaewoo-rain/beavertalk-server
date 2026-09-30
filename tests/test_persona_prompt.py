@@ -417,7 +417,10 @@ def test_leveltest_self_driven_progress_and_reaction_rules():
     # 반응+질문을 '한 번의 발화'로, 정답 여부 누출 금지.
     assert "반응과 다음 질문은 반드시 '한 번의 발화'로" in lt
     assert "반응만 하고 멈추면 어색한 침묵" in lt
-    assert "정답 여부를 절대 티내지 마라" in lt
+    # ⭐ 2026-09-30 — 「정답 여부를 절대 티내지 마라」는 **뺐다**(사장님 지시: 캐릭터가
+    #   틀린 것을 비웃을 수 있어야 한다). 누출 방어는 «정답을 불러주지 마라»(아래)와
+    #   «레벨·점수 언급 금지» 두 줄이 계속 맡는다.
+    assert "정답 여부를 절대 티내지 마라" not in lt
     # 레벨 비노출 유지("시험/평가" 금지 미세지시는 제거 — 담백함 우선).
     assert "레벨·점수 언급 금지" in lt
     assert '"시험/평가" 언급 금지' not in lt
@@ -429,19 +432,31 @@ def test_leveltest_self_driven_progress_and_reaction_rules():
     assert "[다음]" not in lt
 
 
-def test_leveltest_omits_character_persona_uses_examiner_line():
-    """레벨테스트는 '순수 배치 테스트' 관점 — 캐릭터 페르소나를 대본에 주입하지 않고
-    고정 '시험관' 한 줄로 대체한다(캐릭터 톤 누출·한국어 과다(call 163) 방지).
-    role/personality/rules 는 시그니처 호환용으로만 받는다(주입 0)."""
+def test_leveltest_injects_character_persona_from_db():
+    """⭐⭐ 2026-09-30 (사장님 지시) — 레벨테스트도 **DB 캐릭터를 주입한다.**
+
+    그전까지는 '순수 배치 테스트' 관점으로 고정 '시험관' 한 줄이었다(옛 사고: 캐릭터 톤
+    누출·한국어 과다 — call 163). 뒤집은 근거는 build_leveltest_instruction docstring 에
+    적었다(실측 call 1715 — 레벨테스트가 표현학습 드릴처럼 들렸다).
+    ⛔ 이 시험이 지키는 것은 «주입했다» 가 아니라 **재발 방어선 3줄이 같이 있다** 는 것이다."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 고정 시험관 + 캐릭터 연기 배제 + 측정 우선
-    assert "시험관이다" in lt
-    assert "캐릭터 연기 말고" in lt
-    assert "실력만 담백하게 파악한다" in lt          # 측정 목적
-    # 캐릭터 3필드(_LT_KWARGS)는 어디에도 주입되지 않는다
-    assert "장난기 많은 비버 선생님" not in lt
-    assert "유쾌하고 텐션 높은 말투" not in lt
-    assert "캐릭터별 추가 규칙" not in lt
+    # 캐릭터 2필드(DB character.role / .personality)가 대본 맨 앞에 그대로 들어간다
+    assert lt.startswith(_LT_KWARGS["role"])
+    assert _LT_KWARGS["personality"] in lt
+    # 옛 고정 시험관 문구·톤 억제 문구는 사라졌다
+    assert "시험관이다" not in lt
+    assert "캐릭터 연기 말고" not in lt
+    assert "담백하게" not in lt
+    # ⛔ 방어선 ① call 163 재발(캐릭터가 목표어 모범답안을 읽어 줌) 차단
+    assert "정답·모범답안을 주면 잴 수 없다" in lt
+    assert "이 통화에서 한국어를 말하는 건 학습자뿐이다" in lt
+    # ⛔ 방어선 ② 캐릭터의 «맞고 틀릴 게 없는 대화» 면제 조항을 이 통화에선 무효화
+    assert "이 통화는 잡담이 아니다" in lt
+    # ⛔ 방어선 ③ 빈정거림의 «대상» 이 정의돼 있다(말·발음·회피).
+    #   ⚠ 톤 제약(호칭 금지 류)은 **여기 넣지 않는다** — 톤은 캐릭터(role·personality)가
+    #     소유한다(EDITING.md 원칙). 2026-09-30 에 한 번 넣었다가 사장님 지적으로 빼:
+    #     Baba DB 에 이미 있어 중복이고, 실측 2회에서 행동도 안 바뀌었다.
+    assert "비웃는 대상은 **방금 나온 말·발음, 그리고 아래 회피 행동**이다" in lt
 
 
 def test_leveltest_has_no_old_probe_plan_and_keeps_language_rule():
@@ -456,8 +471,12 @@ def test_leveltest_has_no_old_probe_plan_and_keeps_language_rule():
     assert "추상 논증" not in lt
     # 질문=모국어, 대답=목표어 유도(측정은 학습자의 목표어 발화)
     assert "재는 건 오직 학습자의 한국어 발화다" in lt
-    assert "이거 한국어로 말해 볼래요?" in lt
     assert "매 질문마다 반드시 학습자가 한국어로 답하게 시켜라" in lt  # target로 답하기 강조
+    # ⭐ 2026-09-30 — 고정 예시 문구("이거 …로 말해 볼래요?")를 **뺐다.** 실측 call 1715 에서
+    #   모델이 그 괄호 예시를 **비버 7턴 중 6턴** 글자 그대로 복사해, 레벨테스트가 번역 드릴처럼
+    #   들렸다(사장님 지적). 대신 «매번 다른 말로» 를 박았다.
+    assert "이거 한국어로 말해 볼래요?" not in lt
+    assert "같은 문구를 반복하지 마라" in lt
     # probe_plan 인자는 폐기됨(넘기면 TypeError).
     import pytest as _pytest
     with _pytest.raises(TypeError):

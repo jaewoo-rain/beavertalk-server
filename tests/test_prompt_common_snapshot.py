@@ -118,7 +118,7 @@ _FROZEN: dict[str, tuple[str, int]] = {
     "live_survival": ("96e23311bd2d59a90b1eadca449c30231e7e4c6f0d7622dc68715b17cb2081e6", 6135),
     "live_face_tool": ("f718605d73d6121eb283a339ded6128a64264f4c3af4b4f1a9532db30bb7d115", 4405),   # 2026-09-12 [표정] 블록 qual 로 교체(사장님 결정, bt-back 승인) — 옛 dec3ed7d…/4827
     "cascade_optin": ("7aadb5781e94e6530737ce9a3425c2b4f58e27b9846df549186a9a844eab095f", 4713),
-    "leveltest": ("019f4df8f448fe68dda443511330e59974e752662f5228a5897743a3a0ab98bb", 2117),
+    "leveltest": ("d6f61eaff1080abf83287819c96f7b28e7b178bf652345c3e78797eef8b14050", 2734),   # 2026-09-30 DB 캐릭터 주입 + 빈정 축(사장님 지시, bt-back) — 옛 019f4df8…/2117
     "seed_opening": ("0b1d8dcb23e47f0669fffdf94738eb8c51039a82fc0cc5fe1b2c7a3a668f0fcf", 285),
     "seed_opening_lean": ("9489cfd0c65021bb0a058d30e20cc87e111bf010d765a752aa936a1b14c04c27", 129),
     "seed_resume": ("0843114577a4be222834feaa5b66cf2717801a8e47fc2393945a50337dbc8925", 242),

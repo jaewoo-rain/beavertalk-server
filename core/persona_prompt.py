@@ -561,10 +561,14 @@ def build_leveltest_instruction(
 ) -> str:
     """레벨테스트 통화용 system_instruction 을 조립한다(LLM 생성 0, 비버 자율 진행).
 
-    build_system_instruction 과 같은 캐릭터 슬롯(role/personality)을 계속 받지만
-    (시그니처 호환), 레벨테스트는 '순수 배치 테스트' 관점이라 캐릭터 페르소나를
-    대본에 주입하지 않는다 — 고정 '시험관' 한 줄로 대체한다. level_profile/history
-    슬롯도 없다(레벨 미상 전제).
+    ⭐⭐ 2026-09-30 (사장님 지시) — **캐릭터 페르소나를 주입한다.** 그전까지는 '순수 배치
+    테스트' 관점으로 고정 '시험관' 한 줄로 대체했다(옛 사고: 캐릭터 톤 누출·한국어 과다,
+    call 163). 되살린 근거: ①레벨테스트가 표현학습 드릴처럼 들린다는 실측 지적
+    (call 1715 — 비버 7턴 중 6턴이 같은 꼬리 문구) ②그 사이 한국어 과다를 막는 규칙이
+    세 줄로 굳었다(전부 모국어 · 에코 금지 · 정답 낭독 금지) ③캐릭터 DB 문구가 스스로
+    「문구를 그대로 쓰지 말고 매번 새로 조합해라」를 요구해 반복 꼬리를 눌러 준다.
+    ⛔ 잠금 절차에 «캐릭터가 목표어 모범답안을 주지 마라» 방어선을 같이 넣었다 —
+    그게 call 163 의 재발 경로다. level_profile/history 슬롯은 여전히 없다(레벨 미상 전제).
 
     ⚠ 비버 자율 진행/OPI(Phase 1, 2026-07): 서버 주입 없이 비버가 스스로 대화를
     이끈다. 이 대본은 난이도 사다리(1~6단)를 마음에 두고 "쉬운 질문에서 시작 → 답할
@@ -573,8 +577,8 @@ def build_leveltest_instruction(
     사다리·천장 함수는 폐기됐다.
 
     Args:
-        role: (미사용 — 호환용) 캐릭터 역할/정체성. 대본에 주입하지 않는다.
-        personality: (미사용 — 호환용) 캐릭터 성격·말투. 대본에 주입하지 않는다.
+        role: 캐릭터 역할/정체성(DB `character.role`) — intro 에 주입된다.
+        personality: 캐릭터 성격·말투(DB `character.personality`) — intro 에 주입된다.
         locale: 학습자 모국어 식별자(미지원이면 영어 폴백).
         interests: 관심사 목록(비면 "일상") — 질문 소재.
         name: 학습자 이름(없으면 "학습자" 폴백).
@@ -587,7 +591,7 @@ def build_leveltest_instruction(
     Returns:
         Gemini Live system_instruction 문자열.
     """
-    # role/personality 는 호환용으로만 받고 대본엔 넣지 않는다(순수 배치 테스트).
+    # role/personality 는 editable/leveltest.md `intro` 의 슬롯으로 들어간다(2026-09-30).
     locale_label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL[_DEFAULT_LOCALE])
     interests_text = ", ".join(i for i in interests if i) or "일상"
     username = (name or "").strip() or "학습자"
@@ -596,6 +600,8 @@ def build_leveltest_instruction(
     ladder = _LEVELTEST_LADDER.get(target_language, _LEVELTEST_LADDER_KO)
 
     return _LEVELTEST_TEMPLATE.format(
+        role=role,
+        personality=personality,
         locale_label=locale_label,
         username=username,
         target=target_language,
