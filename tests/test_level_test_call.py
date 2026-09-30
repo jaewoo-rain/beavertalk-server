@@ -308,7 +308,10 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
     instr = holder["system_instruction"]
     # 레벨테스트 대본(비버 자율 진행/OPI): 진행 방식·시험관 블록 포함, 일반 대본의 [학습자 수준] 없음.
     assert "[진행 — 네가 이끈다]" in instr
-    assert "실력만 담백하게 파악한다" in instr
+    # ⭐ 2026-09-30 — 고정 시험관 문구("실력만 담백하게 파악한다")는 사라지고 DB 캐릭터가
+    #   주입된다(사장님 지시). 이 시험은 «레벨테스트 대본이 맞나» 만 보면 되므로 절차 앵커로 본다.
+    assert "실력을 파악한다(수업 아님)" in instr
+    assert "[유도 질문 사다리" in instr
     assert "[학습자 수준]" not in instr
     # 레벨테스트 선톡 시드가 주입됐다(무인자 — 비버가 첫 질문을 스스로 시작).
     assert holder["session"].sent_text_turns
