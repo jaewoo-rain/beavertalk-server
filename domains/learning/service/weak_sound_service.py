@@ -23,7 +23,7 @@ import logging
 import os
 import tempfile
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -216,6 +216,54 @@ def _aggregated(db: Session, member_id: int) -> dict[str, float]:
         for s in aggregate_sounds(reviews)
         if s.sound_key is not None
     }
+
+
+def get_sound_cards(
+    db: Session, member_id: int, sound_keys: Sequence[str]
+) -> dict[str, WeakSoundItem]:
+    """요청한 소리들의 카드(점수 + 번역된 라벨·설명) — {sound_key: 카드}.
+
+    ⭐ PM-DEC-333/337/341(2026-10-03) — 발음 리포트의 「다시 해볼 소리」(`retry_sounds`)
+      가 쓴다. **이 함수가 공개인 이유는 점수 산식을 복제하지 않기 위해서다.** 목록
+      화면과 똑같이 `_locale_of` → `get_lessons` → `get_scores` → `get_i18n` →
+      `_translated` → `_score_view` 를 통과시키므로, 같은 소리의 점수가 두 화면에서
+      갈라질 수 없다(비교로 지키는 게 아니라 **같은 코드를 지난다**). 리포트 서비스가
+      `_score_view` 같은 내부 함수를 직접 부르면 그 보장이 깨진다.
+
+    과(`sound_lesson`)가 없는 키는 **조용히 빠진다** — 모음처럼 학습 과가 없는 소리는
+    카드로 띄울 수 없다(눌러도 들어갈 화면이 없다). 호출부가 `in` 으로 걸러 쓴다.
+
+    왕복(2026-10-03 `before_cursor_execute` 실측): 요청 키가 없으면 **0**, 전부 과가
+    없으면 과 조회 **1**. 그 외 **6** — 과 1 + 점수 1 + **회원 3** + 번역 1. 후보에
+    미학습 키가 하나라도 있으면 복습 집계 2 가 더해져 **8**.
+    ⚠ 「회원 3」은 오타가 아니다 — `_locale_of` 의 `db.get(Member, …)` 한 줄이
+      `Member.reasons`·`Member.owned_characters` 의 `lazy="selectin"`
+      (`domains/account/models/member.py:115,131`) 때문에 SELECT 3개를 낸다.
+    전부 회원/로케일 단위 조회라 **키 개수와는 무관**하다(3개든 20개든 같다).
+    """
+    keys = [k for k in dict.fromkeys(sound_keys) if k]  # 중복 제거(입력 순서 유지)
+    if not keys:
+        return {}
+    repo = WeakSoundRepository(db)
+    lessons = {l.sound_key: l for l in repo.get_lessons()}
+    wanted = [k for k in keys if k in lessons]
+    if not wanted:
+        return {}
+
+    scores = repo.get_scores(member_id)
+    # 전부 학습한 소리면 복습 집계를 읽지 않는다 — `_score_view` 가 보지도 않는 값이라
+    # 읽으면 왕복 2번이 그냥 버려진다(점수는 달라지지 않는다).
+    agg: dict[str, float] = (
+        {} if all(k in scores for k in wanted) else _aggregated(db, member_id)
+    )
+    tr = repo.get_i18n(_locale_of(db, member_id))
+
+    out: dict[str, WeakSoundItem] = {}
+    for key in wanted:
+        lesson = lessons[key]
+        lb, cd, _ = _translated(lesson, tr.get(key))
+        out[key] = _score_view(lesson, scores.get(key), agg, label=lb, card_desc=cd)
+    return out
 
 
 def get_weak_sounds(db: Session, member_id: int) -> WeakSoundListOut:

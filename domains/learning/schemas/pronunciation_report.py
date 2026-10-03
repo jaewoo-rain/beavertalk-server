@@ -89,6 +89,37 @@ class SessionPointOut(BaseModel):
     call_id: int
 
 
+class RetrySoundOut(BaseModel):
+    """「다시 해볼 소리」 카드 1장 — 이 통화에서 많이 틀린 소리 → 취약 발음 학습 진입.
+
+    ⭐ PM-DEC-333/337/341(2026-10-03, 앱 요청) — 리포트에서 바로 그 소리를 학습하러
+      갈 수 있게 한다. 선정 규칙(과가 있는 소리만·misses≥2·최대 3개·정렬)은 전부
+      서버가 거른다(`pronunciation_report_service._retry_candidates`/`_retry_cards`).
+      0개면 `[]` — **카드 숨김은 앱이 한다**(서버가 키를 빼지 않는다).
+
+    Attributes:
+        sound_key: 소리 키(`coda_ㄹ`·`onset_ㅊ`). 학습 진입·평가 API 의 식별자.
+        label: 표시 라벨(받침 ㄹ). 회원 표시 언어 번역 우선(`sound_lesson_i18n`).
+        card_desc: 카드 한 줄 설명 — **소리 내는 법**이다(오류 서술 아님).
+        attempts: ⚠ **이 통화**에서 그 소리가 나온 횟수(`SoundAggregate.attempts`).
+            취약 발음 목록의 `WeakSoundItem.attempts`(학습 평가를 몇 번 제출했나)와
+            **뜻이 다르다** — 그래서 그 스키마를 재사용하지 않고 따로 둔다.
+        misses: 그중 틀린 횟수(= attempts − passes, 음소 점수 80 미만이 틀림).
+        score: 카드 점수 0~100. 표본이 없으면 None = 「측정 전」.
+            ⛔ 취약 발음 목록(`GET /pronunciation/weak-sounds`)의 그 소리 점수와
+            **같은 값이어야 한다** — 두 화면이 다른 점수를 보이면 안 된다. 비교로
+            지키는 게 아니라 같은 `weak_sound_service._score_view` 를 지나게 해서
+            구성상 같게 만든다(`weak_sound_service.get_sound_cards`).
+    """
+
+    sound_key: str
+    label: str
+    card_desc: str
+    attempts: int
+    misses: int
+    score: Optional[int] = None
+
+
 class LearningSummaryOut(BaseModel):
     """복습 종료 후 발음 리포트 전체(= Flutter LearningSummary).
 
@@ -110,3 +141,7 @@ class LearningSummaryOut(BaseModel):
     phonemes: list[PhonemeStatOut]
     sentences: list[SentenceScoreOut]
     sessions: list[SessionPointOut]
+    # ⭐ PM-DEC-333/337/341(2026-10-03) — 기본값 빈 배열. 구버전 앱은 모르는 키를
+    #   무시하므로 하위호환이고, 해당 소리가 없는 통화도 이 키를 **빼지 않는다**
+    #   (앱이 `[]` 를 보고 카드를 숨긴다 — 규칙 8).
+    retry_sounds: list[RetrySoundOut] = []
