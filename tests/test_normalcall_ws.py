@@ -6479,3 +6479,110 @@ async def test_call_ends_promptly_even_though_chat_memory_trigger_moved(
         ),
         timeout=2.0,
     )
+
+
+# --------------------------------------------------------------------------- #
+# (z) 예외로 끝난 통화 — 학습자에게 이유를 알린다 (2026-09-30)
+#
+# ⛔⛔ 종전 결함: 세션 열기가 실패하거나 통화 중 예외가 터지면 「최종 방어선」이
+#   logger.exception 만 찍고 소켓이 닫혔다. 앱은 `call_started` 를 이미 받은 뒤라
+#   **아무 설명 없이 끊긴 화면**을 봤다(부록1 §3). 통화 시작 **전** 관문 4종
+#   (ALREADY_IN_CALL·DAILY_LIMIT·RESUME_UNAVAILABLE·COURSE_LOCKED)만 에러 프레임을
+#   보내고 있었고 그 뒤가 비어 있었다. 이 두 시험이 그 자리를 고정한다.
+# --------------------------------------------------------------------------- #
+def _error_frames(ws) -> list[dict]:
+    """FakeWebSocket 이 받은 type=error 프레임만 뽑는다."""
+    out = []
+    for raw in ws.sent_text:
+        try:
+            msg = json.loads(raw)
+        except Exception:  # noqa: BLE001 - 테스트 보조
+            continue
+        if msg.get("type") == "error":
+            out.append(msg)
+    return out
+
+
+def _boom_live_factory(exc: Exception):
+    """세션 열기(__aenter__)에서 죽는 팩토리 — Gemini 동시 한도·인증·모델명 오류 흉내."""
+    import contextlib as _ctx
+
+    @_ctx.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, **_kw):
+        raise exc
+        yield  # pragma: no cover - 도달 불가(asynccontextmanager 형태 유지용)
+
+    return _factory
+
+
+@pytest.mark.asyncio
+async def test_live_open_failure_tells_the_client_why(session_factory, seeded):
+    """세션이 열리지 못하면 LIVE_START_FAILED 를 보낸다(조용히 끊지 않는다)."""
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ])
+
+    # 최종 방어선이 삼키므로 run_call 은 예외를 밖으로 내보내지 않는다.
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"],
+        live_session_factory=_boom_live_factory(RuntimeError("live connect 거절 흉내")),
+    )
+
+    errs = _error_frames(ws)
+    assert errs, "세션 열기 실패인데 클라에 에러 프레임이 한 건도 안 갔다(조용한 끊김 재발)"
+    assert errs[-1]["code"] == "LIVE_START_FAILED", errs
+    assert errs[-1]["message"], "문구가 비었다 — 앱이 빈 에러를 띄운다"
+
+
+@pytest.mark.asyncio
+async def test_midcall_failure_reports_interrupted(session_factory, seeded):
+    """비버가 이미 말한 뒤 깨지면 CALL_INTERRUPTED — 「시작 실패」와 구분한다."""
+    import contextlib as _ctx
+
+    class _DiesAfterOneTurn(FakeLiveSession):
+        async def events(self):
+            yield LiveEvent(kind="out_tr", text="Hi, 공부할래?")
+            yield LiveEvent(kind="audio", audio=b"\x00\x00" * 8)
+            yield LiveEvent(kind="turn_end")       # 여기서 beaver_turns += 1
+            raise RuntimeError("통화 중 스트림 붕괴 흉내")
+
+    @_ctx.asynccontextmanager
+    async def _factory(client, settings, *, system_instruction, voice, **_kw):
+        yield _DiesAfterOneTurn()
+
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+    ], hang=True)   # 클라가 먼저 끊지 않게 — 예외 경로를 보려면 소켓이 살아 있어야 한다
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"],
+        live_session_factory=_factory,
+    )
+    await _wait_analysis_tasks()
+
+    errs = _error_frames(ws)
+    assert errs, "통화 중 예외인데 클라에 에러 프레임이 안 갔다"
+    assert errs[-1]["code"] == "CALL_INTERRUPTED", errs
+
+
+@pytest.mark.asyncio
+async def test_normal_end_sends_no_error_frame(session_factory, seeded):
+    """⛔ R4 — 정상 종료 경로는 무변경이다. 에러 프레임이 새로 끼면 안 된다."""
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"]})},
+        {"type": "websocket.receive", "bytes": b"\x01\x02\x03\x04"},
+    ])
+
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"],
+        live_session_factory=make_live_factory({}),
+    )
+    await _wait_analysis_tasks()
+
+    assert _error_frames(ws) == [], "정상 종료에 에러 프레임이 섞였다(종료 규약 오염)"
