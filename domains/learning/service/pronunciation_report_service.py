@@ -11,23 +11,38 @@ main(pronunciation_service)이 이미 실데이터를 낸다:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Sequence
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, sessionmaker
 
 from domains.learning.models.call import Call
-from domains.learning.schemas.pronunciation import PronHistoryItem, PronunciationReport
+from domains.learning.schemas.pronunciation import (
+    PronHistoryItem,
+    PronunciationReport,
+    SoundAggregate,
+)
 from domains.learning.schemas.pronunciation_report import (
     LearningSummaryOut,
     PhonemeStatOut,
+    RetrySoundOut,
     SentenceScoreOut,
     SessionPointOut,
 )
 from domains.learning.service import pronunciation_service as pron_svc
+from domains.learning.service import weak_sound_service as weak_svc
 from domains.learning.service.normalcall_service import run_db
 
 _PASS_THRESHOLD = 80  # 문장 통과 기준(total_score ≥ 80)
+
+# ── 「다시 해볼 소리」 기준값 (PM-DEC-333/337/341, 2026-10-03) ──────────────── #
+# ⭐ 설정값(`core/config.Settings`)이 아니라 **서비스 모듈 상수**다 — 배포 환경마다
+#   달라야 할 값이 아니고(화면 규칙이라 dev/prod 가 갈리면 QA 가 재현을 못 한다),
+#   비밀도 아니며, 시험이 이 숫자를 고정한다(env 로 흔들리면 시험이 환경 의존이 된다).
+#   같은 파일의 `_PASS_THRESHOLD`, `weak_sound_service` 의 `LIST_SIZE`·`RECENT_CALLS`
+#   와 같은 자리다.
+RETRY_MIN_MISSES = 2  # 이 통화에서 이만큼 틀린 소리만 카드로 띄운다
+RETRY_LIMIT = 3       # 카드 최대 개수
 
 
 def _accuracy(p: PhonemeStatOut) -> int:
@@ -115,6 +130,81 @@ def _call_date(db: Session, call_id: int) -> datetime | None:
     return call.call_date if call is not None else None
 
 
+# --------------------------------------------------------------------------- #
+# 「다시 해볼 소리」 (PM-DEC-333/337/341, 2026-10-03 앱 요청)
+# --------------------------------------------------------------------------- #
+def _misses(s: SoundAggregate) -> int:
+    """이 통화에서 그 소리를 틀린 횟수. 틀림 = 음소 점수 80 미만(aggregate_sounds)."""
+    return s.attempts - s.passes
+
+
+def _retry_candidates(sounds: Sequence[SoundAggregate]) -> list[SoundAggregate]:
+    """선정 규칙 2·4·5 — DB 를 보지 않는 순수 함수.
+
+    입력은 **이 통화의** 소리 집계(`report.sounds`)다 — 규칙 1(문장별 마지막 counted
+    복습)·규칙 7(스텁은 `counted=False` 라 애초에 없다)은 그 입력이 이미 충족한다.
+
+    - 규칙 2: `sound_key` 가 None 인 버킷 제외(모음·위치 미부착 옛 복습 — 학습 단위와
+      맞출 수 없다).
+    - 규칙 4: `misses >= RETRY_MIN_MISSES`.
+    - 규칙 5: misses 내림차순 → 정확도(passes/attempts) 오름차순 → sound_key.
+      ⚠ 정확도는 `_accuracy`(반올림 정수)가 아니라 **실수 비율**로 비교한다 — 3단
+      정렬의 2단계가 동률 깨기용이라 반올림하면 일부러 넣은 변별이 뭉개진다.
+    - 규칙 3(과가 있는 소리만)·규칙 6(최대 3개)은 `_retry_cards` 가 한다 — 과 조회는
+      DB 가 필요하고, **자르기(6)는 과 필터(3) 뒤**여야 한다(먼저 3개로 자르면 과가
+      있는 4순위가 과 없는 상위 때문에 억울하게 빠진다).
+    """
+    cands = [
+        s for s in sounds if s.sound_key and _misses(s) >= RETRY_MIN_MISSES
+    ]
+    cands.sort(
+        key=lambda s: (
+            -_misses(s),
+            (s.passes / s.attempts) if s.attempts else 0.0,
+            s.sound_key or "",
+        )
+    )
+    return cands
+
+
+def _retry_cards(
+    db: Session, member_id: int, candidates: Sequence[SoundAggregate]
+) -> list[RetrySoundOut]:
+    """선정 규칙 3·6 + 카드 조립(라벨·설명·점수).
+
+    점수·라벨은 `weak_sound_service.get_sound_cards` 가 취약 발음 목록과 **같은 코드**로
+    내준다(`_score_view`) — 두 화면의 같은 소리가 다른 점수를 보일 수 없다.
+    `attempts`·`misses` 는 **이 통화** 집계라 거기서 오지 않는다(뜻이 다른 값이다 —
+    `RetrySoundOut` docstring).
+
+    과가 없는 소리는 `cards` 에 없으므로 건너뛴다(규칙 3). 그 뒤 앞에서부터
+    `RETRY_LIMIT` 개를 취한다(규칙 6) — 정렬은 `_retry_candidates` 가 이미 해 뒀다.
+    """
+    if not candidates:
+        return []
+    cards = weak_svc.get_sound_cards(
+        db, member_id, [s.sound_key for s in candidates if s.sound_key]
+    )
+    out: list[RetrySoundOut] = []
+    for s in candidates:
+        card = cards.get(s.sound_key or "")
+        if card is None:
+            continue  # 규칙 3 — 학습 과가 없는 소리(모음 등)는 띄우지 않는다
+        out.append(
+            RetrySoundOut(
+                sound_key=card.sound_key,
+                label=card.label,
+                card_desc=card.card_desc,
+                attempts=s.attempts,
+                misses=_misses(s),
+                score=card.score,
+            )
+        )
+        if len(out) >= RETRY_LIMIT:
+            break  # 규칙 6
+    return out
+
+
 async def build_learning_summary(
     member_id: int,
     call_id: int,
@@ -137,7 +227,15 @@ async def build_learning_summary(
     history = await run_db(
         session_factory, lambda db: pron_svc.get_pronunciation_history(db, member_id)
     )
-    call_date = await run_db(session_factory, lambda db: _call_date(db, call_id))
+    # ⭐ PM-DEC-333/337/341 — 「다시 해볼 소리」는 **새 세션을 열지 않는다.** 후보 선정은
+    #   순수 함수(DB 0)이고, 카드 조회는 이미 있던 `_call_date` 의 세션에 얹는다
+    #   (한 세션 = 한 커넥션 = threadpool 홉 1번 그대로). 후보가 0개면 `_retry_cards`
+    #   가 즉시 빈 리스트라 추가 쿼리도 0이다.
+    candidates = _retry_candidates(report.sounds)
+    call_date, retry_sounds = await run_db(
+        session_factory,
+        lambda db: (_call_date(db, call_id), _retry_cards(db, member_id, candidates)),
+    )
 
     # ── 문장별 + 통과·평균(실데이터) ──
     # ⛔⛔ §2 정정(2026-09-27, 앱 요청) — "미복습 점수는 0"이었던 옛 설계를 뒤집었다.
@@ -199,4 +297,5 @@ async def build_learning_summary(
         phonemes=_select_phonemes(pool),
         sentences=sentences,
         sessions=_sessions_from_history(history),
+        retry_sounds=retry_sounds,
     )
