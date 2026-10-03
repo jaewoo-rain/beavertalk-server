@@ -4248,6 +4248,35 @@ async def run_call(
             )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         logger.exception("normalcall 브리지 오류: %s", exc)
+        # ⭐⭐ **침묵 금지**(2026-09-30 사장님 지시). 여기까지 온 예외는 «세션이 열리다 죽었거나
+        #   통화 중 깨진» 것이다. 종전에는 로그만 찍고 소켓이 닫혀서, 앱은 `call_started` 를
+        #   받은 뒤 **아무 설명 없이 끊겼다** — 학습자에겐 그냥 고장이다.
+        #   ⚠ 통화 **시작 전** 관문 4종(ALREADY_IN_CALL·DAILY_LIMIT·RESUME_UNAVAILABLE·
+        #     COURSE_LOCKED)은 이미 에러 프레임을 보내고 있었다. 비어 있던 자리는 여기 하나다.
+        #   ⛔ **정상 종료 경로엔 붙이지 않는다** — 위 `_CallFinished`·`_FragmentEnd`·
+        #     `_ClientDisconnect`·`TimeoutError` 는 무변경이다(종료 규약 R4).
+        #   ⚠ 여기서 보내도 **통화후 저장은 안 깨진다**: 아래 finally 의 클라 송신은 전부
+        #     `contextlib.suppress` + `client_state` 확인이라(`_finish_call`), 앱이 error 를
+        #     받고 teardown 해 소켓이 닫혀도 조용히 넘어간다. 전사·분석·usage 는 소켓과 무관.
+        #   ⭐ code 를 두 개로 가르는 이유: 사용자가 다음에 할 일이 다르다(다시 걸기 / 결과 화면).
+        #     신호는 이미 있다 — `beaver_turns` 는 비버가 실제로 말한 턴 수다(새 상태 불필요).
+        #   ⚠ **문구는 앱이 현지화한다**(`DAILY_LIMIT` 과 같은 정본 패턴). 사용자는 외국인
+        #     학습자라 한국어가 안 통한다. 여기 한국어는 **구버전 앱 폴백**일 뿐이다
+        #     (앱 `serverErrorMessage`: 미지 code → 서버 message 그대로).
+        from starlette.websockets import WebSocketState
+
+        with contextlib.suppress(Exception):
+            if client_ws.client_state == WebSocketState.CONNECTED:
+                started = bool(state.beaver_turns)
+                await _send_json(client_ws, ServerError(
+                    code="CALL_INTERRUPTED" if started else "LIVE_START_FAILED",
+                    message=(
+                        "통화가 예기치 않게 끊겼어요."
+                        if started
+                        else "지금 통화를 시작할 수 없어요. 잠시 뒤 다시 시도해 주세요."
+                    ),
+                    recoverable=True,
+                ))
     finally:
         # 🧒 왜 finally(통화후 파이프라인)인가: 통화는 여러 방식으로 끝난다 — 정상 작별
         #   (_CallFinished), 학습자가 앱을 꺼서 끊김(_ClientDisconnect), 시간 초과 강제 종료
