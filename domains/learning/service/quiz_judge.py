@@ -246,6 +246,42 @@ _POLITE_MARKERS = ("니다", "십시오", "죠", "요")
 # 절 경계 — 문장부호로 가른다(normalize 는 부호를 지우므로 그 전에 갈라야 «절의 끝» 이 남는다).
 _CLAUSE_SPLIT_RE = re.compile(r"[.!?…~,;:]+")
 
+# ── ⭐ 2026-10-03 격식 판정 결함② — **학습자 발화 쪽 표지는 표면형 쪽과 따로 둔다.**
+#   위 두 표(_POLITE_MARKERS·_JA_POLITE_MARKERS)는 **무장 스위치**다 — «이 항목이 정중형인가»(polite_marker). 거기는 한 글자도 안 바꿨다
+#   (게이트가 켜지는 항목 집합이 불변이어야 «새 기각» 통로가 안 생긴다). 아래 표는 «학습자가 정중하게 말했나» 쪽이고 ja 에만 더 있다:
+#   · `ました` — 「ありがとうございました」. ます+た 라 반말로는 나올 수 없는 꼴이라 더해도 반말이 새지 않는다.
+#   · 끝의 종조사 절단 — 「元気ですか」「雨でしたね」「帰りましょうか」 가 か·ね 때문에 전부 기각됐다(cur_seed_ja 예문 실측 19건 중 7건).
+#     ⚠ 절단은 **끝**에만 건다 — 「元気か」(보통형)는 떼고 봐도 표지가 없어 여전히 기각된다.
+#   · `でしょう` — 보통형은 「だろう」 라 정중 쪽에만 있는 꼴이다.
+#   · 끝의 접속조사(から·けど·ので·し…) 절단 — 「食べますから」「行きますけど」. 절단은 **드러나는 쪽이 정중일 때만** 참이 되므로
+#     반말이 새지 않는다(「行くから」 → 「行く」 → 표지 없음 → 기각).
+#   · 절 경계에 `、` 추가 — 「ありがとうございます、先生」 처럼 **호칭이 뒤에 붙으면** 어절이 하나라 전부 기각됐다(공백이 있을 때만 통과).
+#   ⛔ 꼬리 목록은 **긴 것부터** 적는다 — 「けれども」 가 「けれど」 뒤에 있으면 「も」 가 남아 「ですけれども」 가 기각된다(2차 QA 가 잡았다).
+_JA_TEXT_POLITE_MARKERS = _JA_POLITE_MARKERS + ("ました", "でしょう")
+_JA_TAIL_PARTICLE_RE = re.compile(r"(?:から|けれども|けれど|けど|ので|のに|し|が|か|ね|よ|な|の|わ|さ|ぞ|ぜ)+$")
+_JA_CLAUSE_SPLIT_RE = re.compile(r"[。！？!?、・]+")
+
+# ko 추가 표지 — **앞 음절의 종성이 ㅂ 일 때만** 정중이다: 합니다체 의문 「-ㅂ니까/습니까」(얼마입니까·갑니까·반갑습니까) ·
+#   청유 「-ㅂ시다/읍시다」(갑시다·먹읍시다). 커리큘럼에 문법 항목 「N입니까?, N입니다」 가 있어 학습자가 그 꼴로 답한다.
+#   ⛔ 받침 조건 없이 「니까」·「시다」 를 위 표에 넣지 마라 — 「니까」 는 이유 연결어미이고(「배고프니까 밥 먹어」 = 반말),
+#      「시다」 는 형용사다(「김치는 시다」). 받침 조건이 그 둘을 정확히 가른다(합니다체·청유형은 **항상** ㅂ 받침이다).
+_KO_CODA_MARKERS = ("니까", "시다")
+_JONGSEONG_PIEUP = 17            # 한글 음절 종성 인덱스: '' ㄱ ㄲ ㄳ ㄴ ㄵ ㄶ ㄷ ㄹ ㄺ ㄻ ㄼ ㄽ ㄾ ㄿ ㅀ ㅁ **ㅂ**
+
+
+def _ends_with_coda_marker(e: str) -> bool:
+    """e 가 「니까」·「시다」 로 끝나고 **그 앞 글자의 종성이 ㅂ** 인가(호환 자모 'ㅂ' 도 참 — 주형 표기 대비)."""
+    for m in _KO_CODA_MARKERS:
+        if not e.endswith(m):
+            continue
+        prev = e[:-len(m)][-1:]
+        if prev == "ㅂ":
+            return True
+        o = ord(prev) - 0xAC00 if prev else -1
+        if 0 <= o < 11172 and o % 28 == _JONGSEONG_PIEUP:
+            return True
+    return False
+
 
 def polite_marker(surface: str | None, language: str = "ko") -> str | None:
     """표면형 **마지막 어절의 종결 표지**(«요»·«니다»·«십시오»·«죠»), 없으면 None(명사·반말 항목·자리표시 주형).
@@ -260,29 +296,53 @@ def polite_marker(surface: str | None, language: str = "ko") -> str | None:
     return None
 
 
+def has_polite_marker(text: str | None, language: str = "ko") -> bool:
+    """학습자 발화에 정중 표지가 **하나라도** 있나(어절·절·전체의 **끝**만 본다).
+
+    ⭐ T18 (통화 1407 #7) — STT 가 「만나서 반갑습니 다.」 처럼 **어절 안에 공백**을 넣는다. 원문 어절만 보면 어느 어절도
+      «니다» 로 끝나지 않아 자발 정답이 반말로 기각됐다. 그래서 세 겹으로 본다 — 원문 어절 끝 / 문장부호로 가른 절을
+      normalize(공백 제거·NFC)한 끝 / 전체를 normalize 한 끝. 어느 하나라도 표지로 끝나면 참.
+    ⚠ «요» 는 **끝**만 본다 — 「요리 좋아」 의 «요» 는 어디로 봐도 끝이 아니다.
+    ⚠ 알려진 거짓양성 2종 — 낱말 사전 없이 문자열로는 못 가른다. 이 함수는 «반말 기각» 용 **거친 체**라 그대로 둔다:
+      ① 어절이 「요」로 끝나는 반말(「필요 없어」·「개요」) — 「필요」와 「돼요」를 가를 수 없다.
+      ② 사전형 「-니다」로 끝나는 반말(「나는 학생 **아니다**」) — 「아니다」와 「아닙니다」를 가를 수 없다.
+      ⛔ ②를 «앞 음절 종성이 ㅂ 일 때만 니다» 로 닫으려 들지 마라 — 짜 보고 기각했다(2026-10-03). 어휘 항목
+        「다니다」·「아니다」·「지니다」·「돌아다니다」를 **표면형 그대로 답한 정답**이 함께 떨어진다(그 항목들은
+        `polite_marker` 가 `니다` 로 잘못 무장한 사전형이다). 근거·측정은 docs/plans/2026-10-03-… §2-5.
+    """
+    raw = text or ""
+    candidates = list(raw.split()) + _CLAUSE_SPLIT_RE.split(raw) + [raw]
+    if language == "ja":
+        candidates += _JA_CLAUSE_SPLIT_RE.split(raw)           # ja 절 경계 — 종결 뒤 다른 절·호칭이 와도 «…です。» 를 잡는다
+    ends = [normalize(c, language) for c in candidates]
+    if language == "ja":
+        ends += [_JA_TAIL_PARTICLE_RE.sub("", e) for e in ends]   # 「ですか」「でしたね」「ますから」 — 끝 종조사·접속조사를 떼고 한 번 더
+        return any(e.endswith(m) for e in ends for m in _JA_TEXT_POLITE_MARKERS)
+    return any(e.endswith(m) for e in ends for m in _POLITE_MARKERS) or any(_ends_with_coda_marker(e) for e in ends)
+
+
 def keeps_formality(text: str | None, surface: str | None, language: str = "ko") -> bool:
-    """V4 — 표면형이 정중형이면 학습자 발화의 **어느 어절이 그 표지로 끝나야** 한다.
+    """V4 — 표면형이 정중형이면 학습자 발화에 **정중 표지가 하나라도** 있어야 한다.
 
     1397 «얼마야?»·«나는 미국 사람» / 1398 t9 「잘 못 들었다」 가 정답 반응을 받았다(B 유형). 지시문이
     «반말은 passed 가 아니다» 라고 해도 LLM 이 어겼다 — 그래서 코드가 한 번 더 본다.
     · 표면형이 반말/명사형이면 항상 참(볼 표지가 없다).
-    · «요» 표지는 **어절 끝**만 본다 — «요리»·«필요한» 의 «요» 는 표지가 아니다.
+
+    ## ⭐ 2026-10-03 — **표지 «종류» 일치는 요구하지 않는다**(결함② 수정, docs/plans/2026-10-03-표현학습-격식판정-결함2건.md)
+    종전엔 표면형의 마지막 표지 **그 글자**로 끝나야 참이었다. 그 요구엔 근거가 없고 실제로 **정답을 기각했다**:
+      · `polite_marker` 는 「표면형이 이 글자로 끝나나」만 본다 ⇒ 사전형 어휘 「다니다」·「아니다」·「지니다」(ko 어휘에서
+        `니다` 로 무장되는 11건 **전부**가 사전형이다)·명사 「개요」·ja 「クリスマス」「ますます」 에 게이트가 **잘못 켜진다.**
+        그러면 항목 「다니다」에 「여행을 자주 **다녀요**」 라고 답한 학습자가 반말로 기각된다.
+      · 같은 locked 폴더의 격식 줄(`core/prompts/locked/expression.py:23`)은 격식 표지를 «-요·-습니다» 로 **열거**한다 —
+        종류 일치가 아니라 **유무**가 기준이다.
+      · 이 함수의 목적은 이름 그대로 «정중함을 유지했나» 다. 「감사합니다」는 어느 기준으로도 반말이 아니다.
+    실측(assets/curriculum_v3 전수): 정중 표면형 항목의 예문을 그대로 말한 학습자가 기각되는 수가 **ko 26→1 · ja 19→4**,
+    남은 것은 **전부 진짜 반말 예문**이다. 적대 반말 19종(「얼마야?」·「나는 미국 사람」·「私はカーラだ」…)은 **전부 기각 유지**.
+    ⛔ 되돌리지 마라 — 되돌리면 위 어휘·ja 어휘 19건이 다시 «정답인데 반말» 로 기록된다.
     """
-    m = polite_marker(surface, language)
-    if m is None:
+    if polite_marker(surface, language) is None:
         return True
-    raw = text or ""
-    # ⭐ T18 (통화 1407 #7) — STT 가 「만나서 반갑습니 다.」 처럼 **어절 안에 공백**을 넣는다. 원문 어절만 보면 어느 어절도
-    #   «니다» 로 끝나지 않아 자발 정답이 반말로 기각됐다. 그래서 세 겹으로 본다 — 원문 어절 끝 / 문장부호로 가른 절을
-    #   normalize(공백 제거·NFC)한 끝 / 전체를 normalize 한 끝. 어느 하나라도 표지로 끝나면 참.
-    #   ⚠ «요» 는 여전히 **끝**만 본다 — 「요리 좋아」 의 «요» 는 어디로 봐도 끝이 아니다.
-    candidates = list(raw.split()) + _CLAUSE_SPLIT_RE.split(raw) + [raw]
-    if language == "ja":
-        candidates += re.split(r"[。！？!?]+", raw)             # ja 절 경계 — 종결 뒤 다른 절이 와도 «…です。» 를 잡는다
-    for c in candidates:
-        if normalize(c, language).endswith(m):
-            return True
-    return False
+    return has_polite_marker(text, language)
 
 
 # --------------------------------------------------------------------------- #
