@@ -2227,6 +2227,32 @@ def _apply_off_set_pass(state: _CallState, n: int, why: str) -> None:
     logger.info("normalcall 표현학습 퀴즈 판정(LLM·세트 밖): call_id=%s 항목 %d «%s» passed + covered (%s)", _cid(state), n, surface, why)
 
 
+def _verify_llm_formality(state: _CallState, span: list[tuple[int, str, str]], n: int) -> bool:
+    """⭐ 2026-10-03 — LLM 이 passed 라고 **제안한** 항목에 격식(V4)을 코드가 한 번 더 본다(관통원칙 ①: AI 는 증인·판정은 코드).
+
+    `_server_judge_quiz`(:1997)·`_verify_stt_fallback`(:2046)·`_grace_off_set_server_pass`(:2207) 는 전부 `keeps_formality` 를
+    통과시켰는데 **LLM 경로 두 곳만 안 봤다** — 그래서 반말이 passed 로 들어왔다(1397 «얼마야?»·«나는 미국 사람», 1398 t9).
+    `quiz_judge.py:228` 과 판정기 지시문(`seeds.expression_quiz_verdict_instruction` — «정중형 항목에 반말만이면 passed 가
+    아니다 … 이 규칙이 읽기가 같으면 통과보다 우선한다»)이 요구하는 것을 코드가 집행한다.
+
+    ## 어느 발화를 보나 — 2단(`ExpressionVerdictItem` 에 세그먼트 번호가 없다)
+    판정기 출력은 num/verdict/why 뿐이라 «학습자가 어느 발화로 답했나» 를 모른다(why 는 지시문이 20자로 묶어 인용 보장이 없다).
+      ① 창 안 U 중 그 항목이 **문자열로 찾히는 것이 있으면** 그것들만 본다 — 답을 집어낼 수 있을 때는 정밀하게.
+      ② 하나도 못 찾으면 **창 안 U 전체**에서 하나라도 정중하면 통과 — LLM 경로의 존재 이유가 «문자열이 못 보는 의역·음차·STT
+         변형»(「どうも」→「도모」)이라, 여기서 엄격하게 굴면 게이트가 **정답을 전부 기각**한다.
+    ⚠ 알려진 미탐: 정중한 답과 반말 답이 한 창에 섞이고 **반말 쪽이 문자열로 안 찾히면** ②가 창 전체를 봐서 통과한다.
+      세그먼트 번호 없이는 원리적으로 못 가른다 — 닫으려면 스키마(answer_seg)+판정기 지시문(locked)이 같이 가야 한다.
+    ⛔ 거짓이면 **pending** 이다(failed 가 아니다 — `quiz_judge.py:239-241` 「침묵 ≠ 오답」). 호출부가 그렇게 쓴다.
+    """
+    _iid, surface = _num_item(state, n)
+    if not surface or quiz_judge.polite_marker(surface, language=state.target_code) is None:
+        return True                        # 반말/명사 항목 — 볼 표지가 없다
+    users = [text for _i, role, text in span if role == "user"]
+    example = _item_example(state, n)
+    located = [t for t in users if quiz_judge.item_mentioned(t, surface, example, language=state.target_code)]
+    return any(quiz_judge.keeps_formality(t, surface, language=state.target_code) for t in (located or users))
+
+
 async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool,
                               grace: bool = False) -> dict:
     """판정기 1콜 → 항목별 passed/failed/pending 을 서버가 적용(passed 단조 — failed 는 passed 를 못 지운다). 확정(passed·failed)은 같은 퀴즈(seq)
@@ -2293,6 +2319,10 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
                     # 9차 A② — 단조 보강: 유예는 새 사건이 아니라 같은 사건의 꼬리라, 이미 failed 로 확정된 항목을 passed 로 덮지 않는다.
                     logger.info("normalcall 표현학습 유예 판정 기각(이미 오답 확정): call_id=%s 항목 %d «%s»", _cid(state), n, surface)
                     continue
+                if not _verify_llm_formality(state, span, n):
+                    # 2026-10-03 결함① — 세트 밖도 같은 격식 게이트를 받는다(세트 밖은 passed 만 적용하므로 기각 = 기록 0).
+                    logger.info("normalcall 표현학습 퀴즈 판정 기각(격식·세트 밖): call_id=%s 항목 %d «%s»", _cid(state), n, surface)
+                    continue
                 _apply_off_set_pass(state, n, str(getattr(v, "why", "") or "")[:40])
                 out.setdefault("off_set_passed", []).append(n)
             continue
@@ -2305,6 +2335,16 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         verdict = str(getattr(v, "verdict", "") or "").strip().lower()
         out["why"][n] = str(getattr(v, "why", "") or "")[:40]
         if verdict == "passed":
+            if not _verify_llm_formality(state, span, n):
+                # ⭐ 2026-10-03 결함① — 반말 산출은 passed 가 아니다. **미판정**으로 둔다(failed 로 바꾸지 않는다 —
+                #   침묵 ≠ 오답). llm_decided 에도 안 넣으므로 **창이 열려 있는 동안은** 다음 턴 판정·닫힘 판정이 그 자리를 다시 본다.
+                #   ⚠ 독립 QA 지적(정확하다): `final=True` 에서 걸리면 그 뒤엔 아무것도 안 돈다 — 서버 문자열 폴백은 LLM 결과가
+                #     **None 일 때만** 돌기 때문이다(아래 `if result is None`). 그래도 결과는 안전한 쪽이다(기록 0, failed 아님).
+                #     거기서 `_server_judge_quiz` 를 더 돌려도 같은 `keeps_formality` 를 쓰므로 통과로 바뀌지 않는다.
+                out["pending"].append(n)
+                logger.info("normalcall 표현학습 퀴즈 판정 기각(격식): call_id=%s seq=%d 항목 %d «%s» → 미판정",
+                            _cid(state), seq, n, _num_item(state, n)[1])
+                continue
             state.expr_quiz_pass.add(iid)
             state.expr_quiz_fail.discard(iid)
             out["passed"].append(n)
