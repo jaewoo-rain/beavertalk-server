@@ -68,6 +68,7 @@
 |---|---|---|---|
 | 7 | `_hint_instruction` | `call_session.py` | 통화중, 비버 턴 끝난 뒤 백그라운드(커리큘럼 언어만). **캐스케이드도 재사용** |
 | 8 | `_analysis_instruction` + `_DETECTION_INSTRUCTION` | `domains/learning/service/normalcall_service.py` | 통화후 1콜. **캐스케이드도 재사용**(`live._trigger_analysis`) |
+| 8b | `_title_instruction` (+ 공용 `_summary_field_rule`) | `normalcall_service.py` | 통화후 **제목만** 먼저 1콜(2026-10-04 PM-DEC-362). 분석과 나란히. `summary` 출력 규칙은 #8 과 **같은 객체** |
 | 9 | `_leveltest_turn_instruction` | `normalcall_service.py` | 레벨테스트 매 턴(종료 판정 전용) |
 | 10 | `_leveltest_instruction` | `normalcall_service.py` | 레벨테스트 통화후(최종 레벨) |
 
@@ -234,6 +235,44 @@
 ## §8. 결정 로그
 
 > 노션 결정 로그(2026-07-24 ~ 08-01)는 `notion-02` §5 에 보존돼 있다. 여기부터는 그 뒤를 잇는다.
+
+### 2026-10-04 — 제목을 분석에서 떼어낸다(PM-DEC-362). summary 규칙은 **복제가 아니라 공유**
+
+통화후 제목(`call.summary`)이 분석 1콜(**실측 6,016ms** · 사고 394토큰)을 통째로 기다렸다 —
+표현·현지인표현·격려와 한 커밋이기 때문이다. 제목만 경량 1콜로 떼어냈다
+(**실측 984~1,313ms** · 사고 **0** · 출력 1필드).
+
+| # | 무엇 | 왜 |
+|---|---|---|
+| ① | `_analysis_instruction` 의 summary 규칙 3줄을 `_summary_field_rule(label)` 로 뽑아 **1단계와 공유** | 두 벌이면 한쪽만 고쳐져 **같은 화면의 제목 톤이 경로마다 갈린다**. 리팩터 결과는 **바이트 동일**(locale·target 5쌍 대조 확인) |
+| ② | `_title_instruction` 신설 — 공유 규칙 + **모국어 못박기 2줄** | ⇩ |
+
+⛔ **②가 없으면 제목이 한국어로 나온다.** 공유 규칙만 주고 돌린 실측:
+
+| locale | 공유 규칙만 | 못박기 2줄 추가 |
+|---|---|---|
+| en 짧은 | `'-고 싶어요'와 '-아/어 보세요' 배우기` ⛔ | `Weekend hiking plans` ✅ |
+| en 긴(4,000자) | `등산 계획과 커피 취향` ⛔ | `Weekend hiking plans` ✅ |
+| ja | `'-고 싶어요'와 '-아/어 보세요'` ⛔ | `韓国語の文法と単語` ✅ |
+
+⭐ **같은 규칙인데 2단계는 영어로 냈다** — 분석 지시문엔 `translation`·`feedback` 이
+label 을 세 번 더 말해 주는 맥락이 있다. **규칙의 세기는 규칙 글자 수가 아니라 그 규칙이
+몇 번 떠받쳐지는가로 정해진다** — 출력이 1필드인 콜은 그 떠받침이 0이라 전사 언어에 끌려간다.
+⇒ 지시문을 **잘라서 재사용할 때는 잘려 나간 맥락만큼을 그 자리에서 벌충해야 한다.**
+
+- ⛔ 리터럴 예시를 안 넣었다(원칙 2) — 「옮겨 적지 말고 무슨 얘기를 했는지 적어라」 전진 지시.
+- ⛔ `_leveltest_instruction` 의 summary 규칙(예시 없는 판정관 판)은 **안 건드렸다**.
+  1단계가 이기므로 레벨테스트 제목도 #8 톤으로 수렴한다.
+- ⚠ 모델: `gemini-2.5-flash-lite` 는 **404**(신규 사용자 차단), `gemini-3.5-flash-lite`·
+  `gemini-flash-lite-latest` 는 `thinking_budget=0` 에 **400**. ⇒ `TITLE_MODEL=""`
+  (= `JUDGE_MODEL`). 상세는 `core/config.py` 주석.
+- ⚠ **효과 미확정** — 실통화로 확인하기 전엔 고쳐졌다고 말하면 안 된다. 볼 것:
+  로그 `normalcall 제목 선생성: 저장 NNNms 제목='...'` 의 ①ms ②제목이 **모국어**인가
+  ③`건너뜀(분석이 먼저 끝났다 — status=done)` 이 뜨는 빈도.
+- 시험: `tests/test_title_first_analysis.py` 33건. 상세 설계·실측은
+  `docs/plans/2026-10-04-통화분석-2단계분리-제목먼저.md`.
+
+---
 
 ### 2026-09-30 (2차) — 레벨테스트에 **DB 캐릭터를 주입**하고 빈정거림 축을 «회피»로 옮긴다 (해시 재기준 3a101631 → 2dd8376b)
 

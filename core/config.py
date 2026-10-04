@@ -161,6 +161,21 @@ class Settings(BaseSettings):
     LIVE_MODEL_VIDEO_VERTEX: str = ""  # ⛔ 3.1 은 Vertex 에 없다 — 비워 둔다(실측 1008)
 
     JUDGE_MODEL: str = "gemini-2.5-flash"          # 통화후 분석(generateContent)
+    # ⭐ 제목 선생성 1콜(PM-DEC-362, 2026-10-04 — normalcall_service.build_call_title).
+    #   «날짜·통화시간은 바로, 제목도 바로, 분석은 나중» 을 위해 분석과 **나란히** 도는
+    #   경량 콜이다(출력 1필드 · thinking_budget=0). 비면 JUDGE_MODEL 폴백(_title_model).
+    #
+    # ⛔⛔ **비워 둔 이유 = flash-lite 를 못 쓴다**(2026-10-04 AI Studio 실호출로 확인):
+    #   - `gemini-2.5-flash-lite` → **404** "no longer available to new users"
+    #     (요청서가 제안한 모델이다. 단가표엔 아직 행이 남아 있지만 호출이 안 된다)
+    #   - `gemini-3.5-flash-lite` · `gemini-flash-lite-latest` → `thinking_budget=0` 에
+    #     **400 INVALID_ARGUMENT**. 예산을 빼면 돌지만(≈1.0s) 그러면 추론을 못 끄고,
+    #     게다가 LLM_TOKEN_PRICE_USD 에 **단가 행이 없어** 원가가 «미상» 으로 잡힌다.
+    #   ⇒ 지금 «추론 0 을 실제로 끌 수 있고 + 단가가 있는» 모델은 JUDGE_MODEL 뿐이다.
+    #     실측: `gemini-2.5-flash` tb=0 → 1.0~1.3초 · thoughts **0** · in 703/out 8.
+    #     (대조군 2단계 분석 1콜은 같은 전사에서 6.0초 · thoughts 394)
+    #   ⚠ 나중에 lite 로 내리려면 **단가 행 추가 + thinking 실측**을 같이 해라.
+    TITLE_MODEL: str = ""
     # §6·§10(2026-09-29) 표시 문구 요청 시 번역(core/text_translate). 분석과 별개 경로·별개 설정.
     # 읽기 API 안에서 동기로 돌아서 타임아웃이 곧 첫 조회 지연 상한이다 — 넘으면 원문/null.
     TRANSLATE_MODEL: str = "gemini-2.5-flash"

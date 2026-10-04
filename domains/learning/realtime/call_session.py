@@ -4536,6 +4536,28 @@ def _trigger_analysis(
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
 
+    # ⭐⭐ **제목은 분석과 나란히 돈다**(PM-DEC-362, 2026-10-04 — 1단계/2단계 분리).
+    #   앱 대기 화면은 날짜·통화시간을 먼저 띄우는데 제목(`call.summary`)만 위 분석 1콜
+    #   (표현·현지인표현·격려·검출, **실측 6.0초** — 사고 토큰 394)을 통째로 기다렸다 —
+    #   한 커밋이기 때문이다
+    #   (`_save_analysis`). 제목이 필요한 재료는 **전사뿐**이고 전사는 저장 시점에 이미
+    #   DB 에 있으니(바로 위 `_persist_remaining` 이 커밋했다) 기다릴 이유가 없다 —
+    #   아래 이어하기 요약이 분석을 기다리지 않는 것과 **같은 근거**다.
+    #   ⛔ 콜타입으로 가르지 않는다. 레벨테스트도 같은 전사를 보고 같은 «핵심 소재
+    #     명사구» 를 요구하며(레벨 판정은 band·feedback_for_learner 가 따로 담는다),
+    #     앱은 통화 종류로 화면을 가르지 않는다 — 빼면 레벨테스트만 제목이 늦는다.
+    #   ⛔ status 를 안 건드린다 — 결과 화면 폴링을 푸는 것은 계속 2단계의 done 이다.
+    #   ⚠ 실패해도 아무것도 안 깨진다 — 2단계가 현행대로 제목을 채운다(R5).
+    title_task = asyncio.create_task(
+        svc.build_call_title(
+            call_id, client, settings, db_session_factory,
+            locale=locale, target_language=target_language, locale_label=locale_label,
+        ),
+        name=f"normalcall-title-{call_id}",
+    )
+    _analysis_tasks.add(title_task)
+    title_task.add_done_callback(_on_analysis_done)
+
     # ⭐⭐ **이어하기 요약은 분석과 나란히 돈다**(2026-08-19 실측: 준비까지 7초 걸렸다).
     #   전에는 `analyze_call` **안에서, 분석이 끝난 뒤에** 돌렸다. 그래서 요약 LLM 자체는
     #   1초인데 앞의 분석 5초를 통째로 기다렸다:

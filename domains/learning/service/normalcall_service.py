@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Literal, NamedTuple, Optional, TypeVar
@@ -2018,7 +2019,10 @@ def _tts_cost_usd(entry: dict | None) -> tuple[float, list[str]]:
 # usage_json 안의 **엔진 무관** 곁가지 사용량 키. Live 통화든 캐스케이드 통화든 이것들은
 # 똑같이 돈다 — 그래서 engine 분기 **안이 아니라 위**에서 더한다.
 # ⛔ 단위가 다르므로 **키를 섞지 마라**: LLM 키는 토큰, TTS 키는 문자(또는 오디오 초)다.
-SIDE_LLM_KEYS = ("sidecars", "analysis")
+# ⭐ "title" = 제목 선생성 1콜(PM-DEC-362, 2026-10-04). 분석과 **나란히** 도는 별도 콜이라
+#   `analysis` 와 키를 공유하면 서로를 덮어쓴다(add_call_usage_extra 는 같은 키를 덮는다).
+#   여기 등록하는 것만으로 estimate_side_cost_usd → estimate_call_cost_usd 가 더한다.
+SIDE_LLM_KEYS = ("sidecars", "analysis", "title")
 SIDE_TTS_KEYS = ("tts",)
 SIDE_USAGE_KEYS = SIDE_LLM_KEYS + SIDE_TTS_KEYS   # "이 통화가 곁가지를 쟀나" 판정용
 
@@ -2422,6 +2426,26 @@ class CallAnalysis(_CallAnalysisBase):
     detections: list[ItemDetection] = Field(default_factory=list)
 
 
+def _summary_field_rule(label: str) -> str:
+    """⭐ `summary`(= 통화 제목) 출력 규칙 **한 벌**. 끝에 개행 포함.
+
+    ⛔⛔ **복제하지 마라.** 이 규칙을 쓰는 곳이 둘이다 —
+      ① 통화후 분석 1콜(`_analysis_instruction`, 2단계)
+      ② 제목 선생성 1콜(`_title_instruction`, 1단계 — PM-DEC-362)
+      두 벌로 두면 한쪽만 고쳐져 **같은 화면의 제목 톤이 경로마다 갈린다**(어느 쪽이
+      먼저 끝났느냐에 따라 제목이 달라진다 — 사용자에겐 무작위로 보인다).
+    ⭐ **예시 3개를 반드시 품는다**(prompts/README §3 원칙 4 — 모델은 규칙과 예시가
+      다르면 예시를 따른다). 1단계는 경량 모델이라 예시 의존도가 더 높다.
+    ⚠ 이 함수를 뽑아낸 시점(2026-10-04)의 출력은 옛 `_analysis_instruction` 과
+      **바이트 동일**이다 — 리팩터이지 프롬프트 변경이 아니다.
+    """
+    return (
+        "- summary 는 통화의 핵심 소재를 " + label + " 로 아주 짧게 요약한다. "
+        "완결된 문장이 아니라 주제를 나타내는 명사구로, 주어·서술어 없이 2~4어절 이내. "
+        "ex) 강아지 산책과 음악 취향 / 주말 여행 계획 / 좋아하는 한국 음식\n"
+    )
+
+
 def _analysis_instruction(
     locale: str, target_language: str = "한국어", locale_label: str | None = None
 ) -> str:
@@ -2441,10 +2465,8 @@ def _analysis_instruction(
         f"- korean 에는 반드시 '올바른 최종 {target_language}'만 넣는다(어색한 발화·오류형 금지).\n"
         "- translation 은 각 표현을 " + label + " 로 번역.\n"
         "- 위 3종에 해당하는 학습 포인트가 없으면 expressions 는 빈 배열([]).\n"
-        "- summary 는 통화의 핵심 소재를 " + label + " 로 아주 짧게 요약한다. "
-        "완결된 문장이 아니라 주제를 나타내는 명사구로, 주어·서술어 없이 2~4어절 이내. "
-        "ex) 강아지 산책과 음악 취향 / 주말 여행 계획 / 좋아하는 한국 음식\n"
-        "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
+        + _summary_field_rule(label)
+        + "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
         "- feedback 은 통화 '전체'를 돌아보며 학습자를 다독이는 격려 코칭을 " + label + " 로 "
         "딱 1문장 쓴다(비버 선생님이 직접 건네는 따뜻한 말투, 과장·오글거림 금지). "
         "통화의 구체적인 순간 하나를 짧게 언급하되, 점수·레벨·숫자·'틀렸다'는 절대 쓰지 않는다. "
@@ -2860,9 +2882,16 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
     """
     call = db.get(Call, call_id)
     if call is not None:
-        call.summary = result.summary
-        # §10(2026-09-29) — 요약을 실제로 쓴 언어(목록이 회원의 지금 언어와 비교한다).
-        call.summary_lang = display_i18n_service.summary_lang_for(locale)
+        # ⛔⛔ PM-DEC-362(2026-10-04) — **1단계 제목이 이미 있으면 덮지 않는다.**
+        #   제목은 통화 저장 직후 경량 LLM 1콜(`build_call_title`)이 먼저 쓴다. 여기서
+        #   덮으면 **대기 화면에 떴던 제목이 결과 화면에서 바뀐다** — 사용자에겐 무작위다.
+        #   1단계가 실패했으면 이 칸은 비어 있으니 종전대로 여기서 채운다(폴백 유지).
+        #   ⚠ `summary_lang` 은 `summary` 와 **한 쌍**이다 — 따로 쓰면 목록의 «이미 회원
+        #     언어다» 판정이 어긋난다. 그래서 같은 분기 안에 둔다.
+        if not (call.summary or "").strip():
+            call.summary = result.summary
+            # §10(2026-09-29) — 요약을 실제로 쓴 언어(목록이 회원의 지금 언어와 비교한다).
+            call.summary_lang = display_i18n_service.summary_lang_for(locale)
         call.mode = result.detected_mode
         # 요구1: 격려 한마디 저장(같은 커밋). 파싱 누락·데모·빈통화 폴백은 자연 None.
         call.feedback = getattr(result, "feedback", "") or None
@@ -3166,6 +3195,224 @@ async def analyze_call(
             "normalcall 분석: done 이후 후행 단계 예외(무시 — status=done 유지) call_id=%s (%s)",
             call_id, exc,
         )
+
+
+# --------------------------------------------------------------------------- #
+# 1단계 — 제목 선생성 (PM-DEC-362, 2026-10-04)
+#
+# 🧒 왜 따로 있나: 통화가 끝나면 앱은 대기 화면에 **날짜·통화시간을 먼저** 띄운다. 그런데
+#   제목(`call.summary`)은 통화후 분석 1콜(표현 추출 + 현지인 표현 짝 + 격려 + 항목 검출)과
+#   **한 커밋**이라(`_save_analysis`) 제목 하나 때문에 그 전부를 기다렸다.
+#   실측(2026-10-04, 같은 전사 1건): 분석 1콜 **6,016ms**(in 1214 / out 857 / 사고 394)
+#                                   제목 1콜 **984~1,313ms**(in 703 / out 8~19 / 사고 **0**)
+#   제목이 필요한 재료는 **전사뿐**이고 전사는 통화 저장 시점에 이미 DB 에 있다 —
+#   이어하기 요약(`build_resume_context`)이 분석을 기다릴 이유가 없던 것과 **같은 구조**다.
+#
+# ⛔ 상태값(`status`)을 새로 만들지 않는다 — 요청서의 핵심 설계다. 1단계는 `analyzing` 을
+#   그대로 두고, 앱이 **「summary 가 차 있나」**로 판단한다.
+# ⛔ 테이블·열도 안 늘린다(마이그레이션 0건) — 쓰는 칸은 기존 `call.summary`/`summary_lang`.
+# --------------------------------------------------------------------------- #
+class CallTitle(BaseModel):
+    """제목 선생성 1콜의 출력 — **1필드뿐**이다.
+
+    ⛔ 필드를 늘리지 마라. 이 콜의 존재 이유가 «짧아서 빠르다» 이고, 필드가 늘면
+      그만큼 출력 토큰·지연이 늘어 2단계를 앞지르지 못한다(그러면 아무 의미가 없다).
+    """
+
+    summary: str
+
+
+def _title_instruction(
+    locale: str, target_language: str = "한국어", locale_label: str | None = None
+) -> str:
+    """제목 선생성용 시스템 지시문 — 출력 규칙은 **분석 지시문과 같은 객체**를 쓴다.
+
+    ⭐ `_summary_field_rule` 공유가 이 함수의 핵심이다(복제하면 톤이 갈린다 — 그 함수
+      독스트링 참조). 여기서 추가로 적는 것은 «무엇을 읽고 무엇만 내라» 는 역할뿐이다.
+
+    ⛔⛔ **모국어 못박기 2줄은 지우지 마라**(2026-10-04 실측으로 들어온 줄이다).
+      같은 `summary` 규칙만 주고 돌렸더니 제목이 **한국어로 나왔다** — 규칙 안의
+      `{label} 로 요약한다` 한 번으로는 전사의 한국어에 끌려간다:
+
+        | locale | 공유 규칙만(v0) | 못박기 2줄 추가(v1) |
+        |---|---|---|
+        | en 짧은 통화 | `'-고 싶어요'와 '-아/어 보세요' 배우기` ⛔ | `Weekend hiking plans` ✅ |
+        | en 긴 통화(4,000자) | `등산 계획과 커피 취향` ⛔ | `Weekend hiking plans` ✅ |
+        | ja | `'-고 싶어요'와 '-아/어 보세요'` ⛔ | `韓国語の文法と単語` ✅ |
+
+      ⚠ 2단계(분석 지시문)는 같은 규칙으로 영어 제목(`Weekend hiking plans`)을 냈다 —
+        거기엔 `translation`·`feedback` 이 label 을 세 번 더 말해 주는 맥락이 있다.
+        제목 콜은 출력이 1필드라 그 맥락이 없어서, 그만큼을 여기서 벌충한다.
+      ⚠ 리터럴 예시를 넣지 않았다(prompts/README §3 원칙 2 — 금지 예시는 씨앗이 된다).
+        «옮겨 적지 말고 무슨 얘기를 했는지 적어라» 라는 전진 지시로 썼다.
+    """
+    label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL["en"])
+    return (
+        f"너는 {target_language} 학습자와 AI 선생님(비버)의 통화 전사를 읽고 "
+        f"**통화 제목 한 줄**만 만드는 도구다. 제목은 학습자가 읽는 글이고 "
+        f"학습자의 언어는 {label} 다. JSON 으로만 출력하라.\n"
+        "[출력 필드 규칙]\n"
+        + _summary_field_rule(label)
+        + f"- ⛔ summary 는 **{label} 로만** 쓴다. 전사가 {target_language} 로 가득해도 "
+        f"그 글자를 옮겨 적지 말고, 무슨 얘기를 했는지를 {label} 로 적어라.\n"
+        "- 전사가 음성인식 결과라 부정확할 수 있다. 확실히 오간 소재만 쓰고, "
+        "없는 내용을 지어내지 마라.\n"
+        "- summary 외의 어떤 것도 출력하지 마라(평가·레벨·점수·조언 금지)."
+    )
+
+
+#: 1단계가 손을 떼는 상태. `_save_analysis`/`_save_level_assessment` 가 제목·`status=done`
+#: 을 **한 커밋**으로 쓰므로, `done` 은 «2단계가 끝났고 결과 화면이 열렸다» 와 동의어다.
+_TITLE_DONE_STATUS = "done"
+
+
+def _title_is_settled(call: Call | None) -> bool:
+    """제목을 더 이상 건드리면 안 되는 상태인가 — **`status=done` 이냐**로 가른다.
+
+    ⛔⛔ **«제목이 이미 있나» 로 가르지 마라**(처음에 그렇게 썼다가 QA 에서 뒤집었다).
+      `_trigger_analysis` 는 통화 1건에 **조각마다** 다시 돈다(이어하기 — `resume_call`
+      이 `status` 를 ongoing 으로 되돌리고, 조각이 끝나면 `_persist_remaining` 이
+      analyzing 으로 되돌린다). «있으면 안 쓴다» 로 두면:
+
+        조각1 끝 → 1단계가 **조각1 전사만** 보고 제목을 박는다
+        조각2 끝 → 1단계는 «있다» 고 건너뛰고, 2단계도 «있다» 고 건너뛴다
+        ⇒ 15분 통화의 제목이 **처음 5분**만 설명한다(종전엔 조각2 분석이 전사
+          **전체**로 다시 썼다 — 조용한 품질 하락이었다)
+
+    ⭐ `done` 기준이면 둘 다 만족한다:
+      - 조각2 의 1단계는 `_resume_transcript`(그 통화의 **모든** 행)로 다시 써서
+        제목이 통화 전체를 설명한다
+      - `done` 이 찍힌 뒤로는 아무도 못 바꾼다 ⇒ **결과 화면에서 제목이 안 흔들린다**
+        (2단계가 먼저 끝난 짧은 통화 = 경합도 여기서 막힌다)
+    """
+    return call is not None and (call.status or "") == _TITLE_DONE_STATUS
+
+
+def _save_call_title(db: Session, call_id: int, summary: str, locale: str) -> bool:
+    """제목만 선저장한다. 썼으면 True.
+
+    ⛔ `status` 는 한 글자도 안 건드린다 — 결과 화면 폴링이 풀리는 조건은 계속
+      2단계의 `status="done"` 이다(1단계가 풀면 빈 결과 화면이 열린다).
+    ⛔ `summary_lang` 을 같이 쓴다 — 둘이 갈라지면 목록이 «이미 회원 언어다» 를 틀린다
+      (`display_i18n_service.summary_lang_for` 가 유일한 규칙).
+    ⚠ 커밋 직전에 `_title_is_settled` 를 **다시** 본다(읽고 쓰는 사이에 2단계가 끝날 수
+      있다 — `_title_materials` 의 선검사만으로는 그 틈이 안 닫힌다).
+    """
+    call = db.get(Call, call_id)
+    if call is None or _title_is_settled(call):
+        return False
+    call.summary = summary
+    call.summary_lang = display_i18n_service.summary_lang_for(locale)
+    db.commit()  # R3 — 쓰기는 service 가 명시적으로 커밋
+    return True
+
+
+async def _save_title_usage(session_factory, call_id: int, usage) -> None:
+    """제목 LLM 몫을 `usage_json.title` 에 얹는다(R5 — 어떤 실패도 삼킨다).
+
+    ⛔ `analysis` 키에 합치지 마라 — `add_call_usage_extra` 는 같은 키를 **덮어쓴다**.
+      제목 태스크와 분석 태스크는 나란히 도니, 한 키를 공유하면 서로를 지운다.
+    ⭐ 원가는 `SIDE_LLM_KEYS` 에 `"title"` 이 등록돼 있어 `estimate_side_cost_usd` →
+      `estimate_call_cost_usd` 가 **자동으로** 더한다(새 산식 금지 — 입구는 그 함수 하나).
+    """
+    try:
+        entry = usage.as_dict() if usage is not None else None
+        if not entry:
+            return
+        await run_db(
+            session_factory,
+            lambda db: add_call_usage_extra(db, call_id, "title", entry),
+        )
+    except Exception as exc:  # noqa: BLE001 - R5
+        logger.warning("normalcall usage: 제목 몫 기록 실패(무시) call_id=%s: %s", call_id, exc)
+
+
+def _title_model(settings_obj: Settings) -> str:
+    """제목 선생성에 쓸 모델. 비어 있으면 `JUDGE_MODEL` 폴백.
+
+    ⚠ 단가표(`LLM_TOKEN_PRICE_USD`)에 없는 모델을 넣으면 원가가 **0 + «미상»** 으로
+      잡힌다(`_llm_tokens_cost_usd`) — env 로 모델을 바꿀 때 단가 행도 같이 넣어라.
+    """
+    return (getattr(settings_obj, "TITLE_MODEL", "") or settings_obj.JUDGE_MODEL).strip()
+
+
+async def build_call_title(
+    call_id: int, client, settings_obj: Settings, session_factory: sessionmaker,
+    *, locale: str, target_language: str = "한국어", locale_label: str | None = None,
+) -> None:
+    """⭐ 1단계 — 제목만 먼저 만들어 저장한다. **분석·이어하기 요약과 나란히** 돈다.
+
+    `build_resume_context`(이어하기 요약)와 **같은 패턴**이다: 재료는 전사뿐,
+    fire-and-forget, 실패는 경고 1줄로 삼키고 2단계가 현행대로 채운다(R5).
+
+    ⚠ 전사가 비면(아주 짧은 통화·전사 유실) LLM 을 안 부른다 — 2단계도 그 경우
+      `status=done`(빈 결과)으로 끝내므로 제목은 계속 비어 있는 게 맞다.
+    ⚠ **`status=done` 이면 LLM 을 아예 안 부른다**(= 2단계가 먼저 끝났다 — 경합).
+      게이트의 근거는 `_title_is_settled` 독스트링에 있다 — «제목이 있나» 가 아니라
+      «done 이냐» 인 이유가 거기 있다(이어하기 조각2 가 제목을 다시 써야 한다).
+    """
+    t0 = time.monotonic()
+    try:
+        if client is None:
+            return
+        read = await run_db(session_factory, lambda db: _title_materials(db, call_id))
+        if read is None:
+            return                       # status=done · 통화 행이 없다 · 전사가 비었다
+        title_usage = gemini_analysis.LlmUsage()
+        out = await gemini_analysis.generate_structured(
+            client,
+            _title_model(settings_obj),
+            system_instruction=_title_instruction(locale, target_language, locale_label),
+            prompt=read,
+            schema=CallTitle,
+            temperature=0.0,
+            # ⛔ 지연이 이 기능의 전부다 — 추론을 켜면 2단계를 앞지르지 못한다.
+            thinking_budget=0,
+            usage=title_usage,
+        )
+        summary = (getattr(out, "summary", "") or "").strip() if out is not None else ""
+        try:
+            # ⭐ **제목 저장이 계기판보다 먼저다.** 지연이 이 기능의 전부라, usage 기록의
+            #   DB 왕복(수십~100ms)을 제목 앞에 두면 그만큼 화면이 늦는다.
+            if not summary:
+                logger.warning(
+                    "normalcall 제목 선생성: 결과 없음(2단계가 채운다) call_id=%s", call_id
+                )
+                return
+            wrote = await run_db(
+                session_factory, lambda db: _save_call_title(db, call_id, summary, locale)
+            )
+            logger.info(
+                "normalcall 제목 선생성: %s %.0fms 제목=%r call_id=%s",
+                "저장" if wrote else "건너뜀(분석이 먼저 끝났다 — status=done)",
+                (time.monotonic() - t0) * 1000.0, summary, call_id,
+            )
+        finally:
+            # ⛔ **어떤 경로로 나가도 남긴다** — 응답을 받은 시점에 과금은 이미 끝났고,
+            #   파싱이 비었거나 저장이 터져도 그 돈은 나갔다(계기판에 구멍을 안 만든다).
+            await _save_title_usage(session_factory, call_id, title_usage)
+    except Exception as exc:  # noqa: BLE001 — R5: 제목이 없어도 2단계가 채운다
+        logger.warning("normalcall 제목 선생성 실패(2단계가 채운다) call_id=%s — %s", call_id, exc)
+
+
+def _title_materials(db: Session, call_id: int) -> str | None:
+    """제목 1콜의 입력 — 전사 한 덩어리. **제목이 확정됐거나 전사가 비면 None**(LLM 미호출).
+
+    ⛔ DB 접근만(async 없음 — `run_db` 안이다). 전사 읽기는 이어하기 요약이 쓰는 것과
+      **같은 함수**(`_resume_transcript`)다 — 두 벌로 읽으면 잘림 규칙이 갈린다.
+    ⭐ `_resume_transcript` 는 이 통화의 **모든 조각**을 읽는다(조각 필터 없음) — 그래서
+      조각2 의 1단계가 통화 전체를 설명하는 제목으로 다시 쓸 수 있다(`_title_is_settled`).
+    ⚠ 상한은 **마지막 4,000자**다. 5분 통화는 통째로 들어가고 15분 이어하기 통화는
+      뒤쪽이 들어간다 — 실측으로 긴 전사(4,000자)에서도 제목 품질은 유지됐다
+      (`Weekend hiking plans`). 품질 최종 판정은 실통화로.
+    ⚠ 여기서 걸러 주는 덕에 **수동 재분석에서 돈을 두 번 쓰지 않는다**(status 가 done
+      이면 애초에 안 부른다 — 재분석은 failed 만 대상이라 보통 제목도 비어 있다).
+    """
+    call = db.get(Call, call_id)
+    if call is None or _title_is_settled(call):
+        return None
+    tail = _resume_transcript(db, call_id)
+    return tail or None
 
 
 # --------------------------------------------------------------------------- #
@@ -3706,9 +3953,16 @@ def _save_level_assessment(
     mastery_repository.upsert_language_level(db, member_id, language, level_no)
     call.assessed_level = level_no
     call.assessment_note = result.reasoning
-    call.summary = result.summary
-    # §10(2026-09-29) — 요약 언어. locale 을 모르는 호출부(표본 미달 — summary="")는 NULL.
-    call.summary_lang = display_i18n_service.summary_lang_for(locale) if locale else None
+    # ⛔⛔ PM-DEC-362(2026-10-04) — **1단계 제목이 이미 있으면 덮지 않는다**(일반 분석의
+    #   `_save_analysis` 와 같은 규칙 — 그쪽 주석이 근거). 레벨테스트도 1단계 대상이다:
+    #   둘 다 같은 전사를 보고 둘 다 «핵심 소재 명사구» 를 요구하며, 레벨 판정은
+    #   `band`·`feedback_for_learner` 가 따로 담으므로 `summary` 는 판정과 무관한 칸이다.
+    #   ⭐ 덤으로 표본 미달 경로가 멀쩡해진다 — 그 경로는 `summary=""`·locale 없음으로
+    #     들어와 **멀쩡한 제목을 공백으로 덮고 summary_lang 을 NULL 로 되돌렸다.**
+    if not (call.summary or "").strip():
+        call.summary = result.summary
+        # §10(2026-09-29) — 요약 언어. locale 을 모르는 호출부(표본 미달 — summary="")는 NULL.
+        call.summary_lang = display_i18n_service.summary_lang_for(locale) if locale else None
     call.status = "done"
     # ⭐ 레벨 배정 기록(2026-08-16 — grandfathering **제거**): 건너뛴 레벨의 항목을 만들지
     #   않는다. "레벨이 처음 3이면 배운 거 0" — 안 만들면 배정 직후 승급(#247)도, 하락 후

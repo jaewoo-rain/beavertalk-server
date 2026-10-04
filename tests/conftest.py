@@ -56,3 +56,52 @@ def _expr_llm_judge_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     except Exception:  # noqa: BLE001
         return
     monkeypatch.setattr(settings, "EXPR_LLM_JUDGE", False, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _serialize_run_db(monkeypatch: pytest.MonkeyPatch) -> None:
+    """⛔ **시험 전용** — `svc.run_db` 동시 호출을 줄 세운다. 프로덕션 코드는 안 건드린다.
+
+    ## 왜 (2026-10-04, 제목 선생성 PM-DEC-362 를 넣다가 드러났다)
+    시험의 DB 는 `sqlite+pysqlite:///:memory:` + **`StaticPool`** 이다 — 즉 전 세션이
+    **DBAPI 연결 하나**를 공유한다(`:memory:` 는 연결마다 DB 가 따로 생겨서 공유가 유일한
+    선택이다). 그런데 `run_db` 는 `run_in_threadpool` 로 **스레드마다 새 세션**을 연다.
+    통화가 끝나면 백그라운드 태스크가 동시에 여러 개 돈다:
+
+        분석(analyze_call) · 이어하기 요약(build_resume_context) ·
+        자유대화 기억(extract_and_merge_chat_memory) · **제목(build_call_title)**
+
+    둘 이상이 같은 순간에 그 **한 연결**에서 트랜잭션을 열면 sqlite 가 터진다 —
+        `(sqlite3.DatabaseError) cannot start a transaction within a transaction`
+    실측: 전 스위트 부하에서 `test_run_call_persists_segments_and_status` 1건이
+    그 예외로 떨어졌다(파일 단독 실행 6/6 통과 — **부하 의존 flake**다).
+    CLAUDE.md 가 경고하는 «부하에 흔들려 실패 목록이 매번 바뀜» 이 이 종류다.
+
+    ⭐ **프로덕션엔 없는 문제다.** 거기선 `run_db` 가 세션마다 pgbouncer 풀에서
+      **자기 연결**을 받는다 — 동시 실행이 정상 경로다(분석·요약·기억이 이미 그렇게 돈다).
+      그래서 고칠 자리는 프로덕션 코드가 아니라 **시험 하네스**다.
+    ⛔ 태스크를 끄지 않았다 — 끄면 그 시험들이 통화 종료 배관을 더 이상 안 본다.
+      **순서는 그대로**(락은 FIFO) 두고 겹침만 막는다.
+    ⚠ 락을 **이벤트 루프별로** 만든다. 한 시험이 `asyncio.run` 을 여러 번 부르면
+      루프가 갈리고, 하나의 `asyncio.Lock` 을 두 루프에서 쓰면
+      "bound to a different event loop" 로 죽는다.
+    """
+    try:
+        import asyncio as _asyncio
+
+        from domains.learning.service import normalcall_service as _svc
+    except Exception:  # noqa: BLE001 — 여기서 죽으면 전 스위트가 죽는다
+        return
+
+    original = _svc.run_db
+    locks: dict = {}
+
+    async def _serialized(session_factory, fn):
+        loop = _asyncio.get_running_loop()
+        lock = locks.get(loop)
+        if lock is None:
+            lock = locks[loop] = _asyncio.Lock()
+        async with lock:
+            return await original(session_factory, fn)
+
+    monkeypatch.setattr(_svc, "run_db", _serialized)
