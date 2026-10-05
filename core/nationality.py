@@ -9,9 +9,11 @@ core.speechsuper 와 동일한 규율을 따른다:
   조용히 스킵하고 통화·분석은 그대로 진행(graceful degradation, R5).
 
 호출 명세(2026-09-14 GPU 서버 계약 — nationality-api-guide.md):
-- URL     : POST {NATIONALITY_API_URL}/predict
+- URL     : POST {NATIONALITY_API_URL}/predict_long
+            (2026-10-06 PM-DEC-394 · NPU 새 모델 · 모델팀 연동 가이드 v3 — 앞 60초를 `parts`
+             구간으로 나눠 합산 · 녹음 저장 안 함. 옛 `/predict` 는 앞 12초만 봤다)
 - 인증    : X-API-Key: {NATIONALITY_API_KEY} (서버 앞단 프록시가 검사. 비면 헤더 생략)
-- 전송    : multipart/form-data, field `audio` = 오디오 바이트
+- 전송    : multipart/form-data, field `audio` = 오디오 바이트 · `parts` = ceil(초/12), 1~5
 - 성공    : {"top5":[{"label","prob"}, ...], "sec", "encode_ms", "total_ms"}
 - 실패    : 400 {"error","code"} — code ∈ no_speech·too_short·decode_failed
             422 audio 필드 누락 / 401 키 불일치 / 500 server_decoder
@@ -29,8 +31,11 @@ core.speechsuper 와 동일한 규율을 따른다:
 
 from __future__ import annotations
 
+import io
 import logging
+import math
 import time
+import wave
 from typing import Optional
 
 import httpx
@@ -45,6 +50,24 @@ _MIME_TYPES = {
     "mp3": "audio/mpeg",
 }
 _DEFAULT_MIME = "application/octet-stream"
+
+# `/predict_long` 구간 수. 모델 한 번이 12초를 보므로 ceil(초/12) — 앱 서버가 보내는 길이는
+# 10~60초라 1~5 가 된다. 길이를 못 읽으면(WAV 아님 등) 1 — 서버가 12초 넘는 구간을 스스로 늘린다.
+_PART_SEC = 12.0
+_MAX_PARTS = 5
+
+
+def _parts_for(audio_bytes: bytes, audio_type: str) -> int:
+    """녹음 길이로 `parts` 를 정한다. WAV 헤더를 못 읽으면 1."""
+    if audio_type.lower() != "wav":
+        return 1
+    try:
+        with wave.open(io.BytesIO(audio_bytes)) as w:
+            sec = w.getnframes() / float(w.getframerate())
+    except Exception:  # noqa: BLE001 - 길이 힌트일 뿐이다
+        return 1
+    return max(1, min(_MAX_PARTS, math.ceil(sec / _PART_SEC)))
+
 
 # 재시도: 5xx·네트워크·타임아웃만. 시도 사이 대기(초) — 길이+1 이 총 시도 횟수다.
 _RETRY_BACKOFFS_S = (1.0, 2.0)
@@ -108,7 +131,8 @@ def predict_nationality(audio_bytes: bytes, audio_type: str = "wav") -> Optional
         logger.warning("국적 API: 빈 오디오 → 스킵(None)")
         return None
 
-    url = base_url.rstrip("/") + "/predict"
+    url = base_url.rstrip("/") + "/predict_long"
+    parts = _parts_for(audio_bytes, audio_type)
     api_key = (settings.NATIONALITY_API_KEY or "").strip()
     headers = {"X-API-Key": api_key} if api_key else None
     mime = _MIME_TYPES.get(audio_type.lower(), _DEFAULT_MIME)
@@ -122,7 +146,7 @@ def predict_nationality(audio_bytes: bytes, audio_type: str = "wav") -> Optional
     try:
         body = _call_with_retry(
             url=url, headers=headers, audio_bytes=audio_bytes, mime=mime,
-            audio_type=audio_type, timeout=timeout,
+            audio_type=audio_type, timeout=timeout, parts=parts,
         )
     except Exception as exc:  # noqa: BLE001 - 어떤 실패든 통화가 깨지면 안 됨
         logger.warning("국적 API 호출 실패 → None: %s", exc)
@@ -179,6 +203,7 @@ def _call_with_retry(
     mime: str,
     audio_type: str,
     timeout: httpx.Timeout,
+    parts: int = 1,
 ) -> Optional[dict]:
     """국적 API POST 호출. 재시도 대상(네트워크·타임아웃·5xx)만 _RETRY_BACKOFFS_S 만큼 재시도.
 
@@ -192,7 +217,9 @@ def _call_with_retry(
         try:
             files = {"audio": (f"audio.{audio_type}", audio_bytes, mime)}
             with httpx.Client(timeout=timeout) as client:
-                resp = client.post(url, files=files, headers=headers)
+                resp = client.post(
+                    url, files=files, data={"parts": str(parts)}, headers=headers
+                )
             status = resp.status_code
             if 500 <= status < 600:
                 # 서버 오류 → 재시도 대상

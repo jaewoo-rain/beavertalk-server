@@ -148,7 +148,9 @@ def test_success_normalizes_to_internal_shape(monkeypatch):
     assert mime == "audio/wav"
     assert "params" not in calls[0]
     assert calls[0]["headers"] is None
-    assert calls[0]["url"].endswith("/predict")
+    assert calls[0]["url"].endswith("/predict_long")
+    # WAV 헤더가 없으면 길이를 몰라 1 구간(서버가 12초 넘는 구간을 스스로 나눈다)
+    assert calls[0]["data"] == {"parts": "1"}
 
 
 def test_api_key_header_sent_and_stripped(monkeypatch):
@@ -295,3 +297,38 @@ def _boom_client():
             raise AssertionError("httpx.Client 가 호출되면 안 됨")
 
     return _Boom
+
+
+def _wav(seconds: float, rate: int = 16000) -> bytes:
+    import io, wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(bytes(2) * int(seconds * rate))
+    return buf.getvalue()
+
+
+def test_parts_follow_recording_length():
+    """PM-DEC-394 — `/predict_long` 의 parts = ceil(초/12), 1~5(모델 1회 = 12초)."""
+    assert natl._parts_for(_wav(10.0), "wav") == 1
+    assert natl._parts_for(_wav(12.0), "wav") == 1
+    assert natl._parts_for(_wav(12.5), "wav") == 2
+    assert natl._parts_for(_wav(30.0), "wav") == 3
+    assert natl._parts_for(_wav(60.0), "wav") == 5
+    assert natl._parts_for(_wav(90.0), "wav") == 5, "앱 서버는 60초까지만 모으지만 상한 5"
+    assert natl._parts_for(b"not a wav", "wav") == 1
+    assert natl._parts_for(b"mp3bytes", "mp3") == 1
+
+
+def test_parts_sent_with_wav_length(monkeypatch):
+    """실제 WAV 를 보내면 길이로 구간 수가 실린다(30초 → 3)."""
+    _set_url(monkeypatch)
+    calls: list = []
+    monkeypatch.setattr(
+        natl.httpx, "Client", _make_client_factory([_FakeResponse(200, _ok_body())], calls)
+    )
+    assert natl.predict_nationality(_wav(30.0), audio_type="wav") is not None
+    assert calls[0]["url"].endswith("/predict_long")
+    assert calls[0]["data"] == {"parts": "3"}
