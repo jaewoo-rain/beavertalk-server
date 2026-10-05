@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeaverTalk · GPT 표현학습 통화 QA 콘솔</title>
+<!--
+  ⭐ 이 페이지의 목적은 «통화 체험» 이 아니라 **관측**이다.
+     OpenAI Realtime 표현학습 통화를 들으면서, 지금까지 Cloud Logging 을 봐야 알던 것들을
+     화면에서 바로 보게 한다: 수신 JSON 전문 · 자막 2줄 · error 프레임 · set_face 누출 ·
+     쪽지 낭독 · fragment_saved · 경과/남은 시간 · 턴 수 · 비버 발화 누적 초 · 종료 사유.
+
+  ⛔ 조각 전환을 **구현하지 않는다.** `remaining_s`·`max_fragments`·`fragment_index` 가
+     와도 무시하고 화면에만 적는다(오면 그게 발견이다 — OpenAI 경로는 조각이 없다).
+  ⛔ 통화 길이 종료는 **클라가 자기 시계로** 결정한다. 서버에 남은 초를 묻지 않는다.
+  ⛔ 외부 CDN·프레임워크 0. 순수 JS. 비밀 0(토큰은 사용자가 로그인해 받는다).
+-->
+<style>
+  :root { --bg:#111419; --card:#181B21; --line:#2a2e38; --txt:#e8eaed; --sub:#9aa0a6;
+          --pri:#00FFB2; --good:#1ED45A; --warn:#FFA938; --bad:#FF5A5A; --info:#6ec8ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,Segoe UI,Pretendard,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:18px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .muted { color:var(--sub); font-size:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin:12px 0; }
+  .step { font-size:12px; color:var(--pri); font-weight:700; letter-spacing:.4px; margin-bottom:8px; }
+  input, select { background:#0e0f13; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:7px 9px; }
+  button { background:var(--pri); color:#08110d; border:0; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer; }
+  button.sec { background:#2a2e38; color:var(--txt); }
+  button.danger { background:#5a2020; color:#ffd9d9; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--good); }
+  .dot.warn { background:var(--warn); }
+  /* 계기판 */
+  .gauges { display:flex; gap:10px; flex-wrap:wrap; }
+  .g { background:#0e0f13; border:1px solid var(--line); border-radius:10px; padding:8px 12px; min-width:112px; }
+  .g .k { font-size:11px; color:var(--sub); }
+  .g .v { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .g.big .v { color:var(--pri); }
+  /* 경고 */
+  #alerts { min-height:0; }
+  .alert { border-left:4px solid var(--bad); background:#2a1414; color:#ffdede; padding:8px 10px; border-radius:6px; margin:6px 0; font-size:13px; }
+  .alert.orange { border-left-color:var(--warn); background:#2a2114; color:#ffe9c9; }
+  .alert b { color:#fff; }
+  /* 자막 2줄 */
+  .tcol { background:#0e0f13; border:1px solid var(--line); border-radius:8px; padding:8px; height:260px; overflow:auto; }
+  .tcol .hd { font-size:12px; color:var(--sub); margin-bottom:4px; }
+  .turn { padding:5px 6px; border-bottom:1px solid #1e222b; }
+  .turn .meta { font-size:11px; color:var(--sub); }
+  .turn.flag { background:#2a1414; }
+  .b { color:#8fe6c8; } .u { color:#ffd479; }
+  /* JSON 로그 */
+  #jlog { background:#0b0c10; border:1px solid var(--line); border-radius:8px; padding:8px; height:320px; overflow:auto;
+          font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; word-break:break-all; }
+  .jl { padding:1px 0; }
+  .jl .ts { color:#5b6472; }
+  .c-err { color:#ff8e8e; font-weight:700; }
+  .c-life { color:var(--info); }
+  .c-face { color:#c9a2ff; }
+  .c-tr { color:#8d96a5; }
+  .c-turn { color:#6f7a8a; }
+  .c-hint { color:#ffd479; }
+  .c-unknown { color:var(--warn); font-weight:700; }
+  .c-sys { color:var(--pri); }
+  body.hidetr .jl.is-tr { display:none; }
+  .chk { display:block; padding:3px 0; font-size:13px; }
+  .chk input { vertical-align:-1px; margin-right:6px; }
+  code { background:#0b0c10; padding:1px 4px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🦫 BeaverTalk — GPT(OpenAI Realtime) 표현학습 통화 QA 콘솔</h1>
+  <div class="muted">
+    통화를 들으면서 <b>WS 로 오는 모든 것</b>을 화면에서 본다. 마이크는 <b>localhost 또는 https</b> 에서만 동작한다.<br />
+    ⚠ 이 데모는 <b>실제 통화</b>다 — 전사·판정·진도·원가가 서버 DB 에 그대로 기록된다.
+    엔진(OpenAI/Gemini)은 <b>서버가</b> 고른다. 이 페이지는 엔진을 바꾸지 못한다 — 콜타입만 고른다.
+  </div>
+  <div class="muted" style="margin-top:6px; border-left:3px solid var(--warn); padding:6px 10px; background:#0e0f13; border-radius:6px">
+    ⛔ <b>OpenAI 로 가려면 서버 쪽 4가지가 동시에 참이어야 한다</b>(하나라도 어긋나면 <b>조용히 Gemini 로 간다</b> — 엉뚱한 엔진을 QA 하게 된다):
+    ① <code>GPT_API_KEY</code> 있음 ② <code>OPENAI_REALTIME_COURSES</code> 에 그 콜타입 포함
+    ③ <code>CUR_ENABLED=true</code> + 그 언어 커리큘럼 시드 있음(아니면 옛 경로로 폴백)
+    ④ 코스가 <b>expression</b> 으로 확정(엔진 분기는 표현학습 자리 하나다 — <code>call_session.py:3741</code>).
+    <br>⚠ 엔진 이름은 WS 프레임에 안 실린다 — 확인은 서버 로그(<code>live:openai-realtime-*</code>)다.
+    대신 아래 <b>조각 필드 수신</b> 칸이 0 이 아니면 Gemini 경로일 가능성이 크다(OpenAI 는 조각을 안 보낸다).
+  </div>
+
+  <div class="row" style="margin:8px 0">
+    <span class="muted">API base</span>
+    <input id="apibase" style="width:330px" title="비우고 새로고침하면 이 페이지를 준 서버" />
+    <span class="muted">인증은 이 서버가 발급한다(<code>/__dev/login</code>) — 페이지에 Supabase 설정이 없다</span>
+  </div>
+
+  <!-- STEP 0 로그인 -->
+  <div class="card">
+    <div class="step">STEP 0 · 로그인</div>
+    <div class="row">
+      <input id="email" placeholder="이메일" value="test@naver.com" style="width:220px" />
+      <input id="pw" placeholder="비밀번호" value="11111111" type="password" style="width:140px" />
+      <button id="loginBtn">로그인</button>
+      <button id="signupBtn" class="sec" title="없으면 만들고 바로 토큰까지">신규 가입+로그인</button>
+      <span id="who" class="muted"></span>
+    </div>
+  </div>
+
+  <!-- STEP 1 통화 -->
+  <div class="card">
+    <div class="step">STEP 1 · 통화</div>
+    <div class="row" style="margin-bottom:8px">
+      <span class="muted">콜타입</span>
+      <select id="ctype" title="OpenAI 로 가는 콜타입은 서버 env(OPENAI_REALTIME_COURSES)가 정한다. 표현학습 통화를 보려면 expression.">
+        <option value="expression">expression (표현학습)</option>
+        <option value="freetalk">freetalk (프리토킹)</option>
+        <option value="auto">auto (서버가 결정)</option>
+        <option value="chat">chat (자유대화)</option>
+      </select>
+      <span class="muted">통화 길이</span>
+      <select id="dur" title="서버는 3~15분으로 클램프한다(비프로드 전용). 종료는 이 페이지가 자기 시계로 한다.">
+        <option value="15" selected>15분 (기본)</option>
+        <option value="10">10분</option>
+        <option value="5">5분</option>
+        <option value="3">3분</option>
+      </select>
+      <span class="muted">모국어(안내 언어)</span>
+      <select id="loc">
+        <option value="ko">한국어(ko)</option>
+        <option value="en">영어(en)</option>
+        <option value="ja">일본어(ja)</option>
+        <option value="zh">중국어(zh)</option>
+        <option value="es">스페인어(es)</option>
+        <option value="vi">베트남어(vi)</option>
+      </select>
+      <span class="muted">학습 언어(target)</span>
+      <select id="tgt" title="통화 전에 PATCH /api/v1/members/me 로 저장한다 — 서버의 단일 소스는 DB 다(소켓으로 보내면 무시된다).">
+        <option value="ko" selected>한국어(ko)</option>
+        <option value="ja">일본어(ja)</option>
+        <option value="en">영어(en)</option>
+        <option value="zh">중국어(zh)</option>
+        <option value="fr">프랑스어(fr)</option>
+        <option value="vi">베트남어(vi)</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="callBtn" disabled>📞 통화 시작</button>
+      <button id="muteBtn" class="sec" disabled title="무음 3단 넛지 실험 — 켜면 마이크 대신 무음(0)을 보낸다. 1분 가만히 있어 보기.">🎤 마이크 ON</button>
+      <button id="hangBtn" class="danger" disabled>지금 끊기</button>
+      <button id="copyBtn" class="sec" title="설정·계기판·경고·자막·JSON 전문을 한 덩이로 복사">📋 로그 복사</button>
+      <span><span id="cdot" class="dot"></span><span id="cstat" class="muted">대기</span></span>
+    </div>
+  </div>
+
+  <!-- 계기판 -->
+  <div class="card">
+    <div class="step">계기판</div>
+    <div class="gauges">
+      <div class="g big"><div class="k">경과</div><div class="v" id="gElapsed">0:00</div></div>
+      <div class="g big"><div class="k">남은 시간(클라 시계)</div><div class="v" id="gRemain">—</div></div>
+      <div class="g"><div class="k">턴 수(turn_start)</div><div class="v" id="gTurns">0</div></div>
+      <div class="g"><div class="k">비버 발화 누적</div><div class="v" id="gVoice">0.0s</div></div>
+      <div class="g"><div class="k">내 발화 묶음</div><div class="v" id="gMy">0</div></div>
+      <div class="g"><div class="k">call_id</div><div class="v" id="gCall">—</div></div>
+      <div class="g"><div class="k">엔진(프레임 추정)</div><div class="v" id="gEngine" style="font-size:15px">—</div></div>
+      <div class="g"><div class="k">종료 사유</div><div class="v" id="gReason">—</div></div>
+    </div>
+    <div class="muted" style="margin-top:8px">
+      시계 원점 = <b>서버의 첫 오디오 바이트</b>(통화 연결·세션 열기 시간은 뺀다). 상한에 닿으면 마이크를 먼저 끊고,
+      <b>비버 응답이 끝나고 재생이 비면</b> 소켓을 닫는다(응답 중간에 끊지 않는다).
+    </div>
+    <div class="muted" id="startedInfo" style="margin-top:4px"></div>
+  </div>
+
+  <!-- 경고 -->
+  <div class="card">
+    <div class="step">⛔ 자동 검사 (빨간 줄이 하나라도 뜨면 그게 사고다)</div>
+    <div class="gauges" style="margin-bottom:6px">
+      <div class="g"><div class="k">error 프레임</div><div class="v" id="cErr">0</div></div>
+      <div class="g"><div class="k">set_face 누출</div><div class="v" id="cFace">0</div></div>
+      <div class="g"><div class="k">쪽지 낭독</div><div class="v" id="cNote">0</div></div>
+      <div class="g"><div class="k">fragment_saved</div><div class="v" id="cFrag">0</div></div>
+      <div class="g"><div class="k">조각 필드 수신</div><div class="v" id="cFragField">0</div></div>
+      <div class="g"><div class="k">질문 2개 이상 턴</div><div class="v" id="cQ">0</div></div>
+      <div class="g"><div class="k">미지 프레임</div><div class="v" id="cUnk">0</div></div>
+    </div>
+    <div id="alerts"><div class="muted">아직 없음.</div></div>
+  </div>
+
+  <!-- 자막 2줄 -->
+  <div class="card">
+    <div class="step">자막 — 학습자 전사 / 비버 전사</div>
+    <div class="grid2">
+      <div class="tcol"><div class="hd">👤 학습자 (input_transcript)</div><div id="ucol"></div></div>
+      <div class="tcol"><div class="hd">🦫 비버 (output_transcript)</div><div id="bcol"></div></div>
+    </div>
+    <div class="muted" style="margin-top:6px">비버 턴마다 <b>물음표 개수</b>와 <b>목표어(한글) 비율</b>을 적는다 — 「한 턴에 질문 하나」·「안내는 모국어」를 눈으로 본다.</div>
+  </div>
+
+  <!-- JSON 전문 -->
+  <div class="card">
+    <div class="step">수신 JSON 전문 (모든 판정의 1차 자료)</div>
+    <div class="row" style="margin-bottom:6px">
+      <label class="muted"><input type="checkbox" id="hidetr" /> 자막 프레임 숨기기(output/input_transcript)</label>
+      <label class="muted"><input type="checkbox" id="autoscroll" checked /> 자동 스크롤</label>
+      <button class="sec" id="clearBtn">지우기</button>
+    </div>
+    <div id="jlog"></div>
+  </div>
+
+  <!-- usage / 미지 프레임 -->
+  <div class="card">
+    <div class="step">usage 요약 · 미지 프레임</div>
+    <div id="usagebox" class="muted">
+      ⚠ 서버는 <b>usage 를 WS 로 보내지 않는다</b>(현재 프로토콜 유니온에 usage 프레임이 없다 —
+      원가·<code>cached_ratio</code> 는 서버 로그/DB 쪽이다). 그래도 <b>오면 여기 그대로</b> 적는다.
+      미지 타입 프레임도 전부 여기에 모은다.
+    </div>
+  </div>
+
+  <!-- 귀로 확인하는 체크리스트 -->
+  <div class="card">
+    <div class="step">👂 귀로 확인 (코드가 못 잡는 것 — 체크하면 복사 로그에 같이 들어간다)</div>
+    <div id="manual"></div>
+  </div>
+
+  <!-- 통화후 -->
+  <div class="card">
+    <div class="step">통화후 (분석 status 폴링 — GET /api/v1/calls/{id}/status)</div>
+    <div id="post" class="muted">통화가 끝나면 여기서 폴링한다.</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+
+/* ─────────────── 공통 배관(로그인·API) ───────────────
+   ⛔ Supabase 주소·키를 페이지에 박지 않는다. 토큰은 이 페이지를 준 서버가 발급한다
+      (/__dev/login·/__dev/signup) — 검증 프로젝트와 어긋날 대상 자체가 없다. */
+let token = null;
+$('#apibase').value = location.origin;
+const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
+function wsBase() {
+  const u = new URL(apiBase());
+  return (u.protocol === 'https:' ? 'wss' : 'ws') + '://' + u.host;
+}
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, opts.headers || {});
+  return fetch(apiBase() + path, opts);
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = (s === undefined || s === null) ? '' : s; return d.innerHTML; }
+
+async function serverAuth(path) {
+  const r = await fetch(apiBase() + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: $('#email').value.trim(), password: $('#pw').value }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((d && d.detail) ? JSON.stringify(d.detail) : ('HTTP ' + r.status));
+  return d;
+}
+async function doAuth(path) {
+  $('#who').textContent = '처리 중…';
+  let d;
+  try { d = await serverAuth(path); }
+  catch (e) { $('#who').textContent = '❌ 실패: ' + e.message; return; }
+  token = d.access_token;
+  $('#who').textContent = '✅ ' + $('#email').value.trim() + ' 로 로그인됨' + (d.created ? ' (새 계정)' : '');
+  $('#callBtn').disabled = false;
+}
+$('#loginBtn').onclick = () => doAuth('/__dev/login');
+$('#signupBtn').onclick = () => doAuth('/__dev/signup');
+
+/* ─────────────── 로그(화면 + 복사 버퍼) ─────────────── */
+const logLines = [];
+function stamp() {
+  const d = new Date();
+  const p = (n, w) => String(n).padStart(w || 2, '0');
+  const wall = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + '.' + p(d.getMilliseconds(), 3);
+  const rel = t0 ? ('+' + ((Date.now() - t0) / 1000).toFixed(1) + 's') : '+--';
+  return wall + ' ' + rel;
+}
+function jlog(cls, text, isTranscript) {
+  const ts = stamp();
+  logLines.push(ts + '  ' + text);
+  const box = $('#jlog');
+  const el = document.createElement('div');
+  el.className = 'jl ' + (isTranscript ? 'is-tr ' : '') + cls;
+  el.innerHTML = '<span class="ts">' + esc(ts) + '</span>  ' + esc(text);
+  box.appendChild(el);
+  // 15분 통화면 프레임이 수천 줄이다 — 화면만 앞에서 덜어낸다(복사 버퍼 logLines 는 전부 남는다).
+  while (box.childElementCount > 3000) box.removeChild(box.firstElementChild);
+  if ($('#autoscroll').checked) box.scrollTop = box.scrollHeight;
+}
+$('#hidetr').onchange = (e) => document.body.classList.toggle('hidetr', e.target.checked);
+$('#clearBtn').onclick = () => { $('#jlog').innerHTML = ''; };
+
+/* ─────────────── 경고 ─────────────── */
+const counts = { err: 0, face: 0, note: 0, frag: 0, fragField: 0, q: 0, unk: 0 };
+const alertLines = [];
+function paintCounts() {
+  $('#cErr').textContent = counts.err; $('#cFace').textContent = counts.face;
+  $('#cNote').textContent = counts.note; $('#cFrag').textContent = counts.frag;
+  $('#cFragField').textContent = counts.fragField; $('#cQ').textContent = counts.q;
+  $('#cUnk').textContent = counts.unk;
+}
+function alert_(html, orange) {
+  const box = $('#alerts');
+  if (box.firstElementChild && box.firstElementChild.className === 'muted') box.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'alert' + (orange ? ' orange' : '');
+  el.innerHTML = html;
+  box.appendChild(el);
+  alertLines.push((orange ? '[주의] ' : '[사고] ') + el.textContent);
+}
+
+/* ─────────────── 오디오 유틸 ───────────────
+   클라→서버 PCM16 **16kHz**(서버가 내부에서 24k 로 올린다) · 서버→클라 PCM **24kHz**. */
+function downsample(f32, inRate, outRate) {
+  if (outRate === inRate) return f32;
+  const ratio = inRate / outRate, n = Math.round(f32.length / ratio), out = new Float32Array(n);
+  let pos = 0;
+  for (let i = 0; i < n; i++) {
+    const next = Math.round((i + 1) * ratio); let s = 0, c = 0;
+    for (let j = pos; j < next && j < f32.length; j++) { s += f32[j]; c++; }
+    out[i] = c ? s / c : 0; pos = next;
+  }
+  return out;
+}
+function toPCM16(f32) {
+  const o = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) { let s = Math.max(-1, Math.min(1, f32[i])); o[i] = s < 0 ? s * 0x8000 : s * 0x7FFF; }
+  return o;
+}
+
+/* ─────────────── 통화 상태 ─────────────── */
+let ws = null, actx = null, mic = null, proc = null, gain0 = null, playT = 0;
+let gen = 0, callId = null, t0 = 0, clockTimer = null, durationS = 900;
+let hangupArmed = false, closing = false, muted = false, pingTimer = null;
+let turns = 0, myTurns = 0, beaverBytes = 0, turnOpen = false, endReason = '—', lastEngine = '—';
+const turnEls = { b: {}, u: {} };   // turn_id → {el, textEl, metaEl, text, flagged:Set}
+let lastUTurn = 0;
+
+function fmt(sec) {
+  if (sec === null || sec === undefined || isNaN(sec)) return '—';
+  const neg = sec < 0; sec = Math.abs(Math.floor(sec));
+  return (neg ? '-' : '') + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+function paintGauges() {
+  const el = t0 ? (Date.now() - t0) / 1000 : 0;
+  $('#gElapsed').textContent = fmt(el);
+  $('#gRemain').textContent = t0 ? fmt(durationS - el) : '—';
+  $('#gTurns').textContent = turns;
+  $('#gMy').textContent = myTurns;
+  $('#gVoice').textContent = (beaverBytes / 2 / 24000).toFixed(1) + 's';
+  $('#gCall').textContent = callId || '—';
+  $('#gReason').textContent = endReason;
+}
+function drained() { return !actx ? true : (playT <= actx.currentTime + 0.15); }
+
+function startClock() {
+  if (clockTimer) return;
+  t0 = Date.now();
+  jlog('c-sys', '[클라] 시계 시작(첫 서버 오디오) — 상한 ' + durationS + 's', false);
+  clockTimer = setInterval(() => {
+    paintGauges();
+    const el = (Date.now() - t0) / 1000;
+    if (!hangupArmed && el >= durationS) {
+      hangupArmed = true;
+      $('#cdot').className = 'dot warn';
+      $('#cstat').textContent = '상한 도달 — 비버 응답 끝나면 종료';
+      jlog('c-sys', '[클라] 상한 도달 → 마이크 전송 중단, 비버 턴 종료 대기', false);
+    }
+    if (hangupArmed && !closing) {
+      if (!turnOpen && drained()) { endReason = 'client-limit'; closeWs('클라 상한 — 턴 종료 + 재생 비움'); }
+      else if (el >= durationS + 60) { endReason = 'client-limit-force'; closeWs('클라 상한 +60s 강제'); }
+    }
+  }, 250);
+}
+function stopClock() { if (clockTimer) { clearInterval(clockTimer); clockTimer = null; } }
+
+function closeWs(why) {
+  if (closing) return;
+  closing = true;
+  jlog('c-sys', '[클라] 소켓 닫기: ' + why, false);
+  // CONNECTING(0)·OPEN(1) 둘 다 닫을 수 있어야 한다 — 연결 중에 「지금 끊기」를 눌러도 먹혀야 한다.
+  try { if (ws && ws.readyState <= 1) ws.close(); } catch (e) {}
+}
+
+/* ─────────────── 자막 + 자동 검사 ───────────────
+   누출 패턴은 전부 **비버 전사 텍스트**에서 잡는다 — 모델 출력이 곧 소리인 엔진에서
+   툴콜 인자나 주입 쪽지가 대사로 새면 그 글자가 전사에 그대로 남는다. */
+const FACE_PATTERNS = [
+  [/set_face/i, 'set_face'],
+  [/"?emotion"?\s*[:=]/i, 'emotion:'],
+  [/\{\s*"/, '{" (JSON 머리)'],
+  [/"\s*\}/, '"} (JSON 꼬리)'],
+  [/\bfunction(_| )?call\b/i, 'function call'],
+];
+const NOTE_PATTERNS = [
+  [/\[[^\]\n]{1,16}\]/, '대괄호 지시 접두([안내]/[지시] 류)'],
+  [/읽지\s*(마|말|않)/, '「읽지 마라」'],
+  [/대괄호/, '「대괄호」'],
+  [/\[시스템\]/, '[시스템]'],
+];
+function hangulRatio(s) {
+  const letters = (s.match(/[A-Za-z぀-ヿ一-鿿가-힣]/g) || []).length;
+  if (!letters) return null;
+  const ko = (s.match(/[가-힣]/g) || []).length;
+  return Math.round((ko / letters) * 100);
+}
+function ensureTurn(side, turnId) {
+  const map = turnEls[side];
+  if (map[turnId]) return map[turnId];
+  const host = $(side === 'b' ? '#bcol' : '#ucol');
+  const el = document.createElement('div');
+  el.className = 'turn';
+  const textEl = document.createElement('div');
+  textEl.className = side === 'b' ? 'b' : 'u';
+  const metaEl = document.createElement('div');
+  metaEl.className = 'meta';
+  metaEl.textContent = (side === 'b' ? '🦫 ' : '👤 ') + 'turn ' + turnId;
+  el.appendChild(metaEl); el.appendChild(textEl);
+  host.appendChild(el);
+  const sc = host.parentElement;          // .tcol(스크롤 상자). 없어도 자막은 떠야 한다.
+  if (sc) sc.scrollTop = sc.scrollHeight;
+  map[turnId] = { el: el, textEl: textEl, metaEl: metaEl, text: '', flagged: new Set() };
+  return map[turnId];
+}
+function flagOnce(t, key, html, orange) {
+  if (t.flagged.has(key)) return false;
+  t.flagged.add(key);
+  t.el.classList.add('flag');
+  alert_(html, orange);
+  return true;
+}
+function onBeaverText(turnId, chunk) {
+  const t = ensureTurn('b', turnId);
+  t.text += chunk;
+  t.textEl.textContent = t.text;
+  // 질문 개수
+  const qs = (t.text.match(/[?？]/g) || []).length;
+  const hr = hangulRatio(t.text);
+  t.metaEl.textContent = '🦫 turn ' + turnId + ' · 물음표 ' + qs + (hr === null ? '' : ' · 한글 ' + hr + '%');
+  if (qs >= 2 && !t.flagged.has('q')) {
+    t.flagged.add('q'); counts.q++; paintCounts();
+    alert_('<b>질문 2개 이상</b> 한 턴에 — turn ' + esc(turnId) + ' (물음표 ' + qs + '개) · 「한 턴에 질문 하나」 위반 후보', true);
+  }
+  // ⚠ 같은 턴에서 여러 패턴이 걸려도 **사고 1건**으로 센다(패턴은 경고 줄에 적는다) —
+  //   계기판 숫자는 「몇 번 샜나」여야 한다.
+  FACE_PATTERNS.forEach(([re, name]) => {
+    if (re.test(t.text) && flagOnce(t, 'face:' + name, '<b>⛔ set_face 누출</b> — 툴콜 인자가 대사로 샜다(' + esc(name) + ') · turn ' + esc(turnId) + '<br>' + esc(t.text.slice(-160)))) {
+      if (!t.flagged.has('face!')) { t.flagged.add('face!'); counts.face++; paintCounts(); }
+    }
+  });
+  NOTE_PATTERNS.forEach(([re, name]) => {
+    if (re.test(t.text) && flagOnce(t, 'note:' + name, '<b>⛔ 쪽지 낭독</b> — 주입 지시가 대사로 샜다(' + esc(name) + ') · turn ' + esc(turnId) + '<br>' + esc(t.text.slice(-160)))) {
+      if (!t.flagged.has('note!')) { t.flagged.add('note!'); counts.note++; paintCounts(); }
+    }
+  });
+}
+function onUserText(chunk) {
+  // input_transcript 에는 turn_id 가 없다(protocol.py ServerInputTranscript) — 비버 턴 사이를 한 묶음으로 본다.
+  const key = 'u' + lastUTurn;
+  const isNew = !turnEls.u[key];
+  const t = ensureTurn('u', key);
+  if (isNew) { t.seq = Object.keys(turnEls.u).length; myTurns = t.seq; }   // 번호·계기판은 실제로 생긴 묶음 수
+  t.text += (t.text ? ' ' : '') + chunk;
+  t.textEl.textContent = t.text;
+  t.metaEl.textContent = '👤 발화 #' + t.seq;
+}
+
+/* ─────────────── WS 통화 ─────────────── */
+const KNOWN = ['turn_start', 'output_transcript', 'sentence', 'input_transcript', 'turn_end',
+               'call_ended', 'call_started', 'error', 'pong', 'teaching_plan', 'hint', 'fragment_saved'];
+
+$('#hangBtn').onclick = () => { endReason = 'user-hangup'; closeWs('사용자 「지금 끊기」'); };
+$('#muteBtn').onclick = () => {
+  muted = !muted;
+  $('#muteBtn').textContent = muted ? '🔇 마이크 OFF(무음 전송)' : '🎤 마이크 ON';
+  jlog('c-sys', '[클라] 마이크 ' + (muted ? 'OFF — 무음(0) 전송 시작' : 'ON'), false);
+};
+$('#callBtn').onclick = startCall;
+
+async function startCall() {
+  const myGen = ++gen;
+  // 상태 초기화
+  stopClock(); t0 = 0; playT = 0; closing = false; hangupArmed = false; muted = false;
+  turns = 0; myTurns = 0; beaverBytes = 0; turnOpen = false; callId = null; endReason = '—'; lastUTurn = 0;
+  lastEngine = '—'; $('#gEngine').textContent = '—';
+  turnEls.b = {}; turnEls.u = {};
+  counts.err = counts.face = counts.note = counts.frag = counts.fragField = counts.q = counts.unk = 0;
+  alertLines.length = 0;
+  $('#alerts').innerHTML = '<div class="muted">아직 없음.</div>';
+  $('#bcol').innerHTML = ''; $('#ucol').innerHTML = ''; $('#jlog').innerHTML = '';
+  $('#startedInfo').textContent = ''; $('#post').textContent = '통화 중…';
+  $('#muteBtn').textContent = '🎤 마이크 ON';
+  paintCounts(); paintGauges();
+
+  const durMin = +$('#dur').value || 15;
+  durationS = durMin * 60;
+
+  if (actx) { try { await actx.close(); } catch (e) {} actx = null; }
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } }); }
+  catch (e) { alert('마이크 권한 필요 (localhost/https 에서만 동작): ' + e); return; }
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = actx.createMediaStreamSource(mic);
+  proc = actx.createScriptProcessor(4096, 1, 1);
+  gain0 = actx.createGain(); gain0.gain.value = 0;      // 마이크를 스피커로 돌려보내지 않는다(에코 방지)
+  src.connect(proc); proc.connect(gain0); gain0.connect(actx.destination);
+
+  // 학습 언어의 단일 소스는 DB 다 — 소켓으로 보내도 서버가 무시한다(protocol.py: target_language 폐기).
+  try {
+    const r = await api('/api/v1/members/me', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_language: $('#tgt').value }),
+    });
+    jlog('c-sys', '[클라] PATCH members/me target_language=' + $('#tgt').value + ' → HTTP ' + r.status, false);
+  } catch (e) { jlog('c-unknown', '[클라] target_language 저장 실패(기존 값으로 진행): ' + e, false); }
+
+  ws = new WebSocket(wsBase() + '/api/v1/calls/stream?token=' + encodeURIComponent(token));
+  ws.binaryType = 'arraybuffer';
+  $('#cdot').className = 'dot'; $('#cstat').textContent = '연결 중…';
+
+  ws.onopen = () => {
+    // ⛔ character_id·target_language 는 보내지 않는다 — 서버가 무시하는 폐기 필드다(protocol.py:41·62).
+    const msg = {
+      type: 'start',
+      locale: $('#loc').value,
+      duration_min: durMin,
+      call_type: $('#ctype').value,
+      tz_offset_min: -new Date().getTimezoneOffset(),
+      tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul'),
+    };
+    ws.send(JSON.stringify(msg));
+    jlog('c-sys', '→ start ' + JSON.stringify(msg), false);
+    $('#cdot').className = 'dot on'; $('#cstat').textContent = '통화 중 (' + $('#ctype').value + ')';
+    $('#callBtn').disabled = true; $('#hangBtn').disabled = false; $('#muteBtn').disabled = false;
+    pingTimer = setInterval(() => {
+      if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ type: 'ping', t: Date.now() })); } catch (e) {} }
+    }, 15000);
+  };
+  proc.onaudioprocess = (e) => {
+    if (!ws || ws.readyState !== 1) return;
+    if (hangupArmed) return;     // 상한 도달 → 새 턴이 열리지 않게 입력을 끊는다
+    const ds = downsample(e.inputBuffer.getChannelData(0), actx.sampleRate, 16000);
+    const pcm = toPCM16(ds);
+    if (muted) pcm.fill(0);      // 무음 3단 실험 — 소켓은 살리고 소리만 0
+    try { ws.send(pcm.buffer); } catch (err) {}
+  };
+  ws.onmessage = onMsg;
+  ws.onerror = () => jlog('c-err', '⚠️ WS onerror', false);
+  ws.onclose = (ev) => {
+    if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+    jlog('c-sys', '[클라] WS close code=' + ev.code + ' reason="' + (ev.reason || '') + '" wasClean=' + ev.wasClean, false);
+    if (ev.code === 1008) alert_('<b>WS 1008</b> — 서버가 정책 위반으로 닫았다(토큰 검증 실패 또는 시작 관문 거절). 위 error 프레임을 확인하라.');
+    stopClock(); paintGauges(); cleanupCall();
+    $('#cdot').className = 'dot'; $('#cstat').textContent = '종료';
+    pollStatus(myGen);
+  };
+}
+
+function playPCM24k(buf) {
+  const i16 = new Int16Array(buf), f32 = new Float32Array(i16.length);
+  for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 0x8000;
+  const ab = actx.createBuffer(1, f32.length, 24000);
+  ab.getChannelData(0).set(f32);
+  const n = actx.createBufferSource(); n.buffer = ab; n.connect(actx.destination);
+  const now = actx.currentTime; if (playT < now) playT = now;
+  n.start(playT); playT += ab.duration;
+}
+
+function sendPlaybackDoneWhenDrained() {
+  // 작별 오디오가 다 재생될 때까지 기다렸다 ack(서버 대기 상한 7초 — PLAYBACK_DONE_WAIT_S).
+  const remainMs = actx ? Math.max(0, (playT - actx.currentTime) * 1000) : 0;
+  setTimeout(() => {
+    if (ws && ws.readyState === 1) {
+      try { ws.send(JSON.stringify({ type: 'playback_done' })); jlog('c-sys', '→ playback_done', false); } catch (e) {}
+    }
+  }, Math.min(remainMs, 6000));
+}
+
+function onMsg(ev) {
+  if (ev.data instanceof ArrayBuffer) {
+    if (!t0) startClock();
+    beaverBytes += ev.data.byteLength;
+    try { playPCM24k(ev.data); } catch (e) { jlog('c-err', '오디오 재생 실패: ' + e, false); }
+    return;
+  }
+  const raw = String(ev.data);
+  let m;
+  try { m = JSON.parse(raw); } catch (e) { counts.unk++; paintCounts(); jlog('c-unknown', '← (JSON 아님) ' + raw, false); return; }
+  const type = m.type || '(type 없음)';
+
+  // ① 전문을 먼저 남긴다 — 분기보다 기록이 우선이다.
+  const cls = type === 'error' ? 'c-err'
+    : (type === 'call_started' || type === 'call_ended' || type === 'fragment_saved') ? 'c-life'
+    : type === 'sentence' ? 'c-face'
+    : (type === 'output_transcript' || type === 'input_transcript') ? 'c-tr'
+    : (type === 'turn_start' || type === 'turn_end' || type === 'pong') ? 'c-turn'
+    : (type === 'hint' || type === 'teaching_plan') ? 'c-hint'
+    : 'c-unknown';
+  const isTr = (type === 'output_transcript' || type === 'input_transcript');
+  jlog(cls, '← ' + raw, isTr);
+
+  // ② 미지 타입 / usage 냄새가 나는 프레임은 따로 모은다.
+  if (KNOWN.indexOf(type) < 0) {
+    counts.unk++; paintCounts();
+    pushUsage('미지 프레임 type=' + type, raw);
+    alert_('<b>미지 프레임</b> type=' + esc(type) + ' — 계약에 없는 프레임이 왔다(발견). 전문은 usage 칸에 모았다.', true);
+  } else if (/usage|cached|cost|token/i.test(raw) && type !== 'output_transcript' && type !== 'input_transcript') {
+    pushUsage('usage 냄새 (' + type + ')', raw);
+  }
+
+  if (type === 'call_started') {
+    if (m.call_id) callId = m.call_id;
+    // course 는 cur 경로에만 있고(없으면 키 자체가 빠진다 — protocol.py 직렬화), 없는 값은 안 적는다.
+    const bits = ['character_id', 'call_id', 'course', 'diag']
+      .filter((k) => m[k] !== undefined && m[k] !== null)
+      .map((k) => k + '=' + m[k]);
+    $('#startedInfo').innerHTML = 'call_started · ' + esc(bits.join(' · '));
+    // ⛔ 조각 필드는 **무시한다** — 화면에만 적는다(OpenAI 경로엔 조각이 없다).
+    const fragKeys = ['fragment_index', 'max_fragments', 'remaining_s'].filter((k) => m[k] !== undefined && m[k] !== null);
+    guessEngine(m, fragKeys.length > 0);
+    if (fragKeys.length) {
+      counts.fragField += fragKeys.length; paintCounts();
+      alert_('<b>조각 필드 수신(무시함)</b> call_started 에 ' + esc(fragKeys.map((k) => k + '=' + m[k]).join(' · ')) +
+             ' — OpenAI 경로는 조각이 없어야 한다. 이게 보이면 Gemini 경로이거나 P2-3 가 안 먹은 것이다.', true);
+    }
+    paintGauges();
+  } else if (type === 'turn_start') {
+    turns++; turnOpen = true; paintGauges();
+  } else if (type === 'turn_end') {
+    turnOpen = false;
+    lastUTurn++;        // 다음 학습자 발화는 새 묶음
+  } else if (type === 'output_transcript') {
+    if (!t0) startClock();
+    onBeaverText(m.turn_id || '?', m.text || '');
+  } else if (type === 'input_transcript') {
+    onUserText(m.text || '');
+    paintGauges();
+  } else if (type === 'sentence') {
+    // 표정 마커(set_face 의 정상 통로). 자막 텍스트가 아니라 **이 프레임**으로 와야 정상이다.
+    const t = turnEls.b[m.turn_id];
+    if (t) t.metaEl.textContent += ' · 표정 ' + (m.emotion || '?');
+    if (m.text) alert_('<b>sentence.text 가 비어 있지 않다</b> emotion=' + esc(m.emotion) + ' text="' + esc(m.text) + '" — 계약은 항상 빈 문자열이다(protocol.py).', true);
+  } else if (type === 'error') {
+    counts.err++; paintCounts();
+    alert_('<b>⛔ error 프레임</b> code=<b>' + esc(m.code) + '</b> recoverable=' + esc(String(m.recoverable)) + '<br>' + esc(m.message));
+    endReason = 'error:' + (m.code || '?');
+    paintGauges();
+  } else if (type === 'fragment_saved') {
+    counts.frag++; paintCounts();
+    alert_('<b>⛔ fragment_saved 수신</b> call_id=' + esc(m.call_id) + ' fragment_index=' + esc(m.fragment_index) +
+           ' reason=' + esc(m.reason) + ' — 조각 분할이 샜다. 이 페이지는 조각 전환을 하지 않는다(소켓은 서버가 닫는다).');
+  } else if (type === 'call_ended') {
+    callId = m.call_id || callId;
+    endReason = m.reason || 'done';
+    paintGauges();
+    jlog('c-sys', '📴 call_ended call_id=' + callId + ' reason=' + endReason, false);
+    sendPlaybackDoneWhenDrained();
+  } else if (type === 'teaching_plan') {
+    jlog('c-sys', '[정보] teaching_plan 항목 ' + ((m.items || []).length) + '개', false);
+  }
+}
+
+/* ⭐ 엔진 추정 — 서버는 엔진 이름을 프레임에 싣지 않는다. 그래서 **계약의 차이**로 되짚는다.
+   근거(전부 call_session.py):
+     :3249  cur_route = 콜타입 ∈ (expression·freetalk·auto) && CUR_ENABLED && 커리큘럼 시드
+     :3922  course 는 cur_route 일 때만 실린다(아니면 키가 빠진다)
+     :3734  use_openai 는 **cur 코스가 expression 일 때만** 정해진다 ⇒ freetalk·chat 은 언제나 Gemini
+     :3904  OpenAI 면 fragment_index·max_fragments·remaining_s 를 **셋 다 비운다**(Gemini expression 은 1 을 싣는다)
+   ⇒ course=expression 인데 조각 3값이 전부 없으면 OpenAI 다. */
+function guessEngine(m, hasFrag) {
+  let engine, why;
+  if (!m.course) {
+    engine = 'Gemini (확실)'; why = 'call_started 에 course 가 없다 = cur 경로가 아니다 → 엔진 분기 자리에 도달조차 못 한다';
+  } else if (m.course !== 'expression') {
+    engine = 'Gemini (확실)'; why = 'course=' + m.course + ' — 엔진 분기는 expression 에서만 일어난다';
+  } else if (hasFrag) {
+    engine = 'Gemini (추정)'; why = 'course=expression 인데 조각 필드가 실려 있다 — OpenAI 는 그 3값을 비운다';
+  } else {
+    engine = 'OpenAI (추정)'; why = 'course=expression + 조각 필드 전부 없음';
+  }
+  lastEngine = engine;
+  $('#gEngine').textContent = engine;
+  $('#gEngine').style.color = engine.indexOf('OpenAI') === 0 ? 'var(--pri)' : 'var(--warn)';
+  jlog('c-sys', '[추정] 엔진 = ' + engine + ' — ' + why, false);
+  if (engine.indexOf('OpenAI') !== 0) {
+    alert_('<b>엔진이 OpenAI 가 아니다</b> — ' + esc(engine) + ' · ' + esc(why) +
+           '<br>GPT 를 QA 하려면 서버 env 4가지를 확인하라(맨 위 설명).', true);
+  }
+}
+
+function pushUsage(title, raw) {
+  const box = $('#usagebox');
+  const el = document.createElement('div');
+  el.style.margin = '6px 0';
+  el.innerHTML = '<b>' + esc(title) + '</b><br><code>' + esc(raw) + '</code>';
+  box.appendChild(el);
+}
+
+function cleanupCall() {
+  try { if (proc) proc.disconnect(); } catch (e) {}
+  if (proc) proc.onaudioprocess = null;
+  if (mic) mic.getTracks().forEach((t) => t.stop());
+  $('#callBtn').disabled = false; $('#hangBtn').disabled = true; $('#muteBtn').disabled = true;
+}
+
+/* ─────────────── 통화후 status 폴링 ─────────────── */
+async function pollStatus(myGen) {
+  if (myGen !== gen) return;
+  if (!callId) {
+    try { const list = await (await api('/api/v1/calls?limit=1')).json(); if (list && list[0]) callId = list[0].call_id; } catch (e) {}
+  }
+  if (!callId) { $('#post').textContent = 'call_id 를 못 찾았다(통화가 시작 전에 거절됐을 수 있다 — error 프레임 확인).'; return; }
+  paintGauges();
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    if (myGen !== gen) return;
+    let d;
+    try { d = await (await api('/api/v1/calls/' + callId + '/status')).json(); } catch (e) { continue; }
+    $('#post').textContent = 'call_id=' + callId + ' · status=' + d.status + ' · call_type=' + (d.call_type || '?') +
+      (d.assessed_level ? (' · assessed_level=' + d.assessed_level) : '');
+    if (d.status === 'done' || d.status === 'failed' || d.status === 'unknown') break;
+  }
+}
+
+/* ─────────────── 귀로 확인하는 체크리스트 ───────────────
+   근거: core/openai/prompts/expression.py 모듈 독스트링의 「측정으로 확인된 교훈」 표.
+   코드가 못 잡는 항목만 둔다(코드가 잡는 것은 위 자동 검사). */
+const MANUAL = [
+  '선공개 0 — 아직 묻지 않은 항목의 표현을 비버가 먼저 소리로 내지 않았다',
+  '한 턴에 질문 하나 — 질문을 두 개 이어 붙이지 않았다',
+  '안내·칭찬·핀잔은 모국어로 — 그 자리에 목표어를 쓰지 않았다',
+  '번호 순서대로 1번부터 진행했다',
+  '같은 항목 최대 3회 — 4회차 이상 붙잡지 않았다',
+  '의역 정답을 틀렸다고 하지 않았다(뜻이 통하면 맞다)',
+  '정중체로 가르친 표현의 반말 답을 맞다고 하지 않았다',
+  '퀴즈는 서버 큐가 온 뒤에만 열렸다(스스로 열지 않았다)',
+  '목록 소진 뒤 출구로 나갔다(같은 번호로 되돌아가지 않았다)',
+  '비버가 먼저 작별하지 않았다(종료는 이 페이지가 한다)',
+  '무음 실험: 1분 가만히 있었을 때 넛지가 3단으로 왔다(재개→확인→종료)',
+  '첫 소리까지 체감 지연이 받아들일 만했다',
+  '말이 겹치지 않았다(비버 발화중 내 말이 끼어들지 않았다)',
+  '소리 품질 정상 — 끊김·금속음·속도 이상 없음',
+];
+(function buildManual() {
+  const host = $('#manual');
+  MANUAL.forEach((label, i) => {
+    const l = document.createElement('label');
+    l.className = 'chk';
+    l.innerHTML = '<input type="checkbox" data-m="' + i + '" /> ' + esc(label);
+    host.appendChild(l);
+  });
+})();
+
+/* ─────────────── 로그 복사 ─────────────── */
+$('#copyBtn').onclick = async () => {
+  const el = (t0 ? ((Date.now() - t0) / 1000).toFixed(1) : '0') + 's';
+  const lines = [];
+  lines.push('# BeaverTalk GPT 통화 QA 로그 (' + new Date().toISOString() + ')');
+  lines.push('base=' + apiBase() + ' · call_type=' + $('#ctype').value + ' · duration_min=' + $('#dur').value +
+             ' · locale=' + $('#loc').value + ' · target=' + $('#tgt').value);
+  lines.push('경과=' + el + ' · 턴=' + turns + ' · 내 발화=' + myTurns +
+             ' · 비버 발화 누적=' + (beaverBytes / 2 / 24000).toFixed(1) + 's · call_id=' + (callId || '-') +
+             ' · 종료사유=' + endReason + ' · 엔진추정=' + lastEngine);
+  lines.push('자동검사: error=' + counts.err + ' set_face누출=' + counts.face + ' 쪽지낭독=' + counts.note +
+             ' fragment_saved=' + counts.frag + ' 조각필드=' + counts.fragField + ' 다중질문턴=' + counts.q +
+             ' 미지프레임=' + counts.unk);
+  lines.push('');
+  lines.push('## 경고');
+  lines.push(alertLines.length ? alertLines.join('\n') : '(없음)');
+  lines.push('');
+  lines.push('## 귀로 확인');
+  document.querySelectorAll('#manual input[type=checkbox]').forEach((c) => {
+    lines.push((c.checked ? '[x] ' : '[ ] ') + MANUAL[+c.dataset.m]);
+  });
+  lines.push('');
+  lines.push('## 자막 — 비버');
+  Object.keys(turnEls.b).forEach((k) => lines.push('🦫 ' + k + ': ' + turnEls.b[k].text));
+  lines.push('');
+  lines.push('## 자막 — 학습자');
+  Object.keys(turnEls.u).forEach((k) => lines.push('👤 ' + k + ': ' + turnEls.u[k].text));
+  lines.push('');
+  lines.push('## 수신 전문(' + logLines.length + '줄)');
+  lines.push(logLines.join('\n'));
+  const text = lines.join('\n');
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {}
+  if (!ok) {
+    // https/localhost 가 아니면 clipboard 가 막힌다 — 보이는 textarea 로 떨어뜨려 손으로 복사하게 한다.
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.width = '100%'; ta.style.height = '220px';
+    const box = $('#usagebox');
+    box.appendChild(document.createElement('hr'));
+    box.appendChild(ta);
+    ta.focus(); ta.select();
+    try { ok = document.execCommand('copy'); } catch (e) {}
+  }
+  $('#copyBtn').textContent = ok ? '✅ 복사됨' : '⚠ 아래 칸에서 직접 복사';
+  setTimeout(() => { $('#copyBtn').textContent = '📋 로그 복사'; }, 2500);
+};
+
+paintCounts(); paintGauges();
+</script>
+</body>
+</html>

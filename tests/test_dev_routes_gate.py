@@ -33,6 +33,8 @@ def test_dev_routes_closed_regardless_of_env_when_flag_off(env):
     c = _client(dev_routes_enabled=False, env=env)
     assert c.post("/__dev/signup", json={}).status_code == 404
     assert c.get("/__levelcalldemo").status_code == 404
+    # GPT 통화 QA 콘솔(2026-10-05)도 같은 축 하나에만 반응한다 — 운영에 새면 안 된다.
+    assert c.get("/__devgpt").status_code == 404
 
 
 @pytest.mark.parametrize("env", ["dev", "test", "prod"])
@@ -45,3 +47,9 @@ def test_dev_routes_open_regardless_of_env_when_flag_on(env):
     c = _client(dev_routes_enabled=True, env=env)
     assert c.post("/__dev/signup", json={"email": "x@x.com", "password": "pw"}).status_code == 503
     assert c.get("/__levelcalldemo").status_code == 200
+    # /__devgpt = GPT 통화 QA 콘솔. 정적 HTML 이라 200 이고, 파일이 사라지면 여기서 잡힌다.
+    r = c.get("/__devgpt")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    assert "calls/stream" in r.text   # WS 계약이 페이지에 살아 있나
+    assert "16000" in r.text          # 클라→서버 입력은 16k(서버가 24k 로 올린다)

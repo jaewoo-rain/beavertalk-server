@@ -818,6 +818,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 media_type="text/html",
             )
 
+        @app.get("/__devgpt", include_in_schema=False)
+        def gpt_call_demo() -> FileResponse:
+            """GPT(OpenAI Realtime) 표현학습 통화 QA 콘솔 HTML — 앱 빌드 없이 브라우저로 실통화.
+
+            ⭐ 목적은 «체험» 이 아니라 **관측**이다: 지금까지 Cloud Logging 을 봐야 알던 것을
+              화면에 올린다 — 수신 JSON 전문 · 자막 2줄 · error 프레임 · set_face 누출 ·
+              쪽지 낭독 · fragment_saved · 경과/남은 시간 · 턴 수 · 비버 발화 누적 초.
+            ⛔ 엔진을 고르지 않는다. 콜타입만 보내고(`expression` 기본), OpenAI 로 갈지는
+              서버가 정한다(`OPENAI_REALTIME_COURSES` + `GPT_API_KEY` — call_service.live_openai_for).
+            ⛔ 조각 전환을 구현하지 않는다 — `remaining_s`·`max_fragments` 가 와도 무시하고
+              화면에 경고로만 적는다(OpenAI 경로엔 조각이 없다). 통화 길이 종료는 클라 시계.
+            ⚠ 실통화다 — 전사·판정·진도·원가가 DB 에 기록된다(dev DB 와 운영 DB 는 분리돼 있지 않다).
+            """
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "gpt_call_demo.html",
+                media_type="text/html",
+            )
+
         @app.post("/__dev/pron-eval", include_in_schema=False)
         async def dev_pron_eval(  # type: ignore[no-untyped-def]
             member: CurrentAdmin,
