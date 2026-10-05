@@ -4624,19 +4624,39 @@ def test_the_log_line_carries_cached_and_ratio():
     assert "sum_cached=2400" in line and "cached_ratio=60.0%" in line, line
 
 
-def test_the_cost_formula_is_untouched():
-    """⛔⛔ **관측만이다.** 캐시 값이 원가식에 새어 들어가면 값이 나오기도 전에 원가가 바뀐다.
+def test_the_cost_formula_never_discounts_gemini():
+    """⛔⛔ **Gemini 행의 원가는 캐시로 깎이지 않는다**(2026-08-16 확정 유지).
 
-    ⚠ 그리고 지금 식은 **맞다**(2026-08-16 확정): `sum_prompt` 가 `last_prompt` 의 38배인 것은
-      결함이 아니라 요청을 그만큼 한 결과다. 물리 상한(Σ 출력오디오 ÷ 통화초 = 5.7~15.2 토큰per초)이
-      그걸 확정했다 — 반대 가설이면 8.5분 통화에서 비버가 6.6초 말한 게 된다.
+    ⚠ 2026-10-04 — 잠금을 **소스 문자열 검사에서 값 검사로 바꿨다.** 종전에는
+      `"cached" not in inspect.getsource(...)` 로 묶었는데, OpenAI 로 갈아타면서
+      그 함수를 두 엔진이 공유하게 됐다. OpenAI 는 오디오 캐시 티어가 **실재**하고
+      (정가 $10/1M vs cached **$0.30/1M**) 실측 적중률이 **89.8%** 라, 그 엔진의
+      원가는 캐시를 반영해야 **맞다** — 반영하지 않으면 계기판이 33배 과대 계상해
+      「OpenAI 가 더 비싸다」고 거짓 보고한다.
+      ⇒ 소스에 "cached" 가 들어오는 것 자체는 더 이상 결함이 아니다. 지켜야 할 것은
+        **Gemini 행의 값이 1센트도 바뀌지 않는다**는 것이고, 값 검사가 그걸 문자열
+        검사보다 **강하게** 증명한다 — 캐시 인자를 **줘도** 안 깎이는 것까지 본다.
+
+    ⚠ 그리고 2026-08-16 의 판단은 그대로 유효하다: Gemini 의 `sum_cached` 는 뜻이
+      확인되지 않았고 그 단가표엔 캐시 칸이 **없다**. 그래서 Gemini 는 관측만 한다.
     """
-    import inspect
+    p = svc.LIVE_TOKEN_PRICE_USD
+    # ① Gemini 단가표에 캐시 칸이 없다 — 구조로 막는다.
+    assert not [k for k in p if "cached" in k], (
+        "Gemini 단가표에 캐시 칸이 생겼다 — sum_cached 의 뜻을 확인하기 전엔 안 된다", p)
 
-    import domains.learning.service.normalcall_service as svc
+    kwargs = dict(in_audio=300628, in_text=245338, out_audio=10, out_text=5)
+    hand = (kwargs["in_audio"] * p["in_audio"] + kwargs["in_text"] * p["in_text"]
+            + kwargs["out_audio"] * p["out_audio"] + kwargs["out_text"] * p["out_text"]) / 1_000_000
 
-    src = inspect.getsource(svc.estimate_usage_cost_usd)
-    assert "cached" not in src, "원가식이 캐시 토큰을 쓰기 시작했다 — 관측 단계에서 멈춰야 한다"
+    # ② 기존 호출부(엔진 미지정)가 손계산과 같다.
+    assert svc.estimate_usage_cost_usd(**kwargs) == hand
+    # ③ ⭐ Gemini 를 **명시하고 캐시를 줘도** 같다 — 이게 종전 문자열 잠금이 노린 것이다.
+    assert svc.estimate_usage_cost_usd(
+        **kwargs, engine="live:gemini-live-2.5-flash-native-audio",
+        cached_in_audio=250_000, cached_in_text=200_000) == hand
+    # ④ 원가 진입점 경유도 같다.
+    assert svc.estimate_call_cost_usd(None, **kwargs)[0] == hand
 
 
 # --------------------------------------------------------------------------- #

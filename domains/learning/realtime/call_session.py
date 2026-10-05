@@ -83,6 +83,13 @@ from core.gemini_live import (
     LiveSessionProtocol,
     open_session,
 )
+# ⭐⭐ OpenAI Realtime 엔진(2026-10-04) — **격리 패키지** `core/openai/`.
+#   ⛔ 그 패키지는 Gemini 자산을 import 하지 않는다(`tests/test_openai_isolation.py`).
+#     거꾸로 **이 파일이 둘 다 import 하는 것은 정상**이다 — 여기가 엔진을 고르는 자리다.
+from domains.learning.realtime import seed_bundle
+from core.openai import session as openai_live
+from core.openai import tools as openai_tools
+from core.openai.prompts import expression as openai_expression
 from core.persona_prompt import (
     _LOCALE_LABEL,
     face_tool_rule,
@@ -543,11 +550,10 @@ def _strip_face_echo(text: str) -> str:
 _RESUME_MAX = 6
 # 태그가 섞인 턴이라도 소리가 이만큼 있고 본문이 남으면 «벙어리 턴» 이 아니다 — 재개 시드를 넣지 않는다(T17-1).
 TAG_LEAK_SPOKEN_MIN_S = 0.5
-_RESUME_SEED = (
-    f"{CONTROL_TAG} 이 메시지는 소리내 읽지 마라. 통화는 아직 끝나지 않았다 — 방금 네 발화에 "
-    "대사가 아닌 문구가 섞였거나 먼저 작별하려 했는데, 둘 다 하지 마라. 사과·설명·메타 발언 "
-    "없이 방금 하던 대화를 그대로 이어서 학습자에게 한마디만 건네라."
-)
+# ⚠ **문구는 `seed_bundle` 로 옮겼다**(2026-10-05 — 복사 아니라 이동, 바이트 그대로).
+#   주입 자리가 엔진을 묻지 않으려면 묶음이 이 문구를 들고 있어야 한다. 이 이름은
+#   회귀(`test_normalcall_ws.py` 의 «제어 태그 접두» 판)가 보므로 그대로 남긴다.
+_RESUME_SEED = seed_bundle.GEMINI_RESUME_SEED
 
 SessionFactory = Callable[..., AsyncContextManager[LiveSessionProtocol]]
 
@@ -799,7 +805,7 @@ class _CallState:
         # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
         "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
         # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
-        "input_language_codes", "live_model", "live_vertex",
+        "input_language_codes", "live_model", "live_vertex", "live_engine", "seeds",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
@@ -1074,6 +1080,14 @@ class _CallState:
         # ⭐ 이 통화의 백엔드(2026-09-08). True=Vertex / False=AI Studio / None=전역 설정.
         #   ⛔ `live_model` 과 **한 묶음**이다 — 따로 정해지면 어긋난 조합이 되고 1008 이다.
         self.live_vertex: bool | None = None
+        # ⭐ 이 통화의 엔진("" = Gemini / "openai" = OpenAI Realtime). 재접지 차단·원가
+        #   태그·재연결 거부가 이 한 값을 본다. ⛔ 모델 이름으로 다시 판정하지 마라(두 곳이 갈라진다).
+        self.live_engine: str = ""
+        # ⭐⭐ **이 통화가 쓸 시드 묶음**(2026-10-05). 통화 중 주입 문구 전부가 여기서 나온다 —
+        #   주입 자리에는 `if 엔진` 이 **하나도 없다**. 묶음을 고르는 자리는 run_call 한 곳이다.
+        #   ⛔ 기본값이 Gemini 라 묶음을 안 고른 경로(레벨테스트·프리토킹·chat·시험 헬퍼)는
+        #     **종전 바이트 동일**이다.
+        self.seeds: seed_bundle.SeedBundle = seed_bundle.GEMINI
         self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
         self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
@@ -1417,8 +1431,10 @@ def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = Fa
     locale_label = ctx.get("locale_label") or "학습자의 모국어"
     target = ctx.get("target_language") or "한국어"
     labels = " ".join("«%s»" % state.reground_items[n - 1] for n in nums if 1 <= n <= len(state.reground_items))
-    return expression_quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target,   # 잠금: locked/seeds.py
-                               done_labels=_covered_labels(state), remaining_rows=_expr_remaining_rows(state))
+    # ⭐ 문구는 **이 통화의 묶음**이 소유한다(`state.seeds`) — Gemini 는 locked/seeds.py,
+    #   OpenAI 는 core/openai/prompts/seeds.py. 여기선 **재료만** 만들어 넘긴다(엔진을 묻지 않는다).
+    return state.seeds.quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target,
+                                done_labels=_covered_labels(state), remaining_rows=_expr_remaining_rows(state))
 
 
 #: 큐 보류 상한 — 정리(학습자 성공/비버 다음 항목)를 기다리다 학습자 턴이 이만큼 지나면 얹는다(= 공개 뒤 시도 3번 = 드릴 재시도 상한 3).
@@ -1656,7 +1672,7 @@ async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallSt
         return False
     labels = " ".join("«%s»" % state.reground_items[n - 1] for n in state.expr_quiz_set if 1 <= n <= len(state.reground_items))
     state.expr_quiz_set_nudges += 1
-    await _send_note(session, expression_quiz_set_reminder(labels))
+    await _send_note(session, state.seeds.quiz_set_reminder(labels))
     _note_text_inject(state, "quiz_set")
     logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s 자리=마이크 모델=%s",
                 EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
@@ -1756,7 +1772,7 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     if state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
         return False
     state.expr_drill_nudges += 1
-    await _send_note(session, EXPRESSION_DRILL_MOVE_ON)
+    await _send_note(session, state.seeds.drill_move_on)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
     logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s 자리=마이크 모델=%s",
@@ -2783,6 +2799,10 @@ def _record_usage(state: _CallState, um) -> None:
             "tool_in": getattr(um, "tool_use_prompt_token_count", None),
             "in_detail": _modality_pairs(getattr(um, "prompt_tokens_details", None)),
             "out_detail": _modality_pairs(getattr(um, "response_tokens_details", None)),
+            # ⭐ 캐시 토큰의 **모달리티 분해**(2026-10-04). 원가 산식이 읽는다 — in_audio 의
+            #   90%가 캐시인 엔진에서 이 칸이 없으면 그 몫을 33배 비싸게 센다.
+            #   ⚠ Gemini 는 이 속성이 없다 ⇒ 빈 리스트 ⇒ 요약에서 키 자체가 빠진다(바이트 동일).
+            "cached_detail": _modality_pairs(getattr(um, "cached_tokens_details", None)),
         })
     except Exception as exc:  # noqa: BLE001 - 계측 실패가 통화를 죽이면 안 된다(R5)
         logger.debug("normalcall usage: 적재 실패(무시): %s", exc)
@@ -2806,11 +2826,16 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
 
     in_mod: dict[str, int] = {}
     out_mod: dict[str, int] = {}
+    cached_mod: dict[str, int] = {}
     for e in log:
         for name, cnt in e["in_detail"]:
             in_mod[name] = in_mod.get(name, 0) + cnt
         for name, cnt in e["out_detail"]:
             out_mod[name] = out_mod.get(name, 0) + cnt
+        # ⚠ `.get` 이다 — 이 키는 2026-10-04 에 생겼고, 그 전에 만들어진 로그 항목(재분석
+        #   경로에서 올 수 있다)엔 없다. 없으면 빈 것으로 본다.
+        for name, cnt in (e.get("cached_detail") or ()):
+            cached_mod[name] = cached_mod.get(name, 0) + cnt
 
     times = [e["t"] for e in log if e["t"] is not None]
     last = log[-1]
@@ -2836,6 +2861,8 @@ def _usage_summary(state: _CallState) -> Optional[dict]:
         "last_prompt": last["prompt"], "last_total": last["total"],
         "monotonic": monotonic,
         "in_mod": in_mod, "out_mod": out_mod,
+        # ⭐ 캐시 분해 — **값이 있을 때만** 키를 만든다(Gemini 요약은 바이트 동일).
+        **({"cached_mod": cached_mod} if cached_mod else {}),
         # 압축·재연결 관측(원가 추이와 함께 봐야 의미가 있는 값들).
         # ⚠ peak_prompt 는 **통화 전체 최대치**(단조증가)다. 압축마다 리셋되는 사이클 peak 는
         #   cycle_peak 로 따로 낸다 — DB 에 사이클 peak 를 넣었더니 "이 통화가 몇 토큰까지
@@ -2959,8 +2986,12 @@ async def _persist_usage(db_session_factory, state: _CallState, call_id: int | N
             lambda db: svc.save_call_usage(
                 db, call_id, summary,
                 engine=(
-                    svc.build_engine_tag("live", state.live_model)
-                    if state.live_model else svc.ENGINE_LIVE_GEMINI
+                    # ⭐ OpenAI 통화는 `live:openai-realtime-2.1-mini` — 한 쿼리로 골라낼 수
+                    #   있고(usage_engine LIKE '%openai%') 모델까지 담아 집계가 갈린다.
+                    svc.openai_engine_tag(state.live_model)
+                    if state.live_engine == call_service.OPENAI_ENGINE
+                    else (svc.build_engine_tag("live", state.live_model)
+                          if state.live_model else svc.ENGINE_LIVE_GEMINI)
                 ),
                 accumulate=bool((state.fragment_index or 1) > 1),   # 2026-09-14 ① — 이어하기 조각은 누적(fragments 배열 + 합계)
             ),
@@ -3337,6 +3368,10 @@ async def run_call(
     #   플랜 분기를 안 타므로, 여기 없으면 state 대입에서 UnboundLocalError 가 난다.
     #   ⚠ None 이면 어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작 그대로).
     live_model: str | None = None
+    # ⭐⭐ OpenAI Realtime 으로 보내나(2026-10-04). ⛔ 여기서 **정하지 않는다** — 콜타입이
+    #   확정되는 자리(cur 표현학습 분기)에서 정하고, 여기선 「아니다」로 둔다.
+    #   기본 False ⇒ env 가 비어 있으면 아래 분기가 한 번도 안 돌아 **Gemini 경로 바이트 동일**.
+    use_openai = False
     # ⭐ [live_model] 과 **같은 이유로** 분기 앞에서 잡는다 — 레벨테스트는 플랜 분기를
     #   안 타므로 여기 없으면 아래 tool 게이트에서 UnboundLocalError 가 난다.
     #   ⚠ 기본 False(=음성통화)다. 모르면 **도구를 안 싣는 쪽**이 안전하다 —
@@ -3698,22 +3733,55 @@ async def run_call(
             call_type = cur_open.course          # 이어하기면 cur_call 의 코스가 이긴다(§7 P0)
             if cur_open.course == "expression":
                 expr_items = cur_open.items       # DTO: item_id·lesson_id·obj·des·ex·role·review — lesson_id 가 state 까지 살아간다(§6 ①)
-                system_instruction = build_expression_instruction(
-                    role=setup["role"],
-                    personality=setup["personality"],
-                    level_profile=level_profile,
-                    locale=locale,
-                    interests=setup["interests"],
-                    name=setup["name"],
-                    items=expr_items,
-                    quiz_group=svc.EXPRESSION_QUIZ_GROUP,
-                    target_language=target_language,
-                    close_tag=close_tag,
-                    model_family="3.1" if "3.1" in (live_model or "") else "2.5",
-                    face_rule=face_rule_text,
-                    language=spec.code,                    # 격식 줄 언어별(ja) — ko 바이트 동일
-                )
-                seed_text = seed_expression_opening(target_language)
+                # ⭐⭐ **엔진 분기는 여기 하나다**(2026-10-04). 콜타입이 확정된 자리라서
+                #   여기여야 한다 — 위 플랜 분기에선 `call_type` 이 아직 cur 코스로 바뀌기 전이다.
+                #   ⛔ env(`OPENAI_REALTIME_COURSES`)가 비어 있으면 False 라 아래 else 가
+                #     종전 그대로 돈다(Gemini 대본·시드 바이트 동일).
+                use_openai = call_service.live_openai_for(call_type)
+                if use_openai:
+                    # ⛔ GPT 전용 대본이다 — Gemini 대본(`build_expression_instruction`)을
+                    #   고쳐 쓰는 것이 아니라 **백지에서 쓴 다른 파일**이다. 근거는
+                    #   `core/openai/prompts/expression.py` 모듈 독스트링(측정 교훈 8개).
+                    system_instruction = openai_expression.build_expression_instruction(
+                        role=setup["role"],
+                        personality=setup["personality"],
+                        locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
+                        items=expr_items,
+                        quiz_group=svc.EXPRESSION_QUIZ_GROUP,
+                        target_language=target_language,
+                        name=setup["name"],
+                        level_note=openai_expression.first_sentence(level_profile),
+                        # ⭐ 표정 게이트를 **다시 판정하지 않는다** — 위에서 이미 플랜·영상·
+                        #   콜타입으로 계산된 `face_rule_text` 가 있나 없나만 본다
+                        #   (무료 OFF / 유료 ON 이 저절로 맞는다, 사장님 결정 6).
+                        face_rule=openai_tools.face_rule_block() if face_rule_text else "",
+                    )
+                    seed_text = openai_expression.seed_opening(
+                        _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"])
+                    # ⛔ 주입된 가짜 팩토리(시험)가 있으면 그게 이긴다 — 라우팅 결정만 시험하고
+                    #   실제 WS 는 열지 않을 수 있어야 한다.
+                    if live_session_factory is None:
+                        factory = openai_live.open_session
+                    logger.info("normalcall OpenAI 라우팅: 코스=%s 모델=%s 표정=%s",
+                                call_type, settings.OPENAI_REALTIME_MODEL,
+                                "on" if face_rule_text else "off")
+                else:
+                    system_instruction = build_expression_instruction(
+                        role=setup["role"],
+                        personality=setup["personality"],
+                        level_profile=level_profile,
+                        locale=locale,
+                        interests=setup["interests"],
+                        name=setup["name"],
+                        items=expr_items,
+                        quiz_group=svc.EXPRESSION_QUIZ_GROUP,
+                        target_language=target_language,
+                        close_tag=close_tag,
+                        model_family="3.1" if "3.1" in (live_model or "") else "2.5",
+                        face_rule=face_rule_text,
+                        language=spec.code,                # 격식 줄 언어별(ja) — ko 바이트 동일
+                    )
+                    seed_text = seed_expression_opening(target_language)
                 logger.info(
                     "normalcall cur 표현학습: lesson=%s(no=%d) status=%s 항목 %d(복습 %d) 재개=%s call_id=%s",
                     cur_open.lesson.code, cur_open.lesson.no, cur_open.status, len(expr_items),
@@ -3771,6 +3839,14 @@ async def run_call(
         #   «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을 서버 값으로 판단한다. 상한은
         #   REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
         fragment_index = None
+        # ⭐⭐ OpenAI 경로는 **조각이 없다**(단일 세션 15분). 그래서 상한을 1 로 못박는다 —
+        #   state 의 이 값은 ① 루프 차단기가 «조각을 더 열 수 있나» 를 묻는 자리
+        #   (`_loop_breaker_on_turn_end`)와 ② usage 누적 판정이 본다. 1 이면 차단기가
+        #   조각 전환 대신 **종료 시드로 작별**한다(= 조각 분할이 안 돈다).
+        #   ⛔ 아래 `call_started` 프레임에는 **싣지 않는다** — 사장님 결정: 클라는 자기가
+        #     시간을 재고 자기가 끊는다. 서버가 알려 줄 조각 경계가 없다.
+        if use_openai:
+            max_fragments = 1
         if call_type in ("expression", "freetalk", "chat"):
             if max_fragments is None:
                 max_fragments = await svc.run_db(
@@ -3799,7 +3875,14 @@ async def run_call(
                 ),
             )
             if daily_remaining is not None:
-                remaining_s = min(daily_remaining, int(call_service.CALL_FRAGMENT_S))
+                # ⛔⛔ OpenAI 경로는 **조각 상한(360)으로 깎지 않는다.** 깎으면 15분 통화에서
+                #   서버 안전판이 420초에 터져 통화가 7분에 끊긴다. 이 엔진에서 이 값의 뜻은
+                #   «오늘 남은 예산» 하나다(= `_watch_call_clock` 의 C5 안전판 입력).
+                #   ⭐ 그리고 **프레임에는 안 실린다**(아래 `openai_frame_*`) — 클라는 자기
+                #     상한을 자기가 안다(`CallAllowance.limitFor`). 서버가 쥔 것은 ①시작
+                #     거절(DAILY_LIMIT, 위에서 이미 끝났다) ②못 끊었을 때의 백스톱뿐이다.
+                remaining_s = (daily_remaining if use_openai
+                               else min(daily_remaining, int(call_service.CALL_FRAGMENT_S)))
         # ⭐⭐ §9(2026-09-28) — 「재측정 대기」였다면 **여기서** 실제 레벨 초기화(행
         #   삭제·korean_level NULL)를 한다. ALREADY_IN_CALL·DAILY_LIMIT 은 이 지점
         #   **이전**에 이미 걸러졌으므로(위 :3200·:3261), 여기 도달했다는 것 자체가
@@ -3814,20 +3897,28 @@ async def run_call(
                 db_session_factory,
                 lambda db: mastery_service.apply_pending_retest(db, member_id, spec.code),
             )
+        # ⛔⛔ OpenAI 경로의 프레임에서 **조각·예산 3값을 뺀다**(2026-10-04 사장님 결정).
+        #   「클라틱을 왜 보내? 클라는 자기가 직접 시간 재고 시간 지나면 종료하면 되잖아」 —
+        #   그 배관은 **조각 분할 때문에 생긴 것**이고, 조각이 없으면 알려 줄 것이 없다.
+        #   ⚠ `state` 에는 남는다(위 주석 — 루프 차단기·백스톱이 쓴다). 프레임만 비운다.
+        openai_frame_frag = None if use_openai else fragment_index
+        openai_frame_max = None if use_openai else (
+            max_fragments if fragment_index is not None else None)
+        openai_frame_remaining = None if use_openai else remaining_s
         await _send_json(
             client_ws,
             ServerCallStarted(
                 character_id=character_id,
                 call_id=str(call_id),
-                fragment_index=fragment_index,
-                max_fragments=max_fragments if fragment_index is not None else None,
+                fragment_index=openai_frame_frag,
+                max_fragments=openai_frame_max,
                 # ⛔ 이 값을 안 실으면 클라는 자기 기본값으로 돈다 — 그러면 "끄는 스위치가
                 #   서버에 있다"는 말이 거짓이 된다. 필드만 만들어 두고 아무도 안 채우던
                 #   상태를 여기서 닫는다(2026-08-25).
                 diag=settings.LIVE_DIAG_LEVEL,
                 # ⭐ 커리큘럼 2단계(§8): cur 경로만 코스를 실는다 — 옛 경로는 None(직렬화에서 빠져 프레임 바이트 동일).
                 course=call_type if cur_route else None,
-                remaining_s=remaining_s,
+                remaining_s=openai_frame_remaining,
             ),
         )
 
@@ -3846,8 +3937,15 @@ async def run_call(
         #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
         #   어댑터가 `settings.GEMINI_LIVE_MODEL` 로 떨어진다(종전 동작).
         state.call_id = call_id                                # 11차 A — 표현학습 로그 줄의 call_id 출처(통화 행은 위에서 이미 만들었다)
-        state.live_model = live_model
-        state.live_vertex = live_vertex
+        if use_openai:
+            # ⭐ 엔진·모델·백엔드를 **한 자리에서 같이** 정한다(Gemini 쪽 live_engine_for 와
+            #   같은 규율 — 따로 정하면 어긋나고, 어긋나면 세션이 아예 안 열린다).
+            state.live_engine = call_service.OPENAI_ENGINE
+            state.live_model = settings.OPENAI_REALTIME_MODEL or openai_live.OPENAI_REALTIME_MODEL_DEFAULT
+            state.live_vertex = None                           # 이 엔진엔 백엔드 축이 없다 → 팩토리에 안 넘긴다
+        else:
+            state.live_model = live_model
+            state.live_vertex = live_vertex
         if resumed:
             # ⛔⛔ **턴 인덱스를 이어서 매긴다.** 0 부터 다시 매기면 조각2의 첫 턴이 조각1의
             #   첫 턴과 같은 번호가 되어 전사·증거 정렬이 통째로 어긋난다(같은 행에 쓰므로
@@ -4089,6 +4187,21 @@ async def run_call(
             # monkeypatch 하는 지점도 여기다(값이 박히면 DB 조회 자체를 건너뛴다).
             if CALL_DURATION_S is not None:
                 plan_duration_s = CALL_DURATION_S
+            elif use_openai:
+                # ⭐⭐ OpenAI 는 **조각이 없다** — 이 값이 통화 전체의 길이다(무료 5분 /
+                #   유료 15분, 사장님 결정 3). Gemini 의 `call_duration_s_for_member` 는
+                #   «조각 하나» 의 길이(360)라 뜻이 달라 그대로 쓸 수 없다.
+                #   ⭐ **절대 백스톱은 저절로 따라 오른다**: max(540, 900+22+30) = 952초.
+                #     ⛔ 백스톱 상수·식은 안 건드린다(R4 불변식) — 입력만 바뀐다.
+                #   ⛔ 서버가 900초에 **먼저** 끊지 않는다 — `_watch_call_clock` 은 통화
+                #     길이로 종료하지 않는다(T23). 정상 종료는 클라가 닫는다.
+                plan_duration_s = await svc.run_db(
+                    db_session_factory,
+                    lambda db: call_service.openai_call_duration_s(
+                        db, member_id,
+                        call_service.plan_override_for(db, member_id, plan_override_req),
+                    ),
+                )
             else:
                 plan_duration_s = await svc.run_db(
                     db_session_factory,
@@ -4127,6 +4240,20 @@ async def run_call(
                 state.idle_nudge1_s = float(settings.FREETALK_IDLE_NUDGE1_S)
                 state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
                 state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
+
+        # ⭐⭐⭐ **시드 묶음을 고르는 자리 — 여기 하나다**(2026-10-05 사장님 지시:
+        #   「잠금 지시문을 지피티가 사용하지마. 따로 작성해」).
+        #   통화 중 주입 문구 8종(루프차단·미끄러짐복구·무음1·2·3단·퀴즈큐·세트안내·드릴안내)이
+        #   전부 이 묶음에서 나온다. 그 **뒤로는 어떤 주입 자리도 엔진을 묻지 않는다** —
+        #   `if openai:` 를 자리마다 뿌리면 언젠가 한 자리를 빼먹고, 그 날 Gemini 문구가
+        #   GPT 통화에 조용히 섞인다.
+        #   ⛔ 여기가 **모든 시드 세팅보다 뒤**여야 한다: 위 블록들이 콜타입별로
+        #     `close_seed`·`nudge_seed_1`·`nudge_seed_2` 를 정하므로, 앞에 두면 그 값들이
+        #     묶음을 덮어쓴다. `apply_to` 는 Gemini 묶음에선 **아무것도 안 한다**(종전 동일).
+        state.seeds = seed_bundle.for_engine(state.live_engine)
+        state.seeds.apply_to(state, close_tag=close_tag)
+        if state.seeds is not seed_bundle.GEMINI:
+            logger.info("normalcall 시드 묶음: %s (주입 문구 전부 이 묶음에서 나온다)", state.seeds.name)
 
         # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
         # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
@@ -4997,7 +5124,21 @@ async def _run_one_generation(
                 tg.create_task(_pump_gemini_to_client(client_ws, session, state), name="nc-gemini->client")
                 tg.create_task(_watch_call_clock(state, session), name="nc-clock")
                 tg.create_task(_watch_idle(session, state), name="nc-idle")
-                tg.create_task(_reground_watch(session, state), name="nc-reground")
+                # ⛔⛔ **재접지 워처는 OpenAI 통화에 올라가지 않는다**(2026-10-04 결정 8).
+                #   재접지·압축은 **Gemini 의 한계 때문에 생긴 기계**다 — 컨텍스트가 압축되며
+                #   비버가 캐릭터와 「지금 할 일」을 잊는 것을 되박으려고 만들었다. OpenAI 는
+                #   128k 창에 15분 통화가 ~6% 로 끝나 압축이 없고, 그래서 되박을 이유도 없다.
+                #   ⛔ 켜면 해롭다: 쪽지가 「지금 할 일」을 다시 지시해 **지시문과 같은 축에서
+                #     싸운다**(프롬프트 README §8 2026-09-03 — 「지시문을 세 번 고쳤는데 하나도
+                #     안 먹은 이유: 경쟁 상대가 10초 전에 꽂힌 주입 턴이었다」). 그리고 매 주입이
+                #     턴당 입력을 늘린다.
+                #   ⚠ 이 한 줄이 「분기」로 보이지만, 세대 루프를 복제하지 않고 그 태스크를
+                #     **안 올리는** 가장 작은 형태다. 복제하면 2펌프·백스톱·종료 규약이 두 벌이
+                #     되어 R4 불변식이 갈라진다 — 그게 더 비싸다.
+                #   ⭐ **퀴즈 큐는 그대로 돈다** — 큐는 이 워처가 아니라 마이크 펌프
+                #     (`_maybe_attach_reground_on_mic` → `_attach_quiz_cue`)가 얹는다.
+                if state.live_engine != call_service.OPENAI_ENGINE:
+                    tg.create_task(_reground_watch(session, state), name="nc-reground")
                 tg.create_task(
                     _periodic_flush(db_session_factory, state, call_id, member_id), name="nc-flush"
                 )
@@ -5083,6 +5224,11 @@ def _reconnect_refusal(state: _CallState, eg: BaseException, now: float) -> str:
     """재연결을 **안 하는** 이유(빈 문자열이면 한다). 설계 §1 의 조건 ①~⑤."""
     if not _is_gemini_side_closure(eg):
         return "Gemini 쪽 끊김이 아님"
+    # ⛔⛔ OpenAI 경로는 **재연결하지 않는다**. 2세대를 열면 히스토리를 처음부터 다시
+    #   주입해 **캐시 프리픽스를 새로 쌓는다** — 캐시 할인($10 → $0.30/1M)을 통째로 잃고
+    #   그게 이 엔진으로 옮긴 이유 전부다. 끊기면 그대로 종료 파이프를 탄다.
+    if state.live_engine == call_service.OPENAI_ENGINE:
+        return "OpenAI 엔진(재연결이 캐시를 처음부터 다시 쌓는다)"
     if state.should_close or state.close_seed_sent:
         return "종료 구간"
     if state.reconnects >= RECONNECT_MAX_PER_CALL:
@@ -6147,7 +6293,7 @@ def _loop_note_beaver_turn(state: _CallState, text: str) -> int:
 async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallState, turn_text: str) -> None:
     """⭐ 반복 루프 차단기(2026-09-14 B, 실통화 1602 t73~t87 — 3.1 이 같은 문장을 8번 말했다).
 
-    ① 2회째(streak 1): LOOP_BREAK_NOTE 를 완결 텍스트 턴으로 1회 주입(넛지와 같은 파이프 — turn_end 직후 idle 이라 턴을 자르지 않는다).
+    ① 2회째(streak 1): 묶음의 루프 차단 쪽지(`state.seeds.loop_break`)를 완결 텍스트 턴으로 1회 주입(넛지와 같은 파이프 — turn_end 직후 idle 이라 턴을 자르지 않는다).
     ② 3회째(streak 2): 조각 강제 전환 — 클라가 fragment_end 를 보낸 것과 같은 경로(_FragmentEnd → finally 저장 → fragment_saved reason="loop"
        → close). 클라는 요청 없이 받은 fragment_saved 를 «전환하라» 로 처리한다. Free(상한 1)·마지막 조각이면 전환할 곳이 없다 → 종전 종료
        시드로 작별(무음 3단과 같은 마무리). 4회째 이후는 ②가 이미 끝냈으므로 오지 않는다.
@@ -6160,7 +6306,7 @@ async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallSt
                    streak, streak + 1, state.next_turn_index, turn_text)
     if streak == 1:
         if state.turn_id is None and not state.should_close:
-            await session.send_text_turn(LOOP_BREAK_NOTE)
+            await session.send_text_turn(state.seeds.loop_break)
             _note_text_inject(state, "loop")
             logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
         return
@@ -6576,7 +6722,7 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         return
     state.resume_sent += 1
     try:
-        await session.send_text_turn(_RESUME_SEED)
+        await session.send_text_turn(state.seeds.resume_after_slip)
         logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
     except asyncio.CancelledError:
         raise

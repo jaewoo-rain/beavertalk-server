@@ -1,0 +1,10 @@
+close_seed             (Gemini 쪽 없음)
+drill_move_on          최장겹침  7자  ' 읽지 마라.'
+loop_break             최장겹침  9자  ' 방금 한 말을 '
+nudge_1                (Gemini 쪽 없음)
+nudge_2                (Gemini 쪽 없음)
+quiz_cue               최장겹침 12자  '답을 먼저 말하지 마라'
+quiz_set_reminder      최장겹침  9자  ' 낼 문제는 <G'
+resume_after_slip      최장겹침  9자  '에 대사가 아닌 '
+
+임계 = 16자 초과면 실패

@@ -223,6 +223,38 @@ class Settings(BaseSettings):
     #   USE_VERTEX 분기는 build_live_config 가 한다 — 안 그러면 api_key 폴백에서 연결
     #   자체가 터져 graceful degradation(R5)이 깨진다.
     LIVE_SESSION_RESUMPTION: bool = False  # 핸들 수집 활성(동작 변경 없음)
+
+    # ══ OpenAI Realtime 통화 엔진(2026-10-04) ═══════════════════════════════════
+    # ⭐ 어댑터는 `core/openai/` — **Gemini 자산을 import 하지 않는 격리 패키지**다
+    #   (`tests/test_openai_isolation.py` 가 AST 로 지킨다).
+    #
+    # ⛔⛔ **기본값은 「꺼짐」이다**(`OPENAI_REALTIME_COURSES=""`). 이 값이 비어 있으면
+    #   라우팅 분기가 한 번도 안 돌아 **Gemini 경로가 바이트 동일**하다. 켜는 것도 되돌리는
+    #   것도 env 한 줄이고 코드 배포가 필요 없다 — 통화는 되돌리기가 빨라야 한다.
+    #   값은 콜타입 쉼표 목록이다(지금 지원: "expression").
+    OPENAI_REALTIME_COURSES: str = ""
+    # ⛔ 키 이름이 `OPENAI_*` 가 아니다 — 이 저장소 관례는 `GPT_API_KEY` 다(발음 PTT
+    #   스파이크부터 같은 이름을 썼다). 값은 로그·예외에 **마스킹해서도** 찍지 않는다.
+    GPT_API_KEY: str = ""
+    OPENAI_REALTIME_MODEL: str = "gpt-realtime-2.1-mini"
+    # 음색. mini 는 커스텀 음색을 지원하지 않아 Baba 의 Gemini 음색(Fenrir)은 못 옮긴다.
+    # `marin` = 10-03 단가 스파이크가 실제로 열어 들어 본 유일한 값.
+    OPENAI_REALTIME_VOICE: str = "marin"
+    # 입력 전사 모델. ⚠ **미검증** — 스파이크는 전사를 안 켰다. 거절당하면 어댑터가 전사를
+    # 빼고 한 번 더 열고(통화는 살린다) ERROR 를 남긴다. 그 로그가 보이면 "whisper-1" 로 내려라.
+    OPENAI_REALTIME_TRANSCRIBE_MODEL: str = "gpt-4o-mini-transcribe"
+    # 0 = 상한을 안 싣는다(권장). 값을 주면 긴 설명이 문장 중간에 잘릴 수 있다.
+    OPENAI_REALTIME_MAX_OUTPUT_TOKENS: int = 0
+    # ⛔⛔ **동시 통화 1건**(사장님 결정, 2026-10-04). org TPM 40,000 에서 표정 ON 통화
+    #   1건이 분당 ~30k 를 쓴다 — 2건이면 한도를 넘고, 넘으면 통화가 **조용히** 안 열린다.
+    #   TPM 상향은 사장님이 직접 한다. 그때까지 1 로 묶는다.
+    #   ⚠ 프로세스 단위 게이트다(인스턴스가 2개면 2건). 전역 게이트는 DB 가 필요해 1차 밖이다.
+    OPENAI_REALTIME_MAX_CONCURRENT: int = 1
+    # 유료(premium) OpenAI 통화 길이(초). 무료는 아래 FREE 값. ⚠ 조각이 없는 단일 세션이라
+    # 이 값이 곧 `state.call_duration_s` 이고, 절대 백스톱이 자동으로 따라 오른다
+    # (max(540, 900+22+30) = 952). ⛔ 백스톱 상수·식은 건드리지 않는다(R4).
+    OPENAI_CALL_DURATION_PREMIUM_S: float = 900.0
+    OPENAI_CALL_DURATION_FREE_S: float = 300.0
     # 일반 통화 길이(초)를 **전 회원에게 강제**하는 값. None(기본) 이면 강제하지 않고
     # 구독 플랜별 길이(call_service.CALL_DURATION_S_BY_PLAN — Free 5분 / Pro·Max 15분)가
     # 소스가 된다. prod 는 이 값을 주지 않는다(플랜이 결정해야 하므로).

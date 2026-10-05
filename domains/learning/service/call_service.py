@@ -249,6 +249,48 @@ BACKEND_VERTEX = "vertex"
 BACKEND_STUDIO = "studio"
 
 
+# ══ OpenAI Realtime 엔진(2026-10-04) ══════════════════════════════════════════
+# ⭐ Gemini 와 **공존**한다. 코스 하나(표현학습)만 넘기고 나머지는 Gemini 그대로 —
+#   둘이 독립적으로 굴러가야 비교도, 되돌리기도 된다.
+# ⛔ 플랜으로 **가르지 않는다**(사장님 결정 3: 무료·유료 둘 다 OpenAI). 플랜이 가르는
+#   것은 **길이**(무료 5분 / 유료 15분)와 **표정**(무료 OFF / 유료 ON — 표정은 이미
+#   `CALL_VIDEO_BY_PLAN` 이 같은 모양으로 가르고 있어 코드 변경 0이다).
+OPENAI_ENGINE = "openai"
+
+
+def openai_courses() -> frozenset[str]:
+    """OpenAI 엔진으로 보낼 콜타입 집합. 빈 집합이면 꺼진 것(= Gemini 전부)."""
+    raw = (settings.OPENAI_REALTIME_COURSES or "").strip()
+    if not raw:
+        return frozenset()
+    return frozenset(p.strip() for p in raw.split(",") if p.strip())
+
+
+def live_openai_for(call_type: str | None) -> bool:
+    """이 콜타입을 OpenAI 로 보내나.
+
+    ⛔ 키가 없으면 **안 보낸다**(R5 graceful degradation) — env 로 코스만 켜 두고 키를
+      안 넣은 상태에서 통화가 전부 실패하는 것을 막는다. 키 유무만 보고 값은 안 읽는다.
+    ⛔ 레벨테스트는 들어올 수 없다 — 그 코스는 자기 백엔드를 명시로 고정하고(studio 3.1)
+      측정 설계가 Gemini 발화 모양에 묶여 있다. 목록에 적어도 여기서 막는다.
+    """
+    if not call_type or call_type == "level_test":
+        return False
+    if not (settings.GPT_API_KEY or "").strip():
+        return False
+    return call_type in openai_courses()
+
+
+# OpenAI 통화 길이(초) — 플랜별. ⚠ 조각이 없으므로 이 값이 **통화 전체**의 길이다
+#   (Gemini 의 `CALL_DURATION_S_BY_PLAN` 은 «조각 하나» 의 길이라 뜻이 다르다).
+def openai_call_duration_s(db: Session, member_id: int, plan_override: str | None = None) -> float:
+    """이 회원의 OpenAI 통화 길이(초). Free 5분 / Premium 15분. 모르면 Free(R5)."""
+    plan = _plan_key(db, member_id, plan_override)
+    if plan == "premium":
+        return float(settings.OPENAI_CALL_DURATION_PREMIUM_S)
+    return float(settings.OPENAI_CALL_DURATION_FREE_S)
+
+
 def live_engine_for(db: Session, member_id: int, plan: str | None = None) -> tuple[str, str]:
     """이 회원의 통화에 쓸 **(백엔드, 모델 id)**. 모르면 음성 쪽. `plan` 이 있으면(admin 흉내) 그 플랜 기준 — call_video_for 와 같은 키.
 

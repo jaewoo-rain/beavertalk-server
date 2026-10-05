@@ -1804,11 +1804,50 @@ LIVE_TOKEN_PRICE_USD = {
     "out_text": 2.00,
 }
 
+# ⭐⭐ OpenAI Realtime(`gpt-realtime-2.1-mini`) 단가(USD/1M). 출처: 2026-10-03 확인
+#   developers.openai.com/api/docs/models/gpt-realtime-2.1-mini.
+#
+# ⛔⛔ **`cached_*` 칸이 이 표의 존재 이유다.** 실측에서 `in_audio` 의 **89.8% 가 캐시**였다.
+#   캐시분을 정가로 계산하면 그 몫을 **33배**(10.00 / 0.30) 비싸게 센다 — 계기판이
+#   「OpenAI 가 더 비싸다」고 **거짓 보고**한다. Gemini 는 Live 캐시 할인이 없어 영구 0 이고,
+#   그래서 위 표엔 이 칸이 없다(없는 것이 맞다 — 0 으로 채우면 "쟀다"로 보인다).
+# ⚠ 과금 가정: 벤더가 `input_tokens` 와 `cached_tokens` 를 **별도 필드**로 주므로
+#   「정가분 = in_audio − cached_in_audio」로 본다. ⛔ **결제 콘솔 1일분 대조로 확정해야
+#   한다**(미완 과제 — 10-03 절감안 §2.3 과 같은 성격).
+OPENAI_REALTIME_PRICE_USD = {
+    "in_audio": 10.00,
+    "cached_in_audio": 0.30,
+    "in_text": 0.60,
+    "cached_in_text": 0.06,
+    "out_audio": 20.00,
+    "out_text": 2.40,
+}
+
+
+def live_price_table(engine: str | None) -> dict:
+    """이 엔진의 Live 단가표. 모르면 Gemini 표(= 계기판 이전 통화는 전부 Gemini 였다).
+
+    ⛔ 엔진 문자열로만 가른다 — 모델 id 를 또 비교하지 마라(두 곳이 갈라진다).
+      태그 형식은 `build_engine_tag` 가 소유한다(`live:openai-realtime-2.1-mini`).
+    """
+    if engine and "openai" in engine:
+        return OPENAI_REALTIME_PRICE_USD
+    return LIVE_TOKEN_PRICE_USD
+
 
 def estimate_usage_cost_usd(
-    *, in_audio: int = 0, in_text: int = 0, out_audio: int = 0, out_text: int = 0
+    *, in_audio: int = 0, in_text: int = 0, out_audio: int = 0, out_text: int = 0,
+    cached_in_audio: int = 0, cached_in_text: int = 0, engine: str | None = None,
 ) -> float:
     """**Live 전용** — 모달리티 4항 × Live 단가 = 통화 원가(USD).
+
+    engine(2026-10-04): 단가표를 고르는 유일한 축(`live_price_table`). None/Gemini 태그면
+      종전 표. ⛔ 모델 id 로 다시 판정하지 마라.
+    cached_in_audio·cached_in_text(2026-10-04): 그 엔진이 **캐시 할인**을 하면 그만큼을
+      할인 단가로 센다. 캐시분은 `in_*` 에 포함돼 오므로 정가분 = `in − cached` 다.
+      ⛔⛔ **기본 0 이고, 단가표에 캐시 칸이 없으면 분기를 아예 건너뛴다** ⇒ 기존 호출부
+      (Gemini·옛 캐스케이드 행)는 **바이트 동일**하다. 회귀가 그걸 잠근다
+      (`tests/test_openai_routing.py::test_cost_is_byte_identical_without_cached_args`).
 
     4항을 나눠 두는 이유가 여기 있다 — 단가가 최대 24배까지 차이난다(텍스트 입력 $0.5 vs
     오디오 출력 $12). 합쳐 놓은 숫자로는 원가를 계산할 수가 없다.
@@ -1834,10 +1873,23 @@ def estimate_usage_cost_usd(
       대신 sum_thoughts>0 인 Live 통화가 나오면 call_session 이 **경고를 찍는다**(이 판단이
       낡았다는 신호). 그 로그가 보이면 ①을 실측으로 확인하고 여기 산식을 고쳐라.
     """
-    p = LIVE_TOKEN_PRICE_USD
+    p = live_price_table(engine)
+    # ⭐ 캐시 차원(2026-10-04). ⛔⛔ **기본 0 + 단가표에 캐시 칸이 없으면 바이트 동일**이다 —
+    #   Gemini 호출부(인자를 안 주는 쪽)는 이 블록을 지나도 종전과 **같은 부동소수 결과**가
+    #   나온다(0 을 빼고 0 을 곱하지 않는다 — 분기로 아예 건너뛴다). 회귀가 그걸 잠근다.
+    #   ⚠ 캐시분은 `in_*` 에 **포함돼 온다**(벤더가 별도 필드로 주되 총합에서 빼지 않는다)
+    #     ⇒ 정가분 = in − cached. 음수가 되면 0 으로 깎는다(필드 뜻이 바뀐 날의 방어).
+    cached_cost = 0.0
+    if "cached_in_audio" in p and (cached_in_audio or cached_in_text):
+        ca = max(0, int(cached_in_audio or 0))
+        ct = max(0, int(cached_in_text or 0))
+        in_audio = max(0, int(in_audio or 0) - ca)
+        in_text = max(0, int(in_text or 0) - ct)
+        cached_cost = ca * p["cached_in_audio"] + ct * p["cached_in_text"]
     return (
         in_audio * p["in_audio"] + in_text * p["in_text"]
         + out_audio * p["out_audio"] + out_text * p["out_text"]
+        + cached_cost
     ) / 1_000_000
 
 
@@ -1853,6 +1905,25 @@ def estimate_usage_cost_usd(
 #   Live 모델이 바뀌거나 새 엔진이 생기면 다시 쓸 자리다.
 ENGINE_LIVE_GEMINI = "live:gemini-native-audio"
 ENGINE_LIVE_OPENAI = "live:openai-realtime"
+
+
+def openai_engine_tag(model: str | None) -> str:
+    """OpenAI Live 통화의 `usage_engine` 태그 — `live:openai-realtime-2.1-mini`.
+
+    ⭐ 모델 id(`gpt-realtime-2.1-mini`)의 벤더 접두 `gpt-` 를 `openai-` 로 바꾼다.
+      둘을 다 담아야 ① 한 쿼리로 골라낼 수 있고(`usage_engine LIKE '%openai%'` —
+      사장님 요구: 테스트 데이터를 한 쿼리로 지운다) ② **모델을 바꾸면 집계가 갈린다**
+      (`build_engine_tag` 의 설계 의도 그대로).
+    ⛔ 형식은 `build_engine_tag` 가 소유한다 — 여기서 콜론을 직접 쓰지 않는다.
+    """
+    name = (model or "").strip()
+    if not name:
+        return ENGINE_LIVE_OPENAI
+    if name.startswith("gpt-"):
+        name = "openai-" + name[len("gpt-"):]
+    elif not name.startswith("openai-"):
+        name = "openai-" + name
+    return build_engine_tag("live", name)
 
 
 def build_engine_tag(mode: str, *components: str) -> str:
@@ -2079,8 +2150,15 @@ def estimate_call_cost_usd(
     if engine and engine.startswith("cascade:"):
         base, unknown = 0.0, [f"engine:{engine}"]
     else:
+        # ⭐ 캐시의 **모달리티 분해**는 usage_json 에 있다(`cached_mod` — OpenAI 통화만
+        #   생기는 키). 컬럼을 늘리지 않은 이유: 마이그레이션 없이 되고, 호출부가 이미
+        #   usage_json 을 넘기고 있다. ⚠ 조각 통화에서는 마지막 조각 값이다 — OpenAI 는
+        #   단일 세션이라 지금은 같다(조각이 생기면 fragments 배열로 가야 한다).
+        _cm = (usage_json or {}).get("cached_mod") or {}
         base, unknown = estimate_usage_cost_usd(
-            in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text
+            in_audio=in_audio, in_text=in_text, out_audio=out_audio, out_text=out_text,
+            cached_in_audio=int(_cm.get("AUDIO") or 0), cached_in_text=int(_cm.get("TEXT") or 0),
+            engine=engine,
         ), []
     side, side_unknown = estimate_side_cost_usd(usage_json)
     return base + side, unknown + side_unknown
@@ -2208,6 +2286,10 @@ def save_call_usage(
         #   (usage_in_text 등)에 **섞지 마라** — 단가가 다르고, 섞으면 두 엔진 비교가
         #   오염된다. 원가는 estimate_call_cost_usd 가 engine 분기 **위**에서 더한다.
         **({"sidecars": summary["sidecars"]} if summary.get("sidecars") else {}),
+        # ⭐ 캐시 토큰의 모달리티 분해(2026-10-04). **원가 산식이 읽는 값이다**
+        #   (`estimate_call_cost_usd`). ⛔ Gemini 통화에는 이 키가 **안 생긴다** — 벤더가
+        #   캐시 분해를 안 주므로 요약에 키 자체가 없다(기존 행 바이트 동일).
+        **({"cached_mod": summary["cached_mod"]} if summary.get("cached_mod") else {}),
         **({"in_other": extra_in} if extra_in else {}),
         **({"out_other": extra_out} if extra_out else {}),
         # 압축 연구 계측(2026-09-12 ctx-lab): 텍스트 얹기 시계열 · 압축 감지 상세. 없으면 키 자체를 안 만든다.
