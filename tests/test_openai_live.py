@@ -506,3 +506,55 @@ async def test_failed_response_is_logged_but_still_closes_the_turn(caplog):
     ])
     assert [e.kind for e in evs] == ["turn_end"], "턴은 닫아야 한다(안 닫으면 펌프가 멈춘다)"
     assert any("max_output_tokens" in r.getMessage() for r in caplog.records)
+
+# --------------------------------------------------------------------------- #
+# 음색 — ⛔ DB 의 Gemini 음색이 그대로 가면 통화가 열리기도 전에 죽는다
+#   실측(2026-10-05, call 1733·1734): voice=Fenrir → session.update 거부 →
+#   LIVE_START_FAILED. 호출부는 DB 캐릭터 음색을 넘기고 그건 Gemini 이름이다.
+# --------------------------------------------------------------------------- #
+def test_a_gemini_voice_name_is_replaced_not_sent():
+    """⛔ 이게 깨지면 모든 통화가 열리기 전에 죽는다 — 실제로 그렇게 죽었다."""
+    from core.openai import session as sess
+
+    class S:
+        OPENAI_REALTIME_VOICE = "marin"
+
+    # DB 의 Baba 음색(Gemini 이름)
+    assert sess._pick_voice("Fenrir", S()) == "marin"
+    # 그 밖의 Gemini 음색들도 같다
+    for g in ("Puck", "Charon", "Kore", "Aoede", "Zephyr"):
+        assert sess._pick_voice(g, S()) == "marin", g
+
+
+def test_a_supported_voice_is_passed_through():
+    from core.openai import session as sess
+
+    class S:
+        OPENAI_REALTIME_VOICE = "marin"
+
+    for ok in sorted(sess.SUPPORTED_VOICES):
+        assert sess._pick_voice(ok, S()) == ok, ok
+    # 공백·None 이면 설정값
+    assert sess._pick_voice("", S()) == "marin"
+    assert sess._pick_voice(None, S()) == "marin"
+    assert sess._pick_voice("  marin  ", S()) == "marin"
+
+
+def test_a_bad_configured_voice_falls_back_to_the_default():
+    """⚠ env 를 잘못 넣어도 통화는 열려야 한다 — 거기서 또 죽으면 원인이 두 겹이 된다."""
+    from core.openai import session as sess
+
+    class S:
+        OPENAI_REALTIME_VOICE = "Fenrir"      # 설정값 자체가 틀린 경우
+
+    assert sess._pick_voice("Fenrir", S()) == sess.DEFAULT_VOICE
+    assert sess._pick_voice("", S()) == sess.DEFAULT_VOICE
+    assert sess.DEFAULT_VOICE in sess.SUPPORTED_VOICES
+
+
+def test_the_session_config_only_ever_carries_a_supported_voice():
+    """`build_session_config` 가 실제로 내보내는 값까지 본다(헬퍼만 보면 반쪽이다)."""
+    from core.openai import session as sess
+
+    cfg = sess.build_session_config(system_instruction="x", voice="marin")
+    assert cfg["session"]["audio"]["output"]["voice"] in sess.SUPPORTED_VOICES

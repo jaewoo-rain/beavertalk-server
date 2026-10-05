@@ -52,6 +52,18 @@ OPENAI_REALTIME_MODEL_DEFAULT = "gpt-realtime-2.1-mini"
 #   이름만 알고 들어 본 적이 없다. ⚠ mini 는 커스텀 음색을 지원하지 않으므로 Baba 의
 #   Gemini 음색(`Fenrir`)은 못 옮긴다. 바꾸려면 `OPENAI_REALTIME_VOICE` env 한 줄이다.
 DEFAULT_VOICE = "marin"
+# ⛔⛔ OpenAI 가 받는 음색은 **이 10개뿐**이다(2026-10-05 실측 — 벤더 오류 메시지가 집합을
+#   그대로 돌려줬다: `Invalid value: 'Fenrir'. Supported values are: ...`).
+#   ⚠ 호출부(`call_session`)는 **DB 의 캐릭터 음색**을 넘긴다 — 그건 Gemini 음색 이름이다
+#     (Baba = `Fenrir`). 그 값이 그대로 가면 `session.update` 가 거부되고 통화가 **열리기도
+#     전에** 죽는다(실측: call 1733·1734 → LIVE_START_FAILED).
+#   ⇒ 음색 이름을 아는 것은 **이 어댑터뿐**이므로 경계에서 걸러야 한다. 호출부를 고치면
+#     Gemini 경로가 같이 바뀌고, 캐릭터가 늘 때마다 두 곳을 맞춰야 한다.
+#   ⚠ 이 집합을 손으로 늘리지 마라 — 벤더가 늘리면 거부 메시지로 알려 준다.
+SUPPORTED_VOICES = frozenset({
+    "alloy", "ash", "ballad", "coral", "echo",
+    "sage", "shimmer", "verse", "marin", "cedar",
+})
 
 # 입력 전사 모델. ⚠ **미검증** — 10-03 스파이크는 전사를 아예 안 켰다(대본 구동이라
 #   필요가 없었다). 세션이 이 이름을 거절하면 어댑터가 **전사 없이 한 번 더 시도**한다
@@ -564,6 +576,29 @@ async def _apply_session(ws, config: dict) -> None:
             raise OpenAIRealtimeError("OpenAI 세션 설정이 거부됐습니다.")
 
 
+def _pick_voice(requested: str | None, settings: Any) -> str:
+    """OpenAI 가 받는 음색으로 좁힌다 — 못 받는 이름이면 설정값으로 떨어뜨린다.
+
+    ⛔ 호출부가 넘기는 값은 **DB 의 캐릭터 음색**(Gemini 이름)이다. 그대로 보내면
+      `session.update` 가 거부되고 통화가 열리기도 전에 죽는다 — `SUPPORTED_VOICES` 주석.
+    ⚠ **조용히 바꾸지 않는다.** 캐릭터 목소리가 달라지는 것은 사용자가 듣는 변화이므로
+      WARNING 으로 남겨, 「왜 바바 목소리가 아니지」를 로그로 되짚을 수 있게 한다.
+    """
+    want = (requested or "").strip()
+    if want in SUPPORTED_VOICES:
+        return want
+    fallback = (getattr(settings, "OPENAI_REALTIME_VOICE", "") or "").strip()
+    if fallback not in SUPPORTED_VOICES:
+        fallback = DEFAULT_VOICE
+    if want:
+        logger.warning(
+            "normalcall OpenAI 음색 대체: %r 은 이 엔진이 받지 않는다 → %r "
+            "(DB 음색은 Gemini 이름이다 — 지원 10종: %s)",
+            want, fallback, ", ".join(sorted(SUPPORTED_VOICES)),
+        )
+    return fallback
+
+
 @contextlib.asynccontextmanager
 async def open_session(
     client: Any,
@@ -604,8 +639,7 @@ async def open_session(
     key = _api_key(settings)
     live_model = (model or getattr(settings, "OPENAI_REALTIME_MODEL", "")
                   or OPENAI_REALTIME_MODEL_DEFAULT)
-    picked_voice = (voice or "").strip() or (
-        getattr(settings, "OPENAI_REALTIME_VOICE", "") or DEFAULT_VOICE)
+    picked_voice = _pick_voice(voice, settings)
     config = build_session_config(
         system_instruction=system_instruction,
         voice=picked_voice,
