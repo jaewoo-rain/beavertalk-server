@@ -127,8 +127,10 @@
       </select>
       <span class="muted">모국어(안내 언어)</span>
       <select id="loc">
+        <!-- ⭐ 기본은 영어다(2026-10-05 사장님 지시) — 실사용자는 외국인 학습자이고,
+             locale=ko 로 테스트하면 안내가 한국어로 나와 「설명이 모국어인가」를 검증할 수 없다. -->
+        <option value="en" selected>영어(en)</option>
         <option value="ko">한국어(ko)</option>
-        <option value="en">영어(en)</option>
         <option value="ja">일본어(ja)</option>
         <option value="zh">중국어(zh)</option>
         <option value="es">스페인어(es)</option>
@@ -146,7 +148,7 @@
     </div>
     <div class="row">
       <button id="callBtn" disabled>📞 통화 시작</button>
-      <button id="muteBtn" class="sec" disabled title="무음 3단 넛지 실험 — 켜면 마이크 대신 무음(0)을 보낸다. 1분 가만히 있어 보기.">🎤 마이크 ON</button>
+      <button id="muteBtn" class="sec" disabled title="무음 3단 넛지 실험 전용 — 누르면 마이크 대신 무음(0)을 보낸다(소켓은 유지). 1분 가만히 있어 보고 넛지 3단을 확인한 뒤 다시 눌러 되돌린다. ⛔ 평소엔 누를 일이 없다 — 마이크는 통화 내내 열려 있다.">🔬 무음 실험 (마이크 열림)</button>
       <button id="hangBtn" class="danger" disabled>지금 끊기</button>
       <button id="copyBtn" class="sec" title="설정·계기판·경고·자막·JSON 전문을 한 덩이로 복사">📋 로그 복사</button>
       <span><span id="cdot" class="dot"></span><span id="cstat" class="muted">대기</span></span>
@@ -480,7 +482,7 @@ const KNOWN = ['turn_start', 'output_transcript', 'sentence', 'input_transcript'
 $('#hangBtn').onclick = () => { endReason = 'user-hangup'; closeWs('사용자 「지금 끊기」'); };
 $('#muteBtn').onclick = () => {
   muted = !muted;
-  $('#muteBtn').textContent = muted ? '🔇 마이크 OFF(무음 전송)' : '🎤 마이크 ON';
+  $('#muteBtn').textContent = muted ? '🔇 무음 실험 중 — 눌러서 되돌리기' : '🔬 무음 실험 (마이크 열림)';
   jlog('c-sys', '[클라] 마이크 ' + (muted ? 'OFF — 무음(0) 전송 시작' : 'ON'), false);
 };
 $('#callBtn').onclick = startCall;
@@ -497,7 +499,7 @@ async function startCall() {
   $('#alerts').innerHTML = '<div class="muted">아직 없음.</div>';
   $('#bcol').innerHTML = ''; $('#ucol').innerHTML = ''; $('#jlog').innerHTML = '';
   $('#startedInfo').textContent = ''; $('#post').textContent = '통화 중…';
-  $('#muteBtn').textContent = '🎤 마이크 ON';
+  $('#muteBtn').textContent = '🔬 무음 실험 (마이크 열림)';
   paintCounts(); paintGauges();
 
   const durMin = +$('#dur').value || 15;
