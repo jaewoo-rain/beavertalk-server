@@ -1,16 +1,20 @@
-"""A6(2026-10-06 · PM-DEC-398) — 「새로 배운 표현」에 문형 표기가 저장되지 않는다.
+"""A6(2026-10-06 · PM-DEC-398 · 보강 PM-DEC-402) — 발음 평가용 문장은 한국어 완성 문장만 저장한다.
 
-결함: 분석 LLM 이 [검출 후보] 표의 「항목」 열(문법 = 문형 표기 `V-(으)면서`)을 korean 에 그대로
-옮기면, 그 문자열이 Sentence.korean_sentence → 발음 평가 기준 문장이 되어 평가가 불가능했다.
+결함 ①: 분석 LLM 이 [검출 후보] 표의 「항목」 열(문법 = 문형 표기 `V-(으)면서`)을 korean 에 그대로 옮겼다.
+결함 ②: `제 이름은 John이에요` 처럼 한국어 외 문자가 섞인 문장은 발음 평가가 불가능하다.
+
+판정(한국어 통화): 한글·공백·문장부호만 + 문형 표기 아님 + 끝이 종결 어미 글자 또는 문장부호(.?!…)
+                    · 「~기」 명사형 끝은 미완성.
 
 시험 목록:
-    ① 지시문에 「완성 문장」·「문형 표기 금지」·「예문 열」 규칙이 실린다
-    ② 표기 판정 — 표기는 잡고 정상 문장은 놓아 준다
-    ③ 표기 → 예문 치환(짝은 비운다 · translation 은 그대로)
-    ④ 예문 없음 → 저장 제외
-    ⑤ 정상 문장은 그대로(어휘 surface 와 같아도 바꾸지 않는다)
-    ⑥ 후보 밖 표기는 learning_item 문법 행에서 예문을 찾는다
-    ⑦ analyze_call 통합 — 저장된 Sentence 에 표기가 남지 않는다(치환 1 · 제외 1 · 정상 1)
+    ① 지시문 — 완성 문장 · 문형 표기·조각·「~하기」 금지 · 예문 열 · 한글 표기(존·세 시) · 한국어 통화에만
+    ② 판정 — 표기·조각·외국 문자는 잡고, 정상 문장 다수는 그대로 통과(과잉 제외 없음)
+    ③ 치환 — 표기·조각 → 항목 예문(짝은 비움 · translation 유지)
+    ④ 제외 — 대체 예문 없음 · 예문도 통과 못 함
+    ⑤ 현지인 짝 — 한국어 외 문자·조각이면 짝만 비우고 기본 표현은 남긴다
+    ⑥ 다른 학습 언어 — 한국어 규칙을 적용하지 않는다(문형 표기만)
+    ⑦ 예문 사전 — 후보 먼저(문법 우선) · 후보 밖은 learning_item · 걸린 게 없으면 조회 안 함
+    ⑧ analyze_call 통합 — 저장된 Sentence 에 발음 불가 문장이 남지 않는다
 """
 
 from __future__ import annotations
@@ -38,7 +42,9 @@ from domains.learning.service.normalcall_service import (
     _analysis_instruction,
     _complete_sentence_expressions,
     _is_pattern_notation,
-    _lookup_grammar_examples,
+    _is_speakable,
+    _lookup_item_examples,
+    _needs_sentence_guard,
 )
 
 
@@ -47,28 +53,51 @@ def _expr(korean: str, **kw) -> LearnedExpression:
 
 
 # ① 지시문 ------------------------------------------------------------------- #
-def test_instruction_requires_complete_sentences_not_pattern_notation():
+def test_instruction_requires_complete_sentences():
     instruction = _analysis_instruction("en", "한국어")
-    assert "완성 문장" in instruction
-    assert "문형 표기" in instruction
-    assert "예문 열" in instruction
+    for phrase in ("korean 과 native_expression 은 항상", "완성 문장", "문형 표기",
+                   "단어 하나만 있는 조각", "'~하기'", "예문 열"):
+        assert phrase in instruction
 
 
-# ② 표기 판정 ---------------------------------------------------------------- #
+def test_instruction_requires_hangul_only_for_korean():
+    instruction = _analysis_instruction("en", "한국어")
+    assert "John → 존" in instruction
+    assert "3시 → 세 시" in instruction
+    assert "라틴 문자·숫자·한자·가나" in instruction
+
+
+def test_hangul_rule_is_not_added_for_other_target_languages():
+    assert "John → 존" not in _analysis_instruction("en", "일본어")
+
+
+# ② 판정 --------------------------------------------------------------------- #
 @pytest.mark.parametrize("text", [
-    "V-(으)면서", "A-(으)면서(도)", "N이/가 아닙니다", "N은/는 N이에요/예요", "V-아/어요",
-    "A/V-(으)ㄹ 때", "V-(스)ㅂ니다",
+    "V-(으)면서", "A-(으)면서(도)", "N이/가 아닙니다", "N은/는 N이에요/예요", "V-아/어요", "-고 싶다",
+    "제 이름은 John이에요", "3시에 만나요", "OK 알겠어요", "日本語 공부해요", "ㅋㅋ 웃겨요",
+    "물", "대박", "공부하기", "커피 마시면서", "공부하기.",
 ])
-def test_pattern_notation_is_detected(text):
-    assert _is_pattern_notation(text)
+def test_unspeakable_texts_are_caught(text):
+    assert not _is_speakable(text, "ko")
 
 
-@pytest.mark.parametrize("text", [
-    "커피 마시면서 얘기해요.", "음악을 들으면서 공부해요.", "TV를 보면서 밥을 먹어요.",
-    "물이 있어요.", "배고파요", "CCTV가 있어요.",
-])
-def test_complete_sentence_is_not_flagged(text):
-    assert not _is_pattern_notation(text)
+NORMAL_SENTENCES = [
+    "커피 마시면서 얘기해요.", "음악을 들으면서 공부해요.", "제 이름은 존이에요.", "세 시에 만나요",
+    "안녕하세요", "감사합니다", "죄송합니다", "이거 주세요", "얼마예요?", "화장실이 어디예요?", "네", "아니요",
+    "괜찮아요", "도와주세요", "잘 지냈어요?", "또 봐요", "처음 뵙겠습니다", "배고파요", "뱃가죽이 등에 붙을 것 같아요",
+    "진짜 대박이다", "가자", "맛있겠다", "그래", "알겠어", "좋아", "몰라", "어떡해", "고마워", "미안해", "내일 봐",
+    "빨리 와", "배불러", "졸려", "뭐라고", "그런가", "잘 먹겠습니다", "물론이죠", "그렇구나", "할게", "갈래",
+    "먹을까?", "진짜?", "대박!", "티비를 보면서 밥을 먹어요.", "씨씨티비가 있어요.", "잘 부탁드립니다",
+]
+
+
+@pytest.mark.parametrize("text", NORMAL_SENTENCES)
+def test_normal_sentences_are_not_over_excluded(text):
+    assert _is_speakable(text, "ko")
+
+
+def test_pattern_notation_detector_kept():
+    assert _is_pattern_notation("V-(으)면서") and not _is_pattern_notation("커피 마시면서 얘기해요.")
 
 
 # ③ 치환 --------------------------------------------------------------------- #
@@ -81,33 +110,49 @@ def test_pattern_is_replaced_with_the_item_example_and_pair_is_cleared():
     assert (out[0].native_expression, out[0].native_expression_translation, out[0].native_nuance) == (None, None, None)
 
 
-# ④ 예문 없음 → 제외 -------------------------------------------------------- #
-def test_pattern_without_example_is_dropped():
-    out = _complete_sentence_expressions([_expr("N이/가 아닙니다")], {})
-    assert out == []
+def test_word_fragment_is_replaced_with_its_example():
+    out = _complete_sentence_expressions([_expr("물")], {"물": "물이 있어요."})
+    assert [x.korean for x in out] == ["물이 있어요."]
 
 
-def test_pattern_whose_example_is_itself_notation_is_dropped():
-    out = _complete_sentence_expressions([_expr("V-(으)면서")], {"V-(으)면서": "V-(으)면서"})
-    assert out == []
+# ④ 제외 --------------------------------------------------------------------- #
+@pytest.mark.parametrize("text", ["N이/가 아닙니다", "제 이름은 John이에요", "3시에 만나요", "공부하기"])
+def test_unspeakable_without_example_is_dropped(text):
+    assert _complete_sentence_expressions([_expr(text)], {}) == []
 
 
-# ⑤ 정상 문장은 그대로 -------------------------------------------------------- #
-def test_normal_sentences_pass_through_untouched():
-    a = _expr("커피 마시면서 얘기해요.", native_expression="커피 한잔 때리면서 수다 떨어요")
-    b = _expr("물")  # 어휘 표현 — 어휘 surface 와 같아도 바꾸지 않는다(grammar_examples 에 없다)
-    out = _complete_sentence_expressions([a, b], {"V-(으)면서": "음악을 들으면서 공부해요."})
-    assert out == [a, b]
-    assert a.native_expression == "커피 한잔 때리면서 수다 떨어요"
+def test_example_that_is_itself_unspeakable_is_dropped():
+    assert _complete_sentence_expressions([_expr("V-(으)면서")], {"V-(으)면서": "V-(으)면서"}) == []
+    assert _complete_sentence_expressions([_expr("물")], {"물": "Water 있어요"}) == []
 
 
-def test_grammar_candidate_surface_match_is_replaced_even_without_latin_marker():
-    # 표기 패턴이 아니어도 문법 후보 surface 와 정확히 같으면 대상이다
-    out = _complete_sentence_expressions([_expr("-고 싶다")], {"-고 싶다": "커피를 마시고 싶어요."})
-    assert [x.korean for x in out] == ["커피를 마시고 싶어요."]
+# ⑤ 정상 · 현지인 짝 ---------------------------------------------------------- #
+def test_normal_sentences_pass_through_untouched_even_if_they_match_a_surface():
+    exprs = [_expr(t, native_expression="뱃가죽이 등에 붙을 것 같아요") for t in NORMAL_SENTENCES]
+    examples = {"안녕하세요": "안녕하세요, 저는 학생이에요."}  # 청크 surface 와 같아도 바꾸지 않는다
+    out = _complete_sentence_expressions(exprs, examples)
+    assert [e.korean for e in out] == NORMAL_SENTENCES
+    assert all(e.native_expression == "뱃가죽이 등에 붙을 것 같아요" for e in out)
 
 
-# ⑥ 사전 구성 --------------------------------------------------------------- #
+@pytest.mark.parametrize("native", ["Hungry 해요", "배고파 3초 전", "꼬르륵", "空腹이에요"])
+def test_unspeakable_native_pair_is_cleared_but_base_kept(native):
+    e = _expr("배고파요", native_expression=native, native_expression_translation="tr", native_nuance="nu")
+    out = _complete_sentence_expressions([e], {})
+    assert [x.korean for x in out] == ["배고파요"]
+    assert (out[0].native_expression, out[0].native_expression_translation, out[0].native_nuance) == (None, None, None)
+
+
+# ⑥ 다른 학습 언어 ------------------------------------------------------------ #
+def test_other_languages_only_reject_pattern_notation():
+    assert _is_speakable("私はジョンです。", "ja")
+    assert _is_speakable("I'm John.", "en")
+    assert not _is_speakable("V-(으)면서", "ja")
+    out = _complete_sentence_expressions([_expr("私はジョンです。")], {}, language="ja")
+    assert [e.korean for e in out] == ["私はジョンです。"]
+
+
+# ⑦ 예문 사전 --------------------------------------------------------------- #
 class _FakeDB:
     def __init__(self, rows):
         self.rows, self.calls = rows, 0
@@ -117,26 +162,37 @@ class _FakeDB:
         return SimpleNamespace(all=lambda: self.rows)
 
 
-def test_lookup_uses_grammar_candidates_first_and_db_for_the_rest():
-    row = SimpleNamespace(surface="N이/가 아닙니다", examples=json.dumps(["저는 학생이 아닙니다."]), gen_examples=None)
-    db = _FakeDB([row])
-    cands = [
-        {"item_id": 1, "kind": "grammar", "surface": "V-(으)면서", "example": "음악을 들으면서 공부해요."},
-        {"item_id": 2, "kind": "vocab", "surface": "물", "example": "물이 있어요."},
+def test_lookup_uses_candidates_first_grammar_preferred_and_db_for_the_rest():
+    rows = [
+        SimpleNamespace(surface="N이/가 아닙니다", kind="grammar",
+                        examples=json.dumps(["저는 학생이 아닙니다."]), gen_examples=None),
     ]
-    got = _lookup_grammar_examples(db, [_expr("V-(으)면서"), _expr("N이/가 아닙니다"), _expr("물")], cands, "ko")
-    assert got == {"V-(으)면서": "음악을 들으면서 공부해요.", "N이/가 아닙니다": "저는 학생이 아닙니다."}
+    db = _FakeDB(rows)
+    cands = [
+        {"item_id": 2, "kind": "vocab", "surface": "물", "example": "물이 있어요."},
+        {"item_id": 1, "kind": "grammar", "surface": "V-(으)면서", "example": "음악을 들으면서 공부해요."},
+    ]
+    exprs = [_expr("V-(으)면서"), _expr("N이/가 아닙니다"), _expr("물"), _expr("배고파요")]
+    got = _lookup_item_examples(db, exprs, cands, "ko")
+    assert got["V-(으)면서"] == "음악을 들으면서 공부해요."
+    assert got["물"] == "물이 있어요."
+    assert got["N이/가 아닙니다"] == "저는 학생이 아닙니다."
     assert db.calls == 1
 
 
-def test_lookup_skips_the_db_when_every_pattern_is_a_candidate():
+def test_lookup_skips_the_db_when_everything_is_covered():
     db = _FakeDB([])
     cands = [{"item_id": 1, "kind": "grammar", "surface": "V-(으)면서", "example": "e"}]
-    _lookup_grammar_examples(db, [_expr("V-(으)면서"), _expr("배고파요")], cands, "ko")
+    _lookup_item_examples(db, [_expr("V-(으)면서"), _expr("배고파요")], cands, "ko")
     assert db.calls == 0
 
 
-# ⑦ analyze_call 통합 -------------------------------------------------------- #
+def test_guard_is_skipped_when_everything_is_speakable():
+    assert not _needs_sentence_guard([_expr(t) for t in NORMAL_SENTENCES], "ko")
+    assert _needs_sentence_guard([_expr("배고파요", native_expression="Hungry")], "ko")
+
+
+# ⑧ analyze_call 통합 -------------------------------------------------------- #
 @pytest.fixture()
 def session_factory():
     for t in Base.metadata.tables.values():
@@ -165,15 +221,17 @@ def call_ctx(session_factory):
     return SimpleNamespace(call_id=c.call_id, member_id=m.member_id)
 
 
-def test_analyze_call_never_saves_pattern_notation(session_factory, call_ctx, monkeypatch):
+def test_analyze_call_never_saves_unspeakable_sentences(session_factory, call_ctx, monkeypatch):
     async def fake_generate(*_a, **kw):
         schema = kw["schema"]
         return schema(
             summary="커피", detected_mode="study", feedback="잘했어요.",
             expressions=[
-                _expr("V-(으)면서", translation="while doing"),          # 후보 예문으로 치환
-                _expr("N이/가 아닙니다", translation="is not N"),         # 후보·DB 둘 다 없음 → 제외
-                _expr("커피 마시면서 얘기해요.", translation="Let's talk over coffee."),  # 그대로
+                _expr("V-(으)면서", translation="while doing"),                 # 후보 예문으로 치환
+                _expr("N이/가 아닙니다", translation="is not N"),                # 대체 예문 없음 → 제외
+                _expr("제 이름은 John이에요", translation="My name is John."),   # 한국어 외 문자 → 제외
+                _expr("커피 마시면서 얘기해요.", translation="Let's talk over coffee.",
+                      native_expression="Coffee 때리면서 수다 떨어요"),           # 기본은 남고 짝만 비움
             ],
             **({"detections": []} if "detections" in schema.model_fields else {}),
         )
@@ -187,7 +245,9 @@ def test_analyze_call_never_saves_pattern_notation(session_factory, call_ctx, mo
         locale="en", member_id=call_ctx.member_id, candidates=cands,
     ))
     db = session_factory()
-    saved = sorted(s.korean_sentence for s in db.query(Sentence).filter(Sentence.call_id == call_ctx.call_id))
+    rows = db.query(Sentence).filter(Sentence.call_id == call_ctx.call_id).all()
+    saved = sorted(s.korean_sentence for s in rows)
     assert saved == ["음악을 들으면서 공부해요.", "커피 마시면서 얘기해요."]
-    assert not any(_is_pattern_notation(s) for s in saved)
+    assert all(_is_speakable(s, "ko") for s in saved)
+    assert not any(s.kind == "native" for s in rows)
     assert db.get(Call, call_ctx.call_id).status == "done"

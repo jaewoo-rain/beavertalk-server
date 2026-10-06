@@ -2453,6 +2453,13 @@ def _analysis_instruction(
     """통화후 분석용 시스템 지시문(한국어). locale/locale_label 로 번역·요약 언어를,
     target_language 로 교육 대상 언어를 지정(기본 한국어 — 프로덕션 출력 무손상)."""
     label = locale_label or _LOCALE_LABEL.get(locale, _LOCALE_LABEL["en"])
+    # A6 보강(PM-DEC-402): 발음 평가 문장은 한국어 글자만 — 한국어 통화에만 붙인다(ja·en 통화엔 해당 없음).
+    script_rule = (
+        "- korean·native_expression 에는 한글과 문장부호만 쓴다. 외국어 단어·이름은 한글로 적고"
+        "(예: John → 존, '제 이름은 존이에요'), 숫자도 한글로 적는다(예: 3시 → 세 시). "
+        "라틴 문자·숫자·한자·가나가 섞인 문장은 쓰지 마라.\n"
+        if target_language == "한국어" else ""
+    )
     return (
         f"너는 {target_language} 학습자와 AI 선생님(BEAVER)의 {target_language} 통화 전사를 분석하는 도구다.\n"
         "전사에서 학습자가 '배운 표현'을 뽑고, 각 표현을 학습자 모국어로 번역하고, "
@@ -2464,9 +2471,11 @@ def _analysis_instruction(
         "- drilled: 공부 모드에서 비버가 가르치고 학습자가 따라 말한 표현.\n"
         "[규칙]\n"
         f"- korean 에는 반드시 '올바른 최종 {target_language}'만 넣는다(어색한 발화·오류형 금지).\n"
-        "- korean 은 학습자가 그대로 따라 말할 수 있는 완성 문장이다. 'V-(으)면서'·'N이/가' 같은 문형 표기나 "
-        "[검출 후보] 표의 항목 값을 그대로 넣지 마라 — 문법 항목이면 그 표의 예문 열 문장을 쓴다.\n"
-        "- translation 은 각 표현을 " + label + " 로 번역.\n"
+        "- korean 과 native_expression 은 항상 학습자가 그대로 따라 말할 수 있는 완성 문장이다. "
+        "'V-(으)면서'·'N이/가' 같은 문형 표기, 단어 하나만 있는 조각, '~하기' 같은 미완성 형태, "
+        "[검출 후보] 표의 항목 값을 그대로 넣지 마라 — 문법·단어 항목이면 그 표의 예문 열 문장을 쓴다.\n"
+        + script_rule
+        + "- translation 은 각 표현을 " + label + " 로 번역.\n"
         "- 위 3종에 해당하는 학습 포인트가 없으면 expressions 는 빈 배열([]).\n"
         + _summary_field_rule(label)
         + "- detected_mode: 공부 위주면 study, 자유대화 위주면 chat, 둘 다면 mixed.\n"
@@ -2512,15 +2521,27 @@ def _normalize_native_pair(e: LearnedExpression) -> None:
         e.native_nuance = e.native_nuance.strip() or None
 
 
-# ⭐ A6(2026-10-06 · PM-DEC-398) — 「새로 배운 표현」에 문형 표기가 문장으로 저장되던 결함.
-#   분석 LLM 이 [검출 후보] 표의 「항목」 열(문법 = 문형 표기 `V-(으)면서`)을 korean 에 그대로
-#   옮기면, 그 문자열이 Sentence.korean_sentence → 발음 평가 기준 문장이 되어 평가가 불가능했다.
-#   지시문(위 _analysis_instruction)에 「완성 문장만」을 넣었고, 여기서 한 번 더 거른다(R5).
+# ⭐ A6(2026-10-06 · PM-DEC-398 · 보강 PM-DEC-402) — 발음 평가용 문장(「새로 배운 표현」·현지인 짝)은
+#   **학습자가 그대로 따라 말할 수 있는 한국어 완성 문장**이어야 한다.
+#   결함 ①: 분석 LLM 이 [검출 후보] 표의 「항목」 열(문법 = 문형 표기 `V-(으)면서`)을 korean 에 옮겼다.
+#   결함 ②: `제 이름은 John이에요` 처럼 라틴 문자·숫자가 섞이면 발음 평가가 불가능하다.
+#   지시문(위 _analysis_instruction)에 규칙을 넣었고, 여기서 저장 전에 한 번 더 거른다(R5).
+#   판정(한국어 통화): ① 한글·공백·문장부호만 ② 문형 표기 아님 ③ 끝이 종결 어미 글자 또는 문장부호(.?!…)
+#   — 「~하기」(명사형 끝)는 미완성. 다른 학습 언어(ja·en)는 ① ③ 을 적용하지 않고 문형 표기만 본다.
+#   걸리면: 같은 surface 학습 항목의 예문으로 치환(예문도 통과해야 함) → 못 하면 그 표현을 저장하지 않는다.
+#   현지인 짝은 예문 치환 없이 걸리면 짝만 비운다(기본 표현은 남긴다). 음역(John → 존)은 코드로 하지 않는다.
 _PATTERN_NOTATION_RE = re.compile(
     r"(?<![A-Za-z])(?:A/V|V/A|AV|V|A|N)\s*[-–~]"        # V-(으)면서 · A-(으)ㄴ · N-이다
     r"|(?<![A-Za-z])N(?=\s*[가-힣])"                     # N이/가 · N은/는
     r"|\((?:으|이|스|느|아|어|었|았)[^)]{0,6}\)"         # (으) · (이) · (스)ㅂ니다 · (아/어)
 )
+#: 한국어 발음 평가 문장에 허용하는 글자 — 한글 음절 · 공백 · 문장부호. 라틴·숫자·한자·가나·자모(ㅋㅋ)·기호는 불허.
+_KOREAN_SPEAKABLE_RE = re.compile(r"^[가-힣\s.,?!~…'\"“”‘’·:;]+$")
+#: 한국어 종결 어미의 마지막 글자 — **과잉 제외를 피하려고 넓게** 잡는다(반말 해·워·봐·와·러·려,
+#: 인용·연결 종결 고·든·가 포함). 이 목록에 없는 끝 글자도 문장부호(.?!…)로 끝나면 완성으로 본다.
+_KO_FINAL_SYLLABLES = frozenset("요다까죠네니자라어아야지게래걸데군나오세냐구마해워봐와러려고든가")
+_SENTENCE_END_PUNCT = ".?!…"
+_TRAILING_PUNCT = " .,?!~…'\"“”‘’"
 
 
 def _is_pattern_notation(text: str) -> bool:
@@ -2528,66 +2549,110 @@ def _is_pattern_notation(text: str) -> bool:
     return bool(_PATTERN_NOTATION_RE.search(text or ""))
 
 
+def _is_korean_only(text: str) -> bool:
+    """한글 음절·공백·문장부호만으로 된 문장인가(한글이 한 자 이상)."""
+    t = (text or "").strip()
+    return bool(t) and bool(_KOREAN_SPEAKABLE_RE.match(t)) and bool(re.search(r"[가-힣]", t))
+
+
+def _is_complete_korean_sentence(text: str) -> bool:
+    """한국어 완성 문장인가 — 과잉 제외를 피하려고 보수적으로 판정한다.
+
+    끝(뒤 문장부호 제외)이 종결 어미 글자면 완성, 아니어도 원문이 「. ? ! …」로 끝나면 완성으로 본다.
+    단 명사형 「~기」 로 끝나면(「공부하기」) 미완성이다.
+    """
+    t = (text or "").strip()
+    core = t.rstrip(_TRAILING_PUNCT)
+    if not core or _is_pattern_notation(t):
+        return False
+    if core.endswith("기"):
+        return False
+    return core[-1] in _KO_FINAL_SYLLABLES or t[-1] in _SENTENCE_END_PUNCT
+
+
+def _is_speakable(text: str, language: str = "ko") -> bool:
+    """발음 평가에 쓸 수 있는 문장인가(한국어: 한글만 + 완성 문장 · 그 밖의 언어: 문형 표기만 아니면)."""
+    if language == "ko":
+        return _is_korean_only(text) and _is_complete_korean_sentence(text)
+    return bool((text or "").strip()) and not _is_pattern_notation(text)
+
+
+def _clear_native_pair(e: LearnedExpression) -> None:
+    e.native_expression = None
+    e.native_expression_translation = None
+    e.native_nuance = None
+
+
 def _complete_sentence_expressions(
     expressions: list[LearnedExpression],
-    grammar_examples: dict[str, str | None],
+    item_examples: dict[str, str | None],
     *,
     call_id: int | None = None,
+    language: str = "ko",
 ) -> list[LearnedExpression]:
-    """문형 표기 표현을 그 항목 예문으로 바꾸고, 예문이 없으면 뺀다.
+    """발음 평가에 못 쓰는 표현을 항목 예문으로 바꾸고, 못 바꾸면 뺀다. 현지인 짝은 걸리면 짝만 비운다.
 
-    - grammar_examples: 문법 항목 surface → 예문(first_example). 검출 후보·DB 조회로 채운다.
-    - 판정: korean 이 문법 후보 surface 와 같거나 문형 표기 패턴이면 대상이다.
-      ⛔ 어휘(vocab) surface 와 같다고 바꾸지 않는다 — 「물」 같은 단어 표현은 정상 결과다.
-    - 바꾼 표현의 현지인 짝은 비운다(짝은 표기에 대해 만들어진 것이라 예문과 뜻이 다를 수 있다).
-    - translation 은 그대로 둔다(문형 뜻 번역 — 재번역 LLM 호출을 늘리지 않는다).
+    - item_examples: 학습 항목 surface → 예문(first_example). 검출 후보·DB 조회로 채운다.
+    - 통과한 문장은 손대지 않는다(같은 문자열이 어휘·청크 surface 여도 그대로 — 「안녕하세요」).
+    - 바꾼 표현의 현지인 짝은 비운다(짝은 원래 표현에 대해 만들어진 것이라 예문과 뜻이 다를 수 있다).
+    - translation 은 그대로 둔다(재번역 LLM 호출을 늘리지 않는다).
     """
     out: list[LearnedExpression] = []
     for e in expressions:
         korean = (e.korean or "").strip()
-        if korean not in grammar_examples and not _is_pattern_notation(korean):
-            out.append(e)
-            continue
-        example = (grammar_examples.get(korean) or "").strip()
-        if example and not _is_pattern_notation(example):
-            logger.warning("normalcall 분석: 문형 표기 → 예문 치환 %r → %r call_id=%s", korean, example, call_id)
-            e.korean = example
-            e.native_expression = None
-            e.native_expression_translation = None
-            e.native_nuance = None
-            out.append(e)
-        else:
-            logger.warning("normalcall 분석: 문형 표기 · 예문 없음 → 저장 제외 %r call_id=%s", korean, call_id)
+        if not _is_speakable(korean, language):
+            example = (item_examples.get(korean) or "").strip()
+            if example and _is_speakable(example, language):
+                logger.warning("normalcall 분석: 발음 불가 표현 → 예문 치환 %r → %r call_id=%s", korean, example, call_id)
+                e.korean = example
+                _clear_native_pair(e)
+            else:
+                logger.warning("normalcall 분석: 발음 불가 표현 · 대체 예문 없음 → 저장 제외 %r call_id=%s", korean, call_id)
+                continue
+        native = (e.native_expression or "").strip()
+        if native and not _is_speakable(native, language):
+            logger.warning("normalcall 분석: 발음 불가 현지인 짝 → 짝 비움 %r call_id=%s", native, call_id)
+            _clear_native_pair(e)
+        out.append(e)
     return out
 
 
-def _lookup_grammar_examples(
+def _needs_sentence_guard(expressions: list[LearnedExpression], language: str = "ko") -> bool:
+    """걸러야 할 표현·짝이 하나라도 있나 — 없으면 DB 조회도 안 한다."""
+    return any(
+        not _is_speakable(e.korean or "", language)
+        or ((e.native_expression or "").strip() and not _is_speakable(e.native_expression or "", language))
+        for e in expressions
+    )
+
+
+def _lookup_item_examples(
     db: Session, expressions: list[LearnedExpression], cands: list[dict], language: str
 ) -> dict[str, str | None]:
-    """문법 surface → 예문 사전. 검출 후보(chat)를 먼저 쓰고, 후보 밖 표기는 learning_item 에서 찾는다.
+    """학습 항목 surface → 예문 사전. 검출 후보(chat)를 먼저 쓰고, 후보 밖은 learning_item 에서 찾는다.
 
     표현학습·프리토킹은 후보가 비어 있어(call_session._trigger_analysis) DB 조회만 탄다.
-    표기가 하나도 없으면 쿼리를 하지 않는다.
+    같은 surface 가 여러 종류면 문법 행을 먼저 쓴다. 걸린 표현이 없으면 쿼리를 하지 않는다.
     """
-    examples: dict[str, str | None] = {
-        str(c.get("surface") or "").strip(): c.get("example")
-        for c in cands
-        if c.get("kind") == "grammar" and c.get("surface")
-    }
+    examples: dict[str, str | None] = {}
+    for c in sorted(cands, key=lambda c: c.get("kind") != "grammar"):
+        surface = str(c.get("surface") or "").strip()
+        if surface:
+            examples.setdefault(surface, c.get("example"))
     missing = {
         (e.korean or "").strip()
         for e in expressions
-        if _is_pattern_notation(e.korean or "") and (e.korean or "").strip() not in examples
+        if not _is_speakable(e.korean or "", language) and (e.korean or "").strip() not in examples
     }
+    missing.discard("")
     if missing:
         rows = db.scalars(
             select(LearningItem).where(
                 LearningItem.language == language,
-                LearningItem.kind == "grammar",
                 LearningItem.surface.in_(missing),
             )
         ).all()
-        for it in rows:
+        for it in sorted(rows, key=lambda it: it.kind != "grammar"):
             examples.setdefault(it.surface, mastery_repository.first_example(it))
     return examples
 
@@ -3177,18 +3242,14 @@ async def analyze_call(
         for _expr in result.expressions:
             _normalize_native_pair(_expr)
 
-        # A6(PM-DEC-398): 문형 표기(`V-(으)면서`)를 예문 완성 문장으로 바꾸거나 뺀다 — 저장 전.
-        if any(
-            _is_pattern_notation(_e.korean or "")
-            or any(c.get("kind") == "grammar" and c.get("surface") == (_e.korean or "").strip() for c in cands)
-            for _e in result.expressions
-        ):
-            _grammar_examples = await run_db(
+        # A6(PM-DEC-398·402): 발음 평가에 못 쓰는 표현(문형 표기·조각·한국어 외 문자)을 예문으로 바꾸거나 뺀다 — 저장 전.
+        if _needs_sentence_guard(result.expressions, lang_code):
+            _item_examples = await run_db(
                 session_factory,
-                lambda db: _lookup_grammar_examples(db, result.expressions, cands, lang_code),
+                lambda db: _lookup_item_examples(db, result.expressions, cands, lang_code),
             )
             result.expressions = _complete_sentence_expressions(
-                result.expressions, _grammar_examples, call_id=call_id
+                result.expressions, _item_examples, call_id=call_id, language=lang_code
             )
 
         # P2.6: 요약·표현 저장과 status=done 을 같은 커밋으로 — 여기서 결과 페이지
