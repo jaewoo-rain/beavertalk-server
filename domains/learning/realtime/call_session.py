@@ -782,6 +782,7 @@ class _CallState:
         "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "expr_sidecar_calls", "expr_llm_judge", "expr_judge_stats", "expr_quiz_llm_decided", "expr_quiz_grace_from",
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
+        "expr_self_quiz",
         "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray", "expr_quiz_open_user_turns", "expr_quiz_hold_why",
         "expr_covered_by_beaver", "expr_retry_cued", "expr_quiz_prev_num",
         "expr_quiz_covered_at_open", "expr_quiz_drill_num",
@@ -1000,6 +1001,10 @@ class _CallState:
         self.expr_quiz_set: list[int] = []
         self.expr_quizzed: set[int] = set()
         self.expr_quiz_cue_pending: Optional[str] = None
+        # ⭐ 실험 플래그(OPENAI_SELF_QUIZ) 스냅샷 — 통화 시작 때 한 번 정한다.
+        #   ⛔ 여기 두는 이유: arm 자리(`_arm_quiz_cue`)는 `settings` 를 스코프에
+        #     갖지 않는다. 통화 중에 바뀔 값도 아니라 상태로 들고 가는 게 맞다.
+        self.expr_self_quiz: bool = False
         self.expr_quiz_cue_armed_ts: Optional[float] = None
         self.expr_quiz_awaiting_open: bool = False
         self.expr_quiz_open: bool = False
@@ -1846,6 +1851,13 @@ def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool 
         state.expr_quiz_seq += 1
     else:
         state.expr_retry_cued = True
+    # ⛔ 실험(OPENAI_SELF_QUIZ): 큐를 얹지 않는다 — 개시를 GPT 에게 맡긴다.
+    #   arm 자체를 건너뛴다(pending 을 비워 두면 얹기 자리가 매 발화마다 헛돈다).
+    #   ⚠ 그러면 창이 안 열려 서버 판정(passed/failed)도 안 된다 — 설정 주석 참조.
+    if state.expr_self_quiz:
+        logger.info("%s arm 생략(OPENAI_SELF_QUIZ): call_id=%s 항목=%s — 개시를 모델에 맡긴다",
+                    EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), nums)
+        return
     state.expr_quiz_cue_pending = _expression_quiz_cue(state, nums, retry=retry)
     state.expr_quiz_cue_armed_ts = asyncio.get_running_loop().time() if _loop_running() else None
     logger.info(
@@ -3739,6 +3751,13 @@ async def run_call(
                 #     종전 그대로 돈다(Gemini 대본·시드 바이트 동일).
                 use_openai = call_service.live_openai_for(call_type)
                 if use_openai:
+                    # ⭐ 실험 플래그 스냅샷(OPENAI_SELF_QUIZ) — 지시문과 arm 가드가 같은 값을 본다.
+                    state.expr_self_quiz = bool(
+                        getattr(settings, "OPENAI_SELF_QUIZ", False))
+                    if state.expr_self_quiz:
+                        logger.info(
+                            "normalcall OPENAI_SELF_QUIZ: 퀴즈 개시를 모델에 맡긴다 — "
+                            "서버 큐 0 · 서버 판정(passed/failed) 0(창이 안 열린다)")
                     # ⛔ GPT 전용 대본이다 — Gemini 대본(`build_expression_instruction`)을
                     #   고쳐 쓰는 것이 아니라 **백지에서 쓴 다른 파일**이다. 근거는
                     #   `core/openai/prompts/expression.py` 모듈 독스트링(측정 교훈 8개).
@@ -3755,6 +3774,7 @@ async def run_call(
                         #   콜타입으로 계산된 `face_rule_text` 가 있나 없나만 본다
                         #   (무료 OFF / 유료 ON 이 저절로 맞는다, 사장님 결정 6).
                         face_rule=openai_tools.face_rule_block() if face_rule_text else "",
+                        self_quiz=state.expr_self_quiz,
                     )
                     seed_text = openai_expression.seed_opening(
                         _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"])
