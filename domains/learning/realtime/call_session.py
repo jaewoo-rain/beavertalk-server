@@ -3751,10 +3751,13 @@ async def run_call(
                 #     종전 그대로 돈다(Gemini 대본·시드 바이트 동일).
                 use_openai = call_service.live_openai_for(call_type)
                 if use_openai:
-                    # ⭐ 실험 플래그 스냅샷(OPENAI_SELF_QUIZ) — 지시문과 arm 가드가 같은 값을 본다.
-                    state.expr_self_quiz = bool(
-                        getattr(settings, "OPENAI_SELF_QUIZ", False))
-                    if state.expr_self_quiz:
+                    # ⭐ 실험 플래그(OPENAI_SELF_QUIZ) — ⛔ **state 에 심지 마라.** 이 자리의
+                    #   `state`(:3704)는 아래 :3945 에서 새 객체로 **덮어써진다** — 내가 거기
+                    #   심었다가 플래그가 조용히 죽었다(실측 call 1747: 스냅샷 로그는 떴는데
+                    #   «arm 생략» 은 0회, 큐가 그대로 얹혔다). 지역 변수로 들고 가서
+                    #   **진짜 state 가 만들어진 뒤** 다시 심는다(:3945 블록).
+                    self_quiz = bool(getattr(settings, "OPENAI_SELF_QUIZ", False))
+                    if self_quiz:
                         logger.info(
                             "normalcall OPENAI_SELF_QUIZ: 퀴즈 개시를 모델에 맡긴다 — "
                             "서버 큐 0 · 서버 판정(passed/failed) 0(창이 안 열린다)")
@@ -3774,7 +3777,7 @@ async def run_call(
                         #   콜타입으로 계산된 `face_rule_text` 가 있나 없나만 본다
                         #   (무료 OFF / 유료 ON 이 저절로 맞는다, 사장님 결정 6).
                         face_rule=openai_tools.face_rule_block() if face_rule_text else "",
-                        self_quiz=state.expr_self_quiz,
+                        self_quiz=self_quiz,
                     )
                     seed_text = openai_expression.seed_opening(
                         _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"])
@@ -3944,6 +3947,10 @@ async def run_call(
 
         state = _CallState()
         state.cur_route = cur_route
+        # ⭐ 실험 플래그는 **여기** 심는다 — 위 :3704 의 state 는 이 줄에서 버려진다.
+        #   arm 가드(`_arm_quiz_cue`)가 보는 것은 이 객체다.
+        state.expr_self_quiz = bool(
+            use_openai and getattr(settings, "OPENAI_SELF_QUIZ", False))
         state.target_code = spec.code                           # 판정(quiz_judge)·대본 조립의 언어 분기(ko/ja — 2026-09-13)
         state.cur_course = call_type if cur_route else ""
         state.cur_forced = bool(cur_open.forced) if cur_open is not None else False

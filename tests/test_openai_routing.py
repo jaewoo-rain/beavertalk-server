@@ -847,3 +847,47 @@ def test_injection_sites_read_the_bundle_not_the_locked_constants():
         src = inspect.getsource(fn)
         for pat in locked:
             assert not pat.search(src), (fn.__name__, pat.pattern)
+
+
+# --------------------------------------------------------------------------- #
+# OPENAI_SELF_QUIZ — ⛔ 플래그가 **실제로 돌아가는 state** 에 실리는가
+#   실측(call 1747): 스냅샷 로그는 떴는데 «arm 생략» 은 0회였다. 원인은
+#   call_session 이 `_CallState()` 를 **두 번** 만들고(:3704·:3945) 내가 첫 번째에
+#   심었기 때문 — 두 번째가 그걸 덮어써서 플래그가 조용히 죽었다.
+#   ⇒ 이 시험은 「심은 자리」가 아니라 **arm 가드가 보는 값**을 본다.
+# --------------------------------------------------------------------------- #
+def test_the_self_quiz_flag_reaches_the_state_that_arms_the_cue(monkeypatch):
+    """⛔ 이게 깨지면 플래그가 지시문만 바꾸고 서버 큐는 그대로 얹힌다(조용한 실패)."""
+    import inspect
+
+    import domains.learning.realtime.call_session as cs
+
+    src = inspect.getsource(cs.run_call)
+    # ① state 가 몇 번 만들어지나 — 늘어나면 이 시험의 전제가 바뀐다
+    n = src.count("state = _CallState()")
+    assert n == 2, (
+        "_CallState() 생성 횟수가 %d 로 바뀠다 — 플래그를 심는 자리를 다시 확인해라" % n)
+    # ② 플래그 세팅이 **마지막** 생성 뒤에 있어야 한다
+    last_new = src.rindex("state = _CallState()")
+    set_at = src.rindex("state.expr_self_quiz =")
+    assert set_at > last_new, (
+        "expr_self_quiz 를 마지막 _CallState() **앞**에서 심고 있다 — 그 객체는 버려진다")
+    # ③ arm 가드는 state 를 본다(settings 가 아니다 — 그 스코프엔 없다)
+    arm = inspect.getsource(cs._arm_expression_quiz_cue)
+    assert "state.expr_self_quiz" in arm
+    assert "OPENAI_SELF_QUIZ" not in arm.replace("OPENAI_SELF_QUIZ)", "").replace(
+        "(OPENAI_SELF_QUIZ", ""), "arm 가드가 settings 를 직접 읽으면 NameError 가 난다"
+
+
+def test_the_prompt_switches_with_the_flag():
+    """지시문 블록이 플래그로 갈린다 — 서버 큐 판([퀴즈]) vs 자가 개시판([되묻기])."""
+    from core.openai.prompts import expression as ex
+
+    items = [{"no": 1, "obj": "고마워요", "des": "thank you"}]
+    kw = dict(role="R", personality="P", locale_label="영어(English)", items=items,
+              quiz_group=3, target_language="한국어", name="S")
+    off = ex.build_expression_instruction(**kw)
+    on = ex.build_expression_instruction(self_quiz=True, **kw)
+    assert "[퀴즈]" in off and "네가 정하지 않는다" in off
+    assert "[되묻기]" in on and "끝내면 바로" in on
+    assert "네가 정하지 않는다" not in on, "자가 개시판에 «네가 정하지 않는다» 가 남았다"
