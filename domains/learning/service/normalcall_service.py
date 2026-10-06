@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -2463,6 +2464,8 @@ def _analysis_instruction(
         "- drilled: 공부 모드에서 비버가 가르치고 학습자가 따라 말한 표현.\n"
         "[규칙]\n"
         f"- korean 에는 반드시 '올바른 최종 {target_language}'만 넣는다(어색한 발화·오류형 금지).\n"
+        "- korean 은 학습자가 그대로 따라 말할 수 있는 완성 문장이다. 'V-(으)면서'·'N이/가' 같은 문형 표기나 "
+        "[검출 후보] 표의 항목 값을 그대로 넣지 마라 — 문법 항목이면 그 표의 예문 열 문장을 쓴다.\n"
         "- translation 은 각 표현을 " + label + " 로 번역.\n"
         "- 위 3종에 해당하는 학습 포인트가 없으면 expressions 는 빈 배열([]).\n"
         + _summary_field_rule(label)
@@ -2507,6 +2510,86 @@ def _normalize_native_pair(e: LearnedExpression) -> None:
         e.native_expression_translation = e.native_expression_translation.strip() or None
     if e.native_nuance is not None:
         e.native_nuance = e.native_nuance.strip() or None
+
+
+# ⭐ A6(2026-10-06 · PM-DEC-398) — 「새로 배운 표현」에 문형 표기가 문장으로 저장되던 결함.
+#   분석 LLM 이 [검출 후보] 표의 「항목」 열(문법 = 문형 표기 `V-(으)면서`)을 korean 에 그대로
+#   옮기면, 그 문자열이 Sentence.korean_sentence → 발음 평가 기준 문장이 되어 평가가 불가능했다.
+#   지시문(위 _analysis_instruction)에 「완성 문장만」을 넣었고, 여기서 한 번 더 거른다(R5).
+_PATTERN_NOTATION_RE = re.compile(
+    r"(?<![A-Za-z])(?:A/V|V/A|AV|V|A|N)\s*[-–~]"        # V-(으)면서 · A-(으)ㄴ · N-이다
+    r"|(?<![A-Za-z])N(?=\s*[가-힣])"                     # N이/가 · N은/는
+    r"|\((?:으|이|스|느|아|어|었|았)[^)]{0,6}\)"         # (으) · (이) · (스)ㅂ니다 · (아/어)
+)
+
+
+def _is_pattern_notation(text: str) -> bool:
+    """문형 표기(학습 항목 제목)인가 — 완성 문장에는 라틴 V/A/N 표지나 「(으)」 괄호가 없다."""
+    return bool(_PATTERN_NOTATION_RE.search(text or ""))
+
+
+def _complete_sentence_expressions(
+    expressions: list[LearnedExpression],
+    grammar_examples: dict[str, str | None],
+    *,
+    call_id: int | None = None,
+) -> list[LearnedExpression]:
+    """문형 표기 표현을 그 항목 예문으로 바꾸고, 예문이 없으면 뺀다.
+
+    - grammar_examples: 문법 항목 surface → 예문(first_example). 검출 후보·DB 조회로 채운다.
+    - 판정: korean 이 문법 후보 surface 와 같거나 문형 표기 패턴이면 대상이다.
+      ⛔ 어휘(vocab) surface 와 같다고 바꾸지 않는다 — 「물」 같은 단어 표현은 정상 결과다.
+    - 바꾼 표현의 현지인 짝은 비운다(짝은 표기에 대해 만들어진 것이라 예문과 뜻이 다를 수 있다).
+    - translation 은 그대로 둔다(문형 뜻 번역 — 재번역 LLM 호출을 늘리지 않는다).
+    """
+    out: list[LearnedExpression] = []
+    for e in expressions:
+        korean = (e.korean or "").strip()
+        if korean not in grammar_examples and not _is_pattern_notation(korean):
+            out.append(e)
+            continue
+        example = (grammar_examples.get(korean) or "").strip()
+        if example and not _is_pattern_notation(example):
+            logger.warning("normalcall 분석: 문형 표기 → 예문 치환 %r → %r call_id=%s", korean, example, call_id)
+            e.korean = example
+            e.native_expression = None
+            e.native_expression_translation = None
+            e.native_nuance = None
+            out.append(e)
+        else:
+            logger.warning("normalcall 분석: 문형 표기 · 예문 없음 → 저장 제외 %r call_id=%s", korean, call_id)
+    return out
+
+
+def _lookup_grammar_examples(
+    db: Session, expressions: list[LearnedExpression], cands: list[dict], language: str
+) -> dict[str, str | None]:
+    """문법 surface → 예문 사전. 검출 후보(chat)를 먼저 쓰고, 후보 밖 표기는 learning_item 에서 찾는다.
+
+    표현학습·프리토킹은 후보가 비어 있어(call_session._trigger_analysis) DB 조회만 탄다.
+    표기가 하나도 없으면 쿼리를 하지 않는다.
+    """
+    examples: dict[str, str | None] = {
+        str(c.get("surface") or "").strip(): c.get("example")
+        for c in cands
+        if c.get("kind") == "grammar" and c.get("surface")
+    }
+    missing = {
+        (e.korean or "").strip()
+        for e in expressions
+        if _is_pattern_notation(e.korean or "") and (e.korean or "").strip() not in examples
+    }
+    if missing:
+        rows = db.scalars(
+            select(LearningItem).where(
+                LearningItem.language == language,
+                LearningItem.kind == "grammar",
+                LearningItem.surface.in_(missing),
+            )
+        ).all()
+        for it in rows:
+            examples.setdefault(it.surface, mastery_repository.first_example(it))
+    return examples
 
 
 # 항목 사용 판정 지시문(mechanics ⑤ 3단계) — 검출 후보가 있을 때만 기존 지시문 뒤에 부착.
@@ -3093,6 +3176,20 @@ async def analyze_call(
         # 읽는다)가 이 값을 쓰게 되면 항상 정리된 값만 보게 하기 위해 여기서 미리 한다.
         for _expr in result.expressions:
             _normalize_native_pair(_expr)
+
+        # A6(PM-DEC-398): 문형 표기(`V-(으)면서`)를 예문 완성 문장으로 바꾸거나 뺀다 — 저장 전.
+        if any(
+            _is_pattern_notation(_e.korean or "")
+            or any(c.get("kind") == "grammar" and c.get("surface") == (_e.korean or "").strip() for c in cands)
+            for _e in result.expressions
+        ):
+            _grammar_examples = await run_db(
+                session_factory,
+                lambda db: _lookup_grammar_examples(db, result.expressions, cands, lang_code),
+            )
+            result.expressions = _complete_sentence_expressions(
+                result.expressions, _grammar_examples, call_id=call_id
+            )
 
         # P2.6: 요약·표현 저장과 status=done 을 같은 커밋으로 — 여기서 결과 페이지
         # 폴링이 풀린다(TTS×N·체크판을 기다리지 않음).
