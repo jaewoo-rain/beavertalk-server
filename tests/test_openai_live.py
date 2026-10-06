@@ -558,3 +558,32 @@ def test_the_session_config_only_ever_carries_a_supported_voice():
 
     cfg = sess.build_session_config(system_instruction="x", voice="marin")
     assert cfg["session"]["audio"]["output"]["voice"] in sess.SUPPORTED_VOICES
+
+
+# --------------------------------------------------------------------------- #
+# 쪽지 role — ⭐ 이 한 글자가 되묻기 복종을 44% → 100% 로 바꿨다
+#   (2026-10-06 하네스 83세션, p=0.00051). ⚠ **오디오에서만** 터진다 — 텍스트
+#   모달리티에서는 user 로도 23/24 가 따랐다. 그래서 코드 시험으로는 안 보였고,
+#   실통화 1740·1741 의 실패 경로가 글자까지 같게 재현됐다.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_server_notes_go_in_as_system_not_user():
+    """⛔ 이게 user 로 돌아가면 퀴즈 큐·세트·드릴 안내가 절반쯤 무시된다."""
+    ws = _FakeWS([])
+    sess = oa.OpenAIRealtimeSession(ws)
+    await sess.send_reground("[안내] 되묻는 차례다", turn_complete=False)
+    items = [m for m in ws.sent if m["type"] == "conversation.item.create"]
+    assert len(items) == 1, ws.sent
+    assert items[0]["item"]["role"] == "system", (
+        "서버 쪽지가 user 로 들어간다 — 오디오 턴에서 세션 지시문에 밀린다", items[0])
+
+
+@pytest.mark.asyncio
+async def test_the_other_two_channels_stay_user():
+    """⛔ 선톡·종료·무음 넛지 시드는 **측정하지 않았다** — 안 쟀으면 안 바꾼다."""
+    for meth in ("send_text_turn", "send_persona"):
+        ws = _FakeWS([])
+        sess = oa.OpenAIRealtimeSession(ws)
+        await getattr(sess, meth)("x")
+        items = [m for m in ws.sent if m["type"] == "conversation.item.create"]
+        assert items and items[0]["item"]["role"] == "user", (meth, items)

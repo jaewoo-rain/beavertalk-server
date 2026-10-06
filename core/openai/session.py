@@ -286,18 +286,30 @@ class OpenAIRealtimeSession:
             "audio": base64.b64encode(pcm24).decode("ascii"),
         })
 
-    async def _create_item(self, text: str) -> None:
-        """대화 끝에 user 텍스트 항목 하나를 **덧붙인다**(생성 트리거 없음).
+    async def _create_item(self, text: str, *, role: str = "user") -> None:
+        """대화 끝에 텍스트 항목 하나를 **덧붙인다**(생성 트리거 없음).
 
         ⛔ `session.update` 로 `instructions` 를 갈아끼우지 마라 — 프리픽스가 바뀌면
           캐시가 전부 깨져 그 통화의 남은 입력이 전액 정가가 된다.
+
+        ⭐⭐ `role` 이 복종률을 가른다(2026-10-06 하네스 83세션 실측):
+          서버 쪽지(퀴즈 큐·세트 이탈·드릴 안내)를 `user` 로 넣으면 **오디오 턴 위에서**
+          세션 지시문 `[진행]`(「1번부터 차례로」·「다음 번호를 설명하고 말해 보라」)에
+          밀린다 — 되묻기 복종 **44%**(8/18). 같은 글자를 `system` 으로 넣으면
+          **100%**(15/15), p=0.00051.
+          ⚠ 텍스트 모달리티에서는 `user` 로도 23/24 가 따랐다 — **오디오에서만 터진다.**
+            그래서 지금까지 코드 시험으로 안 보였다.
+          ⚠ 실측으로 재현된 실패 경로가 실통화 1740·1741 과 **글자까지 같았다**
+            (큐가 열린 뒤 항목4 → 항목5 로 전진).
+          ⛔ `role` 기본값은 `user` 그대로 둔다 — 선톡·종료·무음 넛지 시드는 **안 쟀다**
+            (`send_text_turn` 통로). 바꾸려면 재야 한다.
         """
         self._sent_items += 1
         await self._send({
             "type": "conversation.item.create",
             "item": {
                 "type": "message",
-                "role": "user",
+                "role": role,
                 "content": [{"type": "input_text", "text": text}],
             },
         })
@@ -311,7 +323,7 @@ class OpenAIRealtimeSession:
         await self._create_response()
 
     async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
-        """쪽지 주입.
+        """쪽지 주입 — ⭐ `role="system"` 으로 넣는다.
 
         ⚠ **이 통로로 오는 것의 대부분은 재접지가 아니다** — 표현학습 **퀴즈 큐**와
           세트·드릴 안내가 `turn_complete=False` 로 여기 온다(`_attach_quiz_cue`).
@@ -319,8 +331,15 @@ class OpenAIRealtimeSession:
         - `turn_complete=False`: 항목만 덧붙인다 ⇒ 학습자 발화가 VAD 로 끝날 때 그
           응답에 **함께** 실린다(Gemini 의 미완결 병합과 같은 결과).
         - `turn_complete=True`: 지금 답하라는 뜻 ⇒ `response.create` 까지.
+
+        ⭐⭐ **왜 `system` 인가**(2026-10-06 하네스 83세션 — `_create_item` 독스트링):
+          `user` 로 넣으면 오디오 턴 위에서 세션 지시문에 밀려 되묻기 복종이 **44%** 였다.
+          `system` 으로 바꾸면 **100%**(p=0.00051). 벤더가 `item.added role=system` 으로
+          되돌려주고 `error` 0건이다(SDK 타입 `RealtimeConversationItemSystemMessage`).
+        ⛔ `send_text_turn`·`send_persona` 는 `user` 를 **유지한다** — 그 통로(선톡·종료·
+          무음 넛지 시드)는 측정하지 않았다. 안 쟀으면 안 바꾼다.
         """
-        await self._create_item(text)
+        await self._create_item(text, role="system")
         if turn_complete:
             await self._create_response()
 
