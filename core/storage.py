@@ -20,6 +20,7 @@ None 을 반환한다(speechsuper.py 규율) — 저장이 안 돼도 통화/분
 from __future__ import annotations
 
 import logging
+import time
 from datetime import timedelta
 from typing import Any
 
@@ -145,6 +146,40 @@ def _signing_token() -> str | None:
     except Exception:  # noqa: BLE001 - 갱신 실패는 token 유무로 흡수
         pass
     return getattr(_signing_creds, "token", None)
+
+
+# prefix → (조회 시각, 있는 key 집합). 프로세스 메모리 — 인스턴스마다 따로 센다.
+_EXISTING_TTL_S = 300
+_existing_cache: dict[tuple[str, str], tuple[float, frozenset[str]]] = {}
+
+
+def existing_keys(bucket: str, prefix: str) -> frozenset[str] | None:
+    """(prefix=bucket)/prefix 아래 **실제로 있는** object key 집합. 조회 실패·비활성이면 None.
+
+    ⛔ 서명([_signed])은 객체가 있는지 보지 않는다 — 없는 파일의 URL 도 멀쩡히 나가고
+      받는 쪽이 404 를 맞는다(2026-10-06 실측: sound_audio 233행 · 버킷 객체 0개).
+      DB 행만 믿고 URL 을 내보내는 호출부는 이 집합으로 먼저 거른다.
+    key 는 DB 에 담는 형태(버킷 prefix 를 뺀 경로)로 돌려준다. 같은 prefix 는
+    [_EXISTING_TTL_S] 초 동안 다시 조회하지 않는다(요청마다 목록 호출을 하지 않게).
+    """
+    now = time.monotonic()
+    hit = _existing_cache.get((bucket, prefix))
+    if hit is not None and now - hit[0] < _EXISTING_TTL_S:
+        return hit[1]
+    _init()
+    if _bucket is None or _client is None:
+        return None
+    head = (bucket or "").strip("/")
+    try:
+        names = [
+            b.name for b in _client.list_blobs(_bucket, prefix=_blob_name(bucket, prefix))
+        ]
+    except Exception as exc:  # noqa: BLE001 - 목록 실패 graceful(호출부가 None 을 처리)
+        logger.warning("storage(gcs): 목록 조회 실패 %s/%s — %s", bucket, prefix, exc)
+        return None
+    keys = frozenset(n[len(head) + 1:] if head and n.startswith(head + "/") else n for n in names)
+    _existing_cache[(bucket, prefix)] = (now, keys)
+    return keys
 
 
 def public_url(bucket: str, path: str | None) -> str | None:

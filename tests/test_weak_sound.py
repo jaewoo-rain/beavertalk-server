@@ -486,3 +486,36 @@ def test_assess_404_unknown_sound(session_factory, seeded, scorer):
     client = TestClient(_build_app(session_factory))
     assert _post_audio(client, "coda_ㅋ", _hdr()).status_code == 404
     assert scorer.calls == []  # 없는 소리면 채점도 하지 않는다
+
+
+# --------------------------------------------------------------------------- #
+# 미리 구운 음성 — 행이 있어도 파일이 없으면 URL 을 내보내지 않는다(2026-10-06)
+# --------------------------------------------------------------------------- #
+def _audio_urls_with(monkeypatch, present):
+    from domains.learning.service import weak_sound_service as svc
+
+    keys = {
+        svc.audio_text_hash("나무"): "sound-lesson/gemini-tts/n.mp3",
+        svc.audio_text_hash("노래"): "sound-lesson/gemini-tts/r.mp3",
+    }
+    monkeypatch.setattr(
+        svc.WeakSoundRepository, "get_audio", lambda self, hashes, voice, engine: keys
+    )
+    monkeypatch.setattr(svc.storage, "existing_keys", lambda bucket, prefix: present)
+    monkeypatch.setattr(
+        svc.storage, "playback_url", lambda bucket, key, ttl=None: f"https://signed/{key}"
+    )
+    return svc._audio_urls(None, {"words": [{"text": "나무"}, {"text": "노래"}]})
+
+
+def test_audio_urls_only_for_objects_that_exist(monkeypatch):
+    got = _audio_urls_with(monkeypatch, frozenset({"sound-lesson/gemini-tts/n.mp3"}))
+    assert got == {"나무": "https://signed/sound-lesson/gemini-tts/n.mp3"}
+
+
+def test_audio_urls_empty_when_bucket_has_none(monkeypatch):
+    assert _audio_urls_with(monkeypatch, frozenset()) == {}
+
+
+def test_audio_urls_empty_when_listing_fails(monkeypatch):
+    assert _audio_urls_with(monkeypatch, None) == {}

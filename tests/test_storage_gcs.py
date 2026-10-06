@@ -228,3 +228,50 @@ def test_playback_url_resigns_stored_url(fake_bucket):
 
 def test_playback_url_none_when_no_value(fake_bucket):
     assert storage.playback_url("voice-samples", None) is None
+
+
+# --------------------------------------------------------------------------- #
+# existing_keys — 서명 전 존재 확인 (2026-10-06 sound-lesson 객체 0개 결함)
+# --------------------------------------------------------------------------- #
+class _Listed:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeClient:
+    def __init__(self, names, fail=False):
+        self.names = names
+        self.fail = fail
+        self.calls = 0
+
+    def list_blobs(self, bucket, prefix=""):
+        self.calls += 1
+        if self.fail:
+            raise RuntimeError("403")
+        return [_Listed(n) for n in self.names if n.startswith(prefix)]
+
+
+def test_existing_keys_strips_bucket_prefix_and_caches(fake_bucket, monkeypatch):
+    client = _FakeClient([
+        "voice-samples/sound-lesson/gemini-tts/a.mp3",
+        "voice-samples/tts/1/1.mp3",
+    ])
+    monkeypatch.setattr(storage, "_client", client)
+    monkeypatch.setattr(storage, "_existing_cache", {})
+    got = storage.existing_keys("voice-samples", "sound-lesson/gemini-tts/")
+    assert got == {"sound-lesson/gemini-tts/a.mp3"}
+    storage.existing_keys("voice-samples", "sound-lesson/gemini-tts/")
+    assert client.calls == 1, "TTL 안에서는 다시 조회하지 않는다"
+
+
+def test_existing_keys_none_on_list_failure(fake_bucket, monkeypatch):
+    monkeypatch.setattr(storage, "_client", _FakeClient([], fail=True))
+    monkeypatch.setattr(storage, "_existing_cache", {})
+    assert storage.existing_keys("voice-samples", "sound-lesson/") is None
+
+
+def test_existing_keys_none_when_storage_disabled(monkeypatch):
+    monkeypatch.setattr(storage, "_ready", True)
+    monkeypatch.setattr(storage, "_bucket", None)
+    monkeypatch.setattr(storage, "_existing_cache", {})
+    assert storage.existing_keys("voice-samples", "sound-lesson/") is None

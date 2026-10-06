@@ -154,8 +154,21 @@ def _audio_urls(db: Session, payload: dict) -> dict[str, str]:
 
     by_hash = {audio_text_hash(t): t for t in texts}
     keys = WeakSoundRepository(db).get_audio(list(by_hash), LESSON_VOICE, LESSON_ENGINE)
+    if not keys:
+        return {}
+    # ⛔ 행이 있다고 파일이 있는 것이 아니다(2026-10-06 실측: 행 233 · 버킷 객체 0).
+    #   없는 파일의 URL 을 주면 앱이 404 를 받고서야 합성으로 넘어가고, iOS 빌드 52 이하는
+    #   그 자리에서 멈췄다. 있는 것만 내보낸다. 목록을 못 읽으면 하나도 안 내보낸다 —
+    #   앱은 URL 이 없으면 곧바로 `POST /tts/speech` 로 간다(R5).
+    present = storage.existing_keys(
+        settings.SUPABASE_BUCKET_SAMPLES, f"sound-lesson/{LESSON_ENGINE}/"
+    )
+    if present is None:
+        return {}
     out: dict[str, str] = {}
     for h, key in keys.items():
+        if storage.object_key(settings.SUPABASE_BUCKET_SAMPLES, key) not in present:
+            continue
         # 만료를 **명시한다.** 인자를 비우면 `public_url` 경로로 빠지는데, 이름과 달리
         # 그것도 서명 URL 이고 TTL 만 다르다(7일). 기본값에 기대면 그 함수의 기본이
         # 바뀌는 날 이 화면이 조용히 따라 바뀐다.
