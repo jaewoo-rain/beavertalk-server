@@ -247,6 +247,39 @@ def test_leveltest_sparse_path_no_longer_blanks_a_good_title(ctx):
     assert call2.summary_lang == "en"        # NULL 로 되돌아가지 않는다
 
 
+def test_leveltest_sparse_done_first_then_title_fills_it(ctx):
+    """PM-DEC-418(10-06 call 1751) — **표본미달 `done` 이 먼저, 1단계 제목이 나중**.
+
+    표본미달 분기는 LLM 없이 수백 ms 만에 `summary=""` 로 `done` 을 찍고, 1단계(LLM 1콜)는
+    거의 항상 그 뒤에 온다. 예전에는 `done` 만 보고 버려 결과 화면이 영구히 「분석 결과」였다.
+    """
+    db = ctx["session_factory"]()
+    call_id = svc.create_call(db, ctx["member_id"], ctx["character_id"], "level_test")
+
+    sparse = svc.LevelAssessment(
+        evidence=[], reasoning="표본 미달", distinct_structures=0,
+        band="unknown", confidence="low", sample_quality="none",
+        summary="", feedback_for_learner="",
+    )
+    assert svc._save_level_assessment(db, call_id, ctx["member_id"], 1, sparse)
+    db_mid = ctx["session_factory"]()
+    assert db_mid.get(Call, call_id).status == "done"
+    assert not (db_mid.get(Call, call_id).summary or "")
+
+    # 1단계 제목이 뒤늦게 온다 → 빈 제목이니 채운다
+    assert svc._save_call_title(db_mid, call_id, "자기소개 연습", "ko")
+
+    db2 = ctx["session_factory"]()
+    call2 = db2.get(Call, call_id)
+    assert call2.summary == "자기소개 연습"
+    assert call2.summary_lang == svc.display_i18n_service.summary_lang_for("ko")
+    assert call2.status == "done"            # 상태는 그대로
+
+    # 제목이 생긴 done 은 다시 보호된다 — 늦게 온 두 번째 쓰기는 버린다
+    assert not svc._save_call_title(db2, call_id, "다른 제목", "ko")
+    assert ctx["session_factory"]().get(Call, call_id).summary == "자기소개 연습"
+
+
 # --------------------------------------------------------------------------- #
 # 3. 1단계 실패 → 2단계가 현행처럼 채운다
 # --------------------------------------------------------------------------- #

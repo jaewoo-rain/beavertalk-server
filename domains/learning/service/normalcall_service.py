@@ -3442,8 +3442,18 @@ def _title_is_settled(call: Call | None) -> bool:
         제목이 통화 전체를 설명한다
       - `done` 이 찍힌 뒤로는 아무도 못 바꾼다 ⇒ **결과 화면에서 제목이 안 흔들린다**
         (2단계가 먼저 끝난 짧은 통화 = 경합도 여기서 막힌다)
+
+    ⭐ 단 **`done` 인데 제목이 비어 있으면 확정이 아니다**(2026-10-06 · PM-DEC-418).
+      레벨테스트 표본미달 분기(`analyze_level_test_call`)는 LLM 없이 수백 ms 만에
+      `summary=""` 로 `done` 을 찍는다. 1단계 제목(LLM 1콜 · 1~1.5초)은 거의 항상 그 뒤에
+      와서 버려졌고, 결과 화면은 영구히 「분석 결과」였다(call 1751 「자기소개 연습」 유실).
+      빈 제목만 채우게 열어 둔다 — 제목이 있는 `done` 은 그대로 보호된다.
     """
-    return call is not None and (call.status or "") == _TITLE_DONE_STATUS
+    return (
+        call is not None
+        and (call.status or "") == _TITLE_DONE_STATUS
+        and bool((call.summary or "").strip())
+    )
 
 
 def _save_call_title(db: Session, call_id: int, summary: str, locale: str) -> bool:
