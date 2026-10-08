@@ -106,7 +106,7 @@ def test_session_config_uses_24k_on_both_sides_and_semantic_vad():
     assert sess["audio"]["input"]["format"] == {"type": "audio/pcm", "rate": 24000}
     assert sess["audio"]["output"]["format"] == sess["audio"]["input"]["format"], \
         "입·출력 포맷은 같아야 한다(세션 중 변경 불가)"
-    assert sess["audio"]["input"]["turn_detection"] == {"type": "semantic_vad"}, \
+    assert sess["audio"]["input"]["turn_detection"]["type"] == "semantic_vad", \
         "기본 server_vad(500ms)는 학습자의 쉼을 전부 턴으로 쪼갰다(실측)"
     assert sess["audio"]["output"]["voice"] == "marin"
     assert sess["output_modalities"] == ["audio"]
@@ -188,10 +188,15 @@ async def test_events_normalize_audio_transcripts_and_turn_end():
             {"type": "message"}], "usage": {"input_tokens": 10, "output_tokens": 3}}},
     ])
     kinds = [e.kind for e in evs]
-    assert kinds == ["out_tr", "audio", "in_tr", "in_tr", "usage", "turn_end"]
+    # ⭐ 입력 전사는 **델타만** 올린다(2026-10-07, call 1759·1764). 벤더가 델타와
+    #   `completed`(그 턴의 전문)를 둘 다 주는데, 호출부는 받은 조각을 전부 쌓아
+    #   `"".join` 하므로 둘 다 올리면 전사가 **정확히 2배**가 된다.
+    #   ⛔ 합계(`completed`)를 버리고 흘리는 쪽을 남긴다 — 끊으면 학습자 자막이 문장
+    #     끝에야 떠서 체감이 느려진다(1764 에서 사장님이 바로 잡아냈다).
+    assert kinds == ["out_tr", "audio", "in_tr", "usage", "turn_end"]
     assert evs[1].audio == pcm, "출력 오디오는 변환 없이 그대로 올린다(PCM24k)"
-    assert evs[2].is_final is False and evs[3].is_final is True
-    assert evs[3].text == "고마워요"
+    assert evs[2].text == "고마" and evs[2].is_final is False, \
+        "자막은 델타로 흘려야 한다 — 전문 한 번으로 바꾸면 체감이 느려진다"
 
 
 @pytest.mark.asyncio
@@ -444,13 +449,29 @@ def test_face_rule_block_matches_the_tool_declaration():
 
 
 @pytest.mark.asyncio
-async def test_empty_final_transcript_is_not_forwarded():
-    """⛔ 빈 전사를 in_tr 로 올리면 ①자막이 깜빡이고 ②무음 시계가 잘못 리셋된다."""
+async def test_completed_transcript_is_never_forwarded():
+    """⛔ `completed` 는 델타의 **합계**다 — 올리면 전사가 2배가 된다(call 1759 t2).
+
+    빈 전사든 내용이 있든 똑같이 버린다. 자막은 델타가 책임진다.
+    """
     evs, _ws, _s = await _drain([
         {"type": "conversation.item.input_audio_transcription.completed", "transcript": "   "},
         {"type": "conversation.item.input_audio_transcription.completed", "transcript": "네"},
     ])
-    assert [(e.kind, e.text) for e in evs] == [("in_tr", "네")]
+    assert evs == [], "completed 를 올리면 델타와 합쳐져 전사가 2배가 된다"
+
+
+@pytest.mark.asyncio
+async def test_delta_then_completed_yields_the_text_exactly_once():
+    """⭐ 1759 t2 「I don't know that.I don't know that.」 의 회귀 못."""
+    evs, _ws, _s = await _drain([
+        {"type": "conversation.item.input_audio_transcription.delta", "delta": "I don't "},
+        {"type": "conversation.item.input_audio_transcription.delta", "delta": "know that."},
+        {"type": "conversation.item.input_audio_transcription.completed",
+         "transcript": "I don't know that."},
+    ])
+    assert "".join(e.text or "" for e in evs) == "I don't know that.", \
+        "델타의 합이 곧 전문이어야 하고, 전문이 한 번 더 붙으면 2배가 된다"
 
 
 @pytest.mark.asyncio
@@ -587,3 +608,57 @@ async def test_the_other_two_channels_stay_user():
         await getattr(sess, meth)("x")
         items = [m for m in ws.sent if m["type"] == "conversation.item.create"]
         assert items and items[0]["item"]["role"] == "user", (meth, items)
+
+
+# ── 이중발화 가드(2026-10-07, call 1758 t23) ──────────────────────────────────── #
+#   `semantic_vad` 는 create_response 가 기본 true 라 **유저 턴 커밋이 응답을 자동
+#   생성한다**. 그 창에서 시드가 또 쏘면 한 턴에 응답 2개가 붙었다.
+#   가드는 `send_text_turn` 한 곳 — 시드 호출부 6곳이 전부 이 통로를 지난다.
+@pytest.mark.asyncio
+async def test_seed_is_dropped_while_a_response_is_active():
+    out, ws, sess = await _drain([
+        {"type": "response.created"},
+        {"type": "response.output_audio_transcript.delta", "delta": "안녕"},
+    ])
+    before = len(ws.sent)
+    await sess.send_text_turn("[시스템] 더 할 말 있니?")
+    assert ws.sent[before:] == [], \
+        "응답 진행 중에 시드를 보냈다 — 응답이 2개가 되거나 다음 턴에 낭독된다"
+
+
+@pytest.mark.asyncio
+async def test_response_done_clears_the_guard_so_seeds_work_again():
+    out, ws, sess = await _drain([
+        {"type": "response.created"},
+        {"type": "response.done", "response": {}},
+    ])
+    before = len(ws.sent)
+    await sess.send_text_turn("[시스템] 이제 작별 인사를 해라")
+    kinds = [m["type"] for m in ws.sent[before:]]
+    assert "conversation.item.create" in kinds and "response.create" in kinds, \
+        "해제 뒤에는 시드가 정상으로 돌아야 한다 — 안 그러면 종료 시드가 죽어 통화가 안 끝난다"
+
+
+@pytest.mark.asyncio
+async def test_fresh_session_sends_the_opening_seed():
+    ws = _FakeWS([])
+    sess = oa.OpenAIRealtimeSession(ws)
+    await sess.send_text_turn("선톡")
+    assert "response.create" in [m["type"] for m in ws.sent], \
+        "가드가 기본으로 켜져 있으면 선톡이 안 나가 통화가 안 열린다"
+
+
+def test_turn_detection_disables_vendor_barge_in():
+    """⭐ 끼어들기 없음(2026-10-07 사장님 지시) — 벤더 기본값이 `true` 라 **명시**해야 한다.
+
+    이 통화는 barge-in off 설계다(서버 `state.turn_id` 관문 + 클라 `_micGated`). 벤더만
+    끊도록 남겨 두면 call 1764 처럼 비버 턴이 중간에 잘린다(interrupted 2건·오디오 공백
+    최대 3.41s·문장 절단). 세 관문의 전제를 하나로 맞춘다.
+    """
+    cfg = oa.build_session_config(system_instruction="x")
+    td = cfg["session"]["audio"]["input"]["turn_detection"]
+    assert td["type"] == "semantic_vad"
+    assert td["interrupt_response"] is False, \
+        "벤더 끼어들기가 켜져 있다 — barge-in off 설계와 어긋난다"
+    assert "create_response" not in td, \
+        "응답 생성 주체는 안 바꾼다 — false 로 두면 커밋을 놓칠 때 통화가 벙어리가 된다"

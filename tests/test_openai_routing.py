@@ -284,7 +284,7 @@ async def test_openai_call_uses_the_gpt_script_and_omits_fragment_plumbing(
 
     # ② GPT 대본이다(Gemini 대본의 표식이 없다)
     si = h["system_instruction"]
-    assert "[절대 금지" in si and si.index("먼저 말하지 않는다") < 400
+    assert "[절대 금지" in si and si.index("입을 떼기 전") < 400
     assert "[오늘의 표현]" in si
     assert "[6번까지" in si or "번까지 다 돌았으면]" in si
     for gemini_mark in ("[퀴즈] 알림", "재접지", "이어서", "조각"):
@@ -889,5 +889,58 @@ def test_the_prompt_switches_with_the_flag():
     off = ex.build_expression_instruction(**kw)
     on = ex.build_expression_instruction(self_quiz=True, **kw)
     assert "[퀴즈]" in off and "네가 정하지 않는다" in off
-    assert "[되묻기]" in on and "끝내면 바로" in on
+    assert "[되묻기 — 3개마다]" in on and "다 내고 나면" in on
     assert "네가 정하지 않는다" not in on, "자가 개시판에 «네가 정하지 않는다» 가 남았다"
+
+
+# --------------------------------------------------------------------------- #
+# 프리토킹 라우팅(2026-10-08) — 게이트 + **배선 구조**
+#   ⚠ 통화 하네스(`_run`)는 expression 코스로 시드돼 있어 freetalk 실행 경로를 못 태운다.
+#     그래서 ①게이트는 단위로, ②배선은 소스 구조로 못박는다(이 파일의 기존 방식).
+# --------------------------------------------------------------------------- #
+def test_live_openai_for_accepts_freetalk_when_listed(monkeypatch):
+    monkeypatch.setattr(app_settings, "GPT_API_KEY", "k")
+    monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression")
+    assert call_service.live_openai_for("freetalk") is False, "목록에 없으면 Gemini 다"
+    monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression,freetalk")
+    assert call_service.live_openai_for("freetalk") is True
+    assert call_service.live_openai_for("expression") is True
+    assert call_service.live_openai_for("chat") is False, "chat 은 아직 배선이 없다"
+    assert call_service.live_openai_for("level_test") is False
+
+
+def test_freetalk_engine_branch_is_wired_with_gemini_in_the_else():
+    """⛔ 엔진 분기가 **프리토킹 자리에도** 있고, Gemini 대본이 그 `else` 아래에 있다.
+
+    env 가 비면 `live_openai_for` 가 False 라 else 가 종전 그대로 돈다(바이트 동일).
+    이 구조가 깨지면 두 대본이 같이 조립되거나 Gemini 가 영구히 안 불린다.
+    """
+    import inspect
+    src = inspect.getsource(cs.run_call)
+
+    gpt = src.index("openai_freetalk.build_freetalk_instruction(")
+    # ⚠ `build_freetalk_instruction(` 는 **옛 경로**(비-cur `elif call_type == "freetalk"`)에도
+    #   있다. 여기서 보는 것은 cur 분기의 그것이니 **GPT 분기 뒤**에서 찾는다.
+    gem = src.index("system_instruction = build_freetalk_instruction(", gpt)
+
+    between = src[gpt:gem]
+    assert "\n                else:\n" in between, \
+        "GPT 분기와 Gemini 호출 사이에 else 가 없다 — 둘이 같이 조립된다"
+    assert "use_openai = call_service.live_openai_for(call_type)" in src[:gpt], \
+        "프리토킹 분기가 게이트를 안 본다"
+
+    # 시드도 GPT 것으로 갈린다
+    assert "openai_freetalk.seed_freetalk_opening(" in src
+    assert "seed_freetalk_lesson_opening(" in src, "Gemini 시드가 else 쪽에 남아 있어야 한다"
+
+
+def test_freetalk_gpt_branch_passes_the_chapter_brief():
+    """⭐ 차시 브리프 네 칸이 **그대로** GPT 대본으로 간다(사장님 지시: 챕터만 참조)."""
+    import inspect
+    src = inspect.getsource(cs.run_call)
+    i = src.index("openai_freetalk.build_freetalk_instruction(")
+    call = src[i:i + 1400]
+    for arg in ("situation=_brief.situation", "partner=_brief.partner",
+                "items=_brief.items", "probes=_brief.probes"):
+        assert arg in call, arg
+    assert "max_sentences=FREETALK_MAX_SENTENCES" in call, "역할극 문장 수 상한이 빠졌다"

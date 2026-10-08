@@ -90,6 +90,7 @@ from domains.learning.realtime import seed_bundle
 from core.openai import session as openai_live
 from core.openai import tools as openai_tools
 from core.openai.prompts import expression as openai_expression
+from core.openai.prompts import freetalk as openai_freetalk
 from core.persona_prompt import (
     _LOCALE_LABEL,
     face_tool_rule,
@@ -3831,29 +3832,73 @@ async def run_call(
                     db_session_factory,
                     lambda db: svc.level_profile_for(db, spec.code, cur_open.lesson.level_no),
                 )
-                system_instruction = build_freetalk_instruction(
-                    role=setup["role"],
-                    personality=setup["personality"],
-                    level_profile=freetalk_level_profile,
-                    locale=locale,
-                    interests=[],
-                    name=setup["name"],
-                    target_language=target_language,
-                    close_tag=close_tag,
-                    max_sentences=FREETALK_MAX_SENTENCES,
-                    lesson=cur_open.brief,
-                    face_rule=face_rule_text,
-                    language=spec.code,                    # probes 이름 치환 패턴(ja 「〜さん」)
-                )
-                seed_text = seed_freetalk_lesson_opening(target_language)
-                freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
-                logger.info(
-                    "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 소재 %d(문형 %d) 재개=%s call_id=%s",
-                    cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
-                    len(cur_open.brief.items) if cur_open.brief else 0,
-                    sum(1 for d in (cur_open.brief.items if cur_open.brief else []) if d.get("role") == "grammar"),
-                    cur_open.resumed, call_id,
-                )
+                # ⭐⭐ **엔진 분기 2번째 자리**(2026-10-08, 프리토킹). 위 expression 분기와
+                #   같은 규율이다 — 차시가 확정된 뒤여야 브리프를 대본에 실을 수 있다.
+                #   ⛔ env(`OPENAI_REALTIME_COURSES`)에 freetalk 가 없으면 False 라 아래
+                #     else 가 종전 그대로 돈다(Gemini 대본·시드 **바이트 동일**).
+                use_openai = call_service.live_openai_for(call_type)
+                if use_openai:
+                    # ⛔ GPT 전용 대본이다 — Gemini 대본(`build_freetalk_instruction`)을 고쳐
+                    #   쓰는 것이 아니라 **백지에서 쓴 다른 파일**이다. 언어 규칙이 표현학습과
+                    #   정반대라(100% 목표어) 베끼면 제일 먼저 깨진다
+                    #   (`core/openai/prompts/freetalk.py` 모듈 독스트링).
+                    _brief = cur_open.brief
+                    system_instruction = openai_freetalk.build_freetalk_instruction(
+                        role=setup["role"],
+                        personality=setup["personality"],
+                        locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
+                        situation=_brief.situation,
+                        partner=_brief.partner,
+                        items=_brief.items,
+                        probes=_brief.probes,
+                        target_language=target_language,
+                        name=setup["name"],
+                        # ⭐ 레벨 프로파일은 **차시 기준**(freetalk_level_profile) 그대로다 —
+                        #   위 R1-c 주석의 이유가 엔진과 무관하게 그대로 적용된다.
+                        level_note=openai_expression.first_sentence(freetalk_level_profile),
+                        max_sentences=FREETALK_MAX_SENTENCES,
+                        # ⭐ 표정 게이트를 다시 판정하지 않는다 — 위에서 이미 플랜·영상·
+                        #   콜타입으로 계산된 `face_rule_text` 가 있나 없나만 본다.
+                        face_rule=openai_tools.face_rule_block() if face_rule_text else "",
+                    )
+                    seed_text = openai_freetalk.seed_freetalk_opening(
+                        target_language, _brief.situation)
+                    # ⛔ 주입된 가짜 팩토리(시험)가 있으면 그게 이긴다 — 라우팅 결정만 시험하고
+                    #   실제 WS 는 열지 않을 수 있어야 한다.
+                    if live_session_factory is None:
+                        factory = openai_live.open_session
+                    freetalk_brief = _brief     # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
+                    logger.info(
+                        "normalcall cur 프리토킹(GPT): lesson=%s(no=%d) 상황=%s 소재 %d "
+                        "모델=%s 표정=%s call_id=%s",
+                        cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
+                        len(_brief.items or []), settings.OPENAI_REALTIME_MODEL,
+                        "on" if face_rule_text else "off", call_id,
+                    )
+                else:
+                    system_instruction = build_freetalk_instruction(
+                        role=setup["role"],
+                        personality=setup["personality"],
+                        level_profile=freetalk_level_profile,
+                        locale=locale,
+                        interests=[],
+                        name=setup["name"],
+                        target_language=target_language,
+                        close_tag=close_tag,
+                        max_sentences=FREETALK_MAX_SENTENCES,
+                        lesson=cur_open.brief,
+                        face_rule=face_rule_text,
+                        language=spec.code,                    # probes 이름 치환 패턴(ja 「〜さん」)
+                    )
+                    seed_text = seed_freetalk_lesson_opening(target_language)
+                    freetalk_brief = cur_open.brief                 # state 는 아직 없다 — 아래 state.cur_route 자리에서 싣는다
+                    logger.info(
+                        "normalcall cur 프리토킹: lesson=%s(no=%d) 상황=%s 소재 %d(문형 %d) 재개=%s call_id=%s",
+                        cur_open.lesson.code, cur_open.lesson.no, cur_open.lesson.situation,
+                        len(cur_open.brief.items) if cur_open.brief else 0,
+                        sum(1 for d in (cur_open.brief.items if cur_open.brief else []) if d.get("role") == "grammar"),
+                        cur_open.resumed, call_id,
+                    )
 
         # 통화 화면 아바타를 대화 상대와 맞추라고 알려준다(구버전 앱은 무시 → 기존 동작).
         # ⭐ `call_id` 를 같이 싣는다 — 클라가 이어하기에 쓸 번호다. `call_ended` 에만 있으면

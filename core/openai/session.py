@@ -73,7 +73,20 @@ DEFAULT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 # ⭐⭐ **턴 경계는 `semantic_vad`**(2026-10-03 실측). 기본 `server_vad`
 #   (`silence_duration_ms` 500)는 학습자의 쉼 3점을 **전부 턴으로 쪼갰다**.
 #   `semantic_vad` 는 1.98초 쉼까지 버텼다(2.48초는 어느 설정으로도 못 막는다 — 한계 수용).
-TURN_DETECTION: dict = {"type": "semantic_vad"}
+#   ⭐⭐ `interrupt_response: False` — **끼어들기 없음**(2026-10-07 사장님 지시).
+#     기본값이 `true` 라 벤더가 「유저 소리가 들어오면 비버 턴을 끊는다」로 돌고 있었다.
+#     그런데 이 통화는 **barge-in off** 설계다 — 서버도 `state.turn_id` 로 업링크를 막고
+#     (`call_session.py` 의 `if data and state.turn_id is None`), 클라도 재생 큐가 비고
+#     행오버가 지나야 마이크를 연다(`normalcall_controller.dart` 의 `_micGated`).
+#     두 관문이 있어도 **`turn_start`(첫 자막)와 실제 오디오 재생 시작 사이**로 프레임이
+#     새고, 그게 벤더 쪽에서 턴을 끊었다. 실측(call 1764):
+#       `⛔interrupted` 2건 · 오디오 공백 1.21s·2.72s·1.55s·3.41s · 응답지연 19.86초 ·
+#       비버 문장이 「Try again and say this:」 에서 **잘렸다**.
+#     ⇒ 벤더 쪽 끼어들기를 끈다. 이로써 세 관문의 전제가 하나로 맞는다.
+#   ⛔ `create_response` 는 **기본(true) 유지**다 — 그건 끼어들기 축이 아니라 「누가 응답을
+#     만드나」 축이고, false 로 하면 우리가 매 커밋에 직접 만들어야 해서 한 번 놓치면
+#     통화가 벙어리가 된다(R5).
+TURN_DETECTION: dict = {"type": "semantic_vad", "interrupt_response": False}
 
 # ⛔⛔ **동시 통화 1건**(2026-10-04 사장님 결정 1). org TPM 40,000 에서 표정 ON 통화 1건이
 #   분당 ~30k 를 쓴다 — 2건이면 한도를 넘고, 넘으면 통화가 **조용히** 안 열린다.
@@ -252,7 +265,8 @@ def build_session_config(
 class OpenAIRealtimeSession:
     """OpenAI Realtime WS 1개의 비동기 래퍼(호출부 인터페이스 6개 구현)."""
 
-    __slots__ = ("_ws", "_up", "_closed", "_pending_face", "_seen_calls", "_sent_items", "_log_prefix")
+    __slots__ = ("_ws", "_up", "_closed", "_pending_face", "_seen_calls", "_sent_items",
+                 "_log_prefix", "_resp_active")
 
     def __init__(self, ws: Any) -> None:
         self._ws = ws
@@ -264,6 +278,12 @@ class OpenAIRealtimeSession:
         self._seen_calls: set[str] = set()
         self._sent_items = 0
         self._log_prefix = "normalcall OpenAI"
+        # ⭐ 응답이 지금 진행 중인가. `semantic_vad` 는 `create_response` 기본 true 라
+        #   **유저 턴 커밋이 응답을 자동 생성한다** — 그 창에서 우리가 `response.create` 를
+        #   또 쏘면 한 턴에 응답 2개가 붙는다(call 1758 t23 「next item.You got it」).
+        #   ⛔ 호출부의 `state.turn_id` 가드로는 못 막는다: 자동 생성 직후엔 오디오 델타가
+        #     아직 안 와서 그 값이 None 이다. 그래서 **어댑터가 직접 센다.**
+        self._resp_active = False
 
     # -- 보내기 ---------------------------------------------------------------- #
     async def _send(self, obj: dict) -> None:
@@ -315,10 +335,29 @@ class OpenAIRealtimeSession:
         })
 
     async def _create_response(self) -> None:
+        # ⛔ 진행 중이면 쏘지 않는다 — 이게 이중발화 하드 가드다. 벤더는 활성 응답이 있을 때
+        #   `conversation_already_has_active_response` 를 주거나 **응답을 하나 더 만든다**.
+        if self._resp_active:
+            logger.warning("%s response.create 생략 — 응답이 이미 진행 중이다(이중발화 가드)",
+                           self._log_prefix)
+            return
         await self._send({"type": "response.create", "response": {"output_modalities": ["audio"]}})
 
     async def send_text_turn(self, text: str) -> None:
-        """완결 user 텍스트 턴 1회 — 선톡 시드·넛지 시드·종료 시드·루프 차단 쪽지가 이 통로다."""
+        """완결 user 텍스트 턴 1회 — 선톡 시드·넛지 시드·종료 시드·루프 차단 쪽지가 이 통로다.
+
+        ⛔ 응답이 진행 중이면 **아무것도 안 한다**(항목도 안 넣는다). 호출부 6곳이 전부 이
+          통로를 지나므로 가드는 여기 하나면 된다 — 호출부마다 심으면 디프만 늘고 새 호출부가
+          생길 때 또 빠진다.
+        ⚠ 항목까지 거르는 이유: 응답만 막으면 시드 텍스트가 `user` 역할로 대화에 남아
+          **다음 턴에 읽힌다**(「더 할 말 있니?」를 비버가 낭독). 떨구는 쪽이 안전하다 —
+          넛지·루프차단·태그복구는 다음 턴에 어차피 다시 판정하고, 종료는 절대 백스톱이
+          따로 책임진다(R5).
+        """
+        if self._resp_active:
+            logger.warning("%s 시드 생략 — 응답이 이미 진행 중이다(이중발화 가드) «%.40s»",
+                           self._log_prefix, text)
+            return
         await self._create_item(text)
         await self._create_response()
 
@@ -432,27 +471,40 @@ class OpenAIRealtimeSession:
             txt = ev.get("delta") or ""
             return [OpenAIRealtimeEvent(kind="out_tr", text=txt)] if txt else []
         if t == "conversation.item.input_audio_transcription.delta":
+            # 학습자 자막은 **델타로 흘린다** — 끊으면 자기 말이 문장 끝에야 뜨고,
+            #   사장님이 call 1764 에서 «마이크 전사가 느리다» 로 바로 잡아냈다.
             txt = ev.get("delta") or ""
             return [OpenAIRealtimeEvent(kind="in_tr", text=txt, is_final=False)] if txt else []
         if t == "conversation.item.input_audio_transcription.completed":
             txt = (ev.get("transcript") or "").strip()
-            # ⛔⛔ **빈 전사는 올리지 않는다.** 올리면 두 가지가 같이 어긋난다:
-            #   ① 호출부가 빈 `input_transcript` 프레임을 앱에 보낸다(자막이 깜빡인다).
-            #   ② 호출부가 `learner_spoke=True` + 무음 시계 리셋을 한다 — 즉 «소리는 났지만
-            #      말은 못 알아들은» 경우가 «학습자가 말했다» 로 집계된다.
-            #   ⇒ 「전사가 있을 때만 올린다」로 둔다. 그러면 ASR 이 통째로 실패한 구간은
-            #     무음 3단 넛지가 받는다(= 지금 운영과 같은 결과).
+            # ⛔⛔ **올리지 않는다**(2026-10-07, call 1759·1764). 벤더가 델타와 이것을 **둘 다**
+            #   주고 이 값은 그 턴의 **전문**이다. 호출부는 받은 in_tr 조각을 전부
+            #   `cur_user_text` 에 쌓고 `"".join` 하므로(`_on_learner_transcript_piece`)
+            #   둘 다 올리면 전사가 **정확히 2배**가 된다 — 1759 t2 「I don't know that.I
+            #   don't know that.」, 1758 t24 「어서 오세요.×4」 가 그것이다.
+            #   ⭐ 델타를 끊는 쪽으로 먼저 고쳤다가 되돌렸다: 그러면 중복은 사라지지만
+            #     학습자 자막이 문장 끝에야 떠서 **체감이 느려진다**(call 1764 지적).
+            #     ⇒ 흘리는 쪽(델타)을 남기고 **합계(이것)를 버린다.** 델타의 합이 곧 전문이다
+            #     (1759 로그 실측: `I`+`don't`+`know`+`that`+`.` == "I don't know that.").
+            #   ⚠ 그래서 이 경로에선 `is_final=True` 가 **영영 안 온다.** 지금 호출부는
+            #     `REGROUND_ATTACH_AT in ("first","final")` 에서만 그 값을 보고, 운영은
+            #     `mic_open` 이라 안 탄다(call_session.py:6256). 그 env 를 바꾸려면 여기도 본다.
             if not txt:
                 logger.info("%s 입력 전사 확정이 비었다(무음 워처에 맡긴다)", self._log_prefix)
-                return []
-            return [OpenAIRealtimeEvent(kind="in_tr", text=txt, is_final=True)]
+            return []
         if t == "conversation.item.input_audio_transcription.failed":
             logger.warning("%s 입력 전사 실패: %s", self._log_prefix,
                            json.dumps(ev.get("error") or {}, ensure_ascii=False)[:300])
             return []
         if t == "response.function_call_arguments.done":
             return [self._tool_event(ev.get("call_id"), ev.get("name"), ev.get("arguments"))]
+        if t == "response.created":
+            self._resp_active = True
+            return []
         if t == "response.done":
+            # ⛔ 해제는 `_response_done` **보다 먼저** — 그 안에서 예외가 나도 플래그가
+            #   영구히 서 있으면 이후 모든 시드·쪽지가 조용히 막힌다(통화가 벙어리가 된다).
+            self._resp_active = False
             return self._response_done(ev)
         if t == "error":
             logger.warning("%s 서버 error: %s", self._log_prefix,

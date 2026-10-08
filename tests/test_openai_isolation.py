@@ -101,8 +101,8 @@ def test_prompt_file_has_the_two_measured_prescriptions():
     text = ex.build_expression_instruction(
         role="선생님", personality="다정함", locale_label="English",
         items=[{"obj": "고마워요"}] * 6, quiz_group=3)
-    assert "먼저 말하지 않는다" in text            # ① 선공개 금지
-    assert text.index("먼저 말하지 않는다") < 400, "금지는 맨 앞에 있어야 한다(GPT 위반 100%)"
+    assert "입을 떼기 전" in text                  # ① 선공개 금지
+    assert text.index("입을 떼기 전") < 400, "금지는 맨 앞에 있어야 한다(GPT 위반 100%)"
     assert "[6번까지 다 돌았으면]" in text          # ② 출구
     assert "되돌아가지 않는다" in text
 
@@ -224,3 +224,71 @@ def test_gpt_seeds_do_not_contain_glyphs_that_could_be_read_aloud():
     for key, text in _bundle_strings(sb.OPENAI).items():
         for glyph in ("⛔", "**", "⭐", "⚠", "#", "`"):
             assert glyph not in text, (key, glyph)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 프리토킹(freetalk) 전용 못 — ⛔ 표현학습 대본이 새어 드는 것을 **문자열로** 막는다
+# ─────────────────────────────────────────────────────────────────────────────
+_FT_KW = dict(
+    role="비버 선생님", personality="장난기 있고 직설적",
+    locale_label="영어(English)", situation="카페에서 음료 주문하기", partner="카페 직원",
+    items=[{"obj": "물 주세요", "ex": "저기요, 물 주세요.", "role": "chunk"},
+           {"obj": "-고 싶어요", "ex": "커피 마시고 싶어요.", "role": "grammar"}],
+    probes=["뭐 드릴까요?"], target_language="한국어", name="Baba",
+    level_note="초급 — 짧은 문장만 알아듣는다.",
+)
+
+
+def _ft_text():
+    from core.openai.prompts import freetalk as ft
+    return ft.build_freetalk_instruction(**_FT_KW)
+
+
+def test_freetalk_declares_target_language_only():
+    """⛔⛔ 이 코스는 **100% 목표어**다 — 표현학습(모국어 90%)과 **정반대**다.
+
+    표현학습 대본을 참고하다 모국어 발판이 새어 드는 것이 이 코스에서 제일 먼저 깨지는
+    자리다(기획 §4 위험 1). 선언이 있고, 모국어가 목표어보다 많이 나오지 않아야 한다.
+    """
+    text = _ft_text()
+    assert "처음부터 끝까지 한국어다" in text, "목표어 100% 선언이 없다"
+    assert "네 말은 전부 영어" not in text, "표현학습 금지3(모국어 위주)이 섞여 들었다"
+    assert text.count("한국어") > text.count("영어(English)"), \
+        "모국어가 목표어보다 많이 등장한다 — 발판이 새어 든 신호다"
+
+
+def test_freetalk_has_no_drill_or_judging_vocabulary():
+    """⛔ 드릴·판정 어휘가 없어야 한다 — 「가르치지 않는다」가 이 코스의 정체다.
+
+    `core/prompts/freetalk.py` 가 못박아 둔 것: 「여기에 드릴·따라 말하기·판정을 실지
+    마라 — 그건 표현학습이다」.
+    """
+    text = _ft_text()
+    banned = ["따라 말해", "정답", "맞혔", "퀴즈", "오답", "점수"]
+    hit = [w for w in banned if w in text]
+    assert not hit, "드릴·판정 어휘가 들어갔다: %s" % hit
+
+
+def test_freetalk_has_no_close_protocol_vocabulary():
+    """⛔ 종료 어휘 금지는 **코스와 무관**하다(call 706·852·870). 부정문도 금지다."""
+    text = _ft_text()
+    banned = ["마무리", "마지막", "여기까지", "종료", "작별", "통화를 끝", "서버가 알린", "끝내는 때"]
+    hit = [w for w in banned if w in text]
+    assert not hit, "종료 어휘가 들어갔다: %s" % hit
+
+
+def test_freetalk_pins_the_chapter_as_the_only_source():
+    """⭐ 사장님 지시(2026-10-08): 차시(챕터)가 **유일한** 소재다 — 밖에서 화제를 안 가져온다."""
+    text = _ft_text()
+    assert "유일한" in text and "상황 밖에서 화제를 가져오지 않는다" in text
+    assert "카페에서 음료 주문하기" in text and "카페 직원" in text, "브리프가 안 실렸다"
+    assert '"커피 마시고 싶어요."' in text, "문형은 **예문으로** 실려야 한다(이름을 말하지 않는다)"
+    assert "-고 싶어요" not in text, "문형 이름이 그대로 실렸다 — 예문으로만 쓴다"
+
+
+def test_freetalk_opening_seed_carries_no_material():
+    """⛔ 시드에 소재 표현을 적으면 비버가 그걸 읽어 버린다 — 그 순간 역할극이 수업이 된다."""
+    from core.openai.prompts import freetalk as ft
+    seed = ft.seed_freetalk_opening("한국어", "카페에서 음료 주문하기")
+    assert "물 주세요" not in seed and "커피 마시고" not in seed
+    assert "질문 하나로 닫는다" in seed, "턴 착지 규약이 시드에도 있어야 한다"

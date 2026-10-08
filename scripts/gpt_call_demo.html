@@ -112,7 +112,7 @@
     <div class="step">STEP 1 · 통화</div>
     <div class="row" style="margin-bottom:8px">
       <span class="muted">콜타입</span>
-      <select id="ctype" title="OpenAI 로 가는 콜타입은 서버 env(OPENAI_REALTIME_COURSES)가 정한다. 표현학습 통화를 보려면 expression.">
+      <select id="ctype" title="⚠ 여기서 고른 값은 «희망» 이다 — cur 경로는 call_type 을 cur_call 의 코스로 덮는다(expression 을 골랐는데 그 차시가 끝나 있으면 freetalk 이 열린다). 실제 코스는 아래 call_started 의 course 가 정본. OpenAI 로 가는 콜타입은 서버 env(OPENAI_REALTIME_COURSES)가 정한다.">
         <option value="expression">expression (표현학습)</option>
         <option value="freetalk">freetalk (프리토킹)</option>
         <option value="auto">auto (서버가 결정)</option>
@@ -673,19 +673,25 @@ function onMsg(ev) {
    근거(전부 call_session.py):
      :3249  cur_route = 콜타입 ∈ (expression·freetalk·auto) && CUR_ENABLED && 커리큘럼 시드
      :3922  course 는 cur_route 일 때만 실린다(아니면 키가 빠진다)
-     :3734  use_openai 는 **cur 코스가 expression 일 때만** 정해진다 ⇒ freetalk·chat 은 언제나 Gemini
-     :3904  OpenAI 면 fragment_index·max_fragments·remaining_s 를 **셋 다 비운다**(Gemini expression 은 1 을 싣는다)
-   ⇒ course=expression 인데 조각 3값이 전부 없으면 OpenAI 다. */
+     use_openai 는 cur 코스가 **expression 또는 freetalk** 일 때 정해진다(2026-10-08 프리토킹 배선).
+            ⇒ chat 은 아직 배선이 없어 언제나 Gemini 다.
+     OpenAI 면 fragment_index·max_fragments·remaining_s 를 **셋 다 비운다**(Gemini 는 1 을 싣는다).
+            그 비움은 코스를 안 본다(`openai_frame_*` 가 use_openai 만 본다).
+   ⇒ course ∈ {expression, freetalk} 인데 조각 3값이 전부 없으면 OpenAI 다.
+   ⚠⚠ **요청한 콜타입과 실제 코스는 다를 수 있다.** cur 경로는 `call_type = cur_open.course`
+       로 요청을 **덮는다**(§7 P0 — 이어하기면 cur_call 의 코스가 이긴다). expression 을
+       골랐는데 그 차시의 표현학습이 끝나 있으면 서버가 freetalk 을 연다. 아래 course 값이
+       정본이고, 드롭다운은 «희망» 일 뿐이다. */
 function guessEngine(m, hasFrag) {
   let engine, why;
   if (!m.course) {
     engine = 'Gemini (확실)'; why = 'call_started 에 course 가 없다 = cur 경로가 아니다 → 엔진 분기 자리에 도달조차 못 한다';
-  } else if (m.course !== 'expression') {
-    engine = 'Gemini (확실)'; why = 'course=' + m.course + ' — 엔진 분기는 expression 에서만 일어난다';
+  } else if (m.course !== 'expression' && m.course !== 'freetalk') {
+    engine = 'Gemini (확실)'; why = 'course=' + m.course + ' — 이 코스엔 아직 OpenAI 배선이 없다';
   } else if (hasFrag) {
-    engine = 'Gemini (추정)'; why = 'course=expression 인데 조각 필드가 실려 있다 — OpenAI 는 그 3값을 비운다';
+    engine = 'Gemini (추정)'; why = 'course=' + m.course + ' 인데 조각 필드가 실려 있다 — OpenAI 는 그 3값을 비운다';
   } else {
-    engine = 'OpenAI (추정)'; why = 'course=expression + 조각 필드 전부 없음';
+    engine = 'OpenAI (추정)'; why = 'course=' + m.course + ' + 조각 필드 전부 없음';
   }
   lastEngine = engine;
   $('#gEngine').textContent = engine;
