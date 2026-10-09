@@ -207,6 +207,9 @@ async def test_ws_homework_bypasses_personal_course_and_persists_raw_source(
     assert "숙제 내용" in holder["session"].sent_text_turns[0]
     started = next(json.loads(s) for s in ws.sent_text if json.loads(s)["type"] == "call_started")
     assert started.get("course") is None
+    assert started["fragment_index"] == 1
+    assert started["max_fragments"] == 1
+    assert started["remaining_s"] > 0
     with session_factory() as db:
         call = db.query(Call).one()
         assert call.call_type == "homework"
@@ -214,6 +217,43 @@ async def test_ws_homework_bypasses_personal_course_and_persists_raw_source(
         assert call.fragment_ended_at is not None
         assert db.query(CallRawData).count() > 0
         assert db.query(MemberItemProgress).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_ws_homework_premium_start_exposes_budget_without_early_delivery(
+    session_factory, seeded, monkeypatch,
+):
+    from datetime import datetime, timedelta, timezone
+    from domains.commerce.models.subscribe import Subscribe
+    now = datetime.now(timezone.utc)
+    with session_factory() as db:
+        db.add(Subscribe(member_id=seeded["member_id"], plan="premium", source="manual",
+            is_activate=True, is_trial=False, billing_state="ok",
+            start_date=now - timedelta(days=1), end_date=now + timedelta(days=1)))
+        db.commit()
+    raw = materials()
+    raw["goals"][0]["kind"] = "vocab"
+    raw["attendance_targets"] = copy.deepcopy(raw["goals"])
+    monkeypatch.setattr(b2b_client, "conversation_materials", lambda *a, **kw: copy.deepcopy(raw))
+    posted = []
+    monkeypatch.setattr(b2b_client, "conversation_result", lambda *a, **kw: posted.append(a))
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8,
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=make_live_factory({}))
+    await _wait_analysis_tasks()
+    started = next(json.loads(s) for s in ws.sent_text if json.loads(s)["type"] == "call_started")
+    assert started["fragment_index"] == 1 and started["max_fragments"] == 3
+    assert started["remaining_s"] == 360
+    assert not posted
+    with session_factory() as db:
+        call = db.query(Call).one()
+        homework = call.usage_json["homework"]
+        assert homework["runtime"]["fragment_count"] == 1
+        assert homework["analysis"]["state"] == "ready"
+        assert homework["finality"]["state"] == "awaiting_resume"
+        assert homework["delivery"]["state"] != "acknowledged"
 
 
 @pytest.mark.asyncio

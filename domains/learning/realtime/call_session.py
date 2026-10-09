@@ -3815,7 +3815,7 @@ async def run_call(
         #   «몇 번째 조각 / 상한» — 클라가 마지막 조각(재연결 없음)을 서버 값으로 판단한다. 상한은
         #   REST resume-status 와 같은 함수(call_fragments_for_plan). 레벨테스트는 None(프레임 바이트 동일).
         fragment_index = None
-        if call_type in ("expression", "freetalk", "chat"):
+        if call_type in ("expression", "freetalk", "chat", "homework"):
             if max_fragments is None:
                 max_fragments = await svc.run_db(
                     db_session_factory, lambda db: call_service.call_fragments_for_plan(db, member_id, plan_override),
@@ -3831,7 +3831,7 @@ async def run_call(
         #   뜻한다(daily-status 와 공유) — 조각 상한(360) 클램프는 "이 조각이 쓸 수 있는
         #   초"라는 별개 개념이라 **여기서만** 건다(daily-status 로는 안 새게).
         remaining_s = None
-        if call_type in ("expression", "freetalk", "chat"):
+        if call_type in ("expression", "freetalk", "chat", "homework"):
             # ⛔⛔ R2-a(2026-09-24) — 이 시점엔 resume_call 이 이미 검증을 끝냈으므로
             #   call_id 는 (resumed 면) 그 이어지는 통화 자신이다 — 위 게이트와 같은
             #   조정을 여기서도 걸어야 표시값이 실제 거절 판정과 어긋나지 않는다.
