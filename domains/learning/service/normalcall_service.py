@@ -929,6 +929,7 @@ _ACTIVE_FRAGMENT_WINDOW_S = 540.0
 
 def resume_call(
     db: Session, member_id: int, continues_call_id: int, *, max_fragments: int,
+    homework_assignment_id: int | None = None,
 ) -> tuple[int | None, str]:
     """이어하기 요청을 검증하고 **그 통화 행을 그대로 돌려준다**(새로 만들지 않는다).
 
@@ -958,6 +959,20 @@ def resume_call(
     if call.member_id != member_id:
         # ⛔ 남의 통화에 내 발화를 이어 붙이는 것을 막는다. 로그에 남긴다(탐지용).
         return None, "본인 통화 아님"
+    if call.call_type == "homework":
+        call = db.scalar(select(Call).where(Call.call_id == continues_call_id)
+                         .with_for_update().execution_options(populate_existing=True))
+        snapshot = (call.usage_json or {}).get("homework")
+        if (not isinstance(snapshot, dict) or homework_assignment_id is None
+                or snapshot.get("assignment_id") != homework_assignment_id):
+            return None, "숙제 통화 식별 불일치"
+        try:
+            b2b_client.conversation_materials(member_id, assignment_id=homework_assignment_id, locale="en")
+        except b2b_client.HomeworkMaterialsError as error:
+            db.rollback()
+            return None, error.code
+    elif homework_assignment_id is not None:
+        return None, "숙제 통화 아님"
     # ⛔⛔ QA C4 재검-④: 이 통화가 지금 "살아있는 조각"이면 거절(폴백 아님) — 정상
     #   이어하기는 finalize_call/mark_fragment_ended 가 fragment_ended_at 을 찍은 뒤에
     #   오므로 여기 걸리지 않는다. 걸린다면 같은 continues_call_id 로 온 동시 요청이다.
@@ -978,7 +993,7 @@ def resume_call(
     #   ⭐⭐ C7(2026-09-23): "chat" 을 화이트리스트에 넣는다(프리미엄 5분 조각 재연결) —
     #     Free 는 `call_fragments_for_member`(조각 1)가 이미 조각2 자체를 막으므로 여기
     #     화이트리스트에 넣는다고 Free 가 이어지는 게 아니다.
-    if (call.call_type or "chat") not in ("expression", "freetalk", "chat"):
+    if (call.call_type or "chat") not in ("expression", "freetalk", "chat", "homework"):
         return None, "조각을 잇지 않는 통화 종류(%s)" % (call.call_type or "chat")
 
     # ⛔⛔ QA C4 재검-①(2026-09-23, 재재검): TTL 기준은 `updated_at` 도 아니다 — 통화
@@ -1010,6 +1025,10 @@ def resume_call(
     call.fragment_started_at = datetime.now(timezone.utc)
     call.fragment_ended_at = None
     call.status = "ongoing"     # 조각1 분석이 이미 done 으로 바꿔 놨을 수 있다 — status 는 진행 판정에 안 쓰이지만 화면·집계 표시용으로 유지
+    if call.call_type == "homework":
+        from core.homework_lifecycle import resume_namespace
+        call.usage_json = {**(call.usage_json or {}),
+                           "homework": resume_namespace(snapshot, call.fragment_count)}
     db.commit()
     return call.call_id, "조각 %d/%d" % (call.fragment_count, max_fragments)
 
@@ -1120,7 +1139,23 @@ def resume_slots_have_content(slots: dict | None) -> bool:
     return bool((slots.get("topic") or "").strip() or slots.get("learner_facts") or (slots.get("pending") or "").strip())
 
 
-def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
+def _homework_writer_read(db: Session, call_id: int, loader):
+    call = db.get(Call, call_id)
+    if call is None or call.call_type != "homework":
+        return True, None, loader(db, call_id)
+    if call.fragment_ended_at is None:
+        return False, None, None
+    runtime = call.usage_json["homework"]["runtime"]
+    rows = _load_dialog_rows(db, call_id)
+    if any(type(row.get("turn_index")) is not int for row in rows):
+        return False, None, None
+    expected = (runtime["generation"], call.fragment_count,
+                max((row["turn_index"] for row in rows), default=-1))
+    return True, expected, loader(db, call_id)
+
+
+def _save_resume_context(db: Session, call_id: int, slots: dict,
+                         *, homework_expected=None) -> None:
     """다음 조각이 쓸 요약 슬롯을 저장한다.
 
     ⭐⭐ **몇 턴까지 본 요약인지 같이 박는다**(`turns`). 이게 없으면 낡은 요약을 최신인 줄
@@ -1129,7 +1164,14 @@ def _save_resume_context(db: Session, call_id: int, slots: dict) -> None:
     """
     import json as _json
 
-    call = db.get(Call, call_id)
+    if homework_expected is not None:
+        from domains.learning.service.homework_service import locked_scope
+        call = locked_scope(db, call_id, homework_expected)
+        if call is None:
+            db.rollback()
+            return
+    else:
+        call = db.get(Call, call_id)
     if call is not None:
         payload = dict(slots)
         payload["turns"] = next_turn_index(db, call_id)
@@ -1150,11 +1192,14 @@ async def build_resume_context(
     ⚠ 실패해도 아무것도 안 깨진다. 이어하기가 즉석 생성으로 내려갈 뿐이다(R5).
     """
     try:
-        tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
+        valid, expected, tail = await run_db(session_factory, lambda db: _homework_writer_read(db, call_id, _resume_transcript))
+        if not valid:
+            return
         slots = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
         if not resume_slots_have_content(slots):
             return          # 빈 요약은 저장하지 않는다 — 저장하면 다음 조각의 resume_materials 가 발췌를 버린다
-        await run_db(session_factory, lambda db: _save_resume_context(db, call_id, slots))
+        await run_db(session_factory, lambda db: _save_resume_context(db, call_id, slots,
+            **({"homework_expected": expected} if expected is not None else {})))
         logger.info(
             "normalcall 이어하기 요약: 화제=%r 사실 %d개 하던것=%r call_id=%s",
             slots.get("topic"), len(slots.get("learner_facts") or []),
@@ -1471,9 +1516,43 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
     }
 
 
+def load_homework_snapshot(db: Session, member_id: int, call_id: int, assignment_id: int) -> dict:
+    """재개는 저장된 같은 숙제 자료를 쓴다. 현재 B2B 자격 검증은 호출부가 먼저 한다."""
+    from core.prompts.homework import normalize_homework
+
+    call = db.get(Call, call_id)
+    if call is None or call.member_id != member_id or call.call_type != "homework":
+        raise b2b_client.HomeworkMaterialsError("homework_resume_unavailable")
+    raw = (call.usage_json or {}).get("homework")
+    try:
+        from core.homework_contract import namespace_materials
+        data = normalize_homework(namespace_materials(raw))
+        if data["assignment_id"] != assignment_id:
+            raise ValueError("숙제 불일치")
+    except ValueError:
+        raise b2b_client.HomeworkMaterialsError("homework_resume_unavailable") from None
+    return data
+
+
+def save_homework_snapshot(db: Session, call_id: int, homework: dict) -> None:
+    """기존 JSON 필드에 원문 귀속을 보존한다. 과제 완료나 진도를 갱신하지 않는다."""
+    from core.homework_contract import create_namespace
+    data = create_namespace(homework)
+    call = db.get(Call, call_id)
+    if call is None or call.call_type != "homework":
+        raise ValueError("숙제 통화 저장 대상이 아님")
+    existing = (call.usage_json or {}).get("homework")
+    if existing is not None:
+        if existing.get("snapshot_hash") != data["snapshot_hash"]:
+            raise ValueError("불변 숙제 스냅샷 변경 금지")
+        return
+    call.usage_json = {**(call.usage_json or {}), "homework": data}
+    db.commit()
+
+
 def create_call(
     db: Session, member_id: int, character_id: int, call_type: str = "chat",
-    *, target_language: str = "ko",
+    *, target_language: str = "ko", homework: dict | None = None,
 ) -> int:
     """통화 행을 생성하고(status=ongoing) call_id 를 반환한다.
 
@@ -1481,6 +1560,12 @@ def create_call(
     target_language: 이 통화의 학습 대상 언어코드(멀티랭귀지, 기본 'ko') — 커리큘럼 선별·
         증거/이력 집계 스코프. call_session 이 resolve 한 LanguageSpec.code 를 넘긴다.
     """
+    initial_usage = None
+    if homework is not None:
+        from core.homework_contract import create_namespace
+        if call_type != "homework":
+            raise ValueError("숙제 marker는 숙제 통화에만 허용함")
+        initial_usage = {"homework": create_namespace(homework)}
     now = datetime.now(timezone.utc)
     call = Call(
         member_id=member_id,
@@ -1489,6 +1574,7 @@ def create_call(
         status="ongoing",
         call_type=call_type,
         target_language=target_language,
+        usage_json=initial_usage,
         fragment_started_at=now,   # C4 재검-②: 예산의 ongoing 경과 추정 기준
     )
     db.add(call)
@@ -2126,6 +2212,9 @@ def save_call_usage(
               docs/20260807_0028_엔진구분-usage_engine-과-peak-수정-계획.md
     """
     call = db.get(Call, call_id)
+    if call is not None and call.call_type == "homework":
+        call = db.scalar(select(Call).where(Call.call_id == call_id)
+                         .with_for_update().execution_options(populate_existing=True))
     if call is None:
         return False
     in_mod = summary.get("in_mod") or {}
@@ -2225,6 +2314,8 @@ def save_call_usage(
         merged["t_first"] = prev_json.get("t_first") if prev_json.get("t_first") is not None else usage_json.get("t_first")
         merged["fragments"] = frags
         usage_json = merged
+    if call.call_type == "homework" and prev_json and "homework" in prev_json:
+        usage_json["homework"] = prev_json["homework"]
     call.usage_json = usage_json
     db.commit()  # R3 — 쓰기는 service 가 명시적으로 커밋
     return True
@@ -2245,6 +2336,9 @@ def add_call_usage_extra(db: Session, call_id: int, key: str, entry: dict | None
     if not entry:
         return False
     call = db.get(Call, call_id)
+    if call is not None and call.call_type == "homework":
+        call = db.scalar(select(Call).where(Call.call_id == call_id)
+                         .with_for_update().execution_options(populate_existing=True))
     if call is None:
         return False
     call.usage_json = {**(call.usage_json or {}), key: entry}
@@ -3000,7 +3094,8 @@ def _existing_expression_keys(db: Session, call_id: int) -> set[str]:
     }
 
 
-def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale: str) -> list[tuple[int, str]]:
+def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale: str,
+                   *, homework_expected: tuple[int, int, int] | None = None) -> list[tuple[int, str]] | None:
     """요약/모드 저장 + 표현별 Sentence(+Evaluation placeholder) + **status=done** 단일 커밋.
 
     P2.6: 결과 페이지 폴링이 status==done 에서 풀리므로, 요약·표현과 done 을 같은
@@ -3028,7 +3123,14 @@ def _save_analysis(db: Session, call_id: int, result: _CallAnalysisBase, locale:
         [(sentence_id, korean), ...] — 이후 TTS 합성 대상(짝 행 포함). 이미 저장된
         (건너뛴) 표현은 포함되지 않는다 — TTS 재합성 없음(기존 voice_url 규율 유지).
     """
-    call = db.get(Call, call_id)
+    if homework_expected is not None:
+        from domains.learning.service.homework_service import locked_scope
+        call = locked_scope(db, call_id, homework_expected)
+        if call is None:
+            db.rollback()
+            return None
+    else:
+        call = db.get(Call, call_id)
     if call is not None:
         # ⛔⛔ PM-DEC-362(2026-10-04) — **1단계 제목이 이미 있으면 덮지 않는다.**
         #   제목은 통화 저장 직후 경량 LLM 1콜(`build_call_title`)이 먼저 쓴다. 여기서
@@ -3121,6 +3223,7 @@ async def analyze_call(
     candidates: list[dict] | None = None,
     hinted_from_turn_index: set[int] | None = None,
     since_turn_index: int | None = None,
+    homework_expected: tuple[int, int, int] | None = None,
 ) -> None:
     """통화 전사를 분석해 표현·요약을 저장하고 표현별 TTS 를 합성한다(전체 graceful).
 
@@ -3137,8 +3240,13 @@ async def analyze_call(
       첫 USER 턴의 E2/E3 를 E1 로 강등. in-memory 전달(통화 세션 → 분석 태스크)이라
       크래시로 유실되면 과크레딧 1회 허용(mechanics ⑬ — 테이블 신설 대신 수용).
     """
+    from domains.learning.service.homework_service import set_analysis_state
     try:
         dialog_rows = await run_db(session_factory, lambda db: _load_dialog_rows(db, call_id))
+        if homework_expected is not None:
+            if any(type(row.get("turn_index")) is not int for row in dialog_rows):
+                raise ValueError("homework_proof_invalid")
+            dialog_rows = [row for row in dialog_rows if row["turn_index"] <= homework_expected[2]]
         dialog = _dialog_from_rows(dialog_rows)
         # ⭐⭐ **검증은 이 조각의 턴만 본다**(2026-08-19 실측 사고). 요약·표현 추출은 전체를
         #   그대로 쓴다 — `dialog` 는 안 건드린다.
@@ -3166,7 +3274,18 @@ async def analyze_call(
             )
         if not dialog.strip():
             logger.info("normalcall 분석: 전사 없음 → done(빈 결과) call_id=%s", call_id)
-            await run_db(session_factory, lambda db: set_status(db, call_id, "done"))
+            await run_db(session_factory, lambda db: set_analysis_state(db, call_id, homework_expected, "done") if homework_expected is not None else set_status(db, call_id, "done"))
+            if homework_expected is not None:
+                from domains.learning.service.homework_service import commit_verified_analysis, deliver_homework
+                from core.homework_evidence import HomeworkKindBlocked
+                try:
+                    saved = await run_db(session_factory, lambda db: commit_verified_analysis(db, call_id, homework_expected, []))
+                except HomeworkKindBlocked:
+                    await run_db(session_factory, lambda db: set_analysis_state(
+                        db, call_id, homework_expected, "blocked_kind", preserve_result=True))
+                    return
+                if saved:
+                    await run_db(session_factory, lambda db: deliver_homework(db, call_id))
             return
 
         # member_id 해석(하위호환 — 기존 호출부는 미전달) + 검출 후보 구성.
@@ -3233,7 +3352,7 @@ async def analyze_call(
         await _save_analysis_usage(session_factory, call_id, analysis_usage)
         if result is None:
             logger.warning("normalcall 분석: _analyze 실패 → failed call_id=%s", call_id)
-            await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
+            await run_db(session_factory, lambda db: set_analysis_state(db, call_id, homework_expected, "failed") if homework_expected is not None else set_status(db, call_id, "failed"))
             return
 
         # C8(2026-09-23): 현지인 표현 짝 정리 — 저장(C9) 전에 빈 문자열/원문과 동일한
@@ -3244,10 +3363,13 @@ async def analyze_call(
 
         # A6(PM-DEC-398·402): 발음 평가에 못 쓰는 표현(문형 표기·조각·한국어 외 문자)을 예문으로 바꾸거나 뺀다 — 저장 전.
         if _needs_sentence_guard(result.expressions, lang_code):
-            _item_examples = await run_db(
-                session_factory,
-                lambda db: _lookup_item_examples(db, result.expressions, cands, lang_code),
-            )
+            if homework_expected is not None:
+                _item_examples = {str(c.get("surface") or "").strip(): c.get("example") for c in cands}
+            else:
+                _item_examples = await run_db(
+                    session_factory,
+                    lambda db: _lookup_item_examples(db, result.expressions, cands, lang_code),
+                )
             result.expressions = _complete_sentence_expressions(
                 result.expressions, _item_examples, call_id=call_id, language=lang_code
             )
@@ -3255,8 +3377,11 @@ async def analyze_call(
         # P2.6: 요약·표현 저장과 status=done 을 같은 커밋으로 — 여기서 결과 페이지
         # 폴링이 풀린다(TTS×N·체크판을 기다리지 않음).
         pending = await run_db(
-            session_factory, lambda db: _save_analysis(db, call_id, result, locale)
+            session_factory, lambda db: _save_analysis(db, call_id, result, locale,
+                **({"homework_expected": homework_expected} if homework_expected is not None else {}))
         )
+        if pending is None:
+            return
         logger.info(
             "normalcall 분석: mode=%s 표현 %d개 → done call_id=%s",
             result.detected_mode, len(pending), call_id,
@@ -3264,7 +3389,7 @@ async def analyze_call(
     except Exception as exc:  # noqa: BLE001 - done 이전(전사/LLM/저장) 실패 → failed
         logger.exception("normalcall 분석: 예외 → failed call_id=%s (%s)", call_id, exc)
         try:
-            await run_db(session_factory, lambda db: set_status(db, call_id, "failed"))
+            await run_db(session_factory, lambda db: set_analysis_state(db, call_id, homework_expected, "failed") if homework_expected is not None else set_status(db, call_id, "failed"))
         except Exception:  # noqa: BLE001
             pass
         return
@@ -3322,6 +3447,19 @@ async def analyze_call(
 
         # 체크판 파이프라인(검증→증거→전이→레벨업) — 사용자 노출과 무관(D2)한 후행
         # 단계. 단일 commit 원자성은 _apply_call_mastery 내부에서 그대로 유지.
+        if homework_expected is not None:
+            from domains.learning.service.homework_service import commit_verified_analysis, deliver_homework
+            from core.homework_evidence import HomeworkKindBlocked
+            try:
+                saved = await run_db(session_factory, lambda db: commit_verified_analysis(
+                    db, call_id, homework_expected, list(getattr(result, "detections", None) or []),
+                    hinted_from_turn_index))
+                if saved:
+                    await run_db(session_factory, lambda db: deliver_homework(db, call_id))
+            except HomeworkKindBlocked:
+                from domains.learning.service.homework_service import set_analysis_state
+                await run_db(session_factory, lambda db: set_analysis_state(db, call_id, homework_expected, "blocked_kind"))
+            return
         if member_id is not None:
             detections = list(getattr(result, "detections", None) or [])
             try:
@@ -3349,6 +3487,9 @@ async def analyze_call(
                 )
         logger.info("normalcall 분석: 후행 단계(TTS·체크판) 완료 call_id=%s", call_id)
     except Exception as exc:  # noqa: BLE001 - done 이후 실패는 status 무변경(결과 화면 무손상)
+        if homework_expected is not None:
+            await run_db(session_factory, lambda db: set_analysis_state(
+                db, call_id, homework_expected, "failed", preserve_result=True))
         logger.exception(
             "normalcall 분석: done 이후 후행 단계 예외(무시 — status=done 유지) call_id=%s (%s)",
             call_id, exc,
@@ -3456,7 +3597,8 @@ def _title_is_settled(call: Call | None) -> bool:
     )
 
 
-def _save_call_title(db: Session, call_id: int, summary: str, locale: str) -> bool:
+def _save_call_title(db: Session, call_id: int, summary: str, locale: str,
+                     *, homework_expected=None) -> bool:
     """제목만 선저장한다. 썼으면 True.
 
     ⛔ `status` 는 한 글자도 안 건드린다 — 결과 화면 폴링이 풀리는 조건은 계속
@@ -3466,7 +3608,14 @@ def _save_call_title(db: Session, call_id: int, summary: str, locale: str) -> bo
     ⚠ 커밋 직전에 `_title_is_settled` 를 **다시** 본다(읽고 쓰는 사이에 2단계가 끝날 수
       있다 — `_title_materials` 의 선검사만으로는 그 틈이 안 닫힌다).
     """
-    call = db.get(Call, call_id)
+    if homework_expected is not None:
+        from domains.learning.service.homework_service import locked_scope
+        call = locked_scope(db, call_id, homework_expected)
+        if call is None:
+            db.rollback()
+            return False
+    else:
+        call = db.get(Call, call_id)
     if call is None or _title_is_settled(call):
         return False
     call.summary = summary
@@ -3523,7 +3672,9 @@ async def build_call_title(
     try:
         if client is None:
             return
-        read = await run_db(session_factory, lambda db: _title_materials(db, call_id))
+        valid, expected, read = await run_db(session_factory, lambda db: _homework_writer_read(db, call_id, _title_materials))
+        if not valid:
+            return
         if read is None:
             return                       # status=done · 통화 행이 없다 · 전사가 비었다
         title_usage = gemini_analysis.LlmUsage()
@@ -3548,7 +3699,8 @@ async def build_call_title(
                 )
                 return
             wrote = await run_db(
-                session_factory, lambda db: _save_call_title(db, call_id, summary, locale)
+                session_factory, lambda db: _save_call_title(db, call_id, summary, locale,
+                    **({"homework_expected": expected} if expected is not None else {}))
             )
             logger.info(
                 "normalcall 제목 선생성: %s %.0fms 제목=%r call_id=%s",

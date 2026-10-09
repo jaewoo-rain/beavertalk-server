@@ -1,0 +1,22 @@
+# 숙제 복습 통화 서버 구현 계획
+- 결정은 PM-DEC-455이며 앱 서버 담당 단독 소유임.
+- 기준은 실제 demo00377-7hh·digest2de488b1·55ee336임.
+- 분리 브랜치는 feat/homework-review-call임.
+- worktree는 C:/Users/hase0/claude_code/repos/beavertalk-server-homework-review임.
+- 기존 개인4종·웹·과제활동·QA2집계는 변경하지 않음.
+- assignment_id가 있는 유효 숙제만 신규 대본을 조립함.
+- B2B 자격·선정·순서·최대10개와 원문 출처를 보존함.
+- 새 계약 route·grammar키·오류형식은 B2B 확정 후 연결함.
+- 승인본문·시드를 신규 editable/default와 로더에 등록함.
+- 기존 공통 규칙·표정·종료 도구는 소유 모듈을 재사용함.
+- 숙제 전용 재접지는 같은 자료를 쓰고 개인자료를 섞지 않음.
+- call_type 내부 homework와 기존 course 반환 호환을 대조함.
+- 통화후 표현 추출은 유지하고 개인진도 후보 검출은 차단함.
+- 이어하기 소유·TTL·상한·숙제 식별 일치를 검증함.
+- call_id 제출·완료 주체는 기존 앱/B2B 계약을 유지함.
+- 자료·권한 실패는 명시 오류로 끝내고 개인 대본 대체0임.
+- 합성단위·기존 WS회귀·통합 API·실제 모델 검증을 구분함.
+- 기존 demo만 정확 이미지로 배포하며 dev/main 병합0임.
+- 기존 트래픽·리비전·env이름을 보존하고 재조회함.
+- ContainerAnalysis 비활성으로 builddetails는 조회 불가함.
+- Registry digest-tag와 소스 커밋으로 기준을 대조함.

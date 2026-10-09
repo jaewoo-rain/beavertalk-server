@@ -240,6 +240,7 @@ def test_an_unknown_vendor_is_reported_not_swallowed():
 # --------------------------------------------------------------------------- #
 class _FakeCall:
     def __init__(self):
+        self.call_type = "chat"
         self.usage_json = None
         self.usage_engine = None
         self.usage_msgs = 0

@@ -19,8 +19,20 @@ B2B 가 죽었다고 통화를 막으면, 숙제와 무관한 학습자까지 �
 from __future__ import annotations
 
 import logging
+import json
+import time
+import ssl
+import os
+
+import certifi
 
 import httpx
+
+# TLS 신뢰 저장소 준비는 각 복구 요청의 잔여시간 밖에서 한 번만 수행한다.
+_RESULT_SSL_CONTEXT = ssl.create_default_context(
+    cafile=os.environ.get("SSL_CERT_FILE") or certifi.where(),
+    capath=os.environ.get("SSL_CERT_DIR"),
+)
 
 from core.config import settings
 
@@ -36,6 +48,119 @@ _TIMEOUT = httpx.Timeout(connect=1.0, read=2.0, write=2.0, pool=1.0)
 #: 🔴 **과제 통화의 언어이기도 하다**(`call_session.run_call`). 학습자가 앱을 다른
 #:    언어 학습으로 두고 있어도 교사가 낸 과제는 한국어다.
 CURRICULUM_LANGUAGE = "ko"
+
+
+class HomeworkMaterialsError(Exception):
+    """숙제 전용 조회 실패. 개인 통화 자료로 대체하지 않는다."""
+
+    def __init__(self, code: str, *, recoverable: bool = False):
+        super().__init__(code)
+        self.code = code
+        self.recoverable = recoverable
+
+
+def conversation_result(member_id: int, assignment_id: int, call_id: int,
+                        *, deadline: float | None = None) -> dict:
+    """저장 증거는 B2B가 읽는다. 요청에는 call_id만 전달한다."""
+    base = (settings.B2B_API_BASE_URL or "").strip().rstrip("/")
+    token = (settings.B2B_SERVICE_TOKEN or "").strip()
+    if not base or not token:
+        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+    timeout = _TIMEOUT
+    if deadline is not None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+        timeout = httpx.Timeout(max(0.001, remaining / 4))
+    try:
+        with httpx.Client(timeout=timeout, verify=_RESULT_SSL_CONTEXT) as client:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+                client.timeout = httpx.Timeout(max(0.001, remaining / 4))
+            url = f"{base}/api/v1/internal/members/{member_id}/assignments/{assignment_id}/conversation-result"
+            with client.stream("POST", url, headers={"X-Service-Token": token}, json={"call_id": call_id}) as response:
+                content = bytearray()
+                for chunk in response.iter_bytes():
+                    if deadline is not None and time.monotonic() >= deadline:
+                        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+                    content.extend(chunk)
+                    if len(content) > 65536:
+                        raise HomeworkMaterialsError("homework_result_invalid")
+    except httpx.RequestError:
+        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True) from None
+    if response.status_code >= 500:
+        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+    try:
+        payload = json.loads(content)
+    except ValueError:
+        raise HomeworkMaterialsError("homework_result_invalid") from None
+    if response.status_code != 200:
+        detail = payload.get("detail") if isinstance(payload, dict) else None
+        retryable = {"call_not_finished", "homework_analysis_pending", "homework_call_active",
+                     "homework_analysis_stale", "homework_not_final", "assignment_not_published"}
+        known = retryable | {"Unauthorized", "Not Found", "assignment_not_found", "call_not_found",
+                             "call_owner_mismatch", "homework_binding_mismatch", "homework_snapshot_invalid",
+                             "homework_verification_unsupported", "homework_proof_invalid",
+                             "homework_analysis_failed", "homework_kind_blocked", "conversation_already_linked",
+                             "assignment_closed", "conversation_not_enabled"}
+        code = detail if isinstance(detail, str) and detail in known else "homework_result_invalid"
+        raise HomeworkMaterialsError(code, recoverable=code in retryable)
+    if (not isinstance(payload, dict) or payload.get("assignment_id") != assignment_id
+            or payload.get("call_id") != call_id
+            or payload.get("outcome") not in {"linked", "already_linked", "not_performed"}
+            or type(payload.get("performed")) is not bool
+            or type(payload.get("met")) is not int or type(payload.get("total")) is not int
+            or not 0 <= payload["met"] <= payload["total"] <= 10 or payload["total"] < 1
+            or payload.get("submission_status") not in {"not_started", "in_progress", "done"}):
+        raise HomeworkMaterialsError("homework_result_invalid")
+    return payload
+
+
+def conversation_materials(
+    member_id: int, *, assignment_id: int, locale: str,
+) -> dict:
+    """B2B가 승인·선정한 source별 원문. 구 goals 조회의 폴백은 변경하지 않는다."""
+    from core.prompts.homework import normalize_homework
+
+    base = (settings.B2B_API_BASE_URL or "").strip().rstrip("/")
+    token = (settings.B2B_SERVICE_TOKEN or "").strip()
+    if not base or not token:
+        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+    try:
+        with httpx.Client(timeout=_TIMEOUT) as client:
+            res = client.get(
+                f"{base}/api/v1/internal/members/{member_id}/conversation-materials",
+                params={"assignment_id": assignment_id, "language": "ko", "locale": locale},
+                headers={"X-Service-Token": token},
+            )
+    except httpx.RequestError:
+        # 토큰·주소를 포함할 수 있는 외부 예외 전문은 기록하지 않는다.
+        logger.warning("b2b: 숙제 자료 연결 실패")
+        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True) from None
+    if res.status_code >= 500:
+        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
+    try:
+        payload = res.json()
+    except ValueError:
+        raise HomeworkMaterialsError("invalid_assignment_materials") from None
+    if res.status_code != 200:
+        detail = payload.get("detail") if isinstance(payload, dict) else None
+        allowed = {
+            "assignment_not_found", "language_mismatch", "assignment_not_published",
+            "assignment_closed", "conversation_completed", "conversation_not_enabled",
+            "invalid_assignment_materials", "empty_conversation_materials",
+        }
+        code = detail if isinstance(detail, str) and detail in allowed else "homework_service_unavailable"
+        raise HomeworkMaterialsError(code, recoverable=code == "homework_service_unavailable")
+    try:
+        data = normalize_homework(payload)
+        if data["assignment_id"] != assignment_id:
+            raise ValueError("숙제 식별 불일치")
+    except ValueError:
+        raise HomeworkMaterialsError("invalid_assignment_materials") from None
+    return data
 
 
 def conversation_goal_item_ids(

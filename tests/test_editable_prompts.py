@@ -12,7 +12,7 @@ import pytest
 
 from core.prompts import editable_loader as el
 
-NAMES = ("normal", "expression", "freetalk", "leveltest")
+NAMES = ("normal", "expression", "freetalk", "leveltest", "homework")
 
 
 @pytest.fixture(autouse=True)

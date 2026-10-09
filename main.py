@@ -178,6 +178,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     fcm.warmup()  # 예약전화 FCM 워밍업(실패해도 무시 — 발송만 비활성)
     try:
+        from domains.learning.service import homework_service, normalcall_service
+        try:
+            await normalcall_service.run_db(app.state.session_factory, homework_service.recover_pending)
+        except Exception:
+            logger.warning("숙제 결과 기동 복구 실패 — 다음 실제 요청에서 재시도")
         yield
     finally:
         engine.dispose()  # 종료 시 커넥션 정리

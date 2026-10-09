@@ -125,6 +125,9 @@ from core.prompts.freetalk import (
     seed_freetalk_opening,
 )
 from core.prompts.chat import build_chat_instruction, seed_chat_opening
+from core.prompts.homework import (
+    build_homework_instruction, seed_homework_opening, build_homework_reground,
+)
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
@@ -703,6 +706,7 @@ class _CallState:
     """두 펌프가 공유하는 통화 상태(세그먼트 누적 + 시계 + 종료 플래그)."""
 
     __slots__ = (
+        "homework", "homework_locale", "homework_generation",
         "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
         "seed_sent_ts",
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
@@ -977,6 +981,9 @@ class _CallState:
         self.covered_nums: list[int] = []
         self.reground_tasks: set[asyncio.Task] = set()
         self.reground_persona: tuple[str, str] = ("", "")
+        self.homework: dict | None = None
+        self.homework_locale: str = "en"
+        self.homework_generation: int | None = None
         # ── 표현학습 진도(서버 소유) ──
         # ⭐⭐ **압축이 이 설계의 최대 적이다.** 컨텍스트 압축은 오래된 대화부터 지우므로
         #   통화 초반에 가르친 것이 제일 먼저 사라진다(실측 통화 1360: 압축 #4 가 9,219
@@ -3021,6 +3028,13 @@ async def run_call(
         logger.info("normalcall: start 수신 전 클라 종료")
         return
 
+    if start.assignment_id is not None and (assignment_id is None or assignment_id <= 0):
+        await _send_json(client_ws, ServerError(
+            code="INVALID_ASSIGNMENT", message="숙제 식별자를 확인해 주세요.", recoverable=False,
+        ))
+        await client_ws.close(code=1008)
+        return
+
     # 교육 대상 언어(멀티랭귀지) → LanguageSpec. is_demo 폐지: 언어별 동작은 spec 한 행이
     # 결정한다. spec.label 을 페르소나 대상 언어로, 모국어 라벨은 _LOCALE_LABEL 기본을 쓴다
     # (locale="ko" 도 이제 "한국어"로 해석 — 데모용 override hack 제거). ko 는 label=="한국어"·
@@ -3215,6 +3229,28 @@ async def run_call(
     #   두 경로에 갈라지지 않게, P1-6).
     #   "auto"(§8): 서버가 코스를 정한다. 새 통화는 지금 차시 상태로(decide_course), 이어하기면 아래 open_call 이 그 통화의 cur_call
     #   로 다시 정한다. 스위치가 꺼져 있으면 auto 는 옛 표현학습 경로로 떨어진다(죽지 않게).
+    homework = None
+    if assignment_id is not None:
+        try:
+            # 외부 자료는 개인 curriculum/known_items로 재조회하지 않는다.
+            homework = await asyncio.to_thread(
+                b2b_client.conversation_materials,
+                member_id, assignment_id=assignment_id, locale=locale,
+            )
+            if continues_call_id is not None:
+                homework = await svc.run_db(
+                    db_session_factory,
+                    lambda db: svc.load_homework_snapshot(db, member_id, continues_call_id, assignment_id),
+                )
+        except b2b_client.HomeworkMaterialsError as exc:
+            await _send_json(client_ws, ServerError(
+                code="HOMEWORK_" + exc.code.upper(),
+                message="숙제 회화 자료를 불러올 수 없어요. 숙제 상태를 확인하고 다시 시도해 주세요.",
+                recoverable=exc.recoverable,
+            ))
+            await client_ws.close(code=1013 if exc.recoverable else 1008)
+            return
+        call_type = "homework"
     cur_route = call_type in ("expression", "freetalk", "auto") and bool(settings.CUR_ENABLED)
     if cur_route and not await svc.run_db(db_session_factory, lambda db: cur_svc.available(db, spec.code)):
         # R5 — 스위치는 켜졌는데 시드가 없는 DB(로컬·시험)면 옛 경로로. 운영은 1단계에서 적재돼 있다.
@@ -3452,6 +3488,12 @@ async def run_call(
             #   그 open_call 의 결과(items/brief)로 만든다. 옛 경로(아래 elif 들)는 한 줄도 안 바뀐다 — CUR_ENABLED=false 면 그대로.
             system_instruction = ""
             seed_text = ""
+        elif call_type == "homework":
+            system_instruction = build_homework_instruction(
+                role=setup["role"], personality=setup["personality"], locale=locale,
+                name=setup["name"], homework=homework, face_rule=face_rule_text,
+            )
+            seed_text = seed_homework_opening()
         elif call_type == "expression":
             # ⚠ 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다 — 캐릭터·레벨 프로파일·
             #   흥미는 위 `setup`(load_call_setup)이 이미 갖고 있다.
@@ -3557,7 +3599,7 @@ async def run_call(
         # 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"). 통합 재접지는 캐릭터 3필드에
         # 맥락 슬롯을 얹어 조립하므로(build_reground_brief) 페르소나 원재료를 그대로 넘긴다.
         # 아래 두 문자열은 하위호환(legacy 문구 · 기존 테스트 계약)용으로 계속 만든다.
-        if REGROUND_MODE != "off":
+        if REGROUND_MODE != "off" and homework is None:
             reground_reminder = build_reground_reminder(setup["role"], setup["personality"])
             continue_reminder = build_continue_reminder(setup["role"], setup["personality"])
         # P2.5: 학습 카드용 teaching_plan — 프롬프트 주입(study_items)과 단일 소스.
@@ -3583,7 +3625,7 @@ async def run_call(
     # expression/freetalk/chat 이다("normal" 은 C3 로 죽은 값이다 — 라우팅이 절대 안
     #   만든다). ⭐⭐ C7(2026-09-23): chat 도 이어하기 화이트리스트에 넣는다(프리미엄
     #   5분 조각 재연결) — Free 는 아래 max_fragments(조각 1)가 이미 조각2 를 막는다.
-    if continues_call_id is not None and call_type in ("expression", "freetalk", "chat"):
+    if continues_call_id is not None and call_type in ("expression", "freetalk", "chat", "homework"):
         # ⭐ 플랜 흉내(plan_override, admin 검증 완료값)면 그 플랜의 조각 수 — «Free 로 통화» 는 조각2 를 거절한다(2026-09-13).
         max_fragments = await svc.run_db(
             db_session_factory,
@@ -3592,7 +3634,8 @@ async def run_call(
         call_id, resume_reason = await svc.run_db(
             db_session_factory,
             lambda db: svc.resume_call(
-                db, member_id, continues_call_id, max_fragments=max_fragments
+                db, member_id, continues_call_id, max_fragments=max_fragments,
+                **({"homework_assignment_id": assignment_id} if homework is not None else {}),
             ),
         )
         resumed = call_id is not None
@@ -3621,7 +3664,7 @@ async def run_call(
     #   않는다 — 클라는 «조용히 갈아 끼우는 중» 이라 비버가 새로 인사하는 새 통화가 열리면 그게 사고다. ServerError(RESUME_UNAVAILABLE, 복구 불가) 뒤 1008 로
     #   닫고 call 행은 만들지 않는다(클라가 결과 화면으로 간다). silent 가 아닌 종전 이어하기(이어하기 시트·구클라)는 폴백 그대로(바이트 불변).
     #   continues_call_id 없이 silent 만 온 것은 클라 결함 — 종전대로 무시(선톡 새 통화).
-    if call_id is None and silent_resume_req and continues_call_id is not None:
+    if call_id is None and (silent_resume_req or homework is not None) and continues_call_id is not None:
         logger.warning("normalcall 조용한 이어하기 거절: continues=%s 불성립(%s) → RESUME_UNAVAILABLE·1008", continues_call_id, resume_reason)
         with contextlib.suppress(Exception):
             await _send_json(client_ws, ServerError(
@@ -3634,7 +3677,8 @@ async def run_call(
         call_id = await svc.run_db(
             db_session_factory,
             lambda db: svc.create_call(
-                db, member_id, character_id, call_type, target_language=spec.code
+                db, member_id, character_id, call_type, target_language=spec.code,
+                **({"homework": homework} if homework is not None else {}),
             ),
         )
     # QA C4 재검-⑥(2026-09-23): 이 구간(콜타입 라우팅 직후 ~ 본 세션 진입 직전)에서 나는
@@ -3832,6 +3876,11 @@ async def run_call(
         )
 
         state = _CallState()
+        state.homework = homework
+        state.homework_locale = locale
+        if homework is not None:
+            state.homework_generation = await svc.run_db(db_session_factory,
+                lambda db: db.get(svc.Call, call_id).usage_json["homework"]["runtime"]["generation"])
         state.cur_route = cur_route
         state.target_code = spec.code                           # 판정(quiz_judge)·대본 조립의 언어 분기(ko/ja — 2026-09-13)
         state.cur_course = call_type if cur_route else ""
@@ -3893,6 +3942,14 @@ async def run_call(
                     "normalcall 표현학습 재개 쪽지: %d자/%d · 축소 %d단계 · 발췌 %d/%d턴 · 목록 상한 %d (드릴·통과·오답 %s)",
                     _ns["len"], _ns["max"], _ns["step"], _ns["recent_n"], _ns["recent_available"], _ns["list_cap"], _ns["lists"],
                 )
+        elif resumed and homework is not None:
+            # 개인 체크판/진도 재료 대신 같은 숙제와 마지막 실제 발화만 전달한다.
+            recent = await svc.run_db(db_session_factory, lambda db: svc.recent_turns(db, call_id))
+            system_instruction += "\n\n" + build_homework_reground(homework, locale)
+            if recent:
+                import json as _homework_json
+                system_instruction += "\n최근 실제 대화: " + _homework_json.dumps(recent, ensure_ascii=False)
+            seed_text = "" if silent else seed_resume(target_language)
         elif resumed:
             # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
             #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
@@ -3993,7 +4050,12 @@ async def run_call(
             # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
             #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
             state.reground_persona = (setup["role"] or "", setup["personality"] or "")
-            if cur_route and call_type == "freetalk":
+            if homework is not None:
+                state.reground_reminder = build_homework_reground(homework, locale)
+                state.continue_reminder = state.reground_reminder
+                state.reground_items = []
+                state.call_mode = "chat"
+            elif cur_route and call_type == "freetalk":
                 # ⭐ 차시 프리토킹(2026-09-12): 일반 잡담 브리프(«흥미를 느낄 새 질문») 도, 항목 검출 기계도 안 쓴다 — 쪽지는
                 #   `_arm_reground` 가 `build_freetalk_reground_brief`(상황 + 아직 안 쓴 소재)로 만든다. 사이드카(reground_ctx)도 없다 —
                 #   모드 축(공부/대화)이 이 코스엔 없다. 옛 프리토킹(lesson=None)·표현학습·일반은 아래 그대로.
@@ -4028,7 +4090,7 @@ async def run_call(
             #   `if call_type != "level_test"` 가 이미 걸렀다(위 :3502 주석 "여기 도달
             #   하는 call_type 은 expression/freetalk/chat 이다" 도 같은 근거). 「아무도
             #   안 보낸다」가 아니라 「코드가 도메인을 좁힌다」가 삭제 근거다.
-            if not (cur_route and call_type == "freetalk"):
+            if homework is None and not (cur_route and call_type == "freetalk"):
                 state.reground_ctx = {
                     "client": client,
                     "model": settings.JUDGE_MODEL,
@@ -4465,6 +4527,9 @@ async def run_call(
             hinted_from_turn_index=set(state.hinted_next_turn_index) or None,
             # ⭐ 이어하기면 **이 조각이 시작한 턴**부터만 검증한다(근거는 analyze_call 주석).
             since_turn_index=state.resume_from_turn or None,
+            homework_generation=state.homework_generation,
+            homework_fragment_count=state.fragment_index,
+            homework_max_fragments=state.max_fragments,
         )
         _trigger_audio_upload(db_session_factory, call_id, member_id, pending_audio)
         # 마지막 회수·해제(B1): 아직 안 놓아준 세그먼트의 PCM 을 여기서 전부 정리한다.
@@ -4489,6 +4554,9 @@ def _trigger_analysis(
     # ⭐ 이어하기 조각의 **시작 턴 인덱스**. 있으면 검증(증거 판정)을 그 뒤 턴으로 좁힌다.
     #   ⚠ 요약·표현 추출은 전체를 그대로 본다 — 좁히는 것은 검증뿐이다.
     since_turn_index: int | None = None,
+    homework_generation: int | None = None,
+    homework_fragment_count: int | None = None,
+    homework_max_fragments: int | None = None,
 ) -> None:
     """통화후 분석을 백그라운드 task 로 띄운다(non-blocking, GC 방지 보관).
 
@@ -4514,7 +4582,13 @@ def _trigger_analysis(
     if call_type in ("expression", "freetalk"):
         candidates = []
         hinted_from_turn_index = None
-    if call_type == "level_test" and member_id is not None:
+    if call_type == "homework" and member_id is not None:
+        from domains.learning.service.homework_service import analyze_homework
+        coro = analyze_homework(call_id, client, settings, db_session_factory,
+            locale=locale, member_id=member_id, generation=homework_generation,
+            fragment_count=homework_fragment_count, max_fragments=homework_max_fragments,
+            hints=hinted_from_turn_index, since_turn_index=since_turn_index)
+    elif call_type == "level_test" and member_id is not None:
         coro = svc.analyze_level_test_call(
             call_id, client, settings, db_session_factory,
             member_id=member_id, locale=locale,
@@ -7106,6 +7180,11 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
     """
     role, personality = state.reground_persona
+    if state.homework is not None:
+        state.reground_reminder = build_homework_reground(state.homework, state.homework_locale)
+        state.reground_pending = True
+        state.reground_arm_reason = reason
+        return
     if state.cur_route and state.cur_course == "freetalk" and state.freetalk_brief is not None:
         # ⭐ 차시 프리토킹(2026-09-12) — 상황 재확인 + «전부 학습 언어» + 아직 안 쓴 소재 3~5개(판정 아님 — 비버 발화에 아직 안 나온 것).
         #   배관은 그대로(arm → 마이크 프레임 + RMS 2관문), 문구만 다르다.

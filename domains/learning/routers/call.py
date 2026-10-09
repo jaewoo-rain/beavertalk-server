@@ -25,6 +25,7 @@ from domains.learning.service import normalcall_service as svc
 from domains.learning.service import pronunciation_report_service as report_svc
 from domains.learning.service import pronunciation_service as pron_svc
 from domains.learning.service import call_service
+from domains.learning.service import homework_service
 from domains.learning.service.call_service import CallService
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -136,6 +137,7 @@ def get_daily_status(
     out = CallService(db).daily_status(member.member_id, date, tz_offset, tz=tz)
     # 알람 시간대 자동 추적(2026-09-29) — 응답을 다 만든 **뒤에**, 실패해도 200(R5).
     call_service.remember_device_tz(db, member.member_id, tz)
+    homework_service.recover_pending(db, member_id=member.member_id)
     return out
 
 
@@ -199,6 +201,10 @@ def get_resume_status(
         db, member.member_id, tz=tz, tz_offset_min=tz_offset_min,
         plan_override=plan_override_resolved, resuming_call_id=call_id,
     )
+    homework_can_resume = call.call_type == "homework" and homework_service.resume_available(
+        call, member_id=member.member_id, max_fragments=total,
+        locale=member.language or "en",
+    )
     return {
         # ⛔ **"있다"가 아니라 "최신인가"** 다(2026-08-19 실측). 조각2 직후에는 조각1 때 만든
         #   요약이 남아 있어 `bool()` 로는 즉시 true 가 뜬다 — 사장님: "두 번째에서는
@@ -206,11 +212,13 @@ def get_resume_status(
         #   즉석 생성을 돌려서, **게이트가 막으려던 지연이 그대로 난다.**
         #   ⚠ `resume_materials` 와 **같은 판정**을 써야 한다(한 함수로 모았다) — 두 곳이
         #     다른 기준을 쓰면 "준비됐다는데 느린" 상태가 계속 산다.
-        "ready": svc.resume_context_is_fresh(db, call_id),
+        "ready": svc.resume_context_is_fresh(db, call_id) and (
+            call.call_type != "homework" or homework_can_resume),
         # ⛔ C3(2026-09-22, D3): "normal" 은 죽은 값(전부 chat 으로 전환됨). C7(2026-09-23)
         #   로 chat 도 이어하기 목록에 들어왔다 — svc.resume_call 과 같은 뜻이어야 한다.
         "can_resume": (
-            used < total and (call.call_type or "chat") in ("expression", "freetalk", "chat")
+            used < total and ((call.call_type or "chat") in ("expression", "freetalk", "chat")
+                             or homework_can_resume)
             and (remaining is None or remaining > 0)
         ),
         "fragment_count": used,
@@ -261,7 +269,11 @@ def get_call(call_id: int, member: CurrentMember, db: DbSession) -> CallDetail:
 @router.get("/{call_id}/result", response_model=CallResult)
 def get_call_result(call_id: int, member: CurrentMember, db: DbSession) -> CallResult:
     """통화 종료 후 결과 화면 — 평가 평균 + 문장 전체."""
-    return CallService(db).get_call_result(member.member_id, call_id)
+    result = CallService(db).get_call_result(member.member_id, call_id)
+    call = db.get(Call, call_id)
+    if call is not None and call.call_type == "homework":
+        homework_service.recover_pending(db, member_id=member.member_id)
+    return result
 
 
 @router.get("/{call_id}/pronunciation-report", response_model=LearningSummaryOut)

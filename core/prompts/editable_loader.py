@@ -41,6 +41,7 @@ TOKEN_BUDGET: dict[str, int] = {
     "expression": 900,
     "freetalk": 1900,
     "leveltest": 450,
+    "homework": 700,
 }
 #: 한국어 산문의 gemini-2.5-flash 토큰/자 근사(2026-09-12 실측: 프리토킹 차시판 2,911자 → 1,703 토큰 ≈ 0.585, 표현학습 3,890자 → 2,782 ≈ 0.715).
 CHARS_TO_TOKENS = 0.6

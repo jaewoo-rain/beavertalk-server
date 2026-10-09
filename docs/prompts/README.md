@@ -55,6 +55,7 @@
 | 5 | `build_reground_reminder`·`build_continue_reminder`·`build_reground_brief` | `core/persona_prompt.py` | 재접지 | ✅ |
 | 6 | `_close_seed` · `_NUDGE_SEED_1`/`_2` | `domains/learning/realtime/call_session.py` | 종료 시드 · 무음 3단 넛지 | ✅ |
 | 7 | `build_leveltest_instruction` + `seed_leveltest_opening` + `close_seed_leveltest` | `core/persona_prompt.py` | 레벨테스트 통화 | ✅ |
+| 8 | `build_homework_instruction`·`seed_homework_opening`·`build_homework_reground` | `core/prompts/homework.py` | 숙제 복습 통화 | 신규 후보·demo 미반영 |
 | — | ~~`build_system_instruction`~~ · ~~`seed_opening`~~ | `core/persona_prompt.py` | ~~옛 일반 통화~~ | ⛔ **dev 도구·잠금 시험 전용**(프로덕션 호출 0건) |
 
 ⚠ 잠금 대본은 `core/prompts/locked/*` 이고 해시 시험이 지킨다 — 고치려면 새 파일로 만든다.
@@ -233,6 +234,21 @@
 ---
 
 ## §8. 결정 로그
+
+### 2026-10-10 — 숙제 전용 복습 통화 후보 (PM-DEC-455)
+
+- 근거는 사용자 「기존 서버에 배포하자. 테스트 계정 한정 적용은 안할게」임.
+- 신규 대본은 `core/prompts/editable/homework.md`와 동일한 default임.
+- 조립·선톡·재접지는 `core/prompts/homework.py`에서 분리함.
+- grammar와 선정 목표 G만 모델에 제공하며 출제 전체 A는 검증에 사용함.
+- 원본 A/kind/null은 Call 숙제 namespace의 불변 스냅샷에 보존함.
+- manual kind 부재는 등급 추정 없이 blocked_kind로 처리함.
+- 기존 개인 4종 대본·잠금 시드·개인 증거와 진도 쓰기는 유지함.
+- 최신 회귀는 2618건 통과·1건 건너뜀·기준 실패 7건 제외임.
+- 기준 55ee336에서도 일본어 7건 실패를 별도 재현함.
+- 실제 모델 품질은 미검증이며 PM-DEC-458 비용 승인 대기임.
+- 현재 demo 00377-7hh는 기존 소스이며 후보 배포는 미완료임.
+- 계획은 `docs/20261010_0027_homework-review-call-plan.md`임.
 
 > 노션 결정 로그(2026-07-24 ~ 08-01)는 `notion-02` §5 에 보존돼 있다. 여기부터는 그 뒤를 잇는다.
 
