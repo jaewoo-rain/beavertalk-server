@@ -271,10 +271,16 @@ def live_openai_for(call_type: str | None) -> bool:
 
     ⛔ 키가 없으면 **안 보낸다**(R5 graceful degradation) — env 로 코스만 켜 두고 키를
       안 넣은 상태에서 통화가 전부 실패하는 것을 막는다. 키 유무만 보고 값은 안 읽는다.
-    ⛔ 레벨테스트는 들어올 수 없다 — 그 코스는 자기 백엔드를 명시로 고정하고(studio 3.1)
-      측정 설계가 Gemini 발화 모양에 묶여 있다. 목록에 적어도 여기서 막는다.
+    ⭐⭐ 레벨테스트도 **env 로 열 수 있다**(2026-10-09 사장님 지시). 종전엔 여기서 영구
+      차단했다 — 근거는 「자기 백엔드를 studio 3.1 로 명시 고정하고 측정 설계가 Gemini
+      발화 모양에 묶여 있다」였다. 그 전제가 바뀌었다: GPT 대본이 **Gemini 정본과 같은
+      글자**다(`core/openai/prompts/leveltest.py` — 두 엔진 렌더를 시험이 글자로 대조한다).
+      ⇒ 차단을 지우는 것이 아니라 **env 로 옮긴다.** 목록에 `level_test` 를 적지 않으면
+        종전과 똑같이 Gemini 다(바이트 동일).
+      ⚠ 알람 통화가 이 자리에 걸려 있었다: 레벨이 없는 사용자의 알람은 `level_test` 로
+        바뀌는데(`call_session.py:3241`) 그게 막혀 첫 알람만 Gemini 로 떨어졌다.
     """
-    if not call_type or call_type == "level_test":
+    if not call_type:
         return False
     if not (settings.GPT_API_KEY or "").strip():
         return False

@@ -92,6 +92,7 @@ from core.openai import tools as openai_tools
 from core.openai.prompts import expression as openai_expression
 from core.openai.prompts import chat as openai_chat
 from core.openai.prompts import freetalk as openai_freetalk
+from core.openai.prompts import leveltest as openai_leveltest
 from core.persona_prompt import (
     _LOCALE_LABEL,
     face_tool_rule,
@@ -3400,7 +3401,13 @@ async def run_call(
         lt_setup = await svc.run_db(
             db_session_factory, lambda db: svc.load_level_test_setup(db, member_id, character_id)
         )
-        system_instruction = build_leveltest_instruction(
+        # ⭐⭐ **엔진 분기 4번째 자리**(2026-10-09, 레벨테스트). 앞의 셋(표현학습·프리토킹·
+        #   자유대화)과 같은 규율이다 — 대본·시드를 GPT 것으로 갈고 팩토리만 바꾼다.
+        #   ⛔ env 에 `level_test` 가 없으면 아래 else 가 종전 그대로 돈다(바이트 동일).
+        #   ⚠ GPT 대본은 **Gemini 정본과 같은 글자**다(사장님 지시) — 두 엔진 렌더를
+        #     `tests/test_openai_leveltest.py` 가 글자로 대조한다. 한쪽만 고치지 마라.
+        use_openai = call_service.live_openai_for(call_type)
+        _lt_kwargs = dict(
             role=lt_setup["role"],
             personality=lt_setup["personality"],
             locale=locale,
@@ -3409,10 +3416,26 @@ async def run_call(
             target_language=target_language,
             close_tag=close_tag,
         )
-        # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
-        # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
-        seed_text = seed_leveltest_opening(target_language)
-        voice = lt_setup["voice"]
+        if use_openai:
+            system_instruction = openai_leveltest.build_leveltest_instruction(**_lt_kwargs)
+            seed_text = openai_leveltest.seed_leveltest_opening(target_language)
+            voice = lt_setup["voice"]
+            # ⛔ 주입된 가짜 팩토리(시험)가 있으면 그게 이긴다 — 라우팅만 보고 실제 WS 는
+            #   열지 않을 수 있어야 한다(앞 세 분기와 같은 규약).
+            if live_session_factory is None:
+                factory = openai_live.open_session
+            logger.info(
+                "normalcall 레벨테스트(GPT): 모델=%s 목표어=%s 모국어=%s",
+                settings.OPENAI_REALTIME_MODEL, target_language, locale,
+            )
+            return_to_gemini_pinning = False
+        else:
+            system_instruction = build_leveltest_instruction(**_lt_kwargs)
+            # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
+            # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
+            seed_text = seed_leveltest_opening(target_language)
+            voice = lt_setup["voice"]
+            return_to_gemini_pinning = True
         # ⭐⭐ **레벨테스트는 AI Studio 3.1 로 명시한다**(2026-09-08 사장님 결정).
         #   ⛔ 예전엔 아무것도 안 정해 `settings.GEMINI_LIVE_MODEL` 폴백으로 흘렀는데,
         #     그 값은 **AI Studio 이름**이다. 통화 백엔드가 플랜별로 갈리면서 전역
@@ -3421,17 +3444,20 @@ async def run_call(
         #     레벨테스트는 플랜 분기를 안 타므로 아무도 못 보고 지나간다. 그래서 못박는다.
         #   ⚠ 3.1 인 이유: 레벨테스트는 학습자 발화를 판정하는 통화라 응답 지연·안정성이
         #     곧 측정 품질이다(2.5 는 루프 7%·1011 관측). 원가보다 정확도가 먼저다.
-        _lt_client = getattr(
-            getattr(getattr(client_ws, "app", None), "state", None),
-            "genai_client_studio", None,
-        )
-        if _lt_client is not None:
-            client, live_vertex = _lt_client, False
-            live_model = settings.LIVE_MODEL_VIDEO or settings.GEMINI_LIVE_MODEL
-        logger.info(
-            "normalcall 레벨테스트: 백엔드=studio 모델=%s (명시 고정)",
-            live_model or settings.GEMINI_LIVE_MODEL,
-        )
+        # ⛔⛔ 아래 고정은 **Gemini 경로 전용**이다. GPT 로 가는 통화에 이걸 걸면
+        #   「OpenAI 팩토리 + Gemini studio 클라이언트」가 되어 통화가 열리기도 전에 죽는다.
+        if return_to_gemini_pinning:
+            _lt_client = getattr(
+                getattr(getattr(client_ws, "app", None), "state", None),
+                "genai_client_studio", None,
+            )
+            if _lt_client is not None:
+                client, live_vertex = _lt_client, False
+                live_model = settings.LIVE_MODEL_VIDEO or settings.GEMINI_LIVE_MODEL
+            logger.info(
+                "normalcall 레벨테스트: 백엔드=studio 모델=%s (명시 고정)",
+                live_model or settings.GEMINI_LIVE_MODEL,
+            )
     else:
         # 커리큘럼 없는 언어(spec.has_curriculum=False, 회화 전용)는 레벨 프로파일·체크판
         # 재료를 주입하지 않는다(무의미). ko 는 has_curriculum=True 라 기존 경로 그대로.

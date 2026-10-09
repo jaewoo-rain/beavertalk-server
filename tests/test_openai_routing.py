@@ -259,9 +259,13 @@ def test_live_openai_for_needs_both_course_and_key(monkeypatch):
     monkeypatch.setattr(app_settings, "GPT_API_KEY", "k")
     assert call_service.live_openai_for("expression") is True
     assert call_service.live_openai_for("freetalk") is False
-    assert call_service.live_openai_for("level_test") is False, "레벨테스트는 들어올 수 없다"
+    assert call_service.live_openai_for("level_test") is False, "목록에 없으면 Gemini 다"
+    # ⭐ 하드 차단을 **env 로 옮겼다**(2026-10-09 사장님 지시). GPT 대본이 Gemini 정본과
+    #   같은 글자가 됐기 때문이다(tests/test_openai_leveltest.py 가 글자로 대조한다).
+    #   ⚠ 알람 통화가 이 자리에 걸려 있었다 — 레벨 없는 사용자의 알람은 level_test 로
+    #     바뀌는데(call_session.py:3241) 그게 막혀 첫 알람만 Gemini 로 떨어졌다.
     monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression,level_test")
-    assert call_service.live_openai_for("level_test") is False, "목록에 적어도 막는다"
+    assert call_service.live_openai_for("level_test") is True, "목록에 적으면 GPT 로 간다"
 
 
 # --------------------------------------------------------------------------- #
@@ -916,8 +920,8 @@ def test_live_openai_for_accepts_freetalk_when_listed(monkeypatch):
     monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression,freetalk")
     assert call_service.live_openai_for("freetalk") is True
     assert call_service.live_openai_for("expression") is True
-    assert call_service.live_openai_for("chat") is False, "chat 은 아직 배선이 없다"
-    assert call_service.live_openai_for("level_test") is False
+    assert call_service.live_openai_for("chat") is False, "목록에 없으면 Gemini 다"
+    assert call_service.live_openai_for("level_test") is False, "목록에 없으면 Gemini 다"
 
 
 def test_freetalk_engine_branch_is_wired_with_gemini_in_the_else():
@@ -966,7 +970,7 @@ def test_live_openai_for_accepts_chat_when_listed(monkeypatch):
     assert call_service.live_openai_for("chat") is False, "목록에 없으면 Gemini 다"
     monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression,freetalk,chat")
     assert call_service.live_openai_for("chat") is True
-    assert call_service.live_openai_for("level_test") is False, "레벨테스트는 영구 차단"
+    assert call_service.live_openai_for("level_test") is False,         "목록에 없으면 Gemini 다(2026-10-09 부터 영구 차단이 아니라 env 판단이다)"
 
 
 def test_chat_engine_branch_is_outside_the_cur_block():
