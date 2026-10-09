@@ -441,7 +441,8 @@ def test_leveltest_injects_character_persona_from_db():
     ⛔ 이 시험이 지키는 것은 «주입했다» 가 아니라 **재발 방어선 3줄이 같이 있다** 는 것이다."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
     # 캐릭터 2필드(DB character.role / .personality)가 대본 맨 앞에 그대로 들어간다
-    assert lt.startswith(_LT_KWARGS["role"])
+    # 2026-10-09 통화프롬프트 점검(PM 10-01) P35: DB 캐릭터에 «너는 "…"다» 틀을 씌웠다(유료 캐릭터도 있어 '비버' 이름은 넣지 않는다)
+    assert lt.startswith(f'너는 "{_LT_KWARGS['role']}"다. 말투·성격: ')
     assert _LT_KWARGS["personality"] in lt
     # 옛 고정 시험관 문구·톤 억제 문구는 사라졌다
     assert "시험관이다" not in lt
@@ -512,7 +513,9 @@ def test_leveltest_seeds_format():
     # A1: 안내문 낭독 금지 지시를 맨 앞에 강하게 명시(강화 문구).
     assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in opening
     # 첫 질문 = 대상 언어로 인사 정형표현(서버 주입 질문 줄 폐기).
-    assert "인사할 수 있어요?" in opening
+    # 2026-10-09 통화프롬프트 점검(PM 10-01) P05: 한국어 리터럴 예시 «인사할 수 있어요?» 제거 — 지시만 남는다.
+    assert "인사·정형표현을 해 보라고 시켜라" in opening
+    assert "인사할 수 있어요?" not in opening
     assert "첫 질문:" not in opening  # 서버가 박아 주던 질문 줄 폐기
     assert "한국어" in opening
     fr = seed_leveltest_opening("프랑스어")
@@ -533,9 +536,10 @@ def test_leveltest_opening_seed_has_echo_ban_fewshot():
     # 에코 금지 지시(리액션은 모국어, 학습자 단어 따라 말하지 않음)
     assert "리액션·맞장구는 반드시" in opening
     assert "따라 말하지 마라" in opening
-    # 구체 few-shot 예시(락인 예방 앵커 — 0단 인사 예시)
-    assert "안녕하세요" in opening
-    assert "完璧! Nice" in opening
+    # 2026-10-09 통화프롬프트 점검(PM 10-01) P05: 구체 few-shot 예시(«안녕하세요» → «完璧! Nice») 제거 — 모델이 예시를 복사한다(원칙 4, call 1097·1715).
+    #   에코 금지는 지시 + intro 끝 «전부 모국어» 줄(위치)이 맡는다.
+    assert "안녕하세요" not in opening
+    assert "完璧" not in opening
     # target_language 치환이 예시에도 적용된다(f-string 버그 회귀 방지)
     fr = seed_leveltest_opening("프랑스어")
     assert "대답만 프랑스어로 하도록 이끈다" in fr

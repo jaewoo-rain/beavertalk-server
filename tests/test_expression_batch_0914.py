@@ -45,9 +45,10 @@ def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_lang
 # C3 — 편집 대본: 목록을 다 돌아도 끝내지 마라(ko·ja 공통, 금지어 없이)
 # --------------------------------------------------------------------------- #
 def test_expression_prompt_forbids_self_ending_after_the_list():
-    line = "목록을 다 돌아도 네가 통화를 끝내지 마라 — 아직 해내지 못한 항목을 다시 시키고, 남는 시간은 배운 표현을 바꿔 가며 계속 이어가라. 끝내는 때는 서버가 알린다."
+    # 2026-10-09 통화프롬프트 점검(PM 10-01) P08: 종료를 지시문에서 설명하지 않는다 — «끝내지 마라 / 서버가 알린다» 를 빼고 할 일(다시 시키기 → 표현 바꿔 이어가기)만 남겼다.
+    line = "목록을 다 돌았으면 아직 해내지 못한 항목을 다시 시키고, 그 다음에는 배운 표현을 바꿔 가며 계속 이어가라."
     assert line in _instr("ko", "한국어") and line in _instr("ja", "일본어")
-    for banned in ("작별", "종료", "마지막", "마무리", "정리", "여기까지", "퀴즈"):
+    for banned in ("작별", "종료", "마지막", "마무리", "정리", "여기까지", "퀴즈", "끝내"):
         assert banned not in line
 
 

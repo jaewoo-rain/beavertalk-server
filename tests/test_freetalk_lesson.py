@@ -79,7 +79,8 @@ def test_old_freetalk_without_lesson_is_byte_identical_to_the_frozen_baseline() 
 def test_old_seeds_are_unchanged() -> None:
     assert ft.seed_freetalk_opening("한국어").startswith("[통화 시작] 네가 학습자에게 먼저 전화를 건 상황이다. **한국어로** 짧게 인사하고")
     assert ft.NUDGE_SEED_1_FREETALK.endswith("학습 언어로 가볍게 새 화제 한 문장만 이어가라.")
-    assert cs._NUDGE_SEED_2.endswith("'거기 있어? 잘 들려?'를 한 번만 부드럽게 물어라.")
+    # 2026-10-09 통화프롬프트 점검(PM 10-01) P21: 2단 넛지의 한국어 리터럴 «거기 있어? 잘 들려?»·톤 부사 «부드럽게» 제거
+    assert cs._NUDGE_SEED_2.endswith("학습자가 아직 듣고 있는지 짧은 문장으로 한 번만 네 캐릭터대로 물어라.")
 
 
 def test_other_courses_do_not_import_the_lesson_script() -> None:

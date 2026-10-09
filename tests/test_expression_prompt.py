@@ -577,7 +577,8 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # 2026-09-16 머지(dev 7ef23db, 실통화 1636): DRILL_ALT_CORRECT_LINE 인정 범위를 어미·조사·군말까지 → 4288 → 4393.
 # 2026-09-19 재기준(15차, 사장님 지시 — 실통화 1657 ko t13 «묻지 않고 정답부터»): DRILL_ASK_FIRST_LINE 을 전 언어 공통으로 올려 **ko 대본에 1줄 추가** → 4393 → 4475.
 #   ⚠ 문장은 한 글자도 안 바뀌었다(비ko 전용 목록에서 공통 자리로 이동). ja 조립은 바이트 동일(expression.procedure_ja 해시 무변).
-_EXPR_FROZEN = ("ac359a303b180cd3453c223b7fc211fa56193252a059cfe99e63e5d21983d8bd", 4475)
+# 2026-10-09 재기준(통화프롬프트 점검 PM 10-01): P08 rule1 종료 문구 제거 · P03 퀴즈 선언 절 제거 · P04 격식 줄 예외 1문장 → 4475 → 4464.
+_EXPR_FROZEN = ("27d08a5b0714fa0df5fff080fb9d9345298280bb9f33680d32b1893b62283b21", 4477)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
@@ -645,7 +646,7 @@ def test_the_31_block_sits_right_under_rule_5_and_has_at_most_five_lines() -> No
     block = out[ib:i6].strip().splitlines()
     assert block[0] == "[3.1 말투]" and len(block) - 1 <= 5, "5줄 이내"
     for expected in ("턴은 한두 문장", "다른 이름을 지어내지 마라", "두 번 쓰지 마라", "정중형이다 — 작별 인사도",
-                     "영어(English) 뜻을 따옴표로 묶어"):
+                     "영어(English) 뜻을 다른 말과 섞지 말고 한 덩어리로"):
         assert expected in out, expected
     # 나머지는 2.5 와 같다 — 블록만 끼워졌다
     assert out.replace(out[ib:i6], "") == _expr()
@@ -664,5 +665,5 @@ def test_the_31_block_is_substituted_not_hardcoded() -> None:
         locale="ja", interests=[], name="Tester", target_language="프랑스어",
         items=[{"obj": "Bonjour", "des": None, "ex": None}], quiz_group=QUIZ_GROUP, model_family="3.1",
     )
-    assert "프랑스어로 말하는 모든 것은 정중형이다" in out and "일본어(日本語) 뜻을 따옴표로" in out
+    assert "프랑스어로 말하는 모든 것은 정중형이다" in out and "일본어(日本語) 뜻을 다른 말과 섞지 말고" in out
     assert "한국어" not in out

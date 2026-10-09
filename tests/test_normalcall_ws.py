@@ -691,8 +691,9 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
 
     sess = holder["s"]
     # 1단·2단 넛지가 순서대로 주입됐다(in_tr 부재 감지).
-    assert any("가볍게 새 화제" in t for t in sess.sent_text_turns), "1단 넛지 미주입"
-    assert any("거기 있어" in t for t in sess.sent_text_turns), "2단 넛지 미주입"
+    # 2026-10-09 통화프롬프트 점검(PM 10-01) P21: 1단은 «새 화제» 대신 «방금 한 말을 더 쉽게 다시», 2단은 리터럴 «거기 있어?» 제거
+    assert any("방금 한 말을 더 쉬운 학습 언어로" in t for t in sess.sent_text_turns), "1단 넛지 미주입"
+    assert any("아직 듣고 있는지" in t for t in sess.sent_text_turns), "2단 넛지 미주입"
     # 3단 → should_close → 종료 시드 주입 → 정상 작별.
     assert any("통화 시간이 다 됐다" in t for t in sess.sent_text_turns), \
         "3단 후 종료 시드 미주입"
@@ -2275,10 +2276,10 @@ async def test_leveltest_idle_cadence_uses_shortened_seeds(session_factory, seed
     assert any(t == cs._NUDGE_SEED_1_LEVELTEST for t in sess.sent_text_turns), \
         "1단 넛지가 _NUDGE_SEED_1_LEVELTEST 상수와 불일치"
     # 일반 통화 1단 시드가 새면 안 된다(회귀).
-    assert not any("가볍게 새 화제로 한 문장만" in t for t in sess.sent_text_turns), \
+    assert not any("방금 한 말을 더 쉬운 학습 언어로" in t for t in sess.sent_text_turns), \
         "레벨테스트에 일반 1단 넛지가 샜다"
     # 2단: 공통 확인 넛지.
-    assert any("거기 있어" in t for t in sess.sent_text_turns), "2단 확인 넛지 미주입"
+    assert any("아직 듣고 있는지" in t for t in sess.sent_text_turns), "2단 확인 넛지 미주입"
     # 3단: 레벨테스트 종료 시드 → 작별(새 문구).
     assert any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), "3단 종료 시드 미주입"
     assert b"\x88\x88" in ws.sent_bytes, "작별 오디오 미전달"
