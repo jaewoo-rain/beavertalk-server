@@ -283,14 +283,18 @@ async def test_openai_call_uses_the_gpt_script_and_omits_fragment_plumbing(
     assert started["call_id"]
 
     # ② GPT 대본이다(Gemini 대본의 표식이 없다)
+    #   ⚠ 표식이 바뀌었다(2026-10-09 대본 교체) — 종전의 `[절대 금지` · 「입을 떼기 전」 ·
+    #     「6번까지 다 돌았으면」은 사장님 정제 전문에서 빠졌다. 지금 표식은 머리말 4개다.
     si = h["system_instruction"]
-    assert "[절대 금지" in si and si.index("입을 떼기 전") < 400
+    for head in ("# 역할", "# 시작", "# 연습", "# 진행"):
+        assert head in si, head
     assert "[오늘의 표현]" in si
-    assert "[6번까지" in si or "번까지 다 돌았으면]" in si
     for gemini_mark in ("[퀴즈] 알림", "재접지", "이어서", "조각"):
         assert gemini_mark not in si, gemini_mark
+    # ⚠ 「종료」는 전문의 「서버가 종료를 알릴 때까지」 한 구절만 허용한다(isolation 시험 ①).
+    probe = si.replace("서버가 종료를 알릴 때까지", "")
     for close_word in ("마무리", "작별", "종료", "서버가 알린"):
-        assert close_word not in si, close_word
+        assert close_word not in probe, close_word
 
     # 시드도 GPT 것 — 1번 항목의 표현이 시드에 없다(선공개 방지)
     seeds = h["session"].sent_text_turns
@@ -879,18 +883,25 @@ def test_the_self_quiz_flag_reaches_the_state_that_arms_the_cue(monkeypatch):
         "(OPENAI_SELF_QUIZ", ""), "arm 가드가 settings 를 직접 읽으면 NameError 가 난다"
 
 
-def test_the_prompt_switches_with_the_flag():
-    """지시문 블록이 플래그로 갈린다 — 서버 큐 판([퀴즈]) vs 자가 개시판([되묻기])."""
+def test_the_self_quiz_flag_no_longer_changes_the_prompt():
+    """⛔⛔ `self_quiz` 는 **죽은 스위치**가 됐다(2026-10-09 대본 교체).
+
+    종전엔 이 플래그가 지시문 블록을 갈랐다 — 서버 큐 판(`[퀴즈]`) vs 자가 개시판
+    (`[되묻기 — 3개마다]`). 사장님 정제 전문엔 **퀴즈 블록 자체가 없다.**
+
+    ⚠ 그래서 `OPENAI_SELF_QUIZ` 를 켜도 **대본은 그대로다.** 이 시험은 그 사실을
+      박아 두는 것이다 — 플래그를 켜고 「왜 안 바뀌나」를 다시 헤매지 않게.
+      (서버 쪽 큐 주입 배선은 그대로 살아 있다 — 위 `test_...self_quiz...` 들.)
+    """
     from core.openai.prompts import expression as ex
 
     items = [{"no": 1, "obj": "고마워요", "des": "thank you"}]
     kw = dict(role="R", personality="P", locale_label="영어(English)", items=items,
               quiz_group=3, target_language="한국어", name="S")
-    off = ex.build_expression_instruction(**kw)
-    on = ex.build_expression_instruction(self_quiz=True, **kw)
-    assert "[퀴즈]" in off and "네가 정하지 않는다" in off
-    assert "[되묻기 — 3개마다]" in on and "다 내고 나면" in on
-    assert "네가 정하지 않는다" not in on, "자가 개시판에 «네가 정하지 않는다» 가 남았다"
+    assert ex.build_expression_instruction(**kw) == \
+        ex.build_expression_instruction(self_quiz=True, **kw), \
+        "대본이 플래그로 갈린다 — 전문에 퀴즈 블록이 생겼으면 이 시험을 고쳐라"
+    assert "[퀴즈]" not in ex.build_expression_instruction(**kw)
 
 
 # --------------------------------------------------------------------------- #

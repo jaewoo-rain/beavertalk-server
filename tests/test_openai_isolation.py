@@ -86,25 +86,40 @@ def test_prompt_file_has_no_close_protocol_vocabulary():
         items=[{"obj": "고마워요", "des": "thank you", "ex": "도와줘서 고마워요."}] * 6,
         quiz_group=3,
     )
+    # ⚠⚠ **완화됐다**(2026-10-09 대본 교체). 사장님 정제 전문이 「서버가 종료를 알릴
+    #   때까지 이어간다」로 끝나므로 그 한 구절은 허용한다. 나머지 종료 어휘는 그대로 막는다.
+    #   ⛔ 이 완화가 **되살릴 수 있는 사고**: 종료 개념을 가르친 과거 3건(call 706·852·870)
+    #     은 전부 모델이 스스로 통화를 끊었다. QA 체크리스트 「비버가 먼저 작별하지 않았다」
+    #     가 그 지표다 — 위반이 보이면 이 구절을 먼저 의심해라.
+    allowed = "서버가 종료를 알릴 때까지"
+    probe = text.replace(allowed, "")
     banned = ["마무리", "마지막", "여기까지", "종료", "작별", "통화를 끝", "서버가 알린", "끝내는 때"]
-    hit = [w for w in banned if w in text]
-    assert not hit, "종료 어휘가 들어갔다: %s" % hit
+    hit = [w for w in banned if w in probe]
+    assert not hit, "허용된 한 구절 밖에서 종료 어휘가 나왔다: %s" % hit
 
 
-def test_prompt_file_has_the_two_measured_prescriptions():
-    """⭐ 측정으로 확인된 처방 2개가 **실제로 지시문에 있다**.
+def test_prompt_file_is_the_owners_refined_script():
+    """⭐ 표현학습 대본은 **사장님 정제 전문**이다(2026-10-09). 머리말 4개와 데이터 자리.
 
-    ① 정답 선공개 금지(처방 전 4/4 → 후 0/4) ② 목록 소진 뒤 출구(없으면 8턴 체류 ×2회).
+    ⛔⛔ **사라진 처방 2개를 여기 기록한다** — 되살리려면 사장님 확인이 필요하다:
+      ① 정답 선공개 금지(「아직 묻지 않은 항목은 학습자가 입을 떼기 전까지」) —
+         처방 전 4/4 위반 → 후 0/4 였다. 새 대본엔 그 자리가 없다.
+      ② 목록 소진 뒤 출구(「6번까지 다 돌았으면 … 되돌아가지 않는다」) —
+         없을 때 같은 번호에 8턴 체류가 2회 났다.
+      ③ 턴 길이 상한(2~3문장 · 문장당 8단어) — 없을 때 한 턴 237자/15.1초가 났다
+         (call 1757). 새 대본엔 길이 상한이 없다.
     """
     from core.openai.prompts import expression as ex
 
     text = ex.build_expression_instruction(
         role="선생님", personality="다정함", locale_label="English",
-        items=[{"obj": "고마워요"}] * 6, quiz_group=3)
-    assert "입을 떼기 전" in text                  # ① 선공개 금지
-    assert text.index("입을 떼기 전") < 400, "금지는 맨 앞에 있어야 한다(GPT 위반 100%)"
-    assert "[6번까지 다 돌았으면]" in text          # ② 출구
-    assert "되돌아가지 않는다" in text
+        items=[{"obj": "고마워요", "des": "thank you"}] * 6, quiz_group=3)
+    for head in ("# 역할", "# 시작", "# 연습", "# 진행"):
+        assert head in text, head
+    assert "제공된 한국어 표현을 순서대로 하나씩 가르친다." in text
+    assert "각 문장 최대 2회 후 다음 항목으로 넘어간다." in text
+    # 데이터 자리 — 전문의 「제공된 표현」이 가리키는 블록
+    assert "[오늘의 표현]" in text and "1. 고마워요" in text and "6. 고마워요" in text
 
 
 # --------------------------------------------------------------------------- #
@@ -251,7 +266,10 @@ def test_freetalk_declares_target_language_only():
     자리다(기획 §4 위험 1). 선언이 있고, 모국어가 목표어보다 많이 나오지 않아야 한다.
     """
     text = _ft_text()
-    assert "처음부터 끝까지 한국어다" in text, "목표어 100% 선언이 없다"
+    # ⚠ 선언 문구가 바뀌었다(2026-10-09) — 「100% 목표어」 한 줄 대신 **역할극 선언 +
+    #   모국어를 쓰는 자리 두 곳**(모국어 질문 / 답하기 어려워할 때)으로 적힌다.
+    assert "한국어로 역할극을 진행한다" in text, "목표어 역할극 선언이 없다"
+    assert "모국어 질문에는 영어(English)로 답한 뒤 한국어 역할극으로 돌아온다" in text
     assert "네 말은 전부 영어" not in text, "표현학습 금지3(모국어 위주)이 섞여 들었다"
     assert text.count("한국어") > text.count("영어(English)"), \
         "모국어가 목표어보다 많이 등장한다 — 발판이 새어 든 신호다"
@@ -270,17 +288,23 @@ def test_freetalk_has_no_drill_or_judging_vocabulary():
 
 
 def test_freetalk_has_no_close_protocol_vocabulary():
-    """⛔ 종료 어휘 금지는 **코스와 무관**하다(call 706·852·870). 부정문도 금지다."""
-    text = _ft_text()
+    """⛔ 종료 어휘 금지(call 706·852·870) — ⚠ 전문의 한 구절만 허용(위 ① 주석과 같은 완화)."""
+    probe = _ft_text().replace("서버가 종료를 알릴 때까지", "")
     banned = ["마무리", "마지막", "여기까지", "종료", "작별", "통화를 끝", "서버가 알린", "끝내는 때"]
-    hit = [w for w in banned if w in text]
-    assert not hit, "종료 어휘가 들어갔다: %s" % hit
+    hit = [w for w in banned if w in probe]
+    assert not hit, "허용된 한 구절 밖에서 종료 어휘가 나왔다: %s" % hit
 
 
-def test_freetalk_pins_the_chapter_as_the_only_source():
-    """⭐ 사장님 지시(2026-10-08): 차시(챕터)가 **유일한** 소재다 — 밖에서 화제를 안 가져온다."""
+def test_freetalk_pins_the_chapter_block_by_name():
+    """⭐⭐ `[이번 차시]` 는 **이름이 계약**이다 — 전문이 「[이번 차시]의 «상대»가 되어」로
+    그 블록을 이름으로 가리킨다. 이름을 바꾸면 대본이 없는 것을 가리킨다.
+
+    ⚠ 종전의 「유일한 소재다 · 상황 밖에서 화제를 가져오지 않는다」 문구는 2026-10-09
+      전문에서 빠졌다. 화제 이탈이 보이면 그 문구가 없어진 것부터 의심해라.
+    """
     text = _ft_text()
-    assert "유일한" in text and "상황 밖에서 화제를 가져오지 않는다" in text
+    assert "[이번 차시]의 «상대»가 되어" in text, "대본이 차시 블록을 이름으로 안 가리킨다"
+    assert "[이번 차시]" in text.split("# 대화", 1)[1], "가리키는 블록이 실제로 없다"
     assert "카페에서 음료 주문하기" in text and "카페 직원" in text, "브리프가 안 실렸다"
     assert '"커피 마시고 싶어요."' in text, "문형은 **예문으로** 실려야 한다(이름을 말하지 않는다)"
     assert "-고 싶어요" not in text, "문형 이름이 그대로 실렸다 — 예문으로만 쓴다"
@@ -311,31 +335,33 @@ def _chat_text(**kw):
     return ch.build_chat_instruction(**{**_CHAT_KW, **kw})
 
 
-def test_chat_shares_the_hard_won_blocks_with_freetalk():
-    """⛔⛔ 두 코스가 **같은 글자**를 써야 한다 — 복제하면 한쪽만 고쳐져 조용히 갈라진다.
+def test_chat_is_the_owners_refined_script():
+    """⭐ 자유대화 대본은 **사장님 정제 전문**이다(2026-10-09).
 
-    공유 4개(금지·턴 착지·막혔을 때·recast)는 표현학습에서 값을 치르고 얻은 규칙이다.
+    ⛔⛔ 종전엔 프리토킹과 **공유 블록 4개**(금지·턴 착지·막혔을 때·recast)를 같은 글자로
+      썼다. 전문 교체로 그 4개는 **지웠다** — 두 대본이 각자 자기 글자를 갖는다.
+      그래서 「한쪽만 고쳐져 조용히 갈라진다」는 위험이 **되살아났다**: 두 코스에 같은
+      규칙을 넣을 일이 생기면 **두 파일을 같이** 고쳐야 한다.
     """
-    from core.openai.prompts import chat as ch, freetalk as ft
-    kw = dict(target_language="한국어", locale_label="영어(English)")
     text = _chat_text(memory=_MEM)
-    assert ft.block_forbidden(**kw) in text, "금지 블록이 공유 글자가 아니다"
-    assert ft.block_stuck(**kw) in text, "막혔을 때 블록이 공유 글자가 아니다"
-    assert ft.block_recast(target_language="한국어") in text
-    assert ft.block_turn_landing(target_language="한국어", max_sentences=2) in text
-    # chat 모듈이 freetalk 의 블록을 **쓴다**(복제 아님)
-    import inspect
-    src = inspect.getsource(ch)
-    assert "from core.openai.prompts.freetalk import" in src
+    for head in ("# 역할", "# 시작", "# 대화"):
+        assert head in text, head
+    assert "캐릭터 말투는 유지하되 아래 규칙에 따라 한국어로 잡담한다." in text
+    assert "제공되지 않은 기억을 지어내지 않는다." in text
+    # 공유 블록은 이제 없다 — 남아 있으면 교체가 덜 된 것이다.
+    from core.openai.prompts import freetalk as ft
+    for gone in ("block_forbidden", "block_stuck", "block_recast", "block_turn_landing"):
+        assert not hasattr(ft, gone), "지운 공유 블록이 살아 있다: %s" % gone
 
 
 def test_chat_is_not_roleplay():
     """⛔ 자유대화엔 역할극·차시가 없다 — 그건 프리토킹이다."""
     text = _chat_text(memory=_MEM)
-    banned = ["역할극", "네가 맡은 사람", "이번 상황", "인물로 돌아가", "장면"]
+    banned = ["역할극", "네가 맡은 사람", "이번 차시", "인물로 돌아가", "장면"]
     hit = [w for w in banned if w in text]
     assert not hit, "역할극 어휘가 섞여 들었다: %s" % hit
-    assert "그냥 이야기한다" in text and "인물을 맡지 않고" in text
+    # ⚠ 종전의 「그냥 이야기한다 · 인물을 맡지 않고」 선언은 전문에서 「잡담한다」로 바뀌었다.
+    assert "잡담한다" in text
 
 
 def test_chat_omits_empty_interest_and_memory_blocks():
@@ -357,11 +383,11 @@ def test_chat_omits_empty_interest_and_memory_blocks():
 
 
 def test_chat_has_no_close_protocol_vocabulary():
-    """⛔ 종료 어휘 금지는 코스와 무관하다(call 706·852·870)."""
-    text = _chat_text(interests=["축구"], memory=_MEM)
+    """⛔ 종료 어휘 금지(call 706·852·870) — ⚠ 전문의 한 구절만 허용(위 ① 주석과 같은 완화)."""
+    probe = _chat_text(memory=_MEM).replace("서버가 종료를 알릴 때까지", "")
     banned = ["마무리", "마지막", "여기까지", "종료", "작별", "통화를 끝", "서버가 알린", "끝내는 때"]
-    hit = [w for w in banned if w in text]
-    assert not hit, "종료 어휘가 들어갔다: %s" % hit
+    hit = [w for w in banned if w in probe]
+    assert not hit, "허용된 한 구절 밖에서 종료 어휘가 나왔다: %s" % hit
 
 
 def test_chat_recall_seed_is_a_bracket_instruction_not_a_line():
