@@ -363,6 +363,20 @@ function paintGauges() {
 }
 function drained() { return !actx ? true : (playT <= actx.currentTime + 0.15); }
 
+// ⛔⛔ 반이중 관문(2026-10-09 사장님 지시) — 비버가 재생되는 동안은 마이크를 **안 보낸다.**
+//   서버 관문(`state.turn_id`)은 `turn_end`(= 생성 끝)에 열리는데 클라는 그때 아직 재생할
+//   오디오를 쥐고 있다(실측 1776: turn_end +1.5s · 턴당 발화 ~10s ⇒ 8~9초가 열려 있었다).
+//   재생 시계를 아는 것은 클라뿐이라 관문도 여기 있어야 한다.
+//   ⚠ `drained()` 보다 여유를 더 둔다 — 스피커 꼬리가 마이크에 남는다.
+const MIC_TAIL_S = 0.35;
+let micGateOn = false;
+function micGated() { return !!actx && playT > actx.currentTime + MIC_TAIL_S; }
+function micGateTrace(on) {
+  if (on === micGateOn) return;
+  micGateOn = on;
+  jlog('c-sys', on ? '[클라] 마이크 닫힘 — 비버 재생중' : '[클라] 마이크 열림', false);
+}
+
 function startClock() {
   if (clockTimer) return;
   t0 = Date.now();
@@ -534,6 +548,10 @@ async function startCall() {
       locale: $('#loc').value,
       duration_min: durMin,
       call_type: $('#ctype').value,
+      // ⭐ 프리토킹 잠금 우회(2026-10-09): 그 차시의 표현학습이 안 끝났으면 서버가 COURSE_LOCKED 로
+      //   거절한다(call 1772). admin 이면 force_course 로 지금 차시를 그대로 연다(진도 무영향 —
+      //   call_session.py `force_course`·curriculum_service.open_call(force=)). admin 이 아니면 서버가 조용히 무시.
+      force_course: $('#ctype').value === 'freetalk',
       tz_offset_min: -new Date().getTimezoneOffset(),
       tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul'),
     };
@@ -548,6 +566,9 @@ async function startCall() {
   proc.onaudioprocess = (e) => {
     if (!ws || ws.readyState !== 1) return;
     if (hangupArmed) return;     // 상한 도달 → 새 턴이 열리지 않게 입력을 끊는다
+    // ⛔ 비버 발화중(재생 큐가 남아 있는 동안)엔 **프레임을 버린다** — 위 micGated 주석.
+    if (micGated()) { micGateTrace(true); return; }
+    micGateTrace(false);
     const ds = downsample(e.inputBuffer.getChannelData(0), actx.sampleRate, 16000);
     const pcm = toPCM16(ds);
     if (muted) pcm.fill(0);      // 무음 3단 실험 — 소켓은 살리고 소리만 0
@@ -674,7 +695,10 @@ function onMsg(ev) {
      :3249  cur_route = 콜타입 ∈ (expression·freetalk·auto) && CUR_ENABLED && 커리큘럼 시드
      :3922  course 는 cur_route 일 때만 실린다(아니면 키가 빠진다)
      use_openai 는 cur 코스가 **expression 또는 freetalk** 일 때 정해진다(2026-10-08 프리토킹 배선).
-            ⇒ chat 은 아직 배선이 없어 언제나 Gemini 다.
+     ⭐ 그리고 **chat 도 배선됐다**(엔진 분기 3번째 자리 `elif call_type == "chat"`). 그런데
+        자유대화는 **원래 course 가 없다**(cur 경로를 안 탄다) — 종전 규칙이 그걸 「cur 경로가
+        아니다 → Gemini 확실」로 읽어 1770·1774·1775·1778 을 **전부 오탐**했다(DB
+        `usage_engine` 은 넷 다 live:openai-realtime-2.1-mini). ⇒ chat 은 조각 필드로 가른다.
      OpenAI 면 fragment_index·max_fragments·remaining_s 를 **셋 다 비운다**(Gemini 는 1 을 싣는다).
             그 비움은 코스를 안 본다(`openai_frame_*` 가 use_openai 만 본다).
    ⇒ course ∈ {expression, freetalk} 인데 조각 3값이 전부 없으면 OpenAI 다.
@@ -684,7 +708,17 @@ function onMsg(ev) {
        정본이고, 드롭다운은 «희망» 일 뿐이다. */
 function guessEngine(m, hasFrag) {
   let engine, why;
-  if (!m.course) {
+  // ⚠ 요청한 콜타입이다(서버가 덮을 수 있다 — 위 주석). chat 판정에만 쓴다: chat 은
+  //   cur 경로가 아니어서 서버가 코스로 덮는 일이 없으므로 이 값이 그대로 맞다.
+  const callType = $('#ctype') ? $('#ctype').value : '';
+  if (!m.course && callType === 'chat') {
+    // ⭐ 자유대화는 course 가 없는 것이 **정상**이다(cur 경로가 아니다). 조각 필드로 가른다.
+    if (hasFrag) {
+      engine = 'Gemini (추정)'; why = '자유대화인데 조각 필드가 실려 있다 — OpenAI 는 그 3값을 비운다';
+    } else {
+      engine = 'OpenAI (추정)'; why = '자유대화 + 조각 필드 전부 없음 (이 코스는 course 를 싣지 않는다 — 없는 것이 정상)';
+    }
+  } else if (!m.course) {
     engine = 'Gemini (확실)'; why = 'call_started 에 course 가 없다 = cur 경로가 아니다 → 엔진 분기 자리에 도달조차 못 한다';
   } else if (m.course !== 'expression' && m.course !== 'freetalk') {
     engine = 'Gemini (확실)'; why = 'course=' + m.course + ' — 이 코스엔 아직 OpenAI 배선이 없다';

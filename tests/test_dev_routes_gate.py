@@ -19,7 +19,11 @@ from main import create_app
 
 
 def _client(*, dev_routes_enabled: bool, env: str) -> TestClient:
+    # ⛔ `_env_file=None` — 아래 503 단정의 전제가 **「Supabase 미설정」**이다. 끊지 않으면
+    #   개발자의 `.env.local` 에 실제 자격이 있어 client 가 살아나고 **401** 이 온다
+    #   (2026-10-08 실측: env 파일 없는 트리에서만 통과해 「코드가 깨졌다」로 오진했다).
     settings = Settings(
+        _env_file=None,
         DATABASE_URL_POOL="postgresql+psycopg2://u:p@localhost:5432/dummy",
         DEV_ROUTES_ENABLED=dev_routes_enabled,
         ENV=env,

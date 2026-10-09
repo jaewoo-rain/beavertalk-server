@@ -41,7 +41,10 @@ def test_compression_window_comes_from_settings():
 
 def test_compression_window_defaults_are_16k_12k():
     """기본값 못박기 — 단계 0 계측이 이 값 위에서 수집됐다(실측의 기준선)."""
-    s = Settings(DATABASE_URL_POOL="postgresql+psycopg2://x:x@127.0.0.1:5432/d")
+    # ⛔ `_env_file=None` — 이 시험은 **코드 기본값**을 못박는다. 끊지 않으면 개발자의
+    #   `.env.local`(클라우드 복제본은 8000/7000)이 섞여 들어 통과·실패가 PC 마다 갈린다.
+    s = Settings(_env_file=None,
+                 DATABASE_URL_POOL="postgresql+psycopg2://x:x@127.0.0.1:5432/d")
     assert (s.LIVE_CTX_TRIGGER_TOKENS, s.LIVE_CTX_TARGET_TOKENS) == (16000, 12000)
 
 

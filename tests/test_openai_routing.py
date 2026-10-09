@@ -944,3 +944,81 @@ def test_freetalk_gpt_branch_passes_the_chapter_brief():
                 "items=_brief.items", "probes=_brief.probes"):
         assert arg in call, arg
     assert "max_sentences=FREETALK_MAX_SENTENCES" in call, "역할극 문장 수 상한이 빠졌다"
+
+
+# --------------------------------------------------------------------------- #
+# 자유대화 라우팅(2026-10-08) — ⛔ 분기 자리가 **프리토킹과 다르다**
+# --------------------------------------------------------------------------- #
+def test_live_openai_for_accepts_chat_when_listed(monkeypatch):
+    monkeypatch.setattr(app_settings, "GPT_API_KEY", "k")
+    monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression,freetalk")
+    assert call_service.live_openai_for("chat") is False, "목록에 없으면 Gemini 다"
+    monkeypatch.setattr(app_settings, "OPENAI_REALTIME_COURSES", "expression,freetalk,chat")
+    assert call_service.live_openai_for("chat") is True
+    assert call_service.live_openai_for("level_test") is False, "레벨테스트는 영구 차단"
+
+
+def test_chat_engine_branch_is_outside_the_cur_block():
+    """⛔⛔ chat 은 **cur 라우트를 타지 않는다** — cur 가 내는 코스는 expression·freetalk 뿐.
+
+    그래서 분기가 `elif call_type == "chat":` 쪽에 있어야 한다. cur 블록 안에 넣으면
+    **닿지 않아** 영구히 Gemini 로 간다.
+    """
+    import inspect
+    src = inspect.getsource(cs.run_call)
+
+    chat_elif = src.index('elif call_type == "chat":')
+    gpt = src.index("openai_chat.build_chat_instruction(")
+    cur_block = src.index('if cur_open.course == "expression":')
+    assert chat_elif < gpt < cur_block, \
+        "GPT chat 분기가 `elif call_type == \"chat\"` 안이 아니다 — cur 블록은 chat 에 안 닿는다"
+
+    # Gemini 대본은 그 else 아래에 남아 있다
+    gem = src.index("system_instruction = build_chat_instruction(", gpt)
+    assert "\n            else:\n" in src[gpt:gem], \
+        "GPT 분기와 Gemini 호출 사이에 else 가 없다 — 둘이 같이 조립된다"
+
+
+def test_chat_gpt_branch_passes_memory_and_interests():
+    """⭐ 기억·관심사가 그대로 가고, 「아는 척」 시드가 **폴백을 갖는다**."""
+    import inspect
+    src = inspect.getsource(cs.run_call)
+    i = src.index("openai_chat.build_chat_instruction(")
+    call = src[i:i + 1400]
+    assert "memory=chat_memory_dict" in call, "기억이 안 넘어간다"
+    assert 'interests=setup["interests"]' in call, "관심사가 안 넘어간다"
+    # 시드: 기억이 빈약하면 평범한 선톡으로 폴백해야 한다(빈 문자열이 그대로 나가면 안 된다)
+    assert "openai_chat.seed_chat_opening(" in src and "seed_chat_plain_opening(" in src
+
+
+def test_chat_branch_does_not_touch_call_id_before_it_exists():
+    """⛔⛔ chat 분기는 **통화 행이 만들어지기 전**에 돈다 — `call_id` 를 쓰면 WS 가 죽는다.
+
+    2026-10-08 실측: cur 블록(expression·freetalk)의 로그를 chat 분기에 베꼈더니
+    `UnboundLocalError: cannot access local variable 'call_id'` 로 통화가 **열리자마자**
+    끊겼고 통화 행도 안 남아 원인이 안 보였다(`call_session.py:3619`).
+    ⚠ 구조 시험·통화 하네스가 둘 다 못 잡았다 — 하네스는 expression 만 태운다.
+    """
+    import inspect
+    src = inspect.getsource(cs.run_call)
+
+    where_created = src.index("call_id = await")
+    chat_start = src.index('elif call_type == "chat":')
+    chat_end = src.index("openai_chat.build_chat_instruction(")
+    # chat 분기 본문(GPT·Gemini 양쪽)은 call_id 생성보다 **앞**에 있다 — 그 전제부터 못박는다.
+    assert chat_start < where_created, "chat 분기가 call_id 생성 뒤로 옮겨졌다면 이 시험을 다시 설계해라"
+
+    # 그 분기에서 call_id 를 **읽지 않는다**(생성 전이므로).
+    # ⚠ 낱말 경계로 본다 — `continues_call_id`·`chain_call_id` 는 다른 변수다(인자로 들어와
+    #   이미 바인딩돼 있어 안전하다).
+    import re
+    # ⚠ **주석은 걷어낸다** — 이 시험은 코드를 보는 것이고, 정작 「`call_id` 를 찍지
+    #   말라」는 경고 주석이 자기 자신을 잡는 일이 없게 한다.
+    src_lines = src[chat_start:where_created].split(chr(10))
+    body = chr(10).join(l for l in src_lines if not l.strip().startswith(chr(35)))
+    hit = re.search(r"(?<![\w])call_id(?![\w])", body)
+    assert not hit, (
+        "chat 분기가 call_id 를 쓴다 — 생성 전이라 UnboundLocalError 가 난다: %r"
+        % (body[max(0, hit.start() - 60):hit.end() + 20] if hit else "")
+    )
+    assert chat_end < where_created, "GPT chat 대본 조립도 call_id 생성 전이다(전제 확인)"

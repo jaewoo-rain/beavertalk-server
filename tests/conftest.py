@@ -105,3 +105,47 @@ def _serialize_run_db(monkeypatch: pytest.MonkeyPatch) -> None:
             return await original(session_factory, fn)
 
     monkeypatch.setattr(_svc, "run_db", _serialized)
+
+
+@pytest.fixture(autouse=True)
+def _developer_env_must_not_leak(monkeypatch: pytest.MonkeyPatch) -> None:
+    """⛔⛔ 시험을 **개발자의 `.env` 에서 떼어낸다**(2026-10-08 실측 사고).
+
+    `core/config.py` 는 import 시점에 `.env`·`.env.local` 을 읽는다. 그 파일에
+    `OPENAI_REALTIME_COURSES=expression` + 실제 `GPT_API_KEY` 가 들어 있으면
+    `live_openai_for("expression")` 이 **True** 가 되어 통화 시험이 OpenAI 경로를 탄다 —
+    그 경로는 조각 3값(`fragment_index`·`max_fragments`·`remaining_s`)을 **일부러 비우므로**
+    Gemini 조각 계약을 단정하는 시험 20개가 `KeyError: 'fragment_index'` 로 깨졌다.
+    ⚠ env 파일이 없는 트리(워크트리 등)에서는 통과하고 있는 트리에서만 깨져서,
+      「코드가 깨졌다」로 오진하기 쉽다.
+
+    ⇒ **기본은 꺼짐**으로 고정한다. 엔진 라우팅을 보는 시험은
+      `tests/test_openai_routing.py` 처럼 **자기가 monkeypatch 로 켠다**(그쪽이 이긴다 —
+      이 fixture 가 먼저 돌고 테스트 본문이 뒤에 덮는다).
+    """
+    try:
+        from core.config import settings
+    except Exception:  # noqa: BLE001
+        return
+    # ① 엔진 라우팅 — 켜지면 조각 3값이 비어 Gemini 조각 계약 시험이 깨진다.
+    monkeypatch.setattr(settings, "OPENAI_REALTIME_COURSES", "", raising=False)
+    monkeypatch.setattr(settings, "GPT_API_KEY", "", raising=False)
+    # ② 압축 임계 — 단계 0 계측의 기준선이 **코드 기본값 16k/12k** 위에서 수집됐다.
+    #   클라우드는 8000/7000 로 낮춰 두었고 그 값이 `.env.local` 로 새어 들면
+    #   「압축 임박」 판정 시험 3개가 다른 설정의 결과를 본다.
+    #   ⚠ `test_env_override_reaches_the_wire` 처럼 **일부러 낮추는** 시험은 자기가
+    #     monkeypatch 하므로 그쪽이 이긴다(이 fixture 가 먼저, 테스트 본문이 뒤).
+    monkeypatch.setattr(settings, "LIVE_CTX_TRIGGER_TOKENS", 16000, raising=False)
+    monkeypatch.setattr(settings, "LIVE_CTX_TARGET_TOKENS", 12000, raising=False)
+    # ③ Supabase — 전 스위트가 **「미설정」**을 전제한다(예: `/__dev/signup` 이 503 이지
+    #   401 이 아니라는 단정). `.env.local` 에 실제 자격이 있으면 client 가 살아나 401 이 온다.
+    #   ⚠ `core/supabase_client.get_client()` 는 모듈 레벨 settings 를 보고 **성공 시 캐시**
+    #     하므로(`_ready`) 자격만 비우면 앞 시험이 만든 캐시가 그대로 쓰인다 — 캐시도 끊는다.
+    monkeypatch.setattr(settings, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(settings, "SUPABASE_SERVICE_KEY", "", raising=False)
+    try:
+        from core import supabase_client as _sc
+        monkeypatch.setattr(_sc, "_ready", False, raising=False)
+        monkeypatch.setattr(_sc, "_client", None, raising=False)
+    except Exception:  # noqa: BLE001
+        pass

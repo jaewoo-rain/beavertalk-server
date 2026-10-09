@@ -660,5 +660,102 @@ def test_turn_detection_disables_vendor_barge_in():
     assert td["type"] == "semantic_vad"
     assert td["interrupt_response"] is False, \
         "벤더 끼어들기가 켜져 있다 — barge-in off 설계와 어긋난다"
-    assert "create_response" not in td, \
-        "응답 생성 주체는 안 바꾼다 — false 로 두면 커밋을 놓칠 때 통화가 벙어리가 된다"
+    assert td["create_response"] is False, \
+        ("벤더가 응답을 자동 생성한다 — 비버 발화중 커밋이 끊지 않고 뒤에 붙어 "
+         "**간격 0초로 두 번** 말한다(1769·1770 실측)")
+
+
+# ── 혼자 이어 말하기(2026-10-09, 1769·1770 — 간격 0초) ───────────────────────────── #
+#   벤더 자동 생성을 끄고 **커밋을 받아 어댑터가** 만든다. 가드가 있는 통로를 지나므로
+#   비버 발화중에 온 커밋은 버려진다 — 그게 0초 이어말하기의 뿌리였다.
+@pytest.mark.asyncio
+async def test_commit_with_speech_creates_the_response_when_beaver_is_idle():
+    out, ws, sess = await _drain([
+        {"type": "input_audio_buffer.committed"},
+        {"type": "conversation.item.input_audio_transcription.delta", "delta": "안녕"},
+    ])
+    assert "response.create" in [m["type"] for m in ws.sent], \
+        "말이 있던 턴에 응답을 안 만들었다 — 아무도 안 만들면 통화가 벙어리다"
+
+
+@pytest.mark.asyncio
+async def test_commit_is_dropped_while_beaver_is_speaking():
+    """⭐ 이 통화의 증상 그 자체 — 비버가 말하는 중에 온 커밋."""
+    out, ws, sess = await _drain([
+        {"type": "response.created"},
+        {"type": "response.output_audio_transcript.delta", "delta": "안녕"},
+        {"type": "input_audio_buffer.committed"},
+    ])
+    assert "response.create" not in [m["type"] for m in ws.sent], \
+        "비버 발화중 커밋에 응답을 만들었다 — 끊지 않고 뒤에 붙어 간격 0초로 두 번 말한다"
+
+
+@pytest.mark.asyncio
+async def test_commit_after_done_creates_again():
+    """해제 뒤엔 정상 복귀 — 안 그러면 한 번 겹친 통화가 영구히 벙어리가 된다(R5)."""
+    out, ws, sess = await _drain([
+        {"type": "response.created"},
+        {"type": "input_audio_buffer.committed"},   # 버려진다(비버 발화중)
+        {"type": "conversation.item.input_audio_transcription.delta", "delta": "안녕"},
+        {"type": "response.done", "response": {}},
+        {"type": "input_audio_buffer.committed"},   # 이건 나가야 한다
+        {"type": "conversation.item.input_audio_transcription.delta", "delta": "안녕"},
+    ])
+    assert [m["type"] for m in ws.sent].count("response.create") == 1, \
+        [m["type"] for m in ws.sent]
+
+
+# ── 빈 커밋(2026-10-09, call 1775 — 간격 9.8초·입력 전사 0) ──────────────────────── #
+#   비버가 **쉬는 중**에 소음·무음이 턴으로 커밋됐을 뿐인데 응답을 만들어, 학습자 귀엔
+#   비버가 혼자 말한 것이 됐다. 커밋만으로 만들지 않고 **말이 있었나**를 보고 만든다.
+@pytest.mark.asyncio
+async def test_commit_alone_does_not_create_a_response():
+    """전사 조각이 오기 전엔 안 나간다 — 판정은 전사가 한다."""
+    out, ws, sess = await _drain([{"type": "input_audio_buffer.committed"}])
+    assert "response.create" not in [m["type"] for m in ws.sent], \
+        "커밋만으로 응답을 만들었다 — 소음 턴에도 비버가 말한다(call 1775)"
+
+
+@pytest.mark.asyncio
+async def test_empty_transcript_cancels_the_pending_response():
+    """⭐ 증상 그 자체 — 전사 확정이 비면 응답을 만들지 않는다."""
+    out, ws, sess = await _drain([
+        {"type": "input_audio_buffer.committed"},
+        {"type": "conversation.item.input_audio_transcription.completed",
+         "transcript": "   "},
+    ])
+    assert "response.create" not in [m["type"] for m in ws.sent], \
+        "빈 턴에 응답을 만들었다 — 비버가 아무 말도 없던 자리에 말한다"
+
+
+@pytest.mark.asyncio
+async def test_failed_transcript_cancels_the_pending_response():
+    out, ws, sess = await _drain([
+        {"type": "input_audio_buffer.committed"},
+        {"type": "conversation.item.input_audio_transcription.failed",
+         "error": {"message": "x"}},
+    ])
+    assert "response.create" not in [m["type"] for m in ws.sent]
+
+
+@pytest.mark.asyncio
+async def test_nonempty_final_transcript_still_creates_the_response():
+    """R5 — 조각을 못 봤어도 전문이 있으면 말이 있던 턴이다. 놓치면 통화가 끊긴다."""
+    out, ws, sess = await _drain([
+        {"type": "input_audio_buffer.committed"},
+        {"type": "conversation.item.input_audio_transcription.completed",
+         "transcript": "서울에 가고 싶어요"},
+    ])
+    assert "response.create" in [m["type"] for m in ws.sent], \
+        "전문이 있는 턴을 버렸다 — 학습자가 말했는데 비버가 침묵한다"
+
+
+@pytest.mark.asyncio
+async def test_gate_is_off_when_the_session_has_no_transcription():
+    """⛔ R5 — 전사가 꺼진 통화(`_apply_session` 재시도)에서 게이트를 켜면 벙어리가 된다."""
+    ws = _FakeWS([{"type": "input_audio_buffer.committed"}])
+    sess = oa.OpenAIRealtimeSession(ws, expect_transcription=False)
+    async for _ in sess.events():
+        pass
+    assert "response.create" in [m["type"] for m in ws.sent], \
+        "전사 없는 통화에서 응답을 안 만들었다 — 통화가 통째로 벙어리가 된다"

@@ -83,10 +83,24 @@ DEFAULT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 #       `⛔interrupted` 2건 · 오디오 공백 1.21s·2.72s·1.55s·3.41s · 응답지연 19.86초 ·
 #       비버 문장이 「Try again and say this:」 에서 **잘렸다**.
 #     ⇒ 벤더 쪽 끼어들기를 끈다. 이로써 세 관문의 전제가 하나로 맞는다.
-#   ⛔ `create_response` 는 **기본(true) 유지**다 — 그건 끼어들기 축이 아니라 「누가 응답을
-#     만드나」 축이고, false 로 하면 우리가 매 커밋에 직접 만들어야 해서 한 번 놓치면
-#     통화가 벙어리가 된다(R5).
-TURN_DETECTION: dict = {"type": "semantic_vad", "interrupt_response": False}
+#   ⭐⭐ `create_response: False` — **응답 생성 주체를 서버가 가져온다**(2026-10-09).
+#     종전엔 기본(true)로 뒀는데, 그러면 벤더가 **유저 턴 커밋마다 응답을 자동 생성**하고
+#     `interrupt_response: False` 때문에 그게 **끊지 않고 진행 중인 응답 뒤에 붙는다**
+#     ⇒ 학습자 귀엔 비버가 **간격 0초로 두 번** 말한다(사장님 실측 1769·1770:
+#       내용이 빈 user 턴 4건·2건, 그 뒤마다 비버 응답 1개).
+#     ⛔ `eagerness`(auto=4초/low=8초) 축이 아니다 — 그 축이면 **간격이 생긴다**.
+#     ⛔ 어댑터의 `_resp_active` 가드로도 못 막았다. 그 가드는 **우리가 쏘는 시드**만
+#       지나가고, 벤더 자동 생성은 우리를 통과하지 않는다.
+#     ⇒ 커밋(`input_audio_buffer.committed`)을 받아 어댑터가 `_create_response()` 로
+#       만든다. 그 통로엔 가드가 이미 있으니 **비버 발화중 커밋은 버려진다**.
+#     R5: 커밋을 놓치면 응답이 안 나간다 — 그물은 ①서버 무음 3단 넛지(`send_text_turn`
+#       으로 새 턴) ②절대 백스톱 540s. 가드가 거르는 순간은 비버가 말하는 중이라
+#       통화가 조용하지 않다.
+TURN_DETECTION: dict = {
+    "type": "semantic_vad",
+    "interrupt_response": False,
+    "create_response": False,
+}
 
 # ⛔⛔ **동시 통화 1건**(2026-10-04 사장님 결정 1). org TPM 40,000 에서 표정 ON 통화 1건이
 #   분당 ~30k 를 쓴다 — 2건이면 한도를 넘고, 넘으면 통화가 **조용히** 안 열린다.
@@ -266,9 +280,10 @@ class OpenAIRealtimeSession:
     """OpenAI Realtime WS 1개의 비동기 래퍼(호출부 인터페이스 6개 구현)."""
 
     __slots__ = ("_ws", "_up", "_closed", "_pending_face", "_seen_calls", "_sent_items",
-                 "_log_prefix", "_resp_active")
+                 "_log_prefix", "_resp_active", "_pending_response",
+                 "_expect_tr", "_saw_in_tr")
 
-    def __init__(self, ws: Any) -> None:
+    def __init__(self, ws: Any, *, expect_transcription: bool = True) -> None:
         self._ws = ws
         self._up = Upsampler16kTo24k()
         self._closed = False
@@ -284,6 +299,16 @@ class OpenAIRealtimeSession:
         #   ⛔ 호출부의 `state.turn_id` 가드로는 못 막는다: 자동 생성 직후엔 오디오 델타가
         #     아직 안 와서 그 값이 None 이다. 그래서 **어댑터가 직접 센다.**
         self._resp_active = False
+        # ⭐ 유저 턴이 커밋됐다 = 이제 응답을 만들 차례. `create_response: False` 라
+        #   벤더가 안 만든다. `_normalize` 는 동기 함수라 여기 깃발만 세우고 수신 루프가
+        #   보낸다(`_pending_face` 와 같은 꼴 — 그쪽 주석이 왜 루프에서 보내는지 설명한다).
+        self._pending_response = False
+        # ⭐⭐ 빈 커밋 게이트(F-1775). 커밋만으로 응답을 만들면 소음·무음 턴에도 비버가
+        #   말한다 — 1775 두 번째 턴이 그것이다. **그 턴에 말이 있었나**를 보고 만든다.
+        #   ⛔ `expect_transcription=False`(전사 꺼진 세션)면 게이트를 끈다 — 안 끄면
+        #     `in_tr` 이 영영 안 와서 통화가 벙어리가 된다(R5, `_apply_session` 재시도).
+        self._expect_tr = bool(expect_transcription)
+        self._saw_in_tr = False
 
     # -- 보내기 ---------------------------------------------------------------- #
     async def _send(self, obj: dict) -> None:
@@ -455,6 +480,17 @@ class OpenAIRealtimeSession:
                 call_id = self._pending_face.pop()
                 with contextlib.suppress(Exception):
                     await self.send_tool_response(call_id, None)
+            # ⭐⭐ 유저 턴 커밋 → 응답 생성. `yield` **앞**이다: yield 는 소비측 처리가
+            #   끝날 때까지 이 코루틴을 멈춰 세우고, 그 지연이 그대로 응답 지연이 된다
+            #   (바로 위 툴 자동응답을 앞으로 당긴 것과 같은 이유).
+            #   ⛔ `_create_response` 안의 `_resp_active` 가드가 **비버 발화중 커밋을
+            #     버린다** — 그게 「간격 0초로 혼자 이어 말하기」를 끊는 지점이다.
+            #   ⭐ 전사를 쓰는 세션이면 **말이 있었던 턴만** 보낸다(F-1775) — 빈 커밋은
+            #     위 전사 확정/실패 자리에서 깃발이 내려가 여기 오지 않는다.
+            if self._pending_response and (self._saw_in_tr or not self._expect_tr):
+                self._pending_response = False
+                with contextlib.suppress(Exception):
+                    await self._create_response()
             for out in out_events:
                 yield out
 
@@ -474,6 +510,9 @@ class OpenAIRealtimeSession:
             # 학습자 자막은 **델타로 흘린다** — 끊으면 자기 말이 문장 끝에야 뜨고,
             #   사장님이 call 1764 에서 «마이크 전사가 느리다» 로 바로 잡아냈다.
             txt = ev.get("delta") or ""
+            if txt:
+                # ⭐ 이 턴에 말이 있었다 — 빈 커밋 게이트의 통과 조건(F-1775).
+                self._saw_in_tr = True
             return [OpenAIRealtimeEvent(kind="in_tr", text=txt, is_final=False)] if txt else []
         if t == "conversation.item.input_audio_transcription.completed":
             txt = (ev.get("transcript") or "").strip()
@@ -489,15 +528,36 @@ class OpenAIRealtimeSession:
             #   ⚠ 그래서 이 경로에선 `is_final=True` 가 **영영 안 온다.** 지금 호출부는
             #     `REGROUND_ATTACH_AT in ("first","final")` 에서만 그 값을 보고, 운영은
             #     `mic_open` 이라 안 탄다(call_session.py:6256). 그 env 를 바꾸려면 여기도 본다.
-            if not txt:
+            if txt:
+                # ⭐ 조각을 못 봤어도 전문이 있으면 말이 있었던 턴이다(R5 — 놓치지 않는다).
+                self._saw_in_tr = True
+            else:
                 logger.info("%s 입력 전사 확정이 비었다(무음 워처에 맡긴다)", self._log_prefix)
+                if self._pending_response and not self._saw_in_tr:
+                    # ⭐⭐ 여기가 「혼자 말함」이 끊기는 자리다 — 소음·무음이 턴으로
+                    #   커밋됐을 뿐이므로 응답을 만들지 않는다(F-1775).
+                    self._pending_response = False
+                    logger.info("%s 빈 턴 — 응답을 만들지 않는다(혼자 말하기 차단)",
+                                self._log_prefix)
             return []
         if t == "conversation.item.input_audio_transcription.failed":
             logger.warning("%s 입력 전사 실패: %s", self._log_prefix,
                            json.dumps(ev.get("error") or {}, ensure_ascii=False)[:300])
+            if self._pending_response and not self._saw_in_tr:
+                self._pending_response = False
+                logger.info("%s 전사 실패 턴 — 응답을 만들지 않는다(무음 워처에 맡긴다)",
+                            self._log_prefix)
             return []
         if t == "response.function_call_arguments.done":
             return [self._tool_event(ev.get("call_id"), ev.get("name"), ev.get("arguments"))]
+        if t == "input_audio_buffer.committed":
+            # ⭐⭐ 유저 턴 경계. `create_response: False` 라 **여기서 우리가 만들어야** 한다.
+            #   깃발만 세운다 — 실제 전송은 수신 루프에서(이 함수는 동기).
+            # ⭐ 전사를 쓰는 세션이면 **말이 있었나**가 확인될 때까지 보내지 않는다
+            #   (F-1775). 조각이 오면 그때 나가고, 확정이 비면 이 깃발이 내려간다.
+            self._pending_response = True
+            self._saw_in_tr = False
+            return []
         if t == "response.created":
             self._resp_active = True
             return []
@@ -595,7 +655,7 @@ def _api_key(settings: Any) -> str:
     return key
 
 
-async def _apply_session(ws, config: dict) -> None:
+async def _apply_session(ws, config: dict) -> bool:
     """`session.update` 를 보내고 `session.updated` 를 확인한다.
 
     ⭐ **왜 확인까지 하나**: 설정이 거부되면 벤더는 `error` 를 보내고 **세션은 열린 채로
@@ -604,6 +664,10 @@ async def _apply_session(ws, config: dict) -> None:
     ⭐ 거부가 **입력 전사 때문이면 전사를 빼고 한 번 더** 시도한다(R5 — 전사 모델 이름이
       미검증이라 그 한 칸으로 통화 전체를 죽이지 않는다). 그러면 `in_tr` 이 없는 통화가
       되는데, 그건 로그로 드러난다(무음 넛지가 바로 돈다).
+
+    ⭐ **돌려주는 값 = 이 통화에 입력 전사가 켜져 있나.** 세션의 빈 커밋 게이트가 이 값을
+      본다 — 전사가 없는 통화에서 게이트를 켜면 응답을 아무도 안 만들어 **벙어리**가 된다
+      (F-1775, R5).
     """
     import websockets
 
@@ -614,12 +678,12 @@ async def _apply_session(ws, config: dict) -> None:
         left = deadline - asyncio.get_running_loop().time()
         if left <= 0:
             logger.warning("normalcall OpenAI: session.updated 확인 못 함(계속 진행)")
-            return
+            return "transcription" in config["session"]["audio"]["input"]
         try:
             raw = await asyncio.wait_for(ws.recv(), timeout=left)
         except (asyncio.TimeoutError, TimeoutError):
             logger.warning("normalcall OpenAI: session.updated 대기 시간초과(계속 진행)")
-            return
+            return "transcription" in config["session"]["audio"]["input"]
         except websockets.exceptions.ConnectionClosed as exc:
             raise OpenAIRealtimeError("세션 설정 중 연결이 닫혔습니다: %s" % exc) from exc
         try:
@@ -628,9 +692,9 @@ async def _apply_session(ws, config: dict) -> None:
             continue
         t = str((ev or {}).get("type") or "")
         if t == "session.updated":
-            logger.info("normalcall OpenAI 세션 설정 적용됨(전사=%s)",
-                        "on" if "transcription" in (config["session"]["audio"]["input"]) else "off")
-            return
+            on = "transcription" in (config["session"]["audio"]["input"])
+            logger.info("normalcall OpenAI 세션 설정 적용됨(전사=%s)", "on" if on else "off")
+            return on
         if t == "error":
             err = (ev or {}).get("error") or {}
             logger.error("normalcall OpenAI 세션 설정 거부: %s",
@@ -734,10 +798,10 @@ async def open_session(
             max_size=None,
             open_timeout=_SESSION_OPEN_TIMEOUT_S,
         ) as ws:
-            await _apply_session(ws, config)
+            tr_on = await _apply_session(ws, config)
             logger.info("normalcall OpenAI 세션 연결됨")
             try:
-                yield OpenAIRealtimeSession(ws)
+                yield OpenAIRealtimeSession(ws, expect_transcription=tr_on)
             finally:
                 logger.info("normalcall OpenAI 세션 종료")
     finally:

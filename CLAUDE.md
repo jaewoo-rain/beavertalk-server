@@ -65,7 +65,9 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - **R5. graceful degradation 유지.** 외부 키/서비스 부재로 앱 전체가 죽으면 안 된다 — 해당 기능만 비활성/스텁.
 - **R6. 비밀·파괴적 작업 확인.** JWT_SECRET·서비스계정 키·`.env`·prod 배포·마이그레이션 다운그레이드 등은 사용자 확인 또는 명시적 위임이 있을 때만.
 - **R7. CEO 오케스트레이터 전권.** `/beavertalk-dev`(CEO 스킬)가 분해·소집·통합·검증·기록을 총괄한다.
-- **R8. 끝나면 알린다 (herdr 판넬에서 일할 때).** 별도 판넬/탭에서 위임받아 일하는 에이전트는 **오케스트레이터를 스스로 깨워야 한다** — 오케스트레이터는 자기 판넬에 입력이 들어와야 도는 구조라 남을 감시하지 못한다. `herdr agent prompt <오케스트레이터 이름> "<보고>"` 로 밀어 넣는다(백엔드 판넬은 보통 `bt-back`).
+- **R8. 끝나면 알린다 (다른 터미널·워크트리에서 일할 때).** 위임받아 일하는 에이전트는 **오케스트레이터를 스스로 깨워야 한다** — 오케스트레이터는 자기 터미널에 입력이 들어와야 도는 구조라 남을 감시하지 못한다(Orca 가이드도 못박는다: `orchestration check --peek` 는 «never writes to terminal input or remotely wakes another terminal»).
+  - 깨우는 법 2가지 — 자유 보고는 `orca terminal send --terminal <handle> --text "<보고>" --enter`, 추적이 필요한 조율은 `orca orchestration send --subject <제목> --body <본문>`. 핸들은 `orca terminal list --json` 으로 받고, `terminal_handle_stale` 이 나면 **다시 받아 새 핸들만** 쓴다.
+  - ⛔ 명령을 외워 쓰지 마라 — 릴리스마다 바뀐다. `orca skills get orca-cli`(+`orchestration`)로 **버전에 맞는 정본**을 받아 쓴다.
   - **보고하는 때는 3가지뿐**: ①판단이 필요한 **결론**이 나온 즉시(모아서 보내지 말 것 — 늦으면 다른 탭이 틀린 전제로 간다) ②**막혔을 때**(추측으로 밀지 말 것) ③**맡은 일이 끝났을 때**.
   - **보고하지 않는 것**: 중간 진행 상황 중계, 지시 복창. 노이즈다.
   - **형식**: `[탭이름] 한 줄 결론` / `근거:` / `문서: docs/...` / `필요한 결정:`(없으면 "없음").

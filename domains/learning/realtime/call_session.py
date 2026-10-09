@@ -90,6 +90,7 @@ from domains.learning.realtime import seed_bundle
 from core.openai import session as openai_live
 from core.openai import tools as openai_tools
 from core.openai.prompts import expression as openai_expression
+from core.openai.prompts import chat as openai_chat
 from core.openai.prompts import freetalk as openai_freetalk
 from core.persona_prompt import (
     _LOCALE_LABEL,
@@ -3578,23 +3579,68 @@ async def run_call(
                 lambda db: chat_memory_service.load(db, member_id, spec.code),
             )
             chat_memory_dict = chat_memory_service.to_dict(chat_memory_row)
-            system_instruction = build_chat_instruction(
-                role=setup["role"],
-                personality=setup["personality"],
-                level_profile=level_profile,
-                locale=locale,
-                interests=setup["interests"],
-                name=setup["name"],
-                target_language=target_language,
-                close_tag=close_tag,
-                face_rule=face_rule_text,
-                language=spec.code,
-                memory=chat_memory_dict,
-            )
-            # ⭐⭐ QA C7-③: 기억이 빈약(사실 0·화제 0)하면 "아는 척" 시드가 내용 없이
-            #   나가 비버가 지어낸다 — seed_chat_opening 이 그때 빈 문자열을 돌려주므로
-            #   D8 오프닝으로 폴백한다.
-            seed_text = seed_chat_opening(target_language, chat_memory_dict) or seed_freetalk_opening(target_language)
+            # ⭐⭐ **엔진 분기 3번째 자리**(2026-10-08, 자유대화). ⛔ 프리토킹과 **다른
+            #   자리**다 — chat 은 cur 라우트를 타지 않아 위 cur 블록에 넣으면 **닿지 않는다**
+            #   (cur 가 내는 코스는 expression·freetalk 둘뿐).
+            #   ⛔ env(`OPENAI_REALTIME_COURSES`)에 chat 이 없으면 False 라 아래 else 가
+            #     종전 그대로 돈다(Gemini 대본·시드 **바이트 동일**).
+            use_openai = call_service.live_openai_for(call_type)
+            if use_openai:
+                # ⛔ GPT 전용 대본이다 — Gemini 대본(`build_chat_instruction`)을 고쳐 쓰는
+                #   것이 아니라 **다른 파일**이다. 프리토킹과 공유 블록 4개를 같이 쓴다
+                #   (`core/openai/prompts/chat.py` 모듈 독스트링).
+                system_instruction = openai_chat.build_chat_instruction(
+                    role=setup["role"],
+                    personality=setup["personality"],
+                    locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
+                    interests=setup["interests"],
+                    memory=chat_memory_dict,
+                    target_language=target_language,
+                    name=setup["name"],
+                    level_note=openai_expression.first_sentence(level_profile),
+                    # ⭐ 표정 게이트를 다시 판정하지 않는다 — 위에서 이미 계산된
+                    #   `face_rule_text` 가 있나 없나만 본다.
+                    face_rule=openai_tools.face_rule_block() if face_rule_text else "",
+                )
+                # ⭐ 「아는 척」 시드는 **기억이 있을 때만** 나간다. 빈약하면 빈 문자열이
+                #   돌아오므로 평범한 선톡으로 폴백한다(Gemini 판과 같은 규율 — QA C7-③:
+                #   내용 없이 아는 척하면 비버가 지어낸다).
+                seed_text = (openai_chat.seed_chat_opening(target_language, chat_memory_dict)
+                             or openai_chat.seed_chat_plain_opening(target_language))
+                # ⛔ 주입된 가짜 팩토리(시험)가 있으면 그게 이긴다 — 라우팅 결정만 시험하고
+                #   실제 WS 는 열지 않을 수 있어야 한다.
+                if live_session_factory is None:
+                    factory = openai_live.open_session
+                # ⛔⛔ **`call_id` 를 찍지 마라** — 이 분기는 통화 행이 만들어지는 자리
+                #   (`:3723` `call_id = await ...`) **보다 앞**이다. cur 블록(expression·
+                #   freetalk)은 그 뒤라서 찍어도 되는데, 여기서 같은 로그를 베꼈다가
+                #   `UnboundLocalError` 로 **WS 가 즉시 죽었다**(2026-10-08 실측: 통화 행도
+                #   안 남아 「시작하자마자 오류」로 보였다). 시험이 이 자리를 지킨다.
+                logger.info(
+                    "normalcall 자유대화(GPT): 기억=%s 관심사=%d 모델=%s 표정=%s",
+                    "있음" if openai_chat.memory_is_substantial(chat_memory_dict) else "빈약",
+                    len([i for i in (setup["interests"] or []) if (i or "").strip()]),
+                    settings.OPENAI_REALTIME_MODEL,
+                    "on" if face_rule_text else "off",
+                )
+            else:
+                system_instruction = build_chat_instruction(
+                    role=setup["role"],
+                    personality=setup["personality"],
+                    level_profile=level_profile,
+                    locale=locale,
+                    interests=setup["interests"],
+                    name=setup["name"],
+                    target_language=target_language,
+                    close_tag=close_tag,
+                    face_rule=face_rule_text,
+                    language=spec.code,
+                    memory=chat_memory_dict,
+                )
+                # ⭐⭐ QA C7-③: 기억이 빈약(사실 0·화제 0)하면 "아는 척" 시드가 내용 없이
+                #   나가 비버가 지어낸다 — seed_chat_opening 이 그때 빈 문자열을 돌려주므로
+                #   D8 오프닝으로 폴백한다.
+                seed_text = seed_chat_opening(target_language, chat_memory_dict) or seed_freetalk_opening(target_language)
         # ⭐⭐ C14-a(2026-09-23) — 옛 "normal" 전용 else 분기(build_system_instruction·
         #   seed_opening 호출)를 지웠다. C3 라우팅 뒤로 여기 call_type 은 chat·expression·
         #   freetalk 뿐이고(레벨테스트는 위 if 에서 이미 갈렸다) 셋 다 위 if/elif 가 잡는다
@@ -6378,7 +6424,7 @@ async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallSt
                    streak, streak + 1, state.next_turn_index, turn_text)
     if streak == 1:
         if state.turn_id is None and not state.should_close:
-            await session.send_text_turn(state.seeds.loop_break)
+            await session.send_text_turn(state.seeds.loop_break_for(state))
             _note_text_inject(state, "loop")
             logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
         return
@@ -6794,7 +6840,7 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         return
     state.resume_sent += 1
     try:
-        await session.send_text_turn(state.seeds.resume_after_slip)
+        await session.send_text_turn(state.seeds.resume_after_slip_for(state))
         logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
     except asyncio.CancelledError:
         raise

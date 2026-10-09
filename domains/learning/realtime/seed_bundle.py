@@ -73,6 +73,11 @@ class _Bundle:
     # None 이면 `apply_to` 가 state 를 **안 건드린다**(= 종전 그대로).
     _nudge_1: Optional[str] = None
     _nudge_2: Optional[str] = None
+    # ⭐ 대화 코스(프리토킹·자유대화) 변형 — 표현학습 글자가 그 두 코스에 꽂히던 것을 가른다
+    #   (2026-10-08 F16). Gemini 묶음은 전부 None 이라 **종전 바이트 동일**이다.
+    _nudge_1_conv: Optional[str] = None
+    _loop_break_conv: Optional[str] = None
+    _resume_conv: Optional[str] = None
     _close_seed: Optional[Callable[[str], str]] = None
 
     def quiz_cue(self, labels: str, n: int, *, retry: bool = False,
@@ -85,6 +90,18 @@ class _Bundle:
     def quiz_set_reminder(self, labels: str) -> str:
         return self._quiz_set_reminder(labels)
 
+    def loop_break_for(self, state) -> str:
+        """루프 차단 쪽지 — 대화 코스면 변형. ⛔ 읽는 자리가 한 곳이라 헬퍼로 둔다."""
+        if not getattr(state, "expr_items", None) and self._loop_break_conv:
+            return self._loop_break_conv
+        return self.loop_break
+
+    def resume_after_slip_for(self, state) -> str:
+        """미끄러짐 복구 쪽지 — 대화 코스면 변형(「수업은 아직」이 그쪽엔 안 맞는다)."""
+        if not getattr(state, "expr_items", None) and self._resume_conv:
+            return self._resume_conv
+        return self.resume_after_slip
+
     def apply_to(self, state, *, close_tag: str) -> None:
         """⛔ **여기가 「분기 한 자리」다.** 호출부엔 `if` 가 없다 — 묶음이 자기 몫만 한다.
 
@@ -94,7 +111,11 @@ class _Bundle:
         if self._close_seed is not None:
             state.close_seed = self._close_seed(close_tag)
         if self._nudge_1 is not None:
-            state.nudge_seed_1 = self._nudge_1
+            # ⭐ 표현학습이 아니면(= expr_items 가 비면) 대화 변형을 쓴다. 표현학습 글자는
+            #   「항목·다음 번호·수업」과 **「학습자의 모국어로 힌트」**를 시켜 100% 목표어를
+            #   깨뜨린다. ⚠ `expr_items` 는 `:4184` 에서 이 호출보다 먼저 세워진다.
+            conv = self._nudge_1_conv if not getattr(state, "expr_items", None) else None
+            state.nudge_seed_1 = conv or self._nudge_1
         if self._nudge_2 is not None:
             state.nudge_seed_2 = self._nudge_2
 
@@ -121,6 +142,9 @@ OPENAI: SeedBundle = _Bundle(
     _nudge_1=gpt_seeds.NUDGE_1,
     _nudge_2=gpt_seeds.NUDGE_2,
     _close_seed=gpt_seeds.close_seed,
+    _nudge_1_conv=gpt_seeds.NUDGE_1_CONVERSATION,
+    _loop_break_conv=gpt_seeds.LOOP_BREAK_CONVERSATION,
+    _resume_conv=gpt_seeds.RESUME_AFTER_SLIP_CONVERSATION,
 )
 
 _BY_ENGINE = {"openai": OPENAI}

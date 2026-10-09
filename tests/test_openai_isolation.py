@@ -292,3 +292,101 @@ def test_freetalk_opening_seed_carries_no_material():
     seed = ft.seed_freetalk_opening("한국어", "카페에서 음료 주문하기")
     assert "물 주세요" not in seed and "커피 마시고" not in seed
     assert "질문 하나로 닫는다" in seed, "턴 착지 규약이 시드에도 있어야 한다"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 자유대화(chat) 전용 못 — 역할극이 아니고, 빈 블록을 안 내보낸다
+# ─────────────────────────────────────────────────────────────────────────────
+_CHAT_KW = dict(
+    role="비버 선생님", personality="장난기 있고 직설적",
+    locale_label="영어(English)", target_language="한국어", name="Baba",
+    level_note="초급 — 짧은 문장만 알아듣는다.",
+)
+_MEM = {"summary": "여행 이야기를 했다", "topics": ["제주도 여행"],
+        "facts": ["강아지를 키운다"], "next_topics": ["다음 휴가 계획"]}
+
+
+def _chat_text(**kw):
+    from core.openai.prompts import chat as ch
+    return ch.build_chat_instruction(**{**_CHAT_KW, **kw})
+
+
+def test_chat_shares_the_hard_won_blocks_with_freetalk():
+    """⛔⛔ 두 코스가 **같은 글자**를 써야 한다 — 복제하면 한쪽만 고쳐져 조용히 갈라진다.
+
+    공유 4개(금지·턴 착지·막혔을 때·recast)는 표현학습에서 값을 치르고 얻은 규칙이다.
+    """
+    from core.openai.prompts import chat as ch, freetalk as ft
+    kw = dict(target_language="한국어", locale_label="영어(English)")
+    text = _chat_text(memory=_MEM)
+    assert ft.block_forbidden(**kw) in text, "금지 블록이 공유 글자가 아니다"
+    assert ft.block_stuck(**kw) in text, "막혔을 때 블록이 공유 글자가 아니다"
+    assert ft.block_recast(target_language="한국어") in text
+    assert ft.block_turn_landing(target_language="한국어", max_sentences=2) in text
+    # chat 모듈이 freetalk 의 블록을 **쓴다**(복제 아님)
+    import inspect
+    src = inspect.getsource(ch)
+    assert "from core.openai.prompts.freetalk import" in src
+
+
+def test_chat_is_not_roleplay():
+    """⛔ 자유대화엔 역할극·차시가 없다 — 그건 프리토킹이다."""
+    text = _chat_text(memory=_MEM)
+    banned = ["역할극", "네가 맡은 사람", "이번 상황", "인물로 돌아가", "장면"]
+    hit = [w for w in banned if w in text]
+    assert not hit, "역할극 어휘가 섞여 들었다: %s" % hit
+    assert "그냥 이야기한다" in text and "인물을 맡지 않고" in text
+
+
+def test_chat_omits_empty_interest_and_memory_blocks():
+    """⛔⛔ 빈 머리말이 나가면 모델이 **지어낸다**(Gemini 판 QA C7-③ 와 같은 규율)."""
+    bare = _chat_text(interests=None, memory=None)
+    assert "[관심사]" not in bare and "[기억" not in bare, "빈 블록이 나갔다"
+    bare2 = _chat_text(interests=["  ", ""], memory={"topics": [], "facts": []})
+    assert "[관심사]" not in bare2 and "[기억" not in bare2, "공백만 있어도 블록을 내면 안 된다"
+    full = _chat_text(interests=["축구"], memory=_MEM)
+    assert "[관심사]" in full and "축구" in full
+    assert "[기억 — 지난 자유대화에서 알게 된 것]" in full
+    # ⚠ `topics` 는 **블록에 안 들어간다** — Gemini 판과 같은 계약이다. topics 는
+    #   「아는 척」 시드가 화제 하나를 고르는 재료이고, 블록은 summary·facts·next_topics 다.
+    assert "여행 이야기를 했다" in full, "summary 가 빠졌다"
+    assert "강아지를 키운다" in full, "facts 가 빠졌다"
+    assert "다음 휴가 계획" in full, "next_topics 가 빠졌다"
+    assert "제주도 여행" not in full, "topics 는 블록이 아니라 시드 재료다"
+    assert "적혀 있지 않은 것을 지어내지 마라" in full, "환각 금지 한 줄이 빠졌다"
+
+
+def test_chat_has_no_close_protocol_vocabulary():
+    """⛔ 종료 어휘 금지는 코스와 무관하다(call 706·852·870)."""
+    text = _chat_text(interests=["축구"], memory=_MEM)
+    banned = ["마무리", "마지막", "여기까지", "종료", "작별", "통화를 끝", "서버가 알린", "끝내는 때"]
+    hit = [w for w in banned if w in text]
+    assert not hit, "종료 어휘가 들어갔다: %s" % hit
+
+
+def test_chat_recall_seed_is_a_bracket_instruction_not_a_line():
+    """⛔⛔ 시드에 **비버 대사**를 담으면 비버가 자기 말에 스스로 답한다(Gemini R4-a 실측).
+
+    그래서 모든 시드는 «대괄호 지시» 형식이다. 그리고 기억이 빈약하면 **빈 문자열**이라
+    호출부가 평범한 선톡으로 폴백한다.
+    """
+    from core.openai.prompts import chat as ch
+    seed = ch.seed_chat_opening("한국어", _MEM)
+    assert seed.startswith("[지시]"), "대괄호 지시 형식이 아니다 — 비버가 대사로 읽는다"
+    assert "제주도 여행" in seed
+    assert ch.seed_chat_opening("한국어", None) == ""
+    assert ch.seed_chat_opening("한국어", {"topics": [], "facts": []}) == ""
+    plain = ch.seed_chat_plain_opening("한국어")
+    assert plain.startswith("[지시]") and "한국어" in plain
+
+
+def test_chat_memory_gate_is_single_sourced():
+    """⛔ `[기억]` 블록과 「아는 척」 시드가 **같은 관문**을 써야 한다.
+
+    다르면 「시드는 아는 척하는데 블록엔 내용이 없는」 상태가 된다.
+    """
+    from core.openai.prompts import chat as ch
+    thin = {"summary": "뭔가 있었다", "topics": [], "facts": []}   # summary 만 있다
+    assert ch.memory_is_substantial(thin) is False
+    assert ch.seed_chat_opening("한국어", thin) == ""
+    assert "[기억" not in _chat_text(memory=thin), "관문이 어긋났다"
