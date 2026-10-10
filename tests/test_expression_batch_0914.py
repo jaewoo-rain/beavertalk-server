@@ -27,18 +27,20 @@ def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_lang
     """C1(비ko 전용 표기 줄)은 그대로 · ⭐ 15차(2026-09-19, 사장님 지시 — 1657 ko t13): «먼저 물어라» 는 **전 언어 공통**이다."""
     ja = _instr("ja", "일본어")
     assert "일본어 낱말·문장은 언제나 일본어 문자로 말하고 적어라 — 학습자 모국어 문자로 음차해 적거나 읽지 마라." in ja, "C1"
-    ask = "항목마다 **먼저 물어보고** 학습자가 시도한 뒤에만 정답을 공개해라(못 하면 최대 3번)"
-    assert ja.count(ask) == 1, "ja 는 정확히 1회 — 공통 자리로 옮기며 비ko 목록에서 뺐다(중복 0)"
+    # 2026-10-10 길이 줄이기 E1: «먼저 물어라» 는 drill_intro(편집, 전 언어 공통) 한 줄로 합쳤다 — DRILL_ASK_FIRST_LINE 삭제.
+    ask = "정답은 학습자가 시도한 뒤에만 들려준다"
+    assert ja.count(ask) == 1, "ja 는 정확히 1회(중복 0)"
     ko = _instr("ko", "한국어")
     assert "음차해 적거나 읽지 마라" not in ko, "표기 줄은 여전히 비ko 전용"
-    assert ko.count(ask) == 1, "15차 — ko 도 이제 «먼저 물어라» 를 받는다(1657 t13 재발 방지)"
+    assert ko.count(ask) == 1, "15차 — ko 도 «먼저 물어라» 를 받는다(1657 t13 재발 방지)"
+    assert not hasattr(lex, "DRILL_ASK_FIRST_LINE")
     assert lex.DRILL_EXTRA_LINES_BY_LANGUAGE["ko"] == ()
     assert lex.DRILL_EXTRA_LINES_DEFAULT == (lex.DRILL_TARGET_SCRIPT_LINE,), "비ko 전용 목록에는 표기 줄만 남는다"
-    # 자리: drill_intro 바로 뒤 — ja 는 종전 순서 그대로(표기 → 먼저 물어라), ko 는 drill_intro 바로 뒤
+    # 자리: drill_intro 바로 뒤 — ja 는 표기 줄 다음, ko 는 곧바로 정답 공개 줄
     proc_ja = lex.procedure(drill_intro="- 드릴", target="일본어", locale_label="한국어", language="ja").splitlines()
-    assert proc_ja[1] == "- 드릴" and proc_ja[2].startswith("- 일본어 낱말·문장은") and proc_ja[3].startswith("- 항목마다") and proc_ja[4] == lex.DRILL_REVEAL_LINE
+    assert proc_ja[1] == "- 드릴" and proc_ja[2].startswith("- 일본어 낱말·문장은") and proc_ja[3] == lex.DRILL_REVEAL_LINE
     proc_ko = lex.procedure(drill_intro="- 드릴", target="한국어", locale_label="영어(English)").splitlines()
-    assert proc_ko[1] == "- 드릴" and proc_ko[2].startswith("- 항목마다") and proc_ko[3] == lex.DRILL_REVEAL_LINE
+    assert proc_ko[1] == "- 드릴" and proc_ko[2] == lex.DRILL_REVEAL_LINE
 
 
 # --------------------------------------------------------------------------- #
@@ -46,7 +48,9 @@ def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_lang
 # --------------------------------------------------------------------------- #
 def test_expression_prompt_forbids_self_ending_after_the_list():
     # 2026-10-09 통화프롬프트 점검(PM 10-01) P08: 종료를 지시문에서 설명하지 않는다 — «끝내지 마라 / 서버가 알린다» 를 빼고 할 일(다시 시키기 → 표현 바꿔 이어가기)만 남겼다.
-    line = "목록을 다 돌았으면 아직 해내지 못한 항목을 다시 시키고, 그 다음에는 배운 표현을 바꿔 가며 계속 이어가라."
+    # 2026-10-10 길이 줄이기 E6(P15): rule1 셋째 불릿을 재료 소진 줄(잠금)로 합쳤다 — 같은 행동이 한 곳에만 있다.
+    line = "재료를 다 쓴 뒤에도 대화는 그대로 이어진다 — 아직 해내지 못한 항목을 먼저 다시 시키고"
+    assert "목록을 다 돌았으면" not in _instr("ko", "한국어"), "두 벌 금지(P15)"
     assert line in _instr("ko", "한국어") and line in _instr("ja", "일본어")
     for banned in ("작별", "종료", "마지막", "마무리", "정리", "여기까지", "퀴즈", "끝내"):
         assert banned not in line

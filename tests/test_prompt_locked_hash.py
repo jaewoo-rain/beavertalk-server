@@ -67,13 +67,13 @@ FROZEN: dict[str, str] = {
     # 2026-09-13 실통화 1550 — bt-back 승인 2줄(다른 올바른 정중한 표현 인정 · 한 턴 요청 하나)
     # 2026-09-16 실통화 1636 재기준 — 인정 범위를 어휘 교체에서 «어미·조사·군말» 까지 넓혔다(옛 5c0ae1f224b77db9)
     "expression.DRILL_ALT_CORRECT_LINE": "3c88e76c5d7eb7d4",
-    "expression.DRILL_ONE_ASK_LINE": "01cfaa899b1e48c1",
+    "expression.DRILL_ONE_ASK_LINE": "b47b39275990bf94",   # 2026-10-10 길이 줄이기 E7 «한 응답에 한 항목» 을 이 줄로 합침(옛 01cfaa899b1e48c1)
     "expression.QUIZ_LINE_1": "a5a763e2c205836a",   # 2026-10-09 통화프롬프트 점검(PM 10-01) P03 퀴즈 시작 선언 제거(옛 70e88636bce80ce3)
     "expression.QUIZ_LINE_2": "afbbc31838202091",
     "expression.ITEMS_HEADER": "f34fdcee428d7a32",
     "expression.ITEMS_LANGUAGE_NOTE": "093d2ebe6b76e246",
-    "expression.ITEMS_EXHAUSTION_LINE": "72b10e569c8de7d9",
-    "expression.CHARACTER_FRAME": "f3ed92faa2d65e55",   # 2026-10-09 통화프롬프트 점검 2차(PM 10-01 S3·S4) (옛 0e5e6aaa60166e64)
+    "expression.ITEMS_EXHAUSTION_LINE": "996b3252ad3c0fd8",   # 2026-10-10 길이 줄이기 E6(P15) rule1 셋째 불릿을 이 줄로 합침(옛 72b10e569c8de7d9)
+    "expression.CHARACTER_FRAME": "4dc6f9dc9b4ee447",   # 2026-10-10 길이 줄이기 E2 절차 반복 제거·«맞았다고 하지는 마라» 유지(옛 f3ed92faa2d65e55 · 그 전 0e5e6aaa60166e64)
     # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
     # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)
@@ -81,7 +81,7 @@ FROZEN: dict[str, str] = {
     # 2026-09-14 C1·C2 비ko 전용 드릴 줄(실통화 1601 ja). ⭐ 2026-09-19 15차: DRILL_ASK_FIRST_LINE 은 **전 언어 공통**이 됐다
     #   (procedure 가 직접 붙인다) — 문장 자체는 무변경이라 이 해시는 그대로고, 바뀐 것은 ko 조립 결과다
     "expression.DRILL_TARGET_SCRIPT_LINE": "db851d31d1021909",
-    "expression.DRILL_ASK_FIRST_LINE": "3e98c1a9d3f4a73a",
+    # 2026-10-10 길이 줄이기 E1: DRILL_ASK_FIRST_LINE 삭제 — editable drill_intro 에 «정답은 학습자가 시도한 뒤에만 들려준다» 로 합침(옛 3e98c1a9d3f4a73a)
     # 2026-09-14 E(사장님 확정, 실통화 1592) — [문형] 항목은 같은 문형의 다른 올바른 문장도 정답. ko·ja 공통(has_grammar 일 때만)
     "expression.DRILL_GRAMMAR_ALT_LINE": "3b3c2f297047daad",
     "seeds.EXPRESSION_DRILL_MOVE_ON": "c8036af5f641d952",   # 2026-09-18 11차 B 드릴 루프 안내(1643 2.5) — 새 문장, 기존 경로 무변경
@@ -153,12 +153,12 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "expression.model_block": ("865fcbe447210536", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
     # 2026-09-14 E — has_grammar 판에 DRILL_GRAMMAR_ALT_LINE 1줄 · 2026-09-16 dev 머지(DRILL_ALT_CORRECT_LINE 확장)로 셋 다 재기준. 문법 없는 차시(has_grammar=False)는 아래 procedure_nogrammar 그대로.
-    "expression.procedure": ("91d62d73eeac28da", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
-    "expression.procedure_ja": ("13d4b56ece22a50a", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)
-    "expression.procedure_nogrammar": ("c555b4a90e9072bd", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)
+    "expression.procedure": ("b16289dc75d560dd", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),
+    "expression.procedure_ja": ("ce2e24dfdff099a6", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)
+    "expression.procedure_nogrammar": ("eb0896a9212089a2", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)
     "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
     "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
-    "expression.items_block": ("1704dbb54003a3ab", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),
+    "expression.items_block": ("f0fda140924a32f1", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),
     "normal.study_block": ("1b19e2de0fd2947c", lambda: normal.study_block([{"slot": "main", "kind": "grammar", "obj": "-고 싶다", "ex": "가고 싶어요", "des": "want", "state": "new"}, {"slot": "reserve", "kind": "chunk", "obj": "안녕히 가세요", "ex": None, "des": None, "state": "review", "this_call": True}], target="한국어", locale_label="영어(English)", lang_band="beginner")),
     "normal.study_block_l1": ("048df830e20011ef", lambda: normal.study_block([{"slot": "main", "kind": "chunk", "obj": "안녕하세요", "ex": None, "des": None, "state": "new"}], target="한국어", locale_label="영어(English)", lang_band="survival")),
     "normal.known_block": ("80d655861dfa293e", lambda: normal.known_block({"grammar": ["-아요"], "targets": [{"obj": "-고 싶다", "ex": "가고 싶어요", "hint": "주말"}]}, target="한국어", locale_label="영어(English)")),

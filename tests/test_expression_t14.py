@@ -217,7 +217,7 @@ def test_the_nudge_gives_a_hint_in_a_quiz_and_a_model_in_a_drill() -> None:
 def test_the_give_up_path_never_says_correct() -> None:
     """T15-3 — 1398 t9: 3번째 시도 「잘 못 들었다」(반말·오답)에 극찬. 포기 경로에 «맞았다고 하지 마라» 가 없었다."""
     out = _script()
-    assert "짧게 넘기되 **맞았다고 하지는 마라** — 틀린 건 틀린 거다" in out      # [반응] 포기 경로
+    assert "넘어가더라도 **맞았다고 하지는 마라** — 틀린 건 틀린 거다" in out      # [반응] 포기 경로(2026-10-10 길이 줄이기 E2 문구)
     assert "다음 번호 항목으로 넘어가라 — **맞았다고 하지는 마라.**" in out      # [진행 절차] 포기 경로
 
 

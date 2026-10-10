@@ -26,7 +26,7 @@ DRILL_FORMALITY_LINE = '- {target}의 정중한 형태를 가르치고 있다. �
 #   둘 다 올바른 정중형이고 뜻이 같다. 그래서 «다른 표현» 의 범위를 **어미·조사·군말**까지 넓힌다(무엇이 같아야 하는지는 «뜻 + 정중함»).
 DRILL_ALT_CORRECT_LINE = '- 학습자가 목표 표현 대신 **뜻이 통하는 다른 올바른 정중한 표현**을 말하면 틀렸다고 하지 마라. 어휘가 다르거나(«고마워요» 자리에 «감사합니다»), 조사·어미가 다르거나(«화장실이 어디예요?» 자리에 «화장실은 어디 있나요?»), 군말이 더 붙어도(«이거 주세요» 자리에 «이거 하나 주세요») 전부 맞은 것이다 — 맞다고 인정한 뒤 오늘 배우는 표현으로도 한 번 말해 보게 해라. 반말은 여전히 맞힌 게 아니다.'
 # 실통화 1550 t72·t119·t143: «잘 지냈어요? 말해 봐. 그리고 헤어질 때는?» — 한 턴에 요청 둘. 규칙 5(길이)와 다른 축(개수)이라 절차에만 한 줄.
-DRILL_ONE_ASK_LINE = '- 한 턴에 질문·요청은 **하나**만 — 두 개를 이어 묻지 마라.'
+DRILL_ONE_ASK_LINE = '- 한 턴에 항목 하나, 질문·요청도 **하나**만 — 여러 항목이나 두 질문을 이어 묻지 마라.'
 # 언어별 격식 줄(2026-09-13 ja 배선). ko 는 위 DRILL_FORMALITY_LINE **그 객체**(바이트 동일 — 해시 시험). 새 언어는 여기 한 줄.
 DRILL_FORMALITY_LINE_BY_LANGUAGE: dict[str, str] = {
     "ko": DRILL_FORMALITY_LINE,
@@ -36,13 +36,14 @@ DRILL_FORMALITY_LINE_BY_LANGUAGE: dict[str, str] = {
 #   C1 1601 비버가 「こんにちは」 를 '곤니치와' 로 15번 적었다 — 목표어는 목표어 문자로. C2 1601 t3·t5 처음부터 정답을 들려주고 따라 하게 했다 — 먼저 묻고,
 #   시도 뒤에만 공개(DRILL_REVEAL_LINE 의 «최대 3번» 과 같은 규율을 순서로 강조). ko 는 기존 drill_intro(편집 문구)+DRILL_REVEAL_LINE 그대로.
 DRILL_TARGET_SCRIPT_LINE = '- {target} 낱말·문장은 언제나 {target} 문자로 말하고 적어라 — 학습자 모국어 문자로 음차해 적거나 읽지 마라.'
-DRILL_ASK_FIRST_LINE = '- 항목마다 **먼저 물어보고** 학습자가 시도한 뒤에만 정답을 공개해라(못 하면 최대 3번) — 처음부터 정답을 들려주고 따라 하게 하지 마라.'
 DRILL_EXTRA_LINES_BY_LANGUAGE: dict[str, tuple[str, ...]] = {
     "ko": (),                                                    # ⛔ ko 바이트 불변
 }
 # ⭐ 15차(2026-09-19, 사장님 지시 — 실통화 1657 ko t13 «…: "처음 뵙겠습니다." Can you try that?» 로 묻지 않고 정답부터 줬다):
 #   DRILL_ASK_FIRST_LINE 은 이제 **전 언어 공통**이다(procedure 가 extra 뒤에 직접 붙인다). 여기서는 뺀다 — 두면 ja 가 같은 줄을 두 번 받는다.
 #   ⚠ 문장은 한 글자도 안 바뀌었다(위치만 이동). ja 조립 바이트도 그대로다 — 공통 줄을 **extra 뒤**에 두어 종전 순서를 지켰다.
+# ⭐ 2026-10-10 E1(길이 줄이기): DRILL_ASK_FIRST_LINE 을 **지웠다** — 바로 위 drill_intro(편집)에 «정답은 학습자가 시도한 뒤에만 들려준다» 로
+#   합쳤다(같은 말이 붙은 두 줄). «최대 3번» 은 DRILL_REVEAL_LINE 한 곳. 규칙 3 EXPR_RULE3_ASK_FIRST 는 남겼다(1601·1657 방어 2곳 유지).
 DRILL_EXTRA_LINES_DEFAULT: tuple[str, ...] = (DRILL_TARGET_SCRIPT_LINE,)   # ja 등 비ko
 DRILL_SILENCE_LINE = '- 학습자가 조용하면 오답으로 치지 마라. 첫 무음은 답을 주지 말고 {locale_label}로 다시 묻고, 두 번째 연속 무음이면 들려주고 따라 말하게 해라 — 계속 무응답이면 다음 항목으로 넘어가라.'
 # [퀴즈] — T16 큐 계약: «{CONTROL_TAG} 이 «지금 퀴즈를 내라» 고 알릴 때만». CONTROL_TAG 는 조립 때 끼운다.
@@ -53,10 +54,10 @@ QUIZ_LINE_2 = "- 틀리면 힌트(첫 음절·상황·뜻)만 — **표현 전�
 # [오늘의 표현] 목록 머리·언어 안내·재료 소진(«끝» 이 아니라 «다음» — call 870).
 ITEMS_HEADER = '[오늘의 표현 — 이 목록을 번호 순서대로 다뤄라]'
 ITEMS_LANGUAGE_NOTE = '⚠ 적힌 언어는 네가 말할 언어와 무관하다 — 여기 적힌 표현·예문만 {target}로 또박또박 들려주고, 그것을 꺼내는 말·지시·반응·뜻 설명은 전부 {locale_label}로 해라. 목록의 존재·남은 개수·진행률은 학습자에게 발설하지 마라.'
-ITEMS_EXHAUSTION_LINE = '- 재료를 다 쓴 뒤에도 대화는 그대로 이어진다 — 오늘 다룬 표현들이 서로 어떻게 다르고 언제 쓰는지 {locale_label}로 한두 문장만 짚어 주고, 학습자가 그중 하나를 넣은 문장을 직접 만들어 말하게 해라 — 표현을 바꿔 가며 계속 이어가라.'
+ITEMS_EXHAUSTION_LINE = '- 재료를 다 쓴 뒤에도 대화는 그대로 이어진다 — 아직 해내지 못한 항목을 먼저 다시 시키고, 그다음엔 오늘 다룬 표현들이 서로 어떻게 다르고 언제 쓰는지 {locale_label}로 한두 문장만 짚어 준 뒤, 학습자가 그중 하나를 넣은 문장을 직접 만들어 말하게 해라 — 표현을 바꿔 가며 계속 이어가라.'
 
 # [반응] — «맞았다고 하지는 마라» 를 판정이 기대한다.
-CHARACTER_FRAME = '[반응 — 네 캐릭터로 한다]\n- 맞혔을 때·다시 시켜야 할 때: 네 캐릭터대로 반응하거나 한 번 더 청하고, 되면 곧바로 다음 번호 항목으로 이어 가라.\n- 틀렸을 때: 네 캐릭터대로 반응한 뒤 올바른 표현을 또박또박 들려주고 따라 말하게 해라. [진행 절차]의 재시도 횟수를 다 써도 안 되면 캐릭터대로 짧게 넘기되 **맞았다고 하지는 마라** — 틀린 건 틀린 거다.\n⚠ 반응의 세기·말투는 [페르소나] 그대로다. 가르치는 순간이라고 톤을 순화하지 마라.'
+CHARACTER_FRAME = '[반응 — 네 캐릭터로 한다]\n- 맞혔을 때·틀렸을 때·다시 시킬 때 모두 반응은 네 캐릭터대로 하고, 무엇을 할지는 [진행 절차]를 따른다. 넘어가더라도 **맞았다고 하지는 마라** — 틀린 건 틀린 거다.\n⚠ 반응의 세기·말투는 [페르소나] 그대로다. 가르치는 순간이라고 톤을 순화하지 마라.'
 
 # [3.1 말투] — T21-B. 2.5 는 빈 문자열(바이트 동일). 줄 5·6 에 {target}·{locale_label} 슬롯.
 MODEL_BLOCK_31_LINES: tuple[str, ...] = (
@@ -103,7 +104,6 @@ def procedure(*, drill_intro: str, target: str, locale_label: str, has_grammar: 
         PROCEDURE_HEADER,
         drill_intro.format(**fmt),
         *[line.format(**fmt) for line in extra],
-        DRILL_ASK_FIRST_LINE.format(**fmt),          # 15차 — 전 언어 공통(ko 추가·ja 중복 제거). 자리는 종전 ja 와 같은 맥락(drill_intro 뒤)
         *([DRILL_GRAMMAR_LINE, DRILL_GRAMMAR_ALT_LINE] if has_grammar else []),
         DRILL_REVEAL_LINE,
         formality.format(**fmt),
