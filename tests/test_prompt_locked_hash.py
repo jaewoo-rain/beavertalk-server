@@ -44,7 +44,7 @@ FROZEN: dict[str, str] = {
     "normal.STUDY_NEXT_TAIL": "a42fc35c930ec159",
     "normal.KNOWN_GRAMMAR_FALLBACK": "8c87dcf09dedfacc",
     "normal.PROMOTION_NOTICE_TEMPLATE": "47bc5541db2c29da",
-    "leveltest.LEVELTEST_PROCEDURE": "f546feb20d6df451",   # 2026-10-11 길이 줄이기 2단계(레벨테스트) L1~L4 중복 합치기(옛 63b6e96b2bee36f0) · 2026-10-09 통화프롬프트 점검(PM 10-01) P05·P18 매번→한 번만·한국어 대사 예시 제거(옛 2dd8376b07b4ce58)
+    "leveltest.LEVELTEST_PROCEDURE": "f546feb20d6df451",   # 2026-10-10 길이 줄이기 2단계(레벨테스트) L1~L4 중복 합치기(옛 63b6e96b2bee36f0) · 2026-10-09 통화프롬프트 점검(PM 10-01) P05·P18 매번→한 번만·한국어 대사 예시 제거(옛 2dd8376b07b4ce58)
     "leveltest.LEVELTEST_LADDER_KO": "8d87a4cf422dc6af",
     "leveltest.LEVELTEST_LADDER_JA": "f8a9755f57db995e",
     "leveltest.LEVELTEST_LADDER_EN": "4636d541d80547b7",

@@ -118,7 +118,7 @@ _FROZEN: dict[str, tuple[str, int]] = {
     "live_survival": ("96e23311bd2d59a90b1eadca449c30231e7e4c6f0d7622dc68715b17cb2081e6", 6135),
     "live_face_tool": ("f718605d73d6121eb283a339ded6128a64264f4c3af4b4f1a9532db30bb7d115", 4405),   # 2026-09-12 [표정] 블록 qual 로 교체(사장님 결정, bt-back 승인) — 옛 dec3ed7d…/4827
     "cascade_optin": ("7aadb5781e94e6530737ce9a3425c2b4f58e27b9846df549186a9a844eab095f", 4713),
-    "leveltest": ("79eef7974d3f4f64b3bea8ad46fc3980afdfafd887c72081d4c99c0b19e31ed2", 2671),   # 2026-10-11 길이 줄이기 2단계(레벨테스트) L1~L4 — 옛 72fd3a26…/2879   # 2026-10-09 통화프롬프트 점검 2차(PM 10-01 S3·S4) — 옛 08b89edd…/2865   # 2026-10-09 통화프롬프트 점검(PM 10-01) intro 방어·절차 P05 — 옛 d6f61eaf…/2734 · 2026-09-30 DB 캐릭터 주입 + 빈정 축(사장님 지시, bt-back) — 옛 019f4df8…/2117
+    "leveltest": ("79eef7974d3f4f64b3bea8ad46fc3980afdfafd887c72081d4c99c0b19e31ed2", 2671),   # 2026-10-10 길이 줄이기 2단계(레벨테스트) L1~L4 — 옛 72fd3a26…/2879   # 2026-10-09 통화프롬프트 점검 2차(PM 10-01 S3·S4) — 옛 08b89edd…/2865   # 2026-10-09 통화프롬프트 점검(PM 10-01) intro 방어·절차 P05 — 옛 d6f61eaf…/2734 · 2026-09-30 DB 캐릭터 주입 + 빈정 축(사장님 지시, bt-back) — 옛 019f4df8…/2117
     "seed_opening": ("0b1d8dcb23e47f0669fffdf94738eb8c51039a82fc0cc5fe1b2c7a3a668f0fcf", 285),
     "seed_opening_lean": ("9489cfd0c65021bb0a058d30e20cc87e111bf010d765a752aa936a1b14c04c27", 129),
     "seed_resume": ("0843114577a4be222834feaa5b66cf2717801a8e47fc2393945a50337dbc8925", 242),

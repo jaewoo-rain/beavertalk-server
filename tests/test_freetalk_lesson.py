@@ -102,7 +102,7 @@ def test_lesson_script_rule_anchors() -> None:
     assert "**역할극**이다" in r1 and "«상대»에 적힌 인물이 되어" in r1 and "그냥 대화한다" in r1
     assert "연습을 시키거나 무엇을 말하라고 요구하지 마라" in r1 and "설명·따라 말하기·정오 판정은 이 통화에 없다" in r1
     assert "**그 턴만 선생님으로 돌아와**" in r1 and "다시 그 인물로 돌아가라" in r1
-    # 2026-10-11 길이 줄이기 3단계 C1 — 착지 규칙은 규칙 3 한 곳(«질문·요청 하나로 착지»)
+    # 2026-10-10 길이 줄이기 3단계 C1 — 착지 규칙은 규칙 3 한 곳(«질문·요청 하나로 착지»)
     assert "질문 하나로 착지" not in r1 and "질문·요청 하나로 착지시켜라" in out
     for gone in ("과제", "직접 던지는", "너 자신으로서", "연기하지 마라", "회화 연습"):
         assert gone not in out, gone
