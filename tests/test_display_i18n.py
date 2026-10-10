@@ -184,6 +184,47 @@ def test_situation_failure_is_null_and_not_cached(db, client):
 
 
 # =========================================================================== #
+# C2. partner_translation (2026-10-10 PM-DEC-485) — 상황과 같은 캐시·같은 규칙, kind 만 cur_partner
+# =========================================================================== #
+PARTNER = "한국어 수업에서 처음 만난 반 친구"
+
+
+def test_partner_ko_or_empty_is_null_and_no_call(db):
+    c = FakeClient()
+    assert svc.partner_translation(db, c, PARTNER, "ko") is None
+    assert svc.partner_translation(db, c, None, "en") is None
+    assert svc.partner_translation(db, c, "  ", "en") is None
+    assert c.calls == []
+    assert db.query(CurTextI18n).count() == 0
+
+
+def test_partner_miss_translates_and_caches_under_its_own_kind(db):
+    c = FakeClient(lambda texts, _: ["A classmate you just met in Korean class"])
+    assert svc.partner_translation(db, c, PARTNER, "en") == "A classmate you just met in Korean class"
+    row = db.query(CurTextI18n).one()
+    assert (row.kind, row.source, row.locale) == ("cur_partner", PARTNER, "en")
+
+    c2 = FakeClient(raises=AssertionError("캐시가 있는데 또 번역했다"))
+    assert svc.partner_translation(db, c2, PARTNER, "en") == "A classmate you just met in Korean class"
+    assert c2.calls == []
+
+
+def test_partner_and_situation_rows_do_not_mix(db):
+    """같은 한국어 문구라도 상황 캐시가 상대역 답으로 새지 않는다(kind 로 가른다)."""
+    db.add(CurTextI18n(kind="cur_situation", source=PARTNER, locale="ja", text="状況の訳"))
+    db.commit()
+    c = FakeClient(lambda texts, _: ["相手役の訳"])
+    assert svc.partner_translation(db, c, PARTNER, "ja") == "相手役の訳"
+    assert len(c.calls) == 1
+
+
+@pytest.mark.parametrize("client", [None, FakeClient(raises=TimeoutError("slow"))])
+def test_partner_failure_is_null_and_not_cached(db, client):
+    assert svc.partner_translation(db, client, PARTNER, "en") is None
+    assert db.query(CurTextI18n).count() == 0
+
+
+# =========================================================================== #
 # D. §10 통화 목록 요약
 # =========================================================================== #
 def _cached(db):

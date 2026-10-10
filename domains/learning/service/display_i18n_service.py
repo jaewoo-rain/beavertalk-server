@@ -27,6 +27,8 @@ from domains.learning.repository import display_i18n_repository as repo
 logger = logging.getLogger(__name__)
 
 KIND_CUR_SITUATION = "cur_situation"
+#: cur_lesson.partner(상대역) — 회화학습 힌트 시트 「이번 대화」 상대 줄(2026-10-10 PM-DEC-485).
+KIND_CUR_PARTNER = "cur_partner"
 
 
 def display_locale(member_language: Optional[str]) -> str:
@@ -57,11 +59,28 @@ def situation_translation(
 
     locale 이 ko 면 None — 원문이 한국어다(ko 행은 만들지 않는다).
     """
-    src = (situation or "").strip()
+    return _cur_text_translation(db, client, KIND_CUR_SITUATION, situation, locale)
+
+
+def partner_translation(
+    db: Session, client, partner: Optional[str], locale: str,
+) -> Optional[str]:
+    """차시 상대역(cur_lesson.partner)의 회원 언어 번역 — situation_translation 과 같은 캐시·같은 번역기.
+
+    kind 만 cur_partner 로 갈라 같은 한국어 문구가 상황·상대역 양쪽에 나와도 행이 섞이지 않는다.
+    """
+    return _cur_text_translation(db, client, KIND_CUR_PARTNER, partner, locale)
+
+
+def _cur_text_translation(
+    db: Session, client, kind: str, source: Optional[str], locale: str,
+) -> Optional[str]:
+    """cur_* 한국어 표시 문구 하나의 회원 언어 번역 — 캐시(cur_text_i18n) 우선, 없으면 번역해 저장. 실패는 None."""
+    src = (source or "").strip()
     if not src or locale == "ko":
         return None
     try:
-        cached = repo.get_cur_text(db, KIND_CUR_SITUATION, src, locale)
+        cached = repo.get_cur_text(db, kind, src, locale)
         if cached:
             return cached
         got = text_translate.translate_texts(
@@ -71,11 +90,11 @@ def situation_translation(
         text = got[0] if got else None
         if not text:
             return None
-        _save(db, lambda: repo.add_cur_text(db, KIND_CUR_SITUATION, src, locale, text),
-              what=f"cur_text_i18n locale={locale}")
+        _save(db, lambda: repo.add_cur_text(db, kind, src, locale, text),
+              what=f"cur_text_i18n kind={kind} locale={locale}")
         return text
     except Exception:  # noqa: BLE001 - 번역·캐시 실패가 /cur/me 를 막으면 안 된다(R5)
-        logger.warning("display_i18n: 상황 번역 실패(null) locale=%s", locale, exc_info=True)
+        logger.warning("display_i18n: %s 번역 실패(null) locale=%s", kind, locale, exc_info=True)
         _rollback(db)
         return None
 

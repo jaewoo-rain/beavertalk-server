@@ -26,11 +26,16 @@ def get_me(member: CurrentMember, db: DbSession, client: GenaiClient) -> CurMeOu
 
     §6(2026-09-29): lesson.situation_translation = situation 의 회원 **모국어**(member.language) 번역 — 요청에 언어를
     싣지 않는다. 캐시에 없으면 이 요청에서 번역해 저장하고, 실패하면 null(조회는 그대로 200).
+    lesson.partner_translation(2026-10-10 PM-DEC-485)도 같은 경로·같은 규칙이다(kind 만 cur_partner).
     """
     out = cur_svc.me(db, member.member_id, _language_of(member))
     if out.get("lesson"):
+        locale = i18n_svc.display_locale(member.language)
         out["lesson"]["situation_translation"] = i18n_svc.situation_translation(
-            db, client, out["lesson"].get("situation"), i18n_svc.display_locale(member.language),
+            db, client, out["lesson"].get("situation"), locale,
+        )
+        out["lesson"]["partner_translation"] = i18n_svc.partner_translation(
+            db, client, out["lesson"].get("partner"), locale,
         )
     return CurMeOut.model_validate(out)
 

@@ -575,7 +575,7 @@ def complete_freetalk(db: Session, call_id: int, duration_s: float, normal_end: 
 
 # ── 조회·dev ─────────────────────────────────────────────────────────────── #
 def me(db: Session, member_id: int, language: str = "ko") -> dict:
-    """GET /cur/me (§2) — {language, available, lesson:{no,code,level_no,situation,topic}, status, items_total, items_drilled, open, next_course}.
+    """GET /cur/me (§2) — {language, available, lesson:{no,code,level_no,situation,topic,partner}, status, items_total, items_drilled, open, next_course}.
 
     ⭐ language·available(2026-09-13 사장님: "cur/me 도 지금 배우는 언어를 DB 에서 확인하고 띄우면 될 듯"): 앱이 «이게 어느 언어 진도인지»
       와 «이 언어에 커리큘럼이 있는지» 를 안다. 시드 없는 언어(en·zh·fr·vi — 마이페이지 피커엔 있다)면 **500 대신** available=False 로
@@ -598,6 +598,8 @@ def me(db: Session, member_id: int, language: str = "ko") -> dict:
         "lesson": {
             "no": lesson.no, "code": lesson.code, "level_no": lesson.level_no,
             "situation": lesson.situation, "topic": _topic_name(db, lesson),
+            # 상대역(2026-10-10 PM-DEC-485) — 회화학습 힌트 시트 「이번 대화」 상대 줄. 빈 차시는 None(앱이 줄을 숨긴다).
+            "partner": (lesson.partner or "").strip() or None,
         },
         "status": status,
         "items_total": items_total,

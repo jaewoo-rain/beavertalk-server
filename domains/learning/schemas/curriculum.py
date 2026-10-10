@@ -27,6 +27,10 @@ class CurLessonOut(BaseModel):
     situation_translation: Optional[str] = None
     #: 주제(cur_topic.name). 없으면 None.
     topic: Optional[str] = None
+    #: 상대역(cur_lesson.partner · 2026-10-10 PM-DEC-485) — 회화학습 힌트 시트 상대 줄. 빈 차시는 None(앱이 줄을 숨긴다).
+    partner: Optional[str] = None
+    #: partner 의 회원 모국어 번역 — situation_translation 과 같은 규칙(ko·실패·partner 없음 → null).
+    partner_translation: Optional[str] = None
 
 
 class CurOpenOut(BaseModel):
