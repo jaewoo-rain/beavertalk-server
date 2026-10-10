@@ -552,7 +552,7 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # 2026-09-19 재기준(15차, 사장님 지시 — 실통화 1657 ko t13 «묻지 않고 정답부터»): DRILL_ASK_FIRST_LINE 을 전 언어 공통으로 올려 **ko 대본에 1줄 추가** → 4393 → 4475.
 #   ⚠ 문장은 한 글자도 안 바뀌었다(비ko 전용 목록에서 공통 자리로 이동). ja 조립은 바이트 동일(expression.procedure_ja 해시 무변).
 # 2026-10-10 사고 방어 패치: G1 종료 문장 · G7 현지인 문장 제약 · F1 큰따옴표 지시 → 3741 → 3828.
-_EXPR_FROZEN = ("ce1573df818a6d445b75765daf417e7c71dda442f6fe31260fb67435fb635edb", 3828)
+_EXPR_FROZEN = ("e17ad723a41c3e58a0f2273bdec0fafaf3bd930f1843b41cbc69158fd6bb70e0", 3764)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:

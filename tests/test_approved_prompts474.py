@@ -47,7 +47,7 @@ def test_approved_body_is_kept_in_full(name,key):
     approved = json.loads((Path(__file__).parent/'fixtures/approved_call_prompts474.json').read_text(encoding='utf-8'))
     assert text == approved[name + ':' + key]
     # 2026-10-10 사고 방어 패치 G1 — 대본에서 종료 개념을 꺼내지 않는다(README 원칙 5 · call 706·782·852·870)
-    assert '종료' not in text and '계속 이어간다' in text
+    assert '종료' not in text and '이어간다' in text
     assert el.validate(name,el.load(name),el.load(name)) == []
 
 

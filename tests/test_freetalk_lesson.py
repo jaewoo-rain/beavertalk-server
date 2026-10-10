@@ -45,7 +45,7 @@ BASE = dict(
     target_language="한국어",
 )
 #: 옛 프리토킹 대본(lesson=None) 기준 — 2026-09-12 차시판 도입 직전 출력. ⛔ 터지면 옛 경로 대본이 바뀐 것이다(README §8 에 적고 갱신).
-_FREETALK_OLD_FROZEN = ("969373e3d46b55946cf981da605d4394acac0f8d714fa9ab5d8b03597b58111a", 1665)  # 2026-10-10 사고 방어 패치 G1 — 옛 96677fea…/1672
+_FREETALK_OLD_FROZEN = ("643d9da1b0cf43846370312d33b2b8adbc998328846e7b01e7a79544f24a145d", 1662)  # 2026-10-10 사고 방어 패치 G1 — 옛 96677fea…/1672
 
 _BRIEF = cur.CurFreetalkBrief(
     situation="처음 만난 반 친구와 이름과 나라 말하기",
@@ -121,7 +121,7 @@ def test_lesson_block_lists_all_items_with_grammar_as_example_sentences() -> Non
     block = out.split("[이번 차시 — 이 상황을 역할극으로 대화한다]", 1)[1]
     assert "- 상황: 처음 만난 반 친구와 이름과 나라 말하기" in block
     assert "- 상대: 한국어 교실에서 처음 만난 반 친구 — **네가 이 사람이다.** 이 인물로서 말하고 묻고 답한다." in block
-    assert "인물 정보가 없으면 네가 정해서 일관되게 유지하라. 말투·성격은 네 캐릭터 그대로다." in block  # G5 — [페르소나] 라벨이 대본에 없다(끊긴 참조)
+    assert "인물 정보가 없으면 네가 정해서 일관되게 유지하라." in block and "[페르소나]" not in block and "말투·성격은" not in block  # 문체 정리 — 덧붙였던 «말투·성격» 문장은 승인 본문 «캐릭터 말투를 유지한다»와 중복이라 뺌
     assert "상황 묘사다" not in block
     assert "문형은 이름을 말하지 말고 문장으로 써라." in block
     assert '문형: 인사말 — "안녕히 계세요." / N은/는 N이에요/예요 — "생일이 언제예요?" / N입니까?, N입니다 — "저는 회사원입니다."' in block

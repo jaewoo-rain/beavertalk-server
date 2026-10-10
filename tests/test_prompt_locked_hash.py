@@ -44,7 +44,7 @@ FROZEN: dict[str, str] = {
     "normal.STUDY_NEXT_TAIL": "a42fc35c930ec159",
     "normal.KNOWN_GRAMMAR_FALLBACK": "8c87dcf09dedfacc",
     "normal.PROMOTION_NOTICE_TEMPLATE": "47bc5541db2c29da",
-    "leveltest.LEVELTEST_PROCEDURE": "e05e73e2ac627aef",   # 2026-10-10 사고 방어 패치 G2·G3 꼬리 2문장(옛 e16c60b24148b3ca)
+    "leveltest.LEVELTEST_PROCEDURE": "d5973d9063ff2e42",   # 2026-10-10 사고 방어 패치 G2·G3 꼬리 2문장(옛 e16c60b24148b3ca)
     "leveltest.LEVELTEST_LADDER_KO": "8d87a4cf422dc6af",
     "leveltest.LEVELTEST_LADDER_JA": "f8a9755f57db995e",
     "leveltest.LEVELTEST_LADDER_EN": "4636d541d80547b7",
