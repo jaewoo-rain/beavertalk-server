@@ -42,7 +42,7 @@ def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_lang
 # --------------------------------------------------------------------------- #
 def test_expression_prompt_forbids_self_ending_after_the_list():
     for lang,target in (("ko","한국어"),("ja","일본어")):
-        assert "서버가 종료를 알릴 때까지 이어간다" in _instr(lang,target)
+        assert "계속 이어간다" in _instr(lang,target) and "종료" not in _instr(lang,target)  # 2026-10-10 사고 방어 패치 G1
         assert lex.ITEMS_EXHAUSTION_LINE.format(locale_label="한국어" if lang=="ja" else "영어(English)") in _instr(lang,target)
 
 

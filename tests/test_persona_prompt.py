@@ -369,7 +369,7 @@ _LT_KWARGS = dict(
 def test_leveltest_continuation_rule_and_no_readout():
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    assert "서버가 종료를 알릴 때까지 이어간다" in lt
+    assert "계속 이어간다" in lt and "종료" not in lt  # 2026-10-10 사고 방어 패치 G1
     assert "서버 안내문은 낭독하지 않는다" in lt
     assert "[통화종료" not in lt
 
@@ -454,7 +454,7 @@ def test_leveltest_no_ceiling_function_block():
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt=build_leveltest_instruction(**_LT_KWARGS)
     assert "leveltest_ceiling_reached" not in lt and "[천장 신호" not in lt
-    assert "서버가 종료를 알릴 때까지 이어간다" in lt
+    assert "계속 이어간다" in lt  # 2026-10-10 사고 방어 패치 G1
 
 
 def test_leveltest_question_seed_symbol_removed():
@@ -1042,11 +1042,11 @@ def test_prompt_never_mentions_closing():
         ("일반+공부·대화 블록", with_blocks),
         ("일반+L1 청크 블록", with_l1),
     ):
-        assert "종료" not in out.replace("서버가 종료를 알릴 때까지 이어간다.", ""), f"{name} 대본에 추가 종료 설명이 들어왔다"
+        assert "종료" not in out, f"{name} 대본에 종료 설명이 들어왔다"  # 2026-10-10 사고 방어 패치 G1 — 예외 replace 제거
         assert "통화종료" not in out
         assert "마무리" not in out, f"{name} 대본에 '마무리'가 다시 들어왔다"
         # 남아야 하는 것
-        assert "대화를 계속 이어가는 것이다" in out or "서버가 종료를 알릴 때까지 이어간다" in out
+        assert "대화를 계속 이어가는 것이다" in out or "계속 이어간다" in out
         assert "소리 내어 읽거나" in out or "서버 안내문은 낭독하지 않는다" in out
 
 
