@@ -1861,7 +1861,16 @@ def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool 
         logger.info("%s arm 생략(OPENAI_SELF_QUIZ): call_id=%s 항목=%s — 개시를 모델에 맡긴다",
                     EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), nums)
         return
-    state.expr_quiz_cue_pending = _expression_quiz_cue(state, nums, retry=retry)
+    _cue = _expression_quiz_cue(state, nums, retry=retry)
+    if not _cue.strip():
+        # ⭐ GPT 묶음은 퀴즈 큐를 비웠다(2026-10-10 사장님 지시) ⇒ **창을 열지 않는다.**
+        #   ⛔ `pending` 에 "" 를 넣으면 얹기 자리가 매 발화마다 헛돌고 `is not None`
+        #     가드(:1884)가 큐가 있는 것으로 읽는다. 위 `expr_self_quiz` 와 같은 모양으로
+        #     arm 자체를 건너뛴다.
+        #   ⚠ 창이 안 열리면 서버 판정(passed/failed)도 안 돈다 — 알고 끄는 것이다.
+        logger.info("normalcall 퀴즈 arm 생략(쪽지 없음): call_id=%s 항목=%s", state.call_id, nums)
+        return
+    state.expr_quiz_cue_pending = _cue
     state.expr_quiz_cue_armed_ts = asyncio.get_running_loop().time() if _loop_running() else None
     logger.info(
         "%s arm: call_id=%s seq=%d 항목=%s retry=%s covered=%d", EXPR_QUIZ_CUE_LOG_PREFIX,
@@ -6450,7 +6459,9 @@ async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallSt
                    streak, streak + 1, state.next_turn_index, turn_text)
     if streak == 1:
         if state.turn_id is None and not state.should_close:
-            await session.send_text_turn(state.seeds.loop_break_for(state))
+            _loop_note = state.seeds.loop_break_for(state)
+            if _loop_note.strip():        # ⭐ GPT 묶음은 비어 있다(2026-10-10) → 안 보낸다
+                await session.send_text_turn(_loop_note)
             _note_text_inject(state, "loop")
             logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
         return
@@ -6866,7 +6877,9 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         return
     state.resume_sent += 1
     try:
-        await session.send_text_turn(state.seeds.resume_after_slip_for(state))
+        _slip_note = state.seeds.resume_after_slip_for(state)
+        if _slip_note.strip():            # ⭐ GPT 묶음은 비어 있다(2026-10-10) → 안 보낸다
+            await session.send_text_turn(_slip_note)
         logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
     except asyncio.CancelledError:
         raise
@@ -7289,6 +7302,11 @@ async def _send_note(session: LiveSessionProtocol, text: str) -> None:
     걷어냈다 — 2.5 계열 모델 자체가 더 이상 안 쓰인다. 되살릴 일이 있으면
     `git show` 로 `_cue_completed_turn`/`EXPR_CUE_COMPLETED_TURN_25` 이력을 참고하라.
     """
+    # ⭐ 빈 쪽지는 보내지 않는다 — 묶음이 「할 말 없음」으로 비워 둔 자리다
+    #   (2026-10-10: GPT 는 무음 3단만 쓴다). 빈 문자열을 그대로 보내면 벤더 대화에
+    #   빈 system 항목이 쌓이고 그게 다음 턴에 읽힌다.
+    if not (text or "").strip():
+        return
     await session.send_reground(text, turn_complete=False)
 
 

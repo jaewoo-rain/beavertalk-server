@@ -224,8 +224,38 @@ def test_gpt_seeds_use_the_measured_bracket_prefix():
 
     assert gpt.NOTE_TAG == CONTROL_TAG, "접두가 서버 안전망과 어긋났다"
     from domains.learning.realtime import seed_bundle as sb
+    # ⭐ 2026-10-10 사장님 지시로 **무음 3단만** 남았다 — 나머지 자리는 빈 문자열이고
+    #   보내는 자리가 그걸 삼킨다. 그래서 「비어 있지 않은 것만」 접두를 본다.
     for key, text in _bundle_strings(sb.OPENAI).items():
+        if not text:
+            continue
         assert text.startswith(gpt.NOTE_TAG), key
+
+
+def test_gpt_keeps_only_the_three_stage_silence_notes():
+    """⭐⭐ 남은 쪽지가 **무음 3단뿐**이다(2026-10-10 사장님 지시).
+
+    없앤 것 — 루프 차단 · 미끄러짐 복구 · 드릴 체류 안내 · 퀴즈 큐 · 퀴즈 세트 안내.
+    되살리려면 커밋 `5b138bc`.
+    ⚠ 무엇을 잃었는지: ①퀴즈 큐가 없으면 서버가 되묻기 창을 안 열고 서버 판정
+      (passed/failed)도 안 돈다 ②반복·제어문 낭독·조기 작별을 서버가 되박지 않는다.
+    ⛔ Gemini 묶음은 **그대로다** — 같은 자리를 두 엔진이 쓰므로 GPT 쪽만 비웠다.
+    """
+    from core.openai.prompts import seeds as gpt
+    from domains.learning.realtime import seed_bundle as sb
+
+    names = {n for n in dir(gpt) if n.isupper() and isinstance(getattr(gpt, n), str)}
+    assert names == {"NOTE_TAG", "NUDGE_1", "NUDGE_1_CONVERSATION", "NUDGE_2",
+                     "SILENCE_CLOSE"}, sorted(names)
+    # 묶음에서도 비어 있다 — 보내는 자리가 빈 문자열을 삼킨다.
+    assert sb.OPENAI.loop_break == ""
+    assert sb.OPENAI.resume_after_slip == ""
+    assert sb.OPENAI.drill_move_on == ""
+    assert sb.OPENAI.quiz_cue("<L>", 1, retry=False) == ""
+    assert sb.OPENAI.quiz_set_reminder("<L>") == ""
+    # ⛔ 대조군 — Gemini 는 그대로 들고 있다.
+    assert sb.GEMINI.loop_break and sb.GEMINI.drill_move_on
+    assert sb.GEMINI.quiz_cue("<L>", 1, retry=False, locale_label="<N>", target="<T>")
 
 
 def test_gpt_seeds_do_not_contain_glyphs_that_could_be_read_aloud():

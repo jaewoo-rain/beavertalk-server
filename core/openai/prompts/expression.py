@@ -99,9 +99,11 @@ def build_expression_instruction(
 
     ⛔ 이 글자를 「개선」하지 마라. 종전 대본(다섯 차례 튜닝해 3,198자→2,766자였던 것)은
       커밋 `399aee2` 에 있다. 되돌릴 일이 생기면 git 에서 꺼낸다.
+    ⭐ `quiz_group` 은 **쓴다**(2026-10-10) — 「3개마다 복습」의 그 수다. 글자로 박지 않고
+      서버 상수에서 뽑아, 서버가 바꾸면 대본이 따라오게 한다(출력은 지금도 「3개」다).
     ⚠ 아래 인자는 **받기만 하고 쓰지 않는다** — 새 대본에 그 자리가 없다. 호출부
       (`call_session.py`)가 넘기고 있어 시그니처는 유지한다. 지우려면 호출부도 같이.
-        `quiz_group` · `name` · `level_note` · `max_sentences` · `retry_limit` · `self_quiz`
+        `name` · `level_note` · `max_sentences` · `retry_limit` · `self_quiz`
       ⛔ 「각 문장 최대 2회」는 **전문의 숫자다**. `retry_limit`(기본 3)으로 바꿔 끼우지
         마라 — 서버 출구 상한과 어긋나면 그때 사장님께 묻는다.
     ⚠ 남기는 것은 `[오늘의 표현]`(전문의 「제공된 표현」이 가리키는 자리)과 표정 규칙뿐이다.
@@ -124,8 +126,10 @@ def build_expression_instruction(
         % (locale_label, target_language),
 
         "# 진행\n"
-        "설명·반응은 %s로 하며 캐릭터 말투를 유지한다.\n"
-        "하나씩 다루고 답을 기다리며, 서버가 종료를 알릴 때까지 이어간다." % locale_label,
+        "설명·반응은 %(l)s로 하며 캐릭터 말투를 유지한다.\n"
+        "%(g)d개를 가르칠 때마다 그 %(g)d개를 하나씩 다시 물어 복습한 뒤 다음 %(g)d개로 간다.\n"
+        "하나씩 다루고 답을 기다리며, 서버가 종료를 알릴 때까지 이어간다."
+        % {"l": locale_label, "g": int(quiz_group)},
 
         _items_block(items, target=target_language),
     ]

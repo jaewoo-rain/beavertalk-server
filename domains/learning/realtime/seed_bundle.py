@@ -132,19 +132,27 @@ GEMINI: SeedBundle = _Bundle(
 )
 
 # ── GPT ──────────────────────────────────────────────────────────────────────── #
+# ⛔⛔ **무음 3단만 남겼다**(2026-10-10 사장님 지시). 루프 차단·미끄러짐 복구·드릴 체류·
+#   퀴즈 큐·퀴즈 세트 안내는 **빈 문자열**이다 — 보내는 자리가 빈 쪽지를 삼킨다
+#   (`_send_note` · 루프차단/복구 자리 · 퀴즈 arm). 되살리려면 커밋 `5b138bc`.
+#   ⚠ 필드를 **지우지 않고 비운다**: `SeedBundle` 프로토콜을 Gemini 가 같이 쓰므로
+#     자리를 없애면 그쪽이 깨진다. 여기선 「할 말이 없다」로만 둔다.
+def _no_note(*_a, **_k) -> str:
+    """쪽지를 보내지 않는다 — 빈 문자열이면 호출부가 건너뛴다."""
+    return ""
+
+
 OPENAI: SeedBundle = _Bundle(
     name="openai",
-    loop_break=gpt_seeds.LOOP_BREAK,
-    resume_after_slip=gpt_seeds.RESUME_AFTER_SLIP,
-    drill_move_on=gpt_seeds.DRILL_MOVE_ON,
-    _quiz_cue=gpt_seeds.quiz_cue,
-    _quiz_set_reminder=gpt_seeds.quiz_set_reminder,
+    loop_break="",
+    resume_after_slip="",
+    drill_move_on="",
+    _quiz_cue=_no_note,
+    _quiz_set_reminder=_no_note,
     _nudge_1=gpt_seeds.NUDGE_1,
     _nudge_2=gpt_seeds.NUDGE_2,
     _close_seed=gpt_seeds.close_seed,
     _nudge_1_conv=gpt_seeds.NUDGE_1_CONVERSATION,
-    _loop_break_conv=gpt_seeds.LOOP_BREAK_CONVERSATION,
-    _resume_conv=gpt_seeds.RESUME_AFTER_SLIP_CONVERSATION,
 )
 
 _BY_ENGINE = {"openai": OPENAI}

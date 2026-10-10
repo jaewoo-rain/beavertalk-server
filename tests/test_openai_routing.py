@@ -599,13 +599,17 @@ def test_cascade_rows_still_fall_back_to_unknown():
 # 서버가 쥐는 것 ① 퀴즈 창 — **OpenAI 경로에서도 서버가 연다**
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_server_opens_the_quiz_window_on_the_openai_call(
+async def test_server_no_longer_opens_the_quiz_window_on_the_openai_call(
         session_factory, seeded, openai_on, monkeypatch):
-    """⭐ GPT 는 퀴즈를 **스스로 안 열었다**(0회·3라운드) ⇒ 서버 T16 상태기계가 큐를 얹는다.
+    """⛔⛔ **서버가 퀴즈 창을 더 이상 열지 않는다**(2026-10-10 사장님 지시 — 쪽지 축소).
 
-    ⛔ 이 경로가 재접지 워처와 **다른 자리**에 있다는 것이 요점이다 — 워처를 안 올려도
-      큐는 마이크 펌프(`_maybe_attach_reground_on_mic` → `_attach_quiz_cue`)가 얹는다.
-      그 둘이 한 자리였다면 재접지를 끄는 순간 퀴즈가 통째로 죽었다.
+    종전엔 GPT 가 퀴즈를 스스로 안 열어서(0회·3라운드) 서버 T16 상태기계가 큐를 얹었다.
+    그 쪽지를 없애면서 **창 자체가 안 열린다** — `_arm_expression_quiz_cue` 가 큐 문구가
+    비면 arm 을 건너뛴다(빈 `pending` 을 두면 얹기 자리가 매 발화마다 헛돈다).
+
+    ⚠ 그래서 서버 판정(passed/failed)도 안 돈다. 알고 끈 것이다.
+    ⚠ 새 대본엔 퀴즈 블록이 없으므로(`self_quiz` 는 죽은 스위치) 대본과 어긋나지는 않는다.
+    ⛔ 되살리려면 커밋 `5b138bc` — 이 시험도 함께 뒤집어야 한다.
     """
     import struct
 
@@ -665,11 +669,13 @@ async def test_server_opens_the_quiz_window_on_the_openai_call(
         await asyncio.sleep(0.01)
 
     st = seen["state"]
+    # ⭐ 마이크 훅은 종전처럼 돌았다(항목이 덮였다) — 바뀐 것은 **큐를 안 얹는다**는 것뿐이다.
     assert len(st.covered_nums) >= 3, st.covered_nums
-    cues = holder["session"].regrounds
-    assert cues, "서버가 퀴즈 큐를 얹지 않았다(마이크 훅이 안 돌았다는 뜻이다)"
-    assert st.expr_quiz_cue_pending is None and st.expr_quiz_awaiting_open is True
-    # ⭐ 큐는 **재접지 쪽지가 아니다** — 재접지는 0건이어야 한다(워처를 안 올렸으므로 arm 0).
+    assert holder["session"].regrounds == [], \
+        "퀴즈 큐가 나갔다 — 쪽지를 없앴는데 얹기 자리가 아직 산다"
+    assert st.expr_quiz_cue_pending is None
+    assert st.expr_quiz_awaiting_open is False, "창이 열렸다(판정이 돌면 설계와 어긋난다)"
+    # ⭐ 재접지는 종전대로 0건이다(워처를 안 올렸으므로 arm 0).
     assert st.reground_count == 0
 
 
@@ -793,9 +799,11 @@ async def test_no_gemini_seed_string_is_ever_injected_into_an_openai_call(
 
     joined = "\n".join(sent)
     assert "[지시]" in joined, "GPT 선톡 시드가 없다"
-    assert gpt_seeds.LOOP_BREAK in sent, "GPT 루프 차단 쪽지가 안 나갔다"
-    assert any(t.startswith(gpt_seeds.NOTE_TAG) and "되묻는 차례" in t for t in sess.regrounds), \
-        "GPT 퀴즈 큐가 안 나갔다"
+    # ⛔ 2026-10-10: 루프 차단·퀴즈 큐 쪽지를 **없앴다** ⇒ 이 통화에서 나갈 것이 없다.
+    #   (종전엔 둘이 실제로 나갔는지 보던 자리다 — 커밋 `5b138bc`.)
+    assert sess.regrounds == [], "없앤 쪽지가 재접지 자리로 나갔다: %r" % (sess.regrounds,)
+    assert not any("되묻는 차례" in t for t in sent), "퀴즈 큐가 나갔다"
+    assert not any("같은 말을 또 하지 말고" in t for t in sent), "루프 차단 쪽지가 나갔다"
 
     # ③ 무음 1·2·3단은 시계(60+10+12초)가 필요해 e2e 로 못 돌린다 ⇒ **주입 자리가 읽는
     #    state 값**을 본다. `_inject_nudge`/`_inject_close_seed` 는 이 값을 **그대로** 보낸다.
@@ -804,8 +812,10 @@ async def test_no_gemini_seed_string_is_ever_injected_into_an_openai_call(
     assert st.nudge_seed_2 == gpt_seeds.NUDGE_2
     assert st.close_seed == gpt_seeds.SILENCE_CLOSE
     assert st.seeds.name == "openai"
-    assert st.seeds.drill_move_on == gpt_seeds.DRILL_MOVE_ON
-    assert st.seeds.resume_after_slip == gpt_seeds.RESUME_AFTER_SLIP
+    # ⛔ 없앤 세 자리는 **비어 있다**(2026-10-10) — 보내는 자리가 빈 문자열을 삼킨다.
+    assert st.seeds.drill_move_on == ""
+    assert st.seeds.resume_after_slip == ""
+    assert st.seeds.loop_break == ""
 
 
 @pytest.mark.asyncio
