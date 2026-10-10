@@ -115,6 +115,13 @@ class Settings(BaseSettings):
     NATIONALITY_API_KEY: str | None = None      # X-API-Key(GPU 서버 앞단 인증 프록시). 비면 헤더 생략
     NATIONALITY_API_TIMEOUT_S: float = 20.0     # httpx read/write 타임아웃(초)
     NATIONALITY_MIN_SPEECH_S: float = 10.0      # 이 길이 미만 user 발화는 호출 스킵(호출측 게이트)
+    # (2026-10-10) 통화 끝 /predict_long 요청에 회원이 고른 실제 국적(actual_nationality · 영문명)을
+    # 싣는다. PM-DEC-505(사용자 「바로 켜자」 · 처리방침 10-10 21:53 게시 뒤) 기본 True.
+    # 되돌리기: env NATIONALITY_SEND_ACTUAL=false — 저장 필드·화면은 그대로 동작하고 필드만 빠진다.
+    NATIONALITY_SEND_ACTUAL: bool = True
+    # 같은 요청에 client_type=app · session_id · os · os_version · app_version · device_type 을 싣는다
+    # (모델팀 3차 회신 · PM-DEC-499 별도 스위치). 되돌리기: env NATIONALITY_SEND_CLIENT_INFO=false.
+    NATIONALITY_SEND_CLIENT_INFO: bool = True
 
     # ⛔⛔ P2-6(2026-09-24, bt-back QA) — 옛 이메일 발송(Resend)·이메일 인증 코드·구글
     #   소셜 로그인 설정 7개(RESEND_API_KEY·MAIL_FROM·EMAIL_CODE_LENGTH·EMAIL_CODE_

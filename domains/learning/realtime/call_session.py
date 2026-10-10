@@ -3007,6 +3007,7 @@ async def run_call(
     member_id: int,
     member_target_language: str | None = None,
     live_session_factory: SessionFactory | None = None,
+    nationality_client: dict | None = None,
 ) -> None:
     """노멀콜 단일 통화를 양방향 중계한다(인증은 ws_router 가 끝낸 뒤 호출).
 
@@ -3021,6 +3022,8 @@ async def run_call(
             None 이면 settings.DEFAULT_TARGET_LANGUAGE 폴백. 기본 None 이라 기존 호출·테스트 무영향.
         live_session_factory: Live 세션 CM 팩토리(모킹 확장점). None 이면 호출 시점에
             모듈의 open_session 을 사용한다(기본 인자로 박지 않아 monkeypatch 가능).
+        nationality_client: 통화 끝 국적 판정 요청에 실을 앱 수집 필드(core.client_info.client_form ·
+            2026-10-10). ws_router 가 소켓 쿼리에서 만든다. None 이면 싣지 않는다(기존 호출·테스트 무영향).
     """
     # 기본값을 함수 정의 시점에 바인딩하지 않고 호출 시점에 해석 → 테스트에서
     # `open_session` 을 monkeypatch 하면 그대로 반영된다(운영은 실제 open_session).
@@ -4572,6 +4575,7 @@ async def run_call(
         _trigger_nationality(
             db_session_factory, call_id, member_id,
             user_pcm=bytes(state.nationality_pcm),
+            client_fields=nationality_client,
         )
         await _finish_call(client_ws, state, call_id)
 
@@ -4823,7 +4827,8 @@ def _trigger_audio_upload(
 
 
 def _trigger_nationality(
-    db_session_factory, call_id: int, member_id: int, user_pcm: bytes
+    db_session_factory, call_id: int, member_id: int, user_pcm: bytes,
+    client_fields: Optional[dict] = None,
 ) -> None:
     """user 턴 음성으로 국적을 추론해 프로필을 갱신하는 훅을 백그라운드 task 로 띄운다(요구5).
 
@@ -4849,6 +4854,12 @@ def _trigger_nationality(
     파이프라인: user PCM concat → 총 발화 길이 게이트(NATIONALITY_MIN_SPEECH_S 미만 skip)
     → WAV 변환 → predict_nationality(외부 API, threadpool 격리) → predictions 가 있으면
     nationality_service.record_and_recompute(이력 적재 + 최근5 평균 재계산, account 도메인 소유).
+
+    ⭐ (2026-10-10 PM-DEC-498 A안) 같은 요청 **한 번**에 모델팀 수집 필드를 싣는다 — 따로 재전송하지 않는다.
+      - client_fields(앱 기기 값 · client_type=app) — NATIONALITY_SEND_CLIENT_INFO 가 켜졌을 때만.
+      - actual_nationality — 회원이 고른 실제 국적(member.actual_nationality · ISO)을 **통화 끝 시점에**
+        DB 에서 읽어 영문명으로 바꾼 값. 고르지 않았으면 필드를 뺀다. NATIONALITY_SEND_ACTUAL 이 꺼지면 뺀다.
+      판정 결과 처리(speak_country)는 그대로다 — 「Your Korean accent sounds like」 는 바뀌지 않는다.
     """
     if not user_pcm:
         return
@@ -4868,7 +4879,10 @@ def _trigger_nationality(
             from core.nationality import predict_nationality
             from domains.account.service import nationality_service
 
-            predictions = await run_in_threadpool(predict_nationality, wav, "wav")
+            fields = await svc.run_db(
+                db_session_factory, lambda db: _nationality_fields(db, member_id, client_fields),
+            )
+            predictions = await run_in_threadpool(predict_nationality, wav, "wav", fields)
             if not predictions:
                 logger.debug("normalcall: 국적 추론 결과 없음(skip) call_id=%s", call_id)
                 return
@@ -4888,6 +4902,24 @@ def _trigger_nationality(
     task = asyncio.create_task(_run(), name=f"normalcall-nationality-{call_id}")
     _analysis_tasks.add(task)
     task.add_done_callback(_on_analysis_done)
+
+
+def _nationality_fields(db, member_id: int, client_fields: Optional[dict]) -> dict:
+    """통화 끝 국적 판정 요청에 함께 실을 필드(모델팀 계약) — 스위치 두 개를 여기서만 본다."""
+    from sqlalchemy import select
+
+    from core.client_info import country_name
+    from domains.account.models.member import Member
+
+    fields: dict = {}
+    if _settings.NATIONALITY_SEND_CLIENT_INFO and client_fields:
+        fields.update(client_fields)
+    if _settings.NATIONALITY_SEND_ACTUAL:
+        iso = db.scalar(select(Member.actual_nationality).where(Member.member_id == member_id))
+        name = country_name(iso)
+        if name:
+            fields["actual_nationality"] = name
+    return fields
 
 
 def _trigger_chat_memory(

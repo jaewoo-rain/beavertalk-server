@@ -18,6 +18,7 @@ from fastapi import APIRouter, WebSocket
 from fastapi.concurrency import run_in_threadpool
 from starlette.websockets import WebSocketState
 
+from core.client_info import client_form
 from core.config import Settings
 from core.deps import CurrentMember, DbSession
 from core.supabase_auth import verify_token
@@ -96,6 +97,10 @@ async def ws_call_stream(websocket: WebSocket) -> None:
             websocket, settings, client, session_factory,
             member_id=member_id,
             member_target_language=member_target_language,
+            # 통화 끝 국적 판정 요청에 실을 앱 수집 필드(2026-10-10 모델팀 계약). 앱이 소켓 쿼리
+            # client_session · os · os_version · app_version · device_type 으로 보낸다(옛 앱은 안 보냄 →
+            # client_type 만 남는다). 문자·길이를 잘라 쓰고 판정·과금에는 쓰지 않는다.
+            nationality_client=client_form(websocket.query_params),
         )
     except Exception as exc:  # noqa: BLE001 - 최종 방어선
         # 🧒 최종 방어선: run_call 안에서 어떤 예상 못 한 오류가 터져도 서버 전체가 흔들리지

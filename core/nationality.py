@@ -105,12 +105,17 @@ def iso_for_country(country_name: Optional[str]) -> Optional[str]:
 _warned_no_url = False
 
 
-def predict_nationality(audio_bytes: bytes, audio_type: str = "wav") -> Optional[dict]:
+def predict_nationality(
+    audio_bytes: bytes, audio_type: str = "wav", fields: Optional[dict] = None,
+) -> Optional[dict]:
     """오디오 바이트로 국적을 추론한다.
 
     Args:
         audio_bytes: user 발화 오디오 바이트(예: WAV PCM16/16k).
         audio_type: 확장자 힌트("wav"/"mp3"). MIME 결정에만 사용.
+        fields: 함께 실을 multipart 필드(2026-10-10 모델팀 계약) — client_type · session_id ·
+            os · os_version · app_version · device_type · actual_nationality. 값이 빈 키는 싣지
+            않는다. None 이면 종전처럼 parts 만 보낸다.
 
     Returns:
         성공 시 내부 형태로 정규화한 dict
@@ -146,7 +151,7 @@ def predict_nationality(audio_bytes: bytes, audio_type: str = "wav") -> Optional
     try:
         body = _call_with_retry(
             url=url, headers=headers, audio_bytes=audio_bytes, mime=mime,
-            audio_type=audio_type, timeout=timeout, parts=parts,
+            audio_type=audio_type, timeout=timeout, parts=parts, fields=fields,
         )
     except Exception as exc:  # noqa: BLE001 - 어떤 실패든 통화가 깨지면 안 됨
         logger.warning("국적 API 호출 실패 → None: %s", exc)
@@ -204,6 +209,7 @@ def _call_with_retry(
     audio_type: str,
     timeout: httpx.Timeout,
     parts: int = 1,
+    fields: Optional[dict] = None,
 ) -> Optional[dict]:
     """국적 API POST 호출. 재시도 대상(네트워크·타임아웃·5xx)만 _RETRY_BACKOFFS_S 만큼 재시도.
 
@@ -212,15 +218,18 @@ def _call_with_retry(
     - 그 외 4xx: 재시도하지 않고 예외 전파(상위에서 잡아 None).
     - 5xx / 네트워크 / 타임아웃: 백오프 후 재시도, 마지막 시도 실패 시 예외 전파.
     """
+    data = {"parts": str(parts)}
+    data.update({k: str(v) for k, v in (fields or {}).items() if v})
     attempts = len(_RETRY_BACKOFFS_S) + 1
     for attempt in range(attempts):
         try:
             files = {"audio": (f"audio.{audio_type}", audio_bytes, mime)}
             with httpx.Client(timeout=timeout) as client:
                 resp = client.post(
-                    url, files=files, data={"parts": str(parts)}, headers=headers
+                    url, files=files, data=data, headers=headers
                 )
             status = resp.status_code
+            _log_capture_id(resp, data)
             if 500 <= status < 600:
                 # 서버 오류 → 재시도 대상
                 raise httpx.HTTPStatusError(
@@ -247,6 +256,21 @@ def _call_with_retry(
                 continue
             raise
     return None  # 이론상 도달 불가(마지막 시도는 return 하거나 raise). 방어적.
+
+
+def _log_capture_id(resp: object, data: dict) -> None:
+    """응답 헤더 X-Capture-ID 를 로그로 남긴다(모델팀 계약 · 저장된 녹음과 우리 요청을 잇는 열쇠).
+
+    국적을 실었는지만 남긴다 — 국가명·기기 값은 로그에 쓰지 않는다.
+    """
+    headers = getattr(resp, "headers", None)
+    capture_id = headers.get("X-Capture-ID") if headers is not None else None
+    if capture_id:
+        logger.info(
+            "국적 API capture_id=%s status=%s actual=%s client=%s",
+            capture_id, getattr(resp, "status_code", None),
+            "actual_nationality" in data, data.get("client_type"),
+        )
 
 
 def _error_code(resp: object) -> Optional[str]:

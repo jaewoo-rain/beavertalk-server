@@ -54,6 +54,13 @@ class Member(Base, TimestampMixin):
 
     name: Mapped[Optional[str]] = mapped_column(Text, comment="이름(온보딩에서 입력)")
     language: Mapped[Optional[str]] = mapped_column(Text, comment="모국어(번역 target locale)")
+    # (2026-10-10 · PM-DEC-495·498) 회원이 직접 고른 **실제 국적** — ISO 3166-1 alpha-2(예 "PH").
+    # 모국어(language)·억양 판정 결과(speak_country_id)와 별개다 — 서로 읽거나 덮어쓰지 않는다.
+    # 쓰는 곳: 통화 끝 국적 판정 요청의 actual_nationality(영문명으로 변환 · core/client_info.py).
+    # NULL = 고르지 않음. 앱 화면에서 지우는 길은 없다(PM-DEC-502) — 철회는 문의 메일 → 운영자가 NULL.
+    actual_nationality: Mapped[Optional[str]] = mapped_column(
+        Text, comment="회원이 고른 실제 국적(ISO 3166-1 alpha-2). NULL=미선택",
+    )
     # (멀티랭귀지) 현재 학습 대상 언어 — 통화 target_language 의 단일 소스.
     # 옛날엔 앱 SharedPreferences 가 원본이라 ① 하이드레이션 레이스(복원 전에 통화가 시작되면
     # 저장값 대신 기본 'ko' 전송 — 잠금화면 수신통화가 그 구간) ② 앱 재설치 시 리셋 ③ 서버가

@@ -30,9 +30,10 @@ def get_me(member: CurrentMember) -> MemberRead:
 
 @router.post("/me/onboarding", response_model=MemberRead)
 def onboarding(data: OnboardingIn, member: CurrentMember, db: DbSession) -> MemberRead:
-    """온보딩 — 이름·학습이유·언어 저장(회원가입 직후 별도 단계)."""
+    """온보딩 — 이름·학습이유·언어·실제 국적 저장(회원가입 직후 별도 단계)."""
     return MemberService(db).onboarding(
-        member.member_id, data.name, data.reasons, data.language
+        member.member_id, data.name, data.reasons, data.language,
+        actual_nationality=data.actual_nationality,
     )
 
 

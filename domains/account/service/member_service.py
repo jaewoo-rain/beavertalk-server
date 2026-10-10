@@ -14,6 +14,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.client_info import normalize_iso
 from core.languages import normalize_locale
 from core.supabase_auth import delete_auth_user
 from domains.account.models.member import Member
@@ -61,6 +62,7 @@ class MemberService:
             name=member.name,
             language=member.language,
             target_language=member.target_language,
+            actual_nationality=member.actual_nationality,
             is_subscribed=is_subscribed,
             onboarding_completed=member.onboarding_completed,
             speak_country=(
@@ -125,9 +127,12 @@ class MemberService:
         name: Optional[str],
         reasons: Optional[list[str]],
         language: Optional[str],
+        actual_nationality: Optional[str] = None,
     ) -> Member:
-        """온보딩 저장 — 이름·학습이유·언어. 전달된 항목만 반영(reasons 는 교체)."""
+        """온보딩 저장 — 이름·학습이유·언어·실제 국적. 전달된 항목만 반영(reasons 는 교체)."""
         member = self.get(member_id)
+        if actual_nationality is not None:
+            member.actual_nationality = self._validate_nationality(actual_nationality)
         if name is not None:
             member.name = name
         if language is not None:
@@ -156,6 +161,16 @@ class MemberService:
         return self.db.scalar(select(Character.character_id).order_by(Character.character_id).limit(1))
 
     @staticmethod
+    def _validate_nationality(iso: str) -> str:
+        """실제 국적 ISO 검증 — 국가 표(249개 · 웹과 같은 표) 밖이면 422. 대문자로 정규화."""
+        code = normalize_iso(iso)
+        if code is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, f"알 수 없는 국가 코드: {iso}"
+            )
+        return code
+
+    @staticmethod
     def _validate_reasons(reasons: Optional[list[str]]) -> list[str]:
         """학습 이유 코드 화이트리스트 검증 + 중복 제거(순서 유지)."""
         if not reasons:
@@ -174,6 +189,11 @@ class MemberService:
         member = self.get(member_id)
         # 전달된 필드만 부분 수정
         for field, value in data.model_dump(exclude_unset=True).items():
+            if field == "actual_nationality":
+                # null 은 「변경 없음」 — 앱에서 국적을 지우는 길은 없다(PM-DEC-502 · 철회는 운영자 처리).
+                if value is None:
+                    continue
+                value = self._validate_nationality(value)
             # 언어 두 필드는 저장 전에 ISO 639-1 로 정규화한다("ko-KR"→"ko").
             # 오염을 입구에서 막는다 — 조회 시 폴백에 기대면 데이터가 계속 썩는다.
             if field in ("language", "target_language"):

@@ -4005,7 +4005,8 @@ async def test_call_end_releases_pcm_but_still_feeds_nationality(
     got: list[bytes] = []
     monkeypatch.setattr(
         cs, "_trigger_nationality",
-        lambda dbf, call_id, member_id, user_pcm: got.append(user_pcm),
+        # client_fields(2026-10-10 앱 수집 필드)도 받는다 — 이 시험은 원음만 본다.
+        lambda dbf, call_id, member_id, user_pcm, client_fields=None: got.append(user_pcm),
     )
 
     fake = _RegroundFake([
