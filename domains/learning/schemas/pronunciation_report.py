@@ -35,13 +35,13 @@ class SentenceScoreOut(BaseModel):
     """문장별 결과 한 줄.
 
     ⭐⭐ R5-a(2026-09-24, bt-back) — `kind`(NULL=기본 문장 · 'native'=현지인 표현
-    짝, C9). `LearningSummaryOut.total`/`passed` 는 짝을 안 센다(서버가 계산해
-    주는 숫자라 앱이 걸러낼 방법이 없다) — 그래도 짝은 채점되고 이 목록엔 그대로
-    나온다. 앱이 짝을 다르게 그리려면 이 값이 필요하다. 기본 문장은 None →
+    짝, C9). `LearningSummaryOut.total`/`passed` 는 기본·현지인 표현을 함께 센다. 앱이 짝을 다르게 그리려면 이 값이 필요하다. 기본 문장은 None →
     진행규칙 5(`SentenceOut`·`CallResultSentence` 와 같은 규약)로 키 생략.
     """
 
+    sentence_id: int
     sentence: str
+    total_score: Optional[int] = None
     # ⛔⛔ §2 정정(2026-09-27, 앱 요청) — Optional. 미복습 문장은 0점이 아니라
     #   "채점을 못 했다"는 별개의 사실이라 null 로 보낸다(Q9 발음 리포트 score:
     #   int|None 과 같은 규율). ⛔ 키는 빼지 않는다 — kind 와 달리 이 셋은

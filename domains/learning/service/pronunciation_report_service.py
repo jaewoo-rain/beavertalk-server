@@ -245,29 +245,32 @@ async def build_learning_summary(
     #   ⚠ 앱(LearningSummary 화면)의 선반영 여부는 이 커밋 시점에 미확인이다 —
     #   `_asInt(null)→0` 이라 크래시는 없지만(bt-back 확인), null 을 "-%" 로 그리려면
     #   앱 쪽 수정이 별도로 필요하다.
-    # ⛔⛔ R5-a(2026-09-24, bt-back) — 현지인 표현 짝(kind="native", C9)은 목록·
-    #   평균엔 그대로 남긴다(짝도 채점된 문장이다 — /result 의 ScoreAverage 도
-    #   짝을 포함해 평균 낸다, call_service.get_call_result 참조. 같은 규칙으로
-    #   맞춘다). **통과수(total/passed)만** 기본 문장으로 좁힌다 — 이건 "N개 중
-    #   M개 통과"라는 커리큘럼 완주 체감 수치라 짝이 끼면 분모·분자가 조용히
-    #   2배가 된다(짝 없는 지금 운영 상태에선 영향 0 — sentence.kind='native' 0행).
-    sentences = [
-        SentenceScoreOut(
-            sentence=s.korean_sentence or "",
-            pronunciation=s.pronunciation,
-            fluency=s.fluency,
-            rhythm=s.rhythm,
-            kind=s.kind,
+    def _score(value: int | None) -> int | None:
+        return value if value is not None and 0 <= value <= 100 else None
+
+    sentences: list[SentenceScoreOut] = []
+    seen_ids: set[int] = set()
+    for s in report.sentences:
+        if not (s.korean_sentence or "").strip() or s.sentence_id in seen_ids:
+            continue
+        seen_ids.add(s.sentence_id)
+        sentences.append(
+            SentenceScoreOut(
+                sentence_id=s.sentence_id,
+                sentence=s.korean_sentence,
+                total_score=_score(s.total_score),
+                pronunciation=_score(s.pronunciation),
+                fluency=_score(s.fluency),
+                rhythm=_score(s.rhythm),
+                kind=s.kind,
+            )
         )
-        for s in report.sentences
-    ]
-    totals = [s.total_score for s in report.sentences if s.total_score is not None]
-    prons = [s.pronunciation for s in report.sentences if s.pronunciation is not None]
-    flus = [s.fluency for s in report.sentences if s.fluency is not None]
-    rhys = [s.rhythm for s in report.sentences if s.rhythm is not None]
-    base_totals = [s.total_score for s in report.sentences if s.kind is None and s.total_score is not None]
-    total_n = sum(1 for s in report.sentences if s.kind is None)
-    passed = sum(1 for t in base_totals if t >= _PASS_THRESHOLD)
+    totals = [s.total_score for s in sentences if s.total_score is not None]
+    prons = [s.pronunciation for s in sentences if s.pronunciation is not None]
+    flus = [s.fluency for s in sentences if s.fluency is not None]
+    rhys = [s.rhythm for s in sentences if s.rhythm is not None]
+    total_n = len(sentences)
+    passed = sum(1 for t in totals if t >= _PASS_THRESHOLD)
 
     def _avg(xs: list[int]) -> int:
         return round(sum(xs) / len(xs)) if xs else 0
