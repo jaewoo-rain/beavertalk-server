@@ -145,3 +145,33 @@ def test_v2_analysis_persists_source_proof_policy_without_personal_progress(sess
         assert data["analysis"]["proof"][0]["reference"] == "assignment_item"
         assert data["analysis"]["proof"][0]["id"] == 73
         assert db.query(MemberItemProgress).count() == personal_before
+
+
+def test_full_attendance_outside_selected_goals_preserves_order_and_rights_kind():
+    payload = namespace_materials(manual())
+    payload["goals"][0]["kind"] = "vocab"
+    payload["attendance_targets"][0]["kind"] = "vocab"
+    payload["attendance_targets"].append(dict(reference="assignment_item", id=91,
+        surface="오늘 날씨가 좋아요", kind="vocab", conversation=True))
+    ns = create_namespace(payload, manual_v2_enabled=True)
+    before = copy.deepcopy(ns)
+    candidates, originals = verification_candidates(ns)
+    assert [originals[index]["id"] for index in (1, 2)] == [73, 91]
+    proof = verify(ns, "오늘 날씨가 좋아요", number=2)
+    assert proof[0]["id"] == 91
+    assert proof[0]["grade_final"] == "E2"
+    assert ns == before
+    assert ns["snapshot"]["goals"][0]["kind"] == "vocab"
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda payload: payload.update(manual_kind="mixed"),
+    lambda payload: payload["attendance_targets"][0].update(reference="learning_item"),
+    lambda payload: payload["attendance_targets"][0].update(conversation=False),
+    lambda payload: payload["attendance_targets"][0].update(surface="다른 원문"),
+])
+def test_new_manual_contract_mismatch_is_rejected_without_inference(mutation):
+    payload = namespace_materials(manual())
+    mutation(payload)
+    with pytest.raises(ValueError):
+        create_namespace(payload, manual_v2_enabled=True)
