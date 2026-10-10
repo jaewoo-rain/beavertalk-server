@@ -3,6 +3,11 @@
 문법 항목의 표면형은 주형(「V-아요/어요」)이라 발화에 그대로 안 나오고, 비버·학습자는 예문(「나무가 타요.」)을 말한다.
 covered(`_note_covered_items`)·판정(`_server_judge_quiz`) 두 곳이 예문까지 본다. STT 폴백 검증(`_verify_stt_fallback`)도 앞·뒤 B 의 예문 공개를 본다(bt-back 결정 1). normal 통화는 무변경.
 """
+# ⛔ 2026-10-10 퀴즈 상태기계·판정 사이드카 삭제로 **떼어낸 시험**(되살리려면 커밋 c222911):
+#   · test_an_informal_example_answer_is_not_an_event
+#   · test_beaver_revealing_the_example_first_is_failed
+#   · test_learner_saying_the_example_first_is_passed
+#   · test_no_mention_stays_pending
 from __future__ import annotations
 
 import domains.learning.realtime.call_session as cs
@@ -88,30 +93,6 @@ def _judge(lines: list[tuple[str, str]], quiz_set=(1,)):
     return st, res
 
 
-def test_learner_saying_the_example_first_is_passed() -> None:
-    st, res = _judge([("B", "How do you say 'the tree is burning'?"), ("U", "나무가 타요."), ("B", "Great!")])
-    assert res["passed"] == [1] and st.expr_quiz_pass == {31}
-
-
-def test_beaver_revealing_the_example_first_is_failed() -> None:
-    st, res = _judge([("B", "How do you say it?"), ("U", "음..."), ("B", "It's 나무가 타요."), ("U", "나무가 타요")])
-    assert res["failed"] == [1] and st.expr_quiz_fail == {31} and st.expr_quiz_pass == set()
-
-
-def test_an_informal_example_answer_is_not_an_event() -> None:
-    """표면형이 «요» 로 끝나므로 격식 검사는 그대로 — 「나무가 타」 는 사건이 아니다(미판정)."""
-    st, res = _judge([("B", "How do you say it?"), ("U", "나무가 타"), ("B", "Hmm.")])
-    assert res["pending"] == [1] and st.expr_quiz_pass == set() and st.expr_quiz_fail == set()
-
-
-def test_no_mention_stays_pending() -> None:
-    st, res = _judge([("B", "How do you say it?"), ("U", "저는 학생이에요")])
-    assert res["pending"] == [1]
-
-
-# --------------------------------------------------------------------------- #
-# normal 무변경
-# --------------------------------------------------------------------------- #
 def test_normal_call_covered_detection_is_byte_for_byte_the_old_raw_substring() -> None:
     st = cs._CallState()
     st.expr_items = []                                  # normal — 게이트

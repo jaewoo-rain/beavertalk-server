@@ -1,5 +1,7 @@
 """E2E 표기 내성 리플레이 — 서버 판정 경로 구동 배선(가짜 generate_structured, 통화·네트워크 없이). 서버 단위시험 test_expr_llm_judge 와 같은 구동."""
 
+# ⛔ 2026-10-10 퀴즈 상태기계·판정 사이드카 삭제로 **떼어낸 시험**(되살리려면 커밋 c222911):
+#   · test_run_cases_drives_real_server_judge_path_with_fake_llm
 from __future__ import annotations
 
 import asyncio
@@ -49,23 +51,3 @@ def test_build_cases_ja_has_native_styles_reveal_and_wrong(monkeypatch):
     assert next(c for c in cases if c["item_id"] == 101 and c["case"] == "오답(다른 항목)")["answer"] == "名前です"
     assert "«고마워요(가볍게)» 는 일본어로" in cases[0]["steps"][1]["text"]
 
-
-def test_run_cases_drives_real_server_judge_path_with_fake_llm(monkeypatch):
-    fake = FakeJudge()
-    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
-    monkeypatch.setattr(rp.h, "LANGUAGE", "ja")
-    cases = [c for c in rp.build_cases(ITEMS, "ja", "ko") if c["item_id"] == 101]
-    grab = rp.LogGrab()
-    old_level = cs.logger.level
-    cs.logger.addHandler(grab)
-    cs.logger.setLevel(logging.INFO)                 # pytest 아래선 유효 레벨이 WARNING — 판정 INFO 줄이 안 온다
-    try:
-        rows = asyncio.run(rp.run_cases(cs, ITEMS, cases, language="ja", locale="ko", client=object(), model="m", grab=grab))
-    finally:
-        cs.logger.removeHandler(grab)
-        cs.logger.setLevel(old_level)
-    by = {r["case"]: r for r in rows}
-    assert by["원형"]["got"] == "passed" and by["공개 뒤 복창"]["got"] == "failed" and by["오답(다른 항목)"]["got"] == "failed"
-    assert all(r["ok"] for r in rows), [(r["case"], r["got"]) for r in rows]
-    assert any(n == "ExpressionVerdictOut" for n, _ in fake.calls)
-    assert by["원형"]["why"] and "퀴즈 판정(LLM)" in by["원형"]["why"]

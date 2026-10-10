@@ -12,6 +12,12 @@
   ⑦ 표현학습 승급(D12) — 전량 통과 시 +1, trigger_call 당 멱등
 """
 
+# ⛔ 2026-10-10 퀴즈 상태기계·판정 사이드카 삭제로 **떼어낸 시험**(되살리려면 커밋 c222911):
+#   · test_the_final_judgement_is_skipped_outside_the_course
+#   · test_the_legacy_idle_path_uses_the_expression_note
+#   · test_the_next_label_uses_item_id_not_the_surface
+#   · test_the_note_lands_on_remaining_quiz_items_while_a_quiz_is_open
+#   · test_the_reground_note_carries_the_three_way_progress
 from __future__ import annotations
 
 import asyncio
@@ -75,21 +81,6 @@ def test_a_repeated_answer_is_never_marked_passed_by_code() -> None:
 # --------------------------------------------------------------------------- #
 # 재접지 쪽지 — 표현학습판이 나가고 일반 사이드카가 그걸 덮지 않는다
 # --------------------------------------------------------------------------- #
-def test_the_reground_note_carries_the_three_way_progress() -> None:
-    st = _state([(1, BYE), (2, PRICE), (3, "학교에 가요")])
-    st.reground_persona = ("선생님", "다정함")
-    st.covered_nums = [1, 2]
-    st.expr_quiz_pass.add(1)
-    st.expr_quiz_fail.add(2)
-    cs._arm_reground(st, "time")
-    note = st.reground_reminder
-    assert "이미 다룬 표현" in note and BYE in note
-    assert "이미 맞힌 표현" in note
-    assert "아직 틀린 표현" in note and PRICE in note, "오답 재출제 재료가 빠졌다"
-    assert "다음에 다룰 표현: 학교에 가요" in note
-    assert st.reground_pending is True
-
-
 def test_the_generic_sidecar_never_overwrites_the_expression_note() -> None:
     """⛔ 일반 사이드카가 돌면 `build_reground_brief`(일반 판)로 쪽지를 **다시** 조립해
     표현학습 쪽지가 통째로 사라진다 — 오답 재출제 재료가 없어진다.
@@ -315,15 +306,6 @@ def test_the_resume_gate_is_a_whitelist(env, call_type: str, ok: bool) -> None:
 
 # --------------------------------------------------------------------------- #
 # ⭐⭐ 조각 끝 순서 — 판정 → state → DB. 단, **쓰기를 LLM 에 걸지 않는다**
-# --------------------------------------------------------------------------- #
-@pytest.mark.asyncio
-async def test_the_final_judgement_is_skipped_outside_the_course() -> None:
-    st = cs._CallState()
-    await cs._final_expression_progress(st)          # 무동작·무예외
-
-
-# --------------------------------------------------------------------------- #
-# ⛔ F3 — 두 코스는 옛 승급 사슬을 건드리지 않는다 (기획 §5)
 # --------------------------------------------------------------------------- #
 def test_expression_rows_are_marked_so_the_old_gate_ignores_them(env) -> None:
     """⛔⛔ 기본 provenance('observed') + status 기본값('introduced') 이면 그 행이 **옛 승급
@@ -563,20 +545,6 @@ def test_homographs_are_tracked_separately() -> None:
     assert cs._expr_covered_ids(st) == [11], "동음이의 두 항목에 함께 찍혔다"
 
 
-def test_the_next_label_uses_item_id_not_the_surface() -> None:
-    """⛔ 표면형 집합으로 «했나» 를 물으면 동음이의 한쪽만 다뤄도 **둘 다 완료로 보인다** —
-    안 다룬 항목이 next 후보에서 사라진다.
-    """
-    st = _state([(11, "개"), (22, "개"), (33, "물")])
-    st.reground_persona = ("선생님", "다정함")
-    st.covered_nums = [1]                        # 11번만 다뤘다
-    cs._arm_reground(st, "time")
-    assert "다음에 다룰 표현: 개" in st.reground_reminder, st.reground_reminder
-
-
-# --------------------------------------------------------------------------- #
-# ⛔⛔ P1-3 — 낱말 경계: 「선물」이 「물」로 잡히면 안 된다
-# --------------------------------------------------------------------------- #
 def test_a_word_inside_another_word_is_not_covered() -> None:
     """⛔⛔ 옛 대조는 `label in text` 라 항목 「물」에 "어제 **선물**을 받았어요" 가 잡혔다.
 
@@ -609,43 +577,6 @@ def test_a_normal_call_keeps_the_plain_substring_match() -> None:
 
 # --------------------------------------------------------------------------- #
 # ⛔ P1-4 — 쪽지가 한 arm 늦지 않는다 · 재접지 스위치와 진도 판정은 다른 축이다
-# --------------------------------------------------------------------------- #
-def test_the_legacy_idle_path_uses_the_expression_note() -> None:
-    """⛔ legacy_idle 은 일반 브리프를 보냈다 — «다룬 것» 한 칸뿐이라 오답퀴즈 재료가 빠진다."""
-    st = _state([(1, BYE), (2, PRICE)])
-    st.reground_persona = ("선생님", "다정함")
-    st.expr_quiz_fail.add(2)
-    note = cs._build_expression_note(st)
-    assert "아직 틀린 표현" in note and PRICE in note
-
-
-# --------------------------------------------------------------------------- #
-# ⛔ 2026-09-13(실통화 1546) — 퀴즈 중에 꽂힌 쪽지는 «남은 문항을 마저 내라» 로 착지한다
-# --------------------------------------------------------------------------- #
-def test_the_note_lands_on_remaining_quiz_items_while_a_quiz_is_open() -> None:
-    """1546 t35~t43: 2번째 퀴즈(3문항) 중 1문항 낸 자리에 재접지 쪽지가 꽂혔고, 쪽지의 «지금 다루는 표현을
-    말하게 하는 요청 하나» + «다음에 다룰 표현: X» 가 비버를 방금 항목으로 되돌려 같은 두 질문을 3바퀴 돌았다
-    (남은 2문항은 아예 안 물어 미판정). 퀴즈 창이 열려 있으면 그 두 줄 대신 «아직 안 낸 문항» 착지문을 쓴다.
-    """
-    st = _state([(1, BYE), (2, PRICE), (3, "도와주세요")])
-    st.reground_persona = ("선생님", "다정함")
-    st.covered_nums = [1, 2, 3]
-    st.expr_quiz_open, st.expr_quiz_set = True, [1, 2, 3]
-    st.expr_quiz_pass.add(1)                 # 1번은 이미 맞힘 → 남은 문항은 2·3
-    note = cs._build_expression_note(st)
-    assert "지금은 퀴즈 중이다 — 아직 안 낸 문항: «%s» · «도와주세요»" % PRICE in note
-    assert "다음에 다룰 표현" not in note and "요청 하나로 이어가라" not in note
-    # 큐만 얹혀 아직 안 열린 창(awaiting_open)도 같다 — 첫 문제 전에 쪽지가 오면 같은 루프가 난다.
-    st.expr_quiz_open, st.expr_quiz_awaiting_open = False, True
-    assert "아직 안 낸 문항" in cs._build_expression_note(st)
-    # 퀴즈가 아니면 옛 착지문 그대로(바이트 동일 경로).
-    st.expr_quiz_awaiting_open = False
-    plain = cs._build_expression_note(st)
-    assert "아직 안 낸 문항" not in plain and "요청 하나로 이어가라" in plain
-
-
-# --------------------------------------------------------------------------- #
-# ⛔ P2 — 승급이 자기복구를 한다(후보 0개여도 판정은 돈다)
 # --------------------------------------------------------------------------- #
 def test_promotion_still_runs_when_nothing_is_left_to_write(env) -> None:
     """⛔⛔ «다 뗐는데 레벨은 옛것» 상태에서 선별이 빈 목록을 준다 ⇒ 쓸 것이 없다.

@@ -2,6 +2,16 @@
 
 ko 잠금 대본 바이트 불변은 tests/test_prompt_locked_hash.py(expression.procedure 5c0c6ac8e65fb352)가 지킨다 — 여기서는 ja 에 줄이 들어갔는지·ko 에 안 들어갔는지 본다.
 """
+# ⛔ 2026-10-10 퀴즈 상태기계·판정 사이드카 삭제로 **떼어낸 시험**(되살리려면 커밋 c222911):
+#   · test_cue_arms_as_soon_as_three_unquizzed_items_gather_even_if_the_learner_says_two_at_once
+#   · test_empty_learner_turns_do_not_count_toward_the_cue_settle_wait
+#   · test_empty_learner_turns_do_not_count_toward_the_quiz_window_cap
+#   · test_quiz_cue_hold_log_is_emitted_only_when_the_reason_changes
+#   · test_quiz_set_is_in_item_order_not_covered_order
+#   · test_quiz_window_counter_resets_per_window_and_ignores_closed_state
+#   · test_quiz_window_is_force_closed_after_six_learner_turns_and_the_next_cue_can_arm
+#   · test_tail_cue_is_kept_below_the_group_size
+#   · test_three_six_nine_groups_are_unchanged
 from __future__ import annotations
 
 import pytest
@@ -77,48 +87,6 @@ def _user(st, text):
     cs._flush_user_segment(st)
 
 
-def test_quiz_window_is_force_closed_after_six_learner_turns_and_the_next_cue_can_arm():
-    st = _state()
-    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"도와주세요"'):
-        _beaver(st, t)
-    assert st.expr_quiz_cue_pending is not None, "3개 covered → 큐 1 대기"
-    st.expr_quiz_cue_pending = None
-    st.expr_quiz_awaiting_open = True
-    cs._expression_quiz_open_on_beaver_turn(st)
-    assert st.expr_quiz_open is True and st.expr_quiz_seq == 1
-    # 1601: 비버가 닫힘 트리거(다음 항목 소개) 없이 같은 문항을 되풀이한다 — 학습자 턴만 쌓인다
-    for i in range(5):
-        _beaver(st, "How do you say it? Try again.")
-        _user(st, "음... 모르겠어요 %d" % i)
-        assert st.expr_quiz_open is True, "5턴까지는 열려 있다"
-    _beaver(st, "One more time?")
-    _user(st, "이거 얼마예요?")                 # 6번째 학습자 턴 → 강제 닫힘(이 발화도 창 안에 든다 → 서버 판정 통과)
-    assert st.expr_quiz_open is False and st.expr_quiz_open_user_turns == 6
-    assert 11 in st.expr_quiz_pass, "창 안 마지막 발화가 판정에 들어갔다"
-    assert cs.EXPR_QUIZ_OPEN_MAX_USER_TURNS == 6
-    # 다음 큐가 열린다 — 3개 더 covered 되면 seq 2
-    for t in ('"처음 뵙겠습니다"', '"네"', '"감사합니다"'):
-        _beaver(st, t)
-    assert st.expr_quiz_seq == 2 and st.expr_quiz_cue_pending is not None, "1601 에서는 첫 창이 끝까지 열려 다음 큐 0 이었다"
-
-
-def test_quiz_window_counter_resets_per_window_and_ignores_closed_state():
-    st = _state()
-    _user(st, "안녕")                            # 창 없음 → 세지 않는다
-    assert st.expr_quiz_open_user_turns == 0
-    st.expr_quiz_awaiting_open = True
-    cs._expression_quiz_open_on_beaver_turn(st)
-    _user(st, "하나")
-    assert st.expr_quiz_open_user_turns == 1
-    st.expr_quiz_open = False
-    st.expr_quiz_awaiting_open = True
-    cs._expression_quiz_open_on_beaver_turn(st)
-    assert st.expr_quiz_open_user_turns == 0, "창마다 리셋"
-
-
-# --------------------------------------------------------------------------- #
-# C5·C6 — 재개 쪽지: 형식·재료·길이 상한·«왔냐»류 금지 · 조각1 대본 무변경
-# --------------------------------------------------------------------------- #
 def test_expression_resume_note_has_the_required_sections_and_stays_short():
     mats = dict(
         drilled=["こんにちは", "おはようございます", "こんばんは", "さようなら", "またね", "お元気ですか", "いってきます", "いらっしゃいませ",
@@ -174,71 +142,12 @@ def test_new_item_first_ask_frame_is_in_the_drill_intro_for_all_languages():
         assert banned not in line
 
 
-@pytest.mark.asyncio
-async def test_quiz_cue_hold_log_is_emitted_only_when_the_reason_changes(caplog):
-    import logging
-
-    class _Sess:
-        async def send_reground(self, text, *, turn_complete=True):
-            pass
-
-    st = _state()
-    st.expr_quiz_cue_pending = "[큐]"
-    st.expr_quiz_prev_num = 1                        # 보류 항목 — 학습자 입에서 안 나왔다
-    st.expr_quiz_cue_user_turns = 0
-    caplog.set_level(logging.INFO, logger="domains.learning.realtime.call_session")
-    for _ in range(15):                              # 1604: 마이크 프레임마다 15회
-        await cs._attach_quiz_cue(_Sess(), st, "마이크")
-    holds = [r for r in caplog.records if "보류:" in r.getMessage()]
-    assert len(holds) == 1, [r.getMessage() for r in holds]
-    st.expr_quiz_cue_user_turns = 1                  # 사유가 바뀐다(학습자 턴 1/3) → 1줄 더
-    await cs._attach_quiz_cue(_Sess(), st, "마이크")
-    await cs._attach_quiz_cue(_Sess(), st, "마이크")
-    holds = [r for r in caplog.records if "보류:" in r.getMessage()]
-    assert len(holds) == 2 and "1/3" in holds[-1].getMessage()
-
-
-# --------------------------------------------------------------------------- #
-# P1 (2026-09-15, 1611 t0·t28·t40) — 전사 빈 턴은 창 상한·큐 정리 대기를 세지 않는다
-# --------------------------------------------------------------------------- #
 def _empty_user(st):
     st.cur_user_pcm = bytearray(b"\x00\x00" * 160)     # 소리는 왔는데 전사가 비었다
     st.cur_user_text = []
     cs._flush_user_segment(st)
 
 
-def test_empty_learner_turns_do_not_count_toward_the_quiz_window_cap():
-    st = _state()
-    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"도와주세요"'):
-        _beaver(st, t)
-    st.expr_quiz_cue_pending = None
-    st.expr_quiz_awaiting_open = True
-    cs._expression_quiz_open_on_beaver_turn(st)
-    n_seg = len(st.segments)
-    for _ in range(6):
-        _empty_user(st)
-    assert st.expr_quiz_open is True and st.expr_quiz_open_user_turns == 0, "무음 턴 6회 → 강제 닫힘 0"
-    assert len(st.segments) == n_seg + 6, "세그먼트·turn_index 는 종전대로 저장된다"
-    for i in range(6):
-        _user(st, "음 %d" % i)
-    assert st.expr_quiz_open is False, "전사 있는 턴 6회면 종전대로 닫힌다"
-
-
-def test_empty_learner_turns_do_not_count_toward_the_cue_settle_wait():
-    st = _state()
-    for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"도와주세요"'):
-        _beaver(st, t)
-    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_cue_user_turns == 0
-    for _ in range(4):
-        _empty_user(st)
-    assert st.expr_quiz_cue_user_turns == 0, "무음 턴은 정리 대기 카운트 0"
-    _user(st, "모르겠어요")
-    assert st.expr_quiz_cue_user_turns == 1
-
-
-# --------------------------------------------------------------------------- #
-# P2 (2026-09-15, 1607) — 큐 조건 = 미출제 g개 모이면(covered 총량 기준 폐기) · 종전 3·6·9 동일 · 꼬리 유지
-# --------------------------------------------------------------------------- #
 def _close_quiz_now(st):
     st.expr_quiz_cue_pending = None
     st.expr_quiz_awaiting_open = True
@@ -246,58 +155,6 @@ def _close_quiz_now(st):
     cs._close_expression_quiz(st, why="시험")
 
 
-def test_cue_arms_as_soon_as_three_unquizzed_items_gather_even_if_the_learner_says_two_at_once():
-    st = _state()
-    _beaver(st, '"이거 얼마예요?"')
-    assert st.expr_quiz_cue_pending is None
-    _user(st, "잘 부탁드립니다. 도와주세요.")          # 한 턴에 2개 → 미출제 3개
-    assert st.expr_quiz_cue_pending is not None and st.expr_quiz_seq == 1 and sorted(st.expr_quiz_set) == [1, 2, 3]
-    _close_quiz_now(st)
-    # 퀴즈가 닫힌 뒤 한 번에 4개가 covered 되면 3개로 큐 — 남은 1개는 다음 묶음
-    _user(st, "처음 뵙겠습니다. 네. 감사합니다. 안녕하세요.")
-    assert st.expr_quiz_seq == 2 and sorted(st.expr_quiz_set) == [4, 5, 6]
-
-
-def test_three_six_nine_groups_are_unchanged():
-    st = _state()
-    seqs = []
-    for i, it in enumerate(ITEMS, 1):
-        _beaver(st, '"%s"' % it["obj"])
-        if st.expr_quiz_cue_pending is not None:
-            seqs.append((i, st.expr_quiz_seq, list(st.expr_quiz_set)))
-            _close_quiz_now(st)
-    assert seqs == [(3, 1, [1, 2, 3]), (6, 2, [4, 5, 6]), (9, 3, [7, 8, 9])]
-
-
-def test_tail_cue_is_kept_below_the_group_size():
-    st = _state()
-    st.expr_items = list(ITEMS[:5])
-    st.reground_items = [i["obj"] for i in ITEMS[:5]]
-    for it in ITEMS[:3]:
-        _beaver(st, '"%s"' % it["obj"])
-    _close_quiz_now(st)
-    _beaver(st, '"%s"' % ITEMS[3]["obj"])
-    assert st.expr_quiz_cue_pending is None, "미출제 1개 — 아직"
-    _beaver(st, '"%s"' % ITEMS[4]["obj"])
-    assert st.expr_quiz_cue_pending is not None and sorted(st.expr_quiz_set) == [4, 5], "목록 끝이면 남은 2개로 꼬리 큐"
-
-
-# --------------------------------------------------------------------------- #
-# P3 (2026-09-15, 1611 set=[2,1,3]) — 출제 묶음은 항목 번호 오름차순
-# --------------------------------------------------------------------------- #
-def test_quiz_set_is_in_item_order_not_covered_order():
-    st = _state()
-    _beaver(st, '"잘 부탁드립니다"')      # 2
-    _beaver(st, '"이거 얼마예요?"')        # 1
-    _beaver(st, '"도와주세요"')            # 3
-    assert st.covered_nums == [2, 1, 3]
-    assert st.expr_quiz_set == [1, 2, 3], "다룬 순서가 아니라 번호 순"
-    assert "«이거 얼마예요?»" in st.expr_quiz_cue_pending.split("«잘 부탁드립니다»")[0], "큐 문구도 번호 순"
-
-
-# --------------------------------------------------------------------------- #
-# P6 (2026-09-15) — 재개 쪽지 실제 길이·축소 단계 계측
-# --------------------------------------------------------------------------- #
 def test_resume_note_stats_report_the_real_length_and_the_shrink_step():
     short = dict(drilled=["물"], passed=["물"], failed=[], recent=[("beaver", "물은 water"), ("user", "물")])
     st = seeds.expression_resume_note_stats("한국어", silent=False, **short)

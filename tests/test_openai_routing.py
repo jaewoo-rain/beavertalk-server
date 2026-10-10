@@ -13,6 +13,9 @@
   ⑨ 원가: `cached` 를 주면 값이 달라지고 **안 주면 기존과 바이트 동일**
   ⑩ 끊김에 재연결하지 않는다
 """
+# ⛔ 2026-10-10 퀴즈 상태기계·판정 사이드카 삭제로 **떼어낸 시험**(되살리려면 커밋 c222911):
+#   · test_injection_sites_read_the_bundle_not_the_locked_constants
+#   · test_the_self_quiz_flag_reaches_the_state_that_arms_the_cue
 from __future__ import annotations
 
 import asyncio
@@ -843,58 +846,6 @@ async def test_gemini_call_keeps_its_own_seeds_byte_identical(
     assert st.seeds.loop_break == gem.LOOP_BREAK_NOTE
     assert st.seeds.drill_move_on == gem.EXPRESSION_DRILL_MOVE_ON
     assert st.seeds.resume_after_slip == cs._RESUME_SEED
-
-
-def test_injection_sites_read_the_bundle_not_the_locked_constants():
-    """⛔ 새 주입 자리가 Gemini 상수를 **직접** 쓰면 묶음이 무의미해진다 — 소스로 잠근다.
-
-    ⚠ 소스 검사인 이유: 그 자리는 통화 중 특정 상태에서만 돌아 e2e 로 다 밟을 수 없다
-      (무음 3단·드릴 상한·미끄러짐 복구는 시계·턴 수가 필요하다).
-    """
-    import inspect
-    import re
-
-    # ⚠ 앞에 `_` 나 글자가 붙은 것은 우리 함수 이름이다(`_expression_quiz_cue` = 재료 조립기).
-    #   잠금 심볼을 **그대로** 부르는 자리만 잡는다.
-    locked = [re.compile(r"(?<![\w])" + re.escape(n)) for n in (
-        "LOOP_BREAK_NOTE", "EXPRESSION_DRILL_MOVE_ON",
-        "expression_quiz_cue(", "expression_quiz_set_reminder(")]
-    for fn in (cs._loop_breaker_on_turn_end, cs._inject_drill_move_on,
-               cs._inject_quiz_set_reminder, cs._expression_quiz_cue,
-               cs._inject_resume_seed, cs._inject_nudge, cs._inject_close_seed):
-        src = inspect.getsource(fn)
-        for pat in locked:
-            assert not pat.search(src), (fn.__name__, pat.pattern)
-
-
-# --------------------------------------------------------------------------- #
-# OPENAI_SELF_QUIZ — ⛔ 플래그가 **실제로 돌아가는 state** 에 실리는가
-#   실측(call 1747): 스냅샷 로그는 떴는데 «arm 생략» 은 0회였다. 원인은
-#   call_session 이 `_CallState()` 를 **두 번** 만들고(:3704·:3945) 내가 첫 번째에
-#   심었기 때문 — 두 번째가 그걸 덮어써서 플래그가 조용히 죽었다.
-#   ⇒ 이 시험은 「심은 자리」가 아니라 **arm 가드가 보는 값**을 본다.
-# --------------------------------------------------------------------------- #
-def test_the_self_quiz_flag_reaches_the_state_that_arms_the_cue(monkeypatch):
-    """⛔ 이게 깨지면 플래그가 지시문만 바꾸고 서버 큐는 그대로 얹힌다(조용한 실패)."""
-    import inspect
-
-    import domains.learning.realtime.call_session as cs
-
-    src = inspect.getsource(cs.run_call)
-    # ① state 가 몇 번 만들어지나 — 늘어나면 이 시험의 전제가 바뀐다
-    n = src.count("state = _CallState()")
-    assert n == 2, (
-        "_CallState() 생성 횟수가 %d 로 바뀠다 — 플래그를 심는 자리를 다시 확인해라" % n)
-    # ② 플래그 세팅이 **마지막** 생성 뒤에 있어야 한다
-    last_new = src.rindex("state = _CallState()")
-    set_at = src.rindex("state.expr_self_quiz =")
-    assert set_at > last_new, (
-        "expr_self_quiz 를 마지막 _CallState() **앞**에서 심고 있다 — 그 객체는 버려진다")
-    # ③ arm 가드는 state 를 본다(settings 가 아니다 — 그 스코프엔 없다)
-    arm = inspect.getsource(cs._arm_expression_quiz_cue)
-    assert "state.expr_self_quiz" in arm
-    assert "OPENAI_SELF_QUIZ" not in arm.replace("OPENAI_SELF_QUIZ)", "").replace(
-        "(OPENAI_SELF_QUIZ", ""), "arm 가드가 settings 를 직접 읽으면 NameError 가 난다"
 
 
 def test_the_self_quiz_flag_no_longer_changes_the_prompt():

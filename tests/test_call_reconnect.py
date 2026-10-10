@@ -8,6 +8,10 @@
 ⑤ should_close 뒤엔 안 함  ⑥ 분류 함수: 1006/ConnectionClosed/ConnectionReset 참 · WebSocketDisconnect·ValueError 거짓
 """
 
+# ⛔ 2026-10-10 퀴즈 상태기계·판정 사이드카 삭제로 **떼어낸 시험**(되살리려면 커밋 c222911):
+#   · test_a_gemini_1006_opens_a_second_generation_with_a_resume_brief
+#   · test_a_second_closure_propagates_the_error
+#   · test_an_open_beaver_turn_is_flushed_before_the_second_generation
 from __future__ import annotations
 
 import asyncio
@@ -133,54 +137,6 @@ async def _run(st, ws, factory, seed="[선톡]"):
 # ① 1006 → 2세대 · 브리프 1턴 · 상태 유지 · reconnects=1
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_a_gemini_1006_opens_a_second_generation_with_a_resume_brief() -> None:
-    st = _state()
-    st.expr_quiz_open = True
-    st.expr_quiz_set = [1, 2, 3]
-    st.expr_quiz_open_seg = 2
-    holder: dict = {}
-    ws = _HangingWS()
-    with pytest.raises(cs._CallFinished):
-        await _run(st, ws, _factory(["raise1006", "normal"], holder))
-    assert holder["opened"] == 2 and st.session_epoch == 2 and st.reconnects == 1
-    gen1, gen2 = holder["sessions"]
-    assert gen1.sent_text_turns == ["[선톡]"], "1세대는 선톡 그대로"
-    assert len(gen2.sent_text_turns) == 1
-    brief = gen2.sent_text_turns[0]
-    assert brief.startswith(CONTROL_TAG + " 연결이 잠깐 끊겼다가 이어졌다. 끊긴 것을 사과하지 말고")
-    assert "[선톡]" not in brief, "재연결 세대에 선톡을 다시 보내면 비버가 또 인사한다"
-    assert "이거 얼마예요?" in brief and "잘 부탁드립니다" in brief, "재접지 쪽지 재료(다룬 것·맞힌 것·틀린 것)"
-    assert "지금은 퀴즈 중이다 — 아직 안 낸 문항: «도와주세요»" in brief, "열린 퀴즈의 미판정 문항"
-    assert "다음에 다룰 표현" not in brief, "퀴즈 중엔 전진 지시 대신 퀴즈 착지문(1546)"
-    # 상태 유지 — 세그먼트·covered·퀴즈·시계
-    assert st.covered_nums == [1, 2] and st.expr_quiz_pass == {11} and st.expr_quiz_fail == {12}
-    assert st.expr_quiz_open is True and st.expr_quiz_set == [1, 2, 3]
-    assert [s["text"] for s in st.segments[:2]] == ["How much is it?", "이거 얼마예요?"]
-    assert st.call_start_ts is not None
-    # usage_json — reconnects 가 하드코딩 0 이 아니라 실제 값이다
-    from types import SimpleNamespace
-    cs._record_usage(st, SimpleNamespace(prompt_token_count=100, response_token_count=10, total_token_count=110,
-                                         thoughts_token_count=0, prompt_tokens_details=None, response_tokens_details=None))
-    uj = cs._usage_summary(st)
-    assert uj["reconnects"] == 1 and uj["epochs"] == 2
-
-
-@pytest.mark.asyncio
-async def test_an_open_beaver_turn_is_flushed_before_the_second_generation() -> None:
-    """열린 비버 턴의 자막은 세그먼트로 flush 하고 버린다 — 이미 나간 오디오는 클라가 재생한다."""
-    st = _state()
-    holder: dict = {}
-    with pytest.raises(cs._CallFinished):
-        await _run(st, _HangingWS(), _factory(["one_turn_then_raise", "normal"], holder))
-    texts = [s["text"] for s in st.segments if s["role"] == "beaver"]
-    assert "Say 도와주세요." in texts and "Okay, next one." in texts
-    assert st.turn_id is None and st.cur_beaver_text == [] and st.user_turn_open is False
-
-
-# --------------------------------------------------------------------------- #
-# ② 앱 끊김은 재연결 안 함
-# --------------------------------------------------------------------------- #
-@pytest.mark.asyncio
 async def test_an_app_disconnect_is_not_a_reconnect() -> None:
     st = _state()
     holder: dict = {}
@@ -191,19 +147,6 @@ async def test_an_app_disconnect_is_not_a_reconnect() -> None:
 
 # --------------------------------------------------------------------------- #
 # ③ 2회째 끊김은 그대로 종료(상한 1)
-# --------------------------------------------------------------------------- #
-@pytest.mark.asyncio
-async def test_a_second_closure_propagates_the_error() -> None:
-    st = _state()
-    holder: dict = {}
-    with pytest.raises(BaseExceptionGroup) as ei:
-        await _run(st, _HangingWS(), _factory(["raise1006", "raise1006"], holder))
-    assert holder["opened"] == 2 and st.reconnects == 1
-    assert any(isinstance(e, genai_errors.APIError) for e in cs._leaf_exceptions(ei.value))
-
-
-# --------------------------------------------------------------------------- #
-# ④ 남은 시간 <20s · ⑤ 종료 구간 — 조건 함수
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
 async def test_no_reconnect_when_less_than_20s_remain() -> None:

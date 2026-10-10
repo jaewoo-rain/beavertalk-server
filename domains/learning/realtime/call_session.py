@@ -1203,17 +1203,11 @@ def _flush_user_segment(state: _CallState) -> None:
     if not _expr_llm_judge_active(state):
         # ⭐ 4차 A(사장님 «배운 거 체크는 비버가 말하는 것만»): LLM 판정이 켜져 있으면 학습자 발화는 가르침을 세지 않는다 — 사이드카 실패 턴의 폴백에서만 산다.
         _note_covered_items(state, text, source="user")
-    _expression_quiz_note_user_turn(state, text)   # 큐 보류(1552) — 학습자 턴 수 · 보류 항목이 학습자 입에서 나왔나
     _note_drill_user_turn(state, text)             # 11차 B — 드릴 중인 항목에 쌓인 학습자 턴
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
     state.next_turn_index += 1
-    if text and state.expr_quiz_open and _expr_llm_judge_active(state):
-        _spawn_quiz_verdict(state, upto=len(state.segments))     # 4차 B — 창 안 학습자 턴마다 정답 판정(논블로킹). 상한 닫힘보다 먼저(이 턴까지 본다)
-    elif text and state.expr_quiz_grace_from is not None and _expr_llm_judge_active(state):
-        _spawn_grace_verdict(state)                              # 8차 B — 닫힘 직후 한 턴: 닫히기 직전 질문의 정답을 받는다
-    _expression_quiz_note_open_user_turn(state, text)    # C4 — 창 안 학습자 턴 상한(세그먼트에 넣은 **뒤** — 이 발화도 창 안에 든다)
     state.cur_user_pcm = bytearray()
     state.cur_user_text = []
 
@@ -1315,8 +1309,6 @@ def _note_covered_items(
                if expr else (label in text))
         if hit:
             state.covered_nums.append(idx)
-            if expr:
-                _expression_quiz_tick(state, idx, source=source, text=text, seg_idx=seg_idx)   # T16 — 서버 퀴즈 상태기계(닫힘 ① · 큐 arm)
 
 
 # --------------------------------------------------------------------------- #
@@ -1381,44 +1373,6 @@ def _cid(state: _CallState) -> str:
 EXPR_QUIZ_STRAY_CLOSE = 2
 
 
-class ExpressionQuizFallbackItem(BaseModel):
-    num: int
-    answer_seg: int | None = None
-
-
-class ExpressionTaughtOut(BaseModel):
-    """4차 A 가르침 판정기 출력 — 이번 비버 턴에서 다룬 항목 **번호만**. 서버가 남은 목록으로 되짚어 검증한다."""
-
-    taught: list[int] = []
-    # 8차 C — 이번 턴에서 **다시** 물은(이미 다룬) 항목 번호. 퀴즈 중 세트 이탈 감지용이고 covered 를 늘리지 않는다.
-    retaught: list[int] = []
-
-
-class ExpressionVerdictItem(BaseModel):
-    num: int
-    verdict: str = "pending"          # passed | failed | pending — 서버가 검증(그 밖 값은 pending)
-    why: str = ""
-
-
-class ExpressionVerdictOut(BaseModel):
-    """4차 B 정답 판정기 출력 — 항목 번호별 verdict. 서버가 퀴즈 항목으로 되짚는다."""
-
-    verdicts: list[ExpressionVerdictItem] = []
-
-
-class ExpressionQuizOut(BaseModel):
-    """STT 폴백 판정기 출력 — **번호와 세그먼트 번호만**(문장 필드 금지 — RegroundOut 과 같은 이유).
-
-    서버가 준 항목 번호와 전사의 세그먼트 번호(«U13:»)를 고르게 하고, 서버는 그 번호를 자기 목록으로 되짚어
-    검증한다 — 환각이 들어올 자리가 없다.
-    """
-
-    items: list[ExpressionQuizFallbackItem] = []
-
-
-EXPR_REMAINING_ROWS_CAP = 12     # 4차 C — 쪽지·큐에 싣는 남은 항목 줄 상한(넘으면 « 외 N개») — 재개 쪽지 목록 상한(12)과 같은 규율
-
-
 def _expr_remaining_rows(state: _CallState) -> list[str]:
     """4차 C — 아직 안 가르친(covered 아님) 항목 «번호. 뜻 = 표면형»(번호 순, 상한 EXPR_REMAINING_ROWS_CAP)."""
     rows: list[str] = []
@@ -1430,34 +1384,6 @@ def _expr_remaining_rows(state: _CallState) -> list[str]:
     if len(left) > EXPR_REMAINING_ROWS_CAP:
         rows.append("외 %d개" % (len(left) - EXPR_REMAINING_ROWS_CAP))
     return rows
-
-
-def _expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = False) -> str:
-    """퀴즈 큐 문구(시스템 텍스트, CONTROL_TAG 접두 — ⛔ «[시스템]» 은 종료 태그와 같던 시절 태그라 금지, call 706).
-    4차 C(2026-09-15): 이미 다룬 표현·남은 표현 목록을 서버 목록으로 싣는다(ko 대본도 바뀐다 — 해시 갱신, README §8)."""
-    ctx = state.expr_ctx or {}
-    locale_label = ctx.get("locale_label") or "학습자의 모국어"
-    target = ctx.get("target_language") or "한국어"
-    labels = " ".join("«%s»" % state.reground_items[n - 1] for n in nums if 1 <= n <= len(state.reground_items))
-    # ⭐ 문구는 **이 통화의 묶음**이 소유한다(`state.seeds`) — Gemini 는 locked/seeds.py,
-    #   OpenAI 는 core/openai/prompts/seeds.py. 여기선 **재료만** 만들어 넘긴다(엔진을 묻지 않는다).
-    return state.seeds.quiz_cue(labels, len(nums), retry=retry, locale_label=locale_label, target=target,
-                                done_labels=_covered_labels(state), remaining_rows=_expr_remaining_rows(state))
-
-
-#: 큐 보류 상한 — 정리(학습자 성공/비버 다음 항목)를 기다리다 학습자 턴이 이만큼 지나면 얹는다(= 공개 뒤 시도 3번 = 드릴 재시도 상한 3).
-EXPR_QUIZ_SETTLE_MAX_USER_TURNS = 3
-# ⭐ C4(2026-09-14, 실통화 1601): 퀴즈 창이 열린 뒤 학습자 턴이 이만큼 지나도 닫힘 트리거(다음 항목 소개·밖 번호)가 안 오면 강제로 닫는다 —
-#   1601 은 첫 창이 통화 끝까지 열려 다음 큐가 0이었다. 닫힘은 종전 경로(_close_expression_quiz: 서버 판정 + 미판정 STT 폴백 + 다음 큐 arm).
-EXPR_QUIZ_OPEN_MAX_USER_TURNS = 6
-# ⭐ 4차 A·B(2026-09-15) — LLM 판정 사이드카 상한. 한 콜 3초(넘으면 그 턴은 문자열 폴백) · 통화당 가르침 60·정답 40(넘으면 문자열) ·
-#   짧은 리액션(공백 뺀 20자 미만이고 남은 항목의 표면형·뜻 후보가 전혀 없는 턴)은 호출하지 않는다(가르침 0 — 폴백 아님, bt-back 결정).
-EXPR_JUDGE_TIMEOUT_S = 6.0      # 6차 B(1618 3초 타임아웃 6회): 3.0 → 4.5 · 7차(1621 2.5 타임아웃 가르침 3회·최대 4506ms): → 6.0 — 논블로킹이라 통화 영향 0, 타임아웃 턴은 그대로 문자열 폴백
-EXPR_TAUGHT_MAX_PER_CALL = 60
-EXPR_QUIZ_VERDICT_MAX_PER_CALL = 40
-EXPR_TAUGHT_SKIP_CHARS = 20
-EXPR_QUIZ_SET_NUDGE_MAX = 2      # 8차 C — «지금 낼 문제는 …뿐이다» 안내 통화당 상한
-EXPR_DONE_ROWS_CAP = 12          # 8차 C — 가르침 판정기에 싣는 «이미 다룬 항목» 줄 상한
 
 
 def _expr_llm_judge_active(state: _CallState) -> bool:
@@ -1537,20 +1463,6 @@ _MEANING_SPLIT_RE = re.compile(r"[·/,;、]")
 _PAREN_RE = re.compile(r"\([^)]*\)")
 
 
-def _taught_candidate_present(state: _CallState, text: str, nums: list[int]) -> bool:
-    """짧은 턴 건너뛰기 판정 재료 — 남은 항목의 표면형(예문 OR)이나 뜻 조각(괄호 뺀 2자 이상)이 텍스트에 하나라도 있나."""
-    for n in nums:
-        _iid, surface = _num_item(state, n)
-        if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, n), language=state.target_code):
-            return True
-        des = _PAREN_RE.sub("", str(state.expr_items[n - 1].get("des") or ""))
-        for piece in _MEANING_SPLIT_RE.split(des):
-            piece = piece.strip()
-            if len(piece) >= 2 and piece in text:
-                return True
-    return False
-
-
 def _prev_user_text(state: _CallState, seg_idx: int) -> str:
     """seg_idx(비버 턴) 바로 앞의 학습자 턴 텍스트(없으면 빈 문자열) — 판정 문맥 1개."""
     i = min(seg_idx, len(state.segments)) - 1
@@ -1562,130 +1474,6 @@ def _prev_user_text(state: _CallState, seg_idx: int) -> str:
             return seg["text"].strip()
         i -= 1
     return ""
-
-
-def _taught_fallback(state: _CallState, text: str, prev_user: str, seg_idx: int) -> None:
-    """사이드카 실패·상한 초과 턴 — 종전 문자열 대조(비버 턴 + 직전 학습자 턴)로 가르침을 센다(R5)."""
-    _note_covered_items(state, text, seg_idx=seg_idx)
-    if prev_user:
-        _note_covered_items(state, prev_user, source="user", seg_idx=seg_idx)
-
-
-def _spawn_taught_judge(state: _CallState, beaver_text: str, seg_idx: int) -> None:
-    """⭐ 4차 A — 비버 턴 하나를 «이 턴에서 다룬 항목» 판정 사이드카에 태운다(논블로킹, expr_tasks). flush 에서 부른다(segments append 전)."""
-    text = (beaver_text or "").strip()
-    remaining = [n for n in range(1, len(state.reground_items) + 1) if n not in state.covered_nums]
-    if not text or not remaining:
-        return
-    stats = state.expr_judge_stats
-    prev_user = _prev_user_text(state, seg_idx)
-    if len(re.sub(r"\s+", "", text)) < EXPR_TAUGHT_SKIP_CHARS and not _taught_candidate_present(state, text, remaining):
-        stats["taught_skip"] += 1          # 짧은 리액션 — 가르침 0(폴백 아님)
-        return
-    if stats["taught_calls"] >= EXPR_TAUGHT_MAX_PER_CALL:
-        stats["taught_fallback"] += 1
-        _taught_fallback(state, text, prev_user, seg_idx)
-        return
-    stats["taught_calls"] += 1
-    task = asyncio.create_task(_taught_judge(state, text, prev_user, seg_idx, remaining), name="normalcall-expr-taught")
-    state.expr_tasks.add(task)
-    task.add_done_callback(state.expr_tasks.discard)
-
-
-async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: int, remaining: list[int]) -> list[int]:
-    """판정기 1콜 → 받은 번호를 covered_nums 에 append(append-only) → 종전 퀴즈 상태기계(tick: 닫힘·arm)를 **그 비버 턴 기준**으로 태운다.
-    실패·타임아웃·None 이면 그 턴만 문자열 폴백. 반환 = 새로 covered 된 번호."""
-    ctx = state.expr_ctx or {}
-    loop = asyncio.get_running_loop()
-    t0 = loop.time()
-    result = None
-    u = gemini_analysis.LlmUsage()              # 4차 E — 이 콜만의 토큰
-    try:
-        result = await asyncio.wait_for(
-            gemini_analysis.generate_structured(
-                ctx["client"], ctx["model"],
-                system_instruction=expression_taught_judge_instruction(
-                    [_expr_item_row(state, n) for n in remaining],
-                    target=ctx.get("target_language") or "한국어", locale_label=ctx.get("locale_label") or "학습자의 모국어",
-                    done_rows=([_expr_item_row(state, n) for n in state.covered_nums[-EXPR_DONE_ROWS_CAP:]]
-                               if state.expr_quiz_open else None),      # 8차 C — 퀴즈 중에만 «다시 물었나» 를 묻는다
-                ),
-                prompt="[직전 학습자]%sU: %s%s[선생님 이번 턴]%sB: %s" % (chr(10), prev_user or "(없음)", chr(10), chr(10), text),
-                schema=ExpressionTaughtOut, temperature=0.0, thinking_budget=0, usage=u,
-            ),
-            timeout=EXPR_JUDGE_TIMEOUT_S,
-        )
-    except asyncio.CancelledError:
-        raise
-    except (TimeoutError, asyncio.TimeoutError):
-        state.expr_judge_stats["taught_timeout"] = state.expr_judge_stats.get("taught_timeout", 0) + 1
-        logger.warning("normalcall 표현학습 가르침 판정 타임아웃 %.1fs(문자열 폴백): call_id=%s B%d", EXPR_JUDGE_TIMEOUT_S, _cid(state), seg_idx)
-        result = None
-    except Exception as exc:  # noqa: BLE001 — 판정 실패는 그 턴만 폴백(R5)
-        logger.warning("normalcall 표현학습 가르침 판정 실패(문자열 폴백): call_id=%s B%d: %r", _cid(state), seg_idx, exc)
-        result = None
-    state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
-    _judge_usage_done(state, u)
-    if result is None:
-        state.expr_judge_stats["taught_fail"] += 1
-        state.expr_judge_stats["taught_fallback"] += 1      # 9차 C(2026-09-16, 1632 계측 정합): 문자열 폴백을 탔으면 폴백 수도 올린다
-        before = len(state.covered_nums)
-        _taught_fallback(state, text, prev_user, seg_idx)
-        return list(state.covered_nums[before:])
-    nums = sorted({n for n in (getattr(result, "taught", None) or [])
-                   if isinstance(n, int) and n in remaining and n not in state.covered_nums})
-    logger.info("normalcall 표현학습 가르침 판정(LLM): call_id=%s B%d → %s (남은 %d)", _cid(state), seg_idx, nums, len(remaining))
-    for n in nums:
-        if n in state.covered_nums:
-            continue
-        state.covered_nums.append(n)
-        _expression_quiz_tick(state, n, source="beaver", text=text, seg_idx=seg_idx)
-    # 8차 C + 9차 B(2026-09-16, 1632 블록4 #15 はい): 퀴즈 창이 열린 동안 비버가 세트 밖을 다룬 것 — «이미 다룬 항목 재질문»(retaught) 뿐 아니라
-    #   **아직 안 다룬 새 항목을 새로 가르친 것**(nums)도 이탈이다. 둘 다 같은 안내를 쓴다(통화당 상한 공유).
-    _note_quiz_set_drift(state, list(getattr(result, "retaught", None) or []) + nums, seg_idx)
-    return nums
-
-
-def _note_quiz_set_drift(state: _CallState, retaught: list, seg_idx: int) -> None:
-    """⭐ 8차 C(2026-09-15, 1624 2.5 seq2 — 이미 다룬 #2·#3 을 창 안에서 다시 물었다) + 9차 B(2026-09-16, 1632 블록4 — 세트 [12,13,14] 창에서
-    아직 안 다룬 #15 를 물었다): 퀴즈 중 비버가 **세트 밖 항목**을 다뤘으면(재질문이든 새 항목이든) 다음 turn_end 에 «지금 낼 문제는 …뿐이다» 안내를
-    1회 넣도록 표시한다(통화당 EXPR_QUIZ_SET_NUDGE_MAX). 판정·진도는 건드리지 않는다.
-
-    ⭐ 13차 D(2026-09-19, 1647 블록2 — 세트 [7,8,9] 창에서 항목 6 을 끼워 물었는데 이탈 로그 0): 조건에서 «이미 다룬 항목» 을 뺀다 —
-      **창 안에서 세트에 없는 항목을 다뤘으면 전부 이탈**이다(재질문이든 새 항목이든 아직 안 다룬 항목이든). 문구·상한은 그대로."""
-    if not (state.expr_quiz_open and state.expr_quiz_set):
-        return
-    off = sorted({n for n in retaught if isinstance(n, int) and 1 <= n <= len(state.expr_items)
-                  and n not in state.expr_quiz_set})
-    if not off:
-        return
-    # ⭐⭐ 14차 A(2026-09-19, 사장님 1651 B13 — 같은 비버 턴을 판정기 경로와 서버 대조 경로가 **각각** 잡아 안내가 2회 나갔다):
-    #   이탈은 **비버 턴 하나당 1회**다. 두 경로가 같은 seg_idx 를 물고 와도 여기서 합쳐진다.
-    if state.expr_quiz_drift_seg == seg_idx:
-        return
-    state.expr_quiz_drift_seg = seg_idx
-    if state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
-        logger.info("%s 세트 이탈(안내 상한 %d): call_id=%s B%d 다시 물은 항목=%s",
-                    EXPR_QUIZ_CUE_LOG_PREFIX, EXPR_QUIZ_SET_NUDGE_MAX, _cid(state), seg_idx, off)
-        return
-    state.expr_quiz_set_nudge_pending = True
-    logger.info("%s 세트 이탈: call_id=%s B%d 세트 밖으로 다룬 항목=%s 세트=%s — 다음 턴에 안내",
-                EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), seg_idx, off, state.expr_quiz_set)
-
-
-async def _inject_quiz_set_reminder(session: LiveSessionProtocol, state: _CallState) -> bool:
-    """8차 C — «지금 낼 문제는 [n·n·n] 뿐이다» 안내를 완결 텍스트 턴으로 1회(넛지·루프 차단기와 같은 파이프). 보냈으면 True."""
-    state.expr_quiz_set_nudge_pending = False
-    if not (state.expr_quiz_open and state.expr_quiz_set) or state.expr_quiz_set_nudges >= EXPR_QUIZ_SET_NUDGE_MAX:
-        return False
-    labels = " ".join("«%s»" % state.reground_items[n - 1] for n in state.expr_quiz_set if 1 <= n <= len(state.reground_items))
-    state.expr_quiz_set_nudges += 1
-    await _send_note(session, state.seeds.quiz_set_reminder(labels))
-    _note_text_inject(state, "quiz_set")
-    logger.info("%s 세트 안내 주입 %d/%d: call_id=%s 세트=%s 자리=마이크 모델=%s",
-                EXPR_QUIZ_CUE_LOG_PREFIX, state.expr_quiz_set_nudges, EXPR_QUIZ_SET_NUDGE_MAX,
-                _cid(state), state.expr_quiz_set, state.live_model or "-")
-    return True
 
 
 def _expr_mentioned_nums(state: _CallState, text: str) -> list[int]:
@@ -1712,23 +1500,6 @@ def _arm_drill_nudge(state: _CallState, why: str) -> None:
         state.expr_drill_nudged.add(focus)          # 표시는 arm 에서 — 창이 열려 주입이 무산돼도 그 항목은 이미 한 번 다뤘다
     logger.info("normalcall 표현학습 드릴 루프 감지: call_id=%s 항목=%s 사유=%s 안내=%d/%d",
                 _cid(state), focus, why, state.expr_drill_nudges + 1, EXPR_DRILL_NUDGE_MAX)
-
-
-def _note_quiz_set_drift_by_text(state: _CallState, text: str, seg_idx: int) -> None:
-    """⭐ 13차 D(2026-09-19) — 이탈 감지의 두 번째 눈: **서버 문자열 대조.**
-
-    옛 감지는 가르침 판정기가 돌려준 번호(taught·retaught)에만 기댔다. 판정기는 «이번 턴에 무엇을 가르쳤나» 를 보는 것이라
-    이미 다룬 항목을 다시 물은 것은 done_rows 상한(EXPR_DONE_ROWS_CAP) 밖이면 안 돌아온다 — 1647 블록2 의 항목 6 이 그렇게 샜다.
-    여기서는 비버 턴이 **세트 밖 항목의 표면형을 말했나** 만 본다(covered 여부·판정기 응답과 무관). 판정·진도는 건드리지 않는다.
-    ⚠ 창을 여는 세그먼트에서 «큐 직전 드릴 항목»(expr_quiz_prev_num)을 말하는 것은 드릴 피드백이다 — T17-4 예외를 그대로 지킨다.
-    """
-    if not (state.expr_quiz_open and state.expr_quiz_set) or not (text or "").strip():
-        return
-    off = [n for n in _expr_mentioned_nums(state, text) if n not in state.expr_quiz_set]
-    if seg_idx == state.expr_quiz_open_seg and state.expr_quiz_prev_num is not None:
-        off = [n for n in off if n != state.expr_quiz_prev_num]
-    if off:
-        _note_quiz_set_drift(state, off, seg_idx)
 
 
 def _note_expression_drill(state: _CallState, text: str) -> None:
@@ -1790,218 +1561,12 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     return True
 
 
-def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
-    """학습자 세그먼트 확정마다(flush) — 큐가 대기 중이면 턴 수를 올리고, 보류 항목(큐 직전 마지막 covered)이 학습자 입에서 나왔는지 본다.
-
-    ⚠ covered 는 비버 공개로도 오르므로 그 항목은 «다뤄졌다» 지만 «정리됐다» 가 아니다 — 학습자가 표면형/예문을 말했을 때만 확인(1552).
-    `_note_covered_items` 는 이미 covered 인 번호를 다시 세지 않아 여기서 따로 본다(판정 아님 — 큐를 얹을 때를 정하는 것뿐).
-    """
-    if not state.expr_items or state.expr_quiz_cue_pending is None:
-        return
-    if not (text or "").strip():
-        return      # P1(2026-09-15, 1611 t0·t28·t40): 전사 빈 턴은 «학습자 시도» 가 아니다 — 정리 대기 턴을 세지 않는다(세그먼트·turn_index 는 종전대로 저장)
-    state.expr_quiz_cue_user_turns += 1
-    hold = state.expr_quiz_prev_num
-    if hold is None or hold in state.expr_covered_by_user or not text:
-        return
-    _iid, surface = _num_item(state, hold)
-    if surface and quiz_judge.item_mentioned(text, surface, _item_example(state, hold), language=state.target_code):
-        state.expr_covered_by_user.add(hold)
-
-
-def _expression_quiz_note_open_user_turn(state: _CallState, text: str = "") -> None:
-    """C4(2026-09-14, 1601): 열린 퀴즈 창 안에서 학습자 턴을 세고, 상한에 닿으면 창을 강제로 닫는다(미판정은 종전 STT 폴백 판정) — 다음 큐가 열리게.
-    P1(2026-09-15, 1611): 전사가 빈 턴(무음·전사 누락)은 세지 않는다 — 학습자가 답하지 않은 턴으로 창이 닫히면 안 된다."""
-    if not state.expr_items or not state.expr_quiz_open:
-        return
-    if not (text or "").strip():
-        return
-    state.expr_quiz_open_user_turns += 1
-    if state.expr_quiz_open_user_turns >= EXPR_QUIZ_OPEN_MAX_USER_TURNS:
-        logger.warning("%s 강제 닫힘: call_id=%s seq=%d 학습자 턴 %d 상한 — 닫힘 트리거 없이 열려 있었다(1601)",
-                       EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), state.expr_quiz_seq, state.expr_quiz_open_user_turns)
-        _close_expression_quiz(state, why="학습자 턴 상한 %d" % EXPR_QUIZ_OPEN_MAX_USER_TURNS)
-
-
-def _expression_quiz_cue_settled(state: _CallState) -> tuple[bool, str]:
-    """대기 중인 큐를 지금 얹어도 되나(1552, 사장님 결정) — «다뤄진 마지막 항목이 정리됐나».
-
-    정리 = ① 학습자 발화에 그 항목 표면형/예문(성공) · ② 공개 뒤 학습자 시도가 EXPR_QUIZ_SETTLE_MAX_USER_TURNS 번(포기·안전장치) ·
-    ③ 비버가 다음 항목을 소개(covered 가 arm 때보다 늘었다 — 그땐 즉시). 학습자가 먼저 말해 covered 된 항목은 처음부터 정리다.
-    1552: 「잘 지냈어요」 idk → 공개 → «잘 자다» 순간 큐가 얹혀 비버가 정답만 말하고 퀴즈로 넘어갔다 — 재시도가 끊겼다.
-    """
-    hold = state.expr_quiz_prev_num
-    if hold is None or hold in state.expr_covered_by_user:
-        return True, "학습자 확인"
-    if len(state.covered_nums) > state.expr_quiz_cue_covered_at_arm:
-        return True, "다음 항목 소개"
-    if state.expr_quiz_cue_user_turns >= EXPR_QUIZ_SETTLE_MAX_USER_TURNS:
-        return True, "학습자 턴 %d회" % state.expr_quiz_cue_user_turns
-    return False, "항목 %d 미정리(학습자 턴 %d/%d)" % (hold, state.expr_quiz_cue_user_turns, EXPR_QUIZ_SETTLE_MAX_USER_TURNS)
-
-
-def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool = False) -> None:
-    """큐를 세운다 — 다음 학습자 발화 시작(마이크·RMS)에 얹힌다. 재접지 슬롯과 별개다."""
-    state.expr_quiz_set = list(nums)
-    state.expr_quizzed.update(nums)
-    # ⭐ T17-4 (1405 ② 진짜요) — 큐를 받은 **여는 비버 턴**이 직전 드릴 피드백(«polite form, 진짜요?»)과 퀴즈 시작을
-    #   한 턴에 담아 첫 사건이 공개→failed 가 됐다. 큐 직전 마지막 covered 항목을 기억해 두고, 여는 B 세그먼트에서
-    #   **그 항목의** 표면형만 공개로 세지 않는다(그 세그먼트만).
-    state.expr_quiz_prev_num = state.covered_nums[-1] if state.covered_nums else None
-    state.expr_quiz_cue_covered_at_arm = len(state.covered_nums)
-    state.expr_quiz_cue_user_turns = 0
-    if not retry:
-        state.expr_quiz_seq += 1
-    else:
-        state.expr_retry_cued = True
-    # ⛔ 실험(OPENAI_SELF_QUIZ): 큐를 얹지 않는다 — 개시를 GPT 에게 맡긴다.
-    #   arm 자체를 건너뛴다(pending 을 비워 두면 얹기 자리가 매 발화마다 헛돈다).
-    #   ⚠ 그러면 창이 안 열려 서버 판정(passed/failed)도 안 된다 — 설정 주석 참조.
-    if state.expr_self_quiz:
-        logger.info("%s arm 생략(OPENAI_SELF_QUIZ): call_id=%s 항목=%s — 개시를 모델에 맡긴다",
-                    EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), nums)
-        return
-    _cue = _expression_quiz_cue(state, nums, retry=retry)
-    if not _cue.strip():
-        # ⭐ GPT 묶음은 퀴즈 큐를 비웠다(2026-10-10 사장님 지시) ⇒ **창을 열지 않는다.**
-        #   ⛔ `pending` 에 "" 를 넣으면 얹기 자리가 매 발화마다 헛돌고 `is not None`
-        #     가드(:1884)가 큐가 있는 것으로 읽는다. 위 `expr_self_quiz` 와 같은 모양으로
-        #     arm 자체를 건너뛴다.
-        #   ⚠ 창이 안 열리면 서버 판정(passed/failed)도 안 돈다 — 알고 끄는 것이다.
-        logger.info("normalcall 퀴즈 arm 생략(쪽지 없음): call_id=%s 항목=%s", state.call_id, nums)
-        return
-    state.expr_quiz_cue_pending = _cue
-    state.expr_quiz_cue_armed_ts = asyncio.get_running_loop().time() if _loop_running() else None
-    logger.info(
-        "%s arm: call_id=%s seq=%d 항목=%s retry=%s covered=%d", EXPR_QUIZ_CUE_LOG_PREFIX,
-        _cid(state), state.expr_quiz_seq, nums, retry, len(state.covered_nums),
-    )
-
-
 def _loop_running() -> bool:
     try:
         asyncio.get_running_loop()
         return True
     except RuntimeError:
         return False
-
-
-def _expression_quiz_maybe_arm(state: _CallState) -> None:
-    """[drill] 에서 큐를 세울 때가 됐나 — ⛔ 퀴즈가 열려 있거나 큐가 대기 중이면 세우지 않는다(닫힌 뒤에만)."""
-    if not state.expr_items or state.expr_quiz_open or state.expr_quiz_awaiting_open:
-        return
-    if state.expr_quiz_cue_pending is not None or state.should_close or state.close_seed_sent:
-        return
-    g = svc.EXPRESSION_QUIZ_GROUP
-    # ⭐ P3(2026-09-15, 1611 set=[2,1,3]): 출제 순서는 **항목 번호 오름차순** — 다룬 순서(covered_nums)대로면 뒤섞인다.
-    unquizzed = sorted(n for n in state.covered_nums if n not in state.expr_quizzed)
-    # ⭐ P2(2026-09-15, 1607 t26 네 표현 한꺼번에): «covered 총량 ≥ g·(seq+1)» 을 버리고 **미출제가 g개 모였으면** 큐. 학습자가 한 턴에 여러 항목을
-    #   말해 covered 가 뛰어도 출제 묶음이 밀리지 않는다. seq 는 출제(arm)마다 +1(종전). 꼬리·오답 재출제는 아래 그대로.
-    if len(unquizzed) >= g:
-        _arm_expression_quiz_cue(state, unquizzed[:g])
-        return
-    all_covered = len(state.covered_nums) >= len(state.expr_items)
-    if all_covered and unquizzed:
-        # ⭐ 꼬리(P0-3): 목록 끝에 G개가 안 남았어도 남은 것만으로 — 비버가 스스로 퀴즈를 열지 않으니 서버가 연다.
-        _arm_expression_quiz_cue(state, unquizzed)
-        return
-    if all_covered and not unquizzed and state.expr_quiz_fail and not state.expr_retry_cued:
-        # ⭐ 오답 재출제(기획 ⑥) — 같은 기계로 한 번 더. 통화당 1회. 종료 구간이면 위에서 이미 걸러졌다.
-        failed_nums = [
-            n for n, it in enumerate(state.expr_items, 1)
-            if it.get("item_id") is not None and int(it["item_id"]) in state.expr_quiz_fail
-        ]
-        if failed_nums:
-            _arm_expression_quiz_cue(state, failed_nums, retry=True)
-
-
-def _expression_quiz_tick(state: _CallState, idx: int, *, source: str, text: str = "", seg_idx: int | None = None) -> None:
-    """covered 에 번호가 **새로** 들어온 직후 한 번 — 닫힘 판정(①) 뒤 arm 판정.
-
-    `text` = 그 번호를 낸 발화(아직 segments 에 안 들어갔다 — flush 순서). 닫힘이면 이 발화를 창 꼬리에 넣는다:
-    «It's 저는 미국 사람이에요. Now next: 도와주세요» 처럼 **공개와 다음 항목 소개가 한 턴**에 오는 게 흔하다 — 빼면
-    그 공개가 창 밖이 돼 failed 가 미판정으로 샌다.
-    """
-    if not state.expr_items:
-        return
-    if source == "beaver":
-        state.expr_covered_by_beaver.add(idx)
-    else:
-        state.expr_covered_by_user.add(idx)
-    if state.expr_quiz_open:
-        # ⭐ 4차 A: LLM 가르침 판정은 늦게 도착한다 — 판정한 비버 턴(seg_idx)이 창보다 앞(드릴)이면 닫힘을 보지 않는다.
-        if seg_idx is not None and seg_idx < state.expr_quiz_open_seg:
-            return
-        # ⛔ 닫힘은 **비버 발화로** covered 된 번호만 본다(codex P1-1).
-        # ⛔ T20: 열 때 이미 covered 였던 번호는 새 소개가 아니다(재언급). 여는 세그먼트(아직 segments 에 안 들어간 여는 비버
-        #   턴 = len(segments) == open_seg)에서 큐 직전 드릴 중이던 항목(drill_num)의 표면형은 드릴 피드백이다 — 닫힘 트리거가
-        #   아니고 stray 도 아니다. 여는 턴이 그 밖의 **진짜 새 항목**을 소개하면 그건 그대로 ① 규칙을 탄다.
-        if source == "beaver" and idx in state.expr_quiz_covered_at_open:
-            return
-        opening = (seg_idx if seg_idx is not None else len(state.segments)) == state.expr_quiz_open_seg
-        if source == "beaver" and opening and idx == state.expr_quiz_drill_num:
-            return
-        if source == "beaver" and idx not in state.expr_quiz_set:
-            state.expr_quiz_stray.append(idx)
-            next_num = min((n for n in range(1, len(state.expr_items) + 1)
-                            if n not in state.covered_nums or n == idx), default=idx)
-            if idx == next_num or len(state.expr_quiz_stray) >= EXPR_QUIZ_STRAY_CLOSE:
-                _close_expression_quiz(
-                    state, why="다음 항목 소개" if idx == next_num else "밖 번호 %d개" % len(state.expr_quiz_stray),
-                    closing_text=text, closing_seg=seg_idx,
-                )
-        return
-    _expression_quiz_maybe_arm(state)
-
-
-def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
-    """큐가 얹힌 뒤 **다음 비버 turn_start** — 여기서 창을 연다(fable P1-1). flush 직후에 불려 len(segments) 가 창의 첫 인덱스다."""
-    if state.expr_quiz_awaiting_open:
-        state.expr_quiz_awaiting_open = False
-        state.expr_quiz_open = True
-        state.expr_quiz_open_seg = len(state.segments)
-        state.expr_quiz_stray = []
-        state.expr_quiz_open_user_turns = 0
-        state.expr_quiz_llm_decided = set()
-        state.expr_quiz_grace_from = None                  # 8차 B — 새 창이 열리면 유예는 없다
-        state.expr_quiz_open_ts = asyncio.get_running_loop().time() if _loop_running() else None   # 14차 B
-        state.expr_quiz_drift_seg = None                   # 14차 A — 창이 바뀌면 이탈 중복 차단도 새로
-        # ⭐ T20 (1410 seq=3) — 여는 비버 턴은 «직전 드릴 피드백 + 퀴즈 시작» 이 한 턴에 오는 게 정상이다. 그 턴이 큐 직전에
-        #   드릴 중이던 항목(= 열 때 아직 안 다룬 가장 앞 번호)의 표면형을 공개하면(«It's 괜찮아요. Now, quiz time again!»)
-        #   옛 코드는 그걸 «다음 항목 소개» 로 읽어 창을 열자마자 닫았다(창 42~42, [6,7,8] 전부 미판정, 뒤 40초 정답 유실).
-        #   열 때 그 번호를 기억해 두고 여는 세그먼트에서는 닫힘 트리거로 안 쓴다. 열 때 이미 covered 였던 번호도 제외(T17-4 취지).
-        covered_now = set(state.covered_nums)
-        state.expr_quiz_covered_at_open = covered_now
-        state.expr_quiz_drill_num = next(
-            (n for n in range(1, len(state.expr_items) + 1) if n not in covered_now), None,
-        )
-        logger.info("%s 열림: call_id=%s seq=%d open_seg=%d 항목=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
-                    _cid(state), state.expr_quiz_seq, state.expr_quiz_open_seg, state.expr_quiz_set)
-
-
-def _expression_quiz_span(state: _CallState, *, include_tail: bool, upto: int | None = None) -> list[tuple[int, str, str]]:
-    """퀴즈 창 = (세그먼트 인덱스, 역할, 텍스트) — open_seg 부터. include_tail 이면 아직 flush 안 된 버퍼도(가상 인덱스).
-
-    ⛔ (2026-09-15 P4 검토 — 하지 않기로 함) «창이 open_seg 부터라 드릴 복창이 통과로 잡힌다» 는 추론은 **틀렸다.** open_seg 는 큐가 얹힌 뒤
-      **여는 비버 턴**의 인덱스라 드릴(그 앞 세그먼트)은 이미 창 밖이다. 1611 seq=1(창 11~23, passed=[2,1,3])을 전사로 보면 t11 비버는 공개 없이
-      묻고 t12·t14·t16 이 퀴즈 답이었다 — 정당한 통과. 창 시작을 open_seg+1 로 좁히면 여는 비버 턴의 **정답 공개**를 못 봐서, 공개 뒤 학습자가
-      따라 말한 것이 오히려 통과가 된다(지금은 failed). 코드만 보지 말고 세그먼트 내용을 확인하고 바꿔라.
-    """
-    span: list[tuple[int, str, str]] = []
-    for i in range(state.expr_quiz_open_seg, len(state.segments) if upto is None else min(upto, len(state.segments))):
-        seg = state.segments[i]
-        text = (seg.get("text") or "").strip()
-        if text:
-            span.append((i, "beaver" if seg.get("role") == "beaver" else "user", text))
-    if include_tail:
-        n = len(state.segments)
-        tb = "".join(state.cur_beaver_text).strip()
-        tu = "".join(state.cur_user_text).strip()
-        if tb:
-            span.append((n, "beaver", tb))
-        if tu:
-            span.append((n + 1, "user", tu))
-    return span
 
 
 def _num_item(state: _CallState, n: int) -> tuple[int | None, str]:
@@ -2019,57 +1584,6 @@ def _item_example(state: _CallState, n: int, surface: str | None = None) -> str 
         return None
     ex = it.get("ex")
     return str(ex) if isinstance(ex, str) and ex.strip() else None
-
-
-def _server_judge_quiz(state: _CallState, span: list[tuple[int, str, str]], quiz_set: list[int]) -> dict:
-    """서버 검색 — 항목마다 창을 순서대로 훑어 **먼저 나오는 사건**으로 확정한다. 반환 {passed, failed, pending}(번호)."""
-    out = {"passed": [], "failed": [], "pending": []}
-    for n in quiz_set:
-        iid, surface = _num_item(state, n)
-        if iid is None or not surface:
-            continue
-        verdict = ""
-        example = _item_example(state, n)          # 2026-09-12 판정 보강 — 예문 OR(표면형이 주형인 문법 항목)
-        for idx, role, text in span:
-            if not quiz_judge.item_mentioned(text, surface, example, language=state.target_code):
-                continue
-            if role == "user":
-                if quiz_judge.keeps_formality(text, surface, language=state.target_code):
-                    verdict = "passed"
-                    break
-                continue                       # 반말 산출(V4) — 사건이 아니다. 계속 훑는다(뒤에 공개가 오면 failed)
-            if idx == state.expr_quiz_open_seg and n == state.expr_quiz_prev_num:
-                continue                       # T17-4: 여는 B 의 직전 드릴 피드백 — 공개가 아니다(그 항목·그 세그먼트만)
-            verdict = "failed"                 # 비버가 표면형을 말했다 = 공개
-            break
-        if verdict == "passed":
-            state.expr_quiz_pass.add(iid)
-            state.expr_quiz_fail.discard(iid)
-            out["passed"].append(n)
-        elif verdict == "failed":
-            if iid not in state.expr_quiz_pass:
-                state.expr_quiz_fail.add(iid)
-            out["failed"].append(n)
-        else:
-            out["pending"].append(n)
-    return out
-
-
-def _expression_quiz_fallback_instruction(state: _CallState, nums: list[int]) -> str:
-    """STT 폴백 판정기 지시문 — 미판정 항목만, 세그먼트 번호로 답한다(순수 문자열 조립)."""
-    ctx = state.expr_ctx or {}
-    target = ctx.get("target_language") or "한국어"
-    rows = []
-    for n in nums:
-        _iid, surface = _num_item(state, n)
-        it = state.expr_items[n - 1]
-        row = f"{n}. {surface}"
-        if it.get("des"):
-            row += f" — 뜻: {it['des']}"
-        if it.get("ex"):
-            row += ' — 예문: "%s"' % it["ex"]
-        rows.append(row)
-    return expression_quiz_fallback_instruction(rows, target=target)   # 잠금: locked/seeds.py
 
 
 def _verify_stt_fallback(
@@ -2098,128 +1612,12 @@ def _verify_stt_fallback(
     return True, ""
 
 
-async def _expression_quiz_stt_fallback(
-    state: _CallState, span: list[tuple[int, str, str]], pending: list[int],
-) -> list[int]:
-    """미판정 항목에만 LLM 을 부른다(R5 — 실패해도 미판정 그대로). 반환 = 폴백으로 passed 된 번호."""
-    ctx = state.expr_ctx
-    if ctx is None or not pending or not any(role == "user" for _, role, _ in span):
-        return []
-    if state.expr_sidecar_calls >= EXPR_PROGRESS_MAX_PER_CALL:
-        return []
-    state.expr_sidecar_calls += 1
-    lines = [("B%d: " if role == "beaver" else "U%d: ") % i + text for i, role, text in span]
-    transcript = chr(10).join(lines)
-    if len(transcript) > EXPR_TRANSCRIPT_MAX_CHARS:                # 퀴즈 구간이 이걸 넘을 일은 없다 — 규칙만 유지
-        transcript = transcript[-EXPR_TRANSCRIPT_MAX_CHARS:]
-    passed_now: list[int] = []
-    try:
-        result = await gemini_analysis.generate_structured(
-            ctx["client"], ctx["model"],
-            system_instruction=_expression_quiz_fallback_instruction(state, pending),
-            prompt=f"[퀴즈 전사]{chr(10)}{transcript}",
-            schema=ExpressionQuizOut,
-            temperature=0.0,
-            thinking_budget=0,
-            usage=state.sidecar_usage,
-        )
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:  # noqa: BLE001 - 폴백 실패는 미판정일 뿐(R5)
-        logger.warning("normalcall 표현학습 퀴즈 폴백 실패(무시): %s", exc)
-        return []
-    if result is None:
-        return []
-    for item in getattr(result, "items", None) or []:
-        n = getattr(item, "num", None)
-        if not isinstance(n, int) or n not in pending:
-            continue
-        ok, why = _verify_stt_fallback(state, span, n, getattr(item, "answer_seg", None))
-        iid, surface = _num_item(state, n)
-        if ok and iid is not None:
-            state.expr_quiz_pass.add(iid)
-            state.expr_quiz_fail.discard(iid)
-            passed_now.append(n)
-            logger.info("normalcall 표현학습 퀴즈 판정 provenance=stt_fallback: 항목 %d «%s» answer_seg=%s",
-                        n, surface, item.answer_seg)
-        else:
-            logger.info("normalcall 표현학습 퀴즈 폴백 기각: 항목 %d «%s» answer_seg=%s (%s)",
-                        n, surface, getattr(item, "answer_seg", None), why or "item_id 없음")
-    return passed_now
-
-
-def _quiz_server_judge_and_fallback(state: _CallState, span: list[tuple[int, str, str]], nums: list[int], *, why: str) -> dict:
-    """4차 B 폴백 — 종전 서버 문자열 판정 + 미판정 STT 폴백(논블로킹). LLM 판정을 못 부르거나 실패한 항목에만."""
-    res = _server_judge_quiz(state, span, nums)
-    logger.info(
-        "normalcall 표현학습 퀴즈 판정(서버·폴백): call_id=%s seq=%d 사유=%s set=%s passed=%s failed=%s 미판정=%s",
-        _cid(state), state.expr_quiz_seq, why, nums, res["passed"], res["failed"], res["pending"],
-    )
-    if res["pending"] and state.expr_ctx is not None and not state.should_close and _loop_running():
-        task = asyncio.create_task(
-            _expression_quiz_stt_fallback(state, span, res["pending"]), name="normalcall-expr-quiz-fallback",
-        )
-        state.expr_tasks.add(task)
-        task.add_done_callback(state.expr_tasks.discard)
-    return res
-
-
-def _spawn_quiz_verdict(
-    state: _CallState, *, upto: int | None = None, span: list[tuple[int, str, str]] | None = None,
-    items: list[int] | None = None, final: bool = False,
-) -> "asyncio.Task | None":
-    """⭐ 4차 B — 지금 퀴즈의 아직 확정 안 된 항목을 창 전사로 LLM 판정(논블로킹, expr_tasks). 부를 게 없거나 상한이면 None."""
-    nums = [n for n in (items if items is not None else state.expr_quiz_set) if n not in state.expr_quiz_llm_decided]
-    if not nums:
-        return None
-    if span is None:
-        span = _expression_quiz_span(state, include_tail=False, upto=upto)
-    if not any(role == "user" for _, role, _ in span):
-        return None
-    stats = state.expr_judge_stats
-    if stats["quiz_calls"] >= EXPR_QUIZ_VERDICT_MAX_PER_CALL:
-        return None
-    stats["quiz_calls"] += 1
-    task = asyncio.create_task(
-        _quiz_verdict_judge(state, state.expr_quiz_seq, list(span), nums, final=final), name="normalcall-expr-quiz-verdict",
-    )
-    state.expr_tasks.add(task)
-    task.add_done_callback(state.expr_tasks.discard)
-    return task
-
-
 def _last_beaver_seg(state: _CallState) -> int:
     """마지막 비버 세그먼트 인덱스(없으면 지금 자리) — 8차 B 유예 판정의 시작점."""
     for i in range(len(state.segments) - 1, -1, -1):
         if state.segments[i].get("role") == "beaver":
             return i
     return max(0, len(state.segments) - 1)
-
-
-def _spawn_grace_verdict(state: _CallState) -> "asyncio.Task | None":
-    """⭐ 8차 B — 창이 닫힌 **직후 한 턴**만: «닫히기 직전 비버 턴 + 이 학습자 턴» 을 판정기에 넣어 그때 물은 항목(세트 밖 포함)의 자발 정답을 받는다.
-    세트가 이미 없으므로 판정기에는 세트 밖 후보만 실린다 — 서버는 passed 만 적용(5차 A-2 규율: 공개 뒤 복창·오답은 기록 0). 한 번 쓰고 유예는 끝난다."""
-    start = state.expr_quiz_grace_from
-    state.expr_quiz_grace_from = None
-    if start is None or not state.expr_items:
-        return None
-    span = [
-        (i, "beaver" if state.segments[i].get("role") == "beaver" else "user", (state.segments[i].get("text") or "").strip())
-        for i in range(start, len(state.segments)) if (state.segments[i].get("text") or "").strip()
-    ]
-    if not any(role == "user" for _, role, _ in span):
-        return None
-    stats = state.expr_judge_stats
-    if stats["quiz_calls"] >= EXPR_QUIZ_VERDICT_MAX_PER_CALL:
-        return None
-    stats["quiz_calls"] += 1
-    logger.info("normalcall 표현학습 유예 판정(닫힘 직후 1턴): call_id=%s seq=%d 창=%d~%d", _cid(state), state.expr_quiz_seq, start, len(state.segments))
-    task = asyncio.create_task(
-        _quiz_verdict_judge(state, state.expr_quiz_seq, span, [], final=False, grace=True), name="normalcall-expr-quiz-grace",
-    )
-    state.expr_tasks.add(task)
-    task.add_done_callback(state.expr_tasks.discard)
-    return task
 
 
 def _grace_off_set_server_pass(state: _CallState, span: list[tuple[int, str, str]], extra: list[int], already: set[int]) -> list[int]:
@@ -2291,273 +1689,6 @@ def _verify_llm_formality(state: _CallState, span: list[tuple[int, str, str]], n
     example = _item_example(state, n)
     located = [t for t in users if quiz_judge.item_mentioned(t, surface, example, language=state.target_code)]
     return any(quiz_judge.keeps_formality(t, surface, language=state.target_code) for t in (located or users))
-
-
-async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool,
-                              grace: bool = False) -> dict:
-    """판정기 1콜 → 항목별 passed/failed/pending 을 서버가 적용(passed 단조 — failed 는 passed 를 못 지운다). 확정(passed·failed)은 같은 퀴즈(seq)
-    안에서만 기록해 다음 퀴즈를 오염시키지 않는다. 실패·None: final 이면 남은 항목을 서버 문자열 판정으로(R5), 아니면 다음 턴 판정·닫힘을 기다린다."""
-    ctx = state.expr_ctx or {}
-    loop = asyncio.get_running_loop()
-    t0 = loop.time()
-    # ⭐ 5차 A-2(2026-09-15, 1615 #13·1616 #7): 비버가 세트 밖 항목을 물었고 학습자가 맞히면 그것도 기록한다 — 세트 밖 후보 = 아직 통과 안 한 나머지 항목 전부.
-    #   «실제로 물었나» 는 판정기가 전사로 가린다(지시문 칸). 서버는 세트 밖 항목에 **passed 만** 적용한다(failed·pending 무시 — 묻지도 않은 항목에 오답을 남기지 않는다).
-    # ⛔ 9차 A(2026-09-16, 1632 #10 どうも): **유예 판정(grace)** 은 같은 사건의 꼬리다 — 이미 failed 로 확정된 항목(비버가 정답을 알려준 항목)은 후보에서
-    #   빼야 한다. 안 그러면 «공개 → 복창» 이 유예에서 passed 로 덮여 «안 배운 걸 배웠다» 가 된다(판정기에 맡기지 않고 서버가 후보를 만든다).
-    extra = [n for n in range(1, len(state.expr_items) + 1)
-             if n not in nums and n not in state.expr_quiz_set
-             and int(state.expr_items[n - 1].get("item_id") or -1) not in state.expr_quiz_pass
-             and not (grace and int(state.expr_items[n - 1].get("item_id") or -1) in state.expr_quiz_fail)]
-    lines = [("B%d: " if role == "beaver" else "U%d: ") % i + text for i, role, text in span]
-    transcript = chr(10).join(lines)[-EXPR_TRANSCRIPT_MAX_CHARS:]
-    result = None
-    u = gemini_analysis.LlmUsage()              # 4차 E — 이 콜만의 토큰
-    try:
-        result = await asyncio.wait_for(
-            gemini_analysis.generate_structured(
-                ctx["client"], ctx["model"],
-                system_instruction=expression_quiz_verdict_instruction(
-                    [_expr_item_row(state, n) for n in nums],
-                    target=ctx.get("target_language") or "한국어", locale_label=ctx.get("locale_label") or "학습자의 모국어",
-                    extra_rows=[_expr_item_row(state, n) for n in extra],
-                ),
-                prompt=f"[퀴즈 전사]{chr(10)}{transcript}",
-                schema=ExpressionVerdictOut, temperature=0.0, thinking_budget=0, usage=u,
-            ),
-            timeout=EXPR_JUDGE_TIMEOUT_S,
-        )
-    except asyncio.CancelledError:
-        raise
-    except (TimeoutError, asyncio.TimeoutError):
-        state.expr_judge_stats["quiz_timeout"] = state.expr_judge_stats.get("quiz_timeout", 0) + 1
-        logger.warning("normalcall 표현학습 퀴즈 정답 판정 타임아웃 %.1fs: call_id=%s seq=%d final=%s", EXPR_JUDGE_TIMEOUT_S, _cid(state), seq, final)
-        result = None
-    except Exception as exc:  # noqa: BLE001 — 판정 실패는 폴백(R5)
-        logger.warning("normalcall 표현학습 퀴즈 정답 판정 실패: call_id=%s seq=%d final=%s: %r", _cid(state), seq, final, exc)
-        result = None
-    state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
-    _judge_usage_done(state, u)
-    same_quiz = seq == state.expr_quiz_seq
-    if result is None:
-        state.expr_judge_stats["quiz_fail"] += 1
-        if final:
-            left = [n for n in nums if not (same_quiz and n in state.expr_quiz_llm_decided)]
-            if left:
-                _quiz_server_judge_and_fallback(state, span, left, why="LLM 실패")
-        if grace:
-            _grace_off_set_server_pass(state, span, extra, set())      # 12차 C — 판정기가 죽어도 세트 밖 자발 정답은 줍는다
-        return {}
-    out: dict = {"passed": [], "failed": [], "pending": [], "why": {}}
-    seen: set[int] = set()
-    for v in getattr(result, "verdicts", None) or []:
-        n = getattr(v, "num", None)
-        if isinstance(n, int) and n in extra and n not in seen:
-            seen.add(n)
-            if str(getattr(v, "verdict", "") or "").strip().lower() == "passed":
-                iid, surface = _num_item(state, n)
-                if grace and iid is not None and iid in state.expr_quiz_fail:
-                    # 9차 A② — 단조 보강: 유예는 새 사건이 아니라 같은 사건의 꼬리라, 이미 failed 로 확정된 항목을 passed 로 덮지 않는다.
-                    logger.info("normalcall 표현학습 유예 판정 기각(이미 오답 확정): call_id=%s 항목 %d «%s»", _cid(state), n, surface)
-                    continue
-                if not _verify_llm_formality(state, span, n):
-                    # 2026-10-03 결함① — 세트 밖도 같은 격식 게이트를 받는다(세트 밖은 passed 만 적용하므로 기각 = 기록 0).
-                    logger.info("normalcall 표현학습 퀴즈 판정 기각(격식·세트 밖): call_id=%s 항목 %d «%s»", _cid(state), n, surface)
-                    continue
-                _apply_off_set_pass(state, n, str(getattr(v, "why", "") or "")[:40])
-                out.setdefault("off_set_passed", []).append(n)
-            continue
-        if not isinstance(n, int) or n not in nums or n in seen:
-            continue
-        seen.add(n)
-        iid, _surface = _num_item(state, n)
-        if iid is None:
-            continue
-        verdict = str(getattr(v, "verdict", "") or "").strip().lower()
-        out["why"][n] = str(getattr(v, "why", "") or "")[:40]
-        if verdict == "passed":
-            if not _verify_llm_formality(state, span, n):
-                # ⭐ 2026-10-03 결함① — 반말 산출은 passed 가 아니다. **미판정**으로 둔다(failed 로 바꾸지 않는다 —
-                #   침묵 ≠ 오답). llm_decided 에도 안 넣으므로 **창이 열려 있는 동안은** 다음 턴 판정·닫힘 판정이 그 자리를 다시 본다.
-                #   ⚠ 독립 QA 지적(정확하다): `final=True` 에서 걸리면 그 뒤엔 아무것도 안 돈다 — 서버 문자열 폴백은 LLM 결과가
-                #     **None 일 때만** 돌기 때문이다(아래 `if result is None`). 그래도 결과는 안전한 쪽이다(기록 0, failed 아님).
-                #     거기서 `_server_judge_quiz` 를 더 돌려도 같은 `keeps_formality` 를 쓰므로 통과로 바뀌지 않는다.
-                out["pending"].append(n)
-                logger.info("normalcall 표현학습 퀴즈 판정 기각(격식): call_id=%s seq=%d 항목 %d «%s» → 미판정",
-                            _cid(state), seq, n, _num_item(state, n)[1])
-                continue
-            state.expr_quiz_pass.add(iid)
-            state.expr_quiz_fail.discard(iid)
-            out["passed"].append(n)
-        elif verdict == "failed":
-            if iid not in state.expr_quiz_pass:
-                state.expr_quiz_fail.add(iid)
-            out["failed"].append(n)
-        else:
-            out["pending"].append(n)
-            continue
-        if same_quiz:
-            state.expr_quiz_llm_decided.add(n)
-    out["pending"] += [n for n in nums if n not in seen]
-    if grace:
-        # 12차 C — 판정기가 세트 밖 칸을 건너뛴 경우(1646 #7: verdicts 0건) 서버 대조로 줍는다. 이미 판정기가 낸 번호는 건드리지 않는다.
-        server_got = _grace_off_set_server_pass(state, span, extra, set(out.get("off_set_passed") or []))
-        if server_got:
-            out.setdefault("off_set_passed", []).extend(server_got)
-    logger.info(
-        "normalcall 표현학습 퀴즈 판정(LLM): call_id=%s seq=%d %s%s passed=%s failed=%s pending=%s why=%s",
-        _cid(state), seq, "마지막 " if final else "", ("U%d까지" % span[-1][0]) if span else "", out["passed"], out["failed"], out["pending"], out["why"],
-    )
-    # ⭐ 6차 A(2026-09-15, 재검 1618~1620 — 세트를 다 물어도 창이 안 닫혀 비버가 4번째 항목을 묻고 «강제 닫힘(학습자 턴 6)» 으로 닫혔다): 판정이 도착한 시점에
-    #   **지금 퀴즈 세트가 전부 확정(passed|failed)** 이면 즉시 닫는다 → 다음 큐를 arm 할 수 있다. «다음 항목 소개»·6턴 강제 닫힘은 안전판으로 그대로.
-    if not final and same_quiz and state.expr_quiz_open and state.expr_quiz_set \
-            and all(n in state.expr_quiz_llm_decided for n in state.expr_quiz_set):
-        _close_expression_quiz(state, why="세트 전부 확정")
-    return out
-
-
-def _close_expression_quiz(state: _CallState, *, why: str, closing_text: str = "", closing_seg: int | None = None) -> None:
-    """닫힘 ① — 창을 잡고 서버 판정을 **즉시** 하고, 미판정이 있으면 폴백을 띄운다(논블로킹).
-
-    `closing_text` = 닫힘을 일으킨 비버 발화(아직 flush 전). 창 꼬리에 B 로 넣는다 — 공개+다음 소개가 한 턴인 경로.
-    """
-    if not state.expr_quiz_open:
-        return
-    if closing_seg is not None and closing_seg < len(state.segments):
-        # ⭐ 4차 A: 닫힘 트리거(LLM 가르침 판정)가 늦게 왔다 — 창 끝은 **그 비버 턴**(이미 segments 에 있다). 그 뒤 학습자 답은 창 밖.
-        span = _expression_quiz_span(state, include_tail=False, upto=closing_seg + 1)
-    else:
-        span = _expression_quiz_span(state, include_tail=False)
-        if closing_text.strip():
-            span.append((len(state.segments), "beaver", closing_text.strip()))
-    quiz_set = list(state.expr_quiz_set)
-    state.expr_quiz_open = False
-    state.expr_quiz_set = []
-    state.expr_quiz_stray = []
-    # ⭐ 8차 B(2026-09-15, 1624 #13): 6차 A 로 창이 «세트 전부 확정» 즉시 닫히면서, 닫히기 직전 비버가 물어 둔 항목의 정답을 놓쳤다(질문 1초 뒤 닫힘).
-    #   닫힘 직후 **학습자 턴 하나까지**는 그 마지막 비버 턴부터 다시 판정한다(세트 밖 규율 그대로 passed 만 적용).
-    state.expr_quiz_grace_from = _last_beaver_seg(state)
-    if _expr_llm_judge_active(state):
-        # ⭐ 4차 B: 닫힘 규칙은 서버 그대로, 판정은 LLM — 창 안 턴마다 이미 낸 판정 외에 **남은 항목**만 창 전체로 한 번 더. 그것도 못 부르면(상한·학습자 턴 0)
-        #   종전 서버 문자열 판정(+STT 폴백). 콜이 실패하면 _quiz_verdict_judge 가 같은 폴백으로 내려간다.
-        remaining = [n for n in quiz_set if n not in state.expr_quiz_llm_decided]
-        logger.info(
-            "normalcall 표현학습 퀴즈 닫힘(LLM 판정): call_id=%s seq=%d 닫힘=%s 창=%d~(%d세그) set=%s 확정=%s 남은=%s",
-            _cid(state), state.expr_quiz_seq, why, state.expr_quiz_open_seg, len(span), quiz_set,
-            sorted(state.expr_quiz_llm_decided), remaining,
-        )
-        if remaining and _spawn_quiz_verdict(state, span=span, items=remaining, final=True) is None:
-            _quiz_server_judge_and_fallback(state, span, remaining, why=why + "·LLM 못 부름")
-        _expression_quiz_maybe_arm(state)
-        return
-    res = _server_judge_quiz(state, span, quiz_set)
-    logger.info(
-        "normalcall 표현학습 퀴즈 판정(서버): seq=%d 닫힘=%s 창=%d~%d(%d세그) set=%s passed=%s failed=%s 미판정=%s",
-        state.expr_quiz_seq, why, state.expr_quiz_open_seg, len(state.segments), len(span), quiz_set,
-        res["passed"], res["failed"], res["pending"],
-    )
-    if res["pending"] and state.expr_ctx is not None and not state.should_close and _loop_running():
-        task = asyncio.create_task(
-            _expression_quiz_stt_fallback(state, span, res["pending"]), name="normalcall-expr-quiz-fallback",
-        )
-        state.expr_tasks.add(task)
-        task.add_done_callback(state.expr_tasks.discard)
-    _expression_quiz_maybe_arm(state)
-
-
-async def _final_llm_judge(state: _CallState, loop, t0: float) -> bool:
-    """⭐ 4차 B — 조각 끝(LLM 판정 경로). 예산 EXPR_FINAL_JUDGE_TIMEOUT_S 안에서 ① 돌고 있는 판정(가르침·정답) 결과를 절반까지 기다리고(가르침 결과가 창을
-    닫을 수 있다) ② 창이 아직 열려 있으면 남은 항목을 창 전체(+꼬리)로 1콜, 시간 안에 못 오면 서버 문자열 판정 ③ 남은 태스크를 남은 예산만큼. 반환 = 초과했나."""
-    budget = EXPR_FINAL_JUDGE_TIMEOUT_S
-    over = False
-    pending = {t for t in state.expr_tasks if not t.done()}
-    if pending:
-        # ⚠ 5차 C(2026-09-15, 1617 «1052ms (상한 2000ms — ⚠초과)»): 절반 대기에서 안 끝난 태스크는 **초과가 아니다** — 아래 마지막 대기가 남은 예산으로 기다린다.
-        #   초과는 예산을 다 쓰고도 안 끝났거나(아래 not_done) 창 판정이 시간 안에 못 왔을 때만.
-        await asyncio.wait(pending, timeout=budget / 2)
-    if state.expr_quiz_open:
-        span = _expression_quiz_span(state, include_tail=True)
-        quiz_set = list(state.expr_quiz_set)
-        state.expr_quiz_open = False
-        state.expr_quiz_set = []
-        remaining = [n for n in quiz_set if n not in state.expr_quiz_llm_decided]
-        logger.info("normalcall 표현학습 퀴즈 닫힘(LLM 판정·마지막): call_id=%s seq=%d 창=%d~끝(%d세그) set=%s 남은=%s",
-                    _cid(state), state.expr_quiz_seq, state.expr_quiz_open_seg, len(span), quiz_set, remaining)
-        if remaining:
-            left_budget = max(0.2, budget - (loop.time() - t0))
-            if any(role == "user" for _, role, _ in span) and state.expr_judge_stats["quiz_calls"] < EXPR_QUIZ_VERDICT_MAX_PER_CALL:
-                state.expr_judge_stats["quiz_calls"] += 1
-                try:
-                    await asyncio.wait_for(_quiz_verdict_judge(state, state.expr_quiz_seq, span, remaining, final=True), timeout=left_budget)
-                except (TimeoutError, asyncio.TimeoutError):
-                    over = True
-                    left = [n for n in remaining if n not in state.expr_quiz_llm_decided]
-                    if left:
-                        res = _server_judge_quiz(state, span, left)
-                        logger.info("normalcall 표현학습 퀴즈 판정(서버·마지막 폴백): call_id=%s seq=%d set=%s passed=%s failed=%s 미판정=%s",
-                                    _cid(state), state.expr_quiz_seq, left, res["passed"], res["failed"], res["pending"])
-            else:
-                res = _server_judge_quiz(state, span, remaining)
-                logger.info("normalcall 표현학습 퀴즈 판정(서버·마지막 폴백): call_id=%s seq=%d set=%s passed=%s failed=%s 미판정=%s",
-                            _cid(state), state.expr_quiz_seq, remaining, res["passed"], res["failed"], res["pending"])
-    pending = {t for t in state.expr_tasks if not t.done()}
-    if pending:
-        _done, not_done = await asyncio.wait(pending, timeout=max(0.0, budget - (loop.time() - t0)))
-        over = over or bool(not_done)
-    return over
-
-
-async def _final_expression_progress(state: _CallState) -> None:
-    """⭐⭐ **조각 끝 마지막 판정** — DB 쓰기 **전에**(사장님 지시). 열린 퀴즈가 있으면 그 창을 닫고 판정한다(닫힘 ②).
-
-    ## ⛔⛔ 쓰기를 LLM 에 걸지 않는다
-    서버 검색은 즉시다. 폴백 LLM 만 EXPR_FINAL_JUDGE_TIMEOUT_S 로 묶고, timeout·예외·None 어느 쪽이든 있는 것만 저장한다(R5).
-    이 함수는 예외를 밖으로 내보내지 않는다 — 저장 경로가 이 함수의 성패에 묶이면 LLM 이 죽는 날 **조각2 가 안 열린다.**
-    ⚠ 조각 경계는 이어하기 요약과 경합한다(EXPR_FINAL_JUDGE_TIMEOUT_S 주석) — 소요를 로그로 남긴다.
-    ⚠ 큐만 세워졌고 열리지 않은 퀴즈는 drilled 로만 남는다(안전 방향 — 큐 idle 폴백을 두지 않는다, codex P1-2).
-    """
-    if not state.expr_items:
-        return
-    loop = asyncio.get_running_loop()
-    t0 = loop.time()
-    over = False
-    try:
-        # 닫힘 ① 로 띄운 폴백이 아직 돌고 있으면 같은 예산 안에서 기다린다 — 그 결과도 이 조각의 저장에 실려야 한다.
-        llm = _expr_llm_judge_active(state)
-        if llm:
-            over = await _final_llm_judge(state, loop, t0)
-        pending_tasks = set() if llm else {t for t in state.expr_tasks if not t.done()}
-        if state.expr_quiz_open and not llm:
-            span = _expression_quiz_span(state, include_tail=True)
-            quiz_set = list(state.expr_quiz_set)
-            state.expr_quiz_open = False
-            state.expr_quiz_set = []
-            res = _server_judge_quiz(state, span, quiz_set)
-            logger.info(
-                "normalcall 표현학습 퀴즈 판정(서버·마지막): seq=%d 창=%d~끝(%d세그) set=%s passed=%s failed=%s 미판정=%s",
-                state.expr_quiz_seq, state.expr_quiz_open_seg, len(span), quiz_set,
-                res["passed"], res["failed"], res["pending"],
-            )
-            if res["pending"]:
-                await asyncio.wait_for(
-                    _expression_quiz_stt_fallback(state, span, res["pending"]),
-                    timeout=EXPR_FINAL_JUDGE_TIMEOUT_S,
-                )
-        if pending_tasks:
-            remaining = max(0.0, EXPR_FINAL_JUDGE_TIMEOUT_S - (loop.time() - t0))
-            done, not_done = await asyncio.wait(pending_tasks, timeout=remaining)
-            over = over or bool(not_done)
-    except (TimeoutError, asyncio.TimeoutError):
-        over = True
-    except Exception as exc:  # noqa: BLE001 - 저장을 막으면 안 된다(R5)
-        logger.warning("normalcall 표현학습: 마지막 판정 실패(무시): %s", exc)
-    if state.expr_quiz_cue_pending is not None:
-        logger.info("%s 미얹힘(통화 끝): call_id=%s seq=%d 항목=%s — drilled 로만 남는다", EXPR_QUIZ_CUE_LOG_PREFIX,
-                    _cid(state), state.expr_quiz_seq, state.expr_quizzed and sorted(state.expr_quizzed)[-len(state.expr_quiz_set or []):])
-    logger.info(
-        "normalcall 표현학습 마지막 판정: call_id=%s %.0fms (상한 %.0fms%s)",
-        _cid(state), (loop.time() - t0) * 1000.0, EXPR_FINAL_JUDGE_TIMEOUT_S * 1000.0,
-        " — ⚠초과, 있는 것만 저장" if over else "",
-    )
 
 
 def _expression_result_snapshot(state: _CallState, drilled_set: set[int]) -> list[dict]:
@@ -2642,12 +1773,11 @@ def _flush_beaver_segment(state: _CallState) -> None:
         state.last_beaver_question = text
     # ⭐ 재접지 쪽지의 "이미 다룬 것" 을 여기서 **서버가 누적한다**(2026-09-09, 통화 1360).
     #   턴이 확정되는 유일한 자리라 압축·사이드카와 무관하게 통화 전체를 센다.
-    if _expr_llm_judge_active(state):
-        _spawn_taught_judge(state, text, len(state.segments))    # 4차 A — 이 비버 턴(바로 아래 append 자리)을 LLM 이 판정(논블로킹)
-    else:
-        _note_covered_items(state, text)
+    # ⭐ 2026-10-10: 판정 사이드카를 지웠다 ⇒ 가르침 추적은 **서버 문자열 대조 하나**다.
+    #   종전엔 `_expr_llm_judge_active` 로 갈려 LLM 이 번호를 집었다(call 1780: 비버 턴마다
+    #   1콜 · 토큰 in 5,024). 그 경로가 없어졌으니 분기도 없앤다.
+    _note_covered_items(state, text)
     _note_expression_drill(state, text)          # 11차 B — 드릴 루프(항목 기준) 추적. 판정·진도는 안 건드린다
-    _note_quiz_set_drift_by_text(state, text, len(state.segments))   # 13차 D — 세트 이탈 서버 대조(판정기 응답과 무관)
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "beaver", "text": text, "pcm": bytes(state.cur_beaver_pcm)}
     )
@@ -4610,7 +3740,6 @@ async def run_call(
             # ⭐⭐ 커리큘럼 2단계 종료 저장(§2) — 경로 고정: 시작에 cur 를 탔으면 여기서도 cur 만(§6 ③). 옛 save_expression_progress·
             #   promote_by_expression·call.expression_result 는 **부르지 않는다**(시험이 0회를 잠근다). 재분석(analyze_call)은 무수정.
             if call_type == "expression":
-                await _final_expression_progress(state)          # 순서 계약 그대로: ① 마지막 판정 ② state ③ DB
                 try:
                     drilled = _expr_covered_ids(state)
                     drilled_set = set(drilled)
@@ -4657,7 +3786,6 @@ async def run_call(
             #     항목을 조각2 가 다시 가르친다.
             #   ⛔ 그렇다고 쓰기를 ①에 **걸지 않는다** — 상한(EXPR_FINAL_JUDGE_TIMEOUT_S) 안에 안 오면 있는 것만
             #     쓰고 진행한다. 이 함수는 예외를 밖으로 안 내보낸다(R5).
-            await _final_expression_progress(state)
             try:
                 # ⛔⛔ **표면형으로 되짚지 마라** — 같은 레벨에 동일 표면형이 91그룹 실재한다
                 #   (assets/level/curriculum_v2/vocab.json 전수 스캔). surface set 으로 역매핑하면
@@ -6358,7 +5486,6 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             # cur_user_text 가 비워지기 전에 답변을 캡처해 관측 사이드카를 띄운다(논블로킹).
             _spawn_band_observe(state)
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
-            _expression_quiz_open_on_beaver_turn(state)  # T16 — 큐가 얹힌 뒤 첫 비버 턴 = 퀴즈 창 시작(open_seg)
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             if state.call_start_ts is None:
                 state.call_start_ts = asyncio.get_running_loop().time()
@@ -7129,12 +6256,6 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     #   불린다 — 그 자리에서 큐·안내를 먼저 먹으면 관문을 우회한다(운영은 mic_open 이라 지금
     #   안 타지만, 두 자리를 공유하는 이 함수 하나에서 막아야 다음에 자리가 늘어도 안전하다).
     at_mic = where == "마이크"
-    # ⭐ T16 — 퀴즈 큐가 대기 중이면 **큐가 먼저** 간다. 재접지 pending 은 그대로 남겨 다음 발화에 보낸다
-    #   (둘을 한 문자열로 합치지 않는다). reground_count/last_reground_ts 는 건드리지 않는다 — 큐가 재접지
-    #   간격 150s 를 소모하면 쪽지가 0회가 돼 되감기 방어가 죽는다(fable P1-3).
-    if at_mic and state.expr_quiz_cue_pending is not None:
-        await _attach_quiz_cue(session, state, where)
-        return
     # ⭐ 14차 C — 큐 다음은 안내(세트·드릴)다. 큐와 마찬가지로 **학습자가 막 말을 시작한 자리**에만 넣는다.
     #   재접지 쪽지는 그대로 남겨 다음 발화에 보낸다(큐와 같은 규율 — 한 자리에 하나).
     if at_mic and (state.expr_quiz_set_nudge_pending or state.expr_drill_nudge_pending):
@@ -7197,49 +6318,6 @@ async def _maybe_attach_reground_on_mic(
     await _attach_reground(session, state, "마이크")
 
 
-async def _attach_quiz_cue(session: LiveSessionProtocol, state: _CallState, where: str) -> None:
-    """퀴즈 큐를 지금 얹는다(재접지의 자리·RMS 2관문을 빌려 왔다 — `_attach_reground` 가 부른다).
-
-    ⛔ 재접지의 «await 전 내림» 과 **다르다** — 큐는 필수, 재접지는 선택. 전송 예외면 pending 을 **유지**해
-      다음 발화에서 재시도한다. idle 채널(send_text_turn) 폴백은 두지 않는다 — 학습자 발화가 안 오면 퀴즈가
-      미뤄질 뿐이고, 통화 끝의 열리지 않은 퀴즈는 drilled 로만 남는다(안전 방향, codex P1-2).
-    ⛔ reground_count · last_reground_ts 를 건드리지 않는다(fable P1-3).
-    """
-    cue = state.expr_quiz_cue_pending
-    if cue is None:
-        return
-    settled, why = _expression_quiz_cue_settled(state)
-    if not settled:
-        # ⭐ 1552 — 공개 직후 학습자가 다시 시도하는 그 자리에 큐가 얹히면 비버가 정답만 말하고 퀴즈로 넘어간다. 마지막 항목이
-        #   정리될 때까지(학습자 성공 / 시도 3번 / 비버가 다음 항목 소개) 큐를 들고 있는다 — 재접지처럼 다음 발화에 다시 본다.
-        if why != state.expr_quiz_hold_why:     # ④(b) 2026-09-14 — 마이크 프레임마다 불리므로 사유가 바뀔 때만 1줄(1604 18:18:20 1초에 15줄)
-            state.expr_quiz_hold_why = why
-            logger.info("%s 보류: call_id=%s seq=%d 항목=%s 이유=%s", EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), state.expr_quiz_seq, state.expr_quiz_set, why)
-        return
-    now = asyncio.get_running_loop().time()
-    waited = (now - state.expr_quiz_cue_armed_ts) if state.expr_quiz_cue_armed_ts is not None else 0.0
-    # C2(2026-09-22, D2 3.1 단일화): 옛 10차 결정(2.5 계열은 완결 텍스트 턴)은 걷어냈다 —
-    # 2.5 계열 모델 자체가 더 이상 안 쓰인다. 재접지 얹기(send_reground turn_complete=False)
-    # 하나로만 간다(3.1 이 이미 준수하던 통로 — 완결 턴 1011 전례가 있어 바꾸지 않는다).
-    try:
-        await session.send_reground(cue, turn_complete=False)
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:  # noqa: BLE001 - 다음 발화에서 재시도(R5)
-        logger.warning("%s 얹기 실패(다음 발화 재시도): call_id=%s %s", EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state), exc)
-        return
-    state.expr_quiz_cue_pending = None
-    state.expr_quiz_awaiting_open = True
-    state.expr_quiz_hold_why = None            # ④(b) 다음 큐의 첫 보류는 다시 찍힌다
-    _note_text_inject(state, "quiz_cue")
-    # ⛔ 접두 고정 — 하네스가 이 줄로 큐↔비버 앵커를 시간 대조한다(QUIZ_CUE_LOG_PREFIX).
-    logger.info(
-        "%s 얹기: call_id=%s seq=%d 항목=%s 얹기=%s 대기=%.0fs 비버턴=%s 정리=%s 모델=%s", EXPR_QUIZ_CUE_LOG_PREFIX,
-        _cid(state), state.expr_quiz_seq, state.expr_quiz_set, where, waited, state.turn_id or "(열린 턴 없음)", why,
-        state.live_model or "-",
-    )
-
-
 def _note_gate(state: _CallState, kind: str) -> tuple[bool, str]:
     """⭐ 14차 B·D(2026-09-19, 사장님 1651 — 안내 2회가 5초 간격으로 나가고 비버가 혼자 묻고 혼자 답했다): 안내를 **지금** 넣어도 되나.
 
@@ -7289,7 +6367,9 @@ async def _attach_note(session: LiveSessionProtocol, state: _CallState, where: s
         _note_held(state, kind, why)
         return False
     state.expr_note_hold_why = None
-    sent = await (_inject_quiz_set_reminder(session, state) if kind == "quiz_set" else _inject_drill_move_on(session, state))
+    # ⭐ 2026-10-10: quiz_set 안내를 지웠다 ⇒ 갈래가 드릴 하나다(그 쪽지도 GPT 묶음에선 비어
+    #   있어 `_send_note` 가 삼킨다 — 여기선 호출만 남긴다).
+    sent = await _inject_drill_move_on(session, state)
     if sent and _loop_running():
         state.expr_note_last_ts = asyncio.get_running_loop().time()
     return sent
@@ -7384,26 +6464,8 @@ def _build_expression_note(state: _CallState) -> str:
         role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
         # ⭐ T14 ③ 쪽지 착지문이 «{모국어}로 묻고 기다려라» 를 말한다 — 라벨을 넘긴다.
         locale_label=(state.expr_ctx or {}).get("locale_label") or "학습자의 모국어",
-        # ⭐ 2026-09-13(1546): 퀴즈 창이 열려 있으면 착지문이 «남은 문항을 마저 내라» 로 바뀐다 — 퀴즈 중 꽂힌
-        #   쪽지의 «지금 다루는 표현 요청 하나» 가 비버를 방금 항목으로 되돌려 루프(t35~t43)를 만들었다.
-        quiz_remaining=_expr_quiz_remaining(state),
         remaining=_expr_remaining_rows(state),      # ⭐ 4차 C — 남은 항목 목록(사장님 규칙 ① 을 쪽지가 강제)
     )
-
-
-def _expr_quiz_remaining(state: _CallState) -> list[str]:
-    """열린(또는 큐가 얹혀 곧 열릴) 퀴즈의 **아직 판정 안 된** 문항 라벨. 퀴즈 중이 아니면 빈 목록.
-
-    이어하기 브리프(`_resume_brief`)가 같은 계산을 하던 것을 끌어냈다 — 재접지 쪽지와 한 곳을 본다.
-    """
-    if not (state.expr_quiz_open or state.expr_quiz_awaiting_open) or not state.expr_quiz_set:
-        return []
-    judged = state.expr_quiz_pass | state.expr_quiz_fail
-    return [
-        state.reground_items[n - 1] for n in state.expr_quiz_set
-        if 1 <= n <= len(state.reground_items)
-        and int((state.expr_items[n - 1].get("item_id") or -1)) not in judged
-    ]
 
 
 def _arm_reground(state: _CallState, reason: str) -> None:
