@@ -594,7 +594,7 @@ def save_expression_progress(
     return {"drilled": n_drilled, "passed": n_passed, "levelup": levelup}
 
 
-def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dict:
+def load_level_test_setup(db: Session, member_id: int, character_id: int, language: str = "ko") -> dict:
     """레벨테스트 통화 셋업 — 레벨을 모르는 상태 전제라 level_profile/history 없음.
 
     Returns:
@@ -605,6 +605,7 @@ def load_level_test_setup(db: Session, member_id: int, character_id: int) -> dic
     base.pop("korean_level")
     base.pop("member_found")
     base.pop("retest_pending")
+    base["grammar_catalog"] = mastery_repository.leveltest_grammar_catalog(db, language)
     return base
 
 
@@ -4072,6 +4073,7 @@ def _load_leveltest_rubric(target_language: str = "한국어") -> str:
 def _leveltest_instruction(
     locale: str, rubric: str, locale_label: str | None = None,
     target_language: str = "한국어",
+    grammar_catalog: list[dict] | None = None,
 ) -> str:
     """레벨테스트 판정관 시스템 지시문. 근거는 USER 의 **대상 언어** 발화만(모국어 배제),
     ASR 왜곡 주의, 판정 절차(인용→밴드→단계→레벨) 강제, 망설여지면 낮은 쪽.
@@ -4087,7 +4089,9 @@ def _leveltest_instruction(
         f"너는 {t} 학습자와 AI 선생님(BEAVER)의 레벨테스트 통화 전사를 보고 학습자의 "
         f"{t} 레벨(1~13)을 판정하는 도구다. JSON 으로만 출력하라.\n"
         "[근거 규칙]\n"
-        f"- 판정 근거는 오직 [USER]의 '{t}' 발화뿐이다. [BEAVER](선생님) 발화와 USER 의 "
+        "- 제공된 DB 문법과 실제 발화를 대조하여 구사·부분 구사·미확인을 구별한다. 미사용은 미확인이며 모름·실패의 근거로 단정하지 않는다.\n"
+        + ("[DB 문법 대조 자료]\n" + "\n".join(f"{g['item_id']} / L{g['level_no']} / {g['surface']}" for g in grammar_catalog) + "\n" if grammar_catalog else "")
+        + f"- 판정 근거는 오직 [USER]의 '{t}' 발화뿐이다. [BEAVER](선생님) 발화와 USER 의 "
         "모국어 발화는 실력의 근거가 아니다(비버를 따라 말한 직후의 단순 반복도 약한 근거로만).\n"
         "- 전사는 음성인식(ASR) 결과라 철자·띄어쓰기가 왜곡될 수 있다. 철자·맞춤법을 기준으로 "
         "삼지 말고, 사용한 문법의 폭(문형 다양성)·어휘 등급·응답 길이·질문에 맞게 대응했는지를 "
@@ -4421,12 +4425,14 @@ async def analyze_level_test_call(
         dialog = _strip_non_target_user_lines(dialog, _lang_code)
 
         lt_usage = gemini_analysis.LlmUsage()
+        grammar_catalog = await run_db(session_factory, lambda db: mastery_repository.leveltest_grammar_catalog(db, _lang_code))
         result = await gemini_analysis.generate_structured(
             client,
             settings_obj.JUDGE_MODEL,
             system_instruction=_leveltest_instruction(
                 locale, _load_leveltest_rubric(target_language), locale_label,
                 target_language=target_language,
+                grammar_catalog=grammar_catalog,
             ),
             prompt=f"[통화 전사]\n{dialog.strip()}",
             schema=LevelAssessment,
@@ -4583,6 +4589,7 @@ def _leveltest_turn_instruction(target_language: str = "한국어") -> str:
         f"false({t} 어휘·문법 표지가 실제로 있어야 true — 어순만 닮은 건 불충분). 인사·머뭇·"
         "\"몰라요\"만이면 false.\n"
         "(2) should_end: 지금 통화를 끝내야 하나?\n"
+        "문법 미사용은 미확인이다. 실제로 물어 확인한 발화만 근거로 삼으며, 아직 질문하지 않은 문법의 부재만으로 종료하지 않는다.\n"
         "\n"
         "이건 '올라가는' 시험 — 비버가 매 턴 더 어렵게 묻는다. 학습자 천장이 드러나면 끝낸다. "
         "[전체 대화]의 최근 2~3턴 흐름으로 판단하라:\n"

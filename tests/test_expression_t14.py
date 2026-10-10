@@ -174,8 +174,8 @@ def test_a_placeholder_does_not_hide_a_real_leak_behind_it() -> None:
         "지금 퀴즈를 내라» 고 알릴 때만 낸다",
         "알림이 오면 퀴즈를 시작한다는 말을 영어(English)로 먼저 하고",
         # ② 먼저 묻고 기다려라
-        "물은 뒤 **반드시 기다려라** — 네가 던진 질문에 스스로 답하지 마라",
-        "**다음 항목은 다시 먼저 물어라** — 답을 먼저 주지 마라",
+        "하나씩 다루고 답을 기다리며",
+        "새 항목은 먼저 알려주고 원문 복창을 요청한다",
         # ④ 공개 = 그 회차의 끝
         "**표현 전체나 그 어절을 말하지 마라.**",
         # ④-b 2026-09-13 «한 턴에 한 문제» — call 1543 t13·t15·t17 에서 교정 턴에 새 문제가 붙어 3개까지 쌓였다.
@@ -185,8 +185,8 @@ def test_a_placeholder_does_not_hide_a_real_leak_behind_it() -> None:
         "반말로 답하면 맞힌 게 아니다",
         "격식 표지(-요·-습니다·저)가 빠진 것은 아니다",
         # ⑥ 무음
-        "학습자가 조용하면 오답으로 치지 마라",
-        "두 번째 연속 무음이면 들려주고 따라 말하게 해라",
+        "무음은 정답이 아니다",
+        "현재 원문 또는 현지인 문장을 다시 들려주고 답을 기다린다",
     ],
 )
 def test_the_beaver_script_carries_each_t14_line(line: str) -> None:
@@ -201,7 +201,7 @@ def test_the_old_zero_output_rule_is_gone() -> None:
 def test_the_note_tells_the_beaver_to_ask_first_on_a_new_item() -> None:
     """③ — 쪽지 직후 비버가 정답을 먼저 말하는 경로를 막는다."""
     note = build_expression_reground_brief("r", "p", drilled=["가"], locale_label="영어(English)")
-    assert "**새 항목은** 먼저 영어(English)로 묻고 기다려라. 답을 먼저 말하지 마라." in note
+    assert "새 항목은 영어(English)로 뜻·쓰임을 설명하고 원문·예문을 들려준 뒤 복창을 기다려라" in note
     assert "학습자가 방금 답했으면 그 답에 먼저 반응해라" in note
 
 
@@ -217,8 +217,8 @@ def test_the_nudge_gives_a_hint_in_a_quiz_and_a_model_in_a_drill() -> None:
 def test_the_give_up_path_never_says_correct() -> None:
     """T15-3 — 1398 t9: 3번째 시도 「잘 못 들었다」(반말·오답)에 극찬. 포기 경로에 «맞았다고 하지 마라» 가 없었다."""
     out = _script()
-    assert "짧게 넘기되 **맞았다고 하지는 마라** — 틀린 건 틀린 거다" in out      # [반응] 포기 경로
-    assert "다음 번호 항목으로 넘어가라 — **맞았다고 하지는 마라.**" in out      # [진행 절차] 포기 경로
+    assert "소진 뒤 다음 항목으로 넘어가되 맞았다고 하지 않는다" in out      # [반응] 포기 경로
+    assert "소진은 정답·퀴즈 통과로 판정하지 않는다" in out      # [진행 절차] 포기 경로
 
 
 def test_expression_pre_arm_is_off_when_the_room_is_too_narrow_but_normal_is_unchanged() -> None:

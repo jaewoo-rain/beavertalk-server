@@ -70,7 +70,7 @@ def test_validate_catches_each_violation() -> None:
     ok = dict(default)
     assert el.validate("expression", ok, default) == []
 
-    missing_slot = dict(default); missing_slot["rule4"] = default["rule4"].replace("{locale_label}", "모국어")
+    missing_slot = dict(default); missing_slot["persona_intro"] = default["persona_intro"].replace("{locale_label}", "모국어")
     assert any("슬롯" in p and "누락" in p for p in el.validate("expression", missing_slot, default))
 
     unknown_slot = dict(default); unknown_slot["rule1"] = default["rule1"] + " {level}"
@@ -137,8 +137,8 @@ def test_a_legit_tone_edit_passes_and_reaches_the_assembled_prompt(tmp_path, mon
     with open(src, encoding="utf-8") as f:
         default_text = f.read()
     (tmp_path / "expression.default.md").write_text(default_text, encoding="utf-8")
-    edited = default_text.replace("교정하는 순간에도 톤을 순화하지 말고 통화 끝까지 처음 강도를 유지하라.",
-                                  "교정하는 순간에도 톤을 순화하지 말고 통화 끝까지 처음 강도를 그대로 밀고 가라.", 1)
+    edited = default_text.replace("설명·반응은 {locale_label}로 하며 캐릭터 말투를 유지한다.",
+                                  "설명·반응은 {locale_label}로 하며 캐릭터 말투를 그대로 밀고 가라.", 1)
     assert edited != default_text
     (tmp_path / "expression.md").write_text(edited, encoding="utf-8")
     monkeypatch.setattr(el, "EDITABLE_DIR", str(tmp_path))

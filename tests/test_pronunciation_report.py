@@ -183,9 +183,11 @@ def _fake_report_with_pairs(call_id: int):
     )
 
 
-def test_report_excludes_native_pairs_from_the_pass_count(session_factory, seeded, monkeypatch):
-    """⛔⛔ 핵심 재현·수정 확인 — 기본 3 + 짝 3, 기본 2개 통과 → 「3개 중 2개」
-    (짝을 세면 「6개 중 2개」로 잘못 뜬다)."""
+def test_report_counts_base_and_native_pairs_together(session_factory, seeded, monkeypatch):
+    """PM-DEC-476: 승인 ca5bb1c/465의 기본·현지인 전체 집계 계약을 유지한다.
+
+    기본 3개(통과 2) + 현지인 3개(통과 2) → 전체 6개 중 4개 통과.
+    """
     async def _report(**kw):
         return _fake_report_with_pairs(kw["call_id"])
     monkeypatch.setattr(pron_module, "get_pronunciation_report", _report)
@@ -196,10 +198,10 @@ def test_report_excludes_native_pairs_from_the_pass_count(session_factory, seede
     assert r.status_code == 200, r.text
     b = r.json()
 
-    assert b["total"] == 3, "짝이 분모에 섞였다"
-    assert b["passed"] == 2, "짝이 분자에 섞였다"
+    assert b["total"] == 6, "전체 활성 학습 문장을 분모에 포함해야 한다"
+    assert b["passed"] == 4, "기본·현지인 문장의 80점 이상 결과를 함께 세어야 한다"
 
-    # 짝도 여전히 목록에 나온다(전부 6개) — 세는 기준만 바뀐다.
+    # 전체 목록·kind·기본 kind 생략·전체 평균 계약은 유지한다.
     assert len(b["sentences"]) == 6, "짝의 점수가 목록에서 빠졌다"
     kinds = [s.get("kind") for s in b["sentences"]]
     assert kinds.count("native") == 3

@@ -38,7 +38,7 @@ BANNED_WORDS: tuple[str, ...] = (
 #: 파일별 토큰 예산(자수 × CHARS_TO_TOKENS 근사). 기본판 + 여유. 넘으면 폴백 — 한 줄 늘리면 토큰이 는다는 걸 여기서 잡는다.
 TOKEN_BUDGET: dict[str, int] = {
     "normal": 3400,
-    "expression": 900,
+    "expression": 500,
     "freetalk": 1900,
     "leveltest": 450,
     "homework": 700,

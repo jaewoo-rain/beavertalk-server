@@ -36,6 +36,16 @@ logger = logging.getLogger(__name__)
 # 추적·재활용 풀 잔류). 마스터 플랜 §2 / mechanics 파라미터 총괄표.
 GRAMMAR_GATE_CAP = 45
 
+
+def leveltest_grammar_catalog(db: Session, language: str = "ko") -> list[dict]:
+    """측정 질문의 참고용 DB 문법. 숙련도·진도 조회나 쓰기는 하지 않는다."""
+    rows = db.execute(
+        select(LearningItem.item_id, LearningItem.level_no, LearningItem.surface)
+        .where(LearningItem.language == language, LearningItem.kind == "grammar")
+        .order_by(LearningItem.level_no, LearningItem.seq_no, LearningItem.item_id)
+    ).all()
+    return [{"item_id": r.item_id, "level_no": r.level_no, "surface": r.surface} for r in rows]
+
 # 검출 후보 상한(mechanics ⑤ — 주입 ~12 + practicing 18, 실측 후 50까지 튜닝 가능)
 DEFAULT_PRACTICING_CANDIDATES = 18
 DEFAULT_INTRODUCED_CANDIDATES = 12

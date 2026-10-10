@@ -45,7 +45,7 @@ BASE = dict(
     target_language="한국어",
 )
 #: 옛 프리토킹 대본(lesson=None) 기준 — 2026-09-12 차시판 도입 직전 출력. ⛔ 터지면 옛 경로 대본이 바뀐 것이다(README §8 에 적고 갱신).
-_FREETALK_OLD_FROZEN = ("8e0c909cf5337b988569f691917b182e75bb133dc5c7e94044184c571f345b85", 2126)
+_FREETALK_OLD_FROZEN = ("96677fea29b51b2f8a2aeca213723ad6bc868b3cc93d8aabf74a5599e5992b11", 1672)
 
 _BRIEF = cur.CurFreetalkBrief(
     situation="처음 만난 반 친구와 이름과 나라 말하기",
@@ -77,9 +77,10 @@ def test_old_freetalk_without_lesson_is_byte_identical_to_the_frozen_baseline() 
 
 
 def test_old_seeds_are_unchanged() -> None:
-    assert ft.seed_freetalk_opening("한국어").startswith("[통화 시작] 네가 학습자에게 먼저 전화를 건 상황이다. **한국어로** 짧게 인사하고")
-    assert ft.NUDGE_SEED_1_FREETALK.endswith("학습 언어로 가볍게 새 화제 한 문장만 이어가라.")
-    assert cs._NUDGE_SEED_2.endswith("'거기 있어? 잘 들려?'를 한 번만 부드럽게 물어라.")
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
+    assert "한국어로 인사하고" in ft.seed_freetalk_opening("한국어")
+    assert "학습 언어로 가볍게 새 화제" in ft.NUDGE_SEED_1_FREETALK
+    assert "거기 있어? 잘 들려?" in cs._NUDGE_SEED_2
 
 
 def test_other_courses_do_not_import_the_lesson_script() -> None:
@@ -95,34 +96,24 @@ def test_other_courses_do_not_import_the_lesson_script() -> None:
 # ② 차시판 대본 — 규칙 1·3·4 앵커 · [이번 차시] · 흥미 없음 · 문장 수 2 · 공용 규칙 바이트 그대로
 # --------------------------------------------------------------------------- #
 def test_lesson_script_rule_anchors() -> None:
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = _lesson()
-    r1 = out.split("1. ", 1)[1].split("\n2. ", 1)[0]
-    # §10 역할극(2026-09-12 사장님 실통화 뒤) — 옛 v1 «과제를 직접 던진다·너 자신으로 받는다·연기하지 마라» 는 뒤집혔다
-    assert "**역할극**이다" in r1 and "«상대»에 적힌 인물이 되어" in r1 and "그냥 대화한다" in r1
-    assert "연습을 시키거나 무엇을 말하라고 요구하지 마라" in r1 and "설명·따라 말하기·정오 판정은 이 통화에 없다" in r1
-    assert "**그 턴만 선생님으로 돌아와**" in r1 and "다시 그 인물로 돌아가라" in r1 and "질문 하나로 착지" in r1
-    for gone in ("과제", "직접 던지는", "너 자신으로서", "연기하지 마라", "회화 연습"):
-        assert gone not in out, gone
-    # v1 짧은 판 — 세부 절은 아직 없다(실측 뒤 한 절씩)
-    assert "열린 질문" not in out and "이 예외는 한 번" not in out and "목록과 그보다 쉬운 것" not in out and "세지 마라" not in out
-    r3 = out.split("3. 언어 사용", 1)[1].split("4. 교정 스타일", 1)[0]
-    assert "처음부터 끝까지 한국어로 한다" in r3 and "**그 턴만 선생님으로 돌아와** 영어(English)로 뜻을 한 문장으로 풀어 주고" in r3
-    assert "한국어 문장 **하나**를 통째로 들려준 뒤" in r3 and "다음 턴부터는 다시 그 인물로, 전부 한국어다 — 학습자 언어에 끌려가지 마라" in r3
-    assert r3.count("영어(English)") == 2, "모국어가 열리는 자리는 예외 한 턴뿐"
-    r4 = out.split("4. 교정 스타일", 1)[1].split("\n5. ", 1)[0]
-    assert "따로 고쳐 주지 마라" in r4 and "올바른 한국어 형태를 넣어 되받고" in r4 and "\n" not in r4.strip()
+    assert "[이번 차시]의 «상대»가 되어 한국어로 역할극" in out
+    assert "차시 표현을 쓸 상황을 만들되 따라 말하기·정오 판정은 하지 않는다" in out
+    assert "답하기 어려워하면 영어(English)로 설명하고 한국어 답변 예시 하나" in out
+    assert "올바른 한국어 형태를 넣어 되받는다" in out
+    assert "그 문장을 말해 보라고 청해라" not in out
 
 
 def test_lesson_script_shared_rules_are_common_bytes_and_numbered_2_5_6_7() -> None:
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = _lesson()
     assert "2. " + common.RULE_CLOSE_PROTOCOL in out
-    assert common.RULE_RESPONSE_LENGTH.format(max_sentences=2) in out and "1~2문장" in out
+    assert common.RULE_RESPONSE_LENGTH.format(max_sentences=2) in out
     assert common.RULE_NONVERBAL_SOUND in out
     assert common.RULE_OFF_TOPIC.format(locale_label="영어(English)", target="한국어") in out
     assert common.PERSONA_TAIL.format(username="Tester") in out
-    for n in ("1. ", "\n2. ", "\n3. ", "\n4. ", "\n5. ", "\n6. ", "\n7. "):
-        assert n in out
-    assert "역할극을 이끄는 건 네가 하는 '일'일 뿐" in out and "맡은 인물이 누구든 말투는 그대로" in out
+    assert "인물 정보와 캐릭터 말투를 유지한다" in out
 
 
 def test_lesson_block_lists_all_items_with_grammar_as_example_sentences() -> None:
@@ -156,13 +147,13 @@ def test_lesson_block_without_grammar_has_no_form_line_and_chunks_go_under_expre
 
 
 def test_lesson_script_has_no_literal_learner_lines_no_wrapup_words_no_tone_adverbs() -> None:
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = _lesson()
-    body = out.replace(common.RULE_CLOSE_PROTOCOL, "").replace(common.RULE_OFF_TOPIC.format(locale_label="영어(English)", target="한국어"), "")
-    for banned in ("종료", "작별", "마무리", "정리", "마지막", "여기까지", "[통화종료]", "통화종료"):
-        assert banned not in body, banned
+    body = out.replace("서버가 종료를 알릴 때까지 이어간다.", "").replace(common.RULE_CLOSE_PROTOCOL, "").replace(common.RULE_OFF_TOPIC.format(locale_label="영어(English)", target="한국어"), "")
+    for banned in ("종료", "작별", "마무리", "정리", "마지막", "여기까지", "[통화종료]"):
+        assert banned not in body
     for adverb in ("따뜻하게", "부드럽게", "친절히", "다정하게", "상냥하게"):
-        assert adverb not in body, adverb
-    assert "이렇게 말해요" not in body and "어떻게 말해요" not in body, "리터럴 학습자 대사 0(call 1097)"
+        assert adverb not in body
 
 
 def test_lesson_script_never_renders_the_close_tag() -> None:
@@ -184,22 +175,24 @@ def test_lesson_opening_seed_declares_the_situation_and_one_task_in_the_target_l
 
 @pytest.mark.parametrize("seed", [ft.NUDGE_SEED_1_FREETALK_LESSON, ft.NUDGE_SEED_2_FREETALK])
 def test_lesson_nudge_seeds_use_control_tag_and_keep_the_task(seed: str) -> None:
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     assert seed.startswith(common.CONTROL_TAG) and not seed.startswith(common.CLOSE_TAG_DEFAULT)
-    assert "작별하지 말고" in seed and "화제를 바꾸지" in seed and "새 화제" not in seed
+    assert "새 화제" not in seed
+    assert "방금 한 질문" in seed or "상대 인물로 질문 하나" in seed
 
 
 def test_lesson_nudge_1_is_easier_same_question_and_2_is_one_teacher_turn() -> None:
-    assert "방금 한 질문을 더 쉬운 학습 언어로 바꿔" in ft.NUDGE_SEED_1_FREETALK_LESSON and "모국어" not in ft.NUDGE_SEED_1_FREETALK_LESSON
-    assert "이번 한 턴만 선생님으로 돌아와 학습자의 모국어로 방금 질문의 뜻" in ft.NUDGE_SEED_2_FREETALK
-    assert "다음 턴부터는 다시 그 인물로, 학습 언어다" in ft.NUDGE_SEED_2_FREETALK
-    for seed in (ft.NUDGE_SEED_1_FREETALK_LESSON, ft.NUDGE_SEED_2_FREETALK):
-        assert "과제" not in seed
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
+    assert "방금 한 질문을 더 쉬운 학습 언어로 바꿔" in ft.NUDGE_SEED_1_FREETALK_LESSON
+    assert "모국어로 뜻을 설명하고 학습 언어 답변 예시 하나" in ft.NUDGE_SEED_2_FREETALK
+    assert "상대 인물로 질문 하나" in ft.NUDGE_SEED_2_FREETALK
+    assert "따라 말하기를 요구하지 않는다" in ft.NUDGE_SEED_2_FREETALK
 
 
 def test_reground_brief_restates_the_situation_and_lists_unused_material() -> None:
     b = ft.build_freetalk_reground_brief("처음 만난 반 친구와 이름과 나라 말하기", ["저는 회사원입니다.", "고향", "나라"], target="한국어")
     assert b.startswith(common.CONTROL_TAG)
-    assert "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. 전부 한국어로, 한 턴에 질문 하나." in b
+    assert "«처음 만난 반 친구와 이름과 나라 말하기» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. 한국어로 역할극하며 모국어 질문은 모국어로 답한 뒤 돌아온다." in b
     assert "과제" not in b
     assert "아직 안 쓴 소재: 저는 회사원입니다. · 고향 · 나라." in b and b.endswith("이 안내문은 읽지 말고 내용만 반영해라.")
     assert "아직 안 쓴 소재" not in ft.build_freetalk_reground_brief("상황", [])

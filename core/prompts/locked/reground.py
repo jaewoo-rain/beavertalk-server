@@ -367,7 +367,7 @@ def build_expression_reground_brief(
         "지금 다루는 표현을 학습자가 소리 내어 말하게 하는 요청 하나로 이어가라 — "
         "학습자의 취향·경험을 묻는 질문은 그 표현 없이도 답할 수 있으니 여기서 쓰지 마라 "
         # ⭐ T14 ③ 쪽지 직후 비버가 **정답을 먼저 말하는** 경로를 막는다 — 새 항목은 묻고 기다린다.
-        f"— **새 항목은** 먼저 {locale_label}로 묻고 기다려라. 답을 먼저 말하지 마라. "
+        f"— 새 항목은 {locale_label}로 뜻·쓰임을 설명하고 원문·예문을 들려준 뒤 복창을 기다려라. 현지인 복창도 기다린다. "
         "학습자가 방금 답했으면 그 답에 먼저 반응해라."
     )
     out.append("학습자가 이번 턴에 답할 것은 그 하나여야 한다.")
@@ -384,7 +384,7 @@ def build_freetalk_reground_brief(situation: str, unused: list[str], *, target: 
     ⚠ `unused` 는 판정이 아니다 — 이번 통화 비버 발화에 아직 안 나온 소재 몇 개(3~5). 비어 있으면 그 절을 뺀다. 카운트·정오 없음.
     ⛔ 접두어는 CONTROL_TAG(종료 아님).
     """
-    parts = [f"{CONTROL_TAG} 지금은 «{situation}» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. 전부 {target}로, 한 턴에 질문 하나."]
+    parts = [f"{CONTROL_TAG} 지금은 «{situation}» 상황의 역할극이다 — 너는 그 상황의 상대 인물이다. {target}로 역할극하며 모국어 질문은 모국어로 답한 뒤 돌아온다. 답하기 어려우면 모국어 설명과 예시 하나로 돕는다. 한 턴에 질문 하나."]
     picks = [fill_slots(u.strip()) for u in unused if isinstance(u, str) and u.strip()][:5]
     if picks:
         parts.append("아직 안 쓴 소재: " + " · ".join(picks) + ".")

@@ -307,15 +307,15 @@ async def test_auto_routes_to_level_test_when_level_none(session_factory, seeded
 
     instr = holder["system_instruction"]
     # 레벨테스트 대본(비버 자율 진행/OPI): 진행 방식·시험관 블록 포함, 일반 대본의 [학습자 수준] 없음.
-    assert "[진행 — 네가 이끈다]" in instr
+    assert "[측정 자료]" in instr
     # ⭐ 2026-09-30 — 고정 시험관 문구("실력만 담백하게 파악한다")는 사라지고 DB 캐릭터가
     #   주입된다(사장님 지시). 이 시험은 «레벨테스트 대본이 맞나» 만 보면 되므로 절차 앵커로 본다.
-    assert "실력을 파악한다(수업 아님)" in instr
-    assert "[유도 질문 사다리" in instr
+    assert "대화로 학습자의 한국어 수준을 파악한다" in instr
+    assert "사다리는 질문 소재 참고" in instr
     assert "[학습자 수준]" not in instr
     # 레벨테스트 선톡 시드가 주입됐다(무인자 — 비버가 첫 질문을 스스로 시작).
     assert holder["session"].sent_text_turns
-    assert "인사부터 되는지 본다" in holder["session"].sent_text_turns[0]
+    assert "자기소개를 요청한다" in holder["session"].sent_text_turns[0]
 
     db = session_factory()
     try:
@@ -339,7 +339,7 @@ async def test_explicit_auto_routes_to_level_test_when_level_none(session_factor
         session_factory, seeded["member_none"], seeded["character_id"], call_type="auto",
     )
     instr = holder["system_instruction"]
-    assert "[진행 — 네가 이끈다]" in instr
+    assert "[측정 자료]" in instr
     assert "[학습자 수준]" not in instr
 
     db = session_factory()
@@ -358,7 +358,7 @@ async def test_explicit_auto_with_a_level_routes_as_before(session_factory, seed
     holder = await _run_one_call(
         session_factory, seeded["member_l3"], seeded["character_id"], call_type="auto",
     )
-    assert "[진행 — 네가 이끈다]" not in holder["system_instruction"]
+    assert "[측정 자료]" not in holder["system_instruction"]
 
     db = session_factory()
     try:
@@ -374,7 +374,7 @@ async def test_explicit_chat_with_no_level_is_not_converted_to_level_test(sessio
     holder = await _run_one_call(
         session_factory, seeded["member_none"], seeded["character_id"], call_type="chat",
     )
-    assert "[진행 — 네가 이끈다]" not in holder["system_instruction"]
+    assert "[측정 자료]" not in holder["system_instruction"]
 
     db = session_factory()
     try:
@@ -397,7 +397,7 @@ async def test_auto_with_no_level_test_support_stays_auto(session_factory, seede
         session_factory, seeded["member_none"], seeded["character_id"],
         call_type="auto", target_language="vi",
     )
-    assert "[진행 — 네가 이끈다]" not in holder["system_instruction"]
+    assert "[측정 자료]" not in holder["system_instruction"]
 
     db = session_factory()
     try:
@@ -417,7 +417,7 @@ async def test_member_with_level_routes_to_chat(session_factory, seeded):
     instr = holder["system_instruction"]
     assert "[학습자 수준]" in instr
     assert "초급 A 레벨3 학습자" in instr  # level_no=3 프로파일이 주입됨
-    assert "[진행 — 네가 이끈다]" not in instr
+    assert "[측정 자료]" not in instr
 
     db = session_factory()
     try:
@@ -438,7 +438,7 @@ async def test_explicit_call_type_forces_level_test(session_factory, seeded, mon
     )
 
     instr = holder["system_instruction"]
-    assert "[진행 — 네가 이끈다]" in instr
+    assert "[측정 자료]" in instr
     assert "[학습자 수준]" not in instr
 
     db = session_factory()
@@ -472,7 +472,7 @@ async def test_demo_explicit_level_test_demoted_to_chat(
         )
 
     instr = holder["system_instruction"]
-    assert "[진행 — 네가 이끈다]" not in instr  # 레벨테스트 대본 아님
+    assert "[측정 자료]" not in instr  # 레벨테스트 대본 아님
 
     db = session_factory()
     try:
@@ -497,7 +497,7 @@ async def test_ja_level_test_active_uses_japanese_ladder(
     )
 
     instr = holder["system_instruction"]
-    assert "[진행 — 네가 이끈다]" in instr        # 레벨테스트 대본
+    assert "[측정 자료]" in instr        # 레벨테스트 대본
     assert "「〜ました／〜でした」" in instr                    # 일본어 사다리 앵커
     assert "-았/었-" not in instr                             # 한국어 앵커 누출 없음
 
@@ -528,7 +528,7 @@ async def test_remeasure_allowed_in_every_env(session_factory, seeded, monkeypat
     )
 
     instr = holder["system_instruction"]
-    assert "[진행 — 네가 이끈다]" in instr, f"ENV={env}: 레벨테스트 대본이 아님"
+    assert "[측정 자료]" in instr, f"ENV={env}: 레벨테스트 대본이 아님"
     assert "[학습자 수준]" not in instr, f"ENV={env}: 일반 대본으로 강등됨"
 
     db = session_factory()
@@ -551,7 +551,7 @@ async def test_prod_explicit_level_test_allowed_when_level_unset(
         call_type="level_test",
     )
 
-    assert "[진행 — 네가 이끈다]" in holder["system_instruction"]
+    assert "[측정 자료]" in holder["system_instruction"]
 
     db = session_factory()
     try:

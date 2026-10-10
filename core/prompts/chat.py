@@ -66,7 +66,7 @@ def seed_chat_opening(target_language: str, memory: dict | None) -> str:
     topic = _pick_recall_topic(memory)
     if not topic:
         return ""
-    return _MEMORY_OPENING_TEMPLATE.format(topic=topic)
+    return f"[통화 시작] {target_language}로 인사한다. " + _MEMORY_OPENING_TEMPLATE.format(topic=topic)
 
 
 def _interests_block(interests: list[str] | None) -> str:

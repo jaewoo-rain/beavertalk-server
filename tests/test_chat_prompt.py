@@ -106,4 +106,4 @@ def test_sparse_memory_fallback_seed_is_also_a_bracket_directive():
     한다 — 폴백이라고 규율이 느슨해지면 같은 사고가 거기서 재현된다."""
     fallback = seed_freetalk_opening("한국어")
     assert fallback.startswith("[")
-    assert "소리 내어 읽지" in fallback
+    assert "안내문은 낭독하지 않는다" in fallback

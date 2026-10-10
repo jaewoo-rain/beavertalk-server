@@ -89,7 +89,7 @@ def _join_cap(items: list[str] | None, cap: int = _RESUME_NOTE_LIST_CAP) -> str:
 def _expression_resume_note(target_language: str, *, first_action: str, drilled, passed, failed, recent, recent_n: int, list_cap: int) -> str:
     lines = ["[통화 이어감] 학습자와 하던 학습이 잠깐 멈췄다가 지금 다시 이어진다."]
     d, p, f = _join_cap(drilled, list_cap), _join_cap(passed, list_cap), _join_cap(failed, list_cap)
-    done = "- 이번 통화에서 이미 한 것: 드릴 %d개%s · 퀴즈 통과 %s — 다시 가르치지 마라." % (
+    done = "- 이번 통화에서 이미 한 것: 드릴 %d개%s · 퀴즈 통과 %s — 목록은 진도 참고이며 미완료 원문·현지인 복창은 이어간다." % (
         len(drilled or []), "(%s)" % d if d else "", "(%s)" % p if p else "없음")
     lines.append(done)
     if f:
@@ -139,12 +139,8 @@ def expression_resume_note_stats(target_language: str = "한국어", *, silent: 
     }
 
 
-EXPRESSION_RESUME_FIRST_ACTION_SEED = (
-    "지금 바로 이어가라: 학습자의 마지막 말에 짧게 답한 뒤 [오늘의 표현] 목록의 **맨 앞 항목**으로 가라."
-)
-EXPRESSION_RESUME_FIRST_ACTION_SILENT = (
-    "⛔ 학습자가 먼저 말한다 — 먼저 말을 꺼내지 말고 기다렸다가, 학습자의 말에 짧게 답한 뒤 [오늘의 표현] 목록의 **맨 앞 항목**으로 가라."
-)
+EXPRESSION_RESUME_FIRST_ACTION_SEED = '지금 바로 이어가라: 마지막 말에 짧게 반응하고 미완료 원문 또는 현지인 복창 단계부터 이어간다. 단계가 없으면 목록의 맨 앞 항목을 알려주고 복창을 기다린다.'
+EXPRESSION_RESUME_FIRST_ACTION_SILENT = '학습자가 먼저 말한다. 기다렸다가 짧게 반응하고 미완료 원문 또는 현지인 복창 단계부터 이어간다. 단계가 없으면 목록의 맨 앞 항목을 알려주고 복창을 기다린다.'
 
 
 def seed_expression_resume(target_language: str = "한국어", *, drilled=None, passed=None, failed=None, recent=None) -> str:
@@ -182,10 +178,7 @@ LOOP_BREAK_NOTE = (
 # ⭐ 11차 B(2026-09-18, 1643 2.5 — こんにちは·はじめまして·◯◯から来ました 를 한 항목당 6~8턴씩 붙잡고 통과 항목을 3번 재드릴했다). 루프 차단기
 #   (LOOP_BREAK_NOTE)는 «직전 턴과 거의 같은 문장» 만 보므로 표현을 바꿔 가며 같은 항목을 되풀이하면 안 걸린다 — 서버가 «항목» 을 세서 넣는 안내다.
 #   한 항목의 드릴이 학습자 턴 3회를 넘거나(DRILL 재시도 상한 3 과 같은 축) 이미 다룬 항목을 다시 드릴하면 1회, 통화당 3회까지.
-EXPRESSION_DRILL_MOVE_ON = (
-    f"{CONTROL_TAG} 그 표현은 충분히 했다 — 다음 번호 항목으로 넘어가라. 이미 다룬 표현은 다시 연습시키지 말고 아직 안 한 가장 앞 번호부터 이어가라. "
-    "이 안내문 자체는 소리 내어 읽지 마라."
-)
+EXPRESSION_DRILL_MOVE_ON = '[안내] 원문·현지인 문장 각각 최대 두 시도 한도를 지킨다. 미완료 현지인 문장은 먼저 복창을 기다리고, 정답이나 해당 문장 두 시도 소진 뒤 다음 항목으로 간다. 안내문은 낭독하지 않는다.'
 
 
 # --------------------------------------------------------------------------- #
@@ -229,11 +222,7 @@ NUDGE_SEED_1_FREETALK_LESSON = (
 )
 
 
-NUDGE_SEED_2_FREETALK = (
-    f"{CONTROL_TAG} 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고, 화제를 바꾸지 마라. "
-    "이번 한 턴만 선생님으로 돌아와 학습자의 모국어로 방금 질문의 뜻과 학습자가 할 학습 언어 문장 하나를 통째로 들려준 뒤, "
-    "학습 언어로 그 문장을 말해 보라고 청해라. 다음 턴부터는 다시 그 인물로, 학습 언어다."
-)
+NUDGE_SEED_2_FREETALK = '[안내] 답하기 어려워하면 학습자의 모국어로 뜻을 설명하고 학습 언어 답변 예시 하나를 들려준다. 이어서 상대 인물로 질문 하나만 하고 답을 기다린다. 따라 말하기를 요구하지 않는다. 안내문은 낭독하지 않는다.'
 
 
 # ⛔⛔ 절대 고치지 마라 — 서버 판정/표정/진도 배관이 이 문장을 **그대로** 기대한다(gemini 2.5·3.1 두 모델 모두 같은 문장을 쓴다).

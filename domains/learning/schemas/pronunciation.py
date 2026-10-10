@@ -18,8 +18,9 @@ class PronSentenceScore(BaseModel):
     """문장 1건의 발음 점수(공식점수=Evaluation 직독). 미복습이면 점수 전부 None.
 
     ⭐⭐ R5-a(2026-09-24, bt-back) — `kind`(NULL=기본 문장 · 'native'=현지인 표현
-    짝, C9)를 싣는다. 앱이 통과수(`LearningSummaryOut.total`/`passed`)가 짝을
-    포함하지 않는다는 걸 검증·필터할 수 있어야 한다. 기본 문장은 None → 진행규칙
+    짝, C9)를 싣는다. ca5bb1c/PM-DEC-465·476 기준 통과수
+    (`LearningSummaryOut.total`/`passed`)는 기본·현지인 문장을 함께 센다.
+    앱은 kind로 문장 유형을 구분할 수 있다. 기본 문장은 None → 진행규칙
     5(`SentenceOut`·`CallResultSentence` 와 같은 규약)로 키 자체가 빠진다.
     """
 

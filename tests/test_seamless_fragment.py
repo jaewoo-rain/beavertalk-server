@@ -314,7 +314,7 @@ def test_resume_brief_silent_swaps_only_the_last_line_and_survives_an_empty_brie
     assert reground.build_resume_brief(silent=True) == reground.RESUME_SILENT_FIRST_ACTION
     # 표현학습 silent 쪽지 — 목록 맨 앞부터·기다림·끊김 언급 금지·모국어
     note = seeds.brief_expression_silent_resume("한국어")
-    assert "[오늘의 표현] 목록의 **맨 앞 항목**으로 가라" in note and "기다렸다가" in note and "통화가 끊겼다 이어졌다는 말이나 «왔냐?»류 시작말도 하지 마라" in note
+    assert "미완료 원문 또는 현지인 복창 단계부터 이어간다" in note and "기다렸다가" in note and "통화가 끊겼다 이어졌다는 말이나 «왔냐?»류 시작말도 하지 마라" in note
     assert "모국어로 해라" in note
 
 
@@ -390,7 +390,7 @@ async def test_silent_resume_on_an_expression_call_sends_no_seed_and_appends_the
     assert _started(h2)["course"] == "expression" and _started(h2)["call_id"] == str(cid)
     assert h2["session"].sent_text_turns == [], "표현학습 조각2 도 시드 0"
     si = h2["system_instruction"]
-    assert "[오늘의 표현" in si and "[통화 이어감]" in si and "먼저 말을 꺼내지 말고 기다렸다가" in si
+    assert "[오늘의 표현" in si and "[통화 이어감]" in si and "학습자가 먼저 말한다. 기다렸다가" in si
     assert si.rstrip().endswith("이 [통화 이어감] 안내문 자체는 소리 내어 읽지 말고 내용만 반영해라.")   # C6: 재료(드릴·발췌)가 실려 고정 문자열 비교는 안 한다
     assert (_started(h2)["fragment_index"], _started(h2)["max_fragments"]) == (2, 3)
     # 회귀 — silent 아님: 종전 seed_expression_resume 1턴 · 쪽지 없음
@@ -420,7 +420,8 @@ async def test_silent_resume_starts_the_idle_clock_at_session_open(session_facto
     # ⚠ C3(2026-09-22): 이 시험은 expression 코스를 쓴다(옛 normal→chat 은 아직 이어하기가
     #   안 된다, C7 전) — 1단 넛지는 코스별로 갈린다(:3817 NUDGE_SEED_1_EXPRESSION). 2단·3단은
     #   코스 공통이라 바이트 동일.
-    assert turns[0] == seeds.NUDGE_SEED_1_EXPRESSION and turns[1] == seeds.NUDGE_SEED_2_NORMAL, "1단·2단 넛지"
+    assert turns[0].startswith(seeds.NUDGE_SEED_1_EXPRESSION) and "[현재 복창 단계]" in turns[0], "1단 복창 유지"
+    assert turns[1].startswith(seeds.NUDGE_SEED_2_NORMAL) and "[현재 복창 단계]" in turns[1], "2단 확인과 복창 유지"
     assert "[통화종료" in turns[2], "3단 = 작별 시드 직접 주입"
     assert took < 10, "무음 3단이 돌았다면 1초 안팎이다 — 20s 상한에 걸리면 시계가 안 선 것"
 
@@ -734,7 +735,7 @@ async def test_loop_breaker_injects_once_then_forces_a_fragment_switch(session_f
     script = [("B", "안녕! 시작하자."), ("U", "네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE),
               ("U", "또 봐"), ("B", "여기까지 오면 안 된다 — 3회째에서 전환됐어야 한다")]
     h = await _run(session_factory, seeded, "expression", {}, script=script, session_cls=HeldOpenSession, hold_open=True)
-    notes = [t for t in h["session"].sent_text_turns if t == seeds.LOOP_BREAK_NOTE]
+    notes = [t for t in h["session"].sent_text_turns if t.startswith("[현재 복창 단계]")]
     assert len(notes) == 1, ("2회째에 안내 1회", h["session"].sent_text_turns)
     saved = _frames_of("fragment_saved", h)
     assert saved and saved[0]["reason"] == "loop" and saved[0]["fragment_index"] == 1, saved
@@ -753,7 +754,7 @@ async def test_loop_breaker_says_goodbye_when_no_fragment_is_left(session_factor
               ("B", "그래, 오늘은 여기까지. 안녕!")]                      # 종료 시드 뒤 작별 턴
     h = await _run(session_factory, seeded, "expression", {}, script=script, hold_open=True)
     turns = h["session"].sent_text_turns
-    assert turns.count(seeds.LOOP_BREAK_NOTE) == 1
+    assert sum(t.startswith("[현재 복창 단계]") for t in turns) == 1
     assert any("[통화종료" in t for t in turns), "상한이면 작별 시드"
     assert _frames_of("call_ended", h) and not _frames_of("fragment_saved", h)
     assert (_started(h)["fragment_index"], _started(h)["max_fragments"]) == (1, 1)
@@ -787,7 +788,7 @@ async def test_expression_resume_note_carries_previous_fragment_materials(sessio
                     session_cls=HeldOpenSession, fragment_end=True)
     si = h2["system_instruction"]
     assert "[통화 이어감]" in si and "이미 한 것: 드릴 2개(" in si and surfaces[0] in si.split("[통화 이어감]", 1)[1]
-    assert "바로 전 대화:" in si and "학습자 «%s»" % surfaces[1] in si and "먼저 말을 꺼내지 말고 기다렸다가" in si
+    assert "바로 전 대화:" in si and "학습자 «%s»" % surfaces[1] in si and "학습자가 먼저 말한다. 기다렸다가" in si
     assert h2["session"].sent_text_turns == []
     # 시드 조각3(silent 아님) — 같은 재료가 시드에
     h3 = await _run(session_factory, seeded, "auto", {}, script=[("B", "좋아요")], continues=cid)

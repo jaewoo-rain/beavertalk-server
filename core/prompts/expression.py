@@ -97,8 +97,9 @@ _EXPRESSION_TEMPLATE = (
     _ed("persona_intro") + " " + PERSONA_TAIL + """
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
+위 코스의 시작·연습·진행·언어 규칙은 캐릭터에 적힌 학습 순서·언어 지시보다 우선한다.
 """
-    + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n"
+    + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n원문·예문을 들려준 뒤에는 해당 복창을 기다린다. 현지인 복창 대기 중 다음 항목이나 새 화제로 바꾸지 않는다.\n"
     + _RULE3_LANGUAGE + "\n"
     + _RULE4_CORRECTION + "\n"
     + RULE_RESPONSE_LENGTH + "\n"
@@ -244,4 +245,3 @@ def _first_sentence(text: str) -> str:
 from core.prompts.locked.reground import (
     build_expression_reground_brief,
 )
-

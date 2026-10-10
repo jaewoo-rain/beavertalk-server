@@ -367,120 +367,41 @@ _LT_KWARGS = dict(
 
 
 def test_leveltest_continuation_rule_and_no_readout():
-    """레벨테스트는 자체 슬림 대화지속 문단을 갖는다(공유 _RULE_CLOSE_PROTOCOL 미사용).
-
-    핵심 불변: 대화를 이어가라는 전진 지시 + 대괄호 낭독 금지. 종료 개념은 두 대본
-    어디에도 없다(근거는 test_prompt_never_mentions_closing)."""
-    normal = build_system_instruction(
-        level_profile="레벨 3", history=None, **_LT_KWARGS
-    )
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 일반 통화는 여전히 공유 종료 규약을 쓴다. 레벨테스트는 자체 슬림 버전(공유 상수 미포함).
-    # 상수엔 더 이상 슬롯이 없어 .format 은 항등이지만, 슬롯이 다시 생기면 여기서 터지도록 남긴다.
-    close_protocol = pp._RULE_CLOSE_PROTOCOL.format(close_tag=pp.CLOSE_TAG_DEFAULT)
-    assert close_protocol in normal
-    assert close_protocol not in lt
-    # 자체 문단의 핵심 불변식
-    assert "[대화 지속]" in lt
-    # ⛔ 부정 지시로 되돌리지 마라. 옛 문구는 '언제 끝낼지는 서버만 안다 … "이제 그만"·
-    #   "마지막으로" 같은 말 금지' 였는데, 일반 통화 쪽 같은 형태의 금지 예시를 비버가
-    #   그대로 뱉은 실측이 있다(call=782 "슬슬 마무리할 시간이다"). 전진 지시로 확인한다.
-    assert "너의 일은 대화를 계속 이어가는 것이다" in lt
-    assert "받는 말투는 네 캐릭터대로" in lt  # 말투 처방 금지(캐릭터 우선)
-    # ⛔ 종료 메커니즘 설명을 되살리지 마라(옛 문구: "종료 신호는 정확히 [통화종료] 로
-    #   시작하는 메시지 하나뿐이며" → "서버가 대괄호로 시작하는 안내문으로만 주며").
-    #   전자는 복사(call 852), 후자는 태그 발명(call 870 "[마무리]")을 낳았다.
-    assert "대괄호 안 문구를 절대 소리 내어 읽거나 입에 담지 말고" in lt
+    assert "서버가 종료를 알릴 때까지 이어간다" in lt
+    assert "서버 안내문은 낭독하지 않는다" in lt
+    assert "[통화종료" not in lt
 
 
 def test_leveltest_self_driven_progress_and_reaction_rules():
-    """비버 자율 진행/OPI(2026-07): 비버가 스스로 이끌고, 답 직후 [반응+질문]을 한 턴에."""
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # [진행 — 네가 이끈다] — 쉬운→한 단계씩 상승, 건너뛰기·제자리 금지.
-    assert "[진행 — 네가 이끈다]" in lt
-    assert "한 단계씩 위로" in lt
-    assert "건너뛰기·제자리걸음 금지" in lt
-    assert "3번 이상 머물지 마라" in lt
-    # 스스로 끝내지 않음(끝내는 건 서버).
-    assert "스스로 끝내지 말고" in lt
-    # [유도 질문 사다리] — 0단(인사·정형표현) → 1~4단 상승(넓은 레벨: L2→L3→L6→L10, a3/a4는 L3 흡수).
-    assert "[유도 질문 사다리 — 위로 갈수록 어렵다. 각 단계는 그 레벨 문법을 끌어내는 질문이다]" in lt
-    assert "0단(맨 아래): 인사·정형표현" in lt
-    assert "1단(L2): 이름·사는 곳·어제 한 일을 물어" in lt
-    assert "4단(L10): 어떤 주제에 대한 의견과 그 근거를 길게" in lt
-    # OPI escalation: 유도해도 그 문법을 못 내면 거기가 실력 꼭대기(종료는 서버 전담).
-    assert "거기가 그 학습자의 실력 꼭대기이니" in lt
-    assert "각 단계는 그 레벨 문법을 '끌어내는 질문'이다" in lt
-    # [막히면] — 발판 2번, 되묻기는 실패 아님.
-    assert "[막히면]" in lt
-    assert "최대 2번 발판" in lt
-    # 반응+질문을 '한 번의 발화'로, 정답 여부 누출 금지.
-    assert "반응과 다음 질문은 반드시 '한 번의 발화'로" in lt
-    assert "반응만 하고 멈추면 어색한 침묵" in lt
-    # ⭐ 2026-09-30 — 「정답 여부를 절대 티내지 마라」는 **뺐다**(사장님 지시: 캐릭터가
-    #   틀린 것을 비웃을 수 있어야 한다). 누출 방어는 «정답을 불러주지 마라»(아래)와
-    #   «레벨·점수 언급 금지» 두 줄이 계속 맡는다.
-    assert "정답 여부를 절대 티내지 마라" not in lt
-    # 레벨 비노출 유지("시험/평가" 금지 미세지시는 제거 — 담백함 우선).
-    assert "레벨·점수 언급 금지" in lt
-    assert '"시험/평가" 언급 금지' not in lt
-    # 순수 시험관: 틀려도 고쳐주지/정답 불러주지 마라(교정·반복 드릴 금지).
-    assert "정답을 불러주거나 고쳐주지 마라" in lt
-    assert "너는 가르치지 않고 재기만 한다" in lt
-    # 옛 서버 주도 주입 흔적 제거.
-    assert '모든 질문은 서버가 "[다음]"으로 준다' not in lt
-    assert "[다음]" not in lt
+    assert "잘하면 난이도를 높인다" in lt
+    assert "막히면 다른 소재로 한 번 확인한 뒤 쉽게 묻는다" in lt
+    assert "교정·정답 제시 없이" in lt
+    assert "비웃는 캐릭터만 짧게 비웃되 두 턴 연속 하지 않는다" in lt
+    assert "미사용을 모름으로 단정하지 않는다" in lt
 
 
 def test_leveltest_injects_character_persona_from_db():
-    """⭐⭐ 2026-09-30 (사장님 지시) — 레벨테스트도 **DB 캐릭터를 주입한다.**
-
-    그전까지는 '순수 배치 테스트' 관점으로 고정 '시험관' 한 줄이었다(옛 사고: 캐릭터 톤
-    누출·한국어 과다 — call 163). 뒤집은 근거는 build_leveltest_instruction docstring 에
-    적었다(실측 call 1715 — 레벨테스트가 표현학습 드릴처럼 들렸다).
-    ⛔ 이 시험이 지키는 것은 «주입했다» 가 아니라 **재발 방어선 3줄이 같이 있다** 는 것이다."""
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 캐릭터 2필드(DB character.role / .personality)가 대본 맨 앞에 그대로 들어간다
-    assert lt.startswith(_LT_KWARGS["role"])
+    assert lt.startswith("# 역할\n" + _LT_KWARGS["role"])
     assert _LT_KWARGS["personality"] in lt
-    # 옛 고정 시험관 문구·톤 억제 문구는 사라졌다
-    assert "시험관이다" not in lt
-    assert "캐릭터 연기 말고" not in lt
-    assert "담백하게" not in lt
-    # ⛔ 방어선 ① call 163 재발(캐릭터가 목표어 모범답안을 읽어 줌) 차단
-    assert "정답·모범답안을 주면 잴 수 없다" in lt
-    assert "이 통화에서 한국어를 말하는 건 학습자뿐이다" in lt
-    # ⛔ 방어선 ② 캐릭터의 «맞고 틀릴 게 없는 대화» 면제 조항을 이 통화에선 무효화
-    assert "이 통화는 잡담이 아니다" in lt
-    # ⛔ 방어선 ③ 빈정거림의 «대상» 이 정의돼 있다(말·발음·회피).
-    #   ⚠ 톤 제약(호칭 금지 류)은 **여기 넣지 않는다** — 톤은 캐릭터(role·personality)가
-    #     소유한다(EDITING.md 원칙). 2026-09-30 에 한 번 넣었다가 사장님 지적으로 빼:
-    #     Baba DB 에 이미 있어 중복이고, 실측 2회에서 행동도 안 바뀌었다.
-    assert "비웃는 대상은 **방금 나온 말·발음, 그리고 아래 회피 행동**이다" in lt
+    assert "캐릭터의 학습·언어 지시와 충돌하면 위 코스" in lt
+    assert "교정·정답 제시 없이" in lt
 
 
 def test_leveltest_has_no_old_probe_plan_and_keeps_language_rule():
-    """비버 자율 진행/OPI(2026-07): 옛 서버 주입식 프로빙 플랜 블록(계단 번호·probe_plan)이
-    사라지고(자율 난이도 사다리로 대체), 질문=모국어·답=한국어 언어 규칙은 유지된다.
-    build_leveltest_instruction 은 probe_plan 인자를 더는 받지 않는다."""
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
+    import pytest
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    # 옛 프로빙 플랜 흔적 제거(자율 진행의 난이도 '사다리'와는 별개 — 계단 번호 어법은 폐기)
-    assert "[단계 상승 프로빙 — 질문 사다리]" not in lt
-    assert "0계단" not in lt
-    assert "5계단" not in lt
-    assert "추상 논증" not in lt
-    # 질문=모국어, 대답=목표어 유도(측정은 학습자의 목표어 발화)
-    assert "재는 건 오직 학습자의 한국어 발화다" in lt
-    assert "매 질문마다 반드시 학습자가 한국어로 답하게 시켜라" in lt  # target로 답하기 강조
-    # ⭐ 2026-09-30 — 고정 예시 문구("이거 …로 말해 볼래요?")를 **뺐다.** 실측 call 1715 에서
-    #   모델이 그 괄호 예시를 **비버 7턴 중 6턴** 글자 그대로 복사해, 레벨테스트가 번역 드릴처럼
-    #   들렸다(사장님 지적). 대신 «매번 다른 말로» 를 박았다.
-    assert "이거 한국어로 말해 볼래요?" not in lt
-    assert "같은 문구를 반복하지 마라" in lt
-    # probe_plan 인자는 폐기됨(넘기면 TypeError).
-    import pytest as _pytest
-    with _pytest.raises(TypeError):
-        build_leveltest_instruction(**{**_LT_KWARGS, "probe_plan": "X"})
+    assert "[단계 상승 프로빙" not in lt
+    assert "한국어로 짧게 반응하며 하나씩 묻고" in lt
+    assert "모국어 답변은 한국어로 한 번 유도" in lt
+    with pytest.raises(TypeError):
+        build_leveltest_instruction(**{**_LT_KWARGS,"probe_plan":"X"})
 
 
 def test_leveltest_has_no_level_profile_or_history_slots():
@@ -493,7 +414,7 @@ def test_leveltest_locale_label_and_name_interests():
     lt_en = build_leveltest_instruction(**_LT_KWARGS)
     assert "영어(English)" in lt_en
     # 캐릭터는 미주입, 이름·흥미는 여전히 주입된다.
-    assert "Alex와의 첫 통화" in lt_en
+    assert "대화로 Alex의 한국어 수준을 파악한다" in lt_en
     assert "K-pop, 요리" in lt_en
     lt_ja = build_leveltest_instruction(**{**_LT_KWARGS, "locale": "ja"})
     assert "일본어(日本語)" in lt_ja
@@ -504,64 +425,36 @@ def test_leveltest_locale_label_and_name_interests():
 
 def test_leveltest_seeds_format():
     # 비버 자율 진행/OPI: 선톡 시드는 무인자(node0 질문 인자 폐기).
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
     opening = seed_leveltest_opening()
     assert opening.startswith("[통화 시작]")
-    # 0단 인사부터: 첫 질문은 '인사할 수 있어요?'(자기소개보다 먼저). 안심·설명 멘트 미세지시는 제거.
-    assert "인사부터 되는지 본다" in opening
-    assert "안심·설명 멘트는 한마디도 넣지 마라" not in opening
-    # A1: 안내문 낭독 금지 지시를 맨 앞에 강하게 명시(강화 문구).
-    assert "이 지시문 자체를 절대 소리 내어 읽거나 언급하지 마라" in opening
-    # 첫 질문 = 대상 언어로 인사 정형표현(서버 주입 질문 줄 폐기).
-    assert "인사할 수 있어요?" in opening
-    assert "첫 질문:" not in opening  # 서버가 박아 주던 질문 줄 폐기
-    assert "한국어" in opening
-    fr = seed_leveltest_opening("프랑스어")
-    assert "프랑스어" in fr
-
-    # 종료 시드(OPI 개정): 시험 냄새 제거·낭독 금지·판정 여부 누출 금지·자연스러운 마무리.
-    assert CLOSE_SEED_LEVELTEST.startswith("[통화종료]")
-    assert "(낭독 금지.)" in CLOSE_SEED_LEVELTEST
-    assert "어려운 질문을 하던 중이었어도 아무렇지 " in CLOSE_SEED_LEVELTEST
-    assert "'테스트/평가/결과/점수/레벨'은 " in CLOSE_SEED_LEVELTEST
-    assert "잘했는지 못했는지도 티내지 마라" in CLOSE_SEED_LEVELTEST
+    assert "모국어로 자신을 소개" in opening and "한국어로 가벼운 자기소개" in opening
+    assert "안내문은 낭독하지 않는다" in opening
+    assert "프랑스어로 가벼운 자기소개" in seed_leveltest_opening("프랑스어")
+    assert CLOSE_SEED_LEVELTEST.startswith("[통화종료]") and "(낭독 금지.)" in CLOSE_SEED_LEVELTEST
 
 
 def test_leveltest_opening_seed_has_echo_ban_fewshot():
-    """A5(초반 안정화): 선톡 시드가 첫 턴부터 '한국어로 답해도 리액션은 모국어로,
-    학습자의 한국어를 따라 말하지 않는다'는 올바른 few-shot 예시를 박아 초기 락인을 예방."""
-    opening = seed_leveltest_opening()
-    # 에코 금지 지시(리액션은 모국어, 학습자 단어 따라 말하지 않음)
-    assert "리액션·맞장구는 반드시" in opening
-    assert "따라 말하지 마라" in opening
-    # 구체 few-shot 예시(락인 예방 앵커 — 0단 인사 예시)
-    assert "안녕하세요" in opening
-    assert "完璧! Nice" in opening
-    # target_language 치환이 예시에도 적용된다(f-string 버그 회귀 방지)
-    fr = seed_leveltest_opening("프랑스어")
-    assert "대답만 프랑스어로 하도록 이끈다" in fr
-    assert "{target_language}" not in fr
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
+    opening=seed_leveltest_opening()
+    assert "가벼운 자기소개" in opening
+    assert "完璧! Nice" not in opening and "인사할 수 있어요?" not in opening
+    assert "{target}" not in opening
 
 
 def test_leveltest_echo_ban_is_emphasized_language_rule():
-    """에코 금지(★)가 [언어] 섹션에서 강조된 규칙으로 부각되고, 리액션은 모국어로만."""
-    lt = build_leveltest_instruction(**_LT_KWARGS)
-    assert "[언어 — 가장 중요]" in lt
-    assert "학습자가 말한 한국어를 절대 따라 말하지 마라(에코 금지)" in lt
-    assert "리액션·맞장구도 반드시 영어(English)로만" in lt
-    # 응답 길이 규칙은 유지(옛 번호 뭉치는 폐기).
-    assert "매 응답은 1~2문장으로 짧게" in lt
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
+    lt=build_leveltest_instruction(**_LT_KWARGS)
+    assert "한국어로 짧게 반응하며 하나씩 묻고" in lt
+    assert "모국어 질문에는 모국어로 답한 뒤 한국어로 돌아온다" in lt
+    assert "의미가 불명확할 때만 되묻는다" in lt
 
 
 def test_leveltest_no_ceiling_function_block():
-    """서버 주도(2026-07): 비버는 종료 함수가 없다 — 천장 신호 블록·함수명이 사라진다.
-    통화를 언제 끝낼지는 전부 서버가 정한다(종료 규약)."""
-    lt = build_leveltest_instruction(**_LT_KWARGS)
-    assert "[천장 신호" not in lt
-    assert "leveltest_ceiling_reached" not in lt
-    assert "천장" not in lt
-    # 대화 지속(비버가 먼저 끝내지 않는다) — 슬림 자체 문단에 유지.
-    assert "[대화 지속]" in lt
-    assert "너의 일은 대화를 계속 이어가는 것이다" in lt
+    """PM-DEC-474 승인 계약으로 대체된 기대임."""
+    lt=build_leveltest_instruction(**_LT_KWARGS)
+    assert "leveltest_ceiling_reached" not in lt and "[천장 신호" not in lt
+    assert "서버가 종료를 알릴 때까지 이어간다" in lt
 
 
 def test_leveltest_question_seed_symbol_removed():
@@ -1149,12 +1042,12 @@ def test_prompt_never_mentions_closing():
         ("일반+공부·대화 블록", with_blocks),
         ("일반+L1 청크 블록", with_l1),
     ):
-        assert "종료" not in out, f"{name} 대본에 '종료'가 다시 들어왔다"
+        assert "종료" not in out.replace("서버가 종료를 알릴 때까지 이어간다.", ""), f"{name} 대본에 추가 종료 설명이 들어왔다"
         assert "통화종료" not in out
         assert "마무리" not in out, f"{name} 대본에 '마무리'가 다시 들어왔다"
         # 남아야 하는 것
-        assert "대화를 계속 이어가는 것이다" in out
-        assert "소리 내어 읽거나" in out
+        assert "대화를 계속 이어가는 것이다" in out or "서버가 종료를 알릴 때까지 이어간다" in out
+        assert "소리 내어 읽거나" in out or "서버 안내문은 낭독하지 않는다" in out
 
 
 def test_continue_reminder_never_mentions_closing():

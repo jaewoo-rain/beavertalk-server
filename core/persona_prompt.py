@@ -558,6 +558,7 @@ def build_leveltest_instruction(
     target_language: str = "한국어",
     locale_label: str | None = None,
     close_tag: str = CLOSE_TAG_DEFAULT,
+    grammar_catalog: list[dict] | None = None,
 ) -> str:
     """레벨테스트 통화용 system_instruction 을 조립한다(LLM 생성 0, 비버 자율 진행).
 
@@ -599,7 +600,7 @@ def build_leveltest_instruction(
     # 사다리 앵커는 언어별(미등록 언어는 한국어 폴백 — 안전 기본값).
     ladder = _LEVELTEST_LADDER.get(target_language, _LEVELTEST_LADDER_KO)
 
-    return _LEVELTEST_TEMPLATE.format(
+    instruction = _LEVELTEST_TEMPLATE.format(
         role=role,
         personality=personality,
         locale_label=locale_label,
@@ -609,6 +610,10 @@ def build_leveltest_instruction(
         ladder=ladder,
         close_tag=close_tag,
     )
+    if grammar_catalog:
+        rows = [f"{g['item_id']} / L{g['level_no']} / {g['surface']}" for g in grammar_catalog]
+        instruction += "\n\n[DB 문법 — 질문·대조용이며 이름이나 정답을 읽지 않는다]\n" + "\n".join(rows)
+    return instruction
 
 
 # ⭐ 잠금/편집 분리(2026-09-12): 레벨테스트 선톡 시드 말투는 editable/leveltest.md `seed_opening`(슬롯 {target}).

@@ -131,6 +131,7 @@ from core.prompts.homework import (
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
+from domains.learning.realtime.expression_practice import ExpressionPractice
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -777,7 +778,7 @@ class _CallState:
         # expr_quiz_awaiting_open: 큐가 얹혔고 다음 비버 turn_start 에서 창을 연다 · expr_quiz_open/_open_seg: 창
         # expr_quiz_stray: 창 안에서 비버가 낸 quiz_set 밖 번호(닫힘 안전판) · expr_covered_by_beaver: 비버 발화로 covered 된 번호
         # expr_retry_cued: 오답 재출제 큐를 이미 세웠나(통화당 1회)
-        "expr_items", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
+        "expr_items", "expr_practice", "expr_tag_allow", "expr_quiz_pass", "expr_quiz_fail", "expr_ctx", "expr_tasks",
         "expr_sidecar_calls", "expr_llm_judge", "expr_judge_stats", "expr_quiz_llm_decided", "expr_quiz_grace_from",
         "expr_quiz_seq", "expr_quiz_set", "expr_quizzed", "expr_quiz_cue_pending", "expr_quiz_cue_armed_ts",
         "expr_quiz_awaiting_open", "expr_quiz_open", "expr_quiz_open_seg", "expr_quiz_stray", "expr_quiz_open_user_turns", "expr_quiz_hold_why",
@@ -991,6 +992,7 @@ class _CallState:
         #   ⇒ 진도를 **LLM 의 기억에 맡기지 않는다.** 이 세 값은 파이썬 메모리 + DB 라
         #     압축과 완전히 무관하다.
         self.expr_items: list[dict] = []
+        self.expr_practice: ExpressionPractice | None = None
         self.expr_tag_allow: frozenset[str] = frozenset()   # 항목 표면형의 [대괄호] 조각 — 누출 필터 허용 목록
         self.expr_quiz_pass: set[int] = set()
         self.expr_quiz_fail: set[int] = set()
@@ -1181,6 +1183,8 @@ def _flush_user_segment(state: _CallState) -> None:
     if not state.cur_user_pcm and not state.cur_user_text:
         return
     text = "".join(state.cur_user_text).strip()
+    if state.expr_practice is not None and not state.expr_quiz_open:
+        state.expr_practice.observe_user(text)
     logger.info("👤 USER[t%d]: %s", state.next_turn_index, text or "(무음/전사없음)")
     # ⭐ 표현학습에서는 **학습자가 말했을 때** 그 항목을 다룬 것이 된다 — 비버는 모국어로
     #   묻고 정답을 말하지 않기 때문이다. `normal` 통화에서는 이 호출이 즉시 되돌아간다
@@ -1190,6 +1194,7 @@ def _flush_user_segment(state: _CallState) -> None:
         _note_covered_items(state, text, source="user")
     _expression_quiz_note_user_turn(state, text)   # 큐 보류(1552) — 학습자 턴 수 · 보류 항목이 학습자 입에서 나왔나
     _note_drill_user_turn(state, text)             # 11차 B — 드릴 중인 항목에 쌓인 학습자 턴
+    _expression_quiz_maybe_arm(state)
     state.segments.append(
         {"turn_index": state.next_turn_index, "role": "user", "text": text, "pcm": bytes(state.cur_user_pcm)}
     )
@@ -1724,6 +1729,8 @@ def _note_expression_drill(state: _CallState, text: str) -> None:
       그 사각지대에서 재드릴이 벌어졌다). 다만 창 안에서는 **세트 항목을 제외**하고 본다 — 세트 항목을 묻고 답하는 것은 퀴즈 진행이지
       드릴 루프가 아니다. 안내 **주입**은 창 밖(또는 창이 닫힌 뒤)에서만 한다 — 퀴즈를 방해하지 않게(주입 자리의 가드).
     """
+    if state.expr_practice is not None and not state.expr_quiz_open:
+        state.expr_practice.observe_beaver(text)
     if not state.expr_items or not (text or "").strip():
         return
     hits = _expr_mentioned_nums(state, text)
@@ -1746,6 +1753,8 @@ def _note_expression_drill(state: _CallState, text: str) -> None:
 def _note_drill_user_turn(state: _CallState, text: str) -> None:
     """11차 B — 드릴 중인 항목에 학습자 턴을 센다(빈 전사는 안 센다 — P1 규율 그대로). 상한을 넘으면 안내를 표시한다.
     13차 C — 퀴즈 창이 열려 있어도 센다. 단 초점이 **세트 항목**이면 그건 퀴즈 진행이므로 세지 않는다(주입도 창 밖에서만)."""
+    if state.expr_practice is not None:
+        return  # 새 복창기는 원문·현지인 각 두 시도를 소유한다. 기존 합산 상한은 적용하지 않는다.
     if not state.expr_items or state.expr_drill_focus is None:
         return
     if state.expr_quiz_open and state.expr_drill_focus in (state.expr_quiz_set or []):
@@ -1763,7 +1772,8 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     if state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
         return False
     state.expr_drill_nudges += 1
-    await _send_note(session, EXPRESSION_DRILL_MOVE_ON)
+    note = state.expr_practice.brief() if state.expr_practice is not None else EXPRESSION_DRILL_MOVE_ON
+    await _send_note(session, note)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
     logger.info("normalcall 표현학습 드릴 안내 주입 %d/%d: call_id=%s 항목=%s 자리=마이크 모델=%s",
@@ -1813,6 +1823,12 @@ def _expression_quiz_cue_settled(state: _CallState) -> tuple[bool, str]:
     ③ 비버가 다음 항목을 소개(covered 가 arm 때보다 늘었다 — 그땐 즉시). 학습자가 먼저 말해 covered 된 항목은 처음부터 정리다.
     1552: 「잘 지냈어요」 idk → 공개 → «잘 자다» 순간 큐가 얹혀 비버가 정답만 말하고 퀴즈로 넘어갔다 — 재시도가 끊겼다.
     """
+    if state.expr_practice is not None:
+        if state.expr_practice.pending:
+            return False, "원문/현지인 복창 대기"
+        if any(n not in state.expr_practice.completed for n in state.expr_quiz_set):
+            return False, "복창 단계 미완료"
+        return True, "복창 완료 또는 각 문장 두 시도 소진"
     hold = state.expr_quiz_prev_num
     if hold is None or hold in state.expr_covered_by_user:
         return True, "학습자 확인"
@@ -1861,13 +1877,16 @@ def _expression_quiz_maybe_arm(state: _CallState) -> None:
         return
     g = svc.EXPRESSION_QUIZ_GROUP
     # ⭐ P3(2026-09-15, 1611 set=[2,1,3]): 출제 순서는 **항목 번호 오름차순** — 다룬 순서(covered_nums)대로면 뒤섞인다.
-    unquizzed = sorted(n for n in state.covered_nums if n not in state.expr_quizzed)
+    completed = state.expr_practice.completed if state.expr_practice is not None else set(state.covered_nums)
+    if state.expr_practice is not None and state.expr_practice.pending:
+        return
+    unquizzed = sorted(n for n in state.covered_nums if n not in state.expr_quizzed and n in completed)
     # ⭐ P2(2026-09-15, 1607 t26 네 표현 한꺼번에): «covered 총량 ≥ g·(seq+1)» 을 버리고 **미출제가 g개 모였으면** 큐. 학습자가 한 턴에 여러 항목을
     #   말해 covered 가 뛰어도 출제 묶음이 밀리지 않는다. seq 는 출제(arm)마다 +1(종전). 꼬리·오답 재출제는 아래 그대로.
     if len(unquizzed) >= g:
         _arm_expression_quiz_cue(state, unquizzed[:g])
         return
-    all_covered = len(state.covered_nums) >= len(state.expr_items)
+    all_covered = len(completed) >= len(state.expr_items)
     if all_covered and unquizzed:
         # ⭐ 꼬리(P0-3): 목록 끝에 G개가 안 남았어도 남은 것만으로 — 비버가 스스로 퀴즈를 열지 않으니 서버가 연다.
         _arm_expression_quiz_cue(state, unquizzed)
@@ -3363,6 +3382,7 @@ async def run_call(
     # ⭐ 표현학습이 이번 통화에서 다룰 표현(선별 결과). 다른 콜타입에서는 **빈 리스트**이고,
     #   그 빈/참이 곧 «이 통화가 표현학습인가» 의 런타임 게이트가 된다(state.expr_items).
     expr_items: list[dict] = []
+    expr_practice: ExpressionPractice | None = None
     freetalk_brief = None                  # 차시 프리토킹(cur)만 CurFreetalkBrief — 재접지 쪽지 재료
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
     continue_reminder: str | None = None   # 후반 재접지(대화 지속) — 일반 통화만
@@ -3385,7 +3405,7 @@ async def run_call(
     if call_type == "level_test":
         # 레벨테스트 대본 — 레벨/이력 슬롯 없는 전용 셋업(회원당 사실상 1회라 재조회 비용 수용).
         lt_setup = await svc.run_db(
-            db_session_factory, lambda db: svc.load_level_test_setup(db, member_id, character_id)
+            db_session_factory, lambda db: svc.load_level_test_setup(db, member_id, character_id, spec.code)
         )
         system_instruction = build_leveltest_instruction(
             role=lt_setup["role"],
@@ -3395,6 +3415,7 @@ async def run_call(
             name=lt_setup["name"],
             target_language=target_language,
             close_tag=close_tag,
+            grammar_catalog=lt_setup.get("grammar_catalog"),
         )
         # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
         # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
@@ -3914,6 +3935,8 @@ async def run_call(
         #     JSON 도 필요 없다. 서버가 정답을 갖고 있다.
         #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
         #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
+        if expr_items:
+            expr_practice = ExpressionPractice(expr_items, language=spec.code)
         if resumed and call_type == "expression":
             # ⭐ C6(2026-09-14): 재개 쪽지 재료 — 직전 조각의 드릴/통과/오답 표면형(cur_call.items) + 마지막 2~4턴 발췌. 실패해도 재료 없는 판으로 간다(R5).
             note_mats: dict = {}
@@ -3921,8 +3944,13 @@ async def run_call(
                 note_mats = await svc.run_db(db_session_factory, lambda db: {
                     **cur_svc.resume_note_materials(db, call_id), "recent": svc.recent_turns(db, call_id),
                 })
+                if expr_practice is not None:
+                    turns = await svc.run_db(db_session_factory, lambda db: svc.recent_turns(db, call_id, n=2000, max_chars=10000))
+                    expr_practice.replay(turns)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("normalcall 표현학습 이어하기: 쪽지 재료 조회 실패(재료 없이) — %s", exc)
+            if expr_practice is not None:
+                system_instruction += "\n\n" + expr_practice.brief()
             if silent:
                 # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
                 seed_text = ""
@@ -3932,6 +3960,8 @@ async def run_call(
                             len(note_mats.get("recent") or []))
             else:
                 seed_text = seed_expression_resume(target_language, **note_mats)
+                if expr_practice is not None:
+                    seed_text += "\n" + expr_practice.brief()
                 logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
                             len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
                             len(note_mats.get("recent") or []))
@@ -4028,6 +4058,7 @@ async def run_call(
         # ⭐ 표현학습 진도를 state 에 싣는다 — 이 리스트가 비어 있지 않다는 것 자체가
         #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
         state.expr_items = expr_items
+        state.expr_practice = expr_practice
         # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
         state.expr_tag_allow = _expression_bracket_allowlist(expr_items)
         if expr_items:
@@ -6234,7 +6265,8 @@ async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallSt
                    streak, streak + 1, state.next_turn_index, turn_text)
     if streak == 1:
         if state.turn_id is None and not state.should_close:
-            await session.send_text_turn(LOOP_BREAK_NOTE)
+            note = state.expr_practice.brief() if state.expr_practice is not None and not state.expr_quiz_open else LOOP_BREAK_NOTE
+            await session.send_text_turn(note)
             _note_text_inject(state, "loop")
             logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
         return
@@ -6650,7 +6682,10 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         return
     state.resume_sent += 1
     try:
-        await session.send_text_turn(_RESUME_SEED)
+        seed = _RESUME_SEED
+        if state.expr_practice is not None and not state.expr_quiz_open:
+            seed += "\n" + state.expr_practice.brief()
+        await session.send_text_turn(seed)
         logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
     except asyncio.CancelledError:
         raise
@@ -6866,6 +6901,8 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     """
     if state.should_close or state.turn_id is not None:
         return False
+    if state.expr_practice is not None and not state.expr_quiz_open:
+        seed += "\n" + state.expr_practice.brief()
     await session.send_text_turn(seed)
     _note_text_inject(state, "nudge")
     return True
@@ -7146,6 +7183,12 @@ def _build_expression_note(state: _CallState) -> str:
     done_ids = set(_expr_covered_ids(state)) | state.expr_quiz_pass
     nxt = next((str(i["obj"]) for i in state.expr_items
                 if i.get("obj") and int(i.get("item_id") or -1) not in done_ids), None)
+    if state.expr_practice is not None and not state.expr_quiz_open and not state.expr_quiz_awaiting_open:
+        # covered 는 소개 증거이며 복창 완료가 아니다. 미완료 단계에 다음 원문을 강제하지 않는다.
+        return build_expression_reground_brief(
+            role, personality, drilled=[], passed=passed, failed=failed,
+            locale_label=(state.expr_ctx or {}).get("locale_label") or "학습자의 모국어",
+        ) + "\n" + state.expr_practice.brief()
     return build_expression_reground_brief(
         role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
         # ⭐ T14 ③ 쪽지 착지문이 «{모국어}로 묻고 기다려라» 를 말한다 — 라벨을 넘긴다.

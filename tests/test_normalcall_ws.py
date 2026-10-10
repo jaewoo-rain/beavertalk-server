@@ -2152,7 +2152,7 @@ async def test_leveltest_opening_seed_bootstraps_without_injection(session_facto
 
     turns = holder["s"].sent_text_turns
     assert turns and turns[0].startswith("[통화 시작]"), "레벨테스트 오프닝 선톡 시드가 아님"
-    assert "인사부터 되는지 본다" in turns[0], "레벨테스트 오프닝 문구 아님"
+    assert "한국어로 가벼운 자기소개" in turns[0], "레벨테스트 오프닝 문구 아님"
     assert not any(t.startswith("[다음]") for t in turns), \
         "서버가 질문을 주입했다('[다음]' 시드 — 무주입 위반)"
 

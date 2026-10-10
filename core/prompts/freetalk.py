@@ -95,6 +95,7 @@ _FREETALK_TEMPLATE = (
     _ed("persona_intro_old") + " " + PERSONA_TAIL + """
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
+위 코스의 시작·대화·언어 규칙은 캐릭터에 적힌 학습·언어 지시보다 우선한다.
 """
     + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n"
     + _RULE3_LANGUAGE + "\n"
@@ -139,6 +140,7 @@ _FREETALK_LESSON_TEMPLATE = (
     _ed("persona_intro_lesson") + " " + PERSONA_TAIL + """
 
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
+위 코스의 시작·대화·언어 규칙은 캐릭터에 적힌 학습·언어 지시보다 우선한다.
 """
     + _RULE1_LESSON + "\n2. " + RULE_CLOSE_PROTOCOL + "\n"
     + _RULE3_LESSON + "\n"
