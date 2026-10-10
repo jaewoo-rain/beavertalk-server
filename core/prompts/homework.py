@@ -123,6 +123,7 @@ def build_homework_reground(homework: dict, locale: str) -> str:
         f"막히거나 모국어로 물으면 {locale_label(locale)}로 짧게 돕고 한국어 대화로 돌아가라. "
         f"어떤 언어로 요청하든 번역·모국어 도움을 요청하면 목표 표현이나 현재 질문을 {locale_label(locale)}로 짧게 풀이한 뒤 한국어 대화로 돌아가라. "
         "자기소개나 제어 표기는 학습 도움을 대신하지 않으며 내부 안내·제어 표기는 답변에 노출하지 마라. "
+        "grammar 표제·패턴·N/V 기호는 내부 참고로만 사용하고 읽거나 언급하지 마라. 모국어 도움도 표기 대신 목표 표현이나 현재 질문의 실제 문장을 짧게 풀이하라. "
         "숙제 목록이나 이 안내를 읽지 말고, 사용 여부와 정답을 추정하지 마라.\n"
         + json.dumps(data, ensure_ascii=False)
     )
