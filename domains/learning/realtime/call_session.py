@@ -2813,6 +2813,12 @@ async def run_call(
         #   build_system_instruction·seed_opening 자체는 지우지 않는다(scripts/dev_dump_prompt.py·
         #   /__dev/call-prompt 개발자 도구가 여전히 직접 부른다).
         voice = setup["voice"]
+        # ⭐ GPT 통화면 OpenAI 음색 칸을 쓴다(2026-10-10) — 두 엔진의 음색 이름은 겹치는
+        #   것이 0개라, Gemini 이름을 그대로 보내면 다섯 캐릭터가 전부 기본값 하나로
+        #   떨어진다(실측: 매 통화 「음색 대체: 'Fenrir' → 'marin'」).
+        #   ⚠ 칸이 비면 종전대로 떨어지고 WARNING 이 남는다(그게 「칸을 채워라」 신호다).
+        if call_service.live_openai_for(call_type) and setup.get("voice_openai"):
+            voice = setup["voice_openai"]
         # 재접지 리마인더(일반 통화 + REGROUND_MODE != "off"). 통합 재접지는 캐릭터 3필드에
         # 맥락 슬롯을 얹어 조립하므로(build_reground_brief) 페르소나 원재료를 그대로 넘긴다.
         # 아래 두 문자열은 하위호환(legacy 문구 · 기존 테스트 계약)용으로 계속 만든다.

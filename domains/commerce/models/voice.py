@@ -26,6 +26,13 @@ class Voice(Base, TimestampMixin):
 
     voice_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     name: Mapped[str] = mapped_column(Text, comment="Gemini Live 프리빌트 보이스명(예: Charon, Aoede)")
+    # ⭐ 엔진마다 음색 이름 체계가 **완전히 다르다**(겹치는 이름이 0개다) — 그래서 칸을
+    #   따로 둔다(2026-10-10 사장님 지시). NULL 이면 어댑터가 기본값으로 떨어지고
+    #   WARNING 을 남긴다 — 새 캐릭터를 넣고 이 칸을 안 채우면 그 로그가 신호다.
+    openai_name: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True,
+        comment="OpenAI Realtime 음색명(예: verse, coral). NULL 이면 기본값으로 떨어진다",
+    )
     description: Mapped[Optional[str]] = mapped_column(Text, comment="음색 설명(예: 밝은/차분한)")
     gender: Mapped[Optional[str]] = mapped_column(Text, comment="성별 느낌(male/female/neutral)")
     sample_url: Mapped[Optional[str]] = mapped_column(Text, comment="미리듣기 샘플 URL")

@@ -718,6 +718,9 @@ def _pick_voice(requested: str | None, settings: Any) -> str:
       `session.update` 가 거부되고 통화가 열리기도 전에 죽는다 — `SUPPORTED_VOICES` 주석.
     ⚠ **조용히 바꾸지 않는다.** 캐릭터 목소리가 달라지는 것은 사용자가 듣는 변화이므로
       WARNING 으로 남겨, 「왜 바바 목소리가 아니지」를 로그로 되짚을 수 있게 한다.
+      ⭐ 캐릭터별 배정은 **DB 가 든다**(`voice.openai_name`, 2026-10-10 사장님 지시).
+        여기 표를 두지 않는 이유: 두 곳이 같은 표를 들면 갈라지고 캐릭터가 늘 때 둘을
+        맞춰야 한다. 이 함수는 **벤더가 받는 이름인가**만 본다.
     """
     want = (requested or "").strip()
     if want in SUPPORTED_VOICES:
@@ -728,7 +731,7 @@ def _pick_voice(requested: str | None, settings: Any) -> str:
     if want:
         logger.warning(
             "normalcall OpenAI 음색 대체: %r 은 이 엔진이 받지 않는다 → %r "
-            "(DB 음색은 Gemini 이름이다 — 지원 10종: %s)",
+            "(DB `voice.openai_name` 이 비어 있다는 뜻이다 · 지원 10종: %s)",
             want, fallback, ", ".join(sorted(SUPPORTED_VOICES)),
         )
     return fallback

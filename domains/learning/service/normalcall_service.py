@@ -244,11 +244,17 @@ def _load_member_character(
     role = (ch.role if ch else "") or ""
     personality = (ch.personality if ch else "") or ""
     voice = (ch.voice.name if (ch and ch.voice and ch.voice.name) else DEFAULT_VOICE)
+    # ⭐ 엔진별 음색(2026-10-10) — 이름 체계가 달라 칸을 따로 둔다(`voice.openai_name`).
+    #   ⚠ 비어 있으면 **None 을 그대로 내보낸다.** 여기서 Gemini 이름으로 메우면 어댑터가
+    #     「벤더가 안 받는 이름」으로 보고 기본값으로 떨어뜨리는데, 그 WARNING 이 「칸이
+    #     비었다」는 신호여야 한다 — 메우면 그 신호가 사라진다.
+    voice_openai = (ch.voice.openai_name or None) if (ch and ch.voice) else None
 
     return {
         "role": role,
         "personality": personality,
         "voice": voice,
+        "voice_openai": voice_openai,
         "locale": locale,
         "interests": interests,
         "name": name,

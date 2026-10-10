@@ -759,3 +759,56 @@ async def test_gate_is_off_when_the_session_has_no_transcription():
         pass
     assert "response.create" in [m["type"] for m in ws.sent], \
         "전사 없는 통화에서 응답을 안 만들었다 — 통화가 통째로 벙어리가 된다"
+
+
+# ── 캐릭터별 목소리(2026-10-10) ───────────────────────────────────────────────── #
+#   DB 캐릭터 음색은 **Gemini 이름**이고 OpenAI 가 받는 10종과 **하나도 겹치지 않는다**
+#   ⇒ 칸이 따로 없으면 다섯 캐릭터가 전부 기본값 하나로 떨어진다(실측: 매 통화 WARNING).
+#   ⛔ 대응표를 **코드에 두지 않는다**(사장님 결정) — 음색은 데이터다. `voice.openai_name`.
+def test_voice_model_has_the_openai_column():
+    """⭐ 모델에 칸이 있다 — 없으면 셋업이 읽을 데가 없다."""
+    from domains.commerce.models.voice import Voice
+
+    assert hasattr(Voice, "openai_name"), "voice.openai_name 칸이 없다"
+    col = Voice.__table__.c["openai_name"]
+    assert col.nullable, "NULL 허용이어야 한다 — 안 채운 음색이 Gemini 경로를 깨면 안 된다"
+
+
+def test_the_adapter_holds_no_voice_table():
+    """⛔⛔ 어댑터에 음색 대응표를 **되돌려 놓지 마라**(2026-10-10 사장님 결정).
+
+    한때 `VOICE_BY_GEMINI_NAME` 을 여기 뒀다가 지웠다. 두 곳이 같은 표를 들면 갈라지고,
+    캐릭터가 늘 때 둘을 맞춰야 한다. 이 함수는 **벤더가 받는 이름인가**만 본다.
+    """
+    assert not hasattr(oa, "VOICE_BY_GEMINI_NAME"), "대응표가 어댑터로 돌아왔다"
+
+    class _S:
+        OPENAI_REALTIME_VOICE = ""
+
+    # Gemini 이름은 전부 폴백이다 — 배정은 DB 가 한다.
+    for gem in ("Fenrir", "Leda", "Vindemiatrix", "Sulafat", "Sadachbia"):
+        assert oa._pick_voice(gem, _S()) == oa.DEFAULT_VOICE, gem
+
+
+def test_the_setup_exposes_both_engine_voices():
+    """⭐ 셋업이 두 칸을 **둘 다** 내보낸다 — 호출부가 엔진으로 고를 수 있어야 한다."""
+    import inspect
+
+    from domains.learning.service import normalcall_service as svc
+
+    # ⚠ 음색을 읽는 자리는 `load_call_setup` 이 아니라 `_load_member_character` 다
+    #   (셋업이 그 반환을 그대로 실어 보낸다). 이름을 틀리면 시험이 조용히 통과한다.
+    src = inspect.getsource(svc._load_member_character)
+    assert '"voice_openai"' in src, "셋업이 voice_openai 를 안 내보낸다"
+    assert "openai_name" in src, "voice.openai_name 을 안 읽는다"
+
+
+def test_the_call_site_picks_the_openai_voice_for_gpt_calls():
+    """⭐ GPT 통화면 OpenAI 칸을 쓴다. ⚠ 비어 있으면 종전대로 떨어진다(그게 신호다)."""
+    import inspect
+
+    import domains.learning.realtime.call_session as cs
+
+    src = inspect.getsource(cs.run_call)
+    assert 'setup.get("voice_openai")' in src, "호출부가 OpenAI 음색 칸을 안 본다"
+    assert 'voice = setup["voice_openai"]' in src
