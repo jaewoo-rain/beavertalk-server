@@ -57,7 +57,7 @@ class SeedBundle(Protocol):
 
     def quiz_set_reminder(self, labels: str) -> str: ...
 
-    def apply_to(self, state, *, close_tag: str) -> None:
+    def apply_to(self, state, *, close_tag: str, locale_label: str = "") -> None:
         """`state` 의 **종료 시드·무음 1·2단**을 이 묶음 것으로 맞춘다(필요하면)."""
         ...
 
@@ -102,14 +102,17 @@ class _Bundle:
             return self._resume_conv
         return self.resume_after_slip
 
-    def apply_to(self, state, *, close_tag: str) -> None:
+    def apply_to(self, state, *, close_tag: str, locale_label: str = "") -> None:
         """⛔ **여기가 「분기 한 자리」다.** 호출부엔 `if` 가 없다 — 묶음이 자기 몫만 한다.
 
         Gemini 묶음은 세 값이 전부 None 이라 **아무것도 안 덮는다**(종전 바이트 동일).
         GPT 묶음만 세 값을 갖고 있어 그때만 덮인다.
         """
         if self._close_seed is not None:
-            state.close_seed = self._close_seed(close_tag)
+            # ⭐ 언어를 **이름으로** 넘긴다(2026-10-10) — 「모국어로」는 모델이 풀어야 하는
+            #   추상이라 3단에서 한국어로 샜다(call 1817). 받는 쪽이 옛 시그니처면
+            #   TypeError 가 나므로 키워드로만 넘긴다.
+            state.close_seed = self._close_seed(close_tag, locale_label=locale_label)
         if self._nudge_1 is not None:
             # ⭐ 표현학습이 아니면(= expr_items 가 비면) 대화 변형을 쓴다. 표현학습 글자는
             #   「항목·다음 번호·수업」과 **「학습자의 모국어로 힌트」**를 시켜 100% 목표어를

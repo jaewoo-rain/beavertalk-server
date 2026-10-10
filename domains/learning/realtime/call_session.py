@@ -3540,7 +3540,11 @@ async def run_call(
         #     `close_seed`·`nudge_seed_1`·`nudge_seed_2` 를 정하므로, 앞에 두면 그 값들이
         #     묶음을 덮어쓴다. `apply_to` 는 Gemini 묶음에선 **아무것도 안 한다**(종전 동일).
         state.seeds = seed_bundle.for_engine(state.live_engine)
-        state.seeds.apply_to(state, close_tag=close_tag)
+        state.seeds.apply_to(
+            state, close_tag=close_tag,
+            # ⭐ 종료 쪽지가 「모국어로」 대신 **언어 이름**을 쓰게 한다(call 1817).
+            locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
+        )
         if state.seeds is not seed_bundle.GEMINI:
             logger.info("normalcall 시드 묶음: %s (주입 문구 전부 이 묶음에서 나온다)", state.seeds.name)
 

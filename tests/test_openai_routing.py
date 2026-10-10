@@ -813,7 +813,11 @@ async def test_no_gemini_seed_string_is_ever_injected_into_an_openai_call(
     st = seen["state"]
     assert st.nudge_seed_1 == gpt_seeds.NUDGE_1
     assert st.nudge_seed_2 == gpt_seeds.NUDGE_2
-    assert st.close_seed == gpt_seeds.SILENCE_CLOSE
+    # ⭐ 2026-10-10: 종료 쪽지가 **언어를 이름으로** 박는다(call 1817 — 「모국어로」가
+    #   추상이라 한국어로 샜고, 한국어 예시가 씨앗이 됐다). 하네스 통화는 locale=en 이다.
+    assert st.close_seed == gpt_seeds.silence_close("영어(English)")
+    assert "영어(English)로 작별" in st.close_seed
+    assert "다음에 또 하자" not in st.close_seed, "한국어 예시가 되살아났다 — 그게 씨앗이다"
     assert st.seeds.name == "openai"
     # ⛔ 없앤 세 자리는 **비어 있다**(2026-10-10) — 보내는 자리가 빈 문자열을 삼킨다.
     assert st.seeds.drill_move_on == ""
