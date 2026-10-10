@@ -12,26 +12,39 @@ def verification_candidates(homework: dict) -> tuple[list[dict], dict[int, dict]
     """전체 출제 대상을 임시 검증 번호로 변환한다. DB 조회 없음."""
     source = homework.get("source")
     if source == "manual":
-        raise HomeworkKindBlocked("homework_kind_blocked")
-    if source != "curriculum":
+        from core.homework_contract import namespace_materials
+        if homework.get("version") != 2:
+            raise HomeworkKindBlocked("homework_kind_blocked")
+        materials = namespace_materials(homework)
+        from core.prompts.homework import normalize_homework
+        materials = normalize_homework(materials)
+        if homework.get("analysis", {}).get("verification_version") != "homework-v2":
+            raise HomeworkKindBlocked("homework_kind_blocked")
+        manual_kind = materials.get("manual_kind")
+        if manual_kind not in ("word", "sentence"):
+            raise HomeworkKindBlocked("homework_kind_blocked")
+    elif source != "curriculum":
         raise ValueError("homework_binding_mismatch")
-    targets = homework["snapshot"]["attendance_targets"]
+    targets = homework["snapshot"].get("attendance_targets")
     if not isinstance(targets, list) or not targets:
         raise ValueError("homework_snapshot_invalid")
     candidates, originals, seen = [], {}, set()
     for number, target in enumerate(targets, start=1):
         target_id = target.get("id")
-        if (target.get("reference") != "learning_item"
+        if (target.get("reference") != ("assignment_item" if source == "manual" else "learning_item")
                 or type(target_id) is not int or target_id <= 0
                 or target_id in seen
-                or target.get("kind") not in {"vocab", "grammar", "chunk"}
+                or (source == "curriculum" and target.get("kind") not in {"vocab", "grammar", "chunk"})
+                or (source == "manual" and target.get("conversation") is not True)
                 or not isinstance(target.get("surface"), str)
                 or not target["surface"].strip()):
             raise ValueError("homework_snapshot_invalid")
         seen.add(target_id)
         originals[number] = dict(target)
         candidates.append({"item_id": number, "surface": target["surface"],
-                           "kind": target["kind"], "example": target.get("example"),
+                           # 검증용 임시 분류만 연결하고 canonical 원본 kind는 보존한다.
+                           "kind": ("vocab" if manual_kind == "word" else "chunk") if source == "manual" else target["kind"],
+                           "example": target.get("example"),
                            "injected": False})
     return candidates, originals
 

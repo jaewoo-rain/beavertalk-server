@@ -1537,11 +1537,12 @@ def load_homework_snapshot(db: Session, member_id: int, call_id: int, assignment
 def save_homework_snapshot(db: Session, call_id: int, homework: dict) -> None:
     """기존 JSON 필드에 원문 귀속을 보존한다. 과제 완료나 진도를 갱신하지 않는다."""
     from core.homework_contract import create_namespace
-    data = create_namespace(homework)
     call = db.get(Call, call_id)
     if call is None or call.call_type != "homework":
         raise ValueError("숙제 통화 저장 대상이 아님")
     existing = (call.usage_json or {}).get("homework")
+    enabled = existing.get("version") == 2 if existing is not None else settings.HOMEWORK_MANUAL_V2_WRITE_ENABLED
+    data = create_namespace(homework, manual_v2_enabled=enabled)
     if existing is not None:
         if existing.get("snapshot_hash") != data["snapshot_hash"]:
             raise ValueError("불변 숙제 스냅샷 변경 금지")
@@ -1565,7 +1566,8 @@ def create_call(
         from core.homework_contract import create_namespace
         if call_type != "homework":
             raise ValueError("숙제 marker는 숙제 통화에만 허용함")
-        initial_usage = {"homework": create_namespace(homework)}
+        initial_usage = {"homework": create_namespace(homework,
+            manual_v2_enabled=settings.HOMEWORK_MANUAL_V2_WRITE_ENABLED)}
     now = datetime.now(timezone.utc)
     call = Call(
         member_id=member_id,

@@ -66,6 +66,10 @@ def normalize_homework(payload: dict) -> dict:
         "assignment_id": assignment_id, "source": source, "language": "ko",
         "activities": list(activities), "grammar": list(grammar), "goals": normalized,
     }
+    if source == "manual" and "manual_kind" in payload:
+        if payload["manual_kind"] not in (None, "word", "sentence"):
+            raise ValueError("직접 출제 분류가 유효해야 함")
+        result["manual_kind"] = payload["manual_kind"]
     if "attendance_targets" in payload:
         targets = payload["attendance_targets"]
         if not isinstance(targets, list):
@@ -86,6 +90,14 @@ def normalize_homework(payload: dict) -> dict:
                 target = by_id.get(goal["id"])
                 if target is None or any(target.get(k) != goal.get(k) for k in ("surface", "kind")):
                     raise ValueError("점수 목표와 전체 수행 대상이 일치해야 함")
+        elif result.get("manual_kind") in ("word", "sentence"):
+            if any(target.get("conversation") is not True for target in targets):
+                raise ValueError("직접 출제 전체 수행 대상의 회화 선택이 필요함")
+            for goal in normalized:
+                target = by_id.get(goal["id"])
+                if target is None or any(target.get(key) != goal.get(key)
+                                         for key in ("surface", "kind", "conversation")):
+                    raise ValueError("직접 출제 목표와 전체 수행 대상이 일치해야 함")
         result["attendance_targets"] = copy.deepcopy(targets)
     return result
 

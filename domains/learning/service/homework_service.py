@@ -127,7 +127,7 @@ def commit_verified_analysis(db, call_id: int, expected: tuple[int, int, int],
     seen = {(item["reference"], item["id"], item["norm_hash"]) for item in previous}
     proof = previous + [item for item in proof
                         if (item["reference"], item["id"], item["norm_hash"]) not in seen]
-    namespace["analysis"] = {"state": "ready", "verification_version": "homework-v1",
+    namespace["analysis"] = {"state": "ready", "verification_version": f"homework-v{namespace.get('version', 1)}",
                              "generation": expected[0], "fragment_count": expected[1],
                              "through_turn_index": through, "proof": proof}
     namespace["delivery"].update(state="pending", generation=expected[0])
