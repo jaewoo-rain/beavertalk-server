@@ -365,17 +365,20 @@ def test_items_block_puts_a_review_line_after_every_bundle():
     assert lines[0] == "[오늘의 표현]"
     marks = [l for l in lines if l.startswith(ex.REVIEW_MARK)]
     assert len(marks) == 3, marks                       # 1~3 · 4~6 · 7(꼬리)
-    assert "1~3" in marks[0] and "4~6" in marks[1] and marks[2].startswith(ex.REVIEW_MARK + " 여기서 7")
+    # 토론2 A안(2026-10-11): 묶음 줄은 영어(`BUNDLE_LINE`) — 한국어 줄은 낭독·누출 씨앗이었다.
+    assert "1~3" in marks[0] and "4~6" in marks[1] and marks[2].startswith(ex.REVIEW_MARK + " Review 7")
     # 되묻기 줄은 그 묶음의 **마지막 항목 바로 뒤**에 온다.
     assert lines[lines.index(marks[0]) - 1].startswith("3. 표현3")
     assert lines[lines.index(marks[1]) - 1].startswith("6. 표현6")
 
 
-def test_items_block_rows_are_unchanged_inside_bundles():
-    """항목 줄 자체는 종전 그대로다 — ⛔ 라벨(「뜻:」「한국어 예:」)은 칸 구분 정보다. 2026-10-11 라벨을 뺀
-    3통(1858~1860)이 0/3 으로 더 나빴다(모델이 뜻을 표현으로 가르침) — `_row` 독스트링."""
-    out = ex._items_block(_seven(), target="한국어", group=3)
-    assert '4. 표현4 — 뜻: m4 — 한국어 예: "예4"' in out
+def test_items_block_rows_keep_english_labels_inside_bundles():
+    """항목 줄 — ⛔ 라벨은 칸 구분 정보라 빼지 않는다(2026-10-11 라벨을 뺀 3통 1858~1860 이 0/3).
+    ⭐ 라벨은 **영어**다(토론2 A안 — 한국어 라벨 「뜻:」은 그대로 낭독·누출됐고, 영어 라벨 16통은 한국어
+    안내 누출 0). 대상 언어 이름은 호출부가 영어로 넘긴다(「Korean」)."""
+    out = ex._items_block(_seven(), target="Korean", group=3)
+    assert '4. 표현4 — meaning: m4 — Korean: "예4"' in out
+    assert "뜻:" not in out and "한국어 예" not in out
 
 
 def test_items_block_is_flat_when_group_is_zero():

@@ -3054,14 +3054,18 @@ async def run_call(
                         db_session_factory, "expression",
                         openai_expression.SCRIPT_TEMPLATE,
                     )
+                    # 토론2 A안(2026-10-11): 언어 이름을 **영어로만** 넘긴다. 「영어(English)」·「한국어」
+                    #   라벨이 영어 본문 속 한글 씨앗이 됐다(1848 「the 한국어 sentence」→ 매 턴 「한국어로,」).
+                    _en_locale = LOCALE_NAME_EN.get(locale) or LOCALE_NAME_EN["en"]
+                    _en_target = LOCALE_NAME_EN.get(spec.code) or "Korean"
                     system_instruction = openai_expression.build_expression_instruction(
                         script_override=_expr_override,
                         role=setup["role"],
                         personality=setup["personality"],
-                        locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
+                        locale_label=_en_locale,
                         items=expr_items,
                         quiz_group=svc.EXPRESSION_QUIZ_GROUP,
-                        target_language=target_language,
+                        target_language=_en_target,
                         name=setup["name"],
                         level_note=openai_expression.first_sentence(level_profile),
                         # ⭐ 표정 게이트를 **다시 판정하지 않는다** — 위에서 이미 플랜·영상·
@@ -3070,8 +3074,7 @@ async def run_call(
                         face_rule=openai_tools.face_rule_block() if face_rule_text else "",
                         self_quiz=self_quiz,
                     )
-                    seed_text = openai_expression.seed_opening(
-                        _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"])
+                    seed_text = openai_expression.seed_opening(_en_locale)
                     # ⛔ 주입된 가짜 팩토리(시험)가 있으면 그게 이긴다 — 라우팅 결정만 시험하고
                     #   실제 WS 는 열지 않을 수 있어야 한다.
                     if live_session_factory is None:

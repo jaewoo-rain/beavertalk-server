@@ -238,6 +238,7 @@ def build_session_config(
     input_language_codes: Optional[list[str]] = None,
     transcribe_model: Optional[str] = DEFAULT_TRANSCRIBE_MODEL,
     max_output_tokens: int = 0,
+    reasoning_effort: Optional[str] = None,
 ) -> dict:
     """`session.update` 페이로드 1개.
 
@@ -272,6 +273,9 @@ def build_session_config(
         session["tool_choice"] = "none"
     if max_output_tokens and int(max_output_tokens) > 0:
         session["max_output_tokens"] = int(max_output_tokens)
+    if reasoning_effort and str(reasoning_effort).strip():
+        # E(2026-10-11): `session.reasoning.effort`. 빈 값이면 칸 자체를 안 싣는다(벤더 기본 유지).
+        session["reasoning"] = {"effort": str(reasoning_effort).strip()}
     return {"type": "session.update", "session": session}
 
 
@@ -711,7 +715,12 @@ async def _apply_session(ws, config: dict) -> bool:
         t = str((ev or {}).get("type") or "")
         if t == "session.updated":
             on = "transcription" in (config["session"]["audio"]["input"])
-            logger.info("normalcall OpenAI 세션 설정 적용됨(전사=%s)", "on" if on else "off")
+            # 서버가 돌려준 **실효** 설정에서 reasoning 만 뽑아 찍는다 — 우리가 보낸 값이 아니라
+            #   받아들여진 값(E 실측의 근거). 없으면 None.
+            eff = (((ev.get("session") or {}).get("reasoning") or {}).get("effort"))
+            logger.info("normalcall OpenAI 세션 설정 적용됨(전사=%s reasoning=%s 보냄=%s)",
+                        "on" if on else "off", eff,
+                        (config["session"].get("reasoning") or {}).get("effort"))
             return on
         if t == "error":
             err = (ev or {}).get("error") or {}
@@ -804,6 +813,7 @@ async def open_session(
         transcribe_model=(getattr(settings, "OPENAI_REALTIME_TRANSCRIBE_MODEL", None)
                           or DEFAULT_TRANSCRIBE_MODEL),
         max_output_tokens=int(getattr(settings, "OPENAI_REALTIME_MAX_OUTPUT_TOKENS", 0) or 0),
+        reasoning_effort=(getattr(settings, "OPENAI_REALTIME_REASONING_EFFORT", "") or None),
     )
 
     import websockets

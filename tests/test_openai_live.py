@@ -837,3 +837,14 @@ async def test_response_create_carries_instructions_only_when_set():
     sess.set_response_instructions("")
     await sess.send_text_turn("끝")
     assert "instructions" not in ws.sent[-1]["response"]
+
+
+def test_reasoning_effort_only_when_set():
+    """E(2026-10-11): 빈 값이면 `reasoning` 칸이 없고, 값이 있으면 `{"effort": 값}` 로 실린다."""
+    import core.openai.session as oa
+    off = oa.build_session_config(system_instruction="지시")["session"]
+    assert "reasoning" not in off
+    blank = oa.build_session_config(system_instruction="지시", reasoning_effort="  ")["session"]
+    assert "reasoning" not in blank
+    on = oa.build_session_config(system_instruction="지시", reasoning_effort="high")["session"]
+    assert on["reasoning"] == {"effort": "high"}

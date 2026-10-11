@@ -55,11 +55,13 @@ DEFAULT_RETRY_LIMIT = 3
 
 
 def _row(idx: int, item: dict, *, target: str) -> str:
-    """항목 한 줄: `3. 고마워요 — 뜻: thank you — 한국어 예: "도와줘서 고마워요."`
+    """항목 한 줄: `3. 고마워요 — meaning: thank you — Korean: "도와줘서 고마워요."`
 
-    ⛔ 라벨(「뜻:」「한국어 예:」)을 빼지 마라(2026-10-11, call 1858~1860 — 0/3). 라벨이 없으면 모델이
-      어느 칸이 한국어 문장인지 잃고 영어 뜻을 표현으로 가르친다. 낭독 위험보다 칸 구분 정보가 크다.
-      README §8 2026-10-11.
+    ⛔ 라벨을 **빼지** 마라(2026-10-11, call 1858~1860 — 0/3). 라벨이 없으면 모델이 어느 칸이 한국어
+      문장인지 잃고 영어 뜻을 표현으로 가르친다. 낭독 위험보다 칸 구분 정보가 크다.
+    ⭐ 라벨은 **영어**다(토론2 A안, 2026-10-11, call 1871~1886 — 16통 한국어 안내 누출 0). 한국어 라벨
+      「뜻:」「한국어 예:」는 그대로 낭독됐다(「뜻: …」). 영어 라벨도 낭독되지만(「Meaning: Hello」) 그건
+      언어 위반이 아니라 말투 문제다. README §8 2026-10-11 토론2.
     """
     # ⭐ «◯◯» 빈칸을 «(이름)»·«(나라)» 로 바꿔 싣는다(2026-10-10, call 1824·1828·1830 —
     #   비버가 「I'm ◯◯ / 저는 ◯◯이에요」라고 **기호를 소리로** 읽었다). 프리토킹이 쓰는
@@ -71,11 +73,22 @@ def _row(idx: int, item: dict, *, target: str) -> str:
     #   언어 중립인 줄임표로 — 「I'm …」. 표면형·예문은 한국어 문장이라 «(이름)» 이 맞다.
     des = _SLOT_RE.sub("…", str(item.get("des") or "").strip())
     if des:
-        row += " — 뜻: %s" % des
+        row += " — %s %s" % (ROW_MEANING_LABEL, des)
     ex = _fill_slots(str(item.get("ex") or "").strip())
     if ex:
-        row += ' — %s 예: "%s"' % (target, ex)
+        row += ' — %s "%s"' % (ROW_SENTENCE_LABEL % target, ex)
     return row
+
+
+#: 토론2 A안(2026-10-11) — 데이터 블록 라벨을 **학습자가 읽을 일 없는 영어**로. 한국어 라벨
+#:   「뜻:」「한국어 예:」는 전사에서 그대로 낭독됐다(「뜻: …」 누출). 라벨을 없애면 칸 역할을
+#:   잃으므로(1858~1860) 영어 라벨로 역할만 남긴다. `%s` 자리에는 target 이름이 들어간다.
+ROW_MEANING_LABEL = "meaning:"
+ROW_SENTENCE_LABEL = "%s:"
+#: 묶음 끝 되묻기 줄. 토론2 A안 — 영어.
+BUNDLE_LINE = "%s Review %s here, one at a time.%s"
+BUNDLE_NEXT = " Then set %d."
+BUNDLE_HEAD = "— set %d —"
 
 
 #: 묶음 사이에 박는 되묻기 줄. ⭐ **구조가 규칙을 이긴다**(2026-10-10, call 1824·1827·1828):
@@ -112,13 +125,13 @@ def _items_block(items: list[dict], *, target: str, group: int = 0) -> str:
         chunk = rows[start:start + group]
         bundle_no = start // group + 1
         first, last = start + 1, start + len(chunk)
-        lines.append("— %d묶음 —" % bundle_no)
+        lines.append(BUNDLE_HEAD % bundle_no)
         lines.extend(chunk)
         # ⛔ 끝 묶음에 「마지막」「여기까지」를 쓰지 않는다 — 종료 어휘를 주면 모델이 그걸
         #   수단으로 쓴다(README 원칙 5, call 706·852·870). 다음 묶음이 없으면 그냥 멈춘다.
-        nxt = (" 끝나면 %d묶음." % (bundle_no + 1)) if last < total else ""
+        nxt = (BUNDLE_NEXT % (bundle_no + 1)) if last < total else ""
         span = ("%d~%d" % (first, last)) if last > first else "%d" % first
-        lines.append("%s 여기서 %s을 하나씩 되묻는다.%s" % (REVIEW_MARK, span, nxt))
+        lines.append(BUNDLE_LINE % (REVIEW_MARK, span, nxt))
     return "\n".join(lines)
 
 
@@ -217,9 +230,12 @@ def seed_opening(locale_label: str) -> str:
     ⚠ 2026-10-11 영어 본문(「The call is now connected. Greet briefly in English…」)을 1통(1856) 시험했다 —
       첫 턴이 3문장으로 짧아졌지만 매 턴 「한국어로, …라고 말해봐」가 붙어 **더 나빴다**. 되돌림.
     """
+    # 토론2 A안(2026-10-11): 선톡 시드도 영어 — 한국어 시드 직후 첫 생성이 통째 한국어로 나온 적이
+    #   있다(1869 t1). 1856 의 영어 시드가 나빴던 것은 본문이 한국어·영어 문장 속 「한국어」 한
+    #   단어가 박힌 조건이었다 — 이번엔 본문·라벨·시드를 한 언어로 맞춘다.
     return (
-        "[지시] 지금 통화가 연결됐다. %s 로 짧게 인사하고, 1번 항목을 바로 시작한다. "
-        "인사에 오늘 배울 표현을 미리 말하지 않는다." % locale_label
+        "[Instruction] The call is now connected. Greet briefly in %s and start item 1 right away. "
+        "Do not mention today's expressions in the greeting." % locale_label
     )
 
 

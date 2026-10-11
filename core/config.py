@@ -270,6 +270,10 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_TRANSCRIBE_MODEL: str = "gpt-4o-mini-transcribe"
     # 0 = 상한을 안 싣는다(권장). 값을 주면 긴 설명이 문장 중간에 잘릴 수 있다.
     OPENAI_REALTIME_MAX_OUTPUT_TOKENS: int = 0
+    # ⭐ 추론 강도(E, 2026-10-11). 빈 문자열 = 안 싣는다(벤더 기본). 값: minimal/low/medium/high/xhigh.
+    #   `session.reasoning.effort` — 문서는 «reasoning-capable 모델(gpt-realtime-2 …)» 이라 하고
+    #   mini 가 받는지는 실측으로만 안다. 어댑터가 `session.updated` 의 reasoning 을 로그에 찍는다.
+    OPENAI_REALTIME_REASONING_EFFORT: str = ""
     # ⭐ 응답마다 `response.create.response.instructions` 에 **전체 지시문 + 언어 한 줄**을 싣는다(2026-10-11).
     #   ⛔ 그 칸은 세션 지시문에 덧붙지 않고 **그 응답에서 대체**한다(실측 1847) — 한 줄만 실으면 대본이 사라진다.
     #   실측 10통(1837~1846): 대본 글자를 어떻게 바꿔도 학습자가 한국어로 답한 뒤부터 비버가

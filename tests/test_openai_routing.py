@@ -305,7 +305,9 @@ async def test_openai_call_uses_the_gpt_script_and_omits_fragment_plumbing(
 
     # 시드도 GPT 것 — 1번 항목의 표현이 시드에 없다(선공개 방지)
     seeds = h["session"].sent_text_turns
-    assert seeds and "[지시]" in seeds[0]
+    # 토론2 A안(2026-10-11): 선톡 시드는 영어·대괄호 접두 `[Instruction]`(한국어 시드 직후 첫 턴이 통째
+    #   한국어로 난 1869 — 본문·라벨·시드를 한 언어로 맞춘다). 대괄호 지시 형식은 그대로다.
+    assert seeds and seeds[0].startswith("[Instruction]") and "English" in seeds[0]
 
 
 @pytest.mark.asyncio
@@ -801,7 +803,7 @@ async def test_no_gemini_seed_string_is_ever_injected_into_an_openai_call(
     from core.openai.prompts import seeds as gpt_seeds
 
     joined = "\n".join(sent)
-    assert "[지시]" in joined, "GPT 선톡 시드가 없다"
+    assert "[Instruction]" in joined, "GPT 선톡 시드가 없다"
     # ⛔ 2026-10-10: 루프 차단·퀴즈 큐 쪽지를 **없앴다** ⇒ 이 통화에서 나갈 것이 없다.
     #   (종전엔 둘이 실제로 나갔는지 보던 자리다 — 커밋 `5b138bc`.)
     assert sess.regrounds == [], "없앤 쪽지가 재접지 자리로 나갔다: %r" % (sess.regrounds,)
