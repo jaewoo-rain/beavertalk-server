@@ -191,6 +191,13 @@ class Settings(BaseSettings):
     #     공짜다. **진도(drilled)·차시 완료는 그대로 돈다.**
     #   ⚠ 켤 때 같이 봐야 하는 것: 퀴즈 큐 쪽지가 없으면 켜도 «맞혔나» 는 0회다.
     EXPR_LLM_JUDGE: bool = False
+    # ⭐⭐ 프롬프트 DB override(2026-10-10 사장님 지시) — `prompt_override` 테이블의 글자로
+    #   대본을 덮어쓴다. **배포 없이** 대본을 고치기 위한 자리다(빌드+배포 5~8분 → 초).
+    #   ⛔ **기본 꺼짐.** 켜지 않으면 그 테이블을 아예 안 읽는다 — 이 DB 는 실서비스와
+    #     공유이므로, 이 브랜치가 머지돼도 스위치를 안 켜면 실서비스는 종전 그대로다.
+    #   ⚠ 검사(`core.openai.prompts.override.vet`)를 못 통과하면 코드 기본값으로 떨어지고
+    #     ERROR 가 남는다 — 틀린 글자가 통화를 죽이지 않는다(R5).
+    PROMPT_OVERRIDE_ENABLED: bool = False
     # ⛔ 옛 EXPR_CUE_COMPLETED_TURN_25(10차, 2026-09-16)는 C2(2026-09-22, D2 3.1 단일화)에서
     #   삭제했다 — 2.5 계열 모델 자체가 더 이상 안 쓰인다. 퀴즈 큐·안내는 이제 항상
     #   재접지 얹기(send_reground turn_complete=False) 하나로만 간다.
@@ -263,6 +270,12 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_TRANSCRIBE_MODEL: str = "gpt-4o-mini-transcribe"
     # 0 = 상한을 안 싣는다(권장). 값을 주면 긴 설명이 문장 중간에 잘릴 수 있다.
     OPENAI_REALTIME_MAX_OUTPUT_TOKENS: int = 0
+    # ⭐ 응답마다 `response.create.response.instructions` 에 **전체 지시문 + 언어 한 줄**을 싣는다(2026-10-11).
+    #   ⛔ 그 칸은 세션 지시문에 덧붙지 않고 **그 응답에서 대체**한다(실측 1847) — 한 줄만 실으면 대본이 사라진다.
+    #   실측 10통(1837~1846): 대본 글자를 어떻게 바꿔도 학습자가 한국어로 답한 뒤부터 비버가
+    #   한국어로 새는데, 그건 지시문이 아니라 **대화 창의 압력**이라 응답 직전 신호로 받는다.
+    #   ⛔ 기본 꺼짐. 켜기 전에 캐시가 깨지지 않는지(응답별 cached_tokens) 1통 실측한다.
+    OPENAI_RESPONSE_LANG_HINT: bool = False
     # ⛔⛔ **동시 통화 1건**(사장님 결정, 2026-10-04). org TPM 40,000 에서 표정 ON 통화
     #   1건이 분당 ~30k 를 쓴다 — 2건이면 한도를 넘고, 넘으면 통화가 **조용히** 안 열린다.
     #   TPM 상향은 사장님이 직접 한다. 그때까지 1 로 묶는다.

@@ -91,6 +91,8 @@ domains/<도메인>/{ models, schemas, repository, service, routers }
 - **배포**: `scripts/deploy_demo.sh [태그]` — `builds submit --tag`(멀티매니페스트 회피) → 그 이미지로 deploy → 헬스체크. `--source` 직접 배포는 "Container import failed" 로 실패.
 - **`.gcloudignore` 는 `.dockerignore` 와 별개 유지**(gitignore 변경이 빌드 업로드를 오염시키지 않게). `.gitignore` 에 `scripts/` 넣지 말 것.
 - **dev 도구**: `scripts/dev_levelup_seed.py <이메일>`(승급 직전 시딩), `scripts/dev_inspect_call.py <call_id>`(전사·문장·증거·레벨 덤프), `POST /__dev/level-reset`(레벨 백지화), `POST /__dev/cur-reset {member_id?, lesson_no?}`(커리큘럼 2단계 cur_* 백지화·포인터 이동, admin).
+- **프롬프트 DB override**(2026-10-10): 편집 화면 **`/__devprompt`**(admin — 불러오기→검사·미리보기→올리기, 1초 되돌리기) 또는 `scripts/dev_prompt_override.py {status|dump|check|put|off} <이름>` — `prompt_override` 테이블 글자로 통화 대본을 **배포 없이** 바꾼다. ⛔ 스위치 `PROMPT_OVERRIDE_ENABLED` **기본 꺼짐**, **네 대본 전부**(expression·freetalk·chat·leveltest) 편집 가능 — ⛔ 단 `leveltest` 는 Gemini 정본과 같은 글자로 맞춰 둔 것이고 override 는 OpenAI 경로만 타므로 고치면 **두 엔진이 갈라진다**. 켜면 비버가 받은 글자가 **git·pytest 에 없다** — 통화를 되짚을 땐 `call.prompt_override_id` 부터 본다. 정본 `docs/20261010_2050_프롬프트-DB-override.md`.
+- **응답 단위 언어 지시**(2026-10-11, OpenAI 전용): env `OPENAI_RESPONSE_LANG_HINT=true`(gpt-api 켜짐·기본 꺼짐) 이면 매 `response.create` 에 **전체 지시문 + 영어 한 줄**(「Speak only in English…」)을 싣는다. ⛔ `response.instructions` 는 세션 지시문을 **대체**한다(한 줄만 실으면 대본이 사라짐, 1847). 캐시는 유지(88~97%). 어댑터가 응답마다 `OpenAI usage: in= cached= out=` 를 찍는다. 실험 기록 `docs/prompts/README.md` §8 2026-10-11.
 
 ## 팀 / 오케스트레이션
 CEO 스킬 `.claude/skills/beavertalk-dev/`. 전문 에이전트는 `.claude/agents/`. 새 반복 역할은 일회성 프롬프트가 아니라 에이전트/스킬로 **영속화**한다.

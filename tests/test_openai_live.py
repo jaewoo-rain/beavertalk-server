@@ -812,3 +812,28 @@ def test_the_call_site_picks_the_openai_voice_for_gpt_calls():
     src = inspect.getsource(cs.run_call)
     assert 'setup.get("voice_openai")' in src, "호출부가 OpenAI 음색 칸을 안 본다"
     assert 'voice = setup["voice_openai"]' in src
+
+
+# ── 응답 단위 지시(2026-10-11) ─────────────────────────────────────────────── #
+@pytest.mark.asyncio
+async def test_response_create_carries_instructions_only_when_set():
+    """`set_response_instructions` 가 비면 종전 페이로드 그대로, 채우면 매 `response.create` 에 실린다.
+
+    ⛔ 그 칸은 세션 지시문을 **대체**한다(실측 1847) — 호출부가 전체 지시문+한 줄을 넘기는 계약이고,
+      어댑터는 받은 글자를 그대로 싣기만 한다.
+    """
+    ws = _FakeWS([])
+    sess = oa.OpenAIRealtimeSession(ws)
+    await sess.send_text_turn("인사해라")
+    assert ws.sent[-1] == {"type": "response.create", "response": {"output_modalities": ["audio"]}}
+    ws.sent.clear()
+    sess.set_response_instructions("  대본 전체…\n\nSpeak only in English.  ")
+    await sess.send_text_turn("다음")
+    rc = ws.sent[-1]
+    assert rc["type"] == "response.create"
+    assert rc["response"]["instructions"] == "대본 전체…\n\nSpeak only in English."
+    assert rc["response"]["output_modalities"] == ["audio"]
+    ws.sent.clear()
+    sess.set_response_instructions("")
+    await sess.send_text_turn("끝")
+    assert "instructions" not in ws.sent[-1]["response"]

@@ -89,6 +89,36 @@ def _memory_block(memory: dict | None) -> str:
     return "\n".join(lines)
 
 
+#: ⭐ 대본 — **DB 로 덮어쓸 수 있는 글자**(2026-10-10, `prompt_override` 이름 `chat`).
+#:   편집 화면은 `/__devprompt`. 정본 `docs/20261010_2050_프롬프트-DB-override.md`.
+#: ⛔ 슬롯 네 개(`role`·`personality`·`target`·`locale`)는 **지우거나 새로 만들면 거부**된다.
+#: ⛔ 「제공된 기억이 있으면 지난 이야기로, 없으면 관심사로」가 `[기억]`·`[관심사]` 두 블록을
+#:   가리키는 **계약**이다 — 블록은 코드가 만들고, 빈약하면 블록째 빠져 「없으면」 갈래로
+#:   저절로 떨어진다. 대본에서 그 이름을 바꾸면 없는 것을 가리킨다.
+#: ⚠ 끝에 줄바꿈을 두지 않는다 — 뒤 블록과 `"\n\n"` 으로 이어붙이기 때문이다.
+SCRIPT_TEMPLATE = (
+    "# 역할\n"
+    "%(role)s\n"
+    "%(personality)s\n"
+    "캐릭터 말투는 유지하되 아래 규칙에 따라 %(target)s로 잡담한다.\n"
+    "\n"
+    "# 시작\n"
+    "%(target)s로 인사하고, 제공된 기억이 있으면 지난 이야기로, 없으면 관심사로\n"
+    "대화를 시작한다.\n"
+    "\n"
+    "# 대화\n"
+    "- 말의 내용에 반응하며 네 생각과 질문을 섞고, 질문할 때는 하나만 묻고\n"
+    "  기다린다.\n"
+    "- 화제를 따라 자연스럽게 이어가며, 말이 막히면 네 생각을 덧붙이거나 화제를\n"
+    "  바꾼다.\n"
+    "- 가르치거나 평가하거나 따라 말하게 하지 않는다.\n"
+    "- 의미가 통하면 이어가고, 필요한 교정만 답변에 자연스럽게 섞는다.\n"
+    "- 모국어 질문에는 %(locale)s로 답한 뒤 %(target)s 대화로 돌아온다.\n"
+    "- 제공되지 않은 기억을 지어내지 않는다.\n"
+    "- 서버가 종료를 알릴 때까지 짧게 주고받는다."
+)
+
+
 def build_chat_instruction(
     *,
     role: str,
@@ -101,6 +131,7 @@ def build_chat_instruction(
     level_note: str = "",
     max_sentences: int | None = None,
     face_rule: str = "",
+    script_override: str | None = None,
 ) -> str:
     """자유대화 대본 — ⭐ **사장님이 정제한 전문을 그대로 쓴다**(2026-10-09).
 
@@ -110,28 +141,15 @@ def build_chat_instruction(
       그러면 대본의 「없으면」 갈래로 저절로 떨어진다(빈 머리말은 환각을 부른다).
     ⚠ `name` · `level_note` · `max_sentences` 는 받기만 하고 쓰지 않는다.
     """
+    # ⭐ override 가 있으면 그 글자를, 없으면 코드 기본값(`SCRIPT_TEMPLATE`)을 쓴다.
+    #   ⛔ 검사는 호출부가 이미 끝냈다(`override.vet`) — 여기선 **포맷만** 한다.
     blocks = [
-        "# 역할\n"
-        "%s\n"
-        "%s\n"
-        "캐릭터 말투는 유지하되 아래 규칙에 따라 %s로 잡담한다."
-        % (role, personality, target_language),
-
-        "# 시작\n"
-        "%s로 인사하고, 제공된 기억이 있으면 지난 이야기로, 없으면 관심사로\n"
-        "대화를 시작한다." % target_language,
-
-        "# 대화\n"
-        "- 말의 내용에 반응하며 네 생각과 질문을 섞고, 질문할 때는 하나만 묻고\n"
-        "  기다린다.\n"
-        "- 화제를 따라 자연스럽게 이어가며, 말이 막히면 네 생각을 덧붙이거나 화제를\n"
-        "  바꾼다.\n"
-        "- 가르치거나 평가하거나 따라 말하게 하지 않는다.\n"
-        "- 의미가 통하면 이어가고, 필요한 교정만 답변에 자연스럽게 섞는다.\n"
-        "- 모국어 질문에는 %s로 답한 뒤 %s 대화로 돌아온다.\n"
-        "- 제공되지 않은 기억을 지어내지 않는다.\n"
-        "- 서버가 종료를 알릴 때까지 짧게 주고받는다."
-        % (locale_label, target_language),
+        (script_override or SCRIPT_TEMPLATE) % {
+            "role": role,
+            "personality": personality,
+            "target": target_language,
+            "locale": locale_label,
+        },
     ]
     for extra in (_interests_block(interests), _memory_block(memory)):
         if extra:

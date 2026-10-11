@@ -47,6 +47,7 @@ from domains.learning.models.sound_lesson_i18n import SoundLessonI18n  # noqa: F
 from domains.learning.models.cur_text_i18n import CurTextI18n  # noqa: F401
 from domains.learning.models.sound_audio import SoundAudio  # noqa: F401
 from domains.learning.models.chat_memory import ChatMemory  # noqa: F401
+from domains.learning.models.prompt_override import PromptOverride  # noqa: F401
 
 # alarm
 from domains.alarm.models.alarm import Alarm  # noqa: F401

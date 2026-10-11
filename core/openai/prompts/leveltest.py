@@ -142,6 +142,17 @@ _TEMPLATE = """{role}
 
 매 응답은 1~2문장으로 짧게. 질문은 한 번에 하나만 던지고 음성 답을 기다려라. 통화 시작은 네가 먼저 말을 건다(선톡)."""
 
+#: ⭐ 대본 — **DB 로 덮어쓸 수 있는 글자**(2026-10-10, `prompt_override` 이름 `leveltest`).
+#:   편집 화면은 `/__devprompt`. 정본 `docs/20261010_2050_프롬프트-DB-override.md`.
+#: ⛔⛔ **여기만 고치면 Gemini 와 갈라진다.** 위 `_TEMPLATE` 는 Gemini 정본
+#:   (`core.persona_prompt`)과 같은 글자로 맞춰 둔 것이고, DB override 는 **OpenAI 경로에만**
+#:   걸린다(스위치가 켜진 서비스는 `gpt-api` 뿐). 레벨테스트를 DB 로 고치면 두 엔진의
+#:   레벨테스트가 달라진다 — 레벨 판정을 비교하는 QA 에서는 그걸 알고 봐야 한다.
+#: ⛔ 슬롯 일곱(`role`·`personality`·`locale_label`·`username`·`target`·`interests_text`·
+#:   `ladder`)은 지우거나 새로 만들면 거부된다. 특히 `{ladder}` 는 **언어별 유도 사다리**가
+#:   들어가는 자리다(없으면 적응형 진행이 사라진다).
+SCRIPT_TEMPLATE = _TEMPLATE
+
 
 def build_leveltest_instruction(
     *,
@@ -153,6 +164,7 @@ def build_leveltest_instruction(
     target_language: str = "한국어",
     locale_label: str | None = None,
     close_tag: str = "",
+    script_override: str | None = None,
 ) -> str:
     """레벨테스트 system_instruction — LLM 생성 0, 순수 문자열 조립.
 
@@ -166,7 +178,9 @@ def build_leveltest_instruction(
     username = (name or "").strip() or "학습자"
     # 미등록 언어는 한국어 사다리로 떨어뜨린다(안전 기본값 — 정본과 같은 규칙).
     ladder = _LADDER.get(target_language, _LADDER_KO)
-    return _TEMPLATE.format(
+    # ⭐ override 가 있으면 그 글자를, 없으면 코드 기본값을 쓴다.
+    #   ⛔ 검사는 호출부가 이미 끝냈다(`override.vet`) — 여기선 **포맷만** 한다.
+    return (script_override or SCRIPT_TEMPLATE).format(
         role=role,
         personality=personality,
         locale_label=locale_label,

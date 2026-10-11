@@ -281,10 +281,13 @@ class OpenAIRealtimeSession:
 
     __slots__ = ("_ws", "_up", "_closed", "_pending_face", "_seen_calls", "_sent_items",
                  "_log_prefix", "_resp_active", "_pending_response",
-                 "_expect_tr", "_saw_in_tr")
+                 "_expect_tr", "_saw_in_tr", "_response_instructions")
 
     def __init__(self, ws: Any, *, expect_transcription: bool = True) -> None:
         self._ws = ws
+        # ⭐ 응답마다 `response.create` 에 싣는 보조 지시(빈 문자열 = 안 싣는다). 호출부가
+        #   `set_response_instructions` 로 정한다 — 이 패키지는 locale 을 모른다.
+        self._response_instructions = ""
         self._up = Upsampler16kTo24k()
         self._closed = False
         self._pending_face: set[str] = set()
@@ -366,7 +369,17 @@ class OpenAIRealtimeSession:
             logger.warning("%s response.create 생략 — 응답이 이미 진행 중이다(이중발화 가드)",
                            self._log_prefix)
             return
-        await self._send({"type": "response.create", "response": {"output_modalities": ["audio"]}})
+        response: dict = {"output_modalities": ["audio"]}
+        # ⭐ 응답 단위 보조 지시(2026-10-11). 세션 `instructions` 는 건드리지 않는다(캐시
+        #   프리픽스 보존 — `_create_item` 독스트링). 대화 항목으로도 남지 않아 재접지 쪽지와
+        #   달리 창에 글자를 쌓지 않는다. 모든 응답이 이 한 함수로 나가므로 자리는 여기 하나다.
+        if self._response_instructions:
+            response["instructions"] = self._response_instructions
+        await self._send({"type": "response.create", "response": response})
+
+    def set_response_instructions(self, text: str) -> None:
+        """응답마다 `response.create.response.instructions` 로 덧붙일 한 줄(빈 문자열 = 끈다)."""
+        self._response_instructions = (text or "").strip()
 
     async def send_text_turn(self, text: str) -> None:
         """완결 user 텍스트 턴 1회 — 선톡 시드·넛지 시드·종료 시드·루프 차단 쪽지가 이 통로다.
@@ -629,6 +642,11 @@ class OpenAIRealtimeSession:
                            json.dumps(resp.get("status_details") or {}, ensure_ascii=False)[:300])
         shim = usage_shim(resp.get("usage"))
         if shim is not None:
+            # ⭐ 응답별 캐시 계기판(2026-10-11). 통화 요약(`sum_cached`)은 평균이라 «몇 번째
+            #   응답부터 캐시가 깨졌나» 를 못 가린다 — 응답 단위 지시를 켜고 재는 근거가 이 줄이다.
+            logger.info("%s usage: in=%s cached=%s out=%s", self._log_prefix,
+                        shim.prompt_token_count, shim.cached_content_token_count,
+                        shim.response_token_count)
             out.append(OpenAIRealtimeEvent(kind="usage", usage=shim))
         if status == "cancelled":
             out.append(OpenAIRealtimeEvent(kind="interrupted"))

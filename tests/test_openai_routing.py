@@ -811,8 +811,12 @@ async def test_no_gemini_seed_string_is_ever_injected_into_an_openai_call(
     # ③ 무음 1·2·3단은 시계(60+10+12초)가 필요해 e2e 로 못 돌린다 ⇒ **주입 자리가 읽는
     #    state 값**을 본다. `_inject_nudge`/`_inject_close_seed` 는 이 값을 **그대로** 보낸다.
     st = seen["state"]
-    assert st.nudge_seed_1 == gpt_seeds.NUDGE_1
-    assert st.nudge_seed_2 == gpt_seeds.NUDGE_2
+    # ⭐ 2026-10-10 (2차): 넛지 1·2 도 **언어 이름**을 박는다(call 1827~1830 — 「모국어로」가
+    #   추상이라 한국어로 샜고 «거기 있어? 들려?» 예시를 글자 그대로 읊었다). 하네스는 en.
+    assert st.nudge_seed_1 == gpt_seeds.nudge_1("영어(English)")
+    assert st.nudge_seed_2 == gpt_seeds.nudge_2("영어(English)")
+    assert "영어(English)로 " in st.nudge_seed_1 and "영어(English)로 " in st.nudge_seed_2
+    assert "거기 있어" not in st.nudge_seed_2, "한국어 예시가 다시 들어갔다 — 씨앗이 된다"
     # ⭐ 2026-10-10: 종료 쪽지가 **언어를 이름으로** 박는다(call 1817 — 「모국어로」가
     #   추상이라 한국어로 샜고, 한국어 예시가 씨앗이 됐다). 하네스 통화는 locale=en 이다.
     assert st.close_seed == gpt_seeds.silence_close("영어(English)")

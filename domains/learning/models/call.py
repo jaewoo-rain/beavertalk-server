@@ -156,6 +156,13 @@ class Call(Base, TimestampMixin):
     #   in_audio/out_audio = 0(캐스케이드 LLM 은 오디오를 안 받는다). STT·TTS 는 단위가
     #   초·문자라 컬럼에 섞지 않고 usage_json.vendors 에 둔다. 그래서 원가 계산은
     #   반드시 engine 을 받는 normalcall_service.estimate_call_cost_usd 로 해야 한다.
+    # ⭐ 이 통화가 쓴 프롬프트 override(2026-10-10). NULL = 코드 기본값.
+    #   ⚠ 이게 없으면 전사 분석에서 「어느 글자로 돌았나」를 못 가른다 — 2026-10-10 에
+    #     1815·1817 을 Cloud Run 리비전으로 갈라야 했던 그 불편을 이 칸이 없앤다.
+    prompt_override_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, nullable=True,
+        comment="이 통화가 쓴 prompt_override.override_id. NULL = 코드 기본값",
+    )
     usage_engine: Mapped[Optional[str]] = mapped_column(
         Text, comment="usage 를 만든 엔진('live:...' / 'cascade:stt+llm+tts'). NULL = 미기록",
     )

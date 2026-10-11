@@ -40,6 +40,14 @@ import uuid
 # locale → 모국어 한국어 라벨. (멀티랭귀지) ko = 한국어 모국어 학습자(예: 한국인이
 # 일본어를 배우는 도그푸딩) 정식화. 기존 통화의 locale 은 en/zh/… 라 이 키는 무영향.
 
+# ⭐ 영어 언어 이름(2026-10-11). OpenAI 응답 단위 언어 지시가 쓴다 — 그 한 줄에 한국어 글자가
+#   한 단어라도 있으면 비버가 그대로 따라 읊는다(실측 1848: 「the 한국어 sentence」→ 매 턴 「한국어로,」).
+LOCALE_NAME_EN: dict[str, str] = {
+    "ko": "Korean", "en": "English", "zh": "Chinese", "ja": "Japanese", "vi": "Vietnamese",
+    "th": "Thai", "id": "Indonesian", "mn": "Mongolian", "uz": "Uzbek", "ru": "Russian",
+    "es": "Spanish", "fr": "French", "pt": "Portuguese", "de": "German", "ar": "Arabic",
+}
+
 LOCALE_LABEL: dict[str, str] = {
     "ko": "한국어",
     "en": "영어(English)", "zh": "중국어(中文)", "ja": "일본어(日本語)",

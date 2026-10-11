@@ -93,6 +93,7 @@ from core.openai.prompts import expression as openai_expression
 from core.openai.prompts import chat as openai_chat
 from core.openai.prompts import freetalk as openai_freetalk
 from core.openai.prompts import leveltest as openai_leveltest
+from core.openai.prompts import override as openai_override
 from core.persona_prompt import (
     _LOCALE_LABEL,
     face_tool_rule,
@@ -109,6 +110,7 @@ from core.persona_prompt import (
     new_close_tag,
     seed_leveltest_opening,
 )
+from core.prompts.common import LOCALE_NAME_EN                           # 응답 단위 언어 지시의 영어 언어 이름(2026-10-11)
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
 from core.prompts.locked.seeds import EXPRESSION_DRILL_MOVE_ON          # 11차 B — 드릴 루프 «다음 항목으로»(2026-09-18)
 from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
@@ -136,6 +138,7 @@ from core.prompts.freetalk import (
 )
 from core.prompts.chat import build_chat_instruction, seed_chat_opening
 from core.stt import normalize_language_codes
+from domains.learning.repository import prompt_override_repository as po_repo
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.service import mastery_service
@@ -712,6 +715,7 @@ class _CallState:
     """두 펌프가 공유하는 통화 상태(세그먼트 누적 + 시계 + 종료 플래그)."""
 
     __slots__ = (
+        "prompt_override_id",
         "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
         "seed_sent_ts",
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
@@ -809,7 +813,7 @@ class _CallState:
         # 🔬 턴 절단 진단(2026-08-31, 임시 계측). 동작을 바꾸지 않는다 — 로그만.
         "diag_turn_open_ts", "diag_last_audio_ts", "diag_audio_bytes", "diag_interrupts",
         # 입력 전사 언어 힌트(BCP-47 2개) — 세대를 건너 산다(세션마다 다시 넘긴다)
-        "input_language_codes", "live_model", "live_vertex", "live_engine", "seeds",
+        "input_language_codes", "live_model", "live_vertex", "live_engine", "seeds", "response_hint",
         "leveltest_transcript",
         # 세션 재연결(15분) — 세대를 건너 사는 값은 전부 여기 있어야 한다. 태스크 지역
         # 변수에 두면 세대가 바뀔 때 통째로 사라진다(시계·무음·flush 태스크가 재생성된다).
@@ -855,6 +859,9 @@ class _CallState:
         self.diag_interrupts: int = 0
         self.call_start_ts: Optional[float] = None
         self.should_close = False
+        # ⭐ 이 통화가 쓴 프롬프트 override id(2026-10-10). None = 코드 기본값.
+        #   종료 저장이 이 값을 call 행에 적는다 — 「어느 글자로 돌았나」를 되짚는 유일한 단서다.
+        self.prompt_override_id: Optional[int] = None
         self.close_seed_sent = False
         # 종료 시드 후 비버가 '실제로 작별 턴을 시작'했는지. 빈 turn_end(이전 활동 잔여)로
         # 작별 전에 조기 종료되는 버그 방지 — 이 플래그가 서야만 turn_end 로 종료한다.
@@ -1096,6 +1103,9 @@ class _CallState:
         #   ⛔ 기본값이 Gemini 라 묶음을 안 고른 경로(레벨테스트·프리토킹·chat·시험 헬퍼)는
         #     **종전 바이트 동일**이다.
         self.seeds: seed_bundle.SeedBundle = seed_bundle.GEMINI
+        # ⭐ OpenAI 응답마다 `response.create` 에 싣는 언어 한 줄(2026-10-11). "" = 안 싣는다.
+        #   `OPENAI_RESPONSE_LANG_HINT` 가 켜진 OpenAI 통화에서만 run_call 이 채운다.
+        self.response_hint: str = ""
         self.total_answers: int = 0  # 관측된 전체 답변 시도(하드 턴캡 + 조기종료 게이트)
         self.nonspeaker_streak: int = 0  # answer_in_target=False 연속 수(비화자 결정론 컷)
         self.last_beaver_question: str = ""
@@ -2157,6 +2167,45 @@ async def _persist_usage(db_session_factory, state: _CallState, call_id: int | N
 # --------------------------------------------------------------------------- #
 # 진입점
 # --------------------------------------------------------------------------- #
+async def _load_prompt_override(
+    db_session_factory, name: str, default: str,
+) -> tuple[Optional[str], Optional[int]]:
+    """그 대본의 DB override 를 읽어 **검사까지** 통과한 글자만 돌려준다.
+
+    ⛔ 켜져 있지 않으면 **DB 를 안 읽는다**(`PROMPT_OVERRIDE_ENABLED` 기본 꺼짐).
+    ⚠ 조회·검사 어느 쪽이 실패해도 **예외를 내보내지 않는다** — 통화가 프롬프트 편집 때문에
+      죽으면 안 된다(R5). 실패는 ERROR 로그로만 드러나고 코드 기본값으로 간다.
+    ⭐ 통화 시작에 **한 번만** 부른다(스냅샷) — 통화 중간에 글자가 바뀌면 비버가 말을 바꾼다.
+    ⚠ `state` 를 안 받는다 — 이 함수가 불리는 자리에는 `state` 가 **아직 없다**(`_CallState()`
+      는 더 뒤에서 만들어진다). 그래서 **(글자, id)** 를 돌려주고 호출부가 지역변수에
+      담았다가 `state` 가 생긴 뒤에 싣는다(이 파일의 `freetalk_brief` 와 같은 방식).
+    """
+    # ⚠ 이 모듈은 설정 객체를 `_settings` 로 들여온다(`:68`) — `settings` 라는 이름은 없다.
+    #   ⛔ 값을 모듈 상수로 떠놓지 않고 **부를 때마다 읽는다**: 시험이 이 객체에 monkeypatch 로
+    #     스위치를 켜고, 운영에서도 리비전 없이 env 만 바꿔 다시 뜨면 먹어야 한다.
+    if not getattr(_settings, "PROMPT_OVERRIDE_ENABLED", False):
+        return None, None
+    try:
+        row = await svc.run_db(db_session_factory, lambda db: po_repo.active(db, name))
+    except Exception as exc:  # noqa: BLE001 — 조회 실패가 통화를 막지 않는다(R5)
+        logger.error("normalcall 프롬프트 override 조회 실패(기본값으로 간다): %s", exc)
+        return None, None
+    if row is None:
+        return None, None
+    ok, why = openai_override.vet(name, row.body or "", default)
+    if not ok:
+        logger.error(
+            "normalcall 프롬프트 override 거부 → 코드 기본값: name=%s id=%s 이유=%s",
+            name, row.override_id, why,
+        )
+        return None, None
+    logger.info(
+        "normalcall 프롬프트 override 적용: name=%s id=%s %d자 note=%r",
+        name, row.override_id, len(row.body or ""), (row.note or "")[:60],
+    )
+    return row.body, int(row.override_id)
+
+
 async def run_call(
     client_ws,
     settings: Settings,
@@ -2513,6 +2562,7 @@ async def run_call(
     #   그 빈/참이 곧 «이 통화가 표현학습인가» 의 런타임 게이트가 된다(state.expr_items).
     expr_items: list[dict] = []
     freetalk_brief = None                  # 차시 프리토킹(cur)만 CurFreetalkBrief — 재접지 쪽지 재료
+    prompt_override_id: Optional[int] = None   # DB override 를 썼으면 그 id(2026-10-10) — state 가 생긴 뒤 싣는다
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
     continue_reminder: str | None = None   # 후반 재접지(대화 지속) — 일반 통화만
     # 이 통화 전용 종료 태그(난수). ⚠ system_instruction 과 종료 시드가 **같은 값**을 써야
@@ -2556,7 +2606,15 @@ async def run_call(
             close_tag=close_tag,
         )
         if use_openai:
-            system_instruction = openai_leveltest.build_leveltest_instruction(**_lt_kwargs)
+            # ⭐⭐ DB override(2026-10-10). ⛔ 레벨테스트만 성질이 다르다 — 이 대본은 Gemini
+            #   정본과 **같은 글자**로 맞춰 둔 것이고 override 는 **OpenAI 경로에만** 걸린다.
+            #   DB 로 고치면 두 엔진의 레벨테스트가 갈라진다(의도한 것일 때만 고칠 것).
+            _lt_override, prompt_override_id = await _load_prompt_override(
+                db_session_factory, "leveltest", openai_leveltest.SCRIPT_TEMPLATE,
+            )
+            system_instruction = openai_leveltest.build_leveltest_instruction(
+                script_override=_lt_override, **_lt_kwargs,
+            )
             seed_text = openai_leveltest.seed_leveltest_opening(target_language)
             voice = lt_setup["voice"]
             # ⛔ 주입된 가짜 팩토리(시험)가 있으면 그게 이긴다 — 라우팅만 보고 실제 WS 는
@@ -2754,7 +2812,12 @@ async def run_call(
                 # ⛔ GPT 전용 대본이다 — Gemini 대본(`build_chat_instruction`)을 고쳐 쓰는
                 #   것이 아니라 **다른 파일**이다. 프리토킹과 공유 블록 4개를 같이 쓴다
                 #   (`core/openai/prompts/chat.py` 모듈 독스트링).
+                # ⭐⭐ DB override(2026-10-10) — 통화 시작에 **한 번만** 읽는다(스냅샷).
+                _chat_override, prompt_override_id = await _load_prompt_override(
+                    db_session_factory, "chat", openai_chat.SCRIPT_TEMPLATE,
+                )
                 system_instruction = openai_chat.build_chat_instruction(
+                    script_override=_chat_override,
                     role=setup["role"],
                     personality=setup["personality"],
                     locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
@@ -2982,7 +3045,17 @@ async def run_call(
                     # ⛔ GPT 전용 대본이다 — Gemini 대본(`build_expression_instruction`)을
                     #   고쳐 쓰는 것이 아니라 **백지에서 쓴 다른 파일**이다. 근거는
                     #   `core/openai/prompts/expression.py` 모듈 독스트링(측정 교훈 8개).
+                    # ⭐⭐ DB override(2026-10-10) — 배포 없이 대본을 고치는 자리.
+                    #   ⛔ `PROMPT_OVERRIDE_ENABLED` 가 꺼져 있으면 DB 를 안 읽고 None 이다
+                    #     (바이트 무영향). 검사를 못 통과해도 None 으로 떨어진다(+ERROR).
+                    #   ⚠ 통화 시작에 **한 번만** 읽는다(스냅샷) — 중간에 바뀌면 비버가
+                    #     말을 바꾼다. 쓴 id 는 state 에 담겨 call 행에 적힌다.
+                    _expr_override, prompt_override_id = await _load_prompt_override(
+                        db_session_factory, "expression",
+                        openai_expression.SCRIPT_TEMPLATE,
+                    )
                     system_instruction = openai_expression.build_expression_instruction(
+                        script_override=_expr_override,
                         role=setup["role"],
                         personality=setup["personality"],
                         locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
@@ -3060,7 +3133,12 @@ async def run_call(
                     #   정반대라(100% 목표어) 베끼면 제일 먼저 깨진다
                     #   (`core/openai/prompts/freetalk.py` 모듈 독스트링).
                     _brief = cur_open.brief
+                    # ⭐⭐ DB override(2026-10-10) — 통화 시작에 **한 번만** 읽는다(스냅샷).
+                    _ft_override, prompt_override_id = await _load_prompt_override(
+                        db_session_factory, "freetalk", openai_freetalk.SCRIPT_TEMPLATE,
+                    )
                     system_instruction = openai_freetalk.build_freetalk_instruction(
+                        script_override=_ft_override,
                         role=setup["role"],
                         personality=setup["personality"],
                         locale_label=_LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"],
@@ -3221,6 +3299,7 @@ async def run_call(
         state.max_fragments = max_fragments if fragment_index is not None else None
         state.remaining_s = remaining_s
         state.freetalk_brief = freetalk_brief                   # 차시 프리토킹만 값(재접지 쪽지 재료) — 다른 코스 None
+        state.prompt_override_id = prompt_override_id           # DB override 를 썼으면 그 id — 종료 저장이 call 행에 적는다
         state.freetalk_target = target_language if freetalk_brief is not None else ""
         # ⭐ 플랜에서 고른 모델을 state 에 싣는다(위에서 읽어 뒀다). 세션 팩토리와 usage 태그가
         #   이 값을 본다. ⚠ 레벨테스트 경로는 위 분기를 안 타므로 None 이고, 그러면
@@ -3547,6 +3626,19 @@ async def run_call(
         )
         if state.seeds is not seed_bundle.GEMINI:
             logger.info("normalcall 시드 묶음: %s (주입 문구 전부 이 묶음에서 나온다)", state.seeds.name)
+        # ⭐ 응답 단위 언어 지시(2026-10-11, OpenAI 전용·스위치 기본 꺼짐). 레벨테스트는 언어
+        #   규칙이 반대라(측정 질문=대상 언어) 싣지 않는다.
+        if (state.live_engine == call_service.OPENAI_ENGINE
+                and getattr(settings, "OPENAI_RESPONSE_LANG_HINT", False)
+                and call_type != "leveltest"):
+            # ⛔ 언어 이름은 **영어로만**(1848: 「the 한국어 sentence」 한 단어가 매 턴 「한국어로,」 누출).
+            _ll = LOCALE_NAME_EN.get(locale) or LOCALE_NAME_EN["en"]
+            _tl = LOCALE_NAME_EN.get(spec.code) or "Korean"
+            state.response_hint = (
+                "Speak only in %s. The one exception is the %s sentence the learner must repeat "
+                "or produce; every word around it is %s." % (_ll, _tl, _ll)
+            )
+            logger.info("normalcall 응답 단위 언어 지시 ON: %s", state.response_hint)
 
         # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
         # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
@@ -4092,6 +4184,8 @@ async def _persist_remaining(
             db_session_factory, lambda db: svc.finalize_call(
                 db, call_id, status="analyzing",
                 user_word_count=svc.call_user_word_count(db, call_id, state.target_code),
+                # ⭐ 어느 프롬프트로 돌았나(2026-10-10) — None 이면 서비스가 안 건드린다.
+                prompt_override_id=state.prompt_override_id,
             )
         )
     except Exception as exc:  # noqa: BLE001
@@ -4397,6 +4491,14 @@ async def _run_one_generation(
     if state.live_vertex is not None:
         factory_kwargs["vertex"] = state.live_vertex
     async with live_session_factory(client, settings, **factory_kwargs) as session:
+        # ⭐ 응답 단위 언어 지시(2026-10-11). getattr 가드 — Gemini 세션·시험용 가짜엔 이 메서드가 없다.
+        #   ⛔⛔ `response.instructions` 는 세션 지시문에 **덧붙지 않고 그 응답에서 대체**한다
+        #     (실측 1847: 한 줄만 실었더니 첫 응답 입력이 89 토큰 — 대본·[오늘의 표현]이 통째로
+        #     사라져 비버가 일반 비서처럼 말했다). 그래서 **전체 지시문 + 마지막에 한 줄**을 싣는다.
+        if state.response_hint:
+            _set_hint = getattr(session, "set_response_instructions", None)
+            if callable(_set_hint):
+                _set_hint(system_instruction.rstrip() + "\n\n" + state.response_hint)
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
             #   예외로 죽으면 나머지를 자동 취소한다 → 반쪽짜리 좀비 통화가 절대 안 생긴다.

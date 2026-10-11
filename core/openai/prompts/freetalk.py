@@ -102,6 +102,36 @@ def _items_block(items: list[dict], *, target: str) -> str:
 # ⛔ 종전의 공유 블록 4개(`block_forbidden`·`block_turn_landing`·`block_stuck`·
 #   `block_recast`)는 **지웠다**(2026-10-09). 새 대본에 자리가 없고 자유대화가 유일한
 #   사용자였다. 되살릴 일이 생기면 커밋 `399aee2` 에서 꺼낸다.
+
+#: ⭐ 대본 — **DB 로 덮어쓸 수 있는 글자**(2026-10-10, `prompt_override` 이름 `freetalk`).
+#:   편집 화면은 `/__devprompt`. 정본 `docs/20261010_2050_프롬프트-DB-override.md`.
+#: ⛔ 슬롯 네 개(`role`·`personality`·`target`·`locale`)는 **지우거나 새로 만들면 거부**된다.
+#: ⛔ `[이번 차시]` 는 **이름 계약**이다 — 대본이 「[이번 차시]의 «상대»가 되어」로 그
+#:   블록을 가리키고, 블록 자체는 `_lesson_block` 이 만든다. 이름을 바꾸면 없는 것을 가리킨다.
+#: ⚠ 끝에 줄바꿈을 두지 않는다 — 데이터 블록과 `"\n\n"` 으로 이어붙이기 때문이다.
+SCRIPT_TEMPLATE = (
+    "# 역할\n"
+    "%(role)s\n"
+    "%(personality)s\n"
+    "[이번 차시]의 «상대»가 되어 %(target)s로 역할극을 진행한다.\n"
+    "상대가 없으면 상황에 맞게 정하고, 인물 정보와 캐릭터 말투를 유지한다.\n"
+    "\n"
+    "# 시작\n"
+    "한 문장으로 인사하고 상황에 맞는 질문 하나를 던진 뒤 답변을 기다린다.\n"
+    "\n"
+    "# 대화\n"
+    "- 차시 표현을 쓸 상황을 만들되 따라 말하기·정오 판정은 하지 않는다.\n"
+    "- 답변을 따라 하나씩 묻고 기다리며, 같은 질문을 반복하거나 스스로 답하지\n"
+    "  않는다.\n"
+    "- 단답이면 후속 질문으로 문장 답변을 이끌어낸다.\n"
+    "- 모국어 질문에는 %(locale)s로 답한 뒤 %(target)s 역할극으로 돌아온다.\n"
+    "- 답하기 어려워하면 %(locale)s로 설명하고 %(target)s 답변 예시 하나를 들려준다.\n"
+    "- 틀린 표현은 네 답변에 올바른 %(target)s 형태를 넣어 되받는다.\n"
+    "- 장면이 끝나면 같은 상황의 다음 장면으로 이어간다.\n"
+    "- 서버가 종료를 알릴 때까지 이어간다."
+)
+
+
 def build_freetalk_instruction(
     *,
     role: str,
@@ -116,6 +146,7 @@ def build_freetalk_instruction(
     level_note: str = "",
     max_sentences: int | None = None,
     face_rule: str = "",
+    script_override: str | None = None,
 ) -> str:
     """회화학습(차시별 역할극) 대본 — ⭐ **사장님이 정제한 전문을 그대로 쓴다**(2026-10-09).
 
@@ -126,28 +157,16 @@ def build_freetalk_instruction(
       `name` 은 쓴다 — 화제(probes)의 고유명을 학습자 이름으로 바꿔야 비버가 학습자를
       «마이클 씨» 라고 부르지 않는다.
     """
+    # ⭐ override 가 있으면 그 글자를, 없으면 코드 기본값(`SCRIPT_TEMPLATE`)을 쓴다.
+    #   ⛔ 검사는 호출부가 이미 끝냈다(`override.vet`) — 여기선 **포맷만** 한다.
+    script = (script_override or SCRIPT_TEMPLATE) % {
+        "role": role,
+        "personality": personality,
+        "target": target_language,
+        "locale": locale_label,
+    }
     blocks = [
-        "# 역할\n"
-        "%s\n"
-        "%s\n"
-        "[이번 차시]의 «상대»가 되어 %s로 역할극을 진행한다.\n"
-        "상대가 없으면 상황에 맞게 정하고, 인물 정보와 캐릭터 말투를 유지한다."
-        % (role, personality, target_language),
-
-        "# 시작\n"
-        "한 문장으로 인사하고 상황에 맞는 질문 하나를 던진 뒤 답변을 기다린다.",
-
-        "# 대화\n"
-        "- 차시 표현을 쓸 상황을 만들되 따라 말하기·정오 판정은 하지 않는다.\n"
-        "- 답변을 따라 하나씩 묻고 기다리며, 같은 질문을 반복하거나 스스로 답하지\n"
-        "  않는다.\n"
-        "- 단답이면 후속 질문으로 문장 답변을 이끌어낸다.\n"
-        "- 모국어 질문에는 %s로 답한 뒤 %s 역할극으로 돌아온다.\n"
-        "- 답하기 어려워하면 %s로 설명하고 %s 답변 예시 하나를 들려준다.\n"
-        "- 틀린 표현은 네 답변에 올바른 %s 형태를 넣어 되받는다.\n"
-        "- 장면이 끝나면 같은 상황의 다음 장면으로 이어간다.\n"
-        "- 서버가 종료를 알릴 때까지 이어간다."
-        % (locale_label, target_language, locale_label, target_language, target_language),
+        script,
 
         _lesson_block(
             situation=situation, partner=partner, items=items, probes=probes,

@@ -3323,7 +3323,10 @@ async def test_redial_is_allowed_immediately_after_disconnect_even_if_finalize_i
     release_finalize = threading.Event()
     call_count = {"n": 0}
 
-    def slow_finalize(db, call_id, *, status, total_time=None, accumulate=False, user_word_count=None):
+    # ⚠ `**kwargs` 로 받아 그대로 넘긴다 — `finalize_call` 에 인자가 늘 때마다(2026-10-10
+    #   `prompt_override_id`) 이 가짜가 TypeError 로 죽어 **시험 전제가 깨졌다.**
+    def slow_finalize(db, call_id, *, status, total_time=None, accumulate=False,
+                      user_word_count=None, **kwargs):
         call_count["n"] += 1
         if call_count["n"] == 1:
             # 첫 통화(끊길 통화)의 마무리 저장만 느리게 흉내낸다 — 두 번째(재발신) 통화의
@@ -3332,7 +3335,7 @@ async def test_redial_is_allowed_immediately_after_disconnect_even_if_finalize_i
             release_finalize.wait(timeout=5)
         return orig_finalize(
             db, call_id, total_time=total_time, status=status, accumulate=accumulate,
-            user_word_count=user_word_count,
+            user_word_count=user_word_count, **kwargs,
         )
 
     monkeypatch.setattr(svc, "finalize_call", slow_finalize)

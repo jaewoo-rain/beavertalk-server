@@ -71,11 +71,13 @@ class _Bundle:
     _quiz_cue: Callable[..., str]
     _quiz_set_reminder: Callable[[str], str]
     # None 이면 `apply_to` 가 state 를 **안 건드린다**(= 종전 그대로).
-    _nudge_1: Optional[str] = None
-    _nudge_2: Optional[str] = None
+    # ⭐ 글자 또는 **`locale_label=` 을 받는 함수**(2026-10-10) — 함수면 `apply_to` 가 언어
+    #   이름을 넣어 만든다. GPT 묶음이 함수, Gemini 묶음은 None.
+    _nudge_1: Optional[str | Callable[..., str]] = None
+    _nudge_2: Optional[str | Callable[..., str]] = None
     # ⭐ 대화 코스(프리토킹·자유대화) 변형 — 표현학습 글자가 그 두 코스에 꽂히던 것을 가른다
     #   (2026-10-08 F16). Gemini 묶음은 전부 None 이라 **종전 바이트 동일**이다.
-    _nudge_1_conv: Optional[str] = None
+    _nudge_1_conv: Optional[str | Callable[..., str]] = None
     _loop_break_conv: Optional[str] = None
     _resume_conv: Optional[str] = None
     _close_seed: Optional[Callable[[str], str]] = None
@@ -113,14 +115,20 @@ class _Bundle:
             #   추상이라 3단에서 한국어로 샜다(call 1817). 받는 쪽이 옛 시그니처면
             #   TypeError 가 나므로 키워드로만 넘긴다.
             state.close_seed = self._close_seed(close_tag, locale_label=locale_label)
+        # ⭐ 넛지 1·2 도 **언어 이름**을 받는다(2026-10-10, call 1827~1830 — 「모국어로」가
+        #   추상이라 한국어로 샜고 «거기 있어? 들려?» 예시를 글자 그대로 읊었다). 글자(str)면
+        #   그대로, 함수면 `locale_label` 을 넘겨 만든다 — Gemini 묶음은 None 이라 안 탄다.
+        def _mk(v):
+            return v(locale_label=locale_label) if callable(v) else v
+
         if self._nudge_1 is not None:
             # ⭐ 표현학습이 아니면(= expr_items 가 비면) 대화 변형을 쓴다. 표현학습 글자는
-            #   「항목·다음 번호·수업」과 **「학습자의 모국어로 힌트」**를 시켜 100% 목표어를
+            #   「항목·다음 번호·수업」과 **「그 언어로 힌트」**를 시켜 100% 목표어를
             #   깨뜨린다. ⚠ `expr_items` 는 `:4184` 에서 이 호출보다 먼저 세워진다.
             conv = self._nudge_1_conv if not getattr(state, "expr_items", None) else None
-            state.nudge_seed_1 = conv or self._nudge_1
+            state.nudge_seed_1 = _mk(conv) or _mk(self._nudge_1)
         if self._nudge_2 is not None:
-            state.nudge_seed_2 = self._nudge_2
+            state.nudge_seed_2 = _mk(self._nudge_2)
 
 
 # ── Gemini(종전) ─────────────────────────────────────────────────────────────── #
@@ -152,8 +160,9 @@ OPENAI: SeedBundle = _Bundle(
     drill_move_on="",
     _quiz_cue=_no_note,
     _quiz_set_reminder=_no_note,
-    _nudge_1=gpt_seeds.NUDGE_1,
-    _nudge_2=gpt_seeds.NUDGE_2,
+    # ⭐ 함수로 넘긴다 — `apply_to` 가 통화의 `locale_label` 을 넣어 **언어 이름**을 박는다.
+    _nudge_1=gpt_seeds.nudge_1,
+    _nudge_2=gpt_seeds.nudge_2,
     _close_seed=gpt_seeds.close_seed,
     _nudge_1_conv=gpt_seeds.NUDGE_1_CONVERSATION,
 )

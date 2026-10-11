@@ -854,6 +854,114 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 member.member_id, sentence_id, raw, audio.content_type
             )
 
+        # ── (dev 전용) 프롬프트 편집기 ──────────────────────────────────────── #
+        # ⭐ 목적: **배포 없이** 통화 대본을 고친다(2026-10-10 사장님 지시 — 「한 줄 바꿀
+        #   때마다 다시 빌드하는 건 너무 비효율적」). 정본 문서
+        #   `docs/20261010_2050_프롬프트-DB-override.md`.
+        # ⛔ 글자를 받아들일지는 서비스가 `core.openai.prompts.override.vet` 으로 판단한다 —
+        #   라우터는 DTO 와 인증만 본다(얇게).
+        # ⚠ 쓰기는 **이 DB 를 쓰는 모든 서비스**에 즉시 반영된다(app-api·demo-api·gpt-api 가
+        #   같은 Supabase). 다만 서버 스위치 `PROMPT_OVERRIDE_ENABLED` 가 꺼져 있으면
+        #   통화는 그 글자를 읽지 않는다 — 화면이 그 상태를 같이 보여준다.
+        @app.get("/__devprompt", include_in_schema=False)
+        def prompt_editor() -> FileResponse:
+            """프롬프트 편집기 HTML — 목록·편집·검사·미리보기·되돌리기.
+
+            ⭐ 「검사 → 미리보기 → 올리기」가 한 화면이다. 미리보기는 가짜 재료로 **끝까지**
+              조립해 보여준다 — 코드가 붙이는 `[오늘의 표현]` 블록이 어디에 붙나까지.
+            """
+            return FileResponse(
+                Path(__file__).parent / "scripts" / "prompt_editor.html",
+                media_type="text/html",
+            )
+
+        @app.get("/__dev/prompts", include_in_schema=False)
+        def dev_prompts_state(member: CurrentAdmin, db: DbSession) -> dict:
+            """대본별 현역 여부 + 이력 + 스위치 상태(편집기 첫 화면)."""
+            from domains.learning.service import prompt_override_service as po_svc
+
+            out = po_svc.state(db)
+            # ⚠ 스위치를 같이 내려보낸다 — 꺼져 있는데 글자를 올리고 「왜 안 바뀌냐」가 되는
+            #   것이 이 기능의 가장 쉬운 함정이다.
+            out["switch_enabled"] = bool(getattr(settings, "PROMPT_OVERRIDE_ENABLED", False))
+            return out
+
+        @app.get("/__dev/prompts/{name}", include_in_schema=False)
+        def dev_prompt_body(name: str, member: CurrentAdmin, db: DbSession) -> dict:
+            """편집 출발점 — 현역 글자(없으면 코드 기본값) + 코드 기본값(되돌리기용)."""
+            from domains.learning.service import prompt_override_service as po_svc
+
+            try:
+                return po_svc.body_of(db, name)
+            except KeyError:
+                raise HTTPException(status_code=404, detail="모르는 대본: %s" % name)
+
+        @app.get("/__dev/prompts/{name}/rows/{override_id}", include_in_schema=False)
+        def dev_prompt_row(
+            name: str, override_id: int, member: CurrentAdmin, db: DbSession
+        ) -> dict:
+            """이력 한 줄의 글자 — 편집기가 옛 글자를 불러올 때."""
+            from domains.learning.service import prompt_override_service as po_svc
+
+            body = po_svc.row_body(db, name, override_id)
+            if body is None:
+                raise HTTPException(status_code=404, detail="그 대본에 없는 행")
+            return {"name": name, "override_id": override_id, "body": body}
+
+        @app.post("/__dev/prompts/check", include_in_schema=False)
+        def dev_prompt_check(member: CurrentAdmin, body: dict) -> dict:
+            """검사 + 조립 미리보기. **DB 를 건드리지 않는다**(읽지도 쓰지도 않는다)."""
+            from domains.learning.service import prompt_override_service as po_svc
+
+            try:
+                return po_svc.check(str(body.get("name", "")), str(body.get("body", "")))
+            except KeyError:
+                raise HTTPException(status_code=404, detail="모르는 대본")
+
+        @app.post("/__dev/prompts", include_in_schema=False)
+        def dev_prompt_put(member: CurrentAdmin, db: DbSession, body: dict) -> dict:
+            """검사를 통과하면 **새 행**을 넣고 현역으로 세운다(이전 현역은 내려간다).
+
+            ⛔ 거부되면 아무것도 쓰지 않는다 — 이유를 그대로 돌려준다.
+            """
+            from domains.learning.service import prompt_override_service as po_svc
+
+            try:
+                res = po_svc.put(
+                    db, str(body.get("name", "")), str(body.get("body", "")),
+                    str(body.get("note", "")),
+                )
+            except KeyError:
+                raise HTTPException(status_code=404, detail="모르는 대본")
+            if not res.get("ok"):
+                raise HTTPException(status_code=400, detail=res.get("reason", "거부"))
+            return res
+
+        @app.post("/__dev/prompts/{name}/off", include_in_schema=False)
+        def dev_prompt_off(name: str, member: CurrentAdmin, db: DbSession) -> dict:
+            """현역을 내려 **코드 기본값으로 되돌린다**(행은 남는다)."""
+            from domains.learning.service import prompt_override_service as po_svc
+
+            return po_svc.disable(db, name)
+
+        @app.post("/__dev/prompts/{name}/rows/{override_id}/on", include_in_schema=False)
+        def dev_prompt_on(
+            name: str, override_id: int, member: CurrentAdmin, db: DbSession
+        ) -> dict:
+            """옛 행을 다시 현역으로 — 1초 되돌리기.
+
+            ⚠ 옛 글자도 **다시 검사한다**(그 사이 코드 기본값의 슬롯이 바뀌었을 수 있다).
+            """
+            from domains.learning.service import prompt_override_service as po_svc
+
+            try:
+                res = po_svc.enable(db, name, override_id)
+            except KeyError:
+                raise HTTPException(status_code=404, detail="모르는 대본")
+            if not res.get("ok"):
+                raise HTTPException(status_code=400, detail=res.get("reason", "거부"))
+            return res
+
         @app.get("/__dev/call-prompt", include_in_schema=False)
         def dev_call_prompt(  # type: ignore[no-untyped-def]
             member: CurrentAdmin,

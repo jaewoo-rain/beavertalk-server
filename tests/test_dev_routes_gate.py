@@ -39,6 +39,11 @@ def test_dev_routes_closed_regardless_of_env_when_flag_off(env):
     assert c.get("/__levelcalldemo").status_code == 404
     # GPT 통화 QA 콘솔(2026-10-05)도 같은 축 하나에만 반응한다 — 운영에 새면 안 된다.
     assert c.get("/__devgpt").status_code == 404
+    # ⛔⛔ 프롬프트 편집기(2026-10-10)는 **통화 대본을 쓰는 화면**이다 — 이게 운영에 새면
+    #   아무나 비버가 말할 글자를 바꾼다. 같은 축 하나로 닫힌다.
+    assert c.get("/__devprompt").status_code == 404
+    assert c.get("/__dev/prompts").status_code == 404
+    assert c.post("/__dev/prompts", json={}).status_code == 404
 
 
 @pytest.mark.parametrize("env", ["dev", "test", "prod"])
@@ -57,3 +62,18 @@ def test_dev_routes_open_regardless_of_env_when_flag_on(env):
     assert "text/html" in r.headers["content-type"]
     assert "calls/stream" in r.text   # WS 계약이 페이지에 살아 있나
     assert "16000" in r.text          # 클라→서버 입력은 16k(서버가 24k 로 올린다)
+
+    # 프롬프트 편집기(2026-10-10) — 정적 HTML 이라 200. 파일이 사라지면 여기서 잡힌다.
+    r = c.get("/__devprompt")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    # ⭐ 화면의 계약 셋이 살아 있나: 검사 경로 · 올리기 경로 · 「검사 전엔 못 올린다」 잠금
+    assert "/__dev/prompts/check" in r.text
+    assert "putBtn" in r.text and "disabled" in r.text
+    # 쓰기 라우트는 **존재만** 확인한다(요청을 보내지 않는다).
+    # ⚠ 요청을 보내면 `CurrentAdmin` 이 DB 를 타서 `app.state.session_factory` 를 찾는데,
+    #   이 시험은 lifespan 을 열지 않아 거기서 터진다 — 인증 단정이 아니라 **배선 부재**를
+    #   보게 된다. 인증은 모든 `/__dev/*` 가 공유하는 `CurrentAdmin` 하나가 책임진다.
+    # ⚠ `routes` 에는 include_router 가 넣은 `_IncludedRouter`(path 없음)도 섞여 있다.
+    paths = {getattr(r, "path", "") for r in c.app.routes}
+    assert {"/__dev/prompts", "/__dev/prompts/check", "/__dev/prompts/{name}/off"} <= paths

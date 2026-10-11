@@ -39,6 +39,7 @@ Gemini 지시문(`core/prompts/locked/*`·`core/prompts/editable/*`)의 문장�
 """
 
 from __future__ import annotations
+from core.openai.prompts.freetalk import _SLOT_RE, _fill_slots  # «◯◯» 치환(공유) — 표면형·예문은 (이름)/(나라), 뜻은 …
 
 # 한 턴에 말할 문장 수 상한. 길면 학습자가 못 따라오고 원가도 는다.
 DEFAULT_MAX_SENTENCES = 3
@@ -54,23 +55,71 @@ DEFAULT_RETRY_LIMIT = 3
 
 
 def _row(idx: int, item: dict, *, target: str) -> str:
-    """항목 한 줄: `3. 고마워요 — 뜻: thank you — 예: "도와줘서 고마워요."`"""
-    surface = str(item.get("obj") or "").strip()
+    """항목 한 줄: `3. 고마워요 — 뜻: thank you — 한국어 예: "도와줘서 고마워요."`
+
+    ⛔ 라벨(「뜻:」「한국어 예:」)을 빼지 마라(2026-10-11, call 1858~1860 — 0/3). 라벨이 없으면 모델이
+      어느 칸이 한국어 문장인지 잃고 영어 뜻을 표현으로 가르친다. 낭독 위험보다 칸 구분 정보가 크다.
+      README §8 2026-10-11.
+    """
+    # ⭐ «◯◯» 빈칸을 «(이름)»·«(나라)» 로 바꿔 싣는다(2026-10-10, call 1824·1828·1830 —
+    #   비버가 「I'm ◯◯ / 저는 ◯◯이에요」라고 **기호를 소리로** 읽었다). 프리토킹이 쓰는
+    #   그 치환이다. ⚠ 판정·진도는 원래 표면형을 쓴다 — 치환은 프롬프트에 싣는 순간에만.
+    surface = _fill_slots(str(item.get("obj") or "").strip())
     row = "%d. %s" % (idx, surface)
-    des = str(item.get("des") or "").strip()
+    # ⚠ 뜻(des)은 **학습자 언어**라 한국어 라벨(«(이름)»)이 어울리지 않고, 한국어 문맥 단어가
+    #   없어 `_fill_slots` 가 «(빈칸)» 으로 떨어진다(배포 미리보기 「I'm (빈칸)」). 뜻 칸은
+    #   언어 중립인 줄임표로 — 「I'm …」. 표면형·예문은 한국어 문장이라 «(이름)» 이 맞다.
+    des = _SLOT_RE.sub("…", str(item.get("des") or "").strip())
     if des:
         row += " — 뜻: %s" % des
-    ex = str(item.get("ex") or "").strip()
+    ex = _fill_slots(str(item.get("ex") or "").strip())
     if ex:
         row += ' — %s 예: "%s"' % (target, ex)
     return row
 
 
-def _items_block(items: list[dict], *, target: str) -> str:
+#: 묶음 사이에 박는 되묻기 줄. ⭐ **구조가 규칙을 이긴다**(2026-10-10, call 1824·1827·1828):
+#:   「3개마다 되묻는다」를 산문으로 세 번 고쳐 써도 비버는 1~18번 평평한 목록을 **그냥
+#:   행진**했다(세 통 모두 되묻기 0회). 모델은 산문보다 눈앞의 목록 모양을 따른다 — 그래서
+#:   되묻기를 목록 **안에** 줄로 박는다. 대본은 「▶ 줄에서 되묻기로 들어간다」만 말하면 된다.
+REVIEW_MARK = "▶"
+
+
+def _items_block(items: list[dict], *, target: str, group: int = 0) -> str:
+    """`[오늘의 표현]` — `group` 개씩 묶고, 묶음 끝마다 되묻기 줄을 박는다.
+
+    ```
+    [오늘의 표현]
+    — 1묶음 —
+    1. … / 2. … / 3. …
+    ▶ 여기서 1~3을 하나씩 되묻는다. 끝나면 2묶음.
+    — 2묶음 —
+    4. …
+    ```
+    ⚠ `group <= 0` 이면 종전처럼 평평한 목록이다(묶음 없음). 마지막 묶음이 `group` 보다
+      짧아도(18개를 3으로 나누면 딱 맞지만 재개 통화는 남은 수가 제멋대로다) 되묻기 줄은
+      붙인다 — 꼬리 항목도 복습은 받아야 한다.
+    """
     rows = [_row(i, it, target=target) for i, it in enumerate(items, start=1)]
     if not rows:
-        rows = ["(오늘 다룰 표현이 없다)"]
-    return "[오늘의 표현]\n" + "\n".join(rows)
+        return "[오늘의 표현]\n(오늘 다룰 표현이 없다)"
+    if group <= 0:
+        return "[오늘의 표현]\n" + "\n".join(rows)
+
+    lines = ["[오늘의 표현]"]
+    total = len(rows)
+    for start in range(0, total, group):
+        chunk = rows[start:start + group]
+        bundle_no = start // group + 1
+        first, last = start + 1, start + len(chunk)
+        lines.append("— %d묶음 —" % bundle_no)
+        lines.extend(chunk)
+        # ⛔ 끝 묶음에 「마지막」「여기까지」를 쓰지 않는다 — 종료 어휘를 주면 모델이 그걸
+        #   수단으로 쓴다(README 원칙 5, call 706·852·870). 다음 묶음이 없으면 그냥 멈춘다.
+        nxt = (" 끝나면 %d묶음." % (bundle_no + 1)) if last < total else ""
+        span = ("%d~%d" % (first, last)) if last > first else "%d" % first
+        lines.append("%s 여기서 %s을 하나씩 되묻는다.%s" % (REVIEW_MARK, span, nxt))
+    return "\n".join(lines)
 
 
 def _quiz_numbers(total: int, group: int) -> list[int]:
@@ -78,6 +127,35 @@ def _quiz_numbers(total: int, group: int) -> list[int]:
     if group <= 0:
         return []
     return [n for n in range(group, total + 1, group)]
+
+
+#: 표현학습 대본 — ⭐ **이름 있는 슬롯 한 벌**(2026-10-10). DB override 가 이 글자를
+#:   덮어쓸 수 있고, `core.openai.prompts.override.vet` 이 **이 기본값과 대조**한다.
+#:   ⛔ 슬롯을 늘리거나 줄이면 override 가 전부 거부된다(검사 ①) — 늘릴 땐 사장님 확인.
+#:   ⚠ 데이터 블록(`[오늘의 표현]`)은 이 템플릿 **밖**이다 — 코드가 만든다. 그래서
+#:     대본이 그 라벨을 이름으로 가리켜도 짝이 저절로 지켜진다.
+SCRIPT_TEMPLATE = (
+    "# 역할\n"
+    "%(role)s\n"
+    "%(personality)s\n"
+    "제공된 %(target)s 표현을 순서대로 하나씩 가르친다.\n"
+    "\n"
+    "# 시작\n"
+    "%(locale)s로 짧게 인사하고 첫 표현을 알려준다.\n"
+    "\n"
+    "# 연습\n"
+    "%(locale)s로 뜻, 쓰임을 설명하고 배우는 %(target)s문장을 들려준 뒤 따라 말하게 한다\n"
+    "이 지시문은 한국어로 쓰여 있다 — 그 언어를 따라가지 마라.\n"
+    "네가 소리로 내는 말은 배우는 %(target)s 문장과 예문을 빼고 전부 %(locale)s다.\n"
+    "원문을 잘 따라하면 현지인 표현도 알려주고 따라 말하게 한다.\n"
+    "맞히면 다음 항목으로 넘어간다.\n"
+    "틀리면 정답 문장을 다시 들려주되 각 문장 최대 2회 후 다음 항목으로 넘어간다.\n"
+    "\n"
+    "# 진행\n"
+    "설명·반응은 %(locale)s로 하며 캐릭터 말투를 유지한다.\n"
+    "%(group)d개를 가르칠 때마다 그 %(group)d개를 하나씩 다시 물어 복습한 뒤 다음 %(group)d개로 간다.\n"
+    "하나씩 다루고 답을 기다리며, 서버가 종료를 알릴 때까지 이어간다."
+)
 
 
 def build_expression_instruction(
@@ -94,6 +172,7 @@ def build_expression_instruction(
     retry_limit: int = DEFAULT_RETRY_LIMIT,
     face_rule: str = "",
     self_quiz: bool = False,
+    script_override: str | None = None,
 ) -> str:
     """표현학습 대본 — ⭐ **사장님이 정제한 전문을 그대로 쓴다**(2026-10-09).
 
@@ -108,37 +187,21 @@ def build_expression_instruction(
         마라 — 서버 출구 상한과 어긋나면 그때 사장님께 묻는다.
     ⚠ 남기는 것은 `[오늘의 표현]`(전문의 「제공된 표현」이 가리키는 자리)과 표정 규칙뿐이다.
     """
+    # ⭐ override 가 있으면 그 글자를, 없으면 코드 기본값(`SCRIPT_TEMPLATE`)을 쓴다.
+    #   ⛔ 검사는 호출부가 이미 끝냈다(`override.vet`) — 여기선 **포맷만** 한다.
+    #     검사를 여기로 내리면 어댑터가 DB 를 알아야 해서 격리가 깨진다.
+    script = (script_override or SCRIPT_TEMPLATE) % {
+        "role": role,
+        "personality": personality,
+        "target": target_language,
+        "locale": locale_label,
+        "group": int(quiz_group),
+    }
     blocks = [
-        "# 역할\n"
-        "%s\n"
-        "%s\n"
-        "제공된 %s 표현을 순서대로 하나씩 가르친다."
-        % (role, personality, target_language),
-
-        "# 시작\n"
-        "%s로 짧게 인사하고 첫 표현을 알려준다." % locale_label,
-
-        "# 연습\n"
-        "%(l)s로 뜻, 쓰임을 설명하고 배우는 %(t)s문장을 들려준 뒤 따라 말하게 한다\n"
-        # ⭐⭐ 종전 「모든 대화는 %(l)s로 한다」를 **교체**했다(2026-10-10, call 1817).
-        #   영어로 하라고 세 번 말했는데 설명이 통째로 한국어였다 — 문장이 모자란 게
-        #   아니라 **대본이 한국어로 쓰여 있는 것**이 원인이다. 주입 쪽지층이 이미 같은
-        #   값을 치르고 「쪽지의 언어를 따라가지 마라」를 박아 뒀다(seeds.py) — 그 한 줄이
-        #   대본층엔 없었다. ⛔ 같은 말을 네 번째로 더하지 않는다.
-        "⛔ 이 지시문은 한국어로 쓰여 있다 — 그 언어를 따라가지 마라. 네가 소리로 내는\n"
-        "   말은 배우는 %(t)s 문장과 예문을 빼고 전부 %(l)s다.\n"
-        "원문을 잘 따라하면 현지인 표현도 알려주고 따라 말하게 한다.\n"
-        "맞히면 다음 항목으로 넘어간다.\n"
-        "틀리면 정답 문장을 다시 들려주되 각 문장 최대 2회 후 다음 항목으로 넘어간다."
-        % {"l": locale_label, "t": target_language},
-
-        "# 진행\n"
-        "설명·반응은 %(l)s로 하며 캐릭터 말투를 유지한다.\n"
-        "%(g)d개를 가르칠 때마다 그 %(g)d개를 하나씩 다시 물어 복습한 뒤 다음 %(g)d개로 간다.\n"
-        "하나씩 다루고 답을 기다리며, 서버가 종료를 알릴 때까지 이어간다."
-        % {"l": locale_label, "g": int(quiz_group)},
-
-        _items_block(items, target=target_language),
+        script,
+        # ⭐ 목록을 `quiz_group` 개씩 묶고 묶음 끝마다 되묻기 줄(▶)을 박는다 — 대본의
+        #   「%(group)d개마다 되묻는다」와 **같은 수**라 둘이 어긋날 길이 없다.
+        _items_block(items, target=target_language, group=int(quiz_group)),
     ]
     if face_rule.strip():
         blocks.append(face_rule.strip())
@@ -150,6 +213,9 @@ def seed_opening(locale_label: str) -> str:
 
     ⛔ 「시작하자」만 말하고 **1번 항목의 표현을 적지 않는다** — 시드에 표현이 들어가면
       그게 곧 선공개다.
+
+    ⚠ 2026-10-11 영어 본문(「The call is now connected. Greet briefly in English…」)을 1통(1856) 시험했다 —
+      첫 턴이 3문장으로 짧아졌지만 매 턴 「한국어로, …라고 말해봐」가 붙어 **더 나빴다**. 되돌림.
     """
     return (
         "[지시] 지금 통화가 연결됐다. %s 로 짧게 인사하고, 1번 항목을 바로 시작한다. "

@@ -162,7 +162,9 @@ def _bundle_strings(bundle, *, data: str = "DATA") -> dict[str, str]:
     for attr, key in (("_nudge_1", "nudge_1"), ("_nudge_2", "nudge_2")):
         val = getattr(bundle, attr, None)
         if val:
-            out[key] = val
+            # ⭐ 2026-10-10: 넛지가 **언어 이름을 받는 함수**가 됐다(종료 쪽지와 같은 방식).
+            #   글자로 만들어 비교한다 — 비교 대상은 「나가는 글자」다.
+            out[key] = val(locale_label="<%s-N>" % data) if callable(val) else val
     close = getattr(bundle, "_close_seed", None)
     if close is not None:
         out["close_seed"] = close("tag")

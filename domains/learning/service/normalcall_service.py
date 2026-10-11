@@ -1741,7 +1741,7 @@ def call_user_word_count(db: Session, call_id: int, target_code: str) -> int | N
 
 def finalize_call(
     db: Session, call_id: int, *, status: str, total_time: int | None = None, accumulate: bool = False,
-    user_word_count: int | None = None,
+    user_word_count: int | None = None, prompt_override_id: int | None = None,
 ) -> None:
     """통화 종료 메타(상태[/총 시간·단어 수])를 갱신한다.
 
@@ -1779,6 +1779,10 @@ def finalize_call(
     if total_time is not None:
         call.total_time = (int(call.total_time or 0) + int(total_time)) if accumulate else int(total_time)
     call.status = status
+    # ⭐ 이 통화가 쓴 프롬프트 override id(2026-10-10). None 이면 **건드리지 않는다** —
+    #   안 넘기는 호출부(조각 재개 등)가 기존 값을 지우면 안 된다.
+    if prompt_override_id is not None:
+        call.prompt_override_id = int(prompt_override_id)
     if user_word_count is not None:
         call.user_word_count = (
             (int(call.user_word_count or 0) + int(user_word_count)) if accumulate else int(user_word_count)
