@@ -1,4 +1,5 @@
 <!--
+⚠ 실통화 미사용(2026-10-11 점검 P02): 실통화는 C14-a(2026-09-23) 뒤 chat 대본을 쓴다 — 이 파일을 고쳐도 통화는 안 바뀐다. 읽는 곳은 dev 도구 둘뿐(main.py `/__dev/call-prompt` · scripts/dev_dump_prompt.py).
 ⭐ 편집 가능한 프롬프트 문구 — 일반 통화(normal · core/persona_prompt.build_system_instruction)
 사람이 고치는 파일이다(톤·설명·코스 소개). 규칙(반드시 지켜라 — 어기면 서버가 이 파일을 버리고 *.default.md 로 돌아간다, 로그 ERROR):
 1. 섹션 헤더 `## 이름` 은 그대로 둔다(추가·삭제·개명 금지). 본문만 고친다.

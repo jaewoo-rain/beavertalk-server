@@ -8,7 +8,7 @@
 
 | 파일 | 통화 | 여기서 고칠 수 있는 것(섹션) |
 |---|---|---|
-| `normal.md` | 일반 통화 | 페르소나 문단(`persona_intro`) · 규칙 1 모드 분기(`rule1_head` / `rule1_mode_default` / `rule1_mode_checkboard` / `rule1_tail`) · 규칙 3 언어 사용·비율(`rule3`) · 규칙 4 교정 문구(`rule4`) · 밴드별 모국어 발판(`lang_policy_survival/beginner/intermediate/advanced`) · 선톡 시드 말투(`seed_opening`, `seed_opening_lean`) |
+| `normal.md` | 일반 통화 — ⚠ **실통화 미사용**(C14-a 뒤 chat 대본이 대신함, dev 도구 `/__dev/call-prompt`·`dev_dump_prompt.py` 전용. 2026-10-11 P02) | 페르소나 문단(`persona_intro`) · 규칙 1 모드 분기(`rule1_head` / `rule1_mode_default` / `rule1_mode_checkboard` / `rule1_tail`) · 규칙 3 언어 사용·비율(`rule3`) · 규칙 4 교정 문구(`rule4`) · 밴드별 모국어 발판(`lang_policy_survival/beginner/intermediate/advanced`) · 선톡 시드 말투(`seed_opening`, `seed_opening_lean`) |
 | `expression.md` | 표현학습 | 페르소나 문단 · 코스 소개(`rule1`) · 언어 비율 첫 불릿(`rule3_codeswitch`) · 교정(`rule4`) · 드릴 첫 불릿 말투(`drill_intro`) · 선톡(`seed_opening`) |
 | `freetalk.md` | 프리토킹 | 옛 경로(`*_old`) 와 차시판 역할극(`*_lesson`) 각각의 페르소나·규칙 1·3·4·선톡 · [이번 차시] 문장(`lesson_header`·`lesson_partner_line`·`lesson_partner_fallback`·`lesson_material_line`·`lesson_probes_prefix`) |
 | `leveltest.md` | 레벨테스트 | 시험관 소개 한 줄(`intro`) · 선톡(`seed_opening`) |

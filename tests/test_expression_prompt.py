@@ -373,7 +373,9 @@ def test_reground_brief_carries_progress_and_the_wrong_answers() -> None:
     assert "이미 다룬 표현: 안녕히 가세요 / 가다" in brief
     assert "이미 맞힌 표현: 가다" in brief
     assert "아직 틀린 표현: 안녕히 가세요" in brief
-    assert "한 번 더 물어" in brief, "오답퀴즈 재료가 실려야 한다"
+    # 2026-10-11 P07 — 다시 묻는 건 서버 큐(retry=True) 몫. 쪽지가 직접 시키면 퀴즈 창 밖 되묻기가 되어 판정이 안 남는다.
+    assert "한 번 더 물어" not in brief
+    assert "스스로 다시 묻지 마라" in brief
 
 
 def test_reground_brief_reacts_to_the_learner_first() -> None:

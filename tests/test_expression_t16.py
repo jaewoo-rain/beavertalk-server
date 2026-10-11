@@ -736,7 +736,9 @@ def test_the_cue_tells_the_beaver_not_to_speak_stage_markers() -> None:
     st = _state()
     for t in ('"이거 얼마예요?"', '"잘 부탁드립니다"', '"저는 미국 사람이에요"'):
         _beaver(st, t)
-    assert "네 말에 대괄호나 '퀴즈 시작' 같은 단계 표시를 넣지 마라 — 그냥 말로 내라" in st.expr_quiz_cue_pending
+    cue = st.expr_quiz_cue_pending
+    assert "네 말에 대괄호를 넣지 마라" in cue
+    assert "퀴즈 시작" not in cue   # 2026-10-11 P03 — 금지 예시 리터럴이 QUIZ_LINE_1 «먼저 말하라» 와 부딪혔다
 
 
 def test_eyo_spelling_variant_is_equivalent_but_nothing_else_is() -> None:

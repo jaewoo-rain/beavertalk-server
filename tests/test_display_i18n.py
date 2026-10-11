@@ -117,14 +117,15 @@ def test_translate_failures_return_none(client):
 
 def test_language_name_for_unlisted_locale_uses_iso_code():
     assert text_translate.language_name("ja") == "日本語"
-    assert "ne" in text_translate.language_name("ne")
+    assert "sw" in text_translate.language_name("sw")   # 앱에도 표에도 없는 코드(ne 는 2026-10-11 P01 로 표에 들어갔다)
+    assert text_translate.language_name("ne") == "नेपाली"
 
 
 # =========================================================================== #
 # B. 요약 언어 · 표시 언어
 # =========================================================================== #
 @pytest.mark.parametrize("locale,expected", [
-    ("en", "en"), ("ko-KR", "ko"), ("vi", "vi"), ("ne", "en"), (None, "en"), ("", "en"),
+    ("en", "en"), ("ko-KR", "ko"), ("vi", "vi"), ("ne", "ne"), ("sw", "en"), (None, "en"), ("", "en"),
 ])
 def test_summary_lang_follows_analysis_label_fallback(locale, expected):
     assert svc.summary_lang_for(locale) == expected
@@ -141,7 +142,7 @@ def test_save_analysis_records_summary_lang(db):
 
     _, (cid,) = _member_with_calls(db, [(None, None)])
     result = _CallAnalysisBase(summary="Weekend plans", detected_mode="chat", expressions=[])
-    _save_analysis(db, cid, result, "ne")
+    _save_analysis(db, cid, result, "sw")
     c = db.get(Call, cid)
     assert (c.summary, c.summary_lang) == ("Weekend plans", "en")
 

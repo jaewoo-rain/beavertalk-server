@@ -303,7 +303,9 @@ def build_expression_reground_brief(
       (실측 통화 1360: 압축 #4 가 9,219 토큰을 지우자 비버가 1번 항목으로 되감았고 마지막
       91초가 반복이었다). 그래서 이 쪽지의 재료는 **서버 누적**이어야 하고, 사이드카를
       기다리지 않는다.
-    ⛔ `failed` 는 «오답퀴즈» 의 재료다 — 이 줄이 없으면 오답 재출제가 안 나간다.
+    ⛔ `failed` 줄은 압축 뒤에도 «무엇을 틀렸나» 를 남기는 기억용이다. 오답 재출제는 서버가 연다(T16 —
+      call_session `_arm_expression_quiz_cue(retry=True)`) — 쪽지가 직접 시키면 서버 퀴즈 창 밖 되묻기가 되어
+      판정이 안 남는다(2026-10-11 점검 P07).
     """
     parts = [p.strip() for p in (role, personality) if p and p.strip()]
     body = " / ".join(parts) if parts else "너의 캐릭터"
@@ -339,7 +341,7 @@ def build_expression_reground_brief(
     if failed_s:
         out.append(
             "아직 틀린 표현: " + " / ".join(failed_s) +
-            ". 이것들은 이 통화 안에서 한 번 더 물어 맞히게 해라."
+            f". 이것들을 다시 묻는 것은 {CONTROL_TAG} 이 알릴 때다 — 스스로 다시 묻지 마라."
         )
     remaining_new = clean(remaining)
     if remaining_new:
