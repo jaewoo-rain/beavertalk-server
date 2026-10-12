@@ -19,6 +19,8 @@ class OnboardingIn(BaseModel):
     name: Optional[str] = None
     reasons: Optional[list[str]] = None  # 학습 이유 코드(다중선택)
     language: Optional[str] = None
+    # 모국어(ISO 639-1 · 2026-10-12). 없고 language 만 오면 서버가 language 로 채운다(빌드 58 이하 호환).
+    native_language: Optional[str] = None
     # 실제 국적(ISO 3166-1 alpha-2 · 2026-10-10). 국가 표 밖이면 422. 없으면 그대로 둔다.
     actual_nationality: Optional[str] = None
 
@@ -27,6 +29,8 @@ class MemberUpdate(BaseModel):
     """회원 수정 입력(부분 수정). 모두 선택값."""
 
     language: Optional[str] = None  # 모국어. "ko-KR" 같은 BCP-47 도 서버가 "ko" 로 정규화
+    # 모국어 재선택(2026-10-12). null·빈 값은 「변경 없음」. language 를 바꿔도 이 칸은 그대로다.
+    native_language: Optional[str] = None
     target_language: Optional[str] = None  # 학습 대상 언어(ISO 639-1) — 마이페이지 피커
     # 실제 국적(ISO 3166-1 alpha-2) — 마이페이지 국적 화면 Save. null 은 「변경 없음」(앱에서 지우는 길 없음 · PM-DEC-502).
     actual_nationality: Optional[str] = None
@@ -57,6 +61,7 @@ class MyPageOut(BaseModel):
     language: Optional[str]
     target_language: Optional[str] = None  # 학습 대상 언어 — 마이페이지가 이 값을 표시한다
     actual_nationality: Optional[str] = None  # 실제 국적(ISO) — 설정 Account 「Nationality」 행
+    native_language: Optional[str] = None  # 온보딩에서 고른 모국어(ISO 639-1) · NULL=기록 없음
     is_subscribed: bool
     onboarding_completed: bool
     speak_country: Optional[SpeakCountryOut]
@@ -83,6 +88,7 @@ class MemberRead(BaseModel):
     language: Optional[str]
     target_language: Optional[str] = None  # 학습 대상 언어(통화 target_language 의 단일 소스)
     actual_nationality: Optional[str] = None  # 실제 국적(ISO 3166-1 alpha-2) · NULL=미선택
+    native_language: Optional[str] = None  # 온보딩에서 고른 모국어(ISO 639-1) · NULL=기록 없음
     is_auto_payment: Optional[bool]
     speak_country_id: Optional[int]
     character_id: Optional[int]

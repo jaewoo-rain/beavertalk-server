@@ -54,6 +54,13 @@ class Member(Base, TimestampMixin):
 
     name: Mapped[Optional[str]] = mapped_column(Text, comment="이름(온보딩에서 입력)")
     language: Mapped[Optional[str]] = mapped_column(Text, comment="모국어(번역 target locale)")
+    # (2026-10-12 · PM-DEC-513·514) 온보딩에서 고른 **모국어** — ISO 639-1. F066: 앱은 설정 「앱 언어」도
+    # language 에 써서 온보딩 모국어가 덮어써졌다. 이 칸은 온보딩·모국어 재선택만 쓴다 —
+    # PATCH language(앱 언어)는 이 칸을 건드리지 않는다. language 의 의미(통화·번역 언어)는 그대로다.
+    # 읽는 곳: B2B 서버(domains/external/mirrors.py · 원문 SQL · 비면 language 대체). NULL = 기록 없음.
+    native_language: Mapped[Optional[str]] = mapped_column(
+        Text, comment="회원이 고른 모국어(ISO 639-1). NULL=기록 없음(language 로 대체)",
+    )
     # (2026-10-10 · PM-DEC-495·498) 회원이 직접 고른 **실제 국적** — ISO 3166-1 alpha-2(예 "PH").
     # 모국어(language)·억양 판정 결과(speak_country_id)와 별개다 — 서로 읽거나 덮어쓰지 않는다.
     # 쓰는 곳: 통화 끝 국적 판정 요청의 actual_nationality(영문명으로 변환 · core/client_info.py).

@@ -34,6 +34,7 @@ def onboarding(data: OnboardingIn, member: CurrentMember, db: DbSession) -> Memb
     return MemberService(db).onboarding(
         member.member_id, data.name, data.reasons, data.language,
         actual_nationality=data.actual_nationality,
+        native_language=data.native_language,
     )
 
 

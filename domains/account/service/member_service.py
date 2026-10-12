@@ -63,6 +63,7 @@ class MemberService:
             language=member.language,
             target_language=member.target_language,
             actual_nationality=member.actual_nationality,
+            native_language=member.native_language,
             is_subscribed=is_subscribed,
             onboarding_completed=member.onboarding_completed,
             speak_country=(
@@ -128,8 +129,9 @@ class MemberService:
         reasons: Optional[list[str]],
         language: Optional[str],
         actual_nationality: Optional[str] = None,
+        native_language: Optional[str] = None,
     ) -> Member:
-        """온보딩 저장 — 이름·학습이유·언어·실제 국적. 전달된 항목만 반영(reasons 는 교체)."""
+        """온보딩 저장 — 이름·학습이유·언어·모국어·실제 국적. 전달된 항목만 반영(reasons 는 교체)."""
         member = self.get(member_id)
         if actual_nationality is not None:
             member.actual_nationality = self._validate_nationality(actual_nationality)
@@ -139,6 +141,14 @@ class MemberService:
             # 앱 언어 피커는 BCP-47 id("ko-KR")를 준다 — 저장 전에 ISO 639-1 로 정규화한다.
             # 안 하면 모국어 라벨 조회가 미스나 영어로 폴백한다(실측 3건).
             member.language = normalize_locale(language)
+        # 모국어 — 온보딩 언어 화면의 질문이 「모국어가 무엇인가요?」다. 빌드 58 이하 앱은
+        # native_language 없이 language 만 보내므로 그 값을 모국어로도 기록한다(F066 · PM-DEC-514).
+        # 이름만 바꾸는 재호출(updateName)은 둘 다 없어 모국어를 건드리지 않는다.
+        native = normalize_locale(native_language) or (
+            normalize_locale(language) if native_language is None else None
+        )
+        if native:
+            member.native_language = native
         if reasons is not None:
             codes = self._validate_reasons(reasons)
             # 기존 이유 교체(cascade delete-orphan 으로 옛 행 정리).
@@ -198,6 +208,11 @@ class MemberService:
             # 오염을 입구에서 막는다 — 조회 시 폴백에 기대면 데이터가 계속 썩는다.
             if field in ("language", "target_language"):
                 value = normalize_locale(value)
+            if field == "native_language":
+                # null·빈 값은 「변경 없음」 — 앱에서 모국어를 지우는 길은 없다(국적과 같은 규칙).
+                value = normalize_locale(value)
+                if not value:
+                    continue
             setattr(member, field, value)
         self.db.commit()
         self.db.refresh(member)
