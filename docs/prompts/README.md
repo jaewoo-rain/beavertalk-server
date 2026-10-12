@@ -1598,6 +1598,15 @@ t77 에서 «화장실이 어디예요? 물어보든가! 얼마예요? 물어보
 - PM-DEC-476으로 ca5bb1c·465의 전체 발음 집계 계약을 유지함.
 - 구 R5-a 시험·상위 schema 주석만 정정하고 서비스는 보존함.
 
+### 2026-10-13 — PM-DEC-535 직접 출제 숙제 역할극 «[역할극]» 블록 (`core/prompts/homework.py`)
+
+- b2b `conversation-materials` 최상위 `roleplay {topic, situation, ai_role, learner_role}`를 받음(b2b developer 합의).
+- 직접 출제(manual)만 받고, `ai_role`과 상황·주제 중 하나가 없으면 버림(통화는 막지 않음).
+- 지시문 끝에 «[역할극]» 블록을 붙임. 편집 템플릿 슬롯·토큰 예산(700)은 그대로임.
+- 첫마디(seed)와 재접지에 역할 유지 한 줄을 더함. 숙제 JSON 블록에서는 roleplay를 뺌.
+- 이어하기 스냅샷(`create_namespace`)에 roleplay를 저장함. b2b 귀속 대조 키는 무변경임.
+- 역할극이 없으면 지시문·첫마디가 바이트 단위로 같음(`tests/test_homework_roleplay.py`).
+
 ## §9. 통화 후 볼 로그 (계측은 이미 붙어 있다)
 
 | 로그 | 무엇을 알려주나 |

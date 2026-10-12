@@ -15,6 +15,10 @@ def create_namespace(materials: dict, *, manual_v2_enabled: bool = False) -> dic
     snapshot = {key: copy.deepcopy(data[key]) for key in ("activities", "grammar", "goals")}
     if "attendance_targets" in data:
         snapshot["attendance_targets"] = copy.deepcopy(data["attendance_targets"])
+    # 역할극은 이어하기(namespace_materials)에서도 같아야 한다. 해시는 snapshot 전체를 덮으므로
+    # 자동으로 묶이고, b2b 귀속 대조(activities·grammar·goals·attendance_targets)는 이 키를 안 본다.
+    if "roleplay" in data:
+        snapshot["roleplay"] = copy.deepcopy(data["roleplay"])
     version = 2 if (manual_v2_enabled and data["source"] == "manual"
                     and data.get("manual_kind") in ("word", "sentence")) else 1
     if version == 2:

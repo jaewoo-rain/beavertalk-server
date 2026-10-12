@@ -3517,7 +3517,7 @@ async def run_call(
                 role=setup["role"], personality=setup["personality"], locale=locale,
                 name=setup["name"], homework=homework, face_rule=face_rule_text,
             )
-            seed_text = seed_homework_opening()
+            seed_text = seed_homework_opening(homework)
         elif call_type == "expression":
             # ⚠ 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다 — 캐릭터·레벨 프로파일·
             #   흥미는 위 `setup`(load_call_setup)이 이미 갖고 있다.
