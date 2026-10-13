@@ -126,7 +126,9 @@ from core.prompts.freetalk import (
 )
 from core.prompts.chat import build_chat_instruction, seed_chat_opening
 from core.prompts.homework import (
-    build_homework_instruction, seed_homework_opening, build_homework_reground,
+    normalize_homework, homework_mode, homework_expression_items,
+    build_homework_expression_instruction, build_homework_roleplay_instruction,
+    seed_homework_roleplay_opening, build_homework_roleplay_reground,
 )
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
@@ -707,7 +709,7 @@ class _CallState:
     """두 펌프가 공유하는 통화 상태(세그먼트 누적 + 시계 + 종료 플래그)."""
 
     __slots__ = (
-        "homework", "homework_locale", "homework_generation",
+        "homework", "homework_locale", "homework_generation", "homework_mode",
         "turn_id", "call_start_ts", "should_close", "close_seed_sent", "close_reply_started",
         "seed_sent_ts",
         "playback_done_event", "segments", "persisted_count", "nationality_pcm",
@@ -985,6 +987,8 @@ class _CallState:
         self.homework: dict | None = None
         self.homework_locale: str = "en"
         self.homework_generation: int | None = None
+        # 숙제 대본 방식(PM-DEC-557) — "expression" | "roleplay". 숙제가 아니면 "".
+        self.homework_mode: str = ""
         # ── 표현학습 진도(서버 소유) ──
         # ⭐⭐ **압축이 이 설계의 최대 적이다.** 컨텍스트 압축은 오래된 대화부터 지우므로
         #   통화 초반에 가르친 것이 제일 먼저 사라진다(실측 통화 1360: 압축 #4 가 9,219
@@ -3408,6 +3412,7 @@ async def run_call(
     # ⭐ 표현학습이 이번 통화에서 다룰 표현(선별 결과). 다른 콜타입에서는 **빈 리스트**이고,
     #   그 빈/참이 곧 «이 통화가 표현학습인가» 의 런타임 게이트가 된다(state.expr_items).
     expr_items: list[dict] = []
+    hw_mode = ""                           # 숙제 대본 방식(PM-DEC-557) — 숙제가 아니면 ""
     expr_practice: ExpressionPractice | None = None
     freetalk_brief = None                  # 차시 프리토킹(cur)만 CurFreetalkBrief — 재접지 쪽지 재료
     reground_reminder: str | None = None  # 일반 통화만 세팅(레벨테스트는 재접지 안 함)
@@ -3536,11 +3541,28 @@ async def run_call(
             system_instruction = ""
             seed_text = ""
         elif call_type == "homework":
-            system_instruction = build_homework_instruction(
-                role=setup["role"], personality=setup["personality"], locale=locale,
-                name=setup["name"], homework=homework, face_rule=face_rule_text,
-            )
-            seed_text = seed_homework_opening(homework)
+            # ⭐ PM-DEC-551·553·557 — 방식별 대본. mode 없음·불량 역할극 → 표현학습.
+            #   ⛔ call_type 은 homework 그대로 둔다 — expression 으로 바꾸면 개인 진도 저장
+            #   게이트를 탄다(목표 id 는 출처별 다른 표다).
+            hw_mode = homework_mode(normalize_homework(homework))
+            if hw_mode == "expression":
+                # 아래 `if expr_items:` 가 표현 상태기계(ExpressionPractice)를 만든다.
+                expr_items = homework_expression_items(normalize_homework(homework))
+                system_instruction = build_homework_expression_instruction(
+                    role=setup["role"], personality=setup["personality"], level_profile=level_profile,
+                    locale=locale, name=setup["name"], homework=homework,
+                    quiz_group=svc.EXPRESSION_QUIZ_GROUP,
+                    model_family="3.1" if "3.1" in (live_model or "") else "2.5",
+                    face_rule=face_rule_text, close_tag=close_tag,
+                )
+                seed_text = seed_expression_opening("한국어")
+            else:
+                system_instruction = build_homework_roleplay_instruction(
+                    role=setup["role"], personality=setup["personality"], locale=locale,
+                    name=setup["name"], homework=homework, face_rule=face_rule_text,
+                )
+                seed_text = seed_homework_roleplay_opening()
+            logger.info("normalcall 숙제: 대본=%s 목표 %d개", hw_mode, len(homework.get("goals") or []))
         elif call_type == "expression":
             # ⚠ 표현학습이 더하는 DB 왕복은 **이 선별 1회**뿐이다 — 캐릭터·레벨 프로파일·
             #   흥미는 위 `setup`(load_call_setup)이 이미 갖고 있다.
@@ -3932,6 +3954,7 @@ async def run_call(
         state = _CallState()
         state.homework = homework
         state.homework_locale = locale
+        state.homework_mode = hw_mode
         if homework is not None:
             state.homework_generation = await svc.run_db(db_session_factory,
                 lambda db: db.get(svc.Call, call_id).usage_json["homework"]["runtime"]["generation"])
@@ -4008,11 +4031,32 @@ async def run_call(
         elif resumed and homework is not None:
             # 개인 체크판/진도 재료 대신 같은 숙제와 마지막 실제 발화만 전달한다.
             recent = await svc.run_db(db_session_factory, lambda db: svc.recent_turns(db, call_id))
-            system_instruction += "\n\n" + build_homework_reground(homework, locale)
-            if recent:
-                import json as _homework_json
-                system_instruction += "\n최근 실제 대화: " + _homework_json.dumps(recent, ensure_ascii=False)
-            seed_text = "" if silent else seed_resume(target_language)
+            if hw_mode == "roleplay":
+                system_instruction += "\n\n" + build_homework_roleplay_reground(homework, locale)
+                if recent:
+                    import json as _homework_json
+                    system_instruction += "\n최근 실제 대화: " + _homework_json.dumps(recent, ensure_ascii=False)
+                seed_text = "" if silent else seed_resume(target_language)
+            else:
+                # ⭐ 표현학습 숙제 — 정규 표현학습 재개와 같은 «시드 + 목록» 승계(위 D17). 단계 복원은
+                #   이 통화의 전사로만 한다(replay) — 개인 진도(cur_call) 재료는 쓰지 않는다.
+                if expr_practice is not None:
+                    try:
+                        turns = await svc.run_db(
+                            db_session_factory,
+                            lambda db: svc.recent_turns(db, call_id, n=2000, max_chars=10000),
+                        )
+                        expr_practice.replay(turns)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("normalcall 숙제 표현학습 이어하기: 단계 복원 실패(처음 단계로) — %s", exc)
+                    system_instruction += "\n\n" + expr_practice.brief()
+                if silent:
+                    seed_text = ""
+                    system_instruction += "\n\n" + brief_expression_silent_resume(target_language, recent=recent)
+                else:
+                    seed_text = seed_expression_resume(target_language, recent=recent)
+                    if expr_practice is not None:
+                        seed_text += "\n" + expr_practice.brief()
         elif resumed:
             # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
             #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
@@ -4114,11 +4158,15 @@ async def run_call(
             # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
             #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
             state.reground_persona = (setup["role"] or "", setup["personality"] or "")
-            if homework is not None:
-                state.reground_reminder = build_homework_reground(homework, locale)
+            if homework is not None and hw_mode == "roleplay":
+                state.reground_reminder = build_homework_roleplay_reground(homework, locale)
                 state.continue_reminder = state.reground_reminder
                 state.reground_items = []
                 state.call_mode = "chat"
+            elif homework is not None:
+                # 표현학습 숙제 — 정규 표현학습과 같은 진도 쪽지(아래 표현학습 분기와 같은 규율).
+                state.reground_items = [str(it["obj"]) for it in expr_items if it.get("obj")]
+                state.call_mode = "study" if state.reground_items else "chat"
             elif cur_route and call_type == "freetalk":
                 # ⭐ 차시 프리토킹(2026-09-12): 일반 잡담 브리프(«흥미를 느낄 새 질문») 도, 항목 검출 기계도 안 쓴다 — 쪽지는
                 #   `_arm_reground` 가 `build_freetalk_reground_brief`(상황 + 아직 안 쓴 소재)로 만든다. 사이드카(reground_ctx)도 없다 —
@@ -4253,6 +4301,13 @@ async def run_call(
                 state.idle_nudge1_s = float(settings.FREETALK_IDLE_NUDGE1_S)
                 state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
                 state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
+            elif call_type == "homework":
+                # 숙제는 방식별로 그 코스의 1단·2단 시드를 쓴다(PM-DEC-557 · 잠금 문구 재사용, 임계 무변).
+                if hw_mode == "roleplay":
+                    state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
+                    state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
+                else:
+                    state.nudge_seed_1 = NUDGE_SEED_1_EXPRESSION
 
         # P2.5(D16) 동적 힌트 사이드카 활성 조건: 커리큘럼 있는 언어(ko) 전 통화(레벨테스트·일반,
         # 레벨 무관)에 힌트 제공. 회화 전용 언어(has_curriculum=False)는 제외 — 예시 답변 생성
@@ -7285,11 +7340,12 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     사이드카가 제때 돌아오면 아직 안 얹힌 문구를 **업그레이드**한다(실패해도 재접지는 나간다 — R5).
     """
     role, personality = state.reground_persona
-    if state.homework is not None:
-        state.reground_reminder = build_homework_reground(state.homework, state.homework_locale)
+    if state.homework is not None and state.homework_mode == "roleplay":
+        state.reground_reminder = build_homework_roleplay_reground(state.homework, state.homework_locale)
         state.reground_pending = True
         state.reground_arm_reason = reason
         return
+    # 표현학습 숙제는 여기서 빠져 아래 `if state.expr_items:` 표현학습 쪽지 분기를 탄다.
     if state.cur_route and state.cur_course == "freetalk" and state.freetalk_brief is not None:
         # ⭐ 차시 프리토킹(2026-09-12) — 상황 재확인 + «전부 학습 언어» + 아직 안 쓴 소재 3~5개(판정 아님 — 비버 발화에 아직 안 나온 것).
         #   배관은 그대로(arm → 마이크 프레임 + RMS 2관문), 문구만 다르다.

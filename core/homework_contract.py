@@ -19,6 +19,8 @@ def create_namespace(materials: dict, *, manual_v2_enabled: bool = False) -> dic
     # 자동으로 묶이고, b2b 귀속 대조(activities·grammar·goals·attendance_targets)는 이 키를 안 본다.
     if "roleplay" in data:
         snapshot["roleplay"] = copy.deepcopy(data["roleplay"])
+    # 대본 방식(PM-DEC-557 D3) — 해시가 snapshot 전체를 덮으므로 재개 때 같은 대본이 보장된다.
+    snapshot["mode"] = data["mode"]
     version = 2 if (manual_v2_enabled and data["source"] == "manual"
                     and data.get("manual_kind") in ("word", "sentence")) else 1
     if version == 2:

@@ -9,8 +9,9 @@ from core import b2b_client
 from core.config import settings
 from core.homework_contract import namespace_materials, snapshot_hash
 from core.prompts.homework import (
-    normalize_homework, build_homework_instruction, build_homework_reground,
+    normalize_homework, build_homework_expression_instruction, build_homework_roleplay_instruction,
 )
+from core.prompts.expression import seed_expression_opening
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 from domains.learning.models.member_item_progress import MemberItemProgress
@@ -20,6 +21,11 @@ from test_normalcall_ws import (
     session_factory, seeded, _mock_external, _auth,
     FakeWebSocket, make_live_factory, _wait_analysis_tasks,
 )
+
+
+def with_mode(raw, mode="expression"):
+    """정규화는 대본 방식(mode)을 늘 채운다(PM-DEC-557) — 없으면 표현학습."""
+    return {**raw, "mode": mode}
 
 
 def materials(source="curriculum", assignment_id=8):
@@ -37,12 +43,13 @@ def materials(source="curriculum", assignment_id=8):
 def test_original_source_id_nullable_and_braces_are_preserved(source):
     raw = materials(source)
     data = normalize_homework(raw)
-    assert data == raw
-    text = build_homework_instruction(role="역할", personality="성격", locale="vi", name="학습자", homework=raw)
-    assert raw["goals"][0]["surface"] in text
-    assert "베트남어" in text and "1~2문장" in text
+    assert data == with_mode(raw)
+    text = build_homework_expression_instruction(
+        role="역할", personality="성격", level_profile="", locale="vi", name="학습자",
+        homework=raw, quiz_group=3)
+    assert raw["goals"][0]["surface"].strip() in text
+    assert "베트남어" in text
     assert "개인" not in json.dumps(data, ensure_ascii=False)
-    assert raw["grammar"][0] in build_homework_reground(raw, "vi")
 
 
 @pytest.mark.parametrize("mutation", [
@@ -79,7 +86,7 @@ def mock_http(monkeypatch, response):
 def test_exact_http_query_and_source_contract(monkeypatch):
     raw = materials("manual", 7)
     requests = mock_http(monkeypatch, lambda req: httpx.Response(200, json=raw))
-    assert b2b_client.conversation_materials(3, assignment_id=7, locale="vi") == raw
+    assert b2b_client.conversation_materials(3, assignment_id=7, locale="vi") == with_mode(raw)
     req = requests[0]
     assert req.url.path == "/api/v1/internal/members/3/conversation-materials"
     assert dict(req.url.params) == {"assignment_id": "7", "language": "ko", "locale": "vi"}
@@ -203,8 +210,9 @@ async def test_ws_homework_bypasses_personal_course_and_persists_raw_source(
     await cs.run_call(ws, settings, object(), session_factory,
                       member_id=seeded["member_id"], live_session_factory=make_live_factory(holder))
     await _wait_analysis_tasks()
-    assert raw["goals"][0]["surface"] in holder["system_instruction"]
-    assert "숙제 내용" in holder["session"].sent_text_turns[0]
+    assert raw["goals"][0]["surface"].strip() in holder["system_instruction"]
+    # mode 없음 → 표현학습 숙제 — 첫 시드는 정규 표현학습 시드 그대로(PM-DEC-551).
+    assert holder["session"].sent_text_turns[0] == seed_expression_opening("한국어")
     started = next(json.loads(s) for s in ws.sent_text if json.loads(s)["type"] == "call_started")
     assert started.get("course") is None
     assert started["fragment_index"] == 1
@@ -213,7 +221,7 @@ async def test_ws_homework_bypasses_personal_course_and_persists_raw_source(
     with session_factory() as db:
         call = db.query(Call).one()
         assert call.call_type == "homework"
-        assert namespace_materials(call.usage_json["homework"]) == raw
+        assert namespace_materials(call.usage_json["homework"]) == with_mode(raw)
         assert call.fragment_ended_at is not None
         assert db.query(CallRawData).count() > 0
         assert db.query(MemberItemProgress).count() == 0
@@ -310,14 +318,31 @@ async def test_ws_empty_verified_result_is_acknowledged_without_personal_progres
         assert db.query(MemberItemProgress).count() == 0
 
 
-def test_reground_uses_same_snapshot_without_personal_sidecar():
+def test_roleplay_reground_uses_same_snapshot_without_personal_sidecar():
+    state = cs._CallState()
+    raw = materials("manual")
+    raw.update(mode="roleplay", roleplay={"situation": "가게에서 인사", "ai_role": "가게 사장님"})
+    state.homework = raw
+    state.homework_locale = "vi"
+    state.homework_mode = "roleplay"
+    cs._arm_reground(state, "compression")
+    assert state.reground_pending
+    assert "가게 사장님" in state.reground_reminder
+    assert "안녕하세요" in state.reground_reminder
+    assert "베트남어" in state.reground_reminder
+    assert state.reground_ctx is None
+
+
+def test_expression_homework_reground_falls_to_expression_note():
+    """표현학습 숙제는 숙제 쪽지 분기를 빠져 정규 표현학습 쪽지(진도 칸)로 간다."""
     state = cs._CallState()
     state.homework = materials("manual")
     state.homework_locale = "vi"
+    state.homework_mode = "expression"
+    state.expr_items = [{"item_id": 1, "obj": "안녕하세요", "des": None, "ex": None}]
     cs._arm_reground(state, "compression")
     assert state.reground_pending
-    assert "assignment_item" in state.reground_reminder
-    assert "베트남어" in state.reground_reminder
+    assert "[역할극]" not in (state.reground_reminder or "")
     assert state.reground_ctx is None
 
 
@@ -328,7 +353,7 @@ def test_resume_owner_assignment_and_snapshot(session_factory, seeded, monkeypat
         raw = materials("manual")
         svc.save_homework_snapshot(db, cid, raw)
         svc.mark_fragment_ended(db, cid)
-        assert svc.load_homework_snapshot(db, seeded["member_id"], cid, 8) == raw
+        assert svc.load_homework_snapshot(db, seeded["member_id"], cid, 8) == with_mode(raw)
         assert svc.resume_call(db, seeded["member_id"], cid, max_fragments=3)[0] is None
         assert svc.resume_call(db, seeded["member_id"], cid, max_fragments=3, homework_assignment_id=9)[0] is None
         assert svc.resume_call(db, seeded["member_id"] + 1, cid, max_fragments=3, homework_assignment_id=8)[0] is None
@@ -342,7 +367,7 @@ def test_first_and_accumulated_usage_preserve_homework_snapshot(session_factory,
         svc.save_homework_snapshot(db, cid, raw)
         for accumulate in (False, True):
             assert svc.save_call_usage(db, cid, {"msgs": 1, "total": 10}, accumulate=accumulate)
-            assert namespace_materials(db.get(Call, cid).usage_json["homework"]) == raw
+            assert namespace_materials(db.get(Call, cid).usage_json["homework"]) == with_mode(raw)
 
 
 def test_homework_marker_exists_in_first_creation_commit(session_factory, seeded):
@@ -351,7 +376,7 @@ def test_homework_marker_exists_in_first_creation_commit(session_factory, seeded
         cid = svc.create_call(db, seeded["member_id"], seeded["character_id"],
                               "homework", homework=raw)
     with session_factory() as fresh:
-        assert namespace_materials(fresh.get(Call, cid).usage_json["homework"]) == raw
+        assert namespace_materials(fresh.get(Call, cid).usage_json["homework"]) == with_mode(raw)
 
 
 def test_full_snapshot_hash_kind_attendance_survive_usage_and_resume(session_factory, seeded, monkeypatch):
@@ -366,16 +391,18 @@ def test_full_snapshot_hash_kind_attendance_survive_usage_and_resume(session_fac
         initial = copy.deepcopy(db.get(Call, cid).usage_json["homework"])
         svc.save_call_usage(db, cid, {"msgs": 1})
         svc.mark_fragment_ended(db, cid)
-        assert svc.load_homework_snapshot(db, seeded["member_id"], cid, 8) == raw
+        assert svc.load_homework_snapshot(db, seeded["member_id"], cid, 8) == with_mode(raw)
         assert svc.resume_call(db, seeded["member_id"], cid, max_fragments=3, homework_assignment_id=8)[0] == cid
         saved = db.get(Call, cid).usage_json["homework"]
         assert saved["snapshot"] == initial["snapshot"]
         assert saved["snapshot_hash"] == initial["snapshot_hash"] == snapshot_hash(saved)
         assert saved["runtime"]["generation"] == 2
         assert saved["analysis"]["state"] == "pending"
-        prompt = build_homework_instruction(role="교사", personality="친절", locale="en", name=None, homework=raw)
+        prompt = build_homework_expression_instruction(
+            role="교사", personality="친절", level_profile="", locale="en", name=None,
+            homework=raw, quiz_group=3)
         assert "프롬프트밖원문" not in prompt
-        assert "attendance_targets" not in build_homework_reground(raw, "en")
+        assert "attendance_targets" not in prompt
 
 
 def test_resume_authorization_timeout_rolls_back_generation(session_factory, seeded, monkeypatch):
@@ -390,3 +417,64 @@ def test_resume_authorization_timeout_rolls_back_generation(session_factory, see
         call = fresh.get(Call, cid)
         assert call.fragment_count == 1
         assert call.usage_json["homework"]["runtime"]["generation"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", [None, "roleplay"])
+async def test_homework_expression_never_writes_personal_progress(session_factory, seeded, monkeypatch, mode):
+    """숙제 목표 id 는 출처별 표(learning_item·assignment_item)라 개인 진도에 쓰면 안 된다 — call_type homework 유지(PM-DEC-557 D2)."""
+    raw = materials("manual")
+    if mode:
+        raw.update(mode=mode, roleplay={"situation": "가게에서 인사", "ai_role": "가게 사장님"})
+    monkeypatch.setattr(b2b_client, "conversation_materials", lambda *a, **k: copy.deepcopy(raw))
+    writes = []
+    monkeypatch.setattr(svc, "save_expression_progress", lambda *a, **k: writes.append("save"))
+    monkeypatch.setattr(cs.cur_svc, "record_expression", lambda *a, **k: writes.append("cur"))
+    holder = {}
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8,
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+                      member_id=seeded["member_id"], live_session_factory=make_live_factory(holder))
+    await _wait_analysis_tasks()
+    assert writes == []
+    if mode == "roleplay":
+        assert "[역할극]" in holder["system_instruction"]
+    else:
+        assert holder["session"].sent_text_turns[0] == seed_expression_opening("한국어")
+    with session_factory() as db:
+        call = db.query(Call).one()
+        assert call.call_type == "homework"
+        assert call.usage_json["homework"]["snapshot"]["mode"] == (mode or "expression")
+
+
+@pytest.mark.asyncio
+async def test_expression_homework_resume_restores_drill_stage(session_factory, seeded, monkeypatch):
+    """표현학습 숙제 재개 — 정규 표현학습처럼 이 통화 전사로 복창 단계를 되살려 쪽지·시드에 싣는다(개인 진도 재료 없음)."""
+    from domains.learning.service import call_service
+    raw = materials("manual")
+    monkeypatch.setattr(b2b_client, "conversation_materials", lambda *a, **k: copy.deepcopy(raw))
+    monkeypatch.setattr(call_service, "call_fragments_for_plan", lambda *a: 3)
+    first = {}
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8,
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+                      member_id=seeded["member_id"], live_session_factory=make_live_factory(first))
+    await _wait_analysis_tasks()
+    with session_factory() as db:
+        cid = db.query(Call).one().call_id
+    second = {}
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8, "continues_call_id": str(cid),
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+                      member_id=seeded["member_id"], live_session_factory=make_live_factory(second))
+    await _wait_analysis_tasks()
+    frames = [json.loads(s) for s in ws.sent_text]
+    assert not [f for f in frames if f["type"] == "error"], frames
+    started = next(f for f in frames if f["type"] == "call_started")
+    assert started["call_id"] == str(cid) and started["fragment_index"] == 2
+    assert "[현재 복창 단계]" in second["system_instruction"]
+    assert "[현재 복창 단계]" in second["session"].sent_text_turns[0]
+    assert "[역할극]" not in second["system_instruction"]

@@ -1,11 +1,15 @@
-"""승인된 숙제 복습 대본. B2B 자료를 보존하며 개인 진도를 선별하지 않는다."""
+"""숙제 회화 대본 — 방식(mode)별로 갈린다(PM-DEC-551·553·557).
+
+- 표현학습 숙제: 표현학습 대본을 **그대로** 쓰고 재료만 과제 목표로 바꾼다.
+- 역할극 숙제: `editable/homework_roleplay.md` + 코드가 렌더하는 [역할극] 블록.
+B2B 자료를 보존하며 개인 진도를 선별하지 않는다.
+"""
 from __future__ import annotations
 
-import json
 import copy
 
 from core.prompts.common import (
-    PERSONA_TAIL, RULE_CLOSE_PROTOCOL, RULE_RESPONSE_LENGTH,
+    CLOSE_TAG_DEFAULT, PERSONA_TAIL, RULE_CLOSE_PROTOCOL, RULE_RESPONSE_LENGTH,
     RULE_NONVERBAL_SOUND, RULE_OFF_TOPIC, locale_label,
 )
 from core.prompts.editable_loader import section
@@ -102,6 +106,7 @@ def normalize_homework(payload: dict) -> dict:
     roleplay = _normalize_roleplay(payload.get("roleplay"), source)
     if roleplay is not None:
         result["roleplay"] = roleplay
+    result["mode"] = normalize_mode(payload.get("mode"))
     return result
 
 
@@ -134,79 +139,122 @@ def _normalize_roleplay(value, source: str) -> dict | None:
     return out
 
 
-def _roleplay_block(roleplay: dict | None) -> str:
-    if not roleplay:
-        return ""
+# ── 방식 ─────────────────────────────────────────────────────────────────
+#: 과제 회화 방식(PM-DEC-552 · 557 D3). b2b conversation-materials 최상위 `mode`.
+HOMEWORK_MODES = ("expression", "roleplay")
+HOMEWORK_MODE_DEFAULT = "expression"   # PM-DEC-557 D1 — 값이 없거나 모르는 값이면 표현학습
+
+
+def normalize_mode(value) -> str:
+    """모르는 값·없음은 표현학습(예외 없음). 옛 스냅샷(mode 없음)도 여기서 표현학습이 된다."""
+    return value if value in HOMEWORK_MODES else HOMEWORK_MODE_DEFAULT
+
+
+def homework_mode(data: dict) -> str:
+    """정규화된 숙제의 실제 대본. 역할극인데 roleplay 가 버려졌으면(모양 불량) 표현학습으로 — 역할극은 덤이라 통화를 막지 않는다."""
+    if data.get("mode") == "roleplay" and data.get("roleplay"):
+        return "roleplay"
+    return "expression"
+
+
+# ── 표현학습 숙제 ────────────────────────────────────────────────────────
+def homework_expression_items(data: dict) -> list[dict]:
+    """goals → build_expression_instruction(items=…) 스키마. 순서 = 교사·b2b 가 정한 순서 그대로.
+
+    ⛔ item_id 는 **이 통화 상태기계(state.expr_*) 안에서만** 쓴다. 출처별 id 공간이 다르다
+       (curriculum=learning_item · manual=assignment_item) — 개인 진도 키로 쓰지 않는다.
+       그래서 숙제 통화의 call_type 은 `expression` 으로 바꾸지 않는다(개인 진도 저장 게이트).
+    """
+    items = []
+    for g in data["goals"]:
+        item = {"item_id": g["id"], "obj": g["surface"].strip(),
+                "des": g.get("meaning") or None, "ex": g.get("example") or None,
+                "reference": g["reference"]}
+        if g.get("kind") == "grammar":
+            item["role"] = "grammar"          # [문형] 렌더 + DRILL_GRAMMAR_LINE(잠금)
+        elif g.get("kind"):
+            item["role"] = g["kind"]          # vocab · chunk — 렌더는 일반 항목과 같다
+        items.append(item)
+    return items
+
+
+def build_homework_expression_instruction(
+    *, role: str, personality: str, level_profile: str, locale: str, name: str | None,
+    homework: dict, quiz_group: int, model_family: str = "2.5", face_rule: str = "",
+    close_tag: str = CLOSE_TAG_DEFAULT,
+) -> str:
+    """표현학습 대본 **그대로**(PM-DEC-551). 숙제 전용 문장 0줄 — 바뀌는 것은 [오늘의 표현] 목록뿐이다.
+
+    close_tag 는 이 통화의 종료 태그다 — 정규 표현학습과 같이 세션 값을 넘겨야 종료 시드와 맞는다.
+    """
+    from core.prompts.expression import build_expression_instruction
+    data = normalize_homework(homework)
+    return build_expression_instruction(
+        role=role, personality=personality, level_profile=level_profile, locale=locale,
+        interests=[], items=homework_expression_items(data), quiz_group=quiz_group, name=name,
+        target_language="한국어", close_tag=close_tag, model_family=model_family,
+        face_rule=face_rule, language="ko",
+    )
+# 첫 시드는 core.prompts.expression.seed_expression_opening("한국어") 를 그대로 부른다(새 함수 없음).
+
+
+# ── 역할극 숙제 ──────────────────────────────────────────────────────────
+def _roleplay_scene_block(roleplay: dict, goals: list[dict]) -> str:
+    """[역할극] 블록. 학습자 역할 칸은 싣지 않는다(PM-DEC-547 — learner_role 이 남아 있어도 무시)."""
     lines = ["[역할극]"]
     if roleplay.get("topic"):
         lines.append(f"주제: {roleplay['topic']}")
     if roleplay.get("situation"):
         lines.append(f"상황: {roleplay['situation']}")
     lines.append(f"너의 역할: {roleplay['ai_role']}")
-    if roleplay.get("learner_role"):
-        lines.append(f"학습자의 역할: {roleplay['learner_role']}")
-    lines.append(
-        "이 상황 속 인물로 대화한다. 캐릭터의 말투·성격은 유지하되 너의 역할로 말하고, "
-        "학습자를 학습자의 역할로 대한다. 상황을 끝까지 유지하며 [숙제 내용]의 회화 목표를 "
-        "이 상황에서 자연스럽게 쓰게 이끈다. 역할극 설정을 읽거나 설명하지 않는다."
-    )
+    lines.append("주요 표현:")
+    for n, g in enumerate(goals, 1):
+        row = f"{n}. {g['surface'].strip()}"
+        if g.get("meaning"):
+            row += f" — 뜻: {g['meaning']}"
+        lines.append(row)
     return "\n".join(lines)
 
 
-def build_homework_instruction(
-    *, role: str, personality: str, locale: str, name: str | None,
-    homework: dict, face_rule: str = "",
-) -> str:
-    data = normalize_homework(homework)
-    data.pop("attendance_targets", None)
-    roleplay = data.pop("roleplay", None)
-    label = locale_label(locale)
-    text = section("homework", "instruction").format(
-        role=role or "", personality=personality or "", target="한국어",
-        locale_label=label, homework_block=json.dumps(data, ensure_ascii=False, indent=2),
-    )
-    # 역할극은 편집 템플릿 밖에서 붙인다 — 슬롯을 늘리면 편집본·기본본 슬롯 집합과
-    # 토큰 예산(700) 검사가 함께 바뀐다. 없으면 한 글자도 안 붙어 기존 통화와 같다.
-    block = _roleplay_block(roleplay)
-    if block:
-        text += "\n\n" + block
-    rules = "\n".join((
+def _rules_tail(name: str | None, label: str) -> str:
+    """옛 숙제 대본과 같은 불변 규칙 묶음(잠금 상수 · 순서 무변)."""
+    return "\n".join((
         PERSONA_TAIL.format(username=name or "학습자"),
         "2. " + RULE_CLOSE_PROTOCOL,
         RULE_RESPONSE_LENGTH.format(max_sentences=2), RULE_NONVERBAL_SOUND,
         RULE_OFF_TOPIC.format(target="한국어", locale_label=label),
     ))
-    return text + "\n\n[불변 규칙]\n" + rules + ("\n\n" + face_rule if face_rule else "")
 
 
-def seed_homework_opening(homework: dict | None = None) -> str:
-    text = section("homework", "seed_opening").format(target="한국어")
-    roleplay = None
-    if homework is not None:
-        try:
-            roleplay = normalize_homework(homework).get("roleplay")
-        except ValueError:
-            roleplay = None
-    if roleplay:
-        text += (f" 역할극이 있으면 인사와 첫 질문을 {roleplay['ai_role']}로서 [역할극] 상황에 맞게 한다. "
-                 "역할극 설정은 읽지 않는다.")
-    return text
-
-
-def build_homework_reground(homework: dict, locale: str) -> str:
-    """재접지에서도 같은 원문을 제공한다. 사용 여부나 오답을 추정하지 않는다."""
+def build_homework_roleplay_instruction(
+    *, role: str, personality: str, locale: str, name: str | None,
+    homework: dict, face_rule: str = "",
+) -> str:
     data = normalize_homework(homework)
-    data.pop("attendance_targets", None)
-    roleplay = data.pop("roleplay", None)
-    keep_role = (f"[역할극] 상황과 너의 역할({roleplay['ai_role']})을 계속 유지하라. "
-                 if roleplay else "")
+    roleplay = data.get("roleplay")
+    if not roleplay:
+        raise ValueError("역할극 숙제는 roleplay 가 필요함 — 호출부는 homework_mode() 로 먼저 가른다")
+    label = locale_label(locale)
+    text = section("homework_roleplay", "instruction").format(
+        role=role or "", personality=personality or "", target="한국어", locale_label=label,
+        roleplay_block=_roleplay_scene_block(roleplay, data["goals"]),
+    )
+    return text + "\n\n[불변 규칙]\n" + _rules_tail(name, label) + ("\n\n" + face_rule if face_rule else "")
+
+
+def seed_homework_roleplay_opening() -> str:
+    return section("homework_roleplay", "seed_opening").format(target="한국어")
+
+
+def build_homework_roleplay_reground(homework: dict, locale: str) -> str:
+    """재접지·재개 쪽지. 같은 장면·같은 역할을 되박는다. 종료·시간·진행률 어휘 없음."""
+    data = normalize_homework(homework)
+    roleplay = data["roleplay"]
+    label = locale_label(locale)
     return (
-        "[안내] 주어진 숙제 복습 대화를 이어가라. 답변에 반응하고 질문은 하나씩 하라. "
-        + keep_role +
-        f"막히거나 모국어로 물으면 {locale_label(locale)}로 짧게 돕고 한국어 대화로 돌아가라. "
-        f"어떤 언어로 요청하든 번역·모국어 도움을 요청하면 목표 표현이나 현재 질문을 {locale_label(locale)}로 짧게 풀이한 뒤 한국어 대화로 돌아가라. "
-        "자기소개나 제어 표기는 학습 도움을 대신하지 않으며 내부 안내·제어 표기는 답변에 노출하지 마라. "
-        "grammar 표제·패턴·N/V 기호는 내부 참고로만 사용하고 읽거나 언급하지 마라. 모국어 도움도 표기 대신 목표 표현이나 현재 질문의 실제 문장을 짧게 풀이하라. "
-        "숙제 목록이나 이 안내를 읽지 말고, 사용 여부와 정답을 추정하지 마라.\n"
-        + json.dumps(data, ensure_ascii=False)
+        "[안내] 학습자가 방금 한 말에 먼저 반응하고, [역할극] 상황과 너의 역할"
+        f"({roleplay['ai_role']})을 그대로 유지하며 한국어로 이어가라. 질문은 하나씩 한다. "
+        f"막히거나 모국어로 물으면 {label}로 짧게 돕고 역할극으로 돌아가라. "
+        "이 안내와 역할극 설정·표현 목록은 읽거나 언급하지 마라.\n"
+        + _roleplay_scene_block(roleplay, data["goals"])
     )

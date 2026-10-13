@@ -55,7 +55,7 @@
 | 5 | `build_reground_reminder`·`build_continue_reminder`·`build_reground_brief` | `core/persona_prompt.py` | 재접지 | ✅ |
 | 6 | `_close_seed` · `_NUDGE_SEED_1`/`_2` | `domains/learning/realtime/call_session.py` | 종료 시드 · 무음 3단 넛지 | ✅ |
 | 7 | `build_leveltest_instruction` + `seed_leveltest_opening` + `close_seed_leveltest` | `core/persona_prompt.py` | 레벨테스트 통화 | ✅ |
-| 8 | `build_homework_instruction`·`seed_homework_opening`·`build_homework_reground` | `core/prompts/homework.py` | 숙제 복습 통화 | 신규 후보·demo 미반영 |
+| 8 | `build_homework_expression_instruction`(표현학습 대본 재사용 · 첫 시드 `seed_expression_opening`) · `build_homework_roleplay_instruction`·`seed_homework_roleplay_opening`·`build_homework_roleplay_reground`(+ `editable/homework_roleplay.md`) | `core/prompts/homework.py` | 숙제 회화 통화 — 과제 `mode` 로 고른다(PM-DEC-557) | 2026-10-13 분리 |
 | — | ~~`build_system_instruction`~~ · ~~`seed_opening`~~ | `core/persona_prompt.py` | ~~옛 일반 통화~~ | ⛔ **dev 도구·잠금 시험 전용**(프로덕션 호출 0건) |
 
 ⚠ 잠금 대본은 `core/prompts/locked/*` 이고 해시 시험이 지킨다 — 고치려면 새 파일로 만든다.
@@ -1613,6 +1613,17 @@ t77 에서 «화장실이 어디예요? 물어보든가! 얼마예요? 물어보
 - 그 밖의 출처는 지금처럼 버림. 모양 검사·300자 자르기·통화 무차단 원칙은 그대로임.
 - 커리큘럼 과제도 지시문 «[역할극]» 블록·첫마디·재접지에 같은 방식으로 실림.
 - 역할극이 없는 커리큘럼 과제는 지시문·첫마디가 바이트 단위로 같음(`test_curriculum_without_roleplay_is_byte_identical`).
+
+### 2026-10-13 — 숙제 대본 방식별 분리 (PM-DEC-551·553·557)
+
+- 표현학습 숙제는 표현학습 대본을 그대로 쓰고 재료만 과제 목표로 바꿈(`homework_expression_items`).
+- 역할극 숙제는 새 편집 파일 `editable/homework_roleplay.md` 로 분리하고 학습자 역할을 뺌.
+- 방식은 b2b `conversation-materials` 최상위 `mode` · 없음·모르는 값·불량 역할극은 표현학습.
+- `mode` 는 스냅샷에 실려 해시에 묶임 · 재개 때 같은 대본이 보장됨.
+- 숙제 call_type 은 homework 유지 — 개인 진도 저장 게이트(expression)를 타지 않게 함.
+- 표현학습 숙제 재개는 이 통화 전사로 복창 단계를 되살림(`ExpressionPractice.replay`) · 개인 진도 재료 없음.
+- 옛 단일 숙제 대본(`homework.md` · `build_homework_instruction` 3종)은 삭제함.
+- 근거: 52 제품프롬프트설계 하네스 런 `2026-10-13_숙제대본분리` 08 인계서.
 
 ## §9. 통화 후 볼 로그 (계측은 이미 붙어 있다)
 

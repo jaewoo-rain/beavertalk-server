@@ -4,7 +4,7 @@
 > 정본은 코드다(`README.md` §0 — 문서의 문구를 코드에 복사하지 마라). 이 문서는 **길잡이**다.
 > 2026-09-12 «잠금 / 편집 분리» — 사장님: 사람들이 톤·설명을 고칠 때 표정·진도·판정 배관이 깨지지 않게.
 
-## 1. 어느 파일을 고치나 — `core/prompts/editable/*.md` 네 개뿐
+## 1. 어느 파일을 고치나 — `core/prompts/editable/*.md` 다섯 개뿐
 
 | 파일 | 통화 | 여기서 고칠 수 있는 것(섹션) |
 |---|---|---|
@@ -12,6 +12,7 @@
 | `expression.md` | 표현학습 | 페르소나 문단 · 코스 소개(`rule1`) · 언어 비율 첫 불릿(`rule3_codeswitch`) · 교정(`rule4`) · 드릴 첫 불릿 말투(`drill_intro`) · 선톡(`seed_opening`) |
 | `freetalk.md` | 프리토킹 | 옛 경로(`*_old`) 와 차시판 역할극(`*_lesson`) 각각의 페르소나·규칙 1·3·4·선톡 · [이번 차시] 문장(`lesson_header`·`lesson_partner_line`·`lesson_partner_fallback`·`lesson_material_line`·`lesson_probes_prefix`) |
 | `leveltest.md` | 레벨테스트 | 시험관 소개 한 줄(`intro`) · 선톡(`seed_opening`) |
+| `homework_roleplay.md` | 역할극 숙제(표현학습 숙제는 `expression.md` 를 그대로 쓴다) | 역할·대화 규칙(`instruction` — `{roleplay_block}` 자리는 코드가 채움) · 선톡(`seed_opening`) |
 
 각 파일 맨 위 `<!-- -->` 주석에 **편집 규칙 7개**가 있다. 요약:
 1. `## 이름` 헤더는 그대로(추가·삭제·개명 금지). 본문만 고친다.
@@ -20,7 +21,7 @@
 4. `[` 로 시작하는 줄(대괄호 라벨)을 **새로** 만들지 마라. 원래 있던 `[모국어]` `[페르소나]` 줄은 문장을 고쳐도 된다.
 5. 리터럴 예시 대사(«이렇게 말해요», 한국어 예문)를 넣지 마라.
 6. 톤 부사(따뜻하게·부드럽게·친절히)를 넣지 마라 — 톤은 캐릭터(role·personality)가 소유한다.
-7. 한 줄 늘리면 토큰이 는다. 파일별 예산(근사): normal 3,400 · expression 900 · freetalk 1,900 · leveltest 450.
+7. 한 줄 늘리면 토큰이 는다. 파일별 예산(근사): normal 3,400 · expression 500 · freetalk 1,900 · leveltest 450 · homework_roleplay 600.
 
 어기면 어떻게 되나: **서버는 뜬다.** 로더(`core/prompts/editable_loader.py`)가 그 파일을 **버리고** 옆의 `*.default.md`(기본판 스냅샷)로 돌아가며 로그에 `ERROR 편집 프롬프트 … 거절: …` 를 남긴다. 즉 잘못 고치면 통화가 깨지는 게 아니라 **고친 게 반영되지 않는다.**
 
