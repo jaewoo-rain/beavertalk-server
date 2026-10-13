@@ -16,7 +16,11 @@
   ja 문법 시트 = 단계·단원·문법·기능·기능명·영어설명·설명·예문1~3 (주의사항·교재 열 없음 → 빈 문자열)
 ⚠ ko 출력은 이 일반화 전과 **바이트 동일**이어야 한다(재생성해 diff 0 — 2026-09-13 확인).
 
-사용:  PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python scripts/curriculum/build_cur_seed.py "<06.주제별 커리큘럼 폴더>" [--language ko|ja]
+  zh·en(2026-10-14 · 내부 시험 PM-DEC-612) = 열 배치가 달라 파서 4개(_vocab_zh·_vocab_en·_grammar_zh·_grammar_en) ·
+     zh 병음 → "pinyin" · en 의 "en" 은 표제어라 뜻은 "ko" · 동명 문법(zh 6·en 23)은 key = "이름 (단계)" + "surface" = 이름 ·
+     차시 문법 해소: en = gid · zh = 이름 → 기능명 → 단계.
+
+사용:  PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python scripts/curriculum/build_cur_seed.py "<06.주제별 커리큘럼 폴더>" [--language ko|ja|zh|en]
 """
 from __future__ import annotations
 
@@ -38,6 +42,9 @@ LEVEL_NO = {stage: i + 2 for i, stage in enumerate(STAGES)}
 PROFILES: dict[str, dict] = {
     "ko": {"seed": "cur_seed.json", "xlsx": "curriculum_v3_검토.xlsx", "fixed": {"lessons": 488, "vocab": 10636, "grammar": 462}},
     "ja": {"seed": "cur_seed_ja.json", "xlsx": "curriculum_v3_ja_검토.xlsx", "fixed": None},
+    # 2026-10-14 내부 시험용(PM-DEC-608·612) — 열 배치가 ja 와 달라 파서가 따로다(_vocab_zh·_vocab_en·_grammar_zh·_grammar_en).
+    "zh": {"seed": "cur_seed_zh.json", "xlsx": "curriculum_v3_zh_검토.xlsx", "fixed": None},
+    "en": {"seed": "cur_seed_en.json", "xlsx": "curriculum_v3_en_검토.xlsx", "fixed": None},
 }
 
 
@@ -82,6 +89,55 @@ def _vocab_ja(r) -> tuple[str, dict]:
     }
 
 
+def _vocab_zh(r) -> tuple[str, dict]:
+    """어휘·영어뜻·한국어뜻·병음·번체·품사·등급·첫등장단계·원천·주제·주제명·영역·주제유형·예문1. 병음은 "pinyin" 으로 싣는다."""
+    key = s(r[0])
+    return key, {
+        "key": key, "headword": key,
+        "en": s(r[1]), "ko": s(r[2]), "pinyin": s(r[3]), "pos": s(r[5]), "guide": "", "grade": s(r[6]), "cefr6": "",
+        "stage": s(r[7]), "topic_code": s(r[9]), "topic_kind": s(r[12]),
+        "first_stage": "", "first_unit": "", "freq": None,
+        "examples": [s(x) for x in r[13:14] if s(x)],
+        "lesson_code": None, "role": None,
+    }
+
+
+def _vocab_en(r) -> tuple[str, dict]:
+    """어휘·영어뜻(=표제어)·한국어뜻·품사·등급(CEFR)·원등장단계·편성초기단계·원천·주제·주제명·영역·주제유형·예문1·…
+    stage = 편성초기단계(내부 A1~C4) · 등급 = CEFR 어휘등급(cefr6 에도 싣는다)."""
+    key = s(r[0])
+    return key, {
+        "key": key, "headword": key,
+        "en": s(r[1]), "ko": s(r[2]), "pos": s(r[3]), "guide": "", "grade": s(r[4]), "cefr6": s(r[4]),
+        "stage": s(r[6]), "topic_code": s(r[8]), "topic_kind": s(r[11]),
+        "first_stage": s(r[5]), "first_unit": "", "freq": None,
+        "examples": [s(x) for x in r[12:13] if s(x)],
+        "lesson_code": None, "role": None,
+    }
+
+
+def _grammar_zh(r) -> tuple[str, dict]:
+    """단계·문법·기능·기능명·영어설명·설명·검사열쇠·예문1~3 (단원 열 없음)."""
+    name = s(r[1])
+    return name, {
+        "key": name, "stage": s(r[0]), "unit": "", "function_code": s(r[2]), "function": s(r[3]),
+        "en": s(r[4]), "desc": s(r[5]), "examples": [s(x) for x in r[7:10] if s(x)], "notes": "",
+        "textbook": "", "textbook_unit": "", "task_title": "",
+        "lesson_codes": [],
+    }
+
+
+def _grammar_en(r) -> tuple[str, dict]:
+    """GID·단계·문법·문법단원·원문행·예문출처·기능·기능명·영어설명·설명·검사접근·예문1~3."""
+    name = s(r[2])
+    return name, {
+        "key": name, "gid": s(r[0]), "stage": s(r[1]), "unit": s(r[3]), "function_code": s(r[6]), "function": s(r[7]),
+        "en": s(r[8]), "desc": s(r[9]), "examples": [s(x) for x in r[11:14] if s(x)], "notes": "",
+        "textbook": "", "textbook_unit": "", "task_title": "",
+        "lesson_codes": [],
+    }
+
+
 def _grammar_row(r) -> tuple[str, dict]:
     """두 언어 같은 앞 10열(단계·단원·문법·기능·기능명·영어설명·설명·예문1~3). ko 는 뒤에 주의사항·교재·단원·과제명이 더 있다(ja 는 빈 칸)."""
     name = s(r[2])
@@ -110,7 +166,8 @@ def main(src: str, language: str = "ko") -> int:
     ag = rows(wb["문법 기능배정"])[1:]
 
     problems: list[str] = []
-    parse_vocab = _vocab_ko if language == "ko" else _vocab_ja
+    parse_vocab = {"ko": _vocab_ko, "ja": _vocab_ja, "zh": _vocab_zh, "en": _vocab_en}[language]
+    parse_grammar = {"zh": _grammar_zh, "en": _grammar_en}.get(language, _grammar_row)
     vocab: "OrderedDict[str, dict]" = OrderedDict()
     for r in av:
         key, v = parse_vocab(r)
@@ -118,9 +175,41 @@ def main(src: str, language: str = "ko") -> int:
             problems.append(f"어휘 동형어(key 중복): {key} — 표제어+품사로 유일화 필요")
         vocab[key] = v
     grammar: "OrderedDict[str, dict]" = OrderedDict()
-    for r in ag:
-        name, g = _grammar_row(r)
-        grammar[name] = g
+    # zh·en 은 같은 이름의 문법이 단계별로 따로 있다(zh 6 · en 23 — 2026-10-14 실측). 이름을 key 로 쓰면 덮어써 유실되므로
+    # 동명만 key = "이름 (단계)" 로 유일화하고 화면·프롬프트에 보일 이름은 "surface" 에 둔다. ko·ja 는 종전 그대로(이름 = key).
+    gram_rows = [parse_grammar(r) for r in ag]
+    dup_names = {n for n, c in Counter(n for n, _ in gram_rows).items() if c > 1} if language in ("zh", "en") else set()
+    by_name: dict[str, list[str]] = {}
+    by_gid: dict[str, str] = {}
+    for name, g in gram_rows:
+        if name in dup_names:
+            g["key"] = f"{name} ({g['stage']})"
+            g["surface"] = name
+        if language in ("zh", "en") and g["key"] in grammar:
+            problems.append(f"문법 key 중복: {g['key']}")
+        grammar[g["key"]] = g
+        by_name.setdefault(name, []).append(g["key"])
+        if g.get("gid"):
+            by_gid[g["gid"]] = g["key"]
+
+    def resolve_grammar(x: dict, lesson_stage: str, used: set[str]) -> str | None:
+        """차시 JSON 의 문법 항목 → 시드 key. en 은 gid 로 바로, zh 는 이름 → 기능명 → 단계(차시 단계 이하 중 가장 늦은 것) 순으로 가린다."""
+        if x.get("gid") is not None and str(x["gid"]) in by_gid:
+            return by_gid[str(x["gid"])]
+        keys = by_name.get(x["g"]) or []
+        # 한 차시가 동명 문법의 두 단계를 함께 쓰면(zh A4-T34-1 「Statement + 吧」 A2·A4) 이미 고른 key 는 뺀다
+        keys = [k for k in keys if k not in used] or keys
+        if len(keys) <= 1:
+            return keys[0] if keys else None
+        same_func = [k for k in keys if grammar[k]["function"] == x.get("func")]
+        if len(same_func) == 1:
+            return same_func[0]
+        pool = same_func or keys
+        order = {st: i for i, st in enumerate(STAGES)}
+        before = [k for k in pool if order.get(grammar[k]["stage"], 99) <= order.get(lesson_stage, 99)]
+        if before:
+            return max(before, key=lambda k: order.get(grammar[k]["stage"], 99))
+        return min(pool, key=lambda k: order.get(grammar[k]["stage"], 99))
 
     lessons = []
     for l in L:
@@ -152,7 +241,7 @@ def main(src: str, language: str = "ko") -> int:
             vocab[k]["role"] = "support"
             sup_keys.append(k)
         for g in l["grammar"]:
-            k = g["g"]
+            k = g["g"] if language not in ("zh", "en") else (resolve_grammar(g, l["stage"], set(gram_keys)) or g["g"])
             if k not in grammar:
                 problems.append(f"{code} 문법 미매핑: {k}")
                 continue
