@@ -45,7 +45,7 @@ BASE = dict(
     target_language="한국어",
 )
 #: 옛 프리토킹 대본(lesson=None) 기준 — 2026-09-12 차시판 도입 직전 출력. ⛔ 터지면 옛 경로 대본이 바뀐 것이다(README §8 에 적고 갱신).
-_FREETALK_OLD_FROZEN = ("643d9da1b0cf43846370312d33b2b8adbc998328846e7b01e7a79544f24a145d", 1662)  # 2026-10-10 사고 방어 패치 G1 — 옛 96677fea…/1672
+_FREETALK_OLD_FROZEN = ("61259e26f8b60f1e508b22308d8aa2c0bb9547a86d66ca14bdd8fd05fb2c8b00", 1894)  # 2026-10-14 PM-DEC-613(실통화 1800·1954 — 한 턴 질문 하나 · 못 알아들을 때 설명 우선) — 옛 643d9da1…/1662
 
 _BRIEF = cur.CurFreetalkBrief(
     situation="처음 만난 반 친구와 이름과 나라 말하기",

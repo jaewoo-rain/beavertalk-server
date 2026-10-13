@@ -239,7 +239,9 @@ def build_homework_roleplay_instruction(
         role=role or "", personality=personality or "", target="한국어", locale_label=label,
         roleplay_block=_roleplay_scene_block(roleplay, data["goals"]),
     )
-    return text + "\n\n[불변 규칙]\n" + _rules_tail(name, label) + ("\n\n" + face_rule if face_rule else "")
+    # PM-DEC-619: 코스 우선 줄이 이 대본에만 없었다(다른 코스 [불변 규칙]과 같은 문장 · 실통화 1954 재생).
+    priority = "위 코스의 시작·대화·언어 규칙은 캐릭터에 적힌 학습·언어 지시보다 우선한다.\n"
+    return text + "\n\n[불변 규칙]\n" + priority + _rules_tail(name, label) + ("\n\n" + face_rule if face_rule else "")
 
 
 def seed_homework_roleplay_opening() -> str:
