@@ -119,6 +119,32 @@ DAILY_BUDGET_S_BY_PLAN: dict[str | None, int] = {
 }
 
 
+# ⭐⭐ PM-DEC-552·556(2026-10-13) — 숙제 통화는 하루 예산에서 뺀다. 숙제는 과제 하나당
+#   누적 5분(HOMEWORK_ASSIGNMENT_BUDGET_S)을 따로 센다. 기관 숙제가 앱 무료 5분을 먹으면
+#   숙제 하러 온 학습자가 앱 통화를 못 한다.
+DAILY_BUDGET_EXCLUDED_CALL_TYPES: tuple[str, ...] = ("level_test", "homework")
+
+# ── 숙제 과제당 통화 시간(초) — PM-DEC-551·552(2026-10-13) ──────────────────── #
+# ⭐ 과제 하나당 누적 300초. 플랜 무관(반 전체가 같은 조건 — HOMEWORK_CALL_DURATION_S 와
+#   같은 이유). 끊고 다시 걸어도·이어하기도·새 통화도 같은 과제면 이어서 센다.
+# ⚠ 남은 시간이 HOMEWORK_MIN_START_S 미만이면 다 쓴 것으로 본다. 앱 시계(call_started
+#   수신)가 서버 시계(첫 턴)보다 먼저 돌아 몇 초씩 남는다 — 그 몇 초로 Live 세션을 또
+#   열면 인사만 하고 끊긴다.
+HOMEWORK_ASSIGNMENT_BUDGET_S = 300
+HOMEWORK_MIN_START_S = 15
+
+
+def homework_used_s(db: Session, member_id: int, assignment_id: int) -> int:
+    """이 회원이 이 과제의 숙제 통화에 쓴 초(모든 통화·조각 합)."""
+    return CallRepository(db).sum_homework_time(member_id, assignment_id)
+
+
+def homework_remaining_s(db: Session, member_id: int, assignment_id: int) -> int:
+    """이 과제에 남은 숙제 통화 초. HOMEWORK_MIN_START_S 미만이면 0."""
+    left = HOMEWORK_ASSIGNMENT_BUDGET_S - homework_used_s(db, member_id, assignment_id)
+    return left if left >= HOMEWORK_MIN_START_S else 0
+
+
 def daily_budget_s(plan: str | None) -> int:
     """이 플랜의 하루 통화 총량(초). 모르는 플랜은 Free 로 떨어뜨린다(R5, 위 조각 표와 같은 규율)."""
     return DAILY_BUDGET_S_BY_PLAN.get(plan, DAILY_BUDGET_S_BY_PLAN[None])
@@ -525,7 +551,7 @@ def used_seconds_today(
     """오늘(기기 현지 자정~) **시작한** 통화의 total_time 합(초) — 하루 통화 총량 예산 집계.
 
     ⛔ 레벨테스트는 뺀다(측정 통화라 상품 혜택 축이 아니다 — 위 DAILY_CALL_LIMIT 와
-      같은 이유). status in (done, analyzing, ongoing) — 아직 저장 안 끝난 ongoing 도
+      같은 이유). 숙제도 뺀다(과제당 5분을 따로 센다 — DAILY_BUDGET_EXCLUDED_CALL_TYPES). status in (done, analyzing, ongoing) — 아직 저장 안 끝난 ongoing 도
       **진행 중인 소비**라 뺄 이유가 없다(끊고 바로 또 걸면 그 몫이 안 잡히는 구멍을 막는다).
     ⚠ `total_time` 은 12차(끊김 없는 조각 전환)부터 **조각 누적**이다 — 조각2·3이 쌓여도
       그 통화 한 행의 total_time 이 체인 전체 길이를 담고 있어 이중 계산이 안 된다
@@ -537,7 +563,7 @@ def used_seconds_today(
     """
     start_utc, end_utc = local_window_utc(None, tz, tz_offset_min)
     return CallRepository(db).sum_total_time_in_window(
-        member_id, start_utc, end_utc, exclude_call_types=("level_test",),
+        member_id, start_utc, end_utc, exclude_call_types=DAILY_BUDGET_EXCLUDED_CALL_TYPES,
         also_include_call_id=resuming_call_id,
     )
 

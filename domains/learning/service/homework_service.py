@@ -88,10 +88,22 @@ def prepare_analysis(db, call_id: int, generation: int, fragment_count: int,
     through = max((row.turn_index for row in rows), default=-1)
     runtime.update(active=False, through_turn_index=through)
     namespace["analysis"].update(state="running")
-    namespace["finality"] = ({"state": "final", "reason": "budget_exhausted",
-                              "max_fragments": max_fragments}
-                             if fragment_count >= max_fragments
-                             else {"state": "awaiting_resume"})
+    # ⭐ PM-DEC-551·552(2026-10-13) — 과제당 5분을 다 쓰면 조각이 남아도 최종이다.
+    #   b2b 가 「5분 사용」 완료를 판정하도록 과제 누적 초를 함께 남긴다(이 통화까지 합).
+    from domains.learning.service import call_service
+    used = call_service.homework_used_s(db, call.member_id, namespace["assignment_id"])
+    time_exhausted = call_service.HOMEWORK_ASSIGNMENT_BUDGET_S - used < call_service.HOMEWORK_MIN_START_S
+    namespace["time"] = {"used_s": used, "limit_s": call_service.HOMEWORK_ASSIGNMENT_BUDGET_S,
+                         "exhausted": time_exhausted}
+    if fragment_count >= max_fragments:
+        namespace["finality"] = {"state": "final", "reason": "budget_exhausted",
+                                 "max_fragments": max_fragments}
+    elif time_exhausted:
+        # max_fragments 를 이 조각 수로 둔다 — b2b·deliver 의 「조각 수 ≥ 상한」 검사를 그대로 통과한다.
+        namespace["finality"] = {"state": "final", "reason": "budget_exhausted",
+                                 "max_fragments": fragment_count, "time_exhausted": True}
+    else:
+        namespace["finality"] = {"state": "awaiting_resume"}
     call.usage_json = {**(call.usage_json or {}), "homework": namespace}
     db.commit()
     return generation, fragment_count, through

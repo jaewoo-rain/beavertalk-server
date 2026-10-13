@@ -394,7 +394,8 @@ class ServerCallStarted(BaseModel):
 
 class ServerError(BaseModel):
     """서버 거절/오류 통지. code 는 문자열 계약이다 — 클라가 분기한다:
-      DAILY_LIMIT      오늘 그 콜타입 한도(또는 하루 통화 총량 예산) 소진(recoverable=False)
+      DAILY_LIMIT      오늘 그 콜타입 한도(또는 하루 통화 총량 예산) 소진(recoverable=False) · 숙제 통화에는 안 온다
+      HOMEWORK_TIME_LIMIT  숙제 과제당 5분 소진(PM-DEC-551 · recoverable=False) — 결제 유도 없이 안내만 띄운다
       ALREADY_IN_CALL  QA C4 재검-③(2026-09-23) — 이 회원의 다른 통화가 이미 진행 중(동시통화 금지 정책, recoverable=False)
       COURSE_LOCKED    커리큘럼 2단계 — 프리토킹인데 그 차시 표현학습이 안 끝났다(recoverable=False, message 에 lesson_code·status).
                        서버는 이 프레임을 보내고 소켓을 닫는다. 앱·하네스는 메시지를 표시한다(계획 §2 프리토킹).

@@ -3345,6 +3345,29 @@ async def run_call(
                 db, member_id, call_type, tz_offset_min, tz=client_tz
             ),
         )
+    elif call_type == "homework":
+        # ⭐⭐ PM-DEC-551·552·556(2026-10-13) — 숙제는 하루 예산을 보지 않고 **과제당 누적
+        #   5분**만 본다. 이어하기·새 통화 모두 같은 과제면 이어서 센다(서버 집계가 정본).
+        #   ⛔ admin 도 면제하지 않는다 — 반 전체가 같은 조건이어야 한다.
+        #   거절은 DAILY_LIMIT 이 아니라 HOMEWORK_TIME_LIMIT — 앱은 결제 유도 대신
+        #   「숙제는 5분 통화만 가능해요.」를 띄운다(문구는 앱이 현지화한다).
+        homework_left = await svc.run_db(
+            db_session_factory,
+            lambda db: call_service.homework_remaining_s(db, member_id, assignment_id),
+        )
+        if homework_left <= 0:
+            logger.info(
+                "normalcall: 숙제 과제 시간 소진 거절 member=%s assignment=%s continues=%s",
+                member_id, assignment_id, continues_call_id is not None,
+            )
+            with contextlib.suppress(Exception):
+                await _send_json(client_ws, ServerError(
+                    code="HOMEWORK_TIME_LIMIT",
+                    message="숙제는 5분 통화만 가능해요.",
+                    recoverable=False,
+                ))
+            return
+        limit_reached = False
     else:
         # ⛔⛔ **예산 방식은 이어하기 조각도 검사한다** — 옛 횟수 한도의 "이어하기는
         #   건너뛴다"(위 is_daily_limit_reached 시절 주석)는 여기 적용되지 않는다.
@@ -3855,7 +3878,14 @@ async def run_call(
         #   뜻한다(daily-status 와 공유) — 조각 상한(360) 클램프는 "이 조각이 쓸 수 있는
         #   초"라는 별개 개념이라 **여기서만** 건다(daily-status 로는 안 새게).
         remaining_s = None
-        if call_type in ("expression", "freetalk", "chat", "homework"):
+        if call_type == "homework":
+            # ⭐ 숙제는 과제 남은 초(PM-DEC-551) — 하루 예산과 무관. 앱은 이 값에서 소켓을 닫는다.
+            homework_left = await svc.run_db(
+                db_session_factory,
+                lambda db: call_service.homework_remaining_s(db, member_id, assignment_id),
+            )
+            remaining_s = min(homework_left, int(call_service.CALL_FRAGMENT_S))
+        elif call_type in ("expression", "freetalk", "chat"):
             # ⛔⛔ R2-a(2026-09-24) — 이 시점엔 resume_call 이 이미 검증을 끝냈으므로
             #   call_id 는 (resumed 면) 그 이어지는 통화 자신이다 — 위 게이트와 같은
             #   조정을 여기서도 걸어야 표시값이 실제 거절 판정과 어긋나지 않는다.

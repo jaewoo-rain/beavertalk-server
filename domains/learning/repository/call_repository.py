@@ -234,6 +234,19 @@ class CallRepository:
                 total += int(call.total_time or 0)
         return total
 
+    def sum_homework_time(self, member_id: int, assignment_id: int) -> int:
+        """이 회원·과제의 숙제 통화 `total_time` 합(초) — 과제당 5분 집계(PM-DEC-551).
+
+        ⚠ 하루 예산 SUM 과 같은 규율: status 를 거르지 않는다(실패한 조각도 시간은 썼다).
+          살아있는 조각은 한 사람 한 통화 게이트가 새 시작을 막으므로 끝난 조각만 보면 된다.
+        """
+        stmt = select(func.coalesce(func.sum(Call.total_time), 0)).where(
+            Call.member_id == member_id,
+            Call.call_type == "homework",
+            Call.usage_json["homework"]["assignment_id"].as_integer() == assignment_id,
+        )
+        return int(self.db.scalar(stmt) or 0)
+
     def active_ongoing_call_id(self, member_id: int) -> int | None:
         """이 회원에게 지금 **살아있는 조각**(진행 중인 통화)이 있으면 그 call_id —
         "한 회원은 동시에 한 통화만" 정책의 근거 쿼리(QA C4 재검-③④).

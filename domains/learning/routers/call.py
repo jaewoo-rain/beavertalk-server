@@ -197,10 +197,16 @@ def get_resume_status(
     #   거절" 이 난다. resuming_call_id=call_id 도 같이 넘긴다(R2-a, 자정을 걸친
     #   체인의 남은 예산을 이 화면에서도 정확히 보여준다 — 소유 검증은 위에서 이미
     #   끝났으므로 이 call_id 를 그대로 써도 안전하다).
-    remaining = call_service.remaining_budget_s(
-        db, member.member_id, tz=tz, tz_offset_min=tz_offset_min,
-        plan_override=plan_override_resolved, resuming_call_id=call_id,
-    )
+    if call.call_type == "homework":
+        # ⭐ PM-DEC-551·556 — 숙제는 하루 예산이 아니라 과제 남은 시간으로 판정한다(WS 게이트와 같은 함수).
+        assignment_id = ((call.usage_json or {}).get("homework") or {}).get("assignment_id")
+        remaining = (call_service.homework_remaining_s(db, member.member_id, assignment_id)
+                     if type(assignment_id) is int else 0)
+    else:
+        remaining = call_service.remaining_budget_s(
+            db, member.member_id, tz=tz, tz_offset_min=tz_offset_min,
+            plan_override=plan_override_resolved, resuming_call_id=call_id,
+        )
     homework_can_resume = call.call_type == "homework" and homework_service.resume_available(
         call, member_id=member.member_id, max_fragments=total,
         locale=member.language or "en",

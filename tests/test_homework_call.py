@@ -245,7 +245,7 @@ async def test_ws_homework_premium_start_exposes_budget_without_early_delivery(
     await _wait_analysis_tasks()
     started = next(json.loads(s) for s in ws.sent_text if json.loads(s)["type"] == "call_started")
     assert started["fragment_index"] == 1 and started["max_fragments"] == 3
-    assert started["remaining_s"] == 360
+    assert started["remaining_s"] == 300  # 과제당 5분(PM-DEC-551) — 플랜·하루 예산 무관
     assert not posted
     with session_factory() as db:
         call = db.query(Call).one()
