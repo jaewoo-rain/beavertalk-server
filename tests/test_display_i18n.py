@@ -102,11 +102,20 @@ def _member_with_calls(db, summaries: list[tuple[str | None, str | None]], langu
 # =========================================================================== #
 def test_translate_keeps_order_and_passes_timeout():
     c = FakeClient()
-    out = text_translate.translate_texts(c, "m", ["가", "나"], "en", timeout_s=2.5)
+    out = text_translate.translate_texts(c, "m", ["가", "나"], "en", timeout_s=12.5)
     assert out == [f"[{c.calls[0]['config'].system_instruction}] 가",
                    f"[{c.calls[0]['config'].system_instruction}] 나"]
-    assert c.calls[0]["config"].http_options.timeout == 2500
+    assert c.calls[0]["config"].http_options.timeout == 12500
     assert "English" in c.calls[0]["config"].system_instruction
+
+
+def test_translate_timeout_is_never_below_api_minimum():
+    """F009 — Gemini API 는 10초 미만 deadline 을 400 으로 거절한다. 설정이 짧아도 10초로 올린다."""
+    c = FakeClient()
+    text_translate.translate_texts(c, "m", ["가"], "en", timeout_s=6.0)
+    assert c.calls[0]["config"].http_options.timeout == 10000
+    from core.config import Settings
+    assert Settings.model_fields["TRANSLATE_TIMEOUT_S"].default >= text_translate.MIN_TIMEOUT_S
 
 
 @pytest.mark.parametrize("client", [None, FakeClient(raises=RuntimeError("down")),

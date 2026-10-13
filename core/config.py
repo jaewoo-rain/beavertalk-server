@@ -188,7 +188,8 @@ class Settings(BaseSettings):
     # §6·§10(2026-09-29) 표시 문구 요청 시 번역(core/text_translate). 분석과 별개 경로·별개 설정.
     # 읽기 API 안에서 동기로 돌아서 타임아웃이 곧 첫 조회 지연 상한이다 — 넘으면 원문/null.
     TRANSLATE_MODEL: str = "gemini-2.5-flash"
-    TRANSLATE_TIMEOUT_S: float = 6.0
+    # ⛔ Gemini API 는 10초 미만 deadline 을 400 INVALID_ARGUMENT 로 거절한다(F009 · 2026-10-14) — 6.0 이던 때 번역이 전부 실패했다.
+    TRANSLATE_TIMEOUT_S: float = 10.0
     # ⭐ 표현학습 판정의 주인(2026-09-15 4차, 사장님): «가르쳤나»(비버 턴마다)·«맞혔나»(퀴즈 창 학습자 턴마다)를 JUDGE_MODEL 사이드카가 의미로 판정한다.
     #   False 면 종전 문자열 대조(quiz_judge) 경로만 — 시험 기본값(tests/conftest.py)이자 비상 스위치. 사이드카 실패 턴은 켜져 있어도 문자열로 폴백한다(R5).
     EXPR_LLM_JUDGE: bool = True

@@ -379,14 +379,18 @@ class ServerCallStarted(BaseModel):
     #   = min(남은 예산, 조각 상한 360). 예산 대상이 아니면(admin 면제) None → 직렬화에서
     #   빠진다(구버전 클라·예산 무관 통화 무해). 조각을 잇지 않는 통화(level_test)도 None.
     remaining_s: int | None = None
+    # ⭐ PM-DEC-607(2026-10-14) — 숙제 통화의 대본 방식. 앱은 "expression" 이면 일반 표현학습처럼
+    #   힌트 버튼을 잠근다(서버도 힌트를 안 만든다). 숙제가 아니면 None → 직렬화에서 빠진다(구버전 클라 무해).
+    #   ⛔ course 로 싣지 않는다 — course=expression 은 앱의 조각 전환 갈래를 바꿔 숙제 5분 종료 시트를 건너뛴다.
+    homework_mode: Literal["expression", "roleplay"] | None = None
 
     @model_serializer(mode="wrap")
     def _drop_null_course(self, handler):
-        # ⛔ 옛 경로 프레임 **바이트 동일** — course·fragment_index·max_fragments·remaining_s 가 None 이면 키 자체를 빼고
+        # ⛔ 옛 경로 프레임 **바이트 동일** — course·fragment_index·max_fragments·remaining_s·homework_mode 가 None 이면 키 자체를 빼고
         #   직렬화한다(다른 None 필드(call_id·diag)는 예전처럼 null 로 나간다 — 그 모양이 구버전 계약이다).
         data = handler(self)
         if isinstance(data, dict):
-            for k in ("course", "fragment_index", "max_fragments", "remaining_s"):
+            for k in ("course", "fragment_index", "max_fragments", "remaining_s", "homework_mode"):
                 if data.get(k) is None:
                     data.pop(k, None)
         return data

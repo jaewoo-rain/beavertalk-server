@@ -478,3 +478,33 @@ async def test_expression_homework_resume_restores_drill_stage(session_factory, 
     assert "[현재 복창 단계]" in second["system_instruction"]
     assert "[현재 복창 단계]" in second["session"].sent_text_turns[0]
     assert "[역할극]" not in second["system_instruction"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", [None, "roleplay"])
+async def test_expression_homework_has_no_hints_roleplay_keeps_them(session_factory, seeded, monkeypatch, mode):
+    """PM-DEC-607 — 표현학습 숙제는 정규 표현학습처럼 힌트를 만들지 않는다(정답 노출). 역할극 숙제는 현행 유지(PM-DEC-609).
+    앱이 힌트 버튼을 잠그도록 call_started 에 homework_mode 를 싣는다(course 는 그대로 없음)."""
+    raw = materials("manual")
+    if mode:
+        raw.update(mode=mode, roleplay={"situation": "가게에서 인사", "ai_role": "가게 사장님"})
+    monkeypatch.setattr(b2b_client, "conversation_materials", lambda *a, **k: copy.deepcopy(raw))
+    seen = []
+    orig = cs._hint_instruction
+    monkeypatch.setattr(cs, "_hint_instruction", lambda *a, **k: (seen.append(True), orig(*a, **k))[1])
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8,
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+                      member_id=seeded["member_id"], live_session_factory=make_live_factory({}))
+    await _wait_analysis_tasks()
+    started = next(json.loads(s) for s in ws.sent_text if json.loads(s)["type"] == "call_started")
+    assert started["homework_mode"] == (mode or "expression")
+    assert started.get("course") is None
+    assert bool(seen) is (mode == "roleplay")
+
+
+def test_call_started_without_homework_mode_keeps_old_bytes():
+    """숙제가 아니면 homework_mode 키 자체가 없다 — 구버전 앱·일반 통화 프레임 바이트 동일."""
+    from domains.learning.realtime.protocol import ServerCallStarted
+    assert "homework_mode" not in ServerCallStarted(character_id=1, call_id="1").model_dump()

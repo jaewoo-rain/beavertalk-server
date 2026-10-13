@@ -20,6 +20,10 @@ from core.prompts.common import LOCALE_LABEL
 
 logger = logging.getLogger(__name__)
 
+# Gemini API 가 받는 최소 deadline(초). 이보다 짧으면 호출이 400 INVALID_ARGUMENT
+# 「Manually set deadline … minimum 10s」로 거절된다(F009 · 2026-10-14 운영 로그).
+MIN_TIMEOUT_S = 10.0
+
 _SYSTEM = (
     "You translate short UI strings for a Korean-learning app.\n"
     "Translate every item into {lang}. Return exactly {n} items in the same order.\n"
@@ -65,7 +69,7 @@ def translate_texts(
                 response_schema=_Out,
                 temperature=0.0,
                 thinking_config=types.ThinkingConfig(thinking_budget=0),
-                http_options=types.HttpOptions(timeout=int(timeout_s * 1000)),
+                http_options=types.HttpOptions(timeout=int(max(timeout_s, MIN_TIMEOUT_S) * 1000)),
             ),
         )
         parsed = getattr(response, "parsed", None)

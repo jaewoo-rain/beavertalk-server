@@ -3948,6 +3948,7 @@ async def run_call(
                 # ⭐ 커리큘럼 2단계(§8): cur 경로만 코스를 실는다 — 옛 경로는 None(직렬화에서 빠져 프레임 바이트 동일).
                 course=call_type if cur_route else None,
                 remaining_s=remaining_s,
+                homework_mode=hw_mode or None,
             ),
         )
 
@@ -4321,7 +4322,9 @@ async def run_call(
         #   ⭐ 표현학습에서 힌트가 해로운 이유: 이 코스의 퀴즈는 «배운 표현을 맞히기» 라
         #     예시 답변을 띄우면 **정답을 그대로 보여주는 것**이 된다. 판정이 무의미해진다.
         #   ⚠ `normal`·`level_test` 는 종전 그대로다(hint_used 강등 경로 포함).
-        enable_hints = spec.has_curriculum and call_type != "expression"
+        # ⭐ PM-DEC-607(2026-10-14) — 표현학습 숙제도 같은 이유로 끈다(정규 표현학습 대본을 그대로 쓴다).
+        #   역할극 숙제는 현행 유지(PM-DEC-609). hw_mode 는 숙제가 아니면 "" 다.
+        enable_hints = spec.has_curriculum and call_type != "expression" and hw_mode != "expression"
         if enable_hints:
             label = _LOCALE_LABEL.get(locale) or _LOCALE_LABEL["en"]
             state.hint_ctx = {
