@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 KIND_CUR_SITUATION = "cur_situation"
 #: cur_lesson.partner(상대역) — 회화학습 힌트 시트 「이번 대화」 상대 줄(2026-10-10 PM-DEC-485).
 KIND_CUR_PARTNER = "cur_partner"
+#: 역할극 숙제 상황·역할(교사가 쓴 문구) — 통화 화면 i 안내 시트(PM-DEC-624). 상황과 역할을 kind 로 가른다.
+KIND_HW_SITUATION = "hw_situation"
+KIND_HW_ROLE = "hw_role"
 
 
 def display_locale(member_language: Optional[str]) -> str:
@@ -70,6 +73,26 @@ def partner_translation(
     kind 만 cur_partner 로 갈라 같은 한국어 문구가 상황·상대역 양쪽에 나와도 행이 섞이지 않는다.
     """
     return _cur_text_translation(db, client, KIND_CUR_PARTNER, partner, locale)
+
+
+def homework_roleplay_translations(
+    db: Session, client, roleplay: dict, locale: str,
+) -> dict[str, str]:
+    """역할극 숙제 상황·상대역·내 역할의 회원 언어 번역(PM-DEC-624) — 회화학습 힌트와 같은 캐시·같은 번역기.
+
+    상황 카드는 situation 이 없으면 topic 을 보이므로 번역도 같은 순서로 고른다. 실패한 칸은 빠진다.
+    """
+    out: dict[str, str] = {}
+    scene = roleplay.get("situation") or roleplay.get("topic")
+    for key, kind, src in (
+        ("situation_translation", KIND_HW_SITUATION, scene),
+        ("ai_role_translation", KIND_HW_ROLE, roleplay.get("ai_role")),
+        ("learner_role_translation", KIND_HW_ROLE, roleplay.get("learner_role")),
+    ):
+        text = _cur_text_translation(db, client, kind, src, locale)
+        if text:
+            out[key] = text
+    return out
 
 
 def _cur_text_translation(

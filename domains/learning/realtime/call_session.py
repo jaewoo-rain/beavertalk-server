@@ -138,6 +138,7 @@ from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
 from domains.learning.service import chat_memory_service
+from domains.learning.service import display_i18n_service as i18n_svc
 from domains.learning.realtime.protocol import (
     HintExample,
     ServerCallEnded,
@@ -151,6 +152,7 @@ from domains.learning.realtime.protocol import (
     ServerSentenceMarker,
     ServerPong,
     ServerTeachingPlan,
+    ServerHomeworkRoleplay,
     ServerTurnEnd,
     ServerTurnStart,
     TeachingItem,
@@ -4353,6 +4355,19 @@ async def run_call(
             except Exception as exc:  # noqa: BLE001 - 카드 미표시일 뿐 통화 무영향
                 logger.warning("normalcall: teaching_plan push 실패(무시): %s", exc)
 
+        # ⭐ PM-DEC-622·624 — 역할극 숙제는 통화 화면 i 안내 시트 재료(상황·역할·번역)를 1회 보낸다.
+        #   번역(캐시 미스면 최대 TRANSLATE_TIMEOUT_S)이 call_started·오디오를 늦추지 않게 백그라운드로 띄운다.
+        if hw_mode == "roleplay":
+            rp_task = asyncio.create_task(
+                _push_homework_roleplay(
+                    client_ws, client, db_session_factory,
+                    normalize_homework(homework).get("roleplay") or {}, locale, call_id,
+                ),
+                name=f"normalcall-hw-roleplay-{call_id}",
+            )
+            state.hint_tasks.add(rp_task)  # 강참조 — run_call finally 가 전량 취소
+            rp_task.add_done_callback(state.hint_tasks.discard)
+
         # 절대 백스톱: 기본은 ABSOLUTE_CALL_TIMEOUT_S(540s, 연결 ~10분 선점). 단 데모가 통화 길이를
         # 길게 잡으면(예: 15분) 이 상한이 시계보다 먼저 떨어져 통화를 잘라버린다 — 그래서 선택 길이
         # +마무리 여유를 하한으로 삼아 시계가 정상 종료할 시간을 준다. 짧은/기본 통화는 그대로 540s.
@@ -5741,6 +5756,29 @@ def _record_hint_used(state: _CallState, msg) -> None:
         turn_id, getattr(msg, "item_id", None), getattr(msg, "stage", None),
         state.next_turn_index,
     )
+
+
+async def _push_homework_roleplay(
+    client_ws, client, db_session_factory, roleplay: dict, locale: str, call_id,
+) -> None:
+    """역할극 숙제 안내 프레임 1회(PM-DEC-624). 번역이 실패해도 원문은 보낸다 — 실패는 통화 무영향."""
+    translations: dict[str, str] = {}
+    try:
+        translations = await svc.run_db(
+            db_session_factory,
+            lambda db: i18n_svc.homework_roleplay_translations(db, client, roleplay, locale),
+        )
+    except Exception as exc:  # noqa: BLE001 - 번역 실패는 원문만 보낸다(R5)
+        logger.warning("normalcall 숙제 역할극 안내: 번역 실패(원문만) call=%s: %s", call_id, exc)
+    try:
+        await _send_json(client_ws, ServerHomeworkRoleplay(
+            topic=roleplay.get("topic"), situation=roleplay.get("situation"),
+            ai_role=roleplay.get("ai_role"), learner_role=roleplay.get("learner_role"),
+            **translations,
+        ))
+        logger.info("normalcall 숙제 역할극 안내 송신 call=%s locale=%s 번역=%d", call_id, locale, len(translations))
+    except Exception as exc:  # noqa: BLE001 - 소켓이 이미 닫혔으면 안내만 못 띄운다
+        logger.warning("normalcall 숙제 역할극 안내: 송신 실패(무시) call=%s: %s", call_id, exc)
 
 
 def _spawn_hint_task(client_ws, state: _CallState) -> None:

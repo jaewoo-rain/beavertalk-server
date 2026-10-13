@@ -508,3 +508,64 @@ def test_call_started_without_homework_mode_keeps_old_bytes():
     """숙제가 아니면 homework_mode 키 자체가 없다 — 구버전 앱·일반 통화 프레임 바이트 동일."""
     from domains.learning.realtime.protocol import ServerCallStarted
     assert "homework_mode" not in ServerCallStarted(character_id=1, call_id="1").model_dump()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", [None, "roleplay"])
+async def test_roleplay_homework_pushes_info_frame_once(session_factory, seeded, monkeypatch, mode):
+    """PM-DEC-622·624 — 역할극 숙제만 call_started 뒤 homework_roleplay 1회(원문 + 회원 언어 번역 · 빈 칸 생략).
+    표현학습 숙제에는 보내지 않는다."""
+    from domains.learning.service import display_i18n_service as i18n_svc
+    raw = materials("manual")
+    if mode:
+        raw.update(mode=mode, roleplay={"situation": "가게에서 인사", "ai_role": "가게 사장님"})
+    monkeypatch.setattr(b2b_client, "conversation_materials", lambda *a, **k: copy.deepcopy(raw))
+    monkeypatch.setattr(i18n_svc, "homework_roleplay_translations",
+                        lambda db, client, rp, locale: {"situation_translation": "Greeting at a shop"})
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8,
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+                      member_id=seeded["member_id"], live_session_factory=make_live_factory({}))
+    await _wait_analysis_tasks()
+    frames = [json.loads(s) for s in ws.sent_text]
+    infos = [f for f in frames if f["type"] == "homework_roleplay"]
+    if mode != "roleplay":
+        assert infos == []
+        return
+    assert infos == [{"type": "homework_roleplay", "situation": "가게에서 인사", "ai_role": "가게 사장님",
+                      "situation_translation": "Greeting at a shop"}]
+    types = [f["type"] for f in frames]
+    assert types.index("call_started") < types.index("homework_roleplay")
+
+
+@pytest.mark.asyncio
+async def test_roleplay_info_frame_survives_translation_failure(session_factory, seeded, monkeypatch):
+    """번역이 실패해도 원문 안내는 간다(R5)."""
+    from domains.learning.service import display_i18n_service as i18n_svc
+    raw = materials("manual")
+    raw.update(mode="roleplay", roleplay={"topic": "쇼핑", "ai_role": "점원", "learner_role": "손님"})
+    monkeypatch.setattr(b2b_client, "conversation_materials", lambda *a, **k: copy.deepcopy(raw))
+
+    def boom(*a, **k):
+        raise RuntimeError("translate down")
+    monkeypatch.setattr(i18n_svc, "homework_roleplay_translations", boom)
+    ws = FakeWebSocket([{"type": "websocket.receive", "text": json.dumps({
+        "type": "start", "assignment_id": 8,
+    })}])
+    await cs.run_call(ws, settings, object(), session_factory,
+                      member_id=seeded["member_id"], live_session_factory=make_live_factory({}))
+    await _wait_analysis_tasks()
+    infos = [json.loads(s) for s in ws.sent_text if json.loads(s)["type"] == "homework_roleplay"]
+    assert infos == [{"type": "homework_roleplay", "topic": "쇼핑", "ai_role": "점원", "learner_role": "손님"}]
+
+
+def test_homework_roleplay_translations_use_scene_fallback_and_kinds(monkeypatch):
+    """상황 카드는 situation 이 없으면 topic 이라 번역도 topic 을 쓴다 · kind 는 hw_situation·hw_role."""
+    from domains.learning.service import display_i18n_service as i18n_svc
+    seen = []
+    monkeypatch.setattr(i18n_svc, "_cur_text_translation",
+                        lambda db, client, kind, src, locale: (seen.append((kind, src)), f"{src}-en")[1] if src else None)
+    out = i18n_svc.homework_roleplay_translations(None, None, {"topic": "쇼핑", "ai_role": "점원"}, "en")
+    assert out == {"situation_translation": "쇼핑-en", "ai_role_translation": "점원-en"}
+    assert seen == [("hw_situation", "쇼핑"), ("hw_role", "점원")]  # learner_role 없음 → 부르지 않음

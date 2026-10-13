@@ -515,6 +515,32 @@ class ServerHint(BaseModel):
     examples: list[HintExample]
 
 
+class ServerHomeworkRoleplay(BaseModel):
+    """역할극 숙제 통화의 상황·역할(PM-DEC-622·624) — 앱 통화 화면 GNB i 안내 시트 재료.
+
+    역할극 숙제 통화(hw_mode=roleplay)에서만 `call_started` 뒤 1회 보낸다. 값은 교사가 쓴 한국어 원문이고
+    `*_translation` 은 회원 언어(member.language) 번역이다 — ko 이거나 번역이 실패하면 빠진다.
+    빈 칸은 키째 뺀다. 구버전 클라는 미지 타입을 무시하므로 무해하다.
+    """
+
+    type: Literal["homework_roleplay"] = "homework_roleplay"
+    topic: str | None = None
+    situation: str | None = None
+    ai_role: str | None = None
+    learner_role: str | None = None
+    situation_translation: str | None = None
+    ai_role_translation: str | None = None
+    learner_role_translation: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _drop_null(self, handler):
+        data = handler(self)
+        if isinstance(data, dict):
+            for k in [k for k, v in data.items() if v is None]:
+                data.pop(k)
+        return data
+
+
 ServerMessage = Annotated[
     Union[
         ServerTurnStart,
@@ -529,6 +555,7 @@ ServerMessage = Annotated[
         ServerTeachingPlan,
         ServerHint,
         ServerFragmentSaved,
+        ServerHomeworkRoleplay,
     ],
     Field(discriminator="type"),
 ]
