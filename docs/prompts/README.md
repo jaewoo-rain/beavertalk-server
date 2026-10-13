@@ -1607,6 +1607,13 @@ t77 에서 «화장실이 어디예요? 물어보든가! 얼마예요? 물어보
 - 이어하기 스냅샷(`create_namespace`)에 roleplay를 저장함. b2b 귀속 대조 키는 무변경임.
 - 역할극이 없으면 지시문·첫마디가 바이트 단위로 같음(`tests/test_homework_roleplay.py`).
 
+### 2026-10-13 — PM-DEC-546 커리큘럼 과제 역할극도 수용 (`core/prompts/homework.py`)
+
+- `_normalize_roleplay` 가 받는 출처를 `ROLEPLAY_SOURCES = ("manual", "curriculum")` 로 넓힘(전에는 manual 만).
+- 그 밖의 출처는 지금처럼 버림. 모양 검사·300자 자르기·통화 무차단 원칙은 그대로임.
+- 커리큘럼 과제도 지시문 «[역할극]» 블록·첫마디·재접지에 같은 방식으로 실림.
+- 역할극이 없는 커리큘럼 과제는 지시문·첫마디가 바이트 단위로 같음(`test_curriculum_without_roleplay_is_byte_identical`).
+
 ## §9. 통화 후 볼 로그 (계측은 이미 붙어 있다)
 
 | 로그 | 무엇을 알려주나 |

@@ -52,10 +52,32 @@ def test_without_roleplay_instruction_is_byte_identical():
     assert seed_homework_opening(plain) == seed_homework_opening()
 
 
-def test_curriculum_ignores_roleplay():
+def test_curriculum_roleplay_lands_in_instruction_and_opening():
+    """PM-DEC-546: 커리큘럼 과제의 역할극도 지시문·첫마디·재접지에 싣는다."""
     payload = manual(source="curriculum")
-    payload["roleplay"] = copy.deepcopy(ROLEPLAY)
-    assert "roleplay" not in normalize_homework(payload)
+    normalized = normalize_homework(payload)
+    assert normalized["roleplay"] == ROLEPLAY
+    text = build(payload)
+    assert "[역할극]" in text and "너의 역할: 과일 가게 사장님" in text
+    assert seed_homework_opening(payload) != seed_homework_opening()
+    assert "과일 가게 사장님" in build_homework_reground(payload, "en")
+
+
+def test_curriculum_without_roleplay_is_byte_identical():
+    plain = manual(roleplay=None, source="curriculum")
+    assert build(plain) == build(dict(plain, roleplay=None))
+    assert "[역할극]" not in build(plain)
+    assert seed_homework_opening(plain) == seed_homework_opening()
+
+
+def test_unknown_source_ignores_roleplay():
+    payload = manual(source="curriculum")
+    payload["source"] = "survey"
+    try:
+        normalized = normalize_homework(payload)
+    except ValueError:
+        return  # 알 수 없는 출처는 계약 단계에서 거절된다 — 역할극까지 갈 일이 없다.
+    assert "roleplay" not in normalized
 
 
 def test_malformed_roleplay_never_blocks_the_call():

@@ -108,6 +108,8 @@ def normalize_homework(payload: dict) -> dict:
 #: 역할극 네 칸 — 교사 콘솔 직접 만들기에서 Claude 가 만든 값(2026-10-13 PM-DEC-535).
 #: b2b `conversation-materials` 최상위 `roleplay` 와 1:1(b2b developer 합의 10-13).
 ROLEPLAY_FIELDS = ("topic", "situation", "ai_role", "learner_role")
+#: 역할극을 받는 과제 출처. 커리큘럼은 PM-DEC-546(2026-10-13)부터.
+ROLEPLAY_SOURCES = ("manual", "curriculum")
 _ROLEPLAY_MAX = 300
 
 
@@ -116,9 +118,10 @@ def _normalize_roleplay(value, source: str) -> dict | None:
 
     ⛔ 여기서 예외를 던지지 마라. 역할극 값 하나가 틀렸다고 숙제 통화 전체를 막으면
        학습자는 회화를 못 한다. 배울 표현(goals)이 이미 검증됐으면 통화는 성립한다.
-    직접 출제(manual)만 받는다 — 커리큘럼 과제에는 교사가 쓴 역할극이 없다.
+    직접 출제(manual)와 커리큘럼(curriculum) 과제 모두 받는다(2026-10-13 PM-DEC-546 ·
+    b2b 가 커리큘럼 과제에도 역할극을 싣기로 함). 그 밖의 source 는 버린다.
     """
-    if source != "manual" or not isinstance(value, dict):
+    if source not in ROLEPLAY_SOURCES or not isinstance(value, dict):
         return None
     out = {}
     for key in ROLEPLAY_FIELDS:
