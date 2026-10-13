@@ -11,7 +11,7 @@ from core.homework_contract import create_namespace, namespace_materials, snapsh
 from core.prompts.editable_loader import BANNED_WORDS
 from core.prompts.expression import build_expression_instruction
 from core.prompts.homework import (
-    build_homework_expression_instruction, build_homework_roleplay_instruction,
+    HOMEWORK_NO_NATIVE_LINE, build_homework_expression_instruction, build_homework_roleplay_instruction,
     build_homework_roleplay_reground, homework_expression_items, homework_mode,
     normalize_homework, seed_homework_roleplay_opening,
 )
@@ -55,7 +55,8 @@ def test_no_mode_is_expression_and_byte_identical_to_expression_script():
     expression = build_expression_instruction(
         interests=[], items=homework_expression_items(normalize_homework(data)),
         target_language="한국어", language="ko", **kwargs)
-    assert homework == expression
+    # PM-DEC-626 P12-b — 숙제는 현지인 단계 없음 한 줄만 덧붙는다(그 앞은 바이트 동일).
+    assert homework == expression + "\n\n" + HOMEWORK_NO_NATIVE_LINE
 
 
 @pytest.mark.parametrize("source", ["manual", "curriculum"])

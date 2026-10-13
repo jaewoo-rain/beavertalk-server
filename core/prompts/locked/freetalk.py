@@ -31,7 +31,10 @@ def fill_slots(text: str) -> str:
         label = "나라"
     elif "뭐예요" in text or "무슨 뜻" in text or "뜻이" in text:
         label = "그 단어"
-    elif "저는" in text or "제 이름" in text:
+    elif "회원" in text or "가게" in text:
+        # «저는 ◯◯ 회원 아니에요» 의 자리는 가게 이름이다(1606 t23 — 종전엔 «저는» 때문에 «(이름)»).
+        label = "가게 이름"
+    elif "제 이름" in text or re.search(r"저는\s*[◯○〇]+\s*(?:이에요|예요|입니다|이고|고)", text):
         label = "이름"
     else:
         label = "빈칸"

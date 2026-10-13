@@ -315,7 +315,7 @@ def expression_quiz_cue(
     if done_labels:
         extra.append("이미 다룬 표현: " + " / ".join(done_labels) + " — 다시 가르치지 마라.")
     if remaining_rows:
-        extra.append("퀴즈 뒤 새로 가르칠 남은 표현(번호·뜻): " + " · ".join(remaining_rows) + " — 이 순서로, 이것만 새로 가르쳐라.")
+        extra.append("퀴즈 뒤 새로 가르칠 남은 표현(뜻 = 표현): " + " · ".join(remaining_rows) + " — 이 순서로, 이것만 새로 가르쳐라. 목록 번호·순번은 말하지 마라.")
     return base + (" " + " ".join(extra) if extra else "")
 
 

@@ -129,8 +129,8 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "seeds.close_seed_normal": ("fbf515b5052b7c68", lambda: seeds.close_seed_normal("[통화종료:ab12]")),
     "seeds.close_seed_leveltest": ("082b0f3499072f05", lambda: seeds.close_seed_leveltest("[통화종료:ab12]")),
     # 2026-09-15 4차 C — 이미 다룬/남은 표현 목록판(서버가 항상 넘긴다 → ko 실통화 대본 바뀜). 목록 없는 호출은 아래 옛 해시 그대로.
-    "seeds.expression_quiz_cue_lists": ("2ff2344159d54f2d", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어", done_labels=["물", "가다"], remaining_rows=["3. to go = 가다", "4. person = 사람"])),   # 2026-10-11 점검 P03(옛 9f49a518eb8d1839)
-    "reground.build_expression_reground_brief_remaining": ("8a812cb06f3c79eb", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)", remaining=["3. person = 사람"])),   # 2026-10-11 점검 P07(옛 68e44e1163c1a804)
+    "seeds.expression_quiz_cue_lists": ("f96eaeab62ea281d", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어", done_labels=["물", "가다"], remaining_rows=["3. to go = 가다", "4. person = 사람"])),   # 2026-10-11 점검 P03(옛 9f49a518eb8d1839)
+    "reground.build_expression_reground_brief_remaining": ("87ad23d4978441ea", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)", remaining=["3. person = 사람"])),   # 2026-10-11 점검 P07(옛 68e44e1163c1a804)
     "seeds.expression_quiz_cue": ("980983d37435a5ed", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어")),   # 2026-10-11 점검 P03(옛 beacb708da5b7955)
     "seeds.expression_quiz_set_reminder": ("8bcd024c38581f13", lambda: seeds.expression_quiz_set_reminder("«물» «가다»")),   # 2026-09-15 8차 C
     "seeds.expression_taught_judge_instruction_done": ("b0aa726021903a91", lambda: seeds.expression_taught_judge_instruction(["1. 물 — 뜻: water"], target="한국어", locale_label="영어(English)", done_rows=["2. 가다 — 뜻: to go"])),   # 2026-09-15 8차 C(done_rows 없으면 옛 해시)

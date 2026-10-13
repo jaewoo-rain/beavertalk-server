@@ -83,12 +83,16 @@ def is_grammar(item: dict) -> bool:
 def render_item(n: int, item: dict) -> str:
     """표현 한 줄: `{n}. {surface}` + 뜻/예문 꼬리 · 문법(role=="grammar")은 `[문형] … — 연습 문장: "…"`(2026-09-12, 하네스 1438).
     ⛔ 예문은 있을 때만(청크는 문장 자체). ⛔ «(통과)» 표식 금지 — 목록 그 자체가 남은 일이다. 판정(예문 OR)이 이 모양을 기대한다."""
+    # 빈칸 «◯◯» 은 무엇을 넣을 자리인지로 바꿔 싣는다(회화학습과 같은 규칙 · PM-DEC-626 P5-b — 기호째 실리면 그대로 읽었다).
+    #   판정은 원래 표면형(item)을 쓴다 — 여기는 프롬프트에 싣는 순간뿐이다.
+    from core.prompts.locked.freetalk import fill_slots
     grammar = is_grammar(item)
-    line = f"{n}. [문형] {item.get('obj')}" if grammar else f"{n}. {item.get('obj')}"
+    obj = fill_slots(str(item.get('obj') or ''))
+    line = f"{n}. [문형] {obj}" if grammar else f"{n}. {obj}"
     des = item.get("des")
     if des:
         line += f" — 뜻: {des}"
-    ex = item.get("ex")
+    ex = fill_slots(item.get("ex") or "")
     if ex:
         line += f' — 연습 문장: "{ex}"' if grammar else f' — 예문: "{ex}"'
     return line

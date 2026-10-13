@@ -1416,13 +1416,16 @@ EXPR_REMAINING_ROWS_CAP = 12     # 4차 C — 쪽지·큐에 싣는 남은 항�
 
 
 def _expr_remaining_rows(state: _CallState) -> list[str]:
-    """4차 C — 아직 안 가르친(covered 아님) 항목 «번호. 뜻 = 표면형»(번호 순, 상한 EXPR_REMAINING_ROWS_CAP)."""
+    """4차 C — 아직 안 가르친(covered 아님) 항목 «뜻 = 표면형»(목록 순, 상한 EXPR_REMAINING_ROWS_CAP).
+
+    ⛔ 번호를 싣지 않는다(PM-DEC-626 P5) — 실린 번호를 비버가 «row 22»·«set 2, item 4» 처럼 소리 내어 읽었다.
+    """
     rows: list[str] = []
     left = [n for n in range(1, len(state.reground_items) + 1) if n not in state.covered_nums]
     for n in left[:EXPR_REMAINING_ROWS_CAP]:
         surface = str(state.reground_items[n - 1] or "").strip()
         meaning = _PAREN_RE.sub("", str(state.expr_items[n - 1].get("des") or "")).strip()[:24] if n <= len(state.expr_items) else ""
-        rows.append(f"{n}. {meaning} = {surface}" if meaning else f"{n}. {surface}")
+        rows.append(f"{meaning} = {surface}" if meaning else surface)
     if len(left) > EXPR_REMAINING_ROWS_CAP:
         rows.append("외 %d개" % (len(left) - EXPR_REMAINING_ROWS_CAP))
     return rows
@@ -2608,10 +2611,27 @@ def _covered_labels(state: _CallState) -> list[str]:
     return [items[n - 1] for n in state.covered_nums if 1 <= n <= len(items)]
 
 
+_SENTENCE_END_RE = re.compile(r"[.!?。！？]$")
+
+
+def _join_beaver_text(parts: list[str]) -> str:
+    """출력 전사 조각을 잇는다 — 앞 조각이 문장부호로 끝나고 다음 조각이 공백 없이 시작하면 공백 하나를 넣는다.
+
+    한 턴에 응답이 둘 생기면 두 번째 응답 첫 조각에 앞 공백이 없어 «…next one.Well, …» 로 붙어 저장됐다(PM-DEC-626 P11-a ·
+    1936 t43). 저장 전사만 고친다 — 이중 발화 자체는 별도 조사.
+    """
+    out = ""
+    for part in parts:
+        if out and part and not part[0].isspace() and _SENTENCE_END_RE.search(out):
+            out += " "
+        out += part
+    return out
+
+
 def _flush_beaver_segment(state: _CallState) -> None:
     if not state.cur_beaver_pcm and not state.cur_beaver_text:
         return
-    text = "".join(state.cur_beaver_text)
+    text = _join_beaver_text(state.cur_beaver_text)
     # 자기낭독 정화: 비버가 서버 제어 태그를 읽어버린 경우 저장본에서 걷어낸다. 통화후
     # 분석·문장 추출이 "[시스템] 통화가 종료되었습니다" 같은 걸 학습 문장으로 삼지 않게.
     # (자막은 이미 나간 뒤라 손대지 않는다 — 조각 단위라 부분 마스킹이 더 이상해진다.)
@@ -3995,7 +4015,8 @@ async def run_call(
         #   ⛔ 시드를 갈아야 한다. `seed_expression_opening` 은 «1번부터 시작해라» 라서 조각2에
         #     그대로 나가면 처음으로 되감는다 — **시드는 지시문을 이긴다**(실측 call 1087).
         if expr_items:
-            expr_practice = ExpressionPractice(expr_items, language=spec.code)
+            # 숙제는 현지인 단계 없음(PM-DEC-626 P12-b — 항목에 현지인 문장이 없어 모델이 지어냈다).
+            expr_practice = ExpressionPractice(expr_items, language=spec.code, native_step=homework is None)
         if resumed and call_type == "expression":
             # ⭐ C6(2026-09-14): 재개 쪽지 재료 — 직전 조각의 드릴/통과/오답 표면형(cur_call.items) + 마지막 2~4턴 발췌. 실패해도 재료 없는 판으로 간다(R5).
             note_mats: dict = {}

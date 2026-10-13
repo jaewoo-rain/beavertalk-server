@@ -194,7 +194,15 @@ def build_homework_expression_instruction(
         interests=[], items=homework_expression_items(data), quiz_group=quiz_group, name=name,
         target_language="한국어", close_tag=close_tag, model_family=model_family,
         face_rule=face_rule, language="ko",
-    )
+    ) + "\n\n" + HOMEWORK_NO_NATIVE_LINE
+
+
+#: 숙제 표현학습은 현지인 문장 단계를 뺀다(PM-DEC-626 P12-b). 숙제 목표에는 현지인 문장이 없어 모델이 지어냈고
+#: 뜻이 반대로 나왔다(1952 «이 옷이 좋아요» → «이 옷 완전 별로야»). 위 [진행 절차]의 현지인 줄보다 이 줄이 우선한다.
+HOMEWORK_NO_NATIVE_LINE = (
+    "[숙제 진행 — 위 절차보다 우선] 이 숙제에는 현지인 표현 단계가 없다. 원문을 맞히거나 두 번 시도하면 "
+    "바로 다음 원문으로 넘어간다. 현지인 표현·다른 말투의 새 문장을 지어 알려주지 마라."
+)
 # 첫 시드는 core.prompts.expression.seed_expression_opening("한국어") 를 그대로 부른다(새 함수 없음).
 
 

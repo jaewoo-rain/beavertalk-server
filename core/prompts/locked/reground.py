@@ -346,8 +346,8 @@ def build_expression_reground_brief(
     remaining_new = clean(remaining)
     if remaining_new:
         out.append(
-            "아직 안 가르친 남은 표현(번호·뜻): " + " · ".join(remaining_new) +
-            ". 새로 가르칠 것은 이것뿐이다 — 위에서 이미 다룬 표현을 처음처럼 다시 가르치지 마라."
+            "아직 안 가르친 남은 표현(뜻 = 표현): " + " · ".join(remaining_new) +
+            ". 새로 가르칠 것은 이것뿐이다 — 위에서 이미 다룬 표현을 처음처럼 다시 가르치지 마라. 목록 번호·순번은 말하지 마라."
         )
     remaining_s = clean(quiz_remaining)
     if remaining_s:

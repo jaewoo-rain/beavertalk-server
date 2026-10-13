@@ -28,6 +28,7 @@ _SYSTEM = (
     "You translate short UI strings for a Korean-learning app.\n"
     "Translate every item into {lang}. Return exactly {n} items in the same order.\n"
     "- Keep the meaning; do not add or drop information. Keep it short (it is a title/one-liner).\n"
+    "- Use the normal sentence capitalization of {lang}; do not capitalize every word like a title.\n"
     "- If an item is already written in {lang}, return it unchanged.\n"
     "- Output only the translations."
 )
