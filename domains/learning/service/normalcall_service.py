@@ -215,6 +215,21 @@ def resolve_call_character(
     return ResolvedCall(int(cheapest) if cheapest is not None else 1)
 
 
+def _retarget_persona(text: str, language: str) -> str:
+    """캐릭터 DB 문구(role·personality)의 「한국어」를 대상 언어 라벨로 바꾼다 — ko 통화는 그대로(바이트 동일).
+
+    캐릭터 5종 문구가 「…한국어 선생님이다」·「한국어는 학습자가 따라 할 표현에만 쓴다」로 적혀 있어
+    대상 언어 통화(내부 시험 · PM-DEC-608·612)에서 프롬프트의 {target} 지시와 충돌했다. DB 문구는 ko 정본이라
+    고치지 않고 읽는 자리에서만 바꾼다. 미지원 코드는 resolve_language 가 None → 그대로.
+    """
+    if not text or language == "ko":
+        return text
+    spec = resolve_language(language)
+    if spec is None or spec.code == "ko":
+        return text
+    return text.replace("한국어", spec.label)
+
+
 def _load_member_character(
     db: Session, member_id: int, character_id: int, language: str = "ko"
 ) -> dict:
@@ -318,6 +333,8 @@ def load_call_setup(
     scripts/dev_dump_prompt.py:110)·시험은 전부 바이트 동일하게 동작한다.
     """
     base = _load_member_character(db, member_id, character_id, language)
+    base["role"] = _retarget_persona(base["role"], language)
+    base["personality"] = _retarget_persona(base["personality"], language)
     korean_level = base.pop("korean_level")
     member_found = base.pop("member_found")
     retest_pending = base.pop("retest_pending")
@@ -602,6 +619,8 @@ def load_level_test_setup(db: Session, member_id: int, character_id: int, langua
         build_leveltest_instruction 의 입력과 1:1.
     """
     base = _load_member_character(db, member_id, character_id)
+    base["role"] = _retarget_persona(base["role"], language)
+    base["personality"] = _retarget_persona(base["personality"], language)
     base.pop("korean_level")
     base.pop("member_found")
     base.pop("retest_pending")

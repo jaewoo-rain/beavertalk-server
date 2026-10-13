@@ -6587,3 +6587,73 @@ async def test_normal_end_sends_no_error_frame(session_factory, seeded):
     await _wait_analysis_tasks()
 
     assert _error_frames(ws) == [], "정상 종료에 에러 프레임이 섞였다(종료 규약 오염)"
+
+
+# --- 대상 언어 통화 패치(2026-10-14 · 내부 시험 PM-DEC-612) -------------------- #
+# ① 캐릭터 DB 문구의 「한국어」 → 대상 언어 라벨(ko 는 바이트 동일) ② 국적 추론은 ko 통화만.
+_KO_ROLE = "실수를 비웃는 독설가 한국어 선생님이다. 항상 반말을 쓴다."
+_KO_PERS = "리액션·지시는 학습자의 모국어로 한다. 한국어는 학습자가 따라 할 표현에만 쓴다."
+
+
+def test_retarget_persona_keeps_ko_and_swaps_label_for_target_languages():
+    assert svc._retarget_persona(_KO_ROLE, "ko") is _KO_ROLE, "ko 는 같은 객체 그대로(바이트 동일)"
+    assert svc._retarget_persona(_KO_ROLE, "ja") == "실수를 비웃는 독설가 일본어 선생님이다. 항상 반말을 쓴다."
+    assert svc._retarget_persona(_KO_PERS, "zh").endswith("중국어는 학습자가 따라 할 표현에만 쓴다.")
+    assert "영어 선생님" in svc._retarget_persona(_KO_ROLE, "en")
+    assert svc._retarget_persona(_KO_ROLE, "xx") == _KO_ROLE, "미지원 코드는 그대로"
+    assert svc._retarget_persona("", "ja") == ""
+
+
+@pytest.mark.parametrize("language,expect_word", [("ko", "한국어"), ("ja", "일본어"), ("zh", "중국어"), ("en", "영어")])
+def test_call_and_leveltest_setup_retarget_character_text(session_factory, seeded, language, expect_word):
+    db = session_factory()
+    try:
+        ch = db.get(Character, seeded["character_id"])
+        ch.role, ch.personality = _KO_ROLE, _KO_PERS
+        db.commit()
+        setup = svc.load_call_setup(db, seeded["member_id"], seeded["character_id"], language)
+        lt = svc.load_level_test_setup(db, seeded["member_id"], seeded["character_id"], language)
+    finally:
+        db.close()
+    for s in (setup, lt):
+        assert f"{expect_word} 선생님" in s["role"] and s["personality"].startswith("리액션")
+        assert f"{expect_word}는 학습자가" in s["personality"]
+        if language != "ko":
+            assert "한국어" not in s["role"] + s["personality"]
+    if language == "ko":
+        assert (setup["role"], setup["personality"]) == (_KO_ROLE, _KO_PERS), "ko 통화 문구는 DB 그대로"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("target,fires", [("ko", True), ("ja", False)])
+async def test_nationality_runs_only_on_korean_calls(session_factory, seeded, monkeypatch, target, fires):
+    db = session_factory()
+    try:
+        m = db.get(Member, seeded["member_id"])
+        m.target_language = target
+        db.commit()
+    finally:
+        db.close()
+    got: list[bytes] = []
+    monkeypatch.setattr(
+        cs, "_trigger_nationality",
+        lambda dbf, call_id, member_id, user_pcm, client_fields=None: got.append(user_pcm),
+    )
+    fake = _RegroundFake([
+        LiveEvent(kind="out_tr", text="hi"),
+        LiveEvent(kind="turn_end"),
+        LiveEvent(kind="in_tr", text="hello there", is_final=True),
+        LiveEvent(kind="out_tr", text="nice"),
+        LiveEvent(kind="turn_end"),
+    ])
+    ws = FakeWebSocket([
+        {"type": "websocket.receive",
+         "text": json.dumps({"type": "start", "character_id": seeded["character_id"], "call_type": "chat"})},
+        {"type": "websocket.receive", "bytes": b"\x07\x08" * 512},
+    ])
+    # 운영에선 ws_router 가 member.target_language 를 읽어 넘긴다(단일 소스) — 여기선 직접 넘긴다
+    await run_call(ws, app_settings, object(), session_factory,
+                   member_id=seeded["member_id"], member_target_language=target,
+                   live_session_factory=_factory_for(fake))
+    await _wait_analysis_tasks()
+    assert bool(got) is fires, f"target={target}: 국적 추론 호출 {'기대' if fires else '금지'}"

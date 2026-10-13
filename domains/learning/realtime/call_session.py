@@ -4660,11 +4660,16 @@ async def run_call(
         _release_persisted_pcm(state, len(state.segments))
         # 요구5: 국적 추론 훅(fire-and-forget) — 통화 내내 회수해 둔 user 원음을 넘긴다. 통화
         # 루프 종료 후 가산일 뿐 2펌프·절대 백스톱·종료 규약 무영향(R4). 예외 전량 흡수(R5).
-        _trigger_nationality(
-            db_session_factory, call_id, member_id,
-            user_pcm=bytes(state.nationality_pcm),
-            client_fields=nationality_client,
-        )
+        # ⛔ 국적 분류기는 «한국어 발화의 억양» 모델이다 — 대상 언어 통화(내부 시험 · PM-DEC-612)의
+        #   외국어 발화를 넣으면 그 회원의 speak_country 가 오염된다. ko 통화(숙제 포함)만 보낸다.
+        if spec.code == "ko":
+            _trigger_nationality(
+                db_session_factory, call_id, member_id,
+                user_pcm=bytes(state.nationality_pcm),
+                client_fields=nationality_client,
+            )
+        else:
+            logger.info("normalcall: 국적 추론 건너뜀(target_language=%s) call=%s", spec.code, call_id)
         await _finish_call(client_ws, state, call_id)
 
 
