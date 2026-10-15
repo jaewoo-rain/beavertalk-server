@@ -213,11 +213,15 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
                                  ("core", l["core_keys"], "vocab"), ("support", l["support_keys"], "vocab")):
             for k in keys:
                 items.append((role, item_id[(kind, k)]))
-        lesson_rows.append(({
+        fields = {
             "no": l["no"] + len(chunk_lessons), "code": l["code"], "level_no": l["level_no"],
             "topic_id": topic_id[l["topic_code"]], "situation": l["situation"],
             "partner": l.get("partner"), "probes": _j(l.get("probes") or []),
-        }, items))
+        }
+        # 학습자 역할(SV-33 · 2026-10-16)은 시드에 키가 있을 때만 싣는다 — 키 없는 시드·청크 차시는 DB 값을 그대로 둔다
+        if "learner_role" in l:
+            fields["learner_role"] = l["learner_role"]
+        lesson_rows.append((fields, items))
 
     existing_lessons = {r.code: r for r in session.scalars(select(CurLesson).where(CurLesson.language == lang))}
     # ⭐ no 재매김 2단계 — 청크 차시가 새로 들어오면 기존 A1-T01-1(no=1) 이 4 로 밀리는데 uq_cur_lesson_no(language, no) 가 문장 단위라

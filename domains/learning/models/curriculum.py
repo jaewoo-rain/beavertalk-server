@@ -128,6 +128,9 @@ class CurLesson(Base):
     )
     situation: Mapped[str] = mapped_column(Text, nullable=False, comment="프리토킹 상황명")
     partner: Mapped[Optional[str]] = mapped_column(Text, comment="상대역 — 상황 묘사용(비버가 되라는 뜻 아님)")
+    learner_role: Mapped[Optional[str]] = mapped_column(
+        Text, comment="학습자 역할 — 학습자가 맡는 쪽(partner 의 짝). NULL=미정"
+    )
     probes: Mapped[Optional[str]] = mapped_column(Text, comment="유도 질문 JSON 배열 문자열")
     item_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"), comment="로더가 재계산")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

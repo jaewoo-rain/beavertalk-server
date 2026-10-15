@@ -114,6 +114,21 @@ def test_retire_instead_of_delete(db: Session, seed):
     assert all(stats["checks"].values())
 
 
+def test_learner_role_loaded_from_seed_and_kept_when_key_absent(db: Session, seed):
+    # SV-33(2026-10-16) — 시드 learner_role 은 그대로 싣고, 키가 없는 시드로 다시 적재해도 DB 값을 지우지 않는다
+    load(db, seed, dry_run=False)
+    db.commit()
+    filled = db.execute(text("SELECT COUNT(*) FROM cur_lesson WHERE learner_role IS NOT NULL")).scalar()
+    assert filled == sum(1 for l in seed["lessons"] if l.get("learner_role"))
+    first = seed["lessons"][0]
+    assert db.execute(text("SELECT learner_role FROM cur_lesson WHERE code=:c"), {"c": first["code"]}).scalar() == first.get("learner_role")
+    stripped = dict(seed)
+    stripped["lessons"] = [{k: v for k, v in l.items() if k != "learner_role"} for l in seed["lessons"]]
+    load(db, stripped, dry_run=False)
+    db.commit()
+    assert db.execute(text("SELECT COUNT(*) FROM cur_lesson WHERE learner_role IS NOT NULL")).scalar() == filled
+
+
 # --------------------------------------------------------------------------- #
 # 일본어(ja) — 청크 3차시(ko 와 동일, 사장님 2026-09-13) · no 1..348 · L1-S01-1 = 1 · A1-T01-1 = 4 · meanings {en, ko, kana} · ko 와 공존(주제 65 공유)
 # --------------------------------------------------------------------------- #
