@@ -22,7 +22,7 @@
   · 불변식은 시드에서 센다(차시 수·항목 수·어휘 전건 정확히 1차시) — ko 는 종전 값(491·11,144·11,307)과 같다.
   · 주제(cur_topic)는 언어 무관 자산(코드 65 공통) — 두 언어를 같은 DB 에 적재해도 65 다.
 
-사용:  PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python scripts/curriculum/load_cur_seed.py [--language ko|ja] [--seed …] [--dry-run]
+사용:  PYTHONIOENCODING=utf-8 conda run -n beavertalk-server python scripts/curriculum/load_cur_seed.py [--language ko|ja|zh|en] [--seed …] [--dry-run]
        DATABASE_URL_DIRECT(5432) 로 붙는다 — 마이그레이션과 같은 규율. ⚠ 운영 DB 는 «적재» 지시 뒤에만.
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ from domains.learning.models.curriculum import (  # noqa: E402
     CurItem, CurLesson, CurLessonItem, CurTopic,
 )
 
-SEED_BY_LANGUAGE = {"ko": "cur_seed.json", "ja": "cur_seed_ja.json"}
+SEED_BY_LANGUAGE = {"ko": "cur_seed.json", "ja": "cur_seed_ja.json", "zh": "cur_seed_zh.json", "en": "cur_seed_en.json"}  # zh·en: 2026-10-14 내부 시험(PM-DEC-612) · 청크 차시 없음
 #: 옛 learning_item 청크 46 을 레벨1 3차시로 복사하는 언어. 사장님(2026-09-13): 일본어도 한국어와 동일하게.
 CHUNK_LANGUAGES = frozenset({"ko", "ja"})
 #: ⭐ ja 청크 뜻풀이 구분(2026-09-14 ③, 실통화 1605: どうも «고마워요» 에 학습자가 ありがとう 로 답하자 비버가 정답 처리 → 항목 미드릴). 옛 learning_item
@@ -131,7 +131,7 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
         m = {}
         if v.get("en"):
             m["en"] = v["en"]
-        for k in ("ko", "kana"):
+        for k in ("ko", "kana", "pinyin"):   # pinyin = zh 병음(2026-10-14) — kana 와 같은 규율(로케일 아닌 키)
             if v.get(k):
                 m[k] = v[k]
         return _j(m) if m else None
@@ -145,7 +145,7 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
         )
     for g in seed["grammar"]:
         upsert(
-            "grammar", g["key"], surface=g["key"], meanings=_j({"en": g["en"]}) if g.get("en") else None,
+            "grammar", g["key"], surface=g.get("surface") or g["key"], meanings=_j({"en": g["en"]}) if g.get("en") else None,
             level_no=stage_level.get(g.get("stage"), 2), description=g.get("desc") or None,
             examples=_j(g.get("examples") or []),
         )
