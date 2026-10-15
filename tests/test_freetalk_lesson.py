@@ -45,7 +45,8 @@ BASE = dict(
     target_language="한국어",
 )
 #: 옛 프리토킹 대본(lesson=None) 기준 — 2026-09-12 차시판 도입 직전 출력. ⛔ 터지면 옛 경로 대본이 바뀐 것이다(README §8 에 적고 갱신).
-_FREETALK_OLD_FROZEN = ("61259e26f8b60f1e508b22308d8aa2c0bb9547a86d66ca14bdd8fd05fb2c8b00", 1894)  # 2026-10-14 PM-DEC-613(실통화 1800·1954 — 한 턴 질문 하나 · 못 알아들을 때 설명 우선) — 옛 643d9da1…/1662
+_FREETALK_OLD_FROZEN = ("af87376eaedd383c118fdca109b0579e7d85fa55b14d53f64e59568df324ce31", 2424)  # PM-DEC-685 소견 2 한 줄(옛 43066427…/2389)  # 2026-10-16 통화 흐름 v2 프리토킹 확정본(13_공유_프리토킹) — 옛 61259e26…/1894
+_FREETALK_OLD_FROZEN_PREV = ("61259e26f8b60f1e508b22308d8aa2c0bb9547a86d66ca14bdd8fd05fb2c8b00", 1894)  # 2026-10-14 PM-DEC-613(실통화 1800·1954 — 한 턴 질문 하나 · 못 알아들을 때 설명 우선) — 옛 643d9da1…/1662
 
 _BRIEF = cur.CurFreetalkBrief(
     situation="처음 만난 반 친구와 이름과 나라 말하기",
@@ -78,7 +79,7 @@ def test_old_freetalk_without_lesson_is_byte_identical_to_the_frozen_baseline() 
 
 def test_old_seeds_are_unchanged() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
-    assert "한국어로 인사하고" in ft.seed_freetalk_opening("한국어")
+    assert "한국어로 네 성격대로 짧게 인사하고" in ft.seed_freetalk_opening("한국어")   # v2 프리토킹 시작 시드
     assert "학습 언어로 가볍게 새 화제" in ft.NUDGE_SEED_1_FREETALK
     assert "거기 있어? 잘 들려?" in cs._NUDGE_SEED_2
 
@@ -99,9 +100,10 @@ def test_lesson_script_rule_anchors() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = _lesson()
     assert "[이번 차시]의 «상대»가 되어 한국어로 역할극" in out
-    assert "차시 표현을 쓸 상황을 만들되 따라 말하기·정오 판정은 하지 않는다" in out
-    assert "답하기 어려워하면 영어(English)로 설명하고 한국어 답변 예시 하나" in out
-    assert "올바른 한국어 형태를 넣어 되받는다" in out
+    # 통화 흐름 v2(12_공유_회화학습) — 따라 말하기·정오 판정 없음 · 막히면 더 쉬운 질문(답 예시 없음) · 고쳐 되받기
+    assert "따라 말하기·정오 판정·문제 내기는 하지 않는다" in out
+    assert "더 쉬운 한국어로 한 번만 다시 묻는다" in out and "답 예시를 대신 말해 주지 않는다" in out
+    assert "올바른 한국어 형태를 다음 대사에 넣어 되받는다" in out
     assert "그 문장을 말해 보라고 청해라" not in out
 
 
@@ -166,8 +168,9 @@ def test_lesson_script_never_renders_the_close_tag() -> None:
 # --------------------------------------------------------------------------- #
 def test_lesson_opening_seed_declares_the_situation_and_one_task_in_the_target_language() -> None:
     seed = ft.seed_freetalk_lesson_opening("한국어")
-    assert seed.startswith("[통화 시작]") and "**한국어로** [이번 차시]의 «상대» 인물로서 한 문장으로 인사하고" in seed
-    assert "첫 질문 하나만 한국어로 한 뒤 멈춰라" in seed and "상황 설명도, 무엇을 할지 묻기도 하지 마라" in seed
+    # 통화 흐름 v2(12_공유_회화학습) — 캐릭터 본인 1문장으로 상황·역할을 알린 뒤 «상대»로 열린 질문 하나
+    assert seed.startswith("[통화 시작]") and "**한국어로** 네 캐릭터 그대로 한 문장으로 오늘 상황과 두 사람의 역할" in seed
+    assert "열린 질문 하나만 한국어로 하고 멈춰라" in seed
     assert len(seed) < 226, "P5(2026-09-15, 1610) — 선톡 시드를 짧게(옛 판 %d자)" % 226
     assert "과제" not in seed
     assert "소리 내어 읽지 말고" in seed and "종료" not in seed and "작별" not in seed

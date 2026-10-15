@@ -174,10 +174,11 @@ def test_a_placeholder_does_not_hide_a_real_leak_behind_it() -> None:
         "지금 퀴즈를 내라» 고 알릴 때만 낸다",
         "알림이 오면 퀴즈를 시작한다는 말을 영어(English)로 먼저 하고",
         # ② 먼저 묻고 기다려라
-        "하나씩 다루고 답을 기다리며",
-        "새 항목은 먼저 알려주고 원문 복창을 요청한다",
+        # 통화 흐름 v2(2026-10-16) — 먼저 알려주지 않고 출제(editable 역할 줄 · L3)
+        "하나씩 문제로 내어 학습자가 직접 말하게 한다",
+        "새 항목은 표현을 알려주지 않고",
         # ④ 공개 = 그 회차의 끝
-        "**표현 전체나 그 어절을 말하지 마라.**",
+        "**표현 전체를 말하지 마라.**",   # v2 L6 — 힌트는 첫 어절
         # ④-b 2026-09-13 «한 턴에 한 문제» — call 1543 t13·t15·t17 에서 교정 턴에 새 문제가 붙어 3개까지 쌓였다.
         "따라 말하게 해라 — **그리고 거기서 멈추고 기다려라.** 다음 문제는 학습자가 따라 말한 다음 턴에 낸다",
         "정답을 들려준 뒤에는 '어떻게 말해요?' 로 되묻지 마라",
@@ -186,7 +187,7 @@ def test_a_placeholder_does_not_hide_a_real_leak_behind_it() -> None:
         "격식 표지(-요·-습니다·저)가 빠진 것은 아니다",
         # ⑥ 무음
         "무음은 정답이 아니다",
-        "현재 원문 또는 현지인 문장을 다시 들려주고 답을 기다린다",
+        "힌트 전이면 첫 어절 힌트를, 힌트 뒤면 정답 문장을 들려주고 따라 말하게 한다",   # v2 L5
     ],
 )
 def test_the_beaver_script_carries_each_t14_line(line: str) -> None:
@@ -201,14 +202,14 @@ def test_the_old_zero_output_rule_is_gone() -> None:
 def test_the_note_tells_the_beaver_to_ask_first_on_a_new_item() -> None:
     """③ — 쪽지 직후 비버가 정답을 먼저 말하는 경로를 막는다."""
     note = build_expression_reground_brief("r", "p", drilled=["가"], locale_label="영어(English)")
-    assert "새 항목은 영어(English)로 뜻·쓰임을 설명하고 원문·예문을 들려준 뒤 복창을 기다려라" in note
+    assert "새 항목은 표현을 알려주지 말고 영어(English)로 뜻·상황만 주고 말해 보게 한 뒤 기다려라" in note   # v2 PM-DEC-684
     assert "학습자가 방금 답했으면 그 답에 먼저 반응해라" in note
 
 
 def test_the_nudge_gives_a_hint_in_a_quiz_and_a_model_in_a_drill() -> None:
     """⑦ — 퀴즈 중 넛지가 정답을 들려주면 그 문항이 통째로 죽는다."""
     assert "퀴즈 중이면 정답 대신 힌트 하나만 주고" in NUDGE_SEED_1_EXPRESSION
-    assert "드릴 중이면 한 번 더 들려준 뒤" in NUDGE_SEED_1_EXPRESSION
+    assert "드릴 중이면 힌트 전에는 첫 어절 힌트를" in NUDGE_SEED_1_EXPRESSION   # v2 L10
 
 
 # --------------------------------------------------------------------------- #
@@ -217,7 +218,7 @@ def test_the_nudge_gives_a_hint_in_a_quiz_and_a_model_in_a_drill() -> None:
 def test_the_give_up_path_never_says_correct() -> None:
     """T15-3 — 1398 t9: 3번째 시도 「잘 못 들었다」(반말·오답)에 극찬. 포기 경로에 «맞았다고 하지 마라» 가 없었다."""
     out = _script()
-    assert "소진 뒤 다음 항목으로 넘어가되 맞았다고 하지 않는다" in out      # [반응] 포기 경로
+    assert "정답 따라 말하기로 이어간다. 맞았다고 하지 않는다" in out      # [반응] 포기 경로(v2 L8)
     assert "소진은 정답·퀴즈 통과로 판정하지 않는다" in out      # [진행 절차] 포기 경로
 
 

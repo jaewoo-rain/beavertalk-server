@@ -51,6 +51,7 @@ from core.prompts.locked.expression import (
     EXPR_RULE3_LANDING,
     is_grammar,
     items_block,
+    lesson_guide_line,
     model_block,
     procedure,
     render_item,
@@ -99,7 +100,7 @@ _EXPRESSION_TEMPLATE = (
 [불변 규칙 — 캐릭터와 무관하게 항상 지켜라]
 위 코스의 시작·연습·진행·언어 규칙은 캐릭터에 적힌 학습 순서·언어 지시보다 우선한다.
 """
-    + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n원문·예문을 들려준 뒤에는 해당 복창을 기다린다. 현지인 복창 대기 중 다음 항목이나 새 화제로 바꾸지 않는다.\n"
+    + _RULE1_COURSE + "\n2. " + RULE_CLOSE_PROTOCOL + "\n출제한 뒤에는 답을 기다린다. 진행 중인 단계를 마치기 전에 다음 항목이나 새 화제로 바꾸지 않는다.\n"
     + _RULE3_LANGUAGE + "\n"
     + _RULE4_CORRECTION + "\n"
     + RULE_RESPONSE_LENGTH + "\n"
@@ -163,6 +164,7 @@ def build_expression_instruction(
     model_family: str = "2.5",
     face_rule: str = "",
     language: str = "ko",
+    lesson_guide: tuple[str | None, str | None] | None = None,
 ) -> str:
     """표현학습 통화의 system_instruction 을 조립한다(LLM 생성 0).
 
@@ -181,6 +183,9 @@ def build_expression_instruction(
             더한다(하네스 1410·1411 관찰 5건에 1:1). 2.5 면 **A 기준과 바이트 동일**이다.
             ⛔ 모델 선택은 여기서 하지 않는다 — 호출부가 `live_model` 에 "3.1" 이 들어 있는지 하나로 판단해 준다
               (`call_service.live_engine_for` 가 고른 이름이 곧 사실이다).
+
+        lesson_guide: (주제, 상황) — 정규 cur 표현학습만 넘긴다(SV-01 · 2026-10-16). 주면 [학습자 수준] 바로 뒤에
+            «[차시 안내] 주제: … · 상황: …» 한 줄. None(기본·숙제·옛 경로)이면 종전과 바이트 동일.
 
     Returns:
         Gemini Live system_instruction 문자열.
@@ -204,6 +209,7 @@ def build_expression_instruction(
             model_block=_model_block(model_family, target=target_language, locale_label=label),
         ),
         f"\n[학습자 수준] {level_first}",
+        *([guide] if lesson_guide and (guide := lesson_guide_line(*lesson_guide)) else []),
         "\n" + _items_block(items, target=target_language, locale_label=label),
         "\n" + _procedure(quiz_group, target=target_language, locale_label=label,
                           has_grammar=any(_is_grammar(i) for i in items), language=language),

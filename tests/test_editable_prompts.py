@@ -137,8 +137,9 @@ def test_a_legit_tone_edit_passes_and_reaches_the_assembled_prompt(tmp_path, mon
     with open(src, encoding="utf-8") as f:
         default_text = f.read()
     (tmp_path / "expression.default.md").write_text(default_text, encoding="utf-8")
-    edited = default_text.replace("설명·반응은 {locale_label}로 하며 캐릭터 말투를 유지한다.",
-                                  "설명·반응은 {locale_label}로 하며 캐릭터 말투를 그대로 밀고 가라.", 1)
+    # 2026-10-16 통화 흐름 v2 — 같은 톤 문장이 「캐릭터 성격 그대로 한다」로 바뀌었다(편집 예시만 새 문장에 맞춤)
+    edited = default_text.replace("설명·반응은 {locale_label}로, 캐릭터 성격 그대로 한다.",
+                                  "설명·반응은 {locale_label}로, 캐릭터 말투를 그대로 밀고 가라.", 1)
     assert edited != default_text
     (tmp_path / "expression.md").write_text(edited, encoding="utf-8")
     monkeypatch.setattr(el, "EDITABLE_DIR", str(tmp_path))

@@ -263,13 +263,13 @@ async def test_freetalk_call_carries_no_learning_items(session_factory, seeded) 
     out = holder["system_instruction"]
     assert "[오늘의 표현" not in out and "[진행 절차]" not in out
     assert "표현01" not in out
-    assert "캐릭터 말투는 유지하되 아래 규칙에 따라 한국어로 잡담한다" in out
+    assert "네 성격·말투는 그대로 살린다" in out   # 통화 흐름 v2 프리토킹 확정본(옛 「캐릭터 말투는 유지하되…잡담한다」)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "call_type,anchor",
-    [("expression", "첫 한국어 표현의 뜻·쓰임"), ("freetalk", "한국어로 인사하고")],
+    [("expression", "첫 한국어 표현의 뜻·상황만"), ("freetalk", "짧게 인사하고")],   # 통화 흐름 v2 시작 시드
 )
 async def test_the_opening_seed_is_the_courses_own(
     session_factory, seeded, call_type: str, anchor: str,

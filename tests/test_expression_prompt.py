@@ -127,7 +127,7 @@ def test_resume_seed_points_at_the_head_of_the_list() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     seed = seed_expression_resume("한국어")
     assert "미완료 원문 또는 현지인 복창 단계부터" in seed
-    assert "단계가 없으면 목록의 맨 앞 항목" in seed
+    assert "단계가 없으면 목록 맨 앞 항목을 알려주지 말고" in seed   # v2 §3.3
 
 
 # --------------------------------------------------------------------------- #
@@ -187,13 +187,12 @@ def test_after_the_material_runs_out_it_explains_then_makes_the_learner_produce(
     """
     out = _expr()
     tail = out.split("재료를 다 쓴 뒤에도 대화는 그대로 이어진다", 1)[1]
-    # ① 짚어 주기 — 무엇을(차이·언제 쓰는지) · 어느 언어로 · 얼마나(한두 문장)
-    assert "서로 어떻게 다르고" in tail and "언제 쓰는지" in tail
-    assert "영어(English)로 한두 문장만" in tail, "설명 분량이 안 박히면 규칙 5 와 싸운다"
-    # ② 산출 — 학습자가 직접 만들어 말한다
-    assert "학습자가 그중 하나를 넣은 문장을 직접 만들어 말하게 해라" in tail
-    # ②' 그리고 거기서 멈추지 않는다 — 한 번 만들고 끝나면 그게 '끝' 신호가 된다(call 870)
-    assert "표현을 바꿔 가며 계속 이어가라" in tail
+    # 통화 흐름 v2(2026-10-16 · L7 재료 소진 뒤 복습 출제) — 설명 대신 오늘 표현을 섞은 새 상황 출제를 이어 간다
+    # ① 새 상황을 학습자 언어로 주고 ② 학습자가 직접 말한다
+    assert "오늘 다룬 표현을 섞어 새 상황을 영어(English)로 주고" in tail
+    assert "한국어로 말해 보게 하는 출제를 같은 방식으로 계속해라" in tail
+    # ②' 멈추지 않는다 — 한 번 맞히고 끝나면 그게 '끝' 신호가 된다(call 870)
+    assert "바로 다음 새 상황을 낸다" in tail
     # ③ 종료 어휘 0(위 금지 목록 + '정리' 계열)
     for banned in ("정리", "마무리", "마지막", "끝으로", "여기까지"):
         assert banned not in tail, f"종료로 미끄러지는 어휘: {banned}"
@@ -276,8 +275,8 @@ def test_target_and_locale_are_substituted_not_hardcoded(build: str) -> None:
 def test_explanations_are_ordered_in_the_learner_native_language() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = _expr()
-    assert "영어(English)로 뜻·쓰임을 설명하고" in out
-    assert "설명·반응은 영어(English)로 하며 캐릭터 말투를 유지한다" in out
+    assert "영어(English)로 뜻·상황만 주고" in out   # v2 출제 안내
+    assert "설명·반응은 영어(English)로, 캐릭터 성격 그대로 한다" in out
 
 
 # --------------------------------------------------------------------------- #
@@ -295,14 +294,15 @@ def test_freetalk_carries_no_learning_items() -> None:
 def test_freetalk_is_target_language_only() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = build_freetalk_instruction(**BASE)
-    assert "한국어로 잡담한다" in out
-    assert "모국어 질문에는 영어(English)로 답한 뒤 한국어 대화로 돌아온다" in out
+    # 통화 흐름 v2 프리토킹 확정본 — 학습자가 절반 이상 한국어 · 뜻 물을 때만 모국어 한 문장
+    assert "통화 시간의 절반 이상을 한국어로 말하게" in out
+    assert "학습자가 뜻을 물을 때만 영어(English)로 한 문장 답하고 한국어 대화로 돌아온다" in out
 
 
 def test_freetalk_native_language_stays_a_stuck_only_exception() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     out = build_freetalk_instruction(**BASE)
-    assert "모국어 질문에는 영어(English)로 답한 뒤 한국어 대화로 돌아온다" in out
+    assert "학습자가 뜻을 물을 때만 영어(English)로 한 문장 답하고 한국어 대화로 돌아온다" in out   # v2
     assert "막히면 영어(English)로 설명" not in out
     assert "따라 말하게 하지 않는다" in out
 
@@ -324,7 +324,7 @@ def test_freetalk_has_no_band_policy_block() -> None:
 def test_expression_opening_goes_straight_to_item_one() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     seed = seed_expression_opening("한국어")
-    assert "첫 한국어 표현" in seed and "알려준 뒤 따라 말하게" in seed
+    assert "첫 한국어 표현" in seed and "뜻·상황만 모국어로 주고 한국어로 말해 보게" in seed   # v2 먼저 알려주지 않음
     assert "수다" not in seed and "공부할래" not in seed
 
 
@@ -337,7 +337,7 @@ def test_expression_resume_seed_does_not_greet_or_re_ask() -> None:
 
 def test_freetalk_opening_is_in_the_target_language() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
-    assert "한국어로 인사하고" in seed_freetalk_opening("한국어")
+    assert "한국어로 네 성격대로 짧게 인사하고" in seed_freetalk_opening("한국어")   # v2
 
 
 @pytest.mark.parametrize("seed", [NUDGE_SEED_1_EXPRESSION, NUDGE_SEED_1_FREETALK])
@@ -555,7 +555,9 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 #   ⚠ 문장은 한 글자도 안 바뀌었다(비ko 전용 목록에서 공통 자리로 이동). ja 조립은 바이트 동일(expression.procedure_ja 해시 무변).
 # 2026-10-10 사고 방어 패치: G1 종료 문장 · G7 현지인 문장 제약 · F1 큰따옴표 지시 → 3741 → 3828.
 # 2026-10-14 재기준(PM-DEC-613, 실통화 1936·1840): persona_intro 편집 문구 2줄(빈칸 낭독 금지 · 서버 안내 없는 복습 금지) → 3764 → 3869.
-_EXPR_FROZEN = ("9e78d62dac540b44d1f2dbd0f4d8c7f0302d323ba53b1465aa50bf326897f056", 3869)
+# 2026-10-16 재기준(통화 흐름 v2 T-20261016-03 · 사용자 「이대로 확정」): editable expression 수정본 + 잠금 L1~L9 → 3869 → 4308(옛 9e78d62d…).
+# 2026-10-16 재기준(PM-DEC-685 R2 — 규칙 2 뒤 문장 「출제한 뒤에는 답을 기다린다…」) → 4308 → 4302(옛 cce172c6…).
+_EXPR_FROZEN = ("f2b761067b813b05975723f0831de69909d3ff9cfe54a151cb7029a3b90cc993", 4302)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
@@ -589,9 +591,9 @@ def test_cur_dto_grammar_item_renders_the_form_marker_and_the_practice_sentence_
     assert '3. 가다 — 뜻: to go — 예문: "학교에 가요"' in out
     assert out.count("[문형]") == 3, "목록 줄 1 + 절차 문장 2(DRILL_GRAMMAR_LINE · 2026-09-14 E DRILL_GRAMMAR_ALT_LINE)"
     assert _GRAMMAR_SENTENCE in out
-    i_drill = out.index("- 원문과 현지인 문장")
+    i_drill = out.index("- 현지인 문장은 원문 결과와 무관하게")   # v2 drill_intro 첫 불릿
     i_sent = out.index(_GRAMMAR_SENTENCE)
-    i_wrong = out.index("- 틀리면 현재 정답 문장")
+    i_wrong = out.index("- 힌트 뒤에도 틀리면 정답 문장")   # v2 L4
     assert i_drill < i_sent < i_wrong, "문형 문장은 드릴 절 첫 불릿 바로 아래"
 
 
@@ -622,8 +624,8 @@ def test_the_31_block_sits_right_under_rule_5_and_has_at_most_five_lines() -> No
     assert i5 < ib < i6, "블록은 규칙 5 바로 아래, 규칙 6 앞이다"
     block = out[ib:i6].strip().splitlines()
     assert block[0] == "[3.1 말투]" and len(block) - 1 <= 5, "5줄 이내"
-    for expected in ("첫 항목을 알려주고 복창 요청", "다른 이름을 지어내지 마라", "두 번 쓰지 마라", "정중형이다 — 작별 인사도",
-                     "뜻·상황은 영어(English)로 짧게 설명"):
+    for expected in ("첫 항목은 알려주지 말고 뜻·상황만 주고",   # v2 L9 "다른 이름을 지어내지 마라", "두 번 쓰지 마라", "정중형이다 — 작별 인사도",
+                     "뜻·상황은 영어(English)로 짧게 준다"):   # PM-DEC-685 R5
         assert expected in out, expected
     # 나머지는 2.5 와 같다 — 블록만 끼워졌다
     assert out.replace(out[ib:i6], "") == _expr()
@@ -642,5 +644,5 @@ def test_the_31_block_is_substituted_not_hardcoded() -> None:
         locale="ja", interests=[], name="Tester", target_language="프랑스어",
         items=[{"obj": "Bonjour", "des": None, "ex": None}], quiz_group=QUIZ_GROUP, model_family="3.1",
     )
-    assert "프랑스어로 말하는 모든 것은 정중형이다" in out and "뜻·상황은 일본어(日本語)로 짧게 설명" in out
+    assert "프랑스어로 말하는 모든 것은 정중형이다" in out and "뜻·상황은 일본어(日本語)로 짧게 준다" in out   # PM-DEC-685 R5
     assert "한국어" not in out

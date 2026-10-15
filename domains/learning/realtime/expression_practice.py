@@ -37,7 +37,7 @@ class ExpressionPractice:
 
     @property
     def pending(self) -> bool:
-        return self.phase in ('original', 'native_intro', 'native')
+        return self.phase in ('original', 'reveal', 'native_intro', 'native', 'repeat')
 
     def _original(self) -> str:
         it = self.item or {}
@@ -101,29 +101,34 @@ class ExpressionPractice:
     def observe_user(self, text: str) -> None:
         if not self.item or not text.strip():
             return  # 무음/전사 누락/안내문은 복창 성공이나 시도가 아니다.
-        if self.phase == 'original':
+        # 통화 흐름 v2(2026-10-16 · 16_공유_표현학습_잠금변경제안 §3.1): 비버는 표현을 먼저 말하지 않고 뜻·상황만 준다.
+        #   그래서 introduce 에서 온 학습자 답도 원문 시도다(비버 발화에 원문이 없어 original 로 못 넘어간다).
+        if self.phase in ('introduce', 'original'):
+            self.phase = 'original'
             self.original_attempts += 1
             options = [self._original()]
             if self.item.get('role') != 'grammar' and self.item.get('ex'):
                 options.append(str(self.item['ex']))
             if any(self._matches(text, phrase) for phrase in options):
-                if self.native_step:
-                    self.phase = 'native_intro'
-                else:
-                    self._advance()
+                self._after_original()
             elif self.original_attempts >= 2:
-                self._advance()
+                self.phase = 'reveal'   # 힌트 뒤에도 틀림 → 정답 따라 말하기 1회
+        elif self.phase == 'reveal':
+            self._after_original()      # 따라 말하기 결과와 무관하게 다음 단계
         elif self.phase == 'native':
             self.native_attempts += 1
-            if self._matches(text, self.native_phrase) or self.native_attempts >= 2:
-                self._advance()
+            self.phase = 'repeat'
         elif self.phase == 'native_intro':
-            # 전사에서 구절을 확정할 수 없어도 이미 요청된 복창을 무한 대기하지 않는다.
-            # 두 실제 응답 이후 소진으로 진행하며 구절/정답/퀴즈 통과는 추정하지 않는다.
+            # 전사에서 현지인 구절을 확정 못 해도 따라 말하기 답 1회 뒤 다시 말하기로 간다(무한 대기 금지).
             self.native_attempts += 1
-            if self.native_attempts >= 2:
-                self.unresolved_native.add(self.index + 1)
-                self._advance()
+            self.unresolved_native.add(self.index + 1)
+            self.phase = 'repeat'
+        elif self.phase == 'repeat':
+            self._advance()             # 다시 말하기 답 1회 뒤 다음 항목(맞고 틀림은 추정하지 않는다)
+
+    def _after_original(self) -> None:
+        """원문 정답·정답 따라 말하기 뒤 — 정규는 현지인 문장, 숙제(현지인 단계 없음)는 다시 말하기."""
+        self.phase = 'native_intro' if self.native_step else 'repeat'
 
     def _advance(self) -> None:
         self.completed.add(self.index + 1)
@@ -143,19 +148,27 @@ class ExpressionPractice:
         if self.item is None:
             return '복창 단계는 모두 정리됨. 서버의 원문 퀴즈 안내와 기존 재료 활용을 따른다.'
         original = fill_slots(self._original())
-        if not self.native_step:
-            # 숙제(PM-DEC-626 P12-b) — 현지인 단계 없음. 원문 정답·두 번 시도 뒤 바로 다음 원문.
-            if self.phase == 'original':
-                action = f'원문 «{original}» 복창 대기. 시도 {self.original_attempts}/2이며 정답이면 다음 원문으로 넘어간다.'
-            else:
-                action = f'다음 원문 «{original}»의 뜻·쓰임·문장·예문을 알려주고 복창을 기다린다.'
-            return '[현재 복창 단계] ' + action + ' 현지인 표현은 만들지 않는다. 안내문은 낭독하지 않는다.'
-        if self.phase == 'native_intro':
-            action = '원문 정답 뒤 현지인 표현 한 문장을 학습 언어로 알려준다. 전사에서 큰따옴표로 구별하고 복창 요청 뒤 기다린다.'
-        elif self.phase == 'native':
-            action = f'현지인 문장 «{self.native_phrase}» 복창 대기. 시도 {self.native_attempts}/2이며 같은 문장을 유지하고 답을 기다린다.'
+        # 통화 흐름 v2(2026-10-16) — 문장은 16_공유_표현학습_잠금변경제안 §3.2 그대로(«(숙제는 …)» 갈래만 숙제에 맞춰 고름).
+        native = self.native_phrase if (self.native_step and self.native_phrase) else original
+        if self.phase == 'original' and self.original_attempts == 0:
+            action = f'원문 «{original}» 답 대기. 틀리거나 모르면 첫 어절 힌트를 주고 한 번 더 묻는다.'
         elif self.phase == 'original':
-            action = f'원문 «{original}» 복창 대기. 시도 {self.original_attempts}/2이며 정답은 현지인 문장 소개로 이어간다.'
+            action = f'힌트 뒤 답 대기. 또 틀리면 정답 «{original}»을 들려주고 한 번 따라 말하게 한다.'
+        elif self.phase == 'reveal':
+            action = ('정답 따라 말하기 대기(1회). 결과와 무관하게 다음은 '
+                      + ('현지인 문장이다.' if self.native_step else '다시 말하기다.'))
+        elif self.phase == 'native_intro':
+            action = '같은 상황에서 원어민이 대신 쓰는 현지인 문장 하나를 들려주고 한 번 따라 말하게 한다.'
+        elif self.phase == 'native':
+            action = (f'현지인 문장 «{self.native_phrase}» 따라 말하기 대기(1회). '
+                      '다음은 같은 상황을 다시 주고 이 문장을 한 번 더 말하게 한다.')
+        elif self.phase == 'repeat':
+            action = (f'같은 상황을 상대만 바꿔 다시 주고 «{native}»을 한 번 더 말하게 한다. 이미 물었으면 답을 기다린다. '
+                      + ('현지인 문장이나 원문이면 맞음. ' if self.native_step else '원문이면 맞음. ')
+                      + '틀리면 힌트 없이 정답을 한 번 들려주고 다음 원문으로 간다.')
         else:
-            action = f'다음 원문 «{original}»의 뜻·쓰임·문장·예문을 알려주고 복창을 기다린다.'
+            action = f'다음 원문 «{original}»은 알려주지 말고 뜻·상황만 모국어로 주고 말해 보게 한다.'
+        if not self.native_step:
+            # 숙제(PM-DEC-626 P12-b) — 현지인 단계 없음.
+            return '[현재 복창 단계] ' + action + ' 현지인 표현은 만들지 않는다. 안내문은 낭독하지 않는다.'
         return '[현재 복창 단계] ' + action + ' 현지인 문장은 원문 항목으로 추가 집계하지 않는다. 미완료 단계 중 다음 원문이나 퀴즈로 건너뛰지 않는다. 안내문은 낭독하지 않는다.'

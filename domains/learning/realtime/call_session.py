@@ -797,7 +797,7 @@ class _CallState:
         "expr_note_last_ts", "expr_quiz_open_ts", "expr_note_hold_why",   # 14차 B·D — 마지막 안내 주입 시각 · 창 연 시각 · 마지막 보류 사유
         "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
         "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
-        "call_id", "call_mode", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "call_id", "call_mode", "reground_freetalk", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
@@ -1047,6 +1047,8 @@ class _CallState:
         self.expr_drill_nudge_for: Optional[int] = None    # 12차 D — 대기 중인 안내가 어느 항목 때문인가(로그·기록용)
         self.call_id: Optional[int] = None
         self.call_mode: str = "chat"
+        # 통화 흐름 v2 PM-DEC-685 R1 — 확정 프리토킹 대본을 쓰는 통화(chat · 차시 없는 freetalk)면 True(재접지 끝줄 화제 유지)
+        self.reground_freetalk: bool = False
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
         #   usage_prompt_peak — 압축 사이클 peak. 압축될 때마다 바닥에서 다시 센다.
@@ -2918,6 +2920,11 @@ def _ratio_pct(part: int | None, whole: int | None) -> str:
     return "%.1f%%" % (part * 100.0 / whole)
 
 
+def _reground_mode(state: "_CallState") -> str:
+    """재접지 브리프 모드 — 통화 흐름 v2 PM-DEC-685(21_공유_T03소견대조) R1. 프리토킹 통화의 «대화» 모드만 "freetalk"(화제 유지 끝줄), 나머지는 call_mode 그대로."""
+    return "freetalk" if state.reground_freetalk and state.call_mode == "chat" else state.call_mode
+
+
 def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -> None:
     """통화 종료 시 usage 요약을 로그로 방출한다(요약 1줄 + 선택 시계열 1줄).
 
@@ -3675,6 +3682,7 @@ async def run_call(
                 face_rule=face_rule_text,
                 language=spec.code,
                 memory=chat_memory_dict,
+                max_sentences=2,   # SV-34 응답 2문장(통화 흐름 v2 · 13_공유_프리토킹 §9)
             )
             # ⭐⭐ QA C7-③: 기억이 빈약(사실 0·화제 0)하면 "아는 척" 시드가 내용 없이
             #   나가 비버가 지어낸다 — seed_chat_opening 이 그때 빈 문자열을 돌려주므로
@@ -3847,6 +3855,7 @@ async def run_call(
                     model_family="3.1" if "3.1" in (live_model or "") else "2.5",
                     face_rule=face_rule_text,
                     language=spec.code,                    # 격식 줄 언어별(ja) — ko 바이트 동일
+                    lesson_guide=(cur_open.topic, cur_open.lesson.situation),   # SV-01 [차시 안내](통화 흐름 v2)
                 )
                 seed_text = seed_expression_opening(target_language)
                 logger.info(
@@ -4182,6 +4191,8 @@ async def run_call(
             # ⛔ 모드는 여기서 서버가 정하고 이후 sticky 다 — 사이드카 제안은 인용 검증을 통과해야
             #   바뀐다(_apply_mode_proposal). 학습 재료가 있으면 공부, 없으면 대화.
             state.reground_persona = (setup["role"] or "", setup["personality"] or "")
+            # 통화 흐름 v2 PM-DEC-685(21_공유_T03소견대조) R1 — 확정 프리토킹 대본(freetalk persona_intro_old)을 쓰는 통화만 재접지 끝줄을 화제 유지로
+            state.reground_freetalk = call_type == "chat" or (call_type == "freetalk" and not cur_route)
             if homework is not None and hw_mode == "roleplay":
                 state.reground_reminder = build_homework_roleplay_reground(homework, locale)
                 state.continue_reminder = state.reground_reminder
@@ -7453,7 +7464,7 @@ def _arm_reground(state: _CallState, reason: str) -> None:
     #   1회째는 arm→얹기가 **1.18초**였고 사이드카는 1.4초라 결과가 조용히 버려졌다
     #   (`if not state.reground_pending: return`). 서버 누적이면 기다릴 게 없다.
     state.reground_reminder = build_reground_brief(
-        role, personality, mode=state.call_mode, covered=_covered_labels(state),
+        role, personality, mode=_reground_mode(state), covered=_covered_labels(state),
     )
     state.reground_pending = True
     state.reground_arm_reason = reason
@@ -7564,7 +7575,7 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
         text = _build_expression_note(state)
     else:
         text = state.reground_reminder or build_reground_brief(
-            role, personality, mode=state.call_mode, covered=_covered_labels(state)
+            role, personality, mode=_reground_mode(state), covered=_covered_labels(state)
         )
     try:
         await session.send_reground(text, turn_complete=True)
@@ -7763,7 +7774,7 @@ async def _reground_sidecar(state: _CallState) -> None:
         topic = getattr(result, "topic", "") or ""
         state.reground_reminder = build_reground_brief(
             role, personality,
-            mode=state.call_mode,
+            mode=_reground_mode(state),
             covered=covered,
             topic=topic,
         )

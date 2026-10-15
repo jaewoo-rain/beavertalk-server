@@ -47,7 +47,7 @@ def test_approved_body_is_kept_in_full(name,key):
     approved = json.loads((Path(__file__).parent/'fixtures/approved_call_prompts474.json').read_text(encoding='utf-8'))
     assert text == approved[name + ':' + key]
     # 2026-10-10 사고 방어 패치 G1 — 대본에서 종료 개념을 꺼내지 않는다(README 원칙 5 · call 706·782·852·870)
-    assert '종료' not in text and '이어간다' in text
+    assert '종료' not in text and '이어간다' in text   # G1 닻 — persona_intro_old 는 PM-DEC-685 한 줄로 원복
     assert el.validate(name,el.load(name),el.load(name)) == []
 
 
@@ -61,8 +61,11 @@ def test_actual_level_prompt_contains_db_material_and_approved_language():
 
 def test_expression_assembly_removes_old_teaching_and_retry_rules():
     out = build_expression_instruction(role='role',personality='personality',level_profile='',locale='en',interests=[],items=ITEMS,quiz_group=3)
-    assert '원문을 맞히면 현지인 표현도' in out
-    assert '각 문장 최대 2회' in out
+    # 통화 흐름 v2(2026-10-16) — 먼저 알려주지 않고 출제 · 첫 어절 힌트 · 현지인 문장은 결과와 무관하게 · 다시 말하기
+    assert '표현을 알려주지 않고' in out and '첫 어절' in out
+    assert '현지인 문장은 원문 결과와 무관하게' in out
+    assert '한 번 더 말하게 하는 질문 하나' in out
+    assert '각 문장 최대 2회' not in out and '먼저 알려주고 원문 복창' not in out
     assert '최대 3번' not in out
     assert '처음부터 정답을 들려주고 따라 하게 하지 마라' not in out
     assert '되면 곧바로 다음 번호' not in out
@@ -72,8 +75,9 @@ def test_expression_assembly_removes_old_teaching_and_retry_rules():
 def test_chat_assembly_keeps_memory_without_always_questioning():
     args = dict(role='role',personality='personality',level_profile='',locale='en',interests=['등산'],close_tag='[통화종료]')
     out = build_chat_instruction(**args,memory={'topics':['등산'], 'facts':['산을 좋아함']})
-    assert '모국어 질문에는 영어(English)로 답한 뒤 한국어 대화로 돌아온다.' in out
-    assert '네 생각과 질문을 섞고' in out
+    # 통화 흐름 v2(2026-10-16 프리토킹 확정본) — 뜻을 물을 때만 모국어 한 문장 · 네 짧은 이야기 한 문장 + 질문 하나
+    assert '학습자가 뜻을 물을 때만 영어(English)로 한 문장 답하고 한국어 대화로 돌아온다.' in out
+    assert '네 짧은 이야기 한 문장' in out and '질문 하나' in out
     assert '산을 좋아함' in out
     assert '물음표로 끝내고 멈춰라' not in out
     assert '한국어로 인사한다' in seed_chat_opening('한국어', {'topics':['등산']})
@@ -85,14 +89,19 @@ def test_native_copy_is_not_replaced_by_next_original():
     p.observe_beaver('Next: "안녕하세요"')
     assert p.index == 0 and p.native_phrase == '정말 고마워요'
     p.observe_user('정말 고마워요')
+    assert p.index == 0 and p.phase == 'repeat'       # v2: 현지인 따라 말하기 뒤 다시 말하기
+    p.observe_user('정말 고마워요')
     assert p.index == 1 and p.completed == {1}
 
 
-def test_original_two_failures_do_not_create_native_or_mastery():
+def test_original_two_failures_reveal_then_native_without_mastery():
+    # v2: 힌트 뒤에도 틀리면 정답 따라 말하기(reveal) 1회 → 결과와 무관하게 현지인 문장
     p=practice(); p.observe_beaver('"감사합니다"')
-    p.observe_user('모르겠어요'); assert p.original_attempts == 1
+    p.observe_user('모르겠어요'); assert p.original_attempts == 1 and p.phase == 'original'
     p.observe_user('다시 모르겠어요')
-    assert p.index == 1 and p.completed == {1} and p.native_phrase == ''
+    assert p.phase == 'reveal' and p.index == 0 and p.completed == set() and p.native_phrase == ''
+    p.observe_user('감사함니다')
+    assert p.phase == 'native_intro' and p.index == 0
 
 
 def test_native_two_failures_are_a_separate_limit():
@@ -118,8 +127,8 @@ def test_translation_original_and_ambiguous_pair_are_not_registered(utterance):
 def test_fragment_replay_restores_exact_native_sentence_and_attempt_count():
     p=practice()
     p.replay([('beaver','"감사합니다"'),('user','감사합니다'),('beaver','"정말 고마워요"'),('user','틀린 답')])
-    assert p.phase == 'native' and p.native_attempts == 1
-    assert '정말 고마워요' in p.brief() and '1/2' in p.brief()
+    assert p.phase == 'repeat' and p.native_attempts == 1   # v2: 현지인 따라 말하기 1회 뒤 다시 말하기
+    assert '정말 고마워요' in p.brief() and '한 번 더 말하게' in p.brief()
     p.observe_user('정말 고마워요');assert p.completed == {1}
 
 
@@ -127,13 +136,15 @@ def test_fragment_replay_restores_exact_native_sentence_and_attempt_count():
 def test_native_phrase_does_not_require_quotation_marks(text):
     p=practice();p.observe_beaver('"감사합니다"');p.observe_user('감사합니다');p.observe_beaver(text)
     assert p.phase=='native' and p.native_phrase=='정말 고마워요'
+    p.observe_user('정말 고마워요'); assert p.phase=='repeat'
     p.observe_user('정말 고마워요'); assert p.completed=={1}
 
 
 def test_ambiguous_native_transcript_is_bounded_without_claiming_success():
     p=practice();p.observe_beaver('"감사합니다"');p.observe_user('감사합니다')
     p.observe_beaver('"정말 고마워요" or "아주 고마워요"')
-    p.observe_user('틀린 답'); assert p.phase=='native_intro' and p.native_phrase==''
+    # v2: 현지인 구절을 못 정해도 따라 말하기 답 1회 뒤 다시 말하기 · 그 답 1회 뒤 다음 항목(성공으로 치지 않음)
+    p.observe_user('틀린 답'); assert p.phase=='repeat' and p.native_phrase=='' and p.unresolved_native=={1}
     p.observe_user('또 틀린 답'); assert p.index==1 and p.unresolved_native=={1}
 
 
@@ -160,6 +171,9 @@ def test_quiz_does_not_open_on_original_copy_or_assistant_next_intro(monkeypatch
     assert cs._expression_quiz_cue_settled(s)[0] is False
     s.expr_practice.observe_user('정말 고마워요')
     cs._expression_quiz_maybe_arm(s)
+    assert s.expr_quiz_cue_pending is None            # v2: 다시 말하기(repeat) 단계가 남아 있다
+    s.expr_practice.observe_user('정말 고마워요')
+    cs._expression_quiz_maybe_arm(s)
     assert s.expr_quiz_set == [1] and s.expr_quiz_cue_pending
     assert cs._expression_quiz_cue_settled(s)[0] is True
 
@@ -169,6 +183,7 @@ def test_real_flush_tracks_copy_but_never_grants_quiz_pass():
     s.cur_user_text=['감사합니다'];cs._flush_user_segment(s)
     s.cur_beaver_text=['"정말 고마워요"'];cs._flush_beaver_segment(s)
     s.cur_user_text=['정말 고마워요'];cs._flush_user_segment(s)
+    s.cur_user_text=['정말 고마워요'];cs._flush_user_segment(s)   # v2 다시 말하기
     assert s.expr_practice.completed == {1}
     assert s.expr_quiz_pass == set() and s.expr_quiz_fail == set()
     assert s.covered_nums == [1]
@@ -222,6 +237,7 @@ def test_explicit_native_phrase_may_also_be_a_future_original():
     p.observe_beaver('감사합니다');p.observe_user('감사합니다')
     p.observe_beaver('Naturally: "고마워요". Repeat it.')
     assert p.phase=='native' and p.native_phrase=='고마워요'
+    p.observe_user('고마워요'); assert p.phase=='repeat'
     p.observe_user('고마워요')
     assert p.completed=={1} and p.index==1
 

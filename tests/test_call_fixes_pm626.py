@@ -43,8 +43,11 @@ def test_homework_tracker_skips_native_step():
     p = ExpressionPractice(ITEMS, native_step=False)
     p.observe_beaver("어제 비가 많이 왔어요 를 말해 보세요.")
     p.observe_user("어제 비가 많이 왔어요")
-    assert p.index == 1 and p.phase == "introduce"
+    # 통화 흐름 v2(2026-10-16) — 숙제도 원문 뒤 다시 말하기 1회(HOMEWORK_NO_NATIVE_LINE L11) 뒤 다음 원문
+    assert p.index == 0 and p.phase == "repeat"
     assert "현지인 표현은 만들지 않는다" in p.brief()
+    p.observe_user("어제 비가 많이 왔어요")
+    assert p.index == 1 and p.phase == "introduce"
     assert "현지인 문장 소개" not in p.brief()
 
 

@@ -27,11 +27,12 @@ def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_lang
     # PM-DEC-474: 새 항목은 먼저 가르치되 비ko 문자·격식 가드는 유지한다.
     for lang,target in (("ja","일본어"),("ko","한국어")):
         out=_instr(lang,target)
-        assert out.count(lex.DRILL_ASK_FIRST_LINE)==1
+        # 통화 흐름 v2 — L3 줄에 {target}·{locale_label} 슬롯이 생겼다(조립 때 채움). 줄 머리로 센다
+        assert out.count("- 새 항목은 표현을 알려주지 않고")==1
         assert "소진은 정답·퀴즈 통과로 판정하지 않는다" in out
         proc=lex.procedure(drill_intro="- 드릴",target=target,locale_label="모국어",language=lang).splitlines()
         assert proc[1]=="- 드릴"
-        assert proc.index(lex.DRILL_ASK_FIRST_LINE)<proc.index(lex.DRILL_REVEAL_LINE)
+        assert proc.index(lex.DRILL_ASK_FIRST_LINE.format(target=target,locale_label="모국어"))<proc.index(lex.DRILL_REVEAL_LINE)
         assert ("음차해 적거나 읽지 마라" in out)==(lang!="ko")
     assert lex.DRILL_EXTRA_LINES_BY_LANGUAGE["ko"]==()
     assert lex.DRILL_EXTRA_LINES_DEFAULT==(lex.DRILL_TARGET_SCRIPT_LINE,)
@@ -43,7 +44,7 @@ def test_target_script_line_is_non_ko_only_and_ask_first_is_common_to_every_lang
 def test_expression_prompt_forbids_self_ending_after_the_list():
     for lang,target in (("ko","한국어"),("ja","일본어")):
         assert "이어간다" in _instr(lang,target) and "종료" not in _instr(lang,target)  # 2026-10-10 사고 방어 패치 G1
-        assert lex.ITEMS_EXHAUSTION_LINE.format(locale_label="한국어" if lang=="ja" else "영어(English)") in _instr(lang,target)
+        assert lex.ITEMS_EXHAUSTION_LINE.format(locale_label="한국어" if lang=="ja" else "영어(English)", target=target) in _instr(lang,target)   # v2 L7 {target}
 
 
 # --------------------------------------------------------------------------- #
@@ -127,7 +128,7 @@ def test_expression_resume_note_has_the_required_sections_and_stays_short():
         note = fn("일본어", **mats)
         assert len(note) <= seeds.RESUME_NOTE_MAX_CHARS == 900, (fn.__name__, len(note))
         assert note.startswith("[통화 이어감]")
-        assert "이미 한 것: 드릴 18개" in note and "퀴즈 통과 (" in note and "미완료 원문·현지인 복창은 이어간다" in note
+        assert "이미 한 것: 드릴 18개" in note and "퀴즈 통과 (" in note and "미완료 단계는 이어간다" in note   # v2 R4
         assert "오답이었던 것(いらっしゃいませ, どういたしまして)은 한 번 더 시켜 보고" in note
         assert "바로 전 대화:" in note and "학습자 «また ね 。»" in note and "**짧게(2문장)**" in note
         assert "«왔냐?»류 시작말도 하지 마라" in note and "인사하지 말고" in note and "(일본어 학습을 계속한다.)" in note
@@ -138,7 +139,7 @@ def test_expression_resume_note_has_the_required_sections_and_stays_short():
     assert "학습자가 먼저 말한다. 기다렸다가" in silent and "지금 바로 이어가라" not in silent
     # 재료 없이(옛 호출·조회 실패) 도 형식이 선다
     bare = seeds.seed_expression_resume("한국어")
-    assert "드릴 0개 · 퀴즈 통과 없음" in bare and "남은 것 = [오늘의 표현] 목록 그대로다 — 새로 가르쳐라." in bare and "바로 전 대화" not in bare
+    assert "드릴 0개 · 퀴즈 통과 없음" in bare and "남은 것 = [오늘의 표현] 목록 그대로다 — 표현을 알려주지 말고 뜻·상황만 주고 말해 보게 하라." in bare and "바로 전 대화" not in bare
     # C5 silent 일반 브리프 마지막 줄
     assert "«왔냐?»·«어, 왔어?» 같은 시작말도 쓰지 말고" in reground.RESUME_SILENT_FIRST_ACTION
     # 조각1 대본(선톡 시드) 무변경 — 재개 쪽지가 새지 않았다
@@ -165,8 +166,9 @@ def test_grammar_items_accept_other_correct_sentences_of_the_same_pattern():
 def test_new_item_first_ask_frame_is_in_the_drill_intro_for_all_languages():
     for lang,target in (("ko","한국어"),("ja","일본어")):
         out=_instr(lang,target)
-        assert "새 항목은 먼저 알려주고 원문 복창을 요청한다" in out
-        assert "원문 정답 뒤 현지인 표현을 하나 알려주고 복창을 기다린다" in out
+        # 통화 흐름 v2 — 먼저 알려주지 않고 출제(L3) · 현지인 문장은 원문 결과와 무관하게(editable)
+        assert "새 항목은 표현을 알려주지 않고" in out
+        assert "현지인 문장은 원문 결과와 무관하게" in out
         assert "최대 3번" not in out
 
 

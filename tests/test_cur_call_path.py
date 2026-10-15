@@ -265,10 +265,10 @@ async def test_freetalk_opens_after_expression_done_with_lesson_block_and_comple
     si = h2["system_instruction"]
     # 프리토킹 v1 차시판(2026-09-12-프리토킹-코스-대본 §3·§9) — 과제 대본 + [이번 차시] 소재 전부(청크 15) + 문장 수 2 + 차시판 선톡
     assert "[이번 차시 — 이 상황을 역할극으로 대화한다]" in si and lesson1.situation in si
-    assert "«상대»가 되어 한국어로 역할극" in si and "영어(English)로 설명" in si and "한국어 역할극으로 돌아온다" in si
+    assert "«상대»가 되어 한국어로 역할극" in si and "뜻 설명만 영어(English)로 한다" in si and "한국어 역할극으로 돌아온다" in si   # v2 회화학습
     assert "**네가 이 사람이다.**" in si and "과제" not in si
     assert all(s in si for s in surfaces) and "[학습자 흥미" not in si and "1~2문장" in si
-    assert h2["session"].sent_text_turns[0].startswith("[통화 시작]") and "«상대» 인물로서 한 문장으로 인사하고" in h2["session"].sent_text_turns[0]
+    assert h2["session"].sent_text_turns[0].startswith("[통화 시작]") and "네 캐릭터 그대로 한 문장으로 오늘 상황과 두 사람의 역할" in h2["session"].sent_text_turns[0]   # v2 시작 시드
     db = session_factory()
     try:
         call = _last_call(db, m)

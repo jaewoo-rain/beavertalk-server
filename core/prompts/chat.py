@@ -108,17 +108,18 @@ def build_chat_instruction(
     face_rule: str = "",
     language: str = "ko",
     memory: dict | None = None,
+    max_sentences: int | None = None,
 ) -> str:
     """자유대화 통화의 system_instruction — freetalk D8 기본 대본(`lesson=None`) +
     `[관심사]`(있을 때만) + `[기억]`(있을 때만). `memory` 는
     `chat_memory_service.to_dict(row)` 의 모양(summary/topics/facts/interests/
-    next_topics)이다.
+    next_topics)이다. `max_sentences` 는 응답 문장 상한(SV-34 · 통화 흐름 v2 는 2 · None 이면 기본).
     """
     parts = [build_freetalk_instruction(
         role=role, personality=personality, level_profile=level_profile, locale=locale,
         interests=[], name=name, target_language=target_language,
         locale_label=locale_label, close_tag=close_tag, lesson=None,
-        face_rule=face_rule, language=language,
+        face_rule=face_rule, language=language, max_sentences=max_sentences,
     )]
     interests_block = _interests_block(interests)
     if interests_block:

@@ -89,13 +89,13 @@ def _join_cap(items: list[str] | None, cap: int = _RESUME_NOTE_LIST_CAP) -> str:
 def _expression_resume_note(target_language: str, *, first_action: str, drilled, passed, failed, recent, recent_n: int, list_cap: int) -> str:
     lines = ["[통화 이어감] 학습자와 하던 학습이 잠깐 멈췄다가 지금 다시 이어진다."]
     d, p, f = _join_cap(drilled, list_cap), _join_cap(passed, list_cap), _join_cap(failed, list_cap)
-    done = "- 이번 통화에서 이미 한 것: 드릴 %d개%s · 퀴즈 통과 %s — 목록은 진도 참고이며 미완료 원문·현지인 복창은 이어간다." % (
+    done = "- 이번 통화에서 이미 한 것: 드릴 %d개%s · 퀴즈 통과 %s — 목록은 진도 참고이며 미완료 단계는 이어간다." % (   # 통화 흐름 v2 PM-DEC-685(21_공유_T03소견대조) R4
         len(drilled or []), "(%s)" % d if d else "", "(%s)" % p if p else "없음")
     lines.append(done)
     if f:
-        lines.append("- 남은 것 = [오늘의 표현] 목록 그대로다. 오답이었던 것(%s)은 한 번 더 시켜 보고, 나머지는 새로 가르쳐라." % f)
+        lines.append("- 남은 것 = [오늘의 표현] 목록 그대로다. 오답이었던 것(%s)은 한 번 더 시켜 보고, 나머지는 표현을 알려주지 말고 뜻·상황만 주고 말해 보게 하라." % f)
     else:
-        lines.append("- 남은 것 = [오늘의 표현] 목록 그대로다 — 새로 가르쳐라.")
+        lines.append("- 남은 것 = [오늘의 표현] 목록 그대로다 — 표현을 알려주지 말고 뜻·상황만 주고 말해 보게 하라.")
     rec = [(r, t) for r, t in (recent or []) if (t or "").strip()][-recent_n:] if recent_n > 0 else []
     if rec:
         conv = " → ".join(("비버 «%s»" if r == "beaver" else "학습자 «%s»") % t.strip()[:120] for r, t in rec)
@@ -139,8 +139,8 @@ def expression_resume_note_stats(target_language: str = "한국어", *, silent: 
     }
 
 
-EXPRESSION_RESUME_FIRST_ACTION_SEED = '지금 바로 이어가라: 마지막 말에 짧게 반응하고 미완료 원문 또는 현지인 복창 단계부터 이어간다. 단계가 없으면 목록의 맨 앞 항목을 알려주고 복창을 기다린다.'
-EXPRESSION_RESUME_FIRST_ACTION_SILENT = '학습자가 먼저 말한다. 기다렸다가 짧게 반응하고 미완료 원문 또는 현지인 복창 단계부터 이어간다. 단계가 없으면 목록의 맨 앞 항목을 알려주고 복창을 기다린다.'
+EXPRESSION_RESUME_FIRST_ACTION_SEED = '지금 바로 이어가라: 마지막 말에 짧게 반응하고 미완료 원문 또는 현지인 복창 단계부터 이어간다. 단계가 없으면 목록 맨 앞 항목을 알려주지 말고 뜻·상황만 주고 말해 보게 한다.'
+EXPRESSION_RESUME_FIRST_ACTION_SILENT = '학습자가 먼저 말한다. 기다렸다가 짧게 반응하고 미완료 원문 또는 현지인 복창 단계부터 이어간다. 단계가 없으면 목록 맨 앞 항목을 알려주지 말고 뜻·상황만 주고 말해 보게 한다.'
 
 
 def seed_expression_resume(target_language: str = "한국어", *, drilled=None, passed=None, failed=None, recent=None) -> str:
@@ -178,7 +178,7 @@ LOOP_BREAK_NOTE = (
 # ⭐ 11차 B(2026-09-18, 1643 2.5 — こんにちは·はじめまして·◯◯から来ました 를 한 항목당 6~8턴씩 붙잡고 통과 항목을 3번 재드릴했다). 루프 차단기
 #   (LOOP_BREAK_NOTE)는 «직전 턴과 거의 같은 문장» 만 보므로 표현을 바꿔 가며 같은 항목을 되풀이하면 안 걸린다 — 서버가 «항목» 을 세서 넣는 안내다.
 #   한 항목의 드릴이 학습자 턴 3회를 넘거나(DRILL 재시도 상한 3 과 같은 축) 이미 다룬 항목을 다시 드릴하면 1회, 통화당 3회까지.
-EXPRESSION_DRILL_MOVE_ON = '[안내] 원문·현지인 문장 각각 최대 두 시도 한도를 지킨다. 미완료 현지인 문장은 먼저 복창을 기다리고, 정답이나 해당 문장 두 시도 소진 뒤 다음 항목으로 간다. 안내문은 낭독하지 않는다.'
+EXPRESSION_DRILL_MOVE_ON = '[안내] 원문은 힌트 뒤 한 번 더, 현지인 문장과 다시 말하기는 각 한 번이다. 미완료 단계의 답을 먼저 받고 다음 항목으로 간다. 안내문은 낭독하지 않는다.'
 
 
 # --------------------------------------------------------------------------- #
@@ -192,9 +192,10 @@ EXPRESSION_DRILL_MOVE_ON = '[안내] 원문·현지인 문장 각각 최대 두 
 #   전례가 있다(call_session.LEVELTEST_IDLE_NUDGE1_S 주석).
 # ⛔ 접두어는 CONTROL_TAG(종료 아님) — 종료 태그와 절대 공유하지 마라(call_id=683).
 NUDGE_SEED_1_EXPRESSION = (
-    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 "
-    "**화제를 바꾸지 말고**, 퀴즈 중이면 정답 대신 힌트 하나만 주고, 드릴 중이면 한 번 더 "
-    "들려준 뒤 따라 말해 보라고 네 캐릭터대로 한 번만 청하라."
+    f"{CONTROL_TAG} "
+    "학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 **화제를 바꾸지 말고**, 퀴즈 "
+    "중이면 정답 대신 힌트 하나만 주고, 드릴 중이면 힌트 전에는 첫 어절 힌트를 주고 다시 말해 보라고, "
+    "힌트 뒤에는 정답 문장 전체를 들려주고 따라 말해 보라고 네 캐릭터대로 한 번만 청하라."
 )
 
 

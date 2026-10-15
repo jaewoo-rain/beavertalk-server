@@ -92,6 +92,8 @@ class CurCallOpen:
     #   재개(조각2)에도 그대로 — 저장 컬럼 없이 «프리토킹인데 status 가 expression_done 이 아니다» 로 되짚는다(정상 프리토킹은 열릴 때
     #   expression_done 이었고, 조각1 이 이미 끝냈으면 freetalk_done — 그때 complete 는 어차피 no-op).
     forced: bool = False
+    #: 차시 주제(cur_topic.name · 레벨1 은 None) — 정규 표현학습 [차시 안내] 줄(SV-01 · 통화 흐름 v2 2026-10-16).
+    topic: Optional[str] = None
 
 
 def _now() -> datetime:
@@ -311,7 +313,7 @@ def open_call(
         forced = existing.course == COURSE_FREETALK and status != STATUS_EXPRESSION_DONE
         logger.info("cur open_call: 조각 재개 call_id=%s lesson=%s course=%s 재선별=%d(통과 제외 %d·오답 앞줄 %d)%s", call_id, lesson.code,
                     existing.course, len(items), len(passed_ids), len(failed_ids), " 강제(진도 무영향)" if forced else "")
-        return CurCallOpen(lesson=lesson, course=existing.course, items=items, brief=brief, resumed=True, status=status, forced=forced)
+        return CurCallOpen(lesson=lesson, course=existing.course, items=items, brief=brief, resumed=True, status=status, forced=forced, topic=_topic_name(db, lesson))
 
     prog = ensure_progress(db, member_id, language, for_update=True)
     lesson = repo.lesson_by_id(db, prog.lesson_id)
@@ -337,7 +339,7 @@ def open_call(
         "cur open_call: call_id=%s member=%s lesson=%s(no=%d) course=%s status=%s 항목=%d(복습 %d)",
         call_id, member_id, lesson.code, lesson.no, course, status, len(items), sum(1 for d in items if d["review"]),
     )
-    return CurCallOpen(lesson=lesson, course=course, items=items, brief=brief, resumed=False, status=status, forced=forced)
+    return CurCallOpen(lesson=lesson, course=course, items=items, brief=brief, resumed=False, status=status, forced=forced, topic=_topic_name(db, lesson))
 
 
 # ── 통화 종료(표현학습) ────────────────────────────────────────────────────── #
