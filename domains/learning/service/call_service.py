@@ -691,7 +691,17 @@ class CallService:
                     s.summary = tr[s.call_id]
         return out
 
-    def get_call(self, member_id: int, call_id: int) -> CallDetail:
+    def _localized_summary(self, call, client, locale: str | None) -> str | None:
+        """R5(2026-10-16 PM-DEC-673) — 단건도 목록(§10)과 같은 localized_summaries 경로. 없거나 실패면 원문."""
+        if not locale:
+            return call.summary
+        from domains.learning.service import display_i18n_service
+
+        return display_i18n_service.localized_summaries(self.db, client, [call], locale).get(call.call_id, call.summary)
+
+    def get_call(
+        self, member_id: int, call_id: int, *, client=None, locale: str | None = None,
+    ) -> CallDetail:
         call = self.repo.get_detail(call_id)
         self._assert_owner(call, member_id)
         active = [s for s in call.sentences if s.deleted_at is None]  # 소프트 삭제 제외
@@ -702,12 +712,17 @@ class CallService:
         #   짝이 기본 문장과 나란히 안 온다(분석 직후 voice_url UPDATE 가 행을
         #   뒤로 밀 수도 있다).
         ordered = order_sentences_with_pairs(active)
-        return CallDetail(
+        detail = CallDetail(
             **self._summary_fields(call),
             sentences=[self._to_sentence(s) for s in ordered],
         )
+        if locale:
+            detail.summary = self._localized_summary(call, client, locale)
+        return detail
 
-    def get_call_result(self, member_id: int, call_id: int) -> CallResult:
+    def get_call_result(
+        self, member_id: int, call_id: int, *, client=None, locale: str | None = None,
+    ) -> CallResult:
         """통화 종료 후 결과 — 발화 평가들의 평균 + 사용된 문장 전체."""
         call = self.repo.get_detail(call_id)
         self._assert_owner(call, member_id)
@@ -723,7 +738,7 @@ class CallService:
         )
         return CallResult(
             call_id=call.call_id,
-            summary=call.summary,
+            summary=self._localized_summary(call, client, locale),
             feedback=call.feedback,  # 요구1: 격려 한마디(/result 만 노출)
             rating=call.rating,
             average=average,

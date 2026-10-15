@@ -32,6 +32,8 @@ KIND_CUR_PARTNER = "cur_partner"
 #: 역할극 숙제 상황·역할(교사가 쓴 문구) — 통화 화면 i 안내 시트(PM-DEC-624). 상황과 역할을 kind 로 가른다.
 KIND_HW_SITUATION = "hw_situation"
 KIND_HW_ROLE = "hw_role"
+#: cur_topic.name(차시 주제) — 홈 학습 현황 주제 줄(2026-10-16 PM-DEC-673 R1). 29개 언어 사전 적재분(1,885행)을 읽는다.
+KIND_CUR_TOPIC = "cur_topic"
 
 
 def display_locale(member_language: Optional[str]) -> str:
@@ -73,6 +75,37 @@ def partner_translation(
     kind 만 cur_partner 로 갈라 같은 한국어 문구가 상황·상대역 양쪽에 나와도 행이 섞이지 않는다.
     """
     return _cur_text_translation(db, client, KIND_CUR_PARTNER, partner, locale)
+
+
+def topic_translation(
+    db: Session, client, topic: Optional[str], locale: str,
+) -> Optional[str]:
+    """차시 주제(cur_topic.name)의 회원 언어 표시값(R1) — 캐시·번역기는 situation 과 같다.
+
+    ⭐ 새 필드라 번역이 없거나 ko 회원이면 **원문**을 돌려준다(PM-DEC-673 「null 로 비우지 않는다」).
+    주제가 없는 차시(레벨1)만 None.
+    """
+    src = (topic or "").strip()
+    if not src:
+        return None
+    return _cur_text_translation(db, client, KIND_CUR_TOPIC, src, locale) or src
+
+
+def cached_situation_translations(db: Session, situations: Iterable[str], locale: str) -> dict[str, str]:
+    """{상황 원문: 회원 언어 표시값} — GET /cur/lessons(R2)용. **캐시만** 본다(번역 호출 0 · 레벨 하나가 수십 행이다).
+
+    캐시에 없거나 ko 회원이면 원문을 값으로 둔다(새 필드 · null 로 비우지 않는다). 조회 실패도 원문.
+    """
+    srcs = [s for s in {(x or "").strip() for x in situations} if s]
+    out = {s: s for s in srcs}
+    if locale == "ko" or not srcs:
+        return out
+    try:
+        out.update(repo.get_cur_texts(db, KIND_CUR_SITUATION, srcs, locale))
+    except Exception:  # noqa: BLE001 - 번역 캐시 조회 실패가 차시 목록을 막으면 안 된다(R5)
+        logger.warning("display_i18n: 차시 목록 상황 캐시 조회 실패(원문) locale=%s", locale, exc_info=True)
+        _rollback(db)
+    return out
 
 
 def homework_roleplay_translations(

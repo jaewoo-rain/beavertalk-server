@@ -416,6 +416,8 @@ def assess(
     if lesson is None:
         return None
 
+    # R3(2026-10-16 PM-DEC-673) — 결과 label 도 목록·학습과 같은 번역 경로(없으면 원본)
+    label, _, _ = _translated(lesson, repo.get_i18n(_locale_of(db, member_id)).get(sound_key))
     scored = _score_audio(lesson, raw)
     value = scored["score"]
     is_stub = scored["is_stub"]
@@ -430,7 +432,7 @@ def assess(
             best_score = value if value is not None else 0
         return SoundResultOut(
             sound_key=sound_key,
-            label=lesson.label,
+            label=label,
             before=before,
             after=value,
             delta=(value - before) if (before is not None and value is not None) else None,
@@ -460,7 +462,7 @@ def assess(
     db.commit()
     return SoundResultOut(
         sound_key=sound_key,
-        label=lesson.label,
+        label=label,
         before=before,
         after=value,
         delta=(value - before) if before is not None else None,

@@ -37,6 +37,10 @@ def get_me(member: CurrentMember, db: DbSession, client: GenaiClient) -> CurMeOu
         out["lesson"]["partner_translation"] = i18n_svc.partner_translation(
             db, client, out["lesson"].get("partner"), locale,
         )
+        # R1(2026-10-16 PM-DEC-673) — 주제 번역 · 없으면 원문(새 필드라 null 로 비우지 않는다)
+        out["lesson"]["topic_translation"] = i18n_svc.topic_translation(
+            db, client, out["lesson"].get("topic"), locale,
+        )
     return CurMeOut.model_validate(out)
 
 
@@ -46,8 +50,17 @@ def list_lessons(
     db: DbSession,
     level: Optional[int] = Query(None, ge=1, description="레벨 번호로 필터(없으면 전부)"),
 ) -> list[CurLessonRowOut]:
-    """차시 목록(no 순) + 내 상태. 안 시작한 차시는 status null, 현재 포인터 차시는 learning. 언어 = 회원 target_language."""
-    return [CurLessonRowOut.model_validate(r) for r in cur_svc.lessons(db, member.member_id, level, _language_of(member))]
+    """차시 목록(no 순) + 내 상태. 안 시작한 차시는 status null, 현재 포인터 차시는 learning. 언어 = 회원 target_language.
+
+    R2(2026-10-16 PM-DEC-673): 행마다 situation_translation — 캐시만 보고(번역 호출 0), 없으면 원문.
+    """
+    rows = cur_svc.lessons(db, member.member_id, level, _language_of(member))
+    tr = i18n_svc.cached_situation_translations(
+        db, (r.get("situation") for r in rows), i18n_svc.display_locale(member.language),
+    )
+    for r in rows:
+        r["situation_translation"] = tr.get((r.get("situation") or "").strip())
+    return [CurLessonRowOut.model_validate(r) for r in rows]
 
 
 def _language_of(member) -> str:

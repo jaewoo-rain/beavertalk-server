@@ -19,6 +19,19 @@ def get_cur_text(db: Session, kind: str, source: str, locale: str) -> Optional[s
     )
 
 
+def get_cur_texts(db: Session, kind: str, sources: Iterable[str], locale: str) -> dict[str, str]:
+    """{원문: 번역} — 캐시에 있는 것만. 목록 응답(GET /cur/lessons)용 묶음 조회."""
+    srcs = list({s for s in sources if s})
+    if not srcs:
+        return {}
+    rows = db.execute(
+        select(CurTextI18n.source, CurTextI18n.text).where(
+            CurTextI18n.kind == kind, CurTextI18n.source.in_(srcs), CurTextI18n.locale == locale,
+        )
+    ).all()
+    return {r.source: r.text for r in rows}
+
+
 def add_cur_text(db: Session, kind: str, source: str, locale: str, text: str) -> None:
     db.add(CurTextI18n(kind=kind, source=source, locale=locale, text=text))
 

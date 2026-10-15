@@ -129,7 +129,7 @@ def test_me_for_a_new_member_is_lesson_1_learning_with_expression_open_and_freet
     assert body["language"] == "ko" and body["available"] is True   # target_language 없음 → 기본 ko(통화와 같은 해석기)
     assert body["next_course"] == "expression"
     assert set(body["lesson"]) == {"no", "code", "level_no", "situation", "situation_translation", "topic",
-                                   "partner", "partner_translation"}
+                                   "partner", "partner_translation", "topic_translation"}  # R1(2026-10-16) 추가만
     # 상대역 = 그 차시 cur_lesson.partner 그대로(2026-10-10 PM-DEC-485 · 회화학습 힌트 시트)
     lesson = repo.lesson_by_no(db, "ko", 1)
     assert lesson.partner and body["lesson"]["partner"] == lesson.partner.strip()
@@ -185,7 +185,7 @@ def test_lessons_level_filter_returns_only_that_level_in_no_order_with_null_stat
     assert rows and all(x["level_no"] == 2 for x in rows)
     assert [x["no"] for x in rows] == sorted(x["no"] for x in rows)
     assert all(x["status"] is None for x in rows)            # 아직 안 시작한 레벨
-    assert set(rows[0]) == {"no", "code", "level_no", "situation", "status"}
+    assert set(rows[0]) == {"no", "code", "level_no", "situation", "situation_translation", "status"}  # R2(2026-10-16) 추가만
 
 
 def test_lessons_without_filter_marks_the_current_pointer_as_learning(client, db):

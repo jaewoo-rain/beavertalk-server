@@ -267,15 +267,19 @@ async def get_pronunciation_report(
 
 
 @router.get("/{call_id}", response_model=CallDetail)
-def get_call(call_id: int, member: CurrentMember, db: DbSession) -> CallDetail:
-    """통화 상세(내 통화만, 타인/없는 통화면 404)."""
-    return CallService(db).get_call(member.member_id, call_id)
+def get_call(call_id: int, member: CurrentMember, db: DbSession, client: GenaiClient) -> CallDetail:
+    """통화 상세(내 통화만, 타인/없는 통화면 404). summary 는 목록(§10)과 같은 회원 언어 경로(R5 · 실패면 원문)."""
+    return CallService(db).get_call(
+        member.member_id, call_id, client=client, locale=call_service.display_locale(member.language),
+    )
 
 
 @router.get("/{call_id}/result", response_model=CallResult)
-def get_call_result(call_id: int, member: CurrentMember, db: DbSession) -> CallResult:
-    """통화 종료 후 결과 화면 — 평가 평균 + 문장 전체."""
-    result = CallService(db).get_call_result(member.member_id, call_id)
+def get_call_result(call_id: int, member: CurrentMember, db: DbSession, client: GenaiClient) -> CallResult:
+    """통화 종료 후 결과 화면 — 평가 평균 + 문장 전체. summary 는 회원 언어(R5 · 실패면 원문)."""
+    result = CallService(db).get_call_result(
+        member.member_id, call_id, client=client, locale=call_service.display_locale(member.language),
+    )
     call = db.get(Call, call_id)
     if call is not None and call.call_type == "homework":
         homework_service.recover_pending(db, member_id=member.member_id)

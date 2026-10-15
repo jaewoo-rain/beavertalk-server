@@ -262,6 +262,8 @@ def main(src: str, language: str = "ko") -> int:
             "no": l["no"], "code": code, "stage": l["stage"], "level_no": LEVEL_NO[l["stage"]],
             "topic_code": l["topic_code"], "part": l["part"],
             "situation": l["situation"], "partner": l["partner"],
+            # 학습자 역할(SV-33 · PM-DEC-677 · 2026-10-16) — 원천 curriculum_all.json 에 칸이 있을 때만 그대로 옮긴다(키 순서 = 시드)
+            **({"learner_role": l["learner_role"]} if "learner_role" in l else {}),
             "functions": funcs, "grammar_kind": l["grammar_kind"],
             "opening": role.get("opening"), "probes": role.get("probes") or [],
             "success": role.get("success"),              # 기록용 — 판정엔 안 쓴다(결정 #3)

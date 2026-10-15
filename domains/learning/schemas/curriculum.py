@@ -31,6 +31,9 @@ class CurLessonOut(BaseModel):
     partner: Optional[str] = None
     #: partner 의 회원 모국어 번역 — situation_translation 과 같은 규칙(ko·실패·partner 없음 → null).
     partner_translation: Optional[str] = None
+    #: R1(2026-10-16 PM-DEC-673) — topic 의 회원 모국어 표시값(cur_text_i18n kind cur_topic). 번역이 없거나 ko 회원이면
+    #: **원문**(새 필드 · null 로 비우지 않는다). topic 이 없는 차시(레벨1)만 null.
+    topic_translation: Optional[str] = None
 
 
 class CurOpenOut(BaseModel):
@@ -66,4 +69,6 @@ class CurLessonRowOut(BaseModel):
     code: str
     level_no: int
     situation: Optional[str] = None
+    #: R2(2026-10-16 PM-DEC-673) — situation 의 회원 모국어 표시값. 캐시만 보고, 없거나 ko 회원이면 원문(새 필드 · null 아님).
+    situation_translation: Optional[str] = None
     status: Optional[CurStatus] = None

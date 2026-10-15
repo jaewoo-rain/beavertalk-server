@@ -367,6 +367,18 @@ def test_assess_scores_on_server_with_lesson_text(session_factory, seeded, score
     assert body["phoneme_misses"] == [{"char_index": 0, "expected": "ㅍ"}]
 
 
+def test_assess_label_uses_member_locale(session_factory, seeded, scorer):
+    """R3(2026-10-16 PM-DEC-673) — 평가 결과 label 도 목록·학습과 같은 번역 경로. 번역 없으면 원본."""
+    client = TestClient(_build_app(session_factory))
+    before = _post_audio(client, "coda_ㄹ", _hdr()).json()["label"]
+    db = session_factory()
+    db.add(SoundLessonI18n(sound_key="coda_ㄹ", locale="en", label="Final ㄹ", card_desc="", payload={}))
+    db.commit()
+    db.close()
+    assert before != "Final ㄹ"
+    assert _post_audio(client, "coda_ㄹ", _hdr()).json()["label"] == "Final ㄹ"
+
+
 def test_assess_first_submit_sets_baseline(session_factory, seeded, scorer):
     """첫 제출: baseline=직전 집계(55), before=55, delta=+29."""
     client = TestClient(_build_app(session_factory))
