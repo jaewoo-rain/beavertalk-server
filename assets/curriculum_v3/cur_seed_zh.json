@@ -541,6 +541,7 @@
    "part": "1/1",
    "situation": "회사 안내 데스크에서 방문자 이름 밝히기",
    "partner": "회사 안내 데스크 직원",
+   "learner_role": "회사를 찾은 방문자",
    "functions": [
     "F03",
     "F20",
@@ -645,6 +646,7 @@
    "part": "1/1",
    "situation": "홈스테이 집에서 가족 구성 소개하기",
    "partner": "홈스테이 집주인 아주머니",
+   "learner_role": "홈스테이에 온 학생",
    "functions": [
     "F02",
     "F06",
@@ -752,6 +754,7 @@
    "part": "1/1",
    "situation": "식당에서 매운 생선 대신 다른 메뉴 고르기",
    "partner": "중국 식당 종업원",
+   "learner_role": "다른 메뉴를 고르는 손님",
    "functions": [
     "F03",
     "F05",
@@ -861,6 +864,7 @@
    "part": "1/1",
    "situation": "새 룸메이트의 성격 미리 물어보기",
    "partner": "대학 기숙사 관리 선생님",
+   "learner_role": "룸메이트를 궁금해하는 신입생",
    "functions": [
     "F01",
     "F03",
@@ -963,6 +967,7 @@
    "part": "1/1",
    "situation": "원룸 집주인에게 방 조건과 거리 묻기",
    "partner": "원룸 집주인 아저씨",
+   "learner_role": "방을 보러 온 세입자",
    "functions": [
     "F02",
     "F03",
@@ -1067,6 +1072,7 @@
    "part": "1/1",
    "situation": "초대받은 집에서 차린 요리 칭찬하기",
    "partner": "중국인 친구 왕밍의 어머니",
+   "learner_role": "초대받아 방문한 손님",
    "functions": [
     "F04",
     "F07",
@@ -1168,6 +1174,7 @@
    "part": "1/1",
    "situation": "캠퍼스 경비실에서 가까운 매점 위치 묻기",
    "partner": "대학교 정문 경비 아저씨",
+   "learner_role": "매점을 찾는 학생",
    "functions": [
     "F03",
     "F28",
@@ -1270,6 +1277,7 @@
    "part": "1/1",
    "situation": "공항 안내 데스크에서 기차역 가는 교통편 묻기",
    "partner": "베이징 공항 안내 데스크 직원",
+   "learner_role": "기차역 가는 길을 묻는 여행객",
    "functions": [
     "F03",
     "F08",
@@ -1373,6 +1381,7 @@
    "part": "1/1",
    "situation": "새로 이사 온 옆집 할아버지와 인사 나누기",
    "partner": "아파트 옆집 할아버지",
+   "learner_role": "새로 이사 온 이웃",
    "functions": [
     "F03",
     "F25",
@@ -1475,6 +1484,7 @@
    "part": "1/1",
    "situation": "새 반 친구와 한국·중국 학교 비교하기",
    "partner": "어학당 같은 반 일본인 유학생",
+   "learner_role": "학교를 비교하는 반 친구",
    "functions": [
     "F17",
     "F23"
@@ -1576,6 +1586,7 @@
    "part": "1/1",
    "situation": "무역회사 면접에서 이전 직장 경력 말하기",
    "partner": "무역회사 면접관 장 경리",
+   "learner_role": "면접을 보는 지원자",
    "functions": [
     "F01",
     "F02",
@@ -1679,6 +1690,7 @@
    "part": "1/1",
    "situation": "여행 전 상하이 날씨 묻고 옷 준비하기",
    "partner": "상하이 현지 여행 가이드",
+   "learner_role": "여행을 준비하는 관광객",
    "functions": [
     "F01",
     "F07",
@@ -1780,6 +1792,7 @@
    "part": "1/1",
    "situation": "어학당 첫 수업에서 이름·나이·취미 소개하기",
    "partner": "어학당 중국어 담당 선생님",
+   "learner_role": "자기소개를 하는 수강생",
    "functions": [
     "F01",
     "F13",
@@ -1879,6 +1892,7 @@
    "part": "1/1",
    "situation": "회사 동료와 자녀 수와 나이 이야기하기",
    "partner": "회사 옆자리 중국인 과장",
+   "learner_role": "자녀 이야기를 나누는 동료",
    "functions": [
     "F03",
     "F17",
@@ -1979,6 +1993,7 @@
    "part": "1/1",
    "situation": "옷가게에서 입어 본 치마 어울리는지 묻기",
    "partner": "쇼핑몰 여성복 매장 점원",
+   "learner_role": "치마를 입어 본 손님",
    "functions": [
     "F18",
     "F20",
@@ -2077,6 +2092,7 @@
    "part": "1/1",
    "situation": "기분이 상한 이유를 룸메이트에게 털어놓기",
    "partner": "기숙사 중국인 룸메이트",
+   "learner_role": "속상함을 털어놓는 룸메이트",
    "functions": [
     "F13",
     "F23",
@@ -2174,6 +2190,7 @@
    "part": "1/1",
    "situation": "동료에게 출근부터 잠들 때까지 일과 설명하기",
    "partner": "회사 중국인 동료",
+   "learner_role": "일과를 설명하는 동료",
    "functions": [
     "F13",
     "F29",
@@ -2271,6 +2288,7 @@
    "part": "1/1",
    "situation": "가방 가게에서 비슷한 가방 가격 비교하기",
    "partner": "쇼핑몰 가방 가게 주인",
+   "learner_role": "가방 가격을 비교하는 손님",
    "functions": [
     "F08",
     "F17",
@@ -2368,6 +2386,7 @@
    "part": "1/1",
    "situation": "과일 노점에서 수박 맛보고 사기",
    "partner": "시장 과일 노점 아저씨",
+   "learner_role": "수박을 맛보는 손님",
    "functions": [
     "F02",
     "F14",
@@ -2468,6 +2487,7 @@
    "part": "1/1",
    "situation": "백화점에서 명품 옷과 시계 권유 거절하기",
    "partner": "백화점 남성복 매장 직원",
+   "learner_role": "권유를 거절하는 손님",
    "functions": [
     "F02",
     "F13",
@@ -2568,6 +2588,7 @@
    "part": "1/2",
    "situation": "길에서 기차역까지 거리와 가는 법 묻기",
    "partner": "거리의 교통경찰",
+   "learner_role": "길을 묻는 행인",
    "functions": [
     "F13",
     "F20",
@@ -2667,6 +2688,7 @@
    "part": "2/2",
    "situation": "박물관에서 화장실과 출구 방향 묻기",
    "partner": "박물관 안내원",
+   "learner_role": "출구를 찾는 관람객",
    "functions": [
     "F04",
     "F13",
@@ -2766,6 +2788,7 @@
    "part": "1/1",
    "situation": "부두 매표소에서 배표 사고 출항 시간 묻기",
    "partner": "부두 매표소 직원",
+   "learner_role": "배표를 사러 온 승객",
    "functions": [
     "F03",
     "F28",
@@ -2864,6 +2887,7 @@
    "part": "1/1",
    "situation": "동아리 공연에서 맡을 역할 정하기",
    "partner": "대학 문화 동아리 회장",
+   "learner_role": "공연 역할을 정하는 동아리 회원",
    "functions": [
     "F05",
     "F08",
@@ -2963,6 +2987,7 @@
    "part": "1/1",
    "situation": "시험 전날 이웃 학생에게 숙제 빌려 복습하기",
    "partner": "기숙사 옆방 중국인 대학생",
+   "learner_role": "숙제를 빌리러 온 이웃 학생",
    "functions": [
     "F20",
     "F21",
@@ -3068,6 +3093,7 @@
    "part": "1/1",
    "situation": "남동생 결혼식에 가족이 모이는 일 이야기하기",
    "partner": "사무실 옆자리 중국인 여자 동료",
+   "learner_role": "결혼식 소식을 전하는 동료",
    "functions": [
     "F09",
     "F13",
@@ -3165,6 +3191,7 @@
    "part": "1/1",
    "situation": "면접 결과를 기다리는 불안한 마음 털어놓기",
    "partner": "대학 취업센터 상담 선생님",
+   "learner_role": "결과를 기다리는 면접 지원자",
    "functions": [
     "F10",
     "F13",
@@ -3267,6 +3294,7 @@
    "part": "1/1",
    "situation": "이사 온 아파트 이웃에게 고장 난 문 수리 묻기",
    "partner": "아파트 같은 층 옆집 아주머니",
+   "learner_role": "문 수리를 묻는 새 이웃",
    "functions": [
     "F13",
     "F29",
@@ -3369,6 +3397,7 @@
    "part": "1/1",
    "situation": "룸메이트와 주말 옷 쇼핑 목록 정하기",
    "partner": "기숙사 중국인 룸메이트",
+   "learner_role": "쇼핑 목록을 짜는 룸메이트",
    "functions": [
     "F05",
     "F22",
@@ -3465,6 +3494,7 @@
    "part": "1/1",
    "situation": "휴대폰 매장에서 인터넷 가격과 비교해 할인받기",
    "partner": "휴대폰 매장 판매원",
+   "learner_role": "할인을 요청하는 손님",
    "functions": [
     "F14",
     "F19",
@@ -3561,6 +3591,7 @@
    "part": "1/1",
    "situation": "생일 파티에서 남은 음식 권유 사양하기",
    "partner": "생일 파티를 연 회사 팀장",
+   "learner_role": "음식을 사양하는 팀원",
    "functions": [
     "F13",
     "F18",
@@ -3662,6 +3693,7 @@
    "part": "1/1",
    "situation": "연락 안 되는 하숙생 소식을 전화로 확인하기",
    "partner": "하숙집 주인 할머니",
+   "learner_role": "하숙생 소식을 묻는 지인",
    "functions": [
     "F03",
     "F16",
@@ -3757,6 +3789,7 @@
    "part": "1/1",
    "situation": "회사 선배에게 여자친구와 결혼 고민 상담하기",
    "partner": "회사 중국인 여자 선배",
+   "learner_role": "결혼을 고민하는 후배",
    "functions": [
     "F13",
     "F18",
@@ -3853,6 +3886,7 @@
    "part": "1/1",
    "situation": "신입생이 선배에게 강의실과 준비물 묻기",
    "partner": "대학 같은 과 2학년 선배",
+   "learner_role": "강의실을 묻는 신입생",
    "functions": [
     "F03",
     "F05",
@@ -3949,6 +3983,7 @@
    "part": "1/1",
    "situation": "택시 기사와 창업 꿈과 진로 이야기하기",
    "partner": "베이징 택시 기사",
+   "learner_role": "창업 꿈을 말하는 승객",
    "functions": [
     "F13",
     "F19",
@@ -4046,6 +4081,7 @@
    "part": "1/1",
    "situation": "입사 첫날 동료에게 출근 시간과 급여일 묻기",
    "partner": "입사 첫날 옆자리 중국인 동료",
+   "learner_role": "출근 시간을 묻는 신입 사원",
    "functions": [
     "F01",
     "F14",
@@ -4141,6 +4177,7 @@
    "part": "1/1",
    "situation": "내과에서 복통과 수면 부족 증상 설명하기",
    "partner": "내과 의사",
+   "learner_role": "복통으로 찾아온 환자",
    "functions": [
     "F02",
     "F23",
@@ -4237,6 +4274,7 @@
    "part": "1/1",
    "situation": "과외 선생님과 주말 도서관 나들이 약속하기",
    "partner": "중국어 과외 선생님",
+   "learner_role": "나들이를 제안하는 학생",
    "functions": [
     "F13",
     "F18",
@@ -4341,6 +4379,7 @@
    "part": "1/1",
    "situation": "동물병원에서 밥을 안 먹는 고양이 상담하기",
    "partner": "동물병원 수의사",
+   "learner_role": "고양이를 데려온 보호자",
    "functions": [
     "F03",
     "F17",
@@ -4436,6 +4475,7 @@
    "part": "1/1",
    "situation": "하숙집 할아버지께 스마트폰 쓰는 법 알려 드리기",
    "partner": "하숙집 주인 할아버지",
+   "learner_role": "사용법을 알려 드리는 하숙생",
    "functions": [
     "F04",
     "F07",
@@ -4537,6 +4577,7 @@
    "part": "1/1",
    "situation": "봉사단체 면담에서 지원 동기 말하기",
    "partner": "노인 돌봄 봉사단체 담당자",
+   "learner_role": "면담에 온 봉사 지원자",
    "functions": [
     "F10",
     "F12",
@@ -4636,6 +4677,7 @@
    "part": "1/1",
    "situation": "과외 선생님께 한자 공부 방법 상담하기",
    "partner": "중국어 과외 선생님",
+   "learner_role": "공부법을 묻는 학생",
    "functions": [
     "F08",
     "F12",
@@ -4736,6 +4778,7 @@
    "part": "1/1",
    "situation": "오랜만에 만난 하숙집 아주머니와 달라진 외모 이야기하기",
    "partner": "어학연수 시절 하숙집 아주머니",
+   "learner_role": "오랜만에 찾아온 옛 하숙생",
    "functions": [
     "F13",
     "F17",
@@ -4837,6 +4880,7 @@
    "part": "1/1",
    "situation": "에어컨 고장으로 집주인과 방 옮기는 문제 상의하기",
    "partner": "월세방 중국인 집주인",
+   "learner_role": "방을 옮기려는 세입자",
    "functions": [
     "F05",
     "F13",
@@ -4935,6 +4979,7 @@
    "part": "1/1",
    "situation": "셰어하우스 하우스메이트와 집안일 나누기",
    "partner": "셰어하우스 중국인 하우스메이트",
+   "learner_role": "집안일을 나누자는 하우스메이트",
    "functions": [
     "F08",
     "F21",
@@ -5037,6 +5082,7 @@
    "part": "1/1",
    "situation": "국수 가게에서 남방·북방 입맛 비교하며 주문하기",
    "partner": "국수 가게 사장님",
+   "learner_role": "국수를 주문하는 손님",
    "functions": [
     "F13",
     "F17",
@@ -5132,6 +5178,7 @@
    "part": "1/1",
    "situation": "춘절에 동료 할머니와 달걀 요리 함께 만들기",
    "partner": "춘절에 초대해 준 동료의 할머니",
+   "learner_role": "요리를 배우러 온 손님",
    "functions": [
     "F04",
     "F13",
@@ -5228,6 +5275,7 @@
    "part": "1/1",
    "situation": "여행사에서 북방 여행 숙소 위치 정하기",
    "partner": "중국 여행사 상담원",
+   "learner_role": "숙소를 정하려는 여행객",
    "functions": [
     "F13",
     "F19",
@@ -5324,6 +5372,7 @@
    "part": "1/1",
    "situation": "출근길 지하철 좌석 사정 이야기하기",
    "partner": "회사 옆자리 동료",
+   "learner_role": "지하철 사정을 말하는 동료",
    "functions": [
     "F02",
     "F13",
@@ -5420,6 +5469,7 @@
    "part": "1/1",
    "situation": "영화 약속에 또 늦은 일 사과하기",
    "partner": "함께 영화 보기로 한 대학 동기",
+   "learner_role": "또 늦어서 사과하는 동기",
    "functions": [
     "F13",
     "F18",
@@ -5516,6 +5566,7 @@
    "part": "1/1",
    "situation": "축구하다 넘어져 다친 곳 설명하기",
    "partner": "학교 보건실 선생님",
+   "learner_role": "다쳐서 찾아온 학생",
    "functions": [
     "F10",
     "F11",
@@ -5613,6 +5664,7 @@
    "part": "1/1",
    "situation": "방학 동안 시작한 운동 습관 말하기",
    "partner": "헬스장에서 만난 이웃",
+   "learner_role": "운동 습관을 말하는 이웃",
    "functions": [
     "F02",
     "F13",
@@ -5709,6 +5761,7 @@
    "part": "1/1",
    "situation": "할머니 팔순 생신 잔치 준비하기",
    "partner": "사촌 언니",
+   "learner_role": "잔치를 함께 준비하는 사촌 동생",
    "functions": [
     "F11",
     "F17",
@@ -5804,6 +5857,7 @@
    "part": "1/1",
    "situation": "눈 예보 속 반 등산 준비 확인하기",
    "partner": "등산을 인솔하는 담임 선생님",
+   "learner_role": "등산 준비를 확인하는 학생",
    "functions": [
     "F14",
     "F26",
@@ -5903,6 +5957,7 @@
    "part": "1/1",
    "situation": "동물원에서 판다 먹이 이야기 듣기",
    "partner": "동물원 해설 가이드",
+   "learner_role": "먹이 설명을 듣는 관람객",
    "functions": [
     "F22",
     "F28",
@@ -5998,6 +6053,7 @@
    "part": "1/1",
    "situation": "말하기 대회 참가 결심 밝히기",
    "partner": "중국어 말하기 대회 지도 교사",
+   "learner_role": "참가를 결심한 학생",
    "functions": [
     "F03",
     "F20",
@@ -6095,7 +6151,8 @@
    "topic_code": "T59",
    "part": "1/1",
    "situation": "감기가 반 친구들에게 퍼진 상황 말하기",
-   "partner": "동네 내과 의사",
+   "partner": "같은 반 친구",
+   "learner_role": "감기 증상을 말하는 환자",
    "functions": [
     "F03",
     "F22",
@@ -6193,6 +6250,7 @@
    "part": "1/1",
    "situation": "보통화 실력과 시험 성적 상담하기",
    "partner": "중국어 담당 선생님",
+   "learner_role": "성적을 상담하는 학생",
    "functions": [
     "F01",
     "F14",
@@ -6289,6 +6347,7 @@
    "part": "1/1",
    "situation": "은행 창구에서 대출 상담하기",
    "partner": "은행 대출 창구 직원",
+   "learner_role": "대출을 상담하는 고객",
    "functions": [
     "F02",
     "F04",
@@ -6389,6 +6448,7 @@
    "part": "1/1",
    "situation": "어학원 첫 수업에서 출신과 나이 소개하기",
    "partner": "어학원 반 담임 선생님",
+   "learner_role": "자기소개를 하는 신입생",
    "functions": [
     "F09",
     "F26"
@@ -6482,6 +6542,7 @@
    "part": "1/1",
    "situation": "설 연휴에 만난 친척과 선물 이야기하기",
    "partner": "회사 같은 팀 선배",
+   "learner_role": "선물 이야기를 꺼낸 후배",
    "functions": [
     "F18",
     "F20"
@@ -6572,6 +6633,7 @@
    "part": "1/1",
    "situation": "새로 온 동료의 장단점 평가하기",
    "partner": "다른 부서 입사 동기",
+   "learner_role": "새 동료를 평가하는 입사 동기",
    "functions": [
     "F08",
     "F28"
@@ -6670,6 +6732,7 @@
    "part": "1/1",
    "situation": "대회에서 진 뒤 속상한 마음 털어놓기",
    "partner": "배드민턴 동아리 선배",
+   "learner_role": "속상함을 털어놓는 후배",
    "functions": [
     "F12",
     "F26"
@@ -6781,6 +6844,7 @@
    "part": "1/1",
    "situation": "바쁜 하루 일과와 금연 후 습관 말하기",
    "partner": "사내 건강검진 간호사",
+   "learner_role": "금연한 검진 대상 직원",
    "functions": [
     "F12",
     "F16"
@@ -6879,6 +6943,7 @@
    "part": "1/1",
    "situation": "어질러진 방 정리 순서 정하기",
    "partner": "잔소리하는 어머니",
+   "learner_role": "방을 정리하는 자녀",
    "functions": [
     "F13",
     "F18"
@@ -6971,6 +7036,7 @@
    "part": "1/1",
    "situation": "안경 벗은 모습과 새 옷 이야기하기",
    "partner": "같은 과 친한 선배",
+   "learner_role": "새 옷을 입고 온 후배",
    "functions": [
     "F12",
     "F14"
@@ -7064,6 +7130,7 @@
    "part": "1/1",
    "situation": "시장에서 과일 값과 품질 비교하기",
    "partner": "재래시장 과일가게 사장",
+   "learner_role": "과일 값을 비교하는 손님",
    "functions": [
     "F23",
     "F28"
@@ -7158,6 +7225,7 @@
    "part": "1/1",
    "situation": "과자로 끼니 때우는 습관 고치기",
    "partner": "기숙사 룸메이트",
+   "learner_role": "식습관을 고치려는 룸메이트",
    "functions": [
     "F11",
     "F23"
@@ -7248,6 +7316,7 @@
    "part": "1/1",
    "situation": "식당에서 한턱내고 2차 장소 정하기",
    "partner": "입사 동기인 회사 동료",
+   "learner_role": "한턱내는 회사 동료",
    "functions": [
     "F12",
     "F20"
@@ -7340,6 +7409,7 @@
    "part": "1/1",
    "situation": "다이어트 식단 문제 상담받기",
    "partner": "보건소 영양사",
+   "learner_role": "식단을 상담받는 주민",
    "functions": [
     "F12",
     "F21"
@@ -7439,6 +7509,7 @@
    "part": "1/1",
    "situation": "휴대폰 꺼진 채 병원 가는 길 묻기",
    "partner": "길에서 만난 동네 주민",
+   "learner_role": "병원 가는 길을 묻는 행인",
    "functions": [
     "F23",
     "F26"
@@ -7529,6 +7600,7 @@
    "part": "1/1",
    "situation": "베이징 단체 관광 일정 예약하기",
    "partner": "여행사 상담 직원",
+   "learner_role": "관광 일정을 예약하는 고객",
    "functions": [
     "F13",
     "F21"
@@ -7630,6 +7702,7 @@
    "part": "1/1",
    "situation": "중국인 동료 집 첫 방문 인사하기",
    "partner": "중국인 동료의 아버지",
+   "learner_role": "처음 방문해 인사하는 동료",
    "functions": [
     "F17",
     "F26"
@@ -7725,6 +7798,7 @@
    "part": "1/1",
    "situation": "주말 만남 시간과 일정 정하기",
    "partner": "지난번에 늦었던 어학원 친구",
+   "learner_role": "약속 시간을 정하는 친구",
    "functions": [
     "F22"
    ],
@@ -7816,6 +7890,7 @@
    "part": "1/1",
    "situation": "장학금 선정 전화 받고 서류 발송하기",
    "partner": "대학교 국제교류처 직원",
+   "learner_role": "장학금에 선정된 유학생",
    "functions": [
     "F19"
    ],
@@ -7905,6 +7980,7 @@
    "part": "1/1",
    "situation": "비밀을 퍼뜨린 친구와 화해 고민하기",
    "partner": "기숙사 룸메이트",
+   "learner_role": "화해를 고민하는 룸메이트",
    "functions": [
     "F05"
    ],
@@ -7998,7 +8074,8 @@
    "topic_code": "T23",
    "part": "1/1",
    "situation": "결혼 앞둔 연애 이야기 들려주기",
-   "partner": "결혼식에 초대할 회사 동료",
+   "partner": "연애 이야기를 듣는 회사 동료",
+   "learner_role": "결혼을 앞둔 직장 동료",
    "functions": [
     "F14"
    ],
@@ -8086,6 +8163,7 @@
    "part": "1/1",
    "situation": "놀린 농담 때문에 생긴 다툼 풀기",
    "partner": "화가 난 기숙사 룸메이트",
+   "learner_role": "농담으로 다툰 룸메이트",
    "functions": [
     "F26"
    ],
@@ -8173,6 +8251,7 @@
    "part": "1/1",
    "situation": "변호사를 꿈꾸는 이유 설명하기",
    "partner": "고등학교 진로 상담 선생님",
+   "learner_role": "변호사를 꿈꾸는 학생",
    "functions": [
     "F13"
    ],
@@ -8262,6 +8341,7 @@
    "part": "1/1",
    "situation": "출장 대신 휴가 요청하기",
    "partner": "소속 부서 부장",
+   "learner_role": "휴가를 요청하는 부서원",
    "functions": [
     "F14",
     "F26"
@@ -8357,6 +8437,7 @@
    "part": "1/1",
    "situation": "회의 후 프로젝트 전략 제안하기",
    "partner": "프로젝트 팀장",
+   "learner_role": "전략을 제안하는 팀원",
    "functions": [
     "F04",
     "F10",
@@ -8458,6 +8539,7 @@
    "part": "1/1",
    "situation": "주말 취미와 좋아하는 소설 소개하기",
    "partner": "독서 모임 회원",
+   "learner_role": "소설을 소개하는 모임 회원",
    "functions": [
     "F22"
    ],
@@ -8547,6 +8629,7 @@
    "part": "1/1",
    "situation": "학교 음악제 공연 참가 신청하기",
    "partner": "학교 음악 동아리 선배",
+   "learner_role": "공연 참가를 신청하는 후배",
    "functions": [
     "F08"
    ],
@@ -8639,6 +8722,7 @@
    "part": "1/1",
    "situation": "농구 경기 전날 각오 다지기",
    "partner": "학교 체육 선생님",
+   "learner_role": "경기를 앞둔 농구부 학생",
    "functions": [
     "F12"
    ],
@@ -8726,6 +8810,7 @@
    "part": "1/1",
    "situation": "뉴스 소비 습관 인터뷰에 답하기",
    "partner": "시사 잡지 기자",
+   "learner_role": "인터뷰에 답하는 응답자",
    "functions": [
     "F21"
    ],
@@ -8821,6 +8906,7 @@
    "part": "1/1",
    "situation": "시골 봉사 경험에서 얻은 생각 나누기",
    "partner": "대학 봉사 동아리 지도 교수",
+   "learner_role": "봉사 경험을 나누는 학생",
    "functions": [
     "F14",
     "F29"
@@ -8916,6 +9002,7 @@
    "part": "1/1",
    "situation": "운전면허 시험 재도전 결심하기",
    "partner": "운전학원 강사",
+   "learner_role": "시험에 재도전하는 수강생",
    "functions": [
     "F09"
    ],
@@ -9016,6 +9103,7 @@
    "part": "1/1",
    "situation": "번역 숙제와 급수 시험 준비 점검하기",
    "partner": "중국어 과외 선생님",
+   "learner_role": "시험을 준비하는 학생",
    "functions": [
     "F17"
    ],
@@ -9103,6 +9191,7 @@
    "part": "1/1",
    "situation": "강가 숲 캠핑 날씨 걱정 나누기",
    "partner": "캠핑 동호회 회장",
+   "learner_role": "캠핑을 가는 동호회 회원",
    "functions": [
     "F11"
    ],
@@ -9190,6 +9279,7 @@
    "part": "1/1",
    "situation": "새 동료의 첫인상과 외모 이야기하기",
    "partner": "같은 사무실 동료",
+   "learner_role": "새 동료를 이야기하는 동료",
    "functions": [
     "F22",
     "F30"
@@ -9282,6 +9372,7 @@
    "part": "1/1",
    "situation": "새 담임 선생님의 성격 전하기",
    "partner": "고등학생 자녀를 둔 어머니",
+   "learner_role": "담임 성격을 전하는 이웃",
    "functions": [
     "F13",
     "F25"
@@ -9377,6 +9468,7 @@
    "part": "1/1",
    "situation": "유학 중 대회 우승 소식 전하기",
    "partner": "한국에 계신 어머니",
+   "learner_role": "우승 소식을 전하는 유학생 자녀",
    "functions": [
     "F11",
     "F14"
@@ -9482,6 +9574,7 @@
    "part": "1/1",
    "situation": "가구 딸린 원룸 조건 확인하기",
    "partner": "부동산 중개인",
+   "learner_role": "원룸을 구하는 세입자",
    "functions": [
     "F03",
     "F30"
@@ -9575,6 +9668,7 @@
    "part": "1/1",
    "situation": "창고 상자 속 공구 정리하기",
    "partner": "대청소를 돕는 아버지",
+   "learner_role": "창고를 정리하는 자녀",
    "functions": [
     "F20",
     "F23"
@@ -9672,6 +9766,7 @@
    "part": "1/1",
    "situation": "데이트 전 옷차림 점검받기",
    "partner": "자취방 룸메이트",
+   "learner_role": "데이트를 앞둔 룸메이트",
    "functions": [
     "F17"
    ],
@@ -9763,6 +9858,7 @@
    "part": "1/1",
    "situation": "마트 계산대에서 봉투값과 사은품 묻기",
    "partner": "대형마트 계산원",
+   "learner_role": "계산을 하는 손님",
    "functions": [
     "F17",
     "F19"
@@ -9856,6 +9952,7 @@
    "part": "1/1",
    "situation": "시장에서 포도 맛보고 단 것 고르기",
    "partner": "과일가게 사장님",
+   "learner_role": "포도를 고르는 손님",
    "functions": [
     "F12",
     "F26"
@@ -9948,6 +10045,7 @@
    "part": "1/1",
    "situation": "낯선 동네에서 지하철역 방향 묻기",
    "partner": "공원 앞 경비원 아저씨",
+   "learner_role": "길을 묻는 행인",
    "functions": [
     "F11",
     "F18"
@@ -10041,6 +10139,7 @@
    "part": "1/1",
    "situation": "민박집에서 현지 자전거 대여 정보 얻기",
    "partner": "민박집 주인",
+   "learner_role": "자전거를 빌리려는 투숙객",
    "functions": [
     "F21",
     "F22"
@@ -10132,6 +10231,7 @@
    "part": "1/1",
    "situation": "룸메이트 케이크를 먹은 오해 풀고 사과하기",
    "partner": "기숙사 룸메이트",
+   "learner_role": "케이크 오해를 사과하는 룸메이트",
    "functions": [
     "F20",
     "F28"
@@ -10224,6 +10324,7 @@
    "part": "1/1",
    "situation": "같은 과 선배와 전공 수업과 방학 계획 이야기하기",
    "partner": "같은 과 4학년 선배",
+   "learner_role": "선배와 이야기하는 후배",
    "functions": [
     "F12",
     "F17"
@@ -10315,6 +10416,7 @@
    "part": "1/1",
    "situation": "병원 인사과에 간호사 채용 조건 문의하기",
    "partner": "병원 인사과 직원",
+   "learner_role": "채용 조건을 문의하는 지원자",
    "functions": [
     "F28"
    ],
@@ -10404,6 +10506,7 @@
    "part": "1/1",
    "situation": "지친 직장 동료와 스트레스 푸는 법 이야기하기",
    "partner": "회사 옆자리 동료",
+   "learner_role": "스트레스 푸는 법을 나누는 동료",
    "functions": [
     "F13"
    ],
@@ -10492,6 +10595,7 @@
    "part": "1/1",
    "situation": "베이징과 서울의 봄 기후 비교하기",
    "partner": "베이징 출신 중국어 학원 선생님",
+   "learner_role": "봄 기후를 비교하는 수강생",
    "functions": [
     "F26"
    ],
@@ -10584,6 +10688,7 @@
    "part": "1/1",
    "situation": "동물원 사육사에게 동물 먹이 질문하기",
    "partner": "동물원 사육사",
+   "learner_role": "먹이를 질문하는 관람객",
    "functions": [
     "F01"
    ],
@@ -10675,6 +10780,7 @@
    "part": "1/1",
    "situation": "도서관 웹사이트 가입하며 비밀번호 설정하기",
    "partner": "도서관 컴퓨터실 직원",
+   "learner_role": "웹사이트에 가입하는 이용자",
    "functions": [
     "F17"
    ],
@@ -10763,6 +10869,7 @@
    "part": "1/1",
    "situation": "대사관에서 유학 비자 신청 서류 확인하기",
    "partner": "중국 대사관 비자 창구 직원",
+   "learner_role": "비자를 신청하는 유학 지원자",
    "functions": [
     "F26"
    ],
@@ -10852,6 +10959,7 @@
    "part": "1/1",
    "situation": "인턴 첫 달 근무 태도 피드백 받기",
    "partner": "무역회사 팀장",
+   "learner_role": "피드백을 받는 인턴",
    "functions": [
     "F22"
    ],
@@ -10951,6 +11059,7 @@
    "part": "1/1",
    "situation": "유학 준비생이 시험 공부 진도 상담하기",
    "partner": "중국어 학원 상담 선생님",
+   "learner_role": "진도를 상담하는 유학 준비생",
    "functions": [
     "F23"
    ],
@@ -11041,6 +11150,7 @@
    "part": "1/1",
    "situation": "지도 교수와 석사 과정 연구 주제 상담하기",
    "partner": "대학원 지도 교수",
+   "learner_role": "연구 주제를 상담하는 대학원생",
    "functions": [
     "F26"
    ],
@@ -11134,6 +11244,7 @@
    "part": "1/1",
    "situation": "은행 창구에서 돈 찾으며 신용카드 상담하기",
    "partner": "은행 창구 직원",
+   "learner_role": "카드를 상담하는 고객",
    "functions": [
     "F25"
    ],
@@ -11228,6 +11339,7 @@
    "part": "1/1",
    "situation": "과학관 해설사에게 깊은 바다 이야기 듣기",
    "partner": "과학관 해설사",
+   "learner_role": "바다 이야기를 듣는 관람객",
    "functions": [
     "F15"
    ],
@@ -11316,6 +11428,7 @@
    "part": "1/1",
    "situation": "하숙집 주인과 첫 인사하며 신분 밝히기",
    "partner": "하숙집 주인 할머니",
+   "learner_role": "처음 인사하는 하숙생",
    "functions": [
     "F21"
    ],
@@ -11406,6 +11519,7 @@
    "part": "1/1",
    "situation": "옆집 할아버지와 손자 돌보기 이야기 나누기",
    "partner": "아파트 옆집 할아버지",
+   "learner_role": "손자를 돌보는 이웃",
    "functions": [
     "F22"
    ],
@@ -11498,6 +11612,7 @@
    "part": "1/1",
    "situation": "식당 사장님께 아르바이트생 성격 보증하기",
    "partner": "중식당 사장님",
+   "learner_role": "아르바이트생을 추천하는 단골손님",
    "functions": [
     "F19"
    ],
@@ -11596,6 +11711,7 @@
    "part": "1/1",
    "situation": "노래 대회 탈락 후 상담 선생님께 심정 털어놓기",
    "partner": "고등학교 상담 선생님",
+   "learner_role": "대회에서 떨어진 학생",
    "functions": [
     "F18"
    ],
@@ -11692,6 +11808,7 @@
    "part": "1/1",
    "situation": "교외 아파트 집 보고 계약 결정하기",
    "partner": "부동산 중개인",
+   "learner_role": "계약을 고민하는 집 구경 손님",
    "functions": [
     "F10"
    ],
@@ -11783,6 +11900,7 @@
    "part": "1/1",
    "situation": "속이 불편해 식당에서 담백한 음식 주문하기",
    "partner": "중국 식당 종업원",
+   "learner_role": "속이 안 좋은 손님",
    "functions": [
     "F18"
    ],
@@ -11871,6 +11989,7 @@
    "part": "1/1",
    "situation": "요리 수업에서 토마토 달걀 볶음 만들기",
    "partner": "요리 학원 강사",
+   "learner_role": "요리를 배우는 수강생",
    "functions": [
     "F11"
    ],
@@ -11977,6 +12096,7 @@
    "part": "1/1",
    "situation": "공항행 택시에서 교통 체증 속 도착 시간 확인하기",
    "partner": "공항행 택시 기사",
+   "learner_role": "공항 가는 승객",
    "functions": [
     "F22"
    ],
@@ -12068,6 +12188,7 @@
    "part": "1/1",
    "situation": "현지 가이드와 박물관·해변 관광 순서 정하기",
    "partner": "현지 여행사 가이드",
+   "learner_role": "관광 순서를 묻는 여행객",
    "functions": [
     "F13"
    ],
@@ -12160,6 +12281,7 @@
    "part": "1/1",
    "situation": "홈스테이 마지막 날 호스트 가족에게 작별 인사하기",
    "partner": "홈스테이 집 어머니",
+   "learner_role": "작별 인사를 하는 홈스테이 학생",
    "functions": [
     "F02"
    ],
@@ -12255,6 +12377,7 @@
    "part": "1/1",
    "situation": "거래처 식사 초대 날짜를 출장 때문에 미루기",
    "partner": "거래처 담당 과장",
+   "learner_role": "식사 일정을 미루는 협력사 직원",
    "functions": [
     "F06"
    ],
@@ -12347,6 +12470,7 @@
    "part": "1/1",
    "situation": "우체국에서 한국으로 소포와 엽서 부치기",
    "partner": "우체국 창구 직원",
+   "learner_role": "소포를 부치러 온 고객",
    "functions": [
     "F26"
    ],
@@ -12450,6 +12574,7 @@
    "part": "1/1",
    "situation": "모임에서 우연히 만난 옛 친구와 우정 이야기하기",
    "partner": "교환학생 시절 사귄 중국인 친구",
+   "learner_role": "모임에서 만난 옛 친구",
    "functions": [
     "F11"
    ],
@@ -12545,6 +12670,7 @@
    "part": "1/1",
    "situation": "회의 중 말다툼한 동료와 화해하기",
    "partner": "같은 팀 동료",
+   "learner_role": "화해를 청하는 팀 동료",
    "functions": [
     "F13"
    ],
@@ -12648,6 +12774,7 @@
    "part": "1/1",
    "situation": "채용 박람회에서 엔지니어 직무 지원 상담하기",
    "partner": "기업 채용 담당자",
+   "learner_role": "직무 상담을 받는 지원자",
    "functions": [
     "F14"
    ],
@@ -12737,6 +12864,7 @@
    "part": "1/1",
    "situation": "야근 중 선배와 부서 업무 부담 이야기하기",
    "partner": "같은 부서 선배",
+   "learner_role": "업무 부담을 말하는 후배",
    "functions": [
     "F14"
    ],
@@ -12835,7 +12963,8 @@
    "topic_code": "T28",
    "part": "1/1",
    "situation": "홍보 방안 회의를 주재하며 결과 보고하기",
-   "partner": "마케팅팀 팀장",
+   "partner": "보고를 받는 마케팅팀 팀장",
+   "learner_role": "회의를 진행하는 팀원",
    "functions": [
     "F10"
    ],
@@ -12942,6 +13071,7 @@
    "part": "1/1",
    "situation": "캠핑장 관리인에게 벌레 물린 곳 보여 주기",
    "partner": "캠핑장 관리인",
+   "learner_role": "벌레 물린 곳을 보여 주는 이용객",
    "functions": [
     "F22"
    ],
@@ -13031,6 +13161,7 @@
    "part": "1/1",
    "situation": "외과 의사와 수술 여부 결정하기",
    "partner": "병원 외과 의사",
+   "learner_role": "수술을 고민하는 환자",
    "functions": [
     "F12"
    ],
@@ -13123,6 +13254,7 @@
    "part": "1/1",
    "situation": "사진 동호회 회장에게 여가 취미 소개하기",
    "partner": "사진 동호회 회장",
+   "learner_role": "취미를 소개하는 신입 회원",
    "functions": [
     "F26"
    ],
@@ -13218,6 +13350,7 @@
    "part": "1/1",
    "situation": "예술 축제에서 시 낭독과 작품 감상 나누기",
    "partner": "예술 축제 자원봉사자",
+   "learner_role": "작품을 감상하는 방문객",
    "functions": [
     "F14"
    ],
@@ -13314,6 +13447,7 @@
    "part": "1/1",
    "situation": "테니스 대회 앞두고 코치와 목표 이야기하기",
    "partner": "테니스 클럽 코치",
+   "learner_role": "대회를 준비하는 선수",
    "functions": [
     "F12"
    ],
@@ -13406,6 +13540,7 @@
    "part": "1/1",
    "situation": "동물병원에서 반려 토끼 이상 증상 설명하기",
    "partner": "동물병원 수의사",
+   "learner_role": "아픈 토끼를 데려온 보호자",
    "functions": [
     "F13"
    ],
@@ -13499,6 +13634,7 @@
    "part": "1/1",
    "situation": "주민센터에서 여성 재취업 교육 과정 문의하기",
    "partner": "주민센터 복지 담당 공무원",
+   "learner_role": "교육 과정을 문의하는 주민",
    "functions": [
     "F28"
    ],
@@ -13589,6 +13725,7 @@
    "part": "1/1",
    "situation": "물가 상승을 두고 경제학 전공 룸메이트와 토론하기",
    "partner": "경제학과 대학원생 룸메이트",
+   "learner_role": "물가를 토론하는 룸메이트",
    "functions": [
     "F03"
    ],
@@ -13678,6 +13815,7 @@
    "part": "1/1",
    "situation": "과학 잡지 편집자와 발명 기사 출판 일정 확인하기",
    "partner": "과학 잡지 편집자",
+   "learner_role": "기사 일정을 확인하는 발명가",
    "functions": [
     "F21"
    ],
@@ -13766,6 +13904,7 @@
    "part": "1/1",
    "situation": "사찰 입구에서 스님께 참배 예절 확인하기",
    "partner": "사찰 안내 스님",
+   "learner_role": "참배 예절을 묻는 방문객",
    "functions": [
     "F11"
    ],
@@ -13856,6 +13995,7 @@
    "part": "1/1",
    "situation": "역사박물관 해설 듣고 전쟁 시기 이해하기",
    "partner": "역사박물관 해설사",
+   "learner_role": "해설을 듣는 관람객",
    "functions": [
     "F12"
    ],
@@ -13943,6 +14083,7 @@
    "part": "1/2",
    "situation": "성공의 기준을 두고 대학원 선배와 논쟁하기",
    "partner": "철학과 대학원 선배",
+   "learner_role": "성공의 기준을 논쟁하는 후배",
    "functions": [
     "F23"
    ],
@@ -14044,6 +14185,7 @@
    "part": "2/2",
    "situation": "할아버지 별세 후 교수님과 인생의 의미 되돌아보기",
    "partner": "대학 인문학 교수",
+   "learner_role": "인생을 되돌아보는 제자",
    "functions": [
     "F11"
    ],
@@ -14144,6 +14286,7 @@
    "part": "1/1",
    "situation": "정치학 수업에서 한국 현대 정치사 발표하기",
    "partner": "대학 정치학 강사",
+   "learner_role": "발표를 준비하는 수강생",
    "functions": [
     "F13"
    ],
@@ -14243,6 +14386,7 @@
    "part": "1/1",
    "situation": "모의재판 수업에서 피고 변론 준비하기",
    "partner": "법학과 모의재판 지도 교수",
+   "learner_role": "변론을 준비하는 학생",
    "functions": [
     "F22"
    ],
@@ -14333,6 +14477,7 @@
    "part": "1/1",
    "situation": "경찰학교 교관에게 무기 사용 원칙 묻기",
    "partner": "경찰학교 교관",
+   "learner_role": "무기 사용을 묻는 교육생",
    "functions": [
     "F22"
    ],
@@ -14422,7 +14567,8 @@
    "topic_code": "T57",
    "part": "1/1",
    "situation": "신입 사원 수습 기간 목표 면담하기",
-   "partner": "영업부 인사 담당 팀장",
+   "partner": "수습 사원의 부서 팀장",
+   "learner_role": "목표를 말하는 수습 사원",
    "functions": [
     "F06"
    ],
@@ -14531,6 +14677,7 @@
    "part": "1/1",
    "situation": "유학 생활의 외로움을 상담사에게 털어놓기",
    "partner": "대학 심리상담센터 상담사",
+   "learner_role": "외로움을 털어놓는 유학생",
    "functions": [
     "F12"
    ],
@@ -14635,6 +14782,7 @@
    "part": "1/1",
    "situation": "감기 증상과 병력을 내과 의사에게 설명하기",
    "partner": "내과 의사",
+   "learner_role": "감기 증상을 말하는 환자",
    "functions": [
     "F28"
    ],
@@ -14742,6 +14890,7 @@
    "part": "1/1",
    "situation": "합격 소식을 전하고 방학 계획 상의하기",
    "partner": "고등학교 3학년 담임 선생님",
+   "learner_role": "합격 소식을 전하는 제자",
    "functions": [
     "F23"
    ],
@@ -14831,6 +14980,7 @@
    "part": "1/1",
    "situation": "전과 희망을 물리학과 교수와 상담하기",
    "partner": "물리학과 지도교수",
+   "learner_role": "전과를 상담하는 학생",
    "functions": [
     "F26"
    ],
@@ -14925,6 +15075,7 @@
    "part": "1/1",
    "situation": "은행 창구에서 저금과 투자 위험 상담받기",
    "partner": "은행 창구 직원",
+   "learner_role": "투자를 상담받는 고객",
    "functions": [
     "F25"
    ],
@@ -15018,6 +15169,7 @@
    "part": "1/1",
    "situation": "농촌 식품 공장 견학하며 판로 묻기",
    "partner": "과일주스 공장 사장",
+   "learner_role": "판로를 묻는 견학생",
    "functions": [
     "F06"
    ],
@@ -15119,6 +15271,7 @@
    "part": "1/1",
    "situation": "국제 청소년 캠프에서 국적과 고향 소개하기",
    "partner": "국제 캠프 진행 요원",
+   "learner_role": "고향을 소개하는 캠프 참가자",
    "functions": [
     "F28"
    ],
@@ -15207,6 +15360,7 @@
    "part": "1/1",
    "situation": "소개팅 상대의 실물과 사진 비교해 말하기",
    "partner": "소개팅을 주선한 회사 선배",
+   "learner_role": "소개팅을 마친 후배",
    "functions": [
     "F17"
    ],
@@ -15295,6 +15449,7 @@
    "part": "1/2",
    "situation": "동아리 신입 회원들의 성격 평가하기",
    "partner": "대학 연극 동아리 회장",
+   "learner_role": "신입 회원을 평가하는 동아리 임원",
    "functions": [
     "F22"
    ],
@@ -15395,6 +15550,7 @@
    "part": "2/2",
    "situation": "방을 바꾸려는 이유로 룸메이트 성격 설명하기",
    "partner": "기숙사 사감 선생님",
+   "learner_role": "방 교체를 요청하는 기숙사생",
    "functions": [
     "F30"
    ],
@@ -15496,6 +15652,7 @@
    "part": "1/1",
    "situation": "운 나빴던 하루의 불안한 기분 털어놓기",
    "partner": "같은 사무실 옆자리 동료",
+   "learner_role": "불안한 기분을 털어놓는 동료",
    "functions": [
     "F22"
    ],
@@ -15597,6 +15754,7 @@
    "part": "1/2",
    "situation": "이사 온 집의 고장 난 곳을 집주인에게 알리기",
    "partner": "셋집 집주인 아저씨",
+   "learner_role": "고장 난 곳을 알리는 세입자",
    "functions": [
     "F30"
    ],
@@ -15690,6 +15848,7 @@
    "part": "2/2",
    "situation": "대청소 날 필요한 생활용품 챙기기",
    "partner": "자취방 룸메이트",
+   "learner_role": "청소용품을 챙기는 룸메이트",
    "functions": [
     "F30"
    ],
@@ -15786,6 +15945,7 @@
    "part": "1/1",
    "situation": "결혼식 하객 옷차림을 점원과 고르기",
    "partner": "백화점 여성복 매장 점원",
+   "learner_role": "하객 옷을 고르는 손님",
    "functions": [
     "F20"
    ],
@@ -15876,6 +16036,7 @@
    "part": "1/1",
    "situation": "기념품 가게에서 현금으로 은 팔찌 사기",
    "partner": "관광지 기념품 가게 주인",
+   "learner_role": "은 팔찌를 사려는 관광객",
    "functions": [
     "F22"
    ],
@@ -15969,6 +16130,7 @@
    "part": "1/1",
    "situation": "중국 가정식 저녁 식사에서 음식과 술 맛 평하기",
    "partner": "중국인 친구의 어머니",
+   "learner_role": "저녁 식사에 초대받은 손님",
    "functions": [
     "F20"
    ],
@@ -16061,6 +16223,7 @@
    "part": "1/1",
    "situation": "오토바이 대여점에서 고속도로 이용과 사고 대처 묻기",
    "partner": "오토바이 대여점 직원",
+   "learner_role": "오토바이를 빌리려는 이용객",
    "functions": [
     "F11"
    ],
@@ -16151,6 +16314,7 @@
    "part": "1/1",
    "situation": "사촌 형의 결혼 소식을 두고 결혼관 나누기",
    "partner": "대학 동아리 선배",
+   "learner_role": "결혼관을 나누는 후배",
    "functions": [
     "F13"
    ],
@@ -16242,6 +16406,7 @@
    "part": "1/1",
    "situation": "새 학기 수업 변경과 유치원 실습 일정 확인하기",
    "partner": "유아교육과 학과 조교",
+   "learner_role": "수업 변경을 확인하는 재학생",
    "functions": [
     "F22"
    ],
@@ -16332,6 +16497,7 @@
    "part": "1/1",
    "situation": "출판사 면접에서 편집자 지원 동기 설명하기",
    "partner": "출판사 편집부 면접관",
+   "learner_role": "편집자 지원 동기를 말하는 지원자",
    "functions": [
     "F10"
    ],
@@ -16422,6 +16588,7 @@
    "part": "1/1",
    "situation": "인사팀에 동료가 해고된 이유 문의하기",
    "partner": "인사팀 과장",
+   "learner_role": "해고 이유를 문의하는 직원",
    "functions": [
     "F03"
    ],
@@ -16513,6 +16680,7 @@
    "part": "1/1",
    "situation": "거래처 협상 결과를 부장에게 보고하기",
    "partner": "영업부 부장",
+   "learner_role": "협상 결과를 보고하는 부하 직원",
    "functions": [
     "F23"
    ],
@@ -16612,6 +16780,7 @@
    "part": "1/1",
    "situation": "중의원에서 어깨와 등 통증 부위 설명하기",
    "partner": "중의원 의사",
+   "learner_role": "통증 부위를 설명하는 환자",
    "functions": [
     "F23"
    ],
@@ -16704,6 +16873,7 @@
    "part": "1/1",
    "situation": "헬스장 트레이너와 체력 훈련 계획 세우기",
    "partner": "헬스장 퍼스널 트레이너",
+   "learner_role": "훈련 계획을 세우는 회원",
    "functions": [
     "F17"
    ],
@@ -16795,6 +16965,7 @@
    "part": "1/1",
    "situation": "사진 동호회에서 초보자 체험 수업 신청하기",
    "partner": "사진 동호회 회장",
+   "learner_role": "체험 수업을 신청하는 초보자",
    "functions": [
     "F01"
    ],
@@ -16885,6 +17056,7 @@
    "part": "1/1",
    "situation": "주말에 볼 전시와 영화를 정하기",
    "partner": "같은 부서 입사 동기",
+   "learner_role": "주말 계획을 정하는 입사 동기",
    "functions": [
     "F03"
    ],
@@ -16979,6 +17151,7 @@
    "part": "1/1",
    "situation": "정월 대보름 회사 연회의 축사 부탁 수락하기",
    "partner": "중국 회사 행정팀장",
+   "learner_role": "축사를 맡게 된 직원",
    "functions": [
     "F12"
    ],
@@ -17072,6 +17245,7 @@
    "part": "1/1",
    "situation": "등산 전날 일기예보 보고 출발 시간 조정하기",
    "partner": "등산 동호회 가이드",
+   "learner_role": "출발 시간을 조정하는 등산 회원",
    "functions": [
     "F22"
    ],
@@ -17164,6 +17338,7 @@
    "part": "1/1",
    "situation": "동물원 체험학습에서 사육사에게 동물 질문하기",
    "partner": "동물원 사육사",
+   "learner_role": "동물을 질문하는 체험학습 학생",
    "functions": [
     "F17"
    ],
@@ -17258,6 +17433,7 @@
    "part": "1/1",
    "situation": "복지센터 봉사 중 장애인 지원 제도에 대해 묻기",
    "partner": "장애인 복지센터 사회복지사",
+   "learner_role": "지원 제도를 묻는 봉사자",
    "functions": [
     "F12"
    ],
@@ -17345,6 +17521,7 @@
    "part": "1/1",
    "situation": "수입 과일값 상승에 대한 대응책 논의하기",
    "partner": "무역회사 선배 직원",
+   "learner_role": "대응책을 논의하는 후배 직원",
    "functions": [
     "F11"
    ],
@@ -17433,6 +17610,7 @@
    "part": "1/1",
    "situation": "바이러스 걸린 노트북을 방송국 IT 담당자에게 맡기기",
    "partner": "라디오 방송국 전산 담당자",
+   "learner_role": "노트북을 맡기는 방송국 직원",
    "functions": [
     "F12"
    ],
@@ -17541,6 +17719,7 @@
    "part": "1/1",
    "situation": "민속박물관에서 설 풍습의 유래 듣기",
    "partner": "민속박물관 해설사",
+   "learner_role": "설 풍습을 듣는 관람객",
    "functions": [
     "F10"
    ],
@@ -17630,6 +17809,7 @@
    "part": "1/1",
    "situation": "중국사 기말 보고서 주제를 교수와 정하기",
    "partner": "대학 중국사 담당 교수",
+   "learner_role": "보고서 주제를 정하는 수강생",
    "functions": [
     "F18"
    ],
@@ -17722,6 +17902,7 @@
    "part": "1/1",
    "situation": "퇴사 고민을 은사와 나누며 삶의 원칙 돌아보기",
    "partner": "대학 시절 은사 교수",
+   "learner_role": "퇴사를 고민하는 제자",
    "functions": [
     "F05"
    ],
@@ -17818,6 +17999,7 @@
    "part": "1/1",
    "situation": "정치학 토론 수업의 발표 범위를 조교와 정하기",
    "partner": "정치외교학과 조교",
+   "learner_role": "발표 범위를 정하는 수강생",
    "functions": [
     "F26"
    ],
@@ -17909,6 +18091,7 @@
    "part": "1/1",
    "situation": "도난 사건 후 변호사에게 배상 가능성 묻기",
    "partner": "법률사무소 변호사",
+   "learner_role": "배상 가능성을 묻는 피해자",
    "functions": [
     "F18"
    ],
@@ -18003,6 +18186,7 @@
    "part": "1/1",
    "situation": "영사관에서 여권 만료와 면허 갱신 절차 묻기",
    "partner": "주중 한국 영사관 민원 담당 직원",
+   "learner_role": "갱신 절차를 묻는 민원인",
    "functions": [
     "F12"
    ],
@@ -18099,6 +18283,7 @@
    "part": "1/1",
    "situation": "국제 대회를 앞두고 코치와 부담감 극복하기",
    "partner": "탁구 대표팀 코치",
+   "learner_role": "부담감을 털어놓는 대표 선수",
    "functions": [
     "F06"
    ],
@@ -18203,6 +18388,7 @@
    "part": "1/1",
    "situation": "봄철 알레르기 증상을 약사에게 설명하기",
    "partner": "동네 약국 약사",
+   "learner_role": "알레르기 증상을 말하는 손님",
    "functions": [
     "F28"
    ],
@@ -18296,6 +18482,7 @@
    "part": "1/1",
    "situation": "쪽지시험 결과를 보고 과외 선생님과 계획 세우기",
    "partner": "수학 과외 선생님",
+   "learner_role": "시험 결과를 보여주는 학생",
    "functions": [
     "F23"
    ],
@@ -18387,6 +18574,7 @@
    "part": "1/1",
    "situation": "교양 공개 강좌 중 들을 강좌 고르기",
    "partner": "교양교육원 행정 직원",
+   "learner_role": "들을 강좌를 고르는 수강 희망자",
    "functions": [
     "F26"
    ],
@@ -18479,6 +18667,7 @@
    "part": "1/1",
    "situation": "은행에서 계좌 개설하며 수수료 줄이는 법 묻기",
    "partner": "은행 창구 직원",
+   "learner_role": "계좌를 개설하려는 고객",
    "functions": [
     "F25"
    ],
@@ -18570,6 +18759,7 @@
    "part": "1/1",
    "situation": "농촌 제분 공장을 취재하며 업계 전망 묻기",
    "partner": "농촌 제분 공장 사장",
+   "learner_role": "업계 전망을 묻는 취재 기자",
    "functions": [
     "F12"
    ],
@@ -18675,6 +18865,7 @@
    "part": "1/1",
    "situation": "과학 탐사 여행지로 섬과 사막 중 고르기",
    "partner": "탐사 여행사 상담원",
+   "learner_role": "여행지를 고르는 상담 고객",
    "functions": [
     "F15"
    ],
@@ -18767,6 +18958,7 @@
    "part": "1/1",
    "situation": "친척 모임에서 가족 구성원 소개받기",
    "partner": "중국인 외사촌 형",
+   "learner_role": "가족을 소개받는 친척",
    "functions": [
     "F19"
    ],
@@ -18866,6 +19058,7 @@
    "part": "1/1",
    "situation": "소개팅 상대의 첫인상과 매력 포인트 이야기하기",
    "partner": "소개팅을 주선한 대학 선배",
+   "learner_role": "첫인상을 이야기하는 후배",
    "functions": [
     "F12"
    ],
@@ -18955,6 +19148,7 @@
    "part": "1/1",
    "situation": "홈스테이 가족 구성원의 성격 평가하기",
    "partner": "홈스테이 알선 업체 담당자",
+   "learner_role": "홈스테이 가족을 평가하는 학생",
    "functions": [
     "F28"
    ],
@@ -19055,6 +19249,7 @@
    "part": "1/1",
    "situation": "식당 음식에 벌레가 나와 화난 동료 달래기",
    "partner": "같은 부서 동료",
+   "learner_role": "동료를 달래는 사람",
    "functions": [
     "F03"
    ],
@@ -19150,6 +19345,7 @@
    "part": "1/1",
    "situation": "소음과 동네 환경을 따져 집 두 곳 비교하기",
    "partner": "부동산 중개인",
+   "learner_role": "집을 비교해 보는 세입자",
    "functions": [
     "F12"
    ],
@@ -19241,6 +19437,7 @@
    "part": "1/1",
    "situation": "새 카페 매장의 입지 후보 비교하기",
    "partner": "카페 공동 창업자",
+   "learner_role": "입지를 고르는 공동 창업자",
    "functions": [
     "F22"
    ],
@@ -19336,6 +19533,7 @@
    "part": "1/1",
    "situation": "공항에서 항구까지 가는 교통편 문의하기",
    "partner": "공항 안내 데스크 직원",
+   "learner_role": "항구행 교통편을 묻는 여행객",
    "functions": [
     "F18"
    ],
@@ -19425,6 +19623,7 @@
    "part": "1/1",
    "situation": "유럽 자동차 캠핑 여행과 세관 경험 공유하기",
    "partner": "여행 동호회 회원",
+   "learner_role": "캠핑 경험을 나누는 회원",
    "functions": [
     "F22"
    ],
@@ -19520,6 +19719,7 @@
    "part": "1/1",
    "situation": "한국 거래처 방문단 환영 인사 준비하기",
    "partner": "행사 담당 과장",
+   "learner_role": "환영 인사를 준비하는 직원",
    "functions": [
     "F19"
    ],
@@ -19618,6 +19818,7 @@
    "part": "1/1",
    "situation": "결혼식을 앞당긴 사연 동창에게 전하기",
    "partner": "대학 동창",
+   "learner_role": "결혼 소식을 전하는 동창",
    "functions": [
     "F09"
    ],
@@ -19707,6 +19908,7 @@
    "part": "1/2",
    "situation": "계획을 누설한 동료와 다툰 일 털어놓기",
    "partner": "회사 선배",
+   "learner_role": "다툰 일을 털어놓는 후배",
    "functions": [
     "F12",
     "F22"
@@ -19805,6 +20007,7 @@
    "part": "2/2",
    "situation": "반에서 괴롭힘당하는 아이 문제로 담임과 상담하기",
    "partner": "초등학교 담임 선생님",
+   "learner_role": "괴롭힘 문제로 상담하는 학부모",
    "functions": [
     "F14"
    ],
@@ -19903,6 +20106,7 @@
    "part": "1/1",
    "situation": "인력 파견 회사에서 희망 직무와 학력 상담하기",
    "partner": "인력 파견 회사 컨설턴트",
+   "learner_role": "희망 직무를 상담하는 구직자",
    "functions": [
     "F21"
    ],
@@ -20001,7 +20205,8 @@
    "topic_code": "T27",
    "part": "1/1",
    "situation": "회사 명의 계약과 급여 처리 규정 안내받기",
-   "partner": "재무부 책임자",
+   "partner": "재무팀 담당자",
+   "learner_role": "급여 규정을 안내받는 직원",
    "functions": [
     "F24"
    ],
@@ -20091,6 +20296,7 @@
    "part": "1/1",
    "situation": "거래처 협상 진척 상황을 회의에서 보고하기",
    "partner": "영업본부 부장",
+   "learner_role": "협상 경과를 보고하는 팀원",
    "functions": [
     "F22"
    ],
@@ -20189,6 +20395,7 @@
    "part": "1/1",
    "situation": "야근 누적으로 인한 번아웃 증상 상담하기",
    "partner": "심리 상담사",
+   "learner_role": "번아웃을 호소하는 직장인",
    "functions": [
     "F22"
    ],
@@ -20280,6 +20487,7 @@
    "part": "1/1",
    "situation": "취미 동아리 가입 면담에서 취미 소개하기",
    "partner": "취미 동아리 회장",
+   "learner_role": "가입 면담을 받는 지원자",
    "functions": [
     "F17"
    ],
@@ -20369,6 +20577,7 @@
    "part": "1/1",
    "situation": "연극부 대본의 결말과 배역 정하기",
    "partner": "연극부 지도 교사",
+   "learner_role": "결말을 의논하는 연극부 학생",
    "functions": [
     "F12"
    ],
@@ -20460,6 +20669,7 @@
    "part": "1/1",
    "situation": "조정 대회 결승 진출 소감 인터뷰하기",
    "partner": "교내 방송국 기자",
+   "learner_role": "소감을 말하는 조정 선수",
    "functions": [
     "F25"
    ],
@@ -20551,6 +20761,7 @@
    "part": "1/1",
    "situation": "태풍 예보로 섬 여행 일정 변경하기",
    "partner": "여행사 상담원",
+   "learner_role": "일정 변경을 요청하는 여행객",
    "functions": [
     "F14"
    ],
@@ -20642,6 +20853,7 @@
    "part": "1/1",
    "situation": "아파트 단지 분리수거 새 규정 설명 듣기",
    "partner": "아파트 관리사무소 직원",
+   "learner_role": "새 규정을 듣는 입주민",
    "functions": [
     "F28"
    ],
@@ -20733,6 +20945,7 @@
    "part": "1/1",
    "situation": "경제 수업 발표 주제로 재정 적자 설명하기",
    "partner": "경제학과 조교",
+   "learner_role": "발표를 준비하는 수강생",
    "functions": [
     "F13"
    ],
@@ -20824,6 +21037,7 @@
    "part": "1/2",
    "situation": "신문사 새 앱 출시 전 오류 점검하기",
    "partner": "신문사 IT 팀장",
+   "learner_role": "오류를 점검하는 앱 담당자",
    "functions": [
     "F12"
    ],
@@ -20918,6 +21132,7 @@
    "part": "2/2",
    "situation": "위성 발사 연기 뉴스를 보고 원인 묻기",
    "partner": "항공우주 연구소에 다니는 삼촌",
+   "learner_role": "발사 연기 원인을 묻는 조카",
    "functions": [
     "F12"
    ],
@@ -21014,6 +21229,7 @@
    "part": "1/1",
    "situation": "동기 고향의 전통 혼례 풍습 묻기",
    "partner": "푸젠 출신 대학원 동기",
+   "learner_role": "혼례 풍습을 묻는 대학원 동기",
    "functions": [
     "F10"
    ],
@@ -21107,6 +21323,7 @@
    "part": "1/1",
    "situation": "할아버지를 여읜 뒤 삶의 의미 이야기하기",
    "partner": "고등학교 시절 담임 선생님",
+   "learner_role": "삶의 의미를 고민하는 제자",
    "functions": [
     "F05"
    ],
@@ -21206,6 +21423,7 @@
    "part": "1/1",
    "situation": "선거를 앞두고 투표 참여와 중립 입장 토론하기",
    "partner": "정치학 수업 조교",
+   "learner_role": "투표 문제를 토론하는 수강생",
    "functions": [
     "F26"
    ],
@@ -21307,6 +21525,7 @@
    "part": "1/1",
    "situation": "범죄 드라마 속 판결의 공정성 토론하기",
    "partner": "법학과 동기",
+   "learner_role": "판결을 두고 토론하는 친구",
    "functions": [
     "F18"
    ],
@@ -21411,6 +21630,7 @@
    "part": "1/2",
    "situation": "군 복무 시절 사격 훈련 경험 이야기하기",
    "partner": "중국인 언어교환 파트너 대학생",
+   "learner_role": "군 복무 경험을 말하는 대학생",
    "functions": [
     "F13"
    ],
@@ -21505,6 +21725,7 @@
    "part": "2/2",
    "situation": "이웃 노인 실종 사건 수사 상황 묻기",
    "partner": "동네 파출소 경찰관",
+   "learner_role": "실종 수사를 묻는 이웃 주민",
    "functions": [
     "F13"
    ],
@@ -21601,6 +21822,7 @@
    "part": "1/1",
    "situation": "업무 실수 후 팀장과 면담하며 각오 밝히기",
    "partner": "디자인팀 팀장",
+   "learner_role": "각오를 밝히는 팀원",
    "functions": [
     "F06"
    ],
@@ -21705,6 +21927,7 @@
    "part": "1/2",
    "situation": "유학 출발 전 불안하고 아쉬운 마음 털어놓기",
    "partner": "오래 알고 지낸 과외 선생님",
+   "learner_role": "출국을 앞둔 제자",
    "functions": [
     "F12"
    ],
@@ -21806,6 +22029,7 @@
    "part": "2/2",
    "situation": "충동구매 습관을 학생상담센터에서 상담하기",
    "partner": "대학 학생상담센터 상담사",
+   "learner_role": "충동구매를 상담하는 학생",
    "functions": [
     "F12"
    ],
@@ -21907,6 +22131,7 @@
    "part": "1/1",
    "situation": "방학 숙제를 미루는 아이 문제로 선생님과 상의하기",
    "partner": "초등학교 수학 선생님",
+   "learner_role": "숙제 문제로 상의하는 학부모",
    "functions": [
     "F23"
    ],
@@ -21995,6 +22220,7 @@
    "part": "1/1",
    "situation": "지도교수와 진화 연구 논문 방향 상의하기",
    "partner": "생물학과 지도교수",
+   "learner_role": "논문 방향을 상의하는 대학원생",
    "functions": [
     "F26"
    ],
@@ -22089,6 +22315,7 @@
    "part": "1/1",
    "situation": "상속받은 유산의 자산 관리 방법 상담하기",
    "partner": "은행 자산관리 상담사",
+   "learner_role": "유산 관리를 상담하는 고객",
    "functions": [
     "F25"
    ],
@@ -22188,6 +22415,7 @@
    "part": "1/1",
    "situation": "교환학생 환영회에서 이름과 고향 소개하기",
    "partner": "중국어학과 학과장",
+   "learner_role": "자기소개를 하는 교환학생",
    "functions": [
     "F26"
    ],
@@ -22277,6 +22505,7 @@
    "part": "1/1",
    "situation": "쌍둥이 육아를 돕는 가족 사정 이야기하기",
    "partner": "옆집 할머니",
+   "learner_role": "육아를 돕는 이웃 가족",
    "functions": [
     "F12"
    ],
@@ -22366,6 +22595,7 @@
    "part": "1/3",
    "situation": "새로 온 부장과 팀원들의 성격 뒷이야기하기",
    "partner": "같은 팀 입사 동기",
+   "learner_role": "부장 뒷이야기를 하는 동기",
    "functions": [
     "F12"
    ],
@@ -22461,6 +22691,7 @@
    "part": "2/3",
    "situation": "결혼정보회사에서 원하는 상대의 성품 말하기",
    "partner": "결혼정보회사 매니저",
+   "learner_role": "원하는 상대를 말하는 가입자",
    "functions": [
     "F24"
    ],
@@ -22559,6 +22790,7 @@
    "part": "3/3",
    "situation": "인턴 두 명의 근무 태도와 성품 평가하기",
    "partner": "인사팀 과장",
+   "learner_role": "인턴을 평가하는 팀 동료",
    "functions": [
     "F13"
    ],
@@ -22657,6 +22889,7 @@
    "part": "1/1",
    "situation": "취업 합격 소식을 전하며 그간의 심경 나누기",
    "partner": "대학 취업지원센터 선생님",
+   "learner_role": "합격 소식을 전하는 졸업생",
    "functions": [
     "F10"
    ],
@@ -22760,6 +22993,7 @@
    "part": "1/1",
    "situation": "새로 준공된 기숙사 시설 둘러보기",
    "partner": "대학 기숙사 관리 주임",
+   "learner_role": "시설을 둘러보는 입사생",
    "functions": [
     "F10"
    ],
@@ -22847,6 +23081,7 @@
    "part": "1/1",
    "situation": "이사 전날 수도 수리와 짐 포장 맡기기",
    "partner": "이사 도우미 업체 직원",
+   "learner_role": "이사를 앞둔 의뢰인",
    "functions": [
     "F22"
    ],
@@ -22938,6 +23173,7 @@
    "part": "1/1",
    "situation": "결혼식 하객용 치파오 입어 보고 맞추기",
    "partner": "치파오 맞춤 가게 사장",
+   "learner_role": "하객 옷을 맞추러 온 손님",
    "functions": [
     "F03"
    ],
@@ -23029,6 +23265,7 @@
    "part": "1/1",
    "situation": "사무용품 대량 구매 조건과 추가 비용 확인하기",
    "partner": "사무용품 도매점 영업사원",
+   "learner_role": "사무용품을 구매하려는 담당자",
    "functions": [
     "F03"
    ],
@@ -23116,6 +23353,7 @@
    "part": "1/1",
    "situation": "등산로에서 길을 잃어 공원 입구 가는 길 묻기",
    "partner": "국립공원 관리원",
+   "learner_role": "길을 잃은 등산객",
    "functions": [
     "F21"
    ],
@@ -23205,6 +23443,7 @@
    "part": "1/1",
    "situation": "귀국 전 지도교수에게 감사 인사와 작별하기",
    "partner": "중국 유학 시절 지도교수",
+   "learner_role": "귀국을 앞둔 제자",
    "functions": [
     "F22"
    ],
@@ -23296,6 +23535,7 @@
    "part": "1/1",
    "situation": "입원한 옛 친구 병문안 계획 세우기",
    "partner": "고등학교 동창",
+   "learner_role": "병문안을 계획하는 친구",
    "functions": [
     "F13"
    ],
@@ -23386,7 +23626,8 @@
    "topic_code": "T24",
    "part": "1/1",
    "situation": "룸메이트와 다툰 뒤 사과하고 화해하기",
-   "partner": "기숙사 사감 선생님",
+   "partner": "다툰 룸메이트",
+   "learner_role": "룸메이트와 다툰 기숙사생",
    "functions": [
     "F11"
    ],
@@ -23492,6 +23733,7 @@
    "part": "1/1",
    "situation": "무단결석으로 대표 선발에서 빠진 이유 상담하기",
    "partner": "고등학교 담임 선생님",
+   "learner_role": "대표 선발에서 빠진 학생",
    "functions": [
     "F28"
    ],
@@ -23579,6 +23821,7 @@
    "part": "1/1",
    "situation": "파업 참여와 승진 평가 사이에서 선택 상의하기",
    "partner": "같은 부서 선배 직원",
+   "learner_role": "선택을 고민하는 후배 직원",
    "functions": [
     "F18"
    ],
@@ -23674,6 +23917,7 @@
    "part": "1/1",
    "situation": "입술·손톱·후각으로 보는 건강 신호 진단받기",
    "partner": "한의원 원장",
+   "learner_role": "건강 진단을 받는 환자",
    "functions": [
     "F15"
    ],
@@ -23765,6 +24009,7 @@
    "part": "1/1",
    "situation": "수술 후 아버지의 의식과 시력 회복 상태 묻기",
    "partner": "종합병원 외과 주치의",
+   "learner_role": "수술받은 환자의 보호자",
    "functions": [
     "F20"
    ],
@@ -23856,6 +24101,7 @@
    "part": "1/1",
    "situation": "번아웃 증상과 휴식 방법을 상담하기",
    "partner": "대학 심리상담센터 상담사",
+   "learner_role": "번아웃을 겪는 내담자",
    "functions": [
     "F19"
    ],
@@ -23945,6 +24191,7 @@
    "part": "1/1",
    "situation": "문화센터 주말 취미반 중 배울 강좌 고르기",
    "partner": "문화센터 취미반 담당자",
+   "learner_role": "강좌를 고르는 수강 희망자",
    "functions": [
     "F12"
    ],
@@ -24036,6 +24283,7 @@
    "part": "1/1",
    "situation": "동화를 소재로 한 곡의 연주 감상 나누기",
    "partner": "음악회 옆자리 관객",
+   "learner_role": "연주를 감상하는 관객",
    "functions": [
     "F12"
    ],
@@ -24124,6 +24372,7 @@
    "part": "1/1",
    "situation": "노숙인 구제 정책의 효과와 한계 토론하기",
    "partner": "사회복지학과 교수",
+   "learner_role": "정책을 토론하는 학생",
    "functions": [
     "F12"
    ],
@@ -24223,6 +24472,7 @@
    "part": "1/1",
    "situation": "통신망 마비 사고 때 소식 듣는 방법 이야기하기",
    "partner": "방송국 기술부 엔지니어",
+   "learner_role": "통신 마비 대처를 묻는 시청자",
    "functions": [
     "F12"
    ],
@@ -24313,6 +24563,7 @@
    "part": "1/1",
    "situation": "사원 벽화 속 신선과 악마 전설 해설 듣기",
    "partner": "옛 사원 문화 해설사",
+   "learner_role": "벽화 해설을 듣는 관람객",
    "functions": [
     "F10"
    ],
@@ -24401,6 +24652,7 @@
    "part": "1/1",
    "situation": "궁전 유적지에서 봉기의 역사와 복원 계획 묻기",
    "partner": "고궁 유적지 안내원",
+   "learner_role": "유적지를 둘러보는 관람객",
    "functions": [
     "F18"
    ],
@@ -24493,6 +24745,7 @@
    "part": "1/1",
    "situation": "대학원 면접에서 롤모델과 지키려는 신념 말하기",
    "partner": "대학원 면접관 교수",
+   "learner_role": "면접을 보는 지원자",
    "functions": [
     "F01"
    ],
@@ -24593,6 +24846,7 @@
    "part": "1/1",
    "situation": "선거 결과 뉴스를 보며 당선자 공약 해설 듣기",
    "partner": "방송국 정치부 기자",
+   "learner_role": "선거 뉴스를 보는 시청자",
    "functions": [
     "F26"
    ],
@@ -24685,6 +24939,7 @@
    "part": "1/1",
    "situation": "지하철 소매치기 누명 사건을 변호사와 상담하기",
    "partner": "법률사무소 형사 전문 변호사",
+   "learner_role": "누명을 쓴 의뢰인",
    "functions": [
     "F18"
    ],
@@ -24775,6 +25030,7 @@
    "part": "1/1",
    "situation": "군사 박물관에서 매복 작전의 역사 해설 듣기",
    "partner": "군사 박물관 해설사",
+   "learner_role": "박물관을 둘러보는 관람객",
    "functions": [
     "F01"
    ],
@@ -24865,6 +25121,7 @@
    "part": "1/2",
    "situation": "창업 준비를 미루는 습관을 고치는 법 조언 듣기",
    "partner": "창업지원센터 멘토",
+   "learner_role": "창업을 준비하는 예비 창업자",
    "functions": [
     "F06"
    ],
@@ -24961,6 +25218,7 @@
    "part": "2/2",
    "situation": "해외 시장 개척 업무를 맡으며 각오 밝히기",
    "partner": "무역회사 해외영업 팀장",
+   "learner_role": "해외 시장 업무를 맡은 팀원",
    "functions": [
     "F06"
    ],
@@ -25060,6 +25318,7 @@
    "part": "1/1",
    "situation": "유학 생활의 그리움과 열등감 털어놓기",
    "partner": "유학생 전담 상담 교사",
+   "learner_role": "그리움을 털어놓는 유학생",
    "functions": [
     "F12"
    ],
@@ -25156,6 +25415,7 @@
    "part": "1/1",
    "situation": "시험 부정행위 적발 후 어휘 암기법 지도받기",
    "partner": "중국어 학원 강사",
+   "learner_role": "부정행위가 적발된 수강생",
    "functions": [
     "F23"
    ],
@@ -25252,6 +25512,7 @@
    "part": "1/1",
    "situation": "석사 학위 논문 심사 준비 상황 보고하기",
    "partner": "물리학과 지도교수",
+   "learner_role": "논문 심사를 준비하는 석사과정생",
    "functions": [
     "F26"
    ],
@@ -25351,6 +25612,7 @@
    "part": "1/1",
    "situation": "은행 창구에서 복권 당첨금 저축 방법 상담하기",
    "partner": "시중은행 재테크 상담 직원",
+   "learner_role": "당첨금을 저축하려는 고객",
    "functions": [
     "F25"
    ],
@@ -25439,6 +25701,7 @@
    "part": "1/1",
    "situation": "석유 산업 쇠퇴 지역의 농업 창업 투자 상담하기",
    "partner": "농업기업 투자 담당자",
+   "learner_role": "농업 창업을 상담하는 투자 희망자",
    "functions": [
     "F01"
    ],
@@ -25533,6 +25796,7 @@
    "part": "1/1",
    "situation": "적도 부근 섬의 동굴·호수 탐방 코스 안내받기",
    "partner": "생태 탐방 여행 가이드",
+   "learner_role": "탐방 코스를 안내받는 여행객",
    "functions": [
     "F15"
    ],
