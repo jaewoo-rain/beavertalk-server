@@ -87,7 +87,7 @@ FROZEN: dict[str, str] = {
     "expression.DRILL_ASK_FIRST_LINE": "ea49db0f6975d65c",   # U1·U3 2026-10-16 PM-DEC-700~704(옛 b0e17a258e011e98)
     # 2026-09-14 E(사장님 확정, 실통화 1592) — [문형] 항목은 같은 문형의 다른 올바른 문장도 정답. ko·ja 공통(has_grammar 일 때만)
     "expression.DRILL_GRAMMAR_ALT_LINE": "3b3c2f297047daad",
-    "seeds.EXPRESSION_DRILL_MOVE_ON": "b673732fe4efeb6c",   # PM-DEC-727 2026-10-16(옛 86ed79a984199ab5)
+    "seeds.EXPRESSION_DRILL_MOVE_ON": "1e03f51563f28454",   # PM-DEC-728 강화안 2026-10-16(옛 b673732fe4efeb6c ← 86ed79a984199ab5)
     "seeds.LOOP_BREAK_NOTE": "ca29880e45b4b46b",   # 2026-09-14 B 반복 루프 차단기(실통화 1602) — 새 문장, 기존 경로 무변경
 }
 MODULES = {"rules": rules, "face": face, "normal": normal, "leveltest": leveltest, "seeds": seeds, "expression": lex, "reground": reground}
