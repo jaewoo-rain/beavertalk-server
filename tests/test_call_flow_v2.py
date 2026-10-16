@@ -284,3 +284,15 @@ def test_old_path_without_tracker_keeps_its_own_cap():
     for _ in range(_cs.EXPR_DRILL_MAX_USER_TURNS + 1):
         _cs._note_drill_user_turn(st, "틀린 답")
     assert st.expr_drill_nudge_pending is True and st.expr_rep_misses == 0, "추적기 없는 경로는 종전 합산 상한 · 새 카운터는 안 움직인다"
+
+
+def test_a_new_question_in_the_native_language_clears_the_old_target_but_a_hint_keeps_it():
+    """모의 2007 t26 · 2008 t18 — 새 항목을 영어로만 물으면 지난 목표를 비운다. 첫 어절 힌트는 같은 문장을 계속 시키는 중이다."""
+    st = _practice_state()
+    for role, text in [("B", "Say 반갑습니다!"), ("U", "방구"), ("B", "Listen carefully: 반... Now repeat it.")]:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st, text)
+    assert st.expr_rep_phrase == "반갑습니다" and st.expr_rep_misses == 1, "힌트 턴은 목표 유지"
+    _cs._note_expression_drill(st, 'Okay, now how would you say "How do you do?" in Korean? Try that one.')
+    assert st.expr_rep_phrase is None and st.expr_rep_misses == 0, "새 질문(모국어)은 지난 목표를 비운다"
+    _cs._note_drill_user_turn(st, "어떻게 지내셨어요?")
+    assert st.expr_rep_misses == 0

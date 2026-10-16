@@ -1388,6 +1388,8 @@ EXPR_QUIZ_OPEN_QUIET_S = 15.0   # ⭐ 14차 B — 퀴즈 창을 연 직후 이 �
 # ⭐ PM-DEC-726(2026-10-16 · call 2008 t17~t27) — 추적기 경로 드릴 상한. 비버가 같은 목표 문장을 다시 시키는 사이 학습자 답이 그 문장과
 #   다른 횟수가 이 값을 넘으면 «다음 표현으로» 1회. 기존 합산 상한(EXPR_DRILL_MAX_USER_TURNS)은 추적기 없는 경로 전용 — 겹치지 않는다.
 EXPR_PRACTICE_REPEAT_MISS_MAX = 2
+# 첫 어절(음절) 힌트 꼴 — 목표어 1~3글자 뒤 말줄임(「반...」 「안…」). 이 턴은 같은 문장을 계속 시키는 중이다.
+_HINT_RE = re.compile(r"[가-힣ぁ-んァ-ン一-龥]{1,3}\s*(?:\.{2,}|…)")
 EXPR_DRILL_NUDGE_MAX = 6        # 12차 D(2026-09-18, 1645 — 상한 3 이 앞 2분에 소진돼 후반 4턴 루프엔 개입 0): 통화당 6회
                                 #   (세트 안내 2회와 별도 계정) + **항목별 1회**(같은 항목에 두 번 안내하지 않는다)
 
@@ -1791,6 +1793,11 @@ def _note_practice_requested_phrase(state: _CallState, text: str) -> None:
         return
     phrases = requested_phrases(text, p.language)
     if not phrases:
+        # 목표 문장이 없는 턴: 첫 어절 힌트(「반...」)면 같은 문장을 계속 시키는 중이라 유지 · 아니면(새 항목을 모국어로만 묻는 턴 등) 지난 목표를 비운다
+        #   — 안 비우면 다음 질문의 답까지 지난 문장의 불일치로 센다(모의 2007 t26 · 2008 t18).
+        if not _HINT_RE.search(text or ""):
+            state.expr_rep_phrase = None
+            state.expr_rep_misses = 0
         return
     if state.expr_rep_phrase is not None and state.expr_rep_phrase in phrases:
         return
