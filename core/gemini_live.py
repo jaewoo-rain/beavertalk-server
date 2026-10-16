@@ -332,27 +332,56 @@ def set_face_tool() -> types.Tool:
     return _face_tool_from(desc, emo_desc, emotions)
 
 
+class LiveSendStalled(Exception):
+    """Live 송신 한 번이 LIVE_SEND_TIMEOUT_S 안에 안 끝났다(call 2000 · 2026-10-16). TimeoutError 가 아니다 —
+    run_call 의 «통화 상한» 경로가 아니라 브리지 오류 경로(앱 CALL_INTERRUPTED)로 가야 한다."""
+
+
 class GeminiLiveSession:
-    """google-genai live.connect 세션의 비동기 래퍼."""
+    """google-genai live.connect 세션의 비동기 래퍼.
+
+    ⭐ 송신은 한 잠금으로 직렬화한다(2026-10-16 · call 2000). 마이크 펌프(오디오·매 턴 안내·재접지·퀴즈 큐)와 Gemini 펌프
+      (재시드·종료 시드)·무음 워처(넛지)가 같은 웹소켓에 서로 다른 코루틴에서 쓴다. 한 send 가 시간 제한을 넘기면
+      LiveSendStalled 로 통화를 닫는다 — 조용히 매달려 앱 수신 루프까지 멈추는 것보다 낫다.
+    """
 
     def __init__(self, raw_session: Any) -> None:
         self._session = raw_session
+        self._send_lock = asyncio.Lock()
+
+    async def _send(self, kind: str, coro_fn) -> None:
+        timeout = float(getattr(settings, "LIVE_SEND_TIMEOUT_S", 5.0) or 0)
+        loop = asyncio.get_running_loop()
+        t0 = loop.time()
+        try:
+            lock = getattr(self, "_send_lock", None)
+            if lock is None:   # __new__ 로 만든 시험용 세션
+                lock = self._send_lock = asyncio.Lock()
+            async with lock:
+                if timeout > 0:
+                    await asyncio.wait_for(coro_fn(), timeout)
+                else:
+                    await coro_fn()
+        except TimeoutError as exc:
+            logger.error("normalcall ⛔Live 송신 시간 초과: kind=%s %.1fs(제한 %.1fs) — 통화를 오류로 닫는다",
+                         kind, loop.time() - t0, timeout)
+            raise LiveSendStalled(kind) from exc
 
     async def send_audio(self, pcm16_16k: bytes) -> None:
         """입력 PCM(16bit/16k/mono) 청크를 즉시 모델로 전송(버퍼링 없음)."""
-        await self._session.send_realtime_input(
+        await self._send("audio", lambda: self._session.send_realtime_input(
             audio=types.Blob(data=pcm16_16k, mime_type=INPUT_MIME_TYPE)
-        )
+        ))
 
     async def send_text_turn(self, text: str) -> None:
         """초기 선톡 시드/종료 시드용 user 텍스트 턴 1회 전송.
 
         receive 루프가 이미 돌고 있어야 첫 청크를 놓치지 않는다.
         """
-        await self._session.send_client_content(
+        await self._send("text_turn", lambda: self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
             turn_complete=True,
-        )
+        ))
 
     async def send_reground(self, text: str, *, turn_complete: bool = True) -> None:
         """재접지: 캐릭터 리마인더를 user 텍스트로 주입한다.
@@ -387,12 +416,12 @@ class GeminiLiveSession:
         #     ⇒ `turn_complete=True` 로 "지금 답해라"를 요구하는 호출부
         #       (`legacy_idle`)는 그 뜻이 사라지므로 **client_content 를 그대로 쓴다**.
         if settings.LIVE_REGROUND_TRANSPORT == "realtime" and not turn_complete:
-            await self._session.send_realtime_input(text=text)
+            await self._send("reground_rt", lambda: self._session.send_realtime_input(text=text))
             return
-        await self._session.send_client_content(
+        await self._send("reground_cc", lambda: self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
             turn_complete=turn_complete,
-        )
+        ))
 
     async def send_persona(self, text: str) -> None:
         """페르소나 조각을 **컨텍스트에만 적재**한다(생성 트리거 없음).
@@ -409,10 +438,10 @@ class GeminiLiveSession:
         ⚠ 오디오 VAD 턴과 client_content 의 병합은 벤더 공식 보장이 아니다(send_reground
           독스트링의 같은 경고) — 실측으로만 확인된다.
         """
-        await self._session.send_client_content(
+        await self._send("persona", lambda: self._session.send_client_content(
             turns=types.Content(role="user", parts=[types.Part(text=text)]),
             turn_complete=False,
-        )
+        ))
 
     async def send_tool_response(
         self, fn_id: Optional[str], fn_name: Optional[str],
@@ -436,7 +465,7 @@ class GeminiLiveSession:
         SDK: session.send_tool_response(function_responses=[FunctionResponse(...)]),
         FunctionResponse.scheduling=types.FunctionResponseScheduling.SILENT (검증됨).
         """
-        await self._session.send_tool_response(
+        await self._send("tool", lambda: self._session.send_tool_response(
             function_responses=[
                 types.FunctionResponse(
                     id=fn_id,
@@ -455,7 +484,7 @@ class GeminiLiveSession:
                     **_scheduling_kwargs(fn_name, resume=resume, blocking=blocking),
                 )
             ]
-        )
+        ))
 
     async def events(self) -> AsyncIterator[LiveEvent]:
         """SDK 응답 스트림을 LiveEvent 로 정규화해 yield.

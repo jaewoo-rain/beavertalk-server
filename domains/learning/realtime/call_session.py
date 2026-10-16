@@ -347,6 +347,10 @@ REGROUND_TRANSPORT = _settings.LIVE_REGROUND_TRANSPORT
 #                      얹는 순간 비버가 이미 입을 연 뒤일 수 있다(실측 82회 중 6회 잘림).
 REGROUND_ATTACH_AT = _settings.LIVE_REGROUND_ATTACH_AT
 REGROUND_VOICE_RMS = _settings.LIVE_REGROUND_VOICE_RMS
+# v2 재배포 C1 — 매 턴 안내 스위치(env `LIVE_TURN_NOTE` · "off" 면 안내 0).
+TURN_NOTE_MODE = _settings.LIVE_TURN_NOTE
+# 열린 비버 턴 무수신 감시(초 · 0 = 끔) — call 2000(2026-10-16) 대응.
+LIVE_STALL_S = float(getattr(_settings, "LIVE_STALL_S", 20.0) or 0)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
 _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
@@ -798,7 +802,7 @@ class _CallState:
         "expr_note_last_ts", "expr_quiz_open_ts", "expr_note_hold_why",   # 14차 B·D — 마지막 안내 주입 시각 · 창 연 시각 · 마지막 보류 사유
         "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
         "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
-        "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "last_interrupted_ts", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
@@ -1053,6 +1057,7 @@ class _CallState:
         # v2 재배포 C1(PM-DEC-698) — 학습자 발화마다 얹는 코스별 고정 안내(None = 이 통화엔 없음) · 이번 학습자 턴에 이미 얹었나
         self.turn_note: Optional[str] = None
         self.turn_note_sent: bool = False
+        self.last_interrupted_ts: Optional[float] = None   # 마지막 interrupted 수신 시각(매 턴 안내 로그 표시용)
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
         #   usage_prompt_peak — 압축 사이클 peak. 압축될 때마다 바닥에서 다시 센다.
@@ -1125,6 +1130,11 @@ def _as_int(v) -> int | None:
         return int(str(v).strip()) if v is not None and str(v).strip() else None
     except (TypeError, ValueError):
         return None
+
+
+class _LiveStalled(Exception):
+    """비버 턴이 열린 채 Live 이벤트가 LIVE_STALL_S 동안 0(2026-10-16 · call 2000 — 100초 매달린 뒤 1008).
+    브리지 오류 경로로 간다(앱 CALL_INTERRUPTED · 저장은 finally 그대로)."""
 
 
 class _ClientDisconnect(Exception):
@@ -6115,7 +6125,19 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
       아래에서 turn_end(발화가 끝난 깨끗한 경계)마다 종료 여부를 판단한다.
     """
     event_count = 0
-    async for event in session.events():
+    events = session.events().__aiter__()
+    while True:
+        # ⭐ 열린 비버 턴 무수신 감시(2026-10-16 · call 2000): 턴이 열린 채 LIVE_STALL_S 동안 이벤트가 0 이면 멈춘 것이다.
+        #   열린 턴이 없으면(학습자 차례) 무한 대기 그대로 — 무음은 무음 워처 몫이다.
+        stall = LIVE_STALL_S if (LIVE_STALL_S > 0 and state.turn_id is not None) else None
+        try:
+            event = await (asyncio.wait_for(events.__anext__(), stall) if stall else events.__anext__())
+        except StopAsyncIteration:
+            break
+        except TimeoutError:
+            logger.error("normalcall ⛔Live 무수신 %.0fs(비버 턴 열림 turn=%s) — 멈춘 것으로 보고 오류로 닫는다 call_id=%s",
+                         stall, state.turn_id, _cid(state))
+            raise _LiveStalled(state.turn_id) from None
         event_count += 1
 
         # 원가 계기판(Phase 0): 과금 계측은 대화 이벤트가 아니다 — 적재만 하고 즉시 continue.
@@ -6327,6 +6349,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #   (`diag_interrupts` 는 아래 「턴 절단 의심」 판정이 읽는다 — 안 옮기면
             #    그 판정이 언제나 0을 본다.)
             state.diag_interrupts += 1
+            state.last_interrupted_ts = asyncio.get_running_loop().time()
             _open = state.diag_turn_open_ts
             _el = (asyncio.get_running_loop().time() - _open) if _open else -1.0
             logger.warning(
@@ -7219,7 +7242,10 @@ def _turn_note_due(state: _CallState) -> bool:
       ⑤ 한 자리에 하나 — 큐·세트/드릴 안내·재접지 쪽지가 이 턴을 쓰면 건너뛴다.
       ⑥ 퀴즈 창(대기·열림)에서는 표현학습 안내를 넣지 않는다 — 퀴즈 착지문과 충돌.
     """
-    if not state.turn_note or state.turn_note_sent or state.turn_id is not None:
+    if TURN_NOTE_MODE != "on" or not state.turn_note or state.turn_note_sent or state.turn_id is not None:
+        return False
+    # ⑦ 첫 비버 턴(인사·출제) 전에는 얹지 않는다 — call 2000 은 Live 연결 6ms 뒤 인사보다 먼저 얹혔다(시드와 겹침).
+    if state.beaver_turns < 1:
         return False
     if state.should_close or state.close_seed_sent:
         return False
@@ -7239,9 +7265,11 @@ async def _attach_turn_note(session: LiveSessionProtocol, state: _CallState, whe
     _note_text_inject(state, "turn_note")
     try:
         await session.send_reground(state.turn_note, turn_complete=False)
-        logger.info("normalcall 매 턴 안내 얹기: call_id=%s 자리=%s 종류=%s 턴=%d", _cid(state), where,
+        _ir = state.last_interrupted_ts
+        _since = (asyncio.get_running_loop().time() - _ir) if _ir is not None else -1.0
+        logger.info("normalcall 매 턴 안내 얹기: call_id=%s 자리=%s 종류=%s 턴=%d 비버턴=%d 직전끼어들기=%s", _cid(state), where,
                     "free" if state.turn_note == TURN_NOTE_FREETALK else ("hw" if state.turn_note == TURN_NOTE_HOMEWORK_EXPRESSION else "expr"),
-                    state.next_turn_index)
+                    state.next_turn_index, state.beaver_turns, "없음" if _since < 0 else "%.1fs 전" % _since)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - 안내 실패는 통화 무영향(R5)

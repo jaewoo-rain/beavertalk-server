@@ -367,6 +367,13 @@ class Settings(BaseSettings):
     # (`normalcall_controller.dart:420`) — 두 쪽이 갈라지면 같은 소리를 두고 다르게 판정한다.
     # ⚠ 이 계산은 `reground_pending` 일 때만 돈다(핫패스 보호, R4).
     LIVE_REGROUND_VOICE_RMS: float = 0.02
+    # ⭐ v2 재배포 C1 매 턴 안내 스위치(2026-10-16 · call 2000 1008 멈춤 원인 가르기). "on"(기본) | "off".
+    #   off 면 학습자 발화마다 얹는 코스별 안내(seeds.TURN_NOTE_*)를 보내지 않는다 — 재빌드 없이 env 한 줄로 끈다.
+    LIVE_TURN_NOTE: str = "on"
+    # ⭐ Live 송신 시간 제한(초) — 한 번의 send 가 이 안에 안 끝나면 통화를 오류로 닫는다(call 2000: 송신이 막혀 앱 수신 루프까지 100초 멈춤).
+    LIVE_SEND_TIMEOUT_S: float = 5.0
+    # ⭐ 비버 턴이 열린 채 Live 이벤트가 이만큼(초) 없으면 멈춘 것으로 보고 통화를 오류로 닫는다(0 = 끔). 정상 턴은 오디오가 수십 ms 간격으로 온다.
+    LIVE_STALL_S: float = 20.0
     # ⭐ 같은 오디오 자리에 꽂히는 표정 마커를 **하나로 합칠까**(2026-09-01).
     #   프론트는 마커를 오디오 봉투 번호에 꽂으므로, 소리가 안 나간 사이 두 번 부르면
     #   자리가 같아져 뒤엣것이 앞엣것을 즉시 덮는다 — 그러면 표정이 안 보인다.

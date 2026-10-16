@@ -124,6 +124,7 @@ class _Rec:
 def _st(note):
     st = _cs._CallState()
     st.turn_note = note
+    st.beaver_turns = 1          # 첫 비버 턴(인사·출제)이 끝났다
     return st
 
 
@@ -184,6 +185,17 @@ def test_turn_note_is_not_sent_while_beaver_speaks_or_closing_or_silent():
     st, s = _st(_seeds.TURN_NOTE_EXPRESSION), _Rec()
     _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, b"\x00\x00" * 480))   # 침묵 프레임 — 사람이 말할 때까지 기다린다
     assert s.sent == [] and st.turn_note_sent is False
+
+
+def test_turn_note_waits_for_the_first_beaver_turn_and_obeys_the_env_switch(monkeypatch):
+    st, s = _st(_seeds.TURN_NOTE_EXPRESSION), _Rec()
+    st.beaver_turns = 0                                        # 인사 전(call 2000 06:27:13 · 연결 6ms 뒤)
+    _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+    assert s.sent == [] and st.turn_note_sent is False
+    monkeypatch.setattr(_cs, "TURN_NOTE_MODE", "off")
+    st.beaver_turns = 1
+    _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+    assert s.sent == [], "LIVE_TURN_NOTE=off 면 안내 0"
 
 
 def test_expression_turn_note_is_skipped_in_the_quiz_window_but_freetalk_is_not():
