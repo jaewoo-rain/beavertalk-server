@@ -9,6 +9,7 @@ from db.base import Base
 # account
 from domains.account.models.member import Member  # noqa: F401
 from domains.account.models.member_reason import MemberReason  # noqa: F401
+from domains.account.models.member_consent import MemberConsent  # noqa: F401
 from domains.account.models.speak_country import SpeakCountry  # noqa: F401
 from domains.account.models.nationality_prediction import NationalityPrediction  # noqa: F401
 

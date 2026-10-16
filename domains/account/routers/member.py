@@ -8,7 +8,9 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 
 from core.deps import CurrentMember, DbSession
+from domains.account.models.member import Member
 from domains.account.schemas.member import (
+    ConsentIn,
     MemberRead,
     MemberUpdate,
     MyPageOut,
@@ -17,25 +19,46 @@ from domains.account.schemas.member import (
 from domains.commerce.schemas.churn_reason import ChurnReasonIn, ChurnReasonOut
 from domains.commerce.service.churn_reason_service import ChurnReasonService
 from domains.learning.service import mastery_service
+from domains.account.service import consent_service
 from domains.account.service.member_service import MemberService
 
 router = APIRouter(prefix="/members", tags=["members"])
 
 
+def _read(db: DbSession, member: Member) -> MemberRead:
+    """MemberRead + 가입 동의 판정(consent_required·consent_versions). 회원 응답은 모두 이걸 거친다 —
+    앱이 어느 응답으로 프로필을 갱신해도 동의 상태가 거짓으로 덮이지 않게."""
+    out = MemberRead.model_validate(member)
+    return out.model_copy(update={
+        "consent_required": consent_service.consent_required(db, member.member_id),
+        "consent_versions": dict(consent_service.CURRENT_VERSIONS),
+    })
+
+
 @router.get("/me", response_model=MemberRead)
-def get_me(member: CurrentMember) -> MemberRead:
-    """현재 로그인한 회원 정보. 토큰에서 주입된 member 를 그대로 반환."""
-    return member
+def get_me(member: CurrentMember, db: DbSession) -> MemberRead:
+    """현재 로그인한 회원 정보. 토큰에서 주입된 member + 가입 동의 판정."""
+    return _read(db, member)
+
+
+@router.post("/me/consents", response_model=MemberRead)
+def record_consents(data: ConsentIn, member: CurrentMember, db: DbSession) -> MemberRead:
+    """가입 동의 기록(PM-DEC-735·736) — 필수 4항목 · 항목별 버전·시각. 누락 422 · 옛 버전 409 · 재전송 멱등."""
+    consent_service.record(
+        db, member.member_id, [(i.item, i.version) for i in data.items],
+        app_version=data.app_version, platform=data.platform, locale=data.locale,
+    )
+    return _read(db, member)
 
 
 @router.post("/me/onboarding", response_model=MemberRead)
 def onboarding(data: OnboardingIn, member: CurrentMember, db: DbSession) -> MemberRead:
     """온보딩 — 이름·학습이유·언어·실제 국적 저장(회원가입 직후 별도 단계)."""
-    return MemberService(db).onboarding(
+    return _read(db, MemberService(db).onboarding(
         member.member_id, data.name, data.reasons, data.language,
         actual_nationality=data.actual_nationality,
         native_language=data.native_language,
-    )
+    ))
 
 
 @router.get("/me/profile", response_model=MyPageOut)
@@ -102,7 +125,7 @@ def submit_churn_reason(
 
 @router.patch("/me", response_model=MemberRead)
 def update_me(data: MemberUpdate, member: CurrentMember, db: DbSession) -> MemberRead:
-    return MemberService(db).update(member.member_id, data)
+    return _read(db, MemberService(db).update(member.member_id, data))
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

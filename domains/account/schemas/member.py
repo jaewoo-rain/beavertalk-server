@@ -25,6 +25,22 @@ class OnboardingIn(BaseModel):
     actual_nationality: Optional[str] = None
 
 
+class ConsentItemIn(BaseModel):
+    """동의 항목 하나 — 항목 코드와 화면이 보여준 문서 버전."""
+
+    item: str
+    version: str
+
+
+class ConsentIn(BaseModel):
+    """가입 동의 기록(PM-DEC-735·736) — 필수 4항목을 한 번에 보낸다."""
+
+    items: list[ConsentItemIn]
+    app_version: Optional[str] = None
+    platform: Optional[str] = None
+    locale: Optional[str] = None
+
+
 class MemberUpdate(BaseModel):
     """회원 수정 입력(부분 수정). 모두 선택값."""
 
@@ -95,6 +111,10 @@ class MemberRead(BaseModel):
     korean_level: Optional[int] = None  # 한국어 레벨(1~13). None=레벨테스트 미실시
     onboarding_completed: bool
     reasons: list[str] = []
+    # 가입 동의(PM-DEC-735·736) — True 면 앱이 홈·온보딩 전에 동의 화면을 띄운다. 라우터가 채운다(ORM 칸 아님).
+    consent_required: bool = False
+    # 동의 화면이 보낼 현행 문서 버전(항목 코드 → 버전). 앱은 이 값을 그대로 POST /members/me/consents 에 싣는다.
+    consent_versions: dict[str, str] = {}
     created_at: datetime
     updated_at: datetime
 
