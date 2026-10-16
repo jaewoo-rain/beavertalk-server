@@ -80,7 +80,7 @@ def test_old_freetalk_without_lesson_is_byte_identical_to_the_frozen_baseline() 
 def test_old_seeds_are_unchanged() -> None:
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     assert "한국어로 네 성격대로 짧게 인사하고" in ft.seed_freetalk_opening("한국어")   # v2 프리토킹 시작 시드
-    assert "학습 언어로 가볍게 새 화제" in ft.NUDGE_SEED_1_FREETALK
+    assert "지금 화제 안에서 더 쉬운 학습 언어 질문 하나" in ft.NUDGE_SEED_1_FREETALK   # SV-37(옛 «학습 언어로 가볍게 새 화제»)
     assert "거기 있어? 잘 들려?" in cs._NUDGE_SEED_2
 
 

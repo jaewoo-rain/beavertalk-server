@@ -358,7 +358,10 @@ def test_expression_nudge_does_not_change_topic() -> None:
 
 
 def test_freetalk_nudge_keeps_the_target_language() -> None:
-    assert "학습 언어로" in NUDGE_SEED_1_FREETALK
+    # SV-37(2026-10-16): 옛 «학습 언어로 가볍게 새 화제» → 같은 화제의 더 쉬운 학습 언어 질문
+    assert "더 쉬운 학습 언어 질문 하나" in NUDGE_SEED_1_FREETALK
+    assert "화제를 바꾸지 말고" in NUDGE_SEED_1_FREETALK
+    assert "새 화제" not in NUDGE_SEED_1_FREETALK
 
 
 # --------------------------------------------------------------------------- #
