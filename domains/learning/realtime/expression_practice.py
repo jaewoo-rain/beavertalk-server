@@ -17,6 +17,20 @@ _TARGET_RUN = {'ko': r'[가-힣][가-힣\s]*[가-힣]', 'ja': r'[ぁ-んァ-ン�
 _NATIVE_CONTEXT = re.compile(r'naturally|native\s+(?:speaker|expression)|현지인|자연스럽|自然', re.I)
 
 
+def requested_phrases(text: str, language: str = 'ko') -> list[str]:
+    """비버 턴이 학습자에게 시키는 목표어 문장 후보(따옴표 우선 · 없으면 목표어 문자 구간). 정규화 3글자 이상만(조사 설명·힌트 「반...」 제외).
+    PM-DEC-726 — 같은 문장 반복 상한이 «지금 시키는 문장» 을 잡는 데 쓴다. 판정·진도는 바꾸지 않는다."""
+    cands = [s.strip() for s in _QUOTED.findall(text or '') if re.search(_SCRIPT.get(language, r'\w'), s)]
+    if not cands and language in _TARGET_RUN:
+        cands = [s.strip() for s in re.findall(_TARGET_RUN[language], text or '')]
+    out = []
+    for s in cands:
+        n = quiz_judge.normalize(s, language)
+        if len(n) > 2 and n not in out:
+            out.append(n)
+    return out
+
+
 @dataclass
 class ExpressionPractice:
     items: list[dict]
@@ -125,6 +139,20 @@ class ExpressionPractice:
             self.phase = 'repeat'
         elif self.phase == 'repeat':
             self._advance()             # 다시 말하기 답 1회 뒤 다음 항목(맞고 틀림은 추정하지 않는다)
+
+    def matches_phrase(self, text: str, normalized_phrase: str) -> bool:
+        """PM-DEC-726 — 학습자 답이 (정규화된) 목표 문장과 같은가 · 답 안에 목표 문장이 통째로 있으면 맞은 것으로 본다(군말 허용)."""
+        n = quiz_judge.normalize(text, self.language)
+        return bool(normalized_phrase) and (n == normalized_phrase or normalized_phrase in n)
+
+    def skip_unpassed(self) -> int | None:
+        """PM-DEC-726 — 같은 문장 반복 상한에 걸린 항목을 미통과로 넘긴다(완료 표시 · 다음 항목 introduce). 넘긴 항목 번호(1부터) · 없으면 None.
+        «완료» 는 복창 단계를 닫는다는 뜻이다 — 퀴즈 통과·진도(DB)와는 무관하다(퀴즈는 그 항목을 그대로 출제한다)."""
+        if not self.item:
+            return None
+        n = self.index + 1
+        self._advance()
+        return n
 
     def _after_original(self) -> None:
         """원문 정답·정답 따라 말하기 뒤 — 정규는 현지인 문장, 숙제(현지인 단계 없음)는 다시 말하기."""

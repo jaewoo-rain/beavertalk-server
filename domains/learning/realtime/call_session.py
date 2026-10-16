@@ -134,7 +134,7 @@ from core.prompts.homework import (
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
-from domains.learning.realtime.expression_practice import ExpressionPractice
+from domains.learning.realtime.expression_practice import ExpressionPractice, requested_phrases
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -801,7 +801,7 @@ class _CallState:
         "expr_drill_focus", "expr_drill_user_turns", "expr_drill_nudges", "expr_drill_nudge_pending",
         "expr_note_last_ts", "expr_quiz_open_ts", "expr_note_hold_why",   # 14차 B·D — 마지막 안내 주입 시각 · 창 연 시각 · 마지막 보류 사유
         "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
-        "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
+        "expr_drill_nudged", "expr_drill_nudge_for", "expr_rep_phrase", "expr_rep_misses", "expr_rep_nudged",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
         "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "last_interrupted_ts", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
@@ -1050,6 +1050,10 @@ class _CallState:
         self.expr_quiz_drift_seg: Optional[int] = None     # 14차 A — 이탈을 이미 잡은 비버 세그먼트(판정기·서버 대조가 같은 턴을 두 번 잡지 않게)
         self.expr_drill_nudged: set[int] = set()           # 12차 D — 안내를 이미 쓴 항목(항목별 1회)
         self.expr_drill_nudge_for: Optional[int] = None    # 12차 D — 대기 중인 안내가 어느 항목 때문인가(로그·기록용)
+        # PM-DEC-726 — 추적기 경로 드릴 상한: 비버가 지금 시키는 목표 문장 · 그 사이 학습자 불일치 수 · 이미 안내한 문장(문장별 1회)
+        self.expr_rep_phrase: Optional[str] = None
+        self.expr_rep_misses: int = 0
+        self.expr_rep_nudged: set[str] = set()
         self.call_id: Optional[int] = None
         self.call_mode: str = "chat"
         # 통화 흐름 v2 PM-DEC-685 R1 — 확정 프리토킹 대본을 쓰는 통화(chat · 차시 없는 freetalk)면 True(재접지 끝줄 화제 유지)
@@ -1381,6 +1385,9 @@ EXPR_QUIZ_CUE_LOG_PREFIX = "normalcall 표현학습 퀴즈 큐"
 EXPR_DRILL_MAX_USER_TURNS = 3   # 11차 B — 한 항목 드릴에 허용하는 학습자 턴(넘으면 «다음 항목으로» 1회). DRILL 재시도 상한 3 과 같은 축이다.
 EXPR_NOTE_MIN_GAP_S = 30.0      # ⭐ 14차 B(2026-09-19, 1651) — 안내(세트·드릴) 사이 최소 간격. 연달아 넣으면 비버가 지시를 겹쳐 받는다.
 EXPR_QUIZ_OPEN_QUIET_S = 15.0   # ⭐ 14차 B — 퀴즈 창을 연 직후 이 시간 동안은 세트 안내 금지(큐와 안내가 겹치면 두 지시가 한꺼번에 간다).
+# ⭐ PM-DEC-726(2026-10-16 · call 2008 t17~t27) — 추적기 경로 드릴 상한. 비버가 같은 목표 문장을 다시 시키는 사이 학습자 답이 그 문장과
+#   다른 횟수가 이 값을 넘으면 «다음 표현으로» 1회. 기존 합산 상한(EXPR_DRILL_MAX_USER_TURNS)은 추적기 없는 경로 전용 — 겹치지 않는다.
+EXPR_PRACTICE_REPEAT_MISS_MAX = 2
 EXPR_DRILL_NUDGE_MAX = 6        # 12차 D(2026-09-18, 1645 — 상한 3 이 앞 2분에 소진돼 후반 4턴 루프엔 개입 0): 통화당 6회
                                 #   (세트 안내 2회와 별도 계정) + **항목별 1회**(같은 항목에 두 번 안내하지 않는다)
 
@@ -1756,6 +1763,7 @@ def _note_expression_drill(state: _CallState, text: str) -> None:
     """
     if state.expr_practice is not None and not state.expr_quiz_open:
         state.expr_practice.observe_beaver(text)
+        _note_practice_requested_phrase(state, text)
     if not state.expr_items or not (text or "").strip():
         return
     hits = _expr_mentioned_nums(state, text)
@@ -1775,11 +1783,57 @@ def _note_expression_drill(state: _CallState, text: str) -> None:
         _arm_drill_nudge(state, "이미 다룬 항목 재드릴")
 
 
+def _note_practice_requested_phrase(state: _CallState, text: str) -> None:
+    """PM-DEC-726 — 비버 턴이 학습자에게 시키는 목표 문장(따옴표·목표어 구간)을 본다. 같은 문장을 다시 시키면 그대로 두고(불일치 수 유지),
+    다른 문장으로 바뀌면 새 목표로 잡고 불일치 수를 0 으로. 문장이 안 보이는 턴(리액션·힌트 「반...」)은 지금 목표를 유지한다."""
+    p = state.expr_practice
+    if p is None:
+        return
+    phrases = requested_phrases(text, p.language)
+    if not phrases:
+        return
+    if state.expr_rep_phrase is not None and state.expr_rep_phrase in phrases:
+        return
+    state.expr_rep_phrase = phrases[-1]
+    state.expr_rep_misses = 0
+
+
+def _note_practice_repeat_miss(state: _CallState, text: str) -> None:
+    """PM-DEC-726 — 학습자 답이 지금 목표 문장과 다르면 센다. 상한을 넘으면 «다음 표현으로» 안내 1회를 걸고 추적기를 다음 항목으로 넘긴다.
+    ⛔ 퀴즈 창(대기·열림)에서는 세지 않는다(퀴즈 진행). 빈 전사는 시도가 아니다. 같은 문장에는 한 번만 안내한다."""
+    p = state.expr_practice
+    phrase = state.expr_rep_phrase
+    if p is None or phrase is None or not (text or "").strip():
+        return
+    if state.expr_quiz_open or state.expr_quiz_awaiting_open or state.expr_quiz_cue_pending is not None:
+        return
+    if p.matches_phrase(text, phrase):
+        state.expr_rep_phrase = None
+        state.expr_rep_misses = 0
+        return
+    state.expr_rep_misses += 1
+    if state.expr_rep_misses <= EXPR_PRACTICE_REPEAT_MISS_MAX or phrase in state.expr_rep_nudged:
+        return
+    if state.expr_drill_nudge_pending or state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
+        return
+    state.expr_rep_nudged.add(phrase)
+    state.expr_drill_nudge_pending = True
+    state.expr_drill_nudge_for = p.index + 1 if p.item else None
+    skipped = p.skip_unpassed()
+    logger.info("normalcall 표현학습 같은 문장 반복 상한: call_id=%s 문장=%r 불일치 %d > %d · 추적기 항목 %s 미통과로 넘김 · 안내=%d/%d",
+                _cid(state), phrase, state.expr_rep_misses, EXPR_PRACTICE_REPEAT_MISS_MAX, skipped,
+                state.expr_drill_nudges + 1, EXPR_DRILL_NUDGE_MAX)
+    state.expr_rep_phrase = None
+    state.expr_rep_misses = 0
+
+
 def _note_drill_user_turn(state: _CallState, text: str) -> None:
     """11차 B — 드릴 중인 항목에 학습자 턴을 센다(빈 전사는 안 센다 — P1 규율 그대로). 상한을 넘으면 안내를 표시한다.
     13차 C — 퀴즈 창이 열려 있어도 센다. 단 초점이 **세트 항목**이면 그건 퀴즈 진행이므로 세지 않는다(주입도 창 밖에서만)."""
     if state.expr_practice is not None:
-        return  # 새 복창기는 원문·현지인 각 두 시도를 소유한다. 기존 합산 상한은 적용하지 않는다.
+        # 새 복창기는 원문·현지인 각 두 시도를 소유한다. 기존 합산 상한은 적용하지 않는다 — 대신 «같은 문장 반복» 상한(PM-DEC-726).
+        _note_practice_repeat_miss(state, text)
+        return
     if not state.expr_items or state.expr_drill_focus is None:
         return
     if state.expr_quiz_open and state.expr_drill_focus in (state.expr_quiz_set or []):

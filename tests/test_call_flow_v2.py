@@ -218,3 +218,69 @@ def test_no_tracker_brief_is_injected_anywhere():
     import inspect
     src = inspect.getsource(_cs)
     assert ".brief()" not in src, "C2 — 추적기 brief() 는 관측·로그 전용"
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-726 — 추적기 경로 드릴 상한(같은 목표 문장 반복 · call 2008 t17~t27)
+# --------------------------------------------------------------------------- #
+from domains.learning.realtime.expression_practice import requested_phrases as _requested
+
+
+def _practice_state():
+    st = _cs._CallState()
+    st.expr_items = [{"item_id": 1, "obj": "안녕하세요?"}, {"item_id": 2, "obj": "만나서 반갑습니다"}, {"item_id": 3, "obj": "잘 지냈어요?"}]
+    st.expr_practice = ExpressionPractice(st.expr_items)
+    st.expr_practice.index = 1
+    st.expr_practice.phase = "native"
+    st.expr_practice.native_phrase = "반갑습니다"
+    return st
+
+
+def test_requested_phrases_reads_quotes_or_korean_runs_and_skips_short_hints():
+    assert _requested("Now try repeating the native version again: 반갑습니다! Say it.") == ["반갑습니다"]
+    assert _requested('Tell them, "만나서 반가워요," again.') == ["만나서반가워요"]
+    assert _requested("Listen carefully: 반... Now repeat it.") == []          # 힌트 한 글자는 목표 문장이 아니다
+
+
+def test_call_2008_loop_arms_move_on_on_the_third_miss_and_skips_the_item():
+    st = _practice_state()
+    turns = [("B", "Now try repeating the native version again: 반갑습니다! Say it."), ("U", "방구 마렵습니다"),
+             ("B", "Ugh, are you serious right now? Focus! Try saying 반갑습니다! again."), ("U", "방구가 마렵습니다"),
+             ("B", "Your pronunciation is as bad as your manners! Listen carefully: 반... Now repeat it."), ("U", "안구가 너무나 마릅습니디."),
+             ("B", "My eyes are drying up from watching you fail! It's 반갑습니다! Say it.")]
+    for role, text in turns:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st, text)
+    assert st.expr_drill_nudge_pending is True, "3번째 불일치에서 «다음 표현으로» 1회"
+    assert st.expr_practice.index == 2 and 2 in st.expr_practice.completed, "추적기도 그 항목을 미통과로 넘긴다"
+    assert "반갑습니다" in st.expr_rep_nudged
+
+
+def test_two_misses_are_not_enough_and_a_match_resets():
+    st = _practice_state()
+    for role, text in [("B", "Say 반갑습니다!"), ("U", "방구"), ("B", "Again: 반갑습니다!"), ("U", "방구가")]:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st, text)
+    assert st.expr_drill_nudge_pending is False and st.expr_rep_misses == 2
+    _cs._note_drill_user_turn(st, "네, 반갑습니다.")                         # 군말이 붙어도 문장이 통째로 있으면 맞음
+    assert st.expr_rep_misses == 0 and st.expr_rep_phrase is None and st.expr_drill_nudge_pending is False
+
+
+def test_repeat_cap_is_off_in_the_quiz_window_and_once_per_phrase():
+    st = _practice_state()
+    st.expr_quiz_open = True
+    for role, text in [("B", "Say 반갑습니다!"), ("U", "a"), ("U", "b"), ("U", "c")]:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st, text)
+    assert st.expr_drill_nudge_pending is False, "퀴즈 진행 중에는 세지 않는다"
+    st2 = _practice_state()
+    st2.expr_rep_nudged.add("반갑습니다")
+    for role, text in [("B", "Say 반갑습니다!"), ("U", "a"), ("U", "b"), ("U", "c")]:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st2, text)
+    assert st2.expr_drill_nudge_pending is False, "같은 문장에는 한 번만"
+
+
+def test_old_path_without_tracker_keeps_its_own_cap():
+    st = _cs._CallState()
+    st.expr_items = [{"item_id": 1, "obj": "안녕하세요?"}]
+    st.expr_drill_focus = 1
+    for _ in range(_cs.EXPR_DRILL_MAX_USER_TURNS + 1):
+        _cs._note_drill_user_turn(st, "틀린 답")
+    assert st.expr_drill_nudge_pending is True and st.expr_rep_misses == 0, "추적기 없는 경로는 종전 합산 상한 · 새 카운터는 안 움직인다"
