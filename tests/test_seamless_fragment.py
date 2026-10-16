@@ -420,8 +420,9 @@ async def test_silent_resume_starts_the_idle_clock_at_session_open(session_facto
     # ⚠ C3(2026-09-22): 이 시험은 expression 코스를 쓴다(옛 normal→chat 은 아직 이어하기가
     #   안 된다, C7 전) — 1단 넛지는 코스별로 갈린다(:3817 NUDGE_SEED_1_EXPRESSION). 2단·3단은
     #   코스 공통이라 바이트 동일.
-    assert turns[0].startswith(seeds.NUDGE_SEED_1_EXPRESSION) and "[현재 복창 단계]" in turns[0], "1단 복창 유지"
-    assert turns[1].startswith(seeds.NUDGE_SEED_2_NORMAL) and "[현재 복창 단계]" in turns[1], "2단 확인과 복창 유지"
+    # v2 재배포 C2(PM-DEC-698): 넛지에 추적기 brief() 를 붙이지 않는다(call 1997 — 틀린 항목 지시)
+    assert turns[0] == seeds.NUDGE_SEED_1_EXPRESSION and "[현재 복창 단계]" not in turns[0], "1단 = 시드 그대로"
+    assert turns[1] == seeds.NUDGE_SEED_2_NORMAL and "[현재 복창 단계]" not in turns[1], "2단 = 시드 그대로"
     assert "[통화종료" in turns[2], "3단 = 작별 시드 직접 주입"
     assert took < 10, "무음 3단이 돌았다면 1초 안팎이다 — 20s 상한에 걸리면 시계가 안 선 것"
 
@@ -736,7 +737,7 @@ async def test_loop_breaker_injects_once_then_forces_a_fragment_switch(session_f
     script = [("B", "안녕! 시작하자."), ("U", "네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE), ("U", "맞다네"), ("B", _LOOP_LINE),
               ("U", "또 봐"), ("B", "여기까지 오면 안 된다 — 3회째에서 전환됐어야 한다")]
     h = await _run(session_factory, seeded, "expression", {}, script=script, session_cls=HeldOpenSession, hold_open=True)
-    notes = [t for t in h["session"].sent_text_turns if t.startswith("[현재 복창 단계]")]
+    notes = [t for t in h["session"].sent_text_turns if t == seeds.LOOP_BREAK_NOTE]   # v2 재배포 C2 — 루프 안내는 고정 문구
     assert len(notes) == 1, ("2회째에 안내 1회", h["session"].sent_text_turns)
     saved = _frames_of("fragment_saved", h)
     assert saved and saved[0]["reason"] == "loop" and saved[0]["fragment_index"] == 1, saved
@@ -755,7 +756,7 @@ async def test_loop_breaker_says_goodbye_when_no_fragment_is_left(session_factor
               ("B", "그래, 오늘은 여기까지. 안녕!")]                      # 종료 시드 뒤 작별 턴
     h = await _run(session_factory, seeded, "expression", {}, script=script, hold_open=True)
     turns = h["session"].sent_text_turns
-    assert sum(t.startswith("[현재 복창 단계]") for t in turns) == 1
+    assert sum(t == seeds.LOOP_BREAK_NOTE for t in turns) == 1   # v2 재배포 C2 — 루프 안내는 고정 문구
     assert any("[통화종료" in t for t in turns), "상한이면 작별 시드"
     assert _frames_of("call_ended", h) and not _frames_of("fragment_saved", h)
     assert (_started(h)["fragment_index"], _started(h)["max_fragments"]) == (1, 1)

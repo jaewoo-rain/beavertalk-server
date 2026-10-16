@@ -96,3 +96,113 @@ def test_freetalk_reground_keeps_the_topic_and_normal_chat_is_unchanged() -> Non
     assert "흥미를 느낄 새 질문" not in ft
     chat = build_reground_brief("r", "p", mode="chat")
     assert "학습자가 흥미를 느낄 새 질문을 하나 던져 대화를 더 끌고 가라" in chat and "지금 화제를 그대로" not in chat
+
+
+# --------------------------------------------------------------------------- #
+# v2 재배포 C1·C2·P1·L11(2026-10-16 PM-DEC-698·699 · 23_공유_v2재배포계획) — 학습자 발화마다 코스별 고정 안내
+# --------------------------------------------------------------------------- #
+import asyncio as _asyncio
+import hashlib as _hashlib
+
+import pytest as _pytest
+
+import domains.learning.realtime.call_session as _cs
+from core.prompts.homework import HOMEWORK_NO_NATIVE_LINE as _L11
+from core.prompts.locked import seeds as _seeds
+from core.prompts.locked.rules import CONTROL_TAG as _CONTROL_TAG
+from core.prompts.editable_loader import BANNED_WORDS as _BANNED
+
+
+class _Rec:
+    def __init__(self):
+        self.sent: list[tuple[str, bool]] = []
+
+    async def send_reground(self, text, *, turn_complete=True):
+        self.sent.append((text, turn_complete))
+
+
+def _st(note):
+    st = _cs._CallState()
+    st.turn_note = note
+    return st
+
+
+def _loud():
+    import struct
+    return struct.pack("<" + "h" * 480, *([12000, -12000] * 240))
+
+
+def test_turn_notes_are_control_tagged_fixed_and_banned_word_free():
+    notes = (_seeds.TURN_NOTE_EXPRESSION, _seeds.TURN_NOTE_HOMEWORK_EXPRESSION, _seeds.TURN_NOTE_FREETALK)
+    for n in notes:
+        assert n.startswith(_CONTROL_TAG + " ") and "두 문장" in n
+        assert not [w for w in _BANNED if w in n]
+    assert "현지인 문장을 따라 말하게" in notes[0] and "현지인 문장은 없다" in notes[1]
+    for n in notes[:2]:   # 25_공유_오독결과 §3 2차 — 나열형은 다시 말하기 0/4 · 조건형 3/4
+        assert "바로 새 표현으로 가지 말고" in n and "모름·무응답에는 놀리지 말고 힌트만 준다" in n
+    assert "놀림·욕설·비하어는 쓰지 않는다" in notes[2]
+
+
+def test_l11_bracket_is_limited_to_the_repeat_step():
+    assert "(이 다시 말하기에서 틀리면 힌트 없이 정답을 한 번 들려주고 넘어간다)" in _L11
+    assert _hashlib.sha256(_L11.encode("utf-8")).hexdigest()[:16] == "0ace008d01331d01"
+
+
+@_pytest.mark.parametrize("args,want", [
+    (("expression", False, "", True, False), "expr"),
+    (("expression", False, "", False, False), None),
+    (("homework", True, "expression", True, False), "hw"),
+    (("homework", True, "roleplay", True, False), None),        # 회화(역할극 숙제) 제외
+    (("chat", False, "", False, False), "free"),
+    (("freetalk", False, "", False, False), "free"),
+    (("freetalk", False, "", False, True), None),               # 회화학습(차시 프리토킹) 제외
+    (("level_test", False, "", False, False), None),
+])
+def test_turn_note_course_selection(args, want):
+    got = _cs._turn_note_for(*args)
+    kinds = {_seeds.TURN_NOTE_EXPRESSION: "expr", _seeds.TURN_NOTE_HOMEWORK_EXPRESSION: "hw", _seeds.TURN_NOTE_FREETALK: "free", None: None}
+    assert kinds[got] == want
+
+
+def test_turn_note_attaches_once_per_learner_turn_with_turn_complete_false():
+    st, s = _st(_seeds.TURN_NOTE_FREETALK), _Rec()
+    for _ in range(4):                                         # 같은 학습자 턴의 연속 음성 프레임
+        _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+    assert s.sent == [(_seeds.TURN_NOTE_FREETALK, False)], "학습자 턴당 1회 · 완결 텍스트 턴 금지(이중 발화)"
+    st.turn_note_sent = False                                  # 비버 턴 시작 = 다음 학습자 턴(펌프가 내린다)
+    _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+    assert len(s.sent) == 2
+
+
+def test_turn_note_is_not_sent_while_beaver_speaks_or_closing_or_silent():
+    for setup in ({"turn_id": "t1"}, {"should_close": True}, {"close_seed_sent": True}):
+        st, s = _st(_seeds.TURN_NOTE_EXPRESSION), _Rec()
+        for k, v in setup.items():
+            setattr(st, k, v)
+        _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+        assert s.sent == [], setup
+    st, s = _st(_seeds.TURN_NOTE_EXPRESSION), _Rec()
+    _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, b"\x00\x00" * 480))   # 침묵 프레임 — 사람이 말할 때까지 기다린다
+    assert s.sent == [] and st.turn_note_sent is False
+
+
+def test_expression_turn_note_is_skipped_in_the_quiz_window_but_freetalk_is_not():
+    for flag in ("expr_quiz_open", "expr_quiz_awaiting_open"):
+        st, s = _st(_seeds.TURN_NOTE_EXPRESSION), _Rec()
+        setattr(st, flag, True)
+        _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+        assert s.sent == [], flag
+
+
+def test_one_slot_one_note_reground_takes_the_turn():
+    st, s = _st(_seeds.TURN_NOTE_FREETALK), _Rec()
+    st.reground_pending, st.reground_reminder = True, "[안내] 재접지 쪽지"
+    _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+    _asyncio.run(_cs._maybe_attach_reground_on_mic(s, st, _loud()))
+    assert s.sent == [("[안내] 재접지 쪽지", False)], "재접지가 이 턴을 쓰면 같은 턴에 안내를 또 얹지 않는다"
+
+
+def test_no_tracker_brief_is_injected_anywhere():
+    import inspect
+    src = inspect.getsource(_cs)
+    assert ".brief()" not in src, "C2 — 추적기 brief() 는 관측·로그 전용"

@@ -475,8 +475,9 @@ async def test_expression_homework_resume_restores_drill_stage(session_factory, 
     assert not [f for f in frames if f["type"] == "error"], frames
     started = next(f for f in frames if f["type"] == "call_started")
     assert started["call_id"] == str(cid) and started["fragment_index"] == 2
-    assert "[현재 복창 단계]" in second["system_instruction"]
-    assert "[현재 복창 단계]" in second["session"].sent_text_turns[0]
+    # v2 재배포 C2(PM-DEC-698): 이어하기 지시문·시드에 추적기 단계 지시를 싣지 않는다(단계 복원은 관측용으로 그대로)
+    assert "[현재 복창 단계]" not in second["system_instruction"]
+    assert "[현재 복창 단계]" not in second["session"].sent_text_turns[0]
     assert "[역할극]" not in second["system_instruction"]
 
 

@@ -102,6 +102,7 @@ from core.persona_prompt import (
 from core.prompts.locked.seeds import brief_expression_silent_resume   # 끊김 없는 조각 전환(2026-09-13 S2) — 잠금 모듈에서 직접
 from core.prompts.locked.seeds import EXPRESSION_DRILL_MOVE_ON          # 11차 B — 드릴 루프 «다음 항목으로»(2026-09-18)
 from core.prompts.locked.seeds import LOOP_BREAK_NOTE                   # 반복 루프 차단기(2026-09-14 B)
+from core.prompts.locked.seeds import TURN_NOTE_EXPRESSION, TURN_NOTE_FREETALK, TURN_NOTE_HOMEWORK_EXPRESSION   # v2 재배포 C1(2026-10-16)
 from core.prompts.locked.seeds import expression_taught_judge_instruction   # 4차 A — 가르침 판정 사이드카(2026-09-15)
 from core.prompts.locked.seeds import expression_quiz_verdict_instruction   # 4차 B — 정답 판정 사이드카(2026-09-15)
 from core.prompts.locked.seeds import expression_quiz_set_reminder          # 8차 C — 퀴즈 세트 이탈 안내(2026-09-15)
@@ -797,7 +798,7 @@ class _CallState:
         "expr_note_last_ts", "expr_quiz_open_ts", "expr_note_hold_why",   # 14차 B·D — 마지막 안내 주입 시각 · 창 연 시각 · 마지막 보류 사유
         "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
         "expr_drill_nudged", "expr_drill_nudge_for",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
-        "call_id", "call_mode", "reground_freetalk", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
@@ -1049,6 +1050,9 @@ class _CallState:
         self.call_mode: str = "chat"
         # 통화 흐름 v2 PM-DEC-685 R1 — 확정 프리토킹 대본을 쓰는 통화(chat · 차시 없는 freetalk)면 True(재접지 끝줄 화제 유지)
         self.reground_freetalk: bool = False
+        # v2 재배포 C1(PM-DEC-698) — 학습자 발화마다 얹는 코스별 고정 안내(None = 이 통화엔 없음) · 이번 학습자 턴에 이미 얹었나
+        self.turn_note: Optional[str] = None
+        self.turn_note_sent: bool = False
         # 압축 관측: prompt_token_count 의 최고치와 급감(=압축) 횟수.
         # ⚠ peak 와 max 는 **다른 값이다.**
         #   usage_prompt_peak — 압축 사이클 peak. 압축될 때마다 바닥에서 다시 센다.
@@ -1783,7 +1787,7 @@ async def _inject_drill_move_on(session: LiveSessionProtocol, state: _CallState)
     if state.expr_drill_nudges >= EXPR_DRILL_NUDGE_MAX:
         return False
     state.expr_drill_nudges += 1
-    note = state.expr_practice.brief() if state.expr_practice is not None else EXPRESSION_DRILL_MOVE_ON
+    note = EXPRESSION_DRILL_MOVE_ON   # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
     await _send_note(session, note)
     _note_text_inject(state, "drill_move_on")
     state.expr_drill_user_turns = 0
@@ -4038,8 +4042,7 @@ async def run_call(
                     expr_practice.replay(turns)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("normalcall 표현학습 이어하기: 쪽지 재료 조회 실패(재료 없이) — %s", exc)
-            if expr_practice is not None:
-                system_instruction += "\n\n" + expr_practice.brief()
+            # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
             if silent:
                 # ⭐ 끊김 없는 조각 전환(S2): 시드 0 — 비버는 학습자의 첫 발화를 기다린다. «맨 앞 항목부터» 는 지시문 끝 쪽지가 맡는다.
                 seed_text = ""
@@ -4049,8 +4052,6 @@ async def run_call(
                             len(note_mats.get("recent") or []))
             else:
                 seed_text = seed_expression_resume(target_language, **note_mats)
-                if expr_practice is not None:
-                    seed_text += "\n" + expr_practice.brief()
                 logger.info("normalcall 표현학습 이어하기: 표시 없는 가장 앞 항목부터 재개 (드릴 %d·통과 %d·오답 %d·발췌 %d턴)",
                             len(note_mats.get("drilled") or []), len(note_mats.get("passed") or []), len(note_mats.get("failed") or []),
                             len(note_mats.get("recent") or []))
@@ -4082,14 +4083,12 @@ async def run_call(
                         expr_practice.replay(turns)
                     except Exception as exc:  # noqa: BLE001
                         logger.warning("normalcall 숙제 표현학습 이어하기: 단계 복원 실패(처음 단계로) — %s", exc)
-                    system_instruction += "\n\n" + expr_practice.brief()
+                    # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
                 if silent:
                     seed_text = ""
                     system_instruction += "\n\n" + brief_expression_silent_resume(target_language, recent=recent)
                 else:
                     seed_text = seed_expression_resume(target_language, recent=recent)
-                    if expr_practice is not None:
-                        seed_text += "\n" + expr_practice.brief()
         elif resumed:
             # ⭐⭐ **브리프를 지시문에 얹는다** — 이게 없으면 비버가 처음 만난 것처럼 인사한다
             #   (call 870 의 재발). 사용자는 끊긴 걸 아는데 비버만 모르는 게 제일 어색하다.
@@ -4193,6 +4192,7 @@ async def run_call(
             state.reground_persona = (setup["role"] or "", setup["personality"] or "")
             # 통화 흐름 v2 PM-DEC-685(21_공유_T03소견대조) R1 — 확정 프리토킹 대본(freetalk persona_intro_old)을 쓰는 통화만 재접지 끝줄을 화제 유지로
             state.reground_freetalk = call_type == "chat" or (call_type == "freetalk" and not cur_route)
+            state.turn_note = _turn_note_for(call_type, homework is not None, hw_mode, bool(expr_items), bool(cur_route))
             if homework is not None and hw_mode == "roleplay":
                 state.reground_reminder = build_homework_roleplay_reground(homework, locale)
                 state.continue_reminder = state.reground_reminder
@@ -6361,6 +6361,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _flush_user_segment(state)  # 비버 발화 시작 → 직전 사용자 세그먼트 확정
             _expression_quiz_open_on_beaver_turn(state)  # T16 — 큐가 얹힌 뒤 첫 비버 턴 = 퀴즈 창 시작(open_seg)
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
+            state.turn_note_sent = False  # v2 재배포 C1 — 다음 학습자 발화에 안내를 다시 얹는다
             if state.call_start_ts is None:
                 state.call_start_ts = asyncio.get_running_loop().time()
                 logger.info("normalcall: 통화 시계 시작(첫 turn_start)")
@@ -6461,7 +6462,7 @@ async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallSt
                    streak, streak + 1, state.next_turn_index, turn_text)
     if streak == 1:
         if state.turn_id is None and not state.should_close:
-            note = state.expr_practice.brief() if state.expr_practice is not None and not state.expr_quiz_open else LOOP_BREAK_NOTE
+            note = LOOP_BREAK_NOTE   # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
             await session.send_text_turn(note)
             _note_text_inject(state, "loop")
             logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
@@ -6897,9 +6898,7 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
         return
     state.resume_sent += 1
     try:
-        seed = _RESUME_SEED
-        if state.expr_practice is not None and not state.expr_quiz_open:
-            seed += "\n" + state.expr_practice.brief()
+        seed = _RESUME_SEED   # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
         await session.send_text_turn(seed)
         logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
     except asyncio.CancelledError:
@@ -7116,8 +7115,7 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     """
     if state.should_close or state.turn_id is not None:
         return False
-    if state.expr_practice is not None and not state.expr_quiz_open:
-        seed += "\n" + state.expr_practice.brief()
+    # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
     await session.send_text_turn(seed)
     _note_text_inject(state, "nudge")
     return True
@@ -7157,13 +7155,18 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     #   간격 150s 를 소모하면 쪽지가 0회가 돼 되감기 방어가 죽는다(fable P1-3).
     if at_mic and state.expr_quiz_cue_pending is not None:
         await _attach_quiz_cue(session, state, where)
+        if state.expr_quiz_cue_pending is None:
+            state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나(큐가 이 턴을 썼다)
         return
     # ⭐ 14차 C — 큐 다음은 안내(세트·드릴)다. 큐와 마찬가지로 **학습자가 막 말을 시작한 자리**에만 넣는다.
     #   재접지 쪽지는 그대로 남겨 다음 발화에 보낸다(큐와 같은 규율 — 한 자리에 하나).
     if at_mic and (state.expr_quiz_set_nudge_pending or state.expr_drill_nudge_pending):
         if await _attach_note(session, state, where):
+            state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나
             return
     if not (state.reground_pending and state.reground_reminder):
+        if at_mic:
+            await _attach_turn_note(session, state, where)
         return
     # ⭐⭐ QA C2 재검(2026-09-22): 마이크 훅은 이제 모드와 무관하게 늘 불린다(위 참조) —
     #   그런데 **쪽지 자리는 여전히 REGROUND_ATTACH_AT 이 정한다.** first/final 모드에서
@@ -7173,6 +7176,8 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
     if at_mic and not (REGROUND_MODE == "on_user_turn" and REGROUND_ATTACH_AT == "mic_open"):
         return
     state.reground_pending = False    # await 전 선점(단일 소유권)
+    if at_mic:
+        state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나(재접지 쪽지가 이 턴을 썼다)
     state.reground_injected = True    # 하위호환 플래그(1회 이상 얹혔는가)
     state.reground_count += 1
     state.last_reground_ts = asyncio.get_running_loop().time()
@@ -7188,6 +7193,59 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
         raise
     except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
         logger.warning("normalcall: 재접지 얹기 실패(무시): %s", exc)
+
+
+def _turn_note_for(call_type: str, is_homework: bool, hw_mode: str, has_items: bool, cur_route: bool) -> Optional[str]:
+    """v2 재배포 C1(PM-DEC-698) — 이 통화에 학습자 발화마다 얹을 코스별 안내. 회화학습(차시 프리토킹·숙제 역할극)·레벨테스트는 없음(미검증)."""
+    if call_type == "level_test":
+        return None
+    if is_homework:
+        return TURN_NOTE_HOMEWORK_EXPRESSION if (hw_mode != "roleplay" and has_items) else None
+    if call_type == "expression":
+        return TURN_NOTE_EXPRESSION if has_items else None
+    if call_type == "chat" or (call_type == "freetalk" and not cur_route):
+        return TURN_NOTE_FREETALK
+    return None
+
+
+def _turn_note_due(state: _CallState) -> bool:
+    """지금 학습자 턴에 안내를 얹을 차례인가(상태 없음 — 이번 학습자 턴에 아직 안 얹었는가만 본다).
+
+    ⛔ 이중 발화 안전 조건(재접지 얹기와 같은 배관 · 2026-09-02~22 실측 규율):
+      ① 마이크 자리에서만 — 호출부가 `turn_id is None`(비버 침묵) + RMS 음성을 이미 확인했다 → 학습자가 막 말을 시작한 자리.
+      ② `send_reground(turn_complete=False)` — 학습자 발화 턴에 얹혀 비버가 [발화+안내]에 한 번만 답한다(완결 텍스트 턴 금지).
+      ③ 학습자 턴마다 1회 — `turn_note_sent` 는 await 전에 세우고, 비버 턴이 시작될 때만 내린다.
+      ④ 종료 구간(should_close·close_seed_sent) 금지 — 작별 오염(174/178).
+      ⑤ 한 자리에 하나 — 큐·세트/드릴 안내·재접지 쪽지가 이 턴을 쓰면 건너뛴다.
+      ⑥ 퀴즈 창(대기·열림)에서는 표현학습 안내를 넣지 않는다 — 퀴즈 착지문과 충돌.
+    """
+    if not state.turn_note or state.turn_note_sent or state.turn_id is not None:
+        return False
+    if state.should_close or state.close_seed_sent:
+        return False
+    if not (REGROUND_MODE == "on_user_turn" and REGROUND_ATTACH_AT == "mic_open"):
+        return False
+    if state.turn_note != TURN_NOTE_FREETALK and (
+            state.expr_quiz_open or state.expr_quiz_awaiting_open or state.expr_quiz_cue_pending is not None):
+        return False
+    return True
+
+
+async def _attach_turn_note(session: LiveSessionProtocol, state: _CallState, where: str) -> None:
+    """v2 재배포 C1 — 이번 학습자 턴에 코스별 안내 한 줄을 얹는다(조건은 `_turn_note_due`)."""
+    if not _turn_note_due(state):
+        return
+    state.turn_note_sent = True    # await 전 선점(단일 소유권 · 같은 턴 두 번 금지)
+    _note_text_inject(state, "turn_note")
+    try:
+        await session.send_reground(state.turn_note, turn_complete=False)
+        logger.info("normalcall 매 턴 안내 얹기: call_id=%s 자리=%s 종류=%s 턴=%d", _cid(state), where,
+                    "free" if state.turn_note == TURN_NOTE_FREETALK else ("hw" if state.turn_note == TURN_NOTE_HOMEWORK_EXPRESSION else "expr"),
+                    state.next_turn_index)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 안내 실패는 통화 무영향(R5)
+        logger.warning("normalcall 매 턴 안내 얹기 실패(무시): %s", exc)
 
 
 async def _maybe_attach_reground_on_mic(
@@ -7211,7 +7269,8 @@ async def _maybe_attach_reground_on_mic(
     """
     if (state.expr_quiz_cue_pending is None and not state.expr_quiz_set_nudge_pending
             and not state.expr_drill_nudge_pending
-            and not (state.reground_pending and state.reground_reminder)):
+            and not (state.reground_pending and state.reground_reminder)
+            and not _turn_note_due(state)):
         return              # 14차 C — 안내도 이 관문을 탄다(대기 중이 아닐 때의 비용은 종전대로 불린 검사뿐)
     if state.should_close or state.close_seed_sent:
         return
@@ -7403,7 +7462,7 @@ def _build_expression_note(state: _CallState) -> str:
         return build_expression_reground_brief(
             role, personality, drilled=[], passed=passed, failed=failed,
             locale_label=(state.expr_ctx or {}).get("locale_label") or "학습자의 모국어",
-        ) + "\n" + state.expr_practice.brief()
+        )   # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
     return build_expression_reground_brief(
         role, personality, drilled=drilled, passed=passed, failed=failed, next_label=nxt,
         # ⭐ T14 ③ 쪽지 착지문이 «{모국어}로 묻고 기다려라» 를 말한다 — 라벨을 넘긴다.

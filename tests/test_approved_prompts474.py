@@ -192,19 +192,22 @@ def test_real_flush_tracks_copy_but_never_grants_quiz_pass():
 
 
 def test_reconnect_keeps_native_state_and_brief():
+    # v2 재배포 C2(PM-DEC-698): 추적기 상태는 관측용으로 유지하되 재연결 브리프에 단계 지시를 싣지 않는다
     s=state();native_pending(s.expr_practice)
     cs._reset_turn_state_for_reconnect(s)
     assert s.expr_practice.phase=='native'
-    assert '정말 고마워요' in cs._reconnect_brief(s)
+    assert '[현재 복창 단계]' not in cs._reconnect_brief(s)
 
 
 def test_reground_and_drill_nudge_do_not_skip_pending_native():
+    # v2 재배포 C2(PM-DEC-698): 쪽지·드릴 안내에 추적기 brief() 를 붙이지 않는다 · 미완료 단계에 다음 원문을 강제하지도 않는다
     s=state();native_pending(s.expr_practice)
-    assert '정말 고마워요' in cs._build_expression_note(s)
+    note0=cs._build_expression_note(s)
+    assert '[현재 복창 단계]' not in note0
     session=AsyncMock()
     asyncio.run(cs._inject_drill_move_on(session,s))
     note=session.send_reground.call_args.args[0]
-    assert '정말 고마워요' in note
+    assert note == cs.EXPRESSION_DRILL_MOVE_ON
     assert '그 표현은 충분히 했다' not in note
 
 

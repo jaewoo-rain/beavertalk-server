@@ -263,7 +263,7 @@ async def test_freetalk_call_carries_no_learning_items(session_factory, seeded) 
     out = holder["system_instruction"]
     assert "[오늘의 표현" not in out and "[진행 절차]" not in out
     assert "표현01" not in out
-    assert "네 성격·말투는 그대로 살린다" in out   # 통화 흐름 v2 프리토킹 확정본(옛 「캐릭터 말투는 유지하되…잡담한다」)
+    assert "네 말투는 살리되 성격 문구의 놀림·욕설 재료는 쓰지 않는다" in out   # v2 재배포 P2(a)(PM-DEC-697 · 옛 「네 성격·말투는 그대로 살린다」)
 
 
 @pytest.mark.asyncio

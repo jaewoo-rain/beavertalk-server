@@ -560,6 +560,8 @@ def _mk_state(monkeypatch):
     st.should_close = False
     st.close_seed_sent = False
     st.turn_id = None
+    st.turn_note = None                  # v2 재배포 C1 — 매 턴 안내 없음(재접지만 본다)
+    st.turn_note_sent = False
     return cs, st
 
 
