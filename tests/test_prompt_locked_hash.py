@@ -72,11 +72,11 @@ FROZEN: dict[str, str] = {
     "expression.DRILL_ALT_CORRECT_LINE": "3c88e76c5d7eb7d4",
     "expression.DRILL_ONE_ASK_LINE": "01cfaa899b1e48c1",
     "expression.QUIZ_LINE_1": "70e88636bce80ce3",
-    "expression.QUIZ_LINE_2": "8103168c7c529477",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 afbbc31838202091)
+    "expression.QUIZ_LINE_2": "6cb9029df7275d84",   # U1·U3 2026-10-16 PM-DEC-700~704(옛 8103168c7c529477)
     "expression.ITEMS_HEADER": "f34fdcee428d7a32",
     "expression.ITEMS_LANGUAGE_NOTE": "093d2ebe6b76e246",
     "expression.ITEMS_EXHAUSTION_LINE": "18e8b7bb0c8fa2b3",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 72b10e569c8de7d9)
-    "expression.CHARACTER_FRAME": "a1f067e0f30688dd",   # D1(a) 2026-10-16 PM-DEC-691(옛 e4dc5003bbd7d472 ← f0aa48850ad09ad3)
+    "expression.CHARACTER_FRAME": "7403700695dddea7",   # U1·U3 2026-10-16 PM-DEC-700~704(옛 a1f067e0f30688dd)
     # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
     # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)
@@ -84,7 +84,7 @@ FROZEN: dict[str, str] = {
     # 2026-09-14 C1·C2 비ko 전용 드릴 줄(실통화 1601 ja). ⭐ 2026-09-19 15차: DRILL_ASK_FIRST_LINE 은 **전 언어 공통**이 됐다
     #   (procedure 가 직접 붙인다) — 문장 자체는 무변경이라 이 해시는 그대로고, 바뀐 것은 ko 조립 결과다
     "expression.DRILL_TARGET_SCRIPT_LINE": "db851d31d1021909",
-    "expression.DRILL_ASK_FIRST_LINE": "b0e17a258e011e98",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 fa47cd9f9dcbf841)
+    "expression.DRILL_ASK_FIRST_LINE": "ea49db0f6975d65c",   # U1·U3 2026-10-16 PM-DEC-700~704(옛 b0e17a258e011e98)
     # 2026-09-14 E(사장님 확정, 실통화 1592) — [문형] 항목은 같은 문형의 다른 올바른 문장도 정답. ko·ja 공통(has_grammar 일 때만)
     "expression.DRILL_GRAMMAR_ALT_LINE": "3b3c2f297047daad",
     "seeds.EXPRESSION_DRILL_MOVE_ON": "86ed79a984199ab5",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 88dc7e9c933e1713)   # 2026-09-18 11차 B 드릴 루프 안내(1643 2.5) — 새 문장, 기존 경로 무변경
@@ -156,9 +156,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "expression.model_block": ("fdad9ad8dbde3400", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 2115fcba345da3ba)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 0cd6775167cee636)
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
     # 2026-09-14 E — has_grammar 판에 DRILL_GRAMMAR_ALT_LINE 1줄 · 2026-09-16 dev 머지(DRILL_ALT_CORRECT_LINE 확장)로 셋 다 재기준. 문법 없는 차시(has_grammar=False)는 아래 procedure_nogrammar 그대로.
-    "expression.procedure": ("88631e5a837563c5", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 ad5ca36acbf95203)   # D2 2026-10-16 PM-DEC-691(옛 b0740a3129f7eb02)
-    "expression.procedure_ja": ("be0bbe14f11950fa", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 8ba9aee934a40d7d)   # D2 2026-10-16 PM-DEC-691(옛 9e35a95d714ba467)
-    "expression.procedure_nogrammar": ("8e3a7a3e532e62bb", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 91233682f43cfeca)   # D2 2026-10-16 PM-DEC-691(옛 15c81abfc90fcf62)
+    "expression.procedure": ("512047982c5dda31", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 ad5ca36acbf95203)   # D2 2026-10-16 PM-DEC-691(옛 b0740a3129f7eb02)   # U1·U3 2026-10-16 PM-DEC-700~704(옛 88631e5a837563c5)
+    "expression.procedure_ja": ("4df3bd4e2fe57509", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 8ba9aee934a40d7d)   # D2 2026-10-16 PM-DEC-691(옛 9e35a95d714ba467)   # U1·U3 2026-10-16 PM-DEC-700~704(옛 be0bbe14f11950fa)
+    "expression.procedure_nogrammar": ("bc75be9376bbb0f9", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 91233682f43cfeca)   # D2 2026-10-16 PM-DEC-691(옛 15c81abfc90fcf62)   # U1·U3 2026-10-16 PM-DEC-700~704(옛 8e3a7a3e532e62bb)
     "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
     "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
     "expression.items_block": ("275d038168f7dba2", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 1704dbb54003a3ab)

@@ -561,7 +561,8 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # 2026-10-16 재기준(통화 흐름 v2 T-20261016-03 · 사용자 「이대로 확정」): editable expression 수정본 + 잠금 L1~L9 → 3869 → 4308(옛 9e78d62d…).
 # 2026-10-16 재기준(PM-DEC-685 R2 — 규칙 2 뒤 문장 「출제한 뒤에는 답을 기다린다…」) → 4308 → 4302(옛 cce172c6…).
 # 2026-10-16 재기준(PM-DEC-691 D2 L4 끝 한 문장 · D1(a) L8 셋째 줄) → 4302 → 4386(옛 f2b76106…).
-_EXPR_FROZEN = ("549010737cf47ac5d410191c30c0c99214055f354a79de1c8cb154e4165848ab", 4386)
+# 2026-10-16 재기준(U1·U3 2026-10-16 PM-DEC-700~704 — L8 넷째 줄 · L3 끝 · L6) → 4386 → 4542(옛 54901073…).
+_EXPR_FROZEN = ("7feea8b9a32da96f2258d18a3c48ffee5f67d0f45620de261755a2767eaef370", 4542)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
