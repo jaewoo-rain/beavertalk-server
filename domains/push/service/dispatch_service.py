@@ -23,7 +23,7 @@ from core.config import settings
 from core.push_defaults import DEFAULT_CALLER_NAME
 from domains.account.models.member import Member
 from domains.alarm.models.alarm import Alarm
-from domains.learning.service.call_service import _resolve_zone
+from domains.learning.service.call_service import _resolve_zone, active_ongoing_call_id
 from domains.push.models.device_token import DeviceToken
 from domains.push.models.push_dispatch_log import PushDispatchLog
 
@@ -176,6 +176,15 @@ class DispatchService:
                             "dispatch: 시간대 변경 이중 발송 차단 alarm_id=%s key=%s zone=%s",
                             a.alarm_id, bucket_key, zone,
                         )
+                        break
+                    # ⛔ 통화 중인 회원에게는 예약 전화를 보내지 않는다(2026-10-16 · call 2007 — 통화 중에 같은 회원의
+                    #   예약 전화가 CallKit 으로 울려 비버 소리가 작아졌다 · PM-DEC-722). «통화 중» 정의는 통화 시작의
+                    #   동시통화 관문(ALREADY_IN_CALL)과 같은 active_ongoing_call_id 하나다. 이 분은 건너뛰고 다시 울리지 않는다
+                    #   (클레임 전이라 기록도 남기지 않는다 — 통화가 그 분 안에 끝나면 catchup 창에서 울릴 수 있다).
+                    busy = active_ongoing_call_id(self.db, a.member_id)
+                    if busy is not None:
+                        logger.info("dispatch: 통화 중 회원 건너뜀 alarm_id=%s member_id=%s active_call_id=%s key=%s",
+                                    a.alarm_id, a.member_id, busy, bucket_key)
                         break
                     # 클레임이 통화 id 까지 발급한다 — 발송과 기록이 갈리면 되짚기가
                     # 끊긴다(캐릭터를 알람에서 못 꺼낸다).

@@ -770,3 +770,44 @@ def test_run_survives_a_broken_tz_offset_and_still_rings_the_rest(
     assert broken["alarm_id"] not in claimed_alarm_ids
     assert any(r.levelno >= logging.ERROR for r in caplog.records), "실패가 로그로 안 남았다"
     db.close()
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-722 ②(2026-10-16 · call 2007) — 통화 중인 회원에게는 예약 전화를 보내지 않는다
+# --------------------------------------------------------------------------- #
+def test_run_skips_a_member_who_is_in_a_call(session_factory, monkeypatch, patch_dispatch):
+    import domains.push.service.dispatch_service as ds
+
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={_DAY_CODES[now.weekday()]}, tokens=[("tokA", True)])
+    seen = []
+
+    def fake_active(_db, member_id):
+        seen.append(member_id)
+        return 777
+    monkeypatch.setattr(ds, "active_ongoing_call_id", fake_active)
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    assert DispatchService(db).run() == 0
+    assert seen == [ids["member_id"]]
+    assert patch_dispatch.claims == [] and patch_dispatch.fcm_calls == [], "통화 중이면 클레임·발송 모두 없음"
+    db.close()
+
+
+def test_run_rings_when_the_member_is_not_in_a_call(session_factory, monkeypatch, patch_dispatch):
+    import domains.push.service.dispatch_service as ds
+
+    now = datetime(2026, 7, 8, 8, 0, tzinfo=APP_TZ)
+    _patch_now(monkeypatch, now)
+    db = session_factory()
+    ids = _seed(db, alarm_time=_sentinel_time(8, 0), is_activate=True,
+                day_codes={_DAY_CODES[now.weekday()]}, tokens=[("tokA", True)])
+    monkeypatch.setattr(ds, "active_ongoing_call_id", lambda _db, _m: None)
+    patch_dispatch.result_box.result = FcmSendResult(sent=1, dead_tokens=[])
+
+    assert DispatchService(db).run() == 1
+    assert patch_dispatch.claims == [(ids["alarm_id"], "2026-07-08 08:00")]
+    db.close()
