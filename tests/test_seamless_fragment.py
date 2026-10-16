@@ -461,7 +461,8 @@ async def test_fragment_end_saves_the_fragment_before_fragment_saved_and_sends_n
     db = session_factory()
     try:
         rows1 = db.query(CallRawData).filter(CallRawData.call_id == cid).count()
-        assert rows1 >= 3, "조각1 전사 3턴이 fragment_saved 전에 저장돼 있다"
+        # ⚠ D4(2026-10-16 PM-DEC-693): fake 의 첫 비버 턴은 오디오가 없다 = 무음 인사 → 재시드하고 저장 대본에서 뺀다(3 → 2행).
+        assert rows1 >= 2, "조각1 전사(무음 인사 제외 2턴)가 fragment_saved 전에 저장돼 있다"
     finally:
         db.close()
     # 조각2 (silent) — 조각1 꼬리가 이미 저장돼 있으니 turn_index 가 이어지고(충돌 0) 브리프에 직전 교환이 들어간다

@@ -38,6 +38,21 @@ def test_full_regular_cycle_original_hint_reveal_native_repeat_next() -> None:
     assert "알려주지 말고 뜻·상황만" in p.brief()
 
 
+def test_brief_says_not_knowing_is_not_mocked_and_reveal_stops_the_turn() -> None:
+    """D1(b)·D2(PM-DEC-691 · call 1993) — 모름·무응답은 놀리지 않는다 · 정답을 들려준 턴은 거기서 멈춘다."""
+    p = ExpressionPractice(ITEMS)
+    assert p.phase == "introduce"
+    p.observe_beaver("고마울 때 뭐라고 해요?")
+    p.observe_user("모르겠어요")
+    assert p.phase == "original" and p.original_attempts == 1
+    b1 = p.brief()
+    assert "또 틀리거나 모르면 정답 «감사합니다»을 들려주고 한 번 따라 말하게 한 뒤 그 턴을 멈춘다." in b1
+    assert b1.count("모름·무응답은 놀리지 않는다.") == 1
+    p0 = ExpressionPractice(ITEMS)
+    p0.phase = "original"
+    assert "틀리거나 모르면 첫 어절 힌트를 주고 한 번 더 묻는다. 모름·무응답은 놀리지 않는다." in p0.brief()
+
+
 def test_homework_cycle_has_no_native_but_keeps_one_repeat() -> None:
     p = ExpressionPractice(ITEMS, native_step=False)
     p.observe_user("감사합니다")

@@ -55,6 +55,43 @@ async def test_second_reseed_outside_lesson_freetalk_resends_the_same_seed():
     assert "한 문장만 인사하고" in short and "첫 질문 하나만" in short and len(short) < 120
 
 
+def _mute_t1_state() -> cs._CallState:
+    st = _state()
+    st.segments = [{"turn_index": 0, "role": "user", "text": "", "pcm": b"\x01\x02"}]
+    st.next_turn_index = 1
+    st.cur_beaver_text = ["Hey Tester, long time no see!"]
+    cs._flush_beaver_segment(st)                          # 오디오 0바이트 인사 턴(t1)
+    return st
+
+
+@pytest.mark.asyncio
+async def test_mute_greeting_turn_is_dropped_from_saved_segments_and_turn_index_stays_continuous():
+    """D4(PM-DEC-693 안 1 · call 1994) — 재시드한 무음 인사 t1 은 저장 대본에 남기지 않는다(학습자는 못 듣고 못 봤다)."""
+    st, sess = _mute_t1_state(), _Sess()
+    assert [s["turn_index"] for s in st.segments] == [0, 1] and st.beaver_turns == 1
+    assert cs._greeting_was_mute(st, 0) is True
+    cs._drop_mute_greeting_segment(st)
+    await cs._reseed_greeting(sess, st)
+    assert [s["role"] for s in st.segments] == ["user"] and st.next_turn_index == 1
+    assert st.beaver_turns == 1, "beaver_turns 는 재시드 판정이 쓴다 — 그대로"
+    st.cur_beaver_text = ["Hey Tester, long time no see!"]
+    st.cur_beaver_pcm = bytearray(b"\x00\x01" * 8)
+    cs._flush_beaver_segment(st)                          # 재시드가 만든 소리 난 인사
+    assert [(s["turn_index"], s["role"]) for s in st.segments] == [(0, "user"), (1, "beaver")]
+    assert [s["text"] for s in st.segments if s["role"] == "beaver"] == ["Hey Tester, long time no see!"]
+
+
+def test_drop_keeps_a_persisted_or_voiced_segment():
+    st = _mute_t1_state()
+    st.persisted_count = 2                                # 이미 저장됐으면 손대지 않는다
+    cs._drop_mute_greeting_segment(st)
+    assert len(st.segments) == 2 and st.next_turn_index == 2
+    st2 = _mute_t1_state()
+    st2.segments[-1]["pcm"] = b"\x00\x01"               # 소리가 있으면 무음 인사가 아니다
+    cs._drop_mute_greeting_segment(st2)
+    assert len(st2.segments) == 2 and st2.next_turn_index == 2
+
+
 @pytest.mark.asyncio
 async def test_reseed_result_is_logged_once_on_the_next_turn_end(caplog):
     caplog.set_level(logging.INFO, logger=cs.logger.name)

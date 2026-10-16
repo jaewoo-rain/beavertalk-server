@@ -560,7 +560,8 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # 2026-10-14 재기준(PM-DEC-613, 실통화 1936·1840): persona_intro 편집 문구 2줄(빈칸 낭독 금지 · 서버 안내 없는 복습 금지) → 3764 → 3869.
 # 2026-10-16 재기준(통화 흐름 v2 T-20261016-03 · 사용자 「이대로 확정」): editable expression 수정본 + 잠금 L1~L9 → 3869 → 4308(옛 9e78d62d…).
 # 2026-10-16 재기준(PM-DEC-685 R2 — 규칙 2 뒤 문장 「출제한 뒤에는 답을 기다린다…」) → 4308 → 4302(옛 cce172c6…).
-_EXPR_FROZEN = ("f2b761067b813b05975723f0831de69909d3ff9cfe54a151cb7029a3b90cc993", 4302)
+# 2026-10-16 재기준(PM-DEC-691 D2 L4 끝 한 문장 · D1(a) L8 셋째 줄) → 4302 → 4386(옛 f2b76106…).
+_EXPR_FROZEN = ("549010737cf47ac5d410191c30c0c99214055f354a79de1c8cb154e4165848ab", 4386)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:

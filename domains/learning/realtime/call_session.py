@@ -6398,6 +6398,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _log_reseed_result(state, turn_pcm_bytes)   # P5 — 직전 재시드가 소리를 냈나(한 줄)
             reseeded_now = _greeting_was_mute(state, turn_pcm_bytes)
             if reseeded_now:
+                _drop_mute_greeting_segment(state)
                 await _reseed_greeting(session, state)
             if state.close_seed_sent:
                 # ⭐ 작별 턴이 실제로 시작됐을 때만 종료. 그 전(빈 turn_end — 이전 활동 잔여)
@@ -6560,6 +6561,25 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
         and not state.close_seed_sent
         and bool(state.seed_text)
     )
+
+
+def _drop_mute_greeting_segment(state: _CallState) -> None:
+    """무음 인사로 재시드할 턴(방금 flush 한 마지막 비버 segment)을 저장 대본에서 뺀다(PM-DEC-693 안 1 · call 1994).
+
+    학습자는 그 턴을 듣지도 보지도 못했다(오디오 0바이트 · 자막 폐기). 재시드가 같은 문장을 소리와 함께 다시 하므로
+    남겨 두면 저장 대본·통화 후 분석·이어하기 요약에 같은 문장이 두 번 남는다.
+    `next_turn_index` 를 하나 되돌려 저장 turn_index 가 이어지게 한다. `beaver_turns` 는 재시드 판정이 쓰므로 그대로 둔다.
+    ⚠ 이미 저장된 segment(persisted_count 안)나 마지막이 그 턴이 아니면 손대지 않는다.
+    """
+    segs = state.segments
+    if not segs or len(segs) <= state.persisted_count:
+        return
+    last = segs[-1]
+    if last.get("role") != "beaver" or last.get("pcm") or last.get("turn_index") != state.next_turn_index - 1:
+        return
+    segs.pop()
+    state.next_turn_index -= 1
+    logger.info("normalcall: 무음 인사 턴 t%d 저장 대본에서 제외(재시드가 같은 인사를 다시 함)", last.get("turn_index"))
 
 
 def _log_reseed_result(state: _CallState, turn_pcm_bytes: int) -> None:

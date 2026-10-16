@@ -151,9 +151,9 @@ class ExpressionPractice:
         # 통화 흐름 v2(2026-10-16) — 문장은 16_공유_표현학습_잠금변경제안 §3.2 그대로(«(숙제는 …)» 갈래만 숙제에 맞춰 고름).
         native = self.native_phrase if (self.native_step and self.native_phrase) else original
         if self.phase == 'original' and self.original_attempts == 0:
-            action = f'원문 «{original}» 답 대기. 틀리거나 모르면 첫 어절 힌트를 주고 한 번 더 묻는다.'
+            action = f'원문 «{original}» 답 대기. 틀리거나 모르면 첫 어절 힌트를 주고 한 번 더 묻는다. 모름·무응답은 놀리지 않는다.'
         elif self.phase == 'original':
-            action = f'힌트 뒤 답 대기. 또 틀리면 정답 «{original}»을 들려주고 한 번 따라 말하게 한다.'
+            action = f'힌트 뒤 답 대기. 또 틀리거나 모르면 정답 «{original}»을 들려주고 한 번 따라 말하게 한 뒤 그 턴을 멈춘다. 모름·무응답은 놀리지 않는다.'
         elif self.phase == 'reveal':
             action = ('정답 따라 말하기 대기(1회). 결과와 무관하게 다음은 '
                       + ('현지인 문장이다.' if self.native_step else '다시 말하기다.'))

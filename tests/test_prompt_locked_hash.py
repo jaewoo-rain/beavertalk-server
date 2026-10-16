@@ -61,7 +61,7 @@ FROZEN: dict[str, str] = {
     "expression.EXPR_RULE3_ASK_FIRST": "7a85ee4a7184914d",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 e6e757df50c6e6ed)
     "expression.EXPR_RULE3_LANDING": "4803eb63c6076d1e",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 7cf75ae6cbfacb3e)
     "expression.DRILL_GRAMMAR_LINE": "69f3569fd132c492",
-    "expression.DRILL_REVEAL_LINE": "c93268dbce71d732",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 b56df8998f7e0410)
+    "expression.DRILL_REVEAL_LINE": "0910bfef3971d319",   # D2 2026-10-16 PM-DEC-691(옛 c93268dbce71d732 ← b56df8998f7e0410)
     "expression.DRILL_FORMALITY_LINE": "26290a378fac6472",
     "expression.DRILL_SILENCE_LINE": "f9ce688b6e1f9c13",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 6638164fdfc3a2c5)
     # 2026-09-13 실통화 1550 — bt-back 승인 2줄(다른 올바른 정중한 표현 인정 · 한 턴 요청 하나)
@@ -73,7 +73,7 @@ FROZEN: dict[str, str] = {
     "expression.ITEMS_HEADER": "f34fdcee428d7a32",
     "expression.ITEMS_LANGUAGE_NOTE": "093d2ebe6b76e246",
     "expression.ITEMS_EXHAUSTION_LINE": "18e8b7bb0c8fa2b3",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 72b10e569c8de7d9)
-    "expression.CHARACTER_FRAME": "e4dc5003bbd7d472",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 f0aa48850ad09ad3)
+    "expression.CHARACTER_FRAME": "a1f067e0f30688dd",   # D1(a) 2026-10-16 PM-DEC-691(옛 e4dc5003bbd7d472 ← f0aa48850ad09ad3)
     # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
     # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)
@@ -153,9 +153,9 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "expression.model_block": ("fdad9ad8dbde3400", lambda: lex.model_block("3.1", target="한국어", locale_label="영어(English)")),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 2115fcba345da3ba)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 0cd6775167cee636)
     "expression.render_item": ("fa3c4965acede421", lambda: lex.render_item(2, {"obj": "N입니까?, N입니다", "des": "formal", "ex": "저는 회사원입니다.", "role": "grammar"}) + "|" + lex.render_item(1, {"obj": "가다", "des": "to go", "ex": "학교에 가요"})),
     # 2026-09-14 E — has_grammar 판에 DRILL_GRAMMAR_ALT_LINE 1줄 · 2026-09-16 dev 머지(DRILL_ALT_CORRECT_LINE 확장)로 셋 다 재기준. 문법 없는 차시(has_grammar=False)는 아래 procedure_nogrammar 그대로.
-    "expression.procedure": ("b0740a3129f7eb02", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 ad5ca36acbf95203)
-    "expression.procedure_ja": ("9e35a95d714ba467", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 8ba9aee934a40d7d)
-    "expression.procedure_nogrammar": ("15c81abfc90fcf62", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 91233682f43cfeca)
+    "expression.procedure": ("88631e5a837563c5", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=True)),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 ad5ca36acbf95203)   # D2 2026-10-16 PM-DEC-691(옛 b0740a3129f7eb02)
+    "expression.procedure_ja": ("be0bbe14f11950fa", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="일본어", locale_label="한국어", has_grammar=True, language="ja")),   # 2026-09-14 C1·C2(옛 a8eb11d5521147f2) + E(옛 f0fca9b954bd5ab4) · 2026-09-19 15차 **바이트 동일**(공통 줄을 extra 뒤에 둬 순서 보존)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 8ba9aee934a40d7d)   # D2 2026-10-16 PM-DEC-691(옛 9e35a95d714ba467)
+    "expression.procedure_nogrammar": ("8e3a7a3e532e62bb", lambda: lex.procedure(drill_intro="- 드릴: {target}/{locale_label}", target="한국어", locale_label="영어(English)", has_grammar=False)),   # ko 무문법 차시 — 2026-09-14 기준(C·E 무영향)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 91233682f43cfeca)   # D2 2026-10-16 PM-DEC-691(옛 15c81abfc90fcf62)
     "freetalk.PROBE_NAME_RE_JA": ("4b9e8e9c58ee0730", lambda: lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][0].pattern + "|" + lft.PROBE_NAME_RE_BY_LANGUAGE["ja"][1]),
     "reground.hint_reading_clause_ja": ("727769dcc6caac21", lambda: reground.hint_reading_clause("ja")),
     "expression.items_block": ("275d038168f7dba2", lambda: lex.items_block([{"obj": "물", "des": "water", "ex": None}], target="한국어", locale_label="영어(English)")),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 1704dbb54003a3ab)
