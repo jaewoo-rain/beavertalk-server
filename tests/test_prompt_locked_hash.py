@@ -76,7 +76,7 @@ FROZEN: dict[str, str] = {
     "expression.ITEMS_HEADER": "f34fdcee428d7a32",
     "expression.ITEMS_LANGUAGE_NOTE": "093d2ebe6b76e246",
     "expression.ITEMS_EXHAUSTION_LINE": "18e8b7bb0c8fa2b3",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 72b10e569c8de7d9)
-    "expression.CHARACTER_FRAME": "7403700695dddea7",   # U1·U3 2026-10-16 PM-DEC-700~704(옛 a1f067e0f30688dd)
+    "expression.CHARACTER_FRAME": "bd4974e35eac40e2",   # L8 A안 2026-10-16 PM-DEC-716(28_공유_캐릭터반응A)(옛 7403700695dddea7)
     # 2026-09-13 ja 배선 — 언어별 격식 줄(ko 는 DRILL_FORMALITY_LINE 그 객체)
     "expression.DRILL_FORMALITY_LINE_JA": "c96c24ac72584c11",
     # 2026-09-13 끊김 없는 조각 전환(사장님 결정 2) — silent 재개 브리프 마지막 줄. 종전 마지막 줄·build_resume_brief(silent=False) 는 바이트 불변(아래 FROZEN_FN)

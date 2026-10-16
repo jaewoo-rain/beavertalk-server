@@ -562,7 +562,8 @@ def test_the_tail_of_the_list_is_the_servers_job_now() -> None:
 # 2026-10-16 재기준(PM-DEC-685 R2 — 규칙 2 뒤 문장 「출제한 뒤에는 답을 기다린다…」) → 4308 → 4302(옛 cce172c6…).
 # 2026-10-16 재기준(PM-DEC-691 D2 L4 끝 한 문장 · D1(a) L8 셋째 줄) → 4302 → 4386(옛 f2b76106…).
 # 2026-10-16 재기준(U1·U3 2026-10-16 PM-DEC-700~704 — L8 넷째 줄 · L3 끝 · L6) → 4386 → 4542(옛 54901073…).
-_EXPR_FROZEN = ("7feea8b9a32da96f2258d18a3c48ffee5f67d0f45620de261755a2767eaef370", 4542)
+# 2026-10-16 재기준(L8 A안 2026-10-16 PM-DEC-716(28_공유_캐릭터반응A)) → 4542 → 4612(옛 7feea8b9…).
+_EXPR_FROZEN = ("bc796144ae79addce363314687d9ebadc3bc82994709401de2bad87e5bd353bf", 4612)
 
 
 def test_expression_instruction_matches_the_t21a_baseline() -> None:
