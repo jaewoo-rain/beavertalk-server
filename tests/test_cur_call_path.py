@@ -253,8 +253,8 @@ async def test_freetalk_opens_after_expression_done_with_lesson_block_and_comple
     lesson1 = repo.lesson_by_no(db, "ko", 1)
     surfaces = [it.surface for _li, it in repo.lesson_items(db, lesson1.lesson_id)]
     db.close()
-    # 표현학습 한 통화로 15개 전부 드릴 → expression_done
-    h = await _run(session_factory, seeded, "auto", {}, script=[("B", f'"{s}"') for s in surfaces])
+    # 표현학습 한 통화로 15개 전부 드릴 → expression_done(학습자 발화가 한 번은 있어야 한다 — PM-DEC-744 A 무음 조각은 진도 0)
+    h = await _run(session_factory, seeded, "auto", {}, script=[("B", f'"{s}"') for s in surfaces] + [("U", "네.")])
     db = session_factory()
     assert repo.lesson_status(db, m, lesson1.lesson_id).status == "expression_done"
     db.close()
@@ -276,6 +276,28 @@ async def test_freetalk_opens_after_expression_done_with_lesson_block_and_comple
         # 가짜 통화는 60초 미만 → freetalk_done 안 됨(§7 ⓑ) — 포인터 유지
         assert repo.lesson_status(db, m, lesson1.lesson_id).status == "expression_done"
         assert repo.current_progress(db, m).lesson_id == lesson1.lesson_id
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
+async def test_silent_expression_call_marks_nothing_drilled(session_factory, seeded):
+    """PM-DEC-744 A — 비버가 15개를 다 말해도 학습자 발화가 0 이면 drilled·차시 완료·status 를 건드리지 않는다."""
+    db = session_factory()
+    m = seeded["member_id"]
+    lesson1 = repo.lesson_by_no(db, "ko", 1)
+    surfaces = [it.surface for _li, it in repo.lesson_items(db, lesson1.lesson_id)]
+    db.close()
+    await _run(session_factory, seeded, "auto", {}, script=[("B", f'"{s}"') for s in surfaces] + [("U", "")])
+    db = session_factory()
+    try:
+        call = _last_call(db, m)
+        cc = repo.cur_call(db, call.call_id)
+        assert cc.course == "expression" and cc.recorded_at is not None and cc.lesson_completed is False
+        ml = repo.lesson_status(db, m, lesson1.lesson_id)
+        assert ml.status == "learning" and ml.expression_done_at is None and ml.expression_calls == 1
+        mine = repo.member_item_map(db, m, lesson1.lesson_id)
+        assert mine and all(r.drilled_at is None for r in mine.values())
     finally:
         db.close()
 

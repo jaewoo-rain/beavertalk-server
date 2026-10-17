@@ -512,3 +512,86 @@ def test_resume_wrong_items_are_guaranteed_even_when_fresh_fills_the_cap(db):
     assert [d["item_id"] for d in out2] == [ids[4], ids[3]]
     # first 없으면 종전(fresh[:n])
     assert [d["item_id"] for d in cur.select_items(db, m, lesson.lesson_id, n=4)] == ids[:4]
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-744 A — 학습자 발화 0 조각은 drilled·퀴즈·차시 완료·status 를 건드리지 않는다
+# --------------------------------------------------------------------------- #
+def test_silent_fragment_records_nothing_but_counts(db):
+    m = _member(db)
+    _set_progress(db, m, "A1-T01-1")
+    lesson = _lesson(db, "A1-T01-1")
+    c1 = _call(db, m); o1 = cur.open_call(db, m, c1, "expression")
+    ids = [d["item_id"] for d in o1.items]
+    snap = [{"item_id": i, "surface": "s", "role": "chunk", "drilled": True, "passed": True, "failed": False, "review": False}
+            for i in ids]
+    r = cur.record_expression(db, c1, o1.items, drilled_ids=ids, passed_ids=ids[:2], failed_ids=[ids[2]],
+                              snapshot=snap, learner_spoke=False)
+    assert r["silent"] is True and r["lesson_completed"] is False and r["status"] == "learning"
+    assert (r["drilled"], r["passed"], r["failed"]) == (0, 0, 0)
+    for i in ids:
+        row = repo.member_item(db, m, lesson.lesson_id, i)
+        assert row.drilled_at is None and row.drilled_call_id is None and row.quiz_passed_at is None
+        assert row.quiz_failed_count == 0 and row.last_quiz_call_id is None
+        assert row.seen_count == 1, "목록에 실린 사실은 센다"
+    ml = repo.lesson_status(db, m, lesson.lesson_id)
+    assert ml.status == "learning" and ml.expression_done_at is None and ml.expression_calls == 1
+    cc = repo.cur_call(db, c1)
+    assert cc.lesson_completed is False and cc.recorded_at is not None and cc.recorded_fragment == 1
+    assert all(not x["drilled"] and not x["passed"] and not x["failed"] for x in json.loads(cc.items))
+    # 같은 조각 재호출은 그대로 no-op
+    assert cur.record_expression(db, c1, o1.items, ids, [], [], learner_spoke=True) is None
+
+
+def test_silent_fragment_cannot_complete_a_lesson_but_a_spoken_one_can(db):
+    m = _member(db)
+    _set_progress(db, m, "A1-T01-1")
+    lesson = _lesson(db, "A1-T01-1")
+    c1 = _call(db, m); o1 = cur.open_call(db, m, c1, "expression"); _drill_all(db, m, o1.items, c1)
+    c2 = _call(db, m); o2 = cur.open_call(db, m, c2, "expression")
+    r2 = cur.record_expression(db, c2, o2.items, drilled_ids=[d["item_id"] for d in o2.items], passed_ids=[], failed_ids=[],
+                               learner_spoke=False)
+    assert r2["lesson_completed"] is False and r2["status"] == "learning"
+    assert cur.decide_course(db, m) == "expression", "무음 조각으로는 프리토킹이 열리지 않는다"
+    c3 = _call(db, m); o3 = cur.open_call(db, m, c3, "expression")
+    assert {d["item_id"] for d in o3.items} >= {d["item_id"] for d in o2.items if not d.get("review")}, "무음 조각 항목은 다시 나온다"
+    r3 = _drill_all(db, m, o3.items, c3)
+    assert r3["silent"] is False and r3["lesson_completed"] is True and r3["status"] == "expression_done"
+    assert repo.lesson_status(db, m, lesson.lesson_id).expression_calls == 3
+
+
+def test_silent_fragment_after_completion_keeps_status_and_done_at(db):
+    m = _member(db)
+    _set_progress(db, m, "A1-T01-1")
+    lesson = _lesson(db, "A1-T01-1")
+    for _ in range(2):
+        c = _call(db, m); o = cur.open_call(db, m, c, "expression"); _drill_all(db, m, o.items, c)
+    ml = repo.lesson_status(db, m, lesson.lesson_id)
+    done_at = ml.expression_done_at
+    assert ml.status == "expression_done" and done_at is not None
+    c = _call(db, m); o = cur.open_call(db, m, c, "expression")
+    assert o.course == "expression"
+    r = cur.record_expression(db, c, o.items, [d["item_id"] for d in o.items], [], [], learner_spoke=False)
+    assert r is not None and r["silent"] is True and r["lesson_completed"] is False and r["status"] == "expression_done"
+    ml = repo.lesson_status(db, m, lesson.lesson_id)
+    assert ml.status == "expression_done" and ml.expression_done_at == done_at
+
+
+def test_learner_spoke_reads_only_transcribed_user_segments():
+    from types import SimpleNamespace
+
+    from domains.learning.realtime import call_session as cs
+
+    seg = lambda role, t: {"role": role, "text": t}
+    assert cs._learner_spoke(SimpleNamespace(segments=[])) is False
+    assert cs._learner_spoke(SimpleNamespace(segments=[seg("beaver", "안녕"), seg("user", ""), seg("user", "  ")])) is False
+    assert cs._learner_spoke(SimpleNamespace(segments=[seg("beaver", "안녕"), seg("user", "네")])) is True
+
+
+def test_call_session_passes_learner_spoke_to_record_expression():
+    import inspect
+
+    from domains.learning.realtime import call_session as cs
+
+    src = inspect.getsource(cs)
+    assert src.count("learner_spoke=_learner_spoke(state)") == 1

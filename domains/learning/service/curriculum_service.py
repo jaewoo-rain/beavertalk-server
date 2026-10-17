@@ -412,6 +412,7 @@ def record_expression(
     failed_ids: Iterable[int],
     snapshot: Optional[list[dict]] = None,
     fragment_no: Optional[int] = None,
+    learner_spoke: bool = True,
 ) -> Optional[dict]:
     """표현학습 통화 종료 저장 — 멱등 단위는 **조각**(c3d4e5f6a7b8, 실통화 1550): `fragment_no > cur_call.recorded_fragment` 일 때만 쓴다.
 
@@ -420,7 +421,9 @@ def record_expression(
     recorded_at 은 «처음 저장 시각» 으로 남는다.
 
     items: 통화가 운반한 DTO 그대로(lesson_id 포함) — 어느 차시 행에 적을지가 여기서 나온다(§6 ①).
-    Returns: {"lesson_completed": bool, "status": str, "drilled": n, "passed": n, "failed": n, "fragment": no} | None
+    learner_spoke: 이 조각에 전사 있는 학습자 발화가 있었나. False(무음 조각)면 drilled·퀴즈·차시 완료·status 를 건드리지 않는다
+      (PM-DEC-744 A · 운영 실회원 무음 28통화가 항목을 drilled 로 찍었다). seen_count·expression_calls·조각 멱등은 그대로 센다.
+    Returns: {"lesson_completed": bool, "status": str, "drilled": n, "passed": n, "failed": n, "fragment": no, "silent": bool} | None
     """
     cc = repo.cur_call(db, call_id)
     if cc is None:
@@ -442,6 +445,13 @@ def record_expression(
     drilled = {int(x) for x in drilled_ids}
     passed = {int(x) for x in passed_ids}
     failed = {int(x) for x in failed_ids}
+    silent = not learner_spoke
+    if silent:
+        logger.info("cur record_expression: 무음 조각 call_id=%s 조각 %d — drilled %d·통과 %d·오답 %d 를 버린다(PM-DEC-744 A)",
+                    call_id, frag, len(drilled), len(passed), len(failed))
+        drilled, passed, failed = set(), set(), set()
+        if snapshot is not None:
+            snapshot = [dict(r, drilled=False, passed=False, failed=False) for r in snapshot]
     now = _now()
 
     for d in items:
@@ -470,7 +480,7 @@ def record_expression(
     # 차시 완료 = 그 차시 cur_lesson_item(현역) 전부 drilled (결정 #4 — 퀴즈 정오 무관)
     lesson_item_ids = {it.item_id for _li, it in repo.lesson_items(db, cc.lesson_id)}
     mine = repo.member_item_map(db, member_id, cc.lesson_id)
-    completed = bool(lesson_item_ids) and all(
+    completed = not silent and bool(lesson_item_ids) and all(
         (mine.get(i) is not None and mine[i].drilled_at is not None) for i in lesson_item_ids
     )
     cc.lesson_completed = completed
@@ -493,7 +503,7 @@ def record_expression(
         call_id, frag, cc.lesson_id, len(items), len(drilled), len(passed), len(failed), completed, ml.status, ml.expression_calls,
     )
     return {"lesson_completed": completed, "status": ml.status, "drilled": len(drilled), "passed": len(passed), "failed": len(failed),
-            "fragment": frag}
+            "fragment": frag, "silent": silent}
 
 
 # ── 통화 종료(프리토킹) ────────────────────────────────────────────────────── #

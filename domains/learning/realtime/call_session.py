@@ -2656,6 +2656,11 @@ def _expression_result_snapshot(state: _CallState, drilled_set: set[int]) -> lis
     return out
 
 
+def _learner_spoke(state: _CallState) -> bool:
+    """이 조각에 전사 있는 학습자 발화가 한 번이라도 있었나 — 무음 조각은 진도를 찍지 않는다(PM-DEC-744 A)."""
+    return any(s.get("role") == "user" and (s.get("text") or "").strip() for s in state.segments)
+
+
 def _expr_covered_ids(state: _CallState) -> list[int]:
     """이 통화에서 **다룬 항목의 item_id**(순서 = 다룬 순서).
 
@@ -4652,7 +4657,7 @@ async def run_call(
                         lambda db: cur_svc.record_expression(
                             db, call_id, items=state.expr_items, drilled_ids=drilled,
                             passed_ids=sorted(state.expr_quiz_pass), failed_ids=sorted(state.expr_quiz_fail),
-                            snapshot=snapshot,
+                            snapshot=snapshot, learner_spoke=_learner_spoke(state),
                         ),
                     )
                     logger.info("normalcall cur 표현학습 저장: call_id=%s %s", call_id, stats if stats is not None else "no-op(이미 저장됨/cur_call 없음)")
