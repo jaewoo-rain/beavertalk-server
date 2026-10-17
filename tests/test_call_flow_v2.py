@@ -140,7 +140,11 @@ def test_turn_notes_are_control_tagged_fixed_and_banned_word_free():
         assert not [w for w in _BANNED if w in n]
     assert "현지인 문장을 따라 말하게" in notes[0] and "현지인 문장은 없다" in notes[1]
     for n in notes[:2]:   # 25_공유_오독결과 §3 2차 — 나열형은 다시 말하기 0/4 · 조건형 3/4
-        assert "바로 새 표현으로 가지 말고" in n and "모름·무응답에는 놀리지 말고 힌트만 준다" in n
+        assert "바로 새 표현으로 가지 말고" in n
+    assert "모름·무응답에는 놀리지 말고 힌트만 준다" in notes[1]
+    # 33_공유_P2재생 §3 (PM-DEC-757) — 표현학습만 P2 보강 · 숙제는 그대로
+    assert "모름·무응답에는 모국어로 말해도 놀리지 말고 바로 힌트만 준다" in notes[0]
+    assert "같은 문장을 상대만 바꿔 한 번 더 말하게 한다(새 질문을 만들지 않는다)" in notes[0]
     assert "놀림·욕설·비하어는 쓰지 않는다" in notes[2]
 
 
