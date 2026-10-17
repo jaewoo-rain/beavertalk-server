@@ -472,7 +472,7 @@ async def test_quiz_window_closes_as_soon_as_every_set_item_is_decided_and_the_n
     st.covered_nums = [1, 2, 3, 4, 5, 6]                  # 퀴즈 중에 이미 4·5·6 을 가르쳤다
     _open_quiz(st, [1, 2, 3])
     st.covered_nums = [1, 2, 3, 4, 5, 6]
-    _user(st, "表現1 表現3")
+    _user(st, "表現1 表現3 表現2")                          # PM-DEC-752 S2 — failed 는 창에 그 항목이 나와야 받는다(여기선 학습자가 시도)
     await _drain(st)
     assert st.expr_quiz_open is False, "세트 3개가 모두 확정 → 즉시 닫힘"
     assert {301, 303} <= st.expr_quiz_pass and 302 in st.expr_quiz_fail
@@ -1269,3 +1269,76 @@ async def test_notes_only_go_out_at_the_microphone_slot_after_the_learner_speaks
     src = _io.open(cs.__file__, encoding="utf-8").read()
     turn_end_block = src[src.index("await _loop_breaker_on_turn_end(session, state, turn_text)"):][:600]
     assert "_inject_quiz_set_reminder" not in turn_end_block and "_inject_drill_move_on" not in turn_end_block
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-752 S2 — 근거 없는 failed(call 2020 항목3: 창에서 묻지도·말하지도 않은 항목을 다른 항목 턴으로 failed)
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_failed_for_an_item_never_said_in_the_window_is_kept_pending(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 1, "verdict": "passed", "why": "답함"},
+                                                          {"num": 3, "verdict": "failed", "why": "B35가 정답을 알려준 뒤 U36이 따라 말함"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 3])
+    _beaver(st, "퀴즈! 정중하게 감사합니다는?")
+    await _drain(st)
+    _user(st, "ありがとうございます")
+    await _drain(st)
+    assert 101 in st.expr_quiz_pass
+    assert 103 not in st.expr_quiz_fail and 3 not in st.expr_quiz_llm_decided, "창에 すみません 이 한 번도 없다 → 미판정"
+    assert st.expr_quiz_open is True, "미판정 항목이 남아 창은 닫히지 않는다"
+
+
+@pytest.mark.asyncio
+async def test_failed_after_the_beaver_reveals_that_item_still_counts(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 3, "verdict": "failed", "why": "공개 뒤 복창"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [3])
+    _beaver(st, "정답은 すみません 이에요. 따라 해 봐요.")
+    await _drain(st)
+    _user(st, "すみません")
+    await _drain(st)
+    assert 103 in st.expr_quiz_fail and 3 in st.expr_quiz_llm_decided
+
+
+def test_quiz_item_in_span_matches_surface_in_any_role():
+    st = _state()
+    span = [(1, "beaver", "퀴즈! 미안해요는?"), (2, "user", "ごめんなさい")]
+    assert cs._quiz_item_in_span(st, span, 4) is True
+    assert cs._quiz_item_in_span(st, span, 3) is False
+
+
+@pytest.mark.asyncio
+async def test_call_2020_shape_item3_failed_while_item2_was_being_asked_is_kept_pending(monkeypatch):
+    answers = iter([{"verdicts": [{"num": 1, "verdict": "passed", "why": "정중형으로 말함"}]},
+                    {"verdicts": [{"num": 2, "verdict": "passed", "why": "U38이 B37의 질문에 답함"},
+                                  {"num": 3, "verdict": "failed", "why": "B35가 정답을 알려준 뒤 U36이 따라 말함"}]}])
+    fake = FakeJudge(verdict_fn=lambda p, s: next(answers, {"verdicts": []}))
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 2, 3])
+    _beaver(st, "퀴즈! 정중하게 감사합니다는?")
+    await _drain(st)
+    _user(st, "ありがとうございます")
+    await _drain(st)
+    _beaver(st, "좋아. 가볍게 고마워요는?")
+    await _drain(st)
+    _user(st, "どうも")
+    await _drain(st)
+    assert {101, 102} <= st.expr_quiz_pass
+    assert 103 not in st.expr_quiz_fail and 3 not in st.expr_quiz_llm_decided, "그때 묻던 건 항목 2 — 항목 3 failed 는 근거 없음"
+
+
+@pytest.mark.asyncio
+async def test_wrong_answer_to_the_item_being_asked_is_still_failed_without_its_surface(monkeypatch):
+    fake = FakeJudge(verdict_fn=lambda p, s: {"verdicts": [{"num": 2, "verdict": "failed", "why": "다른 표현으로 답함"}]})
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [2, 3])
+    _beaver(st, "퀴즈! 가볍게 고마워요는?")
+    await _drain(st)
+    _user(st, "はい")
+    await _drain(st)
+    assert 102 in st.expr_quiz_fail and 2 in st.expr_quiz_llm_decided, "지금 묻는 항목(세트 첫 미확정)의 오답은 그대로 failed"

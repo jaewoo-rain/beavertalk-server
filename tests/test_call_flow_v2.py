@@ -296,3 +296,27 @@ def test_a_new_question_in_the_native_language_clears_the_old_target_but_a_hint_
     assert st.expr_rep_phrase is None and st.expr_rep_misses == 0, "새 질문(모국어)은 지난 목표를 비운다"
     _cs._note_drill_user_turn(st, "어떻게 지내셨어요?")
     assert st.expr_rep_misses == 0
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-752 S1 — 첫 어절 힌트 「어디에서...」 뒤 같은 문장 전체가 나오면 불일치 수를 이어 센다(call 2020 B21~B29)
+# --------------------------------------------------------------------------- #
+def test_call_2020_hint_then_full_sentence_keeps_counting_and_arms_move_on():
+    st = _practice_state()
+    turns = [
+        ("B", 'Ugh, already forgetting? Try starting with "어디에서..." What do you say after that?'), ("U", "어디에도 그대 가사"),
+        ("B", 'Hah! What was that terrible singing? Just say "어디에서 왔어요?" Now repeat that.'), ("U", ""),
+        ("B", "어디에서 왔어요? That's what you should have said. Now, ask someone else where they're from."), ("U", "다가갈수록 미워지니까"),
+        ("B", 'Stop with the awful singing! Just say "어디에서 왔어요?" again. Now, repeat that.'), ("U", "Audio so what's up?"),
+    ]
+    for role, text in turns:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st, text)
+    assert st.expr_drill_nudge_pending is True, "힌트 뒤 오답 1 + 노래 1 + 엉뚱한 답 1 = 3회째에 «다음 표현으로»"
+    assert "어디에서왔어요" in st.expr_rep_nudged
+
+
+def test_a_different_sentence_still_resets_the_miss_count():
+    st = _practice_state()
+    for role, text in [("B", 'Say "어디에서 왔어요?"'), ("U", "몰라"), ("U", "몰라요"), ("B", 'Now say "이름이 뭐예요?"')]:
+        (_cs._note_expression_drill if role == "B" else _cs._note_drill_user_turn)(st, text)
+    assert st.expr_rep_phrase == "이름이뭐예요" and st.expr_rep_misses == 0 and st.expr_drill_nudge_pending is False

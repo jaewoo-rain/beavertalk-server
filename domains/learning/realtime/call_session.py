@@ -1720,6 +1720,12 @@ def _expr_mentioned_nums(state: _CallState, text: str) -> list[int]:
     return hits
 
 
+def _quiz_item_in_span(state: _CallState, span: list[tuple[int, str, str]], n: int) -> bool:
+    """PM-DEC-752 S2 — 퀴즈 창 전사에 항목 n 의 표면형·예문이 한 번이라도 나왔나(비버가 정답을 알려줬거나 학습자가 시도했다).
+    failed 판정의 최소 근거다. 뜻(모국어)으로만 물은 항목은 여기서 안 잡힌다 — 그때는 미판정으로 남는다(기록 0)."""
+    return any(n in _expr_mentioned_nums(state, text) for _i, _role, text in span if (text or "").strip())
+
+
 def _arm_drill_nudge(state: _CallState, why: str) -> None:
     """드릴 안내를 다음 turn_end 에 넣도록 표시(상한·중복 가드는 여기서). 판정·진도는 건드리지 않는다.
     12차 D — **항목별 1회**: 같은 항목에는 다시 안내하지 않는다(안 그러면 한 항목이 통화당 상한을 다 먹는다 — 1645 앞 2분에 3회 소진)."""
@@ -1801,6 +1807,14 @@ def _note_practice_requested_phrase(state: _CallState, text: str) -> None:
         return
     if state.expr_rep_phrase is not None and state.expr_rep_phrase in phrases:
         return
+    prev = state.expr_rep_phrase
+    if prev is not None:
+        # PM-DEC-752 S1(call 2020 B21→B23): 힌트 「어디에서...」 가 목표로 잡힌 뒤 「어디에서 왔어요?」 가 나오면 같은 문장이다 —
+        #   앞부분이 겹치면 더 긴 쪽으로 바꾸고 불일치 수를 이어 센다(안 그러면 힌트 뒤 오답이 지워져 상한에 못 닿는다).
+        same = [x for x in phrases if x.startswith(prev) or prev.startswith(x)]
+        if same:
+            state.expr_rep_phrase = max([prev] + same, key=len)
+            return
     state.expr_rep_phrase = phrases[-1]
     state.expr_rep_misses = 0
 
@@ -2421,6 +2435,8 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         return {}
     out: dict = {"passed": [], "failed": [], "pending": [], "why": {}}
     seen: set[int] = set()
+    # PM-DEC-752 S2 — 세트는 순서대로 묻는다(큐 지시). 이 판정 직전까지 미확정인 첫 세트 항목 = 지금 묻고 있는 항목.
+    asking = next((m for m in state.expr_quiz_set if m not in state.expr_quiz_llm_decided), None) if same_quiz else None
     for v in getattr(result, "verdicts", None) or []:
         n = getattr(v, "num", None)
         if isinstance(n, int) and n in extra and n not in seen:
@@ -2461,6 +2477,13 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
             state.expr_quiz_fail.discard(iid)
             out["passed"].append(n)
         elif verdict == "failed":
+            if n != asking and not _quiz_item_in_span(state, span, n):
+                # PM-DEC-752 S2(call 2020 항목3): 아직 묻지 않은 항목을 다른 항목 턴을 근거로 failed 로 찍었다.
+                #   지금 묻는 항목도 아니고 창에 그 문장이 나온 적도 없으면(공개·시도 없음) 근거 없는 오답 — 미판정으로 둔다(기록 0 쪽이 안전).
+                out["pending"].append(n)
+                logger.info("normalcall 표현학습 퀴즈 판정 기각(근거 없는 오답): call_id=%s seq=%d 항목 %d «%s» why=%r → 미판정",
+                            _cid(state), seq, n, _num_item(state, n)[1], out["why"].get(n))
+                continue
             if iid not in state.expr_quiz_pass:
                 state.expr_quiz_fail.add(iid)
             out["failed"].append(n)
