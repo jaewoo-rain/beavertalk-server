@@ -8,12 +8,14 @@ POST /api/v1/cur/items/{item_id}/tts → 서명한 재생 URL.
   결과는 같고 비용만 한 번 더 든다(행 잠금을 쓰려면 DB 칸이 필요해 이번 범위 밖).
 - 로그인 회원만(라우터 CurrentMember) · 존재하고 은퇴하지 않은 항목만(없으면 404).
 - 합성·저장·서명 실패는 503 — 앱은 버튼을 숨기지 않고 비활성으로 둔다.
+- 하루 새 합성 상한(CUR_ITEM_TTS_DAILY_MAX · 기본 500 · 인스턴스별)을 넘으면 503. 이미 만든 소리 재사용은 세지 않는다.
 """
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import logging
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -29,6 +31,8 @@ logger = logging.getLogger(__name__)
 _locks: dict[str, asyncio.Lock] = {}
 #: 이 인스턴스가 이미 있다고 확인한 key — 목록 조회 캐시(storage.existing_keys TTL)보다 앞선다.
 _known: set[str] = set()
+#: 오늘(UTC) 이 인스턴스가 새로 합성한 수 — 하루 상한(settings.CUR_ITEM_TTS_DAILY_MAX).
+_daily: dict[str, int] = {}
 
 
 def _bucket() -> str:
@@ -76,6 +80,13 @@ async def item_tts(db: Session, item_id: int) -> dict:
     lock = _locks.setdefault(key, asyncio.Lock())
     async with lock:
         if not _exists(key):          # 잠금을 기다리는 동안 앞 요청이 만들었으면 그대로 쓴다
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if _daily.get(today, 0) >= settings.CUR_ITEM_TTS_DAILY_MAX:
+                logger.warning("cur item TTS: 하루 합성 상한 %d 도달 · item_id=%s", settings.CUR_ITEM_TTS_DAILY_MAX, item.item_id)
+                raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "오늘은 소리를 더 만들 수 없습니다.")
+            if today not in _daily:
+                _daily.clear()          # 날짜가 바뀌면 지난 날 수를 버린다
+            _daily[today] = _daily.get(today, 0) + 1
             synthesized = await tts.synthesize(text, item.language or "ko")
             if not synthesized:
                 raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "오디오를 생성할 수 없습니다.")

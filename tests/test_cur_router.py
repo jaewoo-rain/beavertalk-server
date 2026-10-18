@@ -387,6 +387,7 @@ def fake_tts(monkeypatch):
     monkeypatch.setattr(svc.storage, "playback_url", lambda bucket, key, ttl=None: f"https://signed.example/{key}")
     svc._known.clear()
     svc._locks.clear()
+    svc._daily.clear()
     return calls
 
 
@@ -454,3 +455,15 @@ def test_item_tts_key_changes_when_the_surface_changes(db):
     class _Other:
         item_id, language, surface = it.item_id, it.language, (it.surface or "") + "요"
     assert svc.object_path(_Other()) != k1 and k1.startswith(f"tts/cur_items/{it.language}/{it.item_id}_")
+
+
+def test_item_tts_daily_cap_blocks_new_synthesis_but_not_cached_reuse(client, db, fake_tts, monkeypatch):
+    from core.config import settings as cfg
+    _, hdr = _member(db)
+    lesson = repo.lesson_by_no(db, "ko", 1)
+    a, b = [it for _li, it in repo.lesson_items(db, lesson.lesson_id)[:2]]
+    monkeypatch.setattr(cfg, "CUR_ITEM_TTS_DAILY_MAX", 1)
+    assert client.post(f"/api/v1/cur/items/{a.item_id}/tts", headers=hdr).status_code == 200
+    assert client.post(f"/api/v1/cur/items/{b.item_id}/tts", headers=hdr).status_code == 503, "상한을 넘는 새 합성은 막는다"
+    assert client.post(f"/api/v1/cur/items/{a.item_id}/tts", headers=hdr).status_code == 200, "이미 만든 소리는 상한과 무관"
+    assert fake_tts["synth"] == 1

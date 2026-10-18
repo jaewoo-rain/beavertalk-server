@@ -469,6 +469,8 @@ class Settings(BaseSettings):
     # 문장 TTS 재생 URL 만료(6시간). 매 요청 재서명하므로 길게 잡을 이유가 없다 —
     # 유출된 URL 이 살아 있는 시간을 줄인다. 캐릭터 프리뷰(PUBLIC_TTL)와 분리한다.
     GCS_SIGNED_URL_TTS_TTL: int = 21600
+    # 차시 표현 항목 TTS(PM-DEC-796·802) 하루 새 합성 상한(인스턴스별 · UTC 날짜). 캐시 재사용은 세지 않는다. 0 이면 새 합성을 막는다.
+    CUR_ITEM_TTS_DAILY_MAX: int = 500
     SUPABASE_BUCKET_SAMPLES: str = "voice-samples"        # prefix: 캐릭터·TTS(장기 서명)
     SUPABASE_BUCKET_RECORDINGS: str = "voice-recordings"  # prefix: 통화·연습 녹음(단기 서명)
 
