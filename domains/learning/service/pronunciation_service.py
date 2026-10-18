@@ -48,8 +48,10 @@ class PronunciationTip(BaseModel):
 # --------------------------------------------------------------------------- #
 # 순수 집계 (DB/LLM 무관 — 단위 테스트 용이)
 # --------------------------------------------------------------------------- #
-def build_sentence_scores(sentences: Sequence[Sentence]) -> list[PronSentenceScore]:
-    """모든 활성 문장 → 공식점수(Evaluation) 직독. 미복습(평가 없음)이면 점수 전부 None."""
+def build_sentence_scores(sentences: Sequence[Sentence], reviewed_ids: set[int] | None = None) -> list[PronSentenceScore]:
+    """모든 활성 문장 → 공식점수(Evaluation) 직독. 미복습(평가 없음)이면 점수 전부 None.
+    reviewed_ids(PM-DEC-761) — 복습 녹음이 있는 문장 ID. 주면 attempted 를 채운다(없으면 False)."""
+    reviewed = reviewed_ids or set()
     result: list[PronSentenceScore] = []
     for s in sentences:
         ev = s.evaluation
@@ -62,6 +64,7 @@ def build_sentence_scores(sentences: Sequence[Sentence]) -> list[PronSentenceSco
                 fluency=ev.fluency if ev else None,
                 rhythm=ev.rhythm if ev else None,
                 kind=s.kind,
+                attempted=s.sentence_id in reviewed,
             )
         )
     return result
@@ -271,7 +274,7 @@ def _gather(db: Session, call_id: int, member_id: int) -> Optional[_PronGathered
     sentences = order_sentences_with_pairs(repo.get_active_sentences(call_id))
     last_reviews = repo.get_last_counted_reviews(call_id)
     return _PronGathered(
-        sentence_scores=build_sentence_scores(sentences),
+        sentence_scores=build_sentence_scores(sentences, repo.reviewed_sentence_ids(call_id)),
         sounds=aggregate_sounds(last_reviews),
         country=repo.get_first_country(member_id),
         language=repo.get_member_language(member_id),
