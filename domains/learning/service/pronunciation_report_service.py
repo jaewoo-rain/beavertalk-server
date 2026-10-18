@@ -263,6 +263,7 @@ async def build_learning_summary(
                 fluency=_score(s.fluency),
                 rhythm=_score(s.rhythm),
                 kind=s.kind,
+                attempted=s.attempted,
             )
         )
     totals = [s.total_score for s in sentences if s.total_score is not None]

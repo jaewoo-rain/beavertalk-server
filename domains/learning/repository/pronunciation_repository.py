@@ -75,6 +75,16 @@ class PronunciationRepository:
             last_per_sentence.append(review)
         return last_per_sentence
 
+    def reviewed_sentence_ids(self, call_id: int) -> set[int]:
+        """PM-DEC-761 — 이 통화 활성 문장 중 복습 녹음 행이 하나라도 있는 문장 ID(counted·스텁·연습 모드 구분 없음)."""
+        stmt = (
+            select(Review.sentence_id)
+            .join(Sentence, Review.sentence_id == Sentence.sentence_id)
+            .where(Sentence.call_id == call_id, Sentence.deleted_at.is_(None))
+            .distinct()
+        )
+        return set(self.db.scalars(stmt).all())
+
     def count_counted_reviews(self, call_id: int) -> int:
         """이 통화 활성 문장에 달린 counted 복습 총수 — LLM 캐시 무효화키(N)."""
         stmt = (

@@ -744,3 +744,47 @@ def test_retry_sounds_absent_data_keeps_old_shape(session_factory, seeded, _patc
     assert [p["sound"] for p in b["phonemes"]] == ["ㄹ", "ㄱ", "ㅗ", "ㅇ"]
     assert b["hardest_sound"] == "ㄹ"
     assert [s["score"] for s in b["sessions"]] == [80, 84, 97]
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-761 — attempted: «녹음했지만 채점 못 함»(스텁 · NPU low_speech) 과 «안 함» 을 가른다
+# --------------------------------------------------------------------------- #
+def test_reviewed_sentence_ids_include_stub_only_sentences(session_factory, reviewed):
+    """call 2022 — 14문장 중 12개가 스텁(counted=False)이라 점수가 null 이었고 앱이 «학습 안 끝남» 으로 봤다.
+    복습 행이 있으면 counted 와 무관하게 시도한 문장이다. 복습이 없는 문장만 빠진다."""
+    from domains.learning.repository.pronunciation_repository import PronunciationRepository
+    db = session_factory()
+    try:
+        stub_only = Sentence(call_id=reviewed["call"], korean_sentence="네", native_sentence="yes", locale="en")
+        untouched = Sentence(call_id=reviewed["call"], korean_sentence="예", native_sentence="yes", locale="en")
+        db.add_all([stub_only, untouched])
+        db.flush()
+        db.add(Review(sentence_id=stub_only.sentence_id, counted=False, feedback={"is_stub": True}))
+        db.commit()
+        ids = PronunciationRepository(db).reviewed_sentence_ids(reviewed["call"])
+        assert stub_only.sentence_id in ids and untouched.sentence_id not in ids
+        assert len(ids) == 3, "s1·s2(counted) + 스텁만 있는 문장"
+        scores = pron_module.build_sentence_scores(PronunciationRepository(db).get_active_sentences(reviewed["call"]), ids)
+        by_id = {x.sentence_id: x for x in scores}
+        assert by_id[stub_only.sentence_id].attempted is True and by_id[stub_only.sentence_id].pronunciation is None
+        assert by_id[untouched.sentence_id].attempted is False
+    finally:
+        db.close()
+
+
+def test_report_carries_attempted_per_sentence(session_factory, seeded, monkeypatch):
+    async def _report(**kw):
+        return PronunciationReport(
+            call_id=kw["call_id"], country="United States", sounds=[], comment="",
+            sentences=[PronSentenceScore(sentence_id=1, korean_sentence="문장A", total_score=90, pronunciation=90,
+                                         fluency=88, rhythm=85, attempted=True),
+                       PronSentenceScore(sentence_id=2, korean_sentence="문장B", attempted=True),     # 스텁 — 점수 null
+                       PronSentenceScore(sentence_id=3, korean_sentence="문장C")],                    # 안 함
+        )
+    monkeypatch.setattr(pron_module, "get_pronunciation_report", _report)
+    monkeypatch.setattr(pron_module, "get_pronunciation_history", _fake_history)
+    r = TestClient(_build_app(session_factory)).get(f"/api/v1/calls/{seeded['call']}/pronunciation-report", headers=_hdr())
+    assert r.status_code == 200, r.text
+    rows = r.json()["sentences"]
+    assert [x["attempted"] for x in rows] == [True, True, False], "attempted 키는 늘 나간다(추가형 · 구 앱은 무시)"
+    assert rows[1]["pronunciation"] is None

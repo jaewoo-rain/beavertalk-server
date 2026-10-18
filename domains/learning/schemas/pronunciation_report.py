@@ -50,6 +50,9 @@ class SentenceScoreOut(BaseModel):
     fluency: Optional[int] = None
     rhythm: Optional[int] = None
     kind: Optional[str] = None
+    # PM-DEC-761 — 이 문장에 복습 녹음이 한 번이라도 있나(채점·스텁·연습 모드 모두). 점수 null 은 «안 함» 과
+    #   «녹음했지만 채점 못 함»(NPU low_speech → 스텁 등)을 못 가른다 — 앱 «학습 결과 보기» 판정이 이 칸을 본다.
+    attempted: bool = False
 
     @model_serializer(mode="wrap")
     def _drop_native_pair_none_fields(self, handler):
