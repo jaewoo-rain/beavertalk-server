@@ -311,7 +311,9 @@ async def test_the_cue_attaches_right_after_the_learner_produces_the_revealed_it
 @pytest.mark.asyncio
 async def test_the_cue_is_held_when_the_beaver_moves_on_to_a_new_item_until_the_learner_says_it(caplog) -> None:
     """PM-DEC-759 S4(call 2022 06:45:20 arm → 06:45:30 얹기): 종전엔 «다음 항목 소개 → 즉시 큐» 라 비버가 막 시킨 4번을 버리고
-    퀴즈로 갔다(무음 한 번에). 이제 학습자가 4번을 말할 때까지 든다."""
+    퀴즈로 갔다(무음 한 번에). 이제 학습자가 4번을 말할 때까지 든다.
+    1552 «다뤄진 마지막 항목 정리» 3갈래 중 바뀐 것은 ③(다음 항목 소개 → 즉시)뿐이다 — ①(학습자 성공)·②(학습자 턴 3회)는
+    그대로다(위·아래 시험). ③은 그 새 항목을 버리게 되므로 «새 항목을 마칠 때까지(또는 턴 3회)» 로 바꿨다."""
     st = _three_revealed()
     sess = _Sess()
     await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
