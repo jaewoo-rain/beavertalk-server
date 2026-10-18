@@ -796,6 +796,10 @@ class _CallState:
         # 큐 보류(1552, 2026-09-13): expr_covered_by_user — 학습자 발화로 확인된 번호 · expr_quiz_cue_covered_at_arm — arm 때 covered 수 ·
         #   expr_quiz_cue_user_turns — arm 뒤 학습자 턴 수(정리 안 되면 3회에 얹는다)
         "expr_covered_by_user", "expr_quiz_cue_covered_at_arm", "expr_quiz_cue_user_turns",
+        # PM-DEC-759 S2b — expr_quiz_ask_seg 세트 항목별 «묻기 시작한» 세그먼트(failed 근거는 그 뒤 턴만) ·
+        #   S4 — expr_taught_inflight 판정 중인 비버 턴 · expr_quiz_cue_armed_seg arm 때 세그먼트 수 ·
+        #   expr_quiz_cue_new_drill arm 뒤 비버가 새로 시킨 항목 · _new_drill_turns 그 뒤 학습자 턴 수
+        "expr_quiz_ask_seg", "expr_taught_inflight", "expr_quiz_cue_armed_seg", "expr_quiz_cue_new_drill", "expr_quiz_cue_new_drill_turns",
         # 11차 B(2026-09-18): 드릴 루프 — expr_drill_focus 지금 붙잡고 있는 항목 · _user_turns 그 항목에 쌓인 학습자 턴 ·
         #   _nudges 통화당 주입 수(상한 EXPR_DRILL_NUDGE_MAX) · _nudge_pending 다음 turn_end 에 넣을까
         "expr_drill_focus", "expr_drill_user_turns", "expr_drill_nudges", "expr_drill_nudge_pending",
@@ -1038,6 +1042,11 @@ class _CallState:
         self.expr_covered_by_user: set[int] = set()        # 학습자 발화로 확인된 번호(큐 보류 판정 — 1552)
         self.expr_quiz_cue_covered_at_arm: int = 0
         self.expr_quiz_cue_user_turns: int = 0
+        self.expr_quiz_ask_seg: dict[int, int] = {}       # PM-DEC-759 S2b
+        self.expr_taught_inflight: set[int] = set()        # PM-DEC-759 S4
+        self.expr_quiz_cue_armed_seg: int = 0
+        self.expr_quiz_cue_new_drill: Optional[int] = None
+        self.expr_quiz_cue_new_drill_turns: int = 0
         # ⭐ 11차 A(2026-09-18, 같은 시간대에 1643 ja 하네스 · 1644 ko 사장님 두 통화가 돌자 하네스가 서로의 줄을 섞어 읽었다 — «세트 밖 항목 13» 오귀속):
         #   표현학습 로그 줄마다 call_id 를 찍기 위해 state 에 싷는다. ⚠ run_call 이 통화 행을 만든 뒤에 채워진다 — 그 전(시험·레벨테스트)엔 None 이고 로그엔 «call_id=-» 로 나간다.
         self.expr_drill_focus: Optional[int] = None        # 11차 B — 지금 드릴 중인 항목 번호(마지막으로 비버가 붙잡은 항목)
@@ -1612,6 +1621,8 @@ def _spawn_taught_judge(state: _CallState, beaver_text: str, seg_idx: int) -> No
     task = asyncio.create_task(_taught_judge(state, text, prev_user, seg_idx, remaining), name="normalcall-expr-taught")
     state.expr_tasks.add(task)
     task.add_done_callback(state.expr_tasks.discard)
+    state.expr_taught_inflight.add(seg_idx)                  # PM-DEC-759 S4 — 판정이 도는 동안 큐를 든다
+    task.add_done_callback(lambda _t, s=seg_idx: state.expr_taught_inflight.discard(s))
 
 
 async def _taught_judge(state: _CallState, text: str, prev_user: str, seg_idx: int, remaining: list[int]) -> list[int]:
@@ -1724,6 +1735,15 @@ def _quiz_item_in_span(state: _CallState, span: list[tuple[int, str, str]], n: i
     """PM-DEC-752 S2 — 퀴즈 창 전사에 항목 n 의 표면형·예문이 한 번이라도 나왔나(비버가 정답을 알려줬거나 학습자가 시도했다).
     failed 판정의 최소 근거다. 뜻(모국어)으로만 물은 항목은 여기서 안 잡힌다 — 그때는 미판정으로 남는다(기록 0)."""
     return any(n in _expr_mentioned_nums(state, text) for _i, _role, text in span if (text or "").strip())
+
+
+def _quiz_failed_evidence_after(span: list[tuple[int, str, str]], why: str, ask_at: int) -> bool:
+    """PM-DEC-759 S2b — failed 근거가 그 항목을 묻기 시작한 세그먼트(ask_at) 뒤에 있나.
+    ① ask_at 이후 전사 있는 학습자 턴이 있어야 하고 ② why 가 U번호를 들면 그중 하나는 ask_at 이후여야 한다(why 에 번호가 없으면 ①만)."""
+    if not any(role != "beaver" and i >= ask_at and (text or "").strip() for i, role, text in span):
+        return False
+    cited = [int(x) for x in re.findall(r"U(\d+)", why or "")]
+    return not cited or any(c >= ask_at for c in cited)
 
 
 def _arm_drill_nudge(state: _CallState, why: str) -> None:
@@ -1894,6 +1914,12 @@ def _expression_quiz_note_user_turn(state: _CallState, text: str) -> None:
     if not (text or "").strip():
         return      # P1(2026-09-15, 1611 t0·t28·t40): 전사 빈 턴은 «학습자 시도» 가 아니다 — 정리 대기 턴을 세지 않는다(세그먼트·turn_index 는 종전대로 저장)
     state.expr_quiz_cue_user_turns += 1
+    if state.expr_quiz_cue_new_drill is not None:
+        state.expr_quiz_cue_new_drill_turns += 1
+        nd = state.expr_quiz_cue_new_drill
+        _nd_iid, nd_surface = _num_item(state, nd)
+        if nd_surface and quiz_judge.item_mentioned(text, nd_surface, _item_example(state, nd), language=state.target_code):
+            state.expr_covered_by_user.add(nd)      # PM-DEC-759 S4 — 비버가 이미 covered 로 올려 _note_covered_items 가 다시 안 센다
     hold = state.expr_quiz_prev_num
     if hold is None or hold in state.expr_covered_by_user or not text:
         return
@@ -1923,6 +1949,20 @@ def _expression_quiz_cue_settled(state: _CallState) -> tuple[bool, str]:
     ③ 비버가 다음 항목을 소개(covered 가 arm 때보다 늘었다 — 그땐 즉시). 학습자가 먼저 말해 covered 된 항목은 처음부터 정리다.
     1552: 「잘 지냈어요」 idk → 공개 → «잘 자다» 순간 큐가 얹혀 비버가 정답만 말하고 퀴즈로 넘어갔다 — 재시도가 끊겼다.
     """
+    # ⭐ PM-DEC-759 S4(call 2022 06:45:20 arm → 06:45:30 얹기): arm 뒤 비버가 새 항목(「좋아요」)을 시켰는데 그 턴의 가르침 판정이
+    #   아직 안 왔고(얹기보다 143ms 늦음) 학습자는 무음이었다 — 큐가 얹혀 그 항목을 버리고 퀴즈로 갔다. v2 비버는 표현을 말하지
+    #   않아 복창 추적기도 그 항목을 모른다. ① arm 뒤 비버 턴의 판정이 도는 동안 ② 그 판정이 새 항목을 냈으면 학습자가 그 항목을
+    #   마칠 때까지(또는 전사 있는 턴 EXPR_QUIZ_SETTLE_MAX_USER_TURNS 번) 들고 있는다 — 그 사이 무음이면 매 턴 안내가 첫 어절 힌트를 준다.
+    if any(seg >= state.expr_quiz_cue_armed_seg for seg in state.expr_taught_inflight):
+        return False, "가르침 판정 대기"
+    new_drill = state.expr_quiz_cue_new_drill
+    if new_drill is not None:
+        done = (new_drill in state.expr_practice.completed) if state.expr_practice is not None else (new_drill in state.expr_covered_by_user)
+        if done or state.expr_quiz_cue_new_drill_turns >= EXPR_QUIZ_SETTLE_MAX_USER_TURNS:
+            state.expr_quiz_cue_new_drill = None
+        else:
+            return False, "새 드릴 항목 %d 진행 중(학습자 턴 %d/%d)" % (
+                new_drill, state.expr_quiz_cue_new_drill_turns, EXPR_QUIZ_SETTLE_MAX_USER_TURNS)
     if state.expr_practice is not None:
         if state.expr_practice.pending:
             return False, "원문/현지인 복창 대기"
@@ -1949,6 +1989,9 @@ def _arm_expression_quiz_cue(state: _CallState, nums: list[int], *, retry: bool 
     state.expr_quiz_prev_num = state.covered_nums[-1] if state.covered_nums else None
     state.expr_quiz_cue_covered_at_arm = len(state.covered_nums)
     state.expr_quiz_cue_user_turns = 0
+    state.expr_quiz_cue_armed_seg = len(state.segments)      # PM-DEC-759 S4
+    state.expr_quiz_cue_new_drill = None
+    state.expr_quiz_cue_new_drill_turns = 0
     if not retry:
         state.expr_quiz_seq += 1
     else:
@@ -2037,6 +2080,13 @@ def _expression_quiz_tick(state: _CallState, idx: int, *, source: str, text: str
                     closing_text=text, closing_seg=seg_idx,
                 )
         return
+    if (source == "beaver" and state.expr_quiz_cue_pending is not None and not state.expr_quiz_awaiting_open
+            and idx not in state.expr_quiz_set):
+        # PM-DEC-759 S4 — 큐가 얹히기 전에 비버가 새 항목을 시켰다 → 그 항목을 마칠 때까지 큐를 든다(_expression_quiz_cue_settled).
+        state.expr_quiz_cue_new_drill = idx
+        state.expr_quiz_cue_new_drill_turns = 0
+        logger.info("%s 보류(새 드릴 항목): call_id=%s seq=%d 항목 %d B%s", EXPR_QUIZ_CUE_LOG_PREFIX, _cid(state),
+                    state.expr_quiz_seq, idx, seg_idx if seg_idx is not None else "-")
     _expression_quiz_maybe_arm(state)
 
 
@@ -2049,6 +2099,7 @@ def _expression_quiz_open_on_beaver_turn(state: _CallState) -> None:
         state.expr_quiz_stray = []
         state.expr_quiz_open_user_turns = 0
         state.expr_quiz_llm_decided = set()
+        state.expr_quiz_ask_seg = {state.expr_quiz_set[0]: state.expr_quiz_open_seg} if state.expr_quiz_set else {}   # PM-DEC-759 S2b
         state.expr_quiz_grace_from = None                  # 8차 B — 새 창이 열리면 유예는 없다
         state.expr_quiz_open_ts = asyncio.get_running_loop().time() if _loop_running() else None   # 14차 B
         state.expr_quiz_drift_seg = None                   # 14차 A — 창이 바뀌면 이탈 중복 차단도 새로
@@ -2484,6 +2535,14 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
                 logger.info("normalcall 표현학습 퀴즈 판정 기각(근거 없는 오답): call_id=%s seq=%d 항목 %d «%s» why=%r → 미판정",
                             _cid(state), seq, n, _num_item(state, n)[1], out["why"].get(n))
                 continue
+            ask_at = state.expr_quiz_ask_seg.get(n) if same_quiz else None
+            if ask_at is not None and not _quiz_failed_evidence_after(span, out["why"].get(n, ""), ask_at):
+                # PM-DEC-759 S2b(call 2022 U34): 항목2 failed 근거가 항목2 를 묻기 전의 항목1 답(U32)이었다.
+                #   failed 근거는 그 항목을 묻기 시작한 뒤의 학습자 턴만이다 — 아니면 미판정으로 두고 다음 턴 판정이 다시 본다.
+                out["pending"].append(n)
+                logger.info("normalcall 표현학습 퀴즈 판정 기각(출제 전 근거): call_id=%s seq=%d 항목 %d «%s» 출제=%d why=%r → 미판정",
+                            _cid(state), seq, n, _num_item(state, n)[1], ask_at, out["why"].get(n))
+                continue
             if iid not in state.expr_quiz_pass:
                 state.expr_quiz_fail.add(iid)
             out["failed"].append(n)
@@ -2493,6 +2552,11 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         if same_quiz:
             state.expr_quiz_llm_decided.add(n)
     out["pending"] += [n for n in nums if n not in seen]
+    if same_quiz and span:
+        # PM-DEC-759 S2b — 앞 항목이 확정되면 다음 세트 항목은 이 판정 뒤 턴부터 묻는다.
+        nxt = next((m for m in state.expr_quiz_set if m not in state.expr_quiz_llm_decided), None)
+        if nxt is not None and nxt not in state.expr_quiz_ask_seg:
+            state.expr_quiz_ask_seg[nxt] = span[-1][0] + 1
     if grace:
         # 12차 C — 판정기가 세트 밖 칸을 건너뛴 경우(1646 #7: verdicts 0건) 서버 대조로 줍는다. 이미 판정기가 낸 번호는 건드리지 않는다.
         server_got = _grace_off_set_server_pass(state, span, extra, set(out.get("off_set_passed") or []))
@@ -7269,7 +7333,8 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
         await _attach_quiz_cue(session, state, where)
         if state.expr_quiz_cue_pending is None:
             state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나(큐가 이 턴을 썼다)
-        return
+            return
+        # PM-DEC-759 S4 — 큐가 보류됐으면 이 자리는 비었다. 드릴 안내·매 턴 안내가 쓴다(무음 뒤 첫 어절 힌트).
     # ⭐ 14차 C — 큐 다음은 안내(세트·드릴)다. 큐와 마찬가지로 **학습자가 막 말을 시작한 자리**에만 넣는다.
     #   재접지 쪽지는 그대로 남겨 다음 발화에 보낸다(큐와 같은 규율 — 한 자리에 하나).
     if at_mic and (state.expr_quiz_set_nudge_pending or state.expr_drill_nudge_pending):

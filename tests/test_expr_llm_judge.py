@@ -5,6 +5,8 @@ A «가르쳤나»: 비버 턴마다 사이드카 1회 → 번호를 covered_num
 from __future__ import annotations
 
 import asyncio
+import logging
+import struct
 
 import pytest
 
@@ -1342,3 +1344,83 @@ async def test_wrong_answer_to_the_item_being_asked_is_still_failed_without_its_
     _user(st, "はい")
     await _drain(st)
     assert 102 in st.expr_quiz_fail and 2 in st.expr_quiz_llm_decided, "지금 묻는 항목(세트 첫 미확정)의 오답은 그대로 failed"
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-759 S2b — failed 근거 턴은 그 항목을 묻기 시작한 뒤의 턴만(call 2022 U34: 항목2 근거가 항목1 답 U32)
+# --------------------------------------------------------------------------- #
+async def _call_2022_quiz(monkeypatch, second_why):
+    seen: dict = {}
+    answers = iter([lambda: {"verdicts": [{"num": 1, "verdict": "failed", "why": "끝맺음 빠뜨림"}]},
+                    lambda: {"verdicts": [{"num": 2, "verdict": "failed", "why": second_why(seen)}]}])
+    fake = FakeJudge(verdict_fn=lambda p, s: next(answers, lambda: {"verdicts": []})())
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    _open_quiz(st, [1, 2, 3])
+    _beaver(st, "퀴즈! 정중하게 감사합니다는?")
+    await _drain(st)
+    _user(st, "ありがとう")
+    seen["u1"] = len(st.segments) - 1
+    await _drain(st)
+    _beaver(st, "좋아. 가볍게 고마워요는?")
+    await _drain(st)
+    _user(st, "あら")
+    seen["u2"] = len(st.segments) - 1
+    await _drain(st)
+    return st, seen
+
+
+@pytest.mark.asyncio
+async def test_call_2022_shape_item2_failed_on_the_item1_answer_is_kept_pending(monkeypatch, caplog):
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        st, seen = await _call_2022_quiz(monkeypatch, lambda seen: "U%d가 'ありがとう'라고 답함" % seen["u1"])
+    assert 101 in st.expr_quiz_fail
+    assert st.expr_quiz_ask_seg[2] == seen["u1"] + 1
+    assert 102 not in st.expr_quiz_fail and 2 not in st.expr_quiz_llm_decided, "근거 U 가 항목2 출제 전 턴 → 미판정"
+    assert any("판정 기각(출제 전 근거)" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_item2_failed_on_its_own_answer_still_counts(monkeypatch):
+    st, _seen = await _call_2022_quiz(monkeypatch, lambda seen: "U%d가 'あら'라고 답함" % seen["u2"])
+    assert {101, 102} <= st.expr_quiz_fail and 2 in st.expr_quiz_llm_decided
+
+
+def test_failed_evidence_after_the_ask_point():
+    span = [(30, "beaver", "Q1"), (31, "user", "a"), (32, "beaver", "Q2"), (33, "user", "b")]
+    assert cs._quiz_failed_evidence_after(span, "U31가 답함", 32) is False
+    assert cs._quiz_failed_evidence_after(span, "U33가 답함", 32) is True
+    assert cs._quiz_failed_evidence_after(span, "다른 표현", 32) is True, "why 에 번호가 없으면 출제 뒤 학습자 턴만 본다"
+    assert cs._quiz_failed_evidence_after(span[:3], "다른 표현", 32) is False, "출제 뒤 학습자 턴이 없다"
+
+
+# --------------------------------------------------------------------------- #
+def _voiced() -> bytes:
+    return b"".join(struct.pack("<h", 12000 if i % 2 else -12000) for i in range(320))
+
+
+# PM-DEC-759 S4 — call 2022: arm 뒤 비버가 「좋아요」를 시킨 턴의 가르침 판정이 얹기보다 늦게 와 큐가 그 항목을 버렸다
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_call_2022_shape_cue_waits_for_the_late_taught_judge_and_the_new_item(monkeypatch):
+    fake = FakeJudge(taught_fn=lambda p, s: [5] if "Good" in p else [])
+    monkeypatch.setattr(cs.gemini_analysis, "generate_structured", fake)
+    st = _state()
+    st.covered_nums = [1, 2, 3, 4]
+    st.expr_covered_by_user = {1, 2, 3, 4}
+    cs._arm_expression_quiz_cue(st, [1, 2, 3])
+    fake.gate = asyncio.Event()
+    _beaver(st, "Now, how about saying Good! in Japanese?")
+    await asyncio.sleep(0)
+    sess = _Sess()
+    cue = st.expr_quiz_cue_pending
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())          # 2022 t30 — 잡음이 마이크 관문을 넘음
+    assert cue not in [t for t, _tc in sess.regrounds] and st.expr_quiz_cue_pending == cue
+    fake.gate.set()
+    await _drain(st)
+    assert 5 in st.covered_nums and st.expr_quiz_cue_new_drill == 5
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert st.expr_quiz_cue_pending is not None, "학습자가 「はい」를 말하기 전엔 퀴즈로 가지 않는다"
+    _user(st, "はい")
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert st.expr_quiz_cue_pending is None and st.expr_quiz_awaiting_open is True

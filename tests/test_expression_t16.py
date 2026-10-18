@@ -309,16 +309,62 @@ async def test_the_cue_attaches_right_after_the_learner_produces_the_revealed_it
 
 
 @pytest.mark.asyncio
-async def test_the_cue_attaches_when_the_beaver_moves_on_to_the_next_item() -> None:
-    """공개 → 비버가 다음 항목(4번) 소개 → 즉시 큐(지금처럼)."""
+async def test_the_cue_is_held_when_the_beaver_moves_on_to_a_new_item_until_the_learner_says_it(caplog) -> None:
+    """PM-DEC-759 S4(call 2022 06:45:20 arm → 06:45:30 얹기): 종전엔 «다음 항목 소개 → 즉시 큐» 라 비버가 막 시킨 4번을 버리고
+    퀴즈로 갔다(무음 한 번에). 이제 학습자가 4번을 말할 때까지 든다."""
     st = _three_revealed()
     sess = _Sess()
     await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
     assert sess.sent == []
-    _beaver(st, 'Next: "도와주세요"')
-    assert st.covered_nums == [1, 2, 3, 4]
+    with caplog.at_level(logging.INFO, logger=cs.logger.name):
+        _beaver(st, 'Next: "도와주세요"')
+    assert st.covered_nums == [1, 2, 3, 4] and st.expr_quiz_cue_new_drill == 4
+    assert any("보류(새 드릴 항목)" in r.getMessage() for r in caplog.records)
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())        # 무음·잡음 자리 — 큐를 얹지 않는다
+    assert sess.sent == [] and st.expr_quiz_cue_pending is not None
+    assert cs._expression_quiz_cue_settled(st) == (False, "새 드릴 항목 4 진행 중(학습자 턴 0/3)")
+    _user(st, "")                                                      # 전사 없는 턴은 세지 않는다
+    assert st.expr_quiz_cue_new_drill_turns == 0
+    _user(st, "도와주세요")
     await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
-    assert len(sess.sent) == 1 and st.expr_quiz_cue_pending is None
+    assert len(sess.sent) == 1 and st.expr_quiz_cue_pending is None and st.expr_quiz_cue_new_drill is None
+
+
+@pytest.mark.asyncio
+async def test_a_held_new_drill_item_releases_the_cue_after_3_learner_turns() -> None:
+    """PM-DEC-759 S4 — 학습자가 그 항목을 끝내 못 말해도 전사 있는 턴 3번이면 얹는다(무한 보류 금지)."""
+    st = _three_revealed()
+    _beaver(st, 'Next: "도와주세요"')
+    sess = _Sess()
+    for t in ("모르겠어요", "도와", "도아주세"):
+        _user(st, t)
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert len(sess.sent) == 1
+
+
+def test_the_cue_is_held_while_a_taught_judge_after_arm_is_in_flight() -> None:
+    """PM-DEC-759 S4 — arm 뒤 비버 턴의 가르침 판정이 아직 돌면(2022: 얹기보다 143ms 늦게 도착) 큐를 든다. arm 전 턴의 판정은 막지 않는다."""
+    st = _three_revealed()
+    st.expr_covered_by_user.add(3)
+    assert cs._expression_quiz_cue_settled(st)[0] is True
+    st.expr_taught_inflight.add(st.expr_quiz_cue_armed_seg - 1)
+    assert cs._expression_quiz_cue_settled(st)[0] is True
+    st.expr_taught_inflight.add(st.expr_quiz_cue_armed_seg)
+    assert cs._expression_quiz_cue_settled(st) == (False, "가르침 판정 대기")
+    st.expr_taught_inflight.clear()
+    assert cs._expression_quiz_cue_settled(st)[0] is True
+
+
+@pytest.mark.asyncio
+async def test_a_held_cue_leaves_the_mic_slot_to_the_drill_note() -> None:
+    """PM-DEC-759 S4 — 큐가 보류된 자리는 비었다 → 드릴 안내가 그 자리를 쓴다(종전엔 큐 보류면 그 자리에 아무것도 안 나갔다)."""
+    st = _three_revealed()
+    _beaver(st, 'Next: "도와주세요"')
+    st.expr_drill_nudge_pending = True
+    sess = _Sess()
+    await cs._maybe_attach_reground_on_mic(sess, st, _voiced())
+    assert st.expr_quiz_cue_pending is not None
+    assert len(sess.sent) == 1 and st.expr_drill_nudge_pending is False
 
 
 @pytest.mark.asyncio
