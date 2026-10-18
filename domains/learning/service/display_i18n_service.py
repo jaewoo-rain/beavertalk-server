@@ -34,6 +34,8 @@ KIND_HW_SITUATION = "hw_situation"
 KIND_HW_ROLE = "hw_role"
 #: cur_topic.name(차시 주제) — 홈 학습 현황 주제 줄(2026-10-16 PM-DEC-673 R1). 29개 언어 사전 적재분(1,885행)을 읽는다.
 KIND_CUR_TOPIC = "cur_topic"
+#: cur_lesson.learner_role(학습자 역할 「나」) — 회화학습 i 시트·힌트 시트 나 줄(PM-DEC-785). 29개 언어 사전 적재분을 읽는다.
+KIND_CUR_LEARNER_ROLE = "cur_learner_role"
 
 
 def display_locale(member_language: Optional[str]) -> str:
@@ -75,6 +77,16 @@ def partner_translation(
     kind 만 cur_partner 로 갈라 같은 한국어 문구가 상황·상대역 양쪽에 나와도 행이 섞이지 않는다.
     """
     return _cur_text_translation(db, client, KIND_CUR_PARTNER, partner, locale)
+
+
+def learner_role_translation(
+    db: Session, client, learner_role: Optional[str], locale: str,
+) -> Optional[str]:
+    """차시 학습자 역할(cur_lesson.learner_role)의 회원 언어 번역 — partner_translation 과 같은 캐시·같은 규칙(PM-DEC-785).
+
+    번역이 없거나 ko 회원이면 None 이다 · 앱은 None 이면 번역 줄을 그리지 않는다.
+    """
+    return _cur_text_translation(db, client, KIND_CUR_LEARNER_ROLE, learner_role, locale)
 
 
 def topic_translation(

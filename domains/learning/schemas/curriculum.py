@@ -34,6 +34,41 @@ class CurLessonOut(BaseModel):
     #: R1(2026-10-16 PM-DEC-673) — topic 의 회원 모국어 표시값(cur_text_i18n kind cur_topic). 번역이 없거나 ko 회원이면
     #: **원문**(새 필드 · null 로 비우지 않는다). topic 이 없는 차시(레벨1)만 null.
     topic_translation: Optional[str] = None
+    #: PM-DEC-785(2026-10-18) — 학습자 역할(cur_lesson.learner_role · 「나」 줄). 빈 차시는 None(앱이 줄을 숨긴다).
+    learner_role: Optional[str] = None
+    #: learner_role 의 회원 모국어 번역 — partner_translation 과 같은 규칙(ko·번역 없음·원문 없음 → null).
+    learner_role_translation: Optional[str] = None
+
+
+class CurLessonItemOut(BaseModel):
+    """GET /cur/lessons/{no}/items 한 줄(PM-DEC-780) — 통화 i 시트 「이번 차시 표현」."""
+
+    item_id: int
+    #: 차시 안 순번(1부터 · cur_lesson_item.seq).
+    seq: int
+    #: 표면형(학습 언어 원문).
+    surface: str
+    #: 학습자 모국어 뜻 · 없으면 en · 둘 다 없으면 null.
+    meaning: Optional[str] = None
+    #: meaning 이 실제로 어느 언어인지(예 en). meaning 이 null 이면 null.
+    meaning_locale: Optional[str] = None
+    #: chunk · must · support · core(grammar 는 이 목록에 넣지 않는다).
+    role: str
+
+
+class CurLessonItemsOut(BaseModel):
+    """GET /cur/lessons/{no}/items — 차시 표현 목록(PM-DEC-780). 예문·회원 진도는 싣지 않는다."""
+
+    lesson_no: int
+    code: str
+    items: list[CurLessonItemOut]
+
+
+class CurItemTtsOut(BaseModel):
+    """POST /cur/items/{item_id}/tts(PM-DEC-796) — 지금 서명한 재생 URL."""
+
+    item_id: int
+    voice_url: str
 
 
 class CurOpenOut(BaseModel):

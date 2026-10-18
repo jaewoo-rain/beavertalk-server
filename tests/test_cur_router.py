@@ -129,7 +129,8 @@ def test_me_for_a_new_member_is_lesson_1_learning_with_expression_open_and_freet
     assert body["language"] == "ko" and body["available"] is True   # target_language 없음 → 기본 ko(통화와 같은 해석기)
     assert body["next_course"] == "expression"
     assert set(body["lesson"]) == {"no", "code", "level_no", "situation", "situation_translation", "topic",
-                                   "partner", "partner_translation", "topic_translation"}  # R1(2026-10-16) 추가만
+                                   "partner", "partner_translation", "topic_translation",
+                                   "learner_role", "learner_role_translation"}  # R1(2026-10-16) · PM-DEC-785(10-18) 추가만
     # 상대역 = 그 차시 cur_lesson.partner 그대로(2026-10-10 PM-DEC-485 · 회화학습 힌트 시트)
     lesson = repo.lesson_by_no(db, "ko", 1)
     assert lesson.partner and body["lesson"]["partner"] == lesson.partner.strip()
@@ -284,3 +285,172 @@ def test_cur_router_and_schema_do_not_name_old_learning_tables():
         src = open(os.path.join(root, rel), encoding="utf-8").read()
         for banned in ("learning_item", "member_item_progress", "korean_level", "expression_result", "item_evidence"):
             assert banned not in src, f"{rel}: {banned}"
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-785 — /cur/me lesson.learner_role(「나」 줄) · 번역 없으면 null
+# --------------------------------------------------------------------------- #
+def test_me_carries_learner_role_and_its_cached_translation_or_null(client, db):
+    from domains.learning.models.cur_text_i18n import CurTextI18n
+    _, hdr = _member(db)
+    lesson = repo.lesson_by_no(db, "ko", 1)
+    body = client.get("/api/v1/cur/me", headers=hdr).json()["lesson"]
+    want = (lesson.learner_role or "").strip() or None
+    assert body["learner_role"] == want
+    assert body["learner_role_translation"] is None, "캐시가 없고 번역기도 없으면 null(partner 와 같은 규칙)"
+    if want:
+        db.add(CurTextI18n(kind="cur_learner_role", source=want, locale="en", text="Me (test)"))
+        db.commit()
+        body = client.get("/api/v1/cur/me", headers=hdr).json()["lesson"]
+        assert body["learner_role_translation"] == "Me (test)"
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-780 — GET /api/v1/cur/lessons/{no}/items
+# --------------------------------------------------------------------------- #
+def test_lesson_items_are_seq_ordered_without_grammar_with_en_meaning(client, db):
+    _, hdr = _member(db)
+    r = client.get("/api/v1/cur/lessons/1/items", headers=hdr)
+    assert r.status_code == 200, r.text
+    b = r.json()
+    lesson = repo.lesson_by_no(db, "ko", 1)
+    rows = [(li, it) for li, it in repo.lesson_items(db, lesson.lesson_id) if li.role != "grammar"]
+    assert b["lesson_no"] == 1 and b["code"] == lesson.code
+    assert [x["item_id"] for x in b["items"]] == [int(it.item_id) for _li, it in rows]
+    assert [x["seq"] for x in b["items"]] == sorted(x["seq"] for x in b["items"])
+    assert all(x["role"] in ("chunk", "must", "support", "core") for x in b["items"])
+    assert set(b["items"][0]) == {"item_id", "seq", "surface", "meaning", "meaning_locale", "role"}
+    with_en = [x for x in b["items"] if x["meaning"]]
+    assert with_en and all(x["meaning_locale"] == "en" for x in with_en)
+
+
+def test_lesson_items_drop_grammar_and_retired_items(client, db):
+    _, hdr = _member(db)
+    lesson = repo.lesson_by_no(db, "ko", 1)
+    pairs = repo.lesson_items(db, lesson.lesson_id)
+    li, it = pairs[0]
+    old_role, old_retired = li.role, it.retired_at
+    try:
+        li.role = "grammar"
+        db.commit()
+        ids = [x["item_id"] for x in client.get("/api/v1/cur/lessons/1/items", headers=hdr).json()["items"]]
+        assert int(it.item_id) not in ids, "문형(grammar)은 빼야 한다"
+        li.role = old_role
+        it.retired_at = datetime.now(timezone.utc)
+        db.commit()
+        ids = [x["item_id"] for x in client.get("/api/v1/cur/lessons/1/items", headers=hdr).json()["items"]]
+        assert int(it.item_id) not in ids, "은퇴 항목은 빼야 한다"
+    finally:
+        li.role, it.retired_at = old_role, old_retired
+        db.commit()
+
+
+def test_lesson_items_unknown_lesson_is_404_and_needs_auth(client, db):
+    _, hdr = _member(db)
+    assert client.get("/api/v1/cur/lessons/999999/items", headers=hdr).status_code == 404
+    assert client.get("/api/v1/cur/lessons/1/items").status_code in (401, 403)
+
+
+def test_meaning_prefers_member_locale_then_en():
+    class _It:
+        meanings = json.dumps({"en": "Hello.", "es": "Hola."})
+    assert cur._meaning_with_locale(_It(), "es") == ("Hola.", "es")
+    assert cur._meaning_with_locale(_It(), "fr") == ("Hello.", "en")
+    _It.meanings = "not json"
+    assert cur._meaning_with_locale(_It(), "en") == (None, None)
+
+
+# --------------------------------------------------------------------------- #
+# PM-DEC-796 — POST /api/v1/cur/items/{item_id}/tts · Google TTS·GCS 는 모의
+# --------------------------------------------------------------------------- #
+@pytest.fixture()
+def fake_tts(monkeypatch):
+    import asyncio as _asyncio
+
+    from domains.learning.service import cur_item_tts_service as svc
+    calls = {"synth": 0, "upload": 0}
+    store: set[str] = set()
+
+    async def _synth(text, language="ko", voice=None, engine=None):
+        calls["synth"] += 1
+        await _asyncio.sleep(0.01)          # 동시 요청이 잠금을 기다리게
+        return (b"mp3", "audio/mpeg")
+
+    def _upload(bucket, path, data, content_type="application/octet-stream"):
+        calls["upload"] += 1
+        store.add(path)
+        return path
+
+    monkeypatch.setattr(svc.tts, "synthesize", _synth)
+    monkeypatch.setattr(svc.storage, "upload", _upload)
+    monkeypatch.setattr(svc.storage, "existing_keys", lambda bucket, prefix: frozenset(k for k in store if k.startswith(prefix)))
+    monkeypatch.setattr(svc.storage, "playback_url", lambda bucket, key, ttl=None: f"https://signed.example/{key}")
+    svc._known.clear()
+    svc._locks.clear()
+    return calls
+
+
+def _an_item(db):
+    lesson = repo.lesson_by_no(db, "ko", 1)
+    return repo.lesson_items(db, lesson.lesson_id)[0][1]
+
+
+def test_item_tts_synthesizes_once_then_reuses_the_cached_object(client, db, fake_tts):
+    _, hdr = _member(db)
+    it = _an_item(db)
+    r1 = client.post(f"/api/v1/cur/items/{it.item_id}/tts", headers=hdr)
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["item_id"] == it.item_id and r1.json()["voice_url"].startswith("https://signed.example/tts/cur_items/ko/")
+    r2 = client.post(f"/api/v1/cur/items/{it.item_id}/tts", headers=hdr)
+    assert r2.json()["voice_url"] == r1.json()["voice_url"]
+    assert fake_tts == {"synth": 1, "upload": 1}, "같은 항목은 한 번만 합성"
+
+
+def test_item_tts_concurrent_requests_synthesize_once(db, fake_tts):
+    import asyncio as _asyncio
+
+    from domains.learning.service import cur_item_tts_service as svc
+    it = _an_item(db)
+
+    async def _both():
+        return await _asyncio.gather(svc.item_tts(db, it.item_id), svc.item_tts(db, it.item_id))
+
+    a, b = _asyncio.run(_both())
+    assert a == b and fake_tts["synth"] == 1
+
+
+def test_item_tts_unknown_or_retired_item_is_404_and_auth_is_required(client, db, fake_tts):
+    _, hdr = _member(db)
+    assert client.post("/api/v1/cur/items/999999999/tts", headers=hdr).status_code == 404
+    it = _an_item(db)
+    old = it.retired_at
+    try:
+        it.retired_at = datetime.now(timezone.utc)
+        db.commit()
+        assert client.post(f"/api/v1/cur/items/{it.item_id}/tts", headers=hdr).status_code == 404
+    finally:
+        it.retired_at = old
+        db.commit()
+    assert client.post(f"/api/v1/cur/items/{it.item_id}/tts").status_code in (401, 403)
+    assert fake_tts["synth"] == 0
+
+
+def test_item_tts_failure_is_503(client, db, fake_tts, monkeypatch):
+    from domains.learning.service import cur_item_tts_service as svc
+
+    async def _fail(*a, **k):
+        return None
+
+    monkeypatch.setattr(svc.tts, "synthesize", _fail)
+    _, hdr = _member(db)
+    assert client.post(f"/api/v1/cur/items/{_an_item(db).item_id}/tts", headers=hdr).status_code == 503
+
+
+def test_item_tts_key_changes_when_the_surface_changes(db):
+    from domains.learning.service import cur_item_tts_service as svc
+    it = _an_item(db)
+    k1 = svc.object_path(it)
+
+    class _Other:
+        item_id, language, surface = it.item_id, it.language, (it.surface or "") + "요"
+    assert svc.object_path(_Other()) != k1 and k1.startswith(f"tts/cur_items/{it.language}/{it.item_id}_")

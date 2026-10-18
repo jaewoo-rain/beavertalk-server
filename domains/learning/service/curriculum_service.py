@@ -612,6 +612,8 @@ def me(db: Session, member_id: int, language: str = "ko") -> dict:
             "situation": lesson.situation, "topic": _topic_name(db, lesson),
             # 상대역(2026-10-10 PM-DEC-485) — 회화학습 힌트 시트 「이번 대화」 상대 줄. 빈 차시는 None(앱이 줄을 숨긴다).
             "partner": (lesson.partner or "").strip() or None,
+            # 학습자 역할(PM-DEC-785) — 회화학습 i 시트·힌트 시트 「나」 줄. 빈 차시는 None.
+            "learner_role": (lesson.learner_role or "").strip() or None,
         },
         "status": status,
         "items_total": items_total,
@@ -621,6 +623,43 @@ def me(db: Session, member_id: int, language: str = "ko") -> dict:
         # ⭐ 홈 화면(사장님 ⑪) — auto 로 걸면 서버가 정할 코스. decide_course 와 같은 규칙(expression_done 이면 freetalk).
         "next_course": decide_course(db, member_id, language),
     }
+
+
+#: i 시트 「이번 차시 표현」에 싣는 role(PM-DEC-780) — 문형(grammar)은 뺀다.
+LESSON_ITEM_ROLES = ("chunk", "must", "support", "core")
+
+
+def lesson_items_view(db: Session, no: int, language: str, locale: str) -> Optional[dict]:
+    """GET /cur/lessons/{no}/items — 그 언어 차시 no 의 표현 목록(seq 순 · 은퇴 제외 · grammar 제외). 없는 차시면 None(→ 404).
+
+    뜻은 회원 모국어(locale) → en 순으로 고르고, 실제로 고른 언어를 meaning_locale 로 같이 준다.
+    """
+    lesson = repo.lesson_by_no(db, language, no)
+    if lesson is None:
+        return None
+    items = []
+    for li, it in repo.lesson_items(db, lesson.lesson_id):
+        if li.role not in LESSON_ITEM_ROLES:
+            continue
+        meaning, meaning_locale = _meaning_with_locale(it, locale)
+        items.append({"item_id": int(it.item_id), "seq": int(li.seq), "surface": it.surface,
+                      "meaning": meaning, "meaning_locale": meaning_locale, "role": li.role})
+    return {"lesson_no": lesson.no, "code": lesson.code, "items": items}
+
+
+def _meaning_with_locale(item: CurItem, locale: str) -> tuple[Optional[str], Optional[str]]:
+    """_meaning 과 같은 순서(locale → en) · 고른 언어도 돌려준다."""
+    try:
+        m = json.loads(item.meanings) if item.meanings else None
+    except (ValueError, TypeError):
+        return None, None
+    if not isinstance(m, dict):
+        return None, None
+    for key in (locale, "en"):
+        v = m.get(key)
+        if isinstance(v, str) and v.strip():
+            return v, key
+    return None, None
 
 
 def _topic_name(db: Session, lesson: CurLesson) -> Optional[str]:

@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from core.config import settings
 from core.deps import CurrentMember, DbSession, GenaiClient
 from core.languages import resolve_target_language
-from domains.learning.schemas.curriculum import CurLessonRowOut, CurMeOut
+from domains.learning.schemas.curriculum import CurItemTtsOut, CurLessonItemsOut, CurLessonRowOut, CurMeOut
+from domains.learning.service import cur_item_tts_service as tts_svc
 from domains.learning.service import curriculum_service as cur_svc
 from domains.learning.service import display_i18n_service as i18n_svc
 
@@ -41,6 +42,10 @@ def get_me(member: CurrentMember, db: DbSession, client: GenaiClient) -> CurMeOu
         out["lesson"]["topic_translation"] = i18n_svc.topic_translation(
             db, client, out["lesson"].get("topic"), locale,
         )
+        # PM-DEC-785 — 학습자 역할 번역 · partner_translation 과 같은 규칙(없으면 null)
+        out["lesson"]["learner_role_translation"] = i18n_svc.learner_role_translation(
+            db, client, out["lesson"].get("learner_role"), locale,
+        )
     return CurMeOut.model_validate(out)
 
 
@@ -61,6 +66,35 @@ def list_lessons(
     for r in rows:
         r["situation_translation"] = tr.get((r.get("situation") or "").strip())
     return [CurLessonRowOut.model_validate(r) for r in rows]
+
+
+@router.get("/lessons/{no}/items", response_model=CurLessonItemsOut)
+def lesson_items(
+    member: CurrentMember,
+    db: DbSession,
+    no: int = Path(..., ge=1, description="차시 번호(CurLessonOut.no)"),
+) -> CurLessonItemsOut:
+    """차시 표현 목록(PM-DEC-780) — 통화 i 시트 「이번 차시 표현」. 언어 = 회원 target_language · 뜻 = 회원 모국어(없으면 en).
+
+    chunk·must·support·core 만 seq 순으로 준다(grammar 제외 · 은퇴 제외). 예문·회원 진도는 싣지 않는다. 없는 차시는 404.
+    """
+    out = cur_svc.lesson_items_view(db, no, _language_of(member), i18n_svc.display_locale(member.language))
+    if out is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "차시를 찾을 수 없습니다.")
+    return CurLessonItemsOut.model_validate(out)
+
+
+@router.post("/items/{item_id}/tts", response_model=CurItemTtsOut)
+async def item_tts(
+    member: CurrentMember,
+    db: DbSession,
+    item_id: int = Path(..., ge=1, description="cur_item.item_id"),
+) -> CurItemTtsOut:
+    """차시 표현 항목 소리(PM-DEC-796) — 같은 항목은 한 번만 합성해 GCS 에 둔다 · 서명 URL 을 돌려준다.
+
+    로그인 회원만 · 없는·은퇴 항목은 404 · 합성·저장 실패는 503(앱은 버튼을 비활성으로).
+    """
+    return CurItemTtsOut.model_validate(await tts_svc.item_tts(db, item_id))
 
 
 def _language_of(member) -> str:
