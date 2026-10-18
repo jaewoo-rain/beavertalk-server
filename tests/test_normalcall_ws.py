@@ -2191,7 +2191,7 @@ async def test_leveltest_no_injection_across_multiple_answers(session_factory, s
 @pytest.mark.asyncio
 async def test_leveltest_no_answer_closes_at_cap(session_factory, seeded, monkeypatch):
     """Phase 1 3분캡: 유저 무응답이어도 레벨테스트 하드캡(LEVELTEST_MAX_S)이 시계로
-    종료를 몬다 — 종료 시드(CLOSE_SEED_LEVELTEST: '오늘 대화는 여기까지')·작별·call_ended.
+    종료를 몬다 — 종료 시드(CLOSE_SEED_LEVELTEST: '이 턴은 대화 규칙보다 앞선다')·작별·call_ended.
     서버는 통화 중 질문을 주입하지 않는다('[다음]' 0건)."""
     monkeypatch.setattr(cs, "LEVELTEST_MAX_S", 0.3)   # 3분 캡 → 0.3s 로 축소
     monkeypatch.setattr(cs, "SEED_TO_HANGUP_S", 3.0)
@@ -2207,7 +2207,7 @@ async def test_leveltest_no_answer_closes_at_cap(session_factory, seeded, monkey
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if "오늘 대화는 여기까지" in text:
+            if "이 턴은 대화 규칙보다 앞선다" in text:
                 self._close.set()
 
         async def events(self):
@@ -2224,7 +2224,7 @@ async def test_leveltest_no_answer_closes_at_cap(session_factory, seeded, monkey
 
     assert not any(t.startswith("[다음]") for t in sess.sent_text_turns), \
         "서버가 질문을 주입했다(무주입 위반)"
-    assert any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), \
+    assert any("이 턴은 대화 규칙보다 앞선다" in t for t in sess.sent_text_turns), \
         "캡 종료 시드(CLOSE_SEED_LEVELTEST) 미주입"
     assert b"\x77\x77" in ws.sent_bytes, "작별 오디오 미전달(뚝 끊김)"
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
@@ -2234,8 +2234,8 @@ async def test_leveltest_no_answer_closes_at_cap(session_factory, seeded, monkey
 @pytest.mark.asyncio
 async def test_leveltest_idle_cadence_uses_shortened_seeds(session_factory, seeded, monkeypatch):
     """T3(갱신): 레벨테스트 무음 3단은 단축 캐던스(25/8/10 → 축소) + 레벨테스트 1단 시드
-    (순화된 신 문구 '방금 한 질문을 더 쉽게 바꾸거나 선택지를')를 쓴다. 일반 1단 시드는
-    나오면 안 되고, 3단 종료 시드는 CLOSE_SEED_LEVELTEST('오늘 대화는 여기까지')다."""
+    (순화된 신 문구 '방금 한 질문을 더 쉬운 한국어로 바꾸거나 선택지')를 쓴다. 일반 1단 시드는
+    나오면 안 되고, 3단 종료 시드는 CLOSE_SEED_LEVELTEST('이 턴은 대화 규칙보다 앞선다')다."""
     monkeypatch.setattr(cs, "LEVELTEST_IDLE_NUDGE1_S", 0.2)
     monkeypatch.setattr(cs, "LEVELTEST_IDLE_NUDGE2_S", 0.2)
     monkeypatch.setattr(cs, "LEVELTEST_IDLE_CLOSE_S", 0.2)
@@ -2253,7 +2253,7 @@ async def test_leveltest_idle_cadence_uses_shortened_seeds(session_factory, seed
 
         async def send_text_turn(self, text: str) -> None:
             self.sent_text_turns.append(text)
-            if "오늘 대화는 여기까지" in text:  # 레벨테스트 종료 시드(넛지 아님) → 작별
+            if "이 턴은 대화 규칙보다 앞선다" in text:  # 레벨테스트 종료 시드(넛지 아님) → 작별
                 self._close.set()
 
         async def events(self):
@@ -2269,7 +2269,7 @@ async def test_leveltest_idle_cadence_uses_shortened_seeds(session_factory, seed
     ws, _ = await _run_call_with(sess, seeded, session_factory, call_type="level_test")
 
     # 1단: 레벨테스트 전용 시드(순화된 신 문구 — 방금 질문을 더 쉽게/선택지로 다시).
-    assert any("방금 한 질문을 더 쉽게 바꾸거나 선택지를" in t for t in sess.sent_text_turns), \
+    assert any("방금 한 질문을 더 쉬운 한국어로 바꾸거나 선택지" in t for t in sess.sent_text_turns), \
         "레벨테스트 1단 넛지 미주입(신 문구 아님)"
     # 실제 상수와 동치인지 확인(테스트-구현 문구 드리프트 방지).
     assert any(t == cs._NUDGE_SEED_1_LEVELTEST for t in sess.sent_text_turns), \
@@ -2277,10 +2277,11 @@ async def test_leveltest_idle_cadence_uses_shortened_seeds(session_factory, seed
     # 일반 통화 1단 시드가 새면 안 된다(회귀).
     assert not any("가볍게 새 화제로 한 문장만" in t for t in sess.sent_text_turns), \
         "레벨테스트에 일반 1단 넛지가 샜다"
-    # 2단: 공통 확인 넛지.
-    assert any("거기 있어" in t for t in sess.sent_text_turns), "2단 확인 넛지 미주입"
+    # 2단: 레벨테스트 전용 확인 넛지(PM-DEC-775 L3) — 공용 «거기 있어?» 한국어 리터럴은 새면 안 된다.
+    assert any(t == cs.NUDGE_SEED_2_LEVELTEST for t in sess.sent_text_turns), "2단 확인 넛지 미주입"
+    assert not any("거기 있어" in t for t in sess.sent_text_turns), "레벨테스트에 공용 2단 넛지가 샜다"
     # 3단: 레벨테스트 종료 시드 → 작별(새 문구).
-    assert any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), "3단 종료 시드 미주입"
+    assert any("이 턴은 대화 규칙보다 앞선다" in t for t in sess.sent_text_turns), "3단 종료 시드 미주입"
     assert b"\x88\x88" in ws.sent_bytes, "작별 오디오 미전달"
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
 
@@ -2349,7 +2350,7 @@ async def test_normal_call_no_ladder_activity(session_factory, seeded, monkeypat
         "일반 통화에 사다리 질문('[다음]')이 주입됨(회귀)"
     # 일반 종료 시드 사용 — 레벨테스트 시드 아님.
     assert any("통화 시간이 다 됐다" in t for t in sess.sent_text_turns), "일반 종료 시드 미주입"
-    assert not any("오늘 대화는 여기까지" in t for t in sess.sent_text_turns), \
+    assert not any("이 턴은 대화 규칙보다 앞선다" in t for t in sess.sent_text_turns), \
         "일반 통화에 레벨테스트 종료 시드가 샜다"
     assert b"\x99\x99" in ws.sent_bytes, "작별 오디오 미전달"
     assert any('"call_ended"' in t for t in ws.sent_text), "call_ended 미전송"
@@ -2415,9 +2416,9 @@ async def test_normal_call_unaffected_by_tool_use(session_factory, seeded, monke
 #
 # 모킹: cs.svc.judge_leveltest_turn 을 스크립트된 (answer_in_target, should_end) 로 교체 +
 # 게이트 상수(TIME_FLOOR/NONSPEAKER_MAX/MAX_S)를 monkeypatch 로 조절해 결정적으로 만든다.
-# _CLOSE_MARK 는 CLOSE_SEED_LEVELTEST('오늘 대화는 여기까지')로 종료 시드를 식별한다.
+# _CLOSE_MARK 는 CLOSE_SEED_LEVELTEST('이 턴은 대화 규칙보다 앞선다')로 종료 시드를 식별한다.
 # --------------------------------------------------------------------------- #
-_CLOSE_MARK = "오늘 대화는 여기까지"  # CLOSE_SEED_LEVELTEST 마커(넛지·[다음] 아님)
+_CLOSE_MARK = "이 턴은 대화 규칙보다 앞선다"  # CLOSE_SEED_LEVELTEST 마커(넛지·[다음] 아님)
 
 
 def _fake_band(in_target=True, end_after=None):

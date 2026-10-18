@@ -377,11 +377,12 @@ def test_leveltest_continuation_rule_and_no_readout():
 def test_leveltest_self_driven_progress_and_reaction_rules():
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt = build_leveltest_instruction(**_LT_KWARGS)
-    assert "잘하면 난이도를 높인다" in lt
-    assert "막히면 다른 소재로 한 번 확인한 뒤 쉽게 묻는다" in lt
+    assert "학습자가 그 단의 문법을 한 번 쓰면 다음 단 질문으로 올라간다" in lt   # PM-DEC-775 E2
+    assert "막히면 같은 단에서 다른 소재로 한 번 묻고, 그래도 막히면 한 단 아래로 내려간다" in lt   # E3
     assert "교정·정답 제시 없이" in lt
-    assert "비웃는 캐릭터만 짧게 비웃되 두 턴 연속 하지 않는다" in lt
-    assert "미사용을 모름으로 단정하지 않는다" in lt
+    assert "비웃는 캐릭터만 짧게 놀리되 두 턴 연속 하지 않는다" in lt and "욕설·비속어" in lt   # E4″
+    assert "미사용은 모름으로 단정하지 않는다" in lt   # E5 로 md 에서 빠지고 LEVELTEST_PROCEDURE 에 남음
+    assert "평가는 통화 뒤에 따로 한다" in lt   # E5
 
 
 def test_leveltest_injects_character_persona_from_db():
@@ -398,7 +399,7 @@ def test_leveltest_has_no_old_probe_plan_and_keeps_language_rule():
     import pytest
     lt = build_leveltest_instruction(**_LT_KWARGS)
     assert "[단계 상승 프로빙" not in lt
-    assert "한국어로 짧게 반응하며 하나씩 묻고" in lt
+    assert "한국어 질문 하나다(물음표 하나)" in lt   # PM-DEC-775 E2
     assert "모국어 답변은 한국어로 한 번 유도" in lt
     with pytest.raises(TypeError):
         build_leveltest_instruction(**{**_LT_KWARGS,"probe_plan":"X"})
@@ -445,7 +446,7 @@ def test_leveltest_opening_seed_has_echo_ban_fewshot():
 def test_leveltest_echo_ban_is_emphasized_language_rule():
     """PM-DEC-474 승인 계약으로 대체된 기대임."""
     lt=build_leveltest_instruction(**_LT_KWARGS)
-    assert "한국어로 짧게 반응하며 하나씩 묻고" in lt
+    assert "한국어 질문 하나다(물음표 하나)" in lt   # PM-DEC-775 E2
     assert "모국어 질문에는 모국어로 답한 뒤 한국어로 돌아온다" in lt
     assert "의미가 불명확할 때만 되묻는다" in lt
 

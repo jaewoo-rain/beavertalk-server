@@ -44,7 +44,7 @@ FROZEN: dict[str, str] = {
     "normal.STUDY_NEXT_TAIL": "a42fc35c930ec159",
     "normal.KNOWN_GRAMMAR_FALLBACK": "8c87dcf09dedfacc",
     "normal.PROMOTION_NOTICE_TEMPLATE": "47bc5541db2c29da",
-    "leveltest.LEVELTEST_PROCEDURE": "d5973d9063ff2e42",   # 2026-10-10 사고 방어 패치 G2·G3 꼬리 2문장(옛 e16c60b24148b3ca)
+    "leveltest.LEVELTEST_PROCEDURE": "9b15fa1bc0d799c7",   # PM-DEC-775 L1 물음표 하나 2026-10-18(옛 d5973d9063ff2e42 · 그 전 e16c60b24148b3ca)
     "leveltest.LEVELTEST_LADDER_KO": "8d87a4cf422dc6af",
     "leveltest.LEVELTEST_LADDER_JA": "f8a9755f57db995e",
     "leveltest.LEVELTEST_LADDER_EN": "4636d541d80547b7",
@@ -53,7 +53,8 @@ FROZEN: dict[str, str] = {
     "leveltest.LEVELTEST_LADDER_VI": "2397e0a46bfe361c",
     "seeds.NUDGE_SEED_1_NORMAL": "a5a7aa91d07b6d56",
     "seeds.NUDGE_SEED_2_NORMAL": "53a8ea546b4fbec5",
-    "seeds.NUDGE_SEED_1_LEVELTEST": "5028055967005e0f",
+    "seeds.NUDGE_SEED_1_LEVELTEST": "0809109d03b5096e",   # PM-DEC-775 L2 2026-10-18(옛 5028055967005e0f)
+    "seeds.NUDGE_SEED_2_LEVELTEST": "9ca93a4be66a64f6",   # PM-DEC-775 L3 신규 2026-10-18
     "seeds.NUDGE_SEED_1_EXPRESSION": "4a13f93cdd973041",   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 3b1a66825d655134)
     "seeds.TURN_NOTE_EXPRESSION": "43b1629021114453",   # P2 보강 2026-10-18 PM-DEC-757 · 33_공유_P2재생 §3(옛 7d0a4a14976ad577 · 1차 446c0896af91db0f)
     "seeds.TURN_NOTE_HOMEWORK_EXPRESSION": "6ac51c2c07a31276",   # 〃(옛 1차 51d872485558493a)
@@ -130,7 +131,7 @@ FROZEN_FN: dict[str, tuple[str, object]] = {
     "seeds.seed_expression_resume": ("46246dc5839de1a9", lambda: seeds.seed_expression_resume("한국어")),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 a77def1ec9e16285)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 0cbcb81e3864a1ff)
     "seeds.seed_expression_resume_mats": ("61f69125b2b5769d", lambda: seeds.seed_expression_resume("한국어", drilled=["물", "가다"], passed=["물"], failed=["가다"], recent=[("beaver", "물은 water 예요. 따라 해 볼까요?"), ("user", "물"), ("beaver", "좋아요! 다음은 가다.")])),   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 72798aac3781d426)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 ffda3cd0dce2c358)
     "seeds.close_seed_normal": ("fbf515b5052b7c68", lambda: seeds.close_seed_normal("[통화종료:ab12]")),
-    "seeds.close_seed_leveltest": ("082b0f3499072f05", lambda: seeds.close_seed_leveltest("[통화종료:ab12]")),
+    "seeds.close_seed_leveltest": ("72badb473ffe0d51", lambda: seeds.close_seed_leveltest("[통화종료:ab12]")),   # PM-DEC-775 L4 2026-10-18(옛 082b0f3499072f05)
     # 2026-09-15 4차 C — 이미 다룬/남은 표현 목록판(서버가 항상 넘긴다 → ko 실통화 대본 바뀜). 목록 없는 호출은 아래 옛 해시 그대로.
     "seeds.expression_quiz_cue_lists": ("f96eaeab62ea281d", lambda: seeds.expression_quiz_cue("«물» «가다»", 2, retry=False, locale_label="영어(English)", target="한국어", done_labels=["물", "가다"], remaining_rows=["3. to go = 가다", "4. person = 사람"])),   # 2026-10-11 점검 P03(옛 9f49a518eb8d1839)
     "reground.build_expression_reground_brief_remaining": ("e29cd7d1d4a80538", lambda: reground.build_expression_reground_brief("선생님", "다정", drilled=["물"], passed=["물"], failed=["가다"], next_label="사람", locale_label="영어(English)", remaining=["3. person = 사람"])),   # 2026-10-11 점검 P07(옛 68e44e1163c1a804)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 87ad23d4978441ea)   # 통화 흐름 v2 2026-10-16 T-20261016-03(옛 dda1b593d52d0b0a)

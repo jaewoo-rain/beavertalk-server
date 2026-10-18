@@ -361,6 +361,7 @@ from core.prompts.locked.seeds import (
     expression_quiz_fallback_instruction,
     NUDGE_SEED_1_LEVELTEST,
     NUDGE_SEED_1_NORMAL,
+    NUDGE_SEED_2_LEVELTEST,
     NUDGE_SEED_2_NORMAL,
     close_seed_normal,
 )
@@ -3642,7 +3643,9 @@ async def run_call(
             name=lt_setup["name"],
             target_language=target_language,
             close_tag=close_tag,
-            grammar_catalog=lt_setup.get("grammar_catalog"),
+            # PM-DEC-765·775 E5 — Live 지시문에는 DB 문법 카탈로그를 싣지 않는다(매 응답 약 6,000토큰 · 입력 원가 약 70%).
+            #   문법 대조는 통화 뒤 판정(normalcall_service · 자체 조회)에서만 한다. 10-10 결정을 되돌림.
+            grammar_catalog=None,
         )
         # Phase 1(주입 기계 제거): 서버가 질문을 주입하지 않는다. 비버가 첫 질문을 자유롭게
         # 시작하도록 오프닝 시드만 던진다(사다리 부트스트랩 없음 — 이중발화·마커낭독 소멸).
@@ -4450,6 +4453,7 @@ async def run_call(
             state.idle_nudge2_s = LEVELTEST_IDLE_NUDGE2_S
             state.idle_close_s = LEVELTEST_IDLE_CLOSE_S
             state.nudge_seed_1 = _NUDGE_SEED_1_LEVELTEST
+            state.nudge_seed_2 = NUDGE_SEED_2_LEVELTEST      # PM-DEC-775 L3 — 공용 2단의 한국어 리터럴 복사(1751 t9) 방지
             # Phase 2: 종료 판정 사이드카 활성 — 매 유저 답변을 사이드카로 종료 판정만 하고(질문 주입 0)
             # 종료 트리거가 서면 종료 시드만 주입한다. band_client = 판정 사이드카가 쓸 genai.Client.
             state.band_observe = True

@@ -118,13 +118,13 @@ _FROZEN: dict[str, tuple[str, int]] = {
     "live_survival": ("96e23311bd2d59a90b1eadca449c30231e7e4c6f0d7622dc68715b17cb2081e6", 6135),
     "live_face_tool": ("f718605d73d6121eb283a339ded6128a64264f4c3af4b4f1a9532db30bb7d115", 4405),   # 2026-09-12 [표정] 블록 qual 로 교체(사장님 결정, bt-back 승인) — 옛 dec3ed7d…/4827
     "cascade_optin": ("7aadb5781e94e6530737ce9a3425c2b4f58e27b9846df549186a9a844eab095f", 4713),
-    "leveltest": ("372ed9f5d699ef1a355c490ca3ec74b497caab9e2a7d5c16caf261c0666a1138", 1108),   # 2026-10-10 사고 방어 패치 G1·G2·G3 — 옛 ed99a65b…/1042   # 2026-09-30 DB 캐릭터 주입 + 빈정 축(사장님 지시, bt-back) — 옛 019f4df8…/2117
+    "leveltest": ("988897c7bec1e9fc2822071a0171b099e80746d79345e4faf9a8e53deb43317d", 1369),   # 2026-10-10 사고 방어 패치 G1·G2·G3 — 옛 ed99a65b…/1042   # 2026-09-30 DB 캐릭터 주입 + 빈정 축(사장님 지시, bt-back) — 옛 019f4df8…/2117
     "seed_opening": ("0b1d8dcb23e47f0669fffdf94738eb8c51039a82fc0cc5fe1b2c7a3a668f0fcf", 285),
     "seed_opening_lean": ("9489cfd0c65021bb0a058d30e20cc87e111bf010d765a752aa936a1b14c04c27", 129),
     "seed_resume": ("0843114577a4be222834feaa5b66cf2717801a8e47fc2393945a50337dbc8925", 242),
     "seed_leveltest_opening": ("594ef974622a10d92191ab6e30827243403c8e3ef88d5f3de7d8220b58cbd395", 84),
-    "close_seed_leveltest": ("f0b6d37c56592ff96fb6ae727f7c700ef3e3c474224efa8380a3b09b7f10201f", 262),
-    "CLOSE_SEED_LEVELTEST": ("f0b6d37c56592ff96fb6ae727f7c700ef3e3c474224efa8380a3b09b7f10201f", 262),
+    "close_seed_leveltest": ("3aa8b72a70e964bf8234beb222896a075e7e2811ac534e310b16d5b92fd69d76", 177),
+    "CLOSE_SEED_LEVELTEST": ("3aa8b72a70e964bf8234beb222896a075e7e2811ac534e310b16d5b92fd69d76", 177),
     "reground_reminder": ("5caed02aab24577f0f3097b18692207012ecef07c190c8ad3919578d161a71d0", 307),
     "continue_reminder": ("942375799cbbd6c85bf08b2b2475f64850b40f2d26add897c4642cfb9a04101b", 224),
     "brief_chat": ("715664fb343404280a658b11b468ec643e692968eae4a6bf3486454cd08dd81a", 391),
