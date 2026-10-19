@@ -45,7 +45,7 @@ BASE = dict(
     target_language="한국어",
 )
 #: 옛 프리토킹 대본(lesson=None) 기준 — 2026-09-12 차시판 도입 직전 출력. ⛔ 터지면 옛 경로 대본이 바뀐 것이다(README §8 에 적고 갱신).
-_FREETALK_OLD_FROZEN = ("50eca14a9df3552aac38e6bc8dcb73b9d63571ee2fed4ffe055b897dfd1e61ee", 2760)  # 질문·막힘 개선 PM-DEC-843(옛 d510cdcc…/2717)  # 자유대화 수정 PM-DEC-809(옛 b7712444…/2569)  # v2 재배포 P2(a)(b) PM-DEC-697(옛 897ecf7f…/2466)  # PM-DEC-691 D3 「# 시작」 둘째 줄(옛 af87376e…/2424)  # PM-DEC-685 소견 2 한 줄(옛 43066427…/2389)  # 2026-10-16 통화 흐름 v2 프리토킹 확정본(13_공유_프리토킹) — 옛 61259e26…/1894
+_FREETALK_OLD_FROZEN = ("bd3c2cf48f08d2340826a504958283259de0f5d4b4ecc1b6289094d6483e74bd", 2763)  # 칭찬도 {target} PM-DEC-849(옛 50eca14a…/2760)  # 질문·막힘 개선 PM-DEC-843(옛 d510cdcc…/2717)  # 자유대화 수정 PM-DEC-809(옛 b7712444…/2569)  # v2 재배포 P2(a)(b) PM-DEC-697(옛 897ecf7f…/2466)  # PM-DEC-691 D3 「# 시작」 둘째 줄(옛 af87376e…/2424)  # PM-DEC-685 소견 2 한 줄(옛 43066427…/2389)  # 2026-10-16 통화 흐름 v2 프리토킹 확정본(13_공유_프리토킹) — 옛 61259e26…/1894
 _FREETALK_OLD_FROZEN_PREV = ("61259e26f8b60f1e508b22308d8aa2c0bb9547a86d66ca14bdd8fd05fb2c8b00", 1894)  # 2026-10-14 PM-DEC-613(실통화 1800·1954 — 한 턴 질문 하나 · 못 알아들을 때 설명 우선) — 옛 643d9da1…/1662
 
 _BRIEF = cur.CurFreetalkBrief(
