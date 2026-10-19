@@ -126,3 +126,14 @@ def test_lesson_block_has_no_raw_slot_marker() -> None:
     assert "◯" not in out
     assert "(이름)" in out and "(나라)" in out
     assert "가게 점원" in out
+
+
+def test_partner_for_ja_uses_japanese_partner_and_keeps_ko() -> None:
+    # PM-DEC-823·828 — ja 과정 L1 상대역은 일본인 · ko 는 배치 값 그대로 · 옛 배치 None 보존
+    by = {x.code: x for x in l1.NEW}
+    assert l1.partner_for(by["L1-S01-1"], "ja") == "일본어 교실에서 처음 만난 일본인"
+    assert l1.partner_for(by["L1-S03-1"], "ja") == "일본어로 말을 걸어 온 일본인 친구"
+    assert l1.partner_for(by["L1-S02-1"], "ja") == by["L1-S02-1"].partner
+    assert [l1.partner_for(x, "ko") for x in l1.NEW] == [x.partner for x in l1.NEW]
+    assert all(l1.partner_for(x, "ja") is None for x in l1.LEGACY)
+    assert not any("한국" in (l1.partner_for(x, "ja") or "") for x in l1.NEW)

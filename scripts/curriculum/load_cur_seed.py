@@ -205,7 +205,7 @@ def load(session: Session, seed: dict, *, dry_run: bool, language: str | None = 
         for lesson in chunk_lessons:
             lesson_rows.append(({
                 "no": lesson.no, "code": lesson.code, "level_no": 1, "topic_id": None,
-                "situation": lesson.situation, "partner": lesson.partner, "probes": None,
+                "situation": lesson.situation, "partner": l1.partner_for(lesson, lang), "probes": None,
             }, [("chunk", iid) for iid in assign[lesson.code]]))
     for l in seed["lessons"]:
         items: list[tuple[str, int]] = []

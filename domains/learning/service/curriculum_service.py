@@ -750,13 +750,14 @@ def reseed_l1(
         for seq, item_id in enumerate(after_ids, start=1):
             db.add(CurLessonItem(lesson_id=row.lesson_id, item_id=item_id, role="chunk", seq=seq))
         before_meta = (row.situation, row.partner)
-        row.situation, row.partner, row.item_count = lesson.situation, lesson.partner, len(after_ids)
+        partner = l1.partner_for(lesson, language)
+        row.situation, row.partner, row.item_count = lesson.situation, partner, len(after_ids)
         db.flush()
         report.append({
             "code": lesson.code,
-            "changed": before_ids != after_ids or before_meta != (lesson.situation, lesson.partner),
+            "changed": before_ids != after_ids or before_meta != (lesson.situation, partner),
             "situation": {"before": before_meta[0], "after": lesson.situation},
-            "partner": {"before": before_meta[1], "after": lesson.partner},
+            "partner": {"before": before_meta[1], "after": partner},
             "items": {
                 "before": [surface_of.get(i, f"item#{i}") for i in before_ids],
                 "after": [surface_of.get(i, f"item#{i}") for i in after_ids],

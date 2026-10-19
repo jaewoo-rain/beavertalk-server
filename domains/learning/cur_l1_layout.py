@@ -89,6 +89,23 @@ LEGACY: tuple[L1Lesson, ...] = (
 )
 
 LAYOUTS: dict[str, tuple[L1Lesson, ...]] = {"new": NEW, "legacy": LEGACY}
+
+# ── 언어별 partner(2026-10-19 · PM-DEC-823·828) ─────────────────────────────────────────
+#   배치는 ko·ja 가 같이 쓰는데 NEW 의 partner 는 ko 과정 문구다 — ja(일본어 학습) 차시에 그대로 들어가면
+#   상대가 «한국인» 이 된다. 언어별 값이 있으면 그것을, 없으면 배치 값을 쓴다(옛 배치 None 은 그대로 None).
+PARTNER_BY_LANGUAGE: dict[str, dict[str, str]] = {
+    "ja": {
+        "L1-S01-1": "일본어 교실에서 처음 만난 일본인",
+        "L1-S03-1": "일본어로 말을 걸어 온 일본인 친구",
+    },
+}
+
+
+def partner_for(lesson: L1Lesson, language: str) -> str | None:
+    """이 언어 과정에서 [lesson] 의 상대역. 배치 partner 가 None 이면 None(옛 배치 되돌리기 보존)."""
+    if lesson.partner is None:
+        return None
+    return PARTNER_BY_LANGUAGE.get(language, {}).get(lesson.code, lesson.partner)
 DEFAULT_LAYOUT = "new"
 
 
