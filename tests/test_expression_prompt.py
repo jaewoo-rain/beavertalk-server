@@ -304,7 +304,7 @@ def test_freetalk_native_language_stays_a_stuck_only_exception() -> None:
     out = build_freetalk_instruction(**BASE)
     assert "학습자가 뜻을 물을 때만 영어(English)로 한 문장 답하고 한국어 대화로 돌아온다" in out   # v2
     assert "막히면 영어(English)로 설명" not in out
-    assert "따라 말하게 하지 않는다" in out
+    assert "따라 말하기 요청은 하지 않는다" in out   # PM-DEC-809 다듬기 줄(옛 「따라 말하게 하지 않는다」)
 
 
 def test_freetalk_still_carries_level_profile() -> None:

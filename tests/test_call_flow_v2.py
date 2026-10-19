@@ -145,7 +145,8 @@ def test_turn_notes_are_control_tagged_fixed_and_banned_word_free():
     # 33_공유_P2재생 §3 (PM-DEC-757) — 표현학습만 P2 보강 · 숙제는 그대로
     assert "모름·무응답에는 모국어로 말해도 놀리지 말고 바로 힌트만 준다" in notes[0]
     assert "같은 문장을 상대만 바꿔 한 번 더 말하게 한다(새 질문을 만들지 않는다)" in notes[0]
-    assert "놀림·욕설·비하어는 쓰지 않는다" in notes[2]
+    # 39_공유_자유대화배포 §3 (PM-DEC-809) — 자유대화 안내는 「놀림」 금지를 뺐다(말투대로 반응) · 욕설·비하어 금지는 남는다
+    assert "욕설·비하어는 쓰지 않는다" in notes[2] and "놀림" not in notes[2]
 
 
 def test_l11_bracket_is_limited_to_the_repeat_step():
