@@ -319,17 +319,36 @@ def _face_tool_from(description: str, emotion_description: str, emotions: tuple[
     )])
 
 
-def set_face_tool() -> types.Tool:
+def set_face_tool(reactions: Optional[list[str]] = None, reaction_description: str = "") -> types.Tool:
     """`LIVE_FACE_RULE_MODE` 에 맞는 표정 툴 선언. 운영(qual)은 SET_FACE_TOOL 그대로.
 
     ⭐ 2026-09-12 ctx-lab: 3.1 은 blocking 함수콜 턴을 2회 추론(2× 과금)하므로 «언제 부르나» 문구가 곧 원가다.
       문구·enum 은 core/prompts/locked/face.py 가 소유한다(`face_rule_for`). ""=옛 규칙(neutral 있음) / sparse·budget=실험 기록용.
+    ⭐ 클립 통화 시험(PM-DEC-856 · exp/clip-call): reactions 가 있으면 선택 인자 `reaction`(묶음 이름 enum)을 더한다 —
+      새 도구가 아니라 이미 부르는 set_face 에 얹으므로 응답 횟수가 늘지 않는다(SV-15·16). 없으면 종전 선언 그대로.
     """
     mode = settings.LIVE_FACE_RULE_MODE
+    if not reactions:
+        if mode == "qual":
+            return SET_FACE_TOOL
+        _rule, desc, emo_desc, emotions = face_rule_for(mode)
+        return _face_tool_from(desc, emo_desc, emotions)
     if mode == "qual":
-        return SET_FACE_TOOL
-    _rule, desc, emo_desc, emotions = face_rule_for(mode)
-    return _face_tool_from(desc, emo_desc, emotions)
+        desc, emo_desc, emotions = SET_FACE_DESCRIPTION, SET_FACE_EMOTION_DESCRIPTION, SET_FACE_EMOTIONS
+    else:
+        _rule, desc, emo_desc, emotions = face_rule_for(mode)
+    return types.Tool(function_declarations=[types.FunctionDeclaration(
+        name="set_face",
+        description=desc + " 웃음·짧은 반응은 reaction 에 넣으면 녹음된 네 목소리로 그 자리에서 들린다.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "emotion": types.Schema(type=types.Type.STRING, enum=list(emotions), description=emo_desc),
+                "reaction": types.Schema(type=types.Type.STRING, enum=list(reactions), description=reaction_description),
+            },
+            required=["emotion"],
+        ),
+    )])
 
 
 class LiveSendStalled(Exception):

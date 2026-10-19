@@ -135,6 +135,7 @@ from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.realtime.expression_practice import ExpressionPractice, requested_phrases
+from domains.learning.realtime import clip_call   # 음성 클립 통화 시험(PM-DEC-856 · exp/clip-call)
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -807,7 +808,7 @@ class _CallState:
         "expr_note_last_ts", "expr_quiz_open_ts", "expr_note_hold_why",   # 14차 B·D — 마지막 안내 주입 시각 · 창 연 시각 · 마지막 보류 사유
         "expr_quiz_drift_seg",                           # 14차 A — 이탈을 이미 잡은 비버 세그먼트(같은 턴 중복 차단)
         "expr_drill_nudged", "expr_drill_nudge_for", "expr_rep_phrase", "expr_rep_misses", "expr_rep_nudged",     # 12차 D — 이미 안내한 항목(항목별 1회) · 지금 대기 중인 안내의 대상 항목
-        "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "last_interrupted_ts", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
+        "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "clip", "last_interrupted_ts", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
@@ -1009,6 +1010,7 @@ class _CallState:
         #     압축과 완전히 무관하다.
         self.expr_items: list[dict] = []
         self.expr_practice: ExpressionPractice | None = None
+        self.clip: Optional[clip_call.ClipCall] = None   # 음성 클립 통화 시험(PM-DEC-856) — None 이면 종전 통화
         self.expr_tag_allow: frozenset[str] = frozenset()   # 항목 표면형의 [대괄호] 조각 — 누출 필터 허용 목록
         self.expr_quiz_pass: set[int] = set()
         self.expr_quiz_fail: set[int] = set()
@@ -3626,6 +3628,7 @@ async def run_call(
     #   ⚠ 기본 False(=음성통화)다. 모르면 **도구를 안 싣는 쪽**이 안전하다 —
     #     싣는 쪽으로 틀리면 2.5 세션이 1011 로 죽는다(아래 :1625 주석).
     wants_video: bool = False
+    clip: Optional[clip_call.ClipCall] = None   # PM-DEC-856 — state 가 생기면 싣는다
     # ⭐ [live_model]·[wants_video] 와 **같은 이유로** 분기 앞에서 잡는다.
     #   ⚠ None = 전역 `USE_VERTEX` 그대로(종전 동작). 레벨테스트는 사장님 결정으로
     #     AI Studio 3.1 을 쓰므로 아래 :level_test 분기에서 명시로 덮는다.
@@ -3734,6 +3737,14 @@ async def run_call(
         #   ⛔ 옛 모드("")에서는 붙이지 않는다 — 옛 규칙(«바뀔 때마다·neutral 복귀 필수»)을 표현학습에 새로 붙이면 호출이 늘 수 있다.
         face_rule_text = (face_tool_rule() if (settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test"
                                                and settings.LIVE_FACE_RULE_MODE) else "")
+        # ⭐ PM-DEC-856 클립 통화 시험 — 표정 규칙이 붙는 통화(영상)에만. CLIP_CALL 이 비면 None → 지시문·선언 바이트 그대로.
+        if face_rule_text:
+            clip = clip_call.for_call(setup.get("voice"), locale, enabled=settings.CLIP_CALL,
+                                      ask=settings.CLIP_CALL_ASK, gain_db=settings.CLIP_GAIN_DB)
+            if clip is not None:
+                face_rule_text += clip.prompt_rule()
+                logger.info("clipcall 켬: 묶음=%s locale=%s 반응=%s 출제=%s", clip.bank_name, locale,
+                            ",".join(clip.reaction_names()), clip.ask)
         if cur_route:
             # ⭐ cur 경로 — 지시문은 **call 행이 생긴 뒤**(아래) 조립한다. cur_call INSERT 에 call_id 가 필요하고(P1-4), 선별·브리프는
             #   그 open_call 의 결과(items/brief)로 만든다. 옛 경로(아래 elif 들)는 한 줄도 안 바뀐다 — CUR_ENABLED=false 면 그대로.
@@ -4154,6 +4165,7 @@ async def run_call(
         )
 
         state = _CallState()
+        state.clip = clip
         state.homework = homework
         state.homework_locale = locale
         state.homework_mode = hw_mode
@@ -4435,7 +4447,8 @@ async def run_call(
         #   ⚠ 두 조건이 **같은 값**이어야 한다 — 한쪽만 고치면 "지시문엔 없는데 tool 은 있는"
         #     이 상태로 조용히 돌아온다. 회귀 `test_plan_call_split.py` 가 이 자리를 잠근다.
         if settings.LIVE_FACE_SPIKE and wants_video and call_type != "level_test":
-            live_tools = [set_face_tool()]   # LIVE_FACE_RULE_MODE 에 따른 선언(운영 qual = SET_FACE_TOOL)
+            live_tools = [set_face_tool(*((state.clip.reaction_names(), state.clip.reaction_description())
+                                          if state.clip is not None else ()))]   # LIVE_FACE_RULE_MODE 에 따른 선언(운영 qual = SET_FACE_TOOL) · 클립 시험이면 reaction 인자
         if call_type == "level_test":
             # ⛔ 종료 소유권: 레벨테스트는 **언제나 서버**다(아래 워처 참조). 3분 하드캡은
             #   상품 혜택이 아니라 **측정 설계**라, 클라가 언제 닫든 서버가 캡에서 끝내야 한다.
@@ -6452,6 +6465,18 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 ("전송 seq=%d" % state.face_seq if emotion else "값 없음(안 보냄)"),
                 ("".join(state.cur_beaver_text))[-40:],
             )
+            # ⭐ PM-DEC-856 T1 — reaction 클립. 인사 턴·폭주 차단은 표정과 같은 규율로 버린다.
+            if state.clip is not None and is_face and not opening:
+                _rname = str((event.fn_args or {}).get("reaction") or "").strip()
+                if _rname:
+                    _c = state.clip.pick_reaction(_rname)
+                    if _c is None:
+                        logger.info("clipcall 반응 %s: 보낼 클립 없음(연속 금지·모르는 이름)", _rname)
+                    elif state.turn_id is not None:
+                        await _clip_send(client_ws, state, _c, "반응 " + _rname)
+                    else:
+                        state.clip.pending.append(_c)
+                        logger.info("clipcall 반응 %s: %s 대기(턴 열리면 모델 오디오 앞에)", _rname, _c.id)
             # ⛔ 응답은 돌려준다 — 안 주면 모델 쪽에 미완 호출이 남는다.
             #   ⭐⭐ 블로킹에서는 이게 **더 강한 의무**다. 모델이 이 응답을 기다리며 멈춰
             #     있으므로, 안 주면 통화가 그 자리에서 얼어붙는다. except 로 삼키더라도
@@ -6822,6 +6847,68 @@ async def _maybe_send_face_reset(client_ws, state: _CallState) -> None:
     logger.info("normalcall 표정 초기화: neutral seq=%d turn=%s (직전 turn_end 이후 set_face 없음)", state.face_seq, state.turn_id or "-")
 
 
+_CLIP_ASK_NOTE = ("이 답에는 짧은 반응 한마디만 하고 차례를 끝내라. 다음 표현의 출제(뜻·상황을 주고 묻기)는 서버가 네 목소리로 "
+                  "바로 뒤에 붙인다 — 다음 표현을 네가 꺼내지 마라.")   # PM-DEC-856 T2
+
+
+async def _clip_send(client_ws, state: _CallState, clip: "clip_call.Clip", why: str) -> None:
+    """클립 하나를 비버 목소리 자리로 보낸다 — 자막 → PCM(모델 오디오와 같은 send_bytes 통로). 저장본에도 남긴다."""
+    if state.turn_id is None:
+        state.turn_id = _new_turn_id()
+        await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
+    await _send_json(client_ws, ServerOutputTranscript(text=clip.text + " ", turn_id=state.turn_id))
+    for part in clip_call.chunks(clip.pcm):
+        await client_ws.send_bytes(part)
+    state.cur_beaver_pcm.extend(clip.pcm)
+    state.cur_beaver_text.append(clip.text + " ")
+    state.clip.note_played(clip)
+    logger.info("clipcall 송출(%s): %s %.2f초 %r turn=%s · %s", why, clip.id, len(clip.pcm) / 48000.0, clip.text,
+                state.turn_id, state.clip.summary())
+
+
+async def _clip_flush_pending(client_ws, state: _CallState) -> None:
+    if state.clip is None or not state.clip.pending:
+        return
+    pend, state.clip.pending = state.clip.pending, []
+    for c in pend:
+        await _clip_send(client_ws, state, c, "반응·턴 시작")
+
+
+def _clip_ask_target(state: _CallState) -> Optional[int]:
+    """이번 학습자 답 뒤 추적기가 반드시 다음 항목으로 가는가(다시 말하기 단계) — 가면 그 항목 번호(0부터), 출제 클립이 없으면 None."""
+    c, p = state.clip, state.expr_practice
+    if c is None or not c.ask or p is None or p.phase != "repeat" or state.expr_quiz_open:
+        return None
+    nxt = p.index + 1
+    if nxt >= len(p.items):
+        return None
+    if c.ask_clip_for(str(p.items[nxt].get("obj") or "")) is None:
+        return None
+    c.ask_variant -= 1   # 미리보기만 했다 — 실제 송출 때 같은 변형을 고른다
+    return nxt
+
+
+async def _clip_turn_end(client_ws, state: _CallState) -> None:
+    c = state.clip
+    if c is None or c.ask_armed is None:
+        return
+    armed, c.ask_armed = c.ask_armed, None
+    p = state.expr_practice
+    if p is None or p.index != armed or p.phase != "introduce" or state.should_close or state.close_seed_sent or state.turn_id is None:
+        logger.info("clipcall 출제 취소: 예약 %d · 추적기 %s/%s · 종료=%s", armed + 1, (p.index + 1) if p else "-",
+                    p.phase if p else "-", state.should_close or state.close_seed_sent)
+        return
+    clip = c.ask_clip_for(str(p.items[armed].get("obj") or ""))
+    if clip is None:
+        return
+    said = "".join(state.cur_beaver_text).lower()
+    gloss = re.findall(r'"([^"]+)"', clip.text)
+    if gloss and gloss[0].lower() in said:
+        logger.info("clipcall 출제 생략: 비버가 이미 «%s» 를 꺼냈다", gloss[0])
+        return
+    await _clip_send(client_ws, state, clip, "출제 %d" % (armed + 1))
+
+
 async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool:
     """단일 LiveEvent 를 즉시 forward 하며 진행중 세그먼트에 누적. 새 턴이면 True.
 
@@ -6843,6 +6930,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
             await _maybe_send_face_reset(client_ws, state)   # D — 오디오 **앞**에
+            await _clip_flush_pending(client_ws, state)      # PM-DEC-856 — 대기 반응 클립도 모델 오디오 앞에
         if event.audio:
             # 🔬 ⛔ 턴이 열리는 경로는 **둘**이다(audio / out_tr). 자막이 먼저 오는 통화가
             #   대부분이라 audio 분기에서만 초기화하면 영영 리셋이 안 된다(2026-08-31 실측:
@@ -6929,6 +7017,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
             turn_started = True
             await _maybe_send_face_reset(client_ws, state)   # D — 자막이 먼저 여는 턴도 같다(오디오는 아직 0바이트)
+            await _clip_flush_pending(client_ws, state)      # PM-DEC-856 — 대기 반응 클립도 모델 오디오 앞에
         text = event.text or ""
         if not state.face_first_tr_at and (text or "").strip():
             state.face_first_tr_at = asyncio.get_running_loop().time()
@@ -7009,6 +7098,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             state.greeting_held_text.clear()
         state.face_first_audio_at = 0.0
         state.face_first_tr_at = 0.0
+        await _clip_turn_end(client_ws, state)   # PM-DEC-856 T2 — 출제 클립은 비버 말 뒤 · 턴 끝 앞
         await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
         state.last_turn_id = turn_id  # D16: 방금 끝난 턴 id 보존(힌트 태스크 재료)
         # 🔬 절단 판정 — 오디오가 유난히 짧게 끝난 턴을 서버가 스스로 표시한다.
@@ -7421,8 +7511,16 @@ async def _attach_turn_note(session: LiveSessionProtocol, state: _CallState, whe
         return
     state.turn_note_sent = True    # await 전 선점(단일 소유권 · 같은 턴 두 번 금지)
     _note_text_inject(state, "turn_note")
+    note = state.turn_note
+    _arm = _clip_ask_target(state)
+    if _arm is not None:
+        note = note + " " + _CLIP_ASK_NOTE
     try:
-        await session.send_reground(state.turn_note, turn_complete=False)
+        await session.send_reground(note, turn_complete=False)
+        if _arm is not None:
+            state.clip.ask_armed = _arm
+            logger.info("clipcall 출제 예약: 다음 항목 %d(%s) — 이 답 뒤 비버 턴 끝에 붙인다", _arm + 1,
+                        str(state.expr_items[_arm].get("obj") or "") if _arm < len(state.expr_items) else "?")
         _ir = state.last_interrupted_ts
         _since = (asyncio.get_running_loop().time() - _ir) if _ir is not None else -1.0
         logger.info("normalcall 매 턴 안내 얹기: call_id=%s 자리=%s 종류=%s 턴=%d 비버턴=%d 직전끼어들기=%s", _cid(state), where,
