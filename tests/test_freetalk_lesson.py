@@ -103,7 +103,7 @@ def test_lesson_script_rule_anchors() -> None:
     # 통화 흐름 v2(12_공유_회화학습) — 따라 말하기·정오 판정 없음 · 막히면 더 쉬운 질문(답 예시 없음) · 고쳐 되받기
     assert "따라 말하기·정오 판정·문제 내기는 하지 않는다" in out
     assert "더 쉬운 한국어로 한 번만 다시 묻는다" in out and "답 예시를 대신 말해 주지 않는다" in out
-    assert "올바른 한국어 형태를 다음 대사에 넣어 되받는다" in out
+    assert "높낮이에 맞는 현지인 한국어 문장으로 고쳐 따옴표로 묶어 되짚고" in out
     assert "그 문장을 말해 보라고 청해라" not in out
 
 
