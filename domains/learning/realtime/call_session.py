@@ -195,6 +195,7 @@ LOOP_REPEAT_SIMILARITY = 0.9
 LOOP_MIN_CHARS = 15
 # ⭐ P5(2026-09-15, 1610): 벙어리 첫 인사 재시드 상한 — 1회 → 2회. 두 번째는 차시 프리토킹이면 짧은 대체 시드(seed_freetalk_lesson_reseed_short), 그 밖은 같은 시드.
 GREETING_RESEED_MAX = 2
+PERTURN_GREETING_RESEED_MAX = 4   # PM-DEC-886 — perturn 은 매번 새 세션이라 더 해 본다(call 2052 · 3회 연속 0B)
 _LOOP_NORM_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 FRAGMENT_DRAIN_S = 2.0         # fragment_saved 뒤 close 동안 클라 소켓 «읽고 버리기» 상한(H8 1596·1598: 안 읽으면 close_timeout 10s 매달림)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
@@ -6795,7 +6796,8 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
     """
     return (
         state.session_epoch == 1        # 재개 세대엔 선톡 자체가 없다
-        and getattr(state, "greeting_reseeds", 0) < GREETING_RESEED_MAX   # P5(2026-09-15): 통화당 2회(종전 1회)
+        and getattr(state, "greeting_reseeds", 0) < (PERTURN_GREETING_RESEED_MAX if getattr(state, "ctx", None) is not None
+                                                     else GREETING_RESEED_MAX)   # P5(2026-09-15): 통화당 2회(종전 1회)
         and not state.learner_spoke      # 학습자가 말했으면 인사 구간이 아니다
         and state.beaver_turns == getattr(state, "greeting_reseeds", 0) + 1   # 방금 끝난 것이 첫 비버 턴(재시드가 만든 턴 포함)
         and turn_pcm_bytes == 0          # 그 턴에 소리가 없었다
@@ -6855,6 +6857,10 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
     # ⭐ P5(2026-09-15, 1610): 두 번째 재시드는 차시 프리토킹이면 짧은 대체 시드 — 같은 긴 시드가 두 번 연속 벙어리였다.
     short = n >= 2 and getattr(state, "cur_course", "") == "freetalk" and getattr(state, "freetalk_brief", None) is not None
     seed = seed_freetalk_lesson_reseed_short(getattr(state, "freetalk_target", "") or "한국어") if short else state.seed_text
+    if getattr(state, "ctx", None) is not None and n >= 2 and not short:   # 차시 프리토킹은 차시용 짧은 시드가 이미 있다
+        # PM-DEC-886 — 새 세션에서도 같은 «지난번에 …» 기억 인사가 거듭 0B 였다(call 2052). 2회째부터는 지난 통화를 꺼내지 않는 짧은 인사.
+        seed = _perturn_short_greeting(getattr(state, "freetalk_target", "") or "한국어")
+        short = True
     try:
         if getattr(state, "ctx", None) is not None and getattr(state, "ctx_base", ""):
             # PM-DEC-884 — perturn: 같은 세션에 다시 시드하면 또 벙어리였다(call 2028 · 3회 연속 0B). 새 세션을 열고 거기에 시드한다.
@@ -7958,6 +7964,12 @@ def _ctx_last_ending(state: _CallState) -> str:
             parts = [p.strip() for p in _CTX_SENT_RE.findall(s["text"].strip()) if p.strip()]
             return parts[-1][:80] if parts else ""
     return ""
+
+
+def _perturn_short_greeting(target_language: str) -> str:
+    """PM-DEC-886 — perturn 벙어리 인사 2회째부터 쓰는 짧은 시드(지난 통화 이야기 없음)."""
+    return (f"[통화 시작] 지난 통화 이야기는 꺼내지 말고, {target_language}로 짧게 한 문장 인사한 뒤 쉬운 질문 하나만 하고 멈춰라. "
+            "이 [통화 시작] 안내문 자체는 소리 내어 읽지 마라.")
 
 
 def _perturn_instruction(state: _CallState) -> str:

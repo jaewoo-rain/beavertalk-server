@@ -362,3 +362,45 @@ async def test_perturn_mute_greeting_reopens_new_session_and_reseeds_there(sessi
     assert len(made) >= 2
     assert len(made[0].texts) == 1, "벙어리 세션에 시드를 다시 보냈다"
     assert made[1].texts, "새 세션에 재시드가 안 갔다"
+
+
+@pytest.mark.asyncio
+async def test_perturn_repeated_mute_greeting_tries_short_greeting_until_sound(session_factory, seeded, monkeypatch):
+    """call 2052 — 새 세션 3개가 모두 0B 여도 멈추지 않는다: 2회째부터 지난 통화 없는 짧은 인사 · 4번째 세션에서 소리."""
+    monkeypatch.setattr(app_settings, "CONTEXT_MODE", "perturn")
+    made: list = []
+
+    class _Mute(_Sess):
+        async def events(self):
+            await self.got_seed.wait()
+            yield LiveEvent(kind="out_tr", text="오랜만이야! 지난번에 스파이더맨 얘기했잖아.")
+            if self.n >= 4:
+                yield LiveEvent(kind="audio", audio=bytes(960))
+            yield LiveEvent(kind="turn_end")
+            await asyncio.Event().wait()
+
+        async def send_text_turn(self, text):
+            self.texts.append(text)
+            self.got_seed.set()
+
+    @contextlib.asynccontextmanager
+    async def factory(client, settings, **kw):
+        s = _Mute(len(made) + 1, kw["system_instruction"], greet=False, last_after=None)
+        s.got_seed = asyncio.Event()
+        made.append(s)
+        yield s
+
+    async def wait_sound():
+        for _ in range(600):
+            if len(made) >= 4 and made[3].texts:
+                break
+            await asyncio.sleep(0.005)
+        await asyncio.sleep(0.05)
+
+    ws = FakeWebSocket([_start_incoming(seeded), wait_sound], hang=False)
+    await run_call(ws, app_settings, object(), session_factory, member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+    assert len(made) >= 4, [len(m.texts) for m in made]
+    assert all(len(m.texts) == 1 for m in made[:4]), "한 세션에 시드를 두 번 보냈다"
+    assert "지난 통화 이야기는 꺼내지 말고" not in made[1].texts[0]          # 1회째 재시드는 원래 시드
+    assert "지난 통화 이야기는 꺼내지 말고" in made[2].texts[0] and "지난 통화 이야기는 꺼내지 말고" in made[3].texts[0]
