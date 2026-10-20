@@ -135,6 +135,7 @@ from core.stt import normalize_language_codes
 from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.realtime.expression_practice import ExpressionPractice, requested_phrases
+from domains.learning.realtime.perturn_session import PerTurnSession   # PM-DEC-864 턴마다 새 세션
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -194,6 +195,7 @@ LOOP_REPEAT_SIMILARITY = 0.9
 LOOP_MIN_CHARS = 15
 # ⭐ P5(2026-09-15, 1610): 벙어리 첫 인사 재시드 상한 — 1회 → 2회. 두 번째는 차시 프리토킹이면 짧은 대체 시드(seed_freetalk_lesson_reseed_short), 그 밖은 같은 시드.
 GREETING_RESEED_MAX = 2
+PERTURN_GREETING_RESEED_MAX = 4   # PM-DEC-886 — perturn 은 매번 새 세션이라 더 해 본다(call 2052 · 3회 연속 0B)
 _LOOP_NORM_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 FRAGMENT_DRAIN_S = 2.0         # fragment_saved 뒤 close 동안 클라 소켓 «읽고 버리기» 상한(H8 1596·1598: 안 읽으면 close_timeout 10s 매달림)
 PLAYBACK_DONE_WAIT_S = 7.0     # call_ended 후 playback_done ack 대기 상한(작별 꼬리 드레인 여유 —
@@ -359,8 +361,10 @@ _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 from core.prompts.locked.seeds import (
     expression_quiz_cue,
     expression_quiz_fallback_instruction,
+    NUDGE_SEED_1_CHAT,
     NUDGE_SEED_1_LEVELTEST,
     NUDGE_SEED_1_NORMAL,
+    NUDGE_SEED_2_CHAT,
     NUDGE_SEED_2_LEVELTEST,
     NUDGE_SEED_2_NORMAL,
     close_seed_normal,
@@ -749,6 +753,7 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
+        "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
         # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
@@ -834,6 +839,10 @@ class _CallState:
         #   재접지·퀴즈 큐·legacy_idle·무음 넛지 전부. 압축 감지 줄이 «마지막 얹기 이후 몇 초·몇 턴·툴 몇 회»
         #   를 이걸로 계산한다. compress_events: 감지 사건 [{t, from, to, prev_in, now_in, since}] — usage_json 으로 나간다.
         "text_injects", "compress_events",
+        # PM-DEC-864 perturn — 대리 세션 · 지시문 원본 · 줄거리(사이드카가 갱신) · 줄거리에 반영한 세그먼트 수 · 사이드카 태스크·토큰 · 이번 비버 턴 끼어들기
+        "ctx", "ctx_base", "ctx_client", "ctx_summary", "ctx_summary_upto", "ctx_summary_task", "ctx_usage",
+        "ctx_facts",   # PM-DEC-914 — 학습자 사실 목록(줄거리 5줄과 따로 누적)
+        "ctx_turn_interrupted", "ctx_beaver_turns",
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
         "diag_batches", "diag_events", "diag_dropped",
@@ -929,6 +938,7 @@ class _CallState:
         #   무음으로 세지 않게(=넛지가 비버 발화 직후 터지지 않게) 하는 핵심. None = 아직 없음.
         # silence_stage: 0=무넛지, 1=1단 주입됨, 2=2단 주입됨(3단은 직접 종료 시드 주입).
         self.last_activity_ts: Optional[float] = None
+        self.user_voice_ts: Optional[float] = None
         self.silence_stage: int = 0
         # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
         # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
@@ -1132,6 +1142,16 @@ class _CallState:
         #   토큰. ⛔ Live usage 와 **다른 그릇**이다 — 단가가 다르고, 섞으면 두 엔진
         #   비교가 오염된다. usage_json.sidecars 로 따로 나간다.
         self.sidecar_usage = gemini_analysis.LlmUsage()
+        self.ctx: PerTurnSession | None = None
+        self.ctx_base = ""
+        self.ctx_client = None
+        self.ctx_summary = ""
+        self.ctx_facts: list[str] = []
+        self.ctx_summary_upto = 0
+        self.ctx_summary_task: asyncio.Task | None = None
+        self.ctx_usage = gemini_analysis.LlmUsage()
+        self.ctx_turn_interrupted = False
+        self.ctx_beaver_turns = 0
 
 
 def _as_int(v) -> int | None:
@@ -2919,6 +2939,8 @@ def _observe_compression(state: _CallState, prompt, in_detail=None) -> None:
     # 통화 전체 최대치는 압축과 무관하게 여기서만 갱신한다(아래 리셋에 걸리지 않는 자리).
     if p > state.usage_prompt_max:
         state.usage_prompt_max = p
+    if state.ctx is not None:
+        return  # PM-DEC-864 perturn — 세션 교체마다 prompt 가 떨어진다. 압축으로 읽으면 재접지를 잘못 건다
     peak = state.usage_prompt_peak
     if p > peak:
         state.usage_prompt_peak = p
@@ -2988,6 +3010,21 @@ def _record_usage(state: _CallState, um) -> None:
             state, getattr(um, "prompt_token_count", None),
             _modality_pairs(getattr(um, "prompt_tokens_details", None)),
         )
+        if _settings.LIVE_USAGE_RESP_LOG:
+            _in: dict[str, int] = {}
+            _out: dict[str, int] = {}
+            for _d, _src in ((_in, "prompt_tokens_details"), (_out, "response_tokens_details")):
+                for _k, _v in _modality_pairs(getattr(um, _src, None)):
+                    _d[_k] = _d.get(_k, 0) + _v
+            _t = (round(asyncio.get_running_loop().time() - state.call_start_ts, 1)
+                  if state.call_start_ts is not None else None)
+            logger.info(
+                "normalcall resp: call_id=%s t=%s turn=%d prompt=%s in_txt=%s in_aud=%s out=%s out_aud=%s out_txt=%s gen=%s",
+                _cid(state), _t, state.next_turn_index, getattr(um, "prompt_token_count", None),
+                _in.get("TEXT", 0), _in.get("AUDIO", 0), getattr(um, "response_token_count", None),
+                _out.get("AUDIO", 0), _out.get("TEXT", 0),
+                state.ctx.cur_gen if state.ctx is not None else state.session_epoch,
+            )
         if len(state.usage_log) >= _USAGE_LOG_MAX:
             state.usage_dropped += 1
             return
@@ -3130,6 +3167,17 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
         ",".join(f"{k}={v}" for k, v in sorted(in_mod.items())) or "-",
         ",".join(f"{k}={v}" for k, v in sorted(out_mod.items())) or "-",
     )
+
+    if state.ctx is not None:
+        st = state.ctx.stats()
+        cu = state.ctx_usage
+        logger.info(
+            "normalcall perturn: call_id=%s swaps=%d skipped=%s open_failures=%d reopens=%d max_open=%d connect_p50=%s connect_max=%s "
+            "summary_model=%s summary_calls=%d summary_in=%d summary_out=%d summary_fail=%d",
+            call_id, st["swaps"], ",".join(f"{k}:{v}" for k, v in sorted(st["skipped"].items())) or "-",
+            st["open_failures"], st.get("reopens", 0), st["max_open"], st["connect_p50"], st["connect_max"],
+            _settings.CONTEXT_SUMMARY_MODEL, cu.calls, cu.in_text, cu.out_text + cu.thoughts, cu.failures,
+        )
 
     if s["sum_thoughts"]:
         # 🧒 이 줄이 보이면 원가 산식이 낡았다는 뜻이다. Live 원가는 모달리티 4항만 곱하고
@@ -4496,7 +4544,10 @@ async def run_call(
             state.nudge_seed_1 = {
                 "expression": NUDGE_SEED_1_EXPRESSION,
                 "freetalk": NUDGE_SEED_1_FREETALK,
+                "chat": NUDGE_SEED_1_CHAT,      # PM-DEC-889 — 자유대화는 질문 한 문장
             }.get(call_type, _NUDGE_SEED_1)
+            if call_type == "chat":
+                state.nudge_seed_2 = NUDGE_SEED_2_CHAT   # PM-DEC-889 — 「들려?」 한 문장만(call 2063 질문 4개)
             if cur_route and call_type == "freetalk":
                 # ⭐ 차시 프리토킹만(계획 §3 시드 3종·D-a): 1단 30s «같은 과제를 더 쉽게» · 2단 «그 턴만 모국어 뜻 + 학습 언어 문장 하나».
                 #   다른 코스의 임계·1단·2단은 위 값 그대로(바이트 동일).
@@ -5422,7 +5473,17 @@ async def _run_one_generation(
     #     세션이 **열리지도 않는다**(AI Studio 에 Vertex 전용 필드 → 1007).
     if state.live_vertex is not None:
         factory_kwargs["vertex"] = state.live_vertex
-    async with live_session_factory(client, settings, **factory_kwargs) as session:
+    # ⭐ PM-DEC-864 — perturn 이면 대리 세션이 안쪽 세션을 턴마다 갈아끼운다(펌프·워처는 같은 객체를 본다).
+    if _perturn_enabled(settings, state):
+        session_cm = PerTurnSession(live_session_factory, client, settings, factory_kwargs)
+        state.ctx = session_cm
+        state.ctx_base = system_instruction
+        state.ctx_client = client
+        logger.info("normalcall perturn 켬: call_id=%s 요약 %s·%d턴마다 · 최근 %d발화", _cid(state),
+                    settings.CONTEXT_SUMMARY_MODEL, settings.CONTEXT_SUMMARY_EVERY, settings.CONTEXT_RECENT_SEGMENTS)
+    else:
+        session_cm = live_session_factory(client, settings, **factory_kwargs)
+    async with session_cm as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
             #   예외로 죽으면 나머지를 자동 취소한다 → 반쪽짜리 좀비 통화가 절대 안 생긴다.
@@ -6208,6 +6269,12 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
             #     (test_call_end_releases_pcm_but_still_feeds_nationality 가 잡았다).
             #   지금 게이트는 종전대로 barge-in off 하나뿐이다.
             if data and state.turn_id is None:
+                if frame_rms(data) >= REGROUND_VOICE_RMS:
+                    # PM-DEC-891 — 전사(in_tr)가 말 끝에 몰려 와도 «말하는 중» 은 무음이 아니다(call 2070·2071 대답 중 작별).
+                    state.user_voice_ts = asyncio.get_running_loop().time()
+                if state.ctx is not None and state.ctx.has_next:
+                    # PM-DEC-864 — 재생이 끝나 마이크가 열린 첫 자리에서 다음 세션으로 바꾼다(안내·쪽지는 아래에서 새 세션에 얹힌다).
+                    state.ctx.on_mic_frame(frame_rms(data) >= REGROUND_VOICE_RMS)
                 # ⭐ 재접지를 **오디오보다 먼저** 넣는다 — 대화에 [쪽지][사용자말] 순으로
                 #   앉아야 비버가 둘을 묶어 한 번 답한다(사장님 요구: "따로 넣지 말고
                 #   사용자가 말하는 타이밍에 같이"). 뒤에 넣으면 말이 끊긴 뒤에 붙는다.
@@ -6507,6 +6574,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #    그 판정이 언제나 0을 본다.)
             state.diag_interrupts += 1
             state.last_interrupted_ts = asyncio.get_running_loop().time()
+            state.ctx_turn_interrupted = True   # PM-DEC-864 — 끼어든 턴 뒤에는 세션을 바꾸지 않는다
             _open = state.diag_turn_open_ts
             _el = (asyncio.get_running_loop().time() - _open) if _open else -1.0
             logger.warning(
@@ -6542,6 +6610,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _expression_quiz_open_on_beaver_turn(state)  # T16 — 큐가 얹힌 뒤 첫 비버 턴 = 퀴즈 창 시작(open_seg)
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             state.turn_note_sent = False  # v2 재배포 C1 — 다음 학습자 발화에 안내를 다시 얹는다
+            if state.ctx is not None:
+                state.ctx.on_beaver_turn()   # PM-DEC-864 — 그 전에 준비한 세션은 이 턴을 모른다
+                state.ctx_turn_interrupted = False
             if state.call_start_ts is None:
                 state.call_start_ts = asyncio.get_running_loop().time()
                 logger.info("normalcall: 통화 시계 시작(첫 turn_start)")
@@ -6568,6 +6639,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 await _attach_reground(session, state, f"전사·{REGROUND_ATTACH_AT}")
 
         if event.kind == "turn_end":
+            ctx_ctrl0 = state.ctx.ctrl_sends if state.ctx is not None else 0
             _spawn_hint_task(client_ws, state)  # D16 힌트 사이드카 — 태스크 생성만(논블로킹)
             # ⭐ 자기낭독 안전망: flush 전(누적 텍스트가 살아 있을 때) 태그 누출을 판정한다.
             _detect_tag_leak(state)
@@ -6602,6 +6674,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 await _loop_breaker_on_turn_end(session, state, turn_text)
                 # ⛔ 14차 C(2026-09-19, 1651): 세트·드릴 안내를 **여기서 넣지 않는다.** turn_end 직후 idle 에 넣으면 비버가
                 #   그것을 대화 차례로 받아 학습자 없이 다음 턴을 만든다(자문자답). 안내는 마이크 자리(_attach_note)에서만 나간다.
+            if state.ctx is not None:
+                _ctx_after_turn_end(state, ctx_ctrl0, turn_text, reseeded_now)
 
     # 스트림이 끝났다. 통화가 아직 살아 있고 재개가 가능하면 종료가 아니라 교체다 —
     # 저쪽이 예고 없이 끊는 경우(네트워크·서버 재시작)가 여기로 온다.
@@ -6734,7 +6808,8 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
     """
     return (
         state.session_epoch == 1        # 재개 세대엔 선톡 자체가 없다
-        and getattr(state, "greeting_reseeds", 0) < GREETING_RESEED_MAX   # P5(2026-09-15): 통화당 2회(종전 1회)
+        and getattr(state, "greeting_reseeds", 0) < (PERTURN_GREETING_RESEED_MAX if getattr(state, "ctx", None) is not None
+                                                     else GREETING_RESEED_MAX)   # P5(2026-09-15): 통화당 2회(종전 1회)
         and not state.learner_spoke      # 학습자가 말했으면 인사 구간이 아니다
         and state.beaver_turns == getattr(state, "greeting_reseeds", 0) + 1   # 방금 끝난 것이 첫 비버 턴(재시드가 만든 턴 포함)
         and turn_pcm_bytes == 0          # 그 턴에 소리가 없었다
@@ -6794,11 +6869,20 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
     # ⭐ P5(2026-09-15, 1610): 두 번째 재시드는 차시 프리토킹이면 짧은 대체 시드 — 같은 긴 시드가 두 번 연속 벙어리였다.
     short = n >= 2 and getattr(state, "cur_course", "") == "freetalk" and getattr(state, "freetalk_brief", None) is not None
     seed = seed_freetalk_lesson_reseed_short(getattr(state, "freetalk_target", "") or "한국어") if short else state.seed_text
+    if getattr(state, "ctx", None) is not None and n >= 2 and not short:   # 차시 프리토킹은 차시용 짧은 시드가 이미 있다
+        # PM-DEC-886 — 새 세션에서도 같은 «지난번에 …» 기억 인사가 거듭 0B 였다(call 2052). 2회째부터는 지난 통화를 꺼내지 않는 짧은 인사.
+        seed = _perturn_short_greeting(getattr(state, "freetalk_target", "") or "한국어")
+        short = True
     try:
+        if getattr(state, "ctx", None) is not None and getattr(state, "ctx_base", ""):
+            # PM-DEC-884 — perturn: 같은 세션에 다시 시드하면 또 벙어리였다(call 2028 · 3회 연속 0B). 새 세션을 열고 거기에 시드한다.
+            await state.ctx.reopen(state.ctx_base, why="mute_greeting")
         await session.send_text_turn(seed)
         logger.warning(
             "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 %d/%d%s "
-            "turns=%d epoch=%d", n, GREETING_RESEED_MAX, " (짧은 대체 시드)" if short else "",
+            "turns=%d epoch=%d", n,
+            PERTURN_GREETING_RESEED_MAX if getattr(state, "ctx", None) is not None else GREETING_RESEED_MAX,   # PM-DEC-892 — 실제 상한을 찍는다
+            " (짧은 대체 시드)" if short else "",
             state.beaver_turns, state.session_epoch,
         )
     except asyncio.CancelledError:
@@ -7263,7 +7347,7 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
             continue
         # 각 단계는 "직전 활동(발화/넛지) 이후" 신선한 무음을 잰다. 성공 시 last_activity_ts 를
         # 갱신해 다음 단계가 그 시점부터 다시 세도록(비버 무응답이어도 넛지 폭주 방지).
-        idle = loop.time() - (state.last_activity_ts or state.call_start_ts)
+        idle = loop.time() - max(state.last_activity_ts or state.call_start_ts, state.user_voice_ts or 0.0)
 
         # 단계는 실제 주입 성공 시에만 전진(시니어 리뷰 Q1 하드닝 — 상태-행동 일치).
         # 임계·1단 시드는 콜타입별(state.idle_*/nudge_seed_1). 일반은 60/10/12 + 새 화제,
@@ -7345,6 +7429,11 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
         if await _attach_note(session, state, where):
             state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나
             return
+    if getattr(state, "ctx", None) is not None:
+        # PM-DEC-873 — perturn: 매 턴 안내·재접지 쪽지는 새 세션 지시문에 들어 있다(_perturn_instruction).
+        #   마이크 자리 realtime 텍스트를 새 세션의 첫 입력으로 넣지 않는다 — 학습자 음성보다 먼저 응답을 일으켜
+        #   이중 발화가 될 수 있다(call 2026 턴 9: 안내 직후 모델이 턴을 열었다가 0B 로 버림).
+        return
     if not (state.reground_pending and state.reground_reminder):
         if at_mic:
             await _attach_turn_note(session, state, where)
@@ -7852,6 +7941,156 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
         raise
     except Exception as exc:  # noqa: BLE001 - 재접지 실패는 통화 무영향(R5)
         logger.warning("normalcall: 재접지 주입 실패(무시): %s", exc)
+
+
+# ── PM-DEC-864 턴마다 새 세션(CONTEXT_MODE=perturn) ───────────────────────────── #
+class CtxSummaryOut(BaseModel):
+    summary: str = ""
+    facts: list[str] = []      # PM-DEC-914 — 학습자 사실 목록(누적 · 줄거리와 따로)
+
+
+_CTX_SUMMARY_INSTRUCTION = (
+    "너는 언어 학습 통화의 기록 담당이다. 다음 진행자가 이어받을 수 있게 통화 줄거리를 5줄 이내 한국어로 고쳐 쓴다. "
+    "이전 줄거리를 바탕으로 새 대화를 반영한다. 학습자가 말한 사실(이름·가족·반려동물·한 일·좋아하는 것), "
+    "학습자가 틀린 표현과 고쳐 준 말, 지금 이야기하는 화제를 꼭 넣는다. 지어내지 않는다.\n"
+    "facts 칸에는 학습자에 대해 알게 된 사실을 짧은 구로 모은다(최대 15개). 이전 사실 목록을 그대로 두고 새 사실만 더한다 — "
+    "이름·가족·반려동물·날짜(생일 등)·계획·못 먹는 것·못 하는 것은 절대 빼지 않는다. 같은 얘기는 하나로 합치고, "
+    "학습자가 고쳐 말한 사실만 새 내용으로 바꾼다."
+)
+CTX_FACTS_MAX = 15
+
+
+def _perturn_enabled(settings: Settings, state: _CallState) -> bool:
+    """perturn 을 이 통화에 쓰는가 — env 가 켜져 있고 레벨테스트가 아닐 때만."""
+    return (getattr(settings, "CONTEXT_MODE", "") or "").strip().lower() == "perturn" and not state.is_leveltest
+
+
+def _ctx_recent_lines(state: _CallState, n: int) -> str:
+    # PM-DEC-885 — 비버 줄은 «너(비버)» 로 적는다(새 세션이 자기 말로 알아보게 · call flow 요청서 70).
+    return "\n".join(
+        f"{'학습자' if s['role'] == 'user' else '너(비버)'}: {s['text'].strip()}"
+        for s in [s for s in state.segments if (s.get("text") or "").strip()][-n:]
+    )
+
+
+_CTX_SENT_RE = re.compile(r"[^.!?。？！…]+[.!?。？！…]*")
+
+
+def _ctx_last_ending(state: _CallState) -> str:
+    """직전 비버 턴의 마지막 문장(끝맺음). 없으면 빈 문자열."""
+    for s in reversed(state.segments):
+        if s.get("role") != "user" and (s.get("text") or "").strip():
+            parts = [p.strip() for p in _CTX_SENT_RE.findall(s["text"].strip()) if p.strip()]
+            return parts[-1][:80] if parts else ""
+    return ""
+
+
+def _perturn_short_greeting(target_language: str) -> str:
+    """PM-DEC-886 — perturn 벙어리 인사 2회째부터 쓰는 짧은 시드(지난 통화 이야기 없음)."""
+    return (f"[통화 시작] 지난 통화 이야기는 꺼내지 말고, {target_language}로 짧게 한 문장 인사한 뒤 쉬운 질문 하나만 하고 멈춰라. "
+            "이 [통화 시작] 안내문 자체는 소리 내어 읽지 마라.")
+
+
+def _perturn_instruction(state: _CallState) -> str:
+    """새 세션 지시문 = 운영 조립 지시문 + [지금까지의 통화](줄거리·최근 대화·서버 상태) + 이어서 규칙.
+
+    ⛔ 지난 대화를 이력 턴(client_content)으로 깔지 않는다 — 1단계 실측에서 3.1 Live 가 음성 없이 전사만 줬다. 지시문 안 텍스트로 넣는다.
+    """
+    parts = [f"줄거리: {state.ctx_summary or '(아직 없음)'}"]
+    if getattr(state, "ctx_facts", None):
+        # PM-DEC-914 — 줄거리 5줄에서 밀려나지 않게 사실은 따로(call 2124 18턴 뒤 동생 이름 «모르겠어»)
+        parts.append("학습자에 대해 아는 사실: " + " · ".join(state.ctx_facts))
+    recent = _ctx_recent_lines(state, max(1, int(_settings.CONTEXT_RECENT_SEGMENTS)))
+    if recent:
+        parts.append("최근 대화:\n" + recent)
+    # 서버 상태 — 학습자 이름·코스 규칙은 운영 지시문(ctx_base)에 이미 있다. 진행 위치·틀린 표현·표정은 여기서 매번 넣는다.
+    if state.expr_items:
+        try:
+            parts.append("진행 상황: " + _build_expression_note(state).replace(CONTROL_TAG, "").strip())
+        except Exception as exc:  # noqa: BLE001 - 쪽지 조립 실패는 줄거리만으로 간다(R5)
+            logger.warning("normalcall perturn: 진행 쪽지 조립 실패(무시): %s", exc)
+    p = state.expr_practice
+    if p is not None and p.item is not None and not state.expr_quiz_open:
+        parts.append(f"지금 연습 중인 표현(서버 관측): {p.index + 1}번 «{p._original()}» · 단계 {p.phase}")
+    if state.face_last:
+        parts.append(f"지금 네 표정: {state.face_last}")
+    if state.turn_note:
+        # PM-DEC-873 — 매 턴 안내(마이크 자리 텍스트)를 지시문으로 옮긴다. 제어 꼬리표·«읽지 말고» 문구는 지시문에선 뜻이 없다.
+        note = state.turn_note.replace(CONTROL_TAG, "").replace("이 메시지는 읽지 말고 반영만 해라.", "").strip()
+        parts.append(f"이번 턴 답하는 법: {note}")
+    last_end = _ctx_last_ending(state)
+    if last_end:
+        # PM-DEC-885 — 같은 끝맺음 반복(바바 23~37%)을 줄인다.
+        parts.append(f"직전 네 끝맺음: «{last_end}» — 이번엔 다른 끝맺음(질문 문장 안에서 바꾸고 꼬리 질문은 붙이지 않는다).")
+    return (state.ctx_base + "\n\n[지금까지의 통화]\n" + "\n".join(parts) + "\n"
+            "[이어서] 통화가 진행 중이다. 인사하지 말고, 학습자의 다음 말에 바로 답한다.")
+
+
+def _ctx_after_turn_end(state: _CallState, ctrl0: int, turn_text: str, reseeded_now: bool) -> None:
+    """비버 턴 끝 — 줄거리 갱신(주기)과 다음 세션 준비. 바꾸면 안 되는 자리면 지금 세션을 그대로 둔다."""
+    ctx = state.ctx
+    if ctx is None:
+        return
+    state.ctx_beaver_turns += 1
+    why = ""
+    if state.should_close or state.close_seed_sent:
+        why = "closing"
+    elif reseeded_now:
+        why = "reseed"
+    elif ctx.ctrl_sends != ctrl0:
+        why = "control"          # 이 turn_end 에서 시드·쪽지가 지금 세션에 들어갔다 — 그 응답이 지금 세션에서 나온다
+    elif state.ctx_turn_interrupted:
+        why = "interrupted"      # barge-in 중에는 현재 세션 유지
+    elif not (turn_text or "").strip():
+        why = "empty_turn"
+    if why:
+        ctx._skip(why)
+        return
+    every = max(1, int(_settings.CONTEXT_SUMMARY_EVERY))
+    if state.ctx_beaver_turns % every == 0 and (state.ctx_summary_task is None or state.ctx_summary_task.done()):
+        state.ctx_summary_task = asyncio.create_task(_ctx_summary_sidecar(state), name="nc-ctx-summary")
+    ctx.prepare(_perturn_instruction(state))
+
+
+async def _ctx_summary_sidecar(state: _CallState) -> None:
+    """줄거리 증분 갱신 — 이전 줄거리 + 그 뒤 새 발화만 넣는다(입력이 통화 길이와 같이 자라지 않게)."""
+    upto = len(state.segments)
+    new = "\n".join(
+        f"{'학습자' if s['role'] == 'user' else '비버'}: {s['text'].strip()}"
+        for s in state.segments[state.ctx_summary_upto:upto] if (s.get("text") or "").strip()
+    )
+    if not new or state.ctx_client is None:
+        return
+    one = gemini_analysis.LlmUsage()
+    try:
+        out = await gemini_analysis.generate_structured(
+            state.ctx_client, _settings.CONTEXT_SUMMARY_MODEL,
+            system_instruction=_CTX_SUMMARY_INSTRUCTION,
+            prompt=(f"이전 줄거리:\n{state.ctx_summary or '(없음)'}\n\n이전 사실 목록:\n"
+                    + ("\n".join(f"- {f}" for f in state.ctx_facts) if state.ctx_facts else "(없음)")
+                    + f"\n\n새 대화:\n{new}"),
+            schema=CtxSummaryOut, temperature=0.0, thinking_budget=0, usage=one,
+        )
+        if out is not None and (out.summary or "").strip():
+            state.ctx_summary = out.summary.strip()[:1200]
+            facts = [f.strip()[:40] for f in (getattr(out, "facts", None) or []) if isinstance(f, str) and f.strip()]
+            if facts:
+                # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
+                state.ctx_facts = list(dict.fromkeys(facts + state.ctx_facts))[:CTX_FACTS_MAX]
+            state.ctx_summary_upto = upto
+        else:
+            one.note_failure()
+            # 이유는 바로 앞 「gemini_analysis: … 실패」 줄에 있다(모델·키·형식). 지난 줄거리는 그대로 쓴다.
+            logger.warning("normalcall perturn: 줄거리 사이드카 실패 call_id=%s model=%s — 지난 줄거리 유지(%d자)",
+                           _cid(state), _settings.CONTEXT_SUMMARY_MODEL, len(state.ctx_summary or ""))
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 줄거리 실패는 지난 줄거리로 간다(R5)
+        one.note_failure()
+        logger.warning("normalcall perturn: 줄거리 사이드카 실패(무시): %s", exc)
+    finally:
+        state.ctx_usage.merge(one)
+        state.sidecar_usage.merge(one)
 
 
 def _transcript_tail(state: _CallState, turns: int = 12, *, only_user: bool = False) -> str:

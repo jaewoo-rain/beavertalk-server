@@ -692,7 +692,8 @@ async def test_idle_three_stage_nudge_then_close(session_factory, seeded, monkey
     sess = holder["s"]
     # 1단·2단 넛지가 순서대로 주입됐다(in_tr 부재 감지).
     assert any("가볍게 새 화제" in t for t in sess.sent_text_turns), "1단 넛지 미주입"
-    assert any("거기 있어" in t for t in sess.sent_text_turns), "2단 넛지 미주입"
+    # PM-DEC-889 — chat 은 자유대화 전용 2단(«들리는지 한 문장») — 공용 «거기 있어» 리터럴이 아니다.
+    assert any("들리는지 한 문장으로" in t for t in sess.sent_text_turns), "2단 넛지 미주입"
     # 3단 → should_close → 종료 시드 주입 → 정상 작별.
     assert any("통화 시간이 다 됐다" in t for t in sess.sent_text_turns), \
         "3단 후 종료 시드 미주입"

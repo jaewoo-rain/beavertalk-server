@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     #   ⚠ 로컬 개발에서 5분/15분에 자꾸 막히면 `.env.local` 에 `DAILY_BUDGET_ENFORCED=false`
     #     를 넣어라(admin 롤 계정은 어차피 면제다 — 위 주석과 같은 탈출구).
     DAILY_BUDGET_ENFORCED: bool = True
+    # PM-DEC-887 — 시험 태그 리비전 전용 하루 예산(초). 0(기본)이면 플랜 표 그대로. prod 에서는 무시한다.
+    TEST_DAILY_BUDGET_S: int = 0
 
     # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
     # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).
@@ -289,6 +291,14 @@ class Settings(BaseSettings):
     #   그 경로에 걸려 있던 회귀(RC1 소강 스타베이션 · call 197 종료 레이스 · 무음 우선순위)는 남는 경로로 옮겨 잠갔다
     #   (tests/test_normalcall_ws.py — «_request_close»·«GoAway» 판).
     LIVE_FACE_SPIKE: bool = False
+    # ⭐ PM-DEC-864 — 맥락 방식. "" = 종전(한 세션 + 압축) · "perturn" = 비버 턴마다 새 Live 세션(지시문 안에 줄거리·최근 대화).
+    #   시험 서버 태그(ctxperturn)에서만 켠다. 레벨테스트는 켜도 종전 그대로다.
+    CONTEXT_MODE: str = ""
+    CONTEXT_SUMMARY_MODEL: str = "gemini-2.5-flash"   # ⛔ 2.5-flash-lite 는 새 사용자에게 404(2026-10-20 call 2027·2028)   # 줄거리 사이드카(뒤에서 갱신 · 증분)
+    CONTEXT_SUMMARY_EVERY: int = 4      # 비버 턴 N번마다 줄거리 갱신
+    CONTEXT_RECENT_SEGMENTS: int = 6    # 새 세션 지시문에 넣는 최근 발화 수(학습자·비버 합)
+    # PM-DEC-865 — usage_metadata 1건마다 「normalcall resp:」 한 줄(응답별 원가 곡선용 · 시험 태그에서만 켠다)
+    LIVE_USAGE_RESP_LOG: bool = False
     # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고
     #   진도를 쌓는다. false 면 옛 경로(learning_item 기반) 그대로 — 코드 배포 없이 되돌리기.
     #   ⛔ 경로는 **통화 단위로 고정**된다(§6 ③·§7 P1-6): 이 값은 통화 **시작 시점**에만 읽고, cur_call 행이 생긴 통화는 끝까지
