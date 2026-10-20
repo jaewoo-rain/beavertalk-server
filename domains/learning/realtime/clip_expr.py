@@ -750,6 +750,7 @@ class ClipExprSession:
             if c is None:
                 logger.warning("normalcall clipexpr: 클립 없음 %s(건너뜀)", cid)
                 continue
+            self._on_clip_start(cid, c, max(0.0, self._play_until - time.monotonic()))   # PM-DEC-893 — 재생 시작까지 남은 초
             face_now = await self._emit_pcm(c.pcm, (" " if first_sound else "") + c.text, c.face, face_now)
             if first_sound is None:
                 first_sound = time.monotonic()
@@ -774,10 +775,17 @@ class ClipExprSession:
         self._recent = (self._recent + ([f"Learner: {heard}"] if heard else []) + [f"{self.char}: {spoken}"])[-4:]
         self._judged = "-"
         self._save()
+        self._on_turn_audio_end(max(0.0, self._play_until - time.monotonic()))
         await self._out.put(LiveEvent(kind="turn_end"))
         if self._closing:
             return
         self._reset_listen()
+
+    def _on_clip_start(self, cid: str, clip: "Clip", delay_s: float) -> None:
+        """클립 하나가 앱에서 재생되기 시작할 때(지금부터 delay_s 뒤) — 표현학습은 쓰지 않는다(PM-DEC-893)."""
+
+    def _on_turn_audio_end(self, delay_s: float) -> None:
+        """이 턴 소리가 앱에서 다 재생될 때(지금부터 delay_s 뒤)."""
 
     def _t_rel(self) -> float:
         t0 = getattr(self._state, "call_start_ts", None)

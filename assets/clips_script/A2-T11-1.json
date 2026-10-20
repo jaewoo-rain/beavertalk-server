@@ -4,80 +4,102 @@
  "lines": [
   {
    "n": 1,
-   "beaver": "어서 와요. 여기 앉아요. 오늘 저녁은 된장찌개하고 불고기예요.",
+   "beaver": "어서 와요. 앉아요. 저녁은 된장찌개하고 불고기예요.",
    "learner": "와, 맛있겠네요. 잘 먹겠습니다.",
    "en": "Wow, looks delicious. Thank you for the meal.",
-   "roman": "Wa, masitgenneyo. Jal meokgetseumnida."
+   "roman": "Wa, masitgenneyo. Jal meokgetseumnida.",
+   "beaver_en": "Come on in. Have a seat. Dinner is doenjang stew and bulgogi.",
+   "beaver_roman": "Eoseo wayo. Anjayo. Jeonyeogeun doenjangjjigaehago bulgogiyeyo."
   },
   {
    "n": 2,
    "beaver": "된장찌개를 먹어 보니까 맛이 어때요?",
    "learner": "조금 싱겁네요. 그래도 맛있어요.",
    "en": "It's a little bland. But it's tasty.",
-   "roman": "Jogeum singgeomneyo. Geuraedo masisseoyo."
+   "roman": "Jogeum singgeomneyo. Geuraedo masisseoyo.",
+   "beaver_en": "You've tried the doenjang stew. How does it taste?",
+   "beaver_roman": "Doenjangjjigaereul meogeo bonikka masi eottaeyo?"
   },
   {
    "n": 3,
    "beaver": "그래요? 그럼 소금을 좀 넣을까요?",
    "learner": "아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요.",
    "en": "No, it's fine. I like mild food.",
-   "roman": "Aniyo, gwaenchanayo. Jeoneun singgeoun eumsigeul joahaeyo."
+   "roman": "Aniyo, gwaenchanayo. Jeoneun singgeoun eumsigeul joahaeyo.",
+   "beaver_en": "Really? Then shall I add a little salt?",
+   "beaver_roman": "Geuraeyo? Geureom sogeumeul jom neoeulkkayo?"
   },
   {
    "n": 4,
    "beaver": "불고기도 먹어 봐요. 너무 달지 않아요?",
    "learner": "아니요, 딱 좋네요. 정말 맛있어요.",
    "en": "No, it's just right. It's really good.",
-   "roman": "Aniyo, ttak jonneyo. Jeongmal masisseoyo."
+   "roman": "Aniyo, ttak jonneyo. Jeongmal masisseoyo.",
+   "beaver_en": "Try the bulgogi too. Isn't it too sweet?",
+   "beaver_roman": "Bulgogido meogeo bwayo. Neomu dalji anayo?"
   },
   {
    "n": 5,
    "beaver": "왜 김치는 조금만 먹어요?",
    "learner": "김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요.",
    "en": "The kimchi is too spicy. I can't eat spicy food well yet.",
-   "roman": "Gimchiga neomu maemneyo. Ajik maeun eumsigeun jal mon meogeoyo."
+   "roman": "Gimchiga neomu maemneyo. Ajik maeun eumsigeun jal mon meogeoyo.",
+   "beaver_en": "Why are you only eating a little kimchi?",
+   "beaver_roman": "Wae gimchineun jogeumman meogeoyo?"
   },
   {
    "n": 6,
    "beaver": "아이고, 그럼 천천히 먹어요. 잡채도 있어요.",
    "learner": "잡채는 하나도 안 맵네요. 이거 정말 맛있어요.",
    "en": "The japchae isn't spicy at all. This is really tasty.",
-   "roman": "Japchaeneun hanado an maemneyo. Igeo jeongmal masisseoyo."
+   "roman": "Japchaeneun hanado an maemneyo. Igeo jeongmal masisseoyo.",
+   "beaver_en": "Oh my, then eat slowly. There's japchae too.",
+   "beaver_roman": "Aigo, geureom cheoncheonhi meogeoyo. Japchaedo isseoyo."
   },
   {
    "n": 7,
    "beaver": "갈비도 좀 줄까요?",
    "learner": "네, 조금만 주세요. 배가 벌써 불러요.",
    "en": "Yes, just a little please. I'm already full.",
-   "roman": "Ne, jogeumman juseyo. Baega beolsseo bulleoyo."
+   "roman": "Ne, jogeumman juseyo. Baega beolsseo bulleoyo.",
+   "beaver_en": "Shall I give you some galbi too?",
+   "beaver_roman": "Galbido jom julkkayo?"
   },
   {
    "n": 8,
    "beaver": "후식으로 딸기하고 케이크를 준비했어요.",
    "learner": "와, 케이크가 아주 예쁘네요. 딸기도 달아요.",
    "en": "Wow, the cake is so pretty. The strawberries are sweet too.",
-   "roman": "Wa, keikeuga aju yeppeuneyo. Ttalgido darayo."
+   "roman": "Wa, keikeuga aju yeppeuneyo. Ttalgido darayo.",
+   "beaver_en": "I prepared strawberries and cake for dessert.",
+   "beaver_roman": "Husigeuro ttalgihago keikeureul junbihaesseoyo."
   },
   {
    "n": 9,
    "beaver": "마실 것도 줄까요? 우유하고 사이다가 있어요.",
    "learner": "사이다 주세요. 고맙습니다.",
-   "en": "Cider, please. Thank you.",
-   "roman": "Saida juseyo. Gomapseumnida."
+   "en": "Soda, please. Thank you.",
+   "roman": "Saida juseyo. Gomapseumnida.",
+   "beaver_en": "Shall I get you something to drink too? There's milk and soda.",
+   "beaver_roman": "Masil geotdo julkkayo? Uyuhago saidaga isseoyo."
   },
   {
    "n": 10,
    "beaver": "오늘 식사 어땠어요?",
    "learner": "정말 맛있었어요. 아주머니 요리가 최고예요.",
    "en": "It was really delicious. Your cooking is the best.",
-   "roman": "Jeongmal masisseosseoyo. Ajumeoni yoriga choegoyeyo."
+   "roman": "Jeongmal masisseosseoyo. Ajumeoni yoriga choegoyeyo.",
+   "beaver_en": "How was the meal today?",
+   "beaver_roman": "Oneul siksa eottaesseoyo?"
   },
   {
    "n": 11,
    "beaver": "고마워요. 내일도 맛있게 해 줄게요.",
    "learner": "감사합니다. 잘 먹었습니다.",
    "en": "Thank you. I enjoyed the meal.",
-   "roman": "Gamsahamnida. Jal meogeotseumnida."
+   "roman": "Gamsahamnida. Jal meogeotseumnida.",
+   "beaver_en": "Thank you. I'll cook something tasty again tomorrow.",
+   "beaver_roman": "Gomawoyo. Naeildo masitge hae julgeyo."
   }
  ]
 }

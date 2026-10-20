@@ -60,6 +60,7 @@ class _H:
         while True:
             ev = await asyncio.wait_for(self.it.__anext__(), 2)
             if ev.kind == "turn_end":
+                await asyncio.sleep(0.01)   # PM-DEC-893 — 재생 시작 시각에 맞춘 띠 알림(태스크)을 흘려 보낸다
                 return
 
     async def say(self):
@@ -87,6 +88,11 @@ async def test_flow_pass_fail_twice_skip_and_angry_once_per_line():
         await h.turn()
         assert h.clips()[0].startswith("sg_open_") and h.clips()[1:] == ["sb_1", "sp_1"]
         assert h.cards("script_line")[0]["n"] == 1 and h.cards("script_line")[0]["total"] == 11
+        # PM-DEC-893 — 띠 순서: 시작 클립(script_say open) → 바바 줄(script_beaver) → 학습자 줄(script_line)
+        assert [m["type"] for m in h.notes if m["type"].startswith("script_")] == ["script_say", "script_beaver", "script_line"]
+        assert h.cards("script_say")[0]["kind"] == "open" and h.cards("script_say")[0]["text"]
+        b = h.cards("script_beaver")[0]
+        assert b["n"] == 1 and b["ko"] == lines[1]["beaver"] and b["gloss"] and b["roman"]
         n = len(h.notes)
         await h.say()                                   # 1번 정확히 → 잘함 + 2번
         assert h.clips(n)[0].startswith("sg_good_") and h.clips(n)[1:] == ["sb_2", "sp_2"]
@@ -94,9 +100,13 @@ async def test_flow_pass_fail_twice_skip_and_angry_once_per_line():
         n = len(h.notes)
         await h.say()                                   # 2번 틀림 1회 → 화내기
         assert h.clips(n)[0].startswith("sg_angry_") and h.cards("script_line", n)[0]["attempt"] == 2
+        assert h.cards("script_say", n)[0]["kind"] == "angry"
+        band = [m["type"] for m in h.notes[n:] if m["type"] in ("script_say", "script_line")]
+        assert band == ["script_say", "script_line"]   # 화냄 클립 뒤에 같은 줄(다시 읽기)
         n = len(h.notes)
         await h.say()                                   # 2번 틀림 2회 → 정답 들려주고 넘어감
         assert h.clips(n) == ["sm_2", "sb_3", "sp_3"] and h.cards("script_result", n)[0]["result"] == "skip"
+        assert h.cards("script_say", n)[0]["kind"] == "answer" and h.cards("script_beaver", n)[0]["n"] == 3
         n = len(h.notes)
         await h.say()                                   # 빈 STT → 다시(화내지 않음)
         assert h.clips(n)[0].startswith("sg_again_") and not h.cards("script_result", n)

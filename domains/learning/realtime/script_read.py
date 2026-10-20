@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import difflib
 import json
 import logging
@@ -114,6 +115,8 @@ class ScriptReadSession(ClipExprSession):
         self.angry_used = 0
         self.angry_line = False
         self.results: list[tuple[int, str, float]] = []
+        self._band_tasks: set[asyncio.Task] = set()
+        self._line_after_turn = False
         # 두 문장 줄을 쉬어 가며 읽는다 — 말 끝을 길게(call 2040·2041 반쪽 판정)
         self._end_s = float(getattr(self._settings, "SCRIPT_READ_END_SILENCE_S", 1.2) or 1.2)
 
@@ -132,12 +135,46 @@ class ScriptReadSession(ClipExprSession):
         except Exception as exc:  # noqa: BLE001 - 카드 알림 실패는 통화 무영향(소리로 진행)
             logger.warning("normalcall script: %s 알림 실패(무시): %r", msg.get("type"), exc)
 
-    async def _line_card(self) -> None:
+    def _line_msg(self) -> Optional[dict]:
         if self.idx >= len(self.items):
-            return
+            return None
         x = self.lines[self.item.seq]
-        await self._card({"type": "script_line", "n": x["n"], "total": len(self.items), "ko": x["learner"],
-                          "roman": x.get("roman") or "", "en": x.get("en") or "", "attempt": self.attempt})
+        return {"type": "script_line", "n": x["n"], "total": len(self.items), "ko": x["learner"],
+                "roman": x.get("roman") or "", "en": x.get("en") or "", "attempt": self.attempt}
+
+    # ── 자막 띠(PM-DEC-893) — 클립이 앱에서 소리 나기 시작하는 시각에 맞춰 보낸다 ──────────── #
+    _SAY_KIND = (("sg_close_call", "end"), ("sg_open", "open"), ("sg_angry", "angry"), ("sg_again", "again"),
+                 ("sg_good", "good"), ("sg_close", "close"), ("sm_", "answer"))
+
+    def _band_at(self, delay_s: float, msg: Optional[dict]) -> None:
+        if msg is None or self._notify is None:
+            return
+
+        async def _later() -> None:
+            if delay_s > 0:
+                await asyncio.sleep(delay_s)
+            await self._card(msg)
+
+        t = asyncio.create_task(_later())
+        self._band_tasks.add(t)
+        t.add_done_callback(self._band_tasks.discard)
+
+    def _on_clip_start(self, cid: str, clip, delay_s: float) -> None:
+        if cid.startswith("sb_"):
+            n = int(cid[3:])
+            x = self.lines.get(n) or {}
+            self._band_at(delay_s, {"type": "script_beaver", "n": n, "total": len(self.items), "ko": x.get("beaver") or "",
+                                    "gloss": x.get("beaver_en") or "", "roman": x.get("beaver_roman") or ""})
+        elif cid.startswith("sp_"):
+            self._band_at(delay_s, self._line_msg())
+        else:
+            kind = next((k for p, k in self._SAY_KIND if cid.startswith(p)), "say")
+            self._band_at(delay_s, {"type": "script_say", "kind": kind, "text": clip.text, "sec": round(clip.sec, 2)})
+
+    def _on_turn_audio_end(self, delay_s: float) -> None:
+        if self._line_after_turn:
+            self._line_after_turn = False
+            self._band_at(delay_s, self._line_msg())   # 화냄·재요청 클립이 끝난 뒤 같은 줄(다시 읽기)
 
     async def _result_card(self, result: str) -> None:
         if self.idx < len(self.items):
@@ -150,7 +187,6 @@ class ScriptReadSession(ClipExprSession):
             await self._turn([self._pick("sg_again")], result="resume")
             return
         n = self.item.seq
-        await self._line_card()
         lead = [] if self._restored else [self._pick("sg_open")]
         await self._turn(lead + [f"sb_{n}", f"sp_{n}"], result="resume" if self._restored else "open")
 
@@ -207,7 +243,7 @@ class ScriptReadSession(ClipExprSession):
             lead = self._pick("sg_angry")
         else:
             lead = self._pick("sg_again")
-        await self._line_card()
+        self._line_after_turn = True
         await self._turn([lead], result="fail", heard=heard, t_end=t_end)
 
     async def _next_line(self) -> list[str]:
@@ -223,10 +259,11 @@ class ScriptReadSession(ClipExprSession):
                 self._request_close()
             return []
         n = self.item.seq
-        await self._line_card()
         return [f"sb_{n}", f"sp_{n}"]
 
     async def __aexit__(self, *exc) -> None:
+        for t in list(self._band_tasks):
+            t.cancel()
         await super().__aexit__(*exc)
         counts: dict[str, int] = {}
         for _, r, _ in self.results:
