@@ -7406,7 +7406,7 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
         if await _attach_note(session, state, where):
             state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나
             return
-    if state.ctx is not None:
+    if getattr(state, "ctx", None) is not None:
         # PM-DEC-873 — perturn: 매 턴 안내·재접지 쪽지는 새 세션 지시문에 들어 있다(_perturn_instruction).
         #   마이크 자리 realtime 텍스트를 새 세션의 첫 입력으로 넣지 않는다 — 학습자 음성보다 먼저 응답을 일으켜
         #   이중 발화가 될 수 있다(call 2026 턴 9: 안내 직후 모델이 턴을 열었다가 0B 로 버림).
