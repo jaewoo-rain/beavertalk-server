@@ -291,9 +291,9 @@ class Settings(BaseSettings):
     LIVE_FACE_SPIKE: bool = False
     # PM-DEC-872 — 표현학습 클립 주도 시제품(exp/clip-expr-872 전용). 켤 캐릭터 이름(쉼표 · 예: "Baba"). 빈 값 = 종전.
     CLIP_EXPR: str = ""
-    CLIP_EXPR_JUDGE_MODEL: str = "gemini-3.5-flash-lite"   # 음성 입력 판정 실측 1.3~2.0초 · 2.5-flash-lite 는 404(2026-10-20)
+    CLIP_EXPR_JUDGE_MODEL: str = "gemini-2.5-flash"   # 규칙이 못 정한 판정·예외 응답 텍스트(thinking 0) · 2.5-flash-lite 는 404
     CLIP_EXPR_END_SILENCE_S: float = 0.8     # 말 끝으로 보는 무음 길이
-    CLIP_EXPR_DUNNO_S: float = 6.0           # 마이크가 열린 뒤 이만큼 말이 없으면 «모름»
+    CLIP_EXPR_DUNNO_S: float = 8.0           # 앱 재생이 끝난 뒤 이만큼 말이 없으면 «모름»(call flow 제안 8초)
     # PM-DEC-877 — 회화학습 대본 읽기 시제품(28차시 · Live 없음 · 규칙 대조). 켤 캐릭터 이름. 빈 값 = 종전.
     SCRIPT_READ: str = ""
     # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고

@@ -1,4 +1,4 @@
-"""PM-DEC-872 — 표현학습 클립 주도 대리 세션 결정적 시험(외부 의존 0 · 판정기는 가짜)."""
+"""PM-DEC-872 — 표현학습 클립 주도 대리 세션 결정적 시험(외부 의존 0 · 판정·예외 응답은 가짜)."""
 from __future__ import annotations
 
 import array
@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.gemini_live import LiveEvent
 from domains.learning.realtime import clip_expr
 from domains.learning.realtime.clip_expr import ClipExprSession
 from test_normalcall_ws import seeded, session_factory  # noqa: F401 - 픽스처
@@ -18,6 +17,13 @@ VOICED = array.array("h", [8000, -8000] * 320).tobytes()     # 40ms
 SILENT = bytes(1280)
 SETTINGS = SimpleNamespace(CLIP_EXPR="Baba", LIVE_REGROUND_VOICE_RMS=0.02, CLIP_EXPR_END_SILENCE_S=0.12,
                            CLIP_EXPR_DUNNO_S=0.4, CLIP_EXPR_JUDGE_MODEL="x")
+
+
+@pytest.fixture(autouse=True)
+def _instant_playback(monkeypatch):
+    """시험에서는 클립 재생 시간을 0 으로 본다(무응답 시계가 바로 돈다). 재생 관문 시험은 따로 되돌린다."""
+    monkeypatch.setattr(clip_expr, "_OUT_BPS", 10 ** 12)
+    clip_expr._PROGRESS.clear()
 
 
 def test_enabled_only_for_baba_expression_en():
@@ -41,16 +47,30 @@ def test_bank_has_every_clip_the_flow_names():
     assert all(len(c.pcm) > 0 for c in clips.values())
 
 
+def test_rule_judge():
+    rj = clip_expr.rule_judge
+    assert rj("안녕하세요", ["안녕하세요?"], blank=False)[0] == "correct"
+    assert rj("안녕하세여", ["안녕하세요?"], blank=False)[0] == "correct"
+    assert rj("", ["안녕하세요?"], blank=False)[0] == "dunno"
+    assert rj("몰라요", ["안녕하세요?"], blank=False)[0] == "dunno"
+    assert rj("I don't know", ["안녕하세요?"], blank=False)[0] == "dunno"
+    assert rj("Hello there", ["안녕하세요?"], blank=False)[0] == "native_lang"
+    assert rj("저는 민수예요", ["저는 ◯◯이에요"], blank=True)[0] == "correct"
+    assert rj("고마워요", ["안녕하세요?"], blank=False)[0] is None        # 규칙이 못 정함 → LLM
+
+
 class _Harness:
-    def __init__(self, results: list[str], live_factory=None):
+    def __init__(self, results: list[str], say=None, call_id=1):
         self.results = list(results)
         self.notes: list[dict] = []
         self.closed = False
-        state = SimpleNamespace(call_id=1, close_seed="CLOSE", call_start_ts=None)
+        self.calls = 0
+        state = SimpleNamespace(call_id=call_id, close_seed="CLOSE", call_start_ts=None, fragment_index=1)
 
-        async def judge(wav, prompt):
+        async def judge(pcm, ctx):
+            self.calls += 1
             r = self.results.pop(0)
-            return ("말" if r != "dunno" else ""), r, 10, 5
+            return ("말" if r != "dunno" else ""), r
 
         async def notify(msg):
             self.notes.append(msg)
@@ -58,13 +78,13 @@ class _Harness:
         def req_close():
             self.closed = True
 
-        self.s = ClipExprSession(live_factory or _no_live, None, SETTINGS, {"system_instruction": "S", "voice": "Fenrir"},
+        self.s = ClipExprSession(None, None, SETTINGS, {"system_instruction": "S", "voice": "Fenrir"},
                                  char="Baba", state=state, notify=notify, judge=judge, request_close=req_close,
-                                 rng=random.Random(0))
+                                 rng=random.Random(0), say=say)
         self.it = None
 
     async def turn(self) -> list[str]:
-        """turn_end 까지 받은 out_tr 를 클립 문장 목록으로."""
+        """turn_end 까지 받은 out_tr 를 문장 목록으로."""
         texts = []
         while True:
             ev = await asyncio.wait_for(self.it.__anext__(), 2)
@@ -83,12 +103,6 @@ class _Harness:
         return [m["id"] for m in self.notes[n:]]
 
 
-@contextlib.asynccontextmanager
-async def _no_live(client, settings, **kw):
-    raise AssertionError("이 시험에서는 Live 를 열면 안 된다")
-    yield  # pragma: no cover
-
-
 @pytest.mark.asyncio
 async def test_happy_path_ask_native_then_next_item():
     h = _Harness(["correct", "correct"])
@@ -105,6 +119,7 @@ async def test_happy_path_ask_native_then_next_item():
         ids = h.ids_since(n)
         assert ids[0].startswith("g_ok_") and ids[1] == "native_1"
         assert [m["face"] for m in h.notes[n:]] == ["happy", "neutral"]
+        assert h.notes[n]["answered"] == "1/ask"
         n = len(h.notes)
         await h.say()
         await h.it.__anext__()
@@ -124,12 +139,14 @@ async def test_wrong_then_model_then_rep_fail_twice_moves_on_with_explain_fallba
         n = len(h.notes)
         await h.say(); await h.it.__anext__(); await h.turn()
         assert h.ids_since(n)[-1] == "model_1" and any(i.startswith("g_wrong_") for i in h.ids_since(n))
+        assert all(m["answered"] == "1/ask" for m in h.notes[n:])          # 답한 항목이 클립마다 정확히 찍힌다
         n = len(h.notes)
         await h.say(); await h.it.__anext__(); await h.turn()
         assert h.ids_since(n)[0].startswith("g_rep_again_") and h.ids_since(n)[1] == "rep_1"
         n = len(h.notes)
         await h.say(); await h.it.__anext__(); await h.turn()
-        assert h.ids_since(n)[0].startswith("g_move_") and h.ids_since(n)[1] == "ask_2_2"
+        ids = h.ids_since(n)
+        assert ids[0].startswith("g_move_") and ids[1:] == ["model_1", "ask_2_2"]   # 정답은 지금 항목(1)의 것
 
 
 @pytest.mark.asyncio
@@ -153,32 +170,30 @@ async def test_silence_is_dunno_and_close_seed_plays_close():
 
 
 @pytest.mark.asyncio
-async def test_other_opens_one_live_turn_then_reasks():
-    made = []
+async def test_dunno_clock_waits_for_estimated_playback_end(monkeypatch):
+    """call 2035 — 클립을 실시간보다 빨리 보내도, 앱이 다 틀었을 시각 전에는 «모름» 을 세지 않는다."""
+    monkeypatch.setattr(clip_expr, "_OUT_BPS", 48000)
+    h = _Harness([])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        assert h.s._play_until > clip_expr.time.monotonic() + 1.0          # 인사+출제 몇 초 분량
+        for _ in range(30):                                                 # 1.2초 무음 — 아직 재생 중
+            await h.s.send_audio(SILENT)
+        await asyncio.sleep(0.02)
+        assert h.s._cmd.empty()
 
-    class _Live:
-        def __init__(self, si):
-            self.si = si
-            self.texts = []
 
-        async def send_text_turn(self, t):
-            self.texts.append(t)
+@pytest.mark.asyncio
+async def test_other_says_one_line_then_reasks():
+    said = []
 
-        async def send_tool_response(self, *a, **k):
-            return None
+    async def say(guide, heard):
+        said.append(guide)
+        return "Cute question. Focus.", b"\x01\x00" * 480
 
-        async def events(self):
-            yield LiveEvent(kind="out_tr", text="Cute question. Focus.")
-            yield LiveEvent(kind="audio", audio=b"\x01\x00" * 480)
-            yield LiveEvent(kind="turn_end")
-
-    @contextlib.asynccontextmanager
-    async def live(client, settings, **kw):
-        s = _Live(kw["system_instruction"])
-        made.append(s)
-        yield s
-
-    h = _Harness(["other"], live_factory=live)
+    h = _Harness(["other"], say=say)
     async with h.s:
         h.it = h.s.events().__aiter__()
         await h.s.send_text_turn("SEED")
@@ -187,7 +202,67 @@ async def test_other_opens_one_live_turn_then_reasks():
         await h.say(); await h.it.__anext__()
         texts = await h.turn()
         assert texts[0] == "Cute question. Focus." and h.ids_since(n) == ["ask_1_1"]
-        assert len(made) == 1 and "안녕하세요?" in made[0].si and h.s.exc_used == 1
+        assert len(said) == 1 and h.s.exc_used == 1
+
+
+@pytest.mark.asyncio
+async def test_say_failure_falls_back_to_clip():
+    async def say(guide, heard):
+        raise RuntimeError("tts down")
+
+    h = _Harness(["native_lang"], say=say)
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        n = len(h.notes)
+        await h.say(); await h.it.__anext__(); await h.turn()
+        ids = h.ids_since(n)
+        assert ids[0].startswith("g_back_") and ids[1] == "ask_1_1"
+
+
+@pytest.mark.asyncio
+async def test_speculative_judge_is_used_once_and_dropped_when_speech_resumes():
+    h = _Harness(["correct", "correct"])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(8):
+            await h.s.send_audio(VOICED)
+        for _ in range(2):                       # 0.08초 무음 — 미리 판정 문턱(0.35) 전
+            await h.s.send_audio(SILENT)
+        assert h.s._spec is None
+        h.s._end_s = 2.0                          # 말 끝을 늦춰 미리 판정만 시작되게
+        for _ in range(8):                       # 0.32초 더 → 0.40초 → 미리 판정 시작
+            await h.s.send_audio(SILENT)
+        assert h.s._spec is not None
+        await asyncio.sleep(0)                   # 미리 판정이 한 번 돈다(가짜 판정기 호출)
+        await h.s.send_audio(VOICED)             # 말이 이어졌다 → 버림
+        assert h.s._spec is None
+        h.s._end_s = 0.5                          # 실제(0.8)처럼 말 끝 > 미리 판정 문턱
+        for _ in range(13):                      # 0.52초 — 0.36초에 미리 판정, 0.52초에 말 끝
+            await h.s.send_audio(SILENT)
+        await h.it.__anext__()
+        await h.turn()
+        assert h.s.spec_hits == 1                 # 마지막 말 끝의 미리 판정을 그대로 썼다
+
+
+@pytest.mark.asyncio
+async def test_fragment_resume_keeps_item_and_skips_greeting():
+    h = _Harness(["correct", "correct"], call_id=77)
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        await h.say(); await h.it.__anext__(); await h.turn()
+        await h.say(); await h.it.__anext__(); await h.turn()      # 항목 2 출제까지
+    h2 = _Harness([], call_id=77)
+    async with h2.s:
+        h2.it = h2.s.events().__aiter__()
+        await h2.s.send_text_turn("RESUME")
+        await h2.turn()
+        assert h2.ids_since(0) == ["ask_2_2"] and h2.s.idx == 1
 
 
 @pytest.mark.asyncio
@@ -225,10 +300,10 @@ async def test_run_call_with_clip_expr_never_opens_live_and_streams_clips(sessio
     monkeypatch.setattr(cs._clip_expr, "enabled", lambda *a, **k: "Baba")
     monkeypatch.setattr(app_settings, "CLIP_EXPR_END_SILENCE_S", 0.12)
 
-    async def judge(self, wav, prompt):
-        return "안녕하세요", "correct", 100, 10
+    async def judge(self, pcm, targets, blank, st):
+        return "안녕하세요", "correct"
 
-    monkeypatch.setattr(ClipExprSession, "_judge_llm", judge)
+    monkeypatch.setattr(ClipExprSession, "_analyze_real", judge)
     opened = []
 
     @contextlib.asynccontextmanager

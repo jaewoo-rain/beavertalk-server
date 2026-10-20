@@ -5,9 +5,12 @@
 구조(대리 세션 — PerTurnSession 과 같은 자리):
   - 이 객체가 LiveSessionProtocol 을 흉내 낸다 → 2펌프·워처·저장·분석·종료는 **종전 그대로** 돈다.
   - 기본 통화에는 Live 세션이 없다. 학습자 말 끝은 마이크 프레임 RMS 로 이 객체가 잡는다(서버 VAD).
-  - 말 끝 → 판정 사이드카 1회(3.5-flash-lite · thinking minimal · 음성 입력 → {"heard","result"} JSON · 받아쓰기와 판정을 한 번에) →
-    진행 틀(요청서 3-1)이 클립 순서열을 고른다 → 클립 PCM 을 Live 오디오처럼 내보낸다(out_tr·audio·turn_end).
-  - 예외 턴(요청서 4절)만 그 턴 하나짜리 Live 세션을 새로 연다(지시문 = 바바 한 줄 + 지금 항목 + 직전 2턴 + 안내).
+  - 판정(2차 · call 2034·2035 지연 불합격 뒤): Google STT recognize(ko-KR + en-US · 목표 표현을 힌트로) → 규칙(자모 유사도·모름·언어) →
+    규칙이 못 정하면 그때만 텍스트 LLM(2.5-flash · thinking 0) 1회. 말 끝 무음 0.35초에 **미리** 시작하고, 말이 이어지면 버린다.
+  - 진행 틀(요청서 3-1)이 클립 순서열을 고른다 → 클립 PCM 을 Live 오디오처럼 내보낸다(out_tr·audio·turn_end).
+  - 예외 턴(요청서 4절): 텍스트 LLM 영어 한두 문장 + Cloud TTS(Chirp3-HD · 같은 Fenrir) — 그 턴짜리 Live 는 연결·첫 소리가 7~13초라 뺐다.
+    한국어 정답은 TTS 로 읽지 않고 그 항목 클립(model_·ask_)을 뒤에 붙인다.
+  - 조각(이어하기)이 바뀌어도 진행 위치를 call_id 로 이어 간다(프로세스 메모리 · 시험 태그는 인스턴스 1개로 띄운다).
   - 클립마다 서버 로그 「normalcall clipexpr clip:」 1줄 + WS {"type":"clip", …} 알림(앱은 모르는 type 을 무시한다).
 ⛔ 판정은 학습 진도 기록과 별개다 — 진도는 종전 추적기(전사 기반)가 그대로 적는다(요청서 3-3 · 운영 DB 범위 동일).
 ⛔ 켜는 조건은 env CLIP_EXPR(캐릭터 이름) + 표현학습 + 그 캐릭터 voice + locale en 일 때만. 빈 값이면 아무것도 안 만든다.
@@ -16,11 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import io
+import difflib
 import json
 import logging
 import math
 import random
+import re
 import time
 import wave
 from array import array
@@ -37,15 +41,22 @@ logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[3] / "assets" / "clips_expr"
 VOICE_BANK = {"Fenrir": "Baba", "Leda": "Bibi"}
 PERSONA = {
-    "Baba": "너는 «바바»다. 학습자의 한국어 연습을 돕는 비꼬기 좋아하는 친구 같은 튜터 — 짧고 건조하고 살짝 잘난 척한다. 욕설·비하 없이.",
+    "Baba": "You are Baba, a snarky, teasing Korean-tutor friend: short, dry, a little smug. No insults, no slurs.",
 }
 _CHUNK = 9600            # 0.2초(24kHz·16bit·mono)
+_OUT_BPS = 48000         # 출력 24kHz·16bit·mono 바이트/초
 _MIC_BPS = 32000         # 업링크 16kHz·16bit·mono 바이트/초
 EXC_CAP = 8              # 예외 턴 통화당 상한(요청서 4절)
 LAUGH_P = 0.3
+SPEC_SILENCE_S = 0.35    # 이만큼 무음이면 판정을 미리 시작한다(말이 이어지면 버린다)
+PLAYBACK_SLACK_S = 0.3   # 앱 재생 끝 추정에 더하는 여유
 # 클립 묶음 → 표정(set_face). 매니페스트 face 칸이 neutral 이 아니면 그것이 먼저다. 앱 표정 이름(neutral·happy·surprised·sad·angry·laugh)만.
 FACE_BY_GROUP = {"g_ok": "happy", "g_rep_ok": "happy", "g_open": "happy", "g_close": "happy", "g_quiz_start": "happy",
                  "g_laugh": "laugh", "g_wrong": "surprised", "g_rep_again": "surprised", "g_dunno": "sad"}
+RESULTS = ("correct", "close", "wrong", "dunno", "other", "native_lang")
+
+# 조각을 넘어 진행을 잇는다(call_id → 상태). 시험 태그 전용 · 인스턴스 1개 전제.
+_PROGRESS: dict[Any, dict] = {}
 
 
 @dataclass(slots=True)
@@ -65,11 +76,59 @@ class Item:
     blank: bool
 
 
-class JudgeOut(BaseModel):
-    heard: str
-    result: str     # correct|close|wrong|dunno|other|native_lang
+class TextJudgeOut(BaseModel):
+    result: str     # correct|close|wrong|other
 
 
+# ── 문자열 규칙 ────────────────────────────────────────────────────────────── #
+_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+_JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"
+_JONG = " ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"
+_KEEP = re.compile(r"[^0-9A-Za-z가-힣]")
+_HANGUL = re.compile(r"[가-힣]")
+_DUNNO = ("몰라", "모르", "모름", "잘 모", "don't know", "dont know", "do not know", "no idea", "not sure")
+_BLANK_RE = re.compile(r"저는?\s*\S+.*(이에요|예요|에요|입니다|이야|야)\W*$")
+
+
+def jamo(text: str) -> str:
+    out = []
+    for ch in _KEEP.sub("", text or ""):
+        code = ord(ch) - 0xAC00
+        if 0 <= code < 11172:
+            out.append(_CHO[code // 588] + _JUNG[(code % 588) // 28] + _JONG[code % 28].strip())
+        else:
+            out.append(ch.lower())
+    return "".join(out)
+
+
+def jamo_sim(a: str, b: str) -> float:
+    ja, jb = jamo(a), jamo(b)
+    if not ja or not jb:
+        return 0.0
+    return difflib.SequenceMatcher(None, ja, jb).ratio()
+
+
+def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional[str], float]:
+    """(결과 또는 None=LLM 에 묻기, 최고 자모 유사도)."""
+    h = (heard or "").strip()
+    if not _KEEP.sub("", h):
+        return "dunno", 0.0
+    low = h.lower()
+    if any(k in low for k in _DUNNO):
+        return "dunno", 0.0
+    if not _HANGUL.search(h):
+        return "native_lang", 0.0
+    if blank and _BLANK_RE.search(h):
+        return "correct", 1.0
+    sim = max((jamo_sim(t, h) for t in targets if t), default=0.0)
+    if sim >= 0.8:
+        return "correct", sim
+    if sim >= 0.6:
+        return "close", sim
+    return None, sim
+
+
+# ── 자산 ──────────────────────────────────────────────────────────────────── #
 _BANK_CACHE: dict[str, tuple[dict[str, Clip], list[Item]]] = {}
 
 
@@ -113,61 +172,83 @@ def _rms(pcm: bytes) -> float:
     return math.sqrt(s / max(1, len(a[::4]))) / 32768.0
 
 
-def _wav16k(pcm: bytes) -> bytes:
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(16000)
-        w.writeframes(pcm)
-    return buf.getvalue()
+# ── 외부 호출(받아쓰기 · 텍스트 LLM · TTS) ────────────────────────────────── #
+async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> tuple[str, str]:
+    """Google STT v1 recognize → (받아쓴 말, 언어 코드). 발음 챌린지와 같은 클라이언트(core.stt)."""
+    from google.cloud import speech_v1
+
+    from core.stt import get_speech_client
+    client = get_speech_client()
+    if client is None:
+        raise RuntimeError("Speech 클라이언트 없음")
+    cfg = speech_v1.RecognitionConfig(
+        encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16, sample_rate_hertz=16000, language_code="ko-KR",
+        alternative_language_codes=["en-US"] if alt_en else [],
+        speech_contexts=[speech_v1.SpeechContext(phrases=[h for h in hints if h][:5], boost=10.0)] if any(hints) else [],
+    )
+    resp = await client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k))
+    texts, lang = [], "ko-kr"
+    for r in resp.results:
+        if r.alternatives:
+            texts.append(r.alternatives[0].transcript)
+            lang = (getattr(r, "language_code", "") or lang).lower()
+    return " ".join(texts).strip(), lang
 
 
-_STAGE_RULE = {
-    "ask": "학습자가 영어 뜻 «{en}» 을 한국어로 말해야 한다. 정답 표현: «{surface}».",
-    "hint": "힌트를 들은 뒤 다시 답했다. 정답 표현: «{surface}».",
-    "rep": "학습자가 «{surface}» 를 따라 말해야 한다.",
-    "native": "학습자가 현지인 표현 «{native}» 를 따라 말해야 한다.",
-    "quiz": "퀴즈: 영어 뜻 «{en}» 을 한국어로 말해야 한다. 정답 표현: «{surface}».",
-}
-_JUDGE_PROMPT = """너는 한국어 말하기 연습 판정기다. 첨부 음성은 학습자 한 마디다.
-1) heard: 들린 그대로 받아쓴다(한국어는 한글로, 영어는 영어로). 말이 없으면 빈 문자열.
-2) result: 아래 중 하나.
-   - correct: 목표와 뜻·형태가 맞다(공백·문장부호·억양 차이 무시{blank_rule}).
-   - close: 거의 맞다(낱말 하나 틀림 · 조사·어미만 다름 · 존댓말 어미 차이).
-   - wrong: 한국어로 답했지만 목표와 다르다.
-   - dunno: 「몰라요」「모르겠어요」「I don't know」처럼 모른다고 했다.
-   - other: 학습과 무관한 말이나 질문을 했다.
-   - native_lang: 한국어 없이 영어로 길게 말했다(짧은 「I don't know」는 dunno).
-상황: {rule}
-JSON 하나만 낸다."""
+async def tts_pcm(text: str, *, lang: str = "en", voice: str = "Fenrir") -> Optional[bytes]:
+    """Cloud TTS(Chirp3-HD) → PCM16 24kHz(헤더 뗌). 키·클라이언트 없으면 None."""
+    from google.cloud import texttospeech
+
+    from core import tts as _tts
+    cli = _tts._client()
+    if cli is None:
+        return None
+    code, name = _tts._resolve_voice(lang, voice)
+    resp = await cli.synthesize_speech(
+        input=texttospeech.SynthesisInput(text=text),
+        voice=texttospeech.VoiceSelectionParams(language_code=code, name=name),
+        audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16, sample_rate_hertz=24000),
+    )
+    pcm = resp.audio_content or b""
+    if pcm[:4] == b"RIFF":
+        pcm = pcm[44:]
+    return pcm or None
+
+
+_TEXT_JUDGE_SI = """You judge one answer in a Korean speaking drill. The learner's words come from speech recognition (may be noisy).
+Return result:
+- correct: same meaning and form as the target (ignore spacing/punctuation; polite-ending variants of the same phrase are correct)
+- close: almost (one word off, particle/ending differs)
+- wrong: answered in Korean but a different phrase
+- other: unrelated talk or a question, not an attempt at the target"""
 
 
 class ClipExprSession:
     """클립 주도 표현학습 대리 세션(LiveSessionProtocol 흉내 + async CM)."""
 
+    PERSIST = ("idx", "stage", "item_fails", "ask_n", "quiz_q", "done_items", "exc_used", "_last_in_group", "_recent")
+
     def __init__(self, factory: Callable, client: Any, settings: Any, factory_kwargs: dict, *, char: str,
                  state: Any, notify: Optional[Callable] = None, judge: Optional[Callable] = None,
                  request_close: Optional[Callable] = None, rng: Optional[random.Random] = None,
-                 bank: Optional[tuple] = None) -> None:
-        self._factory = factory
+                 bank: Optional[tuple] = None, say: Optional[Callable] = None) -> None:
+        self._factory = factory                    # 쓰지 않는다(예외 턴도 Live 없음) — 시그니처만 맞춘다
         self._client = client
         self._settings = settings
-        self._kwargs = dict(factory_kwargs)
-        self._kwargs.pop("resume_handle", None)
         self.char = char
         self._state = state
         self._notify = notify
-        self._judge_fn = judge or self._judge_llm
+        self._judge_fn = judge                     # 시험용: async (pcm, ctx) -> (heard, result)
+        self._say_fn = say                         # 시험용: async (guide, heard) -> (text, pcm|None)
         self._request_close = request_close
         self._rng = rng or random.Random()
         self.clips, self.items = bank if bank is not None else load_bank(char)
         self._out: asyncio.Queue = asyncio.Queue()
         self._cmd: asyncio.Queue = asyncio.Queue()
         self._worker: Optional[asyncio.Task] = None
-        self._live: Any = None
         self._opened = False
         self._closing = False
+        self._restored = False
         # 듣기(VAD)
         self._listening = False
         self._speech = bytearray()
@@ -175,9 +256,12 @@ class ClipExprSession:
         self._silence_s = 0.0
         self._idle_s = 0.0
         self._t_last_voiced = 0.0
+        self._play_until = 0.0
+        self._spec: Optional[asyncio.Task] = None
         self._vad_th = float(getattr(settings, "LIVE_REGROUND_VOICE_RMS", 0.02) or 0.02)
         self._end_s = float(getattr(settings, "CLIP_EXPR_END_SILENCE_S", 0.8) or 0.8)
-        self._dunno_s = float(getattr(settings, "CLIP_EXPR_DUNNO_S", 6.0) or 6.0)
+        self._dunno_s = float(getattr(settings, "CLIP_EXPR_DUNNO_S", 8.0) or 8.0)
+        self._model = getattr(settings, "CLIP_EXPR_JUDGE_MODEL", "") or "gemini-2.5-flash"
         # 진행
         self.idx = 0
         self.stage = "ask"
@@ -188,35 +272,58 @@ class ClipExprSession:
         self.exc_used = 0
         self._last_in_group: dict[str, str] = {}
         self._recent: list[str] = []
+        self._judged = "-"
         # 계기
         self.judge_calls = 0
+        self.llm_calls = 0
         self.judge_in = 0
         self.judge_out = 0
         self.judge_ms: list[int] = []
         self.latency_ms: list[int] = []
+        self.spec_hits = 0
+        self.stt_s = 0.0
         self.clip_count = 0
         self.turns = 0
         self._face_n = 0
 
     # ── 수명 ──────────────────────────────────────────────────────────────── #
+    def _frag(self):
+        return getattr(self._state, "fragment_index", None)
+
     async def __aenter__(self) -> "ClipExprSession":
+        snap = _PROGRESS.get(self._cid()) if self._cid() is not None else None
+        if snap:
+            for k in self.PERSIST:
+                if k in snap:
+                    setattr(self, k, snap[k])
+            self._restored = True
         self._worker = asyncio.create_task(self._run(), name="nc-clipexpr")
-        logger.info("normalcall clipexpr 켬: call_id=%s 캐릭터=%s 항목 %d · 클립 %d", self._cid(), self.char,
-                    len(self.items), len(self.clips))
+        logger.info("normalcall clipexpr 켬: call_id=%s 조각=%s 캐릭터=%s 항목 %d · 클립 %d · %s", self._cid(), self._frag(),
+                    self.char, len(self.items), len(self.clips),
+                    f"이어감(항목 {self.idx + 1} · 단계 {self.stage})" if self._restored else "처음부터")
         return self
 
+    def _save(self) -> None:
+        if self._cid() is None:
+            return
+        _PROGRESS[self._cid()] = {k: json.loads(json.dumps(getattr(self, k))) for k in self.PERSIST}
+        while len(_PROGRESS) > 300:
+            _PROGRESS.pop(next(iter(_PROGRESS)))
+
     async def __aexit__(self, *exc) -> None:
-        if self._worker is not None:
-            self._worker.cancel()
-            with contextlib.suppress(BaseException):
-                await self._worker
+        for t in (self._worker, self._spec):
+            if t is not None:
+                t.cancel()
+                with contextlib.suppress(BaseException):
+                    await t
+        self._save()
         lat = sorted(self.latency_ms)
         jm = sorted(self.judge_ms)
-        logger.info("normalcall clipexpr 요약: call_id=%s turns=%d clips=%d 항목완료=%d/%d judge_calls=%d judge_in=%d "
-                    "judge_out=%d judge_p50_ms=%s latency_p50_ms=%s latency_max_ms=%s live_exc=%d",
-                    self._cid(), self.turns, self.clip_count, self.done_items, len(self.items), self.judge_calls,
-                    self.judge_in, self.judge_out, jm[len(jm) // 2] if jm else None, lat[len(lat) // 2] if lat else None,
-                    lat[-1] if lat else None, self.exc_used)
+        logger.info("normalcall clipexpr 요약: call_id=%s 조각=%s turns=%d clips=%d 항목완료=%d/%d judge_calls=%d llm_calls=%d "
+                    "judge_in=%d judge_out=%d judge_p50_ms=%s spec_hits=%d stt_s=%.1f latency_p50_ms=%s latency_max_ms=%s exc=%d",
+                    self._cid(), self._frag(), self.turns, self.clip_count, self.done_items, len(self.items), self.judge_calls,
+                    self.llm_calls, self.judge_in, self.judge_out, jm[len(jm) // 2] if jm else None, self.spec_hits,
+                    self.stt_s, lat[len(lat) // 2] if lat else None, lat[-1] if lat else None, self.exc_used)
 
     def _cid(self):
         return getattr(self._state, "call_id", None)
@@ -239,21 +346,29 @@ class ClipExprSession:
             self._silence_s = 0.0
             self._t_last_voiced = time.monotonic()
             self._speech.extend(pcm16_16k)
+            if self._spec is not None:          # 말이 이어졌다 — 미리 한 판정은 버린다
+                self._spec.cancel()
+                self._spec = None
             return
         if self._voiced_s >= 0.2:
             self._speech.extend(pcm16_16k)
             self._silence_s += dur
+            if self._spec is None and self._silence_s >= SPEC_SILENCE_S:
+                self._spec = asyncio.create_task(self._analyze(bytes(self._speech)), name="nc-clipexpr-spec")
             if self._silence_s >= self._end_s or len(self._speech) >= _MIC_BPS * 12:
                 self._listening = False
-                self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced))
+                spec, self._spec = self._spec, None
+                self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
             return
-        # 아직 말 시작 전 — 짧은 잡음은 버리고 무응답 시간만 센다
+        # 아직 말 시작 전 — 짧은 잡음은 버리고, 앱 재생이 끝났을 시각부터 무응답 시간을 센다
         self._speech.clear()
         self._voiced_s = 0.0
+        if time.monotonic() < self._play_until:
+            return
         self._idle_s += dur
         if self._idle_s >= self._dunno_s:
             self._listening = False
-            self._cmd.put_nowait(("silent", b"", time.monotonic()))
+            self._cmd.put_nowait(("silent", b"", time.monotonic(), None))
 
     async def send_text_turn(self, text: str) -> None:
         if not self._opened:
@@ -271,8 +386,7 @@ class ClipExprSession:
         return None
 
     async def send_tool_response(self, fn_id, fn_name, **kw) -> None:
-        if self._live is not None:
-            await self._live.send_tool_response(fn_id, fn_name, **kw)
+        return None                               # 표정은 auto_acked 로 보낸다
 
     # ── 일꾼 ──────────────────────────────────────────────────────────────── #
     async def _run(self) -> None:
@@ -289,22 +403,42 @@ class ClipExprSession:
     async def _handle(self, cmd: tuple) -> None:
         kind = cmd[0]
         if kind == "open":
-            await self._turn([self._pick("g_open"), self._ask_id()], result="open")
+            await self._on_open()
             return
         if kind == "close":
             self._closing = True
-            await self._turn([self._pick("g_close")], result="close")
+            await self._turn([self._pick(self.CLOSE_GROUP)], result="close")
             return
         if kind == "nudge":
             await self._turn([self._ask_id()], result="nudge")
             return
-        pcm, t_end = cmd[1], cmd[2]
+        pcm, t_end, spec = cmd[1], cmd[2], cmd[3]
         if kind == "silent":
             heard, result = "", "dunno"
+        elif spec is not None:
+            try:
+                heard, result = await spec
+                self.spec_hits += 1
+            except asyncio.CancelledError:
+                heard, result = await self._analyze(pcm)
         else:
-            heard, result = await self._judge(pcm)
+            heard, result = await self._analyze(pcm)
         await self._out.put(LiveEvent(kind="in_tr", text=heard or "…", is_final=True))
-        await self._advance(heard, result, t_end)
+        self._judged = f"{self._judged_label()}"
+        await self._on_answer(heard, result, t_end)
+
+    CLOSE_GROUP = "g_close"
+
+    def _judged_label(self) -> str:
+        if self.stage == "quiz" and self.quiz_q:
+            return f"퀴즈{self.quiz_q[0]}"
+        return f"{self.item.seq}/{self.stage}" if self.idx < len(self.items) else "-"
+
+    async def _on_open(self) -> None:
+        if self._restored:
+            await self._turn([self._ask_id()], result="resume")       # 조각 이어하기 — 지금 문제를 그대로 다시
+            return
+        await self._turn([self._pick("g_open"), self._ask_id()], result="open")
 
     # ── 진행 틀(요청서 3-1) ──────────────────────────────────────────────── #
     @property
@@ -314,7 +448,16 @@ class ClipExprSession:
     def _ask_id(self) -> str:
         if self.stage == "quiz" and self.quiz_q:
             return f"quiz_{self.quiz_q[0]}"
-        return f"ask_{self.item.seq}_{1 + self.ask_n % 2}"
+        if self.idx >= len(self.items):
+            return self._pick("g_back")
+        seq = self.item.seq
+        if self.stage == "rep" and self._has(f"rep_{seq}"):
+            return f"model_{seq}"
+        if self.stage == "rep2":
+            return f"rep_{seq}" if self._has(f"rep_{seq}") else f"model_{seq}"
+        if self.stage in ("native", "native2") and self._has(f"native_{seq}"):
+            return f"native_{seq}"
+        return f"ask_{seq}_{1 + self.ask_n % 2}"
 
     def _has(self, cid: str) -> bool:
         return cid in self.clips
@@ -334,7 +477,6 @@ class ClipExprSession:
     def _next_item_clips(self) -> list[str]:
         """지금 항목을 끝내고 다음 출제(또는 퀴즈·마무리) 클립."""
         self.done_items += 1
-        finished = self.items[self.idx].seq
         if self.done_items % 3 == 0:
             self.quiz_q = [it.seq for it in self.items[self.idx - 2:self.idx + 1]]
         self.idx += 1
@@ -346,7 +488,6 @@ class ClipExprSession:
         if self.idx >= len(self.items):
             return self._finish()
         self.stage = "ask"
-        logger.debug("normalcall clipexpr: 항목 %d 끝", finished)
         return [self._ask_id()]
 
     def _finish(self) -> list[str]:
@@ -364,7 +505,7 @@ class ClipExprSession:
         self.stage = "ask"
         return [self._ask_id()]
 
-    async def _advance(self, heard: str, r: str, t_end: float) -> None:
+    async def _on_answer(self, heard: str, r: str, t_end: float) -> None:
         st = self.stage
         if st == "quiz" and self.quiz_q:
             # 퀴즈는 정답 판정만(요청서 3-1 ⑤) — 마지막 퀴즈는 idx 가 이미 항목 끝을 넘었다
@@ -377,15 +518,14 @@ class ClipExprSession:
             return
         seq = it.seq
         if r in ("other", "native_lang"):
-            guide = ("한 마디만 캐릭터대로 받고, 지금 연습 중인 표현으로 돌아오자고 영어로 말한다." if r == "other"
-                     else "영어로 짧게 받아 주고, 한국어로 해 보라고 한다.")
-            tail = [self._ask_id()] if r == "other" else []
-            await self._exception_or_back(guide, heard, tail, r, t_end)
+            guide = ("React to what they said in one short line, in character, then tell them to get back to the Korean phrase."
+                     if r == "other" else "They answered in English. React in one short line and tell them to try it in Korean.")
+            await self._exception_or_back(guide, heard, [self._ask_id()], r, t_end)
             return
         if r == "correct":
             if st in ("ask", "hint") and it.blank:
-                await self._exception_or_back("학습자가 말한 문장을 따옴표로 한 번 되짚고 칭찬 한 마디를 영어로 한다.",
-                                              heard, self._next_item_clips(), r, t_end, fallback=[self._pick("g_ok")])
+                # 빈칸 정답 — STT 를 믿기 어려워 되짚지 않는다(«오이에에요» 놀림 · call 2034). 칭찬 클립만.
+                await self._turn([self._pick("g_ok")] + self._next_item_clips(), result=r, heard=heard, t_end=t_end)
                 return
             if st in ("ask", "hint", "rep", "rep2") and self._has(f"native_{seq}"):
                 lead = self._pick("g_ok") if st in ("ask", "hint") else self._pick("g_rep_ok")
@@ -405,8 +545,12 @@ class ClipExprSession:
             return
         self.item_fails += 1
         if self.item_fails >= 3:
-            await self._exception_or_back("쉽게 다시 설명하고 정답 표현을 한 번 들려준 뒤, 다음으로 넘어가자고 한다.",
-                                          heard, self._next_item_clips(), r, t_end, fallback=[self._pick("g_move")])
+            model = [f"model_{seq}"]
+            nxt = self._next_item_clips()
+            await self._exception_or_back(
+                "They failed this phrase three times. In one or two short, kind English sentences, explain the phrase "
+                f"«{it.surface}» (meaning: {it.en}) simply — do not write any Korean; the answer will be played right after.",
+                heard, model + nxt, r, t_end, fallback=[self._pick("g_move")])
             return
         if st == "ask" and r == "close" and self._has(f"hint_{seq}"):
             self.stage = "hint"
@@ -431,102 +575,172 @@ class ClipExprSession:
             await self._turn(lead + tail, result=r, heard=heard, t_end=t_end, note="예외상한")
             return
         self.exc_used += 1
-        await self._turn(tail, result=r, heard=heard, t_end=t_end, live_guide=guide)
+        await self._turn(tail, result=r, heard=heard, t_end=t_end, say_guide=guide,
+                         fallback=fallback if fallback is not None else [self._pick("g_back")])
 
-    # ── 판정 사이드카 ─────────────────────────────────────────────────────── #
-    async def _judge(self, pcm: bytes) -> tuple[str, str]:
-        it = self.items[min(self.idx, len(self.items) - 1)]
+    # ── 판정 ──────────────────────────────────────────────────────────────── #
+    def _targets(self) -> tuple[list[str], bool, str]:
         st = self.stage
-        seq_q = self.quiz_q[0] if (st == "quiz" and self.quiz_q) else it.seq
-        q = next(x for x in self.items if x.seq == seq_q)
-        native = ""
-        if st in ("native", "native2") and self._has(f"native_{q.seq}"):
-            native = self.clips[f"native_{q.seq}"].text.split('"')[1] if '"' in self.clips[f"native_{q.seq}"].text else ""
-        rule = _STAGE_RULE["native" if st.startswith("native") else ("rep" if st.startswith("rep") else st)]
-        rule = rule.format(en=q.en, surface=q.surface, native=native)
-        blank_rule = (" · 빈칸 항목: 「저는 + 명사 + 이에요/예요」 꼴이면 명사 내용과 무관하게 correct" if q.blank else "")
+        if st == "quiz" and self.quiz_q:
+            q = next(x for x in self.items if x.seq == self.quiz_q[0])
+            return [q.surface], q.blank, st
+        it = self.items[min(self.idx, len(self.items) - 1)]
+        if st in ("native", "native2") and self._has(f"native_{it.seq}"):
+            t = self.clips[f"native_{it.seq}"].text
+            nat = t.split('"')[1] if t.count('"') >= 2 else ""
+            return [nat or it.surface], False, st
+        return [it.surface], it.blank, st
+
+    async def _analyze(self, pcm: bytes) -> tuple[str, str]:
+        """받아쓰기 → 규칙 → (필요하면) 텍스트 LLM. 미리 판정(spec)도 이 함수를 쓴다(상태를 바꾸지 않는다)."""
+        targets, blank, st = self._targets()
         t0 = time.monotonic()
-        heard, result, tin, tout = await self._judge_fn(_wav16k(pcm), _JUDGE_PROMPT.format(rule=rule, blank_rule=blank_rule))
+        if self._judge_fn is not None:
+            heard, result = await self._judge_fn(pcm, {"targets": targets, "blank": blank, "stage": st})
+        else:
+            heard, result = await self._analyze_real(pcm, targets, blank, st)
         self.judge_calls += 1
-        self.judge_in += int(tin or 0)
-        self.judge_out += int(tout or 0)
         self.judge_ms.append(int((time.monotonic() - t0) * 1000))
-        if result not in ("correct", "close", "wrong", "dunno", "other", "native_lang"):
+        if result not in RESULTS:
             result = "wrong"
         if st in ("rep", "rep2", "native", "native2") and result == "close":
             result = "correct"                    # 따라 말하기는 근접이면 통과
         return heard, result
 
-    async def _judge_llm(self, wav: bytes, prompt: str) -> tuple[str, str, int, int]:
+    async def _analyze_real(self, pcm: bytes, targets: list[str], blank: bool, st: str) -> tuple[str, str]:
+        self.stt_s += len(pcm) / _MIC_BPS
+        try:
+            heard, lang = await recognize(pcm, targets)
+        except Exception as exc:  # noqa: BLE001 - 받아쓰기 실패는 «모름»으로(다시 들려준다)
+            logger.warning("normalcall clipexpr: STT 실패(모름으로): %r", exc)
+            return "", "dunno"
+        result, sim = rule_judge(heard, targets, blank=blank)
+        how = "규칙"
+        if result is None:
+            how = "LLM"
+            result = await self._text_judge(heard, targets[0], st)
+        logger.info("normalcall clipexpr judge: call_id=%s 조각=%s 단계=%s 목표=«%s» 들음=«%s» 언어=%s 자모=%.2f 판정=%s(%s)",
+                    self._cid(), self._frag(), st, targets[0], heard[:60], lang, sim, result, how)
+        return heard, result
+
+    def _add_usage(self, resp: Any) -> None:
+        um = getattr(resp, "usage_metadata", None)
+        self.judge_in += int(getattr(um, "prompt_token_count", 0) or 0)
+        self.judge_out += int(getattr(um, "candidates_token_count", 0) or 0)
+        su = getattr(self._state, "sidecar_usage", None)
+        if su is not None:
+            with contextlib.suppress(Exception):
+                su.add_response(self._model, resp)   # 원가 계기판(normalcall usage)에 합산
+
+    async def _text_judge(self, heard: str, target: str, st: str) -> str:
         from google.genai import types
-        model = getattr(self._settings, "CLIP_EXPR_JUDGE_MODEL", "") or "gemini-3.5-flash-lite"
+        self.llm_calls += 1
+        try:
+            resp = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=f"Stage: {st}\nTarget phrase: {target}\nLearner said (STT): {heard}",
+                config=types.GenerateContentConfig(
+                    system_instruction=_TEXT_JUDGE_SI, temperature=0, response_mime_type="application/json",
+                    response_schema=TextJudgeOut, thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)),
+            )
+            self._add_usage(resp)
+            out = TextJudgeOut.model_validate_json(resp.text or "{}")
+            return out.result if out.result in ("correct", "close", "wrong", "other") else "wrong"
+        except Exception as exc:  # noqa: BLE001 - 판정 불가는 오답으로(통화는 이어간다)
+            logger.warning("normalcall clipexpr: 텍스트 판정 실패(오답으로): %r", exc)
+            return "wrong"
+
+    async def _say(self, guide: str, heard: str) -> tuple[str, Optional[bytes]]:
+        """예외 턴 — 텍스트 LLM 영어 한두 문장 + Cloud TTS(같은 Fenrir)."""
+        if self._say_fn is not None:
+            return await self._say_fn(guide, heard)
+        from google.genai import types
+        self.llm_calls += 1
+        it = self.items[min(self.idx, len(self.items) - 1)]
+        si = (f"{PERSONA.get(self.char, '')}\nThe learner speaks English and is practicing Korean. Current phrase: «{it.surface}» "
+              f"(meaning: {it.en}). Reply in English only, one or two short sentences, no Korean, no questions except asking "
+              "them to try again. Do not tease what speech recognition heard.")
+        recent = "\n".join(self._recent[-2:])
         resp = await self._client.aio.models.generate_content(
-            model=model,
-            contents=[types.Content(role="user", parts=[types.Part.from_bytes(data=wav, mime_type="audio/wav"),
-                                                        types.Part.from_text(text=prompt)])],
-            config=types.GenerateContentConfig(temperature=0, response_mime_type="application/json",
-                                               response_schema=JudgeOut,
-                                               # 3.x 는 thinking_budget 0 을 거절한다(400) — 단계 이름으로 최소화
-                                               thinking_config=(types.ThinkingConfig(thinking_level="minimal") if model.startswith("gemini-3")
-                                                                else types.ThinkingConfig(thinking_budget=0)),
+            model=self._model, contents=f"Recent:\n{recent}\nLearner just said (STT): {heard or '(nothing)'}\nTask: {guide}",
+            config=types.GenerateContentConfig(system_instruction=si, temperature=0.7, max_output_tokens=80,
+                                               thinking_config=types.ThinkingConfig(thinking_budget=0),
                                                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)),
         )
-        um = getattr(resp, "usage_metadata", None)
-        try:
-            out = JudgeOut.model_validate_json(resp.text or "{}")
-        except Exception:  # noqa: BLE001 - 판정 불가는 오답으로(통화는 이어간다)
-            out = JudgeOut(heard="", result="wrong")
-        return out.heard, out.result, getattr(um, "prompt_token_count", 0) or 0, getattr(um, "candidates_token_count", 0) or 0
+        self._add_usage(resp)
+        text = re.sub(r"[가-힣]+", "", (resp.text or "").strip()).strip()
+        if not text:
+            return "", None
+        return text, await tts_pcm(text, lang="en", voice="Fenrir")
 
     # ── 내보내기 ─────────────────────────────────────────────────────────── #
+    async def _emit_pcm(self, pcm: bytes, text: str, face: str, face_now: str) -> str:
+        if face != face_now:
+            # 영상통화 표정 — Live 의 set_face 와 같은 길(서버가 sentence 마커로 앱에 보낸다). 응답은 필요 없다(auto_acked).
+            self._face_n += 1
+            await self._out.put(LiveEvent(kind="tool_call", fn_name="set_face", fn_id=f"clip-face-{self._face_n}",
+                                          fn_args={"emotion": face}, auto_acked=True))
+        await self._out.put(LiveEvent(kind="out_tr", text=text))
+        for i in range(0, len(pcm), _CHUNK):
+            await self._out.put(LiveEvent(kind="audio", audio=pcm[i:i + _CHUNK]))
+        now = time.monotonic()
+        self._play_until = max(self._play_until, now) + len(pcm) / _OUT_BPS
+        return face
+
     async def _turn(self, clip_ids: list[str], *, result: str, heard: str = "", t_end: Optional[float] = None,
-                    live_guide: Optional[str] = None, note: str = "") -> None:
-        """비버 턴 하나 = [예외 Live 응답] + 클립 순서열 + turn_end. 끝나면 다시 듣는다."""
+                    say_guide: Optional[str] = None, note: str = "", fallback: Optional[list[str]] = None) -> None:
+        """비버 턴 하나 = [예외 응답(TTS)] + 클립 순서열 + turn_end. 끝나면 다시 듣는다."""
         self.turns += 1
         first_sound: Optional[float] = None
-        live_text = ""
         face_now = "neutral"
-        if live_guide:
-            t_live = time.monotonic()
-            live_text = await self._live_turn(live_guide, heard)
-            first_sound = getattr(self, "_live_first_sound", None)
-            logger.info("normalcall clipexpr live: call_id=%s 항목=%s 판정=%s 안내=«%s» 응답=«%s» 걸림=%.2fs",
-                        self._cid(), self.item.seq if self.idx < len(self.items) else "-", result, live_guide[:40],
-                        live_text[:80], time.monotonic() - t_live)
+        said = ""
+        if say_guide:
+            t_say = time.monotonic()
+            pcm: Optional[bytes] = None
+            try:
+                said, pcm = await self._say(say_guide, heard)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - 예외 응답 실패는 클립으로 대신한다
+                logger.warning("normalcall clipexpr: 예외 응답 실패 — 클립으로 대신: %r", exc)
+            if pcm:
+                face_now = await self._emit_pcm(pcm, said, "neutral", face_now)
+                first_sound = time.monotonic()
+            else:
+                clip_ids = list(fallback or [self._pick("g_back")]) + clip_ids
+                said = ""
+            logger.info("normalcall clipexpr say: call_id=%s 조각=%s 답=%s 판정=%s 응답=«%s» 걸림=%.2fs",
+                        self._cid(), self._frag(), self._judged, result, said[:80], time.monotonic() - t_say)
         for cid in clip_ids:
             c = self.clips.get(cid)
             if c is None:
                 logger.warning("normalcall clipexpr: 클립 없음 %s(건너뜀)", cid)
                 continue
-            if c.face != face_now:
-                # 영상통화 표정 — Live 의 set_face 와 같은 길(서버가 sentence 마커로 앱에 보낸다). 응답은 필요 없다(auto_acked).
-                face_now = c.face
-                self._face_n += 1
-                await self._out.put(LiveEvent(kind="tool_call", fn_name="set_face", fn_id=f"clip-face-{self._face_n}",
-                                              fn_args={"emotion": c.face}, auto_acked=True))
-            await self._out.put(LiveEvent(kind="out_tr", text=(" " if first_sound or live_text else "") + c.text))
-            for i in range(0, len(c.pcm), _CHUNK):
-                await self._out.put(LiveEvent(kind="audio", audio=c.pcm[i:i + _CHUNK]))
-                if first_sound is None:
-                    first_sound = time.monotonic()
+            face_now = await self._emit_pcm(c.pcm, (" " if first_sound else "") + c.text, c.face, face_now)
+            if first_sound is None:
+                first_sound = time.monotonic()
             self.clip_count += 1
             t_rel = self._t_rel()
-            logger.info("normalcall clipexpr clip: call_id=%s t=%.1f id=%s 항목=%s 단계=%s 판정=%s 들음=«%s» 초=%.2f 표정=%s",
-                        self._cid(), t_rel, cid, self.item.seq if self.idx < len(self.items) else "-", self.stage,
-                        result, heard[:60], c.sec, c.face)
+            logger.info("normalcall clipexpr clip: call_id=%s 조각=%s t=%.1f id=%s 답=%s 판정=%s 들음=«%s» 다음=%s 초=%.2f 표정=%s",
+                        self._cid(), self._frag(), t_rel, cid, self._judged, result, heard[:60], self._judged_label(), c.sec,
+                        c.face)
             if self._notify is not None:
                 with contextlib.suppress(Exception):
-                    await self._notify({"type": "clip", "id": cid, "result": result, "stage": self.stage, "face": c.face,
-                                       "t": round(t_rel, 2)})
+                    await self._notify({"type": "clip", "id": cid, "result": result, "answered": self._judged,
+                                        "next": self._judged_label(), "face": c.face, "fragment": self._frag(),
+                                        "t": round(t_rel, 2)})
         lat = None
         if t_end is not None and first_sound is not None:
             lat = int((first_sound - t_end) * 1000)
             self.latency_ms.append(lat)
-        logger.info("normalcall clipexpr turn: call_id=%s 판정=%s 단계→%s 클립=%s 말끝→첫소리_ms=%s 예외=%s%s",
-                    self._cid(), result, self.stage, ",".join(clip_ids) or "-", lat, "live" if live_guide else "-",
-                    f" ({note})" if note else "")
-        self._recent = (self._recent + ([f"학습자: {heard}"] if heard else []) +
-                        [f"비버: {' '.join(self.clips[c].text for c in clip_ids if c in self.clips) or live_text}"])[-4:]
+        logger.info("normalcall clipexpr turn: call_id=%s 조각=%s 답=%s 판정=%s 다음=%s 클립=%s 말끝→첫소리_ms=%s 예외=%s%s",
+                    self._cid(), self._frag(), self._judged, result, self._judged_label(), ",".join(clip_ids) or "-", lat,
+                    "say" if say_guide else "-", f" ({note})" if note else "")
+        spoken = " ".join(x for x in [said] + [self.clips[c].text for c in clip_ids if c in self.clips] if x)
+        self._recent = (self._recent + ([f"Learner: {heard}"] if heard else []) + [f"Baba: {spoken}"])[-4:]
+        self._judged = "-"
+        self._save()
         await self._out.put(LiveEvent(kind="turn_end"))
         if self._closing:
             return
@@ -540,37 +754,3 @@ class ClipExprSession:
         self._speech.clear()
         self._voiced_s = self._silence_s = self._idle_s = 0.0
         self._listening = True
-
-    async def _live_turn(self, guide: str, heard: str) -> str:
-        """예외 턴 — 그 턴 하나짜리 Live 세션(지시문 = 바바 한 줄 + 지금 항목 + 직전 2턴 + 안내)."""
-        self._live_first_sound = None
-        it = self.items[min(self.idx, len(self.items) - 1)]
-        si = (f"{PERSONA.get(self.char, '')}\n학습자는 영어 화자이고 한국어를 배운다. 지금 연습 중인 표현: «{it.surface}»(뜻: {it.en}).\n"
-              f"직전 대화:\n" + "\n".join(self._recent[-2:]) + f"\n[이번 턴] {guide}\n"
-              "1~2문장으로 짧게 말하고 멈춘다. 다른 표현을 새로 가르치거나 질문을 두 개 하지 않는다.")
-        kw = {**self._kwargs, "system_instruction": si}
-        text: list[str] = []
-        try:
-            async with self._factory(self._client, self._settings, **kw) as s:
-                self._live = s
-                await s.send_text_turn(f"학습자가 방금 말했다: «{heard or '(말 없음)'}»")
-                async for ev in s.events():
-                    if ev.kind == "turn_end":
-                        break
-                    if ev.kind == "out_tr" and ev.text:
-                        text.append(ev.text)
-                    if ev.kind == "audio" and self._live_first_sound is None:
-                        self._live_first_sound = time.monotonic()
-                    if ev.kind in ("out_tr", "audio", "tool_call", "usage"):
-                        await self._out.put(ev)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - 예외 턴 실패는 g_back 클립으로 대신한다
-            logger.warning("normalcall clipexpr: 예외 턴 Live 실패 — g_back 으로 대신: %r", exc)
-            back = self.clips[self._pick("g_back")]
-            await self._out.put(LiveEvent(kind="out_tr", text=back.text))
-            for i in range(0, len(back.pcm), _CHUNK):
-                await self._out.put(LiveEvent(kind="audio", audio=back.pcm[i:i + _CHUNK]))
-        finally:
-            self._live = None
-        return "".join(text)

@@ -9,7 +9,7 @@ import pytest
 
 from domains.learning.realtime import script_read as sr
 from domains.learning.realtime.script_read import ScriptReadSession
-from test_clip_expr import SILENT, VOICED, _no_live
+from test_clip_expr import SILENT, VOICED, _instant_playback  # noqa: F401 - 자동 픽스처
 
 SETTINGS = SimpleNamespace(SCRIPT_READ="Baba", LIVE_REGROUND_VOICE_RMS=0.02, CLIP_EXPR_END_SILENCE_S=0.12,
                            CLIP_EXPR_DUNNO_S=0.4)
@@ -41,7 +41,7 @@ class _H:
         self.heard = list(heard)
         self.notes: list[dict] = []
         self.closed = False
-        state = SimpleNamespace(call_id=1, close_seed="CLOSE", call_start_ts=None)
+        state = SimpleNamespace(call_id=1, close_seed="CLOSE", call_start_ts=None, fragment_index=1)
 
         async def stt(pcm, hint):
             return self.heard.pop(0)
@@ -52,7 +52,7 @@ class _H:
         def req_close():
             self.closed = True
 
-        self.s = ScriptReadSession(_no_live, None, SETTINGS, {"system_instruction": "S", "voice": "Fenrir"}, char="Baba",
+        self.s = ScriptReadSession(None, None, SETTINGS, {"system_instruction": "S", "voice": "Fenrir"}, char="Baba",
                                    state=state, notify=notify, request_close=req_close, rng=random.Random(1), stt=stt)
         self.it = None
 
