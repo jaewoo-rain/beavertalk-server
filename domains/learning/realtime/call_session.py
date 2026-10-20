@@ -5575,7 +5575,7 @@ async def _run_one_generation(
         state.ctx = session_cm
         state.ctx_base = system_instruction
         state.ctx_client = client
-        _ctx_facts_load(state)
+        await asyncio.to_thread(_ctx_facts_load, state)   # PM-DEC-923 — 동기 GCS 는 스레드에서
         logger.info("normalcall perturn 켬: call_id=%s 요약 %s·%d턴마다 · 최근 %d발화", _cid(state),
                     settings.CONTEXT_SUMMARY_MODEL, settings.CONTEXT_SUMMARY_EVERY, settings.CONTEXT_RECENT_SEGMENTS)
     else:
@@ -8215,7 +8215,7 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
             if facts:
                 # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
                 state.ctx_facts = list(dict.fromkeys(facts + state.ctx_facts))[:CTX_FACTS_MAX]
-                _ctx_facts_store(state)
+                await asyncio.to_thread(_ctx_facts_store, state)   # PM-DEC-923 — 동기 GCS 는 스레드에서
             logger.info("normalcall perturn 사실 목록: call_id=%s %d개 %s", _cid(state), len(state.ctx_facts),
                         " · ".join(state.ctx_facts)[:300])
             state.ctx_summary_upto = upto
