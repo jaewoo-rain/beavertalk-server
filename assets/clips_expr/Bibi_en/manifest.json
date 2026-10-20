@@ -1,0 +1,1106 @@
+[
+ {
+  "id": "ask_1_1",
+  "slot": "출제",
+  "text": "How do you say \"Hello\" in Korean?",
+  "item": "안녕하세요?",
+  "sec": 3.28,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_1_2",
+  "slot": "출제",
+  "text": "Next up! \"Hello\". Say it in Korean!",
+  "item": "안녕하세요?",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_1",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Hello\" — in Korean?",
+  "item": "안녕하세요?",
+  "sec": 4.28,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_1",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"안녕하세요?\".",
+  "item": "안녕하세요?",
+  "sec": 3.84,
+  "face": "neutral"
+ },
+ {
+  "id": "model_1",
+  "slot": "정답 들려주기",
+  "text": "It's \"안녕하세요?\". Your turn, say it!",
+  "item": "안녕하세요?",
+  "sec": 4.08,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_1",
+  "slot": "따라 말하기(한국어만)",
+  "text": "안녕하세요?",
+  "item": "안녕하세요?",
+  "sec": 1.48,
+  "face": "neutral"
+ },
+ {
+  "id": "native_1",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"반가워요!\". Try that one!",
+  "item": "안녕하세요?",
+  "sec": 4.72,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_2_1",
+  "slot": "출제",
+  "text": "How do you say \"Nice to meet you\" in Korean?",
+  "item": "만나서 반갑습니다",
+  "sec": 3.68,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_2_2",
+  "slot": "출제",
+  "text": "Next up! \"Nice to meet you\". Say it in Korean!",
+  "item": "만나서 반갑습니다",
+  "sec": 4.76,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_2",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Nice to meet you\" — in Korean?",
+  "item": "만나서 반갑습니다",
+  "sec": 4.12,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_2",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"만나서\".",
+  "item": "만나서 반갑습니다",
+  "sec": 4.8,
+  "face": "neutral"
+ },
+ {
+  "id": "model_2",
+  "slot": "정답 들려주기",
+  "text": "It's \"만나서 반갑습니다\". Your turn, say it!",
+  "item": "만나서 반갑습니다",
+  "sec": 5.36,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_2",
+  "slot": "따라 말하기(한국어만)",
+  "text": "만나서 반갑습니다",
+  "item": "만나서 반갑습니다",
+  "sec": 2.2,
+  "face": "neutral"
+ },
+ {
+  "id": "native_2",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"반가워요, 잘 부탁드려요!\". Try that one!",
+  "item": "만나서 반갑습니다",
+  "sec": 6.04,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_3_1",
+  "slot": "출제",
+  "text": "How do you say \"How have you been?\" in Korean?",
+  "item": "잘 지냈어요?",
+  "sec": 4.0,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_3_2",
+  "slot": "출제",
+  "text": "Next up! \"How have you been?\". Say it in Korean!",
+  "item": "잘 지냈어요?",
+  "sec": 4.32,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_3",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"How have you been?\" — in Korean?",
+  "item": "잘 지냈어요?",
+  "sec": 4.48,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_3",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"잘\".",
+  "item": "잘 지냈어요?",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "model_3",
+  "slot": "정답 들려주기",
+  "text": "It's \"잘 지냈어요?\". Your turn, say it!",
+  "item": "잘 지냈어요?",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_3",
+  "slot": "따라 말하기(한국어만)",
+  "text": "잘 지냈어요?",
+  "item": "잘 지냈어요?",
+  "sec": 1.6,
+  "face": "neutral"
+ },
+ {
+  "id": "native_3",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"별일 없었죠?\". Try that one!",
+  "item": "잘 지냈어요?",
+  "sec": 4.52,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_4_1",
+  "slot": "출제",
+  "text": "How do you say \"How do you do\" in Korean?",
+  "item": "처음 뵙겠습니다",
+  "sec": 5.24,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_4_2",
+  "slot": "출제",
+  "text": "Next up! \"How do you do\". Say it in Korean!",
+  "item": "처음 뵙겠습니다",
+  "sec": 4.56,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_4",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"How do you do\" — in Korean?",
+  "item": "처음 뵙겠습니다",
+  "sec": 4.56,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_4",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"처음\".",
+  "item": "처음 뵙겠습니다",
+  "sec": 4.48,
+  "face": "neutral"
+ },
+ {
+  "id": "model_4",
+  "slot": "정답 들려주기",
+  "text": "It's \"처음 뵙겠습니다\". Your turn, say it!",
+  "item": "처음 뵙겠습니다",
+  "sec": 4.84,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_4",
+  "slot": "따라 말하기(한국어만)",
+  "text": "처음 뵙겠습니다",
+  "item": "처음 뵙겠습니다",
+  "sec": 2.2,
+  "face": "neutral"
+ },
+ {
+  "id": "native_4",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"처음 뵙네요.\". Try that one!",
+  "item": "처음 뵙겠습니다",
+  "sec": 4.68,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_5_1",
+  "slot": "출제",
+  "text": "How do you say \"Please take good care of me\" in Korean?",
+  "item": "잘 부탁드립니다",
+  "sec": 4.4,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_5_2",
+  "slot": "출제",
+  "text": "Next up! \"Please take good care of me\". Say it in Korean!",
+  "item": "잘 부탁드립니다",
+  "sec": 5.44,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_5",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Please take good care of me\" — in Korean?",
+  "item": "잘 부탁드립니다",
+  "sec": 5.4,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_5",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"잘\".",
+  "item": "잘 부탁드립니다",
+  "sec": 3.56,
+  "face": "neutral"
+ },
+ {
+  "id": "model_5",
+  "slot": "정답 들려주기",
+  "text": "It's \"잘 부탁드립니다\". Your turn, say it!",
+  "item": "잘 부탁드립니다",
+  "sec": 4.4,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_5",
+  "slot": "따라 말하기(한국어만)",
+  "text": "잘 부탁드립니다",
+  "item": "잘 부탁드립니다",
+  "sec": 2.44,
+  "face": "neutral"
+ },
+ {
+  "id": "native_5",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"앞으로 잘 지내요!\". Try that one!",
+  "item": "잘 부탁드립니다",
+  "sec": 4.72,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_6_1",
+  "slot": "출제",
+  "text": "How do you say \"I'm\" plus your name, in Korean?",
+  "item": "저는 ◯◯이에요",
+  "sec": 4.56,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_6_2",
+  "slot": "출제",
+  "text": "Next up! \"I'm\" plus your name. Say it in Korean!",
+  "item": "저는 ◯◯이에요",
+  "sec": 5.28,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_6",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"I'm\" plus your name, in Korean?",
+  "item": "저는 ◯◯이에요",
+  "sec": 4.84,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_6",
+  "slot": "힌트",
+  "text": "It starts with \"저는\". Then add yours!",
+  "item": "저는 ◯◯이에요",
+  "sec": 4.96,
+  "face": "neutral"
+ },
+ {
+  "id": "model_6",
+  "slot": "정답 들려주기",
+  "text": "It's \"저는 이에요\", with your own word in the gap. Your turn!",
+  "item": "저는 ◯◯이에요",
+  "sec": 6.0,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_7_1",
+  "slot": "출제",
+  "text": "How do you say \"I'm from\" plus your country, in Korean?",
+  "item": "저는 ◯◯ 사람이에요",
+  "sec": 4.68,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_7_2",
+  "slot": "출제",
+  "text": "Next up! \"I'm from\" plus your country. Say it in Korean!",
+  "item": "저는 ◯◯ 사람이에요",
+  "sec": 6.16,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_7",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"I'm from\" plus your country, in Korean?",
+  "item": "저는 ◯◯ 사람이에요",
+  "sec": 4.92,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_7",
+  "slot": "힌트",
+  "text": "It starts with \"저는\". Then add yours!",
+  "item": "저는 ◯◯ 사람이에요",
+  "sec": 4.96,
+  "face": "neutral"
+ },
+ {
+  "id": "model_7",
+  "slot": "정답 들려주기",
+  "text": "It's \"저는 사람이에요\", with your own word in the gap. Your turn!",
+  "item": "저는 ◯◯ 사람이에요",
+  "sec": 6.84,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_8_1",
+  "slot": "출제",
+  "text": "How do you say \"What's your name?\" in Korean?",
+  "item": "이름이 뭐예요?",
+  "sec": 3.76,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_8_2",
+  "slot": "출제",
+  "text": "Next up! \"What's your name?\". Say it in Korean!",
+  "item": "이름이 뭐예요?",
+  "sec": 4.4,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_8",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"What's your name?\" — in Korean?",
+  "item": "이름이 뭐예요?",
+  "sec": 4.68,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_8",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"이름이\".",
+  "item": "이름이 뭐예요?",
+  "sec": 5.4,
+  "face": "neutral"
+ },
+ {
+  "id": "model_8",
+  "slot": "정답 들려주기",
+  "text": "It's \"이름이 뭐예요?\". Your turn, say it!",
+  "item": "이름이 뭐예요?",
+  "sec": 4.4,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_8",
+  "slot": "따라 말하기(한국어만)",
+  "text": "이름이 뭐예요?",
+  "item": "이름이 뭐예요?",
+  "sec": 2.56,
+  "face": "neutral"
+ },
+ {
+  "id": "native_8",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"이름이 어떻게 되세요?\". Try that one!",
+  "item": "이름이 뭐예요?",
+  "sec": 5.32,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_9_1",
+  "slot": "출제",
+  "text": "How do you say \"Thank you\" in Korean?",
+  "item": "감사합니다",
+  "sec": 3.28,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_9_2",
+  "slot": "출제",
+  "text": "Next up! \"Thank you\". Say it in Korean!",
+  "item": "감사합니다",
+  "sec": 4.24,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_9",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Thank you\" — in Korean?",
+  "item": "감사합니다",
+  "sec": 4.12,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_9",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"감사합니다\".",
+  "item": "감사합니다",
+  "sec": 4.44,
+  "face": "neutral"
+ },
+ {
+  "id": "model_9",
+  "slot": "정답 들려주기",
+  "text": "It's \"감사합니다\". Your turn, say it!",
+  "item": "감사합니다",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_9",
+  "slot": "따라 말하기(한국어만)",
+  "text": "감사합니다",
+  "item": "감사합니다",
+  "sec": 1.6,
+  "face": "neutral"
+ },
+ {
+  "id": "native_9",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"정말 감사해요.\". Try that one!",
+  "item": "감사합니다",
+  "sec": 5.2,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_10_1",
+  "slot": "출제",
+  "text": "How do you say \"Thanks\" in Korean?",
+  "item": "고마워요",
+  "sec": 3.2,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_10_2",
+  "slot": "출제",
+  "text": "Next up! \"Thanks\". Say it in Korean!",
+  "item": "고마워요",
+  "sec": 4.28,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_10",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Thanks\" — in Korean?",
+  "item": "고마워요",
+  "sec": 4.16,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_10",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"고마워요\".",
+  "item": "고마워요",
+  "sec": 5.8,
+  "face": "neutral"
+ },
+ {
+  "id": "model_10",
+  "slot": "정답 들려주기",
+  "text": "It's \"고마워요\". Your turn, say it!",
+  "item": "고마워요",
+  "sec": 4.24,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_10",
+  "slot": "따라 말하기(한국어만)",
+  "text": "고마워요",
+  "item": "고마워요",
+  "sec": 1.48,
+  "face": "neutral"
+ },
+ {
+  "id": "native_10",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"감사해요.\". Try that one!",
+  "item": "고마워요",
+  "sec": 4.76,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_11_1",
+  "slot": "출제",
+  "text": "How do you say \"Not at all\" in Korean?",
+  "item": "아니에요",
+  "sec": 3.56,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_11_2",
+  "slot": "출제",
+  "text": "Next up! \"Not at all\". Say it in Korean!",
+  "item": "아니에요",
+  "sec": 3.92,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_11",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Not at all\" — in Korean?",
+  "item": "아니에요",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_11",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"아니에요\".",
+  "item": "아니에요",
+  "sec": 4.72,
+  "face": "neutral"
+ },
+ {
+  "id": "model_11",
+  "slot": "정답 들려주기",
+  "text": "It's \"아니에요\". Your turn, say it!",
+  "item": "아니에요",
+  "sec": 3.88,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_11",
+  "slot": "따라 말하기(한국어만)",
+  "text": "아니에요",
+  "item": "아니에요",
+  "sec": 1.6,
+  "face": "neutral"
+ },
+ {
+  "id": "native_11",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"뭘요.\". Try that one!",
+  "item": "아니에요",
+  "sec": 4.6,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_12_1",
+  "slot": "출제",
+  "text": "How do you say \"Yes.·I see\" in Korean?",
+  "item": "네",
+  "sec": 4.2,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_12_2",
+  "slot": "출제",
+  "text": "Next up! \"Yes.·I see\". Say it in Korean!",
+  "item": "네",
+  "sec": 4.84,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_12",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Yes.·I see\" — in Korean?",
+  "item": "네",
+  "sec": 5.32,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_12",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"네\".",
+  "item": "네",
+  "sec": 4.0,
+  "face": "neutral"
+ },
+ {
+  "id": "model_12",
+  "slot": "정답 들려주기",
+  "text": "It's \"네\". Your turn, say it!",
+  "item": "네",
+  "sec": 3.4,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_12",
+  "slot": "따라 말하기(한국어만)",
+  "text": "네",
+  "item": "네",
+  "sec": 0.96,
+  "face": "neutral"
+ },
+ {
+  "id": "native_12",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"아, 그렇군요.\". Try that one!",
+  "item": "네",
+  "sec": 5.56,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_13_1",
+  "slot": "출제",
+  "text": "How do you say \"Good!\" in Korean?",
+  "item": "좋아요",
+  "sec": 3.2,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_13_2",
+  "slot": "출제",
+  "text": "Next up! \"Good!\". Say it in Korean!",
+  "item": "좋아요",
+  "sec": 3.64,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_13",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Good!\" — in Korean?",
+  "item": "좋아요",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_13",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"좋아요\".",
+  "item": "좋아요",
+  "sec": 4.6,
+  "face": "neutral"
+ },
+ {
+  "id": "model_13",
+  "slot": "정답 들려주기",
+  "text": "It's \"좋아요\". Your turn, say it!",
+  "item": "좋아요",
+  "sec": 3.84,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_13",
+  "slot": "따라 말하기(한국어만)",
+  "text": "좋아요",
+  "item": "좋아요",
+  "sec": 1.28,
+  "face": "neutral"
+ },
+ {
+  "id": "native_13",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"괜찮네요!\". Try that one!",
+  "item": "좋아요",
+  "sec": 4.92,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_14_1",
+  "slot": "출제",
+  "text": "How do you say \"That's right\" in Korean?",
+  "item": "맞아요",
+  "sec": 3.92,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_14_2",
+  "slot": "출제",
+  "text": "Next up! \"That's right\". Say it in Korean!",
+  "item": "맞아요",
+  "sec": 4.24,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_14",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"That's right\" — in Korean?",
+  "item": "맞아요",
+  "sec": 4.2,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_14",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"맞아요\".",
+  "item": "맞아요",
+  "sec": 4.4,
+  "face": "neutral"
+ },
+ {
+  "id": "model_14",
+  "slot": "정답 들려주기",
+  "text": "It's \"맞아요\". Your turn, say it!",
+  "item": "맞아요",
+  "sec": 3.92,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_14",
+  "slot": "따라 말하기(한국어만)",
+  "text": "맞아요",
+  "item": "맞아요",
+  "sec": 1.48,
+  "face": "neutral"
+ },
+ {
+  "id": "native_14",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"그러니까요!\". Try that one!",
+  "item": "맞아요",
+  "sec": 4.68,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_15_1",
+  "slot": "출제",
+  "text": "How do you say \"Really?\" in Korean?",
+  "item": "진짜요?",
+  "sec": 3.44,
+  "face": "neutral"
+ },
+ {
+  "id": "ask_15_2",
+  "slot": "출제",
+  "text": "Next up! \"Really?\". Say it in Korean!",
+  "item": "진짜요?",
+  "sec": 4.52,
+  "face": "neutral"
+ },
+ {
+  "id": "quiz_15",
+  "slot": "퀴즈",
+  "text": "Quiz time! \"Really?\" — in Korean?",
+  "item": "진짜요?",
+  "sec": 4.0,
+  "face": "neutral"
+ },
+ {
+  "id": "hint_15",
+  "slot": "힌트",
+  "text": "Little hint: it starts with \"진짜요?\".",
+  "item": "진짜요?",
+  "sec": 4.8,
+  "face": "neutral"
+ },
+ {
+  "id": "model_15",
+  "slot": "정답 들려주기",
+  "text": "It's \"진짜요?\". Your turn, say it!",
+  "item": "진짜요?",
+  "sec": 3.8,
+  "face": "neutral"
+ },
+ {
+  "id": "rep_15",
+  "slot": "따라 말하기(한국어만)",
+  "text": "진짜요?",
+  "item": "진짜요?",
+  "sec": 1.6,
+  "face": "neutral"
+ },
+ {
+  "id": "native_15",
+  "slot": "현지인 표현",
+  "text": "Locals also say \"아, 그래요?\". Try that one!",
+  "item": "진짜요?",
+  "sec": 4.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_open_1",
+  "slot": "공통:open",
+  "text": "Today: greeting someone you just met. Let's go!",
+  "item": null,
+  "sec": 4.48,
+  "face": "neutral"
+ },
+ {
+  "id": "g_open_2",
+  "slot": "공통:open",
+  "text": "Greetings today! You're gonna do great.",
+  "item": null,
+  "sec": 3.32,
+  "face": "neutral"
+ },
+ {
+  "id": "g_ok_1",
+  "slot": "공통:ok",
+  "text": "Yep, you got that one.",
+  "item": null,
+  "sec": 2.68,
+  "face": "neutral"
+ },
+ {
+  "id": "g_ok_2",
+  "slot": "공통:ok",
+  "text": "Correct.",
+  "item": null,
+  "sec": 1.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_ok_3",
+  "slot": "공통:ok",
+  "text": "Okay, nice.",
+  "item": null,
+  "sec": 2.44,
+  "face": "neutral"
+ },
+ {
+  "id": "g_ok_4",
+  "slot": "공통:ok",
+  "text": "Yep, that's correct.",
+  "item": null,
+  "sec": 2.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_ok_5",
+  "slot": "공통:ok",
+  "text": "Yeah, that's it.",
+  "item": null,
+  "sec": 2.2,
+  "face": "neutral"
+ },
+ {
+  "id": "g_ok_6",
+  "slot": "공통:ok",
+  "text": "Right. Next.",
+  "item": null,
+  "sec": 2.48,
+  "face": "neutral"
+ },
+ {
+  "id": "g_wrong_1",
+  "slot": "공통:wrong",
+  "text": "It's okay, try again!",
+  "item": null,
+  "sec": 2.8,
+  "face": "neutral"
+ },
+ {
+  "id": "g_wrong_2",
+  "slot": "공통:wrong",
+  "text": "Not quite, that's okay!",
+  "item": null,
+  "sec": 2.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_wrong_3",
+  "slot": "공통:wrong",
+  "text": "So close! Let's try again.",
+  "item": null,
+  "sec": 3.16,
+  "face": "neutral"
+ },
+ {
+  "id": "g_wrong_4",
+  "slot": "공통:wrong",
+  "text": "Aw, no worries, try again!",
+  "item": null,
+  "sec": 3.28,
+  "face": "neutral"
+ },
+ {
+  "id": "g_wrong_5",
+  "slot": "공통:wrong",
+  "text": "Not it, but that's okay!",
+  "item": null,
+  "sec": 2.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_dunno_1",
+  "slot": "공통:dunno",
+  "text": "That's totally okay! I'll help you.",
+  "item": null,
+  "sec": 3.68,
+  "face": "neutral"
+ },
+ {
+  "id": "g_dunno_2",
+  "slot": "공통:dunno",
+  "text": "No worries! Here.",
+  "item": null,
+  "sec": 2.4,
+  "face": "neutral"
+ },
+ {
+  "id": "g_dunno_3",
+  "slot": "공통:dunno",
+  "text": "It's okay! Listen with me.",
+  "item": null,
+  "sec": 2.92,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_1",
+  "slot": "공통:rep_ok",
+  "text": "Whoa! You sound like a local!",
+  "item": null,
+  "sec": 3.8,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_2",
+  "slot": "공통:rep_ok",
+  "text": "Holy cow, so native!",
+  "item": null,
+  "sec": 3.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_3",
+  "slot": "공통:rep_ok",
+  "text": "Dang, total local!",
+  "item": null,
+  "sec": 2.84,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_4",
+  "slot": "공통:rep_ok",
+  "text": "Wow! Are you even human?",
+  "item": null,
+  "sec": 3.6,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_again_1",
+  "slot": "공통:rep_again",
+  "text": "Once more, okay?",
+  "item": null,
+  "sec": 2.16,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_again_2",
+  "slot": "공통:rep_again",
+  "text": "It's okay! One more time.",
+  "item": null,
+  "sec": 2.48,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_again_3",
+  "slot": "공통:rep_again",
+  "text": "Almost there! Try again.",
+  "item": null,
+  "sec": 2.84,
+  "face": "neutral"
+ },
+ {
+  "id": "g_move_1",
+  "slot": "공통:move",
+  "text": "Moving on!",
+  "item": null,
+  "sec": 2.16,
+  "face": "neutral"
+ },
+ {
+  "id": "g_move_2",
+  "slot": "공통:move",
+  "text": "Let's skip that one. Next!",
+  "item": null,
+  "sec": 2.92,
+  "face": "neutral"
+ },
+ {
+  "id": "g_move_3",
+  "slot": "공통:move",
+  "text": "No worries, next one!",
+  "item": null,
+  "sec": 2.8,
+  "face": "neutral"
+ },
+ {
+  "id": "g_quiz_start_1",
+  "slot": "공통:quiz_start",
+  "text": "Quiz time! Let's see what stuck!",
+  "item": null,
+  "sec": 3.32,
+  "face": "neutral"
+ },
+ {
+  "id": "g_quiz_start_2",
+  "slot": "공통:quiz_start",
+  "text": "Okay, quick quiz!",
+  "item": null,
+  "sec": 2.32,
+  "face": "neutral"
+ },
+ {
+  "id": "g_back_1",
+  "slot": "공통:back",
+  "text": "That's okay! Back to the lesson.",
+  "item": null,
+  "sec": 2.88,
+  "face": "neutral"
+ },
+ {
+  "id": "g_back_2",
+  "slot": "공통:back",
+  "text": "Hehe, let's focus, okay?",
+  "item": null,
+  "sec": 2.64,
+  "face": "neutral"
+ },
+ {
+  "id": "g_back_3",
+  "slot": "공통:back",
+  "text": "Fun! Okay, back to Korean.",
+  "item": null,
+  "sec": 3.2,
+  "face": "neutral"
+ },
+ {
+  "id": "g_close_1",
+  "slot": "공통:close",
+  "text": "That's it for today! Don't forget them, okay?",
+  "item": null,
+  "sec": 3.6,
+  "face": "neutral"
+ },
+ {
+  "id": "g_close_2",
+  "slot": "공통:close",
+  "text": "Done! Keep practicing, you got this!",
+  "item": null,
+  "sec": 3.44,
+  "face": "neutral"
+ },
+ {
+  "id": "g_laugh_1",
+  "slot": "웃음",
+  "text": "하하!",
+  "item": null,
+  "sec": 1.28,
+  "face": "neutral"
+ },
+ {
+  "id": "g_laugh_2",
+  "slot": "웃음",
+  "text": "헤헤!",
+  "item": null,
+  "sec": 1.08,
+  "face": "neutral"
+ },
+ {
+  "id": "g_laugh_3",
+  "slot": "웃음",
+  "text": "Hehe!",
+  "item": null,
+  "sec": 0.92,
+  "face": "neutral"
+ },
+ {
+  "id": "g_laugh_4",
+  "slot": "웃음",
+  "text": "Haha!",
+  "item": null,
+  "sec": 1.4,
+  "face": "neutral"
+ }
+]

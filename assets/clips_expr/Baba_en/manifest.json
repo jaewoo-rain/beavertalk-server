@@ -282,25 +282,25 @@
  {
   "id": "ask_6_1",
   "slot": "출제",
-  "text": "How do you say \"I'm ◯◯\" in Korean?",
+  "text": "How do you say \"I'm\" plus your name, in Korean?",
   "item": "저는 ◯◯이에요",
-  "sec": 3.88,
+  "sec": 4.72,
   "face": "neutral"
  },
  {
   "id": "ask_6_2",
   "slot": "출제",
-  "text": "Next. \"I'm ◯◯\". Say it in Korean.",
+  "text": "Next. \"I'm\" plus your name. Say it in Korean.",
   "item": "저는 ◯◯이에요",
-  "sec": 4.76,
+  "sec": 5.72,
   "face": "neutral"
  },
  {
   "id": "quiz_6",
   "slot": "퀴즈",
-  "text": "Quiz time. \"I'm ◯◯\" — in Korean?",
+  "text": "Quiz time. \"I'm\" plus your name, in Korean?",
   "item": "저는 ◯◯이에요",
-  "sec": 5.8,
+  "sec": 6.44,
   "face": "neutral"
  },
  {
@@ -322,25 +322,25 @@
  {
   "id": "ask_7_1",
   "slot": "출제",
-  "text": "How do you say \"I'm from ◯◯\" in Korean?",
+  "text": "How do you say \"I'm from\" plus your country, in Korean?",
   "item": "저는 ◯◯ 사람이에요",
-  "sec": 4.96,
+  "sec": 5.92,
   "face": "neutral"
  },
  {
   "id": "ask_7_2",
   "slot": "출제",
-  "text": "Next. \"I'm from ◯◯\". Say it in Korean.",
+  "text": "Next. \"I'm from\" plus your country. Say it in Korean.",
   "item": "저는 ◯◯ 사람이에요",
-  "sec": 5.4,
+  "sec": 5.96,
   "face": "neutral"
  },
  {
   "id": "quiz_7",
   "slot": "퀴즈",
-  "text": "Quiz time. \"I'm from ◯◯\" — in Korean?",
+  "text": "Quiz time. \"I'm from\" plus your country, in Korean?",
   "item": "저는 ◯◯ 사람이에요",
-  "sec": 4.96,
+  "sec": 5.52,
   "face": "neutral"
  },
  {

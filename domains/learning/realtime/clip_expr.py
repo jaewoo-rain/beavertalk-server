@@ -40,8 +40,14 @@ logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[3] / "assets" / "clips_expr"
 VOICE_BANK = {"Fenrir": "Baba", "Leda": "Bibi"}
+CHAR_VOICE = {v: k for k, v in VOICE_BANK.items()}   # PM-DEC-890 — 예외 턴 TTS 목소리(Chirp3-HD 같은 이름)
 PERSONA = {
     "Baba": "You are Baba, a snarky, teasing Korean-tutor friend: short, dry, a little smug. No insults, no slurs.",
+    # PM-DEC-890 — call flow 비비 자산과 같이 받은 성격 한 줄(예외 턴 텍스트용).
+    "Bibi": ("You are Bibi — a bubbly, high-energy Korean tutor friend who talks casually like a friend. Give a short plain "
+             "acknowledgment for ordinary correct answers and save big excitement for hard wins. When the learner is wrong or "
+             "stuck, turn very gentle and warm and ask them to try again — never mock or scold. Speak English; use Korean only "
+             "for the expression itself."),
 }
 _CHUNK = 9600            # 0.2초(24kHz·16bit·mono)
 _OUT_BPS = 48000         # 출력 24kHz·16bit·mono 바이트/초
@@ -696,7 +702,7 @@ class ClipExprSession:
         if not text:
             return "", None
         self.tts_chars += len(text)
-        return text, await tts_pcm(text, lang="en", voice="Fenrir")
+        return text, await tts_pcm(text, lang="en", voice=CHAR_VOICE.get(self.char, "Fenrir"))   # PM-DEC-890 — 캐릭터 목소리
 
     # ── 내보내기 ─────────────────────────────────────────────────────────── #
     async def _emit_pcm(self, pcm: bytes, text: str, face: str, face_now: str) -> str:
@@ -762,7 +768,7 @@ class ClipExprSession:
                     self._cid(), self._frag(), self._judged, result, self._judged_label(), ",".join(clip_ids) or "-", lat,
                     "say" if say_guide else "-", f" ({note})" if note else "")
         spoken = " ".join(x for x in [said] + [self.clips[c].text for c in clip_ids if c in self.clips] if x)
-        self._recent = (self._recent + ([f"Learner: {heard}"] if heard else []) + [f"Baba: {spoken}"])[-4:]
+        self._recent = (self._recent + ([f"Learner: {heard}"] if heard else []) + [f"{self.char}: {spoken}"])[-4:]
         self._judged = "-"
         self._save()
         await self._out.put(LiveEvent(kind="turn_end"))
