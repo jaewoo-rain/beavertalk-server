@@ -190,3 +190,17 @@ def test_round9_profile_slot_without_quote_is_not_saved():
         mp.undo()
     assert out["profile"] == {} and "아침 활동: 테니스" in out["learner_facts"]
     assert not any("반려동물" in f for f in out["learner_facts"])
+
+
+def test_round10_one_subject_does_not_crowd_out_other_topics():
+    """10차 max05: «제주도 …» 4줄 · «어머니 …» 3줄이 15칸을 채워 «차: 흰색 아반떼» · «좋아하는 영화: 인터스텔라» 가 빠졌다."""
+    old = ["차: 흰색 아반떼", "좋아하는 영화: 인터스텔라", "사는 곳: 대전", "못 먹는 것: 오징어", "반려동물: 고양이 나비"]
+    new = ["가족: 어머니는 소아과 의사", "어제 활동: 친구를 만나 맥주를 마심", "친구와 대화 주제: 여행", "다음 여행지: 제주도",
+           "제주도 방문 이유: 아름다운 바다", "제주도에서 먹고 싶은 것: 한라봉", "제주도에서 하고 싶은 일: 한라봉 먹기",
+           "제주도에서 하고 싶은 활동: 한라산 등반", "한라산 등반 후 활동: 정상에서 소리 지르기",
+           "어머니 직업: 소아과 의사", "어머니 성격: 아이들을 좋아함", "어머니 행동: 장난감을 사주심"]
+    got = cms._merge_facts(old, new, 15)
+    assert len(got) == 15
+    assert "차: 흰색 아반떼" in got and "좋아하는 영화: 인터스텔라" in got
+    assert got[:4] == ["사는 곳: 대전", "못 먹는 것: 오징어", "반려동물: 고양이 나비", "가족: 어머니는 소아과 의사"]
+    assert sum(f.startswith("제주도") for f in got) >= 1 and sum(f.startswith("어머니") for f in got) >= 1
