@@ -147,6 +147,9 @@ def homework_remaining_s(db: Session, member_id: int, assignment_id: int) -> int
 
 def daily_budget_s(plan: str | None) -> int:
     """이 플랜의 하루 통화 총량(초). 모르는 플랜은 Free 로 떨어뜨린다(R5, 위 조각 표와 같은 규율)."""
+    if settings.TEST_DAILY_BUDGET_S > 0 and settings.ENV != "prod":
+        # PM-DEC-887 — 시험 태그 리비전만 env 로 크게 연다(qa 실기기 점검). 운영은 늘 플랜 표.
+        return settings.TEST_DAILY_BUDGET_S
     return DAILY_BUDGET_S_BY_PLAN.get(plan, DAILY_BUDGET_S_BY_PLAN[None])
 
 
