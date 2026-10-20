@@ -73,12 +73,52 @@ def _without(old: list | None, drop: list | None) -> list:
     return [x for x in (old or []) if not (isinstance(x, str) and x.strip() in gone)]
 
 
-# 기억 6차 — 등급 0: 한 사람에 하나뿐인 값 · 등급 1: 가족·반려동물·직업 · 나머지는 잡담.
-#   «친구»·«살»·«형»·«간다» 처럼 넓은 단어는 뺐다(max08: 15칸 중 수빈 잡담 3줄이 핵심으로 잡혀 생일·강릉을 밀어냄).
-_FACT_TIER0 = ("생일", "못 먹", "못먹", "알레르기", "사는 곳", "살아", "살고", "산다", "출신", "여행", "갈 예정", "에 갈", "에 간다",
-               "이름")
+# 기억 8차 — 하나뿐인 값은 고정 칸(«칸: 값»)으로 따로 둔다. 같은 칸은 새 값이 덮어쓰고 늘 먼저 남는다.
+#   7차: 추출기가 생일을 아예 안 뽑고, 넓은 단어(«살아»·«여행»)로 잡담이 핵심 칸을 차지했다.
+PROFILE_KEYS = ("생일", "사는 곳", "다음 여행", "못 먹는 것", "반려동물", "가족", "직업")
+# 칸이 차 있으면 그 칸 얘기를 하는 일반 사실·요약 문장은 뺀다(칸이 정본) — 옛 값이 남아 이기는 것을 막는다.
+_PROFILE_WORDS = {
+    "생일": ("생일은", "생일이"),
+    "사는 곳": ("에 산다", "에 살아", "에 살고", "사는 곳"),
+    "다음 여행": ("다음 달", "다음 주", "여행", "갈 예정", "가고 싶어", "갈 계획", "에 간다", "에 감"),
+    "못 먹는 것": ("못 먹", "못먹", "알레르기", "배가 아프", "배 아프"),
+    "반려동물": ("고양이", "강아지", "햄스터", "앵무새", "반려", "키움", "키워"),
+    "가족": ("언니", "오빠", "누나", "남동생", "여동생", "엄마", "아빠", "남편", "아내", "사촌"),
+    "직업": ("직업", "직장"),
+}
+_FACT_TIER0 = ("생일", "못 먹", "못먹", "알레르기", "이름은", "이름이")
 _FACT_TIER1 = ("고양이", "강아지", "햄스터", "앵무새", "반려", "언니", "오빠", "누나", "남동생", "여동생", "동생", "엄마", "아빠",
                "남편", "아내", "딸", "아들", "사촌", "직업", "회사", "학교", "전공", "나이")
+
+
+def profile_of(facts: list | None) -> dict[str, str]:
+    """사실 목록에서 고정 칸(«생일: 12월 5일»)만 뽑는다."""
+    out: dict[str, str] = {}
+    for f in facts or []:
+        if not isinstance(f, str):
+            continue
+        for k in PROFILE_KEYS:
+            if f.startswith(k + ": ") and f[len(k) + 2:].strip():
+                out[k] = f[len(k) + 2:].strip()
+    return out
+
+
+def _is_profile_line(f: str) -> bool:
+    return any(f.startswith(k + ": ") for k in PROFILE_KEYS)
+
+
+def _covered_by_profile(text: str, profile: dict) -> bool:
+    return any(w in text for k in profile for w in _PROFILE_WORDS.get(k, ()))
+
+
+def scrub_summary(summary: str, profile: dict) -> str:
+    """요약에서 고정 칸이 맡은 항목의 문장을 뺀다(«생일은 3월 7일이며, 땅콩 알레르기가 있다.» 같은 옛 값 문장)."""
+    if not summary or not profile:
+        return summary or ""
+    import re
+    parts = [p for p in re.split(r"(?<=[.!?])\s+", summary.strip()) if p.strip()]
+    kept = [p for p in parts if not _covered_by_profile(p, profile)]
+    return " ".join(kept)
 _FACT_SUFFIXES = ("에서", "에게", "으로", "이다", "이고", "과", "와", "를", "을", "은", "는", "이", "가", "에", "의", "도", "로",
                   "임", "야")
 _FACT_STOP = {"학습자", "친구", "어제", "오늘", "이름", "키움", "키워", "것", "함", "있음", "같이"}
@@ -140,15 +180,23 @@ def match_replaced(replaced: list | None, olds: list | None) -> list[str]:
     return list(dict.fromkeys(out))
 
 
-def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None) -> list[str]:
-    """PM-DEC-920 · 기억 6차 — 사실 병합: 바뀐 옛 사실 빼기 → 새것 앞 · 같은 말·비슷한 말은 최신 하나만 →
-    상한을 자를 땐 등급(하나뿐인 값 > 가족·반려·직업 > 잡담) 순으로 남긴다."""
+def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None,
+                 profile: dict | None = None) -> list[str]:
+    """PM-DEC-920 · 기억 6·8차 — 사실 병합:
+    고정 칸(옛 칸 위에 새 칸 덮어쓰기) 먼저 → 바뀐 옛 사실 빼기 → 새것 앞 · 같은 말·비슷한 말은 최신 하나만 ·
+    칸이 맡은 항목의 일반 사실은 뺌 → 상한을 자를 땐 등급(이름·생일·못 먹는 것 > 가족·반려·직업 > 잡담) 순."""
+    prof = profile_of(old)
+    prof.update({k: v.strip() for k, v in (profile or {}).items() if k in PROFILE_KEYS and isinstance(v, str) and v.strip()})
+    lines = [f"{k}: {prof[k]}" for k in PROFILE_KEYS if k in prof]
     merged: list[str] = []
     for f in _merge_capped(_without(old, replaced), new, 10 ** 6):
+        if _is_profile_line(f) or _covered_by_profile(f, prof):
+            continue
         if not any(_near_dup(f, k) for k in merged):
             merged.append(f)
-    keep = set(sorted(merged, key=_fact_tier)[:cap])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
-    return [f for f in merged if f in keep]
+    room = max(0, cap - len(lines))
+    keep = set(sorted(merged, key=_fact_tier)[:room])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
+    return lines + [f for f in merged if f in keep]
 
 
 def _merge_capped(old: list | None, new: list | None, cap: int) -> list[str]:
@@ -261,7 +309,8 @@ def merge_sync(
         return row
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"))
+    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"),
+                         slots.get("profile"))
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
@@ -272,7 +321,7 @@ def merge_sync(
     if row is None:
         row = ChatMemory(member_id=member_id, language=language)
         repo.add(row)
-    row.summary = summary
+    row.summary = scrub_summary(summary, profile_of(facts))   # 기억 8차 — 칸이 맡은 옛 값 문장은 요약에 안 남긴다
     row.topics = topics
     row.facts = facts
     row.interests = interests
@@ -303,7 +352,8 @@ def merge_slots_only(
     row = repo.get(member_id, language)
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"))
+    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"),
+                         slots.get("profile"))
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
@@ -314,6 +364,8 @@ def merge_slots_only(
     if row is None:
         row = ChatMemory(member_id=member_id, language=language)
         repo.add(row)
+    if row.summary:
+        row.summary = scrub_summary(row.summary, profile_of(facts))   # 기억 8차 — 중간 조각도 옛 값 문장을 바로 뺀다
     row.topics = topics
     row.facts = facts
     row.interests = interests

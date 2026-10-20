@@ -4921,6 +4921,8 @@ async def run_call(
         #   자체가 안 불린다. 그 경로의 즉시 추출(이전 조각의 DB 전사만 읽음)은 그대로
         #   맞다 — 옮길 대상이 없다.
         # P2.6: 전사(텍스트) 선저장 — 오디오 MP3 변환·업로드(~9s)는 pending 으로 분리.
+        if call_type == "chat":
+            await _recover_last_user_text(state, call_id)   # 기억 8차 — 전사 없이 끊긴 끝 말
         pending_audio = await _persist_remaining(db_session_factory, state, call_id, member_id)
         with contextlib.suppress(Exception):
             _trigger_chat_memory(state, call_type, db_session_factory, call_id, member_id, spec.code, client, settings)
@@ -5125,6 +5127,46 @@ def _elapsed_since_call_start(state: _CallState) -> int:
     if state.call_start_ts is None:
         return 0
     return int(asyncio.get_running_loop().time() - state.call_start_ts)
+
+
+LAST_UTTER_MIN_S = 0.6       # 기억 8차 — 이보다 짧은 끝 소리는 받아쓰지 않는다(숨소리·잡음)
+LAST_UTTER_STT_TIMEOUT_S = 6.0
+
+
+async def _recognize_ko(pcm16k: bytes) -> str:
+    """Google STT v1 recognize(ko-KR + en-US) — 끝 말 받아쓰기 전용."""
+    from google.cloud import speech_v1
+
+    from core.stt import get_speech_client
+    client = get_speech_client()
+    if client is None:
+        return ""
+    cfg = speech_v1.RecognitionConfig(
+        encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16, sample_rate_hertz=INPUT_SAMPLE_RATE,
+        language_code="ko-KR", alternative_language_codes=["en-US"],
+    )
+    resp = await client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k))
+    return " ".join(r.alternatives[0].transcript for r in resp.results if r.alternatives).strip()
+
+
+async def _recover_last_user_text(state: _CallState, call_id: int) -> None:
+    """기억 8차 — 학습자가 말한 직후 앱이 끊으면 입력 전사가 안 와서 그 말이 빈칸으로 저장된다
+    (7차 2235·2236: 마지막 «제 생일은 12월 5일이에요» 가 DB 에 없음 → 기억에 안 남음). 끝 저장 전에 그 소리를 받아쓴다."""
+    new = state.segments[state.persisted_count:]
+    if not new or new[-1].get("role") != "user" or (new[-1].get("text") or "").strip():
+        return
+    pcm = new[-1].get("pcm") or b""
+    if len(pcm) < int(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES * LAST_UTTER_MIN_S):
+        return
+    try:
+        text = await asyncio.wait_for(_recognize_ko(bytes(pcm)), LAST_UTTER_STT_TIMEOUT_S)
+    except Exception as exc:  # noqa: BLE001 — 받아쓰기 실패면 종전처럼 빈칸
+        logger.warning("normalcall: 끝 말 받아쓰기 실패 call_id=%s: %s: %s", call_id, type(exc).__name__, exc)
+        return
+    if text:
+        new[-1]["text"] = text
+        logger.info("normalcall: 끝 말 받아쓰기(전사 없이 끊김) call_id=%s %.1f초 → %r", call_id,
+                    len(pcm) / (INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES), text[:80])
 
 
 async def _persist_remaining(
@@ -5500,6 +5542,7 @@ async def _run_one_generation(
         state.ctx = session_cm
         state.ctx_base = system_instruction
         state.ctx_client = client
+        _ctx_facts_load(state)
         logger.info("normalcall perturn 켬: call_id=%s 요약 %s·%d턴마다 · 최근 %d발화", _cid(state),
                     settings.CONTEXT_SUMMARY_MODEL, settings.CONTEXT_SUMMARY_EVERY, settings.CONTEXT_RECENT_SEGMENTS)
     else:
@@ -7974,7 +8017,8 @@ _CTX_SUMMARY_INSTRUCTION = (
     "너는 언어 학습 통화의 기록 담당이다. 다음 진행자가 이어받을 수 있게 통화 줄거리를 5줄 이내 한국어로 고쳐 쓴다. "
     "이전 줄거리를 바탕으로 새 대화를 반영한다. 학습자가 말한 사실(이름·가족·반려동물·한 일·좋아하는 것), "
     "학습자가 틀린 표현과 고쳐 준 말, 지금 이야기하는 화제를 꼭 넣는다. 지어내지 않는다.\n"
-    "facts 칸에는 학습자에 대해 알게 된 사실을 짧은 구로 모은다(최대 15개). 이전 사실 목록을 그대로 두고 새 사실만 더한다 — "
+    "facts 칸에는 학습자에 대해 알게 된 사실을 짧은 구로 모은다(최대 15개). **학습자가 말한 것만** 넣는다 — 비버의 말은 사실이 아니다. "
+    "이전 사실 목록을 그대로 두고 새 사실만 더한다 — "
     "이름·가족·반려동물·날짜(생일 등)·계획·못 먹는 것·못 하는 것은 절대 빼지 않는다. 같은 얘기는 하나로 합치고, "
     "학습자가 고쳐 말한 사실만 새 내용으로 바꾼다."
 )
@@ -8080,6 +8124,39 @@ def _ctx_after_turn_end(state: _CallState, ctrl0: int, turn_text: str, reseeded_
     ctx.prepare(_perturn_instruction(state))
 
 
+_CTX_FACTS_BUCKET = "ctx-facts"   # 기억 8차 — 조각 2가 조각 1의 사실 목록을 이어받는다(7차 2235: 경주 소실)
+
+
+def _ctx_facts_store(state: _CallState) -> None:
+    cid = _cid(state)
+    if cid is None or not state.ctx_facts:
+        return
+    try:
+        from core import storage
+        storage.upload(_CTX_FACTS_BUCKET, f"{cid}.json", json.dumps(state.ctx_facts, ensure_ascii=False).encode("utf-8"),
+                       content_type="application/json")
+    except Exception as exc:  # noqa: BLE001 — 남기지 못하면 다음 조각이 빈 목록으로 시작할 뿐
+        logger.warning("normalcall perturn: 사실 목록 저장 실패 call_id=%s: %s", cid, exc)
+
+
+def _ctx_facts_load(state: _CallState) -> None:
+    cid = _cid(state)
+    if cid is None or not state.fragment_index or state.fragment_index < 2:
+        return
+    try:
+        from core import storage
+        download = getattr(storage, "download", None)
+        raw = download(_CTX_FACTS_BUCKET, f"{cid}.json") if download else None
+        got = json.loads(raw.decode("utf-8")) if raw else []
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("normalcall perturn: 사실 목록 이어받기 실패 call_id=%s: %s", cid, exc)
+        return
+    if isinstance(got, list):
+        state.ctx_facts = [f for f in got if isinstance(f, str) and f.strip()][:CTX_FACTS_MAX]
+        logger.info("normalcall perturn: 조각 %s 가 사실 목록 %d개 이어받음 call_id=%s", state.fragment_index,
+                    len(state.ctx_facts), cid)
+
+
 async def _ctx_summary_sidecar(state: _CallState) -> None:
     """줄거리 증분 갱신 — 이전 줄거리 + 그 뒤 새 발화만 넣는다(입력이 통화 길이와 같이 자라지 않게)."""
     upto = len(state.segments)
@@ -8105,6 +8182,7 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
             if facts:
                 # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
                 state.ctx_facts = list(dict.fromkeys(facts + state.ctx_facts))[:CTX_FACTS_MAX]
+                _ctx_facts_store(state)
             logger.info("normalcall perturn 사실 목록: call_id=%s %d개 %s", _cid(state), len(state.ctx_facts),
                         " · ".join(state.ctx_facts)[:300])
             state.ctx_summary_upto = upto
