@@ -1108,6 +1108,11 @@ _RESUME_SUMMARY_INSTRUCTION = (
 )
 
 
+class MemoryProfileItem(BaseModel):
+    key: str = ""      # 생일 · 사는 곳 · 다음 여행 · 못 먹는 것 · 반려동물 · 가족 · 직업
+    value: str = ""
+
+
 class MemoryOut(BaseModel):
     """PM-DEC-910 — 자유대화 기억 추출 슬롯(이어하기 요약 ResumeOut 과 따로 · 통화 전체 · 사실 10개 · 바뀐 사실)."""
 
@@ -1116,6 +1121,7 @@ class MemoryOut(BaseModel):
     pending: str = ""
     interests: list[str] = []
     replaced: list[str] = []           # 기존 사실 중 이번 대화로 바뀐 것(기존 문구 그대로)
+    profile: list[MemoryProfileItem] = []   # 기억 8차 — 하나뿐인 값 고정 칸(이번 통화에서 말한 칸만)
 
 
 _MEMORY_EXTRACT_INSTRUCTION = (
@@ -1131,7 +1137,12 @@ _MEMORY_EXTRACT_INSTRUCTION = (
     "(예: 기존 \"매운 음식을 잘 못 먹음\" · 이번에 \"이제 매운 것도 잘 먹음\" → replaced 에 기존 문구, learner_facts 에 새 사실). "
     "생일·사는 곳·다음 여행지·못 먹는 것·반려동물 이름처럼 한 사람에 하나뿐인 값은 이번에 새 값을 말했으면 옛 값을 반드시 replaced 에 넣는다"
     "(예: 기존 \"생일은 3월 7일\" · 이번 \"생일은 11월 20일\" → replaced=[\"생일은 3월 7일\"]). "
-    "없으면 빈 목록."
+    "없으면 빈 목록.\n"
+    "- profile: 학습자가 **이번 통화에서 말한** 고정 칸만 {key, value} 로. key 는 생일·사는 곳·다음 여행·못 먹는 것·반려동물·가족·직업 중 하나. "
+    "value 는 지금 맞는 값 전체를 짧게(예: 생일 \"12월 5일\" · 다음 여행 \"다음 달 경주\" · 못 먹는 것 \"가지, 굴\" · "
+    "반려동물 \"고양이 나비, 햄스터 망고\"). [기존 사실]의 같은 칸 값에 이번에 바뀐 것만 고쳐서 전체를 다시 적는다"
+    "(«버섯은 이제 먹어요. 가지를 못 먹어요» → 못 먹는 것 \"가지\"). 학습자가 고쳐 말하면(«지난번엔 잘못 말했어요») 새 값. "
+    "**통화 끝부분에 말한 것도 빠뜨리지 않는다.** 이번 통화에서 말하지 않은 칸은 넣지 않는다. 비버의 말은 근거가 아니다."
 )
 MEMORY_FACTS_MAX = 10
 
@@ -1163,6 +1174,8 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
         "pending": (out.pending or "").strip()[:40],
         "interests": _clean_list(out.interests, 5, 30),
         "replaced": chat_memory_service.match_replaced(_clean_list(out.replaced, MEMORY_FACTS_MAX, 80), olds),
+        "profile": {p.key.strip(): p.value.strip()[:60] for p in (out.profile or [])
+                    if p.key.strip() in chat_memory_service.PROFILE_KEYS and p.value.strip()},
     }
 
 
@@ -1407,6 +1420,7 @@ async def extract_and_merge_chat_memory(
         "interests": interests,
         "next_topics": [pending] if pending else [],
         "replaced": list(slots_raw.get("replaced") or []),
+        "profile": dict(slots_raw.get("profile") or {}),
     }
     if not any(slots.values()):
         logger.info("normalcall chat_memory: 뽑힌 슬롯이 없어 merge 생략 call_id=%s", call_id)
@@ -1452,12 +1466,16 @@ async def extract_and_merge_chat_memory(
                 "normalcall chat_memory: 이미 이 통화로 merge 됨(멱등) call_id=%s", call_id
             )
             return
+        merged_facts = chat_memory_service._merge_facts(old_facts, slots.get("facts"), chat_memory_service.FACTS_CAP,
+                                                        slots.get("replaced"), slots.get("profile"))
+        prof = chat_memory_service.profile_of(merged_facts)
+        # 기억 8차 — 재압축 LLM 이 옛 값 문장을 안 지웠다(7차: 3월 7일·땅콩·새우) → 칸이 맡은 문장은 넣기 전에 뺀다
         summary = await chat_memory_service.recompress_summary(
-            client, settings_obj.JUDGE_MODEL, old_summary, slots.get("summary") or "",
+            client, settings_obj.JUDGE_MODEL, chat_memory_service.scrub_summary(old_summary, prof),
+            chat_memory_service.scrub_summary(slots.get("summary") or "", prof),
             replaced=slots.get("replaced"),
             # PM-DEC-920 · 기억 6차 — 옛 값을 품은 요약 고쳐 쓰기 · 이번 통화 사실이 아니라 저장될 합친 목록을 넘긴다
-            facts=chat_memory_service._merge_facts(old_facts, slots.get("facts"), chat_memory_service.FACTS_CAP,
-                                                   slots.get("replaced")),
+            facts=merged_facts,
         )
 
         def _do_merge(db: Session) -> None:
