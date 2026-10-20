@@ -7941,10 +7941,23 @@ def _perturn_enabled(settings: Settings, state: _CallState) -> bool:
 
 
 def _ctx_recent_lines(state: _CallState, n: int) -> str:
+    # PM-DEC-885 — 비버 줄은 «너(비버)» 로 적는다(새 세션이 자기 말로 알아보게 · call flow 요청서 70).
     return "\n".join(
-        f"{'학습자' if s['role'] == 'user' else '비버'}: {s['text'].strip()}"
+        f"{'학습자' if s['role'] == 'user' else '너(비버)'}: {s['text'].strip()}"
         for s in [s for s in state.segments if (s.get("text") or "").strip()][-n:]
     )
+
+
+_CTX_SENT_RE = re.compile(r"[^.!?。？！…]+[.!?。？！…]*")
+
+
+def _ctx_last_ending(state: _CallState) -> str:
+    """직전 비버 턴의 마지막 문장(끝맺음). 없으면 빈 문자열."""
+    for s in reversed(state.segments):
+        if s.get("role") != "user" and (s.get("text") or "").strip():
+            parts = [p.strip() for p in _CTX_SENT_RE.findall(s["text"].strip()) if p.strip()]
+            return parts[-1][:80] if parts else ""
+    return ""
 
 
 def _perturn_instruction(state: _CallState) -> str:
@@ -7971,6 +7984,10 @@ def _perturn_instruction(state: _CallState) -> str:
         # PM-DEC-873 — 매 턴 안내(마이크 자리 텍스트)를 지시문으로 옮긴다. 제어 꼬리표·«읽지 말고» 문구는 지시문에선 뜻이 없다.
         note = state.turn_note.replace(CONTROL_TAG, "").replace("이 메시지는 읽지 말고 반영만 해라.", "").strip()
         parts.append(f"이번 턴 답하는 법: {note}")
+    last_end = _ctx_last_ending(state)
+    if last_end:
+        # PM-DEC-885 — 같은 끝맺음 반복(바바 23~37%)을 줄인다.
+        parts.append(f"직전 네 끝맺음: «{last_end}» — 이번엔 다른 끝맺음.")
     return (state.ctx_base + "\n\n[지금까지의 통화]\n" + "\n".join(parts) + "\n"
             "[이어서] 통화가 진행 중이다. 인사하지 말고, 학습자의 다음 말에 바로 답한다.")
 
