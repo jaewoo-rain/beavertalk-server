@@ -108,6 +108,9 @@ class Settings(BaseSettings):
     B2B_SERVICE_TOKEN: str | None = None
     # 양쪽 v2 reader 배포 확인 뒤 CC 슬롯에서만 신규 snapshot 쓰기를 활성화한다.
     HOMEWORK_MANUAL_V2_WRITE_ENABLED: bool = False
+    # PM-DEC-874 — 숙제 통화 결과를 B2B 로 보내는가(기본 on = 지금과 같음). 시험 태그(hwfix)만 off 로 띄워
+    #   운영 B2B 에 제출(submission.call_id)을 쓰지 않는다. 운영 반영 대상 아님.
+    HOMEWORK_RESULT_DELIVERY: bool = True
 
     # ── 국적 분류 (외부 오디오 국적 추론 API) ──
     # 미설정이면 core.nationality 가 조용히 비활성(None 반환) — 통화·분석 무영향(R5).
