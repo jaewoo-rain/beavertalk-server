@@ -8050,7 +8050,9 @@ _CTX_SUMMARY_INSTRUCTION = (
     "너는 언어 학습 통화의 기록 담당이다. 다음 진행자가 이어받을 수 있게 통화 줄거리를 5줄 이내 한국어로 고쳐 쓴다. "
     "이전 줄거리를 바탕으로 새 대화를 반영한다. 학습자가 말한 사실(이름·가족·반려동물·한 일·좋아하는 것), "
     "학습자가 틀린 표현과 고쳐 준 말, 지금 이야기하는 화제를 꼭 넣는다. 지어내지 않는다.\n"
-    "facts 칸에는 학습자에 대해 알게 된 사실을 짧은 구로 모은다(최대 15개). **학습자가 말한 것만** 넣는다 — 비버의 말은 사실이 아니다. "
+    "facts 칸에는 학습자에 대해 알게 된 사실을 «주제: 값» 으로 모은다(최대 15개 · 예: \"주말 취미: 볼링을 배움\" · "
+    "\"좋아하는 가수: 아이유\"). 이전 사실 목록과 같은 주제면 그 주제 이름을 그대로 쓰고 지금 맞는 값을 적는다(바꿔 말하면 새 값). "
+    "**학습자가 말한 것만** 넣는다 — 비버의 말은 사실이 아니다. "
     "이전 사실 목록을 그대로 두고 새 사실만 더한다 — "
     "이름·가족·반려동물·날짜(생일 등)·계획·못 먹는 것·못 하는 것은 절대 빼지 않는다. 같은 얘기는 하나로 합치고, "
     "학습자가 고쳐 말한 사실만 새 내용으로 바꾼다."
@@ -8214,7 +8216,9 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
             facts = [f.strip()[:40] for f in (getattr(out, "facts", None) or []) if isinstance(f, str) and f.strip()]
             if facts:
                 # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
-                state.ctx_facts = list(dict.fromkeys(facts + state.ctx_facts))[:CTX_FACTS_MAX]
+                # 기억 9차 — 같은 주제 키면 새 값 하나만(8차 바바: 같은 통화에서 요가 → 볼링 으로 바꿨는데 «요가» 로 답함)
+                from domains.learning.service import chat_memory_service as _cms
+                state.ctx_facts = _cms.merge_keyed_lines(facts, state.ctx_facts, CTX_FACTS_MAX)
                 await asyncio.to_thread(_ctx_facts_store, state)   # PM-DEC-923 — 동기 GCS 는 스레드에서
             logger.info("normalcall perturn 사실 목록: call_id=%s %d개 %s", _cid(state), len(state.ctx_facts),
                         " · ".join(state.ctx_facts)[:300])

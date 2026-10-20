@@ -111,14 +111,64 @@ def _covered_by_profile(text: str, profile: dict) -> bool:
     return any(w in text for k in profile for w in _PROFILE_WORDS.get(k, ()))
 
 
-def scrub_summary(summary: str, profile: dict) -> str:
-    """요약에서 고정 칸이 맡은 항목의 문장을 뺀다(«생일은 3월 7일이며, 땅콩 알레르기가 있다.» 같은 옛 값 문장)."""
-    if not summary or not profile:
+# 기억 9차 — 값의 특징 낱말에서 뺄 흔한 말(주제와 상관없이 자주 나오는 말)
+_VALUE_STOP = {"주말", "주말마다", "요즘", "매일", "자주", "배움", "배워", "배운다", "좋아함", "좋아해", "좋아한다", "있음", "없음",
+               "다음", "이번", "지난", "정말", "아주", "많이", "같이", "제일", "가장", "하고", "싶어", "싶음", "예정"}
+
+
+def split_fact(f: str) -> tuple[str | None, str]:
+    """«주제: 값» → (주제, 값). 주제가 없으면 (None, 원문)."""
+    if isinstance(f, str) and ": " in f:
+        k, v = f.split(": ", 1)
+        k, v = k.strip(), v.strip()
+        if 0 < len(k) <= 15 and v:
+            return k, v
+    return None, (f or "").strip()
+
+
+def _nkey(k: str) -> str:
+    return "".join(k.split())
+
+
+def _value_words(v: str) -> set[str]:
+    return {t for t in _fact_tokens(v) if len(t) >= 2 and t not in _VALUE_STOP}
+
+
+def stale_values(old: list | None, merged: list | None, replaced: list | None = None) -> list[str]:
+    """덮어써진 옛 값(같은 주제 키 · 값이 달라짐) + replaced 옛 사실 — 요약에서 그 낱말이 든 문장을 뺄 재료."""
+    now = {_nkey(k): v for k, v in (split_fact(f) for f in merged or []) if k}
+    out = []
+    for f in old or []:
+        k, v = split_fact(f)
+        if k and _nkey(k) in now and now[_nkey(k)] != v:
+            out.append(v)
+    out += [r for r in replaced or [] if isinstance(r, str) and r.strip()]
+    return list(dict.fromkeys(out))
+
+
+def stale_words(stale: list | None, current: list | None = None) -> set[str]:
+    """덮어써진 옛 값의 특징 낱말 — 지금 사실에도 나오는 낱말(«생일»·«매운»)은 뺀다(새 값 문장까지 지우지 않게)."""
+    if not stale:
+        return set()
+    old = set().union(*(_value_words(_without_key(x)) for x in stale))
+    now = set().union(*(_value_words(f) for f in current)) if current else set()
+    return old - now
+
+
+def scrub_summary(summary: str, profile: dict, stale: list | None = None, current: list | None = None) -> str:
+    """요약에서 고정 칸이 맡은 항목의 문장과, 덮어써진 옛 값의 특징 낱말이 든 문장을 뺀다
+    («생일은 3월 7일이며…» · 8차 «주말마다 클라이밍을 즐겨 한다»)."""
+    if not summary or (not profile and not stale):
         return summary or ""
     import re
+    words = stale_words(stale, current)
     parts = [p for p in re.split(r"(?<=[.!?])\s+", summary.strip()) if p.strip()]
-    kept = [p for p in parts if not _covered_by_profile(p, profile)]
+    kept = [p for p in parts if not _covered_by_profile(p, profile or {}) and not any(w in p for w in words)]
     return " ".join(kept)
+
+
+def _without_key(f: str) -> str:
+    return split_fact(f)[1]
 _FACT_SUFFIXES = ("에서", "에게", "으로", "이다", "이고", "과", "와", "를", "을", "은", "는", "이", "가", "에", "의", "도", "로",
                   "임", "야")
 _FACT_STOP = {"학습자", "친구", "어제", "오늘", "이름", "키움", "키워", "것", "함", "있음", "같이"}
@@ -180,23 +230,50 @@ def match_replaced(replaced: list | None, olds: list | None) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def merge_keyed_lines(new: list | None, old: list | None, cap: int) -> list[str]:
+    """«주제: 값» 줄 병합 — 같은 주제 키면 새 값 하나만(옛 값 버림) · 주제 없는 줄은 비슷한 말 하나만 · 새것 앞."""
+    seen: dict[str, str] = {}
+    plain: list[str] = []
+    for f in list(new or []) + list(old or []):
+        if not isinstance(f, str) or not f.strip():
+            continue
+        k, v = split_fact(f)
+        if k:
+            seen.setdefault(_nkey(k), f"{k}: {v}")
+        elif not any(_near_dup(f.strip(), p) for p in plain):
+            plain.append(f.strip())
+    return (list(seen.values()) + plain)[:cap]
+
+
 def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None,
                  profile: dict | None = None) -> list[str]:
-    """PM-DEC-920 · 기억 6·8차 — 사실 병합:
-    고정 칸(옛 칸 위에 새 칸 덮어쓰기) 먼저 → 바뀐 옛 사실 빼기 → 새것 앞 · 같은 말·비슷한 말은 최신 하나만 ·
-    칸이 맡은 항목의 일반 사실은 뺌 → 상한을 자를 땐 등급(이름·생일·못 먹는 것 > 가족·반려·직업 > 잡담) 순."""
-    prof = profile_of(old)
-    prof.update({k: v.strip() for k, v in (profile or {}).items() if k in PROFILE_KEYS and isinstance(v, str) and v.strip()})
-    lines = [f"{k}: {prof[k]}" for k in PROFILE_KEYS if k in prof]
-    merged: list[str] = []
+    """PM-DEC-920 · 기억 6·8·9차 — 사실 병합:
+    «주제: 값» 은 같은 주제 키면 새 값이 덮어씀(고정 칸 = 우선순위 높은 주제) → 바뀐 옛 사실(replaced) 빼기 →
+    덮어써진 옛 값 낱말이 든 주제 없는 옛 사실도 뺌 → 비슷한 말은 최신 하나만 →
+    상한을 자를 땐 고정 칸 > 다른 주제 > 주제 없는 사실(그 안에선 등급·최신) 순."""
+    newl = list(new or []) + [f"{k}: {v.strip()}" for k, v in (profile or {}).items()
+                              if k in PROFILE_KEYS and isinstance(v, str) and v.strip()]
+    keyed = [f for f in merge_keyed_lines(newl, _without(old, replaced), 10 ** 6) if split_fact(f)[0]]
+    stale = stale_values(old, keyed, replaced)
+    newset = {x.strip() for x in new or [] if isinstance(x, str)}
+    words = stale_words(stale, keyed + [x for x in newset if not split_fact(x)[0]])
+    prof = profile_of(keyed)
+    plain: list[str] = []
     for f in _merge_capped(_without(old, replaced), new, 10 ** 6):
-        if _is_profile_line(f) or _covered_by_profile(f, prof):
+        if split_fact(f)[0]:
             continue
-        if not any(_near_dup(f, k) for k in merged):
-            merged.append(f)
-    room = max(0, cap - len(lines))
-    keep = set(sorted(merged, key=_fact_tier)[:room])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
-    return lines + [f for f in merged if f in keep]
+        if f not in newset and (_covered_by_profile(f, prof) or any(w in f for w in words)):
+            continue   # 옛 사실만 — 고정 칸이 맡았거나 덮어써진 옛 값 낱말이 들었다
+        if any(_near_dup(f, k) or _near_dup(f, _without_key(k)) for k in plain + keyed):
+            continue
+        plain.append(f)
+    top = [f for k in PROFILE_KEYS for f in keyed if split_fact(f)[0] == k]
+    rest_keyed = [f for f in keyed if f not in top]
+    room = max(0, cap - len(top))
+    rest_keyed = rest_keyed[:room]
+    room -= len(rest_keyed)
+    keep = set(sorted(plain, key=_fact_tier)[:max(0, room)])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
+    return top + rest_keyed + [f for f in plain if f in keep]
 
 
 def _merge_capped(old: list | None, new: list | None, cap: int) -> list[str]:
@@ -309,8 +386,8 @@ def merge_sync(
         return row
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"),
-                         slots.get("profile"))
+    old_facts = list(row.facts or []) if row is not None else []
+    facts = _merge_facts(old_facts, slots.get("facts"), FACTS_CAP, slots.get("replaced"), slots.get("profile"))
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
@@ -321,7 +398,9 @@ def merge_sync(
     if row is None:
         row = ChatMemory(member_id=member_id, language=language)
         repo.add(row)
-    row.summary = scrub_summary(summary, profile_of(facts))   # 기억 8차 — 칸이 맡은 옛 값 문장은 요약에 안 남긴다
+    # 기억 8·9차 — 칸이 맡은 항목·덮어써진 옛 값의 문장은 요약에 안 남긴다
+    row.summary = scrub_summary(summary, profile_of(facts),
+                                stale_values(old_facts, facts, slots.get("replaced")), facts)
     row.topics = topics
     row.facts = facts
     row.interests = interests
@@ -352,8 +431,8 @@ def merge_slots_only(
     row = repo.get(member_id, language)
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"),
-                         slots.get("profile"))
+    old_facts = list(row.facts or []) if row is not None else []
+    facts = _merge_facts(old_facts, slots.get("facts"), FACTS_CAP, slots.get("replaced"), slots.get("profile"))
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
@@ -365,7 +444,9 @@ def merge_slots_only(
         row = ChatMemory(member_id=member_id, language=language)
         repo.add(row)
     if row.summary:
-        row.summary = scrub_summary(row.summary, profile_of(facts))   # 기억 8차 — 중간 조각도 옛 값 문장을 바로 뺀다
+        # 기억 8·9차 — 중간 조각도 옛 값 문장을 바로 뺀다
+        row.summary = scrub_summary(row.summary, profile_of(facts),
+                                    stale_values(old_facts, facts, slots.get("replaced")), facts)
     row.topics = topics
     row.facts = facts
     row.interests = interests
