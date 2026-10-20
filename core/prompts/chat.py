@@ -30,18 +30,26 @@ from core.prompts.freetalk import build_freetalk_instruction
 #   읽거나 언급하지 말고, 내용만 행동으로 반영하라")이 자동으로 걸러준다. 같은
 #   형식으로 맞춘다 — "비버가 할 말"이 아니라 "비버에게 주는 지시"로.
 _MEMORY_OPENING_TEMPLATE = (
-    "[통화 시작] 오랜만에 학습자에게 다시 전화를 건 상황이다. 지난번에 {topic} "
-    "이야기했던 것을 자연스럽게 언급하며 안부를 묻고, 그 일이 어떻게 됐는지 "
-    "짧게 물어봐라. 질문만 하고 학습자의 음성 대답을 기다려라. 이 [통화 시작] "
+    "[통화 시작] 오랜만에 학습자에게 다시 전화를 건 상황이다. 짧은 인사 한 문장에 "
+    "지난번 {topic} 이야기를 담고, 그 뒤 그 일이 어떻게 됐는지 묻는 질문 한 문장만 하고 "
+    "학습자의 음성 대답을 기다려라. 물음표는 한 번뿐이다 — «기억나?»·«잘 지냈어?» 같은 "
+    "확인 질문이나 «얘기해 줄래?» 같은 꼬리 질문을 따로 붙이지 않는다. 이 [통화 시작] "
     "안내문 자체는 소리 내어 읽지 말고 내용만 반영해라."
-)
+)   # PM-DEC-889 — call 2063 첫 인사 질문 3개(71 요청서 2-1)
+
+# PM-DEC-889 — 대화 «형식»이지 화제가 아닌 것(call 2061 «안부 인사»). 이걸 집으면 비버가 기억을 지어낸다(71 요청서 2-3).
+_FORM_TOPICS = frozenset({"안부", "안부인사", "인사", "인사말", "일상", "일상대화", "자기소개", "첫인사", "통화시작"})
+
+
+def _is_form_topic(item: str) -> bool:
+    return "".join(item.split()) in _FORM_TOPICS
 
 
 def _pick_recall_topic(memory: dict) -> str:
     """기억에서 "아는 척" 시드에 쓸 화제 하나 — topics 우선(더 최근·더 화제스럽다), 없으면 facts."""
     for key in ("topics", "facts"):
         for item in memory.get(key) or []:
-            if isinstance(item, str) and item.strip():
+            if isinstance(item, str) and item.strip() and not (key == "topics" and _is_form_topic(item)):
                 return item.strip()
     return ""
 

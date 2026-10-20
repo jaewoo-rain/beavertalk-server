@@ -1298,6 +1298,10 @@ async def extract_and_merge_chat_memory(
     """
     try:
         tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
+        if not any(line.startswith("학습자: ") for line in tail.splitlines()):
+            # PM-DEC-889 — 학습자가 한마디도 안 한 통화(call 2061 · 31초)가 «안부 인사»로 쌓여 다음 첫 인사가 기억을 지어냈다.
+            logger.info("normalcall chat_memory: 학습자 발화 없음 → merge 생략 call_id=%s", call_id)
+            return
         slots_raw = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
     except Exception as exc:  # noqa: BLE001 — R5
         logger.warning("normalcall chat_memory 추출 실패(무시) call_id=%s: %s", call_id, exc)

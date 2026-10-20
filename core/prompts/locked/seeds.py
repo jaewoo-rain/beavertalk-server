@@ -296,6 +296,18 @@ NUDGE_SEED_1_LEVELTEST = f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 �
 NUDGE_SEED_2_LEVELTEST = f"{CONTROL_TAG} 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 학습자 모국어로 지금 내 말이 들리는지 한 번만 묻는다. 놀리지 않는다."
 
 
+# 자유대화(chat) 전용 1·2단 넛지(PM-DEC-889 · call flow 71 요청서 2-2): 공용 NORMAL 은 질문 수 제한이 없어
+#   1단 질문 2개 · 2단 확인 질문+대화 질문 4개가 나왔다(call 2063). 공용 NORMAL 바이트는 그대로 둔다.
+NUDGE_SEED_1_CHAT = (
+    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고 가볍게 새 화제로 묻는 질문 한 문장만 해라 — "
+    "물음표는 한 번뿐이다(«조용하네?» 같은 말이나 꼬리 질문을 붙이지 않는다)."
+)
+NUDGE_SEED_2_CHAT = (
+    f"{CONTROL_TAG} 학습자가 계속 조용하다. 이 메시지는 소리내 읽지 말고, 학습자 모국어로 지금 내 말이 들리는지 한 문장으로 한 번만 묻고 멈춰라. "
+    "다른 질문은 붙이지 않는다. 놀리지 않는다."
+)
+
+
 # ⛔⛔ 절대 고치지 마라 — 서버 판정/표정/진도 배관이 이 문장을 **그대로** 기대한다(gemini 2.5·3.1 두 모델 모두 같은 문장을 쓴다).
 #   고치려면 bt-back 과 시험(tests/test_prompt_locked_hash.py · tests/test_prompt_*.py)을 같이. 사람이 고치는 문구는 core/prompts/editable/*.md 다.
 # 표현학습 퀴즈 큐(T16 — 재접지 배관과 별개 슬롯으로 마이크·RMS 관문에 얹힌다). 하네스 로그 계약은 call_session.EXPR_QUIZ_CUE_LOG_PREFIX.

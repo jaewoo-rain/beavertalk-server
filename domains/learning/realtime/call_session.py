@@ -361,8 +361,10 @@ _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
 from core.prompts.locked.seeds import (
     expression_quiz_cue,
     expression_quiz_fallback_instruction,
+    NUDGE_SEED_1_CHAT,
     NUDGE_SEED_1_LEVELTEST,
     NUDGE_SEED_1_NORMAL,
+    NUDGE_SEED_2_CHAT,
     NUDGE_SEED_2_LEVELTEST,
     NUDGE_SEED_2_NORMAL,
     close_seed_normal,
@@ -4538,7 +4540,10 @@ async def run_call(
             state.nudge_seed_1 = {
                 "expression": NUDGE_SEED_1_EXPRESSION,
                 "freetalk": NUDGE_SEED_1_FREETALK,
+                "chat": NUDGE_SEED_1_CHAT,      # PM-DEC-889 — 자유대화는 질문 한 문장
             }.get(call_type, _NUDGE_SEED_1)
+            if call_type == "chat":
+                state.nudge_seed_2 = NUDGE_SEED_2_CHAT   # PM-DEC-889 — 「들려?」 한 문장만(call 2063 질문 4개)
             if cur_route and call_type == "freetalk":
                 # ⭐ 차시 프리토킹만(계획 §3 시드 3종·D-a): 1단 30s «같은 과제를 더 쉽게» · 2단 «그 턴만 모국어 뜻 + 학습 언어 문장 하나».
                 #   다른 코스의 임계·1단·2단은 위 값 그대로(바이트 동일).

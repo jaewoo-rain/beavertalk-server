@@ -291,3 +291,27 @@ async def test_final_fragment_recompresses_even_after_intermediate_merges(ctx, m
     row = chat_memory_service.load(ctx["db"], ctx["member_id"], "ko")
     assert row is not None and row.last_call_id == ctx["call_id"]
     assert row.summary != "", "마지막 조각인데 summary 가 여전히 비어 있다"
+
+
+@pytest.mark.asyncio
+async def test_no_learner_speech_skips_merge(ctx, monkeypatch):
+    """PM-DEC-889 — 학습자가 한마디도 안 한 자유대화(call 2061)는 기억에 쌓지 않는다(요약기도 안 부른다)."""
+    db = ctx["db"]
+    from domains.learning.models.call import Call
+    first = db.get(Call, ctx["call_id"])
+    silent = svc.create_call(db, ctx["member_id"], first.character_id, "chat")
+    db.add(CallRawData(call_id=silent, role="beaver", turn_index=0, content="안녕! 잘 지냈어?"))
+    db.commit()
+    called = []
+
+    async def _summarize(client, model, tail):
+        called.append(tail)
+        return {"topic": "안부 인사", "learner_facts": [], "pending": "", "interests": []}
+
+    monkeypatch.setattr(svc, "summarize_for_resume_text", _summarize)
+    await svc.extract_and_merge_chat_memory(
+        silent, ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+    )
+    assert called == []
+    assert chat_memory_service.load(db, ctx["member_id"], "ko") is None
