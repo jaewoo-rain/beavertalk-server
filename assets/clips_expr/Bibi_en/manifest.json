@@ -810,265 +810,265 @@
  {
   "id": "g_open_1",
   "slot": "공통:open",
-  "text": "Today: greeting someone you just met. Let's go!",
+  "text": "Ahh, greetings today! Let's gooo!",
   "item": null,
-  "sec": 4.48,
+  "sec": 3.88,
   "face": "neutral"
  },
  {
   "id": "g_open_2",
   "slot": "공통:open",
-  "text": "Greetings today! You're gonna do great.",
+  "text": "Oh my gosh, greetings today! I'm so pumped!",
   "item": null,
-  "sec": 3.32,
+  "sec": 4.72,
   "face": "neutral"
  },
  {
   "id": "g_ok_1",
   "slot": "공통:ok",
-  "text": "Yep, you got that one.",
+  "text": "Yesss! You got it!!",
   "item": null,
-  "sec": 2.68,
+  "sec": 3.0,
   "face": "neutral"
  },
  {
   "id": "g_ok_2",
   "slot": "공통:ok",
-  "text": "Correct.",
+  "text": "Oh my god, correct! Yes!",
   "item": null,
-  "sec": 1.64,
+  "sec": 3.36,
   "face": "neutral"
  },
  {
   "id": "g_ok_3",
   "slot": "공통:ok",
-  "text": "Okay, nice.",
+  "text": "Wooo! Nailed it!",
   "item": null,
-  "sec": 2.44,
+  "sec": 2.8,
   "face": "neutral"
  },
  {
   "id": "g_ok_4",
   "slot": "공통:ok",
-  "text": "Yep, that's correct.",
+  "text": "Shut up, that's perfect!",
   "item": null,
-  "sec": 2.64,
+  "sec": 3.44,
   "face": "neutral"
  },
  {
   "id": "g_ok_5",
   "slot": "공통:ok",
-  "text": "Yeah, that's it.",
+  "text": "Yes yes yes! That's it!",
   "item": null,
-  "sec": 2.2,
+  "sec": 3.24,
   "face": "neutral"
  },
  {
   "id": "g_ok_6",
   "slot": "공통:ok",
-  "text": "Right. Next.",
+  "text": "Boom! Correct! Next!",
   "item": null,
-  "sec": 2.48,
+  "sec": 3.48,
   "face": "neutral"
  },
  {
   "id": "g_wrong_1",
   "slot": "공통:wrong",
-  "text": "It's okay, try again!",
+  "text": "Nooo, so close! Try again, you got this!",
   "item": null,
-  "sec": 2.8,
+  "sec": 4.76,
   "face": "neutral"
  },
  {
   "id": "g_wrong_2",
   "slot": "공통:wrong",
-  "text": "Not quite, that's okay!",
+  "text": "Aww, almost! Come on, one more!",
   "item": null,
-  "sec": 2.64,
+  "sec": 4.08,
   "face": "neutral"
  },
  {
   "id": "g_wrong_3",
   "slot": "공통:wrong",
-  "text": "So close! Let's try again.",
-  "item": null,
-  "sec": 3.16,
-  "face": "neutral"
- },
- {
-  "id": "g_wrong_4",
-  "slot": "공통:wrong",
-  "text": "Aw, no worries, try again!",
-  "item": null,
-  "sec": 3.28,
-  "face": "neutral"
- },
- {
-  "id": "g_wrong_5",
-  "slot": "공통:wrong",
-  "text": "Not it, but that's okay!",
-  "item": null,
-  "sec": 2.64,
-  "face": "neutral"
- },
- {
-  "id": "g_dunno_1",
-  "slot": "공통:dunno",
-  "text": "That's totally okay! I'll help you.",
-  "item": null,
-  "sec": 3.68,
-  "face": "neutral"
- },
- {
-  "id": "g_dunno_2",
-  "slot": "공통:dunno",
-  "text": "No worries! Here.",
-  "item": null,
-  "sec": 2.4,
-  "face": "neutral"
- },
- {
-  "id": "g_dunno_3",
-  "slot": "공통:dunno",
-  "text": "It's okay! Listen with me.",
-  "item": null,
-  "sec": 2.92,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_ok_1",
-  "slot": "공통:rep_ok",
-  "text": "Whoa! You sound like a local!",
-  "item": null,
-  "sec": 3.8,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_ok_2",
-  "slot": "공통:rep_ok",
-  "text": "Holy cow, so native!",
-  "item": null,
-  "sec": 3.64,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_ok_3",
-  "slot": "공통:rep_ok",
-  "text": "Dang, total local!",
-  "item": null,
-  "sec": 2.84,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_ok_4",
-  "slot": "공통:rep_ok",
-  "text": "Wow! Are you even human?",
-  "item": null,
-  "sec": 3.6,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_again_1",
-  "slot": "공통:rep_again",
-  "text": "Once more, okay?",
-  "item": null,
-  "sec": 2.16,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_again_2",
-  "slot": "공통:rep_again",
-  "text": "It's okay! One more time.",
-  "item": null,
-  "sec": 2.48,
-  "face": "neutral"
- },
- {
-  "id": "g_rep_again_3",
-  "slot": "공통:rep_again",
-  "text": "Almost there! Try again.",
-  "item": null,
-  "sec": 2.84,
-  "face": "neutral"
- },
- {
-  "id": "g_move_1",
-  "slot": "공통:move",
-  "text": "Moving on!",
-  "item": null,
-  "sec": 2.16,
-  "face": "neutral"
- },
- {
-  "id": "g_move_2",
-  "slot": "공통:move",
-  "text": "Let's skip that one. Next!",
-  "item": null,
-  "sec": 2.92,
-  "face": "neutral"
- },
- {
-  "id": "g_move_3",
-  "slot": "공통:move",
-  "text": "No worries, next one!",
+  "text": "Ooh, so close! Again, again!",
   "item": null,
   "sec": 2.8,
   "face": "neutral"
  },
  {
-  "id": "g_quiz_start_1",
-  "slot": "공통:quiz_start",
-  "text": "Quiz time! Let's see what stuck!",
+  "id": "g_wrong_4",
+  "slot": "공통:wrong",
+  "text": "Nooo, it's okay! Try again!",
   "item": null,
   "sec": 3.32,
   "face": "neutral"
  },
  {
-  "id": "g_quiz_start_2",
-  "slot": "공통:quiz_start",
-  "text": "Okay, quick quiz!",
+  "id": "g_wrong_5",
+  "slot": "공통:wrong",
+  "text": "Ahh, not quite! You can do it!",
   "item": null,
-  "sec": 2.32,
+  "sec": 3.96,
   "face": "neutral"
  },
  {
-  "id": "g_back_1",
-  "slot": "공통:back",
-  "text": "That's okay! Back to the lesson.",
+  "id": "g_dunno_1",
+  "slot": "공통:dunno",
+  "text": "Aww, that's totally fine! I got you!",
   "item": null,
-  "sec": 2.88,
+  "sec": 3.92,
   "face": "neutral"
  },
  {
-  "id": "g_back_2",
-  "slot": "공통:back",
-  "text": "Hehe, let's focus, okay?",
+  "id": "g_dunno_2",
+  "slot": "공통:dunno",
+  "text": "No worries at all! Here, listen!",
   "item": null,
-  "sec": 2.64,
+  "sec": 3.76,
   "face": "neutral"
  },
  {
-  "id": "g_back_3",
-  "slot": "공통:back",
-  "text": "Fun! Okay, back to Korean.",
+  "id": "g_dunno_3",
+  "slot": "공통:dunno",
+  "text": "It's okay, it's okay! Listen with me!",
+  "item": null,
+  "sec": 3.48,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_1",
+  "slot": "공통:rep_ok",
+  "text": "Oh my god! You sound like a local!!",
+  "item": null,
+  "sec": 3.76,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_2",
+  "slot": "공통:rep_ok",
+  "text": "Holy cow! Are you even human?!",
+  "item": null,
+  "sec": 3.84,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_3",
+  "slot": "공통:rep_ok",
+  "text": "Dang!! Total native! I'm screaming!",
+  "item": null,
+  "sec": 4.4,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_ok_4",
+  "slot": "공통:rep_ok",
+  "text": "No way!! Are you secretly Korean?!",
+  "item": null,
+  "sec": 3.72,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_again_1",
+  "slot": "공통:rep_again",
+  "text": "Ooh, one more time! Come on!",
+  "item": null,
+  "sec": 3.28,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_again_2",
+  "slot": "공통:rep_again",
+  "text": "So close! Again, you got this!",
+  "item": null,
+  "sec": 3.56,
+  "face": "neutral"
+ },
+ {
+  "id": "g_rep_again_3",
+  "slot": "공통:rep_again",
+  "text": "Almost there! One more, one more!",
+  "item": null,
+  "sec": 3.28,
+  "face": "neutral"
+ },
+ {
+  "id": "g_move_1",
+  "slot": "공통:move",
+  "text": "Okay, moving on! Let's go!",
   "item": null,
   "sec": 3.2,
   "face": "neutral"
  },
  {
+  "id": "g_move_2",
+  "slot": "공통:move",
+  "text": "Let's skip that one! Next, next!",
+  "item": null,
+  "sec": 2.96,
+  "face": "neutral"
+ },
+ {
+  "id": "g_move_3",
+  "slot": "공통:move",
+  "text": "No worries! Next one, let's go!",
+  "item": null,
+  "sec": 3.8,
+  "face": "neutral"
+ },
+ {
+  "id": "g_quiz_start_1",
+  "slot": "공통:quiz_start",
+  "text": "Quiz time!! Let's see what stuck!",
+  "item": null,
+  "sec": 3.0,
+  "face": "neutral"
+ },
+ {
+  "id": "g_quiz_start_2",
+  "slot": "공통:quiz_start",
+  "text": "Ooh, quick quiz! I'm so excited!",
+  "item": null,
+  "sec": 4.24,
+  "face": "neutral"
+ },
+ {
+  "id": "g_back_1",
+  "slot": "공통:back",
+  "text": "Haha, okay! Back to Korean!",
+  "item": null,
+  "sec": 3.48,
+  "face": "neutral"
+ },
+ {
+  "id": "g_back_2",
+  "slot": "공통:back",
+  "text": "Hehe, focus, focus! Back to it!",
+  "item": null,
+  "sec": 3.52,
+  "face": "neutral"
+ },
+ {
+  "id": "g_back_3",
+  "slot": "공통:back",
+  "text": "Love it! Okay, back to Korean!",
+  "item": null,
+  "sec": 3.48,
+  "face": "neutral"
+ },
+ {
   "id": "g_close_1",
   "slot": "공통:close",
-  "text": "That's it for today! Don't forget them, okay?",
+  "text": "That's it for today! You were amazing!",
   "item": null,
-  "sec": 3.6,
+  "sec": 4.08,
   "face": "neutral"
  },
  {
   "id": "g_close_2",
   "slot": "공통:close",
-  "text": "Done! Keep practicing, you got this!",
+  "text": "Done!! Oh my god, so proud of you!",
   "item": null,
-  "sec": 3.44,
+  "sec": 3.56,
   "face": "neutral"
  },
  {

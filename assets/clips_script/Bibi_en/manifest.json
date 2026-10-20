@@ -233,36 +233,36 @@
  {
   "id": "sg_angry_1",
   "slot": "공통:angry",
-  "text": "That's okay! It's a little different from the script. Let's read it again.",
-  "sec": 5.24,
+  "text": "Nooo! That's not the line! Read it again!",
+  "sec": 4.88,
   "face": "neutral"
  },
  {
   "id": "sg_angry_2",
   "slot": "공통:angry",
-  "text": "No worries! Let's just read the line together. One more time.",
-  "sec": 4.84,
+  "text": "Wait, wait! That's not on the script! One more time!",
+  "sec": 4.0,
   "face": "neutral"
  },
  {
   "id": "sg_angry_3",
   "slot": "공통:angry",
-  "text": "It's okay! Take a peek at the script and try again.",
-  "sec": 4.88,
+  "text": "Ahh, no no no! Look at the script and try again!",
+  "sec": 4.44,
   "face": "neutral"
  },
  {
   "id": "sg_angry_4",
   "slot": "공통:angry",
-  "text": "That's alright! Let's read exactly what's written.",
-  "sec": 4.24,
+  "text": "Oh no! That's totally different! Read what's written!",
+  "sec": 5.4,
   "face": "neutral"
  },
  {
   "id": "sg_angry_5",
   "slot": "공통:angry",
-  "text": "No problem! Let's stick to the actual line. Try again.",
-  "sec": 4.52,
+  "text": "Hey, hey! You're making it up! Read the real line!",
+  "sec": 4.28,
   "face": "neutral"
  },
  {

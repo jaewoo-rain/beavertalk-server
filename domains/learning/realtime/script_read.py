@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 ROOT = clip_expr.ROOT.parent / "clips_script"
 FACE_BY_GROUP = {"sg_good": "happy", "sg_open": "happy", "sg_close_call": "happy", "sg_angry": "angry"}
 PASS_SIM, CLOSE_SIM = 0.6, 0.4
+READY_LEAD_S = 1.0      # PM-DEC-895 — 바바 말 끝나기 이만큼 전에 내 줄을 회색으로 미리 보인다
 FAIL_MAX = 3           # PM-DEC-894 — 한 줄에 이만큼 틀리면 화낸 뒤 다음 비버 대사로(한 줄에 멈추지 않게)
 _CLOSE_PCM = b"\x00" * 14400   # 마무리 클립 대신 무음 0.3초(24kHz·16bit) — 종료 절차(턴 시작·끝)만 밟는다
 
@@ -147,8 +148,8 @@ class ScriptReadSession(ClipExprSession):
     def _judged_label(self) -> str:
         return f"줄{self.item.seq}·시도{self.attempt}" if self.idx < len(self.items) else "-"
 
-    async def _card(self, msg: dict) -> None:
-        if self._notify is None:
+    async def _card(self, msg: Optional[dict]) -> None:
+        if self._notify is None or msg is None:
             return
         try:
             await self._notify(msg)
@@ -185,16 +186,26 @@ class ScriptReadSession(ClipExprSession):
             x = self.lines.get(n) or {}
             self._band_at(delay_s, {"type": "script_beaver", "n": n, "total": len(self.items), "ko": x.get("beaver") or "",
                                     "gloss": x.get("beaver_en") or "", "roman": x.get("beaver_roman") or ""})
+            # PM-DEC-895 — 말할 타이밍 색: 바바 말 끝나기 조금 전 내 줄 회색(script_line) → 끝나는 순간 빨강(script_turn).
+            dur = len(clip.pcm) / clip_expr._OUT_BPS   # 재생 길이 — _play_until 과 같은 셈
+            end = delay_s + dur
+            self._band_at(max(delay_s + dur / 2, end - READY_LEAD_S), self._line_msg())
+            self._band_at(end, self._turn_msg())
         elif cid.startswith("sp_"):
             self._band_at(delay_s, self._line_msg())
         else:
             kind = next((k for p, k in self._SAY_KIND if cid.startswith(p)), "say")
             self._band_at(delay_s, {"type": "script_say", "kind": kind, "text": clip.text, "sec": round(clip.sec, 2)})
 
+    def _turn_msg(self) -> Optional[dict]:
+        return None if self.idx >= len(self.items) else {"type": "script_turn", "n": self.item.seq}
+
     def _on_turn_audio_end(self, delay_s: float) -> None:
         if self._line_after_turn:
             self._line_after_turn = False
-            self._band_at(delay_s, self._line_msg())   # 화냄·재요청 클립이 끝난 뒤 같은 줄(다시 읽기)
+            # 화냄 클립 동안은 내 줄을 띄우지 않는다 — 끝나는 순간 다시 읽기 줄을 바로 빨강으로(요청서 §2)
+            self._band_at(delay_s, self._line_msg())
+            self._band_at(delay_s, self._turn_msg())
 
     async def _result_card(self, result: str) -> None:
         if self.idx < len(self.items):
@@ -207,8 +218,7 @@ class ScriptReadSession(ClipExprSession):
             self._wait()
             return
         n = self.item.seq
-        self._line_after_turn = True          # 비버 대사가 끝나면 학습자 줄 자막
-        await self._turn([f"sb_{n}"], result="resume" if self._restored else "open")
+        await self._turn([f"sb_{n}"], result="resume" if self._restored else "open")   # 내 줄은 sb 재생에 맞춰(_on_clip_start)
 
     async def _analyze(self, pcm: bytes) -> tuple[str, str]:
         """받아쓰기만(규칙 대조는 _on_answer 에서). 미리 판정(spec)도 이 함수를 쓴다."""
@@ -253,7 +263,8 @@ class ScriptReadSession(ClipExprSession):
         if self.attempt == 1:
             await self._result_card("fail")
             self.attempt += 1
-            await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음
+            await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음 · 바로 말할 차례
+            await self._card(self._turn_msg())
             self._wait()
             return
         self.angry_used += 1
@@ -280,7 +291,6 @@ class ScriptReadSession(ClipExprSession):
                 self._request_close()
             return []
         n = self.item.seq
-        self._line_after_turn = True          # 비버 대사가 끝나면 학습자 줄 자막
         return [f"sb_{n}"]
 
     async def __aexit__(self, *exc) -> None:

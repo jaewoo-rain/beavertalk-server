@@ -91,7 +91,9 @@ async def test_flow_beaver_then_read_and_angry_only_from_second_fail():
         await h.s.send_text_turn("SEED")
         await h.turn()
         assert h.clips() == ["sb_1"]                                    # 시작 클립·Your line 없음
-        assert [m["type"] for m in h.notes if m["type"].startswith("script_")] == ["script_beaver", "script_line"]
+        # PM-DEC-895 — 바바 줄(파랑) → 내 줄 회색(script_line) → 말할 차례 빨강(script_turn)
+        assert [m["type"] for m in h.notes if m["type"].startswith("script_")] == ["script_beaver", "script_line", "script_turn"]
+        assert h.cards("script_turn")[0]["n"] == 1
         b = h.cards("script_beaver")[0]
         assert b["n"] == 1 and b["ko"] == lines[1]["beaver"] and b["gloss"] and b["roman"]
         n = len(h.notes)
@@ -101,11 +103,11 @@ async def test_flow_beaver_then_read_and_angry_only_from_second_fail():
         n = len(h.notes)
         await h.say(turn=False)                         # 2번 틀림 1회 → 반응 없음 · 같은 줄 다시(attempt 2)
         assert not h.clips(n) and h.cards("script_result", n)[0]["result"] == "fail"
-        assert h.cards("script_line", n)[0]["attempt"] == 2
+        assert h.cards("script_line", n)[0]["attempt"] == 2 and h.cards("script_turn", n)[0]["n"] == 2
         n = len(h.notes)
         await h.say()                                   # 2번 틀림 2회 → 화내기 → 같은 줄
         assert [c[:9] for c in h.clips(n)] == ["sg_angry_"] and h.cards("script_say", n)[0]["kind"] == "angry"
-        assert [m["type"] for m in h.notes[n:] if m["type"] in ("script_say", "script_line")] == ["script_say", "script_line"]
+        assert [m["type"] for m in h.notes[n:] if m["type"] in ("script_say", "script_line", "script_turn")] ==             ["script_say", "script_line", "script_turn"]   # 화냄 동안은 내 줄 없음 · 끝나는 순간 줄+빨강
         n = len(h.notes)
         await h.say(turn=False)                         # 빈 STT → 실패로 안 침 · 반응 없음
         assert not h.clips(n) and not h.cards("script_result", n)
