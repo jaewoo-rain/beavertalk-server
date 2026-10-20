@@ -34,6 +34,8 @@ _RECOMPRESS_INSTRUCTION = """너는 두 요약을 하나로 합치는 도구다.
 - 오래되고 덜 중요한 내용은 줄이고, 최근 정보를 우선한다.
 - 사실을 추가하거나 지어내지 않는다 — 두 요약에 있는 내용만 사용한다.
 - [바뀐 사실]이 있으면 옛 값은 요약에서 지우거나 새 값으로 고쳐 쓴다(옛 생일·옛 여행지·옛 못 먹는 것을 남기지 않는다).
+- [지금 사실 목록]이 맞다. 옛 요약이 같은 항목(생일·여행지·못 먹는 것·가족·반려동물 이름)에 다른 값을 말하면 옛 값을 지운다.
+- [이번 통화 요약]이 옛 요약과 같은 항목에 다른 값을 말해도 이번 값이 맞다.
 - summary 칸 하나만 채운다."""
 
 
@@ -71,22 +73,81 @@ def _without(old: list | None, drop: list | None) -> list:
     return [x for x in (old or []) if not (isinstance(x, str) and x.strip() in gone)]
 
 
-_CORE_FACT_WORDS = ("이름", "생일", "살아", "산다", "사는", "살고", "출신", "여행", "갈 예정", "간다", "가요", "못 먹", "못먹",
-                    "알레르기", "싫어", "키움", "키워", "고양이", "강아지", "반려", "언니", "오빠", "형", "누나", "동생", "엄마",
-                    "아빠", "남편", "아내", "딸", "아들", "친구", "직업", "회사", "학교", "전공", "나이", "살")
+# 기억 6차 — 등급 0: 한 사람에 하나뿐인 값 · 등급 1: 가족·반려동물·직업 · 나머지는 잡담.
+#   «친구»·«살»·«형»·«간다» 처럼 넓은 단어는 뺐다(max08: 15칸 중 수빈 잡담 3줄이 핵심으로 잡혀 생일·강릉을 밀어냄).
+_FACT_TIER0 = ("생일", "못 먹", "못먹", "알레르기", "사는 곳", "살아", "살고", "산다", "출신", "여행", "갈 예정", "에 갈", "에 간다",
+               "이름")
+_FACT_TIER1 = ("고양이", "강아지", "햄스터", "앵무새", "반려", "언니", "오빠", "누나", "남동생", "여동생", "동생", "엄마", "아빠",
+               "남편", "아내", "딸", "아들", "사촌", "직업", "회사", "학교", "전공", "나이")
+_FACT_SUFFIXES = ("에서", "에게", "으로", "이다", "이고", "과", "와", "를", "을", "은", "는", "이", "가", "에", "의", "도", "로",
+                  "임", "야")
+_FACT_STOP = {"학습자", "친구", "어제", "오늘", "이름", "키움", "키워", "것", "함", "있음", "같이"}
+
+
+def _fact_tier(f: str) -> int:
+    if any(w in f for w in _FACT_TIER0):
+        return 0
+    if any(w in f for w in _FACT_TIER1):
+        return 1
+    return 2
 
 
 def _is_core_fact(f: str) -> bool:
-    return any(w in f for w in _CORE_FACT_WORDS)
+    return _fact_tier(f) < 2
+
+
+def _fact_tokens(f: str) -> set[str]:
+    out = set()
+    for w in f.replace(",", " ").replace(".", " ").split():
+        for suf in _FACT_SUFFIXES:
+            if w.endswith(suf) and len(w) > len(suf) + 1:
+                w = w[: -len(suf)]
+                break
+        if w not in _FACT_STOP:
+            out.add(w)
+    return out
+
+
+def _fact_overlap(a: str, b: str) -> float:
+    ta, tb = _fact_tokens(a), _fact_tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / max(len(ta), len(tb))
+
+
+def _near_dup(a: str, b: str) -> bool:
+    """«고양이 나비를 키움» ≈ «고양이 이름은 나비임» · «햄스터 이름은 호두» ≈ «햄스터 이름이 호두임».
+    «사촌 이름은 도윤임» ↔ «사촌 도윤과 요리를 배움» 은 다른 사실(겹침 2/4)."""
+    ta, tb = _fact_tokens(a), _fact_tokens(b)
+    return len(ta & tb) >= 2 and _fact_overlap(a, b) >= 2 / 3
+
+
+def match_replaced(replaced: list | None, olds: list | None) -> list[str]:
+    """기억 6차 — 추출기가 옛 사실을 말만 바꿔 돌려줘도(«새우 먹으면 배 아픔» ↔ «새우를 먹으면 배가 아픔») 가장 닮은 옛 사실로 잇는다.
+    글자까지 같아야만 인정하던 때는 바바 새우→버섯이 replaced 0건이었다."""
+    olds = [o for o in (olds or []) if isinstance(o, str) and o.strip()]
+    out: list[str] = []
+    for r in replaced or []:
+        if not isinstance(r, str) or not r.strip():
+            continue
+        r = r.strip()
+        if r in olds:
+            out.append(r)
+            continue
+        best = max(olds, key=lambda o: _fact_overlap(r, o), default=None)
+        if best is not None and (r in best or best in r or _fact_overlap(r, best) >= 0.5):
+            out.append(best)
+    return list(dict.fromkeys(out))
 
 
 def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None) -> list[str]:
-    """PM-DEC-920 — 사실 병합: 바뀐 옛 사실 빼기 → 새것 앞 · 중복 제거 → 상한을 자를 땐 핵심 사실을 먼저 남긴다
-    (잡담 «수빈의 얼굴을 생각하며 운동함» 이 생일·못 먹는 것을 밀어냈다 · max06)."""
-    merged = _merge_capped(_without(old, replaced), new, 10 ** 6)
-    core = [f for f in merged if _is_core_fact(f)]
-    rest = [f for f in merged if not _is_core_fact(f)]
-    keep = set((core + rest)[:cap])
+    """PM-DEC-920 · 기억 6차 — 사실 병합: 바뀐 옛 사실 빼기 → 새것 앞 · 같은 말·비슷한 말은 최신 하나만 →
+    상한을 자를 땐 등급(하나뿐인 값 > 가족·반려·직업 > 잡담) 순으로 남긴다."""
+    merged: list[str] = []
+    for f in _merge_capped(_without(old, replaced), new, 10 ** 6):
+        if not any(_near_dup(f, k) for k in merged):
+            merged.append(f)
+    keep = set(sorted(merged, key=_fact_tier)[:cap])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
     return [f for f in merged if f in keep]
 
 
@@ -140,8 +201,10 @@ async def recompress_summary(client, model: str | None, old_summary: str, new_su
             prompt=f"[옛 요약]\n{old_summary}\n\n[이번 통화 요약]\n{new_summary}" + (
                 "\n\n[바뀐 사실] 아래 옛 값은 틀렸다 — 지우거나 이번 통화 사실로 고쳐 쓴다.\n"
                 + "\n".join(f"- 옛: {r}" for r in replaced)
-                + ("\n이번 통화 사실: " + " · ".join(facts or []) if facts else "")
-                if replaced else ""),
+                if replaced else "") + (
+                # 기억 6차 — replaced 를 못 잡아도(바바 새우→버섯) 합친 사실 목록이 요약을 바로잡는다
+                "\n\n[지금 사실 목록] 요약이 이것과 다르면 이것이 맞다: " + " · ".join(facts)
+                if facts else ""),
             schema=_RecompressOut, temperature=0.2, thinking_budget=0,
         )
     except Exception as exc:  # noqa: BLE001 — 재압축 실패가 기억 저장을 죽이면 안 된다(R5)
