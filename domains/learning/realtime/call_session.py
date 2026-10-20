@@ -2824,6 +2824,19 @@ def _join_beaver_text(parts: list[str]) -> str:
     return out
 
 
+_CTX_ECHO_MARKS = ("너(비버):", "학습자: (답변)", "지금 네 표정:", "이번 턴 답하는 법:", "직전 네 끝맺음:",
+                   "[이어서]", "[지금까지의 통화]", "학습자에 대해 아는 사실:", "최근 대화:", "줄거리:")
+
+
+def _cut_ctx_echo(text: str) -> str:
+    """perturn 지시문의 칸 이름이 전사에 나오면 그 앞까지만 남긴다(비버가 지시문 형식을 이어 쓴 꼴)."""
+    cut = min((i for i in (text.find(m) for m in _CTX_ECHO_MARKS) if i > 0), default=-1)
+    if cut > 0:
+        logger.warning("normalcall perturn: 지시문 꼬리 누출을 잘라 냄 %d자 → %d자", len(text), cut)
+        return text[:cut].rstrip()
+    return text
+
+
 def _flush_beaver_segment(state: _CallState) -> None:
     if not state.cur_beaver_pcm and not state.cur_beaver_text:
         return
@@ -2836,6 +2849,8 @@ def _flush_beaver_segment(state: _CallState) -> None:
     # ⭐ 조각 경계에 걸쳐 쪼개진 tool 낭독은 여기서 잡힌다 — 이 시점엔 턴 전체가 이어져 있다.
     #   (자막 경로는 조각 단위라 못 잡는 것이 있다. 두 겹으로 거른다.)
     text = _strip_face_echo(text)
+    if getattr(state, "ctx", None) is not None:
+        text = _cut_ctx_echo(text)   # PM-DEC-916 — perturn 지시문 꼬리를 이어 쓴 꼴(call 2134 t53)
     text = text.strip()
     logger.info("🦫 BEAVER[t%d]: %s", state.next_turn_index, text or "(전사없음)")
     # ⭐ **말하기 속도 실측**(2026-08-10). 사장님: "라이브에서는 속도가 딱 좋아" — 그러니
@@ -8021,10 +8036,12 @@ def _perturn_instruction(state: _CallState) -> str:
 
     ⛔ 지난 대화를 이력 턴(client_content)으로 깔지 않는다 — 1단계 실측에서 3.1 Live 가 음성 없이 전사만 줬다. 지시문 안 텍스트로 넣는다.
     """
-    parts = [f"줄거리: {state.ctx_summary or '(아직 없음)'}"]
+    parts = []
     if getattr(state, "ctx_facts", None):
         # PM-DEC-914 — 줄거리 5줄에서 밀려나지 않게 사실은 따로(call 2124 18턴 뒤 동생 이름 «모르겠어»)
-        parts.append("학습자에 대해 아는 사실: " + " · ".join(state.ctx_facts))
+        # PM-DEC-916 — 맨 앞에 두고 «이번 통화 말이 우선» 을 붙인다(바바 2134 · 다낭이라 했는데 지난 기억 오사카로 답함)
+        parts.append("이번 통화에서 학습자가 말한 사실(지난 통화 [기억]과 다르면 이것이 맞다): " + " · ".join(state.ctx_facts))
+    parts.append(f"줄거리: {state.ctx_summary or '(아직 없음)'}")
     recent = _ctx_recent_lines(state, max(1, int(_settings.CONTEXT_RECENT_SEGMENTS)))
     if recent:
         parts.append("최근 대화:\n" + recent)
@@ -8048,7 +8065,8 @@ def _perturn_instruction(state: _CallState) -> str:
         # PM-DEC-885 — 같은 끝맺음 반복(바바 23~37%)을 줄인다.
         parts.append(f"직전 네 끝맺음: «{last_end}» — 이번엔 다른 끝맺음(질문 문장 안에서 바꾸고 꼬리 질문은 붙이지 않는다).")
     return (state.ctx_base + "\n\n[지금까지의 통화]\n" + "\n".join(parts) + "\n"
-            "[이어서] 통화가 진행 중이다. 인사하지 말고, 학습자의 다음 말에 바로 답한다.")
+            "[이어서] 통화가 진행 중이다. 인사하지 말고, 학습자의 다음 말에 바로 답한다. "
+            "이번 통화에서 학습자가 한 말이 지난 통화 [기억]과 다르면 이번 통화 말을 따른다. 위 칸 이름·형식은 말하지 않는다.")
 
 
 def _ctx_after_turn_end(state: _CallState, ctrl0: int, turn_text: str, reseeded_now: bool) -> None:
