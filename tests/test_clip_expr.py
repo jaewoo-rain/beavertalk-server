@@ -419,3 +419,25 @@ async def test_recognize_runs_off_the_event_loop(monkeypatch):
 
     (got, lang), _ = await asyncio.gather(ce.recognize(b"\x00\x00", ["안녕하세요"]), ticker())
     assert got == "안녕하세요" and lang == "ko-kr" and len(ticks) == 5
+
+
+@pytest.mark.asyncio
+async def test_tts_pcm_runs_off_the_event_loop(monkeypatch):
+    """PM-DEC-924 — TTS 가 느려도 이벤트 루프는 계속 돈다 · RIFF 헤더는 뗀다."""
+    import time as _time
+    from domains.learning.realtime import clip_expr as ce
+
+    def slow(text, lang, voice):
+        _time.sleep(0.3)
+        return b"RIFF" + b"\x00" * 40 + b"\x01\x02"
+
+    monkeypatch.setattr(ce, "_tts_sync", slow)
+    ticks = []
+
+    async def ticker():
+        for _ in range(5):
+            ticks.append(1)
+            await asyncio.sleep(0.02)
+
+    pcm, _ = await asyncio.gather(ce.tts_pcm("hi"), ticker())
+    assert pcm == b"\x01\x02" and len(ticks) == 5

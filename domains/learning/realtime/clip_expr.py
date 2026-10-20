@@ -244,21 +244,49 @@ async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> 
     return " ".join(texts).strip(), lang
 
 
-async def tts_pcm(text: str, *, lang: str = "en", voice: str = "Fenrir") -> Optional[bytes]:
-    """Cloud TTS(Chirp3-HD) → PCM16 24kHz(헤더 뗌). 키·클라이언트 없으면 None."""
+_SYNC_TTS: list = []             # PM-DEC-924 — 동기 TextToSpeechClient 프로세스당 1개(스레드 안전)
+TTS_TIMEOUT_S = 10.0
+
+
+def _sync_tts_client():
+    if _SYNC_TTS:
+        return _SYNC_TTS[0]
+    from google.cloud import texttospeech
+    from google.oauth2 import service_account
+
+    from core.config import settings as _s
+    key = _s.TTS_SA_KEY_FILE
+    if not key or not Path(key).is_file():
+        return None
+    creds = service_account.Credentials.from_service_account_file(
+        str(key), scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    _SYNC_TTS.append(texttospeech.TextToSpeechClient(credentials=creds))
+    return _SYNC_TTS[0]
+
+
+def _tts_sync(text: str, lang: str, voice: str) -> Optional[bytes]:
+    """⛔ 작업 스레드 전용 — 비동기 gRPC 첫 호출의 루프 정지를 피한다(PM-DEC-923·924)."""
     from google.cloud import texttospeech
 
     from core import tts as _tts
-    cli = _tts._client()
+    cli = _sync_tts_client()
     if cli is None:
         return None
     code, name = _tts._resolve_voice(lang, voice)
-    resp = await cli.synthesize_speech(
+    resp = cli.synthesize_speech(
         input=texttospeech.SynthesisInput(text=text),
         voice=texttospeech.VoiceSelectionParams(language_code=code, name=name),
         audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16, sample_rate_hertz=24000),
+        timeout=TTS_TIMEOUT_S,
     )
-    pcm = resp.audio_content or b""
+    return resp.audio_content or b""
+
+
+async def tts_pcm(text: str, *, lang: str = "en", voice: str = "Fenrir") -> Optional[bytes]:
+    """Cloud TTS(Chirp3-HD) → PCM16 24kHz(헤더 뗌). 키·클라이언트 없으면 None. PM-DEC-924 — 스레드에서."""
+    pcm = await asyncio.to_thread(_tts_sync, text, lang, voice)
+    if pcm is None:
+        return None
     if pcm[:4] == b"RIFF":
         pcm = pcm[44:]
     return pcm or None
