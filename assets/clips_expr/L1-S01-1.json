@@ -1,0 +1,126 @@
+{
+ "lesson": "L1-S01-1",
+ "no": 1,
+ "items": [
+  {
+   "seq": 1,
+   "item_id": 11099,
+   "surface": "안녕하세요?",
+   "en": "Hello.",
+   "roman": "annyeonghaseyo?",
+   "guide": null
+  },
+  {
+   "seq": 2,
+   "item_id": 11100,
+   "surface": "만나서 반갑습니다",
+   "en": "Nice to meet you.",
+   "roman": "mannaseo bangapseumnida",
+   "guide": null
+  },
+  {
+   "seq": 3,
+   "item_id": 11101,
+   "surface": "잘 지냈어요?",
+   "en": "How have you been?",
+   "roman": "jal jinaesseoyo?",
+   "guide": null
+  },
+  {
+   "seq": 4,
+   "item_id": 11124,
+   "surface": "처음 뵙겠습니다",
+   "en": "How do you do.",
+   "roman": "cheoeum boepgesseumnida",
+   "guide": null
+  },
+  {
+   "seq": 5,
+   "item_id": 11125,
+   "surface": "잘 부탁드립니다",
+   "en": "Please take good care of me.",
+   "roman": "jal butakdeurimnida",
+   "guide": null
+  },
+  {
+   "seq": 6,
+   "item_id": 11121,
+   "surface": "저는 ◯◯이에요",
+   "en": "I'm ◯◯.",
+   "roman": "jeoneun OOieyo",
+   "guide": null
+  },
+  {
+   "seq": 7,
+   "item_id": 11122,
+   "surface": "저는 ◯◯ 사람이에요",
+   "en": "I'm from ◯◯.",
+   "roman": "jeoneun OO saramieyo",
+   "guide": null
+  },
+  {
+   "seq": 8,
+   "item_id": 11123,
+   "surface": "이름이 뭐예요?",
+   "en": "What's your name?",
+   "roman": "ireumi mwoyeyo?",
+   "guide": null
+  },
+  {
+   "seq": 9,
+   "item_id": 11107,
+   "surface": "감사합니다",
+   "en": "Thank you.",
+   "roman": "gamsahamnida",
+   "guide": null
+  },
+  {
+   "seq": 10,
+   "item_id": 11108,
+   "surface": "고마워요",
+   "en": "Thanks.",
+   "roman": "gomawoyo",
+   "guide": null
+  },
+  {
+   "seq": 11,
+   "item_id": 11109,
+   "surface": "아니에요",
+   "en": "Not at all.",
+   "roman": "anieyo",
+   "guide": null
+  },
+  {
+   "seq": 12,
+   "item_id": 11113,
+   "surface": "네",
+   "en": "Yes.·I see.",
+   "roman": "ne",
+   "guide": null
+  },
+  {
+   "seq": 13,
+   "item_id": 11115,
+   "surface": "좋아요",
+   "en": "Good!",
+   "roman": "joayo",
+   "guide": null
+  },
+  {
+   "seq": 14,
+   "item_id": 11116,
+   "surface": "맞아요",
+   "en": "That's right.",
+   "roman": "majayo",
+   "guide": null
+  },
+  {
+   "seq": 15,
+   "item_id": 11119,
+   "surface": "진짜요?",
+   "en": "Really?",
+   "roman": "jinjjayo?",
+   "guide": null
+  }
+ ]
+}
