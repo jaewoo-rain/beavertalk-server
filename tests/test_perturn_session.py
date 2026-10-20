@@ -106,7 +106,7 @@ async def test_perturn_swaps_session_on_mic_and_carries_context(session_factory,
     assert first.texts, "1세대 선톡 시드"
     assert VOICED not in first.audio, "교체 뒤 학습자 음성이 옛 세션으로 갔다"
     assert VOICED in second.audio
-    assert "[지금까지의 통화]" in second.si and "너(비버): 안녕! 나는 바바야." in second.si and "직전 네 끝맺음: «나는 바바야.»" in second.si
+    assert "[지금까지의 통화]" in second.si and "너(비버): 안녕! 나는 바바야." in second.si and "직전 네 끝맺음: «나는 바바야.» — 이번엔 다른 끝맺음(질문 문장 안에서 바꾸고 꼬리 질문은 붙이지 않는다)." in second.si
     assert "[지금까지의 통화]" not in first.si
     assert not second.texts, "새 세션에는 시드를 다시 보내지 않는다(학습자 음성으로 연다)"
     assert first.closed
