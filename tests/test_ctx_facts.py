@@ -24,6 +24,8 @@ async def test_facts_accumulate_and_reach_new_session_instruction(monkeypatch):
     ins = cs._perturn_instruction(st)
     assert "이번 통화에서 학습자가 말한 사실(지난 통화 [기억]과 다르면 이것이 맞다): 앵무새 초코를 키움 · 남동생 이름은 민호" in ins
     assert ins.index("이번 통화에서 학습자가 말한 사실") < ins.index("줄거리:")
+    # PM-DEC-919 — 맨 끝([이어서] 바로 앞)에도 다시
+    assert ins.index("이번 통화 사실(이게 맞다): 앵무새 초코를 키움") < ins.index("[이어서]")
 
 
 def test_ctx_echo_tail_is_cut():
