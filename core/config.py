@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     #     를 넣어라(admin 롤 계정은 어차피 면제다 — 위 주석과 같은 탈출구).
     DAILY_BUDGET_ENFORCED: bool = True
 
+    # U32-② — 기동 때 오래 analyzing 에 멈춘 통화 되살리기(domains/learning/service/analyzing_sweep.py).
+    #   off(기본) · dry(대상만 로그) · on(failed 로 돌리고 재분석). ⚠ test-api 는 운영 DB 라 시험 태그는 dry 만.
+    ANALYZING_SWEEP: str = "off"
+    ANALYZING_SWEEP_STALE_S: float = 1800.0   # 마지막 시각이 이보다 오래된 analyzing 만(정상 분석은 2분 안쪽)
+    ANALYZING_SWEEP_LIMIT: int = 20           # 한 번에 되살리는 최대 건수(기동 직후 LLM 몰림 방지)
+    ANALYZING_SWEEP_DELAY_S: float = 60.0     # 기동 뒤 이만큼 기다렸다 한 번 돈다
+
     # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
     # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).
     DEFAULT_TARGET_LANGUAGE: str = "ko"
