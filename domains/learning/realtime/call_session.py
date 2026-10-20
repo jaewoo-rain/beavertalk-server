@@ -841,6 +841,7 @@ class _CallState:
         "text_injects", "compress_events",
         # PM-DEC-864 perturn — 대리 세션 · 지시문 원본 · 줄거리(사이드카가 갱신) · 줄거리에 반영한 세그먼트 수 · 사이드카 태스크·토큰 · 이번 비버 턴 끼어들기
         "ctx", "ctx_base", "ctx_client", "ctx_summary", "ctx_summary_upto", "ctx_summary_task", "ctx_usage",
+        "ctx_facts",   # PM-DEC-914 — 학습자 사실 목록(줄거리 5줄과 따로 누적)
         "ctx_turn_interrupted", "ctx_beaver_turns",
         # ⭐ 지시문 분할 주입(2026-08-23). setup 에는 짧은 코어만 싣고 나머지 페르소나를
         #   붙은 뒤 조각으로 밀어넣는다. 빈 리스트 = 주입 완료 또는 스위치 off.
@@ -1145,6 +1146,7 @@ class _CallState:
         self.ctx_base = ""
         self.ctx_client = None
         self.ctx_summary = ""
+        self.ctx_facts: list[str] = []
         self.ctx_summary_upto = 0
         self.ctx_summary_task: asyncio.Task | None = None
         self.ctx_usage = gemini_analysis.LlmUsage()
@@ -7944,13 +7946,18 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
 # ── PM-DEC-864 턴마다 새 세션(CONTEXT_MODE=perturn) ───────────────────────────── #
 class CtxSummaryOut(BaseModel):
     summary: str = ""
+    facts: list[str] = []      # PM-DEC-914 — 학습자 사실 목록(누적 · 줄거리와 따로)
 
 
 _CTX_SUMMARY_INSTRUCTION = (
     "너는 언어 학습 통화의 기록 담당이다. 다음 진행자가 이어받을 수 있게 통화 줄거리를 5줄 이내 한국어로 고쳐 쓴다. "
     "이전 줄거리를 바탕으로 새 대화를 반영한다. 학습자가 말한 사실(이름·가족·반려동물·한 일·좋아하는 것), "
-    "학습자가 틀린 표현과 고쳐 준 말, 지금 이야기하는 화제를 꼭 넣는다. 지어내지 않는다."
+    "학습자가 틀린 표현과 고쳐 준 말, 지금 이야기하는 화제를 꼭 넣는다. 지어내지 않는다.\n"
+    "facts 칸에는 학습자에 대해 알게 된 사실을 짧은 구로 모은다(최대 15개). 이전 사실 목록을 그대로 두고 새 사실만 더한다 — "
+    "이름·가족·반려동물·날짜(생일 등)·계획·못 먹는 것·못 하는 것은 절대 빼지 않는다. 같은 얘기는 하나로 합치고, "
+    "학습자가 고쳐 말한 사실만 새 내용으로 바꾼다."
 )
+CTX_FACTS_MAX = 15
 
 
 def _perturn_enabled(settings: Settings, state: _CallState) -> bool:
@@ -7990,6 +7997,9 @@ def _perturn_instruction(state: _CallState) -> str:
     ⛔ 지난 대화를 이력 턴(client_content)으로 깔지 않는다 — 1단계 실측에서 3.1 Live 가 음성 없이 전사만 줬다. 지시문 안 텍스트로 넣는다.
     """
     parts = [f"줄거리: {state.ctx_summary or '(아직 없음)'}"]
+    if getattr(state, "ctx_facts", None):
+        # PM-DEC-914 — 줄거리 5줄에서 밀려나지 않게 사실은 따로(call 2124 18턴 뒤 동생 이름 «모르겠어»)
+        parts.append("학습자에 대해 아는 사실: " + " · ".join(state.ctx_facts))
     recent = _ctx_recent_lines(state, max(1, int(_settings.CONTEXT_RECENT_SEGMENTS)))
     if recent:
         parts.append("최근 대화:\n" + recent)
@@ -8056,11 +8066,17 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
         out = await gemini_analysis.generate_structured(
             state.ctx_client, _settings.CONTEXT_SUMMARY_MODEL,
             system_instruction=_CTX_SUMMARY_INSTRUCTION,
-            prompt=f"이전 줄거리:\n{state.ctx_summary or '(없음)'}\n\n새 대화:\n{new}",
+            prompt=(f"이전 줄거리:\n{state.ctx_summary or '(없음)'}\n\n이전 사실 목록:\n"
+                    + ("\n".join(f"- {f}" for f in state.ctx_facts) if state.ctx_facts else "(없음)")
+                    + f"\n\n새 대화:\n{new}"),
             schema=CtxSummaryOut, temperature=0.0, thinking_budget=0, usage=one,
         )
         if out is not None and (out.summary or "").strip():
             state.ctx_summary = out.summary.strip()[:1200]
+            facts = [f.strip()[:40] for f in (getattr(out, "facts", None) or []) if isinstance(f, str) and f.strip()]
+            if facts:
+                # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
+                state.ctx_facts = list(dict.fromkeys(facts + state.ctx_facts))[:CTX_FACTS_MAX]
             state.ctx_summary_upto = upto
         else:
             one.note_failure()
