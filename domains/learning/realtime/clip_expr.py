@@ -267,6 +267,7 @@ class ClipExprSession:
         self._vad_th = float(getattr(settings, "LIVE_REGROUND_VOICE_RMS", 0.02) or 0.02)
         self._end_s = float(getattr(settings, "CLIP_EXPR_END_SILENCE_S", 0.8) or 0.8)
         self._dunno_s = float(getattr(settings, "CLIP_EXPR_DUNNO_S", 8.0) or 8.0)
+        self._min_voiced_s = 0.2        # 이만큼 소리가 나야 말로 친다(짧은 잡음은 버린다)
         self._model = getattr(settings, "CLIP_EXPR_JUDGE_MODEL", "") or "gemini-2.5-flash"
         # 진행
         self.idx = 0
@@ -371,7 +372,7 @@ class ClipExprSession:
                 self._spec.cancel()
                 self._spec = None
             return
-        if self._voiced_s >= 0.2:
+        if self._voiced_s >= self._min_voiced_s:
             self._speech.extend(pcm16_16k)
             self._silence_s += dur
             if self._spec is None and self._silence_s >= SPEC_SILENCE_S:

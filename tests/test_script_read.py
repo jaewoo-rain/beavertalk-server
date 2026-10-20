@@ -64,7 +64,7 @@ class _H:
                 return
 
     async def say(self, turn: bool = True):
-        for _ in range(8):
+        for _ in range(10):                # 0.4초 — 대본 읽기 말 문턱 0.35초(PM-DEC-899)
             await self.s.send_audio(VOICED)
         for _ in range(4):
             await self.s.send_audio(SILENT)
@@ -162,6 +162,39 @@ async def test_finished_script_resume_closes_without_again_loop():
         await h2.s.send_text_turn("CLOSE")
         await h2.turn()
         assert not h2.clips()
+
+
+@pytest.mark.asyncio
+async def test_speech_during_judging_is_kept_and_rejudged():
+    """PM-DEC-899 — 받아쓰는 동안 이어 말한 소리를 버리지 않는다(사용자 「마이크가 씹히는 느낌」 · call 2104)."""
+    lines = sr.load_bank("Baba")[2]
+    h = _H([])
+    answers = ["", lines[1]["learner"]]
+
+    async def slow_stt(pcm, hint):
+        await asyncio.sleep(0.15)
+        return answers.pop(0)
+
+    h.s._stt_fn = slow_stt
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        n = len(h.notes)
+        for _ in range(10):
+            await h.s.send_audio(VOICED)
+        for _ in range(4):
+            await h.s.send_audio(SILENT)    # 말 끝 → 받아쓰기 시작(0.15초)
+        for _ in range(10):
+            await h.s.send_audio(VOICED)    # 그새 다시 읽음 — 예전엔 버려졌다
+        for _ in range(4):
+            await h.s.send_audio(SILENT)
+        await h.it.__anext__()              # 첫 판정(빈 값)
+        for _ in range(4):
+            await h.s.send_audio(SILENT)    # 이어지는 마이크 무음 — 쥐고 있던 말의 끝
+        await h.it.__anext__()              # 쥐고 있던 소리로 다시 판정
+        await h.turn()
+        assert h.clips(n) == ["sb_2"] and h.cards("script_result", n)[0]["result"] == "pass"
 
 
 @pytest.mark.asyncio

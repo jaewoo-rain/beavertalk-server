@@ -16,6 +16,7 @@ import difflib
 import json
 import logging
 import re
+import time
 import wave
 from typing import Any, Optional
 
@@ -117,6 +118,11 @@ class ScriptReadSession(ClipExprSession):
         self.angry_line = False
         self.results: list[tuple[int, str, float]] = []
         self._band_tasks: set[asyncio.Task] = set()
+        # PM-DEC-899 — 판정하는 동안(받아쓰기 ~1초) 들어온 마이크를 버리지 않는다(사용자 「마이크가 씹히는 느낌」 · call 2104 줄8 빈 판정 13회).
+        self._held = bytearray()
+        self._held_voiced = False
+        self._last_pcm = b""
+        self._min_voiced_s = 0.35       # 숨소리·잡음 한 토막이 «말 끝» 을 만들어 진짜 읽기를 놓치지 않게
         self._line_after_turn = False
         # 두 문장 줄을 쉬어 가며 읽는다 — 말 끝을 길게(call 2040·2041 반쪽 판정)
         self._end_s = float(getattr(self._settings, "SCRIPT_READ_END_SILENCE_S", 1.2) or 1.2)
@@ -125,15 +131,50 @@ class ScriptReadSession(ClipExprSession):
     def _ask_id(self) -> str:
         return f"sb_{self.item.seq}" if self.idx < len(self.items) else f"sb_{len(self.items)}"
 
-    def _wait(self) -> None:
-        """반응 없이 같은 줄을 다시 기다린다(PM-DEC-894 — 무응답·빈 값·1회 틀림)."""
+    async def _wait(self, *, carry: bool = False) -> None:
+        """반응 없이 같은 줄을 다시 기다린다(PM-DEC-894 — 무응답·빈 값·1회 틀림).
+
+        PM-DEC-899 — 판정하는 동안 들어온 소리(_held)를 다시 흘려 넣는다. 학습자가 그새 이어 말했으면
+        carry 일 때 방금 판정한 앞부분(말 끝 무음 뺌)을 붙여 한 덩어리로 다시 판정한다.
+        """
         self._save()
+        held, voiced = bytes(self._held), self._held_voiced
+        self._held.clear()
+        self._held_voiced = False
         self._reset_listen()
+        if not voiced:
+            return
+        if carry and self._last_pcm:
+            head = self._trim_tail(self._last_pcm)
+            self._speech.extend(head)
+            self._voiced_s = len(head) / clip_expr._MIC_BPS
+        step = int(clip_expr._MIC_BPS * 0.1)
+        for i in range(0, len(held), step):
+            await super().send_audio(held[i:i + step])
+
+    def _trim_tail(self, pcm: bytes) -> bytes:
+        """말 끝 무음을 걷는다(100ms 단위 · 소리 문턱 아래)."""
+        step = int(clip_expr._MIC_BPS * 0.1)
+        end = len(pcm)
+        while end > 0 and clip_expr._rms(pcm[max(0, end - step):end]) < self._vad_th:
+            end -= step
+        return pcm[:max(0, end)]
+
+    async def send_audio(self, pcm16_16k: bytes) -> None:
+        if (not self._listening and pcm16_16k and not self._closing and self.idx < len(self.items)
+                and time.monotonic() >= self._play_until):
+            # 판정 중 — 버리지 말고 쥐고 있다가 반응 없는 대기로 돌아가면 다시 흘려 넣는다(_wait)
+            if len(self._held) < clip_expr._MIC_BPS * 12:
+                self._held.extend(pcm16_16k)
+                if clip_expr._rms(pcm16_16k) >= self._vad_th:
+                    self._held_voiced = True
+            return
+        await super().send_audio(pcm16_16k)
 
     async def _handle(self, cmd: tuple) -> None:
         kind = cmd[0]
         if kind == "nudge":
-            self._wait()          # 무음 넛지에도 상황극 밖 말을 하지 않는다 — 자막을 둔 채 기다린다
+            await self._wait()          # 무음 넛지에도 상황극 밖 말을 하지 않는다 — 자막을 둔 채 기다린다
             return
         if kind == "close":
             # 마무리 클립 없이 끝낸다 — 종료 절차는 비버 턴 하나(턴 시작·끝)를 기다리므로 무음 0.3초 턴을 낸다.
@@ -215,7 +256,7 @@ class ScriptReadSession(ClipExprSession):
         if self._finished_resume():
             return
         if self.idx >= len(self.items):
-            self._wait()
+            await self._wait()
             return
         n = self.item.seq
         await self._turn([f"sb_{n}"], result="resume" if self._restored else "open")   # 내 줄은 sb 재생에 맞춰(_on_clip_start)
@@ -235,13 +276,15 @@ class ScriptReadSession(ClipExprSession):
                 heard = await self._stt_fn(pcm, hint)
             else:
                 self.stt_s += len(pcm) / clip_expr._MIC_BPS
-                heard, _lang = await clip_expr.recognize(pcm, [hint], alt_en=True)
+                # PM-DEC-898 — 영어 대체를 끈다: 한국어 대본 읽기라 필요 없고, 켜면 가끔 5초씩 걸렸다(call 2110 줄6 5033ms ↔ 끔 1429ms).
+                heard, _lang = await clip_expr.recognize(pcm, [hint], alt_en=False)
         except Exception as exc:  # noqa: BLE001 - 받아쓰기 실패는 «빈 값» → 다시 읽기(화내지 않는다)
             logger.warning("normalcall script: STT 실패(빈 값으로): %r", exc)
             heard = ""
         self.judge_calls += 1
         self.judge_ms.append(int((time.monotonic() - t0) * 1000))
         self._last_stt = (len(pcm) / clip_expr._MIC_BPS, self.judge_ms[-1])
+        self._last_pcm = pcm
         return heard, "-"
 
     async def _probe_stt(self, pcm: bytes, hint: str) -> None:
@@ -256,7 +299,7 @@ class ScriptReadSession(ClipExprSession):
 
     async def _on_answer(self, heard: str, _r: str, t_end: float) -> None:
         if self.idx >= len(self.items):
-            self._wait()
+            await self._wait()
             return
         n = self.item.seq
         r, sim = match(self.item.surface, heard)
@@ -269,7 +312,7 @@ class ScriptReadSession(ClipExprSession):
                     audio_s, stt_ms, int((time.monotonic() - t_end) * 1000), self.item.surface, heard[:60])
         if r == "empty":
             self.empties += 1
-            self._wait()                      # 실패로 치지 않는다 · 반응 없음
+            await self._wait(carry=True)      # 실패로 치지 않는다 · 반응 없음 · 그새 이어 말했으면 붙여서 다시
             return
         if r in ("pass", "close"):
             await self._result_card(r)
@@ -277,14 +320,14 @@ class ScriptReadSession(ClipExprSession):
             if nxt:
                 await self._turn(nxt, result=r, heard=heard, t_end=t_end)   # 반응 없이 다음 비버 대사
             else:
-                self._wait()                  # 11번 끝 — 종료 요청이 들어가 있다
+                await self._wait()            # 11번 끝 — 종료 요청이 들어가 있다
             return
         if self.attempt == 1:
             await self._result_card("fail")
             self.attempt += 1
             await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음 · 바로 말할 차례
             await self._card(self._turn_msg())
-            self._wait()
+            await self._wait(carry=True)
             return
         self.angry_used += 1
         lead = self._pick("sg_angry")
