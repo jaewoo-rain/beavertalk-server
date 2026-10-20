@@ -107,8 +107,12 @@ async def refresh_creds_off_loop(creds) -> None:
     if getattr(creds, "token", None) and not soon:
         return
     try:
+        import time as _time
+
         from google.auth.transport.requests import Request
+        t0 = _time.monotonic()
         await asyncio.to_thread(creds.refresh, Request())
+        logger.info("tts/stt: 토큰 미리 갱신(작업 스레드) %dms — 루프 무정지", int((_time.monotonic() - t0) * 1000))
     except Exception as exc:  # noqa: BLE001 — 미리 갱신 실패는 무해(종전 경로로 돈다)
         logger.warning("tts/stt: 토큰 미리 갱신 실패(무시) — %s: %s", type(exc).__name__, exc)
 
