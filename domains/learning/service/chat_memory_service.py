@@ -149,7 +149,8 @@ def _subject(key: str) -> str:
 
 
 _ATTR_WORDS = ("좋아하는", "싫어하는", "이름", "선생님", "사는", "직업", "회사", "학교", "전공", "가족", "취미", "운동", "계획", "여행",
-               "못 먹", "반려", "생일", "룸메이트", "선배", "친구 이름", "교통", "장래", "습관", "나이", "출신")
+               "못 먹", "반려", "생일", "룸메이트", "선배", "친구 이름", "교통", "장래", "습관", "나이", "출신",
+               "코치", "노래", "음악", "가수", "영화", "책", "드라마", "주말", "강아지", "고양이", "햄스터", "선수", "팀", "차")
 _GENERIC_KEY_TOKENS = {"좋아하는", "싫어하는", "이름", "친구", "친구와", "하는", "하고", "싶은", "것", "주제", "활동", "계획", "이유",
                        "장소", "시간", "다음", "요즘", "제일", "가장", "최근", "어제", "오늘", "방법", "종류"}
 def _generic_token(t: str) -> bool:
@@ -157,7 +158,13 @@ def _generic_token(t: str) -> bool:
     return any(g.startswith(t) or t.startswith(g) for g in _GENERIC_KEY_TOKENS)
 
 
-NEW_DURABLE_MAX = 6     # 기억 13차 — 한 통화에서 새로 넣는 지속 줄(고정 칸 제외) 상한
+def is_attribute_key(k: str | None) -> bool:
+    """사람의 속성다운 주제인가(고정 칸 포함) — 축출 등급과 강등 판정이 같이 쓴다."""
+    k = k or ""
+    return k in PROFILE_KEYS or any(w in k for w in _ATTR_WORDS)
+
+
+NEW_DURABLE_MAX = 3     # 기억 14차 6 → 3(속성다운 주제는 상한 밖) · 기억 13차 — 한 통화에서 새로 넣는 지속 줄(고정 칸 제외) 상한
 _EVAL_WORDS = ("재미있", "재밌", "좋음", "좋아요", "좋았", "싫음", "어렵", "쉬움", "쉬워", "맛있", "힘들", "신나", "기분", "괜찮")
 
 
@@ -206,10 +213,10 @@ def demote_details(lines: list[str]) -> list[str]:
             seen |= _value_words(v)
             continue
         detail = any(w in k for w in seen if len(w) >= 2)
-        durable = (r == 1 or not eph) and not detail and not _is_eval_only(v) and kept < NEW_DURABLE_MAX
+        durable = (r == 1 or not eph) and not detail and not _is_eval_only(v) and (r == 1 or kept < NEW_DURABLE_MAX)
         if durable:
             res[i] = f"{k}: {v}"
-            kept += 1
+            kept += 0 if r == 1 else 1
             seen |= _value_words(v) | {t for t in _fact_tokens(k) if len(t) >= 2 and not _generic_token(t)}
         else:
             res[i] = f"{k}{EPHEMERAL_SEP}{v}"
@@ -346,6 +353,7 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     «주제: 값» 은 같은 주제 키면 새 값이 덮어씀(고정 칸 = 우선순위 높은 주제) → 바뀐 옛 사실(replaced) 빼기 →
     덮어써진 옛 값 낱말이 든 주제 없는 옛 사실도 뺌 → 비슷한 말은 최신 하나만 →
     상한을 자를 땐 고정 칸 > 다른 주제 > 주제 없는 사실(그 안에선 등급·최신) 순."""
+    replaced = [r for r in (replaced or []) if not split_fact(r)[0]]   # 기억 14차 — 주제 키 사실은 replaced 로 안 지움
     newl = list(new or []) + [f"{k}: {v.strip()}" for k, v in (profile or {}).items()
                               if k in PROFILE_KEYS and isinstance(v, str) and v.strip()]
     keyed = [f for f in merge_keyed_lines(newl, _without(old, replaced), 10 ** 6) if split_fact(f)[0]]
@@ -379,13 +387,15 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     room = max(0, cap - len(top))
     # 기억 11차 — 한 대상의 세부 사실(«제주도 …» 4줄 · «어머니 …» 3줄)이 칸을 차지해 다른 주제(차·영화)가 밀렸다(max05)
     #   → 대상(주제 이름의 첫 특징 낱말)마다 하나씩 먼저 남기고, 남는 칸에 같은 대상의 나머지를 최신 순으로
+    # 기억 14차 — 축출은 최근성이 아니라 **중요도** 순(13차: 한 번만 말한 심은 값이 «가장 오래 언급 안 됨»으로 먼저 밀림).
+    #   등급: 속성다운 주제(이름·관계·직업·취미·좋아하는 것·계획…) > 나머지 · 같은 등급 안에서만 대상 첫 줄 > 최신 순
     seen_subj: dict[str, int] = {}
     ranked = []
     for i, f in enumerate(rest_keyed):
         sj = _subject(split_fact(f)[0])
-        ranked.append((seen_subj.get(sj, 0), i, f))
+        ranked.append((0 if is_attribute_key(split_fact(f)[0]) else 1, seen_subj.get(sj, 0), i, f))
         seen_subj[sj] = seen_subj.get(sj, 0) + 1
-    kept = {f for _, _, f in sorted(ranked)[:room]}
+    kept = {f for _, _, _, f in sorted(ranked)[:room]}
     rest_keyed = [f for f in rest_keyed if f in kept]
     room -= len(rest_keyed)
     keep = set(sorted(plain, key=_fact_tier)[:max(0, room)])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
