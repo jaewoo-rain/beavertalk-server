@@ -3451,8 +3451,8 @@ async def analyze_call(
                 audio, content_type = synthesized
                 ext = "mp3" if content_type == "audio/mpeg" else "wav"
                 path = f"tts/{call_id}/{sentence_id}.{ext}"
-                key = storage.upload(
-                    settings_obj.SUPABASE_BUCKET_SAMPLES, path, audio, content_type
+                key = await asyncio.to_thread(   # PM-DEC-924 — 동기 GCS 업로드를 루프 밖에서(통화 중인 다른 통화가 멈춘다)
+                    storage.upload, settings_obj.SUPABASE_BUCKET_SAMPLES, path, audio, content_type
                 )
                 # ⛔ 서명 URL 을 저장하지 마라. 여기가 DB 에 쌓인 만료 URL 의 출처였다 —
                 #   public_url() 은 7일 서명이라 저장해 두면 7일 뒤 전부 재생 불가가 된다
