@@ -1162,7 +1162,7 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
         "learner_facts": _clean_list(out.learner_facts, MEMORY_FACTS_MAX, 40),
         "pending": (out.pending or "").strip()[:40],
         "interests": _clean_list(out.interests, 5, 30),
-        "replaced": [r for r in _clean_list(out.replaced, MEMORY_FACTS_MAX, 80) if r in olds],
+        "replaced": chat_memory_service.match_replaced(_clean_list(out.replaced, MEMORY_FACTS_MAX, 80), olds),
     }
 
 
@@ -1334,6 +1334,9 @@ async def summarize_for_resume_text(client, model: str, tail: str) -> dict | Non
     }
 
 
+_MEMORY_RETRY_DELAYS_S = (3, 8)
+
+
 async def extract_and_merge_chat_memory(
     call_id: int, member_id: int, language: str, client, settings_obj: Settings,
     session_factory: sessionmaker, *, is_final: bool = True,
@@ -1372,10 +1375,18 @@ async def extract_and_merge_chat_memory(
         old_facts = await run_db(session_factory, lambda db: chat_memory_service.current_facts(db, member_id, language))
         # PM-DEC-910 — 통화 전체 · 사실 10개 · 바뀐 사실(replaced)은 기존 목록에서 뺀다
         slots_raw = await summarize_for_memory(client, settings_obj.JUDGE_MODEL, tail, old_facts)
+        # 기억 6차 — 통화 끝엔 분석·제목·기억 호출이 한꺼번에 몰려 같이 실패한다(2230 · 17:20:30 4건) → 두 번 더
+        for delay in _MEMORY_RETRY_DELAYS_S:
+            if slots_raw is not None:
+                break
+            await asyncio.sleep(delay)
+            slots_raw = await summarize_for_memory(client, settings_obj.JUDGE_MODEL, tail, old_facts)
     except Exception as exc:  # noqa: BLE001 — R5
         logger.warning("normalcall chat_memory 추출 실패(무시) call_id=%s: %s", call_id, exc)
         return
     if slots_raw is None:
+        logger.warning("normalcall chat_memory: 요약기 응답 없음(재시도 %d회 뒤) → 이번 통화 기억 저장 못 함 call_id=%s",
+                       len(_MEMORY_RETRY_DELAYS_S), call_id)
         return
 
     topic = slots_raw.get("topic") or ""
@@ -1443,7 +1454,10 @@ async def extract_and_merge_chat_memory(
             return
         summary = await chat_memory_service.recompress_summary(
             client, settings_obj.JUDGE_MODEL, old_summary, slots.get("summary") or "",
-            replaced=slots.get("replaced"), facts=slots.get("facts"),   # PM-DEC-920 — 옛 값을 품은 요약 고쳐 쓰기
+            replaced=slots.get("replaced"),
+            # PM-DEC-920 · 기억 6차 — 옛 값을 품은 요약 고쳐 쓰기 · 이번 통화 사실이 아니라 저장될 합친 목록을 넘긴다
+            facts=chat_memory_service._merge_facts(old_facts, slots.get("facts"), chat_memory_service.FACTS_CAP,
+                                                   slots.get("replaced")),
         )
 
         def _do_merge(db: Session) -> None:

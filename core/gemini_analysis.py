@@ -158,7 +158,8 @@ async def generate_structured(
             ),
         )
     except Exception as exc:  # noqa: BLE001 - 호출 실패 graceful
-        logger.warning("gemini_analysis: generate_content 실패(무시): %s", exc)
+        # 기억 6차 — 메시지가 빈 예외(2230 · 17:20:30 4건)도 종류는 남긴다
+        logger.warning("gemini_analysis: generate_content 실패(무시): %s: %s", type(exc).__name__, exc)
         if usage is not None:
             usage.note_failure()
         return None
