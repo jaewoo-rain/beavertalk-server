@@ -753,6 +753,7 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
+        "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
         # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
@@ -936,6 +937,7 @@ class _CallState:
         #   무음으로 세지 않게(=넛지가 비버 발화 직후 터지지 않게) 하는 핵심. None = 아직 없음.
         # silence_stage: 0=무넛지, 1=1단 주입됨, 2=2단 주입됨(3단은 직접 종료 시드 주입).
         self.last_activity_ts: Optional[float] = None
+        self.user_voice_ts: Optional[float] = None
         self.silence_stage: int = 0
         # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
         # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
@@ -6265,6 +6267,9 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
             #     (test_call_end_releases_pcm_but_still_feeds_nationality 가 잡았다).
             #   지금 게이트는 종전대로 barge-in off 하나뿐이다.
             if data and state.turn_id is None:
+                if frame_rms(data) >= REGROUND_VOICE_RMS:
+                    # PM-DEC-891 — 전사(in_tr)가 말 끝에 몰려 와도 «말하는 중» 은 무음이 아니다(call 2070·2071 대답 중 작별).
+                    state.user_voice_ts = asyncio.get_running_loop().time()
                 if state.ctx is not None and state.ctx.has_next:
                     # PM-DEC-864 — 재생이 끝나 마이크가 열린 첫 자리에서 다음 세션으로 바꾼다(안내·쪽지는 아래에서 새 세션에 얹힌다).
                     state.ctx.on_mic_frame(frame_rms(data) >= REGROUND_VOICE_RMS)
@@ -7338,7 +7343,7 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
             continue
         # 각 단계는 "직전 활동(발화/넛지) 이후" 신선한 무음을 잰다. 성공 시 last_activity_ts 를
         # 갱신해 다음 단계가 그 시점부터 다시 세도록(비버 무응답이어도 넛지 폭주 방지).
-        idle = loop.time() - (state.last_activity_ts or state.call_start_ts)
+        idle = loop.time() - max(state.last_activity_ts or state.call_start_ts, state.user_voice_ts or 0.0)
 
         # 단계는 실제 주입 성공 시에만 전진(시니어 리뷰 Q1 하드닝 — 상태-행동 일치).
         # 임계·1단 시드는 콜타입별(state.idle_*/nudge_seed_1). 일반은 60/10/12 + 새 화제,
