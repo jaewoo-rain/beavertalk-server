@@ -301,3 +301,64 @@ def test_after_turn_end_skip_reasons():
     assert P.skips == ["closing", "reseed", "control", "interrupted"]
     si = P.prepared[-1]
     assert si.startswith("BASE") and "줄거리: 고양이 나비" in si and "학습자: 나비예요" in si and "지금 네 표정: happy" in si
+
+
+@pytest.mark.asyncio
+async def test_unit_reopen_swaps_immediately_and_keeps_current_on_failure():
+    """PM-DEC-884 — 벙어리 인사: 같은 세션에 다시 시드하지 않고 새 세션을 열어 거기로 보낸다."""
+    made = []
+    p = PerTurnSession(_unit_factory(made, fail_at=3), None, None, {"system_instruction": "S"})
+    async with p:
+        assert await p.reopen("S", why="mute_greeting") is True
+        await p.send_text_turn("시드")
+        assert made[1].texts == ["시드"] and made[0].texts == []
+        assert await p.reopen("S", why="mute_greeting") is False      # 세 번째 연결 실패 → 지금(2번) 유지
+        await p.send_audio(b"a")
+        assert made[1].audio == [b"a"] and p.stats()["reopens"] == 1 and p.stats()["open_failures"] == 1
+
+
+def test_summary_model_default_is_not_the_retired_lite():
+    assert app_settings.CONTEXT_SUMMARY_MODEL != "gemini-2.5-flash-lite"
+
+
+@pytest.mark.asyncio
+async def test_perturn_mute_greeting_reopens_new_session_and_reseeds_there(session_factory, seeded, monkeypatch):
+    """call 2028 — 첫 세션 인사가 전사만(0B)이면 새 세션을 열어 시드를 거기로 보낸다(같은 세션에 다시 보내지 않는다)."""
+    monkeypatch.setattr(app_settings, "CONTEXT_MODE", "perturn")
+    made: list = []
+
+    class _Mute(_Sess):
+        async def events(self):
+            if self.n == 1:
+                yield LiveEvent(kind="out_tr", text="안녕! 나는 바바야.")
+                yield LiveEvent(kind="turn_end")
+                await asyncio.Event().wait()
+            await self.got_seed.wait()
+            yield LiveEvent(kind="out_tr", text="안녕! 나는 바바야.")
+            yield LiveEvent(kind="audio", audio=b"\x01\x00" * 480)
+            yield LiveEvent(kind="turn_end")
+
+        async def send_text_turn(self, text):
+            self.texts.append(text)
+            self.got_seed.set()
+
+    @contextlib.asynccontextmanager
+    async def factory(client, settings, **kw):
+        s = _Mute(len(made) + 1, kw["system_instruction"], greet=False, last_after=None)
+        s.got_seed = asyncio.Event()
+        made.append(s)
+        yield s
+
+    async def wait_greeted():
+        for _ in range(400):
+            if len(made) >= 2 and made[1].texts:
+                break
+            await asyncio.sleep(0.005)
+        await asyncio.sleep(0.05)
+
+    ws = FakeWebSocket([_start_incoming(seeded), wait_greeted], hang=False)
+    await run_call(ws, app_settings, object(), session_factory, member_id=seeded["member_id"], live_session_factory=factory)
+    await _wait_analysis_tasks()
+    assert len(made) >= 2
+    assert len(made[0].texts) == 1, "벙어리 세션에 시드를 다시 보냈다"
+    assert made[1].texts, "새 세션에 재시드가 안 갔다"

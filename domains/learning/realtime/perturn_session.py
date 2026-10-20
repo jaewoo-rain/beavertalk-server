@@ -61,6 +61,7 @@ class PerTurnSession:
         self.open_failures = 0
         self.connect_s: list[float] = []
         self.max_open = 0
+        self.reopens = 0
 
     # ── 수명 ──────────────────────────────────────────────────────────────── #
     async def __aenter__(self) -> "PerTurnSession":
@@ -222,6 +223,38 @@ class PerTurnSession:
         self._next = h
         self.max_open = max(self.max_open, self._open_count())
 
+    async def reopen(self, system_instruction: str, *, why: str, timeout: float = 6.0) -> bool:
+        """지금 세션을 버리고 새 세션으로 **바로** 바꾼다(벙어리 인사 등 — 같은 세션에 다시 시드해도 또 벙어리였다).
+
+        새 세션이 안 열리면 지금 세션을 그대로 쓴다(False).
+        """
+        if self._next is not None:
+            self._discard(why)
+        if self._opener is not None and not self._opener.done():
+            self._opener.cancel()
+        h = self._spawn(system_instruction)
+        try:
+            await asyncio.wait_for(asyncio.shield(h.ready), timeout)
+        except asyncio.CancelledError:
+            h.close.set()
+            self._retired.append(h)
+            raise
+        except Exception as exc:  # noqa: BLE001 - 열기 실패는 지금 세션 유지(통화는 이어간다)
+            h.close.set()
+            self._retired.append(h)
+            self.open_failures += 1
+            logger.warning("normalcall perturn: 새 세션 %d 열기 실패(%s) — 지금 세션 유지: %r", h.gen, why, exc)
+            return False
+        old = self._cur
+        self._cur = h
+        if old is not None:
+            old.close.set()
+            self._retired.append(old)
+        self.reopens += 1
+        self.max_open = max(self.max_open, self._open_count())
+        logger.info("normalcall perturn: 세션 다시 열기 %d→%d(%s · 연결 %.2fs)", old.gen if old else 0, h.gen, why, h.connect_s)
+        return True
+
     def on_beaver_turn(self) -> None:
         """비버 턴이 새로 시작됐다 — 그 전에 준비한 세션은 이 턴을 모른다."""
         if self._next is not None:
@@ -263,6 +296,7 @@ class PerTurnSession:
             "swaps": self.swaps,
             "skipped": dict(self.skipped),
             "open_failures": self.open_failures,
+            "reopens": self.reopens,
             "max_open": self.max_open,
             "connect_p50": cs[len(cs) // 2] if cs else None,
             "connect_max": cs[-1] if cs else None,

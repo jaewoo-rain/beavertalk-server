@@ -292,7 +292,7 @@ class Settings(BaseSettings):
     # ⭐ PM-DEC-864 — 맥락 방식. "" = 종전(한 세션 + 압축) · "perturn" = 비버 턴마다 새 Live 세션(지시문 안에 줄거리·최근 대화).
     #   시험 서버 태그(ctxperturn)에서만 켠다. 레벨테스트는 켜도 종전 그대로다.
     CONTEXT_MODE: str = ""
-    CONTEXT_SUMMARY_MODEL: str = "gemini-2.5-flash-lite"   # 줄거리 사이드카(뒤에서 갱신 · 증분)
+    CONTEXT_SUMMARY_MODEL: str = "gemini-2.5-flash"   # ⛔ 2.5-flash-lite 는 새 사용자에게 404(2026-10-20 call 2027·2028)   # 줄거리 사이드카(뒤에서 갱신 · 증분)
     CONTEXT_SUMMARY_EVERY: int = 4      # 비버 턴 N번마다 줄거리 갱신
     CONTEXT_RECENT_SEGMENTS: int = 6    # 새 세션 지시문에 넣는 최근 발화 수(학습자·비버 합)
     # PM-DEC-865 — usage_metadata 1건마다 「normalcall resp:」 한 줄(응답별 원가 곡선용 · 시험 태그에서만 켠다)

@@ -3165,10 +3165,10 @@ def _log_usage_summary(state: _CallState, call_id: int | None, call_type: str) -
         st = state.ctx.stats()
         cu = state.ctx_usage
         logger.info(
-            "normalcall perturn: call_id=%s swaps=%d skipped=%s open_failures=%d max_open=%d connect_p50=%s connect_max=%s "
+            "normalcall perturn: call_id=%s swaps=%d skipped=%s open_failures=%d reopens=%d max_open=%d connect_p50=%s connect_max=%s "
             "summary_model=%s summary_calls=%d summary_in=%d summary_out=%d summary_fail=%d",
             call_id, st["swaps"], ",".join(f"{k}:{v}" for k, v in sorted(st["skipped"].items())) or "-",
-            st["open_failures"], st["max_open"], st["connect_p50"], st["connect_max"],
+            st["open_failures"], st.get("reopens", 0), st["max_open"], st["connect_p50"], st["connect_max"],
             _settings.CONTEXT_SUMMARY_MODEL, cu.calls, cu.in_text, cu.out_text + cu.thoughts, cu.failures,
         )
 
@@ -6856,6 +6856,9 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
     short = n >= 2 and getattr(state, "cur_course", "") == "freetalk" and getattr(state, "freetalk_brief", None) is not None
     seed = seed_freetalk_lesson_reseed_short(getattr(state, "freetalk_target", "") or "한국어") if short else state.seed_text
     try:
+        if getattr(state, "ctx", None) is not None and getattr(state, "ctx_base", ""):
+            # PM-DEC-884 — perturn: 같은 세션에 다시 시드하면 또 벙어리였다(call 2028 · 3회 연속 0B). 새 세션을 열고 거기에 시드한다.
+            await state.ctx.reopen(state.ctx_base, why="mute_greeting")
         await session.send_text_turn(seed)
         logger.warning(
             "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 %d/%d%s "
@@ -8020,6 +8023,9 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
             state.ctx_summary_upto = upto
         else:
             one.note_failure()
+            # 이유는 바로 앞 「gemini_analysis: … 실패」 줄에 있다(모델·키·형식). 지난 줄거리는 그대로 쓴다.
+            logger.warning("normalcall perturn: 줄거리 사이드카 실패 call_id=%s model=%s — 지난 줄거리 유지(%d자)",
+                           _cid(state), _settings.CONTEXT_SUMMARY_MODEL, len(state.ctx_summary or ""))
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - 줄거리 실패는 지난 줄거리로 간다(R5)
