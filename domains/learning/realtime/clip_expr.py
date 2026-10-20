@@ -148,7 +148,8 @@ class ClipExprSession:
 
     def __init__(self, factory: Callable, client: Any, settings: Any, factory_kwargs: dict, *, char: str,
                  state: Any, notify: Optional[Callable] = None, judge: Optional[Callable] = None,
-                 request_close: Optional[Callable] = None, rng: Optional[random.Random] = None) -> None:
+                 request_close: Optional[Callable] = None, rng: Optional[random.Random] = None,
+                 bank: Optional[tuple] = None) -> None:
         self._factory = factory
         self._client = client
         self._settings = settings
@@ -160,7 +161,7 @@ class ClipExprSession:
         self._judge_fn = judge or self._judge_llm
         self._request_close = request_close
         self._rng = rng or random.Random()
-        self.clips, self.items = load_bank(char)
+        self.clips, self.items = bank if bank is not None else load_bank(char)
         self._out: asyncio.Queue = asyncio.Queue()
         self._cmd: asyncio.Queue = asyncio.Queue()
         self._worker: Optional[asyncio.Task] = None

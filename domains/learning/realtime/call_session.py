@@ -136,6 +136,7 @@ from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.realtime.expression_practice import ExpressionPractice, requested_phrases
 from domains.learning.realtime import clip_expr as _clip_expr
+from domains.learning.realtime import script_read as _script_read
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -814,6 +815,7 @@ class _CallState:
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
         "clip_expr",
+        "script_read",
         # cur_route: 이 통화가 커리큘럼 2단계(cur_*) 경로를 탔다 — **시작 시점에 한 번** 정해지고 종료 저장은 이 플래그로만 분기(§6 ③).
         "cur_route",
         "last_beaver_question", "band_tasks", "band_target_language",
@@ -1104,6 +1106,7 @@ class _CallState:
         #   종료 소유권과 무관하다 — 이 값이 그 두 세계를 가른다.
         self.is_leveltest: bool = False
         self.clip_expr: Optional[str] = None     # PM-DEC-872 — 클립 주도 표현학습 캐릭터(None = 종전)
+        self.script_read: Optional[str] = None   # PM-DEC-877 — 대본 읽기 캐릭터(None = 종전)
         self.cur_route: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
@@ -4339,6 +4342,10 @@ async def run_call(
         state.expr_practice = expr_practice
         # PM-DEC-872 — 시제품 스위치(CLIP_EXPR)가 켜진 표현학습만. 빈 값이면 None(종전).
         state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale)
+        # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
+        state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale)
+        if state.script_read:
+            state.clip_expr = state.script_read
         # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
         state.expr_tag_allow = _expression_bracket_allowlist(expr_items)
         if expr_items:
@@ -5432,7 +5439,8 @@ async def _run_one_generation(
         async def _clip_notify(msg: dict) -> None:
             await client_ws.send_text(json.dumps(msg, ensure_ascii=False))
 
-        session_cm = _clip_expr.ClipExprSession(
+        _cls = _script_read.ScriptReadSession if getattr(state, "script_read", None) else _clip_expr.ClipExprSession
+        session_cm = _cls(
             live_session_factory, client, settings, factory_kwargs, char=state.clip_expr, state=state,
             notify=_clip_notify, request_close=lambda: _request_close(state))
     else:

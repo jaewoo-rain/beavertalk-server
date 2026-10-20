@@ -1,0 +1,83 @@
+{
+ "lesson": "A2-T11-1",
+ "no": 28,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요. 여기 앉아요. 오늘 저녁은 된장찌개하고 불고기예요.",
+   "learner": "와, 맛있겠네요. 잘 먹겠습니다.",
+   "en": "Wow, looks delicious. Thank you for the meal.",
+   "roman": ""
+  },
+  {
+   "n": 2,
+   "beaver": "된장찌개를 먹어 보니까 맛이 어때요?",
+   "learner": "조금 싱겁네요. 그래도 맛있어요.",
+   "en": "It's a little bland. But it's tasty.",
+   "roman": ""
+  },
+  {
+   "n": 3,
+   "beaver": "그래요? 그럼 소금을 좀 넣을까요?",
+   "learner": "아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요.",
+   "en": "No, it's fine. I like mild food.",
+   "roman": ""
+  },
+  {
+   "n": 4,
+   "beaver": "불고기도 먹어 봐요. 너무 달지 않아요?",
+   "learner": "아니요, 딱 좋네요. 정말 맛있어요.",
+   "en": "No, it's just right. It's really good.",
+   "roman": ""
+  },
+  {
+   "n": 5,
+   "beaver": "왜 김치는 조금만 먹어요?",
+   "learner": "김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요.",
+   "en": "The kimchi is too spicy. I can't eat spicy food well yet.",
+   "roman": ""
+  },
+  {
+   "n": 6,
+   "beaver": "아이고, 그럼 천천히 먹어요. 잡채도 있어요.",
+   "learner": "잡채는 하나도 안 맵네요. 이거 정말 맛있어요.",
+   "en": "The japchae isn't spicy at all. This is really tasty.",
+   "roman": ""
+  },
+  {
+   "n": 7,
+   "beaver": "갈비도 좀 줄까요?",
+   "learner": "네, 조금만 주세요. 배가 벌써 불러요.",
+   "en": "Yes, just a little please. I'm already full.",
+   "roman": ""
+  },
+  {
+   "n": 8,
+   "beaver": "후식으로 딸기하고 케이크를 준비했어요.",
+   "learner": "와, 케이크가 아주 예쁘네요. 딸기도 달아요.",
+   "en": "Wow, the cake is so pretty. The strawberries are sweet too.",
+   "roman": ""
+  },
+  {
+   "n": 9,
+   "beaver": "마실 것도 줄까요? 우유하고 사이다가 있어요.",
+   "learner": "사이다 주세요. 고맙습니다.",
+   "en": "Cider, please. Thank you.",
+   "roman": ""
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 식사 어땠어요?",
+   "learner": "정말 맛있었어요. 아주머니 요리가 최고예요.",
+   "en": "It was really delicious. Your cooking is the best.",
+   "roman": ""
+  },
+  {
+   "n": 11,
+   "beaver": "고마워요. 내일도 맛있게 해 줄게요.",
+   "learner": "감사합니다. 잘 먹었습니다.",
+   "en": "Thank you. I enjoyed the meal.",
+   "roman": ""
+  }
+ ]
+}

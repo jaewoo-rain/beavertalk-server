@@ -294,6 +294,8 @@ class Settings(BaseSettings):
     CLIP_EXPR_JUDGE_MODEL: str = "gemini-3.5-flash-lite"   # 음성 입력 판정 실측 1.3~2.0초 · 2.5-flash-lite 는 404(2026-10-20)
     CLIP_EXPR_END_SILENCE_S: float = 0.8     # 말 끝으로 보는 무음 길이
     CLIP_EXPR_DUNNO_S: float = 6.0           # 마이크가 열린 뒤 이만큼 말이 없으면 «모름»
+    # PM-DEC-877 — 회화학습 대본 읽기 시제품(28차시 · Live 없음 · 규칙 대조). 켤 캐릭터 이름. 빈 값 = 종전.
+    SCRIPT_READ: str = ""
     # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고
     #   진도를 쌓는다. false 면 옛 경로(learning_item 기반) 그대로 — 코드 배포 없이 되돌리기.
     #   ⛔ 경로는 **통화 단위로 고정**된다(§6 ③·§7 P1-6): 이 값은 통화 **시작 시점**에만 읽고, cur_call 행이 생긴 통화는 끝까지
