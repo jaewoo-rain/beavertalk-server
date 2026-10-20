@@ -159,3 +159,34 @@ def test_in_call_facts_overwrite_by_topic():
     old = ["주말 취미: 요가를 함", "좋아하는 가수: 아이유"]
     got = cms.merge_keyed_lines(["주말 취미: 볼링을 배움"], old, 15)
     assert got == ["주말 취미: 볼링을 배움", "좋아하는 가수: 아이유"]
+
+
+def test_round9_dependent_fact_of_overwritten_value_is_dropped():
+    """9차 2252: «아침 활동: 수영 → 테니스» 뒤에도 «수영 후 기분: 상쾌하고 기분 좋음» 이 남았다."""
+    old = ["아침 활동: 수영", "수영 후 기분: 상쾌하고 기분 좋음", "자동차: 빨간색 모닝"]
+    new = ["아침 활동: 테니스를 침", "수영 후 기분: 상쾌하고 기분 좋음", "좋아하는 가수: 아이유"]
+    got = cms._merge_facts(old, new, 15)
+    assert "아침 활동: 테니스를 침" in got and not any("수영" in f for f in got)
+    assert "자동차: 빨간색 모닝" in got and "좋아하는 가수: 아이유" in got
+    summary = cms.scrub_summary("아침마다 수영을 하고 상쾌해 한다. 빨간색 모닝을 탄다.", cms.profile_of(got),
+                                cms.stale_values(old, got), got)
+    assert "수영" not in summary and "모닝" in summary
+
+
+def test_round9_profile_slot_without_quote_is_not_saved():
+    """9차 max05: 근거 로그 없는 «반려동물: 없음» — profile 칸은 근거 검사를 안 거쳤다 → 쓰지 않는다."""
+    import asyncio
+
+    async def gen(client, model, **kw):
+        return svc.MemoryOut(topic="일상", profile=[svc.MemoryProfileItem(key="반려동물", value="없음")],
+                             facts=[F(key="아침 활동", value="테니스", quote="요즘 아침에는 테니스를 쳐요")])
+
+    import pytest as _pytest
+    mp = _pytest.MonkeyPatch()
+    mp.setattr(svc.gemini_analysis, "generate_structured", gen)
+    try:
+        out = asyncio.run(svc.summarize_for_memory(object(), "m", "학습자: 수영은 그만뒀어요. 요즘 아침에는 테니스를 쳐요.", []))
+    finally:
+        mp.undo()
+    assert out["profile"] == {} and "아침 활동: 테니스" in out["learner_facts"]
+    assert not any("반려동물" in f for f in out["learner_facts"])

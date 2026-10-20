@@ -134,6 +134,17 @@ def _value_words(v: str) -> set[str]:
     return {t for t in _fact_tokens(v) if len(t) >= 2 and t not in _VALUE_STOP}
 
 
+def _overwritten_words(old: list | None, merged: list | None) -> set[str]:
+    """같은 주제 키에서 값이 바뀐 것의 특징 낱말(옛 값 − 새 값) — «수영» → «테니스» 면 {수영}."""
+    now = {_nkey(k): v for k, v in (split_fact(f) for f in merged or []) if k}
+    out: set[str] = set()
+    for f in old or []:
+        k, v = split_fact(f)
+        if k and _nkey(k) in now and now[_nkey(k)] != v:
+            out |= _value_words(v) - _value_words(now[_nkey(k)])
+    return out
+
+
 def stale_values(old: list | None, merged: list | None, replaced: list | None = None) -> list[str]:
     """덮어써진 옛 값(같은 주제 키 · 값이 달라짐) + replaced 옛 사실 — 요약에서 그 낱말이 든 문장을 뺄 재료."""
     now = {_nkey(k): v for k, v in (split_fact(f) for f in merged or []) if k}
@@ -256,6 +267,13 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     keyed = [f for f in merge_keyed_lines(newl, _without(old, replaced), 10 ** 6) if split_fact(f)[0]]
     stale = stale_values(old, keyed, replaced)
     newset = {x.strip() for x in new or [] if isinstance(x, str)}
+    # 기억 10차 — 덮어써진 값에 딸린 사실(«아침 활동: 수영 → 테니스» 뒤 «수영 후 기분: …») 빼기
+    dep = _overwritten_words(old, keyed)
+    if dep:
+        now_keys = {_nkey(k) for k, _ in (split_fact(f) for f in newl) if k}
+        keyed = [f for f in keyed if not (
+            any(w in split_fact(f)[0] for w in dep)                                   # 주제 이름에 옛 값 낱말
+            or (_nkey(split_fact(f)[0]) not in now_keys and any(w in split_fact(f)[1] for w in dep)))]   # 옛 사실은 값에도
     words = stale_words(stale, keyed + [x for x in newset if not split_fact(x)[0]])
     prof = profile_of(keyed)
     plain: list[str] = []
