@@ -11,7 +11,7 @@ from domains.learning.realtime import script_read as sr
 from domains.learning.realtime.script_read import ScriptReadSession
 from test_clip_expr import SILENT, VOICED, _instant_playback  # noqa: F401 - 자동 픽스처
 
-SETTINGS = SimpleNamespace(SCRIPT_READ="Baba", LIVE_REGROUND_VOICE_RMS=0.02, CLIP_EXPR_END_SILENCE_S=0.12,
+SETTINGS = SimpleNamespace(SCRIPT_READ="Baba", LIVE_REGROUND_VOICE_RMS=0.02, CLIP_EXPR_END_SILENCE_S=0.12, SCRIPT_READ_END_SILENCE_S=0.12,
                            CLIP_EXPR_DUNNO_S=0.4)
 
 
@@ -122,3 +122,43 @@ async def test_all_eleven_lines_end_with_script_end_and_close_request():
         assert h.clips(n)[0].startswith("sg_close_call_")
         seen = h.clips()
         assert all(a != b for a, b in zip(seen, seen[1:]))
+
+
+@pytest.mark.asyncio
+async def test_finished_script_resume_closes_without_again_loop():
+    """call 2040 조각2 — 11줄을 끝낸 통화에 이어하기로 붙으면 «Again» 반복 없이 바로 마무리한다."""
+    lines = sr.load_bank("Baba")[2]
+    h = _H([lines[i]["learner"] for i in range(1, 12)])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(11):
+            await h.say()
+    h2 = _H([])
+    async with h2.s:
+        h2.it = h2.s.events().__aiter__()
+        await h2.s.send_text_turn("RESUME")
+        await asyncio.sleep(0.05)
+        assert h2.closed and not h2.clips()
+        await h2.s.send_text_turn("CLOSE")
+        await h2.turn()
+        assert h2.clips()[0].startswith("sg_close_call_")
+
+
+@pytest.mark.asyncio
+async def test_speech_during_playback_is_dropped(monkeypatch):
+    """call 2040·2041 — 판정 뒤 비버 소리가 나오는 동안 들어온 말(줄의 뒤 반쪽)은 다음 시도로 치지 않는다."""
+    from domains.learning.realtime import clip_expr
+    monkeypatch.setattr(clip_expr, "_OUT_BPS", 48000)
+    h = _H([])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(8):
+            await h.s.send_audio(VOICED)
+        for _ in range(4):
+            await h.s.send_audio(SILENT)
+        await asyncio.sleep(0.02)
+        assert h.s._cmd.empty() and not h.s._speech

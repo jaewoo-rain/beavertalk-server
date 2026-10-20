@@ -186,22 +186,46 @@ async def test_dunno_clock_waits_for_estimated_playback_end(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_other_says_one_line_then_reasks():
+async def test_other_and_english_answer_use_clips_not_tts():
+    """call 2043 — 딴말·영어 답은 TTS 응답(2.5~3.9초) 대신 g_back + 지금 문제 클립으로 바로 받는다."""
     said = []
 
     async def say(guide, heard):
         said.append(guide)
-        return "Cute question. Focus.", b"\x01\x00" * 480
+        return "x", b"\x01\x00" * 480
 
-    h = _Harness(["other"], say=say)
+    h = _Harness(["other", "native_lang"], say=say)
     async with h.s:
         h.it = h.s.events().__aiter__()
         await h.s.send_text_turn("SEED")
         await h.turn()
+        for _ in range(2):
+            n = len(h.notes)
+            await h.say(); await h.it.__anext__(); await h.turn()
+            ids = h.ids_since(n)
+            assert ids[0].startswith("g_back_") and ids[1] == "ask_1_1"
+        assert not said and h.s.exc_used == 0
+
+
+@pytest.mark.asyncio
+async def test_explain_after_three_fails_says_then_plays_model_and_falls_back_on_failure():
+    said = []
+
+    async def say(guide, heard):
+        said.append(guide)
+        return "Easy one: it's a greeting.", b"\x01\x00" * 480
+
+    h = _Harness(["wrong", "wrong", "wrong"], say=say)
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(2):
+            await h.say(); await h.it.__anext__(); await h.turn()
         n = len(h.notes)
         await h.say(); await h.it.__anext__()
         texts = await h.turn()
-        assert texts[0] == "Cute question. Focus." and h.ids_since(n) == ["ask_1_1"]
+        assert texts[0] == "Easy one: it's a greeting." and h.ids_since(n) == ["model_1", "ask_2_2"]
         assert len(said) == 1 and h.s.exc_used == 1
 
 
@@ -210,15 +234,17 @@ async def test_say_failure_falls_back_to_clip():
     async def say(guide, heard):
         raise RuntimeError("tts down")
 
-    h = _Harness(["native_lang"], say=say)
+    h = _Harness(["wrong", "wrong", "wrong"], say=say)
     async with h.s:
         h.it = h.s.events().__aiter__()
         await h.s.send_text_turn("SEED")
         await h.turn()
+        for _ in range(2):
+            await h.say(); await h.it.__anext__(); await h.turn()
         n = len(h.notes)
-        await h.say(); await h.it.__anext__(); await h.turn()
+        await h.say(); await h.it.__anext__(); await h.turn()          # 3회 실패 → 설명 실패 → g_move 로 대신
         ids = h.ids_since(n)
-        assert ids[0].startswith("g_back_") and ids[1] == "ask_1_1"
+        assert ids[0].startswith("g_move_") and ids[1:] == ["model_1", "ask_2_2"]
 
 
 @pytest.mark.asyncio
@@ -337,3 +363,5 @@ async def test_run_call_with_clip_expr_never_opens_live_and_streams_clips(sessio
     assert ws.sent_bytes, "클립 오디오가 앱으로 가지 않았다"
     assert any("input_transcript" in t and "안녕하세요" in t for t in ws.sent_text)
     assert any(r.getMessage().startswith("normalcall clipexpr 요약: call_id=") for r in caplog.records)
+    assert any(r.getMessage().startswith("normalcall clipexpr 원가: call_id=") and "clip_usd=" in r.getMessage()
+               and "judge_model=" in r.getMessage() for r in caplog.records)

@@ -114,6 +114,8 @@ class ScriptReadSession(ClipExprSession):
         self.angry_used = 0
         self.angry_line = False
         self.results: list[tuple[int, str, float]] = []
+        # 두 문장 줄을 쉬어 가며 읽는다 — 말 끝을 길게(call 2040·2041 반쪽 판정)
+        self._end_s = float(getattr(self._settings, "SCRIPT_READ_END_SILENCE_S", 1.2) or 1.2)
 
     # ── 진행 ─────────────────────────────────────────────────────────────── #
     def _ask_id(self) -> str:
@@ -142,6 +144,8 @@ class ScriptReadSession(ClipExprSession):
             await self._card({"type": "script_result", "n": self.item.seq, "result": result, "attempt": self.attempt})
 
     async def _on_open(self) -> None:
+        if self._finished_resume():
+            return
         if self.idx >= len(self.items):
             await self._turn([self._pick("sg_again")], result="resume")
             return

@@ -282,6 +282,7 @@ class ClipExprSession:
         self.latency_ms: list[int] = []
         self.spec_hits = 0
         self.stt_s = 0.0
+        self.tts_chars = 0
         self.clip_count = 0
         self.turns = 0
         self._face_n = 0
@@ -319,11 +320,22 @@ class ClipExprSession:
         self._save()
         lat = sorted(self.latency_ms)
         jm = sorted(self.judge_ms)
-        logger.info("normalcall clipexpr 요약: call_id=%s 조각=%s turns=%d clips=%d 항목완료=%d/%d judge_calls=%d llm_calls=%d "
-                    "judge_in=%d judge_out=%d judge_p50_ms=%s spec_hits=%d stt_s=%.1f latency_p50_ms=%s latency_max_ms=%s exc=%d",
-                    self._cid(), self._frag(), self.turns, self.clip_count, self.done_items, len(self.items), self.judge_calls,
-                    self.llm_calls, self.judge_in, self.judge_out, jm[len(jm) // 2] if jm else None, self.spec_hits,
-                    self.stt_s, lat[len(lat) // 2] if lat else None, lat[-1] if lat else None, self.exc_used)
+        logger.info("normalcall clipexpr 요약: call_id=%s 조각=%s judge_model=%s turns=%d clips=%d 항목완료=%d/%d judge_calls=%d "
+                    "llm_calls=%d judge_in=%d judge_out=%d judge_p50_ms=%s spec_hits=%d stt_s=%.1f latency_p50_ms=%s "
+                    "latency_max_ms=%s exc=%d",
+                    self._cid(), self._frag(), self._model, self.turns, self.clip_count, self.done_items, len(self.items),
+                    self.judge_calls, self.llm_calls, self.judge_in, self.judge_out, jm[len(jm) // 2] if jm else None,
+                    self.spec_hits, self.stt_s, lat[len(lat) // 2] if lat else None, lat[-1] if lat else None, self.exc_used)
+        # 원가 — Live 0 이라 「normalcall usage」 줄(형식 고정 · Live 전용)이 비어 있다. 이 조각의 클립 경로 원가를 따로 한 줄로 낸다.
+        #   텍스트 LLM(판정·예외 문장) 토큰 × 단가 + STT 초 × 단가 + TTS 글자 × 단가. 단가는 env 로 바꾼다(공시 단가 기준값).
+        st = self._settings
+        usd = (self.judge_in * float(getattr(st, "CLIP_USD_TEXT_IN_PER_M", 0.30)) / 1e6
+               + self.judge_out * float(getattr(st, "CLIP_USD_TEXT_OUT_PER_M", 2.50)) / 1e6
+               + self.stt_s / 60.0 * float(getattr(st, "CLIP_USD_STT_PER_MIN", 0.024))
+               + self.tts_chars * float(getattr(st, "CLIP_USD_TTS_PER_M_CHARS", 30.0)) / 1e6)
+        logger.info("normalcall clipexpr 원가: call_id=%s 조각=%s judge_model=%s text_in=%d text_out=%d stt_s=%.1f tts_chars=%d "
+                    "clip_usd=%.5f", self._cid(), self._frag(), self._model, self.judge_in, self.judge_out, self.stt_s,
+                    self.tts_chars, usd)
 
     def _cid(self):
         return getattr(self._state, "call_id", None)
@@ -338,6 +350,9 @@ class ClipExprSession:
 
     async def send_audio(self, pcm16_16k: bytes) -> None:
         if not self._listening or not pcm16_16k:
+            return
+        if not self._voiced_s and time.monotonic() < self._play_until:
+            # 앱이 아직 비버 소리를 트는 중(추정) — 그 사이 말은 이전 시도의 꼬리다(call 2040·2041 반쪽 판정). 버린다.
             return
         dur = len(pcm16_16k) / _MIC_BPS
         loud = _rms(pcm16_16k) >= self._vad_th
@@ -360,11 +375,9 @@ class ClipExprSession:
                 spec, self._spec = self._spec, None
                 self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
             return
-        # 아직 말 시작 전 — 짧은 잡음은 버리고, 앱 재생이 끝났을 시각부터 무응답 시간을 센다
+        # 아직 말 시작 전 — 짧은 잡음은 버리고 무응답 시간을 센다(재생 중 프레임은 위에서 이미 버렸다)
         self._speech.clear()
         self._voiced_s = 0.0
-        if time.monotonic() < self._play_until:
-            return
         self._idle_s += dur
         if self._idle_s >= self._dunno_s:
             self._listening = False
@@ -434,7 +447,18 @@ class ClipExprSession:
             return f"퀴즈{self.quiz_q[0]}"
         return f"{self.item.seq}/{self.stage}" if self.idx < len(self.items) else "-"
 
+    def _finished_resume(self) -> bool:
+        """다 끝낸 통화에 조각 이어하기로 다시 붙었다 — 인사도 문제도 없이 바로 마무리한다(call 2040 조각2 «Again» 반복)."""
+        if not (self._restored and self.stage == "done"):
+            return False
+        logger.info("normalcall clipexpr: 끝난 진행에 이어하기 — 바로 마무리 call_id=%s 조각=%s", self._cid(), self._frag())
+        if self._request_close is not None:
+            self._request_close()
+        return True
+
     async def _on_open(self) -> None:
+        if self._finished_resume():
+            return
         if self._restored:
             await self._turn([self._ask_id()], result="resume")       # 조각 이어하기 — 지금 문제를 그대로 다시
             return
@@ -518,9 +542,8 @@ class ClipExprSession:
             return
         seq = it.seq
         if r in ("other", "native_lang"):
-            guide = ("React to what they said in one short line, in character, then tell them to get back to the Korean phrase."
-                     if r == "other" else "They answered in English. React in one short line and tell them to try it in Korean.")
-            await self._exception_or_back(guide, heard, [self._ask_id()], r, t_end)
+            # 딴말·영어 답 — 클립(g_back «Back to Korean» + 지금 문제)으로 바로 받는다. TTS 응답은 2.5~3.9초라(call 2043) 뺐다.
+            await self._turn([self._pick("g_back"), self._ask_id()], result=r, heard=heard, t_end=t_end)
             return
         if r == "correct":
             if st in ("ask", "hint") and it.blank:
@@ -672,6 +695,7 @@ class ClipExprSession:
         text = re.sub(r"[가-힣]+", "", (resp.text or "").strip()).strip()
         if not text:
             return "", None
+        self.tts_chars += len(text)
         return text, await tts_pcm(text, lang="en", voice="Fenrir")
 
     # ── 내보내기 ─────────────────────────────────────────────────────────── #
