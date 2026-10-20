@@ -39,7 +39,7 @@ BANNED_WORDS: tuple[str, ...] = (
 TOKEN_BUDGET: dict[str, int] = {
     "normal": 3400,
     "expression": 500,
-    "freetalk": 2200,  # 회화학습 수정(10-19 사용자 승인) — 근사 2169 > 2000
+    "freetalk": 2250,  # PM-DEC-906 5차(요약 요청 대응 1줄) 근사 2217 · 종전 2200(10-19 회화학습 수정 · 근사 2169)
     "leveltest": 550,   # PM-DEC-778 — 레벨테스트 최종안(재생 검증 문구 그대로) 실측 507 > 450 · 2026-10-18
     "homework_roleplay": 900,   # 숙제 역할극 수정(10-19 사용자 승인) — 근사 846 > 600
 }
