@@ -71,7 +71,7 @@ def ctx(session_factory):
 
 
 def _fake_slots(topic="요리"):
-    async def _summarize(client, model, tail):
+    async def _summarize(client, model, tail, *_a, **_k):
         return {
             "topic": topic, "learner_facts": ["채식주의자다"],
             "pending": "다음엔 여행 얘기", "interests": ["요리", "여행"],
@@ -95,7 +95,7 @@ async def test_recompression_runs_on_the_main_event_loop(ctx, monkeypatch):
         seen["loop"] = asyncio.get_running_loop()
         return (new + " " + old).strip()
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots())
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots())
     monkeypatch.setattr(chat_memory_service, "recompress_summary", fake_recompress)
 
     await svc.extract_and_merge_chat_memory(
@@ -121,7 +121,7 @@ async def test_fallback_keeps_the_newest_content_when_recompression_fails(ctx, m
     async def boom(*a, **k):
         raise RuntimeError("gemini 장애 흉내")
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="요리"))
     monkeypatch.setattr(chat_memory_service.gemini_analysis, "generate_structured", boom)
 
     # 1차: old_summary="" 특수분기(재압축 안 탐) — 기반을 만든다.
@@ -133,7 +133,7 @@ async def test_fallback_keeps_the_newest_content_when_recompression_fails(ctx, m
     assert row1 is not None and "화제: 요리" in row1.summary
 
     # 2차: old_summary 가 이미 있는 상태 — 재압축 실패 폴백이 실제로 도는 경로.
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="여행"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="여행"))
     await svc.extract_and_merge_chat_memory(
         ctx["call_id_2"], ctx["member_id"], "ko", client=object(),
         settings_obj=app_settings, session_factory=ctx["session_factory"],
@@ -158,7 +158,7 @@ async def test_idempotent_on_the_same_call_id(ctx, monkeypatch):
         calls["n"] += 1
         return (new + " " + old).strip()
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots())
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots())
     monkeypatch.setattr(chat_memory_service, "recompress_summary", counting_recompress)
 
     await svc.extract_and_merge_chat_memory(
@@ -180,7 +180,7 @@ async def test_recompression_exception_does_not_escape(ctx, monkeypatch):
     async def boom(client, model, old, new):
         raise RuntimeError("recompress 폭발 흉내 — R5 로 흡수돼야 한다")
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots())
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots())
     monkeypatch.setattr(chat_memory_service, "recompress_summary", boom)
 
     # 예외가 여기서 다시 터지면 이 시험 자체가 실패한다.
@@ -214,7 +214,7 @@ async def test_intermediate_fragment_merges_slots_without_recompressing(ctx, mon
         recompress_calls["n"] += 1
         return (new + " " + old).strip()
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="요리"))
     monkeypatch.setattr(chat_memory_service, "recompress_summary", counting_recompress)
 
     await svc.extract_and_merge_chat_memory(
@@ -237,13 +237,13 @@ async def test_intermediate_fragment_merge_is_not_blocked_across_fragments(ctx, 
     중간 조각 저장에도 걸리면 **같은 call_id 를 공유하는** 다음 조각이 무시된다
     (조각 전환은 새 call_id 를 안 만든다, `resume_call` 계약). 조각1의 화제와
     조각2의 화제가 **둘 다** 남아야 한다."""
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="요리"))
     await svc.extract_and_merge_chat_memory(
         ctx["call_id"], ctx["member_id"], "ko", client=object(),
         settings_obj=app_settings, session_factory=ctx["session_factory"],
         is_final=False,
     )
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="여행"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="여행"))
     await svc.extract_and_merge_chat_memory(
         ctx["call_id"], ctx["member_id"], "ko", client=object(),
         settings_obj=app_settings, session_factory=ctx["session_factory"],
@@ -268,7 +268,7 @@ async def test_final_fragment_recompresses_even_after_intermediate_merges(ctx, m
         recompress_calls["n"] += 1
         return (new + " " + old).strip()
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="요리"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="요리"))
     monkeypatch.setattr(chat_memory_service, "recompress_summary", counting_recompress)
 
     # 조각1(중간) — 재압축 없이 슬롯만.
@@ -280,7 +280,7 @@ async def test_final_fragment_recompresses_even_after_intermediate_merges(ctx, m
     assert recompress_calls["n"] == 0
 
     # 조각2(마지막, 같은 call_id) — 전체 병합이 돌아야 한다.
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _fake_slots(topic="여행"))
+    monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots(topic="여행"))
     await svc.extract_and_merge_chat_memory(
         ctx["call_id"], ctx["member_id"], "ko", client=object(),
         settings_obj=app_settings, session_factory=ctx["session_factory"],
@@ -304,14 +304,45 @@ async def test_no_learner_speech_skips_merge(ctx, monkeypatch):
     db.commit()
     called = []
 
-    async def _summarize(client, model, tail):
+    async def _summarize(client, model, tail, *_a, **_k):
         called.append(tail)
         return {"topic": "안부 인사", "learner_facts": [], "pending": "", "interests": []}
 
-    monkeypatch.setattr(svc, "summarize_for_resume_text", _summarize)
+    monkeypatch.setattr(svc, "summarize_for_memory", _summarize)
     await svc.extract_and_merge_chat_memory(
         silent, ctx["member_id"], "ko", client=object(),
         settings_obj=app_settings, session_factory=ctx["session_factory"],
     )
     assert called == []
     assert chat_memory_service.load(db, ctx["member_id"], "ko") is None
+
+
+@pytest.mark.asyncio
+async def test_replaced_fact_is_swapped_and_whole_call_is_read(ctx, monkeypatch):
+    """PM-DEC-910 — 같은 대상의 새 사실은 옛 사실을 대체한다 · 기억 추출은 통화 전체 전사를 읽는다(끝 4,000자가 아님)."""
+    db = ctx["db"]
+    chat_memory_service.merge_slots_only(db, ctx["member_id"], "ko", {"facts": ["매운 음식을 잘 못 먹음", "고양이를 키움"]})
+    db.add(CallRawData(call_id=ctx["call_id_2"], role="user", turn_index=1, content="가" * 5000))
+    db.add(CallRawData(call_id=ctx["call_id_2"], role="user", turn_index=2, content="이제 매운 것도 잘 먹어요"))
+    db.commit()
+    seen = {}
+
+    async def _summarize(client, model, transcript, old_facts=None):
+        seen["head"] = transcript.startswith("학습자: 여행")
+        seen["old"] = list(old_facts or [])
+        return {"topic": "음식", "learner_facts": ["이제 매운 것도 잘 먹음"], "pending": "", "interests": [],
+                "replaced": ["매운 음식을 잘 못 먹음"]}
+
+    async def _recompress(client, model, old, new):
+        return new
+
+    monkeypatch.setattr(svc, "summarize_for_memory", _summarize)
+    monkeypatch.setattr(chat_memory_service, "recompress_summary", _recompress)
+    await svc.extract_and_merge_chat_memory(
+        ctx["call_id_2"], ctx["member_id"], "ko", client=object(),
+        settings_obj=app_settings, session_factory=ctx["session_factory"],
+    )
+    assert seen["head"] and "매운 음식을 잘 못 먹음" in seen["old"]
+    row = chat_memory_service.load(db, ctx["member_id"], "ko")
+    db.refresh(row)
+    assert "이제 매운 것도 잘 먹음" in row.facts and "매운 음식을 잘 못 먹음" not in row.facts and "고양이를 키움" in row.facts

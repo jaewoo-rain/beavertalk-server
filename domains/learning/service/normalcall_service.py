@@ -1108,6 +1108,65 @@ _RESUME_SUMMARY_INSTRUCTION = (
 )
 
 
+class MemoryOut(BaseModel):
+    """PM-DEC-910 — 자유대화 기억 추출 슬롯(이어하기 요약 ResumeOut 과 따로 · 통화 전체 · 사실 10개 · 바뀐 사실)."""
+
+    topic: str = ""
+    learner_facts: list[str] = []
+    pending: str = ""
+    interests: list[str] = []
+    replaced: list[str] = []           # 기존 사실 중 이번 대화로 바뀐 것(기존 문구 그대로)
+
+
+_MEMORY_EXTRACT_INSTRUCTION = (
+    "너는 회화 통화의 기억 정리기다. 아래 [통화 전체]를 읽고 JSON 슬롯만 채워라. **문장을 만들지 마라.**\n"
+    "- topic: 대화가 흐르던 화제를 짧은 명사구 하나로(최대 15자). 없으면 빈 문자열.\n"
+    "- learner_facts: 통화 **전체**에서 학습자에 대해 알게 된 사실을 짧은 구로(각 25자 이내, 최대 10개). "
+    "예: \"매운 음식을 잘 못 먹음\", \"고양이 나비를 키움\". 앞부분에 나온 사실도 빠뜨리지 마라. ⛔ 근거가 없으면 넣지 마라.\n"
+    "- pending: 끝내지 못하고 하던 중이던 것을 짧은 구로(최대 20자). 없으면 빈 문자열.\n"
+    "- interests: 학습자의 관심사를 짧은 구로(각 15자 이내, 최대 5개). ⛔ 근거가 없으면 넣지 마라.\n"
+    "- replaced: 아래 [기존 사실] 중 이번 대화로 **바뀌거나 틀린 것으로 드러난** 것을 기존 문구 그대로 적어라"
+    "(예: 기존 \"매운 음식을 잘 못 먹음\" · 이번에 \"이제 매운 것도 잘 먹음\" → replaced 에 기존 문구, learner_facts 에 새 사실). "
+    "없으면 빈 목록."
+)
+MEMORY_FACTS_MAX = 10
+
+
+def _clean_list(xs, n: int, width: int) -> list[str]:
+    return [x.strip()[:width] for x in (xs or []) if isinstance(x, str) and x.strip()][:n]
+
+
+async def summarize_for_memory(client, model: str, transcript: str, old_facts: list[str] | None = None) -> dict | None:
+    """PM-DEC-910 — 통화 전체 전사에서 기억 슬롯을 뽑는다(사실 최대 10개 · 기존 사실 중 바뀐 것 replaced)."""
+    if not transcript:
+        return None
+    olds = [f.strip() for f in (old_facts or []) if isinstance(f, str) and f.strip()]
+    prompt = ("[기존 사실]\n" + ("\n".join(f"- {f}" for f in olds) if olds else "(없음)")
+              + "\n\n[통화 전체]\n" + transcript)
+    try:
+        out = await gemini_analysis.generate_structured(
+            client, model, system_instruction=_MEMORY_EXTRACT_INSTRUCTION,
+            prompt=prompt, schema=MemoryOut, temperature=0.0, thinking_budget=0,
+        )
+    except Exception as exc:  # noqa: BLE001 — 기억 추출 실패가 분석을 죽이면 안 된다(R5)
+        logger.warning("normalcall 기억 추출 실패(무시) — %s", exc)
+        return None
+    if out is None:
+        return None
+    return {
+        "topic": (out.topic or "").strip()[:30],
+        "learner_facts": _clean_list(out.learner_facts, MEMORY_FACTS_MAX, 40),
+        "pending": (out.pending or "").strip()[:40],
+        "interests": _clean_list(out.interests, 5, 30),
+        "replaced": [r for r in _clean_list(out.replaced, MEMORY_FACTS_MAX, 80) if r in olds],
+    }
+
+
+def _memory_transcript(db: Session, call_id: int) -> str:
+    """PM-DEC-910 — 기억 추출용 통화 전체 전사(이어하기 요약의 끝 4,000자가 아니라 처음부터 · 상한 12,000자)."""
+    return _resume_transcript_full(db, call_id)[-12000:]
+
+
 def _learner_only(excerpt: str | None) -> str | None:
     """발췌에서 **학습자 발화만** 남긴다 — 비버 대사는 따라 할 대본이 된다."""
     if not excerpt:
@@ -1118,6 +1177,10 @@ def _learner_only(excerpt: str | None) -> str | None:
 
 def _resume_transcript(db: Session, call_id: int) -> str:
     """이 통화의 전사를 요약기에 넣을 한 덩어리로. ⛔ DB 접근만(async 없음 — run_db 안이다)."""
+    return _resume_transcript_full(db, call_id)[-4000:]
+
+
+def _resume_transcript_full(db: Session, call_id: int) -> str:
     rows = (
         db.query(CallRawData.content, CallRawData.role)
         .filter(CallRawData.call_id == call_id, CallRawData.content.isnot(None))
@@ -1127,7 +1190,7 @@ def _resume_transcript(db: Session, call_id: int) -> str:
     return "\n".join(
         "%s: %s" % ("비버" if (r or "") == "beaver" else "학습자", (c or "").strip())
         for c, r in rows if c and len(c.strip()) >= 3
-    )[-4000:]
+    )
 
 
 def recent_turns(db: Session, call_id: int, *, n: int = 4, max_chars: int = 120) -> list[tuple[str, str]]:
@@ -1297,12 +1360,14 @@ async def extract_and_merge_chat_memory(
       슬롯들에서 파생한다 — 별도 LLM 호출을 추가하지 않는다.
     """
     try:
-        tail = await run_db(session_factory, lambda db: _resume_transcript(db, call_id))
+        tail = await run_db(session_factory, lambda db: _memory_transcript(db, call_id))
         if not any(line.startswith("학습자: ") for line in tail.splitlines()):
             # PM-DEC-889 — 학습자가 한마디도 안 한 통화(call 2061 · 31초)가 «안부 인사»로 쌓여 다음 첫 인사가 기억을 지어냈다.
             logger.info("normalcall chat_memory: 학습자 발화 없음 → merge 생략 call_id=%s", call_id)
             return
-        slots_raw = await summarize_for_resume_text(client, settings_obj.JUDGE_MODEL, tail)
+        old_facts = await run_db(session_factory, lambda db: chat_memory_service.current_facts(db, member_id, language))
+        # PM-DEC-910 — 통화 전체 · 사실 10개 · 바뀐 사실(replaced)은 기존 목록에서 뺀다
+        slots_raw = await summarize_for_memory(client, settings_obj.JUDGE_MODEL, tail, old_facts)
     except Exception as exc:  # noqa: BLE001 — R5
         logger.warning("normalcall chat_memory 추출 실패(무시) call_id=%s: %s", call_id, exc)
         return
@@ -1326,6 +1391,7 @@ async def extract_and_merge_chat_memory(
         "facts": facts,
         "interests": interests,
         "next_topics": [pending] if pending else [],
+        "replaced": list(slots_raw.get("replaced") or []),
     }
     if not any(slots.values()):
         logger.info("normalcall chat_memory: 뽑힌 슬롯이 없어 merge 생략 call_id=%s", call_id)

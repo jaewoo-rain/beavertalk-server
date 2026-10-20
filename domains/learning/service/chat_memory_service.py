@@ -58,6 +58,18 @@ def to_dict(row: ChatMemory | None) -> dict | None:
     }
 
 
+def current_facts(db: Session, member_id: int, language: str) -> list[str]:
+    """PM-DEC-910 — 기억 추출기에 넘길 기존 사실(바뀐 사실을 가려내게)."""
+    row = ChatMemoryRepository(db).get(member_id, language)
+    return list(row.facts or []) if row is not None else []
+
+
+def _without(old: list | None, drop: list | None) -> list:
+    """PM-DEC-910 — 같은 대상의 새 사실로 바뀐 옛 사실(replaced)을 뺀다."""
+    gone = {d.strip() for d in (drop or []) if isinstance(d, str)}
+    return [x for x in (old or []) if not (isinstance(x, str) and x.strip() in gone)]
+
+
 def _merge_capped(old: list | None, new: list | None, cap: int) -> list[str]:
     """새 항목을 **앞에**(최신 우선) 두고 중복 제거한 뒤 상한을 자른다.
 
@@ -161,7 +173,7 @@ def merge_sync(
         return row
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_capped(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP)
+    facts = _merge_capped(_without(row.facts if row is not None else [], slots.get("replaced")), slots.get("facts"), FACTS_CAP)
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
@@ -203,7 +215,7 @@ def merge_slots_only(
     row = repo.get(member_id, language)
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_capped(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP)
+    facts = _merge_capped(_without(row.facts if row is not None else [], slots.get("replaced")), slots.get("facts"), FACTS_CAP)
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
