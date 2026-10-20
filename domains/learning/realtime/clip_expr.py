@@ -64,6 +64,25 @@ RESULTS = ("correct", "close", "wrong", "dunno", "other", "native_lang")
 
 # 조각을 넘어 진행을 잇는다(call_id → 상태). 시험 태그 전용 · 인스턴스 1개 전제.
 _PROGRESS: dict[Any, dict] = {}
+_PROGRESS_BUCKET = "clip-progress"   # PM-DEC-915 — GCS 에도 남긴다(다른 인스턴스로 간 조각 이어하기)
+
+
+def _progress_load(call_id) -> Optional[dict]:
+    from core import storage
+    raw = storage.download(_PROGRESS_BUCKET, f"{call_id}.json")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except Exception:  # noqa: BLE001 - 깨진 파일은 «없음»(처음부터)
+        logger.warning("normalcall clipexpr: 진행 파일 깨짐 call_id=%s — 처음부터", call_id)
+        return None
+
+
+def _progress_store(call_id, snap: dict) -> None:
+    from core import storage
+    storage.upload(_PROGRESS_BUCKET, f"{call_id}.json", json.dumps(snap, ensure_ascii=False).encode("utf-8"),
+                   content_type="application/json")
 
 
 @dataclass(slots=True)
@@ -302,6 +321,9 @@ class ClipExprSession:
 
     async def __aenter__(self) -> "ClipExprSession":
         snap = _PROGRESS.get(self._cid()) if self._cid() is not None else None
+        if not snap and self._cid() is not None and getattr(self._state, "fragment_index", 1) not in (None, 1):
+            # 이어하기 조각인데 이 인스턴스 메모리에 없다 — 다른 인스턴스가 쓴 진행을 GCS 에서 읽는다
+            snap = await asyncio.to_thread(_progress_load, self._cid())
         if snap:
             for k in self.PERSIST:
                 if k in snap:
@@ -316,11 +338,19 @@ class ClipExprSession:
     def _save(self) -> None:
         if self._cid() is None:
             return
-        _PROGRESS[self._cid()] = {k: json.loads(json.dumps(getattr(self, k))) for k in self.PERSIST}
+        snap = {k: json.loads(json.dumps(getattr(self, k))) for k in self.PERSIST}
+        _PROGRESS[self._cid()] = snap
         while len(_PROGRESS) > 300:
             _PROGRESS.pop(next(iter(_PROGRESS)))
+        self._last_snap = snap
 
     async def __aexit__(self, *exc) -> None:
+        snap = getattr(self, "_last_snap", None)
+        if snap is not None and self._cid() is not None:
+            try:
+                await asyncio.to_thread(_progress_store, self._cid(), snap)   # 조각 끝 — 다음 조각이 어느 인스턴스로 가도 이어지게
+            except Exception as exc:  # noqa: BLE001 - 저장 실패는 이 인스턴스 메모리로만 이어진다(종전과 같음)
+                logger.warning("normalcall clipexpr: 진행 저장 실패 call_id=%s: %r", self._cid(), exc)
         for t in (self._worker, self._spec):
             if t is not None:
                 t.cancel()
