@@ -134,6 +134,18 @@ def _value_words(v: str) -> set[str]:
     return {t for t in _fact_tokens(v) if len(t) >= 2 and t not in _VALUE_STOP}
 
 
+_SUBJECT_STOP = {"다음", "좋아하는", "제일", "가장", "요즘", "어제", "오늘", "하고", "싶은", "최근", "지난"}
+
+
+def _subject(key: str) -> str:
+    """주제 이름의 대상 — 첫 특징 낱말(«제주도 방문 이유» → 제주도 · «다음 여행지» → 여행지 · «가족» → 가족)."""
+    toks = [t for t in (key or "").split() if t]
+    for t in toks:
+        if t not in _SUBJECT_STOP:
+            return t
+    return toks[-1] if toks else ""
+
+
 def _overwritten_words(old: list | None, merged: list | None) -> set[str]:
     """같은 주제 키에서 값이 바뀐 것의 특징 낱말(옛 값 − 새 값) — «수영» → «테니스» 면 {수영}."""
     now = {_nkey(k): v for k, v in (split_fact(f) for f in merged or []) if k}
@@ -288,7 +300,16 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     top = [f for k in PROFILE_KEYS for f in keyed if split_fact(f)[0] == k]
     rest_keyed = [f for f in keyed if f not in top]
     room = max(0, cap - len(top))
-    rest_keyed = rest_keyed[:room]
+    # 기억 11차 — 한 대상의 세부 사실(«제주도 …» 4줄 · «어머니 …» 3줄)이 칸을 차지해 다른 주제(차·영화)가 밀렸다(max05)
+    #   → 대상(주제 이름의 첫 특징 낱말)마다 하나씩 먼저 남기고, 남는 칸에 같은 대상의 나머지를 최신 순으로
+    seen_subj: dict[str, int] = {}
+    ranked = []
+    for i, f in enumerate(rest_keyed):
+        sj = _subject(split_fact(f)[0])
+        ranked.append((seen_subj.get(sj, 0), i, f))
+        seen_subj[sj] = seen_subj.get(sj, 0) + 1
+    kept = {f for _, _, f in sorted(ranked)[:room]}
+    rest_keyed = [f for f in rest_keyed if f in kept]
     room -= len(rest_keyed)
     keep = set(sorted(plain, key=_fact_tier)[:max(0, room)])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
     return top + rest_keyed + [f for f in plain if f in keep]
