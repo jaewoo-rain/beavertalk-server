@@ -183,7 +183,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await normalcall_service.run_db(app.state.session_factory, homework_service.recover_pending)
         except Exception:
             logger.warning("숙제 결과 기동 복구 실패 — 다음 실제 요청에서 재시도")
+        # U32-② — 오래 analyzing 에 멈춘 통화(배포로 분석 태스크가 사라진 것)를 지연 뒤 한 번 되살린다. 기본 off.
+        import asyncio
+
+        from domains.learning.service import analyzing_sweep
+
+        sweep_task = asyncio.create_task(analyzing_sweep.sweep_later(app.state, settings), name="analyzing-sweep")
         yield
+        sweep_task.cancel()
     finally:
         engine.dispose()  # 종료 시 커넥션 정리
 
