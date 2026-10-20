@@ -148,6 +148,76 @@ def _subject(key: str) -> str:
     return toks[-1] if toks else ""
 
 
+_ATTR_WORDS = ("좋아하는", "싫어하는", "이름", "선생님", "사는", "직업", "회사", "학교", "전공", "가족", "취미", "운동", "계획", "여행",
+               "못 먹", "반려", "생일", "룸메이트", "선배", "친구 이름", "교통", "장래", "습관", "나이", "출신")
+_GENERIC_KEY_TOKENS = {"좋아하는", "싫어하는", "이름", "친구", "친구와", "하는", "하고", "싶은", "것", "주제", "활동", "계획", "이유",
+                       "장소", "시간", "다음", "요즘", "제일", "가장", "최근", "어제", "오늘", "방법", "종류"}
+def _generic_token(t: str) -> bool:
+    """«좋아하는» → 조사 떼기로 «좋아하» 가 돼도 흔한 주제 낱말로 본다."""
+    return any(g.startswith(t) or t.startswith(g) for g in _GENERIC_KEY_TOKENS)
+
+
+NEW_DURABLE_MAX = 6     # 기억 13차 — 한 통화에서 새로 넣는 지속 줄(고정 칸 제외) 상한
+_EVAL_WORDS = ("재미있", "재밌", "좋음", "좋아요", "좋았", "싫음", "어렵", "쉬움", "쉬워", "맛있", "힘들", "신나", "기분", "괜찮")
+
+
+def _is_eval_only(value: str) -> bool:
+    """값이 평가·느낌뿐인가(«재미있음» · «어렵지만 운동 후 기분이 좋음»)."""
+    v = value or ""
+    if not any(w in v for w in _EVAL_WORDS):
+        return False
+    content = {t for t in _fact_tokens(v) if not any(w[:2] in t for w in _EVAL_WORDS)}
+    return len(content) <= 2
+
+
+def demote_details(lines: list[str]) -> list[str]:
+    """기억 13차 — 한 통화 추출 결과의 지속/일회 등급을 다시 정한다(추출기 판단이 흔들려도 같은 결과가 나오게 하는 안전판).
+    순서: 고정 칸 → 사람의 속성다운 주제(좋아하는·이름·선생님·사는·직업·취미·운동·계획…) → 나머지.
+    - 고정 칸은 언제나 지속
+    - 속성다운 주제는 추출기가 일회라 해도 지속(«좋아하는 책: 어린 왕자» 가 일회로 오던 흔들림)
+    - 앞선 지속 줄의 대상 낱말이 주제 이름에 들어 있으면(«고양이 나비» 뒤 «나비 산책 장소»·«두부와의 관계») 일회
+    - 값이 평가뿐이면(«재미있음») 일회 · 고정 칸이 아닌 새 지속은 통화당 NEW_DURABLE_MAX 개까지
+    - 나머지 주제는 추출기의 등급을 따른다."""
+    items = []
+    for f in lines:
+        if EPHEMERAL_SEP in f:
+            k, v = f.split(EPHEMERAL_SEP, 1)
+            items.append((k.strip(), v.strip(), True))
+        else:
+            k, v = split_fact(f)
+            items.append((k, v, False))
+
+    def _rank(k):
+        k = k or ""
+        return 0 if k in PROFILE_KEYS else 1 if any(w in k for w in _ATTR_WORDS) else 2
+
+    order = sorted(range(len(items)), key=lambda i: (_rank(items[i][0]), i))
+    seen: set[str] = set()
+    kept = 0
+    res: dict[int, str] = {}
+    for i in order:
+        k, v, eph = items[i]
+        if not k:
+            res[i] = lines[i]
+            continue
+        r = _rank(k)
+        if r == 0:
+            res[i] = f"{k}: {v}"
+            seen |= _value_words(v)
+            continue
+        detail = any(w in k for w in seen if len(w) >= 2)
+        durable = (r == 1 or not eph) and not detail and not _is_eval_only(v) and kept < NEW_DURABLE_MAX
+        if durable:
+            res[i] = f"{k}: {v}"
+            kept += 1
+            seen |= _value_words(v) | {t for t in _fact_tokens(k) if len(t) >= 2 and not _generic_token(t)}
+        else:
+            res[i] = f"{k}{EPHEMERAL_SEP}{v}"
+            if detail:
+                seen |= _value_words(v)      # «고양이: 나비» 가 세부로 빠져도 «나비» 는 같은 대상 — 뒤의 «나비 산책 장소» 도 세부
+    return [res[i] for i in range(len(items))]
+
+
 def _overwritten_words(old: list | None, merged: list | None) -> set[str]:
     """같은 주제 키에서 값이 바뀐 것의 특징 낱말(옛 값 − 새 값) — «수영» → «테니스» 면 {수영}."""
     now = {_nkey(k): v for k, v in (split_fact(f) for f in merged or []) if k}
