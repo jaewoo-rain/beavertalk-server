@@ -826,49 +826,49 @@
  {
   "id": "g_ok_1",
   "slot": "공통:ok",
-  "text": "Fine, you got that one.",
+  "text": "Fine, you got it. Don't get cocky.",
   "item": null,
-  "sec": 3.12,
+  "sec": 5.0,
   "face": "neutral"
  },
  {
   "id": "g_ok_2",
   "slot": "공통:ok",
-  "text": "Hmph. Correct.",
+  "text": "Hmph. Correct. Shocking.",
   "item": null,
-  "sec": 2.44,
+  "sec": 3.8,
   "face": "neutral"
  },
  {
   "id": "g_ok_3",
   "slot": "공통:ok",
-  "text": "Okay. Not bad.",
+  "text": "Correct. Wow, a miracle.",
   "item": null,
-  "sec": 3.44,
+  "sec": 4.12,
   "face": "neutral"
  },
  {
   "id": "g_ok_4",
   "slot": "공통:ok",
-  "text": "Lucky guess? Whatever, correct.",
+  "text": "Lucky guess? Yeah, definitely luck.",
   "item": null,
-  "sec": 5.04,
+  "sec": 5.4,
   "face": "neutral"
  },
  {
   "id": "g_ok_5",
   "slot": "공통:ok",
-  "text": "Yeah, that's it.",
+  "text": "Okay, okay. Don't expect applause.",
   "item": null,
-  "sec": 2.32,
+  "sec": 5.28,
   "face": "neutral"
  },
  {
   "id": "g_ok_6",
   "slot": "공통:ok",
-  "text": "Right. Next.",
+  "text": "Right. Took long enough. Next.",
   "item": null,
-  "sec": 2.4,
+  "sec": 4.28,
   "face": "neutral"
  },
  {
@@ -938,33 +938,33 @@
  {
   "id": "g_rep_ok_1",
   "slot": "공통:rep_ok",
-  "text": "Good enough.",
+  "text": "Ugh, fine. That was actually good.",
   "item": null,
-  "sec": 2.36,
+  "sec": 3.96,
   "face": "neutral"
  },
  {
   "id": "g_rep_ok_2",
   "slot": "공통:rep_ok",
-  "text": "There you go.",
+  "text": "Not bad. Annoyingly not bad. Next.",
   "item": null,
-  "sec": 1.88,
+  "sec": 6.68,
   "face": "neutral"
  },
  {
   "id": "g_rep_ok_3",
   "slot": "공통:rep_ok",
-  "text": "Fine. That works.",
+  "text": "Okay, decent. Don't get used to it.",
   "item": null,
-  "sec": 3.4,
+  "sec": 5.36,
   "face": "neutral"
  },
  {
   "id": "g_rep_ok_4",
   "slot": "공통:rep_ok",
-  "text": "Okay, that was decent.",
+  "text": "Huh. Who taught you that? Oh right, me.",
   "item": null,
-  "sec": 3.48,
+  "sec": 6.48,
   "face": "neutral"
  },
  {
