@@ -93,7 +93,7 @@ def _memory_block(memory: dict | None) -> str:
     facts = [f for f in (memory.get("facts") or []) if isinstance(f, str) and f.strip()]
     if facts:
         # PM-DEC-920 — 사실이 먼저 · 요약 문장이 옛 값을 품고 있어도 사실이 이긴다(max06 «생일 3월 7일» 요약 잔재)
-        lines.append("- 학습자에 대해 알게 된 것(아래 이야기와 다르면 이것이 맞다): " + ", ".join(facts[:15]))
+        lines.append("- 학습자에 대해 알게 된 것(아래 이야기와 다르면 이것이 맞다): " + ", ".join(facts[:20]))   # 기억 12차 — 칸 상한 20
     summary = (memory.get("summary") or "").strip()
     if summary:
         lines.append(f"- 지금까지 나눈 이야기: {summary}")

@@ -39,7 +39,7 @@ async def test_mute_greeting_is_spoken_by_tts_with_subtitle(monkeypatch):
     kinds = [m["type"] if isinstance(m, dict) else m[0] for m in ws.out]
     assert kinds[0] == "turn_start" and kinds[1] == "output_transcript" and kinds[-1] == "turn_end" and "bytes" in kinds
     assert ws.out[1]["text"] == "안녕, Tester! 요즘 무슨 재미있는 일 있었어?"      # 자막 보류분 그대로
-    assert sum(m[1] for m in ws.out if isinstance(m, tuple)) == 24000 * 2 * 2
+    assert sum(m[1] for m in ws.out if isinstance(m, tuple)) == 24000 * 2 * 2 * 2   # 두 문장(«안녕, Tester!» · 나머지) 각각 합성
     assert st.segments[-1]["pcm"] and st.segments[-1]["role"] == "beaver"           # 비버 발화로 소리와 함께 저장
 
 
@@ -68,3 +68,23 @@ async def test_no_text_or_voice_means_reseed():
     assert await cs._greeting_tts_fallback(ws, st, "   ") is False
     st2 = _state(); st2.tts_voice = ""
     assert await cs._greeting_tts_fallback(ws, st2, "안녕") is False
+
+
+@pytest.mark.asyncio
+async def test_long_greeting_sends_first_sentence_first(monkeypatch):
+    """00277 2267: 긴 레벨테스트 소개를 한 번에 합성해 첫 소리 3.75초 — 첫 문장을 먼저 합성해 보낸다."""
+    import asyncio as _a
+    import time as _t
+    calls = []
+
+    def slow(text, voice):
+        calls.append(text)
+        _t.sleep(0.05 if len(calls) == 1 else 0.3)
+        return b"\x01\x00" * 2400
+
+    monkeypatch.setattr(cs, "_greeting_tts_sync", slow)
+    ws, st = _WS(), _state()
+    ok = await cs._greeting_tts_fallback(ws, st, "Hey there. I'm Baba, your Korean teacher. Ready?")
+    assert ok and set(calls) == {"Hey there.", "I'm Baba, your Korean teacher. Ready?"}
+    assert sum(m[1] for m in ws.out if isinstance(m, tuple)) == 2400 * 2 * 2
+    assert ws.out[-1]["type"] == "turn_end"

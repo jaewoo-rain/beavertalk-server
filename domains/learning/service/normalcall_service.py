@@ -1112,6 +1112,7 @@ class MemoryFact(BaseModel):
     key: str = ""      # 기억 9차 — 주제 키(예: 주말 취미 · 좋아하는 가수 · 회사 선배) · 고정 칸이면 그 이름
     value: str = ""
     quote: str = ""    # 근거 — 학습자가 한 말 그대로(전사의 «학습자:» 줄 일부)
+    kind: str = "지속"  # 기억 12차 — 지속(사람에 대한 오래 가는 사실) / 일회(이번 통화 잡담)
 
 
 class MemoryProfileItem(BaseModel):
@@ -1146,7 +1147,10 @@ _MEMORY_EXTRACT_INSTRUCTION = (
     "(예: 기존 \"생일은 3월 7일\" · 이번 \"생일은 11월 20일\" → replaced=[\"생일은 3월 7일\"]). "
     "없으면 빈 목록.\n"
     "- profile: 항상 빈 목록(기억 10차 — 고정 칸도 facts 에 key 로 적는다).\n"
-    "- facts: 이번 통화에서 **학습자가 말한** 사실을 {key, value, quote} 로(최대 12개). key 는 주제를 짧은 명사구로(10자 이내 · "
+    "- facts: 이번 통화에서 **학습자가 말한** 사실을 {key, value, quote, kind} 로(최대 12개). "
+    "kind 는 «지속» 또는 «일회»: 지속 = 이 사람에 대해 다음 통화에도 맞을 사실(이름·가족·관계·직업·학교·사는 곳·좋아하는 것·"
+    "싫어하는 것·못 먹는 것·습관·취미·소유·반려동물·앞으로의 계획·건강) · 일회 = 이번 통화에서만 의미 있는 잡담(오늘·어제 먹은 것·"
+    "방금 한 일·나눈 대화 내용·음식 맛 상상·그때 기분). 기억을 묻기만 한 말(«~ 기억나?»)은 사실이 아니다. key 는 주제를 짧은 명사구로(10자 이내 · "
     "예: 주말 취미 · 좋아하는 가수 · 회사 선배 · 룸메이트). 생일·사는 곳·다음 여행·못 먹는 것·반려동물·가족·직업은 그 이름을 key 로. "
     "[기존 사실]에 «주제: 값» 이 있고 같은 주제면 **그 key 를 글자 그대로** 쓴다(같은 key 면 새 값이 옛 값을 대신한다). "
     "value 는 지금 맞는 값을 짧게(예: 주말 취미 \"볼링을 배움\" · 좋아하는 가수 \"아이유\" · 회사 선배 \"준서, 많이 도와줌\"). "
@@ -1207,7 +1211,8 @@ def _grounded_facts(items, transcript: str) -> tuple[list[str], list[tuple[str, 
         key, value, quote = (it.key or "").strip()[:15], (it.value or "").strip()[:60], (it.quote or "").strip()
         if not key or not value:
             continue
-        line = f"{key}: {value}"
+        line = (f"{key}{chat_memory_service.EPHEMERAL_SEP}{value}" if (it.kind or "").strip() == "일회"
+                else f"{key}: {value}")
         q = _norm_speech(quote)
         ok = bool(q) and len(q) >= 2 and (q in joined or any(
             chat_memory_service._fact_overlap(quote, ln) >= 0.6 for ln in learner))
@@ -1219,8 +1224,9 @@ def _grounded_facts(items, transcript: str) -> tuple[list[str], list[tuple[str, 
     # 같은 주제가 한 통화에 두 번 나오면 **뒤의 값**(나중에 바꿔 말한 것)이 맞다 — 주제당 마지막 줄만
     last: dict[str, str] = {}
     for line in keyed:
-        last.pop("".join(line.split(": ", 1)[0].split()), None)
-        last["".join(line.split(": ", 1)[0].split())] = line
+        k = "".join(line.split(": ", 1)[0].split()) if ": " in line else line
+        last.pop(k, None)
+        last[k] = line
     return list(last.values())[:MEMORY_FACTS_MAX + 2], evidence, dropped
 
 
