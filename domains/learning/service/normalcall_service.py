@@ -1150,7 +1150,9 @@ _MEMORY_EXTRACT_INSTRUCTION = (
     "- facts: 이번 통화에서 **학습자가 말한** 사실을 {key, value, quote, kind} 로(최대 12개). "
     "kind 는 «지속» 또는 «일회»: 지속 = 이 사람에 대해 다음 통화에도 맞을 사실(이름·가족·관계·직업·학교·사는 곳·좋아하는 것·"
     "싫어하는 것·못 먹는 것·습관·취미·소유·반려동물·앞으로의 계획·건강) · 일회 = 이번 통화에서만 의미 있는 잡담(오늘·어제 먹은 것·"
-    "방금 한 일·나눈 대화 내용·음식 맛 상상·그때 기분). 기억을 묻기만 한 말(«~ 기억나?»)은 사실이 아니다. key 는 주제를 짧은 명사구로(10자 이내 · "
+    "방금 한 일·나눈 대화 내용·음식 맛 상상·그때 기분). 기억을 묻기만 한 말(«~ 기억나?»)은 사실이 아니다. "
+    "**지속은 한 대상당 한 줄**로 합친다(예: 반려동물 \"고양이 나비 · 산책을 좋아함\"). 그 대상의 일화·세부·버릇·평가는 일회다"
+    "(예: 나비가 코를 곪 · 나비 산책 장소 · BTS 영상을 봄 · 기타가 재미있음 → 일회). 지속은 통화당 많아야 6개. key 는 주제를 짧은 명사구로(10자 이내 · "
     "예: 주말 취미 · 좋아하는 가수 · 회사 선배 · 룸메이트). 생일·사는 곳·다음 여행·못 먹는 것·반려동물·가족·직업은 그 이름을 key 로. "
     "[기존 사실]에 «주제: 값» 이 있고 같은 주제면 **그 key 를 글자 그대로** 쓴다(같은 key 면 새 값이 옛 값을 대신한다). "
     "value 는 지금 맞는 값을 짧게(예: 주말 취미 \"볼링을 배움\" · 좋아하는 가수 \"아이유\" · 회사 선배 \"준서, 많이 도와줌\"). "
@@ -1187,7 +1189,8 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
     keyed, evidence, dropped = _grounded_facts(out.facts or [], transcript)
     return {
         "topic": (out.topic or "").strip()[:30],
-        "learner_facts": keyed + _clean_list(out.learner_facts, MEMORY_FACTS_MAX, 40)[: max(0, MEMORY_FACTS_MAX - len(keyed))],
+        # 기억 13차 — 주제 키 facts 가 있으면 옛 learner_facts(주제 없는 줄)는 쓰지 않는다(같은 말이 주제 없이 한 번 더 들어왔다)
+        "learner_facts": keyed or _clean_list(out.learner_facts, MEMORY_FACTS_MAX, 40),
         "evidence": evidence,
         "dropped": dropped,
         "pending": (out.pending or "").strip()[:40],
@@ -1227,7 +1230,8 @@ def _grounded_facts(items, transcript: str) -> tuple[list[str], list[tuple[str, 
         k = "".join(line.split(": ", 1)[0].split()) if ": " in line else line
         last.pop(k, None)
         last[k] = line
-    return list(last.values())[:MEMORY_FACTS_MAX + 2], evidence, dropped
+    lines = chat_memory_service.demote_details(list(last.values()))   # 기억 13차 — 대상 세부·평가·새 지속 상한
+    return lines[:MEMORY_FACTS_MAX + 2], evidence, dropped
 
 
 def _memory_transcript(db: Session, call_id: int) -> str:
