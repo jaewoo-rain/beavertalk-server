@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     #   ⚠ 로컬 개발에서 5분/15분에 자꾸 막히면 `.env.local` 에 `DAILY_BUDGET_ENFORCED=false`
     #     를 넣어라(admin 롤 계정은 어차피 면제다 — 위 주석과 같은 탈출구).
     DAILY_BUDGET_ENFORCED: bool = True
+    # PM-DEC-887 — 시험 태그 리비전 전용 하루 예산(초). 0(기본)이면 플랜 표 그대로. prod 에서는 무시한다.
+    TEST_DAILY_BUDGET_S: int = 0
 
     # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
     # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).
