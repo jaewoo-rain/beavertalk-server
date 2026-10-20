@@ -63,13 +63,16 @@ class _H:
                 await asyncio.sleep(0.01)   # PM-DEC-893 — 재생 시작 시각에 맞춘 띠 알림(태스크)을 흘려 보낸다
                 return
 
-    async def say(self):
+    async def say(self, turn: bool = True):
         for _ in range(8):
             await self.s.send_audio(VOICED)
         for _ in range(4):
             await self.s.send_audio(SILENT)
         await self.it.__anext__()          # in_tr
-        await self.turn()
+        if turn:
+            await self.turn()
+        else:
+            await asyncio.sleep(0.02)      # PM-DEC-894 — 반응 없는 판정(1회 틀림·빈 값)은 비버 턴이 없다
 
     def clips(self, n=0):
         return [m["id"] for m in self.notes[n:] if m["type"] == "clip"]
@@ -79,59 +82,61 @@ class _H:
 
 
 @pytest.mark.asyncio
-async def test_flow_pass_fail_twice_skip_and_angry_once_per_line():
+async def test_flow_beaver_then_read_and_angry_only_from_second_fail():
+    """PM-DEC-894 — 비버 대사 → 학습자 자막 → 읽기 → 다음 비버 대사. 반응은 2회째 틀림부터 화내기뿐."""
     lines = sr.load_bank("Baba")[2]
-    h = _H([lines[1]["learner"], "사이다 주세요", "모르겠어요 음", "", "케이크"])
+    h = _H([lines[1]["learner"], "사이다 주세요", "케이크", "", "케이크", "케이크", "모르겠어요"])
     async with h.s:
         h.it = h.s.events().__aiter__()
         await h.s.send_text_turn("SEED")
         await h.turn()
-        assert h.clips()[0].startswith("sg_open_") and h.clips()[1:] == ["sb_1", "sp_1"]
-        assert h.cards("script_line")[0]["n"] == 1 and h.cards("script_line")[0]["total"] == 11
-        # PM-DEC-893 — 띠 순서: 시작 클립(script_say open) → 바바 줄(script_beaver) → 학습자 줄(script_line)
-        assert [m["type"] for m in h.notes if m["type"].startswith("script_")] == ["script_say", "script_beaver", "script_line"]
-        assert h.cards("script_say")[0]["kind"] == "open" and h.cards("script_say")[0]["text"]
+        assert h.clips() == ["sb_1"]                                    # 시작 클립·Your line 없음
+        assert [m["type"] for m in h.notes if m["type"].startswith("script_")] == ["script_beaver", "script_line"]
         b = h.cards("script_beaver")[0]
         assert b["n"] == 1 and b["ko"] == lines[1]["beaver"] and b["gloss"] and b["roman"]
         n = len(h.notes)
-        await h.say()                                   # 1번 정확히 → 잘함 + 2번
-        assert h.clips(n)[0].startswith("sg_good_") and h.clips(n)[1:] == ["sb_2", "sp_2"]
-        assert h.cards("script_result", n)[0]["result"] == "pass"
+        await h.say()                                   # 1번 정확히 → 반응 없이 2번 비버 대사
+        assert h.clips(n) == ["sb_2"] and h.cards("script_result", n)[0]["result"] == "pass"
+        assert h.cards("script_line", n)[0]["n"] == 2
         n = len(h.notes)
-        await h.say()                                   # 2번 틀림 1회 → 화내기
-        assert h.clips(n)[0].startswith("sg_angry_") and h.cards("script_line", n)[0]["attempt"] == 2
-        assert h.cards("script_say", n)[0]["kind"] == "angry"
-        band = [m["type"] for m in h.notes[n:] if m["type"] in ("script_say", "script_line")]
-        assert band == ["script_say", "script_line"]   # 화냄 클립 뒤에 같은 줄(다시 읽기)
+        await h.say(turn=False)                         # 2번 틀림 1회 → 반응 없음 · 같은 줄 다시(attempt 2)
+        assert not h.clips(n) and h.cards("script_result", n)[0]["result"] == "fail"
+        assert h.cards("script_line", n)[0]["attempt"] == 2
         n = len(h.notes)
-        await h.say()                                   # 2번 틀림 2회 → 정답 들려주고 넘어감
-        assert h.clips(n) == ["sm_2", "sb_3", "sp_3"] and h.cards("script_result", n)[0]["result"] == "skip"
-        assert h.cards("script_say", n)[0]["kind"] == "answer" and h.cards("script_beaver", n)[0]["n"] == 3
+        await h.say()                                   # 2번 틀림 2회 → 화내기 → 같은 줄
+        assert [c[:9] for c in h.clips(n)] == ["sg_angry_"] and h.cards("script_say", n)[0]["kind"] == "angry"
+        assert [m["type"] for m in h.notes[n:] if m["type"] in ("script_say", "script_line")] == ["script_say", "script_line"]
         n = len(h.notes)
-        await h.say()                                   # 빈 STT → 다시(화내지 않음)
-        assert h.clips(n)[0].startswith("sg_again_") and not h.cards("script_result", n)
+        await h.say(turn=False)                         # 빈 STT → 실패로 안 침 · 반응 없음
+        assert not h.clips(n) and not h.cards("script_result", n)
         n = len(h.notes)
-        await h.say()                                   # 3번 틀림 1회 → 화내기
+        await h.say()                                   # 2번 틀림 3회 → 화낸 뒤 다음 비버 대사
+        assert [c[:5] for c in h.clips(n)] == ["sg_an", "sb_3"] and h.cards("script_result", n)[0]["result"] == "skip"
+        n = len(h.notes)
+        await h.say(turn=False)                         # 3번 틀림 1회 → 반응 없음
+        assert not h.clips(n)
+        n = len(h.notes)
+        await h.say()                                   # 3번 틀림 2회 → 화내기(통화당 상한 없음)
         assert h.clips(n)[0].startswith("sg_angry_")
+        seen = h.clips()
+        assert not any(c.startswith(("sp_", "sm_", "sg_good", "sg_close", "sg_open", "sg_again")) for c in seen)
 
 
 @pytest.mark.asyncio
-async def test_all_eleven_lines_end_with_script_end_and_close_request():
+async def test_all_eleven_lines_end_without_closing_clip():
     lines = sr.load_bank("Baba")[2]
     h = _H([lines[i]["learner"] for i in range(1, 12)])
     async with h.s:
         h.it = h.s.events().__aiter__()
         await h.s.send_text_turn("SEED")
         await h.turn()
-        for _ in range(11):
-            await h.say()
+        for i in range(11):
+            await h.say(turn=i < 10)
         assert h.closed and h.cards("script_end")
         n = len(h.notes)
         await h.s.send_text_turn("CLOSE")
-        await h.turn()
-        assert h.clips(n)[0].startswith("sg_close_call_")
-        seen = h.clips()
-        assert all(a != b for a, b in zip(seen, seen[1:]))
+        await h.turn()                                  # 마무리 클립 없이 무음 턴 하나로 종료 절차
+        assert not h.clips(n)
 
 
 @pytest.mark.asyncio
@@ -143,8 +148,8 @@ async def test_finished_script_resume_closes_without_again_loop():
         h.it = h.s.events().__aiter__()
         await h.s.send_text_turn("SEED")
         await h.turn()
-        for _ in range(11):
-            await h.say()
+        for i in range(11):
+            await h.say(turn=i < 10)
     h2 = _H([])
     async with h2.s:
         h2.it = h2.s.events().__aiter__()
@@ -154,7 +159,21 @@ async def test_finished_script_resume_closes_without_again_loop():
         assert h2.s._state.call_start_ts is not None   # PM-DEC-892 — 시계가 서야 종료 워처가 작별 시드를 넣는다(call 2075)
         await h2.s.send_text_turn("CLOSE")
         await h2.turn()
-        assert h2.clips()[0].startswith("sg_close_call_")
+        assert not h2.clips()
+
+
+@pytest.mark.asyncio
+async def test_nudge_waits_without_out_of_story_line():
+    """PM-DEC-894 — 무음 넛지에도 상황극 밖 말을 하지 않는다."""
+    h = _H([])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        n = len(h.notes)
+        await h.s.send_text_turn("NUDGE")
+        await asyncio.sleep(0.05)
+        assert not h.clips(n)
 
 
 @pytest.mark.asyncio

@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 ROOT = clip_expr.ROOT.parent / "clips_script"
 FACE_BY_GROUP = {"sg_good": "happy", "sg_open": "happy", "sg_close_call": "happy", "sg_angry": "angry"}
 PASS_SIM, CLOSE_SIM = 0.6, 0.4
-ANGRY_CAP = 5
-EMPTY_MAX = 2          # 무음·빈 STT 를 이만큼 «다시» 로 받고 그다음엔 정답 들려주고 넘어간다
+FAIL_MAX = 3           # PM-DEC-894 — 한 줄에 이만큼 틀리면 화낸 뒤 다음 비버 대사로(한 줄에 멈추지 않게)
+_CLOSE_PCM = b"\x00" * 14400   # 마무리 클립 대신 무음 0.3초(24kHz·16bit) — 종료 절차(턴 시작·끝)만 밟는다
 
 _KEEP = re.compile(r"[^0-9A-Za-z가-힣]")
 _PARTICLES = ("은", "는", "이", "가", "을", "를", "도", "에", "요", "하고")
@@ -122,7 +122,27 @@ class ScriptReadSession(ClipExprSession):
 
     # ── 진행 ─────────────────────────────────────────────────────────────── #
     def _ask_id(self) -> str:
-        return f"sp_{self.item.seq}" if self.idx < len(self.items) else self._pick("sg_again")
+        return f"sb_{self.item.seq}" if self.idx < len(self.items) else f"sb_{len(self.items)}"
+
+    def _wait(self) -> None:
+        """반응 없이 같은 줄을 다시 기다린다(PM-DEC-894 — 무응답·빈 값·1회 틀림)."""
+        self._save()
+        self._reset_listen()
+
+    async def _handle(self, cmd: tuple) -> None:
+        kind = cmd[0]
+        if kind == "nudge":
+            self._wait()          # 무음 넛지에도 상황극 밖 말을 하지 않는다 — 자막을 둔 채 기다린다
+            return
+        if kind == "close":
+            # 마무리 클립 없이 끝낸다 — 종료 절차는 비버 턴 하나(턴 시작·끝)를 기다리므로 무음 0.3초 턴을 낸다.
+            self._closing = True
+            await self._out.put(clip_expr.LiveEvent(kind="out_tr", text=" "))
+            await self._out.put(clip_expr.LiveEvent(kind="audio", audio=_CLOSE_PCM))
+            self._save()
+            await self._out.put(clip_expr.LiveEvent(kind="turn_end"))
+            return
+        await super()._handle(cmd)
 
     def _judged_label(self) -> str:
         return f"줄{self.item.seq}·시도{self.attempt}" if self.idx < len(self.items) else "-"
@@ -184,11 +204,11 @@ class ScriptReadSession(ClipExprSession):
         if self._finished_resume():
             return
         if self.idx >= len(self.items):
-            await self._turn([self._pick("sg_again")], result="resume")
+            self._wait()
             return
         n = self.item.seq
-        lead = [] if self._restored else [self._pick("sg_open")]
-        await self._turn(lead + [f"sb_{n}", f"sp_{n}"], result="resume" if self._restored else "open")
+        self._line_after_turn = True          # 비버 대사가 끝나면 학습자 줄 자막
+        await self._turn([f"sb_{n}"], result="resume" if self._restored else "open")
 
     async def _analyze(self, pcm: bytes) -> tuple[str, str]:
         """받아쓰기만(규칙 대조는 _on_answer 에서). 미리 판정(spec)도 이 함수를 쓴다."""
@@ -210,7 +230,7 @@ class ScriptReadSession(ClipExprSession):
 
     async def _on_answer(self, heard: str, _r: str, t_end: float) -> None:
         if self.idx >= len(self.items):
-            await self._turn([self._pick("sg_again")], result="done", heard=heard, t_end=t_end)
+            self._wait()
             return
         n = self.item.seq
         r, sim = match(self.item.surface, heard)
@@ -220,30 +240,31 @@ class ScriptReadSession(ClipExprSession):
                     self.item.surface, heard[:60])
         if r == "empty":
             self.empties += 1
-            if self.empties > EMPTY_MAX:
-                await self._result_card("skip")
-                await self._turn([f"sm_{n}"] + await self._next_line(), result="skip", heard=heard, t_end=t_end)
-                return
-            await self._turn([self._pick("sg_again")], result="again", heard=heard, t_end=t_end)
+            self._wait()                      # 실패로 치지 않는다 · 반응 없음
             return
         if r in ("pass", "close"):
             await self._result_card(r)
-            lead = self._pick("sg_good" if r == "pass" else "sg_close")
-            await self._turn([lead] + await self._next_line(), result=r, heard=heard, t_end=t_end)
+            nxt = await self._next_line()
+            if nxt:
+                await self._turn(nxt, result=r, heard=heard, t_end=t_end)   # 반응 없이 다음 비버 대사
+            else:
+                self._wait()                  # 11번 끝 — 종료 요청이 들어가 있다
             return
-        if self.attempt >= 2:
+        if self.attempt == 1:
+            await self._result_card("fail")
+            self.attempt += 1
+            await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음
+            self._wait()
+            return
+        self.angry_used += 1
+        lead = self._pick("sg_angry")
+        if self.attempt >= FAIL_MAX:
             await self._result_card("skip")
-            await self._turn([f"sm_{n}"] + await self._next_line(), result="skip", heard=heard, t_end=t_end)
+            await self._turn([lead] + await self._next_line(), result="skip", heard=heard, t_end=t_end)
             return
         await self._result_card("fail")
         self.attempt += 1
-        if not self.angry_line and self.angry_used < ANGRY_CAP:
-            self.angry_line = True
-            self.angry_used += 1
-            lead = self._pick("sg_angry")
-        else:
-            lead = self._pick("sg_again")
-        self._line_after_turn = True
+        self._line_after_turn = True          # 화냄 클립이 끝나면 같은 줄
         await self._turn([lead], result="fail", heard=heard, t_end=t_end)
 
     async def _next_line(self) -> list[str]:
@@ -259,7 +280,8 @@ class ScriptReadSession(ClipExprSession):
                 self._request_close()
             return []
         n = self.item.seq
-        return [f"sb_{n}", f"sp_{n}"]
+        self._line_after_turn = True          # 비버 대사가 끝나면 학습자 줄 자막
+        return [f"sb_{n}"]
 
     async def __aexit__(self, *exc) -> None:
         for t in list(self._band_tasks):
