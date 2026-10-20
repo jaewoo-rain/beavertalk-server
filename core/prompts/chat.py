@@ -90,12 +90,13 @@ def _memory_block(memory: dict | None) -> str:
     if not memory_is_substantial(memory):
         return ""
     lines = ["[기억 — 지난 자유대화에서 알게 된 것]"]
+    facts = [f for f in (memory.get("facts") or []) if isinstance(f, str) and f.strip()]
+    if facts:
+        # PM-DEC-920 — 사실이 먼저 · 요약 문장이 옛 값을 품고 있어도 사실이 이긴다(max06 «생일 3월 7일» 요약 잔재)
+        lines.append("- 학습자에 대해 알게 된 것(아래 이야기와 다르면 이것이 맞다): " + ", ".join(facts[:15]))
     summary = (memory.get("summary") or "").strip()
     if summary:
         lines.append(f"- 지금까지 나눈 이야기: {summary}")
-    facts = [f for f in (memory.get("facts") or []) if isinstance(f, str) and f.strip()]
-    if facts:
-        lines.append("- 학습자에 대해 알게 된 것: " + ", ".join(facts[:15]))
     next_topics = [t for t in (memory.get("next_topics") or []) if isinstance(t, str) and t.strip()]
     if next_topics:
         lines.append("- 다음에 물어볼 만한 것: " + ", ".join(next_topics[:5]))

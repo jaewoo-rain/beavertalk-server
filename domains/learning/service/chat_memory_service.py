@@ -33,6 +33,7 @@ _RECOMPRESS_INSTRUCTION = """너는 두 요약을 하나로 합치는 도구다.
 - 최종 요약은 1200자를 넘지 않는다.
 - 오래되고 덜 중요한 내용은 줄이고, 최근 정보를 우선한다.
 - 사실을 추가하거나 지어내지 않는다 — 두 요약에 있는 내용만 사용한다.
+- [바뀐 사실]이 있으면 옛 값은 요약에서 지우거나 새 값으로 고쳐 쓴다(옛 생일·옛 여행지·옛 못 먹는 것을 남기지 않는다).
 - summary 칸 하나만 채운다."""
 
 
@@ -70,6 +71,25 @@ def _without(old: list | None, drop: list | None) -> list:
     return [x for x in (old or []) if not (isinstance(x, str) and x.strip() in gone)]
 
 
+_CORE_FACT_WORDS = ("이름", "생일", "살아", "산다", "사는", "살고", "출신", "여행", "갈 예정", "간다", "가요", "못 먹", "못먹",
+                    "알레르기", "싫어", "키움", "키워", "고양이", "강아지", "반려", "언니", "오빠", "형", "누나", "동생", "엄마",
+                    "아빠", "남편", "아내", "딸", "아들", "친구", "직업", "회사", "학교", "전공", "나이", "살")
+
+
+def _is_core_fact(f: str) -> bool:
+    return any(w in f for w in _CORE_FACT_WORDS)
+
+
+def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None) -> list[str]:
+    """PM-DEC-920 — 사실 병합: 바뀐 옛 사실 빼기 → 새것 앞 · 중복 제거 → 상한을 자를 땐 핵심 사실을 먼저 남긴다
+    (잡담 «수빈의 얼굴을 생각하며 운동함» 이 생일·못 먹는 것을 밀어냈다 · max06)."""
+    merged = _merge_capped(_without(old, replaced), new, 10 ** 6)
+    core = [f for f in merged if _is_core_fact(f)]
+    rest = [f for f in merged if not _is_core_fact(f)]
+    keep = set((core + rest)[:cap])
+    return [f for f in merged if f in keep]
+
+
 def _merge_capped(old: list | None, new: list | None, cap: int) -> list[str]:
     """새 항목을 **앞에**(최신 우선) 두고 중복 제거한 뒤 상한을 자른다.
 
@@ -102,7 +122,8 @@ def _fallback_summary(old_summary: str, new_summary: str) -> str:
     return combined[:SUMMARY_CHAR_CAP]
 
 
-async def recompress_summary(client, model: str | None, old_summary: str, new_summary: str) -> str:
+async def recompress_summary(client, model: str | None, old_summary: str, new_summary: str,
+                             replaced: list[str] | None = None, facts: list[str] | None = None) -> str:
     """옛 요약 + 이번 통화 요약 → 1,200자 이내로 재압축(JUDGE_MODEL).
 
     ⛔ 실패해도 기억 저장 자체를 막지 않는다(R5) — LLM 미제공(client=None, 시험·
@@ -116,7 +137,11 @@ async def recompress_summary(client, model: str | None, old_summary: str, new_su
         out = await gemini_analysis.generate_structured(
             client, model,
             system_instruction=_RECOMPRESS_INSTRUCTION,
-            prompt=f"[옛 요약]\n{old_summary}\n\n[이번 통화 요약]\n{new_summary}",
+            prompt=f"[옛 요약]\n{old_summary}\n\n[이번 통화 요약]\n{new_summary}" + (
+                "\n\n[바뀐 사실] 아래 옛 값은 틀렸다 — 지우거나 이번 통화 사실로 고쳐 쓴다.\n"
+                + "\n".join(f"- 옛: {r}" for r in replaced)
+                + ("\n이번 통화 사실: " + " · ".join(facts or []) if facts else "")
+                if replaced else ""),
             schema=_RecompressOut, temperature=0.2, thinking_budget=0,
         )
     except Exception as exc:  # noqa: BLE001 — 재압축 실패가 기억 저장을 죽이면 안 된다(R5)
@@ -173,7 +198,7 @@ def merge_sync(
         return row
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_capped(_without(row.facts if row is not None else [], slots.get("replaced")), slots.get("facts"), FACTS_CAP)
+    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"))
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
@@ -215,7 +240,7 @@ def merge_slots_only(
     row = repo.get(member_id, language)
 
     topics = _merge_capped(row.topics if row is not None else [], slots.get("topics"), TOPICS_CAP)
-    facts = _merge_capped(_without(row.facts if row is not None else [], slots.get("replaced")), slots.get("facts"), FACTS_CAP)
+    facts = _merge_facts(row.facts if row is not None else [], slots.get("facts"), FACTS_CAP, slots.get("replaced"))
     interests = _merge_capped(
         row.interests if row is not None else [], slots.get("interests"), INTERESTS_CAP
     )
