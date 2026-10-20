@@ -54,6 +54,7 @@ _OUT_BPS = 48000         # 출력 24kHz·16bit·mono 바이트/초
 _MIC_BPS = 32000         # 업링크 16kHz·16bit·mono 바이트/초
 EXC_CAP = 8              # 예외 턴 통화당 상한(요청서 4절)
 LAUGH_P = 0.3
+PRE_GAP_S = 0.3          # 말 문턱 전 이만큼 짧은 틈은 말을 끊지 않는다(PM-DEC-913)
 SPEC_SILENCE_S = 0.35    # 이만큼 무음이면 판정을 미리 시작한다(말이 이어지면 버린다)
 PLAYBACK_SLACK_S = 0.3   # 앱 재생 끝 추정에 더하는 여유
 # 클립 묶음 → 표정(set_face). 매니페스트 face 칸이 neutral 이 아니면 그것이 먼저다. 앱 표정 이름(neutral·happy·surprised·sad·angry·laugh)만.
@@ -268,6 +269,7 @@ class ClipExprSession:
         self._end_s = float(getattr(settings, "CLIP_EXPR_END_SILENCE_S", 0.8) or 0.8)
         self._dunno_s = float(getattr(settings, "CLIP_EXPR_DUNNO_S", 8.0) or 8.0)
         self._min_voiced_s = 0.2        # 이만큼 소리가 나야 말로 친다(짧은 잡음은 버린다)
+        self._pre_gap_s = 0.0           # 말 문턱 전 첫 음절 뒤 틈(PM-DEC-913)
         self._model = getattr(settings, "CLIP_EXPR_JUDGE_MODEL", "") or "gemini-2.5-flash"
         # 진행
         self.idx = 0
@@ -366,6 +368,7 @@ class ClipExprSession:
         if loud:
             self._voiced_s += dur
             self._silence_s = 0.0
+            self._pre_gap_s = 0.0
             self._t_last_voiced = time.monotonic()
             self._speech.extend(pcm16_16k)
             if self._spec is not None:          # 말이 이어졌다 — 미리 한 판정은 버린다
@@ -383,6 +386,12 @@ class ClipExprSession:
                 self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
             return
         # 아직 말 시작 전 — 짧은 잡음은 버리고 무응답 시간을 센다(재생 중 프레임은 위에서 이미 버렸다)
+        if self._voiced_s > 0 and self._pre_gap_s + dur < PRE_GAP_S:
+            # PM-DEC-913 — 말 문턱 전 첫 음절 뒤 짧은 틈(0.3초 미만)은 버리지 않는다(call 2125 「채는…」「가 아주…」 머리 잘림).
+            self._pre_gap_s += dur
+            self._speech.extend(pcm16_16k)
+            return
+        self._pre_gap_s = 0.0
         self._speech.clear()
         self._voiced_s = 0.0
         self._idle_s += dur
@@ -794,5 +803,5 @@ class ClipExprSession:
 
     def _reset_listen(self) -> None:
         self._speech.clear()
-        self._voiced_s = self._silence_s = self._idle_s = 0.0
+        self._voiced_s = self._silence_s = self._idle_s = self._pre_gap_s = 0.0
         self._listening = True

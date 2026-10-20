@@ -29,6 +29,7 @@ ROOT = clip_expr.ROOT.parent / "clips_script"
 FACE_BY_GROUP = {"sg_good": "happy", "sg_open": "happy", "sg_close_call": "happy", "sg_angry": "angry"}
 PASS_SIM, CLOSE_SIM = 0.6, 0.4
 READY_LEAD_S = 1.0      # PM-DEC-895 — 바바 말 끝나기 이만큼 전에 내 줄을 회색으로 미리 보인다
+PARTIAL_EXTRA_S = 0.8   # PM-DEC-913 — 앞 반쪽으로 미룰 때 말 끝 무음을 이만큼 더 기다린다(1.2 → 2.0초)
 PARTIAL_RATIO = 0.7     # PM-DEC-912 — 들은 한글이 대본의 이만큼 못 되면 «앞 반쪽» 으로 보고 한 번 더 들어 본다
 FAIL_MAX = 3           # PM-DEC-894 — 한 줄에 이만큼 틀리면 화낸 뒤 다음 비버 대사로(한 줄에 멈추지 않게)
 _CLOSE_PCM = b"\x00" * 14400   # 마무리 클립 대신 무음 0.3초(24kHz·16bit) — 종료 절차(턴 시작·끝)만 밟는다
@@ -142,6 +143,7 @@ class ScriptReadSession(ClipExprSession):
         self._line_after_turn = False
         # 두 문장 줄을 쉬어 가며 읽는다 — 말 끝을 길게(call 2040·2041 반쪽 판정)
         self._end_s = float(getattr(self._settings, "SCRIPT_READ_END_SILENCE_S", 1.2) or 1.2)
+        self._base_end_s = self._end_s
 
     # ── 진행 ─────────────────────────────────────────────────────────────── #
     def _ask_id(self) -> str:
@@ -321,12 +323,14 @@ class ScriptReadSession(ClipExprSession):
         n = self.item.seq
         r, sim = match(self.item.surface, heard)
         was_partial, self._partial = self._partial, False
+        self._end_s = self._base_end_s
         if r != "empty" and not was_partial and _is_first_part(self.item.surface, heard):
             # PM-DEC-912 — 두 문장 줄 사이 쉼에서 말 끝이 잡혀 앞 문장만 판정됐다(call 2121 · 「와 맛있겠네요」 pass 뒤
             #   다음 대사가 뒤 문장과 겹침). 판정을 미루고 앞부분을 쥔 채 더 듣는다 — 이어 말하면 합쳐서, 아니면
             #   말 끝 무음(1.2초) 뒤 같은 소리로 한 번 더 판정해 그대로 진행한다.
             logger.info("normalcall script partial: call_id=%s 줄=%d 들음=«%s» — 이어 말하나 더 듣는다", self._cid(), n, heard[:40])
             self._partial = True
+            self._end_s = self._base_end_s + PARTIAL_EXTRA_S   # 뒤 문장을 넉넉히 기다린다(call 2125 줄6 · 1초 쉼)
             await self._wait(keep=True)
             return
         self.results.append((n, r, round(sim, 2)))

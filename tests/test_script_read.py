@@ -242,7 +242,12 @@ async def test_first_half_of_two_sentence_line_waits_for_the_rest():
         n = len(h.notes)
         await h.say(turn=False)                         # 앞 문장만 → 판정 미룸(반응 없음)
         assert not h.clips(n) and not h.cards("script_result", n)
-        await h.say()                                   # 이어 읽음 → 앞부분과 합쳐 다시 판정 → pass
+        for _ in range(10):
+            await h.s.send_audio(VOICED)                # 이어 읽음
+        for _ in range(30):
+            await h.s.send_audio(SILENT)                # 미루는 동안은 말 끝 무음을 더 기다린다(+0.8초)
+        await h.it.__anext__()
+        await h.turn()                                  # 앞부분과 합쳐 다시 판정 → pass
         assert h.clips(n) == ["sb_2"] and h.cards("script_result", n)[0]["result"] == "pass"
 
 
@@ -258,8 +263,25 @@ async def test_first_half_alone_is_judged_after_silence():
         await h.turn()
         n = len(h.notes)
         await h.say(turn=False)
-        for _ in range(6):
-            await h.s.send_audio(SILENT)                # 말 끝 무음 → 쥐고 있던 앞부분으로 다시 판정
+        for _ in range(30):
+            await h.s.send_audio(SILENT)                # 말 끝 무음(미룰 땐 +0.8초) → 쥐고 있던 앞부분으로 다시 판정
         await h.it.__anext__()
         await h.turn()
         assert h.cards("script_result", n)
+
+
+@pytest.mark.asyncio
+async def test_short_gap_after_first_syllable_keeps_onset():
+    """PM-DEC-913 — 말 문턱(0.35초) 전 첫 음절 뒤 짧은 틈에 버퍼를 비우지 않는다(call 2125 머리 잘림 「채는…」)."""
+    h = _H([])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(3):
+            await h.s.send_audio(VOICED)                # 첫 음절 0.12초
+        for _ in range(3):
+            await h.s.send_audio(SILENT)                # 틈 0.12초
+        for _ in range(3):
+            await h.s.send_audio(VOICED)
+        assert len(h.s._speech) == 9 * len(VOICED)      # 첫 음절·틈·뒤 소리가 모두 남는다
