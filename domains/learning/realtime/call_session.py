@@ -6878,7 +6878,9 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
         await session.send_text_turn(seed)
         logger.warning(
             "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 %d/%d%s "
-            "turns=%d epoch=%d", n, GREETING_RESEED_MAX, " (짧은 대체 시드)" if short else "",
+            "turns=%d epoch=%d", n,
+            PERTURN_GREETING_RESEED_MAX if getattr(state, "ctx", None) is not None else GREETING_RESEED_MAX,   # PM-DEC-892 — 실제 상한을 찍는다
+            " (짧은 대체 시드)" if short else "",
             state.beaver_turns, state.session_epoch,
         )
     except asyncio.CancelledError:
