@@ -786,13 +786,14 @@ async def test_llm_failure_marks_failed_and_keeps_level_unset(
     )
     mock = AsyncMock(return_value=None)
     monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)
+    monkeypatch.setattr(svc, "LEVELTEST_JUDGE_RETRY_DELAYS_S", (0.0, 0.0))
 
     await svc.analyze_level_test_call(
         call_id, object(), app_settings, session_factory,
         member_id=seeded["member_none"], locale="en",
     )
 
-    mock.assert_called_once()
+    assert mock.call_count == 3  # PM-DEC-888 — 첫 시도 + 재시도 2회
     db = session_factory()
     try:
         assert db.get(Member, seeded["member_none"]).korean_level is None
@@ -1021,5 +1022,32 @@ def test_member_read_serializes_korean_level(session_factory, seeded):
         assert "korean_level" in dto_none.model_dump()
         assert dto_none.model_dump()["korean_level"] is None
         assert dto_l3.model_dump()["korean_level"] == 3
+    finally:
+        db.close()
+
+@pytest.mark.asyncio
+async def test_llm_transient_failure_retries_then_assigns_level(
+    session_factory, seeded, monkeypatch
+):
+    """PM-DEC-888 — 첫 판정이 None(503 등 일시 실패)이어도 재시도로 레벨을 붙인다(call 2062)."""
+    call_id = _seed_level_test_call(
+        session_factory, seeded["member_none"], seeded["character_id"],
+        user_lines=["안녕하세요 저는 미국에서 온 학생이에요",
+                    "한국어 공부가 정말 재미있어요"],
+    )
+    mock = AsyncMock(side_effect=[None, _assessment()])
+    monkeypatch.setattr(svc.gemini_analysis, "generate_structured", mock)
+    monkeypatch.setattr(svc, "LEVELTEST_JUDGE_RETRY_DELAYS_S", (0.0, 0.0))
+
+    await svc.analyze_level_test_call(
+        call_id, object(), app_settings, session_factory,
+        member_id=seeded["member_none"], locale="en",
+    )
+
+    assert mock.call_count == 2
+    db = session_factory()
+    try:
+        assert db.get(Member, seeded["member_none"]).korean_level is not None
+        assert db.get(Call, call_id).status == "done"
     finally:
         db.close()
