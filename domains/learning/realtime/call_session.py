@@ -5133,20 +5133,48 @@ LAST_UTTER_MIN_S = 0.6       # 기억 8차 — 이보다 짧은 끝 소리는 �
 LAST_UTTER_STT_TIMEOUT_S = 6.0
 
 
-async def _recognize_ko(pcm16k: bytes) -> str:
-    """Google STT v1 recognize(ko-KR + en-US) — 끝 말 받아쓰기 전용."""
-    from google.cloud import speech_v1
+LAST_UTTER_VOICED_RMS = 500      # 20ms 프레임 RMS 문턱(PCM16) — 이 위 프레임이 LAST_UTTER_MIN_S 이상이어야 받아쓴다
 
-    from core.stt import get_speech_client
-    client = get_speech_client()
-    if client is None:
+
+def _voiced_seconds(pcm16k: bytes) -> float:
+    """PCM16 에서 소리 있는 20ms 프레임 길이 합(초) — 무음·잡음 끝은 받아쓰기를 부르지 않는다."""
+    import array
+    import math
+    frame = int(INPUT_SAMPLE_RATE * 0.02)
+    a = array.array("h")
+    a.frombytes(pcm16k[: len(pcm16k) // 2 * 2])
+    voiced = 0
+    for i in range(0, len(a) - frame + 1, frame):
+        chunk = a[i:i + frame]
+        if math.sqrt(sum(x * x for x in chunk) / frame) >= LAST_UTTER_VOICED_RMS:
+            voiced += 1
+    return voiced * 0.02
+
+
+def _recognize_ko_sync(pcm16k: bytes) -> str:
+    """동기 Google STT v1 recognize(ko-KR + en-US) — **작업 스레드 전용**.
+    ⛔ 비동기 클라이언트의 첫 호출은 인증 갱신을 루프 안에서 동기로 돌려 통화 전체를 30초 멈췄다(00254 · 2241·2242)."""
+    from google.cloud import speech_v1
+    from google.oauth2 import service_account
+
+    from core import stt as _stt
+    key = _settings.STT_SA_KEY_FILE or _settings.TTS_SA_KEY_FILE
+    if _settings.STT_FAKE or not key:
         return ""
+    creds = service_account.Credentials.from_service_account_file(str(key), scopes=_stt._SCOPES)
+    client = speech_v1.SpeechClient(credentials=creds)
     cfg = speech_v1.RecognitionConfig(
         encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16, sample_rate_hertz=INPUT_SAMPLE_RATE,
         language_code="ko-KR", alternative_language_codes=["en-US"],
     )
-    resp = await client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k))
+    resp = client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k),
+                            timeout=LAST_UTTER_STT_TIMEOUT_S)
     return " ".join(r.alternatives[0].transcript for r in resp.results if r.alternatives).strip()
+
+
+async def _recognize_ko(pcm16k: bytes) -> str:
+    """끝 말 받아쓰기 — 루프를 막지 않게 스레드에서."""
+    return await asyncio.to_thread(_recognize_ko_sync, pcm16k)
 
 
 async def _recover_last_user_text(state: _CallState, call_id: int) -> None:
@@ -5157,6 +5185,11 @@ async def _recover_last_user_text(state: _CallState, call_id: int) -> None:
         return
     pcm = new[-1].get("pcm") or b""
     if len(pcm) < int(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES * LAST_UTTER_MIN_S):
+        return
+    pcm = bytes(pcm[-int(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES * 30):])   # 끝 30초만(동기 recognize 상한 1분)
+    voiced = await asyncio.to_thread(_voiced_seconds, pcm)
+    if voiced < LAST_UTTER_MIN_S:
+        logger.info("normalcall: 끝 말 받아쓰기 생략(소리 %.2f초) call_id=%s", voiced, call_id)
         return
     try:
         text = await asyncio.wait_for(_recognize_ko(bytes(pcm)), LAST_UTTER_STT_TIMEOUT_S)

@@ -70,7 +70,7 @@ async def test_last_utterance_recovered_when_client_cuts(who, monkeypatch):
     st = cs._CallState()
     st.segments = [{"role": "user" if r["role"] == "user" else "beaver", "text": r["text"], "pcm": b""} for r in c["rows"]]
     assert st.segments[-1]["role"] == "user" and not st.segments[-1]["text"]
-    st.segments[-1]["pcm"] = b"\x01\x00" * 16000 * 2          # 2초
+    st.segments[-1]["pcm"] = b"\xb8\x0b" * 16000 * 2          # 2초 · 진폭 3000(말소리)
 
     async def fake_rec(pcm):
         return c["last_learner_line"]
@@ -164,3 +164,41 @@ def test_ctx_facts_carry_into_next_fragment(monkeypatch):
     first.fragment_index = 1
     cs._ctx_facts_load(first)          # 첫 조각은 이어받지 않는다(같은 call_id 재사용 없음)
     assert first.ctx_facts == []
+
+
+@pytest.mark.asyncio
+async def test_last_utterance_silence_is_not_transcribed(monkeypatch):
+    """2241·2242: 첫 인사 뒤 10초 무음으로 끊긴 통화 — 무음은 받아쓰기를 부르지 않는다(루프 정지 사고의 입력)."""
+    st = cs._CallState()
+    st.segments = [{"role": "user", "text": "", "pcm": b"\x05\x00" * 16000 * 10}]
+    called = []
+
+    async def fake_rec(pcm):
+        called.append(1)
+        return "x"
+
+    monkeypatch.setattr(cs, "_recognize_ko", fake_rec)
+    await cs._recover_last_user_text(st, 2242)
+    assert called == []
+
+
+@pytest.mark.asyncio
+async def test_recognize_runs_off_the_event_loop(monkeypatch):
+    """동기 받아쓰기가 오래 걸려도 이벤트 루프는 계속 돈다(00254 에서 30초 멈춤)."""
+    import asyncio
+    import time
+
+    def slow(pcm):
+        time.sleep(0.3)
+        return "안녕"
+
+    monkeypatch.setattr(cs, "_recognize_ko_sync", slow)
+    ticks = []
+
+    async def ticker():
+        for _ in range(5):
+            ticks.append(1)
+            await asyncio.sleep(0.02)
+
+    got, _ = await asyncio.gather(cs._recognize_ko(b"\x00\x00"), ticker())
+    assert got == "안녕" and len(ticks) == 5
