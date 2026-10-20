@@ -8045,7 +8045,11 @@ def _perturn_instruction(state: _CallState) -> str:
     if last_end:
         # PM-DEC-885 — 같은 끝맺음 반복(바바 23~37%)을 줄인다.
         parts.append(f"직전 네 끝맺음: «{last_end}» — 이번엔 다른 끝맺음(질문 문장 안에서 바꾸고 꼬리 질문은 붙이지 않는다).")
-    return (state.ctx_base + "\n\n[지금까지의 통화]\n" + "\n".join(parts) + "\n"
+    tail = ""
+    if getattr(state, "ctx_facts", None):
+        # PM-DEC-919 — 맨 끝에도 한 번 더(비버 2202: 제주도를 받아 놓고 [기억]의 다낭으로 되돌아감)
+        tail = "이번 통화 사실(이게 맞다): " + " · ".join(state.ctx_facts) + "\n"
+    return (state.ctx_base + "\n\n[지금까지의 통화]\n" + "\n".join(parts) + "\n" + tail +
             "[이어서] 통화가 진행 중이다. 인사하지 말고, 학습자의 다음 말에 바로 답한다. "
             "이번 통화에서 학습자가 한 말이 지난 통화 [기억]과 다르면 이번 통화 말을 따른다. 위 칸 이름·형식은 말하지 않는다.")
 
@@ -8101,6 +8105,8 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
             if facts:
                 # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
                 state.ctx_facts = list(dict.fromkeys(facts + state.ctx_facts))[:CTX_FACTS_MAX]
+            logger.info("normalcall perturn 사실 목록: call_id=%s %d개 %s", _cid(state), len(state.ctx_facts),
+                        " · ".join(state.ctx_facts)[:300])
             state.ctx_summary_upto = upto
         else:
             one.note_failure()
