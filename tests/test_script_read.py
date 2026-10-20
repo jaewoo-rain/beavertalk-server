@@ -227,3 +227,39 @@ async def test_speech_during_playback_is_dropped(monkeypatch):
             await h.s.send_audio(SILENT)
         await asyncio.sleep(0.02)
         assert h.s._cmd.empty() and not h.s._speech
+
+@pytest.mark.asyncio
+async def test_first_half_of_two_sentence_line_waits_for_the_rest():
+    """PM-DEC-912 — 두 문장 사이 쉼에 앞 문장만 들리면 판정을 미루고 이어 읽은 뒤 한 번에 판정한다(call 2121)."""
+    lines = sr.load_bank("Baba")[2]
+    full = lines[1]["learner"]
+    first = full.split(".")[0]
+    h = _H([first, full])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        n = len(h.notes)
+        await h.say(turn=False)                         # 앞 문장만 → 판정 미룸(반응 없음)
+        assert not h.clips(n) and not h.cards("script_result", n)
+        await h.say()                                   # 이어 읽음 → 앞부분과 합쳐 다시 판정 → pass
+        assert h.clips(n) == ["sb_2"] and h.cards("script_result", n)[0]["result"] == "pass"
+
+
+@pytest.mark.asyncio
+async def test_first_half_alone_is_judged_after_silence():
+    """앞 반쪽 뒤 아무 말이 없으면 같은 소리로 한 번 더 판정해 진행한다(멈추지 않는다)."""
+    lines = sr.load_bank("Baba")[2]
+    first = lines[1]["learner"].split(".")[0]
+    h = _H([first, first])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        n = len(h.notes)
+        await h.say(turn=False)
+        for _ in range(6):
+            await h.s.send_audio(SILENT)                # 말 끝 무음 → 쥐고 있던 앞부분으로 다시 판정
+        await h.it.__anext__()
+        await h.turn()
+        assert h.cards("script_result", n)
