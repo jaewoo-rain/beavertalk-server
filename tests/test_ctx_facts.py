@@ -31,3 +31,10 @@ def test_ctx_echo_tail_is_cut():
     t = "거북이는 어떻게 조심해?\n\n너(비버): …\n학습자: (답변)\n지금 네 표정: neutral\n[이어서] 통화가 진행 중이다."
     assert cs._cut_ctx_echo(t) == "거북이는 어떻게 조심해?"
     assert cs._cut_ctx_echo("그냥 평범한 말이야.") == "그냥 평범한 말이야."
+
+
+def test_call_token_echo_is_stripped():
+    """PM-DEC-918 — call 2194 «…어디서 먹어?call:배가 터질 뻔했다니…» · 맨 앞 «call:괜찮긴…»."""
+    assert cs._strip_face_echo("삼겹살은 보통 어디서 먹어?call:배가 터질 뻔했다니") == "삼겹살은 보통 어디서 먹어?배가 터질 뻔했다니"
+    assert cs._strip_face_echo("call:괜찮긴 뭐가 괜찮아") == "괜찮긴 뭐가 괜찮아"
+    assert cs._strip_face_echo("Do you recall: that day?") == "Do you recall: that day?"

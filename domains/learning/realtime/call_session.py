@@ -540,11 +540,17 @@ _TOOL_RESULT_TAIL_RE = re.compile(
 )
 
 
+_CALL_TOKEN_RE = re.compile(r"(^|[\s?!.。…,])call:\s*")
+
+
 def _strip_face_echo(text: str) -> str:
     """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**을 걷어낸다.
 
     둘은 무늬가 다르다 — 위 두 주석 블록 참조. 해당 없으면 원문 그대로 반환한다.
     """
+    if "call:" in text:
+        # PM-DEC-918 — 도구 호출 자리의 «call:» 파편(앞이 문장 끝·공백·맨 앞일 때만 · 영어 «recall:» 같은 낱말은 건드리지 않는다)
+        text = _CALL_TOKEN_RE.sub(lambda m: m.group(1), text)
     if "set_face" in text:
         text = _FACE_ECHO_RE.sub("", text)
     if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다
