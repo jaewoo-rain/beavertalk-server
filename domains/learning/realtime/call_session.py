@@ -7406,6 +7406,11 @@ async def _attach_reground(session: LiveSessionProtocol, state: _CallState, wher
         if await _attach_note(session, state, where):
             state.turn_note_sent = True    # v2 재배포 C1 — 한 자리에 하나
             return
+    if state.ctx is not None:
+        # PM-DEC-873 — perturn: 매 턴 안내·재접지 쪽지는 새 세션 지시문에 들어 있다(_perturn_instruction).
+        #   마이크 자리 realtime 텍스트를 새 세션의 첫 입력으로 넣지 않는다 — 학습자 음성보다 먼저 응답을 일으켜
+        #   이중 발화가 될 수 있다(call 2026 턴 9: 안내 직후 모델이 턴을 열었다가 0B 로 버림).
+        return
     if not (state.reground_pending and state.reground_reminder):
         if at_mic:
             await _attach_turn_note(session, state, where)
@@ -7959,6 +7964,10 @@ def _perturn_instruction(state: _CallState) -> str:
         parts.append(f"지금 연습 중인 표현(서버 관측): {p.index + 1}번 «{p._original()}» · 단계 {p.phase}")
     if state.face_last:
         parts.append(f"지금 네 표정: {state.face_last}")
+    if state.turn_note:
+        # PM-DEC-873 — 매 턴 안내(마이크 자리 텍스트)를 지시문으로 옮긴다. 제어 꼬리표·«읽지 말고» 문구는 지시문에선 뜻이 없다.
+        note = state.turn_note.replace(CONTROL_TAG, "").replace("이 메시지는 읽지 말고 반영만 해라.", "").strip()
+        parts.append(f"이번 턴 답하는 법: {note}")
     return (state.ctx_base + "\n\n[지금까지의 통화]\n" + "\n".join(parts) + "\n"
             "[이어서] 통화가 진행 중이다. 인사하지 말고, 학습자의 다음 말에 바로 답한다.")
 

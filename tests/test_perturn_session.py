@@ -245,6 +245,29 @@ def test_compression_observer_off_in_perturn():
     assert st.compression_seen == 0 and st.usage_prompt_max == 9000
 
 
+@pytest.mark.asyncio
+async def test_perturn_mic_seat_text_not_sent_and_note_in_instruction():
+    """PM-DEC-873 — perturn 이면 매 턴 안내를 마이크 자리 텍스트로 보내지 않고 다음 세션 지시문에 넣는다."""
+    st = cs._CallState()
+    st.ctx = object()
+    st.ctx_base = "BASE"
+    st.turn_note = cs.TURN_NOTE_FREETALK
+    st.beaver_turns = 3
+    sent = []
+
+    class S:
+        async def send_reground(self, text, *, turn_complete=True):
+            sent.append(text)
+
+    await cs._attach_reground(S(), st, "마이크")
+    assert sent == [] and not st.turn_note_sent
+    si = cs._perturn_instruction(st)
+    assert "이번 턴 답하는 법: 짧게 반응하고" in si and cs.CONTROL_TAG not in si and "읽지 말고" not in si
+    st.ctx = None                                   # 종전 경로는 그대로 얹는다
+    await cs._attach_reground(S(), st, "마이크")
+    assert sent == [cs.TURN_NOTE_FREETALK]
+
+
 def test_after_turn_end_skip_reasons():
     st = cs._CallState()
 
