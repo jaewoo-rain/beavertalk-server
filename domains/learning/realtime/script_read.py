@@ -225,6 +225,11 @@ class ScriptReadSession(ClipExprSession):
         import time
         hint = self.item.surface if self.idx < len(self.items) else ""
         t0 = time.monotonic()
+        if self._stt_fn is None and getattr(self._settings, "SCRIPT_READ_STT_PROBE", False):
+            # PM-DEC-898 — 긴 줄 지연 조사: 영어 대체 없이 한 번 더 받아쓰고 걸린 시간만 기록한다(판정에는 안 씀).
+            t = asyncio.create_task(self._probe_stt(pcm, hint))
+            self._band_tasks.add(t)
+            t.add_done_callback(self._band_tasks.discard)
         try:
             if self._stt_fn is not None:
                 heard = await self._stt_fn(pcm, hint)
@@ -236,7 +241,18 @@ class ScriptReadSession(ClipExprSession):
             heard = ""
         self.judge_calls += 1
         self.judge_ms.append(int((time.monotonic() - t0) * 1000))
+        self._last_stt = (len(pcm) / clip_expr._MIC_BPS, self.judge_ms[-1])
         return heard, "-"
+
+    async def _probe_stt(self, pcm: bytes, hint: str) -> None:
+        import time
+        t0 = time.monotonic()
+        try:
+            heard, _ = await clip_expr.recognize(pcm, [hint], alt_en=False)
+        except Exception as exc:  # noqa: BLE001 - 조사용 — 실패는 기록만
+            heard = f"ERR {exc!r}"[:40]
+        logger.info("normalcall script stt조사: call_id=%s 말=%.1fs alt_en=False 걸림_ms=%d 들음=«%s»", self._cid(),
+                    len(pcm) / clip_expr._MIC_BPS, int((time.monotonic() - t0) * 1000), heard[:40])
 
     async def _on_answer(self, heard: str, _r: str, t_end: float) -> None:
         if self.idx >= len(self.items):
@@ -245,9 +261,12 @@ class ScriptReadSession(ClipExprSession):
         n = self.item.seq
         r, sim = match(self.item.surface, heard)
         self.results.append((n, r, round(sim, 2)))
-        logger.info("normalcall script judge: call_id=%s 조각=%s 줄=%d 시도=%d 판정=%s 자모=%.2f 내용어=%.2f 대본=«%s» 들음=«%s»",
+        import time
+        audio_s, stt_ms = getattr(self, "_last_stt", (0.0, -1))
+        logger.info("normalcall script judge: call_id=%s 조각=%s 줄=%d 시도=%d 판정=%s 자모=%.2f 내용어=%.2f 말=%.1fs stt_ms=%d "
+                    "말끝→판정_ms=%d 대본=«%s» 들음=«%s»",
                     self._cid(), self._frag(), n, self.attempt, r, sim, _content_hit(self.item.surface, heard),
-                    self.item.surface, heard[:60])
+                    audio_s, stt_ms, int((time.monotonic() - t_end) * 1000), self.item.surface, heard[:60])
         if r == "empty":
             self.empties += 1
             self._wait()                      # 실패로 치지 않는다 · 반응 없음

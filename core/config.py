@@ -304,6 +304,7 @@ class Settings(BaseSettings):
     CLIP_USD_STT_PER_MIN: float = 0.024       # Google STT v1 표준 1분
     CLIP_USD_TTS_PER_M_CHARS: float = 30.0    # Cloud TTS Chirp3-HD 100만 글자
     SCRIPT_READ_END_SILENCE_S: float = 1.2   # 대본 읽기 말 끝 무음(두 문장 줄 사이 쉼을 끝으로 보지 않게)
+    SCRIPT_READ_STT_PROBE: bool = False   # PM-DEC-898 — 긴 줄 지연 조사(영어 대체 없는 받아쓰기 시간만 기록 · 시험 태그 전용)
     # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고
     #   진도를 쌓는다. false 면 옛 경로(learning_item 기반) 그대로 — 코드 배포 없이 되돌리기.
     #   ⛔ 경로는 **통화 단위로 고정**된다(§6 ③·§7 P1-6): 이 값은 통화 **시작 시점**에만 읽고, cur_call 행이 생긴 통화는 끝까지
