@@ -1,0 +1,71 @@
+"""기억 12차 — call flow 11차 2265(max05): 기억을 묻는 통화의 잡담(맛집·비빔밥 3줄)이 9차 값 4개를 밀어냈다.
+재생: 9차 끝 행(재구성) → 10차 통화(제주도·어머니 세부 · 실제 2261 facts) → 2265(실제 전사 · 추출 고정 응답) → 9차 값이 남는가."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from domains.learning.service import chat_memory_service as cms
+from domains.learning.service import normalcall_service as svc
+
+FX = json.loads((Path(__file__).parent / "fixtures" / "memory_round11.json").read_text(encoding="utf-8"))
+F = svc.MemoryFact
+NINTH = ["피아노 선생님: 서윤", "아침 운동: 테니스를 침", "차: 흰색 아반떼", "좋아하는 영화: 인터스텔라"]
+BEFORE = ["사는 곳: 대전", "못 먹는 것: 오징어", "반려동물: 고양이 나비"] + NINTH + [
+    "아빠 직업: 요리사", "룸메이트: 하은", "좋아하는 가수: 아이유", "회사 선배: 준서"]
+TENTH = [   # 2261 실제 facts(제주도 4줄 · 어머니 3줄 · 잡담) — 그때 추출기는 kind 가 없어 전부 지속으로 들어왔다
+    "가족: 어머니는 소아과 의사", "어제 활동: 친구를 만나 맥주를 마심", "친구와 대화 주제: 여행", "다음 여행지: 제주도",
+    "제주도 방문 이유: 아름다운 바다를 보고 싶음", "제주도에서 먹고 싶은 것: 한라봉 백 개", "제주도에서 하고 싶은 일: 한라봉 백 개 먹기",
+    "제주도에서 하고 싶은 활동: 한라산 등반", "한라산 등반 후 활동: 정상에서 소리 지르기", "어머니 직업: 소아과 의사",
+    "어머니 성격: 아이들을 많이 좋아함", "어머니 행동: 아이들에게 장난감을 많이 사주심"]
+
+
+def _transcript():
+    return "\n".join(f"{'학습자' if r['role'] == 'user' else '비버'}: {r['text']}" for r in FX["rows"])
+
+
+def _q(needle):
+    return next(r["text"] for r in FX["rows"] if r["role"] == "user" and needle in r["text"])
+
+
+def test_round11_recall_call_chatter_does_not_evict_ninth_values():
+    after10 = cms._merge_facts(BEFORE, TENTH, cms.FACTS_CAP)
+    items = [   # 2265 — 추출기가 kind 를 매긴 결과(근거는 실제 학습자 줄)
+        F(key="반려동물", value="고양이 나비", quote=_q("고양이 이름은 나비"), kind="지속"),
+        F(key="어제 활동", value="친구와 맥주를 마심", quote=_q("맥주 마셨어요"), kind="일회"),
+        F(key="친구와 대화 주제", value="맛집", quote=_q("맛집에 대한 이야기"), kind="일회"),
+        F(key="좋아하는 한식", value="비빔밥", quote=_q("비빔밥을 제일 좋아해요"), kind="지속"),
+        F(key="맛집 메뉴", value="비빔밥을 먹고 싶음", quote=_q("그 맛집에서 비빔밥을 먹고 싶어요"), kind="일회"),
+        F(key="비빔밥 맛 상상", value="채소·고기·고추장", quote=_q("고추장 맛이 날 것 같아요"), kind="일회"),
+        F(key="다른 한식", value="비빔밥만큼 맛있는 건 아직 없음", quote=_q("비빔밥만큼"), kind="일회"),
+    ]
+    keyed, _ev, dropped = svc._grounded_facts(items, _transcript())
+    assert not dropped
+    got = cms._merge_facts(after10, keyed, cms.FACTS_CAP)
+    assert len(got) <= cms.FACTS_CAP
+    for f in NINTH:
+        assert f in got, f"9차 값이 밀려남: {f} · {got}"
+    assert "좋아하는 한식: 비빔밥" in got                       # 새 지속 사실은 들어온다
+    eph = [f for f in got if cms.EPHEMERAL_SEP in f]
+    assert len(eph) <= cms.EPHEMERAL_MAX                      # 잡담은 최대 4칸 · 지속 사실로 다 차면 0칸
+    if eph:
+        assert got.index(eph[0]) > max(got.index(f) for f in NINTH)   # 잡담은 지속 사실 뒤
+    few = cms._merge_facts(BEFORE, keyed, cms.FACTS_CAP)      # 칸이 남으면 잡담도 들어간다
+    assert 1 <= sum(cms.EPHEMERAL_SEP in f for f in few) <= cms.EPHEMERAL_MAX and all(f in few for f in NINTH)
+
+
+def test_ephemeral_from_previous_call_is_dropped_next_call():
+    old = ["차: 흰색 아반떼", "맛집 메뉴 — 비빔밥을 먹고 싶음"]
+    got = cms._merge_facts(old, ["좋아하는 가수: 아이유"], cms.FACTS_CAP)
+    assert got == ["차: 흰색 아반떼", "좋아하는 가수: 아이유"] or got == ["좋아하는 가수: 아이유", "차: 흰색 아반떼"]
+
+
+def test_durable_overflow_drops_least_recently_mentioned_first():
+    old = [f"주제{i}: 값{i}" for i in range(20)]            # 앞이 최근
+    got = cms._merge_facts(old, ["새 주제: 새 값", "주제19: 값19"], cms.FACTS_CAP)   # 주제19 를 다시 언급
+    assert "새 주제: 새 값" in got and "주제19: 값19" in got
+    assert "주제18: 값18" not in got and len(got) == cms.FACTS_CAP
+
+
+def test_recall_question_is_not_a_fact_by_instruction():
+    assert "기억을 묻기만 한 말" in svc._MEMORY_EXTRACT_INSTRUCTION and "kind" in svc._MEMORY_EXTRACT_INSTRUCTION

@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 # 문서 C6 그대로 — 배열 상한(코드가 지킨다, DB 제약 아님).
 SUMMARY_CHAR_CAP = 1200
 TOPICS_CAP = 10
-FACTS_CAP = 15
+FACTS_CAP = 20          # 기억 12차 15 → 20(일회 잡담 4칸을 지속 사실과 따로 둔다)
+EPHEMERAL_MAX = 4       # 일회 잡담(«주제 — 값») 최대 칸
+EPHEMERAL_SEP = " — "
 INTERESTS_CAP = 10
 NEXT_TOPICS_CAP = 5
 
@@ -289,8 +291,13 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     words = stale_words(stale, keyed + [x for x in newset if not split_fact(x)[0]])
     prof = profile_of(keyed)
     plain: list[str] = []
+    ephemeral: list[str] = []
     for f in _merge_capped(_without(old, replaced), new, 10 ** 6):
         if split_fact(f)[0]:
+            continue
+        if EPHEMERAL_SEP in f:
+            if f in newset and not any(_near_dup(f, e) for e in ephemeral):
+                ephemeral.append(f)      # 일회 잡담은 이번 통화 것만 · 지난 통화 잡담은 버린다
             continue
         if f not in newset and (_covered_by_profile(f, prof) or any(w in f for w in words)):
             continue   # 옛 사실만 — 고정 칸이 맡았거나 덮어써진 옛 값 낱말이 들었다
@@ -312,7 +319,10 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     rest_keyed = [f for f in rest_keyed if f in kept]
     room -= len(rest_keyed)
     keep = set(sorted(plain, key=_fact_tier)[:max(0, room)])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
-    return top + rest_keyed + [f for f in plain if f in keep]
+    room -= len(keep)
+    # 기억 12차 — 일회 잡담은 지속 사실이 다 들어간 뒤 남는 칸에만, 최대 EPHEMERAL_MAX 칸
+    eph = ephemeral[:max(0, min(EPHEMERAL_MAX, room))]
+    return top + rest_keyed + [f for f in plain if f in keep] + eph
 
 
 def _merge_capped(old: list | None, new: list | None, cap: int) -> list[str]:

@@ -6991,27 +6991,46 @@ async def _greeting_tts_fallback(client_ws, state: _CallState, text: str) -> boo
         return False      # TTS 키가 없는 환경(시험·로컬) — 기다리지 않고 바로 종전 재시드로
     state.greeting_tts_done = True
     t0 = asyncio.get_running_loop().time()
+    # 00277 2267: 레벨테스트 소개(14.5초 소리)를 한 번에 합성하니 2.5초 걸려 첫 소리 3.75초 → 첫 문장 먼저 · 나머지는 그동안 합성
+    import re as _re
+    parts = [p for p in _re.split(r"(?<=[.!?。])\s+", text) if p.strip()]
+    first, rest = parts[0], " ".join(parts[1:])
+    rest_task = asyncio.create_task(asyncio.to_thread(_greeting_tts_sync, rest, state.tts_voice)) if rest else None
     try:
-        pcm = await asyncio.wait_for(asyncio.to_thread(_greeting_tts_sync, text, state.tts_voice), GREETING_TTS_TIMEOUT_S + 1)
+        pcm = await asyncio.wait_for(asyncio.to_thread(_greeting_tts_sync, first, state.tts_voice), GREETING_TTS_TIMEOUT_S + 1)
     except Exception as exc:  # noqa: BLE001 — 합성 실패면 종전 재시드로
+        if rest_task is not None:
+            rest_task.cancel()
         logger.warning("normalcall: 첫 인사 TTS 대체 실패 → 재시드: %s: %s", type(exc).__name__, exc)
         return False
     if not pcm:
+        if rest_task is not None:
+            rest_task.cancel()
         logger.warning("normalcall: 첫 인사 TTS 대체 빈 결과 → 재시드")
         return False
+    first_ms = int((asyncio.get_running_loop().time() - t0) * 1000)
     turn_id = _new_turn_id()
     await _send_json(client_ws, ServerTurnStart(turn_id=turn_id))
     await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=turn_id))
     step = _OUT_RATE * SAMPLE_WIDTH_BYTES // 5          # 0.2초씩
     for i in range(0, len(pcm), step):
         await client_ws.send_bytes(pcm[i:i + step])
+    if rest_task is not None:
+        try:
+            more = await asyncio.wait_for(rest_task, GREETING_TTS_TIMEOUT_S + 1)
+        except Exception as exc:  # noqa: BLE001 — 뒷부분 실패는 첫 문장만 들려준 것으로 끝낸다
+            logger.warning("normalcall: 첫 인사 TTS 뒷부분 실패(첫 문장만): %s: %s", type(exc).__name__, exc)
+            more = b""
+        for i in range(0, len(more or b""), step):
+            await client_ws.send_bytes(more[i:i + step])
+        pcm += more or b""
     await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
     segs = state.segments
     if segs and len(segs) > state.persisted_count and segs[-1].get("role") == "beaver" and not segs[-1].get("pcm"):
         segs[-1]["pcm"] = pcm                            # 방금 flush 한 무음 인사 segment 에 소리를 붙여 저장
     state.last_activity_ts = asyncio.get_running_loop().time()
-    logger.warning("normalcall: ⛔벙어리 인사 → 받은 인사 텍스트를 TTS 로 대체(%s · %.1f초 소리 · 합성 %dms) %r",
-                   state.tts_voice, len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES),
+    logger.warning("normalcall: ⛔벙어리 인사 → 받은 인사 텍스트를 TTS 로 대체(%s · %.1f초 소리 · 첫 문장 합성 %dms · 전체 %dms) %r",
+                   state.tts_voice, len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES), first_ms,
                    int((asyncio.get_running_loop().time() - t0) * 1000), text[:60])
     return True
 
