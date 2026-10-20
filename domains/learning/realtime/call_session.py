@@ -46,6 +46,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import logging
 import difflib
 import re
@@ -760,6 +761,7 @@ class _CallState:
         "last_turn_id", "hint_ctx", "hint_task", "hint_tasks",
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
+        "tts_voice", "greeting_tts_done",   # 첫 인사 벙어리 → TTS 대체
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
         # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
         # cur_course: cur 경로의 코스("expression"|"freetalk", 옛 경로 ""). freetalk_brief: 차시 프리토킹 재료(CurFreetalkBrief) —
@@ -940,6 +942,8 @@ class _CallState:
         #   무음으로 세지 않게(=넛지가 비버 발화 직후 터지지 않게) 하는 핵심. None = 아직 없음.
         # silence_stage: 0=무넛지, 1=1단 주입됨, 2=2단 주입됨(3단은 직접 종료 시드 주입).
         self.last_activity_ts: Optional[float] = None
+        self.tts_voice: str = ""          # 첫 인사 TTS 대체용 — Live 와 같은 목소리 이름
+        self.greeting_tts_done = False    # 첫 인사 TTS 대체는 통화당 한 번
         self.silence_stage: int = 0
         # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
         # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
@@ -5412,6 +5416,7 @@ async def _run_one_generation(
     # ⭐ 선톡 시드를 state 에 남긴다 — 벙어리 인사 재시드(아래 펌프)가 같은 문장을 쓴다.
     state.seed_text = seed_text
     factory_kwargs = {"system_instruction": system_instruction, "voice": voice}
+    state.tts_voice = voice or ""
     if tools is not None:
         factory_kwargs["tools"] = tools
     # 재개 세대에만 핸들을 넘긴다 — 1세대는 종전과 완전히 동일한 호출이라 기존 가짜
@@ -6589,7 +6594,9 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             # ⭐⭐ **벙어리 인사 재시드**(2026-08-27 실측). 자세한 근거는 아래 함수 주석.
             _log_reseed_result(state, turn_pcm_bytes)   # P5 — 직전 재시드가 소리를 냈나(한 줄)
             reseeded_now = _greeting_was_mute(state, turn_pcm_bytes)
-            if reseeded_now:
+            if reseeded_now and await _greeting_tts_fallback(client_ws, state, turn_text):
+                reseeded_now = False      # 인사를 TTS 로 들려줬다 — 재시드 없이 학습자 차례로
+            elif reseeded_now:
                 _drop_mute_greeting_segment(state)
                 await _reseed_greeting(session, state)
             if state.close_seed_sent:
@@ -6753,6 +6760,74 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
         and not state.close_seed_sent
         and bool(state.seed_text)
     )
+
+
+GREETING_TTS_TIMEOUT_S = 4.0
+_OUT_RATE = 24000                 # Live 출력과 같은 PCM16 24kHz
+_SYNC_TTS: list = []
+
+
+def _greeting_tts_sync(text: str, voice: str) -> bytes:
+    """⛔ 작업 스레드 전용 — 동기 TextToSpeechClient 로 PCM16 24kHz(헤더 뗌)."""
+    from google.cloud import texttospeech
+    from google.oauth2 import service_account
+
+    from core import tts as _tts
+    if not _SYNC_TTS:
+        key = _settings.TTS_SA_KEY_FILE
+        if not key:
+            return b""
+        creds = service_account.Credentials.from_service_account_file(
+            str(key), scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        _SYNC_TTS.append(texttospeech.TextToSpeechClient(credentials=creds))
+    lang = "ko" if any("가" <= ch <= "힣" for ch in text) else "en"
+    code, name = _tts._resolve_voice(lang, voice)
+    resp = _SYNC_TTS[0].synthesize_speech(
+        input=texttospeech.SynthesisInput(text=text),
+        voice=texttospeech.VoiceSelectionParams(language_code=code, name=name),
+        audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+                                              sample_rate_hertz=_OUT_RATE),
+        timeout=GREETING_TTS_TIMEOUT_S,
+    )
+    pcm = resp.audio_content or b""
+    return pcm[44:] if pcm[:4] == b"RIFF" else pcm
+
+
+async def _greeting_tts_fallback(client_ws, state: _CallState, text: str) -> bool:
+    """첫 인사가 소리 없이 끝났으면(벙어리) **그 인사 텍스트를 Cloud TTS 로 바로** 들려준다(2262 · 첫 소리 6~8초 → 약 2초).
+    Gemini 3.1 Live 가 첫 턴 텍스트만 만들고 오디오 0B 로 닫는 벤더 동작(원인 미상 · 아래 _greeting_was_mute 문서)을
+    재시드(새 세션·같은 시드 · 1회 약 1.1초 · 반복 실패)로 기다리지 않는다. 실패하면 False — 호출부가 종전 재시드로 간다.
+    인사는 그 오디오와 함께 비버 발화로 저장된다(perturn 다음 세션은 저장 대본으로 이 인사를 안다)."""
+    text = (text or "").strip()
+    if state.greeting_tts_done or not text or not state.tts_voice:
+        return False
+    if not _SYNC_TTS and not os.path.isfile(str(_settings.TTS_SA_KEY_FILE or "")):
+        return False      # TTS 키가 없는 환경(시험·로컬) — 기다리지 않고 바로 종전 재시드로
+    state.greeting_tts_done = True
+    t0 = asyncio.get_running_loop().time()
+    try:
+        pcm = await asyncio.wait_for(asyncio.to_thread(_greeting_tts_sync, text, state.tts_voice), GREETING_TTS_TIMEOUT_S + 1)
+    except Exception as exc:  # noqa: BLE001 — 합성 실패면 종전 재시드로
+        logger.warning("normalcall: 첫 인사 TTS 대체 실패 → 재시드: %s: %s", type(exc).__name__, exc)
+        return False
+    if not pcm:
+        logger.warning("normalcall: 첫 인사 TTS 대체 빈 결과 → 재시드")
+        return False
+    turn_id = _new_turn_id()
+    await _send_json(client_ws, ServerTurnStart(turn_id=turn_id))
+    await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=turn_id))
+    step = _OUT_RATE * SAMPLE_WIDTH_BYTES // 5          # 0.2초씩
+    for i in range(0, len(pcm), step):
+        await client_ws.send_bytes(pcm[i:i + step])
+    await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
+    segs = state.segments
+    if segs and len(segs) > state.persisted_count and segs[-1].get("role") == "beaver" and not segs[-1].get("pcm"):
+        segs[-1]["pcm"] = pcm                            # 방금 flush 한 무음 인사 segment 에 소리를 붙여 저장
+    state.last_activity_ts = asyncio.get_running_loop().time()
+    logger.warning("normalcall: ⛔벙어리 인사 → 받은 인사 텍스트를 TTS 로 대체(%s · %.1f초 소리 · 합성 %dms) %r",
+                   state.tts_voice, len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES),
+                   int((asyncio.get_running_loop().time() - t0) * 1000), text[:60])
+    return True
 
 
 def _drop_mute_greeting_segment(state: _CallState) -> None:
