@@ -141,6 +141,7 @@ async def test_finished_script_resume_closes_without_again_loop():
         await h2.s.send_text_turn("RESUME")
         await asyncio.sleep(0.05)
         assert h2.closed and not h2.clips()
+        assert h2.s._state.call_start_ts is not None   # PM-DEC-892 — 시계가 서야 종료 워처가 작별 시드를 넣는다(call 2075)
         await h2.s.send_text_turn("CLOSE")
         await h2.turn()
         assert h2.clips()[0].startswith("sg_close_call_")

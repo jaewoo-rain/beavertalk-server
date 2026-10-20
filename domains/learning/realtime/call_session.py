@@ -5288,6 +5288,9 @@ def _trigger_chat_memory(
     """
     if call_type != "chat" or state.chat_memory_triggered:
         return
+    if getattr(state, "script_read", None) or getattr(state, "clip_expr", None):
+        # PM-DEC-892 — 대본 읽기·클립 통화(call_type chat 로 열림)가 자유대화 기억에 «대본 읽기»·«하숙집 저녁 식사» 를 쌓았다.
+        return
     state.chat_memory_triggered = True
     if state.fragment_end:
         is_final = (

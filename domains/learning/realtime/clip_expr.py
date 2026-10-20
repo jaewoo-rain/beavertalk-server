@@ -458,6 +458,9 @@ class ClipExprSession:
         if not (self._restored and self.stage == "done"):
             return False
         logger.info("normalcall clipexpr: 끝난 진행에 이어하기 — 바로 마무리 call_id=%s 조각=%s", self._cid(), self._frag())
+        if self._state is not None and getattr(self._state, "call_start_ts", None) is None:
+            # PM-DEC-892 — 비버 턴이 하나도 없으면 통화 시계가 안 서서 종료 워처가 작별 시드를 영영 안 넣었다(call 2075 조각3 · 112초 침묵).
+            self._state.call_start_ts = asyncio.get_running_loop().time()
         if self._request_close is not None:
             self._request_close()
         return True
