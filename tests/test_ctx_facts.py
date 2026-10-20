@@ -22,4 +22,12 @@ async def test_facts_accumulate_and_reach_new_session_instruction(monkeypatch):
     assert "남동생 이름은 민호" in seen["prompt"]
     assert st.ctx_facts == ["앵무새 초코를 키움", "남동생 이름은 민호"]   # 지우지 않는다
     ins = cs._perturn_instruction(st)
-    assert "학습자에 대해 아는 사실: 앵무새 초코를 키움 · 남동생 이름은 민호" in ins
+    assert "이번 통화에서 학습자가 말한 사실(지난 통화 [기억]과 다르면 이것이 맞다): 앵무새 초코를 키움 · 남동생 이름은 민호" in ins
+    assert ins.index("이번 통화에서 학습자가 말한 사실") < ins.index("줄거리:")
+
+
+def test_ctx_echo_tail_is_cut():
+    """PM-DEC-916 — 비버가 지시문 형식을 이어 쓰면(call 2134 t53) 저장 전에 그 앞까지만 남긴다."""
+    t = "거북이는 어떻게 조심해?\n\n너(비버): …\n학습자: (답변)\n지금 네 표정: neutral\n[이어서] 통화가 진행 중이다."
+    assert cs._cut_ctx_echo(t) == "거북이는 어떻게 조심해?"
+    assert cs._cut_ctx_echo("그냥 평범한 말이야.") == "그냥 평범한 말이야."
