@@ -365,3 +365,25 @@ async def test_run_call_with_clip_expr_never_opens_live_and_streams_clips(sessio
     assert any(r.getMessage().startswith("normalcall clipexpr 요약: call_id=") for r in caplog.records)
     assert any(r.getMessage().startswith("normalcall clipexpr 원가: call_id=") and "clip_usd=" in r.getMessage()
                and "judge_model=" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_progress_restored_from_remote_on_other_instance(monkeypatch):
+    """PM-DEC-915 — 이어하기 조각이 다른 인스턴스로 가면(메모리에 없음) GCS 진행 파일로 이어 간다."""
+    from types import SimpleNamespace as NS
+    store = {}
+    monkeypatch.setattr(clip_expr, "_progress_store", lambda cid, snap: store.__setitem__(cid, snap))
+    monkeypatch.setattr(clip_expr, "_progress_load", lambda cid: store.get(cid))
+    st = NS(call_id=77, close_seed="CLOSE", call_start_ts=None, fragment_index=1)
+    s1 = clip_expr.ClipExprSession(None, None, NS(CLIP_EXPR="Baba", LIVE_REGROUND_VOICE_RMS=0.02), {"system_instruction": "S"},
+                                   char="Baba", state=st, notify=None, request_close=None)
+    async with s1:
+        s1.idx = 3
+        s1._save()
+    assert store[77]["idx"] == 3
+    clip_expr._PROGRESS.clear()                        # 다른 인스턴스 = 메모리 없음
+    st2 = NS(call_id=77, close_seed="CLOSE", call_start_ts=None, fragment_index=2)
+    s2 = clip_expr.ClipExprSession(None, None, NS(CLIP_EXPR="Baba", LIVE_REGROUND_VOICE_RMS=0.02), {"system_instruction": "S"},
+                                   char="Baba", state=st2, notify=None, request_close=None)
+    async with s2:
+        assert s2._restored and s2.idx == 3

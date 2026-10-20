@@ -100,6 +100,19 @@ def upload(bucket: str, path: str, data: bytes, content_type: str = "application
         return None
 
 
+def download(bucket: str, path: str) -> bytes | None:
+    """(prefix=bucket)/path 를 읽는다. 없거나 저장소가 꺼져 있으면 None(graceful)."""
+    _init()
+    if _bucket is None:
+        return None
+    try:
+        blob = _bucket.blob(_blob_name(bucket, path))
+        return blob.download_as_bytes()
+    except Exception as exc:  # noqa: BLE001 - 없음(404)·권한·네트워크 모두 «없음» 으로
+        logger.info("storage(gcs): 읽기 없음 %s/%s — %s", bucket, path, type(exc).__name__)
+        return None
+
+
 def _signed(bucket: str, path: str | None, expires_in: int) -> str | None:
     """(prefix=bucket)/path 객체의 V4 signed GET URL. path 없거나 실패 시 None.
 
