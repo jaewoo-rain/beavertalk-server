@@ -136,6 +136,8 @@ from domains.learning.service import call_service
 from domains.learning.service import quiz_judge
 from domains.learning.realtime.expression_practice import ExpressionPractice, requested_phrases
 from domains.learning.realtime.perturn_session import PerTurnSession   # PM-DEC-864 턴마다 새 세션
+from domains.learning.realtime import clip_expr as _clip_expr
+from domains.learning.realtime import script_read as _script_read
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -817,6 +819,8 @@ class _CallState:
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
+        "clip_expr",
+        "script_read",
         # cur_route: 이 통화가 커리큘럼 2단계(cur_*) 경로를 탔다 — **시작 시점에 한 번** 정해지고 종료 저장은 이 플래그로만 분기(§6 ③).
         "cur_route",
         "last_beaver_question", "band_tasks", "band_target_language",
@@ -1111,6 +1115,8 @@ class _CallState:
         # ⛔ 레벨테스트는 **길이 시계로 끝나야 한다**(3분 하드캡은 측정 설계다). 조각·프론트
         #   종료 소유권과 무관하다 — 이 값이 그 두 세계를 가른다.
         self.is_leveltest: bool = False
+        self.clip_expr: Optional[str] = None     # PM-DEC-872 — 클립 주도 표현학습 캐릭터(None = 종전)
+        self.script_read: Optional[str] = None   # PM-DEC-877 — 대본 읽기 캐릭터(None = 종전)
         self.cur_route: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
@@ -4382,6 +4388,12 @@ async def run_call(
         #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
         state.expr_items = expr_items
         state.expr_practice = expr_practice
+        # PM-DEC-872 — 시제품 스위치(CLIP_EXPR)가 켜진 표현학습만. 빈 값이면 None(종전).
+        state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale)
+        # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
+        state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale)
+        if state.script_read:
+            state.clip_expr = state.script_read
         # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
         state.expr_tag_allow = _expression_bracket_allowlist(expr_items)
         if expr_items:
@@ -5327,6 +5339,9 @@ def _trigger_chat_memory(
     """
     if call_type != "chat" or state.chat_memory_triggered:
         return
+    if getattr(state, "script_read", None) or getattr(state, "clip_expr", None):
+        # PM-DEC-892 — 대본 읽기·클립 통화(call_type chat 로 열림)가 자유대화 기억에 «대본 읽기»·«하숙집 저녁 식사» 를 쌓았다.
+        return
     state.chat_memory_triggered = True
     if state.fragment_end:
         is_final = (
@@ -5473,8 +5488,17 @@ async def _run_one_generation(
     #     세션이 **열리지도 않는다**(AI Studio 에 Vertex 전용 필드 → 1007).
     if state.live_vertex is not None:
         factory_kwargs["vertex"] = state.live_vertex
+    if getattr(state, "clip_expr", None):
+        # PM-DEC-872 — 기본 통화에 Live 세션을 열지 않는다. 대리 세션이 클립을 내보내고, 예외 턴만 그 턴짜리 Live 를 연다.
+        async def _clip_notify(msg: dict) -> None:
+            await client_ws.send_text(json.dumps(msg, ensure_ascii=False))
+
+        _cls = _script_read.ScriptReadSession if getattr(state, "script_read", None) else _clip_expr.ClipExprSession
+        session_cm = _cls(
+            live_session_factory, client, settings, factory_kwargs, char=state.clip_expr, state=state,
+            notify=_clip_notify, request_close=lambda: _request_close(state))
     # ⭐ PM-DEC-864 — perturn 이면 대리 세션이 안쪽 세션을 턴마다 갈아끼운다(펌프·워처는 같은 객체를 본다).
-    if _perturn_enabled(settings, state):
+    elif _perturn_enabled(settings, state):
         session_cm = PerTurnSession(live_session_factory, client, settings, factory_kwargs)
         state.ctx = session_cm
         state.ctx_base = system_instruction
@@ -6668,7 +6692,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
                 # (should_close/close_seed_sent 경로가 위에서 먼저 걸리므로 여기는 '정상
                 #  진행 중'인 경우뿐 — 정상 작별을 이 시드가 덮어쓰는 일은 없다.)
                 await _inject_resume_seed(session, state)
-            elif state.learner_spoke and not reseeded_now and not state.is_leveltest:
+            elif state.learner_spoke and not reseeded_now and not state.is_leveltest and not state.clip_expr:
+                # PM-DEC-872 — 클립 통화는 같은 클립이 정당하게 반복된다(재출제·«Once more.») — 루프 차단기를 쓰지 않는다.
                 # ⭐ 반복 루프 차단기(2026-09-14 B). 종료·태그 누출 경로가 위에서 먼저 걸리므로 여기는 «정상 진행 중» 뿐이다.
                 #   인사 구간(learner_spoke 전 — 벙어리 재시드가 같은 인사를 두 번 만든다)·레벨테스트는 보지 않는다.
                 await _loop_breaker_on_turn_end(session, state, turn_text)

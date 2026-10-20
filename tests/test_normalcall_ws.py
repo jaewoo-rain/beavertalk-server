@@ -6336,6 +6336,23 @@ async def test_trigger_chat_memory_is_one_shot_per_state(monkeypatch):
     assert len(calls) == 1, "같은 state 로 두 번 불렀는데 기억 merge 가 두 번 떴다"
 
 
+@pytest.mark.asyncio
+async def test_trigger_chat_memory_skips_script_and_clip_calls(monkeypatch):
+    """PM-DEC-892 — 대본 읽기·클립 통화(call_type chat)는 자유대화 기억에 쌓지 않는다(max01·07·10 «대본 읽기» 화제)."""
+    calls: list = []
+
+    async def _spy(*a, **k):
+        calls.append(a)
+
+    monkeypatch.setattr(svc, "extract_and_merge_chat_memory", _spy)
+    for attr in ("script_read", "clip_expr"):
+        st = cs._CallState()
+        setattr(st, attr, "Baba")
+        cs._trigger_chat_memory(st, "chat", None, 1, 2, "ko", None, app_settings)
+    await _wait_analysis_tasks()
+    assert calls == []
+
+
 # --------------------------------------------------------------------------- #
 # R4-c(2026-09-24, bt-back) — is_final 판정: fragment_index/max_fragments 가
 # 모호하면(None) 비싼 쪽(전체 재압축) 대신 싼 쪽(중간)으로 — R5

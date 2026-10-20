@@ -1,0 +1,366 @@
+[
+ {
+  "id": "sb_1",
+  "slot": "비버 대사",
+  "text": "어서 와요. 앉아요. 저녁은 된장찌개하고 불고기예요.",
+  "sec": 5.4,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_1",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 와, 맛있겠네요. 잘 먹겠습니다.",
+  "sec": 7.92,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_1",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 와, 맛있겠네요. 잘 먹겠습니다. Moving on.",
+  "sec": 6.76,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_2",
+  "slot": "비버 대사",
+  "text": "된장찌개를 먹어 보니까 맛이 어때요?",
+  "sec": 3.56,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_2",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 조금 싱겁네요. 그래도 맛있어요.",
+  "sec": 6.8,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_2",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 조금 싱겁네요. 그래도 맛있어요. Moving on.",
+  "sec": 7.8,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_3",
+  "slot": "비버 대사",
+  "text": "그래요? 그럼 소금을 좀 넣을까요?",
+  "sec": 3.6,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_3",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요.",
+  "sec": 7.4,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_3",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요. Moving on.",
+  "sec": 7.88,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_4",
+  "slot": "비버 대사",
+  "text": "불고기도 먹어 봐요. 너무 달지 않아요?",
+  "sec": 3.64,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_4",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 아니요, 딱 좋네요. 정말 맛있어요.",
+  "sec": 8.72,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_4",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 아니요, 딱 좋네요. 정말 맛있어요. Moving on.",
+  "sec": 7.32,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_5",
+  "slot": "비버 대사",
+  "text": "왜 김치는 조금만 먹어요?",
+  "sec": 3.04,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_5",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요.",
+  "sec": 9.2,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_5",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요. Moving on.",
+  "sec": 9.88,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_6",
+  "slot": "비버 대사",
+  "text": "아이고, 그럼 천천히 먹어요. 잡채도 있어요.",
+  "sec": 4.68,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_6",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 잡채는 하나도 안 맵네요. 이거 정말 맛있어요.",
+  "sec": 7.28,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_6",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 잡채는 하나도 안 맵네요. 이거 정말 맛있어요. Moving on.",
+  "sec": 7.52,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_7",
+  "slot": "비버 대사",
+  "text": "갈비도 좀 줄까요?",
+  "sec": 2.16,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_7",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 네, 조금만 주세요. 배가 벌써 불러요.",
+  "sec": 6.6,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_7",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 네, 조금만 주세요. 배가 벌써 불러요. Moving on.",
+  "sec": 8.56,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_8",
+  "slot": "비버 대사",
+  "text": "후식으로 딸기하고 케이크를 준비했어요.",
+  "sec": 3.72,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_8",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 와, 케이크가 아주 예쁘네요. 딸기도 달아요.",
+  "sec": 9.0,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_8",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 와, 케이크가 아주 예쁘네요. 딸기도 달아요. Moving on.",
+  "sec": 7.64,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_9",
+  "slot": "비버 대사",
+  "text": "마실 것도 줄까요? 우유하고 사이다가 있어요.",
+  "sec": 4.72,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_9",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 사이다 주세요. 고맙습니다.",
+  "sec": 5.92,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_9",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 사이다 주세요. 고맙습니다. Moving on.",
+  "sec": 6.12,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_10",
+  "slot": "비버 대사",
+  "text": "오늘 식사 어땠어요?",
+  "sec": 2.56,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_10",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 정말 맛있었어요. 아주머니 요리가 최고예요.",
+  "sec": 6.6,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_10",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 정말 맛있었어요. 아주머니 요리가 최고예요. Moving on.",
+  "sec": 7.4,
+  "face": "neutral"
+ },
+ {
+  "id": "sb_11",
+  "slot": "비버 대사",
+  "text": "고마워요. 내일도 맛있게 해 줄게요.",
+  "sec": 3.96,
+  "face": "neutral"
+ },
+ {
+  "id": "sp_11",
+  "slot": "학습자 줄 미리 들려주기",
+  "text": "Your line: 감사합니다. 잘 먹었습니다.",
+  "sec": 6.76,
+  "face": "neutral"
+ },
+ {
+  "id": "sm_11",
+  "slot": "정답 들려주고 넘어가기",
+  "text": "It goes: 감사합니다. 잘 먹었습니다. Moving on.",
+  "sec": 7.2,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_angry_1",
+  "slot": "공통:angry",
+  "text": "Seriously? That's not what the script says. Read it again.",
+  "sec": 5.64,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_angry_2",
+  "slot": "공통:angry",
+  "text": "Wow. You had one job: read the line. Again.",
+  "sec": 7.4,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_angry_3",
+  "slot": "공통:angry",
+  "text": "Did you even look at the script? Try again.",
+  "sec": 4.04,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_angry_4",
+  "slot": "공통:angry",
+  "text": "That's not even close. Read what's written.",
+  "sec": 5.24,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_angry_5",
+  "slot": "공통:angry",
+  "text": "Are you making things up now? Read the actual line.",
+  "sec": 5.32,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_again_1",
+  "slot": "공통:again",
+  "text": "Read it again.",
+  "sec": 2.08,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_again_2",
+  "slot": "공통:again",
+  "text": "One more time, from the script.",
+  "sec": 3.24,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_again_3",
+  "slot": "공통:again",
+  "text": "Again. Slowly.",
+  "sec": 3.48,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_close_1",
+  "slot": "공통:close",
+  "text": "Close enough. Moving on.",
+  "sec": 2.96,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_close_2",
+  "slot": "공통:close",
+  "text": "Eh, I'll let that slide.",
+  "sec": 2.68,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_close_3",
+  "slot": "공통:close",
+  "text": "Not perfect, but fine.",
+  "sec": 3.96,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_good_1",
+  "slot": "공통:good",
+  "text": "Good. Next.",
+  "sec": 3.12,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_good_2",
+  "slot": "공통:good",
+  "text": "There you go.",
+  "sec": 1.92,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_good_3",
+  "slot": "공통:good",
+  "text": "Fine, that was right.",
+  "sec": 3.4,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_good_4",
+  "slot": "공통:good",
+  "text": "Okay, nicely read.",
+  "sec": 3.04,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_open_1",
+  "slot": "공통:open",
+  "text": "Script reading today. I'm your landlady at dinner, you're the boarder. Read your lines.",
+  "sec": 9.12,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_open_2",
+  "slot": "공통:open",
+  "text": "Today we read a script. Dinner at the boarding house. I'm the landlady. You read your part.",
+  "sec": 8.24,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_close_call_1",
+  "slot": "공통:close_call",
+  "text": "That's the whole script. Not bad.",
+  "sec": 4.68,
+  "face": "neutral"
+ },
+ {
+  "id": "sg_close_call_2",
+  "slot": "공통:close_call",
+  "text": "Done. Read it again tomorrow, or you'll forget it.",
+  "sec": 4.4,
+  "face": "neutral"
+ }
+]
