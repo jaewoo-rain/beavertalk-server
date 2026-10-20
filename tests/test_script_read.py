@@ -286,3 +286,36 @@ async def test_short_gap_after_first_syllable_keeps_onset():
         for _ in range(3):
             await h.s.send_audio(VOICED)
         assert len(h.s._speech) == 9 * len(VOICED)      # 첫 음절·틈·뒤 소리가 모두 남는다
+
+
+@pytest.mark.asyncio
+async def test_first_fail_is_not_rejudged_with_a_short_blip():
+    """call 2250 줄3: 1회 틀림(«배고파요») 판정 중 들어온 짧은 소리 때문에 **같은 말**이 앞부분으로 붙어 다시 판정돼
+    2회 틀림으로 세어지고 화냈다(1회 틀림은 반응 없음이어야 함). 1회 틀림 뒤에는 앞부분을 붙이지 않는다."""
+    h = _H([])
+    answers = ["배고파요", "배고파요"]
+    calls = []
+
+    async def slow_stt(pcm, hint):
+        calls.append(len(pcm))
+        await asyncio.sleep(0.15)
+        return answers.pop(0)
+
+    h.s._stt_fn = slow_stt
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        n = len(h.notes)
+        for _ in range(10):
+            await h.s.send_audio(VOICED)
+        for _ in range(4):
+            await h.s.send_audio(SILENT)    # 말 끝 → 받아쓰기(0.15초)
+        for _ in range(3):
+            await h.s.send_audio(VOICED)    # 판정 중 짧은 소리(0.12초 · 말 문턱 미만)
+        await h.it.__anext__()              # 1회 틀림 판정
+        for _ in range(30):
+            await h.s.send_audio(SILENT)
+        await asyncio.sleep(0.3)
+        assert len(calls) == 1, "같은 말이 다시 판정됨"
+        assert not h.clips(n) and [c["result"] for c in h.cards("script_result", n)] == ["fail"]

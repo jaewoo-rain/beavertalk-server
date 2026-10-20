@@ -358,7 +358,9 @@ class ScriptReadSession(ClipExprSession):
             self.attempt += 1
             await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음 · 바로 말할 차례
             await self._card(self._turn_msg())
-            await self._wait(carry=True)
+            # call 2250 줄3 — carry 면 방금 틀린 말이 앞부분으로 붙어 판정 중 짧은 소리 하나에 다시 판정돼 2회 틀림으로 셌다.
+            #   틀린 말은 이미 판정이 끝났다 — 판정 중 새로 들어온 소리만 다시 흘린다.
+            await self._wait()
             return
         self.angry_used += 1
         lead = self._pick("sg_angry")
