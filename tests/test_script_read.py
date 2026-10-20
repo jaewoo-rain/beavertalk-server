@@ -32,6 +32,7 @@ def test_enabled_conditions():
     assert sr.enabled(on, call_type="chat", voice="Fenrir", locale="en") == "Baba"
     assert sr.enabled(on, call_type="freetalk", voice="Fenrir", locale="en") == "Baba"
     assert sr.enabled(on, call_type="homework", voice="Fenrir", locale="en") is None
+    assert sr.enabled(on, call_type="expression", voice="Fenrir", locale="en") is None   # PM-DEC-921
     assert sr.enabled(on, call_type="chat", voice="Leda", locale="en") is None
     assert sr.enabled(SimpleNamespace(SCRIPT_READ=""), call_type="chat", voice="Fenrir", locale="en") is None
 

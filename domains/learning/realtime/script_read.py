@@ -86,7 +86,8 @@ def match(line: str, heard: str) -> tuple[str, float]:
 def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str]) -> Optional[str]:
     want = {x.strip() for x in str(getattr(settings, "SCRIPT_READ", "") or "").split(",") if x.strip()}
     char = clip_expr.VOICE_BANK.get(voice or "")
-    if not want or char not in want or call_type in ("level_test", "homework") or (locale or "").split("-")[0] != "en":
+    # PM-DEC-921 — 표현학습(expression)은 대본 읽기가 아니다(m3clip call 2226: CLIP_EXPR·SCRIPT_READ 둘 다 켜면 표현학습이 대본으로 열림)
+    if not want or char not in want or call_type in ("level_test", "homework", "expression") or (locale or "").split("-")[0] != "en":
         return None
     if not (ROOT / f"{char}_en" / "manifest.json").exists():
         logger.warning("normalcall script: %s 대본 자산 없음 — 종전 통화", char)
