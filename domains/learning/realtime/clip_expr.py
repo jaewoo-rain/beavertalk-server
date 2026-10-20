@@ -199,12 +199,30 @@ def _rms(pcm: bytes) -> float:
 
 
 # ── 외부 호출(받아쓰기 · 텍스트 LLM · TTS) ────────────────────────────────── #
-async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> tuple[str, str]:
-    """Google STT v1 recognize → (받아쓴 말, 언어 코드). 발음 챌린지와 같은 클라이언트(core.stt)."""
-    from google.cloud import speech_v1
+_SYNC_SPEECH: list = []          # PM-DEC-923 — 동기 SpeechClient 프로세스당 1개(스레드 안전)
+RECOGNIZE_TIMEOUT_S = 8.0
 
-    from core.stt import get_speech_client
-    client = get_speech_client()
+
+def _sync_speech_client():
+    if _SYNC_SPEECH:
+        return _SYNC_SPEECH[0]
+    from google.cloud import speech_v1
+    from google.oauth2 import service_account
+
+    from core import stt as _stt
+    from core.config import settings as _s
+    key = _s.STT_SA_KEY_FILE or _s.TTS_SA_KEY_FILE
+    if _s.STT_FAKE or not key or not Path(key).is_file():
+        return None
+    creds = service_account.Credentials.from_service_account_file(str(key), scopes=_stt._SCOPES)
+    _SYNC_SPEECH.append(speech_v1.SpeechClient(credentials=creds))
+    return _SYNC_SPEECH[0]
+
+
+def _recognize_sync(pcm16k: bytes, hints: list[str], alt_en: bool):
+    """⛔ 작업 스레드 전용 — 비동기 클라이언트의 첫 호출은 인증 갱신을 루프 안에서 돌려 통화 전체를 멈췄다(00254 · 약 30초)."""
+    from google.cloud import speech_v1
+    client = _sync_speech_client()
     if client is None:
         raise RuntimeError("Speech 클라이언트 없음")
     cfg = speech_v1.RecognitionConfig(
@@ -212,7 +230,12 @@ async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> 
         alternative_language_codes=["en-US"] if alt_en else [],
         speech_contexts=[speech_v1.SpeechContext(phrases=[h for h in hints if h][:5], boost=10.0)] if any(hints) else [],
     )
-    resp = await client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k))
+    return client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k), timeout=RECOGNIZE_TIMEOUT_S)
+
+
+async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> tuple[str, str]:
+    """Google STT v1 recognize → (받아쓴 말, 언어 코드). PM-DEC-923 — 동기 클라이언트를 스레드에서(루프 무정지)."""
+    resp = await asyncio.to_thread(_recognize_sync, pcm16k, hints, alt_en)
     texts, lang = [], "ko-kr"
     for r in resp.results:
         if r.alternatives:
