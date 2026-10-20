@@ -61,6 +61,9 @@ from domains.push.models.push_dispatch_log import PushDispatchLog
 
 logger = logging.getLogger(__name__)
 
+# PM-DEC-888 — 레벨테스트 판정 재시도 간격(초). 첫 시도 뒤 이 간격으로 더 묻는다.
+LEVELTEST_JUDGE_RETRY_DELAYS_S: tuple[float, ...] = (3.0, 8.0)
+
 T = TypeVar("T")
 
 
@@ -4445,19 +4448,28 @@ async def analyze_level_test_call(
 
         lt_usage = gemini_analysis.LlmUsage()
         grammar_catalog = await run_db(session_factory, lambda db: mastery_repository.leveltest_grammar_catalog(db, _lang_code))
-        result = await gemini_analysis.generate_structured(
-            client,
-            settings_obj.JUDGE_MODEL,
-            system_instruction=_leveltest_instruction(
-                locale, _load_leveltest_rubric(target_language), locale_label,
-                target_language=target_language,
-                grammar_catalog=grammar_catalog,
-            ),
-            prompt=f"[통화 전사]\n{dialog.strip()}",
-            schema=LevelAssessment,
-            temperature=0.0,
-            usage=lt_usage,
+        lt_system = _leveltest_instruction(
+            locale, _load_leveltest_rubric(target_language), locale_label,
+            target_language=target_language,
+            grammar_catalog=grammar_catalog,
         )
+        result = None
+        # PM-DEC-888 — 판정 LLM 이 일시 실패(503 high demand)하면 레벨이 영영 안 붙었다(call 2062). 잠깐 쉬고 다시 묻는다.
+        for attempt, delay in enumerate((0.0, *LEVELTEST_JUDGE_RETRY_DELAYS_S)):
+            if delay:
+                await asyncio.sleep(delay)
+            result = await gemini_analysis.generate_structured(
+                client,
+                settings_obj.JUDGE_MODEL,
+                system_instruction=lt_system,
+                prompt=f"[통화 전사]\n{dialog.strip()}",
+                schema=LevelAssessment,
+                temperature=0.0,
+                usage=lt_usage,
+            )
+            if result is not None:
+                break
+            logger.warning("leveltest 판정: LLM 실패 %d회 call_id=%s", attempt + 1, call_id)
         await _save_analysis_usage(session_factory, call_id, lt_usage)
         if result is None:
             logger.warning("leveltest 판정: LLM 실패 → failed·미저장 call_id=%s", call_id)
