@@ -1108,6 +1108,12 @@ _RESUME_SUMMARY_INSTRUCTION = (
 )
 
 
+class MemoryFact(BaseModel):
+    key: str = ""      # 기억 9차 — 주제 키(예: 주말 취미 · 좋아하는 가수 · 회사 선배) · 고정 칸이면 그 이름
+    value: str = ""
+    quote: str = ""    # 근거 — 학습자가 한 말 그대로(전사의 «학습자:» 줄 일부)
+
+
 class MemoryProfileItem(BaseModel):
     key: str = ""      # 생일 · 사는 곳 · 다음 여행 · 못 먹는 것 · 반려동물 · 가족 · 직업
     value: str = ""
@@ -1122,6 +1128,7 @@ class MemoryOut(BaseModel):
     interests: list[str] = []
     replaced: list[str] = []           # 기존 사실 중 이번 대화로 바뀐 것(기존 문구 그대로)
     profile: list[MemoryProfileItem] = []   # 기억 8차 — 하나뿐인 값 고정 칸(이번 통화에서 말한 칸만)
+    facts: list[MemoryFact] = []            # 기억 9차 — 주제 키 · 값 · 근거 학습자 발화
 
 
 _MEMORY_EXTRACT_INSTRUCTION = (
@@ -1142,7 +1149,13 @@ _MEMORY_EXTRACT_INSTRUCTION = (
     "value 는 지금 맞는 값 전체를 짧게(예: 생일 \"12월 5일\" · 다음 여행 \"다음 달 경주\" · 못 먹는 것 \"가지, 굴\" · "
     "반려동물 \"고양이 나비, 햄스터 망고\"). [기존 사실]의 같은 칸 값에 이번에 바뀐 것만 고쳐서 전체를 다시 적는다"
     "(«버섯은 이제 먹어요. 가지를 못 먹어요» → 못 먹는 것 \"가지\"). 학습자가 고쳐 말하면(«지난번엔 잘못 말했어요») 새 값. "
-    "**통화 끝부분에 말한 것도 빠뜨리지 않는다.** 이번 통화에서 말하지 않은 칸은 넣지 않는다. 비버의 말은 근거가 아니다."
+    "**통화 끝부분에 말한 것도 빠뜨리지 않는다.** 이번 통화에서 말하지 않은 칸은 넣지 않는다. 비버의 말은 근거가 아니다.\n"
+    "- facts: 이번 통화에서 **학습자가 말한** 사실을 {key, value, quote} 로(최대 12개). key 는 주제를 짧은 명사구로(10자 이내 · "
+    "예: 주말 취미 · 좋아하는 가수 · 회사 선배 · 룸메이트). 생일·사는 곳·다음 여행·못 먹는 것·반려동물·가족·직업은 그 이름을 key 로. "
+    "[기존 사실]에 «주제: 값» 이 있고 같은 주제면 **그 key 를 글자 그대로** 쓴다(같은 key 면 새 값이 옛 값을 대신한다). "
+    "value 는 지금 맞는 값을 짧게(예: 주말 취미 \"볼링을 배움\" · 좋아하는 가수 \"아이유\" · 회사 선배 \"준서, 많이 도와줌\"). "
+    "quote 는 그 근거가 된 **학습자 발화를 [통화 전체]의 «학습자:» 줄에서 그대로 베껴** 적는다. 비버가 한 말만 근거면 넣지 않는다. "
+    "학습자가 바꿔 말하면(«요가는 그만뒀어요. 요즘 주말에는 볼링을 배워요») 같은 key 에 새 값."
 )
 MEMORY_FACTS_MAX = 10
 
@@ -1168,15 +1181,48 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
         return None
     if out is None:
         return None
+    keyed, evidence, dropped = _grounded_facts(out.facts or [], transcript)
     return {
         "topic": (out.topic or "").strip()[:30],
-        "learner_facts": _clean_list(out.learner_facts, MEMORY_FACTS_MAX, 40),
+        "learner_facts": keyed + _clean_list(out.learner_facts, MEMORY_FACTS_MAX, 40)[: max(0, MEMORY_FACTS_MAX - len(keyed))],
+        "evidence": evidence,
+        "dropped": dropped,
         "pending": (out.pending or "").strip()[:40],
         "interests": _clean_list(out.interests, 5, 30),
         "replaced": chat_memory_service.match_replaced(_clean_list(out.replaced, MEMORY_FACTS_MAX, 80), olds),
         "profile": {p.key.strip(): p.value.strip()[:60] for p in (out.profile or [])
                     if p.key.strip() in chat_memory_service.PROFILE_KEYS and p.value.strip()},
     }
+
+
+def _norm_speech(t: str) -> str:
+    return "".join(ch for ch in (t or "") if ch.isalnum())
+
+
+def _grounded_facts(items, transcript: str) -> tuple[list[str], list[tuple[str, str]], list[str]]:
+    """기억 9차 — 근거(quote)가 전사의 학습자 줄에 있는 사실만 «주제: 값» 으로 남긴다(비버 말이 사실이 되는 것 차단)."""
+    learner = [ln[len("학습자: "):] for ln in (transcript or "").splitlines() if ln.startswith("학습자: ")]
+    joined = _norm_speech(" ".join(learner))
+    keyed, evidence, dropped = [], [], []
+    for it in items:
+        key, value, quote = (it.key or "").strip()[:15], (it.value or "").strip()[:60], (it.quote or "").strip()
+        if not key or not value:
+            continue
+        line = f"{key}: {value}"
+        q = _norm_speech(quote)
+        ok = bool(q) and len(q) >= 2 and (q in joined or any(
+            chat_memory_service._fact_overlap(quote, ln) >= 0.6 for ln in learner))
+        if ok:
+            keyed.append(line)
+            evidence.append((line, quote[:80]))
+        else:
+            dropped.append(line)
+    # 같은 주제가 한 통화에 두 번 나오면 **뒤의 값**(나중에 바꿔 말한 것)이 맞다 — 주제당 마지막 줄만
+    last: dict[str, str] = {}
+    for line in keyed:
+        last.pop("".join(line.split(": ", 1)[0].split()), None)
+        last["".join(line.split(": ", 1)[0].split())] = line
+    return list(last.values())[:MEMORY_FACTS_MAX + 2], evidence, dropped
 
 
 def _memory_transcript(db: Session, call_id: int) -> str:
@@ -1422,6 +1468,11 @@ async def extract_and_merge_chat_memory(
         "replaced": list(slots_raw.get("replaced") or []),
         "profile": dict(slots_raw.get("profile") or {}),
     }
+    for line, quote in slots_raw.get("evidence") or []:
+        logger.info("normalcall chat_memory 근거: call_id=%s %s ← «%s»", call_id, line, quote)
+    if slots_raw.get("dropped"):
+        logger.info("normalcall chat_memory: 학습자 발화 근거 없음 → 버림 call_id=%s %s", call_id,
+                    " · ".join(slots_raw["dropped"])[:300])
     if not any(slots.values()):
         logger.info("normalcall chat_memory: 뽑힌 슬롯이 없어 merge 생략 call_id=%s", call_id)
         return
@@ -1469,9 +1520,12 @@ async def extract_and_merge_chat_memory(
         merged_facts = chat_memory_service._merge_facts(old_facts, slots.get("facts"), chat_memory_service.FACTS_CAP,
                                                         slots.get("replaced"), slots.get("profile"))
         prof = chat_memory_service.profile_of(merged_facts)
-        # 기억 8차 — 재압축 LLM 이 옛 값 문장을 안 지웠다(7차: 3월 7일·땅콩·새우) → 칸이 맡은 문장은 넣기 전에 뺀다
+        stale = chat_memory_service.stale_values(old_facts, merged_facts, slots.get("replaced"))
+        if stale:
+            logger.info("normalcall chat_memory: 덮어쓴 옛 값 call_id=%s %s", call_id, " · ".join(stale)[:200])
+        # 기억 8·9차 — 재압축 LLM 이 옛 값 문장을 안 지웠다(7차: 3월 7일·땅콩·새우 · 8차: 클라이밍) → 넣기 전에 뺀다
         summary = await chat_memory_service.recompress_summary(
-            client, settings_obj.JUDGE_MODEL, chat_memory_service.scrub_summary(old_summary, prof),
+            client, settings_obj.JUDGE_MODEL, chat_memory_service.scrub_summary(old_summary, prof, stale, merged_facts),
             chat_memory_service.scrub_summary(slots.get("summary") or "", prof),
             replaced=slots.get("replaced"),
             # PM-DEC-920 · 기억 6차 — 옛 값을 품은 요약 고쳐 쓰기 · 이번 통화 사실이 아니라 저장될 합친 목록을 넘긴다
