@@ -91,7 +91,7 @@ async def test_recompression_runs_on_the_main_event_loop(ctx, monkeypatch):
     this_loop = asyncio.get_running_loop()
     seen: dict = {}
 
-    async def fake_recompress(client, model, old, new):
+    async def fake_recompress(client, model, old, new, *_a, **_k):
         seen["loop"] = asyncio.get_running_loop()
         return (new + " " + old).strip()
 
@@ -154,7 +154,7 @@ async def test_fallback_keeps_the_newest_content_when_recompression_fails(ctx, m
 async def test_idempotent_on_the_same_call_id(ctx, monkeypatch):
     calls = {"n": 0}
 
-    async def counting_recompress(client, model, old, new):
+    async def counting_recompress(client, model, old, new, *_a, **_k):
         calls["n"] += 1
         return (new + " " + old).strip()
 
@@ -177,7 +177,7 @@ async def test_idempotent_on_the_same_call_id(ctx, monkeypatch):
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
 async def test_recompression_exception_does_not_escape(ctx, monkeypatch):
-    async def boom(client, model, old, new):
+    async def boom(client, model, old, new, *_a, **_k):
         raise RuntimeError("recompress 폭발 흉내 — R5 로 흡수돼야 한다")
 
     monkeypatch.setattr(svc, "summarize_for_memory", _fake_slots())
@@ -210,7 +210,7 @@ async def test_intermediate_fragment_merges_slots_without_recompressing(ctx, mon
     """
     recompress_calls = {"n": 0}
 
-    async def counting_recompress(client, model, old, new):
+    async def counting_recompress(client, model, old, new, *_a, **_k):
         recompress_calls["n"] += 1
         return (new + " " + old).strip()
 
@@ -264,7 +264,7 @@ async def test_final_fragment_recompresses_even_after_intermediate_merges(ctx, m
     으로 오판해 재압축을 건너뛴다)."""
     recompress_calls = {"n": 0}
 
-    async def counting_recompress(client, model, old, new):
+    async def counting_recompress(client, model, old, new, *_a, **_k):
         recompress_calls["n"] += 1
         return (new + " " + old).strip()
 
@@ -333,7 +333,7 @@ async def test_replaced_fact_is_swapped_and_whole_call_is_read(ctx, monkeypatch)
         return {"topic": "음식", "learner_facts": ["이제 매운 것도 잘 먹음"], "pending": "", "interests": [],
                 "replaced": ["매운 음식을 잘 못 먹음"]}
 
-    async def _recompress(client, model, old, new):
+    async def _recompress(client, model, old, new, *_a, **_k):
         return new
 
     monkeypatch.setattr(svc, "summarize_for_memory", _summarize)
@@ -346,3 +346,27 @@ async def test_replaced_fact_is_swapped_and_whole_call_is_read(ctx, monkeypatch)
     row = chat_memory_service.load(db, ctx["member_id"], "ko")
     db.refresh(row)
     assert "이제 매운 것도 잘 먹음" in row.facts and "매운 음식을 잘 못 먹음" not in row.facts and "고양이를 키움" in row.facts
+
+
+def test_core_facts_survive_cap_over_chitchat():
+    """PM-DEC-920 — 상한(15)에 닿으면 잡담보다 핵심(생일·못 먹는 것·반려동물)을 남긴다(max06)."""
+    old = ["생일은 2월 3일", "새우를 못 먹음"] + [f"잡담 {i}번" for i in range(14)]
+    new = ["반려견 보리를 키움"]
+    got = chat_memory_service._merge_facts(old, new, 15, replaced=[])
+    assert len(got) == 15 and "생일은 2월 3일" in got and "새우를 못 먹음" in got and "반려견 보리를 키움" in got
+    assert chat_memory_service._merge_facts(["생일은 3월 7일"], ["생일은 11월 20일"], 15, ["생일은 3월 7일"]) == ["생일은 11월 20일"]
+
+
+@pytest.mark.asyncio
+async def test_recompress_receives_replaced_facts(monkeypatch):
+    """PM-DEC-920 — 바뀐 옛 사실을 재압축에 넘겨 요약에서 지우게 한다."""
+    seen = {}
+
+    async def fake_gen(client, model, **kw):
+        seen["prompt"] = kw["prompt"]
+        return chat_memory_service._RecompressOut(summary="합친 요약")
+
+    monkeypatch.setattr(chat_memory_service.gemini_analysis, "generate_structured", fake_gen)
+    out = await chat_memory_service.recompress_summary(object(), "m", "옛 요약 생일 3월 7일", "새 요약",
+                                                       replaced=["생일은 3월 7일"], facts=["생일은 11월 20일"])
+    assert out == "합친 요약" and "옛: 생일은 3월 7일" in seen["prompt"] and "생일은 11월 20일" in seen["prompt"]

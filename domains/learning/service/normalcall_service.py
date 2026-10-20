@@ -1122,6 +1122,7 @@ _MEMORY_EXTRACT_INSTRUCTION = (
     "너는 회화 통화의 기억 정리기다. 아래 [통화 전체]를 읽고 JSON 슬롯만 채워라. **문장을 만들지 마라.**\n"
     "- topic: 대화가 흐르던 화제를 짧은 명사구 하나로(최대 15자). 없으면 빈 문자열.\n"
     "- learner_facts: 통화 **전체**에서 학습자에 대해 알게 된 사실을 짧은 구로(각 25자 이내, 최대 10개). "
+    "**학습자 발화만 근거로 한다** — 비버의 말·질문, 비버가 모른다·잊었다고 한 말은 학습자 사실이 아니다(예: «생일을 모름» 금지). "
     "예: \"매운 음식을 잘 못 먹음\", \"고양이 나비를 키움\". 앞부분에 나온 사실도 빠뜨리지 마라. ⛔ 근거가 없으면 넣지 마라. "
     "이름·가족·반려동물·날짜(생일 등)·계획(여행 등)·못 먹는 것·못 하는 것을 먼저 넣고, 같은 얘기(예: 게임을 자주 함 · 주말에 게임을 함)는 하나로 합쳐라.\n"
     "- pending: 끝내지 못하고 하던 중이던 것을 짧은 구로(최대 20자). 없으면 빈 문자열.\n"
@@ -1442,6 +1443,7 @@ async def extract_and_merge_chat_memory(
             return
         summary = await chat_memory_service.recompress_summary(
             client, settings_obj.JUDGE_MODEL, old_summary, slots.get("summary") or "",
+            replaced=slots.get("replaced"), facts=slots.get("facts"),   # PM-DEC-920 — 옛 값을 품은 요약 고쳐 쓰기
         )
 
         def _do_merge(db: Session) -> None:
