@@ -239,8 +239,6 @@ LEVELTEST_BAND_MAX_ANSWERS = 10     # 관측 답변 수 안전 상한(하드 턴
 LEVELTEST_BAND_NONSPEAKER_MAX = 5   # 대상 언어 산출 실패(answer_in_target=False)가 이만큼 연속이면 비화자 결정론 컷(한국어 못 하는 사람이 오래 붙잡히는 역설 방지)
 # 종료 판정 사이드카(C): 매 답변마다 전체 전사를 LLM에 넣어 "지금 끝내도 되나(should_end)" 판정 —
 # 등반 실패(정체·막힘)를 맥락으로 조기 종료. 시간 플로어·최소 답변 충족 후에만 반영.
-LEVELTEST_REPLY_HOLD_S = float(os.environ.get("LIVE_LEVELTEST_REPLY_HOLD_S", "1.5"))   # 2차 ③ — 종료 가능 턴에서 판정 동안 답 첫 소리 보류 상한(0 = 끔)
-_CUT_NEXT = "__next_turn__"   # 2차 ③ — 보류 중 종료 판정 → 곧 열릴 답 턴을 통째로 보내지 않는다
 LEVELTEST_END_JUDGE_MIN_ANSWERS = 3  # should_end 조기종료를 반영하기 시작하는 최소 답변 수(성급한 종료 방지)
 # ── 재접지(단계 3: 시각 비율 → 압축 신호 통합) ────────────────────────────
 # 🧒 재접지 = 대화가 길어지면 AI 가 캐릭터·규칙·지금까지 한 얘기를 조금씩 잊는데(드리프트),
@@ -855,7 +853,6 @@ class _CallState:
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
         "leveltest_cut_turn",   # PM-DEC-922 — 종료 판정이 선 뒤 앱에 더 보내지 않는 질문 턴
-        "leveltest_early_judged",   # 2차 ③ — 이 답변은 보류 단계에서 이미 판정을 띄웠다(턴 시작 때 다시 띄우지 않음)
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
         "clip_expr",
@@ -1166,7 +1163,6 @@ class _CallState:
         self.band_client = None
         self.band_awaiting: bool = False
         self.leveltest_cut_turn: Optional[str] = None   # PM-DEC-922
-        self.leveltest_early_judged: bool = False        # 2차 ③
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
         self.band_target_language: str = _DEFAULT_TARGET_LABEL
         # 입력 전사에 들릴 언어(학습 언어 + 모국어). 빈 목록 = 힌트 없음(자동 감지).
@@ -6333,7 +6329,7 @@ def _band_ceiling_reached(state: _CallState, elapsed: float) -> bool:
     return state.total_answers >= LEVELTEST_BAND_MAX_ANSWERS
 
 
-def _spawn_band_observe(state: _CallState) -> "asyncio.Task | None":
+def _spawn_band_observe(state: _CallState) -> None:
     """유저 답변 1건을 조용히 밴드 관측하는 사이드카를 띄운다(무주입 — should_close 만).
 
     ⛔ 격리(R4/R5): 2펌프 경로의 추가 비용은 create_task 1회뿐. 분류 LLM 콜은 백그라운드
@@ -6346,14 +6342,11 @@ def _spawn_band_observe(state: _CallState) -> "asyncio.Task | None":
       살 수 있는데, 세션은 세대의 지역 변수다 — 잡고 있으면 세션 교체 후 **죽은 세션**에
       주입하게 된다. 세션에 손대는 일은 전부 세대 안(펌프·워처)에서만 한다.
     """
-    if state.leveltest_early_judged:
-        state.leveltest_early_judged = False   # 2차 ③ — 보류 단계에서 이 답변을 이미 판정에 넘겼다
-        return None
     if not state.band_observe or state.band_awaiting or state.should_close:
-        return None  # 종료 진행중이면 관측 불필요(m4: LLM 콜 낭비 방지)
+        return  # 종료 진행중이면 관측 불필요(m4: LLM 콜 낭비 방지)
     answer = "".join(state.cur_user_text).strip()
     if not answer:
-        return None  # 무발화 턴(오프닝 등) — 관측 대상 아님
+        return  # 무발화 턴(오프닝 등) — 관측 대상 아님
     state.band_awaiting = True  # create_task 전 선점(동시 1건 가드)
     task = asyncio.create_task(
         _band_observe_sidecar(state, answer, state.last_beaver_question, reply_turn_id=state.turn_id),
@@ -6361,44 +6354,6 @@ def _spawn_band_observe(state: _CallState) -> "asyncio.Task | None":
     )
     state.band_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
     task.add_done_callback(state.band_tasks.discard)
-    return task
-
-
-def _leveltest_end_possible(state: _CallState) -> bool:
-    """2차 ③ — 다음 답변 판정 결과로 종료가 **날 수 있는** 턴인가(_band_observe_sidecar 의 세 트리거와 같은 문턱).
-    아니면 보류하지 않는다(초반 턴에 지연을 얹지 않는다)."""
-    n = state.total_answers + 1
-    if n >= LEVELTEST_BAND_MAX_ANSWERS:
-        return True
-    if state.call_start_ts is None:
-        return False
-    if asyncio.get_running_loop().time() - state.call_start_ts < LEVELTEST_BAND_TIME_FLOOR_S:
-        return False
-    return n >= LEVELTEST_END_JUDGE_MIN_ANSWERS or state.nonspeaker_streak + 1 >= LEVELTEST_BAND_NONSPEAKER_MAX
-
-
-async def _leveltest_hold_reply(state: _CallState) -> None:
-    """2차 ③ — 레벨테스트 답 턴의 첫 오디오/자막을 앱에 보내기 **전에** 종료 판정을 띄우고 최대 LEVELTEST_REPLY_HOLD_S 기다린다.
-
-    판정이 종료를 세우면 곧 열릴 답 턴을 통째로 보내지 않게 표시한다(_CUT_NEXT → _forward_event). 펌프만 기다리므로
-    이벤트 순서는 그대로다. 시간 초과면 그대로 흘리고 늦은 판정은 PM-DEC-922 컷(진행 중 턴의 남은 부분)이 받는다.
-    """
-    if (LEVELTEST_REPLY_HOLD_S <= 0 or state.leveltest_cut_turn is not None or state.should_close
-            or state.close_seed_sent or not _leveltest_end_possible(state)):
-        return
-    task = _spawn_band_observe(state)
-    if task is None:
-        return
-    state.leveltest_early_judged = True   # 턴 시작 때(_pump) 같은 답변을 다시 띄우지 않는다
-    loop = asyncio.get_running_loop()
-    t0 = loop.time()
-    done, _ = await asyncio.wait({task}, timeout=LEVELTEST_REPLY_HOLD_S)
-    waited_ms = int((loop.time() - t0) * 1000)
-    if state.should_close and not state.close_seed_sent:
-        state.leveltest_cut_turn = _CUT_NEXT
-        logger.info("normalcall: 레벨테스트 종료 판정(보류 %dms) — 이 답 턴은 보내지 않고 작별로", waited_ms)
-    else:
-        logger.info("normalcall: 레벨테스트 답 보류 %dms(%s) — 그대로 보냄", waited_ms, "판정 계속" if done else "시간 초과")
 
 
 async def _band_observe_sidecar(
@@ -6483,8 +6438,6 @@ async def _band_observe_sidecar(
     )
     # PM-DEC-922 — 판정을 띄운 응답 턴(다음 질문)이 아직 생성 중이면 남은 부분을 앱에 보내지 않는다.
     #   그 턴의 turn_end 에서 펌프가 작별 시드를 넣는다(call 2234: 질문 한 줄이 남고 0.7초 뒤 작별).
-    if reply_turn_id is None and state.leveltest_cut_turn is None:
-        reply_turn_id = state.turn_id   # 2차 ③ — 보류 단계에서 띄운 판정이 보류 시간 뒤 끝났다 → 지금 진행 중인 답 턴
     if state.is_leveltest and reply_turn_id is not None and state.turn_id == reply_turn_id:
         state.leveltest_cut_turn = reply_turn_id
         logger.info("normalcall: 레벨테스트 종료 — 생성 중 질문의 남은 부분을 보내지 않음 turn=%s", reply_turn_id)
@@ -6854,8 +6807,6 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         # user_turn_open 을 True 로 바꾸기 전에 해야 한다.
         in_tr_first = event.kind == "in_tr" and not state.user_turn_open
 
-        if state.is_leveltest and state.turn_id is None and event.kind in ("audio", "out_tr"):
-            await _leveltest_hold_reply(state)   # 2차 ③ — 종료 가능 턴이면 판정 동안 답 첫 소리 보류
         turn_started = await _forward_event(client_ws, event, state)
 
         if turn_started:
@@ -7343,14 +7294,6 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
       '통화 시계 시작' 같은 턴 경계 처리를 한다.
     """
     turn_started = False
-
-    # 2차 ③ — 보류 중 종료 판정이 섰다: 답 턴을 열되(turn_start) 오디오·자막은 보내지 않는다 → 그 turn_end 에서 작별 시드
-    if state.leveltest_cut_turn == _CUT_NEXT and state.turn_id is None and event.kind in ("audio", "out_tr"):
-        state.turn_id = _new_turn_id()
-        await _send_json(client_ws, ServerTurnStart(turn_id=state.turn_id))
-        state.leveltest_cut_turn = state.turn_id
-        logger.info("normalcall: 레벨테스트 종료 — 답 턴 통째로 보내지 않음 turn=%s", state.turn_id)
-        return True
 
     # PM-DEC-922 — 레벨테스트 종료가 선 뒤 남은 질문 조각은 앱에 보내지도 저장하지도 않는다(turn_end 는 그대로 흘린다)
     if (event.kind in ("audio", "out_tr") and state.leveltest_cut_turn is not None
