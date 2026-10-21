@@ -551,6 +551,14 @@ _CALL_TOKEN_RE = re.compile(r"(^|[\s?!.。…,])call:\s*")
 _PROVIDER_NOTICE_RE = re.compile(r"\s*(?:The )?medical disclaimer:[^\n]*|\s*This is not medical advice[^\n]*", re.I)
 
 
+_CALL_ECHO_RE = re.compile(r"(?<![A-Za-z])call:\s*")
+# 2325 «icase:sad아이,…» — 표정 도구 호출이 깨져 «영문자:표정어» 꼴로 샘 · 앞 콜론 찌꺼기(«:비버 맛이라니»)
+_FACE_WORD_ECHO_RE = re.compile(r"[A-Za-z_]+:(?:neutral|happy|surprised|sad|angry|laugh)(?![A-Za-z])")
+_LEAD_COLON_RE = re.compile(r"^\s*:+\s*")
+# 2325 «너네 애기 완전 상남자네, 씨발!» — 출력 욕설 가림(작은 사전 · 자막·저장·대체 TTS). 운영 30일 비버 발화 0건(command center).
+_PROFANITY_RE = re.compile(r"씨\s?발|시\s?발(?!점|생|전|표)|씨\s?바|ㅅㅂ|ㅆㅂ|개새끼|개새|병신|좆|존나|졸라|지랄|미친놈|미친년|fuck\w*|shit\w*", re.I)
+
+
 def _strip_face_echo(text: str) -> str:
     """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**, 공급자 안내 문구·굵게 표시를 걷어낸다.
 
@@ -560,6 +568,11 @@ def _strip_face_echo(text: str) -> str:
         text = text.replace("**", "")
     if "isclaimer" in text or "medical advice" in text:
         text = _PROVIDER_NOTICE_RE.sub("", text)
+    if "call:" in text:
+        text = _CALL_ECHO_RE.sub("", text)        # 2323 «…라고?call:아이고» — 도구 호출 꼴 낭독
+    if ":" in text:
+        text = _LEAD_COLON_RE.sub("", _FACE_WORD_ECHO_RE.sub("", text))
+    text = _PROFANITY_RE.sub("대박", text)
     if "call:" in text:
         # PM-DEC-918 — 도구 호출 자리의 «call:» 파편(앞이 문장 끝·공백·맨 앞일 때만 · 영어 «recall:» 같은 낱말은 건드리지 않는다)
         text = _CALL_TOKEN_RE.sub(lambda m: m.group(1), text)
