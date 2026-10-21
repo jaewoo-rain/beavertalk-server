@@ -2978,11 +2978,13 @@ def _rephrase_rule(n: int, target_language: str, max_n: int = REPHRASE_MAX) -> s
         "[이렇게도 말해요 — 자유대화]\n"
         f"- 위 3종이 {n}개보다 적으면, 학습자가 실제로 한 문장을 골라 source_type 을 'rephrased' 로 해서 "
         f"expressions 를 최소 {n}개, 최대 {max_n}개로 채운다.\n"
-        "- learner_attempt 에는 학습자 문장을 전사의 [USER] 줄에서 그대로 옮긴다. 비버 말·질문 한마디·인사·«네»같은 짧은 대답은 고르지 않는다.\n"
+        "- learner_attempt 에는 학습자 문장을 전사의 [USER] 줄에서 **글자 그대로** 옮긴다 — 한 줄의 연속된 부분이어야 하고, "
+        "앞뒤를 잘라내는 것만 된다(낱말·조사를 더하거나 고치거나 순서를 바꾸지 않는다 · 틀린 말도 그대로). "
+        "비버 말·질문 한마디·인사·«네»같은 짧은 대답은 고르지 않는다.\n"
         f"- korean 에는 학습자 문장을 올바르고 완성된 {target_language} 문장으로 쓴다(이미 자연스러우면 그대로 · 조각이면 완성). "
         "learner_attempt 는 8자 이상인 완성된 생각이어야 한다(«귀여워서» 같은 조각 금지).\n"
         f"- 핵심은 native_expression 이다: 같은 뜻을 {target_language} 현지인이 실제로 말하는 더 생생한 말로 **반드시** 쓴다 — "
-        "korean 과 다른 낱말·말투여야 하고 존댓말·반말만 바꾼 것은 안 된다"
+        "korean 과 다른 낱말·말투여야 하고 존댓말·반말만 바꾼 것은 안 된다 · 뜻은 korean 과 같아야 한다(새 동작·대상·정보를 더하지 않는다)"
         "(ex) korean=«할머니가 해주신 불고기가 가장 맛있었어요» → native_expression=«할머니표 불고기가 진짜 최고였어요»).\n"
         "- 학습자 말이 틀렸다고 보이게 쓰지 마라. 고친 것이 아니라 «이렇게도 말해요» 다(translation 도 그 톤).\n"
     )
@@ -3004,10 +3006,23 @@ def _speech_key(s: str) -> str:
     return _re.sub(r"[\s.,!?~…·\"'«»()\[\]-]+", "", s or "")
 
 
+_LEAD_FILLER = __import__("re").compile(r"^(?:(?:네|넵|응|어|아|음|으음|예|저기|그)[.,!?~…\s]+)+")   # 앞머리 맞장구만 뗀다
+
+
+def _attempt_cover(att: str, line: str) -> float:
+    """attempt 글자 중 실제 줄에 같은 순서로 있는 비율(조사 추가·낱말 삭제한 다듬은 판도 0.8 안팎 · 지어낸 말은 0.5 아래)."""
+    import difflib
+
+    a, b = _speech_key(att), _speech_key(line)
+    if not a or not b:
+        return 0.0
+    m = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    return sum(x.size for x in m.get_matching_blocks()) / len(a)
+
+
 def _ground_rephrased(exprs: list, dialog_rows: list[dict], max_n: int = REPHRASE_MAX) -> list:
     """rephrased 는 learner_attempt 가 학습자 줄에 있어야 남는다(지어낸 학습자 말 차단) · korean 이 원문과 같으면 버림 · 전체 상한."""
     learner = [str(r.get("content") or "") for r in dialog_rows if r.get("role") == "user" and r.get("content")]
-    joined = "".join(_speech_key(x) for x in learner)
     out, seen = [], set()
     for e in exprs:
         if e.source_type != "rephrased":
@@ -3021,8 +3036,17 @@ def _ground_rephrased(exprs: list, dialog_rows: list[dict], max_n: int = REPHRAS
         # 현지인 표현 짝이 핵심 — 없거나 korean 과 같거나 어미만 다르면(«귀여워»→«귀여워요») 버린다
         if len(k) < 6 or k in seen or not nk or nk == _speech_key(e.korean) or _near_same(nk, _speech_key(e.korean)):
             continue
-        if not (k in joined or any(chat_memory_service._fact_overlap(att, ln) >= 0.6 for ln in learner)):
-            continue
+        if not any(k in _speech_key(ln) for ln in learner):
+            # 다듬은 판(조사 추가·낱말 삭제) — 학습자에게 «내가 이렇게 말했다» 로 보이므로 실제 줄로 바꿔 넣는다(없으면 버림)
+            best = max(learner, key=lambda ln: _attempt_cover(att, ln), default="")
+            if not best or (_attempt_cover(att, best) < 0.75 and chat_memory_service._fact_overlap(att, best) < 0.6):
+                continue
+            fixed = _LEAD_FILLER.sub("", best.strip()).strip() or best.strip()
+            logger.info("normalcall rephrased: learner_attempt 를 실제 발화로 바꿈 %r → %r", att[:40], fixed[:40])
+            e.learner_attempt = fixed
+            k = _speech_key(fixed)
+            if len(k) < 6 or k in seen:
+                continue
         seen.add(k)
         out.append(e)
     rephrased = [e for e in out if e.source_type == "rephrased"]
