@@ -59,6 +59,7 @@ from __future__ import annotations
 #     그대로 import 한다. 이름을 안 바꿔야 그 전부가 무손상이다.
 #     ⛔⛔ P2-4(2026-09-24, bt-back QA) — `cascade_session` 은 뺐다. 캐스케이드
 #     엔진 삭제로 그 파일 자체가 없다(grep 확인 — import 할 데가 없다).
+from core.prompts.common import unnamed_tail
 from core.prompts.common import (  # noqa: F401 - 재수출(하위호환 공개 심볼)
     CLOSE_TAG_DEFAULT,
     CONTROL_TAG,
@@ -407,6 +408,7 @@ def build_system_instruction(
         lang_policy=lang_policy,
         close_tag=close_tag,
     )
+    invariants = unnamed_tail(invariants, name)
 
     parts = [
         invariants,

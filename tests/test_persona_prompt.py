@@ -137,6 +137,10 @@ def _orig_build(*, role, personality, level_profile, locale, interests,
         lang_policy=lang_policy,
         close_tag=close_tag,
     )
+    # ⚠ 의도적 재기준화(2026-10-21 U21 · call 2308 «학습자 너도»): 이름이 없을 때 이름 칸만 NO_NAME_TAIL 로 — 같은 치환만 넣는다.
+    if not (name or "").strip():
+        from core.prompts.common import NO_NAME_TAIL
+        invariants = invariants.replace("대화상대의 이름은 학습자", "대화상대의 이름은 " + NO_NAME_TAIL)
     parts = [
         invariants,
         f"\n[학습자 수준]\n{level_profile}",

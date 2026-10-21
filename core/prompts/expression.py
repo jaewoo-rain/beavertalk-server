@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import re
 
+from core.prompts.common import unnamed_tail
 from core.prompts.common import (
     CLOSE_TAG_DEFAULT,
     CONTROL_TAG,  # noqa: F401 - 재수출(옛 호출부 호환; 문구는 locked/seeds·locked/expression 이 쓴다)
@@ -199,7 +200,7 @@ def build_expression_instruction(
     level_first = _first_sentence(level_profile)
 
     parts = [
-        _EXPRESSION_TEMPLATE.format(
+        unnamed_tail(_EXPRESSION_TEMPLATE.format(
             target=target_language,
             locale_label=label,
             role=role or "친근한 한국어 대화 파트너",
@@ -207,7 +208,7 @@ def build_expression_instruction(
             username=username,
             max_sentences=max_sentences,
             model_block=_model_block(model_family, target=target_language, locale_label=label),
-        ),
+        ), name),
         f"\n[학습자 수준] {level_first}",
         *([guide] if lesson_guide and (guide := lesson_guide_line(*lesson_guide)) else []),
         "\n" + _items_block(items, target=target_language, locale_label=label),

@@ -546,11 +546,22 @@ _TOOL_RESULT_TAIL_RE = re.compile(
 _CALL_TOKEN_RE = re.compile(r"(^|[\s?!.。…,])call:\s*")
 
 
-def _strip_face_echo(text: str) -> str:
-    """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**을 걷어낸다.
+# ⭐ **네 번째 무늬 — 공급자 안내 문구·마크다운**(2026-10-21, call 2308 숙제 병원 장면). 소리 없는 턴의 출력 전사 끝에
+#   영어 «The medical disclaimer: This is not medical advice …» 가 붙어 왔다(우리 프롬프트·코드에 없는 문장 · 8회).
+#   소리는 0바이트였지만 통화 중 자막은 바로 나가므로 학습자 화면과 저장 대본에 그대로 남았다.
+#   같은 통화에서 재접지 뒤 «**얼굴**» 처럼 굵게 표시도 자막에 별표로 나갔다. 둘 다 자연 발화에 없는 무늬라 걷어낸다.
+_PROVIDER_NOTICE_RE = re.compile(r"\s*(?:The )?medical disclaimer:[^\n]*|\s*This is not medical advice[^\n]*", re.I)
 
-    둘은 무늬가 다르다 — 위 두 주석 블록 참조. 해당 없으면 원문 그대로 반환한다.
+
+def _strip_face_echo(text: str) -> str:
+    """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**, 공급자 안내 문구·굵게 표시를 걷어낸다.
+
+    무늬가 제각각이다 — 위 주석 블록 참조. 해당 없으면 원문 그대로 반환한다.
     """
+    if "**" in text:
+        text = text.replace("**", "")
+    if "isclaimer" in text or "medical advice" in text:
+        text = _PROVIDER_NOTICE_RE.sub("", text)
     if "call:" in text:
         # PM-DEC-918 — 도구 호출 자리의 «call:» 파편(앞이 문장 끝·공백·맨 앞일 때만 · 영어 «recall:» 같은 낱말은 건드리지 않는다)
         text = _CALL_TOKEN_RE.sub(lambda m: m.group(1), text)
@@ -763,6 +774,7 @@ class _CallState:
         "hinted_turn_ids", "hinted_next_turn_index",
         "last_activity_ts", "silence_stage", "call_duration_s",
         "tts_voice", "greeting_tts_done",   # 첫 인사 벙어리 → TTS 대체
+        "midcall_tts_count", "midcall_tts_skip",   # 통화 중 소리 0B 턴 → TTS 대체(call 2308)
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
         # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
@@ -953,6 +965,8 @@ class _CallState:
         self.user_voice_ts: Optional[float] = None
         self.tts_voice: str = ""          # 첫 인사 TTS 대체용 — Live 와 같은 목소리 이름
         self.greeting_tts_done = False    # 첫 인사 TTS 대체는 통화당 한 번
+        self.midcall_tts_count = 0        # 통화 중 소리 0B 턴 TTS 대체 횟수(상한 MIDCALL_TTS_MAX)
+        self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
         self.silence_stage: int = 0
         # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
         # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
@@ -6700,6 +6714,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             #    그 판정이 언제나 0을 본다.)
             state.diag_interrupts += 1
             state.last_interrupted_ts = asyncio.get_running_loop().time()
+            state.midcall_tts_skip = True       # 버린 턴의 문장을 TTS 로 살려 말하지 않는다
             state.ctx_turn_interrupted = True   # PM-DEC-864 — 끼어든 턴 뒤에는 세션을 바꾸지 않는다
             _open = state.diag_turn_open_ts
             _el = (asyncio.get_running_loop().time() - _open) if _open else -1.0
@@ -6736,6 +6751,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             _expression_quiz_open_on_beaver_turn(state)  # T16 — 큐가 얹힌 뒤 첫 비버 턴 = 퀴즈 창 시작(open_seg)
             state.user_turn_open = False  # 비버가 응답 시작 = 유저 발화 턴 종료
             state.turn_note_sent = False  # v2 재배포 C1 — 다음 학습자 발화에 안내를 다시 얹는다
+            state.midcall_tts_skip = False
             if state.ctx is not None:
                 state.ctx.on_beaver_turn()   # PM-DEC-864 — 그 전에 준비한 세션은 이 턴을 모른다
                 state.ctx_turn_interrupted = False
@@ -6781,6 +6797,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             elif reseeded_now:
                 _drop_mute_greeting_segment(state)
                 await _reseed_greeting(session, state)
+            elif turn_pcm_bytes == 0 and state.learner_spoke and not state.tag_leak_seen:
+                await _midcall_tts_fallback(client_ws, state, turn_text)
             if state.close_seed_sent:
                 # ⭐ 작별 턴이 실제로 시작됐을 때만 종료. 그 전(빈 turn_end — 이전 활동 잔여)
                 # 이면 무시하고 작별을 기다린다(조기 종료로 작별 인사 잘림 방지). 작별이 끝내
@@ -7031,6 +7049,51 @@ async def _greeting_tts_fallback(client_ws, state: _CallState, text: str) -> boo
     state.last_activity_ts = asyncio.get_running_loop().time()
     logger.warning("normalcall: ⛔벙어리 인사 → 받은 인사 텍스트를 TTS 로 대체(%s · %.1f초 소리 · 첫 문장 합성 %dms · 전체 %dms) %r",
                    state.tts_voice, len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES), first_ms,
+                   int((asyncio.get_running_loop().time() - t0) * 1000), text[:60])
+    return True
+
+
+MIDCALL_TTS = os.environ.get("LIVE_MIDCALL_TTS", "1") != "0"
+MIDCALL_TTS_MAX = 40
+
+
+async def _midcall_tts_fallback(client_ws, state: _CallState, text: str) -> bool:
+    """통화 중 비버 턴이 소리 0B 로 끝났으면 **그 턴 텍스트를 같은 이름 Cloud TTS 로** 들려준다(첫 인사 H 경로 확장 · call 2308).
+
+    2308 숙제 병원 장면에서 통화 중 비버 턴 19개 중 10개가 텍스트만 오고 오디오 0B 였다(자막만 · 일부엔 공급자 영어 안내 문구).
+    자막은 이미 나갔으므로 새 턴으로 같은 문장을 소리와 함께 다시 그린다(클라는 turn_start 에서 자막을 새로 그린다).
+    텍스트는 자막·저장과 같은 정화를 거친 뒤 합성한다. 실패·키 없음·상한이면 False — 지금 동작(자막만) 그대로.
+    """
+    text = _strip_face_echo(text or "").strip()
+    if not MIDCALL_TTS or state.midcall_tts_skip or not text or not state.tts_voice:
+        return False
+    if state.midcall_tts_count >= MIDCALL_TTS_MAX:
+        return False
+    if not _SYNC_TTS and not os.path.isfile(str(_settings.TTS_SA_KEY_FILE or "")):
+        return False      # TTS 키가 없는 환경(시험·로컬)
+    state.midcall_tts_count += 1
+    t0 = asyncio.get_running_loop().time()
+    try:
+        pcm = await asyncio.wait_for(asyncio.to_thread(_greeting_tts_sync, text, state.tts_voice), GREETING_TTS_TIMEOUT_S + 1)
+    except Exception as exc:  # noqa: BLE001 — 합성 실패면 지금 동작(자막만)
+        logger.warning("normalcall: 통화 중 0B 턴 TTS 대체 실패(자막만): %s: %s", type(exc).__name__, exc)
+        return False
+    if not pcm:
+        logger.warning("normalcall: 통화 중 0B 턴 TTS 대체 빈 결과(자막만)")
+        return False
+    turn_id = _new_turn_id()
+    await _send_json(client_ws, ServerTurnStart(turn_id=turn_id))
+    await _send_json(client_ws, ServerOutputTranscript(text=text, turn_id=turn_id))
+    step = _OUT_RATE * SAMPLE_WIDTH_BYTES // 5          # 0.2초씩
+    for i in range(0, len(pcm), step):
+        await client_ws.send_bytes(pcm[i:i + step])
+    await _send_json(client_ws, ServerTurnEnd(turn_id=turn_id))
+    segs = state.segments
+    if segs and len(segs) > state.persisted_count and segs[-1].get("role") == "beaver" and not segs[-1].get("pcm"):
+        segs[-1]["pcm"] = pcm                            # 방금 flush 한 0B 턴 segment 에 소리를 붙여 저장
+    state.last_activity_ts = asyncio.get_running_loop().time()
+    logger.warning("normalcall: ⛔통화 중 0B 턴 → 받은 텍스트를 TTS 로 대체 %d회(%s · %.1f초 소리 · 합성 %dms) %r",
+                   state.midcall_tts_count, state.tts_voice, len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES),
                    int((asyncio.get_running_loop().time() - t0) * 1000), text[:60])
     return True
 
