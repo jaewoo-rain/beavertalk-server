@@ -118,6 +118,29 @@ def test_new_session_recovers_persisted_delivery_without_memory_state(session_fa
     assert requests == [cid]
 
 
+def test_result_delivery_switch_off_sends_nothing(session_factory, seeded, monkeypatch):
+    """PM-DEC-874 — 스위치를 끄면 POST 하지 않고 전달 상태도 그대로 둔다."""
+    from core.config import settings
+    with session_factory() as db:
+        cid = setup_call(db, seeded)
+        call = db.get(Call, cid)
+        namespace = dict(call.usage_json["homework"])
+        namespace.update(assignment_id=8,
+                         analysis={"state": "ready", "generation": 1, "proof": []},
+                         finality={"state": "final", "reason": "budget_exhausted", "max_fragments": 1})
+        call.status = "done"
+        call.usage_json = {"homework": namespace}
+        db.commit()
+    requests = []
+    monkeypatch.setattr(b2b_client, "conversation_result", lambda *a, **k: requests.append(a))
+    monkeypatch.setattr(settings, "HOMEWORK_RESULT_DELIVERY", False)
+    with session_factory() as db:
+        assert deliver_homework(db, cid) is False
+        assert recover_pending(db, member_id=seeded["member_id"]) == 0
+        assert db.get(Call, cid).usage_json["homework"]["delivery"]["state"] == "pending"
+    assert requests == []
+
+
 def test_post_result_failure_does_not_revert_done_or_verified_ready(session_factory, seeded):
     with session_factory() as db:
         cid = setup_call(db, seeded)

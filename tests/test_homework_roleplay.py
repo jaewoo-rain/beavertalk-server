@@ -124,3 +124,56 @@ def test_values_over_300_chars_are_cut():
     long = dict(ROLEPLAY, situation="가" * 400)
     data = normalize_homework(payload(roleplay=long, mode="roleplay"))
     assert len(data["roleplay"]["situation"]) == 300
+
+
+def test_reground_has_no_goal_list_and_keeps_learner_first_line():
+    """call 2308 — 재접지 쪽지가 «주요 표현:» 목록을 다시 붙이면 재접지 뒤 표현을 굵게 늘어놓는다."""
+    text = build_homework_roleplay_reground(payload(mode="roleplay"), "en")
+    assert "주요 표현:" not in text and "이거 얼마예요?" not in text
+    assert "주요 표현은 학습자가 먼저 말할 몫이다" in text
+    assert "더 쉬운 한국어로 한 번만 다시 묻고" in text
+    assert "너의 역할: 과일 가게 사장님" in text
+    # 본 지시문에는 목록이 그대로 있다(재접지만 뺀다)
+    assert "1. 이거 얼마예요? — 뜻: How much is this?" in roleplay_text(payload(mode="roleplay"))
+
+
+def test_no_name_is_not_called_learner():
+    """call 2308 첫 말 «학습자 너도» — 이름이 없으면 이름 칸에 «학습자» 를 넣지 않는다."""
+    text = build_homework_roleplay_instruction(role="비버 선생님", personality="다정함", locale="en",
+                                               name=None, homework=payload(mode="roleplay"))
+    assert "대화상대의 이름은 학습자" not in text
+    assert "대화상대의 이름은 아직 모른다" in text
+
+
+def test_goal_list_is_wrapped_as_learner_first_and_beaver_praise_is_not_identity():
+    """call 2310 — 본 지시문 목록을 비버가 먼저 꺼냄 · «beaver가 멋있어서» 에 정체 문구."""
+    text = roleplay_text(payload(mode="roleplay"))
+    assert "주요 표현(학습자가 먼저 말할 몫이다" in text and "일부러 먼저 꺼내거나" in text
+    assert "1. 이거 얼마예요? — 뜻: How much is this?" in text
+    assert "규칙 7의 정체 답은 정체를 직접 물을 때만 한다" in text
+
+
+def test_baba_teaching_directives_do_not_reach_homework_roleplay():
+    """call 2322 — 바바 성격의 «⛔ 칭찬·지시는 모국어로» · «첫 어절 힌트» 가 역할극 규칙을 이겨 영어로 정답을 줬다."""
+    import json
+    from pathlib import Path
+    from core.prompts.homework import roleplay_personality
+    p = json.loads((Path(__file__).parent / "fixtures" / "baba_bibi_personality.json").read_text(encoding="utf-8"))
+    baba, bibi = roleplay_personality(p["1"]), roleplay_personality(p["2"])
+    for t in (baba, bibi):
+        assert "모국어" not in t and "힌트" not in t and "정답" not in t and "다시 해보" not in t
+    assert "비꼬는 한마디" in baba and "어려운 걸 해냈을 때만" in baba          # 말투 재료는 남는다
+    assert "감탄사" in bibi
+    text = build_homework_roleplay_instruction(role="바바", personality=p["1"], locale="en", name=None,
+                                               homework=payload(mode="roleplay"))
+    assert "반드시 학습자의 모국어" not in text
+    reground = build_homework_roleplay_reground(payload(mode="roleplay"), "en")
+    assert "한국어로만" in reground and "모국어·표현 연습 지시는 따르지 않는다" in reground
+
+
+def test_homework_roleplay_nudges_never_give_answers_or_native_language():
+    """call 2322 — 자유대화 2단 넛지(모국어 설명 + 답변 예시)를 빌려 써서 영어로 «You can say '자리가 없어요'» 를 말했다."""
+    from core.prompts.homework import HOMEWORK_ROLEPLAY_NUDGE_1, HOMEWORK_ROLEPLAY_NUDGE_2
+    for seed in (HOMEWORK_ROLEPLAY_NUDGE_1, HOMEWORK_ROLEPLAY_NUDGE_2):
+        assert "답 예시" in seed and "예시 하나를 들려준다" not in seed and "둘 중 고르기" not in seed
+    assert "모국어로 설명하지 않고" in HOMEWORK_ROLEPLAY_NUDGE_2

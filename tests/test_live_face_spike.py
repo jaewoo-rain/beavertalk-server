@@ -719,6 +719,16 @@ def test_hold_and_mute_detection_agree_on_the_same_turn():
     assert cs2._greeting_was_mute(st2, 48000) is False
 
 
+def test_strip_drops_provider_medical_notice_and_bold():
+    """call 2308 — 소리 없는 턴의 출력 전사 끝에 붙은 공급자 영어 안내 문구 · 굵게 표시가 자막·저장으로 나갔다."""
+    from domains.learning.realtime.call_session import _strip_face_echo
+    raw = ("알긴 뭘 알아! 너 **얼굴**이 안 좋아 보이는데?\n\n"
+           "The medical disclaimer: This is not medical advice or a diagnosis. Always see a healthcare professional or seek care.")
+    assert _strip_face_echo(raw).strip() == "알긴 뭘 알아! 너 얼굴이 안 좋아 보이는데?"
+    plain = "병원비가 비싸다는데, 얼른 진료받아."
+    assert _strip_face_echo(plain) is plain
+
+
 def test_strip_drops_tool_call_echo():
     """call 2323 — «'밤새 아파서 잠도 못 잤어요'라고?call:아이고» 가 자막·저장에 나갔다."""
     from domains.learning.realtime.call_session import _strip_face_echo

@@ -12,6 +12,7 @@ from core.homework_evidence import verify_homework_detections
 from core.homework_lifecycle import analysis_cas_matches
 from core.homework_lifecycle import ttl_finality_ready
 from core import b2b_client
+from core.config import settings
 from domains.learning.models.call import Call
 from domains.learning.models.call_raw_data import CallRawData
 
@@ -151,6 +152,9 @@ def commit_verified_analysis(db, call_id: int, expected: tuple[int, int, int],
 def deliver_homework(db, call_id: int, *, now: datetime | None = None,
                      deadline: float | None = None) -> bool:
     """영속 lease를 commit한 뒤 POST한다. 응답 유실은 같은 call로 복구한다."""
+    if not settings.HOMEWORK_RESULT_DELIVERY:
+        logger.info("숙제 결과 전송 꺼짐(HOMEWORK_RESULT_DELIVERY=false) call_id=%s", call_id)
+        return False
     now = now or datetime.now(timezone.utc)
     _db_deadline(db, deadline)
     call = db.scalar(select(Call).where(Call.call_id == call_id)

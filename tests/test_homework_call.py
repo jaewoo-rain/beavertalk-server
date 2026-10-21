@@ -328,7 +328,7 @@ def test_roleplay_reground_uses_same_snapshot_without_personal_sidecar():
     cs._arm_reground(state, "compression")
     assert state.reground_pending
     assert "가게 사장님" in state.reground_reminder
-    assert "안녕하세요" in state.reground_reminder
+    assert "안녕하세요" not in state.reground_reminder        # call 2308 — 쪽지에 표현 목록을 다시 싣지 않는다
     assert "베트남어" in state.reground_reminder
     assert state.reground_ctx is None
 
@@ -570,3 +570,24 @@ def test_homework_roleplay_translations_use_scene_fallback_and_kinds(monkeypatch
     out = i18n_svc.homework_roleplay_translations(None, None, {"topic": "쇼핑", "ai_role": "점원"}, "en")
     assert out == {"situation_translation": "쇼핑-en", "ai_role_translation": "점원-en"}
     assert seen == [("hw_situation", "쇼핑"), ("hw_role", "점원")]  # learner_role 없음 → 부르지 않음
+
+
+def test_retry_test_emails_reuse_last_snapshot(session_factory, seeded, monkeypatch):
+    """hwfix 시험 태그 전용 HOMEWORK_RETRY_TEST_EMAILS — 목록 안 계정만 마지막 저장 자료를 다시 쓴다(빈 값이면 꺼짐)."""
+    from domains.account.models.member import Member
+    with session_factory() as db:
+        m = db.get(Member, seeded["member_id"])
+        m.email = "max03@test.com"
+        db.commit()
+        email = m.email
+        assert svc.homework_retry_allowed(db, seeded["member_id"]) is False          # 기본 빈 값
+        monkeypatch.setattr(settings, "HOMEWORK_RETRY_TEST_EMAILS", "other@test.com, " + email.upper())
+        assert svc.homework_retry_allowed(db, seeded["member_id"]) is True
+        with pytest.raises(b2b_client.HomeworkMaterialsError):
+            svc.latest_homework_snapshot(db, seeded["member_id"], 8)                   # 저장 자료 없음
+        cid = svc.create_call(db, seeded["member_id"], seeded["character_id"], "homework")
+        raw = materials("manual")
+        svc.save_homework_snapshot(db, cid, raw)
+        assert svc.latest_homework_snapshot(db, seeded["member_id"], 8) == with_mode(raw)
+        monkeypatch.setattr(settings, "HOMEWORK_RETRY_TEST_EMAILS", "other@test.com")
+        assert svc.homework_retry_allowed(db, seeded["member_id"]) is False

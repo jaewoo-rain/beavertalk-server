@@ -1769,6 +1769,30 @@ def resume_materials(db: Session, call_id: int, language: str = "ko") -> dict:
     }
 
 
+def homework_retry_allowed(db: Session, member_id: int) -> bool:
+    """HOMEWORK_RETRY_TEST_EMAILS 에 든 시험 계정인가(빈 값이면 늘 False · 운영 env 에는 없다)."""
+    from core.config import settings as _s
+    from domains.account.models.member import Member
+    allow = {e.strip().lower() for e in (_s.HOMEWORK_RETRY_TEST_EMAILS or "").split(",") if e.strip()}
+    if not allow:
+        return False
+    email = db.scalar(select(Member.email).where(Member.member_id == member_id))
+    return bool(email) and email.strip().lower() in allow
+
+
+def latest_homework_snapshot(db: Session, member_id: int, assignment_id: int) -> dict:
+    """같은 회원·과제의 마지막 숙제 통화 자료(시험 계정 재시도용). 없으면 HomeworkMaterialsError."""
+    cid = db.scalar(
+        select(Call.call_id).where(
+            Call.member_id == member_id, Call.call_type == "homework",
+            Call.usage_json["homework"]["assignment_id"].as_integer() == assignment_id,
+        ).order_by(Call.call_id.desc()).limit(1)
+    )
+    if cid is None:
+        raise b2b_client.HomeworkMaterialsError("conversation_completed")
+    return load_homework_snapshot(db, member_id, cid, assignment_id)
+
+
 def load_homework_snapshot(db: Session, member_id: int, call_id: int, assignment_id: int) -> dict:
     """재개는 저장된 같은 숙제 자료를 쓴다. 현재 B2B 자격 검증은 호출부가 먼저 한다."""
     from core.prompts.homework import normalize_homework

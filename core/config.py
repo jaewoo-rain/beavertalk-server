@@ -117,6 +117,12 @@ class Settings(BaseSettings):
     B2B_SERVICE_TOKEN: str | None = None
     # 양쪽 v2 reader 배포 확인 뒤 CC 슬롯에서만 신규 snapshot 쓰기를 활성화한다.
     HOMEWORK_MANUAL_V2_WRITE_ENABLED: bool = False
+    # PM-DEC-874 — 숙제 통화 결과를 B2B 로 보내는가(기본 on = 지금과 같음). 시험 태그(hwfix)만 off 로 띄워
+    #   운영 B2B 에 제출(submission.call_id)을 쓰지 않는다. 운영 반영 대상 아님.
+    HOMEWORK_RESULT_DELIVERY: bool = True
+    # 시험 계정 숙제 재시도(command center 2026-10-21 · hwfix 시험 태그 전용 · 운영 env 에 넣지 않음).
+    # 쉼표로 구분한 이메일 — 이 계정은 B2B «conversation_completed» 뒤에도 마지막 저장 자료로, 과제당 5분과 무관하게 다시 건다.
+    HOMEWORK_RETRY_TEST_EMAILS: str = ""
 
     # ── 국적 분류 (외부 오디오 국적 추론 API) ──
     # 미설정이면 core.nationality 가 조용히 비활성(None 반환) — 통화·분석 무영향(R5).
