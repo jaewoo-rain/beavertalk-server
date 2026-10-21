@@ -266,10 +266,10 @@ class CallRepository:
           level_test(둘 다 `resume_call` 을 아예 안 부른다)가 살아있는 **자기 자신의**
           call_id 를 `continues_call_id` 에 실어 보내는 것만으로 이 게이트를 우회하는
           구멍이었다 — 예외 자체를 없애 구조로 막는다.
-        ⚠ 행 잠금·예약은 하지 않는다(과한 구조) — 동시에 두 요청이 이 쿼리를 동시에
-          통과하는 아주 좁은 경합(둘 다 "살아있는 조각 없음"을 보고 통과)까지는 못
-          막는다. 창이 1초 수준이라 감수한다(결정) — 원자화하려면 회원 단위 lease 가
-          필요하다.
+        ⭐ 이 조회만으로는 원자적이지 않다 — 관문과 INSERT 사이 DB 왕복(≈1.2s 실측)에 같은 계정 두 요청이 둘 다
+          통과했다(2026-10-21 2374·2375). 그래서 PM-DEC-970(2026-10-22)부터 `normalcall_service.create_call(exclusive=True)`·
+          `resume_call` 이 회원 단위 `pg_advisory_xact_lock` 을 잡은 **뒤 이 조회를 다시** 한다(빠른 거절용 관문은 그대로).
+          부분 유일 인덱스는 쓰지 않는다 — 크래시로 못 닫힌 행이 상한(_ONGOING_ELAPSED_CAP_S) 뒤에도 새 통화를 영구히 막는다.
         """
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=_ONGOING_ELAPSED_CAP_S)
         stmt = select(Call.call_id, Call.fragment_started_at).where(
