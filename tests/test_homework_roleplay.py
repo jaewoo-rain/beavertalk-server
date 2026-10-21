@@ -143,3 +143,11 @@ def test_no_name_is_not_called_learner():
                                                name=None, homework=payload(mode="roleplay"))
     assert "대화상대의 이름은 학습자" not in text
     assert "대화상대의 이름은 아직 모른다" in text
+
+
+def test_goal_list_is_wrapped_as_learner_first_and_beaver_praise_is_not_identity():
+    """call 2310 — 본 지시문 목록을 비버가 먼저 꺼냄 · «beaver가 멋있어서» 에 정체 문구."""
+    text = roleplay_text(payload(mode="roleplay"))
+    assert "주요 표현(학습자가 먼저 말할 몫이다" in text and "일부러 먼저 꺼내거나" in text
+    assert "1. 이거 얼마예요? — 뜻: How much is this?" in text
+    assert "규칙 7의 정체 답은 정체를 직접 물을 때만 한다" in text

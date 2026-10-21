@@ -5590,7 +5590,9 @@ def _reconnect_brief(state: _CallState) -> str:
         #   예전엔 여기서 따로 한 줄을 덧붙였는데, 같은 계산을 한 곳으로 모았다.
         return head + _build_expression_note(state)
     last_beaver = next((s.get("text") for s in reversed(state.segments) if s.get("role") == "beaver" and s.get("text")), "")
-    return head + ("직전 화제: 네가 마지막으로 한 말은 «%s» 였다." % last_beaver if last_beaver else "")
+    # call 2309: 인용한 마지막 말을 그대로 다시 했다(t17→t18 같은 세 문장) — 되풀이 금지를 붙인다.
+    return head + ("직전 화제: 네가 마지막으로 한 말은 «%s» 였다. 그 말을 다시 하지 마라 — 학습자가 그 뒤에 한 말이 있으면 "
+                   "거기에 답하고, 없으면 한 문장으로 짧게 이어 물어라." % last_beaver if last_beaver else "")
 
 
 # 통화 신호 우선순위(B4). ⛔ 순서가 곧 규칙이다 — **종료 > 클라 끊김 > 스왑**.
@@ -6869,6 +6871,10 @@ async def _midcall_tts_fallback(client_ws, state: _CallState, text: str) -> bool
     """
     text = _strip_face_echo(text or "").strip()
     if not MIDCALL_TTS or state.midcall_tts_skip or not text or not state.tts_voice:
+        return False
+    if "◯◯" in text:
+        # call 2309 t18: 0B 턴 전사에 «◯◯◯» 가림 표시(우리 코드에 없는 문자열 · 공급자 가림으로 추정) — 소리로 읽히지 않게 합성하지 않는다
+        logger.info("normalcall: 통화 중 0B 턴 TTS 대체 건너뜀(가림 표시 ◯◯) %r", text[:60])
         return False
     if state.midcall_tts_count >= MIDCALL_TTS_MAX:
         return False

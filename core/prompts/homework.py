@@ -222,7 +222,8 @@ def _roleplay_scene_block(roleplay: dict, goals: list[dict], with_goals: bool = 
     lines.append(f"너의 역할: {roleplay['ai_role']}")
     if not with_goals:
         return "\n".join(lines)
-    lines.append("주요 표현:")
+    # U46 N(call 2310): 목록 자체가 «먼저 꺼낼 말» 로 읽혀 비버가 재접지 전 41~104초에 6개를 먼저 말했다 — 목록을 규칙으로 감싼다.
+    lines.append("주요 표현(학습자가 먼저 말할 몫이다 — 장면에 꼭 필요한 낱말만 자연스럽게 쓰고, 일부러 먼저 꺼내거나 질문·보기·되묻기에 넣지 않는다):")
     for n, g in enumerate(goals, 1):
         row = f"{n}. {g['surface'].strip()}"
         if g.get("meaning"):
@@ -260,6 +261,8 @@ def build_homework_roleplay_instruction(
     )
     # PM-DEC-619: 코스 우선 줄이 이 대본에만 없었다(다른 코스 [불변 규칙]과 같은 문장 · 실통화 1954 재생).
     priority = "위 코스의 시작·대화·언어 규칙은 캐릭터에 적힌 학습·언어 지시보다 우선한다.\n"
+    # call 2310: «beaver가 너무 멋있어서» 를 정체 질문으로 읽고 규칙 7 고정 답(«비버톡의 회화 학습 어시스턴트!»)을 말했다.
+    priority += "역할극 중 학습자가 너를 «비버»라고 부르거나 칭찬하면 «너의 역할»로 짧게 받는다 — 규칙 7의 정체 답은 정체를 직접 물을 때만 한다.\n"
     return text + "\n\n[불변 규칙]\n" + priority + _rules_tail(name, label) + ("\n\n" + face_rule if face_rule else "")
 
 

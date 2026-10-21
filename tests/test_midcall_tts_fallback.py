@@ -70,3 +70,20 @@ async def test_interrupted_cap_empty_and_switch(monkeypatch):
     assert await cs._midcall_tts_fallback(ws, _state(), "안녕") is False
     assert ws.out == []
 
+
+def test_reconnect_brief_forbids_repeating_last_line():
+    """call 2309 — 재연결 브리프가 인용한 마지막 말을 그대로 되풀이했다."""
+    st = cs._CallState()
+    st.learner_spoke = True
+    st.segments = [{"turn_index": 17, "role": "beaver", "text": "어디가 어떻게 아픈지 말을 해봐!", "pcm": b""}]
+    brief = cs._reconnect_brief(st)
+    assert "«어디가 어떻게 아픈지 말을 해봐!»" in brief and "그 말을 다시 하지 마라" in brief
+
+
+@pytest.mark.asyncio
+async def test_masked_text_is_not_spoken(monkeypatch):
+    """call 2309 t18 — 0B 턴 전사의 «◯◯◯» 가림 표시를 소리로 읽지 않는다."""
+    monkeypatch.setattr(cs, "_greeting_tts_sync", lambda text, voice: b"\x01\x00" * 2400)
+    ws, st = _WS(), _state()
+    assert await cs._midcall_tts_fallback(ws, st, "너 진짜 어디 ◯◯◯ 거 아니야?") is False
+    assert ws.out == []
