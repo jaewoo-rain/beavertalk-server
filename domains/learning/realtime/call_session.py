@@ -3471,13 +3471,25 @@ async def run_call(
     #   "auto"(§8): 서버가 코스를 정한다. 새 통화는 지금 차시 상태로(decide_course), 이어하기면 아래 open_call 이 그 통화의 cur_call
     #   로 다시 정한다. 스위치가 꺼져 있으면 auto 는 옛 표현학습 경로로 떨어진다(죽지 않게).
     homework = None
+    homework_retry = False
     if assignment_id is not None:
         try:
             # 외부 자료는 개인 curriculum/known_items로 재조회하지 않는다.
-            homework = await asyncio.to_thread(
-                b2b_client.conversation_materials,
-                member_id, assignment_id=assignment_id, locale=locale,
-            )
+            try:
+                homework = await asyncio.to_thread(
+                    b2b_client.conversation_materials,
+                    member_id, assignment_id=assignment_id, locale=locale,
+                )
+            except b2b_client.HomeworkMaterialsError as exc0:
+                # 시험 계정 재시도(HOMEWORK_RETRY_TEST_EMAILS · hwfix 시험 태그 전용) — B2B 가 «이미 끝남» 이면 마지막 저장 자료로
+                if exc0.code != "conversation_completed" or not await svc.run_db(
+                        db_session_factory, lambda db: svc.homework_retry_allowed(db, member_id)):
+                    raise
+                homework = await svc.run_db(
+                    db_session_factory, lambda db: svc.latest_homework_snapshot(db, member_id, assignment_id))
+                homework_retry = True
+                logger.warning("normalcall: 시험 계정 숙제 재시도 — B2B conversation_completed → 마지막 저장 자료 member=%s assignment=%s",
+                               member_id, assignment_id)
             if continues_call_id is not None:
                 homework = await svc.run_db(
                     db_session_factory,
@@ -3574,6 +3586,11 @@ async def run_call(
             db_session_factory,
             lambda db: call_service.homework_remaining_s(db, member_id, assignment_id),
         )
+        if homework_left <= 0 and (homework_retry or await svc.run_db(
+                db_session_factory, lambda db: svc.homework_retry_allowed(db, member_id))):
+            logger.warning("normalcall: 시험 계정 숙제 재시도 — 과제당 5분 집계 건너뜀 member=%s assignment=%s",
+                           member_id, assignment_id)
+            homework_left = call_service.HOMEWORK_ASSIGNMENT_BUDGET_S
         if homework_left <= 0:
             logger.info(
                 "normalcall: 숙제 과제 시간 소진 거절 member=%s assignment=%s continues=%s",
