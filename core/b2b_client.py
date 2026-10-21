@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 # 통화 시작 경로에 끼어드는 호출이다. 학습자는 이 시간만큼 신호음을 더 듣는다.
 # ⛔ 늘리지 마라 — 늦게 오는 목표보다 제때 걸리는 전화가 낫다.
 _TIMEOUT = httpx.Timeout(connect=1.0, read=2.0, write=2.0, pool=1.0)
+# PM-DEC-977 — 숙제 자료만 넉넉히 + 1회 재시도(B2B cold start 로 1s/2s 초과 · second 00335 실측). 다른 호출은 종전 그대로.
+_MATERIALS_TIMEOUT = httpx.Timeout(connect=3.0, read=8.0, write=3.0, pool=3.0)
+_MATERIALS_TRIES = 2
 
 #: 교실 커리큘럼의 언어. B2B 는 한국어 교육기관용이고, 저쪽 `CURRICULUM_LANGUAGE`
 #: 와 같은 값이어야 한다 — 다르면 저쪽이 목표를 빈 배열로 돌려준다.
@@ -128,18 +131,28 @@ def conversation_materials(
     token = (settings.B2B_SERVICE_TOKEN or "").strip()
     if not base or not token:
         raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
-    try:
-        with httpx.Client(timeout=_TIMEOUT) as client:
-            res = client.get(
-                f"{base}/api/v1/internal/members/{member_id}/conversation-materials",
-                params={"assignment_id": assignment_id, "language": "ko", "locale": locale},
-                headers={"X-Service-Token": token},
-            )
-    except httpx.RequestError:
-        # 토큰·주소를 포함할 수 있는 외부 예외 전문은 기록하지 않는다.
-        logger.warning("b2b: 숙제 자료 연결 실패")
-        raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True) from None
-    if res.status_code >= 500:
+    import time as _time
+
+    res = None
+    for attempt in range(_MATERIALS_TRIES):
+        try:
+            with httpx.Client(timeout=_MATERIALS_TIMEOUT) as client:
+                res = client.get(
+                    f"{base}/api/v1/internal/members/{member_id}/conversation-materials",
+                    params={"assignment_id": assignment_id, "language": "ko", "locale": locale},
+                    headers={"X-Service-Token": token},
+                )
+        except httpx.RequestError:
+            # 토큰·주소를 포함할 수 있는 외부 예외 전문은 기록하지 않는다.
+            logger.warning("b2b: 숙제 자료 연결 실패(%d/%d)", attempt + 1, _MATERIALS_TRIES)
+            res = None
+        if res is not None and res.status_code < 500:
+            break
+        if res is not None:
+            logger.warning("b2b: 숙제 자료 %d(%d/%d)", res.status_code, attempt + 1, _MATERIALS_TRIES)
+        if attempt + 1 < _MATERIALS_TRIES:
+            _time.sleep(0.5)
+    if res is None or res.status_code >= 500:
         raise HomeworkMaterialsError("homework_service_unavailable", recoverable=True)
     try:
         payload = res.json()

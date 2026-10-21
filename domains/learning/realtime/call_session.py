@@ -790,6 +790,7 @@ class _CallState:
         "last_activity_ts", "silence_stage", "call_duration_s",
         "tts_voice", "greeting_tts_done",   # 첫 인사 벙어리 → TTS 대체
         "midcall_tts_count", "midcall_tts_skip",   # 통화 중 소리 0B 턴 → TTS 대체(call 2308)
+        "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
         # ── 커리큘럼 2단계 cur 경로(2026-09-12) ──
@@ -984,6 +985,8 @@ class _CallState:
         self.greeting_tts_done = False    # 첫 인사 TTS 대체는 통화당 한 번
         self.midcall_tts_count = 0        # 통화 중 소리 0B 턴 TTS 대체 횟수(상한 MIDCALL_TTS_MAX)
         self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
+        self.midcall_echo_until = 0.0     # PM-DEC-977 — 이 시각 전(루프 시계)엔 학습자 말 없이 온 새 비버 턴을 보내지 않는다
+        self.midcall_echo_turn: Optional[str] = None
         self.silence_stage: int = 0
         # 통화 길이(초). run_call 이 콜타입·플랜을 보고 덮어쓴다(데모/dev 는 거기서
         # start.duration_min 으로 3~15분 override). _watch_call_clock 이 모듈 상수 대신
@@ -7145,7 +7148,21 @@ async def _greeting_tts_fallback(client_ws, state: _CallState, text: str) -> boo
 
 
 MIDCALL_TTS = os.environ.get("LIVE_MIDCALL_TTS", "1") != "0"
+# PM-DEC-977 — 레벨테스트만 따로 켠다(운영은 LIVE_MIDCALL_TTS=0 · 레벨테스트 전체 무음 2371 방지)
+LEVELTEST_MIDCALL_TTS = os.environ.get("LIVE_LEVELTEST_MIDCALL_TTS", "1") != "0"
 MIDCALL_TTS_MAX = 40
+MIDCALL_ECHO_GUARD_PAD_S = 1.0    # 대체 소리 재생 길이 + 이만큼 — 그 안에 학습자 말 없이 온 새 비버 턴은 늦게 온 이중 발화로 본다
+
+
+def _midcall_tts_on(state: "_CallState") -> bool:
+    return MIDCALL_TTS or (state.is_leveltest and LEVELTEST_MIDCALL_TTS)
+
+
+def _midcall_echo_guard_active(state: "_CallState") -> bool:
+    """PM-DEC-977 — 대체 소리 재생 중(+여유) · 학습자가 아직 안 말함 · 작별 시드 전이면 새 비버 턴을 보내지 않는다."""
+    if not state.midcall_echo_until or state.user_turn_open or state.close_seed_sent:
+        return False
+    return asyncio.get_running_loop().time() < state.midcall_echo_until
 
 
 async def _midcall_tts_fallback(client_ws, state: _CallState, text: str) -> bool:
@@ -7156,7 +7173,11 @@ async def _midcall_tts_fallback(client_ws, state: _CallState, text: str) -> bool
     텍스트는 자막·저장과 같은 정화를 거친 뒤 합성한다. 실패·키 없음·상한이면 False — 지금 동작(자막만) 그대로.
     """
     text = _strip_face_echo(text or "").strip()
-    if not MIDCALL_TTS or state.midcall_tts_skip or not text or not state.tts_voice:
+    if not _midcall_tts_on(state) or state.midcall_tts_skip or not text or not state.tts_voice:
+        return False
+    if state.leveltest_cut_turn is not None and not state.close_seed_sent:
+        # PM-DEC-977 — 종료 판정으로 끊은 질문 턴(작별 시드 전)은 소리 0B 가 정상이다 — 되살리지 않는다
+        logger.info("normalcall: 통화 중 0B 턴 TTS 대체 건너뜀(레벨테스트 종료 컷 턴)")
         return False
     if "◯◯" in text:
         # call 2309 t18: 0B 턴 전사에 «◯◯◯» 가림 표시(우리 코드에 없는 문자열 · 공급자 가림으로 추정) — 소리로 읽히지 않게 합성하지 않는다
@@ -7187,6 +7208,8 @@ async def _midcall_tts_fallback(client_ws, state: _CallState, text: str) -> bool
     if segs and len(segs) > state.persisted_count and segs[-1].get("role") == "beaver" and not segs[-1].get("pcm"):
         segs[-1]["pcm"] = pcm                            # 방금 flush 한 0B 턴 segment 에 소리를 붙여 저장
     state.last_activity_ts = asyncio.get_running_loop().time()
+    # PM-DEC-977 — 앱이 이 소리를 다 틀 때까지(+여유) 학습자 말 없이 오는 새 비버 턴은 늦게 온 이중 발화로 막는다
+    state.midcall_echo_until = state.last_activity_ts + len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES) + MIDCALL_ECHO_GUARD_PAD_S
     logger.warning("normalcall: ⛔통화 중 0B 턴 → 받은 텍스트를 TTS 로 대체 %d회(%s · %.1f초 소리 · 합성 %dms) %r",
                    state.midcall_tts_count, state.tts_voice, len(pcm) / (_OUT_RATE * SAMPLE_WIDTH_BYTES),
                    int((asyncio.get_running_loop().time() - t0) * 1000), text[:60])
@@ -7294,6 +7317,21 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
       '통화 시계 시작' 같은 턴 경계 처리를 한다.
     """
     turn_started = False
+
+    # PM-DEC-977 — TTS 대체 소리 재생 중 학습자 말 없이 온 새 비버 턴(늦은 이중 발화)은 통째로 보내지 않는다(turn_end 도)
+    if event.kind in ("audio", "out_tr"):
+        if state.turn_id is None and _midcall_echo_guard_active(state):
+            state.turn_id = _new_turn_id()
+            state.midcall_echo_turn = state.turn_id
+            logger.warning("normalcall: TTS 대체 재생 중 학습자 말 없이 온 비버 턴 — 이중 발화로 보고 보내지 않음 turn=%s", state.turn_id)
+        if state.midcall_echo_turn is not None and state.turn_id == state.midcall_echo_turn:
+            return False
+    elif event.kind == "turn_end" and state.midcall_echo_turn is not None and state.turn_id == state.midcall_echo_turn:
+        state.turn_id = None
+        state.midcall_echo_turn = None
+        state.cur_beaver_text.clear()
+        state.cur_beaver_pcm.clear()
+        return False
 
     # PM-DEC-922 — 레벨테스트 종료가 선 뒤 남은 질문 조각은 앱에 보내지도 저장하지도 않는다(turn_end 는 그대로 흘린다)
     if (event.kind in ("audio", "out_tr") and state.leveltest_cut_turn is not None
