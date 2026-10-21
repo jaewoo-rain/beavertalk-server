@@ -353,3 +353,13 @@ def test_lesson_gate_for_clip_and_script(monkeypatch):
     assert sr.enabled(S, call_type="freetalk", lesson="A2-T11-2", **common) is None         # 대본 없는 차시 → Live
     for ct in ("chat", "homework", "expression", "level_test"):
         assert sr.enabled(S, call_type=ct, lesson="A2-T11-1", **common) is None
+
+
+def test_chat_lesson_switch_only_on_test_tags():
+    """시험 태그 전용 SCRIPT_READ_CHAT_LESSON — 비어 있으면 chat 은 늘 Live(운영 계획) · 켜면 차시 없는 chat 을 그 대본으로."""
+    off = SimpleNamespace(SCRIPT_READ="Baba", SCRIPT_READ_CHAT_LESSON="")
+    on = SimpleNamespace(SCRIPT_READ="Baba", SCRIPT_READ_CHAT_LESSON="A2-T11-1")
+    assert sr.enabled(off, call_type="chat", voice="Fenrir", locale="en") is None
+    assert sr.enabled(on, call_type="chat", voice="Fenrir", locale="en") == "Baba"
+    assert sr.enabled(SimpleNamespace(SCRIPT_READ="Baba", SCRIPT_READ_CHAT_LESSON="X-9"), call_type="chat", voice="Fenrir", locale="en") is None
+    assert sr.enabled(on, call_type="homework", voice="Fenrir", locale="en") is None

@@ -298,6 +298,8 @@ class Settings(BaseSettings):
     CLIP_EXPR_DUNNO_S: float = 8.0           # 앱 재생이 끝난 뒤 이만큼 말이 없으면 «모름»(call flow 제안 8초)
     # PM-DEC-877 — 회화학습 대본 읽기 시제품(28차시 · Live 없음 · 규칙 대조). 켤 캐릭터 이름. 빈 값 = 종전.
     SCRIPT_READ: str = ""
+    # 시험 태그 전용(scriptrd·m3spch · 운영 env 에 넣지 않음) — 차시 없는 chat 을 이 차시 대본으로 연다(시험 앱 88 «대본 읽기» 선택지가 chat 으로 연다).
+    SCRIPT_READ_CHAT_LESSON: str = ""
     # 클립 경로 원가 줄(normalcall clipexpr 원가) 단가 — 공시 단가 기준값(USD). 바뀌면 env 로.
     CLIP_USD_TEXT_IN_PER_M: float = 0.30      # gemini-2.5-flash 텍스트 입력 100만 토큰
     CLIP_USD_TEXT_OUT_PER_M: float = 2.50     # gemini-2.5-flash 출력 100만 토큰
