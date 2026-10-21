@@ -405,7 +405,9 @@ def _is_event(line: str) -> bool:
     k, _, v = line.partition(EPHEMERAL_SEP)
     v = v.replace(EPISODE_CARRIED, "", 1).strip()
     k = k.strip()
-    return k.endswith("일") or any(w in k for w in _EVENT_KEY_WORDS) or bool(_EVENT_VALUE_RE.search(v))
+    # 기억 19차(2343 «어제 활동 — …기사님이 찾아주심» 이 일화로 안 잡혀 잡담 줄에 밀려 사라짐) — 때 말(어제·지난…) 주제와 높임 과거(…주심·…셨음)도 일화
+    return (k.endswith("일") or any(w in k for w in _EVENT_KEY_WORDS) or any(w in k for w in _EPISODE_WORDS)
+            or bool(_EVENT_VALUE_RE.search(v)) or bool(re.search(r"(주심|셨음|하심|오심|가심)\.?$", v)))
 
 
 _ACTIVITY_WORDS = ("취미", "운동", "활동")
@@ -447,6 +449,10 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
         # 기억 15차 — 주제 이름만 본다(값까지 보면 «제주도 여행» 의 «바다» 가 «사는 곳: 울산, 바다가 가까움» 을 지웠다 · 2290)
         keyed = [f for f in keyed if split_fact(f)[0] in PROFILE_KEYS or not any(w in split_fact(f)[0] for w in dep)]
     words = stale_words(stale, keyed + [x for x in newset if not split_fact(x)[0]])
+    if words:
+        # 기억 19차 — 2294 «반려동물 습관: 강아지 보통이가 양말을…» 처럼 옛 값(바뀐 이름) 낱말이 든 옛 세부 줄도 뺀다(이번 통화 줄·고정 칸 제외)
+        keyed = [f for f in keyed if f in newset or split_fact(f)[0] in PROFILE_KEYS
+                 or not any(w in (split_fact(f)[1] or "") for w in words)]
     prof = profile_of(keyed)
     plain: list[str] = []
     ephemeral: list[str] = []
@@ -482,9 +488,10 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     head = fe[:EPHEMERAL_MAX - 1] + ce[:1] if ce else fe[:EPHEMERAL_MAX]
     ephemeral = (head + [e for e in fe if e not in head] + [c for c in ce if c not in head]
                  + [e for e in ephemeral if not _is_event(e)] + [c for c in carried if not _is_event(c)])
-    core_n = sum(1 for f in rest_keyed if _attr_tier(split_fact(f)[0]) <= 1)
-    eph = ephemeral[:max(0, min(EPHEMERAL_MAX, cap - len(top) - core_n))]
-    room = max(0, cap - len(top) - len(eph))
+    # 기억 19차 — 일화는 지속 칸(cap) 밖의 따로 3칸(최대 cap+3줄). 핵심 속성이 칸을 다 차지하면 일화가 1칸으로 줄어
+    #   지난 통화 일화가 사라졌다(2299 지갑 · 재추출 변동) — «핵심 속성 안 밀림» 과 «최근 2통 일화 3줄» 을 둘 다 지킨다.
+    eph = ephemeral[:EPHEMERAL_MAX]
+    room = max(0, cap - len(top))
     # 기억 11차 — 한 대상의 세부 사실(«제주도 …» 4줄 · «어머니 …» 3줄)이 칸을 차지해 다른 주제(차·영화)가 밀렸다(max05)
     #   → 대상(주제 이름의 첫 특징 낱말)마다 하나씩 먼저 남기고, 남는 칸에 같은 대상의 나머지를 최신 순으로
     # 기억 14차 — 축출은 최근성이 아니라 **중요도** 순(13차: 한 번만 말한 심은 값이 «가장 오래 언급 안 됨»으로 먼저 밀림).

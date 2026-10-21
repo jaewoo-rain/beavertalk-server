@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     DAILY_BUDGET_ENFORCED: bool = True
     # PM-DEC-887 — 시험 태그 리비전 전용 하루 예산(초). 0(기본)이면 플랜 표 그대로. prod 에서는 무시한다.
     TEST_DAILY_BUDGET_S: int = 0
+    # 시험 태그 전용(PM-DEC-958 · 운영 env 에 넣지 않음) — 쉼표로 구분한 이메일 · 자유대화 시작 때 기억을 안 읽는다(«처음 쓰는 상태» 반복 시험)
+    MEMORY_IGNORE_TEST_EMAILS: str = ""
 
     # U32-② — 기동 때 오래 analyzing 에 멈춘 통화 되살리기(domains/learning/service/analyzing_sweep.py).
     #   off(기본) · dry(대상만 로그) · on(failed 로 돌리고 재분석). ⚠ test-api 는 운영 DB 라 시험 태그는 dry 만.
