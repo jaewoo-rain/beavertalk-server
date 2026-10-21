@@ -8312,7 +8312,9 @@ async def _ctx_summary_sidecar(state: _CallState) -> None:
                 # 사이드카가 옛 사실을 빠뜨려도 지우지 않는다 — 새 목록 앞에 두고 옛 것을 뒤에 이어 상한까지
                 # 기억 9차 — 같은 주제 키면 새 값 하나만(8차 바바: 같은 통화에서 요가 → 볼링 으로 바꿨는데 «요가» 로 답함)
                 from domains.learning.service import chat_memory_service as _cms
-                state.ctx_facts = _cms.merge_keyed_lines(facts, state.ctx_facts, CTX_FACTS_MAX)
+                # 기억 17차 — 사이드카는 «옛 목록 + 새 항목(맨 끝)» 을 돌려준다 → 앞에서부터 15개 자르면 목록이 찬 뒤 새 사실이 늘 잘렸다
+                #   (00286 2296: 조각 2 에서 «가을» 을 듣고도 3분 뒤 «아직 못 들었는데») → 정말 새 항목을 앞에 · 자를 땐 중요도 순
+                state.ctx_facts = _cms.cap_in_call_facts(facts, state.ctx_facts, CTX_FACTS_MAX)
                 await asyncio.to_thread(_ctx_facts_store, state)   # PM-DEC-923 — 동기 GCS 는 스레드에서
             logger.info("normalcall perturn 사실 목록: call_id=%s %d개 %s", _cid(state), len(state.ctx_facts),
                         " · ".join(state.ctx_facts)[:300])
