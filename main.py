@@ -581,8 +581,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 media_type="text/html",
             )
 
+        def _mask_email(e: str) -> str:
+            name, _, dom = (e or "").partition("@")
+            return (name[:2] + "***@" + dom) if dom else "***"
+
+        def _dev_auth_denied(request: Request) -> JSONResponse | None:
+            """보안(2026-10-21) — login·signup 공통 가드: 스위치 꺼짐 → 404 · 개발 키 불일치 → 403."""
+            import hmac
+            if not settings.DEV_AUTH_ROUTES_ENABLED:
+                return JSONResponse({"detail": "Not Found"}, status_code=404)
+            want = (settings.DEV_AUTH_KEY or "").strip()
+            got = (request.headers.get("X-Dev-Key") or "").strip()
+            if not want or not hmac.compare_digest(want, got):
+                return JSONResponse({"detail": "forbidden"}, status_code=403)
+            return None
+
         @app.post("/__dev/login", include_in_schema=False)
-        def dev_login(body: dict) -> JSONResponse:
+        def dev_login(body: dict, request: Request) -> JSONResponse:
             """[dev] 이메일·비밀번호 → Supabase access token. 운영 콘솔 로그인용.
 
             왜 서버가 대행하나: 브라우저에서 직접 로그인하려면 Supabase anon 키가 필요한데
@@ -594,6 +609,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             프로젝트가 달라 그대로 두면 로그인이 실패한다. 이 엔드포인트는 서버가 실제로
             토큰을 검증하는 그 프로젝트를 쓰므로 환경이 바뀌어도 어긋나지 않는다.
             """
+            denied = _dev_auth_denied(request)
+            if denied is not None:
+                return denied
             client = supabase_client.get_client()
             if client is None:
                 return JSONResponse(
@@ -608,7 +626,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     {"email": email, "password": password}
                 )
             except Exception as exc:  # noqa: BLE001 - 자격 오류·네트워크 모두 401 로
-                logger.info("dev_login: 로그인 실패 email=%s: %s", email, exc)
+                logger.info("dev_login: 로그인 실패 email=%s: %s", _mask_email(email), type(exc).__name__)
                 return JSONResponse({"detail": "로그인 실패"}, status_code=401)
             session = getattr(res, "session", None)
             token = getattr(session, "access_token", None) if session else None
@@ -617,7 +635,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return JSONResponse({"access_token": token, "email": email})
 
         @app.post("/__dev/signup", include_in_schema=False)
-        def dev_signup(body: dict) -> JSONResponse:
+        def dev_signup(body: dict, request: Request) -> JSONResponse:
             """[dev] 이메일·비밀번호로 **계정을 만들고 바로 토큰까지** 준다(데모 전용).
 
             왜 필요한가: 레벨테스트 데모는 "레벨 없는 새 계정"이 있어야 자동 판단 경로를
@@ -631,15 +649,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             권한 상승이 아니다 — 이메일·비밀번호를 아는 사람이 자기 토큰을 받는 것뿐이고,
             `DEV_ROUTES_ENABLED`(기본 False)가 꺼진 배포에는 마운트조차 안 된다(S5).
             """
+            denied = _dev_auth_denied(request)
+            if denied is not None:
+                return denied
+            email = (body.get("email") or "").strip()
+            password = body.get("password") or ""
+            if not email or not password:
+                return JSONResponse({"detail": "email·password 필요"}, status_code=400)
+            allowed = {d.strip().lower().lstrip("@") for d in (settings.DEV_SIGNUP_ALLOWED_DOMAINS or "").split(",") if d.strip()}
+            if email.rpartition("@")[2].lower() not in allowed:
+                return JSONResponse({"detail": "허용 도메인 아님"}, status_code=403)   # 남의 이메일로 확인 없는 계정 선점 차단
             client = supabase_client.get_client()
             if client is None:
                 return JSONResponse(
                     {"detail": "Supabase 미설정(SUPABASE_URL/SERVICE_KEY)"}, status_code=503
                 )
-            email = (body.get("email") or "").strip()
-            password = body.get("password") or ""
-            if not email or not password:
-                return JSONResponse({"detail": "email·password 필요"}, status_code=400)
             created = False
             try:
                 client.auth.admin.create_user(
@@ -647,13 +671,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
                 created = True
             except Exception as exc:  # noqa: BLE001 - 이미 있으면 로그인으로 진행
-                logger.info("dev_signup: 생성 건너뜀 email=%s: %s", email, exc)
+                logger.info("dev_signup: 생성 건너뜀 email=%s: %s", _mask_email(email), type(exc).__name__)
             try:
                 res = client.auth.sign_in_with_password(
                     {"email": email, "password": password}
                 )
             except Exception as exc:  # noqa: BLE001
-                logger.info("dev_signup: 로그인 실패 email=%s: %s", email, exc)
+                logger.info("dev_signup: 로그인 실패 email=%s: %s", _mask_email(email), type(exc).__name__)
                 return JSONResponse({"detail": "가입은 됐으나 로그인 실패"}, status_code=401)
             session = getattr(res, "session", None)
             token = getattr(session, "access_token", None) if session else None

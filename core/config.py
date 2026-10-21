@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     #   기본 False = **안 넣으면 닫힘**(운영은 env 를 안 넣으면 그대로 안전). demo-api·
     #   test-api 는 이 값을 true 로 넣어야 데모가 산다(Cloud Run env — bt-back 이 넣는다).
     DEV_ROUTES_ENABLED: bool = False
+    # 보안(2026-10-21) — 인증 없는 /__dev/login·/__dev/signup 만 따로 잠근다(운영 demo 가 DEV_ROUTES_ENABLED=true 라 공개돼 있었다).
+    #   기본 False = 두 라우트 404. 켤 때는 DEV_AUTH_KEY(Secret Manager 참조) 를 같이 넣고, 요청은 X-Dev-Key 헤더로 그 값을 보낸다.
+    DEV_AUTH_ROUTES_ENABLED: bool = False
+    DEV_AUTH_KEY: str = ""
+    DEV_SIGNUP_ALLOWED_DOMAINS: str = "test.com"   # signup 은 이 도메인 이메일만(쉼표 목록)
 
     # ⭐⭐ C4(2026-09-23, D4) — **하루 통화 총량(분) 예산**. Free 300s·premium 900s,
     #   콜타입 무관 합산(레벨테스트 제외). 옛 콜타입별 횟수 한도(DAILY_LIMIT_ENFORCED,

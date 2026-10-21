@@ -18,11 +18,12 @@ from core.config import Settings
 from main import create_app
 
 
-def _client(*, dev_routes_enabled: bool, env: str) -> TestClient:
+def _client(*, dev_routes_enabled: bool, env: str, **extra) -> TestClient:
     settings = Settings(
         DATABASE_URL_POOL="postgresql+psycopg2://u:p@localhost:5432/dummy",
         DEV_ROUTES_ENABLED=dev_routes_enabled,
         ENV=env,
+        **extra,
     )
     return TestClient(create_app(settings))
 
@@ -42,6 +43,30 @@ def test_dev_routes_open_regardless_of_env_when_flag_on(env):
     /__dev/signup 은 Supabase 미설정이라 503(client None)이지 404 가 아니다 — 라우트
     자체가 존재한다는 뜻. /__levelcalldemo 는 정적 HTML 이라 200.
     """
-    c = _client(dev_routes_enabled=True, env=env)
-    assert c.post("/__dev/signup", json={"email": "x@x.com", "password": "pw"}).status_code == 503
+    c = _client(dev_routes_enabled=True, env=env, DEV_AUTH_ROUTES_ENABLED=True, DEV_AUTH_KEY="k1")
+    assert c.post("/__dev/signup", json={"email": "x@test.com", "password": "pw"}, headers={"X-Dev-Key": "k1"}).status_code == 503
     assert c.get("/__levelcalldemo").status_code == 200
+
+
+
+def test_dev_auth_routes_closed_by_default_even_when_dev_routes_on():
+    """보안(2026-10-21) — DEV_ROUTES_ENABLED=true(운영 demo)여도 login·signup 은 DEV_AUTH_ROUTES_ENABLED 없이는 404."""
+    c = _client(dev_routes_enabled=True, env="test")
+    assert c.post("/__dev/login", json={"email": "a@test.com", "password": "pw"}).status_code == 404
+    assert c.post("/__dev/signup", json={"email": "a@test.com", "password": "pw"}).status_code == 404
+    assert c.get("/__levelcalldemo").status_code == 200          # 다른 dev 라우트는 그대로
+
+
+def test_dev_auth_requires_key_and_signup_requires_allowed_domain():
+    c = _client(dev_routes_enabled=True, env="test", DEV_AUTH_ROUTES_ENABLED=True, DEV_AUTH_KEY="k1")
+    body = {"email": "a@test.com", "password": "pw"}
+    assert c.post("/__dev/login", json=body).status_code == 403                                  # 키 없음
+    assert c.post("/__dev/login", json=body, headers={"X-Dev-Key": "nope"}).status_code == 403   # 키 틀림
+    assert c.post("/__dev/login", json=body, headers={"X-Dev-Key": "k1"}).status_code == 503     # 통과(Supabase 미설정)
+    assert c.post("/__dev/signup", json={"email": "victim@gmail.com", "password": "pw"}, headers={"X-Dev-Key": "k1"}).status_code == 403
+    assert c.post("/__dev/signup", json=body, headers={"X-Dev-Key": "k1"}).status_code == 503
+
+
+def test_dev_auth_empty_key_always_denies():
+    c = _client(dev_routes_enabled=True, env="test", DEV_AUTH_ROUTES_ENABLED=True, DEV_AUTH_KEY="")
+    assert c.post("/__dev/login", json={"email": "a@test.com", "password": "pw"}, headers={"X-Dev-Key": ""}).status_code == 403
