@@ -91,7 +91,7 @@ async def item_tts(db: Session, item_id: int) -> dict:
             if not synthesized:
                 raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "오디오를 생성할 수 없습니다.")
             audio, content_type = synthesized
-            stored = storage.upload(_bucket(), key, audio, content_type)
+            stored = await asyncio.to_thread(storage.upload, _bucket(), key, audio, content_type)   # PM-DEC-924
             if not stored:
                 raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "오디오 저장에 실패했습니다.")
             _known.add(key)

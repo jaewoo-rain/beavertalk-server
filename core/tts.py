@@ -20,7 +20,9 @@ TTS 가 안 돼도 분석 흐름(추출/번역/요약/저장)은 죽지 않는�
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -92,6 +94,29 @@ def _resolve_voice(
     return lang_code, default_name
 
 
+_CREDS: list = []   # PM-DEC-924 — _client() 가 만든 서비스 계정 자격(토큰 미리 갱신용)
+
+
+async def refresh_creds_off_loop(creds) -> None:
+    """PM-DEC-924 — 비동기 gRPC 는 토큰이 없거나 만료면 **이벤트 루프 안에서 동기로** 갱신한다(HTTP 왕복 · 00254 약 30초 정지).
+    부르기 전에 토큰이 없거나 5분 안에 만료면 작업 스레드에서 미리 갱신한다. 실패는 흡수(그러면 종전처럼 gRPC 가 갱신)."""
+    if creds is None:
+        return
+    exp = getattr(creds, "expiry", None)
+    soon = exp is not None and (exp.replace(tzinfo=timezone.utc) if exp.tzinfo is None else exp) - datetime.now(timezone.utc) < timedelta(minutes=5)
+    if getattr(creds, "token", None) and not soon:
+        return
+    try:
+        import time as _time
+
+        from google.auth.transport.requests import Request
+        t0 = _time.monotonic()
+        await asyncio.to_thread(creds.refresh, Request())
+        logger.info("tts/stt: 토큰 미리 갱신(작업 스레드) %dms — 루프 무정지", int((_time.monotonic() - t0) * 1000))
+    except Exception as exc:  # noqa: BLE001 — 미리 갱신 실패는 무해(종전 경로로 돈다)
+        logger.warning("tts/stt: 토큰 미리 갱신 실패(무시) — %s: %s", type(exc).__name__, exc)
+
+
 @lru_cache(maxsize=1)
 def _client() -> "Any | None":
     """Cloud TTS 비동기 클라이언트(프로세스당 1개). 키 부재·미설치·인증실패면 None(graceful)."""
@@ -107,6 +132,7 @@ def _client() -> "Any | None":
             str(key_path), scopes=["https://www.googleapis.com/auth/cloud-platform"]
         )
         client = texttospeech.TextToSpeechAsyncClient(credentials=creds)
+        _CREDS[:] = [creds]   # PM-DEC-924 — 토큰을 루프 밖에서 미리 갱신하려고 쥔다
         logger.info("tts(gcp): TextToSpeech async client ready (project=%s)",
                     getattr(creds, "project_id", None))
         return client
@@ -148,6 +174,7 @@ async def synthesize(
     cli = _client()
     if cli is None:
         return None
+    await refresh_creds_off_loop(_CREDS[0] if _CREDS else None)
     want_gemini = (engine or "").strip() == GEMINI_ENGINE
     if want_gemini:
         model = (settings.CASCADE_TTS_GEMINI_MODEL or "").strip()

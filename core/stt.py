@@ -40,6 +40,9 @@ _SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 _SENTINEL = object()  # 큐 종료 센티널
 
 
+_CREDS: list = []   # PM-DEC-924
+
+
 @lru_cache(maxsize=1)
 def get_speech_client() -> "Any | None":
     """SpeechAsyncClient(프로세스당 1개). STT_FAKE·키부재·미설치·인증실패면 None(graceful).
@@ -64,6 +67,7 @@ def get_speech_client() -> "Any | None":
             str(key_path), scopes=_SCOPES
         )
         client = speech_v1.SpeechAsyncClient(credentials=creds)
+        _CREDS[:] = [creds]   # PM-DEC-924 — 토큰을 루프 밖에서 미리 갱신하려고 쥔다
         logger.info(
             "[stt] Speech-to-Text async client ready (project=%s)",
             getattr(creds, "project_id", None),
@@ -124,6 +128,9 @@ class GoogleSttStream:
             yield speech.StreamingRecognizeRequest(audio_content=chunk)
 
     async def start(self) -> None:
+        # PM-DEC-924 — 토큰 갱신이 루프 안에서 동기로 돌지 않게 먼저 작업 스레드에서 갱신
+        from core.tts import refresh_creds_off_loop
+        await refresh_creds_off_loop(_CREDS[0] if _CREDS else None)
         # 비동기 클라: streaming_recognize 는 응답 async iterator 로 resolve 되는 awaitable.
         self._responses = await self._client.streaming_recognize(requests=self._requests())
 

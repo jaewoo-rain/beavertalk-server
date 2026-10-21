@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Sequence
@@ -204,7 +205,7 @@ class SentenceService:
         # 5) 업로드(기존 분석 파이프라인과 동일한 key 규칙).
         ext = "mp3" if content_type == "audio/mpeg" else "wav"
         path = f"tts/{call_id}/{sentence_id}.{ext}"
-        key = storage.upload(settings.SUPABASE_BUCKET_SAMPLES, path, audio, content_type)
+        key = await asyncio.to_thread(storage.upload, settings.SUPABASE_BUCKET_SAMPLES, path, audio, content_type)   # PM-DEC-924
         if not key:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
