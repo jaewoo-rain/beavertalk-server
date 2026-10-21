@@ -151,3 +151,29 @@ def test_goal_list_is_wrapped_as_learner_first_and_beaver_praise_is_not_identity
     assert "주요 표현(학습자가 먼저 말할 몫이다" in text and "일부러 먼저 꺼내거나" in text
     assert "1. 이거 얼마예요? — 뜻: How much is this?" in text
     assert "규칙 7의 정체 답은 정체를 직접 물을 때만 한다" in text
+
+
+def test_baba_teaching_directives_do_not_reach_homework_roleplay():
+    """call 2322 — 바바 성격의 «⛔ 칭찬·지시는 모국어로» · «첫 어절 힌트» 가 역할극 규칙을 이겨 영어로 정답을 줬다."""
+    import json
+    from pathlib import Path
+    from core.prompts.homework import roleplay_personality
+    p = json.loads((Path(__file__).parent / "fixtures" / "baba_bibi_personality.json").read_text(encoding="utf-8"))
+    baba, bibi = roleplay_personality(p["1"]), roleplay_personality(p["2"])
+    for t in (baba, bibi):
+        assert "모국어" not in t and "힌트" not in t and "정답" not in t and "다시 해보" not in t
+    assert "비꼬는 한마디" in baba and "어려운 걸 해냈을 때만" in baba          # 말투 재료는 남는다
+    assert "감탄사" in bibi
+    text = build_homework_roleplay_instruction(role="바바", personality=p["1"], locale="en", name=None,
+                                               homework=payload(mode="roleplay"))
+    assert "반드시 학습자의 모국어" not in text
+    reground = build_homework_roleplay_reground(payload(mode="roleplay"), "en")
+    assert "한국어로만" in reground and "모국어·표현 연습 지시는 따르지 않는다" in reground
+
+
+def test_homework_roleplay_nudges_never_give_answers_or_native_language():
+    """call 2322 — 자유대화 2단 넛지(모국어 설명 + 답변 예시)를 빌려 써서 영어로 «You can say '자리가 없어요'» 를 말했다."""
+    from core.prompts.homework import HOMEWORK_ROLEPLAY_NUDGE_1, HOMEWORK_ROLEPLAY_NUDGE_2
+    for seed in (HOMEWORK_ROLEPLAY_NUDGE_1, HOMEWORK_ROLEPLAY_NUDGE_2):
+        assert "답 예시" in seed and "예시 하나를 들려준다" not in seed and "둘 중 고르기" not in seed
+    assert "모국어로 설명하지 않고" in HOMEWORK_ROLEPLAY_NUDGE_2

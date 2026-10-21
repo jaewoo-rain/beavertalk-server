@@ -727,3 +727,9 @@ def test_strip_drops_provider_medical_notice_and_bold():
     assert _strip_face_echo(raw).strip() == "알긴 뭘 알아! 너 얼굴이 안 좋아 보이는데?"
     plain = "병원비가 비싸다는데, 얼른 진료받아."
     assert _strip_face_echo(plain) is plain
+
+
+def test_strip_drops_tool_call_echo():
+    """call 2323 — «'밤새 아파서 잠도 못 잤어요'라고?call:아이고» 가 자막·저장에 나갔다."""
+    from domains.learning.realtime.call_session import _strip_face_echo
+    assert _strip_face_echo("'밤새 아파서 잠도 못 잤어요'라고?call:아이고") == "'밤새 아파서 잠도 못 잤어요'라고?아이고"

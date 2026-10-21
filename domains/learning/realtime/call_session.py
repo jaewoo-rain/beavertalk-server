@@ -131,6 +131,7 @@ from core.prompts.homework import (
     normalize_homework, homework_mode, homework_expression_items,
     build_homework_expression_instruction, build_homework_roleplay_instruction,
     seed_homework_roleplay_opening, build_homework_roleplay_reground,
+    HOMEWORK_ROLEPLAY_NUDGE_1, HOMEWORK_ROLEPLAY_NUDGE_2,
 )
 from core.stt import normalize_language_codes
 from domains.learning.service import call_service
@@ -544,6 +545,9 @@ _TOOL_RESULT_TAIL_RE = re.compile(
 _PROVIDER_NOTICE_RE = re.compile(r"\s*(?:The )?medical disclaimer:[^\n]*|\s*This is not medical advice[^\n]*", re.I)
 
 
+_CALL_ECHO_RE = re.compile(r"(?<![A-Za-z])call:\s*")
+
+
 def _strip_face_echo(text: str) -> str:
     """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**, 공급자 안내 문구·굵게 표시를 걷어낸다.
 
@@ -553,6 +557,8 @@ def _strip_face_echo(text: str) -> str:
         text = text.replace("**", "")
     if "isclaimer" in text or "medical advice" in text:
         text = _PROVIDER_NOTICE_RE.sub("", text)
+    if "call:" in text:
+        text = _CALL_ECHO_RE.sub("", text)        # 2323 «…라고?call:아이고» — 도구 호출 꼴 낭독
     if "set_face" in text:
         text = _FACE_ECHO_RE.sub("", text)
     if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다
@@ -4545,8 +4551,9 @@ async def run_call(
             elif call_type == "homework":
                 # 숙제는 방식별로 그 코스의 1단·2단 시드를 쓴다(PM-DEC-557 · 잠금 문구 재사용, 임계 무변).
                 if hw_mode == "roleplay":
-                    state.nudge_seed_1 = NUDGE_SEED_1_FREETALK_LESSON
-                    state.nudge_seed_2 = NUDGE_SEED_2_FREETALK
+                    # call 2322 — 자유대화 2단(모국어 설명 + 답변 예시)이 영어로 정답을 주게 했다 → 숙제 역할극 전용
+                    state.nudge_seed_1 = HOMEWORK_ROLEPLAY_NUDGE_1
+                    state.nudge_seed_2 = HOMEWORK_ROLEPLAY_NUDGE_2
                 else:
                     state.nudge_seed_1 = NUDGE_SEED_1_EXPRESSION
 

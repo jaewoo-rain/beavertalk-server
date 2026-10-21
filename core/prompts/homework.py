@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 
 from core.prompts.common import (
-    CLOSE_TAG_DEFAULT, PERSONA_TAIL, RULE_CLOSE_PROTOCOL, RULE_RESPONSE_LENGTH,
+    CLOSE_TAG_DEFAULT, CONTROL_TAG, PERSONA_TAIL, RULE_CLOSE_PROTOCOL, RULE_RESPONSE_LENGTH,
     RULE_NONVERBAL_SOUND, RULE_OFF_TOPIC, locale_label,
 )
 from core.prompts.editable_loader import section
@@ -246,6 +246,25 @@ def _rules_tail(name: str | None, label: str) -> str:
     ))
 
 
+#: 숙제 역할극에서 성격 문구 중 «학습 진행» 지시 줄 — 역할극 규칙과 부딪쳐 빼고 말투 재료만 남긴다(call 2322 바바).
+_TEACHING_LINE_MARKERS = ("모국어", "따라 할", "따라 말", "다음 문제", "다음으로 넘어", "힌트", "다시 시킨", "다시 해보", "정답", "문제를")
+
+
+def roleplay_personality(personality: str | None) -> str:
+    """성격 문구에서 학습 진행 지시(모국어로 칭찬·힌트·정답·다음 문제·다시 시키기)를 뺀다 — 말투·반응 재료만 남는다.
+
+    줄 안의 «⛔ …» 조각 단위로 거른다(바바 «틀렸을 때: 웃음 + 비꼼 ⛔ 모름에는 … 첫 어절 힌트만» 은 앞 조각만 남는다).
+    """
+    out = []
+    for ln in (personality or "").splitlines():
+        head, *rest = ln.split("⛔")
+        if any(m in head for m in _TEACHING_LINE_MARKERS):
+            continue
+        keep = [seg for seg in rest if not any(m in seg for m in _TEACHING_LINE_MARKERS)]
+        out.append("⛔".join([head, *keep]).rstrip())
+    return "\n".join(out).strip()
+
+
 def build_homework_roleplay_instruction(
     *, role: str, personality: str, locale: str, name: str | None,
     homework: dict, face_rule: str = "",
@@ -256,7 +275,7 @@ def build_homework_roleplay_instruction(
         raise ValueError("역할극 숙제는 roleplay 가 필요함 — 호출부는 homework_mode() 로 먼저 가른다")
     label = locale_label(locale)
     text = section("homework_roleplay", "instruction").format(
-        role=role or "", personality=personality or "", target="한국어", locale_label=label,
+        role=role or "", personality=roleplay_personality(personality), target="한국어", locale_label=label,
         roleplay_block=_roleplay_scene_block(roleplay, data["goals"]),
     )
     # PM-DEC-619: 코스 우선 줄이 이 대본에만 없었다(다른 코스 [불변 규칙]과 같은 문장 · 실통화 1954 재생).
@@ -264,6 +283,17 @@ def build_homework_roleplay_instruction(
     # call 2310: «beaver가 너무 멋있어서» 를 정체 질문으로 읽고 규칙 7 고정 답(«비버톡의 회화 학습 어시스턴트!»)을 말했다.
     priority += "역할극 중 학습자가 너를 «비버»라고 부르거나 칭찬하면 «너의 역할»로 짧게 받는다 — 규칙 7의 정체 답은 정체를 직접 물을 때만 한다.\n"
     return text + "\n\n[불변 규칙]\n" + priority + _rules_tail(name, label) + ("\n\n" + face_rule if face_rule else "")
+
+
+#: 숙제 역할극 무음 넛지(call 2322) — 자유대화 넛지(모국어 설명·답변 예시·둘 중 고르기)를 빌려 쓰지 않는다.
+HOMEWORK_ROLEPLAY_NUDGE_1 = (
+    f"{CONTROL_TAG} 학습자가 잠깐 조용하다. 이 메시지는 소리내 읽지 말고, 작별하지 말고, 장면을 바꾸지 말고, "
+    "«너의 역할»로서 방금 한 질문을 더 쉬운 한국어 짧은 말로 한 번만 다시 물어라. 답 예시·정답·고르기 질문(«A야, B야?»)·주요 표현은 꺼내지 않는다."
+)
+HOMEWORK_ROLEPLAY_NUDGE_2 = (
+    "[안내] 답하기 어려워하면 «너의 역할»의 말투로 한국어로만 짧게 상황을 한 번 더 짚고(«왜 대답이 없어?» 처럼) 같은 장면에서 질문 하나만 한다. "
+    "학습자의 모국어로 설명하지 않고, 답 예시·정답 문장·주요 표현을 네 입으로 말하지 않는다."
+)
 
 
 def seed_homework_roleplay_opening() -> str:
@@ -277,7 +307,8 @@ def build_homework_roleplay_reground(homework: dict, locale: str) -> str:
     label = locale_label(locale)
     return (
         "[안내] 학습자가 방금 한 말에 먼저 반응하고, [역할극] 상황과 너의 역할"
-        f"({roleplay['ai_role']})을 그대로 유지하며 한국어로 이어가라. 질문은 하나씩 한다. "
+        f"({roleplay['ai_role']})을 그대로 유지하며 그 역할의 말투로 한국어로만 이어가라 — 캐릭터 문구의 모국어·표현 연습 지시는 따르지 않는다. "
+        "질문은 하나씩 한다. "
         "주요 표현은 학습자가 먼저 말할 몫이다 — 네가 먼저 꺼내지 않는다(질문·보기·되묻기에도 넣지 않는다). "
         "막히면 같은 질문을 더 쉬운 한국어로 한 번만 다시 묻고, 답 예시·고르기 질문은 하지 않는다. "
         f"뜻을 물으면 {label}로 한 문장만 답하고 역할극으로 돌아가라. "
