@@ -640,7 +640,7 @@ def remaining_budget_s(
 def active_ongoing_call_id(db: Session, member_id: int) -> int | None:
     """QA C4 재검-③④(2026-09-23) — "한 회원은 동시에 한 통화만" 정책의 근거. 정의는
     `CallRepository.active_ongoing_call_id` 참조("살아있다"의 뜻·exclude 없는 이유·
-    행 잠금을 안 쓰는 이유).
+    원자 판정은 회원 잠금 뒤 재확인 — PM-DEC-970).
     """
     return CallRepository(db).active_ongoing_call_id(member_id)
 

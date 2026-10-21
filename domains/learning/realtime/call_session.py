@@ -3611,8 +3611,8 @@ async def run_call(
 
     # ── 동시통화 금지(정책) — QA C4 재검-③④(2026-09-23) ─────────────────── #
     # ⭐⭐ "한 회원에게 살아있는 조각이 있으면 무조건 거절." 동시 시작·동시 재개로
-    #   하루 예산을 두 번 쓰는 경로를 막는 최소 처방이다(행 잠금·예약은 만들지 않는다
-    #   — 결정). "살아있다"의 정의(죽은 세션 무시 포함)는
+    #   하루 예산을 두 번 쓰는 경로를 막는다. 여기는 빠른 거절이고, 원자 판정은 아래 create_call(exclusive=True)·
+    #   resume_call 의 회원 잠금 뒤 재확인이 한다(PM-DEC-970). "살아있다"의 정의(죽은 세션 무시 포함)는
     #   CallRepository.active_ongoing_call_id.
     # ⛔⛔ **예외를 두지 않는다**(재검-④) — 정상 이어하기는 조각 저장(`finalize_call`/
     #   `mark_fragment_ended`)이 `fragment_ended_at` 을 찍은 **뒤**에 오므로 이 시점엔
@@ -4079,10 +4079,20 @@ async def run_call(
         call_id = await svc.run_db(
             db_session_factory,
             lambda db: svc.create_call(
-                db, member_id, character_id, call_type, target_language=spec.code,
+                db, member_id, character_id, call_type, target_language=spec.code, exclusive=True,
                 **({"homework": homework} if homework is not None else {}),
             ),
         )
+        if call_id is None:
+            # 2026-10-22 — 위 관문과 이 INSERT 사이에 같은 회원의 다른 통화가 먼저 성립했다(동시 시작 경합) · 행 없음
+            logger.info("normalcall: 동시통화 거절(시작 잠금 재확인) member=%s call_type=%s", member_id, call_type)
+            with contextlib.suppress(Exception):
+                await _send_json(client_ws, ServerError(
+                    code="ALREADY_IN_CALL",
+                    message="다른 통화가 이미 진행 중이에요.",
+                    recoverable=False,
+                ))
+            return
     # QA C4 재검-⑥(2026-09-23): 이 구간(콜타입 라우팅 직후 ~ 본 세션 진입 직전)에서 나는
     #   예외(open_call 일반 예외·조각수/인덱스 조회·call_started 송신 실패·next_turn·플랜
     #   길이 조회 등)는 fragment_ended_at 을 못 찍으면 이 행이 영원히 "살아있는 조각"으로
