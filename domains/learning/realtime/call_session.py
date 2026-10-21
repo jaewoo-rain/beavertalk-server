@@ -3940,6 +3940,11 @@ async def run_call(
                 lambda db: chat_memory_service.load(db, member_id, spec.code),
             )
             chat_memory_dict = chat_memory_service.to_dict(chat_memory_row)
+            if settings.MEMORY_IGNORE_TEST_EMAILS and await svc.run_db(
+                    db_session_factory, lambda db: svc.member_email_listed(db, member_id, settings.MEMORY_IGNORE_TEST_EMAILS)):
+                # 시험 태그 전용(PM-DEC-958) — «처음 쓰는 상태» 반복 시험: 기억을 안 읽는다(저장은 그대로)
+                logger.info("normalcall chat: 시험 계정 기억 안 읽음(MEMORY_IGNORE_TEST_EMAILS) member=%s", member_id)
+                chat_memory_dict = None
             system_instruction = build_chat_instruction(
                 role=setup["role"],
                 personality=setup["personality"],

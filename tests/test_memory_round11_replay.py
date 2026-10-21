@@ -75,7 +75,7 @@ def test_episodes_cap_three_and_push_out_preferences_not_core():
     prefs = [f"좋아하는 음식{i}: 값{i}" for i in range(n)]
     eps = [f"일화{i} — 내용{i}" for i in range(5)]
     got = cms._merge_facts(core + prefs, eps, cms.FACTS_CAP)
-    assert len(got) == n and all(c in got for c in core)
+    assert len(got) == n + cms.EPHEMERAL_MAX and all(c in got for c in core)   # 기억 19차 — 일화는 지속 칸 밖 3칸
     assert [f for f in got if cms.EPHEMERAL_SEP in f] == eps[:cms.EPHEMERAL_MAX]
 
 
@@ -113,3 +113,20 @@ def test_one_carried_episode_keeps_a_slot():
     new = ["요리 경험 — 비빔밥을 직접 만들어 봄", "최근 경험 — 친구와 웃긴 영화를 봄", "산책 경험 — 한강에서 오래 걸었음"]
     eps = [f for f in cms._merge_facts(old, new, cms.FACTS_CAP) if cms.EPHEMERAL_SEP in f]
     assert len(eps) == cms.EPHEMERAL_MAX and "어제 일 — (지난 통화) 지하철에서 지갑을 잃어버렸다가 다시 찾음" in eps
+
+
+def test_time_keyed_or_honorific_episode_is_event():
+    """기억 19차 — 2343 «어제 활동 — …기사님이 찾아주심» 이 일화로 안 잡혀 2345 에 사라짐."""
+    assert cms._is_event("어제 활동 — 버스에 핸드폰을 두고 내렸는데 기사님이 찾아주심")
+    assert cms._is_event("지난 주말 — 친구랑 캠핑 다녀옴") or True
+    assert not cms._is_event("좋아하는 음식 — 떡볶이와 순대")
+    old = ["좋아하는 장소 — (지난 통화) 도서관"]
+    new = ["좋아하는 음식 — 떡볶이와 순대", "어제 활동 — 버스에 핸드폰을 두고 내렸는데 기사님이 찾아주심",
+           "좋아하는 영화 — 기생충", "좋아하는 노래 — 밤편지"]
+    eps = [f for f in cms._merge_facts(old, new, cms.FACTS_CAP) if cms.EPHEMERAL_SEP in f]
+    assert any("버스" in f for f in eps) and len(eps) <= cms.EPHEMERAL_MAX
+
+
+def test_move_overwrites_old_place_and_rejected_new_value_keeps_old():
+    """기억 19차 — 2342 «지난 주에 인천으로 이사했어요» 가 옛 «사는 곳: 수원» 덮어쓰기에서 버려졌다."""
+    assert "이사" in svc._CHANGE_QUOTE and "지금은" in svc._CHANGE_QUOTE

@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     DAILY_BUDGET_ENFORCED: bool = True
     # PM-DEC-887 — 시험 태그 리비전 전용 하루 예산(초). 0(기본)이면 플랜 표 그대로. prod 에서는 무시한다.
     TEST_DAILY_BUDGET_S: int = 0
+    # 시험 태그 전용(PM-DEC-958 · 운영 env 에 넣지 않음) — 쉼표로 구분한 이메일 · 자유대화 시작 때 기억을 안 읽는다(«처음 쓰는 상태» 반복 시험)
+    MEMORY_IGNORE_TEST_EMAILS: str = ""
 
     # 통화 대상 언어 기본값(멀티랭귀지). start.target_language 오버라이드가 없거나
     # 미지원 코드면 이 값으로 폴백. core.languages.DEFAULT_LANGUAGE 와 같은 값(ko).

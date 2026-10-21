@@ -1191,6 +1191,12 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
     if out is None:
         return None
     keyed, evidence, dropped = _grounded_facts(out.facts or [], transcript, olds)
+    replaced = chat_memory_service.match_replaced(_clean_list(out.replaced, MEMORY_FACTS_MAX, 80), olds)
+    # 기억 19차(2345) — 새 값을 근거 없음으로 버렸는데 옛 값만 «바뀜»으로 지우던 것 → 주제 키 replaced 는 그 주제 새 줄이 있을 때만
+    new_keys = {chat_memory_service.split_fact(f)[0] for f in keyed if chat_memory_service.split_fact(f)[0]}
+    replaced = [r for r in replaced if not chat_memory_service.split_fact(r)[0]
+                or chat_memory_service.split_fact(r)[0] in new_keys
+                or chat_memory_service._same_activity_slot(chat_memory_service.split_fact(r)[0], list(new_keys))]
     return {
         "topic": (out.topic or "").strip()[:30],
         # 기억 13차 — 주제 키 facts 가 있으면 옛 learner_facts(주제 없는 줄)는 쓰지 않는다(같은 말이 주제 없이 한 번 더 들어왔다)
@@ -1199,7 +1205,7 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
         "dropped": dropped,
         "pending": (out.pending or "").strip()[:40],
         "interests": _clean_list(out.interests, 5, 30),
-        "replaced": chat_memory_service.match_replaced(_clean_list(out.replaced, MEMORY_FACTS_MAX, 80), olds),
+        "replaced": replaced,
         # 기억 10차 — profile 칸은 근거(quote) 검사를 안 거쳐 «반려동물: 없음» 이 근거 없이 들어왔다(max05) → 쓰지 않는다
         "profile": {},
     }
@@ -1211,7 +1217,9 @@ def _norm_speech(t: str) -> str:
 
 _ASK_MARKERS = ("기억나", "뭐라고 했", "뭐였", "말했지", "했지?", "알아?")   # «꼭 기억해줘요» 는 부탁이라 뺀다
 _EPISODE_QUOTE = ("지난", "어제", "그때", "옛날", "작년")
-_CHANGE_QUOTE = ("요즘", "이제", "그만", "바꿨", "새로", "앞으로", "다시")
+_CHANGE_QUOTE = ("요즘", "이제", "그만", "바꿨", "새로", "앞으로", "다시",
+                 # 기억 19차(2342 «지난 주에 인천으로 이사했어요» 버림) — 삶의 변화 동사도 «바뀜» 말이다
+                 "이사", "옮겼", "옮긴", "졸업", "취직", "입사", "이직", "전학", "시작했", "지금은", "되었", "됐어", "됐고")
 _KEY_QUALIFIERS = ("주말", "아침", "저녁", "평일", "방학")
 _LIST_KEYS = ("못 먹는 것",)                       # 목록 칸 — 지우는 말이 없으면 옛 항목을 남기고 더한다
 _REMOVE_MARKERS = ("이제", "먹을 수 있", "괜찮아", "안 싫", "다 먹")
@@ -1273,6 +1281,12 @@ def _grounded_facts(items, transcript: str, old_facts: list[str] | None = None) 
                 items = [x.strip() for x in (value + ", " + old_v).replace("·", ",").split(",") if x.strip()]
                 value = ", ".join(dict.fromkeys(items))[:60]
                 line = f"{key}: {value}"
+        if (ok and any(w in key for w in chat_memory_service._ACTIVITY_WORDS)
+                and any(w in quote for w in _EPISODE_QUOTE) and not any(w in quote for w in _CHANGE_QUOTE)):
+            # 기억 19차 — 2295 «지난 주말에 등산했어요» → «주말 활동: 등산» 지속 줄이 «주말 운동: 스케이트» 칸을 덮었다 → 지난 일 근거의 활동은 일화
+            #   주제 이름에 «지난» 을 붙여 둔다 — 안 붙이면 demote_details 가 속성다운 주제(«주말 활동»)라 지속으로 되돌린다
+            ep_key = key if any(w in key for w in chat_memory_service._EPISODE_WORDS) else f"지난 {key}"
+            line = f"{ep_key}{chat_memory_service.EPHEMERAL_SEP}{value}"
         if ok:
             keyed.append(line)
             evidence.append((line, quote[:80]))
@@ -1323,6 +1337,16 @@ def _resume_transcript_full(db: Session, call_id: int) -> str:
         "%s: %s" % ("비버" if (r or "") == "beaver" else "학습자", (c or "").strip())
         for c, r in rows if c and len(c.strip()) >= 3
     )
+
+
+def member_email_listed(db: Session, member_id: int, csv: str | None) -> bool:
+    """쉼표 목록(시험 계정 이메일)에 이 회원이 있나 — 빈 목록이면 늘 False(운영 기본)."""
+    from domains.account.models.member import Member
+    allow = {e.strip().lower() for e in (csv or "").split(",") if e.strip()}
+    if not allow:
+        return False
+    email = db.scalar(select(Member.email).where(Member.member_id == member_id))
+    return bool(email) and email.strip().lower() in allow
 
 
 def recent_turns(db: Session, call_id: int, *, n: int = 4, max_chars: int = 120) -> list[tuple[str, str]]:
