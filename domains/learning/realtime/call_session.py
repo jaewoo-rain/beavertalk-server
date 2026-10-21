@@ -850,6 +850,7 @@ class _CallState:
         "call_id", "call_mode", "reground_freetalk", "turn_note", "turn_note_sent", "last_interrupted_ts", "usage_prompt_peak", "usage_prompt_max", "usage_prompt_floor",
         "compression_seen",
         "band_observe", "band_client", "band_awaiting", "total_answers", "nonspeaker_streak",
+        "leveltest_cut_turn",   # PM-DEC-922 — 종료 판정이 선 뒤 앱에 더 보내지 않는 질문 턴
         # ⭐ 이 통화가 레벨테스트인가 — 종료 소유권 판정에 쓴다(레벨테스트는 서버가 끝낸다)
         "is_leveltest",
         "clip_expr",
@@ -1159,6 +1160,7 @@ class _CallState:
         self.cur_route: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
+        self.leveltest_cut_turn: Optional[str] = None   # PM-DEC-922
         # (멀티랭귀지) 종료 판정관이 판정할 대상 언어 라벨(run_call 이 세팅, 기본 한국어).
         self.band_target_language: str = _DEFAULT_TARGET_LABEL
         # 입력 전사에 들릴 언어(학습 언어 + 모국어). 빈 목록 = 힌트 없음(자동 감지).
@@ -6306,7 +6308,7 @@ def _spawn_band_observe(state: _CallState) -> None:
         return  # 무발화 턴(오프닝 등) — 관측 대상 아님
     state.band_awaiting = True  # create_task 전 선점(동시 1건 가드)
     task = asyncio.create_task(
-        _band_observe_sidecar(state, answer, state.last_beaver_question),
+        _band_observe_sidecar(state, answer, state.last_beaver_question, reply_turn_id=state.turn_id),
         name="normalcall-band-observe",
     )
     state.band_tasks.add(task)  # 강참조(GC 방지) — run_call finally 가 전량 취소
@@ -6314,7 +6316,7 @@ def _spawn_band_observe(state: _CallState) -> None:
 
 
 async def _band_observe_sidecar(
-    state: _CallState, answer: str, prior_question: str
+    state: _CallState, answer: str, prior_question: str, reply_turn_id: Optional[str] = None,
 ) -> None:
     """답변 1건 종료 판정 → 종료 트리거면 종료를 **요청**한다(백그라운드, R5).
 
@@ -6393,6 +6395,11 @@ async def _band_observe_sidecar(
         "normalcall: 레벨테스트 종료 트리거(턴캡=%s 비화자컷=%s 판정종료=%s) → 종료 플래그",
         hard_cap, nonspeaker_cut, judge_end,
     )
+    # PM-DEC-922 — 판정을 띄운 응답 턴(다음 질문)이 아직 생성 중이면 남은 부분을 앱에 보내지 않는다.
+    #   그 턴의 turn_end 에서 펌프가 작별 시드를 넣는다(call 2234: 질문 한 줄이 남고 0.7초 뒤 작별).
+    if state.is_leveltest and reply_turn_id is not None and state.turn_id == reply_turn_id:
+        state.leveltest_cut_turn = reply_turn_id
+        logger.info("normalcall: 레벨테스트 종료 — 생성 중 질문의 남은 부분을 보내지 않음 turn=%s", reply_turn_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -7221,6 +7228,11 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
       '통화 시계 시작' 같은 턴 경계 처리를 한다.
     """
     turn_started = False
+
+    # PM-DEC-922 — 레벨테스트 종료가 선 뒤 남은 질문 조각은 앱에 보내지도 저장하지도 않는다(turn_end 는 그대로 흘린다)
+    if (event.kind in ("audio", "out_tr") and state.leveltest_cut_turn is not None
+            and state.turn_id == state.leveltest_cut_turn):
+        return False
 
     if event.kind == "audio":
         if state.turn_id is None:
