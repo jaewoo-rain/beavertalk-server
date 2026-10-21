@@ -38,8 +38,8 @@ BANNED_WORDS: tuple[str, ...] = (
 #: 파일별 토큰 예산(자수 × CHARS_TO_TOKENS 근사). 기본판 + 여유. 넘으면 폴백 — 한 줄 늘리면 토큰이 는다는 걸 여기서 잡는다.
 TOKEN_BUDGET: dict[str, int] = {
     "normal": 3400,
-    "expression": 500,
-    "freetalk": 2250,  # freetalk 7차 근사 2249(8차 2300 은 효과 없어 되돌림 · call flow) · PM-DEC-906 5차 근사 2217 · 2200(10-19)
+    "expression": 550,
+    "freetalk": 2360,  # freetalk 7차 근사 2249(8차 2300 은 효과 없어 되돌림 · call flow) · PM-DEC-906 5차 근사 2217 · 2200(10-19)
     "leveltest": 550,   # PM-DEC-778 — 레벨테스트 최종안(재생 검증 문구 그대로) 실측 507 > 450 · 2026-10-18
     "homework_roleplay": 900,   # 숙제 역할극 수정(10-19 사용자 승인) — 근사 846 > 600
 }

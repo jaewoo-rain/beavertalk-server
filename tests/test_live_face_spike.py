@@ -717,3 +717,19 @@ def test_hold_and_mute_detection_agree_on_the_same_turn():
     assert cs2._greeting_subtitle_on_hold(st2) is False
     st2.beaver_turns = 1
     assert cs2._greeting_was_mute(st2, 48000) is False
+
+
+def test_strip_drops_tool_call_echo():
+    """call 2323 — «'밤새 아파서 잠도 못 잤어요'라고?call:아이고» 가 자막·저장에 나갔다."""
+    from domains.learning.realtime.call_session import _strip_face_echo
+    assert _strip_face_echo("'밤새 아파서 잠도 못 잤어요'라고?call:아이고") == "'밤새 아파서 잠도 못 잤어요'라고?아이고"
+
+
+def test_strip_masks_profanity_and_face_word_echo():
+    """call 2325 — «씨발» 자막·저장 · «icase:sad» 표정 도구 꼴 · 앞 콜론 찌꺼기."""
+    from domains.learning.realtime.call_session import _strip_face_echo
+    assert _strip_face_echo("너네 애기 완전 상남자네, 씨발!") == "너네 애기 완전 상남자네, 대박!"
+    assert _strip_face_echo("icase:sad아이, 너무 아프면 어떡해!") == "아이, 너무 아프면 어떡해!"
+    assert _strip_face_echo(":비버 맛이라니") == "비버 맛이라니"
+    for ok in ("시발점부터 다시", "오늘 3시: 만나요", "사진: happy birthday 노래"):
+        assert _strip_face_echo(ok) == ok
