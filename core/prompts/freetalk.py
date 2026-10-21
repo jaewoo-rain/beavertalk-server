@@ -28,6 +28,7 @@
 
 from __future__ import annotations
 
+from core.prompts.common import unnamed_tail
 from core.prompts.common import (
     CLOSE_TAG_DEFAULT,
     CONTROL_TAG,  # noqa: F401 - 재수출(옛 호출부 호환; 문구는 locked/seeds·locked/expression 이 쓴다)
@@ -178,14 +179,14 @@ def _build_freetalk_lesson_instruction(
     label = _locale_label(locale, locale_label)
     username = (name or "").strip() or "학습자"
     parts = [
-        _FREETALK_LESSON_TEMPLATE.format(
+        unnamed_tail(_FREETALK_LESSON_TEMPLATE.format(
             target=target_language,
             locale_label=label,
             role=role or "친근한 한국어 대화 파트너",
             personality=personality or "다정하고 편안한 말투",
             username=username,
             max_sentences=max_sentences,
-        ),
+        ), name),
         f"\n[학습자 수준]\n{level_profile}",
         "\n" + _lesson_block_v1(lesson, username=username, language=language),
     ]
@@ -231,14 +232,14 @@ def build_freetalk_instruction(
     username = (name or "").strip() or "학습자"
 
     parts = [
-        _FREETALK_TEMPLATE.format(
+        unnamed_tail(_FREETALK_TEMPLATE.format(
             target=target_language,
             locale_label=label,
             role=role or "친근한 한국어 대화 파트너",
             personality=personality or "다정하고 편안한 말투",
             username=username,
             max_sentences=max_sentences,
-        ),
+        ), name),
         f"\n[학습자 수준]\n{level_profile}",
         f"\n[학습자 흥미·소재] {interests_text}",
     ]

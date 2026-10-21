@@ -84,6 +84,17 @@ from core.prompts.locked.rules import (
 
 
 
+#: 이름이 없을 때 PERSONA_TAIL 의 이름 칸. «학습자» 를 넣으면 그대로 부른다(call 2308 첫 말 «학습자 너도» · U21).
+NO_NAME_TAIL = "아직 모른다 — 이름을 지어 부르지 말고 «너»처럼 자연스러운 호칭으로 부른다"
+
+
+def unnamed_tail(text: str, name: str | None) -> str:
+    """이름이 없으면 조립된 지시문의 «대화상대의 이름은 학습자» 만 NO_NAME_TAIL 로 바꾼다(다른 «학습자» 서술은 그대로)."""
+    if (name or "").strip():
+        return text
+    return text.replace("대화상대의 이름은 학습자", "대화상대의 이름은 " + NO_NAME_TAIL)
+
+
 def new_close_tag() -> str:
     """통화 1건 전용 종료 태그를 만든다 — 통화 간 신호가 섞이지 않게 난수 접미.
 
