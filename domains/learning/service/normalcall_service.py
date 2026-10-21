@@ -2908,6 +2908,8 @@ def _ground_rephrased(exprs: list, dialog_rows: list[dict]) -> list:
             out.append(e)
             continue
         att = (e.learner_attempt or "").strip()
+        if att.endswith("?") or any(m in att for m in ("기억나", "기억해", "했지", "뭐였", "라고 했")):
+            continue      # call flow 2328 — 학습자 질문·기억 확인 말(«지난달 … 기억나?»)은 «이렇게도 말해요» 감이 아니다
         k = _speech_key(att)
         nk = _speech_key(e.native_expression or "")
         # 현지인 표현 짝이 핵심 — 없거나 korean 과 같거나 어미만 다르면(«귀여워»→«귀여워요») 버린다

@@ -39,3 +39,10 @@ def test_grounding_keeps_only_learner_sentences_with_real_native_pair():
 def test_rule_mentions_min_and_native_pair():
     rule = svc._rephrase_rule(3, "한국어")
     assert "최소 3개" in rule and "native_expression" in rule and "«이렇게도 말해요»" in rule
+
+
+def test_learner_questions_are_not_rephrased():
+    """call flow 2328 — «지난달 … 기억나?» 같은 학습자 질문이 1쌍으로 들어갔다."""
+    rows = _rows(8, "내가 지난달에 어디 갔다고 했는지 기억나")
+    exprs = [_e("내가 지난달에 어디 갔다고 했는지 기억나 1", "제가 지난달에 어디 갔다고 했는지 기억나요?", "지난달 내 여행지 기억해?")]
+    assert svc._ground_rephrased(exprs, rows) == []
