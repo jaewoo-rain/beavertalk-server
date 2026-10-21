@@ -8,6 +8,7 @@ docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md 참조. C7(자�
 from __future__ import annotations
 
 import logging
+import re
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -22,8 +23,9 @@ logger = logging.getLogger(__name__)
 SUMMARY_CHAR_CAP = 1200
 TOPICS_CAP = 10
 FACTS_CAP = 30          # 기억 16차 20 → 30(핵심 속성이 취향 줄에 밀렸다 · 가득 차면 약 +100 토큰) · 12차 15 → 20
-EPHEMERAL_MAX = 4       # 일회 잡담(«주제 — 값») 최대 칸
+EPHEMERAL_MAX = 3       # 일회 일화(«주제 — 값») 최대 칸 · 기억 18차 4 → 3(지난 통화 일화 포함 · U44 ②)
 EPHEMERAL_SEP = " — "
+EPISODE_CARRIED = "(지난 통화) "   # 기억 18차 — 지난 통화 일화 표시(값 앞) · 이 표시가 붙은 줄은 다음 통화에서 빠진다
 INTERESTS_CAP = 10
 NEXT_TOPICS_CAP = 5
 
@@ -388,13 +390,46 @@ def cap_in_call_facts(new: list | None, old: list | None, cap: int) -> list[str]
     return [f for i, f in enumerate(merged) if i in keep]
 
 
+_EVENT_KEY_WORDS = ("경험", "추억", "사건", "분실", "사고", "에피소드")
+_EVENT_VALUE_RE = re.compile(r"(었|았|였|했|됐|웠|졌|찾|맞|잃|봄|옴|감)음?\.?$|잃어버|다녀왔")
+
+
+def _is_event(line: str) -> bool:
+    """기억 18차 — 일화(겪은 일)인가: «어제 일 — 지갑을 잃어버렸다가 찾음» · «요리 경험 — 직접 만들어 먹어봄».
+    «최근 읽은 책 — 셜록 홈즈» · «비빔밥 재료 — 채소» 같은 잡담은 일화가 아니다(창이 좁을 때 일화가 먼저 칸을 받는다)."""
+    k, _, v = line.partition(EPHEMERAL_SEP)
+    v = v.replace(EPISODE_CARRIED, "", 1).strip()
+    k = k.strip()
+    return k.endswith("일") or any(w in k for w in _EVENT_KEY_WORDS) or bool(_EVENT_VALUE_RE.search(v))
+
+
+_ACTIVITY_WORDS = ("취미", "운동", "활동")
+
+
+def _activity_qual(k: str) -> str:
+    """«주말 운동» → «주말» · «취미» → «» (때·대상 한정어)."""
+    parts = k.split()
+    return parts[0] if len(parts) >= 2 else ""
+
+
+def _same_activity_slot(old_key: str, new_keys: list[str]) -> bool:
+    """기억 18차 — 2286 «취미: 볼더링» → «주말 운동: 스케이트»(«요즘 주말에는 …» 같은 칸). 한정어가 없거나 같을 때만(«아침 운동» ≠ «주말 운동»)."""
+    if not any(w in old_key for w in _ACTIVITY_WORDS):
+        return False
+    oq = _activity_qual(old_key)
+    return any(nk != old_key and any(w in nk for w in _ACTIVITY_WORDS) and oq in ("", _activity_qual(nk))
+               for nk in new_keys)
+
+
 def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None,
                  profile: dict | None = None) -> list[str]:
     """PM-DEC-920 · 기억 6·8·9차 — 사실 병합:
     «주제: 값» 은 같은 주제 키면 새 값이 덮어씀(고정 칸 = 우선순위 높은 주제) → 바뀐 옛 사실(replaced) 빼기 →
     덮어써진 옛 값 낱말이 든 주제 없는 옛 사실도 뺌 → 비슷한 말은 최신 하나만 →
     상한을 자를 땐 고정 칸 > 다른 주제 > 주제 없는 사실(그 안에선 등급·최신) 순."""
-    replaced = [r for r in (replaced or []) if not split_fact(r)[0]]   # 기억 14차 — 주제 키 사실은 replaced 로 안 지움
+    new_keys = [split_fact(x)[0] for x in (new or []) if isinstance(x, str) and split_fact(x)[0]]
+    replaced = [r for r in (replaced or []) if not split_fact(r)[0]          # 기억 14차 — 주제 키 사실은 replaced 로 안 지움
+                or _same_activity_slot(split_fact(r)[0], new_keys)]          # 기억 18차 — 단 같은 활동 칸의 새 줄이 있으면 지움
     newl = list(new or []) + [f"{k}: {v.strip()}" for k, v in (profile or {}).items()
                               if k in PROFILE_KEYS and isinstance(v, str) and v.strip()]
     keyed = [f for f in merge_keyed_lines(newl, _without(old, replaced), 10 ** 6) if split_fact(f)[0]]
@@ -410,12 +445,18 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     prof = profile_of(keyed)
     plain: list[str] = []
     ephemeral: list[str] = []
+    carried: list[str] = []
     for f in _merge_capped(_without(old, replaced), new, 10 ** 6):
         if split_fact(f)[0]:
             continue
         if EPHEMERAL_SEP in f:
-            if f in newset and not any(_near_dup(f, e) for e in ephemeral):
-                ephemeral.append(f)      # 일회 잡담은 이번 통화 것만 · 지난 통화 잡담은 버린다
+            k, v = f.split(EPHEMERAL_SEP, 1)
+            if f in newset:
+                f = k + EPHEMERAL_SEP + v.replace(EPISODE_CARRIED, "", 1)   # 다시 말했다 — 이번 통화 일화로
+                if not any(_near_dup(f, e) for e in ephemeral):
+                    ephemeral.append(f)
+            elif not v.startswith(EPISODE_CARRIED):
+                carried.append(k + EPHEMERAL_SEP + EPISODE_CARRIED + v)    # 기억 18차 — 지난 통화 일화는 한 통화 더
             continue
         if f not in newset and (_covered_by_profile(f, prof) or any(w in f for w in words)):
             continue   # 옛 사실만 — 고정 칸이 맡았거나 덮어써진 옛 값 낱말이 들었다
@@ -428,7 +469,14 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
         keyed = [f for f in keyed if f not in same[1:]]
     top = [f for k in PROFILE_KEYS for f in keyed if split_fact(f)[0] == k]
     rest_keyed = [f for f in keyed if f not in top]
-    room = max(0, cap - len(top))
+    # 기억 18차 — 일화는 핵심 속성 다음 자리: 고정 칸·핵심 속성은 밀지 않고, 취향·나머지·주제 없는 사실보다 먼저 칸을 받는다
+    carried = [c for c in carried if not any(_near_dup(c.replace(EPISODE_CARRIED, "", 1), e) for e in ephemeral)]
+    # 순서 = 이번 통화 일화 > 지난 통화 일화 > 이번 통화 잡담 > 지난 통화 잡담(2297 지갑 일화가 2299 잡담 3줄에 밀렸다)
+    ephemeral = ([e for e in ephemeral if _is_event(e)] + [c for c in carried if _is_event(c)]
+                 + [e for e in ephemeral if not _is_event(e)] + [c for c in carried if not _is_event(c)])
+    core_n = sum(1 for f in rest_keyed if _attr_tier(split_fact(f)[0]) <= 1)
+    eph = ephemeral[:max(0, min(EPHEMERAL_MAX, cap - len(top) - core_n))]
+    room = max(0, cap - len(top) - len(eph))
     # 기억 11차 — 한 대상의 세부 사실(«제주도 …» 4줄 · «어머니 …» 3줄)이 칸을 차지해 다른 주제(차·영화)가 밀렸다(max05)
     #   → 대상(주제 이름의 첫 특징 낱말)마다 하나씩 먼저 남기고, 남는 칸에 같은 대상의 나머지를 최신 순으로
     # 기억 14차 — 축출은 최근성이 아니라 **중요도** 순(13차: 한 번만 말한 심은 값이 «가장 오래 언급 안 됨»으로 먼저 밀림).
@@ -444,8 +492,6 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     room -= len(rest_keyed)
     keep = set(sorted(plain, key=_fact_tier)[:max(0, room)])   # sorted 는 안정 정렬 — 같은 등급 안에선 최신 먼저
     room -= len(keep)
-    # 기억 12차 — 일회 잡담은 지속 사실이 다 들어간 뒤 남는 칸에만, 최대 EPHEMERAL_MAX 칸
-    eph = ephemeral[:max(0, min(EPHEMERAL_MAX, room))]
     return top + rest_keyed + [f for f in plain if f in keep] + eph
 
 
