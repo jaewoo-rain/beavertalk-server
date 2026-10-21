@@ -373,6 +373,21 @@ def merge_keyed_lines(new: list | None, old: list | None, cap: int) -> list[str]
     return (list(seen.values()) + plain)[:cap]
 
 
+def cap_in_call_facts(new: list | None, old: list | None, cap: int) -> list[str]:
+    """기억 17차 — 통화 안 사실 목록 병합. 사이드카가 옛 목록을 앞에 두고 새 항목을 끝에 붙여 돌려줘도
+    정말 새 항목(옛 목록에 없던 줄)을 앞에 두고, 상한을 넘으면 중요도(고정 칸 > 핵심 속성 > 취향 > 나머지) · 최신 순으로 남긴다."""
+    old = [f for f in (old or []) if isinstance(f, str) and f.strip()]
+    new = [f for f in (new or []) if isinstance(f, str) and f.strip()]
+    olds = set(old)
+    fresh = [f for f in new if f not in olds]
+    merged = merge_keyed_lines(fresh + [f for f in new if f in olds], old, 10 ** 6)
+    if len(merged) <= cap:
+        return merged
+    ranked = sorted(range(len(merged)), key=lambda i: (_attr_tier(split_fact(merged[i])[0] or ""), i))
+    keep = set(ranked[:cap])
+    return [f for i, f in enumerate(merged) if i in keep]
+
+
 def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | None = None,
                  profile: dict | None = None) -> list[str]:
     """PM-DEC-920 · 기억 6·8·9차 — 사실 병합:
