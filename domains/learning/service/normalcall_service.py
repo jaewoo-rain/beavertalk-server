@@ -23,7 +23,7 @@ from typing import Callable, Literal, NamedTuple, Optional, TypeVar
 from fastapi.concurrency import run_in_threadpool
 from google import genai
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -951,6 +951,33 @@ RESUME_REJECT_ALREADY_ACTIVE = "이미 진행 중인 조각"
 _ACTIVE_FRAGMENT_WINDOW_S = 540.0
 
 
+# 회원 단위 통화 시작 잠금(2026-10-22) — advisory lock 키 공간을 다른 용도와 가르려고 상위 비트에 표식을 둔다.
+_CALL_START_LOCK_NS = 0x6274_0001 << 32
+_CALL_START_LOCK_WAIT = "10s"
+
+
+def lock_member_call_start(db: Session, member_id: int) -> bool:
+    """같은 회원의 «살아있는 조각 확인 → 통화 행 INSERT/조각 재개» 를 직렬화한다(트랜잭션 끝 commit·rollback 에서 풀린다).
+
+    ⭐ 동시통화 관문(call_session)은 빠른 거절용으로 그대로 두고, 여기서 **잠근 뒤 다시** 확인한다 — 관문과 INSERT 사이
+      DB 왕복 여러 번(≈1.2s) 창에 같은 계정 두 요청이 둘 다 통과하던 경합(2026-10-21 2374·2375)을 막는다.
+    sqlite(시험 DB)는 advisory lock 이 없다 — 재확인만 한다.
+    ⛔ 대기 상한 — 런타임 롤은 lock_timeout 0(무한)·statement_timeout 2min 이다(2026-10-22 실측). 잠금 대기가
+      _CALL_START_LOCK_WAIT 를 넘으면 False(롤백 끝) — 호출부는 «이미 통화 중» 으로 거절한다(소켓이 2분 매달리지 않게).
+    """
+    if db.get_bind().dialect.name != "postgresql":
+        return True
+    from sqlalchemy.exc import OperationalError
+    try:
+        db.execute(text(f"SET LOCAL lock_timeout = '{_CALL_START_LOCK_WAIT}'"))
+        db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _CALL_START_LOCK_NS + int(member_id)})
+    except OperationalError:
+        db.rollback()
+        logger.warning("통화 시작 잠금 대기 초과(%s) member=%s → 동시통화로 거절", _CALL_START_LOCK_WAIT, member_id)
+        return False
+    return True
+
+
 def resume_call(
     db: Session, member_id: int, continues_call_id: int, *, max_fragments: int,
     homework_assignment_id: int | None = None,
@@ -977,6 +1004,8 @@ def resume_call(
         `RESUME_REJECT_ALREADY_ACTIVE` 면 **호출부는 새 통화를 만들면 안 된다**(거절).
         그 외 사유는 종전대로 호출부가 새 통화를 만든다.
     """
+    if not lock_member_call_start(db, member_id):
+        return None, RESUME_REJECT_ALREADY_ACTIVE
     call = db.query(Call).filter(Call.call_id == continues_call_id).first()
     if call is None:
         return None, "없는 통화"
@@ -1005,6 +1034,12 @@ def resume_call(
             call.fragment_started_at.replace(tzinfo=timezone.utc)
         if (datetime.now(timezone.utc) - started).total_seconds() <= _ACTIVE_FRAGMENT_WINDOW_S:
             return None, RESUME_REJECT_ALREADY_ACTIVE
+    # 잠금 뒤 재확인(2026-10-22) — 같은 회원의 **다른** 통화가 살아있어도 거절(재개와 새 통화가 겹쳐 들어온 경합).
+    from domains.learning.repository.call_repository import CallRepository
+    other = CallRepository(db).active_ongoing_call_id(member_id)
+    if other is not None and other != call.call_id:
+        db.rollback()
+        return None, RESUME_REJECT_ALREADY_ACTIVE
     # ⭐ 2026-09-10: 표현학습·프리토킹도 조각을 잇는다(15분 = 5분 소켓 3개).
     #   ⛔ **레벨테스트는 계속 막는다** — 조각 개념이 없다(3분 하드캡은 상품 혜택이 아니라
     #     측정 설계다). 그래서 화이트리스트로 쓴다: 새 콜타입이 생겼을 때 **기본이 «막힘»**
@@ -1854,9 +1889,11 @@ def save_homework_snapshot(db: Session, call_id: int, homework: dict) -> None:
 
 def create_call(
     db: Session, member_id: int, character_id: int, call_type: str = "chat",
-    *, target_language: str = "ko", homework: dict | None = None,
-) -> int:
+    *, target_language: str = "ko", homework: dict | None = None, exclusive: bool = False,
+) -> int | None:
     """통화 행을 생성하고(status=ongoing) call_id 를 반환한다.
+
+    exclusive=True(통화 WS 경로) — 회원 잠금 뒤 살아있는 조각을 다시 보고, 있으면 행을 만들지 않고 None(호출부가 ALREADY_IN_CALL).
 
     call_type: "chat"(기본, C3 로 normal 개명) | "level_test" — 콜타입 라우팅 결과(call_session 결정).
     target_language: 이 통화의 학습 대상 언어코드(멀티랭귀지, 기본 'ko') — 커리큘럼 선별·
@@ -1869,6 +1906,13 @@ def create_call(
             raise ValueError("숙제 marker는 숙제 통화에만 허용함")
         initial_usage = {"homework": create_namespace(homework,
             manual_v2_enabled=settings.HOMEWORK_MANUAL_V2_WRITE_ENABLED)}
+    if exclusive:
+        from domains.learning.repository.call_repository import CallRepository
+        if not lock_member_call_start(db, member_id):
+            return None
+        if CallRepository(db).active_ongoing_call_id(member_id) is not None:
+            db.rollback()   # 잠금 해제
+            return None
     now = datetime.now(timezone.utc)
     call = Call(
         member_id=member_id,

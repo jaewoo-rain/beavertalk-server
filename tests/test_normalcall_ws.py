@@ -3077,7 +3077,7 @@ async def test_budget_checked_with_routed_call_type_and_client_tz(
 # 11. 동시통화 금지 — QA C4 재검-③④(2026-09-23)
 #
 # "한 회원에게 살아있는 조각이 있으면 무조건 거절." 동시 시작·동시 재개로 하루 예산을
-# 두 번 쓰는 경로를 막는 최소 처방 — 행 잠금·예약은 만들지 않는다(결정).
+# 두 번 쓰는 경로를 막는 최소 처방 — 원자 판정은 create_call(exclusive=True) 의 회원 잠금 재확인(PM-DEC-970).
 # ⛔⛔ 재검-④: 예외를 두지 않는다 — 정상 이어하기는 조각 저장(finalize_call/
 #   mark_fragment_ended)이 fragment_ended_at 을 찍은 **뒤**에 오므로 이미 살아있지
 #   않다. 자기 자신을 봐주는 예외가 있으면 chat·level_test(resume_call 을 안 부른다)
@@ -6676,3 +6676,45 @@ async def test_nationality_runs_only_on_korean_calls(session_factory, seeded, mo
                    live_session_factory=_factory_for(fake))
     await _wait_analysis_tasks()
     assert bool(got) is fires, f"target={target}: 국적 추론 호출 {'기대' if fires else '금지'}"
+
+
+@pytest.mark.asyncio
+async def test_start_lock_recheck_rejects_race_past_gate(session_factory, seeded, monkeypatch):
+    """2026-10-22 — 같은 계정 두 요청이 동시통화 관문을 둘 다 통과한 경합(2374·2375). 관문이 «없음» 을 봤어도
+    INSERT 직전 잠금 뒤 재확인이 먼저 성립한 통화를 보고 ALREADY_IN_CALL 로 거절한다(행·Live 세션 없음)."""
+    from datetime import datetime, timezone
+
+    db = session_factory()
+    try:
+        db.add(Call(
+            member_id=seeded["member_id"], character_id=seeded["character_id"],
+            call_date=datetime.now(timezone.utc), status="ongoing",
+            call_type="expression", fragment_started_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+    finally:
+        db.close()
+    # 관문 시점엔 상대 통화가 아직 INSERT 전이었다고 흉내 낸다
+    monkeypatch.setattr(cs.call_service, "active_ongoing_call_id", lambda db, m: None)
+
+    import contextlib as _cl
+    opened = {"n": 0}
+
+    @_cl.asynccontextmanager
+    async def factory(client, settings, **kwargs):
+        opened["n"] += 1
+        yield FakeLiveSession()
+
+    ws = FakeWebSocket([_start_incoming(seeded)], hang=True)
+    await run_call(
+        ws, app_settings, object(), session_factory,
+        member_id=seeded["member_id"], live_session_factory=factory,
+    )
+    errors = [json.loads(t) for t in ws.sent_text if '"error"' in t]
+    assert errors and errors[0]["code"] == "ALREADY_IN_CALL", errors
+    assert opened["n"] == 0
+    db = session_factory()
+    try:
+        assert db.query(Call).filter(Call.member_id == seeded["member_id"]).count() == 1
+    finally:
+        db.close()
