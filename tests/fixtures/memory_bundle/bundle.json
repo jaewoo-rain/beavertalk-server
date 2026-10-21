@@ -357,7 +357,7 @@
      "round": "일화-1",
      "expect_episode": "지하철.*지갑|지갑.*지하철",
      "expect_detail_any": "잃어버|찾",
-     "forbid": "결혼해 주세요(학습자 발화 확인 전에는 비버 말로 봄)"
+     "note": "2296 t527 학습자 「저랑 결혼해 주세요라고 말했어요」 → 근거 있음(forbid 아님 · app developer 지적 · 전사 대조)"
     },
     {
      "after": 2298,
