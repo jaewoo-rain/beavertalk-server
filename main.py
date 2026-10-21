@@ -177,6 +177,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from core import fcm
 
     fcm.warmup()  # 예약전화 FCM 워밍업(실패해도 무시 — 발송만 비활성)
+    import asyncio
+
+    from domains.learning.realtime import call_session as _cs
+    # 2차(2026-10-22) — 벙어리 첫 인사 TTS 대체의 차가운 첫 합성 예열(작업 스레드 · 기동을 막지 않는다)
+    tts_warm_task = asyncio.create_task(asyncio.to_thread(_cs.warm_greeting_tts), name="tts-warmup")
     try:
         from domains.learning.service import homework_service, normalcall_service
         try:
@@ -184,13 +189,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception:
             logger.warning("숙제 결과 기동 복구 실패 — 다음 실제 요청에서 재시도")
         # U32-② — 오래 analyzing 에 멈춘 통화(배포로 분석 태스크가 사라진 것)를 지연 뒤 한 번 되살린다. 기본 off.
-        import asyncio
-
         from domains.learning.service import analyzing_sweep
 
         sweep_task = asyncio.create_task(analyzing_sweep.sweep_later(app.state, settings), name="analyzing-sweep")
         yield
         sweep_task.cancel()
+        tts_warm_task.cancel()
     finally:
         engine.dispose()  # 종료 시 커넥션 정리
 
