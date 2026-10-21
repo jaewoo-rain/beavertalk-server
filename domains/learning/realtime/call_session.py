@@ -546,6 +546,11 @@ _PROVIDER_NOTICE_RE = re.compile(r"\s*(?:The )?medical disclaimer:[^\n]*|\s*This
 
 
 _CALL_ECHO_RE = re.compile(r"(?<![A-Za-z])call:\s*")
+# 2325 «icase:sad아이,…» — 표정 도구 호출이 깨져 «영문자:표정어» 꼴로 샘 · 앞 콜론 찌꺼기(«:비버 맛이라니»)
+_FACE_WORD_ECHO_RE = re.compile(r"[A-Za-z_]+:(?:neutral|happy|surprised|sad|angry|laugh)(?![A-Za-z])")
+_LEAD_COLON_RE = re.compile(r"^\s*:+\s*")
+# 2325 «너네 애기 완전 상남자네, 씨발!» — 출력 욕설 가림(작은 사전 · 자막·저장·대체 TTS). 운영 30일 비버 발화 0건(command center).
+_PROFANITY_RE = re.compile(r"씨\s?발|시\s?발(?!점|생|전|표)|씨\s?바|ㅅㅂ|ㅆㅂ|개새끼|개새|병신|좆|존나|졸라|지랄|미친놈|미친년|fuck\w*|shit\w*", re.I)
 
 
 def _strip_face_echo(text: str) -> str:
@@ -559,6 +564,9 @@ def _strip_face_echo(text: str) -> str:
         text = _PROVIDER_NOTICE_RE.sub("", text)
     if "call:" in text:
         text = _CALL_ECHO_RE.sub("", text)        # 2323 «…라고?call:아이고» — 도구 호출 꼴 낭독
+    if ":" in text:
+        text = _LEAD_COLON_RE.sub("", _FACE_WORD_ECHO_RE.sub("", text))
+    text = _PROFANITY_RE.sub("대박", text)
     if "set_face" in text:
         text = _FACE_ECHO_RE.sub("", text)
     if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다
