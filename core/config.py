@@ -279,6 +279,8 @@ class Settings(BaseSettings):
     LIVE_FACE_RULE_MODE: str = "qual"
     # 표현 TTS = Google Cloud Text-to-Speech(Chirp3-HD, 다국어). Vertex(빌린 프로젝트)는 Cloud TTS 를
     # 못 켜므로, 우리 프로젝트(bt-dev-web-01) SA 키로 별도 호출한다. Cloud Run 은 /secrets 에 마운트.
+    # 2차(2026-10-22) — 기동 때 벙어리 첫 인사 TTS 대체용 동기 클라이언트를 만들고 짧은 합성 1회(첫 통화 첫 소리 단축)
+    GREETING_TTS_WARMUP: bool = True
     TTS_SA_KEY_FILE: str = "tts_key.json"          # bt-dev-web-01 서비스계정 키 경로(없으면 TTS 비활성)
 
     # ── 발음 챌린지 서버 STT (Google Cloud Speech-to-Text 스트리밍) ──
