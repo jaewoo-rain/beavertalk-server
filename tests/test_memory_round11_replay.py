@@ -98,3 +98,18 @@ def test_activity_slot_replaced_only_with_compatible_qualifier():
     assert "취미: 볼더링" not in got and "아침 운동: 테니스" in got and "주말 운동: 스케이트" in got
     assert "좋아하는 가수: 아이유" in cms._merge_facts(["좋아하는 가수: 아이유"], ["주말 운동: 스케이트"], cms.FACTS_CAP,
                                                      ["좋아하는 가수: 아이유"])
+
+
+def test_past_trip_is_episode_but_planned_trip_stays():
+    """기억 18차 d — 2314 «캐나다 여행: 친구와 피자를 먹고 영화를 봄» 이 지속 줄로 일화 상한을 피했다."""
+    got = cms.demote_details(["캐나다 여행: 친구와 피자를 먹고 영화를 봄", "제주도 여행: 다음 달에 갈 예정", "다음 여행지: 경주"])
+    assert got[0] == "캐나다 여행 — 친구와 피자를 먹고 영화를 봄"
+    assert got[1:] == ["제주도 여행: 다음 달에 갈 예정", "다음 여행지: 경주"]
+
+
+def test_one_carried_episode_keeps_a_slot():
+    """기억 18차 d — 2299 이번 통화 겪은 일 3줄이 지난 통화 지갑 일화를 밀어냈다."""
+    old = ["어제 일 — 지하철에서 지갑을 잃어버렸다가 다시 찾음"]
+    new = ["요리 경험 — 비빔밥을 직접 만들어 봄", "최근 경험 — 친구와 웃긴 영화를 봄", "산책 경험 — 한강에서 오래 걸었음"]
+    eps = [f for f in cms._merge_facts(old, new, cms.FACTS_CAP) if cms.EPHEMERAL_SEP in f]
+    assert len(eps) == cms.EPHEMERAL_MAX and "어제 일 — (지난 통화) 지하철에서 지갑을 잃어버렸다가 다시 찾음" in eps

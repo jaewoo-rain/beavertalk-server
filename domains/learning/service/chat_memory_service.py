@@ -190,6 +190,8 @@ def is_attribute_key(k: str | None) -> bool:
 
 
 _EPISODE_WORDS = ("지난", "어제", "오늘", "이번", "요즘", "방금", "아까", "최근")
+_TRIP_EVENT_KEYS = ("여행", "경험", "있었던 일")
+_PLAN_WORDS = ("예정", "계획", "갈 ", "가려", "가고 싶", "싶", "좋아", "꿈", "다음", "언젠가")
 NEW_DURABLE_MAX = 3     # 기억 14차 6 → 3(속성다운 주제는 상한 밖) · 기억 13차 — 한 통화에서 새로 넣는 지속 줄(고정 칸 제외) 상한
 _EVAL_WORDS = ("재미있", "재밌", "좋음", "좋아요", "좋았", "싫음", "어렵", "쉬움", "쉬워", "맛있", "힘들", "신나", "기분", "괜찮")
 
@@ -240,6 +242,9 @@ def demote_details(lines: list[str]) -> list[str]:
             continue
         detail = any(w in k for w in seen if len(w) >= 2)
         episodic = any(w in k for w in _EPISODE_WORDS)        # «지난 주말» · «어제 한 일» — 일화
+        # 기억 18차 d — «캐나다 여행: 친구와 피자를 먹고 영화를 봄»(2314) 처럼 다녀온 여행·겪은 일을 «주제: 값» 으로 적어 일화 3줄 상한을 피함
+        #   → 여행·경험 주제인데 계획·바람·취향 말이 없으면 일화(«제주도 여행: 다음 달에 갈 예정» 은 지속 그대로)
+        episodic = episodic or (any(w in k for w in _TRIP_EVENT_KEYS) and not any(w in k + " " + v for w in _PLAN_WORDS))
         durable = ((r == 1 and not episodic) or not eph) and not episodic and not detail and not _is_eval_only(v) \
             and (r == 1 or kept < NEW_DURABLE_MAX)
         if durable:
@@ -472,7 +477,10 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     # 기억 18차 — 일화는 핵심 속성 다음 자리: 고정 칸·핵심 속성은 밀지 않고, 취향·나머지·주제 없는 사실보다 먼저 칸을 받는다
     carried = [c for c in carried if not any(_near_dup(c.replace(EPISODE_CARRIED, "", 1), e) for e in ephemeral)]
     # 순서 = 이번 통화 일화 > 지난 통화 일화 > 이번 통화 잡담 > 지난 통화 잡담(2297 지갑 일화가 2299 잡담 3줄에 밀렸다)
-    ephemeral = ([e for e in ephemeral if _is_event(e)] + [c for c in carried if _is_event(c)]
+    fe, ce = [e for e in ephemeral if _is_event(e)], [c for c in carried if _is_event(c)]
+    # 기억 18차 d — 지난 통화 일화 하나는 칸을 보장(2299: 이번 통화 겪은 일 3줄이 지갑 일화를 밀어냄 · 창 = 최근 2통)
+    head = fe[:EPHEMERAL_MAX - 1] + ce[:1] if ce else fe[:EPHEMERAL_MAX]
+    ephemeral = (head + [e for e in fe if e not in head] + [c for c in ce if c not in head]
                  + [e for e in ephemeral if not _is_event(e)] + [c for c in carried if not _is_event(c)])
     core_n = sum(1 for f in rest_keyed if _attr_tier(split_fact(f)[0]) <= 1)
     eph = ephemeral[:max(0, min(EPHEMERAL_MAX, cap - len(top) - core_n))]
