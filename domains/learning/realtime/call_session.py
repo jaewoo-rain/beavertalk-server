@@ -4142,6 +4142,10 @@ async def run_call(
                 db_session_factory,
                 lambda db: call_service.homework_remaining_s(db, member_id, assignment_id),
             )
+            if homework_left <= 0 and await svc.run_db(
+                    db_session_factory, lambda db: svc.homework_retry_allowed(db, member_id)):
+                # 시험 계정 재시도 — 시작 게이트만 열고 여기서 0 이 남아 60초 안전판에 끊겼다(2317·2320)
+                homework_left = call_service.HOMEWORK_ASSIGNMENT_BUDGET_S
             remaining_s = min(homework_left, int(call_service.CALL_FRAGMENT_S))
         elif call_type in ("expression", "freetalk", "chat"):
             # ⛔⛔ R2-a(2026-09-24) — 이 시점엔 resume_call 이 이미 검증을 끝냈으므로
