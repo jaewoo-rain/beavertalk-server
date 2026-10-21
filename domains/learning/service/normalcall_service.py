@@ -11,6 +11,7 @@ DB 접근은 `run_db`(run_in_threadpool + 짧은 세션)로 감싼다 — 장수
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import re
@@ -2722,7 +2723,7 @@ class LearnedExpression(BaseModel):
 
     korean: str
     translation: str
-    source_type: Literal["asked", "corrected", "drilled"]
+    source_type: Literal["asked", "corrected", "drilled", "rephrased"]
     learner_attempt: str | None = None
     # ⭐⭐ C8(2026-09-23, docs/plans/2026-09-22-프리미엄-자유대화-15분-달력.md) — 현지인
     #   표현 짝(전부 선택 칸). 모델이 못 채워도(구스키마·파싱 누락) 파싱이 안 죽는다 —
@@ -2846,6 +2847,84 @@ def _analysis_instruction(
         "native_nuance 에는 그 표현의 뉘앙스(왜 그렇게 말하는지)를 " + label + " 로 한 줄만 "
         "설명해라."
     )
+
+
+# ── 자유대화 «이렇게도 말해요»(rephrased · 2311 후속) ─────────────────────────────── #
+REPHRASE_CALL_TYPES = ("chat", "freetalk")
+REPHRASE_MIN = 3
+REPHRASE_MAX = 8
+REPHRASE_MIN_LINES = 8
+REPHRASE_MIN_WORDS = 40
+
+
+def _rephrase_target(call_type: str | None, dialog_rows: list[dict]) -> int:
+    """이 통화가 rephrased 를 채울 대상이면 최소 개수(REPHRASE_MIN), 아니면 0."""
+    if call_type not in REPHRASE_CALL_TYPES:
+        return 0
+    learner = [str(r.get("content") or "").strip() for r in dialog_rows if r.get("role") == "user" and r.get("content")]
+    learner = [x for x in learner if len(x) >= 3]
+    words = sum(len(x.split()) for x in learner)
+    return REPHRASE_MIN if (len(learner) >= REPHRASE_MIN_LINES or words >= REPHRASE_MIN_WORDS) else 0
+
+
+def _rephrase_rule(n: int, target_language: str) -> str:
+    return (
+        "[이렇게도 말해요 — 자유대화]\n"
+        f"- 위 3종이 {n}개보다 적으면, 학습자가 실제로 한 문장을 골라 source_type 을 'rephrased' 로 해서 "
+        f"expressions 를 최소 {n}개, 최대 {REPHRASE_MAX}개로 채운다.\n"
+        "- learner_attempt 에는 학습자 문장을 전사의 [USER] 줄에서 그대로 옮긴다. 비버 말·질문 한마디·인사·«네»같은 짧은 대답은 고르지 않는다.\n"
+        f"- korean 에는 학습자 문장을 올바르고 완성된 {target_language} 문장으로 쓴다(이미 자연스러우면 그대로 · 조각이면 완성). "
+        "learner_attempt 는 8자 이상인 완성된 생각이어야 한다(«귀여워서» 같은 조각 금지).\n"
+        f"- 핵심은 native_expression 이다: 같은 뜻을 {target_language} 현지인이 실제로 말하는 더 생생한 말로 **반드시** 쓴다 — "
+        "korean 과 다른 낱말·말투여야 하고 존댓말·반말만 바꾼 것은 안 된다"
+        "(ex) korean=«할머니가 해주신 불고기가 가장 맛있었어요» → native_expression=«할머니표 불고기가 진짜 최고였어요»).\n"
+        "- 학습자 말이 틀렸다고 보이게 쓰지 마라. 고친 것이 아니라 «이렇게도 말해요» 다(translation 도 그 톤).\n"
+    )
+
+
+def _near_same(a: str, b: str) -> bool:
+    """어미·조사만 다른 두 문장(공통 앞부분이 짧은 쪽의 85% 이상)."""
+    n = min(len(a), len(b))
+    if not n:
+        return False
+    i = 0
+    while i < n and a[i] == b[i]:
+        i += 1
+    return i >= 0.85 * n
+
+
+def _speech_key(s: str) -> str:
+    import re as _re
+    return _re.sub(r"[\s.,!?~…·\"'«»()\[\]-]+", "", s or "")
+
+
+def _ground_rephrased(exprs: list, dialog_rows: list[dict]) -> list:
+    """rephrased 는 learner_attempt 가 학습자 줄에 있어야 남는다(지어낸 학습자 말 차단) · korean 이 원문과 같으면 버림 · 전체 상한."""
+    learner = [str(r.get("content") or "") for r in dialog_rows if r.get("role") == "user" and r.get("content")]
+    joined = "".join(_speech_key(x) for x in learner)
+    out, seen = [], set()
+    for e in exprs:
+        if e.source_type != "rephrased":
+            out.append(e)
+            continue
+        att = (e.learner_attempt or "").strip()
+        k = _speech_key(att)
+        nk = _speech_key(e.native_expression or "")
+        # 현지인 표현 짝이 핵심 — 없거나 korean 과 같거나 어미만 다르면(«귀여워»→«귀여워요») 버린다
+        if len(k) < 6 or k in seen or not nk or nk == _speech_key(e.korean) or _near_same(nk, _speech_key(e.korean)):
+            continue
+        if not (k in joined or any(chat_memory_service._fact_overlap(att, ln) >= 0.6 for ln in learner)):
+            continue
+        seen.add(k)
+        out.append(e)
+    rephrased = [e for e in out if e.source_type == "rephrased"]
+    room = max(0, REPHRASE_MAX - (len(out) - len(rephrased)))
+    drop = set(id(e) for e in rephrased[room:])
+    return [e for e in out if id(e) not in drop]
+
+
+class _RephraseOut(BaseModel):
+    expressions: list[LearnedExpression] = []
 
 
 def _normalize_native_pair(e: LearnedExpression) -> None:
@@ -3580,6 +3659,10 @@ async def analyze_call(
                 )
 
         instruction = _analysis_instruction(locale, target_language, locale_label)
+        _ct = await run_db(session_factory, lambda db: (db.get(Call, call_id).call_type if db.get(Call, call_id) else None))
+        rephrase_n = 0 if homework_expected is not None else _rephrase_target(_ct, dialog_rows)
+        if rephrase_n:
+            instruction = instruction + "\n" + _rephrase_rule(rephrase_n, target_language)
         prompt = f"[통화 전사]\n{dialog.strip()}"
         if cands:
             instruction = instruction + "\n" + _DETECTION_INSTRUCTION
@@ -3612,6 +3695,31 @@ async def analyze_call(
         # C8(2026-09-23): 현지인 표현 짝 정리 — 저장(C9) 전에 빈 문자열/원문과 동일한
         # 짝을 None 으로 비운다. `_save_analysis`(C9 이전인 지금은 이 세 칸을 아직 안
         # 읽는다)가 이 값을 쓰게 되면 항상 정리된 값만 보게 하기 위해 여기서 미리 한다.
+        if not rephrase_n:
+            # 스키마에 rephrased 가 있어 대상 밖 통화(표현학습·숙제·짧은 통화)에도 모델이 쓸 수 있다 — 근거 검사 없는 것은 버린다
+            result.expressions = [e for e in result.expressions if e.source_type != "rephrased"]
+        if rephrase_n:
+            result.expressions = _ground_rephrased(result.expressions, dialog_rows)
+            if len(result.expressions) < rephrase_n:
+                # 보충 1회 — rephrased 만(미달 통화만 · 사용량은 analysis_rephrase 로 따로)
+                _ru = gemini_analysis.LlmUsage()
+                more = await gemini_analysis.generate_structured(
+                    client, settings_obj.JUDGE_MODEL,
+                    system_instruction=_analysis_instruction(locale, target_language, locale_label) + "\n"
+                    + _rephrase_rule(rephrase_n - len(result.expressions), target_language)
+                    + "- 이번 응답의 expressions 에는 source_type='rephrased' 만 넣는다.\n",
+                    prompt=prompt, usage=_ru, schema=_RephraseOut, thinking_budget=512,
+                )
+                with contextlib.suppress(Exception):
+                    _re_entry = _ru.as_dict()
+                    if _re_entry:
+                        await run_db(session_factory, lambda db: add_call_usage_extra(db, call_id, "analysis_rephrase", _re_entry))
+                if more is not None:
+                    have = {_speech_key(e.korean) for e in result.expressions}
+                    extra = [e for e in more.expressions if e.source_type == "rephrased" and _speech_key(e.korean) not in have]
+                    result.expressions = _ground_rephrased(result.expressions + extra, dialog_rows)
+            logger.info("normalcall 분석: 이렇게도 말해요 rephrased %d개(최소 %d) call_id=%s",
+                        sum(e.source_type == "rephrased" for e in result.expressions), rephrase_n, call_id)
         for _expr in result.expressions:
             _normalize_native_pair(_expr)
 
