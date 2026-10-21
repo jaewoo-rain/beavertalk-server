@@ -854,6 +854,7 @@ class _CallState:
         "is_leveltest",
         "clip_expr",
         "script_read",
+        "clip_lesson",      # ⑤ PM-DEC-945 — 이 통화 cur 차시 코드(클립·대본 묶음을 고른다)
         # cur_route: 이 통화가 커리큘럼 2단계(cur_*) 경로를 탔다 — **시작 시점에 한 번** 정해지고 종료 저장은 이 플래그로만 분기(§6 ③).
         "cur_route",
         "last_beaver_question", "band_tasks", "band_target_language",
@@ -1154,6 +1155,7 @@ class _CallState:
         self.is_leveltest: bool = False
         self.clip_expr: Optional[str] = None     # PM-DEC-872 — 클립 주도 표현학습 캐릭터(None = 종전)
         self.script_read: Optional[str] = None   # PM-DEC-877 — 대본 읽기 캐릭터(None = 종전)
+        self.clip_lesson: Optional[str] = None
         self.cur_route: bool = False
         self.band_client = None
         self.band_awaiting: bool = False
@@ -4441,9 +4443,10 @@ async def run_call(
         state.expr_items = expr_items
         state.expr_practice = expr_practice
         # PM-DEC-872 — 시제품 스위치(CLIP_EXPR)가 켜진 표현학습만. 빈 값이면 None(종전).
-        state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale)
+        state.clip_lesson = getattr(getattr(cur_open, "lesson", None), "code", None) if cur_open is not None else None
+        state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
         # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
-        state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale)
+        state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
         if state.script_read:
             state.clip_expr = state.script_read
         # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.
@@ -5624,7 +5627,7 @@ async def _run_one_generation(
         _cls = _script_read.ScriptReadSession if getattr(state, "script_read", None) else _clip_expr.ClipExprSession
         session_cm = _cls(
             live_session_factory, client, settings, factory_kwargs, char=state.clip_expr, state=state,
-            notify=_clip_notify, request_close=lambda: _request_close(state))
+            notify=_clip_notify, request_close=lambda: _request_close(state), lesson=state.clip_lesson)
     # ⭐ PM-DEC-864 — perturn 이면 대리 세션이 안쪽 세션을 턴마다 갈아끼운다(펌프·워처는 같은 객체를 본다).
     elif _perturn_enabled(settings, state):
         session_cm = PerTurnSession(live_session_factory, client, settings, factory_kwargs)

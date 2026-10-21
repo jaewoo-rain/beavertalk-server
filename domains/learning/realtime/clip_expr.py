@@ -177,14 +177,54 @@ def load_bank(char: str, lang: str = "en", lesson: str = "L1-S01-1") -> tuple[di
     return clips, items
 
 
-def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str]) -> Optional[str]:
-    """켤 캐릭터 이름(없으면 None). CLIP_EXPR 은 쉼표로 여러 캐릭터를 받는다."""
+def fallback(kind: str, reason: str, **kw: Any) -> None:
+    """⑤-③ 폴백 사유 한 줄(스위치가 켜졌을 때만 부른다)."""
+    logger.info("normalcall clip-fallback: %s → Live · 사유=%s %s", kind, reason,
+                " ".join(f"{k}={v}" for k, v in kw.items()))
+
+
+def lesson_missing(lesson: Optional[str], char: str, lang: str = "en") -> Optional[str]:
+    """이 차시 클립 묶음에 빠진 것(없으면 None) — 차시 파일 · 캐릭터 manifest · 항목별 ask_/model_ 클립."""
+    if not lesson:
+        return "차시 없음"
+    if not (ROOT / f"{lesson}.json").exists():
+        return f"차시 파일 없음({lesson})"
+    d = ROOT / f"{char}_{lang}"
+    if not (d / "manifest.json").exists():
+        return f"캐릭터 자산 없음({char}_{lang})"
+    ids = [c["id"] for c in json.loads((d / "manifest.json").read_text(encoding="utf-8"))]
+
+    def has(prefix: str) -> bool:      # «model_3» 그대로 · «ask_3_a» 처럼 변형 접미가 붙은 것도
+        return any(i == prefix or i.startswith(prefix + "_") for i in ids)
+    seqs = [x["seq"] for x in json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["items"]]
+    miss = [s for s in seqs if not has(f"ask_{s}") or not has(f"model_{s}")]
+    return f"항목 클립 없음(seq {miss[:5]})" if miss else None
+
+
+def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str],
+            lesson: Optional[str] = None) -> Optional[str]:
+    """켤 캐릭터 이름(없으면 None). CLIP_EXPR 은 쉼표로 여러 캐릭터를 받는다.
+
+    ⑤(PM-DEC-945) — 차시 단위 판정: 그 차시 클립 묶음(차시 파일·캐릭터 manifest·항목별 ask_/model_)이 다 있을 때만.
+    숙제(homework)·다른 코스는 늘 None. 스위치가 켜진 통화의 폴백은 사유를 한 줄 남긴다.
+    """
     want = {x.strip() for x in str(getattr(settings, "CLIP_EXPR", "") or "").split(",") if x.strip()}
-    char = VOICE_BANK.get(voice or "")
-    if not want or char not in want or call_type != "expression" or (locale or "").split("-")[0] != "en":
+    if not want:
         return None
-    if not (ROOT / f"{char}_en" / "manifest.json").exists():
-        logger.warning("normalcall clipexpr: %s 클립 자산 없음 — 종전 통화", char)
+    char = VOICE_BANK.get(voice or "")
+    lang = (locale or "").split("-")[0]
+    if call_type != "expression":
+        fallback("clipexpr", "코스", call_type=call_type)
+        return None
+    if char not in want:
+        fallback("clipexpr", "캐릭터", voice=voice)
+        return None
+    if lang != "en":
+        fallback("clipexpr", "모국어", locale=locale)
+        return None
+    miss = lesson_missing(lesson, char, lang)
+    if miss:
+        fallback("clipexpr", miss, char=char)
         return None
     return char
 
@@ -199,12 +239,30 @@ def _rms(pcm: bytes) -> float:
 
 
 # ── 외부 호출(받아쓰기 · 텍스트 LLM · TTS) ────────────────────────────────── #
-async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> tuple[str, str]:
-    """Google STT v1 recognize → (받아쓴 말, 언어 코드). 발음 챌린지와 같은 클라이언트(core.stt)."""
-    from google.cloud import speech_v1
+_SYNC_SPEECH: list = []          # PM-DEC-923 — 동기 SpeechClient 프로세스당 1개(스레드 안전)
+RECOGNIZE_TIMEOUT_S = 8.0
 
-    from core.stt import get_speech_client
-    client = get_speech_client()
+
+def _sync_speech_client():
+    if _SYNC_SPEECH:
+        return _SYNC_SPEECH[0]
+    from google.cloud import speech_v1
+    from google.oauth2 import service_account
+
+    from core import stt as _stt
+    from core.config import settings as _s
+    key = _s.STT_SA_KEY_FILE or _s.TTS_SA_KEY_FILE
+    if _s.STT_FAKE or not key or not Path(key).is_file():
+        return None
+    creds = service_account.Credentials.from_service_account_file(str(key), scopes=_stt._SCOPES)
+    _SYNC_SPEECH.append(speech_v1.SpeechClient(credentials=creds))
+    return _SYNC_SPEECH[0]
+
+
+def _recognize_sync(pcm16k: bytes, hints: list[str], alt_en: bool):
+    """⛔ 작업 스레드 전용 — 비동기 클라이언트의 첫 호출은 인증 갱신을 루프 안에서 돌려 통화 전체를 멈췄다(00254 · 약 30초)."""
+    from google.cloud import speech_v1
+    client = _sync_speech_client()
     if client is None:
         raise RuntimeError("Speech 클라이언트 없음")
     cfg = speech_v1.RecognitionConfig(
@@ -212,7 +270,12 @@ async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> 
         alternative_language_codes=["en-US"] if alt_en else [],
         speech_contexts=[speech_v1.SpeechContext(phrases=[h for h in hints if h][:5], boost=10.0)] if any(hints) else [],
     )
-    resp = await client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k))
+    return client.recognize(config=cfg, audio=speech_v1.RecognitionAudio(content=pcm16k), timeout=RECOGNIZE_TIMEOUT_S)
+
+
+async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> tuple[str, str]:
+    """Google STT v1 recognize → (받아쓴 말, 언어 코드). PM-DEC-923 — 동기 클라이언트를 스레드에서(루프 무정지)."""
+    resp = await asyncio.to_thread(_recognize_sync, pcm16k, hints, alt_en)
     texts, lang = [], "ko-kr"
     for r in resp.results:
         if r.alternatives:
@@ -221,21 +284,49 @@ async def recognize(pcm16k: bytes, hints: list[str], *, alt_en: bool = True) -> 
     return " ".join(texts).strip(), lang
 
 
-async def tts_pcm(text: str, *, lang: str = "en", voice: str = "Fenrir") -> Optional[bytes]:
-    """Cloud TTS(Chirp3-HD) → PCM16 24kHz(헤더 뗌). 키·클라이언트 없으면 None."""
+_SYNC_TTS: list = []             # PM-DEC-924 — 동기 TextToSpeechClient 프로세스당 1개(스레드 안전)
+TTS_TIMEOUT_S = 10.0
+
+
+def _sync_tts_client():
+    if _SYNC_TTS:
+        return _SYNC_TTS[0]
+    from google.cloud import texttospeech
+    from google.oauth2 import service_account
+
+    from core.config import settings as _s
+    key = _s.TTS_SA_KEY_FILE
+    if not key or not Path(key).is_file():
+        return None
+    creds = service_account.Credentials.from_service_account_file(
+        str(key), scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    _SYNC_TTS.append(texttospeech.TextToSpeechClient(credentials=creds))
+    return _SYNC_TTS[0]
+
+
+def _tts_sync(text: str, lang: str, voice: str) -> Optional[bytes]:
+    """⛔ 작업 스레드 전용 — 비동기 gRPC 첫 호출의 루프 정지를 피한다(PM-DEC-923·924)."""
     from google.cloud import texttospeech
 
     from core import tts as _tts
-    cli = _tts._client()
+    cli = _sync_tts_client()
     if cli is None:
         return None
     code, name = _tts._resolve_voice(lang, voice)
-    resp = await cli.synthesize_speech(
+    resp = cli.synthesize_speech(
         input=texttospeech.SynthesisInput(text=text),
         voice=texttospeech.VoiceSelectionParams(language_code=code, name=name),
         audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16, sample_rate_hertz=24000),
+        timeout=TTS_TIMEOUT_S,
     )
-    pcm = resp.audio_content or b""
+    return resp.audio_content or b""
+
+
+async def tts_pcm(text: str, *, lang: str = "en", voice: str = "Fenrir") -> Optional[bytes]:
+    """Cloud TTS(Chirp3-HD) → PCM16 24kHz(헤더 뗌). 키·클라이언트 없으면 None. PM-DEC-924 — 스레드에서."""
+    pcm = await asyncio.to_thread(_tts_sync, text, lang, voice)
+    if pcm is None:
+        return None
     if pcm[:4] == b"RIFF":
         pcm = pcm[44:]
     return pcm or None
@@ -257,7 +348,7 @@ class ClipExprSession:
     def __init__(self, factory: Callable, client: Any, settings: Any, factory_kwargs: dict, *, char: str,
                  state: Any, notify: Optional[Callable] = None, judge: Optional[Callable] = None,
                  request_close: Optional[Callable] = None, rng: Optional[random.Random] = None,
-                 bank: Optional[tuple] = None, say: Optional[Callable] = None) -> None:
+                 bank: Optional[tuple] = None, say: Optional[Callable] = None, lesson: Optional[str] = None) -> None:
         self._factory = factory                    # 쓰지 않는다(예외 턴도 Live 없음) — 시그니처만 맞춘다
         self._client = client
         self._settings = settings
@@ -268,7 +359,7 @@ class ClipExprSession:
         self._say_fn = say                         # 시험용: async (guide, heard) -> (text, pcm|None)
         self._request_close = request_close
         self._rng = rng or random.Random()
-        self.clips, self.items = bank if bank is not None else load_bank(char)
+        self.clips, self.items = bank if bank is not None else load_bank(char, lesson=lesson or "L1-S01-1")
         self._out: asyncio.Queue = asyncio.Queue()
         self._cmd: asyncio.Queue = asyncio.Queue()
         self._worker: Optional[asyncio.Task] = None
