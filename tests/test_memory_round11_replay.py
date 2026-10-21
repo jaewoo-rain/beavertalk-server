@@ -61,10 +61,11 @@ def test_ephemeral_from_previous_call_is_dropped_next_call():
 
 
 def test_durable_overflow_drops_least_recently_mentioned_first():
-    old = [f"주제{i}: 값{i}" for i in range(20)]            # 앞이 최근
-    got = cms._merge_facts(old, ["새 주제: 새 값", "주제19: 값19"], cms.FACTS_CAP)   # 주제19 를 다시 언급
-    assert "새 주제: 새 값" in got and "주제19: 값19" in got
-    assert "주제18: 값18" not in got and len(got) == cms.FACTS_CAP
+    n = cms.FACTS_CAP
+    old = [f"주제{i}: 값{i}" for i in range(n)]            # 앞이 최근
+    got = cms._merge_facts(old, ["새 주제: 새 값", f"주제{n - 1}: 값{n - 1}"], cms.FACTS_CAP)   # 맨 끝 주제를 다시 언급
+    assert "새 주제: 새 값" in got and f"주제{n - 1}: 값{n - 1}" in got
+    assert f"주제{n - 2}: 값{n - 2}" not in got and len(got) == cms.FACTS_CAP
 
 
 def test_recall_question_is_not_a_fact_by_instruction():

@@ -100,12 +100,12 @@ async def test_merge_caps_each_array_at_its_documented_limit(ctx):
     })
     row = await svc.merge(ctx["db"], ctx["member_id"], "ko", call_id=2, slots={
         "topics": [f"t{i}" for i in range(8, 12)],       # 8+4=12 > 10 상한
-        "facts": [f"f{i}" for i in range(12, 24)],        # 12+12=24 > 20 상한(기억 12차 15 → 20)
+        "facts": [f"f{i}" for i in range(12, 44)],        # 12+32=44 > 30 상한(기억 16차 20 → 30)
         "interests": [f"i{i}" for i in range(8, 12)],     # 8+4=12 > 10 상한
         "next_topics": [f"n{i}" for i in range(4, 8)],    # 4+4=8 > 5 상한
     })
     assert len(row.topics) == svc.TOPICS_CAP == 10
-    assert len(row.facts) == svc.FACTS_CAP == 20
+    assert len(row.facts) == svc.FACTS_CAP == 30
     assert len(row.interests) == svc.INTERESTS_CAP == 10
     assert len(row.next_topics) == svc.NEXT_TOPICS_CAP == 5
     # 최신 우선이므로 이번 통화(t8~t11)가 전부 살아 있어야 한다.
