@@ -124,3 +124,22 @@ def test_values_over_300_chars_are_cut():
     long = dict(ROLEPLAY, situation="가" * 400)
     data = normalize_homework(payload(roleplay=long, mode="roleplay"))
     assert len(data["roleplay"]["situation"]) == 300
+
+
+def test_reground_has_no_goal_list_and_keeps_learner_first_line():
+    """call 2308 — 재접지 쪽지가 «주요 표현:» 목록을 다시 붙이면 재접지 뒤 표현을 굵게 늘어놓는다."""
+    text = build_homework_roleplay_reground(payload(mode="roleplay"), "en")
+    assert "주요 표현:" not in text and "이거 얼마예요?" not in text
+    assert "주요 표현은 학습자가 먼저 말할 몫이다" in text
+    assert "더 쉬운 한국어로 한 번만 다시 묻고" in text
+    assert "너의 역할: 과일 가게 사장님" in text
+    # 본 지시문에는 목록이 그대로 있다(재접지만 뺀다)
+    assert "1. 이거 얼마예요? — 뜻: How much is this?" in roleplay_text(payload(mode="roleplay"))
+
+
+def test_no_name_is_not_called_learner():
+    """call 2308 첫 말 «학습자 너도» — 이름이 없으면 이름 칸에 «학습자» 를 넣지 않는다."""
+    text = build_homework_roleplay_instruction(role="비버 선생님", personality="다정함", locale="en",
+                                               name=None, homework=payload(mode="roleplay"))
+    assert "대화상대의 이름은 학습자" not in text
+    assert "대화상대의 이름은 아직 모른다" in text

@@ -328,7 +328,7 @@ def test_roleplay_reground_uses_same_snapshot_without_personal_sidecar():
     cs._arm_reground(state, "compression")
     assert state.reground_pending
     assert "가게 사장님" in state.reground_reminder
-    assert "안녕하세요" in state.reground_reminder
+    assert "안녕하세요" not in state.reground_reminder        # call 2308 — 쪽지에 표현 목록을 다시 싣지 않는다
     assert "베트남어" in state.reground_reminder
     assert state.reground_ctx is None
 

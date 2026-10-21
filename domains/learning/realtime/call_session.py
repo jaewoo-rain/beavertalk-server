@@ -536,11 +536,22 @@ _TOOL_RESULT_TAIL_RE = re.compile(
 )
 
 
-def _strip_face_echo(text: str) -> str:
-    """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**을 걷어낸다.
+# ⭐ **네 번째 무늬 — 공급자 안내 문구·마크다운**(2026-10-21, call 2308 숙제 병원 장면). 소리 없는 턴의 출력 전사 끝에
+#   영어 «The medical disclaimer: This is not medical advice …» 가 붙어 왔다(우리 프롬프트·코드에 없는 문장 · 8회).
+#   소리는 0바이트였지만 통화 중 자막은 바로 나가므로 학습자 화면과 저장 대본에 그대로 남았다.
+#   같은 통화에서 재접지 뒤 «**얼굴**» 처럼 굵게 표시도 자막에 별표로 나갔다. 둘 다 자연 발화에 없는 무늬라 걷어낸다.
+_PROVIDER_NOTICE_RE = re.compile(r"\s*(?:The )?medical disclaimer:[^\n]*|\s*This is not medical advice[^\n]*", re.I)
 
-    둘은 무늬가 다르다 — 위 두 주석 블록 참조. 해당 없으면 원문 그대로 반환한다.
+
+def _strip_face_echo(text: str) -> str:
+    """대사에 섞인 `set_face{...}` 와 그 **인자 JSON 파편**, 공급자 안내 문구·굵게 표시를 걷어낸다.
+
+    무늬가 제각각이다 — 위 주석 블록 참조. 해당 없으면 원문 그대로 반환한다.
     """
+    if "**" in text:
+        text = text.replace("**", "")
+    if "isclaimer" in text or "medical advice" in text:
+        text = _PROVIDER_NOTICE_RE.sub("", text)
     if "set_face" in text:
         text = _FACE_ECHO_RE.sub("", text)
     if "}" in text:                      # 값싼 사전 검사 — 파편엔 반드시 닫는 괄호가 있다

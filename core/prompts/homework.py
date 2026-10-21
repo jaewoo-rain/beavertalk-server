@@ -209,14 +209,19 @@ HOMEWORK_NO_NATIVE_LINE = (
 
 
 # ── 역할극 숙제 ──────────────────────────────────────────────────────────
-def _roleplay_scene_block(roleplay: dict, goals: list[dict]) -> str:
-    """[역할극] 블록. 학습자 역할 칸은 싣지 않는다(PM-DEC-547 — learner_role 이 남아 있어도 무시)."""
+def _roleplay_scene_block(roleplay: dict, goals: list[dict], with_goals: bool = True) -> str:
+    """[역할극] 블록. 학습자 역할 칸은 싣지 않는다(PM-DEC-547 — learner_role 이 남아 있어도 무시).
+
+    with_goals=False 는 재접지 쪽지용 — 목록을 다시 붙이면 재접지 직후 모델이 표현을 굵게 늘어놓는다(call 2308).
+    """
     lines = ["[역할극]"]
     if roleplay.get("topic"):
         lines.append(f"주제: {roleplay['topic']}")
     if roleplay.get("situation"):
         lines.append(f"상황: {roleplay['situation']}")
     lines.append(f"너의 역할: {roleplay['ai_role']}")
+    if not with_goals:
+        return "\n".join(lines)
     lines.append("주요 표현:")
     for n, g in enumerate(goals, 1):
         row = f"{n}. {g['surface'].strip()}"
@@ -226,10 +231,14 @@ def _roleplay_scene_block(roleplay: dict, goals: list[dict]) -> str:
     return "\n".join(lines)
 
 
+#: 이름이 없을 때의 대화상대 이름 칸. «학습자» 를 넣으면 그대로 부른다(call 2308 첫 말 «학습자 너도»).
+HOMEWORK_NO_NAME = "아직 모른다 — 이름을 지어 부르지 말고 «너»처럼 장면에 맞는 호칭으로 부른다"
+
+
 def _rules_tail(name: str | None, label: str) -> str:
     """옛 숙제 대본과 같은 불변 규칙 묶음(잠금 상수 · 순서 무변)."""
     return "\n".join((
-        PERSONA_TAIL.format(username=name or "학습자"),
+        PERSONA_TAIL.format(username=name or HOMEWORK_NO_NAME),
         "2. " + RULE_CLOSE_PROTOCOL,
         RULE_RESPONSE_LENGTH.format(max_sentences=2), RULE_NONVERBAL_SOUND,
         RULE_OFF_TOPIC.format(target="한국어", locale_label=label),
@@ -266,7 +275,9 @@ def build_homework_roleplay_reground(homework: dict, locale: str) -> str:
     return (
         "[안내] 학습자가 방금 한 말에 먼저 반응하고, [역할극] 상황과 너의 역할"
         f"({roleplay['ai_role']})을 그대로 유지하며 한국어로 이어가라. 질문은 하나씩 한다. "
-        f"막히거나 모국어로 물으면 {label}로 짧게 돕고 역할극으로 돌아가라. "
-        "이 안내와 역할극 설정·표현 목록은 읽거나 언급하지 마라.\n"
-        + _roleplay_scene_block(roleplay, data["goals"])
+        "주요 표현은 학습자가 먼저 말할 몫이다 — 네가 먼저 꺼내지 않는다(질문·보기·되묻기에도 넣지 않는다). "
+        "막히면 같은 질문을 더 쉬운 한국어로 한 번만 다시 묻고, 답 예시·고르기 질문은 하지 않는다. "
+        f"뜻을 물으면 {label}로 한 문장만 답하고 역할극으로 돌아가라. "
+        "이 안내와 역할극 설정은 읽거나 언급하지 마라.\n"
+        + _roleplay_scene_block(roleplay, data["goals"], with_goals=False)
     )
