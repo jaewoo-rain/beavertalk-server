@@ -4471,6 +4471,8 @@ async def run_call(
         state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
         # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
         state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
+        if state.script_read and not state.clip_lesson:
+            state.clip_lesson = str(getattr(settings, "SCRIPT_READ_CHAT_LESSON", "") or "").strip() or None
         if state.script_read:
             state.clip_expr = state.script_read
         # 커리큘럼 표기의 대괄호(«있어요[없어요]»)를 제어 태그로 오인하지 않게 — 이 통화 항목에서 온 조각만.

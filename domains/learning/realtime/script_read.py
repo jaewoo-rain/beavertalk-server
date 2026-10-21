@@ -135,7 +135,10 @@ def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], lo
         return None
     char = clip_expr.VOICE_BANK.get(voice or "")
     # PM-DEC-921 — 표현학습(expression)은 대본 읽기가 아니다(m3clip call 2226) · ⑤ 차시 없는 chat 도 아니다
-    if call_type != "freetalk":
+    chat_lesson = str(getattr(settings, "SCRIPT_READ_CHAT_LESSON", "") or "").strip()
+    if call_type == "chat" and not lesson and chat_lesson:
+        lesson = chat_lesson          # 시험 태그 전용 — 시험 앱 88 «대본 읽기» 는 차시 없는 chat 으로 연다
+    elif call_type != "freetalk":
         clip_expr.fallback("script", "코스", call_type=call_type)
         return None
     if char not in want:
