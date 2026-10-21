@@ -7084,10 +7084,11 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
 GREETING_TTS_TIMEOUT_S = 4.0
 _OUT_RATE = 24000                 # Live 출력과 같은 PCM16 24kHz
 _SYNC_TTS: list = []
-_SYNC_TTS_LOCK = threading.Lock()   # 2차 — 기동 예열 스레드와 첫 통화가 동시에 만들지 않게
+_SYNC_TTS_LOCK = threading.Lock()
+TTS_WARMUP_TIMEOUT_S = 20.0   # 2차 — 기동 예열 스레드와 첫 통화가 동시에 만들지 않게
 
 
-def _greeting_tts_sync(text: str, voice: str) -> bytes:
+def _greeting_tts_sync(text: str, voice: str, timeout: float = GREETING_TTS_TIMEOUT_S) -> bytes:
     """⛔ 작업 스레드 전용 — 동기 TextToSpeechClient 로 PCM16 24kHz(헤더 뗌)."""
     from google.cloud import texttospeech
     from google.oauth2 import service_account
@@ -7108,7 +7109,7 @@ def _greeting_tts_sync(text: str, voice: str) -> bytes:
         voice=texttospeech.VoiceSelectionParams(language_code=code, name=name),
         audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16,
                                               sample_rate_hertz=_OUT_RATE),
-        timeout=GREETING_TTS_TIMEOUT_S,
+        timeout=timeout,
     )
     pcm = resp.audio_content or b""
     return pcm[44:] if pcm[:4] == b"RIFF" else pcm
@@ -7128,7 +7129,8 @@ def warm_greeting_tts() -> None:
         return
     t0 = _time.monotonic()
     try:
-        pcm = _greeting_tts_sync("안녕하세요.", DEFAULT_VOICE)
+        # 첫 호출은 채널·토큰을 같이 만든다 — 통화 중 상한(4s) 대신 넉넉히(CPU 를 깎는 서비스에서 기동 뒤 느려도 끝까지 예열)
+        pcm = _greeting_tts_sync("안녕하세요.", DEFAULT_VOICE, timeout=TTS_WARMUP_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001 — 예열 실패는 무해(첫 통화가 종전처럼 만든다)
         logger.warning("tts 예열 실패(무시) — %s: %s", type(exc).__name__, exc)
         return
