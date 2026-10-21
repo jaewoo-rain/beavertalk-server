@@ -25,9 +25,9 @@ def test_warmup_synthesizes_once(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(cs._settings, "TTS_SA_KEY_FILE", str(key))
     monkeypatch.setattr(cs._settings, "GREETING_TTS_WARMUP", True)
-    monkeypatch.setattr(cs, "_greeting_tts_sync", lambda text, voice: calls.append((text, voice)) or b"\x00" * 10)
+    monkeypatch.setattr(cs, "_greeting_tts_sync", lambda text, voice, timeout=None: calls.append((text, voice, timeout)) or b"\x00" * 10)
     cs.warm_greeting_tts()
-    assert len(calls) == 1 and calls[0][1] == cs.DEFAULT_VOICE
+    assert len(calls) == 1 and calls[0][1] == cs.DEFAULT_VOICE and calls[0][2] == cs.TTS_WARMUP_TIMEOUT_S
 
 
 def test_warmup_failure_is_swallowed(monkeypatch, tmp_path):
@@ -35,7 +35,7 @@ def test_warmup_failure_is_swallowed(monkeypatch, tmp_path):
     monkeypatch.setattr(cs._settings, "TTS_SA_KEY_FILE", str(key))
     monkeypatch.setattr(cs._settings, "GREETING_TTS_WARMUP", True)
 
-    def boom(*_a):
+    def boom(*_a, **_k):
         raise RuntimeError("tts down")
     monkeypatch.setattr(cs, "_greeting_tts_sync", boom)
     cs.warm_greeting_tts()   # 예외가 새지 않는다
