@@ -130,9 +130,27 @@ def test_lock_sql_only_on_postgres():
         def execute(self, stmt, params=None):
             seen.append((str(stmt), params))
 
-    svc.lock_member_call_start(_Db("sqlite"), 7)
+    assert svc.lock_member_call_start(_Db("sqlite"), 7) is True
     assert seen == []
-    svc.lock_member_call_start(_Db("postgresql"), 7)
-    assert seen and "pg_advisory_xact_lock" in seen[0][0]
-    assert seen[0][1]["k"] == svc._CALL_START_LOCK_NS + 7
-    assert seen[0][1]["k"] < 2 ** 63   # bigint 범위
+    assert svc.lock_member_call_start(_Db("postgresql"), 7) is True
+    assert "lock_timeout" in seen[0][0] and "pg_advisory_xact_lock" in seen[1][0]
+    assert seen[1][1]["k"] == svc._CALL_START_LOCK_NS + 7
+    assert seen[1][1]["k"] < 2 ** 63   # bigint 범위
+
+
+def test_lock_wait_timeout_rejects():
+    from sqlalchemy.exc import OperationalError
+    state = {"rolled": False}
+
+    class _Db:
+        def get_bind(self):
+            return SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+
+        def execute(self, stmt, params=None):
+            if "pg_advisory_xact_lock" in str(stmt):
+                raise OperationalError("lock", {}, Exception("canceling statement due to lock timeout"))
+
+        def rollback(self):
+            state["rolled"] = True
+
+    assert svc.lock_member_call_start(_Db(), 7) is False and state["rolled"]
