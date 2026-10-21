@@ -155,17 +155,64 @@ def score_checkpoint(cp: dict, facts: list[str], summary: str) -> list[str]:
     return bad
 
 
+EPISODE_LINES_MAX = 3
+
+
+def score_episode(cp: dict, facts: list[str], summary: str, learner: str = "") -> list[str]:
+    """U44 ② 일화 체크포인트(call flow 77 §3-2) — 창 안이면 일화가 facts·요약 어딘가에 · 일화 줄 3줄 이하 · 비버 말 저장 금지."""
+    bad = []
+    alltxt = " ".join(facts) + " " + (summary or "")
+    if cp.get("expect_episode") and not re.search(cp["expect_episode"], alltxt):
+        bad.append(f"expect_episode {cp['expect_episode']} 없음")
+    if cp.get("expect_detail_any") and not re.search(cp["expect_detail_any"], alltxt):
+        bad.append(f"expect_detail {cp['expect_detail_any']} 없음")
+    eps = [f for f in facts if cms.EPHEMERAL_SEP in f]
+    if len(eps) > EPISODE_LINES_MAX:
+        bad.append(f"일화 줄 {len(eps)} > {EPISODE_LINES_MAX}: {eps}")
+    # «학습자 발화 확인 전에는 비버 말로 봄» — 학습자 줄에 있으면(2296 t? «…결혼해 주세요.»라고 말했어요) 근거 있음
+    if "결혼해 주세요" in (cp.get("forbid") or "") and "결혼해 주세요" in alltxt and "결혼해 주세요" not in learner:
+        bad.append("비버 말(결혼해 주세요)이 기억에")
+    asks = [f for f in facts if any(m in f for m in ("기억나", "뭐라고 했", "뭐였", "있었다고 했"))]
+    if asks:
+        bad.append(f"ask_not_fact {asks}")
+    return bad
+
+
+def _start_for(acct: str, bundle: dict, start: dict, transcripts: dict, done: dict) -> dict:
+    """일화 계정(«max05(비비 · 일화)»)은 같은 계정 앞 묶음(«max05(비비)») 마지막 상태에서 이어간다 · 없으면 빈 계정."""
+    if acct in start:
+        return start[acct]
+    base = acct.replace(" · 일화", "")
+    if base != acct and base in bundle["accounts"]:
+        st = done.get(base)
+        if st is None:
+            st = replay_account(base, bundle, start.get(base, {}), transcripts)
+        last = st.get(bundle["accounts"][base]["calls"][-1])
+        if last is not None:
+            return {"facts": last[0], "summary": last[1]}
+    return {}
+
+
 def run_all():
     bundle, start, transcripts = load("bundle.json"), load("start.json"), load("transcripts.json")
     results = []
+    done = {}
     for acct, spec in bundle["accounts"].items():
-        states = replay_account(acct, bundle, start.get(acct, {}), transcripts)
+        states = replay_account(acct, bundle, _start_for(acct, bundle, start, transcripts, done), transcripts)
+        done[acct] = states
         for cp in spec["checkpoints"]:
+            if cp.get("info_only"):
+                continue                     # 창 밖 · 정보(실패 아님)
             st = states.get(cp["after"])
             if st is None:
                 results.append((acct, cp["round"], cp["after"], ["추출 캐시 없음"]))
                 continue
-            results.append((acct, cp["round"], cp["after"], score_checkpoint(cp, *st)))
+            if "expect_episode" in cp:
+                learner = "\n".join(ln for c in spec["calls"][: spec["calls"].index(cp["after"]) + 1]
+                                    for ln in transcripts[str(c)].split("\n") if ln.startswith("학습자:"))
+                results.append((acct, cp["round"], cp["after"], score_episode(cp, *st, learner)))
+            else:
+                results.append((acct, cp["round"], cp["after"], score_checkpoint(cp, *st)))
         if acct.startswith("max10") and states.get(2251):
             f2251 = states[2251][0]
             if any(re.search("치과|엄마 직업", f) for f in f2251):

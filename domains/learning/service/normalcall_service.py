@@ -1108,6 +1108,9 @@ _RESUME_SUMMARY_INSTRUCTION = (
 )
 
 
+_MOVE_KEYS = ("이사", "이사한 곳", "이사 간 곳", "새로 이사한 곳", "이사 온 곳")
+
+
 class MemoryFact(BaseModel):
     key: str = ""      # 기억 9차 — 주제 키(예: 주말 취미 · 좋아하는 가수 · 회사 선배) · 고정 칸이면 그 이름
     value: str = ""
@@ -1223,6 +1226,13 @@ def _grounded_facts(items, transcript: str, old_facts: list[str] | None = None) 
     for it in items:
         key, value, quote = (it.key or "").strip()[:15], (it.value or "").strip()[:60], (it.quote or "").strip()
         key = chat_memory_service.canonical_key(key)     # 기억 16차 — «거주지» → «사는 곳»
+        if key in _MOVE_KEYS:
+            # 기억 18차 — 2287 «이사: 울산으로 이사함» → «사는 곳: 울산»(고정 칸이 옛 «광주» 를 덮게)
+            mv = re.match(r"\s*([가-힣A-Za-z]+?)(?:으로|로)\s*이사", value)
+            if mv:
+                key, value = "사는 곳", mv.group(1)
+            elif key != "이사" and value and " " not in value.strip():
+                key = "사는 곳"
         if not key or not value:
             continue
         line = (f"{key}{chat_memory_service.EPHEMERAL_SEP}{value}" if (it.kind or "").strip() == "일회"
@@ -1274,7 +1284,13 @@ def _grounded_facts(items, transcript: str, old_facts: list[str] | None = None) 
         last.pop(k, None)
         last[k] = line
     lines = chat_memory_service.demote_details(list(last.values()))   # 기억 13차 — 대상 세부·평가·새 지속 상한
-    return lines[:MEMORY_FACTS_MAX + 2], evidence, dropped
+    if len(lines) > MEMORY_FACTS_MAX + 2:
+        # 기억 18차 — 추출기 순서대로 자르면 맨 끝 «생일: 4월 9일»(고정 칸)이 13번째라 버려졌다(2246 재추출) → 고정 칸·핵심 속성을 먼저 남긴다
+        def _tier(ln: str) -> int:
+            return 4 if chat_memory_service.EPHEMERAL_SEP in ln else chat_memory_service._attr_tier(chat_memory_service.split_fact(ln)[0])
+        keep = set(sorted(range(len(lines)), key=lambda i: (_tier(lines[i]), i))[:MEMORY_FACTS_MAX + 2])
+        lines = [ln for i, ln in enumerate(lines) if i in keep]
+    return lines, evidence, dropped
 
 
 def _memory_transcript(db: Session, call_id: int) -> str:

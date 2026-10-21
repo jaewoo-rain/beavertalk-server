@@ -54,10 +54,29 @@ def test_round11_recall_call_chatter_does_not_evict_ninth_values():
     assert 1 <= sum(cms.EPHEMERAL_SEP in f for f in few) <= cms.EPHEMERAL_MAX and all(f in few for f in NINTH)
 
 
-def test_ephemeral_from_previous_call_is_dropped_next_call():
+def test_ephemeral_from_previous_call_is_carried_once_then_dropped():
+    """기억 18차(U44 ② · PM-DEC-939) — 일화는 최근 2통: 다음 통화에 «(지난 통화)» 로 한 번 더 · 그다음 통화에서 빠진다."""
     old = ["차: 흰색 아반떼", "맛집 메뉴 — 비빔밥을 먹고 싶음"]
     got = cms._merge_facts(old, ["좋아하는 가수: 아이유"], cms.FACTS_CAP)
-    assert got == ["차: 흰색 아반떼", "좋아하는 가수: 아이유"] or got == ["좋아하는 가수: 아이유", "차: 흰색 아반떼"]
+    assert set(got) == {"차: 흰색 아반떼", "좋아하는 가수: 아이유", "맛집 메뉴 — (지난 통화) 비빔밥을 먹고 싶음"}
+    got2 = cms._merge_facts(got, ["좋아하는 영화: 기생충"], cms.FACTS_CAP)
+    assert not any(cms.EPHEMERAL_SEP in f for f in got2)
+
+
+def test_episode_mentioned_again_reopens_window():
+    old = ["지하철 지갑 — (지난 통화) 잃어버렸다가 다시 찾음"]
+    got = cms._merge_facts(old, ["지하철 지갑 — (지난 통화) 잃어버렸다가 다시 찾음"], cms.FACTS_CAP)
+    assert got == ["지하철 지갑 — 잃어버렸다가 다시 찾음"]
+
+
+def test_episodes_cap_three_and_push_out_preferences_not_core():
+    n = cms.FACTS_CAP
+    core = [f"이름: 민수"] + [f"회사 동료{i} 이름: 사람{i}" for i in range(5)]
+    prefs = [f"좋아하는 음식{i}: 값{i}" for i in range(n)]
+    eps = [f"일화{i} — 내용{i}" for i in range(5)]
+    got = cms._merge_facts(core + prefs, eps, cms.FACTS_CAP)
+    assert len(got) == n and all(c in got for c in core)
+    assert [f for f in got if cms.EPHEMERAL_SEP in f] == eps[:cms.EPHEMERAL_MAX]
 
 
 def test_durable_overflow_drops_least_recently_mentioned_first():
@@ -70,3 +89,12 @@ def test_durable_overflow_drops_least_recently_mentioned_first():
 
 def test_recall_question_is_not_a_fact_by_instruction():
     assert "기억을 묻기만 한 말" in svc._MEMORY_EXTRACT_INSTRUCTION and "kind" in svc._MEMORY_EXTRACT_INSTRUCTION
+
+
+def test_activity_slot_replaced_only_with_compatible_qualifier():
+    """기억 18차 — 2286 «취미: 볼더링» → «주말 운동: 스케이트» 는 같은 칸 · «아침 운동» 은 다른 칸."""
+    old = ["취미: 볼더링", "아침 운동: 테니스"]
+    got = cms._merge_facts(old, ["주말 운동: 스케이트"], cms.FACTS_CAP, ["취미: 볼더링", "아침 운동: 테니스"])
+    assert "취미: 볼더링" not in got and "아침 운동: 테니스" in got and "주말 운동: 스케이트" in got
+    assert "좋아하는 가수: 아이유" in cms._merge_facts(["좋아하는 가수: 아이유"], ["주말 운동: 스케이트"], cms.FACTS_CAP,
+                                                     ["좋아하는 가수: 아이유"])
