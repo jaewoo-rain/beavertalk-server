@@ -28,7 +28,7 @@ def _instant_playback(monkeypatch):
 
 def test_enabled_only_for_baba_expression_en():
     on = SimpleNamespace(CLIP_EXPR="Baba")
-    assert clip_expr.enabled(on, call_type="expression", voice="Fenrir", locale="en") == "Baba"
+    assert clip_expr.enabled(on, call_type="expression", voice="Fenrir", locale="en", lesson="L1-S01-1") == "Baba"   # ⑤ 차시 묶음 있을 때만
     assert clip_expr.enabled(on, call_type="freetalk", voice="Fenrir", locale="en") is None
     assert clip_expr.enabled(on, call_type="expression", voice="Leda", locale="en") is None
     assert clip_expr.enabled(on, call_type="expression", voice="Fenrir", locale="ja") is None

@@ -18,8 +18,8 @@ def test_bibi_script_bank_matches_baba_ids():
 
 def test_switch_enables_bibi_by_leda_voice():
     s = SimpleNamespace(CLIP_EXPR="Baba,Bibi", SCRIPT_READ="Baba,Bibi")
-    assert clip_expr.enabled(s, call_type="expression", voice="Leda", locale="en") == "Bibi"
-    assert script_read.enabled(s, call_type="chat", voice="Leda", locale="en") == "Bibi"
+    assert clip_expr.enabled(s, call_type="expression", voice="Leda", locale="en", lesson="L1-S01-1") == "Bibi"
+    assert script_read.enabled(s, call_type="freetalk", voice="Leda", locale="en", lesson="A2-T11-1") == "Bibi"   # ⑤ chat 은 대본 읽기 아님
     assert clip_expr.enabled(SimpleNamespace(CLIP_EXPR="Baba"), call_type="expression", voice="Leda", locale="en") is None
 
 

@@ -69,28 +69,86 @@ def _is_first_part(line: str, heard: str) -> bool:
     return difflib.SequenceMatcher(None, head, hj).ratio() >= 0.75
 
 
+CONTENT_PASS = 0.8      # ④(2319) 0.5 → 0.8 — 내용어 절반만 맞아도 통과하던 것
+EXTRA_RATIO = 1.5       # ④ 들은 한글이 대본의 이만큼을 넘으면 «덧붙임»
+# ④ 뜻을 뒤집는 낱말 — 대본과 들은 말의 개수가 다르면 fail(«맛있겠네요» → «맛 없겠네요» · «잘 먹겠습니다» → «잘 안 먹겠습니다»)
+_NEG_RE = re.compile(r"없|(?<![가-힣])안(?=\s|$)|(?<![가-힣])안(?=[가-힣])(?!녕|에|전|심|내|경|부|과|주|방)|(?<![가-힣])못|아니|싫|별로|(?<![가-힣])말고")
+# ④ 반대말 짝 — 대본에 한쪽이 있는데 들은 말에 다른 쪽만 있으면 fail(«조금» → «엄청» · «그래도» → «그래서»)
+_ANTONYMS = (("조금", ("엄청", "많이", "너무", "되게", "아주")), ("그래도", ("그래서",)), ("좋", ("나쁘", "싫")),
+             ("맛있", ("맛없",)), ("크", ("작",)), ("작", ("크",)), ("많", ("적",)), ("싸", ("비싸",)), ("비싸", ("싸",)),
+             ("덥", ("춥",)), ("춥", ("덥",)), ("빠르", ("느리",)), ("느리", ("빠르",)), ("쉽", ("어렵",)), ("어렵", ("쉽",)))
+
+
+def _bieup_ne(s: str) -> bool:
+    """받침 ㅂ 음절 바로 뒤 «네» 가 있나(«맵네»·«싱겁네» — 소리가 «없네» 와 같다)."""
+    k = _KEEP.sub("", s or "")
+    return any(k[i + 1] == "네" and "가" <= k[i] <= "힣" and (ord(k[i]) - 0xAC00) % 28 == 17 for i in range(len(k) - 1))
+
+
+def _extra_hangul(line: str, heard: str) -> int:
+    """대본에 없는 어절(앞 2음절 기준)의 한글 수 — 대본 낱말을 되풀이한 것은 덧붙임이 아니다(2256)."""
+    lw = {_KEEP.sub("", w)[:2] for w in (line or "").split() if _KEEP.sub("", w)}
+    return sum(_hangul_len(w) for w in (heard or "").split() if _KEEP.sub("", w)[:2] not in lw)
+
+
+def _neg_count(s: str) -> int:
+    return len(_NEG_RE.findall(re.sub(r"\s+", " ", s or "")))
+
+
+def _meaning_flipped(line: str, heard: str) -> bool:
+    nl, nh = _neg_count(line), _neg_count(heard)
+    if nh > nl and _bieup_ne(line) and "없네" in _KEEP.sub("", heard):
+        nh -= 1               # «맵네요»[맴네요]·«싱겁네요»[싱검네요] 를 받아쓰기가 «없네요» 로 듣는다(2102·2118 실측)
+    if nh > nl or (nh < nl and _hangul_len(heard) >= PARTIAL_RATIO * _hangul_len(line)):
+        return True           # 부정어가 더 들림 = 뜻 뒤집힘 · 덜 들림은 거의 다 읽었을 때만(앞 반쪽 읽기는 판정 안 함 · 2120)
+    hk = _KEEP.sub("", heard)
+    lk = _KEEP.sub("", line)
+    for word, opposites in _ANTONYMS:
+        if word in lk and word not in hk and any(o in hk and o not in lk for o in opposites):
+            return True
+    return False
+
+
 def match(line: str, heard: str) -> tuple[str, float]:
-    """(pass|close|fail|empty, 자모 유사도). 요청서 5절 — 느슨하게."""
+    """(pass|close|fail|empty, 자모 유사도). 요청서 5절 — 느슨하게. 단 뜻이 뒤집히거나 크게 덧붙이면 fail(④ · 2319)."""
     if not _KEEP.sub("", heard or ""):
         return "empty", 0.0
     if not re.search(r"[가-힣]", heard):
         return "fail", 0.0                       # 다른 언어로 말함
     sim = difflib.SequenceMatcher(None, jamo(line), jamo(heard)).ratio()
-    if sim >= PASS_SIM or _content_hit(line, heard) >= 0.5:
+    if _meaning_flipped(line, heard):
+        return "fail", sim
+    if _hangul_len(heard) > EXTRA_RATIO * max(1, _hangul_len(line)) and _extra_hangul(line, heard) > 0.5 * _hangul_len(line):
+        return "fail", sim    # 대본에 없는 말이 크게 덧붙음(되풀이는 제외)
+    if sim >= PASS_SIM or _content_hit(line, heard) >= CONTENT_PASS:
         return "pass", sim
     if sim >= CLOSE_SIM:
         return "close", sim
     return "fail", sim
 
 
-def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str]) -> Optional[str]:
+def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str],
+            lesson: Optional[str] = None) -> Optional[str]:
+    """⑤(PM-DEC-945) — 대본 읽기는 freetalk 차시에 그 차시 대본 자산이 있을 때만. 차시 없는 chat·표현학습·숙제·레벨테스트는 늘 None."""
     want = {x.strip() for x in str(getattr(settings, "SCRIPT_READ", "") or "").split(",") if x.strip()}
+    if not want:
+        return None
     char = clip_expr.VOICE_BANK.get(voice or "")
-    # PM-DEC-921 — 표현학습(expression)은 대본 읽기가 아니다(m3clip call 2226: CLIP_EXPR·SCRIPT_READ 둘 다 켜면 표현학습이 대본으로 열림)
-    if not want or char not in want or call_type in ("level_test", "homework", "expression") or (locale or "").split("-")[0] != "en":
+    # PM-DEC-921 — 표현학습(expression)은 대본 읽기가 아니다(m3clip call 2226) · ⑤ 차시 없는 chat 도 아니다
+    if call_type != "freetalk":
+        clip_expr.fallback("script", "코스", call_type=call_type)
+        return None
+    if char not in want:
+        clip_expr.fallback("script", "캐릭터", voice=voice)
+        return None
+    if (locale or "").split("-")[0] != "en":
+        clip_expr.fallback("script", "모국어", locale=locale)
+        return None
+    if not lesson or not (ROOT / f"{lesson}.json").exists():
+        clip_expr.fallback("script", f"차시 대본 없음({lesson})", char=char)
         return None
     if not (ROOT / f"{char}_en" / "manifest.json").exists():
-        logger.warning("normalcall script: %s 대본 자산 없음 — 종전 통화", char)
+        clip_expr.fallback("script", f"캐릭터 자산 없음({char}_en)", char=char)
         return None
     return char
 
@@ -124,7 +182,8 @@ class ScriptReadSession(ClipExprSession):
     CLOSE_GROUP = "sg_close_call"
 
     def __init__(self, *a, stt: Optional[Any] = None, **kw) -> None:
-        clips, items, lines = load_bank(kw["char"])
+        lesson = kw.pop("lesson", None) or "A2-T11-1"
+        clips, items, lines = load_bank(kw["char"], lesson=lesson)
         super().__init__(*a, bank=(clips, items), **kw)
         self.lines = lines
         self._stt_fn = stt
@@ -336,6 +395,16 @@ class ScriptReadSession(ClipExprSession):
             return
         self.results.append((n, r, round(sim, 2)))
         import time
+        if r == "empty":
+            # ④(2319 줄3) — 무음 대기 타이머가 빈 값으로 8초마다 다시 불러 «판정=empty» 18줄이 묵은 말·stt 값과 함께 찍혔다
+            #   (받아쓰기를 안 탔다). 무음은 한 번만 «무음 대기» 로 남기고, 소리가 다시 들어와 판정되면 다시 남긴다.
+            if not getattr(self, "_silence_logged", False):
+                logger.info("normalcall script 무음 대기: call_id=%s 줄=%d 시도=%d", self._cid(), n, self.attempt)
+                self._silence_logged = True
+            self.empties += 1
+            await self._wait(carry=True)      # 실패로 치지 않는다 · 반응 없음 · 그새 이어 말했으면 붙여서 다시
+            return
+        self._silence_logged = False
         audio_s, stt_ms = getattr(self, "_last_stt", (0.0, -1))
         logger.info("normalcall script judge: call_id=%s 조각=%s 줄=%d 시도=%d 판정=%s 자모=%.2f 내용어=%.2f 말=%.1fs stt_ms=%d "
                     "말끝→판정_ms=%d 대본=«%s» 들음=«%s»",

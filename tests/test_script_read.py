@@ -29,11 +29,12 @@ def test_match_is_loose_and_never_angry_on_exact_read():
 
 def test_enabled_conditions():
     on = SimpleNamespace(SCRIPT_READ="Baba")
-    assert sr.enabled(on, call_type="chat", voice="Fenrir", locale="en") == "Baba"
-    assert sr.enabled(on, call_type="freetalk", voice="Fenrir", locale="en") == "Baba"
+    # ⑤ PM-DEC-945 — 차시 없는 chat 은 대본 읽기가 아니다 · freetalk 는 그 차시 대본이 있을 때만
+    assert sr.enabled(on, call_type="chat", voice="Fenrir", locale="en", lesson="A2-T11-1") is None
+    assert sr.enabled(on, call_type="freetalk", voice="Fenrir", locale="en", lesson="A2-T11-1") == "Baba"
     assert sr.enabled(on, call_type="homework", voice="Fenrir", locale="en") is None
     assert sr.enabled(on, call_type="expression", voice="Fenrir", locale="en") is None   # PM-DEC-921
-    assert sr.enabled(on, call_type="chat", voice="Leda", locale="en") is None
+    assert sr.enabled(on, call_type="freetalk", voice="Leda", locale="en", lesson="A2-T11-1") is None
     assert sr.enabled(SimpleNamespace(SCRIPT_READ=""), call_type="chat", voice="Fenrir", locale="en") is None
 
 
@@ -319,3 +320,36 @@ async def test_first_fail_is_not_rejudged_with_a_short_blip():
         await asyncio.sleep(0.3)
         assert len(calls) == 1, "같은 말이 다시 판정됨"
         assert not h.clips(n) and [c["result"] for c in h.cards("script_result", n)] == ["fail"]
+
+
+def test_meaning_flip_and_extra_speech_fail_but_normal_reads_pass():
+    """④ call 2319 — 일부러 틀리게 읽은 두 줄이 pass 였다. 실측 89쌍 중 바뀌는 것은 이 두 줄뿐(정상 낭독·STT 흔들림 유지)."""
+    assert sr.match("와, 맛있겠네요. 잘 먹겠습니다.", "와 맛 없겠네요 잘 안 먹겠습니다")[0] == "fail"
+    assert sr.match("조금 싱겁네요. 그래도 맛있어요.", "엄청 싱겁네요 그래서 맛 없어요")[0] == "fail"
+    assert sr.match("와, 맛있겠네요. 잘 먹겠습니다.",
+                    "와 맛있겠네요 잘 먹겠습니다 근데 저는 사실 배가 너무 불러서 못 먹을 것 같아요")[0] == "fail"
+    # 정상·STT 흔들림 — 그대로 통과(실측 2102·2118·2256 · 받침 ㅂ+네 → «없네» 로 들림 · 되풀이 읽기)
+    assert sr.match("김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요.", "김치가 너무 매워 없네요 아직 매운 음식은 잘 못 먹어요")[0] == "pass"
+    assert sr.match("조금 싱겁네요. 그래도 맛있어요.", "음식 없네요 그래도 맛있어요")[0] == "pass"
+    assert sr.match("조금 싱겁네요. 그래도 맛있어요.", "조금 싱겁 내요 그래도 맛있어요 그래도 맛있어요")[0] == "pass"
+    assert sr.match("김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요.", "치가 너무 맵네요")[0] == "close"   # 앞 반쪽(2120)
+    assert sr.match("아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요.", "아니요 괜찮아요 저는 싱거운 음식을 좋아해요")[0] == "pass"
+    assert sr.match("김치가 너무 맵네요. 아직 매운 음식은 잘 못 먹어요.", "김치 가도 맵네요 아직 매운 음식은 잘 먹어요")[0] == "fail"  # «못» 빠짐
+
+
+def test_lesson_gate_for_clip_and_script(monkeypatch):
+    """⑤ PM-DEC-945 — 차시 묶음이 있을 때만 · 숙제·차시 없는 chat 은 절대 안 열림 · 폴백은 사유 한 줄."""
+    from domains.learning.realtime import clip_expr as ce
+    class S:
+        CLIP_EXPR = "Baba,Bibi"
+        SCRIPT_READ = "Baba,Bibi"
+    common = dict(voice="Fenrir", locale="en")
+    assert ce.enabled(S, call_type="expression", lesson="L1-S01-1", **common) == "Baba"
+    assert ce.enabled(S, call_type="expression", lesson="L1-S01-2", **common) is None       # 클립 없는 차시 → Live
+    assert ce.enabled(S, call_type="expression", lesson=None, **common) is None
+    assert ce.enabled(S, call_type="homework", lesson="L1-S01-1", **common) is None         # ④ 숙제 제외
+    assert ce.enabled(S, call_type="expression", lesson="L1-S01-1", voice="Fenrir", locale="ja") is None
+    assert sr.enabled(S, call_type="freetalk", lesson="A2-T11-1", **common) == "Baba"
+    assert sr.enabled(S, call_type="freetalk", lesson="A2-T11-2", **common) is None         # 대본 없는 차시 → Live
+    for ct in ("chat", "homework", "expression", "level_test"):
+        assert sr.enabled(S, call_type=ct, lesson="A2-T11-1", **common) is None

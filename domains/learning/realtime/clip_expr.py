@@ -177,14 +177,54 @@ def load_bank(char: str, lang: str = "en", lesson: str = "L1-S01-1") -> tuple[di
     return clips, items
 
 
-def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str]) -> Optional[str]:
-    """켤 캐릭터 이름(없으면 None). CLIP_EXPR 은 쉼표로 여러 캐릭터를 받는다."""
+def fallback(kind: str, reason: str, **kw: Any) -> None:
+    """⑤-③ 폴백 사유 한 줄(스위치가 켜졌을 때만 부른다)."""
+    logger.info("normalcall clip-fallback: %s → Live · 사유=%s %s", kind, reason,
+                " ".join(f"{k}={v}" for k, v in kw.items()))
+
+
+def lesson_missing(lesson: Optional[str], char: str, lang: str = "en") -> Optional[str]:
+    """이 차시 클립 묶음에 빠진 것(없으면 None) — 차시 파일 · 캐릭터 manifest · 항목별 ask_/model_ 클립."""
+    if not lesson:
+        return "차시 없음"
+    if not (ROOT / f"{lesson}.json").exists():
+        return f"차시 파일 없음({lesson})"
+    d = ROOT / f"{char}_{lang}"
+    if not (d / "manifest.json").exists():
+        return f"캐릭터 자산 없음({char}_{lang})"
+    ids = [c["id"] for c in json.loads((d / "manifest.json").read_text(encoding="utf-8"))]
+
+    def has(prefix: str) -> bool:      # «model_3» 그대로 · «ask_3_a» 처럼 변형 접미가 붙은 것도
+        return any(i == prefix or i.startswith(prefix + "_") for i in ids)
+    seqs = [x["seq"] for x in json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["items"]]
+    miss = [s for s in seqs if not has(f"ask_{s}") or not has(f"model_{s}")]
+    return f"항목 클립 없음(seq {miss[:5]})" if miss else None
+
+
+def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], locale: Optional[str],
+            lesson: Optional[str] = None) -> Optional[str]:
+    """켤 캐릭터 이름(없으면 None). CLIP_EXPR 은 쉼표로 여러 캐릭터를 받는다.
+
+    ⑤(PM-DEC-945) — 차시 단위 판정: 그 차시 클립 묶음(차시 파일·캐릭터 manifest·항목별 ask_/model_)이 다 있을 때만.
+    숙제(homework)·다른 코스는 늘 None. 스위치가 켜진 통화의 폴백은 사유를 한 줄 남긴다.
+    """
     want = {x.strip() for x in str(getattr(settings, "CLIP_EXPR", "") or "").split(",") if x.strip()}
-    char = VOICE_BANK.get(voice or "")
-    if not want or char not in want or call_type != "expression" or (locale or "").split("-")[0] != "en":
+    if not want:
         return None
-    if not (ROOT / f"{char}_en" / "manifest.json").exists():
-        logger.warning("normalcall clipexpr: %s 클립 자산 없음 — 종전 통화", char)
+    char = VOICE_BANK.get(voice or "")
+    lang = (locale or "").split("-")[0]
+    if call_type != "expression":
+        fallback("clipexpr", "코스", call_type=call_type)
+        return None
+    if char not in want:
+        fallback("clipexpr", "캐릭터", voice=voice)
+        return None
+    if lang != "en":
+        fallback("clipexpr", "모국어", locale=locale)
+        return None
+    miss = lesson_missing(lesson, char, lang)
+    if miss:
+        fallback("clipexpr", miss, char=char)
         return None
     return char
 
@@ -308,7 +348,7 @@ class ClipExprSession:
     def __init__(self, factory: Callable, client: Any, settings: Any, factory_kwargs: dict, *, char: str,
                  state: Any, notify: Optional[Callable] = None, judge: Optional[Callable] = None,
                  request_close: Optional[Callable] = None, rng: Optional[random.Random] = None,
-                 bank: Optional[tuple] = None, say: Optional[Callable] = None) -> None:
+                 bank: Optional[tuple] = None, say: Optional[Callable] = None, lesson: Optional[str] = None) -> None:
         self._factory = factory                    # 쓰지 않는다(예외 턴도 Live 없음) — 시그니처만 맞춘다
         self._client = client
         self._settings = settings
@@ -319,7 +359,7 @@ class ClipExprSession:
         self._say_fn = say                         # 시험용: async (guide, heard) -> (text, pcm|None)
         self._request_close = request_close
         self._rng = rng or random.Random()
-        self.clips, self.items = bank if bank is not None else load_bank(char)
+        self.clips, self.items = bank if bank is not None else load_bank(char, lesson=lesson or "L1-S01-1")
         self._out: asyncio.Queue = asyncio.Queue()
         self._cmd: asyncio.Queue = asyncio.Queue()
         self._worker: Optional[asyncio.Task] = None
