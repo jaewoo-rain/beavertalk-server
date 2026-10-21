@@ -54,6 +54,12 @@
 <div id="log"></div>
 
 <script>
+function devKey() {  // 보안(2026-10-21) — /__dev/login·signup 은 개발 키(X-Dev-Key) 필요 · 이 탭에만 둔다
+  let k = sessionStorage.getItem('bt_dev_key');
+  if (!k) { k = prompt('개발 키(X-Dev-Key)') || ''; if (k) sessionStorage.setItem('bt_dev_key', k); }
+  return k;
+}
+
 const $ = s => document.querySelector(s);
 const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
 let MEMBERS = [], ME = null;
@@ -80,7 +86,7 @@ async function login() {
   setWho('로그인 중…', false);
   try {
     const r = await fetch(apiBase() + '/__dev/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey() },
       body: JSON.stringify({ email, password }),
     });
     if (!r.ok) { setWho('❌ 로그인 실패 (' + r.status + ')', false); return; }
