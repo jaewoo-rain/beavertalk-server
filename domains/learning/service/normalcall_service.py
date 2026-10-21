@@ -1186,7 +1186,7 @@ async def summarize_for_memory(client, model: str, transcript: str, old_facts: l
         return None
     if out is None:
         return None
-    keyed, evidence, dropped = _grounded_facts(out.facts or [], transcript)
+    keyed, evidence, dropped = _grounded_facts(out.facts or [], transcript, olds)
     return {
         "topic": (out.topic or "").strip()[:30],
         # 기억 13차 — 주제 키 facts 가 있으면 옛 learner_facts(주제 없는 줄)는 쓰지 않는다(같은 말이 주제 없이 한 번 더 들어왔다)
@@ -1205,20 +1205,63 @@ def _norm_speech(t: str) -> str:
     return "".join(ch for ch in (t or "") if ch.isalnum())
 
 
-def _grounded_facts(items, transcript: str) -> tuple[list[str], list[tuple[str, str]], list[str]]:
+_ASK_MARKERS = ("기억나", "뭐라고 했", "뭐였", "말했지", "했지?", "알아?")   # «꼭 기억해줘요» 는 부탁이라 뺀다
+_EPISODE_QUOTE = ("지난", "어제", "그때", "옛날", "작년")
+_CHANGE_QUOTE = ("요즘", "이제", "그만", "바꿨", "새로", "앞으로", "다시")
+_KEY_QUALIFIERS = ("주말", "아침", "저녁", "평일", "방학")
+_LIST_KEYS = ("못 먹는 것",)                       # 목록 칸 — 지우는 말이 없으면 옛 항목을 남기고 더한다
+_REMOVE_MARKERS = ("이제", "먹을 수 있", "괜찮아", "안 싫", "다 먹")
+
+
+def _grounded_facts(items, transcript: str, old_facts: list[str] | None = None) -> tuple[list[str], list[tuple[str, str]], list[str]]:
     """기억 9차 — 근거(quote)가 전사의 학습자 줄에 있는 사실만 «주제: 값» 으로 남긴다(비버 말이 사실이 되는 것 차단)."""
     learner = [ln[len("학습자: "):] for ln in (transcript or "").splitlines() if ln.startswith("학습자: ")]
     joined = _norm_speech(" ".join(learner))
+    old_keys = {"".join((chat_memory_service.split_fact(f)[0] or "").split()) for f in (old_facts or [])} - {""}
+    old_text = _norm_speech(" ".join(old_facts or []))
     keyed, evidence, dropped = [], [], []
     for it in items:
         key, value, quote = (it.key or "").strip()[:15], (it.value or "").strip()[:60], (it.quote or "").strip()
+        key = chat_memory_service.canonical_key(key)     # 기억 16차 — «거주지» → «사는 곳»
         if not key or not value:
             continue
         line = (f"{key}{chat_memory_service.EPHEMERAL_SEP}{value}" if (it.kind or "").strip() == "일회"
                 else f"{key}: {value}")
         q = _norm_speech(quote)
-        ok = bool(q) and len(q) >= 2 and (q in joined or any(
-            chat_memory_service._fact_overlap(quote, ln) >= 0.6 for ln in learner))
+
+        def _grounded(piece: str) -> bool:
+            n = _norm_speech(piece)
+            return bool(n) and len(n) >= 2 and (n in joined or any(
+                chat_memory_service._fact_overlap(piece, ln) >= 0.6 for ln in learner))
+        ok = _grounded(quote)
+        if not ok and quote:
+            # 기억 16차 — 여러 학습자 문장을 이어 붙인 근거(2236 하은 · 2277 하린): 문장 절반 이상이 학습자 줄에 있으면 통과
+            parts = [p for p in re.split(r"(?<=[.!?。])\s+", quote) if _norm_speech(p)]
+            ok = len(parts) >= 2 and sum(_grounded(p) for p in parts) * 2 >= len(parts)
+        # 기억 15차 — 묻는 말(«~기억나?»·물음표)은 사실의 근거가 아니다
+        if ok and ("?" in quote or any(m in quote for m in _ASK_MARKERS)):
+            ok = False
+        # 기억 15차 — 기존 주제를 덮어쓰는 사실은 근거에 값 낱말이 있어야 한다(2294 «아니, 아직도 못 먹어.» → «오징어, 땅콩버터»)
+        #   «값이 전부 옛 사실에서 온 낱말이고 근거엔 하나도 없을 때»만 — 추출기가 옛 값을 다시 채운 경우(숫자 «사월 구일» 같은 말바꿈은 통과)
+        if ok and old_keys and "".join(key.split()) in old_keys:
+            vw = {_norm_speech(x) for x in chat_memory_service._value_words(value)} - {""}
+            if vw and all(w in old_text for w in vw) and not any(w in _norm_speech(quote) for w in vw):
+                ok = False
+        if ok and old_keys and "".join(key.split()) in old_keys and (it.kind or "").strip() != "일회":
+            # 기억 16차 — 지난 일(«지난 주말에 등산했어요»)로 지속 칸을 덮지 않는다(2295 «주말 취미: 스케이트» → 등산)
+            if any(w in quote for w in _EPISODE_QUOTE) and not any(w in quote for w in _CHANGE_QUOTE):
+                ok = False
+            # 기억 16차 — 주제의 때 한정어(주말·아침·저녁)는 근거에도 있어야 한다(2294 «매일 걷기 운동» → «주말 운동»)
+            if any(w in key for w in _KEY_QUALIFIERS) and not any(w in quote for w in _KEY_QUALIFIERS if w in key):
+                ok = False
+        if ok and key in _LIST_KEYS and (it.kind or "").strip() != "일회":
+            # 기억 15차 — 2295 «매운 음식을 못 먹어요» 가 «못 먹는 것: 키위» 를 지움(추출기가 새 항목만 적음) → 지우는 말이 없으면 합친다
+            old_v = next((chat_memory_service.split_fact(f)[1] for f in (old_facts or [])
+                          if chat_memory_service.split_fact(f)[0] == key), "")
+            if old_v and not any(m in quote for m in _REMOVE_MARKERS):
+                items = [x.strip() for x in (value + ", " + old_v).replace("·", ",").split(",") if x.strip()]
+                value = ", ".join(dict.fromkeys(items))[:60]
+                line = f"{key}: {value}"
         if ok:
             keyed.append(line)
             evidence.append((line, quote[:80]))

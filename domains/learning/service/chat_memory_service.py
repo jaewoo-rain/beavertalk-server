@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # 문서 C6 그대로 — 배열 상한(코드가 지킨다, DB 제약 아님).
 SUMMARY_CHAR_CAP = 1200
 TOPICS_CAP = 10
-FACTS_CAP = 20          # 기억 12차 15 → 20(일회 잡담 4칸을 지속 사실과 따로 둔다)
+FACTS_CAP = 30          # 기억 16차 20 → 30(핵심 속성이 취향 줄에 밀렸다 · 가득 차면 약 +100 토큰) · 12차 15 → 20
 EPHEMERAL_MAX = 4       # 일회 잡담(«주제 — 값») 최대 칸
 EPHEMERAL_SEP = " — "
 INTERESTS_CAP = 10
@@ -158,12 +158,36 @@ def _generic_token(t: str) -> bool:
     return any(g.startswith(t) or t.startswith(g) for g in _GENERIC_KEY_TOKENS)
 
 
+_CORE_ATTR_WORDS = ("이름", "선생님", "코치", "사는", "거주", "직업", "회사", "학교", "전공", "가족", "취미", "운동", "반려",
+                    "강아지", "고양이", "햄스터", "생일", "못 먹", "알레르기", "룸메이트", "선배", "차", "나이", "출신")
+KEY_ALIASES = {"거주지": "사는 곳", "사는곳": "사는 곳", "사는 도시": "사는 곳", "사는 지역": "사는 곳"}
+_GENERIC_SLOT_KEYS = ("취미",)       # «취미» 와 «주말 취미» 는 같은 칸
+
+
+def canonical_key(k: str) -> str:
+    k = " ".join((k or "").split())
+    return KEY_ALIASES.get(k, k)
+
+
+def _attr_tier(k: str | None) -> int:
+    """축출 등급 — 0 고정 칸 · 1 핵심 속성 · 2 취향 속성 · 3 나머지."""
+    k = k or ""
+    if k in PROFILE_KEYS:
+        return 0
+    if any(w in k for w in _CORE_ATTR_WORDS):
+        return 1
+    if any(w in k for w in _ATTR_WORDS):
+        return 2
+    return 3
+
+
 def is_attribute_key(k: str | None) -> bool:
     """사람의 속성다운 주제인가(고정 칸 포함) — 축출 등급과 강등 판정이 같이 쓴다."""
     k = k or ""
     return k in PROFILE_KEYS or any(w in k for w in _ATTR_WORDS)
 
 
+_EPISODE_WORDS = ("지난", "어제", "오늘", "이번", "요즘", "방금", "아까", "최근")
 NEW_DURABLE_MAX = 3     # 기억 14차 6 → 3(속성다운 주제는 상한 밖) · 기억 13차 — 한 통화에서 새로 넣는 지속 줄(고정 칸 제외) 상한
 _EVAL_WORDS = ("재미있", "재밌", "좋음", "좋아요", "좋았", "싫음", "어렵", "쉬움", "쉬워", "맛있", "힘들", "신나", "기분", "괜찮")
 
@@ -213,11 +237,13 @@ def demote_details(lines: list[str]) -> list[str]:
             seen |= _value_words(v)
             continue
         detail = any(w in k for w in seen if len(w) >= 2)
-        durable = (r == 1 or not eph) and not detail and not _is_eval_only(v) and (r == 1 or kept < NEW_DURABLE_MAX)
+        episodic = any(w in k for w in _EPISODE_WORDS)        # «지난 주말» · «어제 한 일» — 일화
+        durable = ((r == 1 and not episodic) or not eph) and not episodic and not detail and not _is_eval_only(v) \
+            and (r == 1 or kept < NEW_DURABLE_MAX)
         if durable:
             res[i] = f"{k}: {v}"
             kept += 0 if r == 1 else 1
-            seen |= _value_words(v) | {t for t in _fact_tokens(k) if len(t) >= 2 and not _generic_token(t)}
+            seen |= _value_words(v)      # 기억 15차 — 값 낱말만(주제 낱말 «주말» 이 «주말 취미» 를 세부로 만들었다)
         else:
             res[i] = f"{k}{EPHEMERAL_SEP}{v}"
             if detail:
@@ -363,9 +389,8 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     dep = _overwritten_words(old, keyed)
     if dep:
         now_keys = {_nkey(k) for k, _ in (split_fact(f) for f in newl) if k}
-        keyed = [f for f in keyed if not (
-            any(w in split_fact(f)[0] for w in dep)                                   # 주제 이름에 옛 값 낱말
-            or (_nkey(split_fact(f)[0]) not in now_keys and any(w in split_fact(f)[1] for w in dep)))]   # 옛 사실은 값에도
+        # 기억 15차 — 주제 이름만 본다(값까지 보면 «제주도 여행» 의 «바다» 가 «사는 곳: 울산, 바다가 가까움» 을 지웠다 · 2290)
+        keyed = [f for f in keyed if split_fact(f)[0] in PROFILE_KEYS or not any(w in split_fact(f)[0] for w in dep)]
     words = stale_words(stale, keyed + [x for x in newset if not split_fact(x)[0]])
     prof = profile_of(keyed)
     plain: list[str] = []
@@ -382,6 +407,10 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
         if any(_near_dup(f, k) or _near_dup(f, _without_key(k)) for k in plain + keyed):
             continue
         plain.append(f)
+    # 기억 16차 — «취미» 와 «○○ 취미» 는 같은 칸: 최신(앞) 하나만
+    for g in _GENERIC_SLOT_KEYS:
+        same = [f for f in keyed if (split_fact(f)[0] or "") == g or (split_fact(f)[0] or "").endswith(" " + g)]
+        keyed = [f for f in keyed if f not in same[1:]]
     top = [f for k in PROFILE_KEYS for f in keyed if split_fact(f)[0] == k]
     rest_keyed = [f for f in keyed if f not in top]
     room = max(0, cap - len(top))
@@ -393,7 +422,7 @@ def _merge_facts(old: list | None, new: list | None, cap: int, replaced: list | 
     ranked = []
     for i, f in enumerate(rest_keyed):
         sj = _subject(split_fact(f)[0])
-        ranked.append((0 if is_attribute_key(split_fact(f)[0]) else 1, seen_subj.get(sj, 0), i, f))
+        ranked.append((_attr_tier(split_fact(f)[0]), seen_subj.get(sj, 0), i, f))
         seen_subj[sj] = seen_subj.get(sj, 0) + 1
     kept = {f for _, _, _, f in sorted(ranked)[:room]}
     rest_keyed = [f for f in rest_keyed if f in kept]
