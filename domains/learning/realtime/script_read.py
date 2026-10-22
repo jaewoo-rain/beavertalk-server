@@ -168,6 +168,7 @@ def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], lo
 SB_PREFIX = "clips_script"            # gs://<GCS_AUDIO_BUCKET>/clips_script/<Baba|Bibi>/<sha1(비버 줄.strip())[:12]>.wav
 SB_LRU_MAX = 40                       # 차시 묶음 캐시 상한(한 묶음 = 10줄 · 약 3MB)
 SB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다(통화마다 버킷을 두드리지 않게)
+SB_TTS_MAX_MISSING = 2                # 녹음이 끝내 안 된 줄은 그 줄만 Cloud TTS(같은 캐릭터 목소리)로 · 차시당 이 수까지만
 _SB_LRU: "OrderedDict[tuple[str, str], dict]" = OrderedDict()
 _SB_MISS: dict[tuple[str, str], float] = {}
 _SB_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="sb-fetch")
@@ -195,8 +196,27 @@ def _fetch_sb(char: str, n: int, text: str) -> Optional[Clip]:
     return Clip(f"sb_{n}", text, len(frames) / 48000.0, frames, "neutral")
 
 
+def _tts_sb(char: str, n: int, text: str) -> Optional[Clip]:
+    """녹음 없는 비버 줄 하나를 Cloud TTS(캐릭터 목소리 · PCM16 24kHz)로. 작업 스레드에서 부른다."""
+    if not text.strip():
+        return None
+    try:
+        pcm = clip_expr._tts_sync(text.strip(), "ko", clip_expr.CHAR_VOICE.get(char, "Fenrir"))
+    except Exception as exc:   # TTS 실패는 그 차시를 닫는 것으로 끝낸다(통화는 종전 경로)
+        logger.warning("script_read: 비버 줄 TTS 대체 실패 %s/%s: %s", char, sb_hash(text), exc)
+        return None
+    if pcm and pcm[:4] == b"RIFF":
+        pcm = pcm[44:]
+    if not pcm:
+        return None
+    return Clip(f"sb_{n}", text, len(pcm) / 48000.0, pcm, "neutral")
+
+
 def _remote_sb(char: str, lesson: str) -> Optional[dict]:
-    """그 차시 비버 줄 녹음 sb_1..N 을 버킷에서 받아 묶음으로(전부 있어야 · LRU 캐시 · 없음은 잠깐 기억). 작업 스레드에서 부른다."""
+    """그 차시 비버 줄 녹음 sb_1..N 을 버킷에서 받아 묶음으로(LRU 캐시 · 없음은 잠깐 기억). 작업 스레드에서 부른다.
+
+    녹음이 빠진 줄이 SB_TTS_MAX_MISSING 이하면 그 줄만 TTS 로 채워 연다(PM-DEC-1018 — 녹음 불합격 줄).
+    """
     key = (char, lesson)
     if key in _SB_LRU:
         _SB_LRU.move_to_end(key)
@@ -211,6 +231,12 @@ def _remote_sb(char: str, lesson: str) -> Optional[dict]:
     t0 = time.monotonic()
     got = list(_SB_POOL.map(lambda x: _fetch_sb(char, int(x["n"]), x.get("beaver") or ""), lines))
     ms = (time.monotonic() - t0) * 1000
+    holes = [i for i, c in enumerate(got) if c is None]
+    if lines and 0 < len(holes) <= min(SB_TTS_MAX_MISSING, len(lines) - 1):
+        for i in holes:
+            got[i] = _tts_sb(char, int(lines[i]["n"]), lines[i].get("beaver") or "")
+        logger.info("script_read: 비버 줄 TTS 대체 %s/%s %s", char, lesson,
+                    [int(lines[i]["n"]) for i in holes if got[i] is not None])
     if not lines or any(c is None for c in got):
         _SB_MISS[key] = time.monotonic()
         logger.info("script_read: 비버 줄 녹음 부족 %s/%s %d/%d (%.0fms)", char, lesson,
