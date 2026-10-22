@@ -407,6 +407,9 @@ AGATE_MED_MULT = float(os.environ.get("LIVE_NOISE_AGATE_MED_MULT", "5.0") or 0)
 #   (배경 하위 20% 값 × 3) 모두 합쳐 이만큼(초) 있었으면 학습자가 말한 것으로 보고 내보낸다(전사가 늦거나 없어도).
 UNPROMPTED_VOICED_S = float(os.environ.get("LIVE_REPLY_HOLD_UNPROMPTED_VOICED_S", "0.5") or 0)
 UNPROMPTED_BG_MULT = 3.0
+# holdgate5: 상한이 TV 방에서도 걸려 문턱이 TV 봉우리 아래로 → TV 조각을 말로 인정(말인정 13~35 · unprompted 폐기 0).
+#   상한은 배경이 정말 조용할 때(하위 20% 값이 이보다 작을 때)만 건다.
+AGATE_QUIET_BG = float(os.environ.get("LIVE_NOISE_AGATE_QUIET_BG", "0.003") or 0)
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -8197,7 +8200,7 @@ def _agate(state: _CallState, data: bytes) -> list:
     r = frame_rms(data)
     now = asyncio.get_running_loop().time()
     thr = state.ag_thr
-    if r >= max(AGATE_FLOOR, UNPROMPTED_BG_MULT * state.ag_bg):
+    if r >= max(AGATE_FLOOR, UNPROMPTED_BG_MULT * state.ag_bg, thr):   # 게이트 문턱보다 작은 소리는 세지 않는다(TV 봉우리)
         state.voiced_since_end += len(data) / float(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)   # PM-DEC-1018
     if state.ag_speaking:
         if r >= thr * AGATE_TAIL_RATIO:
@@ -8232,7 +8235,8 @@ def _agate(state: _CallState, data: bytes) -> list:
         state.ag_bg = srt[len(srt) // 5]
         p95 = AGATE_K * srt[int(len(srt) * 0.95) - 1]
         # PM-DEC-1018 — 학습자 목소리가 p95 를 끌어올려도 문턱이 배경 하위 20% × AGATE_MED_MULT 를 넘지 않게
-        state.ag_thr = max(AGATE_FLOOR, min(p95, AGATE_MED_MULT * state.ag_bg) if AGATE_MED_MULT > 0 else p95)
+        quiet_room = AGATE_MED_MULT > 0 and state.ag_bg < AGATE_QUIET_BG
+        state.ag_thr = max(AGATE_FLOOR, min(p95, AGATE_MED_MULT * state.ag_bg) if quiet_room else p95)
     state.gate_zeroed += 1
     return [_zeros(len(data))]
 
