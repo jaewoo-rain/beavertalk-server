@@ -20,6 +20,7 @@ None 을 반환한다(speechsuper.py 규율) — 저장이 안 돼도 통화/분
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from datetime import timedelta
 from typing import Any
@@ -33,15 +34,30 @@ _bucket: "Any | None" = None
 _ready = False
 _signing_creds: "Any | None" = None
 _signer_email: str | None = None
+_init_lock = threading.Lock()
 
 
 def _init() -> None:
-    """GCS 클라이언트·버킷·서명 자격증명을 lazy 초기화(실패 시 비활성, 1회 경고)."""
-    global _client, _bucket, _ready, _signing_creds, _signer_email
+    """GCS 클라이언트·버킷·서명 자격증명을 lazy 초기화(실패 시 비활성, 1회 경고).
+
+    여러 작업 스레드가 동시에 처음 부를 수 있다(대본 비버 줄 10개 병렬 받기) — 잠금 안에서 한 번만 하고,
+    준비 표시는 초기화가 끝난 뒤에 세운다. 전에는 표시를 먼저 세워 나머지 스레드가 버킷 None 을 보고 «없음»
+    으로 돌아갔다(scriptsb call 2646 · 10줄 중 1줄만 받음).
+    """
+    global _ready
     if _ready:
         return
+    with _init_lock:
+        if _ready:
+            return
+        try:
+            _init_once()
+        finally:
+            _ready = True
 
-    _ready = True
+
+def _init_once() -> None:
+    global _client, _bucket, _signing_creds, _signer_email
     bucket_name = settings.GCS_AUDIO_BUCKET
     if not bucket_name:
         logger.warning("storage(gcs): GCS_AUDIO_BUCKET 미설정 → 업로드 비활성(voice_url=None).")
