@@ -336,3 +336,28 @@ async def test_hold_eligible_on_voice_before_transcript(monkeypatch):
     assert not cs._reply_hold_eligible(st)          # 인사 뒤 · 목소리 없음
     st.hold_voice_ts = 1.0
     assert cs._reply_hold_eligible(st)
+
+
+@pytest.mark.asyncio
+async def test_max_waits_for_late_quiet_then_hard_cap(hold_on, monkeypatch):
+    """PM-DEC-1007 — 상한(1.2초)에 닿아도 학습자가 1.0초 조용해질 때까지 더 기다린다 · 계속 말하면 절대 상한에서 해제."""
+    monkeypatch.setattr(cs, "REPLY_HOLD_LATE_QUIET_S", 0.6)
+    monkeypatch.setattr(cs, "REPLY_HOLD_HARD_MAX_S", 2.0)
+    st = _state()
+    script = [(0, _voice(st)), (0, LiveEvent(kind="audio", audio=b"\x01\x00" * 10)), (0, LiveEvent(kind="turn_end"))]
+    script += [(0.1, _voice(st)) for _ in range(30)]          # 학습자가 3초 내내 말한다
+    ws = await _run(st, script, tail_s=0.5)
+    t = ws.log[0][0]
+    assert 1.95 <= t <= 2.4, t                                 # 1.2초 상한이 아니라 2.0초 절대 상한에서
+
+
+@pytest.mark.asyncio
+async def test_max_releases_once_late_quiet_reached(hold_on, monkeypatch):
+    monkeypatch.setattr(cs, "REPLY_HOLD_LATE_QUIET_S", 0.6)
+    monkeypatch.setattr(cs, "REPLY_HOLD_HARD_MAX_S", 5.0)
+    st = _state()
+    script = [(0, _voice(st)), (0, LiveEvent(kind="audio", audio=b"\x01\x00" * 10)), (0, LiveEvent(kind="turn_end"))]
+    script += [(0.1, _voice(st)) for _ in range(10)]          # 1초 말하고 멈춘다
+    ws = await _run(st, script, tail_s=1.5)
+    t = ws.log[0][0]
+    assert 1.5 <= t <= 2.0, t                                  # 상한(1.2) 지나 마지막 목소리(≈1.0) + 0.6 조용
