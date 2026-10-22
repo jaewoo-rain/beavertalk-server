@@ -26,7 +26,7 @@ def _state(now, *, since=40.0):
     st.call_start_ts = now - 100
     st.beaver_end_ts = now - since
     st.last_activity_ts = now - since
-    st.user_voice_ts = now - 0.1      # 소리는 계속 온다(TV)
+    st.user_voice_ts = now - 10.0     # 마지막 목소리 프레임은 비버 턴 끝 뒤 · 지금은 배경(TV)만(PM-DEC-1013)
     st.ambient_ema = 0.9              # PM-DEC-1005 — 배경 소리 비율(낮은 문턱)
     st.ambient_ts = now - 0.1
     st.user_turn_open = False         # 전사 없음
@@ -247,3 +247,16 @@ def test_agate_keeps_tail_then_returns_to_silence(monkeypatch):
 
 def test_agate_off_by_default():
     assert cs.AGATE is False
+
+
+@pytest.mark.asyncio
+async def test_note_not_while_learner_voice_recent(on):
+    """PM-DEC-1013 — 학습자가 긴 답을 하는 중(전사는 끝에 몰려 옴)엔 «시끄럽다» 를 안 넣는다 · 목소리 3초 끊긴 뒤에만."""
+    now = asyncio.get_running_loop().time()
+    st, s = _state(now), _Sess()
+    st.user_voice_ts = now - 1.0          # 1초 전에도 목소리
+    _, noted = await cs._noise_guard(s, st, st.user_voice_ts)
+    assert not noted and not s.text_turns
+    st.user_voice_ts = now - 3.5          # 3.5초째 목소리 없음(소리는 배경만)
+    _, noted = await cs._noise_guard(s, st, st.user_voice_ts)
+    assert noted and len(s.text_turns) == 1

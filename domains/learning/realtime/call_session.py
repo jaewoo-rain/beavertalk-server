@@ -372,6 +372,9 @@ REPLY_HOLD_POLL_S = 0.05        # 보류 중 해제 판정 간격
 NOISE_DEFER_CAP_S = float(os.environ.get("LIVE_NOISE_DEFER_CAP_S", "0") or 0)    # (A) 전사 없이 이만큼 지나면 소리로 무음 시계를 안 미룬다
 NOISE_NOTE_S = float(os.environ.get("LIVE_NOISE_NOTE_S", "0") or 0)              # (C) 전사 없이 이만큼 + 소리 계속 → «시끄럽다» 텍스트 턴
 NOISE_NOTE_MAX = 2
+# PM-DEC-1013 — 최근 이만큼 안에 학습자 목소리(적응 게이트가 말로 인정 · 게이트 없으면 0.02 프레임)가 있었으면 «시끄럽다» 를 안 넣는다.
+#   holdgate 2525·2529·2533·2539: 학습자가 14~18초 긴 답을 하는 중(전사는 끝에 몰려 옴)에 C30 이 나가 이중 발화.
+NOISE_NOTE_VOICE_QUIET_S = float(os.environ.get("LIVE_NOISE_NOTE_VOICE_QUIET_S", "3.0") or 3.0)
 NOISE_STREAM_END_S = float(os.environ.get("LIVE_NOISE_STREAM_END_S", "0") or 0)  # (B) 측정 전용 audio_stream_end
 NOISE_VOICE_RECENT_S = 3.0      # «소리가 계속 온다» = 마지막 소리 프레임이 이 안
 MIC_RMS_LOG = os.environ.get("LIVE_MIC_RMS_LOG", "0") == "1"
@@ -8105,8 +8108,9 @@ async def _noise_guard(session: LiveSessionProtocol, state: _CallState, voice_ts
                 raise
             except Exception as exc:  # noqa: BLE001 — 측정 신호 실패는 통화 무영향
                 logger.warning("normalcall 소음: audio_stream_end 실패(무시): %s", exc)
+    recent_voice = state.ag_loud_ts if AGATE else (state.user_voice_ts or 0.0)
     if (NOISE_NOTE_S > 0 and sounding and since >= NOISE_NOTE_S and state.noise_note_count < NOISE_NOTE_MAX
-            and now - state.noise_note_ts >= NOISE_NOTE_S):
+            and now - state.noise_note_ts >= NOISE_NOTE_S and now - recent_voice >= NOISE_NOTE_VOICE_QUIET_S):
         if await _inject_nudge(session, state, _NOISE_NOTE_SEED):
             state.noise_note_count += 1
             state.noise_note_ts = now
