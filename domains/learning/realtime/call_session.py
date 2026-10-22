@@ -6600,7 +6600,9 @@ def _reply_hold_track_voice(state: "_CallState", data: bytes) -> None:
 
 def _reply_hold_eligible(state: "_CallState") -> bool:
     """보류 대상 턴 — 학습자 말 뒤 평소 대화만. 첫 인사·종료·레벨테스트·클립·이중 발화 가드 중은 종전대로 바로 보낸다."""
-    return (REPLY_HOLD_S > 0 and state.learner_spoke and not state.should_close and not state.close_seed_sent
+    # 학습자 전사는 답과 같이 늦게 올 수 있다(3.x · 2488) — 인사가 끝난 뒤 학습자 목소리가 났으면 말한 것으로 본다.
+    spoke = state.learner_spoke or (state.beaver_turns >= 1 and state.hold_voice_ts is not None)
+    return (REPLY_HOLD_S > 0 and spoke and not state.should_close and not state.close_seed_sent
             and not state.is_leveltest and not state.clip_expr and state.midcall_echo_turn is None
             and state.leveltest_cut_turn is None and not _midcall_echo_guard_active(state))
 
@@ -7069,7 +7071,7 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
             _flush_beaver_segment(state)
             # ⭐⭐ **벙어리 인사 재시드**(2026-08-27 실측). 자세한 근거는 아래 함수 주석.
             _log_reseed_result(state, turn_pcm_bytes)   # P5 — 직전 재시드가 소리를 냈나(한 줄)
-            reseeded_now = _greeting_was_mute(state, turn_pcm_bytes)
+            reseeded_now = _greeting_was_mute(state, turn_pcm_bytes, turn_text)
             if reseeded_now and await _greeting_tts_fallback(client_ws, state, turn_text):
                 reseeded_now = False      # 인사를 TTS 로 들려줬다 — 재시드 없이 학습자 차례로
             elif reseeded_now:
@@ -7187,7 +7189,7 @@ def _greeting_subtitle_on_hold(state: _CallState) -> bool:
     )
 
 
-def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
+def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int, turn_text: Optional[str] = None) -> bool:
     """방금 끝난 턴이 **소리 없는 첫 인사**였나.
 
     ## 무엇을 보고 판정하나
@@ -7231,6 +7233,11 @@ def _greeting_was_mute(state: _CallState, turn_pcm_bytes: int) -> bool:
         16:04:03 걸기 → 벙어리 → 끊음 / 16:04:22 다시 걸기 → 또 벙어리
     실측 3쌍이 3번 다 그랬다. "다시 걸어보세요"는 답이 아니다.
     """
+    # ⛔ 2026-10-22(hold1500b 2488): 학습자 첫 답 전사가 늦게 오는 사이 Live 가 출력 0 으로 버린 빈 생성
+    #   («열린 턴 없음 · 0B») 의 turn_end 를 벙어리 인사로 오판해 인사를 다시 시켰다 → 학습자 말 끊김 + 이중 답.
+    #   벙어리 인사는 **전사는 있고 소리만 없는** 턴이다(위 실측 109자). 전사도 없으면 빈 생성이다 — 재시드하지 않는다.
+    if turn_text is not None and not turn_text.strip():
+        return False
     return (
         state.session_epoch == 1        # 재개 세대엔 선톡 자체가 없다
         and getattr(state, "greeting_reseeds", 0) < (PERTURN_GREETING_RESEED_MAX if getattr(state, "ctx", None) is not None
