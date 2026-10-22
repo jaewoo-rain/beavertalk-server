@@ -398,6 +398,15 @@ AGATE_TAIL_S = 0.4
 AGATE_TAIL_RATIO = 0.5
 AGATE_HIST_N = 500              # 배경 표본(프레임) — 초당 수십 프레임이라 약 10초
 AGATE_RECALC_EVERY = 25
+# PM-DEC-1018 — holdgate4: 조용한 방에선 학습자 목소리가 배경 표본의 p95 가 돼 문턱(×1.4)이 목소리 위로 올라간다
+#   → 말 인정 1 · 목소리가 무음으로 가 전사가 안 오고 · 답이 «아무도 안 물었다» 로 버려졌다(2632 · 62초 무응답).
+#   문턱 상한 = 배경 하위 20% 값 × 이 값(TV 처럼 늘 깔린 소리는 그 값이 높아 종전 p95 문턱이 그대로 남는다).
+#   중앙값이 아닌 하위 20% — 비버 재생 중 마이크는 안 재므로 듣는 구간의 절반 이상이 학습자 목소리일 수 있다.
+AGATE_MED_MULT = float(os.environ.get("LIVE_NOISE_AGATE_MED_MULT", "5.0") or 0)
+# 보류한 답을 «아무도 안 물었다» 로 버리기 전에 직접 본다 — 직전 비버 턴 뒤 마이크에 배경보다 확실히 큰 소리가
+#   (배경 하위 20% 값 × 3) 모두 합쳐 이만큼(초) 있었으면 학습자가 말한 것으로 보고 내보낸다(전사가 늦거나 없어도).
+UNPROMPTED_VOICED_S = float(os.environ.get("LIVE_REPLY_HOLD_UNPROMPTED_VOICED_S", "0.5") or 0)
+UNPROMPTED_BG_MULT = 3.0
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -837,6 +846,7 @@ class _CallState:
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
         "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets",   # 적응 게이트
+        "ag_bg", "voiced_since_end",   # PM-DEC-1018
         "server_turn_ts", "beaver_end_onsets", "hold_dropped",   # PM-DEC-1015
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
@@ -1065,6 +1075,8 @@ class _CallState:
         self.ag_loud_ts = 0.0
         self.ag_pre: list = []            # (시각, 원음) — 말 시작 인정 때 앞 0.3초를 다시 보낸다
         self.ag_onsets = 0
+        self.ag_bg = 0.0                  # PM-DEC-1018 — 배경 표본 하위 20% 값
+        self.voiced_since_end = 0.0       # 직전 비버 턴 끝 뒤 «배경보다 확실히 큰» 마이크 소리 합(초)
         self.server_turn_ts = 0.0          # PM-DEC-1015 — 서버가 마지막으로 텍스트 턴을 연 시각
         self.beaver_end_onsets = 0         # 마지막 비버 턴 끝 때의 «말 인정» 수
         self.hold_dropped = 0
@@ -6750,7 +6762,9 @@ def _reply_unprompted(state: "_CallState") -> bool:
     if be is None:
         return False                        # 첫 인사 전 — 판정 안 함
     voice = (state.ag_onsets > state.beaver_end_onsets) if AGATE else ((state.user_voice_ts or 0.0) > be)
-    return not (voice or state.user_turn_open or state.server_turn_ts > be)
+    # PM-DEC-1018 — 게이트가 말로 인정 못 했어도 마이크에 배경보다 큰 소리가 충분히 있었으면 학습자가 말했다
+    heard = AGATE and UNPROMPTED_VOICED_S > 0 and state.voiced_since_end >= UNPROMPTED_VOICED_S
+    return not (voice or heard or state.user_turn_open or state.server_turn_ts > be)
 
 
 def _reply_hold_poll(state: "_CallState") -> list:
@@ -6766,6 +6780,8 @@ def _reply_hold_poll(state: "_CallState") -> list:
         _reply_hold_discard(state, "resumed", now)
         return []
     if REPLY_HOLD_DROP_UNPROMPTED and _reply_unprompted(state):
+        logger.info("normalcall 답 보류 unprompted: call_id=%s 소리합=%.2fs 배경하위20=%.4f 문턱=%.4f 말인정 %d→%d",
+                    _cid(state), state.voiced_since_end, state.ag_bg, state.ag_thr, state.beaver_end_onsets, state.ag_onsets)
         _reply_hold_discard(state, "unprompted", now)
         state.hold_dropped += 1
         return []
@@ -7845,6 +7861,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         state.last_activity_ts = asyncio.get_running_loop().time()
         state.beaver_end_ts = state.last_activity_ts   # PM-DEC-998 — «전사 없는 시간» 의 기준
         state.beaver_end_onsets = state.ag_onsets       # PM-DEC-1015 — 이 뒤 말 인정이 늘었나
+        state.voiced_since_end = 0.0                    # PM-DEC-1018 — 이 뒤 마이크 소리 합
 
     return turn_started
 
@@ -8180,6 +8197,8 @@ def _agate(state: _CallState, data: bytes) -> list:
     r = frame_rms(data)
     now = asyncio.get_running_loop().time()
     thr = state.ag_thr
+    if r >= max(AGATE_FLOOR, UNPROMPTED_BG_MULT * state.ag_bg):
+        state.voiced_since_end += len(data) / float(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)   # PM-DEC-1018
     if state.ag_speaking:
         if r >= thr * AGATE_TAIL_RATIO:
             state.ag_loud_ts = now
@@ -8210,7 +8229,10 @@ def _agate(state: _CallState, data: bytes) -> list:
     state.ag_n += 1
     if state.ag_n % AGATE_RECALC_EVERY == 0 and len(state.ag_hist) >= 50:
         srt = sorted(state.ag_hist)
-        state.ag_thr = max(AGATE_FLOOR, AGATE_K * srt[int(len(srt) * 0.95) - 1])
+        state.ag_bg = srt[len(srt) // 5]
+        p95 = AGATE_K * srt[int(len(srt) * 0.95) - 1]
+        # PM-DEC-1018 — 학습자 목소리가 p95 를 끌어올려도 문턱이 배경 하위 20% × AGATE_MED_MULT 를 넘지 않게
+        state.ag_thr = max(AGATE_FLOOR, min(p95, AGATE_MED_MULT * state.ag_bg) if AGATE_MED_MULT > 0 else p95)
     state.gate_zeroed += 1
     return [_zeros(len(data))]
 
