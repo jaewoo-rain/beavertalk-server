@@ -6666,6 +6666,10 @@ def _reply_hold_poll(state: "_CallState") -> list:
         return []
     last_voice = state.hold_voice_ts or 0.0
     quiet = now - last_voice if last_voice else float("inf")
+    spoken = any(getattr(e, "kind", None) in ("audio", "out_tr") for e in held)
+    if not spoken and age < REPLY_HOLD_MAX_S:
+        # 표정 마커만 붙잡혀 있다 — 답이 아직 안 나왔다(set_face 뒤 0B 로 버리는 빈 생성 · hold1500 2470). 답이 올 때까지 둔다.
+        return []
     if quiet >= REPLY_HOLD_S:
         why = "quiet"
     elif age >= REPLY_HOLD_MAX_S:
