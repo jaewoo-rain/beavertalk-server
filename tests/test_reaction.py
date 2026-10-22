@@ -211,3 +211,18 @@ def test_gate_carries_over_fragments_of_same_call(rx_on):
     assert reaction.gate(b) is g and g.counts["wrong"] == 1
     c = SimpleNamespace(rx_gate=None, call_id=100)
     assert reaction.gate(c) is not g
+
+
+@pytest.mark.asyncio
+async def test_judge_timing_note_and_log(caplog):
+    st = SimpleNamespace(jt_in_tr_ts=None, jt_reply_ts=None, turn_id=None, hold_events=None, call_id=5)
+    call_session._jt_note(st, SimpleNamespace(kind="in_tr", text="안녕"))
+    call_session._jt_note(st, SimpleNamespace(kind="audio", text=None))
+    assert st.jt_in_tr_ts is not None and st.jt_reply_ts is not None
+    st.hold_events = []
+    t = st.jt_reply_ts
+    call_session._jt_note(st, SimpleNamespace(kind="audio", text=None))
+    assert st.jt_reply_ts == t                                     # 붙잡힌 답의 뒤 조각은 도착 시각을 덮지 않는다
+    with caplog.at_level("INFO"):
+        call_session._jt_log(st, 1, False, (t - 2.0, t - 0.5, t), 1200, True)
+    assert ("필요대기_ms=700" in caplog.text or "필요대기_ms=699" in caplog.text) and "말끝→답도착_ms=2000" in caplog.text
