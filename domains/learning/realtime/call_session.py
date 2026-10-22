@@ -376,6 +376,12 @@ NOISE_STREAM_END_S = float(os.environ.get("LIVE_NOISE_STREAM_END_S", "0") or 0) 
 NOISE_VOICE_RECENT_S = 3.0      # «소리가 계속 온다» = 마지막 소리 프레임이 이 안
 MIC_RMS_LOG = os.environ.get("LIVE_MIC_RMS_LOG", "0") == "1"
 MIC_RMS_LOG_EVERY_S = 10.0
+# PM-DEC-1005 — (D) 서버 소음 게이트 · (C) 배경 소리 판정
+NOISE_GATE_RMS = float(os.environ.get("LIVE_NOISE_GATE_RMS", "0") or 0)          # 0 = 끔
+NOISE_GATE_HANG_S = float(os.environ.get("LIVE_NOISE_GATE_HANG_S", "0.4") or 0.4)
+NOISE_AMBIENT_RMS = float(os.environ.get("LIVE_NOISE_AMBIENT_RMS", "0.003") or 0.003)
+NOISE_AMBIENT_RATIO = 0.5
+_ZERO_FRAMES: dict = {}
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -813,6 +819,7 @@ class _CallState:
         "hold_resumed", "hold_drop_end", "hold_turn_live", "hold_turn_bytes", "hold_release_ts", "reply_mute_until", "hold_next",
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
+        "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
@@ -1028,6 +1035,10 @@ class _CallState:
         self.mic_max = 0.0
         self.mic_loud = 0
         self.mic_log_ts = 0.0
+        self.ambient_ema = 0.0            # PM-DEC-1005 — 배경 문턱을 넘은 프레임 비율(지수평균)
+        self.ambient_ts = 0.0             # 마지막으로 마이크 프레임을 본 시각
+        self.gate_voice_ts = 0.0          # 게이트 — 마지막 목소리 프레임 시각
+        self.gate_zeroed = 0              # 게이트가 0 으로 바꾼 프레임 수(계측)
         self.reply_mute_until = 0.0               # 이 시각까지 마이크를 Live 로 안 보낸다(들리는 답을 소음이 못 끊게)
         self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
         self.midcall_echo_until = 0.0     # PM-DEC-977 — 이 시각 전(루프 시계)엔 학습자 말 없이 온 새 비버 턴을 보내지 않는다
@@ -6528,6 +6539,8 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                     state.user_voice_ts = asyncio.get_running_loop().time()
                 if REPLY_HOLD_S > 0:
                     _reply_hold_track_voice(state, data)
+                if NOISE_NOTE_S > 0 or MIC_RMS_LOG:
+                    _ambient_track(state, data)  # PM-DEC-1005 — (C) 배경 소리 판정 재료
                 if MIC_RMS_LOG:
                     _mic_rms_stat(state, data)   # PM-DEC-998 — 서버가 받은 마이크 소리 크기 10초 요약   # PM-DEC-993 — 답 보류 해제 판정 재료
                 if state.ctx is not None and state.ctx.has_next and state.hold_events is None:
@@ -6544,7 +6557,7 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                 #   — `_attach_reground` at_mic 가드, C2 QA①). 모드 조건은 **쪽지 자리에만**
                 #   건다(`_attach_reground` 안, at_mic 인데 mic_open 모드가 아니면 쪽지만 건너뜀).
                 await _maybe_attach_reground_on_mic(session, state, data)
-                await session.send_audio(data)
+                await session.send_audio(_noise_gate(state, data) if NOISE_GATE_RMS > 0 else data)   # PM-DEC-1005 (D)
                 state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
                 continue
             text = message.get("text")
@@ -6619,7 +6632,8 @@ def _reply_hold_track_voice(state: "_CallState", data: bytes) -> None:
     """PM-DEC-993 — 소음 바닥을 따라가며 학습자 목소리 프레임 시각을 잰다(TV·잡음이 계속되면 바닥이 올라간다)."""
     r = frame_rms(data)
     floor = state.hold_noise_floor
-    state.hold_noise_floor = r if (floor <= 0 or r < floor) else floor + (r - floor) * 0.002   # 빨리 내리고 천천히(약 10초) 올린다
+    # PM-DEC-1005 — 내려갈 때도 서서히(5%) · 0 프레임 한 번에 바닥이 0 으로 붙지 않게(call flow 2501·2503 «바닥=0»)
+    state.hold_noise_floor = r if floor <= 0 else floor + (r - floor) * (0.05 if r < floor else 0.002)   # 빨리 내리고 천천히(약 10초) 올린다
     if r >= max(REGROUND_VOICE_RMS, floor * REPLY_HOLD_NOISE_MULT):
         state.hold_voice_ts = asyncio.get_running_loop().time()
 
@@ -8055,7 +8069,8 @@ async def _noise_guard(session: LiveSessionProtocol, state: _CallState, voice_ts
         return voice_ts, False
     now = asyncio.get_running_loop().time()
     since = now - state.beaver_end_ts
-    sounding = voice_ts > state.beaver_end_ts and now - voice_ts <= NOISE_VOICE_RECENT_S
+    # PM-DEC-1005 — 목소리 문턱(0.02)이 아니라 배경 문턱 비율로 본다(TV 실측 0.005~0.010 · 조용한 방은 그 아래)
+    sounding = state.ambient_ema >= NOISE_AMBIENT_RATIO and now - state.ambient_ts <= NOISE_VOICE_RECENT_S
     if NOISE_STREAM_END_S > 0 and sounding and since >= NOISE_STREAM_END_S and state.noise_stream_end_at != state.beaver_end_ts:
         state.noise_stream_end_at = state.beaver_end_ts
         fn = getattr(session, "send_audio_stream_end", None)
@@ -8085,6 +8100,29 @@ async def _noise_guard(session: LiveSessionProtocol, state: _CallState, voice_ts
     return voice_ts, False
 
 
+def _ambient_track(state: _CallState, data: bytes) -> None:
+    """PM-DEC-1005 — 배경 문턱(LIVE_NOISE_AMBIENT_RMS)을 넘는 프레임 비율의 지수평균(초당 수십 프레임 · 약 2초 시상수)."""
+    hit = 1.0 if frame_rms(data) >= NOISE_AMBIENT_RMS else 0.0
+    state.ambient_ema = state.ambient_ema * 0.98 + hit * 0.02
+    state.ambient_ts = asyncio.get_running_loop().time()
+
+
+def _noise_gate(state: _CallState, data: bytes) -> bytes:
+    """PM-DEC-1005 (D) — 작은 소리(TV 배경 등)는 Live 에 무음으로 보낸다 · 목소리 뒤 잠깐은 그대로(말꼬리 보호)."""
+    r = frame_rms(data)
+    now = asyncio.get_running_loop().time()
+    if r >= REGROUND_VOICE_RMS:
+        state.gate_voice_ts = now
+        return data
+    if r >= NOISE_GATE_RMS or now - state.gate_voice_ts <= NOISE_GATE_HANG_S:
+        return data
+    state.gate_zeroed += 1
+    z = _ZERO_FRAMES.get(len(data))
+    if z is None:
+        z = _ZERO_FRAMES[len(data)] = bytes(len(data))
+    return z
+
+
 def _mic_rms_stat(state: _CallState, data: bytes) -> None:
     """PM-DEC-998 — 서버가 받은 마이크 RMS 를 모아 10초마다 한 줄(실기기 TV 소리 크기 · 값은 0~1 정규화)."""
     r = frame_rms(data)
@@ -8100,6 +8138,7 @@ def _mic_rms_stat(state: _CallState, data: bytes) -> None:
         logger.info("normalcall 마이크 RMS: call_id=%s n=%d 평균=%.4f 최대=%.4f 문턱넘음=%.0f%% 바닥=%.4f",
                     _cid(state), state.mic_n, state.mic_sum / state.mic_n, state.mic_max,
                     100.0 * state.mic_loud / state.mic_n, state.hold_noise_floor)
+        logger.info("normalcall 마이크 배경: call_id=%s 배경비율=%.2f 게이트0=%d", _cid(state), state.ambient_ema, state.gate_zeroed)
         state.mic_n, state.mic_sum, state.mic_max, state.mic_loud, state.mic_log_ts = 0, 0.0, 0.0, 0, now
 
 
