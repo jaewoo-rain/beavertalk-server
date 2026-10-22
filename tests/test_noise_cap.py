@@ -301,16 +301,24 @@ def test_voiced_since_beaver_end_counts_loud_frames(monkeypatch):
 
 
 def test_agate_cap_only_in_quiet_room_tv_keeps_p95(monkeypatch):
-    """holdgate5: 상한이 TV 방에도 걸려 TV 조각이 말로 인정됐다 — 배경 하위 20% 가 0.003 이상(TV)이면 종전 p95 문턱."""
-    clock = _Clock()
-    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
-    st = cs._CallState()
-    for i in range(600):                                   # TV 배경 0.004 + 봉우리 0.03
-        lv = 0.03 if i % 50 in (0, 1, 2) else 0.004
-        clock.t += 0.02
-        assert cs._agate(st, _pcm(lv)) == [bytes(640)], (i, st.ag_thr)
-    assert st.ag_bg >= cs.AGATE_QUIET_BG and st.ag_thr >= 0.03 * cs.AGATE_K * 0.99, (st.ag_bg, st.ag_thr)
-    assert st.ag_onsets == 0
+    """holdgate5·6: TV 방에도 상한이 걸려 TV 조각이 말로 인정됐다(TV 도 말 사이가 비어 하위 20% 가 낮다).
+    배경 소리 비율이 TV(≥0.55)면 종전 p95 문턱 · 조용한 방이면 상한."""
+    def run(ambient):
+        clock = _Clock()
+        monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+        st = cs._CallState()
+        st.ambient_ema = ambient
+        for i in range(600):                               # TV: 말 사이 빈 구간 0.001 · 말 0.004 · 봉우리 0.03
+            k = i % 50
+            lv = 0.03 if k in (0, 1, 2) else (0.001 if k >= 35 else 0.004)
+            clock.t += 0.02
+            cs._agate(st, _pcm(lv))
+        return st
+    tv = run(0.8)
+    assert tv.ag_bg < 0.003                                # 하위 20% 로는 못 가르는 꼴(holdgate6)
+    assert tv.ag_thr >= 0.03 * cs.AGATE_K * 0.99 and tv.ag_onsets == 0, (tv.ag_bg, tv.ag_thr)
+    quiet = run(0.1)
+    assert quiet.ag_thr < 0.03                              # 조용한 방 판정이면 상한(학습자 목소리를 막지 않게)
 
 
 def test_tv_peaks_below_gate_do_not_count_as_voice(monkeypatch):
