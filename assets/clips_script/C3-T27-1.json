@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T27-1",
+ "no": 409,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 회사 분위기는 좀 어때요?",
+   "beaver_en": "How's the mood at your company these days?",
+   "beaver_roman": "Yojeum hoesa bunwigineun jom eottaeyo?",
+   "learner": "솔직히 노사 갈등 때문에 좀 시끄러워요.",
+   "en": "Honestly, it's a bit chaotic because of labor-management conflict.",
+   "roman": "Soljjiki nosa galdeung ttaemune jom sikkeureowoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 경영진은 어떤 입장이에요?",
+   "beaver_en": "Really? What's management's position?",
+   "beaver_roman": "Geuraeyo? Gyeongyeongjineun eotteon ipjangieyo?",
+   "learner": "경영진은 일감이 줄어서 인건비를 줄이겠대요.",
+   "en": "Management says there's less work, so they'll cut labor costs.",
+   "roman": "Gyeongyeongjineun ilkkami jureoseo inkkeonbireul jurigetdaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "직원들 반응은 어때요?",
+   "beaver_en": "How are the employees reacting?",
+   "beaver_roman": "Jigwondeul baneungeun eottaeyo?",
+   "learner": "말단 직원들은 파업까지 하자고 해요.",
+   "en": "The junior staff are even calling for a strike.",
+   "roman": "Maldan jigwondeureun paeopkkaji hajago haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "파업이요? 일이 그렇게 심각해요?",
+   "beaver_en": "A strike? Is it that serious?",
+   "beaver_roman": "Paeobiyo? Iri geureoke simgakaeyo?",
+   "learner": "심각하다고 할 것까지는 없지만 불만이 커요.",
+   "en": "It's not so much serious, but there's a lot of frustration.",
+   "roman": "Simgakadago hal geotkkajineun eopjiman bulmani keoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "주로 어떤 불만이 있는데요?",
+   "beaver_en": "What are the main complaints?",
+   "beaver_roman": "Juro eotteon bulmani inneundeyo?",
+   "learner": "업무 분담이 불공평하고 공로도 인정을 안 해 줘요.",
+   "en": "Work is divided unfairly, and our contributions aren't recognized.",
+   "roman": "Eommu bundami bulgongpyeonghago gongnodo injeongeul an hae jwoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "팀장님한테 말해 보지 그랬어요?",
+   "beaver_en": "Why not talk to your team leader?",
+   "beaver_roman": "Timjangnimhante malhae boji geuraesseoyo?",
+   "learner": "직속 상사에게 말할라치면 늘 바쁘다고 해요.",
+   "en": "Whenever I try to talk to my direct boss, he says he's busy.",
+   "roman": "Jikssok sangsaege malhallachimyeon neul bappeudago haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그나저나 지금 무슨 일을 맡고 있어요?",
+   "beaver_en": "By the way, what are you in charge of now?",
+   "beaver_roman": "Geunajeona jigeum museun ireul matkko isseoyo?",
+   "learner": "저는 신규 고객 관리를 전담하고 있어요.",
+   "en": "I'm solely in charge of managing new clients.",
+   "roman": "Jeoneun singyu gogaek gwallireul jeondamhago isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 일이 꽤 많겠네요.",
+   "beaver_en": "Then you must have quite a lot of work.",
+   "beaver_roman": "Geureom iri kkwae mankenneyo.",
+   "learner": "네, 혼자 하니까 일이 엄청 많아요.",
+   "en": "Yes, I do it alone, so I have a ton of work.",
+   "roman": "Ne, honja hanikka iri eomcheong manayo."
+  },
+  {
+   "n": 9,
+   "beaver": "파업하면 같이 참여할 거예요?",
+   "beaver_en": "If there's a strike, will you join?",
+   "beaver_roman": "Paeopamyeon gachi chamyeohal kkeoyeyo?",
+   "learner": "설사 파업을 한다고 해도 일은 해야죠.",
+   "en": "Even if there is a strike, I still have to work.",
+   "roman": "Seolsa paeobeul handago haedo ireun haeyajyo."
+  },
+  {
+   "n": 10,
+   "beaver": "얼른 노사가 잘 해결했으면 좋겠네요.",
+   "beaver_en": "I hope labor and management settle it soon.",
+   "beaver_roman": "Eolleun nosaga jal haegyeolhaesseumyeon jokenneyo.",
+   "learner": "네, 하루빨리 합의했으면 좋겠어요.",
+   "en": "Yes, I hope they reach an agreement as soon as possible.",
+   "roman": "Ne, haruppalli habihaesseumyeon jokesseoyo."
+  }
+ ]
+}

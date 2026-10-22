@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T57-1",
+ "no": 390,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "팀장님, 부르셨습니까? 평가 결과 때문인가요?",
+   "beaver_en": "You called me? Is it about my evaluation?",
+   "beaver_roman": "Timjangnim, bureusyeotseumnikka? Pyeongkka gyeolgwa ttaemuningayo?",
+   "learner": "네, 상반기 업무 태도 평가를 전하려고 해요.",
+   "en": "Yes, I want to share your first-half work attitude review.",
+   "roman": "Ne, sangbangi eommu taedo pyeongkkareul jeonharyeogo haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 말씀해 주십시오. 조금 긴장됩니다.",
+   "beaver_en": "Please go ahead. I'm a little nervous.",
+   "beaver_roman": "Ne, malsseumhae jusipsio. Jogeum ginjangdoemnida.",
+   "learner": "전체적으로 맡은 일에 충실했다고 봐요.",
+   "en": "Overall, I think you were faithful to your duties.",
+   "roman": "Jeonchejeogeuro mateun ire chungsilhaetdago bwayo."
+  },
+  {
+   "n": 3,
+   "beaver": "감사합니다. 더 말씀해 주실 점이 있습니까?",
+   "beaver_en": "Thank you. Is there anything else?",
+   "beaver_roman": "Gamsahamnida. Deo malsseumhae jusil jjeomi itseumnikka?",
+   "learner": "회의에서 능동적이고 주도적인 모습이 좋았어요.",
+   "en": "You were proactive and took the lead in meetings.",
+   "roman": "Hoeuieseo neungdongjeogigo judojeogin moseubi joasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "태도와 의지에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about my attitude and drive?",
+   "beaver_roman": "Taedowa uijie daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "일에 대한 의지가 강하고 적극적이었어요.",
+   "en": "You showed strong drive and were very proactive.",
+   "roman": "Ire daehan uijiga ganghago jeokgeukjjeogieosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 의견은 없습니까? 부족한 점도 듣고 싶습니다.",
+   "beaver_en": "Anything else? I'd like to hear my weak points too.",
+   "beaver_roman": "Dareun uigyeoneun eopseumnikka? Bujokan jeomdo deutgo sipseumnida.",
+   "learner": "가끔 성과를 뽐내는 듯 보여서 아쉬웠어요.",
+   "en": "Sometimes you seemed to show off your results.",
+   "roman": "Gakkeum seongkkwareul ppomnaeneun deut boyeoseo aswiwosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "아, 그렇게 보였군요. 고치겠습니다.",
+   "beaver_en": "Oh, it looked that way. I'll fix it.",
+   "beaver_roman": "A, geureoke boyeotgunyo. Gochigetseumnida.",
+   "learner": "말할 때 조금 더 신중하면 좋지 않을까 해요.",
+   "en": "I wonder if being a bit more prudent when speaking would help.",
+   "roman": "Malhal ttae jogeum deo sinjunghamyeon jochi aneulkka haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 다른 주의할 점도 있을까요?",
+   "beaver_en": "Is there anything else I should watch out for?",
+   "beaver_roman": "Hoksi dareun juuihal jjeomdo isseulkkayo?",
+   "learner": "무분별한 약속은 자제하는 게 좋겠어요.",
+   "en": "You should hold back from careless promises.",
+   "roman": "Mubunbyeolhan yaksogeun jajehaneun ge jokesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 일정을 너무 많이 잡았던 것 같습니다.",
+   "beaver_en": "Yes, I think I took on too many commitments.",
+   "beaver_roman": "Ne, iljjeongeul neomu mani jabatdeon geot gatseumnida.",
+   "learner": "그래도 일 처리는 늘 깔끔해서 믿음이 가요.",
+   "en": "Still, your work is always neat, so I trust you.",
+   "roman": "Geuraedo il cheorineun neul kkalkkeumhaeseo mideumi gayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그렇게 봐 주셔서 정말 감사합니다.",
+   "beaver_en": "Thank you so much for seeing it that way.",
+   "beaver_roman": "Geureoke bwa jusyeoseo jeongmal gamsahamnida.",
+   "learner": "창조적인 능력 계발에도 힘써 주길 바라요.",
+   "en": "I hope you'll also work on developing your creative skills.",
+   "roman": "Changjojeogin neungnyeok gyebaredo himsseo jugil barayo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 더 노력하겠습니다. 말씀 감사합니다.",
+   "beaver_en": "I'll work harder. Thank you for your feedback.",
+   "beaver_roman": "Ne, deo noryeokagetseumnida. Malsseum gamsahamnida.",
+   "learner": "기대할게요. 이번 달 하순에 다시 이야기해요.",
+   "en": "I'm counting on you. Let's talk again late this month.",
+   "roman": "Gidaehalkkeyo. Ibeon dal hasune dasi iyagihaeyo."
+  }
+ ]
+}

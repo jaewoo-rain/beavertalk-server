@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T31-1",
+ "no": 185,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 민준 씨. 오늘 몸 상태는 어때요?",
+   "beaver_en": "Hello, Minjun. How are you feeling today?",
+   "beaver_roman": "annyeonghaseyo, minjun ssi. oneul mom sangtaeneun eottaeyo?",
+   "learner": "어제 줄넘기를 오래 했더니 다리가 아파요.",
+   "en": "I jumped rope for a long time yesterday, and now my legs hurt.",
+   "roman": "eoje julleomkkireul orae haetdeoni dariga apayo."
+  },
+  {
+   "n": 2,
+   "beaver": "운동량이 많았나 봐요. 몇 분 했어요?",
+   "beaver_en": "You must have exercised a lot. How many minutes?",
+   "beaver_roman": "undongnyangi mananna bwayo. myeot bun haesseoyo?",
+   "learner": "한 시간쯤요. 얼마나 힘들었는지 몰라요.",
+   "en": "About an hour. You have no idea how hard it was.",
+   "roman": "han sigan jjeumyo. eolmana himdeureonneunji mollayo."
+  },
+  {
+   "n": 3,
+   "beaver": "한 시간은 무리예요. 처음엔 이십 분이 좋아요.",
+   "beaver_en": "An hour is too much. Twenty minutes is good at first.",
+   "beaver_roman": "han siganeun murieyo. cheoeumen isip buni joayo.",
+   "learner": "제가 아직 체력이 약한가 봐요.",
+   "en": "I guess my stamina is still weak.",
+   "roman": "jega ajik cheryeogi yakanga bwayo."
+  },
+  {
+   "n": 4,
+   "beaver": "괜찮아요. 오늘은 기구 운동을 가볍게 해요.",
+   "beaver_en": "That's okay. Today let's do light machine exercises.",
+   "beaver_roman": "gwaenchanayo. oneureun gigu undongeul gabyeopge haeyo.",
+   "learner": "좋아요. 그런데 어떤 기구가 좋아요?",
+   "en": "Okay. But which machine is good?",
+   "roman": "joayo. geureonde eotteon giguga joayo?"
+  },
+  {
+   "n": 5,
+   "beaver": "자전거 기구가 좋아요. 무릎에 부담이 적어요.",
+   "beaver_en": "The exercise bike is good. It's easy on the knees.",
+   "beaver_roman": "jajeongeo giguga joayo. mureupe budami jeogeoyo.",
+   "learner": "아침에 조깅도 했더니 무릎이 좀 아파요.",
+   "en": "I also went jogging this morning, and my knees hurt a bit.",
+   "roman": "achime jogingdo haetdeoni mureupi jom apayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 오늘은 조깅을 쉬세요. 요가는 해 봤어요?",
+   "beaver_en": "Then skip jogging today. Have you tried yoga?",
+   "beaver_roman": "geureom oneureun jogingeul swiseyo. yoganeun hae bwasseoyo?",
+   "learner": "네, 요가를 했더니 몸이 가벼워졌어요.",
+   "en": "Yes, I did yoga and my body felt lighter.",
+   "roman": "ne, yogareul haetdeoni momi gabyeowojyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋네요. 요가는 근육을 풀어 줘서 좋아요.",
+   "beaver_en": "Nice. Yoga is good because it relaxes your muscles.",
+   "beaver_roman": "jonneyo. yoganeun geunyugeul pureo jwoseo joayo.",
+   "learner": "헬스클럽 요가 수업이 얼마나 좋은지 몰라요.",
+   "en": "You have no idea how good the gym's yoga class is.",
+   "roman": "helseukeulleop yoga sueobi eolmana joeunji mollayo."
+  },
+  {
+   "n": 8,
+   "beaver": "운동 후에는 사우나도 하세요. 피로가 풀려요.",
+   "beaver_en": "Use the sauna after working out too. It relieves fatigue.",
+   "beaver_roman": "undong hueneun saunado haseyo. piroga pullyeoyo.",
+   "learner": "어제 사우나를 했더니 잠을 잘 잤어요.",
+   "en": "I used the sauna yesterday and slept well.",
+   "roman": "eoje saunareul haetdeoni jameul jal jasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "많이 아프면 마사지를 받는 것도 좋아요.",
+   "beaver_en": "If it hurts a lot, getting a massage is good too.",
+   "beaver_roman": "mani apeumyeon masajireul banneun geotdo joayo.",
+   "learner": "그럼 사우나 후에 마사지를 받아 볼게요.",
+   "en": "Then I'll try getting a massage after the sauna.",
+   "roman": "geureom sauna hue masajireul bada bolgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네. 그럼 이제 자전거부터 천천히 타 볼까요?",
+   "beaver_en": "Okay. Now, shall we start slowly with the bike?",
+   "beaver_roman": "ne. geureom ije jajeongeobuteo cheoncheonhi ta bolkkayo?",
+   "learner": "네, 오늘은 운동량을 줄여서 천천히 할게요.",
+   "en": "Yes, I'll cut back today and take it slow.",
+   "roman": "ne, oneureun undongnyangeul juryeoseo cheoncheonhi halgeyo."
+  }
+ ]
+}

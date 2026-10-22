@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T06-1",
+ "no": 90,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "준호 씨, 우리 습관 같이 고치기로 했죠?",
+   "beaver_en": "Junho, we agreed to fix our habits together, right?",
+   "beaver_roman": "Junho ssi, uri seupgwan gachi gochigiro haetjyo?",
+   "learner": "네, 저는 낮잠 자는 버릇을 고치고 싶어요.",
+   "en": "Yes, I want to break my napping habit.",
+   "roman": "Ne, jeoneun natjam janeun beoreuseul gochigo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "낮잠을 얼마나 자요?",
+   "beaver_en": "How long do you nap?",
+   "beaver_roman": "Natjameul eolmana jayo?",
+   "learner": "오후마다 두 시간쯤 자요. 너무 심해요.",
+   "en": "About two hours every afternoon. It's too much.",
+   "roman": "Ohumada du siganjjeum jayo. Neomu simhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래서 밤에 잘 못 자요?",
+   "beaver_en": "So you can't sleep well at night?",
+   "beaver_roman": "Geuraeseo bame jal mot jayo?",
+   "learner": "네, 늦게 자서 아침에 못 일어나요.",
+   "en": "Yes, I sleep late, so I can't get up in the morning.",
+   "roman": "Ne, neutge jaseo achime mot ireonayo."
+  },
+  {
+   "n": 4,
+   "beaver": "아침마다 일찍 일어나는 게 어때요?",
+   "beaver_en": "How about getting up early every morning?",
+   "beaver_roman": "Achimmada iljjik ireonaneun ge eottaeyo?",
+   "learner": "좋아요. 일곱 시에 일어날게요.",
+   "en": "Okay. I'll get up at seven.",
+   "roman": "Joayo. Ilgop sie ireonalgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "수업 시간에도 졸아요?",
+   "beaver_en": "Do you doze off in class too?",
+   "beaver_roman": "Sueop siganedo jorayo?",
+   "learner": "네, 아무리 참아도 자주 졸아요.",
+   "en": "Yes, no matter how hard I try, I often doze off.",
+   "roman": "Ne, amuri chamado jaju jorayo."
+  },
+  {
+   "n": 6,
+   "beaver": "꿈도 많이 꿔요?",
+   "beaver_en": "Do you dream a lot, too?",
+   "beaver_roman": "Kkumdo mani kkwoyo?",
+   "learner": "네, 밤마다 이상한 꿈을 꿔요.",
+   "en": "Yes, I have strange dreams every night.",
+   "roman": "Ne, bammada isanghan kkumeul kkwoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "외출 전에 뭘 해요?",
+   "beaver_en": "What do you do before going out?",
+   "beaver_roman": "Oechul jeone mwol haeyo?",
+   "learner": "양치질하고 머리를 감아요. 시간이 오래 걸려요.",
+   "en": "I brush my teeth and wash my hair. It takes a long time.",
+   "roman": "Yangchijilhago meorireul gamayo. Sigani orae geollyeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "목욕은 언제 해요?",
+   "beaver_en": "When do you take a bath?",
+   "beaver_roman": "Mogyogeun eonje haeyo?",
+   "learner": "저녁마다 목욕해요. 아침엔 따로 안 해요.",
+   "en": "Every evening. I don't do it separately in the morning.",
+   "roman": "Jeonyeongmada mogyokaeyo. Achimen ttaro an haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "저는 자기 전에 휴대폰을 오래 봐요.",
+   "beaver_en": "I look at my phone for a long time before bed.",
+   "beaver_roman": "Jeoneun jagi jeone hyudaeponeul orae bwayo.",
+   "learner": "그럼 자기 전에 안 보는 게 어때요?",
+   "en": "Then how about not looking at it before bed?",
+   "roman": "Geureom jagi jeone an boneun ge eottaeyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 우리 내일부터 같이 해요!",
+   "beaver_en": "Good. Let's start together from tomorrow!",
+   "beaver_roman": "Joayo. Uri naeilbuteo gachi haeyo!",
+   "learner": "네, 좋은 습관을 만들기로 해요!",
+   "en": "Yes, let's decide to build good habits!",
+   "roman": "Ne, joeun seupgwaneul mandeulgiro haeyo!"
+  }
+ ]
+}

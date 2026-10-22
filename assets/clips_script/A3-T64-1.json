@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T64-1",
+ "no": 84,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 여행에 어디 가고 싶어요?",
+   "beaver_en": "Where do you want to go on this trip?",
+   "beaver_roman": "ibeon yeohaenge eodi gago sipeoyo?",
+   "learner": "저는 자연이 좋아요. 바다에 갔으면 좋겠어요.",
+   "en": "I like nature. I wish we could go to the sea.",
+   "roman": "jeoneun jayeoni joayo. badae gasseumyeon jokesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "바다 좋아요! 산은 어때요?",
+   "beaver_en": "The sea sounds good! How about mountains?",
+   "beaver_roman": "bada joayo! saneun eottaeyo?",
+   "learner": "산도 좋아요. 높은 산에 올라갔으면 좋겠어요.",
+   "en": "Mountains are good too. I'd love to climb a high mountain.",
+   "roman": "sando joayo. nopeun sane ollagasseumyeon jokesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "고개는 좀 힘들어요. 날씨는 어땠으면 좋겠어요?",
+   "beaver_en": "Passes are a bit tough. What weather do you hope for?",
+   "beaver_roman": "gogaeneun jom himdeureoyo. nalssineun eottaesseumyeon jokesseoyo?",
+   "learner": "하늘이 맑았으면 좋겠어요. 비가 안 왔으면 좋겠어요.",
+   "en": "I hope the sky is clear. I hope it doesn't rain.",
+   "roman": "haneuri malgasseumyeon jokesseoyo. biga an wasseumyeon jokesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "저도요. 그 산 아래에 호수도 있어요.",
+   "beaver_en": "Me too. There's also a lake below that mountain.",
+   "beaver_roman": "jeodoyo. geu san araee hosudo isseoyo.",
+   "learner": "와, 호수 좋아요! 강도 있었으면 좋겠어요.",
+   "en": "Wow, a lake is great! I wish there was a river too.",
+   "roman": "wa, hosu joayo! gangdo isseosseumyeon jokesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "강도 있어요. 강 옆에 돌이 많아요.",
+   "beaver_en": "There's a river too. There are lots of stones by it.",
+   "beaver_roman": "gangdo isseoyo. gang yeope dori manayo.",
+   "learner": "그럼 돌 위에 앉아서 쉬었으면 좋겠어요.",
+   "en": "Then I'd like to sit on a stone and rest.",
+   "roman": "geureom dol wie anjaseo swieosseumyeon jokesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "좋아요. 또 어떤 곳이었으면 좋겠어요?",
+   "beaver_en": "Nice. What else would you like the place to be like?",
+   "beaver_roman": "joayo. tto eotteon gosieosseumyeon jokesseoyo?",
+   "learner": "넓은 들판이 있고 가까웠으면 좋겠어요.",
+   "en": "I hope it has wide fields and isn't far.",
+   "roman": "neolbeun deulpani itgo gakkawosseumyeon jokesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 강원도는 어때요? 산, 바다, 호수가 다 있어요.",
+   "beaver_en": "Then how about Gangwon-do? It has mountains, sea, and lakes.",
+   "beaver_roman": "geureom gangwondoneun eottaeyo? san, bada, hosuga da isseoyo.",
+   "learner": "좋아요! 강원도에 갔으면 좋겠어요.",
+   "en": "Great! I'd love to go to Gangwon-do.",
+   "roman": "joayo! gangwondoe gasseumyeon jokesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "거기서 뭐 먹고 싶어요?",
+   "beaver_en": "What do you want to eat there?",
+   "beaver_roman": "geogiseo mwo meokgo sipeoyo?",
+   "learner": "떡을 먹었으면 좋겠어요. 튀긴 음식도요.",
+   "en": "I'd like to eat rice cakes. And fried food too.",
+   "roman": "tteogeul meogeosseumyeon jokesseoyo. twigin eumsikdoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 운전은 제가 할게요.",
+   "beaver_en": "Okay. I'll do the driving.",
+   "beaver_roman": "joayo. unjeoneun jega halgeyo.",
+   "learner": "고마워요. 사고 없이 잘 갔으면 좋겠어요.",
+   "en": "Thanks. I hope we get there safely without accidents.",
+   "roman": "gomawoyo. sago eopsi jal gasseumyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 다음 주 토요일에 가요!",
+   "beaver_en": "Then let's go next Saturday!",
+   "beaver_roman": "geureom daeum ju toyoire gayo!",
+   "learner": "네, 빨리 토요일이 됐으면 좋겠어요!",
+   "en": "Yes, I wish it were Saturday already!",
+   "roman": "ne, ppalli toyoiri dwaesseumyeon jokesseoyo!"
+  }
+ ]
+}

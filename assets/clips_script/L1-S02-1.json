@@ -1,0 +1,96 @@
+{
+ "lesson": "L1-S02-1",
+ "no": 2,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요! 몇 분이세요?",
+   "beaver_en": "Welcome! How many people?",
+   "beaver_roman": "eoseo oseyo! myeot buniseyo?",
+   "learner": "안녕하세요. 두 명이에요.",
+   "en": "Hello. There are two of us.",
+   "roman": "annyeonghaseyo. du myeongieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이쪽에 앉으세요. 메뉴 여기 있어요.",
+   "beaver_en": "Please sit here. Here's the menu.",
+   "beaver_roman": "ijjoge anjeuseyo. menyu yeogi isseoyo.",
+   "learner": "이거 얼마예요?",
+   "en": "How much is this?",
+   "roman": "igeo eolmayeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "비빔밥이요? 팔천 원이에요.",
+   "beaver_en": "The bibimbap? It's 8,000 won.",
+   "beaver_roman": "bibimbabiyo? palcheon wonieyo.",
+   "learner": "팔천 원이요? 이거 두 개 주세요.",
+   "en": "8,000 won? Two of these, please.",
+   "roman": "palcheon woniyo? igeo du gae juseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "네, 비빔밥 두 개요. 음료도 드릴까요?",
+   "beaver_en": "Okay, two bibimbap. Any drinks?",
+   "beaver_roman": "ne, bibimbap du gaeyo. eumnyodo deurilkkayo?",
+   "learner": "아니요. 물 주세요.",
+   "en": "No. Water, please.",
+   "roman": "aniyo. mul juseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "물은 저기 있어요. 셀프예요.",
+   "beaver_en": "Water is over there. It's self-serve.",
+   "beaver_roman": "mureun jeogi isseoyo. selpeuyeyo.",
+   "learner": "알겠어요. 감사합니다.",
+   "en": "Got it. Thank you.",
+   "roman": "algesseoyo. gamsahamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "비빔밥 나왔어요. 맛있게 드세요.",
+   "beaver_en": "Here's your bibimbap. Enjoy.",
+   "beaver_roman": "bibimbap nawasseoyo. masitge deuseyo.",
+   "learner": "와, 맛있어요! 정말 맛있어요.",
+   "en": "Wow, it's delicious! Really delicious.",
+   "roman": "wa, masisseoyo! jeongmal masisseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "만두도 있어요. 한 개에 천 원이에요.",
+   "beaver_en": "We have dumplings too. 1,000 won each.",
+   "beaver_roman": "mandudo isseoyo. han gaee cheon wonieyo.",
+   "learner": "그럼 만두 다섯 개 주세요.",
+   "en": "Then five dumplings, please.",
+   "roman": "geureom mandu daseot gae juseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 만두 다섯 개요. 금방 드릴게요.",
+   "beaver_en": "Okay, five dumplings. Coming right up.",
+   "beaver_roman": "ne, mandu daseot gaeyo. geumbang deurilgeyo.",
+   "learner": "여기요! 화장실이 어디예요?",
+   "en": "Excuse me! Where is the bathroom?",
+   "roman": "yeogiyo! hwajangsiri eodiyeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "저쪽이에요. 오른쪽 문이에요.",
+   "beaver_en": "Over there. It's the door on the right.",
+   "beaver_roman": "jeojjogieyo. oreunjjok munieyo.",
+   "learner": "네, 감사합니다.",
+   "en": "Okay, thank you.",
+   "roman": "ne, gamsahamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "다 드셨어요? 모두 이만 천 원이에요.",
+   "beaver_en": "All done? It's 21,000 won in total.",
+   "beaver_roman": "da deusyeosseoyo? modu iman cheon wonieyo.",
+   "learner": "네, 잘 먹었어요. 카드 여기 있어요.",
+   "en": "Yes, I enjoyed the meal. Here's my card.",
+   "roman": "ne, jal meogeosseoyo. kadeu yeogi isseoyo."
+  }
+ ]
+}

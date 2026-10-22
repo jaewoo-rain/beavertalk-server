@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T29-2",
+ "no": 412,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선생님, 건강 관리는 어디서부터 시작해야 합니까?",
+   "beaver_en": "Teacher, where should health care begin?",
+   "beaver_roman": "seonsaengnim, geongang gwallineun eodiseobuteo sijakaeya hamnikka?",
+   "learner": "무병장수의 첫걸음은 신진대사를 돕는 것입니다.",
+   "en": "The first step to a long, healthy life is helping your metabolism.",
+   "roman": "mubyeongjangsuui cheotgeoreumeun sinjindaesareul domneun geosimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "신진대사가 왜 그렇게 중요합니까?",
+   "beaver_en": "Why is metabolism so important?",
+   "beaver_roman": "sinjindaesaga wae geureoke jungyohamnikka?",
+   "learner": "몸속 노폐물을 잘 내보내야 면역력도 좋아집니다.",
+   "en": "Your immunity improves when your body clears out waste.",
+   "roman": "momsok nopyemureul jal naebonaeya myeonyeongnyeokdo joajimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "음식은 어떻습니까?",
+   "beaver_en": "What about food?",
+   "beaver_roman": "eumsigeun eotteoseumnikka?",
+   "learner": "양질의 음식을 먹고 어금니로 천천히 씹으세요.",
+   "en": "Eat good-quality food and chew slowly with your molars.",
+   "roman": "yangjirui eumsigeul meokgo eogeumniro cheoncheonhi ssibeuseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "싱겁게 먹으라고들 하는데 맛이 없지 않습니까?",
+   "beaver_en": "People say to eat bland food, but isn't it tasteless?",
+   "beaver_roman": "singgeopge meogeuragodeul haneunde masi eopji anseumnikka?",
+   "learner": "처음엔 힘들어도 곧 미각이 살아납니다.",
+   "en": "It's hard at first, but your sense of taste soon comes back.",
+   "roman": "cheoeumen himdeureodo got migagi saranamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "운동은 어떻습니까?",
+   "beaver_en": "What about exercise?",
+   "beaver_roman": "undongeun eotteoseumnikka?",
+   "learner": "걷기처럼 전신을 쓰는 운동이 심혈관 건강에 좋습니다.",
+   "en": "Whole-body exercise like walking is good for your cardiovascular health.",
+   "roman": "geotgicheoreom jeonsineul sseuneun undongi simhyeolgwan geongange josseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "숨쉬기 운동도 도움이 됩니까?",
+   "beaver_en": "Do breathing exercises help too?",
+   "beaver_roman": "sumswigi undongdo doumi doemnikka?",
+   "learner": "깊게 들이마시면 폐활량이 늘어납니다.",
+   "en": "Breathing in deeply increases your lung capacity.",
+   "roman": "gipge deurimasimyeon pyehwallyangi neureonamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "자세에 대해서도 말씀해 주시겠습니까?",
+   "beaver_en": "Could you also tell us about posture?",
+   "beaver_roman": "jasee daehaeseodo malsseumhae jusigetseumnikka?",
+   "learner": "소화가 잘되려면 허리를 곧게 펴고 앉으세요.",
+   "en": "For good digestion, sit with your back straight.",
+   "roman": "sohwaga jaldoeryeomyeon heorireul gotge pyeogo anjeuseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "머리 건강은 어떻게 지킵니까?",
+   "beaver_en": "How do we keep our brain healthy?",
+   "beaver_roman": "meori geongangeun eotteoke jikimnikka?",
+   "learner": "좌뇌와 우뇌를 함께 쓰면 머리가 맑아집니다.",
+   "en": "Using both your left and right brain keeps your mind clear.",
+   "roman": "jwanoewa unoereul hamkke sseumyeon meoriga malgajimnida."
+  },
+  {
+   "n": 9,
+   "beaver": "오래 앉아 있으면 목도 아픕니다.",
+   "beaver_en": "My neck hurts when I sit for a long time.",
+   "beaver_roman": "orae anja isseumyeon mokdo apeumnida.",
+   "learner": "뒤통수를 벽에 대고 목을 쭉 펴 보세요.",
+   "en": "Put the back of your head against a wall and stretch your neck.",
+   "roman": "dwitongsureul byeoge daego mogeul jjuk pyeo boseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 강의 정말 감사합니다, 선생님.",
+   "beaver_en": "Thank you so much for today's lecture, teacher.",
+   "beaver_roman": "oneul gangui jeongmal gamsahamnida, seonsaengnim.",
+   "learner": "감사합니다. 다음 시간에 또 뵙겠습니다.",
+   "en": "Thank you. See you next class.",
+   "roman": "gamsahamnida. daeum sigane tto boepgetseumnida."
+  }
+ ]
+}

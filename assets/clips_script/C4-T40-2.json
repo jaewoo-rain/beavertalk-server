@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T40-2",
+ "no": 472,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 희망나눔 활동가 김서연입니다.",
+   "beaver_en": "Hello. I'm Kim Seoyeon, an activist at Hope Sharing.",
+   "beaver_roman": "annyeonghaseyo. huimangnanum hwaldongga gimseoyeonimnida.",
+   "learner": "안녕하세요. 기부에 동참하고 싶어 연락했어요.",
+   "en": "Hello. I called because I want to join in donating.",
+   "roman": "annyeonghaseyo. gibue dongchamhago sipeo yeollakaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "감사합니다. 어떤 분야에 관심이 있으세요?",
+   "beaver_en": "Thank you. Which area are you interested in?",
+   "beaver_roman": "gamsahamnida. eotteon bunyae gwansimi isseuseyo?",
+   "learner": "국제적인 기아 문제와 국내 보육원에 관심이 있어요.",
+   "en": "I'm interested in global hunger and local orphanages.",
+   "roman": "gukjejeogin gia munjewa gungnae boyugwone gwansimi isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "현금과 물품 중 어떤 방식이 좋으세요?",
+   "beaver_en": "Which do you prefer, cash or goods?",
+   "beaver_roman": "hyeongeumgwa mulpum jung eotteon bangsigi joeuseyo?",
+   "learner": "현금이 좋겠어요. 구제가 필요한 곳에 바로 쓰이니까요.",
+   "en": "Cash, I think. It goes straight to where relief is needed.",
+   "roman": "hyeongeumi jokesseoyo. gujega piryohan gose baro sseuinikkayo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞습니다. 요즘은 수재민 지원 요청도 많습니다.",
+   "beaver_en": "Right. Lately there are many requests to help flood victims.",
+   "beaver_roman": "matseumnida. yojeumeun sujaemin jiwon yocheongdo manseumnida.",
+   "learner": "지역을 막론하고 수재민을 돕는 건 인도적인 일이에요.",
+   "en": "Helping flood victims, regardless of region, is humanitarian.",
+   "roman": "jiyeogeul mangnonhago sujaemineul domneun geon indojeogin irieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "정기 후원도 가능한데, 어떻게 하시겠어요?",
+   "beaver_en": "Regular giving is also possible. What would you like to do?",
+   "beaver_roman": "jeonggi huwondo ganeunghande, eotteoke hasigesseoyo?",
+   "learner": "정기 후원으로 할게요. 부담이 없어서 좋네요.",
+   "en": "I'll do regular giving. I like that it's not a burden.",
+   "roman": "jeonggi huwoneuro halgeyo. budami eopseoseo jonneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "후원자 이름을 공개적으로 소개해도 될까요?",
+   "beaver_en": "May we publicly introduce your name as a donor?",
+   "beaver_roman": "huwonja ireumeul gonggaejeogeuro sogaehaedo doelkkayo?",
+   "learner": "아니요. 받은 걸 사회에 환원하는 것뿐이에요.",
+   "en": "No. I'm just giving back to society what I received.",
+   "roman": "aniyo. badeun geol sahoee hwanwonhaneun geotppunieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "후원을 결심하신 계기가 있으세요?",
+   "beaver_en": "Was there something that made you decide to donate?",
+   "beaver_roman": "huwoneul gyeolsimhasin gyegiga isseuseyo?",
+   "learner": "자본주의 사회는 각박해서 소외되는 사람이 많아요.",
+   "en": "Capitalist society is harsh, so many people are left out.",
+   "roman": "jabonjuui sahoeneun gakbakaeseo soedoeneun sarami manayo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래서 국가 지원만으로는 부족합니다.",
+   "beaver_en": "That's why state support alone isn't enough.",
+   "beaver_roman": "geuraeseo gukga jiwonmaneuroneun bujokamnida.",
+   "learner": "네, 제도적인 지원과 민간단체 봉사가 다 필요해요.",
+   "en": "Yes, we need both institutional support and NGO volunteering.",
+   "roman": "ne, jedojeogin jiwongwa mingandanche bongsaga da piryohaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "봉사 활동에도 참여할 의향이 있으십니까?",
+   "beaver_en": "Would you also be willing to volunteer?",
+   "beaver_roman": "bongsa hwaldongedo chamyeohal uihyangi isseusimnikka?",
+   "learner": "네. 귀천을 막론하고 누구나 이바지할 수 있잖아요.",
+   "en": "Yes. Anyone can contribute, regardless of status.",
+   "roman": "ne. gwicheoneul mangnonhago nuguna ibajihal su itjanayo."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다. 신청서는 이메일로 보내 드리겠습니다.",
+   "beaver_en": "Thank you. I'll send the form by email.",
+   "beaver_roman": "gamsahamnida. sincheongseoneun imeillo bonae deurigetseumnida.",
+   "learner": "네, 감사합니다. 국민적인 동참이 늘었으면 좋겠어요.",
+   "en": "Thank you. I hope nationwide participation grows.",
+   "roman": "ne, gamsahamnida. gungminjeogin dongchami neureosseumyeon jokesseoyo."
+  }
+ ]
+}

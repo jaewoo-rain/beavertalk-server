@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T01-1",
+ "no": 46,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무슨 일로 오셨어요?",
+   "beaver_en": "Hello. What brings you here?",
+   "beaver_roman": "annyeonghaseyo. museun illo osyeosseoyo?",
+   "learner": "신분 확인을 받으려고 왔어요.",
+   "en": "I came to get my identity checked.",
+   "roman": "sinbun hwagineul badeuryeogo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 성함이 어떻게 되세요?",
+   "beaver_en": "Okay, may I have your name?",
+   "beaver_roman": "ne, seonghami eotteoke doeseyo?",
+   "learner": "저는 마이클 브라운이라고 해요.",
+   "en": "My name is Michael Brown.",
+   "roman": "jeoneun maikeul beuraunirago haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "어디에서 태어나셨어요?",
+   "beaver_en": "Where were you born?",
+   "beaver_roman": "eodieseo taeeonasyeosseoyo?",
+   "learner": "미국 시카고에서 태어났어요.",
+   "en": "I was born in Chicago, USA.",
+   "roman": "miguk sikagoeseo taeeonasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "신분증을 보여 주세요.",
+   "beaver_en": "Please show me your ID card.",
+   "beaver_roman": "sinbunjeungeul boyeo juseyo.",
+   "learner": "네, 여기 있어요.",
+   "en": "Sure, here it is.",
+   "roman": "ne, yeogi isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "사진이 지금보다 어려 보이네요.",
+   "beaver_en": "You look younger in the photo than now.",
+   "beaver_roman": "sajini jigeumboda eoryeo boineyo.",
+   "learner": "고등학생 때 사진이라서 어려 보여요.",
+   "en": "It's from high school, so I look young.",
+   "roman": "godeunghaksaeng ttae sajiniraseo eoryeo boyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "자기소개를 조금 더 해 주시겠어요?",
+   "beaver_en": "Could you tell me a bit more about yourself?",
+   "beaver_roman": "jagisogaereul jogeum deo hae jusigesseoyo?",
+   "learner": "저는 주말에 운동하거나 책을 읽어요.",
+   "en": "On weekends, I exercise or read books.",
+   "roman": "jeoneun jumare undonghageona chaegeul ilgeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "결혼하셨어요? 여기 배우자 칸이 있어요.",
+   "beaver_en": "Are you married? There's a box for your spouse.",
+   "beaver_roman": "gyeolhonhasyeosseoyo? yeogi baeuja kani isseoyo.",
+   "learner": "아니요, 아직 결혼 안 했어요.",
+   "en": "No, I'm not married yet.",
+   "roman": "aniyo, ajik gyeolhon an haesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 비상 연락처를 써 주세요.",
+   "beaver_en": "Then please write an emergency contact.",
+   "beaver_roman": "geureom bisang yeollakcheoreul sseo juseyo.",
+   "learner": "할머니예요. 성함은 메리 브라운이라고 하세요.",
+   "en": "It's my grandmother. Her name is Mary Brown.",
+   "roman": "halmeoniyeyo. seonghameun meri beuraunirago haseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "할머니 연세가 어떻게 되세요?",
+   "beaver_en": "How old is your grandmother?",
+   "beaver_roman": "halmeoni yeonsega eotteoke doeseyo?",
+   "learner": "여든이세요. 지금도 건강하세요.",
+   "en": "She's eighty. She's still healthy.",
+   "roman": "yeodeuniseyo. jigeumdo geonganghaseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "다 됐어요. 서류는 입구에 있는 직원에게 주세요.",
+   "beaver_en": "All done. Please give the form to the staff at the entrance.",
+   "beaver_roman": "da dwaesseoyo. seoryuneun ipgue inneun jigwonege juseyo.",
+   "learner": "네, 저분께 드릴게요. 감사합니다!",
+   "en": "Okay, I'll give it to that person. Thank you!",
+   "roman": "ne, jeobunkke deurilgeyo. gamsahamnida!"
+  }
+ ]
+}

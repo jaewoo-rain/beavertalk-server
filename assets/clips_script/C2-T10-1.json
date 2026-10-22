@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T10-1",
+ "no": 356,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오십시오. 어떤 제품을 찾으십니까?",
+   "beaver_en": "Welcome. What product are you looking for?",
+   "beaver_roman": "eoseo osipsio. eotteon jepumeul chajeusimnikka?",
+   "learner": "주방 잡화를 보러 왔어요. 새로 출시된 냄비 있나요?",
+   "en": "I came to look at kitchen goods. Do you have newly released pots?",
+   "roman": "jubang japwareul boreo wasseoyo. saero chulsidoen naembi innayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "이번 달 신제품입니다. 브랜드도 보십니까?",
+   "beaver_en": "This is this month's new product. Do you also look at brands?",
+   "beaver_roman": "ibeon dal sinjepumimnida. beuraendeudo bosimnikka?",
+   "learner": "상표보다 원산지를 먼저 봐요. 이건 어디 제품이에요?",
+   "en": "I check the place of origin before the brand. Where is this from?",
+   "roman": "sangpyoboda wonsanjireul meonjeo bwayo. igeon eodi jepumieyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "이 제품은 독일산입니다.",
+   "beaver_en": "This product is made in Germany.",
+   "beaver_roman": "i jepumeun dogilsanimnida.",
+   "learner": "독일산이면 믿을 만하네요. 뚜껑도 독일제예요?",
+   "en": "If it's German, it's trustworthy. Is the lid German-made too?",
+   "roman": "dogilsanimyeon mideul manhaneyo. ttukkeongdo dogiljeyeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "뚜껑은 한국산입니다. 보증 기간은 2년입니다.",
+   "beaver_en": "The lid is made in Korea. The guarantee period is two years.",
+   "beaver_roman": "ttukkeongeun hanguksanimnida. bojeung giganeun inyeonimnida.",
+   "learner": "보증 기간이 길어서 좋네요. 가격은 얼마예요?",
+   "en": "Nice that the guarantee is long. How much is it?",
+   "roman": "bojeung gigani gireoseo jonneyo. gagyeogeun eolmayeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "이십만 원입니다. 고가품이지만 오래 쓰실 수 있습니다.",
+   "beaver_en": "It's 200,000 won. It's pricey, but you can use it a long time.",
+   "beaver_roman": "isimman wonimnida. gogapumijiman orae sseusil su itseumnida.",
+   "learner": "좀 비싸네요. 저가 제품은 금방 망가져서 고민이에요.",
+   "en": "It's a bit pricey. Cheap products break fast, so I'm torn.",
+   "roman": "jom bissaneyo. jeoga jepumeun geumbang manggajyeoseo gominieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "제품 고르실 때 뭘 가장 중요하게 보세요?",
+   "beaver_en": "What matters most to you when choosing a product?",
+   "beaver_roman": "jepum goreusil ttae mwol gajang jungyohage boseyo?",
+   "learner": "싼 물건도 쓰기 나름이지만, 결국 품질이 중요해요.",
+   "en": "Cheap things depend on how you use them, but quality matters most.",
+   "roman": "ssan mulgeondo sseugi nareumijiman, gyeolguk pumjiri jungyohaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞습니다. 오래 쓰는 것도 관리하기 나름입니다.",
+   "beaver_en": "That's right. Lasting long also depends on how you care for it.",
+   "beaver_roman": "matseumnida. orae sseuneun geotdo gwallihagi nareumimnida.",
+   "learner": "예전에 싼 가게에서 샀다가 후회했어요.",
+   "en": "I once bought from a cheap shop and regretted it.",
+   "roman": "yejeone ssan gageeseo satdaga huhoehaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저희는 정품만 팝니다. 마일리지도 적립됩니다.",
+   "beaver_en": "We only sell genuine products. You also earn mileage points.",
+   "beaver_roman": "jeohuineun jeongpumman pamnida. maillijido jeongnipdoemnida.",
+   "learner": "좋네요. 마일리지는 몇 퍼센트 적립돼요?",
+   "en": "Great. What percent of mileage points do I earn?",
+   "roman": "jonneyo. maillijineun myeot peosenteu jeongnipdwaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "오 퍼센트입니다. 포장은 어떻게 해 드릴까요?",
+   "beaver_en": "Five percent. How would you like it wrapped?",
+   "beaver_roman": "o peosenteuimnida. pojangeun eotteoke hae deurilkkayo?",
+   "learner": "선물용이니까 포장지로 예쁘게 싸 주세요.",
+   "en": "It's a gift, so please wrap it nicely in wrapping paper.",
+   "roman": "seonmullyongini kka pojangjiro yeppeuge ssa juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠습니다. 결제는 카드로 하시겠습니까?",
+   "beaver_en": "Certainly. Will you pay by card?",
+   "beaver_roman": "algetseumnida. gyeoljeneun kadeuro hasigetseumnikka?",
+   "learner": "네, 카드로 할게요. 이 브랜드 마음에 들어요.",
+   "en": "Yes, by card. I like this brand.",
+   "roman": "ne, kadeuro halgeyo. i beuraendeu maeume deureoyo."
+  }
+ ]
+}

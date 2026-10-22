@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T34-1",
+ "no": 374,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "공연 끝났다! 객석은 어땠어?",
+   "beaver_en": "The show's over! How were the seats?",
+   "beaver_roman": "Gongyeon kkeunnatda! Gaekseogeun eottaesseo?",
+   "learner": "객석이 꽉 찼어. 지정석이라 잘 보였어.",
+   "en": "The seats were full. I had a reserved seat, so I could see well.",
+   "roman": "Gaekseogi kkwak chasseo. Jijeongseogira jal boyeosseo."
+  },
+  {
+   "n": 2,
+   "beaver": "1부 사물놀이는 어땠어? 난 소리가 좋더라.",
+   "beaver_en": "How was the samulnori in part one? I liked the sound.",
+   "beaver_roman": "Ilbu samullorineun eottaesseo? Nan soriga joteora.",
+   "learner": "농악이랑 사물놀이 정말 신났어. 피리도 좋았어.",
+   "en": "The farmers' music and samulnori were so fun. The flute was good too.",
+   "roman": "Nongagirang samullori jeongmal sinnasseo. Pirido joasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "2부 판소리랑 민요는 어땠어?",
+   "beaver_en": "How were the pansori and folk songs in part two?",
+   "beaver_roman": "Ibu pansorirang minyoneun eottaesseo?",
+   "learner": "판소리는 가창력이 대단했어. 민요도!",
+   "en": "The pansori singing was amazing. The folk songs too!",
+   "roman": "Pansorineun gachangnyeogi daedanhaesseo. Minyodo!"
+  },
+  {
+   "n": 4,
+   "beaver": "합창이랑 오케스트라 무대도 있었잖아.",
+   "beaver_en": "There was a choir and orchestra stage too.",
+   "beaver_roman": "Hapchangirang okeseuteura mudaedo isseotjana.",
+   "learner": "가곡 합창도 좋고, 오케스트라 연주자들도 멋졌어.",
+   "en": "The art song choir was good, and the orchestra players were great.",
+   "roman": "Gagok hapchangdo joko, okeseuteura yeonjujadeuldo meotjeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "마지막 솔로 곡은 신곡이래. 트로트였지?",
+   "beaver_en": "The last solo was a new song. It was trot, right?",
+   "beaver_roman": "Majimak sollo gogeun singogirae. Teuroteuyeotji?",
+   "learner": "응, 트로트 신곡인데 계속 흥얼거리게 돼.",
+   "en": "Yeah, it's a new trot song, and I keep humming it.",
+   "roman": "Eung, teuroteu singoginde gyesok heungeolgeorige dwae."
+  },
+  {
+   "n": 6,
+   "beaver": "다음 주 영화제도 갈 거야?",
+   "beaver_en": "Are you going to the film festival next week too?",
+   "beaver_roman": "Daeum ju yeonghwajedo gal geoya?",
+   "learner": "응, 상영관에서 사극이랑 멜로를 볼 거야.",
+   "en": "Yes, I'll watch a historical drama and a melodrama at the theater.",
+   "roman": "Eung, sangyeonggwaneseo sageugirang melloreul bol geoya."
+  },
+  {
+   "n": 7,
+   "beaver": "그 사극, 원작 소설이 있다던데?",
+   "beaver_en": "I heard that historical drama is based on a novel?",
+   "beaver_roman": "Geu sageuk, wonjak soseori itdadeonde?",
+   "learner": "원작도 좋지만 대본이 더 좋다는 평이야.",
+   "en": "The original is good, but people say the script is even better.",
+   "roman": "Wonjakdo jochiman daeboni deo jotaneun pyeongiya."
+  },
+  {
+   "n": 8,
+   "beaver": "제작자가 유명한 사람이지? 기대된다.",
+   "beaver_en": "The producer is famous, right? I'm excited.",
+   "beaver_roman": "Jejakjaga yumyeonghan saramiji? Gidaedoenda.",
+   "learner": "응, 그 제작자 데뷔작이 영상미가 뛰어났어.",
+   "en": "Yeah, that producer's debut film had stunning visuals.",
+   "roman": "Eung, geu jejakja debwijagi yeongsangmiga ttwieonasseo."
+  },
+  {
+   "n": 9,
+   "beaver": "영화 말고 또 볼 만한 거 있어?",
+   "beaver_en": "Is there anything else worth seeing besides movies?",
+   "beaver_roman": "Yeonghwa malgo tto bol manhan geo isseo?",
+   "learner": "영화관 옆 전시관에서 한국 미술전도 해.",
+   "en": "There's also a Korean art exhibition in the hall next to the cinema.",
+   "roman": "Yeonghwagwan yeop jeonsigwaneseo hanguk misuljeondo hae."
+  },
+  {
+   "n": 10,
+   "beaver": "좋다! 영화 보고 전시도 같이 보자.",
+   "beaver_en": "Great! Let's see the movie and the exhibition together.",
+   "beaver_roman": "Jota! Yeonghwa bogo jeonsido gachi boja.",
+   "learner": "좋아, 멋진 예술품도 보고 맛있는 것도 먹자!",
+   "en": "Okay, let's see great works of art and eat something tasty too!",
+   "roman": "Joa, meotjin yesulpumdo bogo masinneun geotdo meokja!"
+  }
+ ]
+}

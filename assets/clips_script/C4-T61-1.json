@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T61-1",
+ "no": 488,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "발표 잘 들었습니다. 연구 배경을 여쭤봐도 될까요?",
+   "beaver_en": "I enjoyed your talk. May I ask about the background?",
+   "beaver_roman": "balpyo jal deureotseumnida. yeongu baegyeongeul yeojjwobwado doelkkayo?",
+   "learner": "네, 감사합니다. 지방 장터 문화를 탐구했습니다.",
+   "en": "Yes, thank you. I researched local market culture.",
+   "roman": "ne, gamsahamnida. jibang jangteo munhwareul tamguhaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "왜 장터 문화에 관심을 가지셨습니까?",
+   "beaver_en": "Why were you interested in market culture?",
+   "beaver_roman": "wae jangteo munhwae gwansimeul gajisyeotseumnikka?",
+   "learner": "여행하며 얻은 견문이 연구의 시작이었습니다.",
+   "en": "What I learned while traveling started the research.",
+   "roman": "yeohaenghamyeo eodeun gyeonmuni yeonguui sijagieotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "어떤 자료를 주로 보셨습니까?",
+   "beaver_en": "What materials did you mainly look at?",
+   "beaver_roman": "eotteon jaryoreul juro bosyeotseumnikka?",
+   "learner": "조선 시대 문헌을 먼저 꼼꼼히 읽었습니다.",
+   "en": "First, I carefully read Joseon-era documents.",
+   "roman": "Joseon sidae munheoneul meonjeo kkomkkomhi ilgeotseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "답사도 하셨습니까?",
+   "beaver_en": "Did you also do field trips?",
+   "beaver_roman": "dapsado hasyeotseumnikka?",
+   "learner": "네, 전국 장터 스무 곳을 직접 답사했습니다.",
+   "en": "Yes, I visited twenty markets nationwide myself.",
+   "roman": "ne, jeonguk jangteo seumu goseul jikjeop dapsahaetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "문헌과 답사 결과가 서로 맞았습니까?",
+   "beaver_en": "Did the documents match what you found on site?",
+   "beaver_roman": "munheongwa dapsa gyeolgwaga seoro majatseumnikka?",
+   "learner": "대부분 맞았지만 달라진 점도 많았습니다.",
+   "en": "Mostly, but many things had also changed.",
+   "roman": "daebubun majatjiman dallajin jeomdo manatseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "연구 성과를 한마디로 말하면 무엇입니까?",
+   "beaver_en": "What is your finding in a word?",
+   "beaver_roman": "yeongu seonggwareul hanmadiro malhamyeon mueosimnikka?",
+   "learner": "한마디로 말하자면 장터는 살아 있는 역사입니다.",
+   "en": "To put it in a word, markets are living history.",
+   "roman": "hanmadiro malhajamyeon jangteoneun sara inneun yeoksaimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "학계 반응은 어떻습니까?",
+   "beaver_en": "How has academia responded?",
+   "beaver_roman": "hakgye baneungeun eotteoseumnikka?",
+   "learner": "학계에서 실질적인 연구라는 평가를 받았습니다.",
+   "en": "Academia called it practical, solid research.",
+   "roman": "hakgyeeseo siljiljeogin yeonguraneun pyeonggareul badatseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "학문적으로는 어떤 의미가 있습니까?",
+   "beaver_en": "What does it mean academically?",
+   "beaver_roman": "hangmunjeogeuroneun eotteon uimiga itseumnikka?",
+   "learner": "새로운 연구 방법론을 제시했다는 의미가 있습니다.",
+   "en": "It's meaningful in that it proposed a new research methodology.",
+   "roman": "saeroun yeongu bangbeomnoneul jesihaetdaneun uimiga itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "앞으로의 계획도 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us your future plans?",
+   "beaver_roman": "apeuroui gyehoekdo malsseumhae jusigesseumnikka?",
+   "learner": "연구 주제가 무궁무진해서 계속 탐구하겠습니다.",
+   "en": "There are endless topics, so I'll keep researching.",
+   "roman": "yeongu jujega mugungmujinhaeseo gyesok tamguhagetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 앞으로도 기대하겠습니다.",
+   "beaver_en": "Thank you. I look forward to your work.",
+   "beaver_roman": "joeun malsseum gamsahamnida. apeurodo gidaehagetseumnida.",
+   "learner": "관심 가져 주셔서 정말 감사합니다.",
+   "en": "Thank you so much for your interest.",
+   "roman": "gwansim gajyeo jusyeoseo jeongmal gamsahamnida."
+  }
+ ]
+}

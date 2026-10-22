@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T28-1",
+ "no": 272,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "세미나 준비 상황 같이 점검해 볼까요?",
+   "beaver_en": "Shall we check how the seminar prep is going?",
+   "beaver_roman": "semina junbi sanghwang gachi jeomgeomhae bolkkayo?",
+   "learner": "네, 좋아요. 먼저 문서부터 볼게요.",
+   "en": "Sure. Let's look at the documents first.",
+   "roman": "ne, joayo. meonjeo munseobuteo bolgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "발표 문서는 다 완성됐어요?",
+   "beaver_en": "Is the presentation document finished?",
+   "beaver_roman": "balpyo munseoneun da wanseongdwaesseoyo?",
+   "learner": "네, 거의 다 됐다 싶어요. 오늘 끝낼게요.",
+   "en": "I think it's almost done. I'll finish it today.",
+   "roman": "ne, geoui da dwaetda sipeoyo. oneul kkeunnaelgeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "공지는 했어요?",
+   "beaver_en": "Did you send out the notice?",
+   "beaver_roman": "gongjineun haesseoyo?",
+   "learner": "어제 공지 메일에 안내 파일을 첨부해서 보냈어요.",
+   "en": "Yesterday I sent the notice email with the info file attached.",
+   "roman": "eoje gongji meire annae paireul cheombuhaeseo bonaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "참석자는 몇 명 정도예요?",
+   "beaver_en": "About how many attendees are there?",
+   "beaver_roman": "chamseokjaneun myeon myeong jeongdoyeyo?",
+   "learner": "서른 명이 넘어서 좀 많다 싶었어요.",
+   "en": "Over thirty, so I thought it was a bit many.",
+   "roman": "seoreun myeongi neomeoseo jom manta sipeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 의자가 좀 부족하겠네요.",
+   "beaver_en": "Then we might be a little short on chairs.",
+   "beaver_roman": "geureom uijaga jom bujokagenneyo.",
+   "learner": "네, 의자를 더 빌려야겠다 싶어요.",
+   "en": "Yes, I think we should borrow more chairs.",
+   "roman": "ne, uijareul deo billyeoyagetda sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "면담 일정은요?",
+   "beaver_en": "What about the meeting schedule?",
+   "beaver_roman": "myeondam iljeongeunyo?",
+   "learner": "세미나 끝나고 참석자 면담을 할 거예요.",
+   "en": "We'll meet with attendees after the seminar.",
+   "roman": "semina kkeunnago chamseokja myeondameul hal kkeoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "면담 장소는 정했어요?",
+   "beaver_en": "Did you pick a place for the meetings?",
+   "beaver_roman": "myeondam jangsoneun jeonghaesseoyo?",
+   "learner": "작은 회의실이 좋겠다 싶어서 예약했어요.",
+   "en": "I thought the small meeting room would be good, so I booked it.",
+   "roman": "jageun hoeuisiri jokketda sipeoseo yeyakaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "혹시 첨부 파일이 안 열린다는 사람은 없어요?",
+   "beaver_en": "Did anyone say the attachment won't open?",
+   "beaver_roman": "hoksi cheombu pairi an yeollindaneun sarameun eopseoyo?",
+   "learner": "한 분이 그래서 문서를 다시 보냈어요.",
+   "en": "One person did, so I sent the document again.",
+   "roman": "han buni geuraeseo munseoreul dasi bonaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "잘했네요. 업무 소통이 잘되는 것 같아요.",
+   "beaver_en": "Nice work. Our communication seems to be going well.",
+   "beaver_roman": "jalhaenneyo. eommu sotongi jaldoeneun geot gatayo.",
+   "learner": "네, 이 정도면 준비가 잘됐다 싶어요.",
+   "en": "Yes, I think we're well prepared now.",
+   "roman": "ne, i jeongdomyeon junbiga jaldwaetda sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 내일 세미나 잘해 봐요!",
+   "beaver_en": "Then let's do well at tomorrow's seminar!",
+   "beaver_roman": "geureom naeil semina jalhae bwayo!",
+   "learner": "네, 내일 아침에 다시 공지할게요. 수고하세요!",
+   "en": "Okay, I'll send a reminder notice tomorrow morning. Good work!",
+   "roman": "ne, naeil achime dasi gongjihalgeyo. sugohaseyo!"
+  }
+ ]
+}

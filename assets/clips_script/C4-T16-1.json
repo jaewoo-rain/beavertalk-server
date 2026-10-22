@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T16-1",
+ "no": 453,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "손님, 인천행 KE905편 운항이 지연되고 있습니다.",
+   "beaver_en": "Sir, flight KE905 to Incheon is delayed.",
+   "beaver_roman": "Sonnim, incheonhaeng KE905pyeon unhangi jiyeondoego itseumnida.",
+   "learner": "얼마나 늦어져요? 장거리 비행이라 걱정돼요.",
+   "en": "How late will it be? I'm worried since it's a long flight.",
+   "roman": "Eolmana neujeojyeoyo? Janggeori bihaengira geokjeongdwaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "활주로에서 사고가 나서 반나절쯤 늦어질 것 같습니다.",
+   "beaver_en": "There was an accident on the runway, so about half a day.",
+   "beaver_roman": "Hwaljuroeseo sagoga naseo bannajeoljjeum neujeojil geot gatseumnida.",
+   "learner": "무슨 사고요? 착륙하던 비행기에 문제가 있었어요?",
+   "en": "What accident? Was there a problem with a landing plane?",
+   "roman": "Museun sagoyo? Changnyukadeon bihaenggie munjega isseosseoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "공항 안 차량이 사고를 내고 그냥 가 버렸습니다.",
+   "beaver_en": "An airport vehicle caused an accident and just drove off.",
+   "beaver_roman": "Gonghang an charyangi sagoreul naego geunyang ga beoryeotseumnida.",
+   "learner": "뺑소니요? 차가 후진하다가 부딪친 거예요?",
+   "en": "A hit-and-run? Did it crash while reversing?",
+   "roman": "Ppaengsoniyo? Chaga hujinhadaga budichin geoyeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 연료 트럭이 부서져 활주로를 치우고 있습니다.",
+   "beaver_en": "Yes, a fuel truck was damaged, and we're clearing the runway.",
+   "beaver_roman": "Ne, yeollyo teureogi buseojyeo hwaljuroreul chiugo itseumnida.",
+   "learner": "다른 경로는 없나요? 다른 공항을 경유해도 돼요.",
+   "en": "Is there another route? I can transit through another airport.",
+   "roman": "Dareun gyeongnoneun eomnayo? Dareun gonghangeul gyeongyuhaedo dwaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "경유편은 모두 만석입니다. 버스 편은 있습니다.",
+   "beaver_en": "Connecting flights are all full. There is a bus option.",
+   "beaver_roman": "Gyeongyupyeoneun modu manseogimnida. Beoseu pyeoneun itseumnida.",
+   "learner": "육로로 가면 시간이 더 걸리지 않을까요?",
+   "en": "Wouldn't going overland take longer?",
+   "roman": "Yungnoro gamyeon sigani deo geolliji aneulkkayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 버스로는 일곱 시간쯤 걸려서 추천하지 않습니다.",
+   "beaver_en": "Yes, the bus takes about seven hours, so I don't recommend it.",
+   "beaver_roman": "Ne, beoseuroneun ilgop siganjjeum geollyeoseo chucheonhaji anseumnida.",
+   "learner": "그럼 부친 짐은 어떻게 돼요?",
+   "en": "Then what happens to my checked bags?",
+   "roman": "Geureom buchin jimeun eotteoke dwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "짐은 안전합니다. 출발 시간은 곧 안내하겠습니다.",
+   "beaver_en": "Your bags are safe. We'll announce the departure time soon.",
+   "beaver_roman": "Jimeun anjeonhamnida. Chulbal siganeun got annaehagetseumnida.",
+   "learner": "그러니까 출발 시간은 아직 모르시는 거죠?",
+   "en": "So you don't know the departure time yet, right?",
+   "roman": "Geureonikka chulbal siganeun ajik moreusineun geojyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 오후 다섯 시쯤으로 예상하지만 확정은 아닙니다.",
+   "beaver_en": "Yes, we expect around 5 p.m., but it's not confirmed.",
+   "beaver_roman": "Ne, ohu daseot sijjeumeuro yesanghajiman hwakjeongeun animnida.",
+   "learner": "기장님도 오래 기다리셔서 힘드시겠네요.",
+   "en": "The captain must be tired from waiting so long, too.",
+   "roman": "Gijangnimdo orae gidarisyeoseo himdeusigenneyo."
+  },
+  {
+   "n": 9,
+   "beaver": "기장님은 교대하시고, 연료도 다시 점검합니다.",
+   "beaver_en": "The captain will be replaced, and we'll check the fuel again.",
+   "beaver_roman": "Gijangnimeun gyodaehasigo, yeollyodo dasi jeomgeomhamnida.",
+   "learner": "장거리니까 연료 점검 꼼꼼히 부탁드려요.",
+   "en": "It's a long flight, so please check the fuel carefully.",
+   "roman": "Janggeorinikka yeollyo jeomgeom kkomkkomhi butakdeuryeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "불편을 드려 죄송합니다. 식사 쿠폰을 드리겠습니다.",
+   "beaver_en": "Sorry for the inconvenience. Here's a meal voucher.",
+   "beaver_roman": "Bulpyeoneul deuryeo joesonghamnida. Siksa kuponeul deurigetseumnida.",
+   "learner": "감사합니다. 탑승 안내가 나오면 바로 올게요.",
+   "en": "Thank you. I'll come right back when boarding is announced.",
+   "roman": "Gamsahamnida. Tapseung annaega naomyeon baro olgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T58-1",
+ "no": 155,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 얼굴이 많이 피곤해 보여요. 무슨 일 있어요?",
+   "beaver_en": "You look really tired lately. Is something wrong?",
+   "beaver_roman": "yojeum eolguri mani pigonhae boyeoyo. museun il isseoyo?",
+   "learner": "네, 요즘 마음에 여유가 하나도 없어요.",
+   "en": "Yes, I have no peace of mind these days.",
+   "roman": "ne, yojeum maeume yeoyuga hanado eopseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "일이 많이 바빠요? 잠은 잘 자요?",
+   "beaver_en": "Are you very busy with work? Do you sleep well?",
+   "beaver_roman": "iri mani bappayo? jameun jal jayo?",
+   "learner": "아니요, 정신이 없어서 잠도 잘 못 자요.",
+   "en": "No, my mind is so frazzled I can't sleep well.",
+   "roman": "aniyo, jeongsini eopseoseo jamdo jal mot jayo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 짧게라도 쉬어 보세요. 산책은 어때요?",
+   "beaver_en": "Then try resting, even briefly. How about a walk?",
+   "beaver_roman": "geureom jjalgerado swieo boseyo. sanchaegeun eottaeyo?",
+   "learner": "산책이요? 동네를 돌아다녀 볼까요?",
+   "en": "A walk? Should I wander around the neighborhood?",
+   "roman": "sanchaegiyo? dongnereul doradanyeo bolkkayo?"
+  },
+  {
+   "n": 4,
+   "beaver": "좋아요. 걸으면서 생각도 정리해 보세요.",
+   "beaver_en": "Good. Try sorting out your thoughts while walking.",
+   "beaver_roman": "joayo. georeumyeonseo saenggakdo jeongnihae boseyo.",
+   "learner": "그런데 걸으면 후회되는 일이 자꾸 생각나요.",
+   "en": "But when I walk, things I regret keep coming to mind.",
+   "roman": "geureonde georeumyeon huhoedoeneun iri jakku saenggangnayo."
+  },
+  {
+   "n": 5,
+   "beaver": "어떤 후회요? 이야기해 볼래요?",
+   "beaver_en": "What regrets? Would you like to talk about it?",
+   "beaver_roman": "eotteon huhoeyo? iyagihae bollaeyo?",
+   "learner": "고향 친구들에게 연락을 못 했어요.",
+   "en": "I haven't been in touch with my friends back home.",
+   "roman": "gohyang chingudeurege yeollageul mot haesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "고향이 그립군요. 향수를 느끼는 거예요?",
+   "beaver_en": "You miss home. Are you feeling homesick?",
+   "beaver_roman": "gohyangi geuripgunnyo. hyangsureul neukkineun geoyeyo?",
+   "learner": "네, 고향 생각에 향수를 많이 느껴요.",
+   "en": "Yes, thinking of home makes me very nostalgic.",
+   "roman": "ne, gohyang saenggage hyangsureul mani neukkyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 친구들에게 먼저 연락해 보세요.",
+   "beaver_en": "Then try contacting your friends first.",
+   "beaver_roman": "geureom chingudeurege meonjeo yeollakae boseyo.",
+   "learner": "맞아요. 정이 많은 친구들이라 반가워할 거예요.",
+   "en": "Right. They're warm-hearted, so they'll be glad.",
+   "roman": "majayo. jeongi maneun chingudeurira bangawohal geoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "음악을 들으며 감상에 젖어 보는 것도 좋아요.",
+   "beaver_en": "It's also nice to get sentimental listening to music.",
+   "beaver_roman": "eumageul deureumyeo gamsange jeojeo boneun geotdo joayo.",
+   "learner": "고향 노래를 들으면서 감상에 젖어 볼게요.",
+   "en": "I'll listen to songs from home and get sentimental.",
+   "roman": "gohyang noraereul deureumyeonseo gamsange jeojeo bolgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 그러면 정신도 맑아질 거예요.",
+   "beaver_en": "Good. Then your mind will clear up too.",
+   "beaver_roman": "joayo. geureomyeon jeongsindo malgajil geoyeyo.",
+   "learner": "선배도 바쁘실 때 저랑 같이 걸어요.",
+   "en": "When you're busy too, let's walk together.",
+   "roman": "seonbaedo bappeusil ttae jeorang gachi georeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 앞으로도 이야기 자주 주고받아요.",
+   "beaver_en": "Thanks. Let's keep talking often from now on.",
+   "beaver_roman": "gomawoyo. apeurodo iyagi jaju jugobadayo.",
+   "learner": "네, 선배 덕분에 마음에 여유가 생겼어요.",
+   "en": "Yes, thanks to you, I feel more at ease now.",
+   "roman": "ne, seonbae deokbune maeume yeoyuga saenggyeosseoyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T40-1",
+ "no": 235,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 토론 주제는 장애인 고용 제도예요.",
+   "beaver_en": "Today's debate topic is the disability employment system.",
+   "beaver_roman": "oneul toron jujeneun jangaein goyong jedoyeyo.",
+   "learner": "회사에 장애인 고용 의무를 주는 제도죠?",
+   "en": "It's the system that obliges companies to hire disabled people, right?",
+   "roman": "hoesae jangaein goyong uimureul juneun jedojyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "맞아요. 이 제도가 평등에 도움이 될까요?",
+   "beaver_en": "Right. Will this system help equality?",
+   "beaver_roman": "majayo. i jedoga pyeongdeunge doumi doelkkayo?",
+   "learner": "네, 장애인의 권리가 더 잘 지켜질 게 뻔해요.",
+   "en": "Yes, disabled people's rights will obviously be better protected.",
+   "roman": "ne, jangaeinui gwolliga deo jal jikyeojil ge ppeonhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그런데 회사들은 불만이 많지 않을까요?",
+   "beaver_en": "But won't companies complain a lot?",
+   "beaver_roman": "geureonde hoesadeureun bulmani manchi aneulkkayo?",
+   "learner": "불만은 있겠지만 안 지키면 불이익이 있어요.",
+   "en": "They may complain, but there are penalties if they don't comply.",
+   "roman": "bulmaneun itgetjiman an jikimyeon buriigi isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "지키는 회사에는 보상이 있나요?",
+   "beaver_en": "Is there a reward for companies that comply?",
+   "beaver_roman": "jikineun hoesaeneun bosangi innayo?",
+   "learner": "네, 정부가 보조금을 줘요. 참여가 늘 게 뻔해요.",
+   "en": "Yes, the government gives subsidies. Participation will obviously grow.",
+   "roman": "ne, jeongbuga bojogeumeul jwoyo. chamyeoga neul ge ppeonhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 나라는요?",
+   "beaver_en": "What about other countries?",
+   "beaver_roman": "dareun naraneunyo?",
+   "learner": "여러 선진국도 비슷한 제도가 있어요.",
+   "en": "Many developed countries have similar systems too.",
+   "roman": "yeoreo seonjingukdo biseutan jedoga isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 해외 사례도 발표에 넣으면 좋겠네요.",
+   "beaver_en": "Then it'd be good to add overseas cases to our presentation.",
+   "beaver_roman": "geureom haeoe saryedo balpyoe neoeumyeon jokenneyo.",
+   "learner": "좋아요. 해외 사례도 같이 찾아봐요.",
+   "en": "Sounds good. Let's look for overseas cases together.",
+   "roman": "joayo. haeoe saryedo gachi chajabwayo."
+  },
+  {
+   "n": 7,
+   "beaver": "일반인들의 생각은 어떨까요?",
+   "beaver_en": "What would the general public think?",
+   "beaver_roman": "ilbanindeurui saenggageun eotteolkkayo?",
+   "learner": "캠페인을 하면 인식이 바뀔 게 뻔해요.",
+   "en": "If we run a campaign, people's views will obviously change.",
+   "roman": "kaempeineul hamyeon insigi bakkwil ge ppeonhaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "이 제도를 폐지하자는 사람도 있던데요.",
+   "beaver_en": "Some people want to abolish this system, though.",
+   "beaver_roman": "i jedoreul pyejihajaneun saramdo itdeondeyo.",
+   "learner": "폐지하면 장애인들이 불이익을 볼 게 뻔해요.",
+   "en": "If it's abolished, disabled people will obviously be disadvantaged.",
+   "roman": "pyejihamyeon jangaeindeuri buriigeul bol ge ppeonhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "사회 제도와 복지에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about social systems and welfare?",
+   "beaver_roman": "sahoe jedowa bokjie daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 모두가 평등하게 살면 좋겠어요.",
+   "en": "Sure. I hope everyone can live as equals.",
+   "roman": "joayo. moduga pyeongdeunghage salmyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋진 생각이에요. 다음 시간에 같이 발표해요.",
+   "beaver_en": "Great thought. Let's present it together next class.",
+   "beaver_roman": "meotjin saenggagieyo. daeum sigane gachi balpyohaeyo.",
+   "learner": "네, 다른 나라 사례도 찾아 올게요.",
+   "en": "Okay, I'll find examples from other countries too.",
+   "roman": "ne, dareun nara saryedo chaja olgeyo."
+  }
+ ]
+}

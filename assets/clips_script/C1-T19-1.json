@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T19-1",
+ "no": 309,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "예절 조사 결과 나왔어요?",
+   "beaver_en": "Are the etiquette survey results out?",
+   "beaver_roman": "yejeol josa gyeolgwa nawasseoyo?",
+   "learner": "네, 수백 명에게 물어봤어요.",
+   "en": "Yes, I asked hundreds of people.",
+   "roman": "ne, subaek myeongege mureobwasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 내용이 가장 중요했어요?",
+   "beaver_en": "What was the most important point?",
+   "beaver_roman": "eotteon naeyongi gajang jungyohaesseoyo?",
+   "learner": "존댓말이 중요하다는 응답이 많았어요.",
+   "en": "Many answered that honorific speech is important.",
+   "roman": "jondaenmari jungyohadaneun eungdabi manasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "존댓말은 구체적으로 어때요?",
+   "beaver_en": "What about honorific speech, specifically?",
+   "beaver_roman": "jondaenmareun guchejeogeuro eottaeyo?",
+   "learner": "처음 만난 사람에게는 존댓말이 필요해요.",
+   "en": "You need honorific speech with people you just met.",
+   "roman": "cheoeum mannan saramegeneun jondaenmari piryohaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "호칭 문제도 있었어요?",
+   "beaver_en": "Were there issues with forms of address too?",
+   "beaver_roman": "hoching munjedo isseosseoyo?",
+   "learner": "네, 호칭을 잘못 부르면 실례가 된대요.",
+   "en": "Yes, they say using the wrong title is rude.",
+   "roman": "ne, hochingeul jalmot bureumyeon sillyega doendaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "인사 예절은 어떻게 나왔어요?",
+   "beaver_en": "What did it show about greeting etiquette?",
+   "beaver_roman": "insa yejeoreun eotteoke nawasseoyo?",
+   "learner": "첫인사와 작별 인사는 격식을 갖춰야 한대요.",
+   "en": "They say first greetings and farewells should be formal.",
+   "roman": "cheodinsawa jakbyeol insaneun gyeoksigeul gatchwoya handaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "큰절도 가르쳐야 할까요?",
+   "beaver_en": "Should we teach the deep bow too?",
+   "beaver_roman": "keunjeoldo gareuchyeoya halkkayo?",
+   "learner": "큰절은 명절에만 필요해서 상대적으로 덜 중요해요.",
+   "en": "The deep bow is only for holidays, so it's relatively less important.",
+   "roman": "keunjeoreun myeongjeoreman piryohaeseo sangdaejeogeuro deol jungyohaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "실수했을 때는 어떻게 하라고 했어요?",
+   "beaver_en": "What did they say to do after a mistake?",
+   "beaver_roman": "silsuhaesseul ttaeneun eotteoke harago haesseoyo?",
+   "learner": "먼저 사과하는 게 좋다고 했어요.",
+   "en": "They said it's best to apologize first.",
+   "roman": "meonjeo sagwahaneun ge jotago haesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "젊은 사람들은 어떻게 생각했어요?",
+   "beaver_en": "What did young people think?",
+   "beaver_roman": "jeolmeun saramdeureun eotteoke saenggakaesseoyo?",
+   "learner": "지나친 격식은 불필요하다고 했어요.",
+   "en": "They said too much formality is unnecessary.",
+   "roman": "jinachin gyeoksigeun bulpiryohadago haesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 교육의 중심은 뭐가 좋을까요?",
+   "beaver_en": "Then what should the training focus on?",
+   "beaver_roman": "geureom gyoyugui jungsimeun mwoga joeulkkayo?",
+   "learner": "상대를 존중하는 마음이 제일 중요해요.",
+   "en": "A heart that respects others matters most.",
+   "roman": "sangdaereul jonjunghaneun maeumi jeil jungyohaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 이 내용으로 교육을 준비할게요.",
+   "beaver_en": "Great. I'll prepare the training with this.",
+   "beaver_roman": "joayo. i naeyongeuro gyoyugeul junbihalgeyo.",
+   "learner": "네, 성공적인 교육이 되면 좋겠어요.",
+   "en": "Okay, I hope the training is a success.",
+   "roman": "ne, seonggongjeogin gyoyugi doemyeon jokesseoyo."
+  }
+ ]
+}

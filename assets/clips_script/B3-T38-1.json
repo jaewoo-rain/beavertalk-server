@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T38-1",
+ "no": 233,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "저기 좀 봐. 나무 위에 뭐가 있어.",
+   "beaver_en": "Look over there. There's something up in the tree.",
+   "beaver_roman": "jeogi jom bwa. namu wie mwoga isseo.",
+   "learner": "소나무 나뭇가지에 둥지가 있네! 새끼도 있다면서?",
+   "en": "There's a nest on the pine branch! I heard there are babies too, right?",
+   "roman": "sonamu namutgajie dungjiga inne! saekkido itdamyeonseo?"
+  },
+  {
+   "n": 2,
+   "beaver": "응, 어미 새가 먹이를 물어 와.",
+   "beaver_en": "Yeah, the mother bird brings food.",
+   "beaver_roman": "eung, eomi saega meogireul mureo wa.",
+   "learner": "벌레를 잡아 온다면서? 날개가 참 예쁘다.",
+   "en": "I heard she catches bugs, right? Her wings are so pretty.",
+   "roman": "beollereul jaba ondamyeonseo? nalgaega cham yeppeuda."
+  },
+  {
+   "n": 3,
+   "beaver": "맞아. 저기 나비랑 잠자리도 날아다녀.",
+   "beaver_en": "Right. Butterflies and dragonflies are flying around there too.",
+   "beaver_roman": "maja. jeogi nabirang jamjarido naradanyeo.",
+   "learner": "나비랑 잠자리는 꽃잎에 앉는 걸 좋아한다면서?",
+   "en": "I heard butterflies and dragonflies like sitting on petals, right?",
+   "roman": "nabirang jamjarineun kkonnipe anneun geol joahandamyeonseo?"
+  },
+  {
+   "n": 4,
+   "beaver": "응. 어, 이 국화는 꽃이 시들었네.",
+   "beaver_en": "Yeah. Oh, this chrysanthemum has withered.",
+   "beaver_roman": "eung. eo, i gukwaneun kkochi sideureonne.",
+   "learner": "줄기도 시들었어. 식물은 물이 필요하다면서?",
+   "en": "The stem withered too. Plants need water, right?",
+   "roman": "julgido sideureosseo. singmureun muri piryohadamyeonseo?"
+  },
+  {
+   "n": 5,
+   "beaver": "그렇지. 바닥에 개미가 많다.",
+   "beaver_en": "Exactly. There are lots of ants on the ground.",
+   "beaver_roman": "geureochi. badage gaemiga manta.",
+   "learner": "개미는 밤낮으로 먹이를 나른다면서?",
+   "en": "I heard ants carry food day and night, right?",
+   "roman": "gaemineun bamnajeuro meogireul nareundamyeonseo?"
+  },
+  {
+   "n": 6,
+   "beaver": "응, 저 열매도 옮기고 있어.",
+   "beaver_en": "Yeah, they're moving that fruit too.",
+   "beaver_roman": "eung, jeo yeolmaedo omgigo isseo.",
+   "learner": "커다란 열매를 붙잡고 가네! 신기하다.",
+   "en": "They're holding a big fruit and going! Amazing.",
+   "roman": "keodaran yeolmaereul butjapgo gane! singihada."
+  },
+  {
+   "n": 7,
+   "beaver": "어, 저기서 무슨 소리 들려?",
+   "beaver_en": "Huh, do you hear a sound over there?",
+   "beaver_roman": "eo, jeogiseo museun sori deullyeo?",
+   "learner": "멍멍! 개가 짖네. 낯선 사람을 보면 짖는다면서?",
+   "en": "Woof woof! A dog's barking. They bark at strangers, right?",
+   "roman": "meongmeong! gaega jinne. natseon sarameul bomyeon jinneundamyeonseo?"
+  },
+  {
+   "n": 8,
+   "beaver": "맞아. 지난주에 농장에서 송아지도 봤어.",
+   "beaver_en": "Right. I saw a calf at a farm last week.",
+   "beaver_roman": "maja. jinanjue nongjangeseo songajido bwasseo.",
+   "learner": "송아지는 태어나자마자 걷는다면서?",
+   "en": "I heard calves walk right after birth, right?",
+   "roman": "songajineun taeeonajamaja geonneundamyeonseo?"
+  },
+  {
+   "n": 9,
+   "beaver": "응, 그렇대. 동물 이야기 더 해 볼래?",
+   "beaver_en": "Yeah, so they say. Want to talk more about animals?",
+   "beaver_roman": "eung, geureotae. dongmul iyagi deo hae bollae?",
+   "learner": "고래도 새끼한테 젖을 먹인다면서?",
+   "en": "I heard whales feed milk to their babies too, right?",
+   "roman": "goraedo saekkihante jeojeul meogindamyeonseo?"
+  },
+  {
+   "n": 10,
+   "beaver": "응, 고래도 그래. 다음엔 바다에 가 보자!",
+   "beaver_en": "Yes, whales do too. Let's go to the sea next time!",
+   "beaver_roman": "eung, goraedo geurae. daeumen badae ga boja!",
+   "learner": "좋아! 오늘 동물이랑 식물을 많이 봐서 좋았어.",
+   "en": "Sounds good! I loved seeing so many animals and plants today.",
+   "roman": "joa! oneul dongmurirang singmureul mani bwaseo joasseo."
+  }
+ ]
+}

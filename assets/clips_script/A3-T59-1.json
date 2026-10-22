@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T59-1",
+ "no": 81,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 어디가 불편하세요?",
+   "beaver_en": "Hello. What seems to be the problem?",
+   "beaver_roman": "annyeonghaseyo. eodiga bulpyeonhaseyo?",
+   "learner": "감기에 걸린 것 같아요. 기침이 나요.",
+   "en": "I think I caught a cold. I have a cough.",
+   "roman": "gamgie geollin geot gatayo. gichimi nayo."
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터 기침을 했어요?",
+   "beaver_en": "Since when have you been coughing?",
+   "beaver_roman": "eonjebuteo gichimeul haesseoyo?",
+   "learner": "사흘 전부터요. 어제보다 오늘 더 심해요.",
+   "en": "Since three days ago. It's worse today than yesterday.",
+   "roman": "saheul jeonbuteoyo. eojeboda oneul deo simhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "열도 있나요?",
+   "beaver_en": "Do you have a fever too?",
+   "beaver_roman": "yeoldo innayo?",
+   "learner": "네, 열이 조금 있는 것 같아요.",
+   "en": "Yes, I think I have a slight fever.",
+   "roman": "ne, yeori jogeum inneun geot gatayo."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 증상은요?",
+   "beaver_en": "Any other symptoms?",
+   "beaver_roman": "dareun jeungsangeunyo?",
+   "learner": "두통도 있고 재채기도 많이 해요.",
+   "en": "I have a headache and sneeze a lot too.",
+   "roman": "dutongdo itgo jaechaegido mani haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "머리는 어떻게 아파요?",
+   "beaver_en": "How does your head hurt?",
+   "beaver_roman": "meorineun eotteoke apayo?",
+   "learner": "아침보다 밤에 머리가 더 아파요.",
+   "en": "My head hurts more at night than in the morning.",
+   "roman": "achimboda bame meoriga deo apayo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 최근에 다친 적이 있어요?",
+   "beaver_en": "Have you been hurt recently, by any chance?",
+   "beaver_roman": "hoksi choegeune dachin jeogi isseoyo?",
+   "learner": "아니요, 다친 곳은 없어요.",
+   "en": "No, I'm not hurt anywhere.",
+   "roman": "aniyo, dachin goseun eopseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "집에 아픈 사람이 있어요?",
+   "beaver_en": "Is anyone at home sick?",
+   "beaver_roman": "jibe apeun sarami isseoyo?",
+   "learner": "네, 어머니도 요즘 편찮으세요.",
+   "en": "Yes, my mother is also unwell these days.",
+   "roman": "ne, eomeonido yojeum pyeonchaneuseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "어머니한테서 옮은 것 같네요. 목 좀 볼게요.",
+   "beaver_en": "Seems you caught it from her. Let me see your throat.",
+   "beaver_roman": "eomeonihanteseo olmeun geot ganneyo. mok jom bolgeyo.",
+   "learner": "네. 목도 조금 부은 것 같아요.",
+   "en": "Okay. I think my throat is a bit swollen too.",
+   "roman": "ne. mokdo jogeum bueun geot gatayo."
+  },
+  {
+   "n": 9,
+   "beaver": "감기예요. 약을 사흘 드세요.",
+   "beaver_en": "It's a cold. Take the medicine for three days.",
+   "beaver_roman": "gamgiyeyo. yageul saheul deuseyo.",
+   "learner": "빨리 나았으면 좋겠어요.",
+   "en": "I hope I get better soon.",
+   "roman": "ppalli naasseumyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "물 많이 드시고 푹 쉬세요.",
+   "beaver_en": "Drink lots of water and get plenty of rest.",
+   "beaver_roman": "mul mani deusigo puk swiseyo.",
+   "learner": "감사합니다, 선생님. 안녕히 계세요.",
+   "en": "Thank you, doctor. Goodbye.",
+   "roman": "gamsahamnida, seonsaengnim. annyeonghi gyeseyo."
+  }
+ ]
+}

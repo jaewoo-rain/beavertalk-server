@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T40-2",
+ "no": 421,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 사각지대에 대해 말씀해 주십시오.",
+   "beaver_en": "Hello. Please tell me about the welfare gaps.",
+   "beaver_roman": "Annyeonghasimnikka? Sagakjidaee daehae malsseumhae jusipsio.",
+   "learner": "네, 독거노인과 영세민이 지원을 못 받고 있습니다.",
+   "en": "Yes, elderly people living alone and the poor aren't getting support.",
+   "roman": "Ne, dokgeonoingwa yeongsemini jiwoneul mot batgo itseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "왜 그런 일이 생깁니까?",
+   "beaver_en": "Why does that happen?",
+   "beaver_roman": "Wae geureon iri saenggimnikka?",
+   "learner": "오래된 관행 때문에 신청 절차가 너무 어렵습니다.",
+   "en": "Because of old practices, applying is too hard.",
+   "roman": "Oraedoen gwanhaeng ttaemune sincheong jeolchaga neomu eoryeopseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "이주민은 어떻습니까?",
+   "beaver_en": "What about immigrants?",
+   "beaver_roman": "Ijumineun eotteoseumnikka?",
+   "learner": "이주민도 내국인과 동등한 복지를 누려야 합니다.",
+   "en": "Immigrants should enjoy welfare equal to citizens.",
+   "roman": "Ijumindo naegugingwa dongdeunghan bokjireul nuryeoya hamnida."
+  },
+  {
+   "n": 4,
+   "beaver": "지금 제도는 공정하지 않다는 말씀입니까?",
+   "beaver_en": "Are you saying the current system isn't fair?",
+   "beaver_roman": "Jigeum jedoneun gongjeonghaji antaneun malsseumimnikka?",
+   "learner": "네, 국적을 막론하고 공정성이 지켜져야 합니다.",
+   "en": "Yes, fairness must be kept regardless of nationality.",
+   "roman": "Ne, gukjeogeul mangnonhago gongjeongseongi jikyeojyeoya hamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "사회 제도와 복지에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the social system and welfare?",
+   "beaver_roman": "Sahoe jedowa bokjie daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "행정의 위계질서 때문에 현장의 목소리가 묻힙니다.",
+   "en": "Because of the admin hierarchy, voices from the field get buried.",
+   "roman": "Haengjeongui wigyejilseo ttaemune hyeonjangui moksoriga muchimnida."
+  },
+  {
+   "n": 6,
+   "beaver": "구체적인 예를 들어 주시겠습니까?",
+   "beaver_en": "Could you give a specific example?",
+   "beaver_roman": "Guchejeogin yereul deureo jusigetseumnikka?",
+   "learner": "어느 독거노인은 혹독한 겨울을 홀로 보냈습니다.",
+   "en": "One elderly person living alone spent a harsh winter by himself.",
+   "roman": "Eoneu dokgeonoineun hokdokan gyeoureul hollo bonaetseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "안타깝군요. 개선 방향은 무엇입니까?",
+   "beaver_en": "That's unfortunate. What direction should improvement take?",
+   "beaver_roman": "Antakkapgunyo. Gaeseon banghyangeun mueosimnikka?",
+   "learner": "지역 주민이 힘을 모아 이웃을 찾아가야 합니다.",
+   "en": "Local residents should join forces and reach out to neighbors.",
+   "roman": "Jiyeok jumini himeul moa iuseul chajagaya hamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "공무원 쪽에서는 무엇을 바꿔야 합니까?",
+   "beaver_en": "What should change on the officials' side?",
+   "beaver_roman": "Gongmuwon jjogeseoneun mueoseul bakkwoya hamnikka?",
+   "learner": "까다로운 규정보다 찾아가는 지원이 필요합니다.",
+   "en": "Outreach support is needed more than strict regulations.",
+   "roman": "Kkadaroun gyujeongboda chajaganeun jiwoni piryohamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "일부 사람만 혜택을 받는다는 비판도 있지요.",
+   "beaver_en": "Some criticize that only a few get benefits.",
+   "beaver_roman": "Ilbu saramman hyetaegeul banneundaneun bipando itjiyo.",
+   "learner": "네, 복지는 특권이 아니라 모두의 권리입니다.",
+   "en": "Yes, welfare is not a privilege but everyone's right.",
+   "roman": "Ne, bokjineun teukgwoni anira moduui gwolliimnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 정책에 꼭 반영하겠습니다.",
+   "beaver_en": "Thank you for your input. We'll reflect it in our policy.",
+   "beaver_roman": "Joeun malsseum gamsahamnida. Jeongchaege kkok banyeonghagetseumnida.",
+   "learner": "'소외 없는 복지' 표어가 꼭 현실이 되길 바랍니다.",
+   "en": "I hope the slogan 'Welfare for all' truly becomes reality.",
+   "roman": "'Sooe eomneun bokji' pyoeoga kkok hyeonsiri doegil baramnida."
+  }
+ ]
+}

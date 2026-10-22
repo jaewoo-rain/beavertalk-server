@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T02-1",
+ "no": 5,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이거 가족 사진이에요? 와, 가족이 많네요!",
+   "beaver_en": "Is this your family photo? Wow, you have a big family!",
+   "beaver_roman": "igeo gajok sajinieyo? wa, gajogi manneyo!",
+   "learner": "네, 우리 가족이에요. 모두 열 명이에요.",
+   "en": "Yes, it's my family. There are ten of us.",
+   "roman": "ne, uri gajogieyo. modu yeol myeongieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이분들은 할아버지, 할머니예요?",
+   "beaver_en": "Are these your grandfather and grandmother?",
+   "beaver_roman": "ibundeureun harabeoji, halmeoniyeyo?",
+   "learner": "네, 할아버지하고 할머니예요.",
+   "en": "Yes, my grandfather and grandmother.",
+   "roman": "ne, harabeojihago halmeoniyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "이분들은 아버지, 어머니예요?",
+   "beaver_en": "Are these your father and mother?",
+   "beaver_roman": "ibundeureun abeoji, eomeoniyeyo?",
+   "learner": "네, 우리 부모님이에요. 그 옆은 오빠예요.",
+   "en": "Yes, my parents. Next to them is my older brother.",
+   "roman": "ne, uri bumonimieyo. geu yeopeun oppayeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "이 아기는 누구예요? 정말 귀여워요!",
+   "beaver_en": "Who is this baby? So cute!",
+   "beaver_roman": "i agineun nuguyeyo? jeongmal gwiyeowoyo!",
+   "learner": "언니 딸이에요. 언니 옆은 언니 남편이에요.",
+   "en": "My older sister's daughter. Next to her is her husband.",
+   "roman": "eonni ttarieyo. eonni yeopeun eonni nampyeonieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "아기는 몇 살이에요?",
+   "beaver_en": "How old is the baby?",
+   "beaver_roman": "agineun myeot sarieyo?",
+   "learner": "두 살이에요. 이름은 하나예요.",
+   "en": "She's two. Her name is Hana.",
+   "roman": "du sarieyo. ireumeun hanayeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 이 사람은 동생이에요?",
+   "beaver_en": "Then is this your younger sibling?",
+   "beaver_roman": "geureom i sarameun dongsaengieyo?",
+   "learner": "네, 제 여동생이에요. 저는 그 옆에 있어요.",
+   "en": "Yes, my younger sister. I'm next to her.",
+   "roman": "ne, je yeodongsaengieyo. jeoneun geu yeope isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "동생 생일은 언제예요?",
+   "beaver_en": "When is your sister's birthday?",
+   "beaver_roman": "dongsaeng saengireun eonjeyeyo?",
+   "learner": "시월 삼 일이에요. 이번 주 토요일이에요.",
+   "en": "It's October 3rd. This Saturday.",
+   "roman": "siwol sam irieyo. ibeon ju toyoirieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 얼마 안 남았네요! 생일 파티해요?",
+   "beaver_en": "Wow, it's coming up soon! Having a birthday party?",
+   "beaver_roman": "wa, eolma an namanneyo! saengil patihaeyo?",
+   "learner": "네, 토요일에 가족이 다 같이 만나요.",
+   "en": "Yes, the whole family meets on Saturday.",
+   "roman": "ne, toyoire gajogi da gachi mannayo."
+  },
+  {
+   "n": 9,
+   "beaver": "가족이 다 같이 살아요?",
+   "beaver_en": "Does your whole family live together?",
+   "beaver_roman": "gajogi da gachi sarayo?",
+   "learner": "언니 가족도 우리 집에 같이 살아요.",
+   "en": "My older sister's family lives with us too.",
+   "roman": "eonni gajokdo uri jibe gachi sarayo."
+  },
+  {
+   "n": 10,
+   "beaver": "대가족이네요! 저는 누나하고 형만 있어요.",
+   "beaver_en": "A big family! I only have an older sister and brother.",
+   "beaver_roman": "daegajogineyo! jeoneun nunahago hyeongman isseoyo.",
+   "learner": "다음에 누나, 형 사진도 보여 주세요!",
+   "en": "Show me their photos next time!",
+   "roman": "daeume nuna, hyeong sajindo boyeo juseyo!"
+  }
+ ]
+}

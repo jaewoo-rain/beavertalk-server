@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T03-1",
+ "no": 163,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 민지야! 오랜만이다. 너 좀 달라 보인다?",
+   "beaver_en": "Wow, Minji! Long time no see. You look kind of different?",
+   "beaver_roman": "Wa, minjiya! oraenmanida. neo jom dalla boinda?",
+   "learner": "지호야, 진짜 오랜만이야! 나 많이 달라졌어?",
+   "en": "Jiho, it's really been a while! Have I changed a lot?",
+   "roman": "Jihoya, jinjja oraenmaniya! na mani dallajyeosseo?"
+  },
+  {
+   "n": 2,
+   "beaver": "응, 머리가 완전 달라졌네. 어디서 했어?",
+   "beaver_en": "Yeah, your hair is totally different. Where did you get it done?",
+   "beaver_roman": "Eung, meoriga wanjeon dallajyeonne. eodiseo haesseo?",
+   "learner": "집 앞 미용실에서 짧게 잘랐어.",
+   "en": "I cut it short at the hair salon near my house.",
+   "roman": "Jip ap miyongsireseo jjalkke jallasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "잘 어울린다. 드라이도 하고 온 거야?",
+   "beaver_en": "It suits you. Did you blow-dry it too?",
+   "beaver_roman": "Jal eoullinda. deuraido hago on geoya?",
+   "learner": "응, 아침에 드라이하고 보니 괜찮더라.",
+   "en": "Yeah, after blow-drying it this morning, it looked nice.",
+   "roman": "Eung, achime deuraihago boni gwaenchanteora."
+  },
+  {
+   "n": 4,
+   "beaver": "얼굴도 좋아 보여. 피부가 깨끗해졌네.",
+   "beaver_en": "Your face looks good too. Your skin got clearer.",
+   "beaver_roman": "Eolguldo joa boyeo. pibuga kkaekkeutaejyeonne.",
+   "learner": "전엔 여드름 때문에 얼굴이 자주 빨개졌거든.",
+   "en": "Before, my face often turned red because of acne.",
+   "roman": "Jeonen yeodeureum ttaemune eolguri jaju ppalgaejyeotgeodeun."
+  },
+  {
+   "n": 5,
+   "beaver": "그랬구나. 지금은 하나도 안 보이는데?",
+   "beaver_en": "I see. I can't see any now, though.",
+   "beaver_roman": "Geuraetguna. jigeumeun hanado an boineunde?",
+   "learner": "피부과에 다니다 보니 많이 좋아졌어.",
+   "en": "As I kept going to a dermatologist, it got much better.",
+   "roman": "Pibugwae danida boni mani joajyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "화장도 바꿨어? 눈이 더 커 보여.",
+   "beaver_en": "Did you change your makeup too? Your eyes look bigger.",
+   "beaver_roman": "Hwajangdo bakkwosseo? nuni deo keo boyeo.",
+   "learner": "응, 화장은 연하게 하고 눈가만 진하게 했어.",
+   "en": "Yeah, I kept my makeup light and only darkened around my eyes.",
+   "roman": "Eung, hwajangeun yeonhage hago nunkkaman jinhage haesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 그런지 얼굴이 더 밝아 보여.",
+   "beaver_en": "Maybe that's why your face looks brighter.",
+   "beaver_roman": "Geuraeseo geureonji eolguri deo balga boyeo.",
+   "learner": "고마워. 예전엔 얼굴이 좀 통통했잖아.",
+   "en": "Thanks. My face used to be a bit chubby, remember?",
+   "roman": "Gomawo. yejeonen eolguri jom tongtonghaetjana."
+  },
+  {
+   "n": 8,
+   "beaver": "어느새 살이 그렇게 빠졌어? 내내 바빴잖아.",
+   "beaver_en": "When did you lose so much weight? You were busy the whole time.",
+   "beaver_roman": "Eoneusae sari geureoke ppajyeosseo? naenae bappatjana.",
+   "learner": "걷기 운동을 시작했더니 살이 빠지더라.",
+   "en": "I started walking for exercise, and I lost weight.",
+   "roman": "Geotgi undongeul sijakaetdeoni sari ppajideora."
+  },
+  {
+   "n": 9,
+   "beaver": "외모가 바뀌니까 기분도 달라?",
+   "beaver_en": "Now that your looks changed, do you feel different too?",
+   "beaver_roman": "Oemoga bakkwinikka gibundo dalla?",
+   "learner": "응, 기분도 밝아지고 자신감도 생겼어.",
+   "en": "Yeah, I feel brighter and more confident too.",
+   "roman": "Eung, gibundo balgajigo jasingamdo saenggyeosseo."
+  },
+  {
+   "n": 10,
+   "beaver": "정말 보기 좋다. 커피 마시면서 더 얘기하자!",
+   "beaver_en": "You look really good. Let's talk more over coffee!",
+   "beaver_roman": "Jeongmal bogi jota. keopi masimyeonseo deo yaegihaja!",
+   "learner": "좋아! 오늘은 내가 살게. 가자!",
+   "en": "Sure! I'll treat you today. Let's go!",
+   "roman": "Joa! oneureun naega salkke. gaja!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T58-1",
+ "no": 484,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 지금 심경은 어떠십니까?",
+   "beaver_en": "Welcome. How is your state of mind right now?",
+   "beaver_roman": "eoseo oseyo. jigeum simgyeongeun eotteosimnikka?",
+   "learner": "요즘 시름이 깊어서 마음이 무거워요.",
+   "en": "I've had deep worries lately, so my heart feels heavy.",
+   "roman": "yojeum sireumi gipeoseo maeumi mugeowoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터입니까? 천천히 말씀해 주세요.",
+   "beaver_en": "Since when? Please take your time.",
+   "beaver_roman": "eonjebuteoimnikka? cheoncheonhi malsseumhae juseyo.",
+   "learner": "작년에 꿈을 단념한 뒤부터 그랬어요.",
+   "en": "It's been like this since I gave up my dream last year.",
+   "roman": "jangnyeone kkumeul dannyeomhan dwibuteo geuraesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "어떤 꿈이었는지 여쭤봐도 될까요?",
+   "beaver_en": "May I ask what the dream was?",
+   "beaver_roman": "eotteon kkumieonneunji yeojjwobwado doelkkayo?",
+   "learner": "화가가 되고 싶은 열망이 컸어요.",
+   "en": "I had a strong desire to become a painter.",
+   "roman": "hwagaga doego sipeun yeolmangi keosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그 꿈을 접게 된 특별한 사정이 있었나요?",
+   "beaver_en": "Was there a particular reason you gave up that dream?",
+   "beaver_roman": "geu kkumeul jeopge doen teukbyeolhan sajeongi isseonnayo?",
+   "learner": "생활비 문제로 골머리를 앓았어요.",
+   "en": "I had a real headache over living expenses.",
+   "roman": "saenghwalbi munjero golmeorireul arasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "지금도 그 꿈에 마음이 남아 있습니까?",
+   "beaver_en": "Does your heart still hold on to that dream?",
+   "beaver_roman": "jigeumdo geu kkume maeumi nama itseumnikka?",
+   "learner": "네, 아직도 지난 꿈에 연연하고 있어요.",
+   "en": "Yes, I'm still clinging to my old dream.",
+   "roman": "ne, ajikdo jinan kkume yeonyeonhago isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럴 때 어떤 감정이 드시나요?",
+   "beaver_en": "What feelings come up at those times?",
+   "beaver_roman": "geureol ttae eotteon gamjeongi deusinayo?",
+   "learner": "화가 친구들을 보면 동경과 상심이 교차해요.",
+   "en": "When I see my painter friends, admiration and heartbreak cross paths.",
+   "roman": "hwaga chingudeureul bomyeon donggyeonggwa sangsimi gyochahaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘 마음 상태를 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about how you feel these days?",
+   "beaver_roman": "yojeum maeum sangtaereul deo malsseumhae jusigesseoyo?",
+   "learner": "꿈을 버린 죄책감도 들고, 일상이 권태로워요.",
+   "en": "I feel guilty for abandoning my dream, and daily life feels dull.",
+   "roman": "kkumeul beorin joechaekgamdo deulgo, ilsangi gwontaerowoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "혹시 이런 이야기를 하는 데 거리낌이 있으세요?",
+   "beaver_en": "Do you have any hesitation talking about this?",
+   "beaver_roman": "hoksi ireon iyagireul haneun de georikkimi isseuseyo?",
+   "learner": "처음엔 있었는데, 이야기하다 보면 편해질 것 같아요.",
+   "en": "I did at first, but as I keep talking, I think it'll get easier.",
+   "roman": "cheoeumen isseonneunde, iyagihada bomyeon pyeonhaejil geot gatayo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋습니다. 요즘 가장 바라는 것은 무엇입니까?",
+   "beaver_en": "Good. What do you wish for most these days?",
+   "beaver_roman": "jotseumnida. yojeum gajang baraneun geoseun mueosimnikka?",
+   "learner": "안달하지 않고 마음이 평온해지는 거예요.",
+   "en": "To stop fretting and find peace of mind.",
+   "roman": "andalhaji anko maeumi pyeongonhaejineun geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "꾸준히 마음을 돌보다 보면 평온해지실 거예요.",
+   "beaver_en": "If you keep caring for your heart, you'll find peace.",
+   "beaver_roman": "kkujunhi maeumeul dolboda bomyeon pyeongonhaejisil geoyeyo.",
+   "learner": "감사합니다. 그게 제 오랜 염원이에요.",
+   "en": "Thank you. That's been my long-held wish.",
+   "roman": "gamsahamnida. geuge je oraen yeomwonieyo."
+  }
+ ]
+}

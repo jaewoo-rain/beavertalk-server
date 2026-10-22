@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T45-1",
+ "no": 333,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 무슨 책을 읽고 있어요?",
+   "beaver_en": "What book are you reading these days?",
+   "beaver_roman": "yojeum museun chaegeul ilkko isseoyo?",
+   "learner": "공부할 겸 쉴 겸 철학 책을 읽어요.",
+   "en": "I'm reading a philosophy book, partly to study and partly to rest.",
+   "roman": "gongbuhal gyeom swil gyeom cheolhak chaegeul ilgeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 내용이 기억에 남았어요?",
+   "beaver_en": "What part stuck with you?",
+   "beaver_roman": "eotteon naeyongi gieoge namasseoyo?",
+   "learner": "한 철학자의 생애가 눈길을 끌었어요.",
+   "en": "One philosopher's life caught my eye.",
+   "roman": "han cheolhakjaui saengaega nunkkireul kkeureosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그 사람은 어떻게 살았는데요?",
+   "beaver_en": "How did that person live?",
+   "beaver_roman": "geu sarameun eotteoke saranneundeyo?",
+   "learner": "평생 불의에 맞서 싸웠다고 해요.",
+   "en": "They say he fought injustice all his life.",
+   "roman": "pyeongsaeng burie matseo ssawotdago haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "쉽지 않은 길이었겠네요.",
+   "beaver_en": "That must have been a hard path.",
+   "beaver_roman": "swipji aneun girieotgenneyo.",
+   "learner": "네. 그분이 제 세계관을 바꿨다고 해도 과언이 아니에요.",
+   "en": "Yes. It's no exaggeration to say he changed my worldview.",
+   "roman": "ne. geubuni je segyegwaneul bakkwotdago haedo gwaeoni anieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "가치관과 삶의 의미에 대해 더 말해 줄래요?",
+   "beaver_en": "Could you tell me more about your values and life's meaning?",
+   "beaver_roman": "gachigwangwa salmui uimie daehae deo malhae jullaeyo?",
+   "learner": "저는 윤리를 지키는 삶이 중요해요.",
+   "en": "For me, a life that keeps to ethics is important.",
+   "roman": "jeoneun yullireul jikineun salmi jungyohaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "요즘 그런 말은 식상하다는 사람도 있잖아요.",
+   "beaver_en": "Some people say that kind of talk is cliché these days.",
+   "beaver_roman": "yojeum geureon mareun siksanghadaneun saramdo itjanayo.",
+   "learner": "그래도 제 삶에서 가장 큰 기준이에요.",
+   "en": "Still, it's the biggest standard in my life.",
+   "roman": "geuraedo je salmeseo gajang keun gijunieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "남이 정해 준 기준은 아니고요?",
+   "beaver_en": "It's not a standard someone else set for you?",
+   "beaver_roman": "nami jeonghae jun gijuneun anigoyo?",
+   "learner": "아니요, 제가 스스로 정한 기준이에요.",
+   "en": "No, it's a standard I set for myself.",
+   "roman": "aniyo, jega seuseuro jeonghan gijunieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 행복한 삶은 어떤 거예요?",
+   "beaver_en": "Then what is a happy life?",
+   "beaver_roman": "geureom haengbokan salmeun eotteon geoyeyo?",
+   "learner": "마음이 편안하면 거기가 낙원이라고 봐요.",
+   "en": "I think wherever your heart is at peace is paradise.",
+   "roman": "maeumi pyeonanhamyeon geogiga nagwonirago bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그 말이 참 마음에 와닿네요.",
+   "beaver_en": "Those words really touch my heart.",
+   "beaver_roman": "geu mari cham maeume wadanneyo.",
+   "learner": "선배님과 이야기하니 더 분명해졌어요.",
+   "en": "Talking with you made it clearer for me.",
+   "roman": "seonbaenimgwa iyagihani deo bunmyeonghaejyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "다음에 또 커피 마시며 이야기해요.",
+   "beaver_en": "Let's talk again over coffee next time.",
+   "beaver_roman": "daeume tto keopi masimyeo iyagihaeyo.",
+   "learner": "네, 커피도 마실 겸 이야기도 할 겸 또 봬요.",
+   "en": "Sure, let's meet again, partly for coffee and partly to talk.",
+   "roman": "ne, keopido masil gyeom iyagido hal gyeom tto bwaeyo."
+  }
+ ]
+}

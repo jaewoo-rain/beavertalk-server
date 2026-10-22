@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T60-1",
+ "no": 341,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요. 요즘 학업은 어떻게 되어 가요?",
+   "beaver_en": "Come in. How are your studies going these days?",
+   "beaver_roman": "eoseo wayo. yojeum hageobeun eotteoke doeeo gayo?",
+   "learner": "대입 준비 때문에 반 분위기가 아주 무거워요.",
+   "en": "Because of university entrance prep, my class feels very heavy.",
+   "roman": "daeip junbi ttaemune ban bunwigiga aju mugeowoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 수험 분위기를 좀 설명해 주겠어요?",
+   "beaver_en": "Really? Could you describe the exam atmosphere a bit?",
+   "beaver_roman": "geuraeyo? suheom bunwigireul jom seolmyeonghae jugesseoyo?",
+   "learner": "다들 밤늦게까지 공부해요.",
+   "en": "Everyone studies until late at night.",
+   "roman": "dadeul bamneutgekkaji gongbuhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "시험 준비는 잘되고 있어요?",
+   "beaver_en": "Is your exam prep going well?",
+   "beaver_roman": "siheom junbineun jaldoego isseoyo?",
+   "learner": "네, 그런데 기말이 다가와서 성적 걱정이 큰 친구도 있어요.",
+   "en": "Yes, but finals are coming, so some friends worry a lot about grades.",
+   "roman": "ne, geureonde gimari dagawaseo seongjeok geokjeongi keun chingudo isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "학교에서 따로 도와주는 것도 있습니까?",
+   "beaver_en": "Does the school offer any extra help?",
+   "beaver_roman": "hakgyoeseo ttaro dowajuneun geotdo itseumnikka?",
+   "learner": "네, 논술 특강과 대입 강좌가 새로 개설됐어요.",
+   "en": "Yes, an essay special lecture and entrance courses just opened.",
+   "roman": "ne, nonsul teukganggwa daeip gangjwaga saero gaeseoldwaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "특강은 어떤 방식으로 진행됩니까?",
+   "beaver_en": "How is the special lecture run?",
+   "beaver_roman": "teukgangeun eotteon bangsigeuro jinhaengdoemnikka?",
+   "learner": "시청각 자료로 문항 푸는 법을 배워요.",
+   "en": "We learn how to solve questions with audiovisual materials.",
+   "roman": "sicheonggak jaryoro munhang puneun beobeul baewoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "집중력은 어떻습니까?",
+   "beaver_en": "How is your concentration?",
+   "beaver_roman": "jipjungnyeogeun eotteoseumnikka?",
+   "learner": "공부 시간이 길어서 오후엔 집중력이 떨어져요.",
+   "en": "Study hours are long, so my focus drops in the afternoon.",
+   "roman": "gongbu sigani gireoseo ohuen jipjungnyeogi tteoreojyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "공부와 시험에 대해 더 얘기해 줄래요?",
+   "beaver_en": "Can you tell me more about studying and exams?",
+   "beaver_roman": "gongbuwa siheome daehae deo yaegihae jullaeyo?",
+   "learner": "모의시험 날엔 입실 시간이 엄격해서 다들 긴장해요.",
+   "en": "On mock exam days, entry time is strict, so everyone is tense.",
+   "roman": "mouisiheom naren ipsil sigani eomgyeokaeseo dadeul ginjanghaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "많이 고생스럽겠군요. 학생은 어때요?",
+   "beaver_en": "That must be tough. How about you?",
+   "beaver_roman": "mani gosaengseureopgetgunyo. haksaengeun eottaeyo?",
+   "learner": "방학 특강에서 공부법을 익혀서 좀 나아요.",
+   "en": "I learned study methods in a vacation lecture, so it's a bit better.",
+   "roman": "banghak teukgangeseo gongbubeobeul ikyeoseo jom naayo."
+  },
+  {
+   "n": 9,
+   "beaver": "반에서 1등 하는 학생은 어떻게 공부해요?",
+   "beaver_en": "How does the top student in your class study?",
+   "beaver_roman": "baneseo ildeung haneun haksaengeun eotteoke gongbuhaeyo?",
+   "learner": "수석인 친구는 노트를 꼼꼼히 정리하고 공유도 해 줘요.",
+   "en": "The top student takes careful notes and shares them too.",
+   "roman": "suseogin chinguneun noteureul kkomkkomhi jeongnihago gongyudo hae jwoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "분위기가 잘 전해졌어요. 힘들면 또 찾아와요.",
+   "beaver_en": "I get the atmosphere now. Come again if it gets hard.",
+   "beaver_roman": "bunwigiga jal jeonhaejyeosseoyo. himdeulmyeon tto chajawayo.",
+   "learner": "감사합니다, 교수님. 끝까지 힘내 보겠습니다.",
+   "en": "Thank you, professor. I'll do my best to the end.",
+   "roman": "gamsahamnida, gyosunim. kkeutkkaji himnae bogetseumnida."
+  }
+ ]
+}

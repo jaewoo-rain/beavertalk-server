@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T18-1",
+ "no": 33,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 여행, 어디로 갈까요?",
+   "beaver_en": "Where should we go on this trip?",
+   "beaver_roman": "Ibeon yeohaeng, eodiro galkkayo?",
+   "learner": "제주도 어때요? 넓은 바다가 있어요.",
+   "en": "How about Jeju Island? It has a wide sea.",
+   "roman": "Jejudo eottaeyo? Neolbeun badaga isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 부산은 어때요?",
+   "beaver_en": "Sounds good. What about Busan?",
+   "beaver_roman": "Joayo. Busaneun eottaeyo?",
+   "learner": "부산도 좋아요. 하지만 제주도는 처음이에요.",
+   "en": "Busan is good too. But it's my first time to Jeju.",
+   "roman": "Busando joayo. Hajiman jejudoneun cheoeumieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 제주도로 가요! 여권은 필요 없지요?",
+   "beaver_en": "Then let's go to Jeju! We don't need passports, right?",
+   "beaver_roman": "Geureom jejudoro gayo! Yeogwoneun piryo eopjiyo?",
+   "learner": "네, 하지만 저는 외국인이라서 가져가요.",
+   "en": "Right, but I'm a foreigner, so I'll bring mine.",
+   "roman": "Ne, hajiman jeoneun oeguginiraseo gajyeogayo."
+  },
+  {
+   "n": 4,
+   "beaver": "여권 기간은 괜찮아요?",
+   "beaver_en": "Is your passport still valid?",
+   "beaver_roman": "Yeogwon giganeun gwaenchanayo?",
+   "learner": "네, 지난달 대사관에서 새 여권을 받았어요.",
+   "en": "Yes, I got a new passport at the embassy last month.",
+   "roman": "Ne, jinandal daesagwaneseo sae yeogwoneul badasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "호텔은 어때요?",
+   "beaver_en": "How's the hotel?",
+   "beaver_roman": "Hoteleun eottaeyo?",
+   "learner": "깨끗한 호텔이에요. 바다가 보여요.",
+   "en": "It's a clean hotel. You can see the sea.",
+   "roman": "Kkaekkeutan hoterieyo. Badaga boyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "짐은 뭘 가져갈까요?",
+   "beaver_en": "What should we pack?",
+   "beaver_roman": "Jimeun mwol gajyeogalkkayo?",
+   "learner": "따뜻한 옷이 필요해요. 바람이 많아요.",
+   "en": "We need warm clothes. It's very windy.",
+   "roman": "Ttatteutan osi piryohaeyo. Barami manayo."
+  },
+  {
+   "n": 7,
+   "beaver": "신발은요? 많이 걸을 거예요.",
+   "beaver_en": "What about shoes? We'll walk a lot.",
+   "beaver_roman": "Sinbareunyo? Mani georeul geoyeyo.",
+   "learner": "편한 신발을 가져가요. 산은 힘들어요.",
+   "en": "Let's bring comfortable shoes. Mountains are tough.",
+   "roman": "Pyeonhan sinbareul gajyeogayo. Saneun himdeureoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "성산일출봉 구경은요?",
+   "beaver_en": "What about seeing Seongsan Ilchulbong?",
+   "beaver_roman": "Seongsanilchulbong gugyeongeunyo?",
+   "learner": "좋아요. 한라산도 꼭 구경하고 싶어요.",
+   "en": "Sounds good. I really want to see Hallasan too.",
+   "roman": "Joayo. Hallasando kkok gugyeonghago sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 가방은 하나만 가져가요.",
+   "beaver_en": "Okay. Let's bring just one bag each.",
+   "beaver_roman": "Joayo. Gabangeun hanaman gajyeogayo.",
+   "learner": "네, 저는 작은 가방을 가져가요.",
+   "en": "Okay, I'll bring a small bag.",
+   "roman": "Ne, jeoneun jageun gabangeul gajyeogayo."
+  },
+  {
+   "n": 10,
+   "beaver": "목록을 다시 볼까요? 다 됐지요?",
+   "beaver_en": "Shall we check the list again? All set, right?",
+   "beaver_roman": "Mongnogeul dasi bolkkayo? Da dwaetjiyo?",
+   "learner": "네, 다 됐어요! 재미있게 여행해요!",
+   "en": "Yes, all done! Let's have a fun trip!",
+   "roman": "Ne, da dwaesseoyo! Jaemiitge yeohaenghaeyo!"
+  }
+ ]
+}

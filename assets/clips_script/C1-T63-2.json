@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T63-2",
+ "no": 345,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지역 산업 조사 때문에 연락드렸습니다.",
+   "beaver_en": "I'm contacting you for a local industry survey.",
+   "beaver_roman": "Jiyeok saneop josa ttaemune yeollakdeuryeotseumnida.",
+   "learner": "네, 반갑습니다. 저는 시장에서 자영업을 해요.",
+   "en": "Nice to meet you. I run my own business at the market.",
+   "roman": "Ne, bangapseumnida. Jeoneun sijangeseo jayeongeobeul haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이 지역의 주력 산업은 무엇입니까?",
+   "beaver_en": "What is this region's main industry?",
+   "beaver_roman": "I jiyeogui juryeok saneobeun mueosimnikka?",
+   "learner": "어업이 제일 커요. 어업 외에 농업도 중요해요.",
+   "en": "Fishing is the biggest. Besides fishing, farming matters too.",
+   "roman": "Eoeobi jeil keoyo. Eoeop oee nongeopdo jungyohaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "농업은 어떻습니까?",
+   "beaver_en": "How about farming?",
+   "beaver_roman": "Nongeobeun eotteoseumnikka?",
+   "learner": "가을에 추수가 끝나면 햇곡식이 많이 나와요.",
+   "en": "After the autumn harvest, lots of new grain comes out.",
+   "roman": "Gaeure chusuga kkeunnamyeon haetgoksigi mani nawayo."
+  },
+  {
+   "n": 4,
+   "beaver": "생산량은 어느 정도입니까?",
+   "beaver_en": "How large is the production volume?",
+   "beaver_roman": "Saengsallyangeun eoneu jeongdoimnikka?",
+   "learner": "올해 수확은 좋았어요. 축산물 생산량도 늘었어요.",
+   "en": "This year's harvest was good. Livestock output grew too.",
+   "roman": "Olhae suhwageun joasseoyo. Chuksanmul saengsallyangdo neureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "농수산물은 어떻게 판매합니까?",
+   "beaver_en": "How do you sell farm and marine products?",
+   "beaver_roman": "Nongsusanmureun eotteoke panmaehamnikka?",
+   "learner": "중개 상인을 통해서 서울로 운송해요.",
+   "en": "We ship them to Seoul through brokers.",
+   "roman": "Jungae sangineul tonghaeseo seoullo unsonghaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "운송에 어려움은 없습니까?",
+   "beaver_en": "Are there any problems with transportation?",
+   "beaver_roman": "Unsonge eoryeoumeun eopseumnikka?",
+   "learner": "운송 회사가 적어서 좀 불편해요.",
+   "en": "There are few shipping companies, so it's a bit inconvenient.",
+   "roman": "Unsong hoesaga jeogeoseo jom bulpyeonhaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "산업과 기업에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about industry and businesses?",
+   "beaver_roman": "Saneopgwa gieobe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "예전에는 석탄을 캤는데, 지금은 제조 공장이 있어요.",
+   "en": "We used to mine coal, but now there are factories.",
+   "roman": "Yejeoneneun seoktaneul kaenneunde, jigeumeun jejo gongjangi isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "산업화로 생긴 변화는 무엇입니까?",
+   "beaver_en": "What changes has industrialization brought?",
+   "beaver_roman": "Saneopwaro saenggin byeonhwaneun mueosimnikka?",
+   "learner": "젊은 노동력이 공장으로 가서 어업이 힘들어요.",
+   "en": "Young workers go to factories, so fishing is struggling.",
+   "roman": "Jeolmeun nodongnyeogi gongjangeuro gaseo eoeobi himdeureoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "앞으로는 어떻습니까?",
+   "beaver_en": "What about the future?",
+   "beaver_roman": "Apeuroneun eotteoseumnikka?",
+   "learner": "큰 회사 지사가 생기면 서비스업도 커질 거예요.",
+   "en": "If big company branches open, services will grow too.",
+   "roman": "Keun hoesa jisaga saenggimyeon seobiseueopdo keojil geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 정책에 잘 반영하겠습니다.",
+   "beaver_en": "Thank you. I'll reflect this in our policies.",
+   "beaver_roman": "Joeun malsseum gamsahamnida. Jeongchaege jal banyeonghagetseumnida.",
+   "learner": "앞으로도 지역에 관심 부탁드려요. 감사합니다.",
+   "en": "Please keep caring about our region. Thank you.",
+   "roman": "Apeurodo jiyeoge gwansim butakdeuryeoyo. Gamsahamnida."
+  }
+ ]
+}

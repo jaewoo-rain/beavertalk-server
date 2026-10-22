@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T53-2",
+ "no": 479,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "개표가 다 끝났네요. 결과는 어때요?",
+   "beaver_en": "The vote counting is all done. How did it turn out?",
+   "beaver_roman": "gaepyoga da kkeunnanneyo. gyeolgwaneun eottaeyo?",
+   "learner": "우파 정당이 이겼지만 의석 차이는 크지 않아요.",
+   "en": "The right-wing party won, but the gap in seats isn't big.",
+   "roman": "upa jeongdang-i igyeotjiman uiseok chaineun keuji anayo."
+  },
+  {
+   "n": 2,
+   "beaver": "좌파 쪽은 왜 졌다고 봐요?",
+   "beaver_en": "Why do you think the left lost?",
+   "beaver_roman": "jwapa jjogeun wae jeotdago bwayo?",
+   "learner": "좌파가 분열돼서 표가 분산됐어요.",
+   "en": "The left split, so their votes were scattered.",
+   "roman": "jwapaga bunyeoldwaeseo pyoga bunsandwaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "지지율이 낮았던 것도 영향을 줬겠죠?",
+   "beaver_en": "Their low approval rating must have mattered too, right?",
+   "beaver_roman": "jijiyuri najatdeon geotdo yeonghyang-eul jwotgetjyo?",
+   "learner": "네, 정책은 진보적이었지만 설명이 부족했어요.",
+   "en": "Yes, their policies were progressive, but poorly explained.",
+   "roman": "ne, jeongchaegeun jinbojeogieotjiman seolmyeong-i bujokaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "선거 운동 분위기는 어땠어요?",
+   "beaver_en": "What was the campaign atmosphere like?",
+   "beaver_roman": "seongeo undong bunwigineun eottaesseoyo?",
+   "learner": "일부 연설이 선동적이었지만 대체로 평화적이었어요.",
+   "en": "Some speeches were inflammatory, but it was mostly peaceful.",
+   "roman": "ilbu yeonseori seondongjeogieotjiman daechero pyeonghwajeogieosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "일부에서는 의원 퇴진 요구도 있어요.",
+   "beaver_en": "Some are even calling for lawmakers to step down.",
+   "beaver_roman": "ilbueseoneun uiwon toejin yogudo isseoyo.",
+   "learner": "퇴진을 요구하되 민주적인 절차를 따라야죠.",
+   "en": "They can demand resignations, but must follow democratic procedure.",
+   "roman": "toejineul yoguhadoe minjujeogin jeolchareul ttarayajyo."
+  },
+  {
+   "n": 6,
+   "beaver": "새 정부는 언제 출범해요?",
+   "beaver_en": "When does the new government launch?",
+   "beaver_roman": "sae jeongbuneun eonje chulbeomhaeyo?",
+   "learner": "다음 달에 출범하고, 총리도 곧 선출될 거예요.",
+   "en": "It launches next month, and a prime minister will be chosen soon.",
+   "roman": "daeum dare chulbeomhago, chongnido got seonchuldoel geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "두 당이 협약을 맺을 가능성은요?",
+   "beaver_en": "What about the chance of the two parties making a pact?",
+   "beaver_roman": "du dang-i hyeobyageul maejeul ganeungseong-eunyo?",
+   "learner": "협약은 맺되 서로 견제는 계속할 거예요.",
+   "en": "They'll make a pact, but keep checking each other.",
+   "roman": "hyeobyageun maetdoe seoro gyeonjeneun gyesokal geoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "법안이 만장일치로 통과될 수도 있을까요?",
+   "beaver_en": "Could bills pass unanimously?",
+   "beaver_roman": "beobani manjang-ilchiro tonggwadoel sudo isseulkkayo?",
+   "learner": "만장일치는 어렵지만 정책 합의는 가능해요.",
+   "en": "Unanimity is hard, but a policy agreement is possible.",
+   "roman": "manjang-ilchineun eoryeopjiman jeongchaek habuineun ganeunghaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "이번 선거가 주는 의미는 뭐라고 봐요?",
+   "beaver_en": "What do you think this election means?",
+   "beaver_roman": "ibeon seongeoga juneun uimineun mworago bwayo?",
+   "learner": "변화는 느려도 결국 투표에서 시작돼요.",
+   "en": "Change may be slow, but it starts with voting in the end.",
+   "roman": "byeonhwaneun neuryeodo gyeolguk tupyoeseo sijakdwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 분석이네요. 보고서로 정리해 줄래요?",
+   "beaver_en": "Great analysis. Could you put it into a report?",
+   "beaver_roman": "joeun bunseogineyo. bogoseoro jeongnihae jullaeyo?",
+   "learner": "네, 내일까지 정리해서 보낼게요.",
+   "en": "Sure, I'll organize it and send it by tomorrow.",
+   "roman": "ne, naeilkkaji jeongnihaeseo bonaelgeyo."
+  }
+ ]
+}

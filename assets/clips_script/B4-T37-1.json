@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T37-1",
+ "no": 277,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 바람이 꽤 서늘하네요.",
+   "beaver_en": "Hello. The wind is quite cool today.",
+   "beaver_roman": "annyeonghaseyo. oneul barami kkwae seonulhaneyo.",
+   "learner": "네, 9월치고 아침저녁으로 서늘해요.",
+   "en": "Yes, for September, mornings and evenings are cool.",
+   "roman": "ne, guwolchigo achimjeonyeogeuro seonulhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "올여름은 정말 덥지 않았어요?",
+   "beaver_en": "Wasn't this summer really hot?",
+   "beaver_roman": "ollyeoreumeun jeongmal deopji anasseoyo?",
+   "learner": "맞아요. 초여름부터 35도까지 올라갔어요.",
+   "en": "Right. From early summer it went up to 35 degrees.",
+   "roman": "majayo. choyeoreumbuteo samsibodokkaji ollagasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "비도 많이 왔죠?",
+   "beaver_en": "It rained a lot too, right?",
+   "beaver_roman": "bido mani watjyo?",
+   "learner": "네, 늦여름에 폭우가 자주 쏟아졌어요.",
+   "en": "Yes, heavy rain often poured in late summer.",
+   "roman": "ne, neunnyeoreume poguga jaju ssodajyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "작년보다 강수량이 많았다고 들었어요.",
+   "beaver_en": "I heard rainfall was higher than last year.",
+   "beaver_roman": "jangnyeonboda gangsuryangi manatdago deureosseoyo.",
+   "learner": "네, 몇 년 만에 제일 많이 왔대요.",
+   "en": "Yes, they say it was the most in several years.",
+   "roman": "ne, myeon nyeon mane jeil mani watdaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘은 저녁에 좀 어때요?",
+   "beaver_en": "How are the evenings these days?",
+   "beaver_roman": "yojeumeun jeonyeoge jom eottaeyo?",
+   "learner": "일교차가 커서 초저녁엔 쌀쌀해요.",
+   "en": "The temperature gap is big, so early evenings are chilly.",
+   "roman": "ilgyochaga keoseo chojeonyeogen ssalssalhaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "감기 걸리기 쉽겠어요.",
+   "beaver_en": "It'd be easy to catch a cold.",
+   "beaver_roman": "gamgi geolligi swipgesseoyo.",
+   "learner": "그래서 저녁엔 겉옷을 꼭 챙겨요.",
+   "en": "So I always bring a jacket in the evening.",
+   "roman": "geuraeseo jeonyeogen geodoseul kkok chaenggyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "기후가 많이 변한 것 같아요.",
+   "beaver_en": "The climate seems to have changed a lot.",
+   "beaver_roman": "gihuga mani byeonhan geot gatayo.",
+   "learner": "맞아요. 해마다 더 더워지는 것 같아요.",
+   "en": "Right. It seems to get hotter every year.",
+   "roman": "majayo. haemada deo deowojineun geot gatayo."
+  },
+  {
+   "n": 8,
+   "beaver": "겨울철은 어떨까요?",
+   "beaver_en": "What about the winter season?",
+   "beaver_roman": "gyeoulcheoreun eotteolkkayo?",
+   "learner": "작년 겨울철엔 폭설이 와서 고생했잖아요.",
+   "en": "Last winter we had a hard time with heavy snow.",
+   "roman": "jangnyeon gyeoulcheoren pokseori waseo gosaenghaetjanayo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아요, 눈이 정말 많이 왔죠.",
+   "beaver_en": "Right, it really snowed a lot.",
+   "beaver_roman": "majayo, nuni jeongmal mani watjyo.",
+   "learner": "올해는 겨울치고 따뜻할 거라는 말도 있어요.",
+   "en": "Some say this year will be warm for winter.",
+   "roman": "olhaeneun gyeoulchigo ttatteuthal georaneun maldo isseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 다행이네요. 그래도 대비는 해야죠.",
+   "beaver_en": "That's a relief. Still, we should prepare.",
+   "beaver_roman": "geureom dahaengineyo. geuraedo daebineun haeyajyo.",
+   "learner": "네, 건강 조심하세요. 다음에 또 봬요.",
+   "en": "Yes, take care of your health. See you next time.",
+   "roman": "ne, geongang josimhaseyo. daeume tto bwaeyo."
+  }
+ ]
+}

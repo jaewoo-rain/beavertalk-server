@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T06-1",
+ "no": 166,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "너 요즘 아침마다 일찍 일어나더라?",
+   "beaver_en": "You've been getting up early every morning lately, huh?",
+   "beaver_roman": "neo yojeum achimmada iljjik ireonadeora?",
+   "learner": "응, 요즘 규칙적으로 생활하고 있어.",
+   "en": "Yeah, I'm living on a regular schedule these days.",
+   "roman": "eung, yojeum gyuchikjeogeuro saenghwalhago isseo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 대단하다. 늦잠은 안 자?",
+   "beaver_en": "Wow, that's impressive. Don't you oversleep?",
+   "beaver_roman": "wa, daedanhada. neutjameun an ja?",
+   "learner": "주말에도 늦잠은 거의 안 자.",
+   "en": "I hardly oversleep, even on weekends.",
+   "roman": "jumaredo neutjameun geoui an ja."
+  },
+  {
+   "n": 3,
+   "beaver": "밤에는 몇 시에 자?",
+   "beaver_en": "What time do you go to bed at night?",
+   "beaver_roman": "bameneun myeot sie ja?",
+   "learner": "열한 시에 자. 수면 시간이 중요하거든.",
+   "en": "At eleven. Sleep time is important.",
+   "roman": "yeolhan sie ja. sumyeon sigani jungyohageodeun."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 낮에 안 졸려?",
+   "beaver_en": "Then aren't you sleepy during the day?",
+   "beaver_roman": "geureom naje an jollyeo?",
+   "learner": "응, 잠을 충분히 자니까 안 졸려.",
+   "en": "Right, I sleep enough, so I'm not sleepy.",
+   "roman": "eung, jameul chungbunhi janikka an jollyeo."
+  },
+  {
+   "n": 5,
+   "beaver": "외박도 안 해?",
+   "beaver_en": "You don't stay out overnight either?",
+   "beaver_roman": "oebakdo an hae?",
+   "learner": "외박은 안 해. 늦어도 꼭 집에 와서 자.",
+   "en": "No. Even if it's late, I always come home to sleep.",
+   "roman": "oebageun an hae. neujeodo kkok jibe waseo ja."
+  },
+  {
+   "n": 6,
+   "beaver": "친구들이랑 밤늦게 놀 때는?",
+   "beaver_en": "What about when you hang out late with friends?",
+   "beaver_roman": "chingudeurirang bamneutge nol ttaeneun?",
+   "learner": "놀아도 늦지 않게 집에 들어가.",
+   "en": "Even when I hang out, I get home before it's late.",
+   "roman": "norado neutji anke jibe deureoga."
+  },
+  {
+   "n": 7,
+   "beaver": "쉬는 시간은 어떻게 보내?",
+   "beaver_en": "How do you spend your free time?",
+   "beaver_roman": "swineun siganeun eotteoke bonae?",
+   "learner": "휴식도 중요해서 매일 산책을 해.",
+   "en": "Rest is important too, so I take a walk every day.",
+   "roman": "hyusikdo jungyohaeseo maeil sanchaegeul hae."
+  },
+  {
+   "n": 8,
+   "beaver": "어디서 산책하는데?",
+   "beaver_en": "Where do you walk?",
+   "beaver_roman": "eodiseo sanchaekaneunde?",
+   "learner": "공원이든 동네든 어디나 좋아.",
+   "en": "Park or neighborhood, anywhere is fine.",
+   "roman": "gongwonideun dongnedeun eodina joa."
+  },
+  {
+   "n": 9,
+   "beaver": "하루 일과에 대해 더 얘기해 줄래?",
+   "beaver_en": "Can you tell me more about your daily schedule?",
+   "beaver_roman": "haru ilgwae daehae deo yaegihae jullae?",
+   "learner": "아침엔 운동하고, 밤엔 일기를 써.",
+   "en": "I exercise in the morning and write a diary at night.",
+   "roman": "achimen undonghago, bamen ilgireul sseo."
+  },
+  {
+   "n": 10,
+   "beaver": "나도 너처럼 규칙적으로 살아 볼게.",
+   "beaver_en": "I'll try to live a regular life like you.",
+   "beaver_roman": "nado neocheoreom gyuchikjeogeuro sara bolge.",
+   "learner": "좋아! 같이 해 보자. 내일 아침에 연락할게.",
+   "en": "Great! Let's do it together. I'll call you tomorrow morning.",
+   "roman": "joa! gachi hae boja. naeil achime yeollakalge."
+  }
+ ]
+}

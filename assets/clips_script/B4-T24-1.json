@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T24-1",
+ "no": 268,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어? 민호야, 여기는 무슨 일이야?",
+   "beaver_en": "Oh? Minho, what brings you here?",
+   "beaver_roman": "eo? minhoya, yeogineun museun iriya?",
+   "learner": "지수야, 할 말이 있어서 먼저 왔어.",
+   "en": "Jisu, I came first because I have something to say.",
+   "roman": "jisuya, hal mari isseoseo meonjeo wasseo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 용건인데? 빨리 말해.",
+   "beaver_en": "What is it? Say it quickly.",
+   "beaver_roman": "museun yongkkeoninde? ppalli malhae.",
+   "learner": "지난번에 내가 너를 놀려서 정말 미안해.",
+   "en": "I'm really sorry I teased you last time.",
+   "roman": "jinanbeone naega neoreul nollyeoseo jeongmal mianhae."
+  },
+  {
+   "n": 3,
+   "beaver": "친구들 앞에서 비웃어서 창피했어.",
+   "beaver_en": "You sneered at me in front of friends. I was embarrassed.",
+   "beaver_roman": "chingudeul apeseo biuseoseo changpihaesseo.",
+   "learner": "그랬겠다. 나까지 비웃으면 안 됐는데.",
+   "en": "You must have been. I shouldn't have sneered at you too.",
+   "roman": "geuraetgetda. nakkaji biuseumyeon an dwanneunde."
+  },
+  {
+   "n": 4,
+   "beaver": "바보가 된 기분이었어. 다들 웃었잖아.",
+   "beaver_en": "I felt like a fool. Everyone laughed.",
+   "beaver_roman": "baboga doen gibunieosseo. dadeul useotjana.",
+   "learner": "많이 속상했지? 괴롭히려던 건 아니었어.",
+   "en": "You were really upset, right? I didn't mean to torment you.",
+   "roman": "mani soksanghaetji? goeropiryeodeon geon anieosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 넌 내 말을 무시했잖아.",
+   "beaver_en": "Still, you ignored what I said.",
+   "beaver_roman": "geuraedo neon nae mareul musihaetjana.",
+   "learner": "응, 무시하고 너를 비난까지 했지. 미안해.",
+   "en": "Yeah, I ignored you and even blamed you. Sorry.",
+   "roman": "eung, musihago neoreul binankkaji haetji. mianhae."
+  },
+  {
+   "n": 6,
+   "beaver": "그때 우리 너무 심하게 싸웠어.",
+   "beaver_en": "We fought really badly back then.",
+   "beaver_roman": "geuttae uri neomu simhage ssawosseo.",
+   "learner": "맞아. 싸우지 말고 대화했어야 했어.",
+   "en": "Right. We should have talked instead of fighting.",
+   "roman": "maja. ssauji malgo daehwahaesseoya haesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "솔직히 너무 화가 나서 연락 안 했어.",
+   "beaver_en": "Honestly, I was so angry I didn't contact you.",
+   "beaver_roman": "soljiki neomu hwaga naseo yeollak an haesseo.",
+   "learner": "이해해. 너마저 떠날까 봐 무서웠어.",
+   "en": "I understand. I was scared even you would leave.",
+   "roman": "ihaehae. neomajeo tteonalkka bwa museowosseo."
+  },
+  {
+   "n": 8,
+   "beaver": "나 없으면 누구랑 점심 먹으려고?",
+   "beaver_en": "Without me, who would you eat lunch with?",
+   "beaver_roman": "na eopseumyeon nugurang jeomsim meogeuryeogo?",
+   "learner": "그러니까. 혼자 먹으니 밥마저 맛없더라.",
+   "en": "Exactly. Eating alone, even the food tasted bad.",
+   "roman": "geureonikka. honja meogeuni bammajeo madeopdeora."
+  },
+  {
+   "n": 9,
+   "beaver": "하하, 알았어. 이미 다 잊었어.",
+   "beaver_en": "Haha, okay. I've already forgotten it all.",
+   "beaver_roman": "haha, arasseo. imi da ijeosseo.",
+   "learner": "정말? 용서해 줘서 정말 고마워.",
+   "en": "Really? Thank you so much for forgiving me.",
+   "roman": "jeongmal? yongseohae jwoseo jeongmal gomawo."
+  },
+  {
+   "n": 10,
+   "beaver": "다음엔 놀리지 마. 점심 먹으러 갈까?",
+   "beaver_en": "Don't tease me next time. Shall we go eat lunch?",
+   "beaver_roman": "daeumen nolliji ma. jeomsim meogeureo galkka?",
+   "learner": "좋아! 오늘 점심은 내가 살게.",
+   "en": "Sure! Lunch is on me today.",
+   "roman": "joa! oneul jeomsimeun naega salge."
+  }
+ ]
+}

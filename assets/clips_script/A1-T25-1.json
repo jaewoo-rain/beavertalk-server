@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T25-1",
+ "no": 14,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "내일 수업 준비했어요?",
+   "beaver_en": "Did you get ready for tomorrow's class?",
+   "beaver_roman": "naeil sueop junbihaesseoyo?",
+   "learner": "네, 어제 공책을 샀어요.",
+   "en": "Yes, I bought a notebook yesterday.",
+   "roman": "ne, eoje gongchaegeul sasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "연필하고 볼펜은 있어요?",
+   "beaver_en": "Do you have pencils and pens?",
+   "beaver_roman": "yeonpilhago bolpeneun isseoyo?",
+   "learner": "연필은 있어요. 볼펜은 안 샀어요.",
+   "en": "I have pencils. I didn't buy pens.",
+   "roman": "yeonpireun isseoyo. bolpeneun an sasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "제 볼펜 하나 줄게요. 학생증은요?",
+   "beaver_en": "I'll give you one of my pens. What about your student ID?",
+   "beaver_roman": "je bolpen hana julgeyo. haksaengjeungeunyo?",
+   "learner": "고마워요. 학생증은 가방 안에 있어요.",
+   "en": "Thanks. My student ID is in my bag.",
+   "roman": "gomawoyo. haksaengjeungeun gabang ane isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋아요. 다음 주부터 방학이죠?",
+   "beaver_en": "Good. Vacation starts next week, right?",
+   "beaver_roman": "joayo. daeum jubuteo banghagijyo?",
+   "learner": "네, 방학 동안 학교에 안 와요.",
+   "en": "Yes, I won't come to school during vacation.",
+   "roman": "ne, banghak dongan hakgyoe an wayo."
+  },
+  {
+   "n": 5,
+   "beaver": "방학에 뭐 해요?",
+   "beaver_en": "What are you doing over vacation?",
+   "beaver_roman": "banghage mwo haeyo?",
+   "learner": "일주일 동안 부산에 가요. 기차를 타요.",
+   "en": "I'm going to Busan for a week. I'm taking the train.",
+   "roman": "iljuil dongan busane gayo. gichareul tayo."
+  },
+  {
+   "n": 6,
+   "beaver": "부산까지 얼마나 걸려요?",
+   "beaver_en": "How long does it take to get to Busan?",
+   "beaver_roman": "busankkaji eolmana geollyeoyo?",
+   "learner": "세 시간쯤 걸려요. 사진을 많이 찍어요.",
+   "en": "About three hours. I'll take lots of photos.",
+   "roman": "se siganjjeum geollyeoyo. sajineul mani jjigeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋겠어요! 그다음에는 뭐 해요?",
+   "beaver_en": "Sounds great! What will you do after that?",
+   "beaver_roman": "jokesseoyo! geudaeumeneun mwo haeyo?",
+   "learner": "매일 도서관에서 공부해요. 특히 한국어요.",
+   "en": "I'll study at the library every day. Especially Korean.",
+   "roman": "maeil doseogwaneseo gongbuhaeyo. teuki hangugeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 방학에도 공부해요? 저는 안 해요.",
+   "beaver_en": "Wow, you study over vacation? I don't.",
+   "beaver_roman": "wa, banghagedo gongbuhaeyo? jeoneun an haeyo.",
+   "learner": "네, 도서관은 밤에도 열어요.",
+   "en": "Yes, the library is open at night too.",
+   "roman": "ne, doseogwaneun bamedo yeoreoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "학교생활은 어때요? 재미있어요?",
+   "beaver_en": "How's school life? Is it fun?",
+   "beaver_roman": "hakgyosaenghwareun eottaeyo? jaemiisseoyo?",
+   "learner": "수업 재미있어요. 선생님도 학생들도 좋아요.",
+   "en": "Classes are fun. The teachers and students are nice.",
+   "roman": "sueop jaemiisseoyo. seonsaengnimdo haksaengdeuldo joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "저도 학교가 좋아요. 방학 잘 보내요!",
+   "beaver_en": "I like school too. Have a good vacation!",
+   "beaver_roman": "jeodo hakgyoga joayo. banghak jal bonaeyo!",
+   "learner": "고마워요. 방학 끝나고 교실에서 봐요!",
+   "en": "Thanks. See you in the classroom after vacation!",
+   "roman": "gomawoyo. banghak kkeunnago gyosireseo bwayo!"
+  }
+ ]
+}

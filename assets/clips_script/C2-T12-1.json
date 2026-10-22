@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T12-1",
+ "no": 358,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 금요일 회식 장소, 아직 못 정했어요.",
+   "beaver_en": "I still haven't picked a place for Friday's team dinner.",
+   "beaver_roman": "ibeon geumyoil hoesik jangso, ajik mot jeonghaesseoyo.",
+   "learner": "그래요? 회사 앞 호프는 어때요? 넓고 조용해요.",
+   "en": "Really? How about the beer pub out front? It's big and quiet.",
+   "roman": "geuraeyo? hoesa ap hopeuneun eottaeyo? neolkko joyonghaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "호프도 좋은데, 지난번에도 거기서 했잖아요.",
+   "beaver_en": "The pub's nice, but we went there last time too.",
+   "beaver_roman": "hopeudo joeunde, jinanbeonedo geogiseo haetjanayo.",
+   "learner": "아, 그랬죠. 그럼 다른 데로 해요.",
+   "en": "Oh, that's right. Let's go somewhere else, then.",
+   "roman": "a, geuraetjyo. geureom dareun dero haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "포장마차는 어때요? 분위기가 정겹잖아요.",
+   "beaver_en": "How about a street food tent? The mood is so cozy.",
+   "beaver_roman": "pojangmachaneun eottaeyo? bunwigiga jeonggyeopjanayo.",
+   "learner": "좋긴 한데, 열다섯 명이 앉기엔 좁을 거예요.",
+   "en": "It's nice, but too small for fifteen people.",
+   "roman": "jokin hande, yeoldaseot myeongi ankkien jobeul geoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 술자리 말고 저녁만 먹는 건 어때요?",
+   "beaver_en": "Then how about just dinner, not a drinking party?",
+   "beaver_roman": "geureom suljari malgo jeonyeongman meongneun geon eottaeyo?",
+   "learner": "좋죠. 요즘은 긴 술자리보다 저녁이 대세인가 봐요.",
+   "en": "Sure. These days dinner seems more popular than long drinking.",
+   "roman": "jochyo. yojeumeun gin suljariboda jeonyeogi daeseinga bwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 그런데 구내식당은 좀 그렇죠?",
+   "beaver_en": "Right. But the cafeteria is a bit much, huh?",
+   "beaver_roman": "majayo. geureonde gunaesikdangeun jom geureochyo?",
+   "learner": "하하, 구내식당은 매일 가니까 안 돼요.",
+   "en": "Haha, we go to the cafeteria every day, so no.",
+   "roman": "haha, gunaesikdangeun maeil ganikka an dwaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "역 근처 한식집 알아요? 차림표는 보셨어요?",
+   "beaver_en": "Know the Korean place by the station? Seen the menu?",
+   "beaver_roman": "yeok geuncheo hansikjip arayo? charimpyoneun bosyeosseoyo?",
+   "learner": "네, 차림표를 봤는데 메뉴가 다양하고 싸요.",
+   "en": "Yes, I saw the menu. Lots of choices and cheap.",
+   "roman": "ne, charimpyoreul bwanneunde menyuga dayanghago ssayo."
+  },
+  {
+   "n": 7,
+   "beaver": "식사 후에는 어디 갈까요? 2차도 정해야죠.",
+   "beaver_en": "Where should we go after? We need a second round too.",
+   "beaver_roman": "siksa hueneun eodi galkkayo? ichado jeonghaeyajyo.",
+   "learner": "그 옆에 오래된 다방이 있는데, 거기 어때요?",
+   "en": "There's an old tearoom next door. How about there?",
+   "roman": "geu yeope oraedoen dabangi inneunde, geogi eottaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "다방이요? 요즘도 다방이 있어요? 신기하네요.",
+   "beaver_en": "A tearoom? They still exist? That's amazing.",
+   "beaver_roman": "dabangiyo? yojeumdo dabangi isseoyo? singihaneyo.",
+   "learner": "네, 사장님이 일흔쯤 되셨는데 커피가 맛있어요.",
+   "en": "Yes, the owner is about seventy, and the coffee is great.",
+   "roman": "ne, sajangnimi ilheunjjeum doesyeonneunde keopiga masisseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 참, 이번 회식은 김 과장님이 쏘신대요.",
+   "beaver_en": "Nice. Oh, Manager Kim is paying this time.",
+   "beaver_roman": "jonneyo. cham, ibeon hoesigeun gim gwajangnimi ssosindaeyo.",
+   "learner": "아, 지난주에 승진하신 턱인가 봐요.",
+   "en": "Oh, it must be a treat for his promotion last week.",
+   "roman": "a, jinanjue seungjinhasin teoginga bwayo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 그럼 한식집이랑 다방으로 예약할게요.",
+   "beaver_en": "Right. I'll book the Korean place and the tearoom.",
+   "beaver_roman": "majayo. geureom hansikjibirang dabangeuro yeyakalgeyo.",
+   "learner": "좋아요. 제가 다방 사장님께 미리 연락할게요.",
+   "en": "Great. I'll contact the tearoom owner ahead of time.",
+   "roman": "joayo. jega dabang sajangnimkke miri yeollakalgeyo."
+  }
+ ]
+}

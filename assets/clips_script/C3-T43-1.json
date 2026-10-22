@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T43-1",
+ "no": 424,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 오늘 안내 잘 부탁드립니다.",
+   "beaver_en": "Hello. I look forward to your guidance today.",
+   "beaver_roman": "annyeonghasimnikka? oneul annae jal butakdeurimnida.",
+   "learner": "반갑습니다. 이곳은 전래 종교 유산 전시관입니다.",
+   "en": "Nice to meet you. This is a hall of traditional religious heritage.",
+   "roman": "bangapseumnida. igoseun jeollae jonggyo yusan jeonsigwanimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "분위기가 특별합니다. 입구의 이것은 무엇입니까?",
+   "beaver_en": "The atmosphere is special. What is this by the entrance?",
+   "beaver_roman": "bunwigiga teukbyeolhamnida. ipgue igeoseun mueosimnikka?",
+   "learner": "국보로 지정된 불경입니다. 고려 때 만든 겁니다.",
+   "en": "It's a Buddhist scripture named a national treasure. It's from Goryeo.",
+   "roman": "gukboro jijeongdoen bulgyeongimnida. goryeo ttae mandeun geomnida."
+  },
+  {
+   "n": 3,
+   "beaver": "사진을 찍어도 됩니까?",
+   "beaver_en": "May I take photos?",
+   "beaver_roman": "sajineul jjigeodo doemnikka?",
+   "learner": "조명이 어두워 사진을 찍으려야 찍을 수 없습니다.",
+   "en": "It's too dark here to take photos, however hard you try.",
+   "roman": "jomyeongi eoduwo sajineul jjigeuryeoya jjigeul su eopseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "아쉽군요. 옆 건물은 성당입니까?",
+   "beaver_en": "What a pity. Is the building next door a cathedral?",
+   "beaver_roman": "aswipgunyo. yeop geonmureun seongdangimnikka?",
+   "learner": "네, 서구 선교사들이 세운 성당입니다.",
+   "en": "Yes, it's a cathedral built by Western missionaries.",
+   "roman": "ne, seogu seongyosadeuri seun seongdangimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그 시절 신자들은 어떻게 지냈습니까?",
+   "beaver_en": "How did believers live back then?",
+   "beaver_roman": "geu sijeol sinjadeureun eotteoke jinaetseumnikka?",
+   "learner": "신자들은 아픈 사람을 돌보며 신앙을 지켰습니다.",
+   "en": "Believers cared for the sick and kept their faith.",
+   "roman": "sinjadeureun apeun sarameul dolbomyeo sinangeul jikyeotseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "박해도 있었다고 들었습니다.",
+   "beaver_en": "I heard there was persecution too.",
+   "beaver_roman": "bakaedo isseotdago deureotseumnida.",
+   "learner": "네, 위험을 무릅쓰고 구원을 믿으며 기도했습니다.",
+   "en": "Yes, they risked danger and prayed, believing in salvation.",
+   "roman": "ne, wiheomeul mureupsseugo guwoneul mideumyeo gidohaetseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "문화와 전통에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the culture and traditions?",
+   "beaver_roman": "munhwawa jeontonge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "사람들은 조상을 위해 제사를 지내 왔습니다.",
+   "en": "People have long held memorial rites for their ancestors.",
+   "roman": "saramdeureun josangeul wihae jesareul jinae watseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "개신교 교회도 이 근처에 있습니까?",
+   "beaver_en": "Is there a Protestant church nearby too?",
+   "beaver_roman": "gaesingyo gyohoedo i geuncheoe itseumnikka?",
+   "learner": "네, 근처에 있는데 찬송가가 참 경건합니다.",
+   "en": "Yes, there's one nearby, and its hymns are very reverent.",
+   "roman": "ne, geuncheoe inneunde chansonggaga cham gyeonggeonhamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "요즘은 관광지가 되어 시끄럽지 않습니까?",
+   "beaver_en": "Isn't it noisy now that it's a tourist spot?",
+   "beaver_roman": "yojeumeun gwangwangjiga doeeo sikkeureopji anseumnikka?",
+   "learner": "세속에 휩쓸릴 바에는 차라리 문을 닫겠다고 합니다.",
+   "en": "They say they'd rather close than be swept up by worldliness.",
+   "roman": "sesoge hwipsseullil baeneun charari muneul datgetdago hamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 정말 유익했습니다. 감사합니다.",
+   "beaver_en": "Today was really informative. Thank you.",
+   "beaver_roman": "oneul jeongmal yuikaetseumnida. gamsahamnida.",
+   "learner": "와 주셔서 감사합니다. 조심히 가십시오.",
+   "en": "Thank you for coming. Have a safe trip.",
+   "roman": "wa jusyeoseo gamsahamnida. josimhi gasipsio."
+  }
+ ]
+}

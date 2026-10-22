@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T11-1",
+ "no": 357,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 진수성찬이네! 뭐부터 먹을까?",
+   "beaver_en": "Wow, what a feast! What should we eat first?",
+   "beaver_roman": "wa, jinsuseongchanine! mwobuteo meogeulkka?",
+   "learner": "순대부터 먹자. 정말 먹음직스럽다.",
+   "en": "Let's start with the sundae. It looks so delicious.",
+   "roman": "sundaebuteo meokja. jeongmal meogeumjikseureopda."
+  },
+  {
+   "n": 2,
+   "beaver": "너 순대 좋아해? 난 매운 게 좋아.",
+   "beaver_en": "Do you like sundae? I like spicy food.",
+   "beaver_roman": "neo sundae joahae? nan maeun ge joa.",
+   "learner": "응, 좋아해. 근데 난 자극적인 건 별로야.",
+   "en": "Yes, I do. But I'm not into strong flavors.",
+   "roman": "eung, joahae. geunde nan jageukjeogin geon byeolloya."
+  },
+  {
+   "n": 3,
+   "beaver": "그래? 그럼 이 퓨전 떡볶이는 어때?",
+   "beaver_en": "Really? Then how about this fusion tteokbokki?",
+   "beaver_roman": "geurae? geureom i pyujeon tteokbokkineun eottae?",
+   "learner": "퓨전 음식은 좋아. 덜 매우면 먹을게.",
+   "en": "I like fusion food. I'll eat it if it's less spicy.",
+   "roman": "pyujeon eumsigeun joa. deol maeumyeon meogeulge."
+  },
+  {
+   "n": 4,
+   "beaver": "음료는 뭐 마실래? 콜라 시킬까?",
+   "beaver_en": "What do you want to drink? Should I order a cola?",
+   "beaver_roman": "eumnyoneun mwo masillae? kolla sikilkka?",
+   "learner": "난 탄산음료는 안 마셔. 생수면 돼.",
+   "en": "I don't drink soda. Bottled water is fine.",
+   "roman": "nan tansaneumnyoneun an masyeo. saengsumyeon dwae."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 술은? 한 잔 할래?",
+   "beaver_en": "What about alcohol? Want a drink?",
+   "beaver_roman": "geureom sureun? han jan hallae?",
+   "learner": "아니, 어제 과음해서 오늘은 쉴래.",
+   "en": "No, I drank too much yesterday, so I'll pass today.",
+   "roman": "ani, eoje gwaeumhaeseo oneureun swillae."
+  },
+  {
+   "n": 6,
+   "beaver": "하하, 알았어. 또 못 먹는 거 있어?",
+   "beaver_en": "Haha, okay. Anything else you can't eat?",
+   "beaver_roman": "haha, arasseo. tto mon meongneun geo isseo?",
+   "learner": "난 떫은 건 싫어. 덜 익은 감은 못 먹어.",
+   "en": "I hate astringent things. I can't eat unripe persimmons.",
+   "roman": "nan tteolbeun geon sireo. deol igeun gameun mon meogeo."
+  },
+  {
+   "n": 7,
+   "beaver": "주식은 뭐 좋아해? 밥이야, 빵이야?",
+   "beaver_en": "What staple food do you like? Rice or bread?",
+   "beaver_roman": "jusigeun mwo joahae? bamiya, ppangiya?",
+   "learner": "난 무조건 밥이야. 빵으로는 배가 안 차.",
+   "en": "For me, it's always rice. Bread doesn't fill me up.",
+   "roman": "nan mujogeon bamiya. ppangeuroneun baega an cha."
+  },
+  {
+   "n": 8,
+   "beaver": "역시 한국 사람이네. 디저트는?",
+   "beaver_en": "You're Korean, all right. What about dessert?",
+   "beaver_roman": "yeoksi hanguk saramine. dijeoteuneun?",
+   "learner": "여름엔 무조건 빙수지. 이따 먹으러 가자.",
+   "en": "In summer, it's always shaved ice. Let's go get some later.",
+   "roman": "yeoreumen mujogeon bingsuji. itta meogeureo gaja."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아! 근데 여기 디저트 메뉴 있어?",
+   "beaver_en": "Great! But do they have desserts here?",
+   "beaver_roman": "joa! geunde yeogi dijeoteu menyu isseo?",
+   "learner": "여기 디저트라고는 아이스크림뿐이야.",
+   "en": "As for dessert here, there's only ice cream.",
+   "roman": "yeogi dijeoteuragoneun aiseukeurimppuniya."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 다 먹고 빙수 가게 가자!",
+   "beaver_en": "Then let's finish and go to a shaved ice shop!",
+   "beaver_roman": "geureom da meokgo bingsu gage gaja!",
+   "learner": "좋아. 일단 이 진수성찬부터 다 먹자!",
+   "en": "Okay. First, let's finish this feast!",
+   "roman": "joa. ildan i jinsuseongchanbuteo da meokja!"
+  }
+ ]
+}

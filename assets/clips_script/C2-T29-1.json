@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T29-1",
+ "no": 370,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "회원님, 운동 시작하고 한 달 됐네요. 어떠세요?",
+   "beaver_en": "It's been a month since you started. How is it?",
+   "beaver_roman": "hoewonnim, undong sijakago han dal dwaenneyo. eotteoseyo?",
+   "learner": "하체가 단단해졌다는 소리를 들었어요.",
+   "en": "People tell me my lower body got firmer.",
+   "roman": "hachega dandanhaejyeotdaneun sorireul deureosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋네요. 계단 오를 때는 어떻습니까?",
+   "beaver_en": "Great. How about climbing stairs?",
+   "beaver_roman": "jonneyo. gyedan oreul ttaeneun eotteoseumnikka?",
+   "learner": "예전엔 숨이 찼는데 이제 괜찮아요.",
+   "en": "I used to get out of breath, but now I'm fine.",
+   "roman": "yejeonen sumi channeunde ije gwaenchanayo."
+  },
+  {
+   "n": 3,
+   "beaver": "다른 변화는 없습니까?",
+   "beaver_en": "Any other changes?",
+   "beaver_roman": "dareun byeonhwaneun eopseumnikka?",
+   "learner": "운동할 때 진땀이 덜 나요.",
+   "en": "I break into a cold sweat less when I work out.",
+   "roman": "undonghal ttae jinttami deol nayo."
+  },
+  {
+   "n": 4,
+   "beaver": "손은 어떠십니까?",
+   "beaver_en": "How are your hands?",
+   "beaver_roman": "soneun eotteosimnikka?",
+   "learner": "양손으로 바벨을 잡아도 덜 아파요.",
+   "en": "It hurts less to hold the barbell with both hands.",
+   "roman": "yangsoneuro babereul jabado deol apayo."
+  },
+  {
+   "n": 5,
+   "beaver": "그립이 좋아졌군요. 손가락은요?",
+   "beaver_en": "Your grip improved. And your fingers?",
+   "beaver_roman": "geuribi joajyeotgunyo. songarageunyo?",
+   "learner": "엄지손가락에 힘이 생긴 것 같아요.",
+   "en": "I think my thumbs got stronger.",
+   "roman": "eomjisongarage himi saenggin geot gatayo."
+  },
+  {
+   "n": 6,
+   "beaver": "또 달라진 곳이 있으세요?",
+   "beaver_en": "Is anything else different?",
+   "beaver_roman": "tto dallajin gosi isseuseyo?",
+   "learner": "팔다리가 가벼워졌고 혈관도 잘 보여요.",
+   "en": "My arms and legs feel lighter, and my veins show well.",
+   "roman": "paldariga gabyeowojeotgo hyeolgwando jal boyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "혈액순환이 좋아졌나 봐요. 땀은 많이 나요?",
+   "beaver_en": "Your circulation must be better. Do you sweat a lot?",
+   "beaver_roman": "hyeoraeksunhwani joajyeonna bwayo. ttameun mani nayo?",
+   "learner": "겨드랑이에 땀이 많아서 자주 닦아요.",
+   "en": "My armpits sweat a lot, so I wipe them often.",
+   "roman": "gyeodeurangie ttami manaseo jaju dakkayo."
+  },
+  {
+   "n": 8,
+   "beaver": "위생도 중요하죠. 기구는 어떻게 잡으세요?",
+   "beaver_en": "Hygiene matters too. How do you hold the equipment?",
+   "beaver_roman": "wisaengdo jungyohajyo. giguneun eotteoke jabeuseyo?",
+   "learner": "맨손 대신 장갑을 끼고 잡아요.",
+   "en": "I wear gloves instead of using bare hands.",
+   "roman": "maenson daesin janggabeul kkigo jabayo."
+  },
+  {
+   "n": 9,
+   "beaver": "잘하셨어요. 물은 충분히 드세요?",
+   "beaver_en": "Good job. Do you drink enough water?",
+   "beaver_roman": "jalhasyeosseoyo. mureun chungbunhi deuseyo?",
+   "learner": "네, 신장에 좋다는 소리를 듣고 많이 마셔요.",
+   "en": "Yes, I heard it's good for the kidneys, so I drink a lot.",
+   "roman": "ne, sinjange jotaneun sorireul deutgo mani masyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "얼굴도 좋아 보여요. 다음 주에 또 봬요.",
+   "beaver_en": "Your face looks good too. See you next week.",
+   "beaver_roman": "eolguldo joa boyeoyo. daeum jue tto bwaeyo.",
+   "learner": "감사해요! 다음 주에 봬요.",
+   "en": "Thank you! See you next week.",
+   "roman": "gamsahaeyo! daeum jue bwaeyo."
+  }
+ ]
+}

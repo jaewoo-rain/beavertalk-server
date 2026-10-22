@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T36-1",
+ "no": 417,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 추모 행사를 도와주셔서 고마워요.",
+   "beaver_en": "Hello. Thank you for helping with the memorial event.",
+   "beaver_roman": "Annyeonghaseyo. Chumo haengsareul dowajusyeoseo gomawoyo.",
+   "learner": "아니에요. 이번 행사는 누가 주최하는 거예요?",
+   "en": "Not at all. Who is hosting this event?",
+   "roman": "Anieyo. Ibeon haengsaneun nuga juchoehaneun geoyeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "저희 단체가 주최해요. 순서는 어떻게 할까요?",
+   "beaver_en": "Our organization is hosting. How should we set the order?",
+   "beaver_roman": "Jeohui danchega juchoehaeyo. Sunseoneun eotteoke halkkayo?",
+   "learner": "먼저 묵념을 하고 추도사를 읽으면 좋겠어요.",
+   "en": "I think we should first hold a silent prayer, then read the eulogy.",
+   "roman": "Meonjeo mungnyeomeul hago chudosareul ilgeumyeon jokesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 조문객은 몇 명쯤 올 것 같아요?",
+   "beaver_en": "Good. About how many mourners will come?",
+   "beaver_roman": "Joayo. Jomungaegeun myeot myeongjjeum ol geot gatayo?",
+   "learner": "조문객이 이백 명쯤 올 거예요. 행렬이 길겠어요.",
+   "en": "About two hundred mourners will come. The procession will be long.",
+   "roman": "Jomungaegi ibaek myeongjjeum ol geoyeyo. Haengnyeori gilgesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 행렬은 묘지까지 걸어가는 게 좋겠죠?",
+   "beaver_en": "Then the procession should walk to the graveyard, right?",
+   "beaver_roman": "Geureom haengnyeoreun myojikkaji georeoganeun ge joketjyo?",
+   "learner": "네, 영정을 앞세우고 묘지까지 천천히 걸어가요.",
+   "en": "Yes, we'll walk slowly to the graveyard with the portrait in front.",
+   "roman": "Ne, yeongjeongeul apseugo myojikkaji cheoncheonhi georeogayo."
+  },
+  {
+   "n": 5,
+   "beaver": "유골은 언제 모시면 될까요?",
+   "beaver_en": "When should we lay the remains to rest?",
+   "beaver_roman": "Yugoreun eonje mosimyeon doelkkayo?",
+   "learner": "유골은 행렬이 묘지에 도착한 후에야 모실 수 있어요.",
+   "en": "We can lay the remains only after the procession reaches the graveyard.",
+   "roman": "Yugoreun haengnyeori myojie dochakan hueya mosil su isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그렇군요. 근처 기념관도 오늘 개관한다고 들었어요.",
+   "beaver_en": "I see. I heard the nearby memorial hall opens today too.",
+   "beaver_roman": "Geureokunyo. Geuncheo ginyeomgwando oneul gaegwanhandago deureosseoyo.",
+   "learner": "그럼 행사 후에 기념관에서 사진을 볼 수 있겠네요.",
+   "en": "Then we can see the photos at the memorial hall after the event.",
+   "roman": "Geureom haengsa hue ginyeomgwaneseo sajineul bol su itgenneyo."
+  },
+  {
+   "n": 7,
+   "beaver": "폐막식은 어떻게 할까요?",
+   "beaver_en": "How should we do the closing ceremony?",
+   "beaver_roman": "Pyemaksigeun eotteoke halkkayo?",
+   "learner": "마지막에 다 같이 추모곡을 부르고 마쳐요.",
+   "en": "At the end, we'll all sing a memorial song and finish.",
+   "roman": "Majimage da gachi chumogogeul bureugo machyeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "이 행사를 우리 시로 유치하기가 쉽지 않았어요.",
+   "beaver_en": "It wasn't easy to bring this event to our city.",
+   "beaver_roman": "I haengsareul uri siro yuchihagiga swipji anasseoyo.",
+   "learner": "알아요. 많은 분들이 애써서 유치했다고 들었어요.",
+   "en": "I know. I heard many people worked hard to bring it here.",
+   "roman": "Arayo. Maneun bundeuri aesseoseo yuchihaetdago deureosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "행사장은 몇 시에 폐장하면 될까요?",
+   "beaver_en": "What time should we close the venue?",
+   "beaver_roman": "Haengsajangeun myeot sie pyejanghamyeon doelkkayo?",
+   "learner": "여섯 시쯤 폐장하면 좋겠어요. 정리도 할게요.",
+   "en": "Closing around six would be good. I'll help clean up too.",
+   "roman": "Yeoseot sijjeum pyejanghamyeon jokesseoyo. Jeongnido halgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 오늘 정말 수고 많으셨어요.",
+   "beaver_en": "Great. Thank you so much for your hard work today.",
+   "beaver_roman": "Joayo. Oneul jeongmal sugo maneusyeosseoyo.",
+   "learner": "감사합니다. 뜻깊은 추모 행사에 함께해서 좋았어요.",
+   "en": "Thank you. I was glad to be part of such a meaningful memorial.",
+   "roman": "Gamsahamnida. Tteutgipeun chumo haengsae hamkkehaeseo joasseoyo."
+  }
+ ]
+}

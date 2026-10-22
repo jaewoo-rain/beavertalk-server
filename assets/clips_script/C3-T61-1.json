@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T61-1",
+ "no": 436,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김 박사님, 요즘도 밤늦게까지 연구하세요?",
+   "beaver_en": "Dr. Kim, do you still do research late at night?",
+   "beaver_roman": "Gim baksanim, yojeumdo bamneutgekkaji yeonguhaseyo?",
+   "learner": "네, 경영학 석사 때부터 습관이 됐어요.",
+   "en": "Yes, it became a habit during my business master's.",
+   "roman": "Ne, gyeongyeonghak seoksa ttaebuteo seupgwani dwaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "원래 경영학을 하셨어요? 몰랐네요.",
+   "beaver_en": "You originally studied business? I didn't know.",
+   "beaver_roman": "Wollae gyeongyeonghageul hasyeosseoyo? Mollanneyo.",
+   "learner": "네, 그런데 지금은 인문학을 연구하고 있어요.",
+   "en": "Yes, but now I'm researching the humanities.",
+   "roman": "Ne, geureonde jigeumeun inmunhageul yeonguhago isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "인문학은 자리가 적잖아요. 걱정 안 되세요?",
+   "beaver_en": "There are few jobs in the humanities. Aren't you worried?",
+   "beaver_roman": "Inmunhageun jariga jeokjanayo. Geokjeong an doeseyo?",
+   "learner": "걱정되지요. 그래도 포기할 수가 없었어요.",
+   "en": "Of course I am. But I couldn't give it up.",
+   "roman": "Geokjeongdoejiyo. Geuraedo pogihal suga eopseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "학계 경쟁도 심한데, 왜 계속하세요?",
+   "beaver_en": "Academic competition is fierce too. Why do you keep going?",
+   "beaver_roman": "Hakgye gyeongjaengdo simhande, wae gyesokaseyo?",
+   "learner": "한마디로 말하자면, 사람을 알고 싶어서예요.",
+   "en": "To put it in a word, I want to understand people.",
+   "roman": "Hanmadiro malhajamyeon, sarameul algo sipeoseoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "조금 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me a bit more?",
+   "beaver_roman": "Jogeum deo malsseumhae jusigesseoyo?",
+   "learner": "숫자만으로는 사람 마음을 다 알 수 없었어요.",
+   "en": "Numbers alone couldn't show me people's hearts.",
+   "roman": "Sutjamaneuroneun saram maeumeul da al su eopseosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래서 학문을 바꾸신 거군요. 쉽지 않았겠어요.",
+   "beaver_en": "So that's why you switched fields. It must have been hard.",
+   "beaver_roman": "Geuraeseo hangmuneul bakkusin geogunyo. Swipji anatgesseoyo.",
+   "learner": "네, 처음엔 학식이 부족해서 많이 힘들었어요.",
+   "en": "Yes, at first I lacked learning, so it was tough.",
+   "roman": "Ne, cheoeumen haksigi bujokaeseo mani himdeureosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘은 다들 박사님 실력을 칭찬하던데요.",
+   "beaver_en": "These days everyone praises your skills.",
+   "beaver_roman": "Yojeumeun dadeul baksanim sillyeogeul chingchanhadeondeyo.",
+   "learner": "아니에요, 아직 많이 부족해요.",
+   "en": "Not at all, I still have a long way to go.",
+   "roman": "Anieyo, ajik mani bujokaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 앞으로 계획은 뭐예요?",
+   "beaver_en": "Then what are your plans?",
+   "beaver_roman": "Geureom apeuro gyehoegeun mwoyeyo?",
+   "learner": "학술 모임을 만들어서 같이 공부하고 싶어요.",
+   "en": "I want to start an academic group and study together.",
+   "roman": "Haksul moimeul mandeureoseo gachi gongbuhago sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 경영학과 인문학을 같이 하는 모임이요?",
+   "beaver_en": "Nice. A group for both business and the humanities?",
+   "beaver_roman": "Jonneyo. Gyeongyeonghakgwa inmunhageul gachi haneun moimiyo?",
+   "learner": "네, 두 학문이 서로 밑거름이 될 수 있어요.",
+   "en": "Yes, the two fields can be a foundation for each other.",
+   "roman": "Ne, du hangmuni seoro mitgeoreumi doel su isseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋진 생각이에요. 저도 꼭 참여할게요.",
+   "beaver_en": "Great idea. I'll definitely join.",
+   "beaver_roman": "Meotjin saenggagieyo. Jeodo kkok chamyeohalgeyo.",
+   "learner": "고마워요. 그럼 다음 주에 같이 이야기해요.",
+   "en": "Thanks. Let's talk about it next week, then.",
+   "roman": "Gomawoyo. Geureom daeum jue gachi iyagihaeyo."
+  }
+ ]
+}

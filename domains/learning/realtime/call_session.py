@@ -4599,7 +4599,9 @@ async def run_call(
         state.clip_lesson = getattr(getattr(cur_open, "lesson", None), "code", None) if cur_open is not None else None
         state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
         # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
-        state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
+        # PM-DEC-1012 — 차시 비버 줄 녹음을 버킷에서 받는 판정이 들어 있어 작업 스레드에서(다른 통화의 이벤트 루프를 막지 않게)
+        state.script_read = await asyncio.to_thread(_script_read.enabled, settings, call_type=call_type, voice=voice,
+                                                    locale=locale, lesson=state.clip_lesson)
         if state.script_read and not state.clip_lesson:
             state.clip_lesson = str(getattr(settings, "SCRIPT_READ_CHAT_LESSON", "") or "").strip() or None
         if state.script_read:

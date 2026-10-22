@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T57-1",
+ "no": 287,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 자기소개를 간단히 해 주세요.",
+   "beaver_en": "Hello. Please briefly introduce yourself.",
+   "beaver_roman": "Annyeonghaseyo. Jagisogaereul gandanhi hae juseyo.",
+   "learner": "안녕하십니까. 지원자 김민수입니다.",
+   "en": "Hello. I'm the applicant, Kim Minsu.",
+   "roman": "Annyeonghasimnikka. Jiwonja Gimminsuimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "일할 때 가장 중요한 신념이 있나요?",
+   "beaver_en": "Do you have a key belief when you work?",
+   "beaver_roman": "Ilhal ttae gajang jungyohan sinnyeomi innayo?",
+   "learner": "네, 제 신념은 끝까지 책임지는 것입니다.",
+   "en": "Yes, my belief is to take responsibility to the end.",
+   "roman": "Ne, je sinnyeomeun kkeutkkaji chaegimjineun geosimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "왜 그렇게 생각하나요?",
+   "beaver_en": "Why do you think so?",
+   "beaver_roman": "Wae geureoke saenggakanayo?",
+   "learner": "무책임한 사람은 아무리 유능해도 믿기 어렵습니다.",
+   "en": "An irresponsible person is hard to trust, however competent.",
+   "roman": "Muchaegimhan sarameun amuri yuneunghaedo mitgi eoryeopseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "경험은 어떤가요?",
+   "beaver_en": "How about your experience?",
+   "beaver_roman": "Gyeongheomeun eotteongayo?",
+   "learner": "경험은 짧으나 배우려는 의지는 누구보다 강합니다.",
+   "en": "My experience is short, but my will to learn is stronger than anyone's.",
+   "roman": "Gyeongheomeun jjalbeuna baeuryeoneun uijineun nuguboda gangamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "혹시 수동적이지는 않나요?",
+   "beaver_en": "Aren't you a bit passive, perhaps?",
+   "beaver_roman": "Hoksi sudongjeogijineun annayo?",
+   "learner": "아닙니다. 수동적이지 않고 적극적입니다.",
+   "en": "No. I'm not passive; I'm active.",
+   "roman": "Animnida. Sudongjeogiji anko jeokgeukjeogimnida."
+  },
+  {
+   "n": 6,
+   "beaver": "그런 예를 하나 들어 줄래요?",
+   "beaver_en": "Could you give me an example?",
+   "beaver_roman": "Geureon yereul hana deureo jullaeyo?",
+   "learner": "야간 근무가 많았으나 먼저 나서서 맡았습니다.",
+   "en": "There were many night shifts, but I stepped up and took them on first.",
+   "roman": "Yagan geunmuga manasseuna meonjeo naseoseo matatseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "특별한 재주가 있나요?",
+   "beaver_en": "Do you have any special talent?",
+   "beaver_roman": "Teukbyeolhan jaejuga innayo?",
+   "learner": "큰 재주는 없으나 사람들과 잘 어울립니다.",
+   "en": "I have no great talent, but I get along well with people.",
+   "roman": "Keun jaejuneun eopseuna saramdeulgwa jal eoullimnida."
+  },
+  {
+   "n": 8,
+   "beaver": "태도와 의지에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Can you tell me more about your attitude and will?",
+   "beaver_roman": "Taedowa uijie daehae deo iyagihae bollaeyo?",
+   "learner": "힘들 때도 처음 마음가짐을 잊지 않습니다.",
+   "en": "Even when it's hard, I don't forget my first mindset.",
+   "roman": "Himdeul ttaedo cheoeum maeumgajimeul itji ansseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 마지막으로 하고 싶은 말이 있나요?",
+   "beaver_en": "Good. Anything you'd like to say last?",
+   "beaver_roman": "Jonneyo. Majimageuro hago sipeun mari innayo?",
+   "learner": "부족하나 적극적인 자세로 열심히 하겠습니다.",
+   "en": "I'm lacking, but I'll work hard with an active attitude.",
+   "roman": "Bujokana jeokgeukjeogin jasero yeolsimhi hagetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "수고하셨습니다. 결과는 다음 주에 알려 드릴게요.",
+   "beaver_en": "Thank you for your time. We'll let you know the result next week.",
+   "beaver_roman": "Sugohasyeotseumnida. Gyeolgwaneun daeum jue allyeo deurilgeyo.",
+   "learner": "감사합니다. 좋은 소식 기다리겠습니다.",
+   "en": "Thank you. I'll wait for good news.",
+   "roman": "Gamsahamnida. Joeun sosik gidarigetseumnida."
+  }
+ ]
+}

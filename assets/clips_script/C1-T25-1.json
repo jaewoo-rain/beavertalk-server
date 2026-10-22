@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T25-1",
+ "no": 313,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선생님, 이번 학교 방문은 어떠셨어요?",
+   "beaver_en": "How was your school visit this time?",
+   "beaver_roman": "seonsaengnim, ibeon hakgyo bangmuneun eotteosyeosseoyo?",
+   "learner": "기대에 못 미쳤어요. 교무실부터 어수선했어요.",
+   "en": "It fell short. Even the teachers' office was a mess.",
+   "roman": "gidaee mot michyeosseoyo. gyomusilbuteo eosuseonhaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 점이 가장 실망스러우셨어요?",
+   "beaver_en": "What disappointed you the most?",
+   "beaver_roman": "eotteon jeomi gajang silmangseureousyeosseoyo?",
+   "learner": "새 건물은 아니어도 강당은 깨끗할 줄 알았어요.",
+   "en": "Maybe not a new building, but I thought the auditorium would be clean.",
+   "roman": "sae geonmureun anieodo gangdangeun kkaekkeutal jul arasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "강당 상태가 그렇게 나빴어요?",
+   "beaver_en": "Was the auditorium really that bad?",
+   "beaver_roman": "gangdang sangtaega geureoke nappasseoyo?",
+   "learner": "벽마다 낙서가 가득하고 의자도 낡았어요.",
+   "en": "Every wall had graffiti, and the chairs were old.",
+   "roman": "byeongmada nakseoga gadeukago uijado nalgasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "학생들 등하교는 어때요? 통학이 멀다던데요.",
+   "beaver_en": "How about getting to and from school? I hear it's far.",
+   "beaver_roman": "haksaengdeul deunghagyoneun eottaeyo? tonghagi meoldadeondeyo.",
+   "learner": "통학 버스가 없어서 등교에 한 시간이 걸려요.",
+   "en": "There's no school bus, so getting there takes an hour.",
+   "roman": "tonghak beoseuga eopseoseo deunggyoe han sigani geollyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "하교 후에는 주로 뭘 하나요?",
+   "beaver_en": "What do they usually do after school?",
+   "beaver_roman": "hagyo hueneun juro mwol hanayo?",
+   "learner": "학교가 파하면 다들 학원으로 가요.",
+   "en": "When school's over, they all go to cram schools.",
+   "roman": "hakgyoga pahamyeon dadeul hagwoneuro gayo."
+  },
+  {
+   "n": 6,
+   "beaver": "사교육은 여전한가 봐요?",
+   "beaver_en": "So private education is still going strong?",
+   "beaver_roman": "sagyoyugeun yeojeonhanga bwayo?",
+   "learner": "공교육이 사교육을 못 따라가요. 교육열 탓이죠.",
+   "en": "Public schools can't keep up. It's the education fever.",
+   "roman": "gonggyoyugi sagyoyugeul mot ttaragayo. gyoyungnyeol tasijyo."
+  },
+  {
+   "n": 7,
+   "beaver": "진학은 어떤가요? 계열 선택은요?",
+   "beaver_en": "What about going on to college? Track choices?",
+   "beaver_roman": "jinhageun eotteongayo? gyeyeol seontaegeunyo?",
+   "learner": "인문계는 줄고 다들 자연계로만 가려고 해요.",
+   "en": "Humanities is shrinking; everyone wants science.",
+   "roman": "inmungyeneun julgo dadeul jayeongyeroman garyeogo haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "대학 진학률은 높지 않나요?",
+   "beaver_en": "Isn't the college entry rate high?",
+   "beaver_roman": "daehak jinhangnyureun nopji annayo?",
+   "learner": "장학생은 못 돼도 대학은 다 갈 줄 알았어요.",
+   "en": "Not scholarship students, but I thought they'd all go to college.",
+   "roman": "janghaksaengeun mot dwaedo daehageun da gal jul arasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "실제로는 어떤데요?",
+   "beaver_en": "What's it actually like?",
+   "beaver_roman": "siljeroneun eotteondeyo?",
+   "learner": "고졸 취업이 꽤 많아요. 계열과 상관없이요.",
+   "en": "Many get jobs right after high school, whatever their track.",
+   "roman": "gojol chwieobi kkwae manayo. gyeyeolgwa sanggwaneopsiyo."
+  },
+  {
+   "n": 10,
+   "beaver": "보고서에 꼭 담을게요. 정리해 주셔서 고마워요.",
+   "beaver_en": "I'll put that in the report. Thanks for summing it up.",
+   "beaver_roman": "bogoseoe kkok dameulgeyo. jeongnihae jusyeoseo gomawoyo.",
+   "learner": "별말씀을요. 공교육이 꼭 바뀌어야 해요.",
+   "en": "Not at all. Public education really has to change.",
+   "roman": "byeolmalsseumeullyo. gonggyoyugi kkok bakkwieoya haeyo."
+  }
+ ]
+}

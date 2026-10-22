@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T10-1",
+ "no": 9,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 뭐 찾으세요?",
+   "beaver_en": "Welcome. What are you looking for?",
+   "beaver_roman": "Eoseo oseyo. Mwo chajeuseyo?",
+   "learner": "안녕하세요. 여기 우유 팔아요?",
+   "en": "Hello. Do you sell milk here?",
+   "roman": "Annyeonghaseyo. Yeogi uyu parayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 팔아요. 저기 있어요.",
+   "beaver_en": "Yes, we do. It's over there.",
+   "beaver_roman": "Ne, parayo. Jeogi isseoyo.",
+   "learner": "우유 한 병에 얼마예요?",
+   "en": "How much is one bottle of milk?",
+   "roman": "Uyu han byeonge eolmayeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "한 병에 이천 원이에요.",
+   "beaver_en": "It's 2,000 won a bottle.",
+   "beaver_roman": "Han byeonge icheon wonieyo.",
+   "learner": "와, 우유가 싸요.",
+   "en": "Wow, the milk is cheap.",
+   "roman": "Wa, uyuga ssayo."
+  },
+  {
+   "n": 4,
+   "beaver": "네, 편의점보다 여기가 싸요.",
+   "beaver_en": "Yes, it's cheaper here than at a convenience store.",
+   "beaver_roman": "Ne, pyeonuijeomboda yeogiga ssayo.",
+   "learner": "그럼 우유 두 병 주세요.",
+   "en": "Then please give me two bottles of milk.",
+   "roman": "Geureom uyu du byeong juseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네. 더 필요한 거 있으세요?",
+   "beaver_en": "Sure. Do you need anything else?",
+   "beaver_roman": "Ne. Deo piryohan geo isseuseyo?",
+   "learner": "사과도 사고 싶어요. 사과는 얼마예요?",
+   "en": "I want to buy apples too. How much are they?",
+   "roman": "Sagwado sago sipeoyo. Sagwaneun eolmayeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "사과는 한 개에 천 원이에요.",
+   "beaver_en": "Apples are 1,000 won each.",
+   "beaver_roman": "Sagwaneun han gaee cheon wonieyo.",
+   "learner": "사과가 아주 커요. 세 개 주세요.",
+   "en": "The apples are really big. Three, please.",
+   "roman": "Sagwaga aju keoyo. Se gae juseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "네. 다 해서 칠천 원이에요.",
+   "beaver_en": "Okay. That's 7,000 won in total.",
+   "beaver_roman": "Ne. Da haeseo chilcheon wonieyo.",
+   "learner": "잠깐만요. 지갑이 가방에 있어요.",
+   "en": "Just a moment. My wallet is in my bag.",
+   "roman": "Jamkkanmanyo. Jigabi gabange isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "괜찮아요. 천천히 하세요.",
+   "beaver_en": "No problem. Take your time.",
+   "beaver_roman": "Gwaenchanayo. Cheoncheonhi haseyo.",
+   "learner": "여기 만 원이에요.",
+   "en": "Here's 10,000 won.",
+   "roman": "Yeogi man wonieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "여기 삼천 원 받으세요.",
+   "beaver_en": "Here's your 3,000 won change.",
+   "beaver_roman": "Yeogi samcheon won badeuseyo.",
+   "learner": "감사합니다. 아저씨 정말 친절하세요.",
+   "en": "Thank you. You're really kind, sir.",
+   "roman": "Gamsahamnida. Ajeossi jeongmal chinjeolhaseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 또 오세요, 손님!",
+   "beaver_en": "Thanks. Come again!",
+   "beaver_roman": "Gomawoyo. Tto oseyo, sonnim!",
+   "learner": "네, 이 가게 또 올게요. 안녕히 계세요.",
+   "en": "Yes, I'll come to this shop again. Goodbye.",
+   "roman": "Ne, i gage tto olgeyo. Annyeonghi gyeseyo."
+  }
+ ]
+}

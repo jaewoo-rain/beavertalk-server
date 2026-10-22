@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T37-1",
+ "no": 190,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 오늘 진짜 덥다. 괜찮아?",
+   "beaver_en": "Wow, it's really hot today. Are you okay?",
+   "beaver_roman": "wa, oneul jinjja deopda. gwaenchana?",
+   "learner": "아니, 햇볕이 너무 뜨거워. 무더위가 심하네.",
+   "en": "No, the sun is too hot. The heat is terrible.",
+   "roman": "ani, haetbyeochi neomu tteugeowo. mudeowiga simhane."
+  },
+  {
+   "n": 2,
+   "beaver": "습기도 많아서 더 힘들지?",
+   "beaver_en": "It's humid too, so it's even harder, right?",
+   "beaver_roman": "seupgido manaseo deo himdeulji?",
+   "learner": "응, 여름철에는 습기 때문에 땀이 많이 나.",
+   "en": "Yeah, in summer I sweat a lot because of the humidity.",
+   "roman": "eung, yeoreumcheoreneun seupgi ttaemune ttami mani na."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 잠깐 쉬었다 갈까?",
+   "beaver_en": "Then should we rest for a bit?",
+   "beaver_roman": "geureom jamkkan swieotda galkka?",
+   "learner": "그래. 시원한 물이라도 마시자.",
+   "en": "Sure. Let's at least drink some cold water.",
+   "roman": "geurae. siwonhan murirado masija."
+  },
+  {
+   "n": 4,
+   "beaver": "실내는 어때? 카페에 들어갈까?",
+   "beaver_en": "How about indoors? Should we go into a café?",
+   "beaver_roman": "sillaeneun eottae? kapee deureogalkka?",
+   "learner": "좋아. 카페라도 가면 좀 낫겠다.",
+   "en": "Good. Going to a café or something would help.",
+   "roman": "joa. kaperado gamyeon jom natgetda."
+  },
+  {
+   "n": 5,
+   "beaver": "너는 어느 계절을 제일 좋아해?",
+   "beaver_en": "Which season do you like best?",
+   "beaver_roman": "neoneun eoneu gyejeoreul jeil joahae?",
+   "learner": "나는 가을이 좋아. 낙엽을 보면 마음이 편해져.",
+   "en": "I like fall. Fallen leaves make me feel at ease.",
+   "roman": "naneun gaeuri joa. nagyeobeul bomyeon maeumi pyeonhaejyeo."
+  },
+  {
+   "n": 6,
+   "beaver": "가을에는 뭐 할까?",
+   "beaver_en": "What should we do in the fall?",
+   "beaver_roman": "gaeureneun mwo halkka?",
+   "learner": "산에 가서 해돋이를 보자. 정말로 예쁠 거야.",
+   "en": "Let's go to a mountain and see the sunrise. It'll be really pretty.",
+   "roman": "sane gaseo haedojireul boja. jeongmallo yeppeul geoya."
+  },
+  {
+   "n": 7,
+   "beaver": "좋다! 근데 가을은 좀 건조하지 않아?",
+   "beaver_en": "Great! But isn't fall kind of dry?",
+   "beaver_roman": "jota! geunde gaeureun jom geonjohaji ana?",
+   "learner": "맞아. 건조하니까 물을 많이 마셔야 돼.",
+   "en": "Right. It's dry, so we have to drink lots of water.",
+   "roman": "maja. geonjohanikka mureul mani masyeoya dwae."
+  },
+  {
+   "n": 8,
+   "beaver": "인원은 몇 명이 좋을까?",
+   "beaver_en": "How many people should we bring?",
+   "beaver_roman": "inwoneun myeot myeongi joeulkka?",
+   "learner": "네 명이면 좋겠어. 민수랑 지은이도 부르자.",
+   "en": "Four would be nice. Let's invite Minsu and Jieun too.",
+   "roman": "ne myeongimyeon jokesseo. minsurang jieunido bureuja."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아. 가는 도중에 뭐 먹을까?",
+   "beaver_en": "Okay. What should we eat on the way?",
+   "beaver_roman": "joa. ganeun dojunge mwo meogeulkka?",
+   "learner": "김밥이라도 사 가자. 간단하잖아.",
+   "en": "Let's at least buy some gimbap. It's easy.",
+   "roman": "gimbabirado sa gaja. gandanhajana."
+  },
+  {
+   "n": 10,
+   "beaver": "그래! 이제 카페 가자.",
+   "beaver_en": "Okay! Let's go to the café now.",
+   "beaver_roman": "geurae! ije kape gaja.",
+   "learner": "응, 가자! 가을 나들이 정말 기대된다.",
+   "en": "Yeah, let's go! I'm really excited for our fall outing.",
+   "roman": "eung, gaja! gaeul nadeuri jeongmal gidaedoenda."
+  }
+ ]
+}

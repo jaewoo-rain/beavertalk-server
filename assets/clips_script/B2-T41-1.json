@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T41-1",
+ "no": 194,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 오늘 경제 뉴스 봤어요? 수출이 줄었대요.",
+   "beaver_en": "Minsu, did you see the economic news today? Exports dropped.",
+   "beaver_roman": "Minsu ssi, oneul gyeongje nyuseu bwasseoyo? Suchuri jureotdaeyo.",
+   "learner": "네, 봤어요. 수출이 줄어서 경제가 걱정이에요.",
+   "en": "Yes, I saw it. Exports fell, so I'm worried about the economy.",
+   "roman": "Ne, bwasseoyo. Suchuri jureoseo gyeongjega geokjeongieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "원화 가치는요? 많이 떨어졌어요?",
+   "beaver_en": "What about the won's value? Did it drop a lot?",
+   "beaver_roman": "Wonhwa gachineunyo? Mani tteoreojyeosseoyo?",
+   "learner": "네, 화폐 가치가 계속 떨어지고 있어요.",
+   "en": "Yes, the currency keeps losing value.",
+   "roman": "Ne, hwapye gachiga gyesok tteoreojigo isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "부동산은 어때요? 집값은 아직 높죠?",
+   "beaver_en": "How about real estate? Housing prices are still high, right?",
+   "beaver_roman": "Budongsaneun eottaeyo? Jipkkapseun ajik nopjyo?",
+   "learner": "네, 부동산 가격은 계속 오르기만 해요.",
+   "en": "Yes, real estate prices just keep rising.",
+   "roman": "Ne, budongsan gagyeogeun gyesok oreugiman haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "큰일이네요. 그럼 우리 회사는 어떻게 해야 해요?",
+   "beaver_en": "That's serious. So what should our company do?",
+   "beaver_roman": "Keunirineyo. Geureom uri hoesaneun eotteoke haeya haeyo?",
+   "learner": "새로운 수출 시장을 찾지 않으면 안 돼요.",
+   "en": "We must find new export markets.",
+   "roman": "Saeroun suchul sijangeul chatjji aneumyeon an dwaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 비용도 줄여야 하지 않을까요?",
+   "beaver_en": "Right. Shouldn't we cut costs too?",
+   "beaver_roman": "Majayo. Biyongdo juryeoya haji aneulkkayo?",
+   "learner": "네, 비용을 더 아껴 쓰지 않으면 안 돼요.",
+   "en": "Yes, we must cut back on spending more.",
+   "roman": "Ne, biyongeul deo akkyeo sseuji aneumyeon an dwaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이 문제를 좀 더 이야기해 볼까요?",
+   "beaver_en": "Shall we talk about this a bit more?",
+   "beaver_roman": "I munjereul jom deo iyagihae bolkkayo?",
+   "learner": "좋아요. 수출이 증가해야 경제가 발전할 수 있어요.",
+   "en": "Sure. Exports need to increase for the economy to develop.",
+   "roman": "Joayo. Suchuri jeunggahaeya gyeongjega baljeonhal ssu isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 이 문제를 팀장님과 의논해 볼까요?",
+   "beaver_en": "Then shall we discuss this with the team leader?",
+   "beaver_roman": "Geureom i munjereul timjangnimgwa uinonhae bolkkayo?",
+   "learner": "네, 오늘 오후에 같이 의논해요.",
+   "en": "Yes, let's discuss it together this afternoon.",
+   "roman": "Ne, oneul ohue gachi uinonhaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그 전에 자료를 준비해야겠네요.",
+   "beaver_en": "We'd better prepare materials before that.",
+   "beaver_roman": "Geu jeone jaryoreul junbihaeyagenneyo.",
+   "learner": "제가 관련 자료를 정리해 올게요.",
+   "en": "I'll put together the related materials.",
+   "roman": "Jega gwallyeon jaryoreul jeongnihae olkkeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "고마워요. 회의는 몇 시에 진행해요?",
+   "beaver_en": "Thanks. What time is the meeting?",
+   "beaver_roman": "Gomawoyo. Hoeuineun myeot sie jinhaenghaeyo?",
+   "learner": "세 시예요. 그 전에 자료를 정리할게요.",
+   "en": "It's at three. I'll organize the materials before then.",
+   "roman": "Se siyeyo. Geu jeone jaryoreul jeongnihalkkeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 경제가 빨리 좋아지면 좋겠어요.",
+   "beaver_en": "Great. I hope the economy gets better soon.",
+   "beaver_roman": "Joayo. Gyeongjega ppalli joajimyeon jokesseoyo.",
+   "learner": "맞아요. 우리도 노력하지 않으면 안 돼요.",
+   "en": "Right. We have to make an effort too.",
+   "roman": "Majayo. Urido noryeokaji aneumyeon an dwaeyo."
+  }
+ ]
+}

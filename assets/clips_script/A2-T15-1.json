@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T15-1",
+ "no": 31,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "저기요, 이 근처에 약국이 있어요?",
+   "beaver_en": "Excuse me, is there a pharmacy nearby?",
+   "beaver_roman": "jeogiyo, i geuncheoe yakgugi isseoyo?",
+   "learner": "네, 있어요. 여기서 가까워요.",
+   "en": "Yes, there is. It's near here.",
+   "roman": "ne, isseoyo. yeogiseo gakkawoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 어느 쪽으로 가요?",
+   "beaver_en": "Really? Which way do I go?",
+   "beaver_roman": "jeongmallyo? eoneu jjogeuro gayo?",
+   "learner": "이쪽으로 쭉 가세요.",
+   "en": "Go straight this way.",
+   "roman": "ijjogeuro jjuk gaseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "쭉 가면 사거리가 나와요?",
+   "beaver_en": "If I go straight, will I reach an intersection?",
+   "beaver_roman": "jjuk gamyeon sageoriga nawayo?",
+   "learner": "네, 거기에서 왼쪽으로 가세요.",
+   "en": "Yes, go left from there.",
+   "roman": "ne, geogieseo oenjjogeuro gaseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "왼쪽이요? 그다음에는요?",
+   "beaver_en": "Left? And then?",
+   "beaver_roman": "oenjjogiyo? geudaeumeneunyo?",
+   "learner": "왼쪽에 은행이 있어요. 은행 옆에 약국이 있어요.",
+   "en": "There's a bank on the left. The pharmacy is next to it.",
+   "roman": "oenjjoge eunhaengi isseoyo. eunhaeng yeope yakgugi isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "은행 옆이요? 오른쪽이에요, 왼쪽이에요?",
+   "beaver_en": "Next to the bank? Right side or left side?",
+   "beaver_roman": "eunhaeng yeopiyo? oreunjjogieyo, oenjjogieyo?",
+   "learner": "은행 오른쪽이에요. 큰 약국이에요.",
+   "en": "On the bank's right side. It's a big pharmacy.",
+   "roman": "eunhaeng oreunjjogieyo. keun yakgugieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "약국 건너편에는 뭐가 있어요?",
+   "beaver_en": "What's across from the pharmacy?",
+   "beaver_roman": "yakguk geonneopyeoneneun mwoga isseoyo?",
+   "learner": "건너편에는 편의점이 있어요.",
+   "en": "There's a convenience store across the street.",
+   "roman": "geonneopyeoneneun pyeonijeomi isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "걸어서 몇 분쯤 걸려요?",
+   "beaver_en": "How many minutes on foot?",
+   "beaver_roman": "georeoseo myeot bunjjeum geollyeoyo?",
+   "learner": "오 분쯤 걸려요. 아주 가까워요.",
+   "en": "About five minutes. It's very close.",
+   "roman": "o bunjjeum geollyeoyo. aju gakkawoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "약국 앞에 버스 정류장이 있어요?",
+   "beaver_en": "Is there a bus stop in front of the pharmacy?",
+   "beaver_roman": "yakguk ape beoseu jeongnyujangi isseoyo?",
+   "learner": "아니요, 정류장은 약국 뒤에 있어요.",
+   "en": "No, the bus stop is behind the pharmacy.",
+   "roman": "aniyo, jeongnyujangeun yakguk dwie isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그렇군요. 약국이 지금 문을 열었어요?",
+   "beaver_en": "I see. Is the pharmacy open now?",
+   "beaver_roman": "geureokunyo. yakgugi jigeum muneul yeoreosseoyo?",
+   "learner": "네, 밤 열 시까지 해요. 어서 가 보세요.",
+   "en": "Yes, until 10 p.m. Hurry and go.",
+   "roman": "ne, bam yeol sikkaji haeyo. eoseo ga boseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정말 고마워요. 그쪽으로 가 볼게요.",
+   "beaver_en": "Thank you so much. I'll head that way.",
+   "beaver_roman": "jeongmal gomawoyo. geujjogeuro ga bolgeyo.",
+   "learner": "천만에요. 조심히 가세요.",
+   "en": "You're welcome. Take care.",
+   "roman": "cheonmaneyo. josimhi gaseyo."
+  }
+ ]
+}

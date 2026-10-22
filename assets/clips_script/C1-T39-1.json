@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T39-1",
+ "no": 326,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여기가 폐수 유출 신고가 들어온 곳이에요.",
+   "beaver_en": "This is where the wastewater leak was reported.",
+   "beaver_roman": "yeogiga pyesu yuchul singoga deureoon gosieyo.",
+   "learner": "물 색깔 좀 보세요. 정말 참담하기 그지없네요.",
+   "en": "Look at the water's color. It's utterly devastating.",
+   "roman": "mul saekkal jom boseyo. jeongmal chamdamhagi geujieomneyo."
+  },
+  {
+   "n": 2,
+   "beaver": "공장 찌꺼기가 그대로 흘러들었대요.",
+   "beaver_en": "They say factory waste flowed straight in.",
+   "beaver_roman": "gongjang jjikkeogiga geudaero heulleodeureotdaeyo.",
+   "learner": "기름 찌꺼기까지 떠 있네요. 유출이 심각해요.",
+   "en": "Even oil residue is floating. The leak is serious.",
+   "roman": "gireum jjikkeogikkaji tteo inneyo. yuchuri simgakaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "공기 상태는 어때요? 측정해 볼까요?",
+   "beaver_en": "How's the air? Should we measure it?",
+   "beaver_roman": "gonggi sangtaeneun eottaeyo? cheukjeonghae bolkkayo?",
+   "learner": "매연 냄새가 심해요. 대기 오염도 걱정돼요.",
+   "en": "The smell of fumes is strong. I'm worried about air pollution too.",
+   "roman": "maeyeon naemsaega simhaeyo. daegi oyeomdo geokjeongdwaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "근처 트럭 배기가스도 문제예요.",
+   "beaver_en": "Exhaust from nearby trucks is a problem too.",
+   "beaver_roman": "geuncheo teureok baegigaseudo munjeyeyo.",
+   "learner": "배기가스 배출을 줄이지 않으면 온난화가 빨라져요.",
+   "en": "If we don't cut exhaust emissions, global warming speeds up.",
+   "roman": "baegigaseu baechureul juriji aneumyeon onnanhwaga ppallajyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "산성비도 자주 내려서 나무가 말랐어요.",
+   "beaver_en": "Acid rain falls often, so the trees have withered.",
+   "beaver_roman": "sanseongbido jaju naeryeoseo namuga mallasseoyo.",
+   "learner": "산성비라니 안타깝기 그지없어요. 숲 보존이 시급해요.",
+   "en": "Acid rain—how terribly sad. Protecting the forest is urgent.",
+   "roman": "sanseongbirani antakkapgi geujieopseoyo. sup bojoni sigeupaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이 강에 살던 물고기도 거의 사라졌어요.",
+   "beaver_en": "The fish that lived in this river are almost gone.",
+   "beaver_roman": "i gange saldeon mulgogido geoui sarajyeosseoyo.",
+   "learner": "이러다가 멸종하는 생물이 생길까 봐 무서워요.",
+   "en": "I'm scared some species might go extinct at this rate.",
+   "roman": "ireodaga myeoljonghaneun saengmuri saenggilkka bwa museowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "마을 사람들은 분리수거를 잘하나요?",
+   "beaver_en": "Do the villagers separate their waste well?",
+   "beaver_roman": "maeul saramdeureun bullisugeoreul jalhanayo?",
+   "learner": "재활용품을 그냥 버리던데요. 분리수거가 엉망이에요.",
+   "en": "They just throw out recyclables. Waste sorting is a mess.",
+   "roman": "jaehwaryongpumeul geunyang beorideondeyo. bullisugeoga eongmangieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "공장 쪽 사정은 어떻대요?",
+   "beaver_en": "What's the situation at the factory?",
+   "beaver_roman": "gongjang jjok sajeongeun eotteotaeyo?",
+   "learner": "정전이 잦아서 정화 장치가 멈춘대요.",
+   "en": "They say frequent outages stop the purification equipment.",
+   "roman": "jeongjeoni jajaseo jeonghwa jangchiga meomchundaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "대책은 있을까요?",
+   "beaver_en": "Is there any solution?",
+   "beaver_roman": "daechaegeun isseulkkayo?",
+   "learner": "설비를 고치고 태양열 발전도 쓰면 좋겠어요.",
+   "en": "I hope they fix the equipment and use solar power too.",
+   "roman": "seolbireul gochigo taeyangyeol baljeondo sseumyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 생각이에요. 보고서에 꼭 넣을게요.",
+   "beaver_en": "Good idea. I'll be sure to put it in the report.",
+   "beaver_roman": "joeun saenggagieyo. bogoseoe kkok neoeulgeyo.",
+   "learner": "저도 메모해 둘게요. 이제 돌아가요.",
+   "en": "I'll take notes too. Let's head back now.",
+   "roman": "jeodo memohae dulgeyo. ije doragayo."
+  }
+ ]
+}

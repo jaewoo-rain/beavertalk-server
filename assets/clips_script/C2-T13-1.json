@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T13-1",
+ "no": 359,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요! 오늘 김장 도와주셔서 고마워요.",
+   "beaver_en": "Come in! Thanks for helping with the kimjang today.",
+   "beaver_roman": "eoseo oseyo! oneul gimjang dowajusyeoseo gomawoyo.",
+   "learner": "별말씀을요. 배추는 집에서 다 절여 왔어요.",
+   "en": "Not at all. I salted all the cabbage at home.",
+   "roman": "byeolmalsseumeullyo. baechuneun jibeseo da jeoryeo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "벌써요? 그럼 속 재료를 준비해 볼까요?",
+   "beaver_en": "Already? Then shall we prepare the filling?",
+   "beaver_roman": "beolsseoyo? geureom sok jaeryoreul junbihae bolkkayo?",
+   "learner": "네, 생굴하고 대추를 사 왔어요.",
+   "en": "Yes, I bought fresh oysters and jujubes.",
+   "roman": "ne, saenggulhago daechureul sa wasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "대추도요? 다른 재료도 넣어요?",
+   "beaver_en": "Jujubes too? Do you add other ingredients?",
+   "beaver_roman": "daechudoyo? dareun jaeryodo neoeoyo?",
+   "learner": "조개도 조금 넣으면 맛이 시원해요.",
+   "en": "Adding a few clams makes it taste refreshing.",
+   "roman": "jogaedo jogeum neoeumyeon masi siwonhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋네요. 조개 껍데기는 어떻게 해요?",
+   "beaver_en": "Nice. What do we do with the clam shells?",
+   "beaver_roman": "jonneyo. jogae kkeopdegineun eotteoke haeyo?",
+   "learner": "껍데기는 까서 버리고 살만 넣을게요.",
+   "en": "I'll shell them and add just the meat.",
+   "roman": "kkeopdegineun kkaseo beorigo salman neoeulkkeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "무는 어떻게 썰까요? 채 썰어요?",
+   "beaver_en": "How should I cut the radish? Julienne it?",
+   "beaver_roman": "muneun eotteoke sseolkkayo? chae sseoreoyo?",
+   "learner": "반은 채 썰고, 반은 토막 내서 넣어요.",
+   "en": "Julienne half, and cut half into chunks.",
+   "roman": "baneun chae sseolgo, baneun tomang naeseo neoeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "점심 상차림은 어떻게 할까요?",
+   "beaver_en": "How should we set the table for lunch?",
+   "beaver_roman": "jeomsim sangcharimeun eotteoke halkkayo?",
+   "learner": "점심은 소갈비찜으로 할까 해요.",
+   "en": "I'm thinking of braised beef short ribs for lunch.",
+   "roman": "jeomsimeun sogalbijjimeuro halkka haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 맛있겠네요. 어떻게 만들 거예요?",
+   "beaver_en": "Wow, sounds delicious. How will you make it?",
+   "beaver_roman": "wa, masitgenneyo. eotteoke mandeul geoyeyo?",
+   "learner": "대추를 넣으면 단맛이 나요. 미역국도 끓일게요.",
+   "en": "Jujubes make it sweet. I'll make seaweed soup too.",
+   "roman": "daechureul neoeumyeon danmasi nayo. miyeokgukdo kkeurilkkeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "생선 요리도 하나 있으면 좋겠는데요.",
+   "beaver_en": "It'd be nice to have a fish dish too.",
+   "beaver_roman": "saengseon yorido hana isseumyeon jokenneundeyo.",
+   "learner": "참치 통조림으로 전을 부칠게요.",
+   "en": "I'll make pancakes with canned tuna.",
+   "roman": "chamchi tongjorimeuro jeoneul buchilkkeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그런데 굴은 몸에 좋다고 하던데요?",
+   "beaver_en": "By the way, I heard oysters are good for you?",
+   "beaver_roman": "geureonde gureun mome jotago hadeondeyo?",
+   "learner": "네, 아시다시피 좋은 성분이 많아요.",
+   "en": "Yes, as you know, they have lots of good nutrients.",
+   "roman": "ne, asidasipi joeun seongbuni manayo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 정말 고마워요. 이제 시작해 볼까요?",
+   "beaver_en": "Thanks so much today. Shall we get started?",
+   "beaver_roman": "oneul jeongmal gomawoyo. ije sijakae bolkkayo?",
+   "learner": "네, 분명 맛있는 김장이 될 거예요!",
+   "en": "Yes, it's sure to be a tasty kimjang!",
+   "roman": "ne, bunmyeong masinneun gimjangi doel geoyeyo!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T31-1",
+ "no": 463,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "회원님, 석 달 운동해 보니 어떠세요?",
+   "beaver_en": "How do you feel after three months of exercise?",
+   "beaver_roman": "hoewonnim, seok dal undonghae boni eotteoseyo?",
+   "learner": "다리가 가벼워요. 근력 운동 효과가 큰 모양이에요.",
+   "en": "My legs feel light. Strength training seems really effective.",
+   "roman": "dariga gabyeowoyo. geullyeok undong hyogwaga keun moyangieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋습니다. 지구력은 어떻습니까?",
+   "beaver_en": "Good. How is your endurance?",
+   "beaver_roman": "jotseumnida. jiguryeogeun eotteoseumnikka?",
+   "learner": "오래 뛰어도 숨이 덜 차요. 지구력도 좋은 모양이에요.",
+   "en": "I get less out of breath on long runs. My endurance seems good too.",
+   "roman": "orae ttwieodo sumi deol chayo. jiguryeokdo joeun moyangieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "공을 받는 반응 속도는 어떠세요?",
+   "beaver_en": "How is your reaction speed when catching the ball?",
+   "beaver_roman": "gongeul banneun baneung sokdoneun eotteoseyo?",
+   "learner": "공을 잘 잡아요. 순발력도 나아진 모양이에요.",
+   "en": "I catch the ball well. My reflexes seem to have improved too.",
+   "roman": "gongeul jal jabayo. sunballyeokdo naajin moyangieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "회복은 어떻게 하십니까?",
+   "beaver_en": "How do you recover?",
+   "beaver_roman": "hoebogeun eotteoke hasimnikka?",
+   "learner": "저녁마다 반신욕을 해요. 몸이 덜 뻐근해요.",
+   "en": "I take a half-body bath every evening. My body feels less stiff.",
+   "roman": "jeonyeongmada bansinyogeul haeyo. momi deol ppeogeunhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "반신욕이 피로 회복에 도움이 되지요.",
+   "beaver_en": "Half-body baths do help with recovering from fatigue.",
+   "beaver_roman": "bansinyogi piro hoeboge doumi doejiyo.",
+   "learner": "피로가 금방 풀려요. 효과가 좋은 모양이에요.",
+   "en": "My fatigue goes away quickly. It seems to work well.",
+   "roman": "piroga geumbang pullyeoyo. hyogwaga joeun moyangieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "주말에는 어떻게 쉬십니까?",
+   "beaver_en": "How do you rest on weekends?",
+   "beaver_roman": "jumareneun eotteoke swisimnikka?",
+   "learner": "산에 가서 삼림욕을 해요. 마음이 편해요.",
+   "en": "I go to the mountains for forest bathing. It calms my mind.",
+   "roman": "sane gaseo samnimnyogeul haeyo. maeumi pyeonhaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "삼림욕은 스트레스를 줄여 줍니다.",
+   "beaver_en": "Forest bathing reduces stress.",
+   "beaver_roman": "samnimnyogeun seuteureseureul juryeo jumnida.",
+   "learner": "숲에 다녀오면 푹 자요. 공기 덕분인 모양이에요.",
+   "en": "After the forest, I sleep soundly. It must be thanks to the air.",
+   "roman": "supe danyeoomyeon puk jayo. gonggi deokbunin moyangieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "운동과 체력에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about exercise and fitness?",
+   "beaver_roman": "undonggwa cheryeoge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "꾸준한 단련이 중요해요. 몸이 정직한 모양이에요.",
+   "en": "Steady training matters. The body seems to be honest.",
+   "roman": "kkujunhan dallyeoni jungyohaeyo. momi jeongjikan moyangieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞습니다. 다음 달에는 근력 운동을 늘려 볼까요?",
+   "beaver_en": "Right. Shall we add more strength training next month?",
+   "beaver_roman": "matseumnida. daeum dareneun geullyeok undongeul neullyeo bolkkayo?",
+   "learner": "좋아요. 순발력 운동도 같이 하고 싶어요.",
+   "en": "Sounds good. I'd like to do agility training too.",
+   "roman": "joayo. sunballyeok undongdo gachi hago sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 다음 주부터 해 봅시다. 수고하셨습니다.",
+   "beaver_en": "Then let's start next week. Good work today.",
+   "beaver_roman": "geureom daeum jubuteo hae bopsida. sugohasyeotseumnida.",
+   "learner": "감사합니다, 선생님. 다음 주에 뵙겠습니다.",
+   "en": "Thank you, coach. See you next week.",
+   "roman": "gamsahamnida, seonsaengnim. daeum jue boepgetseumnida."
+  }
+ ]
+}

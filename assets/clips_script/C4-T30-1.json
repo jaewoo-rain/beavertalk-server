@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T30-1",
+ "no": 462,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선생님, 우리 민준이 검사 결과는 어떻습니까?",
+   "beaver_en": "Doctor, how are Minjun's test results?",
+   "beaver_roman": "seonsaengnim, uri minjuni geomsa gyeolgwaneun eotteoseumnikka?",
+   "learner": "백혈병이라서 항암 치료부터 시작해야 해요.",
+   "en": "It's leukemia, so we need to start with chemotherapy.",
+   "roman": "baekhyeolbyeongiraseo hangam chiryobuteo sijakaeya haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "항암 치료만 하면 되는 겁니까?",
+   "beaver_en": "Is chemotherapy all he needs?",
+   "beaver_roman": "hangam chiryoman hamyeon doeneun geomnikka?",
+   "learner": "항암은 물론이거니와 골수 이식도 필요해요.",
+   "en": "Not only chemo, but also a bone marrow transplant.",
+   "roman": "hangameun mullonigeoniwa golsu isikdo piryohaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "수술은 언제입니까?",
+   "beaver_en": "When is the surgery?",
+   "beaver_roman": "susureun eonjeimnikka?",
+   "learner": "이식은 다음 달 초예요. 수술 없이 주사로 해요.",
+   "en": "The transplant is early next month. It's done by injection, without surgery.",
+   "roman": "isigeun daeum dal choyeyo. susul eopsi jusaro haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아이가 많이 힘들어할까 봐 걱정입니다.",
+   "beaver_en": "I'm worried it will be very hard for him.",
+   "beaver_roman": "aiga mani himdeureohalkka bwa geokjeongimnida.",
+   "learner": "소아 병동이라 아이 마음까지 잘 돌봐요.",
+   "en": "It's a children's ward, so we care for kids' feelings too.",
+   "roman": "soa byeongdongira ai maeumkkaji jal dolbwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "치료 중에 다른 위험은 없습니까?",
+   "beaver_en": "Are there other risks during treatment?",
+   "beaver_roman": "chiryo junge dareun wiheomeun eopseumnikka?",
+   "learner": "감염이 위험해서 항생제를 꾸준히 쓸 거예요.",
+   "en": "Infection is a risk, so we'll use antibiotics regularly.",
+   "roman": "gamyeomi wiheomhaeseo hangsaengjereul kkujunhi sseul geoyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "피가 모자라면 어떻게 합니까?",
+   "beaver_en": "What if he doesn't have enough blood?",
+   "beaver_roman": "piga mojaramyeon eotteoke hamnikka?",
+   "learner": "필요하면 수혈도 하니까 너무 걱정 마세요.",
+   "en": "We'll do a transfusion if needed, so don't worry.",
+   "roman": "piryohamyeon suhyeoldo hanikka neomu geokjeong maseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "면회는 됩니까?",
+   "beaver_en": "Are visits allowed?",
+   "beaver_roman": "myeonhoeneun doemnikka?",
+   "learner": "면회는 가족 두 명까지만 가능해요.",
+   "en": "Visits are limited to two family members.",
+   "roman": "myeonhoeneun gajok du myeongkkajiman ganeunghaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "동생이 아직 예방 접종을 다 못 했습니다.",
+   "beaver_en": "His sibling hasn't finished their vaccinations yet.",
+   "beaver_roman": "dongsaengi ajik yebang jeopjongeul da mot haetseumnida.",
+   "learner": "그럼 접종을 마칠 때까지 면회는 어려워요.",
+   "en": "Then visiting is difficult until they're vaccinated.",
+   "roman": "geureom jeopjongeul machil ttaekkaji myeonhoeneun eoryeowoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "퇴원한 뒤에는 어떻게 지내야 합니까?",
+   "beaver_en": "How should he live after discharge?",
+   "beaver_roman": "toewonhan dwieneun eotteoke jinaeya hamnikka?",
+   "learner": "집에서 요양하면서 외래 진료를 꾸준히 받으세요.",
+   "en": "Let him recuperate at home and keep coming for outpatient checkups.",
+   "roman": "jibeseo yoyanghamyeonseo oerae jillyoreul kkujunhi badeuseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "설명 감사합니다. 꼭 나았으면 좋겠습니다.",
+   "beaver_en": "Thank you. I really hope he gets better.",
+   "beaver_roman": "seolmyeong gamsahamnida. kkok naasseumyeon jokesseumnida.",
+   "learner": "완전한 치유를 위해 저희도 최선을 다할게요.",
+   "en": "We'll do our best for his full recovery.",
+   "roman": "wanjeonhan chiyureul wihae jeohuido choeseoneul dahalgeyo."
+  }
+ ]
+}

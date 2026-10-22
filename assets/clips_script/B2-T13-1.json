@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T13-1",
+ "no": 172,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 냄새 좋다! 해물전 다 됐어?",
+   "beaver_en": "Wow, smells great! Is the seafood pancake done?",
+   "beaver_roman": "wa, naemsae jota! haemuljeon da dwaesseo?",
+   "learner": "응, 다 됐어. 내가 이걸 만들었다니!",
+   "en": "Yeah, it's done. I can't believe I made this!",
+   "roman": "eung, da dwaesseo. naega igeol mandeureotdani!"
+  },
+  {
+   "n": 2,
+   "beaver": "해물은 신선했어? 냉동이었어?",
+   "beaver_en": "Was the seafood fresh? Or frozen?",
+   "beaver_roman": "haemureun sinseonhaesseo? naengdongieosseo?",
+   "learner": "냉동이야. 소금물에 담가서 녹였어.",
+   "en": "It was frozen. I thawed it by soaking it in salt water.",
+   "roman": "naengdongiya. sogeummure damgaseo nogyeosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "잘했네. 새우 껍질은 다 깠어?",
+   "beaver_en": "Good job. Did you peel all the shrimp?",
+   "beaver_roman": "jalhaenne. saeu kkeopjireun da kkasseo?",
+   "learner": "응, 새우를 까고 오징어는 잘게 다졌어.",
+   "en": "Yes, I peeled the shrimp and minced the squid.",
+   "roman": "eung, saeureul kkago ojingeoneun jalge dajeosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "채소는 뭐 넣었어?",
+   "beaver_en": "What vegetables did you add?",
+   "beaver_roman": "chaesoneun mwo neoeosseo?",
+   "learner": "호박을 넣고 부침가루도 조금 넣었어.",
+   "en": "I added pumpkin and a little pancake powder.",
+   "roman": "hobageul neoko buchimgarudo jogeum neoeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "양념은 어떻게 했어?",
+   "beaver_en": "How did you make the sauce?",
+   "beaver_roman": "yangnyeomeun eotteoke haesseo?",
+   "learner": "간장에 참기름을 조금 넣었어.",
+   "en": "I put a little sesame oil in soy sauce.",
+   "roman": "ganjange chamgireumeul jogeum neoeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "불은 어땠어? 안 탔어?",
+   "beaver_en": "How was the heat? Didn't it burn?",
+   "beaver_roman": "bureun eottaesseo? an tasseo?",
+   "learner": "식용유를 두르고 약한 불로 잘 익혔어.",
+   "en": "I used cooking oil and cooked it on low heat.",
+   "roman": "sigyongnyureul dureugo yakan bullo jal ikyeosseo."
+  },
+  {
+   "n": 7,
+   "beaver": "한번 먹어 볼게. 음, 진짜 맛있다!",
+   "beaver_en": "Let me try. Mmm, it's really good!",
+   "beaver_roman": "hanbeon meogeo bolge. eum, jinjja masitda!",
+   "learner": "정말? 처음 만든 요리가 이렇게 맛있다니!",
+   "en": "Really? My first dish is this tasty?!",
+   "roman": "jeongmal? cheoeum mandeun yoriga ireoke masitdani!"
+  },
+  {
+   "n": 8,
+   "beaver": "오래 걸렸어?",
+   "beaver_en": "Did it take long?",
+   "beaver_roman": "orae geollyeosseo?",
+   "learner": "아니, 삼십 분밖에 안 걸렸어.",
+   "en": "No, it only took thirty minutes.",
+   "roman": "ani, samsip bunbakke an geollyeosseo."
+  },
+  {
+   "n": 9,
+   "beaver": "마실 것도 있어?",
+   "beaver_en": "Is there something to drink too?",
+   "beaver_roman": "masil geotdo isseo?",
+   "learner": "응, 보리차를 끓여서 식혀 놨어.",
+   "en": "Yes, I boiled barley tea and let it cool.",
+   "roman": "eung, borichareul kkeuryeoseo sikyeo nwasseo."
+  },
+  {
+   "n": 10,
+   "beaver": "아이고, 너 이제 요리사다! 또 해 줘.",
+   "beaver_en": "Wow, you're a chef now! Make it again.",
+   "beaver_roman": "aigo, neo ije yorisada! tto hae jwo.",
+   "learner": "좋아! 다음엔 딸기잼도 만들어 볼게.",
+   "en": "Sure! Next time I'll try making strawberry jam.",
+   "roman": "joa! daeumen ttalgijaemdo mandeureo bolge."
+  }
+ ]
+}

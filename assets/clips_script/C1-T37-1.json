@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T37-1",
+ "no": 324,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "기상청 발표 봤어요? 이번 주 날씨가 어때요?",
+   "beaver_en": "Did you see the KMA forecast? How's the weather this week?",
+   "beaver_roman": "gisangcheong balpyo bwasseoyo? ibeon ju nalssiga eottaeyo?",
+   "learner": "낮에는 더운 데 비해 밤에는 쌀쌀해요.",
+   "en": "It's hot during the day, but chilly at night.",
+   "roman": "najeneun deoun de bihae bameneun ssalssalhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "환절기라 그렇군요. 지난주는 어땠어요?",
+   "beaver_en": "That's the change of season. How was last week?",
+   "beaver_roman": "hwanjeolgira geureokunyo. jinanjuneun eottaesseoyo?",
+   "learner": "꽃샘추위로 물이 꽁꽁 얼어붙었어요.",
+   "en": "The late cold snap froze the water solid.",
+   "roman": "kkotsaemchuwiro muri kkongkkong eoreobueosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그런데 다음 주에는 비가 많이 온대요.",
+   "beaver_en": "But they say it'll rain a lot next week.",
+   "beaver_roman": "geureonde daeum jueneun biga mani ondaeyo.",
+   "learner": "고기압이 물러나고 저기압이 온다고 해요.",
+   "en": "The high pressure is leaving and low pressure is coming.",
+   "roman": "gogiabi mulleonago jeogiabi ondago haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "강우량은 얼마나 될까요?",
+   "beaver_en": "How much rainfall will there be?",
+   "beaver_roman": "ganguryangeun eolmana doelkkayo?",
+   "learner": "평소에는 적은 데 비해 이번엔 꽤 많대요.",
+   "en": "It's usually light, but they say it'll be heavy this time.",
+   "roman": "pyeongsoeneun jeogeun de bihae ibeonen kkwae mantaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 침수 피해도 걱정되네요.",
+   "beaver_en": "Then I'm worried about flooding too.",
+   "beaver_roman": "geureom chimsu pihaedo geokjeongdoeneyo.",
+   "learner": "네, 강풍까지 불면 수해나 산사태도 우려돼요.",
+   "en": "Yes, with strong winds, flood damage or landslides are a risk.",
+   "roman": "ne, gangpungkkaji bulmyeon suhaena sansataedo uryeodwaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "작년 여름은 어땠어요?",
+   "beaver_en": "How was last summer?",
+   "beaver_roman": "jangnyeon yeoreumeun eottaesseoyo?",
+   "learner": "작년엔 장마가 짧았던 데 비해 열대야가 길었어요.",
+   "en": "The monsoon was short, but the tropical nights lasted long.",
+   "roman": "jangnyeonen jangmaga jjalbatdeon de bihae yeoldaeyaga gireosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 자외선도 아주 강했죠.",
+   "beaver_en": "Right. The UV rays were really strong too.",
+   "beaver_roman": "majayo. jaoeseondo aju ganghaetjyo.",
+   "learner": "습도가 높아서 아열대 같았어요.",
+   "en": "It was so humid it felt subtropical.",
+   "roman": "seupdoga nopaseo ayeoldae gatasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "겨울은 다른 나라랑 비교하면 어때요?",
+   "beaver_en": "How's winter compared to other countries?",
+   "beaver_roman": "gyeoureun dareun nararang bigyohamyeon eottaeyo?",
+   "learner": "한국은 온대 기후인 데 비해 겨울이 꽤 추워요.",
+   "en": "Korea has a temperate climate, but winter is quite cold.",
+   "roman": "hangugeun ondae gihuin de bihae gyeouri kkwae chuwoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "날씨와 계절에 대해 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about the weather and seasons?",
+   "beaver_roman": "nalssiwa gyejeore daehae deo malsseumhae jusigesseoyo?",
+   "learner": "기압이 높은 날엔 저녁 노을이 참 예뻐요.",
+   "en": "On high-pressure days, the sunset glow is really pretty.",
+   "roman": "giabi nopeun naren jeonyeok noeuri cham yeppeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋네요. 기상 정보는 내일 다시 확인해요.",
+   "beaver_en": "Nice. Let's check the weather info again tomorrow.",
+   "beaver_roman": "jonneyo. gisang jeongboneun naeil dasi hwaginhaeyo.",
+   "learner": "네, 기상 상황이 바뀌면 바로 알려 드릴게요.",
+   "en": "Sure, I'll let you know right away if it changes.",
+   "roman": "ne, gisang sanghwangi bakkwimyeon baro allyeo deurilgeyo."
+  }
+ ]
+}

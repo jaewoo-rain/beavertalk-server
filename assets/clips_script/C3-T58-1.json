@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T58-1",
+ "no": 434,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 이번 동창회 같이 갈래?",
+   "beaver_en": "Minji, want to go to the reunion together?",
+   "beaver_roman": "Minjiya, ibeon dongchanghoe gachi gallae?",
+   "learner": "동창회? 사실 난 좀 가기 꺼려져.",
+   "en": "The reunion? Honestly, I'm a bit reluctant to go.",
+   "roman": "Dongchanghoe? Sasil nan jom gagi kkeoryeojyeo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 다들 너 보고 싶어 해. 거절해도 되긴 하지만.",
+   "beaver_en": "Why? Everyone misses you. You can say no, though.",
+   "beaver_roman": "Wae? Dadeul neo bogo sipeo hae. Geojeolhaedo doegin hajiman.",
+   "learner": "내심 가고 싶은데 마음이 잘 안 내켜.",
+   "en": "Deep down I want to go, but I don't feel like it.",
+   "roman": "Naesim gago sipeunde maeumi jal an naekyeo."
+  },
+  {
+   "n": 3,
+   "beaver": "무슨 이유가 있어? 좀 더 얘기해 줄래?",
+   "beaver_en": "Is there a reason? Can you tell me more?",
+   "beaver_roman": "Museun iyuga isseo? Jom deo yaegihae jullae?",
+   "learner": "오랜만에 보면 어색할 것 같아서.",
+   "en": "I think it'll be awkward after so long.",
+   "roman": "Oraenmane bomyeon eosaekal kkeot gataseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그렇구나. 사람들 만나는 게 부담이 크겠다.",
+   "beaver_en": "I see. Meeting people must be a big burden.",
+   "beaver_roman": "Geureokuna. Saramdeul mannaneun ge budami keugetda.",
+   "learner": "응, 요즘 무기력해서 압박감도 커.",
+   "en": "Yeah, I've been lethargic, so the pressure is big too.",
+   "roman": "Eung, yojeum mugiryeokaeseo apbakgamdo keo."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘 일이 많이 힘들었어? 걱정되네.",
+   "beaver_en": "Has work been hard lately? I'm worried.",
+   "beaver_roman": "Yojeum iri mani himdeureosseo? Geokjeongdoene.",
+   "learner": "회사 그만두고 나니 허탈하고 공허해.",
+   "en": "Since I quit my job, I feel deflated and empty.",
+   "roman": "Hoesa geumandugo nani heotalhago gongheohae."
+  },
+  {
+   "n": 6,
+   "beaver": "그래서 친구들 앞에 서기가 힘든 거구나.",
+   "beaver_en": "So that's why it's hard to face your friends.",
+   "beaver_roman": "Geuraeseo chingudeul ape seogiga himdeun geoguna.",
+   "learner": "동정 받을까 봐 엄두가 안 나.",
+   "en": "I'm afraid of being pitied, so I can't bring myself to go.",
+   "roman": "Dongjeong badeulkka bwa eomduga an na."
+  },
+  {
+   "n": 7,
+   "beaver": "아무도 너를 그렇게 안 볼 거야. 걱정 마.",
+   "beaver_en": "Nobody will see you that way. Don't worry.",
+   "beaver_roman": "Amudo neoreul geureoke an bol kkeoya. Geokjeong ma.",
+   "learner": "알아. 그래도 마음이 걸려서 며칠 고민했어.",
+   "en": "I know. Still, it bothered me, so I thought it over for days.",
+   "roman": "Ara. Geuraedo maeumi geollyeoseo myeochil gominhaesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "우리 학교에 대한 애착은 아직 있지?",
+   "beaver_en": "You still feel attached to our school, right?",
+   "beaver_roman": "Uri hakgyoe daehan aechageun ajik itji?",
+   "learner": "응, 생각하면 아직도 애틋해.",
+   "en": "Yes, thinking of it still makes me wistful.",
+   "roman": "Eung, saenggakamyeon ajikdo aeteutae."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 한 시간만 와서 얼굴 보는 건 어때?",
+   "beaver_en": "Then how about coming for just an hour to say hi?",
+   "beaver_roman": "Geureom han siganman waseo eolgul boneun geon eottae?",
+   "learner": "그래. 친구들이랑 얘기하다 보면 괜찮아지겠지.",
+   "en": "Okay. If I keep talking with friends, I'll feel better.",
+   "roman": "Geurae. Chingudeurirang yaegihada bomyeon gwaenchanajigetji."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워! 내가 옆에 꼭 붙어 있을게.",
+   "beaver_en": "Thanks! I'll stay right by your side.",
+   "beaver_roman": "Gomawo! Naega yeope kkok buteo isseulge.",
+   "learner": "고마워. 거부감도 조금씩 줄어들 것 같아.",
+   "en": "Thank you. I think my resistance will fade little by little.",
+   "roman": "Gomawo. Geobugamdo jogeumssik jureodeul kkeot gata."
+  }
+ ]
+}

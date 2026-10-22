@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T34-1",
+ "no": 321,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 영화는 어떤 경향이 있어요?",
+   "beaver_en": "What trends are there in movies these days?",
+   "beaver_roman": "yojeum yeonghwaneun eotteon gyeonghyang-i isseoyo?",
+   "learner": "요즘은 실화를 다룬 영화가 많이 개봉해요.",
+   "en": "These days, a lot of movies based on true stories are coming out.",
+   "roman": "yojeumeun silhwareul darun yeonghwaga mani gaebonghaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "실화 영화가 흥행도 잘돼요?",
+   "beaver_en": "Do true-story movies do well at the box office?",
+   "beaver_roman": "silhwa yeonghwaga heunghaengdo jaldwaeyo?",
+   "learner": "네, 실화라서 감동이 커서 흥행이 잘돼요.",
+   "en": "Yes, since they're true stories, they're very moving, so they do well.",
+   "roman": "ne, silhwaraseo gamdong-i keoseo heunghaeng-i jaldwaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "스토리는 어떤 게 인기예요?",
+   "beaver_en": "What kind of stories are popular?",
+   "beaver_roman": "seutorineun eotteon ge in-giyeyo?",
+   "learner": "시나리오가 탄탄하고 인물이 현실적인 게 인기예요.",
+   "en": "Ones with solid scripts and realistic characters are popular.",
+   "roman": "sinarioga tantanhago inmuri hyeonsiljeogin ge in-giyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "결말은 어때요?",
+   "beaver_en": "What about the endings?",
+   "beaver_roman": "gyeolmareun eottaeyo?",
+   "learner": "열린 결말이 많은데 평도 좋아요.",
+   "en": "Many have open endings, and the reviews are good too.",
+   "roman": "yeollin gyeolmari maneunde pyeongdo joayo."
+  },
+  {
+   "n": 5,
+   "beaver": "애니메이션도 그래요?",
+   "beaver_en": "Is it the same with animation?",
+   "beaver_roman": "aenimeisyeondo geuraeyo?",
+   "learner": "애니메이션은 국악을 넣은 작품이 늘었어요.",
+   "en": "In animation, more works now include traditional Korean music.",
+   "roman": "aenimeisyeoneun gugageul neoeun jakpumi neureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "국악이요? 어떤 음악이에요?",
+   "beaver_en": "Traditional music? What kind of music?",
+   "beaver_roman": "gugagiyo? eotteon eumagieyo?",
+   "learner": "가야금 소리와 장단을 통해서 분위기를 살려요.",
+   "en": "They set the mood through gayageum sounds and rhythms.",
+   "roman": "gayageum soriwa jangdaneul tonghaeseo bunwigireul sallyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "다큐멘터리는 어때요?",
+   "beaver_en": "How about documentaries?",
+   "beaver_roman": "dakyumenteorineun eottaeyo?",
+   "learner": "서예나 공예를 다룬 다큐멘터리가 인기예요.",
+   "en": "Documentaries about calligraphy and crafts are popular.",
+   "roman": "seoyena gong-yereul darun dakyumenteoriga in-giyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그런 걸 누가 봐요? 재미있어요?",
+   "beaver_en": "Who watches that? Is it fun?",
+   "beaver_roman": "geureon geol nuga bwayo? jaemiisseoyo?",
+   "learner": "붓글씨 쓰는 장면이 멋있어서 젊은 사람도 많이 봐요.",
+   "en": "The calligraphy scenes are cool, so lots of young people watch.",
+   "roman": "butgeulssi sseuneun jangmyeoni meosisseoseo jeolmeun saramdo mani bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "다른 분야는 요즘 어때요?",
+   "beaver_en": "How are other fields these days?",
+   "beaver_roman": "dareun bunyaneun yojeum eottaeyo?",
+   "learner": "요즘은 발라드 가수가 영화 주연도 맡아요.",
+   "en": "These days, ballad singers even take lead roles in films.",
+   "roman": "yojeumeun balladeu gasuga yeonghwa juyeondo matayo."
+  },
+  {
+   "n": 10,
+   "beaver": "재밌네요. 다음에 같이 시사회 가요!",
+   "beaver_en": "Interesting. Let's go to a preview screening next time!",
+   "beaver_roman": "jaeminneyo. daeume gachi sisahoe gayo!",
+   "learner": "좋아요! 시사회에서 같이 먼저 봐요.",
+   "en": "Sounds good! Let's see it early together at the preview.",
+   "roman": "joayo! sisahoeeseo gachi meonjeo bwayo."
+  }
+ ]
+}

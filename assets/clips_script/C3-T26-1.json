@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T26-1",
+ "no": 408,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선배님, 진로 고민이 많아요. 조언 좀 해 주세요.",
+   "beaver_en": "Senior, I'm worried about my career. Please give me advice.",
+   "beaver_roman": "Seonbaenim, jillo gomini manayo. Joeon jom hae juseyo.",
+   "learner": "좋아요. 옛날 진로 이야기부터 해 볼게요.",
+   "en": "Sure. Let me start with careers in the past.",
+   "roman": "Joayo. Yennal jillo iyagibuteo hae bolgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "옛날에는 어떤 직업이 인기였습니까?",
+   "beaver_en": "What jobs were popular in the past?",
+   "beaver_roman": "Yennareneun eotteon jigeobi ingiyeotseumnikka?",
+   "learner": "예전엔 법률가가 출세의 상징이었어요.",
+   "en": "Back then, legal professionals were a symbol of success.",
+   "roman": "Yejeonen beomnyulgaga chulseui sangjingieosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "시험이 성공의 등용문이었다고 들었어요.",
+   "beaver_en": "I heard exams were the gateway to success.",
+   "beaver_roman": "Siheomi seonggongui deungyongmunieotdago deureosseoyo.",
+   "learner": "맞아요. 고시는 출세의 등용문이었죠.",
+   "en": "Right. The state exam was the gateway to success.",
+   "roman": "Majayo. Gosineun chulseui deungyongmunieotjyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 상인은 어떻게 여겨졌습니까?",
+   "beaver_en": "Then how were merchants seen?",
+   "beaver_roman": "Geureom sangineun eotteoke yeogyeojyeotseumnikka?",
+   "learner": "예전엔 상인을 낮게 봤지만 지금은 달라요.",
+   "en": "Merchants were looked down on, but it's different now.",
+   "roman": "Yejeonen sangineul natge bwatjiman jigeumeun dallayo."
+  },
+  {
+   "n": 5,
+   "beaver": "창업은 어떻습니까?",
+   "beaver_en": "What about starting a business?",
+   "beaver_roman": "Changeobeun eotteotseumnikka?",
+   "learner": "요즘은 창업하는 젊은이가 늘어나는 추세예요.",
+   "en": "Young people starting businesses are on the rise.",
+   "roman": "Yojeumeun changeopaneun jeolmeuniga neullaneun chuseyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "전문직은 어떻습니까?",
+   "beaver_en": "What about professional jobs?",
+   "beaver_roman": "Jeonmunjigeun eotteotseumnikka?",
+   "learner": "전문가를 양성하는 학교도 많아지는 추세예요.",
+   "en": "Schools that train professionals are increasing too.",
+   "roman": "Jeonmungareul yangseonghaneun hakgyodo manajineun chuseyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "한 직업에만 종사하는 사람이 줄었나요?",
+   "beaver_en": "Are fewer people working in just one job?",
+   "beaver_roman": "Han jigeobeman jongsahaneun sarami jureonnayo?",
+   "learner": "네, 한 분야에 평생 종사하는 사람은 줄었어요.",
+   "en": "Yes, fewer people work in one field for life.",
+   "roman": "Ne, han bunyae pyeongsaeng jongsahaneun sarameun jureosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "부업을 하는 사람도 많습니까?",
+   "beaver_en": "Are there many people with side jobs too?",
+   "beaver_roman": "Bueobeul haneun saramdo manseumnikka?",
+   "learner": "네, 본업 외에 부업을 하는 사람이 늘고 있어요.",
+   "en": "Yes, more people have side jobs besides their main work.",
+   "roman": "Ne, boneop oee bueobeul haneun sarami neulgo isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "직업과 진로에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about jobs and careers?",
+   "beaver_roman": "Jigeopgwa jilloe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "변화가 빠르니 겁내지 말고 도전하세요.",
+   "en": "Things change fast, so don't be afraid and try.",
+   "roman": "Byeonhwaga ppareuni geomnaeji malgo dojeonhaseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다, 선배님. 큰 도움이 됐습니다.",
+   "beaver_en": "Thank you, senior. That helped a lot.",
+   "beaver_roman": "Gamsahamnida, seonbaenim. Keun doumi dwaetseumnida.",
+   "learner": "천만에요. 또 궁금하면 언제든 연락해요.",
+   "en": "You're welcome. Contact me anytime if you're curious.",
+   "roman": "Cheonmaneyo. Tto gunggeumhamyeon eonjedeun yeollakaeyo."
+  }
+ ]
+}

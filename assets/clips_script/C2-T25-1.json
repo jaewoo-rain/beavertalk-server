@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T25-1",
+ "no": 367,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "야, 이게 얼마 만이야! 잘 지냈어?",
+   "beaver_en": "Hey, how long has it been! How have you been?",
+   "beaver_roman": "Ya, ige eolma maniya! Jal jinaesseo?",
+   "learner": "응, 잘 지냈지. 고등학교 때가 그립다.",
+   "en": "Yeah, I've been well. I miss our high school days.",
+   "roman": "Eung, jal jinaetji. Godeunghakgyo ttaega geuripda."
+  },
+  {
+   "n": 2,
+   "beaver": "나도. 너 그때 소문난 모범생이었잖아.",
+   "beaver_en": "Me too. You were a well-known model student back then.",
+   "beaver_roman": "Nado. Neo geuttae somunnan mobeomsaengieotjana.",
+   "learner": "모범생이자 조퇴 대장이었지. 기억 안 나?",
+   "en": "I was both a model student and the king of leaving early. Don't you remember?",
+   "roman": "Mobeomsaengija jotoe daejangieotji. Gieok an na?"
+  },
+  {
+   "n": 3,
+   "beaver": "맞다! 급식 먹고 훌쩍 사라졌잖아.",
+   "beaver_en": "Right! You'd vanish right after lunch.",
+   "beaver_roman": "Matda! Geupsik meokgo huljjeok sarajyeotjana.",
+   "learner": "급식은 별로였는데 지금은 그립더라.",
+   "en": "The school meals weren't great, but now I miss them.",
+   "roman": "Geupsigeun byeolloyeonneunde jigeumeun geuripdeora."
+  },
+  {
+   "n": 4,
+   "beaver": "선생님들은 어떠셨어? 기억나는 분 있어?",
+   "beaver_en": "How were the teachers? Anyone you remember?",
+   "beaver_roman": "Seonsaengnimdeureun eotteosyeosseo? Gieongnaneun bun isseo?",
+   "learner": "담임 선생님은 스승이자 친구 같은 분이셨어.",
+   "en": "Our homeroom teacher was both a mentor and a friend.",
+   "roman": "Damim seonsaengnimeun seuseungija chingu gateun bunisyeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "수학여행 때 기억나? 경주 갔었잖아.",
+   "beaver_en": "Remember the school trip? We went to Gyeongju.",
+   "beaver_roman": "Suhangnyeohaeng ttae gieongna? Gyeongju gasseotjana.",
+   "learner": "응, 수학여행이 제일 기억에 남아.",
+   "en": "Yeah, the school trip is what I remember most.",
+   "roman": "Eung, suhangnyeohaengi jeil gieoge nama."
+  },
+  {
+   "n": 6,
+   "beaver": "넌 그때 열람실에서 살다시피 했잖아.",
+   "beaver_en": "You practically lived in the reading room back then.",
+   "beaver_roman": "Neon geuttae yeollamsireseo saldasipi haetjana.",
+   "learner": "의대 가려고 했는데 결국 법대 갔어.",
+   "en": "I wanted to go to med school, but ended up in law school.",
+   "roman": "Uidae garyeogo haenneunde gyeolguk beopdae gasseo."
+  },
+  {
+   "n": 7,
+   "beaver": "법대라니 대단하다! 학교생활은 어땠어?",
+   "beaver_en": "Law school, impressive! How was college life?",
+   "beaver_roman": "Beopdaerani daedanhada! Hakgyosaenghwareun eottaesseo?",
+   "learner": "군대 갔다 복학하니 캠퍼스가 낯설더라.",
+   "en": "When I came back from the army, the campus felt strange.",
+   "roman": "Gundae gatda bokakani kaempeoseuga natseoldeora."
+  },
+  {
+   "n": 8,
+   "beaver": "그래도 법대면 학벌 덕 좀 봤겠네.",
+   "beaver_en": "Still, a law degree must have helped with school ties.",
+   "beaver_roman": "Geuraedo beopdaemyeon hakbeol deok jom bwatgenne.",
+   "learner": "학벌보다 실력이 제일이더라.",
+   "en": "I found skill matters more than school ties.",
+   "roman": "Hakbeolboda sillyeogi jeilideora."
+  },
+  {
+   "n": 9,
+   "beaver": "요즘 애들은 학원 다니느라 바쁘대.",
+   "beaver_en": "I hear kids these days are busy with cram schools.",
+   "beaver_roman": "Yojeum aedeureun hagwon danineura bappeudae.",
+   "learner": "우리 땐 사교육비 걱정은 덜했던 것 같아.",
+   "en": "I think we worried less about private education costs.",
+   "roman": "Uri ttaen sagyoyukbi geokjeongeun deolhaetdeon geot gata."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 정말 즐거웠다. 다음에 또 보자!",
+   "beaver_en": "Today was really fun. Let's meet again!",
+   "beaver_roman": "Oneul jeongmal jeulgeowotda. Daeume tto boja!",
+   "learner": "응, 다음엔 우리 고등학교에 같이 가 보자.",
+   "en": "Sure, next time let's visit our high school together.",
+   "roman": "Eung, daeumen uri godeunghakgyoe gachi ga boja."
+  }
+ ]
+}

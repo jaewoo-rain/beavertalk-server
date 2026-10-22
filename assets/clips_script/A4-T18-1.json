@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T18-1",
+ "no": 98,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 휴가에 갈 여행지 정했어요?",
+   "beaver_en": "Did you pick a destination for this vacation?",
+   "beaver_roman": "ibeon hyugae gal yeohaengji jeonghaesseoyo?",
+   "learner": "아직요. 어디로 갈지 모르겠어요.",
+   "en": "Not yet. I don't know where to go.",
+   "roman": "ajigyo. eodiro galji moreugesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "해외는 어때요? 일본도 가까워요.",
+   "beaver_en": "How about going overseas? Japan is close too.",
+   "beaver_roman": "haeoeneun eottaeyo? ilbondo gakkawoyo.",
+   "learner": "해외는 좋기는 하지만 돈이 많이 들어요.",
+   "en": "Overseas is nice, but it costs a lot.",
+   "roman": "haeoeneun jokineun hajiman doni mani deureoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 바닷가는요? 부산 바다가 예뻐요.",
+   "beaver_en": "Then what about the seaside? Busan's sea is pretty.",
+   "beaver_roman": "geureom badatganeunnyo? busan badaga yeppeoyo.",
+   "learner": "바닷가는 예쁘기는 하지만 사람이 많아요.",
+   "en": "The seaside is pretty, but it's crowded.",
+   "roman": "badatganeun yeppeugineun hajiman sarami manayo."
+  },
+  {
+   "n": 4,
+   "beaver": "대구나 울산은 어때요?",
+   "beaver_en": "How about Daegu or Ulsan?",
+   "beaver_roman": "daeguna ulsaneun eottaeyo?",
+   "learner": "대구는 여름에 너무 더울지 모르겠어요.",
+   "en": "Daegu might be too hot in summer.",
+   "roman": "daeguneun yeoreume neomu deoulji moreugesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "울산에는 볼 곳이 많아요.",
+   "beaver_en": "There are lots of places to see in Ulsan.",
+   "beaver_roman": "ulsaneneun bol gosi manayo.",
+   "learner": "울산은 가 봤어요. 안 가 본 곳이 좋아요.",
+   "en": "I've been to Ulsan. I'd prefer somewhere I haven't been.",
+   "roman": "ulsaneun ga bwasseoyo. an ga bon gosi joayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 대전은요? 기차로 한 시간이에요.",
+   "beaver_en": "Then Daejeon? It's an hour by train.",
+   "beaver_roman": "geureom daejeoneunnyo? gicharo han siganieyo.",
+   "learner": "대전은 가깝기는 하지만 볼 게 있을지 모르겠어요.",
+   "en": "Daejeon is close, but I'm not sure there's much to see.",
+   "roman": "daejeoneun gakkapgineun hajiman bol ge isseulji moreugesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "대전에는 옛 건물이 있는 관광지도 있어요.",
+   "beaver_en": "Daejeon has attractions with old buildings.",
+   "beaver_roman": "daejeoneneun yet geonmuri inneun gwangwangjido isseoyo.",
+   "learner": "그래요? 그런데 묵을 호텔이 있을지 모르겠어요.",
+   "en": "Really? But I'm not sure there's a hotel to stay at.",
+   "roman": "geuraeyo? geureonde mugeul hoteri isseulji moreugesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "괜찮아요. 서두르면 예약할 수 있어요.",
+   "beaver_en": "It's fine. If we hurry, we can book one.",
+   "beaver_roman": "gwaenchanayo. seodureumyeon yeyakal su isseoyo.",
+   "learner": "좋아요. 그럼 오늘 계획을 세울 시간 있어요?",
+   "en": "Okay. Then do you have time to make a plan today?",
+   "roman": "joayo. geureom oneul gyehoegeul seul sigan isseoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네. 그런데 한강도 가고 싶다고 했죠?",
+   "beaver_en": "Yes. But you said you wanted to go to the Han River too?",
+   "beaver_roman": "ne. geureonde hangangdo gago sipdago haetjyo?",
+   "learner": "네, 한강은 서울에 돌아와서 갈 거예요.",
+   "en": "Yes, I'll go to the Han River after we're back in Seoul.",
+   "roman": "ne, hangangeun seoure dorawaseo gal geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 첫 여행지는 대전으로 해요!",
+   "beaver_en": "Great. Then our first destination is Daejeon!",
+   "beaver_roman": "joayo. geureom cheon nyeohaengjineun daejeoneuro haeyo!",
+   "learner": "네! 대전에서 먹을 음식도 찾아볼게요.",
+   "en": "Yes! I'll look up food to eat in Daejeon too.",
+   "roman": "ne! daejeoneseo meogeul eumsikdo chajabolgeyo."
+  }
+ ]
+}

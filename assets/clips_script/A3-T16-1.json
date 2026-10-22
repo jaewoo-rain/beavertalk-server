@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T16-1",
+ "no": 60,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 어디로 가세요?",
+   "beaver_en": "Hello. Where are you going?",
+   "beaver_roman": "annyeonghaseyo. eodiro gaseyo?",
+   "learner": "부산 가는 기차표 한 장 주세요.",
+   "en": "One train ticket to Busan, please.",
+   "roman": "busan ganeun gichapyo han jang juseyo."
+  },
+  {
+   "n": 2,
+   "beaver": "몇 시 기차로 드릴까요?",
+   "beaver_en": "Which train time would you like?",
+   "beaver_roman": "myeot si gicharo deurilkkayo?",
+   "learner": "열 시 기차로 해 주세요.",
+   "en": "The ten o'clock train, please.",
+   "roman": "yeol si gicharo hae juseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "네, 오만 원이에요. 차로 오셨어요?",
+   "beaver_en": "Okay, it's 50,000 won. Did you come by car?",
+   "beaver_roman": "ne, oman wonieyo. charo osyeosseoyo?",
+   "learner": "네, 주차장이 어디예요? 알려 주세요.",
+   "en": "Yes, where is the parking lot? Please tell me.",
+   "roman": "ne, juchajangi eodiyeyo? allyeo juseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "기차역 뒤쪽이에요. 신호등에서 왼쪽이에요.",
+   "beaver_en": "It's behind the station. Turn left at the traffic light.",
+   "beaver_roman": "gichayeok dwijjogieyo. sinhodeungeseo oenjjogieyo.",
+   "learner": "신호등에서 왼쪽이요? 감사합니다.",
+   "en": "Left at the traffic light? Thank you.",
+   "roman": "sinhodeungeseo oenjjogiyo? gamsahamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 차는 주차장에 두시면 돼요.",
+   "beaver_en": "Yes, you can leave your car in the parking lot.",
+   "beaver_roman": "ne, chaneun juchajange dusimyeon dwaeyo.",
+   "learner": "부산역에서 공항까지 뭐 타고 가요?",
+   "en": "What should I take from Busan Station to the airport?",
+   "roman": "busanyeogeseo gonghangkkaji mwo tago gayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "길이 막혀서 차는 오래 걸려요.",
+   "beaver_en": "The roads are jammed, so a car takes a long time.",
+   "beaver_roman": "giri makyeoseo chaneun orae geollyeoyo.",
+   "learner": "그럼 전철로 가는 길을 알려 주세요.",
+   "en": "Then please tell me how to go by subway.",
+   "roman": "geureom jeoncheollo ganeun gireul allyeo juseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "부산역 앞에 지하철역이 있어요.",
+   "beaver_en": "There's a subway station in front of Busan Station.",
+   "beaver_roman": "busanyeok ape jihacheollyeogi isseoyo.",
+   "learner": "역에서 공항까지 오래 걸려요?",
+   "en": "Does it take long from the station to the airport?",
+   "roman": "yeogeseo gonghangkkaji orae geollyeoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "사십 분쯤 걸려요. 비행기 타세요?",
+   "beaver_en": "About forty minutes. Are you taking a plane?",
+   "beaver_roman": "sasip bunjjeum geollyeoyo. bihaenggi taseyo?",
+   "learner": "네, 오후 세 시 비행기예요.",
+   "en": "Yes, my flight is at 3 p.m.",
+   "roman": "ne, ohu se si bihaenggiyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 시간이 충분해요. 조심히 가세요.",
+   "beaver_en": "Then you have enough time. Travel safely.",
+   "beaver_roman": "geureom sigani chungbunhaeyo. josimhi gaseyo.",
+   "learner": "네, 감사합니다. 표 주시겠어요?",
+   "en": "Okay, thank you. Could I have the ticket?",
+   "roman": "ne, gamsahamnida. pyo jusigesseoyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 여기 있어요. 즐거운 여행 되세요.",
+   "beaver_en": "Here you go. Have a nice trip.",
+   "beaver_roman": "ne, yeogi isseoyo. jeulgeoun yeohaeng doeseyo.",
+   "learner": "정말 감사합니다. 안녕히 계세요.",
+   "en": "Thank you so much. Goodbye.",
+   "roman": "jeongmal gamsahamnida. annyeonghi gyeseyo."
+  }
+ ]
+}

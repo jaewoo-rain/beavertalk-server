@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T11-1",
+ "no": 171,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 오늘도 도시락 싸 왔어요?",
+   "beaver_en": "Wow, did you pack a lunch again today?",
+   "beaver_roman": "Wa, oneuldo dosirak ssa wasseoyo?",
+   "learner": "네, 인스턴트만 먹으니까 몸이 안 좋았어요.",
+   "en": "Yes, eating only instant food made me feel bad.",
+   "roman": "Ne, inseuteonteuman meogeunikka momi an joasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "직접 싸 보니까 어때요?",
+   "beaver_en": "How is it, now that you've tried packing it yourself?",
+   "beaver_roman": "Jikjeop ssa bonikka eottaeyo?",
+   "learner": "직접 해 보니까 생각보다 쉬웠어요.",
+   "en": "After trying it myself, it was easier than I thought.",
+   "roman": "Jikjeop hae bonikka saenggakboda swiwosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "반찬이 많네요. 뭐 넣었어요?",
+   "beaver_en": "So many side dishes. What did you put in?",
+   "beaver_roman": "Banchani manneyo. Mwo neoeosseoyo?",
+   "learner": "어제 저녁에 만든 불고기를 넣었어요.",
+   "en": "I put in bulgogi I made last night.",
+   "roman": "Eoje jeonyeoge mandeun bulgogireul neoeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "맛있겠네요. 저는 벌써 배고파요.",
+   "beaver_en": "Looks tasty. I'm already hungry.",
+   "beaver_roman": "Masitgenneyo. Jeoneun beolsseo baegopayo.",
+   "learner": "많이 싸 왔으니까 같이 드세요.",
+   "en": "I packed a lot, so please share it.",
+   "roman": "Mani ssa wasseunikka gachi deuseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "고마워요. 후식도 있어요?",
+   "beaver_en": "Thanks. Is there dessert too?",
+   "beaver_roman": "Gomawoyo. Husikdo isseoyo?",
+   "learner": "네, 후식으로 딸기를 가져왔어요.",
+   "en": "Yes, I brought strawberries for dessert.",
+   "roman": "Ne, husigeuro ttalgireul gajyeowasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 하루 세 끼 다 이렇게 먹어요?",
+   "beaver_en": "Wow, do you eat all three meals like this?",
+   "beaver_roman": "Wa, haru se kki da ireoke meogeoyo?",
+   "learner": "아니요, 아침은 못 먹어서 두 끼만 먹어요.",
+   "en": "No, I skip breakfast, so I only eat two meals.",
+   "roman": "Aniyo, achimeun mon meogeoseo du kkiman meogeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그렇군요. 저녁 회식은요?",
+   "beaver_en": "I see. What about the team dinner tonight?",
+   "beaver_roman": "Geureokunyo. Jeonyeok hoesigeunyo?",
+   "learner": "갈 거예요. 그런데 술은 조금만 마실게요.",
+   "en": "I'll go. But I'll only drink a little.",
+   "roman": "Gal geoyeyo. Geureonde sureun jogeumman masilgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "왜요? 술이 약해요?",
+   "beaver_en": "Why? Can't you hold your liquor?",
+   "beaver_roman": "Waeyo? Suri yakaeyo?",
+   "learner": "지난번에 포도주를 마셔 보니까 금방 취했어요.",
+   "en": "Last time I tried wine, I got drunk quickly.",
+   "roman": "Jinanbeone podojureul masyeo bonikka geumbang chwihaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 오늘은 주스 마셔요. 도시락 정말 맛있어요!",
+   "beaver_en": "Then have juice tonight. Your lunch is really good!",
+   "beaver_roman": "Geureom oneureun juseu masyeoyo. Dosirak jeongmal masisseoyo!",
+   "learner": "고마워요. 다음엔 도시락을 하나 더 싸 올게요.",
+   "en": "Thanks. Next time I'll pack one more lunch.",
+   "roman": "Gomawoyo. Daeumen dosirageul hana deo ssa olgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정말요? 기대할게요. 이제 일하러 가요!",
+   "beaver_en": "Really? I'll look forward to it. Let's get back to work!",
+   "beaver_roman": "Jeongmallyo? Gidaehalgeyo. Ije ilhareo gayo!",
+   "learner": "네, 가요. 오후도 힘내요!",
+   "en": "Okay, let's go. Hang in there this afternoon!",
+   "roman": "Ne, gayo. Ohudo himnaeyo!"
+  }
+ ]
+}

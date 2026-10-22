@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T19-1",
+ "no": 134,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민호 씨, 무슨 고민 있어요? 표정이 안 좋네요.",
+   "beaver_en": "Minho, is something bothering you? You look down.",
+   "beaver_roman": "Minho ssi, museun gomin isseoyo? Pyojeongi an jonneyo.",
+   "learner": "선배님, 높임말에 대해 여쭤봐도 되나요?",
+   "en": "Could I ask you about honorific language?",
+   "roman": "Seonbaenim, nopimmare daehae yeojjwobwado doenayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "그럼요. 뭐가 궁금해요?",
+   "beaver_en": "Of course. What do you want to know?",
+   "beaver_roman": "Geureomnyo. Mwoga gunggeumhaeyo?",
+   "learner": "윗사람에게는 어떤 말을 쓰나요?",
+   "en": "What kind of speech do I use with elders?",
+   "roman": "Wissaramegeneun eotteon mareul sseunayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "존댓말을 쓰면 돼요. 말끝에 '요'를 붙여요.",
+   "beaver_en": "Use polite speech. Add 'yo' at the end.",
+   "beaver_roman": "Jondaenmareul sseumyeon dwaeyo. Malkkeute 'yo'reul buchyeoyo.",
+   "learner": "할머니께 안부를 물을 때도 그런가요?",
+   "en": "Is it the same when asking Grandma how she is?",
+   "roman": "Halmeonikke anbureul mureul ttaedo geureongayo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, \"잘 지내셨어요?\"라고 하면 돼요.",
+   "beaver_en": "Yes, just say \"Have you been well?\"",
+   "beaver_roman": "Ne, \"jal jinaesyeosseoyo?\"rago hamyeon dwaeyo.",
+   "learner": "절은 언제 하나요? 매일 하는 건가요?",
+   "en": "When do you do a deep bow? Every day?",
+   "roman": "Jeoreun eonje hanayo? Maeil haneun geongayo?"
+  },
+  {
+   "n": 5,
+   "beaver": "아니요, 명절에 하면 돼요.",
+   "beaver_en": "No, you do it on holidays.",
+   "beaver_roman": "Aniyo, myeongjeore hamyeon dwaeyo.",
+   "learner": "설날에 하는 큰 인사가 절인가요?",
+   "en": "Is the big New Year's greeting a deep bow?",
+   "roman": "Seollare haneun keun insaga jeoringayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "맞아요. 공공장소 예절도 알아요?",
+   "beaver_en": "Right. Do you know public etiquette too?",
+   "beaver_roman": "Majayo. Gonggongjangso yejeoldo arayo?",
+   "learner": "지하철에서 자리를 양보하는 게 예의인가요?",
+   "en": "Is giving up your seat on the subway good manners?",
+   "roman": "Jihacheoreseo jarireul yangbohaneun ge yeuiingayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 어르신께 양보하면 좋아요.",
+   "beaver_en": "Yes, it's nice to give it to older people.",
+   "beaver_roman": "Ne, eoreusinkke yangbohamyeon joayo.",
+   "learner": "버스가 붐빌 때도 꼭 그래야 하나요?",
+   "en": "Even when the bus is crowded?",
+   "roman": "Beoseuga bumbil ttaedo kkok geuraeya hanayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "그럼요. 또 궁금한 거 있어요?",
+   "beaver_en": "Of course. Anything else you're curious about?",
+   "beaver_roman": "Geureomnyo. Tto gunggeumhan geo isseoyo?",
+   "learner": "'별말씀을요'는 언제 쓰는 말인가요?",
+   "en": "When do you say 'Not at all'?",
+   "roman": "'Byeolmalsseumeullyo'neun eonje sseuneun maringayo?"
+  },
+  {
+   "n": 9,
+   "beaver": "누가 고맙다고 할 때 하는 말이에요.",
+   "beaver_en": "You say it when someone thanks you.",
+   "beaver_roman": "Nuga gomaptago hal ttae haneun marieyo.",
+   "learner": "높임말은 원래 이렇게 어려운가요?",
+   "en": "Is honorific speech always this hard?",
+   "roman": "Nopimmareun wollae ireoke eoryeoungayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "처음엔 다 그래요. 궁금하면 또 물어봐요.",
+   "beaver_en": "Everyone feels that way at first. Ask me again anytime.",
+   "beaver_roman": "Cheoeumen da geuraeyo. Gunggeumhamyeon tto mureobwayo.",
+   "learner": "고맙습니다, 선배님. 이제 마음이 놓여요.",
+   "en": "Thank you. I feel relieved now.",
+   "roman": "Gomapseumnida, seonbaenim. Ije maeumi noyeoyo."
+  }
+ ]
+}

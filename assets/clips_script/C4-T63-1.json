@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T63-1",
+ "no": 490,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 오늘 업계 상황을 여쭙겠습니다.",
+   "beaver_en": "Hello. Today I'd like to ask about the industry situation.",
+   "beaver_roman": "annyeonghasimnikka? oneul eopgye sanghwangeul yeojjupgetseumnida.",
+   "learner": "네, 반갑습니다. 전반적으로 어려운 상황입니다.",
+   "en": "Yes, nice to meet you. Overall, things are difficult.",
+   "roman": "ne, bangapseumnida. jeonbanjeogeuro eoryeoun sanghwangimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "철강과 중공업은 어떻습니까?",
+   "beaver_en": "How about steel and heavy industry?",
+   "beaver_roman": "cheolganggwa junggongeobeun eotteoseumnikka?",
+   "learner": "철강은 물론이려니와 중공업도 생산성이 떨어졌습니다.",
+   "en": "Not only steel but also heavy industry has lost productivity.",
+   "roman": "cheolgangeun mulloniryeoniwa junggongeopdo saengsanseongi tteoreojeotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "원인이 무엇입니까?",
+   "beaver_en": "What is the cause?",
+   "beaver_roman": "wonini mueosimnikka?",
+   "learner": "원자재 가격이 올라서 원료 수입이 힘듭니다.",
+   "en": "Raw material prices rose, so importing them is hard.",
+   "roman": "wonjajae gagyeogi ollaseo wollyo suibi himdeumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "부도 난 업체도 있습니까?",
+   "beaver_en": "Are there companies that went bankrupt?",
+   "beaver_roman": "budo nan eopchedo itseumnikka?",
+   "learner": "네, 작은 기업체 몇 곳이 부도가 났습니다.",
+   "en": "Yes, a few small companies went bankrupt.",
+   "roman": "ne, jageun gieopche myeot gosi budoga natseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "물건 수송은 어떻습니까?",
+   "beaver_en": "How about the transportation of goods?",
+   "beaver_roman": "mulgeon susongeun eotteoseumnikka?",
+   "learner": "수송비가 올라 공산품 가격도 비싸졌습니다.",
+   "en": "Shipping costs rose, so manufactured goods got pricier.",
+   "roman": "susongbiga olla gongsanpum gagyeokdo bissajyeotseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "큰 회사들은 괜찮습니까?",
+   "beaver_en": "Are the big companies okay?",
+   "beaver_roman": "keun hoesadeureun gwaenchanseumnikka?",
+   "learner": "다국적 기업이 시장을 거의 독점하고 있습니다.",
+   "en": "Multinational companies almost monopolize the market.",
+   "roman": "dagukjeok gieobi sijangeul geoui dokjeomhago itseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "작은 업자들은 어떻습니까?",
+   "beaver_en": "How about small business owners?",
+   "beaver_roman": "jageun eopjadeureun eotteoseumnikka?",
+   "learner": "점유율이 낮아서 업소 문을 닫는 업자가 많습니다.",
+   "en": "Their market share is low, so many close their shops.",
+   "roman": "jeomyuyuri najaseo eopso muneul danneun eopjaga manseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "다른 산업들은 어떻습니까?",
+   "beaver_en": "How about other industries?",
+   "beaver_roman": "dareun saneopdeureun eotteoseumnikka?",
+   "learner": "어업과 농업은 물론, 석탄 채굴도 힘듭니다.",
+   "en": "Fishing and farming, and even coal mining, are struggling.",
+   "roman": "eoeopgwa nongeobeun mullon, seoktan chaeguldo himdeumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "혹시 잘되는 분야도 있습니까?",
+   "beaver_en": "Are there any fields doing well?",
+   "beaver_roman": "hoksi jaldoeneun bunyado itseumnikka?",
+   "learner": "금융업은 번창하고 있고, 철거 사업도 늘었습니다.",
+   "en": "Finance is flourishing, and demolition work has grown.",
+   "roman": "geumyungeobeun beonchanghago itgo, cheolgeo saeopdo neureotseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로 전망을 말씀해 주시겠습니까?",
+   "beaver_en": "Lastly, could you share your outlook?",
+   "beaver_roman": "majimageuro jeonmangeul malsseumhae jusigetseumnikka?",
+   "learner": "점진적으로 나아질 겁니다. 감사합니다.",
+   "en": "It will gradually get better. Thank you.",
+   "roman": "jeomjinjeogeuro naajil geomnida. gamsahamnida."
+  }
+ ]
+}

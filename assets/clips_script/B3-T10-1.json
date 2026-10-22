@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T10-1",
+ "no": 215,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 고객 센터입니다. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello, this is customer service. How can I help you?",
+   "beaver_roman": "annyeonghaseyo, gogaek senteoimnida. mueoseul dowadeurilkkayo?",
+   "learner": "지난주에 산 이어폰을 반품하고 싶어요.",
+   "en": "I'd like to return the earphones I bought last week.",
+   "roman": "jinanjue san ieoponeul banpumhago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 구매하신 지 얼마나 되셨어요?",
+   "beaver_en": "Okay, how long ago did you purchase them?",
+   "beaver_roman": "ne, gumaehasin ji eolmana doesyeosseoyo?",
+   "learner": "구매한 지 일주일 됐어요. 배송은 월요일에 받았어요.",
+   "en": "It's been a week. The delivery came on Monday.",
+   "roman": "gumaehan ji iljuil dwaesseoyo. baesongeun woryoire badasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "반품하시는 이유를 여쭤봐도 될까요?",
+   "beaver_en": "May I ask why you're returning them?",
+   "beaver_roman": "banpumhasineun iyureul yeojjwobwado doelkkayo?",
+   "learner": "어제 보니까 가격이 반값으로 인하됐더라고요.",
+   "en": "Yesterday I saw the price was cut to half.",
+   "roman": "eoje bonikka gagyeogi bangapseuro inhadwaetdeoragoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 네. 신제품이 나와서 반값 행사 중이에요.",
+   "beaver_en": "Ah, yes. A new product came out, so there's a half-price sale.",
+   "beaver_roman": "a, ne. sinjepumi nawaseo bangap haengsa jungieyo.",
+   "learner": "아, 그렇군요. 그래서 좀 속상했어요.",
+   "en": "Ah, I see. That's why I was a bit upset.",
+   "roman": "a, geureokunyo. geuraeseo jom soksanghaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "물건은 사용해 보셨나요?",
+   "beaver_en": "Have you used the item?",
+   "beaver_roman": "mulgeoneun sayonghae bosyeonnayo?",
+   "learner": "아니요, 포장을 뜯지 않은 채로 그대로 있어요.",
+   "en": "No, it's still unopened, just as it was.",
+   "roman": "aniyo, pojangeul tteutji aneun chaero geudaero isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "포장지나 상자에 흠집은 없나요?",
+   "beaver_en": "Are there any scratches on the wrapping or box?",
+   "beaver_roman": "pojangjina sangjae heumjibeun eomnayo?",
+   "learner": "네, 포장지도 처음 받은 채로 깨끗해요.",
+   "en": "No, the wrapping is clean, just as I got it.",
+   "roman": "ne, pojangjido cheoeum badeun chaero kkaekkeutaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 반품 가능합니다. 신제품으로 바꿔 드릴까요?",
+   "beaver_en": "Then a return is possible. Shall I exchange it for the new product?",
+   "beaver_roman": "geureom banpum ganeunghamnida. sinjepumeuro bakkwo deurilkkayo?",
+   "learner": "아니요, 반품하고 반값에 다시 구매할게요.",
+   "en": "No, I'll return it and buy it again at half price.",
+   "roman": "aniyo, banpumhago bangapse dasi gumaehalgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 좋습니다. 택배 기사님이 내일 방문하실 거예요.",
+   "beaver_en": "Okay. A courier will visit you tomorrow.",
+   "beaver_roman": "ne, jotseumnida. taekbae gisanimi naeil bangmunhasil geoyeyo.",
+   "learner": "상자는 테이프를 붙인 채로 드리면 되나요?",
+   "en": "Can I hand over the box with tape on it?",
+   "roman": "sangjaneun teipeureul buchin chaero deurimyeon doenayo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 받으신 상자에 넣은 채로 주시면 돼요.",
+   "beaver_en": "Yes, just give it to them inside the box you received.",
+   "beaver_roman": "ne, badeusin sangjae neoeun chaero jusimyeon dwaeyo.",
+   "learner": "알겠어요. 환불은 언제 받을 수 있어요?",
+   "en": "Got it. When can I get the refund?",
+   "roman": "algesseoyo. hwanbureun eonje badeul su isseoyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "물건이 도착하면 사흘 안에 환불됩니다.",
+   "beaver_en": "You'll be refunded within three days after it arrives.",
+   "beaver_roman": "mulgeoni dochakamyeon saheul ane hwanbuldoemnida.",
+   "learner": "네, 친절하게 도와주셔서 감사해요.",
+   "en": "Okay, thank you for your kind help.",
+   "roman": "ne, chinjeolhage dowajusyeoseo gamsahaeyo."
+  }
+ ]
+}

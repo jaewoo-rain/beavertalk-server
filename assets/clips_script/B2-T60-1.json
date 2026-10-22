@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T60-1",
+ "no": 203,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "우리 오늘 뭐부터 공부할까? 순서를 정하자.",
+   "beaver_en": "What should we study first today? Let's decide the order.",
+   "beaver_roman": "uri oneul mwobuteo gongbuhalkka? sunseoreul jeonghaja.",
+   "learner": "좋아. 국어 먼저 하고 수학은 나중에 하자.",
+   "en": "Okay. Let's do Korean first and math later.",
+   "roman": "joa. gugeo meonjeo hago suhageun najunge haja."
+  },
+  {
+   "n": 2,
+   "beaver": "국어는 어떤 영역부터 할 거야?",
+   "beaver_en": "Which area of Korean will we start with?",
+   "beaver_roman": "gugeoneun eotteon yeongyeokbuteo hal kkeoya?",
+   "learner": "읽기부터 하자. 읽기가 제일 쉬워.",
+   "en": "Let's start with reading. Reading is the easiest.",
+   "roman": "ilkkibuteo haja. ilkkiga jeil swiwo."
+  },
+  {
+   "n": 3,
+   "beaver": "그다음은? 듣기는?",
+   "beaver_en": "What's next? What about listening?",
+   "beaver_roman": "geudaeumeun? deutkkineun?",
+   "learner": "듣기는 읽기 다음에 하자. 30분쯤 하면 돼.",
+   "en": "Let's do listening after reading. About 30 minutes is enough.",
+   "roman": "deutkkineun ilkki daeume haja. samsipbunjjeum hamyeon dwae."
+  },
+  {
+   "n": 4,
+   "beaver": "쓰기랑 말하기는 언제 해?",
+   "beaver_en": "When do we do writing and speaking?",
+   "beaver_roman": "sseugirang malhagineun eonje hae?",
+   "learner": "쓰기를 하기 전에 낱말을 먼저 익히자.",
+   "en": "Before writing, let's learn the words first.",
+   "roman": "sseugireul hagi jeone nanmareul meonjeo ikija."
+  },
+  {
+   "n": 5,
+   "beaver": "좋은 생각이야. 초급 낱말부터 할까?",
+   "beaver_en": "Good idea. Should we start with beginner words?",
+   "beaver_roman": "joeun saenggagiya. chogeup nanmalbuteo halkka?",
+   "learner": "응, 초급 학습용 책이 있어. 그걸로 하자.",
+   "en": "Yes, I have a beginner study book. Let's use that.",
+   "roman": "eung, chogeup hakseumnyong chaegi isseo. geugeollo haja."
+  },
+  {
+   "n": 6,
+   "beaver": "말하기는 어떻게 연습하지?",
+   "beaver_en": "How do we practice speaking?",
+   "beaver_roman": "malhagineun eotteoke yeonseupaji?",
+   "learner": "말하기는 마지막에 둘이서 같이 하자.",
+   "en": "Let's do speaking together at the end.",
+   "roman": "malhagineun majimage duriseo gachi haja."
+  },
+  {
+   "n": 7,
+   "beaver": "다른 과목은? 수학은 언제 해?",
+   "beaver_en": "Other subjects? When do we do math?",
+   "beaver_roman": "dareun gwamogeun? suhageun eonje hae?",
+   "learner": "저녁 먹기 전에 수학을 공부하자.",
+   "en": "Let's study math before dinner.",
+   "roman": "jeonyeok meokkki jeone suhageul gongbuhaja."
+  },
+  {
+   "n": 8,
+   "beaver": "수학 시험지도 풀어 볼까?",
+   "beaver_en": "Should we try a math exam paper too?",
+   "beaver_roman": "suhak siheomjido pureo bolkka?",
+   "learner": "응, 열 문제짜리 시험지를 풀어 보자.",
+   "en": "Yes, let's try a ten-question exam paper.",
+   "roman": "eung, yeol munjejjari siheomjireul pureo boja."
+  },
+  {
+   "n": 9,
+   "beaver": "시험 보기 전에 뭘 더 해야 할까?",
+   "beaver_en": "What else should we do before the exam?",
+   "beaver_roman": "siheom bogi jeone mwol deo haeya halkka?",
+   "learner": "시험 보기 전에 틀린 문제를 다시 보자.",
+   "en": "Before the exam, let's review the questions we got wrong.",
+   "roman": "siheom bogi jeone teullin munjereul dasi boja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 그럼 지금 읽기부터 시작하자!",
+   "beaver_en": "Great. Then let's start with reading now!",
+   "beaver_roman": "joa. geureom jigeum ilkkibuteo sijakaja!",
+   "learner": "그래, 열심히 하자. 화이팅!",
+   "en": "Sure, let's work hard. You can do it!",
+   "roman": "geurae, yeolsimhi haja. hwaiting!"
+  }
+ ]
+}

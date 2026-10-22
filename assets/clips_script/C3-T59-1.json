@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T59-1",
+ "no": 435,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 얼굴이 창백해요. 괜찮아요?",
+   "beaver_en": "Minji, you look pale. Are you okay?",
+   "beaver_roman": "Minji ssi, eolguri changbaekaeyo. Gwaenchanayo?",
+   "learner": "아침부터 몸이 찌뿌드드하고 나른해요.",
+   "en": "Since morning, I've felt achy, heavy, and sluggish.",
+   "roman": "Achimbuteo momi jjippudeudeuhago nareunhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어디가 어떻게 안 좋은데요?",
+   "beaver_en": "Where exactly do you feel unwell?",
+   "beaver_roman": "Eodiga eotteoke an joeundeyo?",
+   "learner": "비염 때문에 코가 막혀서 숨쉬기가 힘들어요.",
+   "en": "My nose is blocked from rhinitis, so it's hard to breathe.",
+   "roman": "Biyeom ttaemune koga makyeoseo sumswigiga himdeureoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "숨이 가쁘면 그냥 넘기면 안 돼요.",
+   "beaver_en": "You shouldn't ignore shortness of breath.",
+   "beaver_roman": "Sumi gappeumyeon geunyang neomgimyeon an dwaeyo.",
+   "learner": "목에도 염증이 있어서 침도 못 삼킬 지경이에요.",
+   "en": "My throat is inflamed too. I can barely swallow.",
+   "roman": "Mogedo yeomjeungi isseoseo chimdo mot samkil jigyeongieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 왜 출근했어요? 병원에 가세요.",
+   "beaver_en": "Then why did you come in? Go to the hospital.",
+   "beaver_roman": "Geureonde wae chulgeunhaesseoyo? Byeongwone gaseyo.",
+   "learner": "오늘 마감이라 쉴 수가 없어서 난감해요.",
+   "en": "Today's the deadline, so I can't rest. It's tough.",
+   "roman": "Oneul magamira swil suga eopseoseo nangamhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "어깨도 계속 주무르던데, 왜 그래요?",
+   "beaver_en": "You keep rubbing your shoulders too. What's wrong?",
+   "beaver_roman": "Eokkaedo gyesok jumureudeonde, wae geuraeyo?",
+   "learner": "목이랑 어깨가 경직돼서 고개도 못 돌려요.",
+   "en": "My neck and shoulders are so stiff I can't turn my head.",
+   "roman": "Mogirang eokkaega gyeongjikdwaeseo gogaedo mot dollyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 거북목 아니에요?",
+   "beaver_en": "Could it be text neck?",
+   "beaver_roman": "Hoksi geobungmok anieyo?",
+   "learner": "의사가 거북목 증후군이라고 했어요.",
+   "en": "The doctor said it's text neck syndrome.",
+   "roman": "Uisaga geobungmok jeunghugunirago haesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그렇게 무리하다가 큰일 나요.",
+   "beaver_en": "Pushing yourself like that could end badly.",
+   "beaver_roman": "Geureoke murihadaga keunil nayo.",
+   "learner": "머리가 멍해서 아무 생각이 안 나요.",
+   "en": "My head is so foggy I can't think at all.",
+   "roman": "Meoriga meonghaeseo amu saenggagi an nayo."
+  },
+  {
+   "n": 8,
+   "beaver": "그러니까요. 무리하지 마세요.",
+   "beaver_en": "Exactly. Don't overdo it.",
+   "beaver_roman": "Geureonikkayo. Murihaji maseyo.",
+   "learner": "사실 아까 계단에서 까무러칠 뻔했어요.",
+   "en": "Actually, I almost fainted on the stairs earlier.",
+   "roman": "Sasil akka gyedaneseo kkamureochil ppeonhaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "정말요? 병세가 더 나빠지면 어떡해요?",
+   "beaver_en": "Really? What if your condition gets worse?",
+   "beaver_roman": "Jeongmallyo? Byeongsega deo nappajimyeon eotteokaeyo?",
+   "learner": "이러다 중병이 될까 봐 저도 걱정돼요.",
+   "en": "I'm worried too that it could become serious.",
+   "roman": "Ireoda jungbyeongi doelkka bwa jeodo geokjeongdwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "일은 제가 도울게요. 오늘은 들어가세요.",
+   "beaver_en": "I'll help with the work. Go home today.",
+   "beaver_roman": "Ireun jega doulgeyo. Oneureun deureogaseyo.",
+   "learner": "고마워요. 병세가 심해지기 전에 병원 갈게요.",
+   "en": "Thanks. I'll see a doctor before it gets worse.",
+   "roman": "Gomawoyo. Byeongsega simhaejigi jeone byeongwon galgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T35-1",
+ "no": 322,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 오늘 어떤 선수를 소개해 주시겠습니까?",
+   "beaver_en": "Hello. Which athlete will you introduce today?",
+   "beaver_roman": "annyeonghasimnikka? oneul eotteon seonsureul sogaehae jusigetseumnikka?",
+   "learner": "네, 우리 팀원 박서준 선수를 소개할게요.",
+   "en": "Yes, I'll introduce our team member, Park Seojun.",
+   "roman": "ne, uri timwon Bak Seojun seonsureul sogaehalgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "박서준 선수는 어떤 종목 선수입니까?",
+   "beaver_en": "What event does Park Seojun compete in?",
+   "beaver_roman": "Bak Seojun seonsuneun eotteon jongmok seonsuimnikka?",
+   "learner": "활을 쏘는 양궁 선수예요. 이번 대회에 출전했어요.",
+   "en": "He's an archer who shoots a bow. He entered this competition.",
+   "roman": "hwareul ssoneun yanggung seonsuyeyo. ibeon daehoee chuljeonhaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "다른 종목도 합니까?",
+   "beaver_en": "Does he do other events too?",
+   "beaver_roman": "dareun jongmokdo hamnikka?",
+   "learner": "네, 육상과 무술도 해요. 운동을 다 잘해요.",
+   "en": "Yes, he also does track and martial arts. He's good at all sports.",
+   "roman": "ne, yuksanggwa musuldo haeyo. undongeul da jalhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "처음부터 잘했습니까?",
+   "beaver_en": "Was he good from the start?",
+   "beaver_roman": "cheoeumbuteo jalhaetseumnikka?",
+   "learner": "아니요, 처음에는 꼴찌였어요. 많이 탈락했어요.",
+   "en": "No, at first he was last. He was often eliminated.",
+   "roman": "aniyo, cheoeumeneun kkoljjiyeosseoyo. mani tallakaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 어떻게 실력이 늘었습니까?",
+   "beaver_en": "Then how did he improve?",
+   "beaver_roman": "geureom eotteoke sillyeogi neureotseumnikka?",
+   "learner": "팀원들과 매일 연습해서 지금은 1등이에요.",
+   "en": "He practiced daily with teammates, so now he's number one.",
+   "roman": "timwondeulgwa maeil yeonseupaeseo jigeumeun ildeungieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이번 결승전은 어떻습니까?",
+   "beaver_en": "How about this final?",
+   "beaver_roman": "ibeon gyeolseungjeoneun eotteosseumnikka?",
+   "learner": "결승전 참가자가 모두 강해서 쉽지 않아요.",
+   "en": "All the finalists are strong, so it's not easy.",
+   "roman": "gyeolseungjeon chamgajaga modu ganghaeseo swipji anayo."
+  },
+  {
+   "n": 7,
+   "beaver": "지난 경기에서 진 적도 있습니까?",
+   "beaver_en": "Has he lost in past matches?",
+   "beaver_roman": "jinan gyeonggieseo jin jeokdo itseumnikka?",
+   "learner": "네, 작년 결승전에서 한 점 차이로 패했어요.",
+   "en": "Yes, he lost last year's final by one point.",
+   "roman": "ne, jangnyeon gyeolseungjeoneseo han jeom chairo paehaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그때 기분이 어땠습니까?",
+   "beaver_en": "How did he feel then?",
+   "beaver_roman": "geuttae gibuni eottaetseumnikka?",
+   "learner": "슬펐지만 그 덕분에 더 열심히 했어요.",
+   "en": "He was sad, but thanks to that he worked harder.",
+   "roman": "seulpeotjiman geu deokbune deo yeolsimhi haesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "마지막으로 하고 싶은 말씀이 있습니까?",
+   "beaver_en": "Is there anything you'd like to say last?",
+   "beaver_roman": "majimageuro hago sipeun malsseumi itseumnikka?",
+   "learner": "관중이 응원해 주면 더 잘한다고 해요.",
+   "en": "He says he does better when the crowd cheers.",
+   "roman": "gwanjungi eungwonhae jumyeon deo jalhandago haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 소개 감사합니다. 결승전도 응원하겠습니다.",
+   "beaver_en": "Thanks for the great introduction. We'll cheer at the final.",
+   "beaver_roman": "joeun sogae gamsahamnida. gyeolseungjeondo eungwonhagetseumnida.",
+   "learner": "감사합니다. 많이 응원해 주세요!",
+   "en": "Thank you. Please cheer for him a lot!",
+   "roman": "gamsahamnida. mani eungwonhae juseyo!"
+  }
+ ]
+}

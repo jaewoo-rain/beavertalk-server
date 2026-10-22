@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T60-1",
+ "no": 247,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "다음 주 시험, 뭐부터 공부할까?",
+   "beaver_en": "For next week's test, what should we study first?",
+   "beaver_roman": "daeum ju siheom, mwobuteo gongbuhalkka?",
+   "learner": "암기 과목부터 하자. 외울 게 많아.",
+   "en": "Let's start with the memorization subjects. There's a lot to memorize.",
+   "roman": "amgi gwamokbuteo haja. oeul ge mana."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아. 작문은?",
+   "beaver_en": "Okay. What about composition?",
+   "beaver_roman": "joa. jangmuneun?",
+   "learner": "작문은 암기 끝나고 해. 감상문도 써야 돼.",
+   "en": "Let's do composition after memorizing. We also have to write a book report.",
+   "roman": "jangmuneun amgi kkeunnago hae. gamsangmundo sseoya dwae."
+  },
+  {
+   "n": 3,
+   "beaver": "맞다, 감상문 마감이 언제였지?",
+   "beaver_en": "Oh right, when was the book report due?",
+   "beaver_roman": "matda, gamsangmun magami eonjeyeotji?",
+   "learner": "금요일이야. 쓰기 전에 책을 다시 읽자.",
+   "en": "It's Friday. Let's reread the book before we write.",
+   "roman": "geumyoiriya. sseugi jeone chaegeul dasi ikja."
+  },
+  {
+   "n": 4,
+   "beaver": "수학은 어떻게 해? 난 아직 초보야.",
+   "beaver_en": "What about math? I'm still a beginner.",
+   "beaver_roman": "suhageun eotteoke hae? nan ajik choboya.",
+   "learner": "나도 잘 못해. 시험 전에 보충 수업 듣자.",
+   "en": "I'm not good at it either. Let's take a supplementary class before the test.",
+   "roman": "nado jal motae. siheom jeone bochung sueop deutja."
+  },
+  {
+   "n": 5,
+   "beaver": "너 과외도 받아?",
+   "beaver_en": "Do you get private tutoring too?",
+   "beaver_roman": "neo gwaoedo bada?",
+   "learner": "응, 주말에 과외 받아. 거기서 필기한 거 줄게.",
+   "en": "Yes, I get tutoring on weekends. I'll give you my notes from it.",
+   "roman": "eung, jumare gwaoe bada. geogiseo pilgihan geo julge."
+  },
+  {
+   "n": 6,
+   "beaver": "고마워! 막상 시작하니까 할 게 많네.",
+   "beaver_en": "Thanks! Now that we've started, there's a lot to do.",
+   "beaver_roman": "gomawo! maksang sijakanikka hal ge manne.",
+   "learner": "그러니까. 지난 성적표 보니까 영어가 약해.",
+   "en": "I know. Looking at my last report card, my English is weak.",
+   "roman": "geureonikka. jinan seongjeokpyo bonikka yeongeoga yakae."
+  },
+  {
+   "n": 7,
+   "beaver": "영어는 매일 조금씩 하자.",
+   "beaver_en": "Let's do a little English every day.",
+   "beaver_roman": "yeongeoneun maeil jogeumssik haja.",
+   "learner": "좋아. 자기 전에 단어 스무 개씩 외우자.",
+   "en": "Good. Let's memorize twenty words each before bed.",
+   "roman": "joa. jagi jeone daneo seumu gaessik oeuja."
+  },
+  {
+   "n": 8,
+   "beaver": "이번에 만점 받을 수 있을까?",
+   "beaver_en": "Do you think we can get full marks this time?",
+   "beaver_roman": "ibeone manjeom badeul su isseulkka?",
+   "learner": "응, 해 보자. 입시 전에 좋은 연습이 될 거야.",
+   "en": "Yeah, let's try. It'll be good practice before the entrance exam.",
+   "roman": "eung, hae boja. ipsi jeone joeun yeonseubi doel geoya."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아. 난 재수는 정말 하기 싫어.",
+   "beaver_en": "Right. I really don't want to retake the entrance exam.",
+   "beaver_roman": "maja. nan jaesuneun jeongmal hagi sireo.",
+   "learner": "나도 재수는 싫어. 의지만 있으면 할 수 있어.",
+   "en": "I don't want to retake it either. We can do it if we have the will.",
+   "roman": "nado jaesuneun sireo. uijiman isseumyeon hal su isseo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 순서 정리 끝! 내일 도서관에서 볼까?",
+   "beaver_en": "Then our plan is done! Shall we meet at the library tomorrow?",
+   "beaver_roman": "geureom sunseo jeongni kkeut! naeil doseogwaneseo bolkka?",
+   "learner": "응, 내일 아침 아홉 시에 만나. 화이팅!",
+   "en": "Yes, see you at nine tomorrow morning. Let's go!",
+   "roman": "eung, naeil achim ahop sie manna. hwaiting!"
+  }
+ ]
+}

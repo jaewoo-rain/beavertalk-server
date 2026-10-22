@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T08-1",
+ "no": 51,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "왔어? 뭐 많이 샀네!",
+   "beaver_en": "You're back? You bought a lot!",
+   "beaver_roman": "wasseo? mwo mani sanne!",
+   "learner": "응, 비누하고 치약을 샀어.",
+   "en": "Yeah, I bought soap and toothpaste.",
+   "roman": "eung, binuhago chiyageul sasseo."
+  },
+  {
+   "n": 2,
+   "beaver": "칫솔은? 내 칫솔 오래됐어.",
+   "beaver_en": "Toothbrushes? Mine is old.",
+   "beaver_roman": "chitsoreun? nae chitsol oraedwaesseo.",
+   "learner": "칫솔도 두 개 샀어. 하나 가져.",
+   "en": "I got two toothbrushes. Take one.",
+   "roman": "chitsoldo du gae sasseo. hana gajyeo."
+  },
+  {
+   "n": 3,
+   "beaver": "고마워! 수건은?",
+   "beaver_en": "Thanks! What about towels?",
+   "beaver_roman": "gomawo! sugeoneun?",
+   "learner": "수건은 세 장 샀어. 옷장에 넣을게.",
+   "en": "I bought three towels. I'll put them in the wardrobe.",
+   "roman": "sugeoneun se jang sasseo. otjange neoeulge."
+  },
+  {
+   "n": 4,
+   "beaver": "좋아. 부엌 물건도 샀어?",
+   "beaver_en": "Good. Did you buy kitchen stuff too?",
+   "beaver_roman": "joa. bueong mulgeondo sasseo?",
+   "learner": "응, 숟가락과 젓가락을 샀어.",
+   "en": "Yeah, I bought spoons and chopsticks.",
+   "roman": "eung, sutgarakgwa jeotgarageul sasseo."
+  },
+  {
+   "n": 5,
+   "beaver": "그건 서랍에 넣자.",
+   "beaver_en": "Let's put those in the drawer.",
+   "beaver_roman": "geugeon seorabe neoja.",
+   "learner": "알았어. 가위도 서랍에 넣을게.",
+   "en": "Okay. I'll put the scissors in the drawer too.",
+   "roman": "arasseo. gawido seorabe neoeulge."
+  },
+  {
+   "n": 6,
+   "beaver": "식탁 위는 좀 치워. 종이가 많아.",
+   "beaver_en": "Clear the dining table. There's a lot of paper.",
+   "beaver_roman": "siktak wineun jom chiwo. jongiga mana.",
+   "learner": "그래. 종이는 책장에 놓을게.",
+   "en": "Sure. I'll put the paper on the bookshelf.",
+   "roman": "geurae. jongineun chaekjange noeulge."
+  },
+  {
+   "n": 7,
+   "beaver": "식탁도 좀 닦을까?",
+   "beaver_en": "Should we wipe the dining table too?",
+   "beaver_roman": "siktakdo jom dakkeulkka?",
+   "learner": "응, 내가 닦을게.",
+   "en": "Yeah, I'll wipe it.",
+   "roman": "eung, naega dakkeulge."
+  },
+  {
+   "n": 8,
+   "beaver": "이 손수건은 뭐야?",
+   "beaver_en": "What's this handkerchief?",
+   "beaver_roman": "i sonsugeoneun mwoya?",
+   "learner": "내 손수건이야. 세탁소에서 찾아왔어.",
+   "en": "It's mine. I picked it up from the laundry shop.",
+   "roman": "nae sonsugeoniya. setaksoeseo chajawasseo."
+  },
+  {
+   "n": 9,
+   "beaver": "이 시계는? 새 거야?",
+   "beaver_en": "And this clock? Is it new?",
+   "beaver_roman": "i sigyeneun? sae geoya?",
+   "learner": "응, 시계는 책장 위에 놓자.",
+   "en": "Yeah, let's put the clock on the bookshelf.",
+   "roman": "eung, sigyeneun chaekjang wie noja."
+  },
+  {
+   "n": 10,
+   "beaver": "드디어 다 정리했네!",
+   "beaver_en": "We finally tidied everything!",
+   "beaver_roman": "deudieo da jeongnihaenne!",
+   "learner": "응, 오랜만에 집이 깨끗해!",
+   "en": "Yeah, the house is clean for once!",
+   "roman": "eung, oraenmane jibi kkaekkeutae!"
+  }
+ ]
+}

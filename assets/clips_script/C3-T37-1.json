@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T37-1",
+ "no": 418,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "폭풍이 온다고 해요. 행사 괜찮을까요?",
+   "beaver_en": "They say a storm is coming. Will the event be okay?",
+   "beaver_roman": "Pokpungi ondago haeyo. Haengsa gwaenchaneulkkayo?",
+   "learner": "바람이 몰아치는 가운데에도 준비는 계속해요.",
+   "en": "Even while the wind is raging, we keep preparing.",
+   "roman": "Barami morachineun gaundeedo junbineun gyesokaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이 지역은 사시사철 이런 날씨예요?",
+   "beaver_en": "Is the weather like this here all year round?",
+   "beaver_roman": "I jiyeogeun sasisacheol ireon nalssiyeyo?",
+   "learner": "사시사철 그렇진 않아요. 요즘 기류가 불안정해요.",
+   "en": "Not all year round. The air currents are unstable lately.",
+   "roman": "Sasisacheol geureochin anayo. Yojeum giryuga buranjeonghaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "빗줄기가 굵어지면 무대가 위험하겠죠?",
+   "beaver_en": "If the rain gets heavier, the stage will be dangerous, right?",
+   "beaver_roman": "Bitjulgiga gulgeojimyeon mudaega wiheomhagetjyo?",
+   "learner": "빗줄기가 거세지기 전에 천막부터 고정할게요.",
+   "en": "I'll secure the tents before the rain gets stronger.",
+   "roman": "Bitjulgiga geosejigi jeone cheonmakbuteo gojeonghalgeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "이맘때 날씨는 보통 어때요?",
+   "beaver_en": "What's the weather usually like this time of year?",
+   "beaver_roman": "Imamttae nalssineun botong eottaeyo?",
+   "learner": "이맘때는 아침마다 이슬이 많고 날씨가 궂어요.",
+   "en": "This time of year, there's lots of dew and bad weather.",
+   "roman": "Imamttaeneun achimmada iseuri manko nalssiga gujeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 의자가 다 젖어 있겠네요.",
+   "beaver_en": "Then the chairs will all be wet.",
+   "beaver_roman": "Geureom uijaga da jeojeo itgenneyo.",
+   "learner": "네, 일찍 와서 의자를 다 닦아 둘게요.",
+   "en": "Yes, I'll come early and wipe all the chairs.",
+   "roman": "Ne, iljjik waseo uijareul da dakka dulgeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "일정을 미루자는 사람도 있어요.",
+   "beaver_en": "Some people want to postpone the schedule.",
+   "beaver_roman": "Iljeongeul mirujaneun saramdo isseoyo.",
+   "learner": "손님들이 기다리고 있어서 미루기는 어려워요.",
+   "en": "Guests are waiting, so it's hard to postpone.",
+   "roman": "Sonnimdeuri gidarigo isseoseo mirugineun eoryeowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "폭풍이 오후에 오면 어떡하죠?",
+   "beaver_en": "What if the storm comes in the afternoon?",
+   "beaver_roman": "Pokpungi ohue omyeon eotteokajyo?",
+   "learner": "폭풍이 오기 전에 중요한 순서를 먼저 해요.",
+   "en": "Let's do the important parts before the storm comes.",
+   "roman": "Pokpungi ogi jeone jungyohan sunseoreul meonjeo haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 마지막 공연은 언제 해요?",
+   "beaver_en": "Then when is the last performance?",
+   "beaver_roman": "Geureom majimak gongyeoneun eonje haeyo?",
+   "learner": "황혼 무렵에 바람이 잦아들면 시작해요.",
+   "en": "We'll start at twilight when the wind dies down.",
+   "roman": "Hwanghon muryeobe barami jajadeulmyeon sijakaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "바람이 다시 몰아치면요?",
+   "beaver_en": "What if the wind starts raging again?",
+   "beaver_roman": "Barami dasi morachimyeonyo?",
+   "learner": "그때는 실내로 옮길 수 있게 준비해 둘게요.",
+   "en": "Then I'll be ready to move it indoors.",
+   "roman": "Geuttaeneun sillaero omgil su itge junbihae dulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 궂은 날씨에도 힘내 봐요.",
+   "beaver_en": "Great. Let's do our best despite the bad weather.",
+   "beaver_roman": "Joayo. Gujeun nalssiedo himnae bwayo.",
+   "learner": "네, 모두가 걱정하는 가운데 꼭 해낼게요.",
+   "en": "Yes, even while everyone worries, we'll pull it off.",
+   "roman": "Ne, moduga geokjeonghaneun gaunde kkok haenaelgeyo."
+  }
+ ]
+}

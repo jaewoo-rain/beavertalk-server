@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T15-1",
+ "no": 361,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "다음 주 팀 모임 장소는 정하셨어요?",
+   "beaver_en": "Did you decide on the place for next week's team gathering?",
+   "beaver_roman": "Daeum ju tim moim jangsoneun jeonghasyeosseoyo?",
+   "learner": "네, 장소를 한번 정리해 봤어요.",
+   "en": "Yes, I've put together the place details.",
+   "roman": "Ne, jangsoreul hanbeon jeongnihae bwasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋네요. 어디에서 모이기로 했어요?",
+   "beaver_en": "Great. Where did we decide to meet?",
+   "beaver_roman": "Jonneyo. Eodieseo moigiro haesseoyo?",
+   "learner": "시청역 3번 출구 앞으로 정했어요.",
+   "en": "I picked the front of City Hall Station Exit 3.",
+   "roman": "Sicheongnyeok sambeon chulgu apeuro jeonghaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "거기는 사람이 많지 않을까요?",
+   "beaver_en": "Won't it be crowded there?",
+   "beaver_roman": "Geogineun sarami manchi aneulkkayo?",
+   "learner": "많긴 한데 출구 근처에 넓은 광장이 있어요.",
+   "en": "It is, but there's a wide plaza near the exit.",
+   "roman": "Mankin hande chulgu geuncheoe neolbeun gwangjangi isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "위치와 방향에 대해 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about the location and direction?",
+   "beaver_roman": "Wichiwa banghyange daehae deo malsseumhae jusigesseoyo?",
+   "learner": "광장 북쪽에 큰 조형물이 있어요.",
+   "en": "There's a big sculpture on the north side of the plaza.",
+   "roman": "Gwangjang bukjjoge keun johyeongmuri isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "아, 그 조형물 알아요. 그 밑에서 만나요?",
+   "beaver_en": "Oh, I know that sculpture. Do we meet under it?",
+   "beaver_roman": "A, geu johyeongmul arayo. Geu miteseo mannayo?",
+   "learner": "네, 다 같이 모이기 좋은 곳이에요.",
+   "en": "Yes, it's a good spot for all of us to meet.",
+   "roman": "Ne, da gachi moigi joeun gosieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "벤치 있어요? 저 좀 늦을 수도 있어요.",
+   "beaver_en": "Are there benches? I might be a bit late.",
+   "beaver_roman": "Benchi isseoyo? Jeo jom neujeul sudo isseoyo.",
+   "learner": "벤치가 군데군데 있으니 앉아서 기다릴게요.",
+   "en": "There are benches here and there, so I'll sit and wait.",
+   "roman": "Benchiga gundegunde isseuni anjaseo gidarilgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 1월이라 밖은 추울 텐데요.",
+   "beaver_en": "But it's January, so it'll be cold outside.",
+   "beaver_roman": "Geureonde irwolira bakkeun chuul tendeyo.",
+   "learner": "밖에 오래 있지 말고 바로 식당으로 가요.",
+   "en": "Let's not stay outside long and go straight to the restaurant.",
+   "roman": "Bakke orae itji malgo baro sikdangeuro gayo."
+  },
+  {
+   "n": 8,
+   "beaver": "식당 이름이 뭐였죠? 헷갈려서요.",
+   "beaver_en": "What was the restaurant's name? I'm confused.",
+   "beaver_roman": "Sikdang ireumi mwoyeotjyo? Heotgallyeoseoyo.",
+   "learner": "'한강집'이에요. 이름이 쉬워서 기억하기 좋아요.",
+   "en": "It's 'Hangangjip.' The name is easy to remember.",
+   "roman": "'Hangangjip'ieyo. Ireumi swiwoseo gieokagi joayo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 단체방에도 올려 주시겠어요?",
+   "beaver_en": "Good. Could you post it in the group chat too?",
+   "beaver_roman": "Joayo. Danchebangedo ollyeo jusigesseoyo?",
+   "learner": "네, 지도도 같이 올릴게요.",
+   "en": "Sure, I'll post a map with it too.",
+   "roman": "Ne, jidodo gachi ollilgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 그럼 다음 주에 봬요.",
+   "beaver_en": "Thanks. See you next week, then.",
+   "beaver_roman": "Gomawoyo. Geureom daeum jue bwaeyo.",
+   "learner": "네, 광장 북쪽에서 만나요. 조심히 오세요.",
+   "en": "Okay, see you on the north side of the plaza. Get there safely.",
+   "roman": "Ne, gwangjang bukjjogeseo mannayo. Josimi oseyo."
+  }
+ ]
+}

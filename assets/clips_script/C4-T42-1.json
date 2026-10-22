@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T42-1",
+ "no": 474,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 특집 주제는 정했어요?",
+   "beaver_en": "Did you decide on the topic for this special feature?",
+   "beaver_roman": "ibeon teukjip jujeneun jeonghaesseoyo?",
+   "learner": "네, 혁신적인 우주 기술 특집으로 하려고요.",
+   "en": "Yes, I'm thinking of a feature on innovative space technology.",
+   "roman": "ne, hyeoksinjeogin uju gisul teukjibeuro haryeogoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋네요. 어떤 내용을 다룰 거예요?",
+   "beaver_en": "Nice. What will you cover?",
+   "beaver_roman": "jonneyo. eotteon naeyongeul darul geoyeyo?",
+   "learner": "인공위성 조립 과정과 궤도 진입을 다루려고요.",
+   "en": "I plan to cover satellite assembly and entering orbit.",
+   "roman": "ingongwiseong jorip gwajeonggwa gwedo jinibeul daruryeogoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "반도체도 다룰 거예요?",
+   "beaver_en": "Will you cover semiconductors too?",
+   "beaver_roman": "bandochedo darul geoyeyo?",
+   "learner": "네, 위성 반도체와 소프트웨어도 넣을게요.",
+   "en": "Yes, I'll include satellite chips and software too.",
+   "roman": "ne, wiseong bandochewa sopeuteuweeodo neoeulgeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "우주 망원경 이야기도 있으면 좋겠어요.",
+   "beaver_en": "It'd be nice to have a space telescope story too.",
+   "beaver_roman": "uju mangwongyeong iyagido isseumyeon jokesseoyo.",
+   "learner": "망원경 활용 사례는 연재로 다루면 좋겠어요.",
+   "en": "It would be good to cover telescope use cases as a series.",
+   "roman": "mangwongyeong hwaryong saryeneun yeonjaero darumyeon jokesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "독자가 이해할 수 있을까요?",
+   "beaver_en": "Will readers be able to understand it?",
+   "beaver_roman": "dokjaga ihaehal su isseulkkayo?",
+   "learner": "기술적인 용어는 독자가 쉽게 읽게끔 풀어 쓸게요.",
+   "en": "I'll explain technical terms so readers can read them easily.",
+   "roman": "gisuljeogin yongeoneun dokjaga swipge ilkkekkeum pureo sseulgeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "전문가 기고도 받을 거예요?",
+   "beaver_en": "Will you get an expert contribution too?",
+   "beaver_roman": "jeonmunga gigodo badeul geoyeyo?",
+   "learner": "네, 연구소 박사님께 기고를 부탁해 두었어요.",
+   "en": "Yes, I've already asked a researcher at the institute to write one.",
+   "roman": "ne, yeonguso baksanimkke gigoreul butakae dueosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "지난번 전기차 기사는 반응이 어땠죠?",
+   "beaver_en": "How was the response to the last electric car article?",
+   "beaver_roman": "jinanbeon jeongicha gisaneun baneungi eottaetjyo?",
+   "learner": "좋았어요. 현장을 안 보고서는 못 썼을 거예요.",
+   "en": "It was good. I couldn't have written it without seeing the site.",
+   "roman": "joasseoyo. hyeonjangeul an bogoseoneun mot sseosseul geoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 이번에도 현장 취재를 갈까요?",
+   "beaver_en": "Then shall we go report on site this time too?",
+   "beaver_roman": "geureom ibeonedo hyeonjang chwijaereul galkkayo?",
+   "learner": "네, 다른 언론사보다 먼저 현장에 가 봐요.",
+   "en": "Yes, let's get to the site before other press outlets.",
+   "roman": "ne, dareun eollonsaboda meonjeo hyeonjange ga bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "기사는 언제 게재할 수 있을까요?",
+   "beaver_en": "When can we publish the article?",
+   "beaver_roman": "gisaneun eonje gejaehal su isseulkkayo?",
+   "learner": "다음 달 초에 게재하면 인지도도 오르리라 봐요.",
+   "en": "If we publish early next month, our recognition will surely rise.",
+   "roman": "daeum dal choe gejaehamyeon injidodo oreurira bwayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 초안부터 같이 써요.",
+   "beaver_en": "Great. Then let's write the draft together.",
+   "beaver_roman": "joayo. geureom choanbuteo gachi sseoyo.",
+   "learner": "네, 혁신이 잘 보이게끔 멋지게 써 봐요.",
+   "en": "Sure, let's write it well so the innovation really shows.",
+   "roman": "ne, hyeoksini jal boigekkeum meotjige sseo bwayo."
+  }
+ ]
+}

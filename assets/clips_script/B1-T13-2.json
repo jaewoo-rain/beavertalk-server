@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T13-2",
+ "no": 128,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 시금치 나물 만들 거야. 어떻게 해?",
+   "beaver_en": "We're making spinach namul today. How do you do it?",
+   "beaver_roman": "oneul sigeumchi namul mandeul geoya. eotteoke hae?",
+   "learner": "끓는 물에 살짝 데치면 되던데. 오래 하면 안 돼.",
+   "en": "I found you just blanch it lightly in boiling water. Not too long.",
+   "roman": "kkeulleun mure saljjak dechimyeon doedeonde. orae hamyeon an dwae."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 오래 데치면 어떻게 되는데?",
+   "beaver_en": "Why? What happens if you blanch it too long?",
+   "beaver_roman": "wae? orae dechimyeon eotteoke doeneunde?",
+   "learner": "해 보니까 색이 나빠지던데. 맛도 별로였어.",
+   "en": "When I tried, the color got worse. It didn't taste good either.",
+   "roman": "hae bonikka saegi nappajideonde. matdo byeolloyeosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "그렇구나. 양념은 뭐 넣어?",
+   "beaver_en": "I see. What do you put in the seasoning?",
+   "beaver_roman": "geureokuna. yangnyeomeun mwo neoeo?",
+   "learner": "마늘이랑 파를 조금 넣으면 꽤 맛있던데.",
+   "en": "Adding a little garlic and green onion made it pretty tasty.",
+   "roman": "manurirang pareul jogeum neoeumyeon kkwae masitdeonde."
+  },
+  {
+   "n": 4,
+   "beaver": "간은? 소금 많이 넣어?",
+   "beaver_en": "What about the saltiness? Lots of salt?",
+   "beaver_roman": "ganeun? sogeum mani neoeo?",
+   "learner": "아니, 조금씩 넣고 맛보면서 맞추면 되던데.",
+   "en": "No, I found you just add a little at a time and taste as you go.",
+   "roman": "ani, jogeumssik neoko matbomyeonseo matchumyeon doedeonde."
+  },
+  {
+   "n": 5,
+   "beaver": "좋은 생각이다. 다른 요령은?",
+   "beaver_en": "Good idea. Any other tips?",
+   "beaver_roman": "joeun saenggagida. dareun yoryeongeun?",
+   "learner": "멸치는 머리를 떼고 볶으면 덜 쓰던데.",
+   "en": "Anchovies were less bitter when I removed the heads first.",
+   "roman": "myeolchineun meorireul ttego bokkeumyeon deol sseudeonde."
+  },
+  {
+   "n": 6,
+   "beaver": "국도 끓일 건데 고춧가루 넣을까?",
+   "beaver_en": "We're making soup too. Should we add red pepper powder?",
+   "beaver_roman": "gukdo kkeuril geonde gochutgaru neoeulkka?",
+   "learner": "응, 고추 하나랑 고춧가루를 넣으면 시원하던데.",
+   "en": "Yeah, with one red pepper and pepper powder it tasted refreshing.",
+   "roman": "eung, gochu hanarang gochutgarureul neoeumyeon siwonhadeonde."
+  },
+  {
+   "n": 7,
+   "beaver": "감자는 껍질 벗기고 삶을까?",
+   "beaver_en": "Should we peel the potatoes before boiling?",
+   "beaver_roman": "gamjaneun kkeopjil beotgigo salmeulkka?",
+   "learner": "껍질째 삶으면 더 쉽게 벗겨지던데.",
+   "en": "I found the skin comes off easier if you boil them whole.",
+   "roman": "kkeopjiljjae salmeumyeon deo swipge beotgyeojideonde."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 감자는 뭐 올려서 먹을까?",
+   "beaver_en": "Then what should we put on the potatoes?",
+   "beaver_roman": "geureom gamjaneun mwo ollyeoseo meogeulkka?",
+   "learner": "버터랑 치즈 올리고 후추 뿌리면 맛있던데.",
+   "en": "Butter and cheese on top with pepper sprinkled was delicious.",
+   "roman": "beoteorang chijeu olligo huchu ppurimyeon masitdeonde."
+  },
+  {
+   "n": 9,
+   "beaver": "맛있겠다! 양배추도 있는데 어떻게 하지?",
+   "beaver_en": "Sounds tasty! We have cabbage too. What should we do?",
+   "beaver_roman": "masitgetda! yangbaechudo inneunde eotteoke haji?",
+   "learner": "양배추는 밥솥 찜 기능으로 찌면 편하던데.",
+   "en": "Steaming cabbage with the rice cooker's steam function was easy.",
+   "roman": "yangbaechuneun bapsot jjim gineungeuro jjimyeon pyeonhadeonde."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 다 됐다! 물 좀 따라 줄래?",
+   "beaver_en": "Great. All done! Can you pour some water?",
+   "beaver_roman": "joa. da dwaetda! mul jom ttara jullae?",
+   "learner": "응, 물 따라 줄게. 이제 맛있게 먹자!",
+   "en": "Sure, I'll pour it. Now let's enjoy!",
+   "roman": "eung, mul ttara julge. ije masitge meokja!"
+  }
+ ]
+}

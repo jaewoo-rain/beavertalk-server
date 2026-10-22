@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T56-1",
+ "no": 389,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 오늘은 안보 현안을 짚어 보겠습니다.",
+   "beaver_en": "Good evening. Today we'll look at security issues.",
+   "beaver_roman": "annyeonghasimnikka? oneureun anbo hyeonaneul jipeo bogetseumnida.",
+   "learner": "네, 안녕하십니까? 초대해 주셔서 감사합니다.",
+   "en": "Yes, good evening. Thank you for inviting me.",
+   "roman": "ne, annyeonghasimnikka? chodaehae jusyeoseo gamsahamnida."
+  },
+  {
+   "n": 2,
+   "beaver": "요즘 가장 큰 안보 걱정은 무엇입니까?",
+   "beaver_en": "What is the biggest security concern these days?",
+   "beaver_roman": "yojeum gajang keun anbo geokjeongeun mueosimnikka?",
+   "learner": "북한의 핵 문제가 가장 큰 걱정입니다.",
+   "en": "North Korea's nuclear issue is the biggest concern.",
+   "roman": "bukanui haek munjega gajang keun geokjeongimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "정부는 이 문제를 어떻게 보고 있습니까?",
+   "beaver_en": "How does the government see this issue?",
+   "beaver_roman": "jeongbuneun i munjereul eotteoke bogo itseumnikka?",
+   "learner": "정부는 핵 실험에 강하게 대응한 바 있습니다.",
+   "en": "The government has responded strongly to nuclear tests.",
+   "roman": "jeongbuneun haek silheome ganghage daeeunghan ba itseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "국방 예산은 어떻습니까?",
+   "beaver_en": "What about the defense budget?",
+   "beaver_roman": "gukbang yesaneun eotteoseumnikka?",
+   "learner": "전년보다 늘었고, 해군에 많이 쓰입니다.",
+   "en": "It grew from last year, and much goes to the navy.",
+   "roman": "jeonnyeonboda neureotgo, haegune mani sseuimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "해군은 어떤 준비를 하고 있습니까?",
+   "beaver_en": "What preparations is the navy making?",
+   "beaver_roman": "haeguneun eotteon junbireul hago itseumnikka?",
+   "learner": "작년 하반기에 최신형 배를 들여온 바 있습니다.",
+   "en": "It brought in the latest ships late last year.",
+   "roman": "jangnyeon habangie choesinhyeong baereul deuryeoon ba itseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "테러 위험은 없습니까?",
+   "beaver_en": "Is there no risk of terrorism?",
+   "beaver_roman": "tereo wiheomeun eopseumnikka?",
+   "learner": "작년에 폭탄 테러 위협이 있었지만 막았습니다.",
+   "en": "Last year there was a bomb threat, but it was stopped.",
+   "roman": "jangnyeone poktan tereo wihyeobi isseotjiman magatseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "대피 훈련은 잘 이루어지고 있습니까?",
+   "beaver_en": "Are evacuation drills being carried out well?",
+   "beaver_roman": "daepi hullyeoneun jal irueojigo itseumnikka?",
+   "learner": "네, 시민들이 빠르게 대피한 바 있습니다.",
+   "en": "Yes, citizens have evacuated quickly before.",
+   "roman": "ne, simindeuri ppareuge daepihan ba itseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "국방과 치안에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about defense and public safety?",
+   "beaver_roman": "gukbanggwa chiane daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "경찰은 납치범을 여러 명 검거한 바 있습니다.",
+   "en": "The police have arrested several kidnappers.",
+   "roman": "gyeongchareun napchibeomeul yeoreo myeong geomgeohan ba itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "제대한 군인들의 역할도 있습니까?",
+   "beaver_en": "Do discharged soldiers have a role too?",
+   "beaver_roman": "jedaehan gunindeurui yeokaldo itseumnikka?",
+   "learner": "제대 후에도 안보 교육에 참여할 수 있습니다.",
+   "en": "Even after discharge, they can join security education.",
+   "roman": "jedae huedo anbo gyoyuge chamyeohal su itseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다. 마지막으로 한 말씀 부탁드립니다.",
+   "beaver_en": "Thank you. Please share a final word.",
+   "beaver_roman": "gamsahamnida. majimageuro han malsseum butakdeurimnida.",
+   "learner": "모두 안전에 관심을 가져 주십시오. 감사합니다.",
+   "en": "Please everyone pay attention to safety. Thank you.",
+   "roman": "modu anjeone gwansimeul gajyeo jusipsio. gamsahamnida."
+  }
+ ]
+}

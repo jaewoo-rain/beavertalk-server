@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T17-1",
+ "no": 219,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여보세요, 민지 씨? 꽃집은 잘 찾았어요?",
+   "beaver_en": "Hello, Minji? Did you find the flower shop okay?",
+   "beaver_roman": "yeoboseyo, minji ssi? kkotjibeun jal chajasseoyo?",
+   "learner": "네, 알려 주신 대로 가니까 바로 찾았어요.",
+   "en": "Yes, I went just as you told me and found it right away.",
+   "roman": "ne, allyeo jusin daero ganikka baro chajasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "다행이에요. 대로에서 길 건너기 쉬웠어요?",
+   "beaver_en": "Good. Was it easy to cross the main street?",
+   "beaver_roman": "dahaengieyo. daeroeseo gil geonneogi swiwosseoyo?",
+   "learner": "네, 대로를 건너서 인도를 따라 쭉 걸었어요.",
+   "en": "Yes, I crossed the main street and walked along the sidewalk.",
+   "roman": "ne, daeroreul geonneoseo indoreul ttara jjuk georeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "표지판이 잘 보이던가요?",
+   "beaver_en": "Was the sign easy to see?",
+   "beaver_roman": "pyojipani jal boideongayo?",
+   "learner": "네, 말씀하신 대로 파란 표지판이 있었어요.",
+   "en": "Yes, there was a blue sign, just as you said.",
+   "roman": "ne, malsseumhasin daero paran pyojipani isseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "거기서 오른쪽 골목으로 들어갔죠?",
+   "beaver_en": "Then you turned into the alley on the right?",
+   "beaver_roman": "geogiseo oreunjjok golmogeuro deureogatjyo?",
+   "learner": "네, 표지판 옆 골목길로 들어갔어요.",
+   "en": "Yes, I went into the alley next to the sign.",
+   "roman": "ne, pyojipan yeop golmokgillo deureogasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "골목은 안 헷갈렸어요?",
+   "beaver_en": "Wasn't the alley confusing?",
+   "beaver_roman": "golmogeun an hetgallyeosseoyo?",
+   "learner": "조금 어두웠지만 가로등이 켜져 있어서 괜찮았어요.",
+   "en": "It was a bit dark, but the streetlights were on, so it was fine.",
+   "roman": "jogeum eoduwotjiman garodeungi kyeojyeo isseoseo gwaenchanasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "골목 끝에 빵집도 있었죠?",
+   "beaver_en": "There was a bakery at the end of the alley, right?",
+   "beaver_roman": "golmok kkeute ppangjipdo isseotjyo?",
+   "learner": "네, 길가에 빵집이 있었어요. 냄새가 좋았어요.",
+   "en": "Yes, there was a bakery by the roadside. It smelled good.",
+   "roman": "ne, gilgae ppangjibi isseosseoyo. naemsaega joasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "꽃집은 그 빵집 바로 옆이에요.",
+   "beaver_en": "The flower shop is right next to that bakery.",
+   "beaver_roman": "kkotjibeun geu ppangjip baro yeopieyo.",
+   "learner": "네, 들은 대로 빵집 옆에 꽃집이 있었어요.",
+   "en": "Yes, just as I heard, the flower shop was next to the bakery.",
+   "roman": "ne, deureun daero ppangjip yeope kkotjibi isseosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "꽃은 마음에 드는 걸로 샀어요?",
+   "beaver_en": "Did you buy flowers you liked?",
+   "beaver_roman": "kkocheun maeume deuneun geollo sasseoyo?",
+   "learner": "네, 생각한 대로 예쁜 꽃을 샀어요.",
+   "en": "Yes, I bought pretty flowers, just as I had in mind.",
+   "roman": "ne, saenggakan daero yeppeun kkocheul sasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음에도 길 모르면 언제든 물어봐요.",
+   "beaver_en": "If you don't know the way next time, just ask anytime.",
+   "beaver_roman": "daeumedo gil moreumyeon eonjedeun mureobwayo.",
+   "learner": "고마워요. 그려 주신 대로 따라가서 쉬웠어요.",
+   "en": "Thank you. It was easy because I followed what you drew.",
+   "roman": "gomawoyo. geuryeo jusin daero ttaragaseo swiwosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "도움이 돼서 기뻐요. 조심히 들어가요.",
+   "beaver_en": "I'm glad it helped. Get home safely.",
+   "beaver_roman": "doumi dwaeseo gippeoyo. josimhi deureogayo.",
+   "learner": "네, 감사해요. 내일 꽃 보여 드릴게요.",
+   "en": "Okay, thank you. I'll show you the flowers tomorrow.",
+   "roman": "ne, gamsahaeyo. naeil kkot boyeo deurilgeyo."
+  }
+ ]
+}

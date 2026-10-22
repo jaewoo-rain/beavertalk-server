@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T42-1",
+ "no": 77,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 오늘 뉴스 봤어요?",
+   "beaver_en": "Minsu, did you see the news today?",
+   "beaver_roman": "Minsu ssi, oneul nyuseu bwasseoyo?",
+   "learner": "네, 아침에 컴퓨터로 봤어요.",
+   "en": "Yes, I watched it on my computer this morning.",
+   "roman": "Ne, achime keompyuteoro bwasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 뉴스가 있었어요?",
+   "beaver_en": "What news was there?",
+   "beaver_roman": "Museun nyuseuga isseosseoyo?",
+   "learner": "새 과학 프로그램 뉴스가 있었어요.",
+   "en": "There was news about a new science program.",
+   "roman": "Sae gwahak peurogeuraem nyuseuga isseosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그 프로그램은 언제 해요?",
+   "beaver_en": "When is that program on?",
+   "beaver_roman": "Geu peurogeuraemeun eonje haeyo?",
+   "learner": "토요일 저녁에 해요. 인터넷으로도 봐요.",
+   "en": "It's on Saturday evening. You can watch it online too.",
+   "roman": "Toyoil jeonyeoge haeyo. Inteoneseurodo bwayo."
+  },
+  {
+   "n": 4,
+   "beaver": "신문은요? 신문에도 나왔어요?",
+   "beaver_en": "What about the newspaper? Was it in the paper too?",
+   "beaver_roman": "Sinmuneunyo? Sinmunedo nawasseoyo?",
+   "learner": "몰라요. 저는 인터넷 뉴스밖에 안 봐요.",
+   "en": "I don't know. I only read news on the Internet.",
+   "roman": "Mollayo. Jeoneun inteonen nyuseubakke an bwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "저는 아침에 라디오로 들었어요.",
+   "beaver_en": "I heard it on the radio this morning.",
+   "beaver_roman": "Jeoneun achime radioro deureosseoyo.",
+   "learner": "저는 라디오를 차에서밖에 안 들어요.",
+   "en": "I only listen to the radio in the car.",
+   "roman": "Jeoneun radioreul chaeseobakke an deureoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "아, 광고가 나와요. 곧 뉴스 시작해요.",
+   "beaver_en": "Oh, an ad is on. The news starts soon.",
+   "beaver_roman": "A, gwanggoga nawayo. Got nyuseu sijakaeyo.",
+   "learner": "다행이에요. 광고는 1분밖에 안 해요.",
+   "en": "That's a relief. The ads only last one minute.",
+   "roman": "Dahaengieyo. Gwanggoneun ilbunbakke an haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "저 아나운서가 유명해요.",
+   "beaver_en": "That announcer is famous.",
+   "beaver_roman": "Jeo anaunseoga yumyeonghaeyo.",
+   "learner": "저도 알아요. 목소리가 정말 좋아요.",
+   "en": "I know her too. Her voice is really nice.",
+   "roman": "Jeodo arayo. Moksoriga jeongmal joayo."
+  },
+  {
+   "n": 8,
+   "beaver": "옆에 있는 사람은 누구예요?",
+   "beaver_en": "Who is the person next to her?",
+   "beaver_roman": "Yeope inneun sarameun nuguyeyo?",
+   "learner": "기자예요. 신문에도 기사를 써요.",
+   "en": "He's a reporter. He writes for the newspaper too.",
+   "roman": "Gijayeyo. Sinmunedo gisareul sseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "민수 씨는 요즘 뭐로 뉴스를 봐요?",
+   "beaver_en": "Minsu, what do you watch the news on these days?",
+   "beaver_roman": "Minsu ssineun yojeum mworo nyuseureul bwayo?",
+   "learner": "음, 요즘은 컴퓨터밖에 안 써요.",
+   "en": "Hmm, these days I only use my computer.",
+   "roman": "Eum, yojeumeun keompyuteobakke an sseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "아, 뉴스 시작해요! 같이 봐요.",
+   "beaver_en": "Oh, the news is starting! Let's watch.",
+   "beaver_roman": "A, nyuseu sijakaeyo! Gachi bwayo.",
+   "learner": "네, 끝나고 더 이야기해요.",
+   "en": "Okay, let's talk more after it ends.",
+   "roman": "Ne, kkeunnago deo iyagihaeyo."
+  }
+ ]
+}

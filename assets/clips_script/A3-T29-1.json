@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T29-1",
+ "no": 68,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "운동 끝! 너 괜찮아? 얼굴이 안 좋아.",
+   "beaver_en": "Workout's over! Are you okay? You don't look good.",
+   "beaver_roman": "undong kkeut! neo gwaenchana? eolguri an joa.",
+   "learner": "아니, 허리가 너무 아파. 허리를 못 펴겠어.",
+   "en": "No, my back really hurts. I can't straighten it.",
+   "roman": "ani, heoriga neomu apa. heorireul mot pyeogesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말? 어깨는 괜찮아?",
+   "beaver_en": "Really? Is your shoulder okay?",
+   "beaver_roman": "jeongmal? eokkaeneun gwaenchana?",
+   "learner": "어깨도 아파. 팔에 힘이 없어.",
+   "en": "My shoulder hurts too. My arms have no strength.",
+   "roman": "eokkaedo apa. pare himi eopseo."
+  },
+  {
+   "n": 3,
+   "beaver": "손은 괜찮아?",
+   "beaver_en": "Are your hands okay?",
+   "beaver_roman": "soneun gwaenchana?",
+   "learner": "오른손 손가락이 아파. 손을 못 펴.",
+   "en": "My right-hand fingers hurt. I can't open my hand.",
+   "roman": "oreunson songaragi apa. soneul mot pyeo."
+  },
+  {
+   "n": 4,
+   "beaver": "왼손은?",
+   "beaver_en": "What about your left hand?",
+   "beaver_roman": "oensoneun?",
+   "learner": "왼손은 괜찮아. 그런데 손바닥이 빨개.",
+   "en": "My left hand is fine. But my palm is red.",
+   "roman": "oensoneun gwaenchana. geureonde sonbadagi ppalgae."
+  },
+  {
+   "n": 5,
+   "beaver": "무릎은?",
+   "beaver_en": "And your knees?",
+   "beaver_roman": "mureupeun?",
+   "learner": "무릎에서 피가 나. 아까 넘어졌어.",
+   "en": "My knee is bleeding. I fell earlier.",
+   "roman": "mureupeseo piga na. akka neomeojyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "아이고! 언제 넘어졌어?",
+   "beaver_en": "Oh no! When did you fall?",
+   "beaver_roman": "aigo! eonje neomeojyeosseo?",
+   "learner": "달릴 때 넘어졌어. 그때 엉덩이도 아팠어.",
+   "en": "I fell while running. My butt hurt then too.",
+   "roman": "dallil ttae neomeojyeosseo. geuttae eongdeongido apasseo."
+  },
+  {
+   "n": 7,
+   "beaver": "많이 아파? 앉을 수 있어?",
+   "beaver_en": "Does it hurt a lot? Can you sit?",
+   "beaver_roman": "mani apa? anjeul su isseo?",
+   "learner": "아니, 엉덩이가 아파서 못 앉아.",
+   "en": "No, my butt hurts, so I can't sit.",
+   "roman": "ani, eongdeongiga apaseo mot anja."
+  },
+  {
+   "n": 8,
+   "beaver": "목은 안 말라? 물 줄까?",
+   "beaver_en": "Aren't you thirsty? Want some water?",
+   "beaver_roman": "mogeun an malla? mul julkka?",
+   "learner": "응, 목이 너무 말라. 입도 바짝 말랐어.",
+   "en": "Yeah, I'm so thirsty. My mouth is totally dry.",
+   "roman": "eung, mogi neomu malla. ipdo bajjak mallasseo."
+  },
+  {
+   "n": 9,
+   "beaver": "여기 물. 피는 이제 멈췄네.",
+   "beaver_en": "Here's water. The bleeding has stopped now.",
+   "beaver_roman": "yeogi mul. pineun ije meomchwonne.",
+   "learner": "다행이다. 고마워, 이제 좀 괜찮아.",
+   "en": "What a relief. Thanks, I'm a bit better now.",
+   "roman": "dahaengida. gomawo, ije jom gwaenchana."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘은 집에 가서 푹 쉬어.",
+   "beaver_en": "Go home and rest well today.",
+   "beaver_roman": "oneureun jibe gaseo puk swieo.",
+   "learner": "응, 내일은 운동 못 하겠어. 잘 가!",
+   "en": "Okay, I can't work out tomorrow. Bye!",
+   "roman": "eung, naeireun undong mot hagesseo. jal ga!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T01-1",
+ "no": 292,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 자기소개를 해 주시겠습니까?",
+   "beaver_en": "Hello. Could you introduce yourself?",
+   "beaver_roman": "annyeonghasimnikka? jagisogaereul hae jusigetseumnikka?",
+   "learner": "저는 1985년생 이수진입니다. 캐나다에서 자랐어요.",
+   "en": "I'm Lee Sujin, born in 1985. I grew up in Canada.",
+   "roman": "jeoneun cheongubaekpalsibonyeonsaeng isujinimnida. kaenadaeseo jarasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "조국에 대해서는 어떻게 느끼십니까?",
+   "beaver_en": "How do you feel about your homeland?",
+   "beaver_roman": "joguge daehaeseoneun eotteoke neukkisimnikka?",
+   "learner": "조국은 한국이지만, 고향은 캐나다 같아요.",
+   "en": "My homeland is Korea, but Canada feels like my hometown.",
+   "roman": "jogugeun hangugijiman, gohyangeun kaenada gatayo."
+  },
+  {
+   "n": 3,
+   "beaver": "본인의 정체성은 무엇이라고 생각하십니까?",
+   "beaver_en": "What do you think your identity is?",
+   "beaver_roman": "bonine jeongchesseongeun mueosirago saenggakasimnikka?",
+   "learner": "처음엔 막연했지만, 지금은 둘 다 제 정체성이에요.",
+   "en": "It was vague at first, but now both are my identity.",
+   "roman": "cheoeumen mangnyeonhaetjiman, jigeumeun dul da je jeongchesseongieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "청춘은 어떻게 보내셨습니까?",
+   "beaver_en": "How did you spend your youth?",
+   "beaver_roman": "cheongchuneun eotteoke bonaesyeotseumnikka?",
+   "learner": "젊을 때는 밤을 새워 가며 일했어요.",
+   "en": "When I was young, I worked through the night.",
+   "roman": "jeolmeul ttaeneun bameul saewo gamyeo ilhaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "기성세대와 갈등은 없습니까?",
+   "beaver_en": "Do you have any conflict with the older generation?",
+   "beaver_roman": "giseongsedaewa galdeungeun eopseumnikka?",
+   "learner": "기성세대와 입장이 달라서 가끔 부딪혔어요.",
+   "en": "Our views differed, so we clashed sometimes.",
+   "roman": "giseongsedaewa ipjangi dallaseo gakkeum budichyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "지금은 인생의 어느 단계라고 보십니까?",
+   "beaver_en": "What stage of life do you think you're in now?",
+   "beaver_roman": "jigeumeun insaenge eoneu dangyerago bosimnikka?",
+   "learner": "이제 중년 초기예요. 장년이라고도 하지요.",
+   "en": "I'm in early middle age now. Some call it the prime of life.",
+   "roman": "ije jungnyeon chogiyeyo. jangnyeoniragodo hajiyo."
+  },
+  {
+   "n": 7,
+   "beaver": "주변에 연상인 분들과도 이야기하십니까?",
+   "beaver_en": "Do you also talk with older people around you?",
+   "beaver_roman": "jubyeone yeonsangin bundeulgwado iyagihasimnikka?",
+   "learner": "네, 열 살 연상인 박 여사님과 자주 이야기해요.",
+   "en": "Yes, I often talk with Madam Park, who is ten years older.",
+   "roman": "ne, yeol sal yeonsangin bak yeosanimgwa jaju iyagihaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "노년은 어떻게 준비하고 계십니까?",
+   "beaver_en": "How are you preparing for old age?",
+   "beaver_roman": "nonyeoneun eotteoke junbihago gyesimnikka?",
+   "learner": "노후를 위해 저축 비중을 늘리고 있어요.",
+   "en": "I'm increasing my savings for my later years.",
+   "roman": "nohureul wihae jeochuk bijungeul neulligo isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "노년에 가장 중요한 것은 무엇입니까?",
+   "beaver_en": "What is most important in old age?",
+   "beaver_roman": "nonyeone gajang jungyohan geoseun mueosimnikka?",
+   "learner": "노년에는 넉넉한 돈보다 건강이 더 귀해요.",
+   "en": "In old age, health is more precious than plenty of money.",
+   "roman": "nonyeoneneun neongneokan donboda geongangi deo gwihaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 인터뷰를 마치겠습니다.",
+   "beaver_en": "Thank you for your words. Let's end the interview.",
+   "beaver_roman": "joeun malsseum gamsahamnida. inteobyureul machigetseumnida.",
+   "learner": "감사합니다. 덕분에 생각이 넓어졌어요.",
+   "en": "Thank you. Thanks to you, my thinking has broadened.",
+   "roman": "gamsahamnida. deokbune saenggagi neolbeojyeosseoyo."
+  }
+ ]
+}

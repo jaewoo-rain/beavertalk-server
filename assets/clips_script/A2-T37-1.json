@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T37-1",
+ "no": 42,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 오늘 날씨가 정말 좋네요.",
+   "beaver_en": "Hello! The weather is really nice today.",
+   "beaver_roman": "annyeonghaseyo! oneul nalssiga jeongmal jonneyo.",
+   "learner": "네, 하늘이 맑고 바람이 시원해요.",
+   "en": "Yes, the sky is clear and the wind is cool.",
+   "roman": "ne, haneuri malkko barami siwonhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "맞아요. 어느 계절을 좋아해요?",
+   "beaver_en": "Right. Which season do you like?",
+   "beaver_roman": "majayo. eoneu gyejeoreul joahaeyo?",
+   "learner": "저는 가을을 좋아해요.",
+   "en": "I like autumn.",
+   "roman": "jeoneun gaeureul joahaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜 가을이 좋아요?",
+   "beaver_en": "Why do you like autumn?",
+   "beaver_roman": "wae gaeuri joayo?",
+   "learner": "가을은 시원하고 하늘이 맑아요.",
+   "en": "Autumn is cool and the sky is clear.",
+   "roman": "gaeureun siwonhago haneuri malgayo."
+  },
+  {
+   "n": 4,
+   "beaver": "여름은 어때요?",
+   "beaver_en": "How about summer?",
+   "beaver_roman": "yeoreumeun eottaeyo?",
+   "learner": "여름은 너무 덥고 비가 많이 와요.",
+   "en": "Summer is too hot and it rains a lot.",
+   "roman": "yeoreumeun neomu deopgo biga mani wayo."
+  },
+  {
+   "n": 5,
+   "beaver": "겨울은요?",
+   "beaver_en": "And winter?",
+   "beaver_roman": "gyeoureunnyo?",
+   "learner": "겨울은 춥고 눈이 많이 와요.",
+   "en": "Winter is cold and it snows a lot.",
+   "roman": "gyeoureun chupgo nuni mani wayo."
+  },
+  {
+   "n": 6,
+   "beaver": "눈 오는 날을 좋아해요?",
+   "beaver_en": "Do you like snowy days?",
+   "beaver_roman": "nun oneun nareul joahaeyo?",
+   "learner": "네, 좋아요. 눈사람을 만들어요.",
+   "en": "Yes, I do. I make snowmen.",
+   "roman": "ne, joayo. nunssarameul mandeureoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "봄 날씨는 어때요?",
+   "beaver_en": "What's the weather like in spring?",
+   "beaver_roman": "bom nalssineun eottaeyo?",
+   "learner": "봄은 따뜻하고 바람이 많이 불어요.",
+   "en": "Spring is warm and the wind blows a lot.",
+   "roman": "bomeun ttatteutago barami mani bureoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그런데 내일은 흐릴 거예요.",
+   "beaver_en": "By the way, it will be cloudy tomorrow.",
+   "beaver_roman": "geureonde naeireun heuril kkeoyeyo.",
+   "learner": "그래요? 흐리고 바람도 불어요?",
+   "en": "Really? Cloudy, and windy too?",
+   "roman": "geuraeyo? heurigo baramdo bureoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 비도 올 거예요. 우산 챙기세요.",
+   "beaver_en": "Yes, it will rain too. Bring an umbrella.",
+   "beaver_roman": "ne, bido ol kkeoyeyo. usan chaenggiseyo.",
+   "learner": "고마워요. 계절마다 날씨가 참 달라요.",
+   "en": "Thanks. The weather really changes every season.",
+   "roman": "gomawoyo. gyejeolmada nalssiga cham dallayo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 다음에 또 이야기해요.",
+   "beaver_en": "That's right. Let's talk again next time.",
+   "beaver_roman": "majayo. daeume tto iyagihaeyo.",
+   "learner": "네, 안녕히 들어가세요.",
+   "en": "Okay, have a good one.",
+   "roman": "ne, annyeonghi deureogaseyo."
+  }
+ ]
+}

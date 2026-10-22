@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T40-1",
+ "no": 471,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 지원금은 어떻게 나누면 좋겠습니까?",
+   "beaver_en": "How should we distribute this support money?",
+   "beaver_roman": "Ibeon jiwongeumeun eotteoke nanumyeon jokesseumnikka?",
+   "learner": "무엇보다 빈곤 가구부터 돕고 싶습니다.",
+   "en": "Above all, I'd like to help poor households first.",
+   "roman": "Mueotboda bingon gagubuteo dopgo sipseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 선별 지급입니까?",
+   "beaver_en": "So it's selective payment, then?",
+   "beaver_roman": "Geureom seonbyeol jigeubimnikka?",
+   "learner": "네, 중산층보다 빈곤층에 먼저 지급해야 합니다.",
+   "en": "Yes, we should pay the poor before the middle class.",
+   "roman": "Ne, jungsancheungboda bingoncheunge meonjeo jigeupaeya hamnida."
+  },
+  {
+   "n": 3,
+   "beaver": "특혜라는 비판이 나올 수도 있지 않습니까?",
+   "beaver_en": "Couldn't people criticize it as a special favor?",
+   "beaver_roman": "Teukyeraneun bipani naol sudo itji ansseumnikka?",
+   "learner": "그래서 특혜 시비가 없도록 기준을 정해야 합니다.",
+   "en": "That's why we need clear criteria to avoid favoritism disputes.",
+   "roman": "Geuraeseo teukye sibiga eopdorok gijuneul jeonghaeya hamnida."
+  },
+  {
+   "n": 4,
+   "beaver": "고령화 대책은 어떻습니까?",
+   "beaver_en": "What about measures for population aging?",
+   "beaver_roman": "Goryeonghwa daechaegeun eotteosseumnikka?",
+   "learner": "고령화가 빠른 낙후 지역에 지원금을 늘려야 합니다.",
+   "en": "We should increase support for fast-aging, underdeveloped areas.",
+   "roman": "Goryeonghwaga ppareun nakhu jiyeoge jiwongeumeul neullyeoya hamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "노인 학대 문제도 함께 다뤄야겠지요?",
+   "beaver_en": "We should deal with elder abuse too, right?",
+   "beaver_roman": "Noin hakdae munjedo hamkke darwoyagetjiyo?",
+   "learner": "네, 학대받는 노인의 권익을 지키는 것도 중요합니다.",
+   "en": "Yes, protecting the rights of abused elders matters too.",
+   "roman": "Ne, hakdaebanneun noinui gwonigeul jikineun geotdo jungyohamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "남녀평등 쪽은 어떻게 생각하십니까?",
+   "beaver_en": "What do you think about gender equality?",
+   "beaver_roman": "Namnyeopyeongdeung jjogeun eotteoke saenggakasimnikka?",
+   "learner": "지역마다 성비가 달라도 남녀평등이 원칙입니다.",
+   "en": "Even if sex ratios differ by region, gender equality is the rule.",
+   "roman": "Jiyeongmada seongbiga dallado namnyeopyeongdeungi wonchigimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "사회 제도와 복지에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you say more about social systems and welfare?",
+   "beaver_roman": "Sahoe jedowa bokjie daehae deo malsseumhae jusigesseumnikka?",
+   "learner": "서열과 복종을 강요하는 풍조부터 바꿔야 합니다.",
+   "en": "First we must change the climate that forces hierarchy and obedience.",
+   "roman": "Seoyeolgwa bokjongeul gangyohaneun pungjobuteo bakkwoya hamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "청소년 일탈 문제도 관련이 있겠네요.",
+   "beaver_en": "Youth deviation must be related too.",
+   "beaver_roman": "Cheongsonyeon iltal munjedo gwallyeoni itgenneyo.",
+   "learner": "네, 각계 후원자들과 지원 모임을 결성하면 좋겠습니다.",
+   "en": "Yes, we could form a support group with patrons from all fields.",
+   "roman": "Ne, gakgye huwonjadeulgwa jiwon moimeul gyeolseonghamyeon jokesseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "해외 식량난 지원은 어떻게 할까요?",
+   "beaver_en": "What about aid for food shortages abroad?",
+   "beaver_roman": "Haeoe singnyangnan jiwoneun eotteoke halkkayo?",
+   "learner": "굶주림은 나라를 막론하고 외면하면 안 됩니다.",
+   "en": "We must not ignore starvation, regardless of the country.",
+   "roman": "Gumjurimeun narareul mangnonhago oemyeonhamyeon an doemnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 그럼 이 안으로 승인을 요청하겠습니다.",
+   "beaver_en": "Good. Then I'll request approval for this plan.",
+   "beaver_roman": "Josseumnida. Geureom i aneuro seungineul yocheonghagetseumnida.",
+   "learner": "팀의 일원으로서 아무쪼록 성사되길 바랍니다.",
+   "en": "As a team member, I truly hope it goes through.",
+   "roman": "Timui irwoneuroseo amujjorok seongsadoegil baramnida."
+  }
+ ]
+}

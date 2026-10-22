@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T59-1",
+ "no": 246,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 어디가 불편해서 오셨어요?",
+   "beaver_en": "Welcome. What brings you in today?",
+   "beaver_roman": "eoseo oseyo. eodiga bulpyeonhaeseo osyeosseoyo?",
+   "learner": "한 달 넘게 감기를 앓고 있어요.",
+   "en": "I've been sick with a cold for over a month.",
+   "roman": "han dal neomge gamgireul alko isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "한 달이요? 통증이 심한가요?",
+   "beaver_en": "A month? Is the pain bad?",
+   "beaver_roman": "han dariyo? tongjeungi simhangayo?",
+   "learner": "네, 온몸이 쑤시고 목에 통증이 있어요.",
+   "en": "Yes, my whole body aches and my throat hurts.",
+   "roman": "ne, onmomi ssusigo moge tongjeungi isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "다른 증상은요?",
+   "beaver_en": "Any other symptoms?",
+   "beaver_roman": "dareun jeungsangeunyo?",
+   "learner": "피부가 가려워서 밤에 도무지 잠을 못 자요.",
+   "en": "My skin itches, so I just can't sleep at night.",
+   "roman": "pibuga garyeowoseo bame domuji jameul mot jayo."
+  },
+  {
+   "n": 4,
+   "beaver": "잠을 못 자면 많이 피곤하시겠어요.",
+   "beaver_en": "Not sleeping must make you very tired.",
+   "beaver_roman": "jameul mot jamyeon mani pigonhasigesseoyo.",
+   "learner": "네, 잠을 못 자다 보니 너무 지쳤어요.",
+   "en": "Yes, not sleeping so long has worn me out.",
+   "roman": "ne, jameul mot jada boni neomu jichyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그동안 약은 드셨어요?",
+   "beaver_en": "Have you taken any medicine so far?",
+   "beaver_roman": "geudongan yageun deusyeosseoyo?",
+   "learner": "웬만하면 참으려고 약을 안 먹었어요.",
+   "en": "I tried to bear it, so I didn't take any.",
+   "roman": "wenmanhamyeon chameuryeogo yageul an meogeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "너무 오래 버티셨네요. 일은 쉬셨어요?",
+   "beaver_en": "You held out too long. Did you take time off work?",
+   "beaver_roman": "neomu orae beotisyeonneyo. ireun swisyeosseoyo?",
+   "learner": "아니요, 일이 많다 보니까 쉬지 못했어요.",
+   "en": "No, with so much work, I couldn't rest.",
+   "roman": "aniyo, iri manta bonikka swiji motaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 몸이 더 약해진 것 같아요.",
+   "beaver_en": "That seems to have weakened your body more.",
+   "beaver_roman": "geuraeseo momi deo yakaejin geot gatayo.",
+   "learner": "이러다 큰 병이 될까 봐 여간 걱정이 아니에요.",
+   "en": "I'm really worried it'll turn into something serious.",
+   "roman": "ireoda keun byeongi doelkka bwa yeogan geokjeongi anieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "검사를 해 보면 원인이 밝혀질 거예요.",
+   "beaver_en": "A test will reveal the cause.",
+   "beaver_roman": "geomsareul hae bomyeon wonini balkyeojil geoyeyo.",
+   "learner": "증상이 한꺼번에 와서 너무 힘들어요.",
+   "en": "All the symptoms came at once, so it's so hard.",
+   "roman": "jeungsangi hankkeobeone waseo neomu himdeureoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "걱정 마세요. 약 먹고 푹 쉬면 나아질 거예요.",
+   "beaver_en": "Don't worry. With medicine and rest, you'll get better.",
+   "beaver_roman": "geokjeong maseyo. yak meokgo puk swimyeon naajil geoyeyo.",
+   "learner": "네, 이번에는 꼭 쉬어야겠어요.",
+   "en": "Okay, this time I'll make sure to rest.",
+   "roman": "ne, ibeoneneun kkok swieoyagesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "가려운 곳은 긁지 마시고 일주일 뒤에 오세요.",
+   "beaver_en": "Don't scratch the itchy spots, and come back in a week.",
+   "beaver_roman": "garyeoun goseun geukji masigo iljuil dwie oseyo.",
+   "learner": "감사합니다, 선생님. 일주일 뒤에 올게요.",
+   "en": "Thank you, doctor. I'll come back in a week.",
+   "roman": "gamsahamnida, seonsaengnim. iljuil dwie olgeyo."
+  }
+ ]
+}

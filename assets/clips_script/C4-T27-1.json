@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T27-1",
+ "no": 460,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 발령 내용을 간략하게 설명해 주시겠어요?",
+   "beaver_en": "Could you briefly explain this appointment?",
+   "beaver_roman": "ibeon ballyeong naeyongeul gallyakage seolmyeonghae jusigesseoyo?",
+   "learner": "네, 박 국장님이 정년을 맞아 퇴임하세요.",
+   "en": "Yes, Director General Park is retiring at retirement age.",
+   "roman": "ne, bak gukjangnimi jeongnyeoneul maja toeimhaseyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 후임은 누가 됩니까?",
+   "beaver_en": "Then who will be the successor?",
+   "beaver_roman": "geureom huimeun nuga doemnikka?",
+   "learner": "이 부장님이 국장으로 임명되어 다음 달에 부임하세요.",
+   "en": "Manager Lee was appointed director and starts next month.",
+   "roman": "i bujangnimi gukjangeuro immyeongdoeeo daeum dare buimhaseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "임원도 바뀝니까?",
+   "beaver_en": "Are the executives changing too?",
+   "beaver_roman": "imwondo bakkwimnikka?",
+   "learner": "네, 임원진 두 명이 새로 취임할 예정이에요.",
+   "en": "Yes, two new executives will take office.",
+   "roman": "ne, imwonjin du myeongi saero chwiimhal yejeongieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "현직 간부 중에 자리를 옮기는 분도 있나요?",
+   "beaver_en": "Are any current officers moving posts?",
+   "beaver_roman": "hyeonjik ganbu junge jarireul omgineun bundo innayo?",
+   "learner": "최 과장님은 부산 지사로 파견되어 상주하세요.",
+   "en": "Manager Choi is being sent to stay at the Busan branch.",
+   "roman": "choe gwajangnimeun busan jisaro pagyeondoeeo sangjuhaseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그쪽 부서 업무량이 늘겠습니다.",
+   "beaver_en": "Your department's workload will grow.",
+   "beaver_roman": "geujjok buseo eommuryangi neulgetseumnida.",
+   "learner": "맞아요. 저희 팀만 해도 일이 두 배로 늘어요.",
+   "en": "Right. My team alone will have double the work.",
+   "roman": "majayo. jeohui timman haedo iri du baero neureoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 감원이나 해직 소식도 있습니까?",
+   "beaver_en": "Any news of staff cuts or dismissals?",
+   "beaver_roman": "hoksi gamwonina haejik sosikdo itseumnikka?",
+   "learner": "감원은 없어요. 다만 한 분이 휴직을 신청했어요.",
+   "en": "No cuts. But one person applied for leave.",
+   "roman": "gamwoneun eopseoyo. daman han buni hyujigeul sincheonghaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그분 직무는 누가 맡게 됩니까?",
+   "beaver_en": "Who will take over that person's duties?",
+   "beaver_roman": "geubun jingmuneun nuga matge doemnikka?",
+   "learner": "회계팀 출신 신입이 맡는데, 실력이 경력직과 맞먹어요.",
+   "en": "A new hire from accounting, as skilled as a veteran.",
+   "roman": "hoegyetim chulsin sinibi manneunde, sillyeogi gyeongnyeokjikgwa manmeogeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "휴직 공백 동안 근무 조정은 어떻게 하나요?",
+   "beaver_en": "How will shifts be adjusted during the leave?",
+   "beaver_roman": "hyujik gongbaek dongan geunmu jojeongeun eotteoke hanayo?",
+   "learner": "직원들끼리 휴무를 바꿔 가며 공백을 메워요.",
+   "en": "Staff swap days off to cover the gap.",
+   "roman": "jigwondeulkkiri hyumureul bakkwo gamyeo gongbaegeul memwoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "새 국장님은 어떤 분이세요?",
+   "beaver_en": "What is the new director like?",
+   "beaver_roman": "sae gukjangnimeun eotteon buniseyo?",
+   "learner": "영업 간부 출신으로 이 회사에서 이십 년 근무하셨어요.",
+   "en": "A former sales officer, he's worked here twenty years.",
+   "roman": "yeongeop ganbu chulsineuro i hoesaeseo isip nyeon geunmuhasyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "설명 감사합니다. 발령 통보는 내일 하겠습니다.",
+   "beaver_en": "Thanks for explaining. I'll send the notice tomorrow.",
+   "beaver_roman": "seolmyeong gamsahamnida. ballyeong tongboneun naeil hagetseumnida.",
+   "learner": "네, 감사합니다. 발령 공지 후 다시 연락드릴게요.",
+   "en": "Thank you. I'll contact you after the announcement.",
+   "roman": "ne, gamsahamnida. ballyeong gongji hu dasi yeollakdeurilgeyo."
+  }
+ ]
+}

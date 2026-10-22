@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T45-1",
+ "no": 79,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새해 복 많이 받아요! 올해 결심한 거 있어요?",
+   "beaver_en": "Happy New Year! Did you make any resolutions this year?",
+   "beaver_roman": "saehae bok mani badayo! olhae gyeolsimhan geo isseoyo?",
+   "learner": "네, 올해는 진짜 큰 결심을 했어요.",
+   "en": "Yes, I made a really big resolution this year.",
+   "roman": "ne, olhaeneun jinjja keun gyeolsimeul haesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 어떤 결심이에요? 궁금해요.",
+   "beaver_en": "Wow, what is it? I'm curious.",
+   "beaver_roman": "wa, eotteon gyeolsimieyo? gunggeumhaeyo.",
+   "learner": "매일 아침 한 시간씩 책을 읽을 거예요.",
+   "en": "I'm going to read for an hour every morning.",
+   "roman": "maeil achim han sigansik chaegeul ilgeul kkeoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 왜 책을 읽으려고 해요?",
+   "beaver_en": "Nice. Why do you want to read books?",
+   "beaver_roman": "jonneyo. wae chaegeul ilgeuryeogo haeyo?",
+   "learner": "행복해지고 싶어서요.",
+   "en": "Because I want to become happy.",
+   "roman": "haengbokaejigo sipeoseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "행복이요? 성공보다 중요해요?",
+   "beaver_en": "Happiness? Is it more important than success?",
+   "beaver_roman": "haengbogiyo? seonggongboda jungyohaeyo?",
+   "learner": "네, 저한테는 성공보다 행복이 중요해요.",
+   "en": "Yes, to me happiness matters more than success.",
+   "roman": "ne, jeohanteneun seonggongboda haengbogi jungyohaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "왜 그렇게 생각해요?",
+   "beaver_en": "Why do you think so?",
+   "beaver_roman": "wae geureoke saenggakaeyo?",
+   "learner": "작년에는 일밖에 몰랐어요. 너무 힘들었어요.",
+   "en": "Last year I knew nothing but work. It was so hard.",
+   "roman": "jangnyeoneneun ilbakke mollasseoyo. neomu himdeureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "아, 작년에 정말 바빴죠.",
+   "beaver_en": "Oh, you were really busy last year.",
+   "beaver_roman": "a, jangnyeone jeongmal bappatjyo.",
+   "learner": "그래서 올해는 자유 시간을 갖고 싶어요.",
+   "en": "So this year I want to have free time.",
+   "roman": "geuraeseo olhaeneun jayu siganeul gatgo sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 다른 계획도 있어요?",
+   "beaver_en": "Do you have any other plans, by chance?",
+   "beaver_roman": "hoksi dareun gyehoekdo isseoyo?",
+   "learner": "주말에는 산에 갈 거예요.",
+   "en": "On weekends I'm going to go to the mountains.",
+   "roman": "jumareneun sane gal kkeoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "멋있네요. 어떤 책을 읽을 거예요?",
+   "beaver_en": "That's cool. What books will you read?",
+   "beaver_roman": "meosinneyo. eotteon chaegeul ilgeul kkeoyeyo?",
+   "learner": "옛날 사람들의 생각에 대한 책을 읽고 싶어요.",
+   "en": "I want to read books about the thoughts of people long ago.",
+   "roman": "yennal saramdeurui saenggage daehan chaegeul ilkko sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 앞으로 어떻게 살고 싶어요?",
+   "beaver_en": "Then how do you want to live from now on?",
+   "beaver_roman": "geureom apeuro eotteoke salgo sipeoyo?",
+   "learner": "저는 그냥 즐겁게 살고 싶어요.",
+   "en": "I just want to live happily.",
+   "roman": "jeoneun geunyang jeulgeopge salgo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋진 생각이네요. 꼭 이루길 바라요!",
+   "beaver_en": "What a great thought. I hope you achieve it!",
+   "beaver_roman": "meotjin saenggagineyo. kkok irugil barayo!",
+   "learner": "고마워요. 희망을 갖고 매일 노력할게요!",
+   "en": "Thanks. I'll keep hope and try every day!",
+   "roman": "gomawoyo. huimangeul gatgo maeil noryeokalkkeyo!"
+  }
+ ]
+}

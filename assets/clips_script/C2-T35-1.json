@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T35-1",
+ "no": 375,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘은 어떤 선수를 소개하나요?",
+   "beaver_en": "Hello. Which athlete are you introducing today?",
+   "beaver_roman": "annyeonghaseyo. oneureun eotteon seonsureul sogaehanayo?",
+   "learner": "박서준 선수입니다. 여러 종목에서 활약했어요.",
+   "en": "It's Park Seojun. He has competed in many events.",
+   "roman": "bakseojun seonsuimnida. yeoreo jongmogeseo hwaryakaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "기록은 어떻습니까?",
+   "beaver_en": "What are his records like?",
+   "beaver_roman": "girogeun eotteoseumnikka?",
+   "learner": "썰매 경주에서 신기록을 세우고 금메달을 땄어요.",
+   "en": "He set a new record in a sled race and won gold.",
+   "roman": "sseolmae gyeongjueseo singirogeul seugo geummedareul ttasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 대단하네요. 다른 종목도 하나요?",
+   "beaver_en": "Wow, amazing. Does he do other events too?",
+   "beaver_roman": "wa, daedanhaneyo. dareun jongmokdo hanayo?",
+   "learner": "스키 점프 등 겨울 종목에서도 재능을 발휘했어요.",
+   "en": "He also showed talent in winter sports like ski jumping.",
+   "roman": "seuki jeompeu deung gyeoul jongmogeseodo jaeneungeul balhwihaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "라켓을 쓰는 종목도 했다고 들었어요.",
+   "beaver_en": "I heard he also played a racket sport.",
+   "beaver_roman": "raketeul sseuneun jongmokdo haetdago deureosseoyo.",
+   "learner": "네, 테니스 경기에서 20승을 거뒀어요.",
+   "en": "Yes, he got 20 wins in tennis matches.",
+   "roman": "ne, teniseu gyeonggieseo isipseungeul geodwosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "가장 기억에 남는 승부는 뭐예요?",
+   "beaver_en": "What's the most memorable match?",
+   "beaver_roman": "gajang gieoge namneun seungbuneun mwoyeyo?",
+   "learner": "결승전이요. 3세트가 승부처였어요.",
+   "en": "The final. The third set was the deciding moment.",
+   "roman": "gyeolseungjeoniyo. samseteuga seungbucheoyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "경기 중에 힘든 일은 없었나요?",
+   "beaver_en": "Was there anything hard during the game?",
+   "beaver_roman": "gyeonggi junge himdeun ireun eopseonnayo?",
+   "learner": "상대 선수가 퇴장당해서 선수도 많이 놀랐대요.",
+   "en": "His opponent was sent off, so he was very surprised.",
+   "roman": "sangdae seonsuga toejangdanghaeseo seonsudo mani nollatdaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "본선 전망은 어떻습니까?",
+   "beaver_en": "What's the outlook for the main round?",
+   "beaver_roman": "bonseon jeonmangeun eotteoseumnikka?",
+   "learner": "다음 달 본선에서도 좋은 기록을 기대해요.",
+   "en": "We expect good records in next month's main round too.",
+   "roman": "daeum dal bonseoneseodo joeun girogeul gidaehaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "선수의 경기 스타일도 알려 주시겠어요?",
+   "beaver_en": "Could you tell us about his playing style too?",
+   "beaver_roman": "seonsuui gyeonggi seutaildo allyeo jusigesseoyo?",
+   "learner": "경기에 몰두하면 눈을 부릅뜨고 집중해요.",
+   "en": "When he's absorbed in a game, he focuses with wide eyes.",
+   "roman": "gyeonggie molttuhamyeon nuneul bureuptteugo jipjunghaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "정말 무시무시한 집중력이네요.",
+   "beaver_en": "That's really fearsome focus.",
+   "beaver_roman": "jeongmal musimusihan jipjungnyeogineyo.",
+   "learner": "맞아요. 모든 경기를 매끄럽게 끝냈어요.",
+   "en": "That's right. He finished every game smoothly.",
+   "roman": "majayo. modeun gyeonggireul maekkeureopge kkeunnaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 소개 감사합니다. 응원할게요!",
+   "beaver_en": "Thanks for the introduction. I'll cheer for him!",
+   "beaver_roman": "oneul sogae gamsahamnida. eungwonhalgeyo!",
+   "learner": "시청해 주셔서 감사합니다. 다음에 또 만나요!",
+   "en": "Thank you for watching. See you next time!",
+   "roman": "sicheonghae jusyeoseo gamsahamnida. daeume tto mannayo!"
+  }
+ ]
+}

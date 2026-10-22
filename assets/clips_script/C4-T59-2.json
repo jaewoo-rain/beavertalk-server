@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T59-2",
+ "no": 486,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김민수 님, 수술 후에 몸은 좀 어떠세요?",
+   "beaver_en": "Mr. Kim Minsu, how are you feeling after the surgery?",
+   "beaver_roman": "Gimminsu nim, susul hue momeun jom eotteoseyo?",
+   "learner": "후유증 때문에 매일 녹초가 될 지경이에요.",
+   "en": "The aftereffects leave me utterly exhausted every day.",
+   "roman": "Huyujeung ttaemune maeil nokchoga doel jigyeongieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "위암 수술 후에 흔한 일입니다. 구토는 있습니까?",
+   "beaver_en": "That's common after stomach cancer surgery. Any vomiting?",
+   "beaver_roman": "Wiam susul hue heunhan irimnida. Gutoneun itseumnikka?",
+   "learner": "네, 속이 울렁거리고 하루에 두 번 구토해요.",
+   "en": "Yes, I feel queasy and vomit twice a day.",
+   "roman": "Ne, sogi ulleonggeorigo harue du beon gutohaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "혹시 정신을 잃은 적도 있으세요?",
+   "beaver_en": "Have you ever lost consciousness?",
+   "beaver_roman": "Hoksi jeongsineul ireun jeokdo isseuseyo?",
+   "learner": "지난주에 화장실에서 잠깐 기절했어요.",
+   "en": "Last week I fainted briefly in the bathroom.",
+   "roman": "Jinanjue hwajangsireseo jamkkan gijeolhaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "빈혈 수치도 낮습니다. 그래서 어지러우셨을 거예요.",
+   "beaver_en": "Your anemia levels are low too. That's why you were dizzy.",
+   "beaver_roman": "Binhyeol suchido natseumnida. Geuraeseo eojireousyeosseul geoyeyo.",
+   "learner": "밤에는 다리에 경련이 나서 못 잘 지경이에요.",
+   "en": "At night my legs cramp so much I can hardly sleep.",
+   "roman": "Bameneun darie gyeongnyeoni naseo mot jal jigyeongieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 불편한 증상도 있으세요?",
+   "beaver_en": "Do you have any other uncomfortable symptoms?",
+   "beaver_roman": "Dareun bulpyeonhan jeungsangdo isseuseyo?",
+   "learner": "오른쪽 귀가 잘 안 들려요. 난청일까요?",
+   "en": "I can't hear well in my right ear. Is it hearing loss?",
+   "roman": "Oreunjjok gwiga jal an deullyeoyo. Nancheongilkkayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "항암 치료 후에 청력이 떨어지기도 합니다.",
+   "beaver_en": "Hearing can sometimes drop after chemotherapy.",
+   "beaver_roman": "Hangam chiryo hue cheongnyeogi tteoreojigido hamnida.",
+   "learner": "혹시 뇌졸중 같은 병이 생긴 건 아닐까요?",
+   "en": "Could I have gotten something like a stroke?",
+   "roman": "Hoksi noejoljung gateun byeongi saenggin geon anilkkayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "검사로는 그런 징후는 없으니 안심하세요.",
+   "beaver_en": "The tests show no such signs, so don't worry.",
+   "beaver_roman": "Geomsaroneun geureon jinghuneun eopseuni ansimhaseyo.",
+   "learner": "수술 부위가 곪은 것 같아서 걱정돼요.",
+   "en": "I'm worried the surgical wound is festering.",
+   "roman": "Susul buwiga golmeun geot gataseo geokjeongdwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "상처에 균이 들어갔는지 확인해 보겠습니다.",
+   "beaver_en": "I'll check whether germs got into the wound.",
+   "beaver_roman": "Sangcheoe gyuni deureoganneunji hwaginhae bogetseumnida.",
+   "learner": "기침도 심한데 폐렴은 아니겠죠?",
+   "en": "My cough is bad too. It's not pneumonia, is it?",
+   "roman": "Gichimdo simhande pyeryeomeun anigetjyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "폐는 깨끗합니다. 악성 종양 재발 징후도 없습니다.",
+   "beaver_en": "Your lungs are clear. No sign of the malignant tumor returning.",
+   "beaver_roman": "Pyeneun kkaekkeutamnida. Akseong jongyang jaebal jinghudo eopseumnida.",
+   "learner": "다행이에요. 제가 너무 걱정했나 봐요.",
+   "en": "What a relief. I guess I worried too much.",
+   "roman": "Dahaengieyo. Jega neomu geokjeonghaenna bwayo."
+  },
+  {
+   "n": 10,
+   "beaver": "걱정되실 만해요. 다음 주에 다시 뵙겠습니다.",
+   "beaver_en": "It's understandable. I'll see you again next week.",
+   "beaver_roman": "Geokjeongdoesil manhaeyo. Daeum jue dasi boepgetseumnida.",
+   "learner": "네, 선생님. 감사합니다. 다음 주에 뵐게요.",
+   "en": "Yes, doctor. Thank you. See you next week.",
+   "roman": "Ne, seonsaengnim. Gamsahamnida. Daeum jue boelgeyo."
+  }
+ ]
+}

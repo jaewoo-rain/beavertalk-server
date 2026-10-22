@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T30-1",
+ "no": 413,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선생님, 저희 아버지는 좀 어떠십니까?",
+   "beaver_en": "Doctor, how is my father doing?",
+   "beaver_roman": "Seonsaengnim, jeohui abeojineun jom eotteosimnikka?",
+   "learner": "다행히 상태가 많이 호전되셨습니다.",
+   "en": "Fortunately, his condition has improved a lot.",
+   "roman": "Dahaenghi sangtaega mani hojeondoesyeotseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 약물 때문에 쓰러지셨잖아요.",
+   "beaver_en": "Really? He collapsed because of medication.",
+   "beaver_roman": "Jeongmallyo? Yangmul ttaemune sseureojisyeotjanayo.",
+   "learner": "네, 약물 해독 치료가 잘 끝났습니다.",
+   "en": "Yes, the drug detox treatment went well.",
+   "roman": "Ne, yangmul haedok chiryoga jal kkeunnatseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "그런데 왜 아직 격리 병동에 계시죠?",
+   "beaver_en": "Then why is he still in the isolation ward?",
+   "beaver_roman": "Geureonde wae ajik gyeongni byeongdonge gyesijyo?",
+   "learner": "감염 위험이 있어서 잠시 격리 중입니다.",
+   "en": "There's a risk of infection, so he's isolated for now.",
+   "roman": "Gamyeom wiheomi isseoseo jamsi gyeongni jungimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "격리는 언제 끝납니까?",
+   "beaver_en": "When will the isolation end?",
+   "beaver_roman": "Gyeongnineun eonje kkeunnamnikka?",
+   "learner": "검사 결과가 좋으면 모레 끝납니다.",
+   "en": "If the test results are good, it ends the day after tomorrow.",
+   "roman": "Geomsa gyeolgwaga joeumyeon more kkeunnamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그 뒤에는 어디로 옮기게 되나요?",
+   "beaver_en": "Where will he be moved after that?",
+   "beaver_roman": "Geu dwieneun eodiro omgige doenayo?",
+   "learner": "일반 병동으로 옮기고 재활을 시작합니다.",
+   "en": "He'll move to a general ward and start rehab.",
+   "roman": "Ilban byeongdongeuro omgigo jaehwareul sijakamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "재활은 힘들지 않습니까?",
+   "beaver_en": "Isn't rehabilitation hard?",
+   "beaver_roman": "Jaehwareun himdeulji ansseumnikka?",
+   "learner": "조금 힘들지만 의학적으로 꼭 필요합니다.",
+   "en": "It's a bit hard, but medically necessary.",
+   "roman": "Jogeum himdeuljiman uihakjeogeuro kkok piryohamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "아버지가 다시 걸으실 수 있을까요?",
+   "beaver_en": "Will my father be able to walk again?",
+   "beaver_roman": "Abeojiga dasi georeusil su isseulkkayo?",
+   "learner": "네, 걷는 것은 물론이거니와 운동도 가능합니다.",
+   "en": "Yes, not only walking but exercise too.",
+   "roman": "Ne, geonneun geoseun mullonigeoniwa undongdo ganeunghamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "이렇게 빨리 좋아지실 줄 몰랐어요.",
+   "beaver_en": "I didn't expect him to get better so fast.",
+   "beaver_roman": "Ireoke ppalli joajisil jul mollasseoyo.",
+   "learner": "요즘은 의술이 많이 발전해서 회복이 빠릅니다.",
+   "en": "Medicine has advanced a lot, so recovery is fast.",
+   "roman": "Yojeumeun uisuri mani baljeonhaeseo hoebogi ppareumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "집에서는 무엇을 도와드리면 될까요?",
+   "beaver_en": "How can I help him at home?",
+   "beaver_roman": "Jibeseoneun mueoseul dowadeurimyeon doelkkayo?",
+   "learner": "식사는 물론이고 약도 잘 챙겨 주세요.",
+   "en": "Please look after his meals, and his medicine too.",
+   "roman": "Siksaneun mullonigo yakdo jal chaenggyeo juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정말 감사합니다, 선생님.",
+   "beaver_en": "Thank you so much, doctor.",
+   "beaver_roman": "Jeongmal gamsahamnida, seonsaengnim.",
+   "learner": "아닙니다. 궁금하시면 언제든 물어보세요.",
+   "en": "Not at all. Ask me anytime if you have questions.",
+   "roman": "Animnida. Gunggeumhasimyeon eonjedeun mureoboseyo."
+  }
+ ]
+}

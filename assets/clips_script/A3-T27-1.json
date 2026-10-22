@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T27-1",
+ "no": 67,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 오래간만이에요! 요즘 회사 생활 어때요?",
+   "beaver_en": "Minji, long time no see! How's work life lately?",
+   "beaver_roman": "Minji ssi, oraeganmanieyo! Yojeum hoesa saenghwal eottaeyo?",
+   "learner": "오래간만이에요. 일이 많아서 좀 바빠요.",
+   "en": "Long time no see. I'm a bit busy because there's a lot of work.",
+   "roman": "Oraeganmanieyo. Iri manaseo jom bappayo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 출퇴근은 힘들지 않아요?",
+   "beaver_en": "Really? Isn't the commute hard?",
+   "beaver_roman": "Geuraeyo? Chultoegeuneun himdeulji anayo?",
+   "learner": "집이 멀어서 출퇴근이 조금 힘들어요.",
+   "en": "My home is far, so commuting is a little hard.",
+   "roman": "Jibi meoreoseo chultoegeuni jogeum himdeureoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "몇 시에 출근해요?",
+   "beaver_en": "What time do you get to work?",
+   "beaver_roman": "Myeot sie chulgeunhaeyo?",
+   "learner": "아홉 시에 출근해요. 길이 막혀서 일찍 나와요.",
+   "en": "I start at nine. Traffic is bad, so I leave early.",
+   "roman": "Ahop sie chulgeunhaeyo. Giri makyeoseo iljjik nawayo."
+  },
+  {
+   "n": 4,
+   "beaver": "사장님은 어떠세요?",
+   "beaver_en": "What's the company president like?",
+   "beaver_roman": "Sajangnimeun eotteoseyo?",
+   "learner": "사장님은 밝으셔서 좋아요.",
+   "en": "The president is cheerful, so I like him.",
+   "roman": "Sajangnimeun balgeusyeoseo joayo."
+  },
+  {
+   "n": 5,
+   "beaver": "부장님은요? 좀 무섭지 않아요?",
+   "beaver_en": "And the department head? Isn't he a bit scary?",
+   "beaver_roman": "Bujangnimeunyo? Jom museopji anayo?",
+   "learner": "아니요, 부장님이 도움을 많이 주셔서 좋아요.",
+   "en": "No, he helps me a lot, so I like him.",
+   "roman": "Aniyo, bujangnimi doumeul mani jusyeoseo joayo."
+  },
+  {
+   "n": 6,
+   "beaver": "지난달 프로젝트는 잘 끝났어요?",
+   "beaver_en": "Did last month's project end well?",
+   "beaver_roman": "Jinandal peurojekteuneun jal kkeunnasseoyo?",
+   "learner": "네, 다 같이 해서 잘 끝났어요.",
+   "en": "Yes, we did it together, so it ended well.",
+   "roman": "Ne, da gachi haeseo jal kkeunnasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "월급날은 언제예요?",
+   "beaver_en": "When is payday?",
+   "beaver_roman": "Wolgeumnareun eonjeyeyo?",
+   "learner": "매달 이십오 일이에요. 월급이 올라서 기뻐요.",
+   "en": "The 25th of every month. My salary went up, so I'm happy.",
+   "roman": "Maedal isibo irieyo. Wolgeubi ollaseo gippeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 좋겠네요! 쉬는 시간에는 뭐 해요?",
+   "beaver_en": "Wow, that's great! What do you do on breaks?",
+   "beaver_roman": "Wa, jokenneyo! Swineun siganeneun mwo haeyo?",
+   "learner": "휴게실에 가요. 커피가 맛있어서 자주 가요.",
+   "en": "I go to the lounge. The coffee is good, so I go often.",
+   "roman": "Hyugesire gayo. Keopiga masisseoseo jaju gayo."
+  },
+  {
+   "n": 9,
+   "beaver": "저도 가 볼게요. 아, 점심시간이 다 지나갔네요.",
+   "beaver_en": "I'll try going too. Oh, lunchtime is almost over.",
+   "beaver_roman": "Jeodo ga bolgeyo. A, jeomsimsigani da jinaganneyo.",
+   "learner": "퇴근 후에 휴게실에서 또 이야기해요.",
+   "en": "Let's talk again in the lounge after work.",
+   "roman": "Toegeun hue hyugesireseo tto iyagihaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 일 너무 많이 하지 마세요!",
+   "beaver_en": "Sounds good. Don't work too hard!",
+   "beaver_roman": "Joayo. Il neomu mani haji maseyo!",
+   "learner": "고마워요. 바빠서 이만 갈게요. 이따 봐요!",
+   "en": "Thanks. I'm busy, so I'll go now. See you later!",
+   "roman": "Gomawoyo. Bappaseo iman galgeyo. Itta bwayo!"
+  }
+ ]
+}

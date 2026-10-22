@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T08-1",
+ "no": 91,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 할 말이 있다고 했죠?",
+   "beaver_en": "Minsu, you said you had something to tell me?",
+   "beaver_roman": "Minsu ssi, hal mari itdago haetjyo?",
+   "learner": "지수 씨, 우리 집안일을 나눠서 해요.",
+   "en": "Jisu, let's split the housework.",
+   "roman": "Jisu ssi, uri jibannireul nanwoseo haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 요즘 집이 좀 더러워졌죠?",
+   "beaver_en": "Sure. The house has gotten a bit dirty lately, right?",
+   "beaver_roman": "Joayo. Yojeum jibi jom deoreowojyeotjyo?",
+   "learner": "네, 방이 지저분해졌어요. 정리가 필요해요.",
+   "en": "Yes, the rooms got messy. We need to tidy up.",
+   "roman": "Ne, bangi jijeobunhaejyeosseoyo. Jeongniga piryohaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 뭐부터 할까요?",
+   "beaver_en": "Then what should we do first?",
+   "beaver_roman": "Geureom mwobuteo halkkayo?",
+   "learner": "저는 휴지통을 비우고 소파를 청소할게요.",
+   "en": "I'll empty the wastebasket and clean the sofa.",
+   "roman": "Jeoneun hyujitongeul biugo sopareul cheongsohalkkeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "소파 밑은요?",
+   "beaver_en": "What about under the sofa?",
+   "beaver_roman": "Sopa miteunyo?",
+   "learner": "소파 밑도 제가 할게요. 먼지가 많아졌어요.",
+   "en": "I'll do under the sofa too. There's a lot more dust.",
+   "roman": "Sopa mitdo jega halkkeyo. Meonjiga manajyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "세탁은 제가 할게요.",
+   "beaver_en": "I'll do the laundry.",
+   "beaver_roman": "Setageun jega halkkeyo.",
+   "learner": "고마워요. 세탁할 때 이불도 빨아 줄 수 있어요?",
+   "en": "Thanks. Can you wash the blanket too when you do laundry?",
+   "roman": "Gomawoyo. Setakal ttae ibuldo ppara jul su isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 날씨가 좋으니까 주말에 빨게요.",
+   "beaver_en": "Sure, the weather's nice, so I'll wash it this weekend.",
+   "beaver_roman": "Ne, nalssiga joeunikka jumare ppalkkeyo.",
+   "learner": "옷걸이도 부족해요. 제가 새로 살게요.",
+   "en": "We're short on hangers too. I'll buy new ones.",
+   "roman": "Otgeorido bujokaeyo. Jega saero salkkeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋아요. 창문 유리는 누가 닦을까요?",
+   "beaver_en": "Good. Who will wipe the window glass?",
+   "beaver_roman": "Joayo. Changmun yurineun nuga dakkeulkkayo?",
+   "learner": "유리는 제가 닦을게요. 창문이 깨끗해질 거예요.",
+   "en": "I'll wipe the glass. The windows will get clean.",
+   "roman": "Yurineun jega dakkeulkkeyo. Changmuni kkaekkeutaejil geoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "거실 등도 좀 약해졌어요.",
+   "beaver_en": "The living room lamp has gotten a bit weak too.",
+   "beaver_roman": "Geosil deungdo jom yakaejyeosseoyo.",
+   "learner": "맞아요. 거실이 어두워졌어요. 등을 바꿔요.",
+   "en": "Right. The living room got dark. Let's change the lamp.",
+   "roman": "Majayo. Geosiri eoduwojyeosseoyo. Deungeul bakkwoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 집이 정말 깨끗해지겠네요.",
+   "beaver_en": "Then the house will get really clean.",
+   "beaver_roman": "Geureom jibi jeongmal kkaekkeutaejigenneyo.",
+   "learner": "네, 집안일을 나누니까 마음이 편해졌어요.",
+   "en": "Yes, splitting the housework makes me feel better.",
+   "roman": "Ne, jibannireul nanunikka maeumi pyeonhaejyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 오늘부터 시작해요!",
+   "beaver_en": "Great. Let's start today, then!",
+   "beaver_roman": "Joayo. Geureom oneulbuteo sijakaeyo!",
+   "learner": "네, 지금 바로 휴지통부터 비울게요.",
+   "en": "Okay, I'll empty the wastebasket right now.",
+   "roman": "Ne, jigeum baro hyujitongbuteo biulkkeyo."
+  }
+ ]
+}

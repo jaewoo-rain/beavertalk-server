@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T13-1",
+ "no": 303,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "동서, 왔어요? 오늘 할 일이 많아요.",
+   "beaver_en": "Oh, you're here? We have a lot to do today.",
+   "beaver_roman": "Dongseo, wasseoyo? Oneul hal iri manayo.",
+   "learner": "네, 형님. 아시다시피 저는 전을 잘 부쳐요.",
+   "en": "Yes. As you know, I'm good at frying pancakes.",
+   "roman": "Ne, hyeongnim. Asidasipi jeoneun jeoneul jal buchyeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 그럼 찹쌀도 불려야지요?",
+   "beaver_en": "Good. Then we need to soak the sticky rice too, right?",
+   "beaver_roman": "Joayo. Geureom chapssaldo bullyeoyajiyo?",
+   "learner": "네, 찹쌀은 어젯밤에 물에 담가 놓았어요.",
+   "en": "Yes, I soaked the sticky rice last night.",
+   "roman": "Ne, chapssareun eojetbame mure damga noasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "팥은 어떻게 할까요?",
+   "beaver_en": "What should we do with the red beans?",
+   "beaver_roman": "Pateun eotteoke halkkayo?",
+   "learner": "팥은 보글보글 끓으면 약불로 졸일게요.",
+   "en": "When the beans bubble, I'll simmer them down on low heat.",
+   "roman": "Pateun bogeulbogeul kkeureumyeon yakppullo jorilgeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "고기는 어떻게 해요?",
+   "beaver_en": "What about the meat?",
+   "beaver_roman": "Gogineun eotteoke haeyo?",
+   "learner": "고기는 기름기를 먼저 떼어 낼게요.",
+   "en": "I'll trim the fat off the meat first.",
+   "roman": "Gogineun gireumkkireul meonjeo tteeo naelgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "갈비찜 주재료가 소갈비 맞지요?",
+   "beaver_en": "The main ingredient for braised ribs is beef ribs, right?",
+   "beaver_roman": "Galbijjim jujaeryoga sogalbi matjiyo?",
+   "learner": "네, 주재료는 소갈비고 무도 넣어요.",
+   "en": "Yes, beef ribs are the main ingredient, and we add radish too.",
+   "roman": "Ne, jujaeryoneun sogalbigo mudo neoeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "양념은 어머님 조리법대로 해요?",
+   "beaver_en": "Are we seasoning it Mother's way?",
+   "beaver_roman": "Yangnyeomeun eomeonim joribeopttaero haeyo?",
+   "learner": "네, 어머님 조리법대로 집간장을 써요.",
+   "en": "Yes, we use homemade soy sauce, as in Mother's recipe.",
+   "roman": "Ne, eomeonim joribeopttaero jipkkanjangeul sseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그 간장, 집에서 직접 담근 거죠?",
+   "beaver_en": "That soy sauce was made at home, right?",
+   "beaver_roman": "Geu ganjang, jibeseo jikjeop damgeun geojyo?",
+   "learner": "네, 장은 오래 발효해서 맛이 깊어요.",
+   "en": "Yes, the sauce fermented a long time, so it tastes rich.",
+   "roman": "Ne, jangeun orae balhyohaeseo masi gipeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "설탕을 더 넣을까요?",
+   "beaver_en": "Should we add more sugar?",
+   "beaver_roman": "Seoltangeul deo neoeulkkayo?",
+   "learner": "아니요, 설탕은 조금만 넣을게요.",
+   "en": "No, I'll only put in a little sugar.",
+   "roman": "Aniyo, seoltangeun jogeumman neoeulgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "밥은 누가 해요? 밥솥이 하나뿐이에요.",
+   "beaver_en": "Who's making the rice? There's only one rice cooker.",
+   "beaver_roman": "Babeun nuga haeyo? Bapsosi hanappunieyo.",
+   "learner": "제가 밥솥 취사 버튼을 눌러 둘게요.",
+   "en": "I'll press the cook button on the rice cooker.",
+   "roman": "Jega bapsot chwisa beoteuneul nulleo dulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요, 동서. 덕분에 금방 끝나겠어요.",
+   "beaver_en": "Thanks. Thanks to you, we'll finish soon.",
+   "beaver_roman": "Gomawoyo, dongseo. Deokbune geumbang kkeunnagesseoyo.",
+   "learner": "보시다시피 거의 다 됐어요. 같이 먹어요!",
+   "en": "As you can see, it's almost done. Let's eat together!",
+   "roman": "Bosidasipi geoui da dwaesseoyo. Gachi meogeoyo!"
+  }
+ ]
+}

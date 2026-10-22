@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T30-1",
+ "no": 69,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 처방전 있으세요?",
+   "beaver_en": "Welcome. Do you have a prescription?",
+   "beaver_roman": "eoseo oseyo. cheobangjeon isseuseyo?",
+   "learner": "네, 아까 내과에서 받았는데요. 여기 있어요.",
+   "en": "Yes, I got it at internal medicine earlier. Here it is.",
+   "roman": "ne, akka naegwaeseo badanneundeyo. yeogi isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "감기약이네요. 어디가 아프세요?",
+   "beaver_en": "It's cold medicine. Where does it hurt?",
+   "beaver_roman": "gamgiyagineyo. eodiga apeuseyo?",
+   "learner": "목이 아픈데 열도 조금 있어요.",
+   "en": "My throat hurts, and I have a slight fever too.",
+   "roman": "mogi apeunde yeoldo jogeum isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 이 약을 하루 세 번 드세요.",
+   "beaver_en": "Then take this medicine three times a day.",
+   "beaver_roman": "geureom i yageul haru se beon deuseyo.",
+   "learner": "밥을 안 먹었는데 약을 먹어도 돼요?",
+   "en": "I haven't eaten. Can I take the medicine?",
+   "roman": "babeul an meogeonneunde yageul meogeodo dwaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "아니요, 꼭 식사 후에 드세요.",
+   "beaver_en": "No, be sure to take it after a meal.",
+   "beaver_roman": "aniyo, kkok siksa hue deuseyo.",
+   "learner": "네. 나머지 약도 감기약이에요?",
+   "en": "Okay. Is the rest of the medicine cold medicine too?",
+   "roman": "ne. nameoji yakdo gamgiyagieyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "이건 목에 뿌리는 약이에요. 이렇게 누르세요.",
+   "beaver_en": "This is a throat spray. Press it like this.",
+   "beaver_roman": "igeon moge ppurineun yagieyo. ireoke nureuseyo.",
+   "learner": "이런 약은 처음 보는데 편하겠네요.",
+   "en": "I've never seen medicine like this, but it looks convenient.",
+   "roman": "ireon yageun cheoeum boneunde pyeonhagenneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "오늘 병원 진료는 다 받으셨어요?",
+   "beaver_en": "Are you all done at the hospital today?",
+   "beaver_roman": "oneul byeongwon jillyoneun da badeusyeosseoyo?",
+   "learner": "제 치료는 끝났는데 오후에 병문안을 가요.",
+   "en": "My treatment is done, but I'm visiting a sick friend this afternoon.",
+   "roman": "je chiryoneun kkeunnanneunde ohue byeongmunaneul gayo."
+  },
+  {
+   "n": 7,
+   "beaver": "누구 병문안을 가세요?",
+   "beaver_en": "Who are you visiting?",
+   "beaver_roman": "nugu byeongmunaneul gaseyo?",
+   "learner": "친구가 다리를 다쳤는데 한국병원에 있어요.",
+   "en": "My friend hurt his leg, and he's at Hanguk Hospital.",
+   "roman": "chinguga darireul dachyeonneunde hangukbyeongwone isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "아, 한국병원이요? 거기는 면회 시간이 있어요.",
+   "beaver_en": "Oh, Hanguk Hospital? They have visiting hours.",
+   "beaver_roman": "a, hangukbyeongwoniyo? geogineun myeonhoe sigani isseoyo.",
+   "learner": "그래요? 저는 시간을 모르는데요.",
+   "en": "Really? I don't know the times, though.",
+   "roman": "geuraeyo? jeoneun siganeul moreuneundeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "간호사한테 시간을 물어보세요.",
+   "beaver_en": "Ask a nurse about the times.",
+   "beaver_roman": "ganhosahante siganeul mureoboseyo.",
+   "learner": "네, 물어볼게요. 친구한테 약도 사 갈까요?",
+   "en": "Okay, I will. Should I buy medicine for my friend too?",
+   "roman": "ne, mureobolgeyo. chinguhante yakdo sa galkkayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "친구 약은 병원에서 줄 거예요. 과일이 좋아요.",
+   "beaver_en": "The hospital will give him medicine. Fruit is better.",
+   "beaver_roman": "chingu yageun byeongwoneseo jul geoyeyo. gwairi joayo.",
+   "learner": "감사합니다. 정말 친절하시네요.",
+   "en": "Thank you. You're really kind.",
+   "roman": "gamsahamnida. jeongmal chinjeolhasineyo."
+  }
+ ]
+}

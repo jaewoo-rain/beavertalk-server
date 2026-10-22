@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T02-1",
+ "no": 293,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 가족 형태 연구를 하고 있습니다.",
+   "beaver_en": "Hello. I'm doing research on family types.",
+   "beaver_roman": "Annyeonghaseyo. Gajok hyeongtae yeongureul hago itseumnida.",
+   "learner": "네, 안녕하세요. 저희 집은 핵가족이에요.",
+   "en": "Yes, hello. My family is a nuclear family.",
+   "roman": "Ne, annyeonghaseyo. Jeohui jibeun haekgajogieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "가족은 몇 명이고, 아이 수는 어떻습니까?",
+   "beaver_en": "How many are in your family, and how many children?",
+   "beaver_roman": "Gajogeun myeot myeongigo, ai suneun eotteoseumnikka?",
+   "learner": "남편과 외동딸 하나, 세 식구예요.",
+   "en": "My husband and our only daughter—three of us.",
+   "roman": "Nampyeongwa oedongttal hana, se sikguyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아이를 한 명만 낳으신 이유가 있습니까?",
+   "beaver_en": "Is there a reason you had only one child?",
+   "beaver_roman": "Aireul han myeongman naeusin iyuga itseumnikka?",
+   "learner": "임신했을 때 일이 힘들어서 하나만 낳았어요.",
+   "en": "Work was hard when I was pregnant, so just one.",
+   "roman": "Imsinhaesseul ttae iri himdeureoseo hanaman naasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그렇군요. 태몽은 꾸셨습니까?",
+   "beaver_en": "I see. Did you have a conception dream?",
+   "beaver_roman": "Geureokunnyo. Taemongeun kkusyeotseumnikka?",
+   "learner": "네, 꽃 태몽을 꿔서 딸인 줄 알았어요.",
+   "en": "Yes, I dreamed of flowers, so I knew it was a girl.",
+   "roman": "Ne, kkot taemongeul kkwoseo ttarin jul arasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "육아는 어떻습니까?",
+   "beaver_en": "How is raising your child?",
+   "beaver_roman": "Yuganeun eotteoseumnikka?",
+   "learner": "맞벌이라서 아이를 어린이집에 보내요.",
+   "en": "We both work, so she goes to daycare.",
+   "roman": "Matbeoriraseo aireul eorinijibe bonaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "보육 시설에는 만족하십니까?",
+   "beaver_en": "Are you satisfied with the childcare center?",
+   "beaver_roman": "Boyuk siseoreneun manjokasimnikka?",
+   "learner": "네, 비교적 알찬 보육 프로그램이 있어서 좋아요.",
+   "en": "Yes, it has a fairly solid childcare program.",
+   "roman": "Ne, bigyojeok alchan boyuk peurogeuraemi isseoseo joayo."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘 부모들은 과보호를 한다는 말도 있습니다.",
+   "beaver_en": "Some say parents today are overprotective.",
+   "beaver_roman": "Yojeum bumodeureun gwabohoreul handaneun maldo itseumnida.",
+   "learner": "맞아요. 외동이라 과보호하기 쉬운 것 같아요.",
+   "en": "Right. With an only child, it's easy to overprotect.",
+   "roman": "Majayo. Oedongira gwabohohagi swiun geot gatayo."
+  },
+  {
+   "n": 8,
+   "beaver": "가족과 친척에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about family and relatives?",
+   "beaver_roman": "Gajokgwa chincheoge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "친척들은 명절에만 모이고 평소엔 잘 못 만나요.",
+   "en": "Relatives gather only on holidays; we rarely meet otherwise.",
+   "roman": "Chincheokdeureun myeongjeoreman moigo pyeongsoen jal mon mannayo."
+  },
+  {
+   "n": 9,
+   "beaver": "부모님 세대와 비교하면 어떻습니까?",
+   "beaver_en": "How does it compare to your parents' generation?",
+   "beaver_roman": "Bumonim sedaewa bigyohamyeon eotteoseumnikka?",
+   "learner": "저는 오빠랑 같이 컸는데 딸은 혼자예요.",
+   "en": "I grew up with my older brother, but my daughter is alone.",
+   "roman": "Jeoneun opparang gachi keonneunde ttareun honjayeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로 요즘 가족의 특징은 무엇입니까?",
+   "beaver_en": "Lastly, what is the feature of families today?",
+   "beaver_roman": "Majimageuro yojeum gajogui teukjingeun mueosimnikka?",
+   "learner": "가족 수가 적은 게 특징이에요. 감사합니다.",
+   "en": "The feature is having fewer family members. Thank you.",
+   "roman": "Gajok suga jeogeun ge teukjingieyo. Gamsahamnida."
+  }
+ ]
+}

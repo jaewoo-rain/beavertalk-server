@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T31-1",
+ "no": 70,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 무슨 운동을 해요?",
+   "beaver_en": "What exercise do you do these days?",
+   "beaver_roman": "yojeum museun undongeul haeyo?",
+   "learner": "저는 수영을 해요. 수영장에 자주 가요.",
+   "en": "I swim. I often go to the swimming pool.",
+   "roman": "jeoneun suyeongeul haeyo. suyeongjange jaju gayo."
+  },
+  {
+   "n": 2,
+   "beaver": "수영장이 멀어요?",
+   "beaver_en": "Is the pool far?",
+   "beaver_roman": "suyeongjangi meoreoyo?",
+   "learner": "아니요, 가까워요. 아침에 시간이 있을 때 가요.",
+   "en": "No, it's close. I go when I have time in the morning.",
+   "roman": "aniyo, gakkawoyo. achime sigani isseul ttae gayo."
+  },
+  {
+   "n": 3,
+   "beaver": "저는 운동장에서 달리기를 해요.",
+   "beaver_en": "I go running at the field.",
+   "beaver_roman": "jeoneun undongjangeseo dalligireul haeyo.",
+   "learner": "저도 달리기를 좋아해요. 날씨가 좋을 때 뛰어요.",
+   "en": "I like running too. I run when the weather is nice.",
+   "roman": "jeodo dalligireul joahaeyo. nalssiga joeul ttae ttwieoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "비가 올 때는 어떻게 해요?",
+   "beaver_en": "What do you do when it rains?",
+   "beaver_roman": "biga ol ttaeneun eotteoke haeyo?",
+   "learner": "비가 올 때는 체육관에서 운동해요.",
+   "en": "When it rains, I work out at the gym.",
+   "roman": "biga ol ttaeneun cheyukgwaneseo undonghaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "체육관은 언제 가요?",
+   "beaver_en": "When do you go to the gym?",
+   "beaver_roman": "cheyukgwaneun eonje gayo?",
+   "learner": "보통 저녁에 수업이 끝나고 가요.",
+   "en": "Usually in the evening, after class ends.",
+   "roman": "botong jeonyeoge sueobi kkeunnago gayo."
+  },
+  {
+   "n": 6,
+   "beaver": "운동할 때 힘들지 않아요?",
+   "beaver_en": "Isn't it hard when you exercise?",
+   "beaver_roman": "undonghal ttae himdeulji anayo?",
+   "learner": "뛸 때 약간 힘들어요. 그래도 재미있어요.",
+   "en": "It's a little hard when I run. But it's fun.",
+   "roman": "ttwil ttae yakgan himdeureoyo. geuraedo jaemiisseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "우리 같이 운동할까요?",
+   "beaver_en": "Shall we exercise together?",
+   "beaver_roman": "uri gachi undonghalkkayo?",
+   "learner": "좋아요! 토요일에 운동장에서 같이 뛰어요.",
+   "en": "Sure! Let's run together at the field on Saturday.",
+   "roman": "joayo! toyoire undongjangeseo gachi ttwieoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "토요일 몇 시가 좋아요?",
+   "beaver_en": "What time is good on Saturday?",
+   "beaver_roman": "toyoil myeot siga joayo?",
+   "learner": "아침에 시원할 때 뛰어요. 아홉 시 어때요?",
+   "en": "Let's run in the morning when it's cool. How about nine?",
+   "roman": "achime siwonhal ttae ttwieoyo. ahop si eottaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 달리기 후에 수영도 할까요?",
+   "beaver_en": "Good. Shall we swim after running too?",
+   "beaver_roman": "joayo. dalligi hue suyeongdo halkkayo?",
+   "learner": "네, 좋아요! 운동장 옆에 수영장이 있어요.",
+   "en": "Yes, great! There's a pool next to the field.",
+   "roman": "ne, joayo! undongjang yeope suyeongjangi isseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 토요일 아홉 시에 운동장에서 만나요!",
+   "beaver_en": "Then let's meet at the field at nine on Saturday!",
+   "beaver_roman": "geureom toyoil ahop sie undongjangeseo mannayo!",
+   "learner": "네, 토요일에 만나요. 운동할 때 물 가져와요!",
+   "en": "Okay, see you Saturday. Bring water for when we work out!",
+   "roman": "ne, toyoire mannayo. undonghal ttae mul gajyeowayo!"
+  }
+ ]
+}

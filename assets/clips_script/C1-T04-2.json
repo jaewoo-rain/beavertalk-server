@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T04-2",
+ "no": 296,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김민준 씨를 추천하셨죠? 어떤 사람이에요?",
+   "beaver_en": "You recommended Kim Minjun, right? What's he like?",
+   "beaver_roman": "Gimminjun ssireul chucheonhasyeotjyo? Eotteon saramieyo?",
+   "learner": "성실성이 뛰어나고 아주 믿음직스러운 사람이에요.",
+   "en": "He has great integrity and is very trustworthy.",
+   "roman": "Seongsilseongi ttwieonago aju mideumjikseureoun saramieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "성격은 어때요?",
+   "beaver_en": "What's his personality like?",
+   "beaver_roman": "Seonggyeogeun eottaeyo?",
+   "learner": "털털하고 명랑해서 팀 분위기가 늘 밝아요.",
+   "en": "He's easygoing and cheerful, so the team mood is always bright.",
+   "roman": "Teoltteolhago myeongnanghaeseo tim bunwigiga neul balgayo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 단점은 없어요?",
+   "beaver_en": "Nice. Does he have any weaknesses?",
+   "beaver_roman": "Jonneyo. Danjeomeun eopseoyo?",
+   "learner": "굳이 꼽자면 처음엔 수줍음이 좀 많아요.",
+   "en": "If I had to pick one, he's a bit shy at first.",
+   "roman": "Guji kkopjamyeon cheoeumen sujubeumi jom manayo."
+  },
+  {
+   "n": 4,
+   "beaver": "소심한 편인가요?",
+   "beaver_en": "Is he on the timid side?",
+   "beaver_roman": "Sosimhan pyeoningayo?",
+   "learner": "소심하진 않아요. 조금 예민할 뿐이에요.",
+   "en": "He's not timid. He's just a little sensitive.",
+   "roman": "Sosimhajin anayo. Jogeum yeminhal ppunieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "예민하면 일할 때 힘들지 않을까요?",
+   "beaver_en": "Won't being sensitive make work hard?",
+   "beaver_roman": "Yeminhamyeon ilhal ttae himdeulji aneulkkayo?",
+   "learner": "대신 감성이 풍부해서 고객 마음을 잘 읽어요.",
+   "en": "Instead, he's emotionally rich and reads customers well.",
+   "roman": "Daesin gamseongi pungbuhaeseo gogaek maeumeul jal ilgeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "성격과 기질에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about his character?",
+   "beaver_roman": "Seonggyeokgwa gijire daehae deo malhae jullaeyo?",
+   "learner": "낙관적이고 남에게 관대한 사람이에요.",
+   "en": "He's optimistic and generous toward others.",
+   "roman": "Nakgwanjeogigo namege gwandaehan saramieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 거만하거나 버릇없지는 않아요?",
+   "beaver_en": "He isn't arrogant or rude, is he?",
+   "beaver_roman": "Hoksi geomanhageona beureuteopjineun anayo?",
+   "learner": "거만하거나 심술궂은 모습은 전혀 없어요.",
+   "en": "He's never arrogant or mean at all.",
+   "roman": "Geomanhageona simsulgujeun moseubeun jeonhyeo eopseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "후배들한테는 어때요? 엄한 편인가요?",
+   "beaver_en": "How is he with juniors? Is he strict?",
+   "beaver_roman": "Hubaedeulhanteneun eottaeyo? Eomhan pyeoningayo?",
+   "learner": "일에는 엄하지만 칭찬에는 후한 편이에요.",
+   "en": "He's strict about work but generous with praise.",
+   "roman": "Ireneun eomhajiman chingchaneneun huhan pyeonieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "혹시 말이 직설적인 편은 아니에요?",
+   "beaver_en": "Is he by any chance a bit blunt?",
+   "beaver_roman": "Hoksi mari jikseoljeogin pyeoneun anieyo?",
+   "learner": "악의는 없고 늘 선의로 하는 말이에요.",
+   "en": "There's no malice; he always speaks with good will.",
+   "roman": "Aguineun eopgo neul seonuiro haneun marieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 면접을 잡아 볼게요.",
+   "beaver_en": "Great. Then I'll set up an interview.",
+   "beaver_roman": "Joayo. Geureom myeonjeobeul jaba bolgeyo.",
+   "learner": "단, 처음엔 긴장할 테니 편하게 해 주세요.",
+   "en": "But he'll be nervous at first, so please put him at ease.",
+   "roman": "Dan, cheoeumen ginjanghal teni pyeonhage hae juseyo."
+  }
+ ]
+}

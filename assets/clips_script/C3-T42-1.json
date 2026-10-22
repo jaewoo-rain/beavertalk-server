@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T42-1",
+ "no": 423,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘은 첨단 기술의 영향을 논평해 주시겠습니까?",
+   "beaver_en": "Could you comment on the impact of cutting-edge technology today?",
+   "beaver_roman": "oneureun cheomdan gisurui yeonghyangeul nonpyeonghae jusigetseumnikka?",
+   "learner": "네, 최첨단 기기의 영향은 말할 것도 없이 큽니다.",
+   "en": "Yes, the impact of cutting-edge devices is huge, needless to say.",
+   "roman": "ne, choecheomdan gigiui yeonghyangeun malhal geotdo eopsi keumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 기술이 가장 주목할 만합니까?",
+   "beaver_en": "Which technology deserves the most attention?",
+   "beaver_roman": "eotteon gisuri gajang jumokal manhamnikka?",
+   "learner": "원격 센서와 인공지능의 융합입니다.",
+   "en": "The convergence of remote sensors and AI.",
+   "roman": "wongyeok senseowa ingongjineungui yunghabimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "그 융합이 어디에 쓰입니까?",
+   "beaver_en": "Where is that convergence used?",
+   "beaver_roman": "geu yunghabi eodie sseuimnikka?",
+   "learner": "우주 관측 설비에 쓰여 중력과 질량을 잽니다.",
+   "en": "It's used in space observation facilities to measure gravity and mass.",
+   "roman": "uju gwanchuk seolbie sseuyeo jungnyeokgwa jillyangeul jaemnida."
+  },
+  {
+   "n": 4,
+   "beaver": "생명 과학 쪽은 어떻습니까?",
+   "beaver_en": "What about the life sciences?",
+   "beaver_roman": "saengmyeong gwahak jjogeun eotteoseumnikka?",
+   "learner": "유전자 복제와 합성이 현저하게 빨라졌습니다.",
+   "en": "Gene cloning and synthesis have become remarkably faster.",
+   "roman": "yujeonja bokjewa hapseongi hyeonjeohage ppallajyeotseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "문제는 없습니까?",
+   "beaver_en": "Are there any problems?",
+   "beaver_roman": "munjeneun eopseumnikka?",
+   "learner": "돌연변이 같은 위험을 없는 양 말하면 안 됩니다.",
+   "en": "We shouldn't talk as if risks like mutations don't exist.",
+   "roman": "doryeonbyeoni gateun wiheomeul eomneun yang malhamyeon an doemnida."
+  },
+  {
+   "n": 6,
+   "beaver": "규제가 필요합니까?",
+   "beaver_en": "Is regulation needed?",
+   "beaver_roman": "gyujega piryohamnikka?",
+   "learner": "네, 기업들이 특허를 독점하려고 들기 때문입니다.",
+   "en": "Yes, because companies are intent on monopolizing patents.",
+   "roman": "ne, gieopdeuri teukeoreul dokjeomharyeogo deulgi ttaemunimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "과학기술과 미디어에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about science, technology and media?",
+   "beaver_roman": "gwahakgisulgwa midieoe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "활자 시대와 달리 속보가 바로 배포됩니다.",
+   "en": "Unlike the age of print, breaking news is distributed instantly.",
+   "roman": "hwalja sidaewa dalli sokboga baro baepodoemnida."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 수용자는 무엇을 조심해야 합니까?",
+   "beaver_en": "Then what should audiences be careful about?",
+   "beaver_roman": "geureom suyongjaneun mueoseul josimhaeya hamnikka?",
+   "learner": "외신을 합성한 가짜 영상을 조심해야 합니다.",
+   "en": "They should watch out for fake videos made from foreign news.",
+   "roman": "oesineul hapseonghan gajja yeongsangeul josimhaeya hamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "개인 정보는 안전합니까?",
+   "beaver_en": "Is personal information safe?",
+   "beaver_roman": "gaein jeongboneun anjeonhamnikka?",
+   "learner": "저장된 암호도 새 기술로 쉽게 풀립니다.",
+   "en": "Even stored passwords are easily cracked by new technology.",
+   "roman": "jeojangdoen amhodo sae gisullo swipge pullimnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로 한 말씀 부탁드립니다.",
+   "beaver_en": "Please share a final word.",
+   "beaver_roman": "majimageuro han malsseum butakdeurimnida.",
+   "learner": "기술을 고안할 때도 기기를 분해하듯 살펴야 합니다.",
+   "en": "When devising technology, we must examine it as if taking apart a device.",
+   "roman": "gisureul goanhal ttaedo gigireul bunhaehadeut salpyeoya hamnida."
+  }
+ ]
+}

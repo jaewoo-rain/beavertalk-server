@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T26-1",
+ "no": 104,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 꿈이 뭐예요?",
+   "beaver_en": "Minsu, what's your dream?",
+   "beaver_roman": "Minsu ssi, kkumi mwoyeyo?",
+   "learner": "제 꿈은 요리사인데 아직 잘 못해요.",
+   "en": "My dream is to be a chef, but I'm not good yet.",
+   "roman": "Je kkumeun yorisainde ajik jal motaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 왜 요리사가 되고 싶어요?",
+   "beaver_en": "Really? Why do you want to be a chef?",
+   "beaver_roman": "Geuraeyo? Wae yorisaga doego sipeoyo?",
+   "learner": "요리를 좋아하고 가족들도 제 음식을 좋아해요.",
+   "en": "I like cooking, and my family likes my food too.",
+   "roman": "Yorireul joahago gajokdeuldo je eumsigeul joahaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 다른 직업은요?",
+   "beaver_en": "That's nice. What about other jobs?",
+   "beaver_roman": "Jonneyo. Dareun jigeobeunyo?",
+   "learner": "간호사도 좋은데 피를 보는 게 무서워요.",
+   "en": "Nursing is nice too, but I'm scared of blood.",
+   "roman": "Ganhosado joeunde pireul boneun ge museowoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그렇군요. 부모님은 뭐라고 하세요?",
+   "beaver_en": "I see. What do your parents say?",
+   "beaver_roman": "Geureokunyo. Bumonimeun mworago haseyo?",
+   "learner": "아버지는 군인인데 변호사가 좋다고 하세요.",
+   "en": "My dad is a soldier, and he says a lawyer is good.",
+   "roman": "Abeojineun gunininde byeonhosaga jotago haseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "어머니는요?",
+   "beaver_en": "And your mom?",
+   "beaver_roman": "Eomeonineunyo?",
+   "learner": "어머니는 약사인데 공무원도 좋다고 하세요.",
+   "en": "My mom is a pharmacist, and she says civil servant is good too.",
+   "roman": "Eomeonineun yaksainde gongmuwondo jotago haseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "공무원 시험은요? 준비하고 싶어요?",
+   "beaver_en": "What about the civil service exam? Want to prepare?",
+   "beaver_roman": "Gongmuwon siheomeunyo? Junbihago sipeoyo?",
+   "learner": "공무원 시험은 어려운데 한번 보고 싶어요.",
+   "en": "The exam is hard, but I want to try it once.",
+   "roman": "Gongmuwon siheomeun eoryeounde hanbeon bogo sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "교사는 어때요? 선생님도 좋은 직업이에요.",
+   "beaver_en": "How about teaching? It's a good job too.",
+   "beaver_roman": "Gyosaneun eottaeyo? Seonsaengnimdo joeun jigeobieyo.",
+   "learner": "교사도 멋있는데 저는 말을 잘 못해요.",
+   "en": "Teaching is cool, but I'm not good at speaking.",
+   "roman": "Gyosado meosinneunde jeoneun mareul jal motaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 검사나 운전사는 어때요?",
+   "beaver_en": "Then how about a prosecutor or a driver?",
+   "beaver_roman": "Geureom geomsana unjeonsaneun eottaeyo?",
+   "learner": "검사는 힘든데 운전사는 재미있을 것 같아요.",
+   "en": "A prosecutor is tough, but a driver seems fun.",
+   "roman": "Geomsaneun himdeunde unjeonsaneun jaemiisseul geot gatayo."
+  },
+  {
+   "n": 9,
+   "beaver": "직업과 진로에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about jobs and your future?",
+   "beaver_roman": "Jigeopgwa jilloe daehae deo iyagihae bollaeyo?",
+   "learner": "네, 대학에 가고 싶은데 취직도 걱정돼요.",
+   "en": "Yes, I want to go to college, but I worry about getting a job.",
+   "roman": "Ne, daehage gago sipeunde chwijikdo geokjeongdwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "걱정 마세요. 꿈이 있으면 할 수 있어요.",
+   "beaver_en": "Don't worry. If you have a dream, you can do it.",
+   "beaver_roman": "Geokjeong maseyo. Kkumi isseumyeon hal su isseoyo.",
+   "learner": "감사합니다. 요리사가 되도록 열심히 할게요.",
+   "en": "Thank you. I'll work hard to become a chef.",
+   "roman": "Gamsahamnida. Yorisaga doedorok yeolsimhi halgeyo."
+  }
+ ]
+}

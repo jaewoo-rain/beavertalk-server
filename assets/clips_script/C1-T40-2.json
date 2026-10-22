@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T40-2",
+ "no": 328,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 후원 대상 기준을 여쭤봐도 될까요?",
+   "beaver_en": "Hello. May I ask about the criteria for sponsorship recipients?",
+   "beaver_roman": "annyeonghaseyo. huwon daesang gijuneul yeojjwobwado doelkkayo?",
+   "learner": "네, 저는 희망 복지 재단의 후원 담당자입니다.",
+   "en": "Yes, I'm in charge of sponsorship at the Hope Welfare Foundation.",
+   "roman": "ne, jeoneun huimang bokji jaedanui huwon damdangjaimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "주로 어떤 분들을 후원하십니까?",
+   "beaver_en": "Who do you mainly support?",
+   "beaver_roman": "juro eotteon bundeureul huwonhasimnikka?",
+   "learner": "형편이 어려운 이웃과 보육원 아이들을 주로 후원합니다.",
+   "en": "We mainly support struggling neighbors and children in childcare homes.",
+   "roman": "hyeongpyeoni eoryeoun iutgwa boyugwon aideureul juro huwonhamnida."
+  },
+  {
+   "n": 3,
+   "beaver": "소득 기준도 있습니까?",
+   "beaver_en": "Is there an income requirement too?",
+   "beaver_roman": "sodeuk gijundo itseumnikka?",
+   "learner": "네, 소득이 적은 가정에 한하여 후원하고 있습니다.",
+   "en": "Yes, we support only low-income families.",
+   "roman": "ne, sodeugi jeogeun gajeonge hanhayeo huwonhago itseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "연금을 받는 노인도 대상이 됩니까?",
+   "beaver_en": "Are elderly people who receive a pension eligible?",
+   "beaver_roman": "yeongeumeul banneun noindo daesangi doemnikka?",
+   "learner": "연금이 적은 분에 한하여 대상이 됩니다.",
+   "en": "Only those with a small pension are eligible.",
+   "roman": "yeongeumi jeogeun bune hanhayeo daesangi doemnida."
+  },
+  {
+   "n": 5,
+   "beaver": "재해 피해자는 어떻습니까?",
+   "beaver_en": "What about disaster victims?",
+   "beaver_roman": "jaehae pihaejaneun eotteosseumnikka?",
+   "learner": "전국 어디서든 재해를 입은 분은 모두 지원합니다.",
+   "en": "We support all disaster victims anywhere in the country.",
+   "roman": "jeonguk eodiseodeun jaehaereul ibeun buneun modu jiwonhamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "후원금은 어디에서 나옵니까?",
+   "beaver_en": "Where does the sponsorship money come from?",
+   "beaver_roman": "huwongeumeun eodieseo naomnikka?",
+   "learner": "시민들의 기부와 정기 후원으로 마련합니다.",
+   "en": "It comes from citizens' donations and regular sponsorship.",
+   "roman": "simindeurui gibuwa jeonggi huwoneuro maryeonhamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "자원봉사는 누가 합니까?",
+   "beaver_en": "Who does the volunteer work?",
+   "beaver_roman": "jawonbongsaneun nuga hamnikka?",
+   "learner": "대학생과 지역 주민들이 함께 봉사하고 있습니다.",
+   "en": "College students and local residents volunteer together.",
+   "roman": "daehaksaenggwa jiyeok jumindeuri hamkke bongsahago itseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "봉사하는 분들의 만족도는 어떻습니까?",
+   "beaver_en": "How satisfied are the volunteers?",
+   "beaver_roman": "bongsahaneun bundeurui manjokdoneun eotteosseumnikka?",
+   "learner": "자원봉사로 이웃과 화합하게 되어 만족도가 높습니다.",
+   "en": "They're very satisfied, as volunteering brings harmony with neighbors.",
+   "roman": "jawonbongsaro iutgwa hwahaphage doeeo manjokdoga nopseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "사회 제도와 복지에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about social systems and welfare?",
+   "beaver_roman": "sahoe jedowa bokjie daehae deo malsseumhae jusigesseumnikka?",
+   "learner": "이제 복지는 사회의 중심이고, 협력이 중요합니다.",
+   "en": "Welfare is now central to society, and cooperation matters.",
+   "roman": "ije bokjineun sahoeui jungsimigo, hyeomnyeogi jungyohamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 많이 배웠습니다.",
+   "beaver_en": "Thank you for your kind words. I learned a lot.",
+   "beaver_roman": "joeun malsseum gamsahamnida. mani baewotseumnida.",
+   "learner": "이웃 사랑이 정말 중요하지요. 또 연락 주세요.",
+   "en": "Loving your neighbors really matters. Feel free to contact us again.",
+   "roman": "iut sarangi jeongmal jungyohajiyo. tto yeollak juseyo."
+  }
+ ]
+}

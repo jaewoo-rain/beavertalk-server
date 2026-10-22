@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T19-1",
+ "no": 34,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요? 누구세요?",
+   "beaver_en": "Hello? Who is it?",
+   "beaver_roman": "annyeonghaseyo? nuguseyo?",
+   "learner": "안녕하세요. 옆집에 사는 김민수예요.",
+   "en": "Hello. I'm Kim Minsu from next door.",
+   "roman": "annyeonghaseyo. yeopjibe saneun gim minsuyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "아, 네! 반가워요. 저는 이지은이에요.",
+   "beaver_en": "Oh, yes! Nice to meet you. I'm Lee Jieun.",
+   "beaver_roman": "a, ne! bangawoyo. jeoneun i jieunieyo.",
+   "learner": "반갑습니다. 이사 오셔서 인사하러 왔어요.",
+   "en": "Nice to meet you. You moved in, so I came to say hi.",
+   "roman": "bangapseumnida. isa osyeoseo insahareo wasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 정말 고마워요. 들어오세요.",
+   "beaver_en": "Wow, thank you so much. Come in.",
+   "beaver_roman": "wa, jeongmal gomawoyo. deureooseyo.",
+   "learner": "아니요, 괜찮아요. 늦게 와서 미안해요.",
+   "en": "No, it's okay. Sorry I came so late.",
+   "roman": "aniyo, gwaenchanayo. neutge waseo mianhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아니에요. 저는 지난달에 이사 왔어요.",
+   "beaver_en": "Not at all. I moved here last month.",
+   "beaver_roman": "anieyo. jeoneun jinandare isa wasseoyo.",
+   "learner": "죄송해요. 바빠서 시간이 없었어요.",
+   "en": "I'm sorry. I was busy, so I had no time.",
+   "roman": "joesonghaeyo. bappaseo sigani eopseosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "괜찮아요. 근데 무슨 일 있으세요?",
+   "beaver_en": "That's fine. But is something up?",
+   "beaver_roman": "gwaenchanayo. geunde museun il isseuseyo?",
+   "learner": "실례지만 부탁이 하나 있어요.",
+   "en": "Excuse me, but I have a favor to ask.",
+   "roman": "sillyejiman butagi hana isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "네, 말씀하세요.",
+   "beaver_en": "Sure, go ahead.",
+   "beaver_roman": "ne, malsseumhaseyo.",
+   "learner": "다음 주에 일주일 동안 여행을 가요.",
+   "en": "I'm going on a trip for a week next week.",
+   "roman": "daeum jue iljuil dongan yeohaengeul gayo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 좋겠어요! 집은 누가 봐요?",
+   "beaver_en": "Wow, sounds nice! Who will watch your house?",
+   "beaver_roman": "wa, jokesseoyo! jibeun nuga bwayo?",
+   "learner": "아무도 없어요. 화분에 물 좀 주실래요?",
+   "en": "No one. Could you water my plants?",
+   "roman": "amudo eopseoyo. hwabune mul jom jusillaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 좋아요. 걱정하지 마세요.",
+   "beaver_en": "Sure. Don't worry.",
+   "beaver_roman": "ne, joayo. geokjeonghaji maseyo.",
+   "learner": "도와주셔서 정말 감사합니다.",
+   "en": "Thank you so much for helping me.",
+   "roman": "dowajusyeoseo jeongmal gamsahamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "아니에요. 이웃끼리 도와야죠.",
+   "beaver_en": "Not at all. Neighbors should help each other.",
+   "beaver_roman": "anieyo. iutkkiri dowayajyo.",
+   "learner": "네, 맞아요. 만나서 정말 반가웠어요.",
+   "en": "Yes, that's right. It was really nice meeting you.",
+   "roman": "ne, majayo. mannaseo jeongmal bangawosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "저도요. 안녕히 가세요.",
+   "beaver_en": "Me too. Goodbye.",
+   "beaver_roman": "jeodoyo. annyeonghi gaseyo.",
+   "learner": "네, 안녕히 계세요.",
+   "en": "Okay, goodbye.",
+   "roman": "ne, annyeonghi gyeseyo."
+  }
+ ]
+}

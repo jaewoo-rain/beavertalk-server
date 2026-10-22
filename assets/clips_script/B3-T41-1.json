@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T41-1",
+ "no": 236,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 새 사업 손익 계산해 봤어요?",
+   "beaver_en": "Minsu, did you calculate the new business's profit and loss?",
+   "beaver_roman": "Minsu ssi, sae saeop sonik gyesanhae bwasseoyo?",
+   "learner": "네, 올해 예산으로는 적자가 날 게 뻔해요.",
+   "en": "Yes, with this year's budget, a deficit is obvious.",
+   "roman": "Ne, olhae yesaneuroneun jeokjaga nal ge ppeonhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 이익이 전혀 없을까요?",
+   "beaver_en": "Really? Will there be no profit at all?",
+   "beaver_roman": "Jeongmallyo? Iigi jeonhyeo eopseulkkayo?",
+   "learner": "첫해에는 손해를 볼 게 뻔해요. 투자가 커서요.",
+   "en": "We'll obviously lose money the first year. The investment is big.",
+   "roman": "Cheotaeeneun sonhaereul bol ge ppeonhaeyo. Tujaga keoseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "자본은 얼마나 더 필요해요?",
+   "beaver_en": "How much more capital do we need?",
+   "beaver_roman": "Jaboneun eolmana deo piryohaeyo?",
+   "learner": "자본이 지금보다 두 배는 필요할 거예요.",
+   "en": "We'll need about twice the capital we have now.",
+   "roman": "Jaboni jigeumboda du baeneun piryohal geoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "거래처 반응은요?",
+   "beaver_en": "How about our clients' reaction?",
+   "beaver_roman": "Georaecheo baneungeunyo?",
+   "learner": "거래 조건이 확실하지 않아서 앞이 깜깜해요.",
+   "en": "The deal terms aren't certain, so the future looks dark.",
+   "roman": "Georae jogeoni hwaksilhaji anaseo api kkamkkamhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "시중 반응은 어떨 것 같아요?",
+   "beaver_en": "How do you think the market will react?",
+   "beaver_roman": "Sijung baneungeun eotteol geot gatayo?",
+   "learner": "시중에 비슷한 제품이 많아서 고생할 게 뻔해요.",
+   "en": "There are many similar products, so we'll obviously struggle.",
+   "roman": "Sijunge biseutan jepumi manaseo gosaenghal ge ppeonhaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래도 우리 제품은 좀 독특하잖아요.",
+   "beaver_en": "Still, our product is kind of unique.",
+   "beaver_roman": "Geuraedo uri jepumeun jom dokteukajanayo.",
+   "learner": "맞아요. 그나마 디자인이 독특해서 다행이에요.",
+   "en": "Right. At least the design is unique, luckily.",
+   "roman": "Majayo. Geunama dijaini dokteukaeseo dahaengieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘 소비자들 소득은 어때요?",
+   "beaver_en": "How is consumers' income these days?",
+   "beaver_roman": "Yojeum sobijadeul sodeugeun eottaeyo?",
+   "learner": "소득이 줄어서 소비도 많이 줄었어요.",
+   "en": "Income dropped, so spending has fallen a lot too.",
+   "roman": "Sodeugi jureoseo sobido mani jureosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래도 해야 할까요?",
+   "beaver_en": "Should we still do it?",
+   "beaver_roman": "Geuraedo haeya halkkayo?",
+   "learner": "네, 장기 투자로 보면 이익이 날 거예요.",
+   "en": "Yes, as a long-term investment, it will make a profit.",
+   "roman": "Ne, janggi tujaro bomyeon iigi nal geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다른 부서와 이해관계도 얽혀 있잖아요.",
+   "beaver_en": "Other departments' interests are tangled up in it too.",
+   "beaver_roman": "Dareun buseowa ihaegwangyedo eolkyeo itjanayo.",
+   "learner": "네, 이해관계를 잘 조정하는 게 중요해요.",
+   "en": "Yes, it's important to balance everyone's interests well.",
+   "roman": "Ne, ihaegwangyereul jal jojeonghaneun ge jungyohaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 부장님께 같이 보고해요.",
+   "beaver_en": "Good. Then let's report to the manager together.",
+   "beaver_roman": "Joayo. Geureom bujangnimkke gachi bogohaeyo.",
+   "learner": "네, 예산안을 정리해서 내일 보여 드릴게요.",
+   "en": "Okay, I'll organize the budget plan and show you tomorrow.",
+   "roman": "Ne, yesananeul jeongnihaeseo naeil boyeo deurilgeyo."
+  }
+ ]
+}

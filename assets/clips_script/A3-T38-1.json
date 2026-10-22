@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T38-1",
+ "no": 76,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 동물원 재미있었어요. 무슨 동물을 봤어요?",
+   "beaver_en": "The zoo was fun today. What animals did you see?",
+   "beaver_roman": "oneul dongmurwon jaemiisseosseoyo. museun dongmureul bwasseoyo?",
+   "learner": "저는 토끼하고 말을 봤어요. 정말 귀여웠어요.",
+   "en": "I saw rabbits and horses. They were really cute.",
+   "roman": "jeoneun tokkihago mareul bwasseoyo. jeongmal gwiyeowosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "물고기도 있었어요?",
+   "beaver_en": "Were there fish too?",
+   "beaver_roman": "mulkkogido isseosseoyo?",
+   "learner": "네, 그런데 작은 물고기밖에 없었어요.",
+   "en": "Yes, but there were only small fish.",
+   "roman": "ne, geureonde jageun mulkkogibakke eopseosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "새도 봤어요? 새소리가 크게 들렸어요.",
+   "beaver_en": "Did you see birds too? I heard them singing loudly.",
+   "beaver_roman": "saedo bwasseoyo? saesoriga keuge deullyeosseoyo.",
+   "learner": "네, 새도 봤어요. 닭하고 소도 있었어요.",
+   "en": "Yes, I saw birds. There were chickens and cows too.",
+   "roman": "ne, saedo bwasseoyo. dakago sodo isseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "집에서도 동물을 키워요?",
+   "beaver_en": "Do you have a pet at home too?",
+   "beaver_roman": "jibeseodo dongmureul kiwoyo?",
+   "learner": "네, 강아지를 키워요. 이름은 콩이에요.",
+   "en": "Yes, I have a puppy. Its name is Kong.",
+   "roman": "ne, gangajireul kiwoyo. ireumeun kongieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "와, 좋겠어요! 저도 동물을 기르고 싶어요.",
+   "beaver_en": "Wow, lucky you! I want to raise an animal too.",
+   "beaver_roman": "wa, jokesseoyo! jeodo dongmureul gireugo sipeoyo.",
+   "learner": "그럼 토끼를 길러 보세요. 귀여워요.",
+   "en": "Then try raising a rabbit. They're cute.",
+   "roman": "geureom tokkireul gilleo boseyo. gwiyeowoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "동물원에 꽃도 많았지요?",
+   "beaver_en": "There were lots of flowers at the zoo too, right?",
+   "beaver_roman": "dongmurwone kkotdo manatjiyo?",
+   "learner": "네, 동물원에 장미가 많이 피었어요.",
+   "en": "Yes. Lots of roses were blooming at the zoo.",
+   "roman": "ne, dongmurwone jangmiga mani pieosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 냄새도 좋았어요. 무궁화도 봤어요?",
+   "beaver_en": "Right. They smelled nice too. Did you see the rose of Sharon?",
+   "beaver_roman": "majayo. naemsaedo joasseoyo. mugunghwado bwasseoyo?",
+   "learner": "네, 무궁화도 피었어요. 잎도 예뻤어요.",
+   "en": "Yes, the rose of Sharon was blooming. The leaves were pretty too.",
+   "roman": "ne, mugunghwado pieosseoyo. ipdo yeppeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저는 사과나무도 봤어요.",
+   "beaver_en": "I saw an apple tree too.",
+   "beaver_roman": "jeoneun sagwanamudo bwasseoyo.",
+   "learner": "저도요. 사과가 많이 열렸어요.",
+   "en": "Me too. It had lots of apples on it.",
+   "roman": "jeodoyo. sagwaga mani yeollyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "사과 씨를 심으면 나무가 자랄까요?",
+   "beaver_en": "If we plant apple seeds, will a tree grow?",
+   "beaver_roman": "sagwa ssireul simeumyeon namuga jaralkkayo?",
+   "learner": "네, 자라요. 저도 심고 싶어요.",
+   "en": "Yes, it will grow. I want to plant some too.",
+   "roman": "ne, jarayo. jeodo simgo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그런데 오늘 모기가 많아서 힘들었어요.",
+   "beaver_en": "But there were so many mosquitoes today, it was rough.",
+   "beaver_roman": "geureonde oneul mogiga manaseo himdeureosseoyo.",
+   "learner": "모기는 싫었지만 재미있었어요. 또 와요!",
+   "en": "I hated the mosquitoes, but it was fun. Let's come again!",
+   "roman": "mogineun sireotjiman jaemiisseosseoyo. tto wayo!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T15-1",
+ "no": 11,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "저기요, 화장실은 어디에 있어요?",
+   "beaver_en": "Excuse me, where is the restroom?",
+   "beaver_roman": "jeogiyo, hwajangsireun eodie isseoyo?",
+   "learner": "이 층에 있어요. 엘리베이터 옆에 있어요.",
+   "en": "It's on this floor. It's next to the elevator.",
+   "roman": "i cheunge isseoyo. ellibeiteo yeope isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "감사합니다. 매점은 멀어요?",
+   "beaver_en": "Thank you. Is the snack shop far?",
+   "beaver_roman": "gamsahamnida. maejeomeun meoreoyo?",
+   "learner": "아니요, 별로 안 멀어요. 계단 뒤에 있어요.",
+   "en": "No, it's not very far. It's behind the stairs.",
+   "roman": "aniyo, byeollo an meoreoyo. gyedan dwie isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "여기가 일 층이에요? 회의실은 위에 있어요?",
+   "beaver_en": "Is this the first floor? Is the meeting room upstairs?",
+   "beaver_roman": "yeogiga il cheungieyo? hoeuisireun wie isseoyo?",
+   "learner": "네, 여기가 일 층이에요. 회의실은 위에 없어요.",
+   "en": "Yes, this is the first floor. The meeting room isn't upstairs.",
+   "roman": "ne, yeogiga il cheungieyo. hoeuisireun wie eopseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 회의실은 어디에 있어요?",
+   "beaver_en": "Then where is the meeting room?",
+   "beaver_roman": "geureom hoeuisireun eodie isseoyo?",
+   "learner": "아래에 있어요. 지하 일 층에 있어요.",
+   "en": "It's downstairs. It's on basement level one.",
+   "roman": "araee isseoyo. jiha il cheunge isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "지하에 어떻게 가요?",
+   "beaver_en": "How do I get to the basement?",
+   "beaver_roman": "jihae eotteoke gayo?",
+   "learner": "엘리베이터를 타세요. 화장실과 매점 사이에 있어요.",
+   "en": "Take the elevator. It's between the restroom and the snack shop.",
+   "roman": "ellibeiteoreul taseyo. hwajangsilgwa maejeom saie isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "회의실 근처에 카페도 있어요?",
+   "beaver_en": "Is there a café near the meeting room too?",
+   "beaver_roman": "hoeuisil geuncheoe kapedo isseoyo?",
+   "learner": "네, 회의실 앞에 카페가 있어요.",
+   "en": "Yes, there's a café in front of the meeting room.",
+   "roman": "ne, hoeuisil ape kapega isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "옆 건물에도 가고 싶어요. 밖으로 나가요?",
+   "beaver_en": "I also want to go to the next building. Do I go outside?",
+   "beaver_roman": "yeop geonmuredo gago sipeoyo. bakkeuro nagayo?",
+   "learner": "아니요, 이 층 가운데에 다리가 있어요.",
+   "en": "No, there's a bridge in the middle of this floor.",
+   "roman": "aniyo, i cheung gaundee dariga isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "다리요? 재미있는 장소네요!",
+   "beaver_en": "A bridge? What an interesting place!",
+   "beaver_roman": "dariyo? jaemiinneun jangsoneyo!",
+   "learner": "네, 좋은 장소예요. 다리 옆에 정원이 있어요.",
+   "en": "Yes, it's a nice place. There's a garden next to the bridge.",
+   "roman": "ne, joeun jangsoyeyo. dari yeope jeongwoni isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "제 차가 밖에 있어요. 주차장은 어디에 있어요?",
+   "beaver_en": "My car is outside. Where is the parking lot?",
+   "beaver_roman": "je chaga bakke isseoyo. juchajangeun eodie isseoyo?",
+   "learner": "주차장은 건물 밖에 있어요. 정문 옆이에요.",
+   "en": "The parking lot is outside the building. It's next to the main entrance.",
+   "roman": "juchajangeun geonmul bakke isseoyo. jeongmun yeopieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "도와주셔서 정말 감사합니다.",
+   "beaver_en": "Thank you so much for your help.",
+   "beaver_roman": "dowajusyeoseo jeongmal gamsahamnida.",
+   "learner": "아니에요. 회의 잘하세요!",
+   "en": "Not at all. Good luck with your meeting!",
+   "roman": "anieyo. hoeui jalhaseyo!"
+  }
+ ]
+}

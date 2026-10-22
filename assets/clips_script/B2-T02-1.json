@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T02-1",
+ "no": 162,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오랜만이야! 외할머니 생신 잔치에서 소식 많이 들었어.",
+   "beaver_en": "Long time no see! I heard lots of news at Grandma's birthday party.",
+   "beaver_roman": "oraenmaniya! oehalmeoni saengsin janchieseo sosik mani deureosseo.",
+   "learner": "외할머니는 잘 계셔? 많이 궁금했어.",
+   "en": "Is Grandma doing well? I've been wondering a lot.",
+   "roman": "oehalmeonineun jal gyesyeo? mani gunggeumhaesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "응, 건강하셔. 외할아버지랑 매일 같이 산책하셔.",
+   "beaver_en": "Yes, she's healthy. She walks with Grandpa every day.",
+   "beaver_roman": "eung, geonganghasyeo. oeharabeojirang maeil gachi sanchaekasyeo.",
+   "learner": "외할아버지도 잘 지내시는 모양이네. 다행이다.",
+   "en": "Looks like Grandpa is doing well too. That's a relief.",
+   "roman": "oeharabeojido jal jinaesineun moyangine. dahaengida."
+  },
+  {
+   "n": 3,
+   "beaver": "그리고 큰 소식! 외숙모가 지난달에 애기를 낳으셨어.",
+   "beaver_en": "And big news! Our aunt had a baby last month.",
+   "beaver_roman": "geurigo keun sosik! oesungmoga jinandare aegireul naeusyeosseo.",
+   "learner": "외숙모가 애기를 낳으셨구나! 정말 축하할 일이다.",
+   "en": "Our aunt had a baby! That's really great news.",
+   "roman": "oesungmoga aegireul naeusyeotguna! jeongmal chukahal irida."
+  },
+  {
+   "n": 4,
+   "beaver": "응, 아들이래. 외할머니가 제일 좋아하셔.",
+   "beaver_en": "Yes, it's a boy. Grandma is the happiest of all.",
+   "beaver_roman": "eung, adeurirae. oehalmeoniga jeil joahasyeo.",
+   "learner": "외할머니가 정말 기쁘신 모양이네.",
+   "en": "Grandma must be really happy.",
+   "roman": "oehalmeoniga jeongmal gippeusin moyangine."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아. 매일 애기 보러 가셔. 온 가족이 난리야.",
+   "beaver_en": "Right. She goes to see the baby daily. The whole family is excited.",
+   "beaver_roman": "maja. maeil aegi boreo gasyeo. on gajogi nalliya.",
+   "learner": "작은아버지네는? 요즘 어떻게 지내셔?",
+   "en": "What about Uncle's family? How are they doing these days?",
+   "roman": "jageunabeojineneun? yojeum eotteoke jinaesyeo?"
+  },
+  {
+   "n": 6,
+   "beaver": "작은아버지는 새 일을 시작하셔서 엄청 바쁘셔.",
+   "beaver_en": "Uncle started a new job, so he's super busy.",
+   "beaver_roman": "jageunabeojineun sae ireul sijakasyeoseo eomcheong bappeusyeo.",
+   "learner": "그래서 요즘 연락을 못 하시는 모양이구나.",
+   "en": "So that's why he can't keep in touch lately.",
+   "roman": "geuraeseo yojeum yeollageul motasineun moyangiguna."
+  },
+  {
+   "n": 7,
+   "beaver": "작은어머니는 수진이 결혼 준비로 바쁘셔.",
+   "beaver_en": "Aunt is busy preparing for Sujin's wedding.",
+   "beaver_roman": "jageuneomeonineun sujini gyeolhon junbiro bappeusyeo.",
+   "learner": "수진이가 곧 시집을 가는 모양이네! 언제야?",
+   "en": "Looks like Sujin is getting married soon! When is it?",
+   "roman": "sujiniga got sijibeul ganeun moyangine! eonjeya?"
+  },
+  {
+   "n": 8,
+   "beaver": "가을에 해. 작은아버지가 좀 서운해하셔.",
+   "beaver_en": "In the fall. Uncle is a little sad about it.",
+   "beaver_roman": "gaeure hae. jageunabeojiga jom seounhaehasyeo.",
+   "learner": "하나뿐인 딸이라 서운하신 모양이야.",
+   "en": "He must be sad since she's his only daughter.",
+   "roman": "hanappunin ttarira seounhasin moyangiya."
+  },
+  {
+   "n": 9,
+   "beaver": "그런데 너희 부모님은 어떠셔? 다들 궁금해해.",
+   "beaver_en": "By the way, how are your parents? Everyone's curious.",
+   "beaver_roman": "geureonde neohui bumonimeun eotteosyeo? dadeul gunggeumhaehae.",
+   "learner": "아버지는 친구분 아버님 장례식에 가셨어.",
+   "en": "Dad went to his friend's father's funeral.",
+   "roman": "abeojineun chingubun abeonim jangnyesige gasyeosseo."
+  },
+  {
+   "n": 10,
+   "beaver": "그렇구나. 다음 달 가족 모임에서 다 같이 보자.",
+   "beaver_en": "I see. Let's all meet at next month's family gathering.",
+   "beaver_roman": "geureokuna. daeum dal gajok moimeseo da gachi boja.",
+   "learner": "다들 오는 모양이네. 그때 보자!",
+   "en": "Looks like everyone's coming. See you then!",
+   "roman": "dadeul oneun moyangine. geuttae boja!"
+  }
+ ]
+}

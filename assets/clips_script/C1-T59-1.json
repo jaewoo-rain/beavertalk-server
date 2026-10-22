@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T59-1",
+ "no": 340,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 어디가 불편해서 오셨습니까?",
+   "beaver_en": "Welcome. What brings you in today?",
+   "beaver_roman": "eoseo oseyo. eodiga bulpyeonhaeseo osyeotseumnikka?",
+   "learner": "요즘 편두통이 심해서 일을 못 할 지경이에요.",
+   "en": "My migraines are so bad lately I can barely work.",
+   "roman": "yojeum pyeondutongi simhaeseo ireul mot hal jigyeongieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터 아프셨습니까? 다른 증상은 없으십니까?",
+   "beaver_en": "Since when? Do you have any other symptoms?",
+   "beaver_roman": "eonjebuteo apeusyeotseumnikka? dareun jeungsangeun eopseusimnikka?",
+   "learner": "일주일 됐어요. 눈도 충혈되고 속이 쓰려요.",
+   "en": "About a week. My eyes are bloodshot and my stomach stings.",
+   "roman": "iljuil dwaesseoyo. nundo chunghyeoldoego sogi sseuryeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "속이 쓰리면 신물도 올라옵니까?",
+   "beaver_en": "When your stomach stings, do you get acid reflux?",
+   "beaver_roman": "sogi sseurimyeon sinmuldo ollaomnikka?",
+   "learner": "네, 밤마다 신물이 올라와서 불면증까지 생겼어요.",
+   "en": "Yes, reflux every night has even given me insomnia.",
+   "roman": "ne, bammada sinmuri ollawaseo bulmyeonjeungkkaji saenggyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "스트레스가 많으십니까? 생활은 어떻습니까?",
+   "beaver_en": "Are you under a lot of stress? How is your daily life?",
+   "beaver_roman": "seuteureseuga maneusimnikka? saenghwareun eotteoseumnikka?",
+   "learner": "회사 일이 빠듯해서 매일 너무 고단해요.",
+   "en": "Work is so tight that I'm exhausted every day.",
+   "roman": "hoesa iri ppadeutaeseo maeil neomu godanhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "가족 중에 고혈압 있는 분이 계십니까?",
+   "beaver_en": "Does anyone in your family have high blood pressure?",
+   "beaver_roman": "gajok junge gohyeorap inneun buni gyesimnikka?",
+   "learner": "아버지가 고혈압이랑 당뇨가 있으세요.",
+   "en": "My father has high blood pressure and diabetes.",
+   "roman": "abeojiga gohyeorabirang dangnyoga isseuseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그렇군요. 최근에 다치신 적은 없습니까?",
+   "beaver_en": "I see. Have you been hurt recently?",
+   "beaver_roman": "geureokunyo. choegeune dachisin jeogeun eopseumnikka?",
+   "learner": "부상은 없어요. 그런데 이도 시리고 치통이 있어요.",
+   "en": "No injuries. But my teeth are sensitive and I have a toothache.",
+   "roman": "busangeun eopseoyo. geureonde ido sirigo chitongi isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "치아는 치과에 가 보셔야 합니다. 또 있습니까?",
+   "beaver_en": "You should see a dentist for that. Anything else?",
+   "beaver_roman": "chianeun chigwae ga bosyeoya hamnida. tto itseumnikka?",
+   "learner": "요즘 탈모도 생겼어요. 혹시 난치병일까요?",
+   "en": "I've started losing hair too. Could it be incurable?",
+   "roman": "yojeum talmodo saenggyeosseoyo. hoksi nanchibyeongilkkayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "걱정 마세요. 스트레스로 생기는 경우가 많습니다.",
+   "beaver_en": "Don't worry. It's often caused by stress.",
+   "beaver_roman": "geokjeong maseyo. seuteureseuro saenggineun gyeonguga manseumnida.",
+   "learner": "다행이네요. 무릎도 쑤시고 다리가 퉁퉁 부어요.",
+   "en": "What a relief. My knees ache and my legs are swollen.",
+   "roman": "dahaengineyo. mureupdo ssusigo dariga tungtung bueoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "혈액 검사로 원인을 확인해 보겠습니다.",
+   "beaver_en": "We'll check the cause with a blood test.",
+   "beaver_roman": "hyeoraek geomsaro wonineul hwaginhae bogetseumnida.",
+   "learner": "혹시 세균이나 바이러스에 감염된 건가요?",
+   "en": "Could I be infected with bacteria or a virus?",
+   "roman": "hoksi segyunina baireoseue gamyeomdoen geongayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "검사 결과를 보고 말씀드리겠습니다. 푹 쉬세요.",
+   "beaver_en": "I'll tell you after the results. Get plenty of rest.",
+   "beaver_roman": "geomsa gyeolgwareul bogo malsseumdeurigetseumnida. puk swiseyo.",
+   "learner": "네, 몸에 탈이 나지 않게 조심할게요. 감사합니다.",
+   "en": "Okay, I'll take care not to get sick. Thank you.",
+   "roman": "ne, mome tari naji anke josimhalgeyo. gamsahamnida."
+  }
+ ]
+}

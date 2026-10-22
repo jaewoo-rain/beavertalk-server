@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T33-1",
+ "no": 71,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 주말에 우리 뭐 할까요?",
+   "beaver_en": "What should we do this weekend?",
+   "beaver_roman": "ibeon jumare uri mwo halkkayo?",
+   "learner": "등산 어때요? 날씨가 좋으니까요.",
+   "en": "How about hiking? The weather is nice.",
+   "roman": "deungsan eottaeyo? nalssiga joeunikkayo."
+  },
+  {
+   "n": 2,
+   "beaver": "등산이요? 산이 많이 추울까요?",
+   "beaver_en": "Hiking? Do you think it'll be very cold on the mountain?",
+   "beaver_roman": "deungsaniyo? sani mani chuulkkayo?",
+   "learner": "아니요, 봄이니까 안 추울 거예요.",
+   "en": "No, it's spring, so it probably won't be cold.",
+   "roman": "aniyo, bominikka an chuul geoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 카메라를 가져올 거예요?",
+   "beaver_en": "Okay. Will you bring a camera?",
+   "beaver_roman": "joayo. kamerareul gajyeool geoyeyo?",
+   "learner": "네, 제 취미가 사진이니까 가져갈게요.",
+   "en": "Yes, photography is my hobby, so I'll bring it.",
+   "roman": "ne, je chwimiga sajininikka gajyeogalgeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 비가 오면 어떻게 해요?",
+   "beaver_en": "But what do we do if it rains?",
+   "beaver_roman": "geureonde biga omyeon eotteoke haeyo?",
+   "learner": "그럼 노래방에 가요. 무척 재미있을 거예요.",
+   "en": "Then let's go to a karaoke room. It'll be really fun.",
+   "roman": "geureom noraebange gayo. mucheok jaemiisseul geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저는 노래를 잘 못해요. 목소리도 작아요.",
+   "beaver_en": "I'm not good at singing. My voice is quiet too.",
+   "beaver_roman": "jeoneun noraereul jal motaeyo. moksorido jagayo.",
+   "learner": "괜찮아요. 친구니까 편할 거예요.",
+   "en": "It's okay. We're friends, so it'll be comfortable.",
+   "roman": "gwaenchanayo. chingunikka pyeonhal geoyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "하하, 좋아요. 다른 취미도 있어요?",
+   "beaver_en": "Haha, okay. Do you have other hobbies?",
+   "beaver_roman": "haha, joayo. dareun chwimido isseoyo?",
+   "learner": "독서를 좋아해요. 소설을 자주 읽어요.",
+   "en": "I like reading. I often read novels.",
+   "roman": "dokseoreul joahaeyo. soseoreul jaju ilgeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "소설은 내용이 어렵지 않을까요?",
+   "beaver_en": "Aren't novels hard to understand?",
+   "beaver_roman": "soseoreun naeyongi eoryeopji aneulkkayo?",
+   "learner": "아니요, 쉬워요. 그리고 내용이 깊어서 좋아요.",
+   "en": "No, they're easy. And I like that the content is deep.",
+   "roman": "aniyo, swiwoyo. geurigo naeyongi gipeoseo joayo."
+  },
+  {
+   "n": 8,
+   "beaver": "저는 소설보다 잡지를 자주 읽어요.",
+   "beaver_en": "I read magazines more than novels.",
+   "beaver_roman": "jeoneun soseolboda japjireul jaju ilgeoyo.",
+   "learner": "잡지도 좋아요. 사진이 많으니까 재미있어요.",
+   "en": "Magazines are good too. They're fun with lots of photos.",
+   "roman": "japjido joayo. sajini maneunikka jaemiisseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "참, 산에서 점심도 먹을까요?",
+   "beaver_en": "Oh, shall we eat lunch on the mountain too?",
+   "beaver_roman": "cham, saneseo jeomsimdo meogeulkkayo?",
+   "learner": "좋아요! 소풍이니까 김밥을 가져갈게요.",
+   "en": "Great! It's a picnic, so I'll bring gimbap.",
+   "roman": "joayo! sopunginikka gimbabeul gajyeogalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 토요일 아침 아홉 시에 만나요!",
+   "beaver_en": "Great. Let's meet Saturday at 9 a.m.!",
+   "beaver_roman": "joayo. toyoil achim ahop sie mannayo!",
+   "learner": "좋아요. 토요일 아홉 시에 봐요!",
+   "en": "Great. See you Saturday at nine!",
+   "roman": "joayo. toyoil ahop sie bwayo!"
+  }
+ ]
+}

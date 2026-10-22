@@ -330,6 +330,10 @@ class Settings(BaseSettings):
     CLIP_USD_TEXT_OUT_PER_M: float = 2.50     # gemini-2.5-flash 출력 100만 토큰
     CLIP_USD_STT_PER_MIN: float = 0.024       # Google STT v1 표준 1분
     CLIP_USD_TTS_PER_M_CHARS: float = 30.0    # Cloud TTS Chirp3-HD 100만 글자
+    # PM-DEC-1024 — 같은 줄에서 학습자가 말이 없으면: 이만큼(초) 뒤 비버 줄 녹음을 한 번 다시 들려주고,
+    #   그 뒤로 SKIP 초 더 무음이면 다음 줄로 건너뛴다. 0 = 끔.
+    SCRIPT_READ_SILENT_REPLAY_S: float = 15.0
+    SCRIPT_READ_SILENT_SKIP_S: float = 30.0
     SCRIPT_READ_END_SILENCE_S: float = 1.2   # 대본 읽기 말 끝 무음(두 문장 줄 사이 쉼을 끝으로 보지 않게)
     SCRIPT_READ_STT_PROBE: bool = False   # PM-DEC-898 — 긴 줄 지연 조사(영어 대체 없는 받아쓰기 시간만 기록 · 시험 태그 전용)
     # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고

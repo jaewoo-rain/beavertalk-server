@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T62-1",
+ "no": 158,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 무엇을 도와드릴까요?",
+   "beaver_en": "Welcome. How can I help you?",
+   "beaver_roman": "eoseo oseyo. mueoseul dowadeurilkkayo?",
+   "learner": "대출에 대한 상담을 받고 싶어요.",
+   "en": "I'd like a consultation about a loan.",
+   "roman": "daechure daehan sangdameul batgo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 어떤 일로 대출이 필요하세요?",
+   "beaver_en": "Sure, what do you need the loan for?",
+   "beaver_roman": "ne, eotteon illo daechuri piryohaseyo?",
+   "learner": "집 계약금이 부족해서 대출을 받으려고 해요.",
+   "en": "I'm short on a house deposit, so I want to get a loan.",
+   "roman": "jip gyeyakgeumi bujokaeseo daechureul badeuryeogo haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "금액은 얼마인가요?",
+   "beaver_en": "How much is the amount?",
+   "beaver_roman": "geumaegeun eolmaingayo?",
+   "learner": "천만 원 정도예요. 이자는 얼마예요?",
+   "en": "About ten million won. What's the interest?",
+   "roman": "cheonman won jeongdoyeyo. ijaneun eolmayeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "일 년에 오 퍼센트예요. 수수료도 있어요.",
+   "beaver_en": "It's five percent a year. There's also a fee.",
+   "beaver_roman": "il lyeone o peosenteuyeyo. susuryodo isseoyo.",
+   "learner": "수수료에 대한 설명도 해 주세요.",
+   "en": "Please explain the fee too.",
+   "roman": "susuryoe daehan seolmyeongdo hae juseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "처음에 한 번 만 원을 내시면 돼요.",
+   "beaver_en": "You just pay ten thousand won once at the start.",
+   "beaver_roman": "cheoeume han beon manwoneul naesimyeon dwaeyo.",
+   "learner": "알겠어요. 매달 조금씩 갚고 싶어요.",
+   "en": "I see. I want to pay it back little by little each month.",
+   "roman": "algesseoyo. maedal jogeumssik gapgo sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "한 달 수입은 어떻게 되세요?",
+   "beaver_en": "What is your monthly income?",
+   "beaver_roman": "han dal suibeun eotteoke doeseyo?",
+   "learner": "수입이 이백만 원이라 형편이 넉넉하지 않아요.",
+   "en": "My income is two million won, so I'm not well off.",
+   "roman": "suibi ibaengman wonira hyeongpyeoni neongneokaji anayo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 생활비를 아끼셔야겠네요.",
+   "beaver_en": "Then you'll need to save on living expenses.",
+   "beaver_roman": "geureom saenghwalbireul akkisyeoyagenneyo.",
+   "learner": "네, 공과금하고 보험 비용이 많이 들어요.",
+   "en": "Yes, utility bills and insurance cost a lot.",
+   "roman": "ne, gonggwageumhago boheom biyongi mani deureoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "절약에 대한 팁을 알려 드릴까요?",
+   "beaver_en": "Shall I give you some tips on saving?",
+   "beaver_roman": "jeoryage daehan tibeul allyeo deurilkkayo?",
+   "learner": "네, 좋아요. 용돈도 줄이고 잔돈도 모을게요.",
+   "en": "Yes, please. I'll cut my pocket money and save change too.",
+   "roman": "ne, joayo. yongdondo jurigo jandondo moeulgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 가계부를 쓰면 도움이 많이 돼요.",
+   "beaver_en": "Good. Keeping a budget book helps a lot.",
+   "beaver_roman": "joayo. gagyebureul sseumyeon doumi mani dwaeyo.",
+   "learner": "그리고 이 달러 수표도 바꿀 수 있어요?",
+   "en": "Also, can I exchange this dollar check?",
+   "roman": "geurigo i dalleo supyodo bakkul su isseoyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 바꿔 드릴게요. 서류를 작성해 주세요.",
+   "beaver_en": "Yes, I'll exchange it. Please fill out the form.",
+   "beaver_roman": "ne, bakkwo deurilgeyo. seoryureul jakseonghae juseyo.",
+   "learner": "감사합니다. 돈을 아껴서 꼭 갚을게요.",
+   "en": "Thank you. I'll save money and surely pay it back.",
+   "roman": "gamsahamnida. doneul akkyeoseo kkok gapeulgeyo."
+  }
+ ]
+}

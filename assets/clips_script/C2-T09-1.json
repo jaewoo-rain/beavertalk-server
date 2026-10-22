@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T09-1",
+ "no": 355,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "겨울옷 정리하자. 이 셔츠는 왜 이렇게 구겨졌니?",
+   "beaver_en": "Let's sort the winter clothes. Why is this shirt so wrinkled?",
+   "beaver_roman": "gyeouron jeongnihaja. i syeocheuneun wae ireoke gugyeojyeonni?",
+   "learner": "접어서 넣었더니 구겨졌어요. 다림질했으면 해요.",
+   "en": "It got wrinkled when I folded it. I hope we can iron it.",
+   "roman": "jeobeoseo neoeotdeoni gugyeojyeosseoyo. darimjilhaesseumyeon haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "세탁은 어떻게 할까? 세탁기에 넣을까?",
+   "beaver_en": "How should we wash it? Put it in the washer?",
+   "beaver_roman": "setageun eotteoke halkka? setakgie neoeulkka?",
+   "learner": "이 옷감은 약해서 손으로 빨았으면 해요.",
+   "en": "This fabric is delicate, so I hope we hand-wash it.",
+   "roman": "i otgameun yakaeseo soneuro ppallasseumyeon haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "이 바지는 어때? 이건 헐렁해 보이는데.",
+   "beaver_en": "What about these pants? They look loose.",
+   "beaver_roman": "i bajineun eottae? igeon heolleonghae boineunde.",
+   "learner": "네, 너무 헐렁해서 줄였으면 해요.",
+   "en": "Yes, they're too loose. I'd like them taken in.",
+   "roman": "ne, neomu heolleonghaeseo juryeosseumyeon haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "내복은 어디에 둘까? 날씨가 부쩍 추워졌잖아.",
+   "beaver_en": "Where should the long underwear go? It's gotten much colder.",
+   "beaver_roman": "naebogeun eodie dulkka? nalssiga bujjeok chuwojyeotjana.",
+   "learner": "내복은 잘 보이는 서랍에 넣었으면 해요.",
+   "en": "I'd like the long underwear in an easy-to-see drawer.",
+   "roman": "naebogeun jal boineun seorabe neoeosseumyeon haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "운동화도 많네. 다 신는 거야?",
+   "beaver_en": "Lots of sneakers too. Do you wear them all?",
+   "beaver_roman": "undonghwado manne. da sinneun geoya?",
+   "learner": "운동화는 두 켤레만 남겼으면 해요.",
+   "en": "I'd like to keep just two pairs of sneakers.",
+   "roman": "undonghwaneun du kyeolleman namgyeosseumyeon haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "실내화는 어떻게 할까? 좀 낡았는데.",
+   "beaver_en": "What about the slippers? They're a bit worn.",
+   "beaver_roman": "sillaehwaneun eotteoke halkka? jom nalganneunde.",
+   "learner": "실내화는 새로 샀으면 해요. 착용감이 좋은 걸로요.",
+   "en": "I hope we buy new slippers. Comfortable ones.",
+   "roman": "sillaehwaneun saero sasseumyeon haeyo. chagyonggami joeun geolloyo."
+  },
+  {
+   "n": 7,
+   "beaver": "너는 요즘 어떤 옷을 입고 싶어?",
+   "beaver_en": "What kind of clothes do you want to wear these days?",
+   "beaver_roman": "neoneun yojeum eotteon oseul ipgo sipeo?",
+   "learner": "어제 패션쇼를 봤는데 저도 멋지게 입었으면 해요.",
+   "en": "I saw a fashion show yesterday. I hope I can dress nicely too.",
+   "roman": "eoje paesyeonsyoreul bwanneunde jeodo meotjige ibeosseumyeon haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래? 그럼 이 코트는 어때? 매서운 바람도 막아 줘.",
+   "beaver_en": "Really? How about this coat? It blocks the bitter wind.",
+   "beaver_roman": "geurae? geureom i koteuneun eottae? maeseoun baramdo maga jwo.",
+   "learner": "옷감이 따뜻해서 좋아요. 겨울에 입었으면 해요.",
+   "en": "The fabric is warm, I like it. I'd like to wear it this winter.",
+   "roman": "otgami ttatteutaeseo joayo. gyeoure ibeosseumyeon haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아. 정리하니까 옷장이 넓어졌네.",
+   "beaver_en": "Good. The closet feels roomier now that it's tidy.",
+   "beaver_roman": "joa. jeongnihanikka otjangi neolbeojyeonne.",
+   "learner": "앞으로는 옷이 구겨지지 않았으면 해요.",
+   "en": "From now on, I hope my clothes don't get wrinkled.",
+   "roman": "apeuroneun osi gugyeojiji anasseumyeon haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 옷걸이에 잘 걸어 두자. 수고했어.",
+   "beaver_en": "Then let's hang them on hangers. Good work.",
+   "beaver_roman": "geureom otgeorie jal georeo duja. sugohaesseo.",
+   "learner": "엄마도 수고하셨어요. 다음에도 같이 정리했으면 해요.",
+   "en": "You too, Mom. I hope we tidy up together again.",
+   "roman": "eommado sugohasyeosseoyo. daeumedo gachi jeongnihaesseumyeon haeyo."
+  }
+ ]
+}

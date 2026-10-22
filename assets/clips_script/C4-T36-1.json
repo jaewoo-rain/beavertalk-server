@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T36-1",
+ "no": 467,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "기념회 진행 순서를 같이 정해 볼까요?",
+   "beaver_en": "Shall we decide the order of the commemorative event together?",
+   "beaver_roman": "ginyeomhoe jinhaeng sunseoreul gachi jeonghae bolkkayo?",
+   "learner": "네, 먼저 개회사로 시작하면 좋겠어요.",
+   "en": "Yes, it'd be good to start with an opening address.",
+   "roman": "ne, meonjeo gaehoesaro sijakamyeon jokesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그다음에는 뭘 하죠? 묵념인가요?",
+   "beaver_en": "What comes next? A moment of silence?",
+   "beaver_roman": "geudaeumeneun mwol hajyo? mungnyeomingayo?",
+   "learner": "네, 다 같이 고인의 명복을 빌어요.",
+   "en": "Yes, we all pray for the repose of the deceased.",
+   "roman": "ne, da gachi goinui myeongbogeul bireoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "행진은 언제 해요?",
+   "beaver_en": "When is the march?",
+   "beaver_roman": "haengjineun eonje haeyo?",
+   "learner": "묵념을 한 후에야 비로소 행진을 시작해요.",
+   "en": "The march starts only after the moment of silence.",
+   "roman": "mungnyeomeul han hueya biroso haengjineul sijakaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "행진할 때 관도 함께 옮기나요?",
+   "beaver_en": "Is the coffin carried during the march too?",
+   "beaver_roman": "haengjinhal ttae gwando hamkke omginayo?",
+   "learner": "네, 관은 행진 맨 앞에서 천천히 옮겨요.",
+   "en": "Yes, the coffin is carried slowly at the front.",
+   "roman": "ne, gwaneun haengjin maen apeseo cheoncheonhi omgyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "조의는 어떻게 표해요?",
+   "beaver_en": "How do people express condolences?",
+   "beaver_roman": "joineun eotteoke pyohaeyo?",
+   "learner": "입구에서 조의를 표하고 꽃을 놓으면 돼요.",
+   "en": "They express condolences at the entrance and lay flowers.",
+   "roman": "ipgueseo joireul pyohago kkocheul noeumyeon dwaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "문상 온 분들은 어디로 안내하죠?",
+   "beaver_en": "Where should we guide the mourners?",
+   "beaver_roman": "munsang on bundeureun eodiro annaehajyo?",
+   "learner": "행진이 끝나면 빈소로 안내해요.",
+   "en": "After the march, we guide them to the memorial altar.",
+   "roman": "haengjini kkeunnamyeon binsoro annaehaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 그 전에는 기다려야 하겠네요.",
+   "beaver_en": "Then they'll have to wait before that.",
+   "beaver_roman": "geureom geu jeoneneun gidaryeoya hagenneyo.",
+   "learner": "네, 대기실에서 문상객들에게 차를 드려요.",
+   "en": "Yes, we'll serve tea to the mourners in the waiting room.",
+   "roman": "ne, daegisireseo munsanggaekdeurege chareul deuryeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "손님들께 순서를 잘 알려 드려야겠어요.",
+   "beaver_en": "We should let the guests know the order clearly.",
+   "beaver_roman": "sonnimdeulkke sunseoreul jal allyeo deuryeoyagesseoyo.",
+   "learner": "네, 안내문을 만들어야 마음이 놓이겠어요.",
+   "en": "Yes, I'll feel at ease once we make the guide.",
+   "roman": "ne, annaemuneul mandeureoya maeumi noigesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "안내문은 제가 내일까지 만들게요.",
+   "beaver_en": "I'll make the guide by tomorrow.",
+   "beaver_roman": "annaemuneun jega naeilkkaji mandeulgeyo.",
+   "learner": "고마워요. 저는 시작 시간을 다시 확인할게요.",
+   "en": "Thanks. I'll double-check the start time.",
+   "roman": "gomawoyo. jeoneun sijak siganeul dasi hwaginhalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 순서는 이렇게 정해요.",
+   "beaver_en": "Good. Then let's settle the order like this.",
+   "beaver_roman": "joayo. geureom sunseoneun ireoke jeonghaeyo.",
+   "learner": "네, 수고했어요. 좋은 기념회가 되면 좋겠어요.",
+   "en": "Yes, good work. I hope it's a good commemorative event.",
+   "roman": "ne, sugohaesseoyo. joeun ginyeomhoega doemyeon jokesseoyo."
+  }
+ ]
+}

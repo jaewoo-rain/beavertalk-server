@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T55-1",
+ "no": 285,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. mueoseul dowadeurilkkayo?",
+   "learner": "공공 시설 사용 허가를 받고 싶어요.",
+   "en": "I'd like to get permission to use a public facility.",
+   "roman": "gonggong siseol sayong heogareul batgo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어느 시설을 쓰실 건가요?",
+   "beaver_en": "Which facility will you use?",
+   "beaver_roman": "eoneu siseoreul sseusil geongayo?",
+   "learner": "양평군 국립 공원 앞 광장이에요.",
+   "en": "The square in front of the national park in Yangpyeong County.",
+   "roman": "yangpyeonggun gungnip gongwon ap gwangjangieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "단체 등록증을 가져오셨어요?",
+   "beaver_en": "Did you bring your group registration certificate?",
+   "beaver_roman": "danche deungnokjeungeul gajeoosyeosseoyo?",
+   "learner": "네, 여기 등록증 있어요.",
+   "en": "Yes, here's the registration certificate.",
+   "roman": "ne, yeogi deungnokjeung isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "허가 심사는 위원회가 해요.",
+   "beaver_en": "A committee reviews the permit.",
+   "beaver_roman": "heoga simsaneun wiwonhoega haeyo.",
+   "learner": "위원회 심사는 언제 해요?",
+   "en": "When does the committee do the review?",
+   "roman": "wiwonhoe simsaneun eonje haeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "매주 수요일 오후에 해요.",
+   "beaver_en": "Every Wednesday afternoon.",
+   "beaver_roman": "maeju suyoil ohue haeyo.",
+   "learner": "오후 몇 시에 시작해요? 두 시예요?",
+   "en": "What time in the afternoon does it start? Two o'clock?",
+   "roman": "ohu myeot sie sijakaeyo? du siyeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "세 시 반이에요. 규정도 이달부터 바뀌었어요.",
+   "beaver_en": "It's at 3:30. The rules also changed this month.",
+   "beaver_roman": "se si banieyo. gyujeongdo idalbuteo bakkwieosseoyo.",
+   "learner": "새 규정은 며칠부터 시행됐어요?",
+   "en": "From what date did the new rules take effect?",
+   "roman": "sae gyujeongeun myeochilbuteo sihaengdwaesseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "이달 1일부터요. 행정 확인서가 하나 더 필요해요.",
+   "beaver_en": "From the 1st of this month. You need one more administrative form.",
+   "beaver_roman": "idal irilbuteoyo. haengjeong hwaginseoga hana deo piryohaeyo.",
+   "learner": "그 확인서는 어디에서 받아요?",
+   "en": "Where do I get that form?",
+   "roman": "geu hwaginseoneun eodieseo badayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 군청 행정과에서 받으시면 돼요.",
+   "beaver_en": "Yes, you can get it at the county office's administration section.",
+   "beaver_roman": "ne, guncheong haengjeonggwaeseo badeusimyeon dwaeyo.",
+   "learner": "행정과는 몇 시까지 문을 열어요?",
+   "en": "Until what time is the administration section open?",
+   "roman": "haengjeonggwaneun myeot sikkaji muneul yeoreoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네 시까지예요. 지금 세 시 이십 분이에요.",
+   "beaver_en": "Until four. It's 3:20 now.",
+   "beaver_roman": "ne sikkajiyeyo. jigeum se si isip bunieyo.",
+   "learner": "그럼 사십 분 남았네요. 지금 갈게요.",
+   "en": "Then I have forty minutes. I'll go now.",
+   "roman": "geureom sasip bun namanneyo. jigeum galgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 서류는 금요일까지 내 주세요.",
+   "beaver_en": "Okay, please submit the documents by Friday.",
+   "beaver_roman": "ne, seoryuneun geumyoilkkaji nae juseyo.",
+   "learner": "알겠어요. 금요일 오전 열 시에 올게요.",
+   "en": "Got it. I'll come Friday at 10 a.m.",
+   "roman": "algesseoyo. geumyoil ojeon yeol sie olgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T57-1",
+ "no": 201,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수아 씨, 노트에 뭘 적고 있어요?",
+   "beaver_en": "Sua, what are you writing in your notebook?",
+   "beaver_roman": "Sua ssi, noteue mwol jeokgo isseoyo?",
+   "learner": "좌우명을 적어요. \"나는 최선을 다한다.\"",
+   "en": "My motto. \"I do my best.\"",
+   "roman": "Jwaumyeongeul jeogeoyo. \"Naneun choeseoneul dahanda.\""
+  },
+  {
+   "n": 2,
+   "beaver": "멋지네요. 왜 그 말을 골랐어요?",
+   "beaver_en": "Nice. Why did you pick that?",
+   "beaver_roman": "Meotjineyo. Wae geu mareul gollasseoyo?",
+   "learner": "과정이 결과보다 중요하다. 그게 제 생각이에요.",
+   "en": "The process matters more than the result. That's what I think.",
+   "roman": "Gwajeongi gyeolgwaboda jungyohada. Geuge je saenggagieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 실력은 어떻게 키워요?",
+   "beaver_en": "Good. How do you build your skills?",
+   "beaver_roman": "Jonneyo. Sillyeogeun eotteoke kiwoyo?",
+   "learner": "매일 연습해요. 그래서 솜씨가 조금씩 늘어요.",
+   "en": "I practice every day. So my skill improves little by little.",
+   "roman": "Maeil yeonseupaeyo. Geuraeseo somssiga jogeumssik neureoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "후배들에게도 모범이 되겠어요.",
+   "beaver_en": "You'll be a role model for juniors too.",
+   "beaver_roman": "Hubaedeuregedo mobeomi doegesseoyo.",
+   "learner": "모범이 되려면 책임감이 있어야 해요.",
+   "en": "To be a role model, you need a sense of responsibility.",
+   "roman": "Mobeomi doeryeomyeon chaegimgami isseoya haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좌우명이 더 있어요?",
+   "beaver_en": "Do you have more mottos?",
+   "beaver_roman": "Jwaumyeongi deo isseoyo?",
+   "learner": "네. \"실력이 있어도 멋을 부리지 않는다.\"",
+   "en": "Yes. \"Even with skill, I don't show off.\"",
+   "roman": "Ne. \"Sillyeogi isseodo meoseul buriji anneunda.\""
+  },
+  {
+   "n": 6,
+   "beaver": "태도와 의지에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about attitude and will?",
+   "beaver_roman": "Taedowa uijie daehae deo iyagihae bollaeyo?",
+   "learner": "올바른 길은 어렵지만 그 길을 갈 거예요.",
+   "en": "The right path is hard, but I'll take it.",
+   "roman": "Olbareun gireun eoryeopjiman geu gireul gal geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "힘들 때는 어떻게 해요?",
+   "beaver_en": "What do you do when it's tough?",
+   "beaver_roman": "Himdeul ttaeneun eotteoke haeyo?",
+   "learner": "그때는 용기가 필요해요. 포기하지 않아요.",
+   "en": "That's when I need courage. I don't give up.",
+   "roman": "Geuttaeneun yonggiga piryohaeyo. Pogihaji anayo."
+  },
+  {
+   "n": 8,
+   "beaver": "실수하면 어떻게 해요?",
+   "beaver_en": "What if you make a mistake?",
+   "beaver_roman": "Silsuhamyeon eotteoke haeyo?",
+   "learner": "실수는 제 책임이니까 잘 고쳐요.",
+   "en": "Mistakes are my responsibility, so I fix them well.",
+   "roman": "Silsuneun je chaegiminikka jal gochyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "정말 멋진 좌우명이에요. 어디에 붙일 거예요?",
+   "beaver_en": "What great mottos. Where will you put them?",
+   "beaver_roman": "Jeongmal meotjin jwaumyeongieyo. Eodie buchil geoyeyo?",
+   "learner": "책상 앞에 붙이고 매일 읽을 거예요.",
+   "en": "I'll stick them by my desk and read them daily.",
+   "roman": "Chaeksang ape buchigo maeil ilgeul geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 수아 씨는 꼭 잘할 거예요.",
+   "beaver_en": "Great. I'm sure you'll do well, Sua.",
+   "beaver_roman": "Joayo. Sua ssineun kkok jalhal geoyeyo.",
+   "learner": "고마워요, 선배님. 오늘도 최선을 다한다!",
+   "en": "Thanks, sunbae. Today too, I do my best!",
+   "roman": "Gomawoyo, seonbaenim. Oneuldo choeseoneul dahanda!"
+  }
+ ]
+}

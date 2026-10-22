@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T63-1",
+ "no": 344,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 이 지역 산업을 조사하러 왔습니다.",
+   "beaver_en": "Hello. I came to research the industries in this area.",
+   "beaver_roman": "annyeonghaseyo. i jiyeok saneobeul josahareo watseumnida.",
+   "learner": "네, 반가워요. 요즘 여기 사정이 많이 어려워요.",
+   "en": "Yes, nice to meet you. Things are really hard here lately.",
+   "roman": "ne, bangawoyo. yojeum yeogi sajeongi mani eoryeowoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "농사는 잘됩니까?",
+   "beaver_en": "Is farming going well?",
+   "beaver_roman": "nongsaneun jaldoemnikka?",
+   "learner": "잘되기는커녕 논밭을 그만두는 사람이 많아요.",
+   "en": "Far from going well, many people are giving up their fields.",
+   "roman": "jaldoegineunkeonyeong nonbateul geumanduneun sarami manayo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜 그렇게 됐습니까?",
+   "beaver_en": "Why did that happen?",
+   "beaver_roman": "wae geureoke dwaetseumnikka?",
+   "learner": "비료 값이 올라서 농작물을 키우기 힘들어요.",
+   "en": "Fertilizer prices went up, so it's hard to grow crops.",
+   "roman": "biryo gapsi ollaseo nongjangmureul kiugi himdeureoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "주로 무엇을 키웁니까?",
+   "beaver_en": "What do you mainly grow?",
+   "beaver_roman": "juro mueoseul kiumnikka?",
+   "learner": "밭에서 곡물과 유기농 채소를 키우는데 힘들어요.",
+   "en": "We grow grain and organic vegetables in the fields, but it's tough.",
+   "roman": "bateseo gongmulgwa yuginong chaesoreul kiuneunde himdeureoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "축산은 어떻습니까?",
+   "beaver_en": "How about livestock farming?",
+   "beaver_roman": "chuksaneun eotteoseumnikka?",
+   "learner": "목장도 사료 값 때문에 가축을 줄이고 있어요.",
+   "en": "Ranches are cutting livestock because of feed prices too.",
+   "roman": "mokjangdo saryo gap ttaemune gachugeul jurigo isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "산업과 기업에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about industry and businesses?",
+   "beaver_roman": "saneopgwa gieobe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "큰 사업체는 금속 가공 공장 하나뿐이에요.",
+   "en": "The only big business is one metal processing factory.",
+   "roman": "keun saeopcheneun geumsok gagong gongjang hanappunieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그 공장은 매출이 어떻습니까?",
+   "beaver_en": "How are that factory's sales?",
+   "beaver_roman": "geu gongjangeun maechuri eotteoseumnikka?",
+   "learner": "원자재 값이 올라서 매출이 늘기는커녕 줄었어요.",
+   "en": "Raw material prices rose, so far from growing, sales dropped.",
+   "roman": "wonjajae gapsi ollaseo maechuri neulgineunkeonyeong jureosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "건설업이나 상점은 어떻습니까?",
+   "beaver_en": "What about construction or shops?",
+   "beaver_roman": "geonseoreobina sangjeomeun eotteoseumnikka?",
+   "learner": "건설은 멈췄고 새로 여는 가게도 없어요.",
+   "en": "Construction has stopped, and no new shops are opening.",
+   "roman": "geonseoreun meomchwotgo saero yeoneun gagedo eopseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "대기업 지점은 들어와 있습니까?",
+   "beaver_en": "Are there any big company branches here?",
+   "beaver_roman": "daegieop jijeomeun deureowa itseumnikka?",
+   "learner": "제과 회사 지점이 있었는데 작년에 문을 닫았어요.",
+   "en": "There was a confectionery company branch, but it closed last year.",
+   "roman": "jegwa hoesa jijeomi isseonneunde jangnyeone muneul dadasseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "말씀 감사합니다. 보고서에 꼭 쓰겠습니다.",
+   "beaver_en": "Thank you for sharing. I'll be sure to include it in my report.",
+   "beaver_roman": "malsseum gamsahamnida. bogoseoe kkok sseugetseumnida.",
+   "learner": "고마워요. 우리 마을에 도움이 되면 좋겠어요.",
+   "en": "Thank you. I hope it helps our village.",
+   "roman": "gomawoyo. uri maeure doumi doemyeon jokesseoyo."
+  }
+ ]
+}

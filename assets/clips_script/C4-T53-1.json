@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T53-1",
+ "no": 478,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "대사님, 오늘 가장 큰 외교 현안은 무엇입니까?",
+   "beaver_en": "Ambassador, what is today's biggest diplomatic issue?",
+   "beaver_roman": "daesanim, oneul gajang keun oegyo hyeonaneun mueosimnikka?",
+   "learner": "가장 큰 현안은 대북 제재 문제입니다.",
+   "en": "The biggest issue is sanctions on North Korea.",
+   "roman": "gajang keun hyeonaneun daebuk jejae munjeimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "정부는 제재를 계속 유지합니까?",
+   "beaver_en": "Will the government keep the sanctions?",
+   "beaver_roman": "jeongbuneun jejaereul gyesok yujihamnikka?",
+   "learner": "제재는 유지하되 교섭의 문도 열어 두겠습니다.",
+   "en": "We'll keep sanctions, but leave the door open to talks.",
+   "roman": "jejaeneun yujihadoe gyoseobui mundo yeoreo dugetseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "북한의 반응은 어떻습니까?",
+   "beaver_en": "How is North Korea reacting?",
+   "beaver_roman": "bukanui baneungeun eotteosseumnikka?",
+   "learner": "반발이 크지만 대화에는 응하고 있습니다.",
+   "en": "There's strong pushback, but they are responding to talks.",
+   "roman": "banbari keujiman daehwaeneun eunghago itseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "강압적인 방식이라는 비판도 있습니다.",
+   "beaver_en": "Some criticize it as a coercive approach.",
+   "beaver_roman": "gangapjeogin bangsigiraneun bipando itseumnida.",
+   "learner": "강압은 피하되 원칙은 분명히 지키겠습니다.",
+   "en": "We'll avoid coercion, but firmly keep our principles.",
+   "roman": "gangabeun pihadoe wonchigeun bunmyeonghi jikigetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "총리는 어떤 입장입니까?",
+   "beaver_en": "What is the prime minister's position?",
+   "beaver_roman": "chongnineun eotteon ipjangimnikka?",
+   "learner": "국무총리께서는 중립을 지키되 협력을 강조하십니다.",
+   "en": "The prime minister stays neutral but stresses cooperation.",
+   "roman": "gungmuchongnikkeseoneun jungnibeul jikidoe hyeomnyeogeul gangjohasimnida."
+  },
+  {
+   "n": 6,
+   "beaver": "협정은 어떻게 됩니까?",
+   "beaver_en": "What about the agreement?",
+   "beaver_roman": "hyeopjeongeun eotteoke doemnikka?",
+   "learner": "외교부가 협정 초안을 검토하고 있습니다.",
+   "en": "The Foreign Ministry is reviewing a draft agreement.",
+   "roman": "oegyobuga hyeopjeong choaneul geomtohago itseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "정치와 선거에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about politics and the election?",
+   "beaver_roman": "jeongchiwa seongeoe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "정계에서는 벌써 유세가 시작되었습니다.",
+   "en": "In political circles, campaigning has already begun.",
+   "roman": "jeonggyeeseoneun beolsseo yusega sijakdoeeotseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "선거가 외교에 영향을 줍니까?",
+   "beaver_en": "Does the election affect diplomacy?",
+   "beaver_roman": "seongeoga oegyoe yeonghyangeul jumnikka?",
+   "learner": "민족주의가 강해질 수 있지만 기조는 유지됩니다.",
+   "en": "Nationalism may grow, but our basic stance will hold.",
+   "roman": "minjokjuuiga ganghaejil su itjiman gijoneun yujidoemnida."
+  },
+  {
+   "n": 9,
+   "beaver": "장관 사퇴설도 돌고 있는데요?",
+   "beaver_en": "There are rumors the minister will resign.",
+   "beaver_roman": "janggwan satoeseoldo dolgo inneundeyo?",
+   "learner": "사퇴는 없습니다. 임기를 끝까지 채우실 겁니다.",
+   "en": "No resignation. The minister will serve the full term.",
+   "roman": "satoeneun eopseumnida. imgireul kkeutkkaji chaeusil geomnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막 질문입니다. 한국의 위상은 어떻습니까?",
+   "beaver_en": "Last question. How is Korea's standing?",
+   "beaver_roman": "majimak jilmunimnida. hangugui wisangeun eotteosseumnikka?",
+   "learner": "위상이 크게 높아졌습니다. 오늘은 여기까지입니다.",
+   "en": "Our standing has risen greatly. That's all for today.",
+   "roman": "wisangi keuge nopajyeotseumnida. oneureun yeogikkajiimnida."
+  }
+ ]
+}

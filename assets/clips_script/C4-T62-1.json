@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T62-1",
+ "no": 489,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 어떤 고민으로 오셨습니까?",
+   "beaver_en": "Hello. What brings you in today?",
+   "beaver_roman": "annyeonghaseyo. oneul eotteon gomineuro osyeotseumnikka?",
+   "learner": "요즘 가계 사정이 너무 나빠져서 왔어요.",
+   "en": "My household finances have gotten really bad lately.",
+   "roman": "yojeum gagye sajeongi neomu nappajyeoseo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터 어려워지셨는지 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me when things got difficult?",
+   "beaver_roman": "eonjebuteo eoryeowojisyeonneunji malsseumhae jusigesseoyo?",
+   "learner": "작년에 주식에 거금을 넣었다가 크게 잃었어요.",
+   "en": "Last year I put a large sum into stocks and lost big.",
+   "roman": "jangnyeone jusige geogeumeul neoeotdaga keuge ireosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그 뒤에 본전은 찾으셨습니까?",
+   "beaver_en": "Did you get your original investment back after that?",
+   "beaver_roman": "geu dwie bonjeoneun chajeusyeotseumnikka?",
+   "learner": "아니요, 본전은커녕 절반도 못 건졌어요.",
+   "en": "No, far from breaking even, I couldn't even recover half.",
+   "roman": "aniyo, bonjeoneunkeonyeong jeolbando mot geonjyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 지출은 어떻습니까?",
+   "beaver_en": "How about your other spending?",
+   "beaver_roman": "dareun jichureun eotteosseumnikka?",
+   "learner": "스트레스 때문에 유흥비도 많이 썼어요.",
+   "en": "Because of stress, I spent a lot on entertainment too.",
+   "roman": "seuteureseu ttaemune yuheungbido mani sseosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "적금은 어떻습니까?",
+   "beaver_en": "What about your savings account?",
+   "beaver_roman": "jeokgeumeun eotteosseumnikka?",
+   "learner": "급해서 적금을 해약하고 돈을 다 인출했어요.",
+   "en": "I was desperate, so I canceled it and withdrew everything.",
+   "roman": "geupaeseo jeokgeumeul haeyakago doneul da inchulhaesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "생활이 많이 어려우시겠습니다.",
+   "beaver_en": "Daily life must be very hard for you.",
+   "beaver_roman": "saenghwari mani eoryeousigetseumnida.",
+   "learner": "네, 이러다 빈털터리가 될까 봐 무서워요.",
+   "en": "Yes, I'm scared I'll end up penniless.",
+   "roman": "ne, ireoda binteolteoriga doelkka bwa museowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "지금 수입은 어떻게 되십니까?",
+   "beaver_en": "What is your income right now?",
+   "beaver_roman": "jigeum suibeun eotteoke doesimnikka?",
+   "learner": "월급으로 겨우 먹고살고 있어요.",
+   "en": "I'm barely getting by on my salary.",
+   "roman": "wolgeubeuro gyeou meokgosalgo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "앞으로 돈 관리는 어떻게 하고 싶으세요?",
+   "beaver_en": "How would you like to manage your money from now on?",
+   "beaver_roman": "apeuro don gwallineun eotteoke hago sipeuseyo?",
+   "learner": "투자는 이제 그만두고 생계부터 챙기고 싶어요.",
+   "en": "I want to stop investing and take care of my livelihood first.",
+   "roman": "tujaneun ije geumandugo saenggyebuteo chaenggigo sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋은 생각입니다. 지출 계획부터 세워 봅시다.",
+   "beaver_en": "Good idea. Let's start with a spending plan.",
+   "beaver_roman": "joeun saenggagimnida. jichul gyehoekbuteo sewo bopsida.",
+   "learner": "계획을 세우면 꼭 지키겠습니다.",
+   "en": "Once we make a plan, I'll definitely stick to it.",
+   "roman": "gyehoegeul seumyeon kkok jikigetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 다음 주에 다시 같이 점검하겠습니다.",
+   "beaver_en": "All right, we'll review it together again next week.",
+   "beaver_roman": "ne, daeum jue dasi gachi jeomgeomhagetseumnida.",
+   "learner": "감사합니다. 다음 주에 뵙겠습니다.",
+   "en": "Thank you. See you next week.",
+   "roman": "gamsahamnida. daeum jue boepgetseumnida."
+  }
+ ]
+}

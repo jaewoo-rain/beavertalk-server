@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T05-1",
+ "no": 297,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "내일 시험이지? 기분이 어때?",
+   "beaver_en": "Your exam is tomorrow, right? How do you feel?",
+   "beaver_roman": "naeil siheomiji? gibuni eottae?",
+   "learner": "벌써 가슴이 두근거려. 긴장감이 엄청나.",
+   "en": "My heart's already pounding. The tension is huge.",
+   "roman": "beolsseo gaseumi dugeungeoryeo. ginjanggami eomcheongna."
+  },
+  {
+   "n": 2,
+   "beaver": "나도 그래. 그래도 준비는 잘했어?",
+   "beaver_en": "Me too. But did you prepare well?",
+   "beaver_roman": "nado geurae. geuraedo junbineun jalhaesseo?",
+   "learner": "응, 1장이랑 2장은 충분히 복습했어.",
+   "en": "Yeah, I reviewed chapters 1 and 2 enough.",
+   "roman": "eung, iljangirang ijangeun chungbunhi bokseupaesseo."
+  },
+  {
+   "n": 3,
+   "beaver": "그런데 시험 범위가 갑자기 늘었대.",
+   "beaver_en": "But they say the exam range suddenly grew.",
+   "beaver_roman": "geureonde siheom beomwiga gapjagi neureottae.",
+   "learner": "정말? 어이없다. 좀 언짢네.",
+   "en": "Really? That's absurd. I'm a bit upset.",
+   "roman": "jeongmal? eoieopda. jom eonjanne."
+  },
+  {
+   "n": 4,
+   "beaver": "3장이랑 4장까지래. 너무 답답하지?",
+   "beaver_en": "Up to chapters 3 and 4. So frustrating, right?",
+   "beaver_roman": "samjangirang sajangkkajirae. neomu dapdapaji?",
+   "learner": "응, 답답해. 겁내지 않으려 해도 자꾸 겁나.",
+   "en": "Yeah, it's frustrating. I try not to be scared, but I keep getting scared.",
+   "roman": "eung, dapdapae. geomnaeji aneuryeo haedo jakku geomna."
+  },
+  {
+   "n": 5,
+   "beaver": "결과가 안 좋으면 어떻게 할 거야?",
+   "beaver_en": "What will you do if the result is bad?",
+   "beaver_roman": "gyeolgwaga an joeumyeon eotteoke hal geoya?",
+   "learner": "실망은 하겠지만, 다시 도전해 볼 거야.",
+   "en": "I'll be disappointed, but I'll try again.",
+   "roman": "silmangeun hagetjiman, dasi dojeonhae bol geoya."
+  },
+  {
+   "n": 6,
+   "beaver": "멋지다. 요즘 기분은 좀 어때?",
+   "beaver_en": "Cool. How have you been feeling lately?",
+   "beaver_roman": "meotjida. yojeum gibuneun jom eottae?",
+   "learner": "솔직히 기분이 계속 오르락내리락해.",
+   "en": "Honestly, my mood keeps going up and down.",
+   "roman": "soljiki gibuni gyesok oreurangnaerirakae."
+  },
+  {
+   "n": 7,
+   "beaver": "시험 끝나면 뭐 하고 싶어?",
+   "beaver_en": "What do you want to do after the exam?",
+   "beaver_roman": "siheom kkeunnamyeon mwo hago sipeo?",
+   "learner": "친구들이랑 신나게 놀고 싶어.",
+   "en": "I want to have a blast with my friends.",
+   "roman": "chingudeurirang sinnage nolgo sipeo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋다! 합격하면 기분이 어떨까?",
+   "beaver_en": "Nice! How would you feel if you passed?",
+   "beaver_roman": "jota! hapgyeokamyeon gibuni eotteolkka?",
+   "learner": "감격해서 울 것 같아. 오래도록 기억할 거야.",
+   "en": "I'd cry with emotion. I'd remember it for a long time.",
+   "roman": "gamgyeokaeseo ul geot gata. oraedorok gieokal geoya."
+  },
+  {
+   "n": 9,
+   "beaver": "부모님도 기뻐하시겠다.",
+   "beaver_en": "Your parents would be happy too.",
+   "beaver_roman": "bumonimdo gippeohasigetda.",
+   "learner": "응, 흐뭇해하실 거야. 그럼 나도 마음이 놓일 거야.",
+   "en": "Yeah, they'd be pleased. Then I'd feel at ease too.",
+   "roman": "eung, heumutaehasil geoya. geureom nado maeumi noil geoya."
+  },
+  {
+   "n": 10,
+   "beaver": "우리 서로 응원하자. 내일 잘 보자!",
+   "beaver_en": "Let's cheer each other on. Good luck tomorrow!",
+   "beaver_roman": "uri seoro eungwonhaja. naeil jal boja!",
+   "learner": "고마워. 이야기하니 마음이 한결 편해졌어. 화이팅!",
+   "en": "Thanks. Talking made me feel much better. Fighting!",
+   "roman": "gomawo. iyagihani maeumi hangyeol pyeonhaejyeosseo. hwaiting!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T35-1",
+ "no": 188,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지수야, 오늘 경기 기대돼?",
+   "beaver_en": "Jisu, are you excited about today's game?",
+   "beaver_roman": "jisuya, oneul gyeonggi gidaedwae?",
+   "learner": "응! 경기장에서 응원하는 게 제일 기대돼.",
+   "en": "Yes! I'm most excited about cheering at the stadium.",
+   "roman": "eung! gyeonggijangeseo eungwonhaneun ge jeil gidaedwae."
+  },
+  {
+   "n": 2,
+   "beaver": "어느 경기장으로 가는지 알지?",
+   "beaver_en": "You know which stadium we're going to, right?",
+   "beaver_roman": "eoneu gyeonggijangeuro ganeunji alji?",
+   "learner": "응, 시청 근처 축구장이야. 딱 한 시간 걸려.",
+   "en": "Yes, the soccer field near City Hall. It takes exactly an hour.",
+   "roman": "eung, sicheong geuncheo chukgujangiya. ttak han sigan geollyeo."
+  },
+  {
+   "n": 3,
+   "beaver": "우리 응원 노래도 연습했어?",
+   "beaver_en": "Did you practice our cheering songs too?",
+   "beaver_roman": "uri eungwon noraedo yeonseupaesseo?",
+   "learner": "응, 어제 응원 영상 보면서 연습했어.",
+   "en": "Yes, I practiced while watching cheering videos yesterday.",
+   "roman": "eung, eoje eungwon yeongsang bomyeonseo yeonseupaesseo."
+  },
+  {
+   "n": 4,
+   "beaver": "응원하면 선수들한테 효과가 있을까?",
+   "beaver_en": "Does cheering have an effect on the players?",
+   "beaver_roman": "eungwonhamyeon seonsudeulhante hyogwaga isseulkka?",
+   "learner": "응, 응원을 받으면 선수들이 더 잘한대.",
+   "en": "Yes, they say players do better when they get support.",
+   "roman": "eung, eungwoneul badeumyeon seonsudeuri deo jalhandae."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 종목은? 너 배구도 좋아하잖아.",
+   "beaver_en": "What about other sports? You like volleyball too.",
+   "beaver_roman": "dareun jongmogeun? neo baegudo joahajana.",
+   "learner": "응, 배구도 좋고 골프도 가끔 봐.",
+   "en": "Yes, I like volleyball, and I sometimes watch golf too.",
+   "roman": "eung, baegudo joko golpeudo gakkeum bwa."
+  },
+  {
+   "n": 6,
+   "beaver": "골프는 응원을 조용히 해야 하지?",
+   "beaver_en": "In golf you have to cheer quietly, right?",
+   "beaver_roman": "golpeuneun eungwoneul joyonghi haeya haji?",
+   "learner": "맞아. 골프는 박수만 조금 쳐.",
+   "en": "Right. In golf you just clap a little.",
+   "roman": "maja. golpeuneun baksuman jogeum chyeo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 너는 요즘 직접 하는 운동 있어?",
+   "beaver_en": "So, do you play any sports yourself these days?",
+   "beaver_roman": "geureom neoneun yojeum jikjeop haneun undong isseo?",
+   "learner": "응. 다음 달에 마라톤 참가 신청했어.",
+   "en": "Yes. I signed up to take part in a marathon next month.",
+   "roman": "eung. daeum dare maraton chamga sincheonghaesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 대단하다! 일정은 정해졌어?",
+   "beaver_en": "Wow, amazing! Is the schedule set?",
+   "beaver_roman": "wa, daedanhada! iljeongeun jeonghaejyeosseo?",
+   "learner": "응, 십일월 첫째 주 일요일이야. 응원해 줘!",
+   "en": "Yes, the first Sunday of November. Cheer for me!",
+   "roman": "eung, sibirwol cheotjjae ju iryoiriya. eungwonhae jwo!"
+  },
+  {
+   "n": 9,
+   "beaver": "당연하지! 월드컵 때처럼 응원할게.",
+   "beaver_en": "Of course! I'll cheer like during the World Cup.",
+   "beaver_roman": "dangyeonhaji! woldeukeop ttaecheoreom eungwonhalge.",
+   "learner": "고마워. 월드컵 때 응원은 정말 신났지.",
+   "en": "Thanks. Cheering during the World Cup was so exciting.",
+   "roman": "gomawo. woldeukeop ttae eungwoneun jeongmal sinnatji."
+  },
+  {
+   "n": 10,
+   "beaver": "자, 이제 출발하자. 늦겠다!",
+   "beaver_en": "Okay, let's head out now. We'll be late!",
+   "beaver_roman": "ja, ije chulbalhaja. neutgetda!",
+   "learner": "그래, 축구장에서 목소리 크게 응원하자!",
+   "en": "Okay, let's cheer loudly at the soccer field!",
+   "roman": "geurae, chukgujangeseo moksori keuge eungwonhaja!"
+  }
+ ]
+}

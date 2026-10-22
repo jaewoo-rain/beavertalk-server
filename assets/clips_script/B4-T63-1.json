@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T63-1",
+ "no": 291,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 이 회사는 언제 설립됐어요?",
+   "beaver_en": "Hello. When was this company founded?",
+   "beaver_roman": "annyeonghaseyo. i hoesaneun eonje seollipdwaesseoyo?",
+   "learner": "십 년 전에 농촌에서 설립된 중소기업이에요.",
+   "en": "It's a small business founded in a rural village ten years ago.",
+   "roman": "sip nyeon jeone nongchoneseo seollipdoen jungsogieobieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 일을 하는 회사예요?",
+   "beaver_en": "What kind of work does the company do?",
+   "beaver_roman": "museun ireul haneun hoesayeyo?",
+   "learner": "처음엔 댐 건설 일을 하는 건설사였어요.",
+   "en": "At first, it was a construction company that built dams.",
+   "roman": "cheoeumen daem geonseol ireul haneun geonseolsayeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "지금은 어떤 사업을 해요?",
+   "beaver_en": "What business do you do now?",
+   "beaver_roman": "jigeumeun eotteon saeobeul haeyo?",
+   "learner": "지금은 농사일에 쓰는 소형 기계를 생산해요.",
+   "en": "Now we produce small machines for farm work.",
+   "roman": "jigeumeun nongsaire sseuneun sohyeong gigyereul saengsanhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "요즘 생산량은 어때요?",
+   "beaver_en": "How is your production volume these days?",
+   "beaver_roman": "yojeum saengsannyangeun eottaeyo?",
+   "learner": "솔직히 늘기는커녕 작년보다 줄었어요.",
+   "en": "Honestly, far from growing, it dropped from last year.",
+   "roman": "soljiki neulgineunkeonyeong jangnyeonboda jureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래요? 영업은 잘되고 있어요?",
+   "beaver_en": "Really? Is business going well?",
+   "beaver_roman": "geuraeyo? yeongeobeun jaldoego isseoyo?",
+   "learner": "영업도 어려워요. 이익은커녕 손해예요.",
+   "en": "Business is hard too. Far from profit, we're losing money.",
+   "roman": "yeongeopdo eoryeowoyo. iigeunkeonyeong sonhaeyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "규모는요? 직원이 많아요?",
+   "beaver_en": "What about the size? Many employees?",
+   "beaver_roman": "gyumoneunyo? jigwoni manayo?",
+   "learner": "직원은 스무 명인데 늘리기는커녕 줄여요.",
+   "en": "We have twenty staff, and far from adding more, we're cutting.",
+   "roman": "jigwoneun seumu myeonginde neulligineunkeonyeong juryeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "경영은 누가 맡고 있어요?",
+   "beaver_en": "Who is in charge of management?",
+   "beaver_roman": "gyeongyeongeun nuga matgo isseoyo?",
+   "learner": "사장님이 혼자 경영하세요.",
+   "en": "The boss runs the company alone.",
+   "roman": "sajangnimi honja gyeongyeonghaseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "이 지역 사업 환경은 어때요?",
+   "beaver_en": "What is the business environment like in this area?",
+   "beaver_roman": "i jiyeok saeop hwangyeongeun eottaeyo?",
+   "learner": "농촌은 인구가 줄어서 손님이 적어요.",
+   "en": "The rural population is shrinking, so there are few customers.",
+   "roman": "nongchoneun inguga jureoseo sonnimi jeogeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "앞으로 계획은 있어요?",
+   "beaver_en": "Do you have plans for the future?",
+   "beaver_roman": "apeuro gyehoegeun isseoyo?",
+   "learner": "다른 회사와 협력해서 판매를 늘리려고 해요.",
+   "en": "We plan to work with other companies to increase sales.",
+   "roman": "dareun hoesawa hyeomnyeokaeseo panmaereul neulliryeogo haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "솔직하게 말해 줘서 고마워요.",
+   "beaver_en": "Thank you for speaking honestly.",
+   "beaver_roman": "soljikage malhae jwoseo gomawoyo.",
+   "learner": "감사합니다. 안녕히 가세요.",
+   "en": "Thank you. Goodbye.",
+   "roman": "gamsahamnida. annyeonghi gaseyo."
+  }
+ ]
+}

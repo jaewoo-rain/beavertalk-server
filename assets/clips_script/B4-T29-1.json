@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T29-1",
+ "no": 273,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 김민수 님. 검사 결과 알려 드릴게요.",
+   "beaver_en": "Hello, Mr. Kim Minsu. I'll tell you your test results.",
+   "beaver_roman": "annyeonghaseyo, gim minsu nim. geomsa gyeolgwa allyeo deurilgeyo.",
+   "learner": "네, 안녕하세요. 체중은 어땠어요?",
+   "en": "Yes, hello. How was my weight?",
+   "roman": "ne, annyeonghaseyo. chejungeun eottaesseoyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "체중은 조금 늘었어요. 운동은 하세요?",
+   "beaver_en": "Your weight went up a little. Do you exercise?",
+   "beaver_roman": "chejungeun jogeum neureosseoyo. undongeun haseyo?",
+   "learner": "가끔 저녁에 공원에서 걷곤 해요.",
+   "en": "I sometimes walk in the park in the evening.",
+   "roman": "gakkeum jeonyeoge gongwoneseo geotgon haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 호흡이나 체온은 다 정상이에요.",
+   "beaver_en": "Good. Your breathing and temperature are normal.",
+   "beaver_roman": "jonneyo. hoheubina cheoneun da jeongsangieyo.",
+   "learner": "다행이에요. 그런데 계단을 오르면 숨이 차곤 해요.",
+   "en": "That's a relief. But I often get out of breath on stairs.",
+   "roman": "dahaengieyo. geureonde gyedaneul oreumyeon sumi chagon haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "체중 때문일 수 있어요. 시력은 어때요?",
+   "beaver_en": "It may be because of your weight. How's your eyesight?",
+   "beaver_roman": "chejung ttaemunil su isseoyo. siryeogeun eottaeyo?",
+   "learner": "시력이 나빠졌어요. 컴퓨터를 오래 보곤 해요.",
+   "en": "My eyesight got worse. I often look at a computer long.",
+   "roman": "siryeogi nappajyeosseoyo. keompyuteoreul orae bogon haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "한 시간마다 눈을 쉬게 해 주세요. 다른 곳은요?",
+   "beaver_en": "Rest your eyes every hour. Anywhere else?",
+   "beaver_roman": "han siganmada nuneul swige hae juseyo. dareun goseunyo?",
+   "learner": "팔꿈치랑 발꿈치가 가끔 아파요.",
+   "en": "My elbows and heels hurt sometimes.",
+   "roman": "palkkumchirang balkkumchiga gakkeum apayo."
+  },
+  {
+   "n": 6,
+   "beaver": "책상에 팔꿈치를 자주 대세요?",
+   "beaver_en": "Do you often rest your elbows on the desk?",
+   "beaver_roman": "chaeksange palkkumchireul jaju daeseyo?",
+   "learner": "네, 일할 때 팔꿈치를 대고 앉곤 해요.",
+   "en": "Yes, I often sit leaning on my elbows at work.",
+   "roman": "ne, ilhal ttae palkkumchireul daego angon haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 자세를 바꿔 보세요. 손톱 색도 괜찮네요.",
+   "beaver_en": "Then try changing your posture. Your nail color is fine.",
+   "beaver_roman": "geureom jasereul bakkwo boseyo. sontop saekdo gwaenchanneyo.",
+   "learner": "손톱을 깨무는 습관도 있었는데 고쳤어요.",
+   "en": "I used to bite my nails, but I stopped.",
+   "roman": "sontobeul kkaemuneun seupgwando isseonneunde gochyeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "잘하셨어요. 화장실은 잘 가세요?",
+   "beaver_en": "Well done. Do you go to the bathroom regularly?",
+   "beaver_roman": "jalhasyeosseoyo. hwajangsireun jal gaseyo?",
+   "learner": "네, 매일 아침에 화장실에 가곤 해요.",
+   "en": "Yes, I usually go every morning.",
+   "roman": "ne, maeil achime hwajangsire gagon haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 아침에 잘 일어나세요?",
+   "beaver_en": "Good. Do you get up easily in the morning?",
+   "beaver_roman": "joayo. achime jal ireonaseyo?",
+   "learner": "몸은 괜찮은데 머리가 좀 무거워요.",
+   "en": "My body's fine, but my head feels a bit heavy.",
+   "roman": "momeun gwaenchaneunde meoriga jom mugeowoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "운동하면 머리도 맑아져요. 다음에 또 봬요.",
+   "beaver_en": "Exercise clears your head too. See you next time.",
+   "beaver_roman": "undonghamyeon meorido malgajyeoyo. daeume tto bwaeyo.",
+   "learner": "네, 더 건강해지도록 운동할게요.",
+   "en": "Okay, I'll exercise to get healthier.",
+   "roman": "ne, deo geonganghaejidorok undonghalgeyo."
+  }
+ ]
+}

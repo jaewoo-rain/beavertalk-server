@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T11-1",
+ "no": 55,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "추석에는 무슨 음식을 먹어요?",
+   "beaver_en": "What food do you eat on Chuseok?",
+   "beaver_roman": "Chuseogeneun museun eumsigeul meogeoyo?",
+   "learner": "추석에는 송편을 먹어요. 송편은 떡이에요.",
+   "en": "We eat songpyeon on Chuseok. It's a rice cake.",
+   "roman": "Chuseogeneun songpyeoneul meogeoyo. Songpyeoneun tteogieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "송편은 어디서 사요?",
+   "beaver_en": "Where do you buy songpyeon?",
+   "beaver_roman": "Songpyeoneun eodiseo sayo?",
+   "learner": "안 사요. 집에서 가족들이 같이 만들어요.",
+   "en": "We don't buy it. Families make it together at home.",
+   "roman": "An sayo. Jibeseo gajokdeuri gachi mandeureoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 맛있겠네요. 무슨 맛이에요?",
+   "beaver_en": "Wow, sounds tasty. What does it taste like?",
+   "beaver_roman": "Wa, masitgenneyo. Museun masieyo?",
+   "learner": "제가 만든 송편은 달고 맛있어요.",
+   "en": "The songpyeon I make is sweet and tasty.",
+   "roman": "Jega mandeun songpyeoneun dalgo masisseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "비가 오는 날에는 뭘 먹어요?",
+   "beaver_en": "What do you eat on rainy days?",
+   "beaver_roman": "Biga oneun nareneun mwol meogeoyo?",
+   "learner": "비가 오면 칼국수나 따뜻한 국을 먹어요.",
+   "en": "When it rains, we eat kalguksu or warm soup.",
+   "roman": "Biga omyeon kalguksuna ttatteutan gugeul meogeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "추운 겨울에는 뭘 먹어요?",
+   "beaver_en": "What do you eat in cold winter?",
+   "beaver_roman": "Chuun gyeoureneun mwol meogeoyo?",
+   "learner": "겨울에는 김치찌개를 먹어요. 엄마가 만드세요.",
+   "en": "In winter we eat kimchi stew. My mom makes it.",
+   "roman": "Gyeoureneun gimchijjigaereul meogeoyo. Eommaga mandeuseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "여름에는요? 날씨가 정말 덥잖아요.",
+   "beaver_en": "And summer? It's really hot, right?",
+   "beaver_roman": "Yeoreumeneunyo? Nalssiga jeongmal deopjanayo.",
+   "learner": "여름에는 국수를 먹고 찬물을 마셔요.",
+   "en": "In summer we eat noodles and drink cold water.",
+   "roman": "Yeoreumeneun guksureul meokgo chanmureul masyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "후식은 뭘 먹어요?",
+   "beaver_en": "What do you have for dessert?",
+   "beaver_roman": "Husigeun mwol meogeoyo?",
+   "learner": "후식으로 녹차를 마셔요. 과자도 먹어요.",
+   "en": "We drink green tea for dessert. We eat cookies too.",
+   "roman": "Husigeuro nokchareul masyeoyo. Gwajado meogeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "명절에 마시는 술도 있어요?",
+   "beaver_en": "Is there alcohol you drink on holidays?",
+   "beaver_roman": "Myeongjeore masineun suldo isseoyo?",
+   "learner": "어른들은 막걸리나 소주를 드세요.",
+   "en": "Adults drink makgeolli or soju.",
+   "roman": "Eoreundeureun makgeollina sojureul deuseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "친구들하고는 뭘 자주 먹어요?",
+   "beaver_en": "What do you often eat with friends?",
+   "beaver_roman": "Chingudeulhagoneun mwol jaju meogeoyo?",
+   "learner": "학교 앞에서 파는 분식이나 자장면을 먹어요.",
+   "en": "We eat snack food or jajangmyeon sold near school.",
+   "roman": "Hakgyo apeseo paneun bunsigina jajangmyeoneul meogeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "재미있어요! 다음 추석에 송편 같이 만들어요.",
+   "beaver_en": "Fun! Let's make songpyeon together next Chuseok.",
+   "beaver_roman": "Jaemiisseoyo! Daeum chuseoge songpyeon gachi mandeureoyo.",
+   "learner": "좋아요! 제가 만드는 법을 알려 줄게요.",
+   "en": "Great! I'll show you how to make it.",
+   "roman": "Joayo! Jega mandeuneun beobeul allyeo julgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T06-1",
+ "no": 352,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어젯밤에 잠꼬대를 엄청 하더라. 잘 못 잤니?",
+   "beaver_en": "You talked in your sleep a lot last night. Didn't you sleep well?",
+   "beaver_roman": "eojetbame jamkkodaereul eomcheong hadeora. jal mot janni?",
+   "learner": "네, 밤새 뒤척이면서 잠을 설쳤어요.",
+   "en": "Yes, I tossed and turned all night and slept badly.",
+   "roman": "ne, bamsae dwicheogimyeonseo jameul seolchyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "요즘 매일 그러잖아. 낮에도 꾸벅꾸벅 졸던데.",
+   "beaver_en": "You've been like that every day lately. You doze off during the day, too.",
+   "beaver_roman": "yojeum maeil geureojana. najedo kkubeokkkubeok joldeonde.",
+   "learner": "맞아요. 회의 중에도 꾸벅꾸벅 졸았어요.",
+   "en": "That's right. I even nodded off during a meeting.",
+   "roman": "majayo. hoeui jungedo kkubeokkkubeok jorasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "요즘 보통 몇 시에 자는데?",
+   "beaver_en": "What time do you usually go to bed these days?",
+   "beaver_roman": "yojeum botong myeot sie janeunde?",
+   "learner": "일이 늦게 끝나서 새벽 두 시에 자요.",
+   "en": "Work ends late, so I go to bed at 2 a.m.",
+   "roman": "iri neutge kkeunnaseo saebyeok du sie jayo."
+  },
+  {
+   "n": 4,
+   "beaver": "너무 늦다. 자기 전에 휴대폰도 보지?",
+   "beaver_en": "That's too late. You look at your phone before bed, too, right?",
+   "beaver_roman": "neomu neutda. jagi jeone hyudaepondo boji?",
+   "learner": "네, 습관적으로 침대에서 영상을 봐요.",
+   "en": "Yes, I habitually watch videos in bed.",
+   "roman": "ne, seupgwanjeogeuro chimdaeeseo yeongsangeul bwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "그러니 푹 못 자지. 일을 좀 줄여 봐.",
+   "beaver_en": "No wonder you can't sleep well. Try cutting back on work.",
+   "beaver_roman": "geureoni puk mot jaji. ireul jom juryeo bwa.",
+   "learner": "일을 줄인들 휴대폰을 보면 소용없겠죠.",
+   "en": "Even if I cut back work, it's no use if I keep using my phone.",
+   "roman": "ireul jurindeul hyudaeponeul bomyeon soyongeopgetjyo."
+  },
+  {
+   "n": 6,
+   "beaver": "일리 있는 말이네. 그럼 어떻게 할 거야?",
+   "beaver_en": "That makes sense. So what will you do?",
+   "beaver_roman": "illi inneun marine. geureom eotteoke hal geoya?",
+   "learner": "열한 시에 양치하고 바로 눕기로 했어요.",
+   "en": "I decided to brush my teeth at 11 and lie down right away.",
+   "roman": "yeolhan sie yangchihago baro nupgiro haesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋다. 그걸 꾸준히 지키는 게 중요해.",
+   "beaver_en": "Good. Sticking to it consistently is what matters.",
+   "beaver_roman": "jota. geugeol kkujunhi jikineun ge jungyohae.",
+   "learner": "네, 잠이 안 와도 휴대폰은 거실에 둘게요.",
+   "en": "Yes, even if I can't sleep, I'll leave my phone in the living room.",
+   "roman": "ne, jami an wado hyudaeponeun geosire dulgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "베개는 괜찮아? 너무 높으면 목이 아파.",
+   "beaver_en": "Is your pillow okay? If it's too high, your neck will hurt.",
+   "beaver_roman": "begaeneun gwaenchana? neomu nopeumyeon mogi apa.",
+   "learner": "높은 베개를 베서 그런지 목이 뻐근해요.",
+   "en": "Maybe because I use a high pillow, my neck feels stiff.",
+   "roman": "nopeun begaereul beseo geureonji mogi ppeogeunhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "내일 낮은 베개로 하나 사 줄게.",
+   "beaver_en": "I'll buy you a lower pillow tomorrow.",
+   "beaver_roman": "naeil najeun begaero hana sa julge.",
+   "learner": "고마워요. 의식주만큼 잠도 중요하네요.",
+   "en": "Thank you. Sleep is as important as food, clothing and shelter.",
+   "roman": "gomawoyo. uisikjumankeum jamdo jungyohaneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼. 오늘부터 일찍 자고 푹 쉬어.",
+   "beaver_en": "Of course. Starting today, go to bed early and rest well.",
+   "beaver_roman": "geureom. oneulbuteo iljjik jago puk swieo.",
+   "learner": "네, 오늘부터 꼭 일찍 잘게요. 안녕히 주무세요.",
+   "en": "Yes, I'll be sure to go to bed early from today. Good night.",
+   "roman": "ne, oneulbuteo kkok iljjik jalgeyo. annyeonghi jumuseyo."
+  }
+ ]
+}

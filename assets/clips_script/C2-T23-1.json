@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T23-1",
+ "no": 365,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "너 요즘 결혼 생각 있어? 이상형은 있고?",
+   "beaver_en": "Thinking about marriage lately? Got an ideal type?",
+   "beaver_roman": "neo yojeum gyeolhon saenggak isseo? isanghyeongeun itgo?",
+   "learner": "이상형은 있지만 결혼 적령기는 따로 없는 것 같아.",
+   "en": "I have an ideal type, but there's no set age to marry.",
+   "roman": "isanghyeongeun itjiman gyeolhon jeongnyeonggineun ttaro eomneun geot gata."
+  },
+  {
+   "n": 2,
+   "beaver": "맞아, 요즘은 서른 넘은 노총각도 흔하지.",
+   "beaver_en": "Right, older bachelors over thirty are common now.",
+   "beaver_roman": "maja, yojeumeun seoreun neomeun nochonggakdo heunhaji.",
+   "learner": "응, 노총각이란 말 대신 그냥 총각이라고 해.",
+   "en": "Yeah, people just say bachelor instead of old bachelor.",
+   "roman": "eung, nochonggagiran mal daesin geunyang chonggagirago hae."
+  },
+  {
+   "n": 3,
+   "beaver": "옛날엔 중매로 많이 만났다던데.",
+   "beaver_en": "I heard people used to meet through matchmaking.",
+   "beaver_roman": "yennaren jungmaero mani mannatdadeonde.",
+   "learner": "응, 중매 대신 이제 소개팅 앱 바람이 불었어.",
+   "en": "Yeah, now dating apps are all the rage instead.",
+   "roman": "eung, jungmae daesin ije sogaeting aep barami bureosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 구애하는 방식도 달라졌겠네.",
+   "beaver_en": "Then the way people court must have changed too.",
+   "beaver_roman": "geureom guaehaneun bangsikdo dallajyeotgenne.",
+   "learner": "응, 짝사랑도 문자로 툭 고백하는 판이야.",
+   "en": "Yeah, people even casually confess a crush by text.",
+   "roman": "eung, jjaksarangdo munjaro tuk gobaekaneun paniya."
+  },
+  {
+   "n": 5,
+   "beaver": "하하, 낭만이 좀 없다. 결혼식은 어때?",
+   "beaver_en": "Haha, not very romantic. What about weddings?",
+   "beaver_roman": "haha, nangmani jom eopda. gyeolhonsigeun eottae?",
+   "learner": "결혼식 직전에 함 들어가는 풍습도 거의 없어졌어.",
+   "en": "The custom of delivering the gift box before is almost gone.",
+   "roman": "gyeolhonsik jikjeone ham deureoganeun pungseupdo geoui eopseojyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "하객도 예전처럼 많이 부르나?",
+   "beaver_en": "Do they still invite lots of guests like before?",
+   "beaver_roman": "hagaekdo yejeoncheoreom mani bureuna?",
+   "learner": "아니, 작은 결혼식 바람이 불어서 하객이 적어.",
+   "en": "No, small weddings are trendy, so there are few guests.",
+   "roman": "ani, jageun gyeolhonsik barami bureoseo hagaegi jeogeo."
+  },
+  {
+   "n": 7,
+   "beaver": "피로연은? 예전엔 밤새 놀았잖아.",
+   "beaver_en": "And the reception? People used to party all night.",
+   "beaver_roman": "piroyeoneun? yejeonen bamsae noratjana.",
+   "learner": "피로연은 짧게 하고 작은 파티로 대신하더라.",
+   "en": "They keep the reception short and do a small party instead.",
+   "roman": "piroyeoneun jjalge hago jageun patiro daesinhadeora."
+  },
+  {
+   "n": 8,
+   "beaver": "결혼 안 하고 같이 사는 사람도 많지?",
+   "beaver_en": "Lots of people live together without marrying, right?",
+   "beaver_roman": "gyeolhon an hago gachi saneun saramdo manchi?",
+   "learner": "응, 동거가 늘고 성에 대한 인식도 바뀌었어.",
+   "en": "Yeah, cohabitation is up and views on sex have changed.",
+   "roman": "eung, donggeoga neulgo seonge daehan insikdo bakkwieosseo."
+  },
+  {
+   "n": 9,
+   "beaver": "이혼이나 재혼도 많아졌다더라.",
+   "beaver_en": "I hear divorce and remarriage have increased too.",
+   "beaver_roman": "ihonina jaehondo manajyeotdadeora.",
+   "learner": "맞아, 이혼율도 오르고 재혼도 흔해졌어.",
+   "en": "Right, the divorce rate is up and remarriage is common now.",
+   "roman": "maja, ihonnyuldo oreugo jaehondo heunhaejyeosseo."
+  },
+  {
+   "n": 10,
+   "beaver": "그래도 난 낭만적인 결혼이 좋더라.",
+   "beaver_en": "Still, I like the idea of a romantic marriage.",
+   "beaver_roman": "geuraedo nan nangmanjeogin gyeolhoni joteora.",
+   "learner": "나도. 그래도 결국 꿈은 백년해로지!",
+   "en": "Me too. In the end, the dream is growing old together!",
+   "roman": "nado. geuraedo gyeolguk kkumeun baengnyeonhaeroji!"
+  }
+ ]
+}

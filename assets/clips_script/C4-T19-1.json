@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T19-1",
+ "no": 455,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "예절 교육 과정표, 비중은 어떻게 나눴어요?",
+   "beaver_en": "How did you divide the weight in the etiquette course plan?",
+   "beaver_roman": "yejeol gyoyuk gwajeongpyo, bijungeun eotteoke nanwosseoyo?",
+   "learner": "전체에서 기본 예의범절의 비중이 가장 높아요.",
+   "en": "Basic etiquette and manners take up the largest share overall.",
+   "roman": "jeoncheeseo gibon yeuibeomjeorui bijungi gajang nopayo."
+  },
+  {
+   "n": 2,
+   "beaver": "어른 공경은 어떻게 가르칠 생각이에요?",
+   "beaver_en": "How do you plan to teach respect for elders?",
+   "beaver_roman": "eoreun gonggyeongeun eotteoke gareuchil saenggagieyo?",
+   "learner": "장유유서를 중심으로 어른을 받드는 법을 다뤄요.",
+   "en": "We cover how to serve elders, centered on respect for seniority.",
+   "roman": "jangyuyuseoreul jungsimeuro eoreuneul batdeuneun beobeul darwoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아침 문안 인사 같은 것도 들어가요?",
+   "beaver_en": "Is something like morning greetings to elders included too?",
+   "beaver_roman": "achim munan insa gateun geotdo deureogayo?",
+   "learner": "네, 가정 예절에서 문안의 비중이 꽤 높아요.",
+   "en": "Yes, greetings to elders make up a big part of home etiquette.",
+   "roman": "ne, gajeong yejeoreseo munanui bijungi kkwae nopayo."
+  },
+  {
+   "n": 4,
+   "beaver": "접대 예절도 다루나요?",
+   "beaver_en": "Do you also cover hosting etiquette?",
+   "beaver_roman": "jeopdae yejeoldo darunayo?",
+   "learner": "네, 손님 접대는 두 번째로 비중이 커요.",
+   "en": "Yes, hosting guests has the second-largest share.",
+   "roman": "ne, sonnim jeopdaeneun du beonjjaero bijungi keoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "실습은 어떤 식으로 해요?",
+   "beaver_en": "How will the practice sessions work?",
+   "beaver_roman": "silseubeun eotteon sigeuro haeyo?",
+   "learner": "노크하고 들어가는 것부터 차근차근 연습해요.",
+   "en": "We practice step by step, starting with knocking before entering.",
+   "roman": "nokeuhago deureoganeun geotbuteo chageunchageun yeonseupaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "선물을 받았을 때는요?",
+   "beaver_en": "What about when you receive a gift?",
+   "beaver_roman": "seonmureul badasseul ttaeneunyo?",
+   "learner": "답례하는 법과 정중히 사양하는 법을 같이 배워요.",
+   "en": "They learn both how to return the favor and how to politely decline.",
+   "roman": "damnyehaneun beopgwa jeongjunghi sayanghaneun beobeul gachi baewoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "무례한 행동은 어떻게 다룰 거예요?",
+   "beaver_en": "How will you deal with rude behavior?",
+   "beaver_roman": "muryehan haengdongeun eotteoke darul geoyeyo?",
+   "learner": "사례를 보여 주고 무례가 왜 문제인지 토론해요.",
+   "en": "We show examples and discuss why rudeness is a problem.",
+   "roman": "saryereul boyeo jugo muryega wae munjeinji toronhaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "합동 수업도 있으면 좋겠어요.",
+   "beaver_en": "It would be nice to have a joint class, too.",
+   "beaver_roman": "hapdong sueopdo isseumyeon jokesseoyo.",
+   "learner": "좋아요. 후속 과정에서 합동 실습을 넣을게요.",
+   "en": "Good idea. I'll add joint practice in the follow-up course.",
+   "roman": "joayo. husok gwajeongeseo hapdong silseubeul neoeulgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "학생들이 지루해하지 않을까요?",
+   "beaver_en": "Won't the students get bored?",
+   "beaver_roman": "haksaengdeuri jiruhaehaji aneulkkayo?",
+   "learner": "역할극이 수업에 활력소가 될 거예요.",
+   "en": "Role-plays will bring energy to the class.",
+   "roman": "yeokalgeugi sueobe hwallyeoksoga doel geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋네요. 그럼 이대로 확정할까요?",
+   "beaver_en": "Sounds good. Shall we finalize it like this?",
+   "beaver_roman": "jonneyo. geureom idaero hwakjeonghalkkayo?",
+   "learner": "네, 제가 과정표를 정리해서 보내 드릴게요.",
+   "en": "Yes, I'll tidy up the course plan and send it to you.",
+   "roman": "ne, jega gwajeongpyoreul jeongnihaeseo bonae deurilgeyo."
+  }
+ ]
+}
