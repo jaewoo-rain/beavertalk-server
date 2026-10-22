@@ -27,6 +27,8 @@ def _state(now, *, since=40.0):
     st.beaver_end_ts = now - since
     st.last_activity_ts = now - since
     st.user_voice_ts = now - 0.1      # 소리는 계속 온다(TV)
+    st.ambient_ema = 0.9              # PM-DEC-1005 — 배경 소리 비율(낮은 문턱)
+    st.ambient_ts = now - 0.1
     st.user_turn_open = False         # 전사 없음
     return st
 
@@ -92,6 +94,7 @@ async def test_quiet_room_is_ordinary_silence(on):
     now = asyncio.get_running_loop().time()
     st, s = _state(now), _Sess()
     st.user_voice_ts = now - 35.0
+    st.ambient_ema = 0.0              # 조용한 방
     _, noted = await cs._noise_guard(s, st, st.user_voice_ts)
     assert not noted and not s.text_turns
 
@@ -120,3 +123,65 @@ async def test_reply_to_noise_note_is_not_held(monkeypatch):
     assert cs._reply_hold_eligible(st)
     st.noise_note_ts = asyncio.get_running_loop().time()
     assert not cs._reply_hold_eligible(st)
+
+
+def _pcm(level, n=320):
+    return int(level * 32767).to_bytes(2, "little", signed=True) * n
+
+
+@pytest.mark.asyncio
+async def test_tv_below_voice_threshold_still_counts_as_sound(on):
+    """PM-DEC-1005 — TV 실측 RMS 0.006(목소리 문턱 0.02 아래)도 배경 소리로 잡혀 «시끄럽다» 안내가 나간다."""
+    now = asyncio.get_running_loop().time()
+    st, s = _state(now), _Sess()
+    st.user_voice_ts = None
+    st.ambient_ema = 0.0
+    for _ in range(300):
+        cs._ambient_track(st, _pcm(0.006))
+    assert st.ambient_ema >= cs.NOISE_AMBIENT_RATIO
+    _, noted = await cs._noise_guard(s, st, 0.0)
+    assert noted and len(s.text_turns) == 1
+
+
+@pytest.mark.asyncio
+async def test_quiet_room_low_residual_is_not_noise(on):
+    now = asyncio.get_running_loop().time()
+    st, s = _state(now), _Sess()
+    st.ambient_ema = 0.0
+    for _ in range(300):
+        cs._ambient_track(st, _pcm(0.001))
+    assert st.ambient_ema < cs.NOISE_AMBIENT_RATIO
+    _, noted = await cs._noise_guard(s, st, 0.0)
+    assert not noted and not s.text_turns
+
+
+@pytest.mark.asyncio
+async def test_noise_gate_zeroes_low_frames_keeps_voice_and_tail(monkeypatch):
+    monkeypatch.setattr(cs, "NOISE_GATE_RMS", 0.012)
+    st = cs._CallState()
+    tv, voice = _pcm(0.008), _pcm(0.05)
+    assert cs._noise_gate(st, tv) == bytes(len(tv))          # 작은 소리 → 무음
+    assert cs._noise_gate(st, voice) == voice                # 목소리 그대로
+    assert cs._noise_gate(st, tv) == tv                      # 목소리 직후 말꼬리 보호
+    st.gate_voice_ts -= 1.0
+    assert cs._noise_gate(st, tv) == bytes(len(tv))
+    assert st.gate_zeroed == 2
+    mid = _pcm(0.015)
+    st.gate_voice_ts -= 1.0
+    assert cs._noise_gate(st, mid) == mid                    # 게이트 문턱 위는 그대로
+
+
+def test_noise_floor_does_not_stick_at_zero():
+    st = cs._CallState()
+
+    async def _go():
+        for _ in range(50):
+            cs._reply_hold_track_voice(st, _pcm(0.006))
+        cs._reply_hold_track_voice(st, bytes(640))           # 디지털 무음 한 프레임
+        return st.hold_noise_floor
+
+    assert asyncio.run(_go()) > 0.004
+
+
+def test_gate_off_by_default():
+    assert cs.NOISE_GATE_RMS == 0
