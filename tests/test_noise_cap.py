@@ -185,3 +185,65 @@ def test_noise_floor_does_not_stick_at_zero():
 
 def test_gate_off_by_default():
     assert cs.NOISE_GATE_RMS == 0
+
+
+
+class _Clock:
+    def __init__(self):
+        self.t = 0.0
+
+    def time(self):
+        return self.t
+
+
+def _feed(st, clock, level, seconds, step=0.02):
+    out = []
+    for _ in range(int(seconds / step)):
+        clock.t += step
+        out.append(cs._agate(st, _pcm(level)))
+    return out
+
+
+def test_agate_tv_peaks_stay_silent_learner_voice_passes(monkeypatch):
+    """TV 200 실측꼴(평균 0.005 · 봉우리 0.02 짧게)은 Live 에 무음 · 학습자 말(0.05 이상 지속)은 인정되고 앞 0.3초도 같이 간다."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    for i in range(600):                                   # 12초 TV 배경(가끔 0.02 봉우리 0.06초)
+        lv = 0.019 if i % 50 in (0, 1, 2) else 0.005
+        clock.t += 0.02
+        o = cs._agate(st, _pcm(lv))
+        assert o == [bytes(640)], (i, st.ag_thr)
+    assert 0.02 <= st.ag_thr <= 0.03, st.ag_thr
+    out = _feed(st, clock, 0.06, 0.4)                      # 학습자 말
+    flushed = [o for o in out if len(o) > 1]
+    assert flushed and len(flushed[0]) >= 10               # 인정 순간 앞 0.3초 원음 묶음
+    assert out[-1] == [_pcm(0.06)]
+    assert st.ag_onsets == 1
+
+
+def test_agate_quiet_room_soft_voice_passes(monkeypatch):
+    """조용한 방(배경 0.001)이면 문턱이 바닥 0.006 — 작게 말하기(0.015)도 인정된다."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    _feed(st, clock, 0.001, 6)
+    assert st.ag_thr == pytest.approx(cs.AGATE_FLOOR)
+    out = _feed(st, clock, 0.015, 0.5)
+    assert st.ag_speaking and out[-1] == [_pcm(0.015)]
+
+
+def test_agate_keeps_tail_then_returns_to_silence(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    _feed(st, clock, 0.001, 3)
+    _feed(st, clock, 0.05, 0.5)
+    tail = _feed(st, clock, 0.002, 0.3)                    # 말꼬리 0.3초 — 그대로
+    assert all(o == [_pcm(0.002)] for o in tail)
+    after = _feed(st, clock, 0.002, 0.4)                   # 0.4초 넘으면 무음
+    assert after[-1] == [bytes(640)] and not st.ag_speaking
+
+
+def test_agate_off_by_default():
+    assert cs.AGATE is False

@@ -382,6 +382,16 @@ NOISE_GATE_HANG_S = float(os.environ.get("LIVE_NOISE_GATE_HANG_S", "0.4") or 0.4
 NOISE_AMBIENT_RMS = float(os.environ.get("LIVE_NOISE_AMBIENT_RMS", "0.003") or 0.003)
 NOISE_AMBIENT_RATIO = 0.5
 _ZERO_FRAMES: dict = {}
+# PM-DEC-1008 후속 — 적응 소음 게이트(기본 끔)
+AGATE = os.environ.get("LIVE_NOISE_AGATE", "0") == "1"
+AGATE_FLOOR = float(os.environ.get("LIVE_NOISE_AGATE_FLOOR", "0.006") or 0.006)
+AGATE_K = float(os.environ.get("LIVE_NOISE_AGATE_K", "1.4") or 1.4)
+AGATE_ONSET_S = 0.15
+AGATE_PREROLL_S = 0.3
+AGATE_TAIL_S = 0.4
+AGATE_TAIL_RATIO = 0.5
+AGATE_HIST_N = 500              # 배경 표본(프레임) — 초당 수십 프레임이라 약 10초
+AGATE_RECALC_EVERY = 25
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -820,6 +830,7 @@ class _CallState:
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
+        "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets",   # 적응 게이트
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
@@ -1039,6 +1050,14 @@ class _CallState:
         self.ambient_ts = 0.0             # 마지막으로 마이크 프레임을 본 시각
         self.gate_voice_ts = 0.0          # 게이트 — 마지막 목소리 프레임 시각
         self.gate_zeroed = 0              # 게이트가 0 으로 바꾼 프레임 수(계측)
+        self.ag_hist: list = []           # 적응 게이트 — 말로 인정 안 된 프레임 RMS(최근 AGATE_HIST_N)
+        self.ag_thr = AGATE_FLOOR
+        self.ag_n = 0
+        self.ag_speaking = False
+        self.ag_run_t0: Optional[float] = None
+        self.ag_loud_ts = 0.0
+        self.ag_pre: list = []            # (시각, 원음) — 말 시작 인정 때 앞 0.3초를 다시 보낸다
+        self.ag_onsets = 0
         self.reply_mute_until = 0.0               # 이 시각까지 마이크를 Live 로 안 보낸다(들리는 답을 소음이 못 끊게)
         self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
         self.midcall_echo_until = 0.0     # PM-DEC-977 — 이 시각 전(루프 시계)엔 학습자 말 없이 온 새 비버 턴을 보내지 않는다
@@ -6557,7 +6576,11 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                 #   — `_attach_reground` at_mic 가드, C2 QA①). 모드 조건은 **쪽지 자리에만**
                 #   건다(`_attach_reground` 안, at_mic 인데 mic_open 모드가 아니면 쪽지만 건너뜀).
                 await _maybe_attach_reground_on_mic(session, state, data)
-                await session.send_audio(_noise_gate(state, data) if NOISE_GATE_RMS > 0 else data)   # PM-DEC-1005 (D)
+                if AGATE:
+                    for frame in _agate(state, data):   # PM-DEC-1008 후속 — 적응 게이트(인정 순간 앞 0.3초 원음을 같이 보낸다)
+                        await session.send_audio(frame)
+                else:
+                    await session.send_audio(_noise_gate(state, data) if NOISE_GATE_RMS > 0 else data)   # PM-DEC-1005 (D)
                 state.cur_user_pcm.extend(data)  # 통화후 국적 추론용으로 원음도 메모리에 쌓아둠
                 continue
             text = message.get("text")
@@ -8107,6 +8130,53 @@ def _ambient_track(state: _CallState, data: bytes) -> None:
     state.ambient_ts = asyncio.get_running_loop().time()
 
 
+def _zeros(n: int) -> bytes:
+    z = _ZERO_FRAMES.get(n)
+    if z is None:
+        z = _ZERO_FRAMES[n] = bytes(n)
+    return z
+
+
+def _agate(state: _CallState, data: bytes) -> list:
+    """적응 소음 게이트 — 이번 프레임에 Live 로 보낼 것(없으면 무음 1개 · 말 시작 인정 순간엔 앞 0.3초 원음 + 이번 프레임)."""
+    r = frame_rms(data)
+    now = asyncio.get_running_loop().time()
+    thr = state.ag_thr
+    if state.ag_speaking:
+        if r >= thr * AGATE_TAIL_RATIO:
+            state.ag_loud_ts = now
+        if now - state.ag_loud_ts <= AGATE_TAIL_S:
+            return [data]
+        state.ag_speaking = False       # 말 끝 — 다시 배경으로
+        state.ag_run_t0 = None
+    # 인정 전(배경)
+    state.ag_pre.append((now, data))
+    while state.ag_pre and now - state.ag_pre[0][0] > AGATE_PREROLL_S:
+        state.ag_pre.pop(0)
+    if r >= thr:
+        if state.ag_run_t0 is None:
+            state.ag_run_t0 = now
+        if now - state.ag_run_t0 >= AGATE_ONSET_S:
+            state.ag_speaking = True
+            state.ag_loud_ts = now
+            state.ag_onsets += 1
+            out = [f for _, f in state.ag_pre]
+            state.ag_pre.clear()
+            return out
+    else:
+        state.ag_run_t0 = None
+    # ⛔ 문턱 넘은 짧은 봉우리도 배경 표본에 넣는다 — 빼면 문턱이 TV 봉우리를 영영 못 배운다(시험이 잡음)
+    state.ag_hist.append(r)
+    if len(state.ag_hist) > AGATE_HIST_N:
+        del state.ag_hist[: len(state.ag_hist) - AGATE_HIST_N]
+    state.ag_n += 1
+    if state.ag_n % AGATE_RECALC_EVERY == 0 and len(state.ag_hist) >= 50:
+        srt = sorted(state.ag_hist)
+        state.ag_thr = max(AGATE_FLOOR, AGATE_K * srt[int(len(srt) * 0.95) - 1])
+    state.gate_zeroed += 1
+    return [_zeros(len(data))]
+
+
 def _noise_gate(state: _CallState, data: bytes) -> bytes:
     """PM-DEC-1005 (D) — 작은 소리(TV 배경 등)는 Live 에 무음으로 보낸다 · 목소리 뒤 잠깐은 그대로(말꼬리 보호)."""
     r = frame_rms(data)
@@ -8138,7 +8208,8 @@ def _mic_rms_stat(state: _CallState, data: bytes) -> None:
         logger.info("normalcall 마이크 RMS: call_id=%s n=%d 평균=%.4f 최대=%.4f 문턱넘음=%.0f%% 바닥=%.4f",
                     _cid(state), state.mic_n, state.mic_sum / state.mic_n, state.mic_max,
                     100.0 * state.mic_loud / state.mic_n, state.hold_noise_floor)
-        logger.info("normalcall 마이크 배경: call_id=%s 배경비율=%.2f 게이트0=%d", _cid(state), state.ambient_ema, state.gate_zeroed)
+        logger.info("normalcall 마이크 배경: call_id=%s 배경비율=%.2f 게이트0=%d 적응문턱=%.4f 말인정=%d",
+                    _cid(state), state.ambient_ema, state.gate_zeroed, state.ag_thr, state.ag_onsets)
         state.mic_n, state.mic_sum, state.mic_max, state.mic_loud, state.mic_log_ts = 0, 0.0, 0.0, 0, now
 
 
