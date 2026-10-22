@@ -30,6 +30,9 @@ _DEFAULT_SAMPLE_RATE = 16000  # 앱 마이크 기본(PCM16/16k). config 로 덮�
 _MAX_WORDS = 200  # phrase hints 상한(악의적/과대 입력 방어)
 
 
+STOP_DRAIN_S = 3.0   # PM-DEC-1017 — stop 뒤 마지막 결과를 기다리는 상한(초)
+
+
 @dataclass
 class SttInbound:
     """WS 인바운드 1건: 바이너리=오디오, 텍스트=JSON 제어, 끊김=disconnect."""
@@ -140,6 +143,10 @@ class PronSttSession:
             if inb.kind == "control":
                 ctype = (inb.control or {}).get("type")
                 if ctype == "stop":
+                    # PM-DEC-951·1017 — 바로 닫지 않는다: 입력 끝을 알려 Google 이 마지막 결과(final)를 내게 하고,
+                    #   _pump_out 이 그걸 흘린 뒤 done 을 보내고 끝낸다. STOP_DRAIN_S 안에 안 끝나면 그대로 닫는다.
+                    await stream.close()
+                    await asyncio.sleep(STOP_DRAIN_S)
                     raise _Stop
                 if ctype == "__test_say":  # 테스트/페이크 구동 훅
                     stream.feed_test(str((inb.control or {}).get("text") or ""))
@@ -155,6 +162,7 @@ class PronSttSession:
             await self.transport.send_event(
                 {"type": "final" if is_final else "partial", "text": text}
             )
+        await self._safe_event({"type": "done"})   # PM-DEC-1017 — 마지막 결과까지 다 보냈다(앱은 이걸 보고 닫는다)
         raise _Stop  # 스트림이 끝나면 세션 종료
 
     async def _safe_event(self, event: dict) -> None:
