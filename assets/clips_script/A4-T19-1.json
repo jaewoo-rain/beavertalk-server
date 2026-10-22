@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T19-1",
+ "no": 99,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 손님 맞을 준비 다 됐어요?",
+   "beaver_en": "Minsu, is everything ready for the guests?",
+   "beaver_roman": "Minsu ssi, sonnim majeul junbi da dwaesseoyo?",
+   "learner": "지금 확인하는 중이에요. 손님은 몇 분인가요?",
+   "en": "I'm checking now. How many guests are there?",
+   "roman": "Jigeum hwaginhaneun jungieyo. Sonnimeun myeot buningayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "세 분이요. 김 사장님하고 직원 두 분이에요.",
+   "beaver_en": "Three. CEO Kim and two staff members.",
+   "beaver_roman": "Se buniyo. Gim sajangnimhago jigwon du bunieyo.",
+   "learner": "김 사장님은 지난번에 뵌 분인가요?",
+   "en": "Is CEO Kim the person we met last time?",
+   "roman": "Gim sajangnimeun jinanbeone boen buningayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "네, 맞아요. 이번에도 직접 오세요.",
+   "beaver_en": "Yes, that's right. He's coming in person again.",
+   "beaver_roman": "Ne, majayo. Ibeonedo jikjeop oseyo.",
+   "learner": "그럼 공항 마중은 누가 나가나요?",
+   "en": "Then who's going to meet them at the airport?",
+   "roman": "Geureom gonghang majungeun nuga naganayo?"
+  },
+  {
+   "n": 4,
+   "beaver": "제가 가려고 했는데, 같이 갈래요?",
+   "beaver_en": "I was going to go. Want to come with me?",
+   "beaver_roman": "Jega garyeogo haenneunde, gachi gallaeyo?",
+   "learner": "좋아요. 그런데 비행기가 몇 시에 도착하나요?",
+   "en": "Sure. But what time does the plane arrive?",
+   "roman": "Joayo. Geureonde bihaenggiga myeot sie dochakanayo?"
+  },
+  {
+   "n": 5,
+   "beaver": "음, 정확한 시간은 잘 모르겠어요.",
+   "beaver_en": "Hmm, I'm not sure of the exact time.",
+   "beaver_roman": "Eum, jeonghwakan siganeun jal moreugesseoyo.",
+   "learner": "그럼 제가 부장님께 여쭤볼게요.",
+   "en": "Then I'll ask the manager.",
+   "roman": "Geureom jega bujangnimkke yeojjwobolgeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "고마워요. 회의실 준비는 어때요?",
+   "beaver_en": "Thanks. How's the meeting room coming along?",
+   "beaver_roman": "Gomawoyo. Hoeuisil junbineun eottaeyo?",
+   "learner": "지금 정리하는 중인데요, 의자가 부족해요.",
+   "en": "I'm tidying it up now, but we're short on chairs.",
+   "roman": "Jigeum jeongnihaneun jungindeyo, uijaga bujokaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "옆방에서 가져오면 돼요. 현수막은요?",
+   "beaver_en": "We can bring some from next door. And the banner?",
+   "beaver_roman": "Yeoppangeseo gajyeoomyeon dwaeyo. Hyeonsumageunyo?",
+   "learner": "환영 현수막은 어젯밤에 다 만들었어요.",
+   "en": "I finished the welcome banner last night.",
+   "roman": "Hwanyeong hyeonsumageun eojeppame da mandeureosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋네요. 손님들은 어디로 안내할까요?",
+   "beaver_en": "Great. Where should we take the guests?",
+   "beaver_roman": "Jonneyo. Sonnimdeureun eodiro annaehalkkayo?",
+   "learner": "제가 회의실로 모실게요. 차도 준비했어요.",
+   "en": "I'll escort them to the meeting room. I made tea too.",
+   "roman": "Jega hoeuisillo mosilgeyo. Chado junbihaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그런데 바닥에 전선이 있어서 위험해요.",
+   "beaver_en": "By the way, there's a cable on the floor. It's dangerous.",
+   "beaver_roman": "Geureonde badage jeonseoni isseoseo wiheomhaeyo.",
+   "learner": "아, 손님들이 넘어지시면 안 되는데요. 제가 치울게요.",
+   "en": "Oh, the guests mustn't trip. I'll move it.",
+   "roman": "A, sonnimdeuri neomeojisimyeon an doeneundeyo. Jega chiulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 오늘 정말 수고 많았어요.",
+   "beaver_en": "Thanks. You worked really hard today.",
+   "beaver_roman": "Gomawoyo. Oneul jeongmal sugo manasseoyo.",
+   "learner": "지은 씨도 수고했어요. 이제 마중 나가요!",
+   "en": "You too, Jieun. Let's go meet them now!",
+   "roman": "Jieun ssido sugohaesseoyo. Ije majung nagayo!"
+  }
+ ]
+}

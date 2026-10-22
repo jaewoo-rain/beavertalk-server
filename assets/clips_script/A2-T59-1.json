@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T59-1",
+ "no": 45,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "학생, 아직 안 일어났어요? 괜찮아요?",
+   "beaver_en": "You're not up yet? Are you okay?",
+   "beaver_roman": "haksaeng, ajik an ireonasseoyo? gwaenchanayo?",
+   "learner": "아주머니, 저 좀 아파요. 머리가 아파요.",
+   "en": "Ma'am, I'm a bit sick. My head hurts.",
+   "roman": "ajumeoni, jeo jom apayo. meoriga apayo."
+  },
+  {
+   "n": 2,
+   "beaver": "어머, 얼굴이 빨개요. 열이 있어요?",
+   "beaver_en": "Oh my, your face is red. Do you have a fever?",
+   "beaver_roman": "eomeo, eolguri ppalgaeyo. yeori isseoyo?",
+   "learner": "네, 열이 있어요. 목도 아파요.",
+   "en": "Yes, I have a fever. My throat hurts too.",
+   "roman": "ne, yeori isseoyo. mokdo apayo."
+  },
+  {
+   "n": 3,
+   "beaver": "감기에 걸렸나 봐요. 어제 늦게 잤어요?",
+   "beaver_en": "You must have caught a cold. Did you go to bed late last night?",
+   "beaver_roman": "gamgie geollyeonna bwayo. eoje neutge jasseoyo?",
+   "learner": "네, 요즘 바빠서 너무 피곤해요.",
+   "en": "Yes, I'm so tired because I'm busy these days.",
+   "roman": "ne, yojeum bappaseo neomu pigonhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "오늘 학교에 갈 거예요?",
+   "beaver_en": "Are you going to school today?",
+   "beaver_roman": "oneul hakgyoe gal geoyeyo?",
+   "learner": "아니요, 오늘은 하루만 쉬고 싶어요.",
+   "en": "No, I want to rest just for today.",
+   "roman": "aniyo, oneureun haruman swigo sipeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래요. 병원은 멀어요?",
+   "beaver_en": "Okay. Is the hospital far?",
+   "beaver_roman": "geuraeyo. byeongwoneun meoreoyo?",
+   "learner": "조금 멀어요. 버스로 삼십 분 걸려요.",
+   "en": "It's a bit far. It takes 30 minutes by bus.",
+   "roman": "jogeum meoreoyo. beoseuro samsip bun geollyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 오늘은 약만 먹고 푹 자요.",
+   "beaver_en": "Then just take medicine and sleep well today.",
+   "beaver_roman": "geureom oneureun yangman meokgo puk jayo.",
+   "learner": "네, 감기약이 있어요. 큰 병은 아니에요.",
+   "en": "Yes, I have cold medicine. It's not a serious illness.",
+   "roman": "ne, gamgiyagi isseoyo. keun byeongeun anieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "죽을 만들어 줄게요. 먹을 수 있어요?",
+   "beaver_en": "I'll make you porridge. Can you eat?",
+   "beaver_roman": "jugeul mandeureo julgeyo. meogeul su isseoyo?",
+   "learner": "네, 조금만 주세요. 입맛이 없어요.",
+   "en": "Yes, just a little, please. I have no appetite.",
+   "roman": "ne, jogeumman juseyo. immasi eopseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "알았어요. 방이 좀 추워요?",
+   "beaver_en": "Got it. Is your room a bit cold?",
+   "beaver_roman": "arasseoyo. bangi jom chuwoyo?",
+   "learner": "네, 조금 추워요. 보일러 좀 켜 주세요.",
+   "en": "Yes, a little cold. Please turn on the heater.",
+   "roman": "ne, jogeum chuwoyo. boilleo jom kyeo juseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "오늘은 무리하지 마세요. 공부도 쉬어요.",
+   "beaver_en": "Don't overdo it today. Take a break from studying too.",
+   "beaver_roman": "oneureun murihaji maseyo. gongbudo swieoyo.",
+   "learner": "네, 걱정하지 마세요. 푹 잘게요.",
+   "en": "Okay, don't worry. I'll sleep well.",
+   "roman": "ne, geokjeonghaji maseyo. puk jalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "내일도 아프면 꼭 병원에 가요.",
+   "beaver_en": "If you're still sick tomorrow, be sure to see a doctor.",
+   "beaver_roman": "naeildo apeumyeon kkok byeongwone gayo.",
+   "learner": "네, 고마워요. 그때는 병원에 갈게요.",
+   "en": "Okay, thank you. Then I'll go to the hospital.",
+   "roman": "ne, gomawoyo. geuttaeneun byeongwone galgeyo."
+  }
+ ]
+}

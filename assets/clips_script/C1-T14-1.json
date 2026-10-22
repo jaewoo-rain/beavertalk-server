@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T14-1",
+ "no": 304,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 밥은 잘 먹고 있어? 식습관은 어때?",
+   "beaver_en": "Are you eating well these days? How are your eating habits?",
+   "beaver_roman": "yojeum babeun jal meokgo isseo? sikseupgwaneun eottae?",
+   "learner": "그럭저럭 먹지, 뭐. 근데 식욕이 너무 좋아.",
+   "en": "I eat okay, I guess. But my appetite is way too good.",
+   "roman": "geureokjeoreok meokji, mwo. geunde sigyogi neomu joa."
+  },
+  {
+   "n": 2,
+   "beaver": "식욕이 좋은 건 괜찮아. 고기를 많이 먹어?",
+   "beaver_en": "A good appetite is fine. Do you eat a lot of meat?",
+   "beaver_roman": "sigyogi joeun geon gwaenchana. gogireul mani meogeo?",
+   "learner": "응, 육식을 많이 해. 매일 고기를 먹지, 뭐.",
+   "en": "Yeah, I eat a lot of meat. I just have it every day.",
+   "roman": "eung, yuksigeul mani hae. maeil gogireul meokji, mwo."
+  },
+  {
+   "n": 3,
+   "beaver": "고기는 단백질이 많지만 채소도 먹어야 해.",
+   "beaver_en": "Meat has lots of protein, but you need vegetables too.",
+   "beaver_roman": "gogineun danbaekjiri manchiman chaesodo meogeoya hae.",
+   "learner": "문제는 채소를 거의 안 먹는다는 거야.",
+   "en": "The thing is, I hardly eat any vegetables.",
+   "roman": "munjeneun chaesoreul geoui an meongneundaneun geoya."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 영양소가 부족할 수도 있어.",
+   "beaver_en": "Then you might be short on nutrients.",
+   "beaver_roman": "geureom yeongyangsoga bujokal sudo isseo.",
+   "learner": "의사 선생님도 그러더라고. 영양소가 부족하대.",
+   "en": "My doctor said so too. She said I lack nutrients.",
+   "roman": "uisa seonsaengnimdo geureodeorago. yeongyangsoga bujokadae."
+  },
+  {
+   "n": 5,
+   "beaver": "열량도 봐야 해. 하루에 얼마나 먹어?",
+   "beaver_en": "You should check calories too. How much do you eat a day?",
+   "beaver_roman": "yeollyangdo bwaya hae. harue eolmana meogeo?",
+   "learner": "잘 모르겠어. 열량 계산을 자꾸 깜박해.",
+   "en": "I'm not sure. I keep forgetting to count calories.",
+   "roman": "jal moreugesseo. yeollyang gyesaneul jakku kkambakae."
+  },
+  {
+   "n": 6,
+   "beaver": "밤에 많이 먹는 편이야?",
+   "beaver_en": "Do you tend to eat a lot at night?",
+   "beaver_roman": "bame mani meongneun pyeoniya?",
+   "learner": "응, 스트레스를 받으면 밤에 폭식을 해.",
+   "en": "Yeah, when I'm stressed, I binge at night.",
+   "roman": "eung, seuteureseureul badeumyeon bame poksigeul hae."
+  },
+  {
+   "n": 7,
+   "beaver": "폭식은 비만의 원인이 될 수 있어.",
+   "beaver_en": "Binge eating can cause obesity.",
+   "beaver_roman": "poksigeun bimanui wonini doel su isseo.",
+   "learner": "알아. 요즘 살이 쪄서 비만이 걱정돼.",
+   "en": "I know. I've gained weight lately, so I worry about obesity.",
+   "roman": "ara. yojeum sari jjeoseo bimani geokjeongdwae."
+  },
+  {
+   "n": 8,
+   "beaver": "먼저 저녁 섭취량을 조금 줄여 보자.",
+   "beaver_en": "First, let's cut down your dinner intake a little.",
+   "beaver_roman": "meonjeo jeonyeok seopchwiryangeul jogeum juryeo boja.",
+   "learner": "좋아. 야식 섭취를 줄이는 게 먼저지, 뭐.",
+   "en": "Okay. Cutting late-night snacks comes first, I guess.",
+   "roman": "joa. yasik seopchwireul jurineun ge meonjeoji, mwo."
+  },
+  {
+   "n": 9,
+   "beaver": "고기 대신 두부로 단백질을 먹어 봐.",
+   "beaver_en": "Try getting protein from tofu instead of meat.",
+   "beaver_roman": "gogi daesin duburo danbaekjireul meogeo bwa.",
+   "learner": "두부 좋지. 친구들도 맛있다고 그러더라고.",
+   "en": "Tofu sounds good. My friends said it's tasty too.",
+   "roman": "dubu joji. chingudeuldo masitdago geureodeorago."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아! 다음 주에 식습관 얘기 또 하자.",
+   "beaver_en": "Great! Let's talk about your eating habits again next week.",
+   "beaver_roman": "joa! daeum jue sikseupgwan yaegi tto haja.",
+   "learner": "고마워. 이번엔 꼭 지켜 볼게. 응원해 줘!",
+   "en": "Thanks. I'll really stick to it this time. Cheer me on!",
+   "roman": "gomawo. ibeonen kkok jikyeo bolge. eungwonhae jwo!"
+  }
+ ]
+}

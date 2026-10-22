@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T33-1",
+ "no": 16,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지은 씨, 쉬는 날에 보통 뭐 해요?",
+   "beaver_en": "Jieun, what do you usually do on your days off?",
+   "beaver_roman": "Jieun ssi, swineun nare botong mwo haeyo?",
+   "learner": "음, 전 쉬는 날에 공원에서 산책해요.",
+   "en": "Hmm, on my days off I take a walk in the park.",
+   "roman": "Eum, jeon swineun nare gongwoneseo sanchaekaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "산책 좋네요. 사진도 찍어요?",
+   "beaver_en": "A walk sounds nice. Do you take photos too?",
+   "beaver_roman": "Sanchaek jonneyo. Sajindo jjigeoyo?",
+   "learner": "네, 사진도 찍어요. 공원 사진이 제일 좋아요.",
+   "en": "Yes, I take photos too. Park photos are my favorite.",
+   "roman": "Ne, sajindo jjigeoyo. Gongwon sajini jeil joayo."
+  },
+  {
+   "n": 3,
+   "beaver": "그리고 또 뭐 해요?",
+   "beaver_en": "And what else do you do?",
+   "beaver_roman": "Geurigo tto mwo haeyo?",
+   "learner": "집에서 책을 읽어요. 그리고 목도리도 짜요.",
+   "en": "I read books at home. And I knit scarves too.",
+   "roman": "Jibeseo chaegeul ilgeoyo. Geurigo mokdorido jjayo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 목도리요? 누구 거예요?",
+   "beaver_en": "Wow, a scarf? Who is it for?",
+   "beaver_roman": "Wa, mokdoriyo? Nugu geoyeyo?",
+   "learner": "할머니 거예요. 할머니 선물이에요.",
+   "en": "It's for my grandma. It's a gift for her.",
+   "roman": "Halmeoni geoyeyo. Halmeoni seonmurieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "멋있네요! 게임은 안 하세요?",
+   "beaver_en": "That's cool! Don't you play games?",
+   "beaver_roman": "Meosinneyo! Geimeun an haseyo?",
+   "learner": "해요. 저녁에 동생하고 게임하고 놀아요.",
+   "en": "I do. In the evening I play games with my sibling.",
+   "roman": "Haeyo. Jeonyeoge dongsaenghago geimhago norayo."
+  },
+  {
+   "n": 6,
+   "beaver": "무슨 게임을 해요?",
+   "beaver_en": "What game do you play?",
+   "beaver_roman": "Museun geimeul haeyo?",
+   "learner": "축구 게임이요. 민수 씨는 취미가 뭐예요?",
+   "en": "A soccer game. Minsu, what's your hobby?",
+   "roman": "Chukgu geimiyo. Minsu ssineun chwimiga mwoyeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "저는 요리예요. 주말에 같이 나갈까요?",
+   "beaver_en": "Mine is cooking. Shall we go out together this weekend?",
+   "beaver_roman": "Jeoneun yoriyeyo. Jumare gachi nagalkkayo?",
+   "learner": "좋아요! 그러면 공원에 같이 가요.",
+   "en": "Sure! Then let's go to the park together.",
+   "roman": "Joayo! Geureomyeon gongwone gachi gayo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 몇 시에 만날까요?",
+   "beaver_en": "Great. What time shall we meet?",
+   "beaver_roman": "Joayo. Myeot sie mannalkkayo?",
+   "learner": "글쎄요, 오후 두 시 어때요?",
+   "en": "Let me see, how about 2 p.m.?",
+   "roman": "Geulsseyo, ohu du si eottaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 다른 친구들도 불러요?",
+   "beaver_en": "Good. Should we invite other friends too?",
+   "beaver_roman": "Joayo. Dareun chingudeuldo bulleoyo?",
+   "learner": "네, 모두 같이 사진 찍고 놀아요.",
+   "en": "Yes, let's all take photos and have fun together.",
+   "roman": "Ne, modu gachi sajin jjikgo norayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 토요일에 공원에서 봐요!",
+   "beaver_en": "Okay. Then see you at the park on Saturday!",
+   "beaver_roman": "Joayo. Geureom toyoire gongwoneseo bwayo!",
+   "learner": "네, 토요일에 봐요. 좋은 주말 보내세요!",
+   "en": "Yes, see you Saturday. Have a nice weekend!",
+   "roman": "Ne, toyoire bwayo. Joeun jumal bonaeseyo!"
+  }
+ ]
+}

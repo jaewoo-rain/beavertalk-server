@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T32-1",
+ "no": 228,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 많이 피곤해 보여요. 괜찮아요?",
+   "beaver_en": "You look really tired lately. Are you okay?",
+   "beaver_roman": "yojeum mani pigonhae boyeoyo. gwaenchanayo?",
+   "learner": "요즘 스트레스가 많은 듯해요.",
+   "en": "It seems I've had a lot of stress lately.",
+   "roman": "yojeum seuteureseuga maneun deutaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 일 있어요? 일이 많아요?",
+   "beaver_en": "What's going on? Too much work?",
+   "beaver_roman": "museun il isseoyo? iri manayo?",
+   "learner": "네, 프로젝트 때문에 미칠 것 같아요.",
+   "en": "Yes, this project is driving me crazy.",
+   "roman": "ne, peurojekteu ttaemune michil geot gatayo."
+  },
+  {
+   "n": 3,
+   "beaver": "잠은 잘 자요?",
+   "beaver_en": "Are you sleeping well?",
+   "beaver_roman": "jameun jal jayo?",
+   "learner": "아니요, 밤에 자꾸 깨는 듯해요.",
+   "en": "No, I seem to keep waking up at night.",
+   "roman": "aniyo, bame jakku kkaeneun deutaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "기분은 어때요?",
+   "beaver_en": "How's your mood?",
+   "beaver_roman": "gibuneun eottaeyo?",
+   "learner": "가끔 우울한 듯하고 아무것도 하기 싫어요.",
+   "en": "I feel kind of down sometimes and don't want to do anything.",
+   "roman": "gakkeum uulhan deutago amugeotdo hagi sireoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "스트레스 푸는 방법 있어요?",
+   "beaver_en": "Do you have a way to relieve stress?",
+   "beaver_roman": "seuteureseu puneun bangbeop isseoyo?",
+   "learner": "운동을 해 봤는데 잘 안 풀려요.",
+   "en": "I tried exercising, but it doesn't really help.",
+   "roman": "undongeul hae bwanneunde jal an pullyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "상담은 받아 봤어요?",
+   "beaver_en": "Have you tried counseling?",
+   "beaver_roman": "sangdameun bada bwasseoyo?",
+   "learner": "아직요. 상담은 좀 어려운 듯해요.",
+   "en": "Not yet. Counseling seems a bit hard.",
+   "roman": "ajigyo. sangdameun jom eoryeoun deutaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "회사에 심리 상담 프로그램이 있어요.",
+   "beaver_en": "Our company has a counseling program.",
+   "beaver_roman": "hoesae simni sangdam peurogeuraemi isseoyo.",
+   "learner": "그래요? 심리 상담은 처음이라 걱정돼요.",
+   "en": "Really? It's my first time, so I'm nervous.",
+   "roman": "geuraeyo? simni sangdameun cheoeumira geokjeongdwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저도 받아 봤는데 도움이 많이 됐어요.",
+   "beaver_en": "I tried it too, and it helped a lot.",
+   "beaver_roman": "jeodo bada bwanneunde doumi mani dwaesseoyo.",
+   "learner": "그렇군요. 이야기하면 마음이 편해질 듯해요.",
+   "en": "I see. Talking might make me feel better.",
+   "roman": "geureokunyo. iyagihamyeon maeumi pyeonhaejil deutaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "용기를 내서 한번 신청해 봐요.",
+   "beaver_en": "Be brave and sign up for it.",
+   "beaver_roman": "yonggireul naeseo hanbeon sincheonghae bwayo.",
+   "learner": "네, 오늘 바로 상담을 신청할게요.",
+   "en": "Okay, I'll sign up for counseling today.",
+   "roman": "ne, oneul baro sangdameul sincheonghalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "잘 생각했어요. 힘들면 언제든지 말해요.",
+   "beaver_en": "Good call. Tell me anytime it gets hard.",
+   "beaver_roman": "jal saenggakaesseoyo. himdeulmyeon eonjedeunji malhaeyo.",
+   "learner": "고마워요. 덕분에 스트레스가 좀 풀리는 듯해요.",
+   "en": "Thanks. Thanks to you, I feel a bit less stressed.",
+   "roman": "gomawoyo. deokbune seuteureseuga jom pullineun deutaeyo."
+  }
+ ]
+}

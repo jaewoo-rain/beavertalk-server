@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T01-1",
+ "no": 4,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 저는 리나예요. 이름이 뭐예요?",
+   "beaver_en": "Hello! I'm Rina. What's your name?",
+   "beaver_roman": "annyeonghaseyo! jeoneun rinayeyo. ireumi mwoyeyo?",
+   "learner": "안녕하세요. 제 이름은 마이클이에요.",
+   "en": "Hello. My name is Michael.",
+   "roman": "annyeonghaseyo. je ireumeun maikeurieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "반가워요, 마이클 씨. 어느 나라 사람이에요?",
+   "beaver_en": "Nice to meet you, Michael. Where are you from?",
+   "beaver_roman": "bangawoyo, maikeul ssi. eoneu nara saramieyo?",
+   "learner": "저는 미국 사람이에요. 리나 씨는요?",
+   "en": "I'm American. How about you, Rina?",
+   "roman": "jeoneun miguk saramieyo. rina ssineunyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "저는 베트남 사람이에요. 고향은 하노이예요.",
+   "beaver_en": "I'm Vietnamese. My hometown is Hanoi.",
+   "beaver_roman": "jeoneun beteunam saramieyo. gohyangeun hanoiyeyo.",
+   "learner": "아, 베트남이요? 제 고향은 시카고예요.",
+   "en": "Oh, Vietnam? My hometown is Chicago.",
+   "roman": "a, beteunamiyo? je gohyangeun sikagoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "마이클 씨는 오늘 처음 왔어요?",
+   "beaver_en": "Is today your first day, Michael?",
+   "beaver_roman": "maikeul ssineun oneul cheoeum wasseoyo?",
+   "learner": "네, 오늘 처음이에요. 우리 반에 외국인이 많아요?",
+   "en": "Yes, it's my first day. Are there many foreigners in our class?",
+   "roman": "ne, oneul cheoeumieyo. uri bane oegugini manayo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 열 명이에요. 모두 외국인이에요.",
+   "beaver_en": "Yes, there are ten. They're all foreigners.",
+   "beaver_roman": "ne, yeol myeongieyo. modu oeguginieyo.",
+   "learner": "와, 열 명이요? 어느 나라 사람이 있어요?",
+   "en": "Wow, ten? What countries are they from?",
+   "roman": "wa, yeol myeongiyo? eoneu nara sarami isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "중국, 러시아, 영국 사람이 있어요.",
+   "beaver_en": "There are people from China, Russia, and the UK.",
+   "beaver_roman": "jungguk, reosia, yeongguk sarami isseoyo.",
+   "learner": "캐나다 사람도 있어요?",
+   "en": "Is there anyone from Canada too?",
+   "roman": "kaenada saramdo isseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 한 명 있어요. 저분이 캐나다 사람이에요.",
+   "beaver_en": "Yes, there's one. That person over there is Canadian.",
+   "beaver_roman": "ne, han myeong isseoyo. jeobuni kaenada saramieyo.",
+   "learner": "아, 그래요? 그럼 저 사람은 누구예요?",
+   "en": "Oh, really? Then who is that person?",
+   "roman": "a, geuraeyo? geureom jeo sarameun nuguyeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "저 사람은 하산 씨예요. 우리 반 친구예요.",
+   "beaver_en": "That's Hasan. He's our classmate.",
+   "beaver_roman": "jeo sarameun hasan ssiyeyo. uri ban chinguyeyo.",
+   "learner": "하산 씨는 인도네시아 사람이에요?",
+   "en": "Is Hasan from Indonesia?",
+   "roman": "hasan ssineun indonesia saramieyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "아니요, 말레이시아 사람이에요.",
+   "beaver_en": "No, he's from Malaysia.",
+   "beaver_roman": "aniyo, malleisia saramieyo.",
+   "learner": "아, 말레이시아요? 우리 반이 정말 좋아요!",
+   "en": "Oh, Malaysia? I really like our class!",
+   "roman": "a, malleisiayo? uri bani jeongmal joayo!"
+  },
+  {
+   "n": 10,
+   "beaver": "수업 시작해요. 만나서 반가워요!",
+   "beaver_en": "Class is starting. Nice to meet you!",
+   "beaver_roman": "sueop sijakaeyo. mannaseo bangawoyo!",
+   "learner": "저도 만나서 반가워요!",
+   "en": "Nice to meet you too!",
+   "roman": "jeodo mannaseo bangawoyo!"
+  }
+ ]
+}

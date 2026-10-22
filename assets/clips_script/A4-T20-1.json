@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T20-1",
+ "no": 100,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여보세요? 지수야, 토요일에 만나는 거 맞지?",
+   "beaver_en": "Hello? Jisu, we're still meeting Saturday, right?",
+   "beaver_roman": "yeoboseyo? jisuya, toyoire mannaneun geo matji?",
+   "learner": "민지야, 미안해. 그 약속 때문에 전화했어.",
+   "en": "Minji, sorry. I called because of that plan.",
+   "roman": "minjiya, mianhae. geu yaksok ttaemune jeonhwahaesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 무슨 일 있어?",
+   "beaver_en": "Why? Is something wrong?",
+   "beaver_roman": "wae? museun nil isseo?",
+   "learner": "토요일에 선약이 있는 걸 잊어버렸어.",
+   "en": "I totally forgot I already have plans Saturday.",
+   "roman": "toyoire seonyagi inneun geol ijeobeoryeosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그래? 그럼 취소할까?",
+   "beaver_en": "Oh, really? Then should we cancel?",
+   "beaver_roman": "a, geurae? geureom chwisohalkka?",
+   "learner": "아니, 취소 말고 연기하고 싶어.",
+   "en": "No, I'd rather postpone than cancel.",
+   "roman": "ani, chwiso malgo yeongihago sipeo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋아. 식당 예약은 어떻게 해?",
+   "beaver_en": "Okay. What about the restaurant reservation?",
+   "beaver_roman": "joa. sikdang yeyageun eotteoke hae?",
+   "learner": "예약은 내가 바꿀게. 걱정하지 마.",
+   "en": "I'll change the reservation. Don't worry.",
+   "roman": "yeyageun naega bakkulge. geokjeonghaji ma."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 언제 만날까?",
+   "beaver_en": "So when should we meet?",
+   "beaver_roman": "geureom eonje mannalkka?",
+   "learner": "일요일 점심에 만나면 어때?",
+   "en": "How about meeting Sunday for lunch?",
+   "roman": "iryoil jeomsime mannamyeon eottae?"
+  },
+  {
+   "n": 6,
+   "beaver": "일요일 좋아. 그날 다른 일정은 없어?",
+   "beaver_en": "Sunday's good. Nothing else planned that day?",
+   "beaver_roman": "iryoil joa. geunal dareun iljeongeun eopseo?",
+   "learner": "응, 할머니 댁은 다음 주에 가기로 했어.",
+   "en": "Yeah, I decided to visit Grandma next week.",
+   "roman": "eung, halmeoni daegeun daeum jue gagiro haesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "알겠어. 이번엔 약속 어기면 안 돼!",
+   "beaver_en": "Got it. Don't break the promise this time!",
+   "beaver_roman": "algesseo. ibeonen yaksok eogimyeon an dwae!",
+   "learner": "응, 이번에는 절대 안 어길게.",
+   "en": "Okay, I definitely won't break it this time.",
+   "roman": "eung, ibeoneneun jeoldae an eogilge."
+  },
+  {
+   "n": 8,
+   "beaver": "그 식당 주말엔 시끄럽지 않을까?",
+   "beaver_en": "Won't that place be noisy on the weekend?",
+   "beaver_roman": "geu sikdang jumaren sikkeureopji aneulkka?",
+   "learner": "일요일 점심은 조용하겠지. 괜찮을 거야.",
+   "en": "Sunday lunch should be quiet. It'll be fine.",
+   "roman": "iryoil jeomsimeun joyonghagetji. gwaenchaneul geoya."
+  },
+  {
+   "n": 9,
+   "beaver": "우리 진짜 오랜만에 보는 거다.",
+   "beaver_en": "It's really been ages since we've seen each other.",
+   "beaver_roman": "uri jinjja oraenmane boneun geoda.",
+   "learner": "맞아. 만나는 거 정말 기대돼.",
+   "en": "Right. I'm really looking forward to meeting.",
+   "roman": "maja. mannaneun geo jeongmal gidaedwae."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 일요일 열두 시에 보자!",
+   "beaver_en": "Then see you Sunday at twelve!",
+   "beaver_roman": "geureom iryoil yeoldu sie boja!",
+   "learner": "응, 바꿔 줘서 고마워. 일요일에 봐!",
+   "en": "Okay, thanks for changing it. See you Sunday!",
+   "roman": "eung, bakkwo jwoseo gomawo. iryoire bwa!"
+  }
+ ]
+}

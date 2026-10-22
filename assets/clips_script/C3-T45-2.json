@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T45-2",
+ "no": 427,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "먼저 묻겠습니다. 성공이 중요하지 않습니까?",
+   "beaver_en": "Let me ask first. Isn't success important?",
+   "beaver_roman": "meonjeo mutgetseumnida. seonggongi jungyohaji anseumnikka?",
+   "learner": "성공이 다 뭐예요? 자아실현이 더 중요하죠.",
+   "en": "What do you mean, success? Self-realization matters more.",
+   "roman": "seonggongi da mwoyeyo? jaasilhyeoni deo jungyohajyo."
+  },
+  {
+   "n": 2,
+   "beaver": "자아실현이라니, 너무 추상적이지 않아요?",
+   "beaver_en": "Self-realization? Isn't that too abstract?",
+   "beaver_roman": "jaasilhyeonirani, neomu chusangjeogiji anayo?",
+   "learner": "아니요, 자기 정체성을 찾는 일이에요.",
+   "en": "No, it's about finding your own identity.",
+   "roman": "aniyo, jagi jeongcheseongeul channeun irieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "하지만 현실에선 실패하기 쉽잖아요.",
+   "beaver_en": "But in reality, it's easy to fail.",
+   "beaver_roman": "hajiman hyeonsireseon silpaehagi swipjanayo.",
+   "learner": "맞아요. 저도 넘어지기 일쑤였어요.",
+   "en": "Right. I used to fall down all the time too.",
+   "roman": "majayo. jeodo neomeojigi ilssuyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그래도 다시 도전하셨잖아요. 왜요?",
+   "beaver_en": "But you still tried again. Why?",
+   "beaver_roman": "geuraedo dasi dojeonhasyeotjanayo. waeyo?",
+   "learner": "칠전팔기의 각오가 있었으니까요.",
+   "en": "Because I was determined to rise every time I fell.",
+   "roman": "chiljeonpalgiui gagoga isseosseunikkayo."
+  },
+  {
+   "n": 5,
+   "beaver": "실패가 오히려 도움이 될 때도 있죠.",
+   "beaver_en": "Sometimes failure actually helps.",
+   "beaver_roman": "silpaega ohiryeo doumi doel ttaedo itjyo.",
+   "learner": "네, 새옹지마잖아요. 남의 실패도 타산지석이고요.",
+   "en": "Yes, life's ups and downs are unpredictable. Others' failures teach us too.",
+   "roman": "ne, saeongjimajanayo. namui silpaedo tasanjiseogigoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "가치관과 삶의 의미에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you say more about values and the meaning of life?",
+   "beaver_roman": "gachigwangwa salmui uimie daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "인간의 존엄성을 지키는 게 가장 큰 덕목이에요.",
+   "en": "Protecting human dignity is the greatest virtue.",
+   "roman": "inganui joneomseongeul jikineun ge gajang keun deongmogieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "옛 사상가들도 비슷한 말을 했지요.",
+   "beaver_en": "Thinkers of the past said something similar.",
+   "beaver_roman": "yet sasanggadeuldo biseutan mareul haetjiyo.",
+   "learner": "네, 의를 따르는 게 사람의 도리라고 했죠.",
+   "en": "Yes, they said following righteousness is our duty.",
+   "roman": "ne, uireul ttareuneun ge saramui dorirago haetjyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래도 이상만으론 먹고살기 힘들어요.",
+   "beaver_en": "Still, it's hard to make a living on ideals alone.",
+   "beaver_roman": "geuraedo isangmaneuron meokgosalgi himdeureoyo.",
+   "learner": "힘들다손 치더라도 자아를 잃으면 안 되죠.",
+   "en": "Even granting it's hard, we shouldn't lose ourselves.",
+   "roman": "himdeuldason chideorado jaareul ireumyeon an doejyo."
+  },
+  {
+   "n": 9,
+   "beaver": "임종 때 사람들이 가장 후회하는 게 뭘까요?",
+   "beaver_en": "What do people regret most at the moment of death?",
+   "beaver_roman": "imjong ttae saramdeuri gajang huhoehaneun ge mwolkkayo?",
+   "learner": "자기답게 살지 못한 걸 후회한대요.",
+   "en": "They say they regret not living true to themselves.",
+   "roman": "jagidapge salji motan geol huhoehandaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀이네요. 오늘 결론은 뭘로 할까요?",
+   "beaver_en": "Well said. What should our conclusion be today?",
+   "beaver_roman": "joeun malsseumineyo. oneul gyeolloneun mwollo halkkayo?",
+   "learner": "몸은 사라져도 삶의 태도는 남는다, 어때요?",
+   "en": "The body fades, but one's attitude remains. How's that?",
+   "roman": "momeun sarajyeodo salmui taedoneun namneunda, eottaeyo?"
+  }
+ ]
+}

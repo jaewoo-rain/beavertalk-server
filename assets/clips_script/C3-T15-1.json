@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T15-1",
+ "no": 404,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수색 결과를 정리해서 보고해 주시겠습니까?",
+   "beaver_en": "Could you sum up and report the search results?",
+   "beaver_roman": "Susaek gyeolgwareul jeongnihaeseo bogohae jusigetseumnikka?",
+   "learner": "네, 결과를 정리해서 말씀드리겠습니다.",
+   "en": "Yes, I'll sum up the results and tell you.",
+   "roman": "Ne, gyeolgwareul jeongnihaeseo malsseumdeurigetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "먼저 공원 쪽은 어떻습니까?",
+   "beaver_en": "First, how about the park area?",
+   "beaver_roman": "Meonjeo gongwon jjogeun eotteoseumnikka?",
+   "learner": "공원 뒤 공터와 주변 일대를 모두 살폈습니다.",
+   "en": "I checked the vacant lot behind the park and the whole surrounding area.",
+   "roman": "Gongwon dwi gongteowa jubyeon ildaereul modu salpyeotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "혹시 발견한 것이 있습니까?",
+   "beaver_en": "Did you happen to find anything?",
+   "beaver_roman": "Hoksi balgyeonhan geosi itseumnikka?",
+   "learner": "공터 북쪽 모퉁이에서 신발 한 짝을 찾았습니다.",
+   "en": "I found one shoe at the north corner of the lot.",
+   "roman": "Gongteo bukjjok motungieseo sinbal han jjageul chajatseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "아이 신발이 맞습니까? 다른 흔적은요?",
+   "beaver_en": "Is it the child's shoe? Any other traces?",
+   "beaver_roman": "Ai sinbari matseumnikka? Dareun heunjeogeunyo?",
+   "learner": "네, 담장 모서리에도 발자국이 있었습니다.",
+   "en": "Yes, there were footprints at the edge of the wall too.",
+   "roman": "Ne, damjang moseoriedo baljagugi isseotseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 곳은 어떻습니까?",
+   "beaver_en": "What about other places?",
+   "beaver_roman": "Dareun goseun eotteoseumnikka?",
+   "learner": "시장 이면 골목도 확인했지만 없었습니다.",
+   "en": "I checked the back alleys of the market, but nothing.",
+   "roman": "Sijang imyeon golmokdo hwaginhaetjiman eopseosseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "담당자 행방은 어떻습니까? 연락이 안 됩니다.",
+   "beaver_en": "What about the person in charge? I can't reach him.",
+   "beaver_roman": "Damdangja haengbangeun eotteoseumnikka? Yeollagi an doemnida.",
+   "learner": "담당자 행방은 아직 모릅니다. 계속 찾겠습니다.",
+   "en": "We still don't know where he is. I'll keep looking.",
+   "roman": "Damdangja haengbangeun ajik moreumnida. Gyesok chatgetseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "실내는 다 확인했습니까?",
+   "beaver_en": "Have you checked all the indoor places?",
+   "beaver_roman": "Sillaeneun da hwaginhaetseumnikka?",
+   "learner": "실내는 끝났고, 지금은 실외를 보고 있습니다.",
+   "en": "Indoors is done; now I'm checking outdoors.",
+   "roman": "Sillaeneun kkeunnatgo, jigeumeun siroereul bogo itseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "전단지는 어디에 붙였습니까?",
+   "beaver_en": "Where did you put up the flyers?",
+   "beaver_roman": "Jeondanjineun eodie buchyeotseumnikka?",
+   "learner": "동네 곳곳과 시장 전체에 붙였습니다.",
+   "en": "All around the neighborhood and throughout the market.",
+   "roman": "Dongne gotgotgwa sijang jeonchee buchyeotseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "좋습니다. 다른 일은 잠시 미루겠습니다.",
+   "beaver_en": "Good. Let's put other work on hold for now.",
+   "beaver_roman": "Jotseumnida. Dareun ireun jamsi mirugetseumnida.",
+   "learner": "네, 다른 일은 뒤로 미루고 수색에 집중하겠습니다.",
+   "en": "Yes, I'll put other things off and focus on the search.",
+   "roman": "Ne, dareun ireun dwiro mirugo susaege jipjunghagetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 공터 쪽으로 다시 가 봅시다.",
+   "beaver_en": "Then let's go back to the vacant lot.",
+   "beaver_roman": "Geureom gongteo jjogeuro dasi ga bopsida.",
+   "learner": "네, 북쪽 모퉁이부터 다시 살펴보겠습니다.",
+   "en": "Okay, I'll start again from the north corner.",
+   "roman": "Ne, bukjjok motungibuteo dasi salpyeobogetseumnida."
+  }
+ ]
+}

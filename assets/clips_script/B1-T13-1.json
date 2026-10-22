@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T13-1",
+ "no": 127,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요. 오늘 김치 담그는 법 알려 줄게요.",
+   "beaver_en": "Come in. Today I'll show you how to make kimchi.",
+   "beaver_roman": "eoseo wayo. oneul gimchi damgeuneun beop allyeo julgeyo.",
+   "learner": "고마워요. 우리 엄마가 김치 담그기가 어렵대요.",
+   "en": "Thank you. My mom says making kimchi is hard.",
+   "roman": "gomawoyo. uri eommaga gimchi damgeugiga eoryeopdaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "하나도 안 어려워요. 재료는 뭐가 필요할까요?",
+   "beaver_en": "It's not hard at all. What ingredients do we need?",
+   "beaver_roman": "hanado an eoryeowoyo. jaeryoneun mwoga piryohalkkayo?",
+   "learner": "배추, 양파, 당근이 필요하대요. 맞아요?",
+   "en": "I heard we need cabbage, onions, and carrots. Right?",
+   "roman": "baechu, yangpa, danggeuni piryohadaeyo. majayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "맞아요. 배추는 싱싱한 걸 사야 해요.",
+   "beaver_en": "Right. You have to buy fresh cabbage.",
+   "beaver_roman": "majayo. baechuneun singsinghan geol saya haeyo.",
+   "learner": "시장 채소 가게 배추가 싱싱하대요.",
+   "en": "They say the cabbage at the market vegetable shop is fresh.",
+   "roman": "sijang chaeso gage baechuga singsinghadaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋아요. 먼저 배추를 소금물에 담가요.",
+   "beaver_en": "Good. First, soak the cabbage in salt water.",
+   "beaver_roman": "joayo. meonjeo baechureul sogeummure damgayo.",
+   "learner": "얼마나 담가요? 친구는 하룻밤이 좋대요.",
+   "en": "How long do I soak it? My friend says overnight is good.",
+   "roman": "eolmana damgayo? chinguneun harutbami jotaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 하룻밤이면 돼요. 그다음엔 양념을 만들어요.",
+   "beaver_en": "Yes, overnight is fine. Next, we make the seasoning paste.",
+   "beaver_roman": "ne, harutbamimyeon dwaeyo. geudaeumen yangnyeomeul mandeureoyo.",
+   "learner": "양념에 꿀이나 레몬을 넣으면 맛있대요.",
+   "en": "I heard adding honey or lemon to it makes it tasty.",
+   "roman": "yangnyeome kkurina remoneul neoeumyeon masitdaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "꿀은 조금만 넣어요. 조미료는 많이 넣지 마세요.",
+   "beaver_en": "Add just a little honey. Don't add too much seasoning.",
+   "beaver_roman": "kkureun jogeumman neoeoyo. jomiryoneun mani neochi maseyo.",
+   "learner": "알겠어요. 양념은 숟가락으로 잘 저어요?",
+   "en": "Got it. Do I stir the paste well with a spoon?",
+   "roman": "algesseoyo. yangnyeomeun sutgarageuro jal jeoeoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 잘 저어서 배추에 골고루 발라요.",
+   "beaver_en": "Yes, stir it well and spread it evenly on the cabbage.",
+   "beaver_roman": "ne, jal jeoeoseo baechue golgoru ballayo.",
+   "learner": "국물은 위에 부어요? 요리법이 참 쉽네요.",
+   "en": "Do I pour the liquid on top? The recipe is really easy.",
+   "roman": "gungmureun wie bueoyo? yoribeobi cham swimneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 조금 부어요. 다른 요리도 배우고 싶어요?",
+   "beaver_en": "Yes, pour a little. Do you want to learn other dishes too?",
+   "beaver_roman": "ne, jogeum bueoyo. dareun yorido baeugo sipeoyo?",
+   "learner": "쇠고기 버섯 볶음이 쉽대요. 그것도 배우고 싶어요.",
+   "en": "I heard stir-fried beef with mushrooms is easy. I want to learn it too.",
+   "roman": "soegogi beoseot bokkeumi swipdaeyo. geugeotdo baeugo sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 다음 주에 같이 만들어서 먹어요.",
+   "beaver_en": "Sure. Let's make it and eat together next week.",
+   "beaver_roman": "joayo. daeum jue gachi mandeureoseo meogeoyo.",
+   "learner": "그럼 제가 상을 차릴게요. 고구마도 가져올게요.",
+   "en": "Then I'll set the table. I'll bring sweet potatoes too.",
+   "roman": "geureom jega sangeul charilgeyo. gogumado gajyeoolgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 김치가 익으면 꼭 맛보세요.",
+   "beaver_en": "Great. Be sure to taste the kimchi once it ripens.",
+   "beaver_roman": "joayo. gimchiga igeumyeon kkok matboseyo.",
+   "learner": "네, 고마워요! 남편이 벌써 배고프대요.",
+   "en": "Yes, thank you! My husband says he's already hungry.",
+   "roman": "ne, gomawoyo! nampyeoni beolsseo baegopeudaeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T35-1",
+ "no": 466,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 결선은 어땠어요? 정말 접전이었죠?",
+   "beaver_en": "How was today's final? It was really close, right?",
+   "beaver_roman": "oneul gyeolseoneun eottaesseoyo? jeongmal jeopjeonieotjyo?",
+   "learner": "네, 마지막까지 접전이라 환호가 대단했어요.",
+   "en": "Yes, it was close to the end, so the cheering was huge.",
+   "roman": "ne, majimakkkaji jeopjeonira hwanhoga daedanhaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "우리 팀 주전들은 어떻게 평가하세요?",
+   "beaver_en": "How would you rate our starting players?",
+   "beaver_roman": "uri tim jujeondeureun eotteoke pyeonggahaseyo?",
+   "learner": "김민수 선수는 득점하는 등 공격에 재능을 발휘했어요.",
+   "en": "Kim Minsu showed talent in attack, such as scoring.",
+   "roman": "Gim Minsu seonsuneun deukjeomhaneun deung gonggyeoge jaeneungeul balhwihaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "상대 골대를 공략하는 방식도 좋았죠?",
+   "beaver_en": "The way they attacked the opponent's goal was good too, right?",
+   "beaver_roman": "sangdae goldaereul gongnyakaneun bangsikdo joatjyo?",
+   "learner": "네, 슈팅이 정확해서 공격이 날카로웠어요.",
+   "en": "Yes, their shooting was accurate, so the attack was sharp.",
+   "roman": "ne, syutingi jeonghwakaeseo gonggyeogi nalkarowosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 수비는 조금 아쉽지 않았나요?",
+   "beaver_en": "But wasn't the defense a little disappointing?",
+   "beaver_roman": "geureonde subineun jogeum aswipji anannayo?",
+   "learner": "맞아요. 후반에 방어가 약해서 반칙도 많았어요.",
+   "en": "Right. The defense was weak in the second half, with many fouls.",
+   "roman": "majayo. hubane bangeoga yakaeseo banchikdo manasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "결승전 징크스는 이번에 깼다고 봐야겠죠?",
+   "beaver_en": "We can say they broke the final-match jinx this time, right?",
+   "beaver_roman": "gyeolseungjeon jingkeuseuneun ibeone kkaetdago bwayagetjyo?",
+   "learner": "네, 강팀과 맞붙어서 이겼으니 깼다고 봐요.",
+   "en": "Yes, they faced a strong team and won, so I think so.",
+   "roman": "ne, gangtimgwa matbuteoseo igyeosseuni kkaetdago bwayo."
+  },
+  {
+   "n": 6,
+   "beaver": "다른 종목 선수들 성적은 어땠어요?",
+   "beaver_en": "How did the athletes in other events do?",
+   "beaver_roman": "dareun jongmok seonsudeul seongjeogeun eottaesseoyo?",
+   "learner": "육상 단거리에서는 은메달을 땄어요.",
+   "en": "In the track sprint, they won a silver medal.",
+   "roman": "yuksang dangeorieseoneun eunmedareul ttasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "권투는요? 거기도 기대가 컸잖아요.",
+   "beaver_en": "What about boxing? Expectations were high there too.",
+   "beaver_roman": "gwontuneunyo? geogido gidaega keotjanayo.",
+   "learner": "권투도 승승장구해서 모두 입상했어요.",
+   "en": "Boxing went from win to win, and everyone placed.",
+   "roman": "gwontudo seungseungjangguhaeseo modu ipsanghaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "다음 대회는 어떻게 보세요?",
+   "beaver_en": "How do you see the next tournament?",
+   "beaver_roman": "daeum daehoeneun eotteoke boseyo?",
+   "learner": "강한 나라들과 겨루니까 변수가 많을 거예요.",
+   "en": "They'll compete with strong countries, so there'll be many variables.",
+   "roman": "ganhan naradeulgwa gyeorunikka byeonsuga maneul geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 무엇을 더 준비해야 할까요?",
+   "beaver_en": "Then what should they prepare more?",
+   "beaver_roman": "geureom mueoseul deo junbihaeya halkkayo?",
+   "learner": "예선전부터 수비를 간과하면 안 돼요.",
+   "en": "They mustn't overlook defense, starting from the qualifiers.",
+   "roman": "yeseonjeonbuteo subireul gangwahamyeon an dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 분석 감사해요. 오늘 방송 마칠까요?",
+   "beaver_en": "Thanks for the great analysis. Shall we wrap up today's broadcast?",
+   "beaver_roman": "joeun bunseok gamsahaeyo. oneul bangsong machilkkayo?",
+   "learner": "네, 응원해 주신 시청자 여러분 감사합니다!",
+   "en": "Yes, thank you to all the viewers who cheered!",
+   "roman": "ne, eungwonhae jusin sicheongja yeoreobun gamsahamnida!"
+  }
+ ]
+}

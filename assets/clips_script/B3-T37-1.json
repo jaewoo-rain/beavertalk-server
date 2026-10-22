@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T37-1",
+ "no": 232,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지난주 제주도 여행, 비 많이 왔지?",
+   "beaver_en": "It rained a lot on our Jeju trip last week, right?",
+   "beaver_roman": "jinanju jejudo yeohaeng, bi mani watji?",
+   "learner": "응, 비바람이 부는 바람에 배가 안 떴잖아.",
+   "en": "Yeah, the boat didn't sail because of the wind and rain.",
+   "roman": "eung, bibarami buneun barame baega an tteotjana."
+  },
+  {
+   "n": 2,
+   "beaver": "맞아. 그래서 일정이 다 늦어졌지.",
+   "beaver_en": "Right. So our whole schedule got delayed.",
+   "beaver_roman": "maja. geuraeseo iljeongi da neujeojeotji.",
+   "learner": "게다가 우산이 뒤집히는 바람에 옷도 다 젖었어.",
+   "en": "On top of that, my umbrella flipped, so my clothes got soaked.",
+   "roman": "gedaga usani dwijipineun barame otdo da jeojeosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래도 둘째 날은 날이 좋았지?",
+   "beaver_en": "But the weather was nice on the second day, right?",
+   "beaver_roman": "geuraedo duljjae nareun nari joatji?",
+   "learner": "응, 화창했어. 햇살이 정말 따뜻했어.",
+   "en": "Yeah, it was sunny. The sunshine was really warm.",
+   "roman": "eung, hwachanghaesseo. haetsari jeongmal ttatteuthaesseo."
+  },
+  {
+   "n": 4,
+   "beaver": "근데 오후엔 좀 덥지 않았어?",
+   "beaver_en": "But wasn't it a bit hot in the afternoon?",
+   "beaver_roman": "geunde ohuen jom deopji anasseo?",
+   "learner": "맞아, 무더워서 그늘에서 쉬었잖아.",
+   "en": "Right, it was so muggy that we rested in the shade.",
+   "roman": "maja, mudeowoseo geuneureseo swieotjana."
+  },
+  {
+   "n": 5,
+   "beaver": "늦봄인데 꼭 한여름 같았어.",
+   "beaver_en": "It was late spring, but it felt like midsummer.",
+   "beaver_roman": "neutbominde kkok hanyeoreum gatasseo.",
+   "learner": "맞아, 그야말로 찜통더위였어.",
+   "en": "Right, it was truly sweltering heat.",
+   "roman": "maja, geuyamallo jjimtongdeowiyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "그날 저녁에 비가 또 왔잖아.",
+   "beaver_en": "And it rained again that evening.",
+   "beaver_roman": "geunal jeonyeoge biga tto watjana.",
+   "learner": "비가 그친 뒤에 무지개가 떠서 좋았어.",
+   "en": "After the rain stopped, a rainbow came out. That was nice.",
+   "roman": "biga geuchin dwie mujigaega tteoseo joasseo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞다! 다음엔 언제 갈까?",
+   "beaver_en": "Oh right! When should we go next time?",
+   "beaver_roman": "matda! daeumen eonje galkka?",
+   "learner": "초가을 어때? 더위도 추위도 없잖아.",
+   "en": "How about early autumn? It's not hot or cold.",
+   "roman": "chogaeul eottae? deowido chuwido eopjana."
+  },
+  {
+   "n": 8,
+   "beaver": "늦가을 단풍도 예쁘지 않아?",
+   "beaver_en": "Aren't the autumn leaves pretty in late autumn too?",
+   "beaver_roman": "neutgaeul danpungdo yeppeuji ana?",
+   "learner": "늦가을은 좀 추워. 초겨울하고 비슷해.",
+   "en": "Late autumn is a bit cold. It's like early winter.",
+   "roman": "neutgaeureun jom chuwo. chogyeoulhago biseutae."
+  },
+  {
+   "n": 9,
+   "beaver": "하긴, 작년 한겨울 여행은 진짜 추웠지.",
+   "beaver_en": "True, our midwinter trip last year was really cold.",
+   "beaver_roman": "hagin, jangnyeon hangyeoul yeohaengeun jinjja chuwotji.",
+   "learner": "눈이 많이 오는 바람에 길이 막혔었지.",
+   "en": "The roads were blocked because it snowed so much.",
+   "roman": "nuni mani oneun barame giri makyeosseotji."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 결론은 초가을이네. 날씨 잘 보자!",
+   "beaver_en": "So the conclusion is early autumn. Let's check the weather!",
+   "beaver_roman": "geureom gyeolloneun chogaeurine. nalssi jal boja!",
+   "learner": "응, 이번엔 화창한 날이 계속되면 좋겠다.",
+   "en": "Yeah, I hope it stays sunny this time.",
+   "roman": "eung, ibeonen hwachanghan nari gyesokdoemyeon joketda."
+  }
+ ]
+}

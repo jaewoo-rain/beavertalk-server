@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T38-1",
+ "no": 378,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "발표 잘 들었습니다. 관찰 결과를 정리해 주시겠어요?",
+   "beaver_en": "Thanks for the talk. Could you sum up your findings?",
+   "beaver_roman": "Balpyo jal deureotseumnida. Gwanchal gyeolgwareul jeongnihae jusigesseoyo?",
+   "learner": "네, 올봄 한강공원의 동물과 식물을 관찰했습니다.",
+   "en": "Yes, this spring I observed animals and plants at Hangang Park.",
+   "roman": "Ne, olbom hanganggongwonui dongmulgwa singmureul gwanchalhaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "조류는 어떻습니까?",
+   "beaver_en": "What about the birds?",
+   "beaver_roman": "Joryuneun eotteoseumnikka?",
+   "learner": "까치가 가장 많았고, 봄에는 제비도 돌아왔습니다.",
+   "en": "Magpies were the most common, and swallows came back in spring.",
+   "roman": "Kkachiga gajang manatgo, bomeneun jebido dorawatseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "새들의 모습에 특별한 점이 있었나요?",
+   "beaver_en": "Was there anything special about how the birds looked?",
+   "beaver_roman": "Saedeurui moseube teukbyeolhan jeomi isseonnayo?",
+   "learner": "봄이 되자 까치 깃털에 윤기가 돌았습니다.",
+   "en": "When spring came, the magpies' feathers became glossy.",
+   "roman": "Bomi doeja kkachi gitteore yungiga doratseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "야생 동물은 어떻습니까?",
+   "beaver_en": "What about wild animals?",
+   "beaver_roman": "Yasaeng dongmureun eotteoseumnikka?",
+   "learner": "야생 동물은 사람을 피하는 법이라 보기 어려웠습니다.",
+   "en": "Wild animals tend to avoid people, so they were hard to see.",
+   "roman": "Yasaeng dongmureun sarameul pihaneun beobira bogi eoryeowotseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "공원에서 너구리 같은 동물도 보셨나요?",
+   "beaver_en": "Did you see animals like raccoon dogs in the park?",
+   "beaver_roman": "Gongwoneseo neoguri gateun dongmuldo bosyeonnayo?",
+   "learner": "아니요, 너구리는 없고 산책하는 애완견이 많았습니다.",
+   "en": "No, no raccoon dogs, but there were many pet dogs on walks.",
+   "roman": "Aniyo, neogurineun eopgo sanchaekaneun aewangyeoni manatseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "애완동물이 관찰에 방해가 되진 않았나요?",
+   "beaver_en": "Didn't the pets get in the way of observing?",
+   "beaver_roman": "Aewandongmuri gwanchare banghaega doejin anannayo?",
+   "learner": "아니요, 방해가 됐어요. 애완동물이 다가오면 새들이 날아갔어요.",
+   "en": "Yes, they did. When pets came close, the birds flew away.",
+   "roman": "Aniyo, banghaega dwaesseoyo. Aewandongmuri dagaomyeon saedeuri naragasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "식물은 어땠습니까?",
+   "beaver_en": "How about the plants?",
+   "beaver_roman": "Singmureun eottaetseumnikka?",
+   "learner": "4월 초에 벚꽃이 피어나고 새싹도 돋았습니다.",
+   "en": "In early April, cherry blossoms bloomed and new sprouts came up.",
+   "roman": "Sawol choe beotkkochi pieonago saessakdo dodatseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "꽃이 핀 시기가 작년과 비슷했나요?",
+   "beaver_en": "Did they bloom around the same time as last year?",
+   "beaver_roman": "Kkochi pin sigiga jangnyeongwa biseutaennayo?",
+   "learner": "아니요, 날이 따뜻해서 꽃이 일찍 피었습니다.",
+   "en": "No, it was warm, so the flowers bloomed early.",
+   "roman": "Aniyo, nari ttatteutaeseo kkochi iljjik pieotseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "화단의 꽃들도 관찰하셨나요?",
+   "beaver_en": "Did you observe the flowers in the flower beds too?",
+   "beaver_roman": "Hwadanui kkotdeuldo gwanchalhasyeonnayo?",
+   "learner": "네, 장미 같은 화초는 가시가 있어 조심했습니다.",
+   "en": "Yes, plants like roses have thorns, so I was careful.",
+   "roman": "Ne, jangmi gateun hwachoneun gasiga isseo josimhaetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "흥미로운 발표였습니다. 감사합니다.",
+   "beaver_en": "That was an interesting talk. Thank you.",
+   "beaver_roman": "Heungmiroun balpyoyeotseumnida. Gamsahamnida.",
+   "learner": "들어 주셔서 감사합니다. 질문은 언제든 환영합니다.",
+   "en": "Thank you for listening. Questions are always welcome.",
+   "roman": "Deureo jusyeoseo gamsahamnida. Jilmuneun eonjedeun hwanyeonghamnida."
+  }
+ ]
+}

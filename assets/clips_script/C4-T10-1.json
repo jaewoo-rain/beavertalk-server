@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T10-1",
+ "no": 448,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이 커피 원두, 너무 비싸네요. 좀 깎아 주세요.",
+   "beaver_en": "These coffee beans are too expensive. Please give me a discount.",
+   "beaver_roman": "i keopi wondu, neomu bissaneyo. jom kkakka juseyo.",
+   "learner": "수입 원두라 단가가 높아요. 그만한 값어치는 해요.",
+   "en": "They're imported beans, so the unit price is high. But they're worth it.",
+   "roman": "suip wondura dankkaga nopayo. geumanhan gabeochineun haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래도 고가라서 망설여져요. 왜 그렇게 비싸요?",
+   "beaver_en": "Still, it's pricey, so I'm hesitant. Why so expensive?",
+   "beaver_roman": "geuraedo gokkaraseo mangseoryeojyeoyo. wae geureoke bissayo?",
+   "learner": "원가 자체가 비싸서 싸게 드리기 어려워요.",
+   "en": "The cost price itself is high, so it's hard to sell it cheaply.",
+   "roman": "wonkka jachega bissaseo ssage deurigi eoryeowoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "맛이 어떤지 모르잖아요. 먹어 볼 수 있어요?",
+   "beaver_en": "I don't know how it tastes. Can I try some?",
+   "beaver_roman": "masi eotteonji moreujanayo. meogeo bol su isseoyo?",
+   "learner": "네, 여기 시음용이 있어요. 한번 드셔 보세요.",
+   "en": "Yes, there's a tasting sample here. Please try it.",
+   "roman": "ne, yeogi sieumnyongi isseoyo. hanbeon deusyeo boseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "음, 향이 좋네요. 그런데 맛은 다 비슷하지 않아요?",
+   "beaver_en": "Hmm, it smells nice. But don't they all taste similar?",
+   "beaver_roman": "eum, hyangi jonneyo. geureonde maseun da biseutaji anayo?",
+   "learner": "맛은 내리기 나름입니다. 잘 내리면 정말 달라요.",
+   "en": "The taste depends on how you brew it. Brewed well, it's really different.",
+   "roman": "maseun naerigi nareumimnida. jal naerimyeon jeongmal dallayo."
+  },
+  {
+   "n": 5,
+   "beaver": "커피는 제 기호품이라 자주 사요. 할인 안 돼요?",
+   "beaver_en": "Coffee is my favorite treat, so I buy it often. No discount?",
+   "beaver_roman": "keopineun je gihopumira jaju sayo. harin an dwaeyo?",
+   "learner": "이건 저희 점포 주력 상품이라 할인이 어렵습니다.",
+   "en": "This is our store's flagship product, so a discount is difficult.",
+   "roman": "igeon jeohui jeompo juryeok sangpumira harini eoryeopseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "옆 가게는 더 싸게 팔던데요.",
+   "beaver_en": "The shop next door sells it cheaper, though.",
+   "beaver_roman": "yeop gageneun deo ssage paldeondeyo.",
+   "learner": "그 가게는 생필품 위주라 이런 원두는 없을 거예요.",
+   "en": "That shop mostly sells daily necessities, so it won't have beans like these.",
+   "roman": "geu gageneun saengpilpum wijura ireon wonduneun eopseul kkeoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "두 봉지 사면 뭐 좀 주실 수 있어요?",
+   "beaver_en": "If I buy two bags, can you give me something?",
+   "beaver_roman": "du bongji samyeon mwo jom jusil su isseoyo?",
+   "learner": "그럼 덤으로 머그컵을 드릴게요.",
+   "en": "Then I'll give you a mug as a bonus.",
+   "roman": "geureom deomeuro meogeukeobeul deurilgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 저기 진열된 컵이에요?",
+   "beaver_en": "Great. Is it the cup on display over there?",
+   "beaver_roman": "joayo. jeogi jinyeoldoen keobieyo?",
+   "learner": "네, 저기 진열해 둔 파란 컵입니다.",
+   "en": "Yes, it's the blue cup we put on display there.",
+   "roman": "ne, jeogi jinyeolhae dun paran keobimnida."
+  },
+  {
+   "n": 9,
+   "beaver": "예쁘네요. 그럼 두 봉지 주세요.",
+   "beaver_en": "It's pretty. Then two bags, please.",
+   "beaver_roman": "yeppeuneyo. geureom du bongji juseyo.",
+   "learner": "감사합니다. 원두는 보관하기 나름이니 꼭 밀봉하세요.",
+   "en": "Thank you. Beans depend on how you store them, so seal them tight.",
+   "roman": "gamsahamnida. wonduneun bogwanhagi nareumini kkok milbonghaseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 다 마시면 또 올게요.",
+   "beaver_en": "Got it. I'll come back when I finish them.",
+   "beaver_roman": "algesseoyo. da masimyeon tto olgeyo.",
+   "learner": "좋은 원두는 값어치를 하죠. 또 오세요!",
+   "en": "Good beans are worth the price. Come again!",
+   "roman": "joeun wonduneun gabeochireul hajyo. tto oseyo!"
+  }
+ ]
+}

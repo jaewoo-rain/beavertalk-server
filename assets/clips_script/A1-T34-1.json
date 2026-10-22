@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T34-1",
+ "no": 17,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 주말에 무슨 영화 볼까요?",
+   "beaver_en": "What movie should we see this weekend?",
+   "beaver_roman": "ibeon jumare museun yeonghwa bolkkayo?",
+   "learner": "「봄의 춤」 어때요? 다들 보고 싶어 해요.",
+   "en": "How about 'Spring Dance'? Everyone wants to see it.",
+   "roman": "「bome chum」 eottaeyo? dadeul bogo sipeo haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "아, 그 영화요? 무슨 이야기예요?",
+   "beaver_en": "Oh, that movie? What's it about?",
+   "beaver_roman": "a, geu yeonghwayo? museun iyagiyeyo?",
+   "learner": "주인공이 춤추고 그림을 그려요.",
+   "en": "The main character dances and draws.",
+   "roman": "juingongi chumchugo geurimeul geuryeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "오, 재미있겠네요. 주인공은 누구예요?",
+   "beaver_en": "Oh, sounds fun. Who's the main actor?",
+   "beaver_roman": "o, jaemiitgenneyo. juingongeun nuguyeyo?",
+   "learner": "김하나 씨가 주인공 역이에요. 바이올린도 켜요.",
+   "en": "Kim Hana plays the lead. She plays violin, too.",
+   "roman": "gimhana ssiga juingong yeogieyo. baiollindo kyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 음악도 나와요?",
+   "beaver_en": "Wow, is there music too?",
+   "beaver_roman": "wa, eumakdo nawayo?",
+   "learner": "네, 음악이 예뻐요. 제 동생도 보고 싶어 해요.",
+   "en": "Yes, the music is lovely. My sibling wants to see it too.",
+   "roman": "ne, eumagi yeppeoyo. je dongsaengdo bogo sipeo haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래요? 동생은 그림도 그려요?",
+   "beaver_en": "Really? Does your sibling draw too?",
+   "beaver_roman": "geuraeyo? dongsaengeun geurimdo geuryeoyo?",
+   "learner": "네, 매일 그려요. 시도 좋아해요.",
+   "en": "Yes, every day. They like poems too.",
+   "roman": "ne, maeil geuryeoyo. sido joahaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 어느 극장에서 볼까요?",
+   "beaver_en": "Then which theater should we go to?",
+   "beaver_roman": "geureom eoneu geukjangeseo bolkkayo?",
+   "learner": "시청역 앞 영화관 어때요? 가까워요.",
+   "en": "How about the cinema at City Hall Station? It's close.",
+   "roman": "sicheongnyeok ap yeonghwagwan eottaeyo? gakkawoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋아요. 얼마예요?",
+   "beaver_en": "Good. How much is it?",
+   "beaver_roman": "joayo. eolmayeyo?",
+   "learner": "표는 한 장에 칠천 원이에요. 이따가 제가 살게요.",
+   "en": "Tickets are 7,000 won each. I'll buy them later.",
+   "roman": "pyoneun han jange chilcheon wonieyo. ittaga jega salgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "고마워요. 몇 시 영화가 좋아요?",
+   "beaver_en": "Thanks. What time is good for you?",
+   "beaver_roman": "gomawoyo. myeot si yeonghwaga joayo?",
+   "learner": "토요일 아침 열 시 영화 어때요?",
+   "en": "How about the 10 a.m. show on Saturday?",
+   "roman": "toyoil achim yeol si yeonghwa eottaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "아침이요? 좀 이르지만 좋아요.",
+   "beaver_en": "Morning? A bit early, but okay.",
+   "beaver_roman": "achimiyo? jom ireujiman joayo.",
+   "learner": "그럼 아홉 시 반에 역 앞에서 만나요.",
+   "en": "Then let's meet at the station at 9:30.",
+   "roman": "geureom ahop si bane yeok apeseo mannayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 정말 기대돼요!",
+   "beaver_en": "Great. I'm really excited!",
+   "beaver_roman": "joayo. jeongmal gidaedwaeyo!",
+   "learner": "저도요. 토요일에 역 앞에서 만나요!",
+   "en": "Me too. See you at the station on Saturday!",
+   "roman": "jeodoyo. toyoire yeok apeseo mannayo!"
+  }
+ ]
+}

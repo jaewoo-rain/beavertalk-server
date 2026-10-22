@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T23-1",
+ "no": 312,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "나 요즘 결혼 준비 때문에 정신이 하나도 없어.",
+   "beaver_en": "I'm so swamped with wedding prep these days.",
+   "beaver_roman": "na yojeum gyeolhon junbi ttaemune jeongsini hanado eopseo.",
+   "learner": "상견례는 했어? 양가 어른들은 뭐라셔?",
+   "en": "Did the families meet yet? What do both sides say?",
+   "roman": "sanggyeonnyeneun haesseo? yangga eoreundeureun mworasyeo?"
+  },
+  {
+   "n": 2,
+   "beaver": "지난주에 했어. 근데 예물 얘기가 나와서 걱정이야.",
+   "beaver_en": "Last week. But engagement gifts came up, so I'm worried.",
+   "beaver_roman": "jinanjue haesseo. geunde yemul yaegiga nawaseo geokjeongiya.",
+   "learner": "예물은 필수가 아니야. 반지 하나면 충분하지.",
+   "en": "Gifts aren't a must. One ring is enough.",
+   "roman": "yemureun pilsuga aniya. banji hanamyeon chungbunhaji."
+  },
+  {
+   "n": 3,
+   "beaver": "그래도 결혼인데 너무 소박하면 서운하지 않을까?",
+   "beaver_en": "But it's a wedding. Won't it feel sad if it's too plain?",
+   "beaver_roman": "geuraedo gyeolhoninde neomu sobakamyeon seounhaji aneulkka?",
+   "learner": "둘이 행복하면 그만이야. 남의 눈은 신경 쓰지 마.",
+   "en": "As long as you two are happy, that's all. Ignore others.",
+   "roman": "duri haengbokamyeon geumaniya. namui nuneun singyeong sseuji ma."
+  },
+  {
+   "n": 4,
+   "beaver": "주례는 모셔야 할까? 아는 분이 별로 없어.",
+   "beaver_en": "Should we have an officiant? We don't know many people.",
+   "beaver_roman": "juryeneun moseoya halkka? aneun buni byeollo eopseo.",
+   "learner": "요즘은 주례 없이 하는 경우가 많아.",
+   "en": "Lots of people skip the officiant these days.",
+   "roman": "yojeumeun jurye eopsi haneun gyeonguga mana."
+  },
+  {
+   "n": 5,
+   "beaver": "그렇구나. 너는 어떻게 그렇게 잘 알아?",
+   "beaver_en": "I see. How do you know so much?",
+   "beaver_roman": "geureokuna. neoneun eotteoke geureoke jal ara?",
+   "learner": "내 친구가 작년에 결혼했는데 아주 간소하게 했어.",
+   "en": "My friend married last year and kept it very simple.",
+   "roman": "nae chinguga jangnyeone gyeolhonhaenneunde aju gansohage haesseo."
+  },
+  {
+   "n": 6,
+   "beaver": "그 친구는 남편이랑 오래 사귀었어?",
+   "beaver_en": "Did she date her husband for a long time?",
+   "beaver_roman": "geu chinguneun nampyeonirang orae sagwieosseo?",
+   "learner": "응, 5년 사귀다가 결혼했어. 천생연분이더라.",
+   "en": "Yes, five years, then married. A match made in heaven.",
+   "roman": "eung, onyeon sagwidaga gyeolhonhaesseo. cheonsaengyeonbunideora."
+  },
+  {
+   "n": 7,
+   "beaver": "부럽다. 나는 한때 독신으로 살 줄 알았는데.",
+   "beaver_en": "I'm jealous. I once thought I'd stay single.",
+   "beaver_roman": "bureopda. naneun hanttae doksineuro sal jul aranneunde.",
+   "learner": "맞아, 너 결혼 안 할 거라고 했었잖아.",
+   "en": "Right, you used to say you'd never marry.",
+   "roman": "maja, neo gyeolhon an hal georago haesseotjana."
+  },
+  {
+   "n": 8,
+   "beaver": "하하, 그랬지. 그럼 돈은 어디에 쓰면 좋을까?",
+   "beaver_en": "Haha, I did. So where should we spend the money?",
+   "beaver_roman": "haha, geuraetji. geureom doneun eodie sseumyeon joeulkka?",
+   "learner": "신혼집에 쓰는 게 더 현실적이고 합리적이야.",
+   "en": "Spending it on your new home is more realistic and sensible.",
+   "roman": "sinhonjibe sseuneun ge deo hyeonsiljeogigo hamnijeogiya."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아. 예비 신랑한테도 그렇게 말해 볼게.",
+   "beaver_en": "True. I'll tell my fiancé that too.",
+   "beaver_roman": "maja. yebi sillanghantedo geureoke malhae bolge.",
+   "learner": "잘 생각했어. 마음만 통하면 그만이야.",
+   "en": "Good thinking. As long as your hearts connect, that's all.",
+   "roman": "jal saenggakaesseo. maeumman tonghamyeon geumaniya."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워. 얘기하니까 마음이 편해졌어.",
+   "beaver_en": "Thanks. Talking about it made me feel better.",
+   "beaver_roman": "gomawo. yaegihanikka maeumi pyeonhaejyeosseo.",
+   "learner": "만나면 꼭 안아 줄게. 결혼 축하해!",
+   "en": "I'll give you a big hug when we meet. Congrats!",
+   "roman": "mannamyeon kkok ana julge. gyeolhon chukahae!"
+  }
+ ]
+}

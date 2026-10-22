@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T59-1",
+ "no": 392,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "박 선생님, 오늘은 병의 위험을 알려 주시겠습니까?",
+   "beaver_en": "Dr. Park, could you tell us about the risks of disease today?",
+   "beaver_roman": "bak seonsaengnim, oneureun byeongui wiheomeul allyeo jusigetseumnikka?",
+   "learner": "네, 스트레스는 만병의 근원이라고 합니다.",
+   "en": "Yes. They say stress is the root of all diseases.",
+   "roman": "ne, seuteureseuneun manbyeongui geunwonirago hamnida."
+  },
+  {
+   "n": 2,
+   "beaver": "요즘 많이 걱정하는 병은 무엇입니까?",
+   "beaver_en": "What disease do people worry about most these days?",
+   "beaver_roman": "yojeum mani geokjeonghaneun byeongeun mueosimnikka?",
+   "learner": "성인병입니다. 꾸준히 관리해야 합니다.",
+   "en": "Lifestyle diseases. They need steady management.",
+   "roman": "seonginbyeongimnida. kkujunhi gwallihaeya hamnida."
+  },
+  {
+   "n": 3,
+   "beaver": "성인병은 예방이 됩니까?",
+   "beaver_en": "Can lifestyle diseases be prevented?",
+   "beaver_roman": "seonginbyeongeun yebangi doemnikka?",
+   "learner": "네, 운동과 규칙적인 식사로 예방할 수 있습니다.",
+   "en": "Yes, exercise and regular meals can prevent them.",
+   "roman": "ne, undonggwa gyuchikjeogin siksaro yebanghal su itseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "저혈압도 위험합니까?",
+   "beaver_en": "Is low blood pressure dangerous too?",
+   "beaver_roman": "jeohyeorapdo wiheomhamnikka?",
+   "learner": "네, 저혈압이 심하면 쓰러질 수도 있습니다.",
+   "en": "Yes, severe low blood pressure can make you faint.",
+   "roman": "ne, jeohyeorabi simhamyeon sseureojil sudo itseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "손발이 저린 것도 위험합니까?",
+   "beaver_en": "Is numbness in the hands and feet dangerous?",
+   "beaver_roman": "sonbari jeorin geotdo wiheomhamnikka?",
+   "learner": "계속 심하게 저리면 마비가 올 수도 있습니다.",
+   "en": "If the numbness stays severe, paralysis can follow.",
+   "roman": "gyesok simhage jeorimyeon mabiga ol sudo itseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "아픈 증상은 어떻게 말하면 됩니까?",
+   "beaver_en": "How should we describe our symptoms?",
+   "beaver_roman": "apeun jeungsangeun eotteoke malhamyeon doemnikka?",
+   "learner": "병명을 몰라도 아픈 곳을 정확히 말하면 됩니다.",
+   "en": "Even without knowing the disease name, just say exactly where it hurts.",
+   "roman": "byeongmyeongeul mollado apeun goseul jeonghwaki malhamyeon doemnida."
+  },
+  {
+   "n": 7,
+   "beaver": "위염 환자도 많지요?",
+   "beaver_en": "There are many gastritis patients too, right?",
+   "beaver_roman": "wiyeom hwanjado manchiyo?",
+   "learner": "네, 못 먹을 지경인 위염 환자도 많습니다.",
+   "en": "Yes, many gastritis patients can barely eat.",
+   "roman": "ne, mon meogeul jigyeongin wiyeom hwanjado manseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "독감은 어떻게 전염됩니까?",
+   "beaver_en": "How does the flu spread?",
+   "beaver_roman": "dokgameun eotteoke jeonyeomdoemnikka?",
+   "learner": "기침이나 손으로 옮으니 손을 자주 씻으세요.",
+   "en": "It spreads by coughs or hands, so wash your hands often.",
+   "roman": "gichimina soneuro olmeuni soneul jaju ssiseuseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "작은 화상이나 상처는 어떻습니까?",
+   "beaver_en": "What about small burns or wounds?",
+   "beaver_roman": "jageun hwasangina sangcheoneun eotteoseumnikka?",
+   "learner": "작은 상처도 그냥 두면 덧나서 심해질 수 있습니다.",
+   "en": "Even small wounds can worsen if left alone.",
+   "roman": "jageun sangcheodo geunyang dumyeon deonnaseo simhaejil su itseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로 한 말씀 부탁드립니다.",
+   "beaver_en": "Finally, a closing word, please.",
+   "beaver_roman": "majimageuro han malsseum butakdeurimnida.",
+   "learner": "충치든 큰 병이든 일찍 치료하세요. 감사합니다.",
+   "en": "Cavities or serious illness, treat them early. Thank you.",
+   "roman": "chungchideun keun byeongideun iljjik chiryohaseyo. gamsahamnida."
+  }
+ ]
+}

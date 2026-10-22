@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T25-1",
+ "no": 138,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선배님, 안녕하세요! 저 이번 신입생 민준이에요.",
+   "beaver_en": "Hello! I'm Minjun, a new student this year.",
+   "beaver_roman": "seonbaenim, annyeonghaseyo! jeo ibeon sinipsaeng minjunieyo.",
+   "learner": "반가워요. 우리 학과에 온 걸 환영해요.",
+   "en": "Nice to meet you. Welcome to our department.",
+   "roman": "bangawoyo. uri hakgwae on geol hwanyeonghaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "감사합니다. 등록은 언제까지 해야 해요?",
+   "beaver_en": "Thanks. When is the registration deadline?",
+   "beaver_roman": "gamsahamnida. deungnogeun eonjekkaji haeya haeyo?",
+   "learner": "신입생 등록은 다음 주 금요일까지예요.",
+   "en": "New student registration is due next Friday.",
+   "roman": "sinipsaeng deungnogeun daeum ju geumyoilkkajiyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그렇군요. 책 반납도 해야 해요?",
+   "beaver_en": "I see. Do I have to return books too?",
+   "beaver_roman": "geureokunyo. chaek bannapdo haeya haeyo?",
+   "learner": "네, 빌린 책은 보름 안에 반납해야 해요.",
+   "en": "Yes, borrowed books must be returned within two weeks.",
+   "roman": "ne, billin chaegeun boreum ane bannapaeya haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "혹시 늦으면 어떻게 돼요?",
+   "beaver_en": "What happens if I'm late?",
+   "beaver_roman": "hoksi neujeumyeon eotteoke dwaeyo?",
+   "learner": "늦으면 연체료를 낼 텐데 일찍 반납하세요.",
+   "en": "You'd probably pay a late fee, so return them early.",
+   "roman": "neujeumyeon yeoncheryoreul nael tende iljjik bannapaseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네. 학과 사무실은 아직 열려 있을까요?",
+   "beaver_en": "Okay. Is the department office still open?",
+   "beaver_roman": "ne. hakgwa samusireun ajik yeollyeo isseulkkayo?",
+   "learner": "지금은 닫았을 텐데 내일 가 보세요.",
+   "en": "It's probably closed now, so go tomorrow.",
+   "roman": "jigeumeun dadasseul tende naeil ga boseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다른 신입생들은 보통 뭘 물어봐요?",
+   "beaver_en": "What do other new students usually ask?",
+   "beaver_roman": "dareun sinipsaengdeureun botong mwol mureobwayo?",
+   "learner": "수업이 어려우냐고 많이 물어봐요.",
+   "en": "They often ask if classes are hard.",
+   "roman": "sueobi eoryeounyago mani mureobwayo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 수업은 정말 어려워요?",
+   "beaver_en": "So are the classes really hard?",
+   "beaver_roman": "geureom sueobeun jeongmal eoryeowoyo?",
+   "learner": "아니요, 교수님들이 친절해서 괜찮아요.",
+   "en": "No, the professors are kind, so it's fine.",
+   "roman": "aniyo, gyosunimdeuri chinjeolhaeseo gwaenchanayo."
+  },
+  {
+   "n": 8,
+   "beaver": "다행이에요. 또 뭘 많이 물어봐요?",
+   "beaver_en": "That's a relief. What else do they ask?",
+   "beaver_roman": "dahaengieyo. tto mwol mani mureobwayo?",
+   "learner": "동아리에 언제 가입하느냐고 자주 물어요.",
+   "en": "They often ask when to join clubs.",
+   "roman": "dongarie eonje gaipaneunyago jaju mureoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "선배님, 학교생활 이야기도 더 해 주실래요?",
+   "beaver_en": "Could you tell me more about school life?",
+   "beaver_roman": "seonbaenim, hakgyosaenghwal iyagido deo hae jusillaeyo?",
+   "learner": "좋아요. 처음엔 바쁠 텐데 천천히 적응해요.",
+   "en": "Sure. You'll probably be busy at first, so adjust slowly.",
+   "roman": "joayo. cheoeumen bappeul tende cheoncheonhi jeogeunghaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정말 감사합니다. 도움이 많이 됐어요.",
+   "beaver_en": "Thank you so much. That really helped.",
+   "beaver_roman": "jeongmal gamsahamnida. doumi mani dwaesseoyo.",
+   "learner": "천만에요. 궁금하면 언제든지 연락해요.",
+   "en": "You're welcome. Contact me anytime.",
+   "roman": "cheonmaneyo. gunggeumhamyeon eonjedeunji yeollakaeyo."
+  }
+ ]
+}

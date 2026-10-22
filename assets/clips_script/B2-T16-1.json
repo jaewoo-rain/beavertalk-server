@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T16-1",
+ "no": 175,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "부산까지 교통편은 뭐가 좋을까요?",
+   "beaver_en": "What's the best way to get to Busan?",
+   "beaver_roman": "busankkaji gyotongpyeoneun mwoga joeulkkayo?",
+   "learner": "고속 철도가 제일 빠르고 편할 것 같아요.",
+   "en": "I think the high-speed railway is the fastest and easiest.",
+   "roman": "gosok cheoldoga jeil ppareugo pyeonhal geot gatayo."
+  },
+  {
+   "n": 2,
+   "beaver": "국내선 비행기는 어때요? 더 빠르잖아요.",
+   "beaver_en": "What about a domestic flight? It's faster.",
+   "beaver_roman": "gungnaeseon bihaenggineun eottaeyo? deo ppareujanayo.",
+   "learner": "비행 시간은 짧지만 공항에서 오래 기다려야 해요.",
+   "en": "The flight time is short, but we have to wait long at the airport.",
+   "roman": "bihaeng siganeun jjaljjiman gonghangeseo orae gidaryeoya haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 시외버스는요? 값이 싸요.",
+   "beaver_en": "Then how about the intercity bus? It's cheap.",
+   "beaver_roman": "geureom sioebeoseuneunyo? gapsi ssayo.",
+   "learner": "버스는 오래 앉아 있어야 해서 힘들어요.",
+   "en": "On a bus you have to sit for a long time, so it's tiring.",
+   "roman": "beoseuneun orae anja isseoya haeseo himdeureoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "기차표는 왕복으로 살까요?",
+   "beaver_en": "Should we buy round-trip train tickets?",
+   "beaver_roman": "gichapyoneun wangbogeuro salkkayo?",
+   "learner": "네, 왕복으로 해요. 앱에서 언제든지 살 수 있어요.",
+   "en": "Yes, round trip. We can buy them on the app anytime.",
+   "roman": "ne, wangbogeuro haeyo. aebeseo eonjedeunji sal su isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "부산에서 렌터카는요?",
+   "beaver_en": "What about a rental car in Busan?",
+   "beaver_roman": "busaneseo renteokaneunyo?",
+   "learner": "좋아요. 면허증만 있으면 누구나 빌릴 수 있어요.",
+   "en": "Good. Anyone can rent one with a license.",
+   "roman": "joayo. myeonheojeungman isseumyeon nuguna billil su isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "저는 면허가 있어요. 차는 뭘로 빌릴까요?",
+   "beaver_en": "I have a license. What car should we rent?",
+   "beaver_roman": "jeoneun myeonheoga isseoyo. chaneun mwollo billilkkayo?",
+   "learner": "저도 운전면허 있어요. 중형차가 좋겠어요.",
+   "en": "I have a driver's license too. A midsize car would be good.",
+   "roman": "jeodo unjeonmyeonheo isseoyo. junghyeongchaga joketsseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "주차료가 비싸지 않을까요?",
+   "beaver_en": "Won't the parking fee be expensive?",
+   "beaver_roman": "jucharyoga bissaji aneulkkayo?",
+   "learner": "호텔 주차장은 무료예요. 주유소도 근처에 있어요.",
+   "en": "The hotel parking lot is free. There's a gas station nearby too.",
+   "roman": "hotel juchajangeun muryoyeyo. juyusodo geuncheoe isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 대중교통은 안 타도 되겠네요.",
+   "beaver_en": "Then we won't need public transportation.",
+   "beaver_roman": "geureom daejunggyotongeun an tado doegenneyo.",
+   "learner": "첫날은 지하철 노선이 편해서 대중교통도 좋아요.",
+   "en": "On the first day the subway lines are handy, so transit is good too.",
+   "roman": "cheonnareun jihacheol noseoni pyeonhaeseo daejunggyotongdo joayo."
+  },
+  {
+   "n": 9,
+   "beaver": "제가 운전할게요. 맛집은 어디 갈까요?",
+   "beaver_en": "I'll drive. Where should we go to eat?",
+   "beaver_roman": "jega unjeonhalgeyo. matjjibeun eodi galkkayo?",
+   "learner": "저는 뭐든지 좋아요. 운전 조심하세요!",
+   "en": "Anything is fine with me. Drive safely!",
+   "roman": "jeoneun mwodeunji joayo. unjeon josimhaseyo!"
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 기차표랑 차를 예약할게요.",
+   "beaver_en": "Okay. Then I'll book the train tickets and the car.",
+   "beaver_roman": "joayo. geureom gichapyorang chareul yeyakalgeyo.",
+   "learner": "고마워요. 기차 출발 시간은 제가 알려 줄게요.",
+   "en": "Thanks. I'll tell you the train departure time.",
+   "roman": "gomawoyo. gicha chulbal siganeun jega allyeo julgeyo."
+  }
+ ]
+}

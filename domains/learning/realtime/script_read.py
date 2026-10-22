@@ -153,7 +153,29 @@ def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], lo
     if not (ROOT / f"{char}_en" / "manifest.json").exists():
         clip_expr.fallback("script", f"캐릭터 자산 없음({char}_en)", char=char)
         return None
+    if not _beaver_clips_match(char, lesson):
+        # PM-DEC-1012 — 대본 491차시가 자산으로 들어왔지만 비버 줄 녹음(sb_N)은 A2-T11-1 것뿐이다. 녹음이 그 차시 대본과 안 맞으면 열지 않는다.
+        clip_expr.fallback("script", f"비버 줄 녹음 없음({lesson})", char=char)
+        return None
     return char
+
+
+_CLIPS_MATCH: dict[tuple[str, str], bool] = {}
+
+
+def _beaver_clips_match(char: str, lesson: str) -> bool:
+    """차시 대본의 비버 줄마다 같은 글자의 녹음 sb_N 이 캐릭터 자산에 있나(결과는 캐시)."""
+    key = (char, lesson)
+    if key not in _CLIPS_MATCH:
+        try:
+            clips = {c["id"]: (c.get("text") or "").strip()
+                     for c in json.loads((ROOT / f"{char}_en" / "manifest.json").read_text(encoding="utf-8"))}
+            lines = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["lines"]
+            _CLIPS_MATCH[key] = bool(lines) and all(clips.get(f"sb_{x['n']}") == (x.get("beaver") or "").strip() for x in lines)
+        except (OSError, ValueError, KeyError) as exc:
+            logger.warning("script_read: 녹음 대조 실패 %s/%s: %s", char, lesson, exc)
+            _CLIPS_MATCH[key] = False
+    return _CLIPS_MATCH[key]
 
 
 _BANK: dict[str, tuple] = {}

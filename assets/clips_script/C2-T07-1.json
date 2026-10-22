@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T07-1",
+ "no": 353,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 이 가옥은 백 년 된 기와집입니다.",
+   "beaver_en": "Welcome. This house is a 100-year-old tile-roofed house.",
+   "beaver_roman": "eoseo oseyo. i gaogeun baeng nyeon doen giwajibimnida.",
+   "learner": "안녕하세요. 기와집이 정말 멋있네요.",
+   "en": "Hello. The tile-roofed house is really nice.",
+   "roman": "annyeonghaseyo. giwajibi jeongmal meosinneyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이 터에서 우리 가족이 대대로 살았습니다.",
+   "beaver_en": "My family has lived on this site for generations.",
+   "beaver_roman": "i teoeseo uri gajogi daedaero sarasseumnida.",
+   "learner": "터가 정말 넓네요. 울타리도 예뻐요.",
+   "en": "The plot is really big. The fence is pretty too.",
+   "roman": "teoga jeongmal neolleyo. ultarido yeppeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "옛날에는 울타리를 나무로 만들었어요.",
+   "beaver_en": "In the old days, fences were made of wood.",
+   "beaver_roman": "yennareneun ultarireul namuro mandeureosseoyo.",
+   "learner": "요즘은 벽돌로 담을 쌓거나 하지요?",
+   "en": "These days people build brick walls or something, right?",
+   "roman": "yojeumeun byeokdollo dameul ssakeona hajiyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "문 앞에 서 보세요. 뭐가 없지요?",
+   "beaver_en": "Stand in front of the gate. What's missing?",
+   "beaver_roman": "mun ape seo boseyo. mwoga eopjiyo?",
+   "learner": "초인종이 없네요.",
+   "en": "There's no doorbell.",
+   "roman": "choinjongi eomneyo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 손님은 어떻게 했을까요?",
+   "beaver_en": "Right. What do you think guests did?",
+   "beaver_roman": "majayo. sonnimeun eotteoke haesseulkkayo?",
+   "learner": "문을 두드리거나 이름을 부르거나 했겠네요.",
+   "en": "They probably knocked or called out a name.",
+   "roman": "mureul dudeurigeona ireumeul bureugeona haetgenneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그렇지요. 여기는 산골이라 아주 조용해요.",
+   "beaver_en": "That's right. It's a mountain village, so it's very quiet here.",
+   "beaver_roman": "geureochiyo. yeogineun sangorira aju joyonghaeyo.",
+   "learner": "네, 정말 조용해요. 살기 좋겠어요.",
+   "en": "Yes, it's really quiet. It must be a nice place to live.",
+   "roman": "ne, jeongmal joyonghaeyo. salgi jokesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 요즘은 다들 도시로 떠나요.",
+   "beaver_en": "But these days everyone leaves for the city.",
+   "beaver_roman": "geureonde yojeumeun dadeul dosiro tteonayo.",
+   "learner": "도시화 때문에 산골에 사는 사람이 줄었지요.",
+   "en": "Because of urbanization, fewer people live in the mountains.",
+   "roman": "dosihwa ttaemune sangore saneun sarami jureotjiyo."
+  },
+  {
+   "n": 8,
+   "beaver": "도시는 집값이 너무 비싸지요?",
+   "beaver_en": "House prices in the city are very high, aren't they?",
+   "beaver_roman": "dosineun jipgapsi neomu bissajiyo?",
+   "learner": "네, 그래서 다들 작은 집에 살아요.",
+   "en": "Yes, so everyone lives in small homes.",
+   "roman": "ne, geuraeseo dadeul jageun jibe sarayo."
+  },
+  {
+   "n": 9,
+   "beaver": "이 방은 할아버지가 공부하시던 방이에요.",
+   "beaver_en": "This is the room where my grandfather used to study.",
+   "beaver_roman": "i bangeun harabeojiga gongbuhasideon bangieyo.",
+   "learner": "방이 작지만 아늑하네요. 창문도 특이해요.",
+   "en": "The room is small but cozy. The window is unique too.",
+   "roman": "bangi jakjiman aneukaneyo. changmundo teugihaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 둘러보시니까 어떠셨어요?",
+   "beaver_en": "How did you like the tour today?",
+   "beaver_roman": "oneul dulleobosinikka eotteosyeosseoyo?",
+   "learner": "정말 좋았어요. 다음에 또 올게요.",
+   "en": "It was really great. I'll come again next time.",
+   "roman": "jeongmal joasseoyo. daeume tto olgeyo."
+  }
+ ]
+}

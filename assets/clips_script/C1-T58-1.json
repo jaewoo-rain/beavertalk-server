@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T58-1",
+ "no": 339,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 얼굴이 안 좋아 보여. 무슨 일 있어?",
+   "beaver_en": "You look tired lately. What's going on?",
+   "beaver_roman": "Yojeum eolguri an joa boyeo. Museun il isseo?",
+   "learner": "응, 회사 일 때문에 골치가 좀 아파.",
+   "en": "Yeah, work is giving me a headache.",
+   "roman": "Eung, hoesa il ttaemune golchiga jom apa."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 일인데? 나한테 털어놔 봐.",
+   "beaver_en": "What happened? Tell me about it.",
+   "beaver_roman": "Museun irinde? Nahante teoreonwa bwa.",
+   "learner": "새 프로젝트를 맡았는데 부담감이 너무 커.",
+   "en": "I took on a new project, and the pressure is huge.",
+   "roman": "Sae peurojekteureul matanneunde budamgami neomu keo."
+  },
+  {
+   "n": 3,
+   "beaver": "다들 너한테 기대가 큰가 보다.",
+   "beaver_en": "Everyone must expect a lot from you.",
+   "beaver_roman": "Dadeul neohante gidaega keunga boda.",
+   "learner": "맞아. 그 기대감 때문에 불안감도 생겼어.",
+   "en": "Right. Those expectations made me anxious too.",
+   "roman": "Maja. Geu gidaegam ttaemune burangamdo saenggyeosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그 마음, 계속 참고만 있었던 거야?",
+   "beaver_en": "Have you just been holding it all in?",
+   "beaver_roman": "Geu maeum, gyesok chamgoman isseotdeon geoya?",
+   "learner": "응, 감정을 억누르다 보니 더 막막해.",
+   "en": "Yeah, suppressing my feelings makes it feel more hopeless.",
+   "roman": "Eung, gamjeongeul eongnureuda boni deo mangmakae."
+  },
+  {
+   "n": 5,
+   "beaver": "혹시 팀에서 혼자라는 느낌도 들어?",
+   "beaver_en": "Do you ever feel alone on your team?",
+   "beaver_roman": "Hoksi timeseo honjaraneun neukkimdo deureo?",
+   "learner": "응, 요즘 팀에서 소외감을 느껴.",
+   "en": "Yeah, I feel left out on my team these days.",
+   "roman": "Eung, yojeum timeseo sooegameul neukkyeo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 동료들과 비교하게 되기도 해?",
+   "beaver_en": "Do you ever compare yourself to coworkers?",
+   "beaver_roman": "Hoksi dongnyodeulgwa bigyohage doegido hae?",
+   "learner": "응, 솔직히 열등감도 좀 있어. 인정할게.",
+   "en": "Yes, honestly I feel a bit inferior. I admit it.",
+   "roman": "Eung, soljjiki yeoldeunggamdo jom isseo. Injeonghalge."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 그만두고 싶은 마음도 있어?",
+   "beaver_en": "Then do you feel like quitting?",
+   "beaver_roman": "Geureom geumandugo sipeun maeumdo isseo?",
+   "learner": "포기할까도 했는데, 잘하고 싶은 마음이 더 커.",
+   "en": "I thought about giving up, but I want to do well more.",
+   "roman": "Pogihalkkado haenneunde, jalhago sipeun maeumi deo keo."
+  },
+  {
+   "n": 8,
+   "beaver": "쉬는 날에도 일 생각만 하는 거 아니야?",
+   "beaver_en": "Aren't you thinking about work even on days off?",
+   "beaver_roman": "Swineun naredo il saenggangman haneun geo aniya?",
+   "learner": "맞아. 쉬지 못해서 가족한테 죄책감도 들어.",
+   "en": "Right. I can't rest, so I feel guilty toward my family.",
+   "roman": "Maja. Swiji motaeseo gajokante joechaekgamdo deureo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 앞으로 어떻게 하고 싶어?",
+   "beaver_en": "So what do you want to do from here?",
+   "beaver_roman": "Geureom apeuro eotteoke hago sipeo?",
+   "learner": "지금 나한테 필요한 건 안정감임에 틀림없어.",
+   "en": "What I need now must be a sense of stability.",
+   "roman": "Jigeum nahante piryohan geon anjeonggamime teullimeopseo."
+  },
+  {
+   "n": 10,
+   "beaver": "그렇게 확실히 말하니까 다행이다. 응원할게.",
+   "beaver_en": "I'm glad you're so sure. I'm rooting for you.",
+   "beaver_roman": "Geureoke hwaksilhi malhanikka dahaengida. Eungwonhalge.",
+   "learner": "고마워. 이런 대화는 큰 위로임에 틀림없어.",
+   "en": "Thanks. Talks like this must be a big comfort.",
+   "roman": "Gomawo. Ireon daehwaneun keun wiroime teullimeopseo."
+  }
+ ]
+}

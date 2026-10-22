@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T12-1",
+ "no": 56,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 메뉴 여기 있어요. 천천히 보세요.",
+   "beaver_en": "Welcome. Here's the menu. Take your time.",
+   "beaver_roman": "eoseo oseyo. menyu yeogi isseoyo. cheoncheonhi boseyo.",
+   "learner": "감사합니다. 이 레스토랑은 처음 와요.",
+   "en": "Thank you. It's my first time at this restaurant.",
+   "roman": "gamsahamnida. i reseutorangeun cheoeum wayo."
+  },
+  {
+   "n": 2,
+   "beaver": "저희 가게는 파스타가 맛있어요.",
+   "beaver_en": "Our pasta is really good here.",
+   "beaver_roman": "jeohui gageneun paseutaga masisseoyo.",
+   "learner": "그럼 토마토 파스타 하나 주문할게요.",
+   "en": "Then I'll order one tomato pasta.",
+   "roman": "geureom tomato paseuta hana jumunhalgeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "네, 커피도 드릴까요?",
+   "beaver_en": "Sure. Would you like coffee too?",
+   "beaver_roman": "ne, keopido deurilkkayo?",
+   "learner": "네, 커피도 한 잔 주세요.",
+   "en": "Yes, one coffee too, please.",
+   "roman": "ne, keopido han jan juseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "알겠습니다. 잠시만 기다려 주세요.",
+   "beaver_en": "Got it. Please wait a moment.",
+   "beaver_roman": "algetseumnida. jamsiman gidaryeo juseyo.",
+   "learner": "저기요, 이 식당은 배달도 돼요?",
+   "en": "Excuse me, does this restaurant deliver?",
+   "roman": "jeogiyo, i sikdangeun baedaldo dwaeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 배달돼요. 전화로 주문하시면 돼요.",
+   "beaver_en": "Yes, we deliver. You can just order by phone.",
+   "beaver_roman": "ne, baedaldwaeyo. jeonhwaro jumunhasimyeon dwaeyo.",
+   "learner": "좋네요. 여기는 조용해서 좋아요.",
+   "en": "Nice. I like that it's quiet here.",
+   "roman": "jonneyo. yeogineun joyonghaeseo joayo."
+  },
+  {
+   "n": 6,
+   "beaver": "손님, 크림 파스타 나왔습니다.",
+   "beaver_en": "Here's your cream pasta.",
+   "beaver_roman": "sonnim, keurim paseuta nawatseumnida.",
+   "learner": "어? 저는 토마토 파스타를 주문했어요.",
+   "en": "Huh? I ordered the tomato pasta.",
+   "roman": "eo? jeoneun tomato paseutareul jumunhaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아, 정말 죄송합니다. 확인해 볼게요.",
+   "beaver_en": "Oh, I'm so sorry. Let me check.",
+   "beaver_roman": "a, jeongmal joesonghamnida. hwaginhae bolgeyo.",
+   "learner": "주문이 잘못 들어간 것 같아요.",
+   "en": "I think the order went in wrong.",
+   "roman": "jumuni jalmot deureogan geot gatayo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 맞아요. 바로 새로 가져다 드릴게요.",
+   "beaver_en": "Yes, you're right. I'll bring a new one right away.",
+   "beaver_roman": "ne, majayo. baro saero gajyeoda deurilgeyo.",
+   "learner": "괜찮아요. 그럼 커피는 먼저 주세요.",
+   "en": "It's okay. Then please bring the coffee first.",
+   "roman": "gwaenchanayo. geureom keopineun meonjeo juseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "네, 커피 여기 있습니다.",
+   "beaver_en": "Sure, here's your coffee.",
+   "beaver_roman": "ne, keopi yeogi itseumnida.",
+   "learner": "와, 커피숍 커피보다 맛있는 것 같아요.",
+   "en": "Wow, it seems better than coffee shop coffee.",
+   "roman": "wa, keopisyop keopiboda masinneun geot gatayo."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다. 파스타도 나왔습니다.",
+   "beaver_en": "Thank you. Your pasta is ready too.",
+   "beaver_roman": "gamsahamnida. paseutado nawatseumnida.",
+   "learner": "잘 먹겠습니다. 친절하셔서 또 올게요.",
+   "en": "Thanks for the meal. You're so kind, I'll come again.",
+   "roman": "jal meokgetseumnida. chinjeolhasyeoseo tto olgeyo."
+  }
+ ]
+}

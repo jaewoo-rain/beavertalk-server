@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T16-1",
+ "no": 12,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무엇을 도와 드릴까요?",
+   "beaver_en": "Hello. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. mueoseul dowa deurilkkayo?",
+   "learner": "안녕하세요. 공항에 가고 싶어요.",
+   "en": "Hello. I want to go to the airport.",
+   "roman": "annyeonghaseyo. gonghange gago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "공항으로 가는 버스가 있어요.",
+   "beaver_en": "There is a bus to the airport.",
+   "beaver_roman": "gonghangeuro ganeun beoseuga isseoyo.",
+   "learner": "버스 정류장이 터미널 안에 있어요?",
+   "en": "Is the bus stop inside the terminal?",
+   "roman": "beoseu jeongnyujangi teomineol ane isseoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "아니요, 터미널 옆이에요. 3번이에요.",
+   "beaver_en": "No, it's next to the terminal. It's number 3.",
+   "beaver_roman": "aniyo, teomineol yeopieyo. sambeonieyo.",
+   "learner": "버스로 공항까지 오래 걸려요?",
+   "en": "Does it take long to the airport by bus?",
+   "roman": "beoseuro gonghangkkaji orae geollyeoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "한 시간쯤 걸려요. 지하철도 있어요.",
+   "beaver_en": "About an hour. There's also the subway.",
+   "beaver_roman": "han siganjjeum geollyeoyo. jihacheoldo isseoyo.",
+   "learner": "지하철역은 어디에 있어요?",
+   "en": "Where is the subway station?",
+   "roman": "jihacheollyeogeun eodie isseoyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "길 건너에 있어요. 서울역으로 가세요.",
+   "beaver_en": "It's across the street. Go to Seoul Station.",
+   "beaver_roman": "gil geonneoe isseoyo. seoullyeogeuro gaseyo.",
+   "learner": "서울역에서 갈아타요?",
+   "en": "Do I transfer at Seoul Station?",
+   "roman": "seoullyeogeseo garatayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 서울역에서 공항철도로 갈아타세요.",
+   "beaver_en": "Yes, transfer to the Airport Railroad at Seoul Station.",
+   "beaver_roman": "ne, seoullyeogeseo gonghangcheoldoro garataseyo.",
+   "learner": "기차로 가요? 기차가 자주 있어요?",
+   "en": "Do I go by train? Do trains come often?",
+   "roman": "gicharo gayo? gichaga jaju isseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 자주 있어요. 십 분쯤 기다려요.",
+   "beaver_en": "Yes, they come often. You wait about ten minutes.",
+   "beaver_roman": "ne, jaju isseoyo. sip bunjjeum gidaryeoyo.",
+   "learner": "지하철로 가면 더 빨라요?",
+   "en": "Is it faster if I go by subway?",
+   "roman": "jihacheollo gamyeon deo ppallayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 저녁에는 지하철이 더 빨라요.",
+   "beaver_en": "Yes, in the evening the subway is faster.",
+   "beaver_roman": "ne, jeonyeogeneun jihacheori deo ppallayo.",
+   "learner": "그럼 지하철로 갈게요.",
+   "en": "Then I'll go by subway.",
+   "roman": "geureom jihacheollo galkkeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 역 안에서 공항철도를 찾으세요.",
+   "beaver_en": "Good. Look for the Airport Railroad inside the station.",
+   "beaver_roman": "joayo. yeok aneseo gonghangcheoldoreul chajeuseyo.",
+   "learner": "네, 알겠어요. 역에서 잘 찾을게요.",
+   "en": "Okay, got it. I'll find it at the station.",
+   "roman": "ne, algesseoyo. yeogeseo jal chajeulkkeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 조심히 가세요. 좋은 여행 되세요.",
+   "beaver_en": "Take care. Have a good trip.",
+   "beaver_roman": "ne, josimhi gaseyo. joeun yeohaeng doeseyo.",
+   "learner": "도와주셔서 감사합니다. 안녕히 계세요.",
+   "en": "Thank you for helping. Goodbye.",
+   "roman": "dowajusyeoseo gamsahamnida. annyeonghi gyeseyo."
+  }
+ ]
+}

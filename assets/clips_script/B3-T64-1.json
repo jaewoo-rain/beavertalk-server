@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T64-1",
+ "no": 251,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어제 산은 올라갔어? 정상 어땠어?",
+   "beaver_en": "Did you climb the mountain yesterday? How was the summit?",
+   "beaver_roman": "eoje saneun ollagasseo? jeongsang eottaesseo?",
+   "learner": "정상은커녕 산속에서 길만 잃었어.",
+   "en": "Far from the summit, I just got lost deep in the mountains.",
+   "roman": "jeongsangeunkeonyeong sansogeseo gilman ireosseo."
+  },
+  {
+   "n": 2,
+   "beaver": "아이고, 그래도 경치는 좋았지?",
+   "beaver_en": "Oh no, but the view was nice, right?",
+   "beaver_roman": "aigo, geuraedo gyeongchineun joatji?",
+   "learner": "경치는커녕 흙이 흘러내려서 무서웠어.",
+   "en": "Nice view? Not at all. The soil was sliding down, so it was scary.",
+   "roman": "gyeongchineunkeonyeong heulgi heulleonaeryeoseo museowosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 밤에는 예뻤겠다. 달빛 봤어?",
+   "beaver_en": "Then it must have been pretty at night. Did you see the moonlight?",
+   "beaver_roman": "geureom bameneun yeppeotgetda. dalbit bwasseo?",
+   "learner": "초승달이라서 달빛이 거의 없었어.",
+   "en": "It was a crescent moon, so there was hardly any moonlight.",
+   "roman": "choseungdariraseo dalbichi geoui eopseosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 아쉽다. 바닷가는 어땠어?",
+   "beaver_en": "Ah, too bad. How was the beach?",
+   "beaver_roman": "a, aswipda. badakkaneun eottaesseo?",
+   "learner": "해안에 돌멩이만 많고 모래는 없었어.",
+   "en": "The coast had lots of pebbles and no sand.",
+   "roman": "haeane dolmengiman manko moraeneun eopseosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "앞바다는? 물이 맑다고 했잖아.",
+   "beaver_en": "What about the sea offshore? They said the water was clear.",
+   "beaver_roman": "apbadaneun? muri makdago haetjana.",
+   "learner": "맑기는커녕 물속이 하나도 안 보였어.",
+   "en": "Far from clear, I couldn't see anything underwater.",
+   "roman": "malkkineunkeonyeong mulssogi hanado an boyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "물결이라도 예쁘지 않았어?",
+   "beaver_en": "Weren't the waves at least pretty?",
+   "beaver_roman": "mulkkyeorirado yeppeuji anasseo?",
+   "learner": "예쁘기는커녕 바람 때문에 파도만 거칠었어.",
+   "en": "Far from pretty, the waves were just rough because of the wind.",
+   "roman": "yeppeugineunkeonyeong baram ttaemune padoman geochireosseo."
+  },
+  {
+   "n": 7,
+   "beaver": "호텔 정원은 괜찮았지? 연못 있잖아.",
+   "beaver_en": "The hotel garden was okay, right? It has a pond.",
+   "beaver_roman": "hotel jeongwoneun gwaenchanatji? yeonmot itjana.",
+   "learner": "연못은 있었는데 분수가 고장 났어.",
+   "en": "There was a pond, but the fountain was broken.",
+   "roman": "yeonmoseun isseonneunde bunsuga gojang nasseo."
+  },
+  {
+   "n": 8,
+   "beaver": "하하, 운이 정말 없었네. 날씨는?",
+   "beaver_en": "Haha, you really had bad luck. And the weather?",
+   "beaver_roman": "haha, uni jeongmal eopseonne. nalssineun?",
+   "learner": "태양이 너무 뜨거워서 사막 같았어.",
+   "en": "The sun was so hot it felt like a desert.",
+   "roman": "taeyangi neomu tteugeowoseo samak gatasseo."
+  },
+  {
+   "n": 9,
+   "beaver": "그래도 평생 기억에 남겠다.",
+   "beaver_en": "Still, you'll remember it for life.",
+   "beaver_roman": "geuraedo pyeongsaeng gieoge namgetda.",
+   "learner": "맞아. 세상은 넓으니까 다음엔 다른 데 가자.",
+   "en": "True. The world is big, so let's go somewhere else next time.",
+   "roman": "maja. sesangeun neolbeunikka daeumen dareun de gaja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아! 다음 여행은 네가 정해.",
+   "beaver_en": "Okay! You pick the next trip.",
+   "beaver_roman": "joa! daeum yeohaengeun nega jeonghae.",
+   "learner": "알았어. 이번엔 내 판단을 믿어 봐!",
+   "en": "Got it. This time, trust my judgment!",
+   "roman": "arasseo. ibeonen nae pandaneul mideo bwa!"
+  }
+ ]
+}

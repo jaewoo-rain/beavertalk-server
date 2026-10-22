@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T43-1",
+ "no": 331,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 전통문화의 변화를 여쭤봐도 될까요?",
+   "beaver_en": "Hello. May I ask about changes in traditional culture?",
+   "beaver_roman": "Annyeonghaseyo. Jeontongmunhwaui byeonhwareul yeojjwobwado doelkkayo?",
+   "learner": "네, 좋아요. 전통문화는 많이 달라졌어요.",
+   "en": "Sure. Traditional culture has changed a lot.",
+   "roman": "Ne, joayo. Jeontongmunhwaneun mani dallajyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "탈춤은 어떻습니까?",
+   "beaver_en": "What about mask dance?",
+   "beaver_roman": "Talchumeun eotteoseumnikka?",
+   "learner": "옛날에는 탈이 민속 공연에만 쓰였어요.",
+   "en": "In the past, masks were used only in folk performances.",
+   "roman": "Yennareneun tari minsok gongyeoneman sseuyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "지금은 어떻게 쓰이나요?",
+   "beaver_en": "How are they used now?",
+   "beaver_roman": "Jigeumeun eotteoke sseuinayo?",
+   "learner": "요즘은 탈춤 축제가 생겨서 대중화되었어요.",
+   "en": "These days there are mask dance festivals, so it has become popular.",
+   "roman": "Yojeumeun talchum chukjega saenggyeoseo daejunghwadoeeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "탈을 직접 만들어 보는 사람도 많아요?",
+   "beaver_en": "Do many people make masks themselves?",
+   "beaver_roman": "Tareul jikjeop mandeureo boneun saramdo manayo?",
+   "learner": "네, 여러 가지 탈을 다 만들어 보는 사람도 있어요.",
+   "en": "Yes, some people try making all kinds of masks.",
+   "roman": "Ne, yeoreo gaji tareul da mandeureo boneun saramdo isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "전통 건축물은 어떻습니까?",
+   "beaver_en": "What about traditional buildings?",
+   "beaver_roman": "Jeontong geonchungmureun eotteoseumnikka?",
+   "learner": "외래 문화의 영향으로 서양식 건축물이 늘었어요.",
+   "en": "Due to foreign culture, Western-style buildings increased.",
+   "roman": "Oerae munhwaui yeonghyangeuro seoyangsik geonchungmuri neureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "종교 건축물도 바뀌었나요?",
+   "beaver_en": "Did religious buildings change too?",
+   "beaver_roman": "Jonggyo geonchungmuldo bakkwieonnayo?",
+   "learner": "한옥 양식으로 지은 교회나 성당도 있어요.",
+   "en": "There are even churches and cathedrals built in hanok style.",
+   "roman": "Hanok yangsigeuro jieun gyohoena seongdangdo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "절 안의 모습은 어떤가요?",
+   "beaver_en": "What is it like inside temples?",
+   "beaver_roman": "Jeol anui moseubeun eotteongayo?",
+   "learner": "불상은 그대로지만 스님들도 인터넷을 써요.",
+   "en": "The Buddha statues are the same, but monks use the internet too.",
+   "roman": "Bulsangeun geudaerojiman seunimdeuldo inteoneseul sseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "문화와 전통에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about culture and tradition?",
+   "beaver_roman": "Munhwawa jeontonge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "널뛰기 같은 민속놀이는 이제 체험 행사가 됐어요.",
+   "en": "Folk games like neolttwigi are now hands-on events.",
+   "roman": "Neolttwigi gateun minsongnorineun ije cheheom haengsaga dwaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 옛것이 사라질까 봐 걱정되지는 않으세요?",
+   "beaver_en": "Then aren't you worried old things will disappear?",
+   "beaver_roman": "Geureom yetgeosi sarajilkka bwa geokjeongdoejineun aneuseyo?",
+   "learner": "조금 걱정되지만, 잘 배우고 지키면 돼요.",
+   "en": "I'm a little worried, but we just need to learn and protect it well.",
+   "roman": "Jogeum geokjeongdoejiman, jal baeugo jikimyeon dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 정말 감사합니다, 선생님.",
+   "beaver_en": "Thank you so much for your kind words, sir.",
+   "beaver_roman": "Joeun malsseum jeongmal gamsahamnida, seonsaengnim.",
+   "learner": "천만에요. 조사 잘 마치길 바랄게요.",
+   "en": "You're welcome. I hope your research goes well.",
+   "roman": "Cheonmaneyo. Josa jal machigil baralgeyo."
+  }
+ ]
+}

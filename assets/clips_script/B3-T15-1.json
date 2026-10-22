@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T15-1",
+ "no": 218,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수아 씨, 왜 이렇게 늦었어요? 무슨 일 있었어요?",
+   "beaver_en": "Sua, why are you so late? Did something happen?",
+   "beaver_roman": "Sua ssi, wae ireoke neujeosseoyo? Museun il isseosseoyo?",
+   "learner": "길에서 사고가 났어요. 어찌나 놀랐는지 몰라요.",
+   "en": "There was an accident on the road. I was so shocked.",
+   "roman": "Gireseo sagoga nasseoyo. Eojjina nollanneunji mollayo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 어느 쪽으로 왔어요?",
+   "beaver_en": "Really? Which way did you come?",
+   "beaver_roman": "Jeongmallyo? Eoneu jjogeuro wasseoyo?",
+   "learner": "강남 방면으로 오다가 다리 건너에서 봤어요.",
+   "en": "I was heading toward Gangnam and saw it across the bridge.",
+   "roman": "Gangnam bangmyeoneuro odaga dari geonneoeseo bwasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "무슨 사고였어요?",
+   "beaver_en": "What kind of accident was it?",
+   "beaver_roman": "Museun sagoyeosseoyo?",
+   "learner": "오토바이가 왼편에서 와서 차 측면에 부딪혔어요.",
+   "en": "A motorbike came from the left and hit the side of a car.",
+   "roman": "Otobaiga oenpyeoneseo waseo cha cheungmyeone budichyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "저런, 사람은 괜찮았어요?",
+   "beaver_en": "Oh no, was the person okay?",
+   "beaver_roman": "Jeoreon, sarameun gwaenchanasseoyo?",
+   "learner": "운전자가 땅바닥에 넘어졌어요. 눈앞에서 봤어요.",
+   "en": "The rider fell on the ground. I saw it right in front of me.",
+   "roman": "Unjeonjaga ttangbadage neomeojyeosseoyo. Nunapeseo bwasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "구급차는 금방 왔어요?",
+   "beaver_en": "Did the ambulance come quickly?",
+   "beaver_roman": "Gugeupchaneun geumbang wasseoyo?",
+   "learner": "네, 금방 왔고 사람들이 바쁘게 움직였어요.",
+   "en": "Yes, it came quickly and people moved busily.",
+   "roman": "Ne, geumbang watgo saramdeuri bappeuge umjigyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래서 길이 막혔군요. 그쪽은 좁지요?",
+   "beaver_en": "So that's why the road was blocked. That way is narrow, right?",
+   "beaver_roman": "Geuraeseo giri makyeotgunyo. Geujjogeun jopjiyo?",
+   "learner": "네, 그 일대가 다 막혀서 걸어왔어요.",
+   "en": "Yes, the whole area was jammed, so I walked here.",
+   "roman": "Ne, geu ildaega da makyeoseo georeowasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "정확히 어디쯤이었어요?",
+   "beaver_en": "Where exactly was it?",
+   "beaver_roman": "Jeonghwaki eodijjeumieosseoyo?",
+   "learner": "다리 너머 공원 구석 쪽이었어요.",
+   "en": "It was near the corner of the park beyond the bridge.",
+   "roman": "Dari neomeo gongwon guseok jjogieosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "차가 많아서 잘 안 보였겠네요.",
+   "beaver_en": "With so many cars, it must have been hard to see.",
+   "beaver_roman": "Chaga manaseo jal an boyeotgenneyo.",
+   "learner": "네, 트럭이 시야를 가려서 잘 안 보였어요.",
+   "en": "Yes, a truck blocked my view, so I couldn't see well.",
+   "roman": "Ne, teureogi siyareul garyeoseo jal an boyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "경찰도 왔어요?",
+   "beaver_en": "Did the police come too?",
+   "beaver_roman": "Gyeongchaldo wasseoyo?",
+   "learner": "네, 경찰이 차들을 뒷길로 돌렸어요.",
+   "en": "Yes, the police redirected cars to the back road.",
+   "roman": "Ne, gyeongchari chadeureul dwitgillo dollyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고생했어요. 회의는 조금 뒤에 시작해요.",
+   "beaver_en": "That was rough. The meeting starts in a bit.",
+   "beaver_roman": "Gosaenghaesseoyo. Hoeuineun jogeum dwie sijakaeyo.",
+   "learner": "고마워요. 얼마나 정신없었는지 몰라요.",
+   "en": "Thanks. It was so hectic, you have no idea.",
+   "roman": "Gomawoyo. Eolmana jeongsineopseonneunji mollayo."
+  }
+ ]
+}

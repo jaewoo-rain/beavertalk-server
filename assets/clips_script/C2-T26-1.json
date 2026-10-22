@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T26-1",
+ "no": 368,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선배님, 요즘 취업 시장은 어때요?",
+   "beaver_en": "Senior, how's the job market these days?",
+   "beaver_roman": "seonbaenim, yojeum chwieop sijangeun eottaeyo?",
+   "learner": "구직이 힘들어서 실업자가 늘어나는 추세야.",
+   "en": "Job hunting is hard, so unemployment is rising.",
+   "roman": "gujigi himdeureoseo sireopjaga neureonaneun chuseya."
+  },
+  {
+   "n": 2,
+   "beaver": "취업률이 정말 많이 떨어졌어요?",
+   "beaver_en": "Has the employment rate really dropped a lot?",
+   "beaver_roman": "chwieomnyuri jeongmal mani tteoreojyeosseoyo?",
+   "learner": "응, 취업률도 낮고 실직하는 사람도 많아.",
+   "en": "Yes, the rate is low and many people lose their jobs.",
+   "roman": "eung, chwieomnyuldo natgo siljikaneun saramdo mana."
+  },
+  {
+   "n": 3,
+   "beaver": "이직도 많아요?",
+   "beaver_en": "Do many people change jobs too?",
+   "beaver_roman": "ijikdo manayo?",
+   "learner": "응, 더 좋은 회사로 이직하는 추세야.",
+   "en": "Yes, moving to better companies is a trend.",
+   "roman": "eung, deo joeun hoesaro ijikaneun chuseya."
+  },
+  {
+   "n": 4,
+   "beaver": "채용 방식은 어때요?",
+   "beaver_en": "How about hiring methods?",
+   "beaver_roman": "chaeyong bangsigeun eottaeyo?",
+   "learner": "구인 공고도 줄고 면접시험도 어려워졌어.",
+   "en": "Job postings are fewer and interviews got harder.",
+   "roman": "guin gonggodo julgo myeonjeopsiheomdo eoryeowojyeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "회사에 직접 지원해야 해요?",
+   "beaver_en": "Do I have to apply to companies directly?",
+   "beaver_roman": "hoesae jikjeop jiwonhaeya haeyo?",
+   "learner": "헤드헌터를 통해 구직하는 사람도 많아.",
+   "en": "Many people job-hunt through headhunters.",
+   "roman": "hedeuheonteoreul tonghae gujikaneun saramdo mana."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 저는 뭘 준비하면 좋을까요?",
+   "beaver_en": "Then what should I prepare?",
+   "beaver_roman": "geureom jeoneun mwol junbihamyeon joeulkkayo?",
+   "learner": "자격증 취득이 중요해. 경력도 쌓아 둬.",
+   "en": "Getting certificates matters. Build experience too.",
+   "roman": "jagyeokjeung chwideugi jungyohae. gyeongnyeokdo ssaa dwo."
+  },
+  {
+   "n": 7,
+   "beaver": "어떤 직업이 인기가 많아요?",
+   "beaver_en": "Which jobs are popular?",
+   "beaver_roman": "eotteon jigeobi ingiga manayo?",
+   "learner": "건축가나 요리사 같은 전문직이 인기야.",
+   "en": "Professional jobs like architects and chefs are popular.",
+   "roman": "geonchukgana yorisa gateun jeonmunjigi ingiya."
+  },
+  {
+   "n": 8,
+   "beaver": "비서나 판매원은 어때요?",
+   "beaver_en": "What about secretaries or salespeople?",
+   "beaver_roman": "biseona panmaewoneun eottaeyo?",
+   "learner": "비서와 판매원 일은 점점 줄어드는 추세야.",
+   "en": "Secretary and sales jobs are gradually declining.",
+   "roman": "biseowa panmaewon ireun jeomjeom jureodeuneun chuseya."
+  },
+  {
+   "n": 9,
+   "beaver": "직업과 진로에 대해 더 말해 주실래요?",
+   "beaver_en": "Could you tell me more about jobs and careers?",
+   "beaver_roman": "jigeopgwa jilloe daehae deo malhae jusillaeyo?",
+   "learner": "외교관 같은 공무원이나 장사도 생각해 봐.",
+   "en": "Consider civil service like diplomat, or business.",
+   "roman": "oegyogwan gateun gongmuwonina jangsado saenggakae bwa."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요, 선배님. 도움이 많이 됐어요.",
+   "beaver_en": "Thanks, senior. That helped a lot.",
+   "beaver_roman": "gomawoyo, seonbaenim. doumi mani dwaesseoyo.",
+   "learner": "그래, 포기하지 말고 힘내. 응원할게!",
+   "en": "Sure, don't give up. I'm rooting for you!",
+   "roman": "geurae, pogihaji malgo himnae. eungwonhalge!"
+  }
+ ]
+}

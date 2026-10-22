@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T10-1",
+ "no": 27,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 토요일에 같이 쇼핑하러 가요?",
+   "beaver_en": "Minji, want to go shopping together on Saturday?",
+   "beaver_roman": "Minji ssi, toyoire gachi syopinghareo gayo?",
+   "learner": "네, 좋아요. 저도 쇼핑하고 싶어요.",
+   "en": "Yes, sounds good. I want to go shopping too.",
+   "roman": "Ne, joayo. Jeodo syopinghago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어디로 갈까요? 백화점에 갈까요?",
+   "beaver_en": "Where should we go? The department store?",
+   "beaver_roman": "Eodiro galkkayo? Baekwajeome galkkayo?",
+   "learner": "백화점은 값이 비싸요.",
+   "en": "Prices are high at the department store.",
+   "roman": "Baekwajeomeun gapsi bissayo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래요? 그럼 어디가 싸요?",
+   "beaver_en": "Really? Then where is it cheap?",
+   "beaver_roman": "Geuraeyo? Geureom eodiga ssayo?",
+   "learner": "시장이 싸요. 물건도 많아요.",
+   "en": "The market is cheap. It has lots of things, too.",
+   "roman": "Sijangi ssayo. Mulgeondo manayo."
+  },
+  {
+   "n": 4,
+   "beaver": "가격이 얼마나 달라요?",
+   "beaver_en": "How different are the prices?",
+   "beaver_roman": "Gagyeogi eolmana dallayo?",
+   "learner": "티셔츠가 백화점에서 이만 원이에요.",
+   "en": "A T-shirt is 20,000 won at the department store.",
+   "roman": "Tisyeocheuga baekwajeomeseo iman wonieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "시장에서는요?",
+   "beaver_en": "And at the market?",
+   "beaver_roman": "Sijangeseoneunyo?",
+   "learner": "시장에서는 만 원이에요. 정말 싸요.",
+   "en": "At the market it's 10,000 won. Really cheap.",
+   "roman": "Sijangeseoneun man wonieyo. Jeongmal ssayo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 많이 싸네요!",
+   "beaver_en": "Wow, that's a lot cheaper!",
+   "beaver_roman": "Wa, mani ssaneyo!",
+   "learner": "요즘 백화점 가격이 비싸요.",
+   "en": "Department store prices are high these days.",
+   "roman": "Yojeum baekwajeom gagyeogi bissayo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 그런데 서점에도 들를까요?",
+   "beaver_en": "Right. By the way, shall we stop by a bookstore too?",
+   "beaver_roman": "Majayo. Geureonde seojeomedo deulleulkkayo?",
+   "learner": "네, 좋아요. 저도 책을 사고 싶어요.",
+   "en": "Yes, sounds good. I want to buy a book too.",
+   "roman": "Ne, joayo. Jeodo chaegeul sago sipeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "무슨 책을 살 거예요?",
+   "beaver_en": "What book will you buy?",
+   "beaver_roman": "Museun chaegeul sal kkeoyeyo?",
+   "learner": "한국어 책이요. 문법이 어려워요.",
+   "en": "A Korean book. Grammar is hard for me.",
+   "roman": "Hangugeo chaegiyo. Munbeobi eoryeowoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그런데 토요일이 며칠이에요?",
+   "beaver_en": "By the way, what's the date on Saturday?",
+   "beaver_roman": "Geureonde toyoiri myeochirieyo?",
+   "learner": "오월 일일이에요.",
+   "en": "It's May 1st.",
+   "roman": "Owol iririeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그날 시장에서 만나요!",
+   "beaver_en": "Great. Let's meet at the market that day!",
+   "beaver_roman": "Joayo. Geunal sijangeseo mannayo!",
+   "learner": "네, 열 시에 시장 앞에서 만나요.",
+   "en": "Okay, let's meet in front of the market at ten.",
+   "roman": "Ne, yeol sie sijang apeseo mannayo."
+  }
+ ]
+}

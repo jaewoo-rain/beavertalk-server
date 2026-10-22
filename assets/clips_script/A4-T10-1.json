@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T10-1",
+ "no": 93,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 해님 빵집이에요. 뭘 도와드릴까요?",
+   "beaver_en": "Welcome. This is Haenim Bakery. How can I help?",
+   "beaver_roman": "eoseo oseyo. haenim ppangjibieyo. mwol dowadeurilkkayo?",
+   "learner": "어제 이 빵집에서 케이크를 샀어요.",
+   "en": "I bought a cake at this bakery yesterday.",
+   "roman": "eoje i ppangjibeseo keikeureul sasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 케이크에 무슨 문제가 있어요?",
+   "beaver_en": "Yes, is there a problem with the cake?",
+   "beaver_roman": "ne, keikeue museun munjega isseoyo?",
+   "learner": "선물로 같은 케이크를 또 받았어요.",
+   "en": "I got the same cake again as a gift.",
+   "roman": "seonmullo gateun keikeureul tto badasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그래서 바꾸고 싶으세요?",
+   "beaver_en": "Oh, so you'd like to exchange it?",
+   "beaver_roman": "a, geuraeseo bakkugo sipeuseyo?",
+   "learner": "네, 다른 상품으로 바꿀 수 있어요?",
+   "en": "Yes, can I exchange it for another product?",
+   "roman": "ne, dareun sangpumeuro bakkul su isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "그럼요. 영수증 있으세요?",
+   "beaver_en": "Of course. Do you have the receipt?",
+   "beaver_roman": "geureomyo. yeongsujeung isseuseyo?",
+   "learner": "네, 여기 영수증이에요. 포장도 안 열었어요.",
+   "en": "Yes, here's the receipt. I didn't open the packaging.",
+   "roman": "ne, yeogi yeongsujeungieyo. pojangdo an yeoreosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋아요. 그럼 다른 빵으로 바꿔 드릴게요.",
+   "beaver_en": "Good. Then I'll exchange it for other bread.",
+   "beaver_roman": "joayo. geureom dareun ppangeuro bakkwo deurilgeyo.",
+   "learner": "바꾸는 건 공짜예요?",
+   "en": "Is the exchange free of charge?",
+   "roman": "bakkuneun geon gongjjayeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 같은 값이면 공짜예요.",
+   "beaver_en": "Yes, it's free if it's the same price.",
+   "beaver_roman": "ne, gateun gapsimyeon gongjjayeyo.",
+   "learner": "저기 저 까만 빵은 뭐예요?",
+   "en": "What's that black bread over there?",
+   "roman": "jeogi jeo kkaman ppangeun mwoyeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "초코빵이에요. 맛이 진하고 달아요.",
+   "beaver_en": "It's chocolate bread. It's rich and sweet.",
+   "beaver_roman": "chokoppangieyo. masi jinhago darayo.",
+   "learner": "좋아요. 그런데 택배도 보내요?",
+   "en": "Great. By the way, do you send parcels too?",
+   "roman": "joayo. geureonde taekbaedo bonaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "그럼요. 요즘은 택배도 보내요.",
+   "beaver_en": "Sure. These days we do parcel delivery too.",
+   "beaver_roman": "geureomyo. yojeumeun taekbaedo bonaeyo.",
+   "learner": "할머니께 빵을 보내고 싶어요.",
+   "en": "I'd like to send bread to my grandma.",
+   "roman": "halmeonikke ppangeul bonaego sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "오늘 보내면 내일 도착해요.",
+   "beaver_en": "If sent today, it arrives tomorrow.",
+   "beaver_roman": "oneul bonaemyeon naeil dochakaeyo.",
+   "learner": "그럼 이 초코빵을 택배로 보내 주세요.",
+   "en": "Then please send this chocolate bread by parcel.",
+   "roman": "geureom i chokoppangeul taekbaero bonae juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네. 오늘은 빵 하나 서비스로 더 드릴게요.",
+   "beaver_en": "Okay. Today I'll give you one extra bread for free.",
+   "beaver_roman": "ne. oneureun ppang hana sseobisseuro deo deurilgeyo.",
+   "learner": "고마워요! 이 빵집에 자주 오게 될 것 같아요.",
+   "en": "Thank you! I think I'll end up coming here often.",
+   "roman": "gomawoyo! i ppangjibe jaju oge doel geot gatayo."
+  }
+ ]
+}

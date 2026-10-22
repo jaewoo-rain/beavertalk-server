@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T39-1",
+ "no": 234,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 환경 단체에서 나왔어요.",
+   "beaver_en": "Hello. I'm from an environmental group.",
+   "beaver_roman": "annyeonghaseyo. hwangyeong dancheeseo nawasseoyo.",
+   "learner": "네, 안녕하세요. 환경 이야기예요?",
+   "en": "Yes, hello. Is this about the environment?",
+   "roman": "ne, annyeonghaseyo. hwangyeong iyagiyeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네. 혹시 일회용품을 자주 쓰세요?",
+   "beaver_en": "Yes. Do you often use disposable goods?",
+   "beaver_roman": "ne. hoksi irhoeyongpumeul jaju sseuseyo?",
+   "learner": "네, 바빠서 일회용 컵을 매일 써요.",
+   "en": "Yes, I'm busy, so I use disposable cups every day.",
+   "roman": "ne, bappaseo irhoeyong keobeul maeil sseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그런 분이 많아요. 그런데 비닐도 문제예요.",
+   "beaver_en": "Many people do. But plastic is a problem too.",
+   "beaver_roman": "geureon buni manayo. geureonde binildo munjeyeyo.",
+   "learner": "비닐은 편하니까 많이 쓰기 마련이에요.",
+   "en": "Plastic is convenient, so naturally people use a lot.",
+   "roman": "binireun pyeonhanikka mani sseugi maryeonieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아요. 하지만 이대로 가면 자연환경이 파괴돼요.",
+   "beaver_en": "Right. But if this goes on, nature will be destroyed.",
+   "beaver_roman": "majayo. hajiman idaero gamyeon jayeonhwangyeongi pagoedwaeyo.",
+   "learner": "자연환경 파괴가 그렇게 심해요?",
+   "en": "Is the destruction of nature that serious?",
+   "roman": "jayeonhwangyeong pagoega geureoke simhaeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네. 쓰레기 때문에 공해도 심해져요.",
+   "beaver_en": "Yes. Pollution gets worse because of trash, too.",
+   "beaver_roman": "ne. sseuregi ttaemune gonghaedo simhaejyeoyo.",
+   "learner": "공해가 심하면 건강이 나빠지기 마련이죠.",
+   "en": "When pollution is bad, health naturally gets worse.",
+   "roman": "gonghaega simhamyeon geongangi nappajigi maryeonijyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그렇죠. 일회용품을 만들 때 에너지도 많이 들어요.",
+   "beaver_en": "Exactly. Making disposables also uses a lot of energy.",
+   "beaver_roman": "geureochyo. irhoeyongpumeul mandeul ttae eneojido mani deureoyo.",
+   "learner": "에너지와 자원을 쓸데없이 쓰는 거네요.",
+   "en": "So we're wasting energy and resources.",
+   "roman": "eneojiwa jawoneul sseuldeeopsi sseuneun geoneyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 자원은 끝이 있으니까요.",
+   "beaver_en": "Right. Resources don't last forever.",
+   "beaver_roman": "majayo. jawoneun kkeuchi isseunikkayo.",
+   "learner": "일단 저부터 일회용품을 줄여 볼게요.",
+   "en": "First, I'll start cutting down on disposables myself.",
+   "roman": "ildan jeobuteo irhoeyongpumeul juryeo bolgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요! 텀블러를 쓰는 것도 좋은 방안이에요.",
+   "beaver_en": "Great! Using a tumbler is also a good idea.",
+   "beaver_roman": "joayo! teombeulleoreul sseuneun geotdo joeun banganieyo.",
+   "learner": "장바구니를 들면 비닐도 덜 쓰겠네요.",
+   "en": "If I carry a shopping bag, I'll use less plastic too.",
+   "roman": "jangbagunireul deulmyeon binildo deol sseugenneyo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아요. 환경 문제에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Right. Shall we talk more about environmental issues?",
+   "beaver_roman": "majayo. hwangyeong munjee daehae deo iyagihae bollaeyo?",
+   "learner": "네, 환경 보전 방법을 더 알고 싶어요.",
+   "en": "Yes, I want to learn more ways to protect the environment.",
+   "roman": "ne, hwangyeong bojeon bangbeobeul deo algo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 이 자료를 드릴게요. 감사합니다!",
+   "beaver_en": "Then I'll give you this leaflet. Thank you!",
+   "beaver_roman": "geureom i jaryoreul deurilgeyo. gamsahamnida!",
+   "learner": "감사합니다. 오늘부터 환경 보전을 실천할게요.",
+   "en": "Thank you. I'll start protecting the environment today.",
+   "roman": "gamsahamnida. oneulbuteo hwangyeong bojeoneul silcheonhalgeyo."
+  }
+ ]
+}

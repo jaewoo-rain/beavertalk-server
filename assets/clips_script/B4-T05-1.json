@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T05-1",
+ "no": 256,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "발표 끝났네! 지금 기분은 어때?",
+   "beaver_en": "Your presentation's over! How do you feel now?",
+   "beaver_roman": "balpyo kkeunnanne! jigeum gibuneun eottae?",
+   "learner": "아직 떨려. 내가 잘한 건가 싶어.",
+   "en": "I'm still shaking. I wonder if I did well.",
+   "roman": "ajik tteollyeo. naega jalhan geonga sipeo."
+  },
+  {
+   "n": 2,
+   "beaver": "시작 전에 많이 긴장했겠다.",
+   "beaver_en": "You must have been really nervous before it started.",
+   "beaver_roman": "sijak jeone mani ginjanghaetgetda.",
+   "learner": "응, 초조해서 계속 손이 떨렸어.",
+   "en": "Yeah, I was so anxious my hands kept shaking.",
+   "roman": "eung, chojohaeseo gyesok soni tteollyeosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "발표하는 중에는 어땠어?",
+   "beaver_en": "How was it during the presentation?",
+   "beaver_roman": "balpyohaneun jungeneun eottaesseo?",
+   "learner": "처음엔 설렜는데 점점 괴로웠어.",
+   "en": "At first I was excited, but it got harder and harder.",
+   "roman": "cheoeumen seollenneunde jeomjeom goerowosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "왜 괴로웠어? 무슨 일 있었어?",
+   "beaver_en": "Why was it hard? Did something happen?",
+   "beaver_roman": "wae goerowosseo? museun il isseosseo?",
+   "learner": "슬라이드를 넘기다가 실수했거든. 너무 창피했어.",
+   "en": "I messed up while changing slides. It was so embarrassing.",
+   "roman": "seullaideureul neomgidaga silsuhaetgeodeun. neomu changpihaesseo."
+  },
+  {
+   "n": 5,
+   "beaver": "아, 그래서 얼굴이 빨개졌구나.",
+   "beaver_en": "Oh, so that's why your face turned red.",
+   "beaver_roman": "a, geuraeseo eolguri ppalgaejeotguna.",
+   "learner": "응, 너무 부끄러워서 말이 막혔어.",
+   "en": "Yeah, I was so embarrassed I got stuck.",
+   "roman": "eung, neomu bukkeureowoseo mari makyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래도 끝까지 잘 해냈잖아.",
+   "beaver_en": "Still, you made it all the way to the end.",
+   "beaver_roman": "geuraedo kkeutkkaji jal haenaetjana.",
+   "learner": "그런가? 그래도 좀 아쉬워.",
+   "en": "Did I? I still feel a bit disappointed.",
+   "roman": "geureonga? geuraedo jom aswiwo."
+  },
+  {
+   "n": 7,
+   "beaver": "사람들 반응은 어땠어?",
+   "beaver_en": "How did people react?",
+   "beaver_roman": "saramdeul baneungeun eottaesseo?",
+   "learner": "한 친구가 나를 안타까워하는 것 같았어.",
+   "en": "One friend seemed to feel sorry for me.",
+   "roman": "han chinguga nareul antakkawohaneun geot gatasseo."
+  },
+  {
+   "n": 8,
+   "beaver": "그건 응원하는 마음이었을 거야.",
+   "beaver_en": "They were probably just rooting for you.",
+   "beaver_roman": "geugeon eungwonhaneun maeumieosseul geoya.",
+   "learner": "그래도 좀 싫었어. 내가 불쌍해 보였나?",
+   "en": "I still didn't like it. Did I look pitiful?",
+   "roman": "geuraedo jom sireosseo. naega bulssanghae boyeonna?"
+  },
+  {
+   "n": 9,
+   "beaver": "그다음엔 어떤 기분이었어?",
+   "beaver_en": "How did you feel after that?",
+   "beaver_roman": "geudaeumen eotteon gibunieosseo?",
+   "learner": "끝나고 화장실에서 울 뻔했어.",
+   "en": "Afterward, I almost cried in the bathroom.",
+   "roman": "kkeunnago hwajangsireseo ul ppeonhaesseo."
+  },
+  {
+   "n": 10,
+   "beaver": "지금은? 좀 괜찮아졌어?",
+   "beaver_en": "And now? Feeling a bit better?",
+   "beaver_roman": "jigeumeun? jom gwaenchanajeosseo?",
+   "learner": "응, 너한테 말하니까 마음이 편해졌어. 고마워.",
+   "en": "Yeah, talking to you made me feel better. Thanks.",
+   "roman": "eung, neohante malhanikka maeumi pyeonhaejeosseo. gomawo."
+  }
+ ]
+}

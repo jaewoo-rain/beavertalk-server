@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T33-1",
+ "no": 320,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 요즘 글쓰기 성과가 좋다면서요?",
+   "beaver_en": "Minsu, I hear your writing is going well these days?",
+   "beaver_roman": "Minsu ssi, yojeum geulsseugi seonggwaga jotamyeonseoyo?",
+   "learner": "네, 잡지에 투고한 글이 실렸어요.",
+   "en": "Yes, a piece I submitted got published in a magazine.",
+   "roman": "Ne, japjie tugohan geuri sillyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "축하해요! 어떤 글을 쓰셨어요?",
+   "beaver_en": "Congratulations! What did you write?",
+   "beaver_roman": "Chukahaeyo! Eotteon geureul sseusyeosseoyo?",
+   "learner": "지난 야유회와 야영 이야기를 썼어요.",
+   "en": "I wrote about our last outing and camping trip.",
+   "roman": "Jinan yayuhoewa yayeong iyagireul sseosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그때 그네도 타고 재미있었죠.",
+   "beaver_en": "Ah, we rode the swings then too. It was fun.",
+   "beaver_roman": "A, geuttae geunedo tago jaemiisseotjyo.",
+   "learner": "네, 그네 타던 장면으로 글을 시작했어요.",
+   "en": "Yes, I started the piece with the swing scene.",
+   "roman": "Ne, geune tadeon jangmyeoneuro geureul sijakaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "책으로 출판할 계획도 있어요?",
+   "beaver_en": "Do you also plan to publish it as a book?",
+   "beaver_roman": "Chaegeuro chulpanhal gyehoekdo isseoyo?",
+   "learner": "네, 내년에 수필집을 출판하기로 했어요.",
+   "en": "Yes, I'm going to publish an essay collection next year.",
+   "roman": "Ne, naenyeone supiljjibeul chulpanhagiro haesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "와, 표지는 정하셨어요?",
+   "beaver_en": "Wow, have you decided on the cover?",
+   "beaver_roman": "Wa, pyojineun jeonghasyeosseoyo?",
+   "learner": "아직이요. 표지는 친구가 그려 주기로 했어요.",
+   "en": "Not yet. A friend is going to draw the cover.",
+   "roman": "Ajigiyo. Pyojineun chinguga geuryeo jugiro haesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "독자 반응은 어때요?",
+   "beaver_en": "How are readers responding?",
+   "beaver_roman": "Dokja baneungeun eottaeyo?",
+   "learner": "매주 글을 올렸더니 독자가 많이 늘었어요.",
+   "en": "I posted every week, and my readers grew a lot.",
+   "roman": "Maeju geureul ollyeotdeoni dokjaga mani neureosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "대단해요. 문단에서도 관심을 보이겠네요.",
+   "beaver_en": "Amazing. The literary world must be interested too.",
+   "beaver_roman": "Daedanhaeyo. Mundaneseodo gwansimeul boigenneyo.",
+   "learner": "정식 작가로 등단하고 싶어요.",
+   "en": "I want to debut as an official writer.",
+   "roman": "Jeongsik jakgaro deungdanhago sipeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "베스트셀러가 될지도 모르겠네요.",
+   "beaver_en": "It might even become a bestseller.",
+   "beaver_roman": "Beseuteuselleoga doeljido moreugenneyo.",
+   "learner": "사실 친구와 그걸로 내기를 했어요.",
+   "en": "Actually, I made a bet with a friend about that.",
+   "roman": "Sasil chinguwa geugeollo naegireul haesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "하하, 도박은 아니죠? 뭘 걸었어요?",
+   "beaver_en": "Haha, not gambling, right? What did you bet?",
+   "beaver_roman": "Haha, dobageun anijyo? Mwol georeosseoyo?",
+   "learner": "아니에요, 그냥 밥 한 끼 걸었어요.",
+   "en": "No, we just bet a meal.",
+   "roman": "Anieyo, geunyang bap han kki georeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "다음 모임에서 꼭 축하 파티해요.",
+   "beaver_en": "Let's have a celebration party at the next meeting.",
+   "beaver_roman": "Daeum moimeseo kkok chuka patihaeyo.",
+   "learner": "좋아요. 글을 쓰면서 삶이 즐거워졌어요.",
+   "en": "Sounds good. Writing has made my life more joyful.",
+   "roman": "Joayo. Geureul sseumyeonseo salmi jeulgeowojyeosseoyo."
+  }
+ ]
+}

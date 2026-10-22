@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T03-1",
+ "no": 254,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 오랜만이야! 너 맞아? 못 알아볼 뻔했어.",
+   "beaver_en": "Wow, long time no see! Is that you? I almost didn't recognize you.",
+   "beaver_roman": "wa, oraenmaniya! neo maja? mot arabol ppeonhaesseo.",
+   "learner": "응, 나야! 머리 염색하고 커트도 했어.",
+   "en": "Yeah, it's me! I dyed my hair and got a haircut too.",
+   "roman": "eung, naya! meori yeomsaekago keoteudo haesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "뒷모습이 딴사람 같아서 그냥 지나칠 뻔했어.",
+   "beaver_en": "From behind you looked like someone else, so I almost walked past.",
+   "beaver_roman": "dwinmoseubi ttansaram gataseo geunyang jinachil ppeonhaesseo.",
+   "learner": "다른 친구들도 뒷모습은 못 알아보더라고.",
+   "en": "Other friends couldn't recognize me from behind either.",
+   "roman": "dareun chingudeuldo dwinmoseubeun mot arabodeorago."
+  },
+  {
+   "n": 3,
+   "beaver": "살도 좀 빠졌네. 운동했어?",
+   "beaver_en": "You lost some weight too. Did you work out?",
+   "beaver_roman": "saldo jom ppajyeonne. undonghaesseo?",
+   "learner": "응, 매일 뛰었어. 해 보니까 재미있더라고.",
+   "en": "Yeah, I ran every day. Once I tried it, it was fun.",
+   "roman": "eung, maeil ttwieosseo. hae bonikka jaemiitdeorago."
+  },
+  {
+   "n": 4,
+   "beaver": "수염도 없네? 예전엔 길렀잖아.",
+   "beaver_en": "No beard either? You used to grow one.",
+   "beaver_roman": "suyeomdo eomne? yejeonen gilleotjana.",
+   "learner": "아침마다 면도해. 깔끔한 게 낫더라고.",
+   "en": "I shave every morning. Clean is better, I found.",
+   "roman": "achimmada myeondohae. kkalkkeumhan ge natdeorago."
+  },
+  {
+   "n": 5,
+   "beaver": "눈썹도 좀 달라 보이는데?",
+   "beaver_en": "Your eyebrows look a bit different too?",
+   "beaver_roman": "nunsseopdo jom dalla boineunde?",
+   "learner": "눈썹도 다듬었어. 인상이 달라 보이더라고.",
+   "en": "I trimmed them too. It made me look different.",
+   "roman": "nunsseopdo dadeumeosseo. insangi dalla boideorago."
+  },
+  {
+   "n": 6,
+   "beaver": "왜 갑자기 이렇게 바꿨어? 무슨 일 있어?",
+   "beaver_en": "Why did you suddenly change like this? Did something happen?",
+   "beaver_roman": "wae gapjagi ireoke bakkwosseo? museun il isseo?",
+   "learner": "예전 사진을 봤는데 내가 좀 못나 보이더라고.",
+   "en": "I saw old photos, and I looked kind of ugly.",
+   "roman": "yejeon sajineul bwanneunde naega jom monna boideorago."
+  },
+  {
+   "n": 7,
+   "beaver": "에이, 넌 원래 괜찮았어. 지금은 더 멋있다!",
+   "beaver_en": "Come on, you were fine before. Now you look even cooler!",
+   "beaver_roman": "ei, neon wollae gwaenchanasseo. jigeumeun deo meositda!",
+   "learner": "고마워. 겉모습이 바뀌니까 기분도 좋더라고.",
+   "en": "Thanks. Changing my appearance made me feel good too.",
+   "roman": "gomawo. geonmoseubi bakkwinikka gibundo joteorago."
+  },
+  {
+   "n": 8,
+   "beaver": "머리 색 진짜 예쁘다. 무슨 색이야?",
+   "beaver_en": "Your hair color is really pretty. What color is it?",
+   "beaver_roman": "meori saek jinjja yeppeuda. museun saegiya?",
+   "learner": "갈색이야. 미용실에서 추천해 주더라고.",
+   "en": "It's brown. The hair salon recommended it.",
+   "roman": "galsaegiya. miyongsireseo chucheonhae judeorago."
+  },
+  {
+   "n": 9,
+   "beaver": "우리 카페 가서 더 얘기할까?",
+   "beaver_en": "Shall we go to a café and talk more?",
+   "beaver_roman": "uri kape gaseo deo yaegihalkka?",
+   "learner": "좋아! 근처에 새 카페가 생겼더라고. 가자.",
+   "en": "Sure! I saw a new café opened nearby. Let's go.",
+   "roman": "joa! geuncheoe sae kapega saenggyeotdeorago. gaja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 거기서 사진도 찍자. 새 모습으로!",
+   "beaver_en": "Great. Let's take photos there too. With your new look!",
+   "beaver_roman": "joa. geogiseo sajindo jjikja. sae moseubeuro!",
+   "learner": "그래! 오늘 사진은 잘 나올 것 같아.",
+   "en": "Okay! I think today's photos will turn out well.",
+   "roman": "geurae! oneul sajineun jal naol geot gata."
+  }
+ ]
+}

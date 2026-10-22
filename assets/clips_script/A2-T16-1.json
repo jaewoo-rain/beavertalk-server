@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T16-1",
+ "no": 32,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 어디로 가세요?",
+   "beaver_en": "Hello. Where are you headed?",
+   "beaver_roman": "annyeonghaseyo. eodiro gaseyo?",
+   "learner": "인천공항에 가려고 해요. 빨리 가 주세요.",
+   "en": "I'm going to Incheon Airport. Please go fast.",
+   "roman": "incheongonghange garyeogo haeyo. ppalli ga juseyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네. 비행기 출발이 몇 시예요?",
+   "beaver_en": "Okay. What time does your plane leave?",
+   "beaver_roman": "ne. bihaenggi chulbari myeot siyeyo?",
+   "learner": "비행기가 아홉 시에 출발해요.",
+   "en": "My plane leaves at nine.",
+   "roman": "bihaenggiga ahop sie chulbalhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 시간은 괜찮아요.",
+   "beaver_en": "Then you have enough time.",
+   "beaver_roman": "geureom siganeun gwaenchanayo.",
+   "learner": "여기에서 공항까지 얼마나 걸려요?",
+   "en": "How long does it take from here to the airport?",
+   "roman": "yeogieseo gonghangkkaji eolmana geollyeoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "한 시간쯤 걸려요. 이 시간에는 길이 막혀요.",
+   "beaver_en": "About an hour. The roads are jammed at this time.",
+   "beaver_roman": "han sigan jjeum geollyeoyo. i siganeneun giri makyeoyo.",
+   "learner": "그래요? 비행기 시간에 안 늦어요?",
+   "en": "Really? Won't I be late for my flight?",
+   "roman": "geuraeyo? bihaenggi sigane an neujeoyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 빨리 가 볼게요.",
+   "beaver_en": "Okay, I'll try to go fast.",
+   "beaver_roman": "ne, ppalli ga bolgeyo.",
+   "learner": "감사합니다. 공항 도착은 몇 시예요?",
+   "en": "Thank you. What time will we arrive?",
+   "roman": "gamsahamnida. gonghang dochageun myeot siyeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "여덟 시쯤 도착할 거예요.",
+   "beaver_en": "We'll arrive around eight.",
+   "beaver_roman": "yeodeol sijjeum dochakal geoyeyo.",
+   "learner": "좋아요. 운전 조심해 주세요.",
+   "en": "Great. Please drive safely.",
+   "roman": "joayo. unjeon josimhae juseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "걱정 마세요. 저는 이십 년 동안 운전했어요.",
+   "beaver_en": "Don't worry. I've driven for twenty years.",
+   "beaver_roman": "geokjeong maseyo. jeoneun isim nyeon dongan unjeonhaesseoyo.",
+   "learner": "와, 저는 자동차 운전을 못 해요.",
+   "en": "Wow, I can't drive a car.",
+   "roman": "wa, jeoneun jadongcha unjeoneul motaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 보통 뭘 타세요?",
+   "beaver_en": "Then what do you usually take?",
+   "beaver_roman": "geureom botong mwol taseyo?",
+   "learner": "보통 자전거를 타요. 지하철도 자주 타요.",
+   "en": "I usually ride a bike. I often take the subway too.",
+   "roman": "botong jajeongeoreul tayo. jihacheoldo jaju tayo."
+  },
+  {
+   "n": 9,
+   "beaver": "오늘은 어디에 가세요?",
+   "beaver_en": "Where are you going today?",
+   "beaver_roman": "oneureun eodie gaseyo?",
+   "learner": "제주도에 가요. 다음에는 배를 타려고 해요.",
+   "en": "I'm going to Jeju. Next time I plan to take a ship.",
+   "roman": "jejudoe gayo. daeumeneun baereul taryeogo haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "공항에 다 왔어요. 요금은 오만 사천 원이에요.",
+   "beaver_en": "We're at the airport. That's 54,000 won.",
+   "beaver_roman": "gonghange da wasseoyo. yogeumeun oman sacheon wonieyo.",
+   "learner": "여기 있어요. 감사합니다. 안녕히 계세요.",
+   "en": "Here you go. Thank you. Goodbye.",
+   "roman": "yeogi isseoyo. gamsahamnida. annyeonghi gyeseyo."
+  }
+ ]
+}

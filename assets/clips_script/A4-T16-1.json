@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T16-1",
+ "no": 97,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 늦는다고 들었어. 무슨 일이야?",
+   "beaver_en": "Minsu, I heard you're running late. What happened?",
+   "beaver_roman": "minsuya, neunneundago deureosseo. museun iriya?",
+   "learner": "고속버스를 탔는데 길이 너무 막혀.",
+   "en": "I took an express bus, but the traffic is terrible.",
+   "roman": "gosokbeoseureul tanneunde giri neomu makyeo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜 그렇게 막혀?",
+   "beaver_en": "Why is it so jammed?",
+   "beaver_roman": "wae geureoke makyeo?",
+   "learner": "연휴라서 차가 많아. 교통사고도 났대.",
+   "en": "It's a holiday, so there are lots of cars. There was an accident too.",
+   "roman": "yeonhyuraseo chaga mana. gyotongsagodo natdae."
+  },
+  {
+   "n": 3,
+   "beaver": "큰일이네. 무슨 사고야?",
+   "beaver_en": "That's bad. What kind of accident?",
+   "beaver_roman": "keunirine. museun sagoya?",
+   "learner": "회색 트럭이 넘어져서 길을 막고 있어.",
+   "en": "A gray truck tipped over and is blocking the road.",
+   "roman": "hoesaek teureogi neomeojyeoseo gireul makgo isseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 언제쯤 도착할 것 같아?",
+   "beaver_en": "Then when do you think you'll arrive?",
+   "beaver_roman": "geureom eonjejjeum dochakal geot gata?",
+   "learner": "한 시간은 더 걸릴 테니까 먼저 가 있어.",
+   "en": "It'll take at least another hour, so go ahead first.",
+   "roman": "han siganeun deo geollil tenikka meonjeo ga isseo."
+  },
+  {
+   "n": 5,
+   "beaver": "버스에서 내려서 열차를 타는 건 어때?",
+   "beaver_en": "How about getting off the bus and taking a train?",
+   "beaver_roman": "beoseueseo naeryeoseo yeolchareul taneun geon eottae?",
+   "learner": "좋아. 다음 정류장이 역 근처일 테니까 거기서 내릴게.",
+   "en": "Good. The next stop must be near the station, so I'll get off there.",
+   "roman": "joa. daeum jeongnyujangi yeok geuncheoil tenikka geogiseo naerilge."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 교통비가 많이 들겠다.",
+   "beaver_en": "But that'll cost a lot in fares.",
+   "beaver_roman": "geureonde gyotongbiga mani deulgetda.",
+   "learner": "교통비는 괜찮아. 열차가 더 편리해.",
+   "en": "The fare is fine. The train is more convenient.",
+   "roman": "gyotongbineun gwaenchana. yeolchaga deo pyeollihae."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 내가 차로 역에 데리러 갈게.",
+   "beaver_en": "Then I'll drive to the station to pick you up.",
+   "beaver_roman": "geureom naega charo yeoge derireo galge.",
+   "learner": "역은 주차가 힘들 테니까 그냥 기다려.",
+   "en": "Parking at the station will be hard, so just wait.",
+   "roman": "yeogeun juchaga himdeul tenikka geunyang gidaryeo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 역 앞 카페에서 기다릴까?",
+   "beaver_en": "Then should I wait at the café in front of the station?",
+   "beaver_roman": "geureom yeok ap kapeeseo gidarilkka?",
+   "learner": "응, 표를 사면 바로 문자 보낼게.",
+   "en": "Yes, I'll text you as soon as I buy a ticket.",
+   "roman": "eung, pyoreul samyeon baro munja bonaelge."
+  },
+  {
+   "n": 9,
+   "beaver": "알았어. 몇 시 열차일 것 같아?",
+   "beaver_en": "Okay. What time train do you think it'll be?",
+   "beaver_roman": "arasseo. myeot si yeolchail geot gata?",
+   "learner": "두 시 열차가 있을 테니까 세 시에 만나자.",
+   "en": "There should be a two o'clock train, so let's meet at three.",
+   "roman": "du si yeolchaga isseul tenikka se sie mannaja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 조심해서 와. 이따 봐!",
+   "beaver_en": "Great. Get here safely. See you later!",
+   "beaver_roman": "joa. josimhaeseo wa. itta bwa!",
+   "learner": "고마워. 늦어서 정말 미안해. 이따 봐!",
+   "en": "Thanks. I'm really sorry I'm late. See you later!",
+   "roman": "gomawo. neujeoseo jeongmal mianhae. itta bwa!"
+  }
+ ]
+}

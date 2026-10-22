@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T42-1",
+ "no": 281,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 화제인 과학 채널 이야기 들었어요?",
+   "beaver_en": "Have you heard about that popular science channel?",
+   "beaver_roman": "yojeum hwajein gwahak chaeneol iyagi deureosseoyo?",
+   "learner": "네, 인공 비 실험을 생방송으로 보여 준 채널이요.",
+   "en": "Yes, the channel that showed an artificial rain experiment live.",
+   "roman": "ne, ingong bi siheomeul saengbangsongeuro boyeo jun chaeneoriyo."
+  },
+  {
+   "n": 2,
+   "beaver": "생방송도 했어요? 반응이 어땠어요?",
+   "beaver_en": "They did a live broadcast too? How was the reaction?",
+   "beaver_roman": "saengbangsongdo haesseoyo? baneungi eottaesseoyo?",
+   "learner": "네티즌들이 댓글을 계속 써 댔어요.",
+   "en": "Netizens kept writing comments nonstop.",
+   "roman": "netijeundeuri daetgeureul gyesok sseo daesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "접속자가 많았나 봐요. 몇 명쯤 봤어요?",
+   "beaver_en": "There must have been lots of viewers. About how many watched?",
+   "beaver_roman": "jeopsokjaga manan na bwayo. myeot myeongjjeum bwasseoyo?",
+   "learner": "온라인 접속자가 한때 십만 명이 넘었대요.",
+   "en": "I heard online viewers once topped 100,000.",
+   "roman": "ollain jeopsokjaga hanttae simman myeongi neomeotdaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 대단하네요. 다시 볼 수도 있어요?",
+   "beaver_en": "Wow, impressive. Can you watch it again?",
+   "beaver_roman": "wa, daedanhaneyo. dasi bol sudo isseoyo?",
+   "learner": "네, 녹화 영상 재생 수도 계속 늘고 있어요.",
+   "en": "Yes, replays of the recording keep going up too.",
+   "roman": "ne, nokwa yeongsang jaesaeng sudo gyesok neulgo isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "언론에서도 보도가 나왔나요?",
+   "beaver_en": "Did the press report on it too?",
+   "beaver_roman": "eolloneseodo bodoga nawannayo?",
+   "learner": "네, 여러 미디어가 그 실험을 보도했어요.",
+   "en": "Yes, many media outlets reported the experiment.",
+   "roman": "ne, yeoreo midieoga geu siheomeul bodohaesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "신문 사설에서는 뭐라고 했어요?",
+   "beaver_en": "What did the newspaper editorials say?",
+   "beaver_roman": "sinmun saseoreseoneun mworago haesseoyo?",
+   "learner": "사설에서는 홍보용 방송이라고 비판했어요.",
+   "en": "An editorial criticized it as a broadcast just for publicity.",
+   "roman": "saseoreseoneun hongboyong bangsongirago bipanhaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "이용자들은 그 사설에 동의했어요?",
+   "beaver_en": "Did users agree with that editorial?",
+   "beaver_roman": "iyongjadeureun geu saseore dongihaesseoyo?",
+   "learner": "아니요, 이용자들은 과학적이라고 반박했어요.",
+   "en": "No, users pushed back, saying it was scientific.",
+   "roman": "aniyo, iyongjadeureun gwahakjeogirago banbakaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "사이버 공간에서 논쟁이 커졌군요.",
+   "beaver_en": "So the debate grew in cyberspace.",
+   "beaver_roman": "saibeo gongganeseo nonjaengi keojeotgunyo.",
+   "learner": "맞아요. 정보화 시대라서 소식이 빨리 퍼져요.",
+   "en": "Right. In the information age, news spreads fast.",
+   "roman": "majayo. jeongbohwa sidaeraseo sosigi ppalli peojyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "과학기술과 미디어에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about science, tech and media?",
+   "beaver_roman": "gwahakgisulgwa midieoe daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 미디어가 과학을 쉽게 알려 줘서 좋아요.",
+   "en": "Sure. I like that media makes science easy to learn.",
+   "roman": "joayo. midieoga gwahageul swipge allyeo jwoseo joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 이야기 정말 재미있었어요. 고마워요.",
+   "beaver_en": "Today's talk was really fun. Thanks.",
+   "beaver_roman": "oneul iyagi jeongmal jaemiisseosseoyo. gomawoyo.",
+   "learner": "저도요. 다음에 그 채널 같이 봐요.",
+   "en": "Me too. Let's watch that channel together next time.",
+   "roman": "jeodoyo. daeume geu chaeneol gachi bwayo."
+  }
+ ]
+}

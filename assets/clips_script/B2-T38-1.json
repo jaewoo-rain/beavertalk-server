@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T38-1",
+ "no": 191,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지난 주말에 동물원에 갔어요?",
+   "beaver_en": "Did you go to the zoo last weekend?",
+   "beaver_roman": "Jinan jumare dongmurwone gasseoyo?",
+   "learner": "네, 갔어요. 사자가 바위 위에 누워 있었어요.",
+   "en": "Yes, I did. A lion was lying on a rock.",
+   "roman": "Ne, gasseoyo. Sajaga bawi wie nuwo isseosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 사자요? 다른 동물도 봤어요?",
+   "beaver_en": "Wow, a lion? Did you see other animals?",
+   "beaver_roman": "Wa, sajayo? Dareun dongmuldo bwasseoyo?",
+   "learner": "곰도 봤어요. 곰이 물고기를 잡아먹고 있었어요.",
+   "en": "I saw a bear too. It was eating a fish.",
+   "roman": "Gomdo bwasseoyo. Gomi mulgogireul jabameokgo isseosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "신기하네요. 원숭이도 있었어요?",
+   "beaver_en": "Amazing. Were there monkeys too?",
+   "beaver_roman": "Singihaneyo. Wonsungido isseosseoyo?",
+   "learner": "네, 원숭이가 꼬리로 나무에 매달려 있었어요.",
+   "en": "Yes, a monkey was hanging from a tree by its tail.",
+   "roman": "Ne, wonsungiga kkoriro namue maedallyeo isseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "재미있었겠네요. 아이들이 좋아했겠어요.",
+   "beaver_en": "That sounds fun. Kids must have loved it.",
+   "beaver_roman": "Jaemiisseotgenneyo. Aideuri joahaetgesseoyo.",
+   "learner": "네, 아이들이 양하고 오리를 좋아했어요.",
+   "en": "Yes, the kids loved the sheep and ducks.",
+   "roman": "Ne, aideuri yanghago orireul joahaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "정원에서는 뭘 봤어요?",
+   "beaver_en": "What did you see in the garden?",
+   "beaver_roman": "Jeongwoneseoneun mwol bwasseoyo?",
+   "learner": "정원에 장미꽃이 피어 있었어요.",
+   "en": "Roses were blooming in the garden.",
+   "roman": "Jeongwone jangmikkochi pieo isseosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "저기 개나리도 예쁘게 피었네요.",
+   "beaver_en": "The forsythia over there bloomed nicely too.",
+   "beaver_roman": "Jeogi gaenarido yeppeuge pieonneyo.",
+   "learner": "네, 노란 개나리 밑에 풀도 많이 나 있어요.",
+   "en": "Yes, there's a lot of grass under the yellow forsythia.",
+   "roman": "Ne, noran gaenari mite puldo mani na isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 집에 화분도 많으시네요.",
+   "beaver_en": "By the way, you have lots of flowerpots at home.",
+   "beaver_roman": "Geureonde jibe hwabundo maneusineyo.",
+   "learner": "네, 화분을 가꾸는 게 제 취미예요.",
+   "en": "Yes, tending flowerpots is my hobby.",
+   "roman": "Ne, hwabuneul gakkuneun ge je chwimiyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "화분 가꾸기 어렵지 않아요?",
+   "beaver_en": "Isn't it hard to take care of plants?",
+   "beaver_roman": "Hwabun gakkugi eoryeopji anayo?",
+   "learner": "가끔 뿌리가 썩고 잎도 떨어져요.",
+   "en": "Sometimes the roots rot and leaves fall off.",
+   "roman": "Gakkeum ppuriga sseokgo ipdo tteoreojyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "애완동물은 안 키워요?",
+   "beaver_en": "Don't you have a pet?",
+   "beaver_roman": "Aewandongmureun an kiwoyo?",
+   "learner": "아직 없어요. 지난주엔 화분 옆에 쥐가 숨어 있었어요.",
+   "en": "Not yet. Last week a mouse was hiding by a pot.",
+   "roman": "Ajik eopseoyo. Jinanjuen hwabun yeope jwiga sumeo isseosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그런데 우리 정원에 사과 따러 갈래요?",
+   "beaver_en": "By the way, want to go pick apples in our garden?",
+   "beaver_roman": "Geureonde uri jeongwone sagwa ttareo gallaeyo?",
+   "learner": "좋아요. 사과를 따서 같이 먹어요. 가요!",
+   "en": "Sure. Let's pick apples and eat them together. Let's go!",
+   "roman": "Joayo. Sagwareul ttaseo gachi meogeoyo. Gayo!"
+  }
+ ]
+}

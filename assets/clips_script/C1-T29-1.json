@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T29-1",
+ "no": 317,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 김민수 씨. 검진 결과 보러 오셨죠?",
+   "beaver_en": "Hello, Mr. Kim Minsu. You're here for your checkup results, right?",
+   "beaver_roman": "Annyeonghaseyo, Gim Minsu ssi. Geomjin gyeolgwa boreo osyeotjyo?",
+   "learner": "네, 선생님. 혈압이 높다는 소리를 들어서 걱정돼요.",
+   "en": "Yes, doctor. I was told my blood pressure is high, so I'm worried.",
+   "roman": "Ne, seonsaengnim. Hyeorabi nopdaneun sorireul deureoseo geokjeongdwaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "혈압은 정상입니다. 혈액 순환은 좋은 편입니다.",
+   "beaver_en": "Your blood pressure is normal. Your blood circulation is fairly good.",
+   "beaver_roman": "Hyeorabeun jeongsangimnida. Hyeoraek sunhwaneun joeun pyeonimnida.",
+   "learner": "다행이에요. 담배를 끊어서 그런가 봐요.",
+   "en": "What a relief. Maybe it's because I quit smoking.",
+   "roman": "Dahaengieyo. Dambaereul kkeuneoseo geureonga bwayo."
+  },
+  {
+   "n": 3,
+   "beaver": "담배는 언제 끊으셨어요?",
+   "beaver_en": "When did you quit smoking?",
+   "beaver_roman": "Dambaeneun eonje kkeuneusyeosseoyo?",
+   "learner": "작년에요. 폐가 나빠진다는 소리를 들었거든요.",
+   "en": "Last year. I was told my lungs were getting worse.",
+   "roman": "Jangnyeoneyo. Pyega nappajindaneun sorireul deureotgeodeunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "폐와 호흡기는 깨끗합니다. 숨을 크게 내쉬어 보세요.",
+   "beaver_en": "Your lungs and respiratory organs are clear. Breathe out deeply.",
+   "beaver_roman": "Pyewa hoheupgineun kkaekkeutamnida. Sumeul keuge naeswieo boseyo.",
+   "learner": "후, 이렇게요? 어깨가 좀 뻐근해요.",
+   "en": "Phew, like this? My shoulders feel a bit stiff.",
+   "roman": "Hu, ireokeyo? Eokkaega jom ppeogeunhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "몸이 굳어 있네요. 편하게 앉아 보세요.",
+   "beaver_en": "Your body is tense. Try sitting comfortably.",
+   "beaver_roman": "Momi gudeo inneyo. Pyeonhage anja boseyo.",
+   "learner": "아, 제가 몸이 좀 뻣뻣한 편이라서요.",
+   "en": "Oh, my body tends to be a bit stiff.",
+   "roman": "A, jega momi jom ppeotppeotan pyeoniraseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "스트레칭을 하세요. 소화는 잘 되세요?",
+   "beaver_en": "Try stretching. Is your digestion okay?",
+   "beaver_roman": "Seuteuretchingeul haseyo. Sohwaneun jal doeseyo?",
+   "learner": "장이 약한 체질이라 배가 자주 아파요.",
+   "en": "My intestines are naturally weak, so my stomach often hurts.",
+   "roman": "Jangi yakan chejirira baega jaju apayo."
+  },
+  {
+   "n": 7,
+   "beaver": "내시경 결과, 장에 큰 문제는 없었습니다.",
+   "beaver_en": "The endoscopy showed no big problems in your intestines.",
+   "beaver_roman": "Naesigyeong gyeolgwa, jange keun munjeneun eopseotseumnida.",
+   "learner": "대장도 소장도 괜찮아요? 정말 다행이네요.",
+   "en": "Both my large and small intestines are fine? That's a relief.",
+   "roman": "Daejangdo sojangdo gwaenchanayo? Jeongmal dahaengineyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네. 소변 검사에서는 피가 조금 보였습니다.",
+   "beaver_en": "Yes. But the urine test showed a little blood.",
+   "beaver_roman": "Ne. Sobyeon geomsaeseoneun piga jogeum boyeotseumnida.",
+   "learner": "소변 볼 때 옆구리가 가끔 아팠어요.",
+   "en": "My side sometimes hurt when I urinated.",
+   "roman": "Sobyeon bol ttae yeopguriga gakkeum apasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "신장 검사를 더 해 봅시다. 치아는 어떠세요?",
+   "beaver_en": "Let's do more kidney tests. How are your teeth?",
+   "beaver_roman": "Sinjang geomsareul deo hae bopsida. Chianeun eotteoseyo?",
+   "learner": "잇몸에서 피가 나요. 노화 때문일까요?",
+   "en": "My gums bleed. Could it be from aging?",
+   "roman": "Inmomeseo piga nayo. Nohwa ttaemunilkkayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "치과 진료도 받으세요. 다음 달에 다시 뵙겠습니다.",
+   "beaver_en": "Please see a dentist too. I'll see you again next month.",
+   "beaver_roman": "Chigwa jillyodo badeuseyo. Daeum dare dasi boepgetseumnida.",
+   "learner": "감사합니다. 건강에 더 신경 쓸게요.",
+   "en": "Thank you. I'll take better care of my health.",
+   "roman": "Gamsahamnida. Geongange deo singyeong sseulgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T25-1",
+ "no": 179,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 졸업하고 뭐 해? 진학은 어떻게 해?",
+   "beaver_en": "Minji, what are you doing after graduating? What about further study?",
+   "beaver_roman": "minjiya, joreopago mwo hae? jinhageun eotteoke hae?",
+   "learner": "나 대학원에 진학하기로 했어.",
+   "en": "I decided to go on to grad school.",
+   "roman": "na daehagwone jinhakagiro haesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 정말? 등록금은 괜찮아?",
+   "beaver_en": "Wow, really? Is tuition okay?",
+   "beaver_roman": "wa, jeongmal? deungnokgeumeun gwaenchana?",
+   "learner": "응, 장학금을 받았어. 받을 줄 몰랐어.",
+   "en": "Yeah, I got a scholarship. I didn't expect it.",
+   "roman": "eung, janghakgeumeul badasseo. badeul jul mollasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "대단하다! 누가 대학원 가라고 했어?",
+   "beaver_en": "Amazing! Who told you to go to grad school?",
+   "beaver_roman": "daedanhada! nuga daehagwon garago haesseo?",
+   "learner": "교수님이 같이 연구하자고 하셨어.",
+   "en": "My professor suggested we do research together.",
+   "roman": "gyosunimi gachi yeonguhajago hasyeosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 졸업하고 바로 다니는 거야?",
+   "beaver_en": "So you'll start right after graduating?",
+   "beaver_roman": "geureom joreopago baro danineun geoya?",
+   "learner": "응, 쉬지 않고 바로 다닐 거야.",
+   "en": "Yeah, I'll start right away without a break.",
+   "roman": "eung, swiji anko baro danil geoya."
+  },
+  {
+   "n": 5,
+   "beaver": "부모님은 뭐라고 하셨어?",
+   "beaver_en": "What did your parents say?",
+   "beaver_roman": "bumonimeun mworago hasyeosseo?",
+   "learner": "엄마가 그게 무슨 공부냐고 물으셨어.",
+   "en": "My mom asked what kind of study that is.",
+   "roman": "eommaga geuge museun gongbunyago mureusyeosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "하하. 졸업하자마자 바로 시작이네.",
+   "beaver_en": "Haha. You start right after graduating.",
+   "beaver_roman": "haha. joreopajamaja baro sijagine.",
+   "learner": "응, 졸업식 다음 주가 입학식이야.",
+   "en": "Yeah, the entrance ceremony is the week after graduation.",
+   "roman": "eung, joreopsik daeum juga ipaksigiya."
+  },
+  {
+   "n": 7,
+   "beaver": "대학원 가면 뭐 하게 돼?",
+   "beaver_en": "What will you do in grad school?",
+   "beaver_roman": "daehagwon gamyeon mwo hage dwae?",
+   "learner": "선배가 조교를 해 보라고 했어.",
+   "en": "A senior told me to try being a TA.",
+   "roman": "seonbaega jogyoreul hae borago haesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "조교? 그럼 아침부터 바쁘겠다.",
+   "beaver_en": "A TA? Then you'll be busy from the morning.",
+   "beaver_roman": "jogyo? geureom achimbuteo bappeugetda.",
+   "learner": "응, 1교시 수업 준비물을 챙겨야 해.",
+   "en": "Yeah, I have to get things ready for first period.",
+   "roman": "eung, ilgyosi sueop junbimureul chaenggyeoya hae."
+  },
+  {
+   "n": 9,
+   "beaver": "준비물? 어떤 거 챙겨?",
+   "beaver_en": "Things to prepare? Like what?",
+   "beaver_roman": "junbimul? eotteon geo chaenggyeo?",
+   "learner": "자료랑 노트북이야. 가방이 꽉 차.",
+   "en": "Handouts and a laptop. My bag gets full.",
+   "roman": "jaryorang noteubugiya. gabangi kkwak cha."
+  },
+  {
+   "n": 10,
+   "beaver": "멋지다. 졸업해도 가끔 밥 먹자.",
+   "beaver_en": "Cool. Let's grab a meal sometimes after graduation.",
+   "beaver_roman": "meotjida. joreopaedo gakkeum bap meokja.",
+   "learner": "좋아. 대학원 가서도 꼭 연락할게!",
+   "en": "Sure. I'll keep in touch even in grad school!",
+   "roman": "joa. daehagwon gaseodo kkok yeollakalge!"
+  }
+ ]
+}

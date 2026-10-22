@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T25-1",
+ "no": 103,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 새로 온 학생이지요?",
+   "beaver_en": "Hello. You're the new student, right?",
+   "beaver_roman": "annyeonghaseyo. saero on haksaengijiyo?",
+   "learner": "네, 이번 학기에 새로 왔어요.",
+   "en": "Yes, I'm new this semester.",
+   "roman": "ne, ibeon hakgie saero wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "반가워요. 몇 학년이에요?",
+   "beaver_en": "Nice to meet you. What grade are you in?",
+   "beaver_roman": "bangawoyo. myeotangnyeonieyo?",
+   "learner": "고등학교 일 학년이에요. 규칙을 여쭤보고 싶어요.",
+   "en": "I'm a first-year in high school. I'd like to ask about the rules.",
+   "roman": "godeunghakgyo il hangnyeonieyo. gyuchigeul yeojjwobogo sipeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 뭐가 궁금해요?",
+   "beaver_en": "Sure. What would you like to know?",
+   "beaver_roman": "joayo. mwoga gunggeumhaeyo?",
+   "learner": "지각을 하면 결석이 돼요?",
+   "en": "If I'm late, does it count as an absence?",
+   "roman": "jigageul hamyeon gyeolseogi dwaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "아니요, 결석은 아니고 지각으로 처리돼요.",
+   "beaver_en": "No, it's not an absence. It counts as being late.",
+   "beaver_roman": "aniyo, gyeolseogeun anigo jigageuro cheoridwaeyo.",
+   "learner": "다행이에요. 중학교 때는 지각이 많았어요.",
+   "en": "That's a relief. I was often late in middle school.",
+   "roman": "dahaengieyo. junghakgyo ttaeneun jigagi manasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래요? 여기서는 지각은 하지 마세요.",
+   "beaver_en": "Really? Please don't be late here.",
+   "beaver_roman": "geuraeyo? yeogiseoneun jigageun haji maseyo.",
+   "learner": "네, 일찍 올게요. 남학생, 여학생 교복이 달라요?",
+   "en": "Okay, I'll come early. Are boys' and girls' uniforms different?",
+   "roman": "ne, iljjik olgeyo. namhaksaeng, yeohaksaeng gyobogi dallayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 달라요. 그런데 교무실에 있는 자료가 필요해요.",
+   "beaver_en": "Yes, they are. But I need materials from the teachers' office.",
+   "beaver_roman": "ne, dallayo. geureonde gyomusire inneun jaryoga piryohaeyo.",
+   "learner": "제가 교무실에서 가져다 드릴까요?",
+   "en": "Shall I bring them from the teachers' office for you?",
+   "roman": "jega gyomusireseo gajyeoda deurilkkayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "고마워요. 이따가 부탁해요.",
+   "beaver_en": "Thank you. Please do it later.",
+   "beaver_roman": "gomawoyo. ittaga butakaeyo.",
+   "learner": "네. 그런데 금요일에 일찍 가도 돼요?",
+   "en": "Okay. By the way, may I leave early on Friday?",
+   "roman": "ne. geureonde geumyoire iljjik gado dwaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "왜요? 무슨 일이 있어요?",
+   "beaver_en": "Why? Is something going on?",
+   "beaver_roman": "waeyo? museun iri isseoyo?",
+   "learner": "유치원에 다니는 동생을 데리러 가야 해요.",
+   "en": "I have to pick up my little sibling from kindergarten.",
+   "roman": "yuchiwone danineun dongsaengeul derireo gaya haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 괜찮아요. 학교생활에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Then it's fine. Want to talk more about school life?",
+   "beaver_roman": "geureom gwaenchanayo. hakgyosaenghware daehae deo iyagihae bollaeyo?",
+   "learner": "네, 열심히 공부해서 대학원까지 가고 싶어요.",
+   "en": "Yes, I want to study hard and go on to graduate school.",
+   "roman": "ne, yeolsimhi gongbuhaeseo daehagwonkkaji gago sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋져요. 지금처럼 열심히 하면 돼요.",
+   "beaver_en": "Wonderful. Just keep working hard like now.",
+   "beaver_roman": "meotjyeoyo. jigeumcheoreom yeolsimhi hamyeon dwaeyo.",
+   "learner": "감사합니다. 자료는 지금 가져다 드릴게요.",
+   "en": "Thank you. I'll go get the materials for you now.",
+   "roman": "gamsahamnida. jaryoneun jigeum gajyeoda deurilgeyo."
+  }
+ ]
+}

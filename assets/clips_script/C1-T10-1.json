@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T10-1",
+ "no": 301,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "올해 소비 경향 보고서, 대강 설명해 주실래요?",
+   "beaver_en": "Could you roughly explain this year's consumer trend report?",
+   "beaver_roman": "Olhae sobi gyeonghyang bogoseo, daegang seolmyeonghae jusillaeyo?",
+   "learner": "요즘 손님들은 제값 주고 사지 않는 경향을 보여요.",
+   "en": "These days, customers tend not to pay full price.",
+   "roman": "Yojeum sonnimdeureun jegap jugo saji anneun gyeonghyangeul boyeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 할인 상품을 많이 찾나요?",
+   "beaver_en": "So do they look for discounted products a lot?",
+   "beaver_roman": "Geureom harin sangpumeul mani channayo?",
+   "learner": "네, 상품권으로 사는 사람도 많이 늘었어요.",
+   "en": "Yes, and many more people buy with gift certificates.",
+   "roman": "Ne, sangpumgwoneuro saneun saramdo mani neureosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "사은품 효과는 있어요?",
+   "beaver_en": "Do free gifts have an effect?",
+   "beaver_roman": "Saeunpum hyogwaneun isseoyo?",
+   "learner": "사은품이나 경품이 있으면 더 사는 경향을 보여요.",
+   "en": "People tend to buy more when there are free gifts or prizes.",
+   "roman": "Saeunpumina gyeongpumi isseumyeon deo saneun gyeonghyangeul boyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "제일 잘 팔린 건 뭐예요?",
+   "beaver_en": "What sold the best?",
+   "beaver_roman": "Jeil jal pallin geon mwoyeyo?",
+   "learner": "품목별로는 생활 물품이 제일 많이 팔렸어요.",
+   "en": "By item, household goods sold the most.",
+   "roman": "Pummokbyeolloneun saenghwal mulpumi jeil mani pallyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "대리점 매출은 어때요?",
+   "beaver_en": "How are dealership sales?",
+   "beaver_roman": "Daerijeom maechureun eottaeyo?",
+   "learner": "실은 대리점보다 온라인 주문이 더 많아요.",
+   "en": "Actually, there are more online orders than dealership sales.",
+   "roman": "Sireun daerijeomboda ollain jumuni deo manayo."
+  },
+  {
+   "n": 6,
+   "beaver": "명품 소비는 요즘 어때요?",
+   "beaver_en": "How is luxury goods spending these days?",
+   "beaver_roman": "Myeongpum sobineun yojeum eottaeyo?",
+   "learner": "명품은 사지 않고 대여하는 사람도 늘었어요.",
+   "en": "More people rent luxury goods instead of buying them.",
+   "roman": "Myeongpumeun saji anko daeyeohaneun saramdo neureosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "구매나 가격 쪽으로 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about purchases and prices?",
+   "beaver_roman": "Gumaena gagyeok jjogeuro deo malsseumhae jusigesseoyo?",
+   "learner": "손님들은 무료 배송이 되는 가게를 애용해요.",
+   "en": "Customers favor stores that offer free shipping.",
+   "roman": "Sonnimdeureun muryo baesongi doeneun gagereul aeyonghaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "불량품 문제는 없었나요?",
+   "beaver_en": "Were there any problems with defective products?",
+   "beaver_roman": "Bullyangpum munjeneun eopseonnayo?",
+   "learner": "불량품은 무상으로 바꿔 줘서 불만이 적었어요.",
+   "en": "We replaced defective items for free, so complaints were few.",
+   "roman": "Bullyangpumeun musangeuro bakkwo jwoseo bulmani jeogeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "매장 분실물은 어떻게 처리했어요?",
+   "beaver_en": "How did you handle lost items in the store?",
+   "beaver_roman": "Maejang bunsilmureun eotteoke cheorihaesseoyo?",
+   "learner": "습득한 물품은 모두 고객 센터에 맡겼어요.",
+   "en": "We left all found items at the customer center.",
+   "roman": "Seupdeukan mulpumeun modu gogaek sentere matgyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 이 내용을 보고서에 반영할게요.",
+   "beaver_en": "Great. I'll reflect this in the report.",
+   "beaver_roman": "Joayo. I naeyongeul bogoseoe banyeonghalgeyo.",
+   "learner": "네, 연도별 자료도 정리해서 보내 드릴게요.",
+   "en": "Okay, I'll organize the yearly data and send it too.",
+   "roman": "Ne, yeondobyeol jaryodo jeongnihaeseo bonae deurilgeyo."
+  }
+ ]
+}

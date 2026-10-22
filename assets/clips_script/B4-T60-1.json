@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T60-1",
+ "no": 289,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "내일 시험인데 준비물 다 챙겼어요?",
+   "beaver_en": "The exam is tomorrow. Did you pack everything?",
+   "beaver_roman": "Naeil siheominde junbimul da chaenggyeosseoyo?",
+   "learner": "자기 전에 가방을 다시 확인하려고요.",
+   "en": "I'm going to check my bag again before bed.",
+   "roman": "Jagi jeone gabangeul dasi hwaginharyeogoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "수험표하고 신분증은 꼭 있어야 해요.",
+   "beaver_en": "You must have your exam ticket and ID.",
+   "beaver_roman": "Suheompyohago sinbunjeungeun kkok isseoya haeyo.",
+   "learner": "네, 응시 번호도 수험표에 적혀 있어요.",
+   "en": "Yes, my exam number is on the ticket too.",
+   "roman": "Ne, eungsi beonhodo suheompyoe jeokyeo isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "실습도 있어요?",
+   "beaver_en": "Is there a practical part too?",
+   "beaver_roman": "Silseupdo isseoyo?",
+   "learner": "네, 오후에 실습 시험도 있대요.",
+   "en": "Yes, I heard there's a practical test in the afternoon.",
+   "roman": "Ne, ohue silseup siheomdo itdaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 실습 도구도 챙겨야겠네요.",
+   "beaver_en": "Then we should bring practice tools too.",
+   "beaver_roman": "Geureom silseup dogudo chaenggyeoyagenneyo.",
+   "learner": "네, 강의 때 받은 도구를 가져갈 거예요.",
+   "en": "Yes, I'll bring the tools from the lecture.",
+   "roman": "Ne, gangui ttae badeun dogureul gajyeogal geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "교재도 가져갈 거예요?",
+   "beaver_en": "Will you bring the textbook too?",
+   "beaver_roman": "Gyojaedo gajyeogal geoyeyo?",
+   "learner": "시험 보기 전에 교재를 한 번 더 볼래요.",
+   "en": "I want to look at it once more before the exam.",
+   "roman": "Siheom bogi jeone gyojaereul han beon deo bollaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "응시 인원이 많대요.",
+   "beaver_en": "I heard a lot of people are taking it.",
+   "beaver_roman": "Eungsi inwoni mantaeyo.",
+   "learner": "작년에 합격한 선배가 일찍 가래요.",
+   "en": "A senior who passed last year said to go early.",
+   "roman": "Jangnyeone hapgyeokan seonbaega iljjik garaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 당일엔 길이 막힐 수도 있어요.",
+   "beaver_en": "Right. Traffic could be bad that day.",
+   "beaver_roman": "Majayo. Dangiren giri makil sudo isseoyo.",
+   "learner": "그럼 집에서 나가기 전에 연락할게요.",
+   "en": "Then I'll call you before I leave home.",
+   "roman": "Geureom jibeseo nagagi jeone yeollakalgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 과제는 다 끝냈어요?",
+   "beaver_en": "Good. Did you finish the assignment?",
+   "beaver_roman": "Joayo. Gwajeneun da kkeunnaesseoyo?",
+   "learner": "네, 강의 과제는 어제 다 냈어요.",
+   "en": "Yes, I turned in all the lecture assignments yesterday.",
+   "roman": "Ne, gangui gwajeneun eoje da naesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "실습 시험 순서도 같이 확인해 볼래요?",
+   "beaver_en": "Shall we check the practical test order together too?",
+   "beaver_roman": "Silseup siheom sunseodo gachi hwaginhae bollaeyo?",
+   "learner": "좋아요. 실습 순서를 같이 정리해요.",
+   "en": "Sure. Let's go over the practical steps together.",
+   "roman": "Joayo. Silseup sunseoreul gachi jeongnihaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 정리하고 우리 꼭 같이 합격해요!",
+   "beaver_en": "Great. Let's sort it out and both pass for sure!",
+   "beaver_roman": "Joayo. Jeongnihago uri kkok gachi hapgyeokaeyo!",
+   "learner": "네, 합격자 명단에 같이 이름 올려요!",
+   "en": "Yes, let's get our names on the pass list together!",
+   "roman": "Ne, hapgyeokja myeongdane gachi ireum ollyeoyo!"
+  }
+ ]
+}

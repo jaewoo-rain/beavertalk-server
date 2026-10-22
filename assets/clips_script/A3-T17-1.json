@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T17-1",
+ "no": 61,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "저기요, 뭘 찾으세요? 도와드릴까요?",
+   "beaver_en": "Excuse me, are you looking for something? Can I help?",
+   "beaver_roman": "jeogiyo, mwol chajeuseyo? dowadeurilkkayo?",
+   "learner": "네, 시립 도서관에 가려면 어떻게 가야 해요?",
+   "en": "Yes, how do I get to the city library?",
+   "roman": "ne, sirip doseogwane garyeomyeon eotteoke gaya haeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "도서관이요? 이 길로 쭉 가면 사거리가 나와요.",
+   "beaver_en": "The library? Go straight down this road and you'll reach an intersection.",
+   "beaver_roman": "doseogwaniyo? i gillo jjuk gamyeon sageoriga nawayo.",
+   "learner": "사거리에서 횡단보도를 건너야 해요?",
+   "en": "Do I have to cross the crosswalk at the intersection?",
+   "roman": "sageorieseo hoengdanbodoreul geonneoya haeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "네, 횡단보도를 건너세요. 십 분쯤 걸려요.",
+   "beaver_en": "Yes, cross the crosswalk. It takes about ten minutes.",
+   "beaver_roman": "ne, hoengdanbodoreul geonneoseyo. sip bunjjeum geollyeoyo.",
+   "learner": "지도를 봐도 어느 길인지 모르겠어요.",
+   "en": "Even looking at the map, I don't know which road it is.",
+   "roman": "jidoreul bwado eoneu girinji moreugesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "괜찮아요. 건너면 삼거리가 있어요.",
+   "beaver_en": "That's okay. After you cross, there's a three-way intersection.",
+   "beaver_roman": "gwaenchanayo. geonneomyeon samgeoriga isseoyo.",
+   "learner": "삼거리에서 어느 쪽으로 가요?",
+   "en": "Which way do I go at the three-way intersection?",
+   "roman": "samgeorieseo eoneu jjogeuro gayo?"
+  },
+  {
+   "n": 5,
+   "beaver": "오른쪽이에요. 그다음에 큰 길이 있어요.",
+   "beaver_en": "It's to the right. After that there's a big road.",
+   "beaver_roman": "oreunjjogieyo. geudaeume keun giri isseoyo.",
+   "learner": "그 길은 육교로 건너요, 지하도로 건너요?",
+   "en": "Do I cross that road by the overpass or the underpass?",
+   "roman": "geu gireun yukgyoro geonneoyo, jihadoro geonneoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "둘 다 있어요. 육교보다 지하도가 빠를 것 같아요.",
+   "beaver_en": "There are both. I think the underpass is faster than the overpass.",
+   "beaver_roman": "dul da isseoyo. yukgyoboda jihadoga ppareul geot gatayo.",
+   "learner": "비가 올 것 같아서 지하도로 갈게요.",
+   "en": "It looks like it'll rain, so I'll take the underpass.",
+   "roman": "biga ol geot gataseo jihadoro galgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "지하도 입구에 초록색 안내판이 있어요.",
+   "beaver_en": "There's a green sign at the underpass entrance.",
+   "beaver_roman": "jihado ipgue choroksaek annaepani isseoyo.",
+   "learner": "그 안내판에 도서관도 있어요?",
+   "en": "Is the library on that sign too?",
+   "roman": "geu annaepane doseogwando isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 흰색 글씨로 도서관이라고 쓰여 있어요.",
+   "beaver_en": "Yes, it says 'Library' in white letters.",
+   "beaver_roman": "ne, huinsaek geulssiro doseogwanirago sseuyeo isseoyo.",
+   "learner": "지하도에서 나오면 도서관이 보여요?",
+   "en": "Can I see the library when I come out of the underpass?",
+   "roman": "jihadoeseo naomyeon doseogwani boyeoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 갈색 건물이 도서관이에요. 최근에 새로 지었어요.",
+   "beaver_en": "Yes, the brown building is the library. It was built recently.",
+   "beaver_roman": "ne, galsaek geonmuri doseogwanieyo. choegeune saero jieosseoyo.",
+   "learner": "이제 길을 잘 찾을 수 있을 것 같아요.",
+   "en": "I think I can find the way now.",
+   "roman": "ije gireul jal chajeul su isseul geot gatayo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 조심히 가세요. 모르면 또 물어보세요.",
+   "beaver_en": "Okay, take care. Ask again if you get lost.",
+   "beaver_roman": "ne, josimhi gaseyo. moreumyeon tto mureoboseyo.",
+   "learner": "친절하게 안내해 주셔서 정말 감사합니다.",
+   "en": "Thank you so much for your kind directions.",
+   "roman": "chinjeolhage annaehae jusyeoseo jeongmal gamsahamnida."
+  }
+ ]
+}

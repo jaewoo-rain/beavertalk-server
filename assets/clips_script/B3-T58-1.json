@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T58-1",
+ "no": 245,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민호야, 고등학교 때 추억 떠올려 본 적 있어?",
+   "beaver_en": "Minho, have you ever thought back on high school memories?",
+   "beaver_roman": "Minhoya, godeunghakgyo ttae chueok tteoollyeo bon jeok isseo?",
+   "learner": "응, 요즘 그때 일이 자꾸 떠올라.",
+   "en": "Yeah, those days keep coming back to me lately.",
+   "roman": "Eung, yojeum geuttae iri jakku tteoolla."
+  },
+  {
+   "n": 2,
+   "beaver": "그때가 좋았지. 지금은 힘들어?",
+   "beaver_en": "Those were good times. Is it hard now?",
+   "beaver_roman": "Geuttaega joatji. Jigeumeun himdeureo?",
+   "learner": "솔직히 좀. 요즘 부담이 너무 커.",
+   "en": "Honestly, a bit. The pressure is too much lately.",
+   "roman": "Soljiki jom. Yojeum budami neomu keo."
+  },
+  {
+   "n": 3,
+   "beaver": "무슨 부담? 회사 일 때문에?",
+   "beaver_en": "What pressure? Because of work?",
+   "beaver_roman": "Museun budam? Hoesa il ttaemune?",
+   "learner": "응, 주변 기대가 커서 마음이 늘 무거워.",
+   "en": "Yeah, people expect a lot, so my heart always feels heavy.",
+   "roman": "Eung, jubyeon gidaega keoseo maeumi neul mugeowo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런 속마음은 처음 듣네. 말해 줘서 고마워.",
+   "beaver_en": "I've never heard you share this. Thanks for telling me.",
+   "beaver_roman": "Geureon songmaeumeun cheoeum deunne. Malhae jwoseo gomawo.",
+   "learner": "사실 말할까 말까 오래 망설였어.",
+   "en": "Actually, I hesitated a long time about telling you.",
+   "roman": "Sasil malhalkka malkka orae mangseoryeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "왜? 나한테는 편하게 말해도 돼.",
+   "beaver_en": "Why? You can talk to me freely.",
+   "beaver_roman": "Wae? Nahanteneun pyeonhage malhaedo dwae.",
+   "learner": "내 심정에 공감해 줄지 걱정스러웠거든.",
+   "en": "I was worried whether you'd understand how I feel.",
+   "roman": "Nae simjeonge gonggamhae juljji geokjeongseureowotgeodeun."
+  },
+  {
+   "n": 6,
+   "beaver": "당연히 공감하지. 혼자 많이 괴로웠겠다.",
+   "beaver_en": "Of course I understand. You must have suffered alone.",
+   "beaver_roman": "Dangyeonhi gonggamhaji. Honja mani goerowotgetda.",
+   "learner": "응, 가끔은 외로워서 너무 힘들어.",
+   "en": "Yeah, sometimes I'm so lonely it's really hard.",
+   "roman": "Eung, gakkeumeun oerowoseo neomu himdeureo."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 후회되는 일도 있어?",
+   "beaver_en": "Is there anything you regret?",
+   "beaver_roman": "Hoksi huhoedoeneun ildo isseo?",
+   "learner": "미술을 그만둔 게 후회스러워. 아직 미련이 있어.",
+   "en": "I regret quitting art. I still can't let it go.",
+   "roman": "Misureul geumandun ge huhoeseureowo. Ajik miryeoni isseo."
+  },
+  {
+   "n": 8,
+   "beaver": "그랬구나. 너 그림 그릴 때 정말 행복해 보였어.",
+   "beaver_en": "I see. You looked so happy when you drew.",
+   "beaver_roman": "Geuraetguna. Neo geurim geuril ttae jeongmal haengbokae boyeosseo.",
+   "learner": "근데 아직도 그 꿈을 못 잊었어.",
+   "en": "But I still haven't forgotten that dream.",
+   "roman": "Geunde ajikdo geu kkumeul mon nijeosseo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 다시 시작해 보는 건 어때?",
+   "beaver_en": "Then why not start again?",
+   "beaver_roman": "Geureom dasi sijakae boneun geon eottae?",
+   "learner": "마음은 간절한데, 실패할 것 같은 예감이 들어.",
+   "en": "I really want to, but I have a feeling I'll fail.",
+   "roman": "Maeumeun ganjeolhande, silpaehal geot gateun yegami deureo."
+  },
+  {
+   "n": 10,
+   "beaver": "걱정되면 나한테 말해. 난 늘 네 편이잖아.",
+   "beaver_en": "If you're worried, tell me. I'm always on your side.",
+   "beaver_roman": "Geokjeongdoemyeon nahante malhae. Nan neul ne pyeonijana.",
+   "learner": "고마워. 덕분에 마음이 한결 가벼워졌어.",
+   "en": "Thanks. Thanks to you, I feel much lighter.",
+   "roman": "Gomawo. Deokbune maeumi hangyeol gabyeowojyeosseo."
+  }
+ ]
+}

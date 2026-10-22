@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T25-1",
+ "no": 224,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 지호 어머니. 다음 주 견학 들으셨어요?",
+   "beaver_en": "Hello, Jiho's mom. Did you hear about next week's field trip?",
+   "beaver_roman": "Annyeonghaseyo, Jiho eomeoni. Daeum ju gyeonhak deureusyeosseoyo?",
+   "learner": "네, 담임 선생님이 알려 주셨어요. 박물관 견학이죠?",
+   "en": "Yes, the homeroom teacher told me. It's the museum trip, right?",
+   "roman": "Ne, damim seonsaengnimi allyeo jusyeosseoyo. Bangmulgwan gyeonhagijyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "맞아요. 그런데 교육비가 또 오른대요.",
+   "beaver_en": "Right. But they say education costs are going up again.",
+   "beaver_roman": "Majayo. Geureonde gyoyukbiga tto oreundaeyo.",
+   "learner": "정말요? 우리 학교는 사립이라 학비가 엄청나요.",
+   "en": "Really? Our school is private, so tuition is huge.",
+   "roman": "Jeongmallyo? Uri hakgyoneun saribira hakbiga eomcheongnayo."
+  },
+  {
+   "n": 3,
+   "beaver": "그렇죠. 학비 이외에 학원비도 들고요.",
+   "beaver_en": "I know. Besides tuition, there are academy fees too.",
+   "beaver_roman": "Geureochyo. Hakbi ioee hagwonbido deulgoyo.",
+   "learner": "교육비야말로 학부모들의 가장 큰 걱정이에요.",
+   "en": "Education costs are exactly parents' biggest worry.",
+   "roman": "Gyoyukbiyamallo hakbumodeurui gajang keun geokjeongieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아요. 다음 달 행사에 학부모도 많이 오겠죠?",
+   "beaver_en": "True. Lots of parents will come to next month's event, right?",
+   "beaver_roman": "Majayo. Daeum dal haengsae hakbumodo mani ogetjyo?",
+   "learner": "네, 교장 선생님도 오신대요.",
+   "en": "Yes, I heard the principal is coming too.",
+   "roman": "Ne, gyojang seonsaengnimdo osindaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "지호가 반장이라서 행사 준비도 하죠?",
+   "beaver_en": "Jiho is class president, so he helps prepare too, right?",
+   "beaver_roman": "Jihoga banjangiraseo haengsa junbido hajyo?",
+   "learner": "네, 반장이라 바빠요. 그래도 즐거워해요.",
+   "en": "Yes, he's busy as class president. But he enjoys it.",
+   "roman": "Ne, banjangira bappayo. Geuraedo jeulgeowohaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "요즘 지호 학교생활은 어때요?",
+   "beaver_en": "How is Jiho's school life these days?",
+   "beaver_roman": "Yojeum Jiho hakgyosaenghwareun eottaeyo?",
+   "learner": "잘 지내요. 담임 선생님이 아이들을 정말 아끼세요.",
+   "en": "He's doing well. The homeroom teacher really cares for the kids.",
+   "roman": "Jal jinaeyo. Damim seonsaengnimi aideureul jeongmal akkiseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그 선생님 학력도 좋다고 들었어요.",
+   "beaver_en": "I heard that teacher has a great academic background too.",
+   "beaver_roman": "Geu seonsaengnim hangnyeokdo jotago deureosseoyo.",
+   "learner": "네, 학력도 좋고 그분이야말로 좋은 선생님이에요.",
+   "en": "Yes, great background, and she's truly a good teacher.",
+   "roman": "Ne, hangnyeokdo joko geubuniyamallo joeun seonsaengnimieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "요즘 반에 새로 온 분 있다던데요?",
+   "beaver_en": "I heard someone new came to the class lately?",
+   "beaver_roman": "Yojeum bane saero on bun itdadeondeyo?",
+   "learner": "네, 교생 선생님이 오셨어요.",
+   "en": "Yes, a student teacher has come.",
+   "roman": "Ne, gyosaeng seonsaengnimi osyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다행이네요. 그럼 견학비는 언제 내요?",
+   "beaver_en": "That's good. So when do we pay the field trip fee?",
+   "beaver_roman": "Dahaengineyo. Geureom gyeonhakbineun eonje naeyo?",
+   "learner": "이번 주 금요일까지예요. 담임 선생님께 내면 돼요.",
+   "en": "By this Friday. You can pay the homeroom teacher.",
+   "roman": "Ibeon ju geumyoilkkajiyeyo. Damim seonsaengnimkke naemyeon dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알려 줘서 고마워요. 행사 때 봬요.",
+   "beaver_en": "Thanks for letting me know. See you at the event.",
+   "beaver_roman": "Allyeo jwoseo gomawoyo. Haengsa ttae bwaeyo.",
+   "learner": "아니에요. 그럼 행사 때 봬요!",
+   "en": "Not at all. See you at the event, then!",
+   "roman": "Anieyo. Geureom haengsa ttae bwaeyo!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T64-1",
+ "no": 396,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "거기 지형은 어때요? 자세히 말해 줄래요?",
+   "beaver_en": "How's the terrain there? Can you describe it in detail?",
+   "beaver_roman": "geogi jihyeongeun eottaeyo? jasehi malhae jullaeyo?",
+   "learner": "무인도라 그런지 정말 황량해요. 풀이 거의 없어요.",
+   "en": "Maybe because it's uninhabited, it's really barren. There's hardly any grass.",
+   "roman": "muindora geureonji jeongmal hwangnyanghaeyo. puri geoui eopseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "해안 쪽은 어때요? 걸어서 갈 수 있어요?",
+   "beaver_en": "What about the coast? Can you walk there?",
+   "beaver_roman": "haean jjogeun eottaeyo? georeoseo gal su isseoyo?",
+   "learner": "아니요, 높은 암벽이 해안을 따라 이어져 있어요.",
+   "en": "No, tall cliffs run along the coast.",
+   "roman": "aniyo, nopeun ambyeogi haeaneul ttara ieojyeo isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "암벽 위는 어떤 모습이에요?",
+   "beaver_en": "What's it like on top of the cliffs?",
+   "beaver_roman": "ambyeok wineun eotteon moseubieyo?",
+   "learner": "위쪽은 평평한 고원인데, 바람이 아주 세요.",
+   "en": "The top is a flat plateau, and the wind is very strong.",
+   "roman": "wijjogeun pyeongpyeonghan gowoninde, barami aju seyo."
+  },
+  {
+   "n": 4,
+   "beaver": "물은 있어요? 식수가 제일 걱정이에요.",
+   "beaver_en": "Is there water? Drinking water is my biggest worry.",
+   "beaver_roman": "mureun isseoyo? siksuga jeil geokjeongieyo.",
+   "learner": "네, 고원에 작은 시냇물이 흘러요.",
+   "en": "Yes, a small stream flows on the plateau.",
+   "roman": "ne, gowone jageun sinaenmuri heulleoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다행이네요. 주변 땅은 어때요?",
+   "beaver_en": "That's a relief. What's the ground around it like?",
+   "beaver_roman": "dahaengineyo. jubyeon ttangeun eottaeyo?",
+   "learner": "시냇가는 온통 진흙이라서 걷기 힘들어요.",
+   "en": "The stream bank is all mud, so it's hard to walk.",
+   "roman": "sinaetganeun ontong jinheulgiraseo geotgi himdeureoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "동굴은 있어요? 비를 피할 곳이 필요해요.",
+   "beaver_en": "Are there caves? We need shelter from the rain.",
+   "beaver_roman": "dongureun isseoyo? bireul piral gosi piryohaeyo.",
+   "learner": "네, 동쪽 암벽에 천연 동굴이 하나 있어요.",
+   "en": "Yes, there's a natural cave in the eastern cliff.",
+   "roman": "ne, dongjjok ambyeoge cheonyeon donguri hana isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "이 섬 지형만의 특징이 있다면 뭐예요?",
+   "beaver_en": "If this island's terrain has a unique feature, what is it?",
+   "beaver_roman": "i seom jihyeongmanui teukjingi itdamyeon mwoyeyo?",
+   "learner": "해저 지형이 그대로 솟아오른 점이 특징적이에요.",
+   "en": "What's distinctive is that the seabed rose up as it was.",
+   "roman": "haejeo jihyeongi geudaero sosaoreun jeomi teukjingjeogieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "자연 환경에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about the natural environment?",
+   "beaver_roman": "jayeon hwangyeonge daehae deo malhae jullaeyo?",
+   "learner": "초원이나 들이 전혀 없는 점도 특징적이에요.",
+   "en": "It's also distinctive that there are no grasslands or fields at all.",
+   "roman": "chowonina deuri jeonhyeo eomneun jeomdo teukjingjeogieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "보고서엔 어떻게 비교해서 쓰면 좋을까요?",
+   "beaver_en": "What should we compare it to in the report?",
+   "beaver_roman": "bogoseoen eotteoke bigyohaeseo sseumyeon joeulkkayo?",
+   "learner": "달 표면처럼 황량하다고 쓸게요.",
+   "en": "I'll write that it's as barren as the surface of the moon.",
+   "roman": "dal pyomyeoncheoreom hwangnyanghadago sseulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 해 지기 전에 캠프로 돌아와요.",
+   "beaver_en": "Good. Come back to camp before sunset.",
+   "beaver_roman": "joayo. hae jigi jeone kaempeuro dorawayo.",
+   "learner": "네, 동굴 사진만 찍고 바로 돌아갈게요.",
+   "en": "Okay, I'll just take photos of the cave and head right back.",
+   "roman": "ne, donggul sajinman jjikgo baro doragalgeyo."
+  }
+ ]
+}

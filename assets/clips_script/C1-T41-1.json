@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T41-1",
+ "no": 329,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "박 박사님, 요즘 경기가 왜 이렇게 나쁩니까?",
+   "beaver_en": "Dr. Park, why is the economy so bad these days?",
+   "beaver_roman": "Bak baksanim, yojeum gyeonggiga wae ireoke nappeumnikka?",
+   "learner": "금리가 크게 올랐기에 자금이 돌지 않습니다.",
+   "en": "Since interest rates rose sharply, funds aren't circulating.",
+   "roman": "Geumniga keuge ollatgie jageumi dolji anseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "주가는 어떻습니까?",
+   "beaver_en": "How are stock prices?",
+   "beaver_roman": "Juganeun eotteosseumnikka?",
+   "learner": "투자자들이 손실을 걱정하기에 주가가 떨어졌습니다.",
+   "en": "Since investors fear losses, stock prices fell.",
+   "roman": "Tujajadeuri sonsireul geokjeonghagie jugaga tteoreojyeotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "실업률도 높습니까?",
+   "beaver_en": "Is unemployment high too?",
+   "beaver_roman": "Sireomnyuldo nopseumnikka?",
+   "learner": "네, 기업들이 사람을 덜 뽑기에 실업률도 높습니다.",
+   "en": "Yes, since companies hire fewer people, unemployment is high.",
+   "roman": "Ne, gieopdeuri sarameul deol ppopgie sireomnyuldo nopseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "원화 가치는 어떻습니까?",
+   "beaver_en": "What about the value of the won?",
+   "beaver_roman": "Wonhwa gachineun eotteosseumnikka?",
+   "learner": "원화가 약해져서 수입품 가격이 올랐습니다.",
+   "en": "The won weakened, so import prices went up.",
+   "roman": "Wonhwaga yakaejyeoseo suippum gagyeogi ollatseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 물가에도 영향이 있겠네요.",
+   "beaver_en": "Then it must affect prices too.",
+   "beaver_roman": "Geureom mulgaedo yeonghyangi itgenneyo.",
+   "learner": "네, 도매가가 먼저 올라서 소매가도 올랐습니다.",
+   "en": "Yes, wholesale prices rose first, so retail prices rose too.",
+   "roman": "Ne, domaekkaga meonjeo ollaseo somaekkado ollatseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "투자자들은 돈을 어디로 옮깁니까?",
+   "beaver_en": "Where are investors moving their money?",
+   "beaver_roman": "Tujajadeureun doneul eodiro omgimnikka?",
+   "learner": "불안하기에 금 같은 안전 자산에 투자합니다.",
+   "en": "Since they're anxious, they invest in safe assets like gold.",
+   "roman": "Buranhagie geum gateun anjeon jasane tujahamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 금으로 이득을 본 사람도 있겠군요.",
+   "beaver_en": "Then some people must have profited from gold.",
+   "beaver_roman": "Geureom geumeuro ideugeul bon saramdo itgetgunyo.",
+   "learner": "네, 금값이 올라서 이득을 본 투자자가 많습니다.",
+   "en": "Yes, gold rose, so many investors made a profit.",
+   "roman": "Ne, geumgapsi ollaseo ideugeul bon tujajaga manseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "경제 현상에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the economic situation?",
+   "beaver_roman": "Gyeongje hyeonsange daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "소비가 줄었기에 기업들의 손실도 커졌습니다.",
+   "en": "Since spending fell, companies' losses grew too.",
+   "roman": "Sobiga jureotgie gieopdeurui sonsildo keojyeotseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "경기를 살리려면 무엇이 필요합니까?",
+   "beaver_en": "What's needed to revive the economy?",
+   "beaver_roman": "Gyeonggireul salliryeomyeon mueosi piryohamnikka?",
+   "learner": "금리를 낮춰서 경제 활성화를 도와야 합니다.",
+   "en": "We should lower interest rates to help revitalize the economy.",
+   "roman": "Geumnireul nachwoseo gyeongje hwalseonghwareul dowaya hamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 설명 감사합니다. 보고서에 쓰겠습니다.",
+   "beaver_en": "Thanks for the great explanation. I'll put it in the report.",
+   "beaver_roman": "Joeun seolmyeong gamsahamnida. Bogoseoe sseugetseumnida.",
+   "learner": "네, 자금 흐름도 계속 같이 보겠습니다.",
+   "en": "Sure, let's keep watching the flow of funds together.",
+   "roman": "Ne, jageum heureumdo gyesok gachi bogetseumnida."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T25-1",
+ "no": 36,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 졸업 선물 준비했어요?",
+   "beaver_en": "Minsu, did you get a graduation gift ready?",
+   "beaver_roman": "minsu ssi, joreop seonmul junbihaesseoyo?",
+   "learner": "네, 선생님께 수첩을 드릴 거예요.",
+   "en": "Yes, I'm going to give our teacher a notebook.",
+   "roman": "ne, seonsaengnimkke sucheobeul deuril geoyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 수첩 좋네요. 다른 것도 있어요?",
+   "beaver_en": "Wow, a notebook is nice. Anything else?",
+   "beaver_roman": "wa, sucheop jonneyo. dareun geotdo isseoyo?",
+   "learner": "필통도 샀어요. 지우개도 넣었어요.",
+   "en": "I bought a pencil case too. I put an eraser in it.",
+   "roman": "piltongdo sasseoyo. jiugaedo neoeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "선생님이 좋아하시겠어요.",
+   "beaver_en": "Our teacher will like it.",
+   "beaver_roman": "seonsaengnimi joahasigesseoyo.",
+   "learner": "네, 선생님께 정말 감사해요.",
+   "en": "Yes, I'm really grateful to our teacher.",
+   "roman": "ne, seonsaengnimkke jeongmal gamsahaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아요. 우리 반 소식도 있어요?",
+   "beaver_en": "That's right. Any news about our class?",
+   "beaver_roman": "majayo. uri ban sosikdo isseoyo?",
+   "learner": "네, 우리 반 친구 다섯 명이 대학에 가요.",
+   "en": "Yes, five classmates are going to college.",
+   "roman": "ne, uri ban chingu daseot myeongi daehage gayo."
+  },
+  {
+   "n": 5,
+   "beaver": "와, 대단해요! 누가 가요?",
+   "beaver_en": "Wow, amazing! Who's going?",
+   "beaver_roman": "wa, daedanhaeyo! nuga gayo?",
+   "learner": "지수 씨는 한국대학에 가요.",
+   "en": "Jisu is going to Hanguk University.",
+   "roman": "jisu ssineun hangukdaehage gayo."
+  },
+  {
+   "n": 6,
+   "beaver": "지수 씨 전공은 뭐예요?",
+   "beaver_en": "What's Jisu's major?",
+   "beaver_roman": "jisu ssi jeongongeun mwoyeyo?",
+   "learner": "지수 씨 전공은 경영이에요.",
+   "en": "Jisu's major is business.",
+   "roman": "jisu ssi jeongongeun gyeongyeongieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "민수 씨는요? 전공은 정했어요?",
+   "beaver_en": "What about you, Minsu? Did you pick a major?",
+   "beaver_roman": "minsu ssineunyo? jeongongeun jeonghaesseoyo?",
+   "learner": "아니요, 아직 못 정했어요.",
+   "en": "No, I haven't decided yet.",
+   "roman": "aniyo, ajik mot jeonghaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "괜찮아요. 천천히 정하세요.",
+   "beaver_en": "That's okay. Take your time.",
+   "beaver_roman": "gwaenchanayo. cheoncheonhi jeonghaseyo.",
+   "learner": "고마워요. 선생님께 말씀도 드릴 거예요.",
+   "en": "Thanks. I'll talk to our teacher about it too.",
+   "roman": "gomawoyo. seonsaengnimkke malsseumdo deuril geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 친구들한테도 말했어요?",
+   "beaver_en": "Good. Did you tell our friends too?",
+   "beaver_roman": "joayo. chingudeulhantedo malhaesseoyo?",
+   "learner": "네, 반 친구들한테도 말했어요.",
+   "en": "Yes, I told our classmates too.",
+   "roman": "ne, ban chingudeulhantedo malhaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 금요일에 선물 같이 드려요.",
+   "beaver_en": "Then let's give the gifts together on Friday.",
+   "beaver_roman": "geureom geumyoire seonmul gachi deuryeoyo.",
+   "learner": "좋아요. 금요일에 교실에서 만나요.",
+   "en": "Sounds good. See you in the classroom on Friday.",
+   "roman": "joayo. geumyoire gyosireseo mannayo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T08-1",
+ "no": 259,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이 리모컨 버튼이 안 눌려. 어떻게 할까?",
+   "beaver_en": "The buttons on this remote don't press. What should we do?",
+   "beaver_roman": "i rimokeon beoteuni an nullyeo. eotteoke halkka?",
+   "learner": "리모컨은 고치느니 차라리 새로 사는 게 나아.",
+   "en": "Rather than fixing the remote, it's better to buy a new one.",
+   "roman": "rimokeoneun gochineuni charari saero saneun ge naa."
+  },
+  {
+   "n": 2,
+   "beaver": "이 옷은? 단추가 떨어졌어.",
+   "beaver_en": "What about this clothing? A button fell off.",
+   "beaver_roman": "i oseun? danchuga tteoreojyeosseo.",
+   "learner": "그건 드라이클리닝 맡길 때 같이 고쳐 달라고 하자.",
+   "en": "Let's ask them to fix it when we take it for dry cleaning.",
+   "roman": "geugeon deuraikeullining matgil ttae gachi gochyeo dallago haja."
+  },
+  {
+   "n": 3,
+   "beaver": "다리미도 뜨거워지지 않네.",
+   "beaver_en": "The iron isn't heating up either.",
+   "beaver_roman": "darimido tteugeowojiji anne.",
+   "learner": "그럼 오늘은 다리지 말고 셔츠는 그냥 입을게.",
+   "en": "Then I won't iron today. I'll just wear the shirt.",
+   "roman": "geureom oneureun dariji malgo syeocheuneun geunyang ibeulge."
+  },
+  {
+   "n": 4,
+   "beaver": "정수기는? 물이 잘 안 나와.",
+   "beaver_en": "What about the water purifier? Water barely comes out.",
+   "beaver_roman": "jeongsugineun? muri jal an nawa.",
+   "learner": "수리 기다리느니 차라리 수돗물 끓여 마시자.",
+   "en": "Rather than waiting for repairs, let's just boil tap water.",
+   "roman": "suri gidarineuni charari sudonmul kkeuryeo masija."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 새로 사면 설치는 누가 해?",
+   "beaver_en": "Still, if we buy a new one, who'll do the installation?",
+   "beaver_roman": "geuraedo saero samyeon seolchineun nuga hae?",
+   "learner": "설치는 가게에서 무료로 해 준대.",
+   "en": "The store says they'll do the installation for free.",
+   "roman": "seolchineun gageeseo muryoro hae jundae."
+  },
+  {
+   "n": 6,
+   "beaver": "화분 받침도 금이 갔네.",
+   "beaver_en": "The flowerpot stand is cracked too.",
+   "beaver_roman": "hwabun batchimdo geumi ganne.",
+   "learner": "그 받침은 버리고 이 박스에 깨진 것들 모으자.",
+   "en": "Let's throw out that stand and gather broken things in this box.",
+   "roman": "geu batchimeun beorigo i bakseue kkaejin geotdeul moeuja."
+  },
+  {
+   "n": 7,
+   "beaver": "창고에 옛날 연탄도 있던데?",
+   "beaver_en": "There were old briquettes in the storage room, right?",
+   "beaver_roman": "changgoe yennal yeontando itdeonde?",
+   "learner": "연탄은 이제 안 쓰니까 다 정리하자.",
+   "en": "We don't use briquettes anymore, so let's clear them all out.",
+   "roman": "yeontaneun ije an sseunikka da jeongnihaja."
+  },
+  {
+   "n": 8,
+   "beaver": "화장실 화장지도 다 떨어졌어.",
+   "beaver_en": "We're out of toilet paper in the bathroom too.",
+   "beaver_roman": "hwajangsil hwajangjido da tteoreojyeosseo.",
+   "learner": "내가 가서 화장지 사 올게.",
+   "en": "I'll go and buy some toilet paper.",
+   "roman": "naega gaseo hwajangji sa olge."
+  },
+  {
+   "n": 9,
+   "beaver": "하여튼 고장 난 게 잔뜩이네.",
+   "beaver_en": "Anyway, there are so many broken things.",
+   "beaver_roman": "hayeoteun gojang nan ge jantteugine.",
+   "learner": "맞아. 고치느니 차라리 정리하는 게 편해.",
+   "en": "Right. Rather than fixing them, clearing them out is easier.",
+   "roman": "maja. gochineuni charari jeongnihaneun ge pyeonhae."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워. 덕분에 금방 끝났다.",
+   "beaver_en": "Thanks. Thanks to you, we finished quickly.",
+   "beaver_roman": "gomawo. deokbune geumbang kkeunnatda.",
+   "learner": "뭘. 리모컨은 내일 사러 가자.",
+   "en": "No problem. Let's go buy a remote tomorrow.",
+   "roman": "mwol. rimokeoneun naeil sareo gaja."
+  }
+ ]
+}

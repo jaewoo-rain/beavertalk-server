@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T44-1",
+ "no": 476,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "학예사님, 이번 궁궐 터 발굴은 더 진행하십니까?",
+   "beaver_en": "Curator, will you continue excavating the palace site?",
+   "beaver_roman": "hagyesanim, ibeon gunggwol teo bargureun deo jinhaenghasimnikka?",
+   "learner": "네, 발굴하면 왕조 초창기 터가 더 나올 거예요.",
+   "en": "Yes, if we dig, more early-dynasty sites will appear.",
+   "roman": "ne, balgulhamyeon wangjo chochanggi teoga deo naol geoyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "시간이 꽤 걸리겠네요. 복원 방향은 정하셨어요?",
+   "beaver_en": "That will take quite a while. Have you chosen a restoration approach?",
+   "beaver_roman": "sigani kkwae geolligenneyo. bogwon banghyangeun jeonghasyeosseoyo?",
+   "learner": "건물을 통째로 새로 짓는 건 반대예요.",
+   "en": "I'm against rebuilding the whole structure from scratch.",
+   "roman": "geonmureul tongjjaero saero jinneun geon bandaeyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜요? 관람객은 완성된 건물을 좋아합니다.",
+   "beaver_en": "Why? Visitors like finished buildings.",
+   "beaver_roman": "waeyo? gwallamgaegeun wanseongdoen geonmureul joahamnida.",
+   "learner": "근거 없는 재현은 한낱 세트장에 지나지 않아요.",
+   "en": "A baseless reproduction is nothing more than a film set.",
+   "roman": "geungeo eomneun jaehyeoneun hannat seteujange jinaji anayo."
+  },
+  {
+   "n": 4,
+   "beaver": "이 궁궐의 역사를 좀 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me a bit more about this palace's history?",
+   "beaver_roman": "i gunggworui yeoksareul jom deo malsseumhae jusigetseumnikka?",
+   "learner": "이 궁은 황제가 왕권을 보여 주려고 지었어요.",
+   "en": "The emperor built this palace to show royal authority.",
+   "roman": "i gungeun hwangjega wanggwoneul boyeo juryeogo jieosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 왜 이렇게 폐허가 되었습니까?",
+   "beaver_en": "Then why did it fall into ruins like this?",
+   "beaver_roman": "geureonde wae ireoke pyeheoga doeeotseumnikka?",
+   "learner": "왕조가 몰락한 뒤 전쟁 때 폭격을 맞았어요.",
+   "en": "After the dynasty's downfall, it was bombed in the war.",
+   "roman": "wangjoga mollakan dwi jeonjaeng ttae pokgyeogeul majasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그 전쟁 때 이 근처에서 학살도 있었지요?",
+   "beaver_en": "There was also a massacre near here during that war, right?",
+   "beaver_roman": "geu jeonjaeng ttae i geuncheoeseo haksaldo isseotjiyo?",
+   "learner": "네, 그리고 이산가족도 많이 생겼어요.",
+   "en": "Yes, and many families were separated, too.",
+   "roman": "ne, geurigo isangajokdo mani saenggyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 그 상처도 복원에 담아야겠네요.",
+   "beaver_en": "Then the restoration should hold those wounds too.",
+   "beaver_roman": "geureom geu sangcheodo bogwone damayagenneyo.",
+   "learner": "네, 냉전 시기의 흔적도 시대적 기록이에요.",
+   "en": "Yes, traces of the Cold War are also records of the times.",
+   "roman": "ne, naengjeon sigiui heunjeokdo sidaejeok girogieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "다른 건물들은 어떻게 하실 겁니까?",
+   "beaver_en": "What will you do with the other buildings?",
+   "beaver_roman": "dareun geonmuldeureun eotteoke hasil geomnikka?",
+   "learner": "귀족 집터는 기록이 있는 것만 재현할 거예요.",
+   "en": "We'll only reproduce aristocrats' houses that have records.",
+   "roman": "gwijok jipteoneun girogi inneun geonman jaehyeonhal geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "예전엔 다 새로 지었는데, 많이 달라졌네요.",
+   "beaver_en": "We used to rebuild everything; things have really changed.",
+   "beaver_roman": "yejeonen da saero jieonneunde, mani dallajyeonneyo.",
+   "learner": "맞아요. 초창기 복원을 보면 격세지감이 들어요.",
+   "en": "Right. Early restorations show how much times have changed.",
+   "roman": "majayo. chochanggi bogwoneul bomyeon gyeoksejigami deureoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 그 방향으로 계획을 정리하지요.",
+   "beaver_en": "Good. Let's draw up the plan in that direction.",
+   "beaver_roman": "jotseumnida. geu banghyangeuro gyehoegeul jeongnihajiyo.",
+   "learner": "네, 후대에 정직한 역사를 남기도록 할게요.",
+   "en": "Yes, I'll make sure we leave an honest history for later generations.",
+   "roman": "ne, hudaee jeongjikan yeoksareul namgidorok halgeyo."
+  }
+ ]
+}

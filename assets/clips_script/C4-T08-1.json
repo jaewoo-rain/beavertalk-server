@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T08-1",
+ "no": 446,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "자, 목록부터 확인할까요? 첫 번째가 뭐예요?",
+   "beaver_en": "Okay, shall we check the list? What's first?",
+   "beaver_roman": "Ja, mongnokbuteo hwaginhalkkayo? Cheot beonjjaega mwoyeyo?",
+   "learner": "항아리 세 개요. 통풍이 잘되는 곳에 둬야 해요.",
+   "en": "Three jars. They need a well-ventilated spot.",
+   "roman": "Hangari se gaeyo. Tongpung-i jaldoeneun gose dwoya haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 창문 옆에 둘게요. 다음은요?",
+   "beaver_en": "Then I'll put them by the window. Next?",
+   "beaver_roman": "Geureom changmun yeope dulgeyo. Daeumeunyo?",
+   "learner": "막대 다섯 개하고 망치 두 개예요.",
+   "en": "Five rods and two hammers.",
+   "roman": "Makdae daseot gaehago mangchi du gaeyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "망치가 하나밖에 안 보이네요. 어디에 두셨어요?",
+   "beaver_en": "I only see one hammer. Where did you put it?",
+   "beaver_roman": "Mangchiga hanabakke an boineyo. Eodie dusyeosseoyo?",
+   "learner": "아, 하나는 제가 공구함에 넣어 뒀어요.",
+   "en": "Oh, I put one in the toolbox.",
+   "roman": "A, hananeun jega gongguhame neoeo dwosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "파이프는 왜 이렇게 녹이 슬었죠?",
+   "beaver_en": "Why are the pipes so rusty?",
+   "beaver_roman": "Paipeuneun wae ireoke nogi seureotjyo?",
+   "learner": "창고 통풍이 안 좋아서 그런 것 같아요.",
+   "en": "I think it's because the storeroom has poor ventilation.",
+   "roman": "Changgo tongpung-i an joaseo geureon geot gatayo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 깡통도 몇 개 찌그러졌네요.",
+   "beaver_en": "Right. Some tin cans are dented, too.",
+   "beaver_roman": "Majayo. Kkangtongdo myeot gae jjigeureojyeonneyo.",
+   "learner": "제가 깡통을 너무 높이 쌓았다는 점은 인정해요.",
+   "en": "I admit I stacked the cans too high.",
+   "roman": "Jega kkangtong-eul neomu nopi ssaatdaneun jeomeun injeonghaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "괜찮아요. 밧줄하고 사슬은 다 있어요?",
+   "beaver_en": "It's fine. Are the ropes and chains all here?",
+   "beaver_roman": "Gwaenchanayo. Batjulhago saseureun da isseoyo?",
+   "learner": "밧줄은 두 개, 사슬은 한 개 있어요.",
+   "en": "Two ropes and one chain.",
+   "roman": "Batjureun du gae, saseureun han gae isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "사슬이 하나 더 있었는데요. 통풍구 뒤는요?",
+   "beaver_en": "There was one more chain. Behind the vent?",
+   "beaver_roman": "Saseuri hana deo isseonneundeyo. Tongpunggu dwineunyo?",
+   "learner": "아직 못 봤어요. 잠깐만요, 볼게요.",
+   "en": "I haven't looked yet. One sec, I'll check.",
+   "roman": "Ajik mot bwasseoyo. Jamkkanmanyo, bolgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "뭐가 있어요?",
+   "beaver_en": "What's there?",
+   "beaver_roman": "Mwoga isseoyo?",
+   "learner": "사슬하고 낡은 망이 있어요. 솔도 하나 있고요.",
+   "en": "A chain and an old net. And a brush, too.",
+   "roman": "Saseulhago nalgeun mang-i isseoyo. Soldo hana itgoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "솔로 먼지를 털고, 망은 버릴까요?",
+   "beaver_en": "Shall we dust with the brush and toss the net?",
+   "beaver_roman": "Sollo meonjireul teolgo, mang-eun beorilkkayo?",
+   "learner": "네, 망은 버려요. 목록도 다 확인했어요.",
+   "en": "Yes, let's toss it. The list is all checked.",
+   "roman": "Ne, mang-eun beoryeoyo. Mongnokdo da hwaginhaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "수고했어요. 다음엔 통풍부터 신경 써요.",
+   "beaver_en": "Good work. Next time, mind the ventilation first.",
+   "beaver_roman": "Sugohaesseoyo. Daeumen tongpungbuteo singyeong sseoyo.",
+   "learner": "좋아요. 창문을 자주 열어서 통풍시킬게요.",
+   "en": "Sure. I'll open the window often to air it out.",
+   "roman": "Joayo. Changmuneul jaju yeoreoseo tongpungsikilgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T53-2",
+ "no": 429,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 국정 운영, 어떻게 보세요?",
+   "beaver_en": "How do you see the running of state affairs lately?",
+   "beaver_roman": "yojeum gukjeong unyeong, eotteoke boseyo?",
+   "learner": "국력은 커졌지만 국정 운영은 아쉬워요.",
+   "en": "National power has grown, but state affairs are disappointing.",
+   "roman": "gungnyeogeun keojeotjiman gukjeong unyeongeun aswiwoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "여당이 의회를 장악했잖아요.",
+   "beaver_en": "The ruling party has taken control of parliament.",
+   "beaver_roman": "yeodangi uihoereul jangakaetjanayo.",
+   "learner": "의회를 장악했어도 타협은 해야죠.",
+   "en": "Even if they control parliament, they should compromise.",
+   "roman": "uihoereul jangakaesseodo tahyeobeun haeyajyo."
+  },
+  {
+   "n": 3,
+   "beaver": "야당도 강경해서 걱정이에요.",
+   "beaver_en": "The opposition is hardline too, so I'm worried.",
+   "beaver_roman": "yadangdo ganggyeonghaeseo geokjeongieyo.",
+   "learner": "여야 모두 싸우기만 해요.",
+   "en": "Both parties just keep fighting.",
+   "roman": "yeoya modu ssaugiman haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "대외 관계는 어떻게 생각하세요?",
+   "beaver_en": "What do you think about foreign relations?",
+   "beaver_roman": "daeoe gwangyeneun eotteoke saenggakaseyo?",
+   "learner": "대외 정책은 괜찮은데 설명이 부족해요.",
+   "en": "Foreign policy is okay, but poorly explained.",
+   "roman": "daeoe jeongchaegeun gwaenchaneunde seolmyeongi bujokaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "일부에서는 독재라고까지 하던데요.",
+   "beaver_en": "Some even call it a dictatorship.",
+   "beaver_roman": "ilbueseoneun dokjaeragokkaji hadeondeyo.",
+   "learner": "독재자의 억압 통치와는 달라요.",
+   "en": "It's different from a dictator's oppressive rule.",
+   "roman": "dokjaejaui eogap tongchiwaneun dallayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래도 언론 탄압 걱정은 있잖아요.",
+   "beaver_en": "Still, there are worries about press suppression.",
+   "beaver_roman": "geuraedo eollon tanap geokjeongeun itjanayo.",
+   "learner": "비판은 하되 민주 체제는 지켜야 해요.",
+   "en": "Criticize, but we must protect the democratic system.",
+   "roman": "bipaneun hadoe minju chejeneun jikyeoya haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "주권은 국민에게 있다는 거죠?",
+   "beaver_en": "You mean sovereignty lies with the people?",
+   "beaver_roman": "jugwoneun gungminege itdaneun geojyo?",
+   "learner": "네, 지배가 아니라 국민 주권이 기본이에요.",
+   "en": "Yes, not domination—popular sovereignty is the basis.",
+   "roman": "ne, jibaega anira gungmin jugwoni gibonieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "선거 얘기도 좀 더 해 주시겠어요?",
+   "beaver_en": "Could you tell me more about elections?",
+   "beaver_roman": "seongeo yaegido jom deo hae jusigesseoyo?",
+   "learner": "후보자를 시급히 검증해야 해요.",
+   "en": "We urgently need to vet the candidates.",
+   "roman": "hubojareul sigeupi geomjeunghaeya haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "옛날엔 정복으로 나라를 얻었죠.",
+   "beaver_en": "In the past, countries were won by conquest.",
+   "beaver_roman": "yennaren jeongbogeuro narareul eodeotjyo.",
+   "learner": "이제는 선거로 정권을 바꾸죠.",
+   "en": "Now we change governments through elections.",
+   "roman": "ijeneun seongeoro jeonggwoneul bakkujyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 얘기 즐거웠어요.",
+   "beaver_en": "I enjoyed our talk today.",
+   "beaver_roman": "oneul yaegi jeulgeowosseoyo.",
+   "learner": "저도요. 생각은 달라도 대화는 좋았어요.",
+   "en": "Me too. Our views differ, but the talk was good.",
+   "roman": "jeodoyo. saenggageun dallado daehwaneun joasseoyo."
+  }
+ ]
+}

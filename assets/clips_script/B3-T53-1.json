@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T53-1",
+ "no": 241,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "다음 달 선거 있잖아요. 후보들 봤어요?",
+   "beaver_en": "There's an election next month. Have you seen the candidates?",
+   "beaver_roman": "Daeum dal seongeo itjanayo. Hubodeul bwasseoyo?",
+   "learner": "네, 봤어요. 후보가 다섯 명이라 고민이에요.",
+   "en": "Yes, I have. There are five candidates, so it's hard to choose.",
+   "roman": "Ne, bwasseoyo. Huboga daseon myeongira gominieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "누구 정책이 제일 마음에 들어요?",
+   "beaver_en": "Whose policies do you like best?",
+   "beaver_roman": "Nugu jeongchaegi jeil maeume deureoyo?",
+   "learner": "남북 평화 정책이 좋아서 마음이 가요.",
+   "en": "I like the inter-Korean peace policy, so I lean that way.",
+   "roman": "Nambuk pyeonghwa jeongchaegi joaseo maeumi gayo."
+  },
+  {
+   "n": 3,
+   "beaver": "남북 관계는 정말 중요하죠.",
+   "beaver_en": "Inter-Korean relations really matter.",
+   "beaver_roman": "Nambuk gwangyeneun jeongmal jungyohajyo.",
+   "learner": "맞아요. 평화가 중요하다는 건 다 알죠.",
+   "en": "Right. Everyone knows peace is important.",
+   "roman": "Majayo. Pyeonghwaga jungyohadaneun geon da aljyo."
+  },
+  {
+   "n": 4,
+   "beaver": "정부 개혁 이야기도 많던데, 개혁은 가능할까요?",
+   "beaver_en": "There's a lot of talk about government reform. Is reform possible?",
+   "beaver_roman": "Jeongbu gaehyeok iyagido manteonde, gaehyeogeun ganeunghalkkayo?",
+   "learner": "쉽지 않지만 정부 개혁이 필요함은 분명해요.",
+   "en": "It's not easy, but government reform is clearly needed.",
+   "roman": "Swipji anchiman jeongbu gaehyeogi piryohameun bunmyeonghaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "정치인들은요? 믿을 만해요?",
+   "beaver_en": "What about the politicians? Can we trust them?",
+   "beaver_roman": "Jeongchiindeureunyo? Mideul manhaeyo?",
+   "learner": "권력을 가진 정치인은 책임도 커야 해요.",
+   "en": "Politicians with power should also have great responsibility.",
+   "roman": "Gwollyeogeul gajin jeongchiineun chaegimdo keoya haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "맞아요. 좋은 지도자가 필요하죠.",
+   "beaver_en": "True. We need good leaders.",
+   "beaver_roman": "Majayo. Joeun jidojaga piryohajyo.",
+   "learner": "좋은 지도자는 국민의 말을 잘 들어요.",
+   "en": "A good leader listens well to the people.",
+   "roman": "Joeun jidojaneun gungmine mareul jal deureoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "보수 후보는 어떻게 생각해요?",
+   "beaver_en": "What do you think of the conservative candidate?",
+   "beaver_roman": "Bosu huboneun eotteoke saenggakaeyo?",
+   "learner": "보수 후보도 장점이 있음을 인정해요.",
+   "en": "I admit the conservative candidate has strengths too.",
+   "roman": "Bosu hubodo jangjeomi isseumeul injeonghaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그 후보는 전에 대사였대요.",
+   "beaver_en": "I heard that candidate used to be an ambassador.",
+   "beaver_roman": "Geu huboneun jeone daesayeotdaeyo.",
+   "learner": "대사였으니까 외교는 잘할 것 같아요.",
+   "en": "Since he was an ambassador, he'll probably be good at diplomacy.",
+   "roman": "Daesayeosseunikka oegyoneun jalhal kkeot gatayo."
+  },
+  {
+   "n": 9,
+   "beaver": "정치와 선거에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about politics and elections?",
+   "beaver_roman": "Jeongchiwa seongeoe daehae deo iyagihae bollaeyo?",
+   "learner": "그럼요. 투표가 민주주의의 시작이잖아요.",
+   "en": "Of course. Voting is where democracy begins, after all.",
+   "roman": "Geureomyo. Tupyoga minjujuuie sijagijanayo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 그날 꼭 같이 투표해요.",
+   "beaver_en": "Right. Let's definitely vote together that day.",
+   "beaver_roman": "Majayo. Geunal kkok gachi tupyohaeyo.",
+   "learner": "네, 선거 날 점심 먹고 같이 가요!",
+   "en": "Sure, let's go together after lunch on election day!",
+   "roman": "Ne, seongeo nal jeomsim meokgo gachi gayo!"
+  }
+ ]
+}

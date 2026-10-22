@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T38-1",
+ "no": 278,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "너 그 소문 들었어? 숲에 큰 짐승이 산대.",
+   "beaver_en": "Did you hear the rumor? A big beast lives in the forest.",
+   "beaver_roman": "neo geu somun deureosseo? supe keun jimseungi sandae.",
+   "learner": "큰 짐승? 우리 동네 숲에 그런 게 있을 리가 없어.",
+   "en": "A big beast? There's no way that's in our forest.",
+   "roman": "keun jimseung? uri dongne supe geureon ge isseul liga eopseo."
+  },
+  {
+   "n": 2,
+   "beaver": "진짜야. 한밤중에 사냥꾼도 봤대.",
+   "beaver_en": "It's true. Even a hunter saw it at midnight.",
+   "beaver_roman": "jinjjaya. hanbamjunge sanyangkkundo bwatdae.",
+   "learner": "거기는 사냥 금지야. 사냥꾼이 있을 리가 없지.",
+   "en": "Hunting is banned there. No way a hunter was there.",
+   "roman": "geogineun sanyang geumjiya. sanyangkkuni isseul liga eopji."
+  },
+  {
+   "n": 3,
+   "beaver": "그 짐승이 거북이를 잡아먹는대.",
+   "beaver_en": "They say the beast eats turtles.",
+   "beaver_roman": "geu jimseungi geobugireul jabameongneundae.",
+   "learner": "거북이 등은 딱딱해. 쉽게 먹을 리가 없어.",
+   "en": "A turtle's shell is hard. No way it eats them easily.",
+   "roman": "geobugi deungeun ttakttakae. swipge meogeul liga eopseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그리고 고양이처럼 야옹 하고 운대.",
+   "beaver_en": "And it goes meow, like a cat.",
+   "beaver_roman": "geurigo goyangicheoreom yaong hago undae.",
+   "learner": "큰 짐승이 야옹 하고 울 리가 없잖아.",
+   "en": "There's no way a big beast says meow.",
+   "roman": "keun jimseungi yaong hago ul liga eopjana."
+  },
+  {
+   "n": 5,
+   "beaver": "또 거미가 사람만큼 크대. 거미줄도 봤대.",
+   "beaver_en": "Also, a spider is as big as a person. They saw its web.",
+   "beaver_roman": "tto geomiga sarammankeum keudae. geomijuldo bwatdae.",
+   "learner": "사람만큼 큰 거미? 그런 거미가 있을 리 없어.",
+   "en": "A spider as big as a person? No way that exists.",
+   "roman": "sarammankeum keun geomi? geureon geomiga isseul li eopseo."
+  },
+  {
+   "n": 6,
+   "beaver": "개구리랑 거북이도 갑자기 많이 줄었대.",
+   "beaver_en": "And frogs and turtles suddenly decreased a lot.",
+   "beaver_roman": "gaegurirang geobugido gapjagi mani jureotdae.",
+   "learner": "정말? 개구리는 아직 꽤 많던데.",
+   "en": "Really? There still seemed to be quite a lot of frogs.",
+   "roman": "jeongmal? gaegurineun ajik kkwae manteonde."
+  },
+  {
+   "n": 7,
+   "beaver": "그 짐승이 씨앗도 먹는대. 그래서 꽃이 없대.",
+   "beaver_en": "It eats seeds too. That's why there are no flowers.",
+   "beaver_roman": "geu jimseungi ssiatdo meongneundae. geuraeseo kkochi eopdae.",
+   "learner": "고기 먹는 짐승이 씨앗을 먹을 리가 없지.",
+   "en": "No way a meat-eating beast eats seeds.",
+   "roman": "gogi meongneun jimseungi ssiaseul meogeul liga eopji."
+  },
+  {
+   "n": 8,
+   "beaver": "듣고 보니 좀 이상하네. 내가 너무 믿었나?",
+   "beaver_en": "Now that I hear it, it's strange. Did I believe it too easily?",
+   "beaver_roman": "deutgo boni jom isanghane. naega neomu mideonna?",
+   "learner": "응. 소문은 매번 조금씩 커지잖아.",
+   "en": "Yeah. Rumors get a little bigger every time.",
+   "roman": "eung. somuneun maebeon jogeumssik keojijana."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아. 그럼 주말에 같이 숲에 가 볼래?",
+   "beaver_en": "Right. Then want to go to the forest together this weekend?",
+   "beaver_roman": "maja. geureom jumare gachi supe ga bollae?",
+   "learner": "좋아. 개구리랑 거미를 직접 찾아보자.",
+   "en": "Sure. Let's look for frogs and spiders ourselves.",
+   "roman": "joa. gaegurirang geomireul jikjeop chajaboja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아! 가서 동물이랑 식물 얘기 더 하자.",
+   "beaver_en": "Great! Let's talk more about animals and plants there.",
+   "beaver_roman": "joa! gaseo dongmurirang singmul yaegi deo haja.",
+   "learner": "그래. 큰 짐승은 절대 없을 거야. 하하.",
+   "en": "Okay. There's definitely no big beast. Haha.",
+   "roman": "geurae. keun jimseungeun jeoldae eopseul geoya. haha."
+  }
+ ]
+}

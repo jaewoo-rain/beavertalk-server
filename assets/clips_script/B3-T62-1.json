@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T62-1",
+ "no": 249,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 어떤 상담을 원하세요?",
+   "beaver_en": "Hello. What kind of consultation would you like today?",
+   "beaver_roman": "annyeonghaseyo. oneul eotteon sangdameul wonhaseyo?",
+   "learner": "요즘 지출이 너무 많아서 줄이고 싶어요.",
+   "en": "My spending is too high lately, so I want to cut it.",
+   "roman": "yojeum jichuri neomu manaseo jurigo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 주로 어디서 많이 쓰세요?",
+   "beaver_en": "I see. Where do you usually spend the most?",
+   "beaver_roman": "geureokunyo. juro eodiseo mani sseuseyo?",
+   "learner": "쇼핑을 자주 하고 할부로 많이 사요.",
+   "en": "I shop often and buy a lot in installments.",
+   "roman": "syopingeul jaju hago halburo mani sayo."
+  },
+  {
+   "n": 3,
+   "beaver": "할부가 몇 개나 남아 있어요?",
+   "beaver_en": "How many installment plans do you have left?",
+   "beaver_roman": "halbuga myeot gaena nama isseoyo?",
+   "learner": "세 개요. 큰돈이 한꺼번에 나가서 힘들어요.",
+   "en": "Three. A large sum goes out at once, so it's hard.",
+   "roman": "se gaeyo. keundoni hankkeobeone nagaseo himdeureoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "혹시 늦게 낸 돈도 있으세요?",
+   "beaver_en": "Have you paid anything late, by any chance?",
+   "beaver_roman": "hoksi neutge naen dondo isseuseyo?",
+   "learner": "네, 지난달에 연체료도 냈어요.",
+   "en": "Yes, I even paid a late fee last month.",
+   "roman": "ne, jinandare yeoncheryodo naesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 빚도 있으신가요?",
+   "beaver_en": "Do you have any other debts?",
+   "beaver_roman": "dareun bitdo isseusingayo?",
+   "learner": "카드 빚이 조금 있어요. 형편이 안 좋아요.",
+   "en": "I have some card debt. My situation isn't good.",
+   "roman": "kadeu biji jogeum isseoyo. hyeongpyeoni an joayo."
+  },
+  {
+   "n": 6,
+   "beaver": "걱정 마세요. 줄일 방법이 있어요.",
+   "beaver_en": "Don't worry. There are ways to cut back.",
+   "beaver_roman": "geokjeong maseyo. juril bangbeobi isseoyo.",
+   "learner": "정말요? 제가 과소비를 하는 것 같아요.",
+   "en": "Really? I think I'm overspending.",
+   "roman": "jeongmallyo? jega gwasobireul haneun geot gatayo."
+  },
+  {
+   "n": 7,
+   "beaver": "꼭 필요한 물건만 사는 게 중요해요.",
+   "beaver_en": "It's important to buy only what you really need.",
+   "beaver_roman": "kkok piryohan mulgeonman saneun ge jungyohaeyo.",
+   "learner": "맞아요. 물건 욕심이 많았어요.",
+   "en": "Right. I wanted too many things.",
+   "roman": "majayo. mulgeon yoksimi manasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그리고 매달 가계부를 써 보세요.",
+   "beaver_en": "Also, try keeping a household budget book every month.",
+   "beaver_roman": "geurigo maedal gagyebureul sseo boseyo.",
+   "learner": "가계부를 쓰면서 어디에 낭비하는지 볼게요.",
+   "en": "I'll keep a budget book and see where I waste money.",
+   "roman": "gagyebureul sseumyeonseo eodie nangbihaneunji bolgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 작은 습관이 큰 차이를 만들어요.",
+   "beaver_en": "Good. Small habits make a big difference.",
+   "beaver_roman": "joayo. jageun seupgwani keun chaireul mandeureoyo.",
+   "learner": "과소비의 대가가 크다는 걸 알았어요.",
+   "en": "I learned that the price of overspending is high.",
+   "roman": "gwasobiui daegaga keudaneun geol arasseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "돈 관리에 대해 더 이야기해 보실래요?",
+   "beaver_en": "Would you like to talk more about managing money?",
+   "beaver_roman": "don gwallie daehae deo iyagihae bosillaeyo?",
+   "learner": "네, 먹고살려면 배워야죠. 다음 주에 올게요.",
+   "en": "Yes, I have to learn this to get by. I'll come next week.",
+   "roman": "ne, meokgosallyeomyeon baewoyajyo. daeum jue olgeyo."
+  }
+ ]
+}

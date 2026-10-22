@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T56-1",
+ "no": 482,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김 경위, 사건 경위를 보고하세요.",
+   "beaver_en": "Lieutenant Kim, report how the incident happened.",
+   "beaver_roman": "Gim gyeongwi, sageon gyeongwireul bogohaseyo.",
+   "learner": "네, 어젯밤 검문 중에 절도 차량을 적발했습니다.",
+   "en": "Yes, last night we caught a stolen car at a checkpoint.",
+   "roman": "Ne, eojetbam geommun junge jeoldo charyangeul jeokbalhaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "그다음엔 어떻게 됐습니까?",
+   "beaver_en": "What happened after that?",
+   "beaver_roman": "Geudaeumen eotteoke dwaetseumnikka?",
+   "learner": "추적하다가 창고에서 감금된 인질을 발견했습니다.",
+   "en": "While chasing them, we found hostages confined in a warehouse.",
+   "roman": "Chujeokadaga changgoeseo gamgeumdoen injireul balgyeonhaetseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "인질은 어떻습니까?",
+   "beaver_en": "How are the hostages?",
+   "beaver_roman": "Injireun eotteoseumnikka?",
+   "learner": "기습 작전으로 인질 세 명을 모두 구출했습니다.",
+   "en": "We rescued all three hostages in a surprise raid.",
+   "roman": "Giseup jakjeoneuro injil se myeongeul modu guchulhaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "다행이군요. 무기는 확보했습니까?",
+   "beaver_en": "Thank goodness. Did you secure the weapons?",
+   "beaver_roman": "Dahaengigunyo. Mugineun hwakbohaetseumnikka?",
+   "learner": "네, 권총 두 정을 압수하고 내부를 수색했습니다.",
+   "en": "Yes, we seized two pistols and searched the inside.",
+   "roman": "Ne, gwonchong du jeongeul apsuhago naebureul susaekaetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "범인들이 저항하지는 않았습니까?",
+   "beaver_en": "Didn't the suspects resist?",
+   "beaver_roman": "Beomindeuri jeohanghajineun anatseumnikka?",
+   "learner": "무력으로 저항해서 대원 한 명이 폭행당했습니다.",
+   "en": "They resisted with force, and one officer was assaulted.",
+   "roman": "Muryeogeuro jeohanghaeseo daewon han myeongi pokaengdanghaetseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "부상자는 괜찮습니까?",
+   "beaver_en": "Is the injured officer okay?",
+   "beaver_roman": "Busangjaneun gwaenchanseumnikka?",
+   "learner": "방패 덕분에 크게 다치지는 않았습니다.",
+   "en": "Thanks to his shield, he wasn't badly hurt.",
+   "roman": "Bangpae deokbune keuge dachijineun anatseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "주범은 잡았습니까?",
+   "beaver_en": "Did you catch the ringleader?",
+   "beaver_roman": "Jubeomeun jabatseumnikka?",
+   "learner": "주범은 발각되자 창고를 폭파하려다 체포됐습니다.",
+   "en": "Once discovered, he tried to blow up the warehouse and was arrested.",
+   "roman": "Jubeomeun balgakdoeja changgoreul pokparyeoda chepodwaetseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "배후에 다른 음모가 있습니까?",
+   "beaver_en": "Is there another conspiracy behind it?",
+   "beaver_roman": "Baehue dareun eummoga itseumnikka?",
+   "learner": "네, 약탈과 살해까지 계획한 음모로 보입니다.",
+   "en": "Yes, it looks like a plot that even planned looting and murder.",
+   "roman": "Ne, yaktalgwa salhaekkaji gyehoekan eummoro boimnida."
+  },
+  {
+   "n": 9,
+   "beaver": "지난달 경비원 피살 사건과도 관련이 있습니까?",
+   "beaver_en": "Is it linked to last month's murder of a guard?",
+   "beaver_roman": "Jinandal gyeongbiwon pisal sageongwado gwallyeoni itseumnikka?",
+   "learner": "관련이 있어 보이지만 아직 증거가 부족합니다.",
+   "en": "It seems linked, but we still lack evidence.",
+   "roman": "Gwallyeoni isseo boijiman ajik jeunggeoga bujokamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠습니다. 이제 현장에서 철수하세요.",
+   "beaver_en": "Understood. Withdraw from the scene now.",
+   "beaver_roman": "Algetseumnida. Ije hyeonjangeseo cheolsuhaseyo.",
+   "learner": "네, 철수하고 지역 방범과 치안을 강화하겠습니다.",
+   "en": "Yes, we'll withdraw and step up local crime prevention and security.",
+   "roman": "Ne, cheolsuhago jiyeok bangbeomgwa chianeul ganghwahagetseumnida."
+  }
+ ]
+}

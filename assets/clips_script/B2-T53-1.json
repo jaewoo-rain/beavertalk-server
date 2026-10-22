@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T53-1",
+ "no": 198,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어제 대통령 연설 봤어? 통일 얘기 나왔잖아.",
+   "beaver_en": "Did you see the president's speech? He talked about unification.",
+   "beaver_roman": "eoje daetongnyeong yeonseol bwasseo? tongil yaegi nawatjana.",
+   "learner": "응, 봤어. 분단된 지 벌써 70년이 넘었더라.",
+   "en": "Yeah, I saw it. It's already been over 70 years since the division.",
+   "roman": "eung, bwasseo. bundandoen ji beolsseo chilsimnyeoni neomeotdeora."
+  },
+  {
+   "n": 2,
+   "beaver": "대통령은 통일에 대해 뭐라고 했어?",
+   "beaver_en": "What did the president say about unification?",
+   "beaver_roman": "daetongnyeongeun tongire daehae mworago haesseo?",
+   "learner": "외교로 평화를 먼저 만들겠다고 했어.",
+   "en": "He said he'd build peace through diplomacy first.",
+   "roman": "oegyoro pyeonghwareul meonjeo mandeulgetdago haesseo."
+  },
+  {
+   "n": 3,
+   "beaver": "외교가 정말 중요하겠네.",
+   "beaver_en": "Diplomacy must be really important.",
+   "beaver_roman": "oegyoga jeongmal jungyohagenne.",
+   "learner": "맞아. 그래서 외교관들 역할이 커질 것 같아.",
+   "en": "Right. So I think diplomats' roles will grow.",
+   "roman": "maja. geuraeseo oegyogwandeul yeokari keojil geot gata."
+  },
+  {
+   "n": 4,
+   "beaver": "넌 통일에 찬성하는 편이야?",
+   "beaver_en": "Are you generally for unification?",
+   "beaver_roman": "neon tongire chanseonghaneun pyeoniya?",
+   "learner": "응, 찬성해. 한번 노력해 볼 만하다고 생각해.",
+   "en": "Yes, I'm for it. I think it's worth trying.",
+   "roman": "eung, chanseonghae. hanbeon noryeokae bol manhadago saenggakae."
+  },
+  {
+   "n": 5,
+   "beaver": "근데 돈도 많이 들고 어렵지 않을까?",
+   "beaver_en": "But won't it be costly and difficult?",
+   "beaver_roman": "geunde dondo mani deulgo eoryeopji aneulkka?",
+   "learner": "어렵지만 같은 말을 쓴다는 공통점이 있잖아.",
+   "en": "It's hard, but we have the same language in common.",
+   "roman": "eoryeopjiman gateun mareul sseundaneun gongtongjeomi itjana."
+  },
+  {
+   "n": 6,
+   "beaver": "그건 그래. 주변 나라들은 어떻게 생각할까?",
+   "beaver_en": "True. What would neighboring countries think?",
+   "beaver_roman": "geugeon geurae. jubyeon naradeureun eotteoke saenggakalkka?",
+   "learner": "힘센 나라들이 영향을 줄 수도 있어.",
+   "en": "Powerful countries could influence it.",
+   "roman": "himsen naradeuri yeonghyangeul jul sudo isseo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 정치가 더 중요해지는 거구나.",
+   "beaver_en": "So that's why politics becomes more important.",
+   "beaver_roman": "geuraeseo jeongchiga deo jungyohaejineun geoguna.",
+   "learner": "응, 정치가 안정돼야 외교도 잘할 수 있어.",
+   "en": "Yeah, politics must be stable for good diplomacy.",
+   "roman": "eung, jeongchiga anjeongdwaeya oegyodo jalhal su isseo."
+  },
+  {
+   "n": 8,
+   "beaver": "정치랑 선거에 대해서도 더 얘기해 볼래?",
+   "beaver_en": "Want to talk more about politics and elections?",
+   "beaver_roman": "jeongchirang seongeoe daehaeseodo deo yaegihae bollae?",
+   "learner": "좋아. 다음 선거 공약도 들어 볼 만해.",
+   "en": "Sure. The next election pledges are worth hearing too.",
+   "roman": "joa. daeum seongeo gongyakdo deureo bol manhae."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 이번 주말에 토론회 같이 볼까?",
+   "beaver_en": "Then shall we watch the debate together this weekend?",
+   "beaver_roman": "geureom ibeon jumare toronhoe gachi bolkka?",
+   "learner": "그래. 그 토론회는 볼 만할 거야.",
+   "en": "Sure. That debate will be worth watching.",
+   "roman": "geurae. geu toronhoeneun bol manhal geoya."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 끝나고 커피 마시면서 또 얘기하자.",
+   "beaver_en": "Great. Let's talk more over coffee afterward.",
+   "beaver_roman": "joa. kkeunnago keopi masimyeonseo tto yaegihaja.",
+   "learner": "응, 주말에 보자. 연락할게!",
+   "en": "Okay, see you this weekend. I'll text you!",
+   "roman": "eung, jumare boja. yeollakalge!"
+  }
+ ]
+}

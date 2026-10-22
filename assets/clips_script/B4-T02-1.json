@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T02-1",
+ "no": 253,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어머, 이게 얼마 만이야? 정말 반갑다!",
+   "beaver_en": "Oh my, how long has it been? So good to see you!",
+   "beaver_roman": "Eomeo, ige eolma maniya? Jeongmal bangapda!",
+   "learner": "이모, 오 년 만에 뵈어요. 잘 지내셨어요?",
+   "en": "Auntie, I'm seeing you after five years. How have you been?",
+   "roman": "Imo, o nyeon mane boeoyo. Jal jinaesyeosseoyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "그럼. 집에 별일 없지? 엄마는 잘 계셔?",
+   "beaver_en": "Of course. All well at home? How's your mom?",
+   "beaver_roman": "Geureom. Jibe byeollil eopji? Eommaneun jal gyesyeo?",
+   "learner": "네, 엄마는 지난주에 외갓집에 다녀오셨어요.",
+   "en": "Yes, Mom visited Grandma's house last week.",
+   "roman": "Ne, eommaneun jinanjue oegatjibe danyeoosyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래. 너희 언니 수진이는 잘 지내?",
+   "beaver_en": "I see. How's your sister Sujin doing?",
+   "beaver_roman": "Geurae. Neohui eonni sujinineun jal jinae?",
+   "learner": "언니는 결혼 삼 년 만에 임신했어요.",
+   "en": "My sister got pregnant after three years of marriage.",
+   "roman": "Eonnineun gyeolhon sam nyeon mane imsinhaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "정말? 축하할 일이네! 출산은 언제야?",
+   "beaver_en": "Really? Congratulations! When is the baby due?",
+   "beaver_roman": "Jeongmal? Chukahal irine! Chulsaneun eonjeya?",
+   "learner": "다음 달이에요. 시간이 정말 빨라요.",
+   "en": "Next month. Time flies.",
+   "roman": "Daeum darieyo. Sigani jeongmal ppallayo."
+  },
+  {
+   "n": 5,
+   "beaver": "벌써? 시댁도 기뻐하시겠다.",
+   "beaver_en": "Already? Her in-laws must be happy too.",
+   "beaver_roman": "Beolsseo? Sidaekdo gippeohasigetda.",
+   "learner": "네, 시댁에서 언니를 친딸처럼 아끼세요.",
+   "en": "Yes, her in-laws treasure her like their own daughter.",
+   "roman": "Ne, sidaegeseo eonnireul chinttalcheoreom akkiseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "출산하고 나서는 어디서 쉬어?",
+   "beaver_en": "Where will she rest after giving birth?",
+   "beaver_roman": "Chulsanhago naseoneun eodiseo swieo?",
+   "learner": "출산 후에는 저희 집에서 쉴 거예요.",
+   "en": "After the birth, she'll rest at our house.",
+   "roman": "Chulsan hueneun jeohui jibeseo swil geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "잘됐네. 오빠 민호는 요즘 어때?",
+   "beaver_en": "Good. How's your brother Minho these days?",
+   "beaver_roman": "Jaldwaenne. Oppa minhoneun yojeum eottae?",
+   "learner": "오빠는 장남이라서 아빠 가게를 맡았어요.",
+   "en": "My brother is the eldest son, so he took over Dad's shop.",
+   "roman": "Oppaneun jangnamiraseo appa gagereul matasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "이모부가 민호를 친아들처럼 예뻐했잖아.",
+   "beaver_en": "Your uncle loved Minho like his own son, you know.",
+   "beaver_roman": "Imobuga minhoreul chinadeulcheoreom yeppeohaetjana.",
+   "learner": "네, 오빠도 이모부를 친아버지처럼 따라요.",
+   "en": "Yes, and my brother looks up to him like his own father.",
+   "roman": "Ne, oppado imobureul chinabeojicheoreom ttarayo."
+  },
+  {
+   "n": 9,
+   "beaver": "또 다른 소식은 없어?",
+   "beaver_en": "Any other news?",
+   "beaver_roman": "Tto dareun sosigeun eopseo?",
+   "learner": "외삼촌 큰아들 지훈이가 다음 달에 결혼해요.",
+   "en": "Uncle's eldest son Jihun is getting married next month.",
+   "roman": "Oesamchon keunadeul jihuniga daeum dare gyeolhonhaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "몰랐네! 오늘 소식 많이 들어서 좋다.",
+   "beaver_en": "I didn't know! So nice to hear all this news.",
+   "beaver_roman": "Mollanne! Oneul sosik mani deureoseo jota.",
+   "learner": "이모는 저한테 친어머니 같아요. 자주 연락드릴게요.",
+   "en": "You're like a mother to me. I'll keep in touch.",
+   "roman": "Imoneun jeohante chineomeoni gatayo. Jaju yeollakdeurilgeyo."
+  }
+ ]
+}

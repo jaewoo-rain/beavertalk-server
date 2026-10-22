@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T30-1",
+ "no": 371,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "응급실입니다. 환자분과 어떤 관계이십니까?",
+   "beaver_en": "This is the ER. How are you related to the patient?",
+   "beaver_roman": "Eunggeupsirimnida. Hwanjabungwa eotteon gwangyeisimnikka?",
+   "learner": "제 아버지세요. 갑자기 쓰러지셨어요.",
+   "en": "He's my father. He suddenly collapsed.",
+   "roman": "Je abeojiseyo. Gapjagi sseureojisyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "쓰러지셨을 때 어떻게 하셨습니까?",
+   "beaver_en": "What did you do when he collapsed?",
+   "beaver_roman": "Sseureojisyeosseul ttae eotteoke hasyeotseumnikka?",
+   "learner": "응급조치를 하고 바로 119에 전화했어요.",
+   "en": "I gave first aid and called 119 right away.",
+   "roman": "Eunggeupjochireul hago baro ililgue jeonhwahaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "잘하셨습니다. 평소에 드시는 약이 있습니까?",
+   "beaver_en": "Well done. Does he take any regular medicine?",
+   "beaver_roman": "Jalhasyeotseumnida. Pyeongsoe deusineun yagi itseumnikka?",
+   "learner": "혈압약은 물론이거니와 한약도 드세요.",
+   "en": "Not only blood pressure pills, but herbal medicine too.",
+   "roman": "Hyeoramnyageun mullonigeoniwa hanyakdo deuseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "한약은 어디서 지으셨습니까?",
+   "beaver_en": "Where did he get the herbal medicine?",
+   "beaver_roman": "Hanyageun eodiseo jieusyeotseumnikka?",
+   "learner": "동네 한의원에서 지었어요. 효능이 좋대요.",
+   "en": "From a local Korean medicine clinic. They say it works well.",
+   "roman": "Dongne haniwoneseo jieosseoyo. Hyoneungi jotaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "의약품과 한약을 같이 드시면 위험할 수 있습니다.",
+   "beaver_en": "Taking pharmaceuticals with herbal medicine can be risky.",
+   "beaver_roman": "Uiyakpumgwa hanyageul gachi deusimyeon wiheomhal su itseumnida.",
+   "learner": "그건 몰랐어요. 의사 선생님께 꼭 말씀드릴게요.",
+   "en": "I didn't know that. I'll be sure to tell the doctor.",
+   "roman": "Geugeon mollasseoyo. Uisa seonsaengnimkke kkok malsseumdeurilgeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "검진은 받으셨습니까?",
+   "beaver_en": "Has he had a checkup?",
+   "beaver_roman": "Geomjineun badeusyeotseumnikka?",
+   "learner": "작년에 건강 검진을 받았는데 괜찮았어요.",
+   "en": "He had a health checkup last year, and it was fine.",
+   "roman": "Jangnyeone geongang geomjineul badanneunde gwaenchanasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "지금은 어떠십니까? 보호자분도 많이 놀라셨죠?",
+   "beaver_en": "How are you now? You must have been shocked too.",
+   "beaver_roman": "Jigeumeun eotteosimnikka? Bohojabundo mani nollasyeotjyo?",
+   "learner": "저는 괜찮아요. 아버지가 완쾌하실 수 있을까요?",
+   "en": "I'm okay. Will my father make a full recovery?",
+   "roman": "Jeoneun gwaenchanayo. Abeojiga wankwaehasil su isseulkkayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "검사 결과를 봐야 하지만 의식은 돌아오셨습니다.",
+   "beaver_en": "We need the test results, but he's regained consciousness.",
+   "beaver_roman": "Geomsa gyeolgwareul bwaya hajiman uisigeun doraosyeotseumnida.",
+   "learner": "다행이에요. 응급 상황에는 뭘 조심해야 해요?",
+   "en": "What a relief. What should I be careful of in an emergency?",
+   "roman": "Dahaengieyo. Eunggeup sanghwangeneun mwol josimhaeya haeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "환자를 함부로 움직이지 말고 바로 신고하세요.",
+   "beaver_en": "Don't move the patient carelessly, and call for help right away.",
+   "beaver_roman": "Hwanjareul hamburo umjigiji malgo baro singohaseyo.",
+   "learner": "응급조치는 물론이거니와 신고도 중요하군요.",
+   "en": "So not only first aid, but calling for help matters too.",
+   "roman": "Eunggeupjochineun mullonigeoniwa singodo jungyohagunyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네. 이제 아버님을 보러 들어가셔도 됩니다.",
+   "beaver_en": "Yes. You may go in to see your father now.",
+   "beaver_roman": "Ne. Ije abeonimeul boreo deureogasyeodo doemnida.",
+   "learner": "정말 감사합니다. 지금 바로 가 볼게요.",
+   "en": "Thank you so much. I'll go right now.",
+   "roman": "Jeongmal gamsahamnida. Jigeum baro ga bolgeyo."
+  }
+ ]
+}

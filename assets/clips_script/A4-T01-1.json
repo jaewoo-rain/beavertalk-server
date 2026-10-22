@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T01-1",
+ "no": 85,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 오늘 처음 오셨죠? 자기소개 부탁해요.",
+   "beaver_en": "Hello! It's your first time today, right? Please introduce yourself.",
+   "beaver_roman": "annyeonghaseyo! oneul cheoeum osyeotjyo? jagisogae butakaeyo.",
+   "learner": "안녕하세요. 제 성은 브라운이고 이름은 톰이에요.",
+   "en": "Hello. My surname is Brown, and my name is Tom.",
+   "roman": "annyeonghaseyo. je seongeun beuraunigo ireumeun tomieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "반가워요, 톰 씨. 어느 나라에서 오셨어요?",
+   "beaver_en": "Nice to meet you, Tom. Which country are you from?",
+   "beaver_roman": "bangawoyo, tom ssi. eoneu naraeseo osyeosseoyo?",
+   "learner": "캐나다에서 왔어요. 한국에 온 지 일 년 됐어요.",
+   "en": "I'm from Canada. It's been a year since I came to Korea.",
+   "roman": "kaenadaeseo wasseoyo. hanguge on ji il nyeon dwaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "실례지만 나이가 어떻게 되세요?",
+   "beaver_en": "Excuse me, but how old are you?",
+   "beaver_roman": "sillyejiman naiga eotteoke doeseyo?",
+   "learner": "스물여덟 살이에요.",
+   "en": "I'm twenty-eight.",
+   "roman": "seumuryeodeol sarieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "정말 젊으시네요. 오늘 사람들 많이 왔죠?",
+   "beaver_en": "You're really young. Lots of people came today, right?",
+   "beaver_roman": "jeongmal jeolmeusineyo. oneul saramdeul mani watjyo?",
+   "learner": "네, 남자, 여자가 비슷하고 아이들도 있네요.",
+   "en": "Yes, there are about as many men as women, and kids too.",
+   "roman": "ne, namja, yeojaga biseutago aideuldo inneyo."
+  },
+  {
+   "n": 5,
+   "beaver": "어르신들도 오셨어요. 저쪽에 앉아 계세요.",
+   "beaver_en": "Some seniors came too. They're sitting over there.",
+   "beaver_roman": "eoreusindeuldo osyeosseoyo. jeojjoge anja gyeseyo.",
+   "learner": "아, 어르신들도 계시네요.",
+   "en": "Oh, there are seniors here too.",
+   "roman": "a, eoreusindeuldo gyesineyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그리고 신청서에 이름하고 나이를 써 주세요.",
+   "beaver_en": "Also, please write your name and age on the form.",
+   "beaver_roman": "geurigo sincheongseoe ireumhago naireul sseo juseyo.",
+   "learner": "네, 이름하고 나이를 다 썼어요.",
+   "en": "Okay, I wrote both my name and age.",
+   "roman": "ne, ireumhago naireul da sseosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "톰 씨에 대해 좀 더 이야기해 주실래요?",
+   "beaver_en": "Could you tell us a bit more about yourself, Tom?",
+   "beaver_roman": "tom ssie daehae jom deo iyagihae jusillaeyo?",
+   "learner": "저는 자신보다 남을 먼저 생각하려고 해요.",
+   "en": "I try to think of others before myself.",
+   "roman": "jeoneun jasinboda nameul meonjeo saenggakaryeogo haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "멋지네요. 주말에는 보통 뭐 하세요?",
+   "beaver_en": "That's great. What do you usually do on weekends?",
+   "beaver_roman": "meotjineyo. jumareneun botong mwo haseyo?",
+   "learner": "그냥 집에서 영화나 드라마를 봐요.",
+   "en": "I just watch movies or dramas at home.",
+   "roman": "geunyang jibeseo yeonghwana deuramareul bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "오늘 자기소개 시간은 어떠셨어요?",
+   "beaver_en": "How was the introduction time today?",
+   "beaver_roman": "oneul jagisogae siganeun eotteosyeosseoyo?",
+   "learner": "정말 즐거웠어요. 벌써 한 시간이 지났네요.",
+   "en": "It was really fun. An hour has already passed.",
+   "roman": "jeongmal jeulgeowosseoyo. beolsseo han sigani jinanneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그러네요. 다음 모임에도 꼭 오세요!",
+   "beaver_en": "It has. Please come to the next meeting too!",
+   "beaver_roman": "geureoneyo. daeum moimedo kkok oseyo!",
+   "learner": "네, 다음 주에 또 올게요. 감사합니다!",
+   "en": "Sure, I'll come again next week. Thank you!",
+   "roman": "ne, daeum jue tto olgeyo. gamsahamnida!"
+  }
+ ]
+}

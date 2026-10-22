@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T33-1",
+ "no": 414,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘도 글을 꾸준히 쓰세요?",
+   "beaver_en": "Are you still writing regularly these days?",
+   "beaver_roman": "Yojeumdo geureul kkujunhi sseuseyo?",
+   "learner": "네, 글쓰기는 저에게 큰 즐거움이에요.",
+   "en": "Yes, writing is a great joy for me.",
+   "roman": "Ne, geulsseugineun jeoege keun jeulgeoumieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "서평도 쓰시지요?",
+   "beaver_en": "You write book reviews too, right?",
+   "beaver_roman": "Seopyeongdo sseusijiyo?",
+   "learner": "네, 지난주에 소설 서평을 하나 썼어요.",
+   "en": "Yes, I wrote a review of a novel last week.",
+   "roman": "Ne, jinanjue soseol seopyeongeul hana sseosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "어떤 책이었는데요?",
+   "beaver_en": "What book was it?",
+   "beaver_roman": "Eotteon chaegieonneundeyo?",
+   "learner": "모닥불 앞에서 이야기하는 가족 소설이에요.",
+   "en": "It's a family novel about talking by a bonfire.",
+   "roman": "Modakppul apeseo iyagihaneun gajok soseorieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "작가가 누구였어요?",
+   "beaver_en": "Who was the writer?",
+   "beaver_roman": "Jakkaga nuguyeosseoyo?",
+   "learner": "신인 작가인데 문장이 참 풋풋해요.",
+   "en": "A new writer, and the sentences are really fresh.",
+   "roman": "Sinin jakkainde munjangi cham puputaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "문학적인 표현도 많았나요?",
+   "beaver_en": "Were there many literary expressions too?",
+   "beaver_roman": "Munhakjjeogin pyohyeondo manannayo?",
+   "learner": "네, 문학적 표현이 구슬처럼 반짝였어요.",
+   "en": "Yes, the literary expressions sparkled like beads.",
+   "roman": "Ne, munhakjjeok pyohyeoni guseulcheoreom banjjagyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "책을 내실 생각은 없으세요?",
+   "beaver_en": "Have you thought about publishing a book?",
+   "beaver_roman": "Chaegeul naesil saenggageun eopseuseyo?",
+   "learner": "언젠가 제 소설을 집필하고 싶어요.",
+   "en": "Someday I'd like to write my own novel.",
+   "roman": "Eonjenga je soseoreul jippilhago sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "어떤 이야기를 쓰고 싶으세요?",
+   "beaver_en": "What kind of story do you want to write?",
+   "beaver_roman": "Eotteon iyagireul sseugo sipeuseyo?",
+   "learner": "어릴 때 할머니와 구슬치기한 이야기요.",
+   "en": "A story about playing marbles with my grandma as a kid.",
+   "roman": "Eoril ttae halmeoniwa guseulchigihan iyagiyo."
+  },
+  {
+   "n": 8,
+   "beaver": "글쓰기 말고 다른 취미도 있으세요?",
+   "beaver_en": "Do you have any other hobbies besides writing?",
+   "beaver_roman": "Geulsseugi malgo dareun chwimido isseuseyo?",
+   "learner": "아니요, 주말 글쓰기만으로도 즐겁기가 이를 데 없어요.",
+   "en": "No, writing on weekends alone is extremely enjoyable.",
+   "roman": "Aniyo, jumal geulsseugimaneurodo jeulgeopkkiga ireul de eopseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음 모임에서 글을 읽어 주실래요?",
+   "beaver_en": "Would you read your writing at the next meeting?",
+   "beaver_roman": "Daeum moimeseo geureul ilgeo jusillaeyo?",
+   "learner": "좋아요. 새 서평을 가져올게요.",
+   "en": "Sure. I'll bring a new book review.",
+   "roman": "Joayo. Sae seopyeongeul gajyeoolkkeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "기대할게요. 오늘 이야기 즐거웠어요.",
+   "beaver_en": "I'll look forward to it. I enjoyed our talk today.",
+   "beaver_roman": "Gidaehalkkeyo. Oneul iyagi jeulgeowosseoyo.",
+   "learner": "저도요. 다음 모임에서 뵐게요.",
+   "en": "Me too. See you at the next meeting.",
+   "roman": "Jeodoyo. Daeum moimeseo boelkkeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T62-1",
+ "no": 290,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 어떤 상담을 원하세요?",
+   "beaver_en": "Hello. What kind of consultation would you like today?",
+   "beaver_roman": "annyeonghaseyo. oneul eotteon sangdameul wonhaseyo?",
+   "learner": "돈 관리 습관에 대해 상담받고 싶어요.",
+   "en": "I'd like advice about my money habits.",
+   "roman": "don gwalli seupgwane daehae sangdambatgo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 월급은 어떻게 관리하세요?",
+   "beaver_en": "Great. How do you manage your salary?",
+   "beaver_roman": "joayo. wolgeubeun eotteoke gwallihaseyo?",
+   "learner": "월급이 입금되면 바로 저축부터 해요.",
+   "en": "When my salary is deposited, I save first.",
+   "roman": "wolgeubi ipgeumdoemyeon baro jeochukbuteo haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "잘하고 계시네요. 대출은 있으세요?",
+   "beaver_en": "You're doing well. Do you have any loans?",
+   "beaver_roman": "jalhago gyesineyo. daechureun isseuseyo?",
+   "learner": "네, 작년에 집 때문에 대출을 받았어요.",
+   "en": "Yes, I took out a loan for a house last year.",
+   "roman": "ne, jangnyeone jip ttaemune daechureul badasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "이자 연체는 없으셨어요?",
+   "beaver_en": "Have you ever been late on interest?",
+   "beaver_roman": "ija yeoncheneun eopseusyeosseoyo?",
+   "learner": "한 번도 연체한 적 없어요. 꼭 제때 내요.",
+   "en": "Never been overdue. I always pay on time.",
+   "roman": "han beondo yeonchehan jeok eopseoyo. kkok jettae naeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "훌륭하네요. 큰 지출은요?",
+   "beaver_en": "Excellent. What about big expenses?",
+   "beaver_roman": "hullyunghaneyo. keun jichureunyo?",
+   "learner": "지난달 노트북을 일시불로 지불했어요.",
+   "en": "Last month I paid for a laptop in one lump sum.",
+   "roman": "jinandal noteubugeul ilsibullo jibulhaesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "카드 혜택도 비교해 보셨어요?",
+   "beaver_en": "Did you also compare card benefits?",
+   "beaver_roman": "kadeu hyetaekdo bigyohae bosyeosseoyo?",
+   "learner": "네, 카드에 따라 수수료가 달라서 비교했어요.",
+   "en": "Yes, fees differ by card, so I compared them.",
+   "roman": "ne, kadeue ttara susuryoga dallaseo bigyohaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "세금은 어떻게 준비하세요?",
+   "beaver_en": "How do you prepare for taxes?",
+   "beaver_roman": "segeumeun eotteoke junbihaseyo?",
+   "learner": "세금 낼 액수를 미리 계산해서 모아 둬요.",
+   "en": "I calculate the tax amount ahead and save it.",
+   "roman": "segeum nael aeksureul miri gyesanhaeseo moa dwoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "혹시 현금도 자주 쓰세요?",
+   "beaver_en": "Do you often use cash, by any chance?",
+   "beaver_roman": "hoksi hyeongeumdo jaju sseuseyo?",
+   "learner": "지폐는 조금만 지갑에 넣고 다녀요.",
+   "en": "I only carry a few bills in my wallet.",
+   "roman": "jipyeneun jogeumman jigabe neoko danyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "앞으로 목표가 있으세요?",
+   "beaver_en": "Do you have any goals for the future?",
+   "beaver_roman": "apeuro mokpyoga isseuseyo?",
+   "learner": "재산을 모아서 여유 있게 살고 싶어요.",
+   "en": "I want to build wealth and live comfortably.",
+   "roman": "jaesaneul moaseo yeoyu itge salgo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 다음에 연금 상담도 해 드릴게요.",
+   "beaver_en": "Then I'll help you with pensions next time.",
+   "beaver_roman": "geureom daeume yeongeum sangdamdo hae deurilgeyo.",
+   "learner": "네, 연금 지급 날짜도 알려 주세요. 감사합니다.",
+   "en": "Okay, please tell me the payment dates too. Thank you.",
+   "roman": "ne, yeongeum jigeup naljjado allyeo juseyo. gamsahamnida."
+  }
+ ]
+}

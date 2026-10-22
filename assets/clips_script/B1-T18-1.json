@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T18-1",
+ "no": 133,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "배낭여행 어디로 갈까? 남미는 어때?",
+   "beaver_en": "Where should we go backpacking? How about South America?",
+   "beaver_roman": "baenangnyeohaeng eodiro galkka? nammineun eottae?",
+   "learner": "남미는 비자가 복잡해. 아시아로 가자.",
+   "en": "Visas for South America are complicated. Let's go to Asia.",
+   "roman": "nammineun bijaga bokjapae. asiaro gaja."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아. 일본은 비자 없이 입국할 수 있지?",
+   "beaver_en": "Okay. We can enter Japan without a visa, right?",
+   "beaver_roman": "joa. ilboneun bija eopsi ipgukal su itji?",
+   "learner": "응, 입국도 쉬워. 코스는 내가 짤게.",
+   "en": "Yeah, entry is easy too. I'll plan the route.",
+   "roman": "eung, ipgukdo swiwo. koseuneun naega jjalge."
+  },
+  {
+   "n": 3,
+   "beaver": "고마워. 거기서 뭐 하고 싶어?",
+   "beaver_en": "Thanks. What do you want to do there?",
+   "beaver_roman": "gomawo. geogiseo mwo hago sipeo?",
+   "learner": "교토 고궁도 보고 온천에도 가고 싶어.",
+   "en": "I want to see the old palace in Kyoto and go to a hot spring.",
+   "roman": "gyoto gogungdo bogo oncheonedo gago sipeo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋다! 바다는? 해수욕장도 갈까?",
+   "beaver_en": "Nice! What about the sea? Should we go to a beach too?",
+   "beaver_roman": "jota! badaneun? haesuyokjangdo galkka?",
+   "learner": "응, 바다에서 유람선도 타 보자.",
+   "en": "Yeah, let's ride a cruise boat on the sea too.",
+   "roman": "eung, badaeseo yuramseondo ta boja."
+  },
+  {
+   "n": 5,
+   "beaver": "숙소는? 호텔은 좀 비싸잖아.",
+   "beaver_en": "What about lodging? Hotels are a bit pricey.",
+   "beaver_roman": "suksoneun? hotereun jom bissajana.",
+   "learner": "여관은 어때? 나는 아무 숙소나 괜찮아.",
+   "en": "How about an inn? Any place to stay is fine with me.",
+   "roman": "yeogwaneun eottae? naneun amu suksona gwaenchana."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 싼 여관을 찾아볼게. 음식은?",
+   "beaver_en": "Then I'll look for a cheap inn. What about food?",
+   "beaver_roman": "geureom ssan yeogwaneul chajabolge. eumsigeun?",
+   "learner": "나는 무슨 음식이나 잘 먹어. 걱정 마.",
+   "en": "I eat any kind of food. Don't worry.",
+   "roman": "naneun museun eumsigina jal meogeo. geokjeong ma."
+  },
+  {
+   "n": 7,
+   "beaver": "하하, 좋네. 안내서도 하나 살까?",
+   "beaver_en": "Haha, great. Should we buy a guidebook too?",
+   "beaver_roman": "haha, jonne. annaeseodo hana salkka?",
+   "learner": "응, 안내서는 내가 서점에서 살게.",
+   "en": "Yeah, I'll buy the guidebook at the bookstore.",
+   "roman": "eung, annaeseoneun naega seojeomeseo salge."
+  },
+  {
+   "n": 8,
+   "beaver": "짐은 어떻게 할까? 큰 가방 가져갈까?",
+   "beaver_en": "What about luggage? Should we bring big bags?",
+   "beaver_roman": "jimeun eotteoke halkka? keun gabang gajyeogalkka?",
+   "learner": "아니, 배낭 하나면 충분해. 가볍게 가자.",
+   "en": "No, one backpack is enough. Let's travel light.",
+   "roman": "ani, baenang hanamyeon chungbunhae. gabyeopge gaja."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아. 여행은 일주일 어때?",
+   "beaver_en": "Okay. How about a one-week trip?",
+   "beaver_roman": "joa. yeohaengeun iljuil eottae?",
+   "learner": "좋아. 일주일이면 코스를 다 돌 수 있어.",
+   "en": "Good. In a week we can cover the whole route.",
+   "roman": "joa. iljuirimyeon koseureul da dol su isseo."
+  },
+  {
+   "n": 10,
+   "beaver": "벌써 설렌다! 내일 또 이야기하자.",
+   "beaver_en": "I'm already excited! Let's talk again tomorrow.",
+   "beaver_roman": "beolsseo seollenda! naeil tto iyagihaja.",
+   "learner": "그래, 아시아 여행 정말 기대돼!",
+   "en": "Sure, I'm really looking forward to our Asia trip!",
+   "roman": "geurae, asia yeohaeng jeongmal gidaedwae!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T25-1",
+ "no": 269,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 학교에 새 소식이 있다고 들었어요.",
+   "beaver_en": "Hello. I heard the school has some news.",
+   "beaver_roman": "annyeonghaseyo. hakgyoe sae sosigi itdago deureosseoyo.",
+   "learner": "네, 교육청으로부터 좋은 소식을 받았어요.",
+   "en": "Yes, we got good news from the education office.",
+   "roman": "ne, gyoyukcheongeurobuteo joeun sosigeul badasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 소식인데요?",
+   "beaver_en": "What kind of news?",
+   "beaver_roman": "eotteon sosigindeyo?",
+   "learner": "근처 여고와 함께 과학 수업을 하게 됐어요.",
+   "en": "We're going to hold science classes with a nearby girls' high school.",
+   "roman": "geuncheo yeogowa hamkke gwahak sueobeul hage dwaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 좋네요. 선생님들은요?",
+   "beaver_en": "Wow, that's great. What about the teachers?",
+   "beaver_roman": "wa, jonneyo. seonsaengnimdeureunnyo?",
+   "learner": "대학 교수님들로부터 도움을 받아요.",
+   "en": "We get help from university professors.",
+   "roman": "daehak gyosunimdeullobuteo dowumeul badayo."
+  },
+  {
+   "n": 4,
+   "beaver": "교실은 충분한가요?",
+   "beaver_en": "Are there enough classrooms?",
+   "beaver_roman": "gyosireun chungbunhangayo?",
+   "learner": "네, 새 교실도 두 개 생겼어요.",
+   "en": "Yes, we also got two new classrooms.",
+   "roman": "ne, sae gyosildo du gae saenggyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 소식은 누구한테서 들으셨어요?",
+   "beaver_en": "Who did you hear that news from?",
+   "beaver_roman": "geu sosigeun nuguhanteseo deureusyeosseoyo?",
+   "learner": "교장 선생님으로부터 직접 들었어요.",
+   "en": "I heard it directly from the principal.",
+   "roman": "gyojang seonsaengnimeurobuteo jikjeop deureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "학생들 반응은 어때요?",
+   "beaver_en": "How are the students reacting?",
+   "beaver_roman": "haksaengdeul baneungeun eottaeyo?",
+   "learner": "학생들이 신나서 조를 만들어 준비하고 있어요.",
+   "en": "The students are excited and forming groups to prepare.",
+   "roman": "haksaengdeuri sinnaseo joreul mandeureo junbihago isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "학교생활에 대해 더 이야기해 주실래요?",
+   "beaver_en": "Could you tell me more about school life?",
+   "beaver_roman": "hakgyosaenghware daehae deo iyagihae jusillaeyo?",
+   "learner": "이번 달에 학용품 모금도 해요.",
+   "en": "This month we're also collecting school supplies.",
+   "roman": "ibeon dare hagyongpum mogeumdo haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "학용품은 어디에 쓰나요?",
+   "beaver_en": "What will the school supplies be used for?",
+   "beaver_roman": "hagyongpumeun eodie sseunayo?",
+   "learner": "어려운 학교에 보낼 거예요. 학부모회 아이디어예요.",
+   "en": "We'll send them to schools in need. It was the parents' association's idea.",
+   "roman": "eoryeoun hakgyoe bonael kkeoyeyo. hakbumohoe aidieoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "저도 돕고 싶어요. 어떻게 하면 돼요?",
+   "beaver_en": "I'd like to help too. What should I do?",
+   "beaver_roman": "jeodo dopgo sipeoyo. eotteoke hamyeon dwaeyo?",
+   "learner": "공책이나 연필을 교실로 보내 주세요.",
+   "en": "Please send notebooks or pencils to the classroom.",
+   "roman": "gongchaegina yeonpireul gyosillo bonae juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 소식 고마워요. 또 올게요.",
+   "beaver_en": "Thanks for the good news. I'll come again.",
+   "beaver_roman": "joeun sosik gomawoyo. tto olkkeyo.",
+   "learner": "네, 와 주셔서 감사합니다. 안녕히 가세요.",
+   "en": "Yes, thank you for coming. Goodbye.",
+   "roman": "ne, wa jusyeoseo gamsahamnida. annyeonghi gaseyo."
+  }
+ ]
+}

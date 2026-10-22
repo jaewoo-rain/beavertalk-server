@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T18-1",
+ "no": 308,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "숙소 알아봤어요? 요즘 성수기라서 걱정이에요.",
+   "beaver_en": "Did you look for a place to stay? It's peak season, so I'm worried.",
+   "beaver_roman": "Sukso arabwasseoyo? Yojeum seongsugiraseo geokjeongieyo.",
+   "learner": "네, 성수기라 호텔 객실은 다 찼어요.",
+   "en": "Yes, it's peak season, so the hotel rooms are all booked.",
+   "roman": "Ne, seongsugira hotel gaeksireun da chasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 값도 비싸지요?",
+   "beaver_en": "Really? They're expensive too, right?",
+   "beaver_roman": "Jeongmallyo? Gapdo bissajiyo?",
+   "learner": "네, 값에 놀란 나머지 바로 포기했어요.",
+   "en": "Yes, I was so shocked by the prices that I gave up right away.",
+   "roman": "Ne, gapse nollan nameoji baro pogihaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 어디서 자요? 다른 방법이 있어요?",
+   "beaver_en": "Then where will we sleep? Is there another option?",
+   "beaver_roman": "Geureom eodiseo jayo? Dareun bangbeobi isseoyo?",
+   "learner": "현지 민박을 찾아봤어요. 아직 방이 있대요.",
+   "en": "I looked for a local guesthouse. They say rooms are still available.",
+   "roman": "Hyeonji minbageul chajabwasseoyo. Ajik bangi itdaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "민박이요? 어떻게 찾았어요?",
+   "beaver_en": "A guesthouse? How did you find it?",
+   "beaver_roman": "Minbagiyo? Eotteoke chajasseoyo?",
+   "learner": "어떤 기행문에서 봤어요. 평이 좋더라고요.",
+   "en": "I saw it in a travelogue. The reviews were good.",
+   "roman": "Eotteon gihaengmuneseo bwasseoyo. Pyeongi joteoragoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "기행문에 뭐라고 쓰여 있었어요?",
+   "beaver_en": "What did the travelogue say?",
+   "beaver_roman": "Gihaengmune mworago sseuyeo isseosseoyo?",
+   "learner": "글쓴이가 거기서 한 달을 살다시피 했대요.",
+   "en": "The writer practically lived there for a month.",
+   "roman": "Geulsseuniga geogiseo han dareul saldasipi haetdaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 정말 좋았나 봐요. 방은 깨끗하대요?",
+   "beaver_en": "Wow, it must have been really good. Are the rooms clean?",
+   "beaver_roman": "Wa, jeongmal joanna bwayo. Bangeun kkaekkeutadaeyo?",
+   "learner": "네, 객실이 넓고 깨끗해서 인기가 있을 법해요.",
+   "en": "Yes, the rooms are big and clean, so it makes sense it's popular.",
+   "roman": "Ne, gaeksiri neolkko kkaekkeutaeseo ingiga isseul beopaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "잘됐네요. 근처에 살 만한 게 있을까요?",
+   "beaver_en": "Great. Is there anything worth buying nearby?",
+   "beaver_roman": "Jaldwaenneyo. Geuncheoe sal manhan ge isseulkkayo?",
+   "learner": "시장에 특산물이 많대요. 선물로 사도 좋겠어요.",
+   "en": "They say the market has lots of local specialties. Good for gifts.",
+   "roman": "Sijange teuksanmuri mandaeyo. Seonmullo sado jokesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 그런데 면세점도 들를 거예요?",
+   "beaver_en": "Nice. By the way, will you stop by the duty-free shop too?",
+   "beaver_roman": "Joayo. Geureonde myeonsejeomdo deulleul geoyeyo?",
+   "learner": "네, 공항 면세점만 잠깐 들를게요.",
+   "en": "Yes, I'll just stop by the airport duty-free shop briefly.",
+   "roman": "Ne, gonghang myeonsejeomman jamkkan deulleulgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 민박은 지금 바로 예약할까요?",
+   "beaver_en": "Then should we book the guesthouse right now?",
+   "beaver_roman": "Geureom minbageun jigeum baro yeyakalkkayo?",
+   "learner": "네, 금방 찰 것 같아요. 지금 할게요.",
+   "en": "Yes, it looks like it'll fill up soon. I'll do it now.",
+   "roman": "Ne, geumbang chal geot gatayo. Jigeum halgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 덕분에 여행이 기대돼요.",
+   "beaver_en": "Thanks. Because of you, I'm looking forward to the trip.",
+   "beaver_roman": "Gomawoyo. Deokbune yeohaengi gidaedwaeyo.",
+   "learner": "저도요. 예약하고 바로 메시지 보낼게요.",
+   "en": "Me too. I'll message you right after I book.",
+   "roman": "Jeodoyo. Yeyakago baro mesiji bonaelgeyo."
+  }
+ ]
+}

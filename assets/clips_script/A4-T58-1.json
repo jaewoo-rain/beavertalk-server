@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T58-1",
+ "no": 112,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수아 씨, 얼굴이 안 좋아요. 무슨 일 있어요?",
+   "beaver_en": "Sua, you don't look well. What's wrong?",
+   "beaver_roman": "Sua ssi, eolguri an joayo. Museun nil isseoyo?",
+   "learner": "사실 요즘 고민이 있어요. 들어 줄래요?",
+   "en": "Actually, I've been worried lately. Will you listen?",
+   "roman": "Sasil yojeum gomini isseoyo. Deureo jullaeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "그럼요. 천천히 이야기해 보세요.",
+   "beaver_en": "Of course. Take your time and tell me.",
+   "beaver_roman": "Geureomnyo. Cheoncheonhi iyagihae boseyo.",
+   "learner": "회사 일에 관심이 없어졌어요. 답답해요.",
+   "en": "I've lost interest in my work. I feel so frustrated.",
+   "roman": "Hoesa ire gwansimi eopseojyeosseoyo. Dapdapaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "저런, 언제부터 그랬어요?",
+   "beaver_en": "Oh no, since when?",
+   "beaver_roman": "Jeoreon, eonjebuteo geuraesseoyo?",
+   "learner": "잘 기억나지 않아요. 몇 달 전부터요.",
+   "en": "I don't really remember. A few months ago.",
+   "roman": "Jal gieongnaji anayo. Myeot ttal jeonbuteoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "처음 회사에 들어갔을 때는 어땠어요?",
+   "beaver_en": "How was it when you first joined?",
+   "beaver_roman": "Cheoeum hoesae deureogasseul ttaeneun eottaesseoyo?",
+   "learner": "그때는 즐거웠어요. 그 마음을 잊어버렸어요.",
+   "en": "It was fun then. I've forgotten that feeling.",
+   "roman": "Geuttaeneun jeulgeowosseoyo. Geu maeumeul ijeobeoryeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "지금 원하는 일이 있어요?",
+   "beaver_en": "Is there something you want to do now?",
+   "beaver_roman": "Jigeum wonhaneun iri isseoyo?",
+   "learner": "잘 모르겠어요. 제가 뭘 원하는지도 몰라요.",
+   "en": "I'm not sure. I don't even know what I want.",
+   "roman": "Jal moreugesseoyo. Jega mwol wonhaneunjido mollayo."
+  },
+  {
+   "n": 6,
+   "beaver": "관심 있는 일을 적어 보세요.",
+   "beaver_en": "Try writing down things you're interested in.",
+   "beaver_roman": "Gwansim inneun ireul jeogeo boseyo.",
+   "learner": "어릴 때 그림을 좋아했던 게 기억나요.",
+   "en": "I remember I loved drawing as a kid.",
+   "roman": "Eoril ttae geurimeul joahaetdeon ge gieongnayo."
+  },
+  {
+   "n": 7,
+   "beaver": "그림이요? 깊이 생각해 볼 만하네요.",
+   "beaver_en": "Drawing? That's worth thinking about.",
+   "beaver_roman": "Geurimiyo? Gipi saenggakae bol manhaneyo.",
+   "learner": "주말에 그림 수업을 들어 보고 싶어요.",
+   "en": "I'd like to try a drawing class on weekends.",
+   "roman": "Jumare geurim sueobeul deureo bogo sipeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋은 생각이에요. 꼭 해 보세요.",
+   "beaver_en": "Great idea. You should try it.",
+   "beaver_roman": "Joeun saenggagieyo. Kkok hae boseyo.",
+   "learner": "민지 씨도 한번 해 보세요. 같이 가요!",
+   "en": "You should try it too, Minji. Let's go together!",
+   "roman": "Minji ssido hanbeon hae boseyo. Gachi gayo!"
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 지금 기분은 어때요?",
+   "beaver_en": "Sure. How do you feel now?",
+   "beaver_roman": "Joayo. Jigeum gibuneun eottaeyo?",
+   "learner": "이야기하니까 마음이 가벼워졌어요.",
+   "en": "Talking about it made me feel lighter.",
+   "roman": "Iyagihanikka maeumi gabyeowojyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "다행이에요. 다 잘되기를 바라요.",
+   "beaver_en": "I'm glad. I hope everything goes well.",
+   "beaver_roman": "Dahaengieyo. Da jaldoegireul barayo.",
+   "learner": "고마워요. 저도 그렇게 되기를 바라요.",
+   "en": "Thank you. I hope so too.",
+   "roman": "Gomawoyo. Jeodo geureoke doegireul barayo."
+  }
+ ]
+}

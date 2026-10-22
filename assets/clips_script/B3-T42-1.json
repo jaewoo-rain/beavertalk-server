@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T42-1",
+ "no": 237,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 카메라가 갑자기 안 켜져요.",
+   "beaver_en": "Hello. My camera suddenly won't turn on.",
+   "beaver_roman": "annyeonghaseyo. kameraga gapjagi an kyeojyeoyo.",
+   "learner": "네, 먼저 배터리랑 부품을 확인해 볼게요.",
+   "en": "Okay, I'll check the battery and parts first.",
+   "roman": "ne, meonjeo baeteorirang bupumeul hwaginhae bolkkeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "방송국 취재용 카메라예요. 어제 넘어뜨렸어요.",
+   "beaver_en": "It's a camera for news coverage. I knocked it over yesterday.",
+   "beaver_roman": "bangsongguk chwijaeyong kameraeyo. eoje neomeotteuryeosseoyo.",
+   "learner": "넘어뜨린 뒤에 이상한 진동이 있었나요?",
+   "en": "After you knocked it over, was there any strange vibration?",
+   "roman": "neomeotteurin dwie isanghan jindongi isseonnayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "네, 켤 때 많이 떨렸어요. 오래 걸려요?",
+   "beaver_en": "Yes, it shook a lot when I turned it on. Will it take long?",
+   "beaver_roman": "ne, kyeol ttae mani tteollyeosseoyo. orae geollyeoyo?",
+   "learner": "내부 부품을 바꾸면 두어 시간 걸릴 거예요.",
+   "en": "If I replace the inner parts, it'll take about two hours.",
+   "roman": "naebu bupumeul bakkumyeon dueo sigan geollil kkeoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다행이네요. 오늘 스튜디오에서 촬영이 있거든요.",
+   "beaver_en": "That's a relief. I have a shoot at the studio today.",
+   "beaver_roman": "dahaengineyo. oneul seutyudioeseo chwaryeongi itkkeodeunyo.",
+   "learner": "어떤 영상을 찍으세요?",
+   "en": "What kind of video are you shooting?",
+   "roman": "eotteon yeongsangeul jjigeuseyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "새 프로그램 예고 영상이에요. 시청률이 중요해요.",
+   "beaver_en": "It's a preview for a new show. Ratings matter a lot.",
+   "beaver_roman": "sae peurogeuraem yego yeongsangieyo. sicheongnyuri jungyohaeyo.",
+   "learner": "그럼 서둘러야겠네요. 전원 버튼도 확인할게요.",
+   "en": "Then I'd better hurry. I'll check the power button too.",
+   "roman": "geureom seodulleoyagenneyo. jeonwon beotteundo hwaginhalkkeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "카메라 안에 영상 자료가 많아요. 자료는 안전한가요?",
+   "beaver_en": "There's a lot of footage in the camera. Is my data safe?",
+   "beaver_roman": "kamera ane yeongsang jaryoga manayo. jaryoneun anjeonhangayo?",
+   "learner": "네, 보안 때문에 사용자 자료는 열어 보지 않아요.",
+   "en": "Yes, for security we never open users' data.",
+   "roman": "ne, boan ttaemune sayongja jaryoneun yeoreo boji anayo."
+  },
+  {
+   "n": 7,
+   "beaver": "안심이 되네요. 혹시 제가 조작을 잘못한 걸까요?",
+   "beaver_en": "That's reassuring. Did I maybe operate it wrong?",
+   "beaver_roman": "ansimi doeneyo. hoksi jega jojageul jalmotan geolkkayo?",
+   "learner": "아니요, 떨어질 때 부품이 손상된 것 같아요.",
+   "en": "No, it seems a part got damaged when it fell.",
+   "roman": "aniyo, tteoreojil ttae bupumi sonsangdoen geot gatayo."
+  },
+  {
+   "n": 8,
+   "beaver": "그렇군요. 요즘 카메라는 기술이 정말 좋던데요.",
+   "beaver_en": "I see. Camera technology is really good these days.",
+   "beaver_roman": "geureokunyo. yojeum kameraneun gisuri jeongmal joteondeyo.",
+   "learner": "네, 요즘은 스마트폰 카메라도 좋지요.",
+   "en": "Yes, even smartphone cameras are good these days.",
+   "roman": "ne, yojeumeun seumateupon kamerado jochiyo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아요. 요즘은 시청자도 직접 영상을 만들어요.",
+   "beaver_en": "Right. Nowadays even viewers make their own videos.",
+   "beaver_roman": "majayo. yojeumeun sicheongjado jikjeop yeongsangeul mandeureoyo.",
+   "learner": "그래서 카메라 선전도 많이 하더라고요.",
+   "en": "That's why there are so many camera ads.",
+   "roman": "geuraeseo kamera seonjeondo mani hadeoragoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 두 시간 뒤에 다시 올게요. 수고하세요.",
+   "beaver_en": "Then I'll come back in two hours. Thanks for your work.",
+   "beaver_roman": "geureom du sigan dwie dasi olkkeyo. sugohaseyo.",
+   "learner": "네, 다 고치면 전화드릴게요. 안녕히 가세요.",
+   "en": "Sure, I'll call you when it's fixed. Goodbye.",
+   "roman": "ne, da gochimyeon jeonhwadeurilkkeyo. annyeonghi gaseyo."
+  }
+ ]
+}

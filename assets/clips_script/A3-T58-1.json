@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T58-1",
+ "no": 80,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "무슨 일 있어요? 얼굴이 안 좋아요.",
+   "beaver_en": "Is something wrong? You don't look well.",
+   "beaver_roman": "museun nil isseoyo? eolguri an joayo.",
+   "learner": "요즘 마음이 불안해요. 걱정이 많아요.",
+   "en": "I feel anxious these days. I have a lot of worries.",
+   "roman": "yojeum maeumi buranhaeyo. geokjeongi manayo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 걱정이요? 이야기해 보세요.",
+   "beaver_en": "What worries? Try telling me.",
+   "beaver_roman": "museun geokjeongiyo? iyagihae boseyo.",
+   "learner": "고향 친구가 자꾸 생각나요. 너무 그리워요.",
+   "en": "My friend from home keeps coming to mind. I miss them so much.",
+   "roman": "gohyang chinguga jakku saenggangnayo. neomu geuriwoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "많이 친한 친구예요?",
+   "beaver_en": "Are you two really close?",
+   "beaver_roman": "mani chinhan chinguyeyo?",
+   "learner": "네, 제가 제일 믿는 친구예요.",
+   "en": "Yes, they're the friend I trust the most.",
+   "roman": "ne, jega jeil minneun chinguyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 요즘 많이 외롭겠어요.",
+   "beaver_en": "Then you must be really lonely these days.",
+   "beaver_roman": "geureom yojeum mani oeropgesseoyo.",
+   "learner": "네, 혼자 있으면 정말 외로워요.",
+   "en": "Yes, when I'm alone I feel really lonely.",
+   "roman": "ne, honja isseumyeon jeongmal oerowoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 친구하고 좋은 기억이 많아요?",
+   "beaver_en": "Do you have many good memories with that friend?",
+   "beaver_roman": "geu chinguhago joeun gieogi manayo?",
+   "learner": "네, 그 기억을 잊을 수 없어요.",
+   "en": "Yes, I can't forget those memories.",
+   "roman": "ne, geu gieogeul ijeul su eopseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "외로우면 그 친구한테 연락해 보세요.",
+   "beaver_en": "If you're lonely, try contacting that friend.",
+   "beaver_roman": "oeroumyeon geu chinguhante yeollakae boseyo.",
+   "learner": "방금 전화했는데 안 받았어요.",
+   "en": "I just called, but they didn't answer.",
+   "roman": "banggeum jeonhwahaenneunde an badasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 마음이 더 안 좋았어요?",
+   "beaver_en": "So that made you feel worse?",
+   "beaver_roman": "geuraeseo maeumi deo an joasseoyo?",
+   "learner": "네, 울고 싶었지만 참았어요.",
+   "en": "Yes, I wanted to cry, but I held it in.",
+   "roman": "ne, ulgo sipeotjiman chamasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "너무 참지 마세요. 저한테 말해 보세요.",
+   "beaver_en": "Don't hold it in too much. Try talking to me.",
+   "beaver_roman": "neomu chamji maseyo. jeohante malhae boseyo.",
+   "learner": "고마워요. 지수 씨도 걱정 있으면 말해 보세요.",
+   "en": "Thanks. Jisu, you try telling me too if you're worried.",
+   "roman": "gomawoyo. jisu ssido geokjeong isseumyeon malhae boseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "네, 그럴게요. 친구한테 편지도 써 보세요.",
+   "beaver_en": "Okay, I will. Try writing your friend a letter, too.",
+   "beaver_roman": "ne, geureolgeyo. chinguhante pyeonjido sseo boseyo.",
+   "learner": "좋아요. 오늘 밤에 써 볼게요.",
+   "en": "Good idea. I'll try writing one tonight.",
+   "roman": "joayo. oneul bame sseo bolgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "마음이 조금 괜찮아졌어요?",
+   "beaver_en": "Do you feel a little better now?",
+   "beaver_roman": "maeumi jogeum gwaenchanajeosseoyo?",
+   "learner": "네, 걱정을 조금 잊었어요. 고마워요!",
+   "en": "Yes, I forgot my worries a little. Thank you!",
+   "roman": "ne, geokjeongeul jogeum ijeosseoyo. gomawoyo!"
+  }
+ ]
+}

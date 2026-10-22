@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T13-1",
+ "no": 217,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "아, 볶음밥이 너무 짜고 탔어. 왜 그럴까?",
+   "beaver_en": "Ah, the fried rice is too salty and burnt. Why?",
+   "beaver_roman": "A, bokkeumbabi neomu jjago tasseo. Wae geureolkka?",
+   "learner": "소스를 많이 넣었을 뿐만 아니라 불도 너무 셌어.",
+   "en": "Not only did we add a lot of sauce, but the heat was too high.",
+   "roman": "Soseureul mani neoeosseul ppunman anira buldo neomu sesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 다음엔 소스를 덜 넣을까?",
+   "beaver_en": "Then should we use less sauce next time?",
+   "beaver_roman": "Geureom daeumen soseureul deol neoeulkka?",
+   "learner": "응, 소스뿐만 아니라 소금도 줄이자.",
+   "en": "Yeah, let's cut down not only the sauce but also the salt.",
+   "roman": "Eung, soseuppunman anira sogeumdo jurija."
+  },
+  {
+   "n": 3,
+   "beaver": "시금치는? 너무 흐물흐물해졌어.",
+   "beaver_en": "What about the spinach? It got too mushy.",
+   "beaver_roman": "Sigeumchineun? Neomu heumulheumulhaejeosseo.",
+   "learner": "시금치를 너무 오래 볶았어. 마지막에 넣어야 해.",
+   "en": "We stir-fried the spinach too long. It should go in last.",
+   "roman": "Sigeumchireul neomu orae bokkasseo. Majimage neoeoya hae."
+  },
+  {
+   "n": 4,
+   "beaver": "옥수수는 왜 이렇게 차갑지?",
+   "beaver_en": "Why is the corn so cold?",
+   "beaver_roman": "Oksusuneun wae ireoke chagapji?",
+   "learner": "얼린 옥수수를 데우지 않고 바로 넣었잖아.",
+   "en": "We put the frozen corn in without heating it first.",
+   "roman": "Eollin oksusureul deuji anko baro neoeotjana."
+  },
+  {
+   "n": 5,
+   "beaver": "아, 맞다. 땅콩은 왜 이렇게 딱딱해?",
+   "beaver_en": "Oh, right. Why are the peanuts so hard?",
+   "beaver_roman": "A, matda. Ttangkongeun wae ireoke ttakttakae?",
+   "learner": "땅콩을 미리 물에 불리지 않아서 그래.",
+   "en": "It's because we didn't soak the peanuts in water first.",
+   "roman": "Ttangkongeul miri mure bulliji anaseo geurae."
+  },
+  {
+   "n": 6,
+   "beaver": "밥은 어때? 너무 질었지?",
+   "beaver_en": "How's the rice? Too mushy, right?",
+   "beaver_roman": "Babeun eottae? Neomu jireotji?",
+   "learner": "밥을 퍼서 바로 볶아서 질어진 거야.",
+   "en": "It got mushy because we scooped it and fried it right away.",
+   "roman": "Babeul peoseo baro bokkaseo jireojin geoya."
+  },
+  {
+   "n": 7,
+   "beaver": "남은 건 어떡하지? 버리기 아까워.",
+   "beaver_en": "What do we do with the leftovers? It's a waste to throw them out.",
+   "beaver_roman": "Nameun geon eotteokaji? Beorigi akkawo.",
+   "learner": "국에 말아 먹자. 아니면 얼려 두자.",
+   "en": "Let's eat it in soup. Or let's freeze it.",
+   "roman": "Guge mara meokja. Animyeon eollyeo duja."
+  },
+  {
+   "n": 8,
+   "beaver": "좋은 생각이야. 만두도 다 터졌는데.",
+   "beaver_en": "Good idea. The dumplings all burst too, though.",
+   "beaver_roman": "Joeun saenggagiya. Mandudo da teojeonneunde.",
+   "learner": "만두는 빚을 때 피가 너무 얇았어.",
+   "en": "The wrappers were too thin when we shaped the dumplings.",
+   "roman": "Manduneun bijeul ttae piga neomu yalbasseo."
+  },
+  {
+   "n": 9,
+   "beaver": "음식 안 버리는 방법도 찾아볼까?",
+   "beaver_en": "Should we also look for ways not to waste food?",
+   "beaver_roman": "Eumsik an beorineun bangbeopdo chajabolkka?",
+   "learner": "응, 재료를 안 버리는 요리법을 찾아보자.",
+   "en": "Yeah, let's find recipes that don't waste ingredients.",
+   "roman": "Eung, jaeryoreul an beorineun yoribeobeul chajaboja."
+  },
+  {
+   "n": 10,
+   "beaver": "그래, 다음엔 꼭 성공하자!",
+   "beaver_en": "Okay, let's definitely succeed next time!",
+   "beaver_roman": "Geurae, daeumen kkok seonggonghaja!",
+   "learner": "좋아, 다음엔 맛있고 보기 좋게 만들자!",
+   "en": "Great, next time let's make it tasty and nice-looking!",
+   "roman": "Joa, daeumen masitgo bogi joke mandeulja!"
+  }
+ ]
+}

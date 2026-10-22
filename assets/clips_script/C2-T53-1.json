@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T53-1",
+ "no": 386,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 요즘 국제 정세를 어떻게 보십니까?",
+   "beaver_en": "Hello. How do you see world affairs these days?",
+   "beaver_roman": "annyeonghaseyo. yojeum gukje jeongsereul eotteoke bosimnikka?",
+   "learner": "강대국들 사이의 경쟁이 나날이 커지고 있어요.",
+   "en": "Competition between powerful nations grows day by day.",
+   "roman": "gangdaegukdeul saiui gyeongjaengi nanari keojigo isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 점에서 그렇게 느끼십니까?",
+   "beaver_en": "What makes you feel that way?",
+   "beaver_roman": "eotteon jeomeseo geureoke neukkisimnikka?",
+   "learner": "여러 나라가 두 진영으로 나뉘는 추세예요.",
+   "en": "Many countries are tending to split into two camps.",
+   "roman": "yeoreo naraga du jinyeongeuro nanwineun chuseyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "한국 주변 상황은 어떻다고 보십니까?",
+   "beaver_en": "How do you see the situation around Korea?",
+   "beaver_roman": "hanguk jubyeon sanghwangeun eotteotago bosimnikka?",
+   "learner": "북한 문제는 하루아침에 풀리지 않을 거예요.",
+   "en": "The North Korea issue won't be solved overnight.",
+   "roman": "bukan munjeneun haruachime pulliji aneul geoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 한국은 어떻게 해야 합니까?",
+   "beaver_en": "Then what should Korea do?",
+   "beaver_roman": "geureom hangugeun eotteoke haeya hamnikka?",
+   "learner": "강대국들과 협력하되 자주성을 지켜야 해요.",
+   "en": "We should cooperate with powerful nations but keep our autonomy.",
+   "roman": "gangdaegukdeulgwa hyeomnyeokhadoe jajuseongeul jikyeoya haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "자주성이 왜 그렇게 중요합니까?",
+   "beaver_en": "Why is autonomy so important?",
+   "beaver_roman": "jajuseongi wae geureoke jungyohamnikka?",
+   "learner": "자국의 일은 자국민이 결정해야 하니까요.",
+   "en": "Because a country's people should decide its own affairs.",
+   "roman": "jagugui ireun jagungmini gyeoljeonghaeya hanikkayo."
+  },
+  {
+   "n": 6,
+   "beaver": "국제기구에서는 각국이 어떻게 움직입니까?",
+   "beaver_en": "How do countries act in international organizations?",
+   "beaver_roman": "gukjegigueseoneun gakgugi eotteoke umjigimnikka?",
+   "learner": "회원국마다 입장은 다르지만 대화는 계속해요.",
+   "en": "Each member country has different views, but they keep talking.",
+   "roman": "hoewongungmada ipjangeun dareujiman daehwaneun gyesokaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "각국의 선거는 국제 정세에 어떤 영향을 줍니까?",
+   "beaver_en": "How do each country's elections affect world affairs?",
+   "beaver_roman": "gakgugui seongeoneun gukje jeongsee eotteon yeonghyangeul jumnikka?",
+   "learner": "강대국에서 누가 당선되는지가 정말 중요해요.",
+   "en": "Who gets elected in powerful nations really matters.",
+   "roman": "gangdaegugeseo nuga dangseondoeneunjiga jeongmal jungyohaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "왜 그렇게 생각하십니까?",
+   "beaver_en": "Why do you think so?",
+   "beaver_roman": "wae geureoke saenggakasimnikka?",
+   "learner": "나라를 다스리는 방식이 세계에 영향을 줘요.",
+   "en": "The way they govern affects the whole world.",
+   "roman": "narareul daseurineun bangsigi segyee yeonghyangeul jwoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "한국 여론은 어떻습니까?",
+   "beaver_en": "What is public opinion like in Korea?",
+   "beaver_roman": "hanguk yeoroneun eotteosseumnikka?",
+   "learner": "국민들은 평화를 원하지만 불안도 느껴요.",
+   "en": "People want peace, but they also feel uneasy.",
+   "roman": "gungmindeureun pyeonghwareul wonhajiman burando neukkyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 많이 배웠습니다.",
+   "beaver_en": "Thank you for your insights. I learned a lot.",
+   "beaver_roman": "joeun malsseum gamsahamnida. mani baewotseumnida.",
+   "learner": "저도 즐거웠어요. 쉬운 해답은 없지만 함께 고민해요.",
+   "en": "I enjoyed it too. There's no easy answer, but let's think together.",
+   "roman": "jeodo jeulgeowosseoyo. swiun haedabeun eopjiman hamkke gominhaeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T64-1",
+ "no": 205,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 주말에 자연 보러 가고 싶어. 어디 좋아?",
+   "beaver_en": "I want to see some nature this weekend. Where's good?",
+   "beaver_roman": "ibeon jumare jayeon boreo gago sipeo. eodi joa?",
+   "learner": "설악산 계곡이 가 볼 만해. 물이 정말 맑아.",
+   "en": "The valley at Seoraksan is worth visiting. The water is really clear.",
+   "roman": "seoraksan gyegogi ga bol manhae. muri jeongmal malga."
+  },
+  {
+   "n": 2,
+   "beaver": "계곡 좋다! 거기 또 뭐가 있어?",
+   "beaver_en": "A valley sounds great! What else is there?",
+   "beaver_roman": "gyegok jota! geogi tto mwoga isseo?",
+   "learner": "큰 바위도 많고 숲도 넓어. 걸을 만해.",
+   "en": "There are lots of big rocks and a wide forest. It's worth walking.",
+   "roman": "keun bawido manko supdo neolbeo. georeul manhae."
+  },
+  {
+   "n": 3,
+   "beaver": "숲길은 힘들지 않아?",
+   "beaver_en": "Isn't the forest trail hard?",
+   "beaver_roman": "supgireun himdeulji ana?",
+   "learner": "별로 안 힘들어. 천천히 걸으면 돼.",
+   "en": "Not really. You just walk slowly.",
+   "roman": "byeollo an himdeureo. cheoncheonhi georeumyeon dwae."
+  },
+  {
+   "n": 4,
+   "beaver": "바다는? 바다도 보고 싶어.",
+   "beaver_en": "What about the sea? I want to see it too.",
+   "beaver_roman": "badaneun? badado bogo sipeo.",
+   "learner": "속초 바다가 가까워. 파도 소리가 멋져.",
+   "en": "The Sokcho sea is close. The sound of the waves is great.",
+   "roman": "sokcho badaga gakkawo. pado soriga meotjyeo."
+  },
+  {
+   "n": 5,
+   "beaver": "아이들이랑 가기 좋아?",
+   "beaver_en": "Is it good to go with kids?",
+   "beaver_roman": "aideurirang gagi joa?",
+   "learner": "응, 바닷가 옆에 잔디밭이 있어서 좋아.",
+   "en": "Yes, there's a lawn next to the beach, so it's good.",
+   "roman": "eung, badatga yeope jandibachi isseoseo joa."
+  },
+  {
+   "n": 6,
+   "beaver": "잔디밭에서 뭐 할 수 있어?",
+   "beaver_en": "What can you do on the lawn?",
+   "beaver_roman": "jandibateseo mwo hal su isseo?",
+   "learner": "돗자리 펴고 쉬기 좋아. 하루 놀 만해.",
+   "en": "It's good for resting on a mat. It's worth a day of fun.",
+   "roman": "dotjari pyeogo swigi joa. haru nol manhae."
+  },
+  {
+   "n": 7,
+   "beaver": "또 볼 만한 데 있어?",
+   "beaver_en": "Is there anything else worth seeing?",
+   "beaver_roman": "tto bol manhan de isseo?",
+   "learner": "산 근처에 오래된 우물도 있어. 볼 만해.",
+   "en": "There's also an old well near the mountain. It's worth seeing.",
+   "roman": "san geuncheoe oraedoen umuldo isseo. bol manhae."
+  },
+  {
+   "n": 8,
+   "beaver": "우물? 신기하다. 물도 마실 수 있어?",
+   "beaver_en": "A well? Interesting. Can you drink the water?",
+   "beaver_roman": "umul? singihada. muldo masil su isseo?",
+   "learner": "지금은 못 마셔. 그래도 구경할 만해.",
+   "en": "You can't drink it now. But it's still worth a look.",
+   "roman": "jigeumeun mot masyeo. geuraedo gugyeonghal manhae."
+  },
+  {
+   "n": 9,
+   "beaver": "기차표는 쉽게 구할 수 있어?",
+   "beaver_en": "Is it easy to get train tickets?",
+   "beaver_roman": "gichapyoneun swipge guhal su isseo?",
+   "learner": "주말엔 금방 매진돼. 빨리 예매해.",
+   "en": "They sell out fast on weekends. Book early.",
+   "roman": "jumaren geumbang maejindwae. ppalli yemaehae."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워! 다녀와서 사진 보여 줄게.",
+   "beaver_en": "Thanks! I'll show you photos when I'm back.",
+   "beaver_roman": "gomawo! danyeowaseo sajin boyeo julge.",
+   "learner": "좋아! 재미있게 다녀와.",
+   "en": "Great! Have fun!",
+   "roman": "joa! jaemiitge danyeowa."
+  }
+ ]
+}

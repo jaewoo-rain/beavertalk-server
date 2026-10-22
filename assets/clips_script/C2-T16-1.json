@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T16-1",
+ "no": 362,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "소식 들었어요? 다음 달에 새 항로가 개통된대요.",
+   "beaver_en": "Did you hear? A new route opens next month.",
+   "beaver_roman": "Sosik deureosseoyo? Daeum dare sae hangnoga gaetongdoendaeyo.",
+   "learner": "정말요? 그 항로에는 어떤 선박이 다녀요?",
+   "en": "Really? What ship runs on that route?",
+   "roman": "Jeongmallyo? Geu hangnoeneun eotteon seonbagi danyeoyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "바다호라는 배예요. 인천발 제주행이에요.",
+   "beaver_en": "It's a ship called the Bada. Incheon to Jeju.",
+   "beaver_roman": "Badahoraneun baeyeyo. Incheonbal jejuhaengieyo.",
+   "learner": "바다호요? 승합차나 소형차도 실을 수 있어요?",
+   "en": "The Bada? Can it carry vans or compact cars too?",
+   "roman": "Badahoyo? Seunghapchana sohyeongchado sireul su isseoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "네, 차도 실을 수 있대요. 차는 안 가져가세요?",
+   "beaver_en": "Yes, it can take cars. Aren't you bringing a car?",
+   "beaver_roman": "Ne, chado sireul su itdaeyo. Chaneun an gajeogaseyo?",
+   "learner": "차는 안 가져가요. 항구까지 도보로 갈 수 있어요?",
+   "en": "No car. Can I get to the port on foot?",
+   "roman": "Chaneun an gajeogayo. Hanggukkaji doboro gal su isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "지하철 종착역에서 내리면 걸어서 10분이에요.",
+   "beaver_en": "It's a 10-minute walk from the last subway stop.",
+   "beaver_roman": "Jihacheol jongchangnyeogeseo naerimyeon georeoseo sipbunieyo.",
+   "learner": "항구 앞 해변로는 포장이 끝났어요?",
+   "en": "Is the paving on Haebyeon-ro by the port done?",
+   "roman": "Hanggu ap haebyeonnoneun pojangi kkeunnasseoyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 다 됐어요. 회사에서 출장 때 배를 타래요.",
+   "beaver_en": "Yes, it's done. The company wants us to take the ship on business trips.",
+   "beaver_roman": "Ne, da dwaesseoyo. Hoesaeseo chuljang ttae baereul taraeyo.",
+   "learner": "배편이요? 기름값을 아끼려는 걸까요?",
+   "en": "By ship? Are they trying to save on fuel costs?",
+   "roman": "Baepyeoniyo? Gireumkkapseul akkiryeoneun geolkkayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "그것도 있고, 회사 차 브레이크가 자주 고장 나서요.",
+   "beaver_en": "That too, and the company car's brakes often break down.",
+   "beaver_roman": "Geugeotdo itgo, hoesa cha beureikeuga jaju gojang naseoyo.",
+   "learner": "배가 더 안전하겠네요. 배에도 안전벨트가 있어요?",
+   "en": "The ship must be safer. Does it have seat belts too?",
+   "roman": "Baega deo anjeonhagenneyo. Baeedo anjeonbelteuga isseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "좌석에 있대요. 또 궁금한 거 있어요?",
+   "beaver_en": "They're on the seats. Anything else you want to know?",
+   "beaver_roman": "Jwaseoge itdaeyo. Tto gunggeumhan geo isseoyo?",
+   "learner": "항구 가는 길을 내비게이션으로 찾을 수 있어요?",
+   "en": "Can I find the way to the port on the navigation?",
+   "roman": "Hanggu ganeun gireul naebigeisyeoneuro chajeul su isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 서해항을 치면 바로 나와요.",
+   "beaver_en": "Yes, type in Seohae Port and it shows up.",
+   "beaver_roman": "Ne, seohaehangeul chimyeon baro nawayo.",
+   "learner": "인천발 바다호는 몇 시에 출발해요?",
+   "en": "What time does the Bada leave Incheon?",
+   "roman": "Incheonbal badahoneun myeot sie chulbalhaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "매일 아침 9시예요. 첫 배는 다음 달 1일이에요.",
+   "beaver_en": "Every morning at 9. The first sailing is next month's 1st.",
+   "beaver_roman": "Maeil achim ahopsiyeyo. Cheot baeneun daeum dal iririeyo.",
+   "learner": "저는 운전을 안 해서 배편이 좋아요.",
+   "en": "I don't drive, so going by ship suits me.",
+   "roman": "Jeoneun unjeoneul an haeseo baepyeoni joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 첫날 같이 타 볼까요?",
+   "beaver_en": "Then shall we ride it together on the first day?",
+   "beaver_roman": "Geureom cheonnal gachi ta bolkkayo?",
+   "learner": "좋아요. 개통하는 날 항구에서 만나요.",
+   "en": "Sounds good. Let's meet at the port on opening day.",
+   "roman": "Joayo. Gaetonghaneun nal hanggueseo mannayo."
+  }
+ ]
+}

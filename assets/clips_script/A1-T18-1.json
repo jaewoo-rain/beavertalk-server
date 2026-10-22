@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T18-1",
+ "no": 13,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 하나여행사입니다. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello, this is Hana Travel. How can I help you?",
+   "beaver_roman": "Annyeonghaseyo, hanayeohaengsaimnida. Mueoseul dowadeurilkkayo?",
+   "learner": "서울 여행을 가고 싶어요. 외국에서 왔어요.",
+   "en": "I want to travel in Seoul. I came from abroad.",
+   "roman": "Seoul yeohaengeul gago sipeoyo. Oegugeseo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "반가워요. 며칠 동안 여행하실 거예요?",
+   "beaver_en": "Nice to meet you. How many days will you travel?",
+   "beaver_roman": "Bangawoyo. Myeochil dongan yeohaenghasil geoyeyo?",
+   "learner": "삼 일이요. 다음 주 월요일에 서울에 와요.",
+   "en": "Three days. I come to Seoul next Monday.",
+   "roman": "Sam iriyo. Daeum ju woryoire seoure wayo."
+  },
+  {
+   "n": 3,
+   "beaver": "어느 곳에 가고 싶으세요?",
+   "beaver_en": "Where would you like to go?",
+   "beaver_roman": "Eoneu gose gago sipeuseyo?",
+   "learner": "박물관에 가고 남대문 시장도 보고 싶어요.",
+   "en": "I want to go to a museum and see Namdaemun Market.",
+   "roman": "Bangmulgwane gago namdaemun sijangdo bogo sipeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋아요. 박물관은 일찍 가면 좋아요.",
+   "beaver_en": "Good. It's best to go to the museum early.",
+   "beaver_roman": "Joayo. Bangmulgwaneun iljjik gamyeon joayo.",
+   "learner": "네, 아침에 일찍 가고 오후에 시장에 갈게요.",
+   "en": "Okay, I'll go early in the morning and the market in the afternoon.",
+   "roman": "Ne, achime iljjik gago ohue sijange galgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "호텔은 예약하셨어요?",
+   "beaver_en": "Have you booked a hotel?",
+   "beaver_roman": "Hotereun yeyakasyeosseoyo?",
+   "learner": "아니요, 아직 안 했어요. 어떤 호텔이 좋아요?",
+   "en": "No, not yet. Which hotel is good?",
+   "roman": "Aniyo, ajik an haesseoyo. Eotteon hoteri joayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "동대문 근처가 싸요. 시장도 가까워요.",
+   "beaver_en": "Near Dongdaemun is cheap. The market is close too.",
+   "beaver_roman": "Dongdaemun geuncheoga ssayo. Sijangdo gakkawoyo.",
+   "learner": "동대문 호텔이 좋아요. 쇼핑하고 쉬고 싶어요.",
+   "en": "A Dongdaemun hotel sounds good. I want to shop and rest.",
+   "roman": "Dongdaemun hoteri joayo. Syopinghago swigo sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 동대문 호텔로 예약해 드릴게요.",
+   "beaver_en": "Then I'll book a Dongdaemun hotel for you.",
+   "beaver_roman": "Geureom dongdaemun hotello yeyakae deurilgeyo.",
+   "learner": "감사합니다. 이름은 마이클 브라운이에요.",
+   "en": "Thank you. My name is Michael Brown.",
+   "roman": "Gamsahamnida. Ireumeun maikeul beuraunieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "여기에 이름과 전화번호를 써 주세요.",
+   "beaver_en": "Please write your name and phone number here.",
+   "beaver_roman": "Yeogie ireumgwa jeonhwabeonhoreul sseo juseyo.",
+   "learner": "네, 다 썼어요. 여행사가 친절하고 좋네요.",
+   "en": "Okay, all done. This travel agency is kind and nice.",
+   "roman": "Ne, da sseosseoyo. Yeohaengsaga chinjeolhago jonneyo."
+  },
+  {
+   "n": 9,
+   "beaver": "감사합니다. 짐은 가볍게 챙기세요.",
+   "beaver_en": "Thank you. Pack your things light.",
+   "beaver_roman": "Gamsahamnida. Jimeun gabyeopge chaenggiseyo.",
+   "learner": "네, 오늘 밤에 가방을 싸고 일찍 잘게요.",
+   "en": "Okay, I'll pack my bag tonight and sleep early.",
+   "roman": "Ne, oneul bame gabangeul ssago iljjik jalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 여행 되세요. 또 오세요!",
+   "beaver_en": "Have a good trip. Come again!",
+   "beaver_roman": "Joeun yeohaeng doeseyo. Tto oseyo!",
+   "learner": "고맙습니다. 여행하고 다시 올게요. 안녕히 계세요.",
+   "en": "Thank you. I'll travel and come back. Goodbye.",
+   "roman": "Gomapseumnida. Yeohaenghago dasi olgeyo. Annyeonghi gyeseyo."
+  }
+ ]
+}

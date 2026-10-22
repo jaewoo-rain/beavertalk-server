@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T26-1",
+ "no": 139,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 다음 주에 면접 있지? 준비는 잘 돼?",
+   "beaver_en": "Minsu, you have an interview next week, right? How's prep going?",
+   "beaver_roman": "Minsuya, daeum jue myeonjeop itji? Junbineun jal dwae?",
+   "learner": "응, 이력서는 냈는데 아직 좀 떨려.",
+   "en": "Yeah, I sent my resume, but I'm still a bit nervous.",
+   "roman": "Eung, iryeokseoneun naenneunde ajik jom tteollyeo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 일자리야? 승무원이라고 했지?",
+   "beaver_en": "What job is it? You said flight attendant, right?",
+   "beaver_roman": "Eotteon iljariya? Seungmuwonirago haetji?",
+   "learner": "응, 승무원인데 일어도 할 줄 알아야 해.",
+   "en": "Yes, it's flight attendant, and I need to speak Japanese too.",
+   "roman": "Eung, seungmuwoninde ireodo hal jjul araya hae."
+  },
+  {
+   "n": 3,
+   "beaver": "일어 공부는 하고 있어?",
+   "beaver_en": "Are you studying Japanese?",
+   "beaver_roman": "Ireo gongbuneun hago isseo?",
+   "learner": "매일 하는데 아직 잘 못해.",
+   "en": "I study every day, but I'm still not good.",
+   "roman": "Maeil haneunde ajik jal motae."
+  },
+  {
+   "n": 4,
+   "beaver": "괜찮아. 다른 자격증도 필요해?",
+   "beaver_en": "That's okay. Do you need other certificates too?",
+   "beaver_roman": "Gwaenchana. Dareun jagyeokjjeungdo piryohae?",
+   "learner": "영어 자격증이 필요한데 그건 있어.",
+   "en": "I need an English certificate, and I have that.",
+   "roman": "Yeongeo jagyeokjjeungi piryohande geugeon isseo."
+  },
+  {
+   "n": 5,
+   "beaver": "잘됐다. 다른 분야는 안 봤어?",
+   "beaver_en": "Great. Didn't you look at other fields?",
+   "beaver_roman": "Jaldwaetda. Dareun bunyaneun an bwasseo?",
+   "learner": "소방관도 생각했는데 체력이 약해.",
+   "en": "I thought about firefighter, but I'm not strong enough.",
+   "roman": "Sobanggwando saenggakaenneunde cheryeogi yakae."
+  },
+  {
+   "n": 6,
+   "beaver": "경찰관은 어때? 너 운동 좋아하잖아.",
+   "beaver_en": "How about police officer? You like exercise.",
+   "beaver_roman": "Gyeongchalgwaneun eottae? Neo undong joahajana.",
+   "learner": "경찰관도 멋있는데 나는 비행기가 좋아.",
+   "en": "Police officers are cool, but I like airplanes.",
+   "roman": "Gyeongchalgwando meosinneunde naneun bihaenggiga joa."
+  },
+  {
+   "n": 7,
+   "beaver": "나는 요즘 기술자 일자리를 보고 있어.",
+   "beaver_en": "These days I'm looking at technician jobs.",
+   "beaver_roman": "Naneun yojeum gisulja iljarireul bogo isseo.",
+   "learner": "기술자는 전문 기술이 있어야 하는데 괜찮아?",
+   "en": "Technicians need special skills. Are you okay?",
+   "roman": "Gisuljaneun jeonmun gisuri isseoya haneunde gwaenchana?"
+  },
+  {
+   "n": 8,
+   "beaver": "응, 학원에 다니고 있어. 전문가가 되고 싶어.",
+   "beaver_en": "Yes, I'm taking classes. I want to be an expert.",
+   "beaver_roman": "Eung, hagwone danigo isseo. Jeonmungaga doego sipeo.",
+   "learner": "멋있다. 우리 삼촌도 기계를 정말 잘 다뤄.",
+   "en": "Cool. My uncle is really good with machines too.",
+   "roman": "Meositda. Uri samchondo gigyereul jeongmal jal darwo."
+  },
+  {
+   "n": 9,
+   "beaver": "너희 가족은 무슨 일 해?",
+   "beaver_en": "What does your family do?",
+   "beaver_roman": "Neohui gajogeun museun il hae?",
+   "learner": "아빠는 버스 기사고 형은 경비 일을 해.",
+   "en": "My dad is a bus driver, and my brother works as a security guard.",
+   "roman": "Appaneun beoseu gisago hyeongeun gyeongbi ireul hae."
+  },
+  {
+   "n": 10,
+   "beaver": "다들 멋지다! 면접 날 꼭 연락해.",
+   "beaver_en": "They're all great! Call me on interview day.",
+   "beaver_roman": "Dadeul meotjida! Myeonjeop nal kkok yeollakae.",
+   "learner": "고마워. 면접 끝나면 바로 전화할게.",
+   "en": "Thanks. I'll call you right after the interview.",
+   "roman": "Gomawo. Myeonjeop kkeunnamyeon baro jeonhwahalge."
+  }
+ ]
+}

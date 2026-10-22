@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T02-1",
+ "no": 207,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "결혼하고 요즘 어때요? 장인어른은 어떠세요?",
+   "beaver_en": "How's married life? How's your father-in-law?",
+   "beaver_roman": "gyeolhonhago yojeum eottaeyo? jangineoreuneun eotteoseyo?",
+   "learner": "장인어른이 참 좋으세요. 저를 아들처럼 아끼세요.",
+   "en": "He's really nice. He cares for me like his own son.",
+   "roman": "jangineoreuni cham joeuseyo. jeoreul adeulcheoreom akkiseyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 다행이네요. 장모님은요?",
+   "beaver_en": "Wow, that's a relief. And your mother-in-law?",
+   "beaver_roman": "wa, dahaengineyo. jangmonimeunyo?",
+   "learner": "장모님도 잘해 주세요. 제때 밥도 꼭 챙겨 주세요.",
+   "en": "She's good to me too. She always makes sure I eat on time.",
+   "roman": "jangmonimdo jalhae juseyo. jettae bapdo kkok chaenggyeo juseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아내분 집은 형제가 어떻게 돼요?",
+   "beaver_en": "What about your wife's siblings?",
+   "beaver_roman": "anaebun jibeun hyeongjega eotteoke dwaeyo?",
+   "learner": "아내네는 남매예요. 위로 형님이 한 분 계세요.",
+   "en": "She has one brother. He's older than her.",
+   "roman": "anaeneneun nammaeyeyo. wiro hyeongnimi han bun gyeseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "형님하고도 잘 지내요?",
+   "beaver_en": "Do you get along with him too?",
+   "beaver_roman": "hyeongnimhagodo jal jinaeyo?",
+   "learner": "네. 형님은 효자라서 부모님께 잘하세요.",
+   "en": "Yes. He's a devoted son and is very good to his parents.",
+   "roman": "ne. hyeongnimeun hyojaraseo bumonimkke jalhaseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 본가 쪽은요? 형제가 있어요?",
+   "beaver_en": "What about your side? Do you have siblings?",
+   "beaver_roman": "geureom bonga jjogeunyo? hyeongjega isseoyo?",
+   "learner": "아니요, 저는 외아들이에요. 그래서 대가족이 부러워요.",
+   "en": "No, I'm an only son. So I envy big families.",
+   "roman": "aniyo, jeoneun oeadeurieyo. geuraeseo daegajogi bureowoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "명절에는 어디에 모여요?",
+   "beaver_en": "Where do you gather on holidays?",
+   "beaver_roman": "myeongjeoreneun eodie moyeoyo?",
+   "learner": "큰집에 가요. 애들이 많아서 정말 시끄러워요.",
+   "en": "We go to my eldest uncle's. Lots of kids, so it's really noisy.",
+   "roman": "keunjibe gayo. aedeuri manaseo jeongmal sikkeureowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아내분은 시부모님하고 잘 지내요?",
+   "beaver_en": "Does your wife get along with her in-laws?",
+   "beaver_roman": "anaebuneun sibumonimhago jal jinaeyo?",
+   "learner": "네, 저희 부모님이 아내를 딸처럼 예뻐하세요.",
+   "en": "Yes, my parents adore her like a daughter.",
+   "roman": "ne, jeohui bumonimi anaereul ttalcheoreom yeppeohaseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "큰집 식구들하고는 친해요?",
+   "beaver_en": "Is she close with your uncle's family?",
+   "beaver_roman": "keunjip sikgudeulhagoneun chinhaeyo?",
+   "learner": "아내는 친언니가 없어서 큰집 누님을 따라요.",
+   "en": "She has no older sister, so she follows my cousin around.",
+   "roman": "anaeneun chineonniga eopseoseo keunjip nunimeul ttarayo."
+  },
+  {
+   "n": 9,
+   "beaver": "어른들이 아기는 언제 낳냐고 안 물어요?",
+   "beaver_en": "Don't the elders ask when you'll have a baby?",
+   "beaver_roman": "eoreundeuri agineun eonje nannyago an mureoyo?",
+   "learner": "매번 물어요. 아직이라고 말하나 마나예요.",
+   "en": "Every time. Saying 'not yet' makes no difference.",
+   "roman": "maebeon mureoyo. ajigirago malhana manayeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 어른들 마음이 다 그렇죠. 정말 재미있었어요.",
+   "beaver_en": "Haha, elders are all like that. That was fun to hear.",
+   "beaver_roman": "haha, eoreundeul maeumi da geureochyo. jeongmal jaemiisseosseoyo.",
+   "learner": "저도요. 다음에 또 이야기해요.",
+   "en": "Me too. Let's talk again next time.",
+   "roman": "jeodoyo. daeume tto iyagihaeyo."
+  }
+ ]
+}

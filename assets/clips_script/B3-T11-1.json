@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T11-1",
+ "no": 216,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘도 패스트푸드예요. 햄버거가 제일 편해요.",
+   "beaver_en": "Fast food again today. Burgers are the easiest.",
+   "beaver_roman": "oneuldo paeseuteupudeuyeyo. haembeogeoga jeil pyeonhaeyo.",
+   "learner": "매일 패스트푸드만 먹다가는 건강이 나빠져요.",
+   "en": "If you keep eating only fast food, your health will suffer.",
+   "roman": "maeil paeseuteupudeuman meokdaganeun geongangi nappajyeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래도 맛있잖아요. 감자튀김도 드실래요?",
+   "beaver_en": "But it's tasty. Want some fries too?",
+   "beaver_roman": "geuraedo masitjanayo. gamjatwigimdo deusillaeyo?",
+   "learner": "아니요, 좀 느끼해요. 저는 담백한 게 좋아요.",
+   "en": "No, they're a bit greasy. I like light food.",
+   "roman": "aniyo, jom neukkihaeyo. jeoneun dambaekan ge joayo."
+  },
+  {
+   "n": 3,
+   "beaver": "사실 요즘 밥맛이 없어요. 피곤해서 그런가 봐요.",
+   "beaver_en": "Actually, I have no appetite lately. Maybe I'm tired.",
+   "beaver_roman": "sasil yojeum bammasi eopseoyo. pigonhaeseo geureonga bwayo.",
+   "learner": "느끼한 것만 먹다가는 밥맛이 더 없어져요.",
+   "en": "If you keep eating greasy food, you'll lose more appetite.",
+   "roman": "neukkihan geonman meokdaganeun bammasi deo eopseojyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 뭘 먹으면 좋을까요?",
+   "beaver_en": "Then what should I eat?",
+   "beaver_roman": "geureom mwol meogeumyeon joeulkkayo?",
+   "learner": "고소한 나물이나 생선구이는 어때요?",
+   "en": "How about savory greens or grilled fish?",
+   "roman": "gosohan namurina saengseonguineun eottaeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "나물은 가끔 쓴맛이 나서 싫어요.",
+   "beaver_en": "Greens sometimes taste bitter, so I don't like them.",
+   "beaver_roman": "namureun gakkeum sseunmasi naseo sireoyo.",
+   "learner": "쓴맛이 조금 있어도 몸에는 좋아요.",
+   "en": "Even if a bit bitter, they're good for you.",
+   "roman": "sseunmasi jogeum isseodo momeneun joayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그리고 저는 콜라를 자주 마셔요. 목말라서요.",
+   "beaver_en": "And I drink cola often. Because I get thirsty.",
+   "beaver_roman": "geurigo jeoneun kollareul jaju masyeoyo. mongmallaseoyo.",
+   "learner": "목마를 때는 콜라보다 보리차를 드세요.",
+   "en": "When you're thirsty, drink barley tea instead of cola.",
+   "roman": "mongmareul ttaeneun kollaboda borichareul deuseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "보리차요? 맛이 심심하지 않아요?",
+   "beaver_en": "Barley tea? Isn't it bland?",
+   "beaver_roman": "borichayo? masi simsimhaji anayo?",
+   "learner": "아니요, 보리차는 고소하고 담백해요.",
+   "en": "No, barley tea is nutty and light.",
+   "roman": "aniyo, borichaneun gosohago dambaekaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "사실 어제도 집에서 술을 좀 마셨어요.",
+   "beaver_en": "Actually, I drank a bit at home yesterday too.",
+   "beaver_roman": "sasil eojedo jibeseo sureul jom masyeosseoyo.",
+   "learner": "어제 몇 병이나 마셨어요? 걱정돼요.",
+   "en": "How many bottles did you drink yesterday? I'm worried.",
+   "roman": "eoje myeot byeongina masyeosseoyo? geokjeongdwaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "세 병쯤이요. 좀 많죠?",
+   "beaver_en": "About three bottles. That's a bit much, right?",
+   "beaver_roman": "se byeongjjeumiyo. jom manchyo?",
+   "learner": "그렇게 마시다가는 큰일 나요. 몸을 소중히 하세요.",
+   "en": "If you keep drinking like that, it'll be serious. Take care of yourself.",
+   "roman": "geureoke masidaganeun keunil nayo. momeul sojunghi haseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 내일부터 보리차를 마셔 볼게요.",
+   "beaver_en": "Thanks. I'll try barley tea from tomorrow.",
+   "beaver_roman": "gomawoyo. naeilbuteo borichareul masyeo bolgeyo.",
+   "learner": "좋아요. 내일 점심은 담백한 걸로 같이 먹어요.",
+   "en": "Great. Let's have something light for lunch tomorrow.",
+   "roman": "joayo. naeil jeomsimeun dambaekan geollo gachi meogeoyo."
+  }
+ ]
+}

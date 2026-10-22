@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T31-1",
+ "no": 372,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 땀을 많이 흘리시네요. 무슨 운동 하세요?",
+   "beaver_en": "Hello. You're sweating a lot. What workout are you doing?",
+   "beaver_roman": "Annyeonghaseyo. Ttameul mani heullisineyo. Museun undong haseyo?",
+   "learner": "에어로빅 수업이요. 오늘은 강도가 센 모양이에요.",
+   "en": "Aerobics class. It seems intense today.",
+   "roman": "Eeorobik sueobiyo. Oneureun gangdoga sen moyangieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "수영은 안 하세요? 저는 매일 아침 수영해요.",
+   "beaver_en": "Don't you swim? I swim every morning.",
+   "beaver_roman": "Suyeongeun an haseyo? Jeoneun maeil achim suyeonghaeyo.",
+   "learner": "저는 주말에만 수영해요. 체력이 좋으신 모양이에요.",
+   "en": "I only swim on weekends. You seem very fit.",
+   "roman": "Jeoneun jumareman suyeonghaeyo. Cheryeogi joeusin moyangieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "하하, 수영 훈련을 십 년째 하고 있어요.",
+   "beaver_en": "Haha, I've been training in swimming for ten years.",
+   "beaver_roman": "Haha, suyeong hullyeoneul sim nyeonjjae hago isseoyo.",
+   "learner": "훈련을 오래 하셨군요. 그래서 어깨가 넓으시군요.",
+   "en": "You've trained a long time. That's why your shoulders are broad.",
+   "roman": "Hullyeoneul orae hasyeotgunyo. Geuraeseo eokkaega neolbeusigunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그쪽은 예전부터 운동 많이 하셨어요?",
+   "beaver_en": "Have you exercised a lot since before?",
+   "beaver_roman": "Geujjogeun yejeonbuteo undong mani hasyeosseoyo?",
+   "learner": "학교 때는 체조를 잘했는데 요즘은 체력이 약해요.",
+   "en": "I was good at gymnastics in school, but I'm not very fit now.",
+   "roman": "Hakgyo ttaeneun chejoreul jalhaenneunde yojeumeun cheryeogi yakaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "에어로빅은 체조보다 더 힘들지 않아요?",
+   "beaver_en": "Isn't aerobics harder than gymnastics?",
+   "beaver_roman": "Eeorobigeun chejoboda deo himdeulji anayo?",
+   "learner": "네, 힘들어요. 다음 단계는 더 어려운 모양이에요.",
+   "en": "Yes, it's hard. The next level seems even harder.",
+   "roman": "Ne, himdeureoyo. Daeum dangyeneun deo eoryeoun moyangieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다음 단계요? 저기 저녁 반 사람이 정말 많네요.",
+   "beaver_en": "The next level? The evening class there has so many people.",
+   "beaver_roman": "Daeum dangyeyo? Jeogi jeonyeok ban sarami jeongmal manneyo.",
+   "learner": "네, 저녁 반은 인기가 많은 모양이에요.",
+   "en": "Yes, the evening class seems very popular.",
+   "roman": "Ne, jeonyeok baneun ingiga maneun moyangieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "운동 끝나고 보통 뭐 하세요?",
+   "beaver_en": "What do you usually do after working out?",
+   "beaver_roman": "Undong kkeunnago botong mwo haseyo?",
+   "learner": "찜질방에 가요. 땀을 빼면 몸이 가벼워져요.",
+   "en": "I go to a sauna. Sweating makes my body feel light.",
+   "roman": "Jjimjilbange gayo. Ttameul ppaemyeon momi gabyeowojyeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "찜질방이요? 이 근처에 좋은 데가 있어요?",
+   "beaver_en": "A sauna? Is there a good one nearby?",
+   "beaver_roman": "Jjimjilbangiyo? I geuncheoe joeun dega isseoyo?",
+   "learner": "역 앞 찜질방이 깨끗한 모양이에요. 리뷰가 좋아요.",
+   "en": "The one by the station seems clean. It has good reviews.",
+   "roman": "Yeogap jjimjilbangi kkaekkeutan moyangieyo. Ribyuga joayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 오늘 같이 가 볼까요?",
+   "beaver_en": "Then shall we go together today?",
+   "beaver_roman": "Geureom oneul gachi ga bolkkayo?",
+   "learner": "좋아요. 수영 훈련 이야기도 더 듣고 싶어요.",
+   "en": "Sure. I'd like to hear more about your swim training too.",
+   "roman": "Joayo. Suyeong hullyeon iyagido deo deutgo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 샤워하고 입구에서 만나요.",
+   "beaver_en": "Great. Let's meet at the entrance after showering.",
+   "beaver_roman": "Jotseumnida. Syawohago ipgueseo mannayo.",
+   "learner": "네, 십 분 후에 입구에서 뵐게요.",
+   "en": "Okay, see you at the entrance in ten minutes.",
+   "roman": "Ne, sip bun hue ipgueseo boelgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T45-1",
+ "no": 385,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 무슨 생각을 하며 살아요?",
+   "beaver_en": "What have you been thinking about lately?",
+   "beaver_roman": "yojeum museun saenggageul hamyeo sarayo?",
+   "learner": "제 좌우명을 다시 생각하고 있어요.",
+   "en": "I'm rethinking my motto.",
+   "roman": "je jwaumyeongeul dasi saenggakago isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "오, 좌우명이 뭐예요?",
+   "beaver_en": "Oh, what's your motto?",
+   "beaver_roman": "o, jwaumyeongi mwoyeyo?",
+   "learner": "\"꿈이 없으면 살아 있는 시체다\"예요.",
+   "en": "It's \"Without dreams, you're a living corpse.\"",
+   "roman": "\"kkumi eopseumyeon sara inneun sicheda\"yeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좀 무섭지만 좋은 말이네요.",
+   "beaver_en": "A bit scary, but that's a good saying.",
+   "beaver_roman": "jom museopjiman joeun marineyo.",
+   "learner": "고등학교 때 박정민 선생님께 배웠어요.",
+   "en": "I learned it from Mr. Park Jeongmin in high school.",
+   "roman": "godeunghakgyo ttae bakjeongmin seonsaengnimkke baewosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "어떤 선생님이셨어요?",
+   "beaver_en": "What kind of teacher was he?",
+   "beaver_roman": "eotteon seonsaengnimisyeosseoyo?",
+   "learner": "운명적인 만남이었어요. 철학적인 분이셨죠.",
+   "en": "It was a fateful meeting. He was a philosophical man.",
+   "roman": "unmyeongjeogin mannamieosseoyo. cheolhakjeogin bunisyeotjyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 말대로 살아 봤어요?",
+   "beaver_en": "Have you lived by those words?",
+   "beaver_roman": "geu maldaero sara bwasseoyo?",
+   "learner": "네, 덕분에 어려운 시험에 합격했어요.",
+   "en": "Yes, thanks to it, I passed a hard exam.",
+   "roman": "ne, deokbune eoryeoun siheome hapgyeokaesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "성취감도 컸겠네요.",
+   "beaver_en": "You must have felt a great sense of achievement.",
+   "beaver_roman": "seongchwigamdo keotgenneyo.",
+   "learner": "네, 노력한 만큼 성취감도 컸어요.",
+   "en": "Yes, the achievement felt as big as my effort.",
+   "roman": "ne, noryeokan mankeum seongchwigamdo keosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 성공만 좇으면 지치지 않아요?",
+   "beaver_en": "But don't you get tired chasing only success?",
+   "beaver_roman": "geureonde seonggongman jocheumyeon jichiji anayo?",
+   "learner": "한편으로는 즐거움과 낭만도 추구해요.",
+   "en": "On the other hand, I also pursue joy and romance.",
+   "roman": "hanpyeoneuroneun jeulgeoumgwa nangmando chuguhaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "가치관에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about your values?",
+   "beaver_roman": "gachigwane daehae deo malhae jullaeyo?",
+   "learner": "부도덕한 성공은 성공이 아니라고 봐요.",
+   "en": "I think immoral success isn't success.",
+   "roman": "budodeokan seonggongeun seonggongi anirago bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 무엇을 가장 소중히 여겨요?",
+   "beaver_en": "Then what do you value most?",
+   "beaver_roman": "geureom mueoseul gajang sojunghi yeogyeoyo?",
+   "learner": "사람의 생명이 제일 소중하다고 생각해요.",
+   "en": "I think human life is the most precious.",
+   "roman": "saramui saengmyeongi jeil sojunghadago saenggakaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 이야기 정말 좋았어요.",
+   "beaver_en": "I really enjoyed our talk today.",
+   "beaver_roman": "oneul iyagi jeongmal joasseoyo.",
+   "learner": "선배님 덕분에 많이 배웠어요. 감사합니다.",
+   "en": "I learned a lot thanks to you. Thank you.",
+   "roman": "seonbaenim deokbune mani baewosseoyo. gamsahamnida."
+  }
+ ]
+}

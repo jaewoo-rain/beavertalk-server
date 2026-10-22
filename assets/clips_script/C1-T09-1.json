@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T09-1",
+ "no": 300,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "설문 결과를 듣겠습니다. 먼저 교복은요?",
+   "beaver_en": "Let's hear the survey results. First, school uniforms?",
+   "beaver_roman": "seolmun gyeolgwareul deutgetseumnida. meonjeo gyobogeunyo?",
+   "learner": "교복보다 사복이 편하다는 응답이 70%에 달했습니다.",
+   "en": "Responses saying plain clothes are more comfortable than uniforms reached 70%.",
+   "roman": "gyobokboda sabogi pyeonhadaneun eungdabi chilsip peosenteue dalhaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "흥미롭군요. 학생들은 어떤 차림을 좋아합니까?",
+   "beaver_en": "Interesting. What kind of outfits do students like?",
+   "beaver_roman": "heungmiropgunyo. haksaengdeureun eotteon charimeul joahamnikka?",
+   "learner": "품이 넉넉한 차림이 좋다는 응답이 많았습니다.",
+   "en": "Many said they like outfits with a loose fit.",
+   "roman": "pumi neongneokan charimi jotaneun eungdabi manatseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "야한 옷에 대한 생각은 어떻습니까?",
+   "beaver_en": "What do they think about revealing clothes?",
+   "beaver_roman": "yahan ose daehan saenggageun eotteoseumnikka?",
+   "learner": "너무 야한 옷은 싫다는 응답이 절반에 달했습니다.",
+   "en": "Responses saying they dislike very revealing clothes reached half.",
+   "roman": "neomu yahan oseun siltaneun eungdabi jeolbane dalhaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "소재는 어떻습니까?",
+   "beaver_en": "What about materials?",
+   "beaver_roman": "sojaeneun eotteoseumnikka?",
+   "learner": "실크가 좋다는 응답이 40%에 달했습니다.",
+   "en": "Responses saying they like silk reached 40%.",
+   "roman": "silkeuga jotaneun eungdabi sasip peosenteue dalhaetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "겨울옷은요? 털옷도 인기가 있습니까?",
+   "beaver_en": "And winter clothes? Is fur clothing popular too?",
+   "beaver_roman": "gyeouroseunyo? teorotdo ingiga itseumnikka?",
+   "learner": "네, 털옷이 따뜻해서 좋다는 응답이 많았습니다.",
+   "en": "Yes, many said they like fur because it's warm.",
+   "roman": "ne, teorosi ttatteutaeseo jotaneun eungdabi manatseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "액세서리는 어떻습니까? 보석에 대한 응답도 있었습니까?",
+   "beaver_en": "What about accessories? Were there responses about jewelry?",
+   "beaver_roman": "aekseseorineun eotteoseumnikka? boseoge daehan eungdapdo isseotseumnikka?",
+   "learner": "네, 다이아몬드를 갖고 싶다는 응답도 있었습니다.",
+   "en": "Yes, some even said they want diamonds.",
+   "roman": "ne, daiamondeureul gatgo sipdaneun eungdapdo isseotseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "안경은 어떻습니까?",
+   "beaver_en": "What about glasses?",
+   "beaver_roman": "angyeongeun eotteoseumnikka?",
+   "learner": "안경보다 렌즈가 편하다는 응답이 60%에 달했습니다.",
+   "en": "Responses saying lenses are more comfortable than glasses reached 60%.",
+   "roman": "angyeongboda renjeuga pyeonhadaneun eungdabi yuksip peosenteue dalhaetseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "신발은 어떻습니까?",
+   "beaver_en": "What about shoes?",
+   "beaver_roman": "sinbareun eotteoseumnikka?",
+   "learner": "편한 신발이 좋다는 응답이 80%에 달했습니다.",
+   "en": "Responses saying they like comfortable shoes reached 80%.",
+   "roman": "pyeonhan sinbari jotaneun eungdabi palsip peosenteue dalhaetseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "매장 시설은 어떻습니까?",
+   "beaver_en": "How about the store facilities?",
+   "beaver_roman": "maejang siseoreun eotteoseumnikka?",
+   "learner": "탈의실이 좁다는 응답이 30%에 달했습니다.",
+   "en": "Responses saying the changing rooms are small reached 30%.",
+   "roman": "taruisiri jopdaneun eungdabi samsip peosenteue dalhaetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 결과네요. 오늘 설명 감사합니다.",
+   "beaver_en": "Great results. Thank you for explaining today.",
+   "beaver_roman": "joeun gyeolgwaneyo. oneul seolmyeong gamsahamnida.",
+   "learner": "감사합니다. 보고서는 내일 보내 드리겠습니다.",
+   "en": "Thank you. I'll send the report tomorrow.",
+   "roman": "gamsahamnida. bogoseoneun naeil bonae deurigetseumnida."
+  }
+ ]
+}

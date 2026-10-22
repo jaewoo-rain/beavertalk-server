@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T39-1",
+ "no": 192,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 혹시 재활용 쓰레기통은 어디예요?",
+   "beaver_en": "Hello! Where is the recycling bin, by any chance?",
+   "beaver_roman": "Annyeonghaseyo! Hoksi jaehwaryong sseuregitongeun eodiyeyo?",
+   "learner": "일 층 주차장 옆에 있어요. 같이 갈까요?",
+   "en": "It's next to the first-floor parking lot. Shall we go together?",
+   "roman": "Il cheung juchajang yeope isseoyo. Gachi galkkayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 플라스틱은 그냥 버리면 되죠?",
+   "beaver_en": "Sure. I can just throw plastic away, right?",
+   "beaver_roman": "Joayo. Peullaseutigeun geunyang beorimyeon doejyo?",
+   "learner": "아니요, 씻지 않으면 안 돼요. 라벨도 떼야 해요.",
+   "en": "No, you must wash it. You need to remove the label too.",
+   "roman": "Aniyo, ssitji aneumyeon an dwaeyo. Rabeldo ttaeya haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그렇군요. 몰랐어요.",
+   "beaver_en": "Oh, I see. I didn't know that.",
+   "beaver_roman": "A, geureokunyo. Mollasseoyo.",
+   "learner": "관리실에서 깨끗이 씻어서 버리라고 해요.",
+   "en": "The management office tells us to wash it clean before throwing it out.",
+   "roman": "Gwallisireseo kkaekkeusi ssiseoseo beorirago haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 재활용을 하면 정말 도움이 돼요?",
+   "beaver_en": "But does recycling really help?",
+   "beaver_roman": "Geureonde jaehwaryongeul hamyeon jeongmal doumi dwaeyo?",
+   "learner": "네, 환경 보호에 도움이 많이 될걸요.",
+   "en": "Yes, it probably helps protect the environment a lot.",
+   "roman": "Ne, hwangyeong bohoe doumi mani doelkkeollyo."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘 쓰레기가 너무 많아서 걱정이에요.",
+   "beaver_en": "I'm worried because there's so much trash these days.",
+   "beaver_roman": "Yojeum sseuregiga neomu manaseo geokjeongieyo.",
+   "learner": "맞아요. 쓰레기통이 매일 가득 차요.",
+   "en": "Right. The trash cans fill up every day.",
+   "roman": "Majayo. Sseuregitongi maeil gadeuk chayo."
+  },
+  {
+   "n": 6,
+   "beaver": "참, 어젯밤에 연기 냄새 났어요?",
+   "beaver_en": "Oh, did you smell smoke last night?",
+   "beaver_roman": "Cham, eojetbame yeongi naemsae nasseoyo?",
+   "learner": "네, 누가 쓰레기를 태운 것 같아요.",
+   "en": "Yes, I think someone burned trash.",
+   "roman": "Ne, nuga sseuregireul taeun geot gatayo."
+  },
+  {
+   "n": 7,
+   "beaver": "연기가 나면 신고해야겠지요?",
+   "beaver_en": "We should report it if there's smoke, right?",
+   "beaver_roman": "Yeongiga namyeon singohaeyagetjiyo?",
+   "learner": "네, 불이 나면 위험하니까 신고하지 않으면 안 돼요.",
+   "en": "Yes, fire is dangerous, so we must report it.",
+   "roman": "Ne, buri namyeon wiheomhanikka singohaji aneumyeon an dwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "환경 문제에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about environmental issues?",
+   "beaver_roman": "Hwangyeong munjee daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 전기도 아껴 써야 해요.",
+   "en": "Sure. We should save electricity too.",
+   "roman": "Joayo. Jeongido akkyeo sseoya haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "우리 집은 전기 요금이 많이 나와요.",
+   "beaver_en": "Our electricity bill is really high.",
+   "beaver_roman": "Uri jibeun jeongi yogeumi mani nawayo.",
+   "learner": "안 쓰는 플러그를 뽑으면 덜 나올걸요.",
+   "en": "If you unplug unused plugs, it'll probably be lower.",
+   "roman": "An sseuneun peulleogeureul ppobeumyeon deol naolkkeollyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 생각이네요. 오늘부터 해 볼게요.",
+   "beaver_en": "Good idea. I'll try it starting today.",
+   "beaver_roman": "Joeun saenggagineyo. Oneulbuteo hae bolkkeyo.",
+   "learner": "저도 아이들이 불을 끄게 할게요. 또 봐요!",
+   "en": "I'll make my kids turn off the lights too. See you!",
+   "roman": "Jeodo aideuri bureul kkeuge halkkeyo. Tto bwayo!"
+  }
+ ]
+}

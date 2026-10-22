@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T16-1",
+ "no": 306,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까. 조사 결과를 설명해 주시겠습니까?",
+   "beaver_en": "Hello. Could you explain the survey results?",
+   "beaver_roman": "annyeonghasimnikka. josa gyeolgwareul seolmyeonghae jusigetseumnikka?",
+   "learner": "네. 먼저 국도 정체 사례부터 말씀드리겠습니다.",
+   "en": "Yes. I'll start with cases of national highway congestion.",
+   "roman": "ne. meonjeo gukdo jeongche saryebuteo malsseumdeurigetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "국도는 어느 구간이 가장 막힙니까?",
+   "beaver_en": "Which section of the highway is the most jammed?",
+   "beaver_roman": "gukdoneun eoneu gugani gajang makimnikka?",
+   "learner": "정체의 대표적인 예로 3번 국도를 들 수 있습니다.",
+   "en": "National Highway 3 is a representative example of congestion.",
+   "roman": "jeongcheui daepyojeogin yero sambeon gukdoreul deul su itseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "주말에도 체증이 심합니까?",
+   "beaver_en": "Is the congestion bad on weekends too?",
+   "beaver_roman": "jumaredo chejeungi simhamnikka?",
+   "learner": "네, 주말에는 나들이 차량이 많아서 더 심합니다.",
+   "en": "Yes, on weekends it's worse with many leisure trip cars.",
+   "roman": "ne, jumareneun nadeuri charyangi manaseo deo simhamnida."
+  },
+  {
+   "n": 4,
+   "beaver": "휴게소도 붐빕니까?",
+   "beaver_en": "Are the rest stops crowded too?",
+   "beaver_roman": "hyugesodo bumbimnikka?",
+   "learner": "네, 휴게소에 들어가는 길까지 수시로 막힙니다.",
+   "en": "Yes, even the road into the rest stop jams up often.",
+   "roman": "ne, hyugesoe deureoganeun gilkkaji susiro makimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "대중교통은 어떻습니까?",
+   "beaver_en": "What about public transportation?",
+   "beaver_roman": "daejunggyotongeun eotteosseumnikka?",
+   "learner": "지하철 승강장은 첫차부터 혼잡합니다.",
+   "en": "Subway platforms are crowded from the first train.",
+   "roman": "jihacheol seunggangjangeun cheotchabuteo honjapamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "항공은 어떻습니까?",
+   "beaver_en": "How about air travel?",
+   "beaver_roman": "hanggongeun eotteosseumnikka?",
+   "learner": "항공기 이륙이 늦어서 기내에서 오래 기다립니다.",
+   "en": "Takeoffs are delayed, so people wait long on the plane.",
+   "roman": "hanggonggi iryugi neujeoseo ginaeeseo orae gidarimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "승객들 불만도 많겠군요.",
+   "beaver_en": "Passengers must have many complaints.",
+   "beaver_roman": "seunggaekdeul bulmando mankekkunyo.",
+   "learner": "네, 특히 일반석 승객들이 많이 힘들어합니다.",
+   "en": "Yes, economy class passengers especially have a hard time.",
+   "roman": "ne, teuki ilbanseok seunggaekdeuri mani himdeureohamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "항공사 쪽 의견도 들으셨습니까?",
+   "beaver_en": "Did you also hear from the airlines?",
+   "beaver_roman": "hanggongsa jjok uigyeondo deureusyeotseumnikka?",
+   "learner": "네, 항공사도 재작년부터 문제를 알고 있었습니다.",
+   "en": "Yes, the airlines have known about it since two years ago.",
+   "roman": "ne, hanggongsado jaejangnyeonbuteo munjereul algo isseotseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "교통수단 이용에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about transport use?",
+   "beaver_roman": "gyotongsudan iyonge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "해상 교통도 휴가철에는 항구가 아주 혼잡합니다.",
+   "en": "For sea travel, ports get very crowded in vacation season.",
+   "roman": "haesang gyotongdo hyugacheoreneun hangguga aju honjapamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "잘 들었습니다. 자료를 정리해서 보내 주십시오.",
+   "beaver_en": "Thank you. Please organize the data and send it.",
+   "beaver_roman": "jal deureotseumnida. jaryoreul jeongnihaeseo bonae jusipsio.",
+   "learner": "네, 오늘 중으로 보내 드리겠습니다. 감사합니다.",
+   "en": "Sure, I'll send it today. Thank you.",
+   "roman": "ne, oneul jungeuro bonae deurigetseumnida. gamsahamnida."
+  }
+ ]
+}

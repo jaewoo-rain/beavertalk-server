@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T08-2",
+ "no": 52,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "집에 고장 난 물건이 있어요?",
+   "beaver_en": "Is anything broken in the house?",
+   "beaver_roman": "Jibe gojang nan mulgeoni isseoyo?",
+   "learner": "네, 세탁기하고 선풍기가 고장 났어요.",
+   "en": "Yes, the washing machine and the fan are broken.",
+   "roman": "Ne, setakgihago seonpunggiga gojang nasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "선풍기를 틀까요? 한번 볼게요.",
+   "beaver_en": "Shall I turn on the fan? Let me check.",
+   "beaver_roman": "Seonpunggireul teulkkayo? Hanbeon bolgeyo.",
+   "learner": "틀어도 안 돼요. 줄이 끊어졌어요.",
+   "en": "It won't work. The cord is broken.",
+   "roman": "Teureodo an dwaeyo. Juri kkeuneojyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그래요? 세탁기는요?",
+   "beaver_en": "Oh, really? What about the washing machine?",
+   "beaver_roman": "A, geuraeyo? Setakgineunyo?",
+   "learner": "세탁기도 고장이에요. 빨래를 못 해요.",
+   "en": "The washer is broken too. I can't do laundry.",
+   "roman": "Setakgido gojangieyo. Ppallaereul motaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 빨래는 제가 빨래방에서 할게요.",
+   "beaver_en": "Then I'll do the laundry at the laundromat.",
+   "beaver_roman": "Geureom ppallaeneun jega ppallaebangeseo halgeyo.",
+   "learner": "고마워요. 저는 설거지를 할게요.",
+   "en": "Thanks. I'll do the dishes.",
+   "roman": "Gomawoyo. Jeoneun seolgeojireul halgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "접시하고 수저는 어디 있어요?",
+   "beaver_en": "Where are the plates and utensils?",
+   "beaver_roman": "Jeopsihago sujeoneun eodi isseoyo?",
+   "learner": "접시와 수저는 상 위에 있어요.",
+   "en": "The plates and utensils are on the table.",
+   "roman": "Jeopsiwa sujeoneun sang wie isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "냉장고는 괜찮아요?",
+   "beaver_en": "Is the fridge okay?",
+   "beaver_roman": "Naengjanggoneun gwaenchanayo?",
+   "learner": "냉장고는 괜찮아요. 거울이 좀 더러워요.",
+   "en": "The fridge is fine. The mirror is a bit dirty.",
+   "roman": "Naengjanggoneun gwaenchanayo. Geouri jom deoreowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "거울은 제가 닦을게요. 또 뭐 있어요?",
+   "beaver_en": "I'll clean the mirror. Anything else?",
+   "beaver_roman": "Geoureun jega dakkeulgeyo. Tto mwo isseoyo?",
+   "learner": "꽃병하고 초를 상자에 넣을까요?",
+   "en": "Shall I put the vase and candles in a box?",
+   "roman": "Kkotbyeonghago choreul sangjae neoeulkkayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 상자는 현관 옆에 있어요.",
+   "beaver_en": "Good. The box is by the entrance.",
+   "beaver_roman": "Joayo. Sangjaneun hyeongwan yeope isseoyo.",
+   "learner": "휴지도 다 썼어요. 제가 살게요.",
+   "en": "We're out of tissues too. I'll buy some.",
+   "roman": "Hyujido da sseosseoyo. Jega salgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "고마워요. 방도 정리할까요?",
+   "beaver_en": "Thanks. Should we tidy the room too?",
+   "beaver_roman": "Gomawoyo. Bangdo jeongnihalkkayo?",
+   "learner": "방하고 이불은 제가 정리할게요.",
+   "en": "I'll tidy the room and the blankets.",
+   "roman": "Banghago ibureun jega jeongnihalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 집안일 시작해요!",
+   "beaver_en": "Great. Let's start the chores then!",
+   "beaver_roman": "Joayo. Geureom jibannil sijakaeyo!",
+   "learner": "네, 같이 빨리 끝내요!",
+   "en": "Okay, let's finish quickly together!",
+   "roman": "Ne, gachi ppalli kkeunnaeyo!"
+  }
+ ]
+}

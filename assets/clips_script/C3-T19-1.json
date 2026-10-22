@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T19-1",
+ "no": 405,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선생님, 이번 예절 교육은 어떤 내용이에요?",
+   "beaver_en": "What's this etiquette training about?",
+   "beaver_roman": "seonsaengnim, ibeon yejeol gyoyugeun eotteon naeyongieyo?",
+   "learner": "정중하게 말하고 행동하는 법을 가르쳐요.",
+   "en": "I teach how to speak and act politely.",
+   "roman": "jeongjunghage malhago haengdonghaneun beobeul gareuchyeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "초면 인사도 다루나요?",
+   "beaver_en": "Do you cover greetings at first meetings too?",
+   "beaver_roman": "chomyeon insado darunayo?",
+   "learner": "네, 초면에 하는 인사가 제일 중요해요.",
+   "en": "Yes, greetings at a first meeting matter most.",
+   "roman": "ne, chomyeone haneun insaga jeil jungyohaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "호칭어도 설명하실 거예요?",
+   "beaver_en": "Will you explain terms of address too?",
+   "beaver_roman": "hochingeodo seolmyeonghasil geoyeyo?",
+   "learner": "네, 이번 교육에서 호칭어의 비중이 높아요.",
+   "en": "Yes, terms of address are a big part of it.",
+   "roman": "ne, ibeon gyoyugeseo hochingeoui bijungi nopayo."
+  },
+  {
+   "n": 4,
+   "beaver": "호칭어가 왜 그렇게 중요해요?",
+   "beaver_en": "Why are they so important?",
+   "beaver_roman": "hochingeoga wae geureoke jungyohaeyo?",
+   "learner": "잘못 부르면 상대가 푸대접받는다고 느끼거든요.",
+   "en": "If you address them wrongly, they feel slighted.",
+   "roman": "jalmot bureumyeon sangdaega pudaejeopbanneundago neukkigeodeunyo."
+  },
+  {
+   "n": 5,
+   "beaver": "어른 공경에 대한 내용도 있어요?",
+   "beaver_en": "Is there content on respecting elders?",
+   "beaver_roman": "eoreun gonggyeonge daehan naeyongdo isseoyo?",
+   "learner": "네, 어른을 공경하는 마음도 함께 가르쳐요.",
+   "en": "Yes, I also teach respect for elders.",
+   "roman": "ne, eoreuneul gonggyeonghaneun maeumdo hamkke gareuchyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "사과하는 법도 배우나요?",
+   "beaver_en": "Do they learn how to apologize too?",
+   "beaver_roman": "sagwahaneun beopdo baeunayo?",
+   "learner": "네, 죄송스러운 마음을 정중하게 전하는 법이요.",
+   "en": "Yes, how to politely express feeling sorry.",
+   "roman": "ne, joesongseureoun maeumeul jeongjunghage jeonhaneun beobiyo."
+  },
+  {
+   "n": 7,
+   "beaver": "실습은 어떻게 해요?",
+   "beaver_en": "How do you do the practice?",
+   "beaver_roman": "silseubeun eotteoke haeyo?",
+   "learner": "짝을 지어서 인사와 사과를 직접 해 봐요.",
+   "en": "In pairs, they actually greet and apologize.",
+   "roman": "jjageul jieoseo insawa sagwareul jikjeop hae bwayo."
+  },
+  {
+   "n": 8,
+   "beaver": "의례적인 인사만 하면 지루하지 않을까요?",
+   "beaver_en": "Won't just formal greetings be boring?",
+   "beaver_roman": "uiryejeogin insaman hamyeon jiruhaji aneulkkayo?",
+   "learner": "그래서 형식보다 진심이 중요하다고 강조해요.",
+   "en": "So I stress that sincerity matters more than form.",
+   "roman": "geuraeseo hyeongsikboda jinsimi jungyohadago gangjohaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "짜임새가 좋네요. 호평받겠어요.",
+   "beaver_en": "It's well structured. It'll get good reviews.",
+   "beaver_roman": "jjaimsaega jonneyo. hopyeongbatgesseoyo.",
+   "learner": "고마워요. 착오가 없게 자료를 다시 볼게요.",
+   "en": "Thanks. I'll recheck the materials for errors.",
+   "roman": "gomawoyo. chagoga eopge jaryoreul dasi bolgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 내일부터 같이 준비해요.",
+   "beaver_en": "Then let's prepare together from tomorrow.",
+   "beaver_roman": "geureom naeilbuteo gachi junbihaeyo.",
+   "learner": "좋아요. 미루지 말고 내일 바로 시작해요.",
+   "en": "Great. Let's not put it off and start tomorrow.",
+   "roman": "joayo. miruji malgo naeil baro sijakaeyo."
+  }
+ ]
+}

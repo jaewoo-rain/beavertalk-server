@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T08-1",
+ "no": 120,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "아, 탁자 다리가 또 흔들려. 좀 도와줄래?",
+   "beaver_en": "Ah, the table leg is wobbling again. Can you help?",
+   "beaver_roman": "a, takja dariga tto heundeullyeo. jom dowajullae?",
+   "learner": "그래. 테이프랑 자 좀 가져올게.",
+   "en": "Sure. I'll bring some tape and a ruler.",
+   "roman": "geurae. teipeurang ja jom gajyeoolge."
+  },
+  {
+   "n": 2,
+   "beaver": "고마워. 근데 요즘 집안일이 너무 많지?",
+   "beaver_en": "Thanks. But there's so much housework lately, right?",
+   "beaver_roman": "gomawo. geunde yojeum jibanniri neomu manchi?",
+   "learner": "응, 그래서 오늘 집안일 좀 나누자.",
+   "en": "Yeah, so let's split the chores today.",
+   "roman": "eung, geuraeseo oneul jibanil jom nanuja."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아. 빨래는 어떻게 할까?",
+   "beaver_en": "Okay. What should we do about the laundry?",
+   "beaver_roman": "joa. ppallaeneun eotteoke halkka?",
+   "learner": "내가 빨래를 널고 말릴게. 너는 걸레질 해 줘.",
+   "en": "I'll hang and dry the laundry. You wipe with the rag.",
+   "roman": "naega ppallaereul neolgo mallilge. neoneun geollejil hae jwo."
+  },
+  {
+   "n": 4,
+   "beaver": "알았어. 커튼도 빨았어?",
+   "beaver_en": "Got it. Did you wash the curtains too?",
+   "beaver_roman": "arasseo. keoteundo ppalasseo?",
+   "learner": "아니, 커튼은 먼지부터 털어야 해.",
+   "en": "No, I need to shake the dust off the curtains first.",
+   "roman": "ani, keoteuneun meonjibuteo teoreoya hae."
+  },
+  {
+   "n": 5,
+   "beaver": "뭐? 잘 안 들렸어.",
+   "beaver_en": "What? I didn't hear you well.",
+   "beaver_roman": "mwo? jal an deullyeosseo.",
+   "learner": "커튼이라고! 먼지가 정말 많아.",
+   "en": "I said the curtains! There's so much dust.",
+   "roman": "keoteunirago! meonjiga jeongmal mana."
+  },
+  {
+   "n": 6,
+   "beaver": "아, 그렇구나. 벽시계도 멈췄더라.",
+   "beaver_en": "Ah, I see. The wall clock stopped too.",
+   "beaver_roman": "a, geureokuna. byeoksigyedo meomchwotdeora.",
+   "learner": "응, 벽시계를 고치다가 바늘이 부러졌어.",
+   "en": "Yeah, the hand broke while I was fixing it.",
+   "roman": "eung, byeoksigyereul gochidaga baneuri bureojyeosseo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 수리 맡겨야겠네. 정수기는 괜찮아?",
+   "beaver_en": "Then we'll need to get it repaired. Is the purifier okay?",
+   "beaver_roman": "geureom suri matgyeoyagenne. jeongsugineun gwaenchana?",
+   "learner": "정수기도 고장이야. 수리가 빨리 끝나야 할 텐데.",
+   "en": "The purifier's broken too. I hope the repair is quick.",
+   "roman": "jeongsugido gojangiya. suriga ppalli kkeunnaya hal tende."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아. 요즘 물을 사 마셔서 불편해.",
+   "beaver_en": "Right. Buying water lately is a hassle.",
+   "beaver_roman": "maja. yojeum mureul sa masyeoseo bulpyeonhae.",
+   "learner": "그리고 샴푸 통도 다 비었어.",
+   "en": "And the shampoo bottle is empty too.",
+   "roman": "geurigo syampu tongdo da bieosseo."
+  },
+  {
+   "n": 9,
+   "beaver": "내가 오늘 장 보면서 사 올게.",
+   "beaver_en": "I'll buy some when I go shopping today.",
+   "beaver_roman": "naega oneul jang bomyeonseo sa olge.",
+   "learner": "고마워. 이불도 밖에서 말려야 할 텐데.",
+   "en": "Thanks. I hope we can dry the blanket outside too.",
+   "roman": "gomawo. ibuldo bakkeseo mallyeoya hal tende."
+  },
+  {
+   "n": 10,
+   "beaver": "날씨가 좋아서 금방 마를 거야. 시작하자!",
+   "beaver_en": "The weather's nice, so it'll dry fast. Let's start!",
+   "beaver_roman": "nalssiga joaseo geumbang mareul geoya. sijakaja!",
+   "learner": "그래! 먼저 탁자를 테이프로 고치자.",
+   "en": "Okay! Let's fix the table with tape first.",
+   "roman": "geurae! meonjeo takjareul teipeuro gochija."
+  }
+ ]
+}

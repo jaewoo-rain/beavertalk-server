@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T08-1",
+ "no": 213,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 수리 기사입니다. 어디가 고장 났어요?",
+   "beaver_en": "Hello. I'm the repairman. What's broken?",
+   "beaver_roman": "Annyeonghaseyo. Suri gisaimnida. Eodiga gojang nasseoyo?",
+   "learner": "어서 오세요. 부엌 수도꼭지가 고장 났어요.",
+   "en": "Come in. The kitchen faucet is broken.",
+   "roman": "Eoseo oseyo. Bueok sudokkokjiga gojang nasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떻게 고장 났어요? 물이 새요?",
+   "beaver_en": "What's wrong with it? Is it leaking?",
+   "beaver_roman": "Eotteoke gojang nasseoyo? Muri saeyo?",
+   "learner": "네, 잠을 못 잘 정도로 물이 뚝뚝 떨어져요.",
+   "en": "Yes, it drips so much I can't sleep.",
+   "roman": "Ne, jameul mot jjal jjeongdoro muri ttukttuk tteoreojyeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "안에 고무가 낡았네요. 바꾸면 돼요.",
+   "beaver_en": "The rubber inside is worn out. I just need to replace it.",
+   "beaver_roman": "Ane gomuga nalganneyo. Bakkumyeon dwaeyo.",
+   "learner": "다행이에요. 그리고 거실 조명도 좀 봐 주세요.",
+   "en": "That's a relief. Please also check the living room light.",
+   "roman": "Dahaengieyo. Geurigo geosil jomyeongdo jom bwa juseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "조명은 괜찮은데요. 스위치는요?",
+   "beaver_en": "The light itself is fine. What about the switch?",
+   "beaver_roman": "Jomyeongeun gwaenchaneundeyo. Seuwichineunyo?",
+   "learner": "스위치가 너무 뻑뻑해서 잘 안 눌러져요.",
+   "en": "The switch is so stiff it barely presses.",
+   "roman": "Seuwichiga neomu ppeokppeokaeseo jal an nulleojyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "스위치를 새것으로 바꿔야겠어요.",
+   "beaver_en": "I'll need to replace the switch with a new one.",
+   "beaver_roman": "Seuwichireul saegeoseuro bakkwoyagesseoyo.",
+   "learner": "주전자 손잡이도 부러졌어요. 고칠 수 있어요?",
+   "en": "The kettle handle broke too. Can you fix it?",
+   "roman": "Jujeonja sonjabido bureojyeosseoyo. Gochil ssu isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "손잡이는 고칠 수 있어요. 뚜껑은 괜찮아요?",
+   "beaver_en": "I can fix the handle. Is the lid okay?",
+   "beaver_roman": "Sonjabineun gochil ssu isseoyo. Ttukkeongeun gwaenchanayo?",
+   "learner": "뚜껑은 괜찮아요. 살림이 다 낡아서 걱정이에요.",
+   "en": "The lid is fine. All my household things are old, so I'm worried.",
+   "roman": "Ttukkeongeun gwaenchanayo. Sallimi da nalgaseo geokjjeongieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "오래 쓰면 다 그래요. 다른 건 없어요?",
+   "beaver_en": "Everything gets like that with time. Anything else?",
+   "beaver_roman": "Orae sseumyeon da geuraeyo. Dareun geon eopseoyo?",
+   "learner": "바가지랑 대접도 금이 갔어요. 그건 버릴게요.",
+   "en": "The basin and big bowl are cracked too. I'll throw those out.",
+   "roman": "Bagajirang daejeoptto geumi gasseoyo. Geugeon beorilkkeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "수리비가 좀 나오겠어요. 괜찮으세요?",
+   "beaver_en": "The repair cost will be a bit high. Is that okay?",
+   "beaver_roman": "Suribiga jom naogesseoyo. Gwaenchaneuseyo?",
+   "learner": "수리비가 얼마나 나올까요? 너무 비싸면 곤란해요.",
+   "en": "How much will the repair cost be? It's a problem if it's too expensive.",
+   "roman": "Suribiga eolmana naolkkayo? Neomu bissamyeon gollanhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "전부 수리하면 칠만 원이에요.",
+   "beaver_en": "Fixing everything comes to 70,000 won.",
+   "beaver_roman": "Jeonbu surihamyeon chilman wonieyo.",
+   "learner": "생각보다 싸네요. 집안일하기 정말 불편했어요.",
+   "en": "Cheaper than I thought. Housework was really inconvenient.",
+   "roman": "Saenggakppoda ssaneyo. Jibanilhagi jeongmal bulpyeonhaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이제 편하게 쓰세요. 바로 시작할게요.",
+   "beaver_en": "Now you can use things comfortably. I'll start right away.",
+   "beaver_roman": "Ije pyeonhage sseuseyo. Baro sijakalkkeyo.",
+   "learner": "감사합니다. 저는 베개랑 담요 정리하고 있을게요.",
+   "en": "Thank you. I'll be tidying up the pillows and blankets.",
+   "roman": "Gamsahamnida. Jeoneun begaerang damyo jeongnihago isseulkkeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T24-1",
+ "no": 366,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요. 무슨 일로 상담하러 왔어요?",
+   "beaver_en": "Come in. What brings you here for counseling?",
+   "beaver_roman": "eoseo wayo. museun illo sangdamhareo wasseoyo?",
+   "learner": "선생님, 요즘 반에서 따돌림을 당하고 있어요.",
+   "en": "Teacher, I'm being excluded in my class these days.",
+   "roman": "seonsaengnim, yojeum baneseo ttadollimeul danghago isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "많이 힘들었겠네요. 언제부터 그랬어요?",
+   "beaver_en": "That must have been really hard. Since when?",
+   "beaver_roman": "mani himdeureotgenneyo. eonjebuteo geuraesseoyo?",
+   "learner": "한 달 전부터요. 친구들이 제 험담을 퍼뜨렸어요.",
+   "en": "Since a month ago. My classmates spread gossip about me.",
+   "roman": "han dal jeonbuteoyo. chingudeuri je heomdameul peotteuryeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "험담 말고 다른 일도 있었어요?",
+   "beaver_en": "Did anything else happen besides the gossip?",
+   "beaver_roman": "heomdam malgo dareun ildo isseosseoyo?",
+   "learner": "네, 욕도 하고 돈을 달라고 협박도 했어요.",
+   "en": "Yes, they cursed at me and threatened me for money.",
+   "roman": "ne, yokdo hago doneul dallago hyeopbakdo haesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "정말 심각하네요. 도와줄 친구는 없어요?",
+   "beaver_en": "That's really serious. Is there no friend to help you?",
+   "beaver_roman": "jeongmal simgakaneyo. dowajul chinguneun eopseoyo?",
+   "learner": "친한 친구마저 모른 척해서 완전히 왕따예요.",
+   "en": "Even my close friend ignores me, so I'm totally an outcast.",
+   "roman": "chinhan chingumajeo moreun cheokaeseo wanjeonhi wangttayeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 친구에게 직접 물어본 적 있어요?",
+   "beaver_en": "Have you ever asked that friend directly?",
+   "beaver_roman": "geu chinguege jikjeop mureobon jeok isseoyo?",
+   "learner": "물어봤는데 모르는 척 시치미만 뗐어요.",
+   "en": "I asked, but they just pretended not to know.",
+   "roman": "mureobwanneunde moreuneun cheok sichimiman ttesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "부모님은 알고 계세요?",
+   "beaver_en": "Do your parents know?",
+   "beaver_roman": "bumonimeun algo gyeseyo?",
+   "learner": "말씀드렸는데 오히려 저를 야단치셨어요.",
+   "en": "I told them, but they scolded me instead.",
+   "roman": "malsseumdeuryeonneunde ohiryeo jeoreul yadanchisyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "부모님이 왜 그러셨을까요?",
+   "beaver_en": "Why do you think they did that?",
+   "beaver_roman": "bumonimi wae geureosyeosseulkkayo?",
+   "learner": "요즘 제가 반항을 한다고 생각하셔서 꾸짖으셨어요.",
+   "en": "They think I'm rebelling lately, so they scolded me.",
+   "roman": "yojeum jega banhangeul handago saenggakasyeoseo kkujijeusyeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "집에서도 마음이 많이 힘들었겠네요.",
+   "beaver_en": "It must have been hard at home too.",
+   "beaver_roman": "jibeseodo maeumi mani himdeureotgenneyo.",
+   "learner": "네, 집에서도 구박받는 느낌이라 대화가 단절됐어요.",
+   "en": "Yes, I feel mistreated at home too, so we stopped talking.",
+   "roman": "ne, jibeseodo gubakbanneun neukkimira daehwaga danjeoldwaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "앞으로 어떻게 하고 싶어요?",
+   "beaver_en": "What would you like to do from now on?",
+   "beaver_roman": "apeuro eotteoke hago sipeoyo?",
+   "learner": "그 친구들과 원수가 되기는 싫어요. 사과받고 싶어요.",
+   "en": "I don't want to be enemies with them. I want an apology.",
+   "roman": "geu chingudeulgwa wonsuga doegineun sireoyo. sagwabatgo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 차근차근 같이 해결해 봐요.",
+   "beaver_en": "Okay. Let's solve this together step by step.",
+   "beaver_roman": "joayo. chageunchageun gachi haegyeolhae bwayo.",
+   "learner": "감사합니다, 선생님. 이제 마음이 좀 놓여요.",
+   "en": "Thank you, teacher. I feel a bit relieved now.",
+   "roman": "gamsahamnida, seonsaengnim. ije maeumi jom noyeoyo."
+  }
+ ]
+}

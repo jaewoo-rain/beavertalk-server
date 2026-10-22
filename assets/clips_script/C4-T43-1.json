@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T43-1",
+ "no": 475,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 예배에 처음 왔는데 좀 긴장돼요.",
+   "beaver_en": "Hello. It's my first time at a service, so I'm a bit nervous.",
+   "beaver_roman": "annyeonghaseyo. yebaee cheoeum wanneunde jom ginjangdwaeyo.",
+   "learner": "어서 오세요. 저는 이 교회 신자 김민준이에요.",
+   "en": "Welcome. I'm Kim Minjun, a believer at this church.",
+   "roman": "eoseo oseyo. jeoneun i gyohoe sinja gimminjunieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "감사합니다. 언제 일어서야 합니까?",
+   "beaver_en": "Thank you. When should I stand up?",
+   "beaver_roman": "gamsahamnida. eonje ireoseoya hamnikka?",
+   "learner": "찬송과 기도 때 일어서요. 거룩한 순간이라서요.",
+   "en": "We stand during hymns and prayers. They're holy moments.",
+   "roman": "chansonggwa gido ttae ireoseoyo. georukan sunganiraseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "설교 중에는 휴대폰을 꺼야 하나요?",
+   "beaver_en": "Should I turn off my phone during the sermon?",
+   "beaver_roman": "seolgyo jungeneun hyudaeponeul kkeoya hanayo?",
+   "learner": "네, 설교에 집중하려고 다들 꺼 둬요.",
+   "en": "Yes, everyone turns them off to focus on the sermon.",
+   "roman": "ne, seolgyoe jipjunghallyeogo dadeul kkeo dwoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "헌금은 꼭 해야 합니까?",
+   "beaver_en": "Do I have to give an offering?",
+   "beaver_roman": "heongeumeun kkok haeya hamnikka?",
+   "learner": "아니요, 꼭 안 해도 돼요. 마음이 중요해요.",
+   "en": "No, you don't have to. It's the heart that matters.",
+   "roman": "aniyo, kkok an haedo dwaeyo. maeumi jungyohaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저 책은 무엇입니까?",
+   "beaver_en": "What is that book?",
+   "beaver_roman": "jeo chaegeun mueosimnikka?",
+   "learner": "성경이에요. 같이 펴서 읽으시면 돼요.",
+   "en": "It's the Bible. You can open it and read along.",
+   "roman": "seonggyeongieyo. gachi pyeoseo ilgeusimyeon dwaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "성당 미사와 많이 다릅니까?",
+   "beaver_en": "Is it very different from a Catholic Mass?",
+   "beaver_roman": "seongdang misawa mani dareumnikka?",
+   "learner": "비슷하지만 미사는 순서가 더 정해져 있어요.",
+   "en": "It's similar, but Mass has a more fixed order.",
+   "roman": "biseutajiman misaneun sunseoga deo jeonghaejyeo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "문화와 전통에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the culture and traditions?",
+   "beaver_roman": "munhwawa jeontonge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "결혼식이나 장례식도 교회식으로 해요.",
+   "en": "We also hold weddings and funerals the church way.",
+   "roman": "gyeolhonsigina jangnyesikdo gyohoesigeuro haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "절에서 하는 의식과도 비슷한 점이 있네요.",
+   "beaver_en": "It seems to have some things in common with temple rituals.",
+   "beaver_roman": "jeoreseo haneun uisikgwado biseutan jeomi inneyo.",
+   "learner": "네, 종교는 달라도 예절은 비슷한 면이 있어요.",
+   "en": "Yes, religions differ, but their etiquette has similarities.",
+   "roman": "ne, jonggyoneun dallado yejeoreun biseutan myeoni isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "이 교회 자리가 명당이라는 말을 들었어요.",
+   "beaver_en": "I heard this church sits on an auspicious site.",
+   "beaver_roman": "i gyohoe jariga myeongdangiraneun mareul deureosseoyo.",
+   "learner": "그건 속설이에요. 선교를 위해 처음 세운 곳이에요.",
+   "en": "That's just a popular belief. It was first built for missionary work.",
+   "roman": "geugeon sokseorieyo. seongyoreul wihae cheoeum seun gosieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "친절하게 설명해 주셔서 감사합니다.",
+   "beaver_en": "Thank you for explaining so kindly.",
+   "beaver_roman": "chinjeolhage seolmyeonghae jusyeoseo gamsahamnida.",
+   "learner": "별말씀을요. 예배 끝나고 차 한잔 하세요.",
+   "en": "Not at all. Have a cup of tea after the service.",
+   "roman": "byeolmalsseumeullyo. yebae kkeunnago cha hanjan haseyo."
+  }
+ ]
+}

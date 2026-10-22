@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T29-1",
+ "no": 227,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민호야, 요즘 얼굴이 안 좋아. 어디가 불편해?",
+   "beaver_en": "Minho, you don't look well lately. What's wrong?",
+   "beaver_roman": "Minhoya, yojeum eolguri an joa. Eodiga bulpyeonhae?",
+   "learner": "요즘 목구멍이 아프고 침을 삼키기 힘들어.",
+   "en": "My throat hurts lately, and it's hard to swallow saliva.",
+   "roman": "Yojeum mokkumeongi apeugo chimeul samkigi himdeureo."
+  },
+  {
+   "n": 2,
+   "beaver": "감기인가? 숨은 괜찮아?",
+   "beaver_en": "Is it a cold? Is your breathing okay?",
+   "beaver_roman": "Gamgiinga? Sumeun gwaenchana?",
+   "learner": "숨 쉬는 건 괜찮은데 숨소리가 좀 거칠어.",
+   "en": "Breathing is okay, but it sounds a bit rough.",
+   "roman": "Sum swineun geon gwaenchaneunde sumssoriga jom geochireo."
+  },
+  {
+   "n": 3,
+   "beaver": "열은 없어? 볼이 빨개 보여.",
+   "beaver_en": "No fever? Your cheeks look red.",
+   "beaver_roman": "Yeoreun eopseo? Bori ppalgae boyeo.",
+   "learner": "열은 없는데 볼이 붓고 눈이 빨개.",
+   "en": "No fever, but my cheeks are swollen and my eyes are red.",
+   "roman": "Yeoreun eomneunde bori butgo nuni ppalgae."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 부위는 어때? 손발은?",
+   "beaver_en": "How about other parts? Your hands and feet?",
+   "beaver_roman": "Dareun buwineun eottae? Sonbareun?",
+   "learner": "손끝이랑 발끝이 차가워. 발등도 부었어.",
+   "en": "My fingertips and toes are cold. The tops of my feet are swollen too.",
+   "roman": "Sonkkeuchirang balkkeuchi chagawo. Baltteungdo bueosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "많이 걸어서 그런 거 아니야?",
+   "beaver_en": "Isn't that from walking a lot?",
+   "beaver_roman": "Mani georeoseo geureon geo aniya?",
+   "learner": "응, 오른발 발톱이 아프고 종아리도 당겨.",
+   "en": "Yeah, my right toenail hurts and my calves feel tight.",
+   "roman": "Eung, oreunbal baltobi apeugo jongarido danggyeo."
+  },
+  {
+   "n": 6,
+   "beaver": "심장은 괜찮아? 가슴이 뛰지는 않아?",
+   "beaver_en": "Is your heart okay? No pounding in your chest?",
+   "beaver_roman": "Simjangeun gwaenchana? Gaseumi ttwijineun ana?",
+   "learner": "심장이 빨리 뛰고 기운이 하나도 없어.",
+   "en": "My heart beats fast and I have no energy at all.",
+   "roman": "Simjangi ppalli ttwigo giuni hanado eopseo."
+  },
+  {
+   "n": 7,
+   "beaver": "잠은 잘 자? 머리는 어때?",
+   "beaver_en": "Are you sleeping well? How's your head?",
+   "beaver_roman": "Jameun jal ja? Meorineun eottae?",
+   "learner": "몸은 피곤한데 잠이 잘 안 와.",
+   "en": "My body is tired, but I can't fall asleep.",
+   "roman": "Momeun pigonhande jami jal an wa."
+  },
+  {
+   "n": 8,
+   "beaver": "그러다 쓰러지면 어떡해. 의식 잃은 적은 없지?",
+   "beaver_en": "What if you collapse? You haven't passed out, right?",
+   "beaver_roman": "Geureoda sseureojimyeon eotteokae. Uisik ireun jeogeun eopji?",
+   "learner": "의식은 괜찮아. 그런데 주먹이 잘 안 쥐어져.",
+   "en": "I'm conscious, but I can't make a fist well.",
+   "roman": "Uisigeun gwaenchana. Geureonde jumeogi jal an jwieojyeo."
+  },
+  {
+   "n": 9,
+   "beaver": "배는 안 아파?",
+   "beaver_en": "Does your stomach hurt?",
+   "beaver_roman": "Baeneun an apa?",
+   "learner": "배꼽 주변이 아파. 온몸이 무거워.",
+   "en": "It hurts around my navel. My whole body feels heavy.",
+   "roman": "Baekkop jubyeoni apa. Onmomi mugeowo."
+  },
+  {
+   "n": 10,
+   "beaver": "몸속에 문제가 있을지도 몰라. 내일 병원 가자.",
+   "beaver_en": "Something may be wrong inside. Let's go to the hospital tomorrow.",
+   "beaver_roman": "Momssoge munjega isseuljido molla. Naeil byeongwon gaja.",
+   "learner": "응, 내일 꼭 가 볼게. 고마워.",
+   "en": "Okay, I'll definitely go tomorrow. Thanks.",
+   "roman": "Eung, naeil kkok ga bolkke. Gomawo."
+  }
+ ]
+}

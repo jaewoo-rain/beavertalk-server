@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T41-1",
+ "no": 422,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "올해 결산 자료 다 나왔어요? 같이 볼까요?",
+   "beaver_en": "Are this year's closing figures ready? Shall we look together?",
+   "beaver_roman": "olhae gyeolsan jaryo da nawasseoyo? gachi bolkkayo?",
+   "learner": "네, 재무 보고서 정리가 끝났어요.",
+   "en": "Yes, I've finished the financial report.",
+   "roman": "ne, jaemu bogoseo jeongniga kkeunnasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "전체적인 수지는 어떻게 나왔어요?",
+   "beaver_en": "How did the overall balance turn out?",
+   "beaver_roman": "jeonchejeogin sujineun eotteoke nawasseoyo?",
+   "learner": "불황인데도 수지가 흑자로 나왔어요.",
+   "en": "Despite the recession, we came out in the black.",
+   "roman": "bulhwangindedo sujiga heukjaro nawasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "불황인데 대단하네요. 이윤은요?",
+   "beaver_en": "Impressive, given the recession. What about profit?",
+   "beaver_roman": "bulhwanginde daedanhaneyo. iyuneunyo?",
+   "learner": "이윤은 작년보다 조금 줄었어요. 거래가 줄었거든요.",
+   "en": "Profit dropped a bit from last year. Our deals decreased.",
+   "roman": "iyuneun jangnyeonboda jogeum jureosseoyo. georaega jureotgeodeunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "자산 운용은 어땠어요?",
+   "beaver_en": "How was asset management?",
+   "beaver_roman": "jasan unyongeun eottaesseoyo?",
+   "learner": "기금 운용으로 자산이 늘어서 손실을 메웠어요.",
+   "en": "Fund management grew our assets and covered the losses.",
+   "roman": "gigeum unyongeuro jasani neureoseo sonsireul mewosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 회계 쪽에서 걱정하는 부분은 없어요?",
+   "beaver_en": "By the way, is accounting worried about anything?",
+   "beaver_roman": "geureonde hoegye jjogeseo geokjeonghaneun bubuneun eopseoyo?",
+   "learner": "담보로 잡힌 자산이 많다는 지적이 있어요.",
+   "en": "It's been pointed out that many assets are pledged as collateral.",
+   "roman": "damboro japin jasani mantaneun jijeogi isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "아, 그건 좀 신경 써야겠네요. 대책은요?",
+   "beaver_en": "Ah, we should watch that. Any plan?",
+   "beaver_roman": "a, geugeon jom singyeong sseoyagenneyo. daechaegeunyo?",
+   "learner": "담보 비율을 적정 수준으로 낮추려고 해요.",
+   "en": "We plan to lower the collateral ratio to a proper level.",
+   "roman": "dambo biyureul jeokjeong sujuneuro natchuryeogo haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "경제 상황은 앞으로 어떨 것 같아요?",
+   "beaver_en": "How do you think the economy will go?",
+   "beaver_roman": "gyeongje sanghwangeun apeuro eotteol geot gatayo?",
+   "learner": "불황이 내년까지 계속될 거라는 전망이 있어요.",
+   "en": "The forecast is that the recession will last into next year.",
+   "roman": "bulhwangi naenyeonkkaji gyesokdoel georaneun jeonmangi isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 내년 계획은 어떻게 돼요?",
+   "beaver_en": "Then what's the plan for next year?",
+   "beaver_roman": "geureom naenyeon gyehoegeun eotteoke dwaeyo?",
+   "learner": "호황이 올 때까지 이윤보다 자산을 지키려고 해요.",
+   "en": "Until a boom comes, we'll protect assets over profit.",
+   "roman": "hohwangi ol ttaekkaji iyunboda jasaneul jikiryeogo haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋은 생각이에요. 기금은 계속 운용하나요?",
+   "beaver_en": "Good idea. Will we keep managing the fund?",
+   "beaver_roman": "joeun saenggagieyo. gigeumeun gyesok unyonghanayo?",
+   "learner": "네, 기금은 안전한 곳에만 운용하는 게 좋겠어요.",
+   "en": "Yes, we'd better invest the fund only in safe places.",
+   "roman": "ne, gigeumeun anjeonhan goseman unyonghaneun ge jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정리 잘했네요. 이대로 보고하면 되겠어요.",
+   "beaver_en": "Nicely organized. We can report it as is.",
+   "beaver_roman": "jeongni jalhaenneyo. idaero bogohamyeon doegesseoyo.",
+   "learner": "고마워요. 그럼 회계팀에 결산 보고서 넘길게요.",
+   "en": "Thanks. Then I'll send the closing report to accounting.",
+   "roman": "gomawoyo. geureom hoegyetime gyeolsan bogoseo neomgilgeyo."
+  }
+ ]
+}

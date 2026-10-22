@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T11-1",
+ "no": 94,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 저녁에 뭐 먹을까요? 한식 어때요?",
+   "beaver_en": "What should we eat tonight? How about Korean food?",
+   "beaver_roman": "Oneul jeonyeoge mwo meogeulkkayo? Hansik eottaeyo?",
+   "learner": "좋아요. 순두부찌개하고 삼겹살 먹어요.",
+   "en": "Sounds good. Let's have sundubu stew and samgyeopsal.",
+   "roman": "Joayo. Sundubujjigaehago samgyeopsal meogeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋네요. 반찬은 있어요?",
+   "beaver_en": "Nice. Do we have side dishes?",
+   "beaver_roman": "Jonneyo. Banchaneun isseoyo?",
+   "learner": "네, 어제 반찬을 만들어 놓았어요.",
+   "en": "Yes, I made side dishes yesterday in advance.",
+   "roman": "Ne, eoje banchaneul mandeureo noasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 볶음밥은요?",
+   "beaver_en": "Then what about fried rice?",
+   "beaver_roman": "Geureom bokkeumbabeunyo?",
+   "learner": "밥을 미리 해 놓을게요. 마지막에 볶음밥 해요.",
+   "en": "I'll cook rice ahead. Let's make fried rice at the end.",
+   "roman": "Babeul miri hae noeulkkeyo. Majimage bokkeumbap haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "찌개 재료는 뭐가 필요해요?",
+   "beaver_en": "What do we need for the stew?",
+   "beaver_roman": "Jjigae jaeryoneun mwoga piryohaeyo?",
+   "learner": "두부를 사 놓았어요. 만두도 넣어요.",
+   "en": "I already bought tofu. Let's add dumplings too.",
+   "roman": "Dubureul sa noasseoyo. Mandudo neoeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "고기는 냉장고에 있어요?",
+   "beaver_en": "Is the meat in the fridge?",
+   "beaver_roman": "Gogineun naengjanggoe isseoyo?",
+   "learner": "네, 삼겹살을 꺼내 놓았어요.",
+   "en": "Yes, I took the samgyeopsal out already.",
+   "roman": "Ne, samgyeopsareul kkeonae noasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "후식은요?",
+   "beaver_en": "What about dessert?",
+   "beaver_roman": "Husigeunyo?",
+   "learner": "과일을 깎아 놓을게요. 아이스크림도 있어요.",
+   "en": "I'll peel some fruit ahead. We have ice cream too.",
+   "roman": "Gwaireul kkakka noeulkkeyo. Aiseukeurimdo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "삼겹살은 어떻게 먹으면 맛있어요?",
+   "beaver_en": "How do you eat samgyeopsal so it tastes good?",
+   "beaver_roman": "Samgyeopsareun eotteoke meogeumyeon masisseoyo?",
+   "learner": "삼겹살은 상추에 싸 먹으면 더 맛있어요.",
+   "en": "Samgyeopsal tastes better wrapped in lettuce.",
+   "roman": "Samgyeopsareun sangchue ssa meogeumyeon deo masisseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아요. 다음에는 뭐 먹고 싶어요?",
+   "beaver_en": "True. What do you want to eat next time?",
+   "beaver_roman": "Majayo. Daeumeneun mwo meokgo sipeoyo?",
+   "learner": "일식도 좋아요. 회하고 우동 먹어요.",
+   "en": "Japanese food is good too. Let's have raw fish and udon.",
+   "roman": "Ilsikdo joayo. Hoehago udon meogeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 짬뽕이나 탕수육은 어때요?",
+   "beaver_en": "Okay. How about jjamppong or sweet and sour pork?",
+   "beaver_roman": "Joayo. Jjamppongina tangsuyugeun eottaeyo?",
+   "learner": "그것도 좋아요. 치킨도 먹고 싶어요.",
+   "en": "That's good too. I want fried chicken as well.",
+   "roman": "Geugeotdo joayo. Chikindo meokgo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 이제 고기 구울게요. 같이 먹어요!",
+   "beaver_en": "Haha, I'll grill the meat now. Let's eat together!",
+   "beaver_roman": "Haha, ije gogi guulkkeyo. Gachi meogeoyo!",
+   "learner": "네! 상을 차려 놓을게요. 맛있게 먹어요.",
+   "en": "Okay! I'll set the table. Enjoy your meal.",
+   "roman": "Ne! Sangeul charyeo noeulkkeyo. Masitge meogeoyo."
+  }
+ ]
+}

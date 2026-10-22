@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T13-1",
+ "no": 261,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘은 고등어 조림을 해 보자. 재료는 다 있니?",
+   "beaver_en": "Let's make braised mackerel today. Do you have all the ingredients?",
+   "beaver_roman": "Oneureun godeungeo jorimeul hae boja. Jaeryoneun da inni?",
+   "learner": "네, 고등어랑 무가 있어요. 게도 사려다가 안 샀어요.",
+   "en": "Yes, I have mackerel and radish. I was going to buy crab too, but didn't.",
+   "roman": "Ne, godeungeorang muga isseoyo. Gedo saryeodaga an sasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "잘했어. 게는 다음에 하자. 도마부터 꺼내라.",
+   "beaver_en": "Good. We'll do crab next time. Take out the cutting board first.",
+   "beaver_roman": "Jalhaesseo. Geneun daeume haja. Domabuteo kkeonaera.",
+   "learner": "도마 꺼냈어요. 고등어는 어떻게 다듬어요?",
+   "en": "I took out the cutting board. How do I trim the mackerel?",
+   "roman": "Doma kkeonaesseoyo. Godeungeoneun eotteoke dadeumeoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "머리를 자르고 안을 깨끗이 씻어.",
+   "beaver_en": "Cut off the head and wash the inside well.",
+   "beaver_roman": "Meorireul jareugo aneul kkaekkeusi ssiseo.",
+   "learner": "네, 다 다듬었어요. 이제 냄비에 넣을까요?",
+   "en": "Okay, it's all trimmed. Should I put it in the pot now?",
+   "roman": "Ne, da dadeumeosseoyo. Ije naembie neoeulkkayo?"
+  },
+  {
+   "n": 4,
+   "beaver": "아니, 무를 먼저 냄비 바닥에 깔아.",
+   "beaver_en": "No, lay the radish on the bottom of the pot first.",
+   "beaver_roman": "Ani, mureul meonjeo naembi badage kkara.",
+   "learner": "고등어를 먼저 넣으려다가 무를 깔았어요.",
+   "en": "I was going to put the mackerel in first, but laid the radish instead.",
+   "roman": "Godeungeoreul meonjeo neoeuryeodaga mureul kkarasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "잘했다. 그 위에 고등어를 올리고 양념을 부어.",
+   "beaver_en": "Well done. Put the mackerel on top and pour the sauce.",
+   "beaver_roman": "Jalhaetda. Geu wie godeungeoreul olligo yangnyeomeul bueo.",
+   "learner": "양념을 다 부었어요. 불은 세게 할까요?",
+   "en": "I poured all the sauce. Should I turn the heat up high?",
+   "roman": "Yangnyeomeul da bueosseoyo. Bureun sege halkkayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "처음엔 세게, 끓으면 약하게 해. 콩나물도 있니?",
+   "beaver_en": "High at first, then low once it boils. Do you have bean sprouts?",
+   "beaver_roman": "Cheoeumen sege, kkeureumyeon yakage hae. Kongnamuldo inni?",
+   "learner": "네, 콩나물은 아까 씻어 놨어요.",
+   "en": "Yes, I washed the bean sprouts earlier.",
+   "roman": "Ne, kongnamureun akka ssiseo nwasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 콩나물 무침도 하자. 콩나물을 살짝 데쳐.",
+   "beaver_en": "Then let's make seasoned sprouts too. Blanch them lightly.",
+   "beaver_roman": "Geureom kongnamul muchimdo haja. Kongnamureul saljjak deochyeo.",
+   "learner": "다 데쳤어요. 참기름이랑 깨를 넣어요?",
+   "en": "They're blanched. Do I add sesame oil and sesame seeds?",
+   "roman": "Da deochyeosseoyo. Chamgireumirang kkaereul neoeoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "그래, 깨를 듬뿍 뿌려. 후식은 뭐 할까?",
+   "beaver_en": "Yes, sprinkle lots of sesame. What should we have for dessert?",
+   "beaver_roman": "Geurae, kkaereul deumppuk ppuryeo. Husigeun mwo halkka?",
+   "learner": "크림 케이크를 사려다가 과일을 샀어요.",
+   "en": "I was going to buy a cream cake, but bought fruit instead.",
+   "roman": "Keurim keikeureul saryeodaga gwaireul sasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아. 조림 국물이 줄었는지 봐 봐.",
+   "beaver_en": "Good. Check if the braising liquid has reduced.",
+   "beaver_roman": "Joa. Jorim gungmuri jureonneunji bwa bwa.",
+   "learner": "국물이 거의 없어요. 조림이 다 된 것 같아요.",
+   "en": "There's almost no liquid. I think the braised dish is done.",
+   "roman": "Gungmuri geoui eopseoyo. Jorimi da doen geot gatayo."
+  },
+  {
+   "n": 10,
+   "beaver": "수고했다. 이제 맛있게 먹자!",
+   "beaver_en": "Good job. Now let's enjoy it!",
+   "beaver_roman": "Sugohaetda. Ije masitge meokja!",
+   "learner": "네, 도마는 제가 씻을게요. 고마워요, 엄마.",
+   "en": "Okay, I'll wash the cutting board. Thanks, Mom.",
+   "roman": "Ne, domaneun jega ssiseulgeyo. Gomawoyo, eomma."
+  }
+ ]
+}

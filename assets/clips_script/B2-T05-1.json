@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T05-1",
+ "no": 165,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 토론 대회 결과 나왔어? 어떻게 됐어?",
+   "beaver_en": "Minji, are the debate contest results out? How did it go?",
+   "beaver_roman": "Minjiya, toron daehoe gyeolgwa nawasseo? Eotteoke dwaesseo?",
+   "learner": "응, 나왔어! 나 1등 했어!",
+   "en": "Yeah, they're out! I got first place!",
+   "roman": "Eung, nawasseo! Na ildeung haesseo!"
+  },
+  {
+   "n": 2,
+   "beaver": "정말? 거짓말 아니지?",
+   "beaver_en": "Really? You're not lying, right?",
+   "beaver_roman": "Jeongmal? Geojinmal aniji?",
+   "learner": "진짜라니까. 나도 아직 안 믿겨.",
+   "en": "I'm telling you, it's true. I still can't believe it.",
+   "roman": "Jinjjaranikka. Nado ajik an mitgyeo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 다들 부러워하겠다!",
+   "beaver_en": "Wow, everyone must be jealous!",
+   "beaver_roman": "Wa, dadeul bureowohagetda!",
+   "learner": "응, 다들 부러워해. 너무 기뻐!",
+   "en": "Yeah, everyone's jealous. I'm so happy!",
+   "roman": "Eung, dadeul bureowohae. Neomu gippeo!"
+  },
+  {
+   "n": 4,
+   "beaver": "결과에 만족해?",
+   "beaver_en": "Are you happy with the result?",
+   "beaver_roman": "Gyeolgwae manjokae?",
+   "learner": "응, 정말 만족스러워. 최고야!",
+   "en": "Yes, I'm really satisfied. It's the best!",
+   "roman": "Eung, jeongmal manjokseureowo. Choegoya!"
+  },
+  {
+   "n": 5,
+   "beaver": "대회 전에는 많이 떨었잖아.",
+   "beaver_en": "You were so nervous before the contest.",
+   "beaver_roman": "Daehoe jeoneneun mani tteoreotjana.",
+   "learner": "맞아, 진짜 엄청 떨렸다니까.",
+   "en": "Right, I'm telling you, I was super nervous.",
+   "roman": "Maja, jinjja eomcheong tteollyeotdanikka."
+  },
+  {
+   "n": 6,
+   "beaver": "실수한 건 없었어?",
+   "beaver_en": "Did you make any mistakes?",
+   "beaver_roman": "Silsuhan geon eopseosseo?",
+   "learner": "중간에 단어가 생각 안 나서 당황했어.",
+   "en": "I forgot a word in the middle and got flustered.",
+   "roman": "Junggane daneoga saenggak an naseo danghwanghaesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 실망했겠다.",
+   "beaver_en": "You must have been disappointed.",
+   "beaver_roman": "Geuraeseo silmanghaetgetda.",
+   "learner": "응, 그때는 실망이 정말 컸다니까.",
+   "en": "Yeah, I'm telling you, I was so disappointed then.",
+   "roman": "Eung, geuttaeneun silmangi jeongmal keotdanikka."
+  },
+  {
+   "n": 8,
+   "beaver": "결과 듣고 마음이 놓였겠네.",
+   "beaver_en": "You must have felt relieved hearing the result.",
+   "beaver_roman": "Gyeolgwa deutgo maeumi noyeotgenne.",
+   "learner": "응, 이제 완전히 안심이야.",
+   "en": "Yes, now I'm completely relieved.",
+   "roman": "Eung, ije wanjeonhi ansimiya."
+  },
+  {
+   "n": 9,
+   "beaver": "아쉬운 점은 없어?",
+   "beaver_en": "Anything you're not happy about?",
+   "beaver_roman": "Aswiun jeomeun eopseo?",
+   "learner": "시간 관리를 잘 못한 게 좀 아쉬워.",
+   "en": "I'm a bit sorry I didn't manage my time well.",
+   "roman": "Sigan gwallireul jal motan ge jom aswiwo."
+  },
+  {
+   "n": 10,
+   "beaver": "그래도 대단하다! 오늘 같이 축하하자!",
+   "beaver_en": "Still, that's amazing! Let's celebrate today!",
+   "beaver_roman": "Geuraedo daedanhada! Oneul gachi chukahaja!",
+   "learner": "좋아! 오늘은 내가 맛있는 거 살게.",
+   "en": "Sounds good! I'll treat you to something tasty today.",
+   "roman": "Joa! Oneureun naega masinneun geo salge."
+  }
+ ]
+}

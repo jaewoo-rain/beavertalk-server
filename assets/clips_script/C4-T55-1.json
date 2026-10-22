@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T55-1",
+ "no": 481,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 심의에서 삭감 사유를 설명해 주십시오.",
+   "beaver_en": "Please explain the reason for the cut at today's review.",
+   "beaver_roman": "Oneul simuieseo sakgam sayureul seolmyeonghae jusipsio.",
+   "learner": "네, 국고 사정이 어려워 예산을 줄였습니다.",
+   "en": "Yes, the national treasury is tight, so we cut the budget.",
+   "roman": "Ne, gukgo sajeongi eoryeowo yesaneul juryeotseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "왜 하필 그 사업 예산을 줄였습니까?",
+   "beaver_en": "Why did you cut that project's budget of all things?",
+   "beaver_roman": "Wae hapil geu saeop yesaneul juryeotseumnikka?",
+   "learner": "검토 결과 사업 효과가 낮아 줄였습니다.",
+   "en": "The review showed low project impact, so we cut it.",
+   "roman": "Geomto gyeolgwa saeop hyogwaga naja juryeotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "조세 수입은 어떻게 변했습니까?",
+   "beaver_en": "How has tax revenue changed?",
+   "beaver_roman": "Jose suibeun eotteoke byeonhaetseumnikka?",
+   "learner": "조세 감면이 늘어 세금이 덜 걷혔습니다.",
+   "en": "Tax exemptions grew, so less tax was collected.",
+   "roman": "Jose gammyeoni neureo segeumi deol geochyeotseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "산하 기관은 어떻게 됩니까?",
+   "beaver_en": "What about the affiliated agencies?",
+   "beaver_roman": "Sanha gigwaneun eotteoke doemnikka?",
+   "learner": "산하 기관 예산도 조금씩 줄었습니다.",
+   "en": "The affiliated agencies' budgets were cut a little too.",
+   "roman": "Sanha gigwan yesando jogeumssik jureotseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그 결정은 누가 내렸습니까?",
+   "beaver_en": "Who made that decision?",
+   "beaver_roman": "Geu gyeoljeongeun nuga naeryeotseumnikka?",
+   "learner": "차관께서 회의를 거듭한 끝에 정하셨습니다.",
+   "en": "The vice-minister decided after many meetings.",
+   "roman": "Chagwankkeseo hoeuireul geodeupan kkeute jeonghasyeotseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "행정부 안에서 의견이 엇갈리지 않았습니까?",
+   "beaver_en": "Weren't opinions divided within the executive branch?",
+   "beaver_roman": "Haengjeongbu aneseo uigyeoni eotgalliji anatseumnikka?",
+   "learner": "처음엔 엇갈렸지만 행정부가 뜻을 모았습니다.",
+   "en": "They differed at first, but the executive agreed.",
+   "roman": "Cheoeumen eotgallyeotjiman haengjeongbuga tteuseul moatseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "관료들 권한만 지키려 한 것은 아닙니까?",
+   "beaver_en": "Weren't you just protecting bureaucrats' authority?",
+   "beaver_roman": "Gwallyodeul gwonhanman jikiryeo han geoseun animnikka?",
+   "learner": "아닙니다. 이번 결정으로 늘어난 권한은 없습니다.",
+   "en": "No. This decision gave no one more authority.",
+   "roman": "Animnida. Ibeon gyeoljeongeuro neureonan gwonhaneun eopseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "국민 의견도 들어 보셨습니까?",
+   "beaver_en": "Did you listen to the public's opinions too?",
+   "beaver_roman": "Gungmin uigyeondo deureo bosyeotseumnikka?",
+   "learner": "네, 각양각색의 의견을 들은 끝에 정했습니다.",
+   "en": "Yes, we decided after hearing all kinds of views.",
+   "roman": "Ne, gagyanggaksaegui uigyeoneul deureun kkeute jeonghaetseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "심의는 언제 다시 합니까?",
+   "beaver_en": "When is the next review?",
+   "beaver_roman": "Simuineun eonje dasi hamnikka?",
+   "learner": "다음 주 화요일에 다시 심의를 받겠습니다.",
+   "en": "We'll be reviewed again next Tuesday.",
+   "roman": "Daeum ju hwayoire dasi simuireul batgetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠습니다. 그간 수고 많으셨습니다.",
+   "beaver_en": "Understood. Thank you for all your work so far.",
+   "beaver_roman": "Algetseumnida. Geugan sugo maneusyeotseumnida.",
+   "learner": "감사합니다. 국고를 아끼도록 힘쓰겠습니다.",
+   "en": "Thank you. We'll work to save the treasury.",
+   "roman": "Gamsahamnida. Gukgoreul akkidorok himsseugetseumnida."
+  }
+ ]
+}

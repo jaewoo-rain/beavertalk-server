@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T07-1",
+ "no": 212,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 집 보러 왔어요. 오래된 집이네요?",
+   "beaver_en": "Hello. I came to see the house. It's an old house, isn't it?",
+   "beaver_roman": "annyeonghaseyo. jip boreo wasseoyo. oraedoen jibineyo?",
+   "learner": "네, 지은 지 오십 년 됐어요. 기둥은 아직 튼튼해요.",
+   "en": "Yes, it was built 50 years ago. The pillars are still sturdy.",
+   "roman": "ne, jieun ji osip nyeon dwaesseoyo. gidungeun ajik teunteunhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "기둥이 나무네요. 벽은 뭘로 만들었어요?",
+   "beaver_en": "The pillars are wood. What are the walls made of?",
+   "beaver_roman": "gidungi namuneyo. byeogeun mwollo mandeureosseoyo?",
+   "learner": "벽은 시멘트예요. 오래되고 해서 조금 갈라졌어요.",
+   "en": "The walls are cement. Partly because they're old, they cracked a bit.",
+   "roman": "byeogeun simenteuyeyo. oraedoego haeseo jogeum gallajyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "방바닥은요? 좀 차가워 보여요.",
+   "beaver_en": "What about the floor? It looks a bit cold.",
+   "beaver_roman": "bangbadageunyo? jom chagawo boyeoyo.",
+   "learner": "겨울에는 춥고 해서 방바닥을 새로 고쳤어요.",
+   "en": "Partly because winters are cold, I redid the floor.",
+   "roman": "gyeoureneun chupgo haeseo bangbadageul saero gochyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 유리창이 크네요. 밝아서 좋아요.",
+   "beaver_en": "Wow, the windows are big. It's nice and bright.",
+   "beaver_roman": "wa, yurichangi keuneyo. balgaseo joayo.",
+   "learner": "네, 대신 겨울에는 좀 추워요.",
+   "en": "Yes, but in exchange, it's a bit cold in winter.",
+   "roman": "ne, daesin gyeoureneun jom chuwoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 창문을 바꿀 생각은 없으세요?",
+   "beaver_en": "Then don't you plan to replace the windows?",
+   "beaver_roman": "geureom changmuneul bakkul saenggageun eopseuseyo?",
+   "learner": "바꾸고 싶은데 비싸고 해서 아직 못 바꿨어요.",
+   "en": "I want to, but partly because it's expensive, I haven't yet.",
+   "roman": "bakkugo sipeunde bissago haeseo ajik mot bakkwosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이해해요. 거실 바닥은 나무네요?",
+   "beaver_en": "I understand. The living room floor is wood?",
+   "beaver_roman": "ihaehaeyo. geosil badageun namuneyo?",
+   "learner": "네, 마루예요. 좀 오래됐지만 깨끗해요.",
+   "en": "Yes, it's a wooden floor. It's a bit old but clean.",
+   "roman": "ne, maruyeyo. jom oraedwaetjiman kkaekkeutaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "부엌 쪽에도 문이 있어요?",
+   "beaver_en": "Is there a door on the kitchen side too?",
+   "beaver_roman": "bueok jjogedo muni isseoyo?",
+   "learner": "네, 부엌에 뒷문이 있어요. 마당으로 나갈 수 있어요.",
+   "en": "Yes, there's a back door in the kitchen. It leads to the yard.",
+   "roman": "ne, bueoke dwinmuni isseoyo. madangeuro nagal su isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋네요. 왜 이 집을 내놓으셨어요?",
+   "beaver_en": "Nice. Why are you selling this house?",
+   "beaver_roman": "jonneyo. wae i jibeul naenoeusyeosseoyo?",
+   "learner": "아이들이 이사 가고 해서 집이 너무 넓어요.",
+   "en": "Partly because my kids moved out, the house is too big.",
+   "roman": "aideuri isa gago haeseo jibi neomu neolbeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그렇군요. 고칠 곳이 많아서 번거롭겠네요.",
+   "beaver_en": "I see. With so much to fix, it must be a hassle.",
+   "beaver_roman": "geureokunyo. gochil gosi manaseo beongeoropgenneyo.",
+   "learner": "조금요. 그래도 햇빛이 잘 들고 해서 살기 좋아요.",
+   "en": "A little. Still, partly because it's sunny, it's nice to live in.",
+   "roman": "jogeumnyo. geuraedo haetbichi jal deulgo haeseo salgi joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 마음에 들어요. 가족이랑 다시 올게요.",
+   "beaver_en": "Okay, I like it. I'll come back with my family.",
+   "beaver_roman": "ne, maeume deureoyo. gajogirang dasi olgeyo.",
+   "learner": "네, 언제든지 오세요. 연락 기다릴게요.",
+   "en": "Sure, come anytime. I'll wait for your call.",
+   "roman": "ne, eonjedeunji oseyo. yeollak gidarilgeyo."
+  }
+ ]
+}

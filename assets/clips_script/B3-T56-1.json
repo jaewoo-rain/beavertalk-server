@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T56-1",
+ "no": 243,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이사 온 지 일주일째예요. 이 동네 안전해요?",
+   "beaver_en": "It's been a week since I moved in. Is this area safe?",
+   "beaver_roman": "Isa on ji iljuiljjaeyeyo. I dongne anjeonhaeyo?",
+   "learner": "네, 다른 동네에 비해 폭력 사건이 적어요.",
+   "en": "Yes, there's less violence compared to other areas.",
+   "roman": "Ne, dareun dongnee bihae pongnyeok sakkeoni jeogeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "다행이네요. 도난 사건은요?",
+   "beaver_en": "That's a relief. What about theft?",
+   "beaver_roman": "Dahaengineyo. Donan sakkeoneunyo?",
+   "learner": "도난은 가끔 있어요. 작년에 자전거 도난이 많았어요.",
+   "en": "Theft happens sometimes. Lots of bikes were stolen last year.",
+   "roman": "Donaneun gakkeum isseoyo. Jangnyeone jajeongeo donani manasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "어쩐지 자물쇠가 많더라고요. 범인은 잡혔어요?",
+   "beaver_en": "No wonder there are so many locks. Was the culprit caught?",
+   "beaver_roman": "Eojjeonji jamulsoega manteoragoyo. Beomineun japyeosseoyo?",
+   "learner": "네, 범인은 지난달에 잡혔어요.",
+   "en": "Yes, the culprit was caught last month.",
+   "roman": "Ne, beomineun jinandare japyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "경찰은 자주 보이나요?",
+   "beaver_en": "Do you see the police often?",
+   "beaver_roman": "Gyeongchareun jaju boinayo?",
+   "learner": "네, 요즘 경찰이 밤마다 순찰을 돌아요.",
+   "en": "Yes, these days the police patrol every night.",
+   "roman": "Ne, yojeum gyeongchari bammada sunchareul dorayo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 요즘 전화 사기도 많다던데요.",
+   "beaver_en": "But I heard phone scams are common lately.",
+   "beaver_roman": "Geureonde yojeum jeonhwa sagido mantadeondeyo.",
+   "learner": "맞아요. 폭력에 비해서 사기가 훨씬 많아요.",
+   "en": "Right. Fraud is far more common compared to violence.",
+   "roman": "Majayo. Pongnyeoge bihaeseo sagiga hwolssin manayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그러게요. 저희 어머니도 당할 뻔했어요.",
+   "beaver_en": "I know. My mother almost got scammed too.",
+   "beaver_roman": "Geureogeyo. Jeohui eomeonido danghal ppeonhaesseoyo.",
+   "learner": "모르는 번호는 항상 경계해야 해요.",
+   "en": "You should always be on guard with unknown numbers.",
+   "roman": "Moreuneun beonhoneun hangsang gyeonggyehaeya haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "근처에 군부대가 있다고 들었어요.",
+   "beaver_en": "I heard there's a military base nearby.",
+   "beaver_roman": "Geuncheoe gunbudaega itdago deureosseoyo.",
+   "learner": "네, 군부대가 있어서 오히려 안전한 편이에요.",
+   "en": "Yes, there's a military base, so it's actually fairly safe.",
+   "roman": "Ne, gunbudaega isseoseo oheryeo anjeonhan pyeonieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "군부대가 있으면 든든하겠네요.",
+   "beaver_en": "Having a military base must feel reassuring.",
+   "beaver_roman": "Gunbudaega isseumyeon deundeunhagenneyo.",
+   "learner": "군과 경찰이 함께 동네를 지켜서 든든해요.",
+   "en": "The military and police guard the area together, so I feel secure.",
+   "roman": "Gungwa gyeongchari hamkke dongnereul jikyeoseo deundeunhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "비상시에는 어디로 가야 해요?",
+   "beaver_en": "Where should I go in an emergency?",
+   "beaver_roman": "Bisangsieneun eodiro gaya haeyo?",
+   "learner": "비상 때는 주민센터로 가면 돼요.",
+   "en": "In an emergency, you can go to the community center.",
+   "roman": "Bisang ttaeneun juminsenteoro gamyeon dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "덕분에 안심이 돼요. 고마워요.",
+   "beaver_en": "Thanks to you, I feel reassured. Thank you.",
+   "beaver_roman": "Deokbune ansimi dwaeyo. Gomawoyo.",
+   "learner": "별말씀을요. 다른 동네보다 살기 좋아요.",
+   "en": "Not at all. It's nicer to live here than other areas.",
+   "roman": "Byeolmalsseumeullyo. Dareun dongneboda salgi joayo."
+  }
+ ]
+}

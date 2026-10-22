@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T18-1",
+ "no": 62,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "다음 주에 해외여행 간다면서요? 어디로 가요?",
+   "beaver_en": "I heard you're going abroad next week? Where to?",
+   "beaver_roman": "daeum jue haeoeyeohaeng gandamyeonseoyo? eodiro gayo?",
+   "learner": "네, 다낭에 가는데 해외여행은 처음이에요.",
+   "en": "Yes, I'm going to Da Nang, and it's my first trip abroad.",
+   "roman": "ne, danange ganeunde haeoeyeohaengeun cheoeumieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 좋겠네요! 며칠 동안 가요?",
+   "beaver_en": "Wow, that sounds great! How many days?",
+   "beaver_roman": "wa, jokenneyo! myeochil dongan gayo?",
+   "learner": "오 일 동안 가요. 항공권은 벌써 샀어요.",
+   "en": "For five days. I already bought my plane ticket.",
+   "roman": "o il dongan gayo. hanggonggwoneun beolsseo sasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "잘했네요. 다낭은 경치가 좋은 곳이 많아요.",
+   "beaver_en": "Good job. Da Nang has lots of places with nice scenery.",
+   "beaver_roman": "jalhaenneyo. danangeun gyeongchiga joeun gosi manayo.",
+   "learner": "경치가 제일 좋은 곳에 꼭 가 보고 싶어요.",
+   "en": "I really want to visit the place with the best view.",
+   "roman": "gyeongchiga jeil joeun gose kkok ga bogo sipeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "바나힐에 가 봐요. 산 위인데 정말 예뻐요.",
+   "beaver_en": "Try going to Ba Na Hills. It's on a mountain and really pretty.",
+   "beaver_roman": "banahire ga bwayo. san wiinde jeongmal yeppeoyo.",
+   "learner": "관광객이 많아요? 사람이 많으면 힘든데요.",
+   "en": "Are there many tourists? Crowds are hard for me.",
+   "roman": "gwangwanggaegi manayo? sarami maneumyeon himdeundeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좀 많은데 아침 일찍 가면 괜찮아요.",
+   "beaver_en": "It's a bit crowded, but it's fine if you go early.",
+   "beaver_roman": "jom maneunde achim iljjik gamyeon gwaenchanayo.",
+   "learner": "그럼 아침에 가 볼게요. 관광하고 바다도 볼 거예요.",
+   "en": "Then I'll try going in the morning. I'll sightsee and see the sea.",
+   "roman": "geureom achime ga bolgeyo. gwangwanghago badado bol geoyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "좋아요. 그런데 짐은 다 쌌어요?",
+   "beaver_en": "Good. By the way, have you packed your luggage?",
+   "beaver_roman": "joayo. geureonde jimeun da ssasseoyo?",
+   "learner": "아직요. 짐이 많은데 몇 킬로그램까지 돼요?",
+   "en": "Not yet. I have a lot. How many kilograms are allowed?",
+   "roman": "ajingnyo. jimi maneunde myeot killogeuraemkkaji dwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "보통 이십 킬로그램이에요. 항공권을 확인해 봐요.",
+   "beaver_en": "Usually twenty kilograms. Check your ticket.",
+   "beaver_roman": "botong isip killogeuraemieyo. hanggonggwoneul hwaginhae bwayo.",
+   "learner": "네, 확인해 볼게요. 출입국 심사는 어려워요?",
+   "en": "Okay, I'll check. Is immigration difficult?",
+   "roman": "ne, hwaginhae bolgeyo. churipguk simsaneun eoryeowoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "아니요, 여권만 잘 보여 주면 돼요. 쉬워요.",
+   "beaver_en": "No, just show your passport. It's easy.",
+   "beaver_roman": "aniyo, yeogwonman jal boyeo jumyeon dwaeyo. swiwoyo.",
+   "learner": "다행이에요. 저는 광주에 사는데 공항이 멀어요.",
+   "en": "That's a relief. I live in Gwangju, so the airport is far.",
+   "roman": "dahaengieyo. jeoneun gwangjue saneunde gonghangi meoreoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 인천까지 버스로 가요? 일찍 출발해요.",
+   "beaver_en": "So you're taking a bus to Incheon? Leave early.",
+   "beaver_roman": "geureom incheonkkaji beoseuro gayo? iljjik chulbalhaeyo.",
+   "learner": "네, 새벽에 출발해요. 역시 선배가 최고예요.",
+   "en": "Yes, I'm leaving at dawn. You really are the best.",
+   "roman": "ne, saebyeoge chulbalhaeyo. yeoksi seonbaega choegoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "여행 잘 다녀와요. 사진 많이 보내 줘요!",
+   "beaver_en": "Have a good trip. Send me lots of photos!",
+   "beaver_roman": "yeohaeng jal danyeowayo. sajin mani bonae jwoyo!",
+   "learner": "네, 다녀와서 여행 이야기 많이 해 드릴게요.",
+   "en": "Sure, I'll tell you all about it when I'm back.",
+   "roman": "ne, danyeowaseo yeohaeng iyagi mani hae deurilgeyo."
+  }
+ ]
+}

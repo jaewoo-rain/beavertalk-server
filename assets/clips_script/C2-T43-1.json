@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T43-1",
+ "no": 383,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "발표 잘 들었습니다. 질문해도 되겠습니까?",
+   "beaver_en": "I enjoyed your presentation. May I ask a question?",
+   "beaver_roman": "balpyo jal deureotseumnida. jilmunhaedo doegetseumnikka?",
+   "learner": "네, 물론입니다. 편하게 질문해 주십시오.",
+   "en": "Yes, of course. Please feel free to ask.",
+   "roman": "ne, mullonimnida. pyeonhage jilmunhae jusipsio."
+  },
+  {
+   "n": 2,
+   "beaver": "연날리기는 어떤 기원을 담고 있습니까?",
+   "beaver_en": "What wish does kite flying carry?",
+   "beaver_roman": "yeonnalligineun eotteon giwoneul damgo itseumnikka?",
+   "learner": "나쁜 기운을 날려 보내려는 기원이 담겨 있습니다.",
+   "en": "It carries a wish to send bad energy away.",
+   "roman": "nappeun giuneul nallyeo bonaeryeoneun giwoni damgyeo itseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "줄다리기도 그렇습니까?",
+   "beaver_en": "Is tug of war like that too?",
+   "beaver_roman": "juldarigido geureoseumnikka?",
+   "learner": "아니요, 줄다리기는 풍년을 비는 놀이입니다.",
+   "en": "No, tug of war is a game that prays for a good harvest.",
+   "roman": "anio, juldarigineun pungnyeoneul bineun norimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "탈춤은 어떻습니까?",
+   "beaver_en": "What about the mask dance?",
+   "beaver_roman": "talchumeun eotteoseumnikka?",
+   "learner": "탈춤은 양반을 풍자하고 액운을 막는 놀이입니다.",
+   "en": "The mask dance satirizes nobles and wards off bad luck.",
+   "roman": "talchumeun yangbaneul pungjahago aeguneul mangneun norimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "도깨비는 서양의 악마와 비슷합니까?",
+   "beaver_en": "Are goblins similar to Western devils?",
+   "beaver_roman": "dokkaebineun seoyangui angmawa biseutamnikka?",
+   "learner": "아니요, 도깨비는 악마보다 장난을 좋아합니다.",
+   "en": "No, goblins like pranks more than devils do.",
+   "roman": "anio, dokkaebineun angmaboda jangnaneul joahamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "동서양의 차이가 재미있네요. 금기도 있었습니까?",
+   "beaver_en": "The difference between East and West is interesting. Were there taboos too?",
+   "beaver_roman": "dongseoyangui chaiga jaemiinneyo. geumgido isseotseumnikka?",
+   "learner": "네, 대보름 뒤에는 연날리기가 금기였습니다.",
+   "en": "Yes, kite flying was taboo after the first full moon.",
+   "roman": "ne, daeboreum dwieneun yeonnalligiga geumgiyeotseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "다른 나라에도 비슷한 금기가 있습니까?",
+   "beaver_en": "Do other countries have similar taboos?",
+   "beaver_roman": "dareun naraedo biseutan geumgiga itseumnikka?",
+   "learner": "기독교와 이슬람교에도 비슷한 금기가 있습니다.",
+   "en": "Christianity and Islam have similar taboos too.",
+   "roman": "gidokgyowa iseullamgyoedo biseutan geumgiga itseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "사진 속 동상은 무엇입니까?",
+   "beaver_en": "What is the statue in the photo?",
+   "beaver_roman": "sajin sok dongsangeun mueosimnikka?",
+   "learner": "탈춤 추는 사람 동상입니다. 저고리를 입었습니다.",
+   "en": "It's a statue of a mask dancer. He's wearing a jeogori.",
+   "roman": "talchum chuneun saram dongsangimnida. jeogorireul ibeotseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "문화와 전통에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about culture and tradition?",
+   "beaver_roman": "munhwawa jeontonge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "전통 놀이는 지금도 여전히 대중적입니다.",
+   "en": "Traditional games are still popular today.",
+   "roman": "jeontong norineun jigeumdo yeojeonhi daejungjeogimnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 발표 감사합니다. 마지막으로 정리해 주십시오.",
+   "beaver_en": "Thank you for a great presentation. Please sum up.",
+   "beaver_roman": "joeun balpyo gamsahamnida. majimageuro jeongnihae jusipsio.",
+   "learner": "이상에서 본 바와 같이 전통 놀이는 소중합니다.",
+   "en": "As seen above, traditional games are precious.",
+   "roman": "isangeseo bon bawa gachi jeontong norineun sojunghamnida."
+  }
+ ]
+}

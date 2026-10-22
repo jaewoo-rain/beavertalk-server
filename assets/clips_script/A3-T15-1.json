@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T15-1",
+ "no": 59,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 여기 처음 왔는데 제 자리가 어디예요?",
+   "beaver_en": "Hello. It's my first time here. Where is my seat?",
+   "beaver_roman": "annyeonghaseyo. yeogi cheoeum wanneunde je jariga eodiyeyo?",
+   "learner": "안녕하세요. 표를 보여 주세요. 자리를 찾아 드릴게요.",
+   "en": "Hello. Please show me your ticket. I'll find your seat.",
+   "roman": "annyeonghaseyo. pyoreul boyeo juseyo. jarireul chaja deurilgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "여기요. B구역 15번이에요.",
+   "beaver_en": "Here. It's Section B, number 15.",
+   "beaver_roman": "yeogiyo. bi-guyeok sibobeonieyo.",
+   "learner": "B구역은 무대 앞 중간에 있어요. 안쪽으로 가세요.",
+   "en": "Section B is in the middle, in front of the stage. Go inside.",
+   "roman": "bi-guyeogeun mudae ap junggane isseoyo. anjjogeuro gaseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "무대 앞이요? 무대는 어느 방향이에요?",
+   "beaver_en": "In front of the stage? Which direction is the stage?",
+   "beaver_roman": "mudae apiyo? mudaeneun eoneu banghyangieyo?",
+   "learner": "무대는 저쪽이에요. 앞으로 쭉 가세요.",
+   "en": "The stage is over there. Go straight ahead.",
+   "roman": "mudaeneun jeojjogieyo. apeuro jjuk gaseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "사람이 많네요. 어떻게 가면 돼요?",
+   "beaver_en": "There are a lot of people. How do I get there?",
+   "beaver_roman": "sarami manneyo. eotteoke gamyeon dwaeyo?",
+   "learner": "괜찮아요. 바닥의 노란 선을 따라가세요.",
+   "en": "It's fine. Follow the yellow line on the floor.",
+   "roman": "gwaenchanayo. badage noran seoneul ttaragaseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "화장실은 가까워요?",
+   "beaver_en": "Is the restroom close?",
+   "beaver_roman": "hwajangsireun gakkawoyo?",
+   "learner": "네, 가까이 있어요. 동쪽 출구 옆에 있어요.",
+   "en": "Yes, it's nearby. It's next to the east exit.",
+   "roman": "ne, gakkai isseoyo. dongjjok chulgu yeope isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "출구는 어느 방향이에요?",
+   "beaver_en": "Which direction are the exits?",
+   "beaver_roman": "chulguneun eoneu banghyangieyo?",
+   "learner": "출구는 동쪽과 서쪽에 있어요. 뒤쪽에도 있어요.",
+   "en": "The exits are on the east and west. There's one at the back too.",
+   "roman": "chulguneun dongjjokgwa seojjoge isseoyo. dwijjogedo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "행사 끝나고 바깥에서 밥 먹고 싶어요.",
+   "beaver_en": "After the event, I want to eat outside.",
+   "beaver_roman": "haengsa kkeunnago bakkateseo bap meokgo sipeoyo.",
+   "learner": "정문 앞 거리에 식당이 많아요. 주변에 카페도 있어요.",
+   "en": "There are many restaurants on the street in front of the main gate. There are cafes around too.",
+   "roman": "jeongmun ap georie sikdangi manayo. jubyeone kapedo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "여기서 거리가 멀어요?",
+   "beaver_en": "Is it far from here?",
+   "beaver_roman": "yeogiseo georiga meoreoyo?",
+   "learner": "아니요, 걸어서 오 분이에요. 아주 가까워요.",
+   "en": "No, it's five minutes on foot. It's very close.",
+   "roman": "aniyo, georeoseo o bunieyo. aju gakkawoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "이 고장에서 인기 있는 음식이 뭐예요?",
+   "beaver_en": "What food is popular in this area?",
+   "beaver_roman": "i gojangeseo ingi inneun eumsigi mwoyeyo?",
+   "learner": "이 고장은 국수가 최고예요. 면이 아주 부드러워요.",
+   "en": "Noodles are the best here. The noodles are very soft.",
+   "roman": "i gojangeun guksuga choegoyeyo. myeoni aju budeureowoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 그럼 제 자리에 가 볼게요.",
+   "beaver_en": "Thank you. I'll go to my seat then.",
+   "beaver_roman": "gomawoyo. geureom je jarie ga bolgeyo.",
+   "learner": "네, 즐겁게 보세요! 안내 센터는 정문 옆이에요.",
+   "en": "Okay, enjoy the show! The info center is next to the main gate.",
+   "roman": "ne, jeulgeopge boseyo! annae senteoneun jeongmun yeopieyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T09-1",
+ "no": 8,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어제 쇼핑했어요? 뭐 샀어요?",
+   "beaver_en": "Did you go shopping yesterday? What did you buy?",
+   "beaver_roman": "eoje syopinghaesseoyo? mwo sasseoyo?",
+   "learner": "네, 어제 옷을 샀어요. 셔츠를 샀어요.",
+   "en": "Yes, I bought clothes yesterday. I bought a shirt.",
+   "roman": "ne, eoje oseul sasseoyo. syeocheureul sasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 어떤 셔츠예요?",
+   "beaver_en": "Wow, what kind of shirt?",
+   "beaver_roman": "wa, eotteon syeocheuyeyo?",
+   "learner": "하얀 셔츠예요. 천이 정말 좋았어요.",
+   "en": "It's a white shirt. The fabric was really nice.",
+   "roman": "hayan syeocheuyeyo. cheoni jeongmal joasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "소매가 길어요?",
+   "beaver_en": "Are the sleeves long?",
+   "beaver_roman": "somaega gireoyo?",
+   "learner": "네, 좀 길어요. 그래도 예뻐요.",
+   "en": "Yes, they're a bit long. But they're still pretty.",
+   "roman": "ne, jom gireoyo. geuraedo yeppeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "가방도 샀어요?",
+   "beaver_en": "Did you buy a bag too?",
+   "beaver_roman": "gabangdo sasseoyo?",
+   "learner": "네, 가방도 샀어요. 작은 백이에요.",
+   "en": "Yes, I bought a bag too. It's a small bag.",
+   "roman": "ne, gabangdo sasseoyo. jageun baegieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "값이 비쌌어요?",
+   "beaver_en": "Was it expensive?",
+   "beaver_roman": "gapsi bissasseoyo?",
+   "learner": "네, 좀 비쌌어요. 팔십 달러였어요.",
+   "en": "Yes, a bit expensive. It was eighty dollars.",
+   "roman": "ne, jom bissasseoyo. palsip dalleoyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "안경도 새로 샀어요?",
+   "beaver_en": "Did you buy new glasses too?",
+   "beaver_roman": "angyeongdo saero sasseoyo?",
+   "learner": "아니요, 예쁜 안경이 없었어요.",
+   "en": "No, there were no pretty glasses.",
+   "roman": "aniyo, yeppeun angyeongi eopseosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 다른 건 안 샀어요?",
+   "beaver_en": "Then didn't you buy anything else?",
+   "beaver_roman": "geureom dareun geon an sasseoyo?",
+   "learner": "모자를 샀어요. 어제 썼어요.",
+   "en": "I bought a hat. I wore it yesterday.",
+   "roman": "mojareul sasseoyo. eoje sseosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "운동화도 샀어요? 얼마였어요?",
+   "beaver_en": "Did you buy sneakers too? How much were they?",
+   "beaver_roman": "undonghwado sasseoyo? eolmayeosseoyo?",
+   "learner": "네, 칠십 달러였어요. 바로 신었어요.",
+   "en": "Yes, they were seventy dollars. I wore them right away.",
+   "roman": "ne, chilsip dalleoyeosseoyo. baro sineosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "주말에 만나서 더 이야기할래요?",
+   "beaver_en": "Want to meet this weekend and talk more?",
+   "beaver_roman": "jumare mannaseo deo iyagihallaeyo?",
+   "learner": "좋아요. 이번 주말에 만나요.",
+   "en": "Sure. Let's meet this weekend.",
+   "roman": "joayo. ibeon jumare mannayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요! 새 옷 꼭 입고 와요.",
+   "beaver_en": "Great! Be sure to wear your new clothes.",
+   "beaver_roman": "joayo! sae ot kkok ipgo wayo.",
+   "learner": "네, 모자도 쓰고 갈게요. 주말에 봐요!",
+   "en": "Okay, I'll wear the hat too. See you this weekend!",
+   "roman": "ne, mojado sseugo galgeyo. jumare bwayo!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T02-1",
+ "no": 86,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "가족 모임 날짜 정했어? 나도 같이 갈 거니까.",
+   "beaver_en": "Did you set the family gathering date? I'm coming too.",
+   "beaver_roman": "gajok moim naljja jeonghaesseo? nado gachi gal geonikka.",
+   "learner": "아직이야. 날짜 정하기가 너무 어려워.",
+   "en": "Not yet. It's really hard to pick a date.",
+   "roman": "ajigiya. naljja jeonghagiga neomu eoryeowo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 사람이 많아?",
+   "beaver_en": "Why? Are there a lot of people?",
+   "beaver_roman": "wae? sarami mana?",
+   "learner": "응, 형제가 다섯이고 친척도 많아.",
+   "en": "Yeah, there are five siblings and lots of relatives.",
+   "roman": "eung, hyeongjega daseosigo chincheokdo mana."
+  },
+  {
+   "n": 3,
+   "beaver": "고모도 오셔?",
+   "beaver_en": "Is your aunt coming too?",
+   "beaver_roman": "gomodo osyeo?",
+   "learner": "응, 고모랑 이모도 다 오셔.",
+   "en": "Yes, both my aunts on dad's and mom's side are coming.",
+   "roman": "eung, gomorang imodo da osyeo."
+  },
+  {
+   "n": 4,
+   "beaver": "아이들은?",
+   "beaver_en": "What about the kids?",
+   "beaver_roman": "aideureun?",
+   "learner": "어린아이가 셋이야. 애들도 다 데려온대.",
+   "en": "There are three young kids. They're bringing all the kids too.",
+   "roman": "eorinaiga sesiya. aedeuldo da deryeoondae."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 휴일이 좋겠다.",
+   "beaver_en": "Then a holiday would be good.",
+   "beaver_roman": "geureom hyuiri joketda.",
+   "learner": "맞아. 연휴 첫날 어때?",
+   "en": "Right. How about the first day of the long weekend?",
+   "roman": "maja. yeonhyu cheonnal eottae?"
+  },
+  {
+   "n": 6,
+   "beaver": "좋아. 어른들도 괜찮으시대?",
+   "beaver_en": "Sounds good. Are the elders okay with it?",
+   "beaver_roman": "joa. eoreundeuldo gwaenchaneusidae?",
+   "learner": "어머니는 좋으시대. 아버지는 반대하셨어.",
+   "en": "My mom says it's fine. My dad was against it.",
+   "roman": "eomeonineun joeusidae. abeojineun bandaehasyeosseo."
+  },
+  {
+   "n": 7,
+   "beaver": "왜 반대하셨어?",
+   "beaver_en": "Why was he against it?",
+   "beaver_roman": "wae bandaehasyeosseo?",
+   "learner": "그날 일하셔서 쉬기 어려우시대.",
+   "en": "He works that day, so he says it's hard to take off.",
+   "roman": "geunal ilhasyeoseo swigi eoryeousidae."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 둘째 날은 어때?",
+   "beaver_en": "Then how about the second day?",
+   "beaver_roman": "geureom duljjae nareun eottae?",
+   "learner": "좋아. 아빠께 다시 말씀드릴게.",
+   "en": "Good. I'll talk to my dad again.",
+   "roman": "joa. appakke dasi malsseumdeurilge."
+  },
+  {
+   "n": 9,
+   "beaver": "이번 모임에서 특별히 뭐 해?",
+   "beaver_en": "Are you doing anything special this time?",
+   "beaver_roman": "ibeon moimeseo teukbyeolhi mwo hae?",
+   "learner": "다 같이 한복 입고 가족사진 찍어.",
+   "en": "We'll all wear hanbok and take a family photo.",
+   "roman": "da gachi hanbok ipgo gajoksajin jjigeo."
+  },
+  {
+   "n": 10,
+   "beaver": "와, 멋지다! 나도 꼭 같이 갈게.",
+   "beaver_en": "Wow, that's great! I'll definitely come along.",
+   "beaver_roman": "wa, meotjida! nado kkok gachi galge.",
+   "learner": "고마워. 둘째 날 아침에 만나자!",
+   "en": "Thanks. Let's meet on the morning of the second day!",
+   "roman": "gomawo. duljjae nal achime mannaja!"
+  }
+ ]
+}

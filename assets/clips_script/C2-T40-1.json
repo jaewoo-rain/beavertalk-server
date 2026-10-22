@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T40-1",
+ "no": 380,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 재난 지원 기준을 묻고 싶습니다.",
+   "beaver_en": "Hello. I'd like to ask about disaster aid criteria.",
+   "beaver_roman": "annyeonghaseyo. jaenan jiwon gijuneul mutgo sipseumnida.",
+   "learner": "네, 자연재해 피해를 입으면 누구나 대상입니다.",
+   "en": "Yes, anyone affected by a natural disaster is eligible.",
+   "roman": "ne, jayeonjaehae pihaereul ibeumyeon nuguna daesangimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "노숙자나 양로원 어르신도 대상입니까?",
+   "beaver_en": "Are homeless people and nursing home seniors included?",
+   "beaver_roman": "nosukjana yangnowon eoreusindo daesangimnikka?",
+   "learner": "네, 나이나 형편과 관계없이 모두 대상입니다.",
+   "en": "Yes, everyone is eligible regardless of age or circumstances.",
+   "roman": "ne, naina hyeongpyeongwa gwangyeeopsi modu daesangimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 부유층도 똑같이 받습니까?",
+   "beaver_en": "Then do the wealthy receive the same?",
+   "beaver_roman": "geureom buyucheungdo ttokgachi batseumnikka?",
+   "learner": "네, 부유층이든 노숙자든 기준은 공평합니다.",
+   "en": "Yes, the criteria are fair for the wealthy and the homeless alike.",
+   "roman": "ne, buyucheungideun nosukjadeun gijuneun gongpyeonghamnida."
+  },
+  {
+   "n": 4,
+   "beaver": "부자도 받는다니 좀 과한 것 같습니다.",
+   "beaver_en": "Giving aid to the rich seems a bit much.",
+   "beaver_roman": "bujado banneundani jom gwahan geot gatseumnida.",
+   "learner": "재난은 사람을 가리지 않기 때문입니다.",
+   "en": "Because disasters don't discriminate between people.",
+   "roman": "jaenaneun sarameul gariji anki ttaemunimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 약자를 먼저 도와야 하지 않습니까?",
+   "beaver_en": "Still, shouldn't we help the weak first?",
+   "beaver_roman": "geuraedo yakjareul meonjeo dowaya haji anseumnikka?",
+   "learner": "맞습니다. 취약계층은 등급에 따라 더 지원합니다.",
+   "en": "Right. Vulnerable groups get more support by grade.",
+   "roman": "matseumnida. chwiyakgyecheungeun deunggeube ttara deo jiwonhamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "사회 제도와 복지에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the social system and welfare?",
+   "beaver_roman": "sahoe jedowa bokjie daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "어려울 때 모두가 서로 돕자는 제도입니다.",
+   "en": "It's a system for everyone to help each other in hard times.",
+   "roman": "eoryeoul ttae moduga seoro dopjaneun jedoimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘 구조 인력이 부족하다던데 괜찮습니까?",
+   "beaver_en": "I heard rescue staff are short these days. Is it okay?",
+   "beaver_roman": "yojeum gujo illyeogi bujokadadeonde gwaenchanseumnikka?",
+   "learner": "아니요, 출산율이 낮아 구조 인력난도 심합니다.",
+   "en": "No, with the low birth rate, rescue staff shortages are severe.",
+   "roman": "aniyo, chulsanyuri naja gujo illyeongnando simhamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 시민은 무엇을 할 수 있습니까?",
+   "beaver_en": "Then what can citizens do?",
+   "beaver_roman": "geureom simineun mueoseul hal su itseumnikka?",
+   "learner": "헌혈이나 봉사단 참여로 힘을 보탤 수 있습니다.",
+   "en": "You can help by donating blood or joining a volunteer group.",
+   "roman": "heonhyeorina bongsadan chamyeoro himeul botael su itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "재난 때 지켜야 할 수칙도 있습니까?",
+   "beaver_en": "Are there rules to follow during a disaster?",
+   "beaver_roman": "jaenan ttae jikyeoya hal suchikdo itseumnikka?",
+   "learner": "네, 대피 요령 같은 행동 수칙이 있습니다.",
+   "en": "Yes, there are rules of conduct, like how to evacuate.",
+   "roman": "ne, daepi yoryeong gateun haengdong suchigi itseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "자세히 설명해 주셔서 감사합니다.",
+   "beaver_en": "Thank you for explaining in detail.",
+   "beaver_roman": "jasehi seolmyeonghae jusyeoseo gamsahamnida.",
+   "learner": "별말씀을요. 궁금한 점은 언제든 물어보십시오.",
+   "en": "Not at all. Feel free to ask anytime.",
+   "roman": "byeolmalsseumeullyo. gunggeumhan jeomeun eonjedeun mureobosipsio."
+  }
+ ]
+}

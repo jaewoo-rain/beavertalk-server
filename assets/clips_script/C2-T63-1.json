@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T63-1",
+ "no": 395,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 창업 준비는 잘 돼 가요?",
+   "beaver_en": "Minsu, how's your startup prep going?",
+   "beaver_roman": "minsu ssi, changeop junbineun jal dwae gayo?",
+   "learner": "아니요, 사업 계획이 생각보다 어려워요.",
+   "en": "Not great. The business plan is harder than I thought.",
+   "roman": "aniyo, saeop gyehoegi saenggakboda eoryeowoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 사업을 하려고 해요?",
+   "beaver_en": "What kind of business are you planning?",
+   "beaver_roman": "eotteon saeobeul haryeogo haeyo?",
+   "learner": "농가와 농장에서 농축산물을 받아 팔려고요.",
+   "en": "I want to sell farm and livestock products from farming households and farms.",
+   "roman": "nonggawa nongjangeseo nongchuksanmureul bada pallyeogoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "수산물도 같이 팔 거예요?",
+   "beaver_en": "Will you sell seafood too?",
+   "beaver_roman": "susanmuldo gachi pal geoyeyo?",
+   "learner": "네, 농축산물은 물론이려니와 수산물도 팔 거예요.",
+   "en": "Yes, not only farm and livestock products but seafood too.",
+   "roman": "ne, nongchuksanmureun mulloniryeoniwa susanmuldo pal geoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "자금은 어때요?",
+   "beaver_en": "How about funding?",
+   "beaver_roman": "jageumeun eottaeyo?",
+   "learner": "땅값은 물론이려니와 창고 비용도 커서 걱정이에요.",
+   "en": "Not only land prices but warehouse costs are high, so I'm worried.",
+   "roman": "ttangkkapseun mulloniryeoniwa changgo biyongdo keoseo geokjeongieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "재고 관리는 어떻게 하려고요?",
+   "beaver_en": "How will you manage inventory?",
+   "beaver_roman": "jaego gwallineun eotteoke haryeogoyo?",
+   "learner": "재고가 쌓이면 손해라서 판매량을 먼저 봐야 해요.",
+   "en": "Piled-up stock is a loss, so I need to check sales volume first.",
+   "roman": "jaegoga ssaimyeon sonhaeraseo panmaeryangeul meonjeo bwaya haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "판매는 어떻게 할 거예요?",
+   "beaver_en": "How will you sell?",
+   "beaver_roman": "panmaeneun eotteoke hal geoyeyo?",
+   "learner": "온라인 마케팅으로 새 시장을 개척하고 싶어요.",
+   "en": "I want to open up a new market with online marketing.",
+   "roman": "ollain maketingeuro sae sijangeul gaecheokago sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "이 분야에 경쟁 업체는 많아요?",
+   "beaver_en": "Are there many competitors in this field?",
+   "beaver_roman": "i bunyae gyeongjaeng eopcheneun manayo?",
+   "learner": "대기업은 물론이려니와 중소기업도 이 일을 해요.",
+   "en": "Not only big companies but small businesses do this too.",
+   "roman": "daegieobeun mulloniryeoniwa jungsogieopdo i ireul haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 경쟁이 심하겠네요. 올해 농사는 어때요?",
+   "beaver_en": "Then competition must be tough. How's farming this year?",
+   "beaver_roman": "geureom gyeongjaengi simhagenneyo. olhae nongsaneun eottaeyo?",
+   "learner": "올해는 풍년이라서 논에서 쌀이 많이 나왔대요.",
+   "en": "It's a bumper year, so they say the paddies gave lots of rice.",
+   "roman": "olhaeneun pungnyeoniraseo noneseo ssari mani nawatdaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋은 소식이네요. 다음 계획은 뭐예요?",
+   "beaver_en": "Good news. What's your next step?",
+   "beaver_roman": "joeun sosigineyo. daeum gyehoegeun mwoyeyo?",
+   "learner": "다음 달에는 축산 농가도 찾아가 볼 거예요.",
+   "en": "Next month I'll visit livestock farmers too.",
+   "roman": "daeum dareneun chuksan nonggado chajaga bol geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋네요. 우리 서로 응원해요!",
+   "beaver_en": "Nice. Let's cheer each other on!",
+   "beaver_roman": "jonneyo. uri seoro eungwonhaeyo!",
+   "learner": "고마워요. 지은 씨 창업도 잘되길 바랄게요.",
+   "en": "Thanks. I hope your startup goes well too, Jieun.",
+   "roman": "gomawoyo. jieun ssi changeopdo jaldoegil baralgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T41-1",
+ "no": 473,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "국장님, 요즘 유가가 급등하고 있습니다.",
+   "beaver_en": "Director, oil prices are rising sharply these days.",
+   "beaver_roman": "gukjangnim, yojeum yugaga geupdeunghago itseumnida.",
+   "learner": "네, 유가 폭등으로 경기가 침체기에 들어섰습니다.",
+   "en": "Yes, the oil price surge has pushed the economy into stagnation.",
+   "roman": "ne, yuga pokdeungeuro gyeonggiga chimchegie deureoseotseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "재정을 푸시겠습니까? 재원은 충분합니까?",
+   "beaver_en": "Will you loosen fiscal spending? Are there enough funds?",
+   "beaver_roman": "jaejeongeul pusigetseumnikka? jaewoneun chungbunhamnikka?",
+   "learner": "재원이 부족하다는 지적이 있어 재정 절감이 먼저입니다.",
+   "en": "It's been pointed out that funds are short, so cutting spending comes first.",
+   "roman": "jaewoni bujokadaneun jijeogi isseo jaejeong jeolgami meonjeoimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 저소득층 지원은 어떻게 하시겠습니까?",
+   "beaver_en": "Then how will you support low-income households?",
+   "beaver_roman": "geureom jeosodeukcheung jiwoneun eotteoke hasigetseumnikka?",
+   "learner": "고소득층에 세금을 더 걷어 저소득층에 분배하겠습니다.",
+   "en": "We'll tax high earners more and distribute it to low-income groups.",
+   "roman": "gosodeukcheunge segeumeul deo geodeo jeosodeukcheunge bunbaehagetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "투기는 어떻습니까? 집값이 급등했습니다.",
+   "beaver_en": "What about speculation? Housing prices have soared.",
+   "beaver_roman": "tugineun eotteoseumnikka? jipgapsi geupdeunghaetseumnida.",
+   "learner": "부동산 투기를 막고 경매 물건도 낱낱이 조사하겠습니다.",
+   "en": "We'll block real estate speculation and examine auction properties in detail.",
+   "roman": "budongsan tugireul makgo gyeongmae mulgeondo nannachi josahagetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "주식 시장도 불안합니다. 어제 주가가 폭락했습니다.",
+   "beaver_en": "The stock market is unstable too. Stocks crashed yesterday.",
+   "beaver_roman": "jusik sijangdo buranhamnida. eoje jugaga pongnakaetseumnida.",
+   "learner": "네, 급락 후 회복세로 돌아섰다는 분석이 있습니다.",
+   "en": "Yes, analysts say it turned to recovery after the sharp fall.",
+   "roman": "ne, geumnak hu hoebokseoro doraseotdaneun bunseogi itseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "외환 시장은 어떻습니까? 환율이 걱정입니다.",
+   "beaver_en": "How is the foreign exchange market? I'm worried about the exchange rate.",
+   "beaver_roman": "oehwan sijangeun eotteoseumnikka? hwanyuri geokjeongimnida.",
+   "learner": "수출 호조로 무역 흑자가 나서 외환은 안정적입니다.",
+   "en": "Strong exports created a trade surplus, so foreign exchange is stable.",
+   "roman": "suchul hojoro muyeok heukjaga naseo oehwaneun anjeongjeogimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "통상 문제는요? 관세가 오른다는 소식이 있습니다.",
+   "beaver_en": "What about trade? There's news that tariffs will rise.",
+   "beaver_roman": "tongsang munjeneunyo? gwansega oreundaneun sosigi itseumnida.",
+   "learner": "관세 협의를 서두르고 통상 진흥 정책을 내겠습니다.",
+   "en": "We'll speed up tariff talks and announce a trade promotion policy.",
+   "roman": "gwanse hyeobuireul seodureugo tongsang jinheung jeongchaegeul naegetseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "다른 대책도 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me about other measures too?",
+   "beaver_roman": "dareun daechaekdo malsseumhae jusigetseumnikka?",
+   "learner": "아시아 경제권과 협력해야 함께 번영할 수 있습니다.",
+   "en": "We must cooperate with the Asian economic bloc to prosper together.",
+   "roman": "asia gyeongjegwongwa hyeomnyeokaeya hamkke beonyeonghal su itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "새 사업은 경제성이 있습니까?",
+   "beaver_en": "Is the new project economically viable?",
+   "beaver_roman": "sae saeobeun gyeongjeseongi itseumnikka?",
+   "learner": "경제성은 충분하고 투자금도 빨리 회수될 겁니다.",
+   "en": "It's viable, and the investment will be recovered quickly.",
+   "roman": "gyeongjeseongeun chungbunhago tujageumdo ppalli hoesudoel geomnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 이번 고비를 잘 넘기면 좋겠습니다.",
+   "beaver_en": "Good. I hope we get through this crisis well.",
+   "beaver_roman": "josseumnida. ibeon gobireul jal neomgimyeon jokesseumnida.",
+   "learner": "네, 경제가 다시 거듭나도록 최선을 다하겠습니다.",
+   "en": "Yes, I'll do my best so the economy can be reborn.",
+   "roman": "ne, gyeongjega dasi geodeumnadorok choeseoneul dahagetseumnida."
+  }
+ ]
+}

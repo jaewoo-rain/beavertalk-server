@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T26-1",
+ "no": 225,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요. 오늘은 진로 이야기를 해 볼까요?",
+   "beaver_en": "Come in. Shall we talk about your career path today?",
+   "beaver_roman": "eoseo wayo. oneureun jillo iyagireul hae bolkkayo?",
+   "learner": "네, 선생님. 진로 때문에 앞이 캄캄해요.",
+   "en": "Yes, teacher. My future looks dark because of my career path.",
+   "roman": "ne, seonsaengnim. jillo ttaemune api kamkamhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "갑자기 왜요? 꿈이 있었잖아요.",
+   "beaver_en": "Why all of a sudden? You had a dream.",
+   "beaver_roman": "gapjagi waeyo? kkumi isseotjanayo.",
+   "learner": "원래 판사라는 직업이 꿈이었어요.",
+   "en": "Originally, my dream was a job called judge.",
+   "roman": "wollae pansaraneun jigeobi kkumieosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋은 꿈이네요. 지금은 생각이 달라요?",
+   "beaver_en": "That's a good dream. Do you think differently now?",
+   "beaver_roman": "joeun kkumineyo. jigeumeun saenggagi dallayo?",
+   "learner": "네, 요즘은 장인에 관심이 생겼어요.",
+   "en": "Yes, these days I've become interested in master craftsmen.",
+   "roman": "ne, yojeumeun jangine gwansimi saenggyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "장인이요? 어떤 일을 하고 싶은데요?",
+   "beaver_en": "A craftsman? What kind of work do you want to do?",
+   "beaver_roman": "jangiyo? eotteon ireul hago sipeundeyo?",
+   "learner": "나무로 가구를 만드는 장인이 되고 싶어요.",
+   "en": "I want to be a craftsman who makes wooden furniture.",
+   "roman": "namuro gagureul mandeuneun jangini doego sipeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "준비는 어떻게 해요?",
+   "beaver_en": "How are you preparing?",
+   "beaver_roman": "junbineun eotteoke haeyo?",
+   "learner": "공방이라는 곳에서 주말마다 배워요.",
+   "en": "I learn every weekend at a place called a workshop.",
+   "roman": "gongbangiraneun goseseo jumalmada baewoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "퍽 열심히 하네요. 그래도 취업도 생각해야지요.",
+   "beaver_en": "You're working quite hard. But you should think about a job too.",
+   "beaver_roman": "peok yeolssimi haneyo. geuraedo chwieopdo saenggakaeyajiyo.",
+   "learner": "네, 가구 회사에 취업하고 싶어요.",
+   "en": "Yes, I want to get a job at a furniture company.",
+   "roman": "ne, gagu hoesae chwieopago sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그 회사는 어떤 인재를 원해요?",
+   "beaver_en": "What kind of talent does that company want?",
+   "beaver_roman": "geu hoesaneun eotteon injaereul wonaeyo?",
+   "learner": "손재주가 좋은 인재를 원한대요.",
+   "en": "They say they want talented people who are good with their hands.",
+   "roman": "sonjaejuga joeun injaereul wonandaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 공방 선생님께 추천서를 부탁해 봐요.",
+   "beaver_en": "Then try asking your workshop teacher for a recommendation letter.",
+   "beaver_roman": "geureom gongbang seonsaengnimkke chucheonseoreul butakae bwayo.",
+   "learner": "아, 추천서라는 방법이 있었네요!",
+   "en": "Oh, there's a way called a recommendation letter!",
+   "roman": "a, chucheonseoraneun bangbeobi isseonneyo!"
+  },
+  {
+   "n": 9,
+   "beaver": "다음 주에 직업과 진로에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about jobs and your career next week?",
+   "beaver_roman": "daeum jue jigeopgwa jilloe daehae deo iyagihae bollaeyo?",
+   "learner": "네, 좋아요. 계획을 써서 올게요.",
+   "en": "Yes, sounds good. I'll write a plan and bring it.",
+   "roman": "ne, joayo. gyehoegeul sseoseo olkkeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 오늘 이야기 잘했어요.",
+   "beaver_en": "Good. You talked well today.",
+   "beaver_roman": "joayo. oneul iyagi jalhaesseoyo.",
+   "learner": "감사합니다. 이제 앞이 좀 보여요.",
+   "en": "Thank you. Now I can see my way a little.",
+   "roman": "gamsahamnida. ije api jom boyeoyo."
+  }
+ ]
+}

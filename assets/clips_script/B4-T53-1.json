@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T53-1",
+ "no": 284,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지은 씨, 저 뉴스 무슨 내용이에요?",
+   "beaver_en": "Jieun, what's that news about?",
+   "beaver_roman": "Jieun ssi, jeo nyuseu museun naeyongieyo?",
+   "learner": "양국 총리가 회담을 했다는 뉴스예요.",
+   "en": "It's news that the two countries' prime ministers held talks.",
+   "roman": "Yangguk chongniga hoedameul haetdaneun nyuseuyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "총리랑 수상은 다른 거예요?",
+   "beaver_en": "Are 'chongni' and 'susang' different?",
+   "beaver_roman": "Chongnirang susangeun dareun geoyeyo?",
+   "learner": "아니요, 총리와 수상은 같은 뜻이에요.",
+   "en": "No, both words mean prime minister.",
+   "roman": "Aniyo, chongniwa susangeun gateun tteusieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그렇군요. 회담 주제가 뭐였어요?",
+   "beaver_en": "I see. What was the topic of the talks?",
+   "beaver_roman": "Geureokunyo. Hoedam jujega mwoyeosseoyo?",
+   "learner": "한 지역의 독립 문제를 이야기했대요.",
+   "en": "They say they discussed one region's independence.",
+   "roman": "Han jiyeoge dongnip munjereul iyagihaetdaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "독립은 누가 결정해요?",
+   "beaver_en": "Who decides on independence?",
+   "beaver_roman": "Dongnibeun nuga gyeoljeonghaeyo?",
+   "learner": "주민들의 투표에 의해 결정된대요.",
+   "en": "It's decided by a vote of the residents.",
+   "roman": "Jumindeure tupyoe uihae gyeoljeongdoendaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "국회는요?",
+   "beaver_en": "What about the National Assembly?",
+   "beaver_roman": "Gukoeneunyo?",
+   "learner": "국회에서는 정당들 사이에 의견이 갈렸어요.",
+   "en": "In the Assembly, the parties are divided.",
+   "roman": "Gukoeeseoneun jeongdangdeul saie uigyeoni gallyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이념 차이가 크죠?",
+   "beaver_en": "The ideological gap is big, right?",
+   "beaver_roman": "Inyeom chaiga keujyo?",
+   "learner": "네, 정치적 이념이 많이 달라서 그래요.",
+   "en": "Yes, it's because their political ideologies differ a lot.",
+   "roman": "Ne, jeongchijeok inyeomi mani dallaseo geuraeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "어느 쪽 세력이 더 커요?",
+   "beaver_en": "Which side has more power?",
+   "beaver_roman": "Eoneu jjok seryeogi deo keoyo?",
+   "learner": "반대 세력이 커서 찬성 쪽이 뒤지고 있어요.",
+   "en": "The opposition is strong, so the 'yes' side is behind.",
+   "roman": "Bandae seryeogi keoseo chanseong jjogi dwijigo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 독립 가능성은 낮겠네요.",
+   "beaver_en": "Then independence seems unlikely.",
+   "beaver_roman": "Geureom dongnip ganeungseongeun natgenneyo.",
+   "learner": "작은 정당들이 연합하면 달라질 수 있어요.",
+   "en": "It could change if the small parties form an alliance.",
+   "roman": "Jageun jeongdangdeuri yeonapamyeon dallajil su isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "장관들은 뭐라고 해요?",
+   "beaver_en": "What do the ministers say?",
+   "beaver_roman": "Janggwandeureun mworago haeyo?",
+   "learner": "장관들은 투표 결과를 따르겠다고 했어요.",
+   "en": "The ministers said they'll follow the vote result.",
+   "roman": "Janggwandeureun tupyo gyeolgwareul ttareugetdago haesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정치와 선거에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about politics and elections?",
+   "beaver_roman": "Jeongchiwa seongeoe daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 점심 먹으면서 더 이야기해요.",
+   "en": "Sure. Let's talk more over lunch.",
+   "roman": "Joayo. Jeomsim meogeumyeonseo deo iyagihaeyo."
+  }
+ ]
+}

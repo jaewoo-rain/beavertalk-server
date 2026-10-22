@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T05-1",
+ "no": 444,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요, 민수 씨. 무슨 일 있어요?",
+   "beaver_en": "Come in, Minsu. Is something wrong?",
+   "beaver_roman": "eoseo wayo, minsu ssi. museun il isseoyo?",
+   "learner": "선생님, 조마조마한 마음으로 부탁드리러 왔어요.",
+   "en": "Sir, I've come nervously to ask a favor.",
+   "roman": "seonsaengnim, jomajomahan maeumeuro butakdeurireo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "너무 조마조마해하지 마세요. 무슨 부탁인데요?",
+   "beaver_en": "Don't be so nervous. What's the favor?",
+   "beaver_roman": "neomu jomajomahaehaji maseyo. museun butagindeyo?",
+   "learner": "다음 주 제 결혼식에서 축사를 해 주십사 하고요.",
+   "en": "I humbly ask you to give a speech at my wedding next week.",
+   "roman": "daeum ju je gyeolhonsigeseo chuksareul hae jusipsa hagoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "축사요? 갑자기 왜요? 원래 하실 분이 있었잖아요.",
+   "beaver_en": "A speech? Why so suddenly? Someone else was going to do it.",
+   "beaver_roman": "chuksayo? gapjagi waeyo? wollae hasil buni isseotjanayo.",
+   "learner": "그분이 사정이 생겨서 못 오셔서 정말 당혹스러워요.",
+   "en": "Something came up and he can't come, so I'm really at a loss.",
+   "roman": "geubuni sajeongi saenggyeoseo mot osyeoseo jeongmal danghokseureowoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그랬군요. 그런데 시간이 너무 빡빡하지 않아요?",
+   "beaver_en": "I see. But isn't the time very tight?",
+   "beaver_roman": "geuraetgunyo. geureonde sigani neomu ppakppakaji anayo?",
+   "learner": "아무리 급해도 염치없는 부탁이지요.",
+   "en": "No matter how urgent, it's a shameless request.",
+   "roman": "amuri geupaedo yeomchieomneun butagijiyo."
+  },
+  {
+   "n": 5,
+   "beaver": "아니에요. 제가 바쁘기로서니 못 도와주겠어요?",
+   "beaver_en": "Not at all. Busy as I am, how could I not help?",
+   "beaver_roman": "anieyo. jega bappeugiroseoni mot dowajugesseoyo?",
+   "learner": "정말요? 거절하실까 봐 안절부절못했어요.",
+   "en": "Really? I was so restless, afraid you'd refuse.",
+   "roman": "jeongmallyo? geojeolhasilkka bwa anjeolbujeolmotaesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 왜 하필 저한테 부탁하는 거예요?",
+   "beaver_en": "But why ask me, of all people?",
+   "beaver_roman": "geureonde wae hapil jeohante butakaneun geoyeyo?",
+   "learner": "고등학교 때 선생님 말씀에 큰 감명을 받았거든요.",
+   "en": "Your words deeply moved me in high school.",
+   "roman": "godeunghakgyo ttae seonsaengnim malsseume keun gammyeongeul badatgeodeunyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그렇게 말해 주니 고마워요. 그때가 생각나네요.",
+   "beaver_en": "Thank you for saying so. It brings back memories.",
+   "beaver_roman": "geureoke malhae juni gomawoyo. geuttaega saenggangnaneyo.",
+   "learner": "선생님은 제게 은사인지라 꼭 모시고 싶었어요.",
+   "en": "Since you're my mentor, I really wanted you there.",
+   "roman": "seonsaengnimeun jege eunsainjira kkok mosigo sipeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 그런데 저는 말주변이 없어서 걱정이에요.",
+   "beaver_en": "All right. But I'm worried, I'm not a good speaker.",
+   "beaver_roman": "joayo. geureonde jeoneun maljubyeoni eopseoseo geokjeongieyo.",
+   "learner": "부담 갖지 마시고 편하게만 해 주세요.",
+   "en": "Don't feel pressured. Just speak comfortably.",
+   "roman": "budam gatji masigo pyeonhageman hae juseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "알겠어요. 짧고 명료하게 준비해 볼게요.",
+   "beaver_en": "Okay. I'll prepare something short and clear.",
+   "beaver_roman": "algesseoyo. jjalgo myeongnyohage junbihae bolgeyo.",
+   "learner": "감사합니다! 쩔쩔맸는데 이제 홀가분해요.",
+   "en": "Thank you! I was at a loss, but now I feel relieved.",
+   "roman": "gamsahamnida! jjeoljjeolmaenneunde ije holgabunhaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "결혼식 날 봐요. 행복한 날이 될 거예요.",
+   "beaver_en": "See you at the wedding. It'll be a happy day.",
+   "beaver_roman": "gyeolhonsik nal bwayo. haengbokan nari doel geoyeyo.",
+   "learner": "감사합니다. 그날 꼭 뵐게요!",
+   "en": "Thank you. I'll be sure to see you that day!",
+   "roman": "gamsahamnida. geunal kkok boelgeyo!"
+  }
+ ]
+}

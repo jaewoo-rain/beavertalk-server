@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T56-1",
+ "no": 200,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어머, 어젯밤에 소방차 소리 들었어요?",
+   "beaver_en": "Oh, did you hear the fire trucks last night?",
+   "beaver_roman": "Eomeo, eojetbame sobangcha sori deureosseoyo?",
+   "learner": "네, 앞 건물에 화재가 나서 제가 신고했어요.",
+   "en": "Yes, there was a fire in the building in front, so I reported it.",
+   "roman": "Ne, ap geonmure hwajaega naseo jega singohaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 사람들은 다 괜찮아요?",
+   "beaver_en": "Really? Is everyone okay?",
+   "beaver_roman": "Jeongmallyo? Saramdeureun da gwaenchanayo?",
+   "learner": "네, 소방관들이 빨리 와서 구조했어요.",
+   "en": "Yes, the firefighters came fast and rescued them.",
+   "roman": "Ne, sobanggwandeuri ppalli waseo gujohaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "몇 명이나 구조됐어요?",
+   "beaver_en": "How many people were rescued?",
+   "beaver_roman": "Myeot myeongina gujodwaesseoyo?",
+   "learner": "대여섯 명이 구조됐는데 큰 피해는 없었어요.",
+   "en": "Five or six people were rescued, and there was no big damage.",
+   "roman": "Daeyeoseot myeongi gujodwaenneunde keun pihaeneun eopseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다행이네요. 불은 왜 났대요?",
+   "beaver_en": "What a relief. Do they know why the fire started?",
+   "beaver_roman": "Dahaengineyo. Bureun wae natdaeyo?",
+   "learner": "아직 몰라요. 경찰이 사건을 조사하고 있어요.",
+   "en": "Not yet. The police are investigating the incident.",
+   "roman": "Ajik mollayo. Gyeongchari sageoneul josahago isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘 범죄가 늘었대요. 누가 일부러 그랬을까요?",
+   "beaver_en": "They say crime has gone up. Did someone do it on purpose?",
+   "beaver_roman": "Yojeum beomjoega neureotdaeyo. Nuga ilbureo geuraesseulkkayo?",
+   "learner": "범죄인지는 모르지만 걱정되긴 해요.",
+   "en": "I don't know if it's a crime, but I am worried.",
+   "roman": "Beomjoeinjineun moreujiman geokjeongdoegin haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 놀이터 쪽에서 아이가 없어졌다면서요?",
+   "beaver_en": "By the way, I heard a child went missing near the playground?",
+   "beaver_roman": "Geureonde noriteo jjogeseo aiga eopseojyeotdamyeonseoyo?",
+   "learner": "네, 실종 신고가 들어왔는데 아이를 찾았대요.",
+   "en": "Yes, a missing report came in, but they found the child.",
+   "roman": "Ne, siljong singoga deureowanneunde aireul chajatdaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "휴, 다행이다. 저는 살인 사건 소문도 들었어요.",
+   "beaver_en": "Phew, thank goodness. I also heard a rumor about a murder.",
+   "beaver_roman": "Hyu, dahaengida. Jeoneun sarin sageon somundo deureosseoyo.",
+   "learner": "그건 헛소문이에요. 살인 사건은 없었어요.",
+   "en": "That's a false rumor. There was no murder.",
+   "roman": "Geugeon heotsomunieyo. Sarin sageoneun eopseosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "어제 펑 소리는요? 총 소리 같던데요.",
+   "beaver_en": "What about that bang yesterday? It sounded like a gun.",
+   "beaver_roman": "Eoje peong sorineunyo? Chong sori gatdeondeyo.",
+   "learner": "총 소리가 아니라 아이들이 풍선을 터뜨렸대요.",
+   "en": "It wasn't a gunshot. Kids popped balloons.",
+   "roman": "Chong soriga anira aideuri pungseoneul teotteuryeotdaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "빨리 신고해 줘서 정말 다행이에요.",
+   "beaver_en": "I'm so glad you reported it quickly.",
+   "beaver_roman": "Ppalli singohae jwoseo jeongmal dahaengieyo.",
+   "learner": "고마워요. 이상한 일은 바로 신고해야죠.",
+   "en": "Thanks. Strange things should be reported right away.",
+   "roman": "Gomawoyo. Isanghan ireun baro singohaeyajyo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 소식 알려 줘서 고마워요. 조심해요.",
+   "beaver_en": "Right. Thanks for the news. Take care.",
+   "beaver_roman": "Majayo. Sosik allyeo jwoseo gomawoyo. Josimhaeyo.",
+   "learner": "네, 그래도 우리 동네는 살 만해요. 들어가세요.",
+   "en": "Yes, our neighborhood is still a good place to live. Bye.",
+   "roman": "Ne, geuraedo uri dongneneun sal manhaeyo. Deureogaseyo."
+  }
+ ]
+}

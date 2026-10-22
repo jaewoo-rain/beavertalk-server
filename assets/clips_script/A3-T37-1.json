@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T37-1",
+ "no": 75,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 오늘 밖에 안개가 꼈어요?",
+   "beaver_en": "Hello! Is it foggy outside today?",
+   "beaver_roman": "annyeonghaseyo! oneul bakke angaega kkyeosseoyo?",
+   "learner": "네, 아침에 안개가 많이 꼈어요.",
+   "en": "Yes, it was very foggy this morning.",
+   "roman": "ne, achime angaega mani kkyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 오늘 기온은 어때요?",
+   "beaver_en": "Really? What's the temperature today?",
+   "beaver_roman": "geuraeyo? oneul gioneun eottaeyo?",
+   "learner": "기온이 영하 2도예요. 많이 추워요.",
+   "en": "It's two below zero. It's really cold.",
+   "roman": "gioni yeongha idoyeyo. mani chuwoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 영하예요? 길이 얼었어요?",
+   "beaver_en": "Wow, below zero? Are the roads frozen?",
+   "beaver_roman": "wa, yeonghayeyo? giri eoreosseoyo?",
+   "learner": "네, 길이 얼었어요. 얼음이 있어요.",
+   "en": "Yes, the road is frozen. There's ice.",
+   "roman": "ne, giri eoreosseoyo. eoreumi isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "조심해야겠네요. 해는 떴어요?",
+   "beaver_en": "I'd better be careful. Is the sun up?",
+   "beaver_roman": "josimhaeyagenneyo. haeneun tteosseoyo?",
+   "learner": "해는 떴어요. 그런데 구름이 많아요.",
+   "en": "The sun is up. But it's very cloudy.",
+   "roman": "haeneun tteosseoyo. geureonde gureumi manayo."
+  },
+  {
+   "n": 5,
+   "beaver": "낮에는 좀 따뜻해질까요?",
+   "beaver_en": "Will it get warmer during the day?",
+   "beaver_roman": "najeneun jom ttatteutaejilkkayo?",
+   "learner": "아니요, 낮에도 5도쯤이에요.",
+   "en": "No, it's only about 5 degrees even during the day.",
+   "roman": "aniyo, najedo odojjeumieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "단풍은 어때요? 아직 예뻐요?",
+   "beaver_en": "How are the autumn leaves? Still pretty?",
+   "beaver_roman": "danpungeun eottaeyo? ajik yeppeoyo?",
+   "learner": "단풍이 거의 다 떨어졌어요.",
+   "en": "The autumn leaves have almost all fallen.",
+   "roman": "danpungi geoui da tteoreojeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아쉽네요. 공원에 단풍이 보여요?",
+   "beaver_en": "What a pity. Can you see any in the park?",
+   "beaver_roman": "aswimneyo. gongwone danpungi boyeoyo?",
+   "learner": "공원에 빨간 나무가 한 그루밖에 없어요.",
+   "en": "There's only one red tree in the park.",
+   "roman": "gongwone ppalgan namuga han geurubakke eopseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "올해는 날씨가 참 이상했죠?",
+   "beaver_en": "The weather was really strange this year, wasn't it?",
+   "beaver_roman": "olhaeneun nalssiga cham isanghaetjyo?",
+   "learner": "맞아요. 올해 여름에는 장마가 길었어요.",
+   "en": "Right. The rainy season was long this summer.",
+   "roman": "majayo. olhae yeoreumeneun jangmaga gireosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아요. 비가 정말 많이 왔지요.",
+   "beaver_en": "Right. It really rained a lot.",
+   "beaver_roman": "majayo. biga jeongmal mani watjiyo.",
+   "learner": "요즘은 해가 빨리 져요. 다섯 시에 져요.",
+   "en": "These days the sun sets early. It sets at five.",
+   "roman": "yojeumeun haega ppalli jyeoyo. daseot sie jyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 저녁에는 더 춥겠네요. 고마워요!",
+   "beaver_en": "Then it'll be colder in the evening. Thanks!",
+   "beaver_roman": "geureom jeonyeogeneun deo chupgenneyo. gomawoyo!",
+   "learner": "네, 꼭 따뜻하게 입고 나가세요.",
+   "en": "Yes, be sure to dress warmly when you go out.",
+   "roman": "ne, kkok ttatteutage ipgo nagaseyo."
+  }
+ ]
+}

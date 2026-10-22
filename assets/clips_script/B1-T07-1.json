@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T07-1",
+ "no": 119,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 여기가 201호예요. 들어오세요.",
+   "beaver_en": "Hello. This is unit 201. Please come in.",
+   "beaver_roman": "annyeonghaseyo. yeogiga ibaegilhoyeyo. deureooseyo.",
+   "learner": "안녕하세요. 침실이 두 개인 집이라고 들었어요.",
+   "en": "Hello. I heard it's a place with two bedrooms.",
+   "roman": "annyeonghaseyo. chimsiri du gaein jibirago deureosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 맞아요. 방은 두 개예요. 이쪽이 큰 침실이에요.",
+   "beaver_en": "Yes, that's right. There are two rooms. This is the big bedroom.",
+   "beaver_roman": "ne, majayo. bangeun du gaeyeyo. ijjogi keun chimsirieyo.",
+   "learner": "천장이 높네요. 방도 아주 밝아요.",
+   "en": "The ceiling is high. The room is very bright, too.",
+   "roman": "cheonjangi nomneyo. bangdo aju balgayo."
+  },
+  {
+   "n": 3,
+   "beaver": "창이 커서 해가 잘 들어요. 주방도 보세요.",
+   "beaver_en": "The window is big, so it gets lots of sun. Look at the kitchen, too.",
+   "beaver_roman": "changi keoseo haega jal deureoyo. jubangdo boseyo.",
+   "learner": "주방이 현관 옆에 있어서 좋네요.",
+   "en": "It's nice that the kitchen is next to the front entrance.",
+   "roman": "jubangi hyeongwan yeope isseoseo jonneyo."
+  },
+  {
+   "n": 4,
+   "beaver": "이 동네는 공기가 아주 좋아요.",
+   "beaver_en": "The air in this neighborhood is really good.",
+   "beaver_roman": "i dongneneun gonggiga aju joayo.",
+   "learner": "교외라서 조용한 동네라고 들었어요.",
+   "en": "I heard it's a quiet neighborhood since it's in the suburbs.",
+   "roman": "gyooeraseo joyonghan dongnerago deureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 맞아요. 아주 조용해요.",
+   "beaver_en": "Yes, that's right. It's very quiet.",
+   "beaver_roman": "ne, majayo. aju joyonghaeyo.",
+   "learner": "위층하고 아래층 이웃은 어때요?",
+   "en": "What are the neighbors upstairs and downstairs like?",
+   "roman": "wicheunghago araecheung iuseun eottaeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "위층은 비어 있고 아래층에는 할머니가 사세요.",
+   "beaver_en": "Upstairs is empty, and an elderly lady lives downstairs.",
+   "beaver_roman": "wicheungeun bieo itgo araecheungeneun halmeoniga saseyo.",
+   "learner": "아랫집이 조용하면 좋겠어요. 앞집은요?",
+   "en": "I hope the place below is quiet. What about the one across?",
+   "roman": "araetjibi joyonghamyeon jokesseoyo. apjibeunyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "앞집도 조용해요. 마당과 창고도 쓰실 수 있어요.",
+   "beaver_en": "Across is quiet, too. You can use the yard and storage, too.",
+   "beaver_roman": "apjipdo joyonghaeyo. madanggwa changgodo sseusil su isseoyo.",
+   "learner": "복도도 깨끗하고 창고도 있어서 좋네요.",
+   "en": "The hallway is clean and there's storage. That's nice.",
+   "roman": "bokdodo kkaekkeutago changgodo isseoseo jonneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "지붕은 작년에 고쳤어요. 대문도 새것이에요.",
+   "beaver_en": "The roof was fixed last year. The main gate is new, too.",
+   "beaver_roman": "jibungeun jangnyeone gochyeosseoyo. daemundo saegeosieyo.",
+   "learner": "원룸보다 넓네요. 월세는 오십만 원이라고 들었어요.",
+   "en": "It's bigger than a studio. I heard the rent is 500,000 won.",
+   "roman": "wollumboda neolleyo. wolseneun osimman wonirago deureosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "네, 맞아요. 언제 이사하실 거예요?",
+   "beaver_en": "Yes, that's right. When will you move in?",
+   "beaver_roman": "ne, majayo. eonje isahasil geoyeyo?",
+   "learner": "이사는 다음 달 초에 하고 싶어요.",
+   "en": "I'd like to move early next month.",
+   "roman": "isaneun daeum dal choe hago sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 계약서를 준비할게요.",
+   "beaver_en": "Great. Then I'll prepare the contract.",
+   "beaver_roman": "joayo. geureom gyeyakseoreul junbihalgeyo.",
+   "learner": "네, 감사합니다. 이 집으로 할게요.",
+   "en": "Okay, thank you. I'll take this place.",
+   "roman": "ne, gamsahamnida. i jibeuro halgeyo."
+  }
+ ]
+}

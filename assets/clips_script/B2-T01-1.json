@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T01-1",
+ "no": 161,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 성함이 어떻게 되세요?",
+   "beaver_en": "Hello. May I have your name?",
+   "beaver_roman": "annyeonghaseyo. seonghami eotteoke doeseyo?",
+   "learner": "안녕하세요. 제 이름은 다나카 유키예요.",
+   "en": "Hello. My name is Yuki Tanaka.",
+   "roman": "annyeonghaseyo. je ireumeun danaka yukiyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 유키 씨. 국적도 적어 주세요.",
+   "beaver_en": "Okay, Yuki. Please write your nationality too.",
+   "beaver_roman": "ne, yuki ssi. gukjeokdo jeogeo juseyo.",
+   "learner": "저는 일본인이에요. 국적에 일본이라고 쓸게요.",
+   "en": "I'm Japanese. I'll write Japan for nationality.",
+   "roman": "jeoneun ilboninieyo. gukjeoge ilbonirago sseulgeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "감사합니다. 성별 칸에도 표시해 주세요.",
+   "beaver_en": "Thank you. Please mark the gender box too.",
+   "beaver_roman": "gamsahamnida. seongbyeol kanedo pyosihae juseyo.",
+   "learner": "네, '여' 칸에 표시했어요.",
+   "en": "Okay, I checked the 'female' box.",
+   "roman": "ne, 'yeo' kane pyosihaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그리고 이 행사는 성인만 참가할 수 있어요.",
+   "beaver_en": "Also, only adults can join this event.",
+   "beaver_roman": "geurigo i haengsaneun seonginman chamgahal su isseoyo.",
+   "learner": "저는 스물다섯 살이라서 성인이에요.",
+   "en": "I'm twenty-five, so I'm an adult.",
+   "roman": "jeoneun seumuldaseot sariraseo seonginieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋아요. 혹시 일행이 있으세요?",
+   "beaver_en": "Good. Do you have anyone with you?",
+   "beaver_roman": "joayo. hoksi ilhaengi isseuseyo?",
+   "learner": "네, 중국인 친구 왕웨이도 같이 왔어요.",
+   "en": "Yes, my Chinese friend Wang Wei came too.",
+   "roman": "ne, junggugin chingu wangweido gachi wasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "왕웨이 씨는 지금 어디 계세요?",
+   "beaver_en": "Where is Wang Wei right now?",
+   "beaver_roman": "wangwei ssineun jigeum eodi gyeseyo?",
+   "learner": "저기 양복 입은 사람이 왕웨이예요.",
+   "en": "The person in the suit over there is Wang Wei.",
+   "roman": "jeogi yangbok ibeun sarami wangweiyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아, 보여요. 오늘은 참가자가 정말 많네요.",
+   "beaver_en": "Ah, I see him. There are so many participants today.",
+   "beaver_roman": "a, boyeoyo. oneureun chamgajaga jeongmal manneyo.",
+   "learner": "네, 젊은 사람들이 많네요.",
+   "en": "Yes, there are a lot of young people.",
+   "roman": "ne, jeolmeun saramdeuri manneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "간단히 자기소개 좀 해 주시겠어요?",
+   "beaver_en": "Could you briefly introduce yourself?",
+   "beaver_roman": "gandanhi jagisogae jom hae jusigesseoyo?",
+   "learner": "저는 학생이에요. 한국어는 배우면 배울수록 재미있어요.",
+   "en": "I'm a student. The more I learn Korean, the more fun it is.",
+   "roman": "jeoneun haksaengieyo. hangugeoneun baeumyeon baeulsurok jaemiisseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 이름표 여기 있어요. 가슴에 달아 주세요.",
+   "beaver_en": "Nice. Here's your name tag. Please put it on your chest.",
+   "beaver_roman": "jonneyo. ireumpyo yeogi isseoyo. gaseume dara juseyo.",
+   "learner": "네, 이름표를 달았어요. 친구 것도 주세요.",
+   "en": "Okay, I put on the name tag. Please give me my friend's too.",
+   "roman": "ne, ireumpyoreul darasseoyo. chingu geotdo juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "여기 있어요. 행사 즐겁게 보내세요.",
+   "beaver_en": "Here you go. Enjoy the event.",
+   "beaver_roman": "yeogi isseoyo. haengsa jeulgeopge bonaeseyo.",
+   "learner": "감사합니다. 즐거운 시간 보낼게요!",
+   "en": "Thank you. I'll have a great time!",
+   "roman": "gamsahamnida. jeulgeoun sigan bonaelgeyo!"
+  }
+ ]
+}

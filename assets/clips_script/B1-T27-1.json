@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T27-1",
+ "no": 140,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 요즘 얼굴이 많이 피곤해 보여요.",
+   "beaver_en": "Minsu, you look really tired these days.",
+   "beaver_roman": "Minsu ssi, yojeum eolguri mani pigonhae boyeoyo.",
+   "learner": "네, 요즘 매일 야근해서 좀 힘들어요.",
+   "en": "Yes, I work late every day these days, so it's hard.",
+   "roman": "Ne, yojeum maeil yageunhaeseo jom himdeureoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 일을 그렇게 많이 맡았어요?",
+   "beaver_en": "What did you take on that's so much?",
+   "beaver_roman": "Museun ireul geureoke mani matasseoyo?",
+   "learner": "신입 교육하고 새 프로젝트를 맡았어요.",
+   "en": "I'm in charge of training newcomers and a new project.",
+   "roman": "Sinip gyoyukago sae peurojekteureul matasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 그럼 출장도 가요?",
+   "beaver_en": "Wow, do you go on business trips too?",
+   "beaver_roman": "Wa, geureom chuljangdo gayo?",
+   "learner": "네, 다음 주에 부산으로 출장을 가요.",
+   "en": "Yes, I'm going on a business trip to Busan next week.",
+   "roman": "Ne, daeum jue busaneuro chuljangeul gayo."
+  },
+  {
+   "n": 4,
+   "beaver": "과장님께 일을 줄여 달라고 해 봤어요?",
+   "beaver_en": "Did you ask the section chief to cut your work?",
+   "beaver_roman": "Gwajangnimkke ireul juryeo dallago hae bwasseoyo?",
+   "learner": "말해 봤는데 과장님은 뭐든지 저한테 맡기세요.",
+   "en": "I tried, but the section chief gives me everything.",
+   "roman": "Malhae bwanneunde gwajangnimeun mwodeunji jeohante matgiseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 보너스는 나와요?",
+   "beaver_en": "Still, do you get a bonus?",
+   "beaver_roman": "Geuraedo boneoseuneun nawayo?",
+   "learner": "네, 우리 부서는 연말에 보너스가 나와요.",
+   "en": "Yes, our department gets a bonus at year's end.",
+   "roman": "Ne, uri buseoneun yeonmare boneoseuga nawayo."
+  },
+  {
+   "n": 6,
+   "beaver": "다행이네요. 그래도 근무 시간이 너무 길죠?",
+   "beaver_en": "That's good. But the working hours are too long, right?",
+   "beaver_roman": "Dahaengineyo. Geuraedo geunmu sigani neomu giljyo?",
+   "learner": "네, 제가 과장이라면 근무 시간을 줄일 거예요.",
+   "en": "Yes, if I were the section chief, I'd cut the hours.",
+   "roman": "Ne, jega gwajangiramyeon geunmu siganeul juril geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "하하, 다른 사람들도 그렇게 야근해요?",
+   "beaver_en": "Haha, do other people work late like that too?",
+   "beaver_roman": "Haha, dareun saramdeuldo geureoke yageunhaeyo?",
+   "learner": "우리 부서는 신입도 자주 야근해요.",
+   "en": "In our department, even newcomers often work late.",
+   "roman": "Uri buseoneun sinipdo jaju yageunhaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그렇군요. 그럼 제가 좀 도와줄게요.",
+   "beaver_en": "I see. Then I'll help you a bit.",
+   "beaver_roman": "Geureokunyo. Geureom jega jom dowajulgeyo.",
+   "learner": "고마워요. 무엇이든지 부탁해도 돼요?",
+   "en": "Thanks. Can I ask you for anything at all?",
+   "roman": "Gomawoyo. Mueosideunji butakaedo dwaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "그럼요. 우리는 같은 부서잖아요.",
+   "beaver_en": "Of course. We're in the same department.",
+   "beaver_roman": "Geureomyo. Urineun gateun buseojanayo.",
+   "learner": "좋은 직장 동료가 있어서 정말 다행이에요.",
+   "en": "I'm so glad to have a good coworker.",
+   "roman": "Joeun jikjang dongnyoga isseoseo jeongmal dahaengieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘은 야근하지 말고 일찍 퇴근해요.",
+   "beaver_en": "Don't work late today; go home early.",
+   "beaver_roman": "Oneureun yageunhaji malgo iljjik toegeunhaeyo.",
+   "learner": "네, 직장인도 쉬어야죠. 오늘은 일찍 갈게요.",
+   "en": "Okay, office workers need rest too. I'll leave early.",
+   "roman": "Ne, jikjangindo swieoyajyo. Oneureun iljjik galgeyo."
+  }
+ ]
+}

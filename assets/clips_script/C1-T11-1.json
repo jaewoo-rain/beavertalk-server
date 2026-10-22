@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T11-1",
+ "no": 302,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "점심 먹으러 갈까요? 배고프죠?",
+   "beaver_en": "Shall we go eat lunch? You're hungry, right?",
+   "beaver_roman": "jeomsim meogeureo galkkayo? baegopeujyo?",
+   "learner": "네, 아까부터 배에서 꼬르륵 소리가 났어요.",
+   "en": "Yes, my stomach has been rumbling for a while.",
+   "roman": "ne, akkabuteo baeeseo kkoreureuk soriga nasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저도요. 뭐 드시고 싶어요?",
+   "beaver_en": "Me too. What would you like to eat?",
+   "beaver_roman": "jeodoyo. mwo deusigo sipeoyo?",
+   "learner": "저는 매콤한 걸 좋아하는 편이에요.",
+   "en": "I tend to like slightly spicy food.",
+   "roman": "jeoneun maekomhan geol joahaneun pyeonieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "저는 짠 음식이 좋아요. 짠맛 괜찮아요?",
+   "beaver_en": "I like salty food. Are you okay with salty flavors?",
+   "beaver_roman": "jeoneun jjan eumsigi joayo. jjanmat gwaenchanayo?",
+   "learner": "짭짤한 건 좋지만 기름진 건 싫어요.",
+   "en": "I like salty things, but I don't like greasy food.",
+   "roman": "jjapjjalhan geon jochiman gireumjin geon sireoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "여기 고기 메뉴는 어때요?",
+   "beaver_en": "How about the meat dishes here?",
+   "beaver_roman": "yeogi gogi menyuneun eottaeyo?",
+   "learner": "고기가 질기면 저는 잘 못 먹어요.",
+   "en": "If the meat is tough, I can't really eat it.",
+   "roman": "gogiga jilgimyeon jeoneun jal mon meogeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "이건 새콤해요. 한번 드셔 보세요.",
+   "beaver_en": "This one is tangy. Give it a try.",
+   "beaver_roman": "igeon saekomhaeyo. hanbeon deusyeo boseyo.",
+   "learner": "새콤해서 입맛이 확 도네요.",
+   "en": "It's tangy, so it really whets my appetite.",
+   "roman": "saekomhaeseo immasi hwak doneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "냉수 드릴까요?",
+   "beaver_en": "Would you like some cold water?",
+   "beaver_roman": "naengsu deurilkkayo?",
+   "learner": "네, 주세요. 저는 찬물이 좋아요.",
+   "en": "Yes, please. I like cold water.",
+   "roman": "ne, juseyo. jeoneun chanmuri joayo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 반찬이 정말 많네요.",
+   "beaver_en": "Wow, there are so many side dishes.",
+   "beaver_roman": "wa, banchani jeongmal manneyo.",
+   "learner": "네, 푸짐해서 벌써 배불러요.",
+   "en": "Yes, it's so plentiful I'm already full.",
+   "roman": "ne, pujimhaeseo beolsseo baebulleoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "후식으로 커피 한잔 하실래요?",
+   "beaver_en": "Want a coffee for dessert?",
+   "beaver_roman": "husigeuro keopi hanjan hasillaeyo?",
+   "learner": "저는 카페인에 약해서 커피는 안 마셔요.",
+   "en": "I'm sensitive to caffeine, so I don't drink coffee.",
+   "roman": "jeoneun kapeine yakaeseo keopineun an masyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 저녁에 술 한잔 어때요?",
+   "beaver_en": "Then how about a drink this evening?",
+   "beaver_roman": "geureom jeonyeoge sul hanjan eottaeyo?",
+   "learner": "술은 잘 못 마시지만 안주는 좋아해요.",
+   "en": "I can't drink much, but I love bar snacks.",
+   "roman": "sureun jal mon masijiman anjuneun joahaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 좋아요. 그럼 저녁에 같이 가요.",
+   "beaver_en": "Haha, great. Let's go together this evening.",
+   "beaver_roman": "haha, joayo. geureom jeonyeoge gachi gayo.",
+   "learner": "좋아요. 출출하면 안주로 저녁을 때워요.",
+   "en": "Sounds good. If we're peckish, let's make dinner of the snacks.",
+   "roman": "joayo. chulchulhamyeon anjuro jeonyeogeul ttaewoyo."
+  }
+ ]
+}

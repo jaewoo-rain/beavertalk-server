@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T38-1",
+ "no": 325,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "조사 결과 정리했어요? 어떤 새가 줄었어요?",
+   "beaver_en": "Did you sort the survey results? Which birds decreased?",
+   "beaver_roman": "josa gyeolgwa jeongnihaesseoyo? eotteon saega jureosseoyo?",
+   "learner": "참새는 줄어드는 데 반해 비둘기는 늘고 있어요.",
+   "en": "Sparrows are decreasing, whereas pigeons are increasing.",
+   "roman": "chamsaeneun jureodeuneun de banhae bidulgineun neulgo isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어미 새와 새끼도 봤어요?",
+   "beaver_en": "Did you see mother birds and their young too?",
+   "beaver_roman": "eomi saewa saekkido bwasseoyo?",
+   "learner": "네, 새끼들이 어미 뒤를 아장아장 따라갔어요.",
+   "en": "Yes, the young toddled along behind their mother.",
+   "roman": "ne, saekkideuri eomi dwireul ajangajang ttaragasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "식물은 어때요? 잡초가 많았죠?",
+   "beaver_en": "How about the plants? There were lots of weeds, right?",
+   "beaver_roman": "singmureun eottaeyo? japchoga manatjyo?",
+   "learner": "잡초는 많은 데 반해 라일락은 거의 없었어요.",
+   "en": "There were many weeds, but almost no lilacs.",
+   "roman": "japchoneun maneun de banhae rairageun geoui eopseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "물가 쪽은요? 갈대는 그대로예요?",
+   "beaver_en": "What about the waterside? Are the reeds the same?",
+   "beaver_roman": "mulkka jjogeunyo? galdaeneun geudaeroyeyo?",
+   "learner": "갈대는 그대로인데 대나무 숲은 작아졌어요.",
+   "en": "The reeds are the same, but the bamboo grove got smaller.",
+   "roman": "galdaeneun geudaeroinde daenamu supeun jagajyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "동물과 식물에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about the animals and plants?",
+   "beaver_roman": "dongmulgwa singmure daehae deo malhae jullaeyo?",
+   "learner": "뿔 달린 사슴은 많은 데 반해 염소는 적었어요.",
+   "en": "There were many horned deer, while goats were few.",
+   "roman": "ppul dallin saseumeun maneun de banhae yeomsoneun jeogeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "여우나 두꺼비 흔적도 찾았어요?",
+   "beaver_en": "Did you find any traces of foxes or toads?",
+   "beaver_roman": "yeouna dukkeobi heunjeokdo chajasseoyo?",
+   "learner": "여우는 자정쯤 봤고, 두꺼비는 못 찾았어요.",
+   "en": "I saw a fox around midnight, but found no toads.",
+   "roman": "yeouneun jajeongjjeum bwatgo, dukkeobineun mot chajasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "곤충이랑 미생물은요?",
+   "beaver_en": "And the insects and microorganisms?",
+   "beaver_roman": "gonchungirang misaengmureunyo?",
+   "learner": "곤충 종은 줄어든 데 반해 미생물은 늘었어요.",
+   "en": "Insect species decreased, whereas microorganisms increased.",
+   "roman": "gonchung jongeun jureodeun de banhae misaengmureun neureosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "전체적으로 생물은 늘었나요?",
+   "beaver_en": "Overall, did living things increase?",
+   "beaver_roman": "jeonchejeogeuro saengmureun neureonnayo?",
+   "learner": "네, 전체적으로는 작년보다 늘었어요.",
+   "en": "Yes, overall they increased compared to last year.",
+   "roman": "ne, jeonchejeogeuroneun jangnyeonboda neureosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "아이들 설명회 자료는 어떻게 할까요?",
+   "beaver_en": "What should we do for the kids' presentation materials?",
+   "beaver_roman": "aideul seolmyeonghoe jaryoneun eotteoke halkkayo?",
+   "learner": "공룡 말고 이 숲의 생물을 보여 주면 좋겠어요.",
+   "en": "I'd like us to show this forest's living things, not dinosaurs.",
+   "roman": "gongnyong malgo i supui saengmureul boyeo jumyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 생각이에요. 오늘은 여기까지 해요.",
+   "beaver_en": "Good idea. Let's stop here for today.",
+   "beaver_roman": "joeun saenggagieyo. oneureun yeogikkaji haeyo.",
+   "learner": "네, 생물 목록은 내일까지 보낼게요.",
+   "en": "Okay, I'll send the species list by tomorrow.",
+   "roman": "ne, saengmul mongnogeun naeilkkaji bonaelgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T34-1",
+ "no": 415,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 공연 어땠어요? 신인 배우가 많았죠.",
+   "beaver_en": "How was today's show? There were many new actors.",
+   "beaver_roman": "oneul gongyeon eottaesseoyo? sinin baeuga manatjyo.",
+   "learner": "네, 특히 악역을 맡은 신인이 인상 깊었어요.",
+   "en": "Yes, the newcomer who played the villain impressed me most.",
+   "roman": "ne, teuki agyeogeul mateun sinini insang gipeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "조연인데도 눈에 띄었어요. 연기가 어땠어요?",
+   "beaver_en": "He stood out even in a supporting role. How was his acting?",
+   "beaver_roman": "joyeonindedo nune ttieosseoyo. yeongiga eottaesseoyo?",
+   "learner": "기교보다 진심이 느껴져서 숨죽이고 봤어요.",
+   "en": "I felt sincerity more than technique, so I watched breathlessly.",
+   "roman": "gigyoboda jinsimi neukkyeojyeoseo sumjugigo bwasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "노래 장면은 어떻게 봤어요?",
+   "beaver_en": "What did you think of the singing scene?",
+   "beaver_roman": "norae jangmyeoneun eotteoke bwasseoyo?",
+   "learner": "유행가를 부를 때 박자가 아주 정확했어요.",
+   "en": "His beat was very precise when he sang the pop song.",
+   "roman": "yuhaenggareul bureul ttae bakjjaga aju jeonghwakaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "춤 장면은 어땠어요?",
+   "beaver_en": "How about the dance scene?",
+   "beaver_roman": "chum jangmyeoneun eottaesseoyo?",
+   "learner": "동작에 조형미가 있어서 흡사 그림 같았어요.",
+   "en": "His movements had beauty of form, just like a painting.",
+   "roman": "dongjage johyeongmiga isseoseo heupsa geurim gatasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "무대 뒤 벽화도 멋있었죠?",
+   "beaver_en": "The mural behind the stage was nice too, right?",
+   "beaver_roman": "mudae dwi byeokwado meosisseotjyo?",
+   "learner": "네, 유명한 미술가의 창작품이라고 들었어요.",
+   "en": "Yes, I heard it's a creative work by a famous artist.",
+   "roman": "ne, yumyeonghan misulkkaui changjakpumirago deureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "중간에 개그 장면도 있었잖아요.",
+   "beaver_en": "There was a comedy scene in the middle, too.",
+   "beaver_roman": "junggane gaegeu jangmyeondo isseotjanayo.",
+   "learner": "관객이 일제히 웃어서 대중성도 있어 보였어요.",
+   "en": "The audience laughed all at once, so it seemed to have mass appeal.",
+   "roman": "gwangaegi iljjehi useoseo daejungsseongdo isseo boyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "마지막 자장가 장면은 어땠어요?",
+   "beaver_en": "How was the final lullaby scene?",
+   "beaver_roman": "majimak jajangga jangmyeoneun eottaesseoyo?",
+   "learner": "조용한 장면이라 떨리는 목소리가 더 아쉬웠어요.",
+   "en": "It was a quiet scene, so his shaky voice was more of a pity.",
+   "roman": "joyonghan jangmyeonira tteollineun moksoriga deo aswiwosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래도 칭찬을 많이 하시네요.",
+   "beaver_en": "Still, you're giving a lot of praise.",
+   "beaver_roman": "geuraedo chingchaneul mani hasineyo.",
+   "learner": "칭찬이라기보다 본 대로 말했을 따름이에요.",
+   "en": "It's not praise; I merely said what I saw.",
+   "roman": "chingchaniragiboda bon daero malhaesseul ttareumieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "이 작품을 연극제에 출품한대요.",
+   "beaver_en": "They say this work will be entered in a theater festival.",
+   "beaver_roman": "i jakpumeul yeongeukjjee chulpumhandaeyo.",
+   "learner": "좋은 결과가 있기를 바랄 따름이에요.",
+   "en": "I can only hope for a good result.",
+   "roman": "joeun gyeolgwaga itkkireul baral ttareumieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "다음 작품도 보러 갈 거예요?",
+   "beaver_en": "Will you go see his next work too?",
+   "beaver_roman": "daeum jakpumdo boreo gal kkeoyeyo?",
+   "learner": "물론이죠. 그 신인 배우를 계속 응원할래요.",
+   "en": "Of course. I'll keep cheering for that new actor.",
+   "roman": "mullonijyo. geu sinin baeureul gyesok eungwonhallaeyo."
+  }
+ ]
+}

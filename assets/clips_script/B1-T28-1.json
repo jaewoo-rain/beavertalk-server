@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T28-1",
+ "no": 141,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 내일 회의 서류 다 확인했어요?",
+   "beaver_en": "Minji, did you check all the documents for tomorrow's meeting?",
+   "beaver_roman": "Minji ssi, naeil hoeui seoryu da hwaginhaesseoyo?",
+   "learner": "네, 보고서는 방금 다 확인했어요.",
+   "en": "Yes, I just finished checking the report.",
+   "roman": "Ne, bogoseoneun bangeum da hwaginhaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 발표 자료는요?",
+   "beaver_en": "Good. What about the presentation materials?",
+   "beaver_roman": "Joayo. Balpyo jaryoneunyo?",
+   "learner": "발표 자료는 지금 복사하고 있어요.",
+   "en": "I'm copying the presentation materials right now.",
+   "roman": "Balpyo jaryoneun jigeum boksahago isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "몇 부 복사해요? 사람이 많이 와요?",
+   "beaver_en": "How many copies? Are a lot of people coming?",
+   "beaver_roman": "Myeot bu boksahaeyo? Sarami mani wayo?",
+   "learner": "열 부요. 부장님도 오신다고 들었어요.",
+   "en": "Ten copies. I heard the manager is coming too.",
+   "roman": "Yeol buyo. Bujangnimdo osindago deureosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 그럼 회의실도 큰 곳으로 바꿔야겠네요.",
+   "beaver_en": "Oh, then we should switch to a bigger meeting room.",
+   "beaver_roman": "A, geureom hoeuisildo keun goseuro bakkwoyagenneyo.",
+   "learner": "3층 회의실은 열 명이 앉을 수 있대요.",
+   "en": "They say ten people can sit in the third-floor meeting room.",
+   "roman": "Samcheung hoeuisireun yeol myeongi anjeul su itdaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋네요. 그런데 신청서는 접수했어요?",
+   "beaver_en": "Nice. By the way, did you submit the application form?",
+   "beaver_roman": "Jonneyo. Geureonde sincheongseoneun jeopsuhaesseoyo?",
+   "learner": "네, 겨우 접수했어요. 양식이 좀 어려웠어요.",
+   "en": "Yes, I barely submitted it. The form was a bit hard.",
+   "roman": "Ne, gyeou jeopsuhaesseoyo. Yangsigi jom eoryeowosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "서명도 했어요? 서명이 없으면 안 돼요.",
+   "beaver_en": "Did you sign it too? It's no good without a signature.",
+   "beaver_roman": "Seomyeongdo haesseoyo? Seomyeongi eopseumyeon an dwaeyo.",
+   "learner": "아, 서명을 깜빡했어요. 지금 할게요.",
+   "en": "Oh, I forgot the signature. I'll do it now.",
+   "roman": "A, seomyeongeul kkamppakaesseoyo. Jigeum halgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "괜찮아요. 명함도 준비했어요?",
+   "beaver_en": "That's okay. Did you prepare business cards too?",
+   "beaver_roman": "Gwaenchanayo. Myeonghamdo junbihaesseoyo?",
+   "learner": "네, 손님들도 명함을 준다고 들었어요.",
+   "en": "Yes, I heard the guests give business cards too.",
+   "roman": "Ne, sonnimdeuldo myeonghameul jundago deureosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "혹시 복사기는 괜찮아요? 어제 고장 났어요.",
+   "beaver_en": "Is the copier okay? It broke yesterday.",
+   "beaver_roman": "Hoksi boksagineun gwaenchanayo? Eoje gojang nasseoyo.",
+   "learner": "지금은 잘 돼요. 그래도 오후에 고친다고 들었어요.",
+   "en": "It works now. But I heard they're fixing it this afternoon.",
+   "roman": "Jigeumeun jal dwaeyo. Geuraedo ohue gochindago deureosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다행이에요. 발표는 누가 해요?",
+   "beaver_en": "That's a relief. Who's giving the presentation?",
+   "beaver_roman": "Dahaengieyo. Balpyoneun nuga haeyo?",
+   "learner": "제가 해요. 좀 떨리지만 열심히 할게요.",
+   "en": "I am. I'm a bit nervous, but I'll do my best.",
+   "roman": "Jega haeyo. Jom tteollijiman yeolsimhi halgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "잘할 거예요. 그럼 오늘은 이만 정리해요.",
+   "beaver_en": "You'll do great. Let's wrap up for today.",
+   "beaver_roman": "Jalhal geoyeyo. Geureom oneureun iman jeongnihaeyo.",
+   "learner": "네, 서류는 회의실에 미리 갖다 둘게요.",
+   "en": "Okay, I'll take the documents to the meeting room in advance.",
+   "roman": "Ne, seoryuneun hoeuisire miri gatda dulgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T23-1",
+ "no": 137,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "야, 결혼한다며? 축하해! 결혼식은 언제야?",
+   "beaver_en": "Hey, I heard you're getting married! Congrats! When's the wedding?",
+   "beaver_roman": "ya, gyeolhonhandamyeo? chukahae! gyeolhonsigeun eonjeya?",
+   "learner": "고마워! 10월에 결혼식을 할 예정이야.",
+   "en": "Thanks! The wedding is scheduled for October.",
+   "roman": "gomawo! siwore gyeolhonsigeul hal yejeongiya."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 얼마 안 남았네. 준비는 다 했어?",
+   "beaver_en": "Wow, it's not far off. Are you all ready?",
+   "beaver_roman": "wa, eolma an namanne. junbineun da haesseo?",
+   "learner": "아니, 아직 다 하려면 멀었어. 할 게 많아.",
+   "en": "No, I'm far from done. There's a lot to do.",
+   "roman": "ani, ajik da haryeomyeon meoreosseo. hal ge mana."
+  },
+  {
+   "n": 3,
+   "beaver": "신혼여행은? 어디로 가?",
+   "beaver_en": "What about the honeymoon? Where are you going?",
+   "beaver_roman": "sinhonnyeohaengeun? eodiro ga?",
+   "learner": "하와이로 신혼여행을 갈 계획이야.",
+   "en": "We plan to go to Hawaii for our honeymoon.",
+   "roman": "hawairo sinhonnyeohaengeul gal gyehoegiya."
+  },
+  {
+   "n": 4,
+   "beaver": "좋겠다! 근데 두 사람은 어떻게 만났어?",
+   "beaver_en": "Lucky you! So how did you two meet?",
+   "beaver_roman": "joketda! geunde du sarameun eotteoke mannasseo?",
+   "learner": "친구가 해 준 소개팅에서 만났어.",
+   "en": "We met on a blind date a friend set up.",
+   "roman": "chinguga hae jun sogaetingeseo mannasseo."
+  },
+  {
+   "n": 5,
+   "beaver": "정말? 처음 봤을 때 어땠어?",
+   "beaver_en": "Really? How was it when you first saw each other?",
+   "beaver_roman": "jeongmal? cheoeum bwasseul ttae eottaesseo?",
+   "learner": "나는 첫눈에 반했어. 웃는 얼굴이 환했거든.",
+   "en": "I fell for them at first sight. Their smile was so bright.",
+   "roman": "naneun cheonnune banhaesseo. unneun eolguri hwanhaetgeodeun."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 누가 먼저 고백했어?",
+   "beaver_en": "Wow, who confessed first?",
+   "beaver_roman": "wa, nuga meonjeo gobaekaesseo?",
+   "learner": "내가 세 번째 데이트에서 고백했어.",
+   "en": "I confessed on our third date.",
+   "roman": "naega se beonjjae deiteueseo gobaekaesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "대단하다! 너 전에 미팅도 많이 했잖아.",
+   "beaver_en": "Impressive! You used to go on lots of group blind dates.",
+   "beaver_roman": "daedanhada! neo jeone mitingdo mani haetjana.",
+   "learner": "응, 미팅도 하고 선도 봤는데 이 사람이 최고야.",
+   "en": "Yeah, I did group dates and matchmaking, but this one's the best.",
+   "roman": "eung, mitingdo hago seondo bwanneunde i sarami choegoya."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 첫 뽀뽀는 언제였어? 궁금하다!",
+   "beaver_en": "So when was your first kiss? I'm curious!",
+   "beaver_roman": "geureom cheot ppopponeun eonjeyeosseo? gunggeumhada!",
+   "learner": "부끄러워! 그냥 데이트 끝나고 했어.",
+   "en": "That's embarrassing! It was just after a date.",
+   "roman": "bukkeureowo! geunyang deiteu kkeunnago haesseo."
+  },
+  {
+   "n": 9,
+   "beaver": "하하, 귀엽다. 결혼하고 어디서 살 거야?",
+   "beaver_en": "Haha, cute. Where will you live after the wedding?",
+   "beaver_roman": "haha, gwiyeopda. gyeolhonhago eodiseo sal geoya?",
+   "learner": "신혼집은 회사 근처에 구할 예정이야.",
+   "en": "We're going to find our new home near work.",
+   "roman": "sinhonjibeun hoesa geuncheoe guhal yejeongiya."
+  },
+  {
+   "n": 10,
+   "beaver": "멋지다. 청첩장 나오면 꼭 줘!",
+   "beaver_en": "Awesome. Give me an invitation when it's ready!",
+   "beaver_roman": "meotjida. cheongcheopjang naomyeon kkok jwo!",
+   "learner": "물론이지! 결혼식에 꼭 와 줘. 고마워!",
+   "en": "Of course! Please come to the wedding. Thanks!",
+   "roman": "mulloniji! gyeolhonsige kkok wa jwo. gomawo!"
+  }
+ ]
+}
