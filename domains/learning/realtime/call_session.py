@@ -408,8 +408,9 @@ AGATE_MED_MULT = float(os.environ.get("LIVE_NOISE_AGATE_MED_MULT", "5.0") or 0)
 UNPROMPTED_VOICED_S = float(os.environ.get("LIVE_REPLY_HOLD_UNPROMPTED_VOICED_S", "0.5") or 0)
 UNPROMPTED_BG_MULT = 3.0
 # holdgate5: 상한이 TV 방에서도 걸려 문턱이 TV 봉우리 아래로 → TV 조각을 말로 인정(말인정 13~35 · unprompted 폐기 0).
-#   상한은 배경이 정말 조용할 때(하위 20% 값이 이보다 작을 때)만 건다.
-AGATE_QUIET_BG = float(os.environ.get("LIVE_NOISE_AGATE_QUIET_BG", "0.003") or 0)
+#   holdgate6: 하위 20% 값으로는 못 가름(TV 도 말 사이가 비어 0.003 아래) — 배경 소리 비율(ambient_ema)로 가른다.
+#   holdgate5 실측 중앙: TV 0.63~0.87 · 작은 목소리 0.34~0.47 · 조용 0~0.28. 상한은 이 비율이 이보다 작을 때만.
+AGATE_QUIET_AMBIENT = float(os.environ.get("LIVE_NOISE_AGATE_QUIET_AMBIENT", "0.55") or 0)
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -6584,7 +6585,7 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                     state.user_voice_ts = asyncio.get_running_loop().time()
                 if REPLY_HOLD_S > 0:
                     _reply_hold_track_voice(state, data)
-                if NOISE_NOTE_S > 0 or MIC_RMS_LOG:
+                if NOISE_NOTE_S > 0 or MIC_RMS_LOG or AGATE:   # PM-DEC-1025 — 적응 게이트도 배경 비율로 조용한 방을 가른다
                     _ambient_track(state, data)  # PM-DEC-1005 — (C) 배경 소리 판정 재료
                 if MIC_RMS_LOG:
                     _mic_rms_stat(state, data)   # PM-DEC-998 — 서버가 받은 마이크 소리 크기 10초 요약   # PM-DEC-993 — 답 보류 해제 판정 재료
@@ -8235,7 +8236,7 @@ def _agate(state: _CallState, data: bytes) -> list:
         state.ag_bg = srt[len(srt) // 5]
         p95 = AGATE_K * srt[int(len(srt) * 0.95) - 1]
         # PM-DEC-1018 — 학습자 목소리가 p95 를 끌어올려도 문턱이 배경 하위 20% × AGATE_MED_MULT 를 넘지 않게
-        quiet_room = AGATE_MED_MULT > 0 and state.ag_bg < AGATE_QUIET_BG
+        quiet_room = AGATE_MED_MULT > 0 and state.ambient_ema < AGATE_QUIET_AMBIENT
         state.ag_thr = max(AGATE_FLOOR, min(p95, AGATE_MED_MULT * state.ag_bg) if quiet_room else p95)
     state.gate_zeroed += 1
     return [_zeros(len(data))]
