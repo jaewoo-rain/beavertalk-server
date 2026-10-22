@@ -313,3 +313,26 @@ async def test_empty_turn_end_kept_while_closing(hold_on):
         (0, LiveEvent(kind="turn_end")),
     ], tail_s=0.2)
     assert "turn_end" in ws.types()
+
+
+def test_empty_generation_is_not_mute_greeting():
+    """2488 — 학습자 첫 답 전사가 오기 전 출력 0 빈 생성의 turn_end 를 벙어리 인사로 보지 않는다(전사도 소리도 없다)."""
+    st = cs._CallState()
+    st.session_epoch = 1
+    st.beaver_turns = 1
+    st.seed_text = "선톡"
+    assert cs._greeting_was_mute(st, 0) is True                 # 종전 호출(전사 정보 없음)은 그대로
+    assert cs._greeting_was_mute(st, 0, "") is False            # 빈 생성 — 재시드 안 함
+    assert cs._greeting_was_mute(st, 0, "안녕, 오늘 어땠어?") is True   # 진짜 벙어리 인사(전사만 있음)
+
+
+@pytest.mark.asyncio
+async def test_hold_eligible_on_voice_before_transcript(monkeypatch):
+    """학습자 전사가 늦어도 인사 뒤 목소리가 났으면 답 보류 대상이다(2488 t2 가 보류 없이 끊었다)."""
+    monkeypatch.setattr(cs, "REPLY_HOLD_S", 1.5)
+    st = cs._CallState()
+    assert not cs._reply_hold_eligible(st)          # 인사 전
+    st.beaver_turns = 1
+    assert not cs._reply_hold_eligible(st)          # 인사 뒤 · 목소리 없음
+    st.hold_voice_ts = 1.0
+    assert cs._reply_hold_eligible(st)
