@@ -361,6 +361,10 @@ LIVE_STALL_S = float(getattr(_settings, "LIVE_STALL_S", 20.0) or 0)
 # PM-DEC-993·994 — 답 보류(초 · 0 = 끔 = 종전 코드 경로). 학습자 목소리 뒤 이만큼 조용해야 붙잡아 둔 비버 답을 내보낸다.
 REPLY_HOLD_S = float(os.environ.get("LIVE_REPLY_HOLD_S", "0") or 0)
 REPLY_HOLD_MAX_S = float(os.environ.get("LIVE_REPLY_HOLD_MAX_S", "2.5") or 2.5)       # 소음이 계속돼도 이 이상은 안 붙잡는다
+# PM-DEC-1007 — 상한에 닿아도 학습자가 이만큼 조용해질 때까지 더 기다린다(0 = 끔 = 상한에서 바로 해제 · 종전) · 절대 상한은 HARD_MAX.
+#   hold1500c 2513: 상한 해제 순간 조용 0.99초 — 학습자가 0.78초 쉬고 이어 말해 답이 말 중간에 나가고 뒷말에 또 답했다(이중 발화).
+REPLY_HOLD_LATE_QUIET_S = float(os.environ.get("LIVE_REPLY_HOLD_LATE_QUIET_S", "0") or 0)
+REPLY_HOLD_HARD_MAX_S = float(os.environ.get("LIVE_REPLY_HOLD_HARD_MAX_S", "6.0") or 6.0)
 REPLY_HOLD_MUTE_TAIL_S = float(os.environ.get("LIVE_REPLY_HOLD_MUTE_TAIL_S", "1.2") or 0)  # 추정 재생 끝 여유(앱 쿠션 0.9초 + 잔향)
 REPLY_HOLD_NOISE_MULT = 3.0     # 목소리 문턱 = max(REGROUND_VOICE_RMS, 소음 바닥 × 이 값)
 REPLY_HOLD_POLL_S = 0.05        # 보류 중 해제 판정 간격
@@ -6680,7 +6684,9 @@ def _reply_hold_poll(state: "_CallState") -> list:
         return []
     if quiet >= REPLY_HOLD_S:
         why = "quiet"
-    elif age >= REPLY_HOLD_MAX_S:
+    elif age >= REPLY_HOLD_HARD_MAX_S:
+        why = "hard"
+    elif age >= REPLY_HOLD_MAX_S and (REPLY_HOLD_LATE_QUIET_S <= 0 or quiet >= REPLY_HOLD_LATE_QUIET_S):
         why = "max"
     else:
         return []
