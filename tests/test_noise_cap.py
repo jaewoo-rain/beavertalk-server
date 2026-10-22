@@ -298,3 +298,32 @@ def test_voiced_since_beaver_end_counts_loud_frames(monkeypatch):
     st.voiced_since_end = 0.0
     _feed(st, clock, 0.02, 0.6)                            # 배경보다 확실히 큰 소리 0.6초
     assert 0.55 <= st.voiced_since_end <= 0.65, st.voiced_since_end
+
+
+def test_agate_cap_only_in_quiet_room_tv_keeps_p95(monkeypatch):
+    """holdgate5: 상한이 TV 방에도 걸려 TV 조각이 말로 인정됐다 — 배경 하위 20% 가 0.003 이상(TV)이면 종전 p95 문턱."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    for i in range(600):                                   # TV 배경 0.004 + 봉우리 0.03
+        lv = 0.03 if i % 50 in (0, 1, 2) else 0.004
+        clock.t += 0.02
+        assert cs._agate(st, _pcm(lv)) == [bytes(640)], (i, st.ag_thr)
+    assert st.ag_bg >= cs.AGATE_QUIET_BG and st.ag_thr >= 0.03 * cs.AGATE_K * 0.99, (st.ag_bg, st.ag_thr)
+    assert st.ag_onsets == 0
+
+
+def test_tv_peaks_below_gate_do_not_count_as_voice(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    for i in range(600):
+        lv = 0.03 if i % 50 in (0, 1, 2) else 0.004
+        clock.t += 0.02
+        cs._agate(st, _pcm(lv))
+    st.voiced_since_end = 0.0
+    for i in range(300):                                   # 6초 TV 더
+        lv = 0.03 if i % 50 in (0, 1, 2) else 0.004
+        clock.t += 0.02
+        cs._agate(st, _pcm(lv))
+    assert st.voiced_since_end < cs.UNPROMPTED_VOICED_S    # TV 조각만으로는 «학습자가 말함» 이 안 된다
