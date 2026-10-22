@@ -268,3 +268,31 @@ async def test_test_on_dunno_alternates_only_when_switch_on(rx_on, monkeypatch):
         await h.turn()
     kinds = [m["kind"] for _, m in h.log if m.get("type") == "reaction"]
     assert kinds == ["wrong"]                                      # ask 단계 무음 1회 → 반응(rep 단계 «모름» 은 대상 아님)
+
+
+@pytest.mark.asyncio
+async def test_second_correct_in_same_item_skipped_by_default(rx_on):
+    h = _H(["correct", "correct"])                                 # 1번 묻기 정답 → 모국어 확인(native) 정답
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(2):
+            await h.say()
+            await h.turn()
+    kinds = [m["kind"] for _, m in h.log if m.get("type") == "reaction"]
+    assert kinds == ["correct"]                                    # native 정답은 반응 없음(PM-DEC-1028)
+
+
+@pytest.mark.asyncio
+async def test_item_once_switch_off_restores_every_correct(rx_on, monkeypatch):
+    monkeypatch.setattr(reaction, "ITEM_ONCE", False)
+    h = _H(["correct", "correct"])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for _ in range(2):
+            await h.say()
+            await h.turn()
+    assert [m["kind"] for _, m in h.log if m.get("type") == "reaction"] == ["correct", "correct"]

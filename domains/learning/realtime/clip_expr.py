@@ -697,10 +697,10 @@ class ClipExprSession:
             if st in ("ask", "hint", "rep", "rep2") and self._has(f"native_{seq}"):
                 lead = self._pick("g_ok") if st in ("ask", "hint") else self._pick("g_rep_ok")
                 self.stage = "native"
-                await self._turn([lead, f"native_{seq}"], result=r, heard=heard, t_end=t_end, react="correct")
+                await self._turn([lead, f"native_{seq}"], result=r, heard=heard, t_end=t_end, react=self._correct_rx(st))
                 return
             lead = self._pick("g_ok") if st in ("ask", "hint") else self._pick("g_rep_ok")
-            await self._turn([lead] + self._next_item_clips(), result=r, heard=heard, t_end=t_end, react="correct")
+            await self._turn([lead] + self._next_item_clips(), result=r, heard=heard, t_end=t_end, react=self._correct_rx(st))
             return
         # 실패(close·wrong·dunno)
         if st in ("native", "native2"):
@@ -864,6 +864,13 @@ class ClipExprSession:
         now = time.monotonic()
         self._play_until = max(self._play_until, now) + len(pcm) / _OUT_BPS
         return face
+
+    @staticmethod
+    def _correct_rx(stage: str) -> Optional[str]:
+        """PM-DEC-1028 — 항목의 첫 정답(ask·hint)만 정답 반응. 따라 말하기·모국어 확인 정답은 생략(스위치 ITEM_ONCE)."""
+        if _reaction.ITEM_ONCE and stage in ("rep", "rep2", "native", "native2"):
+            return None
+        return "correct"
 
     async def _react(self, kind: str) -> int:
         """PM-DEC-1019 — 판정 반응. 앱이 앞 소리를 다 튼 뒤에 보내고 그 길이만큼 기다린다(그동안 비버 클립이 안 나간다 = 클립 통화의 답 보류).
