@@ -267,3 +267,23 @@ def test_voice_tracker_adapts_to_steady_noise(monkeypatch):
 
     assert asyncio.run(_go()) is None
     assert st.hold_noise_floor > 0.03
+
+
+@pytest.mark.asyncio
+async def test_face_only_hold_then_self_cancel_sends_nothing(hold_on, monkeypatch):
+    """set_face 뒤 소리 없이 Live 가 스스로 버리면(빈 생성 · hold1500 2470) 표정 마커도 앱에 안 간다 — 학습자가 조용해도 답이 올 때까지 둔다."""
+    monkeypatch.setattr(app_settings, "LIVE_FACE_SPIKE", True, raising=False)
+    st = _state()
+    st.hold_voice_ts = asyncio.get_running_loop().time() - 5.0   # 학습자는 이미 조용하다
+    sess = _TimedSession([
+        (0, LiveEvent(kind="tool_call", fn_name="set_face", fn_id="fc1", fn_args={"emotion": "sad"})),
+        (0.3, LiveEvent(kind="interrupted")),
+        (0.6, LiveEvent(kind="audio", audio=b"\x01\x00" * 10)),
+        (0, LiveEvent(kind="turn_end")),
+    ])
+    ws = _WS()
+    with pytest.raises(cs._CallFinished):
+        await cs._pump_gemini_to_client(ws, sess, st)
+    sad = [v for _, k, v in ws.log if k == "text" and v.get("type") == "sentence" and v.get("emotion") == "sad"]
+    assert not sad, "버린 답의 표정이 나갔다"
+    assert ws.types() == ["turn_start", "audio", "turn_end"]
