@@ -6,7 +6,8 @@
 - 반응 동안 비버 답은 나가지 않는다 — 클립 통화는 일꾼이 그만큼 기다렸다 클립을 내고, Live 통화는 답 보류(PM-DEC-993)를
   반응 끝까지 늘린다. 반응 중엔 마이크를 Live 로 안 보내고(효과음이 «학습자가 이어 말함» 으로 잡혀 답이 버려지지 않게),
   모델 set_face 표정 마커도 보내지 않는다.
-- 빈도 상한은 이 통화 상태(_CallState.rx_gate) 하나가 센다. 조각(이어하기)마다 새로 센다.
+- 빈도 상한은 통화(call_id) 하나에 판정기 하나로 센다 — 조각(이어하기)이 바뀌어도 이어 센다(react1 2654: 조각 2에서 상한이 0 부터 다시 셌다).
+  프로세스 메모리라 다른 인스턴스로 간 조각은 새로 센다(시험 태그는 인스턴스 1~2개).
 ⛔ 끼어들기·들린 답 취소와 무관하다 — 이미 들리기 시작한 답 위에는 반응을 띄우지 않는다(발동 자리에서 거른다).
 ⛔ env LIVE_REACTION=1 일 때만. 꺼져 있으면 메시지·대기·마이크·표정 어디도 종전과 같다.
 """
@@ -96,13 +97,24 @@ class ReactionGate:
         return f"발동={self.counts} 합={self.total_ms}ms 건너뜀={self.skipped}"
 
 
+_GATES: dict[Any, ReactionGate] = {}   # call_id → 판정기(조각을 넘어 상한을 잇는다)
+_GATES_MAX = 300
+
+
 def gate(state: Any) -> Optional[ReactionGate]:
-    """켜져 있으면 이 통화의 판정기(처음 부를 때 만든다). 꺼져 있으면 None."""
+    """켜져 있으면 이 통화의 판정기(처음 부를 때 만든다 · 같은 call_id 의 앞 조각 것을 잇는다). 꺼져 있으면 None."""
     if not REACTION_ON or state is None:
         return None
     g = getattr(state, "rx_gate", None)
     if g is None:
-        g = ReactionGate()
+        cid = getattr(state, "call_id", None)
+        g = _GATES.get(cid) if cid is not None else None
+        if g is None:
+            g = ReactionGate()
+            if cid is not None:
+                _GATES[cid] = g
+                while len(_GATES) > _GATES_MAX:
+                    _GATES.pop(next(iter(_GATES)))
         try:
             state.rx_gate = g
         except AttributeError:   # rx_gate 칸이 없는 상태 객체(시험용 가짜 등) — 끔과 같게

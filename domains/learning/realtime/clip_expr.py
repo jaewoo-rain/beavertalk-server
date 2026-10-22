@@ -869,7 +869,7 @@ class ClipExprSession:
         lead = self._play_until - time.monotonic()
         if lead > 0:
             await asyncio.sleep(lead)
-        ms = await _reaction.fire(self._state, kind, getattr(self._state, "rx_send", None), where=f"clip:{self.stage}")
+        ms = await _reaction.fire(self._state, kind, getattr(self._state, "rx_send", None), where=f"clip:{self._judged}")
         if ms:
             await asyncio.sleep(ms / 1000.0)
         return ms

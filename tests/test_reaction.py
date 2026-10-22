@@ -200,3 +200,14 @@ async def test_script_pron_capped_and_finish_reaction_before_close(rx_on):
         assert h.notes[-1]["type"] == "reaction" and h.notes.index(sent[-1]) > end_at
         await h.s.send_text_turn("CLOSE")
         await h.turn()
+
+
+def test_gate_carries_over_fragments_of_same_call(rx_on):
+    reaction._GATES.clear()
+    a = SimpleNamespace(rx_gate=None, call_id=99)
+    g = reaction.gate(a)
+    g.decide("wrong", 0.0)
+    b = SimpleNamespace(rx_gate=None, call_id=99)            # 이어하기 조각 = 새 상태 객체 · 같은 call_id
+    assert reaction.gate(b) is g and g.counts["wrong"] == 1
+    c = SimpleNamespace(rx_gate=None, call_id=100)
+    assert reaction.gate(c) is not g
