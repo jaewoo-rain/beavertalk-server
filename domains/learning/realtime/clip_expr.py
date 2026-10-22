@@ -35,6 +35,7 @@ from typing import Any, AsyncIterator, Callable, Optional
 from pydantic import BaseModel
 
 from core.gemini_live import LiveEvent
+from domains.learning.realtime import reaction as _reaction
 
 logger = logging.getLogger(__name__)
 
@@ -634,8 +635,9 @@ class ClipExprSession:
         self._last_in_group[group] = cid
         return cid
 
-    def _wrong(self) -> list[str]:
-        seq = [self._pick("g_laugh")] if self._rng.random() < LAUGH_P else []
+    def _wrong(self, *, laugh: bool = True) -> list[str]:
+        # PM-DEC-1019 — 서버 반응(웃음)이 이미 나갔으면 웃음 클립을 또 붙이지 않는다.
+        seq = [self._pick("g_laugh")] if laugh and self._rng.random() < LAUGH_P else []
         return seq + [self._pick("g_wrong")]
 
     def _next_item_clips(self) -> list[str]:
@@ -674,7 +676,8 @@ class ClipExprSession:
         if st == "quiz" and self.quiz_q:
             # 퀴즈는 정답 판정만(요청서 3-1 ⑤) — 마지막 퀴즈는 idx 가 이미 항목 끝을 넘었다
             lead = [self._pick("g_ok")] if r == "correct" else [f"model_{self.quiz_q[0]}"]
-            await self._turn(lead + self._after_quiz(), result=r, heard=heard, t_end=t_end)
+            rx = "correct" if r == "correct" else ("wrong" if r in ("close", "wrong") else None)
+            await self._turn(lead + self._after_quiz(), result=r, heard=heard, t_end=t_end, react=rx)
             return
         it = self.item if self.idx < len(self.items) else None
         if st == "done" or it is None:
@@ -688,15 +691,16 @@ class ClipExprSession:
         if r == "correct":
             if st in ("ask", "hint") and it.blank:
                 # 빈칸 정답 — STT 를 믿기 어려워 되짚지 않는다(«오이에에요» 놀림 · call 2034). 칭찬 클립만.
-                await self._turn([self._pick("g_ok")] + self._next_item_clips(), result=r, heard=heard, t_end=t_end)
+                await self._turn([self._pick("g_ok")] + self._next_item_clips(), result=r, heard=heard, t_end=t_end,
+                                 react="correct")
                 return
             if st in ("ask", "hint", "rep", "rep2") and self._has(f"native_{seq}"):
                 lead = self._pick("g_ok") if st in ("ask", "hint") else self._pick("g_rep_ok")
                 self.stage = "native"
-                await self._turn([lead, f"native_{seq}"], result=r, heard=heard, t_end=t_end)
+                await self._turn([lead, f"native_{seq}"], result=r, heard=heard, t_end=t_end, react="correct")
                 return
             lead = self._pick("g_ok") if st in ("ask", "hint") else self._pick("g_rep_ok")
-            await self._turn([lead] + self._next_item_clips(), result=r, heard=heard, t_end=t_end)
+            await self._turn([lead] + self._next_item_clips(), result=r, heard=heard, t_end=t_end, react="correct")
             return
         # 실패(close·wrong·dunno)
         if st in ("native", "native2"):
@@ -717,10 +721,15 @@ class ClipExprSession:
             return
         if st == "ask" and r == "close" and self._has(f"hint_{seq}"):
             self.stage = "hint"
-            await self._turn(self._wrong() + [f"hint_{seq}"], result=r, heard=heard, t_end=t_end)
+            rx = await self._react("wrong")
+            await self._turn(self._wrong(laugh=not rx) + [f"hint_{seq}"], result=r, heard=heard, t_end=t_end)
             return
         if st in ("ask", "hint"):
-            lead = [self._pick("g_dunno")] if r == "dunno" else self._wrong()
+            if r == "dunno":
+                lead = [self._pick("g_dunno")]
+            else:
+                rx = await self._react("wrong")
+                lead = self._wrong(laugh=not rx)
             self.stage = "rep"
             await self._turn(lead + [f"model_{seq}"], result=r, heard=heard, t_end=t_end)
             return
@@ -852,9 +861,25 @@ class ClipExprSession:
         self._play_until = max(self._play_until, now) + len(pcm) / _OUT_BPS
         return face
 
+    async def _react(self, kind: str) -> int:
+        """PM-DEC-1019 — 판정 반응. 앱이 앞 소리를 다 튼 뒤에 보내고 그 길이만큼 기다린다(그동안 비버 클립이 안 나간다 = 클립 통화의 답 보류).
+        발동 안 하면 0 이고 기다리지도 않는다. 기다리는 동안 듣지 않는다(_listening 은 판정 뒤 이미 꺼져 있다)."""
+        if _reaction.gate(self._state) is None:
+            return 0
+        lead = self._play_until - time.monotonic()
+        if lead > 0:
+            await asyncio.sleep(lead)
+        ms = await _reaction.fire(self._state, kind, getattr(self._state, "rx_send", None), where=f"clip:{self.stage}")
+        if ms:
+            await asyncio.sleep(ms / 1000.0)
+        return ms
+
     async def _turn(self, clip_ids: list[str], *, result: str, heard: str = "", t_end: Optional[float] = None,
-                    say_guide: Optional[str] = None, note: str = "", fallback: Optional[list[str]] = None) -> None:
-        """비버 턴 하나 = [예외 응답(TTS)] + 클립 순서열 + turn_end. 끝나면 다시 듣는다."""
+                    say_guide: Optional[str] = None, note: str = "", fallback: Optional[list[str]] = None,
+                    react: Optional[str] = None) -> None:
+        """비버 턴 하나 = [반응] + [예외 응답(TTS)] + 클립 순서열 + turn_end. 끝나면 다시 듣는다."""
+        if react:
+            await self._react(react)
         self.turns += 1
         first_sound: Optional[float] = None
         face_now = "neutral"

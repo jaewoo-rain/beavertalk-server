@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 ROOT = clip_expr.ROOT.parent / "clips_script"
 FACE_BY_GROUP = {"sg_good": "happy", "sg_open": "happy", "sg_close_call": "happy", "sg_angry": "angry"}
 PASS_SIM, CLOSE_SIM = 0.6, 0.4
+PRON_SIM = 0.9          # PM-DEC-1019 — 첫 시도 통과가 이만큼 대본과 같으면 «발음 감탄» 반응(받아쓰기 유사도 · 발음 점수 아님)
 READY_LEAD_S = 1.0      # PM-DEC-895 — 바바 말 끝나기 이만큼 전에 내 줄을 회색으로 미리 보인다
 PARTIAL_EXTRA_S = 0.8   # PM-DEC-913 — 앞 반쪽으로 미룰 때 말 끝 무음을 이만큼 더 기다린다(1.2 → 2.0초)
 PARTIAL_RATIO = 0.7     # PM-DEC-912 — 들은 한글이 대본의 이만큼 못 되면 «앞 반쪽» 으로 보고 한 번 더 들어 본다
@@ -419,10 +420,15 @@ class ScriptReadSession(ClipExprSession):
             return
         if r in ("pass", "close"):
             await self._result_card(r)
+            first_try = self.attempt == 1
             nxt = await self._next_line()
             if nxt:
-                await self._turn(nxt, result=r, heard=heard, t_end=t_end)   # 반응 없이 다음 비버 대사
+                # PM-DEC-1019 — 통화 중 발음 점수가 없어 «첫 시도 자모 유사도 높음» 을 발음 고득점 대신으로 쓴다(통화당 2회 상한)
+                rx = "pron" if (r == "pass" and first_try and sim >= PRON_SIM) else None
+                await self._turn(nxt, result=r, heard=heard, t_end=t_end, react=rx)   # 반응 없이 다음 비버 대사
             else:
+                # PM-DEC-1019 — 완주 축하. 일꾼이 기다리는 동안 종료 명령(close)은 줄에 서서 반응 뒤에 처리된다.
+                await self._react("script")
                 await self._wait()            # 11번 끝 — 종료 요청이 들어가 있다
             return
         if self.attempt == 1:

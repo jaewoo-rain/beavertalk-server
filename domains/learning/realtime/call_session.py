@@ -141,6 +141,7 @@ from domains.learning.realtime.expression_practice import ExpressionPractice, re
 from domains.learning.realtime.perturn_session import PerTurnSession   # PM-DEC-864 턴마다 새 세션
 from domains.learning.realtime import clip_expr as _clip_expr
 from domains.learning.realtime import script_read as _script_read
+from domains.learning.realtime import reaction as _reaction
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -833,6 +834,7 @@ class _CallState:
         "midcall_tts_count", "midcall_tts_skip",   # 통화 중 소리 0B 턴 → TTS 대체(call 2308)
         "hold_events", "hold_ws", "hold_t0", "hold_voice_ts", "hold_noise_floor",   # PM-DEC-993 답 보류
         "hold_resumed", "hold_drop_end", "hold_turn_live", "hold_turn_bytes", "hold_release_ts", "reply_mute_until", "hold_next",
+        "rx_gate", "rx_send",   # PM-DEC-1019 통화 반응
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
@@ -1043,6 +1045,8 @@ class _CallState:
         self.hold_turn_bytes = 0
         self.hold_release_ts = 0.0
         self.hold_next = None                     # 보류 중 걸어 둔 다음 Live 이벤트 대기(펌프 감싸개가 거둔다)
+        self.rx_gate = None                       # PM-DEC-1019 — 반응 빈도·겹침 판정기(LIVE_REACTION 일 때 처음 쓸 때 만든다)
+        self.rx_send = None                       # 반응 메시지를 앱 WS 로 보내는 함수(통화 시작 때 건다)
         self.beaver_end_ts: Optional[float] = None   # PM-DEC-998 — 마지막 비버 turn_end 시각(전사 없는 시간의 기준)
         self.noise_note_count = 0
         self.noise_note_ts = 0.0
@@ -5770,6 +5774,8 @@ async def _run_one_generation(
                     settings.CONTEXT_SUMMARY_MODEL, settings.CONTEXT_SUMMARY_EVERY, settings.CONTEXT_RECENT_SEGMENTS)
     else:
         session_cm = live_session_factory(client, settings, **factory_kwargs)
+    if _reaction.REACTION_ON:
+        state.rx_send = _reaction.ws_sender(client_ws)   # PM-DEC-1019 — 꺼져 있으면 None 그대로(발동 자리가 전부 건너뛴다)
     async with session_cm as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
@@ -6658,7 +6664,10 @@ class _HoldWS:
 
 
 def _reply_muted(state: "_CallState") -> bool:
-    """PM-DEC-994 — 해제된 답의 추정 재생 끝 전이면 마이크를 Live 로 안 보낸다(소음이 들리는 답을 못 끊게)."""
+    """PM-DEC-994 — 해제된 답의 추정 재생 끝 전이면 마이크를 Live 로 안 보낸다(소음이 들리는 답을 못 끊게).
+    PM-DEC-1019 — 반응 재생 중에도 안 보낸다(효과음이 «이어 말함» 으로 잡혀 붙잡아 둔 답이 버려지지 않게)."""
+    if _reaction.active(state):
+        return True
     return REPLY_HOLD_S > 0 and state.reply_mute_until > 0 and asyncio.get_running_loop().time() < state.reply_mute_until
 
 
@@ -6754,6 +6763,8 @@ def _reply_hold_poll(state: "_CallState") -> list:
     held = state.hold_events
     if held is None:
         return []
+    if _reaction.active(state):
+        return []                           # PM-DEC-1019 — 반응이 끝날 때까지 답을 붙잡는다(절대 상한보다 먼저 본다)
     now = asyncio.get_running_loop().time()
     age = now - state.hold_t0
     ended = any(getattr(e, "kind", None) == "turn_end" for e in held)
@@ -6812,6 +6823,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         if state.hold_next is not None:
             state.hold_next.cancel()
             state.hold_next = None
+        if state.rx_gate is not None:
+            logger.info("normalcall 반응 요약: call_id=%s %s", _cid(state), state.rx_gate.summary())
 
 
 async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
@@ -7007,7 +7020,15 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
                 and len(state.cur_beaver_pcm) == state.face_last_pcm
             )
             same_slot = same_slot_seen and bool(_settings.LIVE_FACE_SLOT_MERGE)
-            if emotion and not duplicate and not opening and not same_slot:
+            # PM-DEC-1019 — 반응 재생 중엔 표정 마커를 보내지 않는다. 웃음(laugh)은 답이 아직 붙잡혀 있을 때(한 조각도 안 들림)
+            #   서버 반응으로 바꿔 보낸다 — 답 보류가 반응 끝까지 늘어난다. 이미 들리는 답 위에는 띄우지 않는다.
+            rx_skip = False
+            if emotion and _reaction.active(state):
+                rx_skip = True
+            elif (emotion == "laugh" and not opening and state.hold_events is not None
+                  and await _reaction.fire(state, "laugh", state.rx_send, where="set_face")):
+                rx_skip = True
+            if emotion and not duplicate and not opening and not same_slot and not rx_skip:
                 state.face_seq += 1
                 await _send_json(state.hold_ws if state.hold_events is not None else client_ws, ServerSentenceMarker(
                     turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
@@ -7025,6 +7046,7 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
                 secs, state.face_calls,
                 "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
                 "⛔첫인사턴(버림)" if (emotion and opening) else
+                "반응(안 보냄)" if rx_skip else
                 "중복(안 보냄)" if duplicate else
                 "⛔같은자리(앞엣것 유지)" if (emotion and same_slot) else
                 "⚠같은자리(관문 꺼짐·그대로 보냄 seq=%d)" % state.face_seq
