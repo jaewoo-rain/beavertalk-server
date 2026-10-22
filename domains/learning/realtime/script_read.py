@@ -69,8 +69,10 @@ def _is_first_part(line: str, heard: str) -> bool:
     if not hl or hl >= PARTIAL_RATIO * ll:
         return False
     hj = jamo(heard)
-    head = jamo("".join(re.findall(r"[가-힣]", line))[: hl + 2])
-    return difflib.SequenceMatcher(None, head, hj).ratio() >= 0.75
+    letters = "".join(re.findall(r"[가-힣]", line))
+    # react2 2845 줄3·4 — 짧은 앞부분(«아니요» 3자)은 +2 여유 때문에 비율이 0.7 로 떨어져 반쪽으로 못 봤다 → 그대로 판정해 fail.
+    #   같은 길이 앞부분과도 비교해 더 나은 쪽을 쓴다.
+    return max(difflib.SequenceMatcher(None, jamo(letters[: hl + k]), hj).ratio() for k in (0, 2)) >= 0.75
 
 
 CONTENT_PASS = 0.8      # ④(2319) 0.5 → 0.8 — 내용어 절반만 맞아도 통과하던 것

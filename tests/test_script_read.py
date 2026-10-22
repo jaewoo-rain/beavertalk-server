@@ -397,3 +397,12 @@ async def test_silent_nudge_can_be_turned_off():
         await h.turn()
         for t in (100.0, 200.0, 400.0):
             assert await h.s._on_quiet(1, t) is False
+
+
+def test_short_first_part_waits_for_the_rest():
+    """react2 2845 — «아니요» 만 들리면(문장 중간 쉼) 반쪽으로 보고 더 듣는다 · 엉뚱한 짧은 말은 반쪽이 아니다."""
+    line = "아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요."
+    assert sr._is_first_part(line, "아니요")
+    assert sr._is_first_part(line, "아니요 괜찮아요")
+    assert not sr._is_first_part(line, "배고파요")
+    assert not sr._is_first_part(line, "아니요 괜찮아요 저는 싱거운 음식을 좋아해요")
