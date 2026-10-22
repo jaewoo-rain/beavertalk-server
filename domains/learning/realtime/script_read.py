@@ -326,6 +326,8 @@ class ScriptReadSession(ClipExprSession):
         self.empties = 0
         self.angry_used = 0
         self.angry_line = False
+        self._quiet_t0: Optional[float] = None    # PM-DEC-1024 — 이 줄에서 무음이 시작된 시각(빈 판정이 이어지는 동안)
+        self._quiet_replayed = False
         self.results: list[tuple[int, str, float]] = []
         self._band_tasks: set[asyncio.Task] = set()
         # PM-DEC-899 — 판정하는 동안(받아쓰기 ~1초) 들어온 마이크를 버리지 않는다(사용자 「마이크가 씹히는 느낌」 · call 2104 줄8 빈 판정 13회).
@@ -536,9 +538,12 @@ class ScriptReadSession(ClipExprSession):
                 logger.info("normalcall script 무음 대기: call_id=%s 줄=%d 시도=%d", self._cid(), n, self.attempt)
                 self._silence_logged = True
             self.empties += 1
+            if await self._on_quiet(n, time.monotonic()):
+                return
             await self._wait(carry=True)      # 실패로 치지 않는다 · 반응 없음 · 그새 이어 말했으면 붙여서 다시
             return
         self._silence_logged = False
+        self._quiet_t0, self._quiet_replayed = None, False
         audio_s, stt_ms = getattr(self, "_last_stt", (0.0, -1))
         logger.info("normalcall script judge: call_id=%s 조각=%s 줄=%d 시도=%d 판정=%s 자모=%.2f 내용어=%.2f 말=%.1fs stt_ms=%d "
                     "말끝→판정_ms=%d 대본=«%s» 들음=«%s»",
@@ -576,11 +581,36 @@ class ScriptReadSession(ClipExprSession):
         self._line_after_turn = True          # 화냄 클립이 끝나면 같은 줄
         await self._turn([lead], result="fail", heard=heard, t_end=t_end)
 
+    async def _on_quiet(self, n: int, now: float) -> bool:
+        """PM-DEC-1024 — 같은 줄 무음이 길면 비버 줄을 한 번 다시 들려주고, 그래도 무음이면 다음 줄로. 턴을 냈으면 True."""
+        replay_s = float(getattr(self._settings, "SCRIPT_READ_SILENT_REPLAY_S", 15.0) or 0)
+        skip_s = float(getattr(self._settings, "SCRIPT_READ_SILENT_SKIP_S", 30.0) or 0)
+        if self._quiet_t0 is None:
+            self._quiet_t0 = now - self._dunno_s      # 첫 빈 판정은 무음 _dunno_s 뒤에 온다
+        quiet = now - self._quiet_t0
+        if replay_s > 0 and not self._quiet_replayed and quiet >= replay_s:
+            self._quiet_replayed = True
+            self._quiet_t0 = now                       # 다시 들려준 뒤부터 다시 센다
+            logger.info("normalcall script 무음 다시 들려줌: call_id=%s 줄=%d 무음=%.0fs", self._cid(), n, quiet)
+            await self._turn([f"sb_{n}"], result="silent_replay")
+            return True
+        if skip_s > 0 and (self._quiet_replayed or replay_s <= 0) and quiet >= skip_s:
+            logger.info("normalcall script 무음 건너뜀: call_id=%s 줄=%d 무음=%.0fs", self._cid(), n, quiet)
+            await self._result_card("skip")
+            nxt = await self._next_line()
+            if nxt:
+                await self._turn(nxt, result="silent_skip")
+            else:
+                await self._wait()                     # 마지막 줄 — 종료 요청이 들어가 있다
+            return True
+        return False
+
     async def _next_line(self) -> list[str]:
         self.idx += 1
         self.done_items += 1
         self.attempt = 1
         self.empties = 0
+        self._quiet_t0, self._quiet_replayed = None, False
         self.angry_line = False
         if self.idx >= len(self.items):
             self.stage = "done"
