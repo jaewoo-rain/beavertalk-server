@@ -368,6 +368,14 @@ REPLY_HOLD_HARD_MAX_S = float(os.environ.get("LIVE_REPLY_HOLD_HARD_MAX_S", "6.0"
 REPLY_HOLD_MUTE_TAIL_S = float(os.environ.get("LIVE_REPLY_HOLD_MUTE_TAIL_S", "1.2") or 0)  # 추정 재생 끝 여유(앱 쿠션 0.9초 + 잔향)
 REPLY_HOLD_NOISE_MULT = 3.0     # 목소리 문턱 = max(REGROUND_VOICE_RMS, 소음 바닥 × 이 값)
 REPLY_HOLD_POLL_S = 0.05        # 보류 중 해제 판정 간격
+# PM-DEC-998 — 상시 배경 말소리(TV) 무응답 대책. 셋 다 기본 0 = 끔(종전).
+NOISE_DEFER_CAP_S = float(os.environ.get("LIVE_NOISE_DEFER_CAP_S", "0") or 0)    # (A) 전사 없이 이만큼 지나면 소리로 무음 시계를 안 미룬다
+NOISE_NOTE_S = float(os.environ.get("LIVE_NOISE_NOTE_S", "0") or 0)              # (C) 전사 없이 이만큼 + 소리 계속 → «시끄럽다» 텍스트 턴
+NOISE_NOTE_MAX = 2
+NOISE_STREAM_END_S = float(os.environ.get("LIVE_NOISE_STREAM_END_S", "0") or 0)  # (B) 측정 전용 audio_stream_end
+NOISE_VOICE_RECENT_S = 3.0      # «소리가 계속 온다» = 마지막 소리 프레임이 이 안
+MIC_RMS_LOG = os.environ.get("LIVE_MIC_RMS_LOG", "0") == "1"
+MIC_RMS_LOG_EVERY_S = 10.0
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -803,6 +811,8 @@ class _CallState:
         "midcall_tts_count", "midcall_tts_skip",   # 통화 중 소리 0B 턴 → TTS 대체(call 2308)
         "hold_events", "hold_ws", "hold_t0", "hold_voice_ts", "hold_noise_floor",   # PM-DEC-993 답 보류
         "hold_resumed", "hold_drop_end", "hold_turn_live", "hold_turn_bytes", "hold_release_ts", "reply_mute_until", "hold_next",
+        "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
+        "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
@@ -1008,6 +1018,16 @@ class _CallState:
         self.hold_turn_bytes = 0
         self.hold_release_ts = 0.0
         self.hold_next = None                     # 보류 중 걸어 둔 다음 Live 이벤트 대기(펌프 감싸개가 거둔다)
+        self.beaver_end_ts: Optional[float] = None   # PM-DEC-998 — 마지막 비버 turn_end 시각(전사 없는 시간의 기준)
+        self.noise_note_count = 0
+        self.noise_note_ts = 0.0
+        self.noise_cap_logged: Optional[float] = None   # 이 비버 턴 끝 기준으로 (A) 로그를 이미 찍었나
+        self.noise_stream_end_at: Optional[float] = None
+        self.mic_n = 0
+        self.mic_sum = 0.0
+        self.mic_max = 0.0
+        self.mic_loud = 0
+        self.mic_log_ts = 0.0
         self.reply_mute_until = 0.0               # 이 시각까지 마이크를 Live 로 안 보낸다(들리는 답을 소음이 못 끊게)
         self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
         self.midcall_echo_until = 0.0     # PM-DEC-977 — 이 시각 전(루프 시계)엔 학습자 말 없이 온 새 비버 턴을 보내지 않는다
@@ -6507,7 +6527,9 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
                     # PM-DEC-891 — 전사(in_tr)가 말 끝에 몰려 와도 «말하는 중» 은 무음이 아니다(call 2070·2071 대답 중 작별).
                     state.user_voice_ts = asyncio.get_running_loop().time()
                 if REPLY_HOLD_S > 0:
-                    _reply_hold_track_voice(state, data)   # PM-DEC-993 — 답 보류 해제 판정 재료
+                    _reply_hold_track_voice(state, data)
+                if MIC_RMS_LOG:
+                    _mic_rms_stat(state, data)   # PM-DEC-998 — 서버가 받은 마이크 소리 크기 10초 요약   # PM-DEC-993 — 답 보류 해제 판정 재료
                 if state.ctx is not None and state.ctx.has_next and state.hold_events is None:
                     # PM-DEC-864 — 재생이 끝나 마이크가 열린 첫 자리에서 다음 세션으로 바꾼다(안내·쪽지는 아래에서 새 세션에 얹힌다).
                     state.ctx.on_mic_frame(frame_rms(data) >= REGROUND_VOICE_RMS)
@@ -6608,7 +6630,9 @@ def _reply_hold_eligible(state: "_CallState") -> bool:
     spoke = state.learner_spoke or (state.beaver_turns >= 1 and state.hold_voice_ts is not None)
     return (REPLY_HOLD_S > 0 and spoke and not state.should_close and not state.close_seed_sent
             and not state.is_leveltest and not state.clip_expr and state.midcall_echo_turn is None
-            and state.leveltest_cut_turn is None and not _midcall_echo_guard_active(state))
+            and state.leveltest_cut_turn is None and not _midcall_echo_guard_active(state)
+            # PM-DEC-998 — «시끄럽다» 안내의 답은 붙잡지 않는다(소음이 계속돼 조용해지지 않는다 · 그동안 마이크가 Live 로 가면 답이 취소된다)
+            and asyncio.get_running_loop().time() - state.noise_note_ts > 10.0)
 
 
 def _reply_hold_take(state: "_CallState", event) -> bool:
@@ -7748,6 +7772,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         # ⭐ 무음 시계 리셋: 비버가 방금 말을 멈췄다 = 여기서부터 무음이 시작된다.
         # (안 하면 시계가 통화 시작부터 흘러 비버의 긴 발화 직후 넛지가 즉시 터진다.)
         state.last_activity_ts = asyncio.get_running_loop().time()
+        state.beaver_end_ts = state.last_activity_ts   # PM-DEC-998 — «전사 없는 시간» 의 기준
 
     return turn_started
 
@@ -7986,7 +8011,12 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
             continue
         # 각 단계는 "직전 활동(발화/넛지) 이후" 신선한 무음을 잰다. 성공 시 last_activity_ts 를
         # 갱신해 다음 단계가 그 시점부터 다시 세도록(비버 무응답이어도 넛지 폭주 방지).
-        idle = loop.time() - max(state.last_activity_ts or state.call_start_ts, state.user_voice_ts or 0.0)
+        voice_ts = state.user_voice_ts or 0.0
+        if NOISE_DEFER_CAP_S > 0 or NOISE_NOTE_S > 0 or NOISE_STREAM_END_S > 0:
+            voice_ts, noted = await _noise_guard(session, state, voice_ts)
+            if noted:
+                continue
+        idle = loop.time() - max(state.last_activity_ts or state.call_start_ts, voice_ts)
 
         # 단계는 실제 주입 성공 시에만 전진(시니어 리뷰 Q1 하드닝 — 상태-행동 일치).
         # 임계·1단 시드는 콜타입별(state.idle_*/nudge_seed_1). 일반은 60/10/12 + 새 화제,
@@ -8006,6 +8036,71 @@ async def _watch_idle(session: LiveSessionProtocol, state: _CallState) -> None:
             state.should_close = True
             await _inject_close_seed(session, state)  # 비버 idle → 직접 주입(go_away 와 동일)
             return
+
+
+_NOISE_NOTE_SEED = (
+    f"{CONTROL_TAG} 이 메시지는 소리내 읽지 마라. 지금 주변 소리 때문에 학습자 말이 잘 안 들린다. "
+    "사과·설명·메타 발언 없이 네 말투로 짧게 한 문장만 해라. 예: «주변이 좀 시끄러운 것 같아, 다시 말해줄래?»"
+)
+
+
+def _noise_applies(state: _CallState) -> bool:
+    return (state.learner_spoke and not state.is_leveltest and not state.should_close and not state.close_seed_sent
+            and state.beaver_end_ts is not None and not state.user_turn_open)
+
+
+async def _noise_guard(session: LiveSessionProtocol, state: _CallState, voice_ts: float) -> tuple[float, bool]:
+    """PM-DEC-998 — 비버 턴 끝 뒤 전사 없이 소리만 계속 올 때. 반환 (무음 시계에 쓸 소리 시각, 이번 바퀴에 안내를 넣었나)."""
+    if not _noise_applies(state):
+        return voice_ts, False
+    now = asyncio.get_running_loop().time()
+    since = now - state.beaver_end_ts
+    sounding = voice_ts > state.beaver_end_ts and now - voice_ts <= NOISE_VOICE_RECENT_S
+    if NOISE_STREAM_END_S > 0 and sounding and since >= NOISE_STREAM_END_S and state.noise_stream_end_at != state.beaver_end_ts:
+        state.noise_stream_end_at = state.beaver_end_ts
+        fn = getattr(session, "send_audio_stream_end", None)
+        if fn is not None:
+            try:
+                await fn()
+                logger.warning("normalcall 소음: 전사 없이 %.1fs · 소리 계속 → audio_stream_end 1회(측정)", since)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # noqa: BLE001 — 측정 신호 실패는 통화 무영향
+                logger.warning("normalcall 소음: audio_stream_end 실패(무시): %s", exc)
+    if (NOISE_NOTE_S > 0 and sounding and since >= NOISE_NOTE_S and state.noise_note_count < NOISE_NOTE_MAX
+            and now - state.noise_note_ts >= NOISE_NOTE_S):
+        if await _inject_nudge(session, state, _NOISE_NOTE_SEED):
+            state.noise_note_count += 1
+            state.noise_note_ts = now
+            state.last_activity_ts = now
+            state.beaver_end_ts = now   # 다음 판정은 이 안내 뒤부터 다시 잰다
+            logger.warning("normalcall 소음: 전사 없이 %.1fs · 소리 계속 → «시끄럽다» 안내 주입(%d/%d)",
+                           since, state.noise_note_count, NOISE_NOTE_MAX)
+            return 0.0, True
+    if NOISE_DEFER_CAP_S > 0 and since >= NOISE_DEFER_CAP_S and voice_ts > state.beaver_end_ts:
+        if state.noise_cap_logged != state.beaver_end_ts:
+            state.noise_cap_logged = state.beaver_end_ts
+            logger.warning("normalcall 소음: 전사 없이 %.1fs — 소리 프레임으로 무음 시계를 더 미루지 않음", since)
+        return 0.0, False
+    return voice_ts, False
+
+
+def _mic_rms_stat(state: _CallState, data: bytes) -> None:
+    """PM-DEC-998 — 서버가 받은 마이크 RMS 를 모아 10초마다 한 줄(실기기 TV 소리 크기 · 값은 0~1 정규화)."""
+    r = frame_rms(data)
+    state.mic_n += 1
+    state.mic_sum += r
+    state.mic_max = max(state.mic_max, r)
+    if r >= REGROUND_VOICE_RMS:
+        state.mic_loud += 1
+    now = asyncio.get_running_loop().time()
+    if not state.mic_log_ts:
+        state.mic_log_ts = now
+    elif now - state.mic_log_ts >= MIC_RMS_LOG_EVERY_S and state.mic_n:
+        logger.info("normalcall 마이크 RMS: call_id=%s n=%d 평균=%.4f 최대=%.4f 문턱넘음=%.0f%% 바닥=%.4f",
+                    _cid(state), state.mic_n, state.mic_sum / state.mic_n, state.mic_max,
+                    100.0 * state.mic_loud / state.mic_n, state.hold_noise_floor)
+        state.mic_n, state.mic_sum, state.mic_max, state.mic_loud, state.mic_log_ts = 0, 0.0, 0.0, 0, now
 
 
 async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: str) -> bool:

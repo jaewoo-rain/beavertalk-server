@@ -373,6 +373,14 @@ class GeminiLiveSession:
             audio=types.Blob(data=pcm16_16k, mime_type=INPUT_MIME_TYPE)
         ))
 
+    async def send_audio_stream_end(self) -> None:
+        """PM-DEC-998 (B) 측정 전용 — Live 에 «마이크 스트림 끝» 을 알린다(자동 말끝 감지가 남은 소리를 마무리하게).
+
+        ⚠ 프로토콜(LiveSessionProtocol)에는 넣지 않는다 — 호출부는 getattr 로 있을 때만 부른다(가짜 세션 무영향).
+        다음 오디오가 오면 스트림은 다시 열린다(API 규약).
+        """
+        await self._send("audio_stream_end", lambda: self._session.send_realtime_input(audio_stream_end=True))
+
     async def send_text_turn(self, text: str) -> None:
         """초기 선톡 시드/종료 시드용 user 텍스트 턴 1회 전송.
 
