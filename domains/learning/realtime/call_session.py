@@ -358,6 +358,13 @@ REGROUND_VOICE_RMS = _settings.LIVE_REGROUND_VOICE_RMS
 TURN_NOTE_MODE = _settings.LIVE_TURN_NOTE
 # 열린 비버 턴 무수신 감시(초 · 0 = 끔) — call 2000(2026-10-16) 대응.
 LIVE_STALL_S = float(getattr(_settings, "LIVE_STALL_S", 20.0) or 0)
+# PM-DEC-993·994 — 답 보류(초 · 0 = 끔 = 종전 코드 경로). 학습자 목소리 뒤 이만큼 조용해야 붙잡아 둔 비버 답을 내보낸다.
+REPLY_HOLD_S = float(os.environ.get("LIVE_REPLY_HOLD_S", "0") or 0)
+REPLY_HOLD_MAX_S = float(os.environ.get("LIVE_REPLY_HOLD_MAX_S", "2.5") or 2.5)       # 소음이 계속돼도 이 이상은 안 붙잡는다
+REPLY_HOLD_MUTE_TAIL_S = float(os.environ.get("LIVE_REPLY_HOLD_MUTE_TAIL_S", "1.2") or 0)  # 추정 재생 끝 여유(앱 쿠션 0.9초 + 잔향)
+REPLY_HOLD_NOISE_MULT = 3.0     # 목소리 문턱 = max(REGROUND_VOICE_RMS, 소음 바닥 × 이 값)
+REPLY_HOLD_POLL_S = 0.05        # 보류 중 해제 판정 간격
+REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
 _DEFAULT_TARGET_LABEL = SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE].label
@@ -790,6 +797,8 @@ class _CallState:
         "last_activity_ts", "silence_stage", "call_duration_s",
         "tts_voice", "greeting_tts_done",   # 첫 인사 벙어리 → TTS 대체
         "midcall_tts_count", "midcall_tts_skip",   # 통화 중 소리 0B 턴 → TTS 대체(call 2308)
+        "hold_events", "hold_ws", "hold_t0", "hold_voice_ts", "hold_noise_floor",   # PM-DEC-993 답 보류
+        "hold_resumed", "hold_drop_end", "hold_turn_live", "hold_turn_bytes", "hold_release_ts", "reply_mute_until", "hold_next",
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
@@ -984,6 +993,18 @@ class _CallState:
         self.tts_voice: str = ""          # 첫 인사 TTS 대체용 — Live 와 같은 목소리 이름
         self.greeting_tts_done = False    # 첫 인사 TTS 대체는 통화당 한 번
         self.midcall_tts_count = 0        # 통화 중 소리 0B 턴 TTS 대체 횟수(상한 MIDCALL_TTS_MAX)
+        self.hold_events: Optional[list] = None   # PM-DEC-993 — 붙잡아 둔 비버 출력(None = 보류 아님)
+        self.hold_ws = _HoldWS(self)              # 보류 중 표정 마커 프레임을 받아 두는 자리
+        self.hold_t0 = 0.0
+        self.hold_voice_ts: Optional[float] = None   # 소음 바닥 적응 문턱을 넘은 마지막 학습자 프레임 시각
+        self.hold_noise_floor = 0.0
+        self.hold_resumed = False                 # 보류 중 학습자가 이어 말했다(목소리 + 전사)
+        self.hold_drop_end = False                # 버린 답의 turn_end 가 뒤늦게 오면 삼킨다
+        self.hold_turn_live = False               # 해제된 답이 지금 나가는 중(추정 재생 끝 계산용)
+        self.hold_turn_bytes = 0
+        self.hold_release_ts = 0.0
+        self.hold_next = None                     # 보류 중 걸어 둔 다음 Live 이벤트 대기(펌프 감싸개가 거둔다)
+        self.reply_mute_until = 0.0               # 이 시각까지 마이크를 Live 로 안 보낸다(들리는 답을 소음이 못 끊게)
         self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
         self.midcall_echo_until = 0.0     # PM-DEC-977 — 이 시각 전(루프 시계)엔 학습자 말 없이 온 새 비버 턴을 보내지 않는다
         self.midcall_echo_turn: Optional[str] = None
@@ -6477,11 +6498,13 @@ async def _pump_client_to_gemini(client_ws, session: LiveSessionProtocol, state:
             #   ②`cur_user_pcm` 이 안 쌓여 통화후 국적 추론이 죽었다
             #     (test_call_end_releases_pcm_but_still_feeds_nationality 가 잡았다).
             #   지금 게이트는 종전대로 barge-in off 하나뿐이다.
-            if data and state.turn_id is None:
+            if data and state.turn_id is None and not _reply_muted(state):
                 if frame_rms(data) >= REGROUND_VOICE_RMS:
                     # PM-DEC-891 — 전사(in_tr)가 말 끝에 몰려 와도 «말하는 중» 은 무음이 아니다(call 2070·2071 대답 중 작별).
                     state.user_voice_ts = asyncio.get_running_loop().time()
-                if state.ctx is not None and state.ctx.has_next:
+                if REPLY_HOLD_S > 0:
+                    _reply_hold_track_voice(state, data)   # PM-DEC-993 — 답 보류 해제 판정 재료
+                if state.ctx is not None and state.ctx.has_next and state.hold_events is None:
                     # PM-DEC-864 — 재생이 끝나 마이크가 열린 첫 자리에서 다음 세션으로 바꾼다(안내·쪽지는 아래에서 새 세션에 얹힌다).
                     state.ctx.on_mic_frame(frame_rms(data) >= REGROUND_VOICE_RMS)
                 # ⭐ 재접지를 **오디오보다 먼저** 넣는다 — 대화에 [쪽지][사용자말] 순으로
@@ -6538,10 +6561,153 @@ async def _handle_client_control(client_ws, text: str, state: _CallState) -> Non
         raise _FragmentEnd()
 
 
+class _HeldFrame:
+    """PM-DEC-993 — 보류 중 붙잡아 둔 앱 프레임(표정 마커). 해제 때 원래 순서대로 흘린다."""
+
+    __slots__ = ("text",)
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+class _HoldWS:
+    """PM-DEC-993 — 보류 중 앱으로 나갈 프레임을 받아 두는 가짜 소켓(표정 마커 자리만 쓴다)."""
+
+    def __init__(self, state: "_CallState") -> None:
+        self._state = state
+
+    async def send_text(self, text: str) -> None:
+        if self._state.hold_events is not None:
+            self._state.hold_events.append(_HeldFrame(text))
+
+    async def send_bytes(self, data: bytes) -> None:   # 쓰는 자리 없음(오디오는 이벤트째 붙잡는다)
+        return None
+
+
+def _reply_muted(state: "_CallState") -> bool:
+    """PM-DEC-994 — 해제된 답의 추정 재생 끝 전이면 마이크를 Live 로 안 보낸다(소음이 들리는 답을 못 끊게)."""
+    return REPLY_HOLD_S > 0 and state.reply_mute_until > 0 and asyncio.get_running_loop().time() < state.reply_mute_until
+
+
+def _reply_hold_track_voice(state: "_CallState", data: bytes) -> None:
+    """PM-DEC-993 — 소음 바닥을 따라가며 학습자 목소리 프레임 시각을 잰다(TV·잡음이 계속되면 바닥이 올라간다)."""
+    r = frame_rms(data)
+    floor = state.hold_noise_floor
+    state.hold_noise_floor = r if (floor <= 0 or r < floor) else floor + (r - floor) * 0.002   # 빨리 내리고 천천히(약 10초) 올린다
+    if r >= max(REGROUND_VOICE_RMS, floor * REPLY_HOLD_NOISE_MULT):
+        state.hold_voice_ts = asyncio.get_running_loop().time()
+
+
+def _reply_hold_eligible(state: "_CallState") -> bool:
+    """보류 대상 턴 — 학습자 말 뒤 평소 대화만. 첫 인사·종료·레벨테스트·클립·이중 발화 가드 중은 종전대로 바로 보낸다."""
+    return (REPLY_HOLD_S > 0 and state.learner_spoke and not state.should_close and not state.close_seed_sent
+            and not state.is_leveltest and not state.clip_expr and state.midcall_echo_turn is None
+            and state.leveltest_cut_turn is None and not _midcall_echo_guard_active(state))
+
+
+def _reply_hold_take(state: "_CallState", event) -> bool:
+    """Live 이벤트를 보류 목록에 넣었으면 True(펌프는 아래 경로로 안 내려보낸다)."""
+    now = asyncio.get_running_loop().time()
+    if state.hold_events is None:
+        if event.kind in ("audio", "out_tr"):
+            state.hold_drop_end = False
+            if state.turn_id is None and _reply_hold_eligible(state):
+                state.hold_events = [event]
+                state.hold_t0 = now
+                state.hold_resumed = False
+                return True
+        elif (event.kind == "tool_call" and getattr(event, "fn_name", None) == "set_face"
+              and state.turn_id is None and _reply_hold_eligible(state)):
+            # 모델은 말하기 전에 표정부터 정한다(실측 27/28 이 오디오 0.00초 지점) — 표정 마커도 답과 같이 붙잡는다.
+            #   도구 이벤트 자체는 아래 경로로 바로 처리한다(Live 에 도구 응답은 즉시 · 앱 마커 프레임만 보류 자리로).
+            state.hold_events = []
+            state.hold_t0 = now
+            state.hold_resumed = False
+            return False
+        elif event.kind == "turn_end" and state.hold_drop_end and state.turn_id is None:
+            state.hold_drop_end = False
+            logger.info("normalcall 답보류: 버린 답의 늦은 turn_end 삼킴")
+            return True
+        return False
+    if event.kind in ("audio", "out_tr", "turn_end"):
+        state.hold_events.append(event)
+        return True
+    if event.kind == "interrupted":
+        # Live 가 학습자 이어 말하기에 스스로 답을 버렸다 — 학습자에겐 한 조각도 안 들렸다.
+        _reply_hold_discard(state, "interrupted", now)
+        state.hold_drop_end = True
+        return True
+    if event.kind == "in_tr" and (event.text or "").strip():
+        if state.hold_voice_ts is not None and state.hold_voice_ts > state.hold_t0 + REPLY_HOLD_RESUME_S:
+            state.hold_resumed = True
+    return False
+
+
+def _reply_hold_discard(state: "_CallState", why: str, now: float) -> None:
+    held = state.hold_events or []
+    n_audio = sum(len(e.audio or b"") for e in held if getattr(e, "kind", None) == "audio")
+    logger.warning("normalcall 답보류: 폐기 reason=%s 보류=%.2fs 오디오=%dB 조각=%d",
+                   why, now - state.hold_t0, n_audio, len(held))
+    state.hold_events = None
+    state.hold_resumed = False
+
+
+def _reply_hold_poll(state: "_CallState") -> list:
+    """보류 해제 판정. 해제면 붙잡아 둔 것(원래 순서), 아니면 빈 목록."""
+    held = state.hold_events
+    if held is None:
+        return []
+    now = asyncio.get_running_loop().time()
+    age = now - state.hold_t0
+    ended = any(getattr(e, "kind", None) == "turn_end" for e in held)
+    if state.hold_resumed and ended:
+        # 학습자가 이어 말했는데 Live 는 이미 답을 다 만들었다 — 이 답을 내보내면 이어진 말의 답과 겹친다(이중 답).
+        _reply_hold_discard(state, "resumed", now)
+        return []
+    last_voice = state.hold_voice_ts or 0.0
+    quiet = now - last_voice if last_voice else float("inf")
+    if quiet >= REPLY_HOLD_S:
+        why = "quiet"
+    elif age >= REPLY_HOLD_MAX_S:
+        why = "max"
+    else:
+        return []
+    state.hold_events = None
+    state.hold_resumed = False
+    state.hold_turn_live = True
+    state.hold_turn_bytes = 0
+    state.hold_release_ts = now
+    logger.info("normalcall 답보류: 해제 reason=%s 보류=%.2fs 조용=%.2fs 조각=%d 생성끝=%s",
+                why, age, min(quiet, 99.0), len(held), "Y" if ended else "N")
+    return held
+
+
+def _reply_hold_after_forward(state: "_CallState", event) -> None:
+    """해제된 답의 오디오를 세다가 turn_end 에서 추정 재생 끝까지 마이크를 닫아 둔다."""
+    if event.kind == "audio":
+        state.hold_turn_bytes += len(event.audio or b"")
+    elif event.kind == "turn_end":
+        state.hold_turn_live = False
+        play_s = state.hold_turn_bytes / 48000.0     # PCM24k mono 16bit
+        state.reply_mute_until = state.hold_release_ts + play_s + REPLY_HOLD_MUTE_TAIL_S
+        logger.info("normalcall 답보류: 마이크 닫음 재생 추정 %.2fs → 해제 뒤 %.2fs 까지",
+                    play_s, play_s + REPLY_HOLD_MUTE_TAIL_S)
+
+
 # --------------------------------------------------------------------------- #
 # 펌프: Gemini → 클라
 # --------------------------------------------------------------------------- #
 async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
+    """Gemini → 클라 펌프 감싸개(PM-DEC-993 — 끝날 때 답 보류용 다음 이벤트 대기를 거둔다). 본문은 _pump_gemini_to_client_body."""
+    try:
+        await _pump_gemini_to_client_body(client_ws, session, state)
+    finally:
+        if state.hold_next is not None:
+            state.hold_next.cancel()
+            state.hold_next = None
+
+
+async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
     """Gemini → 클라(상태기계). 턴 경계에서 세그먼트 확정 + 5분 종료 로직.
 
     🧒 이 펌프는 'AI → 학습자' 한 방향을 담당하며, 동시에 통화의 '심판' 역할도 한다. AI 가
@@ -6559,19 +6725,50 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
     """
     event_count = 0
     events = session.events().__aiter__()
+    replay: list = []      # PM-DEC-993 — 해제된 보류분(원래 순서 그대로 아래 경로를 다시 탄다)
     while True:
-        # ⭐ 열린 비버 턴 무수신 감시(2026-10-16 · call 2000): 턴이 열린 채 LIVE_STALL_S 동안 이벤트가 0 이면 멈춘 것이다.
-        #   열린 턴이 없으면(학습자 차례) 무한 대기 그대로 — 무음은 무음 워처 몫이다.
-        stall = LIVE_STALL_S if (LIVE_STALL_S > 0 and state.turn_id is not None) else None
-        try:
-            event = await (asyncio.wait_for(events.__anext__(), stall) if stall else events.__anext__())
-        except StopAsyncIteration:
-            break
-        except TimeoutError:
-            logger.error("normalcall ⛔Live 무수신 %.0fs(비버 턴 열림 turn=%s) — 멈춘 것으로 보고 오류로 닫는다 call_id=%s",
-                         stall, state.turn_id, _cid(state))
-            raise _LiveStalled(state.turn_id) from None
-        event_count += 1
+        from_replay = bool(replay)
+        if from_replay:
+            event = replay.pop(0)
+            if isinstance(event, _HeldFrame):
+                await client_ws.send_text(event.text)   # 보류 중 받아 둔 표정 마커 — 원래 자리(오디오 앞)에 흘린다
+                continue
+        elif REPLY_HOLD_S <= 0:
+            # ⭐ 열린 비버 턴 무수신 감시(2026-10-16 · call 2000): 턴이 열린 채 LIVE_STALL_S 동안 이벤트가 0 이면 멈춘 것이다.
+            #   열린 턴이 없으면(학습자 차례) 무한 대기 그대로 — 무음은 무음 워처 몫이다.
+            stall = LIVE_STALL_S if (LIVE_STALL_S > 0 and state.turn_id is not None) else None
+            try:
+                event = await (asyncio.wait_for(events.__anext__(), stall) if stall else events.__anext__())
+            except StopAsyncIteration:
+                break
+            except TimeoutError:
+                logger.error("normalcall ⛔Live 무수신 %.0fs(비버 턴 열림 turn=%s) — 멈춘 것으로 보고 오류로 닫는다 call_id=%s",
+                             stall, state.turn_id, _cid(state))
+                raise _LiveStalled(state.turn_id) from None
+            event_count += 1
+        else:
+            # PM-DEC-993 — 답 보류가 켜진 통화. 보류 중엔 REPLY_HOLD_POLL_S 마다 깨어 해제를 판정한다.
+            stall = LIVE_STALL_S if (LIVE_STALL_S > 0 and state.turn_id is not None) else None
+            if state.hold_next is None:   # 보류 중엔 다음 이벤트 대기를 끊지 않고 걸어 둔다(제너레이터를 취소하지 않는다)
+                state.hold_next = asyncio.ensure_future(events.__anext__())
+            done, _ = await asyncio.wait({state.hold_next}, timeout=REPLY_HOLD_POLL_S if state.hold_events is not None else stall)
+            if not done:
+                if state.hold_events is not None:
+                    replay.extend(_reply_hold_poll(state))
+                    continue
+                logger.error("normalcall ⛔Live 무수신 %.0fs(비버 턴 열림 turn=%s) — 멈춘 것으로 보고 오류로 닫는다 call_id=%s",
+                             stall, state.turn_id, _cid(state))
+                raise _LiveStalled(state.turn_id)
+            fut, state.hold_next = state.hold_next, None
+            try:
+                event = fut.result()
+            except StopAsyncIteration:
+                break
+            event_count += 1
+            if _reply_hold_take(state, event):
+                if state.hold_events is not None:
+                    replay.extend(_reply_hold_poll(state))   # 학습자가 이미 충분히 조용했으면 바로 해제(지연 0)
+                continue
 
         # 원가 계기판(Phase 0): 과금 계측은 대화 이벤트가 아니다 — 적재만 하고 즉시 continue.
         # _forward_event 로 내려보내지 않으므로 턴 상태기계·barge-in·무음 시계·종료 규약
@@ -6705,7 +6902,7 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
             same_slot = same_slot_seen and bool(_settings.LIVE_FACE_SLOT_MERGE)
             if emotion and not duplicate and not opening and not same_slot:
                 state.face_seq += 1
-                await _send_json(client_ws, ServerSentenceMarker(
+                await _send_json(state.hold_ws if state.hold_events is not None else client_ws, ServerSentenceMarker(
                     turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
                 ))
                 state.face_last = emotion
@@ -6811,6 +7008,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         in_tr_first = event.kind == "in_tr" and not state.user_turn_open
 
         turn_started = await _forward_event(client_ws, event, state)
+        if state.hold_turn_live:
+            _reply_hold_after_forward(state, event)   # PM-DEC-993 — 해제된 답의 재생 끝 추정
 
         if turn_started:
             # 레벨테스트 밴드 관측(무주입): 비버 응답 시작 = 직전 유저 답변 마침 → flush 로
