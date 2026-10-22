@@ -287,3 +287,29 @@ async def test_face_only_hold_then_self_cancel_sends_nothing(hold_on, monkeypatc
     sad = [v for _, k, v in ws.log if k == "text" and v.get("type") == "sentence" and v.get("emotion") == "sad"]
     assert not sad, "버린 답의 표정이 나갔다"
     assert ws.types() == ["turn_start", "audio", "turn_end"]
+
+
+@pytest.mark.asyncio
+async def test_bare_empty_generation_turn_end_not_sent(hold_on):
+    """출력 0 으로 버린 빈 생성(«열린 턴 없음 · 0B» · 2475)의 빈 turn_end 는 앱에 안 보낸다 — 다음 답은 정상."""
+    st = _state()
+    st.hold_voice_ts = asyncio.get_running_loop().time() - 5.0
+    ws = await _run(st, [
+        (0, LiveEvent(kind="interrupted")),
+        (0, LiveEvent(kind="turn_end")),
+        (0.2, LiveEvent(kind="audio", audio=b"\x01\x00" * 10)),
+        (0, LiveEvent(kind="turn_end")),
+    ])
+    assert ws.types() == ["turn_start", "audio", "turn_end"]
+
+
+@pytest.mark.asyncio
+async def test_empty_turn_end_kept_while_closing(hold_on):
+    """종료 진행 중에는 빈 turn_end 를 삼키지 않는다(작별 판정 경로를 그대로 둔다)."""
+    st = _state()
+    st.close_seed_sent = True
+    ws = await _run(st, [
+        (0, LiveEvent(kind="interrupted")),
+        (0, LiveEvent(kind="turn_end")),
+    ], tail_s=0.2)
+    assert "turn_end" in ws.types()

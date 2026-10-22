@@ -6624,7 +6624,13 @@ def _reply_hold_take(state: "_CallState", event) -> bool:
             state.hold_t0 = now
             state.hold_resumed = False
             return False
-        elif event.kind == "turn_end" and state.hold_drop_end and state.turn_id is None:
+        elif event.kind == "interrupted" and state.turn_id is None and _reply_hold_eligible(state):
+            # 아무 출력 없이 버린 빈 생성(«열린 턴 없음 · 0B» · 2475·2470) — 붙잡을 것도 없지만 뒤따르는 빈 turn_end 를
+            #   앱에 보내지 않는다(앱은 0B 무음 턴으로 받는다). 아래 종전 interrupted 계측은 그대로 돈다.
+            state.hold_drop_end = True
+            return False
+        elif (event.kind == "turn_end" and state.hold_drop_end and state.turn_id is None
+              and not state.should_close and not state.close_seed_sent):
             state.hold_drop_end = False
             logger.info("normalcall 답보류: 버린 답의 늦은 turn_end 삼킴")
             return True
