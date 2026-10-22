@@ -361,3 +361,48 @@ async def test_max_releases_once_late_quiet_reached(hold_on, monkeypatch):
     ws = await _run(st, script, tail_s=1.5)
     t = ws.log[0][0]
     assert 1.5 <= t <= 2.0, t                                  # 상한(1.2) 지나 마지막 목소리(≈1.0) + 0.6 조용
+
+
+@pytest.mark.asyncio
+async def test_unprompted_rule(monkeypatch):
+    """PM-DEC-1015 — 직전 비버 턴 뒤 학습자 목소리·전사·서버 턴이 없으면 «안 물었는데 답»."""
+    st = cs._CallState()
+    assert cs._reply_unprompted(st) is False                 # 비버 턴 끝 전(첫 인사) — 판정 안 함
+    st.beaver_end_ts = 100.0
+    monkeypatch.setattr(cs, "AGATE", True)
+    assert cs._reply_unprompted(st) is True                  # 아무것도 없음(TV 조각에 답)
+    st.ag_onsets = 1
+    assert cs._reply_unprompted(st) is False                 # 게이트가 학습자 말을 인정
+    st.ag_onsets = 0
+    st.user_turn_open = True
+    assert cs._reply_unprompted(st) is False                 # 학습자 전사 있음
+    st.user_turn_open = False
+    st.server_turn_ts = 101.0
+    assert cs._reply_unprompted(st) is False                 # 서버가 연 턴(넛지·안내)의 답
+    monkeypatch.setattr(cs, "AGATE", False)
+    st.server_turn_ts = 0.0
+    st.user_voice_ts = 101.0
+    assert cs._reply_unprompted(st) is False                 # 게이트 없을 땐 0.02 목소리 프레임
+
+
+@pytest.mark.asyncio
+async def test_unprompted_answer_dropped_then_real_answer_sent(hold_on, monkeypatch):
+    monkeypatch.setattr(cs, "REPLY_HOLD_DROP_UNPROMPTED", True)
+    monkeypatch.setattr(cs, "AGATE", True)
+    st = _state()
+    st.beaver_end_ts = asyncio.get_running_loop().time() - 5.0
+    st.hold_voice_ts = st.beaver_end_ts - 1.0
+
+    def _learner_speaks():
+        st.ag_onsets += 1
+        st.hold_voice_ts = asyncio.get_running_loop().time()
+
+    ws = await _run(st, [
+        (0, LiveEvent(kind="audio", audio=b"\xAA\x00" * 10)),   # TV 조각에 지어낸 답
+        (0, LiveEvent(kind="turn_end")),
+        (0.3, _learner_speaks),
+        (0, LiveEvent(kind="audio", audio=b"\xBB\x00" * 10)),   # 학습자 말 뒤 진짜 답
+        (0, LiveEvent(kind="turn_end")),
+    ])
+    assert ws.audio() == [b"\xBB\x00" * 10]
+    assert st.hold_dropped == 1
