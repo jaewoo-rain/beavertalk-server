@@ -171,7 +171,8 @@ async def test_noise_gate_zeroes_low_frames_keeps_voice_and_tail(monkeypatch):
     assert cs._noise_gate(st, mid) == mid                    # 게이트 문턱 위는 그대로
 
 
-def test_noise_floor_does_not_stick_at_zero():
+def test_noise_floor_does_not_stick_at_zero(monkeypatch):
+    monkeypatch.setattr(cs, "AGATE", True)                   # PM-DEC-1018 — 서서히 내림은 TV 대책 켜짐일 때만
     st = cs._CallState()
 
     async def _go():
