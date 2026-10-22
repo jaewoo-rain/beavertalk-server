@@ -19,6 +19,7 @@ FAST = {k: (60, 30 if s else None, c) for k, (_ms, s, c) in reaction.SPEC.items(
 def _instant_playback(monkeypatch):
     monkeypatch.setattr(clip_expr, "_OUT_BPS", 10 ** 12)
     clip_expr._PROGRESS.clear()
+    reaction._GATES.clear()                                        # 판정기는 call_id 로 잇는다 — 시험마다 비운다
 
 
 @pytest.fixture
@@ -53,10 +54,11 @@ def test_gate_wrong_cap_and_consecutive_wrong_not_laughed_at():
 
 def test_gate_no_overlap_gap_and_total_cap(monkeypatch):
     g = reaction.ReactionGate()
-    assert g.decide("laugh", 0.0)["duration_ms"] == 3000
-    assert g.active(1.0) and g.decide("pron", 1.0) is None          # 반응 중 — 겹치지 않는다
+    assert g.decide("pron", 0.0)["duration_ms"] == 3000
+    assert g.active(1.0) and g.decide("correct", 1.0) is None       # 반응 중 — 겹치지 않는다
     assert g.decide("pron", 3.5) is None                           # 끝난 뒤 최소 간격 전
     assert g.decide("pron", 3.0 + reaction.MIN_GAP_S + 0.1) is not None
+    assert g.decide("laugh", 100.0) is None                        # 자유대화 웃음 반응은 없다(PM-DEC-1021)
     monkeypatch.setattr(reaction, "TOTAL_CAP_S", 1.0)
     assert reaction.ReactionGate().decide("correct", 0.0) is None   # 총 시간 상한
 
@@ -195,7 +197,8 @@ async def test_script_pron_capped_and_finish_reaction_before_close(rx_on):
         for i in range(11):
             await h.say(turn=i < 10)
         await asyncio.sleep(0.15)                       # 완주 반응(60ms) 기다림
-        assert [m["kind"] for m in sent] == ["pron", "pron", "script"]
+        assert [m["kind"] for m in sent] == ["pron", "pron"] + ["correct"] * 8 + ["script"]
+        assert [m["duration_ms"] for m in sent][2:4] == [60, 30]    # 발음 상한 뒤 정답 반응 · 연속이면 짧은 판
         end_at = next(i for i, m in enumerate(h.notes) if m["type"] == "script_end")
         assert h.notes[-1]["type"] == "reaction" and h.notes.index(sent[-1]) > end_at
         await h.s.send_text_turn("CLOSE")
@@ -226,3 +229,28 @@ async def test_judge_timing_note_and_log(caplog):
     with caplog.at_level("INFO"):
         call_session._jt_log(st, 1, False, (t - 2.0, t - 0.5, t), 1200, True)
     assert ("필요대기_ms=700" in caplog.text or "필요대기_ms=699" in caplog.text) and "말끝→답도착_ms=2000" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_script_first_fail_reacts_wrong_then_same_line(rx_on):
+    import test_script_read as tsr
+    from domains.learning.realtime import script_read as sr
+    lines = sr.load_bank("Baba")[2]
+    h = tsr._H(["완전히 다른 말입니다 정말로", lines[1]["learner"]])
+    sent: list[dict] = []
+
+    async def send(msg):
+        sent.append(msg)
+        h.notes.append(msg)
+
+    h.s._state.rx_gate = None
+    h.s._state.rx_send = send
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        await h.say(turn=False)
+        await asyncio.sleep(0.1)
+        assert [m["kind"] for m in sent] == ["wrong"]
+        i = h.notes.index(sent[0])
+        assert [m["type"] for m in h.notes[i + 1:i + 3]] == ["script_line", "script_turn"]   # 반응 뒤 같은 줄 다시

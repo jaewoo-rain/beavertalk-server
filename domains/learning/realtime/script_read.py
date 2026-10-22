@@ -423,9 +423,14 @@ class ScriptReadSession(ClipExprSession):
             first_try = self.attempt == 1
             nxt = await self._next_line()
             if nxt:
-                # PM-DEC-1019 — 통화 중 발음 점수가 없어 «첫 시도 자모 유사도 높음» 을 발음 고득점 대신으로 쓴다(통화당 2회 상한)
-                rx = "pron" if (r == "pass" and first_try and sim >= PRON_SIM) else None
-                await self._turn(nxt, result=r, heard=heard, t_end=t_end, react=rx)   # 반응 없이 다음 비버 대사
+                # PM-DEC-1019 — 통화 중 발음 점수가 없어 «첫 시도 자모 유사도 높음» 을 발음 고득점 대신으로 쓴다(통화당 2회 상한).
+                # PM-DEC-1021 — 줄 단위 정답 반응: 통과(pass)면 correct(연속이면 짧은 판). 근접(close)은 반응 없이 넘어간다.
+                rx = "pron" if (r == "pass" and first_try and sim >= PRON_SIM) else ("correct" if r == "pass" else None)
+                if rx == "pron" and await self._react("pron") == 0:
+                    rx = "correct"            # 발음 상한·간격에 걸리면 일반 정답 반응으로
+                elif rx == "pron":
+                    rx = None                 # 이미 발음 반응이 나갔다
+                await self._turn(nxt, result=r, heard=heard, t_end=t_end, react=rx)
             else:
                 # PM-DEC-1019 — 완주 축하. 일꾼이 기다리는 동안 종료 명령(close)은 줄에 서서 반응 뒤에 처리된다.
                 await self._react("script")
@@ -433,6 +438,8 @@ class ScriptReadSession(ClipExprSession):
             return
         if self.attempt == 1:
             await self._result_card("fail")
+            # PM-DEC-1021 — 줄 단위 오답 반응(첫 틀림만 · 두 번째부터는 화냄 클립이 반응이다). 반응 뒤 같은 줄 다시 읽기.
+            await self._react("wrong")
             self.attempt += 1
             await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음 · 바로 말할 차례
             await self._card(self._turn_msg())

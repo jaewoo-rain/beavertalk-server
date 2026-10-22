@@ -32,8 +32,8 @@ SPEC: dict[str, tuple[int, Optional[int], Optional[int]]] = {
     "wrong": (4000, None, 3),        # 오답 — 귀여운 웃음 · 통화당 3회
     "pron": (3000, None, 2),         # 발음(받아쓰기 유사도) 높음 — 통화당 2회
     "script": (4000, None, 1),       # 대본 읽기 완주
-    "laugh": (3000, None, 2),        # 자유대화 웃긴 말(모델 set_face laugh) — 통화당 2회
 }
+# ⛔ 자유대화 웃음(laugh) 반응은 뺐다(PM-DEC-1021 — 반응은 표현학습·대본 읽기에만).
 
 
 class ReactionGate:

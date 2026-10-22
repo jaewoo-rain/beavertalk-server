@@ -7054,14 +7054,9 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
                 and len(state.cur_beaver_pcm) == state.face_last_pcm
             )
             same_slot = same_slot_seen and bool(_settings.LIVE_FACE_SLOT_MERGE)
-            # PM-DEC-1019 — 반응 재생 중엔 표정 마커를 보내지 않는다. 웃음(laugh)은 답이 아직 붙잡혀 있을 때(한 조각도 안 들림)
-            #   서버 반응으로 바꿔 보낸다 — 답 보류가 반응 끝까지 늘어난다. 이미 들리는 답 위에는 띄우지 않는다.
-            rx_skip = False
-            if emotion and _reaction.active(state):
-                rx_skip = True
-            elif (emotion == "laugh" and not opening and state.hold_events is not None
-                  and await _reaction.fire(state, "laugh", state.rx_send, where="set_face")):
-                rx_skip = True
+            # PM-DEC-1019 — 반응 재생 중엔 표정 마커를 보내지 않는다.
+            #   ⛔ 모델 웃음(laugh)을 서버 반응으로 바꾸던 것은 뺐다(PM-DEC-1021 · 자유대화는 종전 표정 그대로).
+            rx_skip = bool(emotion) and _reaction.active(state)
             if emotion and not duplicate and not opening and not same_slot and not rx_skip:
                 state.face_seq += 1
                 await _send_json(state.hold_ws if state.hold_events is not None else client_ws, ServerSentenceMarker(
