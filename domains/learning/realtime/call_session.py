@@ -365,6 +365,9 @@ REPLY_HOLD_MAX_S = float(os.environ.get("LIVE_REPLY_HOLD_MAX_S", "2.5") or 2.5) 
 #   hold1500c 2513: 상한 해제 순간 조용 0.99초 — 학습자가 0.78초 쉬고 이어 말해 답이 말 중간에 나가고 뒷말에 또 답했다(이중 발화).
 REPLY_HOLD_LATE_QUIET_S = float(os.environ.get("LIVE_REPLY_HOLD_LATE_QUIET_S", "0") or 0)
 REPLY_HOLD_HARD_MAX_S = float(os.environ.get("LIVE_REPLY_HOLD_HARD_MAX_S", "6.0") or 6.0)
+# PM-DEC-1015 — 보류한 답을 풀 때, 직전 비버 턴 뒤로 학습자 목소리(게이트가 말로 인정)·학습자 전사·서버가 연 턴이 하나도 없으면
+#   그 답은 TV 조각 같은 배경에 Live 가 지어낸 것 — 내보내지 않고 버린다(아직 안 들린 답만 · 들린 답 취소 없음). holdgate3 TV 이중 44.
+REPLY_HOLD_DROP_UNPROMPTED = os.environ.get("LIVE_REPLY_HOLD_DROP_UNPROMPTED", "0") == "1"
 REPLY_HOLD_MUTE_TAIL_S = float(os.environ.get("LIVE_REPLY_HOLD_MUTE_TAIL_S", "1.2") or 0)  # 추정 재생 끝 여유(앱 쿠션 0.9초 + 잔향)
 REPLY_HOLD_NOISE_MULT = 3.0     # 목소리 문턱 = max(REGROUND_VOICE_RMS, 소음 바닥 × 이 값)
 REPLY_HOLD_POLL_S = 0.05        # 보류 중 해제 판정 간격
@@ -834,6 +837,7 @@ class _CallState:
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
         "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets",   # 적응 게이트
+        "server_turn_ts", "beaver_end_onsets", "hold_dropped",   # PM-DEC-1015
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
         "user_voice_ts",   # PM-DEC-891 — 학습자 목소리 프레임이 마지막으로 들어온 시각(무음 시계를 미룬다)
         "idle_nudge1_s", "idle_nudge2_s", "idle_close_s", "nudge_seed_1", "nudge_seed_2",
@@ -1061,6 +1065,9 @@ class _CallState:
         self.ag_loud_ts = 0.0
         self.ag_pre: list = []            # (시각, 원음) — 말 시작 인정 때 앞 0.3초를 다시 보낸다
         self.ag_onsets = 0
+        self.server_turn_ts = 0.0          # PM-DEC-1015 — 서버가 마지막으로 텍스트 턴을 연 시각
+        self.beaver_end_onsets = 0         # 마지막 비버 턴 끝 때의 «말 인정» 수
+        self.hold_dropped = 0
         self.reply_mute_until = 0.0               # 이 시각까지 마이크를 Live 로 안 보낸다(들리는 답을 소음이 못 끊게)
         self.midcall_tts_skip = False     # 이 턴을 모델이 버렸다(interrupted) — 대체하지 않는다
         self.midcall_echo_until = 0.0     # PM-DEC-977 — 이 시각 전(루프 시계)엔 학습자 말 없이 온 새 비버 턴을 보내지 않는다
@@ -5792,6 +5799,7 @@ async def _run_one_generation(
                 #   T22 재연결 세대는 **재개 브리프**를 같은 자리에 1턴 보낸다(seed_text 가 그것이고 send_seed=True).
                 #   ⚠ `state.seed_text` 는 위에서 그 브리프로 바뀌지만, 벙어리 인사 재시드는 epoch==1 에만 걸린다.
                 if send_seed and seed_text:
+                    _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
                     await session.send_text_turn(seed_text)  # 1세대: 선톡 트리거 / 재연결 세대: 재개 브리프
         # 🧒 TaskGroup 은 일꾼이 죽으면 그 예외들을 여러 개 담는 **봉투(ExceptionGroup)** 로
         #   감싸 던진다. 여기서 봉투를 풀어 우리 신호(_CallFinished=정상 끝, _ClientDisconnect=
@@ -6728,6 +6736,19 @@ def _reply_hold_discard(state: "_CallState", why: str, now: float) -> None:
     state.hold_resumed = False
 
 
+def _mark_server_turn(state: "_CallState") -> None:
+    state.server_turn_ts = asyncio.get_running_loop().time()
+
+
+def _reply_unprompted(state: "_CallState") -> bool:
+    """직전 비버 턴 끝 뒤로 이 답을 부른 것이 없나 — 학습자 목소리(적응 게이트 말 인정 · 꺼져 있으면 0.02 프레임) · 학습자 전사 · 서버 텍스트 턴."""
+    be = state.beaver_end_ts
+    if be is None:
+        return False                        # 첫 인사 전 — 판정 안 함
+    voice = (state.ag_onsets > state.beaver_end_onsets) if AGATE else ((state.user_voice_ts or 0.0) > be)
+    return not (voice or state.user_turn_open or state.server_turn_ts > be)
+
+
 def _reply_hold_poll(state: "_CallState") -> list:
     """보류 해제 판정. 해제면 붙잡아 둔 것(원래 순서), 아니면 빈 목록."""
     held = state.hold_events
@@ -6739,6 +6760,10 @@ def _reply_hold_poll(state: "_CallState") -> list:
     if state.hold_resumed and ended:
         # 학습자가 이어 말했는데 Live 는 이미 답을 다 만들었다 — 이 답을 내보내면 이어진 말의 답과 겹친다(이중 답).
         _reply_hold_discard(state, "resumed", now)
+        return []
+    if REPLY_HOLD_DROP_UNPROMPTED and _reply_unprompted(state):
+        _reply_hold_discard(state, "unprompted", now)
+        state.hold_dropped += 1
         return []
     last_voice = state.hold_voice_ts or 0.0
     quiet = now - last_voice if last_voice else float("inf")
@@ -7214,6 +7239,7 @@ async def _loop_breaker_on_turn_end(session: LiveSessionProtocol, state: _CallSt
     if streak == 1:
         if state.turn_id is None and not state.should_close:
             note = LOOP_BREAK_NOTE   # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
+            _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
             await session.send_text_turn(note)
             _note_text_inject(state, "loop")
             logger.info("normalcall 루프 차단 ①: 안내 주입 1회")
@@ -7560,6 +7586,7 @@ async def _reseed_greeting(session: LiveSessionProtocol, state: _CallState) -> N
         if getattr(state, "ctx", None) is not None and getattr(state, "ctx_base", ""):
             # PM-DEC-884 — perturn: 같은 세션에 다시 시드하면 또 벙어리였다(call 2028 · 3회 연속 0B). 새 세션을 열고 거기에 시드한다.
             await state.ctx.reopen(state.ctx_base, why="mute_greeting")
+        _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
         await session.send_text_turn(seed)
         logger.warning(
             "normalcall: ⛔벙어리 인사 감지(오디오 0바이트) → 선톡 시드 재전송 %d/%d%s "
@@ -7813,6 +7840,7 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
         # (안 하면 시계가 통화 시작부터 흘러 비버의 긴 발화 직후 넛지가 즉시 터진다.)
         state.last_activity_ts = asyncio.get_running_loop().time()
         state.beaver_end_ts = state.last_activity_ts   # PM-DEC-998 — «전사 없는 시간» 의 기준
+        state.beaver_end_onsets = state.ag_onsets       # PM-DEC-1015 — 이 뒤 말 인정이 늘었나
 
     return turn_started
 
@@ -7867,6 +7895,7 @@ async def _inject_resume_seed(session: LiveSessionProtocol, state: _CallState) -
     state.resume_sent += 1
     try:
         seed = _RESUME_SEED   # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
+        _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
         await session.send_text_turn(seed)
         logger.info("normalcall: 대화 재개 시드 주입(%d/%d)", state.resume_sent, _RESUME_MAX)
     except asyncio.CancelledError:
@@ -7921,6 +7950,7 @@ async def _inject_close_seed(session: LiveSessionProtocol, state: _CallState) ->
         return
     state.close_seed_sent = True  # await 전에 선점 → 이중 주입 방지
     state.seed_sent_ts = asyncio.get_running_loop().time()
+    _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
     await session.send_text_turn(state.close_seed)  # 콜타입별 시드(normal/레벨테스트)
     logger.info("normalcall: 종료 시드 주입")
 
@@ -8228,6 +8258,7 @@ async def _inject_nudge(session: LiveSessionProtocol, state: _CallState, seed: s
     if state.should_close or state.turn_id is not None:
         return False
     # v2 재배포 C2(PM-DEC-698): brief() 주입 제거 — 추적기는 관측 전용(call 1997 에서 틀린 항목 지시)
+    _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
     await session.send_text_turn(seed)
     _note_text_inject(state, "nudge")
     return True
@@ -8780,6 +8811,7 @@ async def _reground_legacy_inject(session: LiveSessionProtocol, state: _CallStat
             role, personality, mode=_reground_mode(state), covered=_covered_labels(state)
         )
     try:
+        _mark_server_turn(state)   # PM-DEC-1015 — 서버가 연 턴(답 보류의 «아무도 안 물었는데 답» 판정에서 뺀다)
         await session.send_reground(text, turn_complete=True)
         state.reground_count += 1
         state.last_reground_ts = asyncio.get_running_loop().time()
