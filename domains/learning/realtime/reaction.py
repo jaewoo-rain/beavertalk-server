@@ -22,6 +22,8 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 REACTION_ON = os.environ.get("LIVE_REACTION", "0") == "1"
+# ⛔ 시험 태그 전용(실기기 화면 확인) — 무음 «모름» 에도 반응을 번갈아(wrong→correct) 낸다. 말소리 주입 없이 영상·소리·겹침을 본다. 운영 env 에 넣지 않는다.
+TEST_ON_DUNNO = os.environ.get("LIVE_REACTION_TEST_ON_DUNNO", "0") == "1"
 TOTAL_CAP_S = float(os.environ.get("LIVE_REACTION_TOTAL_S", "40") or 40)   # 통화(조각)당 반응 시간 합 상한
 MIN_GAP_S = float(os.environ.get("LIVE_REACTION_GAP_S", "6") or 6)        # 앞 반응 끝에서 다음 반응까지 최소 간격
 WRONG_STREAK_MAX = 2     # 연속 오답 이만큼째부터는 웃지 않는다(놀림으로 읽힐 위험 · 계획서 §7)

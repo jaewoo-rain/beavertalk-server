@@ -254,3 +254,17 @@ async def test_script_first_fail_reacts_wrong_then_same_line(rx_on):
         assert [m["kind"] for m in sent] == ["wrong"]
         i = h.notes.index(sent[0])
         assert [m["type"] for m in h.notes[i + 1:i + 3]] == ["script_line", "script_turn"]   # 반응 뒤 같은 줄 다시
+
+
+@pytest.mark.asyncio
+async def test_test_on_dunno_alternates_only_when_switch_on(rx_on, monkeypatch):
+    monkeypatch.setattr(reaction, "TEST_ON_DUNNO", True)
+    h = _H(["dunno", "dunno"])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        await h.say()
+        await h.turn()
+    kinds = [m["kind"] for _, m in h.log if m.get("type") == "reaction"]
+    assert kinds == ["wrong"]                                      # ask 단계 무음 1회 → 반응(rep 단계 «모름» 은 대상 아님)

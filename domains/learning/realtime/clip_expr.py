@@ -727,6 +727,10 @@ class ClipExprSession:
         if st in ("ask", "hint"):
             if r == "dunno":
                 lead = [self._pick("g_dunno")]
+                if _reaction.TEST_ON_DUNNO:
+                    # 시험 태그 전용 — 무음에도 반응(번갈아). 연속 오답 규칙에 안 걸리게 정답과 섞는다.
+                    self._test_rx = "correct" if getattr(self, "_test_rx", "correct") == "wrong" else "wrong"
+                    await self._react(self._test_rx)
             else:
                 rx = await self._react("wrong")
                 lead = self._wrong(laugh=not rx)
