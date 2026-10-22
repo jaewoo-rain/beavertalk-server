@@ -6718,3 +6718,46 @@ async def test_start_lock_recheck_rejects_race_past_gate(session_factory, seeded
         assert db.query(Call).filter(Call.member_id == seeded["member_id"]).count() == 1
     finally:
         db.close()
+
+
+def test_ws_accepts_token_in_subprotocol_header(session_factory, seeded, monkeypatch):
+    """PM-DEC-997 — 토큰을 쿼리 대신 Sec-WebSocket-Protocol(["bt.auth", <토큰>])로 보내도 인증되고 "bt.auth" 로 수락된다.
+
+    쿼리에 토큰이 없으니 Cloud Run 요청 로그(requestUrl)에 토큰이 남지 않는다.
+    """
+    from fastapi.testclient import TestClient
+    import domains.learning.realtime.ws_router as wr
+
+    holder: dict = {}
+    fake_factory = make_live_factory(holder)
+
+    async def _run_call_with_fake(*args, **kwargs):
+        kwargs.setdefault("live_session_factory", fake_factory)
+        return await cs.run_call(*args, **kwargs)
+
+    monkeypatch.setattr(wr, "run_call", _run_call_with_fake)
+    client = TestClient(_build_app(session_factory))
+    received: list[dict] = []
+    with client.websocket_connect("/api/v1/calls/stream", subprotocols=["bt.auth", seeded["auth"]]) as ws:
+        assert ws.accepted_subprotocol == "bt.auth"
+        ws.send_text(json.dumps({"type": "start", "character_id": seeded["character_id"]}))
+        try:
+            for _ in range(20):
+                msg = ws.receive()
+                received.append(msg)
+                txt = msg.get("text")
+                if txt and json.loads(txt).get("type") == "call_ended":
+                    break
+        except Exception:
+            pass
+    assert "turn_start" in [json.loads(m["text"]).get("type") for m in received if m.get("text")]
+
+
+def test_ws_rejects_bad_token_in_subprotocol(session_factory):
+    from fastapi.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
+
+    client = TestClient(_build_app(session_factory))
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/api/v1/calls/stream", subprotocols=["bt.auth", "not-a-jwt"]):
+            pass
