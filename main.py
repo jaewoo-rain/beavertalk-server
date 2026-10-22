@@ -93,6 +93,10 @@ def _configure_logging() -> None:
 
 _configure_logging()
 
+from core import log_redact  # noqa: E402 — PM-DEC-997 로그 토큰 가리기(로깅 구성 뒤에 단다)
+
+log_redact.install()
+
 logger = logging.getLogger(__name__)
 
 

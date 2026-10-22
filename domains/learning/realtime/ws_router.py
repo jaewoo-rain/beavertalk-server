@@ -32,6 +32,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _WS_CLOSE_POLICY_VIOLATION = 1008
+# PM-DEC-997 — 토큰을 Sec-WebSocket-Protocol 로 받을 때의 표식. 클라는 subprotocols ["bt.auth", <토큰>] 으로 연다.
+_WS_AUTH_SUBPROTOCOL = "bt.auth"
+
+
+def _ws_auth_token(websocket: WebSocket) -> tuple[str, str | None]:
+    """WS 인증 토큰과 수락할 subprotocol. 쿼리 ?token= 이 있으면 그것(옛 앱) · 없으면 Sec-WebSocket-Protocol.
+
+    ⭐ 쿼리 토큰은 Cloud Run 요청 로그(httpRequest.requestUrl)에 그대로 남는다 — 헤더로 옮기면 안 남는다.
+    """
+    token = websocket.query_params.get("token") or ""
+    protos = list(websocket.scope.get("subprotocols") or [])
+    if not token and len(protos) >= 2 and protos[0] == _WS_AUTH_SUBPROTOCOL:
+        return protos[1], _WS_AUTH_SUBPROTOCOL
+    return token, (_WS_AUTH_SUBPROTOCOL if _WS_AUTH_SUBPROTOCOL in protos else None)
 
 
 @router.websocket("/calls/stream")
@@ -50,7 +64,7 @@ async def ws_call_stream(websocket: WebSocket) -> None:
       켜질 때(lifespan) 딱 한 번 만들어 app.state 라는 '전역 사물함'에 넣어둔다. 통화가 올
       때마다 새로 만들면 느리고 낭비라, 여기선 사물함에서 이미 만들어둔 걸 꺼내 재사용한다.
     """
-    token = websocket.query_params.get("token") or ""
+    token, subprotocol = _ws_auth_token(websocket)
     client = getattr(websocket.app.state, "genai_client", None)
     settings: Settings | None = getattr(websocket.app.state, "settings", None)
     session_factory = getattr(websocket.app.state, "session_factory", None)
@@ -67,7 +81,7 @@ async def ws_call_stream(websocket: WebSocket) -> None:
         return
 
     # accept = 서버가 WS 연결을 정식 수락(악수 완료). 인증을 통과한 뒤에야 문을 연다.
-    await websocket.accept()
+    await websocket.accept(subprotocol=subprotocol)
 
     if client is None or settings is None:
         logger.error("normalcall WS: app.state 미준비(genai_client/settings).")
@@ -125,14 +139,14 @@ async def ws_pron_stt(websocket: WebSocket) -> None:
     인증(D1): Supabase 액세스 토큰(?token=) **필수** — normalcall WS 와 동일 규약.
       STT 는 과금이 있어 인증된 사용자만 허용한다. 토큰 없음/무효면 1008 로 즉시 닫는다.
     """
-    token = websocket.query_params.get("token") or ""
+    token, subprotocol = _ws_auth_token(websocket)
     auth_user = await run_in_threadpool(verify_token, token) if token else None
     if auth_user is None:
         with contextlib.suppress(Exception):
             await websocket.close(code=_WS_CLOSE_POLICY_VIOLATION)
         return
 
-    await websocket.accept()
+    await websocket.accept(subprotocol=subprotocol)
     try:
         await run_pron_stt(websocket)
     except Exception as exc:  # noqa: BLE001 - 최종 방어선(이 세션만 실패, 서버는 계속)
