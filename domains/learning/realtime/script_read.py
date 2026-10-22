@@ -13,11 +13,15 @@ from __future__ import annotations
 
 import asyncio
 import difflib
+import hashlib
+import io
 import json
 import logging
 import re
 import time
 import wave
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 from domains.learning.realtime import clip_expr
@@ -153,11 +157,71 @@ def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], lo
     if not (ROOT / f"{char}_en" / "manifest.json").exists():
         clip_expr.fallback("script", f"캐릭터 자산 없음({char}_en)", char=char)
         return None
-    if not _beaver_clips_match(char, lesson):
-        # PM-DEC-1012 — 대본 491차시가 자산으로 들어왔지만 비버 줄 녹음(sb_N)은 A2-T11-1 것뿐이다. 녹음이 그 차시 대본과 안 맞으면 열지 않는다.
+    if not (_beaver_clips_match(char, lesson) or _remote_sb(char, lesson) is not None):
+        # PM-DEC-1012 — 비버 줄 녹음은 저장소(A2-T11-1 sb_N) 또는 버킷 clips_script/<캐릭터>/<sha1 12자>.wav. 그 차시 줄이 다 있어야 연다.
         clip_expr.fallback("script", f"비버 줄 녹음 없음({lesson})", char=char)
         return None
     return char
+
+
+# ── PM-DEC-1012 — 차시별 비버 줄 녹음(버킷) ──
+SB_PREFIX = "clips_script"            # gs://<GCS_AUDIO_BUCKET>/clips_script/<Baba|Bibi>/<sha1(비버 줄.strip())[:12]>.wav
+SB_LRU_MAX = 40                       # 차시 묶음 캐시 상한(한 묶음 = 10줄 · 약 3MB)
+SB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다(통화마다 버킷을 두드리지 않게)
+_SB_LRU: "OrderedDict[tuple[str, str], dict]" = OrderedDict()
+_SB_MISS: dict[tuple[str, str], float] = {}
+_SB_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="sb-fetch")
+
+
+def sb_hash(text: str) -> str:
+    """비버 줄 녹음 파일 이름 — call flow 산출과 같은 규칙(sha1(줄.strip() UTF-8) 앞 12자)."""
+    return hashlib.sha1((text or "").strip().encode("utf-8")).hexdigest()[:12]
+
+
+def _fetch_sb(char: str, n: int, text: str) -> Optional[Clip]:
+    from core import storage
+    data = storage.download(SB_PREFIX, f"{char}/{sb_hash(text)}.wav")
+    if not data:
+        return None
+    try:
+        with wave.open(io.BytesIO(data), "rb") as w:
+            if not (w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1):
+                logger.warning("script_read: 비버 줄 녹음 형식 다름 %s/%s", char, sb_hash(text))
+                return None
+            frames = w.readframes(w.getnframes())
+    except (wave.Error, EOFError) as exc:
+        logger.warning("script_read: 비버 줄 녹음 읽기 실패 %s/%s: %s", char, sb_hash(text), exc)
+        return None
+    return Clip(f"sb_{n}", text, len(frames) / 48000.0, frames, "neutral")
+
+
+def _remote_sb(char: str, lesson: str) -> Optional[dict]:
+    """그 차시 비버 줄 녹음 sb_1..N 을 버킷에서 받아 묶음으로(전부 있어야 · LRU 캐시 · 없음은 잠깐 기억). 작업 스레드에서 부른다."""
+    key = (char, lesson)
+    if key in _SB_LRU:
+        _SB_LRU.move_to_end(key)
+        return _SB_LRU[key]
+    miss = _SB_MISS.get(key)
+    if miss is not None and time.monotonic() - miss < SB_MISS_TTL_S:
+        return None
+    try:
+        lines = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["lines"]
+    except (OSError, ValueError, KeyError):
+        return None
+    t0 = time.monotonic()
+    got = list(_SB_POOL.map(lambda x: _fetch_sb(char, int(x["n"]), x.get("beaver") or ""), lines))
+    ms = (time.monotonic() - t0) * 1000
+    if not lines or any(c is None for c in got):
+        _SB_MISS[key] = time.monotonic()
+        logger.info("script_read: 비버 줄 녹음 부족 %s/%s %d/%d (%.0fms)", char, lesson,
+                    sum(c is not None for c in got), len(lines), ms)
+        return None
+    bank = {c.id: c for c in got}
+    _SB_LRU[key] = bank
+    while len(_SB_LRU) > SB_LRU_MAX:
+        _SB_LRU.popitem(last=False)
+    logger.info("script_read: 비버 줄 녹음 받음 %s/%s %d개 %.0fms", char, lesson, len(bank), ms)
+    return bank
 
 
 _CLIPS_MATCH: dict[tuple[str, str], bool] = {}
@@ -181,22 +245,41 @@ def _beaver_clips_match(char: str, lesson: str) -> bool:
 _BANK: dict[str, tuple] = {}
 
 
+_BASE: dict[str, dict[str, Clip]] = {}
+
+
+def _base_clips(char: str) -> dict[str, Clip]:
+    """캐릭터 공통 클립(반응·인사 · 저장소 sb_N 포함)은 캐릭터당 한 번만 읽는다(PM-DEC-1012 — 차시마다 다시 읽지 않게)."""
+    if char not in _BASE:
+        d = ROOT / f"{char}_en"
+        clips: dict[str, Clip] = {}
+        for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
+            with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
+                assert w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1, c["id"]
+                face = c.get("face") or "neutral"
+                if face == "neutral":
+                    face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
+                clips[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+        _BASE[char] = clips
+    return _BASE[char]
+
+
 def load_bank(char: str, lesson: str = "A2-T11-1") -> tuple[dict[str, Clip], list[Item], dict[int, dict]]:
     key = f"{char}_{lesson}"
     if key in _BANK:
         return _BANK[key]
-    d = ROOT / f"{char}_en"
-    clips: dict[str, Clip] = {}
-    for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
-        with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
-            assert w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1, c["id"]
-            face = c.get("face") or "neutral"
-            if face == "neutral":
-                face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
-            clips[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+    clips = dict(_base_clips(char))
+    if not _beaver_clips_match(char, lesson):
+        remote = _remote_sb(char, lesson)
+        if remote is not None:
+            # 저장소 sb_N(A2-T11-1 녹음)을 빼고 이 차시 녹음으로 — 다른 차시 대본에 A2-T11-1 소리가 나가지 않게
+            clips = {k: v for k, v in clips.items() if not k.startswith("sb_")}
+            clips.update(remote)
     lines = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["lines"]
     items = [Item(x["n"], x["learner"], x.get("en") or "", False) for x in lines]
     _BANK[key] = (clips, items, {x["n"]: x for x in lines})
+    while len(_BANK) > SB_LRU_MAX + 4:
+        _BANK.pop(next(iter(_BANK)))
     return _BANK[key]
 
 
