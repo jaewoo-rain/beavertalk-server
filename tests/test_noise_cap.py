@@ -261,3 +261,40 @@ async def test_note_not_while_learner_voice_recent(on):
     st.user_voice_ts = now - 3.5          # 3.5초째 목소리 없음(소리는 배경만)
     _, noted = await cs._noise_guard(s, st, st.user_voice_ts)
     assert noted and len(s.text_turns) == 1
+
+
+def test_agate_learner_talking_a_lot_does_not_raise_threshold_above_voice(monkeypatch):
+    """PM-DEC-1018 — holdgate4 2632: 조용한 방에서 학습자가 오래 말하면 p95 가 목소리가 돼 문턱이 목소리 위로 갔다.
+    문턱 상한(배경 하위 20% × 5)으로 바닥 근처에 남고, 다음 말도 인정된다."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    for _ in range(6):                                     # 0.1초 짧은 말(인정 전 0.15초 못 채움)과 조용 0.3초를 되풀이
+        _feed(st, clock, 0.03, 0.1)
+        _feed(st, clock, 0.001, 0.3)
+    _feed(st, clock, 0.001, 4)
+    assert st.ag_thr < 0.03, st.ag_thr
+    out = _feed(st, clock, 0.03, 0.5)
+    assert st.ag_speaking and out[-1] == [_pcm(0.03)]
+
+
+def test_agate_tv_background_threshold_unchanged_by_cap(monkeypatch):
+    """TV 처럼 늘 깔린 소리는 하위 20% 값도 높아 문턱 상한이 종전 p95 문턱을 거의 깎지 않는다."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    for i in range(600):
+        lv = 0.019 if i % 50 in (0, 1, 2) else 0.005
+        clock.t += 0.02
+        cs._agate(st, _pcm(lv))
+    assert 0.019 <= st.ag_thr <= 0.03, st.ag_thr
+
+
+def test_voiced_since_beaver_end_counts_loud_frames(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    _feed(st, clock, 0.001, 3)
+    st.voiced_since_end = 0.0
+    _feed(st, clock, 0.02, 0.6)                            # 배경보다 확실히 큰 소리 0.6초
+    assert 0.55 <= st.voiced_since_end <= 0.65, st.voiced_since_end

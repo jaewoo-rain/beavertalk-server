@@ -409,6 +409,20 @@ async def test_unprompted_answer_dropped_then_real_answer_sent(hold_on, monkeypa
 
 
 @pytest.mark.asyncio
+async def test_unprompted_not_when_mic_heard_voice_without_gate_onset(monkeypatch):
+    """PM-DEC-1018 — 게이트가 말로 인정 못 하고 전사도 없어도, 비버 턴 뒤 마이크 소리 합이 0.5초 넘으면 버리지 않는다(2632)."""
+    monkeypatch.setattr(cs, "AGATE", True)
+    st = cs._CallState()
+    st.beaver_end_ts = 100.0
+    st.voiced_since_end = 0.3
+    assert cs._reply_unprompted(st) is True                  # TV 조각 정도
+    st.voiced_since_end = 0.8
+    assert cs._reply_unprompted(st) is False                 # 학습자가 작게라도 말함
+    monkeypatch.setattr(cs, "UNPROMPTED_VOICED_S", 0.0)
+    assert cs._reply_unprompted(st) is True                  # 끄면 종전 규칙
+
+
+@pytest.mark.asyncio
 async def test_noise_floor_drops_at_once_when_tv_switches_off(monkeypatch):
     """PM-DEC-1018 — TV 대책이 꺼져 있으면 소음 바닥은 3차처럼 작은 소리에 즉시 내려간다(켜지면 5%씩)."""
     monkeypatch.setattr(cs, "AGATE", False)
