@@ -84,3 +84,28 @@ async def test_immediate_disconnect_is_clean(fake_stt):
     transport = _StubTransport([SttInbound(kind="disconnect")])
     await asyncio.wait_for(PronSttSession(transport).run(), timeout=5)
     assert transport.events == []
+
+
+class _ImmediateStopTransport(_StubTransport):
+    """스크립트 끝(stop 포함)을 그대로 내주고, 그 뒤엔 영원히 기다린다(앱 1.0.1 — stop 뒤 소켓을 열어 둔다)."""
+
+    async def receive(self) -> SttInbound:
+        if self._scripted:
+            return self._scripted.pop(0)
+        await asyncio.Event().wait()
+
+
+@pytest.mark.asyncio
+async def test_stop_still_delivers_last_final_then_done(fake_stt):
+    """PM-DEC-951·1017(G) — 마지막 말 바로 뒤 stop 이어도 그 final 이 나가고, 그다음 done 이 온다."""
+    transport = _ImmediateStopTransport(
+        [
+            SttInbound(kind="control", control={"type": "config", "words": ["머리"], "sampleRate": 16000}),
+            SttInbound(kind="control", control={"type": "__test_say", "text": "머리"}),
+            SttInbound(kind="control", control={"type": "stop"}),
+        ]
+    )
+    await asyncio.wait_for(PronSttSession(transport).run(), timeout=5)
+    types = [e.get("type") for e in transport.events]
+    assert "final" in types and "done" in types, transport.events
+    assert types.index("final") < types.index("done")
