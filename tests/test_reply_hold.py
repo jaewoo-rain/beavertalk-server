@@ -406,3 +406,21 @@ async def test_unprompted_answer_dropped_then_real_answer_sent(hold_on, monkeypa
     ])
     assert ws.audio() == [b"\xBB\x00" * 10]
     assert st.hold_dropped == 1
+
+
+@pytest.mark.asyncio
+async def test_noise_floor_drops_at_once_when_tv_switches_off(monkeypatch):
+    """PM-DEC-1018 — TV 대책이 꺼져 있으면 소음 바닥은 3차처럼 작은 소리에 즉시 내려간다(켜지면 5%씩)."""
+    monkeypatch.setattr(cs, "AGATE", False)
+    monkeypatch.setattr(cs, "NOISE_GATE_RMS", 0.0)
+    loud = int(0.05 * 32767).to_bytes(2, "little", signed=True) * 320
+    soft = int(0.002 * 32767).to_bytes(2, "little", signed=True) * 320
+    st = cs._CallState()
+    cs._reply_hold_track_voice(st, loud)
+    cs._reply_hold_track_voice(st, soft)
+    assert st.hold_noise_floor == pytest.approx(0.002, abs=1e-4)
+    monkeypatch.setattr(cs, "AGATE", True)
+    st = cs._CallState()
+    cs._reply_hold_track_voice(st, loud)
+    cs._reply_hold_track_voice(st, soft)
+    assert st.hold_noise_floor > 0.04                      # 켜지면 서서히

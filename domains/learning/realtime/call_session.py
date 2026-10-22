@@ -6667,7 +6667,11 @@ def _reply_hold_track_voice(state: "_CallState", data: bytes) -> None:
     r = frame_rms(data)
     floor = state.hold_noise_floor
     # PM-DEC-1005 — 내려갈 때도 서서히(5%) · 0 프레임 한 번에 바닥이 0 으로 붙지 않게(call flow 2501·2503 «바닥=0»)
-    state.hold_noise_floor = r if floor <= 0 else floor + (r - floor) * (0.05 if r < floor else 0.002)   # 빨리 내리고 천천히(약 10초) 올린다
+    #   PM-DEC-1018 — 이 방식은 TV 대책(소음 게이트)이 켜졌을 때만. 꺼지면 3차와 같이 즉시 내림(fourth4a 끊김 23% vs 3차 11%).
+    if AGATE or NOISE_GATE_RMS > 0:
+        state.hold_noise_floor = r if floor <= 0 else floor + (r - floor) * (0.05 if r < floor else 0.002)
+    else:
+        state.hold_noise_floor = r if (floor <= 0 or r < floor) else floor + (r - floor) * 0.002   # 빨리 내리고 천천히(약 10초) 올린다
     if r >= max(REGROUND_VOICE_RMS, floor * REPLY_HOLD_NOISE_MULT):
         state.hold_voice_ts = asyncio.get_running_loop().time()
 
