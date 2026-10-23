@@ -199,5 +199,28 @@ def test_warmup_loads_generic_and_survives_failures(monkeypatch):
     monkeypatch.setattr(ce, "_sync_tts_client", lambda: None)
     ce._GENERIC.clear()
     out = ce.warmup(("Baba",))
-    assert out["storage"] == "RuntimeError" and out["speech"] == "RuntimeError" and out["tts"] == "없음"
-    assert int(out["generic_Baba"]) > 0 and ("Baba", "en") in ce._GENERIC
+    assert out["storage"].startswith("RuntimeError") and out["speech"].startswith("RuntimeError")
+    assert out["tts"].startswith("없음") and int(out["generic_Baba"].split()[0]) > 0 and ("Baba", "en") in ce._GENERIC
+
+
+
+def test_client_created_once_under_concurrency(monkeypatch):
+    """seventh2 — 데우기 스레드와 통화가 동시에 받아쓰기 클라이언트를 찾으면 하나만 만든다."""
+    import threading
+    import time as _t
+    made = []
+
+    def slow_make():
+        _t.sleep(0.2)
+        made.append(1)
+        ce._SYNC_SPEECH.append(object())
+        return ce._SYNC_SPEECH[0]
+
+    ce._SYNC_SPEECH.clear()
+    monkeypatch.setattr(ce, "_make_speech_client", slow_make)
+    got = []
+    ts = [threading.Thread(target=lambda: got.append(ce._sync_speech_client())) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    ce._SYNC_SPEECH.clear()
+    assert len(made) == 1 and len({id(g) for g in got}) == 1
