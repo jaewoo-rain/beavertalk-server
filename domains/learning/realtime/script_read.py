@@ -315,6 +315,8 @@ def load_bank(char: str, lesson: str = "A2-T11-1") -> tuple[dict[str, Clip], lis
 class ScriptReadSession(ClipExprSession):
     """대본 읽기 대리 세션 — 진행 틀만 다르다(요청서 3절)."""
 
+    SHORT_ANSWERS = False   # 대본 줄은 긴 문장 — 짧은 소리를 말로 치지 않는다(call 2250 1회 틀림 재판정)
+
     PERSIST = ("idx", "stage", "done_items", "_last_in_group", "_recent", "attempt", "empties", "angry_used", "angry_line")
     CLOSE_GROUP = "sg_close_call"
 

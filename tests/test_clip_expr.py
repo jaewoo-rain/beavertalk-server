@@ -481,3 +481,30 @@ async def test_ask_uses_only_existing_variants():
     assert got == ["ask_1_1"] * 3
     h.s.idx, h.s.ask_n = 1, 1
     assert h.s._ask_id() == "ask_2_2"          # 두 변형이 다 있으면 기존처럼 번갈아
+
+
+def _frames(level: int, ms: int) -> list[bytes]:
+    return [array.array("h", [level, -level] * 320).tobytes() for _ in range(ms // 40)]
+
+
+@pytest.mark.parametrize("pattern,heard", [
+    # «국|적» — 0.16s 또렷한 소리 · 받침 폐쇄 틈 0.32s · 둘째 음절(2898 말 앞 버림 → dunno)
+    ([(8000, 160), (0, 320), (8000, 120), (0, 200)], True),
+    # «네» — 0.12s 또렷한 한 음절만
+    ([(8000, 120), (0, 200)], True),
+    # 약한 잡음 0.12s(문턱 근처)는 여전히 버린다
+    ([(800, 120), (0, 600)], False),
+])
+@pytest.mark.asyncio
+async def test_short_clear_answer_is_not_dropped(pattern, heard):
+    """2898 — 한 단어 단답(«국적»·«태국»)을 말 앞 잡음으로 버려 정답이 dunno 가 됐다."""
+    h = _Harness([])
+    s = h.s
+    s._reset_listen()
+    for level, ms in pattern:
+        for f in _frames(level, ms):
+            await s.send_audio(f)
+    for _ in range(10):
+        await s.send_audio(SILENT)
+    got = [c for c in list(s._cmd._queue) if c[0] == "utt"]
+    assert bool(got) is heard, (pattern, list(s._cmd._queue))
