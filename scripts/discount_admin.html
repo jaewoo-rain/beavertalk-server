@@ -108,6 +108,12 @@
 <div id="log"></div>
 
 <script>
+function devKey() {  // 보안(2026-10-21) — /__dev/login·signup 은 개발 키(X-Dev-Key) 필요 · 이 탭에만 둔다
+  let k = sessionStorage.getItem('bt_dev_key');
+  if (!k) { k = prompt('개발 키(X-Dev-Key)') || ''; if (k) sessionStorage.setItem('bt_dev_key', k); }
+  return k;
+}
+
 const $ = s => document.querySelector(s);
 const apiBase = () => $('#apibase').value.replace(/\/+$/, '');
 let CHARS = [], EVENTS = [], SKEW = 0;   // SKEW: 서버-브라우저 시계 차(ms)
@@ -138,7 +144,7 @@ async function login() {
   setWho('로그인 중…', false);
   try {
     const r = await fetch(apiBase() + '/__dev/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey() },
       body: JSON.stringify({ email, password }),
     });
     if (!r.ok) { setWho('❌ 로그인 실패 (' + r.status + ')', false); return; }
@@ -304,7 +310,7 @@ async function create() {
   };
   try {
     const r = await api('/__dev/discounts', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey() },
       body: JSON.stringify(body),
     });
     log(`생성됨 id=${r.discount_event_id}`);
